@@ -15,6 +15,9 @@ struct Uniforms {
 
 struct SimpleVert { var pos: V4; var color: V4 }
 struct HudVert { var pos: V2; var uv: V2; var color: V4; var extra: V4 }
+struct StarParams { var rot: float4x4; var tint: V4 }
+
+let CLOUD_Y: Float = 158
 
 final class Renderer: NSObject, MTKViewDelegate {
     let device: MTLDevice
@@ -24,6 +27,10 @@ final class Renderer: NSObject, MTKViewDelegate {
     let waterPipe: MTLRenderPipelineState
     let simplePipe: MTLRenderPipelineState
     let hudPipe: MTLRenderPipelineState
+    let starPipe: MTLRenderPipelineState
+    let cloudPipe: MTLRenderPipelineState
+    let starBuf: MTLBuffer
+    let starVerts: Int
     let depthWrite: MTLDepthStencilState
     let depthRead: MTLDepthStencilState
     let depthNone: MTLDepthStencilState
@@ -71,6 +78,28 @@ final class Renderer: NSObject, MTKViewDelegate {
         waterPipe = try pipe("chunkVS", "waterFS", blend: true)
         simplePipe = try pipe("simpleVS", "simpleFS", blend: true)
         hudPipe = try pipe("hudVS", "hudFS", blend: true)
+        starPipe = try pipe("starVS", "simpleFS", blend: true)
+        cloudPipe = try pipe("cloudVS", "cloudFS", blend: true)
+
+        // Star field: fixed random directions on a sphere of radius 90 (sky frame, rotated per frame).
+        var stars: [SimpleVert] = []
+        for i in 0..<1400 {
+            let u1 = hashf(i, 1, 0, 4242) * 2 - 1, u2 = hashf(i, 2, 0, 4242) * 2 * .pi
+            let rr = (1 - u1 * u1).squareRoot()
+            let dir = V3(rr * cosf(u2), u1, rr * sinf(u2))
+            let size: Float = 0.1 + 0.16 * hashf(i, 3, 0, 4242) * hashf(i, 4, 0, 4242)
+            let b: Float = 0.45 + 0.55 * hashf(i, 5, 0, 4242)
+            let warm = hashf(i, 6, 0, 4242)
+            let col = V4(b * (0.85 + 0.15 * warm), b * 0.9, b * (1 - 0.15 * warm), 1)
+            let c = dir * 90
+            let ref = abs(dir.y) > 0.9 ? V3(1, 0, 0) : V3(0, 1, 0)
+            let r = simd_normalize(simd_cross(dir, ref)) * size
+            let up = simd_normalize(simd_cross(r, dir)) * size
+            let q = [c - r - up, c + r - up, c + r + up, c - r + up]
+            for k in [0, 1, 2, 0, 2, 3] { stars.append(SimpleVert(pos: V4(q[k], 1), color: col)) }
+        }
+        starVerts = stars.count
+        starBuf = device.makeBuffer(bytes: stars, length: stars.count * MemoryLayout<SimpleVert>.stride, options: .storageModeShared)!
 
         func ds(_ cmp: MTLCompareFunction, _ write: Bool) -> MTLDepthStencilState {
             let d = MTLDepthStencilDescriptor()
@@ -205,6 +234,17 @@ final class Renderer: NSObject, MTKViewDelegate {
                 body(sd, 11, V4(1.0, 0.85, 0.5, 0.18))
                 body(-sd, 5, V4(0.85, 0.88, 0.95, 1))
             }
+            let starAlpha = simd_clamp((0.6 - daylight) / 0.35, 0, 1)
+            if !underwater && starAlpha > 0 {
+                var sp = StarParams(rot: rotationZ(Float(game.dayFraction * 2 * .pi)), tint: V4(1, 1, 1, starAlpha))
+                enc.setRenderPipelineState(starPipe)
+                enc.setDepthStencilState(depthNone)
+                enc.setCullMode(.none)
+                enc.setVertexBuffer(starBuf, offset: 0, index: 0)
+                enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+                enc.setVertexBytes(&sp, length: MemoryLayout<StarParams>.stride, index: 2)
+                enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: starVerts)
+            }
             if let off = push(verts) {
                 enc.setRenderPipelineState(simplePipe)
                 enc.setDepthStencilState(depthNone)
@@ -281,6 +321,26 @@ final class Renderer: NSObject, MTKViewDelegate {
             enc.setVertexBytes(&o, length: 16, index: 2)
             enc.drawIndexedPrimitives(type: .triangle, indexCount: min(c.waterQuads, Renderer.maxQuads) * 6,
                                       indexType: .uint32, indexBuffer: quadIndices, indexBufferOffset: 0)
+        }
+
+        // Cloud layer (after water so both blend over terrain; depth-tested against terrain).
+        if !underwater {
+            let ext = far
+            let cy = CLOUD_Y - eye.y
+            let q = [V3(-ext, cy, -ext), V3(ext, cy, -ext), V3(ext, cy, ext), V3(-ext, cy, ext)]
+            let cv = [0, 1, 2, 0, 2, 3].map { SimpleVert(pos: V4(q[$0], 1), color: V4(1, 1, 1, 1)) }
+            if let off = push(cv) {
+                let wind = Float((game.time * 1.3).truncatingRemainder(dividingBy: 12 * 8192))
+                var cp = V4(eye.x + wind, eye.z, ext * 0.95, 0)
+                enc.setRenderPipelineState(cloudPipe)
+                enc.setDepthStencilState(depthRead)
+                enc.setCullMode(.none)
+                enc.setVertexBuffer(scratch, offset: off, index: 0)
+                enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+                enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+                enc.setFragmentBytes(&cp, length: 16, index: 2)
+                enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: cv.count)
+            }
         }
 
         if drawHUD, let off = push(buildHUD(W, H)) {

@@ -36,6 +36,11 @@ func rotationY(_ a: Float) -> float4x4 {
     return float4x4(columns: (V4(c, 0, -s, 0), V4(0, 1, 0, 0), V4(s, 0, c, 0), V4(0, 0, 0, 1)))
 }
 
+func rotationZ(_ a: Float) -> float4x4 {
+    let c = cosf(a), s = sinf(a)
+    return float4x4(columns: (V4(c, s, 0, 0), V4(-s, c, 0, 0), V4(0, 0, 1, 0), V4(0, 0, 0, 1)))
+}
+
 struct Frustum {
     var planes: [V4]
     init(_ m: float4x4) {

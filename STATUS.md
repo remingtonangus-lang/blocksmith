@@ -26,6 +26,10 @@
   quads × 2 windings into the opaque (cutout) buffer; vertex face slot 6 = plant shade. Breaking the block
   under a plant pops the plant; right-clicking a plant replaces it; plants need an opaque block below.
   New blocks 27–30: Tall Grass, Red/Yellow/Blue Flower.
+- Clouds: a single camera-relative quad; `cloudFS` picks cloud/no-cloud per 12×12-block cell from two
+  octaves of value noise, so it costs one full-screen-ish blended draw and zero CPU work.
+  Stars: 1400 quads in a static buffer, rotated by `rotationZ(dayFraction·2π)` (same axis as the sun) and
+  faded in as daylight drops below 0.6.
 - New blocks 23–26: Birch Log, Birch Leaves, Spruce Log, Spruce Leaves (appended; old saves stay valid).
 
 ## Known risks / unverified assumptions
@@ -33,5 +37,5 @@
 - Water is static (no flow); placing water isn't in the block cycle.
 
 ## Next
-Remaining list, in order: (c) clouds + stars, (d) block light + torches,
+Remaining list, in order: (d) block light + torches,
 (e) flowing water, (f) creative inventory, (g) survival, (h) sounds, (i) passive mobs.
