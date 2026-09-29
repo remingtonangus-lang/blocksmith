@@ -49,8 +49,8 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     o.layer = float(layer);
     // Skylight scales with daylight; block light (torches) is warm and constant.
     float sky = skyL * (0.35 + 0.65 * skyL) * u.params.y;
-    float blk = blkL * (0.3 + 0.7 * blkL);
-    float3 lit = max(float3(sky), blk * float3(1.0, 0.83, 0.6));
+    float blk = blkL / (4.0 - 3.0 * blkL) * 1.1;   // steep falloff: bright pool, dark edges
+    float3 lit = max(float3(sky), blk * float3(1.0, 0.76, 0.46));
     lit = max(lit, float3(0.035));
     o.shade = lit * (faceShade[face] * aoCurve[ao]);
     o.dist = length(rel);
