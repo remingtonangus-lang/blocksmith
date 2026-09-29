@@ -120,9 +120,9 @@ vertex CloudOut cloudVS(uint vid [[vertex_id]],
 }
 
 static float hash21(float2 p) {
-    p = fract(p * float2(0.1031, 0.1030));
-    p += dot(p, p.yx + 33.33);
-    return fract((p.x + p.y) * p.x);
+    float3 p3 = fract(float3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
 }
 
 static float vnoise(float2 p) {
@@ -142,7 +142,7 @@ fragment float4 cloudFS(CloudOut in [[stage_in]],
     if (n < 0.8) { discard_fragment(); }
     float fade = 1.0 - smoothstep(cp.z * 0.5, cp.z, length(in.rel.xz));
     float day = u.params.y;
-    float3 col = float3(1.0, 1.0, 1.0) * (0.12 + 0.88 * day);
+    float3 col = float3(1.0, 1.0, 1.0) * mix(0.05, 1.0, smoothstep(0.12, 1.0, day));
     col = mix(col, u.fogColor.rgb, 0.2);
     return float4(col, 0.82 * fade);
 }
