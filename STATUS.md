@@ -70,6 +70,12 @@
   attenuation (28 blocks) and stereo pan from the listener yaw. If the audio engine can't start, the game runs
   silently. `./snap.sh` also runs `--sounds snaps/sounds`, which writes every sound as a WAV (published on
   ci-snaps) — listen there. AVFoundation was added to build.sh (the user asked for AVAudioEngine).
+- Mobs: `MobManager` keeps ≤ 20 animals; every 1.5 s it may spawn a group of 2–4 on grass 2–6 chunks away
+  (biome decides the species), and despawns mobs that leave the loaded area. Models are cuboids built each
+  frame straight into the renderer's scratch ring (no arrays; ~400 verts/mob), coloured with a model-space
+  pixel pattern in `mobFS` (cow patches, wool, feathers). Lighting is daylight × (0.55 if something is above).
+  Left-click/RT hits (3 damage, knockback, 5 s panic); dead mobs just disappear (no drops yet). Mobs are not
+  saved. Chickens fall slowly.
 - New blocks 23–26: Birch Log, Birch Leaves, Spruce Log, Spruce Leaves (appended; old saves stay valid).
 
 ## Known risks / unverified assumptions

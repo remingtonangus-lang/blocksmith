@@ -151,6 +151,49 @@ fragment float4 cloudFS(CloudOut in [[stage_in]],
     return float4(col, 0.82 * fade);
 }
 
+// Mobs: flat-coloured cuboids; the pattern id adds pixel detail in model space (1/16-block cells).
+struct MobVert { float4 pos; float4 color; float4 local; };
+struct MobOut { float4 pos [[position]]; float3 color; float shade; float3 local; float pattern [[flat]]; float dist; };
+
+vertex MobOut mobVS(uint vid [[vertex_id]],
+                    const device MobVert* verts [[buffer(0)]],
+                    constant Uniforms& u [[buffer(1)]]) {
+    MobVert m = verts[vid];
+    MobOut o;
+    o.pos = u.viewProj * float4(m.pos.xyz, 1.0);
+    o.color = m.color.rgb;
+    o.shade = m.color.a;
+    o.local = m.local.xyz;
+    o.pattern = m.pos.w;
+    o.dist = length(m.pos.xyz);
+    return o;
+}
+
+static float hash31(float3 p) {
+    p = fract(p * 0.1031);
+    p += dot(p, p.zyx + 31.32);
+    return fract((p.x + p.y) * p.z);
+}
+
+fragment float4 mobFS(MobOut in [[stage_in]], constant Uniforms& u [[buffer(1)]]) {
+    float3 cell = floor(in.local + 0.001);
+    float h = hash31(cell);
+    float3 c = in.color;
+    if (in.pattern > 0.5 && in.pattern < 1.5) {
+        // cow: big white patches
+        float n = vnoise(cell.xz * 0.28 + cell.y * 0.21 + 3.0) * 0.7 + vnoise(cell.zy * 0.33 + 7.0) * 0.3;
+        if (n > 0.58) { c = float3(0.92, 0.9, 0.86); }
+        c *= 0.9 + 0.1 * h;
+    } else if (in.pattern > 1.5 && in.pattern < 2.5) {
+        c *= 0.8 + 0.2 * h;           // wool
+    } else if (in.pattern > 2.5) {
+        c *= 0.88 + 0.12 * step(0.5, h); // feathers
+    } else {
+        c *= 0.93 + 0.07 * h;
+    }
+    return float4(applyFog(c * in.shade, in.dist, u), 1.0);
+}
+
 struct HudVert { float2 pos; float2 uv; float4 color; float4 extra; };
 struct HudOut { float4 pos [[position]]; float2 uv; float4 color; float layer [[flat]]; };
 

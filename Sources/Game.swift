@@ -7,6 +7,7 @@ final class Game {
     let world: World
     let player = Player()
     let input = InputState()
+    let mobs = MobManager()
     let save: SaveManager?
     let persistent: Bool
 
@@ -272,7 +273,26 @@ final class Game {
         placeCooldown -= dt
         let breakHeld = input.leftDown || p.rt > 0.5
         let breakNow = input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5)
-        if let t = target, breakNow || (breakHeld && breakCooldown <= 0) {
+        // Hitting an animal takes priority over the block behind it.
+        var mobHit: Mob?
+        if let hit = mobs.raycast(player.eye, player.look, maxDist: 4) {
+            let (m, dist) = hit
+            if let t = target {
+                let c = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5
+                if dist < simd_length(c - player.eye) - 0.4 { mobHit = m }
+            } else {
+                mobHit = m
+            }
+        }
+        if let m = mobHit {
+            if breakNow {
+                m.hit(from: player.pos, damage: 3)
+                sfx(m.kind.call, 0.9, at: m.pos + V3(0, m.kind.height * 0.8, 0))
+                if m.health <= 0 { sfx(.breakBlock(.plant), 0.8, at: m.pos); onToast?("\(m.kind.name) defeated") }
+                if survival { exhaustion += 0.1 }
+                breakCooldown = 0.25
+            }
+        } else if let t = target, breakNow || (breakHeld && breakCooldown <= 0) {
             let broken = world.block(t.hit.x, t.hit.y, t.hit.z)
             sfx(.breakBlock(soundMat(broken)), at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
             world.setBlock(t.hit.x, t.hit.y, t.hit.z, AIR)
@@ -414,6 +434,7 @@ final class Game {
 
     // World clock, fluids and autosave (runs whenever the game isn't paused).
     private func advance(_ dt: Double) {
+        mobs.update(Float(dt), game: self)
         fluidTimer += dt
         if fluidTimer >= 0.2 { fluidTimer = 0; world.fluidTick() }
         time += dt

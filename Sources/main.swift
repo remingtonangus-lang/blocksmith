@@ -71,6 +71,21 @@ enum Snapshot {
             t.mesh += t2.mesh
             print("fluid cells pending after 60 ticks: \(world.fluidPending.count)")
         }
+        if CommandLine.arguments.contains("--mobs") {
+            // A few animals standing in front of the camera, legs mid-stride.
+            let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)), r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))
+            let spots: [(MobKind, Float, Float)] = [(.cow, 6, -2.5), (.sheep, 6, 1.5), (.chicken, 4, 0), (.cow, 10, 3), (.sheep, 9, -4), (.chicken, 5, 2.5)]
+            for (i, spot) in spots.enumerated() {
+                let p = pos + f * spot.1 + r * spot.2
+                let x = Int(floor(p.x)), z = Int(floor(p.z))
+                let y = game.mobs.grassSurface(world, x, z) ?? (world.gen.column(x, z).height + 1)
+                let m = Mob(spot.0, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
+                m.yaw = game.player.yaw + .pi + Float(i) * 0.9
+                m.walkPhase = Float(i) * 0.8
+                m.walkAmount = 1
+                game.mobs.mobs.append(m)
+            }
+        }
         if CommandLine.arguments.contains("--torches") {
             // Light test: a ring of torches plus a lamp around the camera, then remesh what changed.
             for k in 0..<10 {

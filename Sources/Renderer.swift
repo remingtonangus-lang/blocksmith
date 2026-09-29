@@ -29,6 +29,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     let hudPipe: MTLRenderPipelineState
     let starPipe: MTLRenderPipelineState
     let cloudPipe: MTLRenderPipelineState
+    let mobPipe: MTLRenderPipelineState
     let starBuf: MTLBuffer
     let starVerts: Int
     let depthWrite: MTLDepthStencilState
@@ -40,7 +41,7 @@ final class Renderer: NSObject, MTKViewDelegate {
 
     private let inflight = DispatchSemaphore(value: 3)
     private var ring: [MTLBuffer] = []   // per-frame scratch for sky/outline/HUD vertices
-    private let ringSize = 1 << 20
+    private let ringSize = 1 << 21
     private var frame = 0
     private var lastTime = CACurrentMediaTime()
     var drawHUD = true
@@ -80,6 +81,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         hudPipe = try pipe("hudVS", "hudFS", blend: true)
         starPipe = try pipe("starVS", "simpleFS", blend: true)
         cloudPipe = try pipe("cloudVS", "cloudFS", blend: true)
+        mobPipe = try pipe("mobVS", "mobFS", blend: false)
 
         // Star field: fixed random directions on a sphere of radius 90 (sky frame, rotated per frame).
         var stars: [SimpleVert] = []
@@ -286,6 +288,26 @@ final class Renderer: NSObject, MTKViewDelegate {
             enc.setVertexBytes(&o, length: 16, index: 2)
             enc.drawIndexedPrimitives(type: .triangle, indexCount: min(c.opaqueQuads, Renderer.maxQuads) * 6,
                                       indexType: .uint32, indexBuffer: quadIndices, indexBufferOffset: 0)
+        }
+
+        // Mobs (written straight into the scratch ring: no per-frame arrays)
+        if !game.mobs.mobs.isEmpty {
+            let off = (scratchOff + 255) & ~255
+            let cap = (ringSize - off) / MemoryLayout<MobVert>.stride
+            if cap > 36 {
+                let ptr = (scratch.contents() + off).bindMemory(to: MobVert.self, capacity: cap)
+                let n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: daylight, world: game.world, into: ptr, capacity: cap)
+                if n > 0 {
+                    scratchOff = off + n * MemoryLayout<MobVert>.stride
+                    enc.setRenderPipelineState(mobPipe)
+                    enc.setDepthStencilState(depthWrite)
+                    enc.setCullMode(.none)
+                    enc.setVertexBuffer(scratch, offset: off, index: 0)
+                    enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+                    enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+                    enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: n)
+                }
+            }
         }
 
         // Target block outline
