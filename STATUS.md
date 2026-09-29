@@ -7,7 +7,13 @@
   Also uploaded as the `snaps` workflow artifact. The runner has a (paravirtual) Metal device, so snapshots are real renders.
 - Development happens on Linux without a Swift toolchain; CI is the compiler. Timings on the CI VM are
   slower than a real M1, so treat them as upper bounds.
-- `snap.sh` gained `--find <biome>` (spirals from spawn to the middle of a biome) for biome-specific shots.
+- CI toolchain: macOS 14.8 runner, Xcode 16 / Swift 6.0.3 (Remington's Mac has Swift 6.3 — a newer compiler
+  may add warnings CI doesn't show). Builds have been warning-free in CI.
+- `snap.sh` gained shots for every feature; harness flags: `--find <biome>`, `--torches`, `--flood`, `--mobs`,
+  `--inventory N`, `--survival HP`, `--sim SECONDS`, and `Blocksmith --sounds DIR`.
+- Performance (CI VM, rd 8): mesh 0.7–1.1 ms/chunk (was 0.25 before real lighting), full 361-chunk load
+  ~40 ms gen + ~40 ms mesh in parallel, frame encode+GPU 4–6 ms offscreen, main-thread tick well under 1 ms
+  except block edits (≤ 3.5 ms sync remesh). Budget for 60 fps at rd 8 on M1 should hold; verify on the Mac.
 
 ## Feature log (newest last)
 | Feature | State |
