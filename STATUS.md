@@ -30,10 +30,18 @@
   octaves of value noise, so it costs one full-screen-ish blended draw and zero CPU work.
   Stars: 1400 quads in a static buffer, rotated by `rotationZ(dayFraction·2π)` (same axis as the sun) and
   faded in as daylight drops below 0.6.
+- Lighting: the mesher gathers the 3×3 chunk neighbourhood into one 48×48×192 region, fills direct
+  skylight (15 straight down until a sky-stopping block: solids, leaves, water), then BFS-floods sky and
+  block light (−1 per step, solids block). Light reaches ≤15 blocks, so the region contains every source
+  affecting the centre chunk; no light is stored, remeshing recomputes it (simple, always consistent).
+  Vertex w1 now = tex(8) | sky(4)<<8 | block(4)<<12, averaged per vertex over the face/side/corner cells
+  (smooth lighting). Shader: `max(sky·daylight, block·warm)`. Block edits remesh the chunk + edge
+  neighbours synchronously and the other neighbours in the background (light radius).
+  Torch = cross sprite (plant kind), placeable on floor or against a wall; Lamp = solid glowing block.
+  Known limit: wall torches don't pop when their wall is broken.
 - New blocks 23–26: Birch Log, Birch Leaves, Spruce Log, Spruce Leaves (appended; old saves stay valid).
 
 ## Known risks / unverified assumptions
-- Skylight is a heightmap approximation (no propagation) — caves are dark by design, overhangs uniformly shaded.
 - Water is static (no flow); placing water isn't in the block cycle.
 
 ## Next

@@ -78,6 +78,13 @@ final class World {
             d.meshVersion += 1
             remeshSync(d)
         }
+        // Light spreads up to 15 blocks, so every neighbour may change: remesh the rest in the background.
+        for dz in -1...1 {
+            for dx in -1...1 where dx != 0 || dz != 0 {
+                guard let n = chunks[ChunkKey(x: cx + dx, z: cz + dz)] else { continue }
+                if !dirty.contains(where: { $0 === n }) { n.meshVersion += 1 }
+            }
+        }
     }
 
     // MARK: Meshing helpers

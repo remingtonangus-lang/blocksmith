@@ -11,7 +11,7 @@ final class Game {
     let persistent: Bool
 
     var time: Double = DAY_LENGTH * 0.06
-    var hotbar: [UInt8] = [GRASS, DIRT, STONE, COBBLE, PLANKS, LOG, GLASS, BRICKS, STONE_BRICKS]
+    var hotbar: [UInt8] = [GRASS, DIRT, STONE, COBBLE, PLANKS, LOG, GLASS, TORCH, LAMP]
     var selected = 0
     var paused = true { didSet { if paused != oldValue { onPauseChanged?(paused) } } }
     var showDebug = false
@@ -223,7 +223,15 @@ final class Game {
             let id = hotbar[selected]
             let solid = Blocks.collide[Int(id)]
             let replaceable = existing == AIR || existing == WATER || Blocks.isPlant(existing)
-            let supported = !Blocks.isPlant(id) || Blocks.opaque[Int(world.block(at.x, at.y - 1, at.z))]
+            let supported: Bool
+            if id == TORCH {
+                // Torches stand on the floor or hang on a wall.
+                supported = [IVec3(0, -1, 0), IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)].contains { d in
+                    Blocks.opaque[Int(world.block(at.x + d.x, at.y + d.y, at.z + d.z))]
+                }
+            } else {
+                supported = !Blocks.isPlant(id) || Blocks.opaque[Int(world.block(at.x, at.y - 1, at.z))]
+            }
             if replaceable && supported && at.y >= 0 && at.y < CH && !(solid && player.intersectsBlock(at)) {
                 world.setBlock(at.x, at.y, at.z, id)
             }

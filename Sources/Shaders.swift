@@ -17,7 +17,7 @@ struct ChunkOut {
     float4 pos [[position]];
     float2 uv;
     float layer [[flat]];
-    float shade;
+    float3 shade;
     float dist;
 };
 
@@ -39,16 +39,20 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     uint ao = (w0 >> 24) & 3u;
     if (((w0 >> 26) & 1u) != 0u) { p.y -= 0.125; }
     uint layer = w1 & 255u;
-    float light = float((w1 >> 8) & 15u) / 15.0;
+    float skyL = float((w1 >> 8) & 15u) / 15.0;
+    float blkL = float((w1 >> 12) & 15u) / 15.0;
 
     float3 rel = p + chunkOffset.xyz;
     ChunkOut o;
     o.pos = u.viewProj * float4(rel, 1.0);
     o.uv = cornerUV[corner];
     o.layer = float(layer);
-    float sky = light * (0.35 + 0.65 * light);
-    float lit = max(sky * u.params.y, 0.035);
-    o.shade = lit * faceShade[face] * aoCurve[ao];
+    // Skylight scales with daylight; block light (torches) is warm and constant.
+    float sky = skyL * (0.35 + 0.65 * skyL) * u.params.y;
+    float blk = blkL * (0.3 + 0.7 * blkL);
+    float3 lit = max(float3(sky), blk * float3(1.0, 0.83, 0.6));
+    lit = max(lit, float3(0.035));
+    o.shade = lit * (faceShade[face] * aoCurve[ao]);
     o.dist = length(rel);
     return o;
 }
@@ -73,7 +77,7 @@ fragment float4 waterFS(ChunkOut in [[stage_in]],
     float t = u.params.z;
     float2 uv = in.uv + float2(t * 0.03, t * 0.017);
     float4 c = tex.sample(texSampler, uv, uint(in.layer));
-    float3 rgb = c.rgb * max(in.shade, 0.05);
+    float3 rgb = c.rgb * max(in.shade, float3(0.05));
     float f = smoothstep(u.fogColor.w, u.params.x, in.dist);
     return float4(mix(rgb, u.fogColor.rgb, f), mix(c.a, 1.0, f * 0.8));
 }

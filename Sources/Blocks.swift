@@ -33,6 +33,8 @@ let TALL_GRASS: UInt8 = 27
 let RED_FLOWER: UInt8 = 28
 let YELLOW_FLOWER: UInt8 = 29
 let BLUE_FLOWER: UInt8 = 30
+let TORCH: UInt8 = 31
+let LAMP: UInt8 = 32
 
 enum T {
     static let stone = 0, grassTop = 1, grassSide = 2, dirt = 3, cobble = 4, planks = 5, bedrock = 6, sand = 7
@@ -41,7 +43,8 @@ enum T {
     static let stoneBrick = 23, sandstoneSide = 24, sandstoneTop = 25
     static let birchSide = 26, birchTop = 27, spruceSide = 28, spruceTop = 29, birchLeaves = 30, spruceLeaves = 31
     static let tallGrass = 32, redFlower = 33, yellowFlower = 34, blueFlower = 35
-    static let count = 36
+    static let torch = 36, lamp = 37
+    static let count = 38
 }
 
 // plant = cross-shaped cutout sprite (two diagonal quads), no collision, doesn't block light.
@@ -58,7 +61,9 @@ final class BlockTable {
     var defs: [BlockDef] = []
     var kind = [UInt8](repeating: 0, count: 256)
     var opaque = [Bool](repeating: false, count: 256)
-    var sky = [Bool](repeating: false, count: 256)
+    var sky = [Bool](repeating: false, count: 256)        // stops the straight-down 15 skylight column
+    var lightOpaque = [Bool](repeating: false, count: 256) // light can't enter (solid blocks)
+    var emit = [UInt8](repeating: 0, count: 256)          // block light emitted (0-15)
     var aoOcc = [Bool](repeating: false, count: 256)
     var collide = [Bool](repeating: false, count: 256)
     var cullSame = [Bool](repeating: false, count: 256)
@@ -79,7 +84,7 @@ final class BlockTable {
         add("Oak Log", .solid, column(T.logSide, T.logTop, T.logTop))
         add("Oak Leaves", .cutout, all(T.leaves))
         add("Glass", .cutout, all(T.glass), sky: false, cullSame: true)
-        add("Water", .liquid, all(T.water), sky: false)
+        add("Water", .liquid, all(T.water), sky: true)
         add("Coal Ore", .solid, all(T.coal))
         add("Iron Ore", .solid, all(T.iron))
         add("Gold Ore", .solid, all(T.gold))
@@ -98,15 +103,19 @@ final class BlockTable {
         add("Red Flower", .plant, all(T.redFlower))
         add("Yellow Flower", .plant, all(T.yellowFlower))
         add("Blue Flower", .plant, all(T.blueFlower))
+        add("Torch", .plant, all(T.torch), emit: 14)
+        add("Lamp", .solid, all(T.lamp), emit: 15)
     }
 
-    func add(_ name: String, _ kind: BlockKind, _ tex: [Int], sky: Bool? = nil, cullSame: Bool = false) {
+    func add(_ name: String, _ kind: BlockKind, _ tex: [Int], sky: Bool? = nil, cullSame: Bool = false, emit: UInt8 = 0) {
         let id = defs.count
         let blocksSky = sky ?? (kind == .solid || kind == .cutout)
         defs.append(BlockDef(name: name, kind: kind, tex: tex))
         self.kind[id] = kind.rawValue
         opaque[id] = kind == .solid
         self.sky[id] = blocksSky
+        lightOpaque[id] = kind == .solid
+        self.emit[id] = emit
         aoOcc[id] = kind == .solid || (kind == .cutout && !cullSame)
         collide[id] = kind == .solid || kind == .cutout
         self.cullSame[id] = cullSame

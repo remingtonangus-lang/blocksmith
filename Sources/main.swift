@@ -50,7 +50,20 @@ enum Snapshot {
         game.time = (Double(arg("--time") ?? "") ?? 0.2) * DAY_LENGTH
         if let s = arg("--slot") { game.selected = Int(s) ?? 0 }
 
-        let t = world.loadSync(center: pos, radius: rd)
+        var t = world.loadSync(center: pos, radius: rd)
+        if CommandLine.arguments.contains("--torches") {
+            // Light test: a ring of torches plus a lamp around the camera, then remesh what changed.
+            for k in 0..<10 {
+                let a = Float(k) / 10 * 2 * .pi
+                let x = Int(floor(pos.x + cosf(a) * 7)), z = Int(floor(pos.z + sinf(a) * 7))
+                let h = world.gen.column(x, z).height
+                if h >= SEA { world.setBlock(x, h + 1, z, TORCH) }
+            }
+            let lx = Int(floor(pos.x)) + 3, lz = Int(floor(pos.z))
+            world.setBlock(lx, world.gen.column(lx, lz).height + 1, lz, LAMP)
+            let t2 = world.loadSync(center: pos, radius: rd)
+            t.mesh += t2.mesh
+        }
         var quads = 0, water = 0
         for (_, c) in world.chunks { quads += c.opaqueQuads; water += c.waterQuads }
 

@@ -137,6 +137,23 @@ enum TextureGen {
         flower(T.redFlower, V3(0.86, 0.14, 0.12), V3(0.2, 0.12, 0.05), 40)
         flower(T.yellowFlower, V3(0.98, 0.84, 0.2), V3(0.9, 0.55, 0.1), 42)
         flower(T.blueFlower, V3(0.35, 0.5, 0.95), V3(0.95, 0.9, 0.5), 44)
+        put(T.torch) { x, y in
+            let cx = x == 7 || x == 8
+            if cx && y >= 7 { return rgb(0.45, 0.32, 0.18, y == 7 ? 0.6 : 0.8 + 0.2 * r(x, y, 46)) }
+            let dx = Float(x) - 7.5, dy = Float(y) - 4.5
+            let d = (dx * dx * 1.6 + dy * dy).squareRoot()
+            if d < 1.3 { return V4(1, 0.98, 0.85, 1) }
+            if d < 2.2 { return V4(1, 0.8, 0.3, 1) }
+            if d < 2.9 && y < 6 && r(x, y, 47) < 0.6 { return V4(0.95, 0.45, 0.1, 1) }
+            return V4(0, 0, 0, 0)
+        }
+        put(T.lamp) { x, y in
+            let border = x == 0 || y == 0 || x == 15 || y == 15
+            if border { return rgb(0.45, 0.33, 0.2, 0.9) }
+            let grid = x % 5 == 0 || y % 5 == 0
+            if grid { return rgb(0.62, 0.45, 0.22, 0.95) }
+            return rgb(1, 0.86, 0.55, 0.9 + 0.1 * r(x, y, 48))
+        }
         func ore(_ layer: Int, _ c: V3, _ salt: Int) {
             put(layer) { x, y in
                 if r(x / 3, y / 3, salt) < 0.4 && r(x, y, salt + 1) < 0.7 {
