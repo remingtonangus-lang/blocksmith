@@ -209,17 +209,22 @@ final class Game {
         let breakNow = input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5)
         if let t = target, breakNow || (breakHeld && breakCooldown <= 0) {
             world.setBlock(t.hit.x, t.hit.y, t.hit.z, AIR)
+            // Plants can't float: pop the one standing on the broken block.
+            if Blocks.isPlant(world.block(t.hit.x, t.hit.y + 1, t.hit.z)) { world.setBlock(t.hit.x, t.hit.y + 1, t.hit.z, AIR) }
             breakCooldown = 0.25
             target = world.raycast(player.eye, player.look, maxDist: 5)
         }
         let placeHeld = input.rightDown || p.lt > 0.5
         let placeNow = input.rightClicked || (p.lt > 0.5 && q.lt <= 0.5)
         if let t = target, placeNow || (placeHeld && placeCooldown <= 0) {
-            let at = t.hit + t.normal
+            // Clicking a plant replaces it (like tall grass); otherwise place against the face.
+            let at = Blocks.isPlant(world.block(t.hit.x, t.hit.y, t.hit.z)) ? t.hit : t.hit + t.normal
             let existing = world.block(at.x, at.y, at.z)
             let id = hotbar[selected]
             let solid = Blocks.collide[Int(id)]
-            if (existing == AIR || existing == WATER) && at.y >= 0 && at.y < CH && !(solid && player.intersectsBlock(at)) {
+            let replaceable = existing == AIR || existing == WATER || Blocks.isPlant(existing)
+            let supported = !Blocks.isPlant(id) || Blocks.opaque[Int(world.block(at.x, at.y - 1, at.z))]
+            if replaceable && supported && at.y >= 0 && at.y < CH && !(solid && player.intersectsBlock(at)) {
                 world.setBlock(at.x, at.y, at.z, id)
             }
             placeCooldown = 0.25

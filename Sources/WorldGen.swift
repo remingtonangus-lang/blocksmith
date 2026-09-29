@@ -53,12 +53,14 @@ final class WorldGen {
     func generate(cx: Int, cz: Int) -> [UInt8] {
         var b = [UInt8](repeating: AIR, count: CSQ * CH)
         var heights = [Int](repeating: 0, count: CSQ)
+        var biomes = [Biome](repeating: .plains, count: CSQ)
         let bx = cx * CS, bz = cz * CS
         for lz in 0..<CS {
             for lx in 0..<CS {
                 let wx = bx + lx, wz = bz + lz
                 let (h, biome) = column(wx, wz)
                 heights[lx + lz * CS] = h
+                biomes[lx + lz * CS] = biome
                 var top = GRASS, filler = DIRT
                 switch biome {
                 case .ocean: top = h > SEA - 7 ? SAND : GRAVEL; filler = top
@@ -86,6 +88,7 @@ final class WorldGen {
         carveCaves(&b, bx, bz, heights)
         placeOres(&b, bx, bz)
         placeTrees(&b, cx, cz)
+        placePlants(&b, bx, bz, heights, biomes)
         return b
     }
 
@@ -128,6 +131,37 @@ final class WorldGen {
                     else if cell < 220 { ore = COAL_ORE }
                     if ore != AIR && hash3(wx, y, wz, s32 ^ 0x5A5A) % 100 < 60 { b[i] = ore }
                 }
+            }
+        }
+    }
+
+    // Tall grass everywhere green, flowers mostly in meadow patches with one dominant colour each.
+    private func placePlants(_ b: inout [UInt8], _ bx: Int, _ bz: Int, _ heights: [Int], _ biomes: [Biome]) {
+        for lz in 0..<CS {
+            for lx in 0..<CS {
+                let h = heights[lx + lz * CS]
+                if h + 1 >= CH || b[Chunk.index(lx, h, lz)] != GRASS || b[Chunk.index(lx, h + 1, lz)] != AIR { continue }
+                let wx = bx + lx, wz = bz + lz
+                let hv = hash3(wx, 1, wz, s32 ^ 0x3C3C)
+                let roll = Float(hv & 0xFFFF) / 65536
+                let meadow = flora.noise2(Float(wx) / 48 + 300, Float(wz) / 48 + 300)
+                let grassP: Float, flowerP: Float
+                switch biomes[lx + lz * CS] {
+                case .plains: grassP = 0.3; flowerP = meadow > 0.2 ? 0.09 : 0.006
+                case .forest: grassP = 0.16; flowerP = meadow > 0.25 ? 0.05 : 0.003
+                case .mountains: grassP = 0.1; flowerP = 0.004
+                default: continue
+                }
+                var id = AIR
+                if roll < flowerP {
+                    let c = flora.noise2(Float(wx) / 20 + 500, Float(wz) / 20 + 500)
+                    let mix = (hv >> 16) & 255
+                    let pick = mix < 50 ? Int(mix % 3) : (c < -0.12 ? 0 : (c < 0.12 ? 1 : 2))
+                    id = [BLUE_FLOWER, YELLOW_FLOWER, RED_FLOWER][pick]
+                } else if roll < flowerP + grassP {
+                    id = TALL_GRASS
+                }
+                if id != AIR { b[Chunk.index(lx, h + 1, lz)] = id }
             }
         }
     }

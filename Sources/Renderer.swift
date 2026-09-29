@@ -347,11 +347,16 @@ final class Renderer: NSObject, MTKViewDelegate {
     // Isometric block icon from three textured faces.
     func icon(_ id: UInt8, center c: V2, size sz: Float, _ quad: ([V2], [V2], V4, Float) -> Void) {
         let tex = Blocks.tex
+        let uv = [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)]
+        if Blocks.isPlant(id) {
+            let h = sz * 0.55
+            quad([V2(c.x - h, c.y - h), V2(c.x + h, c.y - h), V2(c.x + h, c.y + h), V2(c.x - h, c.y + h)], uv, V4(1, 1, 1, 1), Float(tex[Int(id) * 6]))
+            return
+        }
         let top = Float(tex[Int(id) * 6 + 2]), left = Float(tex[Int(id) * 6 + 4]), right = Float(tex[Int(id) * 6 + 0])
         let hx = sz * 0.5, hy = sz * 0.25, vh = sz * 0.55
         let t = V2(c.x, c.y - hy - vh / 2 + hy)
         let n = V2(c.x, t.y - hy), e = V2(c.x + hx, t.y), s = V2(c.x, t.y + hy), w = V2(c.x - hx, t.y)
-        let uv = [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)]
         quad([n, e, s, w], uv, V4(1, 1, 1, 1), top)
         quad([w, s, s + V2(0, vh), w + V2(0, vh)], uv, V4(0.78, 0.78, 0.78, 1), left)
         quad([s, e, e + V2(0, vh), s + V2(0, vh)], uv, V4(0.6, 0.6, 0.6, 1), right)

@@ -14,13 +14,18 @@
 |---|---|
 | v0.1 base game (terrain, AO, water, fog, day/night, HUD, save) | verified on M1 |
 | CI workflow + ci-snaps publishing | verified (run 1 green) |
-| (a) Tree variety: jittered 5×5 grid + density noise, oak / big oak / birch / spruce, birch groves, lower forest density | untested on Mac |
+| (a) Tree variety: jittered 5×5 grid + density noise, oak / big oak / birch / spruce, birch groves, lower forest density | verified in CI snapshots (forest/snowy) |
+| (b) Tall grass + red/yellow/blue flowers as crossed cutout sprites (meadow patches) | untested on Mac |
 
 ## Design decisions
 - Trees: one candidate per 5×5 cell at a hashed offset (0–3), so trunks are ≥2 apart and there is no lattice.
   Density = `flora` noise (1/64 scale): forests 15–70 % of cells, plains ~2 % (12 % in "copse" patches),
   snowy spruce/oak mix, mountains sparse. Tree validity is decided from `column()` only (not chunk data),
   so canopies crossing chunk borders always match. Max canopy radius 3 = generation margin.
+- Plants: new `BlockKind.plant` (no collision, no sky/AO occlusion, targetable). Meshed as 2 diagonal
+  quads × 2 windings into the opaque (cutout) buffer; vertex face slot 6 = plant shade. Breaking the block
+  under a plant pops the plant; right-clicking a plant replaces it; plants need an opaque block below.
+  New blocks 27–30: Tall Grass, Red/Yellow/Blue Flower.
 - New blocks 23–26: Birch Log, Birch Leaves, Spruce Log, Spruce Leaves (appended; old saves stay valid).
 
 ## Known risks / unverified assumptions
@@ -28,5 +33,5 @@
 - Water is static (no flow); placing water isn't in the block cycle.
 
 ## Next
-Remaining list, in order: (b) tall grass + flowers, (c) clouds + stars, (d) block light + torches,
+Remaining list, in order: (c) clouds + stars, (d) block light + torches,
 (e) flowing water, (f) creative inventory, (g) survival, (h) sounds, (i) passive mobs.

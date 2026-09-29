@@ -244,13 +244,9 @@ final class World {
         var tmx = first(origin.x, dir.x, x), tmy = first(origin.y, dir.y, y), tmz = first(origin.z, dir.z, z)
         var n = IVec3(0, 0, 0)
         var t: Float = 0
-        let kind = Blocks.kind
         while t <= maxDist {
             let b = block(x, y, z)
-            let k = kind[Int(b)]
-            if k == BlockKind.solid.rawValue || k == BlockKind.cutout.rawValue {
-                return (IVec3(x, y, z), n)
-            }
+            if Blocks.targetable(b) { return (IVec3(x, y, z), n) }
             if tmx < tmy && tmx < tmz {
                 x += sx; t = tmx; tmx += tdx; n = IVec3(-sx, 0, 0)
             } else if tmy < tmz {

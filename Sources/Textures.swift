@@ -113,6 +113,30 @@ enum TextureGen {
             return V4(0, 0, 0, 0)
         }
         put(T.water) { x, y in rgb(0.2, 0.36, 0.82, 0.85 + 0.2 * r(x / 2, y, 14), 0.72) }
+        // Plants: transparent background, drawn as crossed sprites. y = 0 is the top row.
+        put(T.tallGrass) { x, y in
+            // Each column is a blade of hashed height; blades lean slightly.
+            let bladeH = 5 + Int(r(x, 0, 36) * 10)
+            if 15 - y >= bladeH || r(x, 1, 37) < 0.25 { return V4(0, 0, 0, 0) }
+            let k: Float = 0.62 + 0.4 * Float(15 - y) / 15 + 0.12 * r(x, y, 38)
+            return rgb(0.36, 0.62, 0.22, k)
+        }
+        func flower(_ layer: Int, _ petal: V3, _ center: V3, _ salt: Int) {
+            put(layer) { x, y in
+                let dx = Float(x) - 7.5, dy = Float(y) - 5.5
+                let d2 = dx * dx + dy * dy
+                if d2 < 2.2 { return rgb(center.x, center.y, center.z, 1) }
+                if d2 < 9.5 && r(x, y, salt) > 0.08 { return rgb(petal.x, petal.y, petal.z, 0.8 + 0.25 * r(x, y, salt + 1)) }
+                if (x == 7 || x == 8) && y > 7 { return rgb(0.25, 0.52, 0.18, 0.9) }
+                if y >= 10 && y <= 12 && ((x == 5 && y == 11) || (x == 6 && y >= 10) || (x == 9 && y >= 11) || (x == 10 && y == 12)) {
+                    return rgb(0.3, 0.58, 0.2, 1)
+                }
+                return V4(0, 0, 0, 0)
+            }
+        }
+        flower(T.redFlower, V3(0.86, 0.14, 0.12), V3(0.2, 0.12, 0.05), 40)
+        flower(T.yellowFlower, V3(0.98, 0.84, 0.2), V3(0.9, 0.55, 0.1), 42)
+        flower(T.blueFlower, V3(0.35, 0.5, 0.95), V3(0.95, 0.9, 0.5), 44)
         func ore(_ layer: Int, _ c: V3, _ salt: Int) {
             put(layer) { x, y in
                 if r(x / 3, y / 3, salt) < 0.4 && r(x, y, salt + 1) < 0.7 {

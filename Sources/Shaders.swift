@@ -23,7 +23,7 @@ struct ChunkOut {
 
 constexpr sampler texSampler(filter::nearest, mip_filter::linear, address::repeat);
 
-constant float faceShade[6] = { 0.80, 0.80, 1.00, 0.55, 0.68, 0.68 };
+constant float faceShade[8] = { 0.80, 0.80, 1.00, 0.55, 0.68, 0.68, 0.88, 0.88 };
 constant float aoCurve[4] = { 0.42, 0.62, 0.81, 1.0 };
 constant float2 cornerUV[4] = { float2(0, 1), float2(1, 1), float2(1, 0), float2(0, 0) };
 

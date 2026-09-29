@@ -25,13 +25,21 @@ enum Mesher {
         1,0,0, 0,0,0, 0,1,0, 1,1,0,
     ]
     static let normalTable: [Int] = [1,0,0, -1,0,0, 0,1,0, 0,-1,0, 0,0,1, 0,0,-1]
+    // Plants: two diagonal planes, each emitted in both windings so back-face culling keeps one.
+    static let plantTable: [Int] = [
+        0,0,0, 1,0,1, 1,1,1, 0,1,0,
+        1,0,1, 0,0,0, 0,1,0, 1,1,1,
+        1,0,0, 0,0,1, 0,1,1, 1,1,0,
+        0,0,1, 1,0,0, 1,1,0, 0,1,1,
+    ]
+    static let plantFace: UInt32 = 6 // face slot 6 in the vertex format = "plant" (own shade value)
 
     static func build(_ n9: [[UInt8]]) -> MeshData {
         let PW = Mesher.PW, PL = Mesher.PL
         let kindT = Blocks.kind, opaqueT = Blocks.opaque, skyT = Blocks.sky, aoT = Blocks.aoOcc
         let cullSameT = Blocks.cullSame, texT = Blocks.tex
-        let CT = cornerTable, NT = normalTable
-        let liquid = BlockKind.liquid.rawValue
+        let CT = cornerTable, NT = normalTable, PTab = plantTable
+        let liquid = BlockKind.liquid.rawValue, plant = BlockKind.plant.rawValue
 
         var padB = [UInt8](repeating: AIR, count: PL * CH)
         for pz in 0..<PW {
@@ -90,6 +98,23 @@ enum Mesher {
                     let b = P[i]
                     if b == AIR { continue }
                     let bi = Int(b)
+                    if kindT[bi] == plant {
+                        let t = top[px + pz * PW]
+                        let light = y <= t ? max(5, 14 - 2 * (t - y)) : 15
+                        let w1 = UInt32(texT[bi * 6 + 2]) | (UInt32(light) << 8)
+                        let base = (plantFace << 19) | (UInt32(3) << 24)
+                        for q in 0..<4 {
+                            for k in 0..<4 {
+                                let ci = (q * 4 + k) * 3
+                                let x = px - 1 + PTab[ci], yy = y + PTab[ci + 1], z = pz - 1 + PTab[ci + 2]
+                                let w0 = UInt32(x) | (UInt32(yy) << 5) | (UInt32(z) << 14) | base | (UInt32(k) << 22)
+                                opq.append(w0); opq.append(w1)
+                            }
+                        }
+                        if y < minY { minY = y }
+                        if y + 1 > maxY { maxY = y + 1 }
+                        continue
+                    }
                     let isWater = kindT[bi] == liquid
                     let waterTop = isWater && at(px, y + 1, pz) != b
                     for f in 0..<6 {

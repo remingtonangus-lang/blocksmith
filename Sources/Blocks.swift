@@ -29,6 +29,10 @@ let BIRCH_LOG: UInt8 = 23
 let BIRCH_LEAVES: UInt8 = 24
 let SPRUCE_LOG: UInt8 = 25
 let SPRUCE_LEAVES: UInt8 = 26
+let TALL_GRASS: UInt8 = 27
+let RED_FLOWER: UInt8 = 28
+let YELLOW_FLOWER: UInt8 = 29
+let BLUE_FLOWER: UInt8 = 30
 
 enum T {
     static let stone = 0, grassTop = 1, grassSide = 2, dirt = 3, cobble = 4, planks = 5, bedrock = 6, sand = 7
@@ -36,10 +40,12 @@ enum T {
     static let gold = 16, diamond = 17, brick = 18, snow = 19, snowSide = 20, cactusSide = 21, cactusTop = 22
     static let stoneBrick = 23, sandstoneSide = 24, sandstoneTop = 25
     static let birchSide = 26, birchTop = 27, spruceSide = 28, spruceTop = 29, birchLeaves = 30, spruceLeaves = 31
-    static let count = 32
+    static let tallGrass = 32, redFlower = 33, yellowFlower = 34, blueFlower = 35
+    static let count = 36
 }
 
-enum BlockKind: UInt8 { case air = 0, solid = 1, cutout = 2, liquid = 3 }
+// plant = cross-shaped cutout sprite (two diagonal quads), no collision, doesn't block light.
+enum BlockKind: UInt8 { case air = 0, solid = 1, cutout = 2, liquid = 3, plant = 4 }
 
 struct BlockDef {
     var name: String
@@ -88,6 +94,10 @@ final class BlockTable {
         add("Birch Leaves", .cutout, all(T.birchLeaves))
         add("Spruce Log", .solid, column(T.spruceSide, T.spruceTop, T.spruceTop))
         add("Spruce Leaves", .cutout, all(T.spruceLeaves))
+        add("Tall Grass", .plant, all(T.tallGrass))
+        add("Red Flower", .plant, all(T.redFlower))
+        add("Yellow Flower", .plant, all(T.yellowFlower))
+        add("Blue Flower", .plant, all(T.blueFlower))
     }
 
     func add(_ name: String, _ kind: BlockKind, _ tex: [Int], sky: Bool? = nil, cullSame: Bool = false) {
@@ -101,6 +111,13 @@ final class BlockTable {
         collide[id] = kind == .solid || kind == .cutout
         self.cullSame[id] = cullSame
         for f in 0..<6 { self.tex[id * 6 + f] = UInt8(tex[f]) }
+    }
+
+    @inline(__always) func isPlant(_ id: UInt8) -> Bool { kind[Int(id)] == BlockKind.plant.rawValue }
+    // Blocks the crosshair can target (everything except air and liquids).
+    @inline(__always) func targetable(_ id: UInt8) -> Bool {
+        let k = kind[Int(id)]
+        return k != BlockKind.air.rawValue && k != BlockKind.liquid.rawValue
     }
 
     var placeable: [UInt8] { (1..<defs.count).map { UInt8($0) } }
