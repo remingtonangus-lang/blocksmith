@@ -37,7 +37,7 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     uint face = (w0 >> 19) & 7u;
     uint corner = (w0 >> 22) & 3u;
     uint ao = (w0 >> 24) & 3u;
-    if (((w0 >> 26) & 1u) != 0u) { p.y -= 0.125; }
+    p.y -= float((w0 >> 26) & 7u) * 0.125;   // water surface drop (flow level)
     uint layer = w1 & 255u;
     float skyL = float((w1 >> 8) & 15u) / 15.0;
     float blkL = float((w1 >> 12) & 15u) / 15.0;

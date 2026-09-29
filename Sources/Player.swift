@@ -79,9 +79,9 @@ final class Player {
 
         let feet = w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.1)), Int(floor(pos.z)))
         let body = w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.9)), Int(floor(pos.z)))
-        inWater = feet == WATER || body == WATER
+        inWater = Blocks.isLiquid(feet) || Blocks.isLiquid(body)
         let e = eye
-        headInWater = w.block(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))) == WATER
+        headInWater = Blocks.isLiquid(w.block(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))))
 
         sneaking = input.sneak && !flying
         sprinting = input.sprint && input.forward > 0 && !sneaking

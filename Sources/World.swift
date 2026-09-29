@@ -78,11 +78,121 @@ final class World {
             d.meshVersion += 1
             remeshSync(d)
         }
+        scheduleFluid(around: IVec3(x, y, z))
         // Light spreads up to 15 blocks, so every neighbour may change: remesh the rest in the background.
         for dz in -1...1 {
             for dx in -1...1 where dx != 0 || dz != 0 {
                 guard let n = chunks[ChunkKey(x: cx + dx, z: cz + dz)] else { continue }
                 if !dirty.contains(where: { $0 === n }) { n.meshVersion += 1 }
+            }
+        }
+    }
+
+    // Fast path for bulk edits (fluids): no synchronous remesh; the chunk (and the neighbours whose
+    // border it touches) are re-meshed by the background scheduler. Returns false if not loaded.
+    @discardableResult
+    func setBlockAsync(_ x: Int, _ y: Int, _ z: Int, _ id: UInt8) -> Bool {
+        guard y >= 0 && y < CH else { return false }
+        let cx = floorDiv(x, CS), cz = floorDiv(z, CS)
+        guard let c = chunks[ChunkKey(x: cx, z: cz)] else { return false }
+        let lx = mod(x, CS), lz = mod(z, CS)
+        c.blocks[Chunk.index(lx, y, lz)] = id
+        c.modified = true
+        c.meshVersion += 1
+        let ex = lx == 0 ? -1 : (lx == CS - 1 ? 1 : 0)
+        let ez = lz == 0 ? -1 : (lz == CS - 1 ? 1 : 0)
+        if ex != 0 { chunks[ChunkKey(x: cx + ex, z: cz)]?.meshVersion += 1 }
+        if ez != 0 { chunks[ChunkKey(x: cx, z: cz + ez)]?.meshVersion += 1 }
+        if ex != 0 && ez != 0 { chunks[ChunkKey(x: cx + ex, z: cz + ez)]?.meshVersion += 1 }
+        return true
+    }
+
+    // MARK: Fluids
+    // Cellular water: sources (level 0) feed flowing water 1...7 sideways, falling columns (8) downwards.
+    // Only cells near a change are simulated: edits enqueue themselves + neighbours, and every cell
+    // that changes during a tick enqueues its neighbours for the next one.
+
+    private(set) var fluidPending = Set<IVec3>()
+    static let fluidBudget = 1024
+    private static let sideDirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
+
+    func scheduleFluid(around p: IVec3) {
+        let lv = Blocks.fluidLevel
+        var any = lv[Int(block(p.x, p.y, p.z))] >= 0
+        if !any {
+            for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
+                let q = p + d
+                if lv[Int(block(q.x, q.y, q.z))] >= 0 { any = true; break }
+            }
+        }
+        if !any { return }
+        fluidPending.insert(p)
+        for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
+            fluidPending.insert(p + d)
+        }
+    }
+
+    // Water may replace air, plants/torches and thinner flowing water.
+    private func fluidCanEnter(_ id: UInt8, level: Int) -> Bool {
+        if id == AIR || Blocks.isPlant(id) { return true }
+        let l = Int(Blocks.fluidLevel[Int(id)])
+        return l > 0 && l < 8 && l > level
+    }
+
+    private func setFluid(_ p: IVec3, _ id: UInt8) {
+        if setBlockAsync(p.x, p.y, p.z, id) { scheduleFluid(around: p) }
+    }
+
+    func fluidTick() {
+        if fluidPending.isEmpty { return }
+        var batch: [IVec3] = []
+        batch.reserveCapacity(min(fluidPending.count, World.fluidBudget))
+        for p in fluidPending {
+            batch.append(p)
+            if batch.count >= World.fluidBudget { break }
+        }
+        for p in batch { fluidPending.remove(p) }
+        let lvT = Blocks.fluidLevel
+        for p in batch {
+            guard p.y >= 0 && p.y < CH && isLoaded(p.x, p.z) else { continue }
+            var lv = Int(lvT[Int(block(p.x, p.y, p.z))])
+            if lv < 0 { continue }
+            if lv > 0 {
+                // Re-derive what this non-source cell should be from its surroundings.
+                var want: Int
+                if lvT[Int(block(p.x, p.y + 1, p.z))] >= 0 {
+                    want = 8
+                } else {
+                    var best = 99, sources = 0
+                    for d in World.sideDirs {
+                        let n = Int(lvT[Int(block(p.x + d.x, p.y, p.z + d.z))])
+                        if n < 0 { continue }
+                        if n == 0 { sources += 1 }
+                        best = min(best, n == 8 ? 0 : n)
+                    }
+                    let below = block(p.x, p.y - 1, p.z)
+                    if sources >= 2 && (Blocks.opaque[Int(below)] || lvT[Int(below)] == 0) { want = 0 }
+                    else if best >= 7 { want = -1 }
+                    else { want = best + 1 }
+                }
+                if want != lv {
+                    setFluid(p, want < 0 ? AIR : (want == 8 ? WATER_FALL : WATER_FLOW[want]))
+                    if want < 0 { continue }
+                    lv = want
+                }
+            }
+            // Spread: fall if possible, otherwise flow sideways (only when standing on something solid).
+            let below = block(p.x, p.y - 1, p.z)
+            if p.y > 0 && (below == AIR || Blocks.isPlant(below) || (lvT[Int(below)] > 0 && lvT[Int(below)] < 8)) {
+                setFluid(IVec3(p.x, p.y - 1, p.z), WATER_FALL)
+                continue
+            }
+            if lvT[Int(below)] >= 0 { continue }
+            let next = (lv == 8 ? 0 : lv) + 1
+            if next > 7 { continue }
+            for d in World.sideDirs {
+                let q = IVec3(p.x + d.x, p.y, p.z + d.z)
+                if fluidCanEnter(block(q.x, q.y, q.z), level: next) { setFluid(q, WATER_FLOW[next]) }
             }
         }
     }

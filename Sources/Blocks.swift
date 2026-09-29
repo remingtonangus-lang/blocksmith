@@ -35,6 +35,9 @@ let YELLOW_FLOWER: UInt8 = 29
 let BLUE_FLOWER: UInt8 = 30
 let TORCH: UInt8 = 31
 let LAMP: UInt8 = 32
+// Flowing water: WATER_FLOW[k] for k = 1...7 (index 0 = the source, WATER). WATER_FALL is a falling column.
+let WATER_FLOW: [UInt8] = [WATER, 33, 34, 35, 36, 37, 38, 39]
+let WATER_FALL: UInt8 = 40
 
 enum T {
     static let stone = 0, grassTop = 1, grassSide = 2, dirt = 3, cobble = 4, planks = 5, bedrock = 6, sand = 7
@@ -64,6 +67,8 @@ final class BlockTable {
     var sky = [Bool](repeating: false, count: 256)        // stops the straight-down 15 skylight column
     var lightOpaque = [Bool](repeating: false, count: 256) // light can't enter (solid blocks)
     var emit = [UInt8](repeating: 0, count: 256)          // block light emitted (0-15)
+    var fluidLevel = [Int8](repeating: -1, count: 256)    // -1 not water, 0 source, 1-7 flowing, 8 falling
+    var hidden = [Bool](repeating: false, count: 256)     // internal states, not offered to the player
     var aoOcc = [Bool](repeating: false, count: 256)
     var collide = [Bool](repeating: false, count: 256)
     var cullSame = [Bool](repeating: false, count: 256)
@@ -105,9 +110,13 @@ final class BlockTable {
         add("Blue Flower", .plant, all(T.blueFlower))
         add("Torch", .plant, all(T.torch), emit: 14)
         add("Lamp", .solid, all(T.lamp), emit: 15)
+        for k in 1...7 { add("Flowing Water \(k)", .liquid, all(T.water), sky: true, hidden: true); fluidLevel[defs.count - 1] = Int8(k) }
+        add("Falling Water", .liquid, all(T.water), sky: true, hidden: true)
+        fluidLevel[Int(WATER)] = 0
+        fluidLevel[Int(WATER_FALL)] = 8
     }
 
-    func add(_ name: String, _ kind: BlockKind, _ tex: [Int], sky: Bool? = nil, cullSame: Bool = false, emit: UInt8 = 0) {
+    func add(_ name: String, _ kind: BlockKind, _ tex: [Int], sky: Bool? = nil, cullSame: Bool = false, emit: UInt8 = 0, hidden: Bool = false) {
         let id = defs.count
         let blocksSky = sky ?? (kind == .solid || kind == .cutout)
         defs.append(BlockDef(name: name, kind: kind, tex: tex))
@@ -116,6 +125,7 @@ final class BlockTable {
         self.sky[id] = blocksSky
         lightOpaque[id] = kind == .solid
         self.emit[id] = emit
+        self.hidden[id] = hidden
         aoOcc[id] = kind == .solid || (kind == .cutout && !cullSame)
         collide[id] = kind == .solid || kind == .cutout
         self.cullSame[id] = cullSame
@@ -129,7 +139,9 @@ final class BlockTable {
         return k != BlockKind.air.rawValue && k != BlockKind.liquid.rawValue
     }
 
-    var placeable: [UInt8] { (1..<defs.count).map { UInt8($0) } }
+    @inline(__always) func isLiquid(_ id: UInt8) -> Bool { kind[Int(id)] == BlockKind.liquid.rawValue }
+
+    var placeable: [UInt8] { (1..<defs.count).filter { !hidden[$0] }.map { UInt8($0) } }
     func name(_ id: UInt8) -> String { Int(id) < defs.count ? defs[Int(id)].name : "?" }
 }
 

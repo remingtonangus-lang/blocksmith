@@ -51,6 +51,18 @@ enum Snapshot {
         if let s = arg("--slot") { game.selected = Int(s) ?? 0 }
 
         var t = world.loadSync(center: pos, radius: rd)
+        if CommandLine.arguments.contains("--flood") {
+            // Fluid test: a spring on the ground and one hanging in the air, then simulate 12 s of flow.
+            let bx = Int(floor(pos.x)), bz = Int(floor(pos.z)) - 8
+            let h1 = world.gen.column(bx, bz).height
+            world.setBlock(bx, h1 + 1, bz, WATER)
+            let h2 = world.gen.column(bx + 6, bz + 2).height
+            world.setBlock(bx + 6, h2 + 5, bz + 2, WATER)
+            for _ in 0..<60 { world.fluidTick() }
+            let t2 = world.loadSync(center: pos, radius: rd)
+            t.mesh += t2.mesh
+            print("fluid cells pending after 60 ticks: \(world.fluidPending.count)")
+        }
         if CommandLine.arguments.contains("--torches") {
             // Light test: a ring of torches plus a lamp around the camera, then remesh what changed.
             for k in 0..<10 {

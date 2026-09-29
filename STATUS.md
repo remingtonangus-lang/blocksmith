@@ -39,10 +39,19 @@
   neighbours synchronously and the other neighbours in the background (light radius).
   Torch = cross sprite (plant kind), placeable on floor or against a wall; Lamp = solid glowing block.
   Known limit: wall torches don't pop when their wall is broken.
+- Water flow: level lives in the block ID (WATER = source, 33–39 = flow 1–7, 40 = falling; hidden from the
+  inventory). `World.fluidTick()` runs every 0.2 s of unpaused time on a pending-cell set (budget 1024
+  cells/tick); any edit enqueues itself + neighbours if water is involved, so still oceans cost nothing.
+  Rules: non-source cells re-derive their level (water above → falling; else min(side levels)+1, dry at >7;
+  two side sources over solid/source → new source); water falls first, spreads sideways only when
+  standing on a non-water block. Flow edits use `setBlockAsync` (background remesh of chunk + touched
+  edge neighbours). Surface corners take the highest of the 4 adjacent cells → sloped water;
+  3 bits of w0 (26–28) now hold the per-vertex surface drop in eighths.
+  Limits: no "flow toward nearest drop" pathing (spreads evenly); pending updates aren't saved, so a
+  flow interrupted by quitting freezes until something nearby changes.
 - New blocks 23–26: Birch Log, Birch Leaves, Spruce Log, Spruce Leaves (appended; old saves stay valid).
 
 ## Known risks / unverified assumptions
-- Water is static (no flow); placing water isn't in the block cycle.
 
 ## Next
 Remaining list, in order: (d) block light + torches,

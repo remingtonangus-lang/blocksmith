@@ -12,7 +12,7 @@ struct MeshData {
 // at most 15 blocks, so every source that can reach the centre chunk (or its 1-block border that
 // faces sample) lies inside it. Nothing about light is stored; remeshing recomputes it.
 // Vertex = 2 x UInt32 (8 bytes):
-//   w0: x(5) y(9) z(5) face(3) corner(2) ao(2) lowerTop(1)
+//   w0: x(5) y(9) z(5) face(3) corner(2) ao(2) waterDrop(3)   (drop = eighths of a block, water tops)
 //   w1: textureLayer(8) skyLight(4) blockLight(4)      (smooth lighting: per-vertex values)
 enum Mesher {
     static let RW = CS * 3      // region width (3 chunks)
@@ -171,6 +171,24 @@ enum Mesher {
             return Int(skyL[i]) | (Int(blkL[i]) << 4)
         }
 
+        // Water surface height at a cell corner (region coords of the corner): the highest of the up to
+        // four water cells sharing it; 0 (full block) if any of them has water above.
+        let levelT = Blocks.fluidLevel
+        func cornerDrop(_ cx: Int, _ y: Int, _ cz: Int) -> Int {
+            var best = 7
+            for dz in -1...0 {
+                for dx in -1...0 {
+                    let id = at(cx + dx, y, cz + dz)
+                    let lv = Int(levelT[Int(id)])
+                    if lv < 0 { continue }
+                    if kindT[Int(at(cx + dx, y + 1, cz + dz))] == liquid { return 0 }
+                    let d = (lv == 0 || lv == 8) ? 1 : 1 + (lv * 6 + 3) / 7
+                    if d < best { best = d }
+                }
+            }
+            return best
+        }
+
         var lit = [Int](repeating: 0, count: 4)
         for y in 0...min(yMax, CH - 1) {
             for z in C0..<(C0 + CS) {
@@ -197,13 +215,13 @@ enum Mesher {
                         continue
                     }
                     let isWater = kindT[bi] == liquid
-                    let waterTop = isWater && at(x, y + 1, z) != b
+                    let waterTop = isWater && kindT[Int(at(x, y + 1, z))] != liquid
                     for f in 0..<6 {
                         if f == 3 && y == 0 { continue }
                         let nb: UInt8 = (f == 2 && y == CH - 1) ? AIR : R[i + offs[f]]
                         if opaqueT[Int(nb)] { continue }
                         if isWater {
-                            if nb == b { continue }
+                            if kindT[Int(nb)] == liquid { continue }
                         } else if cullSameT[bi] && nb == b {
                             continue
                         }
@@ -252,7 +270,7 @@ enum Mesher {
                             let dy = CT[ci + 1]
                             let vx = lx + CT[ci], vy = y + dy, vz = lz + CT[ci + 2]
                             let a = c == 0 ? ao0 : (c == 1 ? ao1 : (c == 2 ? ao2 : ao3))
-                            let lower: UInt32 = (waterTop && dy == 1) ? 1 : 0
+                            let lower: UInt32 = (waterTop && dy == 1) ? UInt32(cornerDrop(x + CT[ci], y, z + CT[ci + 2])) : 0
                             let w0 = UInt32(vx) | (UInt32(vy) << 5) | (UInt32(vz) << 14) | base
                                 | (UInt32(c) << 22) | (UInt32(a) << 24) | (lower << 26)
                             let w1 = tex | (UInt32(lit[c]) << 8)

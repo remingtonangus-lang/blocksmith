@@ -27,6 +27,7 @@ final class Game {
     private var clock: Double = 0
     private var prevPad = PadSnapshot()
     private var autosaveTimer: Double = 0
+    private var fluidTimer: Double = 0
     var padConnected = false
 
     init(world: World, save: SaveManager?, persistent: Bool) {
@@ -107,7 +108,7 @@ final class Game {
     }
 
     func cycleBlock(_ d: Int) {
-        let list = Blocks.placeable.filter { $0 != WATER }
+        let list = Blocks.placeable
         let cur = list.firstIndex(of: hotbar[selected]) ?? 0
         hotbar[selected] = list[((cur + d) % list.count + list.count) % list.count]
         onToast?(Blocks.name(hotbar[selected]))
@@ -222,7 +223,7 @@ final class Game {
             let existing = world.block(at.x, at.y, at.z)
             let id = hotbar[selected]
             let solid = Blocks.collide[Int(id)]
-            let replaceable = existing == AIR || existing == WATER || Blocks.isPlant(existing)
+            let replaceable = existing == AIR || Blocks.isLiquid(existing) || Blocks.isPlant(existing)
             let supported: Bool
             if id == TORCH {
                 // Torches stand on the floor or hang on a wall.
@@ -238,6 +239,9 @@ final class Game {
             placeCooldown = 0.25
         }
         if input.middleClicked || (p.x && !q.x) { pickBlock() }
+
+        fluidTimer += dt
+        if fluidTimer >= 0.2 { fluidTimer = 0; world.fluidTick() }
 
         time += dt
         autosaveTimer += dt
