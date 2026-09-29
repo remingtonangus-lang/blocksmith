@@ -1,0 +1,279 @@
+import Foundation
+import AVFoundation
+import simd
+
+// Every sound is synthesized at launch (noise bursts, filters, damped sines) — no asset files.
+// SoundBank is pure DSP (usable headless: `--sounds` writes WAVs); SoundEngine plays it with AVAudioEngine.
+
+enum SoundMat: Int, CaseIterable { case stone, dirt, sand, wood, plant, glass, snow }
+
+enum Snd: Hashable {
+    case breakBlock(SoundMat)
+    case place(SoundMat)
+    case step(SoundMat)
+    case splash, land, hurt, eat, click, open, mobCow, mobSheep, mobChicken
+}
+
+func soundMat(_ id: UInt8) -> SoundMat {
+    switch id {
+    case GRASS, DIRT, GRAVEL, SNOWY_GRASS: return .dirt
+    case SAND: return .sand
+    case SNOW: return .snow
+    case PLANKS, LOG, BIRCH_LOG, SPRUCE_LOG: return .wood
+    case LEAVES, BIRCH_LEAVES, SPRUCE_LEAVES, CACTUS: return .plant
+    case GLASS, LAMP: return .glass
+    default:
+        if Blocks.isPlant(id) { return .plant }
+        return .stone
+    }
+}
+
+struct SoundBank {
+    static let rate: Double = 44100
+    static let variants = 3
+    private(set) var clips: [Snd: [[Float]]] = [:]
+
+    static var allSounds: [Snd] {
+        var s: [Snd] = []
+        for m in SoundMat.allCases { s += [.breakBlock(m), .place(m), .step(m)] }
+        return s + [.splash, .land, .hurt, .eat, .click, .open, .mobCow, .mobSheep, .mobChicken]
+    }
+
+    init() {
+        for (k, snd) in SoundBank.allSounds.enumerated() {
+            var vs: [[Float]] = []
+            for v in 0..<SoundBank.variants {
+                var g = Synth(seed: UInt64(v + 1) &* 0x9E3779B97F4A7C15 &+ UInt64(k) &* 0x2545F4914F6CDD1D)
+                vs.append(g.render(snd, pitch: 1 + (Float(v) - 1) * 0.07))
+            }
+            clips[snd] = vs
+        }
+    }
+
+    func clip(_ s: Snd, variant: Int) -> [Float] {
+        guard let vs = clips[s], !vs.isEmpty else { return [] }
+        return vs[variant % vs.count]
+    }
+
+    // 16-bit mono WAV (used by the headless harness to check the synth).
+    static func writeWAV(_ samples: [Float], to path: String) {
+        var d = Data()
+        func u32(_ v: UInt32) { withUnsafeBytes(of: v.littleEndian) { d.append(contentsOf: $0) } }
+        func u16(_ v: UInt16) { withUnsafeBytes(of: v.littleEndian) { d.append(contentsOf: $0) } }
+        let n = UInt32(samples.count * 2)
+        d.append(contentsOf: Array("RIFF".utf8)); u32(36 + n)
+        d.append(contentsOf: Array("WAVEfmt ".utf8)); u32(16); u16(1); u16(1)
+        u32(UInt32(rate)); u32(UInt32(rate) * 2); u16(2); u16(16)
+        d.append(contentsOf: Array("data".utf8)); u32(n)
+        for x in samples { u16(UInt16(bitPattern: Int16(max(-1, min(1, x)) * 32767))) }
+        try? d.write(to: URL(fileURLWithPath: path))
+    }
+}
+
+// Tiny DSP toolkit.
+struct Synth {
+    var state: UInt64
+    init(seed: UInt64) { state = seed | 1 }
+
+    mutating func noise() -> Float {
+        state = state &* 6364136223846793005 &+ 1442695040888963407
+        return Float(Int32(truncatingIfNeeded: state >> 32)) / Float(Int32.max)
+    }
+
+    static let sr = Float(SoundBank.rate)
+    func frames(_ seconds: Float) -> Int { Int(seconds * Synth.sr) }
+
+    // Noise burst through a one-pole low-pass (lp Hz) then high-pass (hp Hz), with attack/decay envelope.
+    mutating func burst(_ dur: Float, lp: Float, hp: Float, attack: Float = 0.002, decay: Float, gain: Float = 1) -> [Float] {
+        let n = frames(dur)
+        var out = [Float](repeating: 0, count: n)
+        let a = 1 - expf(-2 * .pi * lp / Synth.sr)
+        let b = 1 - expf(-2 * .pi * hp / Synth.sr)
+        var lpS: Float = 0, hpS: Float = 0
+        for i in 0..<n {
+            let t = Float(i) / Synth.sr
+            let env = min(1, t / attack) * expf(-t / decay)
+            lpS += a * (noise() - lpS)
+            hpS += b * (lpS - hpS)
+            out[i] = (lpS - hpS) * env * gain
+        }
+        return out
+    }
+
+    // Sum of exponentially damped sines (knocks, rings, pings).
+    func modes(_ dur: Float, _ partials: [(freq: Float, amp: Float, decay: Float)]) -> [Float] {
+        let n = frames(dur)
+        var out = [Float](repeating: 0, count: n)
+        for p in partials {
+            let w = 2 * Float.pi * p.freq / Synth.sr
+            for i in 0..<n {
+                let t = Float(i) / Synth.sr
+                out[i] += sinf(w * Float(i)) * p.amp * expf(-t / p.decay)
+            }
+        }
+        return out
+    }
+
+    // Buzzy voiced tone with vibrato and a low-pass "mouth" (mob calls, hurt grunt).
+    mutating func voice(_ dur: Float, f0: Float, f1: Float, vib: Float, lp: Float, gain: Float) -> [Float] {
+        let n = frames(dur)
+        var out = [Float](repeating: 0, count: n)
+        var phase: Float = 0, y1: Float = 0, y2: Float = 0
+        let a = 1 - expf(-2 * .pi * lp / Synth.sr)
+        for i in 0..<n {
+            let t = Float(i) / Synth.sr, k = t / dur
+            let f = (f0 + (f1 - f0) * k) * (1 + vib * sinf(2 * .pi * 5.5 * t))
+            phase += f / Synth.sr
+            phase -= floorf(phase)
+            let saw = phase * 2 - 1 + noise() * 0.08
+            y1 += a * (saw - y1)
+            y2 += a * (y1 - y2)
+            let env = min(1, t / 0.03) * min(1, (dur - t) / 0.08)
+            out[i] = y2 * env * gain
+        }
+        return out
+    }
+
+    static func mix(_ a: [Float], _ b: [Float], at offset: Int = 0) -> [Float] {
+        var out = a
+        if out.count < offset + b.count { out += [Float](repeating: 0, count: offset + b.count - out.count) }
+        for i in 0..<b.count { out[offset + i] += b[i] }
+        return out
+    }
+
+    // Crunchy material: several short grains spread over `spread` seconds.
+    mutating func grains(_ count: Int, spread: Float, lp: Float, hp: Float, decay: Float, gain: Float) -> [Float] {
+        var out = [Float](repeating: 0, count: frames(spread + decay * 6))
+        for _ in 0..<count {
+            let at = frames((noise() * 0.5 + 0.5) * spread)
+            let g = burst(decay * 6, lp: lp * (0.8 + 0.4 * abs(noise())), hp: hp, attack: 0.001, decay: decay, gain: gain * (0.6 + 0.4 * abs(noise())))
+            out = Synth.mix(out, g, at: at)
+        }
+        return out
+    }
+
+    mutating func material(_ m: SoundMat, pitch p: Float, scale: Float, gain: Float) -> [Float] {
+        switch m {
+        case .stone:
+            return grains(Int(9 * scale), spread: 0.09 * scale, lp: 3200 * p, hp: 500, decay: 0.012, gain: gain * 1.6)
+        case .dirt:
+            return Synth.mix(burst(0.25 * scale, lp: 900 * p, hp: 60, decay: 0.05 * scale, gain: gain * 2.2),
+                             grains(Int(5 * scale), spread: 0.08 * scale, lp: 1800 * p, hp: 200, decay: 0.01, gain: gain * 0.8))
+        case .sand, .snow:
+            let lp: Float = m == .sand ? 4200 : 2600
+            return grains(Int(14 * scale), spread: 0.14 * scale, lp: lp * p, hp: 900, decay: 0.008, gain: gain * 0.9)
+        case .wood:
+            let knock = modes(0.3 * scale, [(190 * p, 0.7, 0.05), (410 * p, 0.45, 0.035), (870 * p, 0.2, 0.02)])
+            return Synth.mix(knock.map { $0 * gain * 1.3 }, burst(0.05, lp: 3000, hp: 400, decay: 0.008, gain: gain * 0.6))
+        case .plant:
+            return grains(Int(16 * scale), spread: 0.16 * scale, lp: 6000 * p, hp: 1800, decay: 0.01, gain: gain * 0.9)
+        case .glass:
+            var out = burst(0.25, lp: 9000, hp: 2500, decay: 0.04, gain: gain * 0.8)
+            for _ in 0..<Int(7 * scale) {
+                let f = (2200 + 3800 * abs(noise())) * p
+                let ping = modes(0.3, [(f, 0.25, 0.04 + 0.05 * abs(noise()))])
+                out = Synth.mix(out, ping.map { $0 * gain }, at: frames(abs(noise()) * 0.08))
+            }
+            return out
+        }
+    }
+
+    mutating func render(_ s: Snd, pitch p: Float) -> [Float] {
+        var out: [Float]
+        switch s {
+        case .breakBlock(let m): out = material(m, pitch: p, scale: 1.4, gain: 0.55)
+        case .place(let m): out = material(m, pitch: p * 1.05, scale: 0.8, gain: 0.45)
+        case .step(let m): out = material(m, pitch: p * 0.95, scale: 0.45, gain: 0.25)
+        case .splash:
+            out = burst(0.55, lp: 1400 * p, hp: 150, attack: 0.01, decay: 0.15, gain: 1.2)
+            out = Synth.mix(out, grains(20, spread: 0.3, lp: 5000, hp: 1500, decay: 0.01, gain: 0.3))
+        case .land: out = burst(0.18, lp: 300 * p, hp: 30, decay: 0.04, gain: 3)
+        case .hurt:
+            out = Synth.mix(voice(0.22, f0: 260 * p, f1: 150 * p, vib: 0.03, lp: 1400, gain: 1.4),
+                            burst(0.1, lp: 1200, hp: 200, decay: 0.03, gain: 0.5))
+        case .eat:
+            out = []
+            for k in 0..<3 {
+                out = Synth.mix(out, grains(6, spread: 0.04, lp: 2500 * p, hp: 300, decay: 0.012, gain: 0.9), at: frames(Float(k) * 0.16))
+            }
+        case .click: out = modes(0.05, [(1100 * p, 0.35, 0.008), (2200 * p, 0.1, 0.004)])
+        case .open: out = Synth.mix(modes(0.12, [(660 * p, 0.25, 0.03)]), modes(0.12, [(990 * p, 0.2, 0.03)]), at: frames(0.05))
+        case .mobCow: out = voice(0.85, f0: 150 * p, f1: 105 * p, vib: 0.02, lp: 700, gain: 1.3)
+        case .mobSheep: out = voice(0.6, f0: 420 * p, f1: 380 * p, vib: 0.09, lp: 1800, gain: 0.9)
+        case .mobChicken:
+            out = []
+            for k in 0..<2 {
+                out = Synth.mix(out, voice(0.09, f0: 1100 * p, f1: 800 * p, vib: 0.0, lp: 3500, gain: 0.7), at: frames(Float(k) * 0.13))
+            }
+        }
+        // Normalize peaks to a sane level and de-click the tail.
+        var peak: Float = 0
+        for x in out { peak = max(peak, abs(x)) }
+        if peak > 0.9 { let k = 0.9 / peak; out = out.map { $0 * k } }
+        let fade = min(out.count, frames(0.01))
+        for i in 0..<fade { out[out.count - 1 - i] *= Float(i) / Float(max(1, fade)) }
+        return out
+    }
+}
+
+final class SoundEngine {
+    private let engine = AVAudioEngine()
+    private let format: AVAudioFormat
+    private var players: [AVAudioPlayerNode] = []
+    private var buffers: [Snd: [AVAudioPCMBuffer]] = [:]
+    private var next = 0
+    private var variant = 0
+    var volume: Float = 0.8
+
+    init?() {
+        guard let f = AVAudioFormat(standardFormatWithSampleRate: SoundBank.rate, channels: 1) else { return nil }
+        format = f
+        let bank = SoundBank()
+        for s in SoundBank.allSounds {
+            var list: [AVAudioPCMBuffer] = []
+            for v in 0..<SoundBank.variants {
+                let data = bank.clip(s, variant: v)
+                guard !data.isEmpty, let b = AVAudioPCMBuffer(pcmFormat: f, frameCapacity: AVAudioFrameCount(data.count)),
+                      let ch = b.floatChannelData else { continue }
+                b.frameLength = AVAudioFrameCount(data.count)
+                let dst = ch[0]
+                for i in 0..<data.count { dst[i] = data[i] }
+                list.append(b)
+            }
+            buffers[s] = list
+        }
+        for _ in 0..<12 {
+            let p = AVAudioPlayerNode()
+            engine.attach(p)
+            engine.connect(p, to: engine.mainMixerNode, format: f)
+            players.append(p)
+        }
+        engine.mainMixerNode.outputVolume = 1
+        do { try engine.start() } catch { print("audio disabled: \(error)"); return nil }
+        for p in players { p.play() }
+    }
+
+    // Plays a sound; with a world position it is attenuated with distance and panned by the listener.
+    func play(_ s: Snd, volume v: Float = 1, at pos: V3? = nil, listener: V3 = .zero, yaw: Float = 0) {
+        guard let list = buffers[s], !list.isEmpty else { return }
+        var gain = v * volume
+        var pan: Float = 0
+        if let p = pos {
+            let rel = p - listener
+            let d = simd_length(rel)
+            gain *= max(0, 1 - d / 28)
+            if gain <= 0.01 { return }
+            if d > 0.5 {
+                let right = V3(cosf(yaw), 0, -sinf(yaw))
+                pan = simd_clamp(simd_dot(rel / d, right), -1, 1) * 0.8
+            }
+        }
+        let node = players[next]
+        next = (next + 1) % players.count
+        variant += 1
+        node.volume = gain
+        node.pan = pan
+        node.scheduleBuffer(list[variant % list.count], at: nil, options: .interrupts, completionHandler: nil)
+        if !node.isPlaying { node.play() }
+    }
+}

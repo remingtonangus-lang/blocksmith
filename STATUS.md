@@ -64,6 +64,12 @@
   Intentional simplification: the inventory stays creative-style (unlimited blocks, instant breaking) —
   item drops, counts, mining time and crafting are the next survival steps.
   WorldMeta gained optional fields (survival/health/hunger/saturation), so old world.json still loads.
+- Sound: `SoundBank` synthesizes everything at launch (noise bursts through one-pole filters, grain clouds for
+  crunchy materials, damped-sine modes for wood/glass, a filtered saw "voice" for grunts and mob calls), 3
+  pitch/seed variants each. `SoundEngine` = AVAudioEngine + 12 AVAudioPlayerNodes round-robin, distance
+  attenuation (28 blocks) and stereo pan from the listener yaw. If the audio engine can't start, the game runs
+  silently. `./snap.sh` also runs `--sounds snaps/sounds`, which writes every sound as a WAV (published on
+  ci-snaps) — listen there. AVFoundation was added to build.sh (the user asked for AVAudioEngine).
 - New blocks 23–26: Birch Log, Birch Leaves, Spruce Log, Spruce Leaves (appended; old saves stay valid).
 
 ## Known risks / unverified assumptions

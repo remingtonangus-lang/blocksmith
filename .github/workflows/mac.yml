@@ -50,6 +50,7 @@ jobs:
           PUB="$RUNNER_TEMP/pub"
           rm -rf "$PUB"; mkdir -p "$PUB"
           cp snaps/*.png "$PUB/" 2>/dev/null || true
+          if [ -d snaps/sounds ]; then cp -r snaps/sounds "$PUB/sounds"; fi
           cp build.log snap.log "$PUB/" 2>/dev/null || true
           cd "$PUB"
           {
@@ -62,6 +63,10 @@ jobs:
             echo '```'
             tail -n 80 snap.log 2>/dev/null || true
             echo '```'
+            if [ -d sounds ]; then
+              echo "### Synthesized sounds"
+              for f in sounds/*.wav; do echo "- [${f#sounds/}](${f})"; done
+            fi
             for f in *.png; do
               [ -e "$f" ] || continue
               echo "### ${f%.png}"
@@ -81,6 +86,7 @@ jobs:
           name: snaps
           path: |
             snaps/*.png
+            snaps/sounds/*.wav
             build.log
             snap.log
           if-no-files-found: ignore

@@ -102,6 +102,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let world = World(seed: seed, device: device, save: save)
         game = Game(world: world, save: save, persistent: true)
         if let m = meta { game.apply(m) } else { game.player.pos = game.findSpawn() }
+        game.sound = SoundEngine()
 
         // Load the area around the player up front so the first frame isn't empty.
         _ = world.loadSync(center: game.player.pos, radius: min(4, world.renderDistance))

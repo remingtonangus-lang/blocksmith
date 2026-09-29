@@ -5,7 +5,7 @@ Native macOS voxel sandbox game (original Minecraft-style clone) for Remington's
 Goals: polished, efficient on M1/8 GB, extensible. Later: Xbox controller on a TV (GameController framework) — design input with that in mind from day one.
 
 ## Hard rules
-- Swift 5 mode, AppKit + MetalKit + Metal + GameController + simd only. No third-party packages.
+- Swift 5 mode, AppKit + MetalKit + Metal + GameController + simd (+ AVFoundation/AVAudioEngine for synthesized sound) only. No third-party packages.
 - Shaders live in a Swift string (Shaders.swift) and compile at runtime with `device.makeLibrary(source:options:)`.
 - Build ONLY with `./build.sh` (outputs build/Blocksmith.app). Keep it warning-free if practical.
 - NEVER launch the GUI app, `open` anything, or bring windows to the front — the user is using the Mac. Test with the headless harness: `./snap.sh` (default views into snaps/) or `./snap.sh name --seed N --x N --z N --yaw DEG --pitch DEG --time FRAC --up N --rd N --w PX --h PX --slot N`. It renders one frame offscreen (world + HUD), writes a PNG, prints gen/mesh/frame timings, exits. --time is a day fraction: 0 sunrise, 0.25 noon, 0.5 sunset, 0.75 midnight. Look at the PNGs you produce (you can view images) to judge correctness.

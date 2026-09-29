@@ -110,6 +110,22 @@ enum Snapshot {
     }
 }
 
+if let dir = arg("--sounds") {
+    // Synth check: render every sound effect (variant 0) to a WAV file.
+    let t0 = CFAbsoluteTimeGetCurrent()
+    let bank = SoundBank()
+    try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+    var total = 0
+    for s in SoundBank.allSounds {
+        let c = bank.clip(s, variant: 0)
+        total += c.count
+        let name = String("\(s)".replacingOccurrences(of: "Blocksmith.SoundMat.", with: "").map { $0.isLetter || $0.isNumber ? $0 : "_" })
+        SoundBank.writeWAV(c, to: "\(dir)/\(name).wav")
+    }
+    print(String(format: "synthesized %ld sounds (%.1f s of audio) in %.0f ms", SoundBank.allSounds.count, Double(total) / SoundBank.rate, (CFAbsoluteTimeGetCurrent() - t0) * 1000))
+    exit(0)
+}
+
 if let out = arg("--snapshot") {
     exit(Snapshot.run(out))
 }

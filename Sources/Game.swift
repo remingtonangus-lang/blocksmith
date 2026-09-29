@@ -51,6 +51,15 @@ final class Game {
     lazy var spawnPoint: V3 = findSpawn()
     var onModeChanged: ((Bool) -> Void)?
 
+    // Audio (nil when headless or if the audio device can't start)
+    var sound: SoundEngine?
+    private var stepDist: Float = 0
+    private var wasInWater = false
+
+    func sfx(_ s: Snd, _ v: Float = 1, at pos: V3? = nil) {
+        sound?.play(s, volume: v, at: pos, listener: player.eye, yaw: player.yaw)
+    }
+
     var onPauseChanged: ((Bool) -> Void)?
     var onToast: ((String) -> Void)?
     var onRenderDistanceChanged: ((Int) -> Void)?
@@ -198,7 +207,7 @@ final class Game {
 
         let fdt = Float(dt)
 
-        if input.tapped(Key.e) || (p.view && !q.view) { inventoryOpen.toggle() }
+        if input.tapped(Key.e) || (p.view && !q.view) { inventoryOpen.toggle(); sfx(.open, 0.6) }
         if inventoryOpen {
             tickInventory(p, q, dt)
             let before = player.pos
@@ -254,6 +263,7 @@ final class Game {
 
         let before = player.pos
         player.update(dt: fdt, input: mi, world: world)
+        audioTick(from: before)
         survivalTick(dt, from: before)
 
         // Interact
@@ -263,6 +273,8 @@ final class Game {
         let breakHeld = input.leftDown || p.rt > 0.5
         let breakNow = input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5)
         if let t = target, breakNow || (breakHeld && breakCooldown <= 0) {
+            let broken = world.block(t.hit.x, t.hit.y, t.hit.z)
+            sfx(.breakBlock(soundMat(broken)), at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
             world.setBlock(t.hit.x, t.hit.y, t.hit.z, AIR)
             if survival { exhaustion += 0.005 }
             // Plants can't float: pop the one standing on the broken block.
@@ -293,6 +305,7 @@ final class Game {
             }
             if replaceable && supported && at.y >= 0 && at.y < CH && !(solid && player.intersectsBlock(at)) {
                 world.setBlock(at.x, at.y, at.z, id)
+                sfx(.place(soundMat(id)), at: V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5)
             }
             placeCooldown = 0.25
         }
@@ -312,6 +325,7 @@ final class Game {
         guard survival else { onToast?("Food only matters in survival"); return }
         guard hunger < 20 else { onToast?("Not hungry"); return }
         if id == APPLE {
+            sfx(.eat)
             hunger = min(20, hunger + 4)
             saturation = min(Float(hunger), saturation + 2.4)
             onToast?("Ate an apple")
@@ -322,6 +336,7 @@ final class Game {
         guard survival, amount > 0 else { return }
         health -= amount
         hurtFlash = 0.35
+        sfx(.hurt)
         if health <= 0 { die(cause) }
     }
 
@@ -336,6 +351,21 @@ final class Game {
         saturation = 5
         exhaustion = 0
         air = 15
+    }
+
+    // Footsteps, landing thuds and splashes.
+    private func audioTick(from before: V3) {
+        let p = player
+        if p.inWater && !wasInWater && p.vel.y < -3 { sfx(.splash, min(1, -p.vel.y / 12)) }
+        wasInWater = p.inWater
+        if p.pendingFall > 1.2 && !p.inWater { sfx(.land, min(1, p.pendingFall / 8)) }
+        guard p.onGround && !p.flying && !p.inWater else { stepDist = 0.8; return }
+        stepDist += simd_length(V2(p.pos.x - before.x, p.pos.z - before.z))
+        if stepDist > (p.sprinting ? 2.1 : 1.7) {
+            stepDist = 0
+            let under = world.block(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))
+            if under != AIR { sfx(.step(soundMat(under)), p.sneaking ? 0.4 : 1, at: p.pos) }
+        }
     }
 
     // Hunger, regeneration, starvation, drowning and fall damage (MC-like rules, simplified).
@@ -423,6 +453,7 @@ final class Game {
             let row = max(0, min(rows - 1, invCursor / cols + my))
             invCursor = min(n - 1, row * cols + col)
             onToast?(Blocks.name(items[invCursor]))
+            sfx(.click, 0.4)
         }
         let m = V2(input.mouseX, input.mouseY)
         if input.mouseMoved, let i = L.gridIndex(at: m, n), i != invCursor {
@@ -441,9 +472,10 @@ final class Game {
             else if let h = L.hotbarIndex(at: m) { select(h) }
         }
         if assign {
+            sfx(.click, 0.8)
             hotbar[selected] = items[invCursor]
             onToast?("\(Blocks.name(items[invCursor])) → slot \(selected + 1)")
         }
-        if p.b && !q.b { inventoryOpen = false }
+        if p.b && !q.b { inventoryOpen = false; sfx(.open, 0.5) }
     }
 }
