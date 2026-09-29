@@ -1,0 +1,4 @@
+seed 12345  pos 8.5 113.0 8.5  rd 12  chunks 729  (drawn 189)
+gen 74 ms  mesh(all, parallel) 35 ms  mesh(1 chunk) 0.26 ms  quads 835950 opaque / 24152 water
+frame (encode+GPU, offscreen) 10.26 ms  biome plains
+wrote snaps/aerial.png
