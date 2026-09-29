@@ -361,8 +361,10 @@ final class Renderer: NSObject, MTKViewDelegate {
 
     func buildHUD(_ W: Float, _ H: Float) -> [HudVert] {
         var v: [HudVert] = []
-        let s = max(1, min(floor(W / 400), floor(H / 300)))
+        let L = HudLayout(W, H)
+        let s = L.s
         hudScale = s
+        self.game.screen = V2(W, H)
         func quad(_ p: [V2], _ uv: [V2], _ c: V4, _ layer: Float) {
             for i in [0, 1, 2, 0, 2, 3] { v.append(HudVert(pos: p[i], uv: uv[i], color: c, extra: V4(layer, 0, 0, 0))) }
         }
@@ -373,20 +375,46 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         if game.player.headInWater { rect(0, 0, W, H, V4(0.05, 0.15, 0.45, 0.35)) }
 
-        // Crosshair
-        let cx = floor(W / 2), cy = floor(H / 2)
-        let arm = 5 * s, th = max(1, s)
-        let shadow = V4(0, 0, 0, 0.45), white = V4(1, 1, 1, 0.9)
-        rect(cx - arm - 1, cy - th / 2 - 1, arm * 2 + 2, th + 2, shadow)
-        rect(cx - th / 2 - 1, cy - arm - 1, th + 2, arm * 2 + 2, shadow)
-        rect(cx - arm, cy - th / 2, arm * 2, th, white)
-        rect(cx - th / 2, cy - arm, th, arm * 2, white)
+        func frame(_ x: Float, _ y: Float, _ w: Float, _ h: Float, _ b: Float, _ c: V4) {
+            rect(x, y, w, b, c)
+            rect(x, y + h - b, w, b, c)
+            rect(x, y, b, h, c)
+            rect(x + w - b, y, b, h, c)
+        }
+        let slot = L.slot
+
+        if game.inventoryOpen {
+            // Creative inventory: dimmed world, panel with every placeable block, highlighted cursor.
+            let items = game.inventoryItems
+            let n = items.count
+            let o = L.gridOrigin(n)
+            let gw = slot * Float(HudLayout.cols), gh = slot * Float(L.gridRows(n))
+            rect(0, 0, W, H, V4(0, 0, 0, 0.4))
+            rect(o.x - 6 * s, o.y - 6 * s, gw + 12 * s, gh + 12 * s, V4(0.1, 0.1, 0.12, 0.88))
+            frame(o.x - 6 * s, o.y - 6 * s, gw + 12 * s, gh + 12 * s, s, V4(0.55, 0.55, 0.6, 0.9))
+            for i in 0..<n {
+                let p = L.gridSlot(i, n)
+                let hi = i == game.invCursor
+                rect(p.x + s, p.y + s, slot - 2 * s, slot - 2 * s, hi ? V4(0.75, 0.75, 0.8, 0.6) : V4(0.3, 0.3, 0.34, 0.6))
+                icon(items[i], center: V2(p.x + slot / 2, p.y + slot / 2), size: slot * 0.62, quad)
+            }
+            let c = L.gridSlot(game.invCursor, n)
+            frame(c.x - s, c.y - s, slot + 2 * s, slot + 2 * s, 2 * s, V4(1, 1, 1, 0.95))
+        } else {
+            // Crosshair
+            let cx = floor(W / 2), cy = floor(H / 2)
+            let arm = 5 * s, th = max(1, s)
+            let shadow = V4(0, 0, 0, 0.45), white = V4(1, 1, 1, 0.9)
+            rect(cx - arm - 1, cy - th / 2 - 1, arm * 2 + 2, th + 2, shadow)
+            rect(cx - th / 2 - 1, cy - arm - 1, th + 2, arm * 2 + 2, shadow)
+            rect(cx - arm, cy - th / 2, arm * 2, th, white)
+            rect(cx - th / 2, cy - arm, th, arm * 2, white)
+        }
 
         // Hotbar
-        let slot = 20 * s
         let total = slot * 9
-        let x0 = floor((W - total) / 2)
-        let y0 = H - slot - 4 * s
+        let x0 = L.hotbarX0
+        let y0 = L.hotbarY0
         rect(x0 - 2 * s, y0 - 2 * s, total + 4 * s, slot + 4 * s, V4(0, 0, 0, 0.45))
         for i in 0..<9 {
             let x = x0 + Float(i) * slot

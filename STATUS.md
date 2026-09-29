@@ -49,6 +49,12 @@
   3 bits of w0 (26–28) now hold the per-vertex surface drop in eighths.
   Limits: no "flow toward nearest drop" pathing (spreads evenly); pending updates aren't saved, so a
   flow interrupted by quitting freezes until something nearby changes.
+- Inventory: drawn in the Metal HUD (no AppKit views) so it works on a TV with a pad. `HudLayout` holds
+  all HUD geometry and is shared by drawing and mouse hit-testing. Open/close: E or pad View (B/Esc also
+  close). Navigate: D-pad, left stick (auto-repeat), arrow keys, or mouse hover. A / Enter / click puts the
+  highlighted block in the selected hotbar slot; LB/RB, 1–9, scroll or clicking a hotbar slot changes the
+  slot. The mouse is released while it's open; the world keeps running (creative). Item names show as toasts.
+  Water is now in the block list (placing it starts a flow).
 - New blocks 23–26: Birch Log, Birch Leaves, Spruce Log, Spruce Leaves (appended; old saves stay valid).
 
 ## Known risks / unverified assumptions

@@ -17,6 +17,20 @@ final class Game {
     var showDebug = false
     var target: (hit: IVec3, normal: IVec3)?
 
+    // Creative inventory (drawn by the HUD, driven by pad, keyboard or mouse)
+    var inventoryOpen = false {
+        didSet {
+            input.uiMode = inventoryOpen
+            if inventoryOpen != oldValue { onInventoryChanged?(inventoryOpen) }
+        }
+    }
+    var invCursor = 0
+    let inventoryItems: [UInt8] = Blocks.placeable
+    var screen = V2(1280, 800) // drawable size, updated by the renderer each frame
+    var onInventoryChanged: ((Bool) -> Void)?
+    private var navTimer: Double = 0
+    private var navHeld = false
+
     var onPauseChanged: ((Bool) -> Void)?
     var onToast: ((String) -> Void)?
     var onRenderDistanceChanged: ((Int) -> Void)?
@@ -157,6 +171,15 @@ final class Game {
 
         let fdt = Float(dt)
 
+        if input.tapped(Key.e) || (p.view && !q.view) { inventoryOpen.toggle() }
+        if inventoryOpen {
+            tickInventory(p, q, dt)
+            player.update(dt: fdt, input: MoveInput(), world: world)
+            target = nil
+            advance(dt)
+            return
+        }
+
         // Look
         if input.captured {
             let sens: Float = 0.0022
@@ -240,11 +263,71 @@ final class Game {
         }
         if input.middleClicked || (p.x && !q.x) { pickBlock() }
 
+        advance(dt)
+    }
+
+    // World clock, fluids and autosave (runs whenever the game isn't paused).
+    private func advance(_ dt: Double) {
         fluidTimer += dt
         if fluidTimer >= 0.2 { fluidTimer = 0; world.fluidTick() }
-
         time += dt
         autosaveTimer += dt
         if autosaveTimer > 60 { autosaveTimer = 0; saveNow() }
+    }
+
+    private func tickInventory(_ p: PadSnapshot, _ q: PadSnapshot, _ dt: Double) {
+        let items = inventoryItems
+        let n = items.count
+        let L = HudLayout(screen.x, screen.y)
+        var mx = 0, my = 0
+        if (p.left && !q.left) || input.tapped(Key.arrowLeft) { mx -= 1 }
+        if (p.right && !q.right) || input.tapped(Key.arrowRight) { mx += 1 }
+        if (p.up && !q.up) || input.tapped(Key.arrowUp) { my -= 1 }
+        if (p.down && !q.down) || input.tapped(Key.arrowDown) { my += 1 }
+        // Left stick: one step on push, then auto-repeat while held.
+        let ls = stick(p.lx, p.ly)
+        var sx = 0, sy = 0
+        if max(abs(ls.x), abs(ls.y)) > 0.45 {
+            if abs(ls.x) > abs(ls.y) { sx = ls.x > 0 ? 1 : -1 } else { sy = ls.y > 0 ? -1 : 1 }
+        }
+        if sx != 0 || sy != 0 {
+            navTimer -= dt
+            if !navHeld || navTimer <= 0 {
+                mx += sx; my += sy
+                navTimer = navHeld ? 0.11 : 0.32
+                navHeld = true
+            }
+        } else {
+            navHeld = false
+            navTimer = 0
+        }
+        if mx != 0 || my != 0 {
+            let cols = HudLayout.cols, rows = L.gridRows(n)
+            let col = ((invCursor % cols) + mx + cols) % cols
+            let row = max(0, min(rows - 1, invCursor / cols + my))
+            invCursor = min(n - 1, row * cols + col)
+            onToast?(Blocks.name(items[invCursor]))
+        }
+        let m = V2(input.mouseX, input.mouseY)
+        if input.mouseMoved, let i = L.gridIndex(at: m, n), i != invCursor {
+            invCursor = i
+            onToast?(Blocks.name(items[i]))
+        }
+
+        for (i, k) in Key.digits.enumerated() where input.tapped(k) { select(i) }
+        if input.scrollSteps != 0 { select(selected - input.scrollSteps) }
+        if p.rb && !q.rb { select(selected + 1) }
+        if p.lb && !q.lb { select(selected - 1) }
+
+        var assign = (p.a && !q.a) || input.tapped(Key.enter)
+        if input.leftClicked || input.rightClicked {
+            if let i = L.gridIndex(at: m, n) { invCursor = i; assign = true }
+            else if let h = L.hotbarIndex(at: m) { select(h) }
+        }
+        if assign {
+            hotbar[selected] = items[invCursor]
+            onToast?("\(Blocks.name(items[invCursor])) → slot \(selected + 1)")
+        }
+        if p.b && !q.b { inventoryOpen = false }
     }
 }

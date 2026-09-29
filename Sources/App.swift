@@ -33,13 +33,24 @@ final class GameView: MTKView {
         input.mouseDX += Float(e.deltaX)
         input.mouseDY += Float(e.deltaY)
     }
-    override func mouseMoved(with e: NSEvent) { look(e) }
-    override func mouseDragged(with e: NSEvent) { look(e) }
+    private func track(_ e: NSEvent) {
+        let p = convert(e.locationInWindow, from: nil)
+        let sc = window?.backingScaleFactor ?? 2
+        input.mouseX = Float(p.x * sc)
+        input.mouseY = Float((bounds.height - p.y) * sc)
+        input.mouseMoved = true
+    }
+    override func mouseMoved(with e: NSEvent) { track(e); look(e) }
+    override func mouseDragged(with e: NSEvent) { track(e); look(e) }
     override func rightMouseDragged(with e: NSEvent) { look(e) }
     override func otherMouseDragged(with e: NSEvent) { look(e) }
 
     override func mouseDown(with e: NSEvent) {
-        if !input.captured { onClickWhileFree?(); return }
+        if !input.captured {
+            if input.uiMode { track(e); input.leftDown = true; input.leftClicked = true; return }
+            onClickWhileFree?()
+            return
+        }
         // Ctrl-click = right click for trackpad users
         if e.modifierFlags.contains(.control) { input.rightDown = true; input.rightClicked = true; return }
         input.leftDown = true
@@ -47,7 +58,11 @@ final class GameView: MTKView {
     }
     override func mouseUp(with e: NSEvent) { input.leftDown = false; input.rightDown = false }
     override func rightMouseDown(with e: NSEvent) {
-        if !input.captured { onClickWhileFree?(); return }
+        if !input.captured {
+            if input.uiMode { track(e); input.rightDown = true; input.rightClicked = true; return }
+            onClickWhileFree?()
+            return
+        }
         input.rightDown = true
         input.rightClicked = true
     }
@@ -55,7 +70,7 @@ final class GameView: MTKView {
     override func otherMouseDown(with e: NSEvent) { if input.captured { input.middleClicked = true } }
 
     override func scrollWheel(with e: NSEvent) {
-        guard input.captured else { return }
+        guard input.captured || input.uiMode else { return }
         let step: CGFloat = e.hasPreciseScrollingDeltas ? 12 : 1
         input.scrollAccum += e.scrollingDeltaY
         while input.scrollAccum >= step { input.scrollAccum -= step; input.scrollSteps += 1 }
@@ -125,7 +140,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         toastLabel.autoresizingMask = [.width]
         view.addSubview(toastLabel)
 
-        view.onEscape = { [weak self] in self?.game.paused.toggle() }
+        view.onEscape = { [weak self] in
+            guard let g = self?.game else { return }
+            if g.inventoryOpen && !g.paused { g.inventoryOpen = false } else { g.paused.toggle() }
+        }
+        game.onInventoryChanged = { [weak self] _ in
+            guard let self else { return }
+            self.game.input.releaseAll()
+            self.setCapture(!self.game.paused && !self.game.inventoryOpen)
+        }
         view.onClickWhileFree = { [weak self] in self?.game.paused = false }
         game.onPauseChanged = { [weak self] p in self?.pauseChanged(p) }
         game.onToast = { [weak self] s in self?.toast(s) }
@@ -185,7 +208,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         Keyboard: WASD move · Space jump (double-tap: fly) · Shift sneak/descend · Ctrl sprint · F fly
         Left click break · Right click place · Middle click pick · 1–9 / scroll slot · [ ] change block · F3 debug · Esc pause
         Controller: LS move · RS look · A jump · B sneak · L3 sprint · RT break · LT place · LB/RB slot
-        D-pad ↑↓ change block · X pick · Y fly · Menu pause   (paused: A resume · D-pad ←→ render distance)
+        D-pad ↑↓ change block · X pick · Y fly · View inventory · Menu pause   (paused: A resume · D-pad ←→ render distance)
+        Inventory (E / View): D-pad, left stick, arrows or mouse to choose · A / Enter / click puts it in the selected slot · LB/RB or 1–9 pick slot · B / E / Esc close
         """
         let stack = NSStackView(views: [title,
                                         button("Back to Game", #selector(resume)),
@@ -213,7 +237,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func pauseChanged(_ paused: Bool) {
         overlay.isHidden = !paused
-        setCapture(!paused)
+        setCapture(!paused && !game.inventoryOpen)
         view.preferredFramesPerSecond = paused ? 30 : (NSScreen.main?.maximumFramesPerSecond ?? 60)
         if paused { game.input.releaseAll() }
         window.makeFirstResponder(view)
