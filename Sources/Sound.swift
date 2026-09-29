@@ -158,7 +158,7 @@ struct Synth {
             return grains(Int(9 * scale), spread: 0.09 * scale, lp: 3200 * p, hp: 500, decay: 0.012, gain: gain * 1.6)
         case .dirt:
             return Synth.mix(burst(0.25 * scale, lp: 900 * p, hp: 60, decay: 0.05 * scale, gain: gain * 2.2),
-                             grains(Int(5 * scale), spread: 0.08 * scale, lp: 1800 * p, hp: 200, decay: 0.01, gain: gain * 0.8))
+                             grains(Int(5 * scale), spread: 0.08 * scale, lp: 1000 * p, hp: 120, decay: 0.01, gain: gain * 0.5))
         case .sand, .snow:
             let lp: Float = m == .sand ? 4200 : 2600
             return grains(Int(14 * scale), spread: 0.14 * scale, lp: lp * p, hp: 900, decay: 0.008, gain: gain * 0.9)
@@ -210,6 +210,15 @@ struct Synth {
         var peak: Float = 0
         for x in out { peak = max(peak, abs(x)) }
         if peak > 0.9 { let k = 0.9 / peak; out = out.map { $0 * k } }
+        // Voiced sounds are dense; bring their loudness in line with the percussive block sounds.
+        let loud: Float
+        switch s {
+        case .hurt: loud = 0.45
+        case .mobCow, .mobSheep: loud = 0.32
+        case .mobChicken: loud = 0.55
+        default: loud = 1
+        }
+        if loud != 1 { out = out.map { $0 * loud } }
         let fade = min(out.count, frames(0.01))
         for i in 0..<fade { out[out.count - 1 - i] *= Float(i) / Float(max(1, fade)) }
         return out
