@@ -138,8 +138,8 @@ fragment float4 cloudFS(CloudOut in [[stage_in]],
                         constant float4& cp [[buffer(2)]]) {
     float2 w = in.rel.xz + cp.xy;
     float2 cell = floor(w / 12.0);
-    float n = vnoise(cell * 0.19) * 0.7 + vnoise(cell * 0.045 + 17.0) * 0.5 + hash21(cell) * 0.1;
-    if (n < 0.8) { discard_fragment(); }
+    float n = vnoise(cell * 0.23) * 0.62 + vnoise(cell * 0.06 + 17.0) * 0.38 + (hash21(cell) - 0.5) * 0.08;
+    if (n < 0.6) { discard_fragment(); }
     float fade = 1.0 - smoothstep(cp.z * 0.5, cp.z, length(in.rel.xz));
     float day = u.params.y;
     float3 col = float3(1.0, 1.0, 1.0) * mix(0.05, 1.0, smoothstep(0.12, 1.0, day));
