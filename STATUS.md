@@ -81,5 +81,6 @@
 ## Known risks / unverified assumptions
 
 ## Next
-Remaining list, in order: (d) block light + torches,
-(e) flowing water, (f) creative inventory, (g) survival, (h) sounds, (i) passive mobs.
+All requested items (a)–(i) are implemented. Suggested follow-ups: item drops + counts + mining time for
+survival, food from animals, crafting, greedy meshing, mob lighting from real light values, first-person hand,
+controller-driven pause menu (currently AppKit buttons + pad shortcuts).

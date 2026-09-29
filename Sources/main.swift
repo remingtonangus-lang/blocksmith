@@ -102,6 +102,47 @@ enum Snapshot {
         var quads = 0, water = 0
         for (_, c) in world.chunks { quads += c.opaqueQuads; water += c.waterQuads }
 
+        if let simSeconds = Double(arg("--sim") ?? "") {
+            // Gameplay smoke test: scripted input through the real Game.tick (survival, walking, jumping,
+            // breaking/placing, inventory, flowing water, mobs), timing the main-thread tick.
+            game.player.flying = false
+            game.paused = false
+            game.survival = true
+            let wx = Int(floor(pos.x)) + 3, wz = Int(floor(pos.z)) - 4
+            world.setBlock(wx, world.gen.column(wx, wz).height + 1, wz, WATER)
+            for k in 0..<5 {
+                let kind = MobKind.allCases[k % 3]
+                let x = Int(floor(pos.x)) + k * 2 - 4, z = Int(floor(pos.z)) - 6
+                let y = game.mobs.grassSurface(world, x, z) ?? (world.gen.column(x, z).height + 1)
+                game.mobs.mobs.append(Mob(kind, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)))
+            }
+            let dt = 1.0 / 60
+            var worst = 0.0, total = 0.0
+            let frames = Int(simSeconds / dt)
+            let inp = game.input
+            for f in 0..<frames {
+                inp.keys = [Key.w]
+                if f % 100 == 0 { inp.keys.insert(Key.space); inp.pressed.insert(Key.space) }
+                if f % 30 == 10 { inp.leftClicked = true }
+                if f % 45 == 20 { inp.rightClicked = true }
+                if f == 300 { inp.pressed.insert(Key.e) }
+                if f > 300 && f < 360 && f % 10 == 0 { inp.pressed.insert(Key.arrowRight); inp.pressed.insert(Key.arrowDown) }
+                if f == 350 { inp.pressed.insert(Key.enter) }
+                if f == 380 { inp.pressed.insert(Key.e) }
+                game.player.yaw += 0.003
+                let t0 = CFAbsoluteTimeGetCurrent()
+                game.tick(dt)
+                let el = CFAbsoluteTimeGetCurrent() - t0
+                total += el
+                worst = max(worst, el)
+            }
+            _ = world.loadSync(center: game.player.pos, radius: rd)
+            let p = game.player.pos
+            print(String(format: "sim %.1f s: tick avg %.2f ms, worst %.2f ms | pos %.1f %.1f %.1f | health %ld hunger %ld | mobs %ld | fluid pending %ld | hotbar[0] %@",
+                         simSeconds, total / Double(max(1, frames)) * 1000, worst * 1000, p.x, p.y, p.z, game.health, game.hunger,
+                         game.mobs.mobs.count, world.fluidPending.count, Blocks.name(game.hotbar[0])))
+        }
+
         // Mesh benchmark: re-mesh the spawn chunk a few times on one thread.
         let key = ChunkKey(x: floorDiv(Int(pos.x), CS), z: floorDiv(Int(pos.z), CS))
         var n9: [[UInt8]] = []
