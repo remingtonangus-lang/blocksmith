@@ -154,6 +154,61 @@ enum TextureGen {
             if grid { return rgb(0.62, 0.45, 0.22, 0.95) }
             return rgb(1, 0.86, 0.55, 0.9 + 0.1 * r(x, y, 48))
         }
+        // Items and HUD icons.
+        put(T.apple) { x, y in
+            if (x == 8 && y >= 1 && y <= 4) { return rgb(0.35, 0.24, 0.12, 1) }
+            if y >= 1 && y <= 3 && x >= 9 && x <= 11 && (x - 9) == (3 - y) { return rgb(0.3, 0.62, 0.2, 1) }
+            let dx = Float(x) - 7.5, dy = Float(y) - 9.5
+            let d = (dx * dx + dy * dy * 1.1).squareRoot()
+            if d < 5.8 {
+                if dx < -1.5 && dy < -1.5 && d > 2.5 && d < 4.2 { return V4(1, 0.72, 0.68, 1) }
+                return rgb(0.82, 0.12, 0.1, 0.85 + 0.2 * (1 - d / 6))
+            }
+            return V4(0, 0, 0, 0)
+        }
+        // 0 = empty container, 1 = half (left filled), 2 = full
+        func heart(_ x: Int, _ y: Int, _ fill: Int) -> V4 {
+            let nx = (Float(x) - 7.5) / 7.2, ny = -(Float(y) - 8.2) / 7.2
+            let a = nx * nx + ny * ny - 0.62
+            let f = a * a * a - nx * nx * ny * ny * ny * 0.8
+            let g = nx * nx * 0.8 + ny * ny * 0.8 - 0.5
+            let inner = g * g * g - nx * nx * ny * ny * ny * 0.8 * 0.5
+            if f > 0 { return V4(0, 0, 0, 0) }
+            if inner > 0 && f > -0.02 { return V4(0.08, 0.02, 0.02, 1) }
+            let filled = fill == 2 || (fill == 1 && x < 8)
+            if !filled { return V4(0.2, 0.08, 0.08, 0.95) }
+            if x >= 4 && x <= 6 && y >= 5 && y <= 6 { return V4(1, 0.75, 0.75, 1) }
+            return V4(0.86, 0.1, 0.12, 1)
+        }
+        put(T.heart) { x, y in heart(x, y, 2) }
+        put(T.heartHalf) { x, y in heart(x, y, 1) }
+        put(T.heartEmpty) { x, y in heart(x, y, 0) }
+        // Drumstick: meaty oval top-left, bone to the bottom-right.
+        func food(_ x: Int, _ y: Int, _ fill: Int) -> V4 {
+            let dx = Float(x) - 6, dy = Float(y) - 6
+            let meat = dx * dx + dy * dy < 24
+            let t = Float(x + y) / 2
+            let bone = abs(x - y) <= 1 && t >= 9 && t <= 13
+            let knob = (x >= 12 && x <= 14 && y >= 12 && y <= 14) && !(x == 12 && y == 12)
+            if !(meat || bone || knob) { return V4(0, 0, 0, 0) }
+            let edge = dx * dx + dy * dy > 17 && meat
+            let filled = fill == 2 || (fill == 1 && x < 8)
+            if !filled { return V4(0.16, 0.12, 0.1, 0.9) }
+            if bone || knob { return V4(0.92, 0.88, 0.8, 1) }
+            if edge { return rgb(0.45, 0.22, 0.1, 1) }
+            return rgb(0.72, 0.38, 0.18, 0.9 + 0.15 * r(x, y, 50))
+        }
+        put(T.food) { x, y in food(x, y, 2) }
+        put(T.foodHalf) { x, y in food(x, y, 1) }
+        put(T.foodEmpty) { x, y in food(x, y, 0) }
+        put(T.bubble) { x, y in
+            let dx = Float(x) - 7.5, dy = Float(y) - 7.5
+            let d = (dx * dx + dy * dy).squareRoot()
+            if d > 6.5 { return V4(0, 0, 0, 0) }
+            if d > 5.2 { return V4(0.75, 0.9, 1, 1) }
+            if dx < -1 && dy < -1 && d > 2 && d < 4 { return V4(1, 1, 1, 1) }
+            return V4(0.3, 0.55, 0.95, 0.55)
+        }
         func ore(_ layer: Int, _ c: V3, _ salt: Int) {
             put(layer) { x, y in
                 if r(x / 3, y / 3, salt) < 0.4 && r(x, y, salt + 1) < 0.7 {

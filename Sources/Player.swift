@@ -20,6 +20,9 @@ final class Player {
     var headInWater = false
     var sneaking = false
     var sprinting = false
+    var airPeak: Float = 0         // highest feet y since last touching ground/water (fall damage)
+    var pendingFall: Float = 0     // fall distance of the last landing; Game consumes and clears it
+    var jumped = false             // a ground jump started this frame
 
     let halfW: Float = 0.3
     let height: Float = 1.8
@@ -83,6 +86,9 @@ final class Player {
         let e = eye
         headInWater = Blocks.isLiquid(w.block(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))))
 
+        if flying || inWater { airPeak = pos.y }
+        jumped = false
+
         sneaking = input.sneak && !flying
         sprinting = input.sprint && input.forward > 0 && !sneaking
 
@@ -118,7 +124,7 @@ final class Player {
         } else {
             vel.y -= 28 * dt
             vel.y = max(vel.y, -60)
-            if input.jump && onGround { vel.y = 8.6 }
+            if input.jump && onGround { vel.y = 8.6; jumped = true }
         }
 
         // Sub-step so no single axis move exceeds 0.4 blocks (prevents tunnelling).
@@ -144,6 +150,12 @@ final class Player {
         }
         onGround = landed || (vel.y <= 0 && groundBelow(pos, w))
         if flying && landed { flying = false }
+        if onGround {
+            if airPeak - pos.y > 0 { pendingFall = max(pendingFall, airPeak - pos.y) }
+            airPeak = pos.y
+        } else {
+            airPeak = max(airPeak, pos.y)
+        }
         if pos.y < -64 { pos.y = Float(CH); vel = .zero }
     }
 }

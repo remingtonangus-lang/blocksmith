@@ -12,6 +12,11 @@ struct WorldMeta: Codable {
     var hotbar: [UInt8]
     var selected: Int
     var renderDistance: Int
+    // Added after v0.1: optional so older world.json files still decode.
+    var survival: Bool?
+    var health: Int?
+    var hunger: Int?
+    var saturation: Float?
 }
 
 // Layout: ~/Library/Application Support/Blocksmith/Worlds/<name>/

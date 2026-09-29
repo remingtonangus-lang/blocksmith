@@ -49,6 +49,13 @@ enum Snapshot {
         game.player.flying = true
         game.time = (Double(arg("--time") ?? "") ?? 0.2) * DAY_LENGTH
         if let s = arg("--slot") { game.selected = Int(s) ?? 0 }
+        if let hp = arg("--survival") {
+            game.survival = true
+            game.health = Int(hp) ?? 20
+            game.hunger = 13
+            game.air = 7
+            game.hotbar[8] = APPLE
+        }
         if let c = arg("--inventory") { game.inventoryOpen = true; game.invCursor = Int(c) ?? 0 }
 
         var t = world.loadSync(center: pos, radius: rd)

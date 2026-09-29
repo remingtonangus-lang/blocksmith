@@ -31,6 +31,26 @@ final class Game {
     private var navTimer: Double = 0
     private var navHeld = false
 
+    // Survival
+    var survival = false {
+        didSet {
+            if survival { player.flying = false }
+            if survival != oldValue { onModeChanged?(survival) }
+        }
+    }
+    var health = 20            // half-hearts
+    var hunger = 20            // half-drumsticks
+    var saturation: Float = 5
+    var exhaustion: Float = 0
+    var air: Float = 15        // seconds of breath
+    var hurtFlash: Float = 0   // seconds left of the red damage tint
+    private var regenTimer: Double = 0
+    private var starveTimer: Double = 0
+    private var drownTimer: Double = 0
+    private var eatCooldown: Double = 0
+    lazy var spawnPoint: V3 = findSpawn()
+    var onModeChanged: ((Bool) -> Void)?
+
     var onPauseChanged: ((Bool) -> Void)?
     var onToast: ((String) -> Void)?
     var onRenderDistanceChanged: ((Int) -> Void)?
@@ -75,12 +95,17 @@ final class Game {
         if m.hotbar.count == 9 { hotbar = m.hotbar }
         selected = max(0, min(8, m.selected))
         world.renderDistance = m.renderDistance
+        survival = m.survival ?? false
+        health = max(1, min(20, m.health ?? 20))
+        hunger = max(0, min(20, m.hunger ?? 20))
+        saturation = m.saturation ?? 5
     }
 
     var meta: WorldMeta {
         WorldMeta(seed: world.seed, x: player.pos.x, y: player.pos.y, z: player.pos.z,
                   yaw: player.yaw, pitch: player.pitch, time: time, flying: player.flying,
-                  hotbar: hotbar, selected: selected, renderDistance: world.renderDistance)
+                  hotbar: hotbar, selected: selected, renderDistance: world.renderDistance,
+                  survival: survival, health: health, hunger: hunger, saturation: saturation)
     }
 
     func saveNow() {
@@ -137,6 +162,7 @@ final class Game {
     }
 
     func toggleFly() {
+        if survival { onToast?("No flying in survival"); return }
         player.flying.toggle()
         if player.flying { player.vel.y = 0 }
         onToast?(player.flying ? "Flying" : "Walking")
@@ -165,6 +191,7 @@ final class Game {
         if p.menu && !q.menu { paused.toggle() }
         if paused {
             if p.a && !q.a { paused = false }
+            if p.x && !q.x { toggleMode() }
             if (p.right && !q.right) || (p.left && !q.left) { cycleRenderDistance() }
             return
         }
@@ -174,7 +201,9 @@ final class Game {
         if input.tapped(Key.e) || (p.view && !q.view) { inventoryOpen.toggle() }
         if inventoryOpen {
             tickInventory(p, q, dt)
+            let before = player.pos
             player.update(dt: fdt, input: MoveInput(), world: world)
+            survivalTick(dt, from: before)
             target = nil
             advance(dt)
             return
@@ -206,7 +235,7 @@ final class Game {
         mi.jump = input.down(Key.space) || p.a
         mi.sneak = input.shift || p.b || p.r3
         if input.control || (p.l3 && !q.l3) { player.sprinting = true }
-        mi.sprint = player.sprinting && (mi.forward > 0.3)
+        mi.sprint = player.sprinting && (mi.forward > 0.3) && !(survival && hunger <= 6)
         if mi.forward <= 0.3 { player.sprinting = false }
 
         if input.tapped(Key.space) {
@@ -223,7 +252,9 @@ final class Game {
         if input.tapped(Key.rightBracket) || (p.up && !q.up) { cycleBlock(1) }
         if input.tapped(Key.leftBracket) || (p.down && !q.down) { cycleBlock(-1) }
 
+        let before = player.pos
         player.update(dt: fdt, input: mi, world: world)
+        survivalTick(dt, from: before)
 
         // Interact
         target = world.raycast(player.eye, player.look, maxDist: 5)
@@ -233,6 +264,7 @@ final class Game {
         let breakNow = input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5)
         if let t = target, breakNow || (breakHeld && breakCooldown <= 0) {
             world.setBlock(t.hit.x, t.hit.y, t.hit.z, AIR)
+            if survival { exhaustion += 0.005 }
             // Plants can't float: pop the one standing on the broken block.
             if Blocks.isPlant(world.block(t.hit.x, t.hit.y + 1, t.hit.z)) { world.setBlock(t.hit.x, t.hit.y + 1, t.hit.z, AIR) }
             breakCooldown = 0.25
@@ -240,7 +272,10 @@ final class Game {
         }
         let placeHeld = input.rightDown || p.lt > 0.5
         let placeNow = input.rightClicked || (p.lt > 0.5 && q.lt <= 0.5)
-        if let t = target, placeNow || (placeHeld && placeCooldown <= 0) {
+        eatCooldown -= dt
+        if Blocks.isItem(hotbar[selected]) {
+            if (placeNow || placeHeld) && eatCooldown <= 0 { eat(hotbar[selected]); eatCooldown = 0.8 }
+        } else if let t = target, placeNow || (placeHeld && placeCooldown <= 0) {
             // Clicking a plant replaces it (like tall grass); otherwise place against the face.
             let at = Blocks.isPlant(world.block(t.hit.x, t.hit.y, t.hit.z)) ? t.hit : t.hit + t.normal
             let existing = world.block(at.x, at.y, at.z)
@@ -264,6 +299,87 @@ final class Game {
         if input.middleClicked || (p.x && !q.x) { pickBlock() }
 
         advance(dt)
+    }
+
+    // MARK: Survival
+
+    func toggleMode() {
+        survival.toggle()
+        onToast?(survival ? "Survival mode" : "Creative mode")
+    }
+
+    func eat(_ id: UInt8) {
+        guard survival else { onToast?("Food only matters in survival"); return }
+        guard hunger < 20 else { onToast?("Not hungry"); return }
+        if id == APPLE {
+            hunger = min(20, hunger + 4)
+            saturation = min(Float(hunger), saturation + 2.4)
+            onToast?("Ate an apple")
+        }
+    }
+
+    func damage(_ amount: Int, _ cause: String) {
+        guard survival, amount > 0 else { return }
+        health -= amount
+        hurtFlash = 0.35
+        if health <= 0 { die(cause) }
+    }
+
+    func die(_ cause: String) {
+        onToast?("You \(cause). Respawning…")
+        player.pos = spawnPoint
+        player.vel = .zero
+        player.airPeak = spawnPoint.y
+        player.pendingFall = 0
+        health = 20
+        hunger = 20
+        saturation = 5
+        exhaustion = 0
+        air = 15
+    }
+
+    // Hunger, regeneration, starvation, drowning and fall damage (MC-like rules, simplified).
+    private func survivalTick(_ dt: Double, from before: V3) {
+        hurtFlash = max(0, hurtFlash - Float(dt))
+        let fall = player.pendingFall
+        player.pendingFall = 0
+        guard survival else { air = 15; return }
+
+        if fall > 3.5 && !player.inWater { damage(Int(ceilf(fall - 3.5)), "fell too far") }
+        if player.pos.y < -60 { die("fell out of the world"); return }
+
+        let moved = simd_length(V2(player.pos.x - before.x, player.pos.z - before.z))
+        exhaustion += moved * (player.sprinting ? 0.1 : (player.inWater ? 0.015 : 0.01))
+        if player.jumped { exhaustion += player.sprinting ? 0.2 : 0.05 }
+        while exhaustion >= 4 {
+            exhaustion -= 4
+            if saturation > 0 { saturation = max(0, saturation - 1) } else { hunger = max(0, hunger - 1) }
+        }
+
+        if hunger >= 18 && health < 20 {
+            regenTimer += dt
+            if regenTimer >= 4 { regenTimer = 0; health += 1; exhaustion += 6 }
+        } else {
+            regenTimer = 0
+        }
+        if hunger == 0 {
+            starveTimer += dt
+            if starveTimer >= 4 { starveTimer = 0; if health > 1 { damage(1, "starved") } }
+        } else {
+            starveTimer = 0
+        }
+
+        if player.headInWater {
+            air -= Float(dt)
+            if air <= 0 {
+                air = 0
+                drownTimer += dt
+                if drownTimer >= 1 { drownTimer = 0; damage(2, "drowned") }
+            }
+        } else {
+            air = min(15, air + Float(dt) * 5)
+            drownTimer = 0
+        }
     }
 
     // World clock, fluids and autosave (runs whenever the game isn't paused).

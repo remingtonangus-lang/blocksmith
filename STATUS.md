@@ -55,6 +55,15 @@
   highlighted block in the selected hotbar slot; LB/RB, 1–9, scroll or clicking a hotbar slot changes the
   slot. The mouse is released while it's open; the world keeps running (creative). Item names show as toasts.
   Water is now in the block list (placing it starts a flow).
+- Survival (toggle: pause menu "Mode" button or pad X while paused; saved per world): no flying; 20 half-heart
+  health, 20 hunger + saturation; exhaustion from walking 0.01/m, sprinting 0.1/m, jumping 0.05 (0.2 sprinting),
+  breaking 0.005; 4 exhaustion = −1 saturation/hunger. Regen 1 HP / 4 s at hunger ≥ 18 (costs 6 exhaustion);
+  starvation 1 HP / 4 s at hunger 0 (never below 1 HP); no sprint at hunger ≤ 6. Fall damage = ceil(fall − 3.5)
+  (water landings are free). 15 s of air, then 2 HP/s. Death respawns at the world spawn with full stats.
+  Apple (new `item` kind, id 41): hold it and right-click/LT to eat (+4 hunger, +2.4 saturation).
+  Intentional simplification: the inventory stays creative-style (unlimited blocks, instant breaking) —
+  item drops, counts, mining time and crafting are the next survival steps.
+  WorldMeta gained optional fields (survival/health/hunger/saturation), so old world.json still loads.
 - New blocks 23–26: Birch Log, Birch Leaves, Spruce Log, Spruce Leaves (appended; old saves stay valid).
 
 ## Known risks / unverified assumptions

@@ -86,6 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var save: SaveManager!
     var overlay: NSView!
     var rdButton: NSButton!
+    var modeButton: NSButton!
     var debugLabel: NSTextField!
     var toastLabel: NSTextField!
     var toastUntil: Double = 0
@@ -152,6 +153,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         view.onClickWhileFree = { [weak self] in self?.game.paused = false }
         game.onPauseChanged = { [weak self] p in self?.pauseChanged(p) }
         game.onToast = { [weak self] s in self?.toast(s) }
+        game.onModeChanged = { [weak self] sv in self?.modeButton.title = sv ? "Mode: Survival" : "Mode: Creative" }
         game.onRenderDistanceChanged = { [weak self] rd in self?.rdButton.title = "Render Distance: \(rd)" }
         renderer.onFrame = { [weak self] dt in self?.frameTick(dt) }
 
@@ -202,25 +204,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return b
         }
         rdButton = button("Render Distance: \(game.world.renderDistance)", #selector(cycleRD))
+        modeButton = button(game.survival ? "Mode: Survival" : "Mode: Creative", #selector(toggleMode))
         let hint = label(size: 12, mono: false)
         hint.alignment = .center
         hint.stringValue = """
         Keyboard: WASD move · Space jump (double-tap: fly) · Shift sneak/descend · Ctrl sprint · F fly
         Left click break · Right click place · Middle click pick · 1–9 / scroll slot · [ ] change block · F3 debug · Esc pause
         Controller: LS move · RS look · A jump · B sneak · L3 sprint · RT break · LT place · LB/RB slot
-        D-pad ↑↓ change block · X pick · Y fly · View inventory · Menu pause   (paused: A resume · D-pad ←→ render distance)
+        D-pad ↑↓ change block · X pick · Y fly · View inventory · Menu pause   (paused: A resume · X game mode · D-pad ←→ render distance)
+        Survival: hearts, hunger, fall damage, drowning; hold an Apple and right click / LT to eat
         Inventory (E / View): D-pad, left stick, arrows or mouse to choose · A / Enter / click puts it in the selected slot · LB/RB or 1–9 pick slot · B / E / Esc close
         """
         let stack = NSStackView(views: [title,
                                         button("Back to Game", #selector(resume)),
                                         rdButton,
+                                        modeButton,
                                         button("Toggle Fullscreen", #selector(toggleFS)),
                                         button("Save and Quit", #selector(saveQuit)),
                                         hint])
         stack.orientation = .vertical
         stack.spacing = 12
         stack.setCustomSpacing(24, after: title)
-        stack.setCustomSpacing(24, after: stack.views[4])
+        stack.setCustomSpacing(24, after: stack.views[5])
         stack.translatesAutoresizingMaskIntoConstraints = false
         overlay.addSubview(stack)
         NSLayoutConstraint.activate([
@@ -232,6 +237,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     @objc func resume() { game.paused = false }
     @objc func cycleRD() { game.cycleRenderDistance() }
+    @objc func toggleMode() { game.toggleMode() }
     @objc func toggleFS() { window.toggleFullScreen(nil) }
     @objc func saveQuit() { game.saveNow(); NSApp.terminate(nil) }
 

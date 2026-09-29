@@ -22,3 +22,4 @@ if [ $# -gt 0 ]; then n="$1"; shift; "$BIN" --snapshot "snaps/$n.png" "$@"; exit
 "$BIN" --snapshot snaps/torches_near.png --seed 12345 --yaw 20 --pitch -50 --time 0.75 --up 3 --torches
 "$BIN" --snapshot snaps/water_flow.png --seed 12345 --yaw 10 --pitch -40 --time 0.25 --up 7 --flood
 "$BIN" --snapshot snaps/inventory.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --inventory 11 --slot 3
+"$BIN" --snapshot snaps/survival.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --survival 13 --slot 8

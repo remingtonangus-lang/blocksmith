@@ -374,6 +374,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         let game = self.game
 
         if game.player.headInWater { rect(0, 0, W, H, V4(0.05, 0.15, 0.45, 0.35)) }
+        if game.hurtFlash > 0 { rect(0, 0, W, H, V4(0.75, 0.02, 0.02, min(0.45, game.hurtFlash * 1.3))) }
 
         func frame(_ x: Float, _ y: Float, _ w: Float, _ h: Float, _ b: Float, _ c: V4) {
             rect(x, y, w, b, c)
@@ -429,6 +430,26 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
             icon(game.hotbar[i], center: V2(x + slot / 2, y0 + slot / 2), size: slot * 0.62, quad)
         }
+
+        // Survival status: hearts (left), hunger (right, filling right-to-left), air bubbles when submerged.
+        if game.survival {
+            let isz = 9 * s, step = 8 * s
+            let yh = y0 - 3 * s - isz
+            let uv4 = [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)]
+            func sprite(_ layer: Int, _ x: Float, _ y: Float) {
+                quad([V2(x, y), V2(x + isz, y), V2(x + isz, y + isz), V2(x, y + isz)], uv4, V4(1, 1, 1, 1), Float(layer))
+            }
+            for i in 0..<10 {
+                let h = game.health - i * 2
+                sprite(h >= 2 ? T.heart : (h == 1 ? T.heartHalf : T.heartEmpty), x0 + Float(i) * step, yh)
+                let f = game.hunger - i * 2
+                sprite(f >= 2 ? T.food : (f == 1 ? T.foodHalf : T.foodEmpty), x0 + total - isz - Float(i) * step, yh)
+            }
+            if game.air < 15 {
+                let b = Int(ceilf(game.air / 1.5))
+                for i in 0..<b { sprite(T.bubble, x0 + total - isz - Float(i) * step, yh - step - s) }
+            }
+        }
         return v
     }
 
@@ -436,7 +457,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     func icon(_ id: UInt8, center c: V2, size sz: Float, _ quad: ([V2], [V2], V4, Float) -> Void) {
         let tex = Blocks.tex
         let uv = [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)]
-        if Blocks.isPlant(id) {
+        if Blocks.flatIcon(id) {
             let h = sz * 0.55
             quad([V2(c.x - h, c.y - h), V2(c.x + h, c.y - h), V2(c.x + h, c.y + h), V2(c.x - h, c.y + h)], uv, V4(1, 1, 1, 1), Float(tex[Int(id) * 6]))
             return

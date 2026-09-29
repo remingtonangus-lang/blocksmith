@@ -38,6 +38,7 @@ let LAMP: UInt8 = 32
 // Flowing water: WATER_FLOW[k] for k = 1...7 (index 0 = the source, WATER). WATER_FALL is a falling column.
 let WATER_FLOW: [UInt8] = [WATER, 33, 34, 35, 36, 37, 38, 39]
 let WATER_FALL: UInt8 = 40
+let APPLE: UInt8 = 41
 
 enum T {
     static let stone = 0, grassTop = 1, grassSide = 2, dirt = 3, cobble = 4, planks = 5, bedrock = 6, sand = 7
@@ -47,11 +48,13 @@ enum T {
     static let birchSide = 26, birchTop = 27, spruceSide = 28, spruceTop = 29, birchLeaves = 30, spruceLeaves = 31
     static let tallGrass = 32, redFlower = 33, yellowFlower = 34, blueFlower = 35
     static let torch = 36, lamp = 37
-    static let count = 38
+    static let apple = 38, heart = 39, heartHalf = 40, heartEmpty = 41, food = 42, foodHalf = 43, foodEmpty = 44, bubble = 45
+    static let count = 46
 }
 
 // plant = cross-shaped cutout sprite (two diagonal quads), no collision, doesn't block light.
-enum BlockKind: UInt8 { case air = 0, solid = 1, cutout = 2, liquid = 3, plant = 4 }
+// item = lives only in the hotbar/inventory (food); never placed in the world.
+enum BlockKind: UInt8 { case air = 0, solid = 1, cutout = 2, liquid = 3, plant = 4, item = 5 }
 
 struct BlockDef {
     var name: String
@@ -112,6 +115,7 @@ final class BlockTable {
         add("Lamp", .solid, all(T.lamp), emit: 15)
         for k in 1...7 { add("Flowing Water \(k)", .liquid, all(T.water), sky: true, hidden: true); fluidLevel[defs.count - 1] = Int8(k) }
         add("Falling Water", .liquid, all(T.water), sky: true, hidden: true)
+        add("Apple", .item, all(T.apple))
         fluidLevel[Int(WATER)] = 0
         fluidLevel[Int(WATER_FALL)] = 8
     }
@@ -139,6 +143,9 @@ final class BlockTable {
         return k != BlockKind.air.rawValue && k != BlockKind.liquid.rawValue
     }
 
+    @inline(__always) func isItem(_ id: UInt8) -> Bool { kind[Int(id)] == BlockKind.item.rawValue }
+    // Drawn as a flat sprite in the HUD rather than an isometric cube.
+    @inline(__always) func flatIcon(_ id: UInt8) -> Bool { isPlant(id) || isItem(id) }
     @inline(__always) func isLiquid(_ id: UInt8) -> Bool { kind[Int(id)] == BlockKind.liquid.rawValue }
 
     var placeable: [UInt8] { (1..<defs.count).filter { !hidden[$0] }.map { UInt8($0) } }
