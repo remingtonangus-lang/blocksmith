@@ -19,9 +19,23 @@
 | Feature | State |
 |---|---|
 | v0.1 base game (terrain, AO, water, fog, day/night, HUD, save) | verified on M1 |
-| CI workflow + ci-snaps publishing | verified (run 1 green) |
-| (a) Tree variety: jittered 5×5 grid + density noise, oak / big oak / birch / spruce, birch groves, lower forest density | verified in CI snapshots (forest/snowy) |
-| (b) Tall grass + red/yellow/blue flowers as crossed cutout sprites (meadow patches) | untested on Mac |
+| CI workflow + ci-snaps publishing | verified (all runs green) |
+| (a) Tree variety: jittered 5×5 grid + density noise, oak / big oak / birch / spruce, birch groves, lower forest density | verified in CI snapshots (forest, snowy, aerial) |
+| (b) Tall grass + red/yellow/blue flowers as crossed cutout sprites (meadow patches) | verified in CI snapshots (meadow, spawn) |
+| (c) Clouds (procedural blocky layer at y=158, drifting) + night stars (1400, rotate with the sun) | verified in CI snapshots (clouds, stars) |
+| (d) Propagated skylight + block light, smooth per-vertex lighting, Torch (light 14) + Lamp block (15) | verified in CI snapshots (torches, torches_near, forest_in) |
+| (e) Flowing water (sources, 7 flow levels, falling columns, sloped surfaces) | verified in CI snapshot (water_flow) |
+| (f) Creative inventory screen (E / controller View): grid of all blocks, pad/keys/mouse | rendering verified (inventory); keyboard path exercised by `--sim`; pad + mouse untested on Mac |
+| (g) Survival mode: health, hunger/saturation/exhaustion, fall damage, drowning, starvation, respawn, Apple food | HUD verified (survival); logic ran in `--sim`; untested on Mac |
+| (h) Synthesized sound effects (AVAudioEngine): break/place/step per material, splash, land, hurt, eat, UI, mob calls | synthesis verified in CI (WAVs on ci-snaps); playback untested on Mac |
+| (i) Passive mobs: cow, sheep, chicken — animated cuboid models, wander/idle AI, cliff + water avoidance, hop, panic + knockback when hit, positional calls | models verified (mobs); AI ran in `--sim`; untested on Mac |
+| Headless gameplay smoke test `--sim` (12 s scripted play through Game.tick) | runs in CI: tick avg 0.03 ms, worst 3.5 ms |
+
+## New controls (also listed on the pause screen)
+- E / pad View: creative inventory (D-pad/stick/arrows/mouse to pick, A/Enter/click to put in slot, B/E/Esc close).
+- Pause menu "Mode" button or pad X while paused: creative ⇄ survival. Hold an Apple + right click / LT to eat.
+- Hotbar now starts with Torch and Lamp; Water is placeable from the inventory (it flows).
+- Left click / RT on an animal hits it.
 
 ## Design decisions
 - Trees: one candidate per 5×5 cell at a hashed offset (0–3), so trunks are ≥2 apart and there is no lattice.
@@ -85,6 +99,15 @@
 - New blocks 23–26: Birch Log, Birch Leaves, Spruce Log, Spruce Leaves (appended; old saves stay valid).
 
 ## Known risks / unverified assumptions
+- Everything after v0.1 was written on Linux and checked only through CI (compile + offscreen renders +
+  `--sim`). Not yet exercised on the real Mac: controller navigation, mouse in the inventory (pixel
+  conversion assumes drawable = bounds × backingScaleFactor), audio playback (if AVAudioEngine fails to
+  start the game runs silently and logs "audio disabled"), mob AI over long play, fluid behaviour in caves.
+- Light isn't stored: every remesh recomputes it (0.7–1.1 ms/chunk). After an edit, the chunk and its edge
+  neighbours remesh synchronously, the other neighbours in the background, so distant light may lag a frame.
+- Wall-mounted torches don't pop when their wall is removed. Mobs and pending fluid updates are not saved.
+- Survival uses the creative inventory (unlimited blocks, instant breaking, no drops) — by design for now.
+- Mobs use a daylight/covered heuristic, not real light (torch-lit mobs stay dark at night).
 
 ## Next
 All requested items (a)–(i) are implemented. Suggested follow-ups: item drops + counts + mining time for
