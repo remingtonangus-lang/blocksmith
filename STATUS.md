@@ -1,17 +1,32 @@
 # Status
 
-## 2026-09-29 — v0.1 first full draft
-- All source files written (Math, Noise, Blocks, Chunk, Textures, WorldGen, Mesher, Save, World, Player, Input, Game, Shaders, Renderer, App, main) + Info.plist, build.sh, snap.sh.
-- NEVER COMPILED YET (authored in a Linux sandbox with no Swift toolchain). Expect a round of compile fixes.
+## CI (compile/test loop)
+- `.github/workflows/mac.yml` runs on every push (macos-14, arm64, newest Xcode 16 on the image): `./build.sh` then `./snap.sh`.
+- Snapshots + `build.log` + `snap.log` are force-pushed to the orphan branch **`ci-snaps`** each run
+  (browse https://github.com/remingtonangus-lang/blocksmith/tree/ci-snaps — its README embeds every PNG and the timings).
+  Also uploaded as the `snaps` workflow artifact. The runner has a (paravirtual) Metal device, so snapshots are real renders.
+- Development happens on Linux without a Swift toolchain; CI is the compiler. Timings on the CI VM are
+  slower than a real M1, so treat them as upper bounds.
+- `snap.sh` gained `--find <biome>` (spirals from spawn to the middle of a biome) for biome-specific shots.
 
-## First session checklist
-1. `./build.sh debug` → fix errors until clean, then `./build.sh`.
-2. `./snap.sh` → view snaps/*.png. Check: terrain visible (not inside-out → if only back faces show, flip setFrontFacing in Renderer), textures upright on side faces, water translucent, HUD hotbar + crosshair, sun position, night darkness, fog blend to sky.
-3. Check timings: mesh(1 chunk) should be a few ms; frame well under 16 ms at rd 8.
-4. Launch the app only when Remington asks (it takes focus / captures the mouse).
+## Feature log (newest last)
+| Feature | State |
+|---|---|
+| v0.1 base game (terrain, AO, water, fog, day/night, HUD, save) | verified on M1 |
+| CI workflow + ci-snaps publishing | verified (run 1 green) |
+| (a) Tree variety: jittered 5×5 grid + density noise, oak / big oak / birch / spruce, birch groves, lower forest density | untested on Mac |
+
+## Design decisions
+- Trees: one candidate per 5×5 cell at a hashed offset (0–3), so trunks are ≥2 apart and there is no lattice.
+  Density = `flora` noise (1/64 scale): forests 15–70 % of cells, plains ~2 % (12 % in "copse" patches),
+  snowy spruce/oak mix, mountains sparse. Tree validity is decided from `column()` only (not chunk data),
+  so canopies crossing chunk borders always match. Max canopy radius 3 = generation margin.
+- New blocks 23–26: Birch Log, Birch Leaves, Spruce Log, Spruce Leaves (appended; old saves stay valid).
 
 ## Known risks / unverified assumptions
-- Face winding (.counterClockwise front) — verify in snapshot.
-- Swift 6.3 compiler in Swift 5 mode: Sendable/MainActor warnings expected, hopefully not errors.
 - Skylight is a heightmap approximation (no propagation) — caves are dark by design, overhangs uniformly shaded.
 - Water is static (no flow); placing water isn't in the block cycle.
+
+## Next
+Remaining list, in order: (b) tall grass + flowers, (c) clouds + stars, (d) block light + torches,
+(e) flowing water, (f) creative inventory, (g) survival, (h) sounds, (i) passive mobs.

@@ -4,8 +4,29 @@ import Metal
 // Headless test harness. Renders one frame offscreen to a PNG and prints timings, e.g.
 //   Blocksmith --snapshot /tmp/shot.png --seed 42 --yaw 45 --pitch -20 --time 0.25 --up 30 --rd 8
 // Angles in degrees; --time is a day fraction (0 sunrise, 0.25 noon, 0.5 sunset, 0.75 midnight);
-// --x/--z pick a world position (default: spawn); --up raises the camera above the terrain.
+// --x/--z pick a world position (default: spawn); --up raises the camera above the terrain;
+// --find <biome> (forest, desert, snowy, ...) spirals out from spawn to the middle of that biome.
 enum Snapshot {
+    static func findBiome(_ gen: WorldGen, _ want: String) -> V3? {
+        var x = 0, z = 0, dx = 0, dz = -1
+        for _ in 0..<40000 {
+            let wx = x * 16 + 8, wz = z * 16 + 8
+            var ok = true
+            for (ox, oz) in [(0, 0), (24, 0), (-24, 0), (0, 24), (0, -24)] where "\(gen.column(wx + ox, wz + oz).biome)" != want {
+                ok = false
+                break
+            }
+            if ok {
+                let h = gen.column(wx, wz).height
+                return V3(Float(wx) + 0.5, Float(max(h, SEA) + 1), Float(wz) + 0.5)
+            }
+            if x == z || (x < 0 && x == -z) || (x > 0 && x == 1 - z) { (dx, dz) = (-dz, dx) }
+            x += dx; z += dz
+        }
+        print("biome \(want) not found")
+        return nil
+    }
+
     static func run(_ out: String) -> Int32 {
         guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); return 1 }
         let seed = UInt64(arg("--seed") ?? "") ?? 12345
@@ -20,6 +41,7 @@ enum Snapshot {
             let hgt = world.gen.column(Int(floor(x)), Int(floor(z))).height
             pos = V3(x, Float(max(hgt, SEA) + 1), z)
         }
+        if let want = arg("--find"), let p = findBiome(world.gen, want) { pos = p }
         pos.y += Float(arg("--up") ?? "") ?? 0
         game.player.pos = pos
         game.player.yaw = (Float(arg("--yaw") ?? "") ?? 30) * .pi / 180

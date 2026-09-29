@@ -25,13 +25,18 @@ let CACTUS: UInt8 = 19
 let SNOW: UInt8 = 20
 let STONE_BRICKS: UInt8 = 21
 let SANDSTONE: UInt8 = 22
+let BIRCH_LOG: UInt8 = 23
+let BIRCH_LEAVES: UInt8 = 24
+let SPRUCE_LOG: UInt8 = 25
+let SPRUCE_LEAVES: UInt8 = 26
 
 enum T {
     static let stone = 0, grassTop = 1, grassSide = 2, dirt = 3, cobble = 4, planks = 5, bedrock = 6, sand = 7
     static let gravel = 8, logSide = 9, logTop = 10, leaves = 11, glass = 12, water = 13, coal = 14, iron = 15
     static let gold = 16, diamond = 17, brick = 18, snow = 19, snowSide = 20, cactusSide = 21, cactusTop = 22
     static let stoneBrick = 23, sandstoneSide = 24, sandstoneTop = 25
-    static let count = 26
+    static let birchSide = 26, birchTop = 27, spruceSide = 28, spruceTop = 29, birchLeaves = 30, spruceLeaves = 31
+    static let count = 32
 }
 
 enum BlockKind: UInt8 { case air = 0, solid = 1, cutout = 2, liquid = 3 }
@@ -79,6 +84,10 @@ final class BlockTable {
         add("Snow Block", .solid, all(T.snow))
         add("Stone Bricks", .solid, all(T.stoneBrick))
         add("Sandstone", .solid, column(T.sandstoneSide, T.sandstoneTop, T.sandstoneTop))
+        add("Birch Log", .solid, column(T.birchSide, T.birchTop, T.birchTop))
+        add("Birch Leaves", .cutout, all(T.birchLeaves))
+        add("Spruce Log", .solid, column(T.spruceSide, T.spruceTop, T.spruceTop))
+        add("Spruce Leaves", .cutout, all(T.spruceLeaves))
     }
 
     func add(_ name: String, _ kind: BlockKind, _ tex: [Int], sky: Bool? = nil, cullSame: Bool = false) {

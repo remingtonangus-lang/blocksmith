@@ -72,21 +72,41 @@ enum TextureGen {
             let v: Float = n < 0.33 ? 0.36 : (n < 0.66 ? 0.5 : 0.62)
             return V4(v, v * 0.97, v * 0.95, 1)
         }
-        put(T.logSide) { x, y in
-            let stripe = (x + Int(r(0, y / 5, 9) * 2)) % 4 == 0
-            return rgb(0.42, 0.32, 0.2, stripe ? 0.7 : 0.9 + 0.12 * r(x, y, 10))
+        func bark(_ layer: Int, _ c: V3) {
+            put(layer) { x, y in
+                let stripe = (x + Int(r(0, y / 5, 9 + layer) * 2)) % 4 == 0
+                return rgb(c.x, c.y, c.z, stripe ? 0.7 : 0.9 + 0.12 * r(x, y, 10 + layer))
+            }
         }
-        put(T.logTop) { x, y in
-            let dx = Float(x) - 7.5, dy = Float(y) - 7.5
-            let d = (dx * dx + dy * dy).squareRoot()
-            if d > 6.9 { return rgb(0.42, 0.32, 0.2, 0.85) }
-            let ring = Int(d * 1.1) % 2 == 0
-            return rgb(0.72, 0.58, 0.36, ring ? 1 : 0.86)
+        func rings(_ layer: Int, _ barkC: V3, _ wood: V3) {
+            put(layer) { x, y in
+                let dx = Float(x) - 7.5, dy = Float(y) - 7.5
+                let d = (dx * dx + dy * dy).squareRoot()
+                if d > 6.9 { return rgb(barkC.x, barkC.y, barkC.z, 0.85) }
+                let ring = Int(d * 1.1) % 2 == 0
+                return rgb(wood.x, wood.y, wood.z, ring ? 1 : 0.86)
+            }
         }
-        put(T.leaves) { x, y in
-            if r(x, y, 12) < 0.2 { return V4(0, 0, 0, 0) }
-            return rgb(0.24, 0.5, 0.17, 0.7 + 0.5 * r(x, y, 13))
+        func foliage(_ layer: Int, _ c: V3, holes: Float, _ salt: Int) {
+            put(layer) { x, y in
+                if r(x, y, salt) < holes { return V4(0, 0, 0, 0) }
+                return rgb(c.x, c.y, c.z, 0.7 + 0.5 * r(x, y, salt + 1))
+            }
         }
+        bark(T.logSide, V3(0.42, 0.32, 0.2))
+        rings(T.logTop, V3(0.42, 0.32, 0.2), V3(0.72, 0.58, 0.36))
+        bark(T.spruceSide, V3(0.29, 0.21, 0.14))
+        rings(T.spruceTop, V3(0.29, 0.21, 0.14), V3(0.6, 0.46, 0.3))
+        rings(T.birchTop, V3(0.86, 0.85, 0.8), V3(0.8, 0.7, 0.52))
+        put(T.birchSide) { x, y in
+            // Pale bark with dark horizontal lenticels.
+            let dash = y % 5 == 2 && r(x / 3, y, 26) < 0.55
+            if dash || r(x, y, 27) < 0.05 { return rgb(0.2, 0.19, 0.17, 0.9 + 0.2 * r(x, y, 28)) }
+            return rgb(0.88, 0.87, 0.83, 0.9 + 0.1 * r(x, y, 29))
+        }
+        foliage(T.leaves, V3(0.24, 0.5, 0.17), holes: 0.2, 12)
+        foliage(T.birchLeaves, V3(0.4, 0.58, 0.24), holes: 0.22, 32)
+        foliage(T.spruceLeaves, V3(0.15, 0.33, 0.2), holes: 0.12, 34)
         put(T.glass) { x, y in
             if x == 0 || y == 0 || x == 15 || y == 15 { return V4(0.75, 0.86, 0.92, 1) }
             if (x == y || x == y + 1) && x > 3 && x < 8 { return V4(0.95, 0.98, 1, 1) }
