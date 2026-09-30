@@ -187,15 +187,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func hookGame() {
         view.onEscape = { [weak self] in
-            guard let g = self?.game else { return }
-            if g.menu != nil && !g.paused { g.closeMenu() } else { g.paused.toggle() }
+            guard let self, let g = self.game else { return }
+            if self.worldsPanel != nil { self.hideWorlds(); return }
+            if g.menu is PauseMenu { g.closeMenu() }
+            else if g.menu != nil { g.closeMenu(); g.paused = false }
+            else { g.paused = true }
+        }
+        game.appAction = { [weak self] id in
+            guard let self else { return }
+            switch id {
+            case "fullscreen": self.toggleFS()
+            case "quit": self.saveQuit()
+            case "worlds": self.showWorlds()
+            case "newworld": self.switchWorld(name: "World\(Int.random(in: 100...999))", seed: nil, survival: self.game.survival, difficulty: self.game.difficulty)
+            default: break
+            }
         }
         game.onInventoryChanged = { [weak self] _ in
             guard let self else { return }
             self.game.input.releaseAll()
             self.setCapture(!self.game.paused && !self.game.inventoryOpen)
         }
-        view.onClickWhileFree = { [weak self] in self?.game.paused = false }
+        view.onClickWhileFree = { [weak self] in if let g = self?.game, g.menu == nil { g.paused = false; self?.setCapture(true) } }
         game.onPauseChanged = { [weak self] p in self?.pauseChanged(p) }
         game.onModeChanged = { [weak self] sv in self?.modeButton.title = sv ? "Mode: Survival" : "Mode: Creative" }
         game.onRenderDistanceChanged = { [weak self] rd in self?.rdButton.title = "Render Distance: \(rd)" }
@@ -345,8 +358,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSLayoutConstraint.activate([stack.centerXAnchor.constraint(equalTo: panel.centerXAnchor), stack.centerYAnchor.constraint(equalTo: panel.centerYAnchor)])
         overlay.addSubview(panel)
         worldsPanel = panel
+        overlay.isHidden = false
+        setCapture(false)
     }
-    @objc func hideWorlds() { worldsPanel?.removeFromSuperview(); worldsPanel = nil }
+    @objc func hideWorlds() { worldsPanel?.removeFromSuperview(); worldsPanel = nil; overlay.isHidden = true }
     @objc func playWorld(_ sender: NSButton) {
         guard let n = sender.identifier?.rawValue else { return }
         switchWorld(name: n, seed: nil, survival: nil, difficulty: nil)
@@ -371,7 +386,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc func saveQuit() { game.saveNow(); NSApp.terminate(nil) }
 
     func pauseChanged(_ paused: Bool) {
-        overlay.isHidden = !paused
+        // The pause screen is drawn in-game (PauseMenu); the AppKit overlay only hosts the Worlds panel.
+        overlay.isHidden = worldsPanel == nil
+        if paused && game.menu == nil { game.openMenu(PauseMenu(game: game)) }
         setCapture(!paused && !game.inventoryOpen)
         view.preferredFramesPerSecond = paused ? 30 : (NSScreen.main?.maximumFramesPerSecond ?? 60)
         if paused { game.input.releaseAll() }

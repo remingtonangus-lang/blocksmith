@@ -99,6 +99,11 @@ enum Snapshot {
             var s = game.inventory.main[9]; s.damage = 120; game.inventory.main[9] = s
             switch which {
             case "creative": game.openMenu(CreativeMenu(game: game))
+            case "pause":
+                game.openMenu(PauseMenu(game: game))
+            case "options":
+                let pm = PauseMenu(game: game); pm.page = .options; pm.build()
+                game.openMenu(pm)
             case "advancements":
                 for id in ["root", "mine_stone", "upgrade_tools", "smelt_iron", "enter_the_nether", "mine_diamond", "adventure/trade", "nether/return_to_sender"] {
                     if let i = Advancements.index[id] { game.advancements.insert(Advancements.all[i].id) }

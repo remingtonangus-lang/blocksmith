@@ -8,11 +8,16 @@ struct HudLayout {
     let s: Float      // integer HUD scale
     let slot: Float   // slot size in pixels
     static let cols = 9
+    static var userScale: Int = UserDefaults.standard.integer(forKey: "guiScale") { didSet { UserDefaults.standard.set(userScale, forKey: "guiScale") } }
+    static var couch: Bool = UserDefaults.standard.bool(forKey: "couchMode") { didSet { UserDefaults.standard.set(couch, forKey: "couchMode") } }
 
     init(_ W: Float, _ H: Float) {
         self.W = W
         self.H = H
-        s = max(1, min(floor(W / 400), floor(H / 300)))
+        // Auto scale fits the classic 400x300 layout; couch mode (TV) targets ~280x210 for big text.
+        let auto = max(1, min(floor(W / (HudLayout.couch ? 280 : 400)), floor(H / (HudLayout.couch ? 210 : 300))))
+        let maxFit = max(1, min(floor(W / 240), floor(H / 180)))
+        s = HudLayout.userScale > 0 ? min(Float(HudLayout.userScale), maxFit) : auto
         slot = 20 * s
     }
 

@@ -24,7 +24,20 @@ final class Game {
         get { inventory.selected }
         set { inventory.selected = newValue }
     }
-    var paused = true { didSet { if paused != oldValue { onPauseChanged?(paused) } } }
+    var paused = true {
+        didSet {
+            guard paused != oldValue else { return }
+            // Pausing opens the in-game pause menu (unless another screen is up); resuming closes it.
+            if paused && menu == nil { openMenu(PauseMenu(game: self)) }
+            else if !paused && menu is PauseMenu { menu = nil }
+            onPauseChanged?(paused)
+        }
+    }
+    var appAction: ((String) -> Void)?
+    var invertY: Bool = UserDefaults.standard.bool(forKey: "invertY") { didSet { UserDefaults.standard.set(invertY, forKey: "invertY") } }
+    var deadZone: Float = { let v = UserDefaults.standard.float(forKey: "deadZone"); return v > 0 ? v : 0.15 }() {
+        didSet { UserDefaults.standard.set(deadZone, forKey: "deadZone") }
+    }
     var showDebug = false
     var target: (hit: IVec3, normal: IVec3)?
 
@@ -458,7 +471,7 @@ final class Game {
         if (p.right && !q.right) || input.tapped(Key.arrowRight) { mx += 1 }
         if (p.up && !q.up) || input.tapped(Key.arrowUp) { my -= 1 }
         if (p.down && !q.down) || input.tapped(Key.arrowDown) { my += 1 }
-        let ls = stick(p.lx, p.ly)
+        let ls = stick(p.lx, p.ly, dead: deadZone)
         var sx = 0, sy = 0
         if max(abs(ls.x), abs(ls.y)) > 0.45 {
             if abs(ls.x) > abs(ls.y) { sx = ls.x > 0 ? 1 : -1 } else { sy = ls.y > 0 ? -1 : 1 }
@@ -538,11 +551,13 @@ final class Game {
         let q = prevPad
         defer { prevPad = p; input.endFrame() }
 
-        if p.menu && !q.menu { paused.toggle() }
+        if p.menu && !q.menu {
+            if paused { if menu is PauseMenu { closeMenu() } else { paused = false } }
+            else { if menu != nil { closeMenu() }; paused = true }
+        }
         if paused {
-            if p.a && !q.a { paused = false }
-            if p.x && !q.x { toggleMode() }
-            if (p.right && !q.right) || (p.left && !q.left) { cycleRenderDistance() }
+            if menu == nil { openMenu(PauseMenu(game: self)) }
+            tickMenu(p, q, dt)
             return
         }
 
@@ -575,11 +590,12 @@ final class Game {
         if input.captured {
             let sens: Float = 0.0022 * sensitivity
             player.yaw -= input.mouseDX * sens
-            player.pitch -= input.mouseDY * sens
+            player.pitch -= input.mouseDY * sens * (invertY ? -1 : 1)
         }
-        let rs = stick(p.rx, p.ry)
-        player.yaw -= rs.x * 3.4 * fdt
-        player.pitch += rs.y * 2.6 * fdt
+        let rs = stick(p.rx, p.ry, dead: deadZone)
+        let inv: Float = invertY ? -1 : 1
+        player.yaw -= rs.x * 3.4 * fdt * sensitivity
+        player.pitch += rs.y * 2.6 * fdt * sensitivity * inv
         player.pitch = simd_clamp(player.pitch, -1.55, 1.55)
         player.yaw = player.yaw.truncatingRemainder(dividingBy: 2 * .pi)
 
@@ -589,7 +605,7 @@ final class Game {
         if input.down(Key.s) { mi.forward -= 1 }
         if input.down(Key.d) { mi.strafe += 1 }
         if input.down(Key.a) { mi.strafe -= 1 }
-        let ls = stick(p.lx, p.ly)
+        let ls = stick(p.lx, p.ly, dead: deadZone)
         mi.forward += ls.y
         mi.strafe += ls.x
         mi.forward = simd_clamp(mi.forward, -1, 1)

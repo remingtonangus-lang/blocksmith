@@ -847,6 +847,21 @@ final class Renderer: NSObject, MTKViewDelegate {
                     text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
                 }
             }
+            if let pm = m as? PauseMenu {
+                // Big labelled buttons; the controller cursor shows as the highlighted one.
+                for sl in pm.slots where sl.isButton {
+                    guard case .button(let i) = sl.kind, i < pm.rows.count else { continue }
+                    let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
+                    let hot = game.menuHover === sl
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.42, 0.55, 0.85, 1) : V4(0.42, 0.42, 0.46, 1))
+                    frame(x, y, Float(sl.w) * s, Float(sl.h) * s, s, hot ? V4(1, 1, 1, 1) : V4(0.2, 0.2, 0.22, 1))
+                    let label = pm.rows[i].0
+                    text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
+                }
+                if pm.page == .options {
+                    text("A / click: next   X / right-click: previous   B / Esc: back", o.x + 10 * s, o.y + Float(pm.height - 8) * s, s * 0.5, V4(0.3, 0.3, 0.3, 1), shadow: false)
+                }
+            }
             if let am = m as? AdvancementMenu {
                 // Tabs, then the checklist: done ones in gold (challenges purple), open ones grey.
                 for sl in am.slots where sl.isButton {
