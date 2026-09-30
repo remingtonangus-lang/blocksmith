@@ -86,7 +86,7 @@ enum Stronghold {
                 build(&w, n, cx: cx, cz: cz, y: y, seed: pseed)
             })
         }
-        return StructureStart(kind: "stronghold", pieces: pieces, anchor: IVec3(portalAt.x, portalAt.y + 1, portalAt.z - 4))
+        return StructureStart(kind: "stronghold", pieces: pieces, anchor: IVec3(portalAt.x, portalAt.y + 1, portalAt.z - 5))
     }
 
     // Stone-brick shell over the plan (walls 1 thick) with the inside carved out.

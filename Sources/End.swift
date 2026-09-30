@@ -13,6 +13,16 @@ final class EnderEye {
     init(_ p: V3, _ t: V3) { pos = p; target = t }
 }
 
+// Shulker bullet: slowly homes in on the player; a hit deals 4 and levitates for 10 s. Punching it
+// destroys it.
+final class ShulkerBullet {
+    var pos: V3
+    var vel: V3
+    var age: Float = 0
+    var dead = false
+    init(_ p: V3, _ v: V3) { pos = p; vel = v }
+}
+
 // Lingering dragon breath: 6 damage per second to a player standing in it.
 struct AcidCloud { var pos: V3; var radius: Float; var time: Float; var tick: Float = 0 }
 
@@ -183,6 +193,35 @@ extension Game {
             }
         }
         clouds.removeAll { $0.time <= 0 }
+        for b in bullets {
+            b.age += dt
+            let to = player.eye - V3(0, 0.4, 0) - b.pos
+            let d = simd_length(to)
+            if d > 0.01 { b.vel += (to / d * 4 - b.vel) * min(1, dt * 1.5) }
+            b.pos += b.vel * dt
+            if Float.random(in: 0..<1) < dt * 20 { particles.smoke(at: b.pos, dark: false) }
+            if d < 0.7 {
+                b.dead = true
+                hurtPlayer(4, from: b.pos, cause: "was shot by Shulker", knockback: 0.3)
+                if survival { player.levitate = 10 }
+            } else if b.age > 12 || Blocks.collide[Int(world.block(Int(floor(b.pos.x)), Int(floor(b.pos.y)), Int(floor(b.pos.z))))] {
+                b.dead = true
+                particles.explosion(at: b.pos, power: 0.2)
+            }
+        }
+        bullets.removeAll { $0.dead }
+    }
+
+    // Player punch on a shulker bullet destroys it.
+    func punchBullet() -> Bool {
+        for b in bullets {
+            if let h = World.rayBox(player.eye, player.look, b.pos - V3(0.2, 0.2, 0.2), b.pos + V3(0.2, 0.2, 0.2)), h.0 < 4 {
+                b.dead = true
+                particles.explosion(at: b.pos, power: 0.2)
+                return true
+            }
+        }
+        return false
     }
 
     func dragonDied(_ d: Mob) {
@@ -227,6 +266,9 @@ extension Game {
             for e in eyes { wr.sprite(center: e.pos - eye, half: 0.15, right: right, up: up, layer: layer, light: 1) }
         }
         let white = Int(Tex.id("smoke"))
+        for b in bullets {
+            wr.sprite(center: b.pos - eye, half: 0.18, right: right, up: up, layer: white, light: 1, tint: V3(1.3, 1.25, 1.1))
+        }
         for d in mobs.mobs where d.kind == .enderDragon {
             guard let c = d.healTarget else { continue }
             let a = c.pos + V3(0, 1.25, 0) - eye, b = d.pos + V3(0, 2.5, 0) - eye
@@ -347,6 +389,23 @@ extension Mob {
         if dist < 6 && phase != 6 && attackCooldown <= 0 {
             attackCooldown = 1
             g.hurtPlayer(5, from: pos, cause: "was slain by Ender Dragon", knockback: 2)
+        }
+    }
+
+    func updateShulker(_ dt: Float, _ g: Game) {
+        let target = g.player.eye
+        let dist = simd_length(target - pos)
+        let active = g.survival && g.alive && dist < 16 && g.world.canSee(pos + V3(0, 0.8, 0), target)
+        // Peeks open now and then; stays open while attacking.
+        let wantOpen: Float = active || aggro ? 1 : (sinf(walkPhase * 0.4) > 0.7 ? 0.5 : 0)
+        peek += (wantOpen - peek) * min(1, dt * 3)
+        walkPhase += dt
+        face(target)
+        if active && attackCooldown <= 0 {
+            attackCooldown = Float.random(in: 1...5.5)
+            let from = pos + V3(0, 1.3, 0)
+            g.bullets.append(ShulkerBullet(from, simd_normalize(target - from) * 4))
+            g.sfx(.fireball, 0.3, at: from)
         }
     }
 

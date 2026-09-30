@@ -78,6 +78,10 @@ enum Recipes {
         r.append(shaped(["##", "##"], ["#": "nether_brick"], "nether_bricks"))
         r.append(shaped(["##", "##"], ["#": "blackstone"], "polished_blackstone", 4))
         r.append(shapeless(["blaze_rod"], "blaze_powder", 2))
+        r.append(shapeless(["paper", "gunpowder"], "firework_rocket", 3))
+        r.append(shaped(["##", "##"], ["#": "popped_chorus_fruit"], "purpur_block", 4))
+        r.append(shaped(["#", "#"], ["#": "purpur_slab"], "purpur_pillar", 1))
+        r.append(shaped(["B", "P"], ["B": "blaze_powder", "P": "popped_chorus_fruit"], "end_rod", 4))
         r.append(shapeless(["ender_pearl", "blaze_powder"], "ender_eye", 1))
         r.append(shaped(["###"], ["#": "sugar_cane"], "paper", 3))
         r.append(shapeless(["sugar_cane"], "sugar", 1))
@@ -140,6 +144,10 @@ enum Recipes {
         r.append(shapeless(["paper", "paper", "paper", "leather"], "book"))
         r.append(shapeless(["bone"], "bone_meal", 3))
         r.append(shapeless(["blaze_rod"], "blaze_powder", 2))
+        r.append(shapeless(["paper", "gunpowder"], "firework_rocket", 3))
+        r.append(shaped(["##", "##"], ["#": "popped_chorus_fruit"], "purpur_block", 4))
+        r.append(shaped(["#", "#"], ["#": "purpur_slab"], "purpur_pillar", 1))
+        r.append(shaped(["B", "P"], ["B": "blaze_powder", "P": "popped_chorus_fruit"], "end_rod", 4))
         r.append(shapeless(["ender_pearl", "blaze_powder"], "ender_eye"))
         r.append(shaped([" # ", "#R#", " # "], ["#": "iron_ingot", "R": "redstone"], "compass"))
         r.append(shaped([" # ", "#R#", " # "], ["#": "gold_ingot", "R": "redstone"], "clock"))
@@ -200,7 +208,7 @@ enum Recipes {
         "oak_wood": "charcoal", "beef": "cooked_beef", "porkchop": "cooked_porkchop", "chicken": "cooked_chicken",
         "mutton": "cooked_mutton", "rabbit": "cooked_rabbit", "cod": "cooked_cod", "salmon": "cooked_salmon",
         "potato": "baked_potato", "netherrack": "nether_brick", "nether_gold_ore": "gold_ingot", "nether_quartz_ore": "quartz",
-        "ancient_debris": "netherite_scrap", "polished_blackstone_bricks": "cracked_polished_blackstone_bricks",
+        "ancient_debris": "netherite_scrap", "chorus_fruit": "popped_chorus_fruit", "polished_blackstone_bricks": "cracked_polished_blackstone_bricks",
     ]
     static func smelt(_ i: ItemID) -> ItemID? {
         guard let r = smelting[Items.key(i)], Items.has(r) else { return nil }

@@ -151,6 +151,10 @@ final class ItemRegistry {
         item("name_tag", "Name Tag", "paper", 0xE6E0C8, ["a": 0x6B4F2C])
         item("magma_cream", "Magma Cream", "ball", 0xE8762A)
         item("fire_charge", "Fire Charge", "ball", 0xE8762A)
+        item("shulker_shell", "Shulker Shell", "bowl", 0x9A6A9A)
+        item("dragon_breath", "Dragon's Breath", "bucket", 0xE8D8F0, ["c": 0xC050E0])
+        item("firework_rocket", "Firework Rocket", "rod", 0xC83A3A)
+        item("popped_chorus_fruit", "Popped Chorus Fruit", "berries", 0xB08AC0, ["a": 0x6A4A7A])
         item("wither_skeleton_skull", "Wither Skeleton Skull", "ball", 0x2A2A2A)
         item("melon_seeds", "Melon Seeds", "seeds", 0x4A3A2A)
         item("pumpkin_seeds", "Pumpkin Seeds", "seeds", 0xD8C88A)
@@ -199,6 +203,7 @@ final class ItemRegistry {
         food("mushroom_stew", "Mushroom Stew", "stew", 0x8A6435, 6, 7.2, ["c": 0xB08858, "d": 0xD8C0A0], stack: 1)
         food("beetroot_soup", "Beetroot Soup", "stew", 0x8A6435, 6, 7.2, ["c": 0xA02838, "d": 0xC04050], stack: 1)
         food("dried_kelp", "Dried Kelp", "leather", 0x3A4A2A, 1, 0.6)
+        food("chorus_fruit", "Chorus Fruit", "berries", 0x8A5A9A, 4, 2.4, ["a": 0x4A2A5A])
         food("spider_eye", "Spider Eye", "eye", 0x8A2A3A, 2, 3.2, ["c": 0xC04050, "d": 0x200810])
 
         for (n, crop) in [("wheat_seeds", "wheat"), ("beetroot_seeds", "beetroots"), ("carrot", "carrots"), ("potato", "potatoes"), ("nether_wart", "nether_wart")] {
@@ -258,6 +263,10 @@ final class ItemRegistry {
                 add(d)
             }
         }
+        var ely = ItemDef("elytra", "Elytra")
+        ely.sprite = Sprite(mask: "chestplate", base: 0x8E8AA8, extras: [:])
+        ely.maxStack = 1; ely.armorSlot = .chest; ely.armor = 0; ely.durability = 432
+        add(ely)
     }
 }
 

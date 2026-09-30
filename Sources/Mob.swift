@@ -6,12 +6,12 @@ import simd
 
 struct MobVert { var pos: V4; var color: V4; var local: V4 } // pos.w = pattern id, color.a = shade
 
-enum Behavior { case passive, melee, ranged, creeper, spider, enderman, slime, neutral, piglin, ghast, blaze, dragon, crystal }
+enum Behavior { case passive, melee, ranged, creeper, spider, enderman, slime, neutral, piglin, ghast, blaze, dragon, crystal, shulker }
 
 enum MobKind: Int, CaseIterable {
     case cow, sheep, chicken, pig, zombie, skeleton, creeper, spider, enderman, slime
     case zombifiedPiglin, piglin, ghast, blaze, magmaCube, witherSkeleton, hoglin, piglinBrute, strider
-    case enderDragon, endCrystal, silverfish
+    case enderDragon, endCrystal, silverfish, shulker
 
     struct Spec {
         var name: String
@@ -71,6 +71,8 @@ enum MobKind: Int, CaseIterable {
                                        drops: [], xp: 0, call: .mobGhast, fireImmune: true, flying: true)
         case .endCrystal: return Spec(name: "End Crystal", halfW: 1, height: 2, health: 1, speed: 0, behavior: .crystal,
                                       drops: [], xp: 0, call: .click, fireImmune: true, flying: true)
+        case .shulker: return Spec(name: "Shulker", halfW: 0.5, height: 1, health: 30, speed: 0, behavior: .shulker,
+                                   drops: [("shulker_shell", 0, 1)], xp: 5, call: .click, flying: true)
         case .silverfish: return Spec(name: "Silverfish", halfW: 0.2, height: 0.3, health: 8, speed: 2.5, behavior: .melee, attack: 1,
                                       drops: [], xp: 5, call: .mobSpider)
         case .witherSkeleton: return Spec(name: "Wither Skeleton", halfW: 0.35, height: 2.4, health: 20, speed: 2.5, behavior: .melee, attack: 8,
@@ -126,6 +128,7 @@ final class Mob {
     var phaseTime: Float = 0
     var circleAngle: Float = 0
     weak var healTarget: Mob?       // end crystal currently healing the dragon
+    var peek: Float = 0             // shulker lid opening 0...1
 
     init(_ kind: MobKind, at p: V3) {
         self.kind = kind
@@ -187,6 +190,7 @@ final class Mob {
         if baby { age += dt; if age >= 1200 { baby = false; scale = 1 } }
         if kind == .enderDragon { updateDragon(dt, g); return }
         if kind == .endCrystal { updateCrystal(dt, g); return }
+        if kind == .shulker { updateShulker(dt, g); return }
 
         let feetBlock = w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))
         let inWater = Blocks.isLiquid(feetBlock)
@@ -293,7 +297,7 @@ final class Mob {
                 }
             } else { wander(); speed = moving ? spec.speed * 0.5 : 0; volley = 0 }
             if Float.random(in: 0..<1) < dt * 6 { g.particles.smoke(at: pos + V3(Float.random(in: -0.4...0.4), Float.random(in: 0.2...1.4), Float.random(in: -0.4...0.4))) }
-        case .dragon, .crystal:
+        case .dragon, .crystal, .shulker:
             break
         case .melee, .spider:
             let l = w.lightAt(Int(floor(pos.x)), Int(floor(pos.y + 0.5)), Int(floor(pos.z)))
@@ -471,8 +475,10 @@ final class Mob {
             else if phase == 4 && Float.random(in: 0..<1) < 0.2 { phase = 5; phaseTime = 0 }
             return
         }
-        health -= damage
+        // A closed shulker shell shrugs off most of a hit.
+        health -= kind == .shulker && peek < 0.2 ? damage / 5 : damage
         hurt = 0.4
+        if kind == .shulker { aggro = true; return }
         if spec.behavior == .passive { panic = 5; aiTimer = 0 }
         aggro = true
         admire = 0
@@ -747,6 +753,15 @@ private func parts(_ m: Mob) -> [Part] {
             Part(mn: V3(-8, 12 + bob, -8), mx: V3(8, 28 + bob, 8), pivot: V3(0, 20 + bob, 0), rotX: spin, rotZ: spin * 0.7, color: V3(0.75, 0.6, 0.95)),
             Part(mn: V3(-6, 14 + bob, -6), mx: V3(6, 26 + bob, 6), pivot: V3(0, 20 + bob, 0), rotX: -spin * 1.3, rotZ: spin, color: V3(0.9, 0.8, 1.0)),
             Part(mn: V3(-3.5, 16.5 + bob, -3.5), mx: V3(3.5, 23.5 + bob, 3.5), pivot: V3(0, 20 + bob, 0), rotX: spin * 2, color: V3(1.0, 0.45, 0.85)),
+        ]
+    case .shulker:
+        let shell = V3(0.58, 0.4, 0.62), head = V3(0.93, 0.88, 0.62)
+        let lift = m.peek * 8
+        return [
+            box(-8, 0, -8, 16, 8, 16, shell, 4),
+            box(-8, 8 + lift, -8, 16, 8, 16, shell, 4),
+            box(-3, 6, -3, 6, 6 + lift, 6, head),
+            box(-2, 8 + lift * 0.6, -3.2, 1.2, 1.2, 0.2, V3(0.1, 0.1, 0.1)), box(0.8, 8 + lift * 0.6, -3.2, 1.2, 1.2, 0.2, V3(0.1, 0.1, 0.1)),
         ]
     case .silverfish:
         let c = V3(0.55, 0.57, 0.62)

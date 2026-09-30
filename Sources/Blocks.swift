@@ -444,6 +444,14 @@ final class BlockRegistry {
         egg.boxes = [Box(6, 15, 6, 10, 16, 10), Box(5, 14, 5, 11, 15, 11), Box(4, 13, 4, 12, 14, 12), Box(3, 11, 3, 13, 13, 13),
                      Box(2, 8, 2, 14, 11, 14), Box(1, 3, 1, 15, 8, 15), Box(2, 1, 2, 14, 3, 14), Box(3, 0, 3, 13, 1, 13)]
         add(egg)
+        var chorusP = BlockDef("chorus_plant", "Chorus Plant")
+        chorusP.tex = ["chorus_plant"]; chorusP.render = .model; chorusP.opaque = false; chorusP.hardness = 0.4
+        chorusP.tool = .axe; chorusP.sound = .wood; chorusP.boxes = [Box(3, 0, 3, 13, 16, 13)]; chorusP.skyStop = false
+        add(chorusP)
+        var chorusF = BlockDef("chorus_flower", "Chorus Flower")
+        chorusF.tex = ["chorus_flower"]; chorusF.render = .model; chorusF.opaque = false; chorusF.hardness = 0.4
+        chorusF.tool = .axe; chorusF.sound = .wood; chorusF.boxes = [Box(1, 0, 1, 15, 14, 15)]; chorusF.skyStop = false
+        add(chorusF)
         var rod = BlockDef("end_rod", "End Rod")
         rod.tex = ["end_rod"]; rod.render = .model; rod.opaque = false; rod.hardness = 0; rod.emit = 14; rod.layer = .cutout
         rod.boxes = [Box(7, 1, 7, 9, 16, 9), Box(6, 0, 6, 10, 1, 10)]; rod.skyStop = false

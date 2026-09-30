@@ -229,7 +229,7 @@ final class EndGen: TerrainGenerator {
         }
         spikes = sp
         let fountainY = surface(0, 0) ?? (YOFF + 60)
-        structures = StructureCache(seed: seed, types: [], fixed: [EndGen.centre(spikes: sp, fountainY: fountainY)])
+        structures = StructureCache(seed: seed, types: [EndCity.type(self)], fixed: [EndGen.centre(spikes: sp, fountainY: fountainY)])
     }
 
     func column(_ x: Int, _ z: Int) -> (height: Int, biome: Biome) { (surface(x, z) ?? 0, .theEnd) }
@@ -243,7 +243,10 @@ final class EndGen: TerrainGenerator {
             let edge = 92 + n.noise2(wx / 30, wz / 30) * 10
             if d > edge { return nil }
             let k = 1 - d / edge
-            let top = YOFF + 56 + Int(n.noise2(wx / 40, wz / 40) * 3 + k * 8)
+            // Mostly flat top with gentle bumps; the edge rolls off over the last few blocks.
+            let bump = n.noise2(wx / 40, wz / 40) * 2.5 + n.noise2(wx / 13, wz / 13) * 1.2
+            let rim = min(1, k * 6)
+            let top = YOFF + 58 + Int((bump + rim * 3 - 3).rounded())
             return (top, Int(k * k * 50) + 3)
         }
         if d < 1000 { return nil }

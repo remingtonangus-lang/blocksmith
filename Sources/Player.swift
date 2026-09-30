@@ -23,6 +23,11 @@ final class Player {
     var airPeak: Float = 0         // highest feet y since last touching ground/water (fall damage)
     var pendingFall: Float = 0     // fall distance of the last landing; Game consumes and clears it
     var jumped = false             // a ground jump started this frame
+    var gliding = false            // elytra flight
+    var boost: Float = 0           // firework rocket boost left (s)
+    var levitate: Float = 0        // shulker bullet levitation left (s)
+    var impact: Float = 0          // kinetic energy of the last wall hit while gliding (Game turns it into damage)
+    private var glideAcc: Float = 0
 
     let halfW: Float = 0.3
     let height: Float = 1.8
@@ -62,6 +67,8 @@ final class Player {
 
         if flying || inWater { airPeak = pos.y }
         jumped = false
+        if gliding && (onGround || inWater || flying) { gliding = false }
+        if gliding { glide(dt, w); return }
 
         sneaking = input.sneak && !flying
         sprinting = input.sprint && input.forward > 0 && !sneaking
@@ -95,6 +102,10 @@ final class Player {
             vel.y *= expf(-2.5 * dt)
             if input.jump { vel.y = min(vel.y + 22 * dt, 3.2) }
             vel.y = max(vel.y, -4)
+        } else if levitate > 0 {
+            levitate -= dt
+            vel.y += (0.9 - vel.y) * (1 - expf(-4 * dt))
+            airPeak = pos.y
         } else {
             vel.y -= 28 * dt
             vel.y = max(vel.y, -60)
@@ -125,6 +136,59 @@ final class Player {
         } else {
             airPeak = max(airPeak, pos.y)
         }
+        if pos.y < -64 { pos.y = Float(CH); vel = .zero }
+    }
+
+    // Elytra flight, stepped at 20 Hz in blocks/tick like the reference game: pitch trades height for
+    // speed, looking up converts speed back into lift, drag 1%/2% per tick; rockets push along the look.
+    private func glide(_ dt: Float, _ w: World) {
+        glideAcc += dt
+        var v = vel / 20
+        while glideAcc >= 0.05 {
+            glideAcc -= 0.05
+            let l = look
+            let pitchDown = -pitch
+            let lookH = (l.x * l.x + l.z * l.z).squareRoot()
+            let velH = (v.x * v.x + v.z * v.z).squareRoot()
+            var cosP = cosf(pitchDown)
+            cosP = cosP * cosP * min(1, simd_length(l) / 0.4)
+            v.y += -0.08 + cosP * 0.06
+            if v.y < 0 && lookH > 0 {
+                let lift = v.y * -0.1 * cosP
+                v.y += lift
+                v.x += l.x * lift / lookH
+                v.z += l.z * lift / lookH
+            }
+            if pitchDown < 0 && lookH > 0 {
+                let climb = velH * -sinf(pitchDown) * 0.04
+                v.y += climb * 3.2
+                v.x -= l.x * climb / lookH
+                v.z -= l.z * climb / lookH
+            }
+            if lookH > 0 {
+                v.x += (l.x / lookH * velH - v.x) * 0.1
+                v.z += (l.z / lookH * velH - v.z) * 0.1
+            }
+            if boost > 0 {
+                boost -= 0.05
+                v += l * 0.1 + (l * 1.5 - v) * 0.5
+            }
+            v *= V3(0.99, 0.98, 0.99)
+        }
+        vel = v * 20
+        let before = (vel.x * vel.x + vel.z * vel.z).squareRoot()
+        let hit = w.moveBody(&pos, halfW: halfW, height: 0.6, vel * dt, step: 0, onGround: false)
+        if hit.x { vel.x = 0 }
+        if hit.z { vel.z = 0 }
+        if hit.x || hit.z {
+            let after = (vel.x * vel.x + vel.z * vel.z).squareRoot()
+            impact = max(impact, (before - after) / 20 * 10 - 3)
+        }
+        if hit.y {
+            if vel.y < 0 { onGround = true; gliding = false }
+            vel.y = 0
+        }
+        airPeak = pos.y
         if pos.y < -64 { pos.y = Float(CH); vel = .zero }
     }
 }

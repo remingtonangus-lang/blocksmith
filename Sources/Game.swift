@@ -76,6 +76,8 @@ final class Game {
     var witherTime: Float = 0      // seconds of the wither effect left
     var witherTick: Float = 0
     var eyes: [EnderEye] = []
+    var elytraWear: Float = 0
+    var bullets: [ShulkerBullet] = []
     var clouds: [AcidCloud] = []
     var contactTimer: Float = 0
     private var lavaTimer: Double = 0
@@ -510,7 +512,24 @@ final class Game {
         if eatProgress > 0 { mi.forward *= 0.3; mi.strafe *= 0.3 }
 
         if input.tapped(Key.space) || (p.a && !q.a) {
-            if clock - lastSpaceTap < 0.3 { toggleFly(); lastSpaceTap = -1 } else { lastSpaceTap = clock }
+            let chest = inventory.armor[1]
+            let hasElytra = !chest.isEmpty && Items.key(chest.item) == "elytra" && chest.damage < chest.def.durability - 1
+            if hasElytra && !player.onGround && !player.flying && !player.inWater && !player.gliding {
+                player.gliding = true
+            } else if clock - lastSpaceTap < 0.3 { toggleFly(); lastSpaceTap = -1 } else { lastSpaceTap = clock }
+        }
+        if player.gliding {
+            // Elytra wear: 1 durability per second of flight; breaks at 1 left like the reference game.
+            elytraWear += fdt
+            if elytraWear >= 1 && survival {
+                elytraWear = 0
+                var c = inventory.armor[1]
+                if !c.isEmpty { c.damage += 1; inventory.armor[1] = c; if c.damage >= c.def.durability - 1 { player.gliding = false } }
+            }
+        }
+        if player.impact > 0 {
+            if player.impact >= 1 { damage(Int(player.impact), "experienced kinetic energy") }
+            player.impact = 0
         }
         if input.tapped(Key.f) || (p.up && !q.up) { toggleFly() }
         if input.tapped(Key.f3) { showDebug.toggle() }
@@ -561,7 +580,7 @@ final class Game {
             }
         }
         if breakNow { swing = 1 }
-        if breakNow && projectiles.deflect(from: player.eye, look: player.look) { attackTimer = 0; sfx(.attack, 0.7); return }
+        if breakNow && (projectiles.deflect(from: player.eye, look: player.look) || punchBullet()) { attackTimer = 0; sfx(.attack, 0.7); return }
         if let m = mobHit {
             mining = nil
             if useNow && useItemOnMob(m) { swing = 1; return }
@@ -623,6 +642,13 @@ final class Game {
         let h = held
         if useNow, let m = mobHit ?? mobs.raycast(player.eye, player.look, maxDist: 3.5)?.0, useItemOnMob(m) { swing = 1; return }
         if useNow && Items.key(h.item) == "ender_eye" && useEnderEye(on: target) { swing = 1; return }
+        if useNow && Items.key(h.item) == "firework_rocket" && player.gliding {
+            player.boost = 1.1
+            consumeHeld()
+            sfx(.fireball, 0.5)
+            swing = 1
+            return
+        }
         // Bow: hold to draw, release to shoot.
         if Items.key(h.item) == "bow" {
             let hasArrow = !survival || inventory.main.countOf(Items.id("arrow")) > 0
@@ -642,7 +668,7 @@ final class Game {
         } else {
             bowCharge = 0
         }
-        if let f = h.def.food, useHeld && survival && (hunger < 20 || h.item == Items.id("golden_apple")) && target.map({ !isInteractive($0.hit) }) ?? true {
+        if let f = h.def.food, useHeld && survival && (hunger < 20 || h.item == Items.id("golden_apple") || h.item == Items.id("chorus_fruit")) && target.map({ !isInteractive($0.hit) }) ?? true {
             eatProgress += fdt
             if Int(eatProgress * 5) != Int((eatProgress - fdt) * 5) { sfx(.eat, 0.5) }
             if eatProgress >= 1.61 {
@@ -775,6 +801,16 @@ final class Game {
         }
         let center = V3(Float(p.x) + 0.5, Float(p.y) + 0.3, Float(p.z) + 0.5)
         if bk.hasPrefix("infested_") && survival { mobs.mobs.append(Mob(.silverfish, at: center)) }
+        if bk == "chorus_plant" || bk == "chorus_flower" {
+            // Chorus plants collapse above a broken stem.
+            var y = p.y + 1
+            while y < CH, ["chorus_plant", "chorus_flower"].contains(Blocks.key(world.block(p.x, y, p.z))) {
+                let above = world.block(p.x, y, p.z)
+                world.setBlockAsync(p.x, y, p.z, AIR)
+                if drop { for s in Mining.drops(above, .empty) { drops.spawn(s, at: V3(Float(p.x) + 0.5, Float(y) + 0.3, Float(p.z) + 0.5)) } }
+                y += 1
+            }
+        }
         if let be = world.blockEntities.removeValue(forKey: p) {
             for s in be.container.slots where !s.isEmpty { drops.spawn(s, at: center) }
         }
@@ -924,6 +960,25 @@ final class Game {
         sfx(.burp, 0.6)
         hunger = min(20, hunger + f.hunger)
         saturation = min(Float(hunger), saturation + f.saturation)
+        if name == "Chorus Fruit" { chorusTeleport() }
+    }
+
+    // Chorus fruit: up to 16 tries at a random spot within 8 blocks with ground and room to stand.
+    func chorusTeleport() {
+        let p = player.pos
+        for _ in 0..<16 {
+            let x = Int(floor(p.x)) + Int.random(in: -8...8), z = Int(floor(p.z)) + Int.random(in: -8...8)
+            var y = min(CH - 3, Int(floor(p.y)) + 8)
+            while y > max(1, Int(floor(p.y)) - 8) && !Blocks.collide[Int(world.block(x, y - 1, z))] { y -= 1 }
+            let t = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
+            if Blocks.collide[Int(world.block(x, y - 1, z))] && !player.collides(at: t, world) && !Blocks.isLiquid(world.block(x, y, z)) {
+                player.pos = t
+                player.vel = .zero
+                player.airPeak = t.y
+                sfx(.mobEnderman, 0.6)
+                return
+            }
+        }
     }
 
     // Damage in half-hearts, reduced by armor (reference formula).

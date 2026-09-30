@@ -650,6 +650,16 @@ enum TextureGen {
             if r(x, y, 237) > 0.9 { return hex(0x5A1A6A) }
             return hex(0x0E0A14, 0.8 + 0.4 * r(x, y, 238))
         }
+        p["chorus_plant"] = { x, y in
+            let dx = abs(Float(x) - 7.5), dy = abs(Float(y) - 7.5)
+            if max(dx, dy) > 6.5 { return hex(0x5A3A6A) }
+            return hex(0x8A6A9A, 0.85 + 0.25 * r(x, y, 240))
+        }
+        p["chorus_flower"] = { x, y in
+            let dx = abs(Float(x) - 7.5), dy = abs(Float(y) - 7.5)
+            if max(dx, dy) < 3 { return hex(0xD8C0E0, 0.9 + 0.2 * r(x, y, 241)) }
+            return hex(0x9A7AAA, 0.85 + 0.25 * r(x, y, 242))
+        }
         p["end_rod"] = { x, y in hex(x < 8 ? 0xF4EEE0 : 0xE0D6C8, 0.95 + 0.05 * r(x, y, 239)) }
         p["oak_sapling"] = ItemTextures.painter(Sprite(mask: "sapling", base: 0x4A8A2A, extras: ["a": 0x6B4F2C, "b": 0x8A6435]))
         p["birch_sapling"] = ItemTextures.painter(Sprite(mask: "sapling", base: 0x7AA850, extras: ["a": 0xD8D4C8, "b": 0xB0ACA0]))
