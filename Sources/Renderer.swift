@@ -73,6 +73,22 @@ final class Renderer: NSObject, MTKViewDelegate {
     private var gen: UInt32 = 0
     private var bfs: [(Chunk, Int, Int, Int, Int, Int)] = []
     var caveCulling = true
+    // Smoothed skylight at the player's eye (0...1, -1 = not sampled yet). Fog and sky colour fade toward
+    // near-black when it is low, so distant cave walls no longer fog into bright sky blue underground.
+    private var caveK: Float = -1
+
+    @discardableResult func updateCave() -> Float {
+        guard game.dim.dim.hasSky else { caveK = 1; return 1 }
+        let e = game.player.eye
+        let target = Float(game.world.lightAt(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))).sky) / 15
+        caveK = caveK < 0 ? target : caveK + (target - caveK) * 0.04
+        return caveK
+    }
+    var caveScale: Float {
+        if caveK < 0 { updateCave() }
+        return 0.08 + 0.92 * min(1, caveK * 1.6)
+    }
+    var viewSky: V3 { game.skyColor * caveScale }
     var onFrame: ((Double) -> Void)?
 
     init(device: MTLDevice, game: Game, colorFormat: MTLPixelFormat) throws {
@@ -212,7 +228,8 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
         let cmd = queue.makeCommandBuffer()!
         cmd.addCompletedHandler { [inflight] _ in inflight.signal() }
-        let sky = game.skyColor
+        updateCave()
+        let sky = viewSky
         let clear = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInWater ? game.underwaterFog : sky)
         rpd.colorAttachments[0].clearColor = MTLClearColor(red: Double(clear.x), green: Double(clear.y), blue: Double(clear.z), alpha: 1)
         let enc = cmd.makeRenderCommandEncoder(descriptor: rpd)!
@@ -268,7 +285,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         let viewProj = proj * viewRot
         let frustum = Frustum(viewProj * translationMatrix(-eye))
 
-        let sky = game.skyColor
+        let sky = viewSky
         let hasSky = game.dim.dim.hasSky
         var fogEnd: Float = underwater ? 28 : (game.dim.dim == .nether ? min(rd * 16 - 6, 96) : rd * 16 - 6)
         var fogStart: Float = underwater ? 1 : fogEnd * 0.62
@@ -295,7 +312,7 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         // Fancy sky: gradient dome + sun glow drawn over the clear colour before anything else.
         if game.fancyGraphics && !underwater && hasSky && game.blindFog == nil {
-            var sp = SkyParams(invViewProj: viewProj.inverse, zenith: V4(game.skyZenith, 0),
+            var sp = SkyParams(invViewProj: viewProj.inverse, zenith: V4(game.skyZenith * caveScale, 0),
                                horizon: V4(sky, skyGlow), sun: V4(game.sunDir, daylight))
             enc.setRenderPipelineState(skyPipe)
             enc.setDepthStencilState(depthNone)
@@ -1576,7 +1593,8 @@ final class Renderer: NSObject, MTKViewDelegate {
         rpd.colorAttachments[0].texture = color
         rpd.colorAttachments[0].loadAction = .clear
         rpd.colorAttachments[0].storeAction = .store
-        let sky = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInWater ? game.underwaterFog : game.skyColor)
+        updateCave()
+        let sky = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInWater ? game.underwaterFog : viewSky)
         rpd.colorAttachments[0].clearColor = MTLClearColor(red: Double(sky.x), green: Double(sky.y), blue: Double(sky.z), alpha: 1)
         rpd.depthAttachment.texture = depth
         rpd.depthAttachment.loadAction = .clear
