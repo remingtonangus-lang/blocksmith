@@ -258,7 +258,7 @@ extension Mob {
             if simd_length(V2(h.x - pos.x, h.z - pos.z)) > 2 { face(h); moving = true; return true }
             let below = Blocks.key(w.block(c.x, c.y - 1, c.z))
             if (below == "sand" || below == "red_sand") && w.block(c.x, c.y, c.z) == AIR && Blocks.has("turtle_egg") {
-                w.setBlock(c.x, c.y, c.z, Blocks.id("turtle_egg") + BlockID(Int.random(in: 0...3)))
+                w.setBlock(c.x, c.y, c.z, Blocks.id("turtle_egg"))
                 hasEgg = false
             } else if Float.random(in: 0..<1) < 0.02 { hasEgg = false }
             return true
