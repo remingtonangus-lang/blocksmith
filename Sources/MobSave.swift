@@ -83,6 +83,10 @@ extension Mob {
         if chested { d["chest"] = 1 }
         if raider { d["raider"] = 1 }
         if captain { d["captain"] = 1 }
+        if trap { d["trap"] = 1 }
+        if hasEgg { d["egg"] = 1 }
+        if canPickUp { d["pickup"] = 1 }
+        if let h = hive { d["hx"] = Float(h.x); d["hy"] = Float(h.y); d["hz"] = Float(h.z) }
     }
     func loadExtra(_ d: [String: Float]) {
         if let o = d["owned"] { owner = o > 0 }
@@ -95,6 +99,10 @@ extension Mob {
         chested = (d["chest"] ?? 0) > 0
         raider = (d["raider"] ?? 0) > 0
         captain = (d["captain"] ?? 0) > 0
+        trap = (d["trap"] ?? 0) > 0
+        hasEgg = (d["egg"] ?? 0) > 0
+        canPickUp = (d["pickup"] ?? 0) > 0
+        if let x = d["hx"], let y = d["hy"], let z = d["hz"] { hive = IVec3(Int(x), Int(y), Int(z)) }
     }
 }
 

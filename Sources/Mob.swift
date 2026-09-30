@@ -341,6 +341,7 @@ final class Mob {
     var reinforceChance = Float.random(in: 0..<0.1)
     var trap = false                // skeleton trap horse
     var carriedBlock: BlockID = 0   // voidwalker: block it picked up
+    var canPickUp = false           // zombie / skeleton that picks up gear (55% x regional difficulty)
     var emergeTime: Float = 0       // deep stalker digging out of the ground (invulnerable meanwhile)
     var patrolling = false          // marauder patrol member (Raid.swift patrolTick)
     weak var patrolLeader: Mob?
@@ -474,6 +475,7 @@ final class Mob {
             if effects?.has(.fireResistance) ?? false { fire = 0 }
         }
         effectTick(dt, g)
+        if canPickUp { pickUpLoot(g) }
         if conversionTick(dt, g) { return }
         if trap { trapTick(g) }
         if spec.aquatic { updateAquatic(dt, g, inWater: inWater); return }
@@ -687,12 +689,16 @@ final class Mob {
                 if simd_length(v.pos - pos) < halfW + v.halfW + 1 && attackCooldown <= 0 {
                     attackCooldown = 1
                     v.hit(from: pos, damage: meleeDamage, knockback: 0.6)
-                    if v.health <= 0 && v.kind == .villager && isZombie && Bool.random() { v.health = -2000; g.zombify(v) }
+                    if v.health <= 0 && v.kind == .villager && isZombie && Float.random(in: 0..<1) < ([0, 0, 0.5, 1] as [Float])[max(0, min(3, g.difficulty))] { v.health = -2000; g.zombify(v) }
                 }
             } else if canTarget && hostileNow {
                 face(player)
                 speed = spec.speed * (baby ? 1.5 : 1)
                 if drownedThrow(g, dist: dist) { speed = 0 }
+                // Spiders leap at a target 2-4 blocks away (reference leap goal).
+                if (kind == .spider || kind == .caveSpider) && onGround && dist > 2 && dist < 4 && Float.random(in: 0..<1) < dt * 4 {
+                    vel += forward * 4 + V3(0, 5, 0)
+                }
                 let reach = halfW + 1.1
                 if dist < reach + 0.2 && abs(toPlayer.y) < 2 && attackCooldown <= 0 {
                     attackCooldown = 1
@@ -759,6 +765,17 @@ final class Mob {
             if aggro && canTarget {
                 face(player)
                 speed = spec.speed * 2
+                // Far from its target, an angry voidwalker blinks closer (reference teleport-towards).
+                if dist > 16 && Float.random(in: 0..<1) < dt * 0.5 {
+                    let back = simd_normalize(V3(pos.x - player.x, 0, pos.z - player.z))
+                    let to = player + back * Float.random(in: 3...8)
+                    let x = Int(floor(to.x)), z = Int(floor(to.z))
+                    let top = w.topY(x, z)
+                    if top > 0 && abs(Float(top + 1) - player.y) < 8 && !Blocks.isLiquid(w.block(x, top, z)) {
+                        pos = V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5)
+                        vel = .zero
+                    }
+                }
                 if dist < 1.6 && attackCooldown <= 0 {
                     attackCooldown = 1
                     g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Voidwalker", attacker: self)
@@ -826,7 +843,10 @@ final class Mob {
             return
         }
         if spec.behavior != .slime || onGround {
-            let target = forward * speed * effectSpeed
+            // Magmastriders out of lava are cold: half speed (reference).
+            let cold: Float = kind == .strider && Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.2)), Int(floor(pos.z))))] != 2
+                && Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))] != 2 ? 0.5 : 1
+            let target = forward * speed * effectSpeed * cold
             let k = 1 - expf(-(onGround ? 12 : 3) * dt)
             vel.x += (target.x - vel.x) * k
             vel.z += (target.z - vel.z) * k
@@ -1598,7 +1618,18 @@ final class MobManager {
         if Float.random(in: 0..<1) < 0.1 {
             if Blocks.fluidKind[Int(w.block(x, lavaY, z))] == 2 && w.block(x, lavaY + 1, z) == AIR && w.block(x, lavaY + 2, z) == AIR
                 && mobs.filter({ $0.kind == .strider }).count < 8 {
-                for i in 0..<Int.random(in: 1...2) { mobs.append(Mob(.strider, at: V3(Float(x + i) + 0.5, Float(lavaY + 1), Float(z) + 0.5))) }
+                for i in 0..<Int.random(in: 1...2) {
+                    let st = Mob(.strider, at: V3(Float(x + i) + 0.5, Float(lavaY + 1), Float(z) + 0.5))
+                    mobs.append(st)
+                    // Reference jockeys: 1 in 30 carry an undead boarling, otherwise 1 in 10 a young magmastrider.
+                    let riderKind: MobKind? = Int.random(in: 0..<30) == 0 ? .zombifiedPiglin : (Int.random(in: 0..<10) == 0 ? .strider : nil)
+                    if let rk = riderKind {
+                        let r = Mob(rk, at: st.pos + V3(0, st.height, 0))
+                        if rk == .strider { r.baby = true; r.scale = 0.5 }
+                        r.mount = st; r.jockey = true
+                        mobs.append(r)
+                    }
+                }
             }
             return
         }

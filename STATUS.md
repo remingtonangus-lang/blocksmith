@@ -235,7 +235,13 @@ Findings / changes (performance branch):
   mules and horse stat inheritance; reference baby odds; Cloudwailer (happy ghast) with harnesses.
 - Newest roster, approximations from memory of the reference: Sunscorched Skeleton (parched, weakness arrows, desert,
   sun-proof), Dust Camel (camel husk carrying a dust zombie + sunscorched skeleton), Nautilus (warm oceans) and Sunken
-  Nautilus (ridden by 5% of ocean sunken). Not yet: riding/taming nautiluses, the spear, copper golem (needs copper chests).
+  Nautilus (ridden by 5% of ocean sunken); nautiluses tame with pufferfish and can be saddled and ridden underwater.
+  Not yet: the spear, copper golem (needs copper chests).
+- More reference details: patrols move as a group (captain leads), structure spawns (watchtower marauders, sea-temple
+  spikefish), villagers hide at beds during raids, zombification odds by difficulty, spiders leap, voidwalkers blink
+  toward far targets and ignore pumpkin-headed players, loot pickup (55% x regional difficulty), boarling guard triggers
+  (chests/gold), soul-fire / warped-fungus repellents, neutral mobs forgive after 30 s, llama caravans, deep stalkers dig
+  out of the ground, village cats / desert camels at generation, shearing snow golems and mire skeletons.
 - `--mobtests` (MobTests.swift) checks all of the above headlessly and exits non-zero on a failure.
 ## Graphics (visuals session)
 - Options > Graphics: Fancy (default) / Fast, saved in UserDefaults `fancyGraphics`; harness `--fast` renders one shot in Fast
@@ -248,6 +254,13 @@ Findings / changes (performance branch):
   lightning with a soft glow, blue-tinted moonlight, branching block-breaking cracks.
 - Harness: `--underwater`, `--crack <0..1>`, `--fast`; shots sunset_fast, sunset_sun, lake, lake_glint, underwater, crack.
 
+
+## Notes for the parallel sessions
+- Performance session: rd 24 resident is ~2.3 GB on the Mac while block+light arrays are ~740 MB (2601 chunks x ~285 KB)
+  and Metal ~218 MB (harness prints both). Unaccounted ~1.3 GB: suspects are per-job mesher scratch (48^3 regions,
+  n9 copies), generation lattices and allocator high-water. Uniform sections (all air / all stone) could skip their
+  block+light arrays. This branch's pooled mesh slabs (MeshArena.swift) already removed the per-section 16 KB pages.
+- Visuals session: distant ocean at night shows faint chunk-seam grid on the water surface (QA, seed 777).
 
 ## Known gaps / decisions
 - Save format changed with the engine rework (chunks3/, name-paletted); worlds from the 8-bit engine start fresh terrain.

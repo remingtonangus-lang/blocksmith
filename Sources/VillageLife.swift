@@ -168,6 +168,12 @@ extension Mob {
             return 2.2
         }
         if panic > 0 { wander(); return spec.speed * 1.3 }
+        // A raid (or a rung bell) sends villagers to hide at their beds until it's over.
+        if let r = g.raid, r.state < 2, simd_length(r.center - pos) < 64, let b = villager?.bed {
+            let bed = V3(Float(b[0]) + 0.5, Float(b[1]), Float(b[2]) + 0.5)
+            if simd_length(V2(bed.x - pos.x, bed.z - pos.z)) > 1.2 { face(bed); moving = true; return spec.speed * 1.2 }
+            return 0
+        }
         let home = self.home ?? pos
         switch activity(g.dayFraction) {
         case .work:

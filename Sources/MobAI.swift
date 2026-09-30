@@ -93,7 +93,9 @@ extension Mob {
             if tamed || aggro { return nil }
             return near([.llama, .traderLlama], 8)
         case .piglin:
-            return near([.zombifiedPiglin, .zoglin], 6)
+            return near([.zombifiedPiglin, .zoglin], 6) ?? repellent(g, ["soul_fire", "soul_torch", "soul_wall_torch", "soul_lantern", "soul_campfire"])
+        case .hoglin:
+            return repellent(g, ["warped_fungus", "nether_portal", "respawn_anchor"])
         default:
             return nil
         }
@@ -287,12 +289,15 @@ extension Mob {
             } else if Float.random(in: 0..<1) < 0.02 { hasEgg = false }
             return true
         case .frog:
-            guard let spot = findNearby(w, radius: 8, where: { q in
-                Blocks.fluidKind[Int(w.block(q.x, q.y - 1, q.z))] == 1 && w.block(q.x, q.y, q.z) == AIR }) else { return false }
+            func surface(_ q: IVec3) -> Bool { Blocks.fluidKind[Int(w.block(q.x, q.y - 1, q.z))] == 1 && w.block(q.x, q.y, q.z) == AIR }
+            if let f = flower, !surface(f) { flower = nil }
+            if flower == nil { flower = findNearby(w, radius: 8, where: surface) }
+            guard let spot = flower else { return false }
             let t = V3(Float(spot.x) + 0.5, Float(spot.y), Float(spot.z) + 0.5)
             if simd_length(t - pos) > 1.5 { face(t); moving = true; return true }
             if Blocks.has("frogspawn") { w.setBlock(spot.x, spot.y, spot.z, Blocks.id("frogspawn")) }
             hasEgg = false
+            flower = nil
             return true
         default:
             if Items.has("sniffer_egg") { g.drops.spawn(ItemStack(Items.id("sniffer_egg"), 1), at: pos + V3(0, 0.5, 0)) }
@@ -333,6 +338,38 @@ extension Mob {
         if p == 1 { wander(); return moving ? spec.speed * 0.3 : 0 }                                    // lazy
         return nil
     }
+
+    // Picks up armour for an empty slot and a weapon for an empty hand lying at its feet; a mob holding
+    // picked-up gear no longer despawns (reference).
+    func pickUpLoot(_ g: Game) {
+        for e in g.drops.items where !e.stack.isEmpty && e.pickupDelay <= 0 && simd_length(e.pos - pos) < 1.3 {
+            let d = e.stack.def
+            var eq = equip ?? [ItemStack](repeating: .empty, count: 5)
+            var one = e.stack
+            one.count = 1
+            if let slot = d.armorSlot, eq[slot.rawValue].isEmpty {
+                eq[slot.rawValue] = one
+            } else if eq[4].isEmpty && (d.tool == .sword || d.tool == .axe || Items.key(e.stack.item) == "bow") {
+                eq[4] = one
+            } else { continue }
+            var st = e.stack; st.count -= 1; e.stack = st.count > 0 ? st : .empty
+            equip = eq
+            persistent = true
+            return
+        }
+    }
+
+    // A repellent block within 7 blocks (sampled every 2 s; boarlings fear soul fire, tuskers warped fungus).
+    func repellent(_ g: Game, _ keys: Set<String>) -> V3? {
+        let w = g.world
+        jobTimer -= 0.05
+        if jobTimer <= 0 {
+            jobTimer = 2
+            flower = findNearby(w, radius: 7) { keys.contains(Blocks.key(Blocks.groupBase[Int(w.block($0.x, $0.y, $0.z))])) }
+        }
+        guard let f = flower else { return nil }
+        return V3(Float(f.x) + 0.5, Float(f.y), Float(f.z) + 0.5)
+    }
 }
 
 extension Game {
@@ -371,4 +408,3 @@ extension Game {
         }
     }
 }
-
