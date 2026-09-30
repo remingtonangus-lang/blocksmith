@@ -109,6 +109,7 @@ enum Snapshot {
                 game.openMenu(DeathMenu(game: game, message: "Player was blown up by Hisser"))
             case "commands":
                 for c in ["/help", "/time set noon", "/give diamond 5", "/give hisser_head", "/locate sea_temple", "/summon hisser", "hello", "/tp ~ ~2 ~", "/xp 5L", "/bogus"] { game.command(c) }
+                for l in game.commandLog { print("console: " + l) }
                 let m = CommandMenu(game: game, prefill: "/give dia")
                 m.complete()
                 game.openMenu(m)

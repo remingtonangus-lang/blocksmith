@@ -39,7 +39,7 @@ No third-party text, textures, sounds or logos: everything is procedural or writ
 
 ## Controls
 Keyboard/mouse: WASD, Space (double-tap = fly in creative), Shift sneak, Ctrl sprint, LMB attack/mine (hold),
-RMB use/place/eat (hold), MMB pick block, 1–9/scroll hotbar, E inventory, Q drop (Ctrl+Q stack), F fly, F1 hide HUD, F2 screenshot
+RMB use/place/eat (hold), MMB pick block, 1–9/scroll hotbar, E inventory, Q drop (Ctrl+Q stack), F fly, T / slash commands, F1 hide HUD, F2 screenshot
 (~/Pictures/Blocksmith), F3 debug, F5 camera (first person / behind / in front, with a player model).
 Menus: click / right-click / shift-click, number keys swap with hotbar, click outside drops.
 Controller: LS move, RS look, A jump, B sneak, L3 sprint, RT attack/mine, LT use, LB/RB hotbar, Y inventory, View camera,
@@ -60,6 +60,8 @@ B close, RS scroll creative.
   anvil names) works pad-only too via the on-screen keyboard (Y in any text screen).
 
 ## Polish (latest)
+- Command console (T or /, or Commands... in the pause menu): /time /weather /gamemode /difficulty /tp /give /summon
+  /kill /clear /effect /xp /locate /seed /spawnpoint /setblock with Tab completion, history and pad quick buttons.
 - Third-person cameras (F5 / View) stop short of blocks and show an original player model with armour and held item.
 - Nether wood family shown as Rustcap / Tealcap (display names only).
 - Title screen at launch; recipe book in crafting screens (craftable/all, fills the grid).
