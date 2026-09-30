@@ -20,6 +20,7 @@ struct StructWriter {
     let bx: Int, bz: Int
     var blocks: UnsafeMutablePointer<BlockID>
     var entities: [(IVec3, BlockEntity)] = []
+    var mobs: [(String, V3)] = []
 
     @inline(__always) func inside(_ x: Int, _ y: Int, _ z: Int) -> Bool {
         x >= bx && x < bx + CS && z >= bz && z < bz + CS && y >= 0 && y < CH
@@ -55,6 +56,10 @@ struct StructWriter {
         var rng = SRng(seed)
         Loot.fill(be.container, table: loot, rng: &rng)
         entities.append((IVec3(x, y, z), be))
+    }
+    // Mob placed when this chunk generates (only if its position lies in this chunk).
+    mutating func mob(_ kind: String, _ p: V3) {
+        if inside(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))) { mobs.append((kind, p)) }
     }
     mutating func spawner(_ x: Int, _ y: Int, _ z: Int, mob: String) {
         guard inside(x, y, z) else { return }
@@ -138,8 +143,9 @@ final class StructureCache {
     }
 
     // Builds every structure piece overlapping this chunk into `blocks`; returns block entities.
-    func place(into blocks: inout [BlockID], cx: Int, cz: Int) -> [(IVec3, BlockEntity)] {
+    func place(into blocks: inout [BlockID], cx: Int, cz: Int) -> (entities: [(IVec3, BlockEntity)], mobs: [(String, V3)]) {
         var ents: [(IVec3, BlockEntity)] = []
+        var mobs: [(String, V3)] = []
         blocks.withUnsafeMutableBufferPointer { buf in
             var w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: buf.baseAddress!)
             for t in types {
@@ -148,8 +154,9 @@ final class StructureCache {
                 }
             }
             ents = w.entities
+            mobs = w.mobs
         }
-        return ents
+        return (ents, mobs)
     }
 
     // Nearest structure start of a kind (searching regions outward), for locating / the snapshot harness.

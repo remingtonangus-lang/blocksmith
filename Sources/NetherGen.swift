@@ -18,7 +18,7 @@ final class NetherGen: TerrainGenerator {
         bT = Noise(seed: seed &+ 103)
         bH = Noise(seed: seed &+ 104)
         deco = Noise(seed: seed &+ 105)
-        structures = StructureCache(seed: seed, types: [Fortress.type])
+        structures = StructureCache(seed: seed, types: [Fortress.type, Bastion.type])
     }
 
     func biome(_ x: Int, _ z: Int) -> Biome {

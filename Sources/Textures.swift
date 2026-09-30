@@ -467,6 +467,32 @@ enum TextureGen {
             return hex(max(dx, dy) > 6.5 ? 0x3E3E42 : 0x626265, 0.9 + 0.12 * r(x, y, 180))
         }
         p["blackstone"] = rock(0x2A2429, grain: 0.3, blotch: 0.25, salt: 181)
+        p["polished_blackstone"] = { x, y in
+            if x == 0 || y == 0 { return hex(0x2E2A30) }
+            if x == 15 || y == 15 { return hex(0x1A171C) }
+            return hex(0x3A353C, 0.92 + 0.12 * r(x, y, 190))
+        }
+        func pbBricks(_ cracked: Bool) -> Painter {
+            { x, y in
+                let row = y / 4
+                let off = row % 2 == 0 ? 0 : 4
+                if y % 4 == 3 || (x + off) % 8 == 7 { return hex(0x19161A) }
+                if cracked && (abs((x * 3 + y * 5) % 17 - 8) == 0 || (x == 5 + y / 3 && y > 4 && y < 12)) { return hex(0x121013) }
+                return hex(0x39333B, 0.88 + 0.2 * r(x, y, 191))
+            }
+        }
+        p["polished_blackstone_bricks"] = pbBricks(false)
+        p["cracked_polished_blackstone_bricks"] = pbBricks(true)
+        p["chiseled_polished_blackstone"] = { x, y in
+            let dx = abs(Float(x) - 7.5), dy = abs(Float(y) - 7.5)
+            if x == 0 || y == 0 || x == 15 || y == 15 { return hex(0x1A171C) }
+            if max(dx, dy) < 2.5 || (dx + dy > 4.5 && dx + dy < 5.6) { return hex(0x4A444C) }
+            return hex(0x332E35, 0.9 + 0.12 * r(x, y, 192))
+        }
+        p["gilded_blackstone"] = { x, y in
+            if r(x / 2, y / 2, 193) < 0.3 && r(x, y, 194) < 0.8 { return hex(r(x, y, 195) > 0.5 ? 0xF4C53A : 0xC98E1E) }
+            return hex(0x2A2429, 0.85 + 0.3 * r(x, y, 196))
+        }
         p["magma"] = { x, y in
             let crack = blot(x, y, 182, 4) > 0.6 && r(x, y, 183) < 0.7
             return crack ? hex(0xF08A1A, 0.9 + 0.2 * r(x, y, 184)) : hex(0x6A2A10, 0.8 + 0.3 * r(x, y, 185))

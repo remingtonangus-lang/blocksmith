@@ -356,6 +356,11 @@ final class BlockRegistry {
         cube("soul_soil", "Soul Soil", "soul_soil", h: 0.5, tool: .shovel, snd: .sand)
         column("basalt", "Basalt", side: "basalt_side", top: "basalt_top", h: 1.25, tool: .pickaxe, snd: .stone)
         cube("blackstone", "Blackstone", "blackstone", h: 1.5, req: true)
+        cube("polished_blackstone", "Polished Blackstone", "polished_blackstone", h: 2, req: true)
+        cube("polished_blackstone_bricks", "Polished Blackstone Bricks", "polished_blackstone_bricks", h: 1.5, req: true)
+        cube("cracked_polished_blackstone_bricks", "Cracked Polished Blackstone Bricks", "cracked_polished_blackstone_bricks", h: 1.5, req: true)
+        cube("chiseled_polished_blackstone", "Chiseled Polished Blackstone", "chiseled_polished_blackstone", h: 1.5, req: true)
+        cube("gilded_blackstone", "Gilded Blackstone", "gilded_blackstone", h: 1.5, req: true)
         var magma = BlockDef("magma_block", "Magma Block")
         magma.tex = ["magma"]; magma.emit = 3; magma.hardness = 0.5; magma.tool = .pickaxe; magma.requiresTool = true; magma.damage = 1
         add(magma)
@@ -500,6 +505,8 @@ final class BlockRegistry {
             ("cobbled_deepslate", "cobbled_deepslate", "Cobbled Deepslate", true), ("mossy_cobblestone", "mossy_cobblestone", "Mossy Cobblestone", true),
             ("andesite", "andesite", "Andesite", true), ("diorite", "diorite", "Diorite", true), ("granite", "granite", "Granite", true),
             ("smooth_stone", "smooth_stone", "Smooth Stone", false),
+            ("polished_blackstone", "polished_blackstone", "Polished Blackstone", true),
+            ("polished_blackstone_bricks", "polished_blackstone_brick", "Polished Blackstone Brick", true),
         ]
         for (tex, n, d, wall) in stones {
             family(tex, n, d, h: 2, tool: .pickaxe, req: true, snd: .stone, stairs: n != "smooth_stone", slab: true, fence: n == "nether_brick", wall: wall)

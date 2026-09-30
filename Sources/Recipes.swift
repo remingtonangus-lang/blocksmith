@@ -66,6 +66,7 @@ enum Recipes {
             ("nether_bricks", "nether_brick"), ("red_nether_bricks", "red_nether_brick"), ("blackstone", "blackstone"),
             ("cobbled_deepslate", "cobbled_deepslate"), ("mossy_cobblestone", "mossy_cobblestone"), ("andesite", "andesite"),
             ("diorite", "diorite"), ("granite", "granite"), ("smooth_stone", "smooth_stone"),
+            ("polished_blackstone", "polished_blackstone"), ("polished_blackstone_bricks", "polished_blackstone_brick"),
         ]
         for (mat, n) in families {
             r.append(shaped(["#  ", "## ", "###"], ["#": mat], "\(n)_stairs", 4))
@@ -75,6 +76,9 @@ enum Recipes {
         }
         r.append(shaped(["#B#", "#B#"], ["#": "nether_bricks", "B": "nether_brick"], "nether_brick_fence", 6))
         r.append(shaped(["##", "##"], ["#": "nether_brick"], "nether_bricks"))
+        r.append(shaped(["##", "##"], ["#": "blackstone"], "polished_blackstone", 4))
+        r.append(shaped(["##", "##"], ["#": "polished_blackstone"], "polished_blackstone_bricks", 4))
+        r.append(shaped(["#", "#"], ["#": "polished_blackstone_slab"], "chiseled_polished_blackstone"))
         r.append(shaped(["###", "###"], ["#": "glass"], "glass_pane", 16))
         r.append(shaped(["###", "###"], ["#": "iron_ingot"], "iron_bars", 16))
         r.append(shaped(["# #", " # "], ["#": "#planks"], "bowl", 4))
@@ -186,7 +190,7 @@ enum Recipes {
         "oak_wood": "charcoal", "beef": "cooked_beef", "porkchop": "cooked_porkchop", "chicken": "cooked_chicken",
         "mutton": "cooked_mutton", "rabbit": "cooked_rabbit", "cod": "cooked_cod", "salmon": "cooked_salmon",
         "potato": "baked_potato", "netherrack": "nether_brick", "nether_gold_ore": "gold_ingot", "nether_quartz_ore": "quartz",
-        "ancient_debris": "netherite_scrap",
+        "ancient_debris": "netherite_scrap", "polished_blackstone_bricks": "cracked_polished_blackstone_bricks",
     ]
     static func smelt(_ i: ItemID) -> ItemID? {
         guard let r = smelting[Items.key(i)], Items.has(r) else { return nil }

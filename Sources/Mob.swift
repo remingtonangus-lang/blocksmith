@@ -10,7 +10,7 @@ enum Behavior { case passive, melee, ranged, creeper, spider, enderman, slime, n
 
 enum MobKind: Int, CaseIterable {
     case cow, sheep, chicken, pig, zombie, skeleton, creeper, spider, enderman, slime
-    case zombifiedPiglin, piglin, ghast, blaze, magmaCube, witherSkeleton
+    case zombifiedPiglin, piglin, ghast, blaze, magmaCube, witherSkeleton, hoglin, piglinBrute, strider
 
     struct Spec {
         var name: String
@@ -60,11 +60,19 @@ enum MobKind: Int, CaseIterable {
                                  drops: [], xp: 10, call: .mobBlaze, fireImmune: true, flying: true)
         case .magmaCube: return Spec(name: "Magma Cube", halfW: 0.26, height: 0.52, health: 1, speed: 2.4, behavior: .slime, attack: 0,
                                      drops: [], xp: 1, call: .mobSlime, fireImmune: true)
+        case .hoglin: return Spec(name: "Hoglin", halfW: 0.7, height: 1.4, health: 40, speed: 2.2, behavior: .melee, attack: 6,
+                                  drops: [("porkchop", 2, 4), ("leather", 0, 1)], xp: 5, call: .mobPig)
+        case .piglinBrute: return Spec(name: "Piglin Brute", halfW: 0.3, height: 1.95, health: 50, speed: 2.4, behavior: .melee, attack: 13,
+                                       drops: [], xp: 20, call: .mobPiglin)
+        case .strider: return Spec(name: "Strider", halfW: 0.45, height: 1.7, health: 20, speed: 1.0, behavior: .passive,
+                                   drops: [("string", 2, 5)], xp: 2, call: .mobPig, fireImmune: true)
         case .witherSkeleton: return Spec(name: "Wither Skeleton", halfW: 0.35, height: 2.4, health: 20, speed: 2.5, behavior: .melee, attack: 8,
                                           drops: [("coal", 0, 1), ("bone", 0, 2)], xp: 5, call: .mobSkeleton, fireImmune: true)
         }
     }
     var hostile: Bool { spec.behavior != .passive }
+    var key: String { spec.name.lowercased().replacingOccurrences(of: " ", with: "_") }
+    static func named(_ n: String) -> MobKind? { allCases.first { $0.key == n } }
     var call: Snd { spec.call }
     var name: String { spec.name }
 }
@@ -106,6 +114,7 @@ final class Mob {
     var admire: Float = 0           // piglin: seconds left inspecting a gold ingot before bartering
     var flyTarget: V3?              // ghast / blaze hover target
     var volley = 0                  // blaze: fireballs left in the current burst
+    var persistent = false          // structure mobs never despawn at random
 
     init(_ kind: MobKind, at p: V3) {
         self.kind = kind
@@ -376,7 +385,9 @@ final class Mob {
             vel.x += (target.x - vel.x) * k
             vel.z += (target.z - vel.z) * k
         }
-        if inWater {
+        if kind == .strider && Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))] == 2 {
+            vel.y = 2          // striders stand on lava
+        } else if inWater {
             vel.y += 18 * dt
             vel.y = min(vel.y, 1.6)
             vel.y *= expf(-2 * dt)
@@ -585,10 +596,31 @@ private func parts(_ m: Mob) -> [Part] {
             p.append(Part(mn: V3(-18, 7, z - 1), mx: V3(-3, 9, z + 1), pivot: V3(-3, 8, z), rotX: -wiggle, rotZ: 0.5, color: body))
         }
         return p
-    case .zombifiedPiglin, .piglin:
+    case .hoglin:
+        let hide = V3(0.62, 0.42, 0.34), mane = V3(0.85, 0.65, 0.45)
+        return [
+            box(-8, 12, -12, 16, 14, 26, hide, 4),
+            box(-2, 26, -12, 4, 4, 16, mane, 2),                                             // mane
+            Part(mn: V3(-7, 9, -28), mx: V3(7, 21, -12), pivot: V3(0, 18, -12), rotX: 0.35, color: hide, pattern: 4),
+            box(-8, 16, -27, 2, 7, 2, V3(0.95, 0.92, 0.82)), box(6, 16, -27, 2, 7, 2, V3(0.95, 0.92, 0.82)), // tusks
+            box(-9, 21, -16, 2, 2, 5, hide), box(7, 21, -16, 2, 2, 5, hide),
+            leg(-5, -8, 6, 12, 1, hide, 4), leg(5, -8, 6, 12, -1, hide, 4), leg(-5, 9, 6, 12, -1, hide, 4), leg(5, 9, 6, 12, 1, hide, 4),
+        ] + eyes(18, -26, 3)
+    case .strider:
+        let red = V3(0.62, 0.16, 0.14)
+        var p: [Part] = [
+            box(-8, 16, -8, 16, 14, 16, red, 4),
+            leg(-4, 0, 4, 16, 1, V3(0.45, 0.12, 0.1)), leg(4, 0, 4, 16, -1, V3(0.45, 0.12, 0.1)),
+        ] + eyes(24, -8, 2, 2, V3(0.15, 0.05, 0.05))
+        for i in 0..<6 {
+            let x = -7 + Float(i) * 2.8
+            p.append(Part(mn: V3(x, 30, -1), mx: V3(x + 1, 38, 1), pivot: V3(x, 30, 0), rotZ: sinf(m.walkPhase + Float(i)) * 0.3, color: V3(0.75, 0.6, 0.5)))
+        }
+        return p
+    case .zombifiedPiglin, .piglin, .piglinBrute:
         let zp = m.kind == .zombifiedPiglin
         let skin = V3(0.93, 0.6, 0.55), rot = V3(0.45, 0.62, 0.35)
-        let tunic = zp ? V3(0.55, 0.45, 0.35) : V3(0.5, 0.33, 0.18)
+        let tunic = zp ? V3(0.55, 0.45, 0.35) : (m.kind == .piglinBrute ? V3(0.25, 0.22, 0.24) : V3(0.5, 0.33, 0.18))
         let arm = zp ? rot : skin
         let armFwd: Float = m.aggro || zp && m.aggro ? -1.3 : 0
         var p: [Part] = [
@@ -726,6 +758,7 @@ final class MobManager {
     private var hostileTimer: Float = 1
     static let breedFood: [MobKind: [String]] = [
         .cow: ["wheat"], .sheep: ["wheat"], .pig: ["carrot", "potato", "beetroot"], .chicken: ["wheat_seeds", "beetroot_seeds"],
+        .hoglin: ["crimson_fungus"], .strider: ["warped_fungus"],
     ]
 
     func update(_ dt: Float, game: Game) {
@@ -771,7 +804,7 @@ final class MobManager {
             let d = simd_length(V2(m.pos.x - p.x, m.pos.z - p.z))
             if abs(m.pos.x - p.x) > limit || abs(m.pos.z - p.z) > limit || !w.isLoaded(Int(floor(m.pos.x)), Int(floor(m.pos.z))) { return true }
             if m.kind.hostile && d > 128 { return true }
-            if m.kind.hostile && d > 32 && Float.random(in: 0..<1) < dt / 40 { return true }
+            if m.kind.hostile && !m.persistent && d > 32 && Float.random(in: 0..<1) < dt / 40 { return true }
             return false
         }
         mobs += spawned
@@ -871,6 +904,15 @@ final class MobManager {
         let a = Float.random(in: 0..<(2 * .pi)), r = Float.random(in: 24...64)
         let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
         guard w.isLoaded(x, z) else { return }
+        // Striders: groups on the lava sea surface.
+        let lavaY = YOFF + NetherGen.lavaLevel
+        if Float.random(in: 0..<1) < 0.1 {
+            if Blocks.fluidKind[Int(w.block(x, lavaY, z))] == 2 && w.block(x, lavaY + 1, z) == AIR && w.block(x, lavaY + 2, z) == AIR
+                && mobs.filter({ $0.kind == .strider }).count < 8 {
+                for i in 0..<Int.random(in: 1...2) { mobs.append(Mob(.strider, at: V3(Float(x + i) + 0.5, Float(lavaY + 1), Float(z) + 0.5))) }
+            }
+            return
+        }
         var y = YOFF + Int.random(in: 1...126)
         // Walk down to a floor with two free blocks above it.
         while y > YOFF + 1 && !(Blocks.opaque[Int(w.block(x, y - 1, z))] && !Blocks.collide[Int(w.block(x, y, z))]
@@ -886,7 +928,7 @@ final class MobManager {
             switch w.gen.column(x, z).biome {
             case .soulSandValley: list = [(.skeleton, 20, 5, 5), (.ghast, 50, 4, 4), (.enderman, 1, 4, 4)]
             case .basaltDeltas: list = [(.ghast, 40, 1, 1), (.magmaCube, 100, 2, 5)]
-            case .crimsonForest: list = [(.zombifiedPiglin, 1, 2, 4), (.piglin, 5, 3, 4)]
+            case .crimsonForest: list = [(.zombifiedPiglin, 1, 2, 4), (.hoglin, 9, 3, 4), (.piglin, 5, 3, 4)]
             case .warpedForest: list = [(.enderman, 1, 4, 4)]
             default: list = [(.zombifiedPiglin, 100, 4, 4), (.ghast, 50, 4, 4), (.magmaCube, 2, 4, 4), (.enderman, 1, 4, 4), (.piglin, 15, 4, 4)]
             }

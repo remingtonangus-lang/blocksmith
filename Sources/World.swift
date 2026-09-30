@@ -13,6 +13,7 @@ final class World {
     let save: SaveManager?
     var chunks: [ChunkKey: Chunk] = [:]
     var blockEntities: [IVec3: BlockEntity] = [:]
+    var pendingMobs: [(String, V3)] = []          // structure mobs waiting for the game to spawn them
     var portals = Set<IVec3>()
     var renderDistance: Int = 8 { didSet { lastCenter = nil; rebuildOffsets() } }
 
@@ -371,19 +372,21 @@ final class World {
         var tint: [UInt32]
         var fromDisk: Bool
         var entities: [(IVec3, BlockEntity)]
+        var mobs: [(String, V3)]
     }
 
     private func produce(_ k: ChunkKey) -> Produced {
         var fromDisk = false
         var blocks: [BlockID]
         var ents: [(IVec3, BlockEntity)] = []
+        var mobs: [(String, V3)] = []
         if let saved = save?.loadChunk(k) { blocks = saved; fromDisk = true }
         else {
             blocks = gen.generate(cx: k.x, cz: k.z)
-            if let st = gen.structures { ents = st.place(into: &blocks, cx: k.x, cz: k.z) }
+            if let st = gen.structures { (ents, mobs) = st.place(into: &blocks, cx: k.x, cz: k.z) }
         }
         return Produced(blocks: blocks, height: Chunk.computeHeights(blocks), tint: gen.tints(cx: k.x, cz: k.z),
-                        fromDisk: fromDisk, entities: ents)
+                        fromDisk: fromDisk, entities: ents, mobs: mobs)
     }
 
     private func install(_ k: ChunkKey, _ p: Produced) {
@@ -392,6 +395,8 @@ final class World {
         chunks[k] = c
         // Generated chests/spawners; a regenerated chunk keeps any existing (already looted) entity.
         for (pos, be) in p.entities where blockEntities[pos] == nil { blockEntities[pos] = be }
+        // Structure mobs (bastion piglins...) appear once: the chunk is saved so it never regenerates.
+        if !p.mobs.isEmpty { c.modified = true; pendingMobs += p.mobs }
     }
 
     // Blocking load of everything around a point (used by --snapshot and first spawn).

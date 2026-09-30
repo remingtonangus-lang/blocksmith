@@ -71,7 +71,8 @@ enum Mining {
         case "glowstone": return one("glowstone_dust", rnd(2, 4))
         case "clay": return one("clay_ball", 4)
         case "snow_block": return one("snowball", 4)
-        case "glass": return []
+        case "glass", "spawner", "glass_pane": return []
+        case "gilded_blackstone": return Float.random(in: 0..<1) < 0.1 ? one("gold_nugget", rnd(2, 5)) : one("gilded_blackstone")
         case "gravel": return Float.random(in: 0..<1) < 0.1 ? one("flint") : one("gravel")
         case "short_grass":
             if shears { return one("short_grass") }

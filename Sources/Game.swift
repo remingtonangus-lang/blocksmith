@@ -749,7 +749,8 @@ final class Game {
         if drop {
             let ores: [String: ClosedRange<Int>] = ["coal_ore": 0...2, "deepslate_coal_ore": 0...2, "diamond_ore": 3...7, "deepslate_diamond_ore": 3...7,
                                                      "emerald_ore": 3...7, "lapis_ore": 2...5, "deepslate_lapis_ore": 2...5,
-                                                     "redstone_ore": 1...5, "deepslate_redstone_ore": 1...5]
+                                                     "redstone_ore": 1...5, "deepslate_redstone_ore": 1...5,
+                                                     "nether_quartz_ore": 2...5, "nether_gold_ore": 0...1, "spawner": 15...43]
             if let r = ores[bk], Mining.canHarvest(b, held) { addXP(Int.random(in: r)) }
         }
         let center = V3(Float(p.x) + 0.5, Float(p.y) + 0.3, Float(p.z) + 0.5)
@@ -840,6 +841,34 @@ final class Game {
     }
 
     // MARK: Survival
+
+    // Monster spawners: active with a player within 16 blocks; every 10-40 s up to 4 mobs of the
+    // spawner's kind appear within ±4 blocks, unless 6 of that kind are already near.
+    func spawnerTick(_ dt: Float) {
+        let pp = player.pos
+        for (p, be) in world.blockEntities where be.kind == .spawner {
+            let c = V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)
+            guard simd_length(c - pp) < 16, let kind = MobKind.named(be.mob) else { continue }
+            if Float.random(in: 0..<1) < 0.3 { particles.flame(at: c + V3(Float.random(in: -0.5...0.5), Float.random(in: -0.5...0.5), Float.random(in: -0.5...0.5))) }
+            be.delay -= dt
+            guard be.delay <= 0 else { continue }
+            be.delay = Float.random(in: 10...40)
+            var near = mobs.mobs.filter { $0.kind == kind && abs($0.pos.x - c.x) < 4.5 && abs($0.pos.y - c.y) < 2.5 && abs($0.pos.z - c.z) < 4.5 }.count
+            for _ in 0..<4 where near < 6 {
+                let sp = V3(c.x + Float.random(in: -4...4), Float(p.y + Int.random(in: -1...1)), c.z + Float.random(in: -4...4))
+                let bx = Int(floor(sp.x)), by = Int(floor(sp.y)), bz = Int(floor(sp.z))
+                guard Blocks.collide[Int(world.block(bx, by - 1, bz))] else { continue }
+                // Hostile mobs from spawners need block light ≤ 11 (blazes and silverfish ignore it in practice).
+                if kind != .blaze && world.lightAt(bx, by, bz).block > 11 { continue }
+                let m = Mob(kind, at: V3(Float(bx) + 0.5, sp.y, Float(bz) + 0.5))
+                if m.sized { m.makeSlime(size: 1) }
+                if m.collides(m.pos, world) { continue }
+                mobs.mobs.append(m)
+                near += 1
+                particles.explosion(at: m.pos + V3(0, 0.5, 0), power: 0.3)
+            }
+        }
+    }
 
     // MARK: XP (reference level curve)
 
@@ -1006,6 +1035,15 @@ final class Game {
         if fireTimer >= Double.random(in: 1.2...1.8) { fireTimer = 0; world.fireTick() }
         portalTick(Float(dt))
         hazardTick(Float(dt))
+        if !world.pendingMobs.isEmpty {
+            for (name, p) in world.pendingMobs {
+                guard let k = MobKind.named(name) else { continue }
+                let m = Mob(k, at: p)
+                m.persistent = true
+                mobs.mobs.append(m)
+            }
+            world.pendingMobs.removeAll()
+        }
         tickAccum += dt
         while tickAccum >= 0.05 {
             tickAccum -= 0.05
@@ -1019,6 +1057,7 @@ final class Game {
     // 20 Hz fixed-rate logic (furnaces...).
     private func gameTick() {
         randomTicks()
+        spawnerTick(0.05)
         for (p, be) in world.blockEntities where be.kind == .furnace {
             if be.tickFurnace() {
                 // Swap between furnace and lit furnace, keeping the facing.
