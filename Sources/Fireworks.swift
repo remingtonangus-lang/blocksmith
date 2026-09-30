@@ -112,6 +112,7 @@ enum Fireworks {
             if (s.contents ?? []).count > 6 { out.append("and \((s.contents ?? []).count - 6) more...") }
             out.append("\(Bundles.fill(s))/64")
         }
+        if k == "goat_horn" { out.append(GoatHorns.names[max(0, min(7, s.tag))]) }
         if k == "written_book" {
             out.append("by Player")
             out.append(Books.generations[min(3, s.tag)])

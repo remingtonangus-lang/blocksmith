@@ -220,6 +220,7 @@ extension Mob {
         case .rabbit, .cat, .tropicalFish: variant = Int.random(in: 0..<4)
         case .parrot: variant = Int.random(in: 0..<5)
         case .axolotl: variant = Int.random(in: 0..<1200) == 0 ? 4 : Int.random(in: 0..<4)       // blue is 1 in 1200
+        case .goat: variant = Int.random(in: 0..<50) == 0 ? 1 : 0                                     // screaming goats: 2%
         case .frog: variant = Int.random(in: 0..<3)
         default: break
         }

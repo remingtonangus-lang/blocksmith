@@ -1331,7 +1331,7 @@ final class Game {
         let at = m.pos + V3(0, 0.5, 0)
         if !m.baby {
             let looting = m.killedByPlayer ? m.lootingLevel : 0
-            for (n, lo, hi) in m.spec.drops where Items.has(n) {
+            for (n, lo, hi) in m.spec.drops where Items.has(n) && !(m.kind == .minecart && m.variant > 0) {
                 let c = Int.random(in: lo...(hi + looting))
                 var item = Items.id(n)
                 if m.fire > 0, let cooked = Recipes.smelt(item), Items.def(item).food != nil { item = cooked }
@@ -1352,6 +1352,7 @@ final class Game {
                 drops.spawn(ItemStack(Items.id("wither_skeleton_skull"), 1), at: at)
             }
         }
+        if m.kind == .minecart && m.variant > 0 && m.variant < Carts.items.count { drops.spawn(ItemStack(Items.id(Carts.items[m.variant]), 1), at: at) }
         if m.kind == .boat {
             let k = Boats.itemKey(m.variant, chest: m.chested)
             if Items.has(k) { drops.spawn(ItemStack(Items.id(k), 1), at: at) }

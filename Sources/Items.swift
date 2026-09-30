@@ -175,6 +175,10 @@ final class ItemRegistry {
         item("heart_of_the_sea", "Heart of the Sea", "ball", 0x2A6AA8)
         item("nautilus_shell", "Nautilus Shell", "bowl", 0xE8D8C8)
         item("minecart", "Minecart", "bucket", 0x8A8A90, ["c": 0x4A4A50], stack: 1)
+        item("chest_minecart", "Minecart with Chest", "bucket", 0x8A8A90, ["c": 0x9A6A2A], stack: 1)
+        item("hopper_minecart", "Minecart with Hopper", "bucket", 0x8A8A90, ["c": 0x3A3A3A], stack: 1)
+        item("tnt_minecart", "Minecart with TNT", "bucket", 0x8A8A90, ["c": 0xC83A2A], stack: 1)
+        item("furnace_minecart", "Minecart with Furnace", "bucket", 0x8A8A90, ["c": 0x6A6A6A], stack: 1)
         for (i, w) in Boats.woods.enumerated() {
             let raft = w.0 == "bamboo"
             item(Boats.itemKey(i, chest: false), raft ? "Bamboo Raft" : "\(w.1) Boat", "boat", w.2, stack: 1, fuel: 1200)

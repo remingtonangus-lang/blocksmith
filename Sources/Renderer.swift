@@ -855,7 +855,8 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let label = i < 100 ? Advancements.tabs[i] : (i == 100 ? "^" : "v")
                     let sel = i == am.tab
                     rect(x, y, Float(sl.w) * s, Float(sl.h) * s, sel ? V4(0.35, 0.55, 0.35, 1) : (game.menuHover === sl ? V4(0.7, 0.7, 0.8, 1) : V4(0.5, 0.5, 0.55, 1)))
-                    text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
+                    let ts = min(s, (Float(sl.w) - 4) * s / max(1, textWidth(label, 1)))
+                    text(label, x + (Float(sl.w) * s - textWidth(label, ts)) / 2, y + (Float(sl.h) * s - 7 * ts) / 2, ts)
                 }
                 let list = am.list
                 let done = list.filter { game.advancements.contains($0.id) }.count

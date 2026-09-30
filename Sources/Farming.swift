@@ -196,8 +196,9 @@ extension Game {
             if world.block(at.x, at.y, at.z) == AIR { world.setBlock(at.x, at.y, at.z, Blocks.id("cocoa")); consumeHeld(); swing = 1; return true }
         }
         // Minecart onto a rail.
-        if key == "minecart" && Rails.isRail(b) {
+        if let cv = Carts.variant(of: key), Rails.isRail(b) {
             let cart = Mob(.minecart, at: V3(Float(t.hit.x) + 0.5, Float(t.hit.y) + 0.0625, Float(t.hit.z) + 0.5))
+            cart.variant = cv
             cart.yaw = player.yaw
             mobs.mobs.append(cart)
             consumeHeld()
@@ -332,6 +333,7 @@ extension Game {
     func useItemOnMob(_ m: Mob) -> Bool {
         let key = Items.key(held.item)
         if useBoat(m) || openPack(m) || useArmorStand(m) || useLead(m) { return true }
+        if useCart(m) { return true }
         if m.kind == .minecart {
             if riding === m { return false }
             riding = m

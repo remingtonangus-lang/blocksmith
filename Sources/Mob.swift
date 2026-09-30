@@ -283,11 +283,12 @@ final class Mob {
         if leashed { leashTick(dt, g) }
         if kind == .boat { updateBoat(dt, g); return }
         if kind == .armorStand { updateArmorStand(dt, g); return }
+        if kind == .goat && aggro { goatRam(g) }
         if g.riding === self && kind != .minecart { updateRidden(dt, g); return }
         if kind == .enderDragon { updateDragon(dt, g); return }
         if kind == .endCrystal { updateCrystal(dt, g); return }
         if kind == .shulker { updateShulker(dt, g); return }
-        if kind == .minecart { updateMinecart(dt, g); return }
+        if kind == .minecart { updateMinecart(dt, g); cartExtras(dt, g); return }
         if kind == .wither { updateWither(dt, g); return }
         if cureTick(dt, g) { return }
         if kind == .vex { updateVex(dt, g); return }
@@ -1047,7 +1048,7 @@ private func parts(_ m: Mob) -> [Part] {
             box(-10, 4, -8, 20, 7, 1, iron, 4), box(-10, 4, 7, 20, 7, 1, iron, 4),
             box(-11, 4, -8, 1, 7, 16, iron, 4), box(10, 4, -8, 1, 7, 16, iron, 4),
             box(-8, 0, -7, 3, 2, 1, dark), box(5, 0, -7, 3, 2, 1, dark), box(-8, 0, 6, 3, 2, 1, dark), box(5, 0, 6, 3, 2, 1, dark),
-        ]
+        ] + cartTop(m)
     case .villager:
         // Robe colour from the biome type; apron / hat colour from the profession.
         let v = m.villager
