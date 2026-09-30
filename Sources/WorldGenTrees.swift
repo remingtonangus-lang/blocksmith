@@ -101,7 +101,8 @@ enum TreePlacer {
                         let soil = Blocks.key(w.get(tx, gy, tz))
                         let ok = ["grass_block", "snowy_grass_block", "dirt", "podzol", "coarse_dirt", "mud", "mycelium", "moss_block", "pale_moss_block", "snow_block", "packed_ice", "red_sand"].contains(soil)
                         if !ok { continue }
-                        if w.get(tx, gy + 1, tz) != AIR && !Blocks.replaceable[Int(w.get(tx, gy + 1, tz))] { continue }
+                        let above = w.get(tx, gy + 1, tz)
+                        if above != AIR && !Blocks.replaceable[Int(above)] && !Blocks.key(above).hasSuffix("_carpet") { continue }
                     }
                     var rng = SRng(UInt64(hash3(tx, gy, tz, gen.s32 ^ 0x7EE7)) | 1)
                     build(w, kind, tx, gy + 1, tz, &rng)
