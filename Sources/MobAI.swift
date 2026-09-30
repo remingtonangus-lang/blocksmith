@@ -196,6 +196,22 @@ extension Mob {
             carriedBlock = 0
         }
     }
+
+    // Reference eat-grass goal: 1/1000 per tick (1/50 for lambs) a sheep eats the grass at its feet or
+    // turns the grass block below to dirt; that regrows its wool and speeds a lamb up by a minute.
+    func sheepGraze(_ dt: Float, _ g: Game) {
+        guard onGround, panic <= 0, Float.random(in: 0..<1) < dt * 20 / (baby ? 50 : 1000) else { return }
+        let w = g.world
+        let x = Int(floor(pos.x)), y = Int(floor(pos.y)), z = Int(floor(pos.z))
+        if w.block(x, y, z) == TALL_GRASS {
+            w.setBlock(x, y, z, AIR)
+        } else if w.block(x, y - 1, z) == GRASS {
+            w.setBlock(x, y - 1, z, Blocks.id("dirt"))
+        } else { return }
+        sheared = false
+        if baby { age += 60 }
+        g.sfx(.step(.plant), 0.5, at: pos)
+    }
 }
 
 extension Game {

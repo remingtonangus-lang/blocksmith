@@ -484,6 +484,7 @@ final class Mob {
                 wander()
                 speed = moving ? (panic > 0 ? (kind == .chicken ? 2.4 : 2.8) : spec.speed) : 0
             }
+            if kind == .sheep { sheepGraze(dt, g) }
             if kind == .chicken && !baby {
                 eggTimer -= dt
                 if eggTimer <= 0 { eggTimer = Float.random(in: 300...600); g.drops.spawn(ItemStack(Items.id("egg"), 1), at: pos + V3(0, 0.3, 0)) }
