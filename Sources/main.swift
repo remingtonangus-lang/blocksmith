@@ -791,8 +791,7 @@ enum Snapshot {
         print(String(format: "frame (encode+GPU, offscreen, median of 30) %.2f ms  biome %@", gpu * 1000, "\(world.gen.column(Int(pos.x), Int(pos.z)).biome)"))
         var meshBytes = 0
         for c in world.chunks.values { for sec in c.sections { meshBytes += (sec.opaqueBuf?.length ?? 0) + (sec.transBuf?.length ?? 0) } }
-        var chunkBytes = 0
-        for c in world.chunks.values { chunkBytes += c.blocks.count * 2 + c.light.count + c.height.count * 2 + c.tint.count * 4 }
+        let chunkBytes = Int(Bench.chunkMB(world) * 1_048_576)     // stored block sections + per-section light + heights + tints
         print(String(format: "mesh slabs %.0f MB, chunks %ld (block+light arrays %.0f MB), Metal allocated %.0f MB", Double(MeshArena.shared.slabBytes) / 1_048_576,
                      world.chunks.count, Double(chunkBytes) / 1_048_576, Double(device.currentAllocatedSize) / 1_048_576))
         print(String(format: "memory: resident %.0f MB  (section meshes %.0f MB)", residentMB(), Double(meshBytes) / 1_048_576))
