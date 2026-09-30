@@ -1773,6 +1773,7 @@ final class Game {
                 let day = floor(time / DAY_LENGTH)
                 time = (day + 1) * DAY_LENGTH + 0.01 * DAY_LENGTH
                 sleeping = 0
+                catGifts()
                 onToast?("Good morning")
                 weather.raining = false; weather.thundering = false; weather.rain = 0; weather.thunder = 0
                 weather.rainTime = Float.random(in: 600...9000); weather.thunderTime = Float.random(in: 600...9000)

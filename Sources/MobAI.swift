@@ -206,4 +206,16 @@ extension Game {
         if t.kind.category == .misc && t.kind != .ironGolem && t.kind != .villager { return }
         for w in mobs.of(.wolf) where w.tamed && !w.sitting && simd_length(w.pos - player.pos) < 16 { w.target = t }
     }
+
+    // Morning gifts: a tamed cat near the sleeping player leaves one 70% of the time (reference morning
+    // gift table: rabbit hide / rabbit foot / raw chicken / feather / rotten flesh / string, rarely a membrane).
+    func catGifts() {
+        for c in mobs.of(.cat) where c.tamed && simd_length(c.pos - player.pos) < 16 && Float.random(in: 0..<1) < 0.7 {
+            let r = Float.random(in: 0..<1)
+            let name = r < 0.1613 ? "rabbit_hide" : r < 0.3226 ? "rabbit_foot" : r < 0.4839 ? "chicken" : r < 0.6452 ? "feather"
+                : r < 0.8065 ? "rotten_flesh" : r < 0.9677 ? "string" : "phantom_membrane"
+            if Items.has(name) { drops.spawn(ItemStack(Items.id(name), 1), at: player.pos + V3(0, 0.5, 0)) }
+            c.pos = player.pos + V3(Float.random(in: -1...1), 0, Float.random(in: -1...1))
+        }
+    }
 }
