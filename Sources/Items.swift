@@ -228,6 +228,8 @@ final class ItemRegistry {
         item("ink_sac", "Ink Sac", "ball", 0x1A1A2A)
         item("glow_ink_sac", "Glow Ink Sac", "ball", 0x4AE8C8)
         item("honeycomb", "Honeycomb", "ball", 0xE8A020)
+        item("resin_clump", "Resin Clump", "ball", 0xD9701E)
+        item("resin_brick", "Resin Brick", "ingot", 0xCC6420)
         item("goat_horn", "Goat Horn", "bone", 0xC8C0A8, stack: 1)
         item("armadillo_scute", "Armadillo Scute", "leather", 0xA06A58)
         item("wolf_armor", "Wolf Armor", "chestplate", 0xA06A58, stack: 1)

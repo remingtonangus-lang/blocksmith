@@ -1,12 +1,11 @@
 name: mac
 # Builds Blocksmith on an Apple Silicon runner, renders the headless snapshots and
-# publishes them (plus build/snap logs) to an orphan branch, overwritten each run: `ci-snaps` for
-# main / the integration branch, `ci-snaps-<branch>` (slashes -> dashes) for every other branch, so
-# parallel sessions never overwrite each other's snapshots.
+# publishes them (plus build/snap logs) to the orphan branch `ci-snaps-<branch>` (slashes -> dashes), overwritten
+# each run; runs of the main line (claude/eloquent-lovelace-bsc5v1) also update `ci-snaps`.
 # View: https://github.com/<owner>/blocksmith/tree/ci-snaps  (README.md shows every image)
 on:
   push:
-    branches-ignore: ['ci-snaps', 'ci-snaps-**']
+    branches-ignore: ['ci-snaps', 'ci-snaps-*']
   workflow_dispatch:
 
 permissions:
@@ -62,10 +61,6 @@ jobs:
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           SNAP_OUTCOME: ${{ steps.snap.outcome }}
         run: |
-          case "$GITHUB_REF_NAME" in
-            main|claude/eloquent-lovelace-bsc5v1) PUB_BRANCH=ci-snaps ;;
-            *) PUB_BRANCH="ci-snaps-${GITHUB_REF_NAME//\//-}" ;;
-          esac
           PUB="$RUNNER_TEMP/pub"
           rm -rf "$PUB"; mkdir -p "$PUB"
           cp snaps/*.png "$PUB/" 2>/dev/null || true
@@ -76,8 +71,6 @@ jobs:
             echo "# Blocksmith CI snapshots"
             echo
             echo "Commit \`${GITHUB_SHA}\` on \`${GITHUB_REF_NAME}\` — build: **${BUILD_OUTCOME}**, snapshots: **${SNAP_OUTCOME}**"
-            echo
-            echo "Published to branch \`${PUB_BRANCH}\`"
             echo
             echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
             echo
@@ -95,10 +88,14 @@ jobs:
             done
           } > README.md
           git init -q
-          git checkout -q --orphan "$PUB_BRANCH"
+          git checkout -q --orphan ci-snaps
           git add -A
           git -c user.name="blocksmith-ci" -c user.email="ci@users.noreply.github.com" commit -qm "Snapshots for ${GITHUB_SHA}"
-          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$PUB_BRANCH"
+          SNAPS="ci-snaps-${GITHUB_REF_NAME//\//-}"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "ci-snaps:${SNAPS}"
+          if [ "${GITHUB_REF_NAME}" = "claude/eloquent-lovelace-bsc5v1" ]; then
+            git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ci-snaps
+          fi
 
       - name: Upload artifact
         if: always()
