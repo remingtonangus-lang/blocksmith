@@ -37,7 +37,7 @@ final class Redstone {
         case none, wire, torch, block, lamp, lever, button, plate, weightedPlate, repeater, comparator, observer, piston, stickyPiston
         case dispenser, dropper, hopper, note, daylight, target, door, trapdoor, gate, tnt, pistonHead, bell, ironDoor, ironTrapdoor
         case rail, poweredRail, detectorRail, activatorRail
-        case tripHook, trappedChest
+        case tripHook, trappedChest, copperBulb
     }
 
     static let kinds: [K] = {
@@ -59,6 +59,7 @@ final class Redstone {
         for w in BlockRegistry.doorWoods { set("\(w)_door", .door); set("\(w)_trapdoor", .trapdoor); set("\(w)_fence_gate", .gate) }
         set("iron_door", .ironDoor); set("iron_trapdoor", .ironTrapdoor)
         set("tripwire_hook", .tripHook); set("trapped_chest", .trappedChest)
+        for i in 1..<Blocks.count where Int(Blocks.groupBase[i]) == i && Blocks.key(BlockID(i)).hasSuffix("copper_bulb") { set(Blocks.key(BlockID(i)), .copperBulb) }
         set("rail", .rail); set("powered_rail", .poweredRail); set("detector_rail", .detectorRail); set("activator_rail", .activatorRail)
         return t
     }()
@@ -372,6 +373,11 @@ final class Redstone {
             let powered = conductor(block(q)) ? blockPower(q).1 > 0 : false
             let lit = s == 0 || (s >= 2 && s < 6)
             if lit == powered { schedule(p, 2) }
+        case .copperBulb:
+            // Toggles on each rising edge of power.
+            let powered = received(p) > 0
+            if powered && !edge.contains(p) { edge.insert(p); setQuiet(p, base(b) + BlockID(1 - s)); wakeAround(p) }
+            else if !powered { edge.remove(p) }
         case .lamp:
             let powered = received(p) > 0
             if powered && s == 0 { setQuiet(p, base(b) + 1); wakeAround(p) }

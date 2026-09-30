@@ -72,7 +72,9 @@ extension BlockRegistry {
         layer.sound = .snow; layer.replaceable = true; layer.boxes = [Box(0, 0, 0, 16, 2, 16)]; layer.skyStop = false
         layer.noCollideBoxes = true; layer.collide = false
         add(layer)
-        cube("powder_snow", "Powder Snow", "snow_block", h: 0.25, tool: .shovel, snd: .snow)
+        var ps = BlockDef("powder_snow", "Powder Snow")
+        ps.tex = ["snow_block"]; ps.hardness = 0.25; ps.tool = .shovel; ps.sound = .snow; ps.collide = false
+        add(ps)
         cube("calcite", "Calcite", h: 0.75, req: true)
         cube("dripstone_block", "Dripstone Block", h: 1.5, req: true)
         var drip = BlockDef("pointed_dripstone", "Pointed Dripstone")

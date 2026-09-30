@@ -1,4 +1,5 @@
 import Foundation
+import simd
 
 // Advancements: five tabs mirroring the reference tree (story, nether, end, adventure, husbandry) with
 // the same criteria and original titles. Item and place criteria are polled once a second; events

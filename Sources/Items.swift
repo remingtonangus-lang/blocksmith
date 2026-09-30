@@ -253,6 +253,7 @@ final class ItemRegistry {
         item("disc_fragment_5", "Disc Fragment", "nugget", 0x2A2A2A)
         item("mace", "Mace", "shovel", 0x6A6A70, stack: 1)
         item("wind_charge", "Wind Charge", "ball", 0xBDC9FF)
+        item("powder_snow_bucket", "Powder Snow Bucket", "bucket", 0xB0B0B8, ["c": 0xF8F8FF], stack: 1)
         item("trial_key", "Trial Key", "nugget", 0xE8A040)
         item("map", "Empty Map", "paper", 0xE8E0C0, ["a": 0x8A7A5A])
         item("filled_map", "Map", "paper", 0xE8D8A8, ["a": 0x6A9A5A], stack: 1)

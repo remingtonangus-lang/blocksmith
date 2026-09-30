@@ -93,6 +93,9 @@ final class Game {
     var jukeboxes: [JukeboxPlayer] = []
     var fovScale: Float = 1
     var rockets: [Rocket] = []
+    var lastWind: Double = -10
+    var freeze: Float = 0
+    var freezeTick: Float = 0
     var advancements = Set<String>()
     var advToasts: [(String, Bool, Double)] = []
     var lastAdvCheck: Double = 0
@@ -622,6 +625,7 @@ final class Game {
             if mi.sneak { dismount() }
         } else {
             player.update(dt: fdt, input: mi, world: world)
+            powderSnowTick(fdt)
         }
         let hmove = simd_length(V2(player.pos.x - before.x, player.pos.z - before.z))
         walkBob += hmove * 2.2
@@ -836,6 +840,7 @@ final class Game {
         if useNow {
             switch Items.key(h.item) {
             case "snowball": throwItem(.snowball); return
+            case "wind_charge": throwWindCharge(); return
             case "egg": throwItem(.egg); return
             case "ender_pearl" where clock - lastPearl > 1: lastPearl = clock; throwItem(.pearl); return
             default: break
@@ -1020,6 +1025,7 @@ final class Game {
             }
             if key == "trapped_chest" { world.blockEntities[at] = BlockEntity(.chest) }
             if key == "lightning_rod" { lightningRods.append(at) }
+            placedReactions(at)
             if Blocks.shape[Int(id)] == "sign" || Blocks.shape[Int(id)] == "hsign" { openSignEditor(at) }
             if Blocks.shape[Int(id)] == "banner" { let be = BlockEntity(.banner); be.patterns = h.pat ?? []; world.blockEntities[at] = be }
             if Rails.isRail(id) { Rails.autoShape(world, at) }

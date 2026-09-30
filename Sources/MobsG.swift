@@ -118,6 +118,9 @@ extension Game {
             Explosion.explode(at: at, power: 1, game: self, except: f.shooter)
         case .fire:
             break
+        case .wind:
+            if let m = mob { m.hit(from: f.pos, damage: 1, knockback: 0) }
+            windBurst(at: at)
         }
     }
 

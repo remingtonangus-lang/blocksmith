@@ -207,6 +207,20 @@ extension Game {
         }
         if (key == "honeycomb" || key.hasSuffix("_axe")) && copperInteract(t.hit, key: key) { return true }
         if placeArmorStand(t) { return true }
+        // Powder snow buckets.
+        if key == "bucket" && bkey == "powder_snow" {
+            world.setBlock(t.hit.x, t.hit.y, t.hit.z, AIR)
+            giveOrReplaceHeld(ItemStack(Items.id("powder_snow_bucket"), 1))
+            sfx(.step(.snow), 0.8); swing = 1; return true
+        }
+        if key == "powder_snow_bucket" {
+            let at = t.hit + t.normal
+            if Blocks.replaceable[Int(world.block(at.x, at.y, at.z))] {
+                world.setBlock(at.x, at.y, at.z, Blocks.id("powder_snow"))
+                if survival { inventory.held = ItemStack(Items.id("bucket"), 1) }
+                sfx(.place(.snow), 0.8); swing = 1; return true
+            }
+        }
         if stripLog(t) { return true }
         // String on a block top becomes tripwire.
         if key == "string" && t.normal.y == 1 {

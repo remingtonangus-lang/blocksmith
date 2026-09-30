@@ -22,7 +22,7 @@ final class Arrow {
 }
 
 // What a Fireball object actually is: fire charges, wither skulls, or thrown items.
-enum Thrown { case fire, witherSkull, blueSkull, snowball, egg, pearl }
+enum Thrown { case fire, witherSkull, blueSkull, snowball, egg, pearl, wind }
 
 // Ghast (big, explosive) and blaze (small, incendiary) fireballs: straight flight, can be punched back.
 final class Fireball {

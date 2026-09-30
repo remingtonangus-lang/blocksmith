@@ -1102,6 +1102,13 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
         }
 
+        // Freezing in powder snow: frosted screen edges.
+        if game.freeze > 0 {
+            let a = min(1, game.freeze / 7) * 0.55
+            let e = min(W, H) * 0.12
+            rect(0, 0, W, e, V4(0.85, 0.93, 1, a)); rect(0, H - e, W, e, V4(0.85, 0.93, 1, a))
+            rect(0, e, e, H - 2 * e, V4(0.85, 0.93, 1, a)); rect(W - e, e, e, H - 2 * e, V4(0.85, 0.93, 1, a))
+        }
         // Spyglass: black outside the lens circle.
         if game.fovScale < 0.5 && Items.key(game.held.item) == "spyglass" {
             for r in Renderer.scopeRects(W: W, H: H) where r.2 > 0 && r.3 > 0 { rect(r.0, r.1, r.2, r.3, V4(0, 0, 0, 1)) }
