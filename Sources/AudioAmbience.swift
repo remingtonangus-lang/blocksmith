@@ -382,6 +382,12 @@ extension MusicDiscs {
             k += 1
         }
         s.notes = s.notes.filter { $0.t < len - 4 }
+        if name.hasSuffix("music_box") {
+            // A music box: only the tuned parts, up an octave, on a tiny plucked comb.
+            s.notes = s.notes.filter { ![.bass, .kick, .tom, .shaker, .thud, .drone, .pad].contains($0.inst) }.map { n in
+                var m = n; m.inst = .bell; m.midi += 12; m.dur = min(m.dur, 0.6); m.vel *= 0.8; return m
+            }
+        }
         s.length = len
         s.title = title(name)
         return s
