@@ -123,6 +123,7 @@ enum Bench {
         let g = world.gen
         _ = g.generate(cx: 0, cz: 0)                       // lazy tables
         var times: [Double] = []
+        var hash: UInt64 = 0xcbf29ce484222325           // FNV-1a over every generated block: flags terrain changes
         for i in 0..<24 {
             let cx = i * 7 - 80, cz = (i * 13) % 50 - 25
             let a = now
@@ -131,7 +132,9 @@ enum Bench {
             _ = g.tints(cx: cx, cz: cz)
             _ = Chunk.computeHeights(b)
             times.append((now - a) * 1000)
+            for v in b { hash = (hash ^ UInt64(v)) &* 0x100000001b3 }
         }
+        put("gen.terrain_hash", Double(hash >> 12))       // 52 bits: exact in a Double
         let d = dist(times)
         put("gen.chunk_ms", d, "mean,p95,max")
         // Parallel throughput over all cores (what streaming can reach at best).

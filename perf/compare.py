@@ -52,6 +52,10 @@ def main():
         if b is None:
             rows.append(f"| {k} | – | {v:g} | new |")
             continue
+        if k.endswith("_hash"):
+            # Identity checks (e.g. generated terrain): report a change, never gate on it.
+            rows.append(f"| {k} | {b:.0f} | {v:.0f} | {'same' if b == v else '⚠️ changed'} |")
+            continue
         r = worse_ratio(k, b, v)
         flag = ""
         if r > 1.3:
