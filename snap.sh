@@ -11,6 +11,8 @@ if [ $# -gt 0 ]; then n="$1"; shift; "$BIN" --snapshot "snaps/$n.png" "$@"; exit
 "$BIN" --snapshot snaps/aerial.png  --seed 12345 --yaw 200 --pitch -35 --time 0.25 --up 45 --rd 12
 "$BIN" --snapshot snaps/aerial16.png --seed 12345 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16
 "$BIN" --snapshot snaps/aerial16_777.png --seed 777 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16
+"$BIN" --snapshot snaps/ocean_night_777.png --seed 777 --yaw 200 --pitch -12 --time 0.8 --up 30 --rd 16
+"$BIN" --snapshot snaps/ocean_night_777_fast.png --seed 777 --yaw 200 --pitch -12 --time 0.8 --up 30 --rd 16 --fast
 "$BIN" --snapshot snaps/aerial16_424242.png --seed 424242 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16
 "$BIN" --snapshot snaps/aerial24.png --seed 424242 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 24
 "$BIN" --snapshot snaps/sunset.png  --seed 12345 --yaw 270 --pitch 0   --time 0.47 --up 10
