@@ -100,6 +100,7 @@ extension Game {
                     r.timer = 30
                     onToast?("Raid - Victory")
                     applyEffect(.heroOfTheVillage, amp: r.level - 1, seconds: 2400)
+                    achieve("raid_win")
                     sfx(.levelUp, 1)
                     for v in mobs.mobs where v.kind == .villager && simd_length(v.pos - r.center) < 64 { particles.hearts(at: v.pos + V3(0, 2.2, 0)) }
                 } else {

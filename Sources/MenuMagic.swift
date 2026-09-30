@@ -84,6 +84,7 @@ final class EnchantMenu: Menu {
 
     override func buttonPressed(_ i: Int) {
         guard available(i) else { return }
+        game.achieve("enchant")
         var s = box[0]
         var r = SRng(game.enchantSeed &+ UInt64(i))
         var l = Enchant.select(item: s.item, level: costs[i], rng: &r)

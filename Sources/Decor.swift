@@ -36,6 +36,26 @@ extension BlockRegistry {
                 add(d)
             }
         }
+        // Hanging signs: 4 ceiling facings (0-3, chains up) + 4 wall facings (4-7, hung from a bar).
+        for wood in BlockRegistry.doorWoods {
+            let disp = wood.split(separator: "_").map { $0.capitalized }.joined(separator: " ")
+            for st in 0..<8 {
+                let f = st % 4, ns = f < 2
+                var d = BlockDef(st == 0 ? "\(wood)_hanging_sign" : "\(wood)_hanging_sign[\(st)]", "\(disp) Hanging Sign")
+                d.group = "\(wood)_hanging_sign"; d.hidden = st != 0; d.shape = "hsign"
+                d.tex = ["\(wood)_planks"]; d.render = .model; d.opaque = false; d.collide = false; d.hardness = 1; d.tool = .axe; d.sound = .wood
+                d.skyStop = false
+                let board = ns ? Box(1, 0, 7, 15, 10, 9) : Box(7, 0, 1, 9, 10, 15)
+                let chain = [UInt16](repeating: Tex.id("chain"), count: 6)
+                if st < 4 {
+                    d.boxes = [board, ns ? Box(3, 10, 7, 4, 16, 9) : Box(7, 10, 3, 9, 16, 4), ns ? Box(12, 10, 7, 13, 16, 9) : Box(7, 10, 12, 9, 16, 13)]
+                    d.boxes[1].tex = chain; d.boxes[2].tex = chain
+                } else {
+                    d.boxes = [board, ns ? Box(0, 14, 6, 16, 16, 10) : Box(6, 14, 0, 10, 16, 16)]
+                }
+                add(d)
+            }
+        }
         // Item frames: 4 wall facings + floor + ceiling.
         for (n, disp) in [("item_frame", "Item Frame"), ("glow_item_frame", "Glow Item Frame")] {
             for st in 0..<6 {
@@ -142,9 +162,12 @@ extension Game {
                 let f = st % 4
                 // Face normal (toward the reader) and the text's right vector.
                 let n = [V3(0, 0, -1), V3(0, 0, 1), V3(-1, 0, 0), V3(1, 0, 0)][f]
-                let right = V3(-n.z, 0, n.x) * -1
-                let center: V3 = st < 4 ? c + V3(0, 0.22, 0) + n * 0.07 : c + V3(0, -0.0, 0) - n * 0.37
-                let s: Float = 1.0 / 90
+                let hanging = Blocks.shape[Int(b)] == "hsign"
+                // Hanging signs: text on both faces of the board (lower part of the block).
+                let faces: [(V3, V3, Float)] = hanging
+                    ? [(c + V3(0, -0.22, 0) + n * 0.07, V3(-n.z, 0, n.x) * -1, 1.0 / 115), (c + V3(0, -0.22, 0) - n * 0.07, V3(-n.z, 0, n.x), 1.0 / 115)]
+                    : [(st < 4 ? c + V3(0, 0.22, 0) + n * 0.07 : c + V3(0, -0.0, 0) - n * 0.37, V3(-n.z, 0, n.x) * -1, 1.0 / 90)]
+                for (center, right, s) in faces {
                 for (li, line) in be.lines.enumerated() where !line.isEmpty {
                     let wpx = Float(Font.width(line))
                     var x = -wpx / 2
@@ -161,6 +184,7 @@ extension Game {
                         }
                         x += adv
                     }
+                }
                 }
             case .frame:
                 let item = be.container[0]

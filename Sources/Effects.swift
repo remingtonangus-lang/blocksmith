@@ -394,6 +394,8 @@ extension Game {
         d["patrol"] = "\(patrolTimer)"
         d["rest"] = "\(timeSinceRest)"
         d["difficulty"] = "\(difficulty)"
+        saveAdvancements(&d)
+        d["eaten"] = eatenFoods.sorted().joined(separator: "|")
         if let e = try? JSONEncoder().encode(enderChest.slots), let str = String(data: e, encoding: .utf8) { d["ender"] = str }
         return d
     }
@@ -402,6 +404,8 @@ extension Game {
         if let p = d["patrol"], let v = Float(p) { patrolTimer = v }
         if let p = d["rest"], let v = Float(p) { timeSinceRest = v }
         if let p = d["difficulty"], let v = Int(p) { difficulty = max(0, min(3, v)) }
+        loadAdvancements(d)
+        eatenFoods = Set((d["eaten"] ?? "").split(separator: "|").map(String.init))
         if let str = d["ender"], let data = str.data(using: .utf8), let slots = try? JSONDecoder().decode([ItemStack].self, from: data) {
             for (i, st) in slots.prefix(27).enumerated() { enderChest[i] = st }
         }

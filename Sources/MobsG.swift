@@ -27,6 +27,7 @@ extension Game {
                 let w = Mob(.wither, at: V3(Float(mid.x) + 0.5, Float(mid.y), Float(mid.z) + 0.5))
                 w.phase = 1
                 w.phaseTime = 11
+                achieve("summon_wither")
                 w.health = 100
                 w.persistent = true
                 mobs.mobs.append(w)
@@ -57,6 +58,7 @@ extension Game {
             let g = Mob(.ironGolem, at: V3(Float(p.x) + 0.5, Float(below2.y), Float(p.z) + 0.5))
             g.persistent = true
             g.playerBuilt = true
+            achieve("iron_golem")
             mobs.mobs.append(g)
             particles.explosion(at: g.pos + V3(0, 1.5, 0), power: 0.4)
             return

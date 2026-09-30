@@ -116,7 +116,7 @@ extension Game {
         let b = world.block(p.x, p.y, p.z)
         guard case let (_, stage, waxed)? = Copper.index[Blocks.key(Blocks.groupBase[Int(b)])] else { return false }
         var target: BlockID?
-        if key == "honeycomb" && !waxed { target = Copper.convert(b, stage: stage, waxed: true); if target != nil { consumeHeld() } }
+        if key == "honeycomb" && !waxed { target = Copper.convert(b, stage: stage, waxed: true); if target != nil { consumeHeld(); achieve("wax") } }
         else if key.hasSuffix("_axe") {
             if waxed { target = Copper.convert(b, stage: stage, waxed: false) }
             else if stage > 0 { target = Copper.convert(b, stage: stage - 1, waxed: false) }

@@ -2,7 +2,7 @@ import Foundation
 
 // Per-block state that doesn't fit in a block ID: chest and furnace inventories, furnace progress.
 final class BlockEntity: Codable {
-    enum Kind: String, Codable { case chest, furnace, spawner, hopper, dispenser, brewing, beacon, shulker, campfire, sign, frame, painting, banner, lectern }
+    enum Kind: String, Codable { case chest, furnace, spawner, hopper, dispenser, brewing, beacon, shulker, campfire, sign, frame, painting, banner, lectern, shelf, pot }
     let kind: Kind
     var items: [ItemStack]
     var mob: String = ""      // spawner: mob kind name
@@ -30,7 +30,7 @@ final class BlockEntity: Codable {
 
     init(_ k: Kind) {
         kind = k
-        items = Array(repeating: .empty, count: k == .chest || k == .shulker ? 27 : (k == .furnace ? 3 : (k == .hopper || k == .brewing ? 5 : k == .campfire ? 4 : k == .frame || k == .lectern ? 1 : (k == .dispenser ? 9 : 0))))
+        items = Array(repeating: .empty, count: k == .chest || k == .shulker ? 27 : k == .shelf ? 6 : (k == .furnace ? 3 : (k == .hopper || k == .brewing ? 5 : k == .campfire ? 4 : k == .frame || k == .lectern || k == .pot ? 1 : (k == .dispenser ? 9 : 0))))
     }
 
     enum CodingKeys: String, CodingKey { case kind, items, burn, burnMax, cook, mob, fuel, brewTime, secondary, trial, used, lines, delay, pat }
@@ -49,6 +49,7 @@ final class BlockEntity: Codable {
         used = (try? c.decode(Bool.self, forKey: .used)) ?? false
         if let l = try? c.decode([String].self, forKey: .lines) { lines = l }
         if kind == .frame || kind == .lectern { delay = (try? c.decode(Float.self, forKey: .delay)) ?? 0 }
+        if kind == .shelf { level = Int((try? c.decode(Float.self, forKey: .delay)) ?? 0) }
         patterns = (try? c.decode([Int].self, forKey: .pat)) ?? []
     }
     func encode(to e: Encoder) throws {
@@ -65,6 +66,7 @@ final class BlockEntity: Codable {
         if used { try c.encode(used, forKey: .used) }
         if kind == .sign { try c.encode(lines, forKey: .lines) }
         if kind == .frame || kind == .lectern { try c.encode(delay, forKey: .delay) }
+        if kind == .shelf { try c.encode(Float(level), forKey: .delay) }
         if !patterns.isEmpty { try c.encode(patterns, forKey: .pat) }
     }
 

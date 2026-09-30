@@ -93,6 +93,12 @@ final class Game {
     var jukeboxes: [JukeboxPlayer] = []
     var fovScale: Float = 1
     var rockets: [Rocket] = []
+    var advancements = Set<String>()
+    var advToasts: [(String, Bool, Double)] = []
+    var lastAdvCheck: Double = 0
+    var visitedBiomes = Set<String>()
+    var killedKinds = Set<String>()
+    var eatenFoods = Set<String>()
     var composterReady: [IVec3: Double] = [:]
     var scoping = false
     var lastHorn: Double = -100
@@ -546,6 +552,7 @@ final class Game {
             return
         }
         if input.tapped(Key.e) || (p.view && !q.view) || (p.y && !q.y) { openInventory(); return }
+        if input.tapped(37) { openMenu(AdvancementMenu(game: self)); return }
 
         // Look
         if input.captured {
@@ -953,6 +960,12 @@ final class Game {
         case "frame":
             if t.normal.y == 0 { id = blockItem + BlockID(t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))) }
             else { id = blockItem + (t.normal.y == 1 ? 4 : 5) }
+        case "hsign":
+            if t.normal.y == -1 { id = blockItem + BlockID(facing) }
+            else if t.normal.y == 0 {
+                let f = t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))
+                id = blockItem + BlockID(4 + (f < 2 ? 2 : 0))        // the board runs along the wall
+            } else { return }
         case "hook":
             guard t.normal.y == 0 else { return }
             id = blockItem + BlockID(t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3)))
@@ -1007,7 +1020,7 @@ final class Game {
             }
             if key == "trapped_chest" { world.blockEntities[at] = BlockEntity(.chest) }
             if key == "lightning_rod" { lightningRods.append(at) }
-            if Blocks.shape[Int(id)] == "sign" { openSignEditor(at) }
+            if Blocks.shape[Int(id)] == "sign" || Blocks.shape[Int(id)] == "hsign" { openSignEditor(at) }
             if Blocks.shape[Int(id)] == "banner" { let be = BlockEntity(.banner); be.patterns = h.pat ?? []; world.blockEntities[at] = be }
             if Rails.isRail(id) { Rails.autoShape(world, at) }
             if key == "wither_skeleton_skull" { trySummonWither(at) }
@@ -1040,7 +1053,7 @@ final class Game {
         return k == "crafting_table" || k == "furnace" || k == "lit_furnace" || k == "chest" || k == "brewing_stand"
             || k == "enchanting_table" || k.hasSuffix("anvil") || k == "beacon" || k == "smithing_table" || k == "stonecutter" || k == "grindstone"
             || k == "ender_chest" || k == "trapped_chest" || k.hasSuffix("shulker_box") || k == "cake" || k.hasSuffix("candle")
-            || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table" || k == "loom" || k == "smoker" || k == "blast_furnace" || k == "barrel" || k == "bell" || k == "composter" || k == "lectern"
+            || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table" || k == "loom" || k == "smoker" || k == "blast_furnace" || k == "barrel" || k == "bell" || k == "composter" || k == "lectern" || k == "chiseled_bookshelf" || k == "decorated_pot"
     }
 
     // Opens/closes a wooden door (both halves), trapdoor or fence gate.
@@ -1085,6 +1098,8 @@ final class Game {
             ringBell(p)
         case "composter": useComposter(p)
         case "lectern": useLectern(p)
+        case "chiseled_bookshelf": useShelf(p)
+        case "decorated_pot": usePot(p)
         case "chest":
             let be = world.blockEntities[p] ?? BlockEntity(.chest)
             world.blockEntities[p] = be
@@ -1308,6 +1323,7 @@ final class Game {
         }
         if m.leashed { drops.spawn(ItemStack(Items.id("lead"), 1), at: at) }
         if m.chested && m.kind != .boat { drops.spawn(ItemStack(Items.id("chest"), 1), at: at) }
+        if m.killedByPlayer { advancementKill(m) }
         captainDied(m)
         sculkBloom(at: m.pos, xp: m.spec.xp)
         let xp = m.sized ? m.slimeSize : m.spec.xp
@@ -1425,6 +1441,9 @@ final class Game {
 
     func eat(_ f: FoodInfo, _ name: String) {
         sfx(.burp, 0.6)
+        achieve("eat")
+        // Omnivore: the reference list of 40 foods.
+        if eatenFoods.insert(name).inserted && eatenFoods.count >= 40 { achieve("ate_all") }
         hunger = min(20, hunger + f.hunger)
         saturation = min(Float(hunger), saturation + f.saturation)
         if name == "Chorus Fruit" { chorusTeleport() }
@@ -1502,6 +1521,7 @@ final class Game {
         health = 1
         effects.clear()
         absorption = 0
+        achieve("totem")
         applyEffect(.regeneration, amp: 1, seconds: 45)
         applyEffect(.absorption, amp: 1, seconds: 5)
         applyEffect(.fireResistance, amp: 0, seconds: 40)
@@ -1666,6 +1686,7 @@ final class Game {
         mapTick()
         rocketTick(Float(dt))
         composterTick()
+        advancementTick()
         weatherTick(Float(dt))
         world.rainLevel = wetWorld ? weather.rain : 0
         raidTimer += Float(dt)

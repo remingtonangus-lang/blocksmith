@@ -84,6 +84,7 @@ done
 "$BIN" --snapshot snaps/banners.png --seed 12345 --find plains --yaw 30 --pitch -22 --time 0.3 --up 3 --banners
 "$BIN" --snapshot snaps/loom.png --seed 12345 --menu loom
 "$BIN" --snapshot snaps/book.png --seed 12345 --menu book
+"$BIN" --snapshot snaps/advancements.png --seed 12345 --menu advancements
 "$BIN" --snapshot snaps/fireworks.png --seed 12345 --find plains --yaw 30 --pitch 20 --time 0.8 --up 1 --fireworks
 "$BIN" --snapshot snaps/monument.png --seed 12345 --structure monument --frame 1 --time 0.25
 "$BIN" --snapshot snaps/mansion.png --seed 12345 --structure mansion --frame 1.7 --time 0.25

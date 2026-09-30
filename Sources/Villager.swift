@@ -402,6 +402,7 @@ final class MerchantMenu: Menu {
         guard let m = mob, var v = m.villager, selected < v.offers.count else { return nil }
         let o = v.offers[selected]
         guard !o.disabled, !result[0].isEmpty else { return nil }
+        game.achieve("trade")
         for need in [price(o), o.buyB] where !need.isEmpty {
             if let k = (0..<2).first(where: { pay[$0].item == need.item && pay[$0].count >= need.count }) {
                 var s = pay[k]; s.count -= need.count; pay[k] = s.count > 0 ? s : .empty

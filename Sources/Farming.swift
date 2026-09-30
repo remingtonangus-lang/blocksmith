@@ -256,6 +256,7 @@ extension Game {
         // Seeds / crops onto farmland.
         if let crop = h.def.plants, bkey == (crop == "nether_wart" ? "soul_sand" : "farmland"), t.normal.y == 1, world.block(t.hit.x, t.hit.y + 1, t.hit.z) == AIR {
             world.setBlock(t.hit.x, t.hit.y + 1, t.hit.z, Blocks.id(crop))
+            achieve(crop.hasPrefix("torchflower") || crop.hasPrefix("pitcher") ? "plant_sniffer" : "plant")
             sfx(.place(.plant), 1, at: V3(Float(t.hit.x), Float(t.hit.y + 1), Float(t.hit.z)) + 0.5)
             consumeHeld()
             swing = 1
@@ -373,6 +374,7 @@ extension Game {
     func trySleep(at p: IVec3) {
         let night = (dayFraction > 0.52 && dayFraction < 0.98) || weather.thunder > 0.5
         spawnPoint = V3(Float(p.x) + 0.5, Float(p.y) + 0.6, Float(p.z) + 0.5)
+        achieve("sleep")
         onToast?("Respawn point set")
         guard night else { onToast?("You can only sleep at night"); return }
         if mobs.mobs.contains(where: { $0.kind.hostile && simd_length($0.pos - player.pos) < 8 }) {

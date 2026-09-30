@@ -34,6 +34,7 @@ extension Game {
         guard l > 0.01 else { return false }
         let look = simd_normalize(V3(player.look.x, 0, player.look.z))
         guard simd_dot(look, to / l) > 0 else { return false }
+        if type == .projectile { achieve("deflect") }
         // Shield wear: 1 + floor(damage) for hits of 3 or more.
         let slotIsMain = Items.key(held.item) == "shield"
         var s = slotIsMain ? held : inventory.offhand[0]
@@ -222,6 +223,7 @@ extension Game {
 
     // Reference fishing loot: fish / junk / treasure by Luck of the Sea and Luck.
     func catchFish(_ b: Bobber) {
+        achieve("fish")
         let luck = Float(Enchant.level(.luckOfTheSea, held) + effects.level(.luck))
         let junkW = max(0, 10 - 2 * luck), treasureW = 5 + 2 * luck, fishW = max(0, 85 - luck)
         var r = Float.random(in: 0..<(junkW + treasureW + fishW))

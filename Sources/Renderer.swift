@@ -363,6 +363,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.writeBanners(&wr, eye: eye)
                 game.writeRockets(&wr, eye: eye)
                 game.writeLecternBooks(&wr, eye: eye)
+                game.writeShelves(&wr, eye: eye)
                 game.particles.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight)
                 let nItems = wr.n
                 if let m = game.mining, game.mineProgress > 0 {
@@ -840,6 +841,29 @@ final class Renderer: NSObject, MTKViewDelegate {
                     text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
                 }
             }
+            if let am = m as? AdvancementMenu {
+                // Tabs, then the checklist: done ones in gold (challenges purple), open ones grey.
+                for sl in am.slots where sl.isButton {
+                    guard case .button(let i) = sl.kind else { continue }
+                    let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
+                    let label = i < 100 ? Advancements.tabs[i] : (i == 100 ? "^" : "v")
+                    let sel = i == am.tab
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, sel ? V4(0.35, 0.55, 0.35, 1) : (game.menuHover === sl ? V4(0.7, 0.7, 0.8, 1) : V4(0.5, 0.5, 0.55, 1)))
+                    text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
+                }
+                let list = am.list
+                let done = list.filter { game.advancements.contains($0.id) }.count
+                text("\(done)/\(list.count) done  (\(game.advancements.count)/\(Advancements.all.count) total)", o.x + 8 * s, o.y + 34 * s, s, titleC, shadow: false)
+                for (row, a) in list.dropFirst(am.scroll).prefix(AdvancementMenu.rows).enumerated() {
+                    let y = o.y + Float(48 + row * 15) * s
+                    let got = game.advancements.contains(a.id)
+                    rect(o.x + 6 * s, y - 2 * s, 226 * s, 14 * s, got ? (a.challenge ? V4(0.45, 0.25, 0.55, 1) : V4(0.55, 0.45, 0.15, 1)) : V4(0.3, 0.3, 0.33, 1))
+                    text((got ? "+ " : "- ") + a.title, o.x + 9 * s, y + s, s, got ? V4(1, 1, 0.8, 1) : V4(0.75, 0.75, 0.75, 1))
+                    let d = a.desc
+                    let maxW = 226 * s - textWidth("+ " + a.title, s) - 16 * s
+                    if textWidth(d, s * 0.75) <= maxW { text(d, o.x + 232 * s - textWidth(d, s * 0.75), y + 2 * s, s * 0.75, V4(0.85, 0.85, 0.85, 1)) }
+                }
+            }
             if let lm = m as? LoomMenu {
                 // Pattern choices previewed on the banner's colour with the dye's colour.
                 rect(o.x + 59 * s, o.y + 12 * s, 58 * s, 58 * s, V4(0.35, 0.35, 0.35, 1))
@@ -1110,6 +1134,20 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
         }
 
+        // Advancement toasts (top right, 5 s each, one at a time).
+        if let first = game.advToasts.first {
+            let age = game.clock - first.2
+            if age > 5 { game.advToasts.removeFirst(); if let n = game.advToasts.first { game.advToasts[0].2 = game.clock; _ = n } }
+            else {
+                let tw = 160 * s, th = 32 * s
+                let slide = Float(min(1, min(age, 5 - age) * 4))
+                let x = W - tw * slide - 4 * s, y = 4 * s
+                rect(x, y, tw, th, V4(0.13, 0.13, 0.15, 0.95))
+                frame(x, y, tw, th, s, first.1 ? V4(0.75, 0.45, 0.95, 1) : V4(0.95, 0.8, 0.3, 1))
+                text(first.1 ? "Challenge Complete!" : "Advancement Made!", x + 8 * s, y + 6 * s, s, first.1 ? V4(0.9, 0.5, 1, 1) : V4(1, 1, 0.33, 1))
+                text(first.0, x + 8 * s, y + 18 * s, s)
+            }
+        }
         // Toast (item names, messages) above the hotbar, fading out.
         let since = game.clock - game.toastTime
         if since < 2.2 && !game.toastText.isEmpty {

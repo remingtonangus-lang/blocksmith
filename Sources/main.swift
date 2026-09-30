@@ -99,6 +99,12 @@ enum Snapshot {
             var s = game.inventory.main[9]; s.damage = 120; game.inventory.main[9] = s
             switch which {
             case "creative": game.openMenu(CreativeMenu(game: game))
+            case "advancements":
+                for id in ["root", "mine_stone", "upgrade_tools", "smelt_iron", "enter_the_nether", "mine_diamond", "adventure/trade", "nether/return_to_sender"] {
+                    if let i = Advancements.index[id] { game.advancements.insert(Advancements.all[i].id) }
+                }
+                game.advToasts.append(("Shiny!", false, game.clock - 1))
+                game.openMenu(AdvancementMenu(game: game))
             case "book":
                 var b = ItemStack(Items.id("writable_book"), 1)
                 b.pages = ["The first page of a travel log.\n\nDay 1: found a village by the river, traded wheat for emeralds. The librarian had mending!", "Day 2"]

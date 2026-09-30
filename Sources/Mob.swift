@@ -1190,6 +1190,7 @@ final class MobManager {
                 let baby = Mob(a.kind, at: (a.pos + b.pos) * 0.5)
                 baby.baby = true
                 baby.scale = 0.5
+                game.achieve("breed")
                 babies.append(baby)
                 game.addXP(Int.random(in: 1...7))
                 game.particles.hearts(at: baby.pos + V3(0, 0.8, 0))
