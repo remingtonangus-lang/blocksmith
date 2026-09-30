@@ -384,9 +384,36 @@ final class World {
         else {
             blocks = gen.generate(cx: k.x, cz: k.z)
             if let st = gen.structures { (ents, mobs) = st.place(into: &blocks, cx: k.x, cz: k.z) }
+            ents += World.orphanEntities(blocks, k, have: ents)
         }
         return Produced(blocks: blocks, height: Chunk.computeHeights(blocks), tint: gen.tints(cx: k.x, cz: k.z),
                         fromDisk: fromDisk, entities: ents, mobs: mobs)
+    }
+
+    // Generated spawners/chests without a block entity (dungeons): mob and loot come from the position.
+    static func orphanEntities(_ blocks: [BlockID], _ k: ChunkKey, have: [(IVec3, BlockEntity)]) -> [(IVec3, BlockEntity)] {
+        let spawner = Blocks.id("spawner"), chestBase = Blocks.id("chest")
+        let known = Set(have.map { $0.0 })
+        var out: [(IVec3, BlockEntity)] = []
+        for i in 0..<blocks.count {
+            let b = blocks[i]
+            guard b == spawner || Blocks.groupBase[Int(b)] == chestBase else { continue }
+            let x = i & 15, z = (i >> 4) & 15, y = i >> 8
+            let p = IVec3(k.x * CS + x, y, k.z * CS + z)
+            if known.contains(p) { continue }
+            let h = hash3(p.x, p.y, p.z, 0xD06E)
+            if b == spawner {
+                let be = BlockEntity(.spawner)
+                be.mob = ["zombie", "zombie", "skeleton", "spider"][Int(h % 4)]
+                out.append((p, be))
+            } else {
+                let be = BlockEntity(.chest)
+                var rng = SRng(UInt64(h) | 1)
+                Loot.fill(be.container, table: "dungeon", rng: &rng)
+                out.append((p, be))
+            }
+        }
+        return out
     }
 
     private func install(_ k: ChunkKey, _ p: Produced) {

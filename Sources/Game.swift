@@ -150,7 +150,7 @@ final class Game {
         var x = 0, z = 0, dx = 0, dz = -1
         for _ in 0..<4000 {
             let (h, biome) = world.gen.column(x * 16 + 8, z * 16 + 8)
-            if h > SEA + 1 && biome != .ocean && biome != .mountains {
+            if h > SEA + 1 && !biome.isOcean && !biome.isRiver && !biome.isPeak && !biome.isBeach {
                 return V3(Float(x * 16 + 8) + 0.5, Float(h + 1), Float(z * 16 + 8) + 0.5)
             }
             if x == z || (x < 0 && x == -z) || (x > 0 && x == 1 - z) { (dx, dz) = (-dz, dx) }

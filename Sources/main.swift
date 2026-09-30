@@ -13,7 +13,7 @@ enum Snapshot {
         for _ in 0..<40000 {
             let wx = x * 16 + 8, wz = z * 16 + 8
             var ok = true
-            for (ox, oz) in [(0, 0), (24, 0), (-24, 0), (0, 24), (0, -24)] where "\(gen.column(wx + ox, wz + oz).biome)" != want {
+            for (ox, oz) in [(0, 0), (24, 0), (-24, 0), (0, 24), (0, -24)] where gen.column(wx + ox, wz + oz).biome.name != want {
                 ok = false
                 break
             }

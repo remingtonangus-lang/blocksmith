@@ -933,12 +933,11 @@ final class MobManager {
         guard grassSurface(w, x, z) != nil else { return }
         let kind: MobKind
         let r = Float.random(in: 0..<1)
-        switch w.gen.column(x, z).biome {
-        case .plains: kind = r < 0.35 ? .cow : (r < 0.65 ? .sheep : (r < 0.85 ? .pig : .chicken))
-        case .forest: kind = r < 0.3 ? .chicken : (r < 0.55 ? .cow : (r < 0.8 ? .pig : .sheep))
-        case .snowy, .mountains: kind = .sheep
-        default: return
-        }
+        // Reference weights for grassy biomes: sheep 12, pig 10, chicken 10, cow 8.
+        let biome = w.gen.column(x, z).biome
+        if biome.isOcean || biome.isBeach || biome == .desert || biome.isBadlands || biome.isRiver { return }
+        if biome == .snowyPlains || biome == .iceSpikes || biome == .snowySlopes || biome.isPeak { kind = .sheep }
+        else { kind = r < 0.3 ? .sheep : (r < 0.55 ? .pig : (r < 0.8 ? .chicken : .cow)) }
         for _ in 0..<Int.random(in: 2...4) {
             let sx = x + Int.random(in: -2...2), sz = z + Int.random(in: -2...2)
             guard let y = grassSurface(w, sx, sz) else { continue }
