@@ -759,6 +759,15 @@ enum Snapshot {
         do { renderer = try Renderer(device: device, game: game, colorFormat: .bgra8Unorm) }
         catch { print("renderer init failed: \(error)"); return 1 }
         game.target = world.raycast(game.player.eye, game.player.look, maxDist: 5)
+        do {
+            // Light probe: the eye cell and the first floor below it (debugging dark views).
+            let e = game.player.eye
+            let ex = Int(floor(e.x)), ey = Int(floor(e.y)), ez = Int(floor(e.z))
+            var fy = ey
+            while fy > ey - 40 && !Blocks.collide[Int(world.block(ex, fy - 1, ez))] { fy -= 1 }
+            let le = world.lightAt(ex, ey, ez), lf = world.lightAt(ex, fy, ez)
+            print("light probe: eye sky \(le.sky) block \(le.block) in \(Blocks.key(world.block(ex, ey, ez))); floor+1 (y \(fy - YOFF)) sky \(lf.sky) block \(lf.block) in \(Blocks.key(world.block(ex, fy, ez))), daylight \(game.daylight)")
+        }
         if arg("--menu") == nil { game.advToasts.removeAll() }      // no "Advancement Made" toasts over test views
         if CommandLine.arguments.contains("--nightvision") { game.applyEffect(.nightVision, amp: 0, seconds: 300) }
         if CommandLine.arguments.contains("--treecheck") {
