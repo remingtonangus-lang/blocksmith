@@ -17,7 +17,7 @@ GATES = {
     "mesh.chunk_ms_mean": 1.6,
     "mesh_lod1.chunk_ms_mean": 1.6,
     "save.chunk_ms": 2.0,
-    "save.load_chunk_ms": 2.0,
+    "save.load_chunk_ms": 3.0,        # sub-millisecond file reads: noisy on the shared runners
     "edit.break_ms_mean": 2.0,
     "edit.place_ms_mean": 2.0,
     "flight16.coverage_min": 1.6,

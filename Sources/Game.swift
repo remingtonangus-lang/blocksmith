@@ -225,7 +225,11 @@ final class Game {
     private var tickAccum: Double = 0
     var padConnected = false
 
+    static var alive = 0            // live Game objects (leak check in --bench)
+    deinit { Game.alive -= 1 }
+
     init(world: World, save: SaveManager?, persistent: Bool) {
+        Game.alive += 1
         dim = DimensionState(dim: world.dim, world: world)
         dims[world.dim] = dim
         self.save = save
