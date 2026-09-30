@@ -49,6 +49,8 @@ done
 "$BIN" --snapshot snaps/temple.png --seed 12345 --structure temple --frame 1 --time 0.25
 "$BIN" --snapshot snaps/temple2.png --seed 12345 --structure temple --x 3000 --z 3000 --frame 1 --time 0.25
 "$BIN" --snapshot snaps/outpost.png --seed 12345 --structure pillager_outpost --frame 1.2 --time 0.25
+"$BIN" --snapshot snaps/outpost_close.png --seed 12345 --structure pillager_outpost --frame 0.5 --time 0.25
+"$BIN" --snapshot snaps/snowslope.png --seed 12345 --find snowy_slopes --yaw 45 --pitch -35 --time 0.25 --up 6
 "$BIN" --snapshot snaps/ruined_portal.png --seed 12345 --structure ruined_portal --frame 1 --time 0.25
 "$BIN" --snapshot snaps/shipwreck.png --seed 12345 --structure shipwreck --frame 1 --time 0.25
 "$BIN" --snapshot snaps/mineshaft.png --seed 12345 --structure mineshaft --frame 0.4 --time 0.25
