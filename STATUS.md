@@ -97,6 +97,11 @@ B close, RS scroll creative.
 - Also both modes: twinkling stars, leaf textures painted as lit clumps, lava hot spots, ambient block particles (torch
   smoke/flames, campfire smoke columns, lava sparks, fire smoke), Emberdeep per-biome fog + drifting embers/spores/ash,
   underwater fog from the biome water colour and daylight, a tunic sleeve on the first-person arm. Fancy: Hollow sky streaks.
+- Underground: fog and sky colour fade toward near-black with the smoothed skylight at the eye (far cave walls used to
+  fog into bright sky blue). Fancy: terrain/water fog toward the sun takes the same dawn/dusk glow as the sky dome.
+- Hisser has an original face (wide-set glowing slit eyes, zigzag mouth) on the mob and its head block.
+- QA note "chunk-seam grid on distant night ocean, seed 777": not reproduced in the harness (ocean_night_777 shots,
+  rd 16, Fancy and Fast); needs a live-play screenshot if it still shows.
 - Harness: `--underwater`, `--crack <0..1>`, `--fast`, `--ambient` (2 s of ambient particles); `Blocksmith --atlas <prefix>`
   writes every texture layer as grid pages (prefix_0.png...) for texture review.
 
