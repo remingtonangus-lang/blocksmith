@@ -15,7 +15,7 @@ code); mechanics, names and numbers follow the reference game.
 | B Survival content | zombie/skeleton/creeper/spider/enderman/slime with light-based spawning, combat (cooldown, crits, knockback), armor, bow, beds + sleeping, farming (wheat/carrots/potatoes/beetroot, farmland moisture, bone meal), breeding, TNT + explosions, XP, fire | done |
 | C Nether | portals, lava, 5 nether biomes, fortresses (bridges, castle, blaze spawners, wart rooms), bastions (housing, treasure, stables, bridge), blackstone set, spawners, zombified piglin (group anger), piglin (bartering, gold armor), brute, hoglin, strider, ghast (deflectable fireballs), blaze, magma cube, wither skeleton (wither effect), nether wart | done |
 | D End | 128 strongholds in rings (portal room, libraries, prisons, fountains), eyes of ender, end portal (12 frames, 10% pre-filled), the End (central island, 10 spikes with crystals/cages, bedrock fountain, 1000-block void, outer islands, chorus), ender dragon (circle/strafe/charge/perch, breath clouds, crystal healing, 12000 XP, egg, gateways), end cities + ships (elytra), shulkers (levitation), elytra flight + rockets, credits | done (untested in live play) |
-| E Terrain parity | biomes, caves, ores, structures, villages | pending |
+| E Terrain parity | new overworld generator: 5 climate noises → all 53 overworld biomes (multi-noise tables), continentalness/erosion/weirdness height with rivers, plateaus, windswept hills and 250-block peaks, 3D density overhangs; cheese/spaghetti/noodle caves, aquifers, lava below y −55; 1.18 ore distributions + granite/diorite/andesite/tuff/dirt/gravel blobs; geodes, dungeons, lush/dripstone/deep-dark cave decoration; per-biome surfaces (badlands bands, hoodoos, podzol, snow) and a final freeze pass; 20 tree shapes (fancy oak, mega spruce/jungle, acacia, dark oak, mangrove, cherry, huge mushrooms, ice spikes); vegetation incl. two-tall plants, sugar cane, cacti, bamboo, kelp, corals, lily pads, icebergs. Structures: villages (5 styles), desert pyramids, jungle temples, swamp huts, igloos, pillager outposts, ruined portals, shipwrecks, buried treasure, mineshafts, desert wells, strongholds | in progress — next: ocean monuments, ocean ruins, woodland mansions, ancient cities, trail ruins, trial chambers, fossils |
 | F Redstone | dust, torches, repeaters, comparators, pistons, … | pending |
 | G Long tail | villagers/trading, raids, Wither, enchanting, brewing, … | pending |
 
@@ -36,7 +36,8 @@ B close, RS scroll creative.
 
 ## Known gaps / decisions
 - Save format changed with the engine rework (chunks3/, name-paletted); worlds from the 8-bit engine start fresh terrain.
-- Terrain generator is still the original simple one (height noise + 7 biomes); phase E replaces it.
+- Terrain is generated with our own noises and numbers: same features, biome logic, rarities and ore distributions as the reference game, but not seed-identical worlds.
+- Structure placement is deterministic per chunk: every piece is computed from world position, so structures spanning chunks line up.
 - Structures: generated chests/spawners are block entities installed when the chunk generates; a chunk that
   unloads unmodified regenerates but keeps the existing (possibly looted) block entity.
 - Nether light: dimension ambient lifts the whole light curve (0.3 in the Nether), approximating the reference
