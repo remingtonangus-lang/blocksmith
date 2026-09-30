@@ -469,7 +469,7 @@ enum Bench {
         for _ in 0..<3 { _ = r.benchFrame(target) }
         let dt = 1.0 / 60
         let frames = Int(seconds / dt)
-        var tick: [Double] = [], enc: [Double] = [], gpu: [Double] = [], upd: [Double] = [], est: [Double] = [], cov: [Double] = []
+        var tick: [Double] = [], enc: [Double] = [], gpu: [Double] = [], upd: [Double] = [], est: [Double] = [], cov: [Double] = [], cull: [Double] = []
         tick.reserveCapacity(frames); enc.reserveCapacity(frames); gpu.reserveCapacity(frames); upd.reserveCapacity(frames); est.reserveCapacity(frames)
         var peak = residentMB()
         let s0 = world.perf
@@ -484,7 +484,7 @@ enum Bench {
             game.tick(dt)
             let tk = now - b
             let (e, g) = r.benchFrame(target)
-            tick.append(tk * 1000); enc.append(e * 1000); gpu.append(g * 1000)
+            tick.append(tk * 1000); enc.append(e * 1000); gpu.append(g * 1000); cull.append(r.cullSeconds * 1000)
             upd.append(world.perf.updateSeconds * 1000)
             est.append(max(tk + e, g) * 1000)
             if i % 15 == 0 { cov.append(coverage(world, pos)); peak = max(peak, residentMB()) }
@@ -518,7 +518,7 @@ enum Bench {
         put("\(k).chunks", Double(world.chunks.count))
         put("\(k).draw_calls", Double(r.drawCalls))
         put("\(k).cull_walked_sections", Double(r.bfsVisited))
-        put("\(k).cull_ms", r.cullSeconds * 1000)
+        put("\(k).cull_ms", dist(cull), "p50,p95")
         put("\(k).drawn_kquads", Double(r.drawnQuads) / 1000)
         put("\(k).chunk_mb", chunkMB(world))
         put("\(k).mesh_mb", meshMB(world))
