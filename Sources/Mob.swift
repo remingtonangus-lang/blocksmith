@@ -655,7 +655,7 @@ final class Mob {
                     attackCooldown = crossbowReload
                     var d = v.pos + V3(0, v.height * 0.6, 0) - eye
                     d.y += simd_length(V2(d.x, d.z)) * 0.2
-                    g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 50 : 32, fromPlayer: false, damage: 2)
+                    g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 40 : 32, fromPlayer: false, damage: 2)
                     g.sfx(.bow, 0.7, at: pos)
                 }
             } else if canTarget && w.canSee(eye, g.player.eye) {
@@ -668,7 +668,7 @@ final class Mob {
                     let horiz = simd_length(V2(d.x, d.z))
                     d.y += horiz * 0.2
                     // Marauders fire crossbow bolts (faster, flatter).
-                    g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 50 : 32 + Float.random(in: -3...3), fromPlayer: false, damage: 2)
+                    g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 40 : 32 + Float.random(in: -3...3), fromPlayer: false, damage: 2)
                     g.sfx(.bow, 0.7, at: pos)
                 }
             } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
@@ -1363,6 +1363,7 @@ final class MobManager {
         let w = game.world
         let p = game.player.pos
         rebuildIndex()
+        Mob.hardMode = game.difficulty == 3
         for m in mobs {
             m.update(dt, game: game)
             if m.callTimer <= 0 {

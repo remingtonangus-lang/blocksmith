@@ -313,8 +313,13 @@ extension Mob {
 
     // Melee damage including a sharpened raid axe (+1 / +2).
     var meleeDamage: Int { spec.attack + heldEnchant(.sharpness) }
-    // Crossbow reload: 1.25 s minus 0.25 s per Quick Charge level, plus the aim pause.
-    var crossbowReload: Float { Float.random(in: 1.5...2.5) - 0.25 * Float(heldEnchant(.quickCharge)) }
+    // Reference shot cycles: bows draw 1 s then wait the attack interval (2 s, 1 s on Hard);
+    // crossbows charge 1.25 s (-0.25 s per Quick Charge) then pause 1-2 s.
+    var crossbowReload: Float {
+        if kind == .pillager { return 1.25 - 0.25 * Float(heldEnchant(.quickCharge)) + Float.random(in: 1...2) }
+        return Mob.hardMode ? 2 : 3
+    }
+    static var hardMode = false
 
     var isZombie: Bool { kind == .zombie || kind == .husk || kind == .drowned || kind == .zombieVillager }
 
