@@ -104,6 +104,7 @@ final class Game {
     }
     var rockets: [Rocket] = []
     var lastWind: Double = -10
+    var lastSiegeDay = -1
     var respawnTimer: Float = 0
     var respawnCrystals: [Mob] = []
     var stepVibe: Float = 0
@@ -1729,6 +1730,7 @@ final class Game {
         mapTick()
         rocketTick(Float(dt))
         composterTick()
+        siegeTick()
         advancementTick()
         weatherTick(Float(dt))
         world.rainLevel = wetWorld ? weather.rain : 0

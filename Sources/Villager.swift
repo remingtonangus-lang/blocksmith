@@ -38,6 +38,8 @@ struct VillagerData: Codable {
     var locked = false                   // traded with: keeps its profession
     var cured = false                    // once a zombie villager: permanent discount
     var levelUpTimer: Float = 0
+    var bed: [Int]? = nil                // claimed bed head
+    var food: Int? = nil                 // food points (breeding needs 12)
 }
 
 enum Villagers {

@@ -541,7 +541,9 @@ final class Mob {
                 }
                 findJob(g)
                 restock(g)
+                villageTick(g)
             }
+            if villagerNight(g) { speed = 0; break }
             if let js = villager?.jobSite, g.dayFraction > 0.05 && g.dayFraction < 0.45, aiTimer <= 0, Float.random(in: 0..<1) < 0.3 {
                 let site = V3(Float(js[0]) + 0.5, Float(js[1]), Float(js[2]) + 0.5)
                 if simd_length(site - pos) > 2.5 { face(site); moving = true; aiTimer = 2 }
