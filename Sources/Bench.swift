@@ -273,6 +273,10 @@ enum Bench {
             print("bench frame \(name) rd 16: encode p50 \(f(e.p50)) ms, GPU p50 \(f(g.p50)) ms (max \(f(g.max))), \(r.drawnChunks) chunks drawn")
         }
         put("frame.drawn_chunks", Double(r.drawnChunks))
+        put("frame.visible_sections", Double(r.visibleSections))
+        put("frame.draw_calls", Double(r.drawCalls))
+        put("frame.drawn_kquads", Double(r.drawnQuads) / 1000)
+        print("bench frame: \(r.visibleSections) visible sections, \(r.drawCalls) draw calls, \(r.drawnQuads / 1000)k quads")
         put("frame.mesh_mb", meshMB(world))
     }
 
@@ -430,6 +434,8 @@ enum Bench {
         put("\(k).worker_mesh_us", meshUs)
         put("\(k).realtime", Double(frames) * dt / wall)
         put("\(k).chunks", Double(world.chunks.count))
+        put("\(k).draw_calls", Double(r.drawCalls))
+        put("\(k).drawn_kquads", Double(r.drawnQuads) / 1000)
         put("\(k).chunk_mb", chunkMB(world))
         put("\(k).mesh_mb", meshMB(world))
         put("\(k).slab_mb", Double(MeshArena.shared.slabBytes) / 1_048_576)

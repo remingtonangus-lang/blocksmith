@@ -63,6 +63,9 @@ final class Renderer: NSObject, MTKViewDelegate {
     private var fpsFrames = 0
     private var fpsTime: Double = 0
     private(set) var drawnChunks = 0
+    private(set) var drawCalls = 0          // chunk section draws last frame (opaque, cutout, water)
+    private(set) var drawnQuads = 0
+    private(set) var visibleSections = 0
     private var visibleScratch: [(Chunk, Int, Float)] = []
     private var visitGen: [UInt32] = []
     private var gen: UInt32 = 0
@@ -386,6 +389,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
         visibleScratch.sort { $0.2 < $1.2 }
         drawnChunks = drawnSet
+        visibleSections = visibleScratch.count
         let visible = visibleScratch
 
         // Per-section draw records in the frame's scratch ring (origin relative to the camera + tint table
@@ -404,7 +408,9 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
         let baseOK = baseVertexOK
         var boundVerts: MTLBuffer?, boundTints: MTLBuffer?
+        drawCalls = 0; drawnQuads = 0
         func drawSection(_ i: Int, _ slice: MeshSlice, _ tb: MeshSlice, first: Int, count: Int) {
+            drawCalls += 1; drawnQuads += count
             if tb.buffer !== boundTints { enc.setVertexBuffer(tb.buffer, offset: 0, index: 3); boundTints = tb.buffer }
             if baseOK {
                 if slice.buffer !== boundVerts { enc.setVertexBuffer(slice.buffer, offset: 0, index: 0); boundVerts = slice.buffer }
