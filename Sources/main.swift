@@ -33,7 +33,8 @@ enum Snapshot {
         let rd = Int(arg("--rd") ?? "") ?? 8
         let w = Int(arg("--w") ?? "") ?? 1280
         let h = Int(arg("--h") ?? "") ?? 800
-        let world = World(seed: seed, device: device, save: nil)
+        let snapDim = Dim(rawValue: arg("--dim") ?? "") ?? .overworld
+        let world = World(seed: seed, device: device, save: nil, dim: snapDim)
         world.renderDistance = rd
         let game = Game(world: world, save: nil, persistent: false)
         var pos = game.findSpawn()
@@ -89,6 +90,24 @@ enum Snapshot {
             game.input.mouseX = -1
         }
         var t = world.loadSync(center: pos, radius: rd)
+        if snapDim == .nether {
+            // Stand in the first open space above the lava sea.
+            let x = Int(floor(pos.x)), z = Int(floor(pos.z))
+            var y = YOFF + 33
+            while y < YOFF + 120 && !(world.block(x, y, z) == AIR && world.block(x, y + 1, z) == AIR) { y += 1 }
+            pos.y = Float(y) + (Float(arg("--up") ?? "") ?? 0)
+            game.player.pos = pos
+        } else if snapDim == .end {
+            pos = V3(pos.x, Float(YOFF + 70) + (Float(arg("--up") ?? "") ?? 0), pos.z)
+            game.player.pos = pos
+        }
+        if CommandLine.arguments.contains("--portal") {
+            let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
+            let c = pos + f * 6
+            _ = game.buildPortal(near: IVec3(Int(floor(c.x)), 0, Int(floor(c.z))))
+            let t2 = world.loadSync(center: pos, radius: rd)
+            t.mesh += t2.mesh
+        }
         if CommandLine.arguments.contains("--drops") {
             // A few dropped items and a half-broken block in front of the camera.
             let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))

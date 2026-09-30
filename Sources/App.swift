@@ -102,7 +102,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         game.sound = SoundEngine()
 
         // Load the area around the player up front so the first frame isn't empty.
-        _ = world.loadSync(center: game.player.pos, radius: min(4, world.renderDistance))
+        _ = game.world.loadSync(center: game.player.pos, radius: min(4, game.world.renderDistance))
 
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1280, height: 800),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable],

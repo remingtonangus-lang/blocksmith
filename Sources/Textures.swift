@@ -1,3 +1,4 @@
+import Foundation
 import simd
 
 // All textures are procedurally painted 16x16 pixel art (original, no external assets).
@@ -419,6 +420,115 @@ enum TextureGen {
             return hex(0xB8B0A0, 0.9 + 0.1 * r(x, y, 151))
         }
         p["tnt_bottom"] = { x, y in hex(0xB8B0A0, 0.85 + 0.1 * r(x, y, 152)) }
+        // Nether
+        let netherrack: Painter = { x, y in
+            let v = blot(x, y, 170, 4) * 0.6 + r(x, y, 171) * 0.4
+            return hex(v > 0.62 ? 0x8B3A3A : (v < 0.35 ? 0x5A1E1E : 0x6F2A2A), 0.92 + 0.12 * r(x, y, 172))
+        }
+        p["netherrack"] = netherrack
+        p["nether_quartz_ore"] = ore(netherrack, 0xEDE6DE, 0xC8BEB0, salt: 173)
+        p["nether_gold_ore"] = ore(netherrack, 0xF8D23C, 0xE09A20, salt: 174)
+        p["ancient_debris_side"] = { x, y in
+            let band = (y / 3) % 2 == 0
+            return hex(band ? 0x5E4A45 : 0x4A3A36, 0.85 + 0.25 * r(x / 2, y, 175))
+        }
+        p["ancient_debris_top"] = { x, y in
+            let dx = Float(x) - 7.5, dy = Float(y) - 7.5
+            return hex((dx * dx + dy * dy) < 20 ? 0x6E5650 : 0x4E3E3A, 0.85 + 0.2 * r(x, y, 176))
+        }
+        p["soul_sand"] = { x, y in
+            let face = ((x % 8 == 2 || x % 8 == 5) && (y % 8 == 3)) || (x % 8 == 3 && y % 8 == 5) || (x % 8 == 4 && y % 8 == 5)
+            return face ? hex(0x2E221A) : hex(0x5A4434, 0.85 + 0.25 * r(x, y, 177))
+        }
+        p["soul_soil"] = { x, y in hex(0x4B3A2E, 0.8 + 0.3 * r(x, y, 178)) }
+        p["basalt_side"] = { x, y in hex(x % 4 == 0 ? 0x3E3E42 : 0x575759, 0.9 + 0.15 * r(x, y / 3, 179)) }
+        p["basalt_top"] = { x, y in
+            let dx = abs(Float(x) - 7.5), dy = abs(Float(y) - 7.5)
+            return hex(max(dx, dy) > 6.5 ? 0x3E3E42 : 0x626265, 0.9 + 0.12 * r(x, y, 180))
+        }
+        p["blackstone"] = rock(0x2A2429, grain: 0.3, blotch: 0.25, salt: 181)
+        p["magma"] = { x, y in
+            let crack = blot(x, y, 182, 4) > 0.6 && r(x, y, 183) < 0.7
+            return crack ? hex(0xF08A1A, 0.9 + 0.2 * r(x, y, 184)) : hex(0x6A2A10, 0.8 + 0.3 * r(x, y, 185))
+        }
+        p["nether_bricks"] = { x, y in
+            let row = y / 4
+            if y % 4 == 3 || x == (row % 2 == 0 ? 7 : 15) { return hex(0x1E0E10) }
+            return hex(0x3A1A1E, 0.85 + 0.3 * r(x, y, 186))
+        }
+        p["red_nether_bricks"] = { x, y in
+            let row = y / 4
+            if y % 4 == 3 || x == (row % 2 == 0 ? 7 : 15) { return hex(0x2A0808) }
+            return hex(0x5A0E10, 0.85 + 0.3 * r(x, y, 187))
+        }
+        func nylium(_ c: UInt32) -> Painter { { x, y in hex(c, 0.8 + 0.35 * r(x, y, 188)) } }
+        p["crimson_nylium"] = nylium(0x952020)
+        p["warped_nylium"] = nylium(0x2B8A7A)
+        p["crimson_nylium_side"] = { x, y in y < 3 + Int(r(x, 0, 189) * 2) ? nylium(0x952020)(x, y) : netherrack(x, y) }
+        p["warped_nylium_side"] = { x, y in y < 3 + Int(r(x, 0, 189) * 2) ? nylium(0x2B8A7A)(x, y) : netherrack(x, y) }
+        p["crimson_stem"] = { x, y in hex(x % 3 == 0 ? 0x5C1D2C : 0x7B2D3F, 0.85 + 0.25 * r(x, y / 2, 190)) }
+        p["warped_stem"] = { x, y in hex(x % 3 == 0 ? 0x3A2A4A : 0x3E5A5A, 0.85 + 0.25 * r(x, y / 2, 191)) }
+        p["crimson_stem_top"] = rings(0x5C1D2C, 0x8A3A48)
+        p["warped_stem_top"] = rings(0x3A2A4A, 0x2E8A7A)
+        p["nether_wart_block"] = rock(0x7A0A0C, grain: 0.35, blotch: 0.2, salt: 192)
+        p["warped_wart_block"] = rock(0x167A7A, grain: 0.35, blotch: 0.2, salt: 193)
+        p["shroomlight"] = { x, y in hex(blot(x, y, 194, 4) > 0.5 ? 0xFFC87A : 0xF0923A, 0.9 + 0.2 * r(x, y, 195)) }
+        p["crimson_planks"] = planks(0x7E3A56, salt: 196)
+        p["warped_planks"] = planks(0x2B6963, salt: 197)
+        p["crying_obsidian"] = { x, y in
+            if r(x, y, 198) < 0.12 || (blot(x, y, 199, 4) > 0.7 && r(x, y, 200) < 0.4) { return hex(0x8A2AE0) }
+            return hex(0x14101E, 0.8 + 0.4 * r(x, y, 75))
+        }
+        func fungus(_ cap: UInt32, _ stem: UInt32) -> Painter {
+            { x, y in
+                if y >= 9 && (x == 7 || x == 8) { return hex(stem) }
+                let dx = Float(x) - 7.5, dy = Float(y) - 6
+                if dx * dx * 0.5 + dy * dy < 9 && y <= 8 { return hex(cap, 0.85 + 0.25 * r(x, y, 201)) }
+                return clear
+            }
+        }
+        p["crimson_fungus"] = fungus(0xB02A2A, 0xE8C080)
+        p["warped_fungus"] = fungus(0x1E8A7A, 0xE89060)
+        func roots(_ c: UInt32) -> Painter {
+            { x, y in
+                let h = 4 + Int(r(x, 0, 202) * 10)
+                if 15 - y >= h || r(x, 1, 203) < 0.35 { return clear }
+                return hex(c, 0.75 + 0.35 * r(x, y, 204))
+            }
+        }
+        p["crimson_roots"] = roots(0x8E1E2E)
+        p["warped_roots"] = roots(0x16A08A)
+        p["weeping_vines"] = { x, y in (x == 7 || x == 8 || (x == 6 && y % 5 == 2)) && r(x, y, 205) > 0.15 ? hex(0x8E1E2E, 0.8 + 0.3 * r(x, y, 206)) : clear }
+        p["twisting_vines"] = { x, y in (x == 7 || x == 8 || (x == 9 && y % 5 == 2)) && r(x, y, 207) > 0.15 ? hex(0x16A08A, 0.8 + 0.3 * r(x, y, 208)) : clear }
+        for st in 0..<3 {
+            p["nether_wart_stage\(st)"] = { x, y in
+                let h = 4 + st * 4
+                if 15 - y >= h || !(x % 4 == 1 || x % 4 == 2) { return clear }
+                return hex(0x8A1A1A, 0.75 + 0.35 * r(x, y, 209))
+            }
+        }
+        p["lava"] = { x, y in
+            let v = blot(x, y, 210, 4) * 0.7 + r(x, y, 211) * 0.3
+            return v > 0.65 ? hex(0xFFD25A) : (v > 0.4 ? hex(0xF08A1A) : hex(0xC8501A))
+        }
+        func firePainter(_ hot: UInt32, _ mid: UInt32, _ cool: UInt32) -> Painter {
+            { x, y in
+                let flame = blot(x, y + 3, 212, 4) * 0.6 + r(x, y, 213) * 0.4
+                let h = Float(15 - y) / 15
+                if flame < h * 0.9 { return clear }
+                return h < 0.3 ? hex(hot) : (h < 0.6 ? hex(mid) : hex(cool))
+            }
+        }
+        p["fire"] = firePainter(0xFFF2A0, 0xFFA020, 0xE04010)
+        p["soul_fire"] = firePainter(0xC8FFFF, 0x40E0E8, 0x2090A0)
+        p["nether_portal"] = { x, y in
+            let v = sinf(Float(x) * 0.8 + Float(y) * 0.4) * 0.3 + r(x, y, 214) * 0.4
+            return V4(0.45 + v * 0.3, 0.1, 0.85 + v * 0.1, 0.75)
+        }
+        p["end_stone"] = { x, y in
+            if r(x, y, 215) < 0.08 { return hex(0xC8C088) }
+            return hex(0xDDDFA5, 0.9 + 0.12 * r(x, y, 216))
+        }
         p["oak_sapling"] = ItemTextures.painter(Sprite(mask: "sapling", base: 0x4A8A2A, extras: ["a": 0x6B4F2C, "b": 0x8A6435]))
         p["birch_sapling"] = ItemTextures.painter(Sprite(mask: "sapling", base: 0x7AA850, extras: ["a": 0xD8D4C8, "b": 0xB0ACA0]))
         p["spruce_sapling"] = ItemTextures.painter(Sprite(mask: "sapling", base: 0x3A6A3A, extras: ["a": 0x4A3420, "b": 0x6A4A2A]))

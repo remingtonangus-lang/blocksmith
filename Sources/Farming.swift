@@ -206,12 +206,18 @@ extension Game {
             }
             return used
         }
-        // Flint and steel: prime TNT (fire comes with the Nether phase).
-        if key == "flint_and_steel" && bkey == "tnt" {
-            world.setBlock(t.hit.x, t.hit.y, t.hit.z, AIR)
-            tnts.prime(at: t.hit)
+        // Flint and steel: prime TNT, light a portal frame, or start a fire.
+        if key == "flint_and_steel" {
+            if bkey == "tnt" {
+                world.setBlock(t.hit.x, t.hit.y, t.hit.z, AIR)
+                tnts.prime(at: t.hit)
+            } else {
+                let at = t.hit + t.normal
+                if !tryLightPortal(at: at) { world.placeFire(at) }
+            }
             sfx(.fizz, 1, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
             damageHeld(1)
+            swing = 1
             return true
         }
         // Beds: sleep through the night and set the respawn point.
@@ -287,6 +293,42 @@ extension Game {
         let other = key.hasSuffix("_head") ? p - dirs[facing] : p + dirs[facing]
         let ok = Blocks.key(Blocks.groupBase[Int(world.block(other.x, other.y, other.z))])
         if ok.hasSuffix("_bed") || ok.hasSuffix("_bed_head") { world.setBlock(other.x, other.y, other.z, AIR) }
+    }
+}
+
+extension Game {
+    // Lava, fire, magma and cactus hurt; burning continues until water puts it out.
+    func hazardTick(_ dt: Float) {
+        let p = player.pos
+        let feet = world.block(Int(floor(p.x)), Int(floor(p.y + 0.1)), Int(floor(p.z)))
+        let body = world.block(Int(floor(p.x)), Int(floor(p.y + 1)), Int(floor(p.z)))
+        let under = world.block(Int(floor(p.x)), Int(floor(p.y - 0.1)), Int(floor(p.z)))
+        let inLava = Blocks.fluidKind[Int(feet)] == 2 || Blocks.fluidKind[Int(body)] == 2
+        if player.inWater && !inLava { onFire = 0 }
+        contactTimer -= dt
+        if contactTimer <= 0 {
+            var dmg = 0
+            var cause = ""
+            if inLava { dmg = 4; cause = "tried to swim in lava"; onFire = 15 }
+            else if feet == FIRE || body == FIRE || Blocks.key(feet) == "soul_fire" { dmg = 1; cause = "went up in flames"; onFire = max(onFire, 8) }
+            else if Blocks.key(under) == "magma_block" && !player.sneaking && player.onGround { dmg = 1; cause = "discovered the floor was lava" }
+            else {
+                // Cactus: touching any side.
+                let mn = V3(p.x - 0.31, p.y, p.z - 0.31), mx = V3(p.x + 0.31, p.y + 1.8, p.z + 0.31)
+                outer: for y in Int(floor(mn.y))...Int(floor(mx.y)) { for z in Int(floor(mn.z))...Int(floor(mx.z)) { for x in Int(floor(mn.x))...Int(floor(mx.x)) {
+                    if world.block(x, y, z) == CACTUS {
+                        let c = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
+                        if abs(c.x - p.x) < 0.31 + 0.4375 && abs(c.z - p.z) < 0.31 + 0.4375 { dmg = 1; cause = "was pricked to death"; break outer }
+                    }
+                } } }
+            }
+            if dmg > 0 { damage(dmg, cause); contactTimer = 0.5 }
+        }
+        if onFire > 0 {
+            onFire -= dt
+            fireDamageTimer -= dt
+            if fireDamageTimer <= 0 { fireDamageTimer = 1; damage(1, "burned to death") }
+        }
     }
 }
 

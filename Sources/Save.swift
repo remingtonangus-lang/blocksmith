@@ -11,6 +11,10 @@ struct WorldMeta: Codable {
     var flying: Bool
     var hotbar: [UInt16]?          // pre-inventory saves
     var inventory: PlayerInventory.Saved?
+    var dimension: Dim?
+    var spawn: [Float]?
+    var xpLevel: Int?
+    var xpPoints: Int?
     var selected: Int
     var renderDistance: Int
     // Added after v0.1: optional so older world.json files still decode.
@@ -27,9 +31,16 @@ final class SaveManager {
     let dir: URL
     let chunkDir: URL
 
-    init(name: String) {
+    convenience init(name: String) {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        dir = base.appendingPathComponent("Blocksmith/Worlds/\(name)", isDirectory: true)
+        self.init(dir: base.appendingPathComponent("Blocksmith/Worlds/\(name)", isDirectory: true))
+    }
+
+    // Save folder for another dimension inside this world's folder.
+    func sub(_ folder: String) -> SaveManager { SaveManager(dir: dir.appendingPathComponent(folder, isDirectory: true)) }
+
+    init(dir d: URL) {
+        dir = d
         // chunks3: name-paletted 16-bit states, 384 tall (older chunk folders from previous engines are ignored).
         chunkDir = dir.appendingPathComponent("chunks3", isDirectory: true)
         try? FileManager.default.createDirectory(at: chunkDir, withIntermediateDirectories: true)
@@ -65,6 +76,18 @@ final class SaveManager {
         var e: [String: BlockEntity] = [:]
         for (k, v) in m { e["\(k.x),\(k.y),\(k.z)"] = v }
         if let d = try? JSONEncoder().encode(BlockEntitySave(entries: e)) { try? d.write(to: blockEntityURL, options: .atomic) }
+    }
+
+    func loadPortals() -> [IVec3] {
+        guard let d = try? Data(contentsOf: dir.appendingPathComponent("portals.json")),
+              let a = try? JSONDecoder().decode([[Int]].self, from: d) else { return [] }
+        return a.filter { $0.count == 3 }.map { IVec3($0[0], $0[1], $0[2]) }
+    }
+
+    func savePortals(_ p: [IVec3]) {
+        if let d = try? JSONEncoder().encode(p.map { [$0.x, $0.y, $0.z] }) {
+            try? d.write(to: dir.appendingPathComponent("portals.json"), options: .atomic)
+        }
     }
 
     func chunkURL(_ k: ChunkKey) -> URL { chunkDir.appendingPathComponent("c.\(k.x).\(k.z).lz") }

@@ -223,14 +223,15 @@ final class Renderer: NSObject, MTKViewDelegate {
         let frustum = Frustum(viewProj * translationMatrix(-eye))
 
         let sky = game.skyColor
-        let fogEnd: Float = underwater ? 20 : rd * 16 - 6
+        let hasSky = game.dim.dim.hasSky
+        let fogEnd: Float = underwater ? 20 : (game.dim.dim == .nether ? min(rd * 16 - 6, 96) : rd * 16 - 6)
         let fogStart: Float = underwater ? 1 : fogEnd * 0.62
         let fogColor = underwater ? V3(0.05, 0.12, 0.3) : sky
         let daylight = game.daylight
         var u = Uniforms(viewProj: viewProj,
                          fogColor: V4(fogColor, fogStart),
                          params: V4(fogEnd, daylight, Float(game.time.truncatingRemainder(dividingBy: 1000)), underwater ? 1 : 0),
-                         sunDir: V4(game.sunDir, 0))
+                         sunDir: V4(game.sunDir, game.dim.dim.ambient))
 
         enc.setFragmentTexture(texture, index: 0)
 
@@ -245,13 +246,13 @@ final class Renderer: NSObject, MTKViewDelegate {
                 for i in [0, 1, 2, 0, 2, 3] { verts.append(SimpleVert(pos: V4(q[i], 1), color: color)) }
             }
             let sd = game.sunDir
-            if !underwater {
+            if !underwater && hasSky {
                 body(sd, 7, V4(1.0, 0.95, 0.75, 1))
                 body(sd, 11, V4(1.0, 0.85, 0.5, 0.18))
                 body(-sd, 5, V4(0.85, 0.88, 0.95, 1))
             }
             let starAlpha = simd_clamp((0.6 - daylight) / 0.35, 0, 1)
-            if !underwater && starAlpha > 0 {
+            if !underwater && starAlpha > 0 && hasSky {
                 var sp = StarParams(rot: rotationZ(Float(game.dayFraction * 2 * .pi)), tint: V4(1, 1, 1, starAlpha))
                 enc.setRenderPipelineState(starPipe)
                 enc.setDepthStencilState(depthNone)
@@ -427,7 +428,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
 
         // Cloud layer (after water so both blend over terrain; depth-tested against terrain).
-        if !underwater {
+        if !underwater && hasSky {
             let ext = far
             let cy = CLOUD_Y - eye.y
             let q = [V3(-ext, cy, -ext), V3(ext, cy, -ext), V3(ext, cy, ext), V3(-ext, cy, ext)]
@@ -570,6 +571,18 @@ final class Renderer: NSObject, MTKViewDelegate {
         if game.player.headInWater { rect(0, 0, W, H, V4(0.05, 0.15, 0.45, 0.35)) }
         if game.sleeping > 0 { rect(0, 0, W, H, V4(0.02, 0.02, 0.06, min(1, game.sleeping / 1.5))) }
         if game.hurtFlash > 0 { rect(0, 0, W, H, V4(0.75, 0.02, 0.02, min(0.45, game.hurtFlash * 1.3))) }
+        if game.portalTime > 0 { rect(0, 0, W, H, V4(0.45, 0.1, 0.8, min(0.7, game.portalTime / 4 * 0.7))) }
+        if game.onFire > 0 && game.menu == nil {
+            // Flickering flames along the bottom of the view.
+            let fireLayer = Float(Tex.id("fire"))
+            let n = 8
+            for i in 0..<n {
+                let w = W / Float(n)
+                let hh = H * (0.28 + 0.06 * sinf(Float(game.clock) * 9 + Float(i) * 1.7))
+                quad([V2(Float(i) * w, H - hh), V2(Float(i + 1) * w, H - hh), V2(Float(i + 1) * w, H), V2(Float(i) * w, H)],
+                     [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)], V4(1, 1, 1, 0.85), fireLayer)
+            }
+        }
 
         func frame(_ x: Float, _ y: Float, _ w: Float, _ h: Float, _ b: Float, _ c: V4) {
             rect(x, y, w, b, c)

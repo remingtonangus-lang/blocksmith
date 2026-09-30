@@ -4,13 +4,16 @@ import simd
 let DAY_LENGTH: Double = 1200 // seconds per full day/night cycle (20 minutes, like the reference game)
 
 final class Game {
-    let world: World
+    // The dimension the player is in; other dimensions are kept (unloaded) in `dims`.
+    private(set) var dim: DimensionState
+    private(set) var dims: [Dim: DimensionState] = [:]
+    var world: World { dim.world }
+    var mobs: MobManager { dim.mobs }
+    var drops: ItemEntityManager { dim.drops }
+    var projectiles: ProjectileManager { dim.projectiles }
+    var tnts: TNTManager { dim.tnts }
     let player = Player()
     let input = InputState()
-    let mobs = MobManager()
-    let drops = ItemEntityManager()
-    let projectiles = ProjectileManager()
-    let tnts = TNTManager()
     let particles = ParticleManager()
     let inventory = PlayerInventory()
     let save: SaveManager?
@@ -61,6 +64,13 @@ final class Game {
     var leafQueue: [IVec3] = []
     var placedLeaves = Set<IVec3>()
     var bowCharge: Float = 0
+    var portalTime: Float = 0
+    var portalCooldown: Float = 0
+    var onFire: Float = 0          // seconds the player keeps burning
+    private var fireDamageTimer: Float = 0
+    private var contactTimer: Float = 0
+    private var lavaTimer: Double = 0
+    private var fireTimer: Double = 0
     var walkBob: Float = 0
     var walkAmount: Float = 0
     private var regenTimer: Double = 0
@@ -103,7 +113,9 @@ final class Game {
     var padConnected = false
 
     init(world: World, save: SaveManager?, persistent: Bool) {
-        self.world = world
+        dim = DimensionState(dim: .overworld, world: world)
+        dims[.overworld] = dim
+        hookWorld(world)
         self.save = save
         self.persistent = persistent
         onToast = { [weak self] s in
@@ -152,12 +164,20 @@ final class Game {
         health = max(1, min(20, m.health ?? 20))
         hunger = max(0, min(20, m.hunger ?? 20))
         saturation = m.saturation ?? 5
+        xpLevel = m.xpLevel ?? 0
+        xpPoints = m.xpPoints ?? 0
+        if let sp = m.spawn, sp.count == 3 { spawnPoint = V3(sp[0], sp[1], sp[2]) }
+        if let d = m.dimension, d != .overworld {
+            dim = dimensionState(d)
+            world.renderDistance = m.renderDistance
+        }
     }
 
     var meta: WorldMeta {
         WorldMeta(seed: world.seed, x: player.pos.x, y: player.pos.y, z: player.pos.z,
                   yaw: player.yaw, pitch: player.pitch, time: time, flying: player.flying,
-                  hotbar: nil, inventory: inventory.saved, selected: selected, renderDistance: world.renderDistance,
+                  hotbar: nil, inventory: inventory.saved, dimension: dim.dim, spawn: [spawnPoint.x, spawnPoint.y, spawnPoint.z],
+                  xpLevel: xpLevel, xpPoints: xpPoints, selected: selected, renderDistance: world.renderDistance,
                   survival: survival, health: health, hunger: hunger, saturation: saturation)
     }
 
@@ -165,6 +185,44 @@ final class Game {
         guard persistent, let s = save else { return }
         world.saveAll()
         s.saveMeta(meta)
+    }
+
+    // MARK: Dimensions
+
+    func dimensionState(_ d: Dim) -> DimensionState {
+        if let s = dims[d] { return s }
+        let base = dims[.overworld]!.world
+        let sv = d.folder.flatMap { f in save.map { $0.sub(f) } }
+        let w = World(seed: base.seed, device: base.device, save: sv, dim: d)
+        w.renderDistance = base.renderDistance
+        let s = DimensionState(dim: d, world: w)
+        dims[d] = s
+        hookWorld(w)
+        return s
+    }
+
+    func hookWorld(_ w: World) {
+        w.onFluidEvent = { [weak self] p in self?.sfx(.fizz, 0.8, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
+        w.onIgnite = { [weak self] p, b in
+            guard let self else { return }
+            if Blocks.key(b) == "tnt" { self.world.setBlockAsync(p.x, p.y, p.z, AIR); self.tnts.prime(at: p) }
+        }
+    }
+
+    // Moves the player to another dimension (saving and unloading the one we leave).
+    func changeDimension(to d: Dim, at p: V3) {
+        let old = world
+        if persistent { old.saveAll() }
+        let rd = old.renderDistance
+        dim = dimensionState(d)
+        world.renderDistance = rd
+        old.unloadAll()
+        particles.list.removeAll()
+        player.pos = p
+        player.vel = .zero
+        player.airPeak = p.y
+        _ = world.loadSync(center: p, radius: min(4, rd))
+        onToast?(d.displayName)
     }
 
     // MARK: Sky
@@ -178,12 +236,14 @@ final class Game {
     }
 
     var daylight: Float {
+        if !dim.dim.hasSky { return dim.dim == .end ? 0.75 : 1 }
         let s = sunDir.y
         let t = simd_clamp((s + 0.12) / 0.4, 0, 1)
         return 0.12 + 0.88 * t * t * (3 - 2 * t)
     }
 
     var skyColor: V3 {
+        if !dim.dim.hasSky { return dim.dim.fogColor }
         let day = V3(0.52, 0.72, 0.96), night = V3(0.015, 0.02, 0.06)
         var c = simd_mix(night, day, V3(repeating: (daylight - 0.12) / 0.88))
         let s = sunDir.y
@@ -641,6 +701,7 @@ final class Game {
         particles.blockBreak(b, at: p)
         world.setBlock(p.x, p.y, p.z, AIR)
         breakBedPartner(p, b)
+        if b == OBSIDIAN || b == PORTAL_X || b == PORTAL_Z { breakPortal(near: p) }
         placedLeaves.remove(p)
         let bk = Blocks.key(b)
         if bk.hasSuffix("_log") || bk.hasSuffix("_wood") { queueLeafDecay(around: p) }
@@ -666,11 +727,10 @@ final class Game {
         }
     }
 
-    // Buckets: pick up a water source / pour water.
+    // Buckets: pick up a water or lava source / pour it out.
     private func useBucket() -> Bool {
         let k = Items.key(held.item)
-        guard k == "bucket" || k == "water_bucket" else { return false }
-        // Ray that stops at fluids too.
+        guard k == "bucket" || k == "water_bucket" || k == "lava_bucket" else { return false }
         var fluidHit: IVec3?
         var lastAir: IVec3?
         let dir = player.look
@@ -685,21 +745,26 @@ final class Game {
             t += 0.05
         }
         if k == "bucket", let f = fluidHit {
+            let lava = Blocks.fluidKind[Int(world.block(f.x, f.y, f.z))] == 2
             world.setBlock(f.x, f.y, f.z, AIR)
-            sfx(.splash, 0.4)
+            sfx(lava ? .fizz : .splash, 0.4)
             if survival {
                 consumeHeld()
-                let rest = inventory.add(ItemStack(Items.id("water_bucket"), 1))
+                let rest = inventory.add(ItemStack(Items.id(lava ? "lava_bucket" : "water_bucket"), 1))
                 if !rest.isEmpty { dropItem(rest) }
             }
             return true
         }
-        if k == "water_bucket" {
+        if k == "water_bucket" || k == "lava_bucket" {
             var at: IVec3?
             if let tg = target { at = tg.hit + tg.normal } else if fluidHit == nil { at = lastAir }
             if let a = at, Blocks.replaceable[Int(world.block(a.x, a.y, a.z))] {
-                world.setBlock(a.x, a.y, a.z, WATER)
-                sfx(.splash, 0.4)
+                if k == "water_bucket" && dim.dim == .nether {
+                    sfx(.fizz, 0.8)          // water evaporates in the Nether
+                } else {
+                    world.setBlock(a.x, a.y, a.z, k == "water_bucket" ? WATER : LAVA)
+                    sfx(.splash, 0.4)
+                }
                 if survival { inventory.held = ItemStack(Items.id("bucket"), 1) }
             }
             return true
@@ -793,6 +858,7 @@ final class Game {
                 c[i] = .empty
             }
         }
+        if dim.dim != .overworld { changeDimension(to: .overworld, at: spawnPoint) }
         player.pos = spawnPoint
         player.vel = .zero
         player.airPeak = spawnPoint.y
@@ -886,6 +952,12 @@ final class Game {
         }
         fluidTimer += dt
         if fluidTimer >= 0.2 { fluidTimer = 0; world.fluidTick() }
+        lavaTimer += dt
+        if lavaTimer >= (dim.dim == .nether ? 0.5 : 1.5) { lavaTimer = 0; world.fluidTick(lava: true) }
+        fireTimer += dt
+        if fireTimer >= Double.random(in: 1.2...1.8) { fireTimer = 0; world.fireTick() }
+        portalTick(Float(dt))
+        hazardTick(Float(dt))
         tickAccum += dt
         while tickAccum >= 0.05 {
             tickAccum -= 0.05

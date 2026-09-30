@@ -49,6 +49,8 @@ struct BlockDef {
     var tint: UInt8 = 0              // 1 grass, 2 foliage, 3 grass overlay (tint only marked texels)
     var replaceable = false          // placing a block here overwrites it (air, plants, fluids, snow layer)
     var fluid: Int8 = -1             // -1 none, 0 source, 1...7 flowing, 8 falling
+    var fluidKind: UInt8 = 0         // 1 water, 2 lava
+    var damage: UInt8 = 0            // contact damage per second (cactus, magma, fire, lava)
     var sound: SoundMat = .stone
     var aoOcc: Bool? = nil
     var hidden = false               // not offered in the creative inventory
@@ -89,6 +91,8 @@ final class BlockRegistry {
     var tint: [UInt8] = []
     var replaceable: [Bool] = []
     var fluidLevel: [Int8] = []
+    var fluidKind: [UInt8] = []
+    var contactDamage: [UInt8] = []
     var hidden: [Bool] = []
     var hardness: [Float] = []
     var resistance: [Float] = []
@@ -128,10 +132,15 @@ final class BlockRegistry {
         tint.append(d.tint)
         replaceable.append(d.replaceable)
         fluidLevel.append(d.fluid)
+        fluidKind.append(d.fluid >= 0 ? (d.fluidKind == 0 ? 1 : d.fluidKind) : 0)
+        contactDamage.append(d.damage)
         hidden.append(d.hidden)
         hardness.append(d.hardness)
         resistance.append(d.resistance ?? (d.hardness < 0 ? 3_600_000 : d.hardness))
-        flammable.append(d.flammable)
+        let n = d.name
+        let naturallyFlammable = (d.sound == .wood && !n.hasPrefix("crimson") && !n.hasPrefix("warped") && n != "torch" && d.render != .model)
+            || n.hasSuffix("leaves") || (d.render == .cross && n != "fire" && n != "soul_fire" && !n.hasPrefix("crimson") && !n.hasPrefix("warped"))
+        flammable.append(d.flammable || naturallyFlammable)
         randomTicks.append(d.randomTicks)
         tool.append(d.tool.rawValue)
         harvestLevel.append(UInt8(d.harvestLevel))
@@ -258,7 +267,7 @@ final class BlockRegistry {
             var w = BlockDef(k == 0 ? "water" : (k == 8 ? "water_falling" : "water_\(k)"), "Water")
             w.render = .liquid; w.layer = .translucent; w.tex = ["water"]; w.opaque = false; w.collide = false
             w.skyStop = true; w.replaceable = true; w.fluid = Int8(k); w.hardness = -1; w.hidden = k != 0
-            w.group = "water"; w.sound = .snow
+            w.group = "water"; w.sound = .snow; w.fluidKind = 1
             add(w)
         }
         cube("coal_ore", "Coal Ore", "coal_ore", h: 3, req: true)
@@ -305,6 +314,82 @@ final class BlockRegistry {
             add(sap)
         }
         cube("deepslate", "Deepslate", "deepslate", h: 3, req: true)
+        // Lava: 9 states like water; opaque, bright, hurts.
+        for k in 0...8 {
+            var l = BlockDef(k == 0 ? "lava" : (k == 8 ? "lava_falling" : "lava_\(k)"), "Lava")
+            l.render = .liquid; l.layer = .opaque; l.tex = ["lava"]; l.opaque = false; l.collide = false
+            l.skyStop = true; l.replaceable = true; l.fluid = Int8(k); l.fluidKind = 2; l.hardness = -1
+            l.hidden = k != 0; l.group = "lava"; l.emit = 15; l.damage = 4; l.sound = .stone
+            add(l)
+        }
+        var fire = BlockDef("fire", "Fire")
+        fire.tex = ["fire"]; fire.render = .cross; fire.layer = .cutout; fire.opaque = false; fire.collide = false
+        fire.emit = 15; fire.hardness = 0; fire.replaceable = true; fire.randomTicks = true; fire.hidden = true; fire.damage = 1
+        add(fire)
+        var soulFire = fire
+        soulFire.name = "soul_fire"; soulFire.display = "Soul Fire"; soulFire.tex = ["soul_fire"]; soulFire.emit = 10; soulFire.damage = 2
+        add(soulFire)
+        // Nether portal (x-axis and z-axis sheets).
+        for (n, bx) in [("nether_portal", Box(0, 0, 6, 16, 16, 10)), ("nether_portal_z", Box(6, 0, 0, 10, 16, 16))] {
+            var p = BlockDef(n, "Nether Portal")
+            p.tex = ["nether_portal"]; p.render = .model; p.layer = .translucent; p.opaque = false; p.collide = false
+            p.boxes = [bx]; p.emit = 11; p.hardness = -1; p.hidden = true; p.group = "nether_portal"; p.skyStop = false
+            add(p)
+        }
+        cube("netherrack", "Netherrack", "netherrack", h: 0.4, req: true)
+        cube("nether_quartz_ore", "Nether Quartz Ore", "nether_quartz_ore", h: 3, req: true)
+        cube("nether_gold_ore", "Nether Gold Ore", "nether_gold_ore", h: 3, req: true)
+        var ad = BlockDef("ancient_debris", "Ancient Debris")
+        ad.tex = ["ancient_debris_side", "ancient_debris_side", "ancient_debris_top", "ancient_debris_top", "ancient_debris_side", "ancient_debris_side"]
+        ad.hardness = 30; ad.resistance = 1200; ad.tool = .pickaxe; ad.harvestLevel = 3; ad.requiresTool = true
+        add(ad)
+        var ss = BlockDef("soul_sand", "Soul Sand")
+        ss.tex = ["soul_sand"]; ss.render = .model; ss.opaque = false; ss.boxes = [Box(0, 0, 0, 16, 14, 16)]
+        ss.hardness = 0.5; ss.tool = .shovel; ss.sound = .sand; ss.skyStop = true
+        add(ss)
+        cube("soul_soil", "Soul Soil", "soul_soil", h: 0.5, tool: .shovel, snd: .sand)
+        column("basalt", "Basalt", side: "basalt_side", top: "basalt_top", h: 1.25, tool: .pickaxe, snd: .stone)
+        cube("blackstone", "Blackstone", "blackstone", h: 1.5, req: true)
+        var magma = BlockDef("magma_block", "Magma Block")
+        magma.tex = ["magma"]; magma.emit = 3; magma.hardness = 0.5; magma.tool = .pickaxe; magma.requiresTool = true; magma.damage = 1
+        add(magma)
+        cube("nether_bricks", "Nether Bricks", "nether_bricks", h: 2, req: true)
+        cube("red_nether_bricks", "Red Nether Bricks", "red_nether_bricks", h: 2, req: true)
+        var cn = BlockDef("crimson_nylium", "Crimson Nylium")
+        cn.tex = ["crimson_nylium_side", "crimson_nylium_side", "crimson_nylium", "netherrack", "crimson_nylium_side", "crimson_nylium_side"]
+        cn.hardness = 0.4; cn.tool = .pickaxe; cn.requiresTool = true
+        add(cn)
+        var wn = cn
+        wn.name = "warped_nylium"; wn.display = "Warped Nylium"
+        wn.tex = ["warped_nylium_side", "warped_nylium_side", "warped_nylium", "netherrack", "warped_nylium_side", "warped_nylium_side"]
+        add(wn)
+        column("crimson_stem", "Crimson Stem", side: "crimson_stem", top: "crimson_stem_top")
+        column("warped_stem", "Warped Stem", side: "warped_stem", top: "warped_stem_top")
+        cube("nether_wart_block", "Nether Wart Block", "nether_wart_block", h: 1, tool: .hoe, snd: .plant)
+        cube("warped_wart_block", "Warped Wart Block", "warped_wart_block", h: 1, tool: .hoe, snd: .plant)
+        var shroom = BlockDef("shroomlight", "Shroomlight")
+        shroom.tex = ["shroomlight"]; shroom.emit = 15; shroom.hardness = 1; shroom.tool = .hoe; shroom.sound = .plant
+        add(shroom)
+        plant("crimson_fungus", "Crimson Fungus", "crimson_fungus")
+        plant("warped_fungus", "Warped Fungus", "warped_fungus")
+        plant("crimson_roots", "Crimson Roots", "crimson_roots")
+        plant("warped_roots", "Warped Roots", "warped_roots")
+        plant("weeping_vines", "Weeping Vines", "weeping_vines")
+        plant("twisting_vines", "Twisting Vines", "twisting_vines")
+        cube("crimson_planks", "Crimson Planks", "crimson_planks", h: 2, tool: .axe, snd: .wood)
+        cube("warped_planks", "Warped Planks", "warped_planks", h: 2, tool: .axe, snd: .wood)
+        var co = BlockDef("crying_obsidian", "Crying Obsidian")
+        co.tex = ["crying_obsidian"]; co.emit = 10; co.hardness = 50; co.resistance = 1200; co.tool = .pickaxe; co.harvestLevel = 3; co.requiresTool = true
+        add(co)
+        // Nether wart (4 stages, grows on soul sand).
+        for st in 0..<4 {
+            var c = BlockDef(st == 0 ? "nether_wart" : "nether_wart_\(st)", "Nether Wart")
+            c.tex = ["nether_wart_stage\(min(2, st == 3 ? 2 : (st == 0 ? 0 : 1)))"]; c.render = .model; c.layer = .cutout; c.opaque = false; c.collide = false
+            c.boxes = [Box(4, 0, 0, 4, 16, 16), Box(12, 0, 0, 12, 16, 16), Box(0, 0, 4, 16, 16, 4), Box(0, 0, 12, 16, 16, 12)]
+            c.hardness = 0; c.sound = .plant; c.skyStop = false; c.group = "nether_wart"; c.hidden = true; c.randomTicks = true
+            add(c)
+        }
+        cube("end_stone", "End Stone", "end_stone", h: 3, req: true)
         for (n, d, lvl) in [("coal_block", "Block of Coal", 0), ("iron_block", "Block of Iron", 1), ("gold_block", "Block of Gold", 2),
                             ("diamond_block", "Block of Diamond", 2), ("emerald_block", "Block of Emerald", 2),
                             ("lapis_block", "Block of Lapis Lazuli", 1), ("redstone_block", "Block of Redstone", 0),
@@ -446,3 +531,11 @@ let BLUE_FLOWER = Blocks.id("cornflower")
 let TORCH = Blocks.id("torch")
 let LAMP = Blocks.id("glowstone")
 let DEEPSLATE = Blocks.id("deepslate")
+let LAVA = Blocks.id("lava")
+let LAVA_FLOW: [BlockID] = [LAVA] + (1...7).map { Blocks.id("lava_\($0)") }
+let LAVA_FALL = Blocks.id("lava_falling")
+let FIRE = Blocks.id("fire")
+let OBSIDIAN = Blocks.id("obsidian")
+let NETHERRACK = Blocks.id("netherrack")
+let PORTAL_X = Blocks.id("nether_portal")
+let PORTAL_Z = Blocks.id("nether_portal_z")

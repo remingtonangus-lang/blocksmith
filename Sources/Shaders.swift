@@ -20,12 +20,13 @@ struct ChunkOut {
     float3 shade;
     float3 tint;
     float overlay [[flat]];
+    float anim [[flat]];
     float dist;
 };
 
 constexpr sampler texSampler(filter::nearest, mip_filter::linear, address::repeat);
 
-constant float faceShade[8] = { 0.80, 0.80, 1.00, 0.55, 0.68, 0.68, 0.88, 0.88 };
+constant float faceShade[8] = { 0.80, 0.80, 1.00, 0.55, 0.68, 0.68, 0.88, 1.00 };
 constant float aoCurve[4] = { 0.42, 0.62, 0.81, 1.0 };
 
 // See Mesher.swift for the vertex layout. tints: 256 grass, 256 foliage, 256 water colours (RGBA8).
@@ -57,11 +58,12 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
         o.tint = unpack_unorm4x8_to_float(tints[cx + cz * 16u + (tintMode - 1u) * 256u]).rgb;
     }
     o.overlay = float((w1 >> 30) & 1u);
+    o.anim = face == 7u ? 1.0 : 0.0;
     // Skylight scales with daylight; block light (torches) is warm and constant.
     float sky = skyL * (0.35 + 0.65 * skyL) * u.params.y;
     float blk = blkL / (4.0 - 3.0 * blkL) * 1.1;   // steep falloff: bright pool, dark edges
     float3 lit = max(float3(sky), blk * float3(1.0, 0.76, 0.46));
-    lit = max(lit, float3(0.035));
+    lit = max(lit, float3(0.035 + u.sunDir.w));    // dimension ambient (Nether/End are never pitch black)
     o.shade = lit * (faceShade[face] * aoCurve[ao]);
     o.dist = length(rel);
     return o;
@@ -75,7 +77,9 @@ static float3 applyFog(float3 c, float dist, constant Uniforms& u) {
 fragment float4 chunkFS(ChunkOut in [[stage_in]],
                         texture2d_array<float> tex [[texture(0)]],
                         constant Uniforms& u [[buffer(1)]]) {
-    float4 c = tex.sample(texSampler, in.uv, uint(in.layer));
+    float2 uv = in.uv;
+    if (in.anim > 0.5) { uv += float2(0.0, fract(u.params.z * 0.04)); }   // slow lava flow
+    float4 c = tex.sample(texSampler, uv, uint(in.layer));
     if (c.a < 0.5) { discard_fragment(); }
     // Overlay faces (grass sides): only the marked texels (alpha ~0.9) take the biome tint.
     float3 t = (in.overlay > 0.5 && c.a > 0.95) ? float3(1.0) : in.tint;

@@ -143,11 +143,16 @@ final class Mob {
         let inWater = Blocks.isLiquid(feetBlock)
 
         // Undead burn in daylight under open sky.
-        if spec.burnsInSun && !inWater && g.daylight > 0.6 {
+        if spec.burnsInSun && !inWater && g.dim.dim.hasSky && g.daylight > 0.6 {
             let l = w.lightAt(Int(floor(pos.x)), Int(floor(pos.y + height)), Int(floor(pos.z)))
             if l.sky >= 15 { fire = max(fire, 8) }
         }
-        if inWater { fire = 0 }
+        if inWater && Blocks.fluidKind[Int(feetBlock)] == 1 { fire = 0 }
+        let contact = Blocks.contactDamage[Int(feetBlock)]
+        if contact > 0 && kind != .slime {
+            if Blocks.fluidKind[Int(feetBlock)] == 2 || feetBlock == FIRE { fire = max(fire, 8) }
+            if attackCooldown < -0.5 { health -= Int(contact); hurt = 0.3; attackCooldown = 0 }
+        }
         if fire > 0 {
             fire -= dt
             fireTick += dt

@@ -6,12 +6,14 @@ import simd
 // queue; results are applied on the main thread in update(). Chunk block arrays are Swift
 // copy-on-write values, so handing snapshots to worker threads is safe.
 final class World {
-    let gen: WorldGen
+    let gen: TerrainGenerator
+    let dim: Dim
     let seed: UInt64
     let device: MTLDevice
     let save: SaveManager?
     var chunks: [ChunkKey: Chunk] = [:]
     var blockEntities: [IVec3: BlockEntity] = [:]
+    var portals = Set<IVec3>()
     var renderDistance: Int = 8 { didSet { lastCenter = nil; rebuildOffsets() } }
 
     private let workQueue = DispatchQueue(label: "blocksmith.world", qos: .userInitiated, attributes: .concurrent)
@@ -27,14 +29,20 @@ final class World {
     private(set) var meshedCount = 0
     var pendingJobs: Int { jobs }
 
-    init(seed: UInt64, device: MTLDevice, save: SaveManager?) {
+    init(seed: UInt64, device: MTLDevice, save: SaveManager?, dim: Dim = .overworld) {
         self.seed = seed
-        self.gen = WorldGen(seed: seed)
+        self.dim = dim
+        switch dim {
+        case .overworld: gen = WorldGen(seed: seed)
+        case .nether: gen = NetherGen(seed: seed)
+        case .end: gen = EndGen(seed: seed)
+        }
         self.device = device
         self.save = save
         maxJobs = max(2, ProcessInfo.processInfo.activeProcessorCount - 2)
         rebuildOffsets()
         blockEntities = save?.loadBlockEntities() ?? [:]
+        portals = Set(save?.loadPortals() ?? [])
     }
 
     private func rebuildOffsets() {
@@ -403,9 +411,17 @@ final class World {
         return (t1 - t0, t2 - t1)
     }
 
+    // Drops every chunk (after saving) — used when leaving a dimension.
+    func unloadAll() {
+        chunks.removeAll()
+        lastCenter = nil
+        fluidPending.removeAll()
+    }
+
     func saveAll() {
         for (k, c) in chunks where c.modified { save?.saveChunk(k, c.blocks) }
         save?.saveBlockEntities(blockEntities)
+        save?.savePortals(Array(portals))
     }
 
     // MARK: Raycast (voxel DDA + per-box tests for partial blocks)
@@ -494,33 +510,32 @@ final class World {
     }
 
     // MARK: Fluids
-    // Cellular water: sources (level 0) feed flowing water 1...7 sideways, falling columns (8) downwards.
-    // Only cells near a change are simulated: edits enqueue themselves + neighbours, and every cell
-    // that changes during a tick enqueues its neighbours for the next one.
+    // Cellular fluids: sources (level 0) feed flowing levels 1...7 sideways, falling columns (8) downwards.
+    // Water ticks every 0.2 s; lava every 1.5 s (0.5 s in the Nether) and reaches 3 blocks in the
+    // Overworld (7 in the Nether). Only cells near a change are simulated.
 
     private(set) var fluidPending = Set<IVec3>()
+    private(set) var lavaPending = Set<IVec3>()
     static let fluidBudget = 1024
     private static let sideDirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
     private static let allDirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
+    var onFluidEvent: ((IVec3) -> Void)?     // lava/water reactions (sound)
 
     func scheduleFluid(around p: IVec3) {
-        let lv = Blocks.fluidLevel
-        var any = lv[Int(block(p.x, p.y, p.z))] >= 0
-        if !any {
-            for d in World.allDirs {
-                let q = p + d
-                if lv[Int(block(q.x, q.y, q.z))] >= 0 { any = true; break }
-            }
+        let fk = Blocks.fluidKind
+        var water = false, lava = false
+        for q in [p] + World.allDirs.map({ p + $0 }) {
+            let k = fk[Int(block(q.x, q.y, q.z))]
+            if k == 1 { water = true } else if k == 2 { lava = true }
         }
-        if !any { return }
-        fluidPending.insert(p)
-        for d in World.allDirs { fluidPending.insert(p + d) }
+        if water { fluidPending.insert(p); for d in World.allDirs { fluidPending.insert(p + d) } }
+        if lava { lavaPending.insert(p); for d in World.allDirs { lavaPending.insert(p + d) } }
     }
 
-    // Water may replace air, plants, torches and thinner flowing water.
-    private func fluidCanEnter(_ id: BlockID, level: Int) -> Bool {
+    // Fluids may replace air, plants, torches, fire and thinner flowing fluid of the same kind.
+    private func fluidCanEnter(_ id: BlockID, level: Int, kind: UInt8) -> Bool {
         let l = Int(Blocks.fluidLevel[Int(id)])
-        if l >= 0 { return l > 0 && l < 8 && l > level }
+        if l >= 0 { return Blocks.fluidKind[Int(id)] == kind && l > 0 && l < 8 && l > level }
         return id == AIR || Blocks.replaceable[Int(id)] || id == TORCH
     }
 
@@ -528,54 +543,130 @@ final class World {
         if setBlockAsync(p.x, p.y, p.z, id) { scheduleFluid(around: p) }
     }
 
-    func fluidTick() {
-        if fluidPending.isEmpty { return }
+    func fluidTick(lava: Bool = false) {
+        if lava { if lavaPending.isEmpty { return } } else if fluidPending.isEmpty { return }
         var batch: [IVec3] = []
-        batch.reserveCapacity(min(fluidPending.count, World.fluidBudget))
-        for p in fluidPending {
+        let src = lava ? lavaPending : fluidPending
+        batch.reserveCapacity(min(src.count, World.fluidBudget))
+        for p in src {
             batch.append(p)
             if batch.count >= World.fluidBudget { break }
         }
-        for p in batch { fluidPending.remove(p) }
-        let lvT = Blocks.fluidLevel
+        if lava { for p in batch { lavaPending.remove(p) } } else { for p in batch { fluidPending.remove(p) } }
+        let lvT = Blocks.fluidLevel, fkT = Blocks.fluidKind
+        let kind: UInt8 = lava ? 2 : 1
+        let flow = lava ? LAVA_FLOW : WATER_FLOW, fall = lava ? LAVA_FALL : WATER_FALL
+        let stepLevel = lava && dim != .nether ? 2 : 1
         for p in batch {
             guard p.y >= 0 && p.y < CH && isLoaded(p.x, p.z) else { continue }
-            var lv = Int(lvT[Int(block(p.x, p.y, p.z))])
-            if lv < 0 { continue }
+            let cur = block(p.x, p.y, p.z)
+            guard fkT[Int(cur)] == kind else { continue }
+            var lv = Int(lvT[Int(cur)])
+            if lava {
+                // Lava touching water hardens: source -> obsidian, flowing -> cobblestone.
+                var touching = false
+                for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(0, 1, 0)] where fkT[Int(block(p.x + d.x, p.y + d.y, p.z + d.z))] == 1 {
+                    touching = true
+                    break
+                }
+                if touching {
+                    setBlockAsync(p.x, p.y, p.z, lv == 0 ? OBSIDIAN : COBBLE)
+                    scheduleFluid(around: p)
+                    onFluidEvent?(p)
+                    continue
+                }
+            }
             if lv > 0 {
                 var want: Int
-                if lvT[Int(block(p.x, p.y + 1, p.z))] >= 0 {
+                if lvT[Int(block(p.x, p.y + 1, p.z))] >= 0 && fkT[Int(block(p.x, p.y + 1, p.z))] == kind {
                     want = 8
                 } else {
                     var best = 99, sources = 0
                     for d in World.sideDirs {
-                        let n = Int(lvT[Int(block(p.x + d.x, p.y, p.z + d.z))])
-                        if n < 0 { continue }
+                        let nb = block(p.x + d.x, p.y, p.z + d.z)
+                        guard fkT[Int(nb)] == kind else { continue }
+                        let n = Int(lvT[Int(nb)])
                         if n == 0 { sources += 1 }
                         best = min(best, n == 8 ? 0 : n)
                     }
                     let below = block(p.x, p.y - 1, p.z)
-                    if sources >= 2 && (Blocks.opaque[Int(below)] || lvT[Int(below)] == 0) { want = 0 }
-                    else if best >= 7 { want = -1 }
-                    else { want = best + 1 }
+                    if !lava && sources >= 2 && (Blocks.opaque[Int(below)] || (lvT[Int(below)] == 0 && fkT[Int(below)] == kind)) { want = 0 }
+                    else if best + stepLevel > 7 { want = -1 }
+                    else { want = best + stepLevel }
                 }
                 if want != lv {
-                    setFluid(p, want < 0 ? AIR : (want == 8 ? WATER_FALL : WATER_FLOW[want]))
+                    setFluid(p, want < 0 ? AIR : (want == 8 ? fall : flow[want]))
                     if want < 0 { continue }
                     lv = want
                 }
             }
             let below = block(p.x, p.y - 1, p.z)
-            if p.y > 0 && (fluidCanEnter(below, level: 0) || (lvT[Int(below)] > 0 && lvT[Int(below)] < 8)) {
-                setFluid(IVec3(p.x, p.y - 1, p.z), WATER_FALL)
+            if lava && fkT[Int(below)] == 1 {
+                // Lava pouring onto water makes stone.
+                setBlockAsync(p.x, p.y - 1, p.z, STONE)
+                scheduleFluid(around: IVec3(p.x, p.y - 1, p.z))
+                onFluidEvent?(p)
+                continue
+            }
+            if p.y > 0 && (fluidCanEnter(below, level: 0, kind: kind) || (fkT[Int(below)] == kind && lvT[Int(below)] > 0 && lvT[Int(below)] < 8)) {
+                setFluid(IVec3(p.x, p.y - 1, p.z), fall)
                 continue
             }
             if lvT[Int(below)] >= 0 { continue }
-            let next = (lv == 8 ? 0 : lv) + 1
+            let next = (lv == 8 ? 0 : lv) + stepLevel
             if next > 7 { continue }
             for d in World.sideDirs {
                 let q = IVec3(p.x + d.x, p.y, p.z + d.z)
-                if fluidCanEnter(block(q.x, q.y, q.z), level: next) { setFluid(q, WATER_FLOW[next]) }
+                if fluidCanEnter(block(q.x, q.y, q.z), level: next, kind: kind) { setFluid(q, flow[next]) }
+            }
+        }
+    }
+
+    // MARK: Fire
+    // Scheduled (not random) ticks: fire ages and burns out, destroys flammable neighbours and spreads.
+
+    private(set) var fires: [IVec3: Int] = [:]
+    var onIgnite: ((IVec3, BlockID) -> Void)?   // flammable block destroyed (TNT gets primed by the game)
+
+    func placeFire(_ p: IVec3) {
+        guard Blocks.replaceable[Int(block(p.x, p.y, p.z))], !Blocks.isLiquid(block(p.x, p.y, p.z)) else { return }
+        setBlock(p.x, p.y, p.z, FIRE)
+        fires[p] = 0
+    }
+
+    func fireTick() {
+        if fires.isEmpty { return }
+        let fl = Blocks.flammable
+        for (p, age) in fires {
+            let b = block(p.x, p.y, p.z)
+            if b != FIRE { fires.removeValue(forKey: p); continue }
+            if !isLoaded(p.x, p.z) { continue }
+            let below = block(p.x, p.y - 1, p.z)
+            let eternal = below == NETHERRACK || Blocks.key(below) == "magma_block"
+            var anyFlammable = false
+            for d in World.allDirs {
+                let q = p + d
+                let nb = block(q.x, q.y, q.z)
+                guard fl[Int(nb)] else { continue }
+                anyFlammable = true
+                if Int.random(in: 0..<5) == 0 {
+                    onIgnite?(q, nb)
+                    if Int.random(in: 0..<2) == 0 { setBlockAsync(q.x, q.y, q.z, FIRE); fires[q] = 0 } else { setBlockAsync(q.x, q.y, q.z, AIR) }
+                }
+            }
+            // Spread to air next to flammable blocks nearby.
+            if anyFlammable && Int.random(in: 0..<3) == 0 {
+                let q = IVec3(p.x + Int.random(in: -1...1), p.y + Int.random(in: -1...2), p.z + Int.random(in: -1...1))
+                if block(q.x, q.y, q.z) == AIR && World.allDirs.contains(where: { fl[Int(block(q.x + $0.x, q.y + $0.y, q.z + $0.z))] }) {
+                    setBlockAsync(q.x, q.y, q.z, FIRE); fires[q] = 0
+                }
+            }
+            let supported = Blocks.opaque[Int(below)] || anyFlammable
+            if !eternal && (!supported || (age > 6 && Int.random(in: 0..<4) == 0 && !anyFlammable) || age > 30) {
+                setBlockAsync(p.x, p.y, p.z, AIR)
+                fires.removeValue(forKey: p)
+            } else {
+                fires[p] = age + 1
             }
         }
     }

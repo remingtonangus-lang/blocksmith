@@ -1,10 +1,10 @@
 import Foundation
 
-enum Biome: Int { case ocean, beach, plains, forest, desert, snowy, mountains }
+enum Biome: Int { case ocean, beach, plains, forest, desert, snowy, mountains, netherWastes, soulSandValley, crimsonForest, warpedForest, basaltDeltas, theEnd }
 
 // Deterministic terrain: same seed + coordinates always produce the same chunk,
 // so only player-modified chunks are ever written to disk.
-final class WorldGen {
+final class WorldGen: TerrainGenerator {
     let seed: UInt64
     let s32: UInt32
     let cont: Noise, hills: Noise, mount: Noise, ridge: Noise
@@ -165,6 +165,7 @@ final class WorldGen {
                 case .desert: g = 0xBFB755; f = 0xAEA42A; w = 0x32A598
                 case .snowy: g = 0x80B497; f = 0x60A17B; w = 0x3D57D6
                 case .mountains: g = 0x8AB689; f = 0x6DA36B; w = 0x3F76E4
+                default: g = 0xBFB755; f = 0xAEA42A; w = 0x3F76E4
                 }
                 let i = lx + lz * CS
                 t[i] = rgba(g); t[256 + i] = rgba(f); t[512 + i] = rgba(w)

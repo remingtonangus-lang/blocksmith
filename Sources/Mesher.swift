@@ -127,7 +127,7 @@ enum Mesher {
 
     static func buildSection(_ n9: [[BlockID]], _ h9: [[Int16]], sy: Int) -> SectionMesh {
         let renderT = Blocks.render, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
-        let cullSameT = Blocks.cullSame, texT = Blocks.tex, tintT = Blocks.tint, levelT = Blocks.fluidLevel
+        let cullSameT = Blocks.cullSame, texT = Blocks.tex, tintT = Blocks.tint, levelT = Blocks.fluidLevel, fkT = Blocks.fluidKind
         let layerT = Blocks.layer, boxesT = Blocks.boxes
         let CT = cornerTable, NT = normalTable, PTab = plantTable
         let rCube = RenderType.cube.rawValue, rCross = RenderType.cross.rawValue
@@ -217,13 +217,14 @@ enum Mesher {
             if trans { trn.append(w0); trn.append(w1) } else { opq.append(w0); opq.append(w1) }
         }
         // Water surface drop (eighths) at a corner: highest of the up-to-4 liquid cells sharing it.
-        func cornerDrop(_ cx: Int, _ y: Int, _ cz: Int) -> Int {
+        func cornerDrop(_ cx: Int, _ y: Int, _ cz: Int, _ kind: UInt8) -> Int {
             var best = 7
             for dz in -1...0 {
                 for dx in -1...0 {
-                    let lv = Int(levelT[Int(at(cx + dx, y, cz + dz))])
-                    if lv < 0 { continue }
-                    if levelT[Int(at(cx + dx, y + 1, cz + dz))] >= 0 { return 0 }
+                    let cell = at(cx + dx, y, cz + dz)
+                    if fkT[Int(cell)] != kind { continue }
+                    let lv = Int(levelT[Int(cell)])
+                    if fkT[Int(at(cx + dx, y + 1, cz + dz))] == kind { return 0 }
                     let d = (lv == 0 || lv == 8) ? 1 : 1 + (lv * 6 + 3) / 7
                     if d < best { best = d }
                 }
@@ -294,12 +295,13 @@ enum Mesher {
                     }
 
                     let isLiquid = rt == rLiquid
-                    let liquidTop = isLiquid && levelT[Int(at(x, y + 1, z))] < 0
+                    let fk = fkT[bi]
+                    let liquidTop = isLiquid && fkT[Int(at(x, y + 1, z))] != fk
                     for f in 0..<6 {
                         let nb = R[i + offs[f]]
                         if opaqueT[Int(nb)] { continue }
                         if isLiquid {
-                            if levelT[Int(nb)] >= 0 { continue }
+                            if fkT[Int(nb)] == fk { continue }
                         } else if cullSameT[bi] && nb == b {
                             continue
                         }
@@ -339,9 +341,10 @@ enum Mesher {
                             let ci = (f * 4 + c) * 3
                             let px = CT[ci] * 16, pz = CT[ci + 2] * 16
                             var py = CT[ci + 1] * 16
-                            if liquidTop && py == 16 { py = 16 - 2 * cornerDrop(x + CT[ci], y, z + CT[ci + 2]) }
+                            if liquidTop && py == 16 { py = 16 - 2 * cornerDrop(x + CT[ci], y, z + CT[ci + 2], fk) }
                             let (u, v) = faceUV(f, px, py, pz)
-                            vert(isTrans, bx16 + px, by16 + py, bz16 + pz, f, isLiquid ? 3 : tintF, u, v, layer, aos[c], lit[c], overlay)
+                            let shadeIdx = isLiquid && fk == 2 ? 7 : f      // 7 = lava (flat bright, animated)
+                            vert(isTrans, bx16 + px, by16 + py, bz16 + pz, shadeIdx, isLiquid ? (fk == 1 ? 3 : 0) : tintF, u, v, layer, aos[c], lit[c], overlay)
                         }
                     }
                 }
