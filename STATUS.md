@@ -45,6 +45,19 @@ Controller: LS move, RS look, A jump, B sneak, L3 sprint, RT attack/mine, LT use
 X pick block, D-pad ↓ drop, D-pad ↑ fly. In menus: D-pad/LS move cursor, A = click, X = right-click, Y = shift-click,
 B close, RS scroll creative.
 
+## Rendering performance
+- Greedy meshing of flat-lit cube faces (merged quads take repeating UVs from their position in the shader).
+- LOD: chunks beyond 8 chunks mesh with flat light (fully merged), no plants/rails/dust, and skip faces facing pitch-dark
+  cells; they re-mesh when crossing the boundary. Render distance goes up to 24 in Options.
+- Cave culling: each section stores which faces connect through open cells; the renderer walks sections outward from the
+  camera through connected faces only (plus frustum). CI rd 12 overworld frame: ~26 ms -> ~9 ms (VM GPU).
+
+## Couch / TV mode
+- In-game pause + options screens (Metal-drawn) drive fully with a controller: FOV, sensitivity, invert Y, stick dead
+  zone, render distance, GUI scale (auto/1-6), couch mode (bigger HUD), volume, difficulty, game mode, load world,
+  new world. Button legends show under every menu when a pad is connected. Text entry (signs, book titles, named worlds,
+  anvil names) still needs a keyboard; everything else works pad-only.
+
 ## Known gaps / decisions
 - Save format changed with the engine rework (chunks3/, name-paletted); worlds from the 8-bit engine start fresh terrain.
 - Terrain is generated with our own noises and numbers: same features, biome logic, rarities and ore distributions as the reference game, but not seed-identical worlds.
