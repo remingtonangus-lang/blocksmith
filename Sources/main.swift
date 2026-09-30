@@ -623,6 +623,7 @@ enum Snapshot {
             let route = PathFinder.find(world, from: from, to: to, tall: 2) ?? []
             print("path: \(route.count) nodes, ends \(route.last.map { "\($0.x - bx),\($0.y - gy),\($0.z - bz)" } ?? "-")")
             let z = Mob(.zombie, at: from)
+            z.lockTime = 60                                   // already chasing (the wall hides the player)
             game.mobs.mobs.removeAll()
             game.mobs.mobs.append(z)
             game.paused = false
@@ -641,6 +642,7 @@ enum Snapshot {
             print(String(format: "pathtest: zombie start %.1f from player, end %.1f, reached %@", d0, simd_length(z.pos - to), reached < 0 ? "never" : String(format: "after %.1f s", reached)))
             game.player.pos = pos
         }
+        if CommandLine.arguments.contains("--mobtests") && !MobTests.run(game: game, world: world, pos: pos, rd: rd) { return 1 }
         if let secs = Double(arg("--ticks") ?? "") {
             // Let the world run (mobs, sparkstone, villagers) with the camera held still.
             let keep = (game.player.pos, game.player.yaw, game.player.pitch)

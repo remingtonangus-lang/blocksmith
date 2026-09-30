@@ -432,6 +432,7 @@ enum Recipes {
             r.append(shaped(["AAA", "APA", "AAA"], ["A": "arrow", "P": Potions.itemName("lingering_potion", t.key)], Potions.itemName("tipped_arrow", t.key), 8))
         }
         r += springRecipes()
+        r += Cloudwailer.recipes()
         return r.compactMap { $0 }
     }
 

@@ -139,6 +139,28 @@ Findings / changes (performance branch):
   n9 copies), generation lattices and allocator high-water. Uniform sections (all air / all stone) could skip their
   block+light arrays. This branch's pooled mesh slabs (MeshArena.swift) already removed the per-section 16 KB pages.
 - Visuals session: distant ocean at night shows faint chunk-seam grid on the water surface (QA, seed 777).
+## Mobs, villagers, raids (mob workstream, branch claude/epic-hamilton-t5vse7)
+- Raids: 3/5/7 waves by difficulty (+1 bonus wave above omen I), reference bonus spawns, a captain per wave,
+  siegebeast riders (marauder on Normal wave 5, conjurer + brigand from Hard wave 7), raid weapon enchants by omen level,
+  omen absorption into a running raid, Village Hero gifts; day-only patrols sized by regional difficulty.
+- Pathfinding (Pathfinding.swift): 8-way A*, ladders/vines/scaffolding, 2x2 footprint for wide mobs, water malus 8,
+  fire/lava proximity malus, per-mob fall limits, zombies break wooden doors on Hard.
+- Spawning (Spawning.swift): reference categories and caps, per-biome packs, light/sky rules, slimes, water/cave/ambient
+  spawns, generation-time animal packs (populated.json), despawn timers, chicken and spider jockeys.
+- AI (MobAI.swift): follow ranges with line of sight + memory, sneaking/heads/invisibility, avoidance goals, babies
+  follow adults. Villagers (VillageLife.swift): schedules, gossip/reputation (prices, golem hostility at -100), golem
+  summoning by sleeping + gossiping villagers. Spawn eggs for every mob; zombie horse; Mirage Caster (illusioner).
+- Behaviour (Conversions.swift, Bees.swift, MobAI.swift): zombies drown into Sunken, husks into zombies, skeletons
+  freeze into strays, boarlings/tuskers turn undead outside the Emberdeep, tadpoles grow into frogs; Hard zombie
+  reinforcements; wandering trader + llamas, village cats, skeleton trap horses; bees with hives, nectar, honey and
+  crop pollination; voidwalkers carry blocks and dodge arrows; helmets block sunburn; strays/mire skeletons tip arrows;
+  sunken throw tridents; tamed wolves defend the owner; cat morning gifts; sheep graze and regrow wool; foxes sleep by
+  day; polar bear mothers; llama spit; pandas with personality genes; axolotls play dead; turtles/frogs lay eggs;
+  mules and horse stat inheritance; reference baby odds; Cloudwailer (happy ghast) with harnesses.
+- Newest roster, approximations from memory of the reference: Sunscorched Skeleton (parched, weakness arrows, desert,
+  sun-proof), Dust Camel (camel husk carrying a dust zombie + sunscorched skeleton), Nautilus (warm oceans) and Sunken
+  Nautilus (ridden by 5% of ocean sunken). Not yet: riding/taming nautiluses, the spear, copper golem (needs copper chests).
+- `--mobtests` (MobTests.swift) checks all of the above headlessly and exits non-zero on a failure.
 
 ## Known gaps / decisions
 - Save format changed with the engine rework (chunks3/, name-paletted); worlds from the 8-bit engine start fresh terrain.

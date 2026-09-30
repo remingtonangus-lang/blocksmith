@@ -133,6 +133,7 @@ extension Game {
             if m.kind.key == "mooshroom" { m.variant = m.variant == 0 ? 1 : 0 }
         }
         mobs.mobs += add
+        lightningTrap(at)
     }
 
     // Snow layers and ice form during snowfall / cold weather (a few columns per tick).

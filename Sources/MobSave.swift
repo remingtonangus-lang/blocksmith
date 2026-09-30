@@ -27,8 +27,9 @@ struct MobRecord: Codable {
 extension Mob {
     var keepOnUnload: Bool {
         if health <= 0 { return false }
-        if persistent || customName != nil || villager != nil { return true }
-        return !kind.hostile || kind == .minecart || equip != nil
+        if persistent || customName != nil || villager != nil || leashed { return true }
+        // Despawning categories (monsters, bats, fish, squid...) are simply dropped when their chunk unloads.
+        return !kind.category.despawns
     }
 
     var record: MobRecord {
@@ -127,9 +128,13 @@ extension MobManager {
             all[k, default: []].append(m.record)
         }
         if let d = try? JSONEncoder().encode(all) { try? d.write(to: s.dir.appendingPathComponent("mobs.json"), options: .atomic) }
+        savePopulated(to: s)
+        saveHives(to: s)
     }
 
     func load(from s: SaveManager?) {
+        loadPopulated(from: s)
+        loadHives(from: s)
         guard let s = s, let d = try? Data(contentsOf: s.dir.appendingPathComponent("mobs.json")),
               let all = try? JSONDecoder().decode([String: [MobRecord]].self, from: d) else { return }
         for (key, v) in all {

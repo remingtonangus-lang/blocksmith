@@ -831,6 +831,7 @@ final class Game {
         let h = held
         if useNow, let m = mobHit ?? mobs.raycast(player.eye, player.look, maxDist: 3.5)?.0, useItemOnMob(m) { swing = 1; return }
         if useNow && Items.key(h.item) == "ender_eye" && useSeekerEye(on: target) { swing = 1; return }
+        if useNow && useSpawnEgg(on: target) { swing = 1; return }
         if useNow && Items.key(h.item) == "firework_rocket" && player.gliding {
             player.boost = 0.5 + 0.6 * Float(max(1, h.tag))
             consumeHeld()
@@ -1179,6 +1180,7 @@ final class Game {
             openMenu(CrafterMenu(game: self, entity: be))
         case "decorated_pot": usePot(p)
         case "chest":
+            boarlingsGuard(p, block: world.block(p.x, p.y, p.z))
             let be = world.blockEntities[p] ?? BlockEntity(.chest)
             world.blockEntities[p] = be
             // A neighbouring chest with the same facing along the chest's width makes a large chest.
@@ -1240,6 +1242,7 @@ final class Game {
     }
 
     func breakBlock(_ p: IVec3, _ b: BlockID, drop: Bool) {
+        boarlingsGuard(p, block: b)
         sfx(.breakBlock(soundMat(b)), at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
         particles.blockBreak(b, at: p)
         world.setBlock(p.x, p.y, p.z, AIR)
@@ -1503,6 +1506,7 @@ final class Game {
     // Mob hits on the player: armor-reduced damage plus knockback away from the attacker.
     func hurtPlayer(_ amount: Int, from src: V3, cause: String, knockback: Float = 1, type: DamageType = .generic, attacker: Mob? = nil) {
         guard survival, alive, amount > 0 else { return }
+        if let a = attacker { petsAttack(a) }
         if shieldBlocks(amount, from: src, type: type, attacker: attacker) { return }
         var amount = amount
         if attacker != nil || type == .projectile {
@@ -1771,6 +1775,7 @@ final class Game {
                 let day = floor(time / DAY_LENGTH)
                 time = (day + 1) * DAY_LENGTH + 0.01 * DAY_LENGTH
                 sleeping = 0
+                catGifts()
                 onToast?("Good morning")
                 weather.raining = false; weather.thundering = false; weather.rain = 0; weather.thunder = 0
                 weather.rainTime = Float.random(in: 600...9000); weather.thunderTime = Float.random(in: 600...9000)
