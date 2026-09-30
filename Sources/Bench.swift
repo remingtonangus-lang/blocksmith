@@ -517,6 +517,8 @@ enum Bench {
         put("\(k).realtime", Double(frames) * dt / wall)
         put("\(k).chunks", Double(world.chunks.count))
         put("\(k).draw_calls", Double(r.drawCalls))
+        put("\(k).cull_walked_sections", Double(r.bfsVisited))
+        put("\(k).cull_ms", r.cullSeconds * 1000)
         put("\(k).drawn_kquads", Double(r.drawnQuads) / 1000)
         put("\(k).chunk_mb", chunkMB(world))
         put("\(k).mesh_mb", meshMB(world))

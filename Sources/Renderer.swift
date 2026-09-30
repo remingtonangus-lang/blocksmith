@@ -66,6 +66,8 @@ final class Renderer: NSObject, MTKViewDelegate {
     private(set) var drawCalls = 0          // chunk section draws last frame (opaque, cutout, water)
     private(set) var drawnQuads = 0
     private(set) var visibleSections = 0
+    private(set) var bfsVisited = 0          // sections walked by cave culling last frame
+    private(set) var cullSeconds = 0.0       // culling walk + sort, last frame
     private var visibleScratch: [(Chunk, Int, Float)] = []
     private var visitGen: [UInt32] = []
     private var gen: UInt32 = 0
@@ -364,6 +366,8 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         // Visible sections, near to far
         let pcx = floorDiv(Int(floor(eye.x)), CS), pcz = floorDiv(Int(floor(eye.z)), CS)
+        let cullStart = CFAbsoluteTimeGetCurrent()
+        bfsVisited = 0
         visibleScratch.removeAll(keepingCapacity: true)
         var drawnSet = 0
         let pSec = Int(floor(eye.y / 16))
@@ -388,6 +392,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             let dirs = [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)]
             while head < bfs.count {
                 let (c, dx, dz, sy, entry, dirMask) = bfs[head]; head += 1
+                bfsVisited += 1
                 let sec = c.sections[sy]
                 let mn = V3(Float(c.cx * CS), Float(sy * 16), Float(c.cz * CS))
                 if !sec.empty {
@@ -429,6 +434,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
         }
         visibleScratch.sort { $0.2 < $1.2 }
+        cullSeconds = CFAbsoluteTimeGetCurrent() - cullStart
         drawnChunks = drawnSet
         visibleSections = visibleScratch.count
         let visible = visibleScratch
