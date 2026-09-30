@@ -357,7 +357,15 @@ extension Game {
         if !survival { return .creative }
         if weather.rain > 0.6 { return .rain }
         let f = dayFraction
-        return f < 0.5 ? .day : .night
+        if f >= 0.5 { return .night }
+        // Daytime flavour by biome.
+        switch audio.biomeHere {
+        case .snowyPlains, .iceSpikes, .snowyTaiga, .snowySlopes, .frozenPeaks, .jaggedPeaks, .grove, .snowyBeach, .frozenRiver: return .snow
+        case .desert, .badlands, .erodedBadlands, .woodedBadlands: return .desert
+        case .ocean, .deepOcean, .warmOcean, .lukewarmOcean, .deepLukewarmOcean, .coldOcean, .deepColdOcean, .frozenOcean, .deepFrozenOcean, .beach: return .ocean
+        case .cherryGrove, .meadow, .flowerForest, .sunflowerPlains: return .grove
+        default: return .day
+        }
     }
 
     func musicTick(_ dt: Float) {
