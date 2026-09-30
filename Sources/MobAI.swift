@@ -287,12 +287,15 @@ extension Mob {
             } else if Float.random(in: 0..<1) < 0.02 { hasEgg = false }
             return true
         case .frog:
-            guard let spot = findNearby(w, radius: 8, where: { q in
-                Blocks.fluidKind[Int(w.block(q.x, q.y - 1, q.z))] == 1 && w.block(q.x, q.y, q.z) == AIR }) else { return false }
+            func surface(_ q: IVec3) -> Bool { Blocks.fluidKind[Int(w.block(q.x, q.y - 1, q.z))] == 1 && w.block(q.x, q.y, q.z) == AIR }
+            if let f = flower, !surface(f) { flower = nil }
+            if flower == nil { flower = findNearby(w, radius: 8, where: surface) }
+            guard let spot = flower else { return false }
             let t = V3(Float(spot.x) + 0.5, Float(spot.y), Float(spot.z) + 0.5)
             if simd_length(t - pos) > 1.5 { face(t); moving = true; return true }
             if Blocks.has("frogspawn") { w.setBlock(spot.x, spot.y, spot.z, Blocks.id("frogspawn")) }
             hasEgg = false
+            flower = nil
             return true
         default:
             if Items.has("sniffer_egg") { g.drops.spawn(ItemStack(Items.id("sniffer_egg"), 1), at: pos + V3(0, 0.5, 0)) }
