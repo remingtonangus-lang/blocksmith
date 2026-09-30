@@ -14,6 +14,7 @@ enum Key {
 final class InputState {
     var keys = Set<UInt16>()
     var pressed = Set<UInt16>()
+    var typed = ""                 // printable characters typed this frame (text fields)
     var mouseDX: Float = 0
     var mouseDY: Float = 0
     var leftDown = false
@@ -36,6 +37,7 @@ final class InputState {
 
     func endFrame() {
         pressed.removeAll(keepingCapacity: true)
+        if !typed.isEmpty { typed = "" }
         mouseDX = 0
         mouseDY = 0
         leftClicked = false

@@ -75,6 +75,19 @@ enum Snapshot {
             game.hunger = 13
             game.air = 7
         }
+        if CommandLine.arguments.contains("--effects") {
+            // Status-effect HUD test: absorption and health boost hearts, poison tint, icons.
+            game.survival = true
+            game.applyEffect(.healthBoost, amp: 1, seconds: 120)
+            game.health = 24
+            game.applyEffect(.absorption, amp: 1, seconds: 100)
+            game.applyEffect(.poison, amp: 0, seconds: 20)
+            game.applyEffect(.strength, amp: 1, seconds: 180)
+            game.applyEffect(.nightVision, amp: 0, seconds: 300)
+            game.applyEffect(.fireResistance, amp: 0, seconds: 5)
+            game.applyEffect(.speed, amp: 0, seconds: 60)
+            game.applyEffect(.slowness, amp: 3, seconds: 20)
+        }
         if CommandLine.arguments.contains("--debug") {
             game.showDebug = true
             game.onToast?("Grass Block")
@@ -100,12 +113,54 @@ enum Snapshot {
                 be.container[2] = ItemStack(Items.id("iron_ingot"), 2)
                 be.burn = 900; be.burnMax = 1600; be.cook = 120
                 game.openMenu(FurnaceMenu(game: game, entity: be))
+            case "brewing":
+                let be = BlockEntity(.brewing)
+                be.container[0] = ItemStack(Potions.item(0, "awkward")!, 1)
+                be.container[1] = ItemStack(Potions.item(0, "strong_healing")!, 1)
+                be.container[2] = ItemStack(Potions.item(1, "poison")!, 1)
+                be.container[3] = ItemStack(Items.id("glistering_melon_slice"), 4)
+                be.container[4] = ItemStack(Items.id("blaze_powder"), 2)
+                be.fuel = 14; be.brewTime = 150; be.brewIngredient = be.container[3].item
+                game.inventory.main[9] = ItemStack(Potions.item(2, "long_night_vision")!, 1)
+                game.inventory.main[10] = ItemStack(Potions.item(3, "harming")!, 16)
+                game.openMenu(BrewingMenu(game: game, entity: be))
+            case "enchant":
+                game.survival = true
+                game.xpLevel = 30
+                let m = EnchantMenu(game: game, at: IVec3(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z))))
+                m.shelves = 15
+                m.box[0] = ItemStack(Items.id("diamond_pickaxe"), 1)
+                m.box[1] = ItemStack(Items.id("lapis_lazuli"), 12)
+                m.changed()
+                game.openMenu(m)
+                var sword = ItemStack(Items.id("diamond_sword"), 1)
+                sword.ench = Enchant.pack([(.sharpness, 5), (.looting, 3), (.unbreaking, 3), (.mending, 1), (.vanishingCurse, 1)])
+                game.inventory.main[10] = sword
+                game.menuCursor = 5 + 18 + 1
+                game.menuHover = m.slots[game.menuCursor]
+            case "anvil":
+                game.survival = true
+                game.xpLevel = 12
+                let m = AnvilMenu(game: game, at: IVec3(0, 0, 0))
+                var pick = ItemStack(Items.id("diamond_pickaxe"), 1); pick.damage = 900
+                pick.ench = Enchant.pack([(.efficiency, 4)])
+                var book = ItemStack(Items.id("enchanted_book"), 1)
+                book.ench = Enchant.pack([(.efficiency, 4), (.fortune, 3)])
+                m.box[0] = pick; m.box[1] = book
+                m.name = "Digger"; m.editing = true
+                m.changed()
+                game.openMenu(m)
             default:
                 game.survival = true
+                game.applyEffect(.speed, amp: 1, seconds: 95)
+                game.applyEffect(.regeneration, amp: 0, seconds: 30)
+                game.applyEffect(.poison, amp: 0, seconds: 8)
                 game.openMenu(InventoryMenu(game: game))
             }
-            game.menuCursor = 12
-            game.menuHover = game.menu?.slots[12]
+            if !(game.menu is EnchantMenu) {
+                game.menuCursor = 12
+                game.menuHover = game.menu?.slots[12]
+            }
             game.input.mouseX = -1
         }
         var t = world.loadSync(center: pos, radius: rd)
@@ -196,6 +251,20 @@ enum Snapshot {
                 m.walkPhase = Float(i) * 0.8
                 m.walkAmount = 1
                 game.mobs.mobs.append(m)
+            }
+        }
+        if let list = arg("--place") {
+            // Blocks in a row 4 blocks in front of the camera on a smooth stone strip ("name" or "name:state").
+            let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)), r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))
+            let names = list.split(separator: ",").map(String.init)
+            for (i, n) in names.enumerated() {
+                let parts = n.split(separator: ":")
+                guard Blocks.has(String(parts[0])) else { print("unknown block \(n)"); continue }
+                let p = pos + f * 4 + r * (Float(i) - Float(names.count - 1) / 2) * 1.5
+                let x = Int(floor(p.x)), z = Int(floor(p.z))
+                let gy = world.topY(x, z)
+                world.setBlock(x, gy, z, Blocks.id("smooth_stone"))
+                world.setBlock(x, gy + 1, z, Blocks.id(String(parts[0])) + BlockID(parts.count > 1 ? Int(parts[1]) ?? 0 : 0))
             }
         }
         if CommandLine.arguments.contains("--redstone") {

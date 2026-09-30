@@ -21,6 +21,8 @@ final class GameView: MTKView {
         if e.keyCode == Key.esc { if !e.isARepeat { onEscape?() }; return }
         if !e.isARepeat { input.pressed.insert(e.keyCode) }
         input.keys.insert(e.keyCode)
+        if input.uiMode, let c = e.characters { input.typed += c.filter { $0.isASCII && ($0.isLetter || $0.isNumber || $0.isPunctuation || $0 == " " || $0.isSymbol) } }
+        if input.uiMode && e.keyCode == 51 { input.typed += "\u{8}" }
     }
     override func keyUp(with e: NSEvent) { input.keys.remove(e.keyCode) }
     override func flagsChanged(with e: NSEvent) {

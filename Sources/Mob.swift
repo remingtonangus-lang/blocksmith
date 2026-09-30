@@ -155,6 +155,8 @@ final class Mob {
     var peek: Float = 0             // shulker lid opening 0...1
     var home: V3?                   // villager / golem: where it was placed (it stays near)
     weak var target: Mob?           // golem: the monster it is chasing
+    var effects: EffectSet?         // status effects (allocated on first use)
+    var lootingLevel = 0            // Looting on the weapon that last hit it
 
     init(_ kind: MobKind, at p: V3) {
         self.kind = kind
@@ -238,12 +240,15 @@ final class Mob {
             fire -= dt
             fireTick += dt
             if fireTick >= 1 { fireTick = 0; health -= 1; hurt = 0.3 }
+            if effects?.has(.fireResistance) ?? false { fire = 0 }
         }
+        effectTick(dt, g)
 
         let player = g.player.pos
         let toPlayer = player - pos
         let dist = simd_length(toPlayer)
-        let canTarget = g.survival && g.alive && dist < 24
+        // Invisible players are only noticed up close.
+        let canTarget = g.survival && g.alive && dist < (g.effects.has(.invisibility) ? 7 : 24)
         var speed: Float = 0
 
         switch spec.behavior {
@@ -275,7 +280,7 @@ final class Mob {
                 speed = spec.speed * 1.2
                 if dist < halfW + 1.3 && abs(toPlayer.y) < 2 && attackCooldown <= 0 {
                     attackCooldown = 1
-                    g.hurtPlayer(spec.attack, from: pos, cause: "was slain by \(spec.name)")
+                    g.hurtPlayer(spec.attack, from: pos, cause: "was slain by \(spec.name)", attacker: self)
                 }
             } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .ghast:
@@ -327,9 +332,19 @@ final class Mob {
         case .dragon, .crystal, .shulker, .vehicle:
             break
         case .witch:
-            // Throws harming (or poison) potions from 4-10 blocks; drinks healing when hurt.
-            if health < 14 && attackCooldown <= 0 && Float.random(in: 0..<1) < 0.3 {
-                attackCooldown = 2; health = min(spec.health, health + 4); g.sfx(.eat, 0.6, at: pos)
+            // Reference witch: drinks water breathing / fire resistance / healing / swiftness as needed, and
+            // throws slowness (far), poison (healthy target), weakness (close, 25%) or harming.
+            if attackCooldown <= 0 {
+                var drink: String?
+                if inWater && !(effects?.has(.waterBreathing) ?? false) && Float.random(in: 0..<1) < 0.15 { drink = "water_breathing" }
+                else if fire > 0 && !(effects?.has(.fireResistance) ?? false) && Float.random(in: 0..<1) < 0.15 { drink = "fire_resistance" }
+                else if health < spec.health && Float.random(in: 0..<1) < 0.05 { drink = "healing" }
+                else if canTarget && dist > 11 && !(effects?.has(.speed) ?? false) && Float.random(in: 0..<1) < 0.5 { drink = "swiftness" }
+                if let d = drink, let t = Potions.types.first(where: { $0.key == d }) {
+                    attackCooldown = 1.6
+                    for e in t.effects { applyEffect(e.0, amp: e.2, seconds: e.1, game: g) }
+                    g.sfx(.drink, 0.6, at: pos)
+                }
             }
             if canTarget && dist < 16 && w.canSee(eye, g.player.eye) {
                 face(player)
@@ -338,7 +353,11 @@ final class Mob {
                     attackCooldown = 3
                     var d = g.player.eye - eye
                     d.y += simd_length(V2(d.x, d.z)) * 0.15
-                    g.projectiles.fireball(from: eye + forward * 0.4, dir: simd_normalize(d), big: false, byPlayer: false, potion: dist > 5 && Float.random(in: 0..<1) < 0.4 ? 2 : 1)
+                    var type = "harming"
+                    if dist >= 8 && !g.effects.has(.slowness) { type = "slowness" }
+                    else if g.health >= 8 && !g.effects.has(.poison) { type = "poison" }
+                    else if dist <= 3 && !g.effects.has(.weakness) && Float.random(in: 0..<1) < 0.25 { type = "weakness" }
+                    g.projectiles.fireball(from: eye + forward * 0.4, dir: simd_normalize(d), big: false, byPlayer: false, potion: Potions.item(1, type) ?? 0)
                     g.sfx(.bow, 0.5, at: pos)
                 }
             } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
@@ -388,9 +407,10 @@ final class Mob {
                 let reach = halfW + 1.1
                 if dist < reach + 0.2 && abs(toPlayer.y) < 2 && attackCooldown <= 0 {
                     attackCooldown = 1
-                    g.hurtPlayer(spec.attack, from: pos, cause: "was slain by \(spec.name)")
-                    if kind == .witherSkeleton { g.witherTime = 10; g.witherTick = min(g.witherTick, 2) }
-                    if kind == .caveSpider { g.poisonTime = max(g.poisonTime, 7) }
+                    g.hurtPlayer(spec.attack, from: pos, cause: "was slain by \(spec.name)", attacker: self)
+                    if kind == .witherSkeleton { g.applyEffect(.wither, amp: 0, seconds: 10) }
+                    if kind == .caveSpider { g.applyEffect(.poison, amp: 0, seconds: 7) }
+                    if kind == .husk { g.applyEffect(.hunger, amp: 0, seconds: 7) }
                 }
             } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .ranged:
@@ -437,7 +457,7 @@ final class Mob {
                 speed = spec.speed * 2
                 if dist < 1.6 && attackCooldown <= 0 {
                     attackCooldown = 1
-                    g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Enderman")
+                    g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Enderman", attacker: self)
                 }
             } else { wander(); speed = moving ? spec.speed * 0.4 : 0 }
         case .slime:
@@ -452,7 +472,7 @@ final class Mob {
             if canTarget && (slimeSize > 1 || kind == .magmaCube) && dist < halfW + 0.9 && attackCooldown <= 0 {
                 attackCooldown = 1
                 let dmg = kind == .magmaCube ? [0, 3, 4, 0, 6][min(4, slimeSize)] : (slimeSize == 4 ? 4 : 2)
-                g.hurtPlayer(dmg, from: pos, cause: "was slain by \(spec.name)")
+                g.hurtPlayer(dmg, from: pos, cause: "was slain by \(spec.name)", attacker: self)
             }
         }
 
@@ -480,7 +500,7 @@ final class Mob {
             return
         }
         if spec.behavior != .slime || onGround {
-            let target = forward * speed
+            let target = forward * speed * effectSpeed
             let k = 1 - expf(-(onGround ? 12 : 3) * dt)
             vel.x += (target.x - vel.x) * k
             vel.z += (target.z - vel.z) * k

@@ -211,19 +211,24 @@ enum Loot {
         "dungeon": (1...3, [("saddle", 1, 1, 20), ("golden_apple", 1, 1, 15), ("iron_ingot", 1, 4, 10), ("gold_ingot", 1, 4, 5),
                             ("bread", 1, 1, 20), ("wheat", 1, 4, 20), ("gunpowder", 1, 4, 10), ("string", 1, 4, 10),
                             ("bucket", 1, 1, 10), ("redstone", 1, 4, 15), ("coal", 1, 4, 15), ("bone", 1, 8, 10),
-                            ("rotten_flesh", 1, 8, 10), ("name_tag", 1, 1, 20), ("music_disc_13", 1, 1, 15)]),
+                            ("rotten_flesh", 1, 8, 10), ("name_tag", 1, 1, 20), ("music_disc_13", 1, 1, 15),
+                            ("enchanted_book", 1, 1, 10), ("enchanted_golden_apple", 1, 1, 2)]),
         "stronghold_corridor": (2...3, [("ender_pearl", 1, 1, 10), ("diamond", 1, 3, 3), ("iron_ingot", 1, 5, 10), ("gold_ingot", 1, 3, 5),
                                         ("redstone", 4, 9, 5), ("bread", 1, 3, 15), ("apple", 1, 3, 15), ("iron_pickaxe", 1, 1, 5),
                                         ("iron_sword", 1, 1, 5), ("iron_chestplate", 1, 1, 5), ("iron_helmet", 1, 1, 5),
                                         ("iron_leggings", 1, 1, 5), ("iron_boots", 1, 1, 5), ("golden_apple", 1, 1, 1)]),
         "stronghold_library": (2...10, [("book", 1, 3, 20), ("paper", 2, 7, 20), ("map", 1, 1, 1), ("compass", 1, 1, 1),
-                                         ("enchanted_book", 1, 1, 10)]),
+                                         ("enchanted_book@30", 1, 1, 10)]),
         "end_city_treasure": (2...6, [("diamond", 2, 7, 5), ("iron_ingot", 4, 8, 10), ("gold_ingot", 2, 7, 15), ("emerald", 2, 6, 2),
-                                        ("beetroot_seeds", 1, 10, 5), ("saddle", 1, 1, 3), ("diamond_sword", 1, 1, 3), ("diamond_pickaxe", 1, 1, 3),
-                                        ("diamond_chestplate", 1, 1, 3), ("iron_sword", 1, 1, 3), ("iron_pickaxe", 1, 1, 3), ("iron_helmet", 1, 1, 3)]),
+                                        ("beetroot_seeds", 1, 10, 5), ("saddle", 1, 1, 3), ("diamond_sword@20-39", 1, 1, 3), ("diamond_pickaxe@20-39", 1, 1, 3),
+                                        ("diamond_chestplate@20-39", 1, 1, 3), ("diamond_helmet@20-39", 1, 1, 3), ("diamond_leggings@20-39", 1, 1, 3),
+                                        ("diamond_boots@20-39", 1, 1, 3), ("diamond_shovel@20-39", 1, 1, 3), ("iron_sword@20-39", 1, 1, 3),
+                                        ("iron_pickaxe@20-39", 1, 1, 3), ("iron_helmet@20-39", 1, 1, 3), ("iron_chestplate@20-39", 1, 1, 3),
+                                        ("iron_leggings@20-39", 1, 1, 3), ("iron_boots@20-39", 1, 1, 3), ("iron_shovel@20-39", 1, 1, 3)]),
         "end_ship_elytra": (1...1, [("elytra", 1, 1, 1)]),
         "jungle_temple": (2...6, [("diamond", 1, 3, 3), ("iron_ingot", 1, 5, 10), ("gold_ingot", 2, 7, 15), ("emerald", 1, 3, 2),
-                                  ("bone", 4, 6, 20), ("rotten_flesh", 3, 7, 16), ("saddle", 1, 1, 3), ("bamboo", 1, 3, 15)]),
+                                  ("bone", 4, 6, 20), ("rotten_flesh", 3, 7, 16), ("saddle", 1, 1, 3), ("bamboo", 1, 3, 15),
+                                  ("enchanted_book@30", 1, 1, 1)]),
         "igloo_chest": (2...8, [("apple", 1, 3, 15), ("coal", 1, 4, 15), ("gold_nugget", 1, 3, 10), ("stone_axe", 1, 1, 2),
                                 ("rotten_flesh", 1, 1, 10), ("emerald", 1, 1, 1), ("wheat", 2, 3, 10), ("golden_apple", 1, 1, 1)]),
         "pillager_outpost": (2...3, [("wheat", 3, 5, 7), ("potato", 2, 5, 5), ("carrot", 3, 5, 5), ("dark_oak_log", 2, 3, 10),
@@ -232,7 +237,7 @@ enum Loot {
         "ruined_portal": (4...8, [("obsidian", 1, 2, 40), ("flint", 1, 4, 40), ("iron_nugget", 9, 18, 40), ("flint_and_steel", 1, 1, 40),
                                   ("fire_charge", 1, 1, 40), ("golden_apple", 1, 1, 15), ("gold_nugget", 4, 24, 15), ("golden_sword", 1, 1, 15),
                                   ("golden_axe", 1, 1, 15), ("golden_hoe", 1, 1, 15), ("golden_shovel", 1, 1, 15), ("golden_pickaxe", 1, 1, 15),
-                                  ("golden_boots", 1, 1, 15), ("golden_chestplate", 1, 1, 15), ("golden_helmet", 1, 1, 15), ("golden_leggings", 1, 1, 15),
+                                  ("golden_boots@0", 1, 1, 15), ("golden_chestplate@0", 1, 1, 15), ("golden_helmet", 1, 1, 15), ("golden_leggings", 1, 1, 15),
                                   ("glistering_melon_slice", 4, 12, 5), ("golden_carrot", 4, 12, 5), ("gold_ingot", 2, 8, 5), ("clock", 1, 1, 5),
                                   ("light_weighted_pressure_plate", 1, 1, 5), ("gold_block", 1, 2, 1)]),
         "shipwreck_supply": (3...10, [("paper", 1, 12, 8), ("potato", 2, 6, 7), ("carrot", 4, 8, 7), ("wheat", 8, 21, 7), ("coal", 2, 8, 6),
@@ -253,18 +258,43 @@ enum Loot {
                             ("oak_sapling", 3, 7, 5), ("iron_helmet", 1, 1, 5)]),
         "desert_pyramid": (2...4, [("diamond", 1, 3, 5), ("iron_ingot", 1, 5, 15), ("gold_ingot", 2, 7, 15), ("emerald", 1, 3, 15),
                                    ("bone", 4, 6, 25), ("spider_eye", 1, 3, 25), ("rotten_flesh", 3, 7, 25), ("saddle", 1, 1, 20),
-                                   ("golden_apple", 1, 1, 20), ("gunpowder", 1, 8, 10)]),
+                                   ("golden_apple", 1, 1, 20), ("gunpowder", 1, 8, 10), ("enchanted_book", 1, 1, 20),
+                                   ("enchanted_golden_apple", 1, 1, 2)]),
         "mineshaft": (3...5, [("iron_ingot", 1, 5, 10), ("gold_ingot", 1, 3, 5), ("redstone", 4, 9, 5), ("lapis_lazuli", 4, 9, 5),
                               ("diamond", 1, 2, 3), ("coal", 3, 8, 10), ("bread", 1, 3, 15), ("melon_seeds", 2, 4, 10),
-                              ("pumpkin_seeds", 2, 4, 10), ("beetroot_seeds", 2, 4, 10), ("rail", 4, 8, 1), ("torch", 1, 16, 15)]),
+                              ("pumpkin_seeds", 2, 4, 10), ("beetroot_seeds", 2, 4, 10), ("rail", 4, 8, 1), ("torch", 1, 16, 15),
+                              ("enchanted_book", 1, 1, 10), ("enchanted_golden_apple", 1, 1, 1), ("golden_apple", 1, 1, 20)]),
         "bastion": (3...5, [("gold_ingot", 3, 9, 10), ("gold_block", 1, 2, 5), ("netherite_scrap", 1, 1, 3), ("diamond", 1, 3, 3),
                             ("crying_obsidian", 3, 8, 10), ("spectral_arrow", 10, 22, 6), ("golden_carrot", 6, 17, 10),
-                            ("iron_ingot", 2, 6, 10), ("obsidian", 4, 6, 10), ("magma_cream", 2, 6, 4)]),
+                            ("iron_ingot", 2, 6, 10), ("obsidian", 4, 6, 10), ("magma_cream", 2, 6, 4),
+                            ("diamond_sword@20-39", 1, 1, 3), ("diamond_chestplate@20-39", 1, 1, 3), ("diamond_helmet@20-39", 1, 1, 3),
+                            ("diamond_boots@20-39", 1, 1, 3), ("enchanted_golden_apple", 1, 1, 2)]),
     ]
+
+    // "name@a-b": enchant with a-b levels (treasure allowed); "name@0": enchant randomly (50%);
+    // "enchanted_book": one random enchantment.
+    static func stack(_ name: String, _ n: Int, rng: inout SRng) -> ItemStack {
+        let parts = name.split(separator: "@")
+        let base = String(parts[0])
+        var st = ItemStack(Items.id(base), n)
+        if base == "enchanted_book" && parts.count == 1 {
+            st.ench = Enchant.pack(Enchant.randomly(Items.id("book")))
+        } else if parts.count == 2 {
+            let r = parts[1].split(separator: "-").compactMap { Int($0) }
+            if r.first == 0 {
+                if rng.chance(0.5) { st.ench = Enchant.pack(Enchant.randomly(st.item)) }
+            } else if let lo = r.first {
+                let lv = rng.range(lo, r.count > 1 ? r[1] : lo)
+                let e = Enchant.withLevels(base == "enchanted_book" ? Items.id("book") : st.item, lv, treasure: true)
+                st.ench = e.ench
+            }
+        }
+        return st
+    }
 
     static func fill(_ c: ItemContainer, table: String, rng: inout SRng) {
         guard let t = tables[table] else { return }
-        let entries = t.entries.filter { Items.has($0.0) }
+        let entries = t.entries.filter { Items.has(String($0.0.split(separator: "@")[0])) }
         let total = entries.reduce(0) { $0 + $1.3 }
         guard total > 0 else { return }
         let rolls = rng.range(t.rolls.lowerBound, t.rolls.upperBound)
@@ -275,7 +305,7 @@ enum Loot {
                 if r < 0 {
                     var slot = rng.int(c.count)
                     for _ in 0..<c.count where !c[slot].isEmpty { slot = (slot + 1) % c.count }
-                    c[slot] = ItemStack(Items.id(e.0), rng.range(e.1, e.2))
+                    c[slot] = stack(e.0, rng.range(e.1, e.2), rng: &rng)
                     break
                 }
             }

@@ -23,7 +23,11 @@ enum Mining {
         if h == 0 { return 0 }
         var speed: Float = 1
         let key = Blocks.key(b)
-        if correctTool(b, tool) { speed = tool.def.toolSpeed }
+        if correctTool(b, tool) {
+            speed = tool.def.toolSpeed
+            let eff = Enchant.level(.efficiency, tool)
+            if eff > 0 { speed += Float(eff * eff + 1) }
+        }
         else if !tool.isEmpty && tool.def.tool == .sword { speed = key == "cobweb" ? 15 : 1.5 }
         else if !tool.isEmpty && tool.def.tool == .shears && key.hasSuffix("leaves") { speed = 15 }
         if inWater { speed /= 5 }
@@ -31,6 +35,49 @@ enum Mining {
         let perTick = speed / h / (canHarvest(b, tool) ? 30 : 100)
         if perTick >= 1 { return 0 }
         return ceilf(1 / perTick) / 20
+    }
+
+    static let noSilk: Set<String> = ["wheat", "carrots", "potatoes", "beetroots", "nether_wart", "spawner", "budding_amethyst",
+                                      "reinforced_deepslate", "cocoa", "sweet_berry_bush", "torchflower_crop", "pitcher_crop", "melon_stem",
+                                      "pumpkin_stem", "redstone_wire", "piston_head", "end_portal", "end_gateway", "cave_vines", "chorus_plant"]
+    static let fortuneOres: Set<String> = ["coal_ore", "deepslate_coal_ore", "diamond_ore", "deepslate_diamond_ore", "emerald_ore",
+                                           "deepslate_emerald_ore", "nether_quartz_ore", "lapis_ore", "deepslate_lapis_ore", "iron_ore",
+                                           "deepslate_iron_ore", "gold_ore", "deepslate_gold_ore", "copper_ore", "deepslate_copper_ore",
+                                           "nether_gold_ore", "redstone_ore", "deepslate_redstone_ore"]
+
+    // Drops with Silk Touch and Fortune applied (reference ore / plant formulas).
+    static func enchantedDrops(_ b: BlockID, _ tool: ItemStack) -> [ItemStack] {
+        guard !tool.isEmpty, tool.ench != 0 else { return drops(b, tool) }
+        let key = Blocks.key(Blocks.groupBase[Int(b)])
+        if Enchant.level(.silkTouch, tool) > 0 && canHarvest(b, tool) && !noSilk.contains(key) && !Blocks.isLiquid(b) {
+            if let i = Items.item(forBlock: b) { return [ItemStack(i, 1)] }
+        }
+        var out = drops(b, tool)
+        let f = Enchant.level(.fortune, tool)
+        guard f > 0 else { return out }
+        if fortuneOres.contains(key) {
+            if key.contains("redstone") || key.contains("lapis") || key.contains("copper") {
+                for i in out.indices { out[i].count += Int.random(in: 0...f) }       // uniform bonus
+            } else {
+                let mult = max(1, Int.random(in: 0..<(f + 2)))                    // ore bonus: x1..x(f+1)
+                for i in out.indices { out[i].count *= mult }
+            }
+        } else if key == "glowstone" {
+            for i in out.indices { out[i].count = min(4, out[i].count + Int.random(in: 0...f)) }
+        } else if key == "melon" {
+            for i in out.indices { out[i].count = min(9, out[i].count + Int.random(in: 0...f)) }
+        } else if key == "gravel" && !out.isEmpty && Items.key(out[0].item) == "gravel" {
+            if Float.random(in: 0..<1) < [0.1, 0.14285715, 0.25, 1.0][min(3, f)] - 0.1 { out = [ItemStack(item("flint"), 1)] }
+        } else if ["wheat", "beetroots"].contains(key) || ["carrots", "potatoes"].contains(key) {
+            let seed = key == "wheat" ? "wheat_seeds" : (key == "beetroots" ? "beetroot_seeds" : (key == "carrots" ? "carrot" : "potato"))
+            let stage = Int(b - Blocks.groupBase[Int(b)])
+            if stage == (key == "beetroots" ? 3 : 7) {
+                for i in out.indices where Items.key(out[i].item) == seed {
+                    for _ in 0..<f where Float.random(in: 0..<1) < 0.5714 { out[i].count += 1 }
+                }
+            }
+        }
+        return out
     }
 
     static func drops(_ b: BlockID, _ tool: ItemStack) -> [ItemStack] {

@@ -20,6 +20,7 @@ enum TextureGen {
         _ = Items.count
         for n in hudNames { _ = Tex.id(n) }
         for n in Font.names { _ = Tex.id(n) }
+        for e in Effect.allCases { _ = Tex.id("effect_" + e.key) }
     }
 
     static func r(_ x: Int, _ y: Int, _ salt: Int) -> Float { hashf(x, y, salt, 777) }
@@ -743,6 +744,7 @@ enum TextureGen {
         overworldPainters(&p)
         buildingPainters(&p)
         redstonePainters(&p)
+        magicPainters(&p)
         for (k, v) in ItemTextures.painters() { p[k] = v }
         for (k, v) in Font.painters() { p[k] = v }
         return p

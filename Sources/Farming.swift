@@ -363,24 +363,13 @@ extension Game {
                     }
                 } } }
             }
-            if dmg > 0 { damage(dmg, cause); contactTimer = 0.5 }
+            if dmg > 0 { damage(dmg, cause, type: cause == "was pricked to death" ? .generic : .fire); contactTimer = 0.5 }
         }
         if onFire > 0 {
             onFire -= dt
             fireDamageTimer -= dt
-            if fireDamageTimer <= 0 { fireDamageTimer = 1; damage(1, "burned to death") }
-        }
-        // Poison: 1 damage every 1.25 s, not below half a heart.
-        if poisonTime > 0 {
-            poisonTime -= dt
-            poisonTick -= dt
-            if poisonTick <= 0 { poisonTick = 1.25; if health > 1 { damage(1, "was poisoned", bypassArmor: true) } }
-        }
-        // Wither effect (wither skeleton hits): 1 damage every 2 s, bypassing armor.
-        if witherTime > 0 {
-            witherTime -= dt
-            witherTick -= dt
-            if witherTick <= 0 { witherTick = 2; damage(1, "withered away", bypassArmor: true) }
+            if fireDamageTimer <= 0 { fireDamageTimer = 1; damage(1, "burned to death", type: .fire) }
+            if effects.has(.fireResistance) && !player.inWater { onFire = min(onFire, 0.5) }
         }
     }
 

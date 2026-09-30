@@ -184,7 +184,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         let cmd = queue.makeCommandBuffer()!
         cmd.addCompletedHandler { [inflight] _ in inflight.signal() }
         let sky = game.skyColor
-        let clear = game.player.headInWater ? V3(0.05, 0.12, 0.3) : sky
+        let clear = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInWater ? V3(0.05, 0.12, 0.3) : sky)
         rpd.colorAttachments[0].clearColor = MTLClearColor(red: Double(clear.x), green: Double(clear.y), blue: Double(clear.z), alpha: 1)
         let enc = cmd.makeRenderCommandEncoder(descriptor: rpd)!
         let s = view.drawableSize
@@ -224,14 +224,18 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         let sky = game.skyColor
         let hasSky = game.dim.dim.hasSky
-        let fogEnd: Float = underwater ? 20 : (game.dim.dim == .nether ? min(rd * 16 - 6, 96) : rd * 16 - 6)
-        let fogStart: Float = underwater ? 1 : fogEnd * 0.62
-        let fogColor = underwater ? V3(0.05, 0.12, 0.3) : sky
+        var fogEnd: Float = underwater ? 20 : (game.dim.dim == .nether ? min(rd * 16 - 6, 96) : rd * 16 - 6)
+        var fogStart: Float = underwater ? 1 : fogEnd * 0.62
+        var fogColor = underwater ? V3(0.05, 0.12, 0.3) : sky
+        if let bf = game.blindFog { fogEnd = min(fogEnd, bf); fogStart = bf * 0.2; fogColor = V3(0, 0, 0) }
         let daylight = game.daylight
+        // Night vision lifts every light level toward full brightness.
+        let nv = game.nightVision
+        let ambient = 1 - (1 - game.dim.dim.ambient) * (1 - 0.85 * nv)
         var u = Uniforms(viewProj: viewProj,
                          fogColor: V4(fogColor, fogStart),
                          params: V4(fogEnd, daylight, Float(game.time.truncatingRemainder(dividingBy: 1000)), underwater ? 1 : 0),
-                         sunDir: V4(game.sunDir, game.dim.dim.ambient))
+                         sunDir: V4(game.sunDir, ambient))
 
         enc.setFragmentTexture(texture, index: 0)
 
@@ -623,8 +627,19 @@ final class Renderer: NSObject, MTKViewDelegate {
             let c = V2(x + size / 2, y + size / 2)
             if let layer = Items.texLayer(st.item) {
                 let h = size * 0.5
-                quad([V2(c.x - h, c.y - h), V2(c.x + h, c.y - h), V2(c.x + h, c.y + h), V2(c.x - h, c.y + h)],
-                     [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)], V4(1, 1, 1, 1), Float(layer))
+                let pts = [V2(c.x - h, c.y - h), V2(c.x + h, c.y - h), V2(c.x + h, c.y + h), V2(c.x - h, c.y + h)]
+                let uvs = [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)]
+                quad(pts, uvs, V4(1, 1, 1, 1), Float(layer))
+                if case let (ol, col)? = Items.overlayLayer(st.item) {
+                    let t = TextureGen.hex(col)
+                    quad(pts, uvs, V4(t.x, t.y, t.z, 1), Float(ol))
+                }
+                let k = st.def.name
+                if st.ench != 0 || k == "enchanted_golden_apple" || k == "experience_bottle" || k == "nether_star" || k == "enchanted_book" {
+                    // Enchantment glint: a pulsing violet sheen over the sprite.
+                    let a = 0.25 + 0.15 * sinf(Float(game.clock) * 3 + Float(x) * 0.01)
+                    quad(pts, uvs, V4(0.75, 0.35, 1, a), Float(layer))
+                }
             } else if let b = st.def.block {
                 icon(b, center: c, size: size * 0.78, quad)
             }
@@ -669,6 +684,22 @@ final class Renderer: NSObject, MTKViewDelegate {
                 rect(ax, ay + 5 * s, 22 * s, 6 * s, V4(0.55, 0.55, 0.55, 1))
                 rect(ax, ay + 5 * s, 22 * s * Float(f.be.cook) / 200, 6 * s, V4(1, 1, 1, 1))
             }
+            if m is InventoryMenu && game.effects.any {
+                var y = o.y
+                for (e, a) in game.effects.active {
+                    let bw = 120 * s
+                    let bx = o.x - bw - 4 * s
+                    guard bx > 0 else { break }
+                    rect(bx, y, bw, 32 * s, V4(0.776, 0.776, 0.776, 1))
+                    frame(bx, y, bw, 32 * s, s, V4(0.2, 0.2, 0.2, 1))
+                    quad([V2(bx + 6 * s, y + 7 * s), V2(bx + 24 * s, y + 7 * s), V2(bx + 24 * s, y + 25 * s), V2(bx + 6 * s, y + 25 * s)],
+                         [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)], V4(1, 1, 1, 1), Float(Tex.id("effect_" + e.key)))
+                    text(e.name + (a.amp > 0 ? " " + Effect.roman(a.amp + 1) : ""), bx + 28 * s, y + 7 * s, s)
+                    let secs = Int(a.time)
+                    text(a.time > 1e6 ? "Infinite" : String(format: "%d:%02d", secs / 60, secs % 60), bx + 28 * s, y + 18 * s, s, V4(0.5, 0.5, 0.5, 1))
+                    y += 33 * s
+                }
+            }
             if m is InventoryMenu {
                 rect(o.x + 26 * s, o.y + 8 * s, 50 * s, 70 * s, V4(0, 0, 0, 1))
                 rect(o.x + 27 * s, o.y + 9 * s, 48 * s, 68 * s, V4(0.35, 0.35, 0.38, 1))
@@ -676,9 +707,62 @@ final class Renderer: NSObject, MTKViewDelegate {
                 rect(o.x + 136 * s, o.y + 33 * s, 12 * s, 3 * s, V4(0.55, 0.55, 0.55, 1))
             }
             if m is CraftingTableMenu { rect(o.x + 90 * s, o.y + 33 * s, 22 * s, 6 * s, V4(0.55, 0.55, 0.55, 1)) }
-            for sl in m.slots {
+            if let b = m as? BrewingMenu {
+                // Blaze fuel bar, brew progress (downward arrow) and bubbles.
+                rect(o.x + 60 * s, o.y + 44 * s, 18 * s, 4 * s, V4(0.3, 0.3, 0.3, 1))
+                rect(o.x + 60 * s, o.y + 44 * s, 18 * s * Float(b.be.fuel) / 20, 4 * s, V4(1, 0.6, 0.1, 1))
+                rect(o.x + 97 * s, o.y + 16 * s, 9 * s, 28 * s, V4(0.55, 0.55, 0.55, 1))
+                if b.be.brewTime > 0 {
+                    let k = 1 - Float(b.be.brewTime) / 400
+                    rect(o.x + 97 * s, o.y + 16 * s, 9 * s, 28 * s * k, V4(1, 1, 1, 1))
+                    let bub = Float(Int(game.clock * 6) % 7) * 4 * s
+                    rect(o.x + 65 * s, o.y + 42 * s - bub, 3 * s, 3 * s, V4(0.9, 0.9, 1, 0.8))
+                }
+                // Tubes from the ingredient to the bottles.
+                rect(o.x + 63 * s, o.y + 36 * s, 50 * s, 2 * s, V4(0.45, 0.45, 0.45, 1))
+            }
+            if let e = m as? EnchantMenu {
+                // Open book on the left, then the three offers: cost, clue and lapis needed.
+                rect(o.x + 12 * s, o.y + 14 * s, 36 * s, 26 * s, V4(0.45, 0.22, 0.1, 1))
+                rect(o.x + 14 * s, o.y + 16 * s, 15 * s, 22 * s, V4(0.93, 0.9, 0.8, 1))
+                rect(o.x + 31 * s, o.y + 16 * s, 15 * s, 22 * s, V4(0.93, 0.9, 0.8, 1))
+                for i in 0..<3 {
+                    let bx = o.x + 60 * s, by = o.y + Float(14 + 19 * i) * s
+                    let ok = e.available(i)
+                    let hover = game.menuHover === e.slots[2 + i]
+                    let bg = e.costs[i] == 0 ? V4(0.55, 0.55, 0.55, 1) : (ok ? (hover ? V4(0.75, 0.55, 0.85, 1) : V4(0.62, 0.5, 0.7, 1)) : V4(0.45, 0.4, 0.45, 1))
+                    rect(bx, by, 108 * s, 19 * s, V4(0.2, 0.2, 0.2, 1))
+                    rect(bx + s, by + s, 106 * s, 17 * s, bg)
+                    guard e.costs[i] > 0 else { continue }
+                    // Lapis pips.
+                    for k in 0...i { rect(bx + Float(2 + k * 5) * s, by + 3 * s, 4 * s, 4 * s, V4(0.16, 0.36, 0.78, 1)) }
+                    let ct = "\(e.costs[i])"
+                    text(ct, bx + 106 * s - textWidth(ct, s), by + 10 * s, s, ok ? V4(0.5, 1, 0.13, 1) : V4(0.25, 0.45, 0.1, 1))
+                    if let c = e.clues[i] {
+                        let clue = Enchant.displayLine(c.0, c.1) + " . . . ?"
+                        text(clue, bx + 18 * s, by + 3 * s, s, ok ? V4(0.2, 0.15, 0.3, 1) : V4(0.3, 0.3, 0.3, 1), shadow: false)
+                    }
+                }
+            }
+            if let a = m as? AnvilMenu {
+                // Hammer icon, name field, "+" and arrow, level cost.
+                rect(o.x + 60 * s, o.y + 20 * s, 104 * s, 13 * s, a.editing ? V4(0, 0, 0, 1) : V4(0.25, 0.25, 0.25, 1))
+                rect(o.x + 61 * s, o.y + 21 * s, 102 * s, 11 * s, a.editing ? V4(0.08, 0.08, 0.08, 1) : V4(0.35, 0.35, 0.35, 1))
+                var nm = a.name
+                while textWidth(nm, s) > 98 * s && !nm.isEmpty { nm.removeFirst() }
+                let caret = a.editing && Int(game.clock * 2) % 2 == 0 ? "_" : ""
+                text(nm + caret, o.x + 63 * s, o.y + 23 * s, s, V4(0.95, 0.95, 0.95, 1))
+                text("+", o.x + 56 * s, o.y + 51 * s, s, titleC, shadow: false)
+                rect(o.x + 101 * s, o.y + 52 * s, 22 * s, 6 * s, V4(0.55, 0.55, 0.55, 1))
+                if a.cost > 0 {
+                    let t = a.tooExpensive ? "Too Expensive!" : "Enchantment Cost: \(a.cost)"
+                    let ok = !a.tooExpensive && (!game.survival || game.xpLevel >= a.cost)
+                    text(t, o.x + 168 * s - textWidth(t, s), o.y + 69 * s, s, ok ? V4(0.5, 1, 0.13, 1) : V4(1, 0.38, 0.38, 1))
+                }
+            }
+            for sl in m.slots where !sl.isButton {
                 let x = o.x + Float(sl.x - 1) * s, y = o.y + Float(sl.y - 1) * s
-                let bigSlot = (m is CraftingTableMenu || m is FurnaceMenu) && { if case .result = sl.kind { return true } else if case .output = sl.kind { return true } else { return false } }()
+                let bigSlot = (m is CraftingTableMenu || m is FurnaceMenu || m is AnvilMenu) && { if case .result = sl.kind { return true } else if case .output = sl.kind { return true } else { return false } }()
                 let big: Float = bigSlot ? 4 : 0
                 let bx = x - big * s, by = y - big * s, bs = (18 + 2 * big) * s
                 rect(bx, by, bs, bs, V4(0.216, 0.216, 0.216, 1))
@@ -698,12 +782,27 @@ final class Renderer: NSObject, MTKViewDelegate {
             if cursorPos.x < 0, let h = game.menuHover { cursorPos = o + V2(Float(h.x + 8), Float(h.y + 8)) * s }
             if !game.carried.isEmpty { itemIcon(game.carried, cursorPos.x - 8 * s, cursorPos.y - 8 * s, 16 * s) }
             else if let h = game.menuHover, !h.stack.isEmpty {
-                let name = h.stack.def.display
-                let tw = textWidth(name, s)
-                let tx = cursorPos.x + 12 * s, ty = cursorPos.y - 12 * s
-                rect(tx - 3 * s, ty - 3 * s, tw + 6 * s, 13 * s, V4(0.063, 0, 0.063, 0.94))
-                frame(tx - 2 * s, ty - 2 * s, tw + 4 * s, 11 * s, s, V4(0.31, 0, 1, 0.5))
-                text(name, tx, ty, s)
+                let st = h.stack
+                var lines: [(String, V4)] = [(st.displayName, st.ench != 0 ? V4(0.33, 1, 1, 1) : (st.label != nil ? V4(1, 1, 1, 1) : V4(1, 1, 1, 1)))]
+                for (e, l) in Enchant.list(st) {
+                    lines.append((Enchant.displayLine(e, l), Enchant.def(e).curse ? V4(1, 0.33, 0.33, 1) : V4(0.67, 0.67, 0.67, 1)))
+                }
+                if case let (form, t)? = Potions.potion(of: st.item) {
+                    for l in Potions.lines(form, t) {
+                        let bad = t.effects.first.map { !$0.0.beneficial } ?? false
+                        lines.append((l, t.effects.isEmpty ? V4(0.67, 0.67, 0.67, 1) : (bad ? V4(1, 0.33, 0.33, 1) : V4(0.33, 0.33, 1, 1))))
+                    }
+                }
+                if st.def.durability > 0 && st.damage > 0 {
+                    lines.append(("Durability: \(st.def.durability - st.damage) / \(st.def.durability)", V4(0.8, 0.8, 0.8, 1)))
+                }
+                let tw = lines.map { textWidth($0.0, s) }.max() ?? 0
+                let lh = 10 * s
+                let th = Float(lines.count) * lh + 3 * s
+                let tx = min(cursorPos.x + 12 * s, W - tw - 6 * s), ty = cursorPos.y - 12 * s
+                rect(tx - 3 * s, ty - 3 * s, tw + 6 * s, th, V4(0.063, 0, 0.063, 0.94))
+                frame(tx - 2 * s, ty - 2 * s, tw + 4 * s, th - 2 * s, s, V4(0.31, 0, 1, 0.5))
+                for (i, l) in lines.enumerated() { text(l.0, tx, ty + Float(i) * lh, s, l.1) }
             }
             return v
         }
@@ -745,22 +844,61 @@ final class Renderer: NSObject, MTKViewDelegate {
             func sprite(_ layer: Int, _ x: Float, _ y: Float) {
                 quad([V2(x, y), V2(x + isz, y), V2(x + isz, y + isz), V2(x, y + isz)], uv4, V4(1, 1, 1, 1), Float(layer))
             }
-            for i in 0..<10 {
-                let h = game.health - i * 2
-                sprite(h >= 2 ? HudTex.heart : (h == 1 ? HudTex.heartHalf : HudTex.heartEmpty), x0 + Float(i) * step, yh)
-                let f = game.hunger - i * 2
-                sprite(f >= 2 ? HudTex.food : (f == 1 ? HudTex.foodHalf : HudTex.foodEmpty), x0 + total - isz - Float(i) * step, yh)
+            // Hearts: rows of ten (health boost adds rows), then golden absorption hearts; poison/wither tint them.
+            let heartTint: V4 = game.effects.has(.wither) ? V4(0.35, 0.3, 0.3, 1) : (game.effects.has(.poison) ? V4(0.6, 0.85, 0.3, 1) : V4(1, 1, 1, 1))
+            let slotsH = (game.maxHealth + 1) / 2
+            let absorb = Int(game.absorption.rounded(.up))
+            let totalHearts = slotsH + (absorb + 1) / 2
+            let rows = (totalHearts + 9) / 10
+            let rowStep = max(3 * s, 10 * s - Float(rows - 2) * s)
+            func heartSprite(_ layer: Int, _ x: Float, _ y: Float, _ c: V4) {
+                quad([V2(x, y), V2(x + isz, y), V2(x + isz, y + isz), V2(x, y + isz)], uv4, c, Float(layer))
             }
+            for i in 0..<totalHearts {
+                let x = x0 + Float(i % 10) * step, y = yh - Float(i / 10) * rowStep
+                if i < slotsH {
+                    let h = game.health - i * 2
+                    heartSprite(h >= 2 ? HudTex.heart : (h == 1 ? HudTex.heartHalf : HudTex.heartEmpty), x, y, h > 0 ? heartTint : V4(1, 1, 1, 1))
+                } else {
+                    let a = absorb - (i - slotsH) * 2
+                    heartSprite(a >= 2 ? HudTex.heart : HudTex.heartHalf, x, y, V4(1, 0.85, 0.2, 1))
+                }
+            }
+            let hungerTint: V4 = game.effects.has(.hunger) ? V4(0.6, 0.8, 0.4, 1) : V4(1, 1, 1, 1)
+            for i in 0..<10 {
+                let f = game.hunger - i * 2
+                heartSprite(f >= 2 ? HudTex.food : (f == 1 ? HudTex.foodHalf : HudTex.foodEmpty), x0 + total - isz - Float(i) * step, yh, hungerTint)
+            }
+            let armorY = yh - Float(rows - 1) * rowStep - step - s
             let ap = game.inventory.armorPoints
             if ap > 0 {
                 for i in 0..<10 {
                     let a = ap - i * 2
-                    sprite(a >= 2 ? HudTex.armor : (a == 1 ? HudTex.armorHalf : HudTex.armorEmpty), x0 + Float(i) * step, yh - step - s)
+                    sprite(a >= 2 ? HudTex.armor : (a == 1 ? HudTex.armorHalf : HudTex.armorEmpty), x0 + Float(i) * step, armorY)
                 }
             }
             if game.air < 15 {
                 let b = Int(ceilf(game.air / 1.5))
                 for i in 0..<b { sprite(HudTex.bubble, x0 + total - isz - Float(i) * step, yh - step - s) }
+            }
+        }
+
+        // Active effects: icons in the top-right corner (beneficial row, then harmful), blinking near the end.
+        if game.effects.any {
+            var good = 0, bad = 0
+            for (e, a) in game.effects.active {
+                let row = e.beneficial ? 0 : 1
+                let idx = e.beneficial ? good : bad
+                if e.beneficial { good += 1 } else { bad += 1 }
+                let bx = W - Float(idx + 1) * 25 * s - 2 * s, by = 2 * s + Float(row) * 26 * s
+                let blink = a.time < 10 && Int(a.time * 4) % 2 == 0
+                rect(bx, by, 24 * s, 24 * s, V4(0.1, 0.1, 0.15, a.ambient ? 0.55 : 0.75))
+                frame(bx, by, 24 * s, 24 * s, s, a.ambient ? V4(0.3, 0.8, 0.9, 0.9) : V4(0.55, 0.55, 0.6, 0.9))
+                if !blink {
+                    quad([V2(bx + 3 * s, by + 3 * s), V2(bx + 21 * s, by + 3 * s), V2(bx + 21 * s, by + 21 * s), V2(bx + 3 * s, by + 21 * s)],
+                         [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)], V4(1, 1, 1, 1), Float(Tex.id("effect_" + e.key)))
+                }
+                if a.amp > 0 { text(Effect.roman(a.amp + 1), bx + 14 * s, by + 15 * s, s) }
             }
         }
 
@@ -844,7 +982,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         rpd.colorAttachments[0].texture = color
         rpd.colorAttachments[0].loadAction = .clear
         rpd.colorAttachments[0].storeAction = .store
-        let sky = game.player.headInWater ? V3(0.05, 0.12, 0.3) : game.skyColor
+        let sky = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInWater ? V3(0.05, 0.12, 0.3) : game.skyColor)
         rpd.colorAttachments[0].clearColor = MTLClearColor(red: Double(sky.x), green: Double(sky.y), blue: Double(sky.z), alpha: 1)
         rpd.depthAttachment.texture = depth
         rpd.depthAttachment.loadAction = .clear

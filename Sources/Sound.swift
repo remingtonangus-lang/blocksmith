@@ -14,6 +14,7 @@ enum Snd: Hashable {
     case splash, land, hurt, eat, click, open, mobCow, mobSheep, mobChicken, pickup, dig, attack, burp
     case mobPig, mobZombie, mobSkeleton, creeperHiss, mobSpider, mobEnderman, mobSlime, bow, explode, arrowHit, fizz, xp, levelUp
     case mobGhast, mobBlaze, mobPiglin, mobZombPiglin, fireball, mobVillager, mobGolem
+    case anvil, brew, enchant, drink, glassBreak
     case note(Int, Int)            // note block: instrument, pitch 0...24 (made on demand)
 }
 
@@ -29,7 +30,8 @@ struct SoundBank {
         for m in SoundMat.allCases { s += [.breakBlock(m), .place(m), .step(m)] }
         return s + [.splash, .land, .hurt, .eat, .click, .open, .mobCow, .mobSheep, .mobChicken, .pickup, .dig, .attack, .burp,
                     .mobPig, .mobZombie, .mobSkeleton, .creeperHiss, .mobSpider, .mobEnderman, .mobSlime, .bow, .explode, .arrowHit, .fizz, .xp, .levelUp,
-                    .mobGhast, .mobBlaze, .mobPiglin, .mobZombPiglin, .fireball, .mobVillager, .mobGolem]
+                    .mobGhast, .mobBlaze, .mobPiglin, .mobZombPiglin, .fireball, .mobVillager, .mobGolem,
+                    .anvil, .brew, .enchant, .drink, .glassBreak]
     }
 
     init() {
@@ -212,6 +214,14 @@ struct Synth {
         case .mobBlaze: out = Synth.mix(burst(1.0, lp: 1200 * p, hp: 90, attack: 0.15, decay: 0.7, gain: 1.4), grains(14, spread: 0.8, lp: 3000, hp: 800, decay: 0.01, gain: 0.5))
         case .mobPiglin: out = Synth.mix(voice(0.35, f0: 210 * p, f1: 160 * p, vib: 0.2, lp: 1100, gain: 1), voice(0.3, f0: 240 * p, f1: 170 * p, vib: 0.15, lp: 900, gain: 0.8), at: frames(0.3))
         case .mobZombPiglin: out = Synth.mix(voice(0.8, f0: 160 * p, f1: 110 * p, vib: 0.25, lp: 800, gain: 1.2), burst(0.8, lp: 600, hp: 80, attack: 0.1, decay: 0.4, gain: 0.3))
+        case .anvil:
+            // Struck metal: inharmonic partials with a sharp attack.
+            out = Synth.mix(modes(0.9, [(830 * p, 0.5, 0.35), (1970 * p, 0.3, 0.25), (3120 * p, 0.2, 0.12), (4410 * p, 0.12, 0.08)]),
+                            burst(0.05, lp: 9000, hp: 2000, attack: 0.001, decay: 0.02, gain: 0.8))
+        case .brew: out = grains(10, spread: 0.6, lp: 3000 * p, hp: 600, decay: 0.03, gain: 0.7)
+        case .enchant: out = Synth.mix(modes(1.0, [(1320 * p, 0.2, 0.5), (1980 * p, 0.15, 0.4)]), modes(1.0, [(1760 * p, 0.15, 0.5)]), at: frames(0.12))
+        case .drink: out = grains(6, spread: 0.5, lp: 900 * p, hp: 150, decay: 0.05, gain: 1.0)
+        case .glassBreak: out = Synth.mix(burst(0.3, lp: 12000, hp: 3000, attack: 0.001, decay: 0.12, gain: 1.0), grains(12, spread: 0.25, lp: 10000, hp: 4000, decay: 0.01, gain: 0.6))
         case .note(let inst, let n):
             // Pitch 0 = F#3 for the harp family; bass instruments two octaves down, chimes two up.
             let f: Float = 185 * powf(2, Float(n) / 12)

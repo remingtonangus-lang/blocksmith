@@ -4,21 +4,30 @@ struct ItemStack: Codable, Equatable {
     var item: ItemID = 0
     var count: Int = 0
     var damage: Int = 0                 // durability used (tools/armor)
+    var ench: UInt64 = 0                // up to 7 enchantments, 9 bits each (see Enchant)
+    var repairCost = 0                  // anvil prior-work penalty
+    var label: String? = nil            // anvil rename
 
     // Saved by item name so registry changes never scramble inventories.
-    enum CodingKeys: String, CodingKey { case id, n, d }
+    enum CodingKeys: String, CodingKey { case id, n, d, e, r, l }
     init(from dec: Decoder) throws {
         let c = try dec.container(keyedBy: CodingKeys.self)
         let name = try c.decode(String.self, forKey: .id)
         item = Items.has(name) ? Items.id(name) : 0
         count = try (item == 0 ? 0 : c.decode(Int.self, forKey: .n))
         damage = (try? c.decode(Int.self, forKey: .d)) ?? 0
+        if let e = try? c.decode([String].self, forKey: .e) { ench = Enchant.decode(e) }
+        repairCost = (try? c.decode(Int.self, forKey: .r)) ?? 0
+        label = try? c.decode(String.self, forKey: .l)
     }
     func encode(to enc: Encoder) throws {
         var c = enc.container(keyedBy: CodingKeys.self)
         try c.encode(Items.key(item), forKey: .id)
         try c.encode(count, forKey: .n)
         if damage != 0 { try c.encode(damage, forKey: .d) }
+        if ench != 0 { try c.encode(Enchant.encode(ench), forKey: .e) }
+        if repairCost != 0 { try c.encode(repairCost, forKey: .r) }
+        if let l = label { try c.encode(l, forKey: .l) }
     }
 
     static let empty = ItemStack()
@@ -28,7 +37,9 @@ struct ItemStack: Codable, Equatable {
     var isEmpty: Bool { item == 0 || count <= 0 }
     var def: ItemDef { Items.def(item) }
     var maxStack: Int { Items.def(item).maxStack }
-    func stacks(with o: ItemStack) -> Bool { item == o.item && damage == o.damage && maxStack > 1 }
+    func stacks(with o: ItemStack) -> Bool { item == o.item && damage == o.damage && ench == o.ench && label == o.label && maxStack > 1 }
+    func with(count n: Int) -> ItemStack { var s = self; s.count = n; return s }
+    var displayName: String { label ?? def.display }
 }
 
 // A fixed-size list of slots (player inventory, chest, furnace, crafting grid...).
@@ -53,7 +64,7 @@ final class ItemContainer {
         }
         for i in r where !s.isEmpty && slots[i].isEmpty {
             let n = min(s.count, s.maxStack)
-            slots[i] = ItemStack(s.item, n, damage: s.damage)
+            slots[i] = s.with(count: n)
             s.count -= n
         }
         return s.isEmpty ? .empty : s

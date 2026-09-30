@@ -24,7 +24,12 @@ final class ShulkerBullet {
 }
 
 // Lingering dragon breath: 6 damage per second to a player standing in it.
-struct AcidCloud { var pos: V3; var radius: Float; var time: Float; var tick: Float = 0 }
+// Lingering potions leave the same kind of cloud carrying the potion's effects.
+struct AcidCloud {
+    var pos: V3; var radius: Float; var time: Float; var tick: Float = 0
+    var potion: ItemID = 0
+    var maxTime: Float = 0
+}
 
 let ENDER_EYE_FLIGHT: Float = 12
 
@@ -176,23 +181,6 @@ extension Game {
                 mobs.mobs.append(d)
             }
         }
-        for i in clouds.indices {
-            clouds[i].time -= dt
-            clouds[i].tick -= dt
-            let c = clouds[i]
-            if Float.random(in: 0..<1) < dt * 30 {
-                let a = Float.random(in: 0..<(2 * .pi)), r = Float.random(in: 0..<c.radius)
-                particles.add(Particle(pos: c.pos + V3(cosf(a) * r, 0.1, sinf(a) * r), vel: V3(0, 0.4, 0), life: 1, maxLife: 1,
-                                       layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1, size: 0.12, gravity: -0.2,
-                                       color: V3(0.75, 0.2, 0.9), collide: false, glow: true))
-            }
-            let d = player.pos - c.pos
-            if c.tick <= 0 && simd_length(V2(d.x, d.z)) < c.radius && abs(d.y) < 2 {
-                clouds[i].tick = 1
-                hurtPlayer(6, from: c.pos, cause: "was killed by Dragon's Breath", knockback: 0)
-            }
-        }
-        clouds.removeAll { $0.time <= 0 }
         for b in bullets {
             b.age += dt
             let to = player.eye - V3(0, 0.4, 0) - b.pos
@@ -203,7 +191,7 @@ extension Game {
             if d < 0.7 {
                 b.dead = true
                 hurtPlayer(4, from: b.pos, cause: "was shot by Shulker", knockback: 0.3)
-                if survival { player.levitate = 10 }
+                applyEffect(.levitation, amp: 0, seconds: 10)
             } else if b.age > 12 || Blocks.collide[Int(world.block(Int(floor(b.pos.x)), Int(floor(b.pos.y)), Int(floor(b.pos.z))))] {
                 b.dead = true
                 particles.explosion(at: b.pos, power: 0.2)

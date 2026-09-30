@@ -10,6 +10,10 @@ final class Arrow {
     var stuck = false
     var age: Float = 0
     var dead = false
+    var tip: ItemID = 0            // tipped arrow (potion effects on hit)
+    var flame = false              // Flame enchantment: sets targets on fire
+    var punch = 0                  // Punch enchantment: extra knockback
+    var pickup = true              // Infinity arrows can't be picked up
     init(_ p: V3, _ v: V3, fromPlayer: Bool, damage: Float) { pos = p; vel = v; self.fromPlayer = fromPlayer; self.damage = damage }
 }
 
@@ -22,7 +26,7 @@ final class Fireball {
     var age: Float = 0
     var dead = false
     var dragon = false             // ender dragon fireball: leaves a cloud of acid instead of exploding
-    var potion = 0                 // witch splash potion: 1 harming, 2 poison
+    var potion: ItemID = 0         // thrown splash / lingering potion or bottle o' enchanting (item)
     init(_ p: V3, _ v: V3, big: Bool, byPlayer: Bool) { pos = p; vel = v; self.big = big; self.byPlayer = byPlayer }
 }
 
@@ -30,7 +34,7 @@ final class ProjectileManager {
     var arrows: [Arrow] = []
     var fireballs: [Fireball] = []
 
-    func fireball(from p: V3, dir: V3, big: Bool, byPlayer: Bool, dragon: Bool = false, potion: Int = 0) {
+    func fireball(from p: V3, dir: V3, big: Bool, byPlayer: Bool, dragon: Bool = false, potion: ItemID = 0) {
         let f = Fireball(p, dir * (potion > 0 ? 12 : (big ? 18 : 22)), big: big, byPlayer: byPlayer)
         f.dragon = dragon
         f.potion = potion
@@ -55,6 +59,7 @@ final class ProjectileManager {
         for f in fireballs {
             f.age += dt
             if f.age > 10 { f.dead = true; continue }
+            if f.potion > 0 { f.vel.y -= 20 * dt }
             let step = f.vel * dt
             let len = simd_length(step)
             let dir = step / max(len, 1e-5)
@@ -85,15 +90,11 @@ final class ProjectileManager {
                 let at = f.pos + dir * min(hitT, blockT)
                 f.dead = true
                 if f.potion > 0 {
-                    // Splash: affects the player within 4 blocks of the impact.
-                    if simd_length(g.player.pos + V3(0, 0.9, 0) - at) < 4 {
-                        if f.potion == 1 { g.damage(6, "was killed by magic", bypassArmor: true) } else { g.poisonTime = max(g.poisonTime, 22) }
-                    }
-                    g.particles.explosion(at: at, power: 0.4)
+                    g.potionImpact(f.potion, at: at, direct: hitMob, hitPlayer: hitPlayer)
                     continue
                 }
                 if hitPlayer {
-                    g.hurtPlayer(f.big ? 6 : 5, from: f.pos, cause: f.big ? "was fireballed by Ghast" : "was fireballed by Blaze")
+                    g.hurtPlayer(f.big ? 6 : 5, from: f.pos, cause: f.big ? "was fireballed by Ghast" : "was fireballed by Blaze", type: .projectile)
                     if !f.big { g.onFire = max(g.onFire, 5) }
                 } else if let m = hitMob {
                     m.hit(from: f.pos, damage: f.big && f.byPlayer && m.kind == .ghast ? 1000 : (f.big ? 6 : 5), knockback: 0.5)
@@ -115,10 +116,13 @@ final class ProjectileManager {
         fireballs.removeAll { $0.dead }
     }
 
-    func shoot(from p: V3, dir: V3, speed: Float, fromPlayer: Bool, damage: Float) {
+    @discardableResult
+    func shoot(from p: V3, dir: V3, speed: Float, fromPlayer: Bool, damage: Float) -> Arrow {
         let spread: Float = fromPlayer ? 0.0075 : 0.03
         let d = simd_normalize(dir + V3(Float.random(in: -1...1), Float.random(in: -1...1), Float.random(in: -1...1)) * spread)
-        arrows.append(Arrow(p, d * speed, fromPlayer: fromPlayer, damage: damage))
+        let a = Arrow(p, d * speed, fromPlayer: fromPlayer, damage: damage)
+        arrows.append(a)
+        return a
     }
 
     func update(_ dt: Float, game g: Game) {
@@ -130,7 +134,8 @@ final class ProjectileManager {
                 if a.age > 60 { a.dead = true }
                 // Player picks up their own stuck arrows.
                 if a.fromPlayer && simd_length(a.pos - (g.player.pos + V3(0, 0.9, 0))) < 1.4 {
-                    let rest = g.inventory.add(ItemStack(Items.id("arrow"), 1))
+                    if !a.pickup { a.dead = true; continue }
+                    let rest = g.inventory.add(ItemStack(a.tip != 0 ? a.tip : Items.id("arrow"), 1))
                     if rest.isEmpty || !g.survival { a.dead = true; g.sfx(.pickup, 0.4) }
                 }
                 continue
@@ -167,11 +172,14 @@ final class ProjectileManager {
                 var dmg = Int(ceilf(speedPerTick * a.damage))
                 if a.fromPlayer && Float.random(in: 0..<1) < 0.25 { dmg += Int.random(in: 0...(dmg / 2 + 1)) }
                 if let m = hitMob {
-                    m.hit(from: a.pos, damage: dmg, knockback: 0.6)
+                    m.hit(from: a.pos, damage: dmg, knockback: 0.6 + 0.6 * Float(a.punch))
                     if a.fromPlayer { m.killedByPlayer = true; m.provoke(g) }
+                    if a.flame && !m.spec.fireImmune { m.fire = max(m.fire, 5) }
+                    if a.tip != 0 { g.arrowEffects(a.tip, onPlayer: false, mob: m) }
                     g.sfx(.arrowHit, 0.7, at: a.pos)
                 } else if hitPlayer {
-                    g.hurtPlayer(dmg, from: a.pos, cause: "was shot by Skeleton")
+                    g.hurtPlayer(dmg, from: a.pos, cause: "was shot by Skeleton", type: .projectile)
+                    if a.tip != 0 { g.arrowEffects(a.tip, onPlayer: true, mob: nil) }
                 }
                 a.dead = true
             } else if blockT <= len {
@@ -194,6 +202,14 @@ final class ProjectileManager {
             let toEye = simd_normalize(-c)
             let side = simd_normalize(simd_cross(toEye, V3(0, 1, 0)) + V3(1e-4, 0, 0))
             let up = simd_cross(side, toEye)
+            if f.potion > 0 {
+                wr.sprite(center: c, half: 0.2, right: side, up: up, layer: Items.texLayer(f.potion) ?? fl, light: 1, tint: V3(1, 1, 1))
+                if case let (ol, col)? = Items.overlayLayer(f.potion) {
+                    let t = TextureGen.hex(col)
+                    wr.sprite(center: c + toEye * 0.01, half: 0.2, right: side, up: up, layer: ol, light: 1, tint: V3(t.x, t.y, t.z))
+                }
+                continue
+            }
             wr.sprite(center: c, half: f.big ? 0.5 : 0.16, right: side, up: up, layer: fl, light: 1, tint: V3(1.6, 1.1, 0.6))
         }
         let layer = Items.texLayer(Items.id("arrow")) ?? 0

@@ -25,6 +25,10 @@ struct WorldMeta: Codable {
     var dragonKilled: Bool? = nil
     var gateways: Int? = nil       // end gateways opened (one per dragon kill, up to 20)
     var seenCredits: Bool? = nil
+    var effects: [EffectSet.Saved]? = nil
+    var absorption: Float? = nil
+    var enchantSeed: UInt64? = nil
+    var extra: [String: String]? = nil  // misc later additions (raids, villages...)
 }
 
 // Layout: ~/Library/Application Support/Blocksmith/Worlds/<name>/

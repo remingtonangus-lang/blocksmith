@@ -33,6 +33,11 @@ struct ItemDef {
     var toughness: Float = 0
     var fuelTicks = 0                // furnace burn time (20 ticks = 1 s)
     var plants: String? = nil        // crop block planted on farmland (seeds, carrot, potato)
+    var texKey: String? = nil        // shared sprite texture (potions) instead of item_<name>
+    var overlay: String? = nil       // second sprite layer drawn tinted with overlayColor (potion liquid)
+    var overlayColor: UInt32 = 0xFFFFFF
+    var enchantability = 0           // enchanting table: material enchantability (0 = can't be enchanted)
+    var drink = false                // consumed by drinking (potions, milk, honey)
     init(_ name: String, _ display: String) { self.name = name; self.display = display }
 }
 
@@ -49,7 +54,8 @@ final class ItemRegistry {
         precondition(byName[d.name] == nil, "duplicate item \(d.name)")
         byName[d.name] = i
         defs.append(d)
-        if d.sprite != nil { _ = Tex.id("item_" + d.name) }
+        if let k = d.texKey { _ = Tex.id(k) } else if d.sprite != nil { _ = Tex.id("item_" + d.name) }
+        if let o = d.overlay { _ = Tex.id(o) }
         return i
     }
 
@@ -61,7 +67,16 @@ final class ItemRegistry {
     func def(_ i: ItemID) -> ItemDef { defs[Int(i)] }
     func name(_ i: ItemID) -> String { Int(i) < defs.count ? defs[Int(i)].display : "?" }
     func key(_ i: ItemID) -> String { Int(i) < defs.count ? defs[Int(i)].name : "?" }
-    func texLayer(_ i: ItemID) -> Int? { defs[Int(i)].sprite == nil ? nil : Int(Tex.id("item_" + defs[Int(i)].name)) }
+    func texLayer(_ i: ItemID) -> Int? {
+        let d = defs[Int(i)]
+        if let k = d.texKey { return Int(Tex.id(k)) }
+        return d.sprite == nil ? nil : Int(Tex.id("item_" + d.name))
+    }
+    func overlayLayer(_ i: ItemID) -> (Int, UInt32)? {
+        let d = defs[Int(i)]
+        guard let o = d.overlay else { return nil }
+        return (Int(Tex.id(o)), d.overlayColor)
+    }
 
     // Item that a given block state drops/picks as (its group's block item), or nil.
     func item(forBlock b: BlockID) -> ItemID? {
@@ -176,6 +191,23 @@ final class ItemRegistry {
         item("clock", "Clock", "compass", 0xF2C94A, ["c": 0x3F76E4, "d": 0x404040])
         item("bow", "Bow", "bow", 0x6B4F2C, ["s": 0xDDDDDD], stack: 1)
         item("shears", "Shears", "shears", 0xD8D8D8, ["d": 0x5A3D1F], stack: 1)
+        item("glass_bottle", "Glass Bottle", "bucket", 0xD0DCF0, ["c": 0xA8B8D8])
+        item("fermented_spider_eye", "Fermented Spider Eye", "eye", 0xB0506A, ["c": 0xE8C0C8, "d": 0x5A2030])
+        item("glistering_melon_slice", "Glistering Melon Slice", "melon", 0xF0C040, ["c": 0xF8E080])
+        item("rabbit_foot", "Rabbit's Foot", "drumstick", 0xC8A078, ["c": 0xE8D8C0])
+        item("rabbit_hide", "Rabbit Hide", "leather", 0xC8A078)
+        item("phantom_membrane", "Phantom Membrane", "leather", 0xC8C0A0)
+        item("breeze_rod", "Breeze Rod", "rod", 0xBDC9FF)
+        item("experience_bottle", "Bottle o' Enchanting", "bucket", 0xD0DCF0, ["c": 0x7ED957])
+        item("enchanted_book", "Enchanted Book", "book", 0x8A3AA8, stack: 1)
+        item("nether_star", "Nether Star", "gem", 0xF0F0FF)
+        item("totem_of_undying", "Totem of Undying", "ingot", 0xE8C040)
+        item("turtle_scute", "Turtle Scute", "leather", 0x4A9A3A)
+        item("ink_sac", "Ink Sac", "ball", 0x1A1A2A)
+        item("glow_ink_sac", "Glow Ink Sac", "ball", 0x4AE8C8)
+        item("honeycomb", "Honeycomb", "ball", 0xE8A020)
+        item("goat_horn", "Goat Horn", "bone", 0xC8C0A8, stack: 1)
+        item("armadillo_scute", "Armadillo Scute", "leather", 0xA06A58)
 
         // Food (hunger, saturation as in the reference game)
         food("apple", "Apple", "apple_shape", 0xD11F1A, 4, 2.4, ["a": 0x5A3D1F])
@@ -211,6 +243,19 @@ final class ItemRegistry {
         food("glow_berries", "Glow Berries", "berries", 0xF2A83A, 2, 0.4, ["a": 0x3A6A2A])
         food("chorus_fruit", "Chorus Fruit", "berries", 0x8A5A9A, 4, 2.4, ["a": 0x4A2A5A])
         food("spider_eye", "Spider Eye", "eye", 0x8A2A3A, 2, 3.2, ["c": 0xC04050, "d": 0x200810])
+        food("enchanted_golden_apple", "Enchanted Golden Apple", "apple_shape", 0xF8E050, 4, 9.6, ["a": 0x5A3D1F])
+        food("pufferfish", "Pufferfish", "fish", 0xE8C040, 1, 0.2, ["c": 0x303030])
+        food("tropical_fish", "Tropical Fish", "fish", 0xE87A2A, 1, 0.2, ["c": 0xF8F8F8])
+        food("poisonous_potato", "Poisonous Potato", "potato", 0xA8B050, 2, 1.2)
+        food("honey_bottle", "Honey Bottle", "bucket", 0xD0DCF0, 6, 1.2, ["c": 0xF0A020], stack: 16)
+        food("rabbit_stew", "Rabbit Stew", "stew", 0x8A6435, 10, 12, ["c": 0xB07040, "d": 0xD8A060], stack: 1)
+        for f in SuspiciousStew.flowers {
+            var d = ItemDef("suspicious_stew_" + f.0, "Suspicious Stew")
+            d.sprite = Sprite(mask: "stew", base: 0x8A6435, extras: ["c": 0xB08858, "d": 0xD8A868])
+            d.food = FoodInfo(hunger: 6, saturation: 7.2)
+            d.maxStack = 1
+            add(d)
+        }
 
         for (n, crop) in [("wheat_seeds", "wheat"), ("beetroot_seeds", "beetroots"), ("carrot", "carrots"), ("potato", "potatoes"), ("nether_wart", "nether_wart")] {
             defs[Int(id(n))].plants = crop
@@ -269,11 +314,21 @@ final class ItemRegistry {
                 add(d)
             }
         }
+        var turtle = ItemDef("turtle_helmet", "Turtle Shell")
+        turtle.sprite = Sprite(mask: "helmet", base: 0x4A9A3A, extras: [:])
+        turtle.maxStack = 1; turtle.armorSlot = .head; turtle.armor = 2; turtle.durability = 275
+        add(turtle)
         var ely = ItemDef("elytra", "Elytra")
         ely.sprite = Sprite(mask: "chestplate", base: 0x8E8AA8, extras: [:])
         ely.maxStack = 1; ely.armorSlot = .chest; ely.armor = 0; ely.durability = 432
         add(ely)
+        Potions.register(self)
+        for n in ["milk_bucket"] { defs[Int(id(n))].drink = true }
+        for n in ["honey_bottle"] { defs[Int(id(n))].drink = true }
+        Enchant.assignEnchantability(self)
     }
+
+    func setEnchantability(_ n: String, _ v: Int) { if has(n) { defs[Int(id(n))].enchantability = v } }
 }
 
 let Items = ItemRegistry()

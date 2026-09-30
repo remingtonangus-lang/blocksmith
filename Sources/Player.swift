@@ -26,6 +26,15 @@ final class Player {
     var gliding = false            // elytra flight
     var boost: Float = 0           // firework rocket boost left (s)
     var levitate: Float = 0        // shulker bullet levitation left (s)
+    var levitateAmp = 0
+    var speedMul: Float = 1        // speed / slowness effects
+    var jumpBoost = 0              // jump boost level
+    var slowFalling = false
+    var dolphinsGrace = false
+    var depthStrider = 0           // boots enchantments
+    var soulSpeed = 0
+    var swiftSneak = 0
+    var frostWalker = 0
     var impact: Float = 0          // kinetic energy of the last wall hit while gliding (Game turns it into damage)
     private var glideAcc: Float = 0
 
@@ -79,11 +88,21 @@ final class Player {
         let len = simd_length(wish)
         if len > 1 { wish /= len }
 
-        let speed: Float
+        var speed: Float
         if flying { speed = sprinting ? 21.6 : 10.9 }
-        else if inWater { speed = sprinting ? 3.0 : 2.2 }
-        else if sneaking { speed = 1.31 }
+        else if inWater {
+            speed = sprinting ? 3.0 : 2.2
+            // Depth strider closes the gap to land speed; dolphin's grace is much faster.
+            if depthStrider > 0 { speed += (4.317 - speed) * Float(min(3, depthStrider)) / 3 }
+            if dolphinsGrace { speed *= 2.2 }
+        }
+        else if sneaking { speed = 4.317 * min(1, 0.3 + 0.15 * Float(swiftSneak)) }
         else { speed = sprinting ? 5.612 : 4.317 }
+        if !flying { speed *= speedMul }
+        if soulSpeed > 0 && onGround {
+            let under = Blocks.key(w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.2)), Int(floor(pos.z))))
+            if under == "soul_sand" || under == "soul_soil" { speed *= 1.3 + 0.105 * Float(soulSpeed) }
+        }
 
         let target = wish * speed
         let accel: Float = flying ? 10 : (onGround ? 20 : (inWater ? 8 : 5))
@@ -104,12 +123,13 @@ final class Player {
             vel.y = max(vel.y, -4)
         } else if levitate > 0 {
             levitate -= dt
-            vel.y += (0.9 - vel.y) * (1 - expf(-4 * dt))
+            vel.y += (0.9 * Float(levitateAmp + 1) - vel.y) * (1 - expf(-4 * dt))
             airPeak = pos.y
         } else {
-            vel.y -= 28 * dt
-            vel.y = max(vel.y, -60)
-            if input.jump && onGround { vel.y = 8.6; jumped = true }
+            vel.y -= (slowFalling && vel.y < 0 ? 2.8 : 28) * dt
+            vel.y = max(vel.y, slowFalling ? -1.2 : -60)
+            if slowFalling { airPeak = pos.y }
+            if input.jump && onGround { vel.y = 8.6 + 2 * Float(jumpBoost); jumped = true }
         }
 
         // Ladders and vines: climb when pushing forward or jumping, hold with sneak, slow slide otherwise.

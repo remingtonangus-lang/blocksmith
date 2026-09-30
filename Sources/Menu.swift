@@ -5,7 +5,7 @@ import Foundation
 // Layout is in GUI pixels (a 176x166 panel like the original), scaled by the HUD scale.
 // Works with the mouse or a controller cursor that jumps between slots.
 
-enum SlotKind { case normal, result, palette, armor(ArmorSlot), fuel, output }
+enum SlotKind { case normal, result, palette, armor(ArmorSlot), fuel, output, button(Int) }
 
 final class MenuSlot {
     let x: Int, y: Int                    // GUI px, top-left of the 16x16 item area
@@ -13,6 +13,9 @@ final class MenuSlot {
     let index: Int
     let kind: SlotKind
     var paletteItem: ItemID = 0
+    var w = 16, h = 16                    // hit area (buttons are larger)
+    var filter: ((ItemStack) -> Bool)?    // only these items may be placed here
+    var limit: Int?                       // max stack size in this slot
     init(_ x: Int, _ y: Int, _ c: ItemContainer?, _ i: Int, _ k: SlotKind = .normal) {
         self.x = x; self.y = y; container = c; index = i; kind = k
     }
@@ -25,11 +28,12 @@ final class MenuSlot {
     }
     func accepts(_ s: ItemStack) -> Bool {
         switch kind {
-        case .result, .output, .palette: return false
-        case .armor(let a): return s.def.armorSlot == a
-        default: return true
+        case .result, .output, .palette, .button: return false
+        case .armor(let a): return s.def.armorSlot == a || (a == .head && ["carved_pumpkin", "skeleton_skull", "wither_skeleton_skull", "zombie_head", "creeper_head", "piglin_head", "dragon_head", "player_head"].contains(Items.key(s.item)))
+        default: return filter?(s) ?? true
         }
     }
+    var isButton: Bool { if case .button = kind { return true } else { return false } }
     var isPlayerInv: Bool = false
     var isHotbar: Bool = false
 }
@@ -67,6 +71,9 @@ class Menu {
     func changed() {}
     func tick() {}
     func onClose() {}
+    func buttonPressed(_ i: Int) {}
+    var capturesText: Bool { false }
+    func typed(_ s: String) {}
 
     // Result slot: take the crafted item.
     func takeResult(_ slot: MenuSlot) -> ItemStack? { nil }
@@ -85,16 +92,16 @@ class Menu {
 
     func moveInto(_ s0: ItemStack, _ targets: [MenuSlot]) -> ItemStack {
         var s = s0
-        for t in targets where !s.isEmpty && t.stack.stacks(with: s) && t.stack.count < t.stack.maxStack {
+        for t in targets where !s.isEmpty && t.stack.stacks(with: s) && t.stack.count < min(t.limit ?? 99, t.stack.maxStack) {
             var st = t.stack
-            let n = min(s.count, st.maxStack - st.count)
+            let n = min(s.count, min(t.limit ?? 99, st.maxStack) - st.count)
             st.count += n
             s.count -= n
             t.stack = st
         }
         for t in targets where !s.isEmpty && t.stack.isEmpty && t.accepts(s) {
-            let n = min(s.count, s.maxStack)
-            t.stack = ItemStack(s.item, n, damage: s.damage)
+            let n = min(s.count, min(t.limit ?? 99, s.maxStack))
+            t.stack = s.with(count: n)
             s.count -= n
         }
         return s.isEmpty ? .empty : s
@@ -105,6 +112,12 @@ class Menu {
         var carried = game.carried
         defer { game.carried = carried; changed() }
         switch slot.kind {
+        case .button(let i):
+            buttonPressed(i)
+            return
+        case .armor:
+            // Curse of Binding: can't take it off (except in creative).
+            if !slot.stack.isEmpty && Enchant.level(.bindingCurse, slot.stack) > 0 && game.survival { return }
         case .palette:
             let it = slot.paletteItem
             if it == 0 { if !carried.isEmpty { carried = .empty }; return }
@@ -163,12 +176,12 @@ class Menu {
             } else if s.isEmpty {
                 if slot.accepts(carried) {
                     let n = min(carried.count, slotLimit(slot, carried))
-                    slot.stack = ItemStack(carried.item, n, damage: carried.damage)
+                    slot.stack = carried.with(count: n)
                     carried.count -= n
                     if carried.count <= 0 { carried = .empty }
                 }
             } else if s.stacks(with: carried) {
-                let n = min(carried.count, s.maxStack - s.count)
+                let n = max(0, min(carried.count, slotLimit(slot, s) - s.count))
                 s.count += n
                 slot.stack = s
                 carried.count -= n
@@ -181,14 +194,14 @@ class Menu {
             if carried.isEmpty {
                 if s.isEmpty { return }
                 let half = (s.count + 1) / 2
-                carried = ItemStack(s.item, half, damage: s.damage)
+                carried = s.with(count: half)
                 s.count -= half
                 slot.stack = s
             } else if slot.accepts(carried) {
                 if s.isEmpty {
-                    slot.stack = ItemStack(carried.item, 1, damage: carried.damage)
+                    slot.stack = carried.with(count: 1)
                     carried.count -= 1
-                } else if s.stacks(with: carried) && s.count < s.maxStack {
+                } else if s.stacks(with: carried) && s.count < slotLimit(slot, s) {
                     s.count += 1
                     slot.stack = s
                     carried.count -= 1
@@ -200,6 +213,7 @@ class Menu {
 
     func slotLimit(_ slot: MenuSlot, _ s: ItemStack) -> Int {
         if case .armor = slot.kind { return 1 }
+        if let l = slot.limit { return min(l, s.maxStack) }
         return s.maxStack
     }
 
@@ -212,7 +226,7 @@ class Menu {
         let o = origin(L)
         for s in slots {
             let x = o.x + Float(s.x - 1) * L.s, y = o.y + Float(s.y - 1) * L.s
-            if p.x >= x && p.x < x + 18 * L.s && p.y >= y && p.y < y + 18 * L.s { return s }
+            if p.x >= x && p.x < x + Float(s.w + 2) * L.s && p.y >= y && p.y < y + Float(s.h + 2) * L.s { return s }
         }
         return nil
     }

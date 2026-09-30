@@ -291,6 +291,25 @@ enum Recipes {
         r.append(shaped([" # ", "#R#", " # "], ["#": "iron_ingot", "R": "redstone"], "compass"))
         r.append(shaped([" # ", "#R#", " # "], ["#": "gold_ingot", "R": "redstone"], "clock"))
         r.append(shapeless(["bowl", "beetroot", "beetroot", "beetroot", "beetroot", "beetroot", "beetroot"], "beetroot_soup"))
+        // Brewing and enchanting.
+        r.append(shaped([" B ", "###"], ["B": "blaze_rod", "#": "#stone_tool"], "brewing_stand"))
+        r.append(shaped([" B ", "D#D", "###"], ["B": "book", "D": "diamond", "#": "obsidian"], "enchanting_table"))
+        r.append(shaped(["# #", " # "], ["#": "glass"], "glass_bottle", 3))
+        r.append(shapeless(["spider_eye", "brown_mushroom", "sugar"], "fermented_spider_eye"))
+        r.append(shaped(["###", "#M#", "###"], ["#": "gold_nugget", "M": "melon_slice"], "glistering_melon_slice"))
+        r.append(shapeless(["blaze_powder", "slime_ball"], "magma_cream"))
+        r.append(shapeless(["blaze_powder", "coal", "gunpowder"], "fire_charge", 3))
+        r.append(shaped(["GGG", "GSG", "OOO"], ["G": "glass", "S": "nether_star", "O": "obsidian"], "beacon"))
+        r.append(shaped(["###", "# #"], ["#": "turtle_scute"], "turtle_helmet"))
+        r.append(shapeless(["rabbit_hide", "rabbit_hide", "rabbit_hide", "rabbit_hide"], "leather"))
+        r.append(shapeless(["bowl", "cooked_rabbit", "carrot", "baked_potato", "brown_mushroom"], "rabbit_stew"))
+        r.append(shapeless(["bowl", "cooked_rabbit", "carrot", "baked_potato", "red_mushroom"], "rabbit_stew"))
+        for f in SuspiciousStew.flowers where Items.has(f.0) {
+            r.append(shapeless(["bowl", "brown_mushroom", "red_mushroom", f.0], "suspicious_stew_" + f.0))
+        }
+        for t in Potions.types where !t.effects.isEmpty {
+            r.append(shaped(["AAA", "APA", "AAA"], ["A": "arrow", "P": Potions.itemName("lingering_potion", t.key)], Potions.itemName("tipped_arrow", t.key), 8))
+        }
         return r.compactMap { $0 }
     }
 
