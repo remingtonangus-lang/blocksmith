@@ -137,6 +137,16 @@ enum Snapshot {
                 game.player.pos.y = Float(SEA) - 0.35
             }
         }
+        if CommandLine.arguments.contains("--subtitles") {
+            // Subtitle test: a few sounds around the camera (left, right, ahead, the player's own).
+            AudioSettings.subtitles = true
+            let e = game.player.eye, r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))
+            game.sfx(.mob(.cow, .ambient), at: e - r * 6)
+            game.sfx(.explode, at: e + r * 10)
+            game.sfx(.doorOpen, at: e + game.player.look * 5)
+            game.sfx(.birdCall, at: e + r * 8 + V3(0, 4, 0))
+            game.sfx(.hurt)
+        }
         if CommandLine.arguments.contains("--debug") {
             game.showDebug = true
             game.onToast?("Grass Block")

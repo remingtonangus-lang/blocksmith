@@ -92,7 +92,7 @@ final class PauseMenu: Menu {
         case "options": cameFromTitle = page == .title; page = .options
         case "audio": page = .audio
         case "audio_back": page = .options
-        case _ where id.hasPrefix("vol:") || id == "audio_test": audioAct(id, back: back)
+        case _ where id.hasPrefix("vol:") || id == "audio_test" || id == "audio_subs": audioAct(id, back: back)
         case "back": page = cameFromTitle ? .title : .main
         case "load": cameFromTitle = page == .title; page = .worlds
         case "create": cameFromTitle = page == .title; page = .create; editing = nil

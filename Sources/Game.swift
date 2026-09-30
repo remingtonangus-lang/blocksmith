@@ -131,6 +131,7 @@ final class Game {
     let music = MusicDirector()
     var caveTimer: Float = 30
     let audio = AudioState()
+    let subtitles = SubtitleState()
     var musicVolume: Float = { UserDefaults.standard.object(forKey: "musicVolume") == nil ? 1 : UserDefaults.standard.float(forKey: "musicVolume") }() {
         didSet { AudioSettings.set(.music, musicVolume) }
     }
@@ -199,6 +200,7 @@ final class Game {
     private var wasInWater = false
 
     func sfx(_ s: Snd, _ v: Float = 1, at pos: V3? = nil) {
+        subtitle(s, at: pos)
         guard let snd = sound else { return }
         let occ = pos.map { audioOcclusion(player.eye, $0) } ?? 0
         snd.play(s, volume: v, at: pos, occlusion: occ)

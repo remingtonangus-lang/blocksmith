@@ -11,6 +11,7 @@ extension PauseMenu {
             let v = Int((AudioSettings.volume(c) * 100).rounded())
             r.append(("\(c.label): \(v)%", "vol:\(c.rawValue)"))
         }
+        r.append(("Subtitles: \(AudioSettings.subtitles ? "On" : "Off")", "audio_subs"))
         r.append(("Test Sound", "audio_test"))
         r.append(("Done", "audio_back"))
         return r
@@ -18,6 +19,7 @@ extension PauseMenu {
 
     func audioAct(_ id: String, back: Bool) {
         let g = game
+        if id == "audio_subs" { AudioSettings.subtitles.toggle(); return }
         if id == "audio_test" {
             g.sfx(.mob(.cow, .ambient), 1, at: g.player.eye + g.player.look * 4)
             return

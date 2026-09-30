@@ -120,6 +120,7 @@ extension Game {
         func ask(_ key: String, _ s: Snd, _ v: Float, at pos: V3? = nil) {
             guard v > 0.001 else { return }
             asked.insert(key)
+            if v > 0.15 && AudioSettings.subtitles { subtitle(s, at: pos) }
             let occ = pos.map { audioOcclusion(eye, $0) } ?? 0
             snd.loop(key, s, volume: v * max(0.15, 1 - occ * 0.7), at: pos, occlusion: occ)
         }
