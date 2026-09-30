@@ -311,6 +311,7 @@ final class Mob {
     weak var mount: Mob?            // rider (raid siegebeast riders)
     var captain = false             // raid / patrol captain (banner)
     var jobTimer: Float = Float.random(in: 0...5)
+    var giftTimer: Float = 0        // villager: seconds until it may throw the Village Hero another gift
 
     init(_ kind: MobKind, at p: V3) {
         self.kind = kind
@@ -599,7 +600,7 @@ final class Mob {
                 speed = spec.speed * (baby ? 1.5 : 1)
                 if simd_length(v.pos - pos) < halfW + v.halfW + 1 && attackCooldown <= 0 {
                     attackCooldown = 1
-                    v.hit(from: pos, damage: spec.attack, knockback: 0.6)
+                    v.hit(from: pos, damage: meleeDamage, knockback: 0.6)
                     if v.health <= 0 && v.kind == .villager && isZombie && Bool.random() { v.health = -2000; g.zombify(v) }
                 }
             } else if canTarget && hostileNow {
@@ -608,7 +609,7 @@ final class Mob {
                 let reach = halfW + 1.1
                 if dist < reach + 0.2 && abs(toPlayer.y) < 2 && attackCooldown <= 0 {
                     attackCooldown = 1
-                    g.hurtPlayer(spec.attack, from: pos, cause: "was slain by \(spec.name)", attacker: self)
+                    g.hurtPlayer(meleeDamage, from: pos, cause: "was slain by \(spec.name)", attacker: self)
                     if kind == .witherSkeleton { g.applyEffect(.wither, amp: 0, seconds: 10) }
                     if kind == .caveSpider { g.applyEffect(.poison, amp: 0, seconds: 7) }
                     if kind == .husk { g.applyEffect(.hunger, amp: 0, seconds: 7) }
@@ -620,7 +621,7 @@ final class Mob {
                 let dv = simd_length(v.pos - pos)
                 speed = dv > 10 ? spec.speed : (dv < 5 ? -spec.speed * 0.6 : 0)
                 if attackCooldown <= 0 && dv < 16 {
-                    attackCooldown = Float.random(in: 1.5...2.5)
+                    attackCooldown = crossbowReload
                     var d = v.pos + V3(0, v.height * 0.6, 0) - eye
                     d.y += simd_length(V2(d.x, d.z)) * 0.2
                     g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 50 : 32, fromPlayer: false, damage: 2)
@@ -630,7 +631,7 @@ final class Mob {
                 face(player)
                 speed = dist > 10 ? spec.speed : (dist < 5 ? -spec.speed * 0.6 : 0)
                 if attackCooldown <= 0 && dist < 16 {
-                    attackCooldown = Float.random(in: 1.5...2.5)
+                    attackCooldown = crossbowReload
                     let target = g.player.eye - V3(0, 0.3, 0)
                     var d = target - eye
                     let horiz = simd_length(V2(d.x, d.z))

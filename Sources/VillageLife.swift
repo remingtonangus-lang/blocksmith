@@ -7,6 +7,25 @@ import simd
 enum VillageLife {
     static let foodPoints: [String: Int] = ["bread": 4, "carrot": 1, "potato": 1, "beetroot": 1]
     static let crops: [String: (Int, String)] = ["wheat": (7, "wheat"), "carrots": (7, "carrot"), "potatoes": (7, "potato"), "beetroots": (3, "beetroot")]
+    // Village Hero gifts by profession (reference hero_of_the_village loot tables).
+    static let heroGifts: [String: [String]] = [
+        "armorer": ["chainmail_helmet", "chainmail_chestplate", "chainmail_leggings", "chainmail_boots"],
+        "butcher": ["cooked_rabbit", "cooked_chicken", "cooked_porkchop", "cooked_beef", "cooked_mutton"],
+        "cartographer": ["map", "paper"],
+        "cleric": ["redstone", "lapis_lazuli"],
+        "farmer": ["bread", "pumpkin_pie", "cookie"],
+        "fisherman": ["cod", "salmon"],
+        "fletcher": ["arrow"],
+        "leatherworker": ["leather"],
+        "librarian": ["book"],
+        "mason": ["clay_ball"],
+        "shepherd": ["white_wool", "orange_wool", "magenta_wool", "light_blue_wool", "yellow_wool", "lime_wool", "pink_wool", "gray_wool",
+                     "light_gray_wool", "cyan_wool", "purple_wool", "blue_wool", "brown_wool", "green_wool", "red_wool", "black_wool"],
+        "toolsmith": ["stone_pickaxe", "stone_axe", "stone_hoe", "stone_shovel"],
+        "weaponsmith": ["stone_axe", "golden_axe", "iron_axe"],
+        "baby": ["poppy"],
+        "none": ["wheat_seeds"],
+    ]
 }
 
 extension Mob {
@@ -76,6 +95,7 @@ extension Mob {
             }
         }
         villager = v
+        heroGift(g)
         // Iron golems: 3+ villagers gathered and no golem within 16 blocks.
         if Float.random(in: 0..<1) < 0.04 {
             let near = g.mobs.mobs.filter { $0.kind == .villager && !$0.baby && simd_length($0.pos - pos) < 10 }
@@ -92,6 +112,19 @@ extension Mob {
                 }
             }
         }
+    }
+
+    // Village Hero: a villager within 5 blocks of the hero throws a gift every 30 s - 5.5 min (from villageTick, every 5 s).
+    func heroGift(_ g: Game) {
+        giftTimer -= 5
+        guard giftTimer <= 0, g.effects.has(.heroOfTheVillage), g.alive, !sitting, simd_length(g.player.pos - pos) < 5 else { return }
+        giftTimer = Float.random(in: 30...330)
+        let prof = baby ? "baby" : (villager?.profession ?? "none")
+        guard let pool = VillageLife.heroGifts[prof] ?? VillageLife.heroGifts["none"], let name = pool.randomElement(), Items.has(name) else { return }
+        face(g.player.pos)
+        let dir = simd_normalize(g.player.eye - eye)
+        g.drops.spawn(ItemStack(Items.id(name), 1), at: eye + dir * 0.4, vel: dir * 4 + V3(0, 2, 0))
+        g.sfx(.mobVillager, 0.8, at: pos)
     }
 
     // Night: head for the claimed bed and stay there (sleeping) until morning.

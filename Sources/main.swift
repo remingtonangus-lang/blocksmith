@@ -621,6 +621,7 @@ enum Snapshot {
             print(String(format: "pathtest: zombie start %.1f from player, end %.1f, reached %@", d0, simd_length(z.pos - to), reached < 0 ? "never" : String(format: "after %.1f s", reached)))
             game.player.pos = pos
         }
+        if CommandLine.arguments.contains("--mobtests") && !MobTests.run(game: game, world: world, pos: pos, rd: rd) { return 1 }
         if let secs = Double(arg("--ticks") ?? "") {
             // Let the world run (mobs, sparkstone, villagers) with the camera held still.
             let keep = (game.player.pos, game.player.yaw, game.player.pitch)
