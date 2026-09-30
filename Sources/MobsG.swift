@@ -105,6 +105,7 @@ extension Game {
                 player.airPeak = t.y
                 damage(5, "fell from a high place", bypassArmor: true, type: .fall)
                 sfx(.mobVoidwalker, 0.6)
+                if Int.random(in: 0..<20) == 0 { mobs.mobs.append(Mob(.endermite, at: t)) }
             }
         case .witherSkull, .blueSkull:
             if hitP {
