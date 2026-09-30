@@ -557,6 +557,9 @@ enum Snapshot {
                 if i % 20 == 0 {
                     print(String(format: "  t=%.0f zombie %.1f,%.1f,%.1f ground %ld path %ld/%ld hp %ld", Float(i) * 0.05, z.pos.x - Float(bx), z.pos.y - Float(gy), z.pos.z - Float(bz),
                                  z.onGround ? 1 : 0, z.path.index, z.path.nodes.count, z.health))
+                    print(String(format: "    vel %.2f,%.2f,%.2f yaw %.0f speedTarget %@ below %@ mount %@ mobs %ld", z.vel.x, z.vel.y, z.vel.z, z.yaw * 180 / .pi,
+                                 z.faceGoal.map { String(format: "%.1f,%.1f,%.1f", $0.x - Float(bx), $0.y - Float(gy), $0.z - Float(bz)) } ?? "-",
+                                 Blocks.key(world.block(Int(floor(z.pos.x)), Int(floor(z.pos.y - 0.1)), Int(floor(z.pos.z)))), z.mount == nil ? "no" : "yes", game.mobs.mobs.count))
                 }
             }
             print(String(format: "pathtest: zombie start %.1f from player, end %.1f, reached %@", d0, simd_length(z.pos - to), reached < 0 ? "never" : String(format: "after %.1f s", reached)))
