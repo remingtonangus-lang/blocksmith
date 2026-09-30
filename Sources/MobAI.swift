@@ -131,4 +131,27 @@ extension Mob {
         }
         g.sfx(.evokerCast, 0.9, at: pos)
     }
+
+    // Frost skeletons shoot slowness arrows, mire skeletons poison ones (reference tipped effects).
+    func tipArrow(_ a: Arrow) {
+        switch kind {
+        case .stray: a.tip = Potions.item(3, "slowness") ?? 0
+        case .bogged: a.tip = Potions.item(3, "poison") ?? 0
+        default: break
+        }
+        a.pickup = false
+    }
+
+    // Sunken with a trident throw it (8 damage) at targets 3-10 blocks away every 2 s.
+    func drownedThrow(_ g: Game, dist: Float) -> Bool {
+        guard kind == .drowned, let eq = equip, eq.count > 4, Items.key(eq[4].item) == "trident",
+              dist > 3, dist < 10, attackCooldown <= 0, g.world.canSee(eye, g.player.eye) else { return false }
+        attackCooldown = 2
+        var d = g.player.eye - eye
+        d.y += simd_length(V2(d.x, d.z)) * 0.12
+        let a = g.projectiles.shoot(from: eye + forward * 0.4, dir: simd_normalize(d), speed: 32, fromPlayer: false, damage: 5)
+        a.pickup = false
+        g.sfx(.bow, 0.8, at: pos)
+        return true
+    }
 }

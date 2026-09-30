@@ -418,7 +418,19 @@ final class Mob {
         // Undead burn in daylight under open sky.
         if spec.burnsInSun && !inWater && g.dim.dim.hasSky && g.daylight > 0.6 && !g.isRainingAt(pos) {
             let l = w.lightAt(Int(floor(pos.x)), Int(floor(pos.y + height)), Int(floor(pos.z)))
-            if l.sky >= 15 { fire = max(fire, 8) }
+            if l.sky >= 15 {
+                // A helmet shields the head from the sun and wears down instead (reference).
+                if var eq = equip, !eq[0].isEmpty {
+                    if Float.random(in: 0..<1) < dt * 0.5 {
+                        eq[0].damage += 1
+                        let dur = eq[0].def.durability
+                        if dur > 0 && eq[0].damage >= dur { eq[0] = .empty; g.sfx(.breakBlock(.stone), 0.6, at: pos) }
+                        equip = eq
+                    }
+                } else {
+                    fire = max(fire, 8)
+                }
+            }
         }
         if inWater && Blocks.fluidKind[Int(feetBlock)] == 1 { fire = 0 }
         if spec.fireImmune { fire = 0 }
@@ -638,6 +650,7 @@ final class Mob {
             } else if canTarget && hostileNow {
                 face(player)
                 speed = spec.speed * (baby ? 1.5 : 1)
+                if drownedThrow(g, dist: dist) { speed = 0 }
                 let reach = halfW + 1.1
                 if dist < reach + 0.2 && abs(toPlayer.y) < 2 && attackCooldown <= 0 {
                     attackCooldown = 1
@@ -657,7 +670,7 @@ final class Mob {
                     attackCooldown = crossbowReload
                     var d = v.pos + V3(0, v.height * 0.6, 0) - eye
                     d.y += simd_length(V2(d.x, d.z)) * 0.2
-                    g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 40 : 32, fromPlayer: false, damage: 2)
+                    tipArrow(g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 40 : 32, fromPlayer: false, damage: 2))
                     g.sfx(.bow, 0.7, at: pos)
                 }
             } else if canTarget && w.canSee(eye, g.player.eye) {
@@ -670,7 +683,7 @@ final class Mob {
                     let horiz = simd_length(V2(d.x, d.z))
                     d.y += horiz * 0.2
                     // Marauders fire crossbow bolts (faster, flatter).
-                    g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 40 : 32 + Float.random(in: -3...3), fromPlayer: false, damage: 2)
+                    tipArrow(g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 40 : 32 + Float.random(in: -3...3), fromPlayer: false, damage: 2))
                     g.sfx(.bow, 0.7, at: pos)
                 }
             } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }

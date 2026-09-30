@@ -304,6 +304,11 @@ extension MobManager {
     func finishMonster(_ m: Mob, _ game: Game) {
         let w = game.world
         m.rollEquipment(difficulty: game.difficulty, regional: game.regionalDifficulty)
+        // Sunken: 10% hold something - 10 in 16 a trident, else a fishing rod; 3% a nautilus shell.
+        if m.kind == .drowned && Float.random(in: 0..<1) > 0.9 {
+            let n = Int.random(in: 0..<16) < 10 ? "trident" : "fishing_rod"
+            if Items.has(n) { var eq = m.equip ?? [ItemStack](repeating: .empty, count: 5); eq[4] = ItemStack(Items.id(n), 1); m.equip = eq }
+        }
         if m.isZombie {
             if Float.random(in: 0..<1) < 0.05 { m.baby = true; m.scale = 0.5 }
             m.breaksDoors = m.kind != .drowned && Float.random(in: 0..<1) < game.regionalDifficulty * 0.1
