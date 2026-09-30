@@ -269,7 +269,14 @@ final class PauseMenu: Menu {
     // A = forward, X / right-click = back one step.
     override func click(_ slot: MenuSlot, button: Int, shift: Bool) {
         guard case .button(let i) = slot.kind, let r = row(forSlot: i) else { return }
-        act(r.1, back: button == 1)
+        // Mouse: clicking the "<" end of a setting steps it back, like right-click.
+        var back = button == 1
+        if !back && PauseMenu.valueIDs.contains(r.1) && game.input.mouseX >= 0 {
+            let L = HudLayout(game.screen.x, game.screen.y).fitted(self)
+            let x0 = origin(L).x + Float(slot.x) * L.s
+            if game.input.mouseX < x0 + Float(slot.w) * L.s * 0.2 { back = true }
+        }
+        act(r.1, back: back)
     }
     override func buttonPressed(_ i: Int) { if let r = row(forSlot: i) { act(r.1, back: false) } }
 
