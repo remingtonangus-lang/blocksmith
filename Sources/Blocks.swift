@@ -377,29 +377,29 @@ final class BlockRegistry {
         add(magma)
         cube("nether_bricks", "Ember Bricks", "nether_bricks", h: 2, req: true)
         cube("red_nether_bricks", "Red Ember Bricks", "red_nether_bricks", h: 2, req: true)
-        var cn = BlockDef("crimson_nylium", "Crimson Fungal Turf")
+        var cn = BlockDef("crimson_nylium", "Rustcap Fungal Turf")
         cn.tex = ["crimson_nylium_side", "crimson_nylium_side", "crimson_nylium", "netherrack", "crimson_nylium_side", "crimson_nylium_side"]
         cn.hardness = 0.4; cn.tool = .pickaxe; cn.requiresTool = true
         add(cn)
         var wn = cn
-        wn.name = "warped_nylium"; wn.display = "Warped Fungal Turf"
+        wn.name = "warped_nylium"; wn.display = "Tealcap Fungal Turf"
         wn.tex = ["warped_nylium_side", "warped_nylium_side", "warped_nylium", "netherrack", "warped_nylium_side", "warped_nylium_side"]
         add(wn)
-        column("crimson_stem", "Crimson Stem", side: "crimson_stem", top: "crimson_stem_top")
-        column("warped_stem", "Warped Stem", side: "warped_stem", top: "warped_stem_top")
+        column("crimson_stem", "Rustcap Stem", side: "crimson_stem", top: "crimson_stem_top")
+        column("warped_stem", "Tealcap Stem", side: "warped_stem", top: "warped_stem_top")
         cube("nether_wart_block", "Ember Wart Block", "nether_wart_block", h: 1, tool: .hoe, snd: .plant)
-        cube("warped_wart_block", "Warped Wart Block", "warped_wart_block", h: 1, tool: .hoe, snd: .plant)
+        cube("warped_wart_block", "Tealcap Wart Block", "warped_wart_block", h: 1, tool: .hoe, snd: .plant)
         var shroom = BlockDef("shroomlight", "Fungal Lamp")
         shroom.tex = ["shroomlight"]; shroom.emit = 15; shroom.hardness = 1; shroom.tool = .hoe; shroom.sound = .plant
         add(shroom)
-        plant("crimson_fungus", "Crimson Fungus", "crimson_fungus")
-        plant("warped_fungus", "Warped Fungus", "warped_fungus")
-        plant("crimson_roots", "Crimson Roots", "crimson_roots")
-        plant("warped_roots", "Warped Roots", "warped_roots")
+        plant("crimson_fungus", "Rustcap Fungus", "crimson_fungus")
+        plant("warped_fungus", "Tealcap Fungus", "warped_fungus")
+        plant("crimson_roots", "Rustcap Roots", "crimson_roots")
+        plant("warped_roots", "Tealcap Roots", "warped_roots")
         plant("weeping_vines", "Weeping Vines", "weeping_vines")
         plant("twisting_vines", "Twisting Vines", "twisting_vines")
-        cube("crimson_planks", "Crimson Planks", "crimson_planks", h: 2, tool: .axe, snd: .wood)
-        cube("warped_planks", "Warped Planks", "warped_planks", h: 2, tool: .axe, snd: .wood)
+        cube("crimson_planks", "Rustcap Planks", "crimson_planks", h: 2, tool: .axe, snd: .wood)
+        cube("warped_planks", "Tealcap Planks", "warped_planks", h: 2, tool: .axe, snd: .wood)
         var co = BlockDef("crying_obsidian", "Weeping Obsidian")
         co.tex = ["crying_obsidian"]; co.emit = 10; co.hardness = 50; co.resistance = 1200; co.tool = .pickaxe; co.harvestLevel = 3; co.requiresTool = true
         add(co)
@@ -570,7 +570,7 @@ final class BlockRegistry {
         registerWoodExtras()
         registerShelf()
         // Building families: stairs, slabs, fences, walls for each material.
-        let woods: [(String, String)] = [("oak", "Oak"), ("birch", "Birch"), ("spruce", "Spruce"), ("crimson", "Crimson"), ("warped", "Warped")]
+        let woods: [(String, String)] = [("oak", "Oak"), ("birch", "Birch"), ("spruce", "Spruce"), ("crimson", "Rustcap"), ("warped", "Tealcap")]
             + BlockRegistry.extraWoods
         for (w, d) in woods {
             family("\(w)_planks", "\(w)", d, h: 2, tool: .axe, req: false, snd: .wood, stairs: true, slab: true, fence: true, wall: false)

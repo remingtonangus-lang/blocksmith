@@ -92,8 +92,8 @@ enum Biome: Int, CaseIterable {
     var name: String { info.id }
     // Player-facing biome name (Blocksmith names for the other dimensions).
     var displayName: String {
-        let own: [String: String] = ["nether_wastes": "Ember Wastes", "soul_sand_valley": "Ghost Sand Valley", "crimson_forest": "Crimson Forest",
-                                     "warped_forest": "Warped Forest", "basalt_deltas": "Basalt Deltas", "the_end": "The Hollow", "deep_dark": "Murk Depths"]
+        let own: [String: String] = ["nether_wastes": "Ember Wastes", "soul_sand_valley": "Ghost Sand Valley", "crimson_forest": "Rustcap Forest",
+                                     "warped_forest": "Tealcap Forest", "basalt_deltas": "Basalt Deltas", "the_end": "The Hollow", "deep_dark": "Murk Depths"]
         return own[info.id] ?? info.id.split(separator: "_").map { $0.capitalized }.joined(separator: " ")
     }
     static func named(_ n: String) -> Biome? { allCases.first { $0.name == n } }

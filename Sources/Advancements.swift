@@ -54,7 +54,7 @@ enum Advancements {
         Advancement(id: "nether/netherite_armor", tab: 1, title: "Unbreakable Shell", desc: "Get a full suit of Duskium armor",
                     crit: .event("netherite_suit"), challenge: true),
         Advancement(id: "nether/distract_piglin", tab: 1, title: "Gold Rush", desc: "Distract Boarlings with gold", crit: .event("barter")),
-        Advancement(id: "nether/ride_strider", tab: 1, title: "Hot Stroll", desc: "Ride a Magmastrider with a Warped Fungus on a Stick", crit: .event("ride_strider")),
+        Advancement(id: "nether/ride_strider", tab: 1, title: "Hot Stroll", desc: "Ride a Magmastrider with a Tealcap Fungus on a Stick", crit: .event("ride_strider")),
         Advancement(id: "nether/summon_wither", tab: 1, title: "Dark Summoning", desc: "Summon the Blight", crit: .event("summon_wither")),
         Advancement(id: "nether/create_beacon", tab: 1, title: "Signal Fire", desc: "Construct and place a Beacon", crit: .event("beacon")),
         Advancement(id: "nether/all_effects", tab: 1, title: "A Heady Mix", desc: "Have every potion effect at the same time", crit: .allEffects(13), challenge: true),

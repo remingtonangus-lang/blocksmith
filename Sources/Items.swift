@@ -238,7 +238,7 @@ final class ItemRegistry {
                           ("axolotl_bucket", "Bucket of Axolotl", 0xF09AB0), ("tadpole_bucket", "Bucket of Tadpole", 0x5A4A30)] as [(String, String, UInt32)] {
             item(n, d, "bucket", 0xC8C8C8, ["c": c], stack: 1)
         }
-        item("warped_fungus_on_a_stick", "Warped Fungus on a Stick", "fishing_rod", 0x6B4F2C, ["s": 0xDDDDDD, "c": 0x2A9A8A], stack: 1)
+        item("warped_fungus_on_a_stick", "Tealcap Fungus on a Stick", "fishing_rod", 0x6B4F2C, ["s": 0xDDDDDD, "c": 0x2A9A8A], stack: 1)
         for (c, d) in BlockRegistry.colors {
             item("\(c)_dye", "\(d) Dye", "dust", BlockRegistry.colorHex[c] ?? 0xFFFFFF)
         }

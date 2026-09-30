@@ -29,7 +29,7 @@ extension BlockRegistry {
                 d.skyStop = false
                 let ns = f < 2
                 if st < 4 {
-                    d.boxes = [ns ? Box(0, 7, 7, 16, 15, 9) : Box(7, 7, 0, 9, 15, 16), Box(7, 0, 7, 9, 7, 9, tex: [UInt16](repeating: Tex.id("\(wood)_log"), count: 6))]
+                    d.boxes = [ns ? Box(0, 7, 7, 16, 15, 9) : Box(7, 7, 0, 9, 15, 16), Box(7, 0, 7, 9, 7, 9, tex: [UInt16](repeating: Tex.id(wood == "crimson" || wood == "warped" ? "\(wood)_stem" : "\(wood)_log"), count: 6))]
                 } else {
                     d.boxes = [[Box(0, 4, 14, 16, 12, 16), Box(0, 4, 0, 16, 12, 2), Box(14, 4, 0, 16, 12, 16), Box(0, 4, 0, 2, 12, 16)][f]]
                 }
