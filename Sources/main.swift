@@ -291,12 +291,22 @@ enum Snapshot {
         if solidAt(game.player.eye) || solidAt(game.player.pos + V3(0, 0.1, 0)) {
             let b = IVec3(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z)))
             var best: IVec3?
+            // Prefer a spot with a clear 3x3x3 around the eye (not pressed against a wall), else any 2-high pocket.
+            func clear(_ q: IVec3) -> Bool {
+                for dy in 0...2 { for dz in -1...1 { for dx in -1...1 where Blocks.collide[Int(world.block(q.x + dx, q.y + dy, q.z + dz))] { return false } } }
+                return true
+            }
+            var pocket: IVec3?
             search: for r in 1...24 {
                 for dy in [0] + (1...r).flatMap({ [$0, -$0] }) { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz), abs(dy)) == r {
                     let q = IVec3(b.x + dx, b.y + dy, b.z + dz)
-                    if !Blocks.collide[Int(world.block(q.x, q.y, q.z))] && !Blocks.collide[Int(world.block(q.x, q.y + 1, q.z))] { best = q; break search }
+                    if !Blocks.collide[Int(world.block(q.x, q.y, q.z))] && !Blocks.collide[Int(world.block(q.x, q.y + 1, q.z))] {
+                        if pocket == nil { pocket = q }
+                        if clear(q) { best = q; break search }
+                    }
                 } } }
             }
+            if best == nil { best = pocket }
             if let q = best {
                 print("camera in solid at \(b.x) \(b.y - YOFF) \(b.z): moved to \(q.x) \(q.y - YOFF) \(q.z)")
                 pos = V3(Float(q.x) + 0.5, Float(q.y), Float(q.z) + 0.5)
@@ -575,14 +585,24 @@ enum Snapshot {
         }
         if CommandLine.arguments.contains("--torches") {
             // Light test: a ring of torches plus a lamp around the camera, then remesh what changed.
+            // Torches stand on the first floor below the camera (surface or cave), never in water.
+            func floorBelow(_ x: Int, _ z: Int) -> Int? {
+                var y = min(Int(floor(pos.y)) + 2, world.topY(x, z) + 1)
+                let stop = y - 40
+                while y > stop {
+                    let here = world.block(x, y, z), below = world.block(x, y - 1, z)
+                    if (here == AIR || Blocks.replaceable[Int(here)]) && !Blocks.isLiquid(here) && Blocks.opaque[Int(below)] { return y }
+                    y -= 1
+                }
+                return nil
+            }
             for k in 0..<10 {
                 let a = Float(k) / 10 * 2 * .pi
                 let x = Int(floor(pos.x + cosf(a) * 7)), z = Int(floor(pos.z + sinf(a) * 7))
-                let h = world.topY(x, z)
-                if h >= SEA { world.setBlock(x, h + 1, z, TORCH) }
+                if let y = floorBelow(x, z) { world.setBlock(x, y, z, TORCH) }
             }
             let lx = Int(floor(pos.x)) + 3, lz = Int(floor(pos.z))
-            world.setBlock(lx, world.topY(lx, lz) + 1, lz, LAMP)
+            if let y = floorBelow(lx, lz) { world.setBlock(lx, y, lz, LAMP) }
             let t2 = world.loadSync(center: pos, radius: rd)
             t.mesh += t2.mesh
         }
@@ -742,6 +762,33 @@ enum Snapshot {
         do { renderer = try Renderer(device: device, game: game, colorFormat: .bgra8Unorm) }
         catch { print("renderer init failed: \(error)"); return 1 }
         game.target = world.raycast(game.player.eye, game.player.look, maxDist: 5)
+        if arg("--menu") == nil { game.advToasts.removeAll() }      // no "Advancement Made" toasts over test views
+        if CommandLine.arguments.contains("--nightvision") { game.applyEffect(.nightVision, amp: 0, seconds: 300) }
+        if CommandLine.arguments.contains("--treecheck") {
+            // Tree species vs column biome: sample columns that have a log under the canopy.
+            var checked = 0, bad: [String] = []
+            let px = Int(floor(pos.x)), pz = Int(floor(pos.z))
+            var rng = SRng(99)
+            var tries = 0
+            while checked < 200 && tries < 20000 {
+                tries += 1
+                let x = px + rng.range(-96, 96), z = pz + rng.range(-96, 96)
+                let top = world.topY(x, z)
+                guard top > 0 else { continue }
+                var y = top, log = ""
+                while y > top - 20 {
+                    let k = Blocks.key(Blocks.groupBase[Int(world.block(x, y, z))])
+                    if k.hasSuffix("_log") { log = k; break }
+                    y -= 1
+                }
+                guard log == "pale_oak_log" || log == "dark_oak_log" else { continue }
+                checked += 1
+                let biome = world.gen.column(x, z).biome
+                let ok = log == "pale_oak_log" ? biome == .paleGarden : (biome == .darkForest || biome == .paleGarden)
+                if !ok { bad.append("\(log)@\(x),\(z)=\(biome)") }
+            }
+            print("treecheck: \(checked) trunks, \(bad.count) in the wrong biome\(bad.isEmpty ? "" : ": " + bad.prefix(12).joined(separator: " "))")
+        }
         if CommandLine.arguments.contains("--swim") {
             game.player.flying = false
             game.player.swimming = true
@@ -757,7 +804,10 @@ enum Snapshot {
         print(String(format: "frame (encode+GPU, offscreen, median of 30) %.2f ms  biome %@", gpu * 1000, "\(world.gen.column(Int(pos.x), Int(pos.z)).biome)"))
         var meshBytes = 0
         for c in world.chunks.values { for sec in c.sections { meshBytes += (sec.opaqueBuf?.length ?? 0) + (sec.transBuf?.length ?? 0) } }
-        print(String(format: "mesh slabs %.0f MB, chunks %ld", Double(MeshArena.shared.slabBytes) / 1_048_576, world.chunks.count))
+        var chunkBytes = 0
+        for c in world.chunks.values { chunkBytes += c.blocks.count * 2 + c.light.count + c.height.count * 2 + c.tint.count * 4 }
+        print(String(format: "mesh slabs %.0f MB, chunks %ld (block+light arrays %.0f MB), Metal allocated %.0f MB", Double(MeshArena.shared.slabBytes) / 1_048_576,
+                     world.chunks.count, Double(chunkBytes) / 1_048_576, Double(device.currentAllocatedSize) / 1_048_576))
         print(String(format: "memory: resident %.0f MB  (section meshes %.0f MB)", residentMB(), Double(meshBytes) / 1_048_576))
         print("wrote \(out)")
         return 0

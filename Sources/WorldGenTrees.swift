@@ -101,7 +101,8 @@ enum TreePlacer {
                         let soil = Blocks.key(w.get(tx, gy, tz))
                         let ok = ["grass_block", "snowy_grass_block", "dirt", "podzol", "coarse_dirt", "mud", "mycelium", "moss_block", "pale_moss_block", "snow_block", "packed_ice", "red_sand"].contains(soil)
                         if !ok { continue }
-                        if w.get(tx, gy + 1, tz) != AIR && !Blocks.replaceable[Int(w.get(tx, gy + 1, tz))] { continue }
+                        let above = w.get(tx, gy + 1, tz)
+                        if above != AIR && !Blocks.replaceable[Int(above)] && !Blocks.key(above).hasSuffix("_carpet") { continue }
                     }
                     var rng = SRng(UInt64(hash3(tx, gy, tz, gen.s32 ^ 0x7EE7)) | 1)
                     build(w, kind, tx, gy + 1, tz, &rng)
@@ -421,8 +422,14 @@ extension WorldGen {
                             let nx = lx + d.0, nz = lz + d.1
                             return nx < 0 || nx >= CS || nz < 0 || nz >= CS || b[Chunk.index(nx, y + 1, nz)] == AIR
                         }
-                        if clear { for k in 1...(1 + Int(h2 * 3)) { b[Chunk.index(lx, y + k, lz)] = CACTUS } }
+                        if clear {
+                            let len = 1 + Int(h2 * 3)
+                            for k in 1...len { b[Chunk.index(lx, y + k, lz)] = CACTUS }
+                            if hashf(wx, 11, wz, s32 ^ 0x3C3E) < 0.25 { b[Chunk.index(lx, y + len + 1, lz)] = g("cactus_flower") }
+                        }
                     } else if h < 0.015 { b[above] = g("dead_bush") }
+                    else if h < 0.03 { b[above] = g("short_dry_grass") }
+                    else if h < 0.036 { b[above] = g("tall_dry_grass") }
                 } else if grassy.contains(ground) && h < 0.1 { b[above] = TALL_GRASS }
                 continue
             case .mushroomFields:
@@ -470,6 +477,19 @@ extension WorldGen {
                 if patch > 0.25 { b[i] = g("pale_moss_block"); if h2 < 0.45 { b[above] = g("pale_moss_carpet") }; continue }
             }
             if h > 0.9993 && ground == GRASS { b[above] = g("pumpkin"); continue }
+            // Newer ground cover: leaf litter under forests, wildflowers, bushes, firefly bushes by swamps.
+            switch biome {
+            case .forest, .darkForest, .birchForest, .oldGrowthBirchForest, .windsweptForest:
+                if h > 0.94 { b[above] = g("leaf_litter"); continue }
+                if (biome == .birchForest || biome == .oldGrowthBirchForest) && h > 0.92 { b[above] = g("wildflowers"); continue }
+            case .meadow:
+                if h > 0.93 { b[above] = g("wildflowers"); continue }
+            case .plains, .sunflowerPlains, .windsweptHills:
+                if h > 0.985 { b[above] = g("bush"); continue }
+            case .swamp, .mangroveSwamp:
+                if h > 0.975 { b[above] = g("firefly_bush"); continue }
+            default: break
+            }
             if h < flowerP {
                 if biome == .flowerForest && h2 < 0.15 {
                     let tall = ["lilac", "rose_bush", "peony"][Int(h2 * 20) % 3]
