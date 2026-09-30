@@ -120,6 +120,7 @@ enum Font {
 
     // Advance in font pixels (glyph width + 1 spacing).
     static func advance(_ code: Int) -> Int {
+        if Glyphs.isGlyph(code) { return Glyphs.advance(code) }
         guard code >= 32 && code < 127 else { return 6 }
         return glyphs[code - 32][0] + 1
     }

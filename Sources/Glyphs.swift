@@ -1,0 +1,259 @@
+import Foundation
+
+// Controller button glyphs and keyboard key caps inside HUD text. Each glyph is one private-use
+// Unicode scalar (so it can never collide with typed text); Font.advance knows their widths and the
+// renderer's text() draws them as pixel-art badges in the same style as the 5x7 font.
+enum Glyph: UInt32 {
+    case a = 0xE000, b, x, y, lb, rb, lt, rt, ls, rs, l3, r3, menu, view, share
+    case dpad, dup, ddown, dleft, dright, dpadH, dpadV
+    case mouseL, mouseR, mouseM
+    var s: String { String(Character(Unicode.Scalar(rawValue)!)) }
+}
+
+enum Glyphs {
+    static let first = 0xE000, last = 0xE0FF
+    static let capOpen = 0xE0F0, capClose = 0xE0F1
+    static func isGlyph(_ code: Int) -> Bool { code >= first && code <= last }
+    // A keyboard key cap around a label, e.g. key("Esc").
+    static func key(_ label: String) -> String { "\u{E0F0}\(label)\u{E0F1}" }
+
+    static func pillLabel(_ g: Glyph) -> String? {
+        switch g {
+        case .lb: return "LB"
+        case .rb: return "RB"
+        case .lt: return "LT"
+        case .rt: return "RT"
+        default: return nil
+        }
+    }
+
+    // Advance in font pixels (drawn width + 1 spacing), matching Font.advance for normal glyphs.
+    static func advance(_ code: Int) -> Int {
+        if code == capOpen || code == capClose { return 2 }
+        guard let g = Glyph(rawValue: UInt32(code)) else { return 6 }
+        if let l = pillLabel(g) { return Font.width(l) + 5 }
+        switch g {
+        case .mouseL, .mouseR, .mouseM: return 8
+        default: return 10
+        }
+    }
+
+    typealias Rect = (Float, Float, Float, Float, V4) -> Void
+    typealias Text = (String, Float, Float, Float, V4, Bool) -> Void
+
+    static func tone(_ g: Glyph) -> (V4, V4) {        // (badge, label)
+        let dark = V4(0.16, 0.16, 0.18, 1), white = V4(1, 1, 1, 1)
+        switch g {
+        case .a: return (V4(0.24, 0.68, 0.26, 1), white)
+        case .b: return (V4(0.82, 0.2, 0.2, 1), white)
+        case .x: return (V4(0.2, 0.45, 0.92, 1), white)
+        case .y: return (V4(0.95, 0.78, 0.15, 1), dark)
+        case .l3, .r3: return (V4(0.88, 0.88, 0.9, 1), dark)
+        default: return (dark, white)
+        }
+    }
+
+    // Draws glyph `code` with its left edge at x and the font's top row at y (badges are 9 font px tall,
+    // one pixel above and below the text line).
+    static func draw(_ code: Int, _ x: Float, _ y: Float, _ u: Float, _ alpha: Float, rect: Rect, text: Text) {
+        guard let g = Glyph(rawValue: UInt32(code)) else { return }
+        let y0 = y - u
+        var (bg, fg) = tone(g)
+        bg.w *= alpha; fg.w *= alpha
+        let shadow = V4(0, 0, 0, 0.45 * alpha)
+        func disc(_ ox: Float, _ oy: Float, _ c: V4) {
+            rect(ox + 2 * u, oy, 5 * u, u, c)
+            rect(ox + u, oy + u, 7 * u, u, c)
+            rect(ox, oy + 2 * u, 9 * u, 5 * u, c)
+            rect(ox + u, oy + 7 * u, 7 * u, u, c)
+            rect(ox + 2 * u, oy + 8 * u, 5 * u, u, c)
+        }
+        func letter(_ l: String, _ ox: Float) { text(l, ox, y, u, fg, false) }
+        if let label = pillLabel(g) {
+            let w = Float(Font.width(label) + 4) * u
+            let trigger = g == .lt || g == .rt
+            for (ox, oy, c) in [(u, u, shadow), (Float(0), Float(0), bg)] {
+                if trigger {
+                    rect(x + ox + 2 * u, y0 + oy, w - 4 * u, u, c)
+                    rect(x + ox + u, y0 + oy + u, w - 2 * u, u, c)
+                    rect(x + ox, y0 + oy + 2 * u, w, 7 * u, c)
+                } else {
+                    rect(x + ox + u, y0 + oy, w - 2 * u, u, c)
+                    rect(x + ox, y0 + oy + u, w, 7 * u, c)
+                    rect(x + ox + u, y0 + oy + 8 * u, w - 2 * u, u, c)
+                }
+            }
+            letter(label, x + 2 * u)
+            return
+        }
+        switch g {
+        case .a, .b, .x, .y:
+            disc(x + u, y0 + u, shadow); disc(x, y0, bg)
+            let l = g == .a ? "A" : g == .b ? "B" : g == .x ? "X" : "Y"
+            letter(l, x + 2 * u)
+        case .ls, .rs, .l3, .r3:
+            disc(x + u, y0 + u, shadow); disc(x, y0, bg)
+            let ring = V4(0.55, 0.55, 0.6, alpha)
+            rect(x + 2 * u, y0 + u, 5 * u, u * 0.5, ring)
+            letter(g == .ls || g == .l3 ? "L" : "R", x + 2 * u)
+            if g == .l3 || g == .r3 { rect(x + 3 * u, y0 + 8 * u, 3 * u, u, fg) }
+        case .menu:
+            disc(x + u, y0 + u, shadow); disc(x, y0, bg)
+            for r in [2, 4, 6] { rect(x + 2 * u, y0 + Float(r) * u, 5 * u, u, fg) }
+        case .view:
+            disc(x + u, y0 + u, shadow); disc(x, y0, bg)
+            rect(x + 2 * u, y0 + 2 * u, 4 * u, 3 * u, V4(0.7, 0.7, 0.72, alpha))
+            rect(x + 3 * u, y0 + 4 * u, 4 * u, 3 * u, fg)
+        case .share:
+            disc(x + u, y0 + u, shadow); disc(x, y0, bg)
+            rect(x + 3 * u, y0 + 3 * u, 3 * u, 3 * u, fg)
+        case .dpad, .dup, .ddown, .dleft, .dright, .dpadH, .dpadV:
+            let base = V4(0.16, 0.16, 0.18, alpha), hi = V4(1, 1, 1, alpha)
+            let all = g == .dpad
+            func arm(_ ax: Float, _ ay: Float, _ w: Float, _ h: Float, _ lit: Bool) { rect(x + ax * u, y0 + ay * u, w * u, h * u, lit ? hi : base) }
+            rect(x + 3 * u + u, y0 + u, 3 * u, 9 * u, shadow)
+            rect(x + u, y0 + 3 * u + u, 9 * u, 3 * u, shadow)
+            arm(3, 0, 3, 3, all || g == .dup || g == .dpadV)
+            arm(3, 6, 3, 3, all || g == .ddown || g == .dpadV)
+            arm(0, 3, 3, 3, all || g == .dleft || g == .dpadH)
+            arm(6, 3, 3, 3, all || g == .dright || g == .dpadH)
+            arm(3, 3, 3, 3, false)
+        case .mouseL, .mouseR, .mouseM:
+            let body = V4(0.88, 0.88, 0.9, alpha), line = V4(0.3, 0.3, 0.33, alpha), hi = V4(1, 0.62, 0.12, alpha)
+            rect(x + u + u, y0 + u, 5 * u, 9 * u, shadow)
+            rect(x + u, y0, 5 * u, 9 * u, body)
+            rect(x, y0 + u, 7 * u, 7 * u, body)
+            if g == .mouseL { rect(x + u, y0 + u, 2 * u, 3 * u, hi) }
+            if g == .mouseR { rect(x + 4 * u, y0 + u, 2 * u, 3 * u, hi) }
+            rect(x + 3 * u, y0, u, 4 * u, g == .mouseM ? hi : line)
+            rect(x, y0 + 4 * u, 7 * u, u * 0.5, line)
+        default: break
+        }
+    }
+
+    // Key cap behind a label that is `w` screen px wide in total (from capOpen to capClose).
+    static func cap(_ x: Float, _ y: Float, _ w: Float, _ u: Float, _ alpha: Float, rect: Rect) {
+        let y0 = y - u
+        let edge = V4(0.12, 0.12, 0.14, alpha), face = V4(0.9, 0.9, 0.92, alpha), low = V4(0.62, 0.62, 0.66, alpha)
+        rect(x + u, y0, w - 2 * u, 9 * u, edge)
+        rect(x, y0 + u, w, 7 * u, edge)
+        rect(x + u, y0 + u, w - 2 * u, 7 * u, face)
+        rect(x + u, y0 + 7 * u, w - 2 * u, u, low)
+    }
+    static let capInk = V4(0.1, 0.1, 0.12, 1)
+}
+
+// What to show for an action: the controller glyph when the player is on a pad, else the key or mouse button.
+enum Prompt {
+    enum Act {
+        case jump, sneak, sprint, attack, use, pick, drop, inventory, hotbar, fly, camera, pause, offhand, chat, screenshot
+        case select, back, alt, quick, tabs, scroll, keyboard, delete, space, shift, done, move
+    }
+
+    static var pad: Bool {
+        switch Settings.shared.glyphStyle {
+        case 1: return true
+        case 2: return false
+        default: return PadManager.shared.usingPad
+        }
+    }
+
+    static func g(_ a: Act) -> String {
+        if pad {
+            switch a {
+            case .jump, .select: return Glyph.a.s
+            case .sneak, .back: return Glyph.b.s
+            case .sprint: return Glyph.l3.s
+            case .attack: return Glyph.rt.s
+            case .use: return Glyph.lt.s
+            case .pick, .alt, .delete: return Glyph.x.s
+            case .drop: return Glyph.ddown.s
+            case .inventory, .quick, .keyboard, .space: return Glyph.y.s
+            case .hotbar, .tabs: return Glyph.lb.s + Glyph.rb.s
+            case .fly: return Glyph.dup.s
+            case .camera: return Glyph.view.s
+            case .pause, .done: return Glyph.menu.s
+            case .offhand: return Glyph.dright.s
+            case .chat: return Glyph.dleft.s
+            case .screenshot: return Glyph.share.s
+            case .scroll: return Glyph.rs.s
+            case .shift: return Glyph.lt.s
+            case .move: return Glyph.ls.s
+            }
+        }
+        switch a {
+        case .jump, .space: return Glyphs.key("Space")
+        case .sneak, .shift: return Glyphs.key("Shift")
+        case .sprint: return Glyphs.key("Ctrl")
+        case .attack, .select: return Glyph.mouseL.s
+        case .use, .alt: return Glyph.mouseR.s
+        case .pick: return Glyph.mouseM.s
+        case .drop: return Glyphs.key("Q")
+        case .inventory: return Glyphs.key("E")
+        case .hotbar: return Glyphs.key("1-9")
+        case .fly: return Glyphs.key("F")
+        case .camera: return Glyphs.key("F5")
+        case .pause, .back: return Glyphs.key("Esc")
+        case .offhand: return Glyphs.key("R")
+        case .chat: return Glyphs.key("T")
+        case .screenshot: return Glyphs.key("F2")
+        case .quick: return Glyphs.key("Shift") + Glyph.mouseL.s
+        case .tabs: return Glyphs.key("Tab")
+        case .scroll: return Glyph.mouseM.s
+        case .keyboard: return ""
+        case .delete: return Glyphs.key("Del")
+        case .done: return Glyphs.key("Enter")
+        case .move: return Glyphs.key("WASD")
+        }
+    }
+
+    // "glyph label   glyph label ..." for a legend line.
+    static func line(_ items: [(Act, String)]) -> String {
+        items.compactMap { item -> String? in
+            let gl = g(item.0)
+            return gl.isEmpty ? nil : gl + " " + item.1
+        }.joined(separator: "   ")
+    }
+
+    // The control legend drawn under an open screen; changes with what the cursor is over.
+    static func menuLegend(_ m: Menu, _ game: Game) -> String {
+        if m is KeyboardMenu {
+            return pad ? line([(.select, "Type"), (.delete, "Delete"), (.space, "Space"), (.shift, "Shift"), (.done, "Done"), (.back, "Back")])
+                       : line([(.done, "Done"), (.back, "Back")])
+        }
+        if m is DeathMenu { return line([(.select, "Select")]) }
+        if let pm = m as? PauseMenu { return pm.legend }
+        if m.capturesText {
+            return pad ? line([(.keyboard, "Keyboard"), (.select, "Select"), (.back, "Close")]) : line([(.select, "Select"), (.back, "Close")])
+        }
+        let hover = game.menuHover
+        if let h = hover, h.isButton { return line([(.select, "Select"), (.back, "Close")]) }
+        if m is CreativeMenu {
+            var items: [(Act, String)] = []
+            if let h = hover, case .palette = h.kind {
+                items = game.carried.isEmpty ? [(.select, "Take stack"), (.alt, "Take one"), (.quick, "To inventory")] : [(.select, "Drop held")]
+            } else if hover != nil {
+                items = game.carried.isEmpty ? [(.select, "Pick up"), (.quick, "Clear slot")] : [(.select, "Place"), (.alt, "Place one")]
+            }
+            items.append((.scroll, "Scroll"))
+            items.append((.back, "Close"))
+            return line(items)
+        }
+        var items: [(Act, String)] = []
+        let carried = game.carried
+        if let h = hover {
+            let s = h.stack
+            if case .result = h.kind {
+                if !s.isEmpty { items = [(.select, "Craft"), (.quick, "Craft all")] }
+            } else if carried.isEmpty {
+                if !s.isEmpty { items = [(.select, "Pick up"), (.alt, "Pick up half"), (.quick, "Quick move")] }
+            } else if s.isEmpty || s.stacks(with: carried) {
+                items = [(.select, "Place all"), (.alt, "Place one")]
+            } else {
+                items = [(.select, "Swap")]
+            }
+        }
+        items.append((.back, "Close"))
+        return line(items)
+    }
+}

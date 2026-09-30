@@ -634,6 +634,15 @@ enum Snapshot {
             for m in game.mobs.mobs where m.kind == .villager { jobs[m.villager?.profession ?? "?", default: 0] += 1 }
             print("after \(secs) s: \(game.mobs.mobs.count) mobs, villagers \(jobs.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))")
         }
+        if CommandLine.arguments.contains("--padtest") { PadTest.run(game) }     // scripted controller menu tests
+        if CommandLine.arguments.contains("--pad") { PadManager.shared.forcePad(true) }   // draw prompts with pad glyphs
+        if CommandLine.arguments.contains("--couch") || arg("--safe") != nil {
+            // TV layout checks without touching the saved options (restored after the shot).
+            PrefsSandbox.begin()
+            if CommandLine.arguments.contains("--couch") { HudLayout.couch = true }
+            if let sa = Int(arg("--safe") ?? "") { Settings.shared.safeArea = sa }
+        }
+        if let v = arg("--padview") { PadTest.view(game, v) }
         if CommandLine.arguments.contains("--selftest") {
             // Crash smoke test: every mob kind, every block, the special crafting paths, bundles, and 3 s of ticks.
             game.paused = false
@@ -778,7 +787,9 @@ if let dir = arg("--sounds") {
 }
 
 if let out = arg("--snapshot") {
-    exit(Snapshot.run(out))
+    let code = Snapshot.run(out)
+    PrefsSandbox.end()
+    exit(PadTest.failures > 0 ? 3 : code)
 }
 
 let app = NSApplication.shared

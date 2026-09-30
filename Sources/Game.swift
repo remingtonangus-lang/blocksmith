@@ -63,8 +63,6 @@ final class Game {
     var menuHover: MenuSlot?      // slot under the mouse / controller cursor
     var screen = V2(1280, 800)    // drawable size, updated by the renderer each frame
     var onInventoryChanged: ((Bool) -> Void)?
-    private var navTimer: Double = 0
-    private var navHeld = false
 
     // Survival
     var survival = false {
@@ -199,6 +197,7 @@ final class Game {
 
     func sfx(_ s: Snd, _ v: Float = 1, at pos: V3? = nil) {
         sound?.play(s, volume: v, at: pos, listener: player.eye, yaw: player.yaw)
+        Feedback.sound(self, s, v, at: pos)
     }
 
     var onPauseChanged: ((Bool) -> Void)?
@@ -480,87 +479,6 @@ final class Game {
         openMenu(survival ? InventoryMenu(game: self) : CreativeMenu(game: self))
     }
 
-    private func tickMenu(_ p: PadSnapshot, _ q: PadSnapshot, _ dt: Double) {
-        guard let m = menu else { return }
-        let L = HudLayout(screen.x, screen.y)
-        var mx = 0, my = 0
-        if (p.left && !q.left) || input.tapped(Key.arrowLeft) { mx -= 1 }
-        if (p.right && !q.right) || input.tapped(Key.arrowRight) { mx += 1 }
-        if (p.up && !q.up) || input.tapped(Key.arrowUp) { my -= 1 }
-        if (p.down && !q.down) || input.tapped(Key.arrowDown) { my += 1 }
-        let ls = stick(p.lx, p.ly, dead: deadZone)
-        var sx = 0, sy = 0
-        if max(abs(ls.x), abs(ls.y)) > 0.45 {
-            if abs(ls.x) > abs(ls.y) { sx = ls.x > 0 ? 1 : -1 } else { sy = ls.y > 0 ? -1 : 1 }
-        }
-        if sx != 0 || sy != 0 {
-            navTimer -= dt
-            if !navHeld || navTimer <= 0 {
-                mx += sx; my += sy
-                navTimer = navHeld ? 0.1 : 0.3
-                navHeld = true
-            }
-        } else {
-            navHeld = false
-            navTimer = 0
-        }
-        let creative = m as? CreativeMenu
-        var padMoved = false
-        if mx != 0 || my != 0 {
-            let before = menuCursor
-            menuCursor = m.neighbour(of: menuCursor, dx: mx, dy: my)
-            // Scroll the creative palette when pushing past its top/bottom row.
-            if let c = creative, menuCursor == before, my != 0, before < c.rows * 9 { c.scrollBy(my) }
-            padMoved = true
-            sfx(.click, 0.3)
-        }
-        let rs = stick(p.rx, p.ry)
-        if let c = creative {
-            if input.scrollSteps != 0 { c.scrollBy(-input.scrollSteps) }
-            if abs(rs.y) > 0.5 && (!navHeld || navTimer <= 0.05) { c.scrollBy(rs.y > 0 ? -1 : 1) }
-        }
-        if let mm = m as? MerchantMenu, input.scrollSteps != 0 {
-            mm.scroll = max(0, min(max(0, mm.offers.count - MerchantMenu.visible), mm.scroll - input.scrollSteps))
-        }
-        let mouse = V2(input.mouseX, input.mouseY)
-        if input.mouseMoved, let s = m.slotAt(mouse, L), let i = m.slots.firstIndex(where: { $0 === s }) { menuCursor = i }
-        menuHover = menuCursor < m.slots.count ? m.slots[menuCursor] : nil
-        if padMoved { input.mouseX = -1 }
-
-        let shift = input.shift
-        if input.leftClicked || input.rightClicked {
-            let b = input.leftClicked ? 0 : 1
-            if let s = m.slotAt(mouse, L) { m.click(s, button: b, shift: shift) }
-            else if !m.inside(mouse, L) && !carried.isEmpty {
-                if b == 0 { dropItem(carried); carried = .empty }
-                else { dropItem(carried.with(count: 1)); carried.count -= 1; if carried.count <= 0 { carried = .empty } }
-            }
-        }
-        if let s = menuHover {
-            if p.a && !q.a { m.click(s, button: 0, shift: false) }
-            if p.x && !q.x { m.click(s, button: 1, shift: false) }
-            if p.y && !q.y { m.click(s, button: 0, shift: true) }
-            // Number keys swap the hovered slot with a hotbar slot.
-            for (i, k) in Key.digits.enumerated() where input.tapped(k) && !m.capturesText {
-                if case .normal = s.kind, s.container != nil {
-                    let a = s.stack
-                    s.stack = inventory.main[i]
-                    inventory.main[i] = a
-                    m.changed()
-                }
-            }
-        }
-        m.tick()
-        if !input.typed.isEmpty { m.typed(input.typed) }
-        if (p.b && !q.b) && m.backPressed() { m.tick(); return }
-        if m.capturesText && p.y && !q.y && !(m is KeyboardMenu) {
-            menu = KeyboardMenu(game: self, target: m)
-            menuCursor = 0
-            return
-        }
-        if (input.tapped(Key.e) && !m.capturesText) || input.tapped(Key.esc) || (p.b && !q.b) || (p.view && !q.view) { closeMenu() }
-    }
-
     // MARK: Tick
 
     func tick(_ rawDt: Double) {
@@ -570,11 +488,12 @@ final class Game {
 
         let pad = readPad()
         padConnected = pad != nil
+        PadManager.shared.note(pad: pad, input: input)
         let p = pad ?? PadSnapshot()
         let q = prevPad
         defer { prevPad = p; input.endFrame() }
 
-        if p.menu && !q.menu {
+        if p.menu && !q.menu && !(menu is KeyboardMenu) {
             if paused { if menu is PauseMenu { closeMenu() } else { paused = false } }
             else { if menu != nil { closeMenu() }; paused = true }
         }
@@ -616,10 +535,10 @@ final class Game {
             player.yaw -= input.mouseDX * sens
             player.pitch -= input.mouseDY * sens * (invertY ? -1 : 1)
         }
-        let rs = stick(p.rx, p.ry, dead: deadZone)
-        let inv: Float = invertY ? -1 : 1
-        player.yaw -= rs.x * 3.4 * fdt * sensitivity
-        player.pitch += rs.y * 2.6 * fdt * sensitivity * inv
+        let look = PadLook.shared.update(rx: p.rx, ry: p.ry, dead: deadZone, sensitivity: sensitivity, invert: invertY,
+                                         friction: AimAssist.friction(self), dt: fdt)
+        player.yaw += look.x
+        player.pitch += look.y
         player.pitch = simd_clamp(player.pitch, -1.55, 1.55)
         player.yaw = player.yaw.truncatingRemainder(dividingBy: 2 * .pi)
 
@@ -635,8 +554,8 @@ final class Game {
         mi.forward = simd_clamp(mi.forward, -1, 1)
         mi.strafe = simd_clamp(mi.strafe, -1, 1)
         mi.jump = input.down(Key.space) || p.a
-        mi.sneak = input.shift || p.b || p.r3
-        if input.control || (p.l3 && !q.l3) { player.sprinting = true }
+        mi.sneak = input.shift || PadActions.sneak(p, q, self)
+        if input.control || (p.l3 && !q.l3) || PadActions.autoSprint(ls, fdt) { player.sprinting = true }
         mi.sprint = player.sprinting && (mi.forward > 0.3) && !(survival && hunger <= 6) && eatProgress == 0
         if mi.forward <= 0.3 { player.sprinting = false }
         if eatProgress > 0 || blocking || bowCharge > 0 || crossbowCharge > 0 || tridentCharge > 0 { mi.forward *= 0.3; mi.strafe *= 0.3 }
@@ -666,9 +585,10 @@ final class Game {
         if input.tapped(Key.f1) { hideHUD.toggle() }
         if input.tapped(Key.t) { openMenu(CommandMenu(game: self)); return }
         if input.tapped(Key.slash) { openMenu(CommandMenu(game: self, prefill: "/")); return }
-        if input.tapped(Key.f2) { screenshotRequested = true }
+        if input.tapped(Key.f2) || (p.share && !q.share) { screenshotRequested = true }
+        if PadActions.extras(p, q, self) { return }
         if input.tapped(Key.f5) || (p.view && !q.view) { cameraMode = (cameraMode + 1) % 3 }
-        if input.tapped(Key.q) || (p.down && !q.down) { dropHeld(all: input.control) }
+        if input.tapped(Key.q) { dropHeld(all: input.control) }
 
         // Hotbar
         for (i, k) in Key.digits.enumerated() where input.tapped(k) { select(i) }

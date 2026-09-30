@@ -653,9 +653,30 @@ final class Renderer: NSObject, MTKViewDelegate {
         // Pixel-font text; scale = size of one font pixel in screen pixels.
         func text(_ str: String, _ x: Float, _ y: Float, _ scale: Float, _ color: V4 = V4(1, 1, 1, 1), shadow: Bool = true) {
             var cx = x
-            for u in str.unicodeScalars {
+            var color = color, shadow = shadow
+            let baseColor = color, baseShadow = shadow
+            let us = str.unicodeScalars
+            var idx = us.startIndex
+            while idx < us.endIndex {
+                let u = us[idx]
+                idx = us.index(after: idx)
                 let code = Int(u.value)
                 let adv = Float(Font.advance(code))
+                if Glyphs.isGlyph(code) {
+                    // Controller glyphs and key caps (Glyphs.swift).
+                    if code == Glyphs.capOpen {
+                        var w = 0, j = idx
+                        while j < us.endIndex && Int(us[j].value) != Glyphs.capClose { w += Font.advance(Int(us[j].value)); j = us.index(after: j) }
+                        Glyphs.cap(cx, y, Float(w + 3) * scale, scale, baseColor.w, rect: rect)
+                        color = V4(Glyphs.capInk.x, Glyphs.capInk.y, Glyphs.capInk.z, baseColor.w); shadow = false
+                    } else if code == Glyphs.capClose {
+                        color = baseColor; shadow = baseShadow
+                    } else {
+                        Glyphs.draw(code, cx, y, scale, baseColor.w, rect: rect) { t, tx, ty, ts, tc, sh in text(t, tx, ty, ts, tc, shadow: sh) }
+                    }
+                    cx += adv * scale
+                    continue
+                }
                 if code > 32 && code < 127 {
                     let w = Float(Font.glyphs[code - 32][0])
                     let layer = Float(Font.layerBase + code - 32)
@@ -809,8 +830,11 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         if let m = game.menu {
             // Container screen: dimmed world, bevelled panel, slots, items, cursor stack, tooltip.
+            // Big panels drop to a smaller GUI scale so they always fit (TV GUI scales, safe area).
+            let ML = L.fitted(m)
+            let s = ML.s
             rect(0, 0, W, H, m is DeathMenu ? V4(0.45, 0, 0, 0.55) : V4(0, 0, 0, 0.45))
-            let o = m.origin(L)
+            let o = m.origin(ML)
             let pw = Float(m.width) * s, ph = Float(m.height) * s
             let bg = V4(0.776, 0.776, 0.776, 1)
             rect(o.x + s, o.y, pw - 2 * s, ph, V4(0, 0, 0, 1))
@@ -823,12 +847,12 @@ final class Renderer: NSObject, MTKViewDelegate {
             let titleC = V4(0.25, 0.25, 0.25, 1)
             text(m.title, o.x + 8 * s, o.y + 6 * s, s, titleC, shadow: false)
             if m.showInventoryLabel { text("Inventory", o.x + 8 * s, o.y + Float(m.inventoryLabelY) * s, s, titleC, shadow: false) }
-            if game.padConnected || HudLayout.couch {
-                // Controller legend under the panel.
-                let legend = m.capturesText ? "Y on-screen keyboard   A select   B close"
-                    : m is PauseMenu || m is AdvancementMenu || m is KeyboardMenu || m is DeathMenu ? "A select   X previous   B back"
-                    : "A take/place   X split   Y quick move   B close   LB/RB hotbar"
-                text(legend, floor((W - textWidth(legend, s)) / 2), min(H - 10 * s, o.y + ph + 4 * s), s)
+            if Settings.shared.buttonHints {
+                // Control legend under the panel (controller glyphs or keys, following the last device used).
+                let legend = Prompt.menuLegend(m, game)
+                let lw = textWidth(legend, s), ly = min(H - 10 * s - ML.insetY, o.y + ph + 4 * s)
+                rect(floor((W - lw) / 2) - 3 * s, ly - 3 * s, lw + 6 * s, 13 * s, V4(0, 0, 0, 0.35 + Settings.shared.textBackground * 0.5))
+                text(legend, floor((W - lw) / 2), ly, s)
             }
             if let f = m as? FurnaceMenu {
                 // Flame (fuel left) and arrow (cook progress).
@@ -1055,18 +1079,36 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
             if let pm = m as? PauseMenu {
                 // Big labelled buttons; the controller cursor shows as the highlighted one.
+                if !pm.subtitle.isEmpty {
+                    text(pm.subtitle, o.x + (pw - textWidth(pm.subtitle, s)) / 2, o.y + 17 * s, s, V4(0.3, 0.3, 0.32, 1), shadow: false)
+                }
                 for sl in pm.slots where sl.isButton {
-                    guard case .button(let i) = sl.kind, i < pm.rows.count else { continue }
+                    guard case .button(let i) = sl.kind, let r = pm.row(forSlot: i) else { continue }
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
                     let hot = game.menuHover === sl
-                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.42, 0.55, 0.85, 1) : V4(0.42, 0.42, 0.46, 1))
+                    let info = r.1 == "noop"
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, info ? V4(0.3, 0.3, 0.33, 1) : (hot ? V4(0.42, 0.55, 0.85, 1) : V4(0.42, 0.42, 0.46, 1)))
                     frame(x, y, Float(sl.w) * s, Float(sl.h) * s, s, hot ? V4(1, 1, 1, 1) : V4(0.2, 0.2, 0.22, 1))
-                    let label = pm.rows[i].0
-                    text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
+                    let label = r.0
+                    let lx = info ? x + 5 * s : x + (Float(sl.w) * s - textWidth(label, s)) / 2
+                    text(label, lx, y + (Float(sl.h) - 7) / 2 * s, s)
+                    if hot && PauseMenu.valueIDs.contains(r.1) {
+                        // Arrows: D-pad left / right steps the setting.
+                        text("<", x + 4 * s, y + (Float(sl.h) - 7) / 2 * s, s, V4(1, 1, 0.6, 1))
+                        text(">", x + Float(sl.w) * s - 8 * s, y + (Float(sl.h) - 7) / 2 * s, s, V4(1, 1, 0.6, 1))
+                    }
                 }
-                if pm.page == .options {
-                    text("A / click: next   X / right-click: previous   B / Esc: back", o.x + 10 * s, o.y + Float(pm.height - 8) * s, s * 0.5, V4(0.3, 0.3, 0.3, 1), shadow: false)
+                if pm.rows.count > pm.slots.count {
+                    // Scroll position: dots under the list.
+                    let n = pm.rows.count - pm.slots.count + 1
+                    let dotY = o.y + Float(pm.slots.last.map { $0.y + $0.h + 2 } ?? 0) * s
+                    let dw = min(10 * s, 200 * s / Float(n))
+                    let x0 = o.x + (pw - dw * Float(n)) / 2
+                    for k in 0..<n { rect(x0 + Float(k) * dw + s, dotY, dw - 2 * s, 2 * s, k == pm.scroll ? V4(0.2, 0.3, 0.6, 1) : V4(0.5, 0.5, 0.52, 1)) }
                 }
+                var help = pm.helpText
+                while !help.isEmpty && textWidth(help, s) > pw - 12 * s { help.removeLast() }
+                if !help.isEmpty { text(help, o.x + (pw - textWidth(help, s)) / 2, o.y + ph - 12 * s, s, V4(0.22, 0.22, 0.25, 1), shadow: false) }
             }
             if let am = m as? AdvancementMenu {
                 // Tabs, then the checklist: done ones in gold (challenges purple), open ones grey.

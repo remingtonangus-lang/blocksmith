@@ -2,7 +2,8 @@ import Foundation
 
 // On-screen keyboard for controller-only text entry (signs, book pages and titles, anvil names, commands).
 // Shift turns the digit row into symbols (/ - ~ : ...).
-// Press Y in a text screen to open it; A types the highlighted key, B (or "Done") returns.
+// Press Y in a text screen to open it; A types the highlighted key, X deletes, Y adds a space, LT is Shift,
+// Menu (or "Done") returns, B returns too.
 final class KeyboardMenu: Menu {
     let target: Menu
     static let rowsLower = ["1234567890", "qwertyuiop", "asdfghjkl'", "zxcvbnm,.?"]
@@ -36,7 +37,7 @@ final class KeyboardMenu: Menu {
     override func buttonPressed(_ i: Int) {
         guard i < keys.count else { return }
         switch keys[i] {
-        case "Shift": upper.toggle(); let cur = game.menuCursor; build(); game.menuCursor = cur
+        case "Shift": toggleShift()
         case "Space": target.typed(" ")
         case "Del": target.typed("\u{8}")
         case "Enter":
@@ -46,6 +47,13 @@ final class KeyboardMenu: Menu {
         case "Done": finish()
         default: target.typed(keys[i])
         }
+        game.sfx(.click, 0.3)
+    }
+    func toggleShift() {
+        upper.toggle()
+        let cur = game.menuCursor
+        build()
+        game.menuCursor = cur
         game.sfx(.click, 0.3)
     }
     func finish() {

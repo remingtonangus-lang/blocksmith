@@ -1,5 +1,6 @@
 import AppKit
 import MetalKit
+import QuartzCore
 import GameController
 
 func arg(_ name: String) -> String? {
@@ -37,7 +38,8 @@ final class GameView: MTKView {
     }
     private func track(_ e: NSEvent) {
         let p = convert(e.locationInWindow, from: nil)
-        let sc = window?.backingScaleFactor ?? 2
+        // Drawable pixels (the HUD's space), which the resolution scale option shrinks.
+        let sc = (window?.backingScaleFactor ?? 2) * (autoResizeDrawable ? 1 : CGFloat(Settings.shared.renderScale))
         input.mouseX = Float(p.x * sc)
         input.mouseY = Float((bounds.height - p.y) * sc)
         input.mouseMoved = true
@@ -172,11 +174,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         buildOverlay()
         hookGame()
 
-        GCController.shouldMonitorBackgroundEvents = true
-        NotificationCenter.default.addObserver(forName: .GCControllerDidConnect, object: nil, queue: .main) { [weak self] n in
-            let name = (n.object as? GCController)?.vendorName ?? "Controller"
-            self?.toast("\(name) connected")
+        // Controller hotplugging: toast on connect; losing the pad mid-game pauses (like a console).
+        let pads = PadManager.shared
+        pads.onConnect = { [weak self] name in self?.toast("\(name) connected") }
+        pads.onDisconnect = { [weak self] name in
+            guard let self, let g = self.game else { return }
+            self.toast("\(name) disconnected")
+            if g.menu == nil && !g.paused { g.paused = true }
         }
+        pads.start()
         NotificationCenter.default.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main) { [weak self] _ in
             guard let self else { return }
             self.view.isPaused = !self.window.occlusionState.contains(.visible)
@@ -186,7 +192,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.makeFirstResponder(view)
         NSApp.activate(ignoringOtherApps: true)
         pauseChanged(true)
+        applyVideo()
+        // Couch play: open straight into full screen (Options > Video > Start in Fullscreen; --windowed skips it).
+        if Settings.shared.launchFullscreen && !CommandLine.arguments.contains("--windowed") { window.toggleFullScreen(nil) }
     }
+
+    // VSync, frame-rate cap and resolution scale (Options > Video).
+    func applyVideo() {
+        let st = Settings.shared
+        (view.layer as? CAMetalLayer)?.displaySyncEnabled = st.vsync
+        view.preferredFramesPerSecond = targetFPS(paused: game.paused)
+        updateDrawableSize()
+    }
+    func targetFPS(paused: Bool) -> Int {
+        let display = NSScreen.main?.maximumFramesPerSecond ?? 60
+        let cap = Settings.shared.fpsCap
+        let fps = cap > 0 ? min(cap, display) : display
+        return paused ? min(30, fps) : fps
+    }
+    func updateDrawableSize() {
+        let k = CGFloat(Settings.shared.renderScale)
+        if k >= 0.999 { view.autoResizeDrawable = true; return }
+        view.autoResizeDrawable = false
+        let sc = window.backingScaleFactor
+        view.drawableSize = CGSize(width: max(64, floor(view.bounds.width * sc * k)), height: max(64, floor(view.bounds.height * sc * k)))
+    }
+    func windowDidResize(_ notification: Notification) { updateDrawableSize() }
+    func windowDidExitFullScreen(_ notification: Notification) { VideoState.fullscreen = false; updateDrawableSize(); if let pm = game.menu as? PauseMenu { pm.build() } }
 
     func hookGame() {
         view.onEscape = { [weak self] in
@@ -200,6 +232,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             guard let self else { return }
             switch id {
             case "fullscreen": self.toggleFS()
+            case "video": self.applyVideo()
             case "quit": self.saveQuit()
             case "worlds": self.showWorlds()
             case _ where id.hasPrefix("play:"): self.switchWorld(name: String(id.dropFirst(5)), seed: nil, survival: nil, difficulty: nil)
@@ -406,7 +439,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             game.openMenu(pm)
         }
         setCapture(!paused && !game.inventoryOpen)
-        view.preferredFramesPerSecond = paused ? 30 : (NSScreen.main?.maximumFramesPerSecond ?? 60)
+        view.preferredFramesPerSecond = targetFPS(paused: paused)
         if paused { game.input.releaseAll() }
         window.makeFirstResponder(view)
     }
@@ -454,7 +487,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func windowDidResignKey(_ notification: Notification) {
         if game != nil && !game.paused { game.paused = true }
     }
-    func windowDidEnterFullScreen(_ notification: Notification) { window.makeFirstResponder(view) }
+    func windowDidEnterFullScreen(_ notification: Notification) {
+        window.makeFirstResponder(view)
+        VideoState.fullscreen = true
+        updateDrawableSize()
+        if let pm = game.menu as? PauseMenu { pm.build() }
+    }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
     func applicationWillTerminate(_ notification: Notification) {
         setCapture(false)

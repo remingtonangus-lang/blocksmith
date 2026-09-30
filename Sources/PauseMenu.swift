@@ -1,19 +1,33 @@
 import Foundation
 
-// In-game pause and options screens (drawn with the HUD, so a controller can drive them: D-pad /
-// stick to move, A to choose or step a setting forward, X to step it back, B to go back).
+// Title screen, pause menu, options (six pages switched with LB/RB), worlds list (play / rename / copy /
+// delete with confirmation) and world creation. Drawn with the HUD so a controller drives everything:
+// D-pad / stick to move, A to choose or step a setting forward, X (or D-pad left/right) to step it,
+// B to go back. The list scrolls when it is longer than the panel.
 final class PauseMenu: Menu {
-    enum Page { case title, main, options, worlds, create }
+    enum Page { case title, main, options, controls, worlds, world, confirm, create, rename }
+    enum Cat: Int, CaseIterable {
+        case controls, controller, video, audio, interface, accessibility
+        var name: String { ["Keyboard & Mouse", "Controller", "Video", "Audio", "Interface", "Accessibility"][rawValue] }
+    }
     var page: Page = .main
+    var cat: Cat = .controller
+    var stack: [Page] = []
     // (label, action id); settings show their current value in the label.
     var rows: [(String, String)] = []
-    var cameFromTitle = false
+    var scroll = 0
+    static let visible = 9
+    var subtitle = ""                // small line under the title (page hint, confirmation text)
+    var cameFromTitle: Bool { stack.first == .title || page == .title }
     // Create World page (controller-friendly: the text fields use the on-screen keyboard).
     var newName = "New World"
     var newSeed = ""
     var newSurvival = true
     var newDifficulty = 2
-    var editing: Int? = nil        // 0 name, 1 seed
+    var editing: Int? = nil        // 0 name, 1 seed, 2 rename
+    var selWorld = ""              // world picked on the worlds page
+    var renameText = ""
+    var worlds: [WorldStore.Info] = []
 
     init(game: Game) {
         super.init("Game Paused", game: game)
@@ -21,29 +35,141 @@ final class PauseMenu: Menu {
         build()
     }
 
+    var currentWorld: String { game.save?.dir.lastPathComponent ?? "" }
+
+    static let valueIDs: Set<String> = ["sens", "invert", "autojump", "fov", "lookx", "looky", "accel", "dead", "aim", "rumble", "southpaw",
+                                        "sneaktoggle", "autosprint", "glyphs", "rd", "fullscreen", "launchfs", "vsync", "fps", "rscale",
+                                        "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
+                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug"]
+
+    static let help: [String: String] = [
+        "resume": "Return to the game.",
+        "worlds": "Play, create, rename, copy or delete worlds.",
+        "options": "Controls, controller, video, audio, interface and accessibility.",
+        "sens": "How fast the mouse turns the view.",
+        "lookx": "How fast the right stick turns left and right.",
+        "looky": "How fast the right stick looks up and down.",
+        "accel": "Turns faster the longer the right stick is held at its edge.",
+        "dead": "Stick movement ignored around the centre. Raise it if the view drifts.",
+        "aim": "Controller only: the view slows over hostile mobs and while mining.",
+        "rumble": "Controller vibration when you are hit, mine, attack or something explodes.",
+        "southpaw": "Southpaw swaps the sticks: look with the left, move with the right.",
+        "sneaktoggle": "Toggle: press B / right stick once to crouch, again to stand.",
+        "autosprint": "Push the left stick fully forward for a moment to sprint.",
+        "glyphs": "Which buttons prompts show. Auto follows the last device you touched.",
+        "padinfo": "Press A to test vibration.",
+        "rd": "How many chunks around you are drawn. Lower is smoother.",
+        "fullscreen": "Switch between a window and the full screen.",
+        "launchfs": "Open Blocksmith straight into full screen, ready for the TV.",
+        "vsync": "Sync frames to the display. Off can lower input lag but may tear.",
+        "fps": "Frame rate cap. 30 or 60 keeps a laptop cooler.",
+        "rscale": "Renders fewer pixels and scales up. 75% helps a lot on a 4K TV.",
+        "gui": "Size of menus and the HUD. Auto picks the largest that fits.",
+        "couch": "Bigger HUD and menus for playing from the sofa.",
+        "safe": "Keeps the HUD away from the screen edges on TVs that crop them.",
+        "hints": "Control legends under menus and button prompts in the game.",
+        "textbg": "Dark boxes behind HUD text for readability.",
+        "subtitles": "Shows captions for sounds, with the direction they come from.",
+        "colorblind": "Uses blue and orange instead of green and red for cues.",
+        "tutorial": "First-steps tips while you play.",
+        "resethints": "Show the first-steps tips again from the start.",
+        "controls": "Every control for keyboard, mouse and controller.",
+        "volume": "Overall sound volume.",
+        "music": "Background music volume.",
+        "mode": "Survival: health, hunger, mining. Creative: fly and build freely.",
+        "difficulty": "How much damage mobs do and whether hunger can kill.",
+        "hidehud": "Hide the hotbar and crosshair (screenshots). F1 on the keyboard.",
+        "debug": "Position, biome, frame rate and chunk details (F3).",
+        "quit": "Save the world and close Blocksmith.",
+        "totitle": "Save the world and return to the title screen.",
+        "create": "Choose a name, seed, game mode and difficulty.",
+        "newworld": "Start a new world with a random seed straight away.",
+        "w_play": "Load this world.",
+        "w_rename": "Give this world a new name.",
+        "w_copy": "Make a copy of this world (a backup before big changes).",
+        "w_delete": "Move this world to the Trash.",
+    ]
+
     func build() {
         let g = game
+        let st = Settings.shared
+        func on(_ b: Bool) -> String { b ? "On" : "Off" }
+        func pct(_ f: Float) -> String { "\(Int((f * 100).rounded()))%" }
+        subtitle = ""
         switch page {
         case .title:
             title = ""
             let last = UserDefaults.standard.string(forKey: "lastWorld") ?? "World1"
-            rows = [("Continue: \(last)", "resume"), ("Load World...", "load"), ("New World (random seed)", "newworld"),
-                    ("Create World...", "create"), ("Options...", "options"), ("Quit Game", "quit")]
+            rows = [("Play: \(last)", "resume"), ("Worlds...", "worlds"), ("Options...", "options"), ("Quit Game", "quit")]
         case .main:
             title = "Game Paused"
             rows = [("Back to Game", "resume"), ("Options...", "options"), ("Advancements", "advancements"), ("Commands...", "commands"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Game.difficultyNames[g.difficulty])", "difficulty"),
-                    ("Load World...", "load"), ("New World (random seed)", "newworld"), ("Create World...", "create"),
-                    ("Toggle Fullscreen", "fullscreen"), ("Save and Quit", "quit")]
+                    ("Worlds...", "worlds"), ("Save and Quit to Title", "totitle"), ("Save and Quit Game", "quit")]
         case .options:
-            title = "Options"
+            title = "Options: \(cat.name)"
+            subtitle = "Page \(cat.rawValue + 1) of \(Cat.allCases.count)"
             let gui = HudLayout.userScale == 0 ? "Auto" : "\(HudLayout.userScale)"
-            rows = [("FOV: \(Int(g.fovSetting))", "fov"), ("Sensitivity: \(Int(g.sensitivity * 100))%", "sens"),
-                    ("Invert Y: \(g.invertY ? "On" : "Off")", "invert"), ("Auto-Jump: \(g.autoJump ? "On" : "Off")", "autojump"), ("Stick Dead Zone: \(Int(g.deadZone * 100))%", "dead"),
-                    ("Render Distance: \(g.world.renderDistance)", "rd"), ("GUI Scale: \(gui)", "gui"),
-                    ("Couch Mode (TV): \(HudLayout.couch ? "On" : "Off")", "couch"), ("Volume: \(Int(g.volumeSetting * 100))%", "volume"), ("Music: \(Int(g.musicVolume * 100))%", "music"),
-                    ("Done", "back")]
+            switch cat {
+            case .controls:
+                rows = [("Mouse Sensitivity: \(pct(g.sensitivity))", "sens"), ("Invert Y: \(on(g.invertY))", "invert"),
+                        ("Auto-Jump: \(on(g.autoJump))", "autojump"), ("Field of View: \(Int(g.fovSetting))", "fov"),
+                        ("Controls Reference...", "controls"), ("Reset Tutorial Hints", "resethints")]
+            case .controller:
+                let pm = PadManager.shared
+                let info = pm.connected ? pm.name + (pm.battery.map { " (\(Int($0 * 100))%)" } ?? "") : "No controller"
+                rows = [("\(info)", "padinfo"),
+                        ("Look Speed X: \(pct(st.lookX))", "lookx"), ("Look Speed Y: \(pct(st.lookY))", "looky"),
+                        ("Look Acceleration: \(st.lookAccel == 0 ? "Off" : pct(st.lookAccel))", "accel"),
+                        ("Invert Y: \(on(g.invertY))", "invert"), ("Stick Dead Zone: \(pct(g.deadZone))", "dead"),
+                        ("Aim Assist: \(on(st.aimAssist))", "aim"), ("Vibration: \(st.rumble == 0 ? "Off" : pct(st.rumble))", "rumble"),
+                        ("Stick Layout: \(st.southpaw ? "Southpaw" : "Standard")", "southpaw"),
+                        ("Sneak: \(st.sneakToggle ? "Toggle" : "Hold")", "sneaktoggle"), ("Auto-Sprint: \(on(st.autoSprint))", "autosprint"),
+                        ("Button Prompts: \(["Auto", "Controller", "Keyboard"][max(0, min(2, st.glyphStyle))])", "glyphs")]
+            case .video:
+                rows = [("Render Distance: \(g.world.renderDistance)", "rd"), ("Fullscreen: \(on(VideoState.fullscreen))", "fullscreen"),
+                        ("Start in Fullscreen: \(on(st.launchFullscreen))", "launchfs"), ("VSync: \(on(st.vsync))", "vsync"),
+                        ("Max Frame Rate: \(st.fpsCap == 0 ? "Display" : "\(st.fpsCap)")", "fps"),
+                        ("Resolution: \(pct(st.renderScale))", "rscale"), ("Field of View: \(Int(g.fovSetting))", "fov"), ("GUI Scale: \(gui)", "gui")]
+            case .audio:
+                rows = [("Volume: \(pct(g.volumeSetting))", "volume"), ("Music: \(pct(g.musicVolume))", "music"), ("Subtitles: \(on(st.subtitles))", "subtitles")]
+            case .interface:
+                rows = [("GUI Scale: \(gui)", "gui"), ("Couch Mode (TV): \(on(HudLayout.couch))", "couch"),
+                        ("Safe Area: \(st.safeArea)%", "safe"), ("Button Hints: \(on(st.buttonHints))", "hints"),
+                        ("Text Background: \(st.textBackground == 0 ? "Off" : pct(st.textBackground))", "textbg"),
+                        ("Hide HUD: \(on(g.hideHUD))", "hidehud"), ("Debug Info: \(on(g.showDebug))", "debug")]
+            case .accessibility:
+                rows = [("Subtitles: \(on(st.subtitles))", "subtitles"), ("Colorblind-Safe Colors: \(on(st.colorblind))", "colorblind"),
+                        ("Text Background: \(st.textBackground == 0 ? "Off" : pct(st.textBackground))", "textbg"),
+                        ("Tutorial Hints: \(on(st.tutorialHints))", "tutorial"),
+                        ("Button Prompts: \(["Auto", "Controller", "Keyboard"][max(0, min(2, st.glyphStyle))])", "glyphs"),
+                        ("Vibration: \(st.rumble == 0 ? "Off" : pct(st.rumble))", "rumble")]
+            }
+            rows.append(("Done", "back"))
+        case .controls:
+            title = "Controls"
+            rows = ControlsReference.rows().map { ($0, "noop") } + [("Done", "back")]
+        case .worlds:
+            title = "Worlds"
+            worlds = WorldStore.list()
+            rows = [("Create New World...", "create"), ("Quick New World (random seed)", "newworld")]
+                + worlds.map { ($0.name == currentWorld ? "\($0.name)  (open)" : $0.name, "world:" + $0.name) }
+                + [("Back", "back")]
+        case .world:
+            title = selWorld
+            let info = worlds.first { $0.name == selWorld }
+            subtitle = info.map { WorldStore.describe($0) } ?? ""
+            rows = [(selWorld == currentWorld ? "Continue" : "Play", "w_play"), ("Rename...", "w_rename"), ("Copy", "w_copy"),
+                    ("Delete...", "w_delete"), ("Back", "back")]
+        case .confirm:
+            title = "Delete World?"
+            subtitle = "\"\(selWorld)\" will be moved to the Trash."
+            rows = [("Cancel", "back"), ("Delete", "w_delete_yes")]
+        case .rename:
+            title = "Rename World"
+            let caret = Int(g.clock * 2) % 2 == 0 ? "_" : " "
+            rows = [("Name: \(renameText)\(editing == 2 ? caret : "")", "edit_rename"), ("Save", "w_rename_yes"), ("Cancel", "back")]
         case .create:
             title = "Create New World"
             let caret = Int(g.clock * 2) % 2 == 0 ? "_" : " "
@@ -52,104 +178,268 @@ final class PauseMenu: Menu {
                     ("Game Mode: \(newSurvival ? "Survival" : "Creative")", "new_mode"),
                     ("Difficulty: \(Game.difficultyNames[newDifficulty])", "new_diff"),
                     ("Create World", "new_create"), ("Back", "back")]
-        case .worlds:
-            title = "Load World"
-            let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Blocksmith/Worlds")
-            let names = ((try? FileManager.default.contentsOfDirectory(atPath: base.path)) ?? []).filter { !$0.hasPrefix(".") }.sorted()
-            rows = names.prefix(10).map { ("Play \($0)", "play:" + $0) } + [("Back", "back")]
         }
-        // Long pages (options) use two columns so they fit a TV-sized GUI scale.
+        layout()
+    }
+
+    // One column of buttons; only `visible` rows at a time, scrolled with the cursor / right stick.
+    func layout() {
+        let n = min(rows.count, PauseMenu.visible)
+        scroll = max(0, min(scroll, rows.count - n))
         slots = []
-        let cols = rows.count > 8 ? 2 : 1
-        let perCol = (rows.count + cols - 1) / cols
-        width = 20 + cols * 200 + (cols - 1) * 6
-        height = 30 + perCol * 22 + 8
-        for i in rows.indices {
-            let b = MenuSlot(10 + (i / perCol) * 206, 26 + (i % perCol) * 22, nil, 0, .button(i))
-            b.w = 200; b.h = 18
+        let top = subtitle.isEmpty ? 22 : 32
+        width = 244
+        height = top + n * 21 + 22 + (rows.count > n ? 4 : 0)   // + help line
+        for i in 0..<n {
+            let b = MenuSlot(10, top + i * 21, nil, 0, .button(i))
+            b.w = 224; b.h = 18
             slots.append(b)
         }
     }
 
+    func row(forSlot i: Int) -> (String, String)? {
+        let k = scroll + i
+        return k >= 0 && k < rows.count ? rows[k] : nil
+    }
+    var hoveredID: String? {
+        guard let h = game.menuHover, let i = slots.firstIndex(where: { $0 === h }) else { return nil }
+        return row(forSlot: i)?.1
+    }
+    var helpText: String {
+        guard let id = hoveredID else { return "" }
+        if id.hasPrefix("world:") {
+            let n = String(id.dropFirst(6))
+            return worlds.first { $0.name == n }.map { WorldStore.describe($0) } ?? ""
+        }
+        return PauseMenu.help[id] ?? ""
+    }
+
+    var legend: String {
+        var items: [(Prompt.Act, String)] = [(.select, "Select")]
+        let value = hoveredID.map { PauseMenu.valueIDs.contains($0) } ?? false
+        if value && !Prompt.pad { items.append((.alt, "Previous")) }
+        if page == .options { items.append((.tabs, "Page")) }
+        if page != .title && page != .main { items.append((.back, "Back")) } else if page == .main { items.append((.back, "Resume")) }
+        var s = Prompt.line(items)
+        if value && Prompt.pad { s = Prompt.g(.select) + " / " + Glyph.dpadH.s + " Change   " + Prompt.line(Array(items.dropFirst())) }
+        return s
+    }
+
     // A = forward, X / right-click = back one step.
     override func click(_ slot: MenuSlot, button: Int, shift: Bool) {
-        guard case .button(let i) = slot.kind, i < rows.count else { return }
-        act(rows[i].1, back: button == 1)
+        guard case .button(let i) = slot.kind, let r = row(forSlot: i) else { return }
+        act(r.1, back: button == 1)
     }
-    override func buttonPressed(_ i: Int) { if i < rows.count { act(rows[i].1, back: false) } }
+    override func buttonPressed(_ i: Int) { if let r = row(forSlot: i) { act(r.1, back: false) } }
+
+    // D-pad left/right on a setting steps it; returns false when the hovered row isn't a setting.
+    func adjust(_ dx: Int) -> Bool {
+        guard let id = hoveredID, PauseMenu.valueIDs.contains(id) else { return false }
+        act(id, back: dx < 0)
+        return true
+    }
+    func switchTab(_ d: Int) {
+        guard page == .options else { return }
+        let n = Cat.allCases.count
+        cat = Cat(rawValue: (cat.rawValue + d + n) % n) ?? .controller
+        scroll = 0
+        build()
+        game.menuCursor = 0
+        game.sfx(.click, 0.4)
+    }
+    func scrollList(_ d: Int) {
+        let before = scroll
+        scroll = max(0, min(rows.count - min(rows.count, PauseMenu.visible), scroll + d))
+        if scroll != before { build() }
+    }
+
+    func go(_ p: Page) {
+        stack.append(page)
+        page = p
+        scroll = 0
+    }
 
     func act(_ id: String, back: Bool) {
         let g = game
+        let st = Settings.shared
         func step<T: Equatable>(_ opts: [T], _ cur: T) -> T {
             let i = opts.firstIndex(of: cur) ?? 0
             return opts[(i + (back ? opts.count - 1 : 1)) % opts.count]
         }
+        var resetCursor = false
         switch id {
-        case "resume": g.closeMenu()
-        case "options": cameFromTitle = page == .title; page = .options
-        case "back": page = cameFromTitle ? .title : .main
-        case "load": cameFromTitle = page == .title; page = .worlds
-        case "create": cameFromTitle = page == .title; page = .create; editing = nil
-        case "edit_name", "edit_seed":
-            editing = id == "edit_name" ? 0 : 1
-            if g.padConnected || HudLayout.couch { g.openMenu(KeyboardMenu(game: g, target: self)) }
+        case "noop": return
+        case "resume":
+            if page == .title { g.paused = false } else { g.closeMenu() }
+        case "options": go(.options); resetCursor = true
+        case "controls": go(.controls); resetCursor = true
+        case "worlds": go(.worlds); resetCursor = true
+        case "back":
+            page = stack.popLast() ?? (page == .title ? .title : .main)
+            editing = nil
+            scroll = 0
+            resetCursor = true
+        case "create": go(.create); editing = nil; resetCursor = true
+        case "newworld": g.appAction?("newworld")
+        case "edit_name", "edit_seed", "edit_rename":
+            editing = id == "edit_name" ? 0 : (id == "edit_seed" ? 1 : 2)
+            if Prompt.pad || HudLayout.couch { g.openMenu(KeyboardMenu(game: g, target: self)) }
         case "new_mode": newSurvival.toggle()
         case "new_diff": newDifficulty = step([0, 1, 2, 3], newDifficulty)
         case "new_create":
-            let name = newName.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "/", with: "-")
-            g.appAction?("create:\(newSurvival ? 1 : 0):\(newDifficulty):\(name.isEmpty ? "New World" : name):\(newSeed)")
-        case _ where id.hasPrefix("play:"): g.appAction?(id)
+            let name = WorldStore.unique(WorldStore.clean(newName))
+            g.appAction?("create:\(newSurvival ? 1 : 0):\(newDifficulty):\(name):\(newSeed)")
+        case _ where id.hasPrefix("world:"):
+            selWorld = String(id.dropFirst(6))
+            go(.world); resetCursor = true
+        case "w_play":
+            if selWorld == currentWorld { if cameFromTitle { g.paused = false } else { g.closeMenu() } }
+            else { g.appAction?("play:" + selWorld) }
+        case "w_rename":
+            if selWorld == currentWorld { g.onToast?("Load another world before renaming this one"); break }
+            renameText = selWorld
+            go(.rename); resetCursor = true
+            editing = 2
+            if Prompt.pad || HudLayout.couch { g.openMenu(KeyboardMenu(game: g, target: self)) }
+        case "w_rename_yes":
+            editing = nil
+            if let n = WorldStore.rename(selWorld, to: renameText) {
+                selWorld = n
+                worlds = WorldStore.list()
+                page = stack.popLast() ?? .worlds
+                g.onToast?("Renamed to \(n)")
+            } else { g.onToast?("A world with that name already exists") }
+            resetCursor = true
+        case "w_copy":
+            if selWorld == currentWorld { g.saveNow() }
+            if let n = WorldStore.copy(selWorld) { g.onToast?("Copied to \(n)"); page = stack.popLast() ?? .worlds; resetCursor = true }
+            else { g.onToast?("Couldn't copy the world") }
+        case "w_delete":
+            if selWorld == currentWorld { g.onToast?("Load another world before deleting this one"); break }
+            go(.confirm); resetCursor = true
+        case "w_delete_yes":
+            let ok = WorldStore.delete(selWorld)
+            g.onToast?(ok ? "Moved \(selWorld) to the Trash" : "Couldn't delete \(selWorld)")
+            // Back to the worlds list (skip the world page).
+            while let p = stack.popLast() { page = p; if p == .worlds { break } }
+            if page != .worlds { page = .worlds }
+            resetCursor = true
+        case "totitle":
+            g.saveNow()
+            stack = []
+            page = .title
+            resetCursor = true
         case "advancements": g.closeMenu(); g.openMenu(AdvancementMenu(game: g))
         case "commands": g.closeMenu(); g.openMenu(CommandMenu(game: g))
         case "mode": g.toggleMode(); g.onModeChanged?(g.survival)
         case "difficulty": g.difficulty = step([0, 1, 2, 3], g.difficulty)
-        case "fov": g.fovSetting = step([60, 70, 80, 90, 100, 110], g.fovSetting)
-        case "sens": g.sensitivity = step([0.5, 0.75, 1, 1.25, 1.5, 2, 3], g.sensitivity)
+        case "fov": g.fovSetting = step([50, 60, 70, 80, 90, 100, 110], g.fovSetting)
+        case "sens": g.sensitivity = step([0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3], g.sensitivity)
         case "invert": g.invertY.toggle()
         case "autojump": g.autoJump.toggle()
         case "dead": g.deadZone = step([0.05, 0.1, 0.15, 0.2, 0.25, 0.3], g.deadZone)
+        case "lookx": st.lookX = step([0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3], st.lookX)
+        case "looky": st.lookY = step([0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3], st.lookY)
+        case "accel": st.lookAccel = step([0, 0.25, 0.5, 0.75, 1], st.lookAccel)
+        case "aim": st.aimAssist.toggle()
+        case "rumble": st.rumble = step([0, 0.35, 0.7, 1], st.rumble); PadManager.shared.rumble(0.8, 0.15)
+        case "padinfo": PadManager.shared.rumble(1, 0.3)
+        case "southpaw": st.southpaw.toggle()
+        case "sneaktoggle": st.sneakToggle.toggle()
+        case "autosprint": st.autoSprint.toggle()
+        case "glyphs": st.glyphStyle = step([0, 1, 2], st.glyphStyle)
         case "rd":
-            let opts = [4, 6, 8, 10, 12, 16, 20, 24]
+            let opts = [2, 4, 6, 8, 10, 12, 16, 20, 24]
             g.world.renderDistance = step(opts, g.world.renderDistance)
             g.onRenderDistanceChanged?(g.world.renderDistance)
             UserDefaults.standard.set(g.world.renderDistance, forKey: "renderDistance")
+        case "fullscreen": g.appAction?("fullscreen")
+        case "launchfs": st.launchFullscreen.toggle()
+        case "vsync": st.vsync.toggle(); g.appAction?("video")
+        case "fps": st.fpsCap = step(Settings.fpsOptions, st.fpsCap); g.appAction?("video")
+        case "rscale": st.renderScale = step(Settings.renderScaleOptions, st.renderScale); g.appAction?("video")
         case "gui": HudLayout.userScale = step([0, 1, 2, 3, 4, 5, 6], HudLayout.userScale)
         case "couch": HudLayout.couch.toggle()
-        case "volume": g.volumeSetting = step([0, 0.25, 0.5, 0.8, 1], g.volumeSetting)
+        case "safe": st.safeArea = step([0, 2, 4, 6, 8, 10], st.safeArea)
+        case "hints": st.buttonHints.toggle()
+        case "textbg": st.textBackground = step([0, 0.25, 0.5, 0.75], st.textBackground)
+        case "hidehud": g.hideHUD.toggle()
+        case "debug": g.showDebug.toggle()
+        case "subtitles": st.subtitles.toggle()
+        case "colorblind": st.colorblind.toggle()
+        case "tutorial": st.tutorialHints.toggle()
+        case "resethints": st.tutorialStep = 0; st.tutorialHints = true; g.onToast?("Tutorial hints will show again")
+        case "volume": g.volumeSetting = step([0, 0.1, 0.25, 0.5, 0.8, 1], g.volumeSetting)
         case "music": g.musicVolume = step([0, 0.25, 0.5, 0.75, 1], g.musicVolume)
+        case "quit": g.appAction?("quit")
         default: g.appAction?(id)
         }
         g.sfx(.click, 0.5)
         if g.menu === self {
             let cur = g.menuCursor
             build()
-            g.menuCursor = min(cur, slots.count - 1)
-            if id == "options" || id == "back" || id == "load" { g.menuCursor = 0 }
+            g.menuCursor = resetCursor ? 0 : min(cur, max(0, slots.count - 1))
         }
     }
 
-    override var capturesText: Bool { page == .create && editing != nil }
+    override var capturesText: Bool { (page == .create || page == .rename) && editing != nil }
     override func typed(_ str: String) {
         guard let e = editing else { return }
         for c in str {
-            if c == "\u{8}" { if e == 0 { if !newName.isEmpty { newName.removeLast() } } else if !newSeed.isEmpty { newSeed.removeLast() } }
-            else if e == 0 { if newName.count < 24 && c != "/" && c != ":" { newName.append(c) } }
-            else if newSeed.count < 32 { newSeed.append(c) }
+            if c == "\u{8}" {
+                if e == 0 { if !newName.isEmpty { newName.removeLast() } }
+                else if e == 1 { if !newSeed.isEmpty { newSeed.removeLast() } }
+                else if !renameText.isEmpty { renameText.removeLast() }
+            }
+            else if e == 0 { if newName.count < 32 && c != "/" && c != ":" { newName.append(c) } }
+            else if e == 1 { if newSeed.count < 32 { newSeed.append(c) } }
+            else if renameText.count < 32 && c != "/" && c != ":" { renameText.append(c) }
         }
         build()
     }
     override func tick() {
-        if page == .create {
+        if page == .create || page == .rename {
             if editing != nil && game.input.tapped(Key.enter) { editing = nil }
             build()            // blinking caret
         }
+        if page == .options && cat == .controller && Int(game.clock * 4) % 4 == 0 { build() }   // live controller name / battery
     }
 
     override func backPressed() -> Bool {
         if editing != nil { editing = nil; build(); return true }
-        guard page != .main && page != .title else { return false }
+        guard page != .main && page != .title else { return page == .title }
         act("back", back: false)
         return true
     }
     override func onClose() { game.paused = false }
+}
+
+// Fullscreen state mirrored from the window (AppDelegate keeps it current).
+enum VideoState {
+    static var fullscreen = false
+}
+
+// Text for the Controls Reference page.
+enum ControlsReference {
+    static func rows() -> [String] {
+        [
+            Glyph.ls.s + " / " + Glyphs.key("WASD") + " Move",
+            Glyph.rs.s + " / mouse Look",
+            Glyph.a.s + " / " + Glyphs.key("Space") + " Jump (twice: fly)",
+            Glyph.b.s + " " + Glyph.r3.s + " / " + Glyphs.key("Shift") + " Sneak",
+            Glyph.l3.s + " / " + Glyphs.key("Ctrl") + " Sprint",
+            Glyph.rt.s + " / " + Glyph.mouseL.s + " Attack, mine",
+            Glyph.lt.s + " / " + Glyph.mouseR.s + " Use, place, eat",
+            Glyph.lb.s + Glyph.rb.s + " / " + Glyphs.key("1-9") + " Hotbar",
+            Glyph.y.s + " / " + Glyphs.key("E") + " Inventory",
+            Glyph.x.s + " / " + Glyph.mouseM.s + " Pick block",
+            Glyph.ddown.s + " / " + Glyphs.key("Q") + " Drop (hold: stack)",
+            Glyph.dright.s + " / " + Glyphs.key("R") + " Swap off hand",
+            Glyph.dleft.s + " / " + Glyphs.key("T") + " Commands",
+            Glyph.dup.s + " / " + Glyphs.key("F") + " Fly (creative)",
+            Glyph.view.s + " / " + Glyphs.key("F5") + " Camera",
+            Glyph.menu.s + " / " + Glyphs.key("Esc") + " Pause",
+            Glyph.share.s + " / " + Glyphs.key("F2") + " Screenshot",
+        ]
+    }
 }

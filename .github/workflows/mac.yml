@@ -4,7 +4,7 @@ name: mac
 # View: https://github.com/<owner>/blocksmith/tree/ci-snaps  (README.md shows every image)
 on:
   push:
-    branches-ignore: [ci-snaps]
+    branches-ignore: [ci-snaps, 'ci-snaps-*']
   workflow_dispatch:
 
 permissions:
@@ -86,11 +86,14 @@ jobs:
               echo "![${f}](${f})"
             done
           } > README.md
+          # Session branches publish to their own ci-snaps-<branch> so parallel runs don't overwrite each other.
+          BR=ci-snaps
+          case "$GITHUB_REF_NAME" in main|claude/eloquent-lovelace-bsc5v1) ;; *) BR="ci-snaps-$(echo "$GITHUB_REF_NAME" | tr '/' '-')" ;; esac
           git init -q
-          git checkout -q --orphan ci-snaps
+          git checkout -q --orphan "$BR"
           git add -A
           git -c user.name="blocksmith-ci" -c user.email="ci@users.noreply.github.com" commit -qm "Snapshots for ${GITHUB_SHA}"
-          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ci-snaps
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$BR"
 
       - name: Upload artifact
         if: always()
