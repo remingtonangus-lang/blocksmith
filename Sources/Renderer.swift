@@ -211,6 +211,15 @@ final class Renderer: NSObject, MTKViewDelegate {
             inflight.signal(); inflight.signal()
             game.onToast?("Saved screenshot as \(name)")
         }
+        BugNotes.shared.frameTime = dt
+        if let shot = BugNotes.shared.screenshotRequest {
+            // Voice bug note started: save this view next to the note (half size on big screens).
+            BugNotes.shared.screenshotRequest = nil
+            inflight.wait(); inflight.wait()
+            let sz = view.drawableSize, k: CGFloat = sz.width > 1600 ? 0.5 : 1
+            _ = renderToPNG(path: shot.path, width: Int(sz.width * k), height: Int(sz.height * k))
+            inflight.signal(); inflight.signal()
+        }
         let cmd = queue.makeCommandBuffer()!
         let fence = MeshArena.frameSubmitted()      // freed meshes wait for this frame before reuse
         cmd.addCompletedHandler { [inflight, weak self] cb in
@@ -259,7 +268,9 @@ final class Renderer: NSObject, MTKViewDelegate {
         } else if g < budget * 0.55 && renderScale < 1 {
             renderScale = min(1, renderScale + 0.05); scaleCooldown = 40
         }
-        let want = CGSize(width: (full.width * renderScale).rounded(), height: (full.height * renderScale).rounded())
+        // The Resolution option (Settings.renderScale, for TVs) caps the dynamic scale.
+        let k = renderScale * Double(Settings.shared.renderScale)
+        let want = CGSize(width: max(64, (full.width * k).rounded()), height: max(64, (full.height * k).rounded()))
         if view.autoResizeDrawable { view.autoResizeDrawable = false }
         if abs(view.drawableSize.width - want.width) >= 1 || abs(view.drawableSize.height - want.height) >= 1 {
             view.drawableSize = want
@@ -741,9 +752,30 @@ final class Renderer: NSObject, MTKViewDelegate {
         // Pixel-font text; scale = size of one font pixel in screen pixels.
         func text(_ str: String, _ x: Float, _ y: Float, _ scale: Float, _ color: V4 = V4(1, 1, 1, 1), shadow: Bool = true) {
             var cx = x
-            for u in str.unicodeScalars {
+            var color = color, shadow = shadow
+            let baseColor = color, baseShadow = shadow
+            let us = str.unicodeScalars
+            var idx = us.startIndex
+            while idx < us.endIndex {
+                let u = us[idx]
+                idx = us.index(after: idx)
                 let code = Int(u.value)
                 let adv = Float(Font.advance(code))
+                if Glyphs.isGlyph(code) {
+                    // Controller glyphs and key caps (Glyphs.swift).
+                    if code == Glyphs.capOpen {
+                        var w = 0, j = idx
+                        while j < us.endIndex && Int(us[j].value) != Glyphs.capClose { w += Font.advance(Int(us[j].value)); j = us.index(after: j) }
+                        Glyphs.cap(cx, y, Float(w + 3) * scale, scale, baseColor.w, rect: rect)
+                        color = V4(Glyphs.capInk.x, Glyphs.capInk.y, Glyphs.capInk.z, baseColor.w); shadow = false
+                    } else if code == Glyphs.capClose {
+                        color = baseColor; shadow = baseShadow
+                    } else {
+                        Glyphs.draw(code, cx, y, scale, baseColor.w, rect: rect) { t, tx, ty, ts, tc, sh in text(t, tx, ty, ts, tc, shadow: sh) }
+                    }
+                    cx += adv * scale
+                    continue
+                }
                 if code > 32 && code < 127 {
                     let w = Float(Font.glyphs[code - 32][0])
                     let layer = Float(Font.layerBase + code - 32)
@@ -760,10 +792,19 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
         func textWidth(_ str: String, _ scale: Float) -> Float { Float(Font.width(str)) * scale }
 
+        if let t = HudExtras.loading {
+            // Loading screen: dirt-dark backdrop, big title, the world name.
+            rect(0, 0, W, H, V4(0.09, 0.07, 0.06, 1))
+            let big = s * 2
+            text("BLOCKSMITH", floor((W - textWidth("BLOCKSMITH", big * 2)) / 2), H * 0.3, big * 2, V4(0.86, 0.78, 0.55, 1))
+            text(t, floor((W - textWidth(t, big)) / 2), H * 0.55, big)
+            return v
+        }
         if game.player.headInWater { rect(0, 0, W, H, V4(0.05, 0.15, 0.45, 0.35)) }
         if game.sleeping > 0 { rect(0, 0, W, H, V4(0.02, 0.02, 0.06, min(1, game.sleeping / 1.5))) }
-        if game.hurtFlash > 0 { rect(0, 0, W, H, V4(0.75, 0.02, 0.02, min(0.45, game.hurtFlash * 1.3))) }
-        if game.portalTime > 0 { rect(0, 0, W, H, V4(0.45, 0.1, 0.8, min(0.7, game.portalTime / 4 * 0.7))) }
+        let fx: Float = Settings.shared.screenEffects ? 1 : 0.3       // Accessibility > Screen Flashes
+        if game.hurtFlash > 0 { rect(0, 0, W, H, V4(0.75, 0.02, 0.02, min(0.45, game.hurtFlash * 1.3) * fx)) }
+        if game.portalTime > 0 { rect(0, 0, W, H, V4(0.45, 0.1, 0.8, min(0.7, game.portalTime / 4 * 0.7) * fx)) }
         if game.onFire > 0 && game.menu == nil {
             // Flickering flames along the bottom of the view.
             let fireLayer = Float(Tex.id("fire"))
@@ -800,7 +841,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
             if let r = game.raidBar { bars.append((r.0, r.1, V4(0.85, 0.15, 0.15, 1))) }
             for (i, b) in bars.enumerated() {
-                let bw = 182 * s, bx = (W - bw) / 2, by = 12 * s + Float(i) * 19 * s
+                let bw = 182 * s, bx = (W - bw) / 2, by = L.insetY + 12 * s + Float(i) * 19 * s
                 text(b.0, (W - textWidth(b.0, s)) / 2, by - 9 * s, s)
                 rect(bx, by, bw, 5 * s, V4(b.2.x * 0.3, b.2.y * 0.3, b.2.z * 0.3, 1))
                 rect(bx, by, bw * max(0, min(1, b.1)), 5 * s, b.2)
@@ -887,7 +928,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let f = 1 - Float(st.damage) / Float(def.durability)
                 let bw = size * 13 / 16, bx = x + size * 1.5 / 16, by = y + size * 13 / 16
                 rect(bx, by, bw, size / 8, V4(0, 0, 0, 1))
-                rect(bx, by, bw * f, size / 16, V4(1 - f, f, 0, 1))
+                rect(bx, by, bw * f, size / 16, Settings.shared.colorblind ? V4(1 - f * 0.8, 0.5 + 0.2 * f, 0.1 + 0.9 * f, 1) : V4(1 - f, f, 0, 1))
             }
             if counts && st.count > 1 {
                 let t = "\(st.count)"
@@ -897,8 +938,11 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         if let m = game.menu {
             // Container screen: dimmed world, bevelled panel, slots, items, cursor stack, tooltip.
+            // Big panels drop to a smaller GUI scale so they always fit (TV GUI scales, safe area).
+            let ML = L.fitted(m)
+            let s = ML.s
             rect(0, 0, W, H, m is DeathMenu ? V4(0.45, 0, 0, 0.55) : V4(0, 0, 0, 0.45))
-            let o = m.origin(L)
+            let o = m.origin(ML)
             let pw = Float(m.width) * s, ph = Float(m.height) * s
             let bg = V4(0.776, 0.776, 0.776, 1)
             rect(o.x + s, o.y, pw - 2 * s, ph, V4(0, 0, 0, 1))
@@ -911,12 +955,12 @@ final class Renderer: NSObject, MTKViewDelegate {
             let titleC = V4(0.25, 0.25, 0.25, 1)
             text(m.title, o.x + 8 * s, o.y + 6 * s, s, titleC, shadow: false)
             if m.showInventoryLabel { text("Inventory", o.x + 8 * s, o.y + Float(m.inventoryLabelY) * s, s, titleC, shadow: false) }
-            if game.padConnected || HudLayout.couch {
-                // Controller legend under the panel.
-                let legend = m.capturesText ? "Y on-screen keyboard   A select   B close"
-                    : m is PauseMenu || m is AdvancementMenu || m is KeyboardMenu || m is DeathMenu ? "A select   X previous   B back"
-                    : "A take/place   X split   Y quick move   B close   LB/RB hotbar"
-                text(legend, floor((W - textWidth(legend, s)) / 2), min(H - 10 * s, o.y + ph + 4 * s), s)
+            if Settings.shared.buttonHints {
+                // Control legend under the panel (controller glyphs or keys, following the last device used).
+                let legend = Prompt.menuLegend(m, game)
+                let lw = textWidth(legend, s), ly = min(H - 10 * s - ML.insetY, o.y + ph + 4 * s)
+                rect(floor((W - lw) / 2) - 3 * s, ly - 3 * s, lw + 6 * s, 13 * s, V4(0, 0, 0, 0.35 + Settings.shared.textBackground * 0.5))
+                text(legend, floor((W - lw) / 2), ly, s)
             }
             if let f = m as? FurnaceMenu {
                 // Flame (fuel left) and arrow (cook progress).
@@ -983,7 +1027,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     // Lapis pips.
                     for k in 0...i { rect(bx + Float(2 + k * 5) * s, by + 3 * s, 4 * s, 4 * s, V4(0.16, 0.36, 0.78, 1)) }
                     let ct = "\(e.costs[i])"
-                    text(ct, bx + 106 * s - textWidth(ct, s), by + 10 * s, s, ok ? V4(0.5, 1, 0.13, 1) : V4(0.25, 0.45, 0.1, 1))
+                    text(ct, bx + 106 * s - textWidth(ct, s), by + 10 * s, s, ok ? Settings.shared.goodColor : Settings.shared.badColor * V4(0.6, 0.6, 0.6, 1))
                     if let c = e.clues[i] {
                         var clue = Enchant.displayLine(c.0, c.1) + " . . . ?"
                         while textWidth(clue, s) > 84 * s && clue.count > 4 { clue.removeLast() }
@@ -1004,7 +1048,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 if a.cost > 0 {
                     let t = a.tooExpensive ? "Too Expensive!" : "Enchantment Cost: \(a.cost)"
                     let ok = !a.tooExpensive && (!game.survival || game.xpLevel >= a.cost)
-                    text(t, o.x + 168 * s - textWidth(t, s), o.y + 69 * s, s, ok ? V4(0.5, 1, 0.13, 1) : V4(1, 0.38, 0.38, 1))
+                    text(t, o.x + 168 * s - textWidth(t, s), o.y + 69 * s, s, ok ? Settings.shared.goodColor : Settings.shared.badColor)
                 }
             }
             if let sm = m as? SignMenu {
@@ -1070,7 +1114,8 @@ final class Renderer: NSObject, MTKViewDelegate {
                         guard k < book.list.count else { continue }
                         let r = Recipes.all[book.list[k]]
                         let ok = RecipeBook.craftable(r, pool)
-                        rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.7, 0.7, 0.8, 1) : (ok ? V4(0.45, 0.6, 0.45, 1) : V4(0.6, 0.4, 0.4, 1)))
+                        let cb = Settings.shared.colorblind
+                        rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.7, 0.7, 0.8, 1) : (ok ? (cb ? V4(0.35, 0.5, 0.75, 1) : V4(0.45, 0.6, 0.45, 1)) : (cb ? V4(0.7, 0.5, 0.25, 1) : V4(0.6, 0.4, 0.4, 1))))
                         itemIcon(r.result, x + 2 * s, y + 2 * s, 16 * s)
                         if hot {
                             let name = r.result.displayName
@@ -1085,6 +1130,14 @@ final class Renderer: NSObject, MTKViewDelegate {
                 }
             }
             if let km = m as? KeyboardMenu {
+                // Live preview of the text being edited.
+                let pv = km.preview
+                text(pv.label, o.x + 8 * s, o.y + 6 * s, s, V4(0.25, 0.25, 0.25, 1), shadow: false)
+                rect(o.x + 8 * s, o.y + 16 * s, 160 * s, 13 * s, V4(0, 0, 0, 1))
+                rect(o.x + 9 * s, o.y + 17 * s, 158 * s, 11 * s, V4(0.08, 0.08, 0.08, 1))
+                var pt = pv.text
+                while textWidth(pt, s) > 150 * s && !pt.isEmpty { pt.removeFirst() }
+                text(pt + (Int(game.clock * 2) % 2 == 0 ? "_" : ""), o.x + 12 * s, o.y + 19 * s, s, V4(0.95, 0.95, 0.95, 1))
                 for (i, sl) in km.slots.enumerated() where i < km.keys.count {
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
                     let hot = game.menuHover === sl
@@ -1140,21 +1193,44 @@ final class Renderer: NSObject, MTKViewDelegate {
                 text(logo, lx, ly, ls, V4(0.86, 0.78, 0.55, 1), shadow: false)
                 let tag = "Build. Explore. Survive."
                 text(tag, floor((W - textWidth(tag, s)) / 2), ly + 9 * ls, s, V4(1, 1, 0.4, 1))
+                // Controller status along the bottom edge (inside the safe area).
+                let pads = PadManager.shared
+                let status = pads.connected ? Glyph.a.s + " " + pads.name + " ready" + (pads.battery.map { "  (battery \(Int($0 * 100))%)" } ?? "")
+                    : "Connect a controller any time, or play with keyboard and mouse"
+                text(status, floor((W - textWidth(status, s)) / 2), H - ML.insetY - 12 * s, s, V4(0.9, 0.9, 0.9, 0.9))
             }
             if let pm = m as? PauseMenu {
                 // Big labelled buttons; the controller cursor shows as the highlighted one.
+                if !pm.subtitle.isEmpty {
+                    text(pm.subtitle, o.x + (pw - textWidth(pm.subtitle, s)) / 2, o.y + 17 * s, s, V4(0.3, 0.3, 0.32, 1), shadow: false)
+                }
                 for sl in pm.slots where sl.isButton {
-                    guard case .button(let i) = sl.kind, i < pm.rows.count else { continue }
+                    guard case .button(let i) = sl.kind, let r = pm.row(forSlot: i) else { continue }
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
                     let hot = game.menuHover === sl
-                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.42, 0.55, 0.85, 1) : V4(0.42, 0.42, 0.46, 1))
+                    let info = r.1 == "noop"
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, info ? V4(0.3, 0.3, 0.33, 1) : (hot ? V4(0.42, 0.55, 0.85, 1) : V4(0.42, 0.42, 0.46, 1)))
                     frame(x, y, Float(sl.w) * s, Float(sl.h) * s, s, hot ? V4(1, 1, 1, 1) : V4(0.2, 0.2, 0.22, 1))
-                    let label = pm.rows[i].0
-                    text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
+                    let label = r.0
+                    let lx = info ? x + 5 * s : x + (Float(sl.w) * s - textWidth(label, s)) / 2
+                    text(label, lx, y + (Float(sl.h) - 7) / 2 * s, s)
+                    if hot && PauseMenu.valueIDs.contains(r.1) {
+                        // Arrows: D-pad left / right steps the setting.
+                        text("<", x + 4 * s, y + (Float(sl.h) - 7) / 2 * s, s, V4(1, 1, 0.6, 1))
+                        text(">", x + Float(sl.w) * s - 8 * s, y + (Float(sl.h) - 7) / 2 * s, s, V4(1, 1, 0.6, 1))
+                    }
                 }
-                if pm.page == .options {
-                    text("A / click: next   X / right-click: previous   B / Esc: back", o.x + 10 * s, o.y + Float(pm.height - 8) * s, s * 0.5, V4(0.3, 0.3, 0.3, 1), shadow: false)
+                if pm.rows.count > pm.slots.count {
+                    // Scroll position: dots under the list.
+                    let n = pm.rows.count - pm.slots.count + 1
+                    let dotY = o.y + Float(pm.slots.last.map { $0.y + $0.h + 2 } ?? 0) * s
+                    let dw = min(10 * s, 200 * s / Float(n))
+                    let x0 = o.x + (pw - dw * Float(n)) / 2
+                    for k in 0..<n { rect(x0 + Float(k) * dw + s, dotY, dw - 2 * s, 2 * s, k == pm.scroll ? V4(0.2, 0.3, 0.6, 1) : V4(0.5, 0.5, 0.52, 1)) }
                 }
+                var help = pm.helpText
+                while !help.isEmpty && textWidth(help, s) > pw - 12 * s { help.removeLast() }
+                if !help.isEmpty { text(help, o.x + (pw - textWidth(help, s)) / 2, o.y + ph - 12 * s, s, V4(0.22, 0.22, 0.25, 1), shadow: false) }
             }
             if let am = m as? AdvancementMenu {
                 // Tabs, then the checklist: done ones in gold (challenges purple), open ones grey.
@@ -1280,10 +1356,32 @@ final class Renderer: NSObject, MTKViewDelegate {
                 rect(bx + s, by + s, bs - s, bs - s, V4(1, 1, 1, 1))
                 rect(bx + s, by + s, bs - 2 * s, bs - 2 * s, V4(0.545, 0.545, 0.545, 1))
                 itemIcon(sl.stack, x + s, y + s, 16 * s)
-                if sl === game.menuHover { rect(x + s, y + s, 16 * s, 16 * s, V4(1, 1, 1, 0.45)) }
+                if sl === game.menuHover {
+                    rect(x + s, y + s, 16 * s, 16 * s, V4(1, 1, 1, 0.45))
+                    // Controller cursor: a bright frame that reads from the sofa.
+                    if Prompt.pad { frame(bx - s, by - s, bs + 2 * s, bs + 2 * s, s, V4(1, 0.85, 0.2, 1)) }
+                }
+            }
+            if let c = m as? CreativeMenu {
+                // Tab strip: an item icon per category; the open tab is raised and lighter.
+                for sl in c.slots where sl.isButton {
+                    guard case .button(let i) = sl.kind, let t = CreativeMenu.Tab(rawValue: i - CreativeMenu.tabButton) else { continue }
+                    let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
+                    let sel = t == c.tab, hot = game.menuHover === sl
+                    rect(x, y - (sel ? s : 0), Float(sl.w) * s, Float(sl.h) * s + (sel ? s : 0), V4(0.2, 0.2, 0.2, 1))
+                    rect(x + s, y + s - (sel ? s : 0), Float(sl.w - 2) * s, Float(sl.h - 2) * s + (sel ? s : 0),
+                         sel ? V4(0.93, 0.93, 0.93, 1) : (hot ? V4(0.7, 0.72, 0.85, 1) : V4(0.6, 0.6, 0.62, 1)))
+                    if Items.has(t.icon) { itemIcon(ItemStack(Items.id(t.icon), 1), x + 3 * s, y + s, 14 * s, counts: false) }
+                    else { text(String(t.short.prefix(2)), x + 4 * s, y + 5 * s, s, V4(0.2, 0.2, 0.2, 1), shadow: false) }
+                }
+                if let h = game.menuHover, case .button(let i) = h.kind, let t = CreativeMenu.Tab(rawValue: i - CreativeMenu.tabButton) {
+                    let name = t.name, x = o.x + Float(h.x) * s, y = o.y + Float(h.y) * s
+                    rect(x - 2 * s, y - 12 * s, textWidth(name, s) + 4 * s, 11 * s, V4(0.1, 0.05, 0.15, 0.92))
+                    text(name, x, y - 10 * s, s)
+                }
             }
             if let c = m as? CreativeMenu, c.maxScroll > 0 {
-                let tx = o.x + 175 * s, ty = o.y + 18 * s, th = 90 * s
+                let tx = o.x + 175 * s, ty = o.y + 32 * s, th = 90 * s
                 rect(tx, ty, 12 * s, th, V4(0.216, 0.216, 0.216, 1))
                 let k = Float(c.scroll) / Float(c.maxScroll)
                 rect(tx + s, ty + (th - 15 * s) * k, 10 * s, 15 * s, V4(0.8, 0.8, 0.8, 1))
@@ -1323,10 +1421,12 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         // Crosshair
         let cx = floor(W / 2), cy = floor(H / 2)
-        let arm = 5 * s, th = max(1, s)
-        let shadow = V4(0, 0, 0, 0.45), white = V4(1, 1, 1, 0.9)
-        rect(cx - arm - 1, cy - th / 2 - 1, arm * 2 + 2, th + 2, shadow)
-        rect(cx - th / 2 - 1, cy - arm - 1, th + 2, arm * 2 + 2, shadow)
+        let style = Settings.shared.crosshair
+        let arm = (style == 2 ? 1.5 : 5) * s, th = style == 1 ? max(2, 2 * s) : max(1, s)
+        let edge: Float = style == 1 ? max(2, s) : 1
+        let shadow = V4(0, 0, 0, style == 1 ? 0.9 : 0.45), white = V4(1, 1, 1, style == 1 ? 1 : 0.9)
+        rect(cx - arm - edge, cy - th / 2 - edge, arm * 2 + 2 * edge, th + 2 * edge, shadow)
+        rect(cx - th / 2 - edge, cy - arm - edge, th + 2 * edge, arm * 2 + 2 * edge, shadow)
         rect(cx - arm, cy - th / 2, arm * 2, th, white)
         rect(cx - th / 2, cy - arm, th, arm * 2, white)
 
@@ -1406,7 +1506,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let row = e.beneficial ? 0 : 1
                 let idx = e.beneficial ? good : bad
                 if e.beneficial { good += 1 } else { bad += 1 }
-                let bx = W - Float(idx + 1) * 25 * s - 2 * s, by = 2 * s + Float(row) * 26 * s
+                let bx = W - L.insetX - Float(idx + 1) * 25 * s - 2 * s, by = L.insetY + 2 * s + Float(row) * 26 * s
                 let blink = a.time < 10 && Int(a.time * 4) % 2 == 0
                 rect(bx, by, 24 * s, 24 * s, V4(0.1, 0.1, 0.15, a.ambient ? 0.55 : 0.75))
                 frame(bx, by, 24 * s, 24 * s, s, a.ambient ? V4(0.3, 0.8, 0.9, 0.9) : V4(0.55, 0.55, 0.6, 0.9))
@@ -1464,7 +1564,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             else {
                 let tw = 160 * s, th = 32 * s
                 let slide = Float(min(1, min(age, 5 - age) * 4))
-                let x = W - tw * slide - 4 * s, y = 4 * s
+                let x = W - L.insetX - tw * slide - 4 * s, y = L.insetY + 4 * s
                 rect(x, y, tw, th, V4(0.13, 0.13, 0.15, 0.95))
                 frame(x, y, tw, th, s, first.1 ? V4(0.75, 0.45, 0.95, 1) : V4(0.95, 0.8, 0.3, 1))
                 text(first.1 ? "Challenge Complete!" : "Advancement Made!", x + 8 * s, y + 6 * s, s, first.1 ? V4(0.9, 0.5, 1, 1) : V4(1, 1, 0.33, 1))
@@ -1476,30 +1576,26 @@ final class Renderer: NSObject, MTKViewDelegate {
         if since < 2.2 && !game.toastText.isEmpty {
             let a = Float(min(1, (2.2 - since) / 0.5))
             let ty = L.hotbarY0 - (game.survival ? 26 : 14) * s
+            let tb = Settings.shared.textBackground
+            if tb > 0 { let tw = textWidth(game.toastText, s); rect(floor((W - tw) / 2) - 3 * s, ty - 3 * s, tw + 6 * s, 13 * s, V4(0, 0, 0, tb * a)) }
             text(game.toastText, floor((W - textWidth(game.toastText, s)) / 2), ty, s, V4(1, 1, 1, a))
         }
 
-        // Sound subtitles (Options → Audio → Subtitles), bottom right above the hotbar.
-        let subs = game.subtitleLines()
-        if !subs.isEmpty && game.menu == nil {
-            let lineH = 10 * s
-            var sy = L.hotbarY0 - 6 * s - Float(subs.count) * lineH
-            var widest: Float = 0
-            for (t, _) in subs { widest = max(widest, textWidth(t, s)) }
-            let sx = W - widest - 8 * s
-            for (t, a) in subs {
-                rect(sx - 2 * s, sy - s, widest + 4 * s, lineH, V4(0, 0, 0, 0.55 * a))
-                text(t, sx, sy, s, V4(1, 1, 1, a), shadow: false)
-                sy += lineH
+        // Tutorial tips, contextual button prompts and subtitles (HudExtras.swift).
+        for l in HudExtras.lines(game, L) {
+            if let b = l.bg {
+                if let box = l.box { rect(l.x, l.y, box.x, box.y, b) }
+                else { rect(l.x - 3 * l.scale, l.y - 3 * l.scale, textWidth(l.text, l.scale) + 6 * l.scale, 13 * l.scale, b) }
             }
+            if !l.text.isEmpty { text(l.text, l.x, l.y, l.scale, l.color) }
         }
 
         // F3 debug overlay
         if game.showDebug {
-            var y = 4 * s
+            var y = L.insetY + 4 * s
             for line in debugLines() {
-                rect(2 * s, y - s, textWidth(line, s) + 4 * s, 9 * s, V4(0, 0, 0, 0.35))
-                text(line, 4 * s, y, s, V4(0.9, 0.9, 0.9, 1), shadow: false)
+                rect(L.insetX + 2 * s, y - s, textWidth(line, s) + 4 * s, 9 * s, V4(0, 0, 0, 0.35))
+                text(line, L.insetX + 4 * s, y, s, V4(0.9, 0.9, 0.9, 1), shadow: false)
                 y += 10 * s
             }
         }

@@ -12,5 +12,7 @@ xcrun swiftc $OPT -swift-version 5 -target arm64-apple-macos13.0 -module-name Bl
   -framework Metal -framework MetalKit -framework AppKit -framework GameController -framework AVFoundation \
   Sources/*.swift -o "$APP/Contents/MacOS/Blocksmith"
 cp Info.plist "$APP/Contents/Info.plist"
+# Commit id for Bug Notes entries (BugNotes.build).
+/usr/libexec/PlistBuddy -c "Add :BlocksmithCommit string $(git rev-parse --short HEAD 2>/dev/null || echo unknown)" "$APP/Contents/Info.plist" >/dev/null 2>&1 || true
 codesign --force --sign - "$APP" >/dev/null 2>&1 || true
 echo "Built $APP ($MODE)"

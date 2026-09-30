@@ -11,15 +11,10 @@ final class SubtitleState {
 
 extension AudioSettings {
     static var forceSubtitles = false        // harness only (not saved)
-    private static var subtitlesCache: Bool? = nil
+    // One subtitles option shared by Options → Audio and Options → Accessibility (Settings.subtitles).
     static var subtitles: Bool {
-        get {
-            if let c = subtitlesCache { return forceSubtitles || c }
-            let v = UserDefaults.standard.bool(forKey: "audio_subtitles")
-            subtitlesCache = v
-            return forceSubtitles || v
-        }
-        set { subtitlesCache = newValue; UserDefaults.standard.set(newValue, forKey: "audio_subtitles") }
+        get { forceSubtitles || Settings.shared.subtitles }
+        set { Settings.shared.subtitles = newValue }
     }
 }
 
@@ -279,15 +274,7 @@ extension Snd {
 extension Game {
     // Records a caption for a played sound (called from sfx and for active loops).
     func subtitle(_ s: Snd, at pos: V3?) {
-        guard AudioSettings.subtitles, let text = s.caption(positional: pos != nil) else { return }
-        let st = subtitles
-        if let i = st.lines.firstIndex(where: { $0.text == text }) {
-            st.lines[i].time = clock
-            st.lines[i].pos = pos
-            return
-        }
-        st.lines.append(SubtitleState.Line(text: text, time: clock, pos: pos))
-        if st.lines.count > 8 { st.lines.removeFirst(st.lines.count - 8) }
+        Subtitles.shared.add(self, s, at: pos)      // drawn by HudExtras with the controller prompts
     }
 
     // Lines to draw (newest last) with an arrow toward the source and an alpha that fades out.

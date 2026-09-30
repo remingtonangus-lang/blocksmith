@@ -39,8 +39,7 @@ final class SaveManager {
     let chunkDir: URL
 
     convenience init(name: String) {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        self.init(dir: base.appendingPathComponent("Blocksmith/Worlds/\(name)", isDirectory: true))
+        self.init(dir: WorldStore.url(name))
     }
 
     // Save folder for another dimension inside this world's folder.

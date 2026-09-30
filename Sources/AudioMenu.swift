@@ -1,6 +1,6 @@
 import Foundation
 
-// The Audio page of the options menu: one slider per sound category (A / X step it up and down,
+// The Audio tab of the options menu: one slider per sound category (A / X step it up and down,
 // the mouse clicks step forward / right-click back), plus a test sound.
 extension PauseMenu {
     static let volumeSteps: [Float] = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
@@ -13,7 +13,6 @@ extension PauseMenu {
         }
         r.append(("Subtitles: \(AudioSettings.subtitles ? "On" : "Off")", "audio_subs"))
         r.append(("Test Sound", "audio_test"))
-        r.append(("Done", "audio_back"))
         return r
     }
 

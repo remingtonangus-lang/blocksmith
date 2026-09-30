@@ -45,12 +45,59 @@ No third-party text, textures, sounds or logos: everything is procedural or writ
 
 ## Controls
 Keyboard/mouse: WASD, Space (double-tap = fly in creative), Shift sneak, Ctrl sprint, LMB attack/mine (hold),
-RMB use/place/eat (hold), MMB pick block, 1–9/scroll hotbar, E inventory, Q drop (Ctrl+Q stack), F fly, T / slash commands, F1 hide HUD, F2 screenshot
-(~/Pictures/Blocksmith), F3 debug, F5 camera (first person / behind / in front, with a player model).
-Menus: click / right-click / shift-click, number keys swap with hotbar, click outside drops.
-Controller: LS move, RS look, A jump, B sneak, L3 sprint, RT attack/mine, LT use, LB/RB hotbar, Y inventory, View camera,
-X pick block, D-pad ↓ drop, D-pad ↑ fly. In menus: D-pad/LS move cursor, A = click, X = right-click, Y = shift-click,
-B close, RS scroll creative.
+RMB use/place/eat (hold), MMB pick block, 1–9/scroll hotbar, E inventory, Q drop (Ctrl+Q stack), R swap off hand, F fly, T / slash commands,
+F1 hide HUD, F2 screenshot (~/Pictures/Blocksmith), F3 debug, F5 camera (first person / behind / in front, with a player model).
+Menus: click / right-click / shift-click, number keys swap with hotbar, click outside drops, arrow keys move the cursor, Tab switches creative tabs.
+Controller (console layout): LS move (full forward = auto-sprint), RS look, A jump, B / RS click sneak (hold or toggle), L3 sprint,
+RT attack/mine, LT use/place/eat, LB/RB hotbar, Y inventory, X pick block, D-pad ↓ drop (hold: whole stack), ↑ fly, → swap off hand,
+← command console, View camera, Menu pause, Share screenshot. Options > Controller: southpaw sticks.
+In menus: D-pad/LS move the cursor (held directions repeat), A take/place/select, X split/place one/previous value, Y quick move,
+RT drop, B back/close, LB/RB tabs (options pages, creative tabs, advancement tabs, recipe book pages), RS / LT / RT scroll and page.
+On-screen keyboard (Y in any text field): A type, X delete, Y space, LT shift, Menu done.
+
+## Voice bug notes
+Options > Interface > Bug Notes (Off / Always Listening / Push-to-Talk: F7 or L3 + R3). Speak a bug while playing and it is
+appended to ~/Documents/Blocksmith/BugNotes/bug-notes.md, with the transcript (on-device Speech, en-US), build commit,
+world + seed, dimension, position/facing, biome, targeted block, mode, time/weather and frame time. A screenshot from when
+the note started and the note's .m4a are saved next to it. Mic dot on the HUD, "Note saved" toast, the game never pauses.
+Denied permissions grey the option out. CI: `--bugnotetest` (synthesized voice through the real pipeline, stub
+transcriber). How a session turns the file into fixes: BUGNOTES.md.
+
+## Couch / TV mode (controller workstream)
+Playing on the TV: pair the Xbox controller in System Settings > Bluetooth (hold the pairing button until the logo flashes
+fast), plug the Mac into the TV, launch Blocksmith — it opens full screen and the title screen says "<pad> ready". Turn on
+Options > Interface > Couch Mode for a bigger HUD; if the TV crops the edges raise Safe Area; on a 4K TV set
+Options > Video > Resolution to 75% for a steady 60 fps on the M1.
+- `PadManager` (Controller.swift): hotplugging with toasts, the pad dropping out mid-game pauses, player LED, battery shown in
+  Options > Controller, rumble through CoreHaptics (hurt, explosions, mining, attacks, bow, landing, thunder, level up; strength option),
+  and "last device used" so every prompt shows controller glyphs or key caps automatically (Options: Button Prompts auto/pad/keys).
+- Button glyphs (Glyphs.swift): private-use characters drawn by the HUD text renderer as pixel-art badges (coloured A/B/X/Y,
+  LB/RB pills, LT/RT triggers, sticks, D-pad arms, Menu/View/Share) and key caps / mouse buttons. Menu legends change with the hovered
+  slot ("A Pick up  X Pick up half  Y Quick move" / "A Place all  X Place one"); pad cursor is a bright frame.
+- Options (PauseMenu.swift): six pages switched with LB/RB — Keyboard & Mouse, Controller (look speed X/Y, look acceleration, invert,
+  dead zone, aim assist, vibration, southpaw, sneak hold/toggle, auto-sprint, prompts), Video (render distance, fullscreen, start in
+  fullscreen [default on], VSync, frame-rate cap, resolution scale, FOV, GUI scale), Audio (+ subtitles), Interface (GUI scale, couch
+  mode, safe area 0–10 %, button hints, text background, hide HUD, debug), Accessibility (subtitles, colourblind-safe colours,
+  text background, tutorial tips). D-pad left/right changes the highlighted setting; every row has a help line; long pages scroll.
+  Settings persist in UserDefaults (Settings.swift `@Pref`).
+- Menus shrink to a GUI scale that fits the screen and safe area (HudLayout.fitted), so couch mode on a 1080p TV never overflows.
+- Worlds (WorldStore.swift): newest first with mode + last played; per-world Play / Rename / Copy / Delete (confirmation with Cancel
+  selected; deletes go to the Trash). The open world can be copied but not renamed/deleted. Save and Quit to Title.
+- Creative palette: 9 tabs (All, Building, Natural, Functional, Sparkstone, Tools & Combat, Food & Potions, Ingredients, Search) with
+  an icon tab strip; Search filters by name (keyboard or on-screen keyboard).
+- In game: contextual prompts bottom-right ("RT Mine  LT Place  X Pick Block"), LB/RB beside the hotbar, first-steps tutorial tips
+  (look, move, jump, mine, place, inventory, hotbar), subtitles with left/right arrows, aim assist (view slows over hostile mobs and
+  while mining; controller only).
+- Harness: `--padtest` drives Game.tick with a simulated pad through ~45 checks (pause, options pages/values, keyboard typing,
+  world copy/delete/rename, inventory, creative tabs/search, gameplay buttons, look, rumble, TV fit); a failure makes the run exit 3.
+  `--pad` (pad glyphs), `--couch`, `--safe N`, `--hints`, `--padview keyboard|worlds|world|confirm|controls|title|video`.
+  Options changed by the harness are restored and worlds live in a temp folder. Snapshot shots hide tips/prompts unless `--hints`.
+- Later additions: keyboard key rebinding (Options > Keyboard & Mouse > Key Bindings; conflicts swap; prompts follow the
+  bindings), crosshair styles (classic / bold / dot), reduced screen flashes, Reset Options (confirmation), sticky block
+  targeting for the pad (highlight holds ~0.12 blocks past an edge), on-screen keyboard with a live preview that opens by
+  itself for signs and text fields, LB/RB page turning in books, loading screen on world switch (and straight into the
+  world afterwards), pad status on the title, "controller disconnected" note on the pause menu.
+- Not yet: controller button remapping, a free-moving pad cursor option for menus.
 
 ## Rendering performance
 - Solid cube faces are drawn first without alpha test (keeps the GPU's hidden-surface removal), cutout faces
