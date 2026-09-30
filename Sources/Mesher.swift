@@ -118,7 +118,13 @@ enum Mesher {
                 }
             }
         }
-        flood(&sky, &q, R, lo)
+        // Only the section and its 1-block shell are read back. When every shell column's heightmap is
+        // below the shell, all of it is direct skylight (15) and spreading can't change it: skip the flood.
+        var shellLit = true
+        check: for z in (C0 - 1)...(C0 + 16) {
+            for x in (C0 - 1)...(C0 + 16) where heights[x + z * RW] >= y0 + C0 - 1 { shellLit = false; break check }
+        }
+        if !shellLit { flood(&sky, &q, R, lo) }
 
         q.removeAll(keepingCapacity: true)
         for i in 0..<(RL * RH) {
