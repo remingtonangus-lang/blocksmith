@@ -155,6 +155,8 @@ extension Mob {
             face(mate.pos)
             return simd_length(mate.pos - pos) > halfW + 1 ? spec.speed : 0
         }
+        if home == nil && kind == .turtle { home = pos }            // home beach: where it first appeared
+        if layEgg(g) { return spec.speed * 0.8 }
         // Rabbits hop; frogs hop and eat small slimes; armadillos roll up near danger.
         switch kind {
         case .rabbit:

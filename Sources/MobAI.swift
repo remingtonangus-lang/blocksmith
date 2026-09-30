@@ -229,6 +229,53 @@ extension Mob {
         default: return 0
         }
     }
+
+    // Reference breeding inheritance: horse stats average both parents and a random roll; pets of a
+    // tamed pair are born tame; colour variants come from either parent.
+    func inheritFrom(_ a: Mob, _ b: Mob) {
+        if horseLike && kind != .llama && kind != .traderLlama && kind != .camel {
+            func bits(_ v: Int, _ s: Int) -> Int { (v >> s) & 15 }
+            let sp = (bits(a.variant, 4) + bits(b.variant, 4) + Int.random(in: 0...15)) / 3
+            let jp = (bits(a.variant, 8) + bits(b.variant, 8) + Int.random(in: 0...15)) / 3
+            let colour = (Bool.random() ? a.variant : b.variant) & 15
+            variant = colour | (sp << 4) | (jp << 8)
+            health = (a.health + b.health + Int.random(in: 15...30)) / 3
+        } else if a.kind == b.kind {
+            variant = Bool.random() ? a.variant : b.variant
+        }
+        if a.tamed || b.tamed, [.wolf, .cat, .parrot].contains(kind) { owner = true; persistent = true }
+        if kind == .fox { owner = false }                       // trusts the player who bred it
+    }
+
+    // Carrying an egg: returns true while it is busy laying (from animalAI).
+    func layEgg(_ g: Game) -> Bool {
+        guard hasEgg else { return false }
+        let w = g.world
+        let c = IVec3(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z)))
+        switch kind {
+        case .turtle:
+            let h = home ?? pos
+            if simd_length(V2(h.x - pos.x, h.z - pos.z)) > 2 { face(h); moving = true; return true }
+            let below = Blocks.key(w.block(c.x, c.y - 1, c.z))
+            if (below == "sand" || below == "red_sand") && w.block(c.x, c.y, c.z) == AIR && Blocks.has("turtle_egg") {
+                w.setBlock(c.x, c.y, c.z, Blocks.id("turtle_egg") + BlockID(Int.random(in: 0...3)))
+                hasEgg = false
+            } else if Float.random(in: 0..<1) < 0.02 { hasEgg = false }
+            return true
+        case .frog:
+            guard let spot = findNearby(w, radius: 8, where: { q in
+                Blocks.fluidKind[Int(w.block(q.x, q.y - 1, q.z))] == 1 && w.block(q.x, q.y, q.z) == AIR }) else { return false }
+            let t = V3(Float(spot.x) + 0.5, Float(spot.y), Float(spot.z) + 0.5)
+            if simd_length(t - pos) > 1.5 { face(t); moving = true; return true }
+            if Blocks.has("frogspawn") { w.setBlock(spot.x, spot.y, spot.z, Blocks.id("frogspawn")) }
+            hasEgg = false
+            return true
+        default:
+            if Items.has("sniffer_egg") { g.drops.spawn(ItemStack(Items.id("sniffer_egg"), 1), at: pos + V3(0, 0.5, 0)) }
+            hasEgg = false
+            return false
+        }
+    }
 }
 
 extension Game {

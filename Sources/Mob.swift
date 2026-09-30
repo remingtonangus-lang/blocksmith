@@ -331,6 +331,7 @@ final class Mob {
     var reinforceChance = Float.random(in: 0..<0.1)
     var trap = false                // skeleton trap horse
     var carriedBlock: BlockID = 0   // voidwalker: block it picked up
+    var hasEgg = false              // turtle / frog / snuffler carrying an egg after breeding
     var hive: IVec3?                // bee: its nest / hive (Bees.swift)
     var nectar = false
     var flower: IVec3?
@@ -1400,16 +1401,19 @@ final class MobManager {
         // Breeding: two mobs of a kind in love next to each other make a baby.
         var babies: [Mob] = []
         for a in mobs where a.inLove > 0 {
-            if let b = mobs.first(where: { $0 !== a && $0.kind == a.kind && $0.inLove > 0 && simd_length($0.pos - a.pos) < 1.5 }) {
+            if let b = mobs.first(where: { $0 !== a && a.breedsWith($0) && $0.inLove > 0 && simd_length($0.pos - a.pos) < 1.5 }) {
                 a.inLove = 0; b.inLove = 0
                 a.breedCooldown = 300; b.breedCooldown = 300
-                let baby = Mob(a.kind, at: (a.pos + b.pos) * 0.5)
+                game.achieve("breed")
+                game.addXP(Int.random(in: 1...7))
+                game.particles.hearts(at: (a.pos + b.pos) * 0.5 + V3(0, 0.8, 0))
+                // Egg layers (reference): turtles lay on their home beach, frogs lay spawn on water, snufflers an egg.
+                if a.kind == .turtle || a.kind == .frog || a.kind == .sniffer { a.hasEgg = true; continue }
+                let baby = Mob(a.kind != b.kind ? .mule : a.kind, at: (a.pos + b.pos) * 0.5)
                 baby.baby = true
                 baby.scale = 0.5
-                game.achieve("breed")
+                baby.inheritFrom(a, b)
                 babies.append(baby)
-                game.addXP(Int.random(in: 1...7))
-                game.particles.hearts(at: baby.pos + V3(0, 0.8, 0))
             }
         }
         mobs += babies
