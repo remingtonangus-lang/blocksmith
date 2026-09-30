@@ -315,7 +315,7 @@ extension Mob {
 
 extension Mob {
     // Villagers and illagers open wooden doors on their path and shut them again once through.
-    var opensDoors: Bool { [.villager, .wanderingTrader, .pillager, .vindicator, .evoker, .witch].contains(kind) }
+    var opensDoors: Bool { [.villager, .wanderingTrader, .pillager, .vindicator, .evoker, .witch, .illusioner].contains(kind) }
 
     func handleDoors(_ g: Game, _ dt: Float = 0.05) {
         let w = g.world

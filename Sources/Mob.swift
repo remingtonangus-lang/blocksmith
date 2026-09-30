@@ -22,6 +22,7 @@ enum MobKind: Int, CaseIterable {
     case wanderingTrader, skeletonHorse, phantom, guardian, elderGuardian, endermite, warden, breeze, bogged, zoglin
     case boat, armorStand
     case creaking
+    case zombieHorse, illusioner
 
     struct Spec {
         var name: String
@@ -125,7 +126,8 @@ enum MobKind: Int, CaseIterable {
                                           burnsInSun: true, drops: [("rotten_flesh", 0, 2)], xp: 5, call: .mobZombie)
         case .rabbit, .fox, .wolf, .cat, .ocelot, .horse, .donkey, .mule, .llama, .traderLlama, .camel, .goat, .panda, .polarBear, .turtle, .frog, .tadpole,
              .armadillo, .sniffer, .mooshroom, .bee, .parrot, .bat, .allay, .axolotl, .squid, .glowSquid, .dolphin, .cod, .salmon, .tropicalFish, .pufferfish,
-             .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking:
+             .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking,
+             .zombieHorse, .illusioner:
             return animalSpec
         case .witherSkeleton: return Spec(name: "Blight Skeleton", halfW: 0.35, height: 2.4, health: 20, speed: 2.5, behavior: .melee, attack: 8,
                                           drops: [("coal", 0, 1), ("bone", 0, 2)], xp: 5, call: .mobSkeleton, fireImmune: true)
@@ -218,7 +220,9 @@ enum MobKind: Int, CaseIterable {
         .zoglin: "zoglin",
         .boat: "boat",
         .armorStand: "armor_stand",
-        .creaking: "creaking"
+        .creaking: "creaking",
+        .zombieHorse: "zombie_horse",
+        .illusioner: "illusioner"
     ]
     static func named(_ n: String) -> MobKind? { allCases.first { $0.key == n } }
     var call: Snd { spec.call }
@@ -637,6 +641,7 @@ final class Mob {
                 }
             } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .ranged:
+            if kind == .illusioner && canTarget { illusionerSpells(dt, g) }
             if let v = villagerTarget(g), !(canTarget && dist <= simd_length(v.pos - pos)), w.canSee(eye, v.pos + V3(0, v.height * 0.6, 0)) {
                 face(v.pos)
                 let dv = simd_length(v.pos - pos)
@@ -978,9 +983,9 @@ private func parts(_ m: Mob) -> [Part] {
         return extraParts(m, swing: swing)
     case .rabbit, .fox, .wolf, .cat, .ocelot, .horse, .donkey, .mule, .llama, .traderLlama, .camel, .goat, .panda, .polarBear, .turtle, .frog, .tadpole,
          .armadillo, .sniffer, .mooshroom, .bee, .parrot, .bat, .allay, .axolotl, .squid, .glowSquid, .dolphin, .cod, .salmon, .tropicalFish, .pufferfish,
-         .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking:
+         .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking, .zombieHorse:
         return animalParts(m, swing: swing)
-    case .zombie, .skeleton, .enderman, .husk, .stray, .drowned, .pillager, .vindicator, .witch:
+    case .zombie, .skeleton, .enderman, .husk, .stray, .drowned, .pillager, .vindicator, .witch, .illusioner:
         let sk = m.kind == .skeleton || m.kind == .stray, en = m.kind == .enderman
         let illager = m.kind == .pillager || m.kind == .vindicator || m.kind == .witch
         var skin = sk ? V3(0.78, 0.78, 0.76) : (en ? V3(0.08, 0.06, 0.1) : V3(0.36, 0.55, 0.3))
@@ -993,6 +998,7 @@ private func parts(_ m: Mob) -> [Part] {
         case .pillager: skin = V3(0.55, 0.57, 0.58); shirt = V3(0.25, 0.25, 0.3); pants = V3(0.3, 0.3, 0.32)
         case .vindicator: skin = V3(0.55, 0.57, 0.58); shirt = V3(0.2, 0.22, 0.28); pants = V3(0.15, 0.15, 0.2)
         case .witch: skin = V3(0.6, 0.55, 0.45); shirt = V3(0.3, 0.2, 0.35); pants = shirt
+        case .illusioner: skin = V3(0.55, 0.57, 0.58); shirt = V3(0.2, 0.32, 0.62); pants = V3(0.16, 0.2, 0.4)
         default: break
         }
         _ = illager

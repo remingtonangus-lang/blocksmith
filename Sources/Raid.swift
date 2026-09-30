@@ -320,7 +320,7 @@ extension Mob {
     // Villager (for zombies and raiders) or iron golem (raiders) to attack instead of the player.
     func villagerTarget(_ g: Game) -> Mob? {
         let zombie = isZombie
-        let illager = raider || kind == .vindicator || kind == .pillager
+        let illager = raider || kind == .vindicator || kind == .pillager || kind == .illusioner
         guard zombie || illager else { return nil }
         let range: Float = raider ? 32 : 16
         return g.mobs.mobs.filter { o in

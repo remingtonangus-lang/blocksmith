@@ -831,6 +831,7 @@ final class Game {
         let h = held
         if useNow, let m = mobHit ?? mobs.raycast(player.eye, player.look, maxDist: 3.5)?.0, useItemOnMob(m) { swing = 1; return }
         if useNow && Items.key(h.item) == "ender_eye" && useSeekerEye(on: target) { swing = 1; return }
+        if useNow && useSpawnEgg(on: target) { swing = 1; return }
         if useNow && Items.key(h.item) == "firework_rocket" && player.gliding {
             player.boost = 0.5 + 0.6 * Float(max(1, h.tag))
             consumeHeld()

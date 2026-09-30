@@ -146,7 +146,7 @@ extension Mob {
         return .idle
     }
 
-    static let villageThreats: Set<MobKind> = [.zombie, .husk, .drowned, .zombieVillager, .vex, .ravager, .evoker, .vindicator, .pillager, .zoglin]
+    static let villageThreats: Set<MobKind> = [.zombie, .husk, .drowned, .zombieVillager, .vex, .ravager, .evoker, .vindicator, .pillager, .zoglin, .illusioner]
 
     // Walks toward `anchor` when farther than `r`, else strolls; returns the speed.
     func stroll(around anchor: V3, _ r: Float, _ pace: Float) -> Float {

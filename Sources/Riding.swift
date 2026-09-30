@@ -64,7 +64,7 @@ extension Game {
             m.health = min(m.kind == .wolf ? 40 : m.spec.health, m.health + 4); consumeHeld(); particles.hearts(at: pos); return true
         }
         // Saddles and chests.
-        let rideable: Set<MobKind> = [.horse, .donkey, .mule, .camel, .pig, .strider, .skeletonHorse]
+        let rideable: Set<MobKind> = [.horse, .donkey, .mule, .camel, .pig, .strider, .skeletonHorse, .zombieHorse]
         if key == "saddle" && rideable.contains(m.kind) && !m.saddled && !m.baby && (m.tamed || m.kind == .pig || m.kind == .strider) {
             m.saddled = true; m.persistent = true; consumeHeld(); sfx(.place(.wood), 0.6); return true
         }
@@ -216,7 +216,7 @@ extension Mob {
         case .donkey, .mule, .llama, .traderLlama:
             variant = Int.random(in: 0..<4) | (Int.random(in: 0..<16) << 4) | (Int.random(in: 0..<16) << 8)
             health = Int.random(in: 15...30)
-        case .skeletonHorse: variant = (8 << 4) | (8 << 8)
+        case .skeletonHorse, .zombieHorse: variant = (8 << 4) | (8 << 8)
         case .rabbit, .cat, .tropicalFish: variant = Int.random(in: 0..<4)
         case .parrot: variant = Int.random(in: 0..<5)
         case .axolotl: variant = Int.random(in: 0..<1200) == 0 ? 4 : Int.random(in: 0..<4)       // blue is 1 in 1200

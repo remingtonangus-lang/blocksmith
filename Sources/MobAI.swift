@@ -116,4 +116,18 @@ extension Mob {
         }
         if kind == .zombifiedPiglin { provoke(g) }
     }
+
+    // Mirage caster (reference illusioner): every 9 s either blinds its target for 20 s or, when the
+    // target is already blind, turns itself invisible for a minute (its mirror-image spell).
+    func illusionerSpells(_ dt: Float, _ g: Game) {
+        spellTimer -= dt
+        guard spellTimer <= 0 else { return }
+        spellTimer = 9
+        if !g.effects.has(.blindness) {
+            g.applyEffect(.blindness, amp: 0, seconds: 20)
+        } else if !(effects?.has(.invisibility) ?? false) {
+            applyEffect(.invisibility, amp: 0, seconds: 60, game: g)
+        }
+        g.sfx(.evokerCast, 0.9, at: pos)
+    }
 }

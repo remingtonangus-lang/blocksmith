@@ -47,6 +47,8 @@ extension MobKind {
         case .pufferfish: return a("Pufferfish", 0.35, 0.7, 3, 2, drops: [("pufferfish", 1, 1), ("bone_meal", 0, 1)], xp: 1, call: .splash, aquatic: true)
         case .wanderingTrader: return a("Wandering Trader", 0.3, 1.95, 20, 2.2, xp: 0, call: .mobVillager)
         case .skeletonHorse: return a("Skeleton Horse", 0.7, 1.6, 15, 3, drops: [("bone", 0, 2)], xp: 2, call: .mobSkeleton)
+        case .zombieHorse: return a("Zombie Horse", 0.7, 1.6, 15, 3, drops: [("rotten_flesh", 0, 2)], xp: 2, call: .mobZombie)
+        case .illusioner: return a("Mirage Caster", 0.3, 1.95, 32, 2.5, drops: [], xp: 5, call: .mobVillager, beh: .ranged)
         case .phantom: return a("Nightwing", 0.45, 0.5, 20, 8, drops: [("phantom_membrane", 0, 1)], xp: 5, call: .mobVex, attack: 6, flying: true, beh: .monster, sun: true)
         case .guardian: return a("Spikefish", 0.43, 0.85, 30, 2.5, drops: [("prismarine_shard", 0, 2), ("cod", 0, 1)], xp: 10, call: .mobSlime, attack: 6, aquatic: true, beh: .monster)
         case .elderGuardian: return a("Elder Spikefish", 1, 2, 80, 1.5, drops: [("prismarine_shard", 0, 2), ("wet_sponge", 1, 1)], xp: 10, call: .mobRavager, attack: 8, aquatic: true, beh: .monster)
@@ -72,7 +74,7 @@ extension MobKind {
 
 extension Mob {
     var tamed: Bool { owner == true }
-    var horseLike: Bool { kind == .horse || kind == .donkey || kind == .mule || kind == .skeletonHorse || kind == .llama || kind == .traderLlama || kind == .camel }
+    var horseLike: Bool { kind == .horse || kind == .donkey || kind == .mule || kind == .skeletonHorse || kind == .zombieHorse || kind == .llama || kind == .traderLlama || kind == .camel }
 
     // Common land-animal AI: follow food, breed, flee/panic, plus per-species behaviour.
     func animalAI(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool, inWater: Bool) -> Float {
@@ -428,8 +430,8 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
         p.append(box(-2, 11, -9, 1.5, 1.5, 1, c)); p.append(box(0.5, 11, -9, 1.5, 1.5, 1, c))
         p.append(Part(mn: V3(-0.5, 8, 6), mx: V3(0.5, 9, 14), pivot: V3(0, 8.5, 6), rotX: -0.5, color: c))
         return p
-    case .horse, .donkey, .mule, .skeletonHorse:
-        let c = m.kind == .skeletonHorse ? V3(0.85, 0.85, 0.82) : (m.kind == .donkey ? V3(0.5, 0.45, 0.4) : (m.kind == .mule ? V3(0.35, 0.25, 0.18)
+    case .horse, .donkey, .mule, .skeletonHorse, .zombieHorse:
+        let c = m.kind == .zombieHorse ? V3(0.33, 0.5, 0.3) : m.kind == .skeletonHorse ? V3(0.85, 0.85, 0.82) : (m.kind == .donkey ? V3(0.5, 0.45, 0.4) : (m.kind == .mule ? V3(0.35, 0.25, 0.18)
                 : [V3(0.55, 0.36, 0.2), V3(0.9, 0.88, 0.82), V3(0.25, 0.18, 0.12), V3(0.62, 0.5, 0.36), V3(0.15, 0.15, 0.15)][m.variant % 5]))
         var p = quadruped(.zero, V3(10, 10, 22), legH: 12, head: V3(0, 20, -11), headSize: V3(5, 5, 11), c, legW: 4)
         p.append(Part(mn: V3(-3, 14, -13), mx: V3(3, 24, -7), pivot: V3(0, 16, -9), rotX: 0.5, color: c, pattern: 4))      // neck
