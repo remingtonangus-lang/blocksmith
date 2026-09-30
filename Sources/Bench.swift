@@ -227,6 +227,9 @@ enum Bench {
         let c = now
         guard (try? Renderer(device: device, game: game, colorFormat: .bgra8Unorm)) != nil else { print("bench startup: renderer failed"); return }
         let tRenderer = now - c
+        let c2 = now
+        _ = try? Renderer(device: device, game: game, colorFormat: .bgra8Unorm)   // again: compiled shaders are cached
+        put("startup.renderer_init_again_ms", (now - c2) * 1000)
         // Streaming the rest of render distance 12 in the background (update() once per 60 Hz frame).
         let d = now
         var full = -1.0
