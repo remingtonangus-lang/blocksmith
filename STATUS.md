@@ -49,6 +49,14 @@ In menus: D-pad/LS move the cursor (held directions repeat), A take/place/select
 RT drop, B back/close, LB/RB tabs (options pages, creative tabs, advancement tabs, recipe book pages), RS / LT / RT scroll and page.
 On-screen keyboard (Y in any text field): A type, X delete, Y space, LT shift, Menu done.
 
+## Voice bug notes
+Options > Interface > Bug Notes (Off / Always Listening / Push-to-Talk: F7 or L3 + R3). Speak a bug while playing and it is
+appended to ~/Documents/Blocksmith/BugNotes/bug-notes.md, with the transcript (on-device Speech, en-US), build commit,
+world + seed, dimension, position/facing, biome, targeted block, mode, time/weather and frame time. A screenshot from when
+the note started and the note's .m4a are saved next to it. Mic dot on the HUD, "Note saved" toast, the game never pauses.
+Denied permissions grey the option out. CI: `--bugnotetest` (synthesized voice through the real pipeline, stub
+transcriber). How a session turns the file into fixes: BUGNOTES.md.
+
 ## Couch / TV mode (controller workstream)
 Playing on the TV: pair the Xbox controller in System Settings > Bluetooth (hold the pairing button until the logo flashes
 fast), plug the Mac into the TV, launch Blocksmith — it opens full screen and the title screen says "<pad> ready". Turn on

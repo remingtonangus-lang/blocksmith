@@ -200,6 +200,15 @@ final class Renderer: NSObject, MTKViewDelegate {
             inflight.signal(); inflight.signal()
             game.onToast?("Saved screenshot as \(name)")
         }
+        BugNotes.shared.frameTime = dt
+        if let shot = BugNotes.shared.screenshotRequest {
+            // Voice bug note started: save this view next to the note (half size on big screens).
+            BugNotes.shared.screenshotRequest = nil
+            inflight.wait(); inflight.wait()
+            let sz = view.drawableSize, k: CGFloat = sz.width > 1600 ? 0.5 : 1
+            _ = renderToPNG(path: shot.path, width: Int(sz.width * k), height: Int(sz.height * k))
+            inflight.signal(); inflight.signal()
+        }
         let cmd = queue.makeCommandBuffer()!
         cmd.addCompletedHandler { [inflight] _ in inflight.signal() }
         let sky = game.skyColor

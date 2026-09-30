@@ -44,7 +44,7 @@ final class PauseMenu: Menu {
     static let valueIDs: Set<String> = ["sens", "invert", "autojump", "fov", "lookx", "looky", "accel", "dead", "aim", "rumble", "southpaw",
                                         "sneaktoggle", "autosprint", "glyphs", "rd", "fullscreen", "launchfs", "vsync", "fps", "rscale",
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
-                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display"]
+                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes"]
 
     static let help: [String: String] = [
         "resume": "Return to the game.",
@@ -90,6 +90,7 @@ final class PauseMenu: Menu {
         "difficulty": "How much damage mobs do and whether hunger can kill.",
         "crosshair": "Bold is thicker with a dark edge, easy to see on a TV. Dot is a small square.",
         "narrator": "Reads the highlighted menu item and messages aloud with the system voice.",
+        "bugnotes": "Speak bugs while playing; they are saved to Documents/Blocksmith/BugNotes with a screenshot.",
         "flashes": "Reduced makes the red damage flash and portal tint faint.",
         "resetask": "Put every option and key binding back to its default.",
         "hidehud": "Hide the hotbar and crosshair (screenshots). F1 on the keyboard.",
@@ -160,6 +161,7 @@ final class PauseMenu: Menu {
                         ("Text Background: \(st.textBackground == 0 ? "Off" : pct(st.textBackground))", "textbg"),
                         ("Crosshair: \(["Classic", "Bold", "Dot"][max(0, min(2, st.crosshair))])", "crosshair"),
                         ("Hide HUD: \(on(g.hideHUD))", "hidehud"), ("Debug Info: \(on(g.showDebug))", "debug"),
+                        ("Bug Notes: " + (BugNotes.denied ? "No mic access" : BugNotes.names[max(0, min(2, st.bugNotes))]), "bugnotes"),
                         ("Reset Options...", "resetask")]
             case .accessibility:
                 rows = [("Subtitles: \(on(st.subtitles))", "subtitles"), ("Narrator: \(on(st.narrator))", "narrator"),
@@ -429,6 +431,21 @@ final class PauseMenu: Menu {
         case "safe": st.safeArea = step([0, 2, 4, 6, 8, 10], st.safeArea)
         case "hints": st.buttonHints.toggle()
         case "textbg": st.textBackground = step([0, 0.25, 0.5, 0.75], st.textBackground)
+        case "bugnotes":
+            if BugNotes.denied {
+                g.onToast?("Allow Microphone and Speech Recognition for Blocksmith in System Settings > Privacy & Security")
+            } else if BugNotes.authorized || st.bugNotes != 0 {
+                st.bugNotes = step([0, 1, 2], st.bugNotes)
+                if st.bugNotes == 2 { g.onToast?("Hold F7 or click both sticks (L3 + R3) and speak") }
+                if st.bugNotes == 1 { g.onToast?("Listening: just say the bug, pause to finish") }
+            } else {
+                let next = back ? 2 : 1
+                BugNotes.requestPermission { [weak self] ok in
+                    if ok { st.bugNotes = next; g.onToast?(next == 1 ? "Listening: just say the bug, pause to finish" : "Hold F7 or click both sticks (L3 + R3) and speak") }
+                    else { g.onToast?("Bug Notes needs microphone and speech permission (System Settings > Privacy & Security)") }
+                    self?.build()
+                }
+            }
         case "flashes": st.screenEffects.toggle()
         case "narrator": st.narrator.toggle(); if st.narrator { Narrator.shared.say("Narrator on", clock: g.clock) }
         case "resetask": go(.confirm); confirmReset = true; resetCursor = true

@@ -49,6 +49,7 @@ final class Settings {
     @Pref("colorblind") var colorblind = false       // blue/orange instead of green/red cues
     @Pref("tutorialHints") var tutorialHints = true
     @Pref("tutorialStep") var tutorialStep = 0       // how far the first-steps hints have got
+    @Pref("bugNotes") var bugNotes = 0               // voice bug notes: 0 off, 1 always listening, 2 push-to-talk (BugNotes.swift)
     @Pref("narrator") var narrator = false           // speak highlighted menu items and toasts
     @Pref("screenEffects") var screenEffects = true  // full-strength red damage flash and portal tint (off = faint)
 

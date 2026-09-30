@@ -791,6 +791,10 @@ enum Snapshot {
             game.player.pos.y = Float(SEA) - 0.35
             print("swim pose: prone \(game.player.prone) eye \(game.player.eye.y - game.player.pos.y)")
         }
+        if CommandLine.arguments.contains("--bugnotetest") {
+            // Voice bug notes pipeline with a synthesized voice (BugNotes.selfTest).
+            BugNotes.selfTest(game) { url in _ = renderer.renderToPNG(path: url.path, width: 640, height: 400) }
+        }
         _ = renderer.renderToPNG(path: out, width: w, height: h) // warm-up (pipeline + residency)
         _ = renderer.renderToPNG(path: out, width: w, height: h)
         let gpu = renderer.medianFrame(30, width: w, height: h)

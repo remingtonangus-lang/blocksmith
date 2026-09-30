@@ -261,10 +261,20 @@ enum HudExtras {
         Tutorial.tick(g)
         Feedback.tick(g)
         Narrator.shared.tick(g)
+        BugNotes.shared.tick(g)
     }
     // All extra lines for this frame (drawn after the normal HUD, before the F3 overlay).
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
         var out = Tutorial.lines(g, L)
+        let bn = BugNotes.shared
+        if bn.listening {
+            // Bug Notes mic dot: grey = listening, red = recording a note (top-left, inside the safe area).
+            let s = L.s, x = L.insetX + 4 * s, y = L.insetY + 4 * s
+            let pulse: Float = bn.recording ? 0.75 + 0.25 * sinf(Float(g.clock) * 8) : 1
+            out.append(HudLine(text: "", x: x - s, y: y - s, scale: s, bg: V4(0, 0, 0, 0.5), box: V2(8 * s, 8 * s)))
+            out.append(HudLine(text: "", x: x, y: y, scale: s, bg: bn.recording ? V4(0.95, 0.15, 0.15, pulse) : V4(0.7, 0.7, 0.72, 0.8), box: V2(6 * s, 6 * s)))
+            if bn.recording { out.append(HudLine(text: "Note", x: x + 10 * s, y: y, scale: s, color: V4(1, 0.6, 0.6, 1))) }
+        }
         if enabled && Settings.shared.buttonHints && Prompt.pad && g.menu == nil {
             // LB / RB beside the hotbar.
             let s = L.s, y = L.hotbarY0 + L.slot / 2 - 4 * s

@@ -31,6 +31,12 @@ Goals: polished, efficient on M1/8 GB, extensible. Later: Xbox controller on a T
 - Later systems (one file each, mostly `extension Game`): Effects, Potions, Enchant, Villager, Raid, Beacon, Weather, GameCombat (shield/crossbow/trident/fishing), Animals + Riding, Boats, Equipment (mob armour, armor stands), Gadgets (FOV, spyglass, leads), Banners (+ loom), Fireworks (also special crafting: Fireworks.craft), Books (+ lecterns), Bundles, Workblocks (composter, bell), WoodBlocks (pillar axes, stripped wood), Shelf (chiseled bookshelf, decorated pot), Crafter, Physics (wind charge, sponge, powder snow), DragonRespawn, MinecartVariants (+ goat horns), Advancements, Decor (signs/hanging signs/frames/paintings), Maps, Jukebox, BigStructures. Sparkstone.swift holds every sparkstone component kind (incl. tripwire, trapped chest, copper bulb, crafter, murk sensor).
 - Swift gotchas seen on CI: long float expressions time out the type checker (split them with typed lets); `import simd` in every file that uses simd_*.
 
+## Voice bug notes
+Remington speaks bugs while playing. They land in ~/Documents/Blocksmith/BugNotes/bug-notes.md (transcript + game state +
+screenshot + .m4a per entry). When he hands you that file, follow BUGNOTES.md: reproduce each `Status: open` entry with the
+harness from its seed/position/facing, fix it, and cite the note's timestamp in the commit. Code: Sources/BugNotes.swift;
+CI check: `--bugnotetest`.
+
 ## Roadmap
 Done: tree variety, plants, clouds/stars, block light + torches, flowing water, creative inventory, survival basics, synthesized sounds, passive mobs.
 Next: item drops/counts/mining time + crafting, food from animals, greedy meshing, first-person hand, controller-driven pause menu for TV play.
