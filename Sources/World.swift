@@ -29,7 +29,15 @@ final class World {
     var portals = Set<IVec3>()
     var renderDistance: Int = 8 { didSet { lastCenter = nil; rebuildOffsets() } }
 
-    private let workQueue = DispatchQueue(label: "blocksmith.world", qos: .userInitiated, attributes: .concurrent)
+    // Workers: maxJobs run at once; up to maxQueued jobs are handed over per frame so workers never sit
+    // idle between frames (handing over only maxJobs capped streaming at ~maxJobs x 60 jobs per second).
+    private let workQueue: OperationQueue = {
+        let q = OperationQueue()
+        q.name = "blocksmith.world"
+        q.qualityOfService = .userInitiated
+        return q
+    }()
+    private var maxQueued: Int { maxJobs * 4 }
     private let lock = NSLock()
     private var genResults: [(ChunkKey, Produced)] = []
     private var meshResults: [(ChunkKey, [(Int, Int, SectionMesh)])] = []
@@ -68,6 +76,7 @@ final class World {
         self.device = device
         self.save = save
         maxJobs = max(2, ProcessInfo.processInfo.activeProcessorCount - 2)
+        workQueue.maxConcurrentOperationCount = maxJobs
         rebuildOffsets()
         blockEntities = save?.loadBlockEntities() ?? [:]
         portals = Set(save?.loadPortals() ?? [])
@@ -355,18 +364,29 @@ final class World {
         let mr = meshResults; meshResults.removeAll(keepingCapacity: true)
         lock.unlock()
 
-        for (k, p) in gr {
+        // Results are applied within a per-frame budget; the rest wait for the next frame.
+        let budget = 0.004
+        var gi = 0, mi = 0
+        while gi < gr.count && (gi == 0 || CFAbsoluteTimeGetCurrent() - tUpdate < budget) {
+            let (k, p) = gr[gi]; gi += 1
             genInFlight.remove(k)
             jobs -= 1
             if chunks[k] != nil { continue }
             install(k, p)
         }
-        for (k, list) in mr {
+        while mi < mr.count && (mi == 0 || CFAbsoluteTimeGetCurrent() - tUpdate < budget) {
+            let (k, list) = mr[mi]; mi += 1
             jobs -= 1
             guard let c = chunks[k] else { continue }
             c.meshInFlight = false
             c.meshedOnce = true
             for (sy, version, mesh) in list { apply(mesh, to: c, sy: sy, version: version) }
+        }
+        if gi < gr.count || mi < mr.count {
+            lock.lock()
+            genResults.insert(contentsOf: gr[gi...], at: 0)
+            meshResults.insert(contentsOf: mr[mi...], at: 0)
+            lock.unlock()
         }
 
         if center != lastCenter {
@@ -399,14 +419,14 @@ final class World {
                     c.lod = wantLod
                     for s in c.sections where s.meshedVersion != -1 { s.version += 1 }
                 }
-                if jobs >= maxJobs { continue }
+                if jobs >= maxQueued { continue }
                 if !c.meshInFlight && inMeshRadius(dx, dz) && c.needsMesh, let nb = neighbourhood(c) {
                     let (n9, h9) = nb
                     let todo = dirtySections(c)
                     let lod = c.lod
                     c.meshInFlight = true
                     jobs += 1
-                    workQueue.async { [self] in
+                    workQueue.addOperation { [self] in
                         let t0 = CFAbsoluteTimeGetCurrent()
                         var out: [(Int, Int, SectionMesh)] = []
                         for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod))) }
@@ -417,10 +437,10 @@ final class World {
                         lock.unlock()
                     }
                 }
-            } else if jobs < maxJobs && !genInFlight.contains(k) {
+            } else if jobs < maxQueued && !genInFlight.contains(k) {
                 genInFlight.insert(k)
                 jobs += 1
-                workQueue.async { [self] in
+                workQueue.addOperation { [self] in
                     let t0 = CFAbsoluteTimeGetCurrent()
                     let r = produce(k)
                     let el = CFAbsoluteTimeGetCurrent() - t0
