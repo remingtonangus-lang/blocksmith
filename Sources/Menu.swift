@@ -360,9 +360,38 @@ final class FurnaceMenu: Menu {
 }
 
 final class ChestMenu: Menu {
+    convenience init(game: Game, entity: BlockEntity) { self.init(game: game, container: entity.container, title: "Chest") }
+    init(game: Game, container: ItemContainer, title: String) {
+        super.init(title, game: game)
+        let rows = container.count / 9
+        height = 114 + rows * 18
+        inventoryLabelY = height - 94
+        for r in 0..<rows { for c in 0..<9 { slots.append(MenuSlot(8 + c * 18, 18 + r * 18, container, c + r * 9)) } }
+        addPlayerInventory(y: height - 82)
+    }
+}
+
+// Two chests side by side facing the same way: one 54-slot screen.
+final class DoubleChestMenu: Menu {
+    init(game: Game, a: ItemContainer, b: ItemContainer) {
+        super.init("Large Chest", game: game)
+        height = 222
+        inventoryLabelY = 128
+        for (k, c) in [a, b].enumerated() {
+            for r in 0..<3 { for col in 0..<9 { slots.append(MenuSlot(8 + col * 18, 18 + (r + k * 3) * 18, c, col + r * 9)) } }
+        }
+        addPlayerInventory(y: 140)
+    }
+}
+
+final class ShulkerMenu: Menu {
     init(game: Game, entity: BlockEntity) {
-        super.init("Chest", game: game)
-        for r in 0..<3 { for c in 0..<9 { slots.append(MenuSlot(8 + c * 18, 18 + r * 18, entity.container, c + r * 9)) } }
+        super.init("Shulker Box", game: game)
+        for r in 0..<3 { for c in 0..<9 {
+            let sl = MenuSlot(8 + c * 18, 18 + r * 18, entity.container, c + r * 9)
+            sl.filter = { !Items.key($0.item).hasSuffix("shulker_box") }       // no boxes inside boxes
+            slots.append(sl)
+        } }
         addPlayerInventory()
     }
 }

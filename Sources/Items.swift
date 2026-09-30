@@ -227,6 +227,10 @@ final class ItemRegistry {
         item("golden_horse_armor", "Golden Horse Armor", "chestplate", 0xF8D84A, stack: 1)
         item("diamond_horse_armor", "Diamond Horse Armor", "chestplate", 0x4AEDD9, stack: 1)
         item("lead", "Lead", "string", 0xB08A5A)
+        item("netherite_upgrade_smithing_template", "Netherite Upgrade", "paper", 0x3A2A2A, ["a": 0x6A4A3A])
+        for t in Smithing.trims {
+            item("\(t)_armor_trim_smithing_template", "\(t.capitalized) Armor Trim", "paper", 0x2A3A4A, ["a": 0x6A8AAA])
+        }
 
         // Food (hunger, saturation as in the reference game)
         food("apple", "Apple", "apple_shape", 0xD11F1A, 4, 2.4, ["a": 0x5A3D1F])

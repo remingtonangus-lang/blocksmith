@@ -393,11 +393,15 @@ extension Game {
         if let w = try? JSONEncoder().encode(weather), let s = String(data: w, encoding: .utf8) { d["weather"] = s }
         d["patrol"] = "\(patrolTimer)"
         d["rest"] = "\(timeSinceRest)"
+        if let e = try? JSONEncoder().encode(enderChest.slots), let str = String(data: e, encoding: .utf8) { d["ender"] = str }
         return d
     }
     func loadExtra(_ d: [String: String]) {
         if let s = d["weather"], let data = s.data(using: .utf8), let w = try? JSONDecoder().decode(Weather.self, from: data) { weather = w }
         if let p = d["patrol"], let v = Float(p) { patrolTimer = v }
         if let p = d["rest"], let v = Float(p) { timeSinceRest = v }
+        if let str = d["ender"], let data = str.data(using: .utf8), let slots = try? JSONDecoder().decode([ItemStack].self, from: data) {
+            for (i, st) in slots.prefix(27).enumerated() { enderChest[i] = st }
+        }
     }
 }

@@ -14,7 +14,17 @@ final class World {
     var chunks: [ChunkKey: Chunk] = [:]
     var blockEntities: [IVec3: BlockEntity] = [:]
     var pendingMobs: [(String, V3)] = []
-    var rainLevel: Float = 0                        // set by the game: rain puts out exposed fires          // structure mobs waiting for the game to spawn them
+    var rainLevel: Float = 0                        // set by the game: rain puts out exposed fires
+    var gravityQueue: [IVec3] = []                  // cells to check for sand/gravel/anvils that should fall
+    static let fallingIDs: [Bool] = {
+        var t = [Bool](repeating: false, count: Blocks.count)
+        for i in 0..<Blocks.count {
+            let k = Blocks.key(Blocks.groupBase[i])
+            if ["sand", "red_sand", "gravel", "anvil", "chipped_anvil", "damaged_anvil", "dragon_egg", "suspicious_sand", "suspicious_gravel", "scaffolding"].contains(k)
+                || k.hasSuffix("_concrete_powder") { t[i] = true }
+        }
+        return t
+    }()          // structure mobs waiting for the game to spawn them
     lazy var redstone = Redstone(world: self)
     var portals = Set<IVec3>()
     var renderDistance: Int = 8 { didSet { lastCenter = nil; rebuildOffsets() } }
@@ -103,6 +113,7 @@ final class World {
         let old = c.blocks[Chunk.index(lx, y, lz)]
         c.blocks[Chunk.index(lx, y, lz)] = id
         if !redstone.isBusy && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
+        if old != id { gravityQueue.append(IVec3(x, y, z)); gravityQueue.append(IVec3(x, y + 1, z)) }
         c.modified = true
         c.recomputeHeight(lx, lz)
         let newH = Int(c.height[lx + lz * CS])
@@ -142,6 +153,7 @@ final class World {
         let old = c.blocks[Chunk.index(lx, y, lz)]
         c.blocks[Chunk.index(lx, y, lz)] = id
         if !redstone.isBusy && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
+        if old != id { gravityQueue.append(IVec3(x, y, z)); gravityQueue.append(IVec3(x, y + 1, z)) }
         c.modified = true
         c.recomputeHeight(lx, lz)
         for dz in -1...1 {
@@ -585,7 +597,7 @@ final class World {
     private(set) var lavaPending = Set<IVec3>()
     static let fluidBudget = 1024
     private static let sideDirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
-    private static let allDirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
+    static let allDirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
     var onFluidEvent: ((IVec3) -> Void)?     // lava/water reactions (sound)
 
     func scheduleFluid(around p: IVec3) {

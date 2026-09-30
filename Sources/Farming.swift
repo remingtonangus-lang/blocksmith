@@ -179,6 +179,17 @@ extension Game {
             swing = 1
             return true
         }
+        // Candles: add one more (up to four) or light them.
+        if bkey.hasSuffix("candle") {
+            let st = Int(b - Blocks.groupBase[Int(b)])
+            if key == bkey && st % 4 < 3 { world.setBlock(t.hit.x, t.hit.y, t.hit.z, b + 1); consumeHeld(); swing = 1; return true }
+            if (key == "flint_and_steel" || key == "fire_charge") && st < 4 {
+                world.setBlock(t.hit.x, t.hit.y, t.hit.z, b + 4)
+                if key == "fire_charge" { consumeHeld() } else { damageHeld(1) }
+                sfx(.fireball, 0.3); swing = 1
+                return true
+            }
+        }
         // Shears carve a pumpkin (face toward the clicked side) and drop 4 seeds.
         if key == "shears" && bkey == "pumpkin" && t.normal.y == 0 {
             let f = t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))

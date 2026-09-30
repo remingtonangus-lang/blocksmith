@@ -86,6 +86,8 @@ final class Game {
     var blocking = false           // holding a raised shield
     var lastPearl: Double = -10
     var rideInput = MoveInput()
+    var falling: [FallingBlock] = []
+    let enderChest = ItemContainer(27)     // the player's ender chest inventory (shared by all ender chests)
     var timeSinceRest: Float = 0    // phantoms appear after 3 days (3600 s) without sleep
     private var beaconTicks = 0
     var shieldCooldown: Float = 0
@@ -846,7 +848,8 @@ final class Game {
             if useNow && placeBed(h.def, at: at) { sfx(.place(.wood), 1); consumeHeld(); swing = 1 }
             return
         }
-        if key == "furnace" || key == "chest" || key == "carved_pumpkin" || key == "jack_o_lantern" {
+        if Blocks.has(key + "[south]") && Blocks.shape[Int(blockItem)].isEmpty {
+            // Any block registered with four facings turns its front toward the player.
             id = blockItem + BlockID(BlockRegistry.facingToward(yaw: player.yaw))
         }
         let fracY = hitPoint(t).y - Float(t.hit.y)
@@ -907,6 +910,12 @@ final class Game {
             if key == "hopper" { world.blockEntities[at] = BlockEntity(.hopper) }
             if key == "brewing_stand" { world.blockEntities[at] = BlockEntity(.brewing) }
             if key == "beacon" { world.blockEntities[at] = BlockEntity(.beacon) }
+            if key.hasSuffix("shulker_box") {
+                let be = BlockEntity(.shulker)
+                if let c = h.contents { for (i, s) in c.prefix(27).enumerated() { be.container[i] = s } }
+                world.blockEntities[at] = be
+            }
+            if key == "trapped_chest" { world.blockEntities[at] = BlockEntity(.chest) }
             if Rails.isRail(id) { Rails.autoShape(world, at) }
             if key == "wither_skeleton_skull" { trySummonWither(at) }
             if key == "carved_pumpkin" || key == "jack_o_lantern" { trySummonGolem(at) }
@@ -936,7 +945,8 @@ final class Game {
         if (shape == "door" || shape == "trapdoor") && !k.hasPrefix("iron_") { return true }
         if shape == "gate" { return true }
         return k == "crafting_table" || k == "furnace" || k == "lit_furnace" || k == "chest" || k == "brewing_stand"
-            || k == "enchanting_table" || k.hasSuffix("anvil") || k == "beacon"
+            || k == "enchanting_table" || k.hasSuffix("anvil") || k == "beacon" || k == "smithing_table" || k == "stonecutter" || k == "grindstone"
+            || k == "ender_chest" || k == "trapped_chest" || k.hasSuffix("shulker_box") || k == "cake" || k.hasSuffix("candle")
     }
 
     // Opens/closes a wooden door (both halves), trapdoor or fence gate.
@@ -967,12 +977,47 @@ final class Game {
         case "chest":
             let be = world.blockEntities[p] ?? BlockEntity(.chest)
             world.blockEntities[p] = be
+            // A neighbouring chest with the same facing along the chest's width makes a large chest.
+            let b = world.block(p.x, p.y, p.z)
+            let facing = Int(b - Blocks.groupBase[Int(b)])
+            let side = facing < 2 ? [IVec3(1, 0, 0), IVec3(-1, 0, 0)] : [IVec3(0, 0, 1), IVec3(0, 0, -1)]
+            if let q = side.map({ p + $0 }).first(where: { world.block($0.x, $0.y, $0.z) == b }) {
+                let other = world.blockEntities[q] ?? BlockEntity(.chest)
+                world.blockEntities[q] = other
+                let first = (q.x + q.z) < (p.x + p.z) ? other : be, second = first === be ? other : be
+                openMenu(DoubleChestMenu(game: self, a: first.container, b: second.container))
+                return
+            }
             openMenu(ChestMenu(game: self, entity: be))
         case "brewing_stand":
             let be = world.blockEntities[p] ?? BlockEntity(.brewing)
             world.blockEntities[p] = be
             openMenu(BrewingMenu(game: self, entity: be))
         case "enchanting_table": openMenu(EnchantMenu(game: self, at: p))
+        case "smithing_table": openMenu(SmithingMenu(game: self))
+        case "stonecutter": openMenu(StonecutterMenu(game: self))
+        case "grindstone": openMenu(GrindstoneMenu(game: self))
+        case "ender_chest": openMenu(ChestMenu(game: self, container: enderChest, title: "Ender Chest"))
+        case "trapped_chest":
+            let be = world.blockEntities[p] ?? BlockEntity(.chest)
+            world.blockEntities[p] = be
+            openMenu(ChestMenu(game: self, entity: be))
+        case _ where k.hasSuffix("shulker_box"):
+            let be = world.blockEntities[p] ?? BlockEntity(.shulker)
+            world.blockEntities[p] = be
+            openMenu(ShulkerMenu(game: self, entity: be))
+        case "cake":
+            // Eat a slice: 2 hunger, 0.4 saturation; seven slices.
+            guard !survival || hunger < 20 else { return }
+            let b = world.block(p.x, p.y, p.z)
+            let bite = Int(b - Blocks.groupBase[Int(b)])
+            eat(FoodInfo(hunger: 2, saturation: 0.4), "Cake")
+            world.setBlock(p.x, p.y, p.z, bite >= 6 ? AIR : b + 1)
+        case _ where k.hasSuffix("candle"):
+            // Right-click a lit candle to blow it out.
+            let b = world.block(p.x, p.y, p.z)
+            let st = Int(b - Blocks.groupBase[Int(b)])
+            if st >= 4 { world.setBlock(p.x, p.y, p.z, b - 4); sfx(.fizz, 0.3) }
         case "beacon":
             let be = world.blockEntities[p] ?? BlockEntity(.beacon)
             world.blockEntities[p] = be
@@ -1035,6 +1080,13 @@ final class Game {
             }
         }
         if let be = world.blockEntities.removeValue(forKey: p) {
+            if be.kind == .shulker {
+                // Shulker boxes keep their contents as an item.
+                var box = ItemStack(Items.item(forBlock: b) ?? 0, 1)
+                if be.container.slots.contains(where: { !$0.isEmpty }) { box.contents = be.container.slots }
+                if box.item != 0 { drops.spawn(box, at: center) }
+                return
+            }
             for s in be.container.slots where !s.isEmpty { drops.spawn(s, at: center) }
         }
         if drop {
@@ -1416,6 +1468,7 @@ final class Game {
         cloudTick(Float(dt))
         fangTick(Float(dt))
         bobberTick(Float(dt))
+        fallingTick(Float(dt))
         weatherTick(Float(dt))
         world.rainLevel = wetWorld ? weather.rain : 0
         raidTimer += Float(dt)
@@ -1443,6 +1496,7 @@ final class Game {
     private func gameTick() {
         randomTicks()
         precipitationTicks()
+        gravityTick()
         beaconTicks += 1
         if beaconTicks >= 80 { beaconTicks = 0; beaconTick() }
         spawnerTick(0.05)

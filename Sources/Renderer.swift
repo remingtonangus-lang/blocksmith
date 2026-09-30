@@ -356,6 +356,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.writeFangs(&wr, eye: eye)
                 game.writeBeams(&wr, eye: eye)
                 game.writeWeather(&wr, eye: eye)
+                game.writeFalling(&wr, eye: eye)
                 game.writeBobber(&wr, eye: eye, right: right, up: -up)
                 game.particles.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight)
                 let nItems = wr.n
@@ -772,6 +773,18 @@ final class Renderer: NSObject, MTKViewDelegate {
                     text(t, o.x + 168 * s - textWidth(t, s), o.y + 69 * s, s, ok ? V4(0.5, 1, 0.13, 1) : V4(1, 0.38, 0.38, 1))
                 }
             }
+            if let sc = m as? StonecutterMenu {
+                rect(o.x + 50 * s, o.y + 13 * s, 68 * s, 56 * s, V4(0.35, 0.35, 0.35, 1))
+                for (i, opt) in sc.options.enumerated() {
+                    let sl = sc.slots[1 + i]
+                    let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
+                    rect(x, y, 16 * s, 18 * s, i == sc.selected ? V4(0.55, 0.75, 0.55, 1) : (game.menuHover === sl ? V4(0.7, 0.7, 0.7, 1) : V4(0.55, 0.55, 0.55, 1)))
+                    itemIcon(ItemStack(opt.0, opt.1), x, y + s, 16 * s)
+                }
+            }
+            if m is SmithingMenu || m is GrindstoneMenu {
+                rect(o.x + (m is SmithingMenu ? 68 : 94) * s, o.y + (m is SmithingMenu ? 50 : 36) * s, 22 * s, 6 * s, V4(0.55, 0.55, 0.55, 1))
+            }
             if let bm = m as? BeaconMenu {
                 // Power buttons with effect icons; locked ones dimmed; the chosen ones outlined.
                 text("Primary Power", o.x + 40 * s, o.y + 8 * s, s, titleC, shadow: false)
@@ -830,7 +843,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
             for sl in m.slots where !sl.isButton {
                 let x = o.x + Float(sl.x - 1) * s, y = o.y + Float(sl.y - 1) * s
-                let bigSlot = (m is CraftingTableMenu || m is FurnaceMenu || m is AnvilMenu) && { if case .result = sl.kind { return true } else if case .output = sl.kind { return true } else { return false } }()
+                let bigSlot = (m is CraftingTableMenu || m is FurnaceMenu || m is AnvilMenu || m is SmithingMenu || m is StonecutterMenu || m is GrindstoneMenu) && { if case .result = sl.kind { return true } else if case .output = sl.kind { return true } else { return false } }()
                 let big: Float = bigSlot ? 4 : 0
                 let bx = x - big * s, by = y - big * s, bs = (18 + 2 * big) * s
                 rect(bx, by, bs, bs, V4(0.216, 0.216, 0.216, 1))
@@ -861,6 +874,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                         lines.append((l, t.effects.isEmpty ? V4(0.67, 0.67, 0.67, 1) : (bad ? V4(1, 0.33, 0.33, 1) : V4(0.33, 0.33, 1, 1))))
                     }
                 }
+                if let t = Smithing.trimName(st) { lines.append((t, V4(0.67, 0.67, 0.9, 1))) }
                 if st.def.name == "ominous_bottle" { lines.append(("Bad Omen " + Effect.roman(st.damage + 1) + " (100:00)", V4(0.33, 0.33, 1, 1))) }
                 if st.def.durability > 0 && st.damage > 0 {
                     lines.append(("Durability: \(st.def.durability - st.damage) / \(st.def.durability)", V4(0.8, 0.8, 0.8, 1)))

@@ -173,21 +173,22 @@ extension Game {
                 let h = hashf(x, 0, z, 91)
                 let snow = kind == 2
                 let speed: Float = snow ? 2 : 14
-                for k in 0..<(snow ? 2 : 3) {
+                for k in 0..<(snow ? 2 : 5) {
                     let span = yHi - yLo
                     let off = (t * speed + h * 97 + Float(k) * 7.3).truncatingRemainder(dividingBy: 22)
                     let y = yHi - off
                     guard y > yLo && y < yHi else { continue }
                     let jx = hashf(x, k, z, 92) - 0.5, jz = hashf(x, k, z, 93) - 0.5
                     var c3 = V3(Float(x) + 0.5 + jx * 0.8, y, Float(z) + 0.5 + jz * 0.8) - eye
+                    if simd_length(c3) < 1.5 { continue }
                     if snow {
                         c3.x += sinf(t * 1.3 + h * 10 + Float(k)) * 0.3
                         let s: Float = 0.06
                         let up = V3(0, s, 0), r = right * s
                         wr.quad([c3 - r - up, c3 + r - up, c3 + r + up, c3 - r + up], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], flake, V4(1, 1, 1, a + 0.2))
                     } else {
-                        let len: Float = min(0.9, span)
-                        let r = right * 0.02
+                        let len: Float = min(1.3, span)
+                        let r = right * 0.035
                         wr.quad([c3 - r, c3 + r, c3 + r + V3(0, len, 0), c3 - r + V3(0, len, 0)], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], layer, V4(0.75, 0.82, 1, a))
                     }
                 }

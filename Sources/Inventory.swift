@@ -8,9 +8,10 @@ struct ItemStack: Codable, Equatable {
     var repairCost = 0                  // anvil prior-work penalty
     var label: String? = nil            // anvil rename
     var tag = 0                         // item-specific state (crossbow: loaded projectile item id)
+    var contents: [ItemStack]? = nil    // shulker box items
 
     // Saved by item name so registry changes never scramble inventories.
-    enum CodingKeys: String, CodingKey { case id, n, d, e, r, l, t }
+    enum CodingKeys: String, CodingKey { case id, n, d, e, r, l, t, c }
     init(from dec: Decoder) throws {
         let c = try dec.container(keyedBy: CodingKeys.self)
         let name = try c.decode(String.self, forKey: .id)
@@ -21,6 +22,7 @@ struct ItemStack: Codable, Equatable {
         repairCost = (try? c.decode(Int.self, forKey: .r)) ?? 0
         label = try? c.decode(String.self, forKey: .l)
         tag = (try? c.decode(Int.self, forKey: .t)) ?? 0
+        contents = try? c.decode([ItemStack].self, forKey: .c)
     }
     func encode(to enc: Encoder) throws {
         var c = enc.container(keyedBy: CodingKeys.self)
@@ -31,6 +33,7 @@ struct ItemStack: Codable, Equatable {
         if repairCost != 0 { try c.encode(repairCost, forKey: .r) }
         if let l = label { try c.encode(l, forKey: .l) }
         if tag != 0 { try c.encode(tag, forKey: .t) }
+        if let k = contents { try c.encode(k, forKey: .c) }
     }
 
     static let empty = ItemStack()
@@ -40,7 +43,7 @@ struct ItemStack: Codable, Equatable {
     var isEmpty: Bool { item == 0 || count <= 0 }
     var def: ItemDef { Items.def(item) }
     var maxStack: Int { Items.def(item).maxStack }
-    func stacks(with o: ItemStack) -> Bool { item == o.item && damage == o.damage && ench == o.ench && label == o.label && tag == o.tag && maxStack > 1 }
+    func stacks(with o: ItemStack) -> Bool { item == o.item && damage == o.damage && ench == o.ench && label == o.label && tag == o.tag && contents == nil && o.contents == nil && maxStack > 1 }
     func with(count n: Int) -> ItemStack { var s = self; s.count = n; return s }
     var displayName: String { label ?? def.display }
 }

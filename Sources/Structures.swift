@@ -207,7 +207,7 @@ enum Loot {
     static let tables: [String: (rolls: ClosedRange<Int>, entries: [(String, Int, Int, Int)])] = [
         "fortress": (2...4, [("diamond", 1, 3, 5), ("iron_ingot", 1, 5, 5), ("gold_ingot", 1, 3, 15), ("golden_sword", 1, 1, 5),
                              ("golden_chestplate", 1, 1, 5), ("flint_and_steel", 1, 1, 5), ("nether_wart", 3, 7, 5),
-                             ("saddle", 1, 1, 10), ("obsidian", 2, 4, 2)]),
+                             ("saddle", 1, 1, 10), ("obsidian", 2, 4, 2), ("rib_armor_trim_smithing_template", 1, 1, 1)]),
         "dungeon": (1...3, [("saddle", 1, 1, 20), ("golden_apple", 1, 1, 15), ("iron_ingot", 1, 4, 10), ("gold_ingot", 1, 4, 5),
                             ("bread", 1, 1, 20), ("wheat", 1, 4, 20), ("gunpowder", 1, 4, 10), ("string", 1, 4, 10),
                             ("bucket", 1, 1, 10), ("redstone", 1, 4, 15), ("coal", 1, 4, 15), ("bone", 1, 8, 10),
@@ -228,12 +228,12 @@ enum Loot {
         "end_ship_elytra": (1...1, [("elytra", 1, 1, 1)]),
         "jungle_temple": (2...6, [("diamond", 1, 3, 3), ("iron_ingot", 1, 5, 10), ("gold_ingot", 2, 7, 15), ("emerald", 1, 3, 2),
                                   ("bone", 4, 6, 20), ("rotten_flesh", 3, 7, 16), ("saddle", 1, 1, 3), ("bamboo", 1, 3, 15),
-                                  ("enchanted_book@30", 1, 1, 1)]),
+                                  ("enchanted_book@30", 1, 1, 1), ("wild_armor_trim_smithing_template", 1, 1, 7)]),
         "igloo_chest": (2...8, [("apple", 1, 3, 15), ("coal", 1, 4, 15), ("gold_nugget", 1, 3, 10), ("stone_axe", 1, 1, 2),
                                 ("rotten_flesh", 1, 1, 10), ("emerald", 1, 1, 1), ("wheat", 2, 3, 10), ("golden_apple", 1, 1, 1)]),
         "pillager_outpost": (2...3, [("wheat", 3, 5, 7), ("potato", 2, 5, 5), ("carrot", 3, 5, 5), ("dark_oak_log", 2, 3, 10),
                                      ("experience_bottle", 0, 1, 7), ("string", 1, 6, 4), ("arrow", 2, 7, 4), ("tripwire_hook", 1, 3, 3),
-                                     ("iron_ingot", 1, 3, 3), ("enchanted_book", 1, 1, 1)]),
+                                     ("iron_ingot", 1, 3, 3), ("enchanted_book", 1, 1, 1), ("sentry_armor_trim_smithing_template", 1, 1, 2)]),
         "ruined_portal": (4...8, [("obsidian", 1, 2, 40), ("flint", 1, 4, 40), ("iron_nugget", 9, 18, 40), ("flint_and_steel", 1, 1, 40),
                                   ("fire_charge", 1, 1, 40), ("golden_apple", 1, 1, 15), ("gold_nugget", 4, 24, 15), ("golden_sword", 1, 1, 15),
                                   ("golden_axe", 1, 1, 15), ("golden_hoe", 1, 1, 15), ("golden_shovel", 1, 1, 15), ("golden_pickaxe", 1, 1, 15),
@@ -259,7 +259,7 @@ enum Loot {
         "desert_pyramid": (2...4, [("diamond", 1, 3, 5), ("iron_ingot", 1, 5, 15), ("gold_ingot", 2, 7, 15), ("emerald", 1, 3, 15),
                                    ("bone", 4, 6, 25), ("spider_eye", 1, 3, 25), ("rotten_flesh", 3, 7, 25), ("saddle", 1, 1, 20),
                                    ("golden_apple", 1, 1, 20), ("gunpowder", 1, 8, 10), ("enchanted_book", 1, 1, 20),
-                                   ("enchanted_golden_apple", 1, 1, 2)]),
+                                   ("enchanted_golden_apple", 1, 1, 2), ("dune_armor_trim_smithing_template", 1, 1, 4)]),
         "mineshaft": (3...5, [("iron_ingot", 1, 5, 10), ("gold_ingot", 1, 3, 5), ("redstone", 4, 9, 5), ("lapis_lazuli", 4, 9, 5),
                               ("diamond", 1, 2, 3), ("coal", 3, 8, 10), ("bread", 1, 3, 15), ("melon_seeds", 2, 4, 10),
                               ("pumpkin_seeds", 2, 4, 10), ("beetroot_seeds", 2, 4, 10), ("rail", 4, 8, 1), ("torch", 1, 16, 15),
@@ -268,7 +268,8 @@ enum Loot {
                             ("crying_obsidian", 3, 8, 10), ("spectral_arrow", 10, 22, 6), ("golden_carrot", 6, 17, 10),
                             ("iron_ingot", 2, 6, 10), ("obsidian", 4, 6, 10), ("magma_cream", 2, 6, 4),
                             ("diamond_sword@20-39", 1, 1, 3), ("diamond_chestplate@20-39", 1, 1, 3), ("diamond_helmet@20-39", 1, 1, 3),
-                            ("diamond_boots@20-39", 1, 1, 3), ("enchanted_golden_apple", 1, 1, 2)]),
+                            ("diamond_boots@20-39", 1, 1, 3), ("enchanted_golden_apple", 1, 1, 2),
+                            ("netherite_upgrade_smithing_template", 1, 1, 6), ("snout_armor_trim_smithing_template", 1, 1, 2)]),
     ]
 
     // "name@a-b": enchant with a-b levels (treasure allowed); "name@0": enchant randomly (50%);

@@ -265,21 +265,6 @@ enum Recipes {
         r.append(shaped(["NNN", "NTN", "NNN"], ["N": "iron_nugget", "T": "torch"], "lantern", 1))
         r.append(shaped(["###", "###", "###"], ["#": "wheat"], "hay_block", 1))
         r.append(shapeless(["hay_block"], "wheat", 9))
-        r.append(shaped(["# #", "# #", "###"], ["#": "oak_slab"], "composter", 1))
-        r.append(shaped(["PSP", "P P", "PSP"], ["P": "#planks", "S": "oak_slab"], "barrel", 1))
-        r.append(shaped([" L ", "LFL", " L "], ["L": "#logs", "F": "furnace"], "smoker", 1))
-        r.append(shaped(["III", "IFI", "SSS"], ["I": "iron_ingot", "F": "furnace", "S": "smooth_stone"], "blast_furnace", 1))
-        r.append(shaped(["pp", "##", "##"], ["p": "paper", "#": "#planks"], "cartography_table", 1))
-        r.append(shaped(["ff", "##", "##"], ["f": "flint", "#": "#planks"], "fletching_table", 1))
-        r.append(shaped(["ii", "##", "##"], ["i": "iron_ingot", "#": "#planks"], "smithing_table", 1))
-        r.append(shaped(["ss", "##"], ["s": "string", "#": "#planks"], "loom", 1))
-        r.append(shaped([" i ", "SSS"], ["i": "iron_ingot", "S": "stone"], "stonecutter", 1))
-        r.append(shaped(["SsS", "# #"], ["S": "stick", "s": "stone_slab", "#": "#planks"], "grindstone", 1))
-        r.append(shaped(["sss", " B ", " s "], ["s": "oak_slab", "B": "bookshelf"], "lectern", 1))
-        r.append(shaped(["BBB", " i ", "iii"], ["B": "iron_block", "i": "iron_ingot"], "anvil", 1))
-        r.append(shaped(["i i", "i i", "iii"], ["i": "iron_ingot"], "cauldron", 1))
-        r.append(shaped(["b b", " b "], ["b": "brick"], "flower_pot", 1))
-        for (c, _) in BlockRegistry.colors { r.append(shaped(["##"], ["#": "\(c)_wool"], "\(c)_carpet", 3)) }
         r.append(shaped(["##", "##"], ["#": "sandstone"], "cut_sandstone", 4))
         r.append(shaped(["#", "#"], ["#": "sandstone_slab"], "chiseled_sandstone", 1))
         r.append(shaped(["##", "##"], ["#": "red_sandstone"], "cut_red_sandstone", 4))
@@ -320,7 +305,6 @@ enum Recipes {
             r.append(shaped(["###", "#D#", "###"], ["#": "terracotta", "D": "\(c)_dye"], "\(c)_terracotta", 8))
             r.append(shaped(["###", "#D#", "###"], ["#": "white_carpet", "D": "\(c)_dye"], "\(c)_carpet", 8))
         }
-        for (c, _) in BlockRegistry.colors { r.append(shaped(["##"], ["#": "\(c)_wool"], "\(c)_carpet", 3)) }
         r.append(shaped(["  #", " #S", "# S"], ["#": "stick", "S": "string"], "fishing_rod"))
         r.append(shaped(["F", "R"], ["F": "fishing_rod", "R": "carrot"], "carrot_on_a_stick"))
         r.append(shaped(["F", "R"], ["F": "fishing_rod", "R": "warped_fungus"], "warped_fungus_on_a_stick"))
@@ -328,6 +312,23 @@ enum Recipes {
         r.append(shaped(["#T#", "S$S", " # "], ["#": "stick", "T": "tripwire_hook", "S": "string", "$": "iron_ingot"], "crossbow"))
         r.append(shaped(["SS ", "SB ", "  S"], ["S": "string", "B": "slime_ball"], "lead", 2))
         r.append(shaped(["L L", "LLL", "L L"], ["L": "leather"], "leather_horse_armor"))
+        r.append(shaped(["D#D", "DND", "DDD"], ["D": "diamond", "#": "netherite_upgrade_smithing_template", "N": "netherrack"], "netherite_upgrade_smithing_template", 2))
+        for t in Smithing.trims {
+            let tpl = "\(t)_armor_trim_smithing_template"
+            r.append(shaped(["D#D", "DBD", "DDD"], ["D": "diamond", "#": tpl, "B": Smithing.trimBase[t] ?? "cobblestone"], tpl, 2))
+        }
+        for (c, _) in BlockRegistry.colors {
+            r.append(shapeless(["\(c)_dye", "sand", "sand", "sand", "sand", "gravel", "gravel", "gravel", "gravel"], "\(c)_concrete_powder", 8))
+            r.append(shaped(["###", "#D#", "###"], ["#": "glass", "D": "\(c)_dye"], "\(c)_stained_glass", 8))
+            r.append(shaped(["###", "###"], ["#": "\(c)_stained_glass"], "\(c)_stained_glass_pane", 16))
+            r.append(shapeless(["candle", "\(c)_dye"], "\(c)_candle"))
+            r.append(shapeless(["shulker_box", "\(c)_dye"], "\(c)_shulker_box"))
+        }
+        r.append(shaped(["S", "H"], ["S": "string", "H": "honeycomb"], "candle"))
+        r.append(shaped(["S", "#", "S"], ["S": "shulker_shell", "#": "chest"], "shulker_box"))
+        r.append(shaped(["###", "#E#", "###"], ["#": "obsidian", "E": "ender_eye"], "ender_chest"))
+        r.append(shapeless(["chest", "tripwire_hook"], "trapped_chest"))
+        r.append(shaped(["MMM", "SES", "WWW"], ["M": "milk_bucket", "S": "sugar", "E": "egg", "W": "wheat"], "cake"))
         // Brewing and enchanting.
         r.append(shaped([" B ", "###"], ["B": "blaze_rod", "#": "#stone_tool"], "brewing_stand"))
         r.append(shaped([" B ", "D#D", "###"], ["B": "book", "D": "diamond", "#": "obsidian"], "enchanting_table"))
@@ -405,7 +406,23 @@ enum Recipes {
         "potato": "baked_potato", "netherrack": "nether_brick", "nether_gold_ore": "gold_ingot", "nether_quartz_ore": "quartz",
         "ancient_debris": "netherite_scrap", "sandstone": "smooth_sandstone", "red_sandstone": "smooth_red_sandstone", "kelp": "dried_kelp", "wet_sponge": "sponge", "chorus_fruit": "popped_chorus_fruit", "polished_blackstone_bricks": "cracked_polished_blackstone_bricks",
     ]
+    // Additional smelting pairs generated for colour families and the newer items.
+    static let smeltingExtra: [String: String] = {
+        var m: [String: String] = ["cod": "cooked_cod", "salmon": "cooked_salmon", "rabbit": "cooked_rabbit", "mutton": "cooked_mutton",
+                                   "potato": "baked_potato", "kelp": "dried_kelp", "cactus": "green_dye", "sea_pickle": "lime_dye",
+                                   "wet_sponge": "sponge", "netherrack": "nether_brick", "ancient_debris": "netherite_scrap",
+                                   "nether_gold_ore": "gold_ingot", "nether_quartz_ore": "quartz", "deepslate_lapis_ore": "lapis_lazuli",
+                                   "deepslate_redstone_ore": "redstone", "deepslate_emerald_ore": "emerald", "chorus_fruit": "popped_chorus_fruit",
+                                   "sandstone": "smooth_sandstone", "red_sandstone": "smooth_red_sandstone", "quartz_block": "smooth_quartz",
+                                   "stone_bricks": "cracked_stone_bricks", "basalt": "smooth_basalt", "clay": "terracotta", "glass": "glass",
+                                   "acacia_log": "charcoal", "dark_oak_log": "charcoal", "jungle_log": "charcoal", "mangrove_log": "charcoal",
+                                   "cherry_log": "charcoal", "iron_sword": "iron_nugget", "golden_sword": "gold_nugget", "resin_clump": "resin_brick"]
+        for (c, _) in BlockRegistry.colors { m["\(c)_terracotta"] = "\(c)_glazed_terracotta" }
+        return m
+    }()
+
     static func smelt(_ i: ItemID) -> ItemID? {
+        if smelting[Items.key(i)] == nil, let r = smeltingExtra[Items.key(i)], Items.has(r), r != Items.key(i) { return Items.id(r) }
         guard let r = smelting[Items.key(i)], Items.has(r) else { return nil }
         return Items.id(r)
     }
