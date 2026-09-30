@@ -120,6 +120,8 @@ final class PauseMenu: Menu {
             title = "Game Paused"
             if let t = PadManager.shared.disconnectedAt, g.clock - t < 600, !PadManager.shared.connected {
                 subtitle = "Controller disconnected - reconnect it or use the keyboard"
+            } else if !currentWorld.isEmpty {
+                subtitle = "\(currentWorld) - day \(Int(g.time / DAY_LENGTH) + 1)"
             }
             rows = [("Back to Game", "resume"), ("Options...", "options"), ("Advancements", "advancements"), ("Commands...", "commands"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
