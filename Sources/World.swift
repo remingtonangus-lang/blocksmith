@@ -374,7 +374,7 @@ final class World {
             // Unload outside the load disc grown by one more chunk (hysteresis when walking back and forth).
             var gone: [ChunkKey] = []
             for (k, c) in chunks where !World.inDisc(k.x - center.x, k.z - center.z, renderDistance, grow: 2) {
-                if c.modified { save?.saveChunk(k, c.blocks) }
+                if c.needsSave { save?.saveChunkAsync(k, c.blocks) }
                 gone.append(k)
             }
             for k in gone { chunks.removeValue(forKey: k) }
@@ -488,6 +488,7 @@ final class World {
     private func install(_ k: ChunkKey, _ p: Produced) {
         let c = Chunk(cx: k.x, cz: k.z, blocks: p.blocks, height: p.height, tint: p.tint)
         c.modified = p.fromDisk
+        if p.fromDisk { c.savedBlocks = c.blocks }
         chunks[k] = c
         redstone.chunkLoaded(c)
         // Generated chests/spawners; a regenerated chunk keeps any existing (already looted) entity.
@@ -545,7 +546,11 @@ final class World {
     }
 
     func saveAll() {
-        for (k, c) in chunks where c.modified { save?.saveChunk(k, c.blocks) }
+        // Only chunks changed since their last save, written on the background save queue.
+        for (k, c) in chunks where c.needsSave {
+            save?.saveChunkAsync(k, c.blocks)
+            c.savedBlocks = c.blocks
+        }
         save?.saveBlockEntities(blockEntities)
         save?.savePortals(Array(portals))
     }

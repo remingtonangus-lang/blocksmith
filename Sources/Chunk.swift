@@ -38,6 +38,14 @@ final class Chunk {
     var tintBuf: MTLBuffer?
     var sections: [Section]
     var modified = false
+    // The block array as last saved or loaded. Any write to `blocks` copies it (copy-on-write), so
+    // "same storage" means nothing changed since then and the save can be skipped.
+    var savedBlocks: [BlockID]?
+    var needsSave: Bool {
+        guard modified else { return false }
+        guard let s = savedBlocks else { return true }
+        return s.withUnsafeBufferPointer { a in blocks.withUnsafeBufferPointer { b in a.baseAddress != b.baseAddress } }
+    }
     var meshInFlight = false
     var meshedOnce = false
     var drawnMark: UInt32 = 0

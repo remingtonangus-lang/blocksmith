@@ -332,7 +332,13 @@ enum Bench {
         for k in keys { world.chunks[k]?.modified = true }
         var a = now
         world.saveAll()
+        let tMain = now - a                                  // main-thread part (writes are queued)
+        SaveIO.flush()
         let tSave = now - a
+        a = now
+        world.saveAll()                                      // nothing changed: should skip every chunk
+        SaveIO.flush()
+        let tResave = now - a
         var bytes = 0
         for k in keys { bytes += (try? FileManager.default.attributesOfItem(atPath: sm.chunkURL(k).path)[.size] as? Int) ?? 0 }
         a = now
@@ -341,9 +347,11 @@ enum Bench {
         let tLoad = now - a
         let n = Double(max(1, keys.count))
         put("save.chunk_ms", tSave * 1000 / n)
+        put("save.main_thread_ms", tMain * 1000)
+        put("save.unchanged_resave_ms", tResave * 1000)
         put("save.load_chunk_ms", tLoad * 1000 / n)
         put("save.chunk_kb", Double(bytes) / 1024 / n)
-        print("bench save: \(keys.count) chunks, save \(f(tSave * 1000 / n)) ms/chunk, load \(f(tLoad * 1000 / n)) ms/chunk (\(ok) ok), \(f(Double(bytes) / 1024 / n, 1)) KB/chunk")
+        print("bench save: \(keys.count) chunks, save \(f(tSave * 1000 / n)) ms/chunk (main thread \(f(tMain * 1000, 1)) ms total, unchanged re-save \(f(tResave * 1000, 1)) ms), load \(f(tLoad * 1000 / n)) ms/chunk (\(ok) ok), \(f(Double(bytes) / 1024 / n, 1)) KB/chunk")
     }
 
     static func flight(_ device: MTLDevice, _ seed: UInt64, rd: Int, seconds: Double, speed: Float) {
