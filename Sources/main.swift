@@ -553,6 +553,7 @@ enum Snapshot {
                 game.tick(0.05)
                 game.player.pos = to; game.player.vel = .zero
                 game.health = 20
+                game.mobs.mobs.removeAll { $0 !== z }          // no night spawns in the way
                 if reached < 0 && simd_length(z.pos - to) < 1.6 { reached = Float(i) * 0.05 }
                 if i % 20 == 0 {
                     print(String(format: "  t=%.0f zombie %.1f,%.1f,%.1f ground %ld path %ld/%ld hp %ld", Float(i) * 0.05, z.pos.x - Float(bx), z.pos.y - Float(gy), z.pos.z - Float(bz),
