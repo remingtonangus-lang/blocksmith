@@ -339,6 +339,7 @@ enum PadTest {
         case "world": pm.go(.worlds); pm.build(); pm.selWorld = "Survival Island"; pm.go(.world); pm.build(); cursor = 1
         case "confirm": pm.go(.worlds); pm.build(); pm.selWorld = "Sparkstone Lab"; pm.go(.confirm); pm.build()
         case "controls": pm.go(.controls); pm.build()
+        case "padmap": PadMap.map = [2, 1, 0] + Array(3..<PadMap.count); pm.go(.padmap); pm.build(); cursor = 0
         case "title": pm.page = .title; pm.build()
         default: pm.go(.options); pm.cat = .video; pm.build(); cursor = 1
         }
