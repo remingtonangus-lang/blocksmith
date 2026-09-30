@@ -56,6 +56,15 @@ extension Game {
             m.saddled = false; damageHeld(1); return true
         case .happyGhast where key == "snowball" && m.health < m.spec.health:
             m.health += 1; consumeHeld(); particles.hearts(at: pos); return true
+        case .snowGolem where key == "shears" && m.variant == 0:
+            // Sheared snow golems lose their pumpkin (reference).
+            m.variant = 1
+            if Items.has("carved_pumpkin") { drops.spawn(ItemStack(Items.id("carved_pumpkin"), 1), at: pos) }
+            damageHeld(1); return true
+        case .bogged where key == "shears" && m.variant == 0:
+            m.variant = 1
+            for n in ["red_mushroom", "brown_mushroom"] where Items.has(n) { drops.spawn(ItemStack(Items.id(n), 1), at: pos) }
+            damageHeld(1); return true
         case .ironGolem where key == "iron_ingot" && m.health < m.spec.health:
             // Reference: an iron ingot repairs 25 health.
             m.health = min(m.spec.health, m.health + 25)

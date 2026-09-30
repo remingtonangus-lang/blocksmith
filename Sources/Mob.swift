@@ -743,7 +743,7 @@ final class Mob {
             } else { fuse = max(0, fuse - dt); wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .enderman:
             // Provoked by being looked at (in the face) or hit; teleports away from water.
-            if !aggro && canTarget && dist < 64 {
+            if !aggro && canTarget && dist < 64 && Items.key(g.inventory.armor[0].item) != "carved_pumpkin" {
                 let head = pos + V3(0, height - 0.3, 0)
                 let toHead = simd_normalize(head - g.player.eye)
                 if simd_dot(g.player.look, toHead) > 0.99 && w.canSee(g.player.eye, head) { aggro = true; g.sfx(.mobVoidwalker, 1, at: pos) }
