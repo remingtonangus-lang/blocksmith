@@ -106,12 +106,34 @@ static float3 applyFog(float3 c, float dist, constant Uniforms& u) {
     return mix(c, u.fogColor.rgb, f);
 }
 
+static float hash21(float2 p) {
+    float3 p3 = fract(float3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+static float vnoise(float2 p) {
+    float2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = hash21(i), b = hash21(i + float2(1, 0)), c = hash21(i + float2(0, 1)), d = hash21(i + float2(1, 1));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+// Lava: slow drifting hot spots over the flowing texture (both graphics modes; a few ALU ops).
+static float3 lavaGlow(float3 c, float3 rel, constant Uniforms& u) {
+    float2 w = (rel + u.eye.xyz).xz;
+    float t = u.params.z;
+    float n = vnoise(w * 0.45 + float2(t * 0.11, t * 0.07)) * 0.65 + vnoise(w * 1.3 - float2(t * 0.05, t * 0.13)) * 0.35;
+    return c * (0.78 + 0.5 * n) + float3(0.12, 0.05, 0.0) * smoothstep(0.62, 0.9, n);
+}
+
 fragment float4 chunkSolidFS(ChunkOut in [[stage_in]],
                              texture2d_array<float> tex [[texture(0)]],
                              constant Uniforms& u [[buffer(1)]]) {
     float2 uv = in.uv;
     if (in.anim > 0.5) { uv += float2(0.0, fract(u.params.z * 0.04)); }
     float4 c = tex.sample(texSampler, uv, uint(in.layer));
+    if (in.anim > 0.5) { c.rgb = lavaGlow(c.rgb, in.rel, u); }
     float3 t = (in.overlay > 0.5 && c.a > 0.95) ? float3(1.0) : in.tint;
     return float4(applyFog(c.rgb * t * in.shade, in.dist, u), 1.0);
 }
@@ -123,6 +145,7 @@ fragment float4 chunkFS(ChunkOut in [[stage_in]],
     if (in.anim > 0.5) { uv += float2(0.0, fract(u.params.z * 0.04)); }   // slow lava flow
     float4 c = tex.sample(texSampler, uv, uint(in.layer));
     if (c.a < 0.5) { discard_fragment(); }
+    if (in.anim > 0.5) { c.rgb = lavaGlow(c.rgb, in.rel, u); }
     // Overlay faces (grass sides): only the marked texels (alpha ~0.9) take the biome tint.
     float3 t = (in.overlay > 0.5 && c.a > 0.95) ? float3(1.0) : in.tint;
     float3 rgb = c.rgb * t * in.shade;
@@ -226,19 +249,6 @@ vertex CloudOut cloudVS(uint vid [[vertex_id]],
     o.pos = u.viewProj * float4(p, 1.0);
     o.rel = p;
     return o;
-}
-
-static float hash21(float2 p) {
-    float3 p3 = fract(float3(p.xyx) * 0.1031);
-    p3 += dot(p3, p3.yzx + 33.33);
-    return fract((p3.x + p3.y) * p3.z);
-}
-
-static float vnoise(float2 p) {
-    float2 i = floor(p), f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    float a = hash21(i), b = hash21(i + float2(1, 0)), c = hash21(i + float2(0, 1)), d = hash21(i + float2(1, 1));
-    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
 // cp: xy = world xz offset (eye + wind), z = fade distance, w = unused

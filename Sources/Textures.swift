@@ -91,12 +91,26 @@ enum TextureGen {
         }
     }
 
-    static func foliage(_ c: UInt32, holes: Float, salt: Int) -> Painter {
+    // Leaves: clumps of 4x4 leaves in staggered rows, each lit from the top-left with a shaded
+    // bottom-right, gaps at the clump corners (reads as foliage instead of per-pixel static).
+    // c = nil paints greyscale for biome tinting. Tiles seamlessly.
+    static func leafy(_ c: UInt32?, holes: Float, salt: Int) -> Painter {
         { x, y in
-            if r(x, y, salt) < holes { return clear }
-            return hex(c, 0.72 + 0.45 * r(x, y, salt + 1))
+            let cy = y / 4, ox = (cy % 2) * 2
+            let cx = ((x + ox) / 4) % 4
+            let lx = (x + ox) % 4, ly = y % 4
+            let corner = (lx == 0 || lx == 3) && (ly == 0 || ly == 3)
+            if corner && r(x, y, salt + 1) < 0.72 { return clear }
+            if r(x, y, salt + 2) < holes * 0.4 { return clear }
+            var k: Float = 0.66 + 0.26 * r(cx, cy, salt)
+            if lx + ly <= 2 { k += 0.13 } else if lx + ly >= 5 { k -= 0.15 }
+            k += (r(x, y, salt + 3) - 0.5) * 0.1
+            if let c = c { return hex(c, k + 0.12) }
+            return V4(k, k, k, 1)
         }
     }
+
+    static func foliage(_ c: UInt32, holes: Float, salt: Int) -> Painter { leafy(c, holes: holes, salt: salt) }
 
     static func painters() -> [String: Painter] {
         var p: [String: Painter] = [:]
@@ -168,11 +182,7 @@ enum TextureGen {
             if dash || r(x, y, 27) < 0.05 { return hex(0x2E2B26, 0.9 + 0.2 * r(x, y, 28)) }
             return hex(0xE3E0D6, 0.92 + 0.08 * r(x, y, 29))
         }
-        p["oak_leaves"] = { x, y in
-            if r(x, y, 12) < 0.2 { return clear }
-            let v: Float = 0.5 + 0.45 * r(x, y, 13)
-            return V4(v, v, v, 1)
-        }
+        p["oak_leaves"] = leafy(nil, holes: 0.2, salt: 12)
         p["birch_leaves"] = foliage(0x80A755, holes: 0.22, salt: 32)
         p["spruce_leaves"] = foliage(0x619961, holes: 0.12, salt: 34)
         p["glass"] = { x, y in
