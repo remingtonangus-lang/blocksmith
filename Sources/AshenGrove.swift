@@ -42,6 +42,12 @@ extension TextureGen {
             let k = 0.82 + 0.3 * r(x, y, 1701) + (blot(x, y, 1702, 4) - 0.5) * 0.18
             return hex(0x9AA392, k)
         }
+        // Ashbark leaves: soft clumps with gaps (less contrast than per-pixel noise, which read as gravel).
+        p["pale_oak_leaves"] = { x, y in
+            let clump = blot(x, y, 1720, 4)
+            if clump < 0.32 || r(x, y, 1721) < 0.12 { return clear }
+            return hex(0xA2AE98, 0.78 + 0.28 * clump + 0.08 * r(x, y, 1722))
+        }
         p["pale_hanging_moss"] = { x, y in
             let strand = (x * 7 + 3) % 5 == 0 || (x * 3 + 1) % 7 == 0
             let len = 6 + Int(r(x, 0, 1703) * 10)
