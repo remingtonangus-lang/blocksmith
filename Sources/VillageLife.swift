@@ -146,7 +146,7 @@ extension Mob {
         return .idle
     }
 
-    static let villageThreats: Set<MobKind> = [.zombie, .husk, .drowned, .zombieVillager, .vex, .ravager, .evoker, .vindicator, .pillager, .zoglin, .illusioner]
+    static let villageThreats: [MobKind] = [.zombie, .husk, .drowned, .zombieVillager, .vex, .ravager, .evoker, .vindicator, .pillager, .zoglin, .illusioner]
 
     // Walks toward `anchor` when farther than `r`, else strolls; returns the speed.
     func stroll(around anchor: V3, _ r: Float, _ pace: Float) -> Float {
@@ -157,8 +157,11 @@ extension Mob {
 
     func villagerDay(_ dt: Float, _ g: Game) -> Float {
         // Panic: zombies within 8, illagers / vexes / siegebeasts within 12 (panicking villagers may call a golem).
-        if let z = g.mobs.mobs.first(where: { o in o.health > 0 && (Mob.villageThreats.contains(o.kind) || o.raider)
-                                              && simd_length(o.pos - pos) < (o.isZombie ? 8 : 12) }) {
+        var threat: Mob?
+        for k in Mob.villageThreats + [.witch] where threat == nil {
+            for o in g.mobs.of(k) where o.health > 0 && (k != .witch || o.raider) && simd_length(o.pos - pos) < (o.isZombie ? 8 : 12) { threat = o; break }
+        }
+        if let z = threat {
             face(pos * 2 - z.pos)
             moving = true
             if gossipCooldown <= 0 && !baby { gossipCooldown = 5; spawnGolemIfNeeded(g, needed: 3) }
