@@ -31,11 +31,11 @@ struct StructWriter {
         if inside(x, y, z) { blocks[Chunk.index(x - bx, y, z - bz)] = b }
     }
     func fill(_ x0: Int, _ y0: Int, _ z0: Int, _ x1: Int, _ y1: Int, _ z1: Int, _ b: BlockID) {
-        for y in max(0, y0)...min(CH - 1, y1) {
-            for z in max(z0, bz)...min(z1, bz + CS - 1) where z0 <= z1 {
-                for x in max(x0, bx)...min(x1, bx + CS - 1) where x0 <= x1 { blocks[Chunk.index(x - bx, y, z - bz)] = b }
-            }
-        }
+        let xa = max(x0, bx), xb = min(x1, bx + CS - 1)
+        let za = max(z0, bz), zb = min(z1, bz + CS - 1)
+        let ya = max(0, y0), yb = min(CH - 1, y1)
+        guard xa <= xb, za <= zb, ya <= yb else { return }
+        for y in ya...yb { for z in za...zb { for x in xa...xb { blocks[Chunk.index(x - bx, y, z - bz)] = b } } }
     }
     // Pillar from y down until a solid block (inside this chunk only).
     func pillarDown(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID, minY: Int) {
