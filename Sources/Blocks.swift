@@ -314,8 +314,17 @@ final class BlockRegistry {
                     torch.boxes = [Box(7, 0, 7, 9, 10, 9, tex: [Tex.id(n), Tex.id(n), Tex.id("torch_top"), Tex.id("torch_bottom"), Tex.id(n), Tex.id(n)])]
                 } else {
                     let w = Tex.id(n + "_wall"), top = Tex.id(soul ? "soul_torch_top_full" : "torch_top_full"), bot = Tex.id("torch_bottom")
-                    let box = [Box(7, 3, 12, 9, 13, 14), Box(7, 3, 2, 9, 13, 4), Box(12, 3, 7, 14, 13, 9), Box(2, 3, 7, 4, 13, 9)][st - 1]
-                    torch.boxes = [Box(Int(box.x0), Int(box.y0), Int(box.z0), Int(box.x1), Int(box.y1), Int(box.z1), tex: [w, w, top, bot, w, w])]
+                    // Leaning against the wall: the foot sits against it, the head steps out 1 px per third
+                    // (boxes are whole 1/16 units, so the tilt is stepped).
+                    let base = [Box(7, 3, 12, 9, 13, 14), Box(7, 3, 2, 9, 13, 4), Box(12, 3, 7, 14, 13, 9), Box(2, 3, 7, 4, 13, 9)][st - 1]
+                    let out: (Int, Int) = [(0, -1), (0, 1), (-1, 0), (1, 0)][st - 1]       // away from the wall
+                    var parts: [Box] = []
+                    for (k, (y0, y1)) in [(3, 6), (6, 10), (10, 13)].enumerated() {
+                        let sx = out.0 * (k - 1), sz = out.1 * (k - 1)
+                        parts.append(Box(Int(base.x0) + sx, y0, Int(base.z0) + sz, Int(base.x1) + sx, y1, Int(base.z1) + sz,
+                                         tex: [w, w, k == 2 ? top : w, k == 0 ? bot : w, w, w]))
+                    }
+                    torch.boxes = parts
                 }
                 add(torch)
             }
@@ -570,6 +579,7 @@ final class BlockRegistry {
         registerWoodExtras()
         registerShelf()
         registerAshenGrove()
+        registerSpringBlocks()
         // Building families: stairs, slabs, fences, walls for each material.
         let woods: [(String, String)] = [("oak", "Oak"), ("birch", "Birch"), ("spruce", "Spruce"), ("crimson", "Rustcap"), ("warped", "Tealcap")]
             + BlockRegistry.extraWoods
