@@ -187,6 +187,8 @@ extension MobManager {
             if m.collides(m.pos, w) { continue }
             if kind == .fox && [.snowyTaiga, .grove, .snowySlopes].contains(biome) { m.variant = 1 }
             if kind == .mooshroom && Int.random(in: 0..<10) == 0 { m.variant = 1 }
+            // Reference group data: after the first, 5% of a pack are young.
+            if placed > 0 && Float.random(in: 0..<1) < 0.05 { m.baby = true; m.scale = 0.5 }
             mobs.append(m)
             placed += 1
         }

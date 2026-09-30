@@ -1554,6 +1554,10 @@ final class MobManager {
             let p = V3(Float(sx) + 0.5, Float(sy), Float(sz) + 0.5)
             let m = Mob(pick.0, at: pick.0 == .ghast ? p + V3(0, 3, 0) : p)
             if m.sized { m.makeSlime(size: [1, 2, 4][Int.random(in: 0...2)]) }
+            // Young boarlings: 20%; young undead boarlings: 5% (reference).
+            if (pick.0 == .piglin && Float.random(in: 0..<1) < 0.2) || (pick.0 == .zombifiedPiglin && Float.random(in: 0..<1) < 0.05) {
+                m.baby = true; m.scale = 0.5
+            }
             if m.collides(m.pos, w) { continue }
             mobs.append(m)
             if mobs.count >= MobManager.hostileCap + 10 { return }
