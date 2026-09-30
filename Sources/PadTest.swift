@@ -226,6 +226,26 @@ enum PadTest {
         } else { check(false, "Y opens the creative palette") }
         g.closeMenu()
 
+        // Chest: LT takes everything, LT on an inventory stack stores every stack of that item.
+        g.survival = true
+        let box = ItemContainer(27)
+        box[0] = ItemStack(Items.id("cobblestone"), 20)
+        box[5] = ItemStack(Items.id("dirt"), 10)
+        for i in 0..<36 { g.inventory.main[i] = .empty }
+        let chest = ChestMenu(game: g, container: box, title: "Chest")
+        g.openMenu(chest)
+        g.menuCursor = 0
+        tap(g, "lt")
+        check(box[0].isEmpty && box[5].isEmpty, "LT takes everything from a chest")
+        if let i = chest.slots.firstIndex(where: { $0.isPlayerInv && Items.key($0.stack.item) == "cobblestone" }) {
+            g.menuCursor = i
+            tap(g, "lt")
+            let left = (0..<36).filter { Items.key(g.inventory.main[$0].item) == "cobblestone" }.count
+            check(left == 0 && (0..<27).contains { Items.key(box[$0].item) == "cobblestone" }, "LT on an inventory stack stores every stack of it")
+        } else { check(false, "taken items reached the inventory") }
+        g.closeMenu()
+        g.survival = false
+
         // Gameplay buttons.
         g.selected = 0
         tap(g, "rb")
