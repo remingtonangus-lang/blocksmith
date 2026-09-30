@@ -61,6 +61,8 @@ final class Game {
     var leafQueue: [IVec3] = []
     var placedLeaves = Set<IVec3>()
     var bowCharge: Float = 0
+    var walkBob: Float = 0
+    var walkAmount: Float = 0
     private var regenTimer: Double = 0
     private var starveTimer: Double = 0
     private var drownTimer: Double = 0
@@ -441,6 +443,9 @@ final class Game {
 
         let before = player.pos
         player.update(dt: fdt, input: mi, world: world)
+        let hmove = simd_length(V2(player.pos.x - before.x, player.pos.z - before.z))
+        walkBob += hmove * 2.2
+        walkAmount += ((player.onGround && !player.flying ? min(1, hmove / fdt / 4) : 0) - walkAmount) * min(1, fdt * 8)
         audioTick(from: before)
         survivalTick(dt, from: before)
 
