@@ -251,7 +251,23 @@ final class SoundBank {
         var g = Synth(seed: seed(s, variant: v))
         let n = variants(for: s)
         let pitch: Float = n <= 1 ? 1 : 1 + (Float(v) - Float(n - 1) / 2) * 0.07
-        return g.render(s, pitch: pitch)
+        let x = g.render(s, pitch: pitch)
+        // Takes also differ by a small playback-rate change (like a pitch jitter), so even fully
+        // deterministic patches (bells, chimes, level-up) vary between takes.
+        guard n > 1 && v > 0 && !s.isLoop else { return x }
+        let rate: Float = 1 + (v % 2 == 1 ? 0.035 : -0.035) * Float((v + 1) / 2)
+        let m = Int(Float(x.count) / rate)
+        guard m > 8 else { return x }
+        var out = [Float](repeating: 0, count: m)
+        for i in 0..<m {
+            let t = Float(i) * rate
+            let k = Int(t)
+            let f = t - Float(k)
+            let a = x[min(k, x.count - 1)], b = x[min(k + 1, x.count - 1)]
+            out[i] = a + (b - a) * f
+        }
+        out[m - 1] = 0
+        return out
     }
 
     func has(_ s: Snd) -> Bool {
