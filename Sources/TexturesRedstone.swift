@@ -132,5 +132,29 @@ extension TextureGen {
             return hex(c, 0.92 + 0.1 * r(x, y, 723))
         }
         p["target_side"] = p["target_top"]
+        // Rails (drawn running north-south; the mesher rotates them).
+        func rail(_ tie: UInt32, _ railC: UInt32, _ mid: UInt32?) -> Painter {
+            { x, y in
+                if x == 3 || x == 12 { return hex(railC, 0.9 + 0.1 * r(x, y, 724)) }
+                if let m = mid, (x == 7 || x == 8) { return hex(m) }
+                if y % 4 == 1 && x > 1 && x < 14 { return hex(tie, 0.9 + 0.15 * r(x, y, 725)) }
+                return clear
+            }
+        }
+        p["powered_rail"] = rail(0x6A4A2A, 0xE8C040, 0x5A1410)
+        p["powered_rail_on"] = rail(0x6A4A2A, 0xE8C040, 0xF8301A)
+        p["detector_rail"] = rail(0x6A4A2A, 0xA8A8A8, 0x5A1410)
+        p["detector_rail_on"] = rail(0x6A4A2A, 0xA8A8A8, 0xF8301A)
+        p["activator_rail"] = rail(0x7A2A1A, 0xA8A8A8, 0x5A1410)
+        p["activator_rail_on"] = rail(0x7A2A1A, 0xA8A8A8, 0xF8301A)
+        p["rail_corner"] = { x, y in
+            // Quarter circles joining the south and east edges.
+            let dx = Float(16 - x) - 0.5, dy = Float(16 - y) - 0.5
+            let d = (dx * dx + dy * dy).squareRoot()
+            if abs(d - 4) < 0.8 || abs(d - 13) < 0.8 { return hex(0xA8A8A8, 0.9 + 0.1 * r(x, y, 726)) }
+            let ang = atan2f(dy, dx)
+            if d > 2 && d < 15 && Int(ang * 8) % 2 == 0 && Int(d) % 5 == 1 { return hex(0x6A4A2A) }
+            return clear
+        }
     }
 }

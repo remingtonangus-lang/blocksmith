@@ -169,6 +169,16 @@ extension Game {
         let key = Items.key(h.item)
         let b = world.block(t.hit.x, t.hit.y, t.hit.z)
         let bkey = Blocks.key(Blocks.groupBase[Int(b)])
+        // Minecart onto a rail.
+        if key == "minecart" && Rails.isRail(b) {
+            let cart = Mob(.minecart, at: V3(Float(t.hit.x) + 0.5, Float(t.hit.y) + 0.0625, Float(t.hit.z) + 0.5))
+            cart.yaw = player.yaw
+            mobs.mobs.append(cart)
+            consumeHeld()
+            sfx(.place(.stone), 0.6, at: cart.pos)
+            swing = 1
+            return true
+        }
         // Shovel: grass into a dirt path.
         if h.def.tool == .shovel && (b == GRASS || Blocks.key(b) == "podzol" || Blocks.key(b) == "coarse_dirt" || Blocks.key(b) == "mycelium")
             && t.normal.y == 1 && world.block(t.hit.x, t.hit.y + 1, t.hit.z) == AIR {
@@ -248,6 +258,13 @@ extension Game {
     // Right-click on a mob with the held item.
     func useItemOnMob(_ m: Mob) -> Bool {
         let key = Items.key(held.item)
+        if m.kind == .minecart {
+            if riding === m { return false }
+            riding = m
+            player.pos = m.pos + V3(0, 0.35, 0)
+            sfx(.click, 0.5, at: m.pos)
+            return true
+        }
         if m.kind == .piglin && key == "gold_ingot" && m.admire <= 0 && !m.baby {
             m.admire = 6
             m.aggro = false

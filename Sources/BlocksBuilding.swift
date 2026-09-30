@@ -142,10 +142,6 @@ extension BlockRegistry {
         sided("cut_red_sandstone", "Cut Red Sandstone", side: "cut_red_sandstone", top: "red_sandstone_top", bottom: "red_sandstone_top", h: 0.8, tool: .pickaxe, snd: .stone, req: true)
         cube("white_concrete", "White Concrete", h: 1.8, tool: .pickaxe, snd: .stone, req: true)
         cube("blue_terracotta", "Blue Terracotta", h: 1.25, tool: .pickaxe, snd: .stone, req: true)
-        var rail = BlockDef("rail", "Rail")
-        rail.tex = ["rail"]; rail.render = .model; rail.layer = .cutout; rail.opaque = false; rail.collide = false
-        rail.boxes = [Box(0, 0, 0, 16, 1, 16)]; rail.hardness = 0.7; rail.tool = .pickaxe; rail.sound = .stone; rail.skyStop = false
-        add(rail)
 
     }
 }

@@ -258,6 +258,23 @@ extension BlockRegistry {
             d.shape = "daylight"; d.skyStop = false
             add(d)
         } }
+        // Rails. Shapes: 0 N-S, 1 E-W, 2-5 ascending east/west/north/south, 6-9 curves SE, SW, NW, NE.
+        for shape in 0..<10 {
+            var d = state(shape == 0 ? "rail" : "rail[\(shape)]", "rail", "Rail", shape == 0)
+            d.tex = [shape >= 6 ? "rail_corner" : "rail"]; d.render = .rail; d.layer = .cutout; d.opaque = false; d.collide = false
+            d.boxes = [Box(0, 0, 0, 16, 2, 16)]; d.hardness = 0.7; d.tool = .pickaxe; d.sound = .stone; d.skyStop = false; d.shape = "rail"
+            add(d)
+        }
+        for n in ["powered_rail", "detector_rail", "activator_rail"] {
+            for on in [false, true] { for shape in 0..<6 {
+                let k = shape + (on ? 6 : 0)
+                var d = state(k == 0 ? n : "\(n)[\(k)]", n, n.split(separator: "_").map { $0.capitalized }.joined(separator: " "), k == 0)
+                d.tex = [on ? "\(n)_on" : n]; d.render = .rail; d.layer = .cutout; d.opaque = false; d.collide = false
+                d.boxes = [Box(0, 0, 0, 16, 2, 16)]; d.hardness = 0.7; d.tool = .pickaxe; d.sound = .stone; d.skyStop = false; d.shape = "rail"
+                d.emit = n == "powered_rail" && on ? 0 : 0
+                add(d)
+            } }
+        }
         for p in 0..<16 {
             var d = state(p == 0 ? "target" : "target[\(p)]", "target", "Target", p == 0)
             d.tex = ["target_side", "target_side", "target_top", "target_top", "target_side", "target_side"]; d.hardness = 0.5; d.tool = .hoe; d.sound = .plant

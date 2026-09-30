@@ -6,7 +6,7 @@ import simd
 
 struct MobVert { var pos: V4; var color: V4; var local: V4 } // pos.w = pattern id, color.a = shade
 
-enum Behavior { case passive, melee, ranged, creeper, spider, enderman, slime, neutral, piglin, ghast, blaze, dragon, crystal, shulker, villager, golem, witch }
+enum Behavior { case passive, melee, ranged, creeper, spider, enderman, slime, neutral, piglin, ghast, blaze, dragon, crystal, shulker, villager, golem, witch, vehicle }
 
 enum MobKind: Int, CaseIterable {
     case cow, sheep, chicken, pig, zombie, skeleton, creeper, spider, enderman, slime
@@ -14,6 +14,7 @@ enum MobKind: Int, CaseIterable {
     case enderDragon, endCrystal, silverfish, shulker
     case villager, ironGolem
     case husk, stray, drowned, caveSpider, witch, pillager, vindicator
+    case minecart
 
     struct Spec {
         var name: String
@@ -79,6 +80,8 @@ enum MobKind: Int, CaseIterable {
                                     drops: [], xp: 0, call: .mobVillager)
         case .ironGolem: return Spec(name: "Iron Golem", halfW: 0.7, height: 2.7, health: 100, speed: 1.6, behavior: .golem, attack: 14,
                                      drops: [("iron_ingot", 3, 5), ("poppy", 0, 2)], xp: 0, call: .mobGolem)
+        case .minecart: return Spec(name: "Minecart", halfW: 0.49, height: 0.7, health: 6, speed: 0, behavior: .vehicle,
+                                    drops: [("minecart", 1, 1)], xp: 0, call: .click)
         case .husk: return Spec(name: "Husk", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
                                 drops: [("rotten_flesh", 0, 2)], xp: 5, call: .mobZombie)
         case .stray: return Spec(name: "Stray", halfW: 0.3, height: 1.99, health: 20, speed: 2.5, behavior: .ranged,
@@ -100,7 +103,7 @@ enum MobKind: Int, CaseIterable {
                                           drops: [("coal", 0, 1), ("bone", 0, 2)], xp: 5, call: .mobSkeleton, fireImmune: true)
         }
     }
-    var hostile: Bool { spec.behavior != .passive && spec.behavior != .villager && spec.behavior != .golem }
+    var hostile: Bool { spec.behavior != .passive && spec.behavior != .villager && spec.behavior != .golem && spec.behavior != .vehicle }
     var key: String { spec.name.lowercased().replacingOccurrences(of: " ", with: "_") }
     static func named(_ n: String) -> MobKind? { allCases.first { $0.key == n } }
     var call: Snd { spec.call }
@@ -214,6 +217,7 @@ final class Mob {
         if kind == .enderDragon { updateDragon(dt, g); return }
         if kind == .endCrystal { updateCrystal(dt, g); return }
         if kind == .shulker { updateShulker(dt, g); return }
+        if kind == .minecart { updateMinecart(dt, g); return }
 
         let feetBlock = w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))
         let inWater = Blocks.isLiquid(feetBlock)
@@ -320,7 +324,7 @@ final class Mob {
                 }
             } else { wander(); speed = moving ? spec.speed * 0.5 : 0; volley = 0 }
             if Float.random(in: 0..<1) < dt * 6 { g.particles.smoke(at: pos + V3(Float.random(in: -0.4...0.4), Float.random(in: 0.2...1.4), Float.random(in: -0.4...0.4))) }
-        case .dragon, .crystal, .shulker:
+        case .dragon, .crystal, .shulker, .vehicle:
             break
         case .witch:
             // Throws harming (or poison) potions from 4-10 blocks; drinks healing when hurt.
@@ -858,6 +862,14 @@ private func parts(_ m: Mob) -> [Part] {
             box(-8, 8 + lift, -8, 16, 8, 16, shell, 4),
             box(-3, 6, -3, 6, 6 + lift, 6, head),
             box(-2, 8 + lift * 0.6, -3.2, 1.2, 1.2, 0.2, V3(0.1, 0.1, 0.1)), box(0.8, 8 + lift * 0.6, -3.2, 1.2, 1.2, 0.2, V3(0.1, 0.1, 0.1)),
+        ]
+    case .minecart:
+        let iron = V3(0.55, 0.56, 0.6), dark = V3(0.3, 0.3, 0.33)
+        return [
+            box(-10, 2, -7, 20, 2, 14, dark, 4),
+            box(-10, 4, -8, 20, 7, 1, iron, 4), box(-10, 4, 7, 20, 7, 1, iron, 4),
+            box(-11, 4, -8, 1, 7, 16, iron, 4), box(10, 4, -8, 1, 7, 16, iron, 4),
+            box(-8, 0, -7, 3, 2, 1, dark), box(5, 0, -7, 3, 2, 1, dark), box(-8, 0, 6, 3, 2, 1, dark), box(5, 0, 6, 3, 2, 1, dark),
         ]
     case .villager:
         let robe = V3(0.45, 0.32, 0.22), skin = V3(0.72, 0.52, 0.42)

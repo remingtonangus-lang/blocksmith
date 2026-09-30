@@ -35,6 +35,7 @@ final class Redstone {
     enum K: UInt8 {
         case none, wire, torch, block, lamp, lever, button, plate, weightedPlate, repeater, comparator, observer, piston, stickyPiston
         case dispenser, dropper, hopper, note, daylight, target, door, trapdoor, gate, tnt, pistonHead, bell, ironDoor, ironTrapdoor
+        case rail, poweredRail, detectorRail, activatorRail
     }
 
     static let kinds: [K] = {
@@ -55,6 +56,7 @@ final class Redstone {
         set("daylight_detector", .daylight); set("target", .target); set("tnt", .tnt); set("bell", .bell)
         for w in BlockRegistry.doorWoods { set("\(w)_door", .door); set("\(w)_trapdoor", .trapdoor); set("\(w)_fence_gate", .gate) }
         set("iron_door", .ironDoor); set("iron_trapdoor", .ironTrapdoor)
+        set("rail", .rail); set("powered_rail", .poweredRail); set("detector_rail", .detectorRail); set("activator_rail", .activatorRail)
         return t
     }()
     @inline(__always) static func kind(_ b: BlockID) -> K { kinds[Int(b)] }
@@ -94,7 +96,7 @@ final class Redstone {
             }
         }
         let k = Redstone.kind(new)
-        if k == .hopper || k == .plate || k == .weightedPlate || k == .daylight { tracked.insert(p) }
+        if k == .hopper || k == .plate || k == .weightedPlate || k == .daylight || k == .detectorRail { tracked.insert(p) }
         else if tracked.contains(p) { tracked.remove(p) }
         settledWires.remove(p)
     }
@@ -118,7 +120,7 @@ final class Redstone {
         let bx = c.cx * CS, bz = c.cz * CS
         for i in 0..<c.blocks.count {
             let k = Redstone.kind(c.blocks[i])
-            if k == .hopper || k == .daylight || k == .plate || k == .weightedPlate {
+            if k == .hopper || k == .daylight || k == .plate || k == .weightedPlate || k == .detectorRail {
                 tracked.insert(IVec3(bx + (i & 15), i >> 8, bz + ((i >> 4) & 15)))
             }
         }
@@ -142,6 +144,7 @@ final class Redstone {
         case .repeater: return (s & 16) != 0 && d == Redstone.d6(s & 3) ? 15 : 0
         case .comparator: return d == Redstone.d6(s & 3) ? (comparatorOut[q] ?? 0) : 0
         case .observer: return s >= 6 && d == Redstone.opp[s % 6] ? 15 : 0
+        case .detectorRail: return s >= 6 && d == 0 ? 15 : 0
         default: return 0
         }
     }
@@ -165,6 +168,7 @@ final class Redstone {
         case .comparator: return d == Redstone.d6(s & 3) ? (comparatorOut[q] ?? 0) : 0
         case .observer: return s >= 6 && d == Redstone.opp[s % 6] ? 15 : 0
         case .wire: return (d == 0 || wirePoints(q, d)) ? s : 0
+        case .detectorRail: return s >= 6 ? 15 : 0
         default: return 0
         }
     }
@@ -216,7 +220,7 @@ final class Redstone {
         let b = block(n)
         let s = st(b)
         switch Redstone.kind(b) {
-        case .wire, .torch, .block, .lever, .button, .plate, .weightedPlate, .target, .daylight, .comparator: return true
+        case .wire, .torch, .block, .lever, .button, .plate, .weightedPlate, .target, .daylight, .comparator, .detectorRail: return true
         case .repeater: return (Redstone.d6(s & 3) / 2) == d / 2
         case .observer: return s % 6 == d        // only its output (back) side, which faces the dust
         default: return false
@@ -411,6 +415,13 @@ final class Redstone {
         case .hopper:
             let locked = received(p) > 0
             if locked != (s >= 5) { setQuiet(p, base(b) + BlockID(s % 5 + (locked ? 5 : 0))) }
+        case .poweredRail, .activatorRail:
+            // Powered directly, or through up to 8 rails of the same kind in line.
+            let on = railPowered(p, b)
+            if on != (s >= 6) {
+                setQuiet(p, base(b) + BlockID(s % 6 + (on ? 6 : 0)))
+                for d in 2..<6 { for dy in -1...1 { let n = p + Redstone.D[d] + IVec3(0, dy, 0); if base(block(n)) == base(b) { mark(n) } } }
+            }
         default:
             // A conductor changed power: wake the components around it.
             if conductor(b) { for d in 0..<6 { let n = p + Redstone.D[d]; if Redstone.kind(block(n)) != .none { mark(n) } } }
@@ -581,6 +592,34 @@ final class Redstone {
             }
         }
         for p in remove { tracked.remove(p) }
+    }
+
+    private func railPowered(_ p: IVec3, _ b: BlockID) -> Bool {
+        if received(p) > 0 || received(p + IVec3(0, -1, 0), except: [1]) > 0 { return true }
+        let shape = st(b) % 6
+        let axis: [IVec3] = (shape == 0 || shape >= 4) ? [IVec3(0, 0, -1), IVec3(0, 0, 1)] : [IVec3(-1, 0, 0), IVec3(1, 0, 0)]
+        for a in axis {
+            var q = p
+            for _ in 0..<8 {
+                var next: IVec3?
+                for dy in [0, 1, -1] { let n = q + a + IVec3(0, dy, 0); if base(block(n)) == base(b) { next = n; break } }
+                guard let n = next else { break }
+                if received(n) > 0 { return true }
+                q = n
+            }
+        }
+        return false
+    }
+
+    // Detector rails: pressed while a minecart is on them (released 20 ticks after it leaves).
+    func detectorCheck(_ carts: [V3]) {
+        for p in tracked where Redstone.kind(block(p)) == .detectorRail {
+            let b = block(p)
+            let s = st(b)
+            let has = carts.contains { Int(floor($0.x)) == p.x && Int(floor($0.z)) == p.z && abs($0.y - Float(p.y)) < 1.2 }
+            if has && s < 6 { setQuiet(p, base(b) + BlockID(s + 6)); wakeAround(p); mark(p + IVec3(0, -1, 0)); wakeAround(p + IVec3(0, -1, 0)) }
+            else if !has && s >= 6 && now % 20 == 0 { setQuiet(p, base(b) + BlockID(s - 6)); wakeAround(p); wakeAround(p + IVec3(0, -1, 0)) }
+        }
     }
 
     // MARK: Pistons

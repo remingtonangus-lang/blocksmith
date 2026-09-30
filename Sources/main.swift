@@ -232,6 +232,12 @@ enum Snapshot {
             world.blockEntities[IVec3(bx + 6, gy + 1, bz + 10)] = { let b = BlockEntity(.chest); b.container[0] = ItemStack(Items.id("cobblestone"), 64); b.container[1] = ItemStack(Items.id("cobblestone"), 64); return b }()
             put(7, 10, "comparator", 3)
             for x in 8...11 { put(x, 10, "redstone_wire") }
+            // Row F: a rail loop corner with a powered rail, a detector rail and a minecart.
+            for x in 0...6 { put(x, 12, "rail") }
+            put(7, 12, "rail"); put(7, 11, "rail")
+            for x in 0...7 { Rails.autoShape(world, IVec3(bx + x, gy + 1, bz + 12)) }
+            put(3, 12, "powered_rail", 1); put(2, 13, "redstone_block", dy: 1); put(5, 12, "detector_rail", 1)
+            game.mobs.mobs.append(Mob(.minecart, at: V3(Float(bx) + 1.5, Float(gy + 1) + 0.0625, Float(bz) + 12.5)))
             for _ in 0..<60 { world.redstone.tick() }
             // Look at the bench from the south-west, above.
             pos = V3(Float(bx) - 5, Float(gy) + 11, Float(bz) + 16)

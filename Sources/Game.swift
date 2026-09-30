@@ -80,6 +80,8 @@ final class Game {
     var eyes: [EnderEye] = []
     var elytraWear: Float = 0
     var bullets: [ShulkerBullet] = []
+    weak var riding: Mob?          // the minecart the player sits in
+    var riderPush: Float = 0
     var clouds: [AcidCloud] = []
     var contactTimer: Float = 0
     private var lavaTimer: Double = 0
@@ -545,7 +547,12 @@ final class Game {
         if p.lb && !q.lb { select(selected - 1) }
 
         let before = player.pos
-        player.update(dt: fdt, input: mi, world: world)
+        if riding != nil {
+            riderPush = mi.forward
+            if mi.sneak { dismount() }
+        } else {
+            player.update(dt: fdt, input: mi, world: world)
+        }
         let hmove = simd_length(V2(player.pos.x - before.x, player.pos.z - before.z))
         walkBob += hmove * 2.2
         walkAmount += ((player.onGround && !player.flying ? min(1, hmove / fdt / 4) : 0) - walkAmount) * min(1, fdt * 8)
@@ -770,6 +777,8 @@ final class Game {
         if id == TORCH {
             supported = Blocks.opaque[Int(world.block(at.x, at.y - 1, at.z))]
                 || [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)].contains { d in Blocks.opaque[Int(world.block(at.x + d.x, at.y, at.z + d.z))] }
+        } else if Blocks.shape[Int(id)] == "rail" {
+            supported = Blocks.opaque[Int(world.block(at.x, at.y - 1, at.z))]
         } else if Blocks.isPlant(id) {
             let below = world.block(at.x, at.y - 1, at.z)
             supported = below == GRASS || below == DIRT || Blocks.key(below) == "farmland" || Blocks.key(below) == "snowy_grass_block"
@@ -783,6 +792,7 @@ final class Game {
             if key == "chest" { world.blockEntities[at] = BlockEntity(.chest) }
             if key == "dispenser" || key == "dropper" { world.blockEntities[at] = BlockEntity(.dispenser) }
             if key == "hopper" { world.blockEntities[at] = BlockEntity(.hopper) }
+            if Rails.isRail(id) { Rails.autoShape(world, at) }
             if key.hasSuffix("leaves") { placedLeaves.insert(at) }
             sfx(.place(soundMat(id)), at: V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5)
             swing = 1
@@ -862,6 +872,9 @@ final class Game {
         }
         let center = V3(Float(p.x) + 0.5, Float(p.y) + 0.3, Float(p.z) + 0.5)
         if bk.hasPrefix("infested_") && survival { mobs.mobs.append(Mob(.silverfish, at: center)) }
+        if Rails.isRail(b) {
+            for (dx, dz) in [(0, -1), (0, 1), (-1, 0), (1, 0)] { if let q = Rails.neighbour(world, p, dx, dz) { Rails.autoShape(world, q, recurse: false) } }
+        }
         if Redstone.kind(b) == .pistonHead {
             // The piston behind the head goes too (and drops).
             let face = Int(b - Blocks.groupBase[Int(b)]) % 6
@@ -1220,6 +1233,7 @@ final class Game {
         randomTicks()
         spawnerTick(0.05)
         world.redstone.tick()
+        world.redstone.detectorCheck(mobs.mobs.filter { $0.kind == .minecart }.map { $0.pos })
         for (p, be) in world.blockEntities where be.kind == .furnace {
             if be.tickFurnace() {
                 // Swap between furnace and lit furnace, keeping the facing.

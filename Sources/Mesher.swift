@@ -134,6 +134,7 @@ enum Mesher {
         let rLiquid = RenderType.liquid.rawValue, rModel = RenderType.model.rawValue, rNone = RenderType.none.rawValue
         let rConnect = RenderType.connect.rawValue, connT = Blocks.connectKind
         let rWire = RenderType.wire.rawValue, rsK = Redstone.kinds, gbT = Blocks.groupBase
+        let rRail = RenderType.rail.rawValue
         let translucent = RenderLayer.translucent.rawValue
         let y0 = sy * 16 - 16
 
@@ -261,6 +262,36 @@ enum Mesher {
                                 vert(isTrans, bx16 + PTab[ci] * 16, by16 + PTab[ci + 1] * 16, bz16 + PTab[ci + 2] * 16,
                                      6, tintV, cornerU[k], cornerV[k], layer, 3, l, false)
                             }
+                        }
+                        continue
+                    }
+
+                    if rt == rRail {
+                        // One textured quad a sixteenth above the floor; slopes lift one edge a full block.
+                        let st = Int(b - gbT[bi])
+                        let shape = rsK[bi] == .rail ? st : st % 6
+                        let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
+                        let layer = Int(texT[bi * 6 + 2])
+                        for k in 0..<4 {
+                            let ci = (2 * 4 + k) * 3
+                            let px = CT[ci] * 16, pz = CT[ci + 2] * 16
+                            var py = 1
+                            switch shape {
+                            case 2: if px == 16 { py += 16 }
+                            case 3: if px == 0 { py += 16 }
+                            case 4: if pz == 0 { py += 16 }
+                            case 5: if pz == 16 { py += 16 }
+                            default: break
+                            }
+                            var u = px, v = pz
+                            switch shape {
+                            case 1, 2, 3: (u, v) = (pz, px)                     // east-west: rotate the texture
+                            case 7: (u, v) = (16 - px, pz)
+                            case 8: (u, v) = (16 - px, 16 - pz)
+                            case 9: (u, v) = (px, 16 - pz)
+                            default: break
+                            }
+                            vert(false, bx16 + px, by16 + py, bz16 + pz, 2, 0, u, v, layer, 3, l, false)
                         }
                         continue
                     }

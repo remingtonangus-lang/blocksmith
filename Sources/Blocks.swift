@@ -9,7 +9,7 @@ import Foundation
 
 typealias BlockID = UInt16
 
-enum RenderType: UInt8 { case none, cube, cross, liquid, model, connect, wire }   // connect: fences/panes/walls; wire: redstone dust
+enum RenderType: UInt8 { case none, cube, cross, liquid, model, connect, wire, rail }   // connect: fences/panes/walls; wire: redstone dust
 enum RenderLayer: UInt8 { case opaque, cutout, translucent }
 enum ToolType: UInt8 { case none, pickaxe, axe, shovel, hoe, sword, shears }
 

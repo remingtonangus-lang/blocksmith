@@ -122,6 +122,10 @@ enum Recipes {
         r.append(shaped([" R ", "RGR", " R "], ["R": "redstone", "G": "glowstone"], "redstone_lamp", 1))
         r.append(shaped(["###", "###", "###"], ["#": "redstone"], "redstone_block", 1))
         r.append(shapeless(["redstone_block"], "redstone", 9))
+        r.append(shaped(["G G", "GSG", "GRG"], ["G": "gold_ingot", "S": "stick", "R": "redstone"], "powered_rail", 6))
+        r.append(shaped(["I I", "IPI", "IRI"], ["I": "iron_ingot", "P": "stone_pressure_plate", "R": "redstone"], "detector_rail", 6))
+        r.append(shaped(["ISI", "ITI", "ISI"], ["I": "iron_ingot", "S": "stick", "T": "redstone_torch"], "activator_rail", 6))
+        r.append(shaped(["I I", "III"], ["I": "iron_ingot"], "minecart", 1))
         r.append(shaped(["I I", "ISI", "I I"], ["I": "iron_ingot", "S": "stick"], "rail", 16))
         for w in BlockRegistry.doorWoods {
             r.append(shaped(["##", "##", "##"], ["#": "\(w)_planks"], "\(w)_door", 3))
@@ -246,7 +250,10 @@ enum Recipes {
         r.append(shaped([" R ", "RGR", " R "], ["R": "redstone", "G": "glowstone"], "redstone_lamp", 1))
         r.append(shaped(["###", "###", "###"], ["#": "redstone"], "redstone_block", 1))
         r.append(shapeless(["redstone_block"], "redstone", 9))
-        r.append(shaped(["I I", "ISI", "I I"], ["I": "iron_ingot", "S": "stick"], "rail", 16))
+        r.append(shaped(["G G", "GSG", "GRG"], ["G": "gold_ingot", "S": "stick", "R": "redstone"], "powered_rail", 6))
+        r.append(shaped(["I I", "IPI", "IRI"], ["I": "iron_ingot", "P": "stone_pressure_plate", "R": "redstone"], "detector_rail", 6))
+        r.append(shaped(["ISI", "ITI", "ISI"], ["I": "iron_ingot", "S": "stick", "T": "redstone_torch"], "activator_rail", 6))
+        r.append(shaped(["I I", "III"], ["I": "iron_ingot"], "minecart", 1))
         for w in BlockRegistry.doorWoods {
             r.append(shaped(["##", "##", "##"], ["#": "\(w)_planks"], "\(w)_door", 3))
             r.append(shaped(["###", "###"], ["#": "\(w)_planks"], "\(w)_trapdoor", 2))

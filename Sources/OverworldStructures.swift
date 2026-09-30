@@ -346,7 +346,7 @@ enum OverworldStructures {
                         for side in -1...1 { w.set(x + ax * side, s.y + 2, z + az * side, wood) }
                         if r.chance(0.3) { w.set(x, s.y + 1, z, TORCH) }
                     }
-                    if Blocks.has("rail") && r.chance(0.7) && k % 5 != 2 { w.set(x, s.y, z, Blocks.id("rail")) }
+                    if r.chance(0.7) && k % 5 != 2 { w.set(x, s.y, z, Blocks.id("rail") + (s.dx != 0 ? 1 : 0)) }
                     if r.chance(0.06) { w.set(x + (s.dz != 0 ? 1 : 0), s.y + 2, z + (s.dx != 0 ? 1 : 0), Blocks.id("cobweb")) }
                     if r.chance(0.012) { w.chest(x + (s.dz != 0 ? -1 : 0), s.y, z + (s.dx != 0 ? -1 : 0), loot: "mineshaft", seed: r.next(), facing: 0) }
                     if r.chance(0.004) && !mesa { w.spawner(x, s.y, z, mob: "cave_spider") }
