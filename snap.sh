@@ -46,10 +46,12 @@ done
 "$BIN" --snapshot snaps/village2.png --seed 12345 --structure village --x 1500 --z -900 --yaw 45 --pitch -30 --up 16 --time 0.25
 "$BIN" --snapshot snaps/village3.png --seed 12345 --structure village --x -1200 --z 600 --yaw 45 --pitch -30 --up 16 --time 0.25
 "$BIN" --snapshot snaps/village_street.png --seed 12345 --structure village --yaw 135 --pitch -8 --up 1 --time 0.25 --rd 6
-"$BIN" --snapshot snaps/temple.png --seed 12345 --structure temple --yaw 0 --pitch -20 --up 6 --time 0.25
-"$BIN" --snapshot snaps/outpost.png --seed 12345 --structure pillager_outpost --yaw 0 --pitch -5 --up 6 --time 0.25
-"$BIN" --snapshot snaps/ruined_portal.png --seed 12345 --structure ruined_portal --yaw 0 --pitch -15 --up 3 --time 0.25
-"$BIN" --snapshot snaps/shipwreck.png --seed 12345 --structure shipwreck --yaw 0 --pitch -35 --up 4 --time 0.25
+"$BIN" --snapshot snaps/temple.png --seed 12345 --structure temple --frame 1 --time 0.25
+"$BIN" --snapshot snaps/temple2.png --seed 12345 --structure temple --x 3000 --z 3000 --frame 1 --time 0.25
+"$BIN" --snapshot snaps/outpost.png --seed 12345 --structure pillager_outpost --frame 1.2 --time 0.25
+"$BIN" --snapshot snaps/ruined_portal.png --seed 12345 --structure ruined_portal --frame 1 --time 0.25
+"$BIN" --snapshot snaps/shipwreck.png --seed 12345 --structure shipwreck --frame 1 --time 0.25
+"$BIN" --snapshot snaps/mineshaft.png --seed 12345 --structure mineshaft --frame 0.4 --time 0.25
 "$BIN" --snapshot snaps/stronghold.png --seed 12345 --structure stronghold --yaw 180 --pitch 5 --up 0.5 --rd 4
 "$BIN" --snapshot snaps/end.png --seed 12345 --dim end --x 70 --z 35 --yaw 63 --pitch 2 --up 16 --dragon
 "$BIN" --snapshot snaps/end_top.png --seed 12345 --dim end --x 0 --z 60 --yaw 0 --pitch -45 --up 50

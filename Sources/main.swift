@@ -45,14 +45,27 @@ enum Snapshot {
         }
         if let want = arg("--find"), let p = findBiome(world.gen, want) { pos = p }
         // --structure <kind>: stand above the start piece of the nearest structure of that kind.
+        var frame: (yaw: Float, pitch: Float)?
         if let kind = arg("--structure"), let s = world.gen.structures?.nearest(kind, x: Int(pos.x), z: Int(pos.z)) {
+            if arg("--frame") != nil {
+                // Overview: from outside the footprint, aimed at its centre.
+                let c = V3(Float(s.min.x + s.max.x) / 2, Float(s.anchor.y), Float(s.min.z + s.max.z) / 2)
+                let ext = Float(max(s.max.x - s.min.x, s.max.z - s.min.z))
+                let dist = max(14, ext * 0.75) * (Float(arg("--frame") ?? "") ?? 1)
+                let p = c + V3(-dist * 0.7, dist * 0.55, -dist * 0.7)
+                let d = c - p
+                frame = (atan2f(-d.x, -d.z), atan2f(d.y, simd_length(V2(d.x, d.z))))
+                pos = p
+                print("structure \(kind) at \(s.anchor.x) \(s.anchor.y - YOFF) \(s.anchor.z) (\(s.pieces.count) pieces, framed)")
+            } else {
             pos = V3(Float(s.anchor.x) + 0.5, Float(s.anchor.y), Float(s.anchor.z) + 0.5)
             print("structure \(kind) at \(s.anchor.x) \(s.anchor.y - YOFF) \(s.anchor.z) (\(s.pieces.count) pieces)")
+            }
         }
         pos.y += Float(arg("--up") ?? "") ?? 0
         game.player.pos = pos
-        game.player.yaw = (Float(arg("--yaw") ?? "") ?? 30) * .pi / 180
-        game.player.pitch = (Float(arg("--pitch") ?? "") ?? -15) * .pi / 180
+        game.player.yaw = frame?.yaw ?? (Float(arg("--yaw") ?? "") ?? 30) * .pi / 180
+        game.player.pitch = frame?.pitch ?? (Float(arg("--pitch") ?? "") ?? -15) * .pi / 180
         game.player.flying = true
         game.time = (Double(arg("--time") ?? "") ?? 0.2) * DAY_LENGTH
         if let s = arg("--slot") { game.selected = Int(s) ?? 0 }
