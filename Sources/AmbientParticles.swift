@@ -72,3 +72,61 @@ extension Game {
         }
     }
 }
+
+// Emberdeep atmosphere: per-biome fog colour (blended over nearby biomes) and drifting motes —
+// embers rising in the wastes, red spores in crimson woods, teal spores in warped woods, pale ash in
+// soul valleys and grey ash falling in the basalt deltas.
+final class EmberAtmosphere {
+    private var key = (Int.min, Int.min)
+    private var fog = V3(0.2, 0.03, 0.03)
+
+    static func color(_ b: Biome) -> V3 {
+        switch b {
+        case .crimsonForest: return V3(0.22, 0.025, 0.02)
+        case .warpedForest: return V3(0.1, 0.03, 0.11)
+        case .soulSandValley: return V3(0.1, 0.25, 0.23)
+        case .basaltDeltas: return V3(0.38, 0.35, 0.42)
+        default: return V3(0.2, 0.035, 0.03)
+        }
+    }
+
+    // Fog colour at a position: a 3x3 blend of biome colours 12 blocks apart, cached per 4-block cell.
+    func fog(at p: V3, gen: TerrainGenerator) -> V3 {
+        let kx = Int(floor(p.x / 4)), kz = Int(floor(p.z / 4))
+        if key == (kx, kz) { return fog }
+        key = (kx, kz)
+        var acc = V3(repeating: 0)
+        for dz in -1...1 { for dx in -1...1 {
+            acc += EmberAtmosphere.color(gen.column(kx * 4 + dx * 12, kz * 4 + dz * 12).biome)
+        } }
+        fog = acc / 9
+        return fog
+    }
+}
+
+extension Game {
+    func emberMotes(_ dt: Float) {
+        guard dim.dim == .nether, particles.list.count < ParticleManager.cap - 200 else { return }
+        let p = player.pos
+        let biome = world.gen.column(Int(floor(p.x)), Int(floor(p.z))).biome
+        let rate: Float = biome == .basaltDeltas ? 60 : (biome == .netherWastes ? 12 : 35)
+        var n = Int(rate * dt)
+        if Float.random(in: 0..<1) < rate * dt - Float(n) { n += 1 }
+        let smokeL = Int(Tex.id("smoke"))
+        for _ in 0..<n {
+            let o = p + V3(Float.random(in: -12...12), Float.random(in: -4...10), Float.random(in: -12...12))
+            if world.block(Int(floor(o.x)), Int(floor(o.y)), Int(floor(o.z))) != AIR { continue }
+            var vel = V3(Float.random(in: -0.15...0.15), 0, Float.random(in: -0.15...0.15))
+            var col = V3(1, 1, 1), glow = false, grav: Float = 0
+            switch biome {
+            case .crimsonForest: col = V3(0.75, 0.18, 0.15); vel.y = -0.12; glow = true
+            case .warpedForest: col = V3(0.25, 0.8, 0.75); vel.y = 0.15; glow = true
+            case .soulSandValley: col = V3(0.75, 0.82, 0.85); vel.y = -0.08
+            case .basaltDeltas: col = V3(0.62, 0.6, 0.62); vel.y = -0.35; grav = 0.05
+            default: col = V3(1.0, 0.55, 0.2); vel.y = 0.4; glow = true
+            }
+            particles.add(Particle(pos: o, vel: vel, life: Float.random(in: 3...6), maxLife: 6, layer: smokeL, uv0: .zero, uvSize: 1,
+                                   size: Float.random(in: 0.025...0.045), gravity: grav, color: col, collide: false, glow: glow))
+        }
+    }
+}

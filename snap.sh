@@ -45,7 +45,11 @@ done
 "$BIN" --sounds snaps/sounds
 "$BIN" --snapshot snaps/mobs.png --seed 12345 --yaw 30 --pitch -14 --time 0.22 --up 1 --mobs
 "$BIN" --snapshot snaps/hostile.png --seed 12345 --yaw 30 --pitch -12 --time 0.22 --up 1 --mobs --hostile
-"$BIN" --snapshot snaps/nether.png --seed 12345 --dim nether --yaw 30 --pitch -10 --up 2
+"$BIN" --snapshot snaps/nether.png --seed 12345 --dim nether --yaw 30 --pitch -10 --up 2 --ambient
+"$BIN" --snapshot snaps/ember_crimson.png --seed 12345 --dim nether --find crimson_forest --yaw 30 --pitch -5 --up 2 --ambient
+"$BIN" --snapshot snaps/ember_warped.png --seed 12345 --dim nether --find warped_forest --yaw 30 --pitch -5 --up 2 --ambient
+"$BIN" --snapshot snaps/ember_soul.png --seed 12345 --dim nether --find soul_sand_valley --yaw 30 --pitch -5 --up 2 --ambient
+"$BIN" --snapshot snaps/ember_basalt.png --seed 12345 --dim nether --find basalt_deltas --yaw 30 --pitch -5 --up 2 --ambient
 "$BIN" --snapshot snaps/nether_wide.png --seed 12345 --dim nether --x 300 --z -200 --yaw 200 --pitch -5 --up 6 --ambient
 "$BIN" --snapshot snaps/fortress.png --seed 12345 --dim nether --structure fortress --yaw -45 --pitch -8 --up 1 --rd 6
 "$BIN" --snapshot snaps/fortress_far.png --seed 12345 --dim nether --structure fortress --yaw -45 --pitch -35 --up 9 --rd 8

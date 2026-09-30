@@ -794,7 +794,7 @@ enum Snapshot {
         }
         if CommandLine.arguments.contains("--ambient") {
             // Two seconds of ambient block particles (torch smoke, campfire columns, lava sparks).
-            for _ in 0..<40 { game.ambientParticles(0.05); game.particles.update(0.05, world) }
+            for _ in 0..<40 { game.ambientParticles(0.05); game.emberMotes(0.05); game.particles.update(0.05, world) }
         }
         if CommandLine.arguments.contains("--underwater") {
             // Head under the sea surface (fog, overlay, water seen from below).

@@ -168,6 +168,7 @@ final class Game {
     var tridentCharge: Float = 0
     var bobber: Bobber?
     var weather = Weather()
+    let emberAtmosphere = EmberAtmosphere()
     var bolts: [Bolt] = []
     var lightningFlash: Float = 0
     var rainSoundTimer: Float = 0
@@ -375,6 +376,7 @@ final class Game {
     }
 
     var skyColor: V3 {
+        if dim.dim == .nether { return emberAtmosphere.fog(at: player.pos, gen: world.gen) }
         if !dim.dim.hasSky { return dim.dim.fogColor }
         let day = V3(0.52, 0.72, 0.96), night = V3(0.015, 0.02, 0.06)
         var c = simd_mix(night, day, V3(repeating: (daylight - 0.12) / 0.88))
@@ -1776,6 +1778,7 @@ final class Game {
         tnts.update(Float(dt), game: self)
         particles.update(Float(dt), world)
         ambientParticles(Float(dt))
+        emberMotes(Float(dt))
         if survival { timeSinceRest += Float(dt) }
         if sleeping > 0 {
             timeSinceRest = 0
