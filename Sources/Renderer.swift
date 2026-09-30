@@ -529,7 +529,6 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
         }
 
-        let slot = L.slot
         if let m = game.menu {
             // Container screen: dimmed world, bevelled panel, slots, items, cursor stack, tooltip.
             rect(0, 0, W, H, V4(0, 0, 0, 0.45))

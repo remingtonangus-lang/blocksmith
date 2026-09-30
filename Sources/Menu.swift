@@ -77,7 +77,9 @@ class Menu {
             if !container.isEmpty { return container }
             return from.isHotbar ? slots.filter { $0.isPlayerInv && !$0.isHotbar } : slots.filter { $0.isHotbar }
         }
-        return slots.filter { $0.isHotbar }.reversed() + slots.filter { $0.isPlayerInv && !$0.isHotbar }.reversed()
+        let hot: [MenuSlot] = Array(slots.filter { $0.isHotbar }.reversed())
+        let main: [MenuSlot] = Array(slots.filter { $0.isPlayerInv && !$0.isHotbar }.reversed())
+        return hot + main
     }
 
     func moveInto(_ s0: ItemStack, _ targets: [MenuSlot]) -> ItemStack {

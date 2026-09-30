@@ -549,7 +549,7 @@ final class Game {
         var id = blockItem
         let key = Blocks.key(blockItem)
         if key == "furnace" || key == "chest" {
-            id = blockItem + BlockID(Blocks.facingToward(yaw: player.yaw))
+            id = blockItem + BlockID(BlockRegistry.facingToward(yaw: player.yaw))
         }
         let supported: Bool
         if id == TORCH {
