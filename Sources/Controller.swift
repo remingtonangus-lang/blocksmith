@@ -190,6 +190,7 @@ enum Feedback {
         case .explode: pm.rumble(max(0.25, near), 0.45, sharpness: 0.2)
         case .thunder: pm.rumble(0.35, 0.5, sharpness: 0.1)
         case .breakBlock: if near > 0.55 { pm.rumble(0.35, 0.06, sharpness: 0.7) }
+        case .place: if near > 0.55 { pm.rumble(0.14, 0.035, sharpness: 0.8) }
         case .attack: pm.rumble(0.3, 0.05, sharpness: 0.8)
         case .bow: pm.rumble(0.4, 0.08, sharpness: 0.6)
         case .land: pm.rumble(0.5 * v, 0.1, sharpness: 0.3)
