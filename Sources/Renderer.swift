@@ -185,6 +185,19 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         guard let rpd = view.currentRenderPassDescriptor, let drawable = view.currentDrawable else { return }
         inflight.wait()
+        if game.screenshotRequested {
+            // F2: hold every in-flight ring buffer, render the same view offscreen, save it to ~/Pictures/Blocksmith.
+            game.screenshotRequested = false
+            inflight.wait(); inflight.wait()
+            let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Pictures/Blocksmith")
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd_HH.mm.ss"
+            let name = "Blocksmith-\(f.string(from: Date())).png"
+            let sz = view.drawableSize
+            _ = renderToPNG(path: dir.appendingPathComponent(name).path, width: Int(sz.width), height: Int(sz.height))
+            inflight.signal(); inflight.signal()
+            game.onToast?("Saved screenshot as \(name)")
+        }
         let cmd = queue.makeCommandBuffer()!
         cmd.addCompletedHandler { [inflight] _ in inflight.signal() }
         let sky = game.skyColor
@@ -217,12 +230,29 @@ final class Renderer: NSObject, MTKViewDelegate {
         func push(_ items: [HudVert]) -> Int? { items.withUnsafeBytes { pushBytes($0) } }
 
         let p = game.player
-        let eye = p.eye
+        // Camera: first person, or pulled back behind / in front of the player (F5), stopping short of blocks.
+        let tp = game.cameraMode != 0 && game.sleeping == 0
+        var camYaw = p.yaw, camPitch = p.pitch
+        var eye = p.eye
+        if tp {
+            let front = game.cameraMode == 2
+            let dir = front ? p.look : -p.look
+            if front { camYaw = p.yaw + .pi; camPitch = -p.pitch }
+            var dist: Float = 4
+            var t: Float = 0.1
+            while t < 4 {
+                let q = p.eye + dir * t
+                if Blocks.opaque[Int(game.world.block(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))))] { dist = max(0.2, t - 0.3); break }
+                t += 0.1
+            }
+            eye = p.eye + dir * dist
+        }
+        let camLook = V3(-sinf(camYaw) * cosf(camPitch), sinf(camPitch), -cosf(camYaw) * cosf(camPitch))
         let rd = Float(game.world.renderDistance)
         let underwater = p.headInWater
         let far = rd * 16 + 96
         let proj = perspectiveRH(fovy: game.fovSetting * game.fovScale * .pi / 180, aspect: W / max(H, 1), near: 0.05, far: far)
-        let viewRot = rotationX(-p.pitch) * rotationY(-p.yaw)
+        let viewRot = rotationX(-camPitch) * rotationY(-camYaw)
         let viewProj = proj * viewRot
         let frustum = Frustum(viewProj * translationMatrix(-eye))
 
@@ -365,12 +395,13 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
 
         // Mobs (written straight into the scratch ring: no per-frame arrays)
-        if !game.mobs.mobs.isEmpty {
+        if !game.mobs.mobs.isEmpty || tp {
             let off = (scratchOff + 255) & ~255
             let cap = (ringSize - off) / MemoryLayout<MobVert>.stride
             if cap > 36 {
                 let ptr = (scratch.contents() + off).bindMemory(to: MobVert.self, capacity: cap)
-                let n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: daylight, world: game.world, into: ptr, capacity: cap)
+                var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: daylight, world: game.world, into: ptr, capacity: cap)
+                if tp { n += writePlayerModel(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n) }
                 if n > 0 {
                     scratchOff = off + n * MemoryLayout<MobVert>.stride
                     enc.setRenderPipelineState(mobPipe)
@@ -392,8 +423,8 @@ final class Renderer: NSObject, MTKViewDelegate {
             if entCap > 64 {
                 let ptr = (scratch.contents() + entOff).bindMemory(to: EntityVert.self, capacity: entCap)
                 var wr = EntityWriter(out: ptr, capacity: entCap)
-                let right = V3(cosf(p.yaw), 0, -sinf(p.yaw))
-                let up = simd_normalize(simd_cross(right, p.look))
+                let right = V3(cosf(camYaw), 0, -sinf(camYaw))
+                let up = simd_normalize(simd_cross(right, camLook))
                 game.drops.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight, time: Float(game.clock))
                 game.projectiles.write(&wr, eye: eye, world: game.world, daylight: daylight)
                 game.tnts.write(&wr, eye: eye, world: game.world, daylight: daylight)
@@ -509,7 +540,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
 
         // First-person arm + held item, squeezed into the front of the depth range so it never clips.
-        if drawHUD && game.menu == nil && game.sleeping == 0 {
+        if drawHUD && !game.hideHUD && !tp && game.menu == nil && game.sleeping == 0 {
             var uh = u
             uh.viewProj = perspectiveRH(fovy: 70 * .pi / 180, aspect: W / max(H, 1), near: 0.01, far: 8)
             uh.fogColor.w = 100; uh.params.x = 200
@@ -576,7 +607,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             enc.setViewport(MTLViewport(originX: 0, originY: 0, width: Double(W), height: Double(H), znear: 0, zfar: 1))
         }
 
-        if drawHUD, let off = push(buildHUD(W, H)) {
+        if drawHUD && (!game.hideHUD || game.menu != nil), let off = push(buildHUD(W, H)) {
             let count = (scratchOff - off) / MemoryLayout<HudVert>.stride
             var screen = V2(W, H)
             enc.setRenderPipelineState(hudPipe)

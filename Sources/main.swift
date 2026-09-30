@@ -88,6 +88,12 @@ enum Snapshot {
             game.applyEffect(.speed, amp: 0, seconds: 60)
             game.applyEffect(.slowness, amp: 3, seconds: 20)
         }
+        if let c = arg("--camera") {
+            // Third-person views: 1 behind, 2 in front. Wears a helmet and holds a pickaxe so the model shows gear.
+            game.cameraMode = Int(c) ?? 1
+            game.inventory.armor[0] = ItemStack(Items.id("iron_helmet"), 1)
+            game.inventory.main[game.selected] = ItemStack(Items.id("iron_pickaxe"), 1)
+        }
         if CommandLine.arguments.contains("--debug") {
             game.showDebug = true
             game.onToast?("Grass Block")

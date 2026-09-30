@@ -5,7 +5,7 @@ import simd
 enum Key {
     static let a: UInt16 = 0, s: UInt16 = 1, d: UInt16 = 2, f: UInt16 = 3, w: UInt16 = 13, e: UInt16 = 14, q: UInt16 = 12
     static let enter: UInt16 = 36, arrowLeft: UInt16 = 123, arrowRight: UInt16 = 124, arrowDown: UInt16 = 125, arrowUp: UInt16 = 126
-    static let space: UInt16 = 49, esc: UInt16 = 53, f3: UInt16 = 99
+    static let space: UInt16 = 49, esc: UInt16 = 53, f3: UInt16 = 99, f1: UInt16 = 122, f2: UInt16 = 120, f5: UInt16 = 96
     static let leftBracket: UInt16 = 33, rightBracket: UInt16 = 30
     static let digits: [UInt16] = [18, 19, 20, 21, 23, 22, 26, 28, 25] // 1...9
 }
