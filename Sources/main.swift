@@ -761,6 +761,11 @@ enum Snapshot {
     }
 }
 
+if CommandLine.arguments.contains("--playthrough") {
+    // Scripted start-to-credits playthrough + the Blight (Playthrough.swift); exits non-zero on a failed check.
+    exit(Playthrough.run())
+}
+
 if let dir = arg("--sounds") {
     // Synth check: render every sound effect (variant 0) to a WAV file.
     let t0 = CFAbsoluteTimeGetCurrent()
