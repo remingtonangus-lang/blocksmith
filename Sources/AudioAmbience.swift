@@ -22,6 +22,7 @@ final class AudioState {
     var discPlaying: JukeboxPlayer? = nil
     var armorSeen: [ItemID] = [0, 0, 0, 0]
     var biomeTimer: Float = 0
+    var paddleTimer: Float = 0
     var biomeHere: Biome = .plains
     var nearOcean = false
     var armorPrimed = false
@@ -185,6 +186,11 @@ extension Game {
         if player.headInWater { ask("underwater", .underwaterLoop, 0.9) }
         if player.gliding { ask("glide", .elytraLoop, min(1, simd_length(player.vel) / 28)) }
         if let r = riding, r.kind == .minecart { ask("cart", .minecartLoop, min(1, simd_length(r.vel) / 8 + 0.1)) }
+        if let r = riding, r.kind == .boat {
+            let spd = simd_length(V2(r.vel.x, r.vel.z))
+            a.paddleTimer -= dt * min(1.5, spd / 3)
+            if spd > 0.8 && a.paddleTimer <= 0 { a.paddleTimer = 0.9; sfx(.boatPaddle, 0.6, at: r.pos) }
+        }
 
         // Biome beds.
         switch dim.dim {
