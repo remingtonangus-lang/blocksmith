@@ -184,6 +184,8 @@ final class ItemRegistry {
         item("dragon_breath", "Dragon's Breath", "bucket", 0xE8D8F0, ["c": 0xC050E0])
         item("firework_rocket", "Firework Rocket", "rod", 0xC83A3A)
         item("firework_star", "Firework Star", "nugget", 0x6A6A6A)
+        item("bundle", "Bundle", "bundle", 0xB0703A, stack: 1)
+        for (c, d) in BlockRegistry.colors { item("\(c)_bundle", "\(d) Bundle", "bundle", BlockRegistry.colorHex[c] ?? 0xB0703A, stack: 1) }
         item("writable_book", "Book and Quill", "book", 0x6A4A2A, ["c": 0xE8E8E8], stack: 1)
         item("written_book", "Written Book", "book", 0x7A5A2A, ["c": 0xD8B84A], stack: 16)
         item("popped_chorus_fruit", "Popped Chorus Fruit", "berries", 0xB08AC0, ["a": 0x6A4A7A])

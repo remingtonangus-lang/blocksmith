@@ -232,10 +232,7 @@ final class BlockRegistry {
         }
         func column(_ n: String, _ disp: String, side: String, top: String, bottom: String? = nil, h: Float = 2,
                     tool: ToolType = .axe, snd: SoundMat = .wood) {
-            var d = BlockDef(n, disp)
-            let b = bottom ?? top
-            d.tex = [side, side, top, b, side, side]; d.hardness = h; d.tool = tool; d.sound = snd
-            add(d)
+            pillar(n, disp, side: side, top: top, bottom: bottom, h: h, tool: tool, snd: snd)
         }
         func leaves(_ n: String, _ disp: String, _ t: String, tint: UInt8) {
             var d = BlockDef(n, disp)
@@ -557,6 +554,7 @@ final class BlockRegistry {
         registerMoreBlocks()
         registerDecorBlocks()
         registerBanners()
+        registerWoodExtras()
         // Building families: stairs, slabs, fences, walls for each material.
         let woods: [(String, String)] = [("oak", "Oak"), ("birch", "Birch"), ("spruce", "Spruce"), ("crimson", "Crimson"), ("warped", "Warped")]
             + BlockRegistry.extraWoods

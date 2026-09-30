@@ -89,6 +89,11 @@ enum Fireworks {
     static func tooltip(_ s: ItemStack) -> [String] {
         let k = Items.key(s.item)
         var out: [String] = []
+        if Bundles.isBundle(s) {
+            for c in (s.contents ?? []).prefix(6) { out.append("\(c.displayName) x\(c.count)") }
+            if (s.contents ?? []).count > 6 { out.append("and \((s.contents ?? []).count - 6) more...") }
+            out.append("\(Bundles.fill(s))/64")
+        }
         if k == "written_book" {
             out.append("by Player")
             out.append(Books.generations[min(3, s.tag)])

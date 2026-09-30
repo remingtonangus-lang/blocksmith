@@ -22,6 +22,7 @@ final class Redstone {
     private var dirtySet = Set<IVec3>()
     private var settledWires = Set<IVec3>()
     var comparatorOut: [IVec3: Int] = [:]
+    var trapped: [IVec3: Int] = [:]                 // trapped chests: players looking inside
     private var edge = Set<IVec3>()                  // components currently seeing power (edge detection)
     private var burn: [IVec3: [Int]] = [:]           // torch toggle times (burnout)
     var tracked = Set<IVec3>()                        // hoppers, plates, daylight detectors (periodic work)
@@ -36,6 +37,7 @@ final class Redstone {
         case none, wire, torch, block, lamp, lever, button, plate, weightedPlate, repeater, comparator, observer, piston, stickyPiston
         case dispenser, dropper, hopper, note, daylight, target, door, trapdoor, gate, tnt, pistonHead, bell, ironDoor, ironTrapdoor
         case rail, poweredRail, detectorRail, activatorRail
+        case tripHook, trappedChest
     }
 
     static let kinds: [K] = {
@@ -56,6 +58,7 @@ final class Redstone {
         set("daylight_detector", .daylight); set("target", .target); set("tnt", .tnt); set("bell", .bell)
         for w in BlockRegistry.doorWoods { set("\(w)_door", .door); set("\(w)_trapdoor", .trapdoor); set("\(w)_fence_gate", .gate) }
         set("iron_door", .ironDoor); set("iron_trapdoor", .ironTrapdoor)
+        set("tripwire_hook", .tripHook); set("trapped_chest", .trappedChest)
         set("rail", .rail); set("powered_rail", .poweredRail); set("detector_rail", .detectorRail); set("activator_rail", .activatorRail)
         return t
     }()
@@ -96,7 +99,7 @@ final class Redstone {
             }
         }
         let k = Redstone.kind(new)
-        if k == .hopper || k == .plate || k == .weightedPlate || k == .daylight || k == .detectorRail { tracked.insert(p) }
+        if k == .hopper || k == .plate || k == .weightedPlate || k == .daylight || k == .detectorRail || k == .tripHook { tracked.insert(p) }
         else if tracked.contains(p) { tracked.remove(p) }
         settledWires.remove(p)
     }
@@ -120,7 +123,7 @@ final class Redstone {
         let bx = c.cx * CS, bz = c.cz * CS
         for i in 0..<c.blocks.count {
             let k = Redstone.kind(c.blocks[i])
-            if k == .hopper || k == .daylight || k == .plate || k == .weightedPlate || k == .detectorRail {
+            if k == .hopper || k == .daylight || k == .plate || k == .weightedPlate || k == .detectorRail || k == .tripHook {
                 tracked.insert(IVec3(bx + (i & 15), i >> 8, bz + ((i >> 4) & 15)))
             }
         }
@@ -145,6 +148,8 @@ final class Redstone {
         case .comparator: return d == Redstone.d6(s & 3) ? (comparatorOut[q] ?? 0) : 0
         case .observer: return s >= 6 && d == Redstone.opp[s % 6] ? 15 : 0
         case .detectorRail: return s >= 6 && d == 0 ? 15 : 0
+        case .tripHook: return s >= 4 && d == Redstone.opp[Redstone.d6(s & 3)] ? 15 : 0
+        case .trappedChest: return d == 0 ? (trapped[q] ?? 0) : 0
         default: return 0
         }
     }
@@ -169,6 +174,8 @@ final class Redstone {
         case .observer: return s >= 6 && d == Redstone.opp[s % 6] ? 15 : 0
         case .wire: return (d == 0 || wirePoints(q, d)) ? s : 0
         case .detectorRail: return s >= 6 ? 15 : 0
+        case .tripHook: return s >= 4 ? 15 : 0
+        case .trappedChest: return trapped[q] ?? 0
         default: return 0
         }
     }
@@ -220,7 +227,7 @@ final class Redstone {
         let b = block(n)
         let s = st(b)
         switch Redstone.kind(b) {
-        case .wire, .torch, .block, .lever, .button, .plate, .weightedPlate, .target, .daylight, .comparator, .detectorRail: return true
+        case .wire, .torch, .block, .lever, .button, .plate, .weightedPlate, .target, .daylight, .comparator, .detectorRail, .tripHook, .trappedChest: return true
         case .repeater: return (Redstone.d6(s & 3) / 2) == d / 2
         case .observer: return s % 6 == d        // only its output (back) side, which faces the dust
         default: return false
@@ -428,6 +435,14 @@ final class Redstone {
         }
     }
 
+    // Trapped chests emit the number of viewers (the player: 0 or 1).
+    func setTrapped(_ p: IVec3, _ v: Int) {
+        trapped[p] = v == 0 ? nil : v
+        mark(p); wakeAround(p)
+        let below = p + IVec3(0, -1, 0)
+        mark(below); wakeAround(below)
+    }
+
     func wakeAround(_ p: IVec3) {
         for d in 0..<6 {
             let n = p + Redstone.D[d]
@@ -586,6 +601,27 @@ final class Redstone {
                 hopperCooldown[p, default: 0] -= 1
                 if (hopperCooldown[p] ?? 0) <= 0 && s < 5 {
                     if g.hopperTransfer(p, out: s % 5) { hopperCooldown[p] = 8 }
+                }
+            case .tripHook:
+                // Armed when string runs (up to 40 blocks) to a hook facing back; pulled while anything touches the string.
+                guard now % 2 == 0 else { continue }
+                let dir = Redstone.D[Redstone.d6(s & 3)]
+                var q = p + dir
+                var cells: [IVec3] = []
+                var armed = false
+                for _ in 0..<41 {
+                    let qb = block(q)
+                    if Blocks.key(base(qb)) == "tripwire" { cells.append(q); q = q + dir; continue }
+                    if Redstone.kind(qb) == .tripHook && (st(qb) & 3) == ((s & 3) ^ 1) { armed = true }
+                    break
+                }
+                let on = armed && !cells.isEmpty && cells.contains { g.entitiesOn($0, items: true) > 0 }
+                if on != (s >= 4) {
+                    setQuiet(p, base(b) + BlockID((s & 3) + (on ? 4 : 0)))
+                    g.sfx(.click, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+                    wakeAround(p)
+                    let a = p + Redstone.D[Redstone.opp[Redstone.d6(s & 3)]]
+                    mark(a); wakeAround(a)
                 }
             case .none: remove.append(p)
             default: break

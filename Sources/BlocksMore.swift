@@ -105,7 +105,7 @@ extension BlockRegistry {
             }
         }
         cube("honeycomb_block", "Honeycomb Block", h: 0.6, tool: .none, snd: .plant)
-        sided("bone_block", "Bone Block", side: "bone_block_side", top: "bone_block_top", bottom: "bone_block_top", h: 2, req: true)
+        pillar("bone_block", "Bone Block", side: "bone_block_side", top: "bone_block_top", h: 2, tool: .pickaxe, snd: .stone, req: true)
         sided("dried_kelp_block", "Dried Kelp Block", side: "dried_kelp_side", top: "dried_kelp_top", bottom: "dried_kelp_top", h: 0.5, tool: .hoe, snd: .plant)
         sided("lodestone", "Lodestone", side: "lodestone_side", top: "lodestone_top", bottom: "lodestone_top", h: 3.5, req: true)
         for c in 0...4 {
@@ -141,7 +141,14 @@ extension BlockRegistry {
             fi.tex = ["frosted_ice_\(age)"]; fi.opaque = false; fi.layer = .translucent; fi.hardness = 0.5; fi.sound = .glass; fi.randomTicks = true
             add(fi)
         }
-        model("tripwire_hook", "Tripwire Hook", ["tripwire_hook"], [Box(7, 2, 14, 9, 10, 16), Box(7, 8, 10, 9, 10, 14)], h: 0, tool: .none, snd: .wood, collide: false)
+        // Tripwire hooks: facing = the way the hook points (string runs that way), +4 when pulled (powered).
+        for st in 0..<8 {
+            let f = st % 4, y: Int = st >= 4 ? 6 : 8
+            let boxes: [[Box]] = [[Box(7, 2, 14, 9, 10, 16), Box(7, y, 10, 9, y + 2, 14)], [Box(7, 2, 0, 9, 10, 2), Box(7, y, 2, 9, y + 2, 6)],
+                                  [Box(14, 2, 7, 16, 10, 9), Box(10, y, 7, 14, y + 2, 9)], [Box(0, 2, 7, 2, 10, 9), Box(2, y, 7, 6, y + 2, 9)]]
+            model(st == 0 ? "tripwire_hook" : "tripwire_hook[\(st)]", "Tripwire Hook", ["tripwire_hook"], boxes[f], h: 0, tool: .none, snd: .wood,
+                  collide: false, group: "tripwire_hook", hidden: st != 0, shape: "hook")
+        }
         var wire = BlockDef("tripwire", "Tripwire")
         wire.tex = ["tripwire"]; wire.render = .model; wire.layer = .cutout; wire.opaque = false; wire.collide = false
         wire.boxes = [Box(0, 1, 7, 16, 2, 9)]; wire.hardness = 0; wire.hidden = true; wire.skyStop = false

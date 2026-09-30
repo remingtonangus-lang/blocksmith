@@ -110,7 +110,7 @@ extension BlockRegistry {
             }
         }
         model("bell", "Bell", ["bell"], [Box(4, 4, 4, 12, 13, 12), Box(3, 3, 3, 13, 4, 13), Box(7, 13, 7, 9, 16, 9)], h: 5, emit: 0)
-        sided("hay_block", "Hay Bale", side: "hay_block_side", top: "hay_block_top", bottom: "hay_block_top", h: 0.5, tool: .hoe, snd: .plant)
+        pillar("hay_block", "Hay Bale", side: "hay_block_side", top: "hay_block_top", h: 0.5, tool: .hoe, snd: .plant)
         model("composter", "Composter", ["composter_side", "composter_side", "composter_top", "composter_side", "composter_side", "composter_side"],
               [Box(0, 0, 0, 16, 2, 16), Box(0, 2, 0, 2, 16, 16), Box(14, 2, 0, 16, 16, 16), Box(2, 2, 0, 14, 16, 2), Box(2, 2, 14, 14, 16, 16)], h: 0.6, tool: .axe, snd: .wood)
         // Compost levels 1-7 fill up; 8 is ready (bone meal).

@@ -207,6 +207,12 @@ extension Game {
         }
         if (key == "honeycomb" || key.hasSuffix("_axe")) && copperInteract(t.hit, key: key) { return true }
         if placeArmorStand(t) { return true }
+        if stripLog(t) { return true }
+        // String on a block top becomes tripwire.
+        if key == "string" && t.normal.y == 1 {
+            let at = t.hit + t.normal
+            if world.block(at.x, at.y, at.z) == AIR { world.setBlock(at.x, at.y, at.z, Blocks.id("tripwire")); consumeHeld(); swing = 1; return true }
+        }
         if launchRocket(t) { return true }
         if bkey.hasSuffix("_fence") && useFenceLeash(t.hit) { swing = 1; return true }
         // Candles: add one more (up to four) or light them.

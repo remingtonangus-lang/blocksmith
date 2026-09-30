@@ -101,6 +101,8 @@ enum Mining {
         case "beetroots":
             return stage == 3 ? one("beetroot") + one("beetroot_seeds", 1 + binom(3, 0.5714)) : one("beetroot_seeds")
         case "nether_wart": return one("nether_wart", stage == 3 ? rnd(2, 4) : 1)
+        case "tripwire": return one("string")
+        case "composter": return one("composter") + (stage == 8 ? one("bone_meal") : [])
         default: break
         }
         switch key {

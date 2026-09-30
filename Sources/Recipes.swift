@@ -61,6 +61,16 @@ enum Recipes {
         r.append(shaped(["C", "S"], ["C": "#coals", "S": "stick"], "torch", 4))
         for (log, plank) in [("crimson_stem", "crimson_planks"), ("warped_stem", "warped_planks")] { r.append(shapeless([log], plank, 4)) }
         for w in ["acacia", "dark_oak", "jungle", "mangrove", "cherry"] { r.append(shapeless(["\(w)_log"], "\(w)_planks", 4)) }
+        for (w, _, lw, ww) in Woods.all {
+            for src in ["\(w)_\(ww)", "stripped_\(w)_\(lw)", "stripped_\(w)_\(ww)"] { r.append(shapeless([src], "\(w)_planks", 4)) }
+            r.append(shaped(["##", "##"], ["#": "\(w)_\(lw)"], "\(w)_\(ww)", 3))
+            r.append(shaped(["##", "##"], ["#": "stripped_\(w)_\(lw)"], "stripped_\(w)_\(ww)", 3))
+            r.append(shaped(["C", "#", "C"], ["C": "chain", "#": "stripped_\(w)_\(lw)"], "\(w)_hanging_sign", 6))
+        }
+        r.append(shaped(["###", "###", "###"], ["#": "bamboo"], "bamboo_block"))
+        r.append(shapeless(["bamboo_block"], "bamboo_planks", 2))
+        r.append(shapeless(["stripped_bamboo_block"], "bamboo_planks", 2))
+        r.append(shaped(["#", "#"], ["#": "quartz_block"], "quartz_pillar", 2))
         r.append(shaped(["##", "##"], ["#": "mud"], "packed_mud", 1))
         r.append(shaped(["##", "##"], ["#": "packed_mud"], "mud_bricks", 4))
         r.append(shaped(["##", "##"], ["#": "red_sand"], "red_sandstone", 1))
@@ -380,6 +390,8 @@ enum Recipes {
         r.append(shapeless(["item_frame", "glow_ink_sac"], "glow_item_frame"))
         r.append(shaped(["A", "C", "C"], ["A": "amethyst_shard", "C": "copper_ingot"], "spyglass"))
         r.append(shapeless(["book", "ink_sac", "feather"], "writable_book"))
+        r.append(shaped(["S", "L"], ["S": "string", "L": "leather"], "bundle"))
+        for (c, _) in BlockRegistry.colors { r.append(shapeless(["bundle", "\(c)_dye"], "\(c)_bundle")) }
         for (c, _) in BlockRegistry.colors { r.append(shaped(["WWW", "WWW", " S "], ["W": "\(c)_wool", "S": "stick"], "\(c)_banner")) }
         for (res, ing) in [("creeper_banner_pattern", "creeper_head"), ("skull_banner_pattern", "wither_skeleton_skull"), ("flower_banner_pattern", "oxeye_daisy"),
                            ("thing_banner_pattern", "enchanted_golden_apple"), ("field_masoned_banner_pattern", "bricks"), ("bordure_indented_banner_pattern", "vine")] {

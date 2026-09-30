@@ -835,7 +835,7 @@ final class Game {
             }
         }
         if useGadget(useHeld: useHeld, useNow: useNow) { return }
-        if useNow && !(target.map { isInteractive($0.hit) } ?? false) && useBook() { return }
+        if useNow && !(target.map { isInteractive($0.hit) } ?? false) && (useBook() || useBundle()) { return }
         let alwaysEdible = ["golden_apple", "enchanted_golden_apple", "chorus_fruit", "honey_bottle", "suspicious_stew"]
         let hk = Items.key(h.item)
         let canEat = h.def.food != nil && survival && (hunger < 20 || alwaysEdible.contains { hk.hasPrefix($0) })
@@ -916,6 +916,10 @@ final class Game {
             // Any block registered with four facings turns its front toward the player.
             id = blockItem + BlockID(BlockRegistry.facingToward(yaw: player.yaw))
         }
+        if Blocks.has(key + "[x]") && Blocks.shape[Int(blockItem)].isEmpty {
+            // Pillars (logs, stems, basalt...) lie along the axis of the clicked face.
+            if t.normal.x != 0 { id = Blocks.id(key + "[x]") } else if t.normal.z != 0 { id = Blocks.id(key + "[z]") }
+        }
         let fracY = hitPoint(t).y - Float(t.hit.y)
         let upperHalf = t.normal.y == -1 || (t.normal.y == 0 && fracY > 0.5)
         let facing = BlockRegistry.facingToward(yaw: player.yaw)
@@ -949,6 +953,9 @@ final class Game {
         case "frame":
             if t.normal.y == 0 { id = blockItem + BlockID(t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))) }
             else { id = blockItem + (t.normal.y == 1 ? 4 : 5) }
+        case "hook":
+            guard t.normal.y == 0 else { return }
+            id = blockItem + BlockID(t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3)))
         case "banner":
             guard let bs = bannerState(blockItem, normal: t.normal) else { return }
             id = bs
@@ -1105,7 +1112,11 @@ final class Game {
         case "trapped_chest":
             let be = world.blockEntities[p] ?? BlockEntity(.chest)
             world.blockEntities[p] = be
-            openMenu(ChestMenu(game: self, entity: be))
+            let m = ChestMenu(game: self, entity: be)
+            m.title = "Trapped Chest"
+            world.redstone.setTrapped(p, 1)
+            m.closed = { [weak self] in self?.world.redstone.setTrapped(p, 0) }
+            openMenu(m)
         case _ where k.hasSuffix("shulker_box"):
             let be = world.blockEntities[p] ?? BlockEntity(.shulker)
             world.blockEntities[p] = be

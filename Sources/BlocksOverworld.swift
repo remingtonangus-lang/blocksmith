@@ -38,7 +38,7 @@ extension BlockRegistry {
 
         // Woods.
         for (w, disp) in BlockRegistry.extraWoods {
-            sided("\(w)_log", "\(disp) Log", side: "\(w)_log", top: "\(w)_log_top", bottom: "\(w)_log_top", h: 2, tool: .axe, snd: .wood)
+            pillar("\(w)_log", "\(disp) Log", side: "\(w)_log", top: "\(w)_log_top")
             var lv = BlockDef("\(w)_leaves", "\(disp) Leaves")
             lv.tex = ["\(w)_leaves"]; lv.opaque = false; lv.layer = .cutout; lv.hardness = 0.2; lv.tool = .hoe; lv.sound = .plant
             lv.tint = w == "cherry" ? 0 : 2

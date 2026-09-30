@@ -163,6 +163,7 @@ class Menu {
         default:
             break
         }
+        if button == 1 && !shift && bundleClick(slot, carried: &carried) { return }
         if shift {
             if slot.stack.isEmpty { return }
             slot.stack = moveInto(slot.stack, quickMoveTargets(from: slot))
@@ -378,6 +379,8 @@ final class ChestMenu: Menu {
         for r in 0..<rows { for c in 0..<9 { slots.append(MenuSlot(8 + c * 18, 18 + r * 18, container, c + r * 9)) } }
         addPlayerInventory(y: height - 82)
     }
+    var closed: (() -> Void)?
+    override func onClose() { closed?() }
 }
 
 // Two chests side by side facing the same way: one 54-slot screen.
