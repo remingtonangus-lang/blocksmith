@@ -199,7 +199,10 @@ vertex SkyOut skyVS(uint vid [[vertex_id]]) {
 fragment float4 skyFS(SkyOut in [[stage_in]], constant SkyParams& s [[buffer(1)]]) {
     float4 w = s.invViewProj * float4(in.ndc, 1.0, 1.0);
     float3 d = normalize(w.xyz / w.w);
-    float h = pow(saturate(d.y), 0.6);
+    // Slow start: the first few degrees above the horizon stay close to the fog colour, so fogged
+    // terrain and trees that poke above the horizon line don't show as pale silhouettes.
+    float h = saturate(d.y * 1.25);
+    h = h * h * (3.0 - 2.0 * h);
     float3 col = mix(s.horizon.rgb, s.zenith.rgb, h);
     if (d.y < 0.0) { col = s.horizon.rgb; }   // below the horizon: exactly the fog colour, so far terrain blends in
     float sd = saturate(dot(d, s.sun.xyz));
