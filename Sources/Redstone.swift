@@ -41,7 +41,7 @@ final class Redstone {
         var t = [K](repeating: .none, count: Blocks.count)
         func set(_ group: String, _ k: K) {
             guard Blocks.has(group) else { return }
-            let base = Int(Blocks.id(group))
+            let base = Int(Blocks.groupBase[Int(Blocks.id(group))])
             for i in base..<Blocks.count where Int(Blocks.groupBase[i]) == base { t[i] = k }
         }
         set("redstone_wire", .wire); set("redstone_torch", .torch); set("redstone_block", .block); set("redstone_lamp", .lamp)

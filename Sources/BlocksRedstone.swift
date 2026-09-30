@@ -86,9 +86,6 @@ extension BlockRegistry {
             }
             add(d)
         }
-        var rb = BlockDef("redstone_block", "Block of Redstone")
-        rb.tex = ["redstone_block"]; rb.hardness = 5; rb.tool = .pickaxe; rb.requiresTool = true
-        add(rb)
         for lit in [false, true] {
             var d = state(lit ? "redstone_lamp[lit]" : "redstone_lamp", "redstone_lamp", "Redstone Lamp", !lit)
             d.tex = [lit ? "redstone_lamp_on" : "redstone_lamp"]; d.emit = lit ? 15 : 0; d.hardness = 0.3; d.sound = .glass
@@ -140,6 +137,8 @@ extension BlockRegistry {
         for w in BlockRegistry.buttonWoods {
             plate("\(w)_pressure_plate", "\(w.split(separator: "_").map { $0.capitalized }.joined(separator: " ")) Pressure Plate", tex: "\(w)_planks", levels: 2, wood: true)
         }
+        plate("stone_pressure_plate", "Stone Pressure Plate", tex: "stone", levels: 2, wood: false)
+        plate("polished_blackstone_pressure_plate", "Polished Blackstone Pressure Plate", tex: "polished_blackstone", levels: 2, wood: false)
         plate("light_weighted_pressure_plate", "Light Weighted Pressure Plate", tex: "gold_block", levels: 16, wood: false)
         plate("heavy_weighted_pressure_plate", "Heavy Weighted Pressure Plate", tex: "iron_block", levels: 16, wood: false)
         // Repeater and comparator.

@@ -146,6 +146,6 @@ extension BlockRegistry {
         rail.tex = ["rail"]; rail.render = .model; rail.layer = .cutout; rail.opaque = false; rail.collide = false
         rail.boxes = [Box(0, 0, 0, 16, 1, 16)]; rail.hardness = 0.7; rail.tool = .pickaxe; rail.sound = .stone; rail.skyStop = false
         add(rail)
-        model("stone_pressure_plate", "Stone Pressure Plate", ["stone"], [Box(1, 0, 1, 15, 1, 15)], h: 0.5)
+
     }
 }

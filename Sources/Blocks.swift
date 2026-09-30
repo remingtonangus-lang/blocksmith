@@ -113,6 +113,7 @@ final class BlockRegistry {
 
     @discardableResult
     func add(_ d0: BlockDef) -> BlockID {
+        if byName[d0.name] != nil { print("warning: duplicate block \(d0.name)") }
         var d = d0
         let id = BlockID(defs.count)
         precondition(byName[d.name] == nil, "duplicate block \(d.name)")
