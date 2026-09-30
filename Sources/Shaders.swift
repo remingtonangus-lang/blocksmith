@@ -248,6 +248,29 @@ fragment float4 cloudFS(CloudOut in [[stage_in]],
     return float4(col, 0.82 * fade);
 }
 
+// Fancy clouds: boxes in cloud space (buffer 0, colour = face shade), one offset to the camera.
+vertex CloudOut cloudBoxVS(uint vid [[vertex_id]],
+                           const device SimpleVert* verts [[buffer(0)]],
+                           constant Uniforms& u [[buffer(1)]],
+                           constant float4& off [[buffer(2)]]) {
+    CloudOut o;
+    float3 p = verts[vid].pos.xyz + off.xyz;
+    o.pos = u.viewProj * float4(p, 1.0);
+    o.rel = float3(p.x, verts[vid].color.x, p.z);   // y carries the face shade
+    return o;
+}
+
+// cp: z = fade distance
+fragment float4 cloudBoxFS(CloudOut in [[stage_in]],
+                           constant Uniforms& u [[buffer(1)]],
+                           constant float4& cp [[buffer(2)]]) {
+    float fade = 1.0 - smoothstep(cp.z * 0.5, cp.z, length(in.rel.xz));
+    float day = u.params.y;
+    float3 col = float3(1.0) * mix(0.05, 1.0, smoothstep(0.12, 1.0, day)) * in.rel.y;
+    col = mix(col, u.fogColor.rgb, 0.2);
+    return float4(col, 0.82 * fade);
+}
+
 // Mobs: flat-coloured cuboids; the pattern id adds pixel detail in model space (1/16-block cells).
 struct MobVert { float4 pos; float4 color; float4 local; };
 struct MobOut { float4 pos [[position]]; float3 color; float shade; float3 local; float pattern [[flat]]; float dist; };

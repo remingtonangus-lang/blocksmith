@@ -44,6 +44,8 @@ final class Renderer: NSObject, MTKViewDelegate {
     let entityPipe: MTLRenderPipelineState
     let crackPipe: MTLRenderPipelineState
     let skyPipe: MTLRenderPipelineState
+    let cloudBoxPipe: MTLRenderPipelineState
+    let clouds: CloudMesh?
     let starBuf: MTLBuffer
     let starVerts: Int
     let depthWrite: MTLDepthStencilState
@@ -105,6 +107,8 @@ final class Renderer: NSObject, MTKViewDelegate {
         entityPipe = try pipe("entityVS", "entityFS", blend: false)
         crackPipe = try pipe("entityVS", "crackFS", blend: true)
         skyPipe = try pipe("skyVS", "skyFS", blend: false)
+        cloudBoxPipe = try pipe("cloudBoxVS", "cloudBoxFS", blend: true)
+        clouds = CloudMesh(device: device)
 
         // Star field: fixed random directions on a sphere of radius 90 (sky frame, rotated per frame).
         var stars: [SimpleVert] = []
@@ -551,7 +555,27 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
 
         // Cloud layer (after water so both blend over terrain; depth-tested against terrain).
-        if !underwater && hasSky {
+        if !underwater && hasSky, game.fancyGraphics, let cm = clouds {
+            // Fancy: shaded boxes. Depth-written so blobs occlude each other instead of double-blending.
+            let ext = far
+            let wind = Float((game.time * 1.3).truncatingRemainder(dividingBy: 12 * 8192))
+            let cs = CloudMesh.cell
+            let ccx = Int(floor((eye.x + wind) / cs)), ccz = Int(floor(eye.z / cs))
+            let n = cm.update(centerX: ccx, centerZ: ccz, radius: min(32, Int(ext / cs) + 1))
+            if n > 0 {
+                var off = V4(-wind - eye.x, CLOUD_Y - eye.y, -eye.z, 0)
+                var cp = V4(0, 0, ext * 0.95, 0)
+                enc.setRenderPipelineState(cloudBoxPipe)
+                enc.setDepthStencilState(depthWrite)
+                enc.setCullMode(.back)
+                enc.setVertexBuffer(cm.buffer, offset: 0, index: 0)
+                enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+                enc.setVertexBytes(&off, length: 16, index: 2)
+                enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+                enc.setFragmentBytes(&cp, length: 16, index: 2)
+                enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: n)
+            }
+        } else if !underwater && hasSky {
             let ext = far
             let cy = CLOUD_Y - eye.y
             let q = [V3(-ext, cy, -ext), V3(ext, cy, -ext), V3(ext, cy, ext), V3(-ext, cy, ext)]
