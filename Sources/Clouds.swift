@@ -26,17 +26,20 @@ final class CloudMesh {
     }
 
     // Same coverage function as cloudFS in Shaders.swift.
+    private static func fract(_ v: Float) -> Float { v - floorf(v) }
     private static func hash21(_ p: V2) -> Float {
-        var p3 = simd_fract(V3(p.x, p.y, p.x) * 0.1031)
-        p3 += simd_dot(p3, V3(p3.y, p3.z, p3.x) + 33.33)
-        return simd_fract((p3.x + p3.y) * p3.z)
+        let q = V3(p.x, p.y, p.x) * 0.1031
+        var p3 = V3(fract(q.x), fract(q.y), fract(q.z))
+        p3 += V3(repeating: simd_dot(p3, V3(p3.y, p3.z, p3.x) + V3(repeating: 33.33)))
+        return fract((p3.x + p3.y) * p3.z)
     }
     private static func vnoise(_ p: V2) -> Float {
-        let i = simd_floor(p)
-        var f = simd_fract(p)
-        f = f * f * (3 - 2 * f)
+        let i = V2(floorf(p.x), floorf(p.y))
+        var f = p - i
+        f = f * f * (V2(repeating: 3) - 2 * f)
         let a = hash21(i), b = hash21(i + V2(1, 0)), c = hash21(i + V2(0, 1)), d = hash21(i + V2(1, 1))
-        return simd_mix(simd_mix(a, b, f.x), simd_mix(c, d, f.x), f.y)
+        let ab = a + (b - a) * f.x, cd = c + (d - c) * f.x
+        return ab + (cd - ab) * f.y
     }
     static func cloudy(_ cx: Int, _ cz: Int) -> Bool {
         let cell = V2(Float(cx), Float(cz))
