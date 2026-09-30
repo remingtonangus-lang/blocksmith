@@ -47,6 +47,7 @@ extension MobKind {
         case .pufferfish: return a("Pufferfish", 0.35, 0.7, 3, 2, drops: [("pufferfish", 1, 1), ("bone_meal", 0, 1)], xp: 1, call: .splash, aquatic: true)
         case .wanderingTrader: return a("Wandering Trader", 0.3, 1.95, 20, 2.2, xp: 0, call: .mobVillager)
         case .skeletonHorse: return a("Skeleton Horse", 0.7, 1.6, 15, 3, drops: [("bone", 0, 2)], xp: 2, call: .mobSkeleton)
+        case .happyGhast: return a("Cloudwailer", 2, 4, 20, 1.5, xp: 1, call: .mobWailer, flying: true)
         case .zombieHorse: return a("Zombie Horse", 0.7, 1.6, 15, 3, drops: [("rotten_flesh", 0, 2)], xp: 2, call: .mobZombie)
         case .illusioner: return a("Mirage Caster", 0.3, 1.95, 32, 2.5, drops: [], xp: 5, call: .mobVillager, beh: .ranged)
         case .phantom: return a("Nightwing", 0.45, 0.5, 20, 8, drops: [("phantom_membrane", 0, 1)], xp: 5, call: .mobVex, attack: 6, flying: true, beh: .monster, sun: true)
@@ -211,6 +212,8 @@ extension Mob {
                 if let f = flyTarget { let d = f - pos; vel += (d * 0.4 - vel) * min(1, dt * 2) }
             }
             return 0
+        case .happyGhast:
+            return cloudwailerAI(dt, g)
         case .traderLlama:
             // Follows its wandering trader and leaves with it.
             if let t = target {
@@ -616,6 +619,8 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
                 Part(mn: V3(-4, 0, -4), mx: V3(4, 2, 4), pivot: V3(0, 1, 0), rotX: cosf(spin) * 0.2, color: c * 0.85)] + eyes(18, -4, 1.2, 1.2, V3(0.2, 0.3, 0.6))
     case .creaking:
         return barkwraithParts(m, swing: swing)
+    case .happyGhast:
+        return cloudwailerParts(m)
     case .bogged, .zoglin:
         if m.kind == .zoglin {
             let c = V3(0.8, 0.55, 0.55)

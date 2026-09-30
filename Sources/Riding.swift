@@ -38,6 +38,14 @@ extension Game {
             m.health = -2000
             damageHeld(1)
             return true
+        case .happyGhast where Cloudwailer.harnessColor[held.item] != nil && !m.saddled && !m.baby:
+            m.saddled = true; m.collar = Cloudwailer.harnessColor[held.item] ?? 0; m.persistent = true; m.home = m.pos
+            consumeHeld(); sfx(.place(.wood), 0.6); return true
+        case .happyGhast where key == "shears" && m.saddled && riding !== m:
+            if let h = Cloudwailer.harnessColor.first(where: { $0.value == m.collar })?.key { drops.spawn(ItemStack(h, 1), at: pos) }
+            m.saddled = false; damageHeld(1); return true
+        case .happyGhast where key == "snowball" && m.health < m.spec.health:
+            m.health += 1; consumeHeld(); particles.hearts(at: pos); return true
         case .ironGolem where key == "iron_ingot" && m.health < m.spec.health:
             // Reference: an iron ingot repairs 25 health.
             m.health = min(m.spec.health, m.health + 25)
@@ -125,7 +133,7 @@ extension Game {
             return true
         }
         // Mount.
-        if (m.horseLike && m.kind != .traderLlama) || ((m.kind == .pig || m.kind == .strider) && m.saddled) {
+        if (m.horseLike && m.kind != .traderLlama) || ((m.kind == .pig || m.kind == .strider || m.kind == .happyGhast) && m.saddled) {
             guard !m.baby, riding == nil else { return false }
             riding = m
             m.persistent = true
@@ -141,6 +149,7 @@ extension Mob {
     // A mount carrying the player: WASD steers (horses, camels, donkeys, mules), pigs and magmastriders follow
     // the stick; untamed horses buck until tamed.
     func updateRidden(_ dt: Float, _ g: Game) {
+        if kind == .happyGhast { rideCloudwailer(dt, g); return }
         let w = g.world
         let inp = g.rideInput
         var speed: Float = 0

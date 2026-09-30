@@ -80,6 +80,7 @@ enum SpawnEggs {
     }
 
     static func register(_ reg: ItemRegistry) {
+        Cloudwailer.register(reg)
         for k in MobKind.allCases where eligible(k) {
             let n = itemName(k)
             guard !reg.has(n) else { continue }
@@ -112,6 +113,7 @@ enum SpawnEggs {
 
     // Base layer: outline and speckles; overlay layer: the shell (white, tinted per kind).
     static func painters(_ p: inout [String: TextureGen.Painter]) {
+        Cloudwailer.painters(&p)
         let rows = shape.map { Array($0) }
         p["item_spawn_egg"] = { x, y in
             guard y < rows.count, x < rows[y].count else { return TextureGen.clear }

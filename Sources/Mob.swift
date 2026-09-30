@@ -23,6 +23,7 @@ enum MobKind: Int, CaseIterable {
     case boat, armorStand
     case creaking
     case zombieHorse, illusioner
+    case happyGhast
 
     struct Spec {
         var name: String
@@ -127,7 +128,7 @@ enum MobKind: Int, CaseIterable {
         case .rabbit, .fox, .wolf, .cat, .ocelot, .horse, .donkey, .mule, .llama, .traderLlama, .camel, .goat, .panda, .polarBear, .turtle, .frog, .tadpole,
              .armadillo, .sniffer, .mooshroom, .bee, .parrot, .bat, .allay, .axolotl, .squid, .glowSquid, .dolphin, .cod, .salmon, .tropicalFish, .pufferfish,
              .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking,
-             .zombieHorse, .illusioner:
+             .zombieHorse, .illusioner, .happyGhast:
             return animalSpec
         case .witherSkeleton: return Spec(name: "Blight Skeleton", halfW: 0.35, height: 2.4, health: 20, speed: 2.5, behavior: .melee, attack: 8,
                                           drops: [("coal", 0, 1), ("bone", 0, 2)], xp: 5, call: .mobSkeleton, fireImmune: true)
@@ -222,7 +223,8 @@ enum MobKind: Int, CaseIterable {
         .armorStand: "armor_stand",
         .creaking: "creaking",
         .zombieHorse: "zombie_horse",
-        .illusioner: "illusioner"
+        .illusioner: "illusioner",
+        .happyGhast: "happy_ghast"
     ]
     static func named(_ n: String) -> MobKind? { allCases.first { $0.key == n } }
     var call: Snd { spec.call }
@@ -988,7 +990,7 @@ private func parts(_ m: Mob) -> [Part] {
         return extraParts(m, swing: swing)
     case .rabbit, .fox, .wolf, .cat, .ocelot, .horse, .donkey, .mule, .llama, .traderLlama, .camel, .goat, .panda, .polarBear, .turtle, .frog, .tadpole,
          .armadillo, .sniffer, .mooshroom, .bee, .parrot, .bat, .allay, .axolotl, .squid, .glowSquid, .dolphin, .cod, .salmon, .tropicalFish, .pufferfish,
-         .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking, .zombieHorse:
+         .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking, .zombieHorse, .happyGhast:
         return animalParts(m, swing: swing)
     case .zombie, .skeleton, .enderman, .husk, .stray, .drowned, .pillager, .vindicator, .witch, .illusioner:
         let sk = m.kind == .skeleton || m.kind == .stray, en = m.kind == .enderman
