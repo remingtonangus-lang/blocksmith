@@ -439,7 +439,8 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
         p.append(Part(mn: V3(-2, 7, 5), mx: V3(2, 11, 14), pivot: V3(0, 9, 5), rotX: -0.3, color: c, pattern: 4))
         return p
     case .wolf:
-        let c = m.aggro ? V3(0.55, 0.52, 0.5) : V3(0.78, 0.76, 0.72)
+        let base = Mob.wolfColors[m.variant % Mob.wolfColors.count]
+        let c = m.aggro && !m.tamed ? base * 0.72 : base
         var p = quadruped(.zero, V3(6, 6, 10), legH: 8, head: V3(0, 9, -5), headSize: V3(6, 6, 4), c)
         p.append(box(-1.5, 9.5, -12, 3, 3, 3, c * 0.9))
         p.append(box(-3, 15, -7, 2, 2, 1, c)); p.append(box(1, 15, -7, 2, 2, 1, c))

@@ -186,6 +186,7 @@ extension MobManager {
             let m = Mob(kind, at: V3(Float(sx) + 0.5, Float(y), Float(sz) + 0.5))
             if m.collides(m.pos, w) { continue }
             if kind == .fox && [.snowyTaiga, .grove, .snowySlopes].contains(biome) { m.variant = 1 }
+            if kind == .wolf { m.variant = Mob.wolfVariant(biome) }
             if kind == .mooshroom && Int.random(in: 0..<10) == 0 { m.variant = 1 }
             // Reference group data: after the first, 5% of a pack are young.
             if placed > 0 && Float.random(in: 0..<1) < 0.05 { m.baby = true; m.scale = 0.5 }

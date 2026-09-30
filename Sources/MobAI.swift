@@ -212,6 +212,23 @@ extension Mob {
         if baby { age += 60 }
         g.sfx(.step(.plant), 0.5, at: pos)
     }
+
+    // Reference wolf variants by biome: pale, woods, ashen, black, chestnut, rusty, spotted, striped, snowy.
+    static let wolfColors: [V3] = [V3(0.8, 0.78, 0.74), V3(0.55, 0.43, 0.32), V3(0.62, 0.62, 0.64), V3(0.18, 0.17, 0.17),
+                                   V3(0.5, 0.33, 0.22), V3(0.72, 0.42, 0.2), V3(0.76, 0.62, 0.42), V3(0.6, 0.5, 0.36), V3(0.95, 0.95, 0.95)]
+    static func wolfVariant(_ b: Biome) -> Int {
+        switch b {
+        case .forest: return 1
+        case .snowyTaiga: return 2
+        case .oldGrowthPineTaiga: return 3
+        case .oldGrowthSpruceTaiga: return 4
+        case .sparseJungle: return 5
+        case .savannaPlateau: return 6
+        case .woodedBadlands: return 7
+        case .grove: return 8
+        default: return 0
+        }
+    }
 }
 
 extension Game {
