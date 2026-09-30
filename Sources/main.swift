@@ -555,7 +555,7 @@ enum Snapshot {
                 game.health = 20
                 if reached < 0 && simd_length(z.pos - to) < 1.6 { reached = Float(i) * 0.05 }
                 if i % 20 == 0 {
-                    print(String(format: "  t=%.0f zombie %.1f,%.1f,%.1f ground %d path %d/%d hp %d", Float(i) * 0.05, z.pos.x - Float(bx), z.pos.y - Float(gy), z.pos.z - Float(bz),
+                    print(String(format: "  t=%.0f zombie %.1f,%.1f,%.1f ground %ld path %ld/%ld hp %ld", Float(i) * 0.05, z.pos.x - Float(bx), z.pos.y - Float(gy), z.pos.z - Float(bz),
                                  z.onGround ? 1 : 0, z.path.index, z.path.nodes.count, z.health))
                 }
             }
