@@ -31,6 +31,7 @@ final class MusicDirector {
     var mood: MusicMood? = nil              // mood of the piece being played
     var pieces = 0
     var silence: Float = 0                  // seconds of forced silence after a fade-out
+    var lastWant: MusicMood? = nil
 }
 
 extension Game {
@@ -354,6 +355,9 @@ extension Game {
             m.wait = want == .title ? Float.random(in: 8...20) : Float.random(in: 360...900)
         }
         if want == .title && m.wait > 2 { m.wait = 2 }
+        // Arriving in the Emberdeep or the Hollow (or a boss appearing) with nothing playing: score it soon.
+        if want != m.lastWant && hard.contains(want) && m.wait > 6 { m.wait = Float.random(in: 3...6) }
+        m.lastWant = want
         if m.silence > 0 { m.silence -= dt; return }
         m.wait -= dt
         if m.wait <= 0 && AudioSettings.volume(.music) > 0 {
