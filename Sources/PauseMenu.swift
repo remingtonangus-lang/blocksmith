@@ -28,6 +28,7 @@ final class PauseMenu: Menu {
     var selWorld = ""              // world picked on the worlds page
     var renameText = ""
     var worlds: [WorldStore.Info] = []
+    var confirmReset = false              // the confirm page is asking about options, not a world
     var binding: KeyBinds.Action? = nil   // waiting for a key press on the Key Bindings page
 
     init(game: Game) {
@@ -41,7 +42,7 @@ final class PauseMenu: Menu {
     static let valueIDs: Set<String> = ["sens", "invert", "autojump", "fov", "lookx", "looky", "accel", "dead", "aim", "rumble", "southpaw",
                                         "sneaktoggle", "autosprint", "glyphs", "rd", "fullscreen", "launchfs", "vsync", "fps", "rscale",
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
-                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair"]
+                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes"]
 
     static let help: [String: String] = [
         "resume": "Return to the game.",
@@ -82,6 +83,8 @@ final class PauseMenu: Menu {
         "mode": "Survival: health, hunger, mining. Creative: fly and build freely.",
         "difficulty": "How much damage mobs do and whether hunger can kill.",
         "crosshair": "Bold is thicker with a dark edge, easy to see on a TV. Dot is a small square.",
+        "flashes": "Reduced makes the red damage flash and portal tint faint.",
+        "resetask": "Put every option and key binding back to its default.",
         "hidehud": "Hide the hotbar and crosshair (screenshots). F1 on the keyboard.",
         "debug": "Position, biome, frame rate and chunk details (F3).",
         "quit": "Save the world and close Blocksmith.",
@@ -146,11 +149,13 @@ final class PauseMenu: Menu {
                         ("Safe Area: \(st.safeArea)%", "safe"), ("Button Hints: \(on(st.buttonHints))", "hints"),
                         ("Text Background: \(st.textBackground == 0 ? "Off" : pct(st.textBackground))", "textbg"),
                         ("Crosshair: \(["Classic", "Bold", "Dot"][max(0, min(2, st.crosshair))])", "crosshair"),
-                        ("Hide HUD: \(on(g.hideHUD))", "hidehud"), ("Debug Info: \(on(g.showDebug))", "debug")]
+                        ("Hide HUD: \(on(g.hideHUD))", "hidehud"), ("Debug Info: \(on(g.showDebug))", "debug"),
+                        ("Reset Options...", "resetask")]
             case .accessibility:
                 rows = [("Subtitles: \(on(st.subtitles))", "subtitles"), ("Colorblind-Safe Colors: \(on(st.colorblind))", "colorblind"),
                         ("Text Background: \(st.textBackground == 0 ? "Off" : pct(st.textBackground))", "textbg"),
                         ("Tutorial Hints: \(on(st.tutorialHints))", "tutorial"),
+                        ("Screen Flashes: \(st.screenEffects ? "Full" : "Reduced")", "flashes"),
                         ("Crosshair: \(["Classic", "Bold", "Dot"][max(0, min(2, st.crosshair))])", "crosshair"),
                         ("Button Prompts: \(["Auto", "Controller", "Keyboard"][max(0, min(2, st.glyphStyle))])", "glyphs"),
                         ("Vibration: \(st.rumble == 0 ? "Off" : pct(st.rumble))", "rumble")]
@@ -177,6 +182,10 @@ final class PauseMenu: Menu {
             subtitle = info.map { WorldStore.describe($0) } ?? ""
             rows = [(selWorld == currentWorld ? "Continue" : "Play", "w_play"), ("Rename...", "w_rename"), ("Copy", "w_copy"),
                     ("Delete...", "w_delete"), ("Back", "back")]
+        case .confirm where confirmReset:
+            title = "Reset Options?"
+            subtitle = "Every option and key binding goes back to its default."
+            rows = [("Cancel", "back"), ("Reset", "reset_yes")]
         case .confirm:
             title = "Delete World?"
             subtitle = "\"\(selWorld)\" will be moved to the Trash."
@@ -294,6 +303,7 @@ final class PauseMenu: Menu {
         case "bindreset": KeyBinds.reset(); g.onToast?("Keys reset to defaults")
         case "worlds": go(.worlds); resetCursor = true
         case "back":
+            confirmReset = false
             page = stack.popLast() ?? (page == .title ? .title : .main)
             editing = nil
             scroll = 0
@@ -382,6 +392,15 @@ final class PauseMenu: Menu {
         case "safe": st.safeArea = step([0, 2, 4, 6, 8, 10], st.safeArea)
         case "hints": st.buttonHints.toggle()
         case "textbg": st.textBackground = step([0, 0.25, 0.5, 0.75], st.textBackground)
+        case "flashes": st.screenEffects.toggle()
+        case "resetask": go(.confirm); confirmReset = true; resetCursor = true
+        case "reset_yes":
+            st.resetAll(g)
+            g.appAction?("video")
+            confirmReset = false
+            page = stack.popLast() ?? .options
+            g.onToast?("Options reset to defaults")
+            resetCursor = true
         case "crosshair": st.crosshair = step([0, 1, 2], st.crosshair)
         case "hidehud": g.hideHUD.toggle()
         case "debug": g.showDebug.toggle()

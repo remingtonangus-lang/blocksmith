@@ -109,6 +109,12 @@ enum PadTest {
         tap(g, "down right")
         check(Settings.shared.lookX > lx, "Look Speed X steps up on the Controller page")
         tap(g, "left")
+        // Holding the D-pad repeats: ~0.9 s held should move several rows, not one.
+        let startRow = pm.scroll + g.menuCursor
+        var hold = PadSnapshot(); hold.down = true
+        for _ in 0..<54 { frame(g, hold) }
+        frame(g)
+        check(pm.scroll + g.menuCursor - startRow >= 5, "holding D-pad down repeats (\(pm.scroll + g.menuCursor - startRow) rows)")
         tap(g, "down*20")
         check(pm.scroll > 0, "long Controller page scrolls with the cursor")
         tap(g, "b")

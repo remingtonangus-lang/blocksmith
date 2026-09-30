@@ -47,6 +47,19 @@ final class Settings {
     @Pref("colorblind") var colorblind = false       // blue/orange instead of green/red cues
     @Pref("tutorialHints") var tutorialHints = true
     @Pref("tutorialStep") var tutorialStep = 0       // how far the first-steps hints have got
+    @Pref("screenEffects") var screenEffects = true  // full-strength red damage flash and portal tint (off = faint)
+
+    // Options > Interface > Reset Options: everything back to the defaults (key bindings included).
+    func resetAll(_ g: Game) {
+        lookX = 1; lookY = 1; lookAccel = 0.5; aimAssist = true; rumble = 0.7; southpaw = false; sneakToggle = false; autoSprint = true
+        launchFullscreen = true; vsync = true; fpsCap = 0; renderScale = 1
+        safeArea = 0; buttonHints = true; glyphStyle = 0; textBackground = 0; crosshair = 0
+        subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true
+        g.fovSetting = 70; g.sensitivity = 1; g.invertY = false; g.autoJump = false; g.deadZone = 0.15
+        g.volumeSetting = 0.8; g.musicVolume = 1
+        HudLayout.userScale = 0; HudLayout.couch = false
+        KeyBinds.reset()
+    }
 
     // Colour for "good / available" and "bad / unavailable" cues, colourblind-safe when asked.
     var goodColor: V4 { colorblind ? V4(0.35, 0.65, 1, 1) : V4(0.5, 1, 0.13, 1) }
