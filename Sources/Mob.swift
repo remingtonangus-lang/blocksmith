@@ -1328,12 +1328,12 @@ final class MobManager {
             }
             if m.hurtSound {
                 m.hurtSound = false
-                if MobVoice.profile(m.kind).family != .silent { game.sfx(.mob(m.kind, .hurt), 0.8, at: m.pos + V3(0, m.height * 0.8, 0)) }
+                if MobVoice.profile(m.kind).family != .silent { game.sfx(m.baby ? .babyMob(m.kind, .hurt) : .mob(m.kind, .hurt), 0.8, at: m.pos + V3(0, m.height * 0.8, 0)) }
             }
             if m.callTimer <= 0 {
                 m.callTimer = Float.random(in: 8...24)
                 if m.kind != .creeper && m.kind != .magmaCube && MobVoice.profile(m.kind).family != .silent {
-                    game.sfx(.mob(m.kind, .ambient), 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
+                    game.sfx(m.baby ? .babyMob(m.kind, .ambient) : .mob(m.kind, .ambient), m.baby ? 0.45 : 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
                 }
             }
         }

@@ -65,6 +65,7 @@ enum Snd: Hashable {
     case birdCall, owlHoot, caveAmbience, caveDrip, caveWind, netherMood, underwaterMood, thunder, lightning, windGust
     // Every mob: ambient call, hurt, death.
     case mob(MobKind, MobSound)
+    case babyMob(MobKind, MobSound)   // young animals and villagers: the same voice, higher and lighter
     // Mob specials, bosses and villagers
     case creeperHiss, fireball, evokerCast, fangs, raidHorn, mobVoidwalker, teleport
     case dragonGrowl, dragonFlap, dragonShoot, dragonDeath, crystalBreak, witherSpawn, witherShoot, witherDeath
@@ -79,7 +80,7 @@ enum Snd: Hashable {
 
     var category: SoundCategory {
         switch self {
-        case .mob(let k, _): return k.hostile ? .hostile : .friendly
+        case .mob(let k, _), .babyMob(let k, _): return k.hostile ? .hostile : .friendly
         case .mobCow, .mobSheep, .mobChicken, .mobPig, .mobVillager, .mobGolem, .mobWolf, .mobCat, .mobHorse, .mobLlama, .mobBee,
              .villagerYes, .villagerNo, .villagerTrade, .villagerWork, .villagerCelebrate, .beePollinate, .allayItem, .foxSniff, .catPurr, .wolfPant,
              .parrotMimic, .dolphinJump, .turtleEggCrack, .frogTongue, .goatRam, .zombieCure:
@@ -129,6 +130,7 @@ enum Snd: Hashable {
         case .armorEquip(let t): return "armor_equip_\(t)"
         case .villagerWork(let p): return "villager_work_\(p)"
         case .mob(let k, let s): return "mob_\(k.key)_\(s.name)"
+        case .babyMob(let k, let s): return "baby_\(k.key)_\(s.name)"
         case .note(let i, let p): return "note_\(i)_\(p)"
         default: return String(describing: self)
         }
@@ -140,9 +142,9 @@ enum Snd: Hashable {
         case .step, .hit: return 0.02...0.7
         case .breakBlock, .place, .fall: return 0.08...1.3
         case .click, .uiHover, .uiBack, .lever, .buttonWood, .buttonStone, .plateOn, .plateOff, .tripwire, .railClick: return 0.02...0.5
-        case .mob(_, .death), .playerDeath, .dragonDeath, .witherDeath: return 0.15...8
-        case .mob(_, .hurt): return 0.04...2.5
-        case .mob(_, .ambient): return 0.05...5
+        case .mob(_, .death), .babyMob(_, .death), .playerDeath, .dragonDeath, .witherDeath: return 0.15...8
+        case .mob(_, .hurt), .babyMob(_, .hurt): return 0.04...2.5
+        case .mob(_, .ambient), .babyMob(_, .ambient): return 0.05...5
         case .witherSpawn, .wardenEmerge, .wardenSonicCharge, .raidHorn, .goatHorn, .endPortalOpen, .beaconActivate, .thunder, .explode, .bellResonate, .caveAmbience,
              .netherMood, .underwaterMood, .caveWind, .totem, .elderCurse, .tntFuse, .fireworkTwinkle, .enchant, .villagerCelebrate, .levelUp, .fireworkBlastLarge, .lightning:
             return 0.5...12
@@ -196,6 +198,7 @@ final class SoundBank {
         for k in MobKind.allCases where MobVoice.profile(k).family != .silent {
             for m in MobSound.allCases { s.append(.mob(k, m)) }
         }
+        for k in [MobKind.cow, .pig, .sheep, .chicken, .villager, .wolf, .cat, .horse, .fox, .goat] { s.append(.babyMob(k, .ambient)) }
         return s
     }
 
@@ -216,7 +219,7 @@ final class SoundBank {
         switch s {
         case .step, .hit, .breakBlock, .place, .fall, .attack, .attackSweep, .eat, .lavaPop, .caveDrip, .villagerWork: return 3
         case .birdCall: return 6
-        case .mob(_, .ambient), .mob(_, .hurt): return 2
+        case .mob(_, .ambient), .mob(_, .hurt), .babyMob: return 2
         case .note: return 1
         case _ where s.isLoop: return 1
         case _ where s.expectedSeconds.upperBound >= 5: return 1

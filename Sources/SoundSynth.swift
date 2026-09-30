@@ -565,8 +565,8 @@ struct Synth {
         let loud: Float
         switch s {
         case .hurt, .hurtFall, .hurtFire, .hurtDrown: loud = 0.5
-        case .mob(_, .ambient): loud = 0.55
-        case .mob(_, .hurt), .mob(_, .death): loud = 0.6
+        case .mob(_, .ambient), .babyMob(_, .ambient): loud = 0.55
+        case .mob(_, .hurt), .mob(_, .death), .babyMob: loud = 0.6
         case .mobCow, .mobSheep, .mobZombie, .mobVoidwalker, .mobPig, .mobChicken, .mobVillager: loud = 0.5
         case .click, .uiHover, .uiBack: loud = 0.7
         case _ where s.isLoop: loud = 0.8
@@ -831,6 +831,7 @@ struct Synth {
 
         // Mobs and specials (SoundMobs.swift)
         case .mob(let k, let m): out = MobVoice.render(&self, k, m, pitch: p)
+        case .babyMob(let k, let m): out = MobVoice.render(&self, k, m, pitch: p * 1.45)
         case .mobCow: out = MobVoice.render(&self, .cow, .ambient, pitch: p)
         case .mobSheep: out = MobVoice.render(&self, .sheep, .ambient, pitch: p)
         case .mobChicken: out = MobVoice.render(&self, .chicken, .ambient, pitch: p)

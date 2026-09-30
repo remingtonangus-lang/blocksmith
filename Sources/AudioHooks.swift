@@ -108,7 +108,7 @@ extension Game {
         case .wither: sfx(.witherDeath, 2, at: at)
         case .endCrystal: sfx(.crystalBreak, 1.2, at: at)
         default:
-            if MobVoice.profile(m.kind).family != .silent { sfx(.mob(m.kind, .death), 0.9, at: at) }
+            if MobVoice.profile(m.kind).family != .silent { sfx(m.baby ? .babyMob(m.kind, .death) : .mob(m.kind, .death), 0.9, at: at) }
         }
     }
 }
