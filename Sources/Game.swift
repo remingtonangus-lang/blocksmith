@@ -794,6 +794,7 @@ final class Game {
         }
 
         // Mining
+        if survival, breakNow, let t = target, teleportEgg(t.hit) { swing = 1; mining = nil; return }
         if let t = target, breakHeld {
             let b = world.block(t.hit.x, t.hit.y, t.hit.z)
             if !survival {
@@ -939,6 +940,7 @@ final class Game {
         if useBucket() { return }
         if useNow && placeBoat() { return }
         guard let t = target else { return }
+        if useNow && !(input.shift || p.b) && teleportEgg(t.hit) { swing = 1; return }
         if useNow && !(input.shift || p.b) && isCircuitInteractive(t.hit) && useCircuit(t.hit) { swing = 1; return }
         if isInteractive(t.hit) && !(input.shift || p.b) && useNow {
             openBlock(t.hit)
@@ -1389,7 +1391,11 @@ final class Game {
                 drops.spawn(ItemStack(Items.id(["iron_ingot", "carrot", "potato"][Int.random(in: 0...2)]), 1), at: at)
             }
             let r = Float.random(in: 0..<1)
-            if m.kind == .blaze && m.killedByPlayer && r < 0.5 { drops.spawn(ItemStack(Items.id("blaze_rod"), 1), at: at) }
+            if m.kind == .blaze && m.killedByPlayer {
+                // Cinder rods: 0-1, +0-1 per Looting level, only from player kills (reference loot table).
+                let n = Int.random(in: 0...1) + (looting > 0 ? Int.random(in: 0...looting) : 0)
+                if n > 0 { drops.spawn(ItemStack(Items.id("blaze_rod"), n), at: at) }
+            }
             if m.kind == .magmaCube && m.slimeSize > 1 && r < 0.25 { drops.spawn(ItemStack(Items.id("magma_cream"), 1), at: at) }
             if m.kind == .creeper && m.lastHitBySkeleton, let d = MusicDiscs.creeperDrops.randomElement(), Items.has("music_disc_\(d)") {
                 drops.spawn(ItemStack(Items.id("music_disc_\(d)"), 1), at: at)

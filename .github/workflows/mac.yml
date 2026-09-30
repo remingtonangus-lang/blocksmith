@@ -106,6 +106,13 @@ jobs:
           git -c user.name="blocksmith-ci" -c user.email="ci@users.noreply.github.com" commit -qm "Snapshots for ${GITHUB_SHA}"
           git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ci-snaps
 
+      - name: Report
+        if: always()
+        run: |
+          echo "== build errors"; grep -E "error:" build.log | head -20 || true
+          echo "== playthrough"; grep -E "^(FAIL|playthrough)|Fatal|fatal error" playthrough.log | head -40 || true
+          echo "== snapshots"; grep -E "Fatal|fatal error|Abort|Segmentation" snap.log | head -10 || true
+
       - name: Upload artifact
         if: always()
         uses: actions/upload-artifact@v4

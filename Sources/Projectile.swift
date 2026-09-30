@@ -204,6 +204,15 @@ final class ProjectileManager {
                 }
                 if blockT == .greatestFiniteMagnitude { blockT = len }
             }
+            if hitT < blockT, let m = hitMob, a.trident == nil,
+               (m.kind == .enderDragon && m.phase == 4) || (m.kind == .wither && m.phase == 0 && m.health <= m.spec.health / 2) {
+                // A perched wyrm and an armoured Blight (below half health) shrug arrows off: they bounce away.
+                a.pos += dir * max(0, hitT - 0.05)
+                a.vel = V3(-a.vel.x * 0.1, 1.5, -a.vel.z * 0.1)
+                a.hitMobs.append(ObjectIdentifier(m))
+                g.sfx(.arrowHit, 0.5, at: a.pos)
+                continue
+            }
             if hitT < blockT {
                 let speedPerTick = simd_length(a.vel) / 20
                 var dmg = Int(ceilf(speedPerTick * a.damage))

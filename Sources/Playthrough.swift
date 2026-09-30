@@ -761,15 +761,34 @@ final class Playthrough {
         check(rift != nil, "rift: a hollow rift gateway opened on the ring")
         if rift == nil { info("gateways counter \(game.gateways)") }
 
-        // Egg.
+        // Egg: a hit makes it hop away (reference); it's collected by making it fall onto a torch.
         section("egg")
-        if let e = eggPos {
-            _ = hold("diamond_pickaxe")
-            game.portalCooldown = 30
-            let got = mine(e, maxSeconds: 10)
-            if got { game.portalCooldown = 30; collect(near: center(e), 8) }
+        if var e = eggPos {
+            game.portalCooldown = 60
+            var hopped = 0
+            for _ in 0..<8 where count("dragon_egg") == 0 {
+                holdNothing()
+                standBeside(e)
+                game.input.leftClicked = true
+                game.input.leftDown = true
+                tick(0.05, pin: game.player.pos)
+                game.input.leftDown = false
+                tick(3)
+                guard let ne = findBlock(near: e, radius: 20, yRange: max(1, e.y - 30)...min(CH - 2, e.y + 10), { $0 == "dragon_egg" }) else { break }
+                if ne != e { hopped += 1 }
+                e = ne
+                // Torch trick: the egg must rest on something breakable with room for a torch under it.
+                let under = e + IVec3(0, -1, 0), below2 = e + IVec3(0, -2, 0)
+                guard carvable(under), Blocks.collide[Int(world.block(under.x, under.y, under.z))], carvable(below2),
+                      Blocks.collide[Int(world.block(below2.x, below2.y - 1, below2.z))] else { continue }
+                world.setBlock(below2.x, below2.y, below2.z, Blocks.id("torch"))
+                _ = hold("diamond_pickaxe")
+                if mine(under, maxSeconds: 10) { tick(2); collect(near: center(under), 8) }
+            }
             game.portalCooldown = 0
-            check(count("dragon_egg") == 1, "egg: collected (\(count("dragon_egg")))")
+            check(hopped > 0, "egg: hitting the egg makes it teleport (\(hopped) hops)")
+            check(count("dragon_egg") == 1, "egg: collected by dropping it onto a torch (\(count("dragon_egg")))")
+            if count("dragon_egg") == 0 { give("dragon_egg", 1, bulk: "egg") }
         }
 
         // Rift: out to the far islands and back.
