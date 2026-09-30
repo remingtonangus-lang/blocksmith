@@ -668,6 +668,7 @@ enum Snapshot {
         do { renderer = try Renderer(device: device, game: game, colorFormat: .bgra8Unorm) }
         catch { print("renderer init failed: \(error)"); return 1 }
         game.target = world.raycast(game.player.eye, game.player.look, maxDist: 5)
+        if CommandLine.arguments.contains("--swim") { game.player.swimming = true }
         _ = renderer.renderToPNG(path: out, width: w, height: h) // warm-up (pipeline + residency)
         let gpu = renderer.renderToPNG(path: out, width: w, height: h)
 
