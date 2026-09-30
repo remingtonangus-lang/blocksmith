@@ -110,6 +110,12 @@ enum Snapshot {
                 game.player.pos.y = Float(SEA) - 0.35
             }
         }
+        if CommandLine.arguments.contains("--fast") {
+            // Fast graphics for this shot only: keep the user's saved preference untouched.
+            let saved = UserDefaults.standard.object(forKey: "fancyGraphics")
+            game.fancyGraphics = false
+            if let s = saved { UserDefaults.standard.set(s, forKey: "fancyGraphics") } else { UserDefaults.standard.removeObject(forKey: "fancyGraphics") }
+        }
         if CommandLine.arguments.contains("--debug") {
             game.showDebug = true
             game.onToast?("Grass Block")
@@ -744,6 +750,10 @@ enum Snapshot {
             game.player.swimming = true
             game.player.pos.y = Float(SEA) - 0.35
             print("swim pose: prone \(game.player.prone) eye \(game.player.eye.y - game.player.pos.y)")
+        }
+        if CommandLine.arguments.contains("--underwater") {
+            // Head under the sea surface (fog, overlay, water seen from below).
+            game.player.pos.y = Float(SEA) - 4
         }
         _ = renderer.renderToPNG(path: out, width: w, height: h) // warm-up (pipeline + residency)
         _ = renderer.renderToPNG(path: out, width: w, height: h)

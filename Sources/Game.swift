@@ -35,6 +35,10 @@ final class Game {
     }
     var appAction: ((String) -> Void)?
     var invertY: Bool = UserDefaults.standard.bool(forKey: "invertY") { didSet { UserDefaults.standard.set(invertY, forKey: "invertY") } }
+    // Graphics: Fancy (sky gradient, water reflections, extra effects) or Fast (the plain renderer). Default Fancy.
+    var fancyGraphics: Bool = UserDefaults.standard.object(forKey: "fancyGraphics") == nil ? true : UserDefaults.standard.bool(forKey: "fancyGraphics") {
+        didSet { UserDefaults.standard.set(fancyGraphics, forKey: "fancyGraphics") }
+    }
     var autoJump: Bool = UserDefaults.standard.bool(forKey: "autoJump") { didSet { UserDefaults.standard.set(autoJump, forKey: "autoJump"); player.autoJump = autoJump } }
     var deadZone: Float = { let v = UserDefaults.standard.float(forKey: "deadZone"); return v > 0 ? v : 0.15 }() {
         didSet { UserDefaults.standard.set(deadZone, forKey: "deadZone") }
@@ -379,6 +383,12 @@ final class Game {
         c = simd_mix(c, grey, V3(repeating: weather.rain * 0.75))
         c = simd_mix(c, V3(0.8, 0.82, 0.9), V3(repeating: min(1, lightningFlash)))
         return c
+    }
+
+    // Colour straight up for the Fancy sky gradient: a deeper blue than the horizon by day, near black at night.
+    var skyZenith: V3 {
+        let c = skyColor
+        return simd_mix(c * V3(0.45, 0.6, 0.92), c, V3(repeating: min(1, weather.rain * 0.6 + lightningFlash)))
     }
 
     // MARK: Hotbar / items

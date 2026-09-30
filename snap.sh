@@ -14,7 +14,12 @@ if [ $# -gt 0 ]; then n="$1"; shift; "$BIN" --snapshot "snaps/$n.png" "$@"; exit
 "$BIN" --snapshot snaps/aerial16_424242.png --seed 424242 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16
 "$BIN" --snapshot snaps/aerial24.png --seed 424242 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 24
 "$BIN" --snapshot snaps/sunset.png  --seed 12345 --yaw 270 --pitch 0   --time 0.47 --up 10
+"$BIN" --snapshot snaps/sunset_fast.png --seed 12345 --yaw 270 --pitch 0 --time 0.47 --up 10 --fast
+"$BIN" --snapshot snaps/sunset_sun.png --seed 12345 --yaw 90 --pitch 4 --time 0.49 --up 10
 "$BIN" --snapshot snaps/night.png   --seed 12345 --yaw 90  --pitch -10 --time 0.75 --up 5
+"$BIN" --snapshot snaps/lake.png --seed 12345 --find ocean --yaw 30 --pitch -6 --time 0.25 --up 2
+"$BIN" --snapshot snaps/lake_glint.png --seed 12345 --find ocean --yaw 90 --pitch -5 --time 0.48 --up 2
+"$BIN" --snapshot snaps/underwater.png --seed 12345 --find ocean --yaw 30 --pitch -10 --time 0.25 --underwater
 "$BIN" --snapshot snaps/down.png    --seed 12345 --yaw 0   --pitch -80 --time 0.25 --up 3
 "$BIN" --snapshot snaps/forest.png  --seed 12345 --find forest --yaw 30 --pitch -28 --time 0.22 --up 22
 "$BIN" --snapshot snaps/forest_in.png --seed 12345 --find forest --yaw 120 --pitch -5 --time 0.22 --up 1

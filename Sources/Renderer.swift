@@ -11,7 +11,9 @@ struct Uniforms {
     var fogColor: V4
     var params: V4
     var sunDir: V4
+    var eye: V4
 }
+struct SkyParams { var invViewProj: float4x4; var zenith: V4; var horizon: V4; var sun: V4 }
 
 struct SimpleVert { var pos: V4; var color: V4 }
 struct HudVert { var pos: V2; var uv: V2; var color: V4; var extra: V4 }
@@ -41,6 +43,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     let mobPipe: MTLRenderPipelineState
     let entityPipe: MTLRenderPipelineState
     let crackPipe: MTLRenderPipelineState
+    let skyPipe: MTLRenderPipelineState
     let starBuf: MTLBuffer
     let starVerts: Int
     let depthWrite: MTLDepthStencilState
@@ -101,6 +104,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         mobPipe = try pipe("mobVS", "mobFS", blend: false)
         entityPipe = try pipe("entityVS", "entityFS", blend: false)
         crackPipe = try pipe("entityVS", "crackFS", blend: true)
+        skyPipe = try pipe("skyVS", "skyFS", blend: false)
 
         // Star field: fixed random directions on a sphere of radius 90 (sky frame, rotated per frame).
         var stars: [SimpleVert] = []
@@ -271,9 +275,24 @@ final class Renderer: NSObject, MTKViewDelegate {
         var u = Uniforms(viewProj: viewProj,
                          fogColor: V4(fogColor, fogStart),
                          params: V4(fogEnd, daylight, Float(game.time.truncatingRemainder(dividingBy: 1000)), underwater ? 1 : 0),
-                         sunDir: V4(game.sunDir, ambient))
+                         sunDir: V4(game.sunDir, ambient),
+                         eye: V4(eye, game.fancyGraphics ? 1 : 0))
 
         enc.setFragmentTexture(texture, index: 0)
+
+        // Fancy sky: gradient dome + sun glow drawn over the clear colour before anything else.
+        if game.fancyGraphics && !underwater && hasSky && game.blindFog == nil {
+            let sd = game.sunDir
+            let dusk = max(0, 1 - abs(sd.y - 0.02) / 0.22)
+            let glow = (dusk * 0.9 + 0.12 * daylight) * (1 - min(1, game.weather.rain))
+            var sp = SkyParams(invViewProj: viewProj.inverse, zenith: V4(game.skyZenith, 0),
+                               horizon: V4(sky, glow), sun: V4(sd, daylight))
+            enc.setRenderPipelineState(skyPipe)
+            enc.setDepthStencilState(depthNone)
+            enc.setCullMode(.none)
+            enc.setFragmentBytes(&sp, length: MemoryLayout<SkyParams>.stride, index: 1)
+            enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+        }
 
         // Sky bodies (camera-relative, no depth)
         do {

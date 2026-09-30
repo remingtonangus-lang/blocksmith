@@ -10,7 +10,8 @@ struct Uniforms {
     float4x4 viewProj;   // projection * rotation-only view (camera-relative rendering)
     float4 fogColor;     // rgb, w = fog start
     float4 params;       // x = fog end, y = daylight, z = time (s), w = underwater
-    float4 sunDir;
+    float4 sunDir;       // xyz, w = dimension ambient
+    float4 eye;          // xyz = camera position (world), w = 1 for Fancy graphics
 };
 
 struct ChunkOut {
@@ -22,6 +23,8 @@ struct ChunkOut {
     float overlay [[flat]];
     float anim [[flat]];
     float dist;
+    float3 rel;
+    float face [[flat]];
 };
 
 constexpr sampler texSampler(filter::nearest, mip_filter::linear, address::repeat);
@@ -83,6 +86,8 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     lit = mix(max(lit, float3(0.035)), float3(1.0), u.sunDir.w);
     o.shade = lit * (faceShade[face] * aoCurve[ao]);
     o.dist = length(rel);
+    o.rel = rel;
+    o.face = float(face);
     return o;
 }
 
@@ -121,8 +126,55 @@ fragment float4 waterFS(ChunkOut in [[stage_in]],
     float2 uv = in.uv + float2(t * 0.03, t * 0.017);
     float4 c = tex.sample(texSampler, uv, uint(in.layer));
     float3 rgb = c.rgb * in.tint * max(in.shade, float3(0.05));
+    float a = c.a;
+    if (u.eye.w > 0.5 && in.face < 2.5 && in.face > 1.5 && u.params.w < 0.5) {
+        // Fancy water surface: grazing views reflect more sky (Fresnel), and small ripples catch a sun glint.
+        float3 v = normalize(in.rel);
+        float3 wp = in.rel + u.eye.xyz;
+        float2 rip = float2(sin(wp.x * 1.7 + wp.z * 0.9 + t * 1.6), sin(wp.z * 2.1 - wp.x * 0.7 + t * 1.3)) * 0.06;
+        float3 n = normalize(float3(rip.x, 1.0, rip.y));
+        float fres = pow(1.0 - saturate(-v.y), 3.0);
+        float lit = max(in.shade.x, max(in.shade.y, in.shade.z));
+        rgb = mix(rgb, u.fogColor.rgb * (0.6 + 0.4 * lit), fres * 0.45);
+        float3 r = reflect(v, n);
+        float spec = pow(saturate(dot(r, normalize(u.sunDir.xyz))), 180.0) * u.params.y * lit;
+        rgb += float3(1.0, 0.95, 0.8) * spec * 0.9;
+        a = mix(a, 1.0, fres * 0.55);
+    }
     float f = smoothstep(u.fogColor.w, u.params.x, in.dist);
-    return float4(mix(rgb, u.fogColor.rgb, f), mix(c.a, 1.0, f * 0.8));
+    return float4(mix(rgb, u.fogColor.rgb, f), mix(a, 1.0, f * 0.8));
+}
+
+// Fancy sky: one full-screen triangle; the fragment shader shades the view direction with a
+// zenith/horizon gradient, a warm glow around the sun at dawn/dusk and a faint haze around the sun.
+struct SkyParams {
+    float4x4 invViewProj;
+    float4 zenith;      // rgb
+    float4 horizon;     // rgb (= terrain fog colour), w = sun glow strength
+    float4 sun;         // xyz = sun direction, w = daylight
+};
+struct SkyOut { float4 pos [[position]]; float2 ndc; };
+
+vertex SkyOut skyVS(uint vid [[vertex_id]]) {
+    float2 p = float2(vid == 1 ? 3.0 : -1.0, vid == 2 ? 3.0 : -1.0);
+    SkyOut o;
+    o.pos = float4(p, 1.0, 1.0);
+    o.ndc = p;
+    return o;
+}
+
+fragment float4 skyFS(SkyOut in [[stage_in]], constant SkyParams& s [[buffer(1)]]) {
+    float4 w = s.invViewProj * float4(in.ndc, 1.0, 1.0);
+    float3 d = normalize(w.xyz / w.w);
+    float h = pow(saturate(d.y), 0.6);
+    float3 col = mix(s.horizon.rgb, s.zenith.rgb, h);
+    if (d.y < 0.0) { col = mix(s.horizon.rgb, s.horizon.rgb * 0.75, saturate(-d.y * 2.5)); }
+    float sd = saturate(dot(d, s.sun.xyz));
+    float band = 1.0 - saturate(abs(d.y) * 3.0);                 // the glow hugs the horizon
+    float3 warm = float3(1.0, 0.55, 0.25);
+    col += warm * pow(sd, 5.0) * s.horizon.w * (0.35 + 0.65 * band);
+    col += float3(1.0, 0.95, 0.85) * pow(sd, 24.0) * 0.18 * s.sun.w;
+    return float4(col, 1.0);
 }
 
 struct SimpleVert { float4 pos; float4 color; };
