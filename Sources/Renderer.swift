@@ -357,6 +357,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.writeBeams(&wr, eye: eye)
                 game.writeWeather(&wr, eye: eye)
                 game.writeFalling(&wr, eye: eye)
+                game.writeDecor(&wr, eye: eye)
                 game.writeBobber(&wr, eye: eye, right: right, up: -up)
                 game.particles.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight)
                 let nItems = wr.n
@@ -773,6 +774,18 @@ final class Renderer: NSObject, MTKViewDelegate {
                     text(t, o.x + 168 * s - textWidth(t, s), o.y + 69 * s, s, ok ? V4(0.5, 1, 0.13, 1) : V4(1, 0.38, 0.38, 1))
                 }
             }
+            if let sm = m as? SignMenu {
+                // The sign board with its four lines; the edited line shows a cursor.
+                rect(o.x + 28 * s, o.y + 20 * s, 120 * s, 60 * s, V4(0.62, 0.48, 0.28, 1))
+                for (i, line) in sm.be.lines.enumerated() {
+                    let caret = i == sm.line && Int(game.clock * 2) % 2 == 0 ? "_" : ""
+                    let t = line + caret
+                    text(t, o.x + 88 * s - textWidth(line, s) / 2, o.y + Float(26 + i * 12) * s, s, V4(0.08, 0.06, 0.04, 1), shadow: false)
+                }
+                let b = sm.slots[0]
+                rect(o.x + Float(b.x) * s, o.y + Float(b.y) * s, 50 * s, 16 * s, game.menuHover === b ? V4(0.7, 0.7, 0.8, 1) : V4(0.5, 0.5, 0.55, 1))
+                text("Done", o.x + Float(b.x + 13) * s, o.y + Float(b.y + 4) * s, s)
+            }
             if let sc = m as? StonecutterMenu {
                 rect(o.x + 50 * s, o.y + 13 * s, 68 * s, 56 * s, V4(0.35, 0.35, 0.35, 1))
                 for (i, opt) in sc.options.enumerated() {
@@ -984,6 +997,34 @@ final class Renderer: NSObject, MTKViewDelegate {
                          [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)], V4(1, 1, 1, 1), Float(Tex.id("effect_" + e.key)))
                 }
                 if a.amp > 0 { text(Effect.roman(a.amp + 1), bx + 14 * s, by + 15 * s, s) }
+            }
+        }
+
+        // A held filled map is drawn above the hotbar.
+        if Items.key(game.held.item) == "filled_map", let md = game.maps[game.held.tag] {
+            let px = max(1, floor(s)), size = 128 * px
+            let mx = floor((W - size) / 2), my = L.hotbarY0 - size - 34 * s
+            rect(mx - 6 * s, my - 6 * s, size + 12 * s, size + 12 * s, V4(0.86, 0.8, 0.62, 1))
+            rect(mx, my, size, size, V4(0.78, 0.72, 0.55, 1))
+            for z in 0..<128 {
+                var x = 0
+                while x < 128 {
+                    let c = md.colors[x + z * 128]
+                    var e = x + 1
+                    while e < 128 && md.colors[e + z * 128] == c { e += 1 }
+                    if c != 0 {
+                        rect(mx + Float(x) * px, my + Float(z) * px, Float(e - x) * px, px,
+                             V4(Float((c >> 16) & 255) / 255, Float((c >> 8) & 255) / 255, Float(c & 255) / 255, 1))
+                    }
+                    x = e
+                }
+            }
+            // The player marker.
+            let per = Float(1 << md.scale)
+            let ppx = (game.player.pos.x - Float(md.cx)) / per + 64, ppz = (game.player.pos.z - Float(md.cz)) / per + 64
+            if ppx >= 0 && ppx < 128 && ppz >= 0 && ppz < 128 {
+                rect(mx + ppx * px - 2 * px, my + ppz * px - 2 * px, 4 * px, 4 * px, V4(1, 1, 1, 1))
+                rect(mx + ppx * px - px, my + ppz * px - px, 2 * px, 2 * px, V4(0.1, 0.1, 0.1, 1))
             }
         }
 

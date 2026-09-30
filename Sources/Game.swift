@@ -91,6 +91,8 @@ final class Game {
     var timeSinceRest: Float = 0
     var anchorSpawn: IVec3?          // charged respawn anchor in the Nether
     var jukeboxes: [JukeboxPlayer] = []
+    var maps: [Int: MapData] = [:]
+    var mapRow = 0
     var brushProgress: Float = 0
     var shriekCooldown = 0
     var warningLevel = 0
@@ -213,6 +215,7 @@ final class Game {
         dragonKilled = m.dragonKilled ?? false
         gateways = m.gateways ?? 0
         seenCredits = m.seenCredits ?? false
+        if let s = save, let d = try? Data(contentsOf: s.dir.appendingPathComponent("maps.json")), let mm = try? JSONDecoder().decode([Int: MapData].self, from: d) { maps = mm }
         effects.load(m.effects)
         absorption = m.absorption ?? 0
         if let e = m.enchantSeed { enchantSeed = e }
@@ -237,6 +240,7 @@ final class Game {
         guard persistent, let s = save else { return }
         world.saveAll()
         mobs.save(to: world.save)
+        if let d = try? JSONEncoder().encode(maps) { try? d.write(to: s.dir.appendingPathComponent("maps.json"), options: .atomic) }
         s.saveMeta(meta)
     }
 
@@ -486,6 +490,7 @@ final class Game {
                 }
             }
         }
+        m.tick()
         if !input.typed.isEmpty { m.typed(input.typed) }
         if (input.tapped(Key.e) && !m.capturesText) || input.tapped(Key.esc) || (p.b && !q.b) || (p.view && !q.view) { closeMenu() }
     }
@@ -642,6 +647,13 @@ final class Game {
         }
         if breakNow { swing = 1 }
         if breakNow && (projectiles.deflect(from: player.eye, look: player.look) || punchBullet()) { attackTimer = 0; sfx(.attack, 0.7); return }
+        // Punching a filled item frame takes the item out first.
+        if breakNow, let t = target, Blocks.shape[Int(world.block(t.hit.x, t.hit.y, t.hit.z))] == "frame", let be = world.blockEntities[t.hit], !be.container[0].isEmpty {
+            drops.spawn(be.container[0], at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
+            be.container[0] = .empty
+            sfx(.place(.wood), 0.5)
+            return
+        }
         if let m = mobHit {
             mining = nil
             if useNow && useItemOnMob(m) { swing = 1; return }
@@ -805,6 +817,7 @@ final class Game {
             bowCharge = 0
         }
         if useNow && throwHeld() { return }
+        if useNow && useEmptyMap() { swing = 1; return }
         if useNow {
             switch Items.key(h.item) {
             case "snowball": throwItem(.snowball); return
@@ -915,6 +928,22 @@ final class Game {
             let f = t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))
             id = blockItem + BlockID(f)
         case "lantern": id = blockItem + (t.normal.y == -1 ? 1 : 0)
+        case "sign":
+            if t.normal.y == 0 {
+                let f = t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))
+                id = blockItem + BlockID(4 + f)
+            } else if t.normal.y == 1 {
+                id = blockItem + BlockID(facing)
+            } else { return }
+        case "frame":
+            if t.normal.y == 0 { id = blockItem + BlockID(t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))) }
+            else { id = blockItem + (t.normal.y == 1 ? 4 : 5) }
+        case "painting":
+            guard t.normal.y == 0, useNow else { return }
+            let f = t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))
+            placePainting(at: at, facing: f)
+            if Blocks.groupBase[Int(world.block(at.x, at.y, at.z))] == blockItem { consumeHeld(); swing = 1; sfx(.place(.wood), 0.6) }
+            return
         case "skull":
             if t.normal.y == 0 {
                 let f = t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))
@@ -957,6 +986,7 @@ final class Game {
             }
             if key == "trapped_chest" { world.blockEntities[at] = BlockEntity(.chest) }
             if key == "lightning_rod" { lightningRods.append(at) }
+            if Blocks.shape[Int(id)] == "sign" { openSignEditor(at) }
             if Rails.isRail(id) { Rails.autoShape(world, at) }
             if key == "wither_skeleton_skull" { trySummonWither(at) }
             if key == "carved_pumpkin" || key == "jack_o_lantern" { trySummonGolem(at) }
@@ -988,6 +1018,7 @@ final class Game {
         return k == "crafting_table" || k == "furnace" || k == "lit_furnace" || k == "chest" || k == "brewing_stand"
             || k == "enchanting_table" || k.hasSuffix("anvil") || k == "beacon" || k == "smithing_table" || k == "stonecutter" || k == "grindstone"
             || k == "ender_chest" || k == "trapped_chest" || k.hasSuffix("shulker_box") || k == "cake" || k.hasSuffix("candle")
+            || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table"
     }
 
     // Opens/closes a wooden door (both halves), trapdoor or fence gate.
@@ -1047,6 +1078,9 @@ final class Game {
             let be = world.blockEntities[p] ?? BlockEntity(.shulker)
             world.blockEntities[p] = be
             openMenu(ShulkerMenu(game: self, entity: be))
+        case "item_frame", "glow_item_frame": _ = useItemFrame(p)
+        case "cartography_table": openMenu(CartographyMenu(game: self))
+        case _ where k.hasSuffix("_sign"): openSignEditor(p)
         case "cake":
             // Eat a slice: 2 hunger, 0.4 saturation; seven slices.
             guard !survival || hunger < 20 else { return }
@@ -1552,6 +1586,7 @@ final class Game {
         bobberTick(Float(dt))
         fallingTick(Float(dt))
         jukeboxTick(Float(dt))
+        mapTick()
         weatherTick(Float(dt))
         world.rainLevel = wetWorld ? weather.rain : 0
         raidTimer += Float(dt)

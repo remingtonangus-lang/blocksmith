@@ -373,6 +373,14 @@ enum Recipes {
         }
         r.append(shaped(["#", "#"], ["#": "tuff_slab"], "chiseled_tuff"))
         r.append(shaped(["#", "#"], ["#": "tuff_brick_slab"], "chiseled_tuff_bricks"))
+        for w in BlockRegistry.doorWoods where Items.has("\(w)_planks") {
+            r.append(shaped(["###", "###", " S "], ["#": "\(w)_planks", "S": "stick"], "\(w)_sign", 3))
+        }
+        r.append(shaped(["SSS", "SLS", "SSS"], ["S": "stick", "L": "leather"], "item_frame"))
+        r.append(shapeless(["item_frame", "glow_ink_sac"], "glow_item_frame"))
+        r.append(shaped(["SSS", "SWS", "SSS"], ["S": "stick", "W": "white_wool"], "painting"))
+        r.append(shaped(["PPP", "PCP", "PPP"], ["P": "paper", "C": "compass"], "map"))
+        r.append(shapeless(["sugar_cane", "sugar_cane", "sugar_cane"], "paper", 3))
         // Brewing and enchanting.
         r.append(shaped([" B ", "###"], ["B": "blaze_rod", "#": "#stone_tool"], "brewing_stand"))
         r.append(shaped([" B ", "D#D", "###"], ["B": "book", "D": "diamond", "#": "obsidian"], "enchanting_table"))

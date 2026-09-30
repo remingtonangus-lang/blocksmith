@@ -298,6 +298,34 @@ enum Snapshot {
             game.beaconTick()
             print("beacon level \(be.level), player speed \(game.effects.level(.speed))")
         }
+        if CommandLine.arguments.contains("--map") {
+            // Hold a freshly explored map.
+            game.inventory.main[game.selected] = ItemStack(Items.id("map"), 1)
+            _ = game.useEmptyMap()
+            for _ in 0..<256 { game.mapTick() }
+        }
+        if CommandLine.arguments.contains("--decor") {
+            // A stone wall 5 blocks ahead with a sign, item frames and a painting on it.
+            let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
+            let c = pos + f * 5
+            let bx = Int(floor(c.x)), bz = Int(floor(c.z))
+            let gy = world.topY(bx, bz) + 1
+            // Wall runs along x or z depending on the view; build it along x facing -z (north side visible from the camera if camera is north).
+            let facing = abs(f.x) > abs(f.z) ? (f.x > 0 ? 2 : 3) : (f.z > 0 ? 0 : 1)
+            let along = facing < 2 ? IVec3(1, 0, 0) : IVec3(0, 0, 1)
+            let toward = [IVec3(0, 0, -1), IVec3(0, 0, 1), IVec3(-1, 0, 0), IVec3(1, 0, 0)][facing]
+            for k in -4...4 { for dy in 0..<4 { world.setBlock(bx + along.x * k, gy + dy, bz + along.z * k, Blocks.id("stone_bricks")) } }
+            func front(_ k: Int, _ dy: Int) -> IVec3 { IVec3(bx + along.x * k + toward.x, gy + dy, bz + along.z * k + toward.z) }
+            let sp = front(-3, 1)
+            world.setBlock(sp.x, sp.y, sp.z, Blocks.id("oak_sign") + BlockID(4 + facing))
+            let sb = BlockEntity(.sign); sb.lines = ["Welcome to", "Blocksmith", "", "-- 2026 --"]; world.blockEntities[sp] = sb
+            for (i, it) in ["diamond_sword", "apple"].enumerated() {
+                let fp = front(-1 + i, 2)
+                world.setBlock(fp.x, fp.y, fp.z, Blocks.id("item_frame") + BlockID(facing))
+                let fb = BlockEntity(.frame); fb.container[0] = ItemStack(Items.id(it), 1); world.blockEntities[fp] = fb
+            }
+            game.placePainting(at: front(1, 1), facing: facing)
+        }
         if let list = arg("--spawn") {
             // Mobs in a row 6 blocks in front of the camera, facing it ("kind" or "kind:profession").
             let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)), r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))

@@ -2,7 +2,7 @@ import Foundation
 
 // Per-block state that doesn't fit in a block ID: chest and furnace inventories, furnace progress.
 final class BlockEntity: Codable {
-    enum Kind: String, Codable { case chest, furnace, spawner, hopper, dispenser, brewing, beacon, shulker, campfire }
+    enum Kind: String, Codable { case chest, furnace, spawner, hopper, dispenser, brewing, beacon, shulker, campfire, sign, frame, painting }
     let kind: Kind
     var items: [ItemStack]
     var mob: String = ""      // spawner: mob kind name
@@ -20,6 +20,7 @@ final class BlockEntity: Codable {
     var spawned = 0      // trial spawner: mobs spawned this round
     var cooldown: Float = 0
     var used = false     // vault: already opened by the player
+    var lines: [String] = ["", "", "", ""]   // sign text
     lazy var container: ItemContainer = {
         let c = ItemContainer(items.count)
         c.slots = items
@@ -28,10 +29,10 @@ final class BlockEntity: Codable {
 
     init(_ k: Kind) {
         kind = k
-        items = Array(repeating: .empty, count: k == .chest || k == .shulker ? 27 : (k == .furnace ? 3 : (k == .hopper || k == .brewing ? 5 : k == .campfire ? 4 : (k == .dispenser ? 9 : 0))))
+        items = Array(repeating: .empty, count: k == .chest || k == .shulker ? 27 : (k == .furnace ? 3 : (k == .hopper || k == .brewing ? 5 : k == .campfire ? 4 : k == .frame ? 1 : (k == .dispenser ? 9 : 0))))
     }
 
-    enum CodingKeys: String, CodingKey { case kind, items, burn, burnMax, cook, mob, fuel, brewTime, secondary, trial, used }
+    enum CodingKeys: String, CodingKey { case kind, items, burn, burnMax, cook, mob, fuel, brewTime, secondary, trial, used, lines, delay }
     init(from dec: Decoder) throws {
         let c = try dec.container(keyedBy: CodingKeys.self)
         kind = try c.decode(Kind.self, forKey: .kind)
@@ -45,6 +46,8 @@ final class BlockEntity: Codable {
         secondary = (try? c.decode(String.self, forKey: .secondary)) ?? ""
         trial = (try? c.decode(Bool.self, forKey: .trial)) ?? false
         used = (try? c.decode(Bool.self, forKey: .used)) ?? false
+        if let l = try? c.decode([String].self, forKey: .lines) { lines = l }
+        if kind == .frame { delay = (try? c.decode(Float.self, forKey: .delay)) ?? 0 }
     }
     func encode(to e: Encoder) throws {
         var c = e.container(keyedBy: CodingKeys.self)
@@ -58,6 +61,8 @@ final class BlockEntity: Codable {
         if !secondary.isEmpty { try c.encode(secondary, forKey: .secondary) }
         if trial { try c.encode(trial, forKey: .trial) }
         if used { try c.encode(used, forKey: .used) }
+        if kind == .sign { try c.encode(lines, forKey: .lines) }
+        if kind == .frame { try c.encode(delay, forKey: .delay) }
     }
 
     // One furnace game tick (20 per second). Returns true if the lit state changed.

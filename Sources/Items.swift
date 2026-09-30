@@ -237,6 +237,8 @@ final class ItemRegistry {
         item("mace", "Mace", "shovel", 0x6A6A70, stack: 1)
         item("wind_charge", "Wind Charge", "ball", 0xBDC9FF)
         item("trial_key", "Trial Key", "nugget", 0xE8A040)
+        item("map", "Empty Map", "paper", 0xE8E0C0, ["a": 0x8A7A5A])
+        item("filled_map", "Map", "paper", 0xE8D8A8, ["a": 0x6A9A5A], stack: 1)
         for s in ["angler", "archer", "arms_up", "blade", "brewer", "burn", "danger", "explorer", "flow", "friend", "guster", "heart",
                   "heartbreak", "howl", "miner", "mourner", "plenty", "prize", "scrape", "sheaf", "shelter", "skull", "snort"] {
             item("\(s)_pottery_sherd", "\(s.replacingOccurrences(of: "_", with: " ").capitalized) Pottery Sherd", "paper", 0xA8583A, ["a": 0x6A3A2A])
