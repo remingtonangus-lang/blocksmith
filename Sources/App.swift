@@ -470,7 +470,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func toast(_ s: String) { game.onToast?(s) }
 
-    func frameTick(_ dt: Double) {}
+    // Hide the mouse pointer over menus while the controller is in use (it comes back when the mouse moves).
+    var padHidCursor = false
+    func frameTick(_ dt: Double) {
+        let pad = PadManager.shared.usingPad
+        if pad && !padHidCursor && !game.input.captured { NSCursor.setHiddenUntilMouseMoves(true) }
+        padHidCursor = pad
+    }
 
     func buildMenu() {
         let main = NSMenu()
