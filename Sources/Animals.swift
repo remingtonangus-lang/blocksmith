@@ -99,6 +99,27 @@ extension Mob {
             if dist > 3 { face(player); return spec.speed }
             wander(); return moving ? spec.speed * 0.3 : 0
         }
+        // Foxes sleep through the day unless disturbed (a player close by and not sneaking, danger, a hit).
+        if kind == .fox {
+            let day = g.dayFraction > 0.02 && g.dayFraction < 0.45 && !g.isRainingAt(pos)
+            let disturbed = (g.alive && simd_length(player - pos) < 4 && !g.player.sneaking) || panic > 0 || aggro
+            if day && !disturbed && onGround { sitting = true; return 0 }
+            sitting = false
+        }
+        // Polar bear mothers attack players who come within 8 blocks of their cub.
+        if kind == .polarBear && !baby && canTarget && dist < 8 && g.mobs.of(.polarBear).contains(where: { $0.baby && simd_length($0.pos - pos) < 16 }) {
+            aggro = true
+        }
+        // Llamas spit (1 damage) at players who hurt them, every 2 s within 10 blocks.
+        if (kind == .llama || kind == .traderLlama) && aggro && canTarget && dist < 10 && !tamed {
+            face(player)
+            if attackCooldown <= 0 && g.world.canSee(eye, g.player.eye) {
+                attackCooldown = 2
+                g.hurtPlayer(1, from: pos, cause: "was spat on by a Llama", knockback: 0.2, type: .projectile, attacker: self)
+                g.sfx(.splash, 0.4, at: pos)
+            }
+            return 0
+        }
         // Wolves: wild ones hunt sheep, rabbits, foxes, skeletons; angry at players who hit them.
         if kind == .wolf || kind == .polarBear || kind == .panda || kind == .goat || kind == .bee || kind == .fox || kind == .ocelot || kind == .cat {
             if aggro && canTarget {
