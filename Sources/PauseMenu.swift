@@ -3,10 +3,11 @@ import Foundation
 // In-game pause and options screens (drawn with the HUD, so a controller can drive them: D-pad /
 // stick to move, A to choose or step a setting forward, X to step it back, B to go back).
 final class PauseMenu: Menu {
-    enum Page { case main, options, worlds }
+    enum Page { case title, main, options, worlds }
     var page: Page = .main
     // (label, action id); settings show their current value in the label.
     var rows: [(String, String)] = []
+    var cameFromTitle = false
 
     init(game: Game) {
         super.init("Game Paused", game: game)
@@ -17,6 +18,11 @@ final class PauseMenu: Menu {
     func build() {
         let g = game
         switch page {
+        case .title:
+            title = ""
+            let last = UserDefaults.standard.string(forKey: "lastWorld") ?? "World1"
+            rows = [("Continue: \(last)", "resume"), ("Load World…", "load"), ("New World (random seed)", "newworld"),
+                    ("Create World… (keyboard)", "worlds"), ("Options…", "options"), ("Quit Game", "quit")]
         case .main:
             title = "Game Paused"
             rows = [("Back to Game", "resume"), ("Options…", "options"), ("Advancements", "advancements"),
@@ -63,9 +69,9 @@ final class PauseMenu: Menu {
         }
         switch id {
         case "resume": g.closeMenu()
-        case "options": page = .options
-        case "back": page = .main
-        case "load": page = .worlds
+        case "options": cameFromTitle = page == .title; page = .options
+        case "back": page = cameFromTitle ? .title : .main
+        case "load": cameFromTitle = page == .title; page = .worlds
         case _ where id.hasPrefix("play:"): g.appAction?(id)
         case "advancements": g.closeMenu(); g.openMenu(AdvancementMenu(game: g))
         case "mode": g.toggleMode(); g.onModeChanged?(g.survival)
@@ -95,7 +101,7 @@ final class PauseMenu: Menu {
     }
 
     override func backPressed() -> Bool {
-        guard page != .main else { return false }
+        guard page != .main && page != .title else { return false }
         act("back", back: false)
         return true
     }

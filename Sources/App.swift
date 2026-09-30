@@ -84,6 +84,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var window: NSWindow!
     var view: GameView!
     var game: Game!
+    var launched = false
     var renderer: Renderer!
     var save: SaveManager!
     var overlay: NSView!
@@ -391,7 +392,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func pauseChanged(_ paused: Bool) {
         // The pause screen is drawn in-game (PauseMenu); the AppKit overlay only hosts the Worlds panel.
         overlay.isHidden = worldsPanel == nil
-        if paused && game.menu == nil { game.openMenu(PauseMenu(game: game)) }
+        if paused && game.menu == nil {
+            let pm = PauseMenu(game: game)
+            if !launched { pm.page = .title; pm.build(); launched = true }
+            game.openMenu(pm)
+        }
         setCapture(!paused && !game.inventoryOpen)
         view.preferredFramesPerSecond = paused ? 30 : (NSScreen.main?.maximumFramesPerSecond ?? 60)
         if paused { game.input.releaseAll() }

@@ -101,6 +101,9 @@ enum Snapshot {
             case "creative": game.openMenu(CreativeMenu(game: game))
             case "death":
                 game.openMenu(DeathMenu(game: game, message: "Player was blown up by Hisser"))
+            case "title":
+                let pm = PauseMenu(game: game); pm.page = .title; pm.build()
+                game.openMenu(pm)
             case "pause":
                 game.openMenu(PauseMenu(game: game))
             case "options":

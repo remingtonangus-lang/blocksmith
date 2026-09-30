@@ -940,6 +940,15 @@ final class Renderer: NSObject, MTKViewDelegate {
                     text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
                 }
             }
+            if let pm = m as? PauseMenu, pm.page == .title {
+                // Title screen logo: big blocky letters with a drop shadow, plus a tagline.
+                let logo = "BLOCKSMITH", ls = s * 4
+                let lx = floor((W - textWidth(logo, ls)) / 2), ly = max(4 * s, o.y - 44 * s)
+                text(logo, lx + ls * 0.5, ly + ls * 0.5, ls, V4(0.1, 0.1, 0.12, 1), shadow: false)
+                text(logo, lx, ly, ls, V4(0.86, 0.78, 0.55, 1), shadow: false)
+                let tag = "Build. Explore. Survive."
+                text(tag, floor((W - textWidth(tag, s)) / 2), ly + 9 * ls, s, V4(1, 1, 0.4, 1))
+            }
             if let pm = m as? PauseMenu {
                 // Big labelled buttons; the controller cursor shows as the highlighted one.
                 for sl in pm.slots where sl.isButton {

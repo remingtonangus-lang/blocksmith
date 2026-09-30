@@ -14,7 +14,7 @@ final class DeathMenu: Menu {
     override func buttonPressed(_ i: Int) {
         game.menu = nil
         game.respawn()
-        if i == 1 { game.paused = true }        // "Title Screen": back to the pause / worlds menu
+        if i == 1 { game.paused = true; if let pm = game.menu as? PauseMenu { pm.page = .title; pm.build() } }   // "Title Screen"
         game.sfx(.click, 0.5)
     }
     override func backPressed() -> Bool { true }   // can't be dismissed without choosing
