@@ -272,8 +272,12 @@ enum Snapshot {
             // Default spawn view: step off tree canopies onto open ground so the camera isn't in leaves.
             let bx = Int(floor(pos.x)), bz = Int(floor(pos.z))
             func openGround(_ x: Int, _ z: Int) -> Bool {
-                let k = Blocks.key(world.block(x, world.topY(x, z), z))
-                return !k.hasSuffix("_leaves") && !k.hasSuffix("_log") && !Blocks.isLiquid(world.block(x, world.topY(x, z), z))
+                let t = world.topY(x, z)
+                let k = Blocks.key(world.block(x, t, z))
+                if k.hasSuffix("_leaves") || k.hasSuffix("_log") || Blocks.isLiquid(world.block(x, t, z)) { return false }
+                // Room to look around: nothing solid within 2 blocks of the eye (walls, portal frames).
+                for dy in 1...3 { for dz in -2...2 { for dx in -2...2 where Blocks.collide[Int(world.block(x + dx, t + dy, z + dz))] { return false } } }
+                return true
             }
             if !openGround(bx, bz) {
                 search: for r in 1...24 { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r && openGround(bx + dx, bz + dz) {
@@ -289,6 +293,18 @@ enum Snapshot {
             let up = Float(arg("--up") ?? "") ?? 0
             let ty = Float(world.topY(Int(floor(pos.x)), Int(floor(pos.z))) + 1)
             if ty + up > pos.y { pos.y = ty + up; game.player.pos = pos }
+        }
+        if CommandLine.arguments.contains("--ground") {
+            // Under the canopy: stand on the real ground (skip leaves, logs, plants).
+            let x = Int(floor(pos.x)), z = Int(floor(pos.z))
+            var y = world.topY(x, z)
+            while y > 1 {
+                let b = world.block(x, y, z), k = Blocks.key(b)
+                if Blocks.collide[Int(b)] && !k.hasSuffix("_leaves") && !k.hasSuffix("_log") { break }
+                y -= 1
+            }
+            pos.y = Float(y + 1) + (Float(arg("--up") ?? "") ?? 0)
+            game.player.pos = pos
         }
         // Never render from inside solid blocks: move to the nearest two-high air pocket.
         func solidAt(_ p: V3) -> Bool { Blocks.collide[Int(world.block(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))))] }
@@ -768,6 +784,15 @@ enum Snapshot {
         if let s = arg("--crack"), let t = game.target {
             game.mining = t.hit
             game.mineProgress = min(0.99, max(0.01, Float(s) ?? 0.6))
+        }
+        do {
+            // Light probe: the eye cell and the first floor below it (debugging dark views).
+            let e = game.player.eye
+            let ex = Int(floor(e.x)), ey = Int(floor(e.y)), ez = Int(floor(e.z))
+            var fy = ey
+            while fy > ey - 40 && !Blocks.collide[Int(world.block(ex, fy - 1, ez))] { fy -= 1 }
+            let le = world.lightAt(ex, ey, ez), lf = world.lightAt(ex, fy, ez)
+            print("light probe: eye sky \(le.sky) block \(le.block) in \(Blocks.key(world.block(ex, ey, ez))); floor+1 (y \(fy - YOFF)) sky \(lf.sky) block \(lf.block) in \(Blocks.key(world.block(ex, fy, ez))), daylight \(game.daylight)")
         }
         if arg("--menu") == nil { game.advToasts.removeAll() }      // no "Advancement Made" toasts over test views
         if CommandLine.arguments.contains("--nightvision") { game.applyEffect(.nightVision, amp: 0, seconds: 300) }

@@ -101,6 +101,12 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     return o;
 }
 
+// Seen from under water, geometry never goes fully black: it keeps a water-coloured ambient
+// (albedo x fog colour), like light scattered through the water column.
+static float3 waterAmbient(float3 lit, float3 albedo, constant Uniforms& u) {
+    return u.params.w > 0.5 ? max(lit, albedo * u.fogColor.rgb * 2.2) : lit;
+}
+
 static float3 applyFog(float3 c, float dist, constant Uniforms& u) {
     float f = smoothstep(u.fogColor.w, u.params.x, dist);
     return mix(c, u.fogColor.rgb, f);
@@ -149,7 +155,7 @@ fragment float4 chunkSolidFS(ChunkOut in [[stage_in]],
     float4 c = tex.sample(texSampler, uv, uint(in.layer));
     if (in.anim > 0.5) { c.rgb = lavaGlow(c.rgb, in.rel, u); }
     float3 t = (in.overlay > 0.5 && c.a > 0.95) ? float3(1.0) : in.tint;
-    return float4(applyFogDir(c.rgb * t * in.shade, in.rel, in.dist, u), 1.0);
+    return float4(applyFogDir(waterAmbient(c.rgb * t * in.shade, c.rgb * t, u), in.rel, in.dist, u), 1.0);
 }
 
 fragment float4 chunkFS(ChunkOut in [[stage_in]],
@@ -162,7 +168,7 @@ fragment float4 chunkFS(ChunkOut in [[stage_in]],
     if (in.anim > 0.5) { c.rgb = lavaGlow(c.rgb, in.rel, u); }
     // Overlay faces (grass sides): only the marked texels (alpha ~0.9) take the biome tint.
     float3 t = (in.overlay > 0.5 && c.a > 0.95) ? float3(1.0) : in.tint;
-    float3 rgb = c.rgb * t * in.shade;
+    float3 rgb = waterAmbient(c.rgb * t * in.shade, c.rgb * t, u);
     return float4(applyFogDir(rgb, in.rel, in.dist, u), 1.0);
 }
 
