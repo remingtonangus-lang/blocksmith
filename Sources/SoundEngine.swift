@@ -50,6 +50,7 @@ final class SoundEngine {
     private(set) var cave: Float = 0          // 0 open air ... 1 deep cave (drives reverb)
     private var underwater = false
     private var eqCutoff: Float = 20000
+    private var roomPreset = -1
 
     // Looping emitters keyed by name ("fire", "lava", "rain", ...).
     final class Loop {
@@ -173,6 +174,15 @@ final class SoundEngine {
             d.node.occlusion = -18 * occlusion
             d.volume = AudioSettings.volume(.master) * AudioSettings.volume(.blocks) * 1.2
         }
+    }
+
+    // Picks a reverb character for the space: small room, chamber, hall, cathedral-like cavern.
+    func setRoom(size: Float, enclosure: Float) {
+        let bucket: Int = enclosure < 0.35 ? 0 : (size < 5 ? 1 : (size < 10 ? 2 : (size < 16 ? 3 : 4)))
+        guard bucket != roomPreset else { return }
+        roomPreset = bucket
+        let presets: [AVAudioUnitReverbPreset] = [.mediumHall, .smallRoom, .mediumChamber, .largeHall, .cathedral]
+        env.reverbParameters.loadFactoryReverbPreset(presets[bucket])
     }
 
     // World position -> listener space (listener at the origin looking down -Z). `range` scales the distance

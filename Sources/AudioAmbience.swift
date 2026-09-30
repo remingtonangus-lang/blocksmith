@@ -9,6 +9,8 @@ final class AudioState {
     var scanTimer: Float = 0
     var emitters: [String: (pos: V3, count: Int)] = [:]
     var caveBiome = 0                       // 0 none, 1 deep dark, 2 lush, 3 dripstone
+    var enclosure: Float = 0                // fraction of probe rays that hit a solid block (0 open air ... 1 sealed room)
+    var roomSize: Float = 24                // mean free distance of the probe rays (blocks)
     var cave: Float = 0                     // smoothed 0 open sky ... 1 underground
     var caveTimer: Float = 25
     var moodTimer: Float = 40
@@ -103,7 +105,10 @@ extension Game {
         case .end: caveTarget = 0.2
         }
         a.cave += (caveTarget - a.cave) * min(1, dt * 1.5)
-        snd.setListener(eye: eye, yaw: player.yaw, pitch: player.pitch, cave: a.cave, underwater: player.headInWater)
+        // Reverb follows the space around the listener: how enclosed it is and how big.
+        let wet: Float = max(a.enclosure * a.enclosure, a.cave * 0.6)
+        snd.setListener(eye: eye, yaw: player.yaw, pitch: player.pitch, cave: wet, underwater: player.headInWater)
+        snd.setRoom(size: a.roomSize, enclosure: a.enclosure)
 
         // Scan the blocks around the player for looping emitters twice a second.
         a.scanTimer -= dt
@@ -311,7 +316,30 @@ extension Game {
         for (k, v) in best { if let n = names[k] { if let e = out[n] { out[n] = (e.pos, e.count + v.2) } else { out[n] = (v.0, v.2) } } }
         a.emitters = out
         a.caveBiome = sculk >= 4 ? 1 : (moss >= 4 ? 2 : (drip >= 4 ? 3 : 0))
+        // Room probe: 14 rays (6 axes + 8 diagonals) up to 24 blocks.
+        var hits = 0
+        var total: Float = 0
+        for d in Game.probeDirs {
+            var t: Float = 1
+            var hit = false
+            while t < 24 {
+                let q = eye + d * t
+                if Blocks.opaque[Int(world.block(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))))] { hit = true; break }
+                t += 1
+            }
+            if hit { hits += 1 }
+            total += t
+        }
+        let enc = Float(hits) / Float(Game.probeDirs.count)
+        a.enclosure += (enc - a.enclosure) * 0.5
+        a.roomSize += (total / Float(Game.probeDirs.count) - a.roomSize) * 0.5
     }
+
+    static let probeDirs: [V3] = {
+        var d: [V3] = [V3(1, 0, 0), V3(-1, 0, 0), V3(0, 1, 0), V3(0, -1, 0), V3(0, 0, 1), V3(0, 0, -1)]
+        for x in [-1, 1] { for y in [-1, 1] { for z in [-1, 1] { d.append(simd_normalize(V3(Float(x), Float(y), Float(z)))) } } }
+        return d
+    }()
 
     // MARK: Music director
 
