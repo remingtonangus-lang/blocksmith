@@ -716,6 +716,25 @@ final class Renderer: NSObject, MTKViewDelegate {
                     tint = V4(Float((c >> 16) & 255) / 255 / base.x, Float((c >> 8) & 255) / 255 / base.y, Float(c & 255) / 255 / base.z, 1)
                 }
                 quad(pts, uvs, tint, Float(layer))
+                // Live compass / clock: a needle toward spawn (or the lodestone / last death) or the time of day.
+                let ik = st.def.name
+                if ik == "compass" || ik == "clock" || ik == "recovery_compass" {
+                    var ang: Float
+                    if ik == "clock" {
+                        ang = Float(game.dayFraction) * 2 * .pi - .pi / 2
+                    } else {
+                        let target = game.compassTarget(st)
+                        let d = target - game.player.pos
+                        let world = atan2f(d.x, -d.z)                 // bearing from north
+                        ang = world + game.player.yaw - .pi / 2
+                        if game.dim.dim != .overworld && ik == "compass" { ang = Float(game.clock * 7).truncatingRemainder(dividingBy: 2 * .pi) }
+                    }
+                    let r = size * 0.28, w = size * 0.05
+                    let dir = V2(cosf(ang), sinf(ang)), nrm = V2(-dir.y, dir.x) * w
+                    let tip = c + dir * r, tail = c - dir * r * 0.4
+                    quad([tail - nrm, tip - nrm * 0.2, tip + nrm * 0.2, tail + nrm], [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)],
+                         ik == "clock" ? V4(0.2, 0.2, 0.25, 1) : V4(0.85, 0.12, 0.12, 1), -1)
+                }
                 if let pat = st.pat, !st.def.name.hasPrefix("leather_") {
                     bannerArt(-1, pat, x + size * 3 / 16, y + size * 2 / 16, size * 10 / 16, size * 12 / 16)
                 }

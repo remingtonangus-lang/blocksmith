@@ -118,6 +118,7 @@ final class Game {
     var rockets: [Rocket] = []
     var lastWind: Double = -10
     var deathScore = 0
+    var lastDeath: V3?
     let music = MusicDirector()
     var caveTimer: Float = 30
     var musicVolume: Float = { UserDefaults.standard.object(forKey: "musicVolume") == nil ? 1 : UserDefaults.standard.float(forKey: "musicVolume") }() {
@@ -1602,6 +1603,7 @@ final class Game {
     func die(_ cause: String) {
         guard !(menu is DeathMenu) else { return }
         deathScore = xpPoints + xpLevel * 7
+        lastDeath = player.pos
         // Drop everything where we died (plus up to 100 XP worth: 7 per level).
         let at = player.pos + V3(0, 1, 0)
         let lostXP = min(100, xpLevel * 7)

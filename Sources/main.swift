@@ -99,6 +99,8 @@ enum Snapshot {
             var s = game.inventory.main[9]; s.damage = 120; game.inventory.main[9] = s
             switch which {
             case "creative": game.openMenu(CreativeMenu(game: game))
+            case "death":
+                game.openMenu(DeathMenu(game: game, message: "Player was blown up by Hisser"))
             case "pause":
                 game.openMenu(PauseMenu(game: game))
             case "options":
