@@ -250,7 +250,33 @@ final class MusicRenderer {
     var finished: Bool { score == nil || (noteIdx >= (score?.notes.count ?? 0) && voices.isEmpty && Float(frame) / sr > (score?.length ?? 0)) }
     var isPlaying: Bool { score != nil && !finished }
 
-    init(sampleRate: Float = Float(SoundBank.rate)) { sr = sampleRate }
+    init(sampleRate: Float = Float(SoundBank.rate)) {
+        sr = sampleRate
+        let lens = [1557, 1617, 1491, 1422, 1277, 1356]
+        combs = lens.map { [Float](repeating: 0, count: Int(Float($0) * sampleRate / 44100)) }
+        combIdx = [Int](repeating: 0, count: lens.count)
+        combLP = [Float](repeating: 0, count: lens.count)
+    }
+
+    // A small stereo room (three damped combs per side) so the instruments sit in a space.
+    private var combs: [[Float]] = []
+    private var combIdx: [Int] = []
+    private var combLP: [Float] = []
+    private let roomWet: Float = 0.2
+
+    @inline(__always) private func room(_ inL: Float, _ inR: Float) -> (Float, Float) {
+        let input: Float = (inL + inR) * 0.5
+        var outL: Float = 0, outR: Float = 0
+        for k in 0..<6 {
+            let len = combs[k].count
+            let y = combs[k][combIdx[k]]
+            combLP[k] += 0.45 * (y - combLP[k])
+            combs[k][combIdx[k]] = input + combLP[k] * 0.8
+            combIdx[k] = (combIdx[k] + 1) % len
+            if k < 3 { outL += y } else { outR += y }
+        }
+        return (outL * roomWet / 3, outR * roomWet / 3)
+    }
 
     func play(_ s: MusicScore, fadeIn: Float = 2) {
         score = s
@@ -293,7 +319,8 @@ final class MusicRenderer {
             let t = Float(frame + i) / sr
             let tail: Float = t > tailStart ? max(0, 1 - (t - tailStart) / 8) : 1
             let g = gain * tail * 0.6
-            let a = l[i] * g, b = r[i] * g
+            let (wl, wr) = room(l[i], r[i])
+            let a = (l[i] + wl) * g, b = (r[i] + wr) * g
             l[i] = a / (1 + abs(a))
             r[i] = b / (1 + abs(b))
         }
