@@ -181,6 +181,8 @@ enum PadTest {
         pm.typed("Gamma")
         tap(g, "down a")
         check(WorldStore.exists("Gamma") && !WorldStore.exists("Alpha Copy"), "Save renames the world")
+        check(WorldStore.clean(" ..my/world:1 ") == "my-world-1" && WorldStore.clean("   ") == "New World", "world names are made file-system safe")
+        check(WorldStore.unique("Gamma") == "Gamma (2)" && WorldStore.unique("Delta") == "Delta", "new world names never collide")
         g.closeMenu()
         g.paused = false
         frame(g)
