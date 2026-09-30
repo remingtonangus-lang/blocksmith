@@ -104,34 +104,7 @@ enum Snapshot {
             game.cameraMode = Int(c) ?? 1
             game.inventory.armor[0] = ItemStack(Items.id("iron_helmet"), 1)
             game.inventory.main[game.selected] = ItemStack(Items.id("iron_pickaxe"), 1)
-            if arg("--menu") == nil { game.advToasts.removeAll() }
-        if CommandLine.arguments.contains("--nightvision") { game.applyEffect(.nightVision, amp: 0, seconds: 300) }      // no "Advancement Made" toasts over test views
-        if CommandLine.arguments.contains("--treecheck") {
-            // Tree species vs column biome: sample columns that have a log under the canopy.
-            var checked = 0, bad: [String] = []
-            let px = Int(floor(pos.x)), pz = Int(floor(pos.z))
-            var rng = SRng(99)
-            var tries = 0
-            while checked < 200 && tries < 20000 {
-                tries += 1
-                let x = px + rng.range(-96, 96), z = pz + rng.range(-96, 96)
-                let top = world.topY(x, z)
-                guard top > 0 else { continue }
-                var y = top, log = ""
-                while y > top - 20 {
-                    let k = Blocks.key(Blocks.groupBase[Int(world.block(x, y, z))])
-                    if k.hasSuffix("_log") { log = k; break }
-                    y -= 1
-                }
-                guard log == "pale_oak_log" || log == "dark_oak_log" else { continue }
-                checked += 1
-                let biome = world.gen.column(x, z).biome
-                let ok = log == "pale_oak_log" ? biome == .paleGarden : (biome == .darkForest || biome == .paleGarden)
-                if !ok { bad.append("\(log)@\(x),\(z)=\(biome)") }
-            }
-            print("treecheck: \(checked) trunks, \(bad.count) in the wrong biome\(bad.isEmpty ? "" : ": " + bad.prefix(12).joined(separator: " "))")
-        }
-        if CommandLine.arguments.contains("--swim") {
+            if CommandLine.arguments.contains("--swim") {
                 game.player.flying = false
                 game.player.swimming = true
                 game.player.pos.y = Float(SEA) - 0.35
@@ -610,14 +583,24 @@ enum Snapshot {
         }
         if CommandLine.arguments.contains("--torches") {
             // Light test: a ring of torches plus a lamp around the camera, then remesh what changed.
+            // Torches stand on the first floor below the camera (surface or cave), never in water.
+            func floorBelow(_ x: Int, _ z: Int) -> Int? {
+                var y = min(Int(floor(pos.y)) + 2, world.topY(x, z) + 1)
+                let stop = y - 40
+                while y > stop {
+                    let here = world.block(x, y, z), below = world.block(x, y - 1, z)
+                    if (here == AIR || Blocks.replaceable[Int(here)]) && !Blocks.isLiquid(here) && Blocks.opaque[Int(below)] { return y }
+                    y -= 1
+                }
+                return nil
+            }
             for k in 0..<10 {
                 let a = Float(k) / 10 * 2 * .pi
                 let x = Int(floor(pos.x + cosf(a) * 7)), z = Int(floor(pos.z + sinf(a) * 7))
-                let h = world.topY(x, z)
-                if h >= SEA { world.setBlock(x, h + 1, z, TORCH) }
+                if let y = floorBelow(x, z) { world.setBlock(x, y, z, TORCH) }
             }
             let lx = Int(floor(pos.x)) + 3, lz = Int(floor(pos.z))
-            world.setBlock(lx, world.topY(lx, lz) + 1, lz, LAMP)
+            if let y = floorBelow(lx, lz) { world.setBlock(lx, y, lz, LAMP) }
             let t2 = world.loadSync(center: pos, radius: rd)
             t.mesh += t2.mesh
         }
@@ -778,6 +761,33 @@ enum Snapshot {
         do { renderer = try Renderer(device: device, game: game, colorFormat: .bgra8Unorm) }
         catch { print("renderer init failed: \(error)"); return 1 }
         game.target = world.raycast(game.player.eye, game.player.look, maxDist: 5)
+        if arg("--menu") == nil { game.advToasts.removeAll() }      // no "Advancement Made" toasts over test views
+        if CommandLine.arguments.contains("--nightvision") { game.applyEffect(.nightVision, amp: 0, seconds: 300) }
+        if CommandLine.arguments.contains("--treecheck") {
+            // Tree species vs column biome: sample columns that have a log under the canopy.
+            var checked = 0, bad: [String] = []
+            let px = Int(floor(pos.x)), pz = Int(floor(pos.z))
+            var rng = SRng(99)
+            var tries = 0
+            while checked < 200 && tries < 20000 {
+                tries += 1
+                let x = px + rng.range(-96, 96), z = pz + rng.range(-96, 96)
+                let top = world.topY(x, z)
+                guard top > 0 else { continue }
+                var y = top, log = ""
+                while y > top - 20 {
+                    let k = Blocks.key(Blocks.groupBase[Int(world.block(x, y, z))])
+                    if k.hasSuffix("_log") { log = k; break }
+                    y -= 1
+                }
+                guard log == "pale_oak_log" || log == "dark_oak_log" else { continue }
+                checked += 1
+                let biome = world.gen.column(x, z).biome
+                let ok = log == "pale_oak_log" ? biome == .paleGarden : (biome == .darkForest || biome == .paleGarden)
+                if !ok { bad.append("\(log)@\(x),\(z)=\(biome)") }
+            }
+            print("treecheck: \(checked) trunks, \(bad.count) in the wrong biome\(bad.isEmpty ? "" : ": " + bad.prefix(12).joined(separator: " "))")
+        }
         if CommandLine.arguments.contains("--swim") {
             game.player.flying = false
             game.player.swimming = true

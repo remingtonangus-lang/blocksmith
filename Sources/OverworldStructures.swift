@@ -210,6 +210,8 @@ enum OverworldStructures {
             let x = cx * CS + 8, z = cz * CS + 8
             let y = gen.groundY(x, z)
             guard y > YOFF + 10 else { return nil }
+            // Only on ground that is roughly level across the footprint (no half-hanging frames).
+            for (dx, dz) in [(-5, -3), (5, -3), (-5, 3), (5, 3)] where abs(gen.groundY(x + dx, z + dz) - y) > 3 { return nil }
             let s = seed
             let underwater = y < SEA
             return StructureStart(kind: "ruined_portal", pieces: [piece(x - 5, y - 3, z - 3, x + 5, y + 7, z + 3) { w in ruinedPortalBuild(&w, x, y, z, s, underwater) }],
@@ -224,6 +226,8 @@ enum OverworldStructures {
         for dz in -3...3 { for dx in -5...5 where hashf(cx + dx, 0, cz + dz, UInt32(truncatingIfNeeded: seed)) < 0.65 {
             w.set(cx + dx, y, cz + dz, rng.chance(0.15) ? mag : nr)
         } }
+        // Earth under the patch and frame down to the real ground, so nothing floats.
+        for dz in -3...3 { for dx in -5...5 { w.pillarDown(cx + dx, y - 1, cz + dz, DIRT, minY: y - 10) } }
         // Broken 4x5 frame (interior 2x3), missing a few blocks.
         for i in -1...2 { for j in 0...4 {
             let edge = i == -1 || i == 2 || j == 0 || j == 4

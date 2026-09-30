@@ -117,4 +117,7 @@ done
 "$BIN" --snapshot snaps/dripstone_caves.png --seed 12345 --find dripstone_caves --yaw 30 --pitch -10 --time 0.3
 "$BIN" --snapshot snaps/deep_dark.png --seed 12345 --find deep_dark --yaw 30 --pitch -10 --time 0.3 --nightvision
 "$BIN" --snapshot snaps/dark_forest.png --seed 12345 --find dark_forest --yaw 30 --pitch -15 --time 0.3 --up 4 --treecheck
+"$BIN" --snapshot snaps/seabed_warm.png --seed 12345 --find warm_ocean --up -6 --pitch -20 --time 0.3
+"$BIN" --snapshot snaps/seabed_deep.png --seed 12345 --find deep_ocean --up -12 --pitch -20 --time 0.3
+"$BIN" --snapshot snaps/cave_torches.png --seed 12345 --find dripstone_caves --yaw 60 --pitch -25 --time 0.3 --torches
 "$BIN" --snapshot snaps/selftest.png --seed 12345 --find plains --yaw 30 --pitch 10 --time 0.3 --up 1 --selftest
