@@ -104,7 +104,33 @@ enum Snapshot {
             game.cameraMode = Int(c) ?? 1
             game.inventory.armor[0] = ItemStack(Items.id("iron_helmet"), 1)
             game.inventory.main[game.selected] = ItemStack(Items.id("iron_pickaxe"), 1)
-            if CommandLine.arguments.contains("--swim") {
+            if arg("--menu") == nil { game.advToasts.removeAll() }      // no "Advancement Made" toasts over test views
+        if CommandLine.arguments.contains("--treecheck") {
+            // Tree species vs column biome: sample columns that have a log under the canopy.
+            var checked = 0, bad: [String] = []
+            let px = Int(floor(pos.x)), pz = Int(floor(pos.z))
+            var rng = SRng(99)
+            var tries = 0
+            while checked < 200 && tries < 20000 {
+                tries += 1
+                let x = px + rng.range(-96, 96), z = pz + rng.range(-96, 96)
+                let top = world.topY(x, z)
+                guard top > 0 else { continue }
+                var y = top, log = ""
+                while y > top - 20 {
+                    let k = Blocks.key(Blocks.groupBase[Int(world.block(x, y, z))])
+                    if k.hasSuffix("_log") { log = k; break }
+                    y -= 1
+                }
+                guard log == "pale_oak_log" || log == "dark_oak_log" else { continue }
+                checked += 1
+                let biome = world.gen.column(x, z).biome
+                let ok = log == "pale_oak_log" ? biome == .paleGarden : (biome == .darkForest || biome == .paleGarden)
+                if !ok { bad.append("\(log)@\(x),\(z)=\(biome)") }
+            }
+            print("treecheck: \(checked) trunks, \(bad.count) in the wrong biome\(bad.isEmpty ? "" : ": " + bad.prefix(12).joined(separator: " "))")
+        }
+        if CommandLine.arguments.contains("--swim") {
                 game.player.flying = false
                 game.player.swimming = true
                 game.player.pos.y = Float(SEA) - 0.35
