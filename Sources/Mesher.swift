@@ -397,6 +397,7 @@ enum Mesher {
                         let nx = NT[f * 3], ny = NT[f * 3 + 1], nz = NT[f * 3 + 2]
                         let ax = x + nx, ay = y + ny, az = z + nz
                         let flat = max(0, light(ax, ay, az))
+                        if lod > 0 && flat == 0 && !isLiquid { continue }      // far: pitch-dark cave walls can't be seen
                         if isLiquid || rt != rCube || lod > 0 {
                             for c in 0..<4 { lit[c] = flat; aos[c] = 3 }
                         } else {
