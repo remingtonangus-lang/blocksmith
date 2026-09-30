@@ -177,25 +177,26 @@ enum Prompt {
     static func g(_ a: Act) -> String { g(a, pad: pad) }
     static func g(_ a: Act, pad usePad: Bool) -> String {
         if usePad {
+            func m(_ g: Glyph) -> String { PadMap.glyph(g).s }   // follows Options > Controller > Button Mapping
             switch a {
-            case .jump, .select: return Glyph.a.s
-            case .sneak, .back: return Glyph.b.s
-            case .sprint: return Glyph.l3.s
-            case .attack: return Glyph.rt.s
-            case .use: return Glyph.lt.s
-            case .pick, .alt, .delete: return Glyph.x.s
-            case .drop: return Glyph.ddown.s
-            case .inventory, .quick, .keyboard, .space: return Glyph.y.s
-            case .hotbar, .tabs: return Glyph.lb.s + Glyph.rb.s
-            case .fly: return Glyph.dup.s
-            case .camera: return Glyph.view.s
-            case .pause, .done: return Glyph.menu.s
-            case .offhand: return Glyph.dright.s
-            case .chat: return Glyph.dleft.s
-            case .screenshot: return Glyph.share.s
-            case .scroll: return Glyph.rs.s
-            case .shift: return Glyph.lt.s
-            case .move: return Glyph.ls.s
+            case .jump, .select: return m(.a)
+            case .sneak, .back: return m(.b)
+            case .sprint: return m(.l3)
+            case .attack: return m(.rt)
+            case .use: return m(.lt)
+            case .pick, .alt, .delete: return m(.x)
+            case .drop: return m(.ddown)
+            case .inventory, .quick, .keyboard, .space: return m(.y)
+            case .hotbar, .tabs: return m(.lb) + m(.rb)
+            case .fly: return m(.dup)
+            case .camera: return m(.view)
+            case .pause, .done: return m(.menu)
+            case .offhand: return m(.dright)
+            case .chat: return m(.dleft)
+            case .screenshot: return m(.share)
+            case .scroll: return m(.rs)
+            case .shift: return m(.lt)
+            case .move: return m(.ls)
             }
         }
         switch a {

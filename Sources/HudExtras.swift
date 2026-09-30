@@ -267,8 +267,9 @@ enum HudExtras {
         if enabled && Settings.shared.buttonHints && Prompt.pad && g.menu == nil {
             // LB / RB beside the hotbar.
             let s = L.s, y = L.hotbarY0 + L.slot / 2 - 4 * s
-            out.append(HudLine(text: Glyph.lb.s, x: L.hotbarX0 - Float(Glyphs.advance(Int(Glyph.lb.rawValue))) * s - 4 * s, y: y, scale: s))
-            out.append(HudLine(text: Glyph.rb.s, x: L.hotbarX0 + L.slot * 9 + 5 * s, y: y, scale: s))
+            let lb = PadMap.glyph(.lb), rb = PadMap.glyph(.rb)
+            out.append(HudLine(text: lb.s, x: L.hotbarX0 - Float(Glyphs.advance(Int(lb.rawValue))) * s - 4 * s, y: y, scale: s))
+            out.append(HudLine(text: rb.s, x: L.hotbarX0 + L.slot * 9 + 5 * s, y: y, scale: s))
         }
         let prompts = ContextPrompts.lines(g, L)
         out += prompts

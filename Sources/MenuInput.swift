@@ -24,6 +24,8 @@ extension Game {
 
     func tickMenu(_ p: PadSnapshot, _ q: PadSnapshot, _ dt: Double) {
         guard let m = menu else { return }
+        // Button Mapping capture: the pad belongs to the capture until a button is chosen.
+        if let pm = m as? PauseMenu, pm.padBinding != nil { pm.tick(); return }
         // A sign opened by a pad player goes straight to the on-screen keyboard (it is all text).
         if m is SignMenu && Prompt.pad && MenuNav.shared.autoOpened !== m {
             MenuNav.shared.autoOpened = m          // once per sign, so closing the keyboard doesn't reopen it

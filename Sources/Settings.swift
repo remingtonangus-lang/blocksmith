@@ -59,6 +59,7 @@ final class Settings {
         g.volumeSetting = 0.8; g.musicVolume = 1
         HudLayout.userScale = 0; HudLayout.couch = false
         KeyBinds.reset()
+        PadMap.reset()
     }
 
     // Colour for "good / available" and "bad / unavailable" cues, colourblind-safe when asked.

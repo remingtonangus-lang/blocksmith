@@ -72,7 +72,18 @@ final class PadManager {
         if controller == nil { usingPad = false }
     }
 
+    private(set) var lastRaw = PadSnapshot()   // physical buttons this frame / last frame (button mapping capture)
+    private(set) var prevRaw = PadSnapshot()
+
+    // This frame's pad state with the button mapping applied (nil when no pad).
     func read() -> PadSnapshot? {
+        guard let raw = readRaw() else { prevRaw = lastRaw; lastRaw = PadSnapshot(); return nil }
+        prevRaw = lastRaw
+        lastRaw = raw
+        return PadMap.apply(raw)
+    }
+
+    private func readRaw() -> PadSnapshot? {
         if let s = simulated { return s }
         if !started, controller == nil { controller = GCController.current ?? GCController.controllers().first }
         guard let c = controller ?? GCController.current, let g = c.extendedGamepad else { return nil }

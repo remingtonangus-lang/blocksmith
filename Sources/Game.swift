@@ -494,7 +494,7 @@ final class Game {
         let q = prevPad
         defer { prevPad = p; input.endFrame() }
 
-        if p.menu && !q.menu && !(menu is KeyboardMenu) {
+        if p.menu && !q.menu && !(menu is KeyboardMenu) && (menu as? PauseMenu)?.padBinding == nil {
             if paused { if menu is PauseMenu { closeMenu() } else { paused = false } }
             else { if menu != nil { closeMenu() }; paused = true }
         }

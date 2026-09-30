@@ -132,6 +132,17 @@ enum PadTest {
         tap(g, "b")
         check(pm.page == .main, "B leaves Key Bindings")
 
+        // Button mapping: arm Jump / Select with A, press X, and X becomes the jump button.
+        pm.go(.padmap); pm.build(); g.menuCursor = 0
+        tap(g, "a")
+        check(pm.padBinding == 0, "A on Jump / Select waits for a button")
+        tap(g, "x")
+        check(PadMap.map[0] == 2 && PadMap.map[2] == 0, "pressing X swaps Jump onto X (Pick Block onto A)")
+        check(PadMap.apply(pad("x")).a && Prompt.g(.jump, pad: true) == Glyph.x.s, "X now jumps and prompts show X")
+        PadMap.reset()
+        tap(g, "b")
+        check(pm.page == .main, "B leaves Button Mapping")
+
         // Worlds list: create page + on-screen keyboard.
         try? fm.createDirectory(at: tmp.appendingPathComponent("Beta"), withIntermediateDirectories: true)
         try? fm.createDirectory(at: tmp.appendingPathComponent("Alpha"), withIntermediateDirectories: true)
