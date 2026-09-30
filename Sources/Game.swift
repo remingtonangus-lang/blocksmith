@@ -1555,7 +1555,7 @@ final class Game {
                 player.pos = t
                 player.vel = .zero
                 player.airPeak = t.y
-                sfx(.mobVoidwalker, 0.6)
+                sfx(.teleport, 0.8)
                 return
             }
         }

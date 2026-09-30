@@ -133,7 +133,7 @@ extension Mob {
                 if jumpCharge > 1 {
                     jumpCharge = 0
                     if Int.random(in: 0..<100) < temper { owner = true; g.particles.hearts(at: pos + V3(0, height, 0)) }
-                    else { temper += 5; g.dismount(); vel.y = 4; g.sfx(.mobHorse, 1, at: pos); return }
+                    else { temper += 5; g.dismount(); vel.y = 4; g.sfx(.mob(kind, .hurt), 1, at: pos); return }
                 }
             }
             yaw = g.player.yaw

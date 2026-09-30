@@ -349,7 +349,8 @@ extension Mob {
             stun -= dt
             if stun <= 0 {
                 // Roar: knock everything back and hurt it.
-                g.sfx(.mobRavager, 1.5, at: pos)
+                g.sfx(.mob(.ravager, .hurt), 1.5, at: pos)
+                g.sfx(.goatRam, 1, at: pos)
                 if simd_length(g.player.pos - pos) < 4 { g.hurtPlayer(6, from: pos, cause: "was slain by Siegebeast", knockback: 2) }
                 for m in g.mobs.mobs where m !== self && !m.raider && simd_length(m.pos - pos) < 4 { m.hit(from: pos, damage: 6, knockback: 2) }
             }

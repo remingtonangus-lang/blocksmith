@@ -665,7 +665,7 @@ final class Mob {
             if !aggro && canTarget && dist < 64 {
                 let head = pos + V3(0, height - 0.3, 0)
                 let toHead = simd_normalize(head - g.player.eye)
-                if simd_dot(g.player.look, toHead) > 0.99 && w.canSee(g.player.eye, head) { aggro = true; g.sfx(.mobVoidwalker, 1, at: pos) }
+                if simd_dot(g.player.look, toHead) > 0.99 && w.canSee(g.player.eye, head) { aggro = true; g.sfx(.mob(.enderman, .hurt), 1.2, at: pos) }
             }
             if inWater { teleport(w) }
             if aggro && canTarget {
@@ -683,7 +683,7 @@ final class Mob {
                 vel.y = kind == .magmaCube ? 7 + Float(slimeSize) * 0.8 : 7
                 vel.x = forward.x * spec.speed * 1.5
                 vel.z = forward.z * spec.speed * 1.5
-                g.sfx(.mobSlime, 0.5, at: pos)
+                g.sfx(kind == .magmaCube ? .mob(.magmaCube, .ambient) : .place(.slime), slimeSize > 1 ? 0.6 : 0.35, at: pos)
             }
             if canTarget && (slimeSize > 1 || kind == .magmaCube) && dist < halfW + 0.9 && attackCooldown <= 0 {
                 attackCooldown = 1
