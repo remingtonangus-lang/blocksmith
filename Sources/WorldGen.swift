@@ -549,8 +549,9 @@ final class WorldGen: TerrainGenerator {
         if rng.int(9) == 0 { vein(&b, bx, bz, &rng, diamond, dDiamond, y: y(max(-64, triangle(&rng, -144, 16))), size: 12) }
         for _ in 0..<4 { vein(&b, bx, bz, &rng, diamond, dDiamond, y: y(max(-64, triangle(&rng, -144, 16))), size: 8) }
         if biomes.contains(where: { $0.isPeak || $0 == .windsweptHills || $0 == .windsweptGravellyHills || $0 == .windsweptForest || $0 == .meadow || $0 == .grove }) {
-            let em = g("emerald_ore"), dEm = g("deepslate_emerald_ore")
-            for _ in 0..<100 { vein(&b, bx, bz, &rng, em, Blocks.has("deepslate_emerald_ore") ? dEm : em, y: y(triangle(&rng, -16, 480)), size: 3) }
+            let em = g("emerald_ore")
+            let dEm = Blocks.has("deepslate_emerald_ore") ? g("deepslate_emerald_ore") : em
+            for _ in 0..<100 { vein(&b, bx, bz, &rng, em, dEm, y: y(triangle(&rng, -16, 480)), size: 3) }
         }
     }
 
