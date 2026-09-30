@@ -113,8 +113,8 @@ final class Game {
     var padConnected = false
 
     init(world: World, save: SaveManager?, persistent: Bool) {
-        dim = DimensionState(dim: .overworld, world: world)
-        dims[.overworld] = dim
+        dim = DimensionState(dim: world.dim, world: world)
+        dims[world.dim] = dim
         self.save = save
         self.persistent = persistent
         onToast = { [weak self] s in
@@ -191,7 +191,7 @@ final class Game {
 
     func dimensionState(_ d: Dim) -> DimensionState {
         if let s = dims[d] { return s }
-        let base = dims[.overworld]!.world
+        let base = (dims[.overworld] ?? dim).world
         let sv = d.folder.flatMap { f in save.map { $0.sub(f) } }
         let w = World(seed: base.seed, device: base.device, save: sv, dim: d)
         w.renderDistance = base.renderDistance

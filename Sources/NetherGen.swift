@@ -135,18 +135,26 @@ final class NetherGen: TerrainGenerator {
                 }
             }
         }
-        // Glowstone clusters hanging from ceilings.
-        for k in 0..<3 {
+        // Glowstone clusters hanging from ceilings: grown by attaching to the ceiling or existing glowstone.
+        for k in 0..<2 {
             let h = hash3(cx, k, cz, s32 ^ 0x6C0)
-            let x0 = Int(h % 16), z0 = Int((h >> 4) % 16)
+            if h % 3 == 0 { continue }
+            let x0 = 3 + Int(h % 10), z0 = 3 + Int((h >> 4) % 10)
             var y0 = 120
             while y0 > 40 && !(at(x0, y0, z0) == AIR && at(x0, y0 + 1, z0) == netherrack) { y0 -= 1 }
             if y0 <= 40 { continue }
-            for i in 0..<60 {
-                let hh = hash3(x0 + i, y0, z0 - i, s32 ^ 0x6C1)
-                let x = x0 + Int(hh % 5) - 2, z = z0 + Int((hh >> 4) % 5) - 2, y = y0 - Int((hh >> 8) % 6)
-                if x < 0 || x >= 16 || z < 0 || z >= 16 { continue }
-                if at(x, y, z) == AIR && (at(x, y + 1, z) == glow || at(x, y + 1, z) == netherrack || i < 3) { set(x, y, z, glow) }
+            set(x0, y0, z0, glow)
+            for i in 0..<120 {
+                let hh = hash3(x0 * 31 + i, y0, z0 * 17 - i, s32 ^ 0x6C1)
+                let x = x0 + Int(hh % 7) - 3, z = z0 + Int((hh >> 4) % 7) - 3, y = y0 - Int((hh >> 8) % 8)
+                if x < 0 || x >= 16 || z < 0 || z >= 16 || at(x, y, z) != AIR { continue }
+                var touching = 0
+                for (dx, dy, dz) in [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)] {
+                    let nx = x + dx, nz = z + dz
+                    if nx < 0 || nx >= 16 || nz < 0 || nz >= 16 { continue }
+                    if at(nx, y + dy, nz) == glow { touching += 1 }
+                }
+                if touching == 1 { set(x, y, z, glow) }
             }
         }
         // Fungus trees, roots and vines in the forests (kept inside the chunk).
