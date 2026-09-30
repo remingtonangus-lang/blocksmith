@@ -23,7 +23,7 @@ struct ItemDef {
     var sprite: Sprite? = nil        // nil for block items (drawn as a block icon)
     var food: FoodInfo? = nil
     var tool: ToolType = .none
-    var tier = 0                     // harvest tier: 0 wood/gold, 1 stone, 2 iron, 3 diamond, 4 netherite
+    var tier = 0                     // harvest tier: 0 wood/gold, 1 stone, 2 iron, 3 diamond, 4 duskium
     var toolSpeed: Float = 1
     var durability = 0
     var attack: Float = 1            // damage dealt (hearts x2), 1 = fist
@@ -132,21 +132,21 @@ final class ItemRegistry {
         item("iron_ingot", "Iron Ingot", "ingot", 0xD8D8D8)
         item("gold_ingot", "Gold Ingot", "ingot", 0xFAD64A)
         item("copper_ingot", "Copper Ingot", "ingot", 0xE0845C)
-        item("netherite_ingot", "Netherite Ingot", "ingot", 0x4D494D)
-        item("netherite_scrap", "Netherite Scrap", "lump", 0x5E4A45)
+        item("netherite_ingot", "Duskium Ingot", "ingot", 0x4D494D)
+        item("netherite_scrap", "Duskium Scrap", "lump", 0x5E4A45)
         item("iron_nugget", "Iron Nugget", "nugget", 0xD8D8D8)
         item("gold_nugget", "Gold Nugget", "nugget", 0xFAD64A)
         item("diamond", "Diamond", "gem", 0x4AEDD9)
         item("emerald", "Emerald", "gem", 0x17DD62)
         item("lapis_lazuli", "Lapis Lazuli", "gem", 0x2A5BC8)
         item("amethyst_shard", "Amethyst Shard", "gem", 0xA87CE0)
-        item("quartz", "Nether Quartz", "gem", 0xEDE6DE)
-        item("redstone", "Redstone Dust", "dust", 0xE01010)
-        item("glowstone_dust", "Glowstone Dust", "dust", 0xF5D878)
+        item("quartz", "Ember Quartz", "gem", 0xEDE6DE)
+        item("redstone", "Sparkstone Dust", "dust", 0xE01010)
+        item("glowstone_dust", "Lumenstone Dust", "dust", 0xF5D878)
         item("gunpowder", "Gunpowder", "dust", 0x6E6E6E)
         item("sugar", "Sugar", "dust", 0xF4F4F4)
         item("bone_meal", "Bone Meal", "dust", 0xE8E6DA)
-        item("blaze_powder", "Blaze Powder", "dust", 0xF7A93A)
+        item("blaze_powder", "Cinder Powder", "dust", 0xF7A93A)
         item("flint", "Flint", "lump", 0x3C3C3C)
         item("string", "String", "string", 0xEDEDED)
         item("feather", "Feather", "feather", 0xEAEAEA, ["a": 0xB0B0B0])
@@ -158,21 +158,21 @@ final class ItemRegistry {
         item("snowball", "Snowball", "ball", 0xF4FAFF, stack: 16)
         item("clay_ball", "Clay Ball", "ball", 0xA4A9B8)
         item("brick", "Brick", "ingot", 0xB5563A)
-        item("nether_brick", "Nether Brick", "ingot", 0x5A2A30)
-        item("ender_pearl", "Ender Pearl", "pearl", 0x2F8C7C, stack: 16)
-        item("ender_eye", "Eye of Ender", "eye", 0x2F8C7C, ["c": 0x7ED957, "d": 0x173D1A])
-        item("blaze_rod", "Blaze Rod", "rod", 0xF7C23A)
-        item("ghast_tear", "Ghast Tear", "tear", 0xDDF2F2)
+        item("nether_brick", "Ember Brick", "ingot", 0x5A2A30)
+        item("ender_pearl", "Void Pearl", "pearl", 0x2F8C7C, stack: 16)
+        item("ender_eye", "Seeker Eye", "eye", 0x2F8C7C, ["c": 0x7ED957, "d": 0x173D1A])
+        item("blaze_rod", "Cinder Rod", "rod", 0xF7C23A)
+        item("ghast_tear", "Wailer Tear", "tear", 0xDDF2F2)
         item("wheat", "Wheat", "wheat", 0xD8B64A, ["a": 0x8C7A30])
         item("wheat_seeds", "Wheat Seeds", "seeds", 0x3EA42B)
-        item("nether_wart", "Nether Wart", "berries", 0x8A1A20, ["a": 0x5A0E12])
+        item("nether_wart", "Ember Wart", "berries", 0x8A1A20, ["a": 0x5A0E12])
         item("saddle", "Saddle", "leather", 0x8A4A22, stack: 1)
         item("name_tag", "Name Tag", "paper", 0xE6E0C8, ["a": 0x6B4F2C])
-        item("magma_cream", "Magma Cream", "ball", 0xE8762A)
+        item("magma_cream", "Lava Cream", "ball", 0xE8762A)
         item("fire_charge", "Fire Charge", "ball", 0xE8762A)
-        item("prismarine_shard", "Prismarine Shard", "gem", 0x6AA89A)
-        item("prismarine_crystals", "Prismarine Crystals", "dust", 0xC8E0D0)
-        item("heart_of_the_sea", "Heart of the Sea", "ball", 0x2A6AA8)
+        item("prismarine_shard", "Tidestone Shard", "gem", 0x6AA89A)
+        item("prismarine_crystals", "Tidestone Crystals", "dust", 0xC8E0D0)
+        item("heart_of_the_sea", "Tide Heart", "ball", 0x2A6AA8)
         item("nautilus_shell", "Nautilus Shell", "bowl", 0xE8D8C8)
         item("minecart", "Minecart", "bucket", 0x8A8A90, ["c": 0x4A4A50], stack: 1)
         item("chest_minecart", "Minecart with Chest", "bucket", 0x8A8A90, ["c": 0x9A6A2A], stack: 1)
@@ -184,15 +184,15 @@ final class ItemRegistry {
             item(Boats.itemKey(i, chest: false), raft ? "Bamboo Raft" : "\(w.1) Boat", "boat", w.2, stack: 1, fuel: 1200)
             item(Boats.itemKey(i, chest: true), raft ? "Bamboo Raft with Chest" : "\(w.1) Boat with Chest", "chest_boat", w.2, ["c": 0x9A6A2A, "d": 0x3A3A3A], stack: 1, fuel: 1200)
         }
-        item("shulker_shell", "Shulker Shell", "bowl", 0x9A6A9A)
-        item("dragon_breath", "Dragon's Breath", "bucket", 0xE8D8F0, ["c": 0xC050E0])
+        item("shulker_shell", "Sentry Shell", "bowl", 0x9A6A9A)
+        item("dragon_breath", "Wyrm's Breath", "bucket", 0xE8D8F0, ["c": 0xC050E0])
         item("firework_rocket", "Firework Rocket", "rod", 0xC83A3A)
         item("firework_star", "Firework Star", "nugget", 0x6A6A6A)
         item("bundle", "Bundle", "bundle", 0xB0703A, stack: 1)
         for (c, d) in BlockRegistry.colors { item("\(c)_bundle", "\(d) Bundle", "bundle", BlockRegistry.colorHex[c] ?? 0xB0703A, stack: 1) }
         item("writable_book", "Book and Quill", "book", 0x6A4A2A, ["c": 0xE8E8E8], stack: 1)
         item("written_book", "Written Book", "book", 0x7A5A2A, ["c": 0xD8B84A], stack: 16)
-        item("popped_chorus_fruit", "Popped Chorus Fruit", "berries", 0xB08AC0, ["a": 0x6A4A7A])
+        item("popped_chorus_fruit", "Popped Spiral Fruit", "berries", 0xB08AC0, ["a": 0x6A4A7A])
         item("melon_seeds", "Melon Seeds", "seeds", 0x4A3A2A)
         item("pumpkin_seeds", "Pumpkin Seeds", "seeds", 0xD8C88A)
         item("beetroot_seeds", "Beetroot Seeds", "seeds", 0x8A5A3A)
@@ -218,12 +218,12 @@ final class ItemRegistry {
         item("glistering_melon_slice", "Glistering Melon Slice", "melon", 0xF0C040, ["c": 0xF8E080])
         item("rabbit_foot", "Rabbit's Foot", "drumstick", 0xC8A078, ["c": 0xE8D8C0])
         item("rabbit_hide", "Rabbit Hide", "leather", 0xC8A078)
-        item("phantom_membrane", "Phantom Membrane", "leather", 0xC8C0A0)
-        item("breeze_rod", "Breeze Rod", "rod", 0xBDC9FF)
+        item("phantom_membrane", "Nightwing Membrane", "leather", 0xC8C0A0)
+        item("breeze_rod", "Gust Rod", "rod", 0xBDC9FF)
         item("experience_bottle", "Bottle o' Enchanting", "bucket", 0xD0DCF0, ["c": 0x7ED957])
         item("enchanted_book", "Enchanted Book", "book", 0x8A3AA8, stack: 1)
-        item("nether_star", "Nether Star", "gem", 0xF0F0FF)
-        item("totem_of_undying", "Totem of Undying", "ingot", 0xE8C040)
+        item("nether_star", "Blight Star", "gem", 0xF0F0FF)
+        item("totem_of_undying", "Totem of Rebirth", "ingot", 0xE8C040)
         item("turtle_scute", "Turtle Scute", "leather", 0x4A9A3A)
         item("ink_sac", "Ink Sac", "ball", 0x1A1A2A)
         item("glow_ink_sac", "Glow Ink Sac", "ball", 0x4AE8C8)
@@ -231,8 +231,8 @@ final class ItemRegistry {
         item("goat_horn", "Goat Horn", "bone", 0xC8C0A8, stack: 1)
         item("armadillo_scute", "Armadillo Scute", "leather", 0xA06A58)
         item("wolf_armor", "Wolf Armor", "chestplate", 0xA06A58, stack: 1)
-        item("end_crystal", "End Crystal", "gem", 0xD8A8E8)
-        item("ominous_bottle", "Ominous Bottle", "bucket", 0x2A5A4A, ["c": 0x0B6138])
+        item("end_crystal", "Hollow Crystal", "gem", 0xD8A8E8)
+        item("ominous_bottle", "Omen Bottle", "bucket", 0x2A5A4A, ["c": 0x0B6138])
         for (n, d, c) in [("cod_bucket", "Bucket of Cod", 0xB8A58A), ("salmon_bucket", "Bucket of Salmon", 0xC0504A),
                           ("tropical_fish_bucket", "Bucket of Tropical Fish", 0xE87A2A), ("pufferfish_bucket", "Bucket of Pufferfish", 0xE8C040),
                           ("axolotl_bucket", "Bucket of Axolotl", 0xF09AB0), ("tadpole_bucket", "Bucket of Tadpole", 0x5A4A30)] as [(String, String, UInt32)] {
@@ -254,13 +254,13 @@ final class ItemRegistry {
         item("torchflower_seeds", "Torchflower Seeds", "seeds", 0x5A7A2A)
         item("pitcher_pod", "Pitcher Pod", "seeds", 0x3A7A6A)
         item("brush", "Brush", "feather", 0xC8A878, ["a": 0x6B4F2C], stack: 1)
-        item("echo_shard", "Echo Shard", "gem", 0x0A4A58)
+        item("echo_shard", "Resonant Shard", "gem", 0x0A4A58)
         item("recovery_compass", "Recovery Compass", "compass", 0x3A6A6A, ["c": 0x3AD8D8, "d": 0x1A2A2A], stack: 1)
         item("disc_fragment_5", "Disc Fragment", "nugget", 0x2A2A2A)
         item("mace", "Mace", "shovel", 0x6A6A70, stack: 1)
         item("wind_charge", "Wind Charge", "ball", 0xBDC9FF)
         item("powder_snow_bucket", "Powder Snow Bucket", "bucket", 0xB0B0B8, ["c": 0xF8F8FF], stack: 1)
-        item("trial_key", "Trial Key", "nugget", 0xE8A040)
+        item("trial_key", "Proving Key", "nugget", 0xE8A040)
         item("map", "Empty Map", "paper", 0xE8E0C0, ["a": 0x8A7A5A])
         item("filled_map", "Map", "paper", 0xE8D8A8, ["a": 0x6A9A5A], stack: 1)
         for s in ["angler", "archer", "arms_up", "blade", "brewer", "burn", "danger", "explorer", "flow", "friend", "guster", "heart",
@@ -270,8 +270,8 @@ final class ItemRegistry {
         for d in MusicDiscs.all {
             item("music_disc_\(d.0)", "Music Disc", "compass", 0x1A1A1A, ["c": d.1, "d": 0x3A3A3A], stack: 1)
         }
-        item("ominous_trial_key", "Ominous Trial Key", "nugget", 0x3A8A7A)
-        item("netherite_upgrade_smithing_template", "Netherite Upgrade", "paper", 0x3A2A2A, ["a": 0x6A4A3A])
+        item("ominous_trial_key", "Omen Proving Key", "nugget", 0x3A8A7A)
+        item("netherite_upgrade_smithing_template", "Duskium Upgrade", "paper", 0x3A2A2A, ["a": 0x6A4A3A])
         for t in Smithing.trims {
             item("\(t)_armor_trim_smithing_template", "\(t.capitalized) Armor Trim", "paper", 0x2A3A4A, ["a": 0x6A8AAA])
         }
@@ -308,7 +308,7 @@ final class ItemRegistry {
         food("beetroot_soup", "Beetroot Soup", "stew", 0x8A6435, 6, 7.2, ["c": 0xA02838, "d": 0xC04050], stack: 1)
         food("dried_kelp", "Dried Kelp", "leather", 0x3A4A2A, 1, 0.6)
         food("glow_berries", "Glow Berries", "berries", 0xF2A83A, 2, 0.4, ["a": 0x3A6A2A])
-        food("chorus_fruit", "Chorus Fruit", "berries", 0x8A5A9A, 4, 2.4, ["a": 0x4A2A5A])
+        food("chorus_fruit", "Spiral Fruit", "berries", 0x8A5A9A, 4, 2.4, ["a": 0x4A2A5A])
         food("spider_eye", "Spider Eye", "eye", 0x8A2A3A, 2, 3.2, ["c": 0xC04050, "d": 0x200810])
         food("enchanted_golden_apple", "Enchanted Golden Apple", "apple_shape", 0xF8E050, 4, 9.6, ["a": 0x5A3D1F])
         food("pufferfish", "Pufferfish", "fish", 0xE8C040, 1, 0.2, ["c": 0x303030])
@@ -333,7 +333,7 @@ final class ItemRegistry {
         let tiers: [(String, String, Int, Int, Float, UInt32)] = [
             ("wooden", "Wooden", 0, 59, 2, 0x9A7A4A), ("stone", "Stone", 1, 131, 4, 0x8A8A8A),
             ("iron", "Iron", 2, 250, 6, 0xE0E0E0), ("golden", "Golden", 0, 32, 12, 0xF8D84A),
-            ("diamond", "Diamond", 3, 1561, 8, 0x4AEDD9), ("netherite", "Netherite", 4, 2031, 9, 0x5A555A),
+            ("diamond", "Diamond", 3, 1561, 8, 0x4AEDD9), ("netherite", "Duskium", 4, 2031, 9, 0x5A555A),
         ]
         let swordDmg: [Float] = [4, 5, 6, 4, 7, 8], axeDmg: [Float] = [7, 9, 9, 7, 9, 10]
         let axeSpd: [Float] = [0.8, 0.8, 0.9, 1.0, 1.0, 1.0]
@@ -364,7 +364,7 @@ final class ItemRegistry {
         let armors: [(String, String, [Int], Int, Float, UInt32)] = [
             ("leather", "Leather", [1, 3, 2, 1], 5, 0, 0xA0592B), ("chainmail", "Chainmail", [2, 5, 4, 1], 15, 0, 0x9A9A9A),
             ("iron", "Iron", [2, 6, 5, 2], 15, 0, 0xE0E0E0), ("golden", "Golden", [2, 5, 3, 1], 7, 0, 0xF8D84A),
-            ("diamond", "Diamond", [3, 8, 6, 3], 33, 2, 0x4AEDD9), ("netherite", "Netherite", [3, 8, 6, 3], 37, 3, 0x5A555A),
+            ("diamond", "Diamond", [3, 8, 6, 3], 33, 2, 0x4AEDD9), ("netherite", "Duskium", [3, 8, 6, 3], 37, 3, 0x5A555A),
         ]
         let pieces: [(String, String, ArmorSlot, Int)] = [("helmet", "Helmet", .head, 11), ("chestplate", "Chestplate", .chest, 16),
                                                            ("leggings", "Leggings", .legs, 15), ("boots", "Boots", .feet, 13)]
@@ -386,7 +386,7 @@ final class ItemRegistry {
         turtle.sprite = Sprite(mask: "helmet", base: 0x4A9A3A, extras: [:])
         turtle.maxStack = 1; turtle.armorSlot = .head; turtle.armor = 2; turtle.durability = 275
         add(turtle)
-        var ely = ItemDef("elytra", "Elytra")
+        var ely = ItemDef("elytra", "Glider Wings")
         ely.sprite = Sprite(mask: "chestplate", base: 0x8E8AA8, extras: [:])
         ely.maxStack = 1; ely.armorSlot = .chest; ely.armor = 0; ely.durability = 432
         add(ely)

@@ -91,8 +91,8 @@ extension Game {
         }
     }
 
-    // A lightning strike: 5 damage + fire within 3 blocks; creeper -> charged, pig -> zombified
-    // piglin, villager -> witch, mooshroom colour swap; sets fire to the struck block.
+    // A lightning strike: 5 damage + fire within 3 blocks; hisser -> charged, pig -> zombified
+    // boarling, villager -> witch, mushroom cow colour swap; sets fire to the struck block.
     func strike(_ at: V3) {
         bolts.append(Bolt(pos: at, life: 0.35, seed: UInt64.random(in: 1...UInt64.max)))
         lightningFlash = 1

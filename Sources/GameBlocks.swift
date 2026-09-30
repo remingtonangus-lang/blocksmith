@@ -1,8 +1,8 @@
 import Foundation
 import simd
 
-// Behaviour for the newer blocks: campfires, beehives, respawn anchors, sea pickles, turtle eggs,
-// frogspawn, frosted ice, cocoa, conduits, lightning rods, sculk shriekers (warden) and catalysts.
+// Behaviour for the newer blocks: campfires, beehives, rebirth anchors, sea pickles, turtle eggs,
+// frogspawn, frosted ice, cocoa, conduits, lightning rods, murk shriekers (deep stalker) and catalysts.
 extension Game {
     // Right-click handling; returns true if used.
     func useNewBlock(_ t: (hit: IVec3, normal: IVec3)) -> Bool {
@@ -51,7 +51,7 @@ extension Game {
                     anchorSpawn = p
                     onToast?("Respawn point set")
                 } else {
-                    // Anchors explode outside the Nether.
+                    // Anchors explode outside the Emberdeep.
                     world.setBlock(p.x, p.y, p.z, AIR)
                     Explosion.explode(at: c, power: 5, game: self, fire: true)
                 }
@@ -66,7 +66,7 @@ extension Game {
         case "jukebox":
             return useJukebox(p)
         case "vault":
-            // A trial key opens a vault once.
+            // A proving key opens a vault once.
             let be = world.blockEntities[p] ?? BlockEntity(.chest)
             world.blockEntities[p] = be
             guard key == "trial_key" && !be.used else { sfx(.click, 0.4, at: c); return true }
@@ -122,7 +122,7 @@ extension Game {
                 if world.block(q.x, q.y, q.z) == WATER && world.block(q.x, q.y + 1, q.z) == AIR { world.setBlockAsync(q.x, q.y, q.z, fi) }
             } }
         }
-        // Conduits: a prismarine frame (16+ blocks within 2) in water gives Conduit Power (16 blocks per 7 frame blocks).
+        // Conduits: a tidestone frame (16+ blocks within 2) in water gives Conduit Power (16 blocks per 7 frame blocks).
         let conduit = Blocks.has("conduit") ? Blocks.id("conduit") : AIR
         if conduit != AIR, player.inWater {
             let c = IVec3(Int(floor(pp.x)), Int(floor(pp.y)), Int(floor(pp.z)))
@@ -140,7 +140,7 @@ extension Game {
                 }
             } } }
         }
-        // Sculk shriekers: walking (not sneaking) near a sensor/shrieker raises the warning level; the 4th shriek calls a warden.
+        // Murk shriekers: walking (not sneaking) near a sensor/shrieker raises the warning level; the 4th shriek calls a deep stalker.
         if survival && !player.sneaking && simd_length(player.vel) > 1 && dim.dim == .overworld && pp.y < Float(YOFF + 10) {
             shriekCooldown -= 1
             if shriekCooldown <= 0 {
@@ -174,7 +174,7 @@ extension Game {
         if shriekDecay > 0 { shriekDecay -= 1 } else { shriekDecay = 600; warningLevel = max(0, warningLevel - 1) }
     }
 
-    // Sculk catalysts spread sculk where mobs die nearby (XP-sized bloom).
+    // Murk catalysts spread murk where mobs die nearby (XP-sized bloom).
     func sculkBloom(at pos: V3, xp: Int) {
         guard xp > 0, Blocks.has("sculk_catalyst") else { return }
         let cat = Blocks.id("sculk_catalyst")

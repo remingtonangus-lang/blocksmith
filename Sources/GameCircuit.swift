@@ -1,7 +1,7 @@
 import Foundation
 import simd
 
-// Player interaction with redstone components and the world services the engine calls back into
+// Player interaction with sparkstone components and the world services the engine calls back into
 // (dispensing, hoppers, pressure plate detection, piston-pushed entities, drops).
 extension Game {
     // 6-way look direction: 0 down, 1 up, 2 north, 3 south, 4 west, 5 east.
@@ -12,7 +12,7 @@ extension Game {
         return [3, 2, 5, 4][f]                                     // look = opposite of that side
     }
 
-    // State for a redstone component placed with the player at `at`, clicked face normal `n`.
+    // State for a sparkstone component placed with the player at `at`, clicked face normal `n`.
     // Returns nil when the component cannot be placed there.
     func redstonePlacement(_ item: BlockID, at: IVec3, normal n: IVec3, upperHalf: Bool) -> BlockID? {
         let facing = BlockRegistry.facingToward(yaw: player.yaw)  // side toward the player
@@ -37,7 +37,7 @@ extension Game {
         case "daylight": return item
         default: break
         }
-        if Redstone.kind(item) == .torch {
+        if Circuit.kind(item) == .torch {
             if n.y == 0 { return item + BlockID(2 + (normalDir6() - 2)) }
             return solidBelow ? item : nil
         }
@@ -45,13 +45,13 @@ extension Game {
     }
 
     // Right-click on a component. Returns true if it was handled.
-    func useRedstone(_ p: IVec3) -> Bool {
+    func useCircuit(_ p: IVec3) -> Bool {
         let b = world.block(p.x, p.y, p.z)
         let base = Blocks.groupBase[Int(b)]
         let s = Int(b - base)
         let rs = world.redstone
         let at = V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5
-        switch Redstone.kind(b) {
+        switch Circuit.kind(b) {
         case .lever:
             let ns = s >= 12 ? s - 12 : s + 12
             world.setBlock(p.x, p.y, p.z, base + BlockID(ns))
@@ -78,7 +78,7 @@ extension Game {
         case .dispenser, .dropper:
             let be = world.blockEntities[p] ?? BlockEntity(.dispenser)
             world.blockEntities[p] = be
-            openMenu(DispenserMenu(game: self, entity: be, title: Redstone.kind(b) == .dropper ? "Dropper" : "Dispenser"))
+            openMenu(DispenserMenu(game: self, entity: be, title: Circuit.kind(b) == .dropper ? "Dropper" : "Dispenser"))
         case .hopper:
             let be = world.blockEntities[p] ?? BlockEntity(.hopper)
             world.blockEntities[p] = be
@@ -88,8 +88,8 @@ extension Game {
         return true
     }
 
-    func isRedstoneInteractive(_ p: IVec3) -> Bool {
-        switch Redstone.kind(world.block(p.x, p.y, p.z)) {
+    func isCircuitInteractive(_ p: IVec3) -> Bool {
+        switch Circuit.kind(world.block(p.x, p.y, p.z)) {
         case .lever, .button, .repeater, .comparator, .note, .daylight, .dispenser, .dropper, .hopper: return true
         default: return false
         }
@@ -100,7 +100,7 @@ extension Game {
     func breakDrops(_ q: IVec3, _ b: BlockID) {
         let c = V3(Float(q.x) + 0.5, Float(q.y) + 0.3, Float(q.z) + 0.5)
         for s in Mining.drops(b, .empty) { drops.spawn(s, at: c) }
-        if Redstone.kind(b) == .wire { drops.spawn(ItemStack(Items.id("redstone"), 1), at: c) }
+        if Circuit.kind(b) == .wire { drops.spawn(ItemStack(Items.id("redstone"), 1), at: c) }
     }
 
     // Players and mobs inside blocks that a piston just moved ride along.

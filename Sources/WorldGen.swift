@@ -1,6 +1,6 @@
 import Foundation
 
-// Overworld generator modelled on the reference game's 1.18+ design (own noises and numbers):
+// Surface generator modelled on the reference game's 1.18+ design (own noises and numbers):
 //  - five climate parameters per column: temperature, humidity, continentalness, erosion and
 //    weirdness (peaks & valleys = 1 - |3|w| - 2|), which pick the biome from multi-noise style tables;
 //  - terrain height from continentalness/erosion/PV (oceans, coasts, rivers along weirdness zero
@@ -329,7 +329,7 @@ final class WorldGen: TerrainGenerator {
         } }
         maxTop = min(CH - 1, maxTop)
 
-        // 1. Stone / deepslate from density, bedrock floor.
+        // 1. Stone / deeprock from density, bedrock floor.
         let deep = DEEPSLATE
         for lz in 0..<CS { for lx in 0..<CS {
             let wx = bx + lx, wz = bz + lz
@@ -665,7 +665,7 @@ final class WorldGen: TerrainGenerator {
         }
     }
 
-    // Cave biomes: lush caves (moss, azalea, cave vines), dripstone caves, deep dark (sculk).
+    // Cave biomes: lush caves (moss, azalea, cave vines), driprock caves, murk depths (murk).
     private func decorateCaves(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ rng: inout SRng, _ climates: [Climate]) {
         let g = Blocks.id
         for lz in 0..<CS { for lx in 0..<CS {

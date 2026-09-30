@@ -1,11 +1,11 @@
 import Foundation
 import simd
 
-// Raids (reference rules, Normal difficulty): drinking an ominous bottle gives Bad Omen; walking into
-// a village with it turns it into Raid Omen, and 30 s later the raid starts. Five waves (+1 bonus wave
-// when the omen level is above I) of pillagers, vindicators, ravagers, witches and evokers spawn at
-// the village edge. Winning gives Hero of the Village; losing all villagers is a defeat.
-// Pillager patrols roam after day 5; their captains drop ominous bottles.
+// Raids (reference rules, Normal difficulty): drinking an omen bottle gives Ill Omen; walking into
+// a village with it turns it into Siege Omen, and 30 s later the raid starts. Five waves (+1 bonus wave
+// when the omen level is above I) of marauders, brigands, siegebeasts, witches and conjurers spawn at
+// the village edge. Winning gives Village Hero; losing all villagers is a defeat.
+// Marauder patrols roam after day 5; their captains drop omen bottles.
 
 final class Raid {
     var center: V3
@@ -14,7 +14,7 @@ final class Raid {
     let totalWaves: Int
     var raiders: [Mob] = []
     var state = 0                 // 0 between waves (countdown), 1 wave active, 2 victory, 3 defeat
-    var timer: Float = 15         // countdown before the next wave / to disappear after the end
+    var timer: Float = 15         // countdown before the next wave / to disappear after the hollow
     var waveHealth: Float = 1
     var idle: Float = 0           // seconds without progress (a raid times out after 40 min)
     init(center: V3, level: Int) {
@@ -67,7 +67,7 @@ extension Game {
 
     // Called every second.
     func raidTick(_ dt: Float) {
-        // Bad Omen + village -> Raid Omen (30 s) -> raid.
+        // Ill Omen + village -> Siege Omen (30 s) -> raid.
         if raid == nil, let b = effects[.badOmen], survival, dim.dim == .overworld, nearVillage(player.pos) != nil {
             effects.remove(.badOmen)
             applyEffect(.raidOmen, amp: b.amp, seconds: 30)
@@ -134,7 +134,7 @@ extension Game {
         var spawned: [Mob] = []
         for (kind, table) in RaidTable.counts {
             var n = table[min(idx, table.count - 1)]
-            // Small random extra (Normal: up to one more pillager/vindicator; witches in later waves).
+            // Small random extra (Normal: up to one more marauder/brigand; witches in later waves).
             if (kind == .pillager || kind == .vindicator) && n > 0 { n += Int.random(in: 0...1) }
             if kind == .witch && r.wave > 2 && r.wave != 4 && Bool.random() { n += 1 }
             for _ in 0..<n {
@@ -145,7 +145,7 @@ extension Game {
                 spawned.append(m)
             }
         }
-        // Ravagers get riders on later waves (pillager on wave 3+, vindicator/evoker on 5+).
+        // Siegebeasts get riders on later waves (marauder on wave 3+, brigand/conjurer on 5+).
         if let first = spawned.first(where: { $0.kind == .ravager }) {
             let riderKind: MobKind = r.wave >= 5 ? (r.wave >= 7 ? .evoker : .vindicator) : .pillager
             if r.wave >= 3 {
@@ -165,7 +165,7 @@ extension Game {
 
     // MARK: Patrols
 
-    // Every 10-11 minutes after day 5, a 20% chance of a pillager patrol 24-48 blocks away.
+    // Every 10-11 minutes after day 5, a 20% chance of a marauder patrol 24-48 blocks away.
     func patrolTick(_ dt: Float) {
         guard survival, dim.dim == .overworld, time / DAY_LENGTH >= 5 else { return }
         patrolTimer -= dt
@@ -188,7 +188,7 @@ extension Game {
         }
     }
 
-    // Killed captains (outside raids) drop an ominous bottle (level I-V).
+    // Killed captains (outside raids) drop an omen bottle (level I-V).
     func captainDied(_ m: Mob) {
         guard m.captain, !m.raider, m.killedByPlayer, Items.has("ominous_bottle") else { return }
         drops.spawn(ItemStack(Items.id("ominous_bottle"), 1, damage: Int.random(in: 0...4)), at: m.pos + V3(0, 0.5, 0))

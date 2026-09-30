@@ -12,10 +12,10 @@ enum Snd: Hashable {
     case place(SoundMat)
     case step(SoundMat)
     case splash, land, hurt, eat, click, open, mobCow, mobSheep, mobChicken, pickup, dig, attack, burp
-    case mobPig, mobZombie, mobSkeleton, creeperHiss, mobSpider, mobEnderman, mobSlime, bow, explode, arrowHit, fizz, xp, levelUp
-    case mobGhast, mobBlaze, mobPiglin, mobZombPiglin, fireball, mobVillager, mobGolem
+    case mobPig, mobZombie, mobSkeleton, creeperHiss, mobSpider, mobVoidwalker, mobSlime, bow, explode, arrowHit, fizz, xp, levelUp
+    case mobWailer, mobCinderwisp, mobBoarling, mobUndeadBoarling, fireball, mobVillager, mobGolem
     case anvil, brew, enchant, drink, glassBreak
-    case mobWither, witherSpawn, witherShoot, mobVex, mobRavager, evokerCast, bell, raidHorn, fangs, rain, thunder
+    case mobBlight, witherSpawn, witherShoot, mobVex, mobRavager, evokerCast, bell, raidHorn, fangs, rain, thunder
     case mobWolf, mobCat, mobHorse, mobLlama, mobBee, mobWarden, goatHorn
     case fireworkLaunch, fireworkBlast, fireworkBlastLarge, fireworkTwinkle
     case note(Int, Int)            // note block: instrument, pitch 0...24 (made on demand)
@@ -32,10 +32,10 @@ struct SoundBank {
         var s: [Snd] = []
         for m in SoundMat.allCases { s += [.breakBlock(m), .place(m), .step(m)] }
         return s + [.splash, .land, .hurt, .eat, .click, .open, .mobCow, .mobSheep, .mobChicken, .pickup, .dig, .attack, .burp,
-                    .mobPig, .mobZombie, .mobSkeleton, .creeperHiss, .mobSpider, .mobEnderman, .mobSlime, .bow, .explode, .arrowHit, .fizz, .xp, .levelUp,
-                    .mobGhast, .mobBlaze, .mobPiglin, .mobZombPiglin, .fireball, .mobVillager, .mobGolem,
+                    .mobPig, .mobZombie, .mobSkeleton, .creeperHiss, .mobSpider, .mobVoidwalker, .mobSlime, .bow, .explode, .arrowHit, .fizz, .xp, .levelUp,
+                    .mobWailer, .mobCinderwisp, .mobBoarling, .mobUndeadBoarling, .fireball, .mobVillager, .mobGolem,
                     .anvil, .brew, .enchant, .drink, .glassBreak,
-                    .mobWither, .witherSpawn, .witherShoot, .mobVex, .mobRavager, .evokerCast, .bell, .raidHorn, .fangs, .rain, .thunder,
+                    .mobBlight, .witherSpawn, .witherShoot, .mobVex, .mobRavager, .evokerCast, .bell, .raidHorn, .fangs, .rain, .thunder,
                     .mobWolf, .mobCat, .mobHorse, .mobLlama, .mobBee, .mobWarden, .goatHorn, .fireworkLaunch, .fireworkBlast, .fireworkBlastLarge, .fireworkTwinkle]
     }
 
@@ -206,7 +206,7 @@ struct Synth {
         case .mobSkeleton: out = grains(10, spread: 0.35, lp: 3500 * p, hp: 1200, decay: 0.006, gain: 1.2)
         case .creeperHiss: out = burst(1.5, lp: 7000, hp: 2500, attack: 0.3, decay: 1.2, gain: 1.4)
         case .mobSpider: out = Synth.mix(burst(0.5, lp: 4000 * p, hp: 1500, attack: 0.05, decay: 0.2, gain: 1), grains(8, spread: 0.4, lp: 2000, hp: 400, decay: 0.01, gain: 0.8))
-        case .mobEnderman: out = voice(1.0, f0: 300 * p, f1: 120 * p, vib: 0.3, lp: 1500, gain: 1.1)
+        case .mobVoidwalker: out = voice(1.0, f0: 300 * p, f1: 120 * p, vib: 0.3, lp: 1500, gain: 1.1)
         case .mobSlime: out = burst(0.2, lp: 500 * p, hp: 60, decay: 0.06, gain: 2.5)
         case .bow: out = Synth.mix(modes(0.25, [(220 * p, 0.5, 0.05), (440 * p, 0.2, 0.03)]), burst(0.15, lp: 3000, hp: 800, decay: 0.03, gain: 0.5))
         case .explode: out = Synth.mix(burst(2.0, lp: 250 * p, hp: 20, attack: 0.003, decay: 0.5, gain: 4), burst(1.2, lp: 2500, hp: 200, decay: 0.2, gain: 1.2))
@@ -215,10 +215,10 @@ struct Synth {
         case .xp: out = modes(0.2, [(1760 * p, 0.25, 0.05), (2637 * p, 0.12, 0.04)])
         case .levelUp: out = Synth.mix(Synth.mix(modes(0.5, [(523, 0.3, 0.15)]), modes(0.5, [(659, 0.3, 0.15)]), at: frames(0.1)), modes(0.8, [(784, 0.3, 0.3)]), at: frames(0.2))
         case .open: out = Synth.mix(modes(0.12, [(660 * p, 0.25, 0.03)]), modes(0.12, [(990 * p, 0.2, 0.03)]), at: frames(0.05))
-        case .mobGhast: out = Synth.mix(voice(1.4, f0: 520 * p, f1: 260 * p, vib: 0.35, lp: 2400, gain: 1.0), burst(1.2, lp: 1800, hp: 400, attack: 0.2, decay: 0.8, gain: 0.25))
-        case .mobBlaze: out = Synth.mix(burst(1.0, lp: 1200 * p, hp: 90, attack: 0.15, decay: 0.7, gain: 1.4), grains(14, spread: 0.8, lp: 3000, hp: 800, decay: 0.01, gain: 0.5))
-        case .mobPiglin: out = Synth.mix(voice(0.35, f0: 210 * p, f1: 160 * p, vib: 0.2, lp: 1100, gain: 1), voice(0.3, f0: 240 * p, f1: 170 * p, vib: 0.15, lp: 900, gain: 0.8), at: frames(0.3))
-        case .mobZombPiglin: out = Synth.mix(voice(0.8, f0: 160 * p, f1: 110 * p, vib: 0.25, lp: 800, gain: 1.2), burst(0.8, lp: 600, hp: 80, attack: 0.1, decay: 0.4, gain: 0.3))
+        case .mobWailer: out = Synth.mix(voice(1.4, f0: 520 * p, f1: 260 * p, vib: 0.35, lp: 2400, gain: 1.0), burst(1.2, lp: 1800, hp: 400, attack: 0.2, decay: 0.8, gain: 0.25))
+        case .mobCinderwisp: out = Synth.mix(burst(1.0, lp: 1200 * p, hp: 90, attack: 0.15, decay: 0.7, gain: 1.4), grains(14, spread: 0.8, lp: 3000, hp: 800, decay: 0.01, gain: 0.5))
+        case .mobBoarling: out = Synth.mix(voice(0.35, f0: 210 * p, f1: 160 * p, vib: 0.2, lp: 1100, gain: 1), voice(0.3, f0: 240 * p, f1: 170 * p, vib: 0.15, lp: 900, gain: 0.8), at: frames(0.3))
+        case .mobUndeadBoarling: out = Synth.mix(voice(0.8, f0: 160 * p, f1: 110 * p, vib: 0.25, lp: 800, gain: 1.2), burst(0.8, lp: 600, hp: 80, attack: 0.1, decay: 0.4, gain: 0.3))
         case .anvil:
             // Struck metal: inharmonic partials with a sharp attack.
             out = Synth.mix(modes(0.9, [(830 * p, 0.5, 0.35), (1970 * p, 0.3, 0.25), (3120 * p, 0.2, 0.12), (4410 * p, 0.12, 0.08)]),
@@ -227,7 +227,7 @@ struct Synth {
         case .enchant: out = Synth.mix(modes(1.0, [(1320 * p, 0.2, 0.5), (1980 * p, 0.15, 0.4)]), modes(1.0, [(1760 * p, 0.15, 0.5)]), at: frames(0.12))
         case .drink: out = grains(6, spread: 0.5, lp: 900 * p, hp: 150, decay: 0.05, gain: 1.0)
         case .glassBreak: out = Synth.mix(burst(0.3, lp: 12000, hp: 3000, attack: 0.001, decay: 0.12, gain: 1.0), grains(12, spread: 0.25, lp: 10000, hp: 4000, decay: 0.01, gain: 0.6))
-        case .mobWither: out = Synth.mix(voice(1.2, f0: 140 * p, f1: 90 * p, vib: 0.4, lp: 900, gain: 1.2), burst(1.0, lp: 700, hp: 60, attack: 0.2, decay: 0.6, gain: 0.5))
+        case .mobBlight: out = Synth.mix(voice(1.2, f0: 140 * p, f1: 90 * p, vib: 0.4, lp: 900, gain: 1.2), burst(1.0, lp: 700, hp: 60, attack: 0.2, decay: 0.6, gain: 0.5))
         case .witherSpawn:
             out = Synth.mix(voice(3.0, f0: 80 * p, f1: 220 * p, vib: 0.5, lp: 1200, gain: 1.4), burst(3.0, lp: 400, hp: 30, attack: 1.5, decay: 1.4, gain: 0.8))
         case .witherShoot: out = Synth.mix(burst(0.4, lp: 1500 * p, hp: 100, attack: 0.01, decay: 0.2, gain: 1.2), voice(0.3, f0: 300 * p, f1: 120 * p, vib: 0.1, lp: 1200, gain: 0.5))
@@ -288,7 +288,7 @@ struct Synth {
         let loud: Float
         switch s {
         case .hurt: loud = 0.45
-        case .mobCow, .mobSheep, .mobZombie, .mobEnderman, .mobPig: loud = 0.32
+        case .mobCow, .mobSheep, .mobZombie, .mobVoidwalker, .mobPig: loud = 0.32
         case .mobChicken: loud = 0.55
         default: loud = 1
         }

@@ -1,6 +1,6 @@
 import Foundation
 
-// Axis-oriented pillars (logs, wood, stems, basalt, purpur, hay, bone...: base = Y axis, "[x]", "[z]"),
+// Axis-oriented pillars (logs, wood, stems, basalt, violite, hay, bone...: base = Y axis, "[x]", "[z]"),
 // the full wood set for every tree (bark "wood", stripped logs and wood, hyphae, bamboo blocks)
 // and axe stripping.
 enum Woods {

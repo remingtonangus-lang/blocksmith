@@ -1,17 +1,17 @@
 import Foundation
 import simd
 
-// The Wither, golems built from blocks, illagers (evoker + vexes, ravager), zombie villagers and
-// thrown items (snowballs, eggs, ender pearls, wither skulls).
+// The Blight, golems built from blocks, outlaws (conjurer + vexes, siegebeast), zombie villagers and
+// thrown items (snowballs, eggs, void pearls, blight skulls).
 
-// Evoker fangs: bite 0.5 s after appearing (6 damage, magic).
+// Conjurer fangs: bite 0.5 s after appearing (6 damage, magic).
 struct Fang { var pos: V3; var delay: Float; var life: Float = 1.1; var bit = false; weak var owner: Mob? }
 
 extension Game {
     // MARK: Summoning
 
-    // Wither: soul sand/soil T with three wither skeleton skulls on top (either axis).
-    func trySummonWither(_ p: IVec3) {
+    // Blight: ghost sand/soil T with three blight skeleton skulls on top (either axis).
+    func trySummonBlight(_ p: IVec3) {
         let skull = Blocks.id("wither_skeleton_skull")
         func isSkull(_ q: IVec3) -> Bool { Blocks.groupBase[Int(world.block(q.x, q.y, q.z))] == skull }
         func isSoul(_ q: IVec3) -> Bool { let k = Blocks.key(world.block(q.x, q.y, q.z)); return k == "soul_sand" || k == "soul_soil" }
@@ -32,7 +32,7 @@ extension Game {
                 w.persistent = true
                 mobs.mobs.append(w)
                 sfx(.witherSpawn, 1.5, at: w.pos)
-                onToast?("The Wither has awoken")
+                onToast?("The Blight has awoken")
                 return
             }
         }
@@ -96,7 +96,7 @@ extension Game {
                 }
             }
         case .pearl:
-            // Teleport to the landing point; 5 damage (fall), 5% endermite.
+            // Teleport to the landing point; 5 damage (fall), 5% voidmite.
             if f.byPlayer {
                 var t = at
                 if let b = block { t = V3(Float(b.hit.x + b.normal.x), Float(b.hit.y + b.normal.y), Float(b.hit.z + b.normal.z)) + V3(0.5, 0, 0.5) }
@@ -104,11 +104,11 @@ extension Game {
                 player.vel = .zero
                 player.airPeak = t.y
                 damage(5, "fell from a high place", bypassArmor: true, type: .fall)
-                sfx(.mobEnderman, 0.6)
+                sfx(.mobVoidwalker, 0.6)
             }
         case .witherSkull, .blueSkull:
             if hitP {
-                hurtPlayer(8, from: f.pos, cause: "was shot by a Wither Skull", knockback: 0.3, type: .projectile)
+                hurtPlayer(8, from: f.pos, cause: "was shot by a Blight Skull", knockback: 0.3, type: .projectile)
                 applyEffect(.wither, amp: 1, seconds: 10)
             } else if let m = mob, m.kind != .wither {
                 m.hit(from: f.pos, damage: 8, knockback: 0.3)
@@ -124,7 +124,7 @@ extension Game {
         }
     }
 
-    // MARK: Evoker fangs
+    // MARK: Conjurer fangs
 
     func fangTick(_ dt: Float) {
         guard !fangs.isEmpty else { return }
@@ -137,7 +137,7 @@ extension Game {
                 let c = fangs[i].pos
                 sfx(.fangs, 0.6, at: c)
                 if simd_length(V2(player.pos.x - c.x, player.pos.z - c.z)) < 0.9 && abs(player.pos.y - c.y) < 1.5 {
-                    hurtPlayer(6, from: c, cause: "was slain by Evoker", knockback: 0.2, type: .magic)
+                    hurtPlayer(6, from: c, cause: "was slain by Conjurer", knockback: 0.2, type: .magic)
                 }
                 for m in mobs.mobs where m !== fangs[i].owner && !m.raider && m.kind != .evoker && m.kind != .vex
                     && simd_length(V2(m.pos.x - c.x, m.pos.z - c.z)) < 0.5 + m.halfW && abs(m.pos.y - c.y) < 1.5 {
@@ -165,10 +165,10 @@ extension Game {
 }
 
 extension Mob {
-    // MARK: Wither
+    // MARK: Blight
 
     // Phase 1: charging (11 s, invulnerable, heals to full, then a power-7 blast). Phase 0: fighting.
-    func updateWither(_ dt: Float, _ g: Game) {
+    func updateBlight(_ dt: Float, _ g: Game) {
         let w = g.world
         hurt = max(0, hurt - dt)
         if phase == 1 {
@@ -251,7 +251,7 @@ extension Mob {
         g.sfx(.witherShoot, 0.8, at: from)
     }
 
-    // MARK: Vex
+    // MARK: Hexling
 
     // Flies through walls straight at the target; dies after 30-119 s.
     func updateVex(_ dt: Float, _ g: Game) {
@@ -270,7 +270,7 @@ extension Mob {
             let l = simd_length(d)
             if attackCooldown <= 0 && l < 1.2 {
                 attackCooldown = 1
-                if simd_length(g.player.eye - V3(0, 0.6, 0) - t) < 0.01 { g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Vex", attacker: self) }
+                if simd_length(g.player.eye - V3(0, 0.6, 0) - t) < 0.01 { g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Hexling", attacker: self) }
                 else if let v = g.mobs.mobs.first(where: { simd_length($0.pos + V3(0, $0.height * 0.5, 0) - t) < 0.01 }) { v.hit(from: pos, damage: spec.attack) }
             }
             vel += (d / max(l, 0.01) * spec.speed - vel) * min(1, dt * 3)
@@ -283,7 +283,7 @@ extension Mob {
         walkPhase += dt * 12
     }
 
-    // MARK: Evoker
+    // MARK: Conjurer
 
     // Keeps its distance; summons 3 vexes (every 17 s) or fangs (lines at range, circles up close).
     func aiEvoker(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
@@ -332,7 +332,7 @@ extension Mob {
         return d < 6 ? -spec.speed * 0.6 : (d > 10 ? spec.speed : 0)
     }
 
-    // MARK: Ravager
+    // MARK: Siegebeast
 
     // Charges, bites (12) with big knockback, tramples leaves and crops, roars after being stunned.
     func aiRavager(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
@@ -350,7 +350,7 @@ extension Mob {
             if stun <= 0 {
                 // Roar: knock everything back and hurt it.
                 g.sfx(.mobRavager, 1.5, at: pos)
-                if simd_length(g.player.pos - pos) < 4 { g.hurtPlayer(6, from: pos, cause: "was slain by Ravager", knockback: 2) }
+                if simd_length(g.player.pos - pos) < 4 { g.hurtPlayer(6, from: pos, cause: "was slain by Siegebeast", knockback: 2) }
                 for m in g.mobs.mobs where m !== self && !m.raider && simd_length(m.pos - pos) < 4 { m.hit(from: pos, damage: 6, knockback: 2) }
             }
             return 0
@@ -362,7 +362,7 @@ extension Mob {
         if d < halfW + 1.6 && attackCooldown <= 0 {
             attackCooldown = 2
             if simd_length(tp - g.player.pos) < 0.01 {
-                g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Ravager", knockback: 2.5, attacker: self)
+                g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Siegebeast", knockback: 2.5, attacker: self)
                 if g.blocking { stun = 2 }
             } else if let m = g.mobs.mobs.first(where: { simd_length($0.pos - tp) < 0.01 }) {
                 m.hit(from: pos, damage: spec.attack, knockback: 2.5)

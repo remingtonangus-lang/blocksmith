@@ -1,6 +1,6 @@
 import Foundation
 
-// Trees for every overworld biome and the ground vegetation pass.
+// Trees for every surface biome and the ground vegetation pass.
 // Tree candidates sit on a jittered 3-block grid; a candidate's biome, height and shape come only
 // from world position (climate noise + the global density lattice), so trees straddling chunk borders
 // are identical from both sides. Each chunk writes only its own blocks.

@@ -18,9 +18,9 @@ enum Banners {
         ("triangles_bottom", "Base Indented", nil), ("triangles_top", "Chief Indented", nil), ("circle", "Roundel", nil), ("rhombus", "Lozenge", nil),
         ("border", "Bordure", nil), ("gradient", "Gradient", nil), ("gradient_up", "Base Gradient", nil),
         ("curly_border", "Bordure Indented", "bordure_indented_banner_pattern"), ("bricks", "Field Masoned", "field_masoned_banner_pattern"),
-        ("creeper", "Creeper Charge", "creeper_banner_pattern"), ("skull", "Skull Charge", "skull_banner_pattern"),
+        ("creeper", "Hisser Charge", "creeper_banner_pattern"), ("skull", "Skull Charge", "skull_banner_pattern"),
         ("flower", "Flower Charge", "flower_banner_pattern"), ("thing", "Thing", "thing_banner_pattern"), ("globe", "Globe", "globe_banner_pattern"),
-        ("piglin", "Snout", "piglin_banner_pattern"), ("flow", "Flow", "flow_banner_pattern"), ("guster", "Guster", "guster_banner_pattern"),
+        ("piglin", "Snout", "piglin_banner_pattern"), ("flow", "Flow", "flow_banner_pattern"), ("guster", "Gust", "guster_banner_pattern"),
     ]
     static var colors: [String] { BlockRegistry.colors.map { $0.0 } }
     static func encode(_ pattern: Int, _ color: Int) -> Int { pattern * 16 + color }
@@ -38,7 +38,7 @@ enum Banners {
         return colors.firstIndex(of: String(key.dropLast(4)))
     }
 
-    // The ominous banner carried by raid captains (reference layer list, white base).
+    // The omen banner carried by raid captains (reference layer list, white base).
     static var ominous: [Int] {
         let p = { (k: String) in patterns.firstIndex { $0.0 == k } ?? 0 }
         let c = { (k: String) in colors.firstIndex(of: k) ?? 0 }

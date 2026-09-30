@@ -13,7 +13,7 @@ enum Rails {
     ]
 
     static func isRail(_ b: BlockID) -> Bool { Blocks.shape[Int(b)] == "rail" }
-    static func plain(_ b: BlockID) -> Bool { Redstone.kind(b) == .rail }
+    static func plain(_ b: BlockID) -> Bool { Circuit.kind(b) == .rail }
     static func shape(_ b: BlockID) -> Int {
         let s = Int(b - Blocks.groupBase[Int(b)])
         return plain(b) ? s : s % 6
@@ -81,7 +81,7 @@ extension Mob {
             var s = simd_dot(vel, axis)
             // Gravity along slopes.
             s -= axis.y * 5 * dt
-            let k = Redstone.kind(b)
+            let k = Circuit.kind(b)
             let on = Int(b - Blocks.groupBase[Int(b)]) >= 6
             if k == .poweredRail {
                 if on {
@@ -107,7 +107,7 @@ extension Mob {
             var np = pos + axis * s * dt
             let t = simd_dot(np - A, axis)
             np = A + axis * t
-            // Stop at a wall past the end of the track.
+            // Stop at a wall past the hollow of the track.
             if collides(np + V3(0, 0.1, 0), w) { s = 0 } else { pos = np }
             vel = axis * s
             if abs(s) > 0.05 { yaw = atan2f(-axis.x * (s > 0 ? 1 : -1), -axis.z * (s > 0 ? 1 : -1)) }

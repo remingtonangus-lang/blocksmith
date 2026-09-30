@@ -1,7 +1,7 @@
 import Foundation
 import simd
 
-// Smithing table (netherite upgrade, armor trims), stonecutter and grindstone.
+// Smithing table (duskium upgrade, armor trims), stonecutter and grindstone.
 
 enum Smithing {
     static let trims = ["sentry", "dune", "coast", "wild", "ward", "eye", "vex", "tide", "snout", "rib", "spire", "wayfinder",

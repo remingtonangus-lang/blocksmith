@@ -3,7 +3,7 @@ import Foundation
 // Strongholds: 128 per world in eight rings around the origin (3, 6, 10, 15, 21, 28, 36, 9 — the
 // reference game's distribution; the first ring 1280–2816 blocks out). Each is a branching network of
 // stone-brick corridors on a 12-block grid: the spiral-stair start, crossings, libraries, prison cells,
-// chest corridors and exactly one portal room (the farthest leaf) with twelve end portal frames
+// chest corridors and exactly one portal room (the farthest leaf) with twelve hollow gate frames
 // (each 10% pre-filled with an eye) around a lava pool and a silverfish spawner.
 enum Stronghold {
     static let cell = 12

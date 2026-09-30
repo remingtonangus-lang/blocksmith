@@ -23,7 +23,7 @@ struct WorldMeta: Codable {
     var hunger: Int?
     var saturation: Float?
     var dragonKilled: Bool? = nil
-    var gateways: Int? = nil       // end gateways opened (one per dragon kill, up to 20)
+    var gateways: Int? = nil       // hollow rifts opened (one per dragon kill, up to 20)
     var seenCredits: Bool? = nil
     var effects: [EffectSet.Saved]? = nil
     var absorption: Float? = nil

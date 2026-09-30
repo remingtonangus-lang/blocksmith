@@ -1,8 +1,8 @@
 import Foundation
 import simd
 
-// Beacons: a pyramid of iron/gold/emerald/diamond/netherite blocks (1-4 layers) under a beacon with a
-// clear view of the sky powers it. Paying an ingot, emerald, diamond or netherite ingot picks the
+// Beacons: a pyramid of iron/gold/emerald/diamond/duskium blocks (1-4 layers) under a beacon with a
+// clear view of the sky powers it. Paying an ingot, emerald, diamond or duskium ingot picks the
 // powers: speed/haste (1+), resistance/jump boost (2+), strength (3+), and at 4 layers regeneration
 // or level II of the primary. Every 4 s players within 10 + 10*layers blocks get (9 + 2*layers) s.
 enum Beacons {

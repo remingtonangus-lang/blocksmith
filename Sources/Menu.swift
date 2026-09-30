@@ -396,9 +396,9 @@ final class DoubleChestMenu: Menu {
     }
 }
 
-final class ShulkerMenu: Menu {
+final class ShellBoxMenu: Menu {
     init(game: Game, entity: BlockEntity) {
-        super.init("Shulker Box", game: game)
+        super.init("Shell Box", game: game)
         for r in 0..<3 { for c in 0..<9 {
             let sl = MenuSlot(8 + c * 18, 18 + r * 18, entity.container, c + r * 9)
             sl.filter = { !Items.key($0.item).hasSuffix("shulker_box") }       // no boxes inside boxes

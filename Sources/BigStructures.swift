@@ -2,8 +2,8 @@ import Foundation
 import simd
 
 // The large late-game structures, laid out procedurally with the reference game's placement rules:
-// ocean monuments 32/5 in deep oceans, woodland mansions 80/20 in dark forests, ancient cities 24/8 in
-// the deep dark (y −51), trial chambers 34/12 underground (y −40…−20), ocean ruins 20/8, trail ruins
+// sea temples 32/5 in deep oceans, forest manors 80/20 in dark forests, buried citadels 24/8 in
+// the murk depths (y −51), proving halls 34/12 underground (y −40…−20), ocean ruins 20/8, trail ruins
 // 34/8, and fossils (1 in 64 desert / swamp chunks).
 enum BigStructures {
     static func types(_ gen: WorldGen) -> [StructureType] {
@@ -34,7 +34,7 @@ enum BigStructures {
         let sponge = g("wet_sponge")
         // Foundation pillars down to the sea floor.
         for z in stride(from: cz - 28, through: cz + 28, by: 4) { for x in stride(from: cx - 28, through: cx + 28, by: 4) { w.pillarDown(x, y0 - 1, z, br, minY: y0 - 30) } }
-        // Main body: a hollow box of bricks with a dark prismarine roof band, filled with water inside.
+        // Main body: a hollow box of bricks with a dark tidestone roof band, filled with water inside.
         w.fill(cx - 28, y0, cz - 28, cx + 28, y0 + 8, cz + 28, br)
         w.fill(cx - 27, y0 + 1, cz - 27, cx + 27, y0 + 7, cz + 27, WATER)
         w.fill(cx - 28, y0 + 8, cz - 28, cx + 28, y0 + 8, cz + 28, dk)
@@ -45,7 +45,7 @@ enum BigStructures {
         w.fill(cx - 7, y0 + 16, cz - 7, cx + 7, y0 + 20, cz + 7, WATER)
         // Entrance on the north side.
         w.fill(cx - 3, y0 + 1, cz - 28, cx + 3, y0 + 7, cz - 28, WATER)
-        // Inner wing rooms (elder guardians in the two wings and the penthouse).
+        // Inner wing rooms (elder spikefishs in the two wings and the penthouse).
         for sx in [-1, 1] {
             let wx = cx + sx * 18
             w.fill(wx - 6, y0 + 1, cz - 6, wx + 6, y0 + 7, cz + 6, dk)
@@ -54,11 +54,11 @@ enum BigStructures {
             w.mob("elder_guardian", V3(Float(wx) + 0.5, Float(y0 + 3), Float(cz) + 0.5))
         }
         w.mob("elder_guardian", V3(Float(cx) + 0.5, Float(y0 + 18), Float(cz) + 0.5))
-        // Treasure room: 8 gold blocks in dark prismarine.
+        // Treasure room: 8 gold blocks in dark tidestone.
         w.fill(cx - 3, y0 + 1, cz + 8, cx + 3, y0 + 5, cz + 14, dk)
         w.fill(cx - 2, y0 + 2, cz + 9, cx + 2, y0 + 4, cz + 13, WATER)
         w.fill(cx - 1, y0 + 2, cz + 10, cx, y0 + 3, cz + 11, gold)
-        // Pillars, sea lanterns, a sponge room.
+        // Pillars, tide lanterns, a sponge room.
         for z in stride(from: cz - 24, through: cz + 24, by: 8) { for x in stride(from: cx - 24, through: cx + 24, by: 8) where abs(x - cx) > 12 || abs(z - cz) > 12 {
             w.fill(x, y0 + 1, z, x, y0 + 7, z, pr)
             w.set(x, y0 + 4, z, lamp)
@@ -131,7 +131,7 @@ enum BigStructures {
             // Stairs up the middle.
             if f < 2 { for k in 0..<6 { w.set(cx + 2, fy + 1 + k, cz - 3 + k, stairs + 1); w.fill(cx + 2, fy + 2 + k, cz - 3 + k, cx + 2, fy + 5, cz - 3 + k, AIR) } }
         }
-        // Allay cell and the roof.
+        // Fetchling cell and the roof.
         w.fill(cx - 3, y + 1, cz + 16, cx - 1, y + 3, cz + 18, g("iron_bars"))
         w.fill(cx - 2, y + 1, cz + 17, cx - 2, y + 2, cz + 17, AIR)
         w.mob("allay", V3(Float(cx) - 1.5, Float(y + 1), Float(cz) + 17.5))
@@ -150,7 +150,7 @@ enum BigStructures {
     static func ancientCity(_ gen: WorldGen) -> StructureType {
         StructureType(name: "ancient_city", spacing: 24, separation: 8, salt: 20083232, reach: 4) { [unowned gen] seed, cx, cz in
             let x = cx * CS + 8, z = cz * CS + 8
-            guard gen.climate(x, z).e < -0.6 else { return nil }             // deep dark erosion band
+            guard gen.climate(x, z).e < -0.6 else { return nil }             // murk depths erosion band
             let y = YOFF - 51
             return StructureStart(kind: "ancient_city", pieces: [piece(x - 44, y - 4, z - 44, x + 44, y + 24, z + 44) { w in buildAncientCity(&w, x, y, z, seed) }],
                                   anchor: IVec3(x, y + 1, z - 20))
@@ -170,13 +170,13 @@ enum BigStructures {
             if h < 0.35 { w.set(x, y - 1, z, sculk) } else if h < 0.42 { w.set(x, y, z, vein) }
             else if h > 0.995 { w.set(x, y, z, sensor) } else if h > 0.9925 { w.set(x, y, z, shrieker) }
         } }
-        // Central "portal" frame of reinforced deepslate.
+        // Central "portal" frame of reinforced deeprock.
         w.fill(cx - 10, y, cz - 2, cx + 10, y + 3, cz + 2, pdsl)
         w.fill(cx - 10, y + 4, cz - 1, cx - 8, y + 18, cz + 1, rein)
         w.fill(cx + 8, y + 4, cz - 1, cx + 10, y + 18, cz + 1, rein)
         w.fill(cx - 10, y + 16, cz - 1, cx + 10, y + 18, cz + 1, rein)
         w.fill(cx - 7, y + 4, cz, cx + 7, y + 15, cz, AIR)
-        // Streets and buildings around: towers, halls, sculk-covered ruins.
+        // Streets and buildings around: towers, halls, murk-covered ruins.
         for i in 0..<14 {
             let a = Float(i) / 14 * 2 * .pi + rng.float() * 0.3
             let d = 20 + rng.float() * 18
@@ -326,7 +326,7 @@ enum BigStructures {
 }
 
 extension StructWriter {
-    // Block entity for a trial spawner (reuses the spawner entity with the mob kind).
+    // Block entity for a proving spawner (reuses the spawner entity with the mob kind).
     mutating func spawnerEntity(_ x: Int, _ y: Int, _ z: Int, mob: String) {
         guard inside(x, y, z) else { return }
         let be = BlockEntity(.spawner)

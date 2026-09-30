@@ -1,21 +1,21 @@
 import Foundation
 
-// Every biome of the reference game (overworld, Nether, End), with the facts that drive generation
+// Every biome of the reference game (surface, Emberdeep, End), with the facts that drive generation
 // and colour: base temperature (snow below 0.15 after the altitude drop), grass/foliage/water colours.
 enum Biome: Int, CaseIterable {
-    // Overworld: oceans and shores
+    // Surface: oceans and shores
     case ocean, deepOcean, warmOcean, lukewarmOcean, deepLukewarmOcean, coldOcean, deepColdOcean, frozenOcean, deepFrozenOcean
     case beach, snowyBeach, stonyShore, river, frozenRiver
-    // Overworld: land
+    // Surface: land
     case plains, sunflowerPlains, snowyPlains, iceSpikes, desert, swamp, mangroveSwamp
     case forest, flowerForest, birchForest, oldGrowthBirchForest, darkForest
     case taiga, oldGrowthPineTaiga, oldGrowthSpruceTaiga, snowyTaiga
     case savanna, savannaPlateau, windsweptHills, windsweptGravellyHills, windsweptForest, windsweptSavanna
     case jungle, sparseJungle, bambooJungle, badlands, erodedBadlands, woodedBadlands
     case meadow, cherryGrove, grove, snowySlopes, frozenPeaks, jaggedPeaks, stonyPeaks, mushroomFields
-    // Overworld: caves
+    // Surface: caves
     case dripstoneCaves, lushCaves, deepDark
-    // Nether / End
+    // Emberdeep / End
     case netherWastes, soulSandValley, crimsonForest, warpedForest, basaltDeltas, theEnd
 
     struct Info {
@@ -90,6 +90,12 @@ enum Biome: Int, CaseIterable {
 
     var info: Info { Biome.table[rawValue] }
     var name: String { info.id }
+    // Player-facing biome name (Blocksmith names for the other dimensions).
+    var displayName: String {
+        let own: [String: String] = ["nether_wastes": "Ember Wastes", "soul_sand_valley": "Ghost Sand Valley", "crimson_forest": "Crimson Forest",
+                                     "warped_forest": "Warped Forest", "basalt_deltas": "Basalt Deltas", "the_end": "The Hollow", "deep_dark": "Murk Depths"]
+        return own[info.id] ?? info.id.split(separator: "_").map { $0.capitalized }.joined(separator: " ")
+    }
     static func named(_ n: String) -> Biome? { allCases.first { $0.name == n } }
 
     var isOcean: Bool { rawValue <= Biome.deepFrozenOcean.rawValue }

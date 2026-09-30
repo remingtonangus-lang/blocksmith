@@ -616,11 +616,11 @@ final class Renderer: NSObject, MTKViewDelegate {
             return v
         }
         if game.menu == nil {
-            // Boss bars: ender dragon (pink), wither (purple), raid (red).
+            // Boss bars: hollow wyrm (pink), blight (purple), raid (red).
             var bars: [(String, Float, V4)] = []
-            if let d = game.mobs.mobs.first(where: { $0.kind == .enderDragon }) { bars.append(("Ender Dragon", Float(d.health) / 200, V4(0.9, 0.3, 0.95, 1))) }
+            if let d = game.mobs.mobs.first(where: { $0.kind == .enderDragon }) { bars.append(("Hollow Wyrm", Float(d.health) / 200, V4(0.9, 0.3, 0.95, 1))) }
             for wi in game.mobs.mobs where wi.kind == .wither && simd_length(wi.pos - game.player.pos) < 64 {
-                bars.append((wi.customName ?? "Wither", Float(wi.health) / 300, V4(0.6, 0.2, 0.85, 1)))
+                bars.append((wi.customName ?? "Blight", Float(wi.health) / 300, V4(0.6, 0.2, 0.85, 1)))
             }
             if let r = game.raidBar { bars.append((r.0, r.1, V4(0.85, 0.15, 0.15, 1))) }
             for (i, b) in bars.enumerated() {
@@ -752,7 +752,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
             if m is CraftingTableMenu { rect(o.x + 90 * s, o.y + 33 * s, 22 * s, 6 * s, V4(0.55, 0.55, 0.55, 1)) }
             if let b = m as? BrewingMenu {
-                // Blaze fuel bar, brew progress (downward arrow) and bubbles.
+                // Cinderwisp fuel bar, brew progress (downward arrow) and bubbles.
                 rect(o.x + 60 * s, o.y + 44 * s, 18 * s, 4 * s, V4(0.3, 0.3, 0.3, 1))
                 rect(o.x + 60 * s, o.y + 44 * s, 18 * s * Float(b.be.fuel) / 20, 4 * s, V4(1, 0.6, 0.1, 1))
                 rect(o.x + 97 * s, o.y + 16 * s, 9 * s, 28 * s, V4(0.55, 0.55, 0.55, 1))
@@ -997,7 +997,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 }
                 if let t = Smithing.trimName(st) { lines.append((t, V4(0.67, 0.67, 0.9, 1))) }
                 for l in Fireworks.tooltip(st) { lines.append((l, V4(0.67, 0.67, 0.67, 1))) }
-                if st.def.name == "ominous_bottle" { lines.append(("Bad Omen " + Effect.roman(st.damage + 1) + " (100:00)", V4(0.33, 0.33, 1, 1))) }
+                if st.def.name == "ominous_bottle" { lines.append(("Ill Omen " + Effect.roman(st.damage + 1) + " (100:00)", V4(0.33, 0.33, 1, 1))) }
                 if st.def.durability > 0 && st.damage > 0 {
                     lines.append(("Durability: \(st.def.durability - st.damage) / \(st.def.durability)", V4(0.8, 0.8, 0.8, 1)))
                 }
@@ -1049,7 +1049,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             func sprite(_ layer: Int, _ x: Float, _ y: Float) {
                 quad([V2(x, y), V2(x + isz, y), V2(x + isz, y + isz), V2(x, y + isz)], uv4, V4(1, 1, 1, 1), Float(layer))
             }
-            // Hearts: rows of ten (health boost adds rows), then golden absorption hearts; poison/wither tint them.
+            // Hearts: rows of ten (health boost adds rows), then golden absorption hearts; poison/blight tint them.
             let heartKind = game.effects.has(.wither) ? "wither" : (game.effects.has(.poison) ? "poison" : "")
             let fullH = heartKind.isEmpty ? HudTex.heart : Int(Tex.id("heart_" + heartKind))
             let halfH = heartKind.isEmpty ? HudTex.heartHalf : Int(Tex.id("heart_\(heartKind)_half"))
@@ -1090,7 +1090,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
         }
 
-        // Active effects: icons in the top-right corner (beneficial row, then harmful), blinking near the end.
+        // Active effects: icons in the top-right corner (beneficial row, then harmful), blinking near the hollow.
         if game.effects.any {
             var good = 0, bad = 0
             for (e, a) in game.effects.active {
@@ -1196,7 +1196,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             "Blocksmith  \(Int(fps.rounded())) fps  seed \(w.seed)",
             String(format: "XYZ %.2f / %.2f / %.2f", p.pos.x, p.pos.y - Float(YOFF), p.pos.z),
             "Block \(bx) \(by - YOFF) \(bz)  Chunk \(floorDiv(bx, CS)) \(floorDiv(bz, CS))  Facing \(facing)",
-            "Biome \(biome)  Light sky \(l.sky) block \(l.block)",
+            "Biome \(biome.displayName)  Light sky \(l.sky) block \(l.block)",
             "Chunks \(w.chunks.count) loaded, \(w.meshedCount) meshed, \(drawnChunks) drawn, \(w.pendingJobs) jobs, RD \(w.renderDistance)",
             "Target \(tgt)",
             "\(p.flying ? "flying" : (p.onGround ? "on ground" : "in air"))\(p.inWater ? ", in water" : "")  Time \(String(format: "%02d:00", hour))  Controller \(game.padConnected ? "yes" : "no")",

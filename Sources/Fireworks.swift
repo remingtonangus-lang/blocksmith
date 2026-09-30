@@ -5,7 +5,7 @@ import simd
 // rockets (paper + 1-3 gunpowder + up to 7 stars) launched from the ground, a dispenser or a
 // crossbow, exploding into coloured sparks that hurt nearby mobs (reference numbers).
 enum Fireworks {
-    // Star tag: shape (0 small ball, 1 large ball, 2 star, 3 creeper, 4 burst) | trail << 3 | twinkle << 4.
+    // Star tag: shape (0 small ball, 1 large ball, 2 star, 3 hisser, 4 burst) | trail << 3 | twinkle << 4.
     // Star pat: colour indices; fade colours are stored + 16.
     static let shapeItems: [String: Int] = ["fire_charge": 1, "gold_nugget": 2, "feather": 4]
     static func shape(of key: String) -> Int? {
@@ -13,7 +13,7 @@ enum Fireworks {
         if key.hasSuffix("_head") || key.hasSuffix("_skull") { return 3 }
         return nil
     }
-    static let shapeNames = ["Small Ball", "Large Ball", "Star-shaped", "Creeper-shaped", "Burst"]
+    static let shapeNames = ["Small Ball", "Large Ball", "Star-shaped", "Hisser-shaped", "Burst"]
 
     // Special crafting (dynamic ingredients). Returns the result and grid slots that are not consumed.
     static func craft(_ g: [ItemStack]) -> (ItemStack, keep: Set<Int>)? {
@@ -224,7 +224,7 @@ extension ParticleManager {
                     dirs.append(V3(cosf(a1 + (a1 - a0) * t) * (0.45 + 0.55 * t), sinf(a1 + (a1 - a0) * t) * (0.45 + 0.55 * t), 0))
                 }
             }
-        case 3:                                      // creeper face
+        case 3:                                      // hisser face
             let face = ["#..#", "#..#", ".##.", "####", "#..#"]
             for (y, row) in face.enumerated() { for (x, ch) in row.enumerated() where ch == "#" {
                 for _ in 0..<3 { dirs.append(V3((Float(x) - 1.5) * 0.35 + Float.random(in: -0.05...0.05), (2 - Float(y)) * 0.35, 0)) }

@@ -1,9 +1,9 @@
 import Foundation
 
-// More blocks: lush and deep-dark cave plants, the sculk family, tuff variants, sea pickles, conduit,
-// scaffolding, chains, lightning rods, campfires, beehives, respawn anchor, lodestone, jukebox,
-// froglights, cocoa, turtle/sniffer eggs, frogspawn, frosted ice, tripwire hooks, archaeology blocks,
-// trial spawners, vaults, the crafter, heavy core.
+// More blocks: lush and deep-dark cave plants, the murk family, tuff variants, sea pickles, conduit,
+// scaffolding, chains, lightning rods, campfires, beehives, rebirth anchor, lodestone, jukebox,
+// frog lanterns, cocoa, turtle/snuffler eggs, frogspawn, frosted ice, tripwire hooks, archaeology blocks,
+// proving spawners, vaults, the crafter, dense core.
 extension BlockRegistry {
     func registerMoreBlocks() {
         func t6(_ s: String) -> [UInt16] { [UInt16](repeating: Tex.id(s), count: 6) }
@@ -48,16 +48,16 @@ extension BlockRegistry {
         lichen.tex = ["glow_lichen"]; lichen.render = .model; lichen.layer = .cutout; lichen.opaque = false; lichen.collide = false
         lichen.boxes = [Box(0, 0, 0, 16, 1, 16)]; lichen.hardness = 0.2; lichen.sound = .plant; lichen.emit = 7; lichen.skyStop = false; lichen.replaceable = true
         add(lichen)
-        // Sculk family.
-        var vein = BlockDef("sculk_vein", "Sculk Vein")
+        // Murk family.
+        var vein = BlockDef("sculk_vein", "Murk Vein")
         vein.tex = ["sculk_vein"]; vein.render = .model; vein.layer = .cutout; vein.opaque = false; vein.collide = false
         vein.boxes = [Box(0, 0, 0, 16, 1, 16)]; vein.hardness = 0.2; vein.tool = .hoe; vein.sound = .plant; vein.skyStop = false; vein.replaceable = true
         add(vein)
-        for (n, disp) in [("sculk_sensor", "Sculk Sensor"), ("calibrated_sculk_sensor", "Calibrated Sculk Sensor")] {
+        for (n, disp) in [("sculk_sensor", "Murk Sensor"), ("calibrated_sculk_sensor", "Calibrated Murk Sensor")] {
             model(n, disp, ["sculk_sensor_side", "sculk_sensor_side", "sculk_sensor_top", "sculk_sensor_side", "sculk_sensor_side", "sculk_sensor_side"],
                   [Box(0, 0, 0, 16, 8, 16), Box(3, 8, 3, 5, 16, 5, tex: t6("sculk_tendril")), Box(11, 8, 11, 13, 16, 13, tex: t6("sculk_tendril"))], h: 1.5, tool: .hoe, emit: 1)
         }
-        sided("sculk_catalyst", "Sculk Catalyst", side: "sculk_catalyst_side", top: "sculk_catalyst_top", bottom: "sculk", h: 3, tool: .hoe, emit: 6)
+        sided("sculk_catalyst", "Murk Catalyst", side: "sculk_catalyst_side", top: "sculk_catalyst_top", bottom: "sculk", h: 3, tool: .hoe, emit: 6)
         // Tuff variants (1.21).
         cube("polished_tuff", "Polished Tuff", h: 1.5, req: true)
         cube("tuff_bricks", "Tuff Bricks", h: 1.5, req: true)
@@ -82,7 +82,7 @@ extension BlockRegistry {
                Box(0, 0, 14, 2, 14, 16, tex: t6("scaffolding_side")), Box(14, 0, 14, 16, 14, 16, tex: t6("scaffolding_side"))], h: 0, tool: .none, snd: .wood)
         model("chain", "Chain", ["chain"], [Box(7, 0, 7, 9, 16, 9)], h: 5)
         model("lightning_rod", "Lightning Rod", ["copper_block"], [Box(7, 0, 7, 9, 12, 9), Box(6, 12, 6, 10, 16, 10)], h: 3)
-        for (n, disp, fire, emit) in [("campfire", "Campfire", "campfire_fire", UInt8(15)), ("soul_campfire", "Soul Campfire", "soul_campfire_fire", UInt8(10))] {
+        for (n, disp, fire, emit) in [("campfire", "Campfire", "campfire_fire", UInt8(15)), ("soul_campfire", "Ghost Campfire", "soul_campfire_fire", UInt8(10))] {
             for lit in [false, true] {
                 var d = BlockDef(lit ? n : "\(n)[off]", disp)
                 d.group = n; d.hidden = !lit
@@ -109,14 +109,14 @@ extension BlockRegistry {
         sided("dried_kelp_block", "Dried Kelp Block", side: "dried_kelp_side", top: "dried_kelp_top", bottom: "dried_kelp_top", h: 0.5, tool: .hoe, snd: .plant)
         sided("lodestone", "Lodestone", side: "lodestone_side", top: "lodestone_top", bottom: "lodestone_top", h: 3.5, req: true)
         for c in 0...4 {
-            var d = BlockDef(c == 0 ? "respawn_anchor" : "respawn_anchor[\(c)]", "Respawn Anchor")
+            var d = BlockDef(c == 0 ? "respawn_anchor" : "respawn_anchor[\(c)]", "Rebirth Anchor")
             d.group = "respawn_anchor"; d.hidden = c != 0
             d.tex = ["respawn_anchor_side", "respawn_anchor_side", c == 0 ? "respawn_anchor_top_off" : "respawn_anchor_top", "respawn_anchor_bottom", "respawn_anchor_side", "respawn_anchor_side"]
             d.hardness = 50; d.resistance = 1200; d.tool = .pickaxe; d.harvestLevel = 3; d.requiresTool = true; d.emit = UInt8([0, 3, 7, 11, 15][c])
             add(d)
         }
         sided("jukebox", "Jukebox", side: "jukebox_side", top: "jukebox_top", bottom: "jukebox_side", h: 2, tool: .axe, snd: .wood)
-        for (n, disp) in [("ochre_froglight", "Ochre Froglight"), ("verdant_froglight", "Verdant Froglight"), ("pearlescent_froglight", "Pearlescent Froglight")] {
+        for (n, disp) in [("ochre_froglight", "Ochre Frog Lantern"), ("verdant_froglight", "Verdant Frog Lantern"), ("pearlescent_froglight", "Pearlescent Frog Lantern")] {
             sided(n, disp, side: "\(n)_side", top: "\(n)_top", bottom: "\(n)_top", h: 0.3, tool: .none, snd: .plant, emit: 15)
         }
         for age in 0..<3 {
@@ -130,7 +130,7 @@ extension BlockRegistry {
                    [Box(3, 0, 3, 7, 7, 7), Box(9, 0, 8, 13, 6, 12), Box(8, 0, 2, 12, 5, 6), Box(2, 0, 9, 6, 5, 13)]][k], h: 0.5, snd: .stone,
                   group: "turtle_egg", hidden: k != 0, shape: "egg")
         }
-        model("sniffer_egg", "Sniffer Egg", ["sniffer_egg"], [Box(1, 0, 2, 15, 16, 14)], h: 0.5)
+        model("sniffer_egg", "Snuffler Egg", ["sniffer_egg"], [Box(1, 0, 2, 15, 16, 14)], h: 0.5)
         var spawn = BlockDef("frogspawn", "Frogspawn")
         spawn.tex = ["frogspawn"]; spawn.render = .model; spawn.layer = .cutout; spawn.opaque = false; spawn.collide = false
         spawn.boxes = [Box(0, 0, 0, 16, 1, 16)]; spawn.hardness = 0; spawn.skyStop = false; spawn.randomTicks = true
@@ -153,17 +153,17 @@ extension BlockRegistry {
         wire.tex = ["tripwire"]; wire.render = .model; wire.layer = .cutout; wire.opaque = false; wire.collide = false
         wire.boxes = [Box(0, 1, 7, 16, 2, 9)]; wire.hardness = 0; wire.hidden = true; wire.skyStop = false
         add(wire)
-        // Plants of the sniffer era.
+        // Plants of the snuffler era.
         cross("torchflower", "Torchflower")
         for s in 0..<2 { cross(s == 0 ? "torchflower_crop" : "torchflower_crop[1]", "Torchflower Crop", tex: "torchflower_crop\(s)", group: "torchflower_crop", hidden: true) }
         cross("pitcher_plant", "Pitcher Plant")
         for s in 0..<5 { cross(s == 0 ? "pitcher_crop" : "pitcher_crop[\(s)]", "Pitcher Crop", tex: "pitcher_crop\(min(s, 3))", group: "pitcher_crop", hidden: true) }
-        // Archaeology and trial chambers.
+        // Archaeology and proving halls.
         for (n, disp, base) in [("suspicious_sand", "Suspicious Sand", "sand"), ("suspicious_gravel", "Suspicious Gravel", "gravel")] {
             var d = BlockDef(n, disp); d.tex = ["\(n)"]; d.hardness = 0.25; d.tool = .shovel; d.sound = .sand; add(d); _ = base
         }
         model("decorated_pot", "Decorated Pot", ["decorated_pot"], [Box(1, 0, 1, 15, 13, 15), Box(4, 13, 4, 12, 16, 12)], h: 0, tool: .none)
-        for (n, disp) in [("trial_spawner", "Trial Spawner"), ("vault", "Vault")] {
+        for (n, disp) in [("trial_spawner", "Proving Spawner"), ("vault", "Vault")] {
             var d = BlockDef(n, disp)
             d.tex = ["\(n)_side", "\(n)_side", "\(n)_top", "\(n)_top", "\(n)_side", "\(n)_side"]; d.hardness = 50; d.opaque = false; d.layer = .cutout
             d.emit = 6; d.skyStop = false
@@ -172,7 +172,7 @@ extension BlockRegistry {
         var crafter = BlockDef("crafter", "Crafter")
         crafter.tex = ["crafter_side", "crafter_side", "crafter_top", "crafter_bottom", "crafter_side", "crafter_side"]; crafter.hardness = 1.5
         _ = addFacing(crafter, front: "crafter_front")
-        model("heavy_core", "Heavy Core", ["heavy_core"], [Box(4, 0, 4, 12, 8, 12)], h: 10)
+        model("heavy_core", "Dense Core", ["heavy_core"], [Box(4, 0, 4, 12, 8, 12)], h: 10)
     }
 }
 

@@ -106,7 +106,7 @@ enum Recipes {
         r.append(shaped(["##", "##"], ["#": "nether_brick"], "nether_bricks"))
         r.append(shaped(["##", "##"], ["#": "blackstone"], "polished_blackstone", 4))
         r.append(shapeless(["blaze_rod"], "blaze_powder", 2))
-        // Redstone.
+        // Sparkstone.
         r.append(shaped(["R", "S"], ["R": "redstone", "S": "stick"], "redstone_torch", 1))
         r.append(shaped(["S", "C"], ["S": "stick", "C": "cobblestone"], "lever", 1))
         r.append(shapeless(["stone"], "stone_button", 1))
@@ -234,7 +234,7 @@ enum Recipes {
         r.append(shapeless(["paper", "paper", "paper", "leather"], "book"))
         r.append(shapeless(["bone"], "bone_meal", 3))
         r.append(shapeless(["blaze_rod"], "blaze_powder", 2))
-        // Redstone.
+        // Sparkstone.
         r.append(shaped(["R", "S"], ["R": "redstone", "S": "stick"], "redstone_torch", 1))
         r.append(shaped(["S", "C"], ["S": "stick", "C": "cobblestone"], "lever", 1))
         r.append(shapeless(["stone"], "stone_button", 1))

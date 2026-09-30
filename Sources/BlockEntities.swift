@@ -10,14 +10,14 @@ final class BlockEntity: Codable {
     var burn = 0         // furnace: fuel ticks left
     var burnMax = 0
     var cook = 0         // furnace: progress ticks (200 = one item)
-    var fuel = 0         // brewing stand: brews left from blaze powder
+    var fuel = 0         // brewing stand: brews left from cinder powder
     var brewTime = 0     // brewing stand: ticks left in the current brew (400 = 20 s)
     var brewIngredient: ItemID = 0
     var level = 0        // beacon: pyramid layers (0 = off)
     var secondary = ""   // beacon: secondary power (primary is kept in `mob`)
     var cooks = [0, 0, 0, 0]  // campfire: ticks left per slot
-    var trial = false    // trial spawner (waves, then a reward and a 30-minute cooldown)
-    var spawned = 0      // trial spawner: mobs spawned this round
+    var trial = false    // proving spawner (waves, then a reward and a 30-minute cooldown)
+    var spawned = 0      // proving spawner: mobs spawned this round
     var cooldown: Float = 0
     var used = false     // vault: already opened by the player
     var lines: [String] = ["", "", "", ""]   // sign text

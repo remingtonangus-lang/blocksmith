@@ -351,7 +351,7 @@ extension Game {
             m.admire = 6
             m.aggro = false
             consumeHeld()
-            sfx(.mobPiglin, 1, at: m.pos + V3(0, 1.6, 0))
+            sfx(.mobBoarling, 1, at: m.pos + V3(0, 1.6, 0))
             return true
         }
         if let food = MobManager.breedFood[m.kind], food.contains(key) {
@@ -464,7 +464,7 @@ extension Game {
         }
     }
 
-    // Piglin bartering (weights of the reference game's barter table, total 459; potions and
+    // Boarling bartering (weights of the reference game's barter table, total 459; potions and
     // enchanted items are left out until brewing/enchanting exist).
     func barter(_ m: Mob) {
         let table: [(String, Int, Int, Int)] = [
@@ -483,7 +483,7 @@ extension Game {
                 break
             }
         }
-        sfx(.mobPiglin, 0.8, at: m.pos + V3(0, 1.6, 0))
+        sfx(.mobBoarling, 0.8, at: m.pos + V3(0, 1.6, 0))
     }
 }
 

@@ -1,6 +1,6 @@
 import Foundation
 
-// Overworld block expansion for the biome/terrain rework: the other wood types, ground and stone
+// Surface block expansion for the biome/terrain rework: the other wood types, ground and stone
 // blocks, surface plants (incl. two-tall plants), water plants, cave blocks and badlands terracotta.
 extension BlockRegistry {
     static let extraWoods: [(String, String)] = [("acacia", "Acacia"), ("dark_oak", "Dark Oak"), ("jungle", "Jungle"),
@@ -76,8 +76,8 @@ extension BlockRegistry {
         ps.tex = ["snow_block"]; ps.hardness = 0.25; ps.tool = .shovel; ps.sound = .snow; ps.collide = false
         add(ps)
         cube("calcite", "Calcite", h: 0.75, req: true)
-        cube("dripstone_block", "Dripstone Block", h: 1.5, req: true)
-        var drip = BlockDef("pointed_dripstone", "Pointed Dripstone")
+        cube("dripstone_block", "Driprock Block", h: 1.5, req: true)
+        var drip = BlockDef("pointed_dripstone", "Pointed Driprock")
         drip.tex = ["pointed_dripstone"]; drip.render = .cross; drip.layer = .cutout; drip.opaque = false; drip.hardness = 1.5
         drip.tool = .pickaxe; drip.damage = 0; drip.skyStop = false; drip.collide = false
         add(drip)
@@ -97,17 +97,17 @@ extension BlockRegistry {
         cluster.tex = ["amethyst_cluster"]; cluster.render = .cross; cluster.layer = .cutout; cluster.opaque = false
         cluster.hardness = 1.5; cluster.emit = 5; cluster.collide = false; cluster.sound = .glass; cluster.skyStop = false
         add(cluster)
-        cube("sculk", "Sculk", h: 0.2, tool: .hoe, snd: .plant)
-        var shrieker = BlockDef("sculk_shrieker", "Sculk Shrieker")
+        cube("sculk", "Murk", h: 0.2, tool: .hoe, snd: .plant)
+        var shrieker = BlockDef("sculk_shrieker", "Murk Shrieker")
         shrieker.tex = ["sculk_shrieker_side", "sculk_shrieker_side", "sculk_shrieker_top", "sculk", "sculk_shrieker_side", "sculk_shrieker_side"]
         shrieker.render = .model; shrieker.opaque = false; shrieker.hardness = 3; shrieker.boxes = [Box(0, 0, 0, 16, 8, 16)]
         add(shrieker)
-        var reinforced = BlockDef("reinforced_deepslate", "Reinforced Deepslate")
+        var reinforced = BlockDef("reinforced_deepslate", "Reinforced Deeprock")
         reinforced.tex = ["reinforced_deepslate"]; reinforced.hardness = 55; reinforced.resistance = 1200
         add(reinforced)
-        cube("polished_deepslate", "Polished Deepslate", h: 3.5, req: true)
-        cube("deepslate_bricks", "Deepslate Bricks", h: 3.5, req: true)
-        cube("deepslate_tiles", "Deepslate Tiles", h: 3.5, req: true)
+        cube("polished_deepslate", "Polished Deeprock", h: 3.5, req: true)
+        cube("deepslate_bricks", "Deeprock Bricks", h: 3.5, req: true)
+        cube("deepslate_tiles", "Deeprock Tiles", h: 3.5, req: true)
 
         // Plants.
         plant("fern", "Fern", tint: 1)
@@ -164,10 +164,10 @@ extension BlockRegistry {
             cube("\(c)_coral_block", "\(c.capitalized) Coral Block", h: 1.5, req: true)
             plant("\(c)_coral", "\(c.capitalized) Coral", water: true)
         }
-        cube("sea_lantern", "Sea Lantern", h: 0.3, snd: .glass, emit: 15)
-        cube("prismarine", "Prismarine", h: 1.5, req: true)
-        cube("prismarine_bricks", "Prismarine Bricks", h: 1.5, req: true)
-        cube("dark_prismarine", "Dark Prismarine", h: 1.5, req: true)
+        cube("sea_lantern", "Tide Lantern", h: 0.3, snd: .glass, emit: 15)
+        cube("prismarine", "Tidestone", h: 1.5, req: true)
+        cube("prismarine_bricks", "Tidestone Bricks", h: 1.5, req: true)
+        cube("dark_prismarine", "Dark Tidestone", h: 1.5, req: true)
         var sponge = BlockDef("wet_sponge", "Wet Sponge")
         sponge.tex = ["wet_sponge"]; sponge.hardness = 0.6; sponge.tool = .hoe; sponge.sound = .plant
         add(sponge)

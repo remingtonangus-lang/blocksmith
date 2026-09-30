@@ -1,9 +1,9 @@
 import Foundation
 import simd
 
-// Redstone: power levels 0-15 following the reference game's rules.
-//  - Sources: levers, buttons, pressure plates, redstone torches (inverters with 1-tick delay and
-//    burnout), redstone blocks, observers, daylight detectors, targets, repeaters, comparators.
+// Sparkstone: power levels 0-15 following the reference game's rules.
+//  - Sources: levers, buttons, pressure plates, sparkstone torches (inverters with 1-tick delay and
+//    burnout), sparkstone blocks, observers, daylight detectors, targets, repeaters, comparators.
 //  - Solid opaque blocks conduct: strongly powered by an adjacent source's strong output (levers/
 //    buttons/plates into what they sit on, torches upward, repeaters/comparators/observers forward),
 //    weakly powered by dust pointing into them. Weak power drives components but not dust.
@@ -11,8 +11,8 @@ import simd
 //    neighbours' level minus one; changed wires wake the blocks around them.
 //  - Consumers: lamps, pistons/sticky pistons (quasi-connectivity, 12-block push limit, slime/honey
 //    groups), doors/trapdoors/gates, TNT, dispensers/droppers, note blocks, hoppers (locking), bells.
-// Everything runs on the 20 Hz game tick; delays are in game ticks (1 redstone tick = 2).
-final class Redstone {
+// Everything runs on the 20 Hz game tick; delays are in game ticks (1 sparkstone tick = 2).
+final class Circuit {
     unowned let w: World
     weak var game: Game?
     private(set) var now = 0
@@ -23,7 +23,7 @@ final class Redstone {
     private var settledWires = Set<IVec3>()
     var comparatorOut: [IVec3: Int] = [:]
     var trapped: [IVec3: Int] = [:]                 // trapped chests: players looking inside
-    var sensor: [IVec3: (Int, Int)] = [:]           // sculk sensors: (output, until tick)
+    var sensor: [IVec3: (Int, Int)] = [:]           // murk sensors: (output, until tick)
     private var edge = Set<IVec3>()                  // components currently seeing power (edge detection)
     private var burn: [IVec3: [Int]] = [:]           // torch toggle times (burnout)
     var tracked = Set<IVec3>()                        // hoppers, plates, daylight detectors (periodic work)
@@ -75,33 +75,33 @@ final class Redstone {
 
     func block(_ p: IVec3) -> BlockID { w.block(p.x, p.y, p.z) }
     // Full opaque cubes conduct power.
-    func conductor(_ b: BlockID) -> Bool { Blocks.opaque[Int(b)] && Redstone.kind(b) == .none && b != AIR }
+    func conductor(_ b: BlockID) -> Bool { Blocks.opaque[Int(b)] && Circuit.kind(b) == .none && b != AIR }
 
     // MARK: Change notifications (from World)
 
     func blockChanged(_ p: IVec3, _ old: BlockID, _ new: BlockID) {
         mark(p)
-        for d in 0..<6 { mark(p + Redstone.D[d]) }
+        for d in 0..<6 { mark(p + Circuit.D[d]) }
         // Dust climbing slopes and blocks the dust points into two steps away.
-        if Redstone.kind(old) == .wire || Redstone.kind(new) == .wire || conductor(old) || conductor(new) {
+        if Circuit.kind(old) == .wire || Circuit.kind(new) == .wire || conductor(old) || conductor(new) {
             for d in 2..<6 {
-                let n = p + Redstone.D[d]
+                let n = p + Circuit.D[d]
                 mark(n + IVec3(0, 1, 0)); mark(n + IVec3(0, -1, 0))
-                for e in 0..<6 { mark(n + Redstone.D[e]) }
+                for e in 0..<6 { mark(n + Circuit.D[e]) }
             }
             mark(p + IVec3(0, 2, 0)); mark(p + IVec3(0, -2, 0))
         }
         // Observers watching this position.
         for d in 0..<6 {
-            let n = p + Redstone.D[d]
+            let n = p + Circuit.D[d]
             let b = block(n)
-            if Redstone.kind(b) == .observer {
+            if Circuit.kind(b) == .observer {
                 let s = st(b)
                 let face = s % 6
-                if n + Redstone.D[face] == p && s < 6 { schedule(n, 2) }
+                if n + Circuit.D[face] == p && s < 6 { schedule(n, 2) }
             }
         }
-        let k = Redstone.kind(new)
+        let k = Circuit.kind(new)
         if k == .hopper || k == .plate || k == .weightedPlate || k == .daylight || k == .detectorRail || k == .tripHook || k == .sculkSensor { tracked.insert(p) }
         else if tracked.contains(p) { tracked.remove(p) }
         settledWires.remove(p)
@@ -110,7 +110,7 @@ final class Redstone {
     func mark(_ p: IVec3) {
         guard p.y >= 0 && p.y < CH else { return }
         let b = block(p)
-        let k = Redstone.kind(b)
+        let k = Circuit.kind(b)
         if k == .none && !conductor(b) { return }
         if dirtySet.insert(p).inserted { dirty.append(p) }
     }
@@ -125,7 +125,7 @@ final class Redstone {
     func chunkLoaded(_ c: Chunk) {
         let bx = c.cx * CS, bz = c.cz * CS
         for i in 0..<c.blocks.count {
-            let k = Redstone.kind(c.blocks[i])
+            let k = Circuit.kind(c.blocks[i])
             if k == .hopper || k == .daylight || k == .plate || k == .weightedPlate || k == .detectorRail || k == .tripHook || k == .sculkSensor {
                 tracked.insert(IVec3(bx + (i & 15), i >> 8, bz + ((i >> 4) & 15)))
             }
@@ -138,7 +138,7 @@ final class Redstone {
     func strongOut(_ q: IVec3, _ d: Int) -> Int {
         let b = block(q)
         let s = st(b)
-        switch Redstone.kind(b) {
+        switch Circuit.kind(b) {
         case .lever, .button:
             guard s >= 12 else { return 0 }
             return d == attachedDir(s) ? 15 : 0
@@ -147,11 +147,11 @@ final class Redstone {
         case .torch:
             let lit = s == 0 || (s >= 2 && s < 6)
             return lit && d == 1 ? 15 : 0
-        case .repeater: return (s & 16) != 0 && d == Redstone.d6(s & 3) ? 15 : 0
-        case .comparator: return d == Redstone.d6(s & 3) ? (comparatorOut[q] ?? 0) : 0
-        case .observer: return s >= 6 && d == Redstone.opp[s % 6] ? 15 : 0
+        case .repeater: return (s & 16) != 0 && d == Circuit.d6(s & 3) ? 15 : 0
+        case .comparator: return d == Circuit.d6(s & 3) ? (comparatorOut[q] ?? 0) : 0
+        case .observer: return s >= 6 && d == Circuit.opp[s % 6] ? 15 : 0
         case .detectorRail: return s >= 6 && d == 0 ? 15 : 0
-        case .tripHook: return s >= 4 && d == Redstone.opp[Redstone.d6(s & 3)] ? 15 : 0
+        case .tripHook: return s >= 4 && d == Circuit.opp[Circuit.d6(s & 3)] ? 15 : 0
         case .trappedChest: return d == 0 ? (trapped[q] ?? 0) : 0
         default: return 0
         }
@@ -161,7 +161,7 @@ final class Redstone {
     func sourceOut(_ q: IVec3, _ d: Int) -> Int {
         let b = block(q)
         let s = st(b)
-        switch Redstone.kind(b) {
+        switch Circuit.kind(b) {
         case .lever, .button: return s >= 12 ? 15 : 0
         case .plate: return s > 0 ? 15 : 0
         case .weightedPlate, .target: return s
@@ -170,11 +170,11 @@ final class Redstone {
         case .torch:
             let lit = s == 0 || (s >= 2 && s < 6)
             guard lit else { return 0 }
-            let attached = s < 2 ? 0 : Redstone.opp[Redstone.d6((s - 2) % 4)]
+            let attached = s < 2 ? 0 : Circuit.opp[Circuit.d6((s - 2) % 4)]
             return d == attached ? 0 : 15
-        case .repeater: return (s & 16) != 0 && d == Redstone.d6(s & 3) ? 15 : 0
-        case .comparator: return d == Redstone.d6(s & 3) ? (comparatorOut[q] ?? 0) : 0
-        case .observer: return s >= 6 && d == Redstone.opp[s % 6] ? 15 : 0
+        case .repeater: return (s & 16) != 0 && d == Circuit.d6(s & 3) ? 15 : 0
+        case .comparator: return d == Circuit.d6(s & 3) ? (comparatorOut[q] ?? 0) : 0
+        case .observer: return s >= 6 && d == Circuit.opp[s % 6] ? 15 : 0
         case .wire: return (d == 0 || wirePoints(q, d)) ? s : 0
         case .detectorRail: return s >= 6 ? 15 : 0
         case .tripHook: return s >= 4 ? 15 : 0
@@ -188,14 +188,14 @@ final class Redstone {
     func blockPower(_ q: IVec3) -> (Int, Int) {
         var strong = 0, weak = 0
         for d in 0..<6 {
-            let n = q + Redstone.D[d]
+            let n = q + Circuit.D[d]
             let nb = block(n)
-            let k = Redstone.kind(nb)
+            let k = Circuit.kind(nb)
             if k == .none { continue }
-            strong = max(strong, strongOut(n, Redstone.opp[d]))
+            strong = max(strong, strongOut(n, Circuit.opp[d]))
             if k == .wire {
                 let lv = st(nb)
-                if lv > 0 && (d == 1 || wirePoints(n, Redstone.opp[d])) { weak = max(weak, lv) }
+                if lv > 0 && (d == 1 || wirePoints(n, Circuit.opp[d])) { weak = max(weak, lv) }
             }
         }
         return (strong, max(strong, weak))
@@ -203,9 +203,9 @@ final class Redstone {
 
     // Power arriving at a component at p from direction d.
     func powerFrom(_ p: IVec3, _ d: Int, forWire: Bool = false) -> Int {
-        let q = p + Redstone.D[d]
+        let q = p + Circuit.D[d]
         let b = block(q)
-        if Redstone.kind(b) != .none { return Redstone.kind(b) == .wire && forWire ? 0 : sourceOut(q, Redstone.opp[d]) }
+        if Circuit.kind(b) != .none { return Circuit.kind(b) == .wire && forWire ? 0 : sourceOut(q, Circuit.opp[d]) }
         if conductor(b) { let bp = blockPower(q); return forWire ? bp.0 : bp.1 }
         return 0
     }
@@ -221,7 +221,7 @@ final class Redstone {
         let attach = (s % 12) / 4, f = s % 4
         if attach == 0 { return 0 }
         if attach == 2 { return 1 }
-        return Redstone.opp[Redstone.d6(f)]
+        return Circuit.opp[Circuit.d6(f)]
     }
 
     // MARK: Dust
@@ -230,9 +230,9 @@ final class Redstone {
     func connectsDust(_ n: IVec3, _ d: Int) -> Bool {
         let b = block(n)
         let s = st(b)
-        switch Redstone.kind(b) {
+        switch Circuit.kind(b) {
         case .wire, .torch, .block, .lever, .button, .plate, .weightedPlate, .target, .daylight, .comparator, .detectorRail, .tripHook, .trappedChest, .sculkSensor: return true
-        case .repeater: return (Redstone.d6(s & 3) / 2) == d / 2
+        case .repeater: return (Circuit.d6(s & 3) / 2) == d / 2
         case .observer: return s % 6 == d        // only its output (back) side, which faces the dust
         default: return false
         }
@@ -243,11 +243,11 @@ final class Redstone {
         var out: [Int] = []
         let aboveSolid = conductor(block(q + IVec3(0, 1, 0)))
         for d in 2..<6 {
-            let n = q + Redstone.D[d]
+            let n = q + Circuit.D[d]
             let nb = block(n)
             if connectsDust(n, d) { out.append(d); continue }
-            if !conductor(nb) && Redstone.kind(block(n + IVec3(0, -1, 0))) == .wire { out.append(d); continue }
-            if conductor(nb) && !aboveSolid && Redstone.kind(block(n + IVec3(0, 1, 0))) == .wire { out.append(d) }
+            if !conductor(nb) && Circuit.kind(block(n + IVec3(0, -1, 0))) == .wire { out.append(d); continue }
+            if conductor(nb) && !aboveSolid && Circuit.kind(block(n + IVec3(0, 1, 0))) == .wire { out.append(d) }
         }
         return out
     }
@@ -258,7 +258,7 @@ final class Redstone {
         let c = wireConnections(q)
         if c.isEmpty { return true }
         if c.contains(d) { return true }
-        return c.count == 1 && Redstone.opp[c[0]] == d
+        return c.count == 1 && Circuit.opp[c[0]] == d
     }
 
     // Wires directly linked to q (same level, one up, one down).
@@ -266,15 +266,15 @@ final class Redstone {
         var out: [IVec3] = []
         let aboveSolid = conductor(block(q + IVec3(0, 1, 0)))
         for d in 2..<6 {
-            let n = q + Redstone.D[d]
+            let n = q + Circuit.D[d]
             let nb = block(n)
-            if Redstone.kind(nb) == .wire { out.append(n); continue }
+            if Circuit.kind(nb) == .wire { out.append(n); continue }
             if !conductor(nb) {
                 let dn = n + IVec3(0, -1, 0)
-                if Redstone.kind(block(dn)) == .wire { out.append(dn) }
+                if Circuit.kind(block(dn)) == .wire { out.append(dn) }
             } else if !aboveSolid {
                 let up = n + IVec3(0, 1, 0)
-                if Redstone.kind(block(up)) == .wire { out.append(up) }
+                if Circuit.kind(block(up)) == .wire { out.append(up) }
             }
         }
         return out
@@ -317,26 +317,26 @@ final class Redstone {
                 setQuiet(q, base(b) + BlockID(lv))
                 // Wake everything the wire can affect: neighbours and what they touch.
                 for d in 0..<6 {
-                    let n = q + Redstone.D[d]
-                    if Redstone.kind(block(n)) != .wire { mark(n) }
-                    if conductor(block(n)) { for e in 0..<6 { let m = n + Redstone.D[e]; if Redstone.kind(block(m)) != .wire { mark(m) } } }
+                    let n = q + Circuit.D[d]
+                    if Circuit.kind(block(n)) != .wire { mark(n) }
+                    if conductor(block(n)) { for e in 0..<6 { let m = n + Circuit.D[e]; if Circuit.kind(block(m)) != .wire { mark(m) } } }
                 }
             }
         }
     }
 
-    // Change a block without re-notifying the redstone engine for that position itself.
+    // Change a block without re-notifying the sparkstone engine for that position itself.
     func setQuiet(_ p: IVec3, _ b: BlockID) {
         busy = true
         w.setBlockAsync(p.x, p.y, p.z, b)
         busy = false
         // Observers still see it.
         for d in 0..<6 {
-            let n = p + Redstone.D[d]
+            let n = p + Circuit.D[d]
             let nb = block(n)
-            if Redstone.kind(nb) == .observer {
+            if Circuit.kind(nb) == .observer {
                 let s = st(nb)
-                if n + Redstone.D[s % 6] == p && s < 6 { schedule(n, 2) }
+                if n + Circuit.D[s % 6] == p && s < 6 { schedule(n, 2) }
             }
         }
     }
@@ -367,11 +367,11 @@ final class Redstone {
     private func update(_ p: IVec3) {
         let b = block(p)
         let s = st(b)
-        switch Redstone.kind(b) {
+        switch Circuit.kind(b) {
         case .wire:
             if !settledWires.contains(p) { solveWires(from: p) }
         case .torch:
-            let attached = s < 2 ? IVec3(0, -1, 0) : Redstone.D[Redstone.opp[Redstone.d6((s - 2) % 4)]]
+            let attached = s < 2 ? IVec3(0, -1, 0) : Circuit.D[Circuit.opp[Circuit.d6((s - 2) % 4)]]
             let q = p + attached
             let powered = conductor(block(q)) ? blockPower(q).1 > 0 : false
             let lit = s == 0 || (s >= 2 && s < 6)
@@ -389,7 +389,7 @@ final class Redstone {
             let f = s & 3, locked = lockInput(p, f)
             if locked != ((s & 32) != 0) { setQuiet(p, base(b) + BlockID((s & 31) | (locked ? 32 : 0))) }
             if locked { return }
-            let input = powerFrom(p, Redstone.opp[Redstone.d6(f)]) > 0
+            let input = powerFrom(p, Circuit.opp[Circuit.d6(f)]) > 0
             let powered = (s & 16) != 0
             if input != powered { schedule(p, ((s >> 2) & 3) * 2 + 2) }
         case .comparator:
@@ -397,7 +397,7 @@ final class Redstone {
         case .piston, .stickyPiston:
             pistonUpdate(p, b, s)
         case .door, .ironDoor, .trapdoor, .ironTrapdoor, .gate:
-            let k = Redstone.kind(b)
+            let k = Circuit.kind(b)
             var powered = received(p) > 0
             if k == .door || k == .ironDoor {
                 let other = p + IVec3(0, (s & 8) != 0 ? -1 : 1, 0)
@@ -420,12 +420,12 @@ final class Redstone {
         case .tnt:
             if received(p) > 0 { setQuiet(p, AIR); game?.tnts.prime(at: p) }
         case .dispenser, .dropper, .note, .bell, .crafter:
-            let powered = received(p) > 0 || (Redstone.kind(b) != .note && received(p + IVec3(0, 1, 0), except: [0]) > 0)
+            let powered = received(p) > 0 || (Circuit.kind(b) != .note && received(p + IVec3(0, 1, 0), except: [0]) > 0)
             let was = edge.contains(p)
             if powered && !was {
                 edge.insert(p)
-                if Redstone.kind(b) == .note { playNote(p, s) }
-                else if Redstone.kind(b) == .bell { game?.sfx(.levelUp, 0.8, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
+                if Circuit.kind(b) == .note { playNote(p, s) }
+                else if Circuit.kind(b) == .bell { game?.sfx(.levelUp, 0.8, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
                 else { schedule(p, 4) }
             } else if !powered && was { edge.remove(p) }
         case .hopper:
@@ -436,18 +436,18 @@ final class Redstone {
             let on = railPowered(p, b)
             if on != (s >= 6) {
                 setQuiet(p, base(b) + BlockID(s % 6 + (on ? 6 : 0)))
-                for d in 2..<6 { for dy in -1...1 { let n = p + Redstone.D[d] + IVec3(0, dy, 0); if base(block(n)) == base(b) { mark(n) } } }
+                for d in 2..<6 { for dy in -1...1 { let n = p + Circuit.D[d] + IVec3(0, dy, 0); if base(block(n)) == base(b) { mark(n) } } }
             }
         default:
             // A conductor changed power: wake the components around it.
-            if conductor(b) { for d in 0..<6 { let n = p + Redstone.D[d]; if Redstone.kind(block(n)) != .none { mark(n) } } }
+            if conductor(b) { for d in 0..<6 { let n = p + Circuit.D[d]; if Circuit.kind(block(n)) != .none { mark(n) } } }
         }
     }
 
-    // A vibration (steps, block changes, landings...): sculk sensors within 8 blocks fire for 30 ticks
+    // A vibration (steps, block changes, landings...): murk sensors within 8 blocks fire for 30 ticks
     // with a strength that falls off with distance, then rest.
     func vibrate(at pos: V3) {
-        for p in tracked where Redstone.kind(block(p)) == .sculkSensor && sensor[p] == nil {
+        for p in tracked where Circuit.kind(block(p)) == .sculkSensor && sensor[p] == nil {
             let d = simd_length(V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5) - pos)
             guard d <= 8 else { continue }
             sensor[p] = (max(1, 15 - Int(d * 15 / 8)), now + 30)
@@ -467,9 +467,9 @@ final class Redstone {
 
     func wakeAround(_ p: IVec3) {
         for d in 0..<6 {
-            let n = p + Redstone.D[d]
+            let n = p + Circuit.D[d]
             mark(n)
-            if conductor(block(n)) { for e in 0..<6 { mark(n + Redstone.D[e]) } }
+            if conductor(block(n)) { for e in 0..<6 { mark(n + Circuit.D[e]) } }
         }
     }
 
@@ -477,9 +477,9 @@ final class Redstone {
     private func fire(_ p: IVec3) {
         let b = block(p)
         let s = st(b)
-        switch Redstone.kind(b) {
+        switch Circuit.kind(b) {
         case .torch:
-            let attached = s < 2 ? IVec3(0, -1, 0) : Redstone.D[Redstone.opp[Redstone.d6((s - 2) % 4)]]
+            let attached = s < 2 ? IVec3(0, -1, 0) : Circuit.D[Circuit.opp[Circuit.d6((s - 2) % 4)]]
             let q = p + attached
             let powered = conductor(block(q)) ? blockPower(q).1 > 0 : false
             let lit = s == 0 || (s >= 2 && s < 6)
@@ -498,11 +498,11 @@ final class Redstone {
         case .repeater:
             let f = s & 3
             if lockInput(p, f) { return }
-            let input = powerFrom(p, Redstone.opp[Redstone.d6(f)]) > 0
+            let input = powerFrom(p, Circuit.opp[Circuit.d6(f)]) > 0
             let powered = (s & 16) != 0
             if input != powered {
                 setQuiet(p, base(b) + BlockID(s ^ 16))
-                let front = p + Redstone.D[Redstone.d6(f)]
+                let front = p + Circuit.D[Circuit.d6(f)]
                 mark(front); wakeAround(front)
                 // Keep at least a one-delay pulse: re-check after turning on.
                 if !powered { schedule(p, ((s >> 2) & 3) * 2 + 2) }
@@ -512,7 +512,7 @@ final class Redstone {
             comparatorOut[p] = out
             let on = out > 0
             if on != ((s & 8) != 0) { setQuiet(p, base(b) + BlockID(s ^ 8)) }
-            let front = p + Redstone.D[Redstone.d6(s & 3)]
+            let front = p + Circuit.D[Circuit.d6(s & 3)]
             mark(front); wakeAround(front)
         case .observer:
             if s < 6 {
@@ -521,17 +521,17 @@ final class Redstone {
             } else {
                 setQuiet(p, base(b) + BlockID(s - 6))
             }
-            let back = p + Redstone.D[Redstone.opp[s % 6]]
+            let back = p + Circuit.D[Circuit.opp[s % 6]]
             mark(back); wakeAround(back)
         case .lever, .button:
             // Button release.
-            if Redstone.kind(b) == .button && s >= 12 {
+            if Circuit.kind(b) == .button && s >= 12 {
                 setQuiet(p, base(b) + BlockID(s - 12))
                 game?.sfx(.click, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
                 switchChanged(p, s - 12)
             }
         case .dispenser, .dropper:
-            game?.dispense(at: p, dir: s % 6, dropper: Redstone.kind(b) == .dropper)
+            game?.dispense(at: p, dir: s % 6, dropper: Circuit.kind(b) == .dropper)
         case .crafter:
             game?.crafterFire(p)
         default: break
@@ -541,17 +541,17 @@ final class Redstone {
     // Lever/button toggled: its neighbours and the block it is on (and that block's neighbours) wake.
     func switchChanged(_ p: IVec3, _ s: Int) {
         wakeAround(p)
-        let q = p + Redstone.D[attachedDir(s)]
+        let q = p + Circuit.D[attachedDir(s)]
         mark(q); wakeAround(q)
     }
 
     private func lockInput(_ p: IVec3, _ f: Int) -> Bool {
         let sides = f <= 1 ? [4, 5] : [2, 3]
         for d in sides {
-            let n = p + Redstone.D[d]
+            let n = p + Circuit.D[d]
             let nb = block(n)
-            let k = Redstone.kind(nb)
-            if (k == .repeater || k == .comparator) && sourceOut(n, Redstone.opp[d]) > 0 { return true }
+            let k = Circuit.kind(nb)
+            if (k == .repeater || k == .comparator) && sourceOut(n, Circuit.opp[d]) > 0 { return true }
         }
         return false
     }
@@ -560,16 +560,16 @@ final class Redstone {
     // directly or through one conductor block.
     func comparatorOutput(_ p: IVec3, _ s: Int) -> Int {
         let f = s & 3
-        let backDir = Redstone.opp[Redstone.d6(f)]
+        let backDir = Circuit.opp[Circuit.d6(f)]
         var rear = powerFrom(p, backDir)
-        let q = p + Redstone.D[backDir]
+        let q = p + Circuit.D[backDir]
         if let c = containerSignal(q) { rear = c }
-        else if conductor(block(q)), rear < 15, let c = containerSignal(q + Redstone.D[backDir]) { rear = max(rear, c) }
+        else if conductor(block(q)), rear < 15, let c = containerSignal(q + Circuit.D[backDir]) { rear = max(rear, c) }
         let sides = f <= 1 ? [4, 5] : [2, 3]
         var side = 0
         for d in sides {
-            let n = p + Redstone.D[d]
-            let k = Redstone.kind(block(n))
+            let n = p + Circuit.D[d]
+            let k = Circuit.kind(block(n))
             if k == .wire || k == .block || k == .repeater || k == .comparator { side = max(side, powerFrom(p, d)) }
         }
         if (s & 4) != 0 { return max(0, rear - side) }
@@ -598,18 +598,18 @@ final class Redstone {
         for p in tracked {
             let b = block(p)
             let s = st(b)
-            switch Redstone.kind(b) {
+            switch Circuit.kind(b) {
             case .plate, .weightedPlate:
                 let wood = !Blocks.key(base(b)).hasPrefix("stone") && !Blocks.key(base(b)).hasPrefix("polished")
-                let n = g.entitiesOn(p, items: wood || Redstone.kind(b) == .weightedPlate)
+                let n = g.entitiesOn(p, items: wood || Circuit.kind(b) == .weightedPlate)
                 var level = 0
-                if Redstone.kind(b) == .weightedPlate {
+                if Circuit.kind(b) == .weightedPlate {
                     let heavy = Blocks.key(base(b)).hasPrefix("heavy")
                     level = n == 0 ? 0 : min(15, heavy ? (n + 9) / 10 : n)
                 } else { level = n > 0 ? 1 : 0 }
                 if level != s {
                     // Plates release after 20 ticks (10 for weighted) with nothing on them.
-                    if level < s && now % (Redstone.kind(b) == .weightedPlate ? 10 : 20) != 0 { continue }
+                    if level < s && now % (Circuit.kind(b) == .weightedPlate ? 10 : 20) != 0 { continue }
                     setQuiet(p, base(b) + BlockID(level))
                     g.sfx(.click, 0.4, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
                     wakeAround(p); let q = p + IVec3(0, -1, 0); mark(q); wakeAround(q)
@@ -631,14 +631,14 @@ final class Redstone {
             case .tripHook:
                 // Armed when string runs (up to 40 blocks) to a hook facing back; pulled while anything touches the string.
                 guard now % 2 == 0 else { continue }
-                let dir = Redstone.D[Redstone.d6(s & 3)]
+                let dir = Circuit.D[Circuit.d6(s & 3)]
                 var q = p + dir
                 var cells: [IVec3] = []
                 var armed = false
                 for _ in 0..<41 {
                     let qb = block(q)
                     if Blocks.key(base(qb)) == "tripwire" { cells.append(q); q = q + dir; continue }
-                    if Redstone.kind(qb) == .tripHook && (st(qb) & 3) == ((s & 3) ^ 1) { armed = true }
+                    if Circuit.kind(qb) == .tripHook && (st(qb) & 3) == ((s & 3) ^ 1) { armed = true }
                     break
                 }
                 let on = armed && !cells.isEmpty && cells.contains { g.entitiesOn($0, items: true) > 0 }
@@ -646,7 +646,7 @@ final class Redstone {
                     setQuiet(p, base(b) + BlockID((s & 3) + (on ? 4 : 0)))
                     g.sfx(.click, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
                     wakeAround(p)
-                    let a = p + Redstone.D[Redstone.opp[Redstone.d6(s & 3)]]
+                    let a = p + Circuit.D[Circuit.opp[Circuit.d6(s & 3)]]
                     mark(a); wakeAround(a)
                 }
             case .none: remove.append(p)
@@ -675,7 +675,7 @@ final class Redstone {
 
     // Detector rails: pressed while a minecart is on them (released 20 ticks after it leaves).
     func detectorCheck(_ carts: [V3]) {
-        for p in tracked where Redstone.kind(block(p)) == .detectorRail {
+        for p in tracked where Circuit.kind(block(p)) == .detectorRail {
             let b = block(p)
             let s = st(b)
             let has = carts.contains { Int(floor($0.x)) == p.x && Int(floor($0.z)) == p.z && abs($0.y - Float(p.y)) < 1.2 }
@@ -716,23 +716,23 @@ final class Redstone {
 
     private func pistonUpdate(_ p: IVec3, _ b: BlockID, _ s: Int) {
         let face = s % 6, extended = s >= 6
-        let sticky = Redstone.kind(b) == .stickyPiston
+        let sticky = Circuit.kind(b) == .stickyPiston
         let powered = pistonPowered(p, face)
         if powered && !extended {
-            if move(from: p + Redstone.D[face], dir: face, push: true, piston: p) {
+            if move(from: p + Circuit.D[face], dir: face, push: true, piston: p) {
                 setQuiet(p, base(b) + BlockID(face + 6))
-                setQuiet(p + Redstone.D[face], Blocks.id("piston_head") + BlockID(face + (sticky ? 6 : 0)))
+                setQuiet(p + Circuit.D[face], Blocks.id("piston_head") + BlockID(face + (sticky ? 6 : 0)))
                 game?.sfx(.place(.wood), 0.6, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
-                wakeAround(p + Redstone.D[face] + Redstone.D[face])
+                wakeAround(p + Circuit.D[face] + Circuit.D[face])
             }
         } else if !powered && extended {
-            let head = p + Redstone.D[face]
-            if Redstone.kind(block(head)) == .pistonHead { setQuiet(head, AIR) }
+            let head = p + Circuit.D[face]
+            if Circuit.kind(block(head)) == .pistonHead { setQuiet(head, AIR) }
             setQuiet(p, base(b) + BlockID(face))
             if sticky {
-                let q = head + Redstone.D[face]
+                let q = head + Circuit.D[face]
                 let qb = block(q)
-                if !Redstone.fragile(qb) && !Redstone.immovable(qb, w, q) { _ = move(from: q, dir: Redstone.opp[face], push: false, piston: p) }
+                if !Circuit.fragile(qb) && !Circuit.immovable(qb, w, q) { _ = move(from: q, dir: Circuit.opp[face], push: false, piston: p) }
             }
             game?.sfx(.place(.wood), 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
             wakeAround(head)
@@ -751,25 +751,25 @@ final class Redstone {
             let q = queue[qi]; qi += 1
             if inSet.contains(q) || q == piston { continue }
             let b = block(q)
-            if Redstone.fragile(b) { continue }
-            if Redstone.immovable(b, w, q) { return false }
+            if Circuit.fragile(b) { continue }
+            if Circuit.immovable(b, w, q) { return false }
             inSet.insert(q); set.append(q)
             if set.count > 12 { return false }
-            queue.append(q + Redstone.D[dir])
+            queue.append(q + Circuit.D[dir])
             if b == slime || b == honey {
                 for d in 0..<6 {
-                    let n = q + Redstone.D[d]
+                    let n = q + Circuit.D[d]
                     if n == piston { continue }
                     let nb = block(n)
                     if (b == slime && nb == honey) || (b == honey && nb == slime) { continue }
-                    if !Redstone.fragile(nb) && !Redstone.immovable(nb, w, n) { queue.append(n) }
+                    if !Circuit.fragile(nb) && !Circuit.immovable(nb, w, n) { queue.append(n) }
                 }
             }
         }
         // Fragile blocks where the structure moves into break and drop.
         var destroy: [IVec3] = []
         for q in set {
-            let t = q + Redstone.D[dir]
+            let t = q + Circuit.D[dir]
             if inSet.contains(t) { continue }
             if t == piston { return false }
             let tb = block(t)
@@ -780,10 +780,10 @@ final class Redstone {
             setQuiet(q, AIR)
         }
         let ids = set.map { block($0) }
-        for q in set where !inSet.contains(q - Redstone.D[dir]) { setQuiet(q, AIR) }
-        for (i, q) in set.enumerated() { setQuiet(q + Redstone.D[dir], ids[i]) }
-        game?.entitiesPushed(set.map { $0 + Redstone.D[dir] }, dir: Redstone.D[dir])
-        for q in set { wakeAround(q); wakeAround(q + Redstone.D[dir]) }
+        for q in set where !inSet.contains(q - Circuit.D[dir]) { setQuiet(q, AIR) }
+        for (i, q) in set.enumerated() { setQuiet(q + Circuit.D[dir], ids[i]) }
+        game?.entitiesPushed(set.map { $0 + Circuit.D[dir] }, dir: Circuit.D[dir])
+        for q in set { wakeAround(q); wakeAround(q + Circuit.D[dir]) }
         return true
     }
 

@@ -1,9 +1,9 @@
 import Foundation
 
-// Bastion remnants: big blackstone ruins at y 33 sharing the fortress region grid (3 in 5 starts).
-// Four layouts like the reference game's: housing units, hoglin stables, treasure room and bridge.
-// Blocks mix bricks / cracked bricks / blackstone / gilded blackstone by a position hash so every
-// chunk agrees on the same ruin; piglins, brutes and hoglins are placed when the chunk generates.
+// Bastion remnants: big onyxstone ruins at y 33 sharing the fortress region grid (3 in 5 starts).
+// Four layouts like the reference game's: housing units, tusker stables, treasure room and bridge.
+// Blocks mix bricks / cracked bricks / onyxstone / gilded onyxstone by a position hash so every
+// chunk agrees on the same ruin; boarlings, brutes and tuskers are placed when the chunk generates.
 enum Bastion {
     static let type = StructureType(name: "bastion", spacing: 27, separation: 4, salt: 30084232, reach: 4) { seed, cx, cz in
         var rng = SRng(seed)
@@ -88,7 +88,7 @@ enum Bastion {
             w.chest(ox, y + 1, oz + 2, loot: "bastion", seed: rng.next(), facing: 1)
         case 1:
             // Treasure room: thick-walled keep over a lava pit; central platform with a gold core,
-            // the treasure chest and magma cube spawners; bridges out to the walls.
+            // the treasure chest and lava blob spawners; bridges out to the walls.
             supports(&w, ox - 16, oz - 16, ox + 16, oz + 16, y, step: 8)
             room(&w, ox - 16, y, oz - 16, ox + 16, y + 30, oz + 16, windows: false, roof: false)
             room(&w, ox - 15, y, oz - 15, ox + 15, y + 29, oz + 15, windows: false, roof: false)
@@ -120,7 +120,7 @@ enum Bastion {
             for k in 0..<3 { w.mob("piglin_brute", V3(Float(ox - 12 + k * 12) + 0.5, Float(y + 13), Float(oz - 14) + 0.5)) }
             w.mob("piglin", V3(Float(ox) + 0.5, Float(y + 13), Float(oz + 13) + 0.5))
         case 2:
-            // Hoglin stables: a big U of ramparts around a sunken yard with basalt pillars.
+            // Tusker stables: a big U of ramparts around a sunken yard with basalt pillars.
             supports(&w, ox - 20, oz - 20, ox + 20, oz + 20, y)
             room(&w, ox - 20, y, oz - 20, ox + 20, y + 12, oz + 20, windows: false, roof: false)
             w.fill(ox - 19, y + 1, oz + 19, ox + 19, y + 11, oz + 20, AIR)          // open side

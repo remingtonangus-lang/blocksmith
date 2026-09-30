@@ -53,35 +53,35 @@ enum MobKind: Int, CaseIterable {
                                   burnsInSun: true, drops: [("rotten_flesh", 0, 2)], xp: 5, call: .mobZombie)
         case .skeleton: return Spec(name: "Skeleton", halfW: 0.3, height: 1.99, health: 20, speed: 2.5, behavior: .ranged,
                                     burnsInSun: true, drops: [("bone", 0, 2), ("arrow", 0, 2)], xp: 5, call: .mobSkeleton)
-        case .creeper: return Spec(name: "Creeper", halfW: 0.3, height: 1.7, health: 20, speed: 2.5, behavior: .creeper,
+        case .creeper: return Spec(name: "Hisser", halfW: 0.3, height: 1.7, health: 20, speed: 2.5, behavior: .creeper,
                                    drops: [("gunpowder", 0, 2)], xp: 5, call: .creeperHiss)
         case .spider: return Spec(name: "Spider", halfW: 0.7, height: 0.9, health: 16, speed: 3.0, behavior: .spider, attack: 2,
                                   drops: [("string", 0, 2), ("spider_eye", 0, 1)], xp: 5, call: .mobSpider)
-        case .enderman: return Spec(name: "Enderman", halfW: 0.3, height: 2.9, health: 40, speed: 3.0, behavior: .enderman, attack: 7,
-                                    drops: [("ender_pearl", 0, 1)], xp: 5, call: .mobEnderman)
+        case .enderman: return Spec(name: "Voidwalker", halfW: 0.3, height: 2.9, health: 40, speed: 3.0, behavior: .enderman, attack: 7,
+                                    drops: [("ender_pearl", 0, 1)], xp: 5, call: .mobVoidwalker)
         case .slime: return Spec(name: "Slime", halfW: 0.26, height: 0.52, health: 1, speed: 2.0, behavior: .slime, attack: 0,
                                  drops: [("slime_ball", 0, 2)], xp: 1, call: .mobSlime)
-        case .zombifiedPiglin: return Spec(name: "Zombified Piglin", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .neutral, attack: 8,
-                                           drops: [("rotten_flesh", 0, 1), ("gold_nugget", 0, 1)], xp: 5, call: .mobZombPiglin, fireImmune: true)
-        case .piglin: return Spec(name: "Piglin", halfW: 0.3, height: 1.95, health: 16, speed: 2.5, behavior: .piglin, attack: 8,
-                                  drops: [], xp: 5, call: .mobPiglin)
-        case .ghast: return Spec(name: "Ghast", halfW: 2, height: 4, health: 10, speed: 2.0, behavior: .ghast,
-                                 drops: [("ghast_tear", 0, 1), ("gunpowder", 0, 2)], xp: 5, call: .mobGhast, fireImmune: true, flying: true)
-        case .blaze: return Spec(name: "Blaze", halfW: 0.3, height: 1.8, health: 20, speed: 2.3, behavior: .blaze, attack: 6,
-                                 drops: [], xp: 10, call: .mobBlaze, fireImmune: true, flying: true)
-        case .magmaCube: return Spec(name: "Magma Cube", halfW: 0.26, height: 0.52, health: 1, speed: 2.4, behavior: .slime, attack: 0,
+        case .zombifiedPiglin: return Spec(name: "Undead Boarling", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .neutral, attack: 8,
+                                           drops: [("rotten_flesh", 0, 1), ("gold_nugget", 0, 1)], xp: 5, call: .mobUndeadBoarling, fireImmune: true)
+        case .piglin: return Spec(name: "Boarling", halfW: 0.3, height: 1.95, health: 16, speed: 2.5, behavior: .piglin, attack: 8,
+                                  drops: [], xp: 5, call: .mobBoarling)
+        case .ghast: return Spec(name: "Wailer", halfW: 2, height: 4, health: 10, speed: 2.0, behavior: .ghast,
+                                 drops: [("ghast_tear", 0, 1), ("gunpowder", 0, 2)], xp: 5, call: .mobWailer, fireImmune: true, flying: true)
+        case .blaze: return Spec(name: "Cinderwisp", halfW: 0.3, height: 1.8, health: 20, speed: 2.3, behavior: .blaze, attack: 6,
+                                 drops: [], xp: 10, call: .mobCinderwisp, fireImmune: true, flying: true)
+        case .magmaCube: return Spec(name: "Lava Blob", halfW: 0.26, height: 0.52, health: 1, speed: 2.4, behavior: .slime, attack: 0,
                                      drops: [], xp: 1, call: .mobSlime, fireImmune: true)
-        case .hoglin: return Spec(name: "Hoglin", halfW: 0.7, height: 1.4, health: 40, speed: 2.2, behavior: .melee, attack: 6,
+        case .hoglin: return Spec(name: "Tusker", halfW: 0.7, height: 1.4, health: 40, speed: 2.2, behavior: .melee, attack: 6,
                                   drops: [("porkchop", 2, 4), ("leather", 0, 1)], xp: 5, call: .mobPig)
-        case .piglinBrute: return Spec(name: "Piglin Brute", halfW: 0.3, height: 1.95, health: 50, speed: 2.4, behavior: .melee, attack: 13,
-                                       drops: [], xp: 20, call: .mobPiglin)
-        case .strider: return Spec(name: "Strider", halfW: 0.45, height: 1.7, health: 20, speed: 1.0, behavior: .passive,
+        case .piglinBrute: return Spec(name: "Boarling Brute", halfW: 0.3, height: 1.95, health: 50, speed: 2.4, behavior: .melee, attack: 13,
+                                       drops: [], xp: 20, call: .mobBoarling)
+        case .strider: return Spec(name: "Magmastrider", halfW: 0.45, height: 1.7, health: 20, speed: 1.0, behavior: .passive,
                                    drops: [("string", 2, 5)], xp: 2, call: .mobPig, fireImmune: true)
-        case .enderDragon: return Spec(name: "Ender Dragon", halfW: 4, height: 4, health: 200, speed: 14, behavior: .dragon,
-                                       drops: [], xp: 0, call: .mobGhast, fireImmune: true, flying: true)
-        case .endCrystal: return Spec(name: "End Crystal", halfW: 1, height: 2, health: 1, speed: 0, behavior: .crystal,
+        case .enderDragon: return Spec(name: "Hollow Wyrm", halfW: 4, height: 4, health: 200, speed: 14, behavior: .dragon,
+                                       drops: [], xp: 0, call: .mobWailer, fireImmune: true, flying: true)
+        case .endCrystal: return Spec(name: "Hollow Crystal", halfW: 1, height: 2, health: 1, speed: 0, behavior: .crystal,
                                       drops: [], xp: 0, call: .click, fireImmune: true, flying: true)
-        case .shulker: return Spec(name: "Shulker", halfW: 0.5, height: 1, health: 30, speed: 0, behavior: .shulker,
+        case .shulker: return Spec(name: "Shellsentry", halfW: 0.5, height: 1, health: 30, speed: 0, behavior: .shulker,
                                    drops: [("shulker_shell", 0, 1)], xp: 5, call: .click, flying: true)
         case .villager: return Spec(name: "Villager", halfW: 0.3, height: 1.95, health: 20, speed: 1.6, behavior: .villager,
                                     drops: [], xp: 0, call: .mobVillager)
@@ -93,32 +93,32 @@ enum MobKind: Int, CaseIterable {
                                 drops: [], xp: 0, call: .click)
         case .armorStand: return Spec(name: "Armor Stand", halfW: 0.25, height: 1.975, health: 1, speed: 0, behavior: .vehicle,
                                       drops: [("armor_stand", 1, 1)], xp: 0, call: .click)
-        case .husk: return Spec(name: "Husk", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
+        case .husk: return Spec(name: "Dust Zombie", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
                                 drops: [("rotten_flesh", 0, 2)], xp: 5, call: .mobZombie)
-        case .stray: return Spec(name: "Stray", halfW: 0.3, height: 1.99, health: 20, speed: 2.5, behavior: .ranged,
+        case .stray: return Spec(name: "Frost Skeleton", halfW: 0.3, height: 1.99, health: 20, speed: 2.5, behavior: .ranged,
                                  burnsInSun: true, drops: [("bone", 0, 2), ("arrow", 0, 2)], xp: 5, call: .mobSkeleton)
-        case .drowned: return Spec(name: "Drowned", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
+        case .drowned: return Spec(name: "Sunken", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
                                    burnsInSun: true, drops: [("rotten_flesh", 0, 2), ("copper_ingot", 0, 1)], xp: 5, call: .mobZombie)
         case .caveSpider: return Spec(name: "Cave Spider", halfW: 0.35, height: 0.5, health: 12, speed: 3.0, behavior: .spider, attack: 2,
                                       drops: [("string", 0, 2), ("spider_eye", 0, 1)], xp: 5, call: .mobSpider)
         case .witch: return Spec(name: "Witch", halfW: 0.3, height: 1.95, health: 26, speed: 2.3, behavior: .witch,
                                  drops: [("glass_bottle", 0, 2), ("glowstone_dust", 0, 2), ("gunpowder", 0, 2), ("redstone", 0, 2),
                                          ("spider_eye", 0, 2), ("sugar", 0, 2), ("stick", 0, 2)], xp: 5, call: .mobVillager)
-        case .pillager: return Spec(name: "Pillager", halfW: 0.3, height: 1.95, health: 24, speed: 2.5, behavior: .ranged,
+        case .pillager: return Spec(name: "Marauder", halfW: 0.3, height: 1.95, health: 24, speed: 2.5, behavior: .ranged,
                                     drops: [("arrow", 0, 2)], xp: 5, call: .mobVillager)
-        case .vindicator: return Spec(name: "Vindicator", halfW: 0.3, height: 1.95, health: 24, speed: 2.5, behavior: .melee, attack: 13,
+        case .vindicator: return Spec(name: "Brigand", halfW: 0.3, height: 1.95, health: 24, speed: 2.5, behavior: .melee, attack: 13,
                                       drops: [("emerald", 0, 1)], xp: 5, call: .mobVillager)
         case .silverfish: return Spec(name: "Silverfish", halfW: 0.2, height: 0.3, health: 8, speed: 2.5, behavior: .melee, attack: 1,
                                       drops: [], xp: 5, call: .mobSpider)
-        case .wither: return Spec(name: "Wither", halfW: 0.45, height: 3.5, health: 300, speed: 6, behavior: .wither,
-                                  drops: [("nether_star", 1, 1)], xp: 50, call: .mobWither, fireImmune: true, flying: true)
+        case .wither: return Spec(name: "Blight", halfW: 0.45, height: 3.5, health: 300, speed: 6, behavior: .wither,
+                                  drops: [("nether_star", 1, 1)], xp: 50, call: .mobBlight, fireImmune: true, flying: true)
         case .snowGolem: return Spec(name: "Snow Golem", halfW: 0.35, height: 1.9, health: 4, speed: 2.2, behavior: .snowGolem,
                                      drops: [("snowball", 0, 15)], xp: 0, call: .step(.snow))
-        case .evoker: return Spec(name: "Evoker", halfW: 0.3, height: 1.95, health: 24, speed: 2.5, behavior: .evoker,
+        case .evoker: return Spec(name: "Conjurer", halfW: 0.3, height: 1.95, health: 24, speed: 2.5, behavior: .evoker,
                                   drops: [("totem_of_undying", 1, 1), ("emerald", 0, 1)], xp: 10, call: .mobVillager)
-        case .vex: return Spec(name: "Vex", halfW: 0.2, height: 0.8, health: 14, speed: 6, behavior: .vex, attack: 9,
+        case .vex: return Spec(name: "Hexling", halfW: 0.2, height: 0.8, health: 14, speed: 6, behavior: .vex, attack: 9,
                                drops: [], xp: 3, call: .mobVex, flying: true)
-        case .ravager: return Spec(name: "Ravager", halfW: 0.98, height: 2.2, health: 100, speed: 3, behavior: .ravager, attack: 12,
+        case .ravager: return Spec(name: "Siegebeast", halfW: 0.98, height: 2.2, health: 100, speed: 3, behavior: .ravager, attack: 12,
                                    drops: [("saddle", 1, 1)], xp: 20, call: .mobRavager)
         case .zombieVillager: return Spec(name: "Zombie Villager", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
                                           burnsInSun: true, drops: [("rotten_flesh", 0, 2)], xp: 5, call: .mobZombie)
@@ -126,12 +126,98 @@ enum MobKind: Int, CaseIterable {
              .armadillo, .sniffer, .mooshroom, .bee, .parrot, .bat, .allay, .axolotl, .squid, .glowSquid, .dolphin, .cod, .salmon, .tropicalFish, .pufferfish,
              .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin:
             return animalSpec
-        case .witherSkeleton: return Spec(name: "Wither Skeleton", halfW: 0.35, height: 2.4, health: 20, speed: 2.5, behavior: .melee, attack: 8,
+        case .witherSkeleton: return Spec(name: "Blight Skeleton", halfW: 0.35, height: 2.4, health: 20, speed: 2.5, behavior: .melee, attack: 8,
                                           drops: [("coal", 0, 1), ("bone", 0, 2)], xp: 5, call: .mobSkeleton, fireImmune: true)
         }
     }
     var hostile: Bool { spec.behavior != .passive && spec.behavior != .villager && spec.behavior != .golem && spec.behavior != .vehicle && spec.behavior != .snowGolem && spec.behavior != .animal }
-    var key: String { spec.name.lowercased().replacingOccurrences(of: " ", with: "_") }
+    // Save / command keys: fixed forever so saves survive display-name changes.
+    var key: String { MobKind.keys[self] ?? "\(self)" }
+    static let keys: [MobKind: String] = [
+        .cow: "cow",
+        .sheep: "sheep",
+        .chicken: "chicken",
+        .pig: "pig",
+        .zombie: "zombie",
+        .skeleton: "skeleton",
+        .creeper: "creeper",
+        .spider: "spider",
+        .enderman: "enderman",
+        .slime: "slime",
+        .zombifiedPiglin: "zombified_piglin",
+        .piglin: "piglin",
+        .ghast: "ghast",
+        .blaze: "blaze",
+        .magmaCube: "magma_cube",
+        .witherSkeleton: "wither_skeleton",
+        .hoglin: "hoglin",
+        .piglinBrute: "piglin_brute",
+        .strider: "strider",
+        .enderDragon: "ender_dragon",
+        .endCrystal: "end_crystal",
+        .silverfish: "silverfish",
+        .shulker: "shulker",
+        .villager: "villager",
+        .ironGolem: "iron_golem",
+        .husk: "husk",
+        .stray: "stray",
+        .drowned: "drowned",
+        .caveSpider: "cave_spider",
+        .witch: "witch",
+        .pillager: "pillager",
+        .vindicator: "vindicator",
+        .minecart: "minecart",
+        .wither: "wither",
+        .snowGolem: "snow_golem",
+        .evoker: "evoker",
+        .vex: "vex",
+        .ravager: "ravager",
+        .zombieVillager: "zombie_villager",
+        .rabbit: "rabbit",
+        .fox: "fox",
+        .wolf: "wolf",
+        .cat: "cat",
+        .ocelot: "ocelot",
+        .horse: "horse",
+        .donkey: "donkey",
+        .mule: "mule",
+        .llama: "llama",
+        .traderLlama: "trader_llama",
+        .camel: "camel",
+        .goat: "goat",
+        .panda: "panda",
+        .polarBear: "polar_bear",
+        .turtle: "turtle",
+        .frog: "frog",
+        .tadpole: "tadpole",
+        .armadillo: "armadillo",
+        .sniffer: "sniffer",
+        .mooshroom: "mooshroom",
+        .bee: "bee",
+        .parrot: "parrot",
+        .bat: "bat",
+        .allay: "allay",
+        .axolotl: "axolotl",
+        .squid: "squid",
+        .glowSquid: "glow_squid",
+        .dolphin: "dolphin",
+        .cod: "cod",
+        .salmon: "salmon",
+        .tropicalFish: "tropical_fish",
+        .pufferfish: "pufferfish",
+        .wanderingTrader: "wandering_trader",
+        .skeletonHorse: "skeleton_horse",
+        .phantom: "phantom",
+        .guardian: "guardian",
+        .elderGuardian: "elder_guardian",
+        .endermite: "endermite",
+        .warden: "warden",
+        .breeze: "breeze",
+        .bogged: "bogged",
+        .zoglin: "zoglin",
+        .boat: "boat",
+        .armorStand: "armor_stand"
+    ]
     static func named(_ n: String) -> MobKind? { allCases.first { $0.key == n } }
     var call: Snd { spec.call }
     var name: String { spec.name }
@@ -154,10 +240,10 @@ final class Mob {
     var hurt: Float = 0
     var callTimer: Float
     var attackCooldown: Float = 0
-    var fuse: Float = 0             // creeper
+    var fuse: Float = 0             // hisser
     var fire: Float = 0             // seconds left burning
     var fireTick: Float = 0
-    var aggro = false               // enderman / spider provoked
+    var aggro = false               // voidwalker / spider provoked
     var inLove: Float = 0
     var breedCooldown: Float = 0
     var age: Float = 0              // babies grow up at 1200 s
@@ -171,15 +257,15 @@ final class Mob {
     var sized: Bool { kind == .slime || kind == .magmaCube }
     var halfW: Float { spec.halfW * (sized ? Float(slimeSize) : scale) }
     var height: Float { spec.height * (sized ? Float(slimeSize) : scale) }
-    var admire: Float = 0           // piglin: seconds left inspecting a gold ingot before bartering
-    var flyTarget: V3?              // ghast / blaze hover target
-    var volley = 0                  // blaze: fireballs left in the current burst
+    var admire: Float = 0           // boarling: seconds left inspecting a gold ingot before bartering
+    var flyTarget: V3?              // wailer / cinderwisp hover target
+    var volley = 0                  // cinderwisp: fireballs left in the current burst
     var persistent = false          // structure mobs never despawn at random
-    var phase = 0                   // ender dragon phase (see updateDragon)
+    var phase = 0                   // hollow wyrm phase (see updateDragon)
     var phaseTime: Float = 0
     var circleAngle: Float = 0
-    weak var healTarget: Mob?       // end crystal currently healing the dragon
-    var peek: Float = 0             // shulker lid opening 0...1
+    weak var healTarget: Mob?       // hollow crystal currently healing the dragon
+    var peek: Float = 0             // shellsentry lid opening 0...1
     var home: V3?                   // villager / golem: where it was placed (it stays near)
     weak var target: Mob?           // golem: the monster it is chasing
     var effects: EffectSet?         // status effects (allocated on first use)
@@ -200,24 +286,24 @@ final class Mob {
     var leashed = false
     var knot: IVec3?               // fence the lead is tied to (nil = the player)
     var raider = false              // part of a raid
-    var breakTimer: Float = 0       // wither: breaks surrounding blocks when this runs out
-    var lifeSpan: Float = 1e9       // vex: seconds before it starts to wither away
-    var spellTimer: Float = 2       // evoker: next spell
+    var breakTimer: Float = 0       // blight: breaks surrounding blocks when this runs out
+    var lifeSpan: Float = 1e9       // hexling: seconds before it starts to blight away
+    var spellTimer: Float = 2       // conjurer: next spell
     var vexCooldown: Float = 0
-    var stun: Float = 0             // ravager: stunned by a shield block, then roars
+    var stun: Float = 0             // siegebeast: stunned by a shield block, then roars
     var playerBuilt = false         // iron golem built by the player (never attacks them)
     var cureTimer: Float = 0        // zombie villager being cured
-    var charged = false             // creeper struck by lightning (bigger blast)
-    var lastHitBySkeleton = false   // creepers killed by skeleton arrows drop a music disc
-    var scuteTimer: Float = Float.random(in: 300...600)   // armadillo scutes / sniffer digging
-    var heldItem: ItemID = 0        // allay: item it collects
-    var carried = 0                 // allay: collected count
+    var charged = false             // hisser struck by lightning (bigger blast)
+    var lastHitBySkeleton = false   // hissers killed by skeleton arrows drop a music disc
+    var scuteTimer: Float = Float.random(in: 300...600)   // armadillo scutes / snuffler digging
+    var heldItem: ItemID = 0        // fetchling: item it collects
+    var carried = 0                 // fetchling: collected count
     var airTime: Float = 0          // aquatic mobs out of water
-    var beam: Float = 0             // guardian laser charge
-    var anger: Float = 0            // warden
+    var beam: Float = 0             // spikefish laser charge
+    var anger: Float = 0            // deep stalker
     var jumpCharge: Float = 0       // horse jump when ridden
     var temper = 0                  // horse taming progress
-    weak var mount: Mob?            // rider (raid ravager riders)
+    weak var mount: Mob?            // rider (raid siegebeast riders)
     var captain = false             // raid / patrol captain (banner)
     var jobTimer: Float = Float.random(in: 0...5)
 
@@ -241,7 +327,7 @@ final class Mob {
         health = size * size
     }
 
-    // Anger this mob and every zombified piglin nearby at the player.
+    // Anger this mob and every undead boarling nearby at the player.
     func provoke(_ g: Game) {
         aggro = true
         if kind == .zombifiedPiglin {
@@ -287,9 +373,9 @@ final class Mob {
         if g.riding === self && kind != .minecart { updateRidden(dt, g); return }
         if kind == .enderDragon { updateDragon(dt, g); return }
         if kind == .endCrystal { updateCrystal(dt, g); return }
-        if kind == .shulker { updateShulker(dt, g); return }
+        if kind == .shulker { updateSentry(dt, g); return }
         if kind == .minecart { updateMinecart(dt, g); cartExtras(dt, g); return }
-        if kind == .wither { updateWither(dt, g); return }
+        if kind == .wither { updateBlight(dt, g); return }
         if cureTick(dt, g) { return }
         if kind == .vex { updateVex(dt, g); return }
 
@@ -341,7 +427,7 @@ final class Mob {
                 if eggTimer <= 0 { eggTimer = Float.random(in: 300...600); g.drops.spawn(ItemStack(Items.id("egg"), 1), at: pos + V3(0, 0.3, 0)) }
             }
         case .neutral, .piglin:
-            // Zombified piglins only fight back; piglins attack players not wearing gold armor.
+            // Zombified boarlings only fight back; boarlings attack players not wearing gold armor.
             let goldWorn = g.inventory.armor.slots.contains { !$0.isEmpty && Items.key($0.item).hasPrefix("golden_") }
             let angry = aggro || (spec.behavior == .piglin && !goldWorn && dist < 12 && admire <= 0)
             if admire > 0 {
@@ -388,7 +474,7 @@ final class Mob {
                 speed = dist > 6 ? spec.speed : 0
                 if dist < 1.8 && attackCooldown <= 0 && volley == 0 {
                     attackCooldown = 1
-                    g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Blaze")
+                    g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Cinderwisp")
                 } else if attackCooldown <= 0 {
                     if volley == 0 { volley = 3 }
                     let from = eye + forward * 0.5
@@ -540,7 +626,7 @@ final class Mob {
                     var d = target - eye
                     let horiz = simd_length(V2(d.x, d.z))
                     d.y += horiz * 0.2
-                    // Pillagers fire crossbow bolts (faster, flatter).
+                    // Marauders fire crossbow bolts (faster, flatter).
                     g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 50 : 32 + Float.random(in: -3...3), fromPlayer: false, damage: 2)
                     g.sfx(.bow, 0.7, at: pos)
                 }
@@ -567,7 +653,7 @@ final class Mob {
             if !aggro && canTarget && dist < 64 {
                 let head = pos + V3(0, height - 0.3, 0)
                 let toHead = simd_normalize(head - g.player.eye)
-                if simd_dot(g.player.look, toHead) > 0.99 && w.canSee(g.player.eye, head) { aggro = true; g.sfx(.mobEnderman, 1, at: pos) }
+                if simd_dot(g.player.look, toHead) > 0.99 && w.canSee(g.player.eye, head) { aggro = true; g.sfx(.mobVoidwalker, 1, at: pos) }
             }
             if inWater { teleport(w) }
             if aggro && canTarget {
@@ -575,7 +661,7 @@ final class Mob {
                 speed = spec.speed * 2
                 if dist < 1.6 && attackCooldown <= 0 {
                     attackCooldown = 1
-                    g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Enderman", attacker: self)
+                    g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Voidwalker", attacker: self)
                 }
             } else { wander(); speed = moving ? spec.speed * 0.4 : 0 }
         case .slime:
@@ -636,7 +722,7 @@ final class Mob {
         if kind == .drowned && inWater && canTarget {
             vel.y += ((player.y - pos.y) * 2 - vel.y) * min(1, dt * 3)
         } else if kind == .strider && Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))] == 2 {
-            vel.y = 2          // striders stand on lava
+            vel.y = 2          // magmastriders stand on lava
         } else if inWater {
             vel.y += 18 * dt
             vel.y = min(vel.y, 1.6)
@@ -714,7 +800,7 @@ final class Mob {
             breakTimer = 1
             return
         }
-        // A closed shulker shell shrugs off most of a hit.
+        // A closed sentry shell shrugs off most of a hit.
         var damage = armorReduced(damage)
         // Wolf armour takes the hit until it breaks; horse armour reduces like player armour.
         if kind == .wolf && armorTier == 5 && damage > 0 {
@@ -1318,7 +1404,7 @@ final class MobManager {
         return nil
     }
 
-    // Grass-like ground with room above (sand for turtles/rabbits, snow for bears, mycelium for mooshrooms).
+    // Grass-like ground with room above (sand for turtles/rabbits, snow for bears, mycelium for mushroom cows).
     func animalSurface(_ w: World, _ x: Int, _ z: Int, _ k: MobKind) -> Int? {
         var y = CH - 2
         while y > 1 && !Blocks.collide[Int(w.block(x, y, z))] && !Blocks.isLiquid(w.block(x, y, z)) { y -= 1 }
@@ -1379,7 +1465,7 @@ final class MobManager {
                 mobs.append(Mob(.bat, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)))
             }
         }
-        // Phantoms: at night, over a player who hasn't slept for 3+ days.
+        // Nightwings: at night, over a player who hasn't slept for 3+ days.
         if game.survival && game.daylight < 0.3 && game.timeSinceRest > 3600 && Float.random(in: 0..<1) < Float(game.timeSinceRest - 3600) / 3600 * 0.02,
            mobs.filter({ $0.kind == .phantom }).count < 4, game.skyExposed(Int(floor(pp.x)), Int(floor(pp.y + 1)), Int(floor(pp.z))), pp.y > Float(YOFF + SEA) {
             for _ in 0..<Int.random(in: 1...3) {
@@ -1392,9 +1478,9 @@ final class MobManager {
     // blocks, 24-64 blocks from the player.
     func trySpawnHostile(_ game: Game) {
         let w = game.world
-        if w.dim == .nether { trySpawnNether(game); return }
+        if w.dim == .nether { trySpawnEmberdeep(game); return }
         if w.dim == .end {
-            // Endermen (groups of up to 4) on end stone anywhere 24-64 blocks out.
+            // Voidwalkers (groups of up to 4) on hollow stone anywhere 24-64 blocks out.
             let pp = game.player.pos
             let a = Float.random(in: 0..<(2 * .pi)), r = Float.random(in: 24...64)
             let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
@@ -1458,15 +1544,15 @@ final class MobManager {
         mobs.append(m)
     }
 
-    // Nether spawning (no light requirement): per-biome weighted lists, overridden inside fortresses.
-    func trySpawnNether(_ game: Game) {
+    // Emberdeep spawning (no light requirement): per-biome weighted lists, overridden inside fortresses.
+    func trySpawnEmberdeep(_ game: Game) {
         let w = game.world
         let pp = game.player.pos
         let a = Float.random(in: 0..<(2 * .pi)), r = Float.random(in: 24...64)
         let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
         guard w.isLoaded(x, z) else { return }
-        // Striders: groups on the lava sea surface.
-        let lavaY = YOFF + NetherGen.lavaLevel
+        // Magmastriders: groups on the lava sea surface.
+        let lavaY = YOFF + EmberGen.lavaLevel
         if Float.random(in: 0..<1) < 0.1 {
             if Blocks.fluidKind[Int(w.block(x, lavaY, z))] == 2 && w.block(x, lavaY + 1, z) == AIR && w.block(x, lavaY + 2, z) == AIR
                 && mobs.filter({ $0.kind == .strider }).count < 8 {
@@ -1498,7 +1584,7 @@ final class MobManager {
         var roll = Int.random(in: 0..<total)
         var pick = list[0]
         for e in list { roll -= e.1; if roll < 0 { pick = e; break } }
-        // Ghasts are rare per attempt (they need a big open space) — the reference game's spawn
+        // Wailers are rare per attempt (they need a big open space) — the reference game's spawn
         // attempts fail for them most of the time.
         if pick.0 == .ghast && Float.random(in: 0..<1) < 0.8 { return }
         let n = Int.random(in: pick.2...pick.3)

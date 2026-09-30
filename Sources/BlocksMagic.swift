@@ -13,7 +13,7 @@ extension BlockRegistry {
         }
         func t6(_ s: String) -> [UInt16] { [UInt16](repeating: Tex.id(s), count: 6) }
 
-        // Brewing stand: stone base, blaze rod, up to three bottles (bit per slot).
+        // Brewing stand: stone base, cinder rod, up to three bottles (bit per slot).
         for m in 0..<8 {
             var boxes = [Box(1, 0, 1, 7, 2, 7, tex: t6("brewing_stand_base")), Box(9, 0, 5, 15, 2, 11, tex: t6("brewing_stand_base")),
                          Box(1, 0, 9, 7, 2, 15, tex: t6("brewing_stand_base")), Box(7, 0, 7, 9, 14, 9, tex: t6("brewing_stand_rod"))]
@@ -38,9 +38,9 @@ extension BlockRegistry {
             model(n, d, [n], [Box(2, 0, 2, 14, 4, 14), Box(4, 4, 3, 12, 5, 13), Box(6, 5, 4, 10, 10, 12), Box(3, 10, 0, 13, 16, 16)], h: 5, req: true)
         }
         // Mob heads: 4 floor facings (0-3) + 4 wall facings (4-7). Face texture on the facing side.
-        let heads: [(String, String, String)] = [("skeleton_skull", "Skeleton Skull", "skull_skeleton"), ("wither_skeleton_skull", "Wither Skeleton Skull", "skull_wither"),
-                                                 ("zombie_head", "Zombie Head", "head_zombie"), ("creeper_head", "Creeper Head", "head_creeper"),
-                                                 ("piglin_head", "Piglin Head", "head_piglin"), ("dragon_head", "Dragon Head", "head_dragon"),
+        let heads: [(String, String, String)] = [("skeleton_skull", "Skeleton Skull", "skull_skeleton"), ("wither_skeleton_skull", "Blight Skeleton Skull", "skull_wither"),
+                                                 ("zombie_head", "Zombie Head", "head_zombie"), ("creeper_head", "Hisser Head", "head_creeper"),
+                                                 ("piglin_head", "Boarling Head", "head_piglin"), ("dragon_head", "Wyrm Head", "head_dragon"),
                                                  ("player_head", "Player Head", "head_player")]
         for (n, disp, t) in heads {
             for st in 0..<8 {
@@ -69,7 +69,7 @@ extension BlockRegistry {
                 add(d)
             }
         }
-        var nb = BlockDef("netherite_block", "Block of Netherite")
+        var nb = BlockDef("netherite_block", "Block of Duskium")
         nb.tex = ["netherite_block"]; nb.hardness = 50; nb.resistance = 1200; nb.tool = .pickaxe; nb.harvestLevel = 3; nb.requiresTool = true
         add(nb)
         // Carved pumpkin / jack o'lantern (facing the player who placed them).

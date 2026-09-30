@@ -1,9 +1,9 @@
 import Foundation
 import simd
 
-// Nether portals: obsidian frames (interior 2x3 up to 21x21) lit with flint and steel, travel after
+// Emberdeep portals: obsidian frames (interior 2x3 up to 21x21) lit with flint and steel, travel after
 // standing inside (4 s in survival), coordinates scaled 1:8, the nearest existing portal is reused
-// (128 blocks in the Overworld, 16 in the Nether), otherwise a new one is built.
+// (128 blocks in the Surface, 16 in the Emberdeep), otherwise a new one is built.
 extension Game {
     // Tries to light a portal whose interior contains `p`. Returns true on success.
     func tryLightPortal(at p: IVec3) -> Bool {

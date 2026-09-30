@@ -1,7 +1,7 @@
 import Foundation
 import simd
 
-// Advancements: five tabs mirroring the reference tree (story, nether, end, adventure, husbandry) with
+// Advancements: five tabs mirroring the reference tree (story, emberdeep, end, adventure, husbandry) with
 // the same criteria and original titles. Item and place criteria are polled once a second; events
 // (kills, trades, breeding, brewing, enchanting, raids...) are reported with achieve(_:).
 struct Advancement {
@@ -23,7 +23,7 @@ struct Advancement {
 }
 
 enum Advancements {
-    static let tabs = ["Story", "Nether", "The End", "Adventure", "Husbandry"]
+    static let tabs = ["Story", "Emberdeep", "The Hollow", "Adventure", "Husbandry"]
     static let all: [Advancement] = [
         // Story
         Advancement(id: "root", tab: 0, title: "First Steps", desc: "The heart and story of the game", crit: .item("crafting_table")),
@@ -37,39 +37,39 @@ enum Advancements {
         Advancement(id: "deflect_arrow", tab: 0, title: "Not Today", desc: "Block a projectile with a shield", crit: .event("deflect")),
         Advancement(id: "form_obsidian", tab: 0, title: "Cold Glass", desc: "Obtain a block of obsidian", crit: .item("obsidian")),
         Advancement(id: "mine_diamond", tab: 0, title: "Shiny!", desc: "Acquire diamonds", crit: .item("diamond")),
-        Advancement(id: "enter_the_nether", tab: 0, title: "Down Below", desc: "Build, light and enter a Nether Portal", crit: .dim(.nether)),
+        Advancement(id: "enter_the_nether", tab: 0, title: "Down Below", desc: "Build, light and enter an Ember Gate", crit: .dim(.nether)),
         Advancement(id: "shiny_gear", tab: 0, title: "Glittering Guard", desc: "Diamond armor saves lives",
                     crit: .anyItem(["diamond_helmet", "diamond_chestplate", "diamond_leggings", "diamond_boots"])),
         Advancement(id: "enchant_item", tab: 0, title: "Spellbound", desc: "Enchant an item at an Enchanting Table", crit: .event("enchant")),
         Advancement(id: "cure_zombie_villager", tab: 0, title: "Second Opinion", desc: "Weaken and then cure a Zombie Villager", crit: .event("cure"), challenge: false),
         Advancement(id: "follow_ender_eye", tab: 0, title: "Following the Eye", desc: "Enter a Stronghold", crit: .event("stronghold")),
-        Advancement(id: "enter_the_end", tab: 0, title: "Journey's End?", desc: "Enter the End Portal", crit: .dim(.end)),
-        // Nether
+        Advancement(id: "enter_the_end", tab: 0, title: "Journey's End?", desc: "Enter the Hollow Gate", crit: .dim(.end)),
+        // Emberdeep
         Advancement(id: "nether/root", tab: 1, title: "The Other Side", desc: "Bring summer clothes", crit: .dim(.nether)),
-        Advancement(id: "nether/return_to_sender", tab: 1, title: "Sent Back", desc: "Destroy a Ghast with a fireball", crit: .event("ghast_fireball"), challenge: true),
-        Advancement(id: "nether/find_fortress", tab: 1, title: "Fortified", desc: "Break your way into a Nether Fortress", crit: .event("fortress")),
-        Advancement(id: "nether/obtain_blaze_rod", tab: 1, title: "Fire Walker", desc: "Relieve a Blaze of its rod", crit: .item("blaze_rod")),
+        Advancement(id: "nether/return_to_sender", tab: 1, title: "Sent Back", desc: "Destroy a Wailer with a fireball", crit: .event("ghast_fireball"), challenge: true),
+        Advancement(id: "nether/find_fortress", tab: 1, title: "Fortified", desc: "Break your way into a Cinder Fortress", crit: .event("fortress")),
+        Advancement(id: "nether/obtain_blaze_rod", tab: 1, title: "Fire Walker", desc: "Relieve a Cinderwisp of its rod", crit: .item("blaze_rod")),
         Advancement(id: "nether/brew_potion", tab: 1, title: "Home Chemist", desc: "Brew a potion", crit: .event("brew")),
-        Advancement(id: "nether/obtain_ancient_debris", tab: 1, title: "Deep Buried", desc: "Obtain Ancient Debris", crit: .item("ancient_debris")),
-        Advancement(id: "nether/netherite_armor", tab: 1, title: "Unbreakable Shell", desc: "Get a full suit of Netherite armor",
+        Advancement(id: "nether/obtain_ancient_debris", tab: 1, title: "Deep Buried", desc: "Obtain Dusk Relic", crit: .item("ancient_debris")),
+        Advancement(id: "nether/netherite_armor", tab: 1, title: "Unbreakable Shell", desc: "Get a full suit of Duskium armor",
                     crit: .event("netherite_suit"), challenge: true),
-        Advancement(id: "nether/distract_piglin", tab: 1, title: "Gold Rush", desc: "Distract Piglins with gold", crit: .event("barter")),
-        Advancement(id: "nether/ride_strider", tab: 1, title: "Hot Stroll", desc: "Ride a Strider with a Warped Fungus on a Stick", crit: .event("ride_strider")),
-        Advancement(id: "nether/summon_wither", tab: 1, title: "Dark Summoning", desc: "Summon the Wither", crit: .event("summon_wither")),
+        Advancement(id: "nether/distract_piglin", tab: 1, title: "Gold Rush", desc: "Distract Boarlings with gold", crit: .event("barter")),
+        Advancement(id: "nether/ride_strider", tab: 1, title: "Hot Stroll", desc: "Ride a Magmastrider with a Warped Fungus on a Stick", crit: .event("ride_strider")),
+        Advancement(id: "nether/summon_wither", tab: 1, title: "Dark Summoning", desc: "Summon the Blight", crit: .event("summon_wither")),
         Advancement(id: "nether/create_beacon", tab: 1, title: "Signal Fire", desc: "Construct and place a Beacon", crit: .event("beacon")),
         Advancement(id: "nether/all_effects", tab: 1, title: "A Heady Mix", desc: "Have every potion effect at the same time", crit: .allEffects(13), challenge: true),
-        Advancement(id: "nether/obtain_crying_obsidian", tab: 1, title: "Tearful Stone", desc: "Obtain Crying Obsidian", crit: .item("crying_obsidian")),
-        Advancement(id: "nether/charge_respawn_anchor", tab: 1, title: "Nine Lives", desc: "Charge a Respawn Anchor to the maximum", crit: .event("anchor_full")),
+        Advancement(id: "nether/obtain_crying_obsidian", tab: 1, title: "Tearful Stone", desc: "Obtain Weeping Obsidian", crit: .item("crying_obsidian")),
+        Advancement(id: "nether/charge_respawn_anchor", tab: 1, title: "Nine Lives", desc: "Charge a Rebirth Anchor to the maximum", crit: .event("anchor_full")),
         // End
-        Advancement(id: "end/root", tab: 2, title: "The End", desc: "Or the beginning?", crit: .dim(.end)),
-        Advancement(id: "end/kill_dragon", tab: 2, title: "Freedom", desc: "Defeat the Ender Dragon", crit: .event("kill_ender_dragon")),
-        Advancement(id: "end/dragon_egg", tab: 2, title: "The Next Egg", desc: "Hold the Dragon Egg", crit: .item("dragon_egg")),
+        Advancement(id: "end/root", tab: 2, title: "The Hollow", desc: "Or the beginning?", crit: .dim(.end)),
+        Advancement(id: "end/kill_dragon", tab: 2, title: "Freedom", desc: "Defeat the Hollow Wyrm", crit: .event("kill_ender_dragon")),
+        Advancement(id: "end/dragon_egg", tab: 2, title: "The Next Egg", desc: "Hold the Wyrm Egg", crit: .item("dragon_egg")),
         Advancement(id: "end/enter_end_gateway", tab: 2, title: "Far Islands", desc: "Escape the island", crit: .event("gateway")),
-        Advancement(id: "end/respawn_dragon", tab: 2, title: "Once More", desc: "Respawn the Ender Dragon", crit: .event("respawn_dragon"), challenge: true),
-        Advancement(id: "end/dragon_breath", tab: 2, title: "Bottled Breath", desc: "Collect Dragon's Breath in a Glass Bottle", crit: .item("dragon_breath")),
+        Advancement(id: "end/respawn_dragon", tab: 2, title: "Once More", desc: "Respawn the Hollow Wyrm", crit: .event("respawn_dragon"), challenge: true),
+        Advancement(id: "end/dragon_breath", tab: 2, title: "Bottled Breath", desc: "Collect Wyrm's Breath in a Glass Bottle", crit: .item("dragon_breath")),
         Advancement(id: "end/find_end_city", tab: 2, title: "Distant Towers", desc: "Go on in, what could happen?", crit: .event("end_city")),
-        Advancement(id: "end/elytra", tab: 2, title: "Wings", desc: "Find Elytra", crit: .item("elytra")),
-        Advancement(id: "end/levitate", tab: 2, title: "Lifted", desc: "Levitate up 50 blocks from the attacks of a Shulker", crit: .event("levitate50"), challenge: true),
+        Advancement(id: "end/elytra", tab: 2, title: "Wings", desc: "Find Glider Wings", crit: .item("elytra")),
+        Advancement(id: "end/levitate", tab: 2, title: "Lifted", desc: "Levitate up 50 blocks from the attacks of a Shellsentry", crit: .event("levitate50"), challenge: true),
         // Adventure
         Advancement(id: "adventure/root", tab: 3, title: "Out There", desc: "Adventure, exploration and combat", crit: .event("kill_any")),
         Advancement(id: "adventure/kill_a_mob", tab: 3, title: "Hunter", desc: "Kill any hostile monster", crit: .event("kill_hostile")),
@@ -79,7 +79,7 @@ enum Advancements {
         Advancement(id: "adventure/ol_betsy", tab: 3, title: "Crossed", desc: "Shoot a Crossbow", crit: .event("crossbow")),
         Advancement(id: "adventure/voluntary_exile", tab: 3, title: "Exiled", desc: "Kill a raid captain", crit: .event("kill_captain")),
         Advancement(id: "adventure/hero_of_the_village", tab: 3, title: "Village Keeper", desc: "Successfully defend a village from a raid", crit: .event("raid_win"), challenge: true),
-        Advancement(id: "adventure/totem_of_undying", tab: 3, title: "Second Chance", desc: "Use a Totem of Undying to cheat death", crit: .event("totem")),
+        Advancement(id: "adventure/totem_of_undying", tab: 3, title: "Second Chance", desc: "Use a Totem of Rebirth to cheat death", crit: .event("totem")),
         Advancement(id: "adventure/summon_iron_golem", tab: 3, title: "Hired Muscle", desc: "Summon an Iron Golem", crit: .event("iron_golem")),
         Advancement(id: "adventure/throw_trident", tab: 3, title: "A Throwaway Joke", desc: "Throw a Trident at something", crit: .event("trident_hit")),
         Advancement(id: "adventure/spyglass_at_parrot", tab: 3, title: "Look Closer", desc: "Look at something through a Spyglass", crit: .event("spyglass")),
@@ -90,7 +90,7 @@ enum Advancements {
         Advancement(id: "adventure/adventuring_time", tab: 3, title: "Wanderer", desc: "Discover 40 biomes", crit: .event("biomes40"), challenge: true),
         Advancement(id: "adventure/sniper_duel", tab: 3, title: "Long Shot", desc: "Kill a Skeleton from at least 50 blocks away", crit: .event("sniper")),
         Advancement(id: "adventure/play_jukebox_in_meadows", tab: 3, title: "Hillside Tunes", desc: "Play a music disc in a Meadow", crit: .event("meadow_music")),
-        Advancement(id: "adventure/minecraft_trials_edition", tab: 3, title: "Trial Run", desc: "Step foot in a Trial Chamber", crit: .event("trial_chambers")),
+        Advancement(id: "adventure/proving_run", tab: 3, title: "Proving Run", desc: "Step foot in a Proving Hall", crit: .event("trial_chambers")),
         // Husbandry
         Advancement(id: "husbandry/root", tab: 4, title: "Homestead", desc: "The world is full of friends and food", crit: .event("eat")),
         Advancement(id: "husbandry/plant_seed", tab: 4, title: "Sown", desc: "Plant a seed and watch it grow", crit: .event("plant")),
@@ -100,16 +100,16 @@ enum Advancements {
         Advancement(id: "husbandry/tactical_fishing", tab: 4, title: "Scoop", desc: "Catch a fish... without a fishing rod!",
                     crit: .anyItem(["cod_bucket", "salmon_bucket", "tropical_fish_bucket", "pufferfish_bucket"])),
         Advancement(id: "husbandry/balanced_diet", tab: 4, title: "Omnivore", desc: "Eat everything that is edible", crit: .event("ate_all"), challenge: true),
-        Advancement(id: "husbandry/obtain_netherite_hoe", tab: 4, title: "Overdone", desc: "Use a Netherite Ingot to upgrade a hoe", crit: .item("netherite_hoe"), challenge: true),
+        Advancement(id: "husbandry/obtain_netherite_hoe", tab: 4, title: "Overdone", desc: "Use a Duskium Ingot to upgrade a hoe", crit: .item("netherite_hoe"), challenge: true),
         Advancement(id: "husbandry/safely_harvest_honey", tab: 4, title: "Sweet Harvest", desc: "Use a Campfire to collect Honey safely", crit: .item("honey_bottle")),
         Advancement(id: "husbandry/wax_on", tab: 4, title: "Sealed", desc: "Apply Honeycomb to a Copper block", crit: .event("wax")),
         Advancement(id: "husbandry/axolotl_in_a_bucket", tab: 4, title: "Cute Catch", desc: "Catch an Axolotl in a bucket", crit: .item("axolotl_bucket")),
         Advancement(id: "husbandry/ride_a_boat_with_a_goat", tab: 4, title: "Afloat", desc: "Get in a Boat and float", crit: .event("boat")),
         Advancement(id: "husbandry/make_a_sign_glow", tab: 4, title: "Bright Letters", desc: "Make the text of a sign glow", crit: .event("glow_sign")),
-        Advancement(id: "husbandry/obtain_sniffer_egg", tab: 4, title: "Old Smells", desc: "Obtain a Sniffer Egg", crit: .item("sniffer_egg")),
-        Advancement(id: "husbandry/plant_any_sniffer_seed", tab: 4, title: "Ancient Seeds", desc: "Plant any Sniffer seed", crit: .event("plant_sniffer")),
+        Advancement(id: "husbandry/obtain_sniffer_egg", tab: 4, title: "Old Smells", desc: "Obtain a Snuffler Egg", crit: .item("sniffer_egg")),
+        Advancement(id: "husbandry/plant_any_sniffer_seed", tab: 4, title: "Ancient Seeds", desc: "Plant any Snuffler seed", crit: .event("plant_sniffer")),
         Advancement(id: "husbandry/remove_wolf_armor", tab: 4, title: "Shears Out", desc: "Remove Wolf Armor from a Wolf using Shears", crit: .event("wolf_armor")),
-        Advancement(id: "husbandry/froglights", tab: 4, title: "Three Lights", desc: "Have all Froglights in your inventory",
+        Advancement(id: "husbandry/froglights", tab: 4, title: "Three Lights", desc: "Have all Frog Lanterns in your inventory",
                     crit: .event("froglights")),
     ]
     static let index: [String: Int] = Dictionary(uniqueKeysWithValues: all.enumerated().map { ($1.id, $0) })
@@ -165,7 +165,7 @@ extension Game {
         if dim.dim == .end && (under == "purpur_block" || under == "purpur_pillar") { achieve("end_city") }
         if dim.dim == .overworld && Int(clock) % 5 == 0 {
             if !advancements.contains("follow_ender_eye") && inside("stronghold") { achieve("stronghold") }
-            if !advancements.contains("adventure/minecraft_trials_edition") && inside("trial_chambers") { achieve("trial_chambers") }
+            if !advancements.contains("adventure/proving_run") && inside("trial_chambers") { achieve("trial_chambers") }
         }
         // Biomes visited.
         let b = world.gen.column(Int(floor(player.pos.x)), Int(floor(player.pos.z))).biome

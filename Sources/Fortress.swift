@@ -1,9 +1,9 @@
 import Foundation
 
-// Nether fortress: a network on a 10-block grid. Open "bridge" cells (5-wide decks with railings,
+// Emberdeep fortress: a network on a 10-block grid. Open "bridge" cells (5-wide decks with railings,
 // support pillars down to the ground) lead from the start crossing to an enclosed "castle" part
-// (7-wide corridors with fence windows, chests). Leaves become blaze spawner platforms (bridge) and
-// nether wart rooms (castle). Fortresses and bastions share a 27-chunk grid (separation 4); a start
+// (7-wide corridors with fence windows, chests). Leaves become cinderwisp spawner platforms (bridge) and
+// emberdeep wart rooms (castle). Fortresses and bastions share a 27-chunk grid (separation 4); a start
 // is a fortress 2 times in 5.
 enum Fortress {
     static let cell = 10
@@ -39,7 +39,7 @@ enum Fortress {
             nodes[to]!.links[d ^ 1] = true
             frontier.append(to)
         }
-        // Leaves become special rooms: at least one blaze platform.
+        // Leaves become special rooms: at least one cinderwisp platform.
         let leaves = nodes.filter { $0.key != IVec2Key(0, 0) && $0.value.links.filter { $0 }.count == 1 }.map { $0.key }
             .sorted { ($0.x, $0.z) < ($1.x, $1.z) }
         var blazes = 0
@@ -130,7 +130,7 @@ enum Fortress {
                 w.pillarDown(px, y - 2, pz, brick, minY: YOFF)
             }
             if n.kind == .wart {
-                // Two soul sand beds of nether wart with a brick border, stairs up to them.
+                // Two ghost sand beds of emberdeep wart with a brick border, stairs up to them.
                 let soul = Blocks.id("soul_sand"), wart = Blocks.id("nether_wart")
                 for side in [-1, 1] {
                     let bz = cz + side * 3

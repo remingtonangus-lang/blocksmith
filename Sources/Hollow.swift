@@ -1,11 +1,11 @@
 import Foundation
 import simd
 
-// Eyes of ender, the end portal, the dragon fight and the credits.
+// Eyes of ender, the hollow gate, the dragon fight and the credits.
 
-// A thrown eye of ender: rises and flies toward the nearest stronghold (at most 12 blocks), hovers,
+// A thrown seeker eye: rises and flies toward the nearest stronghold (at most 12 blocks), hovers,
 // then drops as an item (80%) or shatters.
-final class EnderEye {
+final class SeekerEye {
     var pos: V3
     let target: V3
     var age: Float = 0
@@ -13,9 +13,9 @@ final class EnderEye {
     init(_ p: V3, _ t: V3) { pos = p; target = t }
 }
 
-// Shulker bullet: slowly homes in on the player; a hit deals 4 and levitates for 10 s. Punching it
+// Shellsentry bullet: slowly homes in on the player; a hit deals 4 and levitates for 10 s. Punching it
 // destroys it.
-final class ShulkerBullet {
+final class SentryBolt {
     var pos: V3
     var vel: V3
     var age: Float = 0
@@ -34,12 +34,12 @@ struct AcidCloud {
 let ENDER_EYE_FLIGHT: Float = 12
 
 extension Game {
-    var endGen: EndGen? { world.gen as? EndGen }
+    var endGen: HollowGen? { world.gen as? HollowGen }
 
     // MARK: Eyes of ender
 
     // Right-click with an eye: fill a portal frame, or throw it toward the nearest stronghold.
-    func useEnderEye(on hit: (hit: IVec3, normal: IVec3)?) -> Bool {
+    func useSeekerEye(on hit: (hit: IVec3, normal: IVec3)?) -> Bool {
         if let t = hit, Blocks.key(world.block(t.hit.x, t.hit.y, t.hit.z)) == "end_portal_frame" {
             world.setBlock(t.hit.x, t.hit.y, t.hit.z, Blocks.id("end_portal_frame") + 1)
             consumeHeld()
@@ -49,7 +49,7 @@ extension Game {
         }
         guard dim.dim == .overworld, let s = world.gen.structures?.nearest("stronghold", x: Int(player.pos.x), z: Int(player.pos.z)) else { return false }
         let target = V3(Float(s.anchor.x) + 0.5, Float(s.anchor.y), Float(s.anchor.z) + 0.5)
-        eyes.append(EnderEye(player.eye, target))
+        eyes.append(SeekerEye(player.eye, target))
         consumeHeld()
         sfx(.bow, 0.6)
         return true
@@ -156,7 +156,7 @@ extension Game {
         let dest = spot ?? V3(dir.x * 1024, Float(YOFF + 70), dir.y * 1024)
         _ = world.loadSync(center: dest, radius: 2)
         if spot == nil {
-            // No island found: a small end stone platform.
+            // No island found: a small hollow stone platform.
             for z in -1...1 { for x in -1...1 { world.setBlock(Int(dest.x) + x, Int(dest.y) - 1, Int(dest.z) + z, Blocks.id("end_stone")) } }
         }
         player.pos = dest
@@ -191,7 +191,7 @@ extension Game {
             if Float.random(in: 0..<1) < dt * 20 { particles.smoke(at: b.pos, dark: false) }
             if d < 0.7 {
                 b.dead = true
-                hurtPlayer(4, from: b.pos, cause: "was shot by Shulker", knockback: 0.3)
+                hurtPlayer(4, from: b.pos, cause: "was shot by Shellsentry", knockback: 0.3)
                 applyEffect(.levitation, amp: 0, seconds: 10)
             } else if b.age > 12 || Blocks.collide[Int(world.block(Int(floor(b.pos.x)), Int(floor(b.pos.y)), Int(floor(b.pos.z))))] {
                 b.dead = true
@@ -201,7 +201,7 @@ extension Game {
         bullets.removeAll { $0.dead }
     }
 
-    // Player punch on a shulker bullet destroys it.
+    // Player punch on a sentry bolt destroys it.
     func punchBullet() -> Bool {
         for b in bullets {
             if let h = World.rayBox(player.eye, player.look, b.pos - V3(0.2, 0.2, 0.2), b.pos + V3(0.2, 0.2, 0.2)), h.0 < 4 {
@@ -218,10 +218,10 @@ extension Game {
         dragonKilled = true
         addXP(first ? 12000 : 500)
         let fy = fountainY
-        EndGen.fountainBlocks(fy, active: true) { x, y, z, b in world.setBlockAsync(x, y, z, b) }
+        HollowGen.fountainBlocks(fy, active: true) { x, y, z, b in world.setBlockAsync(x, y, z, b) }
         if first { world.setBlockAsync(0, fy + 4, 0, Blocks.id("dragon_egg")) }
         world.setBlock(0, fy + 3, 0, BEDROCK)
-        // A new end gateway (up to 20) on the ring of radius 96 at y 75.
+        // A new hollow rift (up to 20) on the ring of radius 96 at y 75.
         if gateways < 20 {
             let a = 2 * Double.pi * Double((gateways * 7) % 20) / 20
             let gx = Int((96 * cos(a)).rounded()), gz = Int((96 * sin(a)).rounded()), gy = YOFF + 75
@@ -231,7 +231,7 @@ extension Game {
             gateways += 1
         }
         sfx(.explode, 1, at: d.pos)
-        onToast?("The End: exit portal open")
+        onToast?("The Hollow: exit portal open")
     }
 }
 
@@ -240,8 +240,8 @@ extension Game {
     static let creditsLines: [String] = [
         "BLOCKSMITH", "", "", "The dragon is gone. The island is quiet.", "",
         "You came from a world of grass and water,", "dug down through stone and deepslate,",
-        "walked through fire in the Nether,", "followed the eyes across the land,",
-        "and crossed the dark to the End.", "", "Every block you placed was a choice.",
+        "walked through fire in the Emberdeep,", "followed the eyes across the land,",
+        "and crossed the dark to the Hollow.", "", "Every block you placed was a choice.",
         "Every tunnel, every tower, every farm", "was a small world of your own making.", "",
         "The portal home is open.", "The world you built is waiting.", "", "", "",
         "Made for Remington", "", "Game design, code, art and sound", "generated procedurally in Swift and Metal", "",
@@ -316,7 +316,7 @@ extension Mob {
             goal = player + V3(0, 1, 0)
             speed = 20
             if dist < 5 {
-                g.hurtPlayer(10, from: pos, cause: "was slain by Ender Dragon", knockback: 2.5)
+                g.hurtPlayer(10, from: pos, cause: "was slain by Hollow Wyrm", knockback: 2.5)
                 phase = 0; phaseTime = 0
             }
             if phaseTime > 8 { phase = 0; phaseTime = 0 }
@@ -331,7 +331,7 @@ extension Mob {
             if phaseTime > 2 && Int(phaseTime / 3) != Int((phaseTime - dt) / 3) && dist < 24 {
                 // Breath: a cloud of acid where the player stands.
                 g.clouds.append(AcidCloud(pos: V3(player.x, floor(player.y) + 0.05, player.z), radius: 3, time: 6))
-                g.sfx(.mobGhast, 0.8, at: pos)
+                g.sfx(.mobWailer, 0.8, at: pos)
             }
             if phaseTime > Float.random(in: 12...18) { phase = 5; phaseTime = 0 }
         case 5:
@@ -360,7 +360,7 @@ extension Mob {
         } else {
             vel *= expf(-4 * dt)
         }
-        // The dragon smashes through anything but obsidian, end stone, bedrock and iron bars.
+        // The dragon smashes through anything but obsidian, hollow stone, bedrock and iron bars.
         pos += vel * dt
         if phase != 4 && Int(phaseTime * 4) != Int((phaseTime - dt) * 4) {
             let c = IVec3(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z)))
@@ -377,11 +377,11 @@ extension Mob {
         // Wing buffet: knock the player away when very close.
         if dist < 6 && phase != 6 && attackCooldown <= 0 {
             attackCooldown = 1
-            g.hurtPlayer(5, from: pos, cause: "was slain by Ender Dragon", knockback: 2)
+            g.hurtPlayer(5, from: pos, cause: "was slain by Hollow Wyrm", knockback: 2)
         }
     }
 
-    func updateShulker(_ dt: Float, _ g: Game) {
+    func updateSentry(_ dt: Float, _ g: Game) {
         let target = g.player.eye
         let dist = simd_length(target - pos)
         let active = g.survival && g.alive && dist < 16 && g.world.canSee(pos + V3(0, 0.8, 0), target)
@@ -393,7 +393,7 @@ extension Mob {
         if active && attackCooldown <= 0 {
             attackCooldown = Float.random(in: 1...5.5)
             let from = pos + V3(0, 1.3, 0)
-            g.bullets.append(ShulkerBullet(from, simd_normalize(target - from) * 4))
+            g.bullets.append(SentryBolt(from, simd_normalize(target - from) * 4))
             g.sfx(.fireball, 0.3, at: from)
         }
     }

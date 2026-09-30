@@ -1,8 +1,8 @@
 import Foundation
 
-// Overworld structures on region grids with the reference game's spacing/separation:
+// Surface structures on region grids with the reference game's spacing/separation:
 // villages 34/8, temples 32/8 (desert pyramid, jungle temple, swamp hut or igloo by biome),
-// pillager outposts 32/8 (20%, away from villages), ruined portals 40/15, shipwrecks 24/4,
+// marauder watchtowers 32/8 (20%, away from villages), ruined portals 40/15, shipwrecks 24/4,
 // buried treasure (1 in 100 beach chunks), mineshafts (~0.4% of chunks), desert wells.
 enum OverworldStructures {
     static func types(_ gen: WorldGen) -> [StructureType] {
@@ -157,7 +157,7 @@ enum OverworldStructures {
         }
     }
 
-    // MARK: Pillager outpost
+    // MARK: Marauder outpost
 
     static func outpost(_ gen: WorldGen) -> StructureType {
         StructureType(name: "pillager_outpost", spacing: 32, separation: 8, salt: 165745296, reach: 2) { [unowned gen] seed, cx, cz in
@@ -220,7 +220,7 @@ enum OverworldStructures {
     static func ruinedPortalBuild(_ w: inout StructWriter, _ cx: Int, _ y: Int, _ cz: Int, _ seed: UInt64, _ wet: Bool) {
         var rng = SRng(seed)
         let obs = OBSIDIAN, cry = Blocks.id("crying_obsidian"), nr = Blocks.id("netherrack"), mag = Blocks.id("magma_block"), gold = Blocks.id("gold_block")
-        // Nether-corrupted ground patch.
+        // Emberdeep-corrupted ground patch.
         for dz in -3...3 { for dx in -5...5 where hashf(cx + dx, 0, cz + dz, UInt32(truncatingIfNeeded: seed)) < 0.65 {
             w.set(cx + dx, y, cz + dz, rng.chance(0.15) ? mag : nr)
         } }
@@ -312,7 +312,7 @@ enum OverworldStructures {
             let s = Seg(x: f.0, y: f.1, z: f.2, dx: f.3, dz: f.4, len: len)
             if abs(s.x + s.dx * len - ox) > 72 || abs(s.z + s.dz * len - oz) > 72 { continue }
             segs.append(s)
-            // Branch at the end and sometimes midway.
+            // Branch at the hollow and sometimes midway.
             let ex = s.x + s.dx * len, ez = s.z + s.dz * len
             let ny = s.y + (rng.chance(0.2) ? rng.range(-4, 4) : 0)
             if rng.chance(0.7) { frontier.insert((ex, ny, ez, s.dx, s.dz), at: 0) }

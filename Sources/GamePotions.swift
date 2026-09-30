@@ -109,7 +109,7 @@ extension Game {
                     if simd_length(V2(md.x, md.z)) < clouds[i].radius && abs(md.y) < 2 { applyPotion(t, to: m, scale: 1, durationScale: 0.25) }
                 }
             } else if inside {
-                hurtPlayer(6, from: c.pos, cause: "was killed by Dragon's Breath", knockback: 0, type: .magic)
+                hurtPlayer(6, from: c.pos, cause: "was killed by Wyrm's Breath", knockback: 0, type: .magic)
             }
         }
         clouds.removeAll { $0.time <= 0 }

@@ -44,7 +44,7 @@ extension Game {
             if slotIsMain { inventory.held = s } else { inventory.offhand[0] = s }
         }
         sfx(.place(.wood), 0.9, at: player.pos + V3(0, 1, 0))
-        // Axes (vindicators, players) disable the shield for 5 s.
+        // Axes (brigands, players) disable the shield for 5 s.
         if let a = attacker, a.kind == .vindicator || a.kind == .piglinBrute { shieldCooldown = 5; blocking = false; sfx(.breakBlock(.wood), 0.6) }
         if let a = attacker, a.kind == .ravager { a.stun = 2 }
         if let a = attacker, type == .generic { a.hit(from: player.pos, damage: 0, knockback: 0.5) }

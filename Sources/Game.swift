@@ -71,25 +71,25 @@ final class Game {
     var dragonKilled = false
     var gateways = 0
     var seenCredits = false
-    var credits: Float?            // seconds into the end credits while they are showing
+    var credits: Float?            // seconds into the hollow credits while they are showing
     var dragonSpawnTimer: Float = 3
     let effects = EffectSet()      // active status effects on the player
     var absorption: Float = 0      // golden hearts (half-hearts)
     var enchantSeed = UInt64.random(in: 1...UInt64.max)   // enchanting-table offers; changes after each enchant
-    var eyes: [EnderEye] = []
+    var eyes: [SeekerEye] = []
     var elytraWear: Float = 0
-    var bullets: [ShulkerBullet] = []
+    var bullets: [SentryBolt] = []
     weak var riding: Mob?          // the minecart the player sits in
     var riderPush: Float = 0
     var clouds: [AcidCloud] = []
-    var fangs: [Fang] = []         // evoker fangs
+    var fangs: [Fang] = []         // conjurer fangs
     var blocking = false           // holding a raised shield
     var lastPearl: Double = -10
     var rideInput = MoveInput()
     var falling: [FallingBlock] = []
-    let enderChest = ItemContainer(27)     // the player's ender chest inventory (shared by all ender chests)
+    let enderChest = ItemContainer(27)     // the player's void chest inventory (shared by all void chests)
     var timeSinceRest: Float = 0
-    var anchorSpawn: IVec3?          // charged respawn anchor in the Nether
+    var anchorSpawn: IVec3?          // charged rebirth anchor in the Emberdeep
     var jukeboxes: [JukeboxPlayer] = []
     var fovScale: Float = 1
     // Options (saved in user defaults).
@@ -125,7 +125,7 @@ final class Game {
     var brushProgress: Float = 0
     var shriekCooldown = 0
     var warningLevel = 0
-    var shriekDecay = 600    // phantoms appear after 3 days (3600 s) without sleep
+    var shriekDecay = 600    // nightwings appear after 3 days (3600 s) without sleep
     private var beaconTicks = 0
     var shieldCooldown: Float = 0
     var shieldRaise: Float = 0
@@ -608,7 +608,7 @@ final class Game {
             } else if clock - lastSpaceTap < 0.3 { toggleFly(); lastSpaceTap = -1 } else { lastSpaceTap = clock }
         }
         if player.gliding {
-            // Elytra wear: 1 durability per second of flight; breaks at 1 left like the reference game.
+            // Glider Wings wear: 1 durability per second of flight; breaks at 1 left like the reference game.
             elytraWear += fdt
             if elytraWear >= 1 && survival {
                 elytraWear = 0
@@ -783,7 +783,7 @@ final class Game {
         // Use
         let h = held
         if useNow, let m = mobHit ?? mobs.raycast(player.eye, player.look, maxDist: 3.5)?.0, useItemOnMob(m) { swing = 1; return }
-        if useNow && Items.key(h.item) == "ender_eye" && useEnderEye(on: target) { swing = 1; return }
+        if useNow && Items.key(h.item) == "ender_eye" && useSeekerEye(on: target) { swing = 1; return }
         if useNow && Items.key(h.item) == "firework_rocket" && player.gliding {
             player.boost = 0.5 + 0.6 * Float(max(1, h.tag))
             consumeHeld()
@@ -892,14 +892,14 @@ final class Game {
         if useBucket() { return }
         if useNow && placeBoat() { return }
         guard let t = target else { return }
-        if useNow && !(input.shift || p.b) && isRedstoneInteractive(t.hit) && useRedstone(t.hit) { swing = 1; return }
+        if useNow && !(input.shift || p.b) && isCircuitInteractive(t.hit) && useCircuit(t.hit) { swing = 1; return }
         if isInteractive(t.hit) && !(input.shift || p.b) && useNow {
             openBlock(t.hit)
             return
         }
         if useNow && useItemOnBlock(t) { return }
         if Items.key(h.item) == "redstone" {
-            // Redstone dust goes on top of solid blocks.
+            // Sparkstone dust goes on top of solid blocks.
             let c0 = world.block(t.hit.x, t.hit.y, t.hit.z)
             let at = Blocks.replaceable[Int(c0)] && !Blocks.isLiquid(c0) ? t.hit : t.hit + t.normal
             if Blocks.replaceable[Int(world.block(at.x, at.y, at.z))] && Blocks.opaque[Int(world.block(at.x, at.y - 1, at.z))] {
@@ -1013,7 +1013,7 @@ final class Game {
         default: break
         }
         let rsShapes: Set<String> = ["lever", "button", "plate", "repeater", "comparator", "observer", "piston", "dispenser", "hopper", "daylight"]
-        if rsShapes.contains(Blocks.shape[Int(blockItem)]) || Redstone.kind(blockItem) == .torch {
+        if rsShapes.contains(Blocks.shape[Int(blockItem)]) || Circuit.kind(blockItem) == .torch {
             guard let rid = redstonePlacement(blockItem, at: at, normal: t.normal, upperHalf: upperHalf) else { return }
             id = rid
         }
@@ -1050,7 +1050,7 @@ final class Game {
             if Blocks.shape[Int(id)] == "sign" || Blocks.shape[Int(id)] == "hsign" { openSignEditor(at) }
             if Blocks.shape[Int(id)] == "banner" { let be = BlockEntity(.banner); be.patterns = h.pat ?? []; world.blockEntities[at] = be }
             if Rails.isRail(id) { Rails.autoShape(world, at) }
-            if key == "wither_skeleton_skull" { trySummonWither(at) }
+            if key == "wither_skeleton_skull" { trySummonBlight(at) }
             if key == "carved_pumpkin" || key == "jack_o_lantern" { trySummonGolem(at) }
             if key.hasSuffix("leaves") { placedLeaves.insert(at) }
             sfx(.place(soundMat(id)), at: V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5)
@@ -1154,7 +1154,7 @@ final class Game {
         case "smithing_table": openMenu(SmithingMenu(game: self))
         case "stonecutter": openMenu(StonecutterMenu(game: self))
         case "grindstone": openMenu(GrindstoneMenu(game: self))
-        case "ender_chest": openMenu(ChestMenu(game: self, container: enderChest, title: "Ender Chest"))
+        case "ender_chest": openMenu(ChestMenu(game: self, container: enderChest, title: "Void Chest"))
         case "trapped_chest":
             let be = world.blockEntities[p] ?? BlockEntity(.chest)
             world.blockEntities[p] = be
@@ -1166,7 +1166,7 @@ final class Game {
         case _ where k.hasSuffix("shulker_box"):
             let be = world.blockEntities[p] ?? BlockEntity(.shulker)
             world.blockEntities[p] = be
-            openMenu(ShulkerMenu(game: self, entity: be))
+            openMenu(ShellBoxMenu(game: self, entity: be))
         case "item_frame", "glow_item_frame": _ = useItemFrame(p)
         case "cartography_table": openMenu(CartographyMenu(game: self))
         case "loom": openMenu(LoomMenu(game: self))
@@ -1223,20 +1223,20 @@ final class Game {
         if Rails.isRail(b) {
             for (dx, dz) in [(0, -1), (0, 1), (-1, 0), (1, 0)] { if let q = Rails.neighbour(world, p, dx, dz) { Rails.autoShape(world, q, recurse: false) } }
         }
-        if Redstone.kind(b) == .pistonHead {
+        if Circuit.kind(b) == .pistonHead {
             // The piston behind the head goes too (and drops).
             let face = Int(b - Blocks.groupBase[Int(b)]) % 6
             let back = p + BlockRegistry.dir6[[1, 0, 3, 2, 5, 4][face]]
             let bb = world.block(back.x, back.y, back.z)
-            if Redstone.kind(bb) == .piston || Redstone.kind(bb) == .stickyPiston {
+            if Circuit.kind(bb) == .piston || Circuit.kind(bb) == .stickyPiston {
                 if drop && survival { drops.spawn(ItemStack(Items.item(forBlock: bb) ?? 0, 1), at: center) }
                 world.setBlock(back.x, back.y, back.z, AIR)
             }
         }
-        if (Redstone.kind(b) == .piston || Redstone.kind(b) == .stickyPiston) && Int(b - Blocks.groupBase[Int(b)]) >= 6 {
+        if (Circuit.kind(b) == .piston || Circuit.kind(b) == .stickyPiston) && Int(b - Blocks.groupBase[Int(b)]) >= 6 {
             let face = Int(b - Blocks.groupBase[Int(b)]) % 6
             let head = p + BlockRegistry.dir6[face]
-            if Redstone.kind(world.block(head.x, head.y, head.z)) == .pistonHead { world.setBlock(head.x, head.y, head.z, AIR) }
+            if Circuit.kind(world.block(head.x, head.y, head.z)) == .pistonHead { world.setBlock(head.x, head.y, head.z, AIR) }
         }
         if Blocks.shape[Int(b)] == "door" {
             // Take the other half with it (only one door drops).
@@ -1245,7 +1245,7 @@ final class Game {
             if Blocks.groupBase[Int(world.block(o.x, o.y, o.z))] == Blocks.groupBase[Int(b)] { world.setBlock(o.x, o.y, o.z, AIR) }
         }
         if bk == "chorus_plant" || bk == "chorus_flower" {
-            // Chorus plants collapse above a broken stem.
+            // Spiral plants collapse above a broken stem.
             var y = p.y + 1
             while y < CH, ["chorus_plant", "chorus_flower"].contains(Blocks.key(world.block(p.x, y, p.z))) {
                 let above = world.block(p.x, y, p.z)
@@ -1262,7 +1262,7 @@ final class Game {
                 return
             }
             if be.kind == .shulker {
-                // Shulker boxes keep their contents as an item.
+                // Shellsentry boxes keep their contents as an item.
                 var box = ItemStack(Items.item(forBlock: b) ?? 0, 1)
                 if be.container.slots.contains(where: { !$0.isEmpty }) { box.contents = be.container.slots }
                 if box.item != 0 { drops.spawn(box, at: center) }
@@ -1315,7 +1315,7 @@ final class Game {
             if let tg = target { at = tg.hit + tg.normal } else if fluidHit == nil { at = lastAir }
             if let a = at, Blocks.replaceable[Int(world.block(a.x, a.y, a.z))] {
                 if k == "water_bucket" && dim.dim == .nether {
-                    sfx(.fizz, 0.8)          // water evaporates in the Nether
+                    sfx(.fizz, 0.8)          // water evaporates in the Emberdeep
                 } else {
                     world.setBlock(a.x, a.y, a.z, k == "water_bucket" ? WATER : LAVA)
                     sfx(.splash, 0.4)
@@ -1414,7 +1414,7 @@ final class Game {
                 let sp = V3(c.x + Float.random(in: -4...4), Float(p.y + Int.random(in: -1...1)), c.z + Float.random(in: -4...4))
                 let bx = Int(floor(sp.x)), by = Int(floor(sp.y)), bz = Int(floor(sp.z))
                 guard Blocks.collide[Int(world.block(bx, by - 1, bz))] else { continue }
-                // Hostile mobs from spawners need block light ≤ 11 (blazes and silverfish ignore it in practice).
+                // Hostile mobs from spawners need block light ≤ 11 (cinderwisps and silverfish ignore it in practice).
                 if kind != .blaze && world.lightAt(bx, by, bz).block > 11 { continue }
                 let m = Mob(kind, at: V3(Float(bx) + 0.5, sp.y, Float(bz) + 0.5))
                 if m.sized { m.makeSlime(size: 1) }
@@ -1488,10 +1488,10 @@ final class Game {
         if eatenFoods.insert(name).inserted && eatenFoods.count >= 40 { achieve("ate_all") }
         hunger = min(20, hunger + f.hunger)
         saturation = min(Float(hunger), saturation + f.saturation)
-        if name == "Chorus Fruit" { chorusTeleport() }
+        if name == "Spiral Fruit" { chorusTeleport() }
     }
 
-    // Chorus fruit: up to 16 tries at a random spot within 8 blocks with ground and room to stand.
+    // Spiral fruit: up to 16 tries at a random spot within 8 blocks with ground and room to stand.
     func chorusTeleport() {
         let p = player.pos
         for _ in 0..<16 {
@@ -1503,14 +1503,14 @@ final class Game {
                 player.pos = t
                 player.vel = .zero
                 player.airPeak = t.y
-                sfx(.mobEnderman, 0.6)
+                sfx(.mobVoidwalker, 0.6)
                 return
             }
         }
     }
 
     // Damage in half-hearts: armor (reference formula), resistance, enchantment protection,
-    // absorption hearts, then the totem of undying.
+    // absorption hearts, then the totem of rebirth.
     func damage(_ amount: Int, _ cause: String, bypassArmor: Bool = false, type: DamageType = .generic, attacker: Mob? = nil) {
         guard survival, alive, amount > 0 else { return }
         if type == .fire && effects.has(.fireResistance) { return }
@@ -1569,7 +1569,7 @@ final class Game {
         applyEffect(.fireResistance, amp: 0, seconds: 40)
         particles.explosion(at: player.pos + V3(0, 1, 0), power: 0.6)
         sfx(.levelUp, 1)
-        onToast?("Totem of Undying")
+        onToast?("Totem of Rebirth")
         return true
     }
 
@@ -1587,7 +1587,7 @@ final class Game {
             }
         }
         if let a = anchorSpawn {
-            // Respawn at a charged anchor in the Nether (uses a charge).
+            // Respawn at a charged anchor in the Emberdeep (uses a charge).
             let nether = dimensionState(.nether).world
             let b = nether.block(a.x, a.y, a.z)
             if Blocks.key(Blocks.groupBase[Int(b)]) == "respawn_anchor" && Int(b - Blocks.groupBase[Int(b)]) > 0 {

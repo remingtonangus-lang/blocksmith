@@ -23,7 +23,7 @@ extension Mob {
             // TNT cart: fuse lit by an active activator rail, fire, or a hard hit; blows up when the fuse ends.
             let cell = IVec3(Int(floor(pos.x)), Int(floor(pos.y + 0.1)), Int(floor(pos.z)))
             let b = g.world.block(cell.x, cell.y, cell.z)
-            if fuse <= 0 && (Redstone.kind(b) == .activatorRail && Int(b - Blocks.groupBase[Int(b)]) >= 6 || fire > 0) { fuse = 4 }
+            if fuse <= 0 && (Circuit.kind(b) == .activatorRail && Int(b - Blocks.groupBase[Int(b)]) >= 6 || fire > 0) { fuse = 4 }
             if fuse > 0 {
                 fuse -= dt
                 if fuse <= 0 {

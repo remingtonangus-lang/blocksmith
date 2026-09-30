@@ -2,7 +2,7 @@ import Foundation
 import simd
 
 // The rest of the reference mob roster: animals (taming, riding, breeding foods), aquatic life,
-// flying mobs, and the remaining monsters (phantoms, guardians, the warden, breezes, bogged...).
+// flying mobs, and the remaining monsters (nightwings, spikefishs, the deep stalker, gustlings, mire skeleton...).
 // Health / size / drops follow the reference game (Normal difficulty).
 
 extension MobKind {
@@ -31,12 +31,12 @@ extension MobKind {
         case .frog: return a("Frog", 0.25, 0.5, 10, 2, xp: 2, call: .mobSlime)
         case .tadpole: return a("Tadpole", 0.2, 0.3, 6, 2, xp: 0, call: .mobSlime, aquatic: true)
         case .armadillo: return a("Armadillo", 0.35, 0.65, 12, 2.5, xp: 2, call: .mobPig)
-        case .sniffer: return a("Sniffer", 0.95, 1.75, 14, 1.8, xp: 2, call: .mobCow)
-        case .mooshroom: return a("Mooshroom", 0.45, 1.4, 10, 1, drops: [("beef", 1, 3), ("leather", 0, 2)], xp: 2, call: .mobCow)
+        case .sniffer: return a("Snuffler", 0.95, 1.75, 14, 1.8, xp: 2, call: .mobCow)
+        case .mooshroom: return a("Mushroom Cow", 0.45, 1.4, 10, 1, drops: [("beef", 1, 3), ("leather", 0, 2)], xp: 2, call: .mobCow)
         case .bee: return a("Bee", 0.35, 0.6, 10, 3, xp: 2, call: .mobBee, attack: 2, flying: true)
         case .parrot: return a("Parrot", 0.25, 0.9, 6, 3, drops: [("feather", 1, 2)], xp: 2, call: .mobChicken, flying: true)
         case .bat: return a("Bat", 0.25, 0.9, 6, 3, xp: 0, call: .mobVex, flying: true)
-        case .allay: return a("Allay", 0.18, 0.6, 20, 3, xp: 0, call: .mobVex, flying: true)
+        case .allay: return a("Fetchling", 0.18, 0.6, 20, 3, xp: 0, call: .mobVex, flying: true)
         case .axolotl: return a("Axolotl", 0.38, 0.42, 14, 3, xp: 2, call: .mobSlime, attack: 2, aquatic: true)
         case .squid: return a("Squid", 0.4, 0.8, 10, 2, drops: [("ink_sac", 1, 3)], xp: 2, call: .splash, aquatic: true)
         case .glowSquid: return a("Glow Squid", 0.4, 0.8, 10, 2, drops: [("glow_ink_sac", 1, 3)], xp: 2, call: .splash, aquatic: true)
@@ -47,14 +47,14 @@ extension MobKind {
         case .pufferfish: return a("Pufferfish", 0.35, 0.7, 3, 2, drops: [("pufferfish", 1, 1), ("bone_meal", 0, 1)], xp: 1, call: .splash, aquatic: true)
         case .wanderingTrader: return a("Wandering Trader", 0.3, 1.95, 20, 2.2, xp: 0, call: .mobVillager)
         case .skeletonHorse: return a("Skeleton Horse", 0.7, 1.6, 15, 3, drops: [("bone", 0, 2)], xp: 2, call: .mobSkeleton)
-        case .phantom: return a("Phantom", 0.45, 0.5, 20, 8, drops: [("phantom_membrane", 0, 1)], xp: 5, call: .mobVex, attack: 6, flying: true, beh: .monster, sun: true)
-        case .guardian: return a("Guardian", 0.43, 0.85, 30, 2.5, drops: [("prismarine_shard", 0, 2), ("cod", 0, 1)], xp: 10, call: .mobSlime, attack: 6, aquatic: true, beh: .monster)
-        case .elderGuardian: return a("Elder Guardian", 1, 2, 80, 1.5, drops: [("prismarine_shard", 0, 2), ("wet_sponge", 1, 1)], xp: 10, call: .mobRavager, attack: 8, aquatic: true, beh: .monster)
-        case .endermite: return a("Endermite", 0.2, 0.3, 8, 2.5, xp: 3, call: .mobSpider, attack: 2, beh: .monster)
-        case .warden: return a("Warden", 0.45, 2.9, 500, 3, drops: [("sculk_catalyst", 1, 1)], xp: 5, call: .mobWarden, attack: 30, beh: .monster)
-        case .breeze: return a("Breeze", 0.3, 1.77, 30, 3, drops: [("breeze_rod", 1, 2)], xp: 10, call: .mobVex, beh: .monster)
-        case .bogged: return a("Bogged", 0.3, 1.99, 16, 2.5, drops: [("bone", 0, 2), ("arrow", 0, 2)], xp: 5, call: .mobSkeleton, beh: .ranged, sun: true)
-        case .zoglin: return a("Zoglin", 0.7, 1.4, 40, 2.5, drops: [("rotten_flesh", 1, 3)], xp: 5, call: .mobRavager, attack: 6, beh: .melee, fire: false)
+        case .phantom: return a("Nightwing", 0.45, 0.5, 20, 8, drops: [("phantom_membrane", 0, 1)], xp: 5, call: .mobVex, attack: 6, flying: true, beh: .monster, sun: true)
+        case .guardian: return a("Spikefish", 0.43, 0.85, 30, 2.5, drops: [("prismarine_shard", 0, 2), ("cod", 0, 1)], xp: 10, call: .mobSlime, attack: 6, aquatic: true, beh: .monster)
+        case .elderGuardian: return a("Elder Spikefish", 1, 2, 80, 1.5, drops: [("prismarine_shard", 0, 2), ("wet_sponge", 1, 1)], xp: 10, call: .mobRavager, attack: 8, aquatic: true, beh: .monster)
+        case .endermite: return a("Voidmite", 0.2, 0.3, 8, 2.5, xp: 3, call: .mobSpider, attack: 2, beh: .monster)
+        case .warden: return a("Deep Stalker", 0.45, 2.9, 500, 3, drops: [("sculk_catalyst", 1, 1)], xp: 5, call: .mobWarden, attack: 30, beh: .monster)
+        case .breeze: return a("Gustling", 0.3, 1.77, 30, 3, drops: [("breeze_rod", 1, 2)], xp: 10, call: .mobVex, beh: .monster)
+        case .bogged: return a("Mire Skeleton", 0.3, 1.99, 16, 2.5, drops: [("bone", 0, 2), ("arrow", 0, 2)], xp: 5, call: .mobSkeleton, beh: .ranged, sun: true)
+        case .zoglin: return a("Rot Tusker", 0.7, 1.4, 40, 2.5, drops: [("rotten_flesh", 1, 3)], xp: 5, call: .mobRavager, attack: 6, beh: .melee, fire: false)
         default: return a("?", 0.3, 1, 10, 1)
         }
     }
@@ -249,7 +249,7 @@ extension Mob {
             }
             let player = g.player.pos
             let dist = simd_length(player - pos)
-            // Guardians: charge a laser at the player for 2 s, then hit (6); thorns on melee.
+            // Spikefishs: charge a laser at the player for 2 s, then hit (6); thorns on melee.
             if spec.behavior == .monster && g.survival && g.alive && dist < 16 && w.canSee(eye, g.player.eye) {
                 face(player)
                 beam += dt
@@ -294,7 +294,7 @@ extension Mob {
         walkAmount = 1
     }
 
-    // Remaining monsters: phantoms swoop, endermites chase, wardens smell/hear, breezes jump and shoot
+    // Remaining monsters: nightwings swoop, voidmites chase, deep stalkers smell/hear, gustlings jump and shoot
     // wind charges.
     func monsterAI(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool, inWater: Bool) -> Float {
         let player = g.player.pos
@@ -311,7 +311,7 @@ extension Mob {
                     let d = g.player.eye - pos
                     vel += (simd_normalize(d) * spec.speed * 1.4 - vel) * min(1, dt * 3)
                     if simd_length(d) < 1.2 {
-                        if attackCooldown <= 0 { attackCooldown = 1; g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Phantom", attacker: self) }
+                        if attackCooldown <= 0 { attackCooldown = 1; g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Nightwing", attacker: self) }
                         phase = 0
                     }
                     if simd_length(d) > 40 { phase = 0 }
@@ -320,13 +320,13 @@ extension Mob {
             } else {
                 vel += (V3(cosf(circleAngle), 0, sinf(circleAngle)) * spec.speed * 0.6 - vel) * min(1, dt)
             }
-            // Cats scare phantoms.
+            // Cats scare nightwings.
             if g.mobs.mobs.contains(where: { $0.kind == .cat && simd_length($0.pos - pos) < 16 }) { phase = 0; vel.y += 4 * dt }
             return 0
         case .endermite:
             if canTarget {
                 face(player)
-                if dist < 1 && attackCooldown <= 0 { attackCooldown = 1; g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Endermite", attacker: self) }
+                if dist < 1 && attackCooldown <= 0 { attackCooldown = 1; g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Voidmite", attacker: self) }
                 return spec.speed
             }
             age += dt
@@ -363,7 +363,7 @@ extension Mob {
                 if attackCooldown <= 0 {
                     attackCooldown = 2.5
                     if dist < 16 && g.world.canSee(eye, g.player.eye) {
-                        g.hurtPlayer(1, from: pos, cause: "was blown away by a Breeze", knockback: 0, type: .projectile)
+                        g.hurtPlayer(1, from: pos, cause: "was blown away by a Gustling", knockback: 0, type: .projectile)
                         g.player.vel += simd_normalize(g.player.pos - pos + V3(0, 1, 0)) * 12
                         g.sfx(.fireball, 0.5, at: pos)
                     }

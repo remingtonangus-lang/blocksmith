@@ -1,10 +1,10 @@
 import Foundation
 
 // End cities on the outer islands (grid spacing 20 chunks, separation 11; only where the island
-// surface is high enough): a purpur house, a stacked tower with a spiral stair, a wide top room with
-// treasure chests and shulkers, and often a bridge out to an end ship whose hold carries an elytra.
-enum EndCity {
-    static func type(_ gen: EndGen) -> StructureType {
+// surface is high enough): a violite house, a stacked tower with a spiral stair, a wide top room with
+// treasure chests and shellsentrys, and often a bridge out to an end ship whose hold carries an glider wings.
+enum HollowSpire {
+    static func type(_ gen: HollowGen) -> StructureType {
         StructureType(name: "end_city", spacing: 20, separation: 11, salt: 10387313, reach: 5) { [unowned gen] seed, cx, cz in
             let ox = cx * CS + 8, oz = cz * CS + 8
             guard ox * ox + oz * oz > 1000 * 1000 else { return nil }
@@ -110,8 +110,8 @@ enum EndCity {
         }
     }
 
-    // A floating ship ~20 long: purpur hull, obsidian keel, a mast with black sails, a hold with two
-    // treasure chests and the elytra chest, shulkers on deck.
+    // A floating ship ~20 long: violite hull, obsidian keel, a mast with black sails, a hold with two
+    // treasure chests and the glider wings chest, shellsentrys on deck.
     static func buildShip(_ w: inout StructWriter, cx: Int, y: Int, cz: Int, alongX: Bool, seed: UInt64) {
         var rng = SRng(seed)
         func put(_ a: Int, _ h: Int, _ b: Int, _ blk: BlockID) {

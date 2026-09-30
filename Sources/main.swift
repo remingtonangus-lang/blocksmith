@@ -220,7 +220,7 @@ enum Snapshot {
             pos = V3(pos.x, Float(YOFF + 70) + (Float(arg("--up") ?? "") ?? 0), pos.z)
             game.player.pos = pos
         }
-        // Structure mobs (crystals, piglins...) that generation queued.
+        // Structure mobs (crystals, boarlings...) that generation queued.
         for (name, mp) in world.pendingMobs {
             if let k = MobKind.named(name) { game.mobs.mobs.append(Mob(k, at: mp)) }
         }
@@ -344,7 +344,7 @@ enum Snapshot {
             for _ in 0..<256 { game.mapTick() }
         }
         if CommandLine.arguments.contains("--banners") {
-            // A row of standing banners 5 blocks ahead (the last one ominous) plus two on a wall behind.
+            // A row of standing banners 5 blocks ahead (the last one omen) plus two on a wall behind.
             let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)), r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))
             let sets: [(String, [Int])] = [("red", [Banners.encode(10, 0)]), ("blue", [Banners.encode(27, 4), Banners.encode(29, 0)]),
                                            ("white", Banners.ominous), ("black", [Banners.encode(34, 5)]), ("yellow", [Banners.encode(30, 11), Banners.encode(36, 14)]),
@@ -426,7 +426,7 @@ enum Snapshot {
             }
         }
         if CommandLine.arguments.contains("--redstone") {
-            // A test bench on a stone platform east of the camera, then 3 s of redstone ticks.
+            // A test bench on a stone platform east of the camera, then 3 s of sparkstone ticks.
             let bx = Int(floor(pos.x)) + 3, bz = Int(floor(pos.z)) - 6
             let gy = world.topY(bx + 6, bz + 5)
             func put(_ x: Int, _ z: Int, _ n: String, _ st: Int = 0, dy: Int = 1) { world.setBlock(bx + x, gy + dy, bz + z, Blocks.id(n) + BlockID(st)) }
@@ -440,7 +440,7 @@ enum Snapshot {
             put(6, 0, "repeater", 3 + 4 * 2)                             // facing east, delay 3
             for x in 7...8 { put(x, 0, "redstone_wire") }
             put(9, 0, "redstone_lamp")
-            // Row B: redstone block powering a sticky piston that pushes slime + stone.
+            // Row B: sparkstone block powering a sticky piston that pushes slime + stone.
             put(0, 3, "redstone_block")
             put(1, 3, "sticky_piston", 5)                                 // facing east
             put(2, 3, "cobblestone"); put(3, 3, "oak_planks")
@@ -476,7 +476,7 @@ enum Snapshot {
             let t2 = world.loadSync(center: pos, radius: rd)
             t.mesh += t2.mesh
             let pp = IVec3(bx + 1, gy + 1, bz + 3)
-            print("piston debug: power \(world.redstone.received(pp)) block west \(Blocks.key(world.block(pp.x - 1, pp.y, pp.z))) front \(Blocks.key(world.block(pp.x + 1, pp.y, pp.z))) kind \(Redstone.kind(world.block(pp.x, pp.y, pp.z)))")
+            print("piston debug: power \(world.redstone.received(pp)) block west \(Blocks.key(world.block(pp.x - 1, pp.y, pp.z))) front \(Blocks.key(world.block(pp.x + 1, pp.y, pp.z))) kind \(Circuit.kind(world.block(pp.x, pp.y, pp.z)))")
             print("redstone bench: lamp A \(Blocks.key(world.block(bx + 9, gy + 1, bz))), piston \(Blocks.key(world.block(bx + 1, gy + 1, bz + 3))), lamp C \(Blocks.key(world.block(bx + 5, gy + 1, bz + 6))) / \(Blocks.key(world.block(bx + 11, gy + 1, bz + 6))), wire E \(Blocks.key(world.block(bx + 11, gy + 1, bz + 10)))")
         }
         if CommandLine.arguments.contains("--torches") {
@@ -496,7 +496,7 @@ enum Snapshot {
         for (_, c) in world.chunks { for sec in c.sections { quads += sec.opaqueQuads; water += sec.transQuads } }
 
         if let secs = Double(arg("--ticks") ?? "") {
-            // Let the world run (mobs, redstone, villagers) with the camera held still.
+            // Let the world run (mobs, sparkstone, villagers) with the camera held still.
             let keep = (game.player.pos, game.player.yaw, game.player.pitch)
             game.paused = false
             game.player.flying = true
@@ -511,7 +511,7 @@ enum Snapshot {
         if CommandLine.arguments.contains("--selftest") {
             // Crash smoke test: every mob kind, every block, the special crafting paths, bundles, and 3 s of ticks.
             game.paused = false
-            game.survival = false          // stay alive next to wardens and ravagers
+            game.survival = false          // stay alive next to deep stalkers and siegebeasts
             let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
             for (i, k) in MobKind.allCases.enumerated() where k != .enderDragon && k != .wither {
                 let p = pos + f * 12 + V3(Float(i % 10) * 2 - 10, 0, Float(i / 10) * 2)

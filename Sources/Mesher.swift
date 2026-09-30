@@ -133,7 +133,7 @@ enum Mesher {
         let rCube = RenderType.cube.rawValue, rCross = RenderType.cross.rawValue
         let rLiquid = RenderType.liquid.rawValue, rModel = RenderType.model.rawValue, rNone = RenderType.none.rawValue
         let rConnect = RenderType.connect.rawValue, connT = Blocks.connectKind
-        let rWire = RenderType.wire.rawValue, rsK = Redstone.kinds, gbT = Blocks.groupBase
+        let rWire = RenderType.wire.rawValue, rsK = Circuit.kinds, gbT = Blocks.groupBase
         let rRail = RenderType.rail.rawValue
         let translucent = RenderLayer.translucent.rawValue
         let y0 = sy * 16 - 16
@@ -297,7 +297,7 @@ enum Mesher {
                     }
 
                     if rt == rWire {
-                        // Redstone dust: a cross when alone, lines toward what it connects to, and
+                        // Sparkstone dust: a cross when alone, lines toward what it connects to, and
                         // strips up the side of blocks it climbs.
                         func connects(_ n: BlockID, _ d: Int) -> Bool {
                             let st = Int(n - gbT[Int(n)])

@@ -1,7 +1,7 @@
 import Foundation
 import simd
 
-// Crafter: a 3x3 grid that crafts one item per redstone pulse and ejects it from its front.
+// Crafter: a 3x3 grid that crafts one item per sparkstone pulse and ejects it from its front.
 extension Game {
     func crafterFire(_ p: IVec3) {
         guard let be = world.blockEntities[p], be.kind == .crafter else { return }

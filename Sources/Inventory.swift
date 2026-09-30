@@ -8,7 +8,7 @@ struct ItemStack: Codable, Equatable {
     var repairCost = 0                  // anvil prior-work penalty
     var label: String? = nil            // anvil rename
     var tag = 0                         // item-specific state (crossbow: loaded projectile item id)
-    var contents: [ItemStack]? = nil    // shulker box items
+    var contents: [ItemStack]? = nil    // shell box items
     var pat: [Int]? = nil               // banner pattern layers (pattern * 16 + colour)
     var pages: [String]? = nil          // book text
 

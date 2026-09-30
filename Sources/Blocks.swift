@@ -9,7 +9,7 @@ import Foundation
 
 typealias BlockID = UInt16
 
-enum RenderType: UInt8 { case none, cube, cross, liquid, model, connect, wire, rail }   // connect: fences/panes/walls; wire: redstone dust
+enum RenderType: UInt8 { case none, cube, cross, liquid, model, connect, wire, rail }   // connect: fences/panes/walls; wire: sparkstone dust
 enum RenderLayer: UInt8 { case opaque, cutout, translucent }
 enum ToolType: UInt8 { case none, pickaxe, axe, shovel, hoe, sword, shears }
 
@@ -306,7 +306,7 @@ final class BlockRegistry {
         for soul in [false, true] {
             let n = soul ? "soul_torch" : "torch"
             for st in 0..<5 {
-                var torch = BlockDef(st == 0 ? n : "\(n)[\(st)]", soul ? "Soul Torch" : "Torch")
+                var torch = BlockDef(st == 0 ? n : "\(n)[\(st)]", soul ? "Ghost Torch" : "Torch")
                 torch.group = n; torch.hidden = st != 0; torch.shape = "torch"
                 torch.tex = [n]; torch.render = .model; torch.layer = .cutout; torch.opaque = false; torch.collide = false
                 torch.emit = soul ? 10 : 14; torch.hardness = 0; torch.sound = .wood; torch.skyStop = false
@@ -320,7 +320,7 @@ final class BlockRegistry {
                 add(torch)
             }
         }
-        var glow = BlockDef("glowstone", "Glowstone")
+        var glow = BlockDef("glowstone", "Lumenstone")
         glow.tex = ["glowstone"]; glow.emit = 15; glow.hardness = 0.3; glow.sound = .glass
         add(glow)
         var sap = BlockDef("oak_sapling", "Oak Sapling")
@@ -330,7 +330,7 @@ final class BlockRegistry {
             sap.hardness = 0; sap.sound = .plant
             add(sap)
         }
-        cube("deepslate", "Deepslate", "deepslate", h: 3, req: true)
+        cube("deepslate", "Deeprock", "deepslate", h: 3, req: true)
         // Lava: 9 states like water; opaque, bright, hurts.
         for k in 0...8 {
             var l = BlockDef(k == 0 ? "lava" : (k == 8 ? "lava_falling" : "lava_\(k)"), "Lava")
@@ -344,52 +344,52 @@ final class BlockRegistry {
         fire.emit = 15; fire.hardness = 0; fire.replaceable = true; fire.randomTicks = true; fire.hidden = true; fire.damage = 1
         add(fire)
         var soulFire = fire
-        soulFire.name = "soul_fire"; soulFire.display = "Soul Fire"; soulFire.tex = ["soul_fire"]; soulFire.emit = 10; soulFire.damage = 2
+        soulFire.name = "soul_fire"; soulFire.display = "Ghost Fire"; soulFire.tex = ["soul_fire"]; soulFire.emit = 10; soulFire.damage = 2
         add(soulFire)
-        // Nether portal (x-axis and z-axis sheets).
+        // Emberdeep portal (x-axis and z-axis sheets).
         for (n, bx) in [("nether_portal", Box(0, 0, 6, 16, 16, 10)), ("nether_portal_z", Box(6, 0, 0, 10, 16, 16))] {
-            var p = BlockDef(n, "Nether Portal")
+            var p = BlockDef(n, "Ember Gate")
             p.tex = ["nether_portal"]; p.render = .model; p.layer = .translucent; p.opaque = false; p.collide = false
             p.boxes = [bx]; p.emit = 11; p.hardness = -1; p.hidden = true; p.group = "nether_portal"; p.skyStop = false
             add(p)
         }
-        cube("netherrack", "Netherrack", "netherrack", h: 0.4, req: true)
-        cube("nether_quartz_ore", "Nether Quartz Ore", "nether_quartz_ore", h: 3, req: true)
-        cube("nether_gold_ore", "Nether Gold Ore", "nether_gold_ore", h: 3, req: true)
-        var ad = BlockDef("ancient_debris", "Ancient Debris")
+        cube("netherrack", "Cinderstone", "netherrack", h: 0.4, req: true)
+        cube("nether_quartz_ore", "Ember Quartz Ore", "nether_quartz_ore", h: 3, req: true)
+        cube("nether_gold_ore", "Ember Gold Ore", "nether_gold_ore", h: 3, req: true)
+        var ad = BlockDef("ancient_debris", "Dusk Relic")
         ad.tex = ["ancient_debris_side", "ancient_debris_side", "ancient_debris_top", "ancient_debris_top", "ancient_debris_side", "ancient_debris_side"]
         ad.hardness = 30; ad.resistance = 1200; ad.tool = .pickaxe; ad.harvestLevel = 3; ad.requiresTool = true
         add(ad)
-        var ss = BlockDef("soul_sand", "Soul Sand")
+        var ss = BlockDef("soul_sand", "Ghost Sand")
         ss.tex = ["soul_sand"]; ss.render = .model; ss.opaque = false; ss.boxes = [Box(0, 0, 0, 16, 14, 16)]
         ss.hardness = 0.5; ss.tool = .shovel; ss.sound = .sand; ss.skyStop = true
         add(ss)
-        cube("soul_soil", "Soul Soil", "soul_soil", h: 0.5, tool: .shovel, snd: .sand)
+        cube("soul_soil", "Ghost Soil", "soul_soil", h: 0.5, tool: .shovel, snd: .sand)
         column("basalt", "Basalt", side: "basalt_side", top: "basalt_top", h: 1.25, tool: .pickaxe, snd: .stone)
-        cube("blackstone", "Blackstone", "blackstone", h: 1.5, req: true)
-        cube("polished_blackstone", "Polished Blackstone", "polished_blackstone", h: 2, req: true)
-        cube("polished_blackstone_bricks", "Polished Blackstone Bricks", "polished_blackstone_bricks", h: 1.5, req: true)
-        cube("cracked_polished_blackstone_bricks", "Cracked Polished Blackstone Bricks", "cracked_polished_blackstone_bricks", h: 1.5, req: true)
-        cube("chiseled_polished_blackstone", "Chiseled Polished Blackstone", "chiseled_polished_blackstone", h: 1.5, req: true)
-        cube("gilded_blackstone", "Gilded Blackstone", "gilded_blackstone", h: 1.5, req: true)
+        cube("blackstone", "Onyxstone", "blackstone", h: 1.5, req: true)
+        cube("polished_blackstone", "Polished Onyxstone", "polished_blackstone", h: 2, req: true)
+        cube("polished_blackstone_bricks", "Polished Onyxstone Bricks", "polished_blackstone_bricks", h: 1.5, req: true)
+        cube("cracked_polished_blackstone_bricks", "Cracked Polished Onyxstone Bricks", "cracked_polished_blackstone_bricks", h: 1.5, req: true)
+        cube("chiseled_polished_blackstone", "Chiseled Polished Onyxstone", "chiseled_polished_blackstone", h: 1.5, req: true)
+        cube("gilded_blackstone", "Gilded Onyxstone", "gilded_blackstone", h: 1.5, req: true)
         var magma = BlockDef("magma_block", "Magma Block")
         magma.tex = ["magma"]; magma.emit = 3; magma.hardness = 0.5; magma.tool = .pickaxe; magma.requiresTool = true; magma.damage = 1
         add(magma)
-        cube("nether_bricks", "Nether Bricks", "nether_bricks", h: 2, req: true)
-        cube("red_nether_bricks", "Red Nether Bricks", "red_nether_bricks", h: 2, req: true)
-        var cn = BlockDef("crimson_nylium", "Crimson Nylium")
+        cube("nether_bricks", "Ember Bricks", "nether_bricks", h: 2, req: true)
+        cube("red_nether_bricks", "Red Ember Bricks", "red_nether_bricks", h: 2, req: true)
+        var cn = BlockDef("crimson_nylium", "Crimson Fungal Turf")
         cn.tex = ["crimson_nylium_side", "crimson_nylium_side", "crimson_nylium", "netherrack", "crimson_nylium_side", "crimson_nylium_side"]
         cn.hardness = 0.4; cn.tool = .pickaxe; cn.requiresTool = true
         add(cn)
         var wn = cn
-        wn.name = "warped_nylium"; wn.display = "Warped Nylium"
+        wn.name = "warped_nylium"; wn.display = "Warped Fungal Turf"
         wn.tex = ["warped_nylium_side", "warped_nylium_side", "warped_nylium", "netherrack", "warped_nylium_side", "warped_nylium_side"]
         add(wn)
         column("crimson_stem", "Crimson Stem", side: "crimson_stem", top: "crimson_stem_top")
         column("warped_stem", "Warped Stem", side: "warped_stem", top: "warped_stem_top")
-        cube("nether_wart_block", "Nether Wart Block", "nether_wart_block", h: 1, tool: .hoe, snd: .plant)
+        cube("nether_wart_block", "Ember Wart Block", "nether_wart_block", h: 1, tool: .hoe, snd: .plant)
         cube("warped_wart_block", "Warped Wart Block", "warped_wart_block", h: 1, tool: .hoe, snd: .plant)
-        var shroom = BlockDef("shroomlight", "Shroomlight")
+        var shroom = BlockDef("shroomlight", "Fungal Lamp")
         shroom.tex = ["shroomlight"]; shroom.emit = 15; shroom.hardness = 1; shroom.tool = .hoe; shroom.sound = .plant
         add(shroom)
         plant("crimson_fungus", "Crimson Fungus", "crimson_fungus")
@@ -400,21 +400,21 @@ final class BlockRegistry {
         plant("twisting_vines", "Twisting Vines", "twisting_vines")
         cube("crimson_planks", "Crimson Planks", "crimson_planks", h: 2, tool: .axe, snd: .wood)
         cube("warped_planks", "Warped Planks", "warped_planks", h: 2, tool: .axe, snd: .wood)
-        var co = BlockDef("crying_obsidian", "Crying Obsidian")
+        var co = BlockDef("crying_obsidian", "Weeping Obsidian")
         co.tex = ["crying_obsidian"]; co.emit = 10; co.hardness = 50; co.resistance = 1200; co.tool = .pickaxe; co.harvestLevel = 3; co.requiresTool = true
         add(co)
-        // Nether wart (4 stages, grows on soul sand).
+        // Emberdeep wart (4 stages, grows on ghost sand).
         for st in 0..<4 {
-            var c = BlockDef(st == 0 ? "nether_wart" : "nether_wart_\(st)", "Nether Wart")
+            var c = BlockDef(st == 0 ? "nether_wart" : "nether_wart_\(st)", "Ember Wart")
             c.tex = ["nether_wart_stage\(min(2, st == 3 ? 2 : (st == 0 ? 0 : 1)))"]; c.render = .model; c.layer = .cutout; c.opaque = false; c.collide = false
             c.boxes = [Box(4, 0, 0, 4, 16, 16), Box(12, 0, 0, 12, 16, 16), Box(0, 0, 4, 16, 16, 4), Box(0, 0, 12, 16, 16, 12)]
             c.hardness = 0; c.sound = .plant; c.skyStop = false; c.group = "nether_wart"; c.hidden = true; c.randomTicks = true
             add(c)
         }
-        cube("end_stone", "End Stone", "end_stone", h: 3, req: true)
-        cube("end_stone_bricks", "End Stone Bricks", "end_stone_bricks", h: 3, req: true)
-        cube("purpur_block", "Purpur Block", "purpur_block", h: 1.5, req: true)
-        column("purpur_pillar", "Purpur Pillar", side: "purpur_pillar", top: "purpur_pillar_top", h: 1.5, tool: .pickaxe, snd: .stone)
+        cube("end_stone", "Hollow Stone", "end_stone", h: 3, req: true)
+        cube("end_stone_bricks", "Hollow Stone Bricks", "end_stone_bricks", h: 3, req: true)
+        cube("purpur_block", "Violite Block", "purpur_block", h: 1.5, req: true)
+        column("purpur_pillar", "Violite Pillar", side: "purpur_pillar", top: "purpur_pillar_top", h: 1.5, tool: .pickaxe, snd: .stone)
         cube("mossy_stone_bricks", "Mossy Stone Bricks", "mossy_stone_bricks", h: 1.5, req: true)
         cube("cracked_stone_bricks", "Cracked Stone Bricks", "cracked_stone_bricks", h: 1.5, req: true)
         cube("chiseled_stone_bricks", "Chiseled Stone Bricks", "chiseled_stone_bricks", h: 1.5, req: true)
@@ -433,9 +433,9 @@ final class BlockRegistry {
         cane.tex = ["sugar_cane"]; cane.render = .cross; cane.layer = .cutout; cane.opaque = false; cane.collide = false
         cane.hardness = 0; cane.sound = .plant; cane.tint = 1; cane.randomTicks = true; cane.skyStop = false
         add(cane)
-        // End portal frame: empty and with an eye of ender; unbreakable.
+        // End portal frame: empty and with an seeker eye; unbreakable.
         for eye in [false, true] {
-            var f = BlockDef(eye ? "end_portal_frame[eye]" : "end_portal_frame", "End Portal Frame")
+            var f = BlockDef(eye ? "end_portal_frame[eye]" : "end_portal_frame", "Hollow Gate Frame")
             f.tex = ["end_portal_frame_side", "end_portal_frame_side", "end_portal_frame_top", "end_stone", "end_portal_frame_side", "end_portal_frame_side"]
             f.render = .model; f.opaque = false; f.hardness = -1; f.emit = 1; f.group = "end_portal_frame"; f.hidden = eye
             f.boxes = [Box(0, 0, 0, 16, 13, 16)]
@@ -443,33 +443,33 @@ final class BlockRegistry {
             f.skyStop = true
             add(f)
         }
-        var ep = BlockDef("end_portal", "End Portal")
+        var ep = BlockDef("end_portal", "Hollow Gate")
         ep.tex = ["end_portal"]; ep.render = .model; ep.opaque = false; ep.collide = false; ep.hardness = -1; ep.emit = 15
         ep.boxes = [Box(0, 11, 0, 16, 12, 16)]; ep.hidden = true; ep.skyStop = false
         add(ep)
-        var gw = BlockDef("end_gateway", "End Gateway")
+        var gw = BlockDef("end_gateway", "Hollow Rift")
         gw.tex = ["end_portal"]; gw.opaque = false; gw.collide = false; gw.hardness = -1; gw.emit = 15; gw.hidden = true
         add(gw)
-        var egg = BlockDef("dragon_egg", "Dragon Egg")
+        var egg = BlockDef("dragon_egg", "Wyrm Egg")
         egg.tex = ["dragon_egg"]; egg.render = .model; egg.opaque = false; egg.hardness = 3; egg.emit = 1
         egg.boxes = [Box(6, 15, 6, 10, 16, 10), Box(5, 14, 5, 11, 15, 11), Box(4, 13, 4, 12, 14, 12), Box(3, 11, 3, 13, 13, 13),
                      Box(2, 8, 2, 14, 11, 14), Box(1, 3, 1, 15, 8, 15), Box(2, 1, 2, 14, 3, 14), Box(3, 0, 3, 13, 1, 13)]
         add(egg)
-        var chorusP = BlockDef("chorus_plant", "Chorus Plant")
+        var chorusP = BlockDef("chorus_plant", "Spiral Plant")
         chorusP.tex = ["chorus_plant"]; chorusP.render = .model; chorusP.opaque = false; chorusP.hardness = 0.4
         chorusP.tool = .axe; chorusP.sound = .wood; chorusP.boxes = [Box(3, 0, 3, 13, 16, 13)]; chorusP.skyStop = false
         add(chorusP)
-        var chorusF = BlockDef("chorus_flower", "Chorus Flower")
+        var chorusF = BlockDef("chorus_flower", "Spiral Flower")
         chorusF.tex = ["chorus_flower"]; chorusF.render = .model; chorusF.opaque = false; chorusF.hardness = 0.4
         chorusF.tool = .axe; chorusF.sound = .wood; chorusF.boxes = [Box(1, 0, 1, 15, 14, 15)]; chorusF.skyStop = false
         add(chorusF)
-        var rod = BlockDef("end_rod", "End Rod")
+        var rod = BlockDef("end_rod", "Glow Rod")
         rod.tex = ["end_rod"]; rod.render = .model; rod.opaque = false; rod.hardness = 0; rod.emit = 14; rod.layer = .cutout
         rod.boxes = [Box(7, 1, 7, 9, 16, 9), Box(6, 0, 6, 10, 1, 10)]; rod.skyStop = false
         add(rod)
         for (n, d, lvl) in [("coal_block", "Block of Coal", 0), ("iron_block", "Block of Iron", 1), ("gold_block", "Block of Gold", 2),
                             ("diamond_block", "Block of Diamond", 2), ("emerald_block", "Block of Emerald", 2),
-                            ("lapis_block", "Block of Lapis Lazuli", 1), ("redstone_block", "Block of Redstone", 0),
+                            ("lapis_block", "Block of Lapis Lazuli", 1), ("redstone_block", "Block of Sparkstone", 0),
                             ("copper_block", "Block of Copper", 1)] {
             cube(n, d, n, h: 5, lvl: lvl, req: true, snd: .stone)
         }
@@ -533,7 +533,7 @@ final class BlockRegistry {
         chest.render = .model; chest.opaque = false; chest.hardness = 2.5; chest.tool = .axe; chest.sound = .wood
         chest.skyStop = true
         addFacing(chest, front: "chest_front", boxes: [Box(1, 0, 1, 15, 14, 15)])
-        cube("cobbled_deepslate", "Cobbled Deepslate", "cobbled_deepslate", h: 3.5, req: true)
+        cube("cobbled_deepslate", "Cobbled Deeprock", "cobbled_deepslate", h: 3.5, req: true)
         cube("andesite", "Andesite", "andesite", h: 1.5, req: true)
         cube("diorite", "Diorite", "diorite", h: 1.5, req: true)
         cube("granite", "Granite", "granite", h: 1.5, req: true)
@@ -543,16 +543,16 @@ final class BlockRegistry {
         cube("red_sand", "Red Sand", "red_sand", h: 0.5, tool: .shovel, snd: .sand)
         cube("terracotta", "Terracotta", "terracotta", h: 1.25, req: true)
         cube("lapis_ore", "Lapis Lazuli Ore", "lapis_ore", h: 3, lvl: 1, req: true)
-        cube("redstone_ore", "Redstone Ore", "redstone_ore", h: 3, lvl: 2, req: true)
+        cube("redstone_ore", "Sparkstone Ore", "redstone_ore", h: 3, lvl: 2, req: true)
         cube("emerald_ore", "Emerald Ore", "emerald_ore", h: 3, lvl: 2, req: true)
         cube("copper_ore", "Copper Ore", "copper_ore", h: 3, lvl: 1, req: true)
-        cube("deepslate_coal_ore", "Deepslate Coal Ore", "deepslate_coal_ore", h: 4.5, req: true)
-        cube("deepslate_iron_ore", "Deepslate Iron Ore", "deepslate_iron_ore", h: 4.5, lvl: 1, req: true)
-        cube("deepslate_gold_ore", "Deepslate Gold Ore", "deepslate_gold_ore", h: 4.5, lvl: 2, req: true)
-        cube("deepslate_diamond_ore", "Deepslate Diamond Ore", "deepslate_diamond_ore", h: 4.5, lvl: 2, req: true)
-        cube("deepslate_lapis_ore", "Deepslate Lapis Lazuli Ore", "deepslate_lapis_ore", h: 4.5, lvl: 1, req: true)
-        cube("deepslate_redstone_ore", "Deepslate Redstone Ore", "deepslate_redstone_ore", h: 4.5, lvl: 2, req: true)
-        cube("deepslate_copper_ore", "Deepslate Copper Ore", "deepslate_copper_ore", h: 4.5, lvl: 1, req: true)
+        cube("deepslate_coal_ore", "Deeprock Coal Ore", "deepslate_coal_ore", h: 4.5, req: true)
+        cube("deepslate_iron_ore", "Deeprock Iron Ore", "deepslate_iron_ore", h: 4.5, lvl: 1, req: true)
+        cube("deepslate_gold_ore", "Deeprock Gold Ore", "deepslate_gold_ore", h: 4.5, lvl: 2, req: true)
+        cube("deepslate_diamond_ore", "Deeprock Diamond Ore", "deepslate_diamond_ore", h: 4.5, lvl: 2, req: true)
+        cube("deepslate_lapis_ore", "Deeprock Lapis Lazuli Ore", "deepslate_lapis_ore", h: 4.5, lvl: 1, req: true)
+        cube("deepslate_redstone_ore", "Deeprock Sparkstone Ore", "deepslate_redstone_ore", h: 4.5, lvl: 2, req: true)
+        cube("deepslate_copper_ore", "Deeprock Copper Ore", "deepslate_copper_ore", h: 4.5, lvl: 1, req: true)
         cube("mossy_cobblestone", "Mossy Cobblestone", "mossy_cobblestone", h: 2, req: true)
         cube("smooth_stone", "Smooth Stone", "smooth_stone", h: 2, req: true)
         column("oak_wood", "Oak Wood", side: "oak_log", top: "oak_log")
@@ -560,7 +560,7 @@ final class BlockRegistry {
         cube("spruce_planks", "Spruce Planks", "spruce_planks", h: 2, tool: .axe, snd: .wood)
         registerOverworldBlocks()
         registerBuildingBlocks()
-        registerRedstoneBlocks()
+        registerCircuitBlocks()
         registerMagicBlocks()
         registerColoredBlocks()
         registerCopperBlocks()
@@ -578,18 +578,18 @@ final class BlockRegistry {
         let stones: [(String, String, String, Bool)] = [
             ("cobblestone", "cobblestone", "Cobblestone", true), ("stone", "stone", "Stone", false),
             ("stone_bricks", "stone_brick", "Stone Brick", true), ("bricks", "brick", "Brick", true),
-            ("sandstone", "sandstone", "Sandstone", true), ("nether_bricks", "nether_brick", "Nether Brick", true),
-            ("red_nether_bricks", "red_nether_brick", "Red Nether Brick", true), ("blackstone", "blackstone", "Blackstone", true),
-            ("cobbled_deepslate", "cobbled_deepslate", "Cobbled Deepslate", true), ("mossy_cobblestone", "mossy_cobblestone", "Mossy Cobblestone", true),
+            ("sandstone", "sandstone", "Sandstone", true), ("nether_bricks", "nether_brick", "Ember Brick", true),
+            ("red_nether_bricks", "red_nether_brick", "Red Ember Brick", true), ("blackstone", "blackstone", "Onyxstone", true),
+            ("cobbled_deepslate", "cobbled_deepslate", "Cobbled Deeprock", true), ("mossy_cobblestone", "mossy_cobblestone", "Mossy Cobblestone", true),
             ("andesite", "andesite", "Andesite", true), ("diorite", "diorite", "Diorite", true), ("granite", "granite", "Granite", true),
             ("smooth_stone", "smooth_stone", "Smooth Stone", false),
-            ("polished_blackstone", "polished_blackstone", "Polished Blackstone", true),
-            ("polished_blackstone_bricks", "polished_blackstone_brick", "Polished Blackstone Brick", true),
-            ("end_stone_bricks", "end_stone_brick", "End Stone Brick", true), ("purpur_block", "purpur", "Purpur", false),
+            ("polished_blackstone", "polished_blackstone", "Polished Onyxstone", true),
+            ("polished_blackstone_bricks", "polished_blackstone_brick", "Polished Onyxstone Brick", true),
+            ("end_stone_bricks", "end_stone_brick", "Hollow Stone Brick", true), ("purpur_block", "purpur", "Violite", false),
             ("mossy_stone_bricks", "mossy_stone_brick", "Mossy Stone Brick", true),
             ("red_sandstone", "red_sandstone", "Red Sandstone", true), ("mud_bricks", "mud_brick", "Mud Brick", true),
-            ("prismarine", "prismarine", "Prismarine", true), ("deepslate_bricks", "deepslate_brick", "Deepslate Brick", true),
-            ("deepslate_tiles", "deepslate_tile", "Deepslate Tile", true), ("polished_deepslate", "polished_deepslate", "Polished Deepslate", true),
+            ("prismarine", "prismarine", "Tidestone", true), ("deepslate_bricks", "deepslate_brick", "Deeprock Brick", true),
+            ("deepslate_tiles", "deepslate_tile", "Deeprock Tile", true), ("polished_deepslate", "polished_deepslate", "Polished Deeprock", true),
         ]
         for (tex, n, d, wall) in stones {
             family(tex, n, d, h: 2, tool: .pickaxe, req: true, snd: .stone, stairs: n != "smooth_stone", slab: true, fence: n == "nether_brick", wall: wall)

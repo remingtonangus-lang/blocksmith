@@ -455,7 +455,7 @@ enum TextureGen {
             return hex(0xB8B0A0, 0.9 + 0.1 * r(x, y, 151))
         }
         p["tnt_bottom"] = { x, y in hex(0xB8B0A0, 0.85 + 0.1 * r(x, y, 152)) }
-        // Nether
+        // Emberdeep
         let netherrack: Painter = { x, y in
             let v = blot(x, y, 170, 4) * 0.6 + r(x, y, 171) * 0.4
             return hex(v > 0.62 ? 0x8B3A3A : (v < 0.35 ? 0x5A1E1E : 0x6F2A2A), 0.92 + 0.12 * r(x, y, 172))
@@ -703,7 +703,7 @@ enum TextureGen {
             if dx + dy < 14 && (dx < 3 || dy < 3 || abs(dx - dy) < 3) { return V4(1, 1, 1, 0.95) }
             return clear
         }
-        // Recoloured hearts: absorption (gold), poison (green), wither (black).
+        // Recoloured hearts: absorption (gold), poison (green), blight (black).
         for (name, tint) in [("gold", V3(1.0, 0.8, 0.15)), ("poison", V3(0.55, 0.72, 0.2)), ("wither", V3(0.28, 0.24, 0.22))] {
             for (suffix, fill) in [("", 2), ("_half", 1)] {
                 p["heart_\(name)\(suffix)"] = { x, y in

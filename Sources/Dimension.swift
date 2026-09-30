@@ -12,7 +12,7 @@ enum Dim: String, Codable, CaseIterable {
     var ambient: Float { self == .nether ? 0.3 : (self == .end ? 0.3 : 0) }
     var fogColor: V3 { self == .nether ? V3(0.2, 0.03, 0.03) : V3(0.08, 0.05, 0.12) }
     var folder: String? { self == .overworld ? nil : (self == .nether ? "DIM-1" : "DIM1") }
-    var displayName: String { self == .overworld ? "Overworld" : (self == .nether ? "The Nether" : "The End") }
+    var displayName: String { self == .overworld ? "Surface" : (self == .nether ? "The Emberdeep" : "The Hollow") }
 }
 
 protocol TerrainGenerator: AnyObject {

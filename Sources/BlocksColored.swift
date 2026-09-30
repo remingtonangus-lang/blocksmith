@@ -1,7 +1,7 @@
 import Foundation
 
 // The sixteen-colour families: terracotta, concrete, concrete powder, stained glass (+ panes),
-// glazed terracotta (4 facings), candles (1-4, lit), shulker boxes.
+// glazed terracotta (4 facings), candles (1-4, lit), shellsentry boxes.
 extension BlockRegistry {
     // Reference terracotta colours (muted versions of the dyes).
     static let terracottaHex: [String: UInt32] = [
@@ -47,12 +47,12 @@ extension BlockRegistry {
                 cd.boxes = spots.map { Box($0.0, 0, $0.1, $0.0 + 2, 6, $0.1 + 2) }
                 add(cd)
             }
-            var sb = BlockDef("\(c)_shulker_box", "\(d) Shulker Box")
+            var sb = BlockDef("\(c)_shulker_box", "\(d) Shell Box")
             sb.tex = ["\(c)_shulker_box_side", "\(c)_shulker_box_side", "\(c)_shulker_box_top", "\(c)_shulker_box_top", "\(c)_shulker_box_side", "\(c)_shulker_box_side"]
             sb.hardness = 2; sb.tool = .pickaxe
             add(sb)
         }
-        var sb = BlockDef("shulker_box", "Shulker Box")
+        var sb = BlockDef("shulker_box", "Shell Box")
         sb.tex = ["shulker_box_side", "shulker_box_side", "shulker_box_top", "shulker_box_top", "shulker_box_side", "shulker_box_side"]
         sb.hardness = 2; sb.tool = .pickaxe
         add(sb)
@@ -67,7 +67,7 @@ extension BlockRegistry {
             add(cd)
         }
         // Ender chest: 4 facings, shared inventory; trapped chest.
-        var ec = BlockDef("ender_chest", "Ender Chest")
+        var ec = BlockDef("ender_chest", "Void Chest")
         ec.tex = ["ender_chest_side", "ender_chest_side", "ender_chest_top", "ender_chest_top", "ender_chest_side", "ender_chest_side"]
         ec.render = .model; ec.opaque = false; ec.boxes = [Box(1, 0, 1, 15, 14, 15)]; ec.hardness = 22.5; ec.resistance = 600
         ec.tool = .pickaxe; ec.requiresTool = true; ec.emit = 7; ec.skyStop = true

@@ -1,6 +1,6 @@
 import Foundation
 
-// Painters for redstone components (original art).
+// Painters for sparkstone components (original art).
 extension TextureGen {
     static func redstonePainters(_ p: inout [String: Painter]) {
         for pw in 0..<16 {

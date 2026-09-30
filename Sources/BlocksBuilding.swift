@@ -101,7 +101,7 @@ extension BlockRegistry {
         for soul in [false, true] {
             for hanging in [false, true] {
                 let n = soul ? "soul_lantern" : "lantern"
-                var d = BlockDef(hanging ? "\(n)[hanging]" : n, soul ? "Soul Lantern" : "Lantern")
+                var d = BlockDef(hanging ? "\(n)[hanging]" : n, soul ? "Ghost Lantern" : "Lantern")
                 d.tex = [soul ? "soul_lantern" : "lantern"]; d.render = .model; d.layer = .cutout; d.opaque = false
                 d.boxes = hanging ? [Box(5, 1, 5, 11, 8, 11), Box(6, 8, 6, 10, 10, 10), Box(7, 10, 7, 9, 16, 9)] : [Box(5, 0, 5, 11, 7, 11), Box(6, 7, 6, 10, 9, 10)]
                 d.emit = soul ? 10 : 15; d.hardness = 3.5; d.tool = .pickaxe; d.sound = .stone; d.group = n; d.hidden = hanging; d.skyStop = false

@@ -1,7 +1,7 @@
 import Foundation
 import simd
 
-// Taming, feeding, buckets and riding (horses, donkeys, mules, camels, pigs, striders, llamas).
+// Taming, feeding, buckets and riding (horses, donkeys, mules, camels, pigs, magmastriders, llamas).
 extension Game {
     // Right-click interactions with the new animals. Returns true when handled.
     func animalInteract(_ m: Mob) -> Bool {
@@ -113,7 +113,7 @@ extension Game {
 }
 
 extension Mob {
-    // A mount carrying the player: WASD steers (horses, camels, donkeys, mules), pigs and striders follow
+    // A mount carrying the player: WASD steers (horses, camels, donkeys, mules), pigs and magmastriders follow
     // the stick; untamed horses buck until tamed.
     func updateRidden(_ dt: Float, _ g: Game) {
         let w = g.world

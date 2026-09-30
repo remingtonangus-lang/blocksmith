@@ -2,7 +2,7 @@ import Foundation
 import simd
 
 // Villagers: professions from job-site blocks, five levels, the reference trade tables, demand-based
-// prices, restocking at the job site, Hero of the Village discounts, zombie-villager curing.
+// prices, restocking at the job site, Village Hero discounts, zombie-villager curing.
 
 struct TradeOffer: Codable {
     var buyA: ItemStack
@@ -317,7 +317,7 @@ extension Game {
         return true
     }
 
-    // Hero of the Village discount applied while a trade screen is open.
+    // Village Hero discount applied while a trade screen is open.
     func heroDiscount(_ o: TradeOffer) -> Int {
         let h = effects.level(.heroOfTheVillage)
         guard h > 0, o.buyA.item == Items.id("emerald") else { return 0 }

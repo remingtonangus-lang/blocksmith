@@ -32,9 +32,9 @@ enum Potions {
         trio("fire_resistance", "Fire Resistance", .fireResistance, 180, 480, nil)
         trio("swiftness", "Swiftness", .speed, 180, 480, (90, 1))
         trio("slowness", "Slowness", .slowness, 90, 240, (20, 3))
-        add("turtle_master", "the Turtle Master", [(.slowness, 20, 3), (.resistance, 20, 2)])
-        add("long_turtle_master", "the Turtle Master", [(.slowness, 40, 3), (.resistance, 40, 2)])
-        add("strong_turtle_master", "the Turtle Master", [(.slowness, 20, 5), (.resistance, 20, 3)])
+        add("turtle_master", "the Tortoise", [(.slowness, 20, 3), (.resistance, 20, 2)])
+        add("long_turtle_master", "the Tortoise", [(.slowness, 40, 3), (.resistance, 40, 2)])
+        add("strong_turtle_master", "the Tortoise", [(.slowness, 20, 5), (.resistance, 20, 3)])
         trio("water_breathing", "Water Breathing", .waterBreathing, 180, 480, nil)
         trio("healing", "Healing", .instantHealth, 0, nil, (0, 1))
         trio("harming", "Harming", .instantDamage, 0, nil, (0, 1))
@@ -119,7 +119,7 @@ enum Potions {
                                        ("healing", "harming"), ("strong_healing", "strong_harming"), ("poison", "harming"),
                                        ("long_poison", "harming"), ("strong_poison", "strong_harming")]
         for (a, b) in fse { m.append((a, "fermented_spider_eye", b)) }
-        // Redstone extends, glowstone strengthens.
+        // Sparkstone extends, lumenstone strengthens.
         for t in types where t.key.hasPrefix("long_") { m.append((String(t.key.dropFirst(5)), "redstone", t.key)) }
         for t in types where t.key.hasPrefix("strong_") { m.append((String(t.key.dropFirst(7)), "glowstone_dust", t.key)) }
         return m
@@ -258,7 +258,7 @@ enum Potions {
 // MARK: Brewing stand block entity logic
 
 extension BlockEntity {
-    // Slots 0-2 bottles, 3 ingredient, 4 blaze powder. 20 s per brew; one powder = 20 brews.
+    // Slots 0-2 bottles, 3 ingredient, 4 cinder powder. 20 s per brew; one powder = 20 brews.
     // Returns true when the bottle slots changed (for the block's bottle display).
     func tickBrewing() -> Bool {
         let c = container

@@ -1,6 +1,6 @@
 import Foundation
 
-// Procedural painters for the overworld block expansion (original art; colours chosen to read like
+// Procedural painters for the surface block expansion (original art; colours chosen to read like
 // the materials they stand for).
 extension TextureGen {
     static func overworldPainters(_ p: inout [String: Painter]) {

@@ -1,8 +1,8 @@
 import Foundation
 
-// Redstone components. State layouts (offset from the group's first state):
-//   redstone_wire:   power (16)
-//   redstone_torch:  0 standing lit, 1 standing off, 2+f wall lit, 6+f wall off (f = side the torch faces)
+// Sparkstone components. State layouts (offset from the group's first state):
+//   sparkstone_wire:   power (16)
+//   sparkstone_torch:  0 standing lit, 1 standing off, 2+f wall lit, 6+f wall off (f = side the torch faces)
 //   lever / buttons: facing + attach*4 + on*12           attach 0 floor, 1 wall, 2 ceiling  (24)
 //   pressure plates: pressed (2); weighted plates: power (16)
 //   repeater:        facing + (delay-1)*4 + powered*16 + locked*32   (64)
@@ -60,7 +60,7 @@ extension BlockRegistry {
         }
     }
 
-    func registerRedstoneBlocks() {
+    func registerCircuitBlocks() {
         func state(_ n: String, _ group: String, _ disp: String, _ first: Bool) -> BlockDef {
             var d = BlockDef(n, disp)
             d.group = group; d.hidden = !first
@@ -68,7 +68,7 @@ extension BlockRegistry {
         }
         // Dust.
         for p in 0..<16 {
-            var d = state(p == 0 ? "redstone_wire" : "redstone_wire[\(p)]", "redstone_wire", "Redstone Wire", p == 0)
+            var d = state(p == 0 ? "redstone_wire" : "redstone_wire[\(p)]", "redstone_wire", "Sparkstone Wire", p == 0)
             d.tex = ["redstone_dust_\(p)"]; d.render = .wire; d.layer = .cutout; d.opaque = false; d.collide = false
             d.hardness = 0; d.sound = .stone; d.skyStop = false; d.boxes = [Box(0, 0, 0, 16, 1, 16)]; d.hidden = true
             add(d)
@@ -76,7 +76,7 @@ extension BlockRegistry {
         // Torches.
         for k in 0..<10 {
             let lit = k == 0 || (k >= 2 && k < 6)
-            var d = state(k == 0 ? "redstone_torch" : "redstone_torch[\(k)]", "redstone_torch", "Redstone Torch", k == 0)
+            var d = state(k == 0 ? "redstone_torch" : "redstone_torch[\(k)]", "redstone_torch", "Sparkstone Torch", k == 0)
             d.tex = [lit ? "redstone_torch" : "redstone_torch_off"]; d.render = .model; d.layer = .cutout; d.opaque = false
             d.collide = false; d.emit = lit ? 7 : 0; d.hardness = 0; d.sound = .wood; d.skyStop = false
             if k < 2 { d.boxes = [Box(7, 0, 7, 9, 10, 9)] }
@@ -87,7 +87,7 @@ extension BlockRegistry {
             add(d)
         }
         for lit in [false, true] {
-            var d = state(lit ? "redstone_lamp[lit]" : "redstone_lamp", "redstone_lamp", "Redstone Lamp", !lit)
+            var d = state(lit ? "redstone_lamp[lit]" : "redstone_lamp", "redstone_lamp", "Sparkstone Lamp", !lit)
             d.tex = [lit ? "redstone_lamp_on" : "redstone_lamp"]; d.emit = lit ? 15 : 0; d.hardness = 0.3; d.sound = .glass
             add(d)
         }
@@ -119,7 +119,7 @@ extension BlockRegistry {
         }
         switchBlock("lever", "Lever", tex: "lever", lever: true)
         switchBlock("stone_button", "Stone Button", tex: "stone", lever: false)
-        switchBlock("polished_blackstone_button", "Polished Blackstone Button", tex: "polished_blackstone", lever: false)
+        switchBlock("polished_blackstone_button", "Polished Onyxstone Button", tex: "polished_blackstone", lever: false)
         for w in BlockRegistry.buttonWoods {
             switchBlock("\(w)_button", "\(w.split(separator: "_").map { $0.capitalized }.joined(separator: " ")) Button", tex: "\(w)_planks", lever: false)
         }
@@ -138,13 +138,13 @@ extension BlockRegistry {
             plate("\(w)_pressure_plate", "\(w.split(separator: "_").map { $0.capitalized }.joined(separator: " ")) Pressure Plate", tex: "\(w)_planks", levels: 2, wood: true)
         }
         plate("stone_pressure_plate", "Stone Pressure Plate", tex: "stone", levels: 2, wood: false)
-        plate("polished_blackstone_pressure_plate", "Polished Blackstone Pressure Plate", tex: "polished_blackstone", levels: 2, wood: false)
+        plate("polished_blackstone_pressure_plate", "Polished Onyxstone Pressure Plate", tex: "polished_blackstone", levels: 2, wood: false)
         plate("light_weighted_pressure_plate", "Light Weighted Pressure Plate", tex: "gold_block", levels: 16, wood: false)
         plate("heavy_weighted_pressure_plate", "Heavy Weighted Pressure Plate", tex: "iron_block", levels: 16, wood: false)
         // Repeater and comparator.
         for locked in [false, true] { for powered in [false, true] { for delay in 0..<4 { for f in 0..<4 {
             let k = f + delay * 4 + (powered ? 16 : 0) + (locked ? 32 : 0)
-            var d = state(k == 0 ? "repeater" : "repeater[\(k)]", "repeater", "Redstone Repeater", k == 0)
+            var d = state(k == 0 ? "repeater" : "repeater[\(k)]", "repeater", "Sparkstone Repeater", k == 0)
             d.tex = [powered ? "repeater_on" : "repeater", powered ? "repeater_on" : "repeater", powered ? "repeater_on" : "repeater", "smooth_stone", powered ? "repeater_on" : "repeater", powered ? "repeater_on" : "repeater"]
             d.render = .model; d.opaque = false; d.hardness = 0; d.sound = .stone; d.skyStop = false; d.shape = "repeater"
             let torchTex = Array(repeating: Tex.id(powered ? "redstone_torch" : "redstone_torch_off"), count: 6)
@@ -165,7 +165,7 @@ extension BlockRegistry {
         } } } }
         for powered in [false, true] { for sub in [false, true] { for f in 0..<4 {
             let k = f + (sub ? 4 : 0) + (powered ? 8 : 0)
-            var d = state(k == 0 ? "comparator" : "comparator[\(k)]", "comparator", "Redstone Comparator", k == 0)
+            var d = state(k == 0 ? "comparator" : "comparator[\(k)]", "comparator", "Sparkstone Comparator", k == 0)
             d.tex = [powered ? "comparator_on" : "comparator", powered ? "comparator_on" : "comparator", powered ? "comparator_on" : "comparator", "smooth_stone", powered ? "comparator_on" : "comparator", powered ? "comparator_on" : "comparator"]
             d.render = .model; d.opaque = false; d.hardness = 0; d.sound = .stone; d.skyStop = false; d.shape = "comparator"
             let along = [(0, -1), (0, 1), (-1, 0), (1, 0)][f]

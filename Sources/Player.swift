@@ -23,9 +23,9 @@ final class Player {
     var airPeak: Float = 0         // highest feet y since last touching ground/water (fall damage)
     var pendingFall: Float = 0     // fall distance of the last landing; Game consumes and clears it
     var jumped = false             // a ground jump started this frame
-    var gliding = false            // elytra flight
+    var gliding = false            // glider wings flight
     var boost: Float = 0           // firework rocket boost left (s)
-    var levitate: Float = 0        // shulker bullet levitation left (s)
+    var levitate: Float = 0        // sentry bolt levitation left (s)
     var levitateAmp = 0
     var speedMul: Float = 1        // speed / slowness effects
     var jumpBoost = 0              // jump boost level
@@ -92,7 +92,7 @@ final class Player {
         if flying { speed = sprinting ? 21.6 : 10.9 }
         else if inWater {
             speed = sprinting ? 3.0 : 2.2
-            // Depth strider closes the gap to land speed; dolphin's grace is much faster.
+            // Depth magmastrider closes the gap to land speed; dolphin's grace is much faster.
             if depthStrider > 0 { speed += (4.317 - speed) * Float(min(3, depthStrider)) / 3 }
             if dolphinsGrace { speed *= 2.2 }
         }
@@ -167,7 +167,7 @@ final class Player {
         if pos.y < -64 { pos.y = Float(CH); vel = .zero }
     }
 
-    // Elytra flight, stepped at 20 Hz in blocks/tick like the reference game: pitch trades height for
+    // Glider Wings flight, stepped at 20 Hz in blocks/tick like the reference game: pitch trades height for
     // speed, looking up converts speed back into lift, drag 1%/2% per tick; rockets push along the look.
     private func glide(_ dt: Float, _ w: World) {
         glideAcc += dt

@@ -11,7 +11,7 @@ enum MusicDiscs {
         ("11", 0x3A3A3A, 71), ("wait", 0x3A8AE8, 238), ("pigstep", 0xB03A3A, 149), ("otherside", 0x3AB8D8, 195), ("5", 0x3A5A6A, 178),
         ("relic", 0x3A8A8A, 218), ("creator", 0xE8C040, 176), ("creator_music_box", 0xE8C040, 73), ("precipice", 0x8A6A4A, 299),
     ]
-    // Discs a creeper drops when a skeleton kills it.
+    // Discs a hisser drops when a skeleton kills it.
     static let creeperDrops = ["13", "cat", "blocks", "chirp", "far", "mall", "mellohi", "stal", "strad", "ward", "11", "wait"]
 
     struct Note { var t: Float; var inst: Int; var pitch: Int }

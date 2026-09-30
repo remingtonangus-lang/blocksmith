@@ -1,8 +1,8 @@
 import Foundation
 
-// The Nether: a 128-tall cavern (displayed y 0...127 = internal 64...191) with a lava sea at y 31,
-// bedrock floor and roof, five biomes, glowstone clusters, quartz/gold ore, ancient debris and fungus trees.
-final class NetherGen: TerrainGenerator {
+// The Emberdeep: a 128-tall cavern (displayed y 0...127 = internal 64...191) with a lava sea at y 31,
+// bedrock floor and roof, five biomes, lumenstone clusters, quartz/gold ore, dusk relic and fungus trees.
+final class EmberGen: TerrainGenerator {
     let seed: UInt64
     let s32: UInt32
     let d1: Noise, d2: Noise, bT: Noise, bH: Noise, deco: Noise
@@ -35,7 +35,7 @@ final class NetherGen: TerrainGenerator {
         return best
     }
 
-    func column(_ x: Int, _ z: Int) -> (height: Int, biome: Biome) { (NetherGen.base + 32, biome(x, z)) }
+    func column(_ x: Int, _ z: Int) -> (height: Int, biome: Biome) { (EmberGen.base + 32, biome(x, z)) }
 
     func tints(cx: Int, cz: Int) -> [UInt32] {
         [UInt32](repeating: 0xFF3A7ABF, count: 768)
@@ -55,7 +55,7 @@ final class NetherGen: TerrainGenerator {
     func generate(cx: Int, cz: Int) -> [BlockID] {
         var b = [BlockID](repeating: AIR, count: CSQ * CH)
         let bx = cx * CS, bz = cz * CS
-        let base = NetherGen.base
+        let base = EmberGen.base
         // Density on a 4 x 8 x 4 lattice, trilinearly interpolated (fast and smooth).
         let lx = 5, ly = 17, lz = 5
         var lat = [Float](repeating: 0, count: lx * ly * lz)
@@ -82,7 +82,7 @@ final class NetherGen: TerrainGenerator {
                     if y < 5 && (y == 0 || hash3(wx, y, wz, s32) % 5 < UInt32(5 - y)) { id = bedrock }
                     else if y > 122 && (y == 127 || hash3(wx, y, wz, s32 ^ 1) % 5 < UInt32(y - 122)) { id = bedrock }
                     else if d > 0 { id = netherrack }
-                    else if y <= NetherGen.lavaLevel { id = lava }
+                    else if y <= EmberGen.lavaLevel { id = lava }
                     b[Chunk.index(x, base + y, z)] = id
                 }
             }
@@ -93,7 +93,7 @@ final class NetherGen: TerrainGenerator {
 
     private func decorate(_ b: inout [BlockID], _ cx: Int, _ cz: Int) {
         let bx = cx * CS, bz = cz * CS
-        let base = NetherGen.base
+        let base = EmberGen.base
         let netherrack = NETHERRACK
         let soulSand = Blocks.id("soul_sand"), soulSoil = Blocks.id("soul_soil"), basalt = Blocks.id("basalt")
         let blackstone = Blocks.id("blackstone"), magma = Blocks.id("magma_block"), gravel = GRAVEL
@@ -120,7 +120,7 @@ final class NetherGen: TerrainGenerator {
                         case .warpedForest: set(x, y, z, warpedNy)
                         case .basaltDeltas: set(x, y, z, h % 4 == 0 ? magma : (h % 4 == 1 ? blackstone : basalt))
                         default:
-                            if y >= NetherGen.lavaLevel - 1 && y <= NetherGen.lavaLevel + 3 && deco.noise2(Float(wx) / 12, Float(wz) / 12) > 0.25 {
+                            if y >= EmberGen.lavaLevel - 1 && y <= EmberGen.lavaLevel + 3 && deco.noise2(Float(wx) / 12, Float(wz) / 12) > 0.25 {
                                 set(x, y, z, h % 2 == 0 ? gravel : soulSand)
                             }
                         }
@@ -128,7 +128,7 @@ final class NetherGen: TerrainGenerator {
                     }
                     if bio == .basaltDeltas && h % 7 == 0 { set(x, y, z, basalt); continue }
                     if bio == .soulSandValley && h % 9 == 0 { set(x, y, z, soulSoil); continue }
-                    // Ores inside netherrack.
+                    // Ores inside cinderstone.
                     let cell = hash3(wx >> 1, y >> 1, wz >> 1, s32 ^ 0xA5) % 1000
                     if cell < 16 && h % 100 < 55 { set(x, y, z, quartz) }
                     else if cell < 26 && h % 100 < 55 { set(x, y, z, gold) }
@@ -137,7 +137,7 @@ final class NetherGen: TerrainGenerator {
                 }
             }
         }
-        // Glowstone clusters hanging from ceilings: grown by attaching to the ceiling or existing glowstone.
+        // Lumenstone clusters hanging from ceilings: grown by attaching to the ceiling or existing lumenstone.
         for k in 0..<2 {
             let h = hash3(cx, k, cz, s32 ^ 0x6C0)
             if h % 3 == 0 { continue }
@@ -203,10 +203,10 @@ final class NetherGen: TerrainGenerator {
     }
 }
 
-// The End: the central island (~100 blocks across) floating over the void, a 1000-block gap, then
+// The Hollow: the central island (~100 blocks across) floating over the void, a 1000-block gap, then
 // endless outer islands. Ten obsidian spikes ring the centre (radius 42, heights 76…103, the two
-// smallest caged in iron bars) with an end crystal on each; the bedrock exit fountain sits at 0,0.
-final class EndGen: TerrainGenerator {
+// smallest caged in iron bars) with an hollow crystal on each; the bedrock exit fountain sits at 0,0.
+final class HollowGen: TerrainGenerator {
     let seed: UInt64
     let n: Noise, isl: Noise
     private(set) var structures: StructureCache? = nil
@@ -229,7 +229,7 @@ final class EndGen: TerrainGenerator {
         }
         spikes = sp
         let fountainY = surface(0, 0) ?? (YOFF + 60)
-        structures = StructureCache(seed: seed, types: [EndCity.type(self)], fixed: [EndGen.centre(spikes: sp, fountainY: fountainY)])
+        structures = StructureCache(seed: seed, types: [HollowSpire.type(self)], fixed: [HollowGen.centre(spikes: sp, fountainY: fountainY)])
     }
 
     func column(_ x: Int, _ z: Int) -> (height: Int, biome: Biome) { (surface(x, z) ?? 0, .theEnd) }
@@ -270,20 +270,20 @@ final class EndGen: TerrainGenerator {
                 for y in max(0, i.top - i.depth)...i.top { b[Chunk.index(x, y, z)] = endStone }
             }
         }
-        // Chorus plants on the outer islands.
+        // Spiral plants on the outer islands.
         let d2 = (cx * CS) * (cx * CS) + (cz * CS) * (cz * CS)
         if d2 > 1000 * 1000 {
             for k in 0..<3 {
                 let x = Int(hash3(cx, k, cz, 0xC0 ^ UInt32(truncatingIfNeeded: seed)) % 12) + 2
                 let z = Int(hash3(cx, k + 7, cz, 0xC1 ^ UInt32(truncatingIfNeeded: seed)) % 12) + 2
                 guard let i = island(cx * CS + x, cz * CS + z), hashf(cx, k, cz, 0xC2) < 0.6 else { continue }
-                EndGen.chorus(&b, x, i.top + 1, z, hash3(cx, k, cz, 0xC3))
+                HollowGen.chorus(&b, x, i.top + 1, z, hash3(cx, k, cz, 0xC3))
             }
         }
         return b
     }
 
-    // A small branching chorus tree (plant stems with a flower on top), kept inside the chunk.
+    // A small branching spiral tree (plant stems with a flower on top), kept inside the chunk.
     static func chorus(_ b: inout [BlockID], _ x: Int, _ y: Int, _ z: Int, _ h: UInt32) {
         guard Blocks.has("chorus_plant") else { return }
         let plant = Blocks.id("chorus_plant"), flower = Blocks.id("chorus_flower")
@@ -325,7 +325,7 @@ final class EndGen: TerrainGenerator {
             })
         }
         pieces.append(Piece(min: IVec3(-4, fy - 4, -4), max: IVec3(4, fy + 6, 4)) { w in
-            EndGen.fountain(&w, fy, active: false)
+            HollowGen.fountain(&w, fy, active: false)
         })
         return StructureStart(kind: "end_centre", pieces: pieces, anchor: IVec3(0, fy + 1, 0))
     }

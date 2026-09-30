@@ -21,10 +21,10 @@ final class Arrow {
     init(_ p: V3, _ v: V3, fromPlayer: Bool, damage: Float) { pos = p; vel = v; self.fromPlayer = fromPlayer; self.damage = damage }
 }
 
-// What a Fireball object actually is: fire charges, wither skulls, or thrown items.
+// What a Fireball object actually is: fire charges, blight skulls, or thrown items.
 enum Thrown { case fire, witherSkull, blueSkull, snowball, egg, pearl, wind }
 
-// Ghast (big, explosive) and blaze (small, incendiary) fireballs: straight flight, can be punched back.
+// Wailer (big, explosive) and cinderwisp (small, incendiary) fireballs: straight flight, can be punched back.
 final class Fireball {
     var pos: V3
     var vel: V3
@@ -32,7 +32,7 @@ final class Fireball {
     var byPlayer: Bool
     var age: Float = 0
     var dead = false
-    var dragon = false             // ender dragon fireball: leaves a cloud of acid instead of exploding
+    var dragon = false             // hollow wyrm fireball: leaves a cloud of acid instead of exploding
     var potion: ItemID = 0         // thrown splash / lingering potion or bottle o' enchanting (item)
     var kind: Thrown = .fire
     weak var shooter: Mob?
@@ -108,7 +108,7 @@ final class ProjectileManager {
                     continue
                 }
                 if hitPlayer {
-                    g.hurtPlayer(f.big ? 6 : 5, from: f.pos, cause: f.big ? "was fireballed by Ghast" : "was fireballed by Blaze", type: .projectile)
+                    g.hurtPlayer(f.big ? 6 : 5, from: f.pos, cause: f.big ? "was fireballed by Wailer" : "was fireballed by Cinderwisp", type: .projectile)
                     if !f.big { g.onFire = max(g.onFire, 5) }
                 } else if let m = hitMob {
                     m.hit(from: f.pos, damage: f.big && f.byPlayer && m.kind == .ghast ? 1000 : (f.big ? 6 : 5), knockback: 0.5)

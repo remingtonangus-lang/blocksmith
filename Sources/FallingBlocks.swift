@@ -1,7 +1,7 @@
 import Foundation
 import simd
 
-// Gravity blocks (sand, gravel, concrete powder, anvils, dragon eggs...) fall as entities when
+// Gravity blocks (sand, gravel, concrete powder, anvils, wyrm eggs...) fall as entities when
 // nothing supports them, and land as blocks (or pop as items on a non-full surface). Falling
 // anvils hurt what they land on and may wear down; concrete powder hardens next to water.
 final class FallingBlock {

@@ -25,7 +25,7 @@ final class World {
         }
         return t
     }()          // structure mobs waiting for the game to spawn them
-    lazy var redstone = Redstone(world: self)
+    lazy var redstone = Circuit(world: self)
     var portals = Set<IVec3>()
     var renderDistance: Int = 8 { didSet { lastCenter = nil; rebuildOffsets() } }
 
@@ -47,8 +47,8 @@ final class World {
         self.dim = dim
         switch dim {
         case .overworld: gen = WorldGen(seed: seed)
-        case .nether: gen = NetherGen(seed: seed)
-        case .end: gen = EndGen(seed: seed)
+        case .nether: gen = EmberGen(seed: seed)
+        case .end: gen = HollowGen(seed: seed)
         }
         self.device = device
         self.save = save
@@ -441,7 +441,7 @@ final class World {
         redstone.chunkLoaded(c)
         // Generated chests/spawners; a regenerated chunk keeps any existing (already looted) entity.
         for (pos, be) in p.entities where blockEntities[pos] == nil { blockEntities[pos] = be }
-        // Structure mobs (bastion piglins...) appear once: the chunk is saved so it never regenerates.
+        // Structure mobs (bastion boarlings...) appear once: the chunk is saved so it never regenerates.
         if !p.mobs.isEmpty { c.modified = true; pendingMobs += p.mobs }
     }
 
@@ -590,8 +590,8 @@ final class World {
 
     // MARK: Fluids
     // Cellular fluids: sources (level 0) feed flowing levels 1...7 sideways, falling columns (8) downwards.
-    // Water ticks every 0.2 s; lava every 1.5 s (0.5 s in the Nether) and reaches 3 blocks in the
-    // Overworld (7 in the Nether). Only cells near a change are simulated.
+    // Water ticks every 0.2 s; lava every 1.5 s (0.5 s in the Emberdeep) and reaches 3 blocks in the
+    // Surface (7 in the Emberdeep). Only cells near a change are simulated.
 
     private(set) var fluidPending = Set<IVec3>()
     private(set) var lavaPending = Set<IVec3>()
