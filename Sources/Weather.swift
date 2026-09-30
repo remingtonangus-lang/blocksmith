@@ -57,6 +57,19 @@ extension Game {
         bolts.removeAll { $0.life <= 0 }
         lightningFlash = max(0, lightningFlash - dt * 3)
         guard wetWorld else { return }
+        // Splashes where rain lands around the player.
+        if w.rain > 0.2 {
+            for _ in 0..<Int(w.rain * 6) {
+                let x = Int(floor(player.pos.x)) + Int.random(in: -8...8), z = Int(floor(player.pos.z)) + Int.random(in: -8...8)
+                guard let c = world.chunks[ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))] else { continue }
+                let top = Int(c.height[mod(x, CS) + mod(z, CS) * CS])
+                guard precipitation(x, top + 1, z) == 1 else { continue }
+                let p = V3(Float(x) + Float.random(in: 0...1), Float(top + 1) + 0.02, Float(z) + Float.random(in: 0...1))
+                particles.add(Particle(pos: p, vel: V3(Float.random(in: -0.4...0.4), Float.random(in: 0.8...1.6), Float.random(in: -0.4...0.4)),
+                                       life: 0.25, maxLife: 0.25, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1, size: 0.04,
+                                       gravity: 10, color: V3(0.75, 0.82, 1), collide: false))
+            }
+        }
         // Rain sound near exposed columns.
         rainSoundTimer -= dt
         if w.rain > 0.2 && rainSoundTimer <= 0 {
@@ -173,7 +186,7 @@ extension Game {
                 let h = hashf(x, 0, z, 91)
                 let snow = kind == 2
                 let speed: Float = snow ? 2 : 14
-                for k in 0..<(snow ? 2 : 5) {
+                for k in 0..<(snow ? 2 : 3 + Int(weather.rain * 4)) {
                     let span = yHi - yLo
                     let off = (t * speed + h * 97 + Float(k) * 7.3).truncatingRemainder(dividingBy: 22)
                     let y = yHi - off
@@ -188,7 +201,7 @@ extension Game {
                         wr.quad([c3 - r - up, c3 + r - up, c3 + r + up, c3 - r + up], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], flake, V4(1, 1, 1, a + 0.2))
                     } else {
                         let len: Float = min(1.3, span)
-                        let r = right * 0.035
+                        let r = right * 0.022
                         wr.quad([c3 - r, c3 + r, c3 + r + V3(0, len, 0), c3 - r + V3(0, len, 0)], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], layer, V4(0.75, 0.82, 1, a))
                     }
                 }

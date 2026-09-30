@@ -697,7 +697,8 @@ enum TextureGen {
         p["heart"] = { heart($0, $1, 2) }
         p["heart_half"] = { heart($0, $1, 1) }
         p["heart_empty"] = { heart($0, $1, 0) }
-        p["rain_drop"] = { x, y in (x == 7 || x == 8) ? V4(0.8, 0.85, 1, 0.8) : clear }
+        // Rain streak: fills the (thin) quad; brighter core, slight breaks along its length.
+        p["rain_drop"] = { x, y in (y % 7 == 6) ? clear : V4(0.72 + (x == 7 || x == 8 ? 0.15 : 0), 0.8 + (x == 7 || x == 8 ? 0.12 : 0), 1, 0.9) }
         p["snow_flake"] = { x, y in
             let dx = abs(x * 2 - 15), dy = abs(y * 2 - 15)
             if dx + dy < 14 && (dx < 3 || dy < 3 || abs(dx - dy) < 3) { return V4(1, 1, 1, 0.95) }
