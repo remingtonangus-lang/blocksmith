@@ -93,7 +93,9 @@ extension Mob {
             if tamed || aggro { return nil }
             return near([.llama, .traderLlama], 8)
         case .piglin:
-            return near([.zombifiedPiglin, .zoglin], 6)
+            return near([.zombifiedPiglin, .zoglin], 6) ?? repellent(g, ["soul_fire", "soul_torch", "soul_wall_torch", "soul_lantern", "soul_campfire"])
+        case .hoglin:
+            return repellent(g, ["warped_fungus", "nether_portal", "respawn_anchor"])
         default:
             return nil
         }
@@ -355,6 +357,18 @@ extension Mob {
             persistent = true
             return
         }
+    }
+
+    // A repellent block within 7 blocks (sampled every 2 s; boarlings fear soul fire, tuskers warped fungus).
+    func repellent(_ g: Game, _ keys: Set<String>) -> V3? {
+        let w = g.world
+        jobTimer -= 0.05
+        if jobTimer <= 0 {
+            jobTimer = 2
+            flower = findNearby(w, radius: 7) { keys.contains(Blocks.key(Blocks.groupBase[Int(w.block($0.x, $0.y, $0.z))])) }
+        }
+        guard let f = flower else { return nil }
+        return V3(Float(f.x) + 0.5, Float(f.y), Float(f.z) + 0.5)
     }
 }
 
