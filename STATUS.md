@@ -96,6 +96,13 @@ B close, RS scroll creative.
 - AI (MobAI.swift): follow ranges with line of sight + memory, sneaking/heads/invisibility, avoidance goals, babies
   follow adults. Villagers (VillageLife.swift): schedules, gossip/reputation (prices, golem hostility at -100), golem
   summoning by sleeping + gossiping villagers. Spawn eggs for every mob; zombie horse; Mirage Caster (illusioner).
+- Behaviour (Conversions.swift, Bees.swift, MobAI.swift): zombies drown into Sunken, husks into zombies, skeletons
+  freeze into strays, boarlings/tuskers turn undead outside the Emberdeep, tadpoles grow into frogs; Hard zombie
+  reinforcements; wandering trader + llamas, village cats, skeleton trap horses; bees with hives, nectar, honey and
+  crop pollination; voidwalkers carry blocks and dodge arrows; helmets block sunburn; strays/mire skeletons tip arrows;
+  sunken throw tridents; tamed wolves defend the owner; cat morning gifts; sheep graze and regrow wool; foxes sleep by
+  day; polar bear mothers; llama spit; pandas with personality genes; axolotls play dead; turtles/frogs lay eggs;
+  mules and horse stat inheritance; reference baby odds; Cloudwailer (happy ghast) with harnesses.
 - `--mobtests` (MobTests.swift) checks all of the above headlessly and exits non-zero on a failure.
 
 ## Known gaps / decisions
