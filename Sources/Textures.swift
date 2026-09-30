@@ -243,6 +243,7 @@ enum TextureGen {
             return hex(0x96503E, 0.85 + 0.3 * r(x, y, 15))
         }
         p["snow"] = snowC
+        p["snow_block"] = snowC
         p["grass_block_snow"] = { x, y in y < edge(x, 2) ? snowC(x, y) : dirt(x, y) }
         p["cactus_side"] = { x, y in
             if x == 0 || x == 15 { return clear }
