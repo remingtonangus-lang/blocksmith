@@ -12,6 +12,9 @@ struct ChunkKey: Hashable {
     let z: Int
 }
 
+// Counts section invalidations (main thread): World.update skips its scheduling scan while nothing changed.
+enum MeshEpoch { static var value = 0 }
+
 // One 16x16x16 slice of a chunk's mesh.
 final class Section {
     var opaqueBuf: MeshSlice?
@@ -19,7 +22,7 @@ final class Section {
     var solidQuads = 0          // leading opaque quads drawn without alpha test
     var transBuf: MeshSlice?
     var transQuads = 0
-    var version = 0          // bumped when the section (or light around it) changes
+    var version = 0 { didSet { MeshEpoch.value &+= 1 } }   // bumped when the section (or light around it) changes
     var meshedVersion = -1
     var vis: UInt64 = ~0         // face connectivity (cave culling)
     var needsMesh: Bool { meshedVersion != version }

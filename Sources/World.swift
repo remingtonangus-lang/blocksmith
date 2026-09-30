@@ -84,7 +84,11 @@ final class World {
 
     // Chunks to load: the meshed disc grown by one chunk (every meshed chunk needs its 8 neighbours).
     // A disc instead of the old square skips ~20% of the chunks (the corners were never drawn).
+    private var scanCenter: ChunkKey?
+    private var scanEpoch = -1
+
     private func rebuildOffsets() {
+        scanEpoch = -1
         let r = renderDistance + 1
         var o: [(Int, Int, Int)] = []
         for dz in -r...r { for dx in -r...r where World.inDisc(dx, dz, renderDistance, grow: 1) { o.append((dx, dz, dx * dx + dz * dz)) } }
@@ -413,6 +417,11 @@ final class World {
             }
         }
 
+        // Nothing new since the last scan (same centre, no results, no invalidated sections): the scan
+        // would schedule nothing, so skip it (it walks ~1000-2000 chunks at rd 16-24).
+        if gr.isEmpty && mr.isEmpty && center == scanCenter && MeshEpoch.value == scanEpoch { return }
+        scanCenter = center
+
         // Nearest-first scheduling: generate missing chunks, mesh chunks whose 8 neighbours exist.
         var meshed = 0
         for (dx, dz, _) in offsets {
@@ -457,6 +466,7 @@ final class World {
             }
         }
         meshedCount = meshed
+        scanEpoch = MeshEpoch.value         // after the loop: its own LOD re-mesh bumps are already scheduled
     }
 
     // Loads a chunk from disk or generates it (thread-safe).
