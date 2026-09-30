@@ -381,12 +381,18 @@ extension Mob {
             goal = V3(0.5, fy + 4, 0.5)
             speed = 0
             face(player)
-            if phaseTime > 2 && Int(phaseTime / 3) != Int((phaseTime - dt) / 3) && dist < 24 {
-                // Breath: a cloud of acid where the player stands.
-                g.clouds.append(AcidCloud(pos: V3(player.x, floor(player.y) + 0.05, player.z), radius: 3, time: 6))
+            // Reference sitting sequence: scan + roar (3.25 s), then 10 s of breath on the ground in front of the
+            // head (radius 5); four rounds, then take off. Lost interest (no player within 20 for 5 s) ends it early.
+            let cycle: Float = 13.25
+            let tIn = phaseTime.truncatingRemainder(dividingBy: cycle), tPrev = (phaseTime - dt).truncatingRemainder(dividingBy: cycle)
+            if tPrev < 3.25 && tIn >= 3.25 && dist < 20 {
+                let at = pos + forward * 6
+                let gy = Float(w.topY(Int(floor(at.x)), Int(floor(at.z))) + 1)
+                g.clouds.append(AcidCloud(pos: V3(at.x, min(gy, pos.y) + 0.05, at.z), radius: 5, time: 10))
                 g.sfx(.mobWailer, 0.8, at: pos)
             }
-            if phaseTime > Float.random(in: 12...18) { phase = 5; phaseTime = 0 }
+            breakTimer = dist < 20 ? 0 : breakTimer + dt
+            if phaseTime > cycle * 4 || breakTimer > 5 { phase = 5; phaseTime = 0; breakTimer = 0 }
         case 5:
             goal = V3(pos.x, fy + 30, pos.z)
             speed = 8

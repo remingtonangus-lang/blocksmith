@@ -107,7 +107,9 @@ final class ProjectileManager {
                     g.thrownImpact(f, at: at, mob: hitMob, player: hitPlayer, block: blockHit)
                     continue
                 }
-                if hitPlayer {
+                if f.dragon {
+                    // Wyrm fireballs only burst into a lingering breath cloud (below).
+                } else if hitPlayer {
                     g.hurtPlayer(f.big ? 6 : 5, from: f.pos, cause: f.big ? "was fireballed by Wailer" : "was fireballed by Cinderwisp", type: .projectile)
                     if !f.big { g.onFire = max(g.onFire, 5) }
                 } else if let m = hitMob {
@@ -116,7 +118,8 @@ final class ProjectileManager {
                     if !f.big && !m.spec.fireImmune { m.fire = max(m.fire, 5) }
                 }
                 if f.dragon {
-                    g.clouds.append(AcidCloud(pos: at, radius: 3, time: 8))
+                    // Reference: a breath cloud lasting 30 s that spreads from radius 3 to 7.
+                    g.clouds.append(AcidCloud(pos: at, radius: 3, time: 30, maxTime: 30))
                 } else if f.big {
                     Explosion.explode(at: at, power: 1, game: g, fire: true)
                 } else if let b = blockHit {
