@@ -18,6 +18,7 @@ Each entry lists:
 - position (displayed y) and facing
 - biome
 - the targeted block
+- a ready `./snap.sh` repro command
 - game mode, difficulty and any open screen
 - day, time and weather
 - frame time
@@ -28,12 +29,10 @@ Each entry lists:
    The file lives on his Mac, not in the repo.
 2. Take the `Status: open` entries one at a time. Read the transcript. When it's garbled, use the screenshot and the
    context lines; the `.m4a` has the exact words.
-3. Reproduce headlessly with the harness, not the GUI. Use the entry's seed and position, for example
-   `./snap.sh repro --seed <seed> --x <x> --z <z> --up 1 --yaw <yaw> --pitch <pitch> --time <day fraction>`.
-   Add `--dim emberdeep|end` when the dimension isn't the overworld.
-   - Yaw: the entry's yaw is compass degrees. The harness uses the same angle.
-   - Time: the entry gives a clock time. Day fraction = (hour − 6) / 24, wrapped into 0...1.
-   - Build: the entry says which commit he was on. `git log <commit>..` shows what has already changed since then.
+3. Reproduce headlessly with the harness, not the GUI. Each entry has a **Repro** line: a ready `./snap.sh`
+   command with the seed, x/z, yaw/pitch (harness convention), day fraction and dimension. It puts the camera on the
+   terrain at that column. Add `--up N` for aerial spots; underground spots need a manual y.
+   The entry also says which build he was on: `git log <commit>..` shows what has already changed since then.
 4. Fix it on your session branch, commit with the note's timestamp in the message ("Bug note 2026-10-01 14:03: ..."),
    and push. CI's snapshots are the check.
 5. Tell Remington which entries are fixed. He can change their `Status` to `fixed (<commit>)`.

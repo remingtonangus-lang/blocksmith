@@ -242,6 +242,9 @@ final class BugNotes {
             ("Mode", "\(g.survival ? "Survival" : "Creative"), \(Game.difficultyNames[g.difficulty])\(p.flying ? ", flying" : "")\(g.menu.map { ", screen open: \(type(of: $0))" } ?? "")"),
             ("Time / weather", "day \(Int(g.time / DAY_LENGTH) + 1), \(clock), \(weather)"),
             ("Frame time", ms > 0 ? String(format: "%.1f ms (%.0f fps)", ms, 1000 / ms) : "n/a"),
+            ("Repro", String(format: "`./snap.sh note --seed %llu --x %.1f --z %.1f --yaw %.0f --pitch %.0f --time %.3f%@`",
+                             g.world.seed, p.pos.x, p.pos.z, Double(p.yaw * 180 / .pi), Double(p.pitch * 180 / .pi), frac,
+                             g.dim.dim == .overworld ? "" : " --dim \(g.dim.dim.rawValue)")),
             ("Input", pads.connected ? "\(pads.name), last used \(pads.usingPad ? "controller" : "keyboard/mouse")" : "keyboard/mouse"),
         ]
     }
@@ -363,7 +366,7 @@ final class BugNotes {
         let entries = md.components(separatedBy: "\n## ").count - 1
         PadTest.check(bn.saved - before == 1 && entries == 1, "bug notes: one spoken note -> one entry (got \(entries))")
         PadTest.check(md.contains("**Transcript:** the zombie walked through the fence"), "bug notes: transcript in the entry")
-        for k in ["Build", "World", "Dimension", "Position", "Biome", "Looking at", "Mode", "Time / weather", "Frame time", "Screenshot", "Audio"] {
+        for k in ["Build", "World", "Dimension", "Position", "Biome", "Looking at", "Mode", "Time / weather", "Frame time", "Repro", "Screenshot", "Audio"] {
             PadTest.check(md.contains("- **\(k):**"), "bug notes: entry has \(k)")
         }
         let files = (try? fm.contentsOfDirectory(atPath: tmp.path)) ?? []
