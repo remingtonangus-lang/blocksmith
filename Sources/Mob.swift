@@ -405,7 +405,14 @@ final class Mob {
         inLove = max(0, inLove - dt)
         breedCooldown = max(0, breedCooldown - dt)
         // Young animals and villagers grow up in 20 minutes; baby monsters (zombies, boarlings) never do.
-        if baby && (!kind.hostile || kind == .hoglin) { age += dt; if age >= 1200 { baby = false; scale = 1 } }
+        if baby && (!kind.hostile || kind == .hoglin) {
+            age += dt
+            if age >= 1200 {
+                baby = false; scale = 1
+                // A baby turtle growing up sheds a scute (reference).
+                if kind == .turtle && Items.has("turtle_scute") { g.drops.spawn(ItemStack(Items.id("turtle_scute"), 1), at: pos + V3(0, 0.3, 0)) }
+            }
+        }
         if leashed { leashTick(dt, g) }
         if kind == .boat { updateBoat(dt, g); return }
         if kind == .armorStand { updateArmorStand(dt, g); return }
