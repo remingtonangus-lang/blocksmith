@@ -156,6 +156,7 @@ extension Mob {
         switch kind {
         case .stray: a.tip = Potions.item(3, "slowness") ?? 0
         case .bogged: a.tip = Potions.item(3, "poison") ?? 0
+        case .parched: a.tip = Potions.item(3, "weakness") ?? 0
         default: break
         }
         a.pickup = false

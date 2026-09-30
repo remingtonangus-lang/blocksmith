@@ -24,6 +24,7 @@ enum MobKind: Int, CaseIterable {
     case creaking
     case zombieHorse, illusioner
     case happyGhast
+    case parched, camelHusk, nautilus, zombieNautilus
 
     struct Spec {
         var name: String
@@ -128,7 +129,7 @@ enum MobKind: Int, CaseIterable {
         case .rabbit, .fox, .wolf, .cat, .ocelot, .horse, .donkey, .mule, .llama, .traderLlama, .camel, .goat, .panda, .polarBear, .turtle, .frog, .tadpole,
              .armadillo, .sniffer, .mooshroom, .bee, .parrot, .bat, .allay, .axolotl, .squid, .glowSquid, .dolphin, .cod, .salmon, .tropicalFish, .pufferfish,
              .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking,
-             .zombieHorse, .illusioner, .happyGhast:
+             .zombieHorse, .illusioner, .happyGhast, .parched, .camelHusk, .nautilus, .zombieNautilus:
             return animalSpec
         case .witherSkeleton: return Spec(name: "Blight Skeleton", halfW: 0.35, height: 2.4, health: 20, speed: 2.5, behavior: .melee, attack: 8,
                                           drops: [("coal", 0, 1), ("bone", 0, 2)], xp: 5, call: .mobSkeleton, fireImmune: true)
@@ -224,7 +225,11 @@ enum MobKind: Int, CaseIterable {
         .creaking: "creaking",
         .zombieHorse: "zombie_horse",
         .illusioner: "illusioner",
-        .happyGhast: "happy_ghast"
+        .happyGhast: "happy_ghast",
+        .parched: "parched",
+        .camelHusk: "camel_husk",
+        .nautilus: "nautilus",
+        .zombieNautilus: "zombie_nautilus"
     ]
     static func named(_ n: String) -> MobKind? { allCases.first { $0.key == n } }
     var call: Snd { spec.call }
@@ -1035,10 +1040,10 @@ private func parts(_ m: Mob) -> [Part] {
         return extraParts(m, swing: swing)
     case .rabbit, .fox, .wolf, .cat, .ocelot, .horse, .donkey, .mule, .llama, .traderLlama, .camel, .goat, .panda, .polarBear, .turtle, .frog, .tadpole,
          .armadillo, .sniffer, .mooshroom, .bee, .parrot, .bat, .allay, .axolotl, .squid, .glowSquid, .dolphin, .cod, .salmon, .tropicalFish, .pufferfish,
-         .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking, .zombieHorse, .happyGhast:
+         .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking, .zombieHorse, .happyGhast, .camelHusk, .nautilus, .zombieNautilus:
         return animalParts(m, swing: swing)
-    case .zombie, .skeleton, .enderman, .husk, .stray, .drowned, .pillager, .vindicator, .witch, .illusioner:
-        let sk = m.kind == .skeleton || m.kind == .stray, en = m.kind == .enderman
+    case .zombie, .skeleton, .enderman, .husk, .stray, .drowned, .pillager, .vindicator, .witch, .illusioner, .parched:
+        let sk = m.kind == .skeleton || m.kind == .stray || m.kind == .parched, en = m.kind == .enderman
         let illager = m.kind == .pillager || m.kind == .vindicator || m.kind == .witch
         var skin = sk ? V3(0.78, 0.78, 0.76) : (en ? V3(0.08, 0.06, 0.1) : V3(0.36, 0.55, 0.3))
         var shirt = sk || en ? skin : V3(0.15, 0.55, 0.58)
@@ -1046,6 +1051,7 @@ private func parts(_ m: Mob) -> [Part] {
         switch m.kind {
         case .husk: skin = V3(0.62, 0.55, 0.38); shirt = V3(0.55, 0.45, 0.3); pants = V3(0.42, 0.36, 0.25)
         case .stray: skin = V3(0.7, 0.76, 0.78); shirt = V3(0.45, 0.52, 0.55); pants = shirt
+        case .parched: skin = V3(0.86, 0.78, 0.6); shirt = V3(0.72, 0.6, 0.42); pants = shirt
         case .drowned: skin = V3(0.3, 0.55, 0.55); shirt = V3(0.25, 0.45, 0.4); pants = V3(0.3, 0.35, 0.45)
         case .pillager: skin = V3(0.55, 0.57, 0.58); shirt = V3(0.25, 0.25, 0.3); pants = V3(0.3, 0.3, 0.32)
         case .vindicator: skin = V3(0.55, 0.57, 0.58); shirt = V3(0.2, 0.22, 0.28); pants = V3(0.15, 0.15, 0.2)

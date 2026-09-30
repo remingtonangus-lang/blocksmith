@@ -103,6 +103,9 @@ B close, RS scroll creative.
   sunken throw tridents; tamed wolves defend the owner; cat morning gifts; sheep graze and regrow wool; foxes sleep by
   day; polar bear mothers; llama spit; pandas with personality genes; axolotls play dead; turtles/frogs lay eggs;
   mules and horse stat inheritance; reference baby odds; Cloudwailer (happy ghast) with harnesses.
+- Newest roster, approximations from memory of the reference: Sunscorched Skeleton (parched, weakness arrows, desert,
+  sun-proof), Dust Camel (camel husk carrying a dust zombie + sunscorched skeleton), Nautilus (warm oceans) and Sunken
+  Nautilus (ridden by 5% of ocean sunken). Not yet: riding/taming nautiluses, the spear, copper golem (needs copper chests).
 - `--mobtests` (MobTests.swift) checks all of the above headlessly and exits non-zero on a failure.
 
 ## Known gaps / decisions

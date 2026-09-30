@@ -31,6 +31,8 @@ extension MobKind {
         case .bat: return .ambient
         case .squid, .dolphin: return .waterCreature
         case .glowSquid: return .undergroundWater
+        case .camelHusk, .zombieNautilus: return .monster
+        case .nautilus: return .waterCreature
         case .cod, .salmon, .tropicalFish, .pufferfish: return .waterAmbient
         case .axolotl: return .axolotls
         case .villager, .ironGolem, .snowGolem, .wanderingTrader, .traderLlama, .minecart, .boat, .armorStand, .endCrystal,
@@ -52,7 +54,10 @@ enum Spawns {
         }
         var zombie: [SpawnEntry] = [(.zombie, 95, 4, 4), (.zombieVillager, 5, 1, 1)]
         var skeleton: [SpawnEntry] = [(.skeleton, 100, 4, 4)]
-        if b == .desert { zombie = [(.zombie, 19, 4, 4), (.zombieVillager, 1, 1, 1), (.husk, 80, 4, 4)] }
+        if b == .desert {
+            zombie = [(.zombie, 19, 4, 4), (.zombieVillager, 1, 1, 1), (.husk, 80, 4, 4), (.camelHusk, 1, 1, 1)]
+            skeleton = [(.skeleton, 50, 4, 4), (.parched, 50, 4, 4)]
+        }
         if b == .dripstoneCaves { zombie = [(.drowned, 95, 4, 4), (.zombieVillager, 5, 1, 1)] }
         if snowy.contains(b) { skeleton = [(.skeleton, 20, 4, 4), (.stray, 80, 4, 4)] }
         if b == .swamp || b == .mangroveSwamp { skeleton = [(.skeleton, 70, 4, 4), (.bogged, 50, 4, 4)] }
@@ -66,8 +71,8 @@ enum Spawns {
     // Water creature / ambient lists by biome.
     static func water(_ b: Biome) -> [SpawnEntry] {
         switch b {
-        case .warmOcean: return [(.squid, 10, 4, 4), (.pufferfish, 15, 1, 3), (.tropicalFish, 25, 8, 8)]
-        case .lukewarmOcean, .deepLukewarmOcean: return [(.squid, 10, 1, 2), (.dolphin, 2, 1, 2), (.cod, 15, 3, 6), (.pufferfish, 5, 1, 3), (.tropicalFish, 25, 8, 8)]
+        case .warmOcean: return [(.squid, 10, 4, 4), (.pufferfish, 15, 1, 3), (.tropicalFish, 25, 8, 8), (.nautilus, 2, 1, 1)]
+        case .lukewarmOcean, .deepLukewarmOcean: return [(.squid, 10, 1, 2), (.dolphin, 2, 1, 2), (.cod, 15, 3, 6), (.pufferfish, 5, 1, 3), (.tropicalFish, 25, 8, 8), (.nautilus, 2, 1, 1)]
         case .ocean, .deepOcean: return [(.squid, 1, 1, 4), (.dolphin, 1, 1, 2), (.cod, 10, 3, 6)]
         case .coldOcean, .deepColdOcean: return [(.squid, 3, 1, 4), (.cod, 15, 3, 6), (.salmon, 15, 1, 5)]
         case .frozenOcean, .deepFrozenOcean: return [(.squid, 1, 1, 4), (.salmon, 15, 1, 5)]
@@ -313,7 +318,7 @@ extension MobManager {
         default:
             if wet || Blocks.isLiquid(feet) { return false }
             if !darkEnough(w, x, y, z, game) { return false }
-            if (k == .husk || k == .stray) && w.topY(x, z) >= y { return false }      // need open sky
+            if (k == .husk || k == .stray || k == .parched || k == .camelHusk) && w.topY(x, z) >= y { return false }      // need open sky
             return true
         }
     }
@@ -339,6 +344,20 @@ extension MobManager {
             else { c = Mob(.chicken, at: m.pos); mobs.append(c) }
             c.persistent = true
             m.mount = c
+            m.jockey = true
+        }
+        // Dust camels carry a dust zombie and a sunscorched skeleton; 5% of ocean sunken ride a sunken nautilus.
+        if m.kind == .camelHusk {
+            for rk in [MobKind.husk, .parched] {
+                let r = Mob(rk, at: m.pos + V3(0, m.height, 0)); r.mount = m; r.jockey = true
+                r.rollEquipment(difficulty: game.difficulty, regional: game.regionalDifficulty)
+                mobs.append(r)
+            }
+        }
+        if m.kind == .drowned && Float.random(in: 0..<1) < 0.05 && w.gen.column(Int(floor(m.pos.x)), Int(floor(m.pos.z))).biome.isOcean {
+            let n = Mob(.zombieNautilus, at: m.pos)
+            mobs.append(n)
+            m.mount = n
             m.jockey = true
         }
         // Spider jockey: 1% of spiders carry a skeleton.

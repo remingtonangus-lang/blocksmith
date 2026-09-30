@@ -24,6 +24,10 @@ extension MobKind {
         case .mule: return a("Mule", 0.7, 1.6, 22, 3, drops: [("leather", 0, 2)], xp: 2, call: .mobHorse)
         case .llama, .traderLlama: return a(self == .llama ? "Llama" : "Trader Llama", 0.45, 1.87, 22, 2.5, drops: [("leather", 0, 2)], xp: 2, call: .mobLlama)
         case .camel: return a("Camel", 0.85, 2.375, 32, 2.2, xp: 2, call: .mobHorse)
+        case .camelHusk: return a("Dust Camel", 0.85, 2.375, 32, 2.2, drops: [("rotten_flesh", 0, 2)], xp: 5, call: .mobZombie)
+        case .parched: return a("Sunscorched Skeleton", 0.3, 1.99, 16, 2.5, drops: [("bone", 0, 2), ("arrow", 0, 2)], xp: 5, call: .mobSkeleton, beh: .ranged)
+        case .nautilus: return a("Nautilus", 0.45, 0.9, 15, 3, drops: [("nautilus_shell", 0, 1)], xp: 2, call: .splash, aquatic: true)
+        case .zombieNautilus: return a("Sunken Nautilus", 0.45, 0.9, 15, 3, drops: [("rotten_flesh", 0, 1)], xp: 5, call: .mobZombie, aquatic: true)
         case .goat: return a("Goat", 0.45, 1.3, 10, 2.5, xp: 2, call: .mobSheep, attack: 2)
         case .panda: return a("Panda", 0.65, 1.25, 20, 1.8, drops: [("bamboo", 0, 1)], xp: 2, call: .mobPig, attack: 6)
         case .polarBear: return a("Polar Bear", 0.7, 1.4, 30, 3, drops: [("cod", 0, 2), ("salmon", 0, 2)], xp: 2, call: .mobRavager, attack: 6)
@@ -521,8 +525,19 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
         if m.chested { p.append(box(-7, 14, 0, 2, 7, 7, V3(0.55, 0.38, 0.2))); p.append(box(5, 14, 0, 2, 7, 7, V3(0.55, 0.38, 0.2))) }
         if m.kind == .traderLlama { p.append(box(-5.2, 23, -8, 10.4, 1, 16, V3(0.2, 0.3, 0.7))) }
         return p
-    case .camel:
-        let c = V3(0.85, 0.68, 0.42)
+    case .nautilus, .zombieNautilus:
+        let shell = m.kind == .nautilus ? V3(0.92, 0.85, 0.72) : V3(0.45, 0.6, 0.5)
+        let stripe = m.kind == .nautilus ? V3(0.72, 0.36, 0.22) : V3(0.3, 0.42, 0.34)
+        var p = [box(-4, 2, -2, 8, 10, 10, shell, 4), box(-4.2, 4, 1, 8.4, 2, 6, stripe), box(-4.2, 8, 0, 8.4, 2, 7, stripe),
+                 box(-3, 3, -5, 6, 5, 3, shell * 0.9, 4)]
+        for i in 0..<6 {
+            let x = Float(i % 3) * 2 - 2, y = Float(i / 3) * 2 + 3
+            p.append(Part(mn: V3(x - 0.5, y, -9), mx: V3(x + 0.5, y + 1, -5), pivot: V3(x, y, -5),
+                          rotX: sinf(m.walkPhase * 2 + Float(i)) * 0.3, color: m.kind == .nautilus ? V3(0.85, 0.6, 0.5) : V3(0.35, 0.5, 0.4)))
+        }
+        return p
+    case .camel, .camelHusk:
+        let c = m.kind == .camelHusk ? V3(0.6, 0.55, 0.42) : V3(0.85, 0.68, 0.42)
         var p = quadruped(.zero, V3(14, 12, 26), legH: 20, head: V3(0, 34, -17), headSize: V3(6, 6, 10), c, legW: 4)
         p.append(box(-4, 32, -4, 8, 7, 10, c, 4))                          // hump
         p.append(box(-3, 24, -16, 6, 12, 5, c, 4))                          // neck
