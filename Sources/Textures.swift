@@ -349,7 +349,11 @@ enum TextureGen {
             p["destroy_\(stage)"] = { x, y in
                 let thr = Float(stage + 1) / 10
                 let c = r(x / 2, y / 2, 90) * 0.6 + r(x, y, 91) * 0.4
-                let line = abs(Float(x) - 7.5 - (Float(y) - 7.5) * (r(y / 4, 0, 92) - 0.5)) < 1 || abs(Float(y) - 7.5 + (Float(x) - 7.5) * 0.4) < 0.8
+                let fx: Float = Float(x) - 7.5, fy: Float = Float(y) - 7.5
+                let skew: Float = r(y / 4, 0, 92) - 0.5
+                let l1: Bool = abs(fx - fy * skew) < 1
+                let l2: Bool = abs(fy + fx * 0.4) < 0.8
+                let line = l1 || l2
                 if (line && c < thr * 1.4) || c < thr * 0.35 { return V4(0.05, 0.05, 0.05, 0.75) }
                 return clear
             }
