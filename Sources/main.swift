@@ -143,6 +143,8 @@ enum Snapshot {
             case "title":
                 let pm = PauseMenu(game: game); pm.page = .title; pm.build()
                 game.openMenu(pm)
+            case "credits":
+                game.credits = 14
             case "pause":
                 game.openMenu(PauseMenu(game: game))
             case "options":
@@ -697,6 +699,7 @@ enum Snapshot {
             for k in MobKind.allCases { shown.append(k.name) }
             for b in Biome.allCases { shown.append(b.displayName) }
             for a in Advancements.all { shown.append(a.title); shown.append(a.desc) }
+            shown += Game.creditsLines
             let flagged = Set(shown.filter { n in banned.contains { n.contains($0) } }).sorted()
             print("naming audit: \(shown.count) names, \(flagged.count) flagged\(flagged.isEmpty ? "" : ": " + flagged.prefix(80).joined(separator: " | "))")
             print("selftest: \(placed) blocks, \(MobKind.allCases.count) mob kinds, \(crafted)/4 special recipes, bundle fill \(Bundles.fill(bundle))/64, \(Advancements.all.count) advancements")
@@ -810,6 +813,11 @@ enum Snapshot {
         print("wrote \(out)")
         return 0
     }
+}
+
+if CommandLine.arguments.contains("--playthrough") {
+    // Scripted start-to-credits playthrough + the Blight (Playthrough.swift); exits non-zero on a failed check.
+    exit(Playthrough.run())
 }
 
 if let dir = arg("--sounds") {

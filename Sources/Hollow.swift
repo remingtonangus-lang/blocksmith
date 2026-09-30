@@ -139,11 +139,28 @@ extension Game {
         player.airPeak = spawnPoint.y
     }
 
+    // Hollow rifts. A rift on the central island throws the player out along its direction to the first outer
+    // island past 1000 blocks and builds a return rift there (bedrock below and above, like the reference game's
+    // exit gateways); a rift out there brings the player back to solid ground just inside the ring of rifts.
     func gatewayTeleport() {
-        // Out along the gateway's direction to the first outer island past 1000 blocks.
-        var dir = V2(player.pos.x, player.pos.z)
-        dir = simd_length(dir) > 1 ? simd_normalize(dir) : V2(1, 0)
         guard let g = endGen else { return }
+        var dir = V2(player.pos.x, player.pos.z)
+        let far = simd_length(dir) > 500
+        dir = simd_length(dir) > 1 ? simd_normalize(dir) : V2(1, 0)
+        if far {
+            var dest: V3?
+            for r in stride(from: 90, through: 12, by: -3) where dest == nil {
+                let x = Int((dir.x * Float(r)).rounded(.down)), z = Int((dir.y * Float(r)).rounded(.down))
+                if let top = g.surface(x, z) { dest = V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5) }
+            }
+            let d = dest ?? V3(3.5, Float(fountainY + 1), 3.5)
+            _ = world.loadSync(center: d, radius: 2)
+            player.pos = V3(d.x, Float(world.topY(Int(floor(d.x)), Int(floor(d.z))) + 1), d.z)
+            player.vel = .zero
+            player.airPeak = player.pos.y
+            sfx(.levelUp, 0.4)
+            return
+        }
         var r: Float = 1024
         var spot: V3?
         while r < 1400 && spot == nil {
@@ -155,15 +172,47 @@ extension Game {
         }
         let dest = spot ?? V3(dir.x * 1024, Float(YOFF + 70), dir.y * 1024)
         _ = world.loadSync(center: dest, radius: 2)
+        let bx = Int(floor(dest.x)), bz = Int(floor(dest.z))
         if spot == nil {
             // No island found: a small hollow stone platform.
-            for z in -1...1 { for x in -1...1 { world.setBlock(Int(dest.x) + x, Int(dest.y) - 1, Int(dest.z) + z, Blocks.id("end_stone")) } }
+            for z in -2...2 { for x in -2...2 { world.setBlock(bx + x, Int(dest.y) - 1, bz + z, Blocks.id("end_stone")) } }
         }
-        player.pos = dest
+        // Return rift two blocks toward the centre, standing on the island (step up onto its bedrock base).
+        let rx = bx - Int((dir.x * 2).rounded()), rz = bz - Int((dir.y * 2).rounded())
+        if !(max(0, Int(dest.y) - 3)...min(CH - 1, Int(dest.y) + 6)).contains(where: { Blocks.key(world.block(rx, $0, rz)) == "end_gateway" }) {
+            let base = max(Int(dest.y), world.topY(rx, rz) + 1)
+            if world.block(rx, base - 1, rz) == AIR { world.setBlock(rx, base - 1, rz, Blocks.id("end_stone")) }
+            world.setBlock(rx, base, rz, BEDROCK)
+            world.setBlock(rx, base + 1, rz, Blocks.id("end_gateway"))
+            world.setBlock(rx, base + 2, rz, BEDROCK)
+        }
+        player.pos = V3(dest.x, Float(world.topY(bx, bz) + 1), dest.z)
         player.vel = .zero
-        player.airPeak = dest.y
+        player.airPeak = player.pos.y
+        achieve("gateway")
         sfx(.levelUp, 0.4)
     }
+
+    // MARK: Wyrm egg
+
+    // Hitting (survival) or using the egg makes it hop to a random open spot up to 15 blocks away and 7 up or
+    // down, like the reference game; it's collected by pushing it or letting it fall onto a torch.
+    func teleportEgg(_ p: IVec3) -> Bool {
+        let egg = world.block(p.x, p.y, p.z)
+        guard Blocks.key(egg) == "dragon_egg" else { return false }
+        for _ in 0..<1000 {
+            let q = IVec3(p.x + Int.random(in: -15...15), p.y + Int.random(in: -7...7), p.z + Int.random(in: -15...15))
+            guard q.y > 0, q.y < CH - 1, world.isLoaded(q.x, q.z), world.block(q.x, q.y, q.z) == AIR else { continue }
+            world.setBlock(p.x, p.y, p.z, AIR)
+            world.setBlock(q.x, q.y, q.z, egg)
+            particles.explosion(at: blockCenter(p), power: 0.3)
+            sfx(.mobVoidwalker, 0.6, at: blockCenter(q))
+            return true
+        }
+        return false
+    }
+
+    private func blockCenter(_ p: IVec3) -> V3 { V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5) }
 
     // MARK: Dragon fight
 
@@ -214,8 +263,11 @@ extension Game {
     }
 
     func dragonDied(_ d: Mob) {
-        let first = !dragonKilled
+        // Only the first wyrm gives 12000 XP and the egg; every kill opens a rift, so no rifts = never killed
+        // (dragonKilled goes back to false while a respawned wyrm is alive).
+        let first = !dragonKilled && gateways == 0
         dragonKilled = true
+        achieve("kill_ender_dragon")
         addXP(first ? 12000 : 500)
         let fy = fountainY
         HollowGen.fountainBlocks(fy, active: true) { x, y, z, b in world.setBlockAsync(x, y, z, b) }
@@ -238,8 +290,8 @@ extension Game {
 extension Game {
     // Original credits text (not the reference game's poem).
     static let creditsLines: [String] = [
-        "BLOCKSMITH", "", "", "The dragon is gone. The island is quiet.", "",
-        "You came from a world of grass and water,", "dug down through stone and deepslate,",
+        "BLOCKSMITH", "", "", "The wyrm is gone. The island is quiet.", "",
+        "You came from a world of grass and water,", "dug down through stone and deeprock,",
         "walked through fire in the Emberdeep,", "followed the eyes across the land,",
         "and crossed the dark to the Hollow.", "", "Every block you placed was a choice.",
         "Every tunnel, every tower, every farm", "was a small world of your own making.", "",
@@ -316,24 +368,31 @@ extension Mob {
             goal = player + V3(0, 1, 0)
             speed = 20
             if dist < 5 {
-                g.hurtPlayer(10, from: pos, cause: "was slain by Hollow Wyrm", knockback: 2.5)
+                g.hurtPlayer(10, from: pos, cause: "was slain by Hollow Wyrm", knockback: 2.5, attacker: self)
+                attackCooldown = 1
                 phase = 0; phaseTime = 0
             }
             if phaseTime > 8 { phase = 0; phaseTime = 0 }
         case 3:
             goal = V3(0.5, fy + 4, 0.5)
             speed = 10
-            if simd_length(goal - pos) < 3 { phase = 4; phaseTime = 0; vel = .zero }
+            if simd_length(goal - pos) < 3 { phase = 4; phaseTime = 0; vel = .zero; sitDamage = 0 }
         case 4:
             goal = V3(0.5, fy + 4, 0.5)
             speed = 0
             face(player)
-            if phaseTime > 2 && Int(phaseTime / 3) != Int((phaseTime - dt) / 3) && dist < 24 {
-                // Breath: a cloud of acid where the player stands.
-                g.clouds.append(AcidCloud(pos: V3(player.x, floor(player.y) + 0.05, player.z), radius: 3, time: 6))
+            // Reference sitting sequence: scan + roar (3.25 s), then 10 s of breath on the ground in front of the
+            // head (radius 5); four rounds, then take off. Lost interest (no player within 20 for 5 s) ends it early.
+            let cycle: Float = 13.25
+            let tIn = phaseTime.truncatingRemainder(dividingBy: cycle), tPrev = (phaseTime - dt).truncatingRemainder(dividingBy: cycle)
+            if tPrev < 3.25 && tIn >= 3.25 && dist < 20 {
+                let at = pos + forward * 6
+                let gy = Float(w.topY(Int(floor(at.x)), Int(floor(at.z))) + 1)
+                g.clouds.append(AcidCloud(pos: V3(at.x, min(gy, pos.y) + 0.05, at.z), radius: 5, time: 10))
                 g.sfx(.mobWailer, 0.8, at: pos)
             }
-            if phaseTime > Float.random(in: 12...18) { phase = 5; phaseTime = 0 }
+            breakTimer = dist < 20 ? 0 : breakTimer + dt
+            if phaseTime > cycle * 4 || breakTimer > 5 { phase = 5; phaseTime = 0; breakTimer = 0 }
         case 5:
             goal = V3(pos.x, fy + 30, pos.z)
             speed = 8
@@ -374,10 +433,16 @@ extension Mob {
             } } }
         }
         walkPhase += dt * (phase == 4 ? 1 : 3)
-        // Wing buffet: knock the player away when very close.
-        if dist < 6 && phase != 6 && attackCooldown <= 0 {
-            attackCooldown = 1
-            g.hurtPlayer(5, from: pos, cause: "was slain by Hollow Wyrm", knockback: 2)
+        // Wing buffet (not while perched): knock the player away when very close. The head bites for 10 on contact.
+        let headAt = pos + forward * 5 + V3(0, 2, 0)
+        if phase != 6 && attackCooldown <= 0 && hurt <= 0 {
+            if simd_length(g.player.eye - headAt) < 2.2 {
+                attackCooldown = 1
+                g.hurtPlayer(10, from: headAt, cause: "was slain by Hollow Wyrm", knockback: 1, attacker: self)
+            } else if dist < 6 && phase != 4 {
+                attackCooldown = 1
+                g.hurtPlayer(5, from: pos, cause: "was slain by Hollow Wyrm", knockback: 2, attacker: self)
+            }
         }
     }
 

@@ -30,6 +30,11 @@ No third-party text, textures, sounds or logos: everything is procedural or writ
 ## CI (compile/test loop)
 - `.github/workflows/mac.yml` (macos-14 arm64, Xcode 16 / Swift 6.0.3): `./build.sh` + `./snap.sh` on every push;
   PNGs, WAVs and logs force-pushed to the orphan branch `ci-snaps` (README embeds them).
+- Progression test: `Blocksmith --playthrough [--seed N] [--only overworld,emberdeep,stronghold,end,blight]` runs a
+  fresh survival world through the real game loop — hand-mined logs, tool tiers, furnace, obsidian from water on lava,
+  a lit portal, fortress cinderwisps (rod rate), voidwalker pearls, the way home, seeker eyes, the stronghold gate, the
+  Hollow (crystals, wyrm fight, egg, rifts both ways, credits) and the Blight (summon, charge, armour, star, beacon).
+  PASS/FAIL/INFO per step, non-zero exit on any failure; CI runs it after the build (log in `ci-snaps/playthrough.log`).
 - Harness flags: `--find <biome>`, `--torches`, `--flood`, `--mobs`, `--menu inventory|creative|crafting|furnace`,
   `--drops`, `--survival HP`, `--debug`, `--sim SECONDS`, `--dim emberdeep|end`, `--portal`, `--hostile`, `--nethermobs`,
   `--structure <kind>` (camera at the nearest structure's anchor), `--menu brewing|enchant|anvil|trade`, `--effects`,

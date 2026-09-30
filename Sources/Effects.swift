@@ -342,6 +342,8 @@ extension Mob {
 
     // Applies an effect to a mob (undead swap instant health and damage and ignore poison/regeneration).
     func applyEffect(_ e: Effect, amp: Int, seconds: Float, game g: Game) {
+        // The wyrm (and its crystals) ignore every effect; the Blight ignores blight.
+        if kind == .enderDragon || kind == .endCrystal || (kind == .wither && e == .wither) { return }
         var e = e
         if undead && e == .instantHealth { e = .instantDamage } else if undead && e == .instantDamage { e = .instantHealth }
         switch e {
