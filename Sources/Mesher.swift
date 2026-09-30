@@ -208,6 +208,19 @@ enum Mesher {
                 for z in 0..<CS { for x in 0..<CS { heights[cx * CS + x + (cz * CS + z) * RW] = Int(h[x + z * CS]) } }
             }
         }
+        // Far (LOD 1) sections drop faces whose light is 0. Skylight can't reach the section's shell when every
+        // column in the region has its surface more than 15 blocks above it (light falls 1 per block, water
+        // included); without an emitter in the region the whole section is dark and would mesh to nothing.
+        if lod > 0 {
+            var minH = Int.max
+            for i in 0..<RL where heights[i] < minH { minH = heights[i] }
+            if minH > y0 + C0 + 16 + 15 {
+                let emitT = Blocks.emit
+                var lit = false
+                for i in 0..<(RL * RH) where emitT[Int(R[i])] > 0 { lit = true; break }
+                if !lit { return SectionMesh(opaque: [], trans: [], light: Mesher.dark, vis: ~0) }
+            }
+        }
         computeLight(R, heights, y0: y0, sc)
         let skyL = sc.sky, blkL = sc.blk
 
