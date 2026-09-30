@@ -918,7 +918,7 @@ final class Game {
         let canDrink = h.def.drink && (survival || Potions.potion(of: h.item) != nil)
         if (canEat || canDrink) && useHeld && target.map({ !isInteractive($0.hit) }) ?? true {
             eatProgress += fdt
-            if Int(eatProgress * 5) != Int((eatProgress - fdt) * 5) { sfx(.eat, 0.5) }
+            if Int(eatProgress * 5) != Int((eatProgress - fdt) * 5) { sfx(h.def.drink || hk.hasSuffix("_bottle") || hk.hasSuffix("_stew") || hk.hasSuffix("_soup") ? .drink : .eat, 0.5) }
             if eatProgress >= 1.61 {
                 if let f = h.def.food { eat(f, h.def.display) }
                 foodEffects(hk)
