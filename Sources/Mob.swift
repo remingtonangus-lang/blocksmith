@@ -838,7 +838,10 @@ final class Mob {
             return
         }
         if spec.behavior != .slime || onGround {
-            let target = forward * speed * effectSpeed
+            // Magmastriders out of lava are cold: half speed (reference).
+            let cold: Float = kind == .strider && Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.2)), Int(floor(pos.z))))] != 2
+                && Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))] != 2 ? 0.5 : 1
+            let target = forward * speed * effectSpeed * cold
             let k = 1 - expf(-(onGround ? 12 : 3) * dt)
             vel.x += (target.x - vel.x) * k
             vel.z += (target.z - vel.z) * k
