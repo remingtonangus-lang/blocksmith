@@ -271,9 +271,19 @@ final class SoundBank {
     }
 
     // Renders a list in the background (common sounds first, then everything) so play() rarely renders on the main thread.
+    private var pending = Set<Snd>()
     func prewarm(_ list: [Snd], qos: DispatchQoS.QoSClass = .utility) {
+        lock.lock()
+        let todo = list.filter { clips[$0] == nil && !pending.contains($0) }
+        for s in todo { pending.insert(s) }
+        lock.unlock()
+        guard !todo.isEmpty else { return }
         DispatchQueue.global(qos: qos).async { [weak self] in
-            for s in list { guard let self = self else { return }; if !self.has(s) { _ = self.clip(s, variant: 0) } }
+            for s in todo {
+                guard let self = self else { return }
+                _ = self.clip(s, variant: 0)
+                self.lock.lock(); self.pending.remove(s); self.lock.unlock()
+            }
         }
     }
 
