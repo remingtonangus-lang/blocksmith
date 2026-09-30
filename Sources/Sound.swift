@@ -231,7 +231,7 @@ struct Synth {
         case .mobVex: out = voice(0.4, f0: 900 * p, f1: 1300 * p, vib: 0.5, lp: 5000, gain: 0.7)
         case .mobRavager: out = Synth.mix(voice(0.9, f0: 110 * p, f1: 70 * p, vib: 0.3, lp: 700, gain: 1.4), burst(0.7, lp: 500, hp: 40, attack: 0.1, decay: 0.4, gain: 0.6))
         case .evokerCast: out = Synth.mix(modes(1.0, [(440 * p, 0.2, 0.5), (660 * p, 0.15, 0.4)]), grains(8, spread: 0.8, lp: 4000, hp: 1000, decay: 0.05, gain: 0.4))
-        case .bell: out = modes(2.5, [(880, 0.5, 1.8), (1760 * 1.19, 0.25, 1.0), (2640 * 1.01, 0.15, 0.7), (440, 0.2, 1.5)])
+        case .bell: out = modes(2.5, [(880, 0.5, 1.8), (2094.4, 0.25, 1.0), (2666.4, 0.15, 0.7), (440, 0.2, 1.5)])
         case .raidHorn: out = Synth.mix(voice(3.5, f0: 98, f1: 92, vib: 0.08, lp: 1400, gain: 1.4), voice(3.5, f0: 147, f1: 139, vib: 0.08, lp: 1400, gain: 0.8))
         case .fangs: out = Synth.mix(burst(0.25, lp: 3000 * p, hp: 300, attack: 0.005, decay: 0.08, gain: 1.2), modes(0.2, [(180 * p, 0.3, 0.08)]))
         case .note(let inst, let n):

@@ -292,6 +292,11 @@ enum Recipes {
         r.append(shaped([" # ", "#R#", " # "], ["#": "gold_ingot", "R": "redstone"], "clock"))
         r.append(shapeless(["bowl", "beetroot", "beetroot", "beetroot", "beetroot", "beetroot", "beetroot"], "beetroot_soup"))
         r.append(shaped(["P", "T"], ["P": "carved_pumpkin", "T": "torch"], "jack_o_lantern"))
+        r.append(shaped(["###", "###", "###"], ["#": "netherite_ingot"], "netherite_block"))
+        r.append(shapeless(["netherite_block"], "netherite_ingot", 9))
+        for (n, _) in BlockRegistry.colors {
+            r.append(shaped(["WWW", "PPP"], ["W": "\(n)_wool", "P": "#planks"], "\(n)_bed"))
+        }
         // Brewing and enchanting.
         r.append(shaped([" B ", "###"], ["B": "blaze_rod", "#": "#stone_tool"], "brewing_stand"))
         r.append(shaped([" B ", "D#D", "###"], ["B": "book", "D": "diamond", "#": "obsidian"], "enchanting_table"))

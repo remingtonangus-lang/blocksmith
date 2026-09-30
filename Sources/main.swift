@@ -269,6 +269,25 @@ enum Snapshot {
                 game.mobs.mobs.append(m)
             }
         }
+        if CommandLine.arguments.contains("--beacon") {
+            // A four-layer iron/gold/diamond pyramid with a powered beacon 12 blocks ahead.
+            let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
+            let c = pos + f * 12
+            let bx = Int(floor(c.x)), bz = Int(floor(c.z))
+            let gy = world.topY(bx, bz) + 1
+            let mats = ["iron_block", "gold_block", "diamond_block", "emerald_block"]
+            for l in 1...4 {
+                for dz in -l...l { for dx in -l...l { world.setBlock(bx + dx, gy + 4 - l, bz + dz, Blocks.id(mats[l - 1])) } }
+            }
+            for y in (gy + 5)..<CH { for dz in -1...1 { for dx in -1...1 where world.block(bx + dx, y, bz + dz) != AIR { world.setBlock(bx + dx, y, bz + dz, AIR) } } }
+            let bp = IVec3(bx, gy + 4, bz)
+            world.setBlock(bp.x, bp.y, bp.z, Blocks.id("beacon"))
+            let be = BlockEntity(.beacon)
+            be.mob = "speed"; be.secondary = "speed"
+            world.blockEntities[bp] = be
+            game.beaconTick()
+            print("beacon level \(be.level), player speed \(game.effects.level(.speed))")
+        }
         if let list = arg("--spawn") {
             // Mobs in a row 6 blocks in front of the camera, facing it ("kind" or "kind:profession").
             let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)), r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))

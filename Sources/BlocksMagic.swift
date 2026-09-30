@@ -69,6 +69,9 @@ extension BlockRegistry {
                 add(d)
             }
         }
+        var nb = BlockDef("netherite_block", "Block of Netherite")
+        nb.tex = ["netherite_block"]; nb.hardness = 50; nb.resistance = 1200; nb.tool = .pickaxe; nb.harvestLevel = 3; nb.requiresTool = true
+        add(nb)
         // Carved pumpkin / jack o'lantern (facing the player who placed them).
         for (n, disp, face, emit) in [("carved_pumpkin", "Carved Pumpkin", "carved_pumpkin_face", UInt8(0)), ("jack_o_lantern", "Jack o'Lantern", "jack_o_lantern_face", UInt8(15))] {
             var d = BlockDef(n, disp)
@@ -153,6 +156,10 @@ extension TextureGen {
             p[f.0 + "_side"] = side
             p[f.0 + "_top"] = f.0 == "head_player" ? { x, y in hex(0x4A3020, 0.85 + 0.2 * r(x / 2, y / 2, 820)) } : side
             p[f.0 + "_face"] = front
+        }
+        p["netherite_block"] = { x, y in
+            let edge = x == 0 || y == 0 || x == 15 || y == 15
+            return hex(edge ? 0x2E2A2E : 0x4D494D, 0.85 + 0.25 * r(x / 2, y / 2, 840))
         }
         func carved(_ lit: Bool) -> Painter {
             { x, y in

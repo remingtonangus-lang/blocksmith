@@ -85,6 +85,7 @@ final class Game {
     var fangs: [Fang] = []         // evoker fangs
     var blocking = false           // holding a raised shield
     var lastPearl: Double = -10
+    private var beaconTicks = 0
     var raid: Raid?
     var raidOmenAt: V3?
     var patrolTimer: Float = 600
@@ -875,6 +876,7 @@ final class Game {
             if key == "dispenser" || key == "dropper" { world.blockEntities[at] = BlockEntity(.dispenser) }
             if key == "hopper" { world.blockEntities[at] = BlockEntity(.hopper) }
             if key == "brewing_stand" { world.blockEntities[at] = BlockEntity(.brewing) }
+            if key == "beacon" { world.blockEntities[at] = BlockEntity(.beacon) }
             if Rails.isRail(id) { Rails.autoShape(world, at) }
             if key == "wither_skeleton_skull" { trySummonWither(at) }
             if key == "carved_pumpkin" || key == "jack_o_lantern" { trySummonGolem(at) }
@@ -904,7 +906,7 @@ final class Game {
         if (shape == "door" || shape == "trapdoor") && !k.hasPrefix("iron_") { return true }
         if shape == "gate" { return true }
         return k == "crafting_table" || k == "furnace" || k == "lit_furnace" || k == "chest" || k == "brewing_stand"
-            || k == "enchanting_table" || k.hasSuffix("anvil")
+            || k == "enchanting_table" || k.hasSuffix("anvil") || k == "beacon"
     }
 
     // Opens/closes a wooden door (both halves), trapdoor or fence gate.
@@ -941,6 +943,10 @@ final class Game {
             world.blockEntities[p] = be
             openMenu(BrewingMenu(game: self, entity: be))
         case "enchanting_table": openMenu(EnchantMenu(game: self, at: p))
+        case "beacon":
+            let be = world.blockEntities[p] ?? BlockEntity(.beacon)
+            world.blockEntities[p] = be
+            openMenu(BeaconMenu(game: self, at: p, entity: be))
         case "anvil", "chipped_anvil", "damaged_anvil": openMenu(AnvilMenu(game: self, at: p))
         default: break
         }
@@ -1397,6 +1403,8 @@ final class Game {
     // 20 Hz fixed-rate logic (furnaces...).
     private func gameTick() {
         randomTicks()
+        beaconTicks += 1
+        if beaconTicks >= 80 { beaconTicks = 0; beaconTick() }
         spawnerTick(0.05)
         world.redstone.tick()
         world.redstone.detectorCheck(mobs.mobs.filter { $0.kind == .minecart }.map { $0.pos })

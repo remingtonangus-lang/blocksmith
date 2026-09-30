@@ -354,6 +354,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.tnts.write(&wr, eye: eye, world: game.world, daylight: daylight)
                 game.writeEndEntities(&wr, eye: eye, right: right, up: -up)
                 game.writeFangs(&wr, eye: eye)
+                game.writeBeams(&wr, eye: eye)
                 game.particles.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight)
                 let nItems = wr.n
                 if let m = game.mining, game.mineProgress > 0 {
@@ -768,6 +769,29 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let ok = !a.tooExpensive && (!game.survival || game.xpLevel >= a.cost)
                     text(t, o.x + 168 * s - textWidth(t, s), o.y + 69 * s, s, ok ? V4(0.5, 1, 0.13, 1) : V4(1, 0.38, 0.38, 1))
                 }
+            }
+            if let bm = m as? BeaconMenu {
+                // Power buttons with effect icons; locked ones dimmed; the chosen ones outlined.
+                text("Primary Power", o.x + 40 * s, o.y + 8 * s, s, titleC, shadow: false)
+                text("Secondary Power", o.x + 150 * s, o.y + 8 * s, s, titleC, shadow: false)
+                for sl in bm.slots where sl.isButton {
+                    guard case .button(let i) = sl.kind else { continue }
+                    let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
+                    let ok = i == 7 ? !bm.pay[0].isEmpty && bm.primary != nil : bm.available(i)
+                    let chosen = (i < 5 && bm.primary == BeaconMenu.primaryButtons[i].0) || (i == 5 && bm.secondary == .regeneration)
+                        || (i == 6 && bm.secondary != nil && bm.secondary == bm.primary)
+                    rect(x, y, 22 * s, 22 * s, chosen ? V4(0.3, 0.8, 0.3, 1) : V4(0.2, 0.2, 0.2, 1))
+                    rect(x + s, y + s, 20 * s, 20 * s, ok ? (game.menuHover === sl ? V4(0.6, 0.6, 0.75, 1) : V4(0.45, 0.45, 0.55, 1)) : V4(0.3, 0.3, 0.3, 1))
+                    let e: Effect? = i < 5 ? BeaconMenu.primaryButtons[i].0 : (i == 5 ? .regeneration : (i == 6 ? bm.primary : nil))
+                    if let e = e {
+                        quad([V2(x + 3 * s, y + 3 * s), V2(x + 19 * s, y + 3 * s), V2(x + 19 * s, y + 19 * s), V2(x + 3 * s, y + 19 * s)],
+                             [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)], ok ? V4(1, 1, 1, 1) : V4(0.4, 0.4, 0.4, 1), Float(Tex.id("effect_" + e.key)))
+                        if i == 6 { text("II", x + 13 * s, y + 13 * s, s) }
+                    } else {
+                        text("OK", x + 5 * s, y + 7 * s, s, ok ? V4(0.5, 1, 0.13, 1) : V4(0.5, 0.5, 0.5, 1))
+                    }
+                }
+                text("Layers: \(bm.be.level)", o.x + 12 * s, o.y + 112 * s, s, titleC, shadow: false)
             }
             if let mm = m as? MerchantMenu {
                 // Offer list: cost (and second cost) -> result; used-up offers are crossed out.
