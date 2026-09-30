@@ -253,6 +253,18 @@ extension Mob {
             return 0
         case .happyGhast:
             return cloudwailerAI(dt, g)
+        case .llama where !leashed && g.riding !== self:
+            // Caravans (reference): a llama joins the tail of a led llama's line within 8 blocks, up to 10 long.
+            if let t = target, t.health > 0, t.kind == .llama {
+                if simd_length(t.pos - pos) > 2.5 { face(t.pos); moving = true; return spec.speed }
+                return 0
+            }
+            target = nil
+            if aiTimer <= 0, let head = g.mobs.of(.llama).first(where: { $0.leashed && simd_length($0.pos - pos) < 8 }) {
+                var tail = head, n = 1
+                while n < 10, let next = g.mobs.of(.llama).first(where: { $0.target === tail }) { tail = next; n += 1 }
+                if n < 10 && tail !== self { target = tail }
+            }
         case .traderLlama:
             // Follows its wandering trader and leaves with it.
             if let t = target {
