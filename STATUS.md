@@ -65,21 +65,24 @@ compares with `perf/baseline.json` (table in the ci-snaps README) and fails CI o
 Numbers are from the CI runner (Apple Paravirtual GPU, 3 cores → 2 workers), so absolute values are pessimistic
 next to an M1 Air (8 cores → 6 workers, real GPU); compare runs with each other.
 
-| metric (CI) | baseline 37e7b89 | now |
+| metric (CI) | baseline 37e7b89 | abcfc58 |
 |---|---|---|
-| gen, single thread | 1.94 ms/chunk | |
-| mesh, single thread | 9.92 ms/chunk (413 µs/section) | |
-| startup: fill rd 12 | 33.8 s | |
-| flight16 frame p50 / p95 / p99 | 4.6 / 7.5 / 11.8 ms | |
-| flight16 coverage min / mean | 77% / 91% | |
-| flight16 gen / mesh throughput | 19 chunks/s, 1611 sections/s | |
-| flight24 frame p50 / p95 | 8.7 / 12.4 ms (encode p95 5.4, GPU p95 12.3) | |
-| flight24 chunks / chunk data / resident peak | 2186 / 622 MB / 771 MB | |
-| flight16 chunks / chunk data / resident peak | 959 / 273 MB / 238 MB | |
-| frame rd 16 GPU p50 800p / 1080p / 4K | 2.9 / 3.3 / 4.4 ms | |
-| save | 2.9 ms/chunk on the main thread, every loaded-from-disk chunk rewritten each autosave | |
-| edit (sync remesh) | 1.1 ms per break | |
-| mobs | 0.94 ms tick with 150 mobs (+3 µs/mob) | |
+| gen, single thread | 1.94 ms/chunk | 1.74 ms/chunk |
+| mesh, single thread (full / far LOD) | 9.9 / 9.8 ms/chunk | 2.3 / 1.9 ms/chunk |
+| startup: first load r 4 / fill rd 12 | 304 ms / 33.8 s | 116 ms / 8.7 s |
+| flight16 frame p50 / p95 / p99 / max | 4.6 / 7.5 / 11.8 / 25.2 ms | 4.5 / 6.1 / 6.9 / 9.4 ms |
+| flight24 frame p50 / p95 / p99 / max | 8.7 / 12.4 / 16.7 / 28.0 ms | 7.0 / 9.0 / 9.9 / 16.4 ms |
+| flight16 / flight24 coverage min | 77% / 86% | 96% / 97% |
+| flight16 / flight24 gen throughput | 19 / 25 chunks/s | 44 / 64 chunks/s |
+| flight24 preload (rd 24 from scratch) | 8.4 s | 2.7 s |
+| flight24 chunk block+light data | 622 MB | 222 MB |
+| frame rd 16 GPU p50 800p / 1080p / 4K | 2.9 / 3.3 / 4.4 ms | 1.9 / 2.2 / 3.1 ms |
+| edit (sync remesh) | 1.09 ms per break | 0.46 ms |
+| game tick: empty / 150 mobs | 0.46 / 0.94 ms | 0.03 / 0.28 ms |
+| save | 2.9 ms/chunk on the main thread; every chunk ever loaded from disk rewritten each autosave | background queue; unchanged chunks skipped |
+
+Resident-memory peaks in that run were inflated because every scene ran in one process (pools and earlier
+worlds carried over); flights now run in their own processes.
 
 Findings / changes (performance branch):
 - Streaming throughput was capped by scheduling, not CPU: only `maxJobs` jobs were handed out per frame, so ~120
@@ -92,8 +95,15 @@ Findings / changes (performance branch):
 - GPU buffer pool: freed mesh slices wait 0.25 s before reuse (in-flight frames could read overwritten meshes); tint
   tables come from one shared slab instead of one MTLBuffer each; chunk draws are one draw call per section
   (per-section records read by instance id, base vertex, slab rebound only on change).
-- Mesher: no per-face array allocations in hot loops; skylight flood skipped when the section's shell is all above the
-  heightmap. Renderer: cave-culling walk uses a per-frame chunk grid instead of dictionary lookups.
+- Mesher: per-thread scratch buffers through pointers (the profile showed ~40% of meshing in copy-on-write checks and
+  page zeroing of per-section 110K-cell arrays); skylight flood skipped when the shell is all above the heightmap;
+  provably dark far (LOD 1) sections skip light/faces entirely. Renderer: cave-culling walk uses a per-frame chunk grid.
+- Random ticks drew 3 system-CSPRNG numbers per section per frame (top main-thread cost): now one xorshift draw.
+- World.update skips its scheduling scan when nothing changed; LOD boundary has one chunk of hysteresis.
+- Worldgen stone fill interpolates the density lattice per column (bit-identical; `--bench` self-checks it).
+- Dynamic resolution above 1440p (4K TV): the drawable scales 60-100% with GPU frame time (`dynamicResolution` default).
+- Harness: draw calls / drawn quads / visible sections, terrain hash (flags terrain changes), renderer init twice
+  (first launch compiles shaders ~0.5 s; the second takes ~15 ms thanks to Metal's cache).
 
 ## Couch / TV mode
 - In-game pause + options screens (Metal-drawn) drive fully with a controller: FOV, sensitivity, invert Y, stick dead
