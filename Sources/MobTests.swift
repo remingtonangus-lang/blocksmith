@@ -576,6 +576,14 @@ enum MobTests {
         mm.mobs.removeAll()
         game.player.pos = pos
 
+        // Loot pickup: a zombie that can pick up gear puts on a helmet lying at its feet and stays.
+        let looter = Mob(.zombie, at: a.p(-6, 0, 6)); looter.canPickUp = true
+        game.drops.items.removeAll()
+        game.drops.spawn(ItemStack(Items.id("iron_helmet"), 1), at: looter.pos + V3(0, 0.2, 0), delay: 0)
+        looter.pickUpLoot(game)
+        check(Items.key(looter.equip?[0].item ?? 0) == "iron_helmet" && looter.persistent, "zombie picks up a helmet")
+        game.drops.items.removeAll()
+
         // Foxes sleep by day when nobody is near.
         let fox = Mob(.fox, at: a.p(6, 0, -6)); fox.onGround = true
         _ = fox.animalAI(0.05, game, dist: 50, canTarget: false, inWater: false)
