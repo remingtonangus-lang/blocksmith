@@ -178,7 +178,7 @@ fragment float4 skyFS(SkyOut in [[stage_in]], constant SkyParams& s [[buffer(1)]
     float3 d = normalize(w.xyz / w.w);
     float h = pow(saturate(d.y), 0.6);
     float3 col = mix(s.horizon.rgb, s.zenith.rgb, h);
-    if (d.y < 0.0) { col = mix(s.horizon.rgb, s.horizon.rgb * 0.75, saturate(-d.y * 2.5)); }
+    if (d.y < 0.0) { col = s.horizon.rgb; }   // below the horizon: exactly the fog colour, so far terrain blends in
     float sd = saturate(dot(d, s.sun.xyz));
     float band = 1.0 - saturate(abs(d.y) * 3.0);                 // the glow hugs the horizon
     float3 warm = float3(1.0, 0.55, 0.25);

@@ -759,18 +759,41 @@ enum TextureGen {
             if d > 7 || r(x / 2, y / 2, 160) < 0.25 { return clear }
             return V4(0.8, 0.8, 0.8, 1)
         }
-        // Block-breaking cracks: progressively more dark crack pixels.
+        // Block-breaking cracks: one-pixel crack lines that branch out from the centre, each stage
+        // reaching further (a stage's cracks are a superset of the previous stage's).
+        var crackDist = [Int](repeating: 99, count: 256)   // stage at which each pixel cracks
+        do {
+            var rng = SRng(0xC4AC)
+            // Six main cracks from near the centre, each forking once or twice.
+            var walkers: [(Float, Float, Float, Int)] = []   // x, y, angle, start step
+            for k in 0..<6 {
+                let a = Float(k) / 6 * 2 * .pi + rng.float() * 0.6
+                walkers.append((7.5 + rng.float() - 0.5, 7.5 + rng.float() - 0.5, a, 0))
+            }
+            var w = 0
+            while w < walkers.count {
+                var (x, y, a, step) = walkers[w]
+                for _ in 0..<14 {
+                    let ix = Int(x.rounded(.down)), iy = Int(y.rounded(.down))
+                    if ix < 0 || iy < 0 || ix > 15 || iy > 15 { break }
+                    let st = min(9, step * 10 / 12)
+                    if st < crackDist[ix + iy * 16] { crackDist[ix + iy * 16] = st }
+                    a += (rng.float() - 0.5) * 0.9
+                    x += cosf(a); y += sinf(a)
+                    step += 1
+                    if walkers.count < 18 && rng.float() < 0.12 { walkers.append((x, y, a + (rng.float() < 0.5 ? 0.9 : -0.9), step)) }
+                }
+                w += 1
+            }
+        }
+        let crackMap = crackDist
         for stage in 0..<10 {
             p["destroy_\(stage)"] = { x, y in
-                let thr = Float(stage + 1) / 10
-                let c = r(x / 2, y / 2, 90) * 0.6 + r(x, y, 91) * 0.4
-                let fx: Float = Float(x) - 7.5, fy: Float = Float(y) - 7.5
-                let skew: Float = r(y / 4, 0, 92) - 0.5
-                let l1: Bool = abs(fx - fy * skew) < 1
-                let l2: Bool = abs(fy + fx * 0.4) < 0.8
-                let line = l1 || l2
-                if (line && c < thr * 1.4) || c < thr * 0.35 { return V4(0.05, 0.05, 0.05, 0.75) }
-                return clear
+                let d = crackMap[x + y * 16]
+                if d > stage { return clear }
+                // Fresh crack ends are fainter; older parts darker.
+                let age = Float(stage - d)
+                return V4(0.08, 0.07, 0.06, min(0.8, 0.45 + age * 0.08))
             }
         }
         // Blob shadow under entities: a soft disc (alpha falls off toward the edge).
@@ -784,8 +807,8 @@ enum TextureGen {
         p["sun"] = { x, y in
             let dx = Float(x) - 7.5, dy = Float(y) - 7.5
             let d = max(abs(dx), abs(dy)) / 7.5
-            let k = 1 - 0.18 * d * d
-            return V4(1, 0.97 * k, 0.78 * k * k, 1)
+            let k = 1 - 0.08 * d * d
+            return V4(1, 0.98 * k, 0.86 * k, 1)
         }
         for phase in 0..<8 {
             p["moon_\(phase)"] = { x, y in

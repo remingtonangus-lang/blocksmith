@@ -215,8 +215,8 @@ extension Game {
             for pass in 0..<2 {
                 var rng = SRng(b.seed)
                 var p = b.pos + V3(0, 90, 0)
-                let right = simd_normalize(V3(cosf(player.yaw), 0, -sinf(player.yaw))) * (pass == 0 ? 0.9 : 0.16)
-                let col = pass == 0 ? V4(0.6, 0.65, 1.0, 0.35 * fade) : V4(2.2, 2.2, 2.6, fade)
+                let right = simd_normalize(V3(cosf(player.yaw), 0, -sinf(player.yaw))) * (pass == 0 ? 0.55 : 0.16)
+                let col = pass == 0 ? V4(0.65, 0.7, 1.0, 0.22 * fade) : V4(2.2, 2.2, 2.6, fade)
                 while p.y > b.pos.y {
                     var q = p - V3(0, Float(rng.range(3, 7)), 0)
                     q.x += rng.float() * 3 - 1.5; q.z += rng.float() * 3 - 1.5
