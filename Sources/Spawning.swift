@@ -254,6 +254,8 @@ extension MobManager {
         guard w.isLoaded(x0, z0) else { return }
         let top = w.topY(x0, z0)
         guard top > 2 else { return }
+        // Structure spawns (reference overrides): marauders at watchtowers in any light, spikefish around sea temples.
+        if let sc = w.gen.structures, trySpawnInStructure(sc, game, x0, z0, top) { return }
         guard let y = floorBelow(w, x0, Int.random(in: 2...(top + 1)), z0, minY: 1) else { return }
         if w.block(x0, y - 1, z0) == BEDROCK { return }
         var spawned = 0
@@ -286,6 +288,33 @@ extension MobManager {
             if count(.monster, near: pp) >= SpawnCategory.monster.cap { return }
         }
         _ = spawned
+    }
+
+    func trySpawnInStructure(_ sc: StructureCache, _ game: Game, _ x: Int, _ z: Int, _ top: Int) -> Bool {
+        let w = game.world
+        let pp = game.player.pos
+        if sc.structure(at: x, top, z, kind: "pillager_outpost") != nil {
+            guard let y = floorBelow(w, x, top + 1, z, minY: top - 24), !Blocks.isLiquid(w.block(x, y, z)) else { return true }
+            let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
+            if simd_length(at - pp) < 24 || mobs.filter({ $0.kind == .pillager && simd_length($0.pos - at) < 48 }).count >= 6 { return true }
+            let m = Mob(.pillager, at: at)
+            if m.collides(at, w) { return true }
+            m.applyRaidBuffs(wave: 0, level: 0)
+            mobs.append(m)
+            return true
+        }
+        let y = Int.random(in: max(1, SEA - 50)...SEA)
+        if Blocks.fluidKind[Int(w.block(x, y, z))] == 1, sc.structure(at: x, y, z, kind: "monument") != nil {
+            let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
+            guard simd_length(at - pp) >= 24, Int.random(in: 0..<20) == 0 || w.lightAt(x, y, z).sky == 0,
+                  mobs.filter({ $0.kind == .guardian && simd_length($0.pos - at) < 64 }).count < 12 else { return true }
+            for _ in 0..<Int.random(in: 2...4) {
+                let q = at + V3(Float.random(in: -2...2), Float.random(in: -1...1), Float.random(in: -2...2))
+                if Blocks.fluidKind[Int(w.block(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))))] == 1 { mobs.append(Mob(.guardian, at: q)) }
+            }
+            return true
+        }
+        return false
     }
 
     private func slimeSize(_ game: Game) -> Int {
