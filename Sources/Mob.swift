@@ -722,8 +722,11 @@ final class Mob {
             if armorHP <= 0 { armorTier = 0 }
         }
         if kind == .horse && armorTier > 0 {
-            let pts = Float([0, 3, 5, 7, 11][min(4, armorTier)])
-            damage = Int((Float(damage) * (1 - min(20, max(pts / 5, pts - Float(damage) / 2)) / 25)).rounded())
+            let table: [Float] = [0, 3, 5, 7, 11]
+            let pts: Float = table[min(4, armorTier)]
+            let d: Float = Float(damage)
+            let cut: Float = min(20, max(pts / 5, pts - d / 2)) / 25
+            damage = Int((d * (1 - cut)).rounded())
         }
         health -= kind == .shulker && peek < 0.2 ? damage / 5 : damage
         hurt = 0.4
