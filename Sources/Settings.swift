@@ -28,6 +28,7 @@ final class Settings {
     @Pref("padSouthpaw") var southpaw = false        // swap sticks (look left, move right)
     @Pref("padSneakToggle") var sneakToggle = false  // B / RS click toggles sneaking instead of holding
     @Pref("padAutoSprint") var autoSprint = true     // stick fully forward for a moment starts sprinting
+    @Pref("padLookCurve") var lookCurve = 0          // right stick response: 0 classic, 1 linear, 2 precise
 
     // Video
     @Pref("launchFullscreen") var launchFullscreen = true
@@ -51,7 +52,7 @@ final class Settings {
 
     // Options > Interface > Reset Options: everything back to the defaults (key bindings included).
     func resetAll(_ g: Game) {
-        lookX = 1; lookY = 1; lookAccel = 0.5; aimAssist = true; rumble = 0.7; southpaw = false; sneakToggle = false; autoSprint = true
+        lookX = 1; lookY = 1; lookAccel = 0.5; aimAssist = true; rumble = 0.7; southpaw = false; sneakToggle = false; autoSprint = true; lookCurve = 0
         launchFullscreen = true; vsync = true; fpsCap = 0; renderScale = 1
         safeArea = 0; buttonHints = true; glyphStyle = 0; textBackground = 0; crosshair = 0
         subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true

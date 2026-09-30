@@ -161,7 +161,16 @@ final class PadLook {
     // Returns (yaw delta, pitch delta) in radians for this frame.
     func update(rx: Float, ry: Float, dead: Float, sensitivity: Float, invert: Bool, friction: Float, dt: Float) -> V2 {
         let st = Settings.shared
-        let v = stick(rx, ry, dead: dead)
+        var v = stick(rx, ry, dead: dead)
+        if st.lookCurve != 0 {
+            // Linear: straight response past the dead zone. Precise: cubic, for fine aim near the centre.
+            let raw = V2(rx, ry), m0 = simd_length(raw)
+            if m0 < dead { v = .zero } else {
+                let n = min(1, (m0 - dead) / (1 - dead))
+                let k: Float = st.lookCurve == 1 ? n : n * n * n
+                v = raw / m0 * k
+            }
+        }
         let m = simd_length(v)
         if m > 0.92 { edgeTime += dt } else { edgeTime = max(0, edgeTime - dt * 4) }
         let ramp = min(1, max(0, (edgeTime - 0.25) / 0.6))

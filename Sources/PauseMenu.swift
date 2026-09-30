@@ -44,7 +44,7 @@ final class PauseMenu: Menu {
     static let valueIDs: Set<String> = ["sens", "invert", "autojump", "fov", "lookx", "looky", "accel", "dead", "aim", "rumble", "southpaw",
                                         "sneaktoggle", "autosprint", "glyphs", "rd", "fullscreen", "launchfs", "vsync", "fps", "rscale",
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
-                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes"]
+                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve"]
 
     static let help: [String: String] = [
         "resume": "Return to the game.",
@@ -54,6 +54,7 @@ final class PauseMenu: Menu {
         "lookx": "How fast the right stick turns left and right.",
         "looky": "How fast the right stick looks up and down.",
         "accel": "Turns faster the longer the right stick is held at its edge.",
+        "curve": "Classic eases in gently, Linear follows the stick exactly, Precise is slow near the centre.",
         "dead": "Stick movement ignored around the centre. Raise it if the view drifts.",
         "aim": "Controller only: the view slows over hostile mobs and while mining.",
         "rumble": "Controller vibration when you are hit, mine, attack or something explodes.",
@@ -136,6 +137,7 @@ final class PauseMenu: Menu {
                 rows = [("\(info)", "padinfo"),
                         ("Look Speed X: \(pct(st.lookX))", "lookx"), ("Look Speed Y: \(pct(st.lookY))", "looky"),
                         ("Look Acceleration: \(st.lookAccel == 0 ? "Off" : pct(st.lookAccel))", "accel"),
+                        ("Look Response: \(["Classic", "Linear", "Precise"][max(0, min(2, st.lookCurve))])", "curve"),
                         ("Invert Y: \(on(g.invertY))", "invert"), ("Stick Dead Zone: \(pct(g.deadZone))", "dead"),
                         ("Aim Assist: \(on(st.aimAssist))", "aim"), ("Vibration: \(st.rumble == 0 ? "Off" : pct(st.rumble))", "rumble"),
                         ("Stick Layout: \(st.southpaw ? "Southpaw" : "Standard")", "southpaw"),
@@ -387,6 +389,7 @@ final class PauseMenu: Menu {
         case "looky": st.lookY = step([0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3], st.lookY)
         case "accel": st.lookAccel = step([0, 0.25, 0.5, 0.75, 1], st.lookAccel)
         case "aim": st.aimAssist.toggle()
+        case "curve": st.lookCurve = step([0, 1, 2], st.lookCurve)
         case "rumble": st.rumble = step([0, 0.35, 0.7, 1], st.rumble); PadManager.shared.rumble(0.8, 0.15)
         case "padinfo": PadManager.shared.rumble(1, 0.3)
         case "southpaw": st.southpaw.toggle()
