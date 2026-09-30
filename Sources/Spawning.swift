@@ -145,6 +145,7 @@ extension MobManager {
         let c = m.kind.category
         guard c.despawns, !m.persistent, m.customName == nil, !m.leashed, !m.raider, m.mount == nil, game.riding !== m else { return false }
         if d > c.farDistance { return true }
+        if m.patrolling { return false }                  // patrols only vanish beyond 128 blocks (reference)
         if d > 32 {
             m.farTime += dt
             return m.farTime > 30 && Float.random(in: 0..<1) < dt * 20 / 800
