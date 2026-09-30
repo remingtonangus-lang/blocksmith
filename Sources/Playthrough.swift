@@ -43,8 +43,8 @@ final class Playthrough {
             simSeconds += 0.05
             if keepAlive {
                 if game.health < before { damageTaken += before - game.health }
-                if !game.alive { damageTaken += 20; revive() }
-                game.health = max(game.health, 14)
+                handleDeath()
+                game.health = max(game.health, 20)
                 game.hunger = 20
                 game.saturation = 5
                 game.air = 15
@@ -56,10 +56,18 @@ final class Playthrough {
         return done == nil
     }
 
-    func revive() {
-        game.closeMenu()
+    // The death screen: log what killed the player, get up where they fell and pick their things back up.
+    var deaths = 0
+    func handleDeath() {
+        guard let dm = game.menu as? DeathMenu else { return }
+        deaths += 1
+        let at = game.player.pos
+        info(String(format: "died (%@) at %.0f %.0f %.0f in %@", dm.message, at.x, at.y - Float(YOFF), at.z, game.dim.dim.rawValue))
+        game.menu = nil
         game.alive = true
         game.health = 20
+        damageTaken += 20
+        collect(near: at, 16)
     }
 
     // MARK: Inventory
@@ -146,7 +154,7 @@ final class Playthrough {
         let n = pick ?? p + IVec3(1, 0, 0)
         for q in [n, n + IVec3(0, -1, 0)] where !clear(q) { world.setBlock(q.x, q.y, q.z, AIR) }
         game.player.flying = true
-        let feet = V3(Float(n.x) + 0.5, Float(n.y) - 1.05, Float(n.z) + 0.5)
+        let feet = V3(Float(n.x) + 0.5, Float(n.y) - 0.99, Float(n.z) + 0.5)
         game.player.pos = feet
         game.player.vel = .zero
         clearMobs(near: feet, 5)
@@ -172,7 +180,8 @@ final class Playthrough {
             game.tick(0.05)
             simSeconds += 0.05
             game.player.pos = feet; game.player.vel = .zero
-            game.health = max(game.health, 14)
+            game.health = max(game.health, 20)
+            handleDeath()
             if world.block(p.x, p.y, p.z) != b0 { ok = true; break }
         }
         inp.leftDown = false
@@ -245,8 +254,8 @@ final class Playthrough {
         for _ in 0..<13 {
             game.tick(0.05); simSeconds += 0.05
             game.player.pos = feet ?? chaseSpot(m, offset); game.player.vel = .zero
-            game.health = max(game.health, 14)
-            if !game.alive { damageTaken += 20; revive() }
+            game.health = max(game.health, 20)
+            handleDeath()
         }
         aim(at: m.pos + V3(0, min(m.height * 0.5, 1.5), 0))
         inp.leftClicked = true
@@ -289,6 +298,7 @@ final class Playthrough {
         if want("blight") { t.blight() }
         t.advancementsCheck(only.isEmpty)
         t.section("summary")
+        t.info("deaths: \(t.deaths), damage healed by the test: \(t.damageTaken) half-hearts")
         print(String(format: "playthrough: %ld failed checks, %.0f s of game time in %.1f s wall", t.fails.count, t.simSeconds, CFAbsoluteTimeGetCurrent() - t.t0))
         for f in t.fails { print("  failed: \(f)") }
         return t.fails.isEmpty ? 0 : 1
@@ -353,7 +363,7 @@ final class Playthrough {
         if let r = Recipes.match([id(logKey), 0, 0, 0, 0, 0, 0, 0, 0], 3, 3) { planks = Items.key(r.result.item) }
         craft(["L"], ["L": logKey], planks, times: 6)
         check(count(planks) >= 24, "craft: \(count(planks)) \(planks)")
-        craft(["P", "P"], ["P": planks], "stick", times: 3)
+        craft(["P", "P"], ["P": planks], "stick", times: 5)
         craft(["PP", "PP"], ["P": planks], "crafting_table")
         craft(["PPP", " S ", " S "], ["P": planks, "S": "stick"], "wooden_pickaxe")
         check(count("wooden_pickaxe") == 1 && count("crafting_table") == 1, "craft: crafting table + wooden pickaxe")

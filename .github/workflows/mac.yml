@@ -63,6 +63,7 @@ jobs:
 
       - name: Publish to ci-snaps
         if: always()
+        continue-on-error: true     # parallel branches race for the shared ci-snaps ref
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
@@ -110,7 +111,7 @@ jobs:
         if: always()
         run: |
           echo "== build errors"; grep -E "error:" build.log | head -20 || true
-          echo "== playthrough"; grep -E "^(FAIL|playthrough)|Fatal|fatal error" playthrough.log | head -40 || true
+          echo "== playthrough"; grep -E "^(PASS|FAIL|INFO|----|playthrough)|Fatal|fatal error" playthrough.log | cut -c1-220 | tail -n 170 || true
           echo "== snapshots"; grep -E "Fatal|fatal error|Abort|Segmentation" snap.log | head -10 || true
 
       - name: Upload artifact

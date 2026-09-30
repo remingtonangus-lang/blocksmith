@@ -1646,11 +1646,13 @@ final class Game {
         xpLevel = 0; xpPoints = 0
         if menu != nil { closeMenu() }
         riding = nil
+        alive = false        // no pickups, no targeting until respawn (the dropped items stay where they fell)
         openMenu(DeathMenu(game: self, message: "Player \(cause)"))
     }
 
     // Respawn (from the death screen): anchor, bed/world spawn.
     func respawn() {
+        alive = true
         if let a = anchorSpawn {
             // Respawn at a charged anchor in the Emberdeep (uses a charge).
             let nether = dimensionState(.nether).world
