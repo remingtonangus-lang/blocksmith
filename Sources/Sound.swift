@@ -134,12 +134,12 @@ enum Snd: Hashable {
     // Expected clip length (seconds) for the offline check.
     var expectedSeconds: ClosedRange<Float> {
         switch self {
-        case .step, .hit: return 0.05...0.7
+        case .step, .hit: return 0.02...0.7
         case .breakBlock, .place, .fall: return 0.08...1.3
         case .click, .uiHover, .uiBack, .lever, .buttonWood, .buttonStone, .plateOn, .plateOff, .tripwire, .railClick: return 0.02...0.5
-        case .mob(_, .death), .playerDeath, .dragonDeath, .witherDeath: return 0.3...8
-        case .mob(_, .hurt): return 0.1...2.5
-        case .mob(_, .ambient): return 0.1...5
+        case .mob(_, .death), .playerDeath, .dragonDeath, .witherDeath: return 0.15...8
+        case .mob(_, .hurt): return 0.04...2.5
+        case .mob(_, .ambient): return 0.05...5
         case .witherSpawn, .wardenEmerge, .wardenSonicCharge, .raidHorn, .goatHorn, .endPortalOpen, .beaconActivate, .thunder, .explode, .bellResonate, .caveAmbience,
              .netherMood, .underwaterMood, .caveWind, .totem, .elderCurse, .tntFuse, .fireworkTwinkle, .enchant, .villagerCelebrate, .levelUp, .fireworkBlastLarge, .lightning:
             return 0.5...12
