@@ -83,6 +83,14 @@ enum MobVoice {
         case .enderDragon: return Profile(family: .roar, f0: 75, size: 2.5)
         case .wither: return Profile(family: .groan, f0: 140, size: 2)
         case .creaking: return Profile(family: .creak, f0: 220, size: 1.3)
+        // Mobs from the mob workstream (PR #2).
+        case .zombieHorse: return Profile(family: .groan, f0: 130, size: 1.6)
+        case .illusioner: return Profile(family: .hum, f0: 200, size: 1.1)
+        case .happyGhast: return Profile(family: .wail, f0: 680, size: 2)
+        case .parched: return Profile(family: .rattle, f0: 2800, size: 1)
+        case .camelHusk: return Profile(family: .snort, f0: 105, size: 1.5)
+        case .nautilus: return Profile(family: .bubble, f0: 360, size: 1)
+        case .zombieNautilus: return Profile(family: .bubble, f0: 250, size: 1.1)
         case .minecart, .boat, .armorStand, .endCrystal: return Profile(family: .silent, f0: 0, size: 1)
         }
     }
