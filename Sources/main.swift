@@ -508,6 +508,39 @@ enum Snapshot {
             for m in game.mobs.mobs where m.kind == .villager { jobs[m.villager?.profession ?? "?", default: 0] += 1 }
             print("after \(secs) s: \(game.mobs.mobs.count) mobs, villagers \(jobs.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))")
         }
+        if CommandLine.arguments.contains("--selftest") {
+            // Crash smoke test: every mob kind, every block, the special crafting paths, bundles, and 3 s of ticks.
+            game.paused = false
+            game.survival = true
+            let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
+            for (i, k) in MobKind.allCases.enumerated() where k != .enderDragon && k != .wither {
+                let p = pos + f * 12 + V3(Float(i % 10) * 2 - 10, 0, Float(i / 10) * 2)
+                let x = Int(floor(p.x)), z = Int(floor(p.z))
+                game.mobs.mobs.append(Mob(k, at: V3(Float(x) + 0.5, Float(world.topY(x, z) + 1), Float(z) + 0.5)))
+            }
+            var placed = 0
+            let by = Int(pos.y) + 40
+            for b in 1..<Blocks.count where Int(Blocks.groupBase[b]) == b {
+                let x = Int(pos.x) - 30 + (placed % 60), z = Int(pos.z) + 30 + (placed / 60) * 2
+                world.setBlockAsync(x, by, z, BlockID(b))
+                placed += 1
+            }
+            func st(_ n: String, _ c: Int = 1) -> ItemStack { Items.has(n) ? ItemStack(Items.id(n), c) : .empty }
+            let grids: [[ItemStack]] = [
+                [st("gunpowder"), st("red_dye"), st("fire_charge"), st("diamond"), .empty, .empty, .empty, .empty, .empty],
+                [st("paper"), st("gunpowder"), st("gunpowder"), .empty, .empty, .empty, .empty, .empty, .empty],
+                [st("leather_chestplate"), st("blue_dye"), st("yellow_dye"), .empty, .empty, .empty, .empty, .empty, .empty],
+                [st("filled_map"), st("map"), .empty, .empty, .empty, .empty, .empty, .empty, .empty],
+            ]
+            var crafted = 0
+            for g in grids where Fireworks.craft(g) != nil { crafted += 1 }
+            var bundle = st("bundle")
+            (bundle, _) = Bundles.insert(bundle, st("cobblestone", 32))
+            (bundle, _) = Bundles.insert(bundle, st("iron_sword"))
+            print("selftest: \(placed) blocks, \(MobKind.allCases.count) mob kinds, \(crafted)/4 special recipes, bundle fill \(Bundles.fill(bundle))/64, \(Advancements.all.count) advancements")
+            for _ in 0..<180 { game.tick(1.0 / 60) }
+            print("selftest ok: \(game.mobs.mobs.count) mobs after 3 s")
+        }
         if let simSeconds = Double(arg("--sim") ?? "") {
             // Gameplay smoke test: scripted input through the real Game.tick (survival, walking, jumping,
             // breaking/placing, inventory, flowing water, mobs), timing the main-thread tick.
