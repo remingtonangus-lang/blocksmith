@@ -1288,7 +1288,8 @@ final class MobManager {
     ]
 
     func update(_ dt: Float, game: Game) {
-        PathFinder.budget = 6
+        PathFinder.budget = 4
+        PathFinder.spent = 0
         let w = game.world
         let p = game.player.pos
         for m in mobs {

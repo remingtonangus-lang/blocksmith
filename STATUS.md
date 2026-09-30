@@ -60,6 +60,9 @@ B close, RS scroll creative.
   anvil names) works pad-only too via the on-screen keyboard (Y in any text screen).
 
 ## Polish (latest)
+- Mob navigation: A* over block cells (walk, jump one, drop three, swim; avoids lava/fire/cactus/fence tops) for
+  every mob walking towards something (chasing, food, beds, job sites); 4 searches / 1.5 ms per tick. --pathtest: a zombie
+  walks around a 17-block wall to the player in ~9 s.
 - Command console (T or /, or Commands... in the pause menu): /time /weather /gamemode /difficulty /tp /give /summon
   /kill /clear /effect /xp /locate /seed /spawnpoint /setblock with Tab completion, history and pad quick buttons.
 - Third-person cameras (F5 / View) stop short of blocks and show an original player model with armour and held item.

@@ -14,6 +14,7 @@ struct PathState {
 
 enum PathFinder {
     static var budget = 0                    // searches left this tick (reset by MobManager.update)
+    static var spent: Double = 0             // seconds spent searching this tick (capped at 1.5 ms)
     static var boxes: [(V3, V3)] = []        // scratch for collision boxes (main thread only)
 
     // Height of the collision inside a cell: 0 empty ... 1 full block, up to 1.5 for fences and walls.
@@ -62,7 +63,7 @@ enum PathFinder {
 
     // Path from `from` to `to` (feet positions). Returns the waypoints after the start cell, heading to
     // the goal or, if it can't be reached within the node limit, to the reachable cell closest to it.
-    static func find(_ w: World, from: V3, to: V3, tall: Int, maxNodes: Int = 600) -> [IVec3]? {
+    static func find(_ w: World, from: V3, to: V3, tall: Int, maxNodes: Int = 400) -> [IVec3]? {
         let start = IVec3(Int(floor(from.x)), Int(floor(from.y + 0.01)), Int(floor(from.z)))
         let goal = IVec3(Int(floor(to.x)), Int(floor(to.y + 0.01)), Int(floor(to.z)))
         if abs(goal.x - start.x) + abs(goal.z - start.z) > 48 { return nil }
@@ -155,8 +156,10 @@ extension Mob {
         if dx * dx + dz * dz < 2.25 && abs(target.y - pos.y) < 1.2 { path.nodes.removeAll(keepingCapacity: true); return }
         let moved = simd_length(target - path.goal) > 1.5
         let done = path.index >= path.nodes.count
-        if repath && path.timer <= 0 && (moved || done || path.timer < -3) && PathFinder.budget > 0 {
+        if repath && path.timer <= 0 && (moved || done || path.timer < -3) && PathFinder.budget > 0 && PathFinder.spent < 0.0015 {
             PathFinder.budget -= 1
+            let t0 = Date.timeIntervalSinceReferenceDate
+            defer { PathFinder.spent += Date.timeIntervalSinceReferenceDate - t0 }
             path.timer = Float.random(in: 0.7...1.3)
             path.goal = target
             path.nodes = PathFinder.find(w, from: pos, to: target, tall: max(1, min(3, Int(ceilf(height - 0.05))))) ?? []
