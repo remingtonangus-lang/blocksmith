@@ -547,8 +547,10 @@ final class BlockRegistry {
         column("oak_wood", "Oak Wood", side: "oak_log", top: "oak_log")
         cube("birch_planks", "Birch Planks", "birch_planks", h: 2, tool: .axe, snd: .wood)
         cube("spruce_planks", "Spruce Planks", "spruce_planks", h: 2, tool: .axe, snd: .wood)
+        registerOverworldBlocks()
         // Building families: stairs, slabs, fences, walls for each material.
         let woods: [(String, String)] = [("oak", "Oak"), ("birch", "Birch"), ("spruce", "Spruce"), ("crimson", "Crimson"), ("warped", "Warped")]
+            + BlockRegistry.extraWoods
         for (w, d) in woods {
             family("\(w)_planks", "\(w)", d, h: 2, tool: .axe, req: false, snd: .wood, stairs: true, slab: true, fence: true, wall: false)
         }
@@ -564,6 +566,9 @@ final class BlockRegistry {
             ("polished_blackstone_bricks", "polished_blackstone_brick", "Polished Blackstone Brick", true),
             ("end_stone_bricks", "end_stone_brick", "End Stone Brick", true), ("purpur_block", "purpur", "Purpur", false),
             ("mossy_stone_bricks", "mossy_stone_brick", "Mossy Stone Brick", true),
+            ("red_sandstone", "red_sandstone", "Red Sandstone", true), ("mud_bricks", "mud_brick", "Mud Brick", true),
+            ("prismarine", "prismarine", "Prismarine", true), ("deepslate_bricks", "deepslate_brick", "Deepslate Brick", true),
+            ("deepslate_tiles", "deepslate_tile", "Deepslate Tile", true), ("polished_deepslate", "polished_deepslate", "Polished Deepslate", true),
         ]
         for (tex, n, d, wall) in stones {
             family(tex, n, d, h: 2, tool: .pickaxe, req: true, snd: .stone, stairs: n != "smooth_stone", slab: true, fence: n == "nether_brick", wall: wall)

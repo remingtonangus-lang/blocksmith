@@ -72,19 +72,34 @@ enum Mining {
         case "clay": return one("clay_ball", 4)
         case "snow_block": return one("snowball", 4)
         case "glass", "spawner", "glass_pane": return []
+        case "fern":
+            if shears { return one(key) }
+            return Float.random(in: 0..<1) < 0.125 ? one("wheat_seeds") : []
+        case "tall_grass", "large_fern", "dead_bush", "seagrass", "vine":
+            return shears ? one(Blocks.key(Blocks.groupBase[Int(b)])) : (key == "dead_bush" ? one("stick", rnd(0, 2)) : [])
+        case "melon": return one("melon_slice", rnd(3, 7))
+        case "sweet_berry_bush_2": return one("sweet_berries", rnd(1, 2))
+        case "sweet_berry_bush_3": return one("sweet_berries", rnd(2, 3))
+        case "budding_amethyst", "reinforced_deepslate", "cave_vines", "sculk_shrieker": return key == "cave_vines" ? one("glow_berries") : []
+        case "amethyst_cluster": return one("amethyst_shard", 4)
+        case "ice", "packed_ice", "blue_ice", "kelp", "bubble_coral", "tube_coral", "brain_coral", "fire_coral", "horn_coral": return key == "kelp" ? one("kelp") : []
+        case "snow": return one("snowball", 1)
+        case "brown_mushroom_block": return Float.random(in: 0..<1) < 0.15 ? one("brown_mushroom", rnd(1, 2)) : []
+        case "red_mushroom_block": return Float.random(in: 0..<1) < 0.15 ? one("red_mushroom", rnd(1, 2)) : []
         case "chorus_plant": return Float.random(in: 0..<1) < 0.5 ? one("chorus_fruit") : []
         case "gilded_blackstone": return Float.random(in: 0..<1) < 0.1 ? one("gold_nugget", rnd(2, 5)) : one("gilded_blackstone")
         case "gravel": return Float.random(in: 0..<1) < 0.1 ? one("flint") : one("gravel")
         case "short_grass":
             if shears { return one("short_grass") }
             return Float.random(in: 0..<1) < 0.125 ? one("wheat_seeds") : []
-        case "oak_leaves", "birch_leaves", "spruce_leaves":
+        case _ where key.hasSuffix("_leaves") && !key.hasPrefix("crimson") && !key.hasPrefix("warped"):
             if shears { return one(key) }
             var out: [ItemStack] = []
-            let sap = key.replacingOccurrences(of: "leaves", with: "sapling")
-            if Float.random(in: 0..<1) < 0.05 { out += one(sap) }
+            let sap = key == "mangrove_leaves" ? "" : key.replacingOccurrences(of: "leaves", with: "sapling")
+            let sapChance: Float = key == "jungle_leaves" ? 0.025 : 0.05
+            if !sap.isEmpty && Items.has(sap) && Float.random(in: 0..<1) < sapChance { out += one(sap) }
             if Float.random(in: 0..<1) < 0.02 { out += one("stick", rnd(1, 2)) }
-            if key == "oak_leaves" && Float.random(in: 0..<1) < 0.005 { out += one("apple") }
+            if (key == "oak_leaves" || key == "dark_oak_leaves") && Float.random(in: 0..<1) < 0.005 { out += one("apple") }
             return out
         default:
             if let i = Items.item(forBlock: b) { return [ItemStack(i, 1)] }

@@ -739,6 +739,7 @@ enum TextureGen {
                 return clear
             }
         }
+        overworldPainters(&p)
         for (k, v) in ItemTextures.painters() { p[k] = v }
         for (k, v) in Font.painters() { p[k] = v }
         return p

@@ -151,6 +151,10 @@ final class ItemRegistry {
         item("name_tag", "Name Tag", "paper", 0xE6E0C8, ["a": 0x6B4F2C])
         item("magma_cream", "Magma Cream", "ball", 0xE8762A)
         item("fire_charge", "Fire Charge", "ball", 0xE8762A)
+        item("prismarine_shard", "Prismarine Shard", "gem", 0x6AA89A)
+        item("prismarine_crystals", "Prismarine Crystals", "dust", 0xC8E0D0)
+        item("heart_of_the_sea", "Heart of the Sea", "ball", 0x2A6AA8)
+        item("nautilus_shell", "Nautilus Shell", "bowl", 0xE8D8C8)
         item("shulker_shell", "Shulker Shell", "bowl", 0x9A6A9A)
         item("dragon_breath", "Dragon's Breath", "bucket", 0xE8D8F0, ["c": 0xC050E0])
         item("firework_rocket", "Firework Rocket", "rod", 0xC83A3A)
@@ -203,6 +207,7 @@ final class ItemRegistry {
         food("mushroom_stew", "Mushroom Stew", "stew", 0x8A6435, 6, 7.2, ["c": 0xB08858, "d": 0xD8C0A0], stack: 1)
         food("beetroot_soup", "Beetroot Soup", "stew", 0x8A6435, 6, 7.2, ["c": 0xA02838, "d": 0xC04050], stack: 1)
         food("dried_kelp", "Dried Kelp", "leather", 0x3A4A2A, 1, 0.6)
+        food("glow_berries", "Glow Berries", "berries", 0xF2A83A, 2, 0.4, ["a": 0x3A6A2A])
         food("chorus_fruit", "Chorus Fruit", "berries", 0x8A5A9A, 4, 2.4, ["a": 0x4A2A5A])
         food("spider_eye", "Spider Eye", "eye", 0x8A2A3A, 2, 3.2, ["c": 0xC04050, "d": 0x200810])
 
