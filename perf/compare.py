@@ -24,7 +24,7 @@ GATES = {
     "flight16.resident_peak_mb": 1.4,
     "flight24.resident_peak_mb": 1.4,
 }
-IGNORE = ("total_s", "since_launch_s")
+IGNORE = ("total_s", "since_launch_s", "worlds_alive")
 
 
 def worse_ratio(name, base, now):

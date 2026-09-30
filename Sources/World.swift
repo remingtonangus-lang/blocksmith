@@ -30,14 +30,15 @@ final class World {
     var renderDistance: Int = 8 { didSet { lastCenter = nil; rebuildOffsets() } }
 
     // Workers: maxJobs run at once; up to maxQueued jobs are handed over per frame so workers never sit
-    // idle between frames (handing over only maxJobs capped streaming at ~maxJobs x 60 jobs per second).
+    // idle between frames (handing over only maxJobs capped streaming at ~maxJobs x 60 jobs per second;
+    // 8 per worker covers a 16 ms frame of ~2 ms jobs).
     private let workQueue: OperationQueue = {
         let q = OperationQueue()
         q.name = "blocksmith.world"
         q.qualityOfService = .userInitiated
         return q
     }()
-    private var maxQueued: Int { maxJobs * 4 }
+    private var maxQueued: Int { maxJobs * 8 }
     private let lock = NSLock()
     private var genResults: [(ChunkKey, Produced)] = []
     private var meshResults: [(ChunkKey, [(Int, Int, SectionMesh)])] = []
@@ -65,7 +66,11 @@ final class World {
         return p
     }
 
+    static var alive = 0            // live World objects (leak check in --bench)
+    deinit { World.alive -= 1 }
+
     init(seed: UInt64, device: MTLDevice, save: SaveManager?, dim: Dim = .overworld) {
+        World.alive += 1
         self.seed = seed
         self.dim = dim
         switch dim {
