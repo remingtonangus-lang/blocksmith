@@ -13,8 +13,8 @@ code); mechanics, names and numbers follow the reference game.
 | A3 Items | item registry (materials, food, tools ×6 tiers, armor ×6), ItemStack/inventory (36 + armor + offhand), survival mining time (hardness/tool/tier formula), drops table, dropped item entities (physics, merge, pickup), durability, attack cooldown, eating, buckets, Q/B drop, death drops | done |
 | A4 Containers | MC-style menus (click/right-click/shift-click/number keys, controller cursor), 2×2 + 3×3 crafting with recipe engine (tags, mirroring), furnace (fuel/smelt ticks, lit state), chests, creative palette | done (recipe list keeps growing) |
 | B Survival content | zombie/skeleton/creeper/spider/enderman/slime with light-based spawning, combat (cooldown, crits, knockback), armor, bow, beds + sleeping, farming (wheat/carrots/potatoes/beetroot, farmland moisture, bone meal), breeding, TNT + explosions, XP, fire | done |
-| C Nether | portals (any 4×5…23×23 frame, linking ×8), lava (flow, fire spread, obsidian/cobble/stone), 5 nether biomes, glowstone/quartz/gold/debris, fungus trees; building families (stairs/slabs/fences/walls, panes, iron bars); structure framework (region grid, per-chunk clipped pieces, loot tables, spawners); nether fortress (bridges, castle corridors, blaze spawner platforms, nether wart rooms, chests); zombified piglin, piglin (bartering), ghast (+ deflectable fireballs), blaze, magma cube, wither skeleton; nether/fortress spawn lists | in progress — next: bastions, hoglin, strider, spawner block logic |
-| D End | eyes of ender, strongholds, End, dragon, credits | pending |
+| C Nether | portals, lava, 5 nether biomes, fortresses (bridges, castle, blaze spawners, wart rooms), bastions (housing, treasure, stables, bridge), blackstone set, spawners, zombified piglin (group anger), piglin (bartering, gold armor), brute, hoglin, strider, ghast (deflectable fireballs), blaze, magma cube, wither skeleton (wither effect), nether wart | done |
+| D End | 128 strongholds in rings (portal room, libraries, prisons, fountains), eyes of ender, end portal (12 frames, 10% pre-filled), the End (central island, 10 spikes with crystals/cages, bedrock fountain, 1000-block void, outer islands, chorus), ender dragon (circle/strafe/charge/perch, breath clouds, crystal healing, 12000 XP, egg, gateways), end cities + ships (elytra), shulkers (levitation), elytra flight + rockets, credits | done (untested in live play) |
 | E Terrain parity | biomes, caves, ores, structures, villages | pending |
 | F Redstone | dust, torches, repeaters, comparators, pistons, … | pending |
 | G Long tail | villagers/trading, raids, Wither, enchanting, brewing, … | pending |
@@ -41,5 +41,7 @@ B close, RS scroll creative.
   unloads unmodified regenerates but keeps the existing (possibly looted) block entity.
 - Nether light: dimension ambient lifts the whole light curve (0.3 in the Nether), approximating the reference
   game's ambient + default-brightness gamma.
+- Shulker boxes, item frames, dragon heads and ladders are not implemented yet (the end-ship elytra sits in a chest).
+- Credits text is original (the reference game's poem is not copied).
 - Wall torches render as standing torches; chests are single only. Potions/enchanted items are left out of the
   piglin barter table until brewing/enchanting exist.

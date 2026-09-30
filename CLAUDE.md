@@ -23,6 +23,9 @@ Goals: polished, efficient on M1/8 GB, extensible. Later: Xbox controller on a T
 - World.swift: streaming/scheduling per section, setBlock (sync remesh around the block, async for light radius), lightAt, box collision (`collides`, `sweep`, `moveBody` with step-up), raycast with selection boxes, fluid sim, blockEntities.
 - Loot.swift (mining speed/harvest/drops), Recipes.swift (crafting/smelting/fuel), BlockEntities.swift (chest/furnace), Menu.swift (container screens), Entities.swift (dropped items, EntityWriter), Mob.swift (animals), Sound.swift (synth + AVAudioEngine), Player.swift, Game.swift (tick, interaction, survival, menus), Renderer.swift (sections, entities, HUD, menus), Shaders.swift, App.swift, main.swift (snapshot harness).
 
+- Structures.swift: StructureCache (region grid spacing/separation + fixed starts), StructWriter (per-chunk clipped writes, chests with Loot tables, spawners, structure mobs → World.pendingMobs), Piece/StructureStart. Fortress.swift, Bastion.swift, Stronghold.swift, EndCity.swift build on it; generators expose `structures`.
+- End.swift: eyes of ender, end portal activation/travel, dragon + crystal AI, acid clouds, shulker bullets, gateways, credits. NetherGen.swift also holds EndGen (island, spikes, fountain, outer islands, chorus).
+
 ## Roadmap
 Done: tree variety, plants, clouds/stars, block light + torches, flowing water, creative inventory, survival basics, synthesized sounds, passive mobs.
 Next: item drops/counts/mining time + crafting, food from animals, greedy meshing, first-person hand, controller-driven pause menu for TV play.
