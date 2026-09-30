@@ -283,6 +283,9 @@ enum PadTest {
             (g.player.pos, g.player.yaw, g.player.pitch, g.player.flying) = keep
         }
 
+        check(Narrator.plain(Glyph.a.s + " Select   " + Glyph.lb.s + Glyph.rb.s + " Page") == "A Select left bumper right bumper Page",
+              "narrator speaks glyphs as button names")
+
         // Subtitles: a sound to the player's right gets a caption with a right arrow.
         Settings.shared.subtitles = true
         let right = V3(cosf(g.player.yaw), 0, -sinf(g.player.yaw))
