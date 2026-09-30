@@ -11,7 +11,7 @@ struct Uniforms {
     float4 fogColor;     // rgb, w = fog start
     float4 params;       // x = fog end, y = daylight, z = time (s), w = underwater
     float4 sunDir;       // xyz, w = dimension ambient
-    float4 eye;          // xyz = camera position (world), w = 1 for Fancy graphics
+    float4 eye;          // xyz = camera position (world), w = 0 Fast, 1 + sun glow (0...0.99) for Fancy
 };
 
 struct ChunkOut {
@@ -106,6 +106,20 @@ static float3 applyFog(float3 c, float dist, constant Uniforms& u) {
     return mix(c, u.fogColor.rgb, f);
 }
 
+// Fog colour seen along a view ray: Fancy adds the same warm dawn/dusk glow toward the sun as the sky
+// dome, so fogged terrain on that horizon melts into the glow instead of cutting a dark silhouette.
+static float3 fogColorAlong(float3 rel, constant Uniforms& u) {
+    float glow = u.eye.w - 1.0;
+    if (glow <= 0.0) { return u.fogColor.rgb; }
+    float sd = saturate(dot(normalize(rel), normalize(u.sunDir.xyz)));
+    return u.fogColor.rgb + float3(1.0, 0.55, 0.25) * pow(sd, 5.0) * glow;
+}
+
+static float3 applyFogDir(float3 c, float3 rel, float dist, constant Uniforms& u) {
+    float f = smoothstep(u.fogColor.w, u.params.x, dist);
+    return mix(c, fogColorAlong(rel, u), f);
+}
+
 static float hash21(float2 p) {
     float3 p3 = fract(float3(p.xyx) * 0.1031);
     p3 += dot(p3, p3.yzx + 33.33);
@@ -135,7 +149,7 @@ fragment float4 chunkSolidFS(ChunkOut in [[stage_in]],
     float4 c = tex.sample(texSampler, uv, uint(in.layer));
     if (in.anim > 0.5) { c.rgb = lavaGlow(c.rgb, in.rel, u); }
     float3 t = (in.overlay > 0.5 && c.a > 0.95) ? float3(1.0) : in.tint;
-    return float4(applyFog(c.rgb * t * in.shade, in.dist, u), 1.0);
+    return float4(applyFogDir(c.rgb * t * in.shade, in.rel, in.dist, u), 1.0);
 }
 
 fragment float4 chunkFS(ChunkOut in [[stage_in]],
@@ -149,7 +163,7 @@ fragment float4 chunkFS(ChunkOut in [[stage_in]],
     // Overlay faces (grass sides): only the marked texels (alpha ~0.9) take the biome tint.
     float3 t = (in.overlay > 0.5 && c.a > 0.95) ? float3(1.0) : in.tint;
     float3 rgb = c.rgb * t * in.shade;
-    return float4(applyFog(rgb, in.dist, u), 1.0);
+    return float4(applyFogDir(rgb, in.rel, in.dist, u), 1.0);
 }
 
 fragment float4 waterFS(ChunkOut in [[stage_in]],
@@ -175,7 +189,7 @@ fragment float4 waterFS(ChunkOut in [[stage_in]],
         a = mix(a, 1.0, fres * 0.55);
     }
     float f = smoothstep(u.fogColor.w, u.params.x, in.dist);
-    return float4(mix(rgb, u.fogColor.rgb, f), mix(a, 1.0, f * 0.8));
+    return float4(mix(rgb, fogColorAlong(in.rel, u), f), mix(a, 1.0, f * 0.8));
 }
 
 // Fancy sky: one full-screen triangle; the fragment shader shades the view direction with a

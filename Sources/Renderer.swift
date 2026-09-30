@@ -278,21 +278,25 @@ final class Renderer: NSObject, MTKViewDelegate {
         // Night vision lifts every light level toward full brightness.
         let nv = game.nightVision
         let ambient = 1 - (1 - game.dim.dim.ambient) * (1 - 0.85 * nv)
+        // Warm dawn/dusk glow strength shared by the Fancy sky dome and the fog toward the sun.
+        let skyGlow: Float = {
+            let sd = game.sunDir
+            let dusk = max(0, 1 - abs(sd.y - 0.02) / 0.22)
+            return (dusk * 0.9 + 0.12 * daylight) * (1 - min(1, game.weather.rain))
+        }()
+        let fogGlow: Float = (!underwater && hasSky && game.blindFog == nil) ? min(0.99, skyGlow) : 0
         var u = Uniforms(viewProj: viewProj,
                          fogColor: V4(fogColor, fogStart),
                          params: V4(fogEnd, daylight, Float(game.time.truncatingRemainder(dividingBy: 1000)), underwater ? 1 : 0),
                          sunDir: V4(game.sunDir, ambient),
-                         eye: V4(eye, game.fancyGraphics ? 1 : 0))
+                         eye: V4(eye, game.fancyGraphics ? 1 + fogGlow : 0))
 
         enc.setFragmentTexture(texture, index: 0)
 
         // Fancy sky: gradient dome + sun glow drawn over the clear colour before anything else.
         if game.fancyGraphics && !underwater && hasSky && game.blindFog == nil {
-            let sd = game.sunDir
-            let dusk = max(0, 1 - abs(sd.y - 0.02) / 0.22)
-            let glow = (dusk * 0.9 + 0.12 * daylight) * (1 - min(1, game.weather.rain))
             var sp = SkyParams(invViewProj: viewProj.inverse, zenith: V4(game.skyZenith, 0),
-                               horizon: V4(sky, glow), sun: V4(sd, daylight))
+                               horizon: V4(sky, skyGlow), sun: V4(game.sunDir, daylight))
             enc.setRenderPipelineState(skyPipe)
             enc.setDepthStencilState(depthNone)
             enc.setCullMode(.none)
