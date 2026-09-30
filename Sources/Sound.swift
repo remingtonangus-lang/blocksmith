@@ -60,7 +60,7 @@ enum Snd: Hashable {
     // Loops (seamless, 2-6 s): fire, furnaces, lava, water, portals, beacons, minecarts, gliding, breathing under water, weather, biome ambience.
     case fireLoop, furnaceLoop, campfireLoop, lavaLoop, waterLoop, portalLoop, beaconLoop, minecartLoop, elytraLoop, underwaterLoop, rain, rainRoof
     case respawnAnchorLoop, spawnerLoop, netherWastesLoop, soulValleyLoop, crimsonLoop, warpedLoop, basaltLoop, endLoop, deepDarkLoop, lushLoop, dripstoneLoop
-    case cricketsLoop, oceanLoop, swampLoop, windLoop, jungleLoop, fireflyLoop
+    case cricketsLoop, oceanLoop, swampLoop, windLoop, jungleLoop, fireflyLoop, hiveLoop
     // One-shot ambience stings
     case birdCall, owlHoot, dryGrassRustle, heartCreak, caveAmbience, caveDrip, caveWind, netherMood, underwaterMood, thunder, lightning, windGust
     // Every mob: ambient call, hurt, death.
@@ -101,7 +101,7 @@ enum Snd: Hashable {
         case .fireLoop, .furnaceLoop, .campfireLoop, .lavaLoop, .waterLoop, .portalLoop, .beaconLoop, .respawnAnchorLoop, .spawnerLoop,
              .netherWastesLoop, .soulValleyLoop, .crimsonLoop, .warpedLoop, .basaltLoop, .endLoop, .deepDarkLoop, .lushLoop, .dripstoneLoop,
              .caveAmbience, .caveDrip, .caveWind, .netherMood, .underwaterMood, .lavaPop,
-             .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop, .birdCall, .owlHoot, .fireflyLoop, .dryGrassRustle, .heartCreak:
+             .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop, .birdCall, .owlHoot, .fireflyLoop, .dryGrassRustle, .heartCreak, .hiveLoop:
             return .ambient
         case .note: return .blocks
         default: return .blocks
@@ -125,7 +125,7 @@ enum Snd: Hashable {
         switch self {
         case .fireLoop, .furnaceLoop, .campfireLoop, .lavaLoop, .waterLoop, .portalLoop, .beaconLoop, .minecartLoop, .elytraLoop, .underwaterLoop, .rain, .rainRoof,
              .respawnAnchorLoop, .spawnerLoop, .netherWastesLoop, .soulValleyLoop, .crimsonLoop, .warpedLoop, .basaltLoop, .endLoop, .deepDarkLoop, .lushLoop, .dripstoneLoop,
-             .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop, .fireflyLoop:
+             .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop, .fireflyLoop, .hiveLoop:
             return true
         default: return false
         }
@@ -197,7 +197,7 @@ final class SoundBank {
               .fireExtinguish, .lavaPop, .boatPaddle, .railClick,
               .fireLoop, .furnaceLoop, .campfireLoop, .lavaLoop, .waterLoop, .portalLoop, .beaconLoop, .minecartLoop, .elytraLoop, .underwaterLoop, .rain, .rainRoof,
               .respawnAnchorLoop, .spawnerLoop, .netherWastesLoop, .soulValleyLoop, .crimsonLoop, .warpedLoop, .basaltLoop, .endLoop, .deepDarkLoop, .lushLoop, .dripstoneLoop,
-              .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop, .birdCall, .owlHoot, .fireflyLoop, .dryGrassRustle, .heartCreak,
+              .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop, .birdCall, .owlHoot, .fireflyLoop, .dryGrassRustle, .heartCreak, .hiveLoop,
               .caveAmbience, .caveDrip, .caveWind, .netherMood, .underwaterMood, .thunder, .lightning, .windGust,
               .creeperHiss, .fireball, .evokerCast, .fangs, .raidHorn, .mobVoidwalker, .teleport,
               .dragonGrowl, .dragonFlap, .dragonShoot, .dragonDeath, .crystalBreak, .witherSpawn, .witherShoot, .witherDeath,

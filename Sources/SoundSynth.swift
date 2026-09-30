@@ -825,6 +825,14 @@ struct Synth {
                 ff = Synth.mix(ff, fm(0.35, f: f, ratio: 2.4, index: 0.8, decay: 0.08, gain: 0.18), at: frames(rnd(0, 3.6)))
             }
             out = Synth.loopify(Array(ff.prefix(frames(4.0))), fade: 0.3)
+        case .hiveLoop:
+            // Many bees in a box: detuned buzzing saws, muffled by the wood.
+            var h = [Float](repeating: 0, count: frames(4.0))
+            for _ in 0..<6 {
+                let f: Float = rnd(200, 260)
+                h = Synth.mix(h, tone(4.0, f0: f, f1: f * rnd(0.97, 1.03), wave: .saw, attack: 0.3, release: 0.3, vib: 0.03, vibRate: rnd(4, 9), gain: 0.08))
+            }
+            out = Synth.loopify(Synth.lowpass(h, 900, passes: 2), fade: 0.4)
         case .dryGrassRustle: out = Synth.window(Synth.mix(wash(1.2, lp: 5000 * p, hp: 1500, wobble: 1.2, rate: 8, gain: 0.5), grains(10, spread: 1.0, lp: 6000, hp: 2000, decay: 0.008, gain: 0.4)))
         case .heartCreak:
             let c = Synth.lowpass(tone(0.9, f0: 160 * p, f1: 120 * p, wave: .saw, attack: 0.15, release: 0.3, vib: 0.2, vibRate: 3, gain: 0.35), 900)

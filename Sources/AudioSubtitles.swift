@@ -209,6 +209,7 @@ extension Snd {
         case .jungleLoop: return "Insects buzz"
         case .birdCall: return "Bird sings"
         case .fireflyLoop: return "Fireflies twinkle"
+        case .hiveLoop: return "Hive buzzes"
         case .dryGrassRustle: return "Dry grass rustles"
         case .heartCreak: return "Heart creaks"
         case .owlHoot: return "Owl hoots"

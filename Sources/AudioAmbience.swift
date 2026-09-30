@@ -65,6 +65,7 @@ extension Game {
                 else if k == "firefly_bush" { kind = 15 }
                 else if k == "short_dry_grass" || k == "tall_dry_grass" { kind = 16 }
                 else if k == "creaking_heart" { kind = 17 }
+                else if k == "beehive" || k == "bee_nest" { kind = 18 }
                 t[i] = kind
             }
             AudioState.kindTable = t
@@ -147,6 +148,7 @@ extension Game {
         // Fireflies glitter at night; dry grass rustles by day; a Barkwraith heart creaks now and then.
         let isNight = dayFraction > 0.52 && dayFraction < 0.98
         if isNight { emitter("fireflies", .fireflyLoop, base: 0.3, per: 0.05, cap: 0.6) }
+        emitter("hive", .hiveLoop, base: 0.35, per: 0.1, cap: 0.6)
         if let e = a.emitters["drygrass"], !isNight, Float.random(in: 0..<1) < dt * min(0.3, 0.05 + 0.01 * Float(e.count)) {
             sfx(.dryGrassRustle, 0.5, at: e.pos + V3(Float.random(in: -2...2), 0.3, Float.random(in: -2...2)))
         }
@@ -322,7 +324,7 @@ extension Game {
             }
         } } }
         let names = [1: "fire", 2: "campfire", 3: "furnace", 4: "lava", 5: "water", 6: "portal", 7: "beacon", 8: "spawner", 12: "portal", 13: "anchor", 14: "bubbles",
-                     15: "fireflies", 16: "drygrass", 17: "heart"]
+                     15: "fireflies", 16: "drygrass", 17: "heart", 18: "hive"]
         var out: [String: (pos: V3, count: Int)] = [:]
         for (k, v) in best { if let n = names[k] { if let e = out[n] { out[n] = (e.pos, e.count + v.2) } else { out[n] = (v.0, v.2) } } }
         a.emitters = out
