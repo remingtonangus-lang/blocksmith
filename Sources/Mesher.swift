@@ -237,6 +237,10 @@ enum Mesher {
 
         var lit = [Int](repeating: 0, count: 4)
         var aos = [Int](repeating: 3, count: 4)
+        // Greedy meshing: flat-lit cube faces are collected per face direction and slice, then merged
+        // into big quads (u = v = 31 tells the shader to take UVs from the position, repeating per block).
+        // key = 1 + (layer | tint<<11 | overlay<<13 | ao<<14 | light<<16 | trans<<24)
+        var mask = [Int32](repeating: 0, count: 6 * 16 * 256)
         for ly in 0..<16 {
             let y = ly + C0
             for z in C0..<(C0 + 16) {
@@ -420,6 +424,15 @@ enum Mesher {
                         let layer = Int(texT[bi * 6 + f])
                         let overlay = tintB == 3 && f != 2 && f != 3
                         let tintF = (tintB == 3 && f == 3) ? 0 : tintV
+                        if !isLiquid && rt == rCube && aos[0] == aos[1] && aos[1] == aos[2] && aos[2] == aos[3]
+                            && lit[0] == lit[1] && lit[1] == lit[2] && lit[2] == lit[3] {
+                            let axis = f / 2
+                            let lc = [lx, ly, lz]
+                            let a = lc[(axis + 1) % 3], bb = lc[(axis + 2) % 3]
+                            let key = layer | (tintF << 11) | ((overlay ? 1 : 0) << 13) | (aos[0] << 14) | ((lit[0] & 255) << 16) | ((isTrans ? 1 : 0) << 24)
+                            mask[(f * 16 + lc[axis]) * 256 + a + bb * 16] = Int32(key + 1)
+                            continue
+                        }
                         for k in 0..<4 {
                             let c = flip ? (k + 1) & 3 : k
                             let ci = (f * 4 + c) * 3
@@ -430,6 +443,41 @@ enum Mesher {
                             let shadeIdx = isLiquid && fk == 2 ? 7 : f      // 7 = lava (flat bright, animated)
                             vert(isTrans, bx16 + px, by16 + py, bz16 + pz, shadeIdx, isLiquid ? (fk == 1 ? 3 : 0) : tintF, u, v, layer, aos[c], lit[c], overlay)
                         }
+                    }
+                }
+            }
+        }
+        // Merge the collected faces: grow each run along a, then along b while the whole row matches.
+        for f in 0..<6 {
+            let axis = f / 2
+            let a1 = (axis + 1) % 3, a2 = (axis + 2) % 3
+            for sl in 0..<16 {
+                let base = (f * 16 + sl) * 256
+                for bb in 0..<16 {
+                    var a = 0
+                    while a < 16 {
+                        let k = mask[base + a + bb * 16]
+                        if k == 0 { a += 1; continue }
+                        var w = 1
+                        while a + w < 16 && mask[base + a + w + bb * 16] == k { w += 1 }
+                        var h = 1
+                        grow: while bb + h < 16 {
+                            for t in 0..<w where mask[base + a + t + (bb + h) * 16] != k { break grow }
+                            h += 1
+                        }
+                        for hh in 0..<h { for t in 0..<w { mask[base + a + t + (bb + hh) * 16] = 0 } }
+                        let key = Int(k) - 1
+                        let layer = key & 2047, tint = (key >> 11) & 3, overlay = (key >> 13) & 1 == 1
+                        let ao = (key >> 14) & 3, l = (key >> 16) & 255, trans = (key >> 24) & 1 == 1
+                        for c in 0..<4 {
+                            let ci = (f * 4 + c) * 3
+                            var p = [0, 0, 0]
+                            p[axis] = (sl + CT[ci + axis]) * 16
+                            p[a1] = (CT[ci + a1] == 1 ? a + w : a) * 16
+                            p[a2] = (CT[ci + a2] == 1 ? bb + h : bb) * 16
+                            vert(trans, p[0], p[1], p[2], f, tint, 31, 31, layer, ao, l, overlay)
+                        }
+                        a += w
                     }
                 }
             }

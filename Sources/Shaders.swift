@@ -41,7 +41,19 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     float3 p = float3(float(xi), float((w0 >> 9) & 511u), float(zi)) / 16.0;
     uint face = (w0 >> 27) & 7u;
     uint tintMode = w0 >> 30;
-    float2 uv = float2(float(w1 & 31u), float((w1 >> 5) & 31u)) / 16.0;
+    uint uu = w1 & 31u, vv = (w1 >> 5) & 31u;
+    float2 uv = float2(float(uu), float(vv)) / 16.0;
+    if (uu == 31u && vv == 31u) {
+        // Greedy-merged quad: UVs from the position so the texture repeats once per block.
+        switch (face) {
+            case 0u: uv = float2(-p.z, -p.y); break;
+            case 1u: uv = float2(p.z, -p.y); break;
+            case 2u: uv = float2(p.x, p.z); break;
+            case 3u: uv = float2(p.x, -p.z); break;
+            case 4u: uv = float2(p.x, -p.y); break;
+            default: uv = float2(-p.x, -p.y); break;
+        }
+    }
     uint layer = ((w1 >> 10) & 1023u) | ((w1 >> 31) << 10);
     uint ao = (w1 >> 20) & 3u;
     float skyL = float((w1 >> 22) & 15u) / 15.0;
