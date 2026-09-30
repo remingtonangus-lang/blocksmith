@@ -96,6 +96,12 @@ enum Snapshot {
             game.input.mouseX = -1
         }
         var t = world.loadSync(center: pos, radius: rd)
+        if snapDim == .overworld && arg("--structure") == nil {
+            // Stand on whatever is actually at the column (trees, overhangs), keeping --up.
+            let up = Float(arg("--up") ?? "") ?? 0
+            let ty = Float(world.topY(Int(floor(pos.x)), Int(floor(pos.z))) + 1)
+            if ty + up > pos.y { pos.y = ty + up; game.player.pos = pos }
+        }
         if snapDim == .nether {
             // Stand in the first open space above the lava sea.
             let x = Int(floor(pos.x)), z = Int(floor(pos.z))

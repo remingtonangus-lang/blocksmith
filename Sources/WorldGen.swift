@@ -423,7 +423,7 @@ final class WorldGen: TerrainGenerator {
             let spire = abs(surfN.noise2(Float(wx) / 5, Float(wz) / 5))
             if spire > 0.35 {
                 let hgt = Int((spire - 0.35) * 60)
-                for yy in (top + 1)...min(CH - 2, top + hgt) { b[Chunk.index(lx, yy, lz)] = bands[yy & 63] }
+                if hgt > 0 && top + 1 <= CH - 2 { for yy in (top + 1)...min(CH - 2, top + hgt) { b[Chunk.index(lx, yy, lz)] = bands[yy & 63] } }
             }
         }
         // Water and ice.
@@ -452,7 +452,7 @@ final class WorldGen: TerrainGenerator {
             let top = tops[lx + lz * CS]
             let wetColumn = top < SEA + 2
             let wx = bx + lx, wz = bz + lz
-            let maxY = wetColumn ? top - 5 : top + 1
+            let maxY = min(CH - 2, wetColumn ? top - 5 : top + 1)
             guard maxY > 6 else { continue }
             for y in 6...maxY {
                 let i = Chunk.index(lx, y, lz)
