@@ -193,6 +193,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         fpsTime += dt
         if fpsTime >= 0.5 { fps = Double(fpsFrames) / fpsTime; fpsFrames = 0; fpsTime = 0 }
 
+        adjustResolution(view)
         guard let rpd = view.currentRenderPassDescriptor, let drawable = view.currentDrawable else { return }
         inflight.wait()
         if game.screenshotRequested {
@@ -210,7 +211,11 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
         let cmd = queue.makeCommandBuffer()!
         let fence = MeshArena.frameSubmitted()      // freed meshes wait for this frame before reuse
-        cmd.addCompletedHandler { [inflight] _ in MeshArena.frameCompleted(fence); inflight.signal() }
+        cmd.addCompletedHandler { [inflight, weak self] cb in
+            MeshArena.frameCompleted(fence)
+            self?.recordGPU(cb.gpuEndTime - cb.gpuStartTime)
+            inflight.signal()
+        }
         let sky = game.skyColor
         let clear = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInWater ? V3(0.05, 0.12, 0.3) : sky)
         rpd.colorAttachments[0].clearColor = MTLClearColor(red: Double(clear.x), green: Double(clear.y), blue: Double(clear.z), alpha: 1)
@@ -221,6 +226,42 @@ final class Renderer: NSObject, MTKViewDelegate {
         cmd.present(drawable)
         cmd.commit()
         onFrame?(dt)
+    }
+
+    // MARK: Dynamic resolution
+    // Above 1440p (a 4K TV, a big external display) the drawable shrinks in 5% steps, down to 60%, while the
+    // GPU needs more than ~85% of the frame budget, and grows back once it has headroom; the layer scales it
+    // to the window. At 1440p and below it always renders at full resolution.
+    private(set) var renderScale: Double = 1
+    private var gpuAvgMs = 0.0
+    private var scaleCooldown = 0
+    private let gpuLock = NSLock()
+    var dynamicResolution = UserDefaults.standard.object(forKey: "dynamicResolution") as? Bool ?? true
+
+    private func recordGPU(_ seconds: Double) {
+        guard seconds > 0 && seconds < 1 else { return }
+        gpuLock.lock(); gpuAvgMs = gpuAvgMs * 0.9 + seconds * 1000 * 0.1; gpuLock.unlock()
+    }
+
+    private func adjustResolution(_ view: MTKView) {
+        let full = view.convertToBacking(view.bounds).size
+        guard full.width >= 1, full.height >= 1 else { return }
+        gpuLock.lock(); let g = gpuAvgMs; gpuLock.unlock()
+        let budget = 1000.0 / Double(max(30, view.preferredFramesPerSecond))
+        if !dynamicResolution || Double(full.width * full.height) <= 2560 * 1440 * 1.05 {
+            renderScale = 1
+        } else if scaleCooldown > 0 {
+            scaleCooldown -= 1
+        } else if g > budget * 0.85 && renderScale > 0.6 {
+            renderScale = max(0.6, renderScale - 0.05); scaleCooldown = 20
+        } else if g < budget * 0.55 && renderScale < 1 {
+            renderScale = min(1, renderScale + 0.05); scaleCooldown = 40
+        }
+        let want = CGSize(width: (full.width * renderScale).rounded(), height: (full.height * renderScale).rounded())
+        if view.autoResizeDrawable { view.autoResizeDrawable = false }
+        if abs(view.drawableSize.width - want.width) >= 1 || abs(view.drawableSize.height - want.height) >= 1 {
+            view.drawableSize = want
+        }
     }
 
     // MARK: Scene
