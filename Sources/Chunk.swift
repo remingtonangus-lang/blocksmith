@@ -26,10 +26,54 @@ final class Section {
     var empty: Bool { opaqueQuads == 0 && transQuads == 0 }
 }
 
+// A chunk's blocks (index x + z*16 + y*256) stored only up to the highest section holding anything but
+// air: reads above it return AIR, writes grow it. Most of a 384-high column is sky, so this roughly halves
+// block memory at large render distances. `data` is copy-on-write like any array.
+struct BlockStore {
+    private(set) var data: [BlockID]
+    static let section = CSQ * 16
+
+    init(_ full: [BlockID]) {
+        var top = min(full.count, CSQ * CH)
+        while top > 0 && full[top - 1] == AIR { top -= 1 }
+        let keep = (top + BlockStore.section - 1) / BlockStore.section * BlockStore.section
+        data = keep >= full.count ? full : Array(full[0..<keep])
+    }
+
+    var count: Int { CSQ * CH }             // logical size
+    var storedCount: Int { data.count }     // everything at or above this index is AIR
+
+    @inline(__always) subscript(i: Int) -> BlockID {
+        get { i < data.count ? data[i] : AIR }
+        set {
+            if i >= data.count {
+                if newValue == AIR { return }
+                let need = min(CSQ * CH, (i / BlockStore.section + 1) * BlockStore.section)
+                data.append(contentsOf: repeatElement(AIR, count: need - data.count))
+            }
+            data[i] = newValue
+        }
+    }
+
+    // Full-height copy (saving, tree growth scratch).
+    func full() -> [BlockID] {
+        if data.count >= CSQ * CH { return data }
+        var out = data
+        out.append(contentsOf: repeatElement(AIR, count: CSQ * CH - data.count))
+        return out
+    }
+
+    // Same underlying storage: nothing was written since the copy was taken.
+    func sameStorage(_ o: BlockStore) -> Bool {
+        if data.isEmpty && o.data.isEmpty { return true }
+        return data.withUnsafeBufferPointer { a in o.data.withUnsafeBufferPointer { b in a.baseAddress == b.baseAddress } }
+    }
+}
+
 final class Chunk {
     let cx: Int
     let cz: Int
-    var blocks: [BlockID]          // index = x + z*16 + y*256
+    var blocks: BlockStore         // index = x + z*16 + y*256
     // Per-section light (sky << 4 | block, index x + z*16 + (y&15)*256) from the mesher; nil until meshed
     // (then World.lightAt falls back to the heightmap). Uniform sections share Mesher.dark / Mesher.fullSky.
     var light = [[UInt8]?](repeating: nil, count: NSEC)
@@ -40,11 +84,11 @@ final class Chunk {
     var modified = false
     // The block array as last saved or loaded. Any write to `blocks` copies it (copy-on-write), so
     // "same storage" means nothing changed since then and the save can be skipped.
-    var savedBlocks: [BlockID]?
+    var savedBlocks: BlockStore?
     var needsSave: Bool {
         guard modified else { return false }
         guard let s = savedBlocks else { return true }
-        return s.withUnsafeBufferPointer { a in blocks.withUnsafeBufferPointer { b in a.baseAddress != b.baseAddress } }
+        return !s.sameStorage(blocks)
     }
     var meshInFlight = false
     var meshedOnce = false
@@ -54,7 +98,7 @@ final class Chunk {
     init(cx: Int, cz: Int, blocks: [BlockID], height: [Int16], tint: [UInt32]) {
         self.cx = cx
         self.cz = cz
-        self.blocks = blocks
+        self.blocks = BlockStore(blocks)
         self.height = height
         self.tint = tint
         sections = (0..<NSEC).map { _ in Section() }
@@ -77,7 +121,7 @@ final class Chunk {
     func recomputeHeight(_ x: Int, _ z: Int) {
         let skyT = Blocks.sky
         let c = x + z * CS
-        var y = CH - 1
+        var y = min(CH, blocks.storedCount / CSQ) - 1
         while y >= 0 && !skyT[Int(blocks[c + y * CSQ])] { y -= 1 }
         height[c] = Int16(y)
     }

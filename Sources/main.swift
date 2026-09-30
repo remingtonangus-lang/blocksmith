@@ -725,7 +725,7 @@ enum Snapshot {
 
         // Mesh benchmark: re-mesh the section at the camera a few times on one thread.
         let key = ChunkKey(x: floorDiv(Int(pos.x), CS), z: floorDiv(Int(pos.z), CS))
-        var n9: [[BlockID]] = [], h9: [[Int16]] = []
+        var n9: [BlockStore] = [], h9: [[Int16]] = []
         for dz in -1...1 { for dx in -1...1 {
             let c = world.chunks[ChunkKey(x: key.x + dx, z: key.z + dz)]!
             n9.append(c.blocks); h9.append(c.height)

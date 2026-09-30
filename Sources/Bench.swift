@@ -104,7 +104,7 @@ enum Bench {
         var b = 0
         let shared = Set([Mesher.dark, Mesher.fullSky].map { $0.withUnsafeBufferPointer { Int(bitPattern: $0.baseAddress) } })
         for c in w.chunks.values {
-            b += c.blocks.count * MemoryLayout<BlockID>.stride + c.height.count * 2 + c.tint.count * 4
+            b += c.blocks.storedCount * MemoryLayout<BlockID>.stride + c.height.count * 2 + c.tint.count * 4
             for l in c.light { if let l, !shared.contains(l.withUnsafeBufferPointer { Int(bitPattern: $0.baseAddress) }) { b += l.count } }
         }
         return Double(b) / 1_048_576
@@ -157,7 +157,7 @@ enum Bench {
             var chunkMs: [Double] = [], secUs: [Double] = []
             var quads = 0, nonEmpty = 0
             for oz in -1...1 { for ox in -1...1 {
-                var n9: [[BlockID]] = [], h9: [[Int16]] = []
+                var n9: [BlockStore] = [], h9: [[Int16]] = []
                 for dz in -1...1 { for dx in -1...1 {
                     guard let c = world.chunks[ChunkKey(x: cx + ox + dx, z: cz + oz + dz)] else { continue }
                     n9.append(c.blocks); h9.append(c.height)
@@ -191,7 +191,7 @@ enum Bench {
         defer { withExtendedLifetime(game) {} }
         _ = world.loadSync(center: pos, radius: 3)
         let cx = floorDiv(Int(pos.x), CS), cz = floorDiv(Int(pos.z), CS)
-        var n9: [[BlockID]] = [], h9: [[Int16]] = []
+        var n9: [BlockStore] = [], h9: [[Int16]] = []
         for dz in -1...1 { for dx in -1...1 {
             guard let c = world.chunks[ChunkKey(x: cx + dx, z: cz + dz)] else { return }
             n9.append(c.blocks); h9.append(c.height)

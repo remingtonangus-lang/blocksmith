@@ -137,7 +137,7 @@ enum Mesher {
 
     // MARK: Build
 
-    static func buildSection(_ n9: [[BlockID]], _ h9: [[Int16]], sy: Int, lod: Int = 0) -> SectionMesh {
+    static func buildSection(_ n9: [BlockStore], _ h9: [[Int16]], sy: Int, lod: Int = 0) -> SectionMesh {
         let renderT = Blocks.render, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
         let cullSameT = Blocks.cullSame, texT = Blocks.tex, tintT = Blocks.tint, levelT = Blocks.fluidLevel, fkT = Blocks.fluidKind
         let layerT = Blocks.layer, boxesT = Blocks.boxes
@@ -151,9 +151,11 @@ enum Mesher {
         let y0 = sy * 16 - 16
 
         // Quick exit: an all-air section has no geometry of its own.
-        let centre = n9[4]
-        var anyBlock = false
         let base = sy * 16 * CSQ
+        let srcs = n9.map { $0.data }          // stored sections only; everything above is air
+        let centre = srcs[4]
+        if base >= centre.count { return SectionMesh(opaque: [], trans: [], light: nil) }
+        var anyBlock = false
         for i in base..<(base + 16 * CSQ) where centre[i] != AIR { anyBlock = true; break }
         if !anyBlock { return SectionMesh(opaque: [], trans: [], light: nil) }
 
@@ -168,7 +170,8 @@ enum Mesher {
             if y >= CH { continue }
             for cz in 0..<3 {
                 for cx in 0..<3 {
-                    let src = n9[cx + cz * 3]
+                    let src = srcs[cx + cz * 3]
+                    if y * CSQ >= src.count { continue }        // above the stored part: air (already)
                     for z in 0..<CS {
                         let si = z * CS + y * CSQ
                         let di = cx * CS + (cz * CS + z) * RW + ry * RL

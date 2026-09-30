@@ -131,9 +131,9 @@ final class SaveManager {
     }
 
     // Queues a chunk write on the background save queue (the main thread only hands over the array).
-    func saveChunkAsync(_ k: ChunkKey, _ blocks: [BlockID]) {
+    func saveChunkAsync(_ k: ChunkKey, _ blocks: BlockStore) {
         let url = chunkURL(k)
-        SaveIO.enqueue(url.path, blocks) { [self] in saveChunk(k, blocks) }
+        SaveIO.enqueue(url.path, blocks) { [self] in saveChunk(k, blocks.full()) }
     }
 
     func saveChunk(_ k: ChunkKey, _ blocks: [BlockID]) {
@@ -168,15 +168,15 @@ final class SaveManager {
 enum SaveIO {
     private static let queue = DispatchQueue(label: "blocksmith.save", qos: .utility)
     private static let lock = NSLock()
-    private static var queued: [String: (id: Int, blocks: [BlockID])] = [:]
+    private static var queued: [String: (id: Int, blocks: BlockStore)] = [:]
     private static var nextID = 0
 
     static func pending(_ path: String) -> [BlockID]? {
         lock.lock(); defer { lock.unlock() }
-        return queued[path]?.blocks
+        return queued[path]?.blocks.full()
     }
 
-    static func enqueue(_ path: String, _ blocks: [BlockID], _ write: @escaping () -> Void) {
+    static func enqueue(_ path: String, _ blocks: BlockStore, _ write: @escaping () -> Void) {
         lock.lock()
         nextID += 1
         let id = nextID

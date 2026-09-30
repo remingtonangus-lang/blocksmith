@@ -163,7 +163,7 @@ extension Game {
         var changes: [(IVec3, BlockID)] = []
         for dz in -1...1 { for dx in -1...1 {
             guard let c = world.chunks[ChunkKey(x: ccx + dx, z: ccz + dz)] else { continue }
-            var buf = c.blocks
+            var buf = c.blocks.full()
             buf.withUnsafeMutableBufferPointer { bp in
                 let w = TreeWriter(b: bp.baseAddress!, bx: c.cx * CS, bz: c.cz * CS)
                 var rng = SRng(seed)

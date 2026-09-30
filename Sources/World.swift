@@ -304,8 +304,8 @@ final class World {
 
     // MARK: Meshing
 
-    private func neighbourhood(_ c: Chunk) -> ([[BlockID]], [[Int16]])? {
-        var n9: [[BlockID]] = []
+    private func neighbourhood(_ c: Chunk) -> ([BlockStore], [[Int16]])? {
+        var n9: [BlockStore] = []
         var h9: [[Int16]] = []
         n9.reserveCapacity(9)
         h9.reserveCapacity(9)
@@ -537,7 +537,7 @@ final class World {
         }
         let t1 = CFAbsoluteTimeGetCurrent()
 
-        var toMesh: [(Chunk, Int, Int, [[BlockID]], [[Int16]])] = []
+        var toMesh: [(Chunk, Int, Int, [BlockStore], [[Int16]])] = []
         for dz in -radius...radius { for dx in -radius...radius where World.inDisc(dx, dz, radius, grow: 0) && inMeshRadius(dx, dz) {
             if let c = chunks[ChunkKey(x: cx + dx, z: cz + dz)], c.needsMesh, let nb = neighbourhood(c) {
                 c.lod = lodFor(dx, dz)
