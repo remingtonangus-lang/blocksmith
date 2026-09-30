@@ -330,7 +330,7 @@ final class BugNotes {
         bn.transcriber = { bufs, done in done("the zombie walked through the fence (\(bufs.count) buffers)") }
         defer { dir = old; bn.forcedMode = nil; bn.captureScreenshot = nil; bn.transcriber = nil; try? fm.removeItem(at: tmp) }
 
-        let rate = 16000.0, chunk = 1600
+        let rate = 48000.0, chunk = 4800           // what a Mac mic delivers
         guard let fmt = AVAudioFormat(standardFormatWithSampleRate: rate, channels: 1) else { PadTest.check(false, "bug notes: audio format"); return }
         var t = 0
         func segment(_ seconds: Double, voice: Bool) {
