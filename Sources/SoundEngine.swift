@@ -128,6 +128,10 @@ final class SoundEngine {
         ms.start()
         ds.node.play()
         ds.start()
+        // Output device changes (headphones, a TV over HDMI/AirPlay) stop the engine: restart and re-prime everything.
+        NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { [weak self] _ in
+            self?.restartAfterDeviceChange()
+        }
         bank.prewarm(SoundBank.commonSounds + [.explode, .thunder, .lightning, .caveAmbience, .caveDrip, .caveWind, .levelUp, .totem, .playerDeath])
     }
 
@@ -312,6 +316,15 @@ final class SoundEngine {
     }
 
     var loopCount: Int { loops.count }
+
+    func restartAfterDeviceChange() {
+        do { try engine.start() } catch { print("audio restart failed: \(error)"); return }
+        for p in spatial + flat + ui { p.play() }
+        for i in 0..<spatialEnd.count { spatialEnd[i] = 0 }
+        for l in loops.values { l.node.stop(); l.started = false; l.level = 0 }     // re-scheduled on the next tick
+        music?.restart()
+        disc?.restart()
+    }
 
     func stopAll() {
         for p in spatial + flat + ui { p.stop(); p.play() }

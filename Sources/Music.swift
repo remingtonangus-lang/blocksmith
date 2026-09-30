@@ -344,7 +344,24 @@ final class MusicStream {
 
     // Call once the node is attached, connected and playing: primes the queue and keeps it fed.
     func start() {
-        queue.async { [weak self] in for _ in 0..<4 { self?.pump() } }
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            self.generation += 1
+            self.queued = 0
+            for _ in 0..<4 { self.pump(self.generation) }
+        }
+    }
+
+    // After the output device changed (the engine restarted): drop the old chain and prime a new one.
+    func restart() {
+        queue.async { [weak self] in
+            guard let self = self else { return }
+            self.generation += 1
+            self.node.stop()
+            self.node.play()
+            self.queued = 0
+            for _ in 0..<4 { self.pump(self.generation) }
+        }
     }
 
     var isPlaying: Bool { lock.lock(); defer { lock.unlock() }; return current != nil }
@@ -367,8 +384,20 @@ final class MusicStream {
     }
 
     // Renders one block and schedules it; the completion schedules the next, keeping ~4 blocks ahead.
-    private func pump() {
-        guard running, let buf = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(block)), let ch = buf.floatChannelData else { return }
+    // Buffers come from a small ring (no per-block allocation); `gen` retires chains from before a restart.
+    private var ring: [AVAudioPCMBuffer] = []
+    private var ringIdx = 0
+    private var generation = 0
+
+    private func pump(_ gen: Int) {
+        guard running, gen == generation else { return }
+        if ring.isEmpty {
+            for _ in 0..<6 { if let b = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(block)) { ring.append(b) } }
+            if ring.isEmpty { return }
+        }
+        let buf = ring[ringIdx]
+        ringIdx = (ringIdx + 1) % ring.count
+        guard let ch = buf.floatChannelData else { return }
         renderer.render(into: &l, &r)
         let fin = renderer.finished
         lock.lock(); rendererFinished = fin; lock.unlock()
@@ -382,7 +411,7 @@ final class MusicStream {
         queued += 1
         node.scheduleBuffer(buf, at: nil, options: [], completionCallbackType: .dataConsumed) { [weak self] _ in
             guard let self = self else { return }
-            self.queue.async { self.queued -= 1; self.pump() }
+            self.queue.async { self.queued -= 1; self.pump(gen) }
         }
     }
 }
