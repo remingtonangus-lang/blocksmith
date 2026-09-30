@@ -44,6 +44,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     let entityPipe: MTLRenderPipelineState
     let crackPipe: MTLRenderPipelineState
     let skyPipe: MTLRenderPipelineState
+    let hollowSkyPipe: MTLRenderPipelineState
     let cloudBoxPipe: MTLRenderPipelineState
     let clouds: CloudMesh?
     let starBuf: MTLBuffer
@@ -107,6 +108,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         entityPipe = try pipe("entityVS", "entityFS", blend: false)
         crackPipe = try pipe("entityVS", "crackFS", blend: true)
         skyPipe = try pipe("skyVS", "skyFS", blend: false)
+        hollowSkyPipe = try pipe("skyVS", "hollowSkyFS", blend: false)
         cloudBoxPipe = try pipe("cloudBoxVS", "cloudBoxFS", blend: true)
         clouds = CloudMesh(device: device)
 
@@ -292,6 +294,14 @@ final class Renderer: NSObject, MTKViewDelegate {
             var sp = SkyParams(invViewProj: viewProj.inverse, zenith: V4(game.skyZenith, 0),
                                horizon: V4(sky, glow), sun: V4(sd, daylight))
             enc.setRenderPipelineState(skyPipe)
+            enc.setDepthStencilState(depthNone)
+            enc.setCullMode(.none)
+            enc.setFragmentBytes(&sp, length: MemoryLayout<SkyParams>.stride, index: 1)
+            enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+        } else if game.fancyGraphics && game.dim.dim == .end && !underwater && game.blindFog == nil {
+            var sp = SkyParams(invViewProj: viewProj.inverse, zenith: V4(sky, 0), horizon: V4(sky, 0),
+                               sun: V4(0, 1, 0, Float(game.clock.truncatingRemainder(dividingBy: 10000))))
+            enc.setRenderPipelineState(hollowSkyPipe)
             enc.setDepthStencilState(depthNone)
             enc.setCullMode(.none)
             enc.setFragmentBytes(&sp, length: MemoryLayout<SkyParams>.stride, index: 1)

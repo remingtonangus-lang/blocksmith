@@ -269,6 +269,21 @@ fragment float4 cloudFS(CloudOut in [[stage_in]],
     return float4(col, 0.82 * fade);
 }
 
+// Fancy Hollow sky: the fog colour with faint drifting violet streaks and darker voids (no sun, no stars).
+fragment float4 hollowSkyFS(SkyOut in [[stage_in]], constant SkyParams& s [[buffer(1)]]) {
+    float4 w = s.invViewProj * float4(in.ndc, 1.0, 1.0);
+    float3 d = normalize(w.xyz / w.w);
+    float t = s.sun.w;
+    // Project onto a box around the viewer so the pattern has no pole pinch.
+    float3 a = abs(d);
+    float2 q = a.y > max(a.x, a.z) ? d.xz / a.y : (a.x > a.z ? d.zy / a.x : d.xy / a.z);
+    float n = vnoise(q * 3.0 + float2(t * 0.01, 0.0)) * 0.6 + vnoise(q * 9.0 - float2(0.0, t * 0.015)) * 0.4;
+    float streak = smoothstep(0.55, 0.85, vnoise(float2(q.x * 1.5, q.y * 7.0) + 11.0));
+    float3 base = s.horizon.rgb;
+    float3 col = base * (0.7 + 0.5 * n) + float3(0.09, 0.04, 0.12) * streak;
+    return float4(col, 1.0);
+}
+
 // Fancy clouds: boxes in cloud space (buffer 0, colour = face shade), one offset to the camera.
 vertex CloudOut cloudBoxVS(uint vid [[vertex_id]],
                            const device SimpleVert* verts [[buffer(0)]],
