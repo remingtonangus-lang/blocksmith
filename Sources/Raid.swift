@@ -323,10 +323,18 @@ extension Mob {
         let zombie = isZombie
         let illager = raider || kind == .vindicator || kind == .pillager || kind == .illusioner
         guard zombie || illager else { return nil }
-        let range: Float = raider ? 32 : 16
-        return g.mobs.mobs.filter { o in
-            o.health > 0 && ((o.kind == .villager && !o.baby) || (illager && o.kind == .ironGolem)) && simd_length(o.pos - pos) < range
-        }.min { simd_length($0.pos - pos) < simd_length($1.pos - pos) }
+        var best: Mob?
+        var bd: Float = raider ? 32 : 16
+        func consider(_ list: [Mob]) {
+            for o in list where o.health > 0 && !(o.kind == .villager && o.baby) {
+                let d = simd_length(o.pos - pos)
+                if d < bd { bd = d; best = o }
+            }
+        }
+        consider(g.mobs.of(.villager))
+        if zombie { consider(g.mobs.of(.wanderingTrader)) }
+        if illager { consider(g.mobs.of(.ironGolem)) }
+        return best
     }
 
     // Zombie villager curing countdown; returns true when it has become a villager.

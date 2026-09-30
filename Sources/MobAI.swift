@@ -61,11 +61,11 @@ extension Mob {
         func near(_ kinds: Set<MobKind>, _ r: Float, tamedOnly: Bool = false) -> V3? {
             var best: V3?
             var bd = r
-            for o in g.mobs.mobs where o !== self && kinds.contains(o.kind) && o.health > 0 {
+            for k in kinds { for o in g.mobs.of(k) where o !== self && o.health > 0 {
                 if tamedOnly && !o.tamed { continue }
                 let d = simd_length(o.pos - pos)
                 if d < bd { bd = d; best = o.pos }
-            }
+            } }
             return best
         }
         switch kind {
@@ -99,7 +99,7 @@ extension Mob {
         guard baby, !spec.aquatic, !spec.flying, kind != .villager, spec.behavior == .passive || spec.behavior == .animal else { return false }
         var best: Mob?
         var bd: Float = 8
-        for o in g.mobs.mobs where o !== self && o.kind == kind && !o.baby {
+        for o in g.mobs.of(kind) where o !== self && !o.baby {
             let d = simd_length(o.pos - pos)
             if d < bd { bd = d; best = o }
         }

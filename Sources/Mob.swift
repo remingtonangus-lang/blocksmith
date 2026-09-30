@@ -1345,6 +1345,13 @@ final class MobManager {
     var hostileTimer: Float = 1
     var populateTimer: Float = 0.5
     var populated = Set<ChunkKey>()               // chunks that already had their generation-time animals (Spawning.swift)
+    // Live mobs by kind, rebuilt at the start of every update (reused storage: no per-tick allocation).
+    private(set) var kindIndex: [[Mob]] = Array(repeating: [], count: MobKind.allCases.count)
+    func of(_ k: MobKind) -> [Mob] { kindIndex[k.rawValue] }
+    func rebuildIndex() {
+        for i in kindIndex.indices { kindIndex[i].removeAll(keepingCapacity: true) }
+        for m in mobs where m.health > 0 { kindIndex[m.kind.rawValue].append(m) }
+    }
     static let breedFood: [MobKind: [String]] = [
         .cow: ["wheat"], .sheep: ["wheat"], .pig: ["carrot", "potato", "beetroot"], .chicken: ["wheat_seeds", "beetroot_seeds"],
         .hoglin: ["crimson_fungus"], .strider: ["warped_fungus"],
@@ -1355,6 +1362,7 @@ final class MobManager {
         PathFinder.spent = 0
         let w = game.world
         let p = game.player.pos
+        rebuildIndex()
         for m in mobs {
             m.update(dt, game: game)
             if m.callTimer <= 0 {
