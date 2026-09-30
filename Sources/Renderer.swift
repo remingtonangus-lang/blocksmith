@@ -456,7 +456,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             let sw = game.swing
             let a = sinf(sqrtf(sw) * .pi)
             let bob = sinf(game.walkBob * 2) * 0.02 * game.walkAmount
-            let base = V3(0.56 - 0.25 * a, -0.52 + 0.12 * sinf(sqrtf(sw) * 2 * .pi) + bob, -0.72 - 0.15 * sinf(sw * .pi))
+            let base = V3(0.5 - 0.25 * a, -0.4 + 0.12 * sinf(sqrtf(sw) * 2 * .pi) + bob, -0.8 - 0.15 * sinf(sw * .pi))
             let held = game.held
             // Arm (skin-coloured box angled up into the screen).
             let armOff = (scratchOff + 255) & ~255
@@ -465,7 +465,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             let skin = V3(0.84, 0.64, 0.5)
             let axL = simd_normalize(V3(-0.12, 0.62, -0.78)) * (held.isEmpty ? 0.36 : 0.3)
             let axW = V3(0.075, 0, 0.03), axD = simd_normalize(simd_cross(axL, axW)) * 0.075
-            let ac = base + V3(0.12, -0.38, 0.28) + (held.isEmpty ? V3(-0.05, 0.12, -0.1) : .zero)
+            let ac = base + V3(0.12, -0.34, 0.3) + (held.isEmpty ? V3(-0.05, 0.12, -0.1) : .zero)
             let CT = Mesher.cornerTable
             let faceShade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
             for f in 0..<6 {
@@ -492,16 +492,16 @@ final class Renderer: NSObject, MTKViewDelegate {
                 if let b = held.def.block, !Blocks.flatIcon(b) {
                     let t = Blocks.tint[Int(b)]
                     let tint = t == 1 || t == 3 ? V3(0.57, 0.74, 0.35) : (t == 2 ? V3(0.47, 0.67, 0.18) : V3(1, 1, 1))
-                    wr.cube(center: base + V3(-0.02, 0.06, -0.05), half: 0.16, yaw: 0.8, block: b, light: light, tint: tint)
+                    wr.cube(center: base + V3(-0.02, 0.0, -0.05), half: 0.115, yaw: 0.8, block: b, light: light, tint: tint)
                 } else {
                     let layer = Items.texLayer(held.item) ?? Int(Blocks.tex[Int(held.def.block ?? 0) * 6])
                     // Tools lean forward like they're gripped; two layers make the sprite look solid.
                     let r = simd_normalize(V3(-0.25, 0.1, -1)), up = simd_normalize(V3(0.1, 1, -0.05))
-                    let c = base + V3(-0.02, 0.18, -0.12) + V3(0, 0, bowPull())
+                    let c = base + V3(-0.02, 0.1, -0.1) + V3(0, 0, bowPull())
                     for (i, off) in [Float(0), 0.02].enumerated() {
                         let n = simd_normalize(simd_cross(r, up)) * off
                         let k: Float = i == 0 ? 1 : 0.7
-                        wr.sprite(center: c + n, half: 0.26, right: r, up: up, layer: layer, light: light * k)
+                        wr.sprite(center: c + n, half: 0.2, right: r, up: up, layer: layer, light: light * k)
                     }
                 }
                 if wr.n > 0 {
