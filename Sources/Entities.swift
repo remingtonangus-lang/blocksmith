@@ -11,10 +11,10 @@ struct EntityWriter {
     let capacity: Int
     var n = 0
 
-    mutating func quad(_ p: [V3], _ uv: [V2], _ layer: Int, _ color: V4) {
+    mutating func quad(_ p: [V3], _ uv: [V2], _ layer: Int, _ color: V4, overlay: Bool = false) {
         guard n + 6 <= capacity else { return }
         for i in [0, 1, 2, 0, 2, 3] {
-            out[n] = EntityVert(pos: V4(p[i], Float(layer)), uv: V4(uv[i].x, uv[i].y, 0, 0), color: color)
+            out[n] = EntityVert(pos: V4(p[i], Float(layer)), uv: V4(uv[i].x, uv[i].y, overlay ? 1 : 0, 0), color: color)
             n += 1
         }
     }
@@ -33,7 +33,8 @@ struct EntityWriter {
                 ps.append(c + V3(cy * l.x + sy * l.z, l.y, -sy * l.x + cy * l.z))
             }
             let s = shade[f] * light
-            quad(ps, uvs, Int(Blocks.tex[Int(b) * 6 + f]), V4(tint * s, 1))
+            let overlaySide = Blocks.tint[Int(b)] == 3 && f != 2
+            quad(ps, uvs, Int(Blocks.tex[Int(b) * 6 + f]), V4((overlaySide ? V3(1, 1, 1) : tint) * s, 1), overlay: overlaySide && f != 3)
         }
     }
 
