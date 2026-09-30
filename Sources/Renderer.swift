@@ -206,7 +206,8 @@ final class Renderer: NSObject, MTKViewDelegate {
             game.onToast?("Saved screenshot as \(name)")
         }
         let cmd = queue.makeCommandBuffer()!
-        cmd.addCompletedHandler { [inflight] _ in inflight.signal() }
+        let fence = MeshArena.frameSubmitted()      // freed meshes wait for this frame before reuse
+        cmd.addCompletedHandler { [inflight] _ in MeshArena.frameCompleted(fence); inflight.signal() }
         let sky = game.skyColor
         let clear = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInWater ? V3(0.05, 0.12, 0.3) : sky)
         rpd.colorAttachments[0].clearColor = MTLClearColor(red: Double(clear.x), green: Double(clear.y), blue: Double(clear.z), alpha: 1)
