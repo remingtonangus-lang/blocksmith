@@ -182,13 +182,7 @@ extension Mob {
             if let f = flyTarget { let d = f - pos; vel += (d * 0.6 - vel) * min(1, dt * 2); vel.y -= 2 * dt }
             return 0
         case .bee:
-            // Wander between flowers (pollinating) and the hive.
-            if aiTimer <= 0 || flyTarget == nil {
-                aiTimer = Float.random(in: 3...8)
-                flyTarget = pos + V3(Float.random(in: -6...6), Float.random(in: -1...2), Float.random(in: -6...6))
-            }
-            if let f = flyTarget { let d = f - pos; vel += (d * 0.5 - vel) * min(1, dt * 2) }
-            return 0
+            return beeAI(dt, g)
         case .allay:
             // Follows the player who gave it an item and collects matching drops.
             if tamed {

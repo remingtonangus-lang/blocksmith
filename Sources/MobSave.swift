@@ -129,10 +129,12 @@ extension MobManager {
         }
         if let d = try? JSONEncoder().encode(all) { try? d.write(to: s.dir.appendingPathComponent("mobs.json"), options: .atomic) }
         savePopulated(to: s)
+        saveHives(to: s)
     }
 
     func load(from s: SaveManager?) {
         loadPopulated(from: s)
+        loadHives(from: s)
         guard let s = s, let d = try? Data(contentsOf: s.dir.appendingPathComponent("mobs.json")),
               let all = try? JSONDecoder().decode([String: [MobRecord]].self, from: d) else { return }
         for (key, v) in all {

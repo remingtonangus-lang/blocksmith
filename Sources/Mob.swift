@@ -331,6 +331,9 @@ final class Mob {
     var reinforceChance = Float.random(in: 0..<0.1)
     var trap = false                // skeleton trap horse
     var carriedBlock: BlockID = 0   // voidwalker: block it picked up
+    var hive: IVec3?                // bee: its nest / hive (Bees.swift)
+    var nectar = false
+    var flower: IVec3?
     var sleptAt: Double = -1e9      // villager: game time it last slept (golem summoning needs sleep within a day)
     var golemSeenAt: Double = -1e9  // villager: last saw an iron golem
     var gossipCooldown: Float = 0
@@ -1363,6 +1366,7 @@ final class MobManager {
     var passiveTimer: Float = 2
     var hostileTimer: Float = 1
     var populateTimer: Float = 0.5
+    var hives: [IVec3: [(nectar: Bool, time: Float)]] = [:]   // bees inside nests / hives (Bees.swift)
     var populated = Set<ChunkKey>()               // chunks that already had their generation-time animals (Spawning.swift)
     // Live mobs by kind, rebuilt at the start of every update (reused storage: no per-tick allocation).
     private(set) var kindIndex: [[Mob]] = Array(repeating: [], count: MobKind.allCases.count)
@@ -1383,6 +1387,7 @@ final class MobManager {
         let p = game.player.pos
         rebuildIndex()
         Mob.hardMode = game.difficulty == 3
+        hiveTick(dt, game)
         for m in mobs {
             m.update(dt, game: game)
             if m.callTimer <= 0 {
