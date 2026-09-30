@@ -269,7 +269,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                                         button("Mouse Sensitivity: \(Int(game.sensitivity * 100))%", #selector(cycleSens)),
                                         button("Volume: \(Int(game.volumeSetting * 100))%", #selector(cycleVolume)),
                                         button("Advancements (L)", #selector(openAdvancements)),
-                                        button("Worlds…", #selector(showWorlds)),
+                                        button("Worlds...", #selector(showWorlds)),
                                         button("Toggle Fullscreen", #selector(toggleFS)),
                                         button("Save and Quit", #selector(saveQuit)),
                                         hint])

@@ -21,14 +21,14 @@ final class PauseMenu: Menu {
         case .title:
             title = ""
             let last = UserDefaults.standard.string(forKey: "lastWorld") ?? "World1"
-            rows = [("Continue: \(last)", "resume"), ("Load World…", "load"), ("New World (random seed)", "newworld"),
-                    ("Create World… (keyboard)", "worlds"), ("Options…", "options"), ("Quit Game", "quit")]
+            rows = [("Continue: \(last)", "resume"), ("Load World...", "load"), ("New World (random seed)", "newworld"),
+                    ("Create World... (keyboard)", "worlds"), ("Options...", "options"), ("Quit Game", "quit")]
         case .main:
             title = "Game Paused"
-            rows = [("Back to Game", "resume"), ("Options…", "options"), ("Advancements", "advancements"),
+            rows = [("Back to Game", "resume"), ("Options...", "options"), ("Advancements", "advancements"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Game.difficultyNames[g.difficulty])", "difficulty"),
-                    ("Load World…", "load"), ("New World (random seed)", "newworld"), ("Create World… (keyboard)", "worlds"),
+                    ("Load World...", "load"), ("New World (random seed)", "newworld"), ("Create World... (keyboard)", "worlds"),
                     ("Toggle Fullscreen", "fullscreen"), ("Save and Quit", "quit")]
         case .options:
             title = "Options"
