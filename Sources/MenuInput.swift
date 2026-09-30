@@ -150,7 +150,7 @@ extension Game {
         }
         // LT in a container screen: take everything from the container (hovering it), or store every stack of the
         // hovered item (hovering the inventory). Console-style "Take all / Store all".
-        if p.lt > 0.5 && q.lt <= 0.5 && creative == nil && keyboard == nil && !(m is PauseMenu), let h = menuHover,
+        if p.lt > 0.5 && q.lt <= 0.5 && creative == nil && keyboard == nil && !(m is PauseMenu) && !(m is InventoryMenu), let h = menuHover,
            !h.isButton, case .normal = h.kind, h.container != nil, m.slots.contains(where: { !$0.isPlayerInv && $0.container != nil && !$0.isButton }) {
             let fromPlayer = h.isPlayerInv
             let want = h.stack.item
