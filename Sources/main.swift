@@ -345,6 +345,14 @@ enum Snapshot {
                     m.variant = parts.count > 1 ? Int(parts[1]) ?? 0 : 0
                     m.chested = parts.count > 2
                     m.yaw += Float(i) * 0.4
+                } else if parts.count > 1 && ["leather", "golden", "chainmail", "iron", "diamond", "netherite"].contains(parts[1]) {
+                    // "zombie:iron" / "armor_stand:diamond": a full set of that armour (+ a sword).
+                    var eq = ["helmet", "chestplate", "leggings", "boots"].map { p -> ItemStack in
+                        let n = parts[1] == "leather" && p == "helmet" ? "leather_helmet" : "\(parts[1])_\(p)"
+                        return Items.has(n) ? ItemStack(Items.id(n), 1) : .empty
+                    }
+                    eq.append(Items.has("\(parts[1])_sword") ? ItemStack(Items.id("\(parts[1])_sword"), 1) : .empty)
+                    m.equip = eq
                 } else if parts.count > 1 { var d = VillagerData(); d.profession = parts[1]; m.villager = d }
                 if k == .wither { m.phase = 0; m.pos.y += 2 }
                 if k == .evoker { m.spellTimer = 4.5 }
