@@ -163,13 +163,14 @@ final class Renderer: NSObject, MTKViewDelegate {
         texture = tex
 
         // Shared index buffer: every quad is 4 vertices -> 2 CCW triangles.
-        var idx = [UInt32]()
-        idx.reserveCapacity(Renderer.maxQuads * 6)
-        for q in 0..<UInt32(Renderer.maxQuads) {
-            let b = q * 4
-            idx.append(contentsOf: [b, b + 1, b + 2, b, b + 2, b + 3])
+        // Written in place (building it through per-quad array literals cost a measurable slice of startup).
+        let qi = device.makeBuffer(length: Renderer.maxQuads * 6 * 4, options: .storageModeShared)!
+        let ip = qi.contents().bindMemory(to: UInt32.self, capacity: Renderer.maxQuads * 6)
+        for q in 0..<Renderer.maxQuads {
+            let b = UInt32(q * 4), o = q * 6
+            ip[o] = b; ip[o + 1] = b + 1; ip[o + 2] = b + 2; ip[o + 3] = b; ip[o + 4] = b + 2; ip[o + 5] = b + 3
         }
-        quadIndices = device.makeBuffer(bytes: idx, length: idx.count * 4, options: .storageModeShared)!
+        quadIndices = qi
 
         super.init()
         for _ in 0..<3 { ring.append(device.makeBuffer(length: ringSize, options: .storageModeShared)!) }
