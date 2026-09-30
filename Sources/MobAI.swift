@@ -116,6 +116,20 @@ extension Mob {
         }
         if kind == .zombifiedPiglin { provoke(g) }
         callReinforcement(g)
+        // A hurt silverfish wakes its friends: infested blocks within 10 x 5 x 10 release theirs.
+        if kind == .silverfish {
+            let w = g.world
+            let c = IVec3(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z)))
+            var woken = 0
+            for dy in -5...5 { for dz in -10...10 { for dx in -10...10 where woken < 12 {
+                let b = w.block(c.x + dx, c.y + dy, c.z + dz)
+                guard b != AIR, Blocks.key(b).hasPrefix("infested_") else { continue }
+                let plain = String(Blocks.key(b).dropFirst(9))
+                w.setBlock(c.x + dx, c.y + dy, c.z + dz, Blocks.has(plain) ? Blocks.id(plain) : AIR)
+                g.mobs.mobs.append(Mob(.silverfish, at: V3(Float(c.x + dx) + 0.5, Float(c.y + dy), Float(c.z + dz) + 0.5)))
+                woken += 1
+            } } }
+        }
     }
 
     // Mirage caster (reference illusioner): every 9 s either blinds its target for 20 s or, when the
