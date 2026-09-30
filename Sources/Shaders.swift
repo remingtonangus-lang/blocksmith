@@ -76,12 +76,14 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     o.anim = face == 7u ? 1.0 : 0.0;
     // Skylight scales with daylight; block light (torches) is warm and constant.
     float sky = skyL * (0.35 + 0.65 * skyL) * u.params.y;
+    // Moonlight: what little skylight is left at night is cool blue rather than grey.
+    float3 skyTint = mix(float3(0.6, 0.7, 1.0), float3(1.0), smoothstep(0.1, 0.55, u.params.y));
     // Reference light curve (l / (4 - 3l)) with the default-brightness gamma lift, so a torch (14, -1 per
     // block) clearly lights ~6-7 blocks around it. Block light is never scaled by daylight.
     float blk0 = blkL / (4.0 - 3.0 * blkL);
     float inv = 1.0 - blk0;
     float blk = min(1.0, mix(blk0, 1.0 - inv * inv * inv * inv, 0.6) * 1.05);
-    float3 lit = max(float3(sky), blk * float3(1.0, 0.76, 0.46));
+    float3 lit = max(sky * skyTint, blk * float3(1.0, 0.76, 0.46));
     // Dimension ambient lifts the whole light curve (the Emberdeep/End are never pitch black).
     lit = mix(max(lit, float3(0.035)), float3(1.0), u.sunDir.w);
     o.shade = lit * (faceShade[face] * aoCurve[ao]);
@@ -322,10 +324,11 @@ fragment float4 entityFS(EntOut in [[stage_in]],
     return float4(applyFog(rgb * in.color.rgb, in.dist, u), 1.0);
 }
 
+// Blended textured quads: the block-breaking crack overlay, rain and snow, lightning.
 fragment float4 crackFS(EntOut in [[stage_in]], texture2d_array<float> tex [[texture(0)]]) {
     float4 c = tex.sample(texSampler, in.uv, uint(in.layer), level(0.0));
     if (c.a < 0.1) { discard_fragment(); }
-    return float4(c.rgb, c.a * in.color.a);
+    return float4(c.rgb * in.color.rgb, c.a * in.color.a);
 }
 
 struct HudVert { float2 pos; float2 uv; float4 color; float4 extra; };

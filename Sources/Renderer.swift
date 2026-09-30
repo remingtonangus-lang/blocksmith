@@ -459,7 +459,6 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.writeEndEntities(&wr, eye: eye, right: right, up: -up)
                 game.writeFangs(&wr, eye: eye)
                 game.writeBeams(&wr, eye: eye)
-                game.writeWeather(&wr, eye: eye)
                 game.writeFalling(&wr, eye: eye)
                 game.writeDecor(&wr, eye: eye)
                 game.writeBobber(&wr, eye: eye, right: right, up: -up)
@@ -470,6 +469,8 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.writeShelves(&wr, eye: eye)
                 game.particles.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight)
                 let nItems = wr.n
+                // Blended pass: rain / snow / lightning glow, then the crack overlay.
+                game.writeWeather(&wr, eye: eye)
                 if let m = game.mining, game.mineProgress > 0 {
                     let layer = HudTex.destroy(Int(game.mineProgress * 10))
                     let o = V3(Float(m.x), Float(m.y), Float(m.z)) - eye

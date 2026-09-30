@@ -745,6 +745,10 @@ enum Snapshot {
         do { renderer = try Renderer(device: device, game: game, colorFormat: .bgra8Unorm) }
         catch { print("renderer init failed: \(error)"); return 1 }
         game.target = world.raycast(game.player.eye, game.player.look, maxDist: 5)
+        if let s = arg("--crack"), let t = game.target {
+            game.mining = t.hit
+            game.mineProgress = min(0.99, max(0.01, Float(s) ?? 0.6))
+        }
         if CommandLine.arguments.contains("--swim") {
             game.player.flying = false
             game.player.swimming = true
