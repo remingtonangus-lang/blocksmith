@@ -204,6 +204,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             case "worlds": self.showWorlds()
             case _ where id.hasPrefix("play:"): self.switchWorld(name: String(id.dropFirst(5)), seed: nil, survival: nil, difficulty: nil)
             case "newworld": self.switchWorld(name: "World\(Int.random(in: 100...999))", seed: nil, survival: self.game.survival, difficulty: self.game.difficulty)
+            case _ where id.hasPrefix("create:"):
+                // create:<survival 0/1>:<difficulty>:<name>:<seed text>
+                let parts = id.split(separator: ":", maxSplits: 4, omittingEmptySubsequences: false).map(String.init)
+                guard parts.count == 5 else { return }
+                self.switchWorld(name: parts[3], seed: AppDelegate.seedValue(parts[4]), survival: parts[1] == "1", difficulty: Int(parts[2]) ?? 2)
             default: break
             }
         }
@@ -375,17 +380,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         func find<T: NSView>(_ id: String) -> T? { panel.subviews.flatMap { ($0 as? NSStackView)?.views ?? [] }.first { $0.identifier?.rawValue == id } as? T }
         let fieldName = (find("newName") as NSTextField?)?.stringValue.trimmingCharacters(in: .whitespaces) ?? ""
         let name = fieldName.isEmpty ? "World\(Int.random(in: 100...999))" : fieldName.replacingOccurrences(of: "/", with: "-")
-        let seedText = (find("newSeed") as NSTextField?)?.stringValue ?? ""
-        var seed: UInt64? = UInt64(seedText)
-        if seed == nil && !seedText.isEmpty {
-            // Text seeds: a stable 64-bit FNV-1a hash.
-            var h: UInt64 = 0xcbf29ce484222325
-            for b in seedText.utf8 { h = (h ^ UInt64(b)) &* 0x100000001b3 }
-            seed = h
-        }
+        let seed = AppDelegate.seedValue((find("newSeed") as NSTextField?)?.stringValue ?? "")
         let survival = (find("newMode") as NSPopUpButton?)?.indexOfSelectedItem != 1
         let diff = (find("newDifficulty") as NSPopUpButton?)?.indexOfSelectedItem ?? 2
         switchWorld(name: name, seed: seed, survival: survival, difficulty: diff)
+    }
+    // Seed text -> seed: numbers as they are, other text via a stable 64-bit FNV-1a hash, empty = random.
+    static func seedValue(_ text: String) -> UInt64? {
+        let t = text.trimmingCharacters(in: .whitespaces)
+        if t.isEmpty { return nil }
+        if let v = UInt64(t) { return v }
+        if let v = Int64(t) { return UInt64(bitPattern: v) }
+        var h: UInt64 = 0xcbf29ce484222325
+        for b in t.utf8 { h = (h ^ UInt64(b)) &* 0x100000001b3 }
+        return h
     }
     @objc func saveQuit() { game.saveNow(); NSApp.terminate(nil) }
 

@@ -91,6 +91,7 @@ done
 "$BIN" --snapshot snaps/options.png --seed 12345 --menu options
 "$BIN" --snapshot snaps/death.png --seed 12345 --menu death
 "$BIN" --snapshot snaps/title.png --seed 12345 --menu title
+"$BIN" --snapshot snaps/create.png --seed 12345 --menu create
 "$BIN" --snapshot snaps/recipes.png --seed 12345 --menu recipes
 "$BIN" --snapshot snaps/commands.png --seed 12345 --menu commands
 "$BIN" --snapshot snaps/fireworks.png --seed 12345 --find plains --yaw 30 --pitch 20 --time 0.8 --up 1 --fireworks

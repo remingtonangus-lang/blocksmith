@@ -3,11 +3,17 @@ import Foundation
 // In-game pause and options screens (drawn with the HUD, so a controller can drive them: D-pad /
 // stick to move, A to choose or step a setting forward, X to step it back, B to go back).
 final class PauseMenu: Menu {
-    enum Page { case title, main, options, worlds }
+    enum Page { case title, main, options, worlds, create }
     var page: Page = .main
     // (label, action id); settings show their current value in the label.
     var rows: [(String, String)] = []
     var cameFromTitle = false
+    // Create World page (controller-friendly: the text fields use the on-screen keyboard).
+    var newName = "New World"
+    var newSeed = ""
+    var newSurvival = true
+    var newDifficulty = 2
+    var editing: Int? = nil        // 0 name, 1 seed
 
     init(game: Game) {
         super.init("Game Paused", game: game)
@@ -22,13 +28,13 @@ final class PauseMenu: Menu {
             title = ""
             let last = UserDefaults.standard.string(forKey: "lastWorld") ?? "World1"
             rows = [("Continue: \(last)", "resume"), ("Load World...", "load"), ("New World (random seed)", "newworld"),
-                    ("Create World... (keyboard)", "worlds"), ("Options...", "options"), ("Quit Game", "quit")]
+                    ("Create World...", "create"), ("Options...", "options"), ("Quit Game", "quit")]
         case .main:
             title = "Game Paused"
             rows = [("Back to Game", "resume"), ("Options...", "options"), ("Advancements", "advancements"), ("Commands...", "commands"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Game.difficultyNames[g.difficulty])", "difficulty"),
-                    ("Load World...", "load"), ("New World (random seed)", "newworld"), ("Create World... (keyboard)", "worlds"),
+                    ("Load World...", "load"), ("New World (random seed)", "newworld"), ("Create World...", "create"),
                     ("Toggle Fullscreen", "fullscreen"), ("Save and Quit", "quit")]
         case .options:
             title = "Options"
@@ -38,6 +44,14 @@ final class PauseMenu: Menu {
                     ("Render Distance: \(g.world.renderDistance)", "rd"), ("GUI Scale: \(gui)", "gui"),
                     ("Couch Mode (TV): \(HudLayout.couch ? "On" : "Off")", "couch"), ("Volume: \(Int(g.volumeSetting * 100))%", "volume"), ("Music: \(Int(g.musicVolume * 100))%", "music"),
                     ("Done", "back")]
+        case .create:
+            title = "Create New World"
+            let caret = Int(g.clock * 2) % 2 == 0 ? "_" : " "
+            rows = [("Name: \(newName)\(editing == 0 ? caret : "")", "edit_name"),
+                    ("Seed: \(newSeed.isEmpty && editing != 1 ? "(random)" : newSeed)\(editing == 1 ? caret : "")", "edit_seed"),
+                    ("Game Mode: \(newSurvival ? "Survival" : "Creative")", "new_mode"),
+                    ("Difficulty: \(Game.difficultyNames[newDifficulty])", "new_diff"),
+                    ("Create World", "new_create"), ("Back", "back")]
         case .worlds:
             title = "Load World"
             let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Blocksmith/Worlds")
@@ -75,6 +89,15 @@ final class PauseMenu: Menu {
         case "options": cameFromTitle = page == .title; page = .options
         case "back": page = cameFromTitle ? .title : .main
         case "load": cameFromTitle = page == .title; page = .worlds
+        case "create": cameFromTitle = page == .title; page = .create; editing = nil
+        case "edit_name", "edit_seed":
+            editing = id == "edit_name" ? 0 : 1
+            if g.padConnected || HudLayout.couch { g.openMenu(KeyboardMenu(game: g, target: self)) }
+        case "new_mode": newSurvival.toggle()
+        case "new_diff": newDifficulty = step([0, 1, 2, 3], newDifficulty)
+        case "new_create":
+            let name = newName.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "/", with: "-")
+            g.appAction?("create:\(newSurvival ? 1 : 0):\(newDifficulty):\(name.isEmpty ? "New World" : name):\(newSeed)")
         case _ where id.hasPrefix("play:"): g.appAction?(id)
         case "advancements": g.closeMenu(); g.openMenu(AdvancementMenu(game: g))
         case "commands": g.closeMenu(); g.openMenu(CommandMenu(game: g))
@@ -105,7 +128,25 @@ final class PauseMenu: Menu {
         }
     }
 
+    override var capturesText: Bool { page == .create && editing != nil }
+    override func typed(_ str: String) {
+        guard let e = editing else { return }
+        for c in str {
+            if c == "\u{8}" { if e == 0 { if !newName.isEmpty { newName.removeLast() } } else if !newSeed.isEmpty { newSeed.removeLast() } }
+            else if e == 0 { if newName.count < 24 && c != "/" && c != ":" { newName.append(c) } }
+            else if newSeed.count < 32 { newSeed.append(c) }
+        }
+        build()
+    }
+    override func tick() {
+        if page == .create {
+            if editing != nil && game.input.tapped(Key.enter) { editing = nil }
+            build()            // blinking caret
+        }
+    }
+
     override func backPressed() -> Bool {
+        if editing != nil { editing = nil; build(); return true }
         guard page != .main && page != .title else { return false }
         act("back", back: false)
         return true

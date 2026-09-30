@@ -42,6 +42,7 @@ final class KeyboardMenu: Menu {
         case "Enter":
             if let b = target as? BookMenu, !b.signing { b.typed("\n") } else if let s = target as? SignMenu { s.line = min(3, s.line + 1) }
             else if let cm = target as? CommandMenu { cm.run() }
+            else if let pm = target as? PauseMenu { pm.editing = nil; pm.build(); finish() }
         case "Done": finish()
         default: target.typed(keys[i])
         }
