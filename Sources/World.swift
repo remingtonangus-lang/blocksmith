@@ -73,7 +73,6 @@ final class World {
 
     init(seed: UInt64, device: MTLDevice, save: SaveManager?, dim: Dim = .overworld) {
         World.alive += 1
-        World.registry.add(self)
         self.seed = seed
         self.dim = dim
         switch dim {
@@ -88,6 +87,7 @@ final class World {
         rebuildOffsets()
         blockEntities = save?.loadBlockEntities() ?? [:]
         portals = Set(save?.loadPortals() ?? [])
+        World.registry.add(self)
     }
 
     // Chunks to load: the meshed disc grown by one chunk (every meshed chunk needs its 8 neighbours).
