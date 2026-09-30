@@ -514,11 +514,11 @@ enum Snapshot {
             for k in 0..<10 {
                 let a = Float(k) / 10 * 2 * .pi
                 let x = Int(floor(pos.x + cosf(a) * 7)), z = Int(floor(pos.z + sinf(a) * 7))
-                let h = world.gen.column(x, z).height
+                let h = world.topY(x, z)
                 if h >= SEA { world.setBlock(x, h + 1, z, TORCH) }
             }
             let lx = Int(floor(pos.x)) + 3, lz = Int(floor(pos.z))
-            world.setBlock(lx, world.gen.column(lx, lz).height + 1, lz, LAMP)
+            world.setBlock(lx, world.topY(lx, lz) + 1, lz, LAMP)
             let t2 = world.loadSync(center: pos, radius: rd)
             t.mesh += t2.mesh
         }
