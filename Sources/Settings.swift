@@ -34,6 +34,7 @@ final class Settings {
     @Pref("launchFullscreen") var launchFullscreen = true
     @Pref("vsync") var vsync = true
     @Pref("fpsCap") var fpsCap = 0                   // 0 = display refresh rate
+    @Pref("display") var display = ""                // screen name to play on ("" = main screen)
     @Pref("renderScale") var renderScale: Float = 1  // drawable resolution scale (TVs at 4K: 0.75 saves a lot)
 
     // Interface

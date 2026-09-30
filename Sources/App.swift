@@ -200,9 +200,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
         pauseChanged(true)
         applyVideo()
-        // Couch play: open straight into full screen (Options > Video > Start in Fullscreen; --windowed skips it).
+        // Couch play: open on the chosen display, straight into full screen (Options > Video; --windowed skips it).
+        refreshDisplays()
+        placeOnChosenDisplay()
         if Settings.shared.launchFullscreen && !CommandLine.arguments.contains("--windowed") { window.toggleFullScreen(nil) }
+        NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.refreshDisplays()
+        }
     }
+
+    // Display choice (Options > Video > Display).
+    var pendingDisplayMove = false
+    func refreshDisplays() {
+        VideoState.displays = NSScreen.screens.map { $0.localizedName }
+        VideoState.current = window.screen?.localizedName ?? NSScreen.main?.localizedName ?? ""
+        if let pm = game?.menu as? PauseMenu { pm.build() }
+    }
+    func placeOnChosenDisplay() {
+        let name = Settings.shared.display
+        guard !name.isEmpty, let scr = NSScreen.screens.first(where: { $0.localizedName == name }), window.screen != scr else { return }
+        let f = scr.visibleFrame
+        let w = min(1280, f.width), h = min(800, f.height)
+        window.setFrame(NSRect(x: f.midX - w / 2, y: f.midY - h / 2, width: w, height: h), display: true)
+        refreshDisplays()
+    }
+    func moveToChosenDisplay() {
+        if VideoState.fullscreen { pendingDisplayMove = true; window.toggleFullScreen(nil); return }   // leave, move, return
+        placeOnChosenDisplay()
+    }
+    func windowDidChangeScreen(_ notification: Notification) { refreshDisplays() }
 
     // VSync, frame-rate cap and resolution scale (Options > Video).
     func applyVideo() {
@@ -225,7 +251,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         view.drawableSize = CGSize(width: max(64, floor(view.bounds.width * sc * k)), height: max(64, floor(view.bounds.height * sc * k)))
     }
     func windowDidResize(_ notification: Notification) { updateDrawableSize() }
-    func windowDidExitFullScreen(_ notification: Notification) { VideoState.fullscreen = false; updateDrawableSize(); if let pm = game.menu as? PauseMenu { pm.build() } }
+    func windowDidExitFullScreen(_ notification: Notification) {
+        VideoState.fullscreen = false
+        updateDrawableSize()
+        if pendingDisplayMove {
+            pendingDisplayMove = false
+            placeOnChosenDisplay()
+            window.toggleFullScreen(nil)
+        }
+        if let pm = game.menu as? PauseMenu { pm.build() }
+    }
 
     func hookGame() {
         view.onEscape = { [weak self] in
@@ -240,6 +275,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             switch id {
             case "fullscreen": self.toggleFS()
             case "video": self.applyVideo()
+            case "display": self.moveToChosenDisplay()
             case "quit": self.saveQuit()
             case "worlds": self.showWorlds()
             case _ where id.hasPrefix("play:"): self.switchWorld(name: String(id.dropFirst(5)), seed: nil, survival: nil, difficulty: nil)

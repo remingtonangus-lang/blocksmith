@@ -44,7 +44,7 @@ final class PauseMenu: Menu {
     static let valueIDs: Set<String> = ["sens", "invert", "autojump", "fov", "lookx", "looky", "accel", "dead", "aim", "rumble", "southpaw",
                                         "sneaktoggle", "autosprint", "glyphs", "rd", "fullscreen", "launchfs", "vsync", "fps", "rscale",
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
-                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator"]
+                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display"]
 
     static let help: [String: String] = [
         "resume": "Return to the game.",
@@ -65,6 +65,7 @@ final class PauseMenu: Menu {
         "padinfo": "Press A to test vibration.",
         "rd": "How many chunks around you are drawn. Lower is smoother.",
         "fullscreen": "Switch between a window and the full screen.",
+        "display": "Which screen to play on when the Mac is connected to a TV. Remembered for next time.",
         "launchfs": "Open Blocksmith straight into full screen, ready for the TV.",
         "vsync": "Sync frames to the display. Off can lower input lag but may tear.",
         "fps": "Frame rate cap. 30 or 60 keeps a laptop cooler.",
@@ -147,6 +148,7 @@ final class PauseMenu: Menu {
                         ("Button Mapping...", "padmap")]
             case .video:
                 rows = [("Render Distance: \(g.world.renderDistance)", "rd"), ("Fullscreen: \(on(VideoState.fullscreen))", "fullscreen"),
+                        ("Display: \(VideoState.current.isEmpty ? "Main" : VideoState.current)", "display"),
                         ("Start in Fullscreen: \(on(st.launchFullscreen))", "launchfs"), ("VSync: \(on(st.vsync))", "vsync"),
                         ("Max Frame Rate: \(st.fpsCap == 0 ? "Display" : "\(st.fpsCap)")", "fps"),
                         ("Resolution: \(pct(st.renderScale))", "rscale"), ("Field of View: \(Int(g.fovSetting))", "fov"), ("GUI Scale: \(gui)", "gui")]
@@ -405,6 +407,13 @@ final class PauseMenu: Menu {
             UserDefaults.standard.set(g.world.renderDistance, forKey: "renderDistance")
         case "fullscreen": g.appAction?("fullscreen")
         case "launchfs": st.launchFullscreen.toggle()
+        case "display":
+            let list = VideoState.displays
+            if list.count > 1 {
+                let cur = list.firstIndex(of: VideoState.current) ?? 0
+                st.display = list[(cur + (back ? list.count - 1 : 1)) % list.count]
+                g.appAction?("display")
+            } else { g.onToast?("Only one display is connected") }
         case "vsync": st.vsync.toggle(); g.appAction?("video")
         case "fps": st.fpsCap = step(Settings.fpsOptions, st.fpsCap); g.appAction?("video")
         case "rscale": st.renderScale = step(Settings.renderScaleOptions, st.renderScale); g.appAction?("video")
@@ -508,6 +517,8 @@ final class PauseMenu: Menu {
 // Fullscreen state mirrored from the window (AppDelegate keeps it current).
 enum VideoState {
     static var fullscreen = false
+    static var displays: [String] = []     // connected screens by name (AppDelegate keeps it current)
+    static var current = ""                // the screen the window is on
 }
 
 // Text for the Controls Reference page.
