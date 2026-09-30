@@ -379,6 +379,7 @@ enum Recipes {
         r.append(shaped(["SSS", "SLS", "SSS"], ["S": "stick", "L": "leather"], "item_frame"))
         r.append(shapeless(["item_frame", "glow_ink_sac"], "glow_item_frame"))
         r.append(shaped(["A", "C", "C"], ["A": "amethyst_shard", "C": "copper_ingot"], "spyglass"))
+        r.append(shapeless(["book", "ink_sac", "feather"], "writable_book"))
         for (c, _) in BlockRegistry.colors { r.append(shaped(["WWW", "WWW", " S "], ["W": "\(c)_wool", "S": "stick"], "\(c)_banner")) }
         for (res, ing) in [("creeper_banner_pattern", "creeper_head"), ("skull_banner_pattern", "wither_skeleton_skull"), ("flower_banner_pattern", "oxeye_daisy"),
                            ("thing_banner_pattern", "enchanted_golden_apple"), ("field_masoned_banner_pattern", "bricks"), ("bordure_indented_banner_pattern", "vine")] {

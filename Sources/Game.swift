@@ -92,6 +92,8 @@ final class Game {
     var anchorSpawn: IVec3?          // charged respawn anchor in the Nether
     var jukeboxes: [JukeboxPlayer] = []
     var fovScale: Float = 1
+    var rockets: [Rocket] = []
+    var composterReady: [IVec3: Double] = [:]
     var scoping = false
     var lastHorn: Double = -100
     var difficulty = 2               // 0 peaceful, 1 easy, 2 normal, 3 hard
@@ -758,7 +760,7 @@ final class Game {
         if useNow, let m = mobHit ?? mobs.raycast(player.eye, player.look, maxDist: 3.5)?.0, useItemOnMob(m) { swing = 1; return }
         if useNow && Items.key(h.item) == "ender_eye" && useEnderEye(on: target) { swing = 1; return }
         if useNow && Items.key(h.item) == "firework_rocket" && player.gliding {
-            player.boost = 1.1
+            player.boost = 0.5 + 0.6 * Float(max(1, h.tag))
             consumeHeld()
             sfx(.fireball, 0.5)
             swing = 1
@@ -833,6 +835,7 @@ final class Game {
             }
         }
         if useGadget(useHeld: useHeld, useNow: useNow) { return }
+        if useNow && !(target.map { isInteractive($0.hit) } ?? false) && useBook() { return }
         let alwaysEdible = ["golden_apple", "enchanted_golden_apple", "chorus_fruit", "honey_bottle", "suspicious_stew"]
         let hk = Items.key(h.item)
         let canEat = h.def.food != nil && survival && (hunger < 20 || alwaysEdible.contains { hk.hasPrefix($0) })
@@ -1030,7 +1033,7 @@ final class Game {
         return k == "crafting_table" || k == "furnace" || k == "lit_furnace" || k == "chest" || k == "brewing_stand"
             || k == "enchanting_table" || k.hasSuffix("anvil") || k == "beacon" || k == "smithing_table" || k == "stonecutter" || k == "grindstone"
             || k == "ender_chest" || k == "trapped_chest" || k.hasSuffix("shulker_box") || k == "cake" || k.hasSuffix("candle")
-            || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table" || k == "loom"
+            || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table" || k == "loom" || k == "smoker" || k == "blast_furnace" || k == "barrel" || k == "bell" || k == "composter" || k == "lectern"
     }
 
     // Opens/closes a wooden door (both halves), trapdoor or fence gate.
@@ -1058,6 +1061,23 @@ final class Game {
             let be = world.blockEntities[p] ?? BlockEntity(.furnace)
             world.blockEntities[p] = be
             openMenu(FurnaceMenu(game: self, entity: be))
+        case "smoker", "blast_furnace":
+            let be = world.blockEntities[p] ?? BlockEntity(.furnace)
+            be.mob = k
+            world.blockEntities[p] = be
+            let m = FurnaceMenu(game: self, entity: be)
+            m.title = k == "smoker" ? "Smoker" : "Blast Furnace"
+            openMenu(m)
+        case "barrel":
+            let be = world.blockEntities[p] ?? BlockEntity(.chest)
+            world.blockEntities[p] = be
+            openMenu(ChestMenu(game: self, container: be.container, title: "Barrel"))
+            sfx(.open, 0.5)
+        case "bell":
+            sfx(.bell, 1.5, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
+            ringBell(p)
+        case "composter": useComposter(p)
+        case "lectern": useLectern(p)
         case "chest":
             let be = world.blockEntities[p] ?? BlockEntity(.chest)
             world.blockEntities[p] = be
@@ -1633,6 +1653,8 @@ final class Game {
         fallingTick(Float(dt))
         jukeboxTick(Float(dt))
         mapTick()
+        rocketTick(Float(dt))
+        composterTick()
         weatherTick(Float(dt))
         world.rainLevel = wetWorld ? weather.rain : 0
         raidTimer += Float(dt)
@@ -1679,7 +1701,7 @@ final class Game {
             if Int(b - base) != m { world.setBlock(p.x, p.y, p.z, base + BlockID(m)) }
         }
         for (p, be) in world.blockEntities where be.kind == .furnace {
-            if be.tickFurnace() {
+            if be.tickFurnace() && be.mob.isEmpty {
                 // Swap between furnace and lit furnace, keeping the facing.
                 let b = world.block(p.x, p.y, p.z)
                 let base = Blocks.groupBase[Int(b)]

@@ -44,6 +44,8 @@ extension TextureGen {
         p["hay_block_side"] = { x, y in hex(y % 5 == 2 ? 0x7A4A1A : 0xC8A838, 0.85 + 0.25 * r(x, y / 2, 607)) }
         p["hay_block_top"] = { x, y in hex(0xB89A30, 0.8 + 0.3 * r(x, y, 608)) }
         p["composter_side"] = planks(0x8A6A3A, salt: 609)
+        p["composter_compost"] = { x, y in hex(0x5A4A22, 0.75 + 0.35 * r(x, y, 611)) }
+        p["composter_ready"] = { x, y in r(x, y, 612) < 0.25 ? hex(0xE8E4D0, 0.9 + 0.1 * r(x, y, 613)) : hex(0x5A4A22, 0.75 + 0.35 * r(x, y, 611)) }
         p["composter_top"] = { x, y in x < 2 || x > 13 || y < 2 || y > 13 ? hex(0x8A6A3A) : hex(0x4A3A1A, 0.8 + 0.3 * r(x, y, 610)) }
         p["barrel_side"] = { x, y in y == 2 || y == 13 ? hex(0x3A3A3A) : hex(0x7A5A30, (x % 4 == 0 ? 0.8 : 0.95) + 0.1 * r(x, y, 611)) }
         p["barrel_top"] = { x, y in abs(x - 7) < 3 && abs(y - 7) < 3 ? hex(0x4A3A20) : hex(0x8A6A3A, 0.9 + 0.15 * r(x, y, 612)) }

@@ -99,6 +99,11 @@ enum Snapshot {
             var s = game.inventory.main[9]; s.damage = 120; game.inventory.main[9] = s
             switch which {
             case "creative": game.openMenu(CreativeMenu(game: game))
+            case "book":
+                var b = ItemStack(Items.id("writable_book"), 1)
+                b.pages = ["The first page of a travel log.\n\nDay 1: found a village by the river, traded wheat for emeralds. The librarian had mending!", "Day 2"]
+                game.inventory.main[game.selected] = b
+                game.openMenu(BookMenu(game: game, stack: b, source: .hand(game.selected)))
             case "loom":
                 let m = LoomMenu(game: game)
                 var ban = ItemStack(Items.id("blue_banner"), 1)
@@ -291,6 +296,18 @@ enum Snapshot {
                 game.lightningFlash = 0.3
             }
         }
+        if CommandLine.arguments.contains("--fireworks") {
+            // Five rockets bursting 20 blocks ahead: every shape, trails, twinkles, fades.
+            let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)), r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))
+            for i in 0..<5 {
+                var st = ItemStack(Items.id("firework_star"), 1)
+                st.tag = i | (i % 2 == 0 ? 8 : 0) | (i == 3 ? 16 : 0) | (1 << 8)
+                st.pat = [[14, 4], [11, 3], [5, 0], [13, 5], [1, 2, 4]][i] + (i == 1 ? [16 + 0] : [])
+                let rk = Rocket(at: pos + f * 22 + r * (Float(i) - 2) * 7 + V3(0, 10 + Float(i % 2) * 4, 0), dir: V3(0, 1, 0), flight: 1, stars: [st])
+                game.explode(rk)
+            }
+            game.particles.update(0.45, world)
+        }
         if CommandLine.arguments.contains("--beacon") {
             // A four-layer iron/gold/diamond pyramid with a powered beacon 12 blocks ahead.
             let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
@@ -327,7 +344,7 @@ enum Snapshot {
                                            ("white", Banners.ominous), ("black", [Banners.encode(34, 5)]), ("yellow", [Banners.encode(30, 11), Banners.encode(36, 14)]),
                                            ("green", [Banners.encode(23, 0), Banners.encode(24, 0), Banners.encode(33, 12)])]
             for (i, st) in sets.enumerated() {
-                let p = pos + f * 5 + r * (Float(i) - Float(sets.count - 1) / 2) * 1.6
+                let p = pos + f * 8 + r * (Float(i) - Float(sets.count - 1) / 2) * 1.6
                 let x = Int(floor(p.x)), z = Int(floor(p.z))
                 let y = world.topY(x, z) + 1
                 var a = (game.player.yaw + .pi) / (2 * .pi) * 16

@@ -191,6 +191,21 @@ extension EntityWriter {
         }
     }
 
+    // Oriented box from its centre and three half-extent axes.
+    mutating func orientedBox(_ c: V3, _ ax: V3, _ ay: V3, _ az: V3, layer: Int, color: V4) {
+        var p: [V3] = []
+        for i in 0..<8 {
+            let sx: Float = i & 1 == 0 ? -1 : 1, sy: Float = i & 2 == 0 ? -1 : 1, sz: Float = i & 4 == 0 ? -1 : 1
+            p.append(c + ax * sx + ay * sy + az * sz)
+        }
+        let faces = [[1, 5, 7, 3], [4, 0, 2, 6], [2, 3, 7, 6], [4, 5, 1, 0], [5, 4, 6, 7], [0, 1, 3, 2]]
+        let shade: [Float] = [0.8, 0.8, 1, 0.55, 0.68, 0.68]
+        let uv = [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)]
+        for (i, f) in faces.enumerated() {
+            quad(f.map { p[$0] }, uv, layer, V4(V3(color.x, color.y, color.z) * shade[i], color.w))
+        }
+    }
+
     // A banner's cloth: base colour then each pattern layer, both sides.
     mutating func bannerCloth(topLeft a: V3, right: V3, down: V3, base: Int, layers: [Int], light: Float) {
         let halfDown = down * 0.5
@@ -250,7 +265,7 @@ extension Game {
                 let o = c - eye
                 wr.texturedBox(o + V3(-0.0625, 1, -0.0625), o + V3(0.0625, 1.75, 0.0625), layer: planks, color: lc)
                 let bar = o + V3(0, 1.72, 0)
-                wr.texturedBox(bar - right * 0.62 - V3(0, 0.06, 0) - fwd * 0.06 + V3(0, 0, 0), bar + right * 0.62 + V3(0, 0.06, 0) + fwd * 0.06, layer: planks, color: lc)
+                wr.orientedBox(bar, right * 0.62, V3(0, 0.06, 0), fwd * 0.06, layer: planks, color: lc)
                 let sway = fwd * (0.04 * wave)
                 wr.bannerCloth(topLeft: bar - right * 0.58 + fwd * 0.09 + V3(0, -0.04, 0), right: right * 1.16, down: V3(0, -1.62, 0) + sway,
                                base: base, layers: be.patterns, light: light)

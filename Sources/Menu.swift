@@ -262,12 +262,21 @@ final class CraftingGrid {
     var recipe: Recipe?
     init(_ size: Int) { self.size = size; grid = ItemContainer(size * size) }
 
+    var special: (ItemStack, keep: Set<Int>)?
     func update() {
-        recipe = Recipes.match(grid.slots.map { $0.item }, size, size)
-        result[0] = recipe?.result ?? .empty
+        special = Fireworks.craft(grid.slots)
+        recipe = special == nil ? Recipes.match(grid.slots.map { $0.item }, size, size) : nil
+        result[0] = special?.0 ?? recipe?.result ?? .empty
     }
     func take() -> ItemStack? {
         update()
+        if let sp = special {
+            for i in 0..<grid.count where !grid[i].isEmpty && !sp.keep.contains(i) {
+                var s = grid[i]; s.count -= 1; grid[i] = s
+            }
+            update()
+            return sp.0
+        }
         guard let r = recipe else { return nil }
         for i in 0..<grid.count where !grid[i].isEmpty {
             var s = grid[i]

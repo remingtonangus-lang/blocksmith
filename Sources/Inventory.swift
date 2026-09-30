@@ -10,9 +10,10 @@ struct ItemStack: Codable, Equatable {
     var tag = 0                         // item-specific state (crossbow: loaded projectile item id)
     var contents: [ItemStack]? = nil    // shulker box items
     var pat: [Int]? = nil               // banner pattern layers (pattern * 16 + colour)
+    var pages: [String]? = nil          // book text
 
     // Saved by item name so registry changes never scramble inventories.
-    enum CodingKeys: String, CodingKey { case id, n, d, e, r, l, t, c, p }
+    enum CodingKeys: String, CodingKey { case id, n, d, e, r, l, t, c, p, g }
     init(from dec: Decoder) throws {
         let c = try dec.container(keyedBy: CodingKeys.self)
         let name = try c.decode(String.self, forKey: .id)
@@ -25,6 +26,7 @@ struct ItemStack: Codable, Equatable {
         tag = (try? c.decode(Int.self, forKey: .t)) ?? 0
         contents = try? c.decode([ItemStack].self, forKey: .c)
         pat = try? c.decode([Int].self, forKey: .p)
+        pages = try? c.decode([String].self, forKey: .g)
     }
     func encode(to enc: Encoder) throws {
         var c = enc.container(keyedBy: CodingKeys.self)
@@ -37,6 +39,7 @@ struct ItemStack: Codable, Equatable {
         if tag != 0 { try c.encode(tag, forKey: .t) }
         if let k = contents { try c.encode(k, forKey: .c) }
         if let p = pat { try c.encode(p, forKey: .p) }
+        if let g = pages { try c.encode(g, forKey: .g) }
     }
 
     static let empty = ItemStack()
@@ -46,7 +49,7 @@ struct ItemStack: Codable, Equatable {
     var isEmpty: Bool { item == 0 || count <= 0 }
     var def: ItemDef { Items.def(item) }
     var maxStack: Int { Items.def(item).maxStack }
-    func stacks(with o: ItemStack) -> Bool { item == o.item && damage == o.damage && ench == o.ench && label == o.label && tag == o.tag && contents == nil && o.contents == nil && pat == o.pat && maxStack > 1 }
+    func stacks(with o: ItemStack) -> Bool { item == o.item && damage == o.damage && ench == o.ench && label == o.label && tag == o.tag && contents == nil && o.contents == nil && pat == o.pat && pages == nil && o.pages == nil && maxStack > 1 }
     func with(count n: Int) -> ItemStack { var s = self; s.count = n; return s }
     var displayName: String { label ?? def.display }
 }

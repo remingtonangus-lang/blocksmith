@@ -17,6 +17,7 @@ enum Snd: Hashable {
     case anvil, brew, enchant, drink, glassBreak
     case mobWither, witherSpawn, witherShoot, mobVex, mobRavager, evokerCast, bell, raidHorn, fangs, rain, thunder
     case mobWolf, mobCat, mobHorse, mobLlama, mobBee, mobWarden, goatHorn
+    case fireworkLaunch, fireworkBlast, fireworkBlastLarge, fireworkTwinkle
     case note(Int, Int)            // note block: instrument, pitch 0...24 (made on demand)
 }
 
@@ -35,7 +36,7 @@ struct SoundBank {
                     .mobGhast, .mobBlaze, .mobPiglin, .mobZombPiglin, .fireball, .mobVillager, .mobGolem,
                     .anvil, .brew, .enchant, .drink, .glassBreak,
                     .mobWither, .witherSpawn, .witherShoot, .mobVex, .mobRavager, .evokerCast, .bell, .raidHorn, .fangs, .rain, .thunder,
-                    .mobWolf, .mobCat, .mobHorse, .mobLlama, .mobBee, .mobWarden, .goatHorn]
+                    .mobWolf, .mobCat, .mobHorse, .mobLlama, .mobBee, .mobWarden, .goatHorn, .fireworkLaunch, .fireworkBlast, .fireworkBlastLarge, .fireworkTwinkle]
     }
 
     init() {
@@ -234,6 +235,10 @@ struct Synth {
         case .mobRavager: out = Synth.mix(voice(0.9, f0: 110 * p, f1: 70 * p, vib: 0.3, lp: 700, gain: 1.4), burst(0.7, lp: 500, hp: 40, attack: 0.1, decay: 0.4, gain: 0.6))
         case .evokerCast: out = Synth.mix(modes(1.0, [(440 * p, 0.2, 0.5), (660 * p, 0.15, 0.4)]), grains(8, spread: 0.8, lp: 4000, hp: 1000, decay: 0.05, gain: 0.4))
         case .bell: out = modes(2.5, [(880, 0.5, 1.8), (2094.4, 0.25, 1.0), (2666.4, 0.15, 0.7), (440, 0.2, 1.5)])
+        case .fireworkLaunch: out = Synth.mix(burst(1.1, lp: 3000, hp: 400, attack: 0.05, decay: 0.6, gain: 0.9), voice(0.9, f0: 900, f1: 1800, vib: 0, lp: 3000, gain: 0.25))
+        case .fireworkBlast: out = Synth.mix(burst(1.4, lp: 600, hp: 40, attack: 0.002, decay: 0.35, gain: 3), burst(0.6, lp: 6000, hp: 1500, decay: 0.08, gain: 0.8))
+        case .fireworkBlastLarge: out = Synth.mix(burst(2.4, lp: 350, hp: 25, attack: 0.002, decay: 0.7, gain: 4), burst(0.8, lp: 5000, hp: 1000, decay: 0.12, gain: 1))
+        case .fireworkTwinkle: out = grains(40, spread: 1.4, lp: 9000, hp: 2500, decay: 0.03, gain: 0.8)
         case .goatHorn: out = Synth.mix(voice(2.6, f0: 220, f1: 196, vib: 0.12, lp: 2200, gain: 1.2), voice(2.6, f0: 330, f1: 294, vib: 0.1, lp: 2000, gain: 0.5))
         case .raidHorn: out = Synth.mix(voice(3.5, f0: 98, f1: 92, vib: 0.08, lp: 1400, gain: 1.4), voice(3.5, f0: 147, f1: 139, vib: 0.08, lp: 1400, gain: 0.8))
         case .fangs: out = Synth.mix(burst(0.25, lp: 3000 * p, hp: 300, attack: 0.005, decay: 0.08, gain: 1.2), modes(0.2, [(180 * p, 0.3, 0.08)]))

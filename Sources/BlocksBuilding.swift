@@ -113,6 +113,17 @@ extension BlockRegistry {
         sided("hay_block", "Hay Bale", side: "hay_block_side", top: "hay_block_top", bottom: "hay_block_top", h: 0.5, tool: .hoe, snd: .plant)
         model("composter", "Composter", ["composter_side", "composter_side", "composter_top", "composter_side", "composter_side", "composter_side"],
               [Box(0, 0, 0, 16, 2, 16), Box(0, 2, 0, 2, 16, 16), Box(14, 2, 0, 16, 16, 16), Box(2, 2, 0, 14, 16, 2), Box(2, 2, 14, 14, 16, 16)], h: 0.6, tool: .axe, snd: .wood)
+        // Compost levels 1-7 fill up; 8 is ready (bone meal).
+        for lvl in 1...8 {
+            var d = BlockDef("composter[\(lvl)]", "Composter")
+            d.group = "composter"; d.hidden = true
+            d.tex = ["composter_side", "composter_side", "composter_top", "composter_side", "composter_side", "composter_side"]
+            d.render = .model; d.opaque = false; d.hardness = 0.6; d.tool = .axe; d.sound = .wood
+            let fill = UInt16(Tex.id(lvl == 8 ? "composter_ready" : "composter_compost"))
+            d.boxes = [Box(0, 0, 0, 16, 2, 16), Box(0, 2, 0, 2, 16, 16), Box(14, 2, 0, 16, 16, 16), Box(2, 2, 0, 14, 16, 2), Box(2, 2, 14, 14, 16, 16),
+                       Box(2, 2, 2, 14, min(15, 1 + lvl * 2), 14, tex: [UInt16](repeating: fill, count: 6))]
+            add(d)
+        }
         sided("barrel", "Barrel", side: "barrel_side", top: "barrel_top", bottom: "barrel_bottom", tool: .axe, snd: .wood)
         sided("smoker", "Smoker", side: "smoker_front", top: "smoker_top", bottom: "smoker_top", h: 3.5, tool: .pickaxe, snd: .stone, req: true)
         sided("blast_furnace", "Blast Furnace", side: "blast_furnace_front", top: "blast_furnace_top", bottom: "blast_furnace_top", h: 3.5, tool: .pickaxe, snd: .stone, req: true)

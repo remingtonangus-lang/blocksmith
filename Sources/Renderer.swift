@@ -361,6 +361,8 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.writeBobber(&wr, eye: eye, right: right, up: -up)
                 game.writeLeads(&wr, eye: eye)
                 game.writeBanners(&wr, eye: eye)
+                game.writeRockets(&wr, eye: eye)
+                game.writeLecternBooks(&wr, eye: eye)
                 game.particles.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight)
                 let nItems = wr.n
                 if let m = game.mining, game.mineProgress > 0 {
@@ -808,6 +810,36 @@ final class Renderer: NSObject, MTKViewDelegate {
                 rect(o.x + Float(b.x) * s, o.y + Float(b.y) * s, 50 * s, 16 * s, game.menuHover === b ? V4(0.7, 0.7, 0.8, 1) : V4(0.5, 0.5, 0.55, 1))
                 text("Done", o.x + Float(b.x + 13) * s, o.y + Float(b.y + 4) * s, s)
             }
+            if let bm = m as? BookMenu {
+                // Parchment page with wrapped text, page counter and buttons.
+                rect(o.x + 24 * s, o.y + 4 * s, 144 * s, 172 * s, V4(0.93, 0.89, 0.78, 1))
+                rect(o.x + 24 * s, o.y + 4 * s, 144 * s, 3 * s, V4(0.55, 0.38, 0.22, 1))
+                let ink = V4(0.1, 0.08, 0.06, 1)
+                if bm.signing {
+                    text("Enter Book Title:", o.x + 44 * s, o.y + 30 * s, s, ink, shadow: false)
+                    let caret = Int(game.clock * 2) % 2 == 0 ? "_" : ""
+                    text(bm.bookTitle + caret, o.x + 96 * s - textWidth(bm.bookTitle, s) / 2, o.y + 48 * s, s, ink, shadow: false)
+                    text("by Player", o.x + 70 * s, o.y + 60 * s, s, V4(0.4, 0.4, 0.4, 1), shadow: false)
+                    text("Signing makes the book", o.x + 36 * s, o.y + 90 * s, s, ink, shadow: false)
+                    text("read-only.", o.x + 36 * s, o.y + 100 * s, s, ink, shadow: false)
+                } else {
+                    let pg = "Page \(bm.page + 1) of \(bm.pages.count)"
+                    text(pg, o.x + 160 * s - textWidth(pg, s), o.y + 12 * s, s, V4(0.35, 0.3, 0.25, 1), shadow: false)
+                    var lines = Books.wrap(bm.pages[bm.page])
+                    if bm.editable && Int(game.clock * 2) % 2 == 0 { if lines.isEmpty { lines = ["_"] } else { lines[lines.count - 1] += "_" } }
+                    for (i, l) in lines.prefix(Books.linesPerPage).enumerated() {
+                        text(l, o.x + 36 * s, o.y + Float(26 + i * 9) * s, s, ink, shadow: false)
+                    }
+                }
+                for sl in bm.slots where sl.isButton {
+                    guard case .button(let i) = sl.kind else { continue }
+                    let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
+                    let label = [0: "<", 1: ">", 2: bm.signing ? "Sign" : "Done", 3: "Sign", 6: "Take"][i] ?? ""
+                    if i == 3 && bm.signing { continue }
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, game.menuHover === sl ? V4(0.7, 0.7, 0.8, 1) : V4(0.5, 0.5, 0.55, 1))
+                    text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
+                }
+            }
             if let lm = m as? LoomMenu {
                 // Pattern choices previewed on the banner's colour with the dye's colour.
                 rect(o.x + 59 * s, o.y + 12 * s, 58 * s, 58 * s, V4(0.35, 0.35, 0.35, 1))
@@ -933,6 +965,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     }
                 }
                 if let t = Smithing.trimName(st) { lines.append((t, V4(0.67, 0.67, 0.9, 1))) }
+                for l in Fireworks.tooltip(st) { lines.append((l, V4(0.67, 0.67, 0.67, 1))) }
                 if st.def.name == "ominous_bottle" { lines.append(("Bad Omen " + Effect.roman(st.damage + 1) + " (100:00)", V4(0.33, 0.33, 1, 1))) }
                 if st.def.durability > 0 && st.damage > 0 {
                     lines.append(("Durability: \(st.def.durability - st.damage) / \(st.def.durability)", V4(0.8, 0.8, 0.8, 1)))

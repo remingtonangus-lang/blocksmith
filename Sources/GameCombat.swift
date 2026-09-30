@@ -64,12 +64,18 @@ extension Game {
             let angles: [Float] = multi ? [0, -0.17, 0.17] : [0]
             for (i, a) in angles.enumerated() {
                 let dir = simd_normalize(player.look + V3(cosf(player.yaw), 0, -sinf(player.yaw)) * tanf(a))
+                if Items.key(ammo) == "firework_rocket" {
+                    let rk = h.contents?.first ?? ItemStack(ammo, 1)
+                    rockets.append(Rocket(at: player.eye + dir * 0.5, dir: dir, flight: rk.tag, stars: rk.contents ?? [], crossbow: true))
+                    continue
+                }
                 let arrow = projectiles.shoot(from: player.eye, dir: dir, speed: 63, fromPlayer: true, damage: 2)
                 arrow.pierce = pierce
                 if Potions.potion(of: ammo) != nil { arrow.tip = ammo }
                 arrow.pickup = survival && i == 0
             }
             h.tag = 0
+            h.contents = nil
             inventory.held = h
             sfx(.bow, 1)
             damageHeld(multi ? 3 : 1)
@@ -78,11 +84,18 @@ extension Game {
         }
         let qc = Enchant.level(.quickCharge, h)
         let need = max(0, 1.25 - 0.25 * Float(qc))
-        if useHeld, let slot = arrowSlot() ?? (survival ? nil : -1) {
+        let rocketOff = Items.key(inventory.offhand[0].item) == "firework_rocket"
+        if useHeld, let slot = rocketOff ? -2 : (arrowSlot() ?? (survival ? nil : -1)) {
             crossbowCharge += dt
             if crossbowCharge >= need {
                 crossbowCharge = 0
-                if slot >= 0 {
+                if slot == -2 {
+                    // Rockets load from the off hand.
+                    var r = inventory.offhand[0]
+                    h.tag = Int(r.item)
+                    h.contents = [r.with(count: 1)]
+                    if survival { r.count -= 1; inventory.offhand[0] = r.count > 0 ? r : .empty }
+                } else if slot >= 0 {
                     h.tag = Int(inventory.main[slot].item)
                     if survival { var s = inventory.main[slot]; s.count -= 1; inventory.main[slot] = s }
                 } else {

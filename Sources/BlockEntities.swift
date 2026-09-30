@@ -2,7 +2,7 @@ import Foundation
 
 // Per-block state that doesn't fit in a block ID: chest and furnace inventories, furnace progress.
 final class BlockEntity: Codable {
-    enum Kind: String, Codable { case chest, furnace, spawner, hopper, dispenser, brewing, beacon, shulker, campfire, sign, frame, painting, banner }
+    enum Kind: String, Codable { case chest, furnace, spawner, hopper, dispenser, brewing, beacon, shulker, campfire, sign, frame, painting, banner, lectern }
     let kind: Kind
     var items: [ItemStack]
     var mob: String = ""      // spawner: mob kind name
@@ -30,7 +30,7 @@ final class BlockEntity: Codable {
 
     init(_ k: Kind) {
         kind = k
-        items = Array(repeating: .empty, count: k == .chest || k == .shulker ? 27 : (k == .furnace ? 3 : (k == .hopper || k == .brewing ? 5 : k == .campfire ? 4 : k == .frame ? 1 : (k == .dispenser ? 9 : 0))))
+        items = Array(repeating: .empty, count: k == .chest || k == .shulker ? 27 : (k == .furnace ? 3 : (k == .hopper || k == .brewing ? 5 : k == .campfire ? 4 : k == .frame || k == .lectern ? 1 : (k == .dispenser ? 9 : 0))))
     }
 
     enum CodingKeys: String, CodingKey { case kind, items, burn, burnMax, cook, mob, fuel, brewTime, secondary, trial, used, lines, delay, pat }
@@ -48,7 +48,7 @@ final class BlockEntity: Codable {
         trial = (try? c.decode(Bool.self, forKey: .trial)) ?? false
         used = (try? c.decode(Bool.self, forKey: .used)) ?? false
         if let l = try? c.decode([String].self, forKey: .lines) { lines = l }
-        if kind == .frame { delay = (try? c.decode(Float.self, forKey: .delay)) ?? 0 }
+        if kind == .frame || kind == .lectern { delay = (try? c.decode(Float.self, forKey: .delay)) ?? 0 }
         patterns = (try? c.decode([Int].self, forKey: .pat)) ?? []
     }
     func encode(to e: Encoder) throws {
@@ -64,7 +64,7 @@ final class BlockEntity: Codable {
         if trial { try c.encode(trial, forKey: .trial) }
         if used { try c.encode(used, forKey: .used) }
         if kind == .sign { try c.encode(lines, forKey: .lines) }
-        if kind == .frame { try c.encode(delay, forKey: .delay) }
+        if kind == .frame || kind == .lectern { try c.encode(delay, forKey: .delay) }
         if !patterns.isEmpty { try c.encode(patterns, forKey: .pat) }
     }
 
@@ -72,11 +72,13 @@ final class BlockEntity: Codable {
     func tickFurnace() -> Bool {
         let c = container
         let wasLit = burn > 0
-        if burn > 0 { burn -= 1 }
+        // Smokers (food) and blast furnaces (ores, metal) run twice as fast and burn fuel twice as fast.
+        let fast = mob == "smoker" || mob == "blast_furnace"
+        if burn > 0 { burn = max(0, burn - (fast ? 2 : 1)) }
         let input = c[0]
         var canSmelt = false
         var out: ItemID = 0
-        if !input.isEmpty, let r = Recipes.smelt(input.item) {
+        if !input.isEmpty, let r = Recipes.smelt(input.item), BlockEntity.allowed(r, input.item, in: mob) {
             out = r
             let o = c[2]
             canSmelt = o.isEmpty || (o.item == r && o.count < o.maxStack)
@@ -94,7 +96,7 @@ final class BlockEntity: Codable {
             }
         }
         if burn > 0 && canSmelt {
-            cook += 1
+            cook += fast ? 2 : 1
             if cook >= 200 {
                 cook = 0
                 var i = c[0]; i.count -= 1; c[0] = i
@@ -106,6 +108,18 @@ final class BlockEntity: Codable {
             cook = max(0, cook - 2)
         }
         return wasLit != (burn > 0)
+    }
+}
+
+extension BlockEntity {
+    static func allowed(_ out: ItemID, _ input: ItemID, in kind: String) -> Bool {
+        switch kind {
+        case "smoker": return Items.def(out).food != nil
+        case "blast_furnace":
+            let k = Items.key(out), i = Items.key(input)
+            return Items.def(out).food == nil && (k.hasSuffix("_ingot") || k.hasSuffix("_nugget") || k == "netherite_scrap" || i.contains("_ore") || i.hasPrefix("raw_"))
+        default: return true
+        }
     }
 }
 
