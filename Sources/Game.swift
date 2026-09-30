@@ -1504,6 +1504,7 @@ final class Game {
     // Mob hits on the player: armor-reduced damage plus knockback away from the attacker.
     func hurtPlayer(_ amount: Int, from src: V3, cause: String, knockback: Float = 1, type: DamageType = .generic, attacker: Mob? = nil) {
         guard survival, alive, amount > 0 else { return }
+        if let a = attacker { petsAttack(a) }
         if shieldBlocks(amount, from: src, type: type, attacker: attacker) { return }
         var amount = amount
         if attacker != nil || type == .projectile {

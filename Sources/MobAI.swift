@@ -197,3 +197,13 @@ extension Mob {
         }
     }
 }
+
+extension Game {
+    // Tamed wolves go after what their owner hits and whatever hurts the owner (never hissers, Wailers
+    // or other pets).
+    func petsAttack(_ t: Mob) {
+        guard t.health > 0, !(t.tamed && (t.kind == .wolf || t.kind == .cat || t.kind == .parrot)), t.kind != .creeper, t.kind != .ghast else { return }
+        if t.kind.category == .misc && t.kind != .ironGolem && t.kind != .villager { return }
+        for w in mobs.of(.wolf) where w.tamed && !w.sitting && simd_length(w.pos - player.pos) < 16 { w.target = t }
+    }
+}

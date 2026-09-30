@@ -360,6 +360,7 @@ final class Mob {
     // Anger this mob and every undead boarling nearby at the player.
     func provoke(_ g: Game) {
         aggro = true
+        g.petsAttack(self)
         if kind == .villager, var v = villager { v.addGossip(.minorNeg, 25); villager = v }
         if kind == .zombifiedPiglin {
             for o in g.mobs.mobs where o.kind == .zombifiedPiglin && simd_length(o.pos - pos) < 20 { o.aggro = true }
