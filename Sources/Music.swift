@@ -675,6 +675,11 @@ enum Composer {
         for (k, d) in [0, 2, 4, 7].enumerated() {
             notes.append(MusicNote(t: endT, dur: barLen * 1.5, inst: k == 3 ? lead : sp.pad, midi: pitch(d, octave: k == 3 ? 1 : 0), vel: 0.4, pan: Float(k) * 0.3 - 0.45))
         }
+        // Keep every note in a playable register (low roots put the bass octave below hearing).
+        for i in notes.indices {
+            while notes[i].midi < 28 { notes[i].midi += 12 }
+            while notes[i].midi > 100 { notes[i].midi -= 12 }
+        }
         // Dynamics: sections breathe (intro soft, B sections fuller, a swell into each section's last bars).
         for i in notes.indices {
             let bar = min(totalBars - 1, max(0, Int(notes[i].t / barLen)))
