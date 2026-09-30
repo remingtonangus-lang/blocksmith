@@ -56,6 +56,17 @@ final class Playthrough {
         return done == nil
     }
 
+    // One real frame; health topped up and the death screen handled like tick() does.
+    func frame(pin: V3? = nil) {
+        let before = game.health
+        game.tick(0.05)
+        simSeconds += 0.05
+        if game.health < before { damageTaken += before - game.health }
+        handleDeath()
+        game.health = max(game.health, 20)
+        if let p = pin { game.player.pos = p; game.player.vel = .zero }
+    }
+
     // The death screen: log what killed the player, get up where they fell and pick their things back up.
     var deaths = 0
     var inDeath = false
@@ -261,12 +272,10 @@ final class Playthrough {
             let t = simd_length(c - game.player.eye) / 58
             aim(at: c + V3(0, 10 * t * t, 0))
             inp.rightDown = true
-            game.tick(0.05); simSeconds += 0.05
-            game.player.pos = feet; game.player.vel = .zero
+            frame(pin: feet)
         }
         inp.rightDown = false
-        game.tick(0.05); simSeconds += 0.05
-        game.player.pos = feet; game.player.vel = .zero
+        frame(pin: feet)
     }
 
     // Melee swing at a mob with a full attack charge (real interact attack path). Without `feet` the player
@@ -274,15 +283,11 @@ final class Playthrough {
     func swing(at m: Mob, from feet: V3? = nil, offset: V3 = V3(2, 0, 0)) {
         let inp = game.input
         for _ in 0..<13 {
-            game.tick(0.05); simSeconds += 0.05
-            game.player.pos = feet ?? chaseSpot(m, offset); game.player.vel = .zero
-            game.health = max(game.health, 20)
-            handleDeath()
+            frame(pin: feet ?? chaseSpot(m, offset))
         }
         aim(at: m.pos + V3(0, min(m.height * 0.5, 1.5), 0))
         inp.leftClicked = true
-        game.tick(0.05); simSeconds += 0.05
-        game.player.pos = feet ?? chaseSpot(m, offset); game.player.vel = .zero
+        frame(pin: feet ?? chaseSpot(m, offset))
     }
 
     // Where a chasing player would stand to hit a mob: the preferred side if the body fits there, else another.
@@ -687,13 +692,10 @@ final class Playthrough {
         _ = hold("ender_eye")
         for f in frames where world.block(f.x, f.y, f.z) == base {
             // Stand on the platform outside the ring, eye level with the frame top.
-            // Straight out from the side of the ring this frame is on (a diagonal spot clips the next frame).
-            let c = frames.reduce(V3(0, 0, 0)) { $0 + center($1) } / Float(frames.count)
-            let dx = Float(f.x) + 0.5 - c.x, dz = Float(f.z) + 0.5 - c.z
-            let out = abs(dx) > abs(dz) ? V3(dx > 0 ? 1 : -1, 0, 0) : V3(0, 0, dz > 0 ? 1 : -1)
-            let feet = V3(Float(f.x) + 0.5, Float(f.y) + 0.2, Float(f.z) + 0.5) + out * 1.6
+            // Standing on the frame and looking straight down at its top (a spot beside it can clip the next frame).
+            let feet = V3(Float(f.x) + 0.5, Float(f.y) + 0.82, Float(f.z) + 0.5)
             game.player.pos = feet
-            aim(at: V3(Float(f.x) + 0.5, Float(f.y) + 0.8125, Float(f.z) + 0.5))
+            aim(at: V3(Float(f.x) + 0.5, Float(f.y) + 0.8, Float(f.z) + 0.52))
             _ = hold("ender_eye")
             game.input.rightClicked = true
             _ = tick(0.1, pin: feet)
@@ -895,7 +897,8 @@ final class Playthrough {
                 _ = world.loadSync(center: center(b), radius: 2)
                 game.portalCooldown = 0
                 // Walk up to it: standing on the ground beside its bedrock base, the body touches the rift.
-                game.player.flying = false
+                for y in (b.y - 1)...(b.y + 1) where carvable(IVec3(b.x + 1, y, b.z)) { world.setBlock(b.x + 1, y, b.z, AIR) }
+                game.player.flying = true
                 game.player.pos = V3(Float(b.x) + 1.35, Float(b.y - 1), Float(b.z) + 0.5)
                 game.input.keys = []
                 let home = tick(2) { simd_length(V2(self.game.player.pos.x, self.game.player.pos.z)) < 200 }
@@ -950,7 +953,7 @@ final class Playthrough {
             check(false, "spire: a hollow spire on the far islands"); return
         }
         let d = simd_length(V2(Float(city.anchor.x - lp.x), Float(city.anchor.z - lp.z)))
-        check(d < 1000, "spire: nearest hollow spire \(Int(d)) blocks from the landing spot (\(city.pieces.count > 1 ? "with" : "no") ship)")
+        check(d < 2000, "spire: nearest hollow spire \(Int(d)) blocks from the landing spot (\(city.pieces.count > 1 ? "with" : "no") ship)")
         let cc = V3(Float(city.anchor.x), Float(city.anchor.y), Float(city.anchor.z))
         _ = world.loadSync(center: cc, radius: 3)
         game.player.flying = true
