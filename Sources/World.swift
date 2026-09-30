@@ -101,6 +101,11 @@ final class World {
     // Chunks farther than 8 chunks are meshed at LOD 1.
     static let lodNear = 8
     @inline(__always) func lodFor(_ dx: Int, _ dz: Int) -> Int { max(abs(dx), abs(dz)) > World.lodNear ? 1 : 0 }
+    // With one chunk of hysteresis: walking back and forth across the boundary doesn't re-mesh the ring each time.
+    @inline(__always) func lodFor(_ dx: Int, _ dz: Int, current: Int) -> Int {
+        let d = max(abs(dx), abs(dz))
+        return current == 0 ? (d > World.lodNear + 1 ? 1 : 0) : (d > World.lodNear ? 1 : 0)
+    }
 
     @inline(__always) func inMeshRadius(_ dx: Int, _ dz: Int) -> Bool {
         dx * dx + dz * dz <= renderDistance * renderDistance + renderDistance
@@ -400,7 +405,7 @@ final class World {
             for k in gone { chunks.removeValue(forKey: k) }
             // Chunks crossing the LOD boundary get remeshed at their new detail level.
             for (k, c) in chunks {
-                let want = lodFor(k.x - center.x, k.z - center.z)
+                let want = lodFor(k.x - center.x, k.z - center.z, current: c.lod)
                 if want != c.lod {
                     c.lod = want
                     for s in c.sections where !(s.meshedVersion == -1) { s.version += 1 }
@@ -414,7 +419,7 @@ final class World {
             let k = ChunkKey(x: center.x + dx, z: center.z + dz)
             if let c = chunks[k] {
                 if c.meshedOnce { meshed += 1 }
-                let wantLod = lodFor(dx, dz)
+                let wantLod = lodFor(dx, dz, current: c.lod)
                 if wantLod != c.lod && !c.meshInFlight {
                     c.lod = wantLod
                     for s in c.sections where s.meshedVersion != -1 { s.version += 1 }
