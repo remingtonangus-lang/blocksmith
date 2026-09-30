@@ -67,10 +67,13 @@ final class World {
     }
 
     static var alive = 0            // live World objects (leak check in --bench)
+    static let registry = NSHashTable<World>.weakObjects()
     deinit { World.alive -= 1 }
+    var debugState: String { "jobs \(jobs), queue ops \(workQueue.operationCount), gen in flight \(genInFlight.count), results \(genResults.count)/\(meshResults.count), chunks \(chunks.count)" }
 
     init(seed: UInt64, device: MTLDevice, save: SaveManager?, dim: Dim = .overworld) {
         World.alive += 1
+        World.registry.add(self)
         self.seed = seed
         self.dim = dim
         switch dim {
