@@ -200,9 +200,10 @@ extension Game {
                         let up = V3(0, s, 0), r = right * s
                         wr.quad([c3 - r - up, c3 + r - up, c3 + r + up, c3 - r + up], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], flake, V4(1, 1, 1, a + 0.2))
                     } else {
-                        let len: Float = min(1.3, span)
-                        let r = right * 0.022
-                        wr.quad([c3 - r, c3 + r, c3 + r + V3(0, len, 0), c3 - r + V3(0, len, 0)], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], layer, V4(0.75, 0.82, 1, a))
+                        let len: Float = min(0.9, span)
+                        let r = right * 0.012
+                        let lum = 0.25 + 0.55 * daylight
+                        wr.quad([c3 - r, c3 + r, c3 + r + V3(0, len, 0), c3 - r + V3(0, len, 0)], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], layer, V4(0.72 * lum, 0.78 * lum, 0.95 * lum, a))
                     }
                 }
             } }
