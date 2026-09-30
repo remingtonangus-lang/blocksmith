@@ -120,7 +120,7 @@ extension Game {
             consumeHeld()
         } else {
             be.delay = Float((Int(be.delay) + 1) % 8)          // rotation in 45° steps
-            sfx(.click, 0.4)
+            sfx(.itemFrameRotate, 0.6)
         }
         return true
     }

@@ -55,7 +55,7 @@ extension Game {
         var s = ItemStack(Items.id("filled_map"), 1)
         s.tag = id
         giveOrReplaceHeld(s)
-        sfx(.place(.plant), 0.5)
+        sfx(.pageTurn, 0.7)
         return true
     }
 
