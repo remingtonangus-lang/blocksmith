@@ -26,6 +26,9 @@ Goals: polished, efficient on M1/8 GB, extensible. Later: Xbox controller on a T
 - Structures.swift: StructureCache (region grid spacing/separation + fixed starts), StructWriter (per-chunk clipped writes, chests with Loot tables, spawners, structure mobs → World.pendingMobs), Piece/StructureStart. Fortress.swift, Bastion.swift, Stronghold.swift, EndCity.swift build on it; generators expose `structures`.
 - End.swift: eyes of ender, end portal activation/travel, dragon + crystal AI, acid clouds, shulker bullets, gateways, credits. NetherGen.swift also holds EndGen (island, spikes, fountain, outer islands, chorus).
 
+- Later systems (one file each, mostly `extension Game`): Effects, Potions, Enchant, Villager, Raid, Beacon, Weather, GameCombat (shield/crossbow/trident/fishing), Animals + Riding, Boats, Equipment (mob armour, armor stands), Gadgets (FOV, spyglass, leads), Banners (+ loom), Fireworks (also special crafting: Fireworks.craft), Books (+ lecterns), Bundles, Workblocks (composter, bell), WoodBlocks (pillar axes, stripped wood), Shelf (chiseled bookshelf, decorated pot), Crafter, Physics (wind charge, sponge, powder snow), DragonRespawn, MinecartVariants (+ goat horns), Advancements, Decor (signs/hanging signs/frames/paintings), Maps, Jukebox, BigStructures. Redstone.swift holds every redstone component kind (incl. tripwire, trapped chest, copper bulb, crafter, sculk sensor).
+- Swift gotchas seen on CI: long float expressions time out the type checker (split them with typed lets); `import simd` in every file that uses simd_*.
+
 ## Roadmap
 Done: tree variety, plants, clouds/stars, block light + torches, flowing water, creative inventory, survival basics, synthesized sounds, passive mobs.
 Next: item drops/counts/mining time + crafting, food from animals, greedy meshing, first-person hand, controller-driven pause menu for TV play.
