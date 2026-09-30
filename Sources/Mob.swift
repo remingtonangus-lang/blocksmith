@@ -404,7 +404,7 @@ final class Mob {
         inLove = max(0, inLove - dt)
         breedCooldown = max(0, breedCooldown - dt)
         // Young animals and villagers grow up in 20 minutes; baby monsters (zombies, boarlings) never do.
-        if baby && !kind.hostile { age += dt; if age >= 1200 { baby = false; scale = 1 } }
+        if baby && (!kind.hostile || kind == .hoglin) { age += dt; if age >= 1200 { baby = false; scale = 1 } }
         if leashed { leashTick(dt, g) }
         if kind == .boat { updateBoat(dt, g); return }
         if kind == .armorStand { updateArmorStand(dt, g); return }
