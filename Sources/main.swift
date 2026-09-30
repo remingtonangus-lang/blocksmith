@@ -825,6 +825,52 @@ if let dir = arg("--sounds") {
         if !chk.ok { failures += 1; print("FAIL \(s.name): \(chk.problems.joined(separator: ", "))") }
     }
     for c in SoundCategory.allCases where byCategory[c] != nil { print("  \(c.label): \(byCategory[c]!) sounds") }
+    // Soundscapes: 12 s mixes of the beds and stings the game layers in each place (for listening, not checked).
+    let scapes: [(String, [(Snd, Float)], [(Snd, Float, Float)])] = [
+        ("forest_day", [(.windLoop, 0.2)], [(.birdCall, 0.6, 0.35)]),
+        ("forest_night", [(.cricketsLoop, 0.5)], [(.owlHoot, 0.7, 0.08)]),
+        ("jungle", [(.jungleLoop, 0.7)], [(.birdCall, 0.5, 0.5)]),
+        ("swamp_night", [(.swampLoop, 0.7), (.cricketsLoop, 0.3)], []),
+        ("beach", [(.oceanLoop, 0.8), (.windLoop, 0.2)], []),
+        ("rain", [(.rain, 0.8), (.rainRoof, 0.2)], [(.thunder, 0.7, 0.05)]),
+        ("cave", [(.dripstoneLoop, 0.5), (.waterLoop, 0.2)], [(.caveAmbience, 0.6, 0.06), (.caveDrip, 0.4, 0.3)]),
+        ("deep_dark", [(.deepDarkLoop, 0.7)], [(.wardenHeartbeat, 0.4, 0.3)]),
+        ("lava_lake", [(.lavaLoop, 0.8), (.fireLoop, 0.3)], [(.lavaPop, 0.6, 0.8)]),
+        ("emberdeep_wastes", [(.netherWastesLoop, 0.7), (.lavaLoop, 0.3)], [(.netherMood, 0.5, 0.08)]),
+        ("ghost_valley", [(.soulValleyLoop, 0.8)], [(.netherMood, 0.4, 0.06)]),
+        ("rustcap_forest", [(.crimsonLoop, 0.8)], []),
+        ("tealcap_forest", [(.warpedLoop, 0.8)], []),
+        ("basalt_deltas", [(.basaltLoop, 0.8)], []),
+        ("hollow", [(.endLoop, 0.8)], [(.teleport, 0.3, 0.1)]),
+        ("underwater", [(.underwaterLoop, 0.8)], [(.underwaterMood, 0.5, 0.08)]),
+        ("portal", [(.portalLoop, 0.8)], []),
+    ]
+    let scapeLen = Int(12 * SoundBank.rate)
+    var rng = SRng(2024)
+    for (name, beds, stings) in scapes {
+        var mix = [Float](repeating: 0, count: scapeLen)
+        for (snd, v) in beds {
+            let loop = SoundBank.render(snd, variant: 0)
+            guard !loop.isEmpty else { continue }
+            for i in 0..<scapeLen { mix[i] += loop[i % loop.count] * v }
+        }
+        for (snd, v, perSecond) in stings {
+            var t: Float = 0.5
+            while t < 11 {
+                t += -logf(max(0.001, rng.float())) / perSecond
+                if t >= 11 { break }
+                let clip = SoundBank.render(snd, variant: rng.int(max(1, SoundBank.variants(for: snd))))
+                let at = Int(t * Float(SoundBank.rate))
+                for i in 0..<clip.count where at + i < scapeLen { mix[at + i] += clip[i] * v }
+            }
+        }
+        var peak: Float = 0
+        for x in mix { peak = max(peak, abs(x)) }
+        if peak > 0.95 { let k = 0.95 / peak; for i in 0..<scapeLen { mix[i] *= k } }
+        try? FileManager.default.createDirectory(atPath: "\(dir)/scapes", withIntermediateDirectories: true)
+        SoundBank.writeWAV(mix, to: "\(dir)/scapes/scape_\(name).wav")
+    }
+    print("  wrote \(scapes.count) soundscapes to \(dir)/scapes")
     slow.sort { $0.1 > $1.1 }
     print("  slowest renders: " + slow.prefix(6).map { String(format: "%@ %.0f ms", $0.0 as NSString, $0.1) }.joined(separator: ", "))
     print(String(format: "synthesized %ld sounds (%.1f s of audio) in %.0f ms, %ld failed", list.count, Double(total) / SoundBank.rate, (CFAbsoluteTimeGetCurrent() - t0) * 1000, failures))
