@@ -80,7 +80,7 @@ done
 "$BIN" --snapshot snaps/animals3.png --seed 12345 --find plains --yaw 30 --pitch 0 --time 0.3 --up 1 --spawn bee,parrot,bat,allay,phantom,endermite,breeze,bogged,zoglin,warden
 "$BIN" --snapshot snaps/aquatic.png --seed 12345 --find warm_ocean --yaw 30 --pitch -30 --time 0.3 --up 1 --spawn squid,glow_squid,dolphin,cod,salmon,tropical_fish,pufferfish,axolotl,guardian,elder_guardian
 "$BIN" --snapshot snaps/monument.png --seed 12345 --structure monument --frame 1 --time 0.25
-"$BIN" --snapshot snaps/mansion.png --seed 12345 --structure mansion --frame 1 --time 0.25
+"$BIN" --snapshot snaps/mansion.png --seed 12345 --structure mansion --yaw 30 --pitch -35 --up 40 --time 0.25
 "$BIN" --snapshot snaps/ancient_city.png --seed 12345 --structure ancient_city --yaw 30 --pitch -20 --up 12 --rd 5
 "$BIN" --snapshot snaps/trial_chambers.png --seed 12345 --structure trial_chambers --yaw 45 --pitch -25 --up 6 --rd 5
 "$BIN" --snapshot snaps/copper.png --seed 12345 --find plains --yaw 30 --pitch -25 --time 0.3 --up 1 --place copper_block,exposed_copper,weathered_copper,oxidized_copper,cut_copper,copper_grate,copper_bulb:1,campfire,bee_nest:5,scaffolding

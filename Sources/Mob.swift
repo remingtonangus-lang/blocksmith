@@ -1211,7 +1211,8 @@ final class MobManager {
         hostileTimer -= dt
         if hostileTimer <= 0 {
             hostileTimer = 0.5
-            if game.survival && mobs.filter({ $0.kind.hostile }).count < MobManager.hostileCap {
+            if game.difficulty == 0 { mobs.removeAll { $0.kind.hostile && !$0.persistent } }
+            if game.survival && game.difficulty > 0 && mobs.filter({ $0.kind.hostile }).count < MobManager.hostileCap {
                 for _ in 0..<3 { trySpawnHostile(game) }
             }
             trySpawnWaterAndAmbient(game)

@@ -91,6 +91,8 @@ final class Game {
     var timeSinceRest: Float = 0
     var anchorSpawn: IVec3?          // charged respawn anchor in the Nether
     var jukeboxes: [JukeboxPlayer] = []
+    var difficulty = 2               // 0 peaceful, 1 easy, 2 normal, 3 hard
+    static let difficultyNames = ["Peaceful", "Easy", "Normal", "Hard"]
     var maps: [Int: MapData] = [:]
     var mapRow = 0
     var brushProgress: Float = 0
@@ -1337,6 +1339,16 @@ final class Game {
     func hurtPlayer(_ amount: Int, from src: V3, cause: String, knockback: Float = 1, type: DamageType = .generic, attacker: Mob? = nil) {
         guard survival, alive, amount > 0 else { return }
         if shieldBlocks(amount, from: src, type: type, attacker: attacker) { return }
+        var amount = amount
+        if attacker != nil || type == .projectile {
+            // Reference difficulty scaling of mob damage: easy min(x/2+1, x), hard x*1.5.
+            switch difficulty {
+            case 0: return
+            case 1: amount = min(amount / 2 + 1, amount)
+            case 3: amount = amount * 3 / 2
+            default: break
+            }
+        }
         damage(amount, cause, type: type, attacker: attacker)
         if knockback > 0 {
             var d = player.pos - src
@@ -1527,7 +1539,12 @@ final class Game {
         }
         if hunger == 0 {
             starveTimer += dt
-            if starveTimer >= 4 { starveTimer = 0; if health > 1 { damage(1, "starved to death", bypassArmor: true, type: .starve) } }
+            if starveTimer >= 4 {
+                starveTimer = 0
+                // Easy stops at 5 hearts, normal at half a heart, hard can kill.
+                let floorHP = difficulty == 1 ? 10 : (difficulty == 2 ? 1 : 0)
+                if health > floorHP && difficulty > 0 { damage(1, "starved to death", bypassArmor: true, type: .starve) }
+            }
         } else {
             starveTimer = 0
         }

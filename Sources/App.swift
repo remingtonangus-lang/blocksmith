@@ -91,21 +91,57 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var modeButton: NSButton!
     var labelTimer: Double = 0
 
+    var device: MTLDevice!
+    var worldsPanel: NSView?
+    lazy var soundEngine: SoundEngine? = SoundEngine()
+
     func applicationDidFinishLaunching(_ note: Notification) {
         buildMenu()
-        guard let device = MTLCreateSystemDefaultDevice() else { fatalError("Metal not available") }
-
-        save = SaveManager(name: arg("--world") ?? "World1")
-        let meta = save.loadMeta()
-        let seed = meta?.seed ?? UInt64(arg("--seed") ?? "") ?? UInt64.random(in: 1...UInt64(Int64.max))
-        let world = World(seed: seed, device: device, save: save)
-        game = Game(world: world, save: save, persistent: true)
-        if let m = meta { game.apply(m) } else { game.player.pos = game.findSpawn() }
-        game.sound = SoundEngine()
+        guard let dev = MTLCreateSystemDefaultDevice() else { fatalError("Metal not available") }
+        device = dev
+        let last = UserDefaults.standard.string(forKey: "lastWorld") ?? "World1"
+        makeGame(name: arg("--world") ?? last, seed: UInt64(arg("--seed") ?? ""), survival: nil, difficulty: nil)
 
         // Load the area around the player up front so the first frame isn't empty.
         _ = game.world.loadSync(center: game.player.pos, radius: min(4, game.world.renderDistance))
 
+        buildWindow()
+    }
+
+    // Creates (or loads) a world and its Game.
+    func makeGame(name: String, seed: UInt64?, survival: Bool?, difficulty: Int?) {
+        save = SaveManager(name: name)
+        UserDefaults.standard.set(name, forKey: "lastWorld")
+        let meta = save.loadMeta()
+        let s = meta?.seed ?? seed ?? UInt64.random(in: 1...UInt64(Int64.max))
+        let world = World(seed: s, device: device, save: save)
+        game = Game(world: world, save: save, persistent: true)
+        if let m = meta { game.apply(m) } else {
+            game.player.pos = game.findSpawn()
+            if let sv = survival { game.survival = sv }
+            if let d = difficulty { game.difficulty = d }
+        }
+        game.sound = soundEngine
+        _ = game.world.loadSync(center: game.player.pos, radius: min(4, game.world.renderDistance))
+    }
+
+    // Switches to another world in place (saving the current one).
+    func switchWorld(name: String, seed: UInt64?, survival: Bool?, difficulty: Int?) {
+        game.saveNow()
+        makeGame(name: name, seed: seed, survival: survival, difficulty: difficulty)
+        view.input = game.input
+        do { renderer = try Renderer(device: device, game: game, colorFormat: view.colorPixelFormat) } catch { fatalError("Renderer init failed: \(error)") }
+        view.delegate = renderer
+        hookGame()
+        worldsPanel?.removeFromSuperview()
+        worldsPanel = nil
+        overlay.removeFromSuperview()
+        buildOverlay()
+        pauseChanged(true)
+        window.title = "Blocksmith — \(name)"
+    }
+
+    func buildWindow() {
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1280, height: 800),
                           styleMask: [.titled, .closable, .miniaturizable, .resizable],
                           backing: .buffered, defer: false)
@@ -130,20 +166,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.contentView = view
 
         buildOverlay()
-        view.onEscape = { [weak self] in
-            guard let g = self?.game else { return }
-            if g.menu != nil && !g.paused { g.closeMenu() } else { g.paused.toggle() }
-        }
-        game.onInventoryChanged = { [weak self] _ in
-            guard let self else { return }
-            self.game.input.releaseAll()
-            self.setCapture(!self.game.paused && !self.game.inventoryOpen)
-        }
-        view.onClickWhileFree = { [weak self] in self?.game.paused = false }
-        game.onPauseChanged = { [weak self] p in self?.pauseChanged(p) }
-        game.onModeChanged = { [weak self] sv in self?.modeButton.title = sv ? "Mode: Survival" : "Mode: Creative" }
-        game.onRenderDistanceChanged = { [weak self] rd in self?.rdButton.title = "Render Distance: \(rd)" }
-        renderer.onFrame = { [weak self] dt in self?.frameTick(dt) }
+        hookGame()
 
         GCController.shouldMonitorBackgroundEvents = true
         NotificationCenter.default.addObserver(forName: .GCControllerDidConnect, object: nil, queue: .main) { [weak self] n in
@@ -159,6 +182,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.makeFirstResponder(view)
         NSApp.activate(ignoringOtherApps: true)
         pauseChanged(true)
+    }
+
+    func hookGame() {
+        view.onEscape = { [weak self] in
+            guard let g = self?.game else { return }
+            if g.menu != nil && !g.paused { g.closeMenu() } else { g.paused.toggle() }
+        }
+        game.onInventoryChanged = { [weak self] _ in
+            guard let self else { return }
+            self.game.input.releaseAll()
+            self.setCapture(!self.game.paused && !self.game.inventoryOpen)
+        }
+        view.onClickWhileFree = { [weak self] in self?.game.paused = false }
+        game.onPauseChanged = { [weak self] p in self?.pauseChanged(p) }
+        game.onModeChanged = { [weak self] sv in self?.modeButton.title = sv ? "Mode: Survival" : "Mode: Creative" }
+        game.onRenderDistanceChanged = { [weak self] rd in self?.rdButton.title = "Render Distance: \(rd)" }
+        renderer.onFrame = { [weak self] dt in self?.frameTick(dt) }
     }
 
     // MARK: UI
@@ -207,13 +247,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                                         button("Back to Game", #selector(resume)),
                                         rdButton,
                                         modeButton,
+                                        button("Difficulty: \(Game.difficultyNames[game.difficulty])", #selector(cycleDifficulty)),
+                                        button("Worlds…", #selector(showWorlds)),
                                         button("Toggle Fullscreen", #selector(toggleFS)),
                                         button("Save and Quit", #selector(saveQuit)),
                                         hint])
         stack.orientation = .vertical
         stack.spacing = 12
         stack.setCustomSpacing(24, after: title)
-        stack.setCustomSpacing(24, after: stack.views[5])
+        stack.setCustomSpacing(24, after: stack.views[7])
         stack.translatesAutoresizingMaskIntoConstraints = false
         overlay.addSubview(stack)
         NSLayoutConstraint.activate([
@@ -227,6 +269,82 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc func cycleRD() { game.cycleRenderDistance() }
     @objc func toggleMode() { game.toggleMode() }
     @objc func toggleFS() { window.toggleFullScreen(nil) }
+    @objc func cycleDifficulty(_ sender: NSButton) {
+        game.difficulty = (game.difficulty + 1) % 4
+        sender.title = "Difficulty: \(Game.difficultyNames[game.difficulty])"
+    }
+
+    // MARK: Worlds screen
+
+    @objc func showWorlds() {
+        worldsPanel?.removeFromSuperview()
+        let panel = NSView(frame: overlay.bounds)
+        panel.autoresizingMask = [.width, .height]
+        panel.wantsLayer = true
+        panel.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.85).cgColor
+        let title = label(size: 30, mono: false)
+        title.stringValue = "Worlds"
+        var views: [NSView] = [title]
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Blocksmith/Worlds")
+        let names = ((try? FileManager.default.contentsOfDirectory(atPath: base.path)) ?? []).filter { !$0.hasPrefix(".") }.sorted()
+        for n in names {
+            let b = NSButton(title: "Play \(n)", target: self, action: #selector(playWorld(_:)))
+            b.bezelStyle = .rounded; b.controlSize = .large
+            b.identifier = NSUserInterfaceItemIdentifier(n)
+            b.widthAnchor.constraint(equalToConstant: 320).isActive = true
+            views.append(b)
+        }
+        let nameField = NSTextField(string: "World\(names.count + 1)")
+        nameField.placeholderString = "World name"
+        nameField.widthAnchor.constraint(equalToConstant: 320).isActive = true
+        nameField.identifier = NSUserInterfaceItemIdentifier("newName")
+        let seedField = NSTextField(string: "")
+        seedField.placeholderString = "Seed (blank = random, text is hashed)"
+        seedField.widthAnchor.constraint(equalToConstant: 320).isActive = true
+        seedField.identifier = NSUserInterfaceItemIdentifier("newSeed")
+        let mode = NSPopUpButton(frame: .zero, pullsDown: false)
+        mode.addItems(withTitles: ["Survival", "Creative"])
+        mode.identifier = NSUserInterfaceItemIdentifier("newMode")
+        let diff = NSPopUpButton(frame: .zero, pullsDown: false)
+        diff.addItems(withTitles: Game.difficultyNames)
+        diff.selectItem(at: 2)
+        diff.identifier = NSUserInterfaceItemIdentifier("newDifficulty")
+        let create = NSButton(title: "Create New World", target: self, action: #selector(createWorld(_:)))
+        create.bezelStyle = .rounded; create.controlSize = .large
+        let back = NSButton(title: "Back", target: self, action: #selector(hideWorlds))
+        back.bezelStyle = .rounded
+        views += [nameField, seedField, mode, diff, create, back]
+        let stack = NSStackView(views: views)
+        stack.orientation = .vertical
+        stack.spacing = 10
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        panel.addSubview(stack)
+        NSLayoutConstraint.activate([stack.centerXAnchor.constraint(equalTo: panel.centerXAnchor), stack.centerYAnchor.constraint(equalTo: panel.centerYAnchor)])
+        overlay.addSubview(panel)
+        worldsPanel = panel
+    }
+    @objc func hideWorlds() { worldsPanel?.removeFromSuperview(); worldsPanel = nil }
+    @objc func playWorld(_ sender: NSButton) {
+        guard let n = sender.identifier?.rawValue else { return }
+        switchWorld(name: n, seed: nil, survival: nil, difficulty: nil)
+    }
+    @objc func createWorld(_ sender: NSButton) {
+        guard let panel = worldsPanel else { return }
+        func find<T: NSView>(_ id: String) -> T? { panel.subviews.flatMap { ($0 as? NSStackView)?.views ?? [] }.first { $0.identifier?.rawValue == id } as? T }
+        let fieldName = (find("newName") as NSTextField?)?.stringValue.trimmingCharacters(in: .whitespaces) ?? ""
+        let name = fieldName.isEmpty ? "World\(Int.random(in: 100...999))" : fieldName.replacingOccurrences(of: "/", with: "-")
+        let seedText = (find("newSeed") as NSTextField?)?.stringValue ?? ""
+        var seed: UInt64? = UInt64(seedText)
+        if seed == nil && !seedText.isEmpty {
+            // Text seeds: a stable 64-bit FNV-1a hash.
+            var h: UInt64 = 0xcbf29ce484222325
+            for b in seedText.utf8 { h = (h ^ UInt64(b)) &* 0x100000001b3 }
+            seed = h
+        }
+        let survival = (find("newMode") as NSPopUpButton?)?.indexOfSelectedItem != 1
+        let diff = (find("newDifficulty") as NSPopUpButton?)?.indexOfSelectedItem ?? 2
+        switchWorld(name: name, seed: seed, survival: survival, difficulty: diff)
+    }
     @objc func saveQuit() { game.saveNow(); NSApp.terminate(nil) }
 
     func pauseChanged(_ paused: Bool) {
