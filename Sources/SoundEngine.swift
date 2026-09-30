@@ -35,6 +35,8 @@ final class SoundEngine {
     private var spatial: [AVAudioPlayerNode] = []      // one-shots with a world position
     private var spatialPos: [V3?] = []                 // world position per spatial node (re-aimed as the listener turns)
     private var spatialRange: [Float] = []
+    private var spatialEnd: [Double] = []              // when each spatial voice's current sound ends
+    private var spatialGain: [Float] = []              // how loud it started (quiet voices are stolen first)
     private var flat: [AVAudioPlayerNode] = []         // one-shots at the listener (own steps, hurt...)
     private var ui: [AVAudioPlayerNode] = []           // interface clicks: never filtered
     private var buffers: [Snd: [AVAudioPCMBuffer]] = [:]
@@ -96,7 +98,7 @@ final class SoundEngine {
             engine.attach(p)
             engine.connect(p, to: env, format: mono)
             p.renderingAlgorithm = .equalPowerPanning
-            spatial.append(p); spatialPos.append(nil); spatialRange.append(16)
+            spatial.append(p); spatialPos.append(nil); spatialRange.append(16); spatialEnd.append(0); spatialGain.append(0)
         }
         for _ in 0..<6 {
             let p = AVAudioPlayerNode()
@@ -151,7 +153,8 @@ final class SoundEngine {
             eq.bands[0].frequency = eqCutoff
         }
         // Re-aim the spatial one-shots that are still playing and the loops.
-        for i in 0..<spatial.count { if let p = spatialPos[i], spatial[i].isPlaying { spatial[i].position = point(p, range: spatialRange[i]) } }
+        let now = CFAbsoluteTimeGetCurrent()
+        for i in 0..<spatial.count where spatialEnd[i] > now { if let p = spatialPos[i] { spatial[i].position = point(p, range: spatialRange[i]) } }
         for l in loops.values where l.positional { if let p = l.pos { l.node.position = point(p, range: 16) } }
         if let p = discPos, let d = disc { d.node.position = point(p, range: 64); d.node.reverbBlend = 0.05 + 0.4 * cave }
     }
@@ -218,7 +221,27 @@ final class SoundEngine {
             if !node.isPlaying { node.play() }
             return
         }
-        let i = nextSpatial; nextSpatial = (nextSpatial + 1) % spatial.count
+        // Voice allocation: a free voice, else the quietest one that ends soonest.
+        let now = CFAbsoluteTimeGetCurrent()
+        let d = simd_length(p - eye)
+        let loud = gain * max(0, 1 - d / (16 * max(1, v)))
+        var i = -1
+        for k in 0..<spatial.count {
+            let c = (nextSpatial + k) % spatial.count
+            if spatialEnd[c] <= now { i = c; break }
+        }
+        if i < 0 {
+            var best: Float = .greatestFiniteMagnitude
+            for k in 0..<spatial.count {
+                let left = Float(spatialEnd[k] - now)
+                let score = spatialGain[k] * min(left, 2)
+                if score < best { best = score; i = k }
+            }
+            if spatialGain[i] > loud * 2 { return }         // everything playing matters more than this
+        }
+        nextSpatial = (i + 1) % spatial.count
+        spatialEnd[i] = now + Double(buf.frameLength) / SoundBank.rate
+        spatialGain[i] = loud
         let node = spatial[i]
         let range = 16 * max(1, v)
         spatialPos[i] = p; spatialRange[i] = range
