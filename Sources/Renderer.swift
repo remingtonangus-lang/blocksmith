@@ -898,6 +898,19 @@ final class Renderer: NSObject, MTKViewDelegate {
                     text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
                 }
             }
+            if let dm = m as? DeathMenu {
+                text("You Died!", o.x + (Float(dm.width) * s - textWidth("You Died!", s * 2)) / 2, o.y + 8 * s, s * 2, V4(0.9, 0.2, 0.2, 1))
+                text(dm.message, o.x + (Float(dm.width) * s - textWidth(dm.message, s)) / 2, o.y + 30 * s, s, V4(0.2, 0.2, 0.2, 1), shadow: false)
+                let score = "Score: \(game.deathScore)"
+                text(score, o.x + (Float(dm.width) * s - textWidth(score, s)) / 2, o.y + 42 * s, s, V4(0.35, 0.3, 0.1, 1), shadow: false)
+                for (i, sl) in dm.slots.enumerated() {
+                    let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
+                    let hot = game.menuHover === sl
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.42, 0.55, 0.85, 1) : V4(0.42, 0.42, 0.46, 1))
+                    let label = i == 0 ? "Respawn" : "Title Screen"
+                    text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
+                }
+            }
             if let pm = m as? PauseMenu {
                 // Big labelled buttons; the controller cursor shows as the highlighted one.
                 for sl in pm.slots where sl.isButton {

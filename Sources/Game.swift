@@ -117,6 +117,7 @@ final class Game {
     }
     var rockets: [Rocket] = []
     var lastWind: Double = -10
+    var deathScore = 0
     let music = MusicDirector()
     var caveTimer: Float = 30
     var musicVolume: Float = { UserDefaults.standard.object(forKey: "musicVolume") == nil ? 1 : UserDefaults.standard.float(forKey: "musicVolume") }() {
@@ -454,7 +455,7 @@ final class Game {
     }
 
     func closeMenu() {
-        guard let m = menu else { return }
+        guard let m = menu, !(m is DeathMenu) else { return }
         m.onClose()
         if !carried.isEmpty {
             let rest = inventory.add(carried)
@@ -1599,9 +1600,11 @@ final class Game {
     }
 
     func die(_ cause: String) {
-        onToast?("You \(cause)")
-        // Drop everything where we died.
+        guard !(menu is DeathMenu) else { return }
+        deathScore = xpPoints + xpLevel * 7
+        // Drop everything where we died (plus up to 100 XP worth: 7 per level).
         let at = player.pos + V3(0, 1, 0)
+        let lostXP = min(100, xpLevel * 7)
         effects.clear()
         absorption = 0
         for c in [inventory.main, inventory.armor, inventory.offhand] {
@@ -1611,6 +1614,15 @@ final class Game {
                 c[i] = .empty
             }
         }
+        if lostXP > 0 { addXPOrbs(lostXP, at: at) }
+        xpLevel = 0; xpPoints = 0
+        if menu != nil { closeMenu() }
+        riding = nil
+        openMenu(DeathMenu(game: self, message: "Player \(cause)"))
+    }
+
+    // Respawn (from the death screen): anchor, bed/world spawn.
+    func respawn() {
         if let a = anchorSpawn {
             // Respawn at a charged anchor in the Emberdeep (uses a charge).
             let nether = dimensionState(.nether).world
