@@ -348,6 +348,16 @@ extension Mob {
 
     // Villager (for zombies and raiders) or iron golem (raiders) to attack instead of the player.
     func villagerTarget(_ g: Game) -> Mob? {
+        // Rot tuskers attack any living mob nearby but hissers and their own kind (reference).
+        if kind == .zoglin {
+            var best: Mob?
+            var bd: Float = 16
+            for o in g.mobs.mobs where o !== self && o.health > 0 && o.kind != .zoglin && o.kind != .creeper && o.spec.behavior != .vehicle {
+                let d = simd_length(o.pos - pos)
+                if d < bd { bd = d; best = o }
+            }
+            return best
+        }
         let zombie = isZombie
         let illager = raider || kind == .vindicator || kind == .pillager || kind == .illusioner
         guard zombie || illager else { return nil }
