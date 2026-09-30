@@ -37,6 +37,7 @@ final class Chunk {
     var modified = false
     var meshInFlight = false
     var meshedOnce = false
+    var lod = 0                    // 0 full detail, 1 far (flat light, merged faces, no small decorations)
 
     init(cx: Int, cz: Int, blocks: [BlockID], height: [Int16], tint: [UInt32]) {
         self.cx = cx

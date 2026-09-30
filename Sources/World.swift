@@ -66,6 +66,10 @@ final class World {
         offsets = o
     }
 
+    // Chunks farther than 8 chunks are meshed at LOD 1.
+    static let lodNear = 8
+    @inline(__always) func lodFor(_ dx: Int, _ dz: Int) -> Int { max(abs(dx), abs(dz)) > World.lodNear ? 1 : 0 }
+
     @inline(__always) func inMeshRadius(_ dx: Int, _ dz: Int) -> Bool {
         dx * dx + dz * dz <= renderDistance * renderDistance + renderDistance
     }
@@ -286,7 +290,7 @@ final class World {
 
     private func remeshSync(_ c: Chunk, _ sy: Int) {
         guard let nb = neighbourhood(c) else { return }
-        apply(Mesher.buildSection(nb.0, nb.1, sy: sy), to: c, sy: sy, version: c.sections[sy].version)
+        apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod), to: c, sy: sy, version: c.sections[sy].version)
     }
 
     private func makeBuffer(_ words: [UInt32]) -> MTLBuffer? {
@@ -351,6 +355,14 @@ final class World {
                 gone.append(k)
             }
             for k in gone { chunks.removeValue(forKey: k) }
+            // Chunks crossing the LOD boundary get remeshed at their new detail level.
+            for (k, c) in chunks {
+                let want = lodFor(k.x - center.x, k.z - center.z)
+                if want != c.lod {
+                    c.lod = want
+                    for s in c.sections where !(s.meshedVersion == -1) { s.version += 1 }
+                }
+            }
         }
 
         // Nearest-first scheduling: generate missing chunks, mesh chunks whose 8 neighbours exist.
@@ -359,15 +371,21 @@ final class World {
             let k = ChunkKey(x: center.x + dx, z: center.z + dz)
             if let c = chunks[k] {
                 if c.meshedOnce { meshed += 1 }
+                let wantLod = lodFor(dx, dz)
+                if wantLod != c.lod && !c.meshInFlight {
+                    c.lod = wantLod
+                    for s in c.sections where s.meshedVersion != -1 { s.version += 1 }
+                }
                 if jobs >= maxJobs { continue }
                 if !c.meshInFlight && inMeshRadius(dx, dz) && c.needsMesh, let nb = neighbourhood(c) {
                     let (n9, h9) = nb
                     let todo = dirtySections(c)
+                    let lod = c.lod
                     c.meshInFlight = true
                     jobs += 1
                     workQueue.async { [self] in
                         var out: [(Int, Int, SectionMesh)] = []
-                        for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy))) }
+                        for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod))) }
                         lock.lock(); meshResults.append((k, out)); lock.unlock()
                     }
                 }
@@ -468,6 +486,7 @@ final class World {
         var toMesh: [(Chunk, Int, Int, [[BlockID]], [[Int16]])] = []
         for dz in -radius...radius { for dx in -radius...radius where inMeshRadius(dx, dz) {
             if let c = chunks[ChunkKey(x: cx + dx, z: cz + dz)], c.needsMesh, let nb = neighbourhood(c) {
+                c.lod = lodFor(dx, dz)
                 for (sy, v) in dirtySections(c) { toMesh.append((c, sy, v, nb.0, nb.1)) }
             }
         } }
@@ -475,7 +494,7 @@ final class World {
         defer { meshes.deallocate() }
         DispatchQueue.concurrentPerform(iterations: toMesh.count) { i in
             let t = toMesh[i]
-            (meshes + i).initialize(to: Mesher.buildSection(t.3, t.4, sy: t.1))
+            (meshes + i).initialize(to: Mesher.buildSection(t.3, t.4, sy: t.1, lod: t.0.lod))
         }
         for (i, t) in toMesh.enumerated() {
             apply((meshes + i).move(), to: t.0, sy: t.1, version: t.2)

@@ -125,7 +125,7 @@ enum Mesher {
 
     // MARK: Build
 
-    static func buildSection(_ n9: [[BlockID]], _ h9: [[Int16]], sy: Int) -> SectionMesh {
+    static func buildSection(_ n9: [[BlockID]], _ h9: [[Int16]], sy: Int, lod: Int = 0) -> SectionMesh {
         let renderT = Blocks.render, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
         let cullSameT = Blocks.cullSame, texT = Blocks.tex, tintT = Blocks.tint, levelT = Blocks.fluidLevel, fkT = Blocks.fluidKind
         let layerT = Blocks.layer, boxesT = Blocks.boxes
@@ -257,6 +257,7 @@ enum Mesher {
                     let tintV = tintB == 3 ? 1 : tintB
                     let isTrans = layerT[bi] == translucent
 
+                    if lod > 0 && (rt == rCross || rt == rRail || rt == rWire) { continue }     // far: no small decorations
                     if rt == rCross {
                         let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
                         let layer = Int(texT[bi * 6 + 2])
@@ -396,7 +397,7 @@ enum Mesher {
                         let nx = NT[f * 3], ny = NT[f * 3 + 1], nz = NT[f * 3 + 2]
                         let ax = x + nx, ay = y + ny, az = z + nz
                         let flat = max(0, light(ax, ay, az))
-                        if isLiquid || rt != rCube {
+                        if isLiquid || rt != rCube || lod > 0 {
                             for c in 0..<4 { lit[c] = flat; aos[c] = 3 }
                         } else {
                             for c in 0..<4 {
