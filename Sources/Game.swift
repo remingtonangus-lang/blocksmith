@@ -9,6 +9,9 @@ final class Game {
     let input = InputState()
     let mobs = MobManager()
     let drops = ItemEntityManager()
+    let projectiles = ProjectileManager()
+    let tnts = TNTManager()
+    let particles = ParticleManager()
     let inventory = PlayerInventory()
     let save: SaveManager?
     let persistent: Bool
@@ -52,6 +55,12 @@ final class Game {
     var air: Float = 15        // seconds of breath
     var hurtFlash: Float = 0   // seconds left of the red damage tint
     var alive = true
+    var xpLevel = 0
+    var xpPoints = 0               // points into the current level
+    var sleeping: Float = 0        // > 0 while in bed (seconds)
+    var leafQueue: [IVec3] = []
+    var placedLeaves = Set<IVec3>()
+    var bowCharge: Float = 0
     private var regenTimer: Double = 0
     private var starveTimer: Double = 0
     private var drownTimer: Double = 0
@@ -468,6 +477,7 @@ final class Game {
         if breakNow { swing = 1 }
         if let m = mobHit {
             mining = nil
+            if useNow && useItemOnMob(m) { swing = 1; return }
             if breakNow {
                 // Attack cooldown: damage scales with how charged the swing is.
                 let spd = held.isEmpty ? 4 : held.def.attackSpeed
@@ -477,10 +487,12 @@ final class Game {
                 let crit = charge > 0.9 && player.vel.y < -0.5 && !player.onGround
                 if crit { dmg *= 1.5 }
                 attackTimer = 0
-                m.hit(from: player.pos, damage: max(1, Int(dmg.rounded())))
+                m.hit(from: player.pos, damage: max(1, Int(dmg.rounded())), knockback: player.sprinting ? 1.6 : 1)
+                m.killedByPlayer = true
+                if crit { particles.crit(at: m.pos + V3(0, m.height * 0.7, 0)) }
                 sfx(.attack, 0.7, at: m.pos)
                 sfx(m.kind.call, 0.9, at: m.pos + V3(0, m.kind.height * 0.8, 0))
-                if m.health <= 0 { sfx(.breakBlock(.plant), 0.8, at: m.pos); mobDied(m) }
+                if m.health <= 0 { sfx(.breakBlock(.plant), 0.8, at: m.pos) }
                 if survival { exhaustion += 0.1 }
                 damageHeld(held.def.tool == .sword ? 1 : 2)
             }
@@ -521,6 +533,26 @@ final class Game {
 
         // Use
         let h = held
+        if useNow, let m = mobHit ?? mobs.raycast(player.eye, player.look, maxDist: 3.5)?.0, useItemOnMob(m) { swing = 1; return }
+        // Bow: hold to draw, release to shoot.
+        if Items.key(h.item) == "bow" {
+            let hasArrow = !survival || inventory.main.countOf(Items.id("arrow")) > 0
+            if useHeld && hasArrow { bowCharge += fdt; return }
+            if !useHeld && bowCharge > 0 {
+                let t = bowCharge * 20
+                let f = min(1, (t * t / 400 + t / 10) / 3)
+                bowCharge = 0
+                if f >= 0.1 {
+                    projectiles.shoot(from: player.eye, dir: player.look, speed: f * 60, fromPlayer: true, damage: 2)
+                    sfx(.bow, 0.8)
+                    if survival { inventory.main.remove(Items.id("arrow"), 1) }
+                    damageHeld(1)
+                }
+                return
+            }
+        } else {
+            bowCharge = 0
+        }
         if let f = h.def.food, useHeld && survival && (hunger < 20 || h.item == Items.id("golden_apple")) && target.map({ !isInteractive($0.hit) }) ?? true {
             eatProgress += fdt
             if Int(eatProgress * 5) != Int((eatProgress - fdt) * 5) { sfx(.eat, 0.5) }
@@ -541,6 +573,7 @@ final class Game {
             openBlock(t.hit)
             return
         }
+        if useNow && useItemOnBlock(t) { return }
         guard let blockItem = h.def.block else { return }
         let clicked = world.block(t.hit.x, t.hit.y, t.hit.z)
         let at = Blocks.replaceable[Int(clicked)] && !Blocks.isLiquid(clicked) ? t.hit : t.hit + t.normal
@@ -548,6 +581,10 @@ final class Game {
         guard Blocks.replaceable[Int(existing)], at.y >= 0, at.y < CH else { return }
         var id = blockItem
         let key = Blocks.key(blockItem)
+        if key.hasSuffix("_bed") {
+            if useNow && placeBed(h.def, at: at) { sfx(.place(.wood), 1); consumeHeld(); swing = 1 }
+            return
+        }
         if key == "furnace" || key == "chest" {
             id = blockItem + BlockID(BlockRegistry.facingToward(yaw: player.yaw))
         }
@@ -566,6 +603,7 @@ final class Game {
             world.setBlock(at.x, at.y, at.z, id)
             if key == "furnace" { world.blockEntities[at] = BlockEntity(.furnace) }
             if key == "chest" { world.blockEntities[at] = BlockEntity(.chest) }
+            if key.hasSuffix("leaves") { placedLeaves.insert(at) }
             sfx(.place(soundMat(id)), at: V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5)
             swing = 1
             consumeHeld()
@@ -595,7 +633,18 @@ final class Game {
 
     func breakBlock(_ p: IVec3, _ b: BlockID, drop: Bool) {
         sfx(.breakBlock(soundMat(b)), at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+        particles.blockBreak(b, at: p)
         world.setBlock(p.x, p.y, p.z, AIR)
+        breakBedPartner(p, b)
+        placedLeaves.remove(p)
+        let bk = Blocks.key(b)
+        if bk.hasSuffix("_log") || bk.hasSuffix("_wood") { queueLeafDecay(around: p) }
+        if drop {
+            let ores: [String: ClosedRange<Int>] = ["coal_ore": 0...2, "deepslate_coal_ore": 0...2, "diamond_ore": 3...7, "deepslate_diamond_ore": 3...7,
+                                                     "emerald_ore": 3...7, "lapis_ore": 2...5, "deepslate_lapis_ore": 2...5,
+                                                     "redstone_ore": 1...5, "deepslate_redstone_ore": 1...5]
+            if let r = ores[bk], Mining.canHarvest(b, held) { addXP(Int.random(in: r)) }
+        }
         let center = V3(Float(p.x) + 0.5, Float(p.y) + 0.3, Float(p.z) + 0.5)
         if let be = world.blockEntities.removeValue(forKey: p) {
             for s in be.container.slots where !s.isEmpty { drops.spawn(s, at: center) }
@@ -654,19 +703,49 @@ final class Game {
     }
 
     func mobDied(_ m: Mob) {
-        let loot: [(String, Int, Int)]
-        switch m.kind {
-        case .cow: loot = [("beef", 1, 3), ("leather", 0, 2)]
-        case .sheep: loot = [("mutton", 1, 2), ("white_wool", 1, 1)]
-        case .chicken: loot = [("chicken", 1, 1), ("feather", 0, 2)]
+        let at = m.pos + V3(0, 0.5, 0)
+        if !m.baby {
+            for (n, lo, hi) in m.spec.drops where Items.has(n) {
+                let c = Int.random(in: lo...hi)
+                var item = Items.id(n)
+                if m.fire > 0, let cooked = Recipes.smelt(item), Items.def(item).food != nil { item = cooked }
+                if c > 0 { drops.spawn(ItemStack(item, c), at: at) }
+            }
+            if m.kind == .sheep && !m.sheared, Items.has("\(m.woolColor)_wool") { drops.spawn(ItemStack(Items.id("\(m.woolColor)_wool"), 1), at: at) }
+            if m.kind == .zombie && Float.random(in: 0..<1) < 0.025 {
+                drops.spawn(ItemStack(Items.id(["iron_ingot", "carrot", "potato"][Int.random(in: 0...2)]), 1), at: at)
+            }
+            if m.kind == .slime && m.slimeSize > 1 { /* only small slimes drop slimeballs */ }
         }
-        for (n, a, b) in loot where Items.has(n) {
-            let c = Int.random(in: a...b)
-            if c > 0 { drops.spawn(ItemStack(Items.id(n), c), at: m.pos + V3(0, 0.5, 0)) }
-        }
+        if m.killedByPlayer && !m.baby { addXP(m.spec.xp + (m.kind.hostile ? 0 : Int.random(in: 0...1))) }
+        particles.explosion(at: m.pos + V3(0, m.height / 2, 0), power: 0.5)
     }
 
     // MARK: Survival
+
+    // MARK: XP (reference level curve)
+
+    static func xpToNext(_ level: Int) -> Int { level < 16 ? 2 * level + 7 : (level < 31 ? 5 * level - 38 : 9 * level - 158) }
+
+    func addXP(_ n: Int) {
+        guard n > 0 else { return }
+        xpPoints += n
+        var leveled = false
+        while xpPoints >= Game.xpToNext(xpLevel) { xpPoints -= Game.xpToNext(xpLevel); xpLevel += 1; leveled = true }
+        sfx(leveled && xpLevel % 5 == 0 ? .levelUp : .xp, 0.5)
+    }
+
+    // Mob hits on the player: armor-reduced damage plus knockback away from the attacker.
+    func hurtPlayer(_ amount: Int, from src: V3, cause: String, knockback: Float = 1) {
+        guard survival, alive, amount > 0 else { return }
+        damage(amount, cause)
+        if knockback > 0 {
+            var d = player.pos - src
+            d.y = 0
+            let l = simd_length(d)
+            if l > 0.01 { player.vel += d / l * 6 * knockback + V3(0, 4 * knockback, 0) }
+        }
+    }
 
     func toggleMode() {
         survival.toggle()
@@ -787,6 +866,19 @@ final class Game {
     private func advance(_ dt: Double) {
         mobs.update(Float(dt), game: self)
         drops.update(Float(dt), game: self)
+        projectiles.update(Float(dt), game: self)
+        tnts.update(Float(dt), game: self)
+        particles.update(Float(dt), world)
+        if sleeping > 0 {
+            sleeping += Float(dt)
+            if sleeping > 2.5 {
+                // Skip to morning.
+                let day = floor(time / DAY_LENGTH)
+                time = (day + 1) * DAY_LENGTH + 0.01 * DAY_LENGTH
+                sleeping = 0
+                onToast?("Good morning")
+            }
+        }
         fluidTimer += dt
         if fluidTimer >= 0.2 { fluidTimer = 0; world.fluidTick() }
         tickAccum += dt
@@ -801,6 +893,7 @@ final class Game {
 
     // 20 Hz fixed-rate logic (furnaces...).
     private func gameTick() {
+        randomTicks()
         for (p, be) in world.blockEntities where be.kind == .furnace {
             if be.tickFurnace() {
                 // Swap between furnace and lit furnace, keeping the facing.

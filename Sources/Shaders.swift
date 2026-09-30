@@ -198,8 +198,13 @@ fragment float4 mobFS(MobOut in [[stage_in]], constant Uniforms& u [[buffer(1)]]
         c *= 0.9 + 0.1 * h;
     } else if (in.pattern > 1.5 && in.pattern < 2.5) {
         c *= 0.8 + 0.2 * h;           // wool
-    } else if (in.pattern > 2.5) {
+    } else if (in.pattern > 2.5 && in.pattern < 3.5) {
         c *= 0.88 + 0.12 * step(0.5, h); // feathers
+    } else if (in.pattern > 3.5 && in.pattern < 4.5) {
+        float h2 = hash31(floor(in.local * 0.5 + 0.001));
+        c *= 0.72 + 0.28 * h2 + 0.12 * h;  // mottled skin
+    } else if (in.pattern > 4.5) {
+        c *= 0.9 + 0.1 * h;              // bone
     } else {
         c *= 0.93 + 0.07 * h;
     }

@@ -443,6 +443,19 @@ final class World {
         return (max(0, t0), n)
     }
 
+    // Line of sight between two points (only full opaque blocks block it).
+    func canSee(_ a: V3, _ b: V3) -> Bool {
+        let d = b - a
+        let len = simd_length(d)
+        if len < 0.01 { return true }
+        let steps = Int(len / 0.25) + 1
+        for i in 1..<steps {
+            let p = a + d * (Float(i) / Float(steps))
+            if Blocks.opaque[Int(block(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))))] { return false }
+        }
+        return true
+    }
+
     func raycast(_ origin: V3, _ dir: V3, maxDist: Float) -> (hit: IVec3, normal: IVec3)? {
         var x = Int(floor(origin.x)), y = Int(floor(origin.y)), z = Int(floor(origin.z))
         let sx = dir.x > 0 ? 1 : -1, sy = dir.y > 0 ? 1 : -1, sz = dir.z > 0 ? 1 : -1

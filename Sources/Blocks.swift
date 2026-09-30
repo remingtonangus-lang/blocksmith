@@ -39,6 +39,9 @@ struct BlockDef {
     var boxes: [Box] = []            // model geometry / collision for non-full blocks (1/16 units)
     var noCollideBoxes = false       // model boxes are visual only (e.g. carpets still collide; flowers don't)
     var hardness: Float = 1          // < 0 = unbreakable
+    var resistance: Float? = nil     // blast resistance (default: hardness)
+    var flammable = false
+    var randomTicks = false          // receives random ticks (crops, saplings, grass...)
     var tool: ToolType = .none
     var harvestLevel = 0             // 0 wood/gold, 1 stone, 2 iron, 3 diamond
     var requiresTool = false
@@ -88,6 +91,9 @@ final class BlockRegistry {
     var fluidLevel: [Int8] = []
     var hidden: [Bool] = []
     var hardness: [Float] = []
+    var resistance: [Float] = []
+    var flammable: [Bool] = []
+    var randomTicks: [Bool] = []
     var tool: [UInt8] = []
     var harvestLevel: [UInt8] = []
     var requiresTool: [Bool] = []
@@ -124,6 +130,9 @@ final class BlockRegistry {
         fluidLevel.append(d.fluid)
         hidden.append(d.hidden)
         hardness.append(d.hardness)
+        resistance.append(d.resistance ?? (d.hardness < 0 ? 3_600_000 : d.hardness))
+        flammable.append(d.flammable)
+        randomTicks.append(d.randomTicks)
         tool.append(d.tool.rawValue)
         harvestLevel.append(UInt8(d.harvestLevel))
         requiresTool.append(d.requiresTool)
@@ -133,6 +142,18 @@ final class BlockRegistry {
         boxes.append(bx)
         return id
     }
+
+    static let colors: [(String, String)] = [
+        ("white", "White"), ("orange", "Orange"), ("magenta", "Magenta"), ("light_blue", "Light Blue"),
+        ("yellow", "Yellow"), ("lime", "Lime"), ("pink", "Pink"), ("gray", "Gray"), ("light_gray", "Light Gray"),
+        ("cyan", "Cyan"), ("purple", "Purple"), ("blue", "Blue"), ("brown", "Brown"), ("green", "Green"),
+        ("red", "Red"), ("black", "Black"),
+    ]
+    static let colorHex: [String: UInt32] = [
+        "white": 0xE9ECEC, "orange": 0xF07613, "magenta": 0xBD44B3, "light_blue": 0x3AAFD9, "yellow": 0xF8C627,
+        "lime": 0x70B919, "pink": 0xED8DAC, "gray": 0x3E4447, "light_gray": 0x8E8E86, "cyan": 0x158991,
+        "purple": 0x792AAC, "blue": 0x35399D, "brown": 0x724728, "green": 0x546D1B, "red": 0xA12722, "black": 0x141519,
+    ]
 
     // Registers 4 horizontal-facing states (north, south, west, east = front on -Z, +Z, -X, +X).
     // `d.tex` gives side textures; `front` replaces the facing face. Returns the first state.
@@ -289,6 +310,50 @@ final class BlockRegistry {
                             ("lapis_block", "Block of Lapis Lazuli", 1), ("redstone_block", "Block of Redstone", 0),
                             ("copper_block", "Block of Copper", 1)] {
             cube(n, d, n, h: 5, lvl: lvl, req: true, snd: .stone)
+        }
+        // Farming
+        var farm = BlockDef("farmland", "Farmland")
+        farm.tex = ["dirt", "dirt", "farmland", "dirt", "dirt", "dirt"]; farm.render = .model; farm.opaque = false
+        farm.boxes = [Box(0, 0, 0, 16, 15, 16)]; farm.hardness = 0.6; farm.tool = .shovel; farm.sound = .dirt
+        farm.skyStop = true; farm.randomTicks = true; farm.hidden = true
+        add(farm)
+        var farmWet = farm
+        farmWet.name = "farmland_moist"; farmWet.group = "farmland"; farmWet.tex = ["dirt", "dirt", "farmland_moist", "dirt", "dirt", "dirt"]
+        add(farmWet)
+        func crop(_ n: String, _ disp: String, stages: Int, texStages: [Int]) {
+            for st in 0..<stages {
+                var c = BlockDef(st == 0 ? n : "\(n)_\(st)", disp)
+                let t = "\(n)_stage\(texStages[st])"
+                c.tex = [t]; c.render = .model; c.layer = .cutout; c.opaque = false; c.collide = false
+                c.boxes = [Box(4, 0, 0, 4, 16, 16), Box(12, 0, 0, 12, 16, 16), Box(0, 0, 4, 16, 16, 4), Box(0, 0, 12, 16, 16, 12)]
+                c.hardness = 0; c.sound = .plant; c.skyStop = false; c.group = n; c.hidden = true; c.randomTicks = true
+                add(c)
+            }
+        }
+        crop("wheat", "Wheat Crops", stages: 8, texStages: [0, 1, 2, 3, 4, 5, 6, 7])
+        crop("carrots", "Carrots", stages: 8, texStages: [0, 0, 1, 1, 2, 2, 2, 3])
+        crop("potatoes", "Potatoes", stages: 8, texStages: [0, 0, 1, 1, 2, 2, 2, 3])
+        crop("beetroots", "Beetroots", stages: 4, texStages: [0, 1, 2, 3])
+        // Wool (16 colours)
+        for (n, d) in BlockRegistry.colors {
+            var w = BlockDef("\(n)_wool", "\(d) Wool")
+            w.tex = ["\(n)_wool"]; w.hardness = 0.8; w.tool = .shears; w.sound = .plant; w.flammable = true
+            add(w)
+        }
+        // TNT
+        var tnt = BlockDef("tnt", "TNT")
+        tnt.tex = ["tnt_side", "tnt_side", "tnt_top", "tnt_bottom", "tnt_side", "tnt_side"]; tnt.hardness = 0; tnt.sound = .plant
+        tnt.flammable = true; tnt.resistance = 0
+        add(tnt)
+        // Beds: foot + head parts, 4 facings each (facing = direction from foot to head).
+        for (n, d) in BlockRegistry.colors where n == "red" || n == "white" || n == "blue" || n == "black" || n == "yellow" || n == "green" {
+            for part in ["foot", "head"] {
+                var b = BlockDef(part == "foot" ? "\(n)_bed" : "\(n)_bed_head", "\(d) Bed")
+                b.tex = ["\(n)_bed_side", "\(n)_bed_side", part == "foot" ? "\(n)_bed_top_foot" : "\(n)_bed_top_head", "oak_planks", "\(n)_bed_side", "\(n)_bed_side"]
+                b.render = .model; b.opaque = false; b.hardness = 0.2; b.sound = .wood; b.skyStop = true
+                b.hidden = part == "head"
+                addFacing(b, front: "\(n)_bed_side", boxes: [Box(0, 3, 0, 16, 9, 16), Box(0, 0, 0, 3, 3, 3), Box(13, 0, 0, 16, 3, 3), Box(0, 0, 13, 3, 3, 16), Box(13, 0, 13, 16, 3, 16)])
+            }
         }
         var ct = BlockDef("crafting_table", "Crafting Table")
         ct.tex = ["crafting_table_front", "crafting_table_side", "crafting_table_top", "oak_planks", "crafting_table_front", "crafting_table_side"]

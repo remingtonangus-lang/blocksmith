@@ -32,6 +32,7 @@ struct ItemDef {
     var armor = 0
     var toughness: Float = 0
     var fuelTicks = 0                // furnace burn time (20 ticks = 1 s)
+    var plants: String? = nil        // crop block planted on farmland (seeds, carrot, potato)
     init(_ name: String, _ display: String) { self.name = name; self.display = display }
 }
 
@@ -145,6 +146,7 @@ final class ItemRegistry {
         item("ghast_tear", "Ghast Tear", "tear", 0xDDF2F2)
         item("wheat", "Wheat", "wheat", 0xD8B64A, ["a": 0x8C7A30])
         item("wheat_seeds", "Wheat Seeds", "seeds", 0x3EA42B)
+        item("beetroot_seeds", "Beetroot Seeds", "seeds", 0x8A5A3A)
         item("egg", "Egg", "egg", 0xE9DCBC, stack: 16)
         item("arrow", "Arrow", "arrow", 0x9A9A9A, ["f": 0xEDEDED, "a": 0x6B4F2C])
         item("bowl", "Bowl", "bowl", 0x8A6435, fuel: 100)
@@ -189,6 +191,11 @@ final class ItemRegistry {
         food("mushroom_stew", "Mushroom Stew", "stew", 0x8A6435, 6, 7.2, ["c": 0xB08858, "d": 0xD8C0A0], stack: 1)
         food("beetroot_soup", "Beetroot Soup", "stew", 0x8A6435, 6, 7.2, ["c": 0xA02838, "d": 0xC04050], stack: 1)
         food("dried_kelp", "Dried Kelp", "leather", 0x3A4A2A, 1, 0.6)
+        food("spider_eye", "Spider Eye", "eye", 0x8A2A3A, 2, 3.2, ["c": 0xC04050, "d": 0x200810])
+
+        for (n, crop) in [("wheat_seeds", "wheat"), ("beetroot_seeds", "beetroots"), ("carrot", "carrots"), ("potato", "potatoes")] {
+            defs[Int(id(n))].plants = crop
+        }
 
         // Tools: (name, harvest tier, durability, mining speed, colour)
         let tiers: [(String, String, Int, Int, Float, UInt32)] = [

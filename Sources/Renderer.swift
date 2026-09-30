@@ -345,6 +345,9 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let right = V3(cosf(p.yaw), 0, -sinf(p.yaw))
                 let up = simd_normalize(simd_cross(right, p.look))
                 game.drops.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight, time: Float(game.clock))
+                game.projectiles.write(&wr, eye: eye, world: game.world, daylight: daylight)
+                game.tnts.write(&wr, eye: eye, world: game.world, daylight: daylight)
+                game.particles.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight)
                 let nItems = wr.n
                 if let m = game.mining, game.mineProgress > 0 {
                     let layer = HudTex.destroy(Int(game.mineProgress * 10))
@@ -495,6 +498,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         func textWidth(_ str: String, _ scale: Float) -> Float { Float(Font.width(str)) * scale }
 
         if game.player.headInWater { rect(0, 0, W, H, V4(0.05, 0.15, 0.45, 0.35)) }
+        if game.sleeping > 0 { rect(0, 0, W, H, V4(0.02, 0.02, 0.06, min(1, game.sleeping / 1.5))) }
         if game.hurtFlash > 0 { rect(0, 0, W, H, V4(0.75, 0.02, 0.02, min(0.45, game.hurtFlash * 1.3))) }
 
         func frame(_ x: Float, _ y: Float, _ w: Float, _ h: Float, _ b: Float, _ c: V4) {
@@ -617,10 +621,18 @@ final class Renderer: NSObject, MTKViewDelegate {
             itemIcon(game.inventory.main[i], x + 2 * s, y0 + 2 * s, slot - 4 * s)
         }
 
-        // Survival status: hearts (left), hunger (right, filling right-to-left), armor, air bubbles.
+        // Survival status: XP bar + level, hearts (left), hunger (right), armor, air bubbles.
         if game.survival {
             let isz = 9 * s, step = 8 * s
-            let yh = y0 - 3 * s - isz
+            let xpY = y0 - 7 * s
+            rect(x0, xpY, total, 5 * s, V4(0, 0, 0, 0.8))
+            let xpFrac = Float(game.xpPoints) / Float(Game.xpToNext(game.xpLevel))
+            rect(x0 + s, xpY + s, (total - 2 * s) * xpFrac, 3 * s, V4(0.5, 1, 0.13, 1))
+            if game.xpLevel > 0 {
+                let t = "\(game.xpLevel)"
+                text(t, floor((W - textWidth(t, s)) / 2), xpY - 7 * s, s, V4(0.5, 1, 0.13, 1))
+            }
+            let yh = xpY - 2 * s - isz
             let uv4 = [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)]
             func sprite(_ layer: Int, _ x: Float, _ y: Float) {
                 quad([V2(x, y), V2(x + isz, y), V2(x + isz, y + isz), V2(x, y + isz)], uv4, V4(1, 1, 1, 1), Float(layer))

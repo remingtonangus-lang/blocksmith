@@ -268,6 +268,8 @@ enum Mesher {
                             for f in 0..<6 {
                                 let axis = f / 2
                                 let positive = f % 2 == 0
+                                let a1 = (axis + 1) % 3, a2 = (axis + 2) % 3
+                                if mx[a1] == mn[a1] || mx[a2] == mn[a2] { continue }   // zero-area face (thin planes)
                                 let onBoundary = positive ? mx[axis] == 16 : mn[axis] == 0
                                 let nb = R[i + offs[f]]
                                 if onBoundary && opaqueT[Int(nb)] { continue }

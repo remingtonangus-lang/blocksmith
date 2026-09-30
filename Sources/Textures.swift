@@ -11,7 +11,7 @@ enum TextureGen {
     static let hudNames = ["heart", "heart_half", "heart_empty", "food", "food_half", "food_empty", "bubble",
                            "destroy_0", "destroy_1", "destroy_2", "destroy_3", "destroy_4",
                            "destroy_5", "destroy_6", "destroy_7", "destroy_8", "destroy_9",
-                           "armor", "armor_half", "armor_empty", "xp_bar"]
+                           "armor", "armor_half", "armor_empty", "xp_bar", "smoke"]
 
     // Makes sure every texture that may be referenced exists in the registry.
     static func registerAll() {
@@ -362,6 +362,63 @@ enum TextureGen {
         p["lapis_block"] = storage(0x2A5BC8, 115)
         p["redstone_block"] = storage(0xB01010, 116)
         p["copper_block"] = storage(0xC8704A, 117)
+        p["farmland"] = { x, y in
+            if y % 4 == 0 { return hex(0x6B4A2E, 0.85 + 0.1 * r(x, y, 120)) }
+            return hex(0x8A6242, 0.85 + 0.2 * r(x, y, 121))
+        }
+        p["farmland_moist"] = { x, y in
+            if y % 4 == 0 { return hex(0x3E2A18, 0.85 + 0.1 * r(x, y, 120)) }
+            return hex(0x55391F, 0.85 + 0.2 * r(x, y, 121))
+        }
+        // Crops: stalks growing taller and changing colour with the stage.
+        func cropPainter(_ stage: Int, _ maxStage: Int, young: UInt32, ripe: UInt32, head: UInt32?, salt: Int) -> Painter {
+            { x, y in
+                let k = Float(stage) / Float(maxStage)
+                let h = 3 + Int(k * 12)
+                let col = x % 3 == 1 || (x % 5 == 3 && r(x, 0, salt) > 0.4)
+                if !col || 15 - y >= h { return clear }
+                let top = 15 - y >= h - 3
+                if let hd = head, stage == maxStage && top { return hex(hd, 0.85 + 0.25 * r(x, y, salt + 1)) }
+                let c = k > 0.8 ? ripe : young
+                return hex(c, 0.75 + 0.35 * r(x, y, salt + 2))
+            }
+        }
+        for st in 0..<8 { p["wheat_stage\(st)"] = cropPainter(st, 7, young: 0x3F9A2C, ripe: 0xB8A340, head: 0xDCBC52, salt: 122) }
+        for st in 0..<4 {
+            p["carrots_stage\(st)"] = cropPainter(st, 3, young: 0x3F9A2C, ripe: 0x48A832, head: st == 3 ? 0xF08A1A : nil, salt: 125)
+            p["potatoes_stage\(st)"] = cropPainter(st, 3, young: 0x3F9A2C, ripe: 0x4AA034, head: st == 3 ? 0xD8B060 : nil, salt: 128)
+            p["beetroots_stage\(st)"] = cropPainter(st, 3, young: 0x3F9A2C, ripe: 0x3A8A30, head: st == 3 ? 0xA02838 : nil, salt: 131)
+        }
+        for (n, _) in BlockRegistry.colors {
+            let c = BlockRegistry.colorHex[n] ?? 0xFFFFFF
+            p["\(n)_wool"] = { x, y in
+                let weave = ((x + y) % 4 == 0 ? 0.9 : 1.0) as Float
+                return hex(c, weave * (0.9 + 0.12 * r(x, y, 140)))
+            }
+            p["\(n)_bed_side"] = { x, y in
+                if y >= 10 { return y >= 13 && (x < 3 || x > 12) ? hex(0x6B4F2C) : clear }
+                if y >= 7 { return hex(0xA2824E, 0.9 + 0.1 * r(x, y, 141)) }
+                return hex(c, 0.9 + 0.1 * r(x, y, 142))
+            }
+            p["\(n)_bed_top_foot"] = { x, y in hex(c, (x == 0 || x == 15 ? 0.8 : 1) * (0.9 + 0.1 * r(x, y, 143))) }
+            p["\(n)_bed_top_head"] = { x, y in
+                if y < 7 && x > 1 && x < 14 { return hex(0xF2F2F2, 0.93 + 0.07 * r(x, y, 144)) }
+                return hex(c, (x == 0 || x == 15 ? 0.8 : 1) * (0.9 + 0.1 * r(x, y, 143)))
+            }
+        }
+        p["tnt_side"] = { x, y in
+            if y >= 5 && y <= 10 {
+                if y >= 6 && y <= 9 && (x % 4 == 1 || (y == 6 && x % 4 != 0)) { return hex(0x2A2A2A) }
+                return hex(0xEAEAEA)
+            }
+            return hex(0xC23A28, (x % 4 == 0 ? 0.8 : 1) * (0.9 + 0.1 * r(x, y, 150)))
+        }
+        p["tnt_top"] = { x, y in
+            let dx = Float(x) - 7.5, dy = Float(y) - 7.5
+            if dx * dx + dy * dy < 4 { return hex(0x3A3A3A) }
+            return hex(0xB8B0A0, 0.9 + 0.1 * r(x, y, 151))
+        }
+        p["tnt_bottom"] = { x, y in hex(0xB8B0A0, 0.85 + 0.1 * r(x, y, 152)) }
         p["oak_sapling"] = ItemTextures.painter(Sprite(mask: "sapling", base: 0x4A8A2A, extras: ["a": 0x6B4F2C, "b": 0x8A6435]))
         p["birch_sapling"] = ItemTextures.painter(Sprite(mask: "sapling", base: 0x7AA850, extras: ["a": 0xD8D4C8, "b": 0xB0ACA0]))
         p["spruce_sapling"] = ItemTextures.painter(Sprite(mask: "sapling", base: 0x3A6A3A, extras: ["a": 0x4A3420, "b": 0x6A4A2A]))
@@ -420,6 +477,12 @@ enum TextureGen {
             return V4(0.3, 0.55, 0.95, 0.55)
         }
         p["xp_bar"] = { _, _ in hex(0x80FF20) }
+        p["smoke"] = { x, y in
+            let dx = Float(x) - 7.5, dy = Float(y) - 7.5
+            let d = (dx * dx + dy * dy).squareRoot()
+            if d > 7 || r(x / 2, y / 2, 160) < 0.25 { return clear }
+            return V4(0.8, 0.8, 0.8, 1)
+        }
         // Block-breaking cracks: progressively more dark crack pixels.
         for stage in 0..<10 {
             p["destroy_\(stage)"] = { x, y in

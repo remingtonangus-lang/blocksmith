@@ -12,6 +12,7 @@ enum Snd: Hashable {
     case place(SoundMat)
     case step(SoundMat)
     case splash, land, hurt, eat, click, open, mobCow, mobSheep, mobChicken, pickup, dig, attack, burp
+    case mobPig, mobZombie, mobSkeleton, creeperHiss, mobSpider, mobEnderman, mobSlime, bow, explode, arrowHit, fizz, xp, levelUp
 }
 
 func soundMat(_ id: BlockID) -> SoundMat { Blocks.def(id).sound }
@@ -24,7 +25,8 @@ struct SoundBank {
     static var allSounds: [Snd] {
         var s: [Snd] = []
         for m in SoundMat.allCases { s += [.breakBlock(m), .place(m), .step(m)] }
-        return s + [.splash, .land, .hurt, .eat, .click, .open, .mobCow, .mobSheep, .mobChicken, .pickup, .dig, .attack, .burp]
+        return s + [.splash, .land, .hurt, .eat, .click, .open, .mobCow, .mobSheep, .mobChicken, .pickup, .dig, .attack, .burp,
+                    .mobPig, .mobZombie, .mobSkeleton, .creeperHiss, .mobSpider, .mobEnderman, .mobSlime, .bow, .explode, .arrowHit, .fizz, .xp, .levelUp]
     }
 
     init() {
@@ -189,6 +191,19 @@ struct Synth {
         case .dig: out = burst(0.06, lp: 2500 * p, hp: 300, decay: 0.012, gain: 0.8)
         case .attack: out = burst(0.12, lp: 1800 * p, hp: 200, decay: 0.03, gain: 1.4)
         case .burp: out = voice(0.3, f0: 120 * p, f1: 90 * p, vib: 0.1, lp: 900, gain: 0.8)
+        case .mobPig: out = Synth.mix(voice(0.25, f0: 180 * p, f1: 140 * p, vib: 0.15, lp: 900, gain: 1), voice(0.2, f0: 200 * p, f1: 150 * p, vib: 0.1, lp: 800, gain: 0.8), at: frames(0.28))
+        case .mobZombie: out = Synth.mix(voice(0.9, f0: 95 * p, f1: 70 * p, vib: 0.08, lp: 600, gain: 1.3), burst(0.9, lp: 700, hp: 80, attack: 0.1, decay: 0.4, gain: 0.3))
+        case .mobSkeleton: out = grains(10, spread: 0.35, lp: 3500 * p, hp: 1200, decay: 0.006, gain: 1.2)
+        case .creeperHiss: out = burst(1.5, lp: 7000, hp: 2500, attack: 0.3, decay: 1.2, gain: 1.4)
+        case .mobSpider: out = Synth.mix(burst(0.5, lp: 4000 * p, hp: 1500, attack: 0.05, decay: 0.2, gain: 1), grains(8, spread: 0.4, lp: 2000, hp: 400, decay: 0.01, gain: 0.8))
+        case .mobEnderman: out = voice(1.0, f0: 300 * p, f1: 120 * p, vib: 0.3, lp: 1500, gain: 1.1)
+        case .mobSlime: out = burst(0.2, lp: 500 * p, hp: 60, decay: 0.06, gain: 2.5)
+        case .bow: out = Synth.mix(modes(0.25, [(220 * p, 0.5, 0.05), (440 * p, 0.2, 0.03)]), burst(0.15, lp: 3000, hp: 800, decay: 0.03, gain: 0.5))
+        case .explode: out = Synth.mix(burst(2.0, lp: 250 * p, hp: 20, attack: 0.003, decay: 0.5, gain: 4), burst(1.2, lp: 2500, hp: 200, decay: 0.2, gain: 1.2))
+        case .arrowHit: out = Synth.mix(modes(0.15, [(160 * p, 0.6, 0.03)]), burst(0.05, lp: 2000, hp: 300, decay: 0.01, gain: 0.6))
+        case .fizz: out = burst(0.6, lp: 8000, hp: 3000, attack: 0.02, decay: 0.25, gain: 0.9)
+        case .xp: out = modes(0.2, [(1760 * p, 0.25, 0.05), (2637 * p, 0.12, 0.04)])
+        case .levelUp: out = Synth.mix(Synth.mix(modes(0.5, [(523, 0.3, 0.15)]), modes(0.5, [(659, 0.3, 0.15)]), at: frames(0.1)), modes(0.8, [(784, 0.3, 0.3)]), at: frames(0.2))
         case .open: out = Synth.mix(modes(0.12, [(660 * p, 0.25, 0.03)]), modes(0.12, [(990 * p, 0.2, 0.03)]), at: frames(0.05))
         case .mobCow: out = voice(0.85, f0: 150 * p, f1: 105 * p, vib: 0.02, lp: 700, gain: 1.3)
         case .mobSheep: out = voice(0.6, f0: 420 * p, f1: 380 * p, vib: 0.09, lp: 1800, gain: 0.9)
@@ -206,7 +221,7 @@ struct Synth {
         let loud: Float
         switch s {
         case .hurt: loud = 0.45
-        case .mobCow, .mobSheep: loud = 0.32
+        case .mobCow, .mobSheep, .mobZombie, .mobEnderman, .mobPig: loud = 0.32
         case .mobChicken: loud = 0.55
         default: loud = 1
         }
