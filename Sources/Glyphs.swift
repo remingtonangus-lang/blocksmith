@@ -277,6 +277,10 @@ enum Prompt {
                 items = [(.select, "Swap")]
             }
         }
+        if pad, let h = hover, !h.isButton, h.container != nil, case .normal = h.kind,
+           m.slots.contains(where: { !$0.isPlayerInv && $0.container != nil && !$0.isButton }) && !(m is InventoryMenu) {
+            items.append((.use, h.isPlayerInv ? "Store all" : "Take all"))
+        }
         items.append((.back, "Close"))
         return line(items)
     }

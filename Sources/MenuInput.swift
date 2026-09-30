@@ -148,6 +148,21 @@ extension Game {
             m.click(s, button: 0, shift: false)
             if menu !== m { return }
         }
+        // LT in a container screen: take everything from the container (hovering it), or store every stack of the
+        // hovered item (hovering the inventory). Console-style "Take all / Store all".
+        if p.lt > 0.5 && q.lt <= 0.5 && creative == nil && keyboard == nil && !(m is PauseMenu), let h = menuHover,
+           !h.isButton, case .normal = h.kind, h.container != nil, m.slots.contains(where: { !$0.isPlayerInv && $0.container != nil && !$0.isButton }) {
+            let fromPlayer = h.isPlayerInv
+            let want = h.stack.item
+            var moved = false
+            for src in m.slots where src.isPlayerInv == fromPlayer && !src.isButton && src.container != nil && !src.stack.isEmpty {
+                guard case .normal = src.kind, !fromPlayer || src.stack.item == want else { continue }
+                let before = src.stack.count
+                src.stack = m.moveInto(src.stack, m.quickMoveTargets(from: src))
+                if src.stack.count != before { moved = true }
+            }
+            if moved { m.changed(); sfx(.pickup, 0.4) }
+        }
         // RT drops the held stack (or one item from the hovered slot), like dropping outside the panel.
         if p.rt > 0.5 && q.rt <= 0.5 && !(m is PauseMenu) && !(m is KeyboardMenu) && creative == nil {
             if !carried.isEmpty { dropItem(carried); carried = .empty }
