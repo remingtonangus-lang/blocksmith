@@ -30,11 +30,18 @@ constant float faceShade[8] = { 0.80, 0.80, 1.00, 0.55, 0.68, 0.68, 0.88, 1.00 }
 constant float aoCurve[4] = { 0.42, 0.62, 0.81, 1.0 };
 
 // See Mesher.swift for the vertex layout. tints: 256 grass, 256 foliage, 256 water colours (RGBA8).
+// Per-section record (buffer 2, indexed by instance id = draw index): section origin relative to the
+// camera and the chunk's tint table offset (in words) inside the tint buffer (buffer 3).
+struct SectionRec { packed_float3 origin; uint tint; };
+
 vertex ChunkOut chunkVS(uint vid [[vertex_id]],
+                        uint iid [[instance_id]],
                         const device uint2* verts [[buffer(0)]],
                         constant Uniforms& u [[buffer(1)]],
-                        constant float4& sectionOffset [[buffer(2)]],
+                        const device SectionRec* sections [[buffer(2)]],
                         const device uint* tints [[buffer(3)]]) {
+    float3 sectionOffset = float3(sections[iid].origin);
+    uint tintBase = sections[iid].tint;
     uint2 v = verts[vid];
     uint w0 = v.x, w1 = v.y;
     uint xi = w0 & 511u, zi = (w0 >> 18) & 511u;
@@ -59,7 +66,7 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     float skyL = float((w1 >> 22) & 15u) / 15.0;
     float blkL = float((w1 >> 26) & 15u) / 15.0;
 
-    float3 rel = p + sectionOffset.xyz;
+    float3 rel = p + sectionOffset;
     ChunkOut o;
     o.pos = u.viewProj * float4(rel, 1.0);
     o.uv = uv;
@@ -67,7 +74,7 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     o.tint = float3(1.0);
     if (tintMode != 0u) {
         uint cx = min(15u, xi >> 4), cz = min(15u, zi >> 4);
-        o.tint = unpack_unorm4x8_to_float(tints[cx + cz * 16u + (tintMode - 1u) * 256u]).rgb;
+        o.tint = unpack_unorm4x8_to_float(tints[tintBase + cx + cz * 16u + (tintMode - 1u) * 256u]).rgb;
     }
     o.overlay = float((w1 >> 30) & 1u);
     o.anim = face == 7u ? 1.0 : 0.0;

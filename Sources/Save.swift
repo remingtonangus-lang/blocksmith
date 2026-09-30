@@ -103,6 +103,7 @@ final class SaveManager {
     // Block names instead of raw IDs keep saves valid when the block registry grows.
     // Thread-safe: called from world worker threads.
     func loadChunk(_ k: ChunkKey) -> [BlockID]? {
+        if let queued = SaveIO.pending(chunkURL(k).path) { return queued }     // written in the background, not on disk yet
         guard let d = try? Data(contentsOf: chunkURL(k)) else { return nil }
         guard let raw = try? (d as NSData).decompressed(using: .lzfse) as Data else { return nil }
         let bytes = [UInt8](raw)
@@ -129,15 +130,23 @@ final class SaveManager {
         return out
     }
 
+    // Queues a chunk write on the background save queue (the main thread only hands over the array).
+    func saveChunkAsync(_ k: ChunkKey, _ blocks: BlockStore) {
+        let url = chunkURL(k)
+        SaveIO.enqueue(url.path, blocks) { [self] in saveChunk(k, blocks.full()) }
+    }
+
     func saveChunk(_ k: ChunkKey, _ blocks: [BlockID]) {
-        var map: [BlockID: UInt16] = [:]
+        // Palette through a flat table (block id -> palette index + 1) instead of a dictionary per block.
+        var map = [UInt16](repeating: 0, count: max(Blocks.count, 1) + 1)
         var names: [String] = []
         var idx = [UInt16](repeating: 0, count: blocks.count)
-        for (i, b) in blocks.enumerated() {
-            if let m = map[b] { idx[i] = m; continue }
+        for i in 0..<blocks.count {
+            let b = Int(blocks[i])
+            if b < map.count, map[b] != 0 { idx[i] = map[b] - 1; continue }
             let m = UInt16(names.count)
-            map[b] = m
-            names.append(Blocks.key(b))
+            if b < map.count { map[b] = m + 1 }
+            names.append(Blocks.key(BlockID(b)))
             idx[i] = m
         }
         var d = Data()
@@ -152,4 +161,34 @@ final class SaveManager {
         guard let c = try? (d as NSData).compressed(using: .lzfse) as Data else { return }
         try? c.write(to: chunkURL(k), options: .atomic)
     }
+}
+
+// Background chunk writes. Queued arrays stay readable (loadChunk) until they are on disk, so a chunk that
+// unloads and comes straight back never reads a stale file. flush() waits for every queued write (quit).
+enum SaveIO {
+    private static let queue = DispatchQueue(label: "blocksmith.save", qos: .utility)
+    private static let lock = NSLock()
+    private static var queued: [String: (id: Int, blocks: BlockStore)] = [:]
+    private static var nextID = 0
+
+    static func pending(_ path: String) -> [BlockID]? {
+        lock.lock(); defer { lock.unlock() }
+        return queued[path]?.blocks.full()
+    }
+
+    static func enqueue(_ path: String, _ blocks: BlockStore, _ write: @escaping () -> Void) {
+        lock.lock()
+        nextID += 1
+        let id = nextID
+        queued[path] = (id, blocks)
+        lock.unlock()
+        queue.async {
+            write()
+            lock.lock()
+            if queued[path]?.id == id { queued[path] = nil }     // a newer write of the same chunk keeps its entry
+            lock.unlock()
+        }
+    }
+
+    static func flush() { queue.sync {} }
 }
