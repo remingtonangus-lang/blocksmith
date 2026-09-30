@@ -825,7 +825,7 @@ if let dir = arg("--sounds") {
         if !chk.ok { failures += 1; print("FAIL \(s.name): \(chk.problems.joined(separator: ", "))") }
     }
     for c in SoundCategory.allCases where byCategory[c] != nil { print("  \(c.label): \(byCategory[c]!) sounds") }
-    // Soundscapes: 12 s mixes of the beds and stings the game layers in each place (for listening, not checked).
+    // Soundscapes: 8 s mixes of the beds and stings the game layers in each place (for listening, not checked).
     let scapes: [(String, [(Snd, Float)], [(Snd, Float, Float)])] = [
         ("forest_day", [(.windLoop, 0.2)], [(.birdCall, 0.6, 0.35)]),
         ("forest_night", [(.cricketsLoop, 0.5)], [(.owlHoot, 0.7, 0.08)]),
@@ -845,7 +845,7 @@ if let dir = arg("--sounds") {
         ("underwater", [(.underwaterLoop, 0.8)], [(.underwaterMood, 0.5, 0.08)]),
         ("portal", [(.portalLoop, 0.8)], []),
     ]
-    let scapeLen = Int(12 * SoundBank.rate)
+    let scapeLen = Int(8 * SoundBank.rate)
     var rng = SRng(2024)
     for (name, beds, stings) in scapes {
         var mix = [Float](repeating: 0, count: scapeLen)
@@ -856,9 +856,9 @@ if let dir = arg("--sounds") {
         }
         for (snd, v, perSecond) in stings {
             var t: Float = 0.5
-            while t < 11 {
+            while t < 7 {
                 t += -logf(max(0.001, rng.float())) / perSecond
-                if t >= 11 { break }
+                if t >= 7 { break }
                 let clip = SoundBank.render(snd, variant: rng.int(max(1, SoundBank.variants(for: snd))))
                 let at = Int(t * Float(SoundBank.rate))
                 for i in 0..<clip.count where at + i < scapeLen { mix[at + i] += clip[i] * v }

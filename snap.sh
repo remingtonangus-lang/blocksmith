@@ -36,8 +36,17 @@ done
 "$BIN" --snapshot snaps/drops.png --seed 12345 --yaw 30 --pitch -30 --time 0.22 --up 1 --drops
 "$BIN" --snapshot snaps/survival.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --survival 13 --slot 8 --debug
 "$BIN" --snapshot snaps/sim.png --seed 12345 --sim 12 --yaw 30 --pitch -10 --time 0.25
-"$BIN" --sounds snaps/sounds
-"$BIN" --music snaps/sounds/music
+# Audio: every sound is rendered and checked into build/sounds (not published); a sampler, the soundscapes
+# and 10 s of every music mood go to snaps/sounds for listening on ci-snaps.
+rm -rf build/sounds snaps/sounds; mkdir -p snaps/sounds
+"$BIN" --sounds build/sounds
+for f in step_stone step_wood step_gravel break_glass break_wood place_metal door_open chest_open piston_extend lever explode thunder \
+         mob_cow_ambient mob_zombie_ambient mob_skeleton_hurt mob_enderman_ambient mob_ghast_ambient mob_villager_ambient mob_warden_death \
+         dragon_growl wardenRoar witherSpawn villager_work_0 birdCall owlHoot bell levelUp note_0_12; do
+  cp "build/sounds/$f.wav" snaps/sounds/ 2>/dev/null || true
+done
+cp -r build/sounds/scapes snaps/sounds/scapes
+"$BIN" --music snaps/sounds/music --seconds 10
 "$BIN" --snapshot snaps/mobs.png --seed 12345 --yaw 30 --pitch -14 --time 0.22 --up 1 --mobs
 "$BIN" --snapshot snaps/hostile.png --seed 12345 --yaw 30 --pitch -12 --time 0.22 --up 1 --mobs --hostile
 "$BIN" --snapshot snaps/nether.png --seed 12345 --dim nether --yaw 30 --pitch -10 --up 2
