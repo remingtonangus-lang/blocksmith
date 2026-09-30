@@ -550,6 +550,7 @@ enum Snapshot {
             let d0 = simd_length(z.pos - to)
             var reached: Float = -1
             for i in 0..<(20 * 20) {
+                Mob.trace = i >= 86 && i < 104 ? z : nil
                 game.tick(0.05)
                 game.player.pos = to; game.player.vel = .zero
                 game.health = 20

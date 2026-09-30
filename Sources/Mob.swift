@@ -224,6 +224,7 @@ enum MobKind: Int, CaseIterable {
 }
 
 final class Mob {
+    static weak var trace: Mob?     // harness: print this mob's physics steps
     let kind: MobKind
     let spec: MobKind.Spec
     var pos: V3
@@ -743,7 +744,12 @@ final class Mob {
             vel.y = max(vel.y, -40)
         }
 
+        let before = pos
         let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: 0.6, onGround: onGround)
+        if self === Mob.trace {
+            print(String(format: "      pre %.3f,%.3f,%.3f vel %.2f,%.2f,%.2f -> %.3f,%.3f,%.3f hit %@%@%@ ground %@ speed %.2f yaw %.0f", before.x, before.y, before.z,
+                         vel.x, vel.y, vel.z, pos.x, pos.y, pos.z, hit.x ? "x" : "-", hit.y ? "y" : "-", hit.z ? "z" : "-", onGround ? "1" : "0", speed, yaw * 180 / .pi))
+        }
         var landed = false, bumped = false
         if hit.y { if vel.y < 0 { landed = true }; vel.y = 0 }
         if hit.x { vel.x = 0; bumped = true }
