@@ -25,6 +25,8 @@ let SoundMats: [SoundMat] = {
         else if k == "mud" || k == "muddy_mangrove_roots" { m = .mud }
         else if k == "soul_sand" || k == "soul_soil" { m = .soul }
         else if k.hasPrefix("sculk") { m = .sculk }
+        else if k == "netherrack" || k.hasPrefix("nether_") && k.hasSuffix("_ore") || k.hasSuffix("_nylium") { m = .netherrack }
+        else if m == .stone && (k.contains("deepslate") || k.contains("basalt") || k.contains("blackstone") || k.hasPrefix("tuff") || k.contains("_tuff")) { m = .deepslate }
         else if k == "powder_snow" || k == "snow_block" || k == "snow" { m = .snow }
         t.append(m)
     }

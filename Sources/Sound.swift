@@ -7,7 +7,7 @@ import simd
 // in SoundEngine.swift, music in Music.swift.
 
 enum SoundMat: Int, CaseIterable {
-    case stone, dirt, sand, wood, plant, glass, snow, gravel, metal, wool, slime, mud, bone, amethyst, soul, sculk
+    case stone, dirt, sand, wood, plant, glass, snow, gravel, metal, wool, slime, mud, bone, amethyst, soul, sculk, netherrack, deepslate
     var name: String { String(describing: self) }
 }
 

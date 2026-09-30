@@ -406,6 +406,14 @@ struct Synth {
         case .bone:
             let knock = modes(0.25 * scale, [(520 * p, 0.6, 0.03), (1330 * p, 0.35, 0.02), (2600 * p, 0.15, 0.012)])
             return Synth.mix(Synth.scaled(knock, gain * 1.3), grains(Int(4 * scale), spread: 0.06 * scale, lp: 4000 * p, hp: 800, decay: 0.008, gain: gain * 0.6))
+        case .netherrack:
+            // Brittle and dull: many short low grains with a soft thud.
+            return Synth.mix(grains(Int(12 * scale), spread: 0.1 * scale, lp: 1800 * p, hp: 250, decay: 0.01, gain: gain * 1.5),
+                             burst(0.15 * scale, lp: 500 * p, hp: 60, decay: 0.03 * scale, gain: gain * 1.2))
+        case .deepslate:
+            // Denser than stone: fewer, lower grains and a knock.
+            return Synth.mix(grains(Int(7 * scale), spread: 0.08 * scale, lp: 2300 * p, hp: 300, decay: 0.014, gain: gain * 1.6),
+                             modes(0.15 * scale, [(310 * p, 0.35, 0.03), (720 * p, 0.2, 0.02)]))
         case .sculk:
             let squelch = burst(0.3 * scale, lp: 500 * p, hp: 50, attack: 0.02, decay: 0.09 * scale, gain: gain * 2.2)
             return Synth.mix(squelch, tone(0.25 * scale, f0: 180 * p, f1: 90 * p, wave: .sine, attack: 0.02, release: 0.1, gain: gain * 0.5))
