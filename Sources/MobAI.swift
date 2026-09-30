@@ -343,10 +343,12 @@ extension Mob {
         for e in g.drops.items where !e.stack.isEmpty && e.pickupDelay <= 0 && simd_length(e.pos - pos) < 1.3 {
             let d = e.stack.def
             var eq = equip ?? [ItemStack](repeating: .empty, count: 5)
+            var one = e.stack
+            one.count = 1
             if let slot = d.armorSlot, eq[slot.rawValue].isEmpty {
-                eq[slot.rawValue] = ItemStack(e.stack.item, 1, damage: e.stack.damage)
+                eq[slot.rawValue] = one
             } else if eq[4].isEmpty && (d.tool == .sword || d.tool == .axe || Items.key(e.stack.item) == "bow") {
-                eq[4] = e.stack
+                eq[4] = one
             } else { continue }
             var st = e.stack; st.count -= 1; e.stack = st.count > 0 ? st : .empty
             equip = eq
