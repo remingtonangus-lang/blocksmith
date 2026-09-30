@@ -235,6 +235,8 @@ final class Mob {
     var walkPhase: Float = 0
     var walkAmount: Float = 0
     var moving = false
+    var path = PathState()          // ground navigation (Pathfinding.swift)
+    var faceGoal: V3?               // what face() last aimed at during this update
     var aiTimer: Float
     var panic: Float = 0
     var hurt: Float = 0
@@ -351,6 +353,7 @@ final class Mob {
     func face(_ p: V3) {
         let d = V2(p.x - pos.x, p.z - pos.z)
         if simd_length(d) > 0.01 { yaw = atan2f(-d.x, -d.y) }
+        faceGoal = p
     }
 
     // MARK: Update
@@ -358,6 +361,7 @@ final class Mob {
     func update(_ dt: Float, game g: Game) {
         let w = g.world
         guard w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) else { return }
+        faceGoal = nil
         hurt = max(0, hurt - dt)
         panic = max(0, panic - dt)
         callTimer -= dt
@@ -700,6 +704,10 @@ final class Mob {
             if wet || drop { yaw += .pi * Float.random(in: 0.6...1.4); speed = 0; moving = false; aiTimer = Float.random(in: 1...3) }
         }
 
+        // Walking towards something: follow a path around obstacles instead of straight at it.
+        if speed > 0, let t = faceGoal, !spec.flying, spec.behavior != .slime, onGround || inWater {
+            steerAlongPath(t, dt, w)
+        }
         if spec.flying {
             if kind == .blaze && speed != 0 {
                 let target = forward * speed
@@ -1274,6 +1282,7 @@ final class MobManager {
     ]
 
     func update(_ dt: Float, game: Game) {
+        PathFinder.budget = 6
         let w = game.world
         let p = game.player.pos
         for m in mobs {

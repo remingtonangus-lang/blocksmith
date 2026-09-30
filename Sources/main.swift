@@ -525,6 +525,39 @@ enum Snapshot {
         var quads = 0, water = 0
         for (_, c) in world.chunks { for sec in c.sections { quads += sec.opaqueQuads; water += sec.transQuads } }
 
+        if CommandLine.arguments.contains("--pathtest") {
+            // Navigation test: a stone arena with a 3-high wall between a zombie and the player, gap at one
+            // end plus a one-block step; the zombie must walk around. Prints the path and the chase result.
+            let bx = Int(floor(pos.x)), bz = Int(floor(pos.z)) - 8
+            let gy = Int(floor(pos.y)) - 3
+            for dx in -10...10 { for dz in -10...10 {
+                world.setBlock(bx + dx, gy - 1, bz + dz, STONE)
+                for k in 0..<6 { world.setBlock(bx + dx, gy + k, bz + dz, AIR) }
+            } }
+            for dx in -10...6 { for k in 0..<3 { world.setBlock(bx + dx, gy + k, bz, STONE_BRICKS) } }
+            world.setBlock(bx + 8, gy, bz + 3, STONE)
+            _ = world.loadSync(center: pos, radius: rd)
+            let from = V3(Float(bx) + 0.5, Float(gy), Float(bz - 5) + 0.5), to = V3(Float(bx) + 0.5, Float(gy), Float(bz + 5) + 0.5)
+            let route = PathFinder.find(world, from: from, to: to, tall: 2) ?? []
+            print("path: \(route.count) nodes, ends \(route.last.map { "\($0.x - bx),\($0.y - gy),\($0.z - bz)" } ?? "-")")
+            let z = Mob(.zombie, at: from)
+            game.mobs.mobs.removeAll()
+            game.mobs.mobs.append(z)
+            game.paused = false
+            game.survival = true
+            game.player.flying = false
+            game.player.pos = to
+            let d0 = simd_length(z.pos - to)
+            var reached: Float = -1
+            for i in 0..<(20 * 20) {
+                game.tick(0.05)
+                game.player.pos = to; game.player.vel = .zero
+                game.health = 20
+                if reached < 0 && simd_length(z.pos - to) < 1.6 { reached = Float(i) * 0.05 }
+            }
+            print(String(format: "pathtest: zombie start %.1f from player, end %.1f, reached %@", d0, simd_length(z.pos - to), reached < 0 ? "never" : String(format: "after %.1f s", reached)))
+            game.player.pos = pos
+        }
         if let secs = Double(arg("--ticks") ?? "") {
             // Let the world run (mobs, sparkstone, villagers) with the camera held still.
             let keep = (game.player.pos, game.player.yaw, game.player.pitch)
