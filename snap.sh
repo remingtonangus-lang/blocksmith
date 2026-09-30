@@ -108,7 +108,7 @@ done
 "$BIN" --snapshot snaps/third_back.png --seed 12345 --find plains --yaw 30 --pitch -15 --time 0.3 --up 1 --camera 1
 "$BIN" --snapshot snaps/third_swim.png --seed 12345 --find ocean --yaw 30 --pitch -20 --time 0.3 --camera 1 --swim
 "$BIN" --snapshot snaps/third_front.png --seed 12345 --find plains --yaw 30 --pitch 5 --time 0.3 --up 1 --camera 2
-"$BIN" --snapshot snaps/mobs_new.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --spawn zombie_horse,illusioner,chicken,zombie,spider,skeleton --menu creative
+"$BIN" --snapshot snaps/mobs_new.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --spawn zombie_horse,illusioner,chicken,zombie,spider,skeleton
 "$BIN" --snapshot snaps/mobtests.png --seed 12345 --find plains --yaw 0 --pitch -30 --time 0.3 --up 3 --mobtests
 "$BIN" --snapshot snaps/pathtest.png --seed 12345 --find plains --yaw 0 --pitch -40 --time 0.75 --up 14 --pathtest
 "$BIN" --snapshot snaps/ashen_grove.png --seed 12345 --find pale_garden --yaw 210 --pitch -20 --time 0.3 --up 4
