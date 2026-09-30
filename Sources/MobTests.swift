@@ -340,7 +340,7 @@ enum MobTests {
         // Animals: generation-time packs in about 10% of chunks, on grass-like ground, only once per chunk.
         mm.mobs.removeAll()
         mm.populated.removeAll()
-        mm.populateChunks(game)
+        for _ in 0..<200 { mm.populateChunks(game) }
         let animals = mm.mobs.filter { $0.kind.category == .creature }
         let chunks = world.chunks.count
         let onGrass = animals.allSatisfy { m in

@@ -155,7 +155,10 @@ extension MobManager {
         let w = game.world
         guard w.dim == .overworld else { return }
         let nest = Blocks.has("bee_nest") ? Blocks.id("bee_nest") : AIR
+        var budget = 12                                  // chunks per pass (keeps first loads from hitching)
         for (k, c) in w.chunks where !populated.contains(k) {
+            if budget <= 0 { populateTimer = 0.1; break }
+            budget -= 1
             populated.insert(k)
             // Tree nests come with 2-3 bees inside (reference generation).
             if nest != AIR {
