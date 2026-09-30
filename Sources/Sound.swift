@@ -316,12 +316,11 @@ final class SoundBank {
         if abs(c.dc) > 0.05 { c.problems.append(String(format: "dc offset %.3f", c.dc)) }
         if !want.contains(c.seconds) { c.problems.append(String(format: "length %.2fs outside %.2f...%.2f", c.seconds, want.lowerBound, want.upperBound)) }
         if s.isLoop && x.count > 100 {
-            // A loop's seam must not click: compare the last and first few ms (level-relative).
-            var a: Float = 0, b: Float = 0
-            let w = 64
-            for i in 0..<w { a += abs(x[x.count - w + i]); b += abs(x[i]) }
+            // A loop's seam must not click: the wrap-around step may be no bigger than the largest step inside the clip.
+            var maxStep: Float = 0
+            for k in 1..<x.count { let d = abs(x[k] - x[k - 1]); if d > maxStep { maxStep = d } }
             c.loopGap = abs(x[x.count - 1] - x[0])
-            if c.loopGap > max(0.05, 0.5 * (a + b) / Float(2 * w) + 0.02) { c.problems.append(String(format: "loop seam jump %.3f", c.loopGap)) }
+            if c.loopGap > max(0.05, maxStep * 1.05) { c.problems.append(String(format: "loop seam jump %.3f (largest inner step %.3f)", c.loopGap, maxStep)) }
         } else if x.count > 8 {
             // One-shots must start and end near zero (no clicks).
             if abs(x[0]) > 0.05 { c.problems.append(String(format: "starts at %.3f", x[0])) }
