@@ -18,6 +18,7 @@ enum TextureGen {
         _ = Blocks.count
         _ = Items.count
         for n in hudNames { _ = Tex.id(n) }
+        for n in Font.names { _ = Tex.id(n) }
     }
 
     static func r(_ x: Int, _ y: Int, _ salt: Int) -> Float { hashf(x, y, salt, 777) }
@@ -359,6 +360,7 @@ enum TextureGen {
             }
         }
         for (k, v) in ItemTextures.painters() { p[k] = v }
+        for (k, v) in Font.painters() { p[k] = v }
         return p
     }
 

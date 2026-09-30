@@ -87,9 +87,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var overlay: NSView!
     var rdButton: NSButton!
     var modeButton: NSButton!
-    var debugLabel: NSTextField!
-    var toastLabel: NSTextField!
-    var toastUntil: Double = 0
     var labelTimer: Double = 0
 
     func applicationDidFinishLaunching(_ note: Notification) {
@@ -131,17 +128,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.contentView = view
 
         buildOverlay()
-        debugLabel = label(size: 12, mono: true)
-        debugLabel.frame = NSRect(x: 10, y: view.bounds.height - 110, width: 700, height: 100)
-        debugLabel.autoresizingMask = [.minYMargin]
-        debugLabel.isHidden = true
-        view.addSubview(debugLabel)
-        toastLabel = label(size: 15, mono: false)
-        toastLabel.alignment = .center
-        toastLabel.frame = NSRect(x: 0, y: 90, width: view.bounds.width, height: 24)
-        toastLabel.autoresizingMask = [.width]
-        view.addSubview(toastLabel)
-
         view.onEscape = { [weak self] in
             guard let g = self?.game else { return }
             if g.inventoryOpen && !g.paused { g.inventoryOpen = false } else { g.paused.toggle() }
@@ -153,7 +139,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         view.onClickWhileFree = { [weak self] in self?.game.paused = false }
         game.onPauseChanged = { [weak self] p in self?.pauseChanged(p) }
-        game.onToast = { [weak self] s in self?.toast(s) }
         game.onModeChanged = { [weak self] sv in self?.modeButton.title = sv ? "Mode: Survival" : "Mode: Creative" }
         game.onRenderDistanceChanged = { [weak self] rd in self?.rdButton.title = "Render Distance: \(rd)" }
         renderer.onFrame = { [weak self] dt in self?.frameTick(dt) }
@@ -267,42 +252,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         game.input.mouseDY = 0
     }
 
-    func toast(_ s: String) {
-        toastLabel.stringValue = s
-        toastLabel.alphaValue = 1
-        toastUntil = CACurrentMediaTime() + 1.6
-    }
+    func toast(_ s: String) { game.onToast?(s) }
 
-    func frameTick(_ dt: Double) {
-        let now = CACurrentMediaTime()
-        if toastLabel.alphaValue > 0 && now > toastUntil {
-            toastLabel.alphaValue = max(0, 1 - CGFloat(now - toastUntil) * 2)
-        }
-        // Keep the toast just above the hotbar as the HUD scale changes.
-        let s = CGFloat(renderer.hudScale)
-        let y = 20 * s + 4 * s + 10 * s
-        if abs(toastLabel.frame.origin.y - y) > 0.5 { toastLabel.frame.origin.y = y }
-
-        debugLabel.isHidden = !game.showDebug
-        labelTimer += dt
-        guard game.showDebug, labelTimer > 0.25 else { return }
-        labelTimer = 0
-        let p = game.player
-        let w = game.world
-        let bx = Int(floor(p.pos.x)), bz = Int(floor(p.pos.z))
-        let biome = w.gen.column(bx, bz).biome
-        let facing = ["North (-Z)", "West (-X)", "South (+Z)", "East (+X)"][Int((p.yaw / (.pi / 2)).rounded()).mod4]
-        var tgt = "none"
-        if let t = game.target { tgt = "\(Blocks.name(w.block(t.hit.x, t.hit.y, t.hit.z))) @ \(t.hit.x) \(t.hit.y) \(t.hit.z)" }
-        let hour = Int(game.dayFraction * 24 + 6) % 24
-        debugLabel.stringValue = """
-        Blocksmith  \(Int(renderer.fps.rounded())) fps  ·  seed \(w.seed)
-        XYZ \(String(format: "%.2f %.2f %.2f", p.pos.x, p.pos.y - Float(YOFF), p.pos.z))  ·  facing \(facing)  ·  \(biome)
-        chunks \(w.chunks.count) loaded · \(w.meshedCount) meshed · \(renderer.drawnChunks) drawn · \(w.pendingJobs) jobs · RD \(w.renderDistance)
-        target \(tgt)  ·  \(p.flying ? "flying" : (p.onGround ? "ground" : "air"))\(p.inWater ? " · water" : "")
-        time \(String(format: "%02d:00", hour))  ·  controller \(game.padConnected ? "yes" : "no")
-        """
-    }
+    func frameTick(_ dt: Double) {}
 
     func buildMenu() {
         let main = NSMenu()

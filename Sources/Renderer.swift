@@ -417,6 +417,27 @@ final class Renderer: NSObject, MTKViewDelegate {
             quad([V2(x, y), V2(x + w, y), V2(x + w, y + h), V2(x, y + h)], [V2](repeating: .zero, count: 4), c, -1)
         }
         let game = self.game
+        // Pixel-font text; scale = size of one font pixel in screen pixels.
+        func text(_ str: String, _ x: Float, _ y: Float, _ scale: Float, _ color: V4 = V4(1, 1, 1, 1), shadow: Bool = true) {
+            var cx = x
+            for u in str.unicodeScalars {
+                let code = Int(u.value)
+                let adv = Float(Font.advance(code))
+                if code > 32 && code < 127 {
+                    let w = Float(Font.glyphs[code - 32][0])
+                    let layer = Float(Font.layerBase + code - 32)
+                    let uv = [V2(0, 0), V2(w / 16, 0), V2(w / 16, 7 / 16), V2(0, 7 / 16)]
+                    func g(_ ox: Float, _ oy: Float, _ c: V4) {
+                        let a = V2(cx + ox, y + oy)
+                        quad([a, a + V2(w * scale, 0), a + V2(w * scale, 7 * scale), a + V2(0, 7 * scale)], uv, c, layer)
+                    }
+                    if shadow { g(scale, scale, V4(color.x * 0.25, color.y * 0.25, color.z * 0.25, color.w)) }
+                    g(0, 0, color)
+                }
+                cx += adv * scale
+            }
+        }
+        func textWidth(_ str: String, _ scale: Float) -> Float { Float(Font.width(str)) * scale }
 
         if game.player.headInWater { rect(0, 0, W, H, V4(0.05, 0.15, 0.45, 0.35)) }
         if game.hurtFlash > 0 { rect(0, 0, W, H, V4(0.75, 0.02, 0.02, min(0.45, game.hurtFlash * 1.3))) }
@@ -495,7 +516,46 @@ final class Renderer: NSObject, MTKViewDelegate {
                 for i in 0..<b { sprite(HudTex.bubble, x0 + total - isz - Float(i) * step, yh - step - s) }
             }
         }
+        // Toast (item names, messages) above the hotbar, fading out.
+        let since = game.clock - game.toastTime
+        if since < 2.2 && !game.toastText.isEmpty {
+            let a = Float(min(1, (2.2 - since) / 0.5))
+            let ty = L.hotbarY0 - (game.survival ? 26 : 14) * s
+            text(game.toastText, floor((W - textWidth(game.toastText, s)) / 2), ty, s, V4(1, 1, 1, a))
+        }
+
+        // F3 debug overlay
+        if game.showDebug {
+            var y = 4 * s
+            for line in debugLines() {
+                rect(2 * s, y - s, textWidth(line, s) + 4 * s, 9 * s, V4(0, 0, 0, 0.35))
+                text(line, 4 * s, y, s, V4(0.9, 0.9, 0.9, 1), shadow: false)
+                y += 10 * s
+            }
+        }
         return v
+    }
+
+    func debugLines() -> [String] {
+        let p = game.player
+        let w = game.world
+        let bx = Int(floor(p.pos.x)), by = Int(floor(p.pos.y)), bz = Int(floor(p.pos.z))
+        let biome = w.gen.column(bx, bz).biome
+        let facing = ["north (-Z)", "west (-X)", "south (+Z)", "east (+X)"][Int((p.yaw / (.pi / 2)).rounded()).mod4]
+        var tgt = "none"
+        if let t = game.target { tgt = "\(Blocks.name(w.block(t.hit.x, t.hit.y, t.hit.z))) @ \(t.hit.x) \(t.hit.y - YOFF) \(t.hit.z)" }
+        let hour = Int(game.dayFraction * 24 + 6) % 24
+        let l = w.lightAt(bx, by, bz)
+        return [
+            "Blocksmith  \(Int(fps.rounded())) fps  seed \(w.seed)",
+            String(format: "XYZ %.2f / %.2f / %.2f", p.pos.x, p.pos.y - Float(YOFF), p.pos.z),
+            "Block \(bx) \(by - YOFF) \(bz)  Chunk \(floorDiv(bx, CS)) \(floorDiv(bz, CS))  Facing \(facing)",
+            "Biome \(biome)  Light sky \(l.sky) block \(l.block)",
+            "Chunks \(w.chunks.count) loaded, \(w.meshedCount) meshed, \(drawnChunks) drawn, \(w.pendingJobs) jobs, RD \(w.renderDistance)",
+            "Target \(tgt)",
+            "\(p.flying ? "flying" : (p.onGround ? "on ground" : "in air"))\(p.inWater ? ", in water" : "")  Time \(String(format: "%02d:00", hour))  Controller \(game.padConnected ? "yes" : "no")",
+            "Mobs \(game.mobs.mobs.count)  Fluid queue \(w.fluidPending.count)",
+        ]
     }
 
     // Isometric block icon from three textured faces (grass/leaves tinted with default biome colours).

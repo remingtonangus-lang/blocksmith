@@ -55,6 +55,10 @@ enum Snapshot {
             game.hunger = 13
             game.air = 7
         }
+        if CommandLine.arguments.contains("--debug") {
+            game.showDebug = true
+            game.onToast?("Grass Block")
+        }
         if let c = arg("--inventory") { game.inventoryOpen = true; game.invCursor = Int(c) ?? 0 }
 
         var t = world.loadSync(center: pos, radius: rd)

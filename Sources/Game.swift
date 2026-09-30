@@ -68,7 +68,9 @@ final class Game {
     private var breakCooldown: Double = 0
     private var placeCooldown: Double = 0
     private var lastSpaceTap: Double = -1
-    private var clock: Double = 0
+    private(set) var clock: Double = 0
+    var toastText = ""
+    var toastTime: Double = -100
     private var prevPad = PadSnapshot()
     private var autosaveTimer: Double = 0
     private var fluidTimer: Double = 0
@@ -78,6 +80,11 @@ final class Game {
         self.world = world
         self.save = save
         self.persistent = persistent
+        onToast = { [weak self] s in
+            guard let self else { return }
+            self.toastText = s
+            self.toastTime = self.clock
+        }
     }
 
     // MARK: Setup / persistence
