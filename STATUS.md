@@ -91,7 +91,16 @@ B close, RS scroll creative.
   ambient/hurt/death calls for every mob from 27 voice families. Volume sliders per category (Options → Audio…).
 - Music: streaming synth (14 instruments) rendered on a background queue; motif-based composer per mood (title, day, night, rain,
   underground, underwater, creative, Emberdeep, the Hollow, boss). Director: instant switch for dimension/boss/title, else a
-  piece every 6-15 min; ducks under a nearby jukebox. Discs still play through note-block instruments.
+  piece every 6-15 min; ducks under a nearby jukebox. Discs are composed pieces (seeded by the disc name, tiled to the disc's
+  length) played through a mono stream placed at the nearest playing jukebox (3D + occlusion).
+- Audio hooks: mob hurt/death/ambient from the voice table, mob footsteps within 16 blocks, attack variants (crit/sweep/
+  knockback/weak), shield block/break, armor equip per material (any path), doors/trapdoors/gates (wood/iron), container lids,
+  pistons/levers/buttons/plates/tripwires, TNT fuse, copper wax/scrape, candles, paintings, item frames, pots, crafters,
+  composters, vaults, rebirth anchors, sculk shriekers, villager work sounds at job sites, trades/level-ups/refusals, raid
+  victory, zombie infection/cure, wyrm flaps/growls/breath, deep stalker heartbeat/sniff/sonic boom/emerge, voidwalker
+  teleports, elder curse, gustling shots. Spatial voices are allocated by priority (free, else quietest/soonest-ending).
+- Audio next: per-biome overworld ambience (birds by day, crickets at night), more distinct voices for rare mobs,
+  a music box timbre for the Maker disc, headless audio snapshot of a scene (mix of loops at a position).
 - Landing / sprint dust, item equip animation, denser rain with ground splashes lit by daylight.
 - Village life: beds and sleeping, food pickup + breeding, farmers harvesting, golems, midnight zombie sieges.
 
