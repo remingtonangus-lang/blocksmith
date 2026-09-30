@@ -40,9 +40,9 @@ done
 # and 10 s of every music mood go to snaps/sounds for listening on ci-snaps.
 rm -rf build/sounds snaps/sounds; mkdir -p snaps/sounds
 "$BIN" --sounds build/sounds
-for f in step_stone step_wood step_gravel break_glass break_wood place_metal door_open chest_open piston_extend lever explode thunder \
+for f in step_stone step_wood step_gravel break_glass break_wood place_metal doorOpen chestOpen pistonExtend lever explode thunder \
          mob_cow_ambient mob_zombie_ambient mob_skeleton_hurt mob_enderman_ambient mob_ghast_ambient mob_villager_ambient mob_warden_death \
-         dragon_growl wardenRoar witherSpawn villager_work_0 birdCall owlHoot bell levelUp note_0_12; do
+         dragonGrowl wardenRoar witherSpawn villager_work_0 birdCall owlHoot bell levelUp note_0_12; do
   cp "build/sounds/$f.wav" snaps/sounds/ 2>/dev/null || true
 done
 cp -r build/sounds/scapes snaps/sounds/scapes
