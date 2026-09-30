@@ -22,6 +22,7 @@ final class Fireball {
     var age: Float = 0
     var dead = false
     var dragon = false             // ender dragon fireball: leaves a cloud of acid instead of exploding
+    var potion = 0                 // witch splash potion: 1 harming, 2 poison
     init(_ p: V3, _ v: V3, big: Bool, byPlayer: Bool) { pos = p; vel = v; self.big = big; self.byPlayer = byPlayer }
 }
 
@@ -29,9 +30,10 @@ final class ProjectileManager {
     var arrows: [Arrow] = []
     var fireballs: [Fireball] = []
 
-    func fireball(from p: V3, dir: V3, big: Bool, byPlayer: Bool, dragon: Bool = false) {
-        let f = Fireball(p, dir * (big ? 18 : 22), big: big, byPlayer: byPlayer)
+    func fireball(from p: V3, dir: V3, big: Bool, byPlayer: Bool, dragon: Bool = false, potion: Int = 0) {
+        let f = Fireball(p, dir * (potion > 0 ? 12 : (big ? 18 : 22)), big: big, byPlayer: byPlayer)
         f.dragon = dragon
+        f.potion = potion
         fireballs.append(f)
     }
 
@@ -82,6 +84,14 @@ final class ProjectileManager {
             if min(hitT, blockT) <= len {
                 let at = f.pos + dir * min(hitT, blockT)
                 f.dead = true
+                if f.potion > 0 {
+                    // Splash: affects the player within 4 blocks of the impact.
+                    if simd_length(g.player.pos + V3(0, 0.9, 0) - at) < 4 {
+                        if f.potion == 1 { g.damage(6, "was killed by magic", bypassArmor: true) } else { g.poisonTime = max(g.poisonTime, 22) }
+                    }
+                    g.particles.explosion(at: at, power: 0.4)
+                    continue
+                }
                 if hitPlayer {
                     g.hurtPlayer(f.big ? 6 : 5, from: f.pos, cause: f.big ? "was fireballed by Ghast" : "was fireballed by Blaze")
                     if !f.big { g.onFire = max(g.onFire, 5) }

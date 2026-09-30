@@ -75,6 +75,8 @@ final class Game {
     var dragonSpawnTimer: Float = 3
     var witherTime: Float = 0      // seconds of the wither effect left
     var witherTick: Float = 0
+    var poisonTime: Float = 0      // seconds of poison left (never kills: stops at half a heart)
+    var poisonTick: Float = 0
     var eyes: [EnderEye] = []
     var elytraWear: Float = 0
     var bullets: [ShulkerBullet] = []

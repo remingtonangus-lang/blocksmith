@@ -83,6 +83,12 @@ extension TextureGen {
             return hex(0xDDD4A0, 0.94 + 0.1 * r(x, y, 636))
         }
         p["cut_red_sandstone"] = { x, y in y == 0 || y == 15 || y == 7 ? hex(0x9A4A18) : hex(0xBA6522, 0.94 + 0.1 * r(x, y, 637)) }
+        p["blue_terracotta"] = rock(0x4A3B5B, grain: 0.1, blotch: 0.08, salt: 639)
+        p["rail"] = { x, y in
+            if x == 3 || x == 12 { return hex(0xA8A8A8, 0.9 + 0.1 * r(x, y, 640)) }
+            if y % 4 == 1 && x > 1 && x < 14 { return hex(0x6A4A2A, 0.9 + 0.15 * r(x, y, 641)) }
+            return clear
+        }
         p["white_concrete"] = { x, y in hex(0xCFD5D6, 0.97 + 0.04 * r(x, y, 638)) }
     }
 }

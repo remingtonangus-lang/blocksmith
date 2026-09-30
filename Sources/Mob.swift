@@ -6,13 +6,14 @@ import simd
 
 struct MobVert { var pos: V4; var color: V4; var local: V4 } // pos.w = pattern id, color.a = shade
 
-enum Behavior { case passive, melee, ranged, creeper, spider, enderman, slime, neutral, piglin, ghast, blaze, dragon, crystal, shulker, villager, golem }
+enum Behavior { case passive, melee, ranged, creeper, spider, enderman, slime, neutral, piglin, ghast, blaze, dragon, crystal, shulker, villager, golem, witch }
 
 enum MobKind: Int, CaseIterable {
     case cow, sheep, chicken, pig, zombie, skeleton, creeper, spider, enderman, slime
     case zombifiedPiglin, piglin, ghast, blaze, magmaCube, witherSkeleton, hoglin, piglinBrute, strider
     case enderDragon, endCrystal, silverfish, shulker
     case villager, ironGolem
+    case husk, stray, drowned, caveSpider, witch, pillager, vindicator
 
     struct Spec {
         var name: String
@@ -78,6 +79,21 @@ enum MobKind: Int, CaseIterable {
                                     drops: [], xp: 0, call: .mobVillager)
         case .ironGolem: return Spec(name: "Iron Golem", halfW: 0.7, height: 2.7, health: 100, speed: 1.6, behavior: .golem, attack: 14,
                                      drops: [("iron_ingot", 3, 5), ("poppy", 0, 2)], xp: 0, call: .mobGolem)
+        case .husk: return Spec(name: "Husk", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
+                                drops: [("rotten_flesh", 0, 2)], xp: 5, call: .mobZombie)
+        case .stray: return Spec(name: "Stray", halfW: 0.3, height: 1.99, health: 20, speed: 2.5, behavior: .ranged,
+                                 burnsInSun: true, drops: [("bone", 0, 2), ("arrow", 0, 2)], xp: 5, call: .mobSkeleton)
+        case .drowned: return Spec(name: "Drowned", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
+                                   burnsInSun: true, drops: [("rotten_flesh", 0, 2), ("copper_ingot", 0, 1)], xp: 5, call: .mobZombie)
+        case .caveSpider: return Spec(name: "Cave Spider", halfW: 0.35, height: 0.5, health: 12, speed: 3.0, behavior: .spider, attack: 2,
+                                      drops: [("string", 0, 2), ("spider_eye", 0, 1)], xp: 5, call: .mobSpider)
+        case .witch: return Spec(name: "Witch", halfW: 0.3, height: 1.95, health: 26, speed: 2.3, behavior: .witch,
+                                 drops: [("glass_bottle", 0, 2), ("glowstone_dust", 0, 2), ("gunpowder", 0, 2), ("redstone", 0, 2),
+                                         ("spider_eye", 0, 2), ("sugar", 0, 2), ("stick", 0, 2)], xp: 5, call: .mobVillager)
+        case .pillager: return Spec(name: "Pillager", halfW: 0.3, height: 1.95, health: 24, speed: 2.5, behavior: .ranged,
+                                    drops: [("arrow", 0, 2)], xp: 5, call: .mobVillager)
+        case .vindicator: return Spec(name: "Vindicator", halfW: 0.3, height: 1.95, health: 24, speed: 2.5, behavior: .melee, attack: 13,
+                                      drops: [("emerald", 0, 1)], xp: 5, call: .mobVillager)
         case .silverfish: return Spec(name: "Silverfish", halfW: 0.2, height: 0.3, health: 8, speed: 2.5, behavior: .melee, attack: 1,
                                       drops: [], xp: 5, call: .mobSpider)
         case .witherSkeleton: return Spec(name: "Wither Skeleton", halfW: 0.35, height: 2.4, health: 20, speed: 2.5, behavior: .melee, attack: 8,
@@ -306,6 +322,22 @@ final class Mob {
             if Float.random(in: 0..<1) < dt * 6 { g.particles.smoke(at: pos + V3(Float.random(in: -0.4...0.4), Float.random(in: 0.2...1.4), Float.random(in: -0.4...0.4))) }
         case .dragon, .crystal, .shulker:
             break
+        case .witch:
+            // Throws harming (or poison) potions from 4-10 blocks; drinks healing when hurt.
+            if health < 14 && attackCooldown <= 0 && Float.random(in: 0..<1) < 0.3 {
+                attackCooldown = 2; health = min(spec.health, health + 4); g.sfx(.eat, 0.6, at: pos)
+            }
+            if canTarget && dist < 16 && w.canSee(eye, g.player.eye) {
+                face(player)
+                speed = dist > 8 ? spec.speed : (dist < 4 ? -spec.speed * 0.5 : 0)
+                if attackCooldown <= 0 && dist < 10 {
+                    attackCooldown = 3
+                    var d = g.player.eye - eye
+                    d.y += simd_length(V2(d.x, d.z)) * 0.15
+                    g.projectiles.fireball(from: eye + forward * 0.4, dir: simd_normalize(d), big: false, byPlayer: false, potion: dist > 5 && Float.random(in: 0..<1) < 0.4 ? 2 : 1)
+                    g.sfx(.bow, 0.5, at: pos)
+                }
+            } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .villager:
             // Wander near home; run from zombies.
             if home == nil { home = pos }
@@ -354,6 +386,7 @@ final class Mob {
                     attackCooldown = 1
                     g.hurtPlayer(spec.attack, from: pos, cause: "was slain by \(spec.name)")
                     if kind == .witherSkeleton { g.witherTime = 10; g.witherTick = min(g.witherTick, 2) }
+                    if kind == .caveSpider { g.poisonTime = max(g.poisonTime, 7) }
                 }
             } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .ranged:
@@ -448,7 +481,9 @@ final class Mob {
             vel.x += (target.x - vel.x) * k
             vel.z += (target.z - vel.z) * k
         }
-        if kind == .strider && Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))] == 2 {
+        if kind == .drowned && inWater && canTarget {
+            vel.y += ((player.y - pos.y) * 2 - vel.y) * min(1, dt * 3)
+        } else if kind == .strider && Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))] == 2 {
             vel.y = 2          // striders stand on lava
         } else if inWater {
             vel.y += 18 * dt
@@ -612,16 +647,28 @@ private func parts(_ m: Mob) -> [Part] {
             box(-1.2, 10, -16.2, 0.8, 1, 0.3, V3(0.4, 0.2, 0.2)), box(0.4, 10, -16.2, 0.8, 1, 0.3, V3(0.4, 0.2, 0.2)),
             leg(-3, -5, 4, 6, 1, pink), leg(3, -5, 4, 6, -1, pink), leg(-3, 5, 4, 6, -1, pink), leg(3, 5, 4, 6, 1, pink),
         ] + eyes(13, -15, 2)
-    case .zombie, .skeleton, .enderman:
-        let sk = m.kind == .skeleton, en = m.kind == .enderman
-        let skin = sk ? V3(0.78, 0.78, 0.76) : (en ? V3(0.08, 0.06, 0.1) : V3(0.36, 0.55, 0.3))
-        let shirt = sk || en ? skin : V3(0.15, 0.55, 0.58)
-        let pants = sk || en ? skin : V3(0.25, 0.25, 0.55)
+    case .zombie, .skeleton, .enderman, .husk, .stray, .drowned, .pillager, .vindicator, .witch:
+        let sk = m.kind == .skeleton || m.kind == .stray, en = m.kind == .enderman
+        let illager = m.kind == .pillager || m.kind == .vindicator || m.kind == .witch
+        var skin = sk ? V3(0.78, 0.78, 0.76) : (en ? V3(0.08, 0.06, 0.1) : V3(0.36, 0.55, 0.3))
+        var shirt = sk || en ? skin : V3(0.15, 0.55, 0.58)
+        var pants = sk || en ? skin : V3(0.25, 0.25, 0.55)
+        switch m.kind {
+        case .husk: skin = V3(0.62, 0.55, 0.38); shirt = V3(0.55, 0.45, 0.3); pants = V3(0.42, 0.36, 0.25)
+        case .stray: skin = V3(0.7, 0.76, 0.78); shirt = V3(0.45, 0.52, 0.55); pants = shirt
+        case .drowned: skin = V3(0.3, 0.55, 0.55); shirt = V3(0.25, 0.45, 0.4); pants = V3(0.3, 0.35, 0.45)
+        case .pillager: skin = V3(0.55, 0.57, 0.58); shirt = V3(0.25, 0.25, 0.3); pants = V3(0.3, 0.3, 0.32)
+        case .vindicator: skin = V3(0.55, 0.57, 0.58); shirt = V3(0.2, 0.22, 0.28); pants = V3(0.15, 0.15, 0.2)
+        case .witch: skin = V3(0.6, 0.55, 0.45); shirt = V3(0.3, 0.2, 0.35); pants = shirt
+        default: break
+        }
+        _ = illager
         let limb: Float = sk || en ? 2 : 4
         let legH: Float = en ? 30 : 12
         let armLen: Float = en ? 30 : 12
         let bodyY = legH
-        let armFwd: Float = m.kind == .zombie || (en && m.aggro) ? -1.45 : 0
+        let zombieLike = m.kind == .zombie || m.kind == .husk || m.kind == .drowned
+        let armFwd: Float = zombieLike || (en && m.aggro) || (m.kind == .vindicator && m.aggro) ? -1.45 : 0
         let armAngle = armFwd + (armFwd == 0 ? swing : 0)
         let pat: Float = sk ? 5 : 4
         let armC = sk || en ? skin : shirt
@@ -637,8 +684,13 @@ private func parts(_ m: Mob) -> [Part] {
         if en {
             p += [box(-3, hy + 3.5, -4.2, 2.2, 1, 0.3, V3(0.85, 0.3, 0.95)), box(0.8, hy + 3.5, -4.2, 2.2, 1, 0.3, V3(0.85, 0.3, 0.95))]
         } else {
-            p += eyes(hy + 3.5, -4, 1, 1.5, sk ? V3(0.15, 0.15, 0.15) : black)
+            p += eyes(hy + 3.5, -4, 1, 1.5, sk ? V3(0.15, 0.15, 0.15) : (m.kind == .drowned ? V3(0.3, 0.9, 0.9) : black))
             if sk { p.append(box(-2, hy + 1, -4.1, 4, 1, 0.2, V3(0.2, 0.2, 0.2))) }
+            if illager { p.append(box(-1, hy + 1, -6, 2, 4, 2, skin)) }                           // nose
+            if m.kind == .witch {
+                p += [box(-5, hy + 8, -5, 10, 1, 10, V3(0.15, 0.1, 0.18)), box(-3, hy + 9, -3, 6, 4, 6, V3(0.15, 0.1, 0.18)),
+                      box(-1.5, hy + 13, -1.5, 3, 3, 3, V3(0.15, 0.1, 0.18))]
+            }
         }
         return p
     case .creeper:
@@ -654,8 +706,8 @@ private func parts(_ m: Mob) -> [Part] {
             box(-1, 19, -4.2 * s, 2, 3, 0.3, black), box(-2, 19, -4.2 * s, 1, 2, 0.3, black), box(1, 19, -4.2 * s, 1, 2, 0.3, black),
             leg(-2, -4, 4, 6, 1, c, 4), leg(2, -4, 4, 6, -1, c, 4), leg(-2, 4, 4, 6, -1, c, 4), leg(2, 4, 4, 6, 1, c, 4),
         ]
-    case .spider:
-        let body = V3(0.2, 0.17, 0.15)
+    case .spider, .caveSpider:
+        let body = m.kind == .caveSpider ? V3(0.1, 0.22, 0.26) : V3(0.2, 0.17, 0.15)
         var p: [Part] = [
             box(-5, 4, 0, 10, 8, 12, body, 4),
             box(-3, 5, -4, 6, 6, 4, body, 4),
@@ -1044,7 +1096,15 @@ final class MobManager {
         var y = Int.random(in: 2...(top + 1))
         while y > 1 && !(Blocks.opaque[Int(w.block(x, y - 1, z))] && !Blocks.collide[Int(w.block(x, y, z))] && !Blocks.collide[Int(w.block(x, y + 1, z))]) { y -= 1 }
         if y <= 1 { return }
-        if Blocks.isLiquid(w.block(x, y, z)) || w.block(x, y - 1, z) == BEDROCK { return }
+        if w.block(x, y - 1, z) == BEDROCK { return }
+        if Blocks.isLiquid(w.block(x, y, z)) {
+            let bb = w.gen.column(x, z).biome
+            if (bb.isOcean || bb.isRiver) && w.lightAt(x, y, z).block == 0 && Float.random(in: 0..<1) < (bb.isRiver ? 0.3 : 0.1)
+                && simd_length(V3(Float(x), Float(y), Float(z)) - pp) > 24 {
+                mobs.append(Mob(.drowned, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)))
+            }
+            return
+        }
         let l = w.lightAt(x, y, z)
         if l.block > 0 { return }
         if l.sky > Int.random(in: 0..<32) { return }
@@ -1061,8 +1121,12 @@ final class MobManager {
             if !s.collides(spawnPos, w) { mobs.append(s) }
             return
         }
-        let roll = Int.random(in: 0..<415)
-        let kind: MobKind = roll < 95 ? .zombie : (roll < 195 ? .skeleton : (roll < 295 ? .creeper : (roll < 395 ? .spider : .enderman)))
+        let roll = Int.random(in: 0..<420)
+        var kind: MobKind = roll < 95 ? .zombie : (roll < 195 ? .skeleton : (roll < 295 ? .creeper : (roll < 395 ? .spider : (roll < 405 ? .enderman : .witch))))
+        let b = w.gen.column(x, z).biome
+        if kind == .zombie && (b == .desert) && Float.random(in: 0..<1) < 0.8 && l.sky > 0 { kind = .husk }
+        if kind == .skeleton && [.snowyPlains, .iceSpikes, .frozenRiver, .snowySlopes, .frozenPeaks, .jaggedPeaks].contains(b) && Float.random(in: 0..<1) < 0.8 && l.sky > 0 { kind = .stray }
+        if Blocks.isLiquid(w.block(x, y, z)) { return }
         let m = Mob(kind, at: spawnPos)
         if kind == .zombie && Float.random(in: 0..<1) < 0.05 { m.baby = true; m.scale = 0.5 }
         if m.collides(spawnPos, w) { return }
