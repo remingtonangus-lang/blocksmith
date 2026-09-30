@@ -9,7 +9,7 @@ final class MeshSlice {
     let buffer: MTLBuffer
     let offset: Int
     let length: Int
-    fileprivate let cls: Int          // size class (log2), -1 = dedicated buffer
+    fileprivate let cls: Int          // index into MeshArena.sizes, -1 = dedicated buffer
     fileprivate let arena: MeshArena
     fileprivate init(buffer: MTLBuffer, offset: Int, length: Int, cls: Int, arena: MeshArena) {
         self.buffer = buffer; self.offset = offset; self.length = length; self.cls = cls; self.arena = arena
@@ -24,7 +24,14 @@ final class MeshArena {
     static let tints = MeshArena(slabSize: 16 << 20)
     let slabSize: Int
     init(slabSize: Int) { self.slabSize = slabSize }
-    static let minClass = 8                          // 256 bytes
+    // Size classes in quarter steps between powers of two (256, 320, 384, 448, 512, 640, ...): at most
+    // ~20% slack per slice instead of up to 50% with plain powers of two. All are multiples of 64 bytes.
+    static let sizes: [Int] = (8..<24).flatMap { e in [4, 5, 6, 7].map { $0 << (e - 2) } }
+    @inline(__always) static func sizeClass(_ n: Int) -> Int {
+        var lo = 0, hi = sizes.count - 1
+        while lo < hi { let mid = (lo + hi) / 2; if sizes[mid] >= n { hi = mid } else { lo = mid + 1 } }
+        return lo
+    }
     // A freed slice waits this long before reuse: up to 3 frames still in flight on the GPU may be
     // reading the old mesh (reusing it at once showed as a one-frame flicker of garbage triangles).
     static let reuseDelay = 0.25
@@ -32,7 +39,7 @@ final class MeshArena {
     private var device: MTLDevice?
     // Per size class: FIFO of freed slices (buffer, offset, time freed), consumed from `head`.
     private struct FreeList { var items: [(MTLBuffer, Int, Double)] = []; var head = 0 }
-    private var free = [FreeList](repeating: FreeList(), count: 32)
+    private var free = [FreeList](repeating: FreeList(), count: MeshArena.sizes.count)
     private var slab: MTLBuffer?
     private var bump = 0
     private(set) var slabBytes = 0
@@ -41,16 +48,16 @@ final class MeshArena {
     var freeBytes: Int {
         lock.lock(); defer { lock.unlock() }
         var n = 0
-        for c in 0..<free.count { n += (free[c].items.count - free[c].head) << c }
+        for c in 0..<free.count { n += (free[c].items.count - free[c].head) * MeshArena.sizes[c] }
         return n
     }
 
     func alloc(_ device: MTLDevice, _ bytes: UnsafeRawBufferPointer) -> MeshSlice? {
         let n = bytes.count
         if n == 0 { return nil }
-        var cls = MeshArena.minClass
-        while (1 << cls) < n { cls += 1 }
-        if (1 << cls) > slabSize / 4 {
+        let cls = MeshArena.sizeClass(n)
+        let size = MeshArena.sizes[cls]
+        if size < n || size > slabSize / 4 {
             guard let b = device.makeBuffer(bytes: bytes.baseAddress!, length: n, options: .storageModeShared) else { return nil }
             return MeshSlice(buffer: b, offset: 0, length: n, cls: -1, arena: self)
         }
@@ -68,7 +75,6 @@ final class MeshArena {
             }
         }
         if spot == nil {
-            let size = 1 << cls
             if slab == nil || bump + size > slabSize {
                 slab = device.makeBuffer(length: slabSize, options: .storageModeShared)
                 bump = 0
