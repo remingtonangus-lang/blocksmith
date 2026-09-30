@@ -1030,6 +1030,14 @@ final class Renderer: NSObject, MTKViewDelegate {
                 }
             }
             if let km = m as? KeyboardMenu {
+                // Live preview of the text being edited.
+                let pv = km.preview
+                text(pv.label, o.x + 8 * s, o.y + 6 * s, s, V4(0.25, 0.25, 0.25, 1), shadow: false)
+                rect(o.x + 8 * s, o.y + 16 * s, 160 * s, 13 * s, V4(0, 0, 0, 1))
+                rect(o.x + 9 * s, o.y + 17 * s, 158 * s, 11 * s, V4(0.08, 0.08, 0.08, 1))
+                var pt = pv.text
+                while textWidth(pt, s) > 150 * s && !pt.isEmpty { pt.removeFirst() }
+                text(pt + (Int(game.clock * 2) % 2 == 0 ? "_" : ""), o.x + 12 * s, o.y + 19 * s, s, V4(0.95, 0.95, 0.95, 1))
                 for (i, sl) in km.slots.enumerated() where i < km.keys.count {
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
                     let hot = game.menuHover === sl

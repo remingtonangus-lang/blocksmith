@@ -110,7 +110,16 @@ extension Game {
             if p.menu && !q.menu { km.finish(); return }
         }
         if let s = menuHover {
-            if p.a && !q.a { m.click(s, button: 0, shift: false) }
+            if p.a && !q.a {
+                let wasText = m.capturesText
+                m.click(s, button: 0, shift: false)
+                // A pad user who just activated a text field (anvil name, creative search) gets the keyboard at once.
+                if keyboard == nil && !wasText && m.capturesText && menu === m && Prompt.pad {
+                    menu = KeyboardMenu(game: self, target: m)
+                    menuCursor = 0
+                    return
+                }
+            }
             if keyboard == nil && p.x && !q.x { m.click(s, button: 1, shift: false) }
             if keyboard == nil && p.y && !q.y && !m.capturesText { m.click(s, button: 0, shift: true) }
             // Number keys swap the hovered slot with a hotbar slot.
