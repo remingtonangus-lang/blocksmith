@@ -64,7 +64,8 @@ enum Bench {
                 flight(device, seed, rd: Int(name.dropFirst(6)) ?? 16, seconds: quick ? 5 : 12, speed: 20)
             default: print("bench: unknown scene \(s)")
             }
-            print("bench: \(s) took \(f(now - ts, 1)) s")
+            usleep(300_000)             // let queued worker jobs release their world
+            print("bench: \(s) took \(f(now - ts, 1)) s (live worlds \(World.alive), games \(Game.alive))")
         }
         usleep(1_500_000)                                   // queued worker jobs still hold their world briefly
         put("worlds_alive", Double(World.alive))           // every scene's world should be gone by now
