@@ -23,6 +23,7 @@ final class Redstone {
     private var settledWires = Set<IVec3>()
     var comparatorOut: [IVec3: Int] = [:]
     var trapped: [IVec3: Int] = [:]                 // trapped chests: players looking inside
+    var sensor: [IVec3: (Int, Int)] = [:]           // sculk sensors: (output, until tick)
     private var edge = Set<IVec3>()                  // components currently seeing power (edge detection)
     private var burn: [IVec3: [Int]] = [:]           // torch toggle times (burnout)
     var tracked = Set<IVec3>()                        // hoppers, plates, daylight detectors (periodic work)
@@ -37,7 +38,7 @@ final class Redstone {
         case none, wire, torch, block, lamp, lever, button, plate, weightedPlate, repeater, comparator, observer, piston, stickyPiston
         case dispenser, dropper, hopper, note, daylight, target, door, trapdoor, gate, tnt, pistonHead, bell, ironDoor, ironTrapdoor
         case rail, poweredRail, detectorRail, activatorRail
-        case tripHook, trappedChest, copperBulb
+        case tripHook, trappedChest, copperBulb, crafter, sculkSensor
     }
 
     static let kinds: [K] = {
@@ -58,6 +59,7 @@ final class Redstone {
         set("daylight_detector", .daylight); set("target", .target); set("tnt", .tnt); set("bell", .bell)
         for w in BlockRegistry.doorWoods { set("\(w)_door", .door); set("\(w)_trapdoor", .trapdoor); set("\(w)_fence_gate", .gate) }
         set("iron_door", .ironDoor); set("iron_trapdoor", .ironTrapdoor)
+        set("crafter", .crafter); set("sculk_sensor", .sculkSensor); set("calibrated_sculk_sensor", .sculkSensor)
         set("tripwire_hook", .tripHook); set("trapped_chest", .trappedChest)
         for i in 1..<Blocks.count where Int(Blocks.groupBase[i]) == i && Blocks.key(BlockID(i)).hasSuffix("copper_bulb") { set(Blocks.key(BlockID(i)), .copperBulb) }
         set("rail", .rail); set("powered_rail", .poweredRail); set("detector_rail", .detectorRail); set("activator_rail", .activatorRail)
@@ -100,7 +102,7 @@ final class Redstone {
             }
         }
         let k = Redstone.kind(new)
-        if k == .hopper || k == .plate || k == .weightedPlate || k == .daylight || k == .detectorRail || k == .tripHook { tracked.insert(p) }
+        if k == .hopper || k == .plate || k == .weightedPlate || k == .daylight || k == .detectorRail || k == .tripHook || k == .sculkSensor { tracked.insert(p) }
         else if tracked.contains(p) { tracked.remove(p) }
         settledWires.remove(p)
     }
@@ -124,7 +126,7 @@ final class Redstone {
         let bx = c.cx * CS, bz = c.cz * CS
         for i in 0..<c.blocks.count {
             let k = Redstone.kind(c.blocks[i])
-            if k == .hopper || k == .daylight || k == .plate || k == .weightedPlate || k == .detectorRail || k == .tripHook {
+            if k == .hopper || k == .daylight || k == .plate || k == .weightedPlate || k == .detectorRail || k == .tripHook || k == .sculkSensor {
                 tracked.insert(IVec3(bx + (i & 15), i >> 8, bz + ((i >> 4) & 15)))
             }
         }
@@ -176,6 +178,7 @@ final class Redstone {
         case .wire: return (d == 0 || wirePoints(q, d)) ? s : 0
         case .detectorRail: return s >= 6 ? 15 : 0
         case .tripHook: return s >= 4 ? 15 : 0
+        case .sculkSensor: return sensor[q]?.0 ?? 0
         case .trappedChest: return trapped[q] ?? 0
         default: return 0
         }
@@ -228,7 +231,7 @@ final class Redstone {
         let b = block(n)
         let s = st(b)
         switch Redstone.kind(b) {
-        case .wire, .torch, .block, .lever, .button, .plate, .weightedPlate, .target, .daylight, .comparator, .detectorRail, .tripHook, .trappedChest: return true
+        case .wire, .torch, .block, .lever, .button, .plate, .weightedPlate, .target, .daylight, .comparator, .detectorRail, .tripHook, .trappedChest, .sculkSensor: return true
         case .repeater: return (Redstone.d6(s & 3) / 2) == d / 2
         case .observer: return s % 6 == d        // only its output (back) side, which faces the dust
         default: return false
@@ -416,7 +419,7 @@ final class Redstone {
             }
         case .tnt:
             if received(p) > 0 { setQuiet(p, AIR); game?.tnts.prime(at: p) }
-        case .dispenser, .dropper, .note, .bell:
+        case .dispenser, .dropper, .note, .bell, .crafter:
             let powered = received(p) > 0 || (Redstone.kind(b) != .note && received(p + IVec3(0, 1, 0), except: [0]) > 0)
             let was = edge.contains(p)
             if powered && !was {
@@ -438,6 +441,19 @@ final class Redstone {
         default:
             // A conductor changed power: wake the components around it.
             if conductor(b) { for d in 0..<6 { let n = p + Redstone.D[d]; if Redstone.kind(block(n)) != .none { mark(n) } } }
+        }
+    }
+
+    // A vibration (steps, block changes, landings...): sculk sensors within 8 blocks fire for 30 ticks
+    // with a strength that falls off with distance, then rest.
+    func vibrate(at pos: V3) {
+        for p in tracked where Redstone.kind(block(p)) == .sculkSensor && sensor[p] == nil {
+            let d = simd_length(V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5) - pos)
+            guard d <= 8 else { continue }
+            sensor[p] = (max(1, 15 - Int(d * 15 / 8)), now + 30)
+            game?.sfx(.click, 0.3, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+            wakeAround(p)
+            let q = p + IVec3(0, -1, 0); mark(q); wakeAround(q)
         }
     }
 
@@ -516,6 +532,8 @@ final class Redstone {
             }
         case .dispenser, .dropper:
             game?.dispense(at: p, dir: s % 6, dropper: Redstone.kind(b) == .dropper)
+        case .crafter:
+            game?.crafterFire(p)
         default: break
         }
     }
@@ -608,6 +626,8 @@ final class Redstone {
                 if (hopperCooldown[p] ?? 0) <= 0 && s < 5 {
                     if g.hopperTransfer(p, out: s % 5) { hopperCooldown[p] = 8 }
                 }
+            case .sculkSensor:
+                if let v = sensor[p], now >= v.1 { sensor[p] = nil; wakeAround(p); let q = p + IVec3(0, -1, 0); mark(q); wakeAround(q) }
             case .tripHook:
                 // Armed when string runs (up to 40 blocks) to a hook facing back; pulled while anything touches the string.
                 guard now % 2 == 0 else { continue }

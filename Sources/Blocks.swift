@@ -209,7 +209,7 @@ final class BlockRegistry {
 
     @inline(__always) func isPlant(_ id: BlockID) -> Bool { render[Int(id)] == RenderType.cross.rawValue }
     // Drawn as a flat sprite in the HUD rather than an isometric cube.
-    func flatIcon(_ id: BlockID) -> Bool { isPlant(id) || id == Blocks.id("torch") }
+    func flatIcon(_ id: BlockID) -> Bool { isPlant(id) || shape[Int(id)] == "torch" }
     @inline(__always) func isLiquid(_ id: BlockID) -> Bool { fluidLevel[Int(id)] >= 0 }
     @inline(__always) func targetable(_ id: BlockID) -> Bool {
         let r = render[Int(id)]
@@ -302,11 +302,24 @@ final class BlockRegistry {
         plant("poppy", "Poppy", "poppy")
         plant("dandelion", "Dandelion", "dandelion")
         plant("cornflower", "Cornflower", "cornflower")
-        var torch = BlockDef("torch", "Torch")
-        torch.tex = ["torch"]; torch.render = .model; torch.layer = .cutout; torch.opaque = false; torch.collide = false
-        torch.emit = 14; torch.hardness = 0; torch.sound = .wood; torch.skyStop = false
-        torch.boxes = [Box(7, 0, 7, 9, 10, 9, tex: [Tex.id("torch"), Tex.id("torch"), Tex.id("torch_top"), Tex.id("torch_bottom"), Tex.id("torch"), Tex.id("torch")])]
-        add(torch)
+        // Torches: standing (0) and on walls (1+f, f = the side the torch faces), soul torches the same.
+        for soul in [false, true] {
+            let n = soul ? "soul_torch" : "torch"
+            for st in 0..<5 {
+                var torch = BlockDef(st == 0 ? n : "\(n)[\(st)]", soul ? "Soul Torch" : "Torch")
+                torch.group = n; torch.hidden = st != 0; torch.shape = "torch"
+                torch.tex = [n]; torch.render = .model; torch.layer = .cutout; torch.opaque = false; torch.collide = false
+                torch.emit = soul ? 10 : 14; torch.hardness = 0; torch.sound = .wood; torch.skyStop = false
+                if st == 0 {
+                    torch.boxes = [Box(7, 0, 7, 9, 10, 9, tex: [Tex.id(n), Tex.id(n), Tex.id("torch_top"), Tex.id("torch_bottom"), Tex.id(n), Tex.id(n)])]
+                } else {
+                    let w = Tex.id(n + "_wall"), top = Tex.id(soul ? "soul_torch_top_full" : "torch_top_full"), bot = Tex.id("torch_bottom")
+                    let box = [Box(7, 3, 12, 9, 13, 14), Box(7, 3, 2, 9, 13, 4), Box(12, 3, 7, 14, 13, 9), Box(2, 3, 7, 4, 13, 9)][st - 1]
+                    torch.boxes = [Box(Int(box.x0), Int(box.y0), Int(box.z0), Int(box.x1), Int(box.y1), Int(box.z1), tex: [w, w, top, bot, w, w])]
+                }
+                add(torch)
+            }
+        }
         var glow = BlockDef("glowstone", "Glowstone")
         glow.tex = ["glowstone"]; glow.emit = 15; glow.hardness = 0.3; glow.sound = .glass
         add(glow)

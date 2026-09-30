@@ -61,6 +61,15 @@ extension Game {
         }
     }
 
+    // Footsteps (not sneaking) are vibrations twice a second.
+    func vibrationTick(_ dt: Float) {
+        stepVibe -= dt
+        if stepVibe <= 0 && player.onGround && !player.sneaking && simd_length(V2(player.vel.x, player.vel.z)) > 0.5 {
+            stepVibe = 0.5
+            world.redstone.vibrate(at: player.pos)
+        }
+    }
+
     // After placing a block: sponge / concrete powder reactions.
     func placedReactions(_ p: IVec3) {
         let k = Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))])

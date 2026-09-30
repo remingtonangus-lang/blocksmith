@@ -169,7 +169,9 @@ extension BlockRegistry {
             d.emit = 6; d.skyStop = false
             add(d)
         }
-        sided("crafter", "Crafter", side: "crafter_side", top: "crafter_top", bottom: "crafter_bottom", h: 1.5)
+        var crafter = BlockDef("crafter", "Crafter")
+        crafter.tex = ["crafter_side", "crafter_side", "crafter_top", "crafter_bottom", "crafter_side", "crafter_side"]; crafter.hardness = 1.5
+        _ = addFacing(crafter, front: "crafter_front")
         model("heavy_core", "Heavy Core", ["heavy_core"], [Box(4, 0, 4, 12, 8, 12)], h: 10)
     }
 }
@@ -291,6 +293,7 @@ extension TextureGen {
         }
         p["crafter_side"] = { x, y in (x < 2 || x > 13 || y < 3) ? hex(0x6A6A6A) : hex(0x9A7A4A, 0.9 + 0.1 * r(x, y, 984)) }
         p["crafter_top"] = { x, y in (x % 5 == 0 || y % 5 == 0) ? hex(0x5A5A5A) : hex(0x9A7A4A, 0.9 + 0.1 * r(x, y, 985)) }
+        p["crafter_front"] = { x, y in (x < 2 || x > 13 || y < 2 || y > 13) ? hex(0x6A6A6A) : ((x > 5 && x < 10 && y > 5 && y < 10) ? hex(0x2A2A2A) : hex(0x9A7A4A, 0.9 + 0.1 * r(x, y, 988))) }
         p["crafter_bottom"] = { x, y in hex(0x6A6A6A, 0.9 + 0.1 * r(x, y, 986)) }
         p["heavy_core"] = { x, y in hex(0x4A4A52, 0.85 + 0.2 * r(x / 2, y / 2, 987)) }
     }

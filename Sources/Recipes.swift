@@ -59,6 +59,8 @@ enum Recipes {
         r.append(shaped(["###", "# #", "###"], ["#": "#planks"], "chest"))
         r.append(shaped(["###", "# #", "###"], ["#": "#stone_tool"], "furnace"))
         r.append(shaped(["C", "S"], ["C": "#coals", "S": "stick"], "torch", 4))
+        r.append(shaped(["C", "S", "X"], ["C": "#coals", "S": "stick", "X": "soul_sand"], "soul_torch", 4))
+        r.append(shaped(["C", "S", "X"], ["C": "#coals", "S": "stick", "X": "soul_soil"], "soul_torch", 4))
         for (log, plank) in [("crimson_stem", "crimson_planks"), ("warped_stem", "warped_planks")] { r.append(shapeless([log], plank, 4)) }
         for w in ["acacia", "dark_oak", "jungle", "mangrove", "cherry"] { r.append(shapeless(["\(w)_log"], "\(w)_planks", 4)) }
         for (w, _, lw, ww) in Woods.all {

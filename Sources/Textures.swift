@@ -310,6 +310,18 @@ enum TextureGen {
             return hex(0xFFE27A)
         }
         p["torch_bottom"] = { x, y in hex(0x6B4F2C) }
+        p["soul_torch"] = { x, y in
+            guard x == 7 || x == 8 else { return clear }
+            if y == 6 { return hex(0xD8FFFF) }
+            if y == 7 { return hex(0x3AD8E8) }
+            if y >= 8 { return hex(0x6B4F2C, 0.85 + 0.2 * r(x, y, 46)) }
+            return clear
+        }
+        // Wall torch faces: the stick fills the whole 2-px face (box rows 3..13).
+        p["torch_wall"] = { x, y in y == 3 ? hex(0xFFF6C8) : (y == 4 ? hex(0xFFC43A) : (y > 4 && y < 13 ? hex(0x6B4F2C, 0.85 + 0.2 * r(x, y, 47)) : clear)) }
+        p["soul_torch_wall"] = { x, y in y == 3 ? hex(0xD8FFFF) : (y == 4 ? hex(0x3AD8E8) : (y > 4 && y < 13 ? hex(0x6B4F2C, 0.85 + 0.2 * r(x, y, 47)) : clear)) }
+        p["torch_top_full"] = { x, y in hex(0xFFE27A) }
+        p["soul_torch_top_full"] = { x, y in hex(0x7AE8F2) }
         p["glowstone"] = { x, y in
             let v = blot(x, y, 80, 4) + r(x, y, 81) * 0.4
             return v > 0.9 ? hex(0xFFF3C4) : (v > 0.6 ? hex(0xE8B55A) : hex(0x9A6A30, 0.9 + 0.2 * r(x, y, 82)))

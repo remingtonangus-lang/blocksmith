@@ -164,9 +164,17 @@ extension Game {
                 let n = [V3(0, 0, -1), V3(0, 0, 1), V3(-1, 0, 0), V3(1, 0, 0)][f]
                 let hanging = Blocks.shape[Int(b)] == "hsign"
                 // Hanging signs: text on both faces of the board (lower part of the block).
-                let faces: [(V3, V3, Float)] = hanging
-                    ? [(c + V3(0, -0.22, 0) + n * 0.07, V3(-n.z, 0, n.x) * -1, 1.0 / 115), (c + V3(0, -0.22, 0) - n * 0.07, V3(-n.z, 0, n.x), 1.0 / 115)]
-                    : [(st < 4 ? c + V3(0, 0.22, 0) + n * 0.07 : c + V3(0, -0.0, 0) - n * 0.37, V3(-n.z, 0, n.x) * -1, 1.0 / 90)]
+                let side: V3 = V3(-n.z, 0, n.x)
+                let low: V3 = c + V3(0, -0.22, 0)
+                let nOff: V3 = n * 0.07
+                var faces: [(V3, V3, Float)] = []
+                if hanging {
+                    faces.append((low + nOff, side * -1, Float(1.0 / 115)))
+                    faces.append((low - nOff, side, Float(1.0 / 115)))
+                } else {
+                    let ctr: V3 = st < 4 ? c + V3(0, 0.22, 0) + nOff : c - n * 0.37
+                    faces.append((ctr, side * -1, Float(1.0 / 90)))
+                }
                 for (center, right, s) in faces {
                 for (li, line) in be.lines.enumerated() where !line.isEmpty {
                     let wpx = Float(Font.width(line))

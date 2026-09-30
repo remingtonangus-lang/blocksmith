@@ -94,6 +94,7 @@ final class Game {
     var fovScale: Float = 1
     var rockets: [Rocket] = []
     var lastWind: Double = -10
+    var stepVibe: Float = 0
     var freeze: Float = 0
     var freezeTick: Float = 0
     var advancements = Set<String>()
@@ -626,6 +627,7 @@ final class Game {
         } else {
             player.update(dt: fdt, input: mi, world: world)
             powderSnowTick(fdt)
+            vibrationTick(fdt)
         }
         let hmove = simd_length(V2(player.pos.x - before.x, player.pos.z - before.z))
         walkBob += hmove * 2.2
@@ -965,6 +967,12 @@ final class Game {
         case "frame":
             if t.normal.y == 0 { id = blockItem + BlockID(t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))) }
             else { id = blockItem + (t.normal.y == 1 ? 4 : 5) }
+        case "torch":
+            if t.normal.y == -1 { return }
+            if t.normal.y == 0 {
+                guard Blocks.opaque[Int(clicked)] else { return }
+                id = blockItem + BlockID(1 + (t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))))
+            }
         case "hsign":
             if t.normal.y == -1 { id = blockItem + BlockID(facing) }
             else if t.normal.y == 0 {
@@ -998,7 +1006,7 @@ final class Game {
             id = rid
         }
         let supported: Bool
-        if id == TORCH {
+        if Blocks.shape[Int(id)] == "torch" && id == Blocks.groupBase[Int(id)] {
             supported = Blocks.opaque[Int(world.block(at.x, at.y - 1, at.z))]
                 || [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)].contains { d in Blocks.opaque[Int(world.block(at.x + d.x, at.y, at.z + d.z))] }
         } else if Blocks.shape[Int(id)] == "rail" {
@@ -1026,6 +1034,7 @@ final class Game {
             if key == "trapped_chest" { world.blockEntities[at] = BlockEntity(.chest) }
             if key == "lightning_rod" { lightningRods.append(at) }
             placedReactions(at)
+            world.redstone.vibrate(at: V3(Float(at.x) + 0.5, Float(at.y) + 0.5, Float(at.z) + 0.5))
             if Blocks.shape[Int(id)] == "sign" || Blocks.shape[Int(id)] == "hsign" { openSignEditor(at) }
             if Blocks.shape[Int(id)] == "banner" { let be = BlockEntity(.banner); be.patterns = h.pat ?? []; world.blockEntities[at] = be }
             if Rails.isRail(id) { Rails.autoShape(world, at) }
@@ -1059,7 +1068,7 @@ final class Game {
         return k == "crafting_table" || k == "furnace" || k == "lit_furnace" || k == "chest" || k == "brewing_stand"
             || k == "enchanting_table" || k.hasSuffix("anvil") || k == "beacon" || k == "smithing_table" || k == "stonecutter" || k == "grindstone"
             || k == "ender_chest" || k == "trapped_chest" || k.hasSuffix("shulker_box") || k == "cake" || k.hasSuffix("candle")
-            || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table" || k == "loom" || k == "smoker" || k == "blast_furnace" || k == "barrel" || k == "bell" || k == "composter" || k == "lectern" || k == "chiseled_bookshelf" || k == "decorated_pot"
+            || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table" || k == "loom" || k == "smoker" || k == "blast_furnace" || k == "barrel" || k == "bell" || k == "composter" || k == "lectern" || k == "chiseled_bookshelf" || k == "crafter" || k == "decorated_pot"
     }
 
     // Opens/closes a wooden door (both halves), trapdoor or fence gate.
@@ -1105,6 +1114,10 @@ final class Game {
         case "composter": useComposter(p)
         case "lectern": useLectern(p)
         case "chiseled_bookshelf": useShelf(p)
+        case "crafter":
+            let be = world.blockEntities[p] ?? BlockEntity(.crafter)
+            world.blockEntities[p] = be
+            openMenu(CrafterMenu(game: self, entity: be))
         case "decorated_pot": usePot(p)
         case "chest":
             let be = world.blockEntities[p] ?? BlockEntity(.chest)
@@ -1171,6 +1184,16 @@ final class Game {
         sfx(.breakBlock(soundMat(b)), at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
         particles.blockBreak(b, at: p)
         world.setBlock(p.x, p.y, p.z, AIR)
+        world.redstone.vibrate(at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
+        // Wall torches hanging on this block fall off.
+        for (f, d) in [IVec3(0, 0, -1), IVec3(0, 0, 1), IVec3(-1, 0, 0), IVec3(1, 0, 0)].enumerated() {
+            let q = p + d
+            let tb = world.block(q.x, q.y, q.z)
+            if Blocks.shape[Int(tb)] == "torch" && Int(tb - Blocks.groupBase[Int(tb)]) == f + 1 {
+                world.setBlock(q.x, q.y, q.z, AIR)
+                if drop { drops.spawn(ItemStack(Items.item(forBlock: tb) ?? 0, 1), at: V3(Float(q.x) + 0.5, Float(q.y) + 0.5, Float(q.z) + 0.5)) }
+            }
+        }
         breakBedPartner(p, b)
         if b == OBSIDIAN || b == PORTAL_X || b == PORTAL_Z { breakPortal(near: p) }
         placedLeaves.remove(p)
@@ -1241,7 +1264,7 @@ final class Game {
         }
         // Plants can't float: pop the one standing on the broken block.
         let above = world.block(p.x, p.y + 1, p.z)
-        if Blocks.isPlant(above) || above == TORCH {
+        if Blocks.isPlant(above) || (Blocks.shape[Int(above)] == "torch" && above == Blocks.groupBase[Int(above)]) {
             world.setBlock(p.x, p.y + 1, p.z, AIR)
             if drop { for s in Mining.drops(above, .empty) { drops.spawn(s, at: center + V3(0, 1, 0)) } }
         }

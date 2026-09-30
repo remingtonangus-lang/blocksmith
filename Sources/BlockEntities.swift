@@ -2,7 +2,7 @@ import Foundation
 
 // Per-block state that doesn't fit in a block ID: chest and furnace inventories, furnace progress.
 final class BlockEntity: Codable {
-    enum Kind: String, Codable { case chest, furnace, spawner, hopper, dispenser, brewing, beacon, shulker, campfire, sign, frame, painting, banner, lectern, shelf, pot }
+    enum Kind: String, Codable { case chest, furnace, spawner, hopper, dispenser, brewing, beacon, shulker, campfire, sign, frame, painting, banner, lectern, shelf, pot, crafter }
     let kind: Kind
     var items: [ItemStack]
     var mob: String = ""      // spawner: mob kind name
@@ -30,7 +30,7 @@ final class BlockEntity: Codable {
 
     init(_ k: Kind) {
         kind = k
-        items = Array(repeating: .empty, count: k == .chest || k == .shulker ? 27 : k == .shelf ? 6 : (k == .furnace ? 3 : (k == .hopper || k == .brewing ? 5 : k == .campfire ? 4 : k == .frame || k == .lectern || k == .pot ? 1 : (k == .dispenser ? 9 : 0))))
+        items = Array(repeating: .empty, count: k == .chest || k == .shulker ? 27 : k == .shelf ? 6 : (k == .furnace ? 3 : (k == .hopper || k == .brewing ? 5 : k == .campfire ? 4 : k == .frame || k == .lectern || k == .pot ? 1 : (k == .dispenser || k == .crafter ? 9 : 0))))
     }
 
     enum CodingKeys: String, CodingKey { case kind, items, burn, burnMax, cook, mob, fuel, brewTime, secondary, trial, used, lines, delay, pat }
