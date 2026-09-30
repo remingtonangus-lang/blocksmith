@@ -277,7 +277,7 @@ enum PadTest {
         try? fm.createDirectory(at: tmp, withIntermediateDirectories: true)
         let old = WorldStore.base
         WorldStore.base = tmp
-        for (i, n) in ["Castle Build", "Survival Island", "Couch World", "Redstone Lab"].enumerated() {
+        for (i, n) in ["Castle Build", "Survival Island", "Couch World", "Sparkstone Lab"].enumerated() {
             try? fm.createDirectory(at: tmp.appendingPathComponent(n), withIntermediateDirectories: true)
             try? fm.setAttributes([.modificationDate: Date(timeIntervalSinceNow: Double(-3600 * (i + 1)))], ofItemAtPath: tmp.appendingPathComponent(n).path)
         }
@@ -290,7 +290,7 @@ enum PadTest {
             cursor = 25
         case "worlds": pm.go(.worlds); pm.build(); cursor = 3
         case "world": pm.go(.worlds); pm.build(); pm.selWorld = "Survival Island"; pm.go(.world); pm.build(); cursor = 1
-        case "confirm": pm.go(.worlds); pm.build(); pm.selWorld = "Redstone Lab"; pm.go(.confirm); pm.build()
+        case "confirm": pm.go(.worlds); pm.build(); pm.selWorld = "Sparkstone Lab"; pm.go(.confirm); pm.build()
         case "controls": pm.go(.controls); pm.build()
         case "title": pm.page = .title; pm.build()
         default: pm.go(.options); pm.cat = .video; pm.build(); cursor = 1

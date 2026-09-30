@@ -8,6 +8,7 @@ final class MenuNav {
     var timer: Double = 0
     var heldDir = (0, 0)
     var scrollTimer: Double = 0
+    weak var lastMenu: Menu?
 }
 
 extension Game {
@@ -23,6 +24,16 @@ extension Game {
 
     func tickMenu(_ p: PadSnapshot, _ q: PadSnapshot, _ dt: Double) {
         guard let m = menu else { return }
+        // A sign opened by a pad player goes straight to the on-screen keyboard (it is all text).
+        if MenuNav.shared.lastMenu !== m {
+            MenuNav.shared.lastMenu = m
+            if m is SignMenu && Prompt.pad {
+                menu = KeyboardMenu(game: self, target: m)
+                MenuNav.shared.lastMenu = menu
+                menuCursor = 0
+                return
+            }
+        }
         let L = HudLayout(screen.x, screen.y).fitted(m)
         // Held direction from the D-pad or left stick (pad), one-shot from the arrow keys.
         var hx = 0, hy = 0

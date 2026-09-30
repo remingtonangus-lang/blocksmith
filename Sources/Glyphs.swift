@@ -68,11 +68,26 @@ enum Glyphs {
             rect(ox + u, oy + 7 * u, 7 * u, u, c)
             rect(ox + 2 * u, oy + 8 * u, 5 * u, u, c)
         }
+        // Dark badges get a light rim instead of a drop shadow so they read on the dark world too.
+        let dark = bg.x < 0.3 && bg.y < 0.3
+        let rim = V4(0.86, 0.86, 0.9, 0.9 * alpha)
+        func bigDisc(_ ox: Float, _ oy: Float, _ c: V4) {
+            rect(ox + 3 * u, oy, 5 * u, u, c)
+            rect(ox + u, oy + u, 9 * u, 2 * u, c)
+            rect(ox, oy + 3 * u, 11 * u, 5 * u, c)
+            rect(ox + u, oy + 8 * u, 9 * u, 2 * u, c)
+            rect(ox + 3 * u, oy + 10 * u, 5 * u, u, c)
+        }
+        func back() { if dark { bigDisc(x - u, y0 - u, rim) } else { disc(x + u, y0 + u, shadow) } }
         func letter(_ l: String, _ ox: Float) { text(l, ox, y, u, fg, false) }
         if let label = pillLabel(g) {
             let w = Float(Font.width(label) + 4) * u
             let trigger = g == .lt || g == .rt
-            for (ox, oy, c) in [(u, u, shadow), (Float(0), Float(0), bg)] {
+            if dark {
+                rect(x, y0 - u, w, 11 * u, rim)
+                rect(x - u, y0 + (trigger ? u : 0), w + 2 * u, (trigger ? 9 : 9) * u, rim)
+            }
+            for (ox, oy, c) in (dark ? [(Float(0), Float(0), bg)] : [(u, u, shadow), (Float(0), Float(0), bg)]) {
                 if trigger {
                     rect(x + ox + 2 * u, y0 + oy, w - 4 * u, u, c)
                     rect(x + ox + u, y0 + oy + u, w - 2 * u, u, c)
@@ -88,24 +103,24 @@ enum Glyphs {
         }
         switch g {
         case .a, .b, .x, .y:
-            disc(x + u, y0 + u, shadow); disc(x, y0, bg)
+            back(); disc(x, y0, bg)
             let l = g == .a ? "A" : g == .b ? "B" : g == .x ? "X" : "Y"
             letter(l, x + 2 * u)
         case .ls, .rs, .l3, .r3:
-            disc(x + u, y0 + u, shadow); disc(x, y0, bg)
+            back(); disc(x, y0, bg)
             let ring = V4(0.55, 0.55, 0.6, alpha)
             rect(x + 2 * u, y0 + u, 5 * u, u * 0.5, ring)
             letter(g == .ls || g == .l3 ? "L" : "R", x + 2 * u)
             if g == .l3 || g == .r3 { rect(x + 3 * u, y0 + 8 * u, 3 * u, u, fg) }
         case .menu:
-            disc(x + u, y0 + u, shadow); disc(x, y0, bg)
+            back(); disc(x, y0, bg)
             for r in [2, 4, 6] { rect(x + 2 * u, y0 + Float(r) * u, 5 * u, u, fg) }
         case .view:
-            disc(x + u, y0 + u, shadow); disc(x, y0, bg)
+            back(); disc(x, y0, bg)
             rect(x + 2 * u, y0 + 2 * u, 4 * u, 3 * u, V4(0.7, 0.7, 0.72, alpha))
             rect(x + 3 * u, y0 + 4 * u, 4 * u, 3 * u, fg)
         case .share:
-            disc(x + u, y0 + u, shadow); disc(x, y0, bg)
+            back(); disc(x, y0, bg)
             rect(x + 3 * u, y0 + 3 * u, 3 * u, 3 * u, fg)
         case .dpad, .dup, .ddown, .dleft, .dright, .dpadH, .dpadV:
             // Grey cross with the used arm(s) white and a dark hub, readable on light panels and the dark world alike.
