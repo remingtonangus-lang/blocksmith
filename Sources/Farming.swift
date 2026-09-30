@@ -69,6 +69,8 @@ extension Game {
 
     func randomTick(_ p: IVec3, _ b: BlockID) {
         let key = Blocks.key(Blocks.groupBase[Int(b)])
+        if Copper.index[key] != nil { copperAge(p, b); return }
+        if ["frosted_ice", "cocoa", "turtle_egg", "frogspawn", "sniffer_egg", "bee_nest", "beehive", "torchflower_crop", "pitcher_crop"].contains(key) { newBlockRandomTick(p, b, key); return }
         let stage = Int(b - Blocks.groupBase[Int(b)])
         switch key {
         case "wheat", "carrots", "potatoes", "beetroots":
@@ -89,7 +91,7 @@ extension Game {
             var h = 1
             while h < 3 && world.block(p.x, p.y - h, p.z) == b { h += 1 }
             if h < 3 { world.setBlock(p.x, p.y + 1, p.z, b) }
-        case "oak_sapling", "birch_sapling", "spruce_sapling":
+        case _ where key.hasSuffix("_sapling") || key == "mangrove_propagule":
             let l = world.lightAt(p.x, p.y + 1, p.z)
             if max(l.sky, l.block) >= 9 && Int.random(in: 0..<7) == 0 { growTree(p, key) }
         case "farmland":
@@ -119,46 +121,64 @@ extension Game {
         return false
     }
 
-    // Saplings grow into trees if there is room.
-    func growTree(_ p: IVec3, _ sapling: String) {
-        let (log, leaf): (BlockID, BlockID)
+    // Saplings grow into the same trees world generation builds (2x2 saplings make the mega kinds).
+    func growTree(_ p0: IVec3, _ sapling: String) {
+        var p = p0
+        let sap = world.block(p.x, p.y, p.z)
+        // Find a 2x2 square of this sapling containing p (north-west corner).
+        var square: IVec3?
+        for (ox, oz) in [(0, 0), (-1, 0), (0, -1), (-1, -1)] {
+            let c = IVec3(p.x + ox, p.y, p.z + oz)
+            if [c, c + IVec3(1, 0, 0), c + IVec3(0, 0, 1), c + IVec3(1, 0, 1)].allSatisfy({ world.block($0.x, $0.y, $0.z) == sap }) { square = c; break }
+        }
+        let kind: TreeKind?
         switch sapling {
-        case "birch_sapling": (log, leaf) = (BIRCH_LOG, BIRCH_LEAVES)
-        case "spruce_sapling": (log, leaf) = (SPRUCE_LOG, SPRUCE_LEAVES)
-        default: (log, leaf) = (LOG, LEAVES)
+        case "oak_sapling": kind = Int.random(in: 0..<10) == 0 ? .fancyOak : .oak
+        case "birch_sapling": kind = .birch
+        case "spruce_sapling": kind = square != nil ? .megaSpruce : .spruce
+        case "jungle_sapling": kind = square != nil ? .megaJungle : .jungle
+        case "acacia_sapling": kind = .acacia
+        case "dark_oak_sapling": kind = square != nil ? .darkOak : nil
+        case "cherry_sapling": kind = .cherry
+        case "mangrove_propagule": kind = .mangrove
+        case "azalea", "flowering_azalea": kind = .oak
+        case "red_mushroom": kind = .hugeRed
+        case "brown_mushroom": kind = .hugeBrown
+        default: kind = .oak
         }
-        let spruce = sapling == "spruce_sapling"
-        let h = spruce ? Int.random(in: 6...9) : Int.random(in: 4...6) + (sapling == "birch_sapling" ? 1 : 0)
-        for y in 1...(h + 1) where !Blocks.replaceable[Int(world.block(p.x, p.y + y, p.z))] && y > 0 { return }
-        var set: [(IVec3, BlockID)] = []
-        for y in 0..<h { set.append((IVec3(p.x, p.y + y, p.z), log)) }
-        let top = p.y + h
-        if spruce {
-            set.append((IVec3(p.x, top, p.z), leaf))
-            let pattern = [1, 1, 2, 1, 2, 3, 2, 3]
-            var k = 0
-            var y = top - 1
-            while y >= p.y + 2 {
-                let r = k < pattern.count ? pattern[k] : 2
-                for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= r * r + 1 && !(dx == 0 && dz == 0) { set.append((IVec3(p.x + dx, y, p.z + dz), leaf)) } }
-                y -= 1; k += 1
-            }
+        guard let k = kind else { return }
+        // Room check: a clear trunk column.
+        for y in 1...4 where !Blocks.replaceable[Int(world.block(p.x, p.y + y, p.z))] && world.block(p.x, p.y + y, p.z) != AIR { return }
+        if let sq = square, k == .megaSpruce || k == .megaJungle || k == .darkOak {
+            for q in [sq, sq + IVec3(1, 0, 0), sq + IVec3(0, 0, 1), sq + IVec3(1, 0, 1)] { world.setBlockAsync(q.x, q.y, q.z, AIR) }
+            p = sq
         } else {
-            for dy in -2...1 {
-                let y = top + dy - 1
-                let r = dy >= 0 ? 1 : 2
-                for dz in -r...r { for dx in -r...r {
-                    if dy == 1 && abs(dx) + abs(dz) > 1 { continue }
-                    if r == 2 && abs(dx) == 2 && abs(dz) == 2 && Bool.random() { continue }
-                    if dx == 0 && dz == 0 && dy < 1 { continue }
-                    set.append((IVec3(p.x + dx, y, p.z + dz), leaf))
-                } }
+            world.setBlockAsync(p.x, p.y, p.z, AIR)
+        }
+        // Build into copies of the 3x3 chunks around, then apply the differences.
+        let seed = UInt64(bitPattern: Int64(p.x &* 73856093 ^ p.y &* 19349663 ^ p.z &* 83492791)) | 1
+        let ccx = floorDiv(p.x, CS), ccz = floorDiv(p.z, CS)
+        var changes: [(IVec3, BlockID)] = []
+        for dz in -1...1 { for dx in -1...1 {
+            guard let c = world.chunks[ChunkKey(x: ccx + dx, z: ccz + dz)] else { continue }
+            var buf = c.blocks
+            buf.withUnsafeMutableBufferPointer { bp in
+                let w = TreeWriter(b: bp.baseAddress!, bx: c.cx * CS, bz: c.cz * CS)
+                var rng = SRng(seed)
+                TreePlacer.build(w, k, p.x, p.y, p.z, &rng)
             }
+            for i in 0..<buf.count where buf[i] != c.blocks[i] {
+                let lx = i % CS, lz = (i / CS) % CS, y = i / (CS * CS)
+                changes.append((IVec3(c.cx * CS + lx, y, c.cz * CS + lz), buf[i]))
+            }
+        } }
+        if changes.isEmpty {
+            // Nothing grew (no room): put the sapling back.
+            world.setBlock(p0.x, p0.y, p0.z, sap)
+            return
         }
-        for (q, b) in set where Blocks.replaceable[Int(world.block(q.x, q.y, q.z))] || q == p {
-            world.setBlockAsync(q.x, q.y, q.z, b)
-        }
-        world.setBlock(p.x, p.y, p.z, log)
+        for (q, b) in changes { world.setBlockAsync(q.x, q.y, q.z, b) }
+        world.setBlock(p.x, p.y, p.z, world.block(p.x, p.y, p.z))
     }
 
     // MARK: Using items on blocks
@@ -169,6 +189,12 @@ extension Game {
         let key = Items.key(h.item)
         let b = world.block(t.hit.x, t.hit.y, t.hit.z)
         let bkey = Blocks.key(Blocks.groupBase[Int(b)])
+        if useNewBlock(t) { swing = 1; return true }
+        // Cocoa beans go on the side of jungle logs.
+        if key == "cocoa_beans" && bkey.hasPrefix("jungle_") && bkey.hasSuffix("_log") && t.normal.y == 0 && Blocks.has("cocoa") {
+            let at = t.hit + t.normal
+            if world.block(at.x, at.y, at.z) == AIR { world.setBlock(at.x, at.y, at.z, Blocks.id("cocoa")); consumeHeld(); swing = 1; return true }
+        }
         // Minecart onto a rail.
         if key == "minecart" && Rails.isRail(b) {
             let cart = Mob(.minecart, at: V3(Float(t.hit.x) + 0.5, Float(t.hit.y) + 0.0625, Float(t.hit.z) + 0.5))
@@ -179,6 +205,7 @@ extension Game {
             swing = 1
             return true
         }
+        if (key == "honeycomb" || key.hasSuffix("_axe")) && copperInteract(t.hit, key: key) { return true }
         // Candles: add one more (up to four) or light them.
         if bkey.hasSuffix("candle") {
             let st = Int(b - Blocks.groupBase[Int(b)])

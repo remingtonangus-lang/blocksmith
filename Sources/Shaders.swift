@@ -42,7 +42,7 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     uint face = (w0 >> 27) & 7u;
     uint tintMode = w0 >> 30;
     float2 uv = float2(float(w1 & 31u), float((w1 >> 5) & 31u)) / 16.0;
-    uint layer = (w1 >> 10) & 1023u;
+    uint layer = ((w1 >> 10) & 1023u) | ((w1 >> 31) << 10);
     uint ao = (w1 >> 20) & 3u;
     float skyL = float((w1 >> 22) & 15u) / 15.0;
     float blkL = float((w1 >> 26) & 15u) / 15.0;

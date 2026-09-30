@@ -223,7 +223,7 @@ final class Player {
     static let climbIds: Set<BlockID> = {
         var s = Set<BlockID>()
         for i in 0..<Blocks.count where Blocks.shape[i] == "ladder" { s.insert(BlockID(i)) }
-        for n in ["vine", "cave_vines"] where Blocks.has(n) { s.insert(Blocks.id(n)) }
+        for n in ["vine", "cave_vines", "scaffolding", "twisting_vines", "weeping_vines"] where Blocks.has(n) { s.insert(Blocks.id(n)) }
         return s
     }()
     static func climbable(_ b: BlockID) -> Bool { climbIds.contains(b) }

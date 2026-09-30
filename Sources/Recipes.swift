@@ -329,6 +329,50 @@ enum Recipes {
         r.append(shaped(["###", "#E#", "###"], ["#": "obsidian", "E": "ender_eye"], "ender_chest"))
         r.append(shapeless(["chest", "tripwire_hook"], "trapped_chest"))
         r.append(shaped(["MMM", "SES", "WWW"], ["M": "milk_bucket", "S": "sugar", "E": "egg", "W": "wheat"], "cake"))
+        for (i, st) in Copper.stages.enumerated() {
+            for waxed in [false, true] {
+                let blk = Copper.name("block", stage: i, waxed: waxed)
+                r.append(shaped(["##", "##"], ["#": blk], Copper.name("cut_copper", stage: i, waxed: waxed), 4))
+                r.append(shaped(["#", "#"], ["#": Copper.name("cut_copper_slab", stage: i, waxed: waxed)], Copper.name("chiseled_copper", stage: i, waxed: waxed)))
+                r.append(shaped([" # ", "# #", " # "], ["#": blk], Copper.name("copper_grate", stage: i, waxed: waxed), 4))
+                r.append(shaped([" # ", "#B#", " R "], ["#": blk, "B": "blaze_rod", "R": "redstone"], Copper.name("copper_bulb", stage: i, waxed: waxed), 4))
+                r.append(shaped(["#  ", "## ", "###"], ["#": Copper.name("cut_copper", stage: i, waxed: waxed)], Copper.name("cut_copper_stairs", stage: i, waxed: waxed), 4))
+                r.append(shaped(["###"], ["#": Copper.name("cut_copper", stage: i, waxed: waxed)], Copper.name("cut_copper_slab", stage: i, waxed: waxed), 6))
+                if waxed {
+                    for f in Copper.forms { r.append(shapeless([Copper.name(f, stage: i, waxed: false), "honeycomb"], Copper.name(f, stage: i, waxed: true))) }
+                }
+            }
+            _ = st
+        }
+        r.append(shaped(["###", "###", "###"], ["#": "copper_ingot"], "copper_block"))
+        r.append(shapeless(["copper_block"], "copper_ingot", 9))
+        r.append(shaped(["#", "#", "#"], ["#": "copper_ingot"], "lightning_rod"))
+        r.append(shaped(["##", "##"], ["#": "honeycomb"], "honeycomb_block"))
+        r.append(shaped(["H", "B"], ["H": "heavy_core", "B": "breeze_rod"], "mace"))
+        r.append(shaped(["F", "C", "S"], ["F": "feather", "C": "copper_ingot", "S": "stick"], "brush"))
+        r.append(shaped(["# #", "#S#", "# #"], ["#": "bamboo", "S": "string"], "scaffolding", 6))
+        r.append(shaped(["N", "I", "N"], ["N": "iron_nugget", "I": "iron_ingot"], "chain"))
+        r.append(shaped([" S ", "SCS", "LLL"], ["S": "stick", "C": "#coals", "L": "#logs"], "campfire"))
+        r.append(shaped([" S ", "SCS", "LLL"], ["S": "stick", "C": "soul_sand", "L": "#logs"], "soul_campfire"))
+        r.append(shaped(["PPP", "HHH", "PPP"], ["P": "#planks", "H": "honeycomb"], "beehive"))
+        r.append(shaped(["###", "###", "###"], ["#": "bone_meal"], "bone_block"))
+        r.append(shapeless(["bone_block"], "bone_meal", 9))
+        r.append(shaped(["###", "###", "###"], ["#": "dried_kelp"], "dried_kelp_block"))
+        r.append(shapeless(["dried_kelp_block"], "dried_kelp", 9))
+        r.append(shaped(["SSS", "SNS", "SSS"], ["S": "chiseled_stone_bricks", "N": "netherite_ingot"], "lodestone"))
+        r.append(shaped(["OOO", "GGG", "OOO"], ["O": "crying_obsidian", "G": "glowstone"], "respawn_anchor"))
+        r.append(shaped(["###", "#D#", "###"], ["#": "#planks", "D": "diamond"], "jukebox"))
+        r.append(shaped(["NNN", "NHN", "NNN"], ["N": "nautilus_shell", "H": "heart_of_the_sea"], "conduit"))
+        r.append(shaped(["I", "S", "#"], ["I": "iron_ingot", "S": "stick", "#": "#planks"], "tripwire_hook", 2))
+        r.append(shaped(["ccc", "cRc", "cDc"], ["c": "iron_ingot", "R": "redstone", "D": "dropper"], "crafter"))
+        r.append(shaped([" B ", "B B", " B "], ["B": "brick"], "decorated_pot"))
+        r.append(shapeless(["torchflower"], "orange_dye"))
+        r.append(shapeless(["pitcher_plant"], "cyan_dye", 2))
+        for (a, b, n) in [("tuff", "polished_tuff", 1), ("polished_tuff", "tuff_bricks", 4)] {
+            r.append(shaped(["##", "##"], ["#": a], b, n == 1 ? 4 : n))
+        }
+        r.append(shaped(["#", "#"], ["#": "tuff_slab"], "chiseled_tuff"))
+        r.append(shaped(["#", "#"], ["#": "tuff_brick_slab"], "chiseled_tuff_bricks"))
         // Brewing and enchanting.
         r.append(shaped([" B ", "###"], ["B": "blaze_rod", "#": "#stone_tool"], "brewing_stand"))
         r.append(shaped([" B ", "D#D", "###"], ["B": "book", "D": "diamond", "#": "obsidian"], "enchanting_table"))

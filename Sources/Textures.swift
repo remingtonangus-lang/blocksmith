@@ -764,6 +764,8 @@ enum TextureGen {
         redstonePainters(&p)
         magicPainters(&p)
         coloredPainters(&p)
+        copperPainters(&p)
+        morePainters(&p)
         for (k, v) in ItemTextures.painters() { p[k] = v }
         for (k, v) in Font.painters() { p[k] = v }
         return p
@@ -776,7 +778,7 @@ enum TextureGen {
         var data = [UInt8](repeating: 0, count: S * S * 4 * count)
         let missing = Tex.names.filter { table[$0] == nil }
         if !missing.isEmpty { print("textures without a painter: \(missing.joined(separator: ", "))") }
-        if count > 1024 { print("warning: \(count) texture layers exceed the 10-bit layer index") }
+        if count > 2048 { print("warning: \(count) texture layers exceed the 11-bit layer index") }
         for (layer, name) in Tex.names.enumerated() {
             let f: Painter = table[name] ?? { x, y in ((x / 4 + y / 4) % 2 == 0) ? V4(1, 0, 1, 1) : V4(0, 0, 0, 1) }
             for y in 0..<S {

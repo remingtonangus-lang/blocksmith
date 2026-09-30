@@ -227,6 +227,17 @@ final class ItemRegistry {
         item("golden_horse_armor", "Golden Horse Armor", "chestplate", 0xF8D84A, stack: 1)
         item("diamond_horse_armor", "Diamond Horse Armor", "chestplate", 0x4AEDD9, stack: 1)
         item("lead", "Lead", "string", 0xB08A5A)
+        item("cocoa_beans", "Cocoa Beans", "seeds", 0x7A4A2A)
+        item("torchflower_seeds", "Torchflower Seeds", "seeds", 0x5A7A2A)
+        item("pitcher_pod", "Pitcher Pod", "seeds", 0x3A7A6A)
+        item("brush", "Brush", "feather", 0xC8A878, ["a": 0x6B4F2C], stack: 1)
+        item("echo_shard", "Echo Shard", "gem", 0x0A4A58)
+        item("recovery_compass", "Recovery Compass", "compass", 0x3A6A6A, ["c": 0x3AD8D8, "d": 0x1A2A2A], stack: 1)
+        item("disc_fragment_5", "Disc Fragment", "nugget", 0x2A2A2A)
+        item("mace", "Mace", "shovel", 0x6A6A70, stack: 1)
+        item("wind_charge", "Wind Charge", "ball", 0xBDC9FF)
+        item("trial_key", "Trial Key", "nugget", 0xE8A040)
+        item("ominous_trial_key", "Ominous Trial Key", "nugget", 0x3A8A7A)
         item("netherite_upgrade_smithing_template", "Netherite Upgrade", "paper", 0x3A2A2A, ["a": 0x6A4A3A])
         for t in Smithing.trims {
             item("\(t)_armor_trim_smithing_template", "\(t.capitalized) Armor Trim", "paper", 0x2A3A4A, ["a": 0x6A8AAA])
@@ -280,7 +291,8 @@ final class ItemRegistry {
             add(d)
         }
 
-        for (n, crop) in [("wheat_seeds", "wheat"), ("beetroot_seeds", "beetroots"), ("carrot", "carrots"), ("potato", "potatoes"), ("nether_wart", "nether_wart")] {
+        for (n, crop) in [("wheat_seeds", "wheat"), ("beetroot_seeds", "beetroots"), ("carrot", "carrots"), ("potato", "potatoes"), ("nether_wart", "nether_wart"),
+                          ("torchflower_seeds", "torchflower_crop"), ("pitcher_pod", "pitcher_crop")] where has(n) {
             defs[Int(id(n))].plants = crop
         }
 
@@ -347,7 +359,7 @@ final class ItemRegistry {
         add(ely)
         // Durability / combat numbers for the weapon items above.
         for (n, dur, atk, spd) in [("shield", 336, Float(1), Float(4)), ("crossbow", 465, 1, 4), ("trident", 250, 9, 1.1), ("fishing_rod", 64, 1, 4),
-                                   ("carrot_on_a_stick", 25, 1, 4), ("bow", 384, 1, 4), ("flint_and_steel", 64, 1, 4), ("shears", 238, 1, 4)] where has(n) {
+                                   ("carrot_on_a_stick", 25, 1, 4), ("bow", 384, 1, 4), ("mace", 500, 6, 0.6), ("brush", 64, 1, 4), ("flint_and_steel", 64, 1, 4), ("shears", 238, 1, 4)] where has(n) {
             defs[Int(id(n))].durability = dur
             defs[Int(id(n))].attack = atk
             defs[Int(id(n))].attackSpeed = spd

@@ -216,7 +216,7 @@ enum Mesher {
                   _ u: Int, _ v: Int, _ layer: Int, _ ao: Int, _ l: Int, _ overlay: Bool) {
             let w0 = UInt32(x16) | (UInt32(y16) << 9) | (UInt32(z16) << 18) | (UInt32(shade) << 27) | (UInt32(tint) << 30)
             let w1 = UInt32(u) | (UInt32(v) << 5) | (UInt32(layer) << 10) | (UInt32(ao) << 20)
-                | (UInt32(l & 15) << 22) | (UInt32((l >> 4) & 15) << 26) | (overlay ? (1 << 30) : 0)
+                | (UInt32(l & 15) << 22) | (UInt32((l >> 4) & 15) << 26) | (overlay ? (1 << 30) : 0) | (UInt32((layer >> 10) & 1) << 31)
             if trans { trn.append(w0); trn.append(w1) } else { opq.append(w0); opq.append(w1) }
         }
         // Water surface drop (eighths) at a corner: highest of the up-to-4 liquid cells sharing it.

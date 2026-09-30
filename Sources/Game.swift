@@ -88,7 +88,11 @@ final class Game {
     var rideInput = MoveInput()
     var falling: [FallingBlock] = []
     let enderChest = ItemContainer(27)     // the player's ender chest inventory (shared by all ender chests)
-    var timeSinceRest: Float = 0    // phantoms appear after 3 days (3600 s) without sleep
+    var timeSinceRest: Float = 0
+    var anchorSpawn: IVec3?          // charged respawn anchor in the Nether
+    var shriekCooldown = 0
+    var warningLevel = 0
+    var shriekDecay = 600    // phantoms appear after 3 days (3600 s) without sleep
     private var beaconTicks = 0
     var shieldCooldown: Float = 0
     var shieldRaise: Float = 0
@@ -649,6 +653,20 @@ final class Game {
                 let crit = charge > 0.9 && player.vel.y < -0.5 && !player.onGround
                 if crit { dmg *= 1.5 }
                 dmg += Enchant.damageBonus(held, against: m) * charge
+                // Mace smash: bonus damage from the fall, which is then cancelled.
+                let fallen = player.airPeak - player.pos.y
+                if Items.key(held.item) == "mace" && fallen > 1.5 && !player.onGround {
+                    let f = fallen
+                    var bonus = min(3, f) * 4 + max(0, min(5, f - 3)) * 2 + max(0, f - 8)
+                    bonus += Float(Enchant.level(.density, held)) * 0.5 * f
+                    dmg += bonus
+                    player.airPeak = player.pos.y
+                    player.vel.y = max(player.vel.y, 0)
+                    let wb = Enchant.level(.windBurst, held)
+                    if wb > 0 { player.vel.y = 8 + 4 * Float(wb) }
+                    for o in mobs.mobs where o !== m && simd_length(o.pos - m.pos) < 3.5 { o.hit(from: m.pos, damage: 0, knockback: 1.2) }
+                    sfx(.anvil, 0.6, at: m.pos)
+                }
                 attackTimer = 0
                 let kb = Float(Enchant.level(.knockback, held))
                 m.hit(from: player.pos, damage: max(1, Int(dmg.rounded())), knockback: (player.sprinting ? 1.6 : 1) + kb)
@@ -916,6 +934,7 @@ final class Game {
                 world.blockEntities[at] = be
             }
             if key == "trapped_chest" { world.blockEntities[at] = BlockEntity(.chest) }
+            if key == "lightning_rod" { lightningRods.append(at) }
             if Rails.isRail(id) { Rails.autoShape(world, at) }
             if key == "wither_skeleton_skull" { trySummonWither(at) }
             if key == "carved_pumpkin" || key == "jack_o_lantern" { trySummonGolem(at) }
@@ -1169,6 +1188,7 @@ final class Game {
             }
         }
         captainDied(m)
+        sculkBloom(at: m.pos, xp: m.spec.xp)
         let xp = m.sized ? m.slimeSize : m.spec.xp
         if m.killedByPlayer && !m.baby { addXP(xp + (m.kind.hostile ? 0 : Int.random(in: 0...1))) }
         particles.explosion(at: m.pos + V3(0, m.height / 2, 0), power: 0.5)
@@ -1350,6 +1370,20 @@ final class Game {
                 c[i] = .empty
             }
         }
+        if let a = anchorSpawn {
+            // Respawn at a charged anchor in the Nether (uses a charge).
+            let nether = dimensionState(.nether).world
+            let b = nether.block(a.x, a.y, a.z)
+            if Blocks.key(Blocks.groupBase[Int(b)]) == "respawn_anchor" && Int(b - Blocks.groupBase[Int(b)]) > 0 {
+                nether.setBlock(a.x, a.y, a.z, b - 1)
+                let at = V3(Float(a.x) + 0.5, Float(a.y) + 1, Float(a.z) + 0.5)
+                if dim.dim != .nether { changeDimension(to: .nether, at: at) }
+                player.pos = at; player.vel = .zero; player.airPeak = at.y; player.pendingFall = 0
+                health = 20; hunger = 20; saturation = 5; exhaustion = 0; air = 15; xpLevel = 0; xpPoints = 0; timeSinceRest = 0
+                return
+            }
+            anchorSpawn = nil
+        }
         if dim.dim != .overworld { changeDimension(to: .overworld, at: spawnPoint) }
         player.pos = spawnPoint
         player.vel = .zero
@@ -1472,7 +1506,7 @@ final class Game {
         weatherTick(Float(dt))
         world.rainLevel = wetWorld ? weather.rain : 0
         raidTimer += Float(dt)
-        if raidTimer >= 1 { raidTick(raidTimer); patrolTick(raidTimer); raidTimer = 0 }
+        if raidTimer >= 1 { raidTick(raidTimer); patrolTick(raidTimer); blockSecondTick(); raidTimer = 0 }
         if !world.pendingMobs.isEmpty {
             for (name, p) in world.pendingMobs {
                 guard let k = MobKind.named(name) else { continue }
@@ -1496,6 +1530,7 @@ final class Game {
     private func gameTick() {
         randomTicks()
         precipitationTicks()
+        blockEntityTicks()
         gravityTick()
         beaconTicks += 1
         if beaconTicks >= 80 { beaconTicks = 0; beaconTick() }
