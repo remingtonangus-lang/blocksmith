@@ -18,11 +18,12 @@ enum Glyphs {
     static func key(_ label: String) -> String { "\u{E0F0}\(label)\u{E0F1}" }
 
     static func pillLabel(_ g: Glyph) -> String? {
+        let st = PadManager.shared.style
         switch g {
-        case .lb: return "LB"
-        case .rb: return "RB"
-        case .lt: return "LT"
-        case .rt: return "RT"
+        case .lb: return st == .playstation ? "L1" : (st == .nintendo ? "L" : "LB")
+        case .rb: return st == .playstation ? "R1" : (st == .nintendo ? "R" : "RB")
+        case .lt: return st == .playstation ? "L2" : (st == .nintendo ? "ZL" : "LT")
+        case .rt: return st == .playstation ? "R2" : (st == .nintendo ? "ZR" : "RT")
         default: return nil
         }
     }
@@ -43,6 +44,20 @@ enum Glyphs {
 
     static func tone(_ g: Glyph) -> (V4, V4) {        // (badge, label)
         let dark = V4(0.16, 0.16, 0.18, 1), white = V4(1, 1, 1, 1)
+        switch PadManager.shared.style {
+        case .playstation:
+            // Dark buttons with coloured symbols (drawn as shapes in draw()).
+            switch g {
+            case .a: return (dark, V4(0.5, 0.65, 1, 1))
+            case .b: return (dark, V4(1, 0.4, 0.4, 1))
+            case .x: return (dark, V4(0.95, 0.55, 0.85, 1))
+            case .y: return (dark, V4(0.35, 0.85, 0.7, 1))
+            default: break
+            }
+        case .nintendo:
+            if g == .a || g == .b || g == .x || g == .y { return (dark, white) }
+        case .xbox: break
+        }
         switch g {
         case .a: return (V4(0.24, 0.68, 0.26, 1), white)
         case .b: return (V4(0.82, 0.2, 0.2, 1), white)
@@ -104,8 +119,22 @@ enum Glyphs {
         switch g {
         case .a, .b, .x, .y:
             back(); disc(x, y0, bg)
-            let l = g == .a ? "A" : g == .b ? "B" : g == .x ? "X" : "Y"
-            letter(l, x + 2 * u)
+            switch PadManager.shared.style {
+            case .playstation:
+                // Cross, circle, square, triangle.
+                func px(_ cx: Int, _ cy: Int) { rect(x + Float(cx) * u, y0 + Float(cy) * u, u, u, fg) }
+                switch g {
+                case .a: for i in 0..<5 { px(2 + i, 2 + i); px(6 - i, 2 + i) }
+                case .b: for i in 3...5 { px(i, 2); px(i, 6); px(2, i); px(6, i) }
+                case .x: for i in 2...6 { px(i, 2); px(i, 6); px(2, i); px(6, i) }
+                default: px(4, 2); px(3, 3); px(5, 3); px(3, 4); px(5, 4); for i in 2...6 { px(i, 5) }
+                }
+            case .nintendo:
+                // Same positions, Nintendo letters: bottom B, right A, left Y, top X.
+                letter(g == .a ? "B" : g == .b ? "A" : g == .x ? "Y" : "X", x + 2 * u)
+            case .xbox:
+                letter(g == .a ? "A" : g == .b ? "B" : g == .x ? "X" : "Y", x + 2 * u)
+            }
         case .ls, .rs, .l3, .r3:
             back(); disc(x, y0, bg)
             let ring = V4(0.55, 0.55, 0.6, alpha)

@@ -27,8 +27,10 @@ final class Narrator {
     // Plain text for speech: glyphs become words, key caps lose their markers.
     static func plain(_ s: String) -> String {
         var out = ""
+        let ps: [UInt32: String] = [Glyph.a.rawValue: "cross", Glyph.b.rawValue: "circle", Glyph.x.rawValue: "square", Glyph.y.rawValue: "triangle"]
         for u in s.unicodeScalars {
-            if let n = glyphNames[u.value] { out += " " + n + " " }
+            if PadManager.shared.style == .playstation, let n = ps[u.value] { out += " " + n + " " }
+            else if let n = glyphNames[u.value] { out += " " + n + " " }
             else if Glyphs.isGlyph(Int(u.value)) { continue }
             else { out.unicodeScalars.append(u) }
         }

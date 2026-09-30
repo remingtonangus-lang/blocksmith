@@ -9,7 +9,9 @@ import simd
 final class PadManager {
     static let shared = PadManager()
 
+    enum Style { case xbox, playstation, nintendo }
     private(set) var controller: GCController?
+    private(set) var style: Style = .xbox          // which button art prompts use
     var simulated: PadSnapshot?          // harness input; replaces the real pad while set
     private(set) var usingPad = false    // the last input came from a controller
     var onConnect: ((String) -> Void)?
@@ -65,6 +67,9 @@ final class PadManager {
         if next !== controller {
             if controller == nil && next != nil { usingPad = true }   // a pad just arrived: show its buttons
             controller = next
+            if let g = next?.extendedGamepad, g is GCDualSenseGamepad || g is GCDualShockGamepad { style = .playstation }
+            else if let c = next, (c.productCategory.contains("Switch") || c.productCategory.contains("Joy-Con")) { style = .nintendo }
+            else { style = .xbox }
             haptics = nil
             hapticsFailed = false
             controller?.playerIndex = .index1
