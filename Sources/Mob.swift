@@ -988,8 +988,12 @@ private func parts(_ m: Mob) -> [Part] {
         return [
             box(-4 * s, 6, -2 * s, 8 * s, 12, 4 * s, c, 4),
             box(-4 * s, 18, -4 * s, 8 * s, 8, 8 * s, c, 4),
-            box(-2.5, 22, -4.2 * s, 2, 2, 0.3, black), box(0.5, 22, -4.2 * s, 2, 2, 0.3, black),
-            box(-1, 19, -4.2 * s, 2, 3, 0.3, black), box(-2, 19, -4.2 * s, 1, 2, 0.3, black), box(1, 19, -4.2 * s, 1, 2, 0.3, black),
+            // Hisser face (original): wide-set glowing slit eyes, zigzag hissing mouth.
+            box(-4 * s, 22, -4.2 * s, 1, 1, 0.3, black), box(-3 * s, 22, -4.2 * s, 1, 1, 0.3, V3(0.95, 0.9, 0.3)),
+            box(2 * s, 22, -4.2 * s, 1, 1, 0.3, V3(0.95, 0.9, 0.3)), box(3 * s, 22, -4.2 * s, 1, 1, 0.3, black),
+            box(-4 * s, 20, -4.2 * s, 1, 1, 0.3, black), box(-2 * s, 20, -4.2 * s, 1, 1, 0.3, black),
+            box(1 * s, 20, -4.2 * s, 1, 1, 0.3, black), box(3 * s, 20, -4.2 * s, 1, 1, 0.3, black),
+            box(-3 * s, 19, -4.2 * s, 1, 1, 0.3, black), box(-1 * s, 19, -4.2 * s, 2, 1, 0.3, black), box(2 * s, 19, -4.2 * s, 1, 1, 0.3, black),
             leg(-2, -4, 4, 6, 1, c, 4), leg(2, -4, 4, 6, -1, c, 4), leg(-2, 4, 4, 6, -1, c, 4), leg(2, 4, 4, 6, 1, c, 4),
         ]
     case .spider, .caveSpider:

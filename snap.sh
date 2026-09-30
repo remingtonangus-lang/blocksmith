@@ -88,6 +88,7 @@ done
 "$BIN" --snapshot snaps/villagers.png --seed 12345 --structure village --frame 0.7 --time 0.3 --ticks 12
 "$BIN" --snapshot snaps/mobs_g.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --spawn wither,ravager,evoker,vex,snow_golem,zombie_villager,witch
 "$BIN" --snapshot snaps/villager_jobs.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --spawn villager:farmer,villager:librarian,villager:cleric,villager:armorer,villager:butcher,villager:fisherman,villager:nitwit
+"$BIN" --snapshot snaps/hisser.png --seed 12345 --find plains --yaw 30 --pitch -6 --time 0.3 --up 1 --spawn creeper,creeper
 "$BIN" --snapshot snaps/heads.png --seed 12345 --find plains --yaw 30 --pitch -25 --time 0.3 --up 1 --place skeleton_skull,wither_skeleton_skull:1,zombie_head,creeper_head:1,piglin_head,dragon_head:1,carved_pumpkin,jack_o_lantern:1
 "$BIN" --snapshot snaps/beacon.png --seed 12345 --find plains --yaw 30 --pitch 10 --time 0.55 --up 3 --beacon
 "$BIN" --snapshot snaps/rain.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --weather rain
