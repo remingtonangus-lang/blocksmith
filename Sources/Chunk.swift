@@ -35,7 +35,7 @@ final class Chunk {
     var light = [[UInt8]?](repeating: nil, count: NSEC)
     var height: [Int16]            // highest sky-stopping block per column (-1 = none)
     var tint: [UInt32]             // 256 grass, 256 foliage, 256 water colours (RGBA8)
-    var tintBuf: MTLBuffer?
+    var tintBuf: MeshSlice?          // tint table on the GPU (carved from the mesh slabs)
     var sections: [Section]
     var modified = false
     // The block array as last saved or loaded. Any write to `blocks` copies it (copy-on-write), so

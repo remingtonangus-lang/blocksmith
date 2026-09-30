@@ -333,7 +333,7 @@ final class World {
         s.meshedVersion = version
         s.vis = m.vis
         if c.tintBuf == nil {
-            c.tintBuf = c.tint.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: $0.count, options: .storageModeShared) }
+            c.tintBuf = c.tint.withUnsafeBytes { MeshArena.shared.alloc(device, $0) }
         }
     }
 

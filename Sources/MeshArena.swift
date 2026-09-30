@@ -20,12 +20,25 @@ final class MeshArena {
     static let shared = MeshArena()
     static let slabSize = 4 << 20
     static let minClass = 8                          // 256 bytes
+    // A freed slice waits this long before reuse: up to 3 frames still in flight on the GPU may be
+    // reading the old mesh (reusing it at once showed as a one-frame flicker of garbage triangles).
+    static let reuseDelay = 0.25
     private let lock = NSLock()
     private var device: MTLDevice?
-    private var free: [Int: [(MTLBuffer, Int)]] = [:]
+    // Per size class: FIFO of freed slices (buffer, offset, time freed), consumed from `head`.
+    private struct FreeList { var items: [(MTLBuffer, Int, Double)] = []; var head = 0 }
+    private var free = [FreeList](repeating: FreeList(), count: 32)
     private var slab: MTLBuffer?
     private var bump = 0
     private(set) var slabBytes = 0
+
+    // Bytes sitting in free lists (fragmentation), for --bench.
+    var freeBytes: Int {
+        lock.lock(); defer { lock.unlock() }
+        var n = 0
+        for c in 0..<free.count { n += (free[c].items.count - free[c].head) << c }
+        return n
+    }
 
     func alloc(_ device: MTLDevice, _ bytes: UnsafeRawBufferPointer) -> MeshSlice? {
         let n = bytes.count
@@ -36,9 +49,19 @@ final class MeshArena {
             guard let b = device.makeBuffer(bytes: bytes.baseAddress!, length: n, options: .storageModeShared) else { return nil }
             return MeshSlice(buffer: b, offset: 0, length: n, cls: -1)
         }
+        let now = CFAbsoluteTimeGetCurrent()
         lock.lock()
         var spot: (MTLBuffer, Int)?
-        if var list = free[cls], let s = list.popLast() { free[cls] = list; spot = s }
+        let h = free[cls].head
+        if h < free[cls].items.count && now - free[cls].items[h].2 > MeshArena.reuseDelay {
+            let s = free[cls].items[h]
+            spot = (s.0, s.1)
+            free[cls].head = h + 1
+            if free[cls].head > 256 && free[cls].head * 2 > free[cls].items.count {
+                free[cls].items.removeFirst(free[cls].head)
+                free[cls].head = 0
+            }
+        }
         if spot == nil {
             let size = 1 << cls
             if slab == nil || bump + size > MeshArena.slabSize {
@@ -55,8 +78,9 @@ final class MeshArena {
     }
 
     fileprivate func release(_ b: MTLBuffer, _ off: Int, _ cls: Int) {
+        let now = CFAbsoluteTimeGetCurrent()
         lock.lock()
-        free[cls, default: []].append((b, off))
+        free[cls].items.append((b, off, now))
         lock.unlock()
     }
 }

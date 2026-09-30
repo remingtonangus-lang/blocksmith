@@ -66,6 +66,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     private var visitGen: [UInt32] = []
     private var gen: UInt32 = 0
     private var bfs: [(Chunk, Int, Int, Int, Int, Int)] = []
+    private var chunkGrid: [Chunk?] = []
     var caveCulling = true
     var onFrame: ((Double) -> Void)?
 
@@ -326,6 +327,11 @@ final class Renderer: NSObject, MTKViewDelegate {
             gen &+= 1
             if gen == 0 { gen = 1; for i in visitGen.indices { visitGen[i] = 0 } }
             func vidx(_ dx: Int, _ dz: Int, _ sy: Int) -> Int { ((dx + R) + (dz + R) * span) * NSEC + sy }
+            // Chunks around the camera in a flat grid: one dictionary lookup per column instead of one per step.
+            if chunkGrid.count != span * span { chunkGrid = [Chunk?](repeating: nil, count: span * span) }
+            for dz in -R...R { for dx in -R...R {
+                chunkGrid[(dx + R) + (dz + R) * span] = game.world.inMeshRadius(dx, dz) ? game.world.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] : nil
+            } }
             bfs.removeAll(keepingCapacity: true)
             bfs.append((startC, 0, 0, pSec, -1, 0))
             visitGen[vidx(0, 0, pSec)] = gen
@@ -350,7 +356,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     if visitGen[vi] == gen { continue }
                     let nmn = V3(Float((pcx + ndx) * CS), Float(nsy * 16), Float((pcz + ndz) * CS))
                     if !frustum.visible(min: nmn, max: nmn + V3(16, 16, 16)) { continue }
-                    guard let nc = ox == 0 && oz == 0 ? c : game.world.chunks[ChunkKey(x: pcx + ndx, z: pcz + ndz)], nc.meshedOnce else { continue }
+                    guard let nc = ox == 0 && oz == 0 ? c : chunkGrid[(ndx + R) + (ndz + R) * span], nc.meshedOnce else { continue }
                     visitGen[vi] = gen
                     bfs.append((nc, ndx, ndz, nsy, f ^ 1, dirMask | (1 << f)))
                 }
@@ -397,7 +403,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 var o = offset(c, sy)
                 enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
                 enc.setVertexBytes(&o, length: 16, index: 2)
-                enc.setVertexBuffer(tb, offset: 0, index: 3)
+                enc.setVertexBuffer(tb.buffer, offset: tb.offset, index: 3)
                 enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6,
                                           indexType: .uint32, indexBuffer: quadIndices, indexBufferOffset: first * 6 * 4)
             }
@@ -525,7 +531,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             var o = offset(c, sy)
             enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
             enc.setVertexBytes(&o, length: 16, index: 2)
-            enc.setVertexBuffer(tb, offset: 0, index: 3)
+            enc.setVertexBuffer(tb.buffer, offset: tb.offset, index: 3)
             enc.drawIndexedPrimitives(type: .triangle, indexCount: min(sec.transQuads, Renderer.maxQuads) * 6,
                                       indexType: .uint32, indexBuffer: quadIndices, indexBufferOffset: 0)
         }

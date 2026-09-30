@@ -420,6 +420,7 @@ enum Bench {
         put("\(k).chunk_mb", chunkMB(world))
         put("\(k).mesh_mb", meshMB(world))
         put("\(k).slab_mb", Double(MeshArena.shared.slabBytes) / 1_048_576)
+        put("\(k).arena_free_mb", Double(MeshArena.shared.freeBytes) / 1_048_576)
         put("\(k).resident_peak_mb", peak)
         print("bench \(k): frame p50 \(f(fe.p50)) p95 \(f(fe.p95)) p99 \(f(fe.p99)) max \(f(fe.max)) ms, \(hitches) hitches >25 ms | tick p95 \(f(ft.p95)) (update p95 \(f(fu.p95)), max \(f(fu.max))) encode p95 \(f(fc.p95)) GPU p95 \(f(fg.p95)) ms")
         print("bench \(k): coverage min \(f(covMin * 100, 0))% mean \(f(covMean * 100, 0))% | gen \(f(genRate, 0)) chunks/s (\(f(genMs, 1)) ms each on a worker) mesh \(f(meshRate, 0)) sections/s (\(f(meshUs, 0)) us each) | realtime \(f(Double(frames) * dt / wall))x")
