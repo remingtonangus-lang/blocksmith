@@ -117,7 +117,7 @@ final class SoundEngine {
         for p in spatial + flat + ui { p.play() }
         ms.node.play()
         ms.start()
-        bank.prewarm(SoundBank.commonSounds)
+        bank.prewarm(SoundBank.commonSounds + [.explode, .thunder, .lightning, .caveAmbience, .caveDrip, .caveWind, .levelUp, .totem, .playerDeath])
     }
 
     // MARK: Listener / environment
@@ -158,8 +158,6 @@ final class SoundEngine {
 
     private func buffer(_ s: Snd, variant v: Int) -> AVAudioPCMBuffer? {
         if let list = buffers[s], !list.isEmpty { return list[v % list.count] }
-        // Long sounds that are not ready yet render in the background and play next time.
-        if !bank.has(s) && s.expectedSeconds.upperBound >= 5 { bank.prewarm([s], qos: .userInitiated); return nil }
         var list: [AVAudioPCMBuffer] = []
         for k in 0..<SoundBank.variants(for: s) {
             let data = bank.clip(s, variant: k)
