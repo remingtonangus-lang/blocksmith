@@ -100,7 +100,7 @@ done
 "$BIN" --snapshot snaps/fireworks.png --seed 12345 --find plains --yaw 30 --pitch 20 --time 0.8 --up 1 --fireworks
 "$BIN" --snapshot snaps/monument.png --seed 12345 --structure monument --frame 1 --time 0.25
 "$BIN" --snapshot snaps/mansion.png --seed 12345 --structure mansion --frame 1.7 --time 0.25
-"$BIN" --snapshot snaps/ancient_city.png --seed 12345 --structure ancient_city --yaw 30 --pitch -20 --up 12 --rd 5
+"$BIN" --snapshot snaps/ancient_city.png --seed 12345 --structure ancient_city --yaw 30 --pitch -12 --up 3 --rd 5 --nightvision
 "$BIN" --snapshot snaps/trial_chambers.png --seed 12345 --structure trial_chambers --yaw 45 --pitch -25 --up 6 --rd 5
 "$BIN" --snapshot snaps/copper.png --seed 12345 --find plains --yaw 30 --pitch -25 --time 0.3 --up 1 --place copper_block,exposed_copper,weathered_copper,oxidized_copper,cut_copper,copper_grate,copper_bulb:1,campfire,bee_nest:5,scaffolding
 "$BIN" --snapshot snaps/decor.png --seed 12345 --find plains --yaw 30 --pitch -10 --time 0.3 --up 1 --decor
@@ -110,7 +110,7 @@ done
 "$BIN" --snapshot snaps/third_front.png --seed 12345 --find plains --yaw 30 --pitch 5 --time 0.3 --up 1 --camera 2
 "$BIN" --snapshot snaps/pathtest.png --seed 12345 --find plains --yaw 0 --pitch -40 --time 0.75 --up 14 --pathtest
 "$BIN" --snapshot snaps/ashen_grove.png --seed 12345 --find pale_garden --yaw 210 --pitch -20 --time 0.3 --up 4 --treecheck
-"$BIN" --snapshot snaps/ashen_inside.png --seed 12345 --find pale_garden --yaw 120 --pitch 5 --time 0.3 --up 1
+"$BIN" --snapshot snaps/ashen_inside.png --seed 12345 --find pale_garden --yaw 120 --pitch 8 --time 0.3 --ground
 "$BIN" --snapshot snaps/ashen_night.png --seed 12345 --find pale_garden --yaw 30 --pitch -10 --time 0.7 --up 2 --ticks 4 --place pale_oak_log,creaking_heart:1,pale_oak_planks,pale_moss_block,pale_moss_carpet,open_eyeblossom,closed_eyeblossom,pale_hanging_moss
 "$BIN" --snapshot snaps/lush_caves.png --seed 12345 --find lush_caves --yaw 30 --pitch -10 --time 0.3
 "$BIN" --snapshot snaps/dripstone_caves.png --seed 12345 --find dripstone_caves --yaw 30 --pitch -10 --time 0.3
@@ -119,4 +119,5 @@ done
 "$BIN" --snapshot snaps/seabed_warm.png --seed 12345 --find warm_ocean --up -6 --pitch -20 --time 0.3
 "$BIN" --snapshot snaps/seabed_deep.png --seed 12345 --find deep_ocean --up -12 --pitch -20 --time 0.3
 "$BIN" --snapshot snaps/cave_torches.png --seed 12345 --find dripstone_caves --yaw 60 --pitch -25 --time 0.3 --torches
+"$BIN" --snapshot snaps/spawn_portal_check.png --seed 12345 --rd 16 --up 2 --yaw 45 --pitch 20
 "$BIN" --snapshot snaps/selftest.png --seed 12345 --find plains --yaw 30 --pitch 10 --time 0.3 --up 1 --selftest

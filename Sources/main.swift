@@ -288,6 +288,18 @@ enum Snapshot {
             let ty = Float(world.topY(Int(floor(pos.x)), Int(floor(pos.z))) + 1)
             if ty + up > pos.y { pos.y = ty + up; game.player.pos = pos }
         }
+        if CommandLine.arguments.contains("--ground") {
+            // Under the canopy: stand on the real ground (skip leaves, logs, plants).
+            let x = Int(floor(pos.x)), z = Int(floor(pos.z))
+            var y = world.topY(x, z)
+            while y > 1 {
+                let b = world.block(x, y, z), k = Blocks.key(b)
+                if Blocks.collide[Int(b)] && !k.hasSuffix("_leaves") && !k.hasSuffix("_log") { break }
+                y -= 1
+            }
+            pos.y = Float(y + 1) + (Float(arg("--up") ?? "") ?? 0)
+            game.player.pos = pos
+        }
         // Never render from inside solid blocks: move to the nearest two-high air pocket.
         func solidAt(_ p: V3) -> Bool { Blocks.collide[Int(world.block(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))))] }
         if solidAt(game.player.eye) || solidAt(game.player.pos + V3(0, 0.1, 0)) {
