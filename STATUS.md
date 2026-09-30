@@ -48,6 +48,10 @@ X pick block, D-pad ↓ drop, D-pad ↑ fly. In menus: D-pad/LS move cursor, A =
 B close, RS scroll creative.
 
 ## Rendering performance
+- Solid cube faces are drawn first without alpha test (keeps the GPU's hidden-surface removal), cutout faces
+  (leaves, plants, models) second; far chunks use "fast" leaves (no faces inside canopies). Section meshes are
+  carved from pooled 4 MB slabs (one MTLBuffer per section cost a 16 KB page each: rd 24 resident 2.0 GB -> 1.1 GB).
+  CI median-of-30 frames at rd 16: 5-7.5 ms on seeds 12345/777/424242, rd 24 12 ms.
 - Greedy meshing of flat-lit cube faces (merged quads take repeating UVs from their position in the shader).
 - LOD: chunks beyond 8 chunks mesh with flat light (fully merged), no plants/rails/dust, and skip faces facing pitch-dark
   cells; they re-mesh when crossing the boundary. Render distance goes up to 24 in Options.
@@ -68,6 +72,10 @@ B close, RS scroll creative.
 - Mob navigation: A* over block cells (walk, jump one, drop three, swim; avoids lava/fire/cactus/fence tops) for
   every mob walking towards something (chasing, food, beds, job sites); 4 searches / 1.5 ms per tick. --pathtest: a zombie
   walks around a 17-block wall to the player in ~9 s.
+- Ashen Grove biome (high-weirdness dark forest): Ashbark wood family, ashen moss/carpets, hanging moss,
+  nightblooms that open at night, Barkwraith hearts in trunks and the Barkwraith (moves only unobserved, dies with its heart).
+- Torch light follows the reference curve with the default-brightness gamma lift; harness moves the camera out of
+  solid blocks, finds cave biomes (lush_caves, dripstone_caves, deep_dark); trees stay out of structure footprints.
 - Command console (T or /, or Commands... in the pause menu): /time /weather /gamemode /difficulty /tp /give /summon
   /kill /clear /effect /xp /locate /seed /spawnpoint /setblock with Tab completion, history and pad quick buttons.
 - Third-person cameras (F5 / View) stop short of blocks and show an original player model with armour and held item.

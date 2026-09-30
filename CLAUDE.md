@@ -34,3 +34,9 @@ Goals: polished, efficient on M1/8 GB, extensible. Later: Xbox controller on a T
 ## Roadmap
 Done: tree variety, plants, clouds/stars, block light + torches, flowing water, creative inventory, survival basics, synthesized sounds, passive mobs.
 Next: item drops/counts/mining time + crafting, food from animals, greedy meshing, first-person hand, controller-driven pause menu for TV play.
+
+## Parallel sessions (2026-09-30)
+Six other sessions work on branches cut from claude/eloquent-lovelace-bsc5v1 and open PRs into it: (1) End/Blight
+completability tests, (2) performance, (3) visuals, (4) audio/music, (5) mobs/villagers/raids, (6) controller/TV/UI.
+This branch keeps to blocks, items, enchanting, brewing, sparkstone, structures, world features and bug fixes; don't
+merge their PRs.

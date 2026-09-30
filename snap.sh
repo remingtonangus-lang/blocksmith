@@ -110,9 +110,10 @@ done
 "$BIN" --snapshot snaps/third_swim.png --seed 12345 --find ocean --yaw 30 --pitch -20 --time 0.3 --camera 1 --swim
 "$BIN" --snapshot snaps/third_front.png --seed 12345 --find plains --yaw 30 --pitch 5 --time 0.3 --up 1 --camera 2
 "$BIN" --snapshot snaps/pathtest.png --seed 12345 --find plains --yaw 0 --pitch -40 --time 0.75 --up 14 --pathtest
-"$BIN" --snapshot snaps/ashen_grove.png --seed 12345 --find pale_garden --yaw 210 --pitch -20 --time 0.3 --up 4
+"$BIN" --snapshot snaps/ashen_grove.png --seed 12345 --find pale_garden --yaw 210 --pitch -20 --time 0.3 --up 4 --treecheck
 "$BIN" --snapshot snaps/ashen_night.png --seed 12345 --find pale_garden --yaw 30 --pitch -10 --time 0.7 --up 2 --ticks 4 --place pale_oak_log,creaking_heart:1,pale_oak_planks,pale_moss_block,pale_moss_carpet,open_eyeblossom,closed_eyeblossom,pale_hanging_moss
 "$BIN" --snapshot snaps/lush_caves.png --seed 12345 --find lush_caves --yaw 30 --pitch -10 --time 0.3
 "$BIN" --snapshot snaps/dripstone_caves.png --seed 12345 --find dripstone_caves --yaw 30 --pitch -10 --time 0.3
-"$BIN" --snapshot snaps/deep_dark.png --seed 12345 --find deep_dark --yaw 30 --pitch -10 --time 0.3
+"$BIN" --snapshot snaps/deep_dark.png --seed 12345 --find deep_dark --yaw 30 --pitch -10 --time 0.3 --nightvision
+"$BIN" --snapshot snaps/dark_forest.png --seed 12345 --find dark_forest --yaw 30 --pitch -15 --time 0.3 --up 4 --treecheck
 "$BIN" --snapshot snaps/selftest.png --seed 12345 --find plains --yaw 30 --pitch 10 --time 0.3 --up 1 --selftest
