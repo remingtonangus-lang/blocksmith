@@ -10,23 +10,30 @@ struct PathState {
     var index = 0
     var goal = V3(0, -9999, 0)
     var timer: Float = 0
+    var door: IVec3?                          // a door this mob opened and will close behind itself
 }
 
 enum PathFinder {
     static var budget = 0                    // searches left this tick (reset by MobManager.update)
     static var spent: Double = 0             // seconds spent searching this tick (capped at 1.5 ms)
     static var boxes: [(V3, V3)] = []        // scratch for collision boxes (main thread only)
+    static var doors = false                 // the current search may walk through wooden doors
 
     // Height of the collision inside a cell: 0 empty ... 1 full block, up to 1.5 for fences and walls.
     static func solidTop(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Float {
         let b = Int(w.block(x, y, z))
         if !Blocks.collide[b] { return 0 }
         if Blocks.fullCollide[b] { return 1 }
+        if doors && isWoodDoor(BlockID(b)) { return 0 }
         boxes.removeAll(keepingCapacity: true)
         w.collisionBoxes(x, y, z, &boxes)
         var top: Float = 0
         for (_, hi) in boxes { top = max(top, hi.y - Float(y)) }
         return top
+    }
+
+    static func isWoodDoor(_ b: BlockID) -> Bool {
+        Blocks.shape[Int(b)] == "door" && !Blocks.key(Blocks.groupBase[Int(b)]).hasPrefix("iron_")
     }
 
     @inline(__always) static func danger(_ id: BlockID) -> Bool {
@@ -150,7 +157,8 @@ enum PathFinder {
 extension Mob {
     // Called after the AI picked a walk target (via face) and a positive speed: turn towards the next
     // waypoint of a path to it instead of the target itself.
-    func steerAlongPath(_ target: V3, _ dt: Float, _ w: World, repath: Bool) {
+    func steerAlongPath(_ target: V3, _ dt: Float, _ g: Game, repath: Bool) {
+        let w = g.world
         path.timer -= dt
         let dx = target.x - pos.x, dz = target.z - pos.z
         if dx * dx + dz * dz < 2.25 && abs(target.y - pos.y) < 1.2 { path.nodes.removeAll(keepingCapacity: true); return }
@@ -162,7 +170,9 @@ extension Mob {
             defer { PathFinder.spent += Date.timeIntervalSinceReferenceDate - t0 }
             path.timer = Float.random(in: 0.7...1.3)
             path.goal = target
+            PathFinder.doors = opensDoors
             path.nodes = PathFinder.find(w, from: pos, to: target, tall: max(1, min(3, Int(ceilf(height - 0.05))))) ?? []
+            PathFinder.doors = false
             path.index = 0
         }
         while path.index < path.nodes.count {
@@ -177,9 +187,37 @@ extension Mob {
             let near: Float = straight ? 0.6 : 0.2
             if cx * cx + cz * cz < near * near && abs(Float(n.y) - pos.y) < 1.2 { path.index += 1 } else { break }
         }
+        if opensDoors { handleDoors(g) }
         guard path.index < path.nodes.count else { return }
         let n = path.nodes[path.index]
         let cx = Float(n.x) + 0.5 - pos.x, cz = Float(n.z) + 0.5 - pos.z
         if cx * cx + cz * cz > 1e-4 { yaw = atan2f(-cx, -cz) }
+    }
+}
+
+extension Mob {
+    // Villagers and illagers open wooden doors on their path and shut them again once through.
+    var opensDoors: Bool { [.villager, .wanderingTrader, .pillager, .vindicator, .evoker, .witch].contains(kind) }
+
+    func handleDoors(_ g: Game) {
+        let w = g.world
+        if let d = path.door {
+            let dx = Float(d.x) + 0.5 - pos.x, dz = Float(d.z) + 0.5 - pos.z
+            if dx * dx + dz * dz > 2.6 {
+                let b = w.block(d.x, d.y, d.z)
+                if PathFinder.isWoodDoor(b) && Int(b - Blocks.groupBase[Int(b)]) & 4 != 0 { g.toggleOpenable(d) }
+                path.door = nil
+            }
+        }
+        guard path.door == nil, path.index < path.nodes.count else { return }
+        let n = path.nodes[path.index]
+        let dx = Float(n.x) + 0.5 - pos.x, dz = Float(n.z) + 0.5 - pos.z
+        guard dx * dx + dz * dz < 2.3 else { return }
+        for y in [n.y, n.y + 1] {
+            let b = w.block(n.x, y, n.z)
+            guard PathFinder.isWoodDoor(b) else { continue }
+            if Int(b - Blocks.groupBase[Int(b)]) & 4 == 0 { g.toggleOpenable(IVec3(n.x, y, n.z)); path.door = IVec3(n.x, y, n.z) }
+            break
+        }
     }
 }

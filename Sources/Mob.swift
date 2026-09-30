@@ -707,7 +707,7 @@ final class Mob {
 
         // Walking towards something: follow a path around obstacles instead of straight at it.
         if speed > 0, let t = faceGoal, !spec.flying, spec.behavior != .slime {
-            steerAlongPath(t, dt, w, repath: onGround || inWater)
+            steerAlongPath(t, dt, g, repath: onGround || inWater)
         }
         if spec.flying {
             if kind == .blaze && speed != 0 {
