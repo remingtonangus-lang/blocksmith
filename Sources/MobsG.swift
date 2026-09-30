@@ -290,6 +290,12 @@ extension Mob {
     func aiEvoker(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
         spellTimer -= dt
         guard let t = raidTarget(g) ?? (canTarget && dist < 16 ? g.player.pos : nil) else {
+            // Idle conjurers turn blue sheep within 16 blocks red (reference).
+            if spellTimer <= 0, let sh = g.mobs.of(.sheep).first(where: { $0.woolColor == "blue" && simd_length($0.pos - pos) < 16 }) {
+                spellTimer = 5
+                sh.woolColor = "red"
+                g.sfx(.evokerCast, 0.8, at: pos)
+            }
             wander(); return moving ? spec.speed * 0.5 : 0
         }
         face(t)
