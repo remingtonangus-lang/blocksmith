@@ -99,8 +99,13 @@ B close, RS scroll creative.
   composters, vaults, rebirth anchors, sculk shriekers, villager work sounds at job sites, trades/level-ups/refusals, raid
   victory, zombie infection/cure, wyrm flaps/growls/breath, deep stalker heartbeat/sniff/sonic boom/emerge, voidwalker
   teleports, elder curse, gustling shots. Spatial voices are allocated by priority (free, else quietest/soonest-ending).
-- Audio next: per-biome overworld ambience (birds by day, crickets at night), more distinct voices for rare mobs,
-  a music box timbre for the Maker disc, headless audio snapshot of a scene (mix of loops at a position).
+- Surface ambience by biome and time: birdsong in wooded land by day, owls and crickets at night, swamp frogs, jungle
+  insects, surf near oceans, wind on peaks / snowy / dry biomes; rain hushes wildlife. Reverb follows the room (14 probe
+  rays: enclosure + size pick small room / chamber / hall / cavern). Audio restarts itself when the output device changes
+  (headphones, TV). Young mobs have higher voices. Materials now include netherrack and deepslate. Daytime music takes a
+  biome flavour (Snowfields, Dunes, Open Water, Blossom). `--sounds` also writes 8 s soundscapes of 17 places.
+- Audio next: subtitles (caption + direction for recent sounds; needs a HUD hook), per-mob pitch jitter at playback
+  (varispeed per voice), more distinct voices for rare mobs.
 - Landing / sprint dust, item equip animation, denser rain with ground splashes lit by daylight.
 - Village life: beds and sleeping, food pickup + breeding, farmers harvesting, golems, midnight zombie sieges.
 
