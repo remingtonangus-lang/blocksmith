@@ -119,10 +119,10 @@ extension Game {
             a.scanTimer = 0.5
             audioScan()
         }
-        var asked = Set<String>()
+        a.asked.removeAll(keepingCapacity: true)
         func ask(_ key: String, _ s: Snd, _ v: Float, at pos: V3? = nil) {
             guard v > 0.001 else { return }
-            asked.insert(key)
+            a.asked.insert(key)
             if v > 0.15 && AudioSettings.subtitles { subtitle(s, at: pos) }
             let occ = pos.map { audioOcclusion(eye, $0) } ?? 0
             snd.loop(key, s, volume: v * max(0.15, 1 - occ * 0.7), at: pos, occlusion: occ)
@@ -237,8 +237,7 @@ extension Game {
         // Jukebox nearby: duck the background music.
         let jukeboxNear = a.discPlaying != nil
         snd.musicDuck += ((jukeboxNear ? 0 : 1) - snd.musicDuck) * min(1, dt * 2)
-        a.asked = asked
-        snd.update(dt, asked: asked)
+        snd.update(dt, asked: a.asked)
     }
 
     // Surface ambience by biome and time of day: birds and owls, crickets, frogs, surf, wind, jungle insects.
