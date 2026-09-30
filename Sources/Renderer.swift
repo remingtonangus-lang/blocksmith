@@ -638,7 +638,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             let held = game.held
             // Arm (skin-coloured box angled up into the screen).
             let armOff = (scratchOff + 255) & ~255
-            let armPtr = (scratch.contents() + armOff).bindMemory(to: MobVert.self, capacity: 64)
+            let armPtr = (scratch.contents() + armOff).bindMemory(to: MobVert.self, capacity: 80)
             var an = 0
             let skin = V3(0.84, 0.64, 0.5)
             let axL = simd_normalize(V3(-0.12, 0.62, -0.78)) * (held.isEmpty ? 0.36 : 0.3)
@@ -646,12 +646,18 @@ final class Renderer: NSObject, MTKViewDelegate {
             let ac = base + V3(0.12, -0.34, 0.3) + (held.isEmpty ? V3(-0.05, 0.12, -0.1) : .zero)
             let CT = Mesher.cornerTable
             let faceShade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
-            for f in 0..<6 {
-                for k in [0, 1, 2, 0, 2, 3] {
-                    let ci = (f * 4 + k) * 3
-                    let pp = ac + axW * Float(CT[ci] * 2 - 1) + axL * Float(CT[ci + 1] * 2 - 1) + axD * Float(CT[ci + 2] * 2 - 1)
-                    armPtr[an] = MobVert(pos: V4(pp, 4), color: V4(skin, faceShade[f] * light), local: V4(pp * 32, 0))
-                    an += 1
+            // Sleeve over the upper (shoulder) half: tunic colour, or the chestplate's when armour is worn.
+            let chest = game.inventory.armor[1]
+            let sleeve = chest.isEmpty ? V3(0.62, 0.26, 0.16) : (ArmorLook.color(chest.item) ?? V3(0.62, 0.26, 0.16))
+            let boxes: [(V3, Float, Float, V3, Float)] = [(ac, 1, 1, skin, 4), (ac - axL * 0.45, 0.56, 1.1, sleeve, 2)]
+            for (c0, lenK, thick, col, pat) in boxes {
+                for f in 0..<6 {
+                    for k in [0, 1, 2, 0, 2, 3] {
+                        let ci = (f * 4 + k) * 3
+                        let pp = c0 + axW * (Float(CT[ci] * 2 - 1) * thick) + axL * (Float(CT[ci + 1] * 2 - 1) * lenK) + axD * (Float(CT[ci + 2] * 2 - 1) * thick)
+                        armPtr[an] = MobVert(pos: V4(pp, pat), color: V4(col, faceShade[f] * light), local: V4(pp * 32, 0))
+                        an += 1
+                    }
                 }
             }
             scratchOff = armOff + an * MemoryLayout<MobVert>.stride
