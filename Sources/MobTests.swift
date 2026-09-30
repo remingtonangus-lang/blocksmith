@@ -499,6 +499,27 @@ enum MobTests {
         mm.mobs.removeAll()
         mm.hives.removeAll()
 
+        // Breeding: horse + donkey make a mule; turtles get an egg instead of a baby; tamed wolves have tame pups.
+        func pair(_ k1: MobKind, _ k2: MobKind) -> (Mob, Mob) {
+            let p1 = Mob(k1, at: pos + V3(3, 0, 3)), p2 = Mob(k2, at: pos + V3(3.5, 0, 3))
+            p1.inLove = 30; p2.inLove = 30; p1.persistent = true; p2.persistent = true
+            mm.mobs += [p1, p2]
+            return (p1, p2)
+        }
+        _ = pair(.horse, .donkey)
+        mm.update(0.05, game: game)
+        check(mm.mobs.contains { $0.kind == .mule && $0.baby }, "breed horse + donkey = mule")
+        mm.mobs.removeAll()
+        let (t1, t2) = pair(.turtle, .turtle)
+        mm.update(0.05, game: game)
+        check((t1.hasEgg || t2.hasEgg) && !mm.mobs.contains { $0.kind == .turtle && $0.baby }, "breed turtles carry an egg")
+        mm.mobs.removeAll()
+        let (w1, _) = pair(.wolf, .wolf)
+        w1.owner = true
+        mm.update(0.05, game: game)
+        check(mm.mobs.contains { $0.kind == .wolf && $0.baby && $0.tamed }, "breed tame wolves have tame pups")
+        mm.mobs.removeAll()
+
         // Wandering trader with two llamas.
         game.spawnWanderingTrader()
         let traders = mm.mobs.filter { $0.kind == .wanderingTrader }.count, llamas = mm.mobs.filter { $0.kind == .traderLlama }.count
