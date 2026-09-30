@@ -115,7 +115,6 @@ final class Game {
     init(world: World, save: SaveManager?, persistent: Bool) {
         dim = DimensionState(dim: .overworld, world: world)
         dims[.overworld] = dim
-        hookWorld(world)
         self.save = save
         self.persistent = persistent
         onToast = { [weak self] s in
@@ -124,6 +123,7 @@ final class Game {
             self.toastTime = self.clock
         }
         giveCreativeStarter()
+        hookWorld(world)
     }
 
     func giveCreativeStarter() {
