@@ -16,6 +16,7 @@ enum Snd: Hashable {
     case mobGhast, mobBlaze, mobPiglin, mobZombPiglin, fireball, mobVillager, mobGolem
     case anvil, brew, enchant, drink, glassBreak
     case mobWither, witherSpawn, witherShoot, mobVex, mobRavager, evokerCast, bell, raidHorn, fangs, rain, thunder
+    case mobWolf, mobCat, mobHorse, mobLlama, mobBee, mobWarden
     case note(Int, Int)            // note block: instrument, pitch 0...24 (made on demand)
 }
 
@@ -33,7 +34,8 @@ struct SoundBank {
                     .mobPig, .mobZombie, .mobSkeleton, .creeperHiss, .mobSpider, .mobEnderman, .mobSlime, .bow, .explode, .arrowHit, .fizz, .xp, .levelUp,
                     .mobGhast, .mobBlaze, .mobPiglin, .mobZombPiglin, .fireball, .mobVillager, .mobGolem,
                     .anvil, .brew, .enchant, .drink, .glassBreak,
-                    .mobWither, .witherSpawn, .witherShoot, .mobVex, .mobRavager, .evokerCast, .bell, .raidHorn, .fangs, .rain, .thunder]
+                    .mobWither, .witherSpawn, .witherShoot, .mobVex, .mobRavager, .evokerCast, .bell, .raidHorn, .fangs, .rain, .thunder,
+                    .mobWolf, .mobCat, .mobHorse, .mobLlama, .mobBee, .mobWarden]
     }
 
     init() {
@@ -237,6 +239,12 @@ struct Synth {
         case .rain: out = Synth.mix(burst(1.6, lp: 6000, hp: 1500, attack: 0.3, decay: 1.0, gain: 0.5), grains(60, spread: 1.5, lp: 9000, hp: 3000, decay: 0.004, gain: 0.35))
         case .thunder:
             out = Synth.mix(burst(0.15, lp: 8000, hp: 200, attack: 0.001, decay: 0.08, gain: 1.4), burst(4.0, lp: 220 * p, hp: 20, attack: 0.05, decay: 2.2, gain: 2.2))
+        case .mobWolf: out = Synth.mix(voice(0.18, f0: 520 * p, f1: 380 * p, vib: 0.1, lp: 2500, gain: 1), voice(0.18, f0: 500 * p, f1: 360 * p, vib: 0.1, lp: 2500, gain: 0.9), at: frames(0.25))
+        case .mobCat: out = voice(0.6, f0: 620 * p, f1: 820 * p, vib: 0.3, lp: 3500, gain: 0.8)
+        case .mobHorse: out = Synth.mix(voice(0.9, f0: 700 * p, f1: 380 * p, vib: 0.6, lp: 2800, gain: 1), burst(0.5, lp: 1500, hp: 200, attack: 0.05, decay: 0.3, gain: 0.3))
+        case .mobLlama: out = voice(0.5, f0: 330 * p, f1: 260 * p, vib: 0.2, lp: 1500, gain: 0.9)
+        case .mobBee: out = modes(0.8, [(230 * p, 0.25, 0.8), (460 * p, 0.12, 0.8), (690 * p, 0.06, 0.8)])
+        case .mobWarden: out = Synth.mix(voice(1.4, f0: 60 * p, f1: 45 * p, vib: 0.3, lp: 500, gain: 1.8), burst(1.2, lp: 300, hp: 20, attack: 0.3, decay: 0.8, gain: 1.0))
         case .note(let inst, let n):
             // Pitch 0 = F#3 for the harp family; bass instruments two octaves down, chimes two up.
             let f: Float = 185 * powf(2, Float(n) / 12)

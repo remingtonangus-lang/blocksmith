@@ -392,10 +392,12 @@ extension Game {
         var d: [String: String] = [:]
         if let w = try? JSONEncoder().encode(weather), let s = String(data: w, encoding: .utf8) { d["weather"] = s }
         d["patrol"] = "\(patrolTimer)"
+        d["rest"] = "\(timeSinceRest)"
         return d
     }
     func loadExtra(_ d: [String: String]) {
         if let s = d["weather"], let data = s.data(using: .utf8), let w = try? JSONDecoder().decode(Weather.self, from: data) { weather = w }
         if let p = d["patrol"], let v = Float(p) { patrolTimer = v }
+        if let p = d["rest"], let v = Float(p) { timeSinceRest = v }
     }
 }

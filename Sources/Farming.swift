@@ -275,6 +275,12 @@ extension Game {
             sfx(.click, 0.5, at: m.pos)
             return true
         }
+        if animalInteract(m) { return true }
+        // Dye a sheep.
+        if m.kind == .sheep && key.hasSuffix("_dye") && !m.sheared {
+            let c = String(key.dropLast(4))
+            if BlockRegistry.colorHex[c] != nil && m.woolColor != c { m.woolColor = c; consumeHeld(); return true }
+        }
         if m.kind == .piglin && key == "gold_ingot" && m.admire <= 0 && !m.baby {
             m.admire = 6
             m.aggro = false
@@ -317,7 +323,7 @@ extension Game {
     // MARK: Beds
 
     func trySleep(at p: IVec3) {
-        let night = dayFraction > 0.52 && dayFraction < 0.98
+        let night = (dayFraction > 0.52 && dayFraction < 0.98) || weather.thunder > 0.5
         spawnPoint = V3(Float(p.x) + 0.5, Float(p.y) + 0.6, Float(p.z) + 0.5)
         onToast?("Respawn point set")
         guard night else { onToast?("You can only sleep at night"); return }

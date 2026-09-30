@@ -297,6 +297,37 @@ enum Recipes {
         for (n, _) in BlockRegistry.colors {
             r.append(shaped(["WWW", "PPP"], ["W": "\(n)_wool", "P": "#planks"], "\(n)_bed"))
         }
+        // Dyes from flowers and other sources, mixing, and dyeing wool / carpets / terracotta.
+        let dyeSources: [(String, String, Int)] = [
+            ("poppy", "red_dye", 1), ("red_tulip", "red_dye", 1), ("rose_bush", "red_dye", 2), ("beetroot", "red_dye", 1),
+            ("dandelion", "yellow_dye", 1), ("sunflower", "yellow_dye", 2), ("cornflower", "blue_dye", 1), ("lapis_lazuli", "blue_dye", 1),
+            ("bone_meal", "white_dye", 1), ("lily_of_the_valley", "white_dye", 1), ("ink_sac", "black_dye", 1), ("wither_rose", "black_dye", 1),
+            ("cocoa_beans", "brown_dye", 1), ("blue_orchid", "light_blue_dye", 1), ("allium", "magenta_dye", 1), ("lilac", "magenta_dye", 2),
+            ("orange_tulip", "orange_dye", 1), ("torchflower", "orange_dye", 1), ("pink_tulip", "pink_dye", 1), ("peony", "pink_dye", 2),
+            ("pink_petals", "pink_dye", 1), ("azure_bluet", "light_gray_dye", 1), ("oxeye_daisy", "light_gray_dye", 1), ("white_tulip", "light_gray_dye", 1),
+            ("pitcher_plant", "cyan_dye", 2),
+        ]
+        for (src, dye, n) in dyeSources { r.append(shapeless([src], dye, n)) }
+        let mixes: [([String], String, Int)] = [
+            (["green_dye", "white_dye"], "lime_dye", 2), (["blue_dye", "green_dye"], "cyan_dye", 2), (["blue_dye", "white_dye"], "light_blue_dye", 2),
+            (["purple_dye", "pink_dye"], "magenta_dye", 2), (["blue_dye", "red_dye", "pink_dye"], "magenta_dye", 3), (["red_dye", "yellow_dye"], "orange_dye", 2),
+            (["red_dye", "white_dye"], "pink_dye", 2), (["red_dye", "blue_dye"], "purple_dye", 2), (["black_dye", "white_dye"], "gray_dye", 2),
+            (["gray_dye", "white_dye"], "light_gray_dye", 2), (["black_dye", "white_dye", "white_dye"], "light_gray_dye", 3),
+        ]
+        for (ings, out, n) in mixes { r.append(shapeless(ings, out, n)) }
+        for (c, _) in BlockRegistry.colors where c != "white" {
+            r.append(shapeless(["\(c)_dye", "white_wool"], "\(c)_wool"))
+            r.append(shaped(["###", "#D#", "###"], ["#": "terracotta", "D": "\(c)_dye"], "\(c)_terracotta", 8))
+            r.append(shaped(["###", "#D#", "###"], ["#": "white_carpet", "D": "\(c)_dye"], "\(c)_carpet", 8))
+        }
+        for (c, _) in BlockRegistry.colors { r.append(shaped(["##"], ["#": "\(c)_wool"], "\(c)_carpet", 3)) }
+        r.append(shaped(["  #", " #S", "# S"], ["#": "stick", "S": "string"], "fishing_rod"))
+        r.append(shaped(["F", "R"], ["F": "fishing_rod", "R": "carrot"], "carrot_on_a_stick"))
+        r.append(shaped(["F", "R"], ["F": "fishing_rod", "R": "warped_fungus"], "warped_fungus_on_a_stick"))
+        r.append(shaped(["W#W", "WWW", " W "], ["W": "#planks", "#": "iron_ingot"], "shield"))
+        r.append(shaped(["#T#", "S$S", " # "], ["#": "stick", "T": "tripwire_hook", "S": "string", "$": "iron_ingot"], "crossbow"))
+        r.append(shaped(["SS ", "SB ", "  S"], ["S": "string", "B": "slime_ball"], "lead", 2))
+        r.append(shaped(["L L", "LLL", "L L"], ["L": "leather"], "leather_horse_armor"))
         // Brewing and enchanting.
         r.append(shaped([" B ", "###"], ["B": "blaze_rod", "#": "#stone_tool"], "brewing_stand"))
         r.append(shaped([" B ", "D#D", "###"], ["B": "book", "D": "diamond", "#": "obsidian"], "enchanting_table"))

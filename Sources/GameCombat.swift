@@ -249,15 +249,22 @@ extension Game {
     func writeBobber(_ wr: inout EntityWriter, eye: V3, right: V3, up: V3) {
         guard let b = bobber else { return }
         let white = Int(Tex.id("smoke"))
-        let hand = player.eye + right * 0.35 - up * 0.25 + player.look * 0.6
-        var prev = hand
+        let r35: V3 = right * 0.35
+        let u25: V3 = up * 0.25
+        let l6: V3 = player.look * 0.6
+        let hand: V3 = player.eye + r35 - u25 + l6
+        var prev: V3 = hand
         let n = 12
+        let span: V3 = b.pos - hand
+        let sag: Float = 0.4 * min(1, simd_length(span) / 8)
         for i in 1...n {
             let t = Float(i) / Float(n)
-            var q = hand + (b.pos - hand) * t
-            q.y -= sinf(t * .pi) * 0.4 * min(1, simd_length(b.pos - hand) / 8)
-            let a = prev - eye, c = q - eye
-            let side = simd_normalize(simd_cross(c - a, player.look) + V3(1e-5, 0, 0)) * 0.01
+            var q: V3 = hand + span * t
+            q.y -= sinf(t * .pi) * sag
+            let a: V3 = prev - eye
+            let c: V3 = q - eye
+            let cr: V3 = simd_cross(c - a, player.look) + V3(1e-5, 0, 0)
+            let side: V3 = simd_normalize(cr) * 0.01
             wr.quad([a - side, a + side, c + side, c - side], [V2(0.4, 0.4), V2(0.6, 0.4), V2(0.6, 0.6), V2(0.4, 0.6)], white, V4(0.1, 0.1, 0.1, 1))
             prev = q
         }

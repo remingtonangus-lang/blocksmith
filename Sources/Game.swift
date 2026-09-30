@@ -85,6 +85,8 @@ final class Game {
     var fangs: [Fang] = []         // evoker fangs
     var blocking = false           // holding a raised shield
     var lastPearl: Double = -10
+    var rideInput = MoveInput()
+    var timeSinceRest: Float = 0    // phantoms appear after 3 days (3600 s) without sleep
     private var beaconTicks = 0
     var shieldCooldown: Float = 0
     var shieldRaise: Float = 0
@@ -586,8 +588,10 @@ final class Game {
         if p.lb && !q.lb { select(selected - 1) }
 
         let before = player.pos
+        if let r = riding, r.health <= 0 { dismount() }
         if riding != nil {
             riderPush = mi.forward
+            rideInput = mi
             if mi.sneak { dismount() }
         } else {
             player.update(dt: fdt, input: mi, world: world)
@@ -1306,6 +1310,7 @@ final class Game {
         air = 15
         xpLevel = 0
         xpPoints = 0
+        timeSinceRest = 0
     }
 
     // Footsteps, landing thuds and splashes.
@@ -1382,7 +1387,9 @@ final class Game {
         projectiles.update(Float(dt), game: self)
         tnts.update(Float(dt), game: self)
         particles.update(Float(dt), world)
+        if survival { timeSinceRest += Float(dt) }
         if sleeping > 0 {
+            timeSinceRest = 0
             sleeping += Float(dt)
             if sleeping > 2.5 {
                 // Skip to morning.
@@ -1390,6 +1397,8 @@ final class Game {
                 time = (day + 1) * DAY_LENGTH + 0.01 * DAY_LENGTH
                 sleeping = 0
                 onToast?("Good morning")
+                weather.raining = false; weather.thundering = false; weather.rain = 0; weather.thunder = 0
+                weather.rainTime = Float.random(in: 600...9000); weather.thunderTime = Float.random(in: 600...9000)
             }
         }
         fluidTimer += dt

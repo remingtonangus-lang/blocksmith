@@ -6,7 +6,7 @@ import simd
 
 struct MobVert { var pos: V4; var color: V4; var local: V4 } // pos.w = pattern id, color.a = shade
 
-enum Behavior { case passive, melee, ranged, creeper, spider, enderman, slime, neutral, piglin, ghast, blaze, dragon, crystal, shulker, villager, golem, witch, vehicle, wither, evoker, vex, ravager, snowGolem }
+enum Behavior { case passive, melee, ranged, creeper, spider, enderman, slime, neutral, piglin, ghast, blaze, dragon, crystal, shulker, villager, golem, witch, vehicle, wither, evoker, vex, ravager, snowGolem, animal, monster }
 
 enum MobKind: Int, CaseIterable {
     case cow, sheep, chicken, pig, zombie, skeleton, creeper, spider, enderman, slime
@@ -16,6 +16,10 @@ enum MobKind: Int, CaseIterable {
     case husk, stray, drowned, caveSpider, witch, pillager, vindicator
     case minecart
     case wither, snowGolem, evoker, vex, ravager, zombieVillager
+    // Animals and the rest of the reference roster (Animals.swift).
+    case rabbit, fox, wolf, cat, ocelot, horse, donkey, mule, llama, traderLlama, camel, goat, panda, polarBear, turtle, frog, tadpole
+    case armadillo, sniffer, mooshroom, bee, parrot, bat, allay, axolotl, squid, glowSquid, dolphin, cod, salmon, tropicalFish, pufferfish
+    case wanderingTrader, skeletonHorse, phantom, guardian, elderGuardian, endermite, warden, breeze, bogged, zoglin
 
     struct Spec {
         var name: String
@@ -31,6 +35,7 @@ enum MobKind: Int, CaseIterable {
         var call: Snd
         var fireImmune = false
         var flying = false
+        var aquatic = false       // swims; suffocates on land
     }
 
     var spec: Spec {
@@ -112,11 +117,15 @@ enum MobKind: Int, CaseIterable {
                                    drops: [("saddle", 1, 1)], xp: 20, call: .mobRavager)
         case .zombieVillager: return Spec(name: "Zombie Villager", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
                                           burnsInSun: true, drops: [("rotten_flesh", 0, 2)], xp: 5, call: .mobZombie)
+        case .rabbit, .fox, .wolf, .cat, .ocelot, .horse, .donkey, .mule, .llama, .traderLlama, .camel, .goat, .panda, .polarBear, .turtle, .frog, .tadpole,
+             .armadillo, .sniffer, .mooshroom, .bee, .parrot, .bat, .allay, .axolotl, .squid, .glowSquid, .dolphin, .cod, .salmon, .tropicalFish, .pufferfish,
+             .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin:
+            return animalSpec
         case .witherSkeleton: return Spec(name: "Wither Skeleton", halfW: 0.35, height: 2.4, health: 20, speed: 2.5, behavior: .melee, attack: 8,
                                           drops: [("coal", 0, 1), ("bone", 0, 2)], xp: 5, call: .mobSkeleton, fireImmune: true)
         }
     }
-    var hostile: Bool { spec.behavior != .passive && spec.behavior != .villager && spec.behavior != .golem && spec.behavior != .vehicle && spec.behavior != .snowGolem }
+    var hostile: Bool { spec.behavior != .passive && spec.behavior != .villager && spec.behavior != .golem && spec.behavior != .vehicle && spec.behavior != .snowGolem && spec.behavior != .animal }
     var key: String { spec.name.lowercased().replacingOccurrences(of: " ", with: "_") }
     static func named(_ n: String) -> MobKind? { allCases.first { $0.key == n } }
     var call: Snd { spec.call }
@@ -188,6 +197,14 @@ final class Mob {
     var playerBuilt = false         // iron golem built by the player (never attacks them)
     var cureTimer: Float = 0        // zombie villager being cured
     var charged = false             // creeper struck by lightning (bigger blast)
+    var scuteTimer: Float = Float.random(in: 300...600)   // armadillo scutes / sniffer digging
+    var heldItem: ItemID = 0        // allay: item it collects
+    var carried = 0                 // allay: collected count
+    var airTime: Float = 0          // aquatic mobs out of water
+    var beam: Float = 0             // guardian laser charge
+    var anger: Float = 0            // warden
+    var jumpCharge: Float = 0       // horse jump when ridden
+    var temper = 0                  // horse taming progress
     weak var mount: Mob?            // rider (raid ravager riders)
     var captain = false             // raid / patrol captain (banner)
     var jobTimer: Float = Float.random(in: 0...5)
@@ -200,6 +217,7 @@ final class Mob {
         health = kind.spec.health
         aiTimer = Float.random(in: 0.5...3)
         callTimer = Float.random(in: 6...20)
+        randomizeVariant()
         if kind == .sheep {
             let r = Float.random(in: 0..<1)
             woolColor = r < 0.81836 ? "white" : (r < 0.86836 ? "black" : (r < 0.91836 ? "gray" : (r < 0.96836 ? "light_gray" : (r < 0.99836 ? "brown" : "pink"))))
@@ -250,6 +268,7 @@ final class Mob {
         inLove = max(0, inLove - dt)
         breedCooldown = max(0, breedCooldown - dt)
         if baby { age += dt; if age >= 1200 { baby = false; scale = 1 } }
+        if g.riding === self && kind != .minecart { updateRidden(dt, g); return }
         if kind == .enderDragon { updateDragon(dt, g); return }
         if kind == .endCrystal { updateCrystal(dt, g); return }
         if kind == .shulker { updateShulker(dt, g); return }
@@ -280,6 +299,7 @@ final class Mob {
             if effects?.has(.fireResistance) ?? false { fire = 0 }
         }
         effectTick(dt, g)
+        if spec.aquatic { updateAquatic(dt, g, inWater: inWater); return }
 
         let player = g.player.pos
         let toPlayer = player - pos
@@ -371,6 +391,8 @@ final class Mob {
         case .evoker: speed = aiEvoker(dt, g, dist: dist, canTarget: canTarget)
         case .ravager: speed = aiRavager(dt, g, dist: dist, canTarget: canTarget)
         case .snowGolem: speed = aiSnowGolem(dt, g, inWater: inWater)
+        case .animal: speed = animalAI(dt, g, dist: dist, canTarget: canTarget, inWater: inWater)
+        case .monster: speed = monsterAI(dt, g, dist: dist, canTarget: canTarget, inWater: inWater)
         case .witch:
             // Reference witch: drinks water breathing / fire resistance / healing / swiftness as needed, and
             // throws slowness (far), poison (healthy target), weakness (close, 25%) or harming.
@@ -771,6 +793,10 @@ private func parts(_ m: Mob) -> [Part] {
         ] + eyes(13, -15, 2)
     case .wither, .snowGolem, .evoker, .vex, .ravager, .zombieVillager:
         return extraParts(m, swing: swing)
+    case .rabbit, .fox, .wolf, .cat, .ocelot, .horse, .donkey, .mule, .llama, .traderLlama, .camel, .goat, .panda, .polarBear, .turtle, .frog, .tadpole,
+         .armadillo, .sniffer, .mooshroom, .bee, .parrot, .bat, .allay, .axolotl, .squid, .glowSquid, .dolphin, .cod, .salmon, .tropicalFish, .pufferfish,
+         .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin:
+        return animalParts(m, swing: swing)
     case .zombie, .skeleton, .enderman, .husk, .stray, .drowned, .pillager, .vindicator, .witch:
         let sk = m.kind == .skeleton || m.kind == .stray, en = m.kind == .enderman
         let illager = m.kind == .pillager || m.kind == .vindicator || m.kind == .witch
@@ -1187,6 +1213,7 @@ final class MobManager {
             if game.survival && mobs.filter({ $0.kind.hostile }).count < MobManager.hostileCap {
                 for _ in 0..<3 { trySpawnHostile(game) }
             }
+            trySpawnWaterAndAmbient(game)
         }
     }
 
@@ -1203,24 +1230,124 @@ final class MobManager {
     func trySpawnPassive(_ game: Game) {
         let w = game.world
         let rd = min(w.renderDistance, 6)
-        guard rd >= 3 else { return }
+        guard rd >= 3, w.dim == .overworld else { return }
         let pcx = floorDiv(Int(floor(game.player.pos.x)), CS), pcz = floorDiv(Int(floor(game.player.pos.z)), CS)
         let dx = Int.random(in: -rd...rd), dz = Int.random(in: -rd...rd)
         if max(abs(dx), abs(dz)) < 2 { return }
         guard let c = w.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)], c.meshedOnce else { return }
         let x = c.cx * CS + Int.random(in: 2..<(CS - 2)), z = c.cz * CS + Int.random(in: 2..<(CS - 2))
-        guard grassSurface(w, x, z) != nil else { return }
-        let kind: MobKind
-        let r = Float.random(in: 0..<1)
-        // Reference weights for grassy biomes: sheep 12, pig 10, chicken 10, cow 8.
         let biome = w.gen.column(x, z).biome
-        if biome.isOcean || biome.isBeach || biome == .desert || biome.isBadlands || biome.isRiver { return }
-        if biome == .snowyPlains || biome == .iceSpikes || biome == .snowySlopes || biome.isPeak { kind = .sheep }
-        else { kind = r < 0.3 ? .sheep : (r < 0.55 ? .pig : (r < 0.8 ? .chicken : .cow)) }
-        for _ in 0..<Int.random(in: 2...4) {
+        guard case let (kind, lo, hi)? = MobManager.pickAnimal(biome) else { return }
+        for _ in 0..<Int.random(in: lo...hi) {
             let sx = x + Int.random(in: -2...2), sz = z + Int.random(in: -2...2)
-            guard let y = grassSurface(w, sx, sz) else { continue }
-            mobs.append(Mob(kind, at: V3(Float(sx) + 0.5, Float(y), Float(sz) + 0.5)))
+            guard let y = animalSurface(w, sx, sz, kind) else { continue }
+            let m = Mob(kind, at: V3(Float(sx) + 0.5, Float(y), Float(sz) + 0.5))
+            if kind == .fox && [.snowyTaiga, .grove, .snowySlopes].contains(biome) { m.variant = 1 }
+            if kind == .mooshroom && Int.random(in: 0..<10) == 0 { m.variant = 1 }
+            mobs.append(m)
+        }
+    }
+
+    // Reference spawn weights per biome (creature category).
+    static func pickAnimal(_ b: Biome) -> (MobKind, Int, Int)? {
+        let std: [(MobKind, Int, Int, Int)] = [(.sheep, 12, 4, 4), (.pig, 10, 4, 4), (.chicken, 10, 4, 4), (.cow, 8, 4, 4)]
+        var t: [(MobKind, Int, Int, Int)]
+        switch b {
+        case .plains, .sunflowerPlains: t = std + [(.horse, 5, 2, 6), (.donkey, 1, 1, 3)]
+        case .forest, .flowerForest, .birchForest, .oldGrowthBirchForest, .darkForest: t = std + (b == .forest ? [(.wolf, 5, 4, 4)] : []) + (b == .flowerForest ? [(.rabbit, 4, 2, 3)] : [])
+        case .taiga, .oldGrowthPineTaiga, .oldGrowthSpruceTaiga: t = std + [(.wolf, 8, 4, 4), (.rabbit, 4, 2, 3), (.fox, 8, 2, 4)]
+        case .snowyTaiga: t = [(.wolf, 8, 4, 4), (.rabbit, 4, 2, 3), (.fox, 8, 2, 4)]
+        case .snowyPlains, .iceSpikes: t = [(.rabbit, 10, 2, 3), (.polarBear, 1, 1, 2)]
+        case .snowySlopes, .jaggedPeaks, .frozenPeaks: t = [(.goat, 5, 1, 3)]
+        case .grove: t = [(.wolf, 8, 4, 4), (.rabbit, 4, 2, 3), (.fox, 8, 2, 4)]
+        case .meadow: t = [(.donkey, 1, 1, 2), (.rabbit, 2, 2, 6), (.sheep, 2, 2, 4)]
+        case .cherryGrove: t = [(.pig, 1, 1, 2), (.rabbit, 2, 2, 6), (.sheep, 2, 2, 4)]
+        case .desert: t = [(.rabbit, 4, 2, 3)]
+        case .savanna, .savannaPlateau: t = std + [(.horse, 1, 2, 6), (.donkey, 1, 1, 1), (.armadillo, 10, 2, 3)] + (b == .savannaPlateau ? [(.llama, 8, 4, 4)] : [])
+        case .windsweptSavanna: t = std + [(.horse, 1, 2, 6), (.donkey, 1, 1, 1), (.armadillo, 10, 2, 3)]
+        case .windsweptHills, .windsweptGravellyHills, .windsweptForest: t = std + [(.llama, 5, 4, 6)]
+        case .jungle, .sparseJungle: t = std + [(.parrot, 40, 1, 2), (.ocelot, 2, 1, 3)] + (b == .jungle ? [(.panda, 1, 1, 2)] : [])
+        case .bambooJungle: t = std + [(.parrot, 40, 1, 2), (.panda, 80, 1, 2), (.ocelot, 2, 1, 1)]
+        case .swamp: t = std + [(.frog, 10, 2, 5)]
+        case .mangroveSwamp: t = [(.frog, 10, 2, 5)]
+        case .mushroomFields: t = [(.mooshroom, 8, 4, 8)]
+        case .beach: t = [(.turtle, 5, 2, 5)]
+        case .badlands, .woodedBadlands, .erodedBadlands: t = [(.armadillo, 6, 1, 2)]
+        default: return nil
+        }
+        let total = t.reduce(0) { $0 + $1.1 }
+        var r = Int.random(in: 0..<max(1, total))
+        for e in t { r -= e.1; if r < 0 { return (e.0, e.2, e.3) } }
+        return nil
+    }
+
+    // Grass-like ground with room above (sand for turtles/rabbits, snow for bears, mycelium for mooshrooms).
+    func animalSurface(_ w: World, _ x: Int, _ z: Int, _ k: MobKind) -> Int? {
+        var y = CH - 2
+        while y > 1 && !Blocks.collide[Int(w.block(x, y, z))] && !Blocks.isLiquid(w.block(x, y, z)) { y -= 1 }
+        let g = Blocks.key(w.block(x, y, z))
+        let ok: Bool
+        switch k {
+        case .turtle: ok = g == "sand"
+        case .mooshroom: ok = g == "mycelium"
+        case .rabbit, .polarBear, .goat, .fox, .wolf, .armadillo, .camel: ok = ["grass_block", "snowy_grass_block", "sand", "red_sand", "snow_block", "snow", "stone", "podzol", "coarse_dirt", "terracotta", "packed_ice", "ice", "powder_snow"].contains(g) || g.hasSuffix("_terracotta")
+        case .frog: ok = ["grass_block", "mud", "mangrove_roots", "muddy_mangrove_roots"].contains(g)
+        case .parrot, .panda, .ocelot: ok = ["grass_block", "podzol"].contains(g) || g.hasSuffix("_leaves")
+        default: ok = g == "grass_block" || g == "snowy_grass_block"
+        }
+        guard ok else { return nil }
+        let a = w.block(x, y + 1, z), b = w.block(x, y + 2, z)
+        guard !Blocks.collide[Int(a)] && !Blocks.collide[Int(b)] && !Blocks.isLiquid(a) else { return nil }
+        return y + 1
+    }
+
+    // Water creatures and ambient bats (called with the monster spawner).
+    func trySpawnWaterAndAmbient(_ game: Game) {
+        let w = game.world
+        guard w.dim == .overworld else { return }
+        let pp = game.player.pos
+        let a = Float.random(in: 0..<(2 * .pi)), r = Float.random(in: 24...56)
+        let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
+        guard w.isLoaded(x, z) else { return }
+        let biome = w.gen.column(x, z).biome
+        let aquatic = mobs.filter { $0.spec.aquatic }.count
+        if aquatic < 14 {
+            let y = Int.random(in: max(1, YOFF - 50)...(YOFF + 62))
+            if Blocks.fluidKind[Int(w.block(x, y, z))] == 1 && Blocks.fluidKind[Int(w.block(x, y + 1, z))] == 1 {
+                var kind: MobKind?
+                var n = 1
+                let dark = w.lightAt(x, y, z).sky == 0
+                if dark && y < YOFF + 30 { kind = Int.random(in: 0..<2) == 0 ? .glowSquid : nil; n = Int.random(in: 2...4) }
+                else if biome.isOcean || biome.isRiver {
+                    let warm = biome == .warmOcean || biome == .lukewarmOcean || biome == .deepLukewarmOcean
+                    let cold = biome == .coldOcean || biome == .deepColdOcean || biome == .frozenOcean || biome == .deepFrozenOcean || biome == .frozenRiver
+                    let roll = Int.random(in: 0..<100)
+                    if warm { kind = roll < 50 ? .tropicalFish : (roll < 65 ? .pufferfish : (roll < 80 ? .dolphin : .squid)); n = kind == .tropicalFish ? 8 : (kind == .dolphin ? 2 : Int.random(in: 1...3)) }
+                    else if cold { kind = roll < 50 ? .salmon : (roll < 80 ? .cod : .squid); n = Int.random(in: 1...5) }
+                    else if biome.isRiver { kind = roll < 60 ? .salmon : .squid; n = Int.random(in: 1...4) }
+                    else { kind = roll < 55 ? .cod : (roll < 80 ? .squid : .dolphin); n = kind == .dolphin ? Int.random(in: 1...2) : Int.random(in: 3...6) }
+                } else if biome == .lushCaves { kind = .axolotl; n = Int.random(in: 1...2) }
+                if let k = kind {
+                    for _ in 0..<n {
+                        let q = V3(Float(x) + Float.random(in: 0...1), Float(y), Float(z) + Float.random(in: 0...1))
+                        mobs.append(Mob(k, at: q))
+                    }
+                }
+            }
+        }
+        // Bats: dark caves below sea level.
+        if mobs.filter({ $0.kind == .bat }).count < 5 {
+            let y = Int.random(in: max(1, YOFF - 60)...(YOFF + 60))
+            if w.block(x, y, z) == AIR && w.lightAt(x, y, z).sky == 0 && w.lightAt(x, y, z).block < 4 && Int.random(in: 0..<4) == 0 {
+                mobs.append(Mob(.bat, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)))
+            }
+        }
+        // Phantoms: at night, over a player who hasn't slept for 3+ days.
+        if game.survival && game.daylight < 0.3 && game.timeSinceRest > 3600 && Float.random(in: 0..<1) < Float(game.timeSinceRest - 3600) / 3600 * 0.02,
+           mobs.filter({ $0.kind == .phantom }).count < 4, game.skyExposed(Int(floor(pp.x)), Int(floor(pp.y + 1)), Int(floor(pp.z))), pp.y > Float(YOFF + SEA) {
+            for _ in 0..<Int.random(in: 1...3) {
+                mobs.append(Mob(.phantom, at: pp + V3(Float.random(in: -10...10), 20 + Float.random(in: 0...14), Float.random(in: -10...10))))
+            }
         }
     }
 
@@ -1283,6 +1410,8 @@ final class MobManager {
         var kind: MobKind = roll < 95 ? .zombie : (roll < 195 ? .skeleton : (roll < 295 ? .creeper : (roll < 395 ? .spider : (roll < 405 ? .enderman : .witch))))
         let b = w.gen.column(x, z).biome
         if kind == .zombie && (b == .desert) && Float.random(in: 0..<1) < 0.8 && l.sky > 0 { kind = .husk }
+        if kind == .zombie && Float.random(in: 0..<1) < 0.05 { kind = .zombieVillager }
+        if kind == .skeleton && (b == .swamp || b == .mangroveSwamp) && Float.random(in: 0..<1) < 0.3 { kind = .bogged }
         if kind == .skeleton && [.snowyPlains, .iceSpikes, .frozenRiver, .snowySlopes, .frozenPeaks, .jaggedPeaks].contains(b) && Float.random(in: 0..<1) < 0.8 && l.sky > 0 { kind = .stray }
         if Blocks.isLiquid(w.block(x, y, z)) { return }
         let m = Mob(kind, at: spawnPos)

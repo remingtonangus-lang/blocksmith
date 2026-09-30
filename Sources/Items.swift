@@ -213,6 +213,20 @@ final class ItemRegistry {
         item("goat_horn", "Goat Horn", "bone", 0xC8C0A8, stack: 1)
         item("armadillo_scute", "Armadillo Scute", "leather", 0xA06A58)
         item("ominous_bottle", "Ominous Bottle", "bucket", 0x2A5A4A, ["c": 0x0B6138])
+        for (n, d, c) in [("cod_bucket", "Bucket of Cod", 0xB8A58A), ("salmon_bucket", "Bucket of Salmon", 0xC0504A),
+                          ("tropical_fish_bucket", "Bucket of Tropical Fish", 0xE87A2A), ("pufferfish_bucket", "Bucket of Pufferfish", 0xE8C040),
+                          ("axolotl_bucket", "Bucket of Axolotl", 0xF09AB0), ("tadpole_bucket", "Bucket of Tadpole", 0x5A4A30)] as [(String, String, UInt32)] {
+            item(n, d, "bucket", 0xC8C8C8, ["c": c], stack: 1)
+        }
+        item("warped_fungus_on_a_stick", "Warped Fungus on a Stick", "fishing_rod", 0x6B4F2C, ["s": 0xDDDDDD, "c": 0x2A9A8A], stack: 1)
+        for (c, d) in BlockRegistry.colors {
+            item("\(c)_dye", "\(d) Dye", "dust", BlockRegistry.colorHex[c] ?? 0xFFFFFF)
+        }
+        item("leather_horse_armor", "Leather Horse Armor", "chestplate", 0xA0592B, stack: 1)
+        item("iron_horse_armor", "Iron Horse Armor", "chestplate", 0xE0E0E0, stack: 1)
+        item("golden_horse_armor", "Golden Horse Armor", "chestplate", 0xF8D84A, stack: 1)
+        item("diamond_horse_armor", "Diamond Horse Armor", "chestplate", 0x4AEDD9, stack: 1)
+        item("lead", "Lead", "string", 0xB08A5A)
 
         // Food (hunger, saturation as in the reference game)
         food("apple", "Apple", "apple_shape", 0xD11F1A, 4, 2.4, ["a": 0x5A3D1F])
