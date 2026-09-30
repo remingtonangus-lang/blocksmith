@@ -108,6 +108,18 @@ enum Snd: Hashable {
         }
     }
 
+    // How far away a sound can be heard (blocks); most sounds carry 16 blocks at full volume.
+    var range: Float {
+        switch self {
+        case .explode, .fireworkBlastLarge, .lightning, .wardenSonicBoom, .crystalBreak, .endPortalOpen: return 64
+        case .raidHorn, .goatHorn, .bellResonate: return 96
+        case .dragonGrowl, .dragonDeath, .witherSpawn, .witherDeath, .dragonFlap: return 128
+        case .thunder: return 160
+        case .bell, .fireworkBlast, .fireworkLaunch, .wardenRoar, .wardenEmerge, .sculkShriek, .mob(.ghast, _), .mobWailer, .beaconActivate: return 32
+        default: return 16
+        }
+    }
+
     // Seamless loops are rendered with their tail cross-faded into their head.
     var isLoop: Bool {
         switch self {

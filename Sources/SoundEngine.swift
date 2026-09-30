@@ -217,7 +217,7 @@ final class SoundEngine {
         if gain <= 0.001 { return }
         if let p = pos {
             let d = simd_length(p - eye)
-            let range = 16 * max(1, v)
+            let range = max(16 * max(1, v), s.range)
             if d > range { return }
         }
         variant += 1
@@ -239,7 +239,7 @@ final class SoundEngine {
         // Voice allocation: a free voice, else the quietest one that ends soonest.
         let now = CFAbsoluteTimeGetCurrent()
         let d = simd_length(p - eye)
-        let loud = gain * max(0, 1 - d / (16 * max(1, v)))
+        let loud = gain * max(0, 1 - d / max(16 * max(1, v), s.range))
         var i = -1
         for k in 0..<spatial.count {
             let c = (nextSpatial + k) % spatial.count
@@ -258,7 +258,7 @@ final class SoundEngine {
         spatialEnd[i] = now + Double(buf.frameLength) / SoundBank.rate
         spatialGain[i] = loud
         let node = spatial[i]
-        let range = 16 * max(1, v)
+        let range = max(16 * max(1, v), s.range)
         spatialPos[i] = p; spatialRange[i] = range
         node.position = point(p, range: range)
         node.volume = min(1.5, gain)
