@@ -481,6 +481,23 @@ enum MobTests {
         mm.mobs.removeAll()
         game.player.pos = pos
 
+        // Bees: a bee with nectar enters its hive (honey +1) and comes back out by day after 2 minutes.
+        game.time = 0.25 * DAY_LENGTH
+        a.set(5, 0, 5, Blocks.id("beehive"))
+        let hp = IVec3(a.cx + 5, a.gy, a.cz + 5)
+        let bee = Mob(.bee, at: V3(Float(hp.x) + 0.5, Float(hp.y) + 0.6, Float(hp.z) + 0.5))
+        bee.hive = hp; bee.nectar = true; bee.jobTimer = 5
+        mm.mobs.append(bee)
+        _ = bee.beeAI(0.05, game)
+        let honey = Int(world.block(hp.x, hp.y, hp.z) - Blocks.groupBase[Int(world.block(hp.x, hp.y, hp.z))])
+        check(bee.health < -1000 && mm.hives[hp]?.count == 1 && honey == 1, "bee enters hive with nectar (+1 honey)",
+              "inside \(mm.hives[hp]?.count ?? 0), honey \(honey)")
+        mm.mobs.removeAll()
+        mm.hiveTick(125, game)
+        check(mm.hives[hp] == nil && mm.mobs.contains { $0.kind == .bee }, "bee leaves the hive by day")
+        mm.mobs.removeAll()
+        mm.hives.removeAll()
+
         // Wandering trader with two llamas.
         game.spawnWanderingTrader()
         let traders = mm.mobs.filter { $0.kind == .wanderingTrader }.count, llamas = mm.mobs.filter { $0.kind == .traderLlama }.count
