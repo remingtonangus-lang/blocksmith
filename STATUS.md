@@ -95,7 +95,7 @@ B close, RS scroll creative.
 - Both modes: textured sun that reddens near the horizon, a moon with 8 phases (one per day), translucent rain/snow,
   lightning with a soft glow, blue-tinted moonlight, branching block-breaking cracks.
 - Harness: `--underwater`, `--crack <0..1>`, `--fast`; shots sunset_fast, sunset_sun, lake, lake_glint, underwater, crack.
-- CI publishes session-branch snapshots to `ci-snaps-<branch>` (slashes -> dashes); main and the integration branch keep `ci-snaps`.
+
 
 ## Known gaps / decisions
 - Save format changed with the engine rework (chunks3/, name-paletted); worlds from the 8-bit engine start fresh terrain.
