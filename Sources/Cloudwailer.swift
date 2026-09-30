@@ -128,10 +128,9 @@ extension Mob {
         let wet = Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.4)), Int(floor(pos.z))))] == 1
         attackCooldown -= dt
         if wet {
-            var target = g.player.look * (5.5 * max(0, inp.forward))
+            let target = g.player.look * (5.5 * max(0, inp.forward))
             if inp.jump && attackCooldown <= 0 { attackCooldown = 2; vel += g.player.look * 10 }
             vel += (target - vel) * min(1, dt * 2)
-            target = .zero
             g.applyEffect(.waterBreathing, amp: 0, seconds: 2)
         } else {
             vel.y -= 28 * dt
