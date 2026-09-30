@@ -38,9 +38,14 @@ extension MobKind {
 
 extension Mob {
     // Whether this mob may go after the player right now (updates the sight memory).
+    static let forgiving: Set<MobKind> = [.zombifiedPiglin, .wolf, .polarBear, .llama, .traderLlama, .enderman, .spider, .caveSpider,
+                                          .ironGolem, .panda, .goat, .dolphin, .bee]
+
     func senseTarget(_ g: Game, dist: Float, _ dt: Float) -> Bool {
         lockTime -= dt
         sightTimer -= dt
+        // Neutral mobs forget their anger half a minute after losing track of the player (reference).
+        if aggro && lockTime < -30 && Mob.forgiving.contains(kind) && !(kind == .wolf && tamed) { aggro = false }
         guard g.survival && g.alive else { lockTime = 0; return false }
         var range = kind.followRange
         if g.player.sneaking { range *= 0.8 }
