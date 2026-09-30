@@ -72,6 +72,8 @@ class Menu {
     func tick() {}
     func onClose() {}
     func buttonPressed(_ i: Int) {}
+    // B / Esc: return true to stay open (e.g. go back a page).
+    func backPressed() -> Bool { false }
     var capturesText: Bool { false }
     func typed(_ s: String) {}
 

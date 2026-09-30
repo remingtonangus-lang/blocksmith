@@ -116,6 +116,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let s = meta?.seed ?? seed ?? UInt64.random(in: 1...UInt64(Int64.max))
         let world = World(seed: s, device: device, save: save)
         game = Game(world: world, save: save, persistent: true)
+        let rd = UserDefaults.standard.integer(forKey: "renderDistance")
+        if rd >= 2 { world.renderDistance = rd }
         if let m = meta { game.apply(m) } else {
             game.player.pos = game.findSpawn()
             if let sv = survival { game.survival = sv }
@@ -189,7 +191,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         view.onEscape = { [weak self] in
             guard let self, let g = self.game else { return }
             if self.worldsPanel != nil { self.hideWorlds(); return }
-            if g.menu is PauseMenu { g.closeMenu() }
+            if let pm = g.menu as? PauseMenu { if !pm.backPressed() { g.closeMenu() } }
             else if g.menu != nil { g.closeMenu(); g.paused = false }
             else { g.paused = true }
         }
@@ -199,6 +201,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             case "fullscreen": self.toggleFS()
             case "quit": self.saveQuit()
             case "worlds": self.showWorlds()
+            case _ where id.hasPrefix("play:"): self.switchWorld(name: String(id.dropFirst(5)), seed: nil, survival: nil, difficulty: nil)
             case "newworld": self.switchWorld(name: "World\(Int.random(in: 100...999))", seed: nil, survival: self.game.survival, difficulty: self.game.difficulty)
             default: break
             }

@@ -716,6 +716,12 @@ final class Renderer: NSObject, MTKViewDelegate {
             let titleC = V4(0.25, 0.25, 0.25, 1)
             text(m.title, o.x + 8 * s, o.y + 6 * s, s, titleC, shadow: false)
             if m.showInventoryLabel { text("Inventory", o.x + 8 * s, o.y + Float(m.inventoryLabelY) * s, s, titleC, shadow: false) }
+            if game.padConnected || HudLayout.couch {
+                // Controller legend under the panel.
+                let legend = m is PauseMenu || m is AdvancementMenu ? "A select   X previous   B back"
+                    : "A take/place   X split   Y quick move   B close   LB/RB hotbar"
+                text(legend, floor((W - textWidth(legend, s)) / 2), min(H - 10 * s, o.y + ph + 4 * s), s)
+            }
             if let f = m as? FurnaceMenu {
                 // Flame (fuel left) and arrow (cook progress).
                 let fx = o.x + 57 * s, fy = o.y + 37 * s

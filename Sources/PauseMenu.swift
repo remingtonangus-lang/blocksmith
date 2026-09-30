@@ -3,7 +3,7 @@ import Foundation
 // In-game pause and options screens (drawn with the HUD, so a controller can drive them: D-pad /
 // stick to move, A to choose or step a setting forward, X to step it back, B to go back).
 final class PauseMenu: Menu {
-    enum Page { case main, options }
+    enum Page { case main, options, worlds }
     var page: Page = .main
     // (label, action id); settings show their current value in the label.
     var rows: [(String, String)] = []
@@ -22,7 +22,7 @@ final class PauseMenu: Menu {
             rows = [("Back to Game", "resume"), ("Options…", "options"), ("Advancements", "advancements"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Game.difficultyNames[g.difficulty])", "difficulty"),
-                    ("New World (random seed)", "newworld"), ("Worlds… (keyboard)", "worlds"),
+                    ("Load World…", "load"), ("New World (random seed)", "newworld"), ("Create World… (keyboard)", "worlds"),
                     ("Toggle Fullscreen", "fullscreen"), ("Save and Quit", "quit")]
         case .options:
             title = "Options"
@@ -32,6 +32,12 @@ final class PauseMenu: Menu {
                     ("Render Distance: \(g.world.renderDistance)", "rd"), ("GUI Scale: \(gui)", "gui"),
                     ("Couch Mode (TV): \(HudLayout.couch ? "On" : "Off")", "couch"), ("Volume: \(Int(g.volumeSetting * 100))%", "volume"),
                     ("Done", "back")]
+        }
+        case .worlds:
+            title = "Load World"
+            let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Blocksmith/Worlds")
+            let names = ((try? FileManager.default.contentsOfDirectory(atPath: base.path)) ?? []).filter { !$0.hasPrefix(".") }.sorted()
+            rows = names.prefix(10).map { ("Play \($0)", "play:" + $0) } + [("Back", "back")]
         }
         slots = []
         width = 220
@@ -60,6 +66,8 @@ final class PauseMenu: Menu {
         case "resume": g.closeMenu()
         case "options": page = .options
         case "back": page = .main
+        case "load": page = .worlds
+        case _ where id.hasPrefix("play:"): g.appAction?(id)
         case "advancements": g.closeMenu(); g.openMenu(AdvancementMenu(game: g))
         case "mode": g.toggleMode(); g.onModeChanged?(g.survival)
         case "difficulty": g.difficulty = step([0, 1, 2, 3], g.difficulty)
@@ -82,9 +90,14 @@ final class PauseMenu: Menu {
             let cur = g.menuCursor
             build()
             g.menuCursor = min(cur, slots.count - 1)
-            if id == "options" || id == "back" { g.menuCursor = 0 }
+            if id == "options" || id == "back" || id == "load" { g.menuCursor = 0 }
         }
     }
 
+    override func backPressed() -> Bool {
+        guard page != .main else { return false }
+        act("back", back: false)
+        return true
+    }
     override func onClose() { game.paused = false }
 }
