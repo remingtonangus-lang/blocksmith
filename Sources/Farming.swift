@@ -179,6 +179,16 @@ extension Game {
             swing = 1
             return true
         }
+        // Shears carve a pumpkin (face toward the clicked side) and drop 4 seeds.
+        if key == "shears" && bkey == "pumpkin" && t.normal.y == 0 {
+            let f = t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))
+            world.setBlock(t.hit.x, t.hit.y, t.hit.z, Blocks.id("carved_pumpkin") + BlockID(f))
+            drops.spawn(ItemStack(Items.id("pumpkin_seeds"), 4), at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5 + V3(Float(t.normal.x), 0, Float(t.normal.z)) * 0.6)
+            damageHeld(1)
+            sfx(.step(.plant), 1)
+            swing = 1
+            return true
+        }
         // Shovel: grass into a dirt path.
         if h.def.tool == .shovel && (b == GRASS || Blocks.key(b) == "podzol" || Blocks.key(b) == "coarse_dirt" || Blocks.key(b) == "mycelium")
             && t.normal.y == 1 && world.block(t.hit.x, t.hit.y + 1, t.hit.z) == AIR {
@@ -294,6 +304,7 @@ extension Game {
             return true
         }
         if m.kind == .villager && !m.baby { return openTrading(m) }
+        if startCure(m) { return true }
         if m.kind == .cow && key == "bucket" && !m.baby {
             consumeHeld()
             let rest = inventory.add(ItemStack(Items.id("milk_bucket"), 1))

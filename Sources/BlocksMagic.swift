@@ -37,6 +37,45 @@ extension BlockRegistry {
         for (n, d) in [("chipped_anvil", "Chipped Anvil"), ("damaged_anvil", "Damaged Anvil")] {
             model(n, d, [n], [Box(2, 0, 2, 14, 4, 14), Box(4, 4, 3, 12, 5, 13), Box(6, 5, 4, 10, 10, 12), Box(3, 10, 0, 13, 16, 16)], h: 5, req: true)
         }
+        // Mob heads: 4 floor facings (0-3) + 4 wall facings (4-7). Face texture on the facing side.
+        let heads: [(String, String, String)] = [("skeleton_skull", "Skeleton Skull", "skull_skeleton"), ("wither_skeleton_skull", "Wither Skeleton Skull", "skull_wither"),
+                                                 ("zombie_head", "Zombie Head", "head_zombie"), ("creeper_head", "Creeper Head", "head_creeper"),
+                                                 ("piglin_head", "Piglin Head", "head_piglin"), ("dragon_head", "Dragon Head", "head_dragon"),
+                                                 ("player_head", "Player Head", "head_player")]
+        for (n, disp, t) in heads {
+            for st in 0..<8 {
+                let f = st % 4
+                let faceIdx = [5, 4, 1, 0][f]            // facing north shows its face on -Z, south +Z, west -X, east +X
+                var tex = [UInt16](repeating: Tex.id(t + "_side"), count: 6)
+                tex[faceIdx] = Tex.id(t + "_face")
+                tex[2] = Tex.id(t + "_top")
+                let big = n == "dragon_head" || n == "piglin_head"
+                let r = big ? 5 : 4
+                var b: Box
+                if st < 4 { b = Box(8 - r, 0, 8 - r, 8 + r, 2 * r, 8 + r) }
+                else {
+                    // On a wall: pushed against the side opposite the facing.
+                    switch f {
+                    case 0: b = Box(8 - r, 4, 16 - 2 * r, 8 + r, 4 + 2 * r, 16)
+                    case 1: b = Box(8 - r, 4, 0, 8 + r, 4 + 2 * r, 2 * r)
+                    case 2: b = Box(16 - 2 * r, 4, 8 - r, 16, 4 + 2 * r, 8 + r)
+                    default: b = Box(0, 4, 8 - r, 2 * r, 4 + 2 * r, 8 + r)
+                    }
+                }
+                b.tex = tex
+                var d = BlockDef(st == 0 ? n : "\(n)[\(st)]", disp)
+                d.tex = [t + "_side"]; d.render = .model; d.layer = .cutout; d.opaque = false; d.boxes = [b]; d.hardness = 1
+                d.sound = .stone; d.skyStop = false; d.group = n; d.hidden = st != 0; d.shape = "skull"
+                add(d)
+            }
+        }
+        // Carved pumpkin / jack o'lantern (facing the player who placed them).
+        for (n, disp, face, emit) in [("carved_pumpkin", "Carved Pumpkin", "carved_pumpkin_face", UInt8(0)), ("jack_o_lantern", "Jack o'Lantern", "jack_o_lantern_face", UInt8(15))] {
+            var d = BlockDef(n, disp)
+            d.tex = ["pumpkin_side", "pumpkin_side", "pumpkin_top", "pumpkin_top", "pumpkin_side", "pumpkin_side"]
+            d.hardness = 1; d.tool = .axe; d.sound = .wood; d.emit = emit
+            addFacing(d, front: face)
+        }
         // Cauldrons holding water (levels 1-3) and lava.
         let walls = [Box(0, 3, 0, 16, 5, 16), Box(0, 5, 0, 2, 16, 16), Box(14, 5, 0, 16, 16, 16), Box(2, 5, 0, 14, 16, 2),
                      Box(2, 5, 14, 14, 16, 16), Box(0, 0, 0, 4, 3, 2), Box(0, 0, 0, 2, 3, 4), Box(12, 0, 0, 16, 3, 2), Box(14, 0, 0, 16, 3, 4),
@@ -89,6 +128,42 @@ extension TextureGen {
                 return crack ? hex(0x1A1A1A) : hex(0x3E3E42, 0.85 + 0.2 * r(x, y, 633))
             }
         }
+        // Heads: pixel faces (original art).
+        func headTex(_ base: UInt32, _ face: [String], _ colors: [Character: UInt32], salt: Int) -> (Painter, Painter) {
+            let rows = face.map { Array($0) }
+            let side: Painter = { x, y in hex(base, 0.85 + 0.2 * r(x / 2, y / 2, salt)) }
+            let front: Painter = { x, y in
+                let fx = x / 2, fy = y / 2
+                if fy < rows.count, fx < rows[fy].count, let c = colors[rows[fy][fx]] { return hex(c) }
+                return side(x, y)
+            }
+            return (side, front)
+        }
+        let faces: [(String, UInt32, [String], [Character: UInt32])] = [
+            ("skull_skeleton", 0xC8C8C4, ["........", "........", ".##..##.", ".##..##.", "........", "...##...", ".#.##.#.", "........"], ["#": 0x2A2A2A]),
+            ("skull_wither", 0x2E2E30, ["........", "........", ".##..##.", ".##..##.", "........", "...##...", ".#.##.#.", "........"], ["#": 0x0A0A0A]),
+            ("head_zombie", 0x5A8A4A, ["........", "........", ".##..##.", ".#o..o#.", "........", "..####..", "..#..#..", "........"], ["#": 0x2A4A2A, "o": 0x1A1A1A]),
+            ("head_creeper", 0x5AB84A, ["........", "........", ".##..##.", ".##..##.", "...##...", "..####..", "..####..", "..#..#.."], ["#": 0x0A1A0A]),
+            ("head_piglin", 0xE8A090, ["........", "........", ".##..##.", ".w....w.", "..pppp..", "..p##p..", "..pppp..", "........"], ["#": 0x5A2A2A, "w": 0xF8F8F8, "p": 0xF0B8A8]),
+            ("head_dragon", 0x1A1A1E, ["........", ".m....m.", "........", ".pp..pp.", "........", "########", "#......#", "########"], ["#": 0x2A2A30, "m": 0xB050E0, "p": 0xE070F8]),
+            ("head_player", 0xB8805A, ["########", "#......#", "........", ".ww..ww.", ".wb..bw.", "...ee...", "..mmmm..", "........"], ["#": 0x4A3020, "w": 0xF8F8F8, "b": 0x3A4AA8, "e": 0x9A6040, "m": 0x6A3A2A]),
+        ]
+        for (i, f) in faces.enumerated() {
+            let (side, front) = headTex(f.1, f.2, f.3, salt: 810 + i)
+            p[f.0 + "_side"] = side
+            p[f.0 + "_top"] = f.0 == "head_player" ? { x, y in hex(0x4A3020, 0.85 + 0.2 * r(x / 2, y / 2, 820)) } : side
+            p[f.0 + "_face"] = front
+        }
+        func carved(_ lit: Bool) -> Painter {
+            { x, y in
+                let eye = (y >= 4 && y <= 6) && ((x >= 3 && x <= 5) || (x >= 10 && x <= 12)) && (y - 4 <= min(abs(x - 4), abs(x - 11)) + 1)
+                let mouth = (y >= 9 && y <= 11) && x >= 3 && x <= 12 && !((y == 9) && (x == 6 || x == 9)) && !(y == 11 && (x == 3 || x == 12))
+                if eye || mouth { return lit ? hex(0xF8D040, 0.9 + 0.1 * r(x, y, 830)) : hex(0x3A2408) }
+                return hex(x % 4 == 0 ? 0xB86A0E : 0xE38A1D, 0.9 + 0.15 * r(x, y, 467))
+            }
+        }
+        p["carved_pumpkin_face"] = carved(false)
+        p["jack_o_lantern_face"] = carved(true)
         p["cauldron_water"] = { x, y in hex(0x3F76E4, 0.9 + 0.15 * r(x / 2, y, 808)) }
         Potions.painters(&p)
         effectPainters(&p)

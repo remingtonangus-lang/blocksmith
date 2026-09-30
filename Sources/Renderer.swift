@@ -353,6 +353,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.projectiles.write(&wr, eye: eye, world: game.world, daylight: daylight)
                 game.tnts.write(&wr, eye: eye, world: game.world, daylight: daylight)
                 game.writeEndEntities(&wr, eye: eye, right: right, up: -up)
+                game.writeFangs(&wr, eye: eye)
                 game.particles.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight)
                 let nItems = wr.n
                 if let m = game.mining, game.mineProgress > 0 {
@@ -604,13 +605,20 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
             return v
         }
-        if let d = game.mobs.mobs.first(where: { $0.kind == .enderDragon }), game.menu == nil {
-            // Boss bar.
-            let bw = 182 * s, bx = (W - bw) / 2, by = 12 * s
-            let name = "Ender Dragon"
-            text(name, (W - textWidth(name, s)) / 2, by - 9 * s, s)
-            rect(bx, by, bw, 5 * s, V4(0.25, 0.05, 0.3, 1))
-            rect(bx, by, bw * max(0, Float(d.health)) / 200, 5 * s, V4(0.9, 0.3, 0.95, 1))
+        if game.menu == nil {
+            // Boss bars: ender dragon (pink), wither (purple), raid (red).
+            var bars: [(String, Float, V4)] = []
+            if let d = game.mobs.mobs.first(where: { $0.kind == .enderDragon }) { bars.append(("Ender Dragon", Float(d.health) / 200, V4(0.9, 0.3, 0.95, 1))) }
+            for wi in game.mobs.mobs where wi.kind == .wither && simd_length(wi.pos - game.player.pos) < 64 {
+                bars.append((wi.customName ?? "Wither", Float(wi.health) / 300, V4(0.6, 0.2, 0.85, 1)))
+            }
+            if let r = game.raidBar { bars.append((r.0, r.1, V4(0.85, 0.15, 0.15, 1))) }
+            for (i, b) in bars.enumerated() {
+                let bw = 182 * s, bx = (W - bw) / 2, by = 12 * s + Float(i) * 19 * s
+                text(b.0, (W - textWidth(b.0, s)) / 2, by - 9 * s, s)
+                rect(bx, by, bw, 5 * s, V4(b.2.x * 0.3, b.2.y * 0.3, b.2.z * 0.3, 1))
+                rect(bx, by, bw * max(0, min(1, b.1)), 5 * s, b.2)
+            }
         }
 
         func frame(_ x: Float, _ y: Float, _ w: Float, _ h: Float, _ b: Float, _ c: V4) {
@@ -827,6 +835,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                         lines.append((l, t.effects.isEmpty ? V4(0.67, 0.67, 0.67, 1) : (bad ? V4(1, 0.33, 0.33, 1) : V4(0.33, 0.33, 1, 1))))
                     }
                 }
+                if st.def.name == "ominous_bottle" { lines.append(("Bad Omen " + Effect.roman(st.damage + 1) + " (100:00)", V4(0.33, 0.33, 1, 1))) }
                 if st.def.durability > 0 && st.damage > 0 {
                     lines.append(("Durability: \(st.def.durability - st.damage) / \(st.def.durability)", V4(0.8, 0.8, 0.8, 1)))
                 }

@@ -269,6 +269,23 @@ enum Snapshot {
                 game.mobs.mobs.append(m)
             }
         }
+        if let list = arg("--spawn") {
+            // Mobs in a row 6 blocks in front of the camera, facing it ("kind" or "kind:profession").
+            let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)), r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))
+            let names = list.split(separator: ",").map(String.init)
+            for (i, n) in names.enumerated() {
+                let parts = n.split(separator: ":").map(String.init)
+                guard let k = MobKind.named(parts[0]) else { print("unknown mob \(n)"); continue }
+                let p = pos + f * 6 + r * (Float(i) - Float(names.count - 1) / 2) * 2.2
+                let x = Int(floor(p.x)), z = Int(floor(p.z))
+                let m = Mob(k, at: V3(Float(x) + 0.5, Float(world.topY(x, z) + 1), Float(z) + 0.5))
+                m.yaw = game.player.yaw
+                if parts.count > 1 { var d = VillagerData(); d.profession = parts[1]; m.villager = d }
+                if k == .wither { m.phase = 0; m.pos.y += 2 }
+                if k == .evoker { m.spellTimer = 4.5 }
+                game.mobs.mobs.append(m)
+            }
+        }
         if let list = arg("--place") {
             // Blocks in a row 4 blocks in front of the camera on a smooth stone strip ("name" or "name:state").
             let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)), r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))

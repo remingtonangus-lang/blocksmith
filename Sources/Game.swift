@@ -82,6 +82,13 @@ final class Game {
     weak var riding: Mob?          // the minecart the player sits in
     var riderPush: Float = 0
     var clouds: [AcidCloud] = []
+    var fangs: [Fang] = []         // evoker fangs
+    var blocking = false           // holding a raised shield
+    var lastPearl: Double = -10
+    var raid: Raid?
+    var raidOmenAt: V3?
+    var patrolTimer: Float = 600
+    private var raidTimer: Float = 0
     var contactTimer: Float = 0
     private var lavaTimer: Double = 0
     private var fireTimer: Double = 0
@@ -725,6 +732,14 @@ final class Game {
             bowCharge = 0
         }
         if useNow && throwHeld() { return }
+        if useNow {
+            switch Items.key(h.item) {
+            case "snowball": throwItem(.snowball); return
+            case "egg": throwItem(.egg); return
+            case "ender_pearl" where clock - lastPearl > 1: lastPearl = clock; throwItem(.pearl); return
+            default: break
+            }
+        }
         let alwaysEdible = ["golden_apple", "enchanted_golden_apple", "chorus_fruit", "honey_bottle", "suspicious_stew"]
         let hk = Items.key(h.item)
         let canEat = h.def.food != nil && survival && (hunger < 20 || alwaysEdible.contains { hk.hasPrefix($0) })
@@ -800,7 +815,7 @@ final class Game {
             if useNow && placeBed(h.def, at: at) { sfx(.place(.wood), 1); consumeHeld(); swing = 1 }
             return
         }
-        if key == "furnace" || key == "chest" {
+        if key == "furnace" || key == "chest" || key == "carved_pumpkin" || key == "jack_o_lantern" {
             id = blockItem + BlockID(BlockRegistry.facingToward(yaw: player.yaw))
         }
         let fracY = hitPoint(t).y - Float(t.hit.y)
@@ -826,6 +841,13 @@ final class Game {
             let f = t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))
             id = blockItem + BlockID(f)
         case "lantern": id = blockItem + (t.normal.y == -1 ? 1 : 0)
+        case "skull":
+            if t.normal.y == 0 {
+                let f = t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))
+                id = blockItem + BlockID(4 + f)
+            } else {
+                id = blockItem + BlockID(facing)
+            }
         default: break
         }
         let rsShapes: Set<String> = ["lever", "button", "plate", "repeater", "comparator", "observer", "piston", "dispenser", "hopper", "daylight"]
@@ -854,6 +876,8 @@ final class Game {
             if key == "hopper" { world.blockEntities[at] = BlockEntity(.hopper) }
             if key == "brewing_stand" { world.blockEntities[at] = BlockEntity(.brewing) }
             if Rails.isRail(id) { Rails.autoShape(world, at) }
+            if key == "wither_skeleton_skull" { trySummonWither(at) }
+            if key == "carved_pumpkin" || key == "jack_o_lantern" { trySummonGolem(at) }
             if key.hasSuffix("leaves") { placedLeaves.insert(at) }
             sfx(.place(soundMat(id)), at: V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5)
             swing = 1
@@ -1052,10 +1076,11 @@ final class Game {
             if m.kind == .blaze && m.killedByPlayer && r < 0.5 { drops.spawn(ItemStack(Items.id("blaze_rod"), 1), at: at) }
             if m.kind == .magmaCube && m.slimeSize > 1 && r < 0.25 { drops.spawn(ItemStack(Items.id("magma_cream"), 1), at: at) }
             if m.kind == .zombifiedPiglin && m.killedByPlayer && r < 0.025 { drops.spawn(ItemStack(Items.id("gold_ingot"), 1), at: at) }
-            if m.kind == .witherSkeleton && m.killedByPlayer && r < 0.025, Items.has("wither_skeleton_skull") {
+            if m.kind == .witherSkeleton && m.killedByPlayer && r < 0.025 + 0.01 * Float(looting), Items.has("wither_skeleton_skull") {
                 drops.spawn(ItemStack(Items.id("wither_skeleton_skull"), 1), at: at)
             }
         }
+        captainDied(m)
         let xp = m.sized ? m.slimeSize : m.spec.xp
         if m.killedByPlayer && !m.baby { addXP(xp + (m.kind.hostile ? 0 : Int.random(in: 0...1))) }
         particles.explosion(at: m.pos + V3(0, m.height / 2, 0), power: 0.5)
@@ -1347,6 +1372,9 @@ final class Game {
         hazardTick(Float(dt))
         effectTick(Float(dt))
         cloudTick(Float(dt))
+        fangTick(Float(dt))
+        raidTimer += Float(dt)
+        if raidTimer >= 1 { raidTick(raidTimer); patrolTick(raidTimer); raidTimer = 0 }
         if !world.pendingMobs.isEmpty {
             for (name, p) in world.pendingMobs {
                 guard let k = MobKind.named(name) else { continue }

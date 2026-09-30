@@ -132,6 +132,10 @@ extension Game {
         if key == "honey_bottle" {
             foodEffects(key)
         }
+        if key == "ominous_bottle" {
+            applyEffect(.badOmen, amp: min(4, max(0, h.damage)), seconds: 6000)
+            consumeHeld()
+        }
     }
 
     // Throws the held splash / lingering potion or bottle o' enchanting.

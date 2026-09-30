@@ -498,7 +498,7 @@ final class BlockRegistry {
         tnt.flammable = true; tnt.resistance = 0
         add(tnt)
         // Beds: foot + head parts, 4 facings each (facing = direction from foot to head).
-        for (n, d) in BlockRegistry.colors where n == "red" || n == "white" || n == "blue" || n == "black" || n == "yellow" || n == "green" {
+        for (n, d) in BlockRegistry.colors {
             for part in ["foot", "head"] {
                 var b = BlockDef(part == "foot" ? "\(n)_bed" : "\(n)_bed_head", "\(d) Bed")
                 b.tex = ["\(n)_bed_side", "\(n)_bed_side", part == "foot" ? "\(n)_bed_top_foot" : "\(n)_bed_top_head", "oak_planks", "\(n)_bed_side", "\(n)_bed_side"]

@@ -17,6 +17,9 @@ final class Arrow {
     init(_ p: V3, _ v: V3, fromPlayer: Bool, damage: Float) { pos = p; vel = v; self.fromPlayer = fromPlayer; self.damage = damage }
 }
 
+// What a Fireball object actually is: fire charges, wither skulls, or thrown items.
+enum Thrown { case fire, witherSkull, blueSkull, snowball, egg, pearl }
+
 // Ghast (big, explosive) and blaze (small, incendiary) fireballs: straight flight, can be punched back.
 final class Fireball {
     var pos: V3
@@ -27,6 +30,8 @@ final class Fireball {
     var dead = false
     var dragon = false             // ender dragon fireball: leaves a cloud of acid instead of exploding
     var potion: ItemID = 0         // thrown splash / lingering potion or bottle o' enchanting (item)
+    var kind: Thrown = .fire
+    weak var shooter: Mob?
     init(_ p: V3, _ v: V3, big: Bool, byPlayer: Bool) { pos = p; vel = v; self.big = big; self.byPlayer = byPlayer }
 }
 
@@ -59,7 +64,7 @@ final class ProjectileManager {
         for f in fireballs {
             f.age += dt
             if f.age > 10 { f.dead = true; continue }
-            if f.potion > 0 { f.vel.y -= 20 * dt }
+            if f.potion > 0 || f.kind == .snowball || f.kind == .egg || f.kind == .pearl { f.vel.y -= 20 * dt; f.vel *= expf(-0.2 * dt) }
             let step = f.vel * dt
             let len = simd_length(step)
             let dir = step / max(len, 1e-5)
@@ -73,7 +78,8 @@ final class ProjectileManager {
                     hitT = h.0; hitPlayer = true
                 }
             }
-            if let h = g.mobs.raycast(f.pos, dir, maxDist: len), h.1 < hitT, f.byPlayer || (h.0.kind != .blaze && h.0.kind != .ghast && h.0.kind != .enderDragon && h.0.kind != .endCrystal) {
+            if let h = g.mobs.raycast(f.pos, dir, maxDist: len), h.1 < hitT, h.0 !== f.shooter, !(f.kind == .snowball && h.0.kind == .snowGolem),
+               f.byPlayer || (h.0.kind != .blaze && h.0.kind != .ghast && h.0.kind != .enderDragon && h.0.kind != .endCrystal && !(f.kind != .fire && h.0.kind == .wither)) {
                 hitT = h.1; hitMob = h.0; hitPlayer = false
             }
             var blockT = Float.greatestFiniteMagnitude
@@ -91,6 +97,10 @@ final class ProjectileManager {
                 f.dead = true
                 if f.potion > 0 {
                     g.potionImpact(f.potion, at: at, direct: hitMob, hitPlayer: hitPlayer)
+                    continue
+                }
+                if f.kind != .fire {
+                    g.thrownImpact(f, at: at, mob: hitMob, player: hitPlayer, block: blockHit)
                     continue
                 }
                 if hitPlayer {
@@ -111,7 +121,7 @@ final class ProjectileManager {
                 continue
             }
             f.pos += step
-            if Float.random(in: 0..<1) < dt * 30 { g.particles.smoke(at: f.pos) }
+            if (f.kind == .fire || f.kind == .witherSkull || f.kind == .blueSkull) && Float.random(in: 0..<1) < dt * 30 { g.particles.smoke(at: f.pos) }
         }
         fireballs.removeAll { $0.dead }
     }
@@ -202,6 +212,18 @@ final class ProjectileManager {
             let toEye = simd_normalize(-c)
             let side = simd_normalize(simd_cross(toEye, V3(0, 1, 0)) + V3(1e-4, 0, 0))
             let up = simd_cross(side, toEye)
+            if f.kind != .fire {
+                let layer: Int
+                switch f.kind {
+                case .snowball: layer = Items.texLayer(Items.id("snowball")) ?? fl
+                case .egg: layer = Items.texLayer(Items.id("egg")) ?? fl
+                case .pearl: layer = Items.texLayer(Items.id("ender_pearl")) ?? fl
+                default: layer = Int(Tex.id(f.kind == .blueSkull ? "skull_skeleton_face" : "skull_wither_face"))
+                }
+                let tint = f.kind == .blueSkull ? V3(0.6, 0.8, 1.4) : V3(1, 1, 1)
+                wr.sprite(center: c, half: f.kind == .witherSkull || f.kind == .blueSkull ? 0.25 : 0.15, right: side, up: up, layer: layer, light: 1, tint: tint)
+                continue
+            }
             if f.potion > 0 {
                 wr.sprite(center: c, half: 0.2, right: side, up: up, layer: Items.texLayer(f.potion) ?? fl, light: 1, tint: V3(1, 1, 1))
                 if case let (ol, col)? = Items.overlayLayer(f.potion) {

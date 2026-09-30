@@ -6,7 +6,7 @@ import simd
 
 struct MobVert { var pos: V4; var color: V4; var local: V4 } // pos.w = pattern id, color.a = shade
 
-enum Behavior { case passive, melee, ranged, creeper, spider, enderman, slime, neutral, piglin, ghast, blaze, dragon, crystal, shulker, villager, golem, witch, vehicle }
+enum Behavior { case passive, melee, ranged, creeper, spider, enderman, slime, neutral, piglin, ghast, blaze, dragon, crystal, shulker, villager, golem, witch, vehicle, wither, evoker, vex, ravager, snowGolem }
 
 enum MobKind: Int, CaseIterable {
     case cow, sheep, chicken, pig, zombie, skeleton, creeper, spider, enderman, slime
@@ -15,6 +15,7 @@ enum MobKind: Int, CaseIterable {
     case villager, ironGolem
     case husk, stray, drowned, caveSpider, witch, pillager, vindicator
     case minecart
+    case wither, snowGolem, evoker, vex, ravager, zombieVillager
 
     struct Spec {
         var name: String
@@ -99,11 +100,23 @@ enum MobKind: Int, CaseIterable {
                                       drops: [("emerald", 0, 1)], xp: 5, call: .mobVillager)
         case .silverfish: return Spec(name: "Silverfish", halfW: 0.2, height: 0.3, health: 8, speed: 2.5, behavior: .melee, attack: 1,
                                       drops: [], xp: 5, call: .mobSpider)
+        case .wither: return Spec(name: "Wither", halfW: 0.45, height: 3.5, health: 300, speed: 6, behavior: .wither,
+                                  drops: [("nether_star", 1, 1)], xp: 50, call: .mobWither, fireImmune: true, flying: true)
+        case .snowGolem: return Spec(name: "Snow Golem", halfW: 0.35, height: 1.9, health: 4, speed: 2.2, behavior: .snowGolem,
+                                     drops: [("snowball", 0, 15)], xp: 0, call: .step(.snow))
+        case .evoker: return Spec(name: "Evoker", halfW: 0.3, height: 1.95, health: 24, speed: 2.5, behavior: .evoker,
+                                  drops: [("totem_of_undying", 1, 1), ("emerald", 0, 1)], xp: 10, call: .mobVillager)
+        case .vex: return Spec(name: "Vex", halfW: 0.2, height: 0.8, health: 14, speed: 6, behavior: .vex, attack: 9,
+                               drops: [], xp: 3, call: .mobVex, flying: true)
+        case .ravager: return Spec(name: "Ravager", halfW: 0.98, height: 2.2, health: 100, speed: 3, behavior: .ravager, attack: 12,
+                                   drops: [("saddle", 1, 1)], xp: 20, call: .mobRavager)
+        case .zombieVillager: return Spec(name: "Zombie Villager", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
+                                          burnsInSun: true, drops: [("rotten_flesh", 0, 2)], xp: 5, call: .mobZombie)
         case .witherSkeleton: return Spec(name: "Wither Skeleton", halfW: 0.35, height: 2.4, health: 20, speed: 2.5, behavior: .melee, attack: 8,
                                           drops: [("coal", 0, 1), ("bone", 0, 2)], xp: 5, call: .mobSkeleton, fireImmune: true)
         }
     }
-    var hostile: Bool { spec.behavior != .passive && spec.behavior != .villager && spec.behavior != .golem && spec.behavior != .vehicle }
+    var hostile: Bool { spec.behavior != .passive && spec.behavior != .villager && spec.behavior != .golem && spec.behavior != .vehicle && spec.behavior != .snowGolem }
     var key: String { spec.name.lowercased().replacingOccurrences(of: " ", with: "_") }
     static func named(_ n: String) -> MobKind? { allCases.first { $0.key == n } }
     var call: Snd { spec.call }
@@ -167,6 +180,14 @@ final class Mob {
     var armorTier = 0               // horse / wolf armour
     var chested = false
     var raider = false              // part of a raid
+    var breakTimer: Float = 0       // wither: breaks surrounding blocks when this runs out
+    var lifeSpan: Float = 1e9       // vex: seconds before it starts to wither away
+    var spellTimer: Float = 2       // evoker: next spell
+    var vexCooldown: Float = 0
+    var stun: Float = 0             // ravager: stunned by a shield block, then roars
+    var playerBuilt = false         // iron golem built by the player (never attacks them)
+    var cureTimer: Float = 0        // zombie villager being cured
+    weak var mount: Mob?            // rider (raid ravager riders)
     var captain = false             // raid / patrol captain (banner)
     var jobTimer: Float = Float.random(in: 0...5)
 
@@ -232,6 +253,9 @@ final class Mob {
         if kind == .endCrystal { updateCrystal(dt, g); return }
         if kind == .shulker { updateShulker(dt, g); return }
         if kind == .minecart { updateMinecart(dt, g); return }
+        if kind == .wither { updateWither(dt, g); return }
+        if cureTick(dt, g) { return }
+        if kind == .vex { updateVex(dt, g); return }
 
         let feetBlock = w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))
         let inWater = Blocks.isLiquid(feetBlock)
@@ -341,8 +365,11 @@ final class Mob {
                 }
             } else { wander(); speed = moving ? spec.speed * 0.5 : 0; volley = 0 }
             if Float.random(in: 0..<1) < dt * 6 { g.particles.smoke(at: pos + V3(Float.random(in: -0.4...0.4), Float.random(in: 0.2...1.4), Float.random(in: -0.4...0.4))) }
-        case .dragon, .crystal, .shulker, .vehicle:
+        case .dragon, .crystal, .shulker, .vehicle, .wither, .vex:
             break
+        case .evoker: speed = aiEvoker(dt, g, dist: dist, canTarget: canTarget)
+        case .ravager: speed = aiRavager(dt, g, dist: dist, canTarget: canTarget)
+        case .snowGolem: speed = aiSnowGolem(dt, g, inWater: inWater)
         case .witch:
             // Reference witch: drinks water breathing / fire resistance / healing / swiftness as needed, and
             // throws slowness (far), poison (healthy target), weakness (close, 25%) or harming.
@@ -394,7 +421,8 @@ final class Mob {
                 let site = V3(Float(js[0]) + 0.5, Float(js[1]), Float(js[2]) + 0.5)
                 if simd_length(site - pos) > 2.5 { face(site); moving = true; aiTimer = 2 }
             }
-            if let z = g.mobs.mobs.first(where: { ($0.kind == .zombie) && simd_length($0.pos - pos) < 8 }) {
+            if let z = g.mobs.mobs.first(where: { ($0.isZombie || $0.raider || $0.kind == .vex || $0.kind == .ravager || $0.kind == .evoker
+                                                   || $0.kind == .vindicator || $0.kind == .pillager) && simd_length($0.pos - pos) < 8 }) {
                 face(pos * 2 - z.pos); speed = 2.2; moving = true
             } else {
                 wander()
@@ -431,7 +459,16 @@ final class Mob {
         case .melee, .spider:
             let l = w.lightAt(Int(floor(pos.x)), Int(floor(pos.y + 0.5)), Int(floor(pos.z)))
             let hostileNow = spec.behavior == .melee || aggro || Float(l.sky) * g.daylight < 4.8
-            if canTarget && hostileNow {
+            // Zombies go for villagers, raiders for villagers and golems (when nearer than the player).
+            if let v = villagerTarget(g), !(canTarget && hostileNow && dist <= simd_length(v.pos - pos)) {
+                face(v.pos)
+                speed = spec.speed * (baby ? 1.5 : 1)
+                if simd_length(v.pos - pos) < halfW + v.halfW + 1 && attackCooldown <= 0 {
+                    attackCooldown = 1
+                    v.hit(from: pos, damage: spec.attack, knockback: 0.6)
+                    if v.health <= 0 && v.kind == .villager && isZombie && Bool.random() { v.health = -2000; g.zombify(v) }
+                }
+            } else if canTarget && hostileNow {
                 face(player)
                 speed = spec.speed * (baby ? 1.5 : 1)
                 let reach = halfW + 1.1
@@ -444,7 +481,18 @@ final class Mob {
                 }
             } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .ranged:
-            if canTarget && w.canSee(eye, g.player.eye) {
+            if let v = villagerTarget(g), !(canTarget && dist <= simd_length(v.pos - pos)), w.canSee(eye, v.pos + V3(0, v.height * 0.6, 0)) {
+                face(v.pos)
+                let dv = simd_length(v.pos - pos)
+                speed = dv > 10 ? spec.speed : (dv < 5 ? -spec.speed * 0.6 : 0)
+                if attackCooldown <= 0 && dv < 16 {
+                    attackCooldown = Float.random(in: 1.5...2.5)
+                    var d = v.pos + V3(0, v.height * 0.6, 0) - eye
+                    d.y += simd_length(V2(d.x, d.z)) * 0.2
+                    g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 50 : 32, fromPlayer: false, damage: 2)
+                    g.sfx(.bow, 0.7, at: pos)
+                }
+            } else if canTarget && w.canSee(eye, g.player.eye) {
                 face(player)
                 speed = dist > 10 ? spec.speed : (dist < 5 ? -spec.speed * 0.6 : 0)
                 if attackCooldown <= 0 && dist < 16 {
@@ -453,7 +501,8 @@ final class Mob {
                     var d = target - eye
                     let horiz = simd_length(V2(d.x, d.z))
                     d.y += horiz * 0.2
-                    g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: 32 + Float.random(in: -3...3), fromPlayer: false, damage: 2)
+                    // Pillagers fire crossbow bolts (faster, flatter).
+                    g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 50 : 32 + Float.random(in: -3...3), fromPlayer: false, damage: 2)
                     g.sfx(.bow, 0.7, at: pos)
                 }
             } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
@@ -506,6 +555,16 @@ final class Mob {
             }
         }
 
+        // Riders sit on their mount (and attack from there).
+        if let mt = mount {
+            if mt.health > 0 {
+                pos = mt.pos + V3(0, mt.height * 0.8, 0)
+                vel = .zero
+                onGround = true
+                return
+            }
+            mount = nil
+        }
         // Passive mobs avoid drops and water while calmly wandering.
         if spec.behavior == .passive && speed > 0 && onGround && panic <= 0 {
             let a = pos + forward * (halfW + 0.45)
@@ -571,11 +630,11 @@ final class Mob {
         return w.collides(V3(p.x - hw, p.y, p.z - hw), V3(p.x + hw, p.y + height, p.z + hw))
     }
 
-    private func canTargetFar(_ g: Game, _ dist: Float, _ range: Float) -> Bool {
+    func canTargetFar(_ g: Game, _ dist: Float, _ range: Float) -> Bool {
         g.survival && g.alive && dist < range
     }
 
-    private func wander() {
+    func wander() {
         if panic > 0 {
             moving = true
             if aiTimer <= 0 { yaw += Float.random(in: -1.2...1.2); aiTimer = 0.6 }
@@ -608,6 +667,14 @@ final class Mob {
             else if phase == 4 && Float.random(in: 0..<1) < 0.2 { phase = 5; phaseTime = 0 }
             return
         }
+        if kind == .wither {
+            // Invulnerable while charging; takes hits normally otherwise and starts breaking blocks.
+            if phase == 1 { return }
+            health -= damage
+            hurt = 0.4
+            breakTimer = 1
+            return
+        }
         // A closed shulker shell shrugs off most of a hit.
         health -= kind == .shulker && peek < 0.2 ? damage / 5 : damage
         hurt = 0.4
@@ -635,7 +702,7 @@ final class Mob {
 
 // MARK: Models
 
-private struct Part {
+struct Part {
     var mn: V3, mx: V3       // model-space box in pixels (1/16 block); model faces -Z
     var pivot: V3 = .zero
     var rotX: Float = 0
@@ -644,7 +711,7 @@ private struct Part {
     var pattern: Float = 0   // 0 plain, 1 cow patches, 2 wool, 3 feathers, 4 mottled, 5 bone
 }
 
-private func box(_ x: Float, _ y: Float, _ z: Float, _ w: Float, _ h: Float, _ d: Float, _ c: V3, _ pat: Float = 0) -> Part {
+func box(_ x: Float, _ y: Float, _ z: Float, _ w: Float, _ h: Float, _ d: Float, _ c: V3, _ pat: Float = 0) -> Part {
     Part(mn: V3(x, y, z), mx: V3(x + w, y + h, z + d), color: c, pattern: pat)
 }
 
@@ -701,6 +768,8 @@ private func parts(_ m: Mob) -> [Part] {
             box(-1.2, 10, -16.2, 0.8, 1, 0.3, V3(0.4, 0.2, 0.2)), box(0.4, 10, -16.2, 0.8, 1, 0.3, V3(0.4, 0.2, 0.2)),
             leg(-3, -5, 4, 6, 1, pink), leg(3, -5, 4, 6, -1, pink), leg(-3, 5, 4, 6, -1, pink), leg(3, 5, 4, 6, 1, pink),
         ] + eyes(13, -15, 2)
+    case .wither, .snowGolem, .evoker, .vex, .ravager, .zombieVillager:
+        return extraParts(m, swing: swing)
     case .zombie, .skeleton, .enderman, .husk, .stray, .drowned, .pillager, .vindicator, .witch:
         let sk = m.kind == .skeleton || m.kind == .stray, en = m.kind == .enderman
         let illager = m.kind == .pillager || m.kind == .vindicator || m.kind == .witch

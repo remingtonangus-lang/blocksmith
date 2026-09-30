@@ -5,7 +5,7 @@ import simd
 // blast resistance; blocks the rays get through are destroyed (dropping with chance 1/power);
 // entities take damage scaled by distance and exposure and are knocked back.
 enum Explosion {
-    static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false) {
+    static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true) {
         let w = g.world
         var destroyed = Set<IVec3>()
         for i in 0..<16 { for j in 0..<16 { for k in 0..<16 {
@@ -21,7 +21,7 @@ enum Explosion {
                     let fluid = Blocks.isLiquid(id)
                     let res = fluid ? 100 : Blocks.resistance[Int(id)]
                     intensity -= (res + 0.3) * 0.3
-                    if intensity > 0 && !fluid && b.y >= 0 && b.y < CH { destroyed.insert(b) }
+                    if intensity > 0 && !fluid && b.y >= 0 && b.y < CH && breakBlocks { destroyed.insert(b) }
                 }
                 p += d * 0.3
                 intensity -= 0.225
@@ -59,10 +59,10 @@ enum Explosion {
         if let im = impact(g.player.pos, 1.8), im.0 > 0 {
             let (k, dir) = im
             let dmg = Int(((k * k + k) / 2 * 7 * radius + 1).rounded())
-            g.hurtPlayer(dmg, from: c, cause: "blew up", knockback: 0)
+            g.hurtPlayer(dmg, from: c, cause: "blew up", knockback: 0, type: .explosion)
             g.player.vel += dir * k * 12
         }
-        for m in g.mobs.mobs {
+        for m in g.mobs.mobs where m !== except {
             if let im = impact(m.pos, m.height), im.0 > 0 {
                 let (k, dir) = im
                 m.hit(from: c, damage: Int(((k * k + k) / 2 * 7 * radius + 1).rounded()), knockback: 0)

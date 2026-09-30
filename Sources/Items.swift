@@ -175,7 +175,6 @@ final class ItemRegistry {
         item("dragon_breath", "Dragon's Breath", "bucket", 0xE8D8F0, ["c": 0xC050E0])
         item("firework_rocket", "Firework Rocket", "rod", 0xC83A3A)
         item("popped_chorus_fruit", "Popped Chorus Fruit", "berries", 0xB08AC0, ["a": 0x6A4A7A])
-        item("wither_skeleton_skull", "Wither Skeleton Skull", "ball", 0x2A2A2A)
         item("melon_seeds", "Melon Seeds", "seeds", 0x4A3A2A)
         item("pumpkin_seeds", "Pumpkin Seeds", "seeds", 0xD8C88A)
         item("beetroot_seeds", "Beetroot Seeds", "seeds", 0x8A5A3A)
@@ -208,6 +207,7 @@ final class ItemRegistry {
         item("honeycomb", "Honeycomb", "ball", 0xE8A020)
         item("goat_horn", "Goat Horn", "bone", 0xC8C0A8, stack: 1)
         item("armadillo_scute", "Armadillo Scute", "leather", 0xA06A58)
+        item("ominous_bottle", "Ominous Bottle", "bucket", 0x2A5A4A, ["c": 0x0B6138])
 
         // Food (hunger, saturation as in the reference game)
         food("apple", "Apple", "apple_shape", 0xD11F1A, 4, 2.4, ["a": 0x5A3D1F])
@@ -324,7 +324,7 @@ final class ItemRegistry {
         add(ely)
         Potions.register(self)
         for n in ["milk_bucket"] { defs[Int(id(n))].drink = true }
-        for n in ["honey_bottle"] { defs[Int(id(n))].drink = true }
+        for n in ["honey_bottle", "ominous_bottle"] { defs[Int(id(n))].drink = true }
         Enchant.assignEnchantability(self)
     }
 

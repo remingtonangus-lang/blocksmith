@@ -291,6 +291,7 @@ enum Recipes {
         r.append(shaped([" # ", "#R#", " # "], ["#": "iron_ingot", "R": "redstone"], "compass"))
         r.append(shaped([" # ", "#R#", " # "], ["#": "gold_ingot", "R": "redstone"], "clock"))
         r.append(shapeless(["bowl", "beetroot", "beetroot", "beetroot", "beetroot", "beetroot", "beetroot"], "beetroot_soup"))
+        r.append(shaped(["P", "T"], ["P": "carved_pumpkin", "T": "torch"], "jack_o_lantern"))
         // Brewing and enchanting.
         r.append(shaped([" B ", "###"], ["B": "blaze_rod", "#": "#stone_tool"], "brewing_stand"))
         r.append(shaped([" B ", "D#D", "###"], ["B": "book", "D": "diamond", "#": "obsidian"], "enchanting_table"))
