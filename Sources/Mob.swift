@@ -495,8 +495,10 @@ final class Mob {
             // Zombified boarlings only fight back; boarlings attack players not wearing gold armor.
             let goldWorn = g.inventory.armor.slots.contains { !$0.isEmpty && Items.key($0.item).hasPrefix("golden_") }
             let angry = aggro || (spec.behavior == .piglin && !goldWorn && dist < 12 && admire <= 0)
-            let gold = kind == .piglin && !baby && admire <= 0 && !angry
-                ? g.drops.items.first(where: { !$0.stack.isEmpty && $0.pickupDelay <= 0 && Items.key($0.stack.item) == "gold_ingot" && simd_length($0.pos - pos) < 8 }) : nil
+            var gold: ItemEntity?
+            if kind == .piglin && !baby && admire <= 0 && !angry {
+                gold = g.drops.items.first { !$0.stack.isEmpty && $0.pickupDelay <= 0 && Items.key($0.stack.item) == "gold_ingot" && simd_length($0.pos - pos) < 8 }
+            }
             if admire > 0 {
                 admire -= dt
                 speed = 0
