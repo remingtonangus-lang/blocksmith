@@ -66,6 +66,7 @@ enum Bench {
             }
             print("bench: \(s) took \(f(now - ts, 1)) s")
         }
+        usleep(1_500_000)                                   // queued worker jobs still hold their world briefly
         put("worlds_alive", Double(World.alive))           // every scene's world should be gone by now
         print("bench: worlds still alive after the scenes: \(World.alive)")
         put("total_s", now - t0)
