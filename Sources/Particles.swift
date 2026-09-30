@@ -36,6 +36,18 @@ final class ParticleManager {
         } } }
     }
 
+    // Small block-textured bits around the feet (landing, sprinting).
+    func dust(_ b: BlockID, at c: V3, count: Int, spread: Float) {
+        let layer = Int(Blocks.tex[Int(b) * 6 + 2])
+        let tint: V3 = Blocks.tint[Int(b)] == 2 ? V3(0.47, 0.67, 0.18) : (Blocks.tint[Int(b)] != 0 ? V3(0.57, 0.74, 0.35) : V3(1, 1, 1))
+        for _ in 0..<count {
+            let d = V3(Float.random(in: -1...1), 0, Float.random(in: -1...1)) * spread
+            add(Particle(pos: c + d + V3(0, 0.05, 0), vel: V3(d.x * 3, Float.random(in: 1...2.5), d.z * 3), life: Float.random(in: 0.3...0.7), maxLife: 0.7,
+                         layer: layer, uv0: V2(Float.random(in: 0..<0.75), Float.random(in: 0..<0.75)), uvSize: 0.25, size: 0.06,
+                         gravity: 14, color: tint, collide: true))
+        }
+    }
+
     func explosion(at c: V3, power: Float) {
         let smoke = Int(Tex.id("smoke"))
         for _ in 0..<Int(power * 12) {

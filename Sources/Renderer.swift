@@ -518,7 +518,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             let sw = game.swing
             let a = sinf(sqrtf(sw) * .pi)
             let bob = sinf(game.walkBob * 2) * 0.02 * game.walkAmount
-            let base = V3(0.5 - 0.25 * a, -0.4 + 0.12 * sinf(sqrtf(sw) * 2 * .pi) + bob, -0.8 - 0.15 * sinf(sw * .pi))
+            let base = V3(0.5 - 0.25 * a, -0.4 + 0.12 * sinf(sqrtf(sw) * 2 * .pi) + bob - 0.45 * game.equipAnim, -0.8 - 0.15 * sinf(sw * .pi))
             let held = game.held
             // Arm (skin-coloured box angled up into the screen).
             let armOff = (scratchOff + 255) & ~255

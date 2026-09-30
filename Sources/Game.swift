@@ -117,6 +117,7 @@ final class Game {
     }
     var rockets: [Rocket] = []
     var lastWind: Double = -10
+    var equipAnim: Float = 0          // lowers and raises the held item after switching
     var lastSiegeDay = -1
     var respawnTimer: Float = 0
     var respawnCrystals: [Mob] = []
@@ -370,7 +371,7 @@ final class Game {
 
     func select(_ i: Int) {
         let n = (i % 9 + 9) % 9
-        if n != selected { eatProgress = 0; mining = nil }
+        if n != selected { eatProgress = 0; mining = nil; equipAnim = 1 }
         selected = n
         let h = held
         if !h.isEmpty { onToast?(h.def.display) }
@@ -564,6 +565,7 @@ final class Game {
 
         let fdt = Float(dt)
         swing = max(0, swing - fdt * 4)
+        equipAnim = max(0, equipAnim - fdt * 5)
         attackTimer += fdt
 
         if let c = credits {
@@ -1638,7 +1640,16 @@ final class Game {
         let p = player
         if p.inWater && !wasInWater && p.vel.y < -3 { sfx(.splash, min(1, -p.vel.y / 12)) }
         wasInWater = p.inWater
-        if p.pendingFall > 1.2 && !p.inWater { sfx(.land, min(1, p.pendingFall / 8)) }
+        if p.pendingFall > 1.2 && !p.inWater {
+            sfx(.land, min(1, p.pendingFall / 8))
+            // Landing kicks up bits of the block underneath (more for bigger falls).
+            let under = world.block(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))
+            if under != AIR { particles.dust(under, at: p.pos, count: min(24, Int(p.pendingFall * 3)), spread: 0.5) }
+        }
+        if p.sprinting && p.onGround && !p.inWater && Float.random(in: 0..<1) < 0.5 {
+            let under = world.block(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))
+            if under != AIR { particles.dust(under, at: p.pos, count: 1, spread: 0.25) }
+        }
         guard p.onGround && !p.flying && !p.inWater else { stepDist = 0.8; return }
         stepDist += simd_length(V2(p.pos.x - before.x, p.pos.z - before.z))
         if stepDist > (p.sprinting ? 2.1 : 1.7) {
