@@ -791,14 +791,21 @@ final class Circuit {
     // MARK: Note blocks
 
     private func playNote(_ p: IVec3, _ note: Int) {
+        let aboveKey = Blocks.key(base(block(p + IVec3(0, 1, 0))))
+        // A mob head on top plays that mob's call instead of a note.
+        let headMobs: [String: MobKind] = ["skeleton_skull": .skeleton, "wither_skeleton_skull": .witherSkeleton, "zombie_head": .zombie,
+                                           "creeper_head": .creeper, "piglin_head": .piglin, "dragon_head": .enderDragon, "player_head": .villager]
+        if let k = headMobs[aboveKey] {
+            let at = V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5
+            if k == .enderDragon { game?.sfx(.dragonGrowl, 1, at: at) } else if k == .creeper { game?.sfx(.creeperHiss, 1, at: at) } else { game?.sfx(.mob(k, .ambient), 1, at: at) }
+            return
+        }
         guard block(p + IVec3(0, 1, 0)) == AIR else { return }
-        let below = Blocks.key(base(block(p + IVec3(0, -1, 0))))
+        let belowID = block(p + IVec3(0, -1, 0))
+        let below = Blocks.key(base(belowID))
+        let mat = soundMat(belowID)
         let inst: Int
-        if below.hasSuffix("_planks") || below.hasSuffix("_log") { inst = 1 }            // bass
-        else if below == "sand" || below == "gravel" { inst = 2 }                          // snare
-        else if below == "glass" || below == "sea_lantern" { inst = 3 }                    // hat
-        else if below == "stone" || below == "cobblestone" || below.hasSuffix("_ore") || below == "obsidian" || below == "netherrack" { inst = 4 } // bass drum
-        else if below == "gold_block" { inst = 5 }                                         // bell
+        if below == "gold_block" { inst = 5 }                                              // bell
         else if below == "clay" { inst = 6 }                                               // flute
         else if below == "packed_ice" { inst = 7 }                                         // chime
         else if below.hasSuffix("_wool") { inst = 8 }                                      // guitar
@@ -806,6 +813,13 @@ final class Circuit {
         else if below == "iron_block" { inst = 10 }                                        // iron xylophone
         else if below == "hay_block" { inst = 11 }                                         // banjo
         else if below == "glowstone" { inst = 12 }                                         // pling
+        else if below == "soul_sand" { inst = 13 }                                         // cow bell
+        else if below == "pumpkin" { inst = 14 }                                           // didgeridoo
+        else if below == "emerald_block" { inst = 15 }                                     // bit
+        else if mat == .wood { inst = 1 }                                                  // bass
+        else if below == "sand" || below == "gravel" || below.hasSuffix("concrete_powder") || mat == .sand || mat == .gravel { inst = 2 } // snare
+        else if below.hasSuffix("glass") || below == "sea_lantern" || mat == .glass { inst = 3 }                                        // hat
+        else if mat == .stone || mat == .deepslate || mat == .netherrack || below == "obsidian" { inst = 4 }                            // bass drum
         else { inst = 0 }                                                                  // harp
         game?.sfx(.note(inst, note), 1, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
         game?.particles.hearts(at: V3(Float(p.x) + 0.5, Float(p.y) + 1.2, Float(p.z) + 0.5))

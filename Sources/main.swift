@@ -818,7 +818,7 @@ if let dir = arg("--sounds") {
     try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
     var total = 0, failures = 0
     var list = SoundBank.allSounds
-    for inst in 0..<13 { list.append(.note(inst, 12)) }
+    for inst in 0..<16 { list.append(.note(inst, 12)) }
     var byCategory: [SoundCategory: Int] = [:]
     var slow: [(String, Double)] = []
     for s in list {

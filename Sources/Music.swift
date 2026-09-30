@@ -653,7 +653,8 @@ enum Composer {
 // MARK: - Note blocks (sound effects) live here too
 
 enum MusicSynth {
-    // Note block instruments 0...12: harp, bass, snare, hat, bass drum, bell, flute, chime, guitar, xylophone, iron xylophone, banjo, pling.
+    // Note block instruments 0...15: harp, bass, snare, hat, bass drum, bell, flute, chime, guitar, xylophone, iron xylophone, banjo, pling,
+    // cow bell, didgeridoo, bit.
     // Pitch 0 = F#3 for the harp family; bass instruments two octaves down, chimes two up.
     static func noteBlock(_ g: inout Synth, inst: Int, pitch n: Int) -> [Float] {
         let f: Float = 185 * powf(2, Float(n) / 12)
@@ -670,6 +671,12 @@ enum MusicSynth {
         case 10: return g.modes(0.5, [(f, 0.7, 0.25), (f * 3.9, 0.25, 0.12)])                                  // iron xylophone
         case 11: return g.pluck(0.4, f: f, damp: 0.99, bright: 0.8, gain: 0.8)                                  // banjo
         case 12: return Synth.mix(g.modes(0.8, [(f, 0.6, 0.35)]), g.modes(0.8, [(f * 2.01, 0.3, 0.3)]))         // pling
+        case 13: return g.modes(0.4, [(f, 0.6, 0.12), (f * 1.48, 0.45, 0.1), (f * 2.7, 0.15, 0.05)])            // cow bell
+        case 14:                                                                                                // didgeridoo
+            let drone = g.formant(0.8, f0: f / 4, f1: f / 4, formants: [(300, 4, 1), (1100, 6, 0.5), (2200, 8, 0.2)], breath: 0.1, vib: 0.01, vibRate: 5, attack: 0.03, release: 0.2, growl: 0.2, gain: 1)
+            return drone
+        case 15:                                                                                                // bit (square)
+            return Synth.decayEnv(g.tone(0.4, f0: f, f1: f, wave: .square, attack: 0.002, release: 0.05, gain: 0.35), 0.25)
         default: return g.modes(0.7, [(f, 0.7, 0.3), (f * 2, 0.25, 0.15), (f * 3, 0.1, 0.08)])                 // harp
         }
     }
