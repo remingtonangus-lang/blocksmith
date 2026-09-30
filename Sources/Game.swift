@@ -1,33 +1,39 @@
 import Foundation
 import simd
 
-let DAY_LENGTH: Double = 1200 // seconds per full day/night cycle
+let DAY_LENGTH: Double = 1200 // seconds per full day/night cycle (20 minutes, like the reference game)
 
 final class Game {
     let world: World
     let player = Player()
     let input = InputState()
     let mobs = MobManager()
+    let drops = ItemEntityManager()
+    let inventory = PlayerInventory()
     let save: SaveManager?
     let persistent: Bool
 
     var time: Double = DAY_LENGTH * 0.06
-    var hotbar: [BlockID] = [GRASS, DIRT, STONE, COBBLE, PLANKS, LOG, GLASS, TORCH, LAMP]
-    var selected = 0
+    var selected: Int {
+        get { inventory.selected }
+        set { inventory.selected = newValue }
+    }
     var paused = true { didSet { if paused != oldValue { onPauseChanged?(paused) } } }
     var showDebug = false
     var target: (hit: IVec3, normal: IVec3)?
 
-    // Creative inventory (drawn by the HUD, driven by pad, keyboard or mouse)
-    var inventoryOpen = false {
+    // Open container screen (nil = playing). The carried stack is the one on the cursor.
+    var menu: Menu? {
         didSet {
-            input.uiMode = inventoryOpen
-            if inventoryOpen != oldValue { onInventoryChanged?(inventoryOpen) }
+            input.uiMode = menu != nil
+            if (menu == nil) != (oldValue == nil) { onInventoryChanged?(menu != nil) }
         }
     }
-    var invCursor = 0
-    let inventoryItems: [BlockID] = Blocks.placeable
-    var screen = V2(1280, 800) // drawable size, updated by the renderer each frame
+    var inventoryOpen: Bool { menu != nil }
+    var carried = ItemStack.empty
+    var menuCursor = 0            // controller cursor (slot index)
+    var menuHover: MenuSlot?      // slot under the mouse / controller cursor
+    var screen = V2(1280, 800)    // drawable size, updated by the renderer each frame
     var onInventoryChanged: ((Bool) -> Void)?
     private var navTimer: Double = 0
     private var navHeld = false
@@ -45,12 +51,20 @@ final class Game {
     var exhaustion: Float = 0
     var air: Float = 15        // seconds of breath
     var hurtFlash: Float = 0   // seconds left of the red damage tint
+    var alive = true
     private var regenTimer: Double = 0
     private var starveTimer: Double = 0
     private var drownTimer: Double = 0
-    private var eatCooldown: Double = 0
     lazy var spawnPoint: V3 = findSpawn()
     var onModeChanged: ((Bool) -> Void)?
+
+    // Mining / using
+    var mining: IVec3?
+    var mineProgress: Float = 0       // 0...1
+    private var mineSoundTimer: Float = 0
+    var eatProgress: Float = 0        // seconds held while eating
+    private var attackTimer: Float = 10    // seconds since last attack (attack cooldown)
+    var swing: Float = 0              // arm swing animation 1 -> 0
 
     // Audio (nil when headless or if the audio device can't start)
     var sound: SoundEngine?
@@ -74,6 +88,7 @@ final class Game {
     private var prevPad = PadSnapshot()
     private var autosaveTimer: Double = 0
     private var fluidTimer: Double = 0
+    private var tickAccum: Double = 0
     var padConnected = false
 
     init(world: World, save: SaveManager?, persistent: Bool) {
@@ -85,12 +100,19 @@ final class Game {
             self.toastText = s
             self.toastTime = self.clock
         }
+        giveCreativeStarter()
+    }
+
+    func giveCreativeStarter() {
+        let start = ["grass_block", "dirt", "stone", "cobblestone", "oak_planks", "oak_log", "glass", "torch", "crafting_table"]
+        for (i, n) in start.enumerated() where Items.has(n) {
+            inventory.main[i] = ItemStack(Items.id(n), 64)
+        }
     }
 
     // MARK: Setup / persistence
 
     func findSpawn() -> V3 {
-        // Spiral outward from the origin until we find dry land.
         var x = 0, z = 0, dx = 0, dz = -1
         for _ in 0..<4000 {
             let (h, biome) = world.gen.column(x * 16 + 8, z * 16 + 8)
@@ -109,7 +131,10 @@ final class Game {
         player.pitch = m.pitch
         player.flying = m.flying
         time = m.time
-        if m.hotbar.count == 9 { hotbar = m.hotbar }
+        if let inv = m.inventory {
+            for i in 0..<36 { inventory.main[i] = .empty }
+            inventory.load(inv)
+        }
         selected = max(0, min(8, m.selected))
         world.renderDistance = m.renderDistance
         survival = m.survival ?? false
@@ -121,7 +146,7 @@ final class Game {
     var meta: WorldMeta {
         WorldMeta(seed: world.seed, x: player.pos.x, y: player.pos.y, z: player.pos.z,
                   yaw: player.yaw, pitch: player.pitch, time: time, flying: player.flying,
-                  hotbar: hotbar, selected: selected, renderDistance: world.renderDistance,
+                  hotbar: nil, inventory: inventory.saved, selected: selected, renderDistance: world.renderDistance,
                   survival: survival, health: health, hunger: hunger, saturation: saturation)
     }
 
@@ -156,26 +181,65 @@ final class Game {
         return c
     }
 
-    // MARK: Hotbar
+    // MARK: Hotbar / items
+
+    var held: ItemStack { inventory.held }
 
     func select(_ i: Int) {
-        selected = (i % 9 + 9) % 9
-        onToast?(Blocks.name(hotbar[selected]))
+        let n = (i % 9 + 9) % 9
+        if n != selected { eatProgress = 0; mining = nil }
+        selected = n
+        let h = held
+        if !h.isEmpty { onToast?(h.def.display) }
     }
 
-    func cycleBlock(_ d: Int) {
-        let list = Blocks.placeable
-        let cur = list.firstIndex(of: hotbar[selected]) ?? 0
-        hotbar[selected] = list[((cur + d) % list.count + list.count) % list.count]
-        onToast?(Blocks.name(hotbar[selected]))
+    func dropItem(_ s: ItemStack, thrown: Bool = true) {
+        if s.isEmpty { return }
+        let dir = player.look
+        let p = player.eye - V3(0, 0.3, 0)
+        drops.spawn(s, at: p, vel: thrown ? dir * 6 + V3(0, 1, 0) : V3(0, 1, 0), delay: 2)
+    }
+
+    func dropHeld(all: Bool) {
+        var h = held
+        if h.isEmpty { return }
+        let n = all ? h.count : 1
+        dropItem(ItemStack(h.item, n, damage: h.damage))
+        h.count -= n
+        inventory.held = h.count > 0 ? h : .empty
+    }
+
+    // Uses up durability of the held tool; breaks it when worn out.
+    func damageHeld(_ amount: Int) {
+        guard survival else { return }
+        var h = held
+        guard !h.isEmpty, h.def.durability > 0 else { return }
+        h.damage += amount
+        if h.damage >= h.def.durability {
+            inventory.held = .empty
+            sfx(.breakBlock(.glass), 0.5)
+            onToast?("\(h.def.display) broke")
+        } else {
+            inventory.held = h
+        }
+    }
+
+    func consumeHeld() {
+        guard survival else { return }
+        var h = held
+        h.count -= 1
+        inventory.held = h.count > 0 ? h : .empty
     }
 
     func pickBlock() {
         guard let t = target else { return }
         let b = world.block(t.hit.x, t.hit.y, t.hit.z)
-        if let i = hotbar.firstIndex(of: b) { select(i); return }
-        hotbar[selected] = b
-        onToast?(Blocks.name(b))
+        guard let it = Items.item(forBlock: b) else { return }
+        if let i = (0..<9).first(where: { inventory.main[$0].item == it }) { select(i); return }
+        guard !survival else { return }
+        let slot = (0..<9).first(where: { inventory.main[$0].isEmpty }) ?? selected
+        inventory.main[slot] = ItemStack(it, Items.def(it).maxStack)
+        select(slot)
     }
 
     func toggleFly() {
@@ -190,6 +254,100 @@ final class Game {
         let i = opts.firstIndex(of: world.renderDistance) ?? 2
         world.renderDistance = opts[(i + 1) % opts.count]
         onRenderDistanceChanged?(world.renderDistance)
+    }
+
+    // MARK: Menus
+
+    func openMenu(_ m: Menu) {
+        menu = m
+        menuCursor = m.slots.firstIndex(where: { $0.isHotbar && $0.index == selected }) ?? 0
+        sfx(.open, 0.6)
+    }
+
+    func closeMenu() {
+        guard let m = menu else { return }
+        m.onClose()
+        if !carried.isEmpty {
+            let rest = inventory.add(carried)
+            if !rest.isEmpty { dropItem(rest) }
+            carried = .empty
+        }
+        menu = nil
+        sfx(.open, 0.5)
+    }
+
+    func openInventory() {
+        openMenu(survival ? InventoryMenu(game: self) : CreativeMenu(game: self))
+    }
+
+    private func tickMenu(_ p: PadSnapshot, _ q: PadSnapshot, _ dt: Double) {
+        guard let m = menu else { return }
+        let L = HudLayout(screen.x, screen.y)
+        var mx = 0, my = 0
+        if (p.left && !q.left) || input.tapped(Key.arrowLeft) { mx -= 1 }
+        if (p.right && !q.right) || input.tapped(Key.arrowRight) { mx += 1 }
+        if (p.up && !q.up) || input.tapped(Key.arrowUp) { my -= 1 }
+        if (p.down && !q.down) || input.tapped(Key.arrowDown) { my += 1 }
+        let ls = stick(p.lx, p.ly)
+        var sx = 0, sy = 0
+        if max(abs(ls.x), abs(ls.y)) > 0.45 {
+            if abs(ls.x) > abs(ls.y) { sx = ls.x > 0 ? 1 : -1 } else { sy = ls.y > 0 ? -1 : 1 }
+        }
+        if sx != 0 || sy != 0 {
+            navTimer -= dt
+            if !navHeld || navTimer <= 0 {
+                mx += sx; my += sy
+                navTimer = navHeld ? 0.1 : 0.3
+                navHeld = true
+            }
+        } else {
+            navHeld = false
+            navTimer = 0
+        }
+        let creative = m as? CreativeMenu
+        var padMoved = false
+        if mx != 0 || my != 0 {
+            let before = menuCursor
+            menuCursor = m.neighbour(of: menuCursor, dx: mx, dy: my)
+            // Scroll the creative palette when pushing past its top/bottom row.
+            if let c = creative, menuCursor == before, my != 0, before < c.rows * 9 { c.scrollBy(my) }
+            padMoved = true
+            sfx(.click, 0.3)
+        }
+        let rs = stick(p.rx, p.ry)
+        if let c = creative {
+            if input.scrollSteps != 0 { c.scrollBy(-input.scrollSteps) }
+            if abs(rs.y) > 0.5 && (!navHeld || navTimer <= 0.05) { c.scrollBy(rs.y > 0 ? -1 : 1) }
+        }
+        let mouse = V2(input.mouseX, input.mouseY)
+        if input.mouseMoved, let s = m.slotAt(mouse, L), let i = m.slots.firstIndex(where: { $0 === s }) { menuCursor = i }
+        menuHover = menuCursor < m.slots.count ? m.slots[menuCursor] : nil
+        if padMoved { input.mouseX = -1 }
+
+        let shift = input.shift
+        if input.leftClicked || input.rightClicked {
+            let b = input.leftClicked ? 0 : 1
+            if let s = m.slotAt(mouse, L) { m.click(s, button: b, shift: shift) }
+            else if !m.inside(mouse, L) && !carried.isEmpty {
+                if b == 0 { dropItem(carried); carried = .empty }
+                else { dropItem(ItemStack(carried.item, 1, damage: carried.damage)); carried.count -= 1; if carried.count <= 0 { carried = .empty } }
+            }
+        }
+        if let s = menuHover {
+            if p.a && !q.a { m.click(s, button: 0, shift: false) }
+            if p.x && !q.x { m.click(s, button: 1, shift: false) }
+            if p.y && !q.y { m.click(s, button: 0, shift: true) }
+            // Number keys swap the hovered slot with a hotbar slot.
+            for (i, k) in Key.digits.enumerated() where input.tapped(k) {
+                if case .normal = s.kind, s.container != nil {
+                    let a = s.stack
+                    s.stack = inventory.main[i]
+                    inventory.main[i] = a
+                    m.changed()
+                }
+            }
+        }
+        if input.tapped(Key.e) || input.tapped(Key.esc) || (p.b && !q.b) || (p.view && !q.view) { closeMenu() }
     }
 
     // MARK: Tick
@@ -214,17 +372,20 @@ final class Game {
         }
 
         let fdt = Float(dt)
+        swing = max(0, swing - fdt * 4)
+        attackTimer += fdt
 
-        if input.tapped(Key.e) || (p.view && !q.view) { inventoryOpen.toggle(); sfx(.open, 0.6) }
-        if inventoryOpen {
-            tickInventory(p, q, dt)
+        if menu != nil {
+            tickMenu(p, q, dt)
             let before = player.pos
             player.update(dt: fdt, input: MoveInput(), world: world)
             survivalTick(dt, from: before)
             target = nil
+            mining = nil
             advance(dt)
             return
         }
+        if input.tapped(Key.e) || (p.view && !q.view) || (p.y && !q.y) { openInventory(); return }
 
         // Look
         if input.captured {
@@ -252,37 +413,50 @@ final class Game {
         mi.jump = input.down(Key.space) || p.a
         mi.sneak = input.shift || p.b || p.r3
         if input.control || (p.l3 && !q.l3) { player.sprinting = true }
-        mi.sprint = player.sprinting && (mi.forward > 0.3) && !(survival && hunger <= 6)
+        mi.sprint = player.sprinting && (mi.forward > 0.3) && !(survival && hunger <= 6) && eatProgress == 0
         if mi.forward <= 0.3 { player.sprinting = false }
+        if eatProgress > 0 { mi.forward *= 0.3; mi.strafe *= 0.3 }
 
-        if input.tapped(Key.space) {
+        if input.tapped(Key.space) || (p.a && !q.a) {
             if clock - lastSpaceTap < 0.3 { toggleFly(); lastSpaceTap = -1 } else { lastSpaceTap = clock }
         }
-        if input.tapped(Key.f) || (p.y && !q.y) { toggleFly() }
+        if input.tapped(Key.f) || (p.up && !q.up) { toggleFly() }
         if input.tapped(Key.f3) { showDebug.toggle() }
+        if input.tapped(Key.q) || (p.down && !q.down) { dropHeld(all: input.control) }
 
         // Hotbar
         for (i, k) in Key.digits.enumerated() where input.tapped(k) { select(i) }
         if input.scrollSteps != 0 { select(selected - input.scrollSteps) }
         if p.rb && !q.rb { select(selected + 1) }
         if p.lb && !q.lb { select(selected - 1) }
-        if input.tapped(Key.rightBracket) || (p.up && !q.up) { cycleBlock(1) }
-        if input.tapped(Key.leftBracket) || (p.down && !q.down) { cycleBlock(-1) }
 
         let before = player.pos
         player.update(dt: fdt, input: mi, world: world)
         audioTick(from: before)
         survivalTick(dt, from: before)
 
-        // Interact
-        target = world.raycast(player.eye, player.look, maxDist: 5)
+        interact(p, q, dt)
+        if input.middleClicked || (p.x && !q.x) { pickBlock() }
+
+        advance(dt)
+    }
+
+    // MARK: Interaction (attack, mine, use)
+
+    private func interact(_ p: PadSnapshot, _ q: PadSnapshot, _ dt: Double) {
+        let fdt = Float(dt)
+        let reach: Float = survival ? 4.5 : 5
+        target = world.raycast(player.eye, player.look, maxDist: reach)
         breakCooldown -= dt
         placeCooldown -= dt
         let breakHeld = input.leftDown || p.rt > 0.5
         let breakNow = input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5)
-        // Hitting an animal takes priority over the block behind it.
+        let useHeld = input.rightDown || p.lt > 0.5
+        let useNow = input.rightClicked || (p.lt > 0.5 && q.lt <= 0.5)
+
+        // Attack: an animal in front of the block takes priority.
         var mobHit: Mob?
-        if let hit = mobs.raycast(player.eye, player.look, maxDist: 4) {
+        if let hit = mobs.raycast(player.eye, player.look, maxDist: 3.5) {
             let (m, dist) = hit
             if let t = target {
                 let c = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5
@@ -291,52 +465,205 @@ final class Game {
                 mobHit = m
             }
         }
+        if breakNow { swing = 1 }
         if let m = mobHit {
+            mining = nil
             if breakNow {
-                m.hit(from: player.pos, damage: 3)
+                // Attack cooldown: damage scales with how charged the swing is.
+                let spd = held.isEmpty ? 4 : held.def.attackSpeed
+                let charge = min(1, attackTimer * spd)
+                let base = held.isEmpty ? 1 : held.def.attack
+                var dmg = base * (0.2 + 0.8 * charge * charge)
+                let crit = charge > 0.9 && player.vel.y < -0.5 && !player.onGround
+                if crit { dmg *= 1.5 }
+                attackTimer = 0
+                m.hit(from: player.pos, damage: max(1, Int(dmg.rounded())))
+                sfx(.attack, 0.7, at: m.pos)
                 sfx(m.kind.call, 0.9, at: m.pos + V3(0, m.kind.height * 0.8, 0))
-                if m.health <= 0 { sfx(.breakBlock(.plant), 0.8, at: m.pos); onToast?("\(m.kind.name) defeated") }
+                if m.health <= 0 { sfx(.breakBlock(.plant), 0.8, at: m.pos); mobDied(m) }
                 if survival { exhaustion += 0.1 }
-                breakCooldown = 0.25
+                damageHeld(held.def.tool == .sword ? 1 : 2)
             }
-        } else if let t = target, breakNow || (breakHeld && breakCooldown <= 0) {
-            let broken = world.block(t.hit.x, t.hit.y, t.hit.z)
-            sfx(.breakBlock(soundMat(broken)), at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
-            world.setBlock(t.hit.x, t.hit.y, t.hit.z, AIR)
-            if survival { exhaustion += 0.005 }
-            // Plants can't float: pop the one standing on the broken block.
-            if Blocks.isPlant(world.block(t.hit.x, t.hit.y + 1, t.hit.z)) { world.setBlock(t.hit.x, t.hit.y + 1, t.hit.z, AIR) }
-            breakCooldown = 0.25
-            target = world.raycast(player.eye, player.look, maxDist: 5)
+            return
         }
-        let placeHeld = input.rightDown || p.lt > 0.5
-        let placeNow = input.rightClicked || (p.lt > 0.5 && q.lt <= 0.5)
-        eatCooldown -= dt
-        if let t = target, placeNow || (placeHeld && placeCooldown <= 0) {
-            // Clicking a plant replaces it (like tall grass); otherwise place against the face.
-            let at = Blocks.isPlant(world.block(t.hit.x, t.hit.y, t.hit.z)) ? t.hit : t.hit + t.normal
-            let existing = world.block(at.x, at.y, at.z)
-            let id = hotbar[selected]
-            let solid = Blocks.collide[Int(id)]
-            let replaceable = Blocks.replaceable[Int(existing)]
-            let supported: Bool
-            if id == TORCH {
-                // Torches stand on the floor or hang on a wall.
-                supported = [IVec3(0, -1, 0), IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)].contains { d in
-                    Blocks.opaque[Int(world.block(at.x + d.x, at.y + d.y, at.z + d.z))]
+
+        // Mining
+        if let t = target, breakHeld {
+            let b = world.block(t.hit.x, t.hit.y, t.hit.z)
+            if !survival {
+                if breakNow || breakCooldown <= 0 {
+                    breakBlock(t.hit, b, drop: false)
+                    breakCooldown = 0.3
                 }
             } else {
-                supported = !Blocks.isPlant(id) || Blocks.opaque[Int(world.block(at.x, at.y - 1, at.z))]
+                if mining != t.hit { mining = t.hit; mineProgress = 0 }
+                let secs = Mining.breakSeconds(b, held, onGround: player.onGround || player.flying, inWater: player.headInWater)
+                if secs.isInfinite {
+                    mineProgress = 0
+                } else {
+                    mineProgress += secs <= 0 ? 1 : fdt / secs
+                    swing = max(swing, 0.5)
+                    mineSoundTimer -= fdt
+                    if mineSoundTimer <= 0 { mineSoundTimer = 0.25; sfx(.step(soundMat(b)), 0.5, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5) }
+                    if mineProgress >= 1 && breakCooldown <= 0 {
+                        breakBlock(t.hit, b, drop: true)
+                        damageHeld(held.def.tool == .sword ? 2 : 1)
+                        mining = nil
+                        mineProgress = 0
+                        breakCooldown = secs <= 0 ? 0 : 0.3
+                    }
+                }
             }
-            if replaceable && supported && at.y >= 0 && at.y < CH && !(solid && player.intersectsBlock(at)) {
-                world.setBlock(at.x, at.y, at.z, id)
-                sfx(.place(soundMat(id)), at: V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5)
-            }
-            placeCooldown = 0.25
+        } else {
+            mining = nil
+            mineProgress = 0
         }
-        if input.middleClicked || (p.x && !q.x) { pickBlock() }
 
-        advance(dt)
+        // Use
+        let h = held
+        if let f = h.def.food, useHeld && survival && (hunger < 20 || h.item == Items.id("golden_apple")) && target.map({ !isInteractive($0.hit) }) ?? true {
+            eatProgress += fdt
+            if Int(eatProgress * 5) != Int((eatProgress - fdt) * 5) { sfx(.eat, 0.5) }
+            if eatProgress >= 1.61 {
+                eat(f, h.def.display)
+                consumeHeld()
+                if h.item == Items.id("mushroom_stew") || h.item == Items.id("beetroot_soup") { inventory.held = ItemStack(Items.id("bowl"), 1) }
+                eatProgress = 0
+            }
+            return
+        }
+        eatProgress = 0
+        guard useNow || (useHeld && placeCooldown <= 0) else { return }
+        placeCooldown = 0.25
+        if useBucket() { return }
+        guard let t = target else { return }
+        if isInteractive(t.hit) && !(input.shift || p.b) && useNow {
+            openBlock(t.hit)
+            return
+        }
+        guard let blockItem = h.def.block else { return }
+        let clicked = world.block(t.hit.x, t.hit.y, t.hit.z)
+        let at = Blocks.replaceable[Int(clicked)] && !Blocks.isLiquid(clicked) ? t.hit : t.hit + t.normal
+        let existing = world.block(at.x, at.y, at.z)
+        guard Blocks.replaceable[Int(existing)], at.y >= 0, at.y < CH else { return }
+        var id = blockItem
+        let key = Blocks.key(blockItem)
+        if key == "furnace" || key == "chest" {
+            id = blockItem + BlockID(Blocks.facingToward(yaw: player.yaw))
+        }
+        let supported: Bool
+        if id == TORCH {
+            supported = Blocks.opaque[Int(world.block(at.x, at.y - 1, at.z))]
+                || [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)].contains { d in Blocks.opaque[Int(world.block(at.x + d.x, at.y, at.z + d.z))] }
+        } else if Blocks.isPlant(id) {
+            let below = world.block(at.x, at.y - 1, at.z)
+            supported = below == GRASS || below == DIRT || Blocks.key(below) == "farmland" || Blocks.key(below) == "snowy_grass_block"
+        } else {
+            supported = true
+        }
+        let solid = Blocks.collide[Int(id)]
+        if supported && !(solid && player.intersectsBlock(at)) && !(solid && mobs.mobs.contains { $0.intersects(at) }) {
+            world.setBlock(at.x, at.y, at.z, id)
+            if key == "furnace" { world.blockEntities[at] = BlockEntity(.furnace) }
+            if key == "chest" { world.blockEntities[at] = BlockEntity(.chest) }
+            sfx(.place(soundMat(id)), at: V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5)
+            swing = 1
+            consumeHeld()
+        }
+    }
+
+    func isInteractive(_ p: IVec3) -> Bool {
+        let k = Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))])
+        return k == "crafting_table" || k == "furnace" || k == "lit_furnace" || k == "chest"
+    }
+
+    func openBlock(_ p: IVec3) {
+        let k = Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))])
+        switch k {
+        case "crafting_table": openMenu(CraftingTableMenu(game: self))
+        case "furnace", "lit_furnace":
+            let be = world.blockEntities[p] ?? BlockEntity(.furnace)
+            world.blockEntities[p] = be
+            openMenu(FurnaceMenu(game: self, entity: be))
+        case "chest":
+            let be = world.blockEntities[p] ?? BlockEntity(.chest)
+            world.blockEntities[p] = be
+            openMenu(ChestMenu(game: self, entity: be))
+        default: break
+        }
+    }
+
+    func breakBlock(_ p: IVec3, _ b: BlockID, drop: Bool) {
+        sfx(.breakBlock(soundMat(b)), at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+        world.setBlock(p.x, p.y, p.z, AIR)
+        let center = V3(Float(p.x) + 0.5, Float(p.y) + 0.3, Float(p.z) + 0.5)
+        if let be = world.blockEntities.removeValue(forKey: p) {
+            for s in be.container.slots where !s.isEmpty { drops.spawn(s, at: center) }
+        }
+        if drop {
+            for s in Mining.drops(b, held) { drops.spawn(s, at: center, vel: V3(Float.random(in: -1...1), 2, Float.random(in: -1...1)), delay: 0.5) }
+            exhaustion += 0.005
+        }
+        // Plants can't float: pop the one standing on the broken block.
+        let above = world.block(p.x, p.y + 1, p.z)
+        if Blocks.isPlant(above) || above == TORCH {
+            world.setBlock(p.x, p.y + 1, p.z, AIR)
+            if drop { for s in Mining.drops(above, .empty) { drops.spawn(s, at: center + V3(0, 1, 0)) } }
+        }
+    }
+
+    // Buckets: pick up a water source / pour water.
+    private func useBucket() -> Bool {
+        let k = Items.key(held.item)
+        guard k == "bucket" || k == "water_bucket" else { return false }
+        // Ray that stops at fluids too.
+        var fluidHit: IVec3?
+        var lastAir: IVec3?
+        let dir = player.look
+        var t: Float = 0
+        while t < 5 {
+            let q = player.eye + dir * t
+            let c = IVec3(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z)))
+            let b = world.block(c.x, c.y, c.z)
+            if Blocks.fluidLevel[Int(b)] == 0 { fluidHit = c; break }
+            if Blocks.targetable(b) { break }
+            lastAir = c
+            t += 0.05
+        }
+        if k == "bucket", let f = fluidHit {
+            world.setBlock(f.x, f.y, f.z, AIR)
+            sfx(.splash, 0.4)
+            if survival {
+                consumeHeld()
+                let rest = inventory.add(ItemStack(Items.id("water_bucket"), 1))
+                if !rest.isEmpty { dropItem(rest) }
+            }
+            return true
+        }
+        if k == "water_bucket" {
+            var at: IVec3?
+            if let tg = target { at = tg.hit + tg.normal } else if fluidHit == nil { at = lastAir }
+            if let a = at, Blocks.replaceable[Int(world.block(a.x, a.y, a.z))] {
+                world.setBlock(a.x, a.y, a.z, WATER)
+                sfx(.splash, 0.4)
+                if survival { inventory.held = ItemStack(Items.id("bucket"), 1) }
+            }
+            return true
+        }
+        return false
+    }
+
+    func mobDied(_ m: Mob) {
+        let loot: [(String, Int, Int)]
+        switch m.kind {
+        case .cow: loot = [("beef", 1, 3), ("leather", 0, 2)]
+        case .sheep: loot = [("mutton", 1, 2), ("white_wool", 1, 1)]
+        case .chicken: loot = [("chicken", 1, 1), ("feather", 0, 2)]
+        }
+        for (n, a, b) in loot where Items.has(n) {
+            let c = Int.random(in: a...b)
+            if c > 0 { drops.spawn(ItemStack(Items.id(n), c), at: m.pos + V3(0, 0.5, 0)) }
+        }
     }
 
     // MARK: Survival
@@ -347,24 +674,41 @@ final class Game {
     }
 
     func eat(_ f: FoodInfo, _ name: String) {
-        guard survival else { onToast?("Food only matters in survival"); return }
-        guard hunger < 20 else { onToast?("Not hungry"); return }
-        sfx(.eat)
+        sfx(.burp, 0.6)
         hunger = min(20, hunger + f.hunger)
         saturation = min(Float(hunger), saturation + f.saturation)
-        onToast?("Ate \(name)")
     }
 
-    func damage(_ amount: Int, _ cause: String) {
-        guard survival, amount > 0 else { return }
-        health -= amount
+    // Damage in half-hearts, reduced by armor (reference formula).
+    func damage(_ amount: Int, _ cause: String, bypassArmor: Bool = false) {
+        guard survival, alive, amount > 0 else { return }
+        var dmg = Float(amount)
+        if !bypassArmor {
+            let a = Float(inventory.armorPoints), tough = inventory.toughness
+            let eff = min(20, max(a / 5, a - dmg / (2 + tough / 4)))
+            dmg *= 1 - eff / 25
+            for i in 0..<4 where !inventory.armor[i].isEmpty {
+                var s = inventory.armor[i]
+                s.damage += max(1, amount / 4)
+                inventory.armor[i] = s.damage >= s.def.durability ? .empty : s
+            }
+        }
+        health -= max(1, Int(dmg.rounded()))
         hurtFlash = 0.35
         sfx(.hurt)
         if health <= 0 { die(cause) }
     }
 
     func die(_ cause: String) {
-        onToast?("You \(cause). Respawning…")
+        onToast?("You \(cause)")
+        // Drop everything where we died.
+        let at = player.pos + V3(0, 1, 0)
+        for c in [inventory.main, inventory.armor, inventory.offhand] {
+            for i in 0..<c.count where !c[i].isEmpty {
+                drops.spawn(c[i], at: at, vel: V3(Float.random(in: -2...2), Float.random(in: 1...4), Float.random(in: -2...2)), delay: 1)
+                c[i] = .empty
+            }
+        }
         player.pos = spawnPoint
         player.vel = .zero
         player.airPeak = spawnPoint.y
@@ -391,25 +735,29 @@ final class Game {
         }
     }
 
-    // Hunger, regeneration, starvation, drowning and fall damage (MC-like rules, simplified).
+    // Hunger, regeneration, starvation, drowning and fall damage.
     private func survivalTick(_ dt: Double, from before: V3) {
         hurtFlash = max(0, hurtFlash - Float(dt))
         let fall = player.pendingFall
         player.pendingFall = 0
         guard survival else { air = 15; return }
 
-        if fall > 3.5 && !player.inWater { damage(Int(ceilf(fall - 3.5)), "fell too far") }
+        if fall > 3.5 && !player.inWater { damage(Int(ceilf(fall - 3.5)), "fell from a high place", bypassArmor: true) }
         if player.pos.y < -60 { die("fell out of the world"); return }
 
         let moved = simd_length(V2(player.pos.x - before.x, player.pos.z - before.z))
-        exhaustion += moved * (player.sprinting ? 0.1 : (player.inWater ? 0.015 : 0.01))
+        exhaustion += moved * (player.sprinting ? 0.1 : (player.inWater ? 0.01 : 0))
         if player.jumped { exhaustion += player.sprinting ? 0.2 : 0.05 }
         while exhaustion >= 4 {
             exhaustion -= 4
             if saturation > 0 { saturation = max(0, saturation - 1) } else { hunger = max(0, hunger - 1) }
         }
 
-        if hunger >= 18 && health < 20 {
+        // Fast regen with full hunger and saturation, slow regen at hunger >= 18.
+        if hunger >= 20 && saturation > 0 && health < 20 {
+            regenTimer += dt
+            if regenTimer >= 0.5 { regenTimer = 0; health += 1; exhaustion += 6 }
+        } else if hunger >= 18 && health < 20 {
             regenTimer += dt
             if regenTimer >= 4 { regenTimer = 0; health += 1; exhaustion += 6 }
         } else {
@@ -417,7 +765,7 @@ final class Game {
         }
         if hunger == 0 {
             starveTimer += dt
-            if starveTimer >= 4 { starveTimer = 0; if health > 1 { damage(1, "starved") } }
+            if starveTimer >= 4 { starveTimer = 0; if health > 1 { damage(1, "starved to death", bypassArmor: true) } }
         } else {
             starveTimer = 0
         }
@@ -427,7 +775,7 @@ final class Game {
             if air <= 0 {
                 air = 0
                 drownTimer += dt
-                if drownTimer >= 1 { drownTimer = 0; damage(2, "drowned") }
+                if drownTimer >= 1 { drownTimer = 0; damage(2, "drowned", bypassArmor: true) }
             }
         } else {
             air = min(15, air + Float(dt) * 5)
@@ -435,71 +783,33 @@ final class Game {
         }
     }
 
-    // World clock, fluids and autosave (runs whenever the game isn't paused).
+    // World clock, fluids, furnaces, entities and autosave (runs whenever the game isn't paused).
     private func advance(_ dt: Double) {
         mobs.update(Float(dt), game: self)
+        drops.update(Float(dt), game: self)
         fluidTimer += dt
         if fluidTimer >= 0.2 { fluidTimer = 0; world.fluidTick() }
+        tickAccum += dt
+        while tickAccum >= 0.05 {
+            tickAccum -= 0.05
+            gameTick()
+        }
         time += dt
         autosaveTimer += dt
         if autosaveTimer > 60 { autosaveTimer = 0; saveNow() }
     }
 
-    private func tickInventory(_ p: PadSnapshot, _ q: PadSnapshot, _ dt: Double) {
-        let items = inventoryItems
-        let n = items.count
-        let L = HudLayout(screen.x, screen.y)
-        var mx = 0, my = 0
-        if (p.left && !q.left) || input.tapped(Key.arrowLeft) { mx -= 1 }
-        if (p.right && !q.right) || input.tapped(Key.arrowRight) { mx += 1 }
-        if (p.up && !q.up) || input.tapped(Key.arrowUp) { my -= 1 }
-        if (p.down && !q.down) || input.tapped(Key.arrowDown) { my += 1 }
-        // Left stick: one step on push, then auto-repeat while held.
-        let ls = stick(p.lx, p.ly)
-        var sx = 0, sy = 0
-        if max(abs(ls.x), abs(ls.y)) > 0.45 {
-            if abs(ls.x) > abs(ls.y) { sx = ls.x > 0 ? 1 : -1 } else { sy = ls.y > 0 ? -1 : 1 }
-        }
-        if sx != 0 || sy != 0 {
-            navTimer -= dt
-            if !navHeld || navTimer <= 0 {
-                mx += sx; my += sy
-                navTimer = navHeld ? 0.11 : 0.32
-                navHeld = true
+    // 20 Hz fixed-rate logic (furnaces...).
+    private func gameTick() {
+        for (p, be) in world.blockEntities where be.kind == .furnace {
+            if be.tickFurnace() {
+                // Swap between furnace and lit furnace, keeping the facing.
+                let b = world.block(p.x, p.y, p.z)
+                let base = Blocks.groupBase[Int(b)]
+                let facing = b - base
+                let other = Blocks.key(base) == "furnace" ? Blocks.id("lit_furnace") : Blocks.id("furnace")
+                world.setBlock(p.x, p.y, p.z, other + facing)
             }
-        } else {
-            navHeld = false
-            navTimer = 0
         }
-        if mx != 0 || my != 0 {
-            let cols = HudLayout.cols, rows = L.gridRows(n)
-            let col = ((invCursor % cols) + mx + cols) % cols
-            let row = max(0, min(rows - 1, invCursor / cols + my))
-            invCursor = min(n - 1, row * cols + col)
-            onToast?(Blocks.name(items[invCursor]))
-            sfx(.click, 0.4)
-        }
-        let m = V2(input.mouseX, input.mouseY)
-        if input.mouseMoved, let i = L.gridIndex(at: m, n), i != invCursor {
-            invCursor = i
-            onToast?(Blocks.name(items[i]))
-        }
-
-        for (i, k) in Key.digits.enumerated() where input.tapped(k) { select(i) }
-        if input.scrollSteps != 0 { select(selected - input.scrollSteps) }
-        if p.rb && !q.rb { select(selected + 1) }
-        if p.lb && !q.lb { select(selected - 1) }
-
-        var assign = (p.a && !q.a) || input.tapped(Key.enter)
-        if input.leftClicked || input.rightClicked {
-            if let i = L.gridIndex(at: m, n) { invCursor = i; assign = true }
-            else if let h = L.hotbarIndex(at: m) { select(h) }
-        }
-        if assign {
-            sfx(.click, 0.8)
-            hotbar[selected] = items[invCursor]
-            onToast?("\(Blocks.name(items[invCursor])) → slot \(selected + 1)")
-        }
-        if p.b && !q.b { inventoryOpen = false; sfx(.open, 0.5) }
     }
 }

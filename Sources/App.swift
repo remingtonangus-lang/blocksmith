@@ -130,7 +130,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         buildOverlay()
         view.onEscape = { [weak self] in
             guard let g = self?.game else { return }
-            if g.inventoryOpen && !g.paused { g.inventoryOpen = false } else { g.paused.toggle() }
+            if g.menu != nil && !g.paused { g.closeMenu() } else { g.paused.toggle() }
         }
         game.onInventoryChanged = { [weak self] _ in
             guard let self else { return }

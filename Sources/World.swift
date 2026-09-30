@@ -11,6 +11,7 @@ final class World {
     let device: MTLDevice
     let save: SaveManager?
     var chunks: [ChunkKey: Chunk] = [:]
+    var blockEntities: [IVec3: BlockEntity] = [:]
     var renderDistance: Int = 8 { didSet { lastCenter = nil; rebuildOffsets() } }
 
     private let workQueue = DispatchQueue(label: "blocksmith.world", qos: .userInitiated, attributes: .concurrent)
@@ -33,6 +34,7 @@ final class World {
         self.save = save
         maxJobs = max(2, ProcessInfo.processInfo.activeProcessorCount - 2)
         rebuildOffsets()
+        blockEntities = save?.loadBlockEntities() ?? [:]
     }
 
     private func rebuildOffsets() {
@@ -403,6 +405,7 @@ final class World {
 
     func saveAll() {
         for (k, c) in chunks where c.modified { save?.saveChunk(k, c.blocks) }
+        save?.saveBlockEntities(blockEntities)
     }
 
     // MARK: Raycast (voxel DDA + per-box tests for partial blocks)

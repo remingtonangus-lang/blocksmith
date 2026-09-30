@@ -11,7 +11,7 @@ enum Snd: Hashable {
     case breakBlock(SoundMat)
     case place(SoundMat)
     case step(SoundMat)
-    case splash, land, hurt, eat, click, open, mobCow, mobSheep, mobChicken
+    case splash, land, hurt, eat, click, open, mobCow, mobSheep, mobChicken, pickup, dig, attack, burp
 }
 
 func soundMat(_ id: BlockID) -> SoundMat { Blocks.def(id).sound }
@@ -24,7 +24,7 @@ struct SoundBank {
     static var allSounds: [Snd] {
         var s: [Snd] = []
         for m in SoundMat.allCases { s += [.breakBlock(m), .place(m), .step(m)] }
-        return s + [.splash, .land, .hurt, .eat, .click, .open, .mobCow, .mobSheep, .mobChicken]
+        return s + [.splash, .land, .hurt, .eat, .click, .open, .mobCow, .mobSheep, .mobChicken, .pickup, .dig, .attack, .burp]
     }
 
     init() {
@@ -185,6 +185,10 @@ struct Synth {
                 out = Synth.mix(out, grains(6, spread: 0.04, lp: 2500 * p, hp: 300, decay: 0.012, gain: 0.9), at: frames(Float(k) * 0.16))
             }
         case .click: out = modes(0.05, [(1100 * p, 0.35, 0.008), (2200 * p, 0.1, 0.004)])
+        case .pickup: out = Synth.mix(modes(0.09, [(1500 * p, 0.3, 0.02)]), modes(0.08, [(2100 * p, 0.25, 0.02)]), at: frames(0.03))
+        case .dig: out = burst(0.06, lp: 2500 * p, hp: 300, decay: 0.012, gain: 0.8)
+        case .attack: out = burst(0.12, lp: 1800 * p, hp: 200, decay: 0.03, gain: 1.4)
+        case .burp: out = voice(0.3, f0: 120 * p, f1: 90 * p, vib: 0.1, lp: 900, gain: 0.8)
         case .open: out = Synth.mix(modes(0.12, [(660 * p, 0.25, 0.03)]), modes(0.12, [(990 * p, 0.2, 0.03)]), at: frames(0.05))
         case .mobCow: out = voice(0.85, f0: 150 * p, f1: 105 * p, vib: 0.02, lp: 700, gain: 1.3)
         case .mobSheep: out = voice(0.6, f0: 420 * p, f1: 380 * p, vib: 0.09, lp: 1800, gain: 0.9)

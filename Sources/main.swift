@@ -59,7 +59,48 @@ enum Snapshot {
             game.showDebug = true
             game.onToast?("Grass Block")
         }
-        if let c = arg("--inventory") { game.inventoryOpen = true; game.invCursor = Int(c) ?? 0 }
+        if let which = arg("--menu") {
+            // Container screen test: some items in the inventory and a menu open.
+            let give = ["iron_pickaxe", "diamond_sword", "bread", "coal", "raw_iron", "oak_log", "apple", "torch", "iron_chestplate"]
+            for (i, n) in give.enumerated() where Items.has(n) { game.inventory.main[9 + i] = ItemStack(Items.id(n), n.hasSuffix("pickaxe") || n.hasSuffix("sword") || n.hasSuffix("plate") ? 1 : 12) }
+            var s = game.inventory.main[9]; s.damage = 120; game.inventory.main[9] = s
+            switch which {
+            case "creative": game.openMenu(CreativeMenu(game: game))
+            case "crafting":
+                let m = CraftingTableMenu(game: game)
+                for (i, n) in ["oak_planks", "oak_planks", "oak_planks", "", "stick", "", "", "stick", ""].enumerated() where !n.isEmpty {
+                    m.craft.grid[i] = ItemStack(Items.id(n), 1)
+                }
+                m.changed()
+                game.openMenu(m)
+            case "furnace":
+                let be = BlockEntity(.furnace)
+                be.container[0] = ItemStack(Items.id("raw_iron"), 5)
+                be.container[1] = ItemStack(Items.id("coal"), 3)
+                be.container[2] = ItemStack(Items.id("iron_ingot"), 2)
+                be.burn = 900; be.burnMax = 1600; be.cook = 120
+                game.openMenu(FurnaceMenu(game: game, entity: be))
+            default:
+                game.survival = true
+                game.openMenu(InventoryMenu(game: game))
+            }
+            game.menuCursor = 12
+            game.menuHover = game.menu?.slots[12]
+            game.input.mouseX = -1
+        }
+        if CommandLine.arguments.contains("--drops") {
+            // A few dropped items and a half-broken block in front of the camera.
+            let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
+            for (i, n) in ["diamond", "oak_log", "iron_pickaxe", "apple", "cobblestone", "torch"].enumerated() {
+                let p = pos + f * (3 + Float(i % 3)) + V3(Float(i / 3) * 1.2 - 0.6, 0, 0)
+                let y = world.topY(Int(floor(p.x)), Int(floor(p.z))) + 1
+                game.drops.spawn(ItemStack(Items.id(n), i == 4 ? 40 : 1), at: V3(p.x, Float(y), p.z), vel: .zero)
+            }
+            game.target = nil
+            let tx = Int(floor(pos.x + f.x * 2)), tz = Int(floor(pos.z + f.z * 2))
+            game.mining = IVec3(tx, world.topY(tx, tz), tz)
+            game.mineProgress = 0.55
+        }
 
         var t = world.loadSync(center: pos, radius: rd)
         if CommandLine.arguments.contains("--flood") {
@@ -130,7 +171,6 @@ enum Snapshot {
                 if f % 45 == 20 { inp.rightClicked = true }
                 if f == 300 { inp.pressed.insert(Key.e) }
                 if f > 300 && f < 360 && f % 10 == 0 { inp.pressed.insert(Key.arrowRight); inp.pressed.insert(Key.arrowDown) }
-                if f == 350 { inp.pressed.insert(Key.enter) }
                 if f == 380 { inp.pressed.insert(Key.e) }
                 game.player.yaw += 0.003
                 let t0 = CFAbsoluteTimeGetCurrent()
@@ -141,9 +181,10 @@ enum Snapshot {
             }
             _ = world.loadSync(center: game.player.pos, radius: rd)
             let p = game.player.pos
-            print(String(format: "sim %.1f s: tick avg %.2f ms, worst %.2f ms | pos %.1f %.1f %.1f | health %ld hunger %ld | mobs %ld | fluid pending %ld | hotbar[0] %@",
+            print(String(format: "sim %.1f s: tick avg %.2f ms, worst %.2f ms | pos %.1f %.1f %.1f | health %ld hunger %ld | mobs %ld | fluid pending %ld | items held %ld, dropped %ld",
                          simSeconds, total / Double(max(1, frames)) * 1000, worst * 1000, p.x, p.y, p.z, game.health, game.hunger,
-                         game.mobs.mobs.count, world.fluidPending.count, Blocks.name(game.hotbar[0])))
+                         game.mobs.mobs.count, world.fluidPending.count,
+                         game.inventory.main.slots.reduce(0) { $0 + $1.count }, game.drops.items.count))
         }
 
         // Mesh benchmark: re-mesh the section at the camera a few times on one thread.

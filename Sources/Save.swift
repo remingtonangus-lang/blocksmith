@@ -9,7 +9,8 @@ struct WorldMeta: Codable {
     var pitch: Float
     var time: Double
     var flying: Bool
-    var hotbar: [UInt16]
+    var hotbar: [UInt16]?          // pre-inventory saves
+    var inventory: PlayerInventory.Saved?
     var selected: Int
     var renderDistance: Int
     // Added after v0.1: optional so older world.json files still decode.
@@ -29,8 +30,8 @@ final class SaveManager {
     init(name: String) {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         dir = base.appendingPathComponent("Blocksmith/Worlds/\(name)", isDirectory: true)
-        // v2 chunks: 16-bit block states, 384 tall (v1 "chunks/" from the 8-bit engine is ignored).
-        chunkDir = dir.appendingPathComponent("chunks2", isDirectory: true)
+        // chunks3: name-paletted 16-bit states, 384 tall (older chunk folders from previous engines are ignored).
+        chunkDir = dir.appendingPathComponent("chunks3", isDirectory: true)
         try? FileManager.default.createDirectory(at: chunkDir, withIntermediateDirectories: true)
     }
 
@@ -47,23 +48,78 @@ final class SaveManager {
         if let d = try? enc.encode(m) { try? d.write(to: metaURL, options: .atomic) }
     }
 
+    var blockEntityURL: URL { dir.appendingPathComponent("blockentities.json") }
+
+    func loadBlockEntities() -> [IVec3: BlockEntity] {
+        guard let d = try? Data(contentsOf: blockEntityURL),
+              let s = try? JSONDecoder().decode(BlockEntitySave.self, from: d) else { return [:] }
+        var out: [IVec3: BlockEntity] = [:]
+        for (k, v) in s.entries {
+            let p = k.split(separator: ",").compactMap { Int($0) }
+            if p.count == 3 { out[IVec3(p[0], p[1], p[2])] = v }
+        }
+        return out
+    }
+
+    func saveBlockEntities(_ m: [IVec3: BlockEntity]) {
+        var e: [String: BlockEntity] = [:]
+        for (k, v) in m { e["\(k.x),\(k.y),\(k.z)"] = v }
+        if let d = try? JSONEncoder().encode(BlockEntitySave(entries: e)) { try? d.write(to: blockEntityURL, options: .atomic) }
+    }
+
     func chunkURL(_ k: ChunkKey) -> URL { chunkDir.appendingPathComponent("c.\(k.x).\(k.z).lz") }
 
+    // Chunk file: lzfse( u32 paletteCount, palette names (u16 length + utf8), u16 palette index per block ).
+    // Block names instead of raw IDs keep saves valid when the block registry grows.
     // Thread-safe: called from world worker threads.
     func loadChunk(_ k: ChunkKey) -> [BlockID]? {
         guard let d = try? Data(contentsOf: chunkURL(k)) else { return nil }
         guard let raw = try? (d as NSData).decompressed(using: .lzfse) as Data else { return nil }
-        guard raw.count == CSQ * CH * 2 else { return nil }
+        let bytes = [UInt8](raw)
+        var p = 0
+        func u16() -> Int { defer { p += 2 }; return p + 1 < bytes.count ? Int(bytes[p]) | Int(bytes[p + 1]) << 8 : 0 }
+        guard bytes.count >= 4 else { return nil }
+        let n = Int(bytes[0]) | Int(bytes[1]) << 8 | Int(bytes[2]) << 16 | Int(bytes[3]) << 24
+        p = 4
+        var palette: [BlockID] = []
+        for _ in 0..<n {
+            let len = u16()
+            guard p + len <= bytes.count else { return nil }
+            let name = String(decoding: bytes[p..<(p + len)], as: UTF8.self)
+            p += len
+            palette.append(Blocks.has(name) ? Blocks.id(name) : AIR)
+        }
+        guard bytes.count - p == CSQ * CH * 2 else { return nil }
         var out = [BlockID](repeating: 0, count: CSQ * CH)
-        _ = out.withUnsafeMutableBytes { dst in raw.copyBytes(to: dst.bindMemory(to: UInt8.self)) }
-        let n = Blocks.count
-        for i in 0..<out.count where Int(out[i]) >= n { out[i] = 0 }   // unknown states (downgrade) -> air
+        for i in 0..<out.count {
+            let idx = Int(bytes[p]) | Int(bytes[p + 1]) << 8
+            p += 2
+            out[i] = idx < palette.count ? palette[idx] : AIR
+        }
         return out
     }
 
     func saveChunk(_ k: ChunkKey, _ blocks: [BlockID]) {
-        let raw = blocks.withUnsafeBytes { Data($0) }
-        guard let c = try? (raw as NSData).compressed(using: .lzfse) as Data else { return }
+        var map: [BlockID: UInt16] = [:]
+        var names: [String] = []
+        var idx = [UInt16](repeating: 0, count: blocks.count)
+        for (i, b) in blocks.enumerated() {
+            if let m = map[b] { idx[i] = m; continue }
+            let m = UInt16(names.count)
+            map[b] = m
+            names.append(Blocks.key(b))
+            idx[i] = m
+        }
+        var d = Data()
+        let n = UInt32(names.count)
+        d.append(contentsOf: [UInt8(n & 255), UInt8((n >> 8) & 255), UInt8((n >> 16) & 255), UInt8(n >> 24)])
+        for name in names {
+            let u = Array(name.utf8)
+            d.append(contentsOf: [UInt8(u.count & 255), UInt8(u.count >> 8)])
+            d.append(contentsOf: u)
+        }
+        idx.withUnsafeBytes { d.append(contentsOf: $0) }
+        guard let c = try? (d as NSData).compressed(using: .lzfse) as Data else { return }
         try? c.write(to: chunkURL(k), options: .atomic)
     }
 }

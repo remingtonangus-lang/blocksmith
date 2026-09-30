@@ -134,6 +134,33 @@ final class BlockRegistry {
         return id
     }
 
+    // Registers 4 horizontal-facing states (north, south, west, east = front on -Z, +Z, -X, +X).
+    // `d.tex` gives side textures; `front` replaces the facing face. Returns the first state.
+    @discardableResult
+    func addFacing(_ d: BlockDef, front: String, boxes: [Box] = []) -> BlockID {
+        var first: BlockID = 0
+        let faceFor = [5, 4, 1, 0]
+        for (k, dir) in ["north", "south", "west", "east"].enumerated() {
+            var s = d
+            s.name = k == 0 ? d.name : "\(d.name)[\(dir)]"
+            s.group = d.name
+            if s.tex.count == 1 { s.tex = Array(repeating: s.tex[0], count: 6) }
+            s.tex[faceFor[k]] = front
+            s.hidden = d.hidden || k != 0
+            s.boxes = boxes.map { var b = $0; b.tex = []; return b }
+            let id = add(s)
+            if k == 0 { first = id }
+        }
+        return first
+    }
+
+    // Facing index (0 north, 1 south, 2 west, 3 east) so the front looks at a viewer with this yaw.
+    static func facingToward(yaw: Float) -> Int {
+        let lx = -sinf(yaw), lz = -cosf(yaw)   // look direction
+        if abs(lx) > abs(lz) { return lx > 0 ? 2 : 3 }   // looking +X -> front faces -X (west)
+        return lz > 0 ? 0 : 1                             // looking +Z -> front faces -Z (north)
+    }
+
     func id(_ name: String) -> BlockID {
         guard let i = byName[name] else { fatalError("unknown block \(name)") }
         return i
@@ -249,7 +276,36 @@ final class BlockRegistry {
         var glow = BlockDef("glowstone", "Glowstone")
         glow.tex = ["glowstone"]; glow.emit = 15; glow.hardness = 0.3; glow.sound = .glass
         add(glow)
+        var sap = BlockDef("oak_sapling", "Oak Sapling")
+        for (n, d) in [("oak_sapling", "Oak Sapling"), ("birch_sapling", "Birch Sapling"), ("spruce_sapling", "Spruce Sapling")] {
+            sap = BlockDef(n, d)
+            sap.tex = [n]; sap.render = .cross; sap.layer = .cutout; sap.opaque = false; sap.collide = false
+            sap.hardness = 0; sap.sound = .plant
+            add(sap)
+        }
         cube("deepslate", "Deepslate", "deepslate", h: 3, req: true)
+        for (n, d, lvl) in [("coal_block", "Block of Coal", 0), ("iron_block", "Block of Iron", 1), ("gold_block", "Block of Gold", 2),
+                            ("diamond_block", "Block of Diamond", 2), ("emerald_block", "Block of Emerald", 2),
+                            ("lapis_block", "Block of Lapis Lazuli", 1), ("redstone_block", "Block of Redstone", 0),
+                            ("copper_block", "Block of Copper", 1)] {
+            cube(n, d, n, h: 5, lvl: lvl, req: true, snd: .stone)
+        }
+        var ct = BlockDef("crafting_table", "Crafting Table")
+        ct.tex = ["crafting_table_front", "crafting_table_side", "crafting_table_top", "oak_planks", "crafting_table_front", "crafting_table_side"]
+        ct.hardness = 2.5; ct.tool = .axe; ct.sound = .wood
+        add(ct)
+        var fur = BlockDef("furnace", "Furnace")
+        fur.tex = ["furnace_side", "furnace_side", "furnace_top", "furnace_top", "furnace_side", "furnace_side"]
+        fur.hardness = 3.5; fur.tool = .pickaxe; fur.requiresTool = true
+        addFacing(fur, front: "furnace_front")
+        var furLit = fur
+        furLit.name = "lit_furnace"; furLit.display = "Furnace"; furLit.emit = 13; furLit.hidden = true
+        addFacing(furLit, front: "furnace_front_on")
+        var chest = BlockDef("chest", "Chest")
+        chest.tex = ["chest_side", "chest_side", "chest_top", "chest_top", "chest_side", "chest_side"]
+        chest.render = .model; chest.opaque = false; chest.hardness = 2.5; chest.tool = .axe; chest.sound = .wood
+        chest.skyStop = true
+        addFacing(chest, front: "chest_front", boxes: [Box(1, 0, 1, 15, 14, 15)])
         cube("cobbled_deepslate", "Cobbled Deepslate", "cobbled_deepslate", h: 3.5, req: true)
         cube("andesite", "Andesite", "andesite", h: 1.5, req: true)
         cube("diorite", "Diorite", "diorite", h: 1.5, req: true)

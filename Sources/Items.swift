@@ -1,22 +1,37 @@
 import Foundation
 
 // Items: everything that can sit in an inventory slot. Every placeable block has a block item
-// (same name); tools, food and materials are registered below.
+// (same name); tools, food, armor and materials are registered below. Sprite textures are painted
+// from the pixel-art masks in ItemArt.swift, tinted per material.
 typealias ItemID = UInt16
 
 struct FoodInfo { var hunger: Int; var saturation: Float }
+
+enum ArmorSlot: Int { case head = 0, chest, legs, feet }
+
+struct Sprite {
+    var mask: String
+    var base: UInt32                    // material colour (shade 4)
+    var extras: [Character: UInt32] = [:]
+}
 
 struct ItemDef {
     var name: String
     var display: String
     var maxStack = 64
     var block: BlockID? = nil        // places this block state
-    var tex: String? = nil           // sprite texture (nil for block items: drawn as a block icon)
+    var sprite: Sprite? = nil        // nil for block items (drawn as a block icon)
     var food: FoodInfo? = nil
     var tool: ToolType = .none
-    var tier = 0                     // 0 wood, 1 stone, 2 iron, 3 diamond, 4 netherite, 5 gold
+    var tier = 0                     // harvest tier: 0 wood/gold, 1 stone, 2 iron, 3 diamond, 4 netherite
+    var toolSpeed: Float = 1
     var durability = 0
-    var attack: Float = 1
+    var attack: Float = 1            // damage dealt (hearts x2), 1 = fist
+    var attackSpeed: Float = 4       // attacks per second at full charge
+    var armorSlot: ArmorSlot? = nil
+    var armor = 0
+    var toughness: Float = 0
+    var fuelTicks = 0                // furnace burn time (20 ticks = 1 s)
     init(_ name: String, _ display: String) { self.name = name; self.display = display }
 }
 
@@ -33,7 +48,7 @@ final class ItemRegistry {
         precondition(byName[d.name] == nil, "duplicate item \(d.name)")
         byName[d.name] = i
         defs.append(d)
-        if let t = d.tex { _ = Tex.id(t) }
+        if d.sprite != nil { _ = Tex.id("item_" + d.name) }
         return i
     }
 
@@ -44,6 +59,8 @@ final class ItemRegistry {
     func has(_ name: String) -> Bool { byName[name] != nil }
     func def(_ i: ItemID) -> ItemDef { defs[Int(i)] }
     func name(_ i: ItemID) -> String { Int(i) < defs.count ? defs[Int(i)].display : "?" }
+    func key(_ i: ItemID) -> String { Int(i) < defs.count ? defs[Int(i)].name : "?" }
+    func texLayer(_ i: ItemID) -> Int? { defs[Int(i)].sprite == nil ? nil : Int(Tex.id("item_" + defs[Int(i)].name)) }
 
     // Item that a given block state drops/picks as (its group's block item), or nil.
     func item(forBlock b: BlockID) -> ItemID? {
@@ -51,6 +68,9 @@ final class ItemRegistry {
         let i = forBlock[base]
         return i == 0 ? nil : i
     }
+
+    // Items shown in the creative inventory (blocks first, then everything else).
+    var creativeList: [ItemID] { (1..<count).map { ItemID($0) } }
 
     init() {
         forBlock = [ItemID](repeating: 0, count: Blocks.count)
@@ -61,35 +81,204 @@ final class ItemRegistry {
             let bd = Blocks.def(BlockID(b))
             var d = ItemDef(bd.name, bd.display)
             d.block = BlockID(b)
+            if bd.sound == .wood { d.fuelTicks = 300 }
             forBlock[b] = add(d)
         }
-        func food(_ n: String, _ disp: String, _ h: Int, _ s: Float) {
+
+        func item(_ n: String, _ disp: String, _ mask: String, _ color: UInt32, _ extras: [Character: UInt32] = [:],
+                  stack: Int = 64, fuel: Int = 0) {
             var d = ItemDef(n, disp)
-            d.tex = n
-            d.food = FoodInfo(hunger: h, saturation: s)
+            d.sprite = Sprite(mask: mask, base: color, extras: extras)
+            d.maxStack = stack
+            d.fuelTicks = fuel
             add(d)
         }
-        food("apple", "Apple", 4, 2.4)
+        func food(_ n: String, _ disp: String, _ mask: String, _ color: UInt32, _ h: Int, _ s: Float,
+                  _ extras: [Character: UInt32] = [:], stack: Int = 64) {
+            var d = ItemDef(n, disp)
+            d.sprite = Sprite(mask: mask, base: color, extras: extras)
+            d.food = FoodInfo(hunger: h, saturation: s)
+            d.maxStack = stack
+            add(d)
+        }
+
+        // Materials
+        item("stick", "Stick", "stick", 0x6B4F2C, fuel: 100)
+        item("coal", "Coal", "lump", 0x2B2B2B, fuel: 1600)
+        item("charcoal", "Charcoal", "lump", 0x3A3026, fuel: 1600)
+        item("raw_iron", "Raw Iron", "lump", 0xD8AF93)
+        item("raw_gold", "Raw Gold", "lump", 0xF8D23C)
+        item("raw_copper", "Raw Copper", "lump", 0xD6784E)
+        item("iron_ingot", "Iron Ingot", "ingot", 0xD8D8D8)
+        item("gold_ingot", "Gold Ingot", "ingot", 0xFAD64A)
+        item("copper_ingot", "Copper Ingot", "ingot", 0xE0845C)
+        item("netherite_ingot", "Netherite Ingot", "ingot", 0x4D494D)
+        item("netherite_scrap", "Netherite Scrap", "lump", 0x5E4A45)
+        item("iron_nugget", "Iron Nugget", "nugget", 0xD8D8D8)
+        item("gold_nugget", "Gold Nugget", "nugget", 0xFAD64A)
+        item("diamond", "Diamond", "gem", 0x4AEDD9)
+        item("emerald", "Emerald", "gem", 0x17DD62)
+        item("lapis_lazuli", "Lapis Lazuli", "gem", 0x2A5BC8)
+        item("amethyst_shard", "Amethyst Shard", "gem", 0xA87CE0)
+        item("quartz", "Nether Quartz", "gem", 0xEDE6DE)
+        item("redstone", "Redstone Dust", "dust", 0xE01010)
+        item("glowstone_dust", "Glowstone Dust", "dust", 0xF5D878)
+        item("gunpowder", "Gunpowder", "dust", 0x6E6E6E)
+        item("sugar", "Sugar", "dust", 0xF4F4F4)
+        item("bone_meal", "Bone Meal", "dust", 0xE8E6DA)
+        item("blaze_powder", "Blaze Powder", "dust", 0xF7A93A)
+        item("flint", "Flint", "lump", 0x3C3C3C)
+        item("string", "String", "string", 0xEDEDED)
+        item("feather", "Feather", "feather", 0xEAEAEA, ["a": 0xB0B0B0])
+        item("bone", "Bone", "bone", 0xE8E4D6)
+        item("leather", "Leather", "leather", 0xA0592B)
+        item("paper", "Paper", "paper", 0xE6E6DC)
+        item("book", "Book", "book", 0x7A4A28)
+        item("slime_ball", "Slimeball", "ball", 0x74C45E)
+        item("snowball", "Snowball", "ball", 0xF4FAFF, stack: 16)
+        item("clay_ball", "Clay Ball", "ball", 0xA4A9B8)
+        item("brick", "Brick", "ingot", 0xB5563A)
+        item("nether_brick", "Nether Brick", "ingot", 0x5A2A30)
+        item("ender_pearl", "Ender Pearl", "pearl", 0x2F8C7C, stack: 16)
+        item("ender_eye", "Eye of Ender", "eye", 0x2F8C7C, ["c": 0x7ED957, "d": 0x173D1A])
+        item("blaze_rod", "Blaze Rod", "rod", 0xF7C23A)
+        item("ghast_tear", "Ghast Tear", "tear", 0xDDF2F2)
+        item("wheat", "Wheat", "wheat", 0xD8B64A, ["a": 0x8C7A30])
+        item("wheat_seeds", "Wheat Seeds", "seeds", 0x3EA42B)
+        item("egg", "Egg", "egg", 0xE9DCBC, stack: 16)
+        item("arrow", "Arrow", "arrow", 0x9A9A9A, ["f": 0xEDEDED, "a": 0x6B4F2C])
+        item("bowl", "Bowl", "bowl", 0x8A6435, fuel: 100)
+        item("flint_and_steel", "Flint and Steel", "flint_steel", 0x7A7A7A, ["c": 0x3A3A3A, "d": 0x5A5A5A], stack: 1)
+        item("bucket", "Bucket", "bucket", 0xC8C8C8, ["c": 0x5A5A5A], stack: 16)
+        item("water_bucket", "Water Bucket", "bucket", 0xC8C8C8, ["c": 0x3F76E4], stack: 1)
+        item("lava_bucket", "Lava Bucket", "bucket", 0xC8C8C8, ["c": 0xE8661A], stack: 1)
+        item("milk_bucket", "Milk Bucket", "bucket", 0xC8C8C8, ["c": 0xF4F4F4], stack: 1)
+        item("compass", "Compass", "compass", 0x9A9A9A, ["c": 0xD02020, "d": 0x404040])
+        item("clock", "Clock", "compass", 0xF2C94A, ["c": 0x3F76E4, "d": 0x404040])
+        item("bow", "Bow", "bow", 0x6B4F2C, ["s": 0xDDDDDD], stack: 1)
+        item("shears", "Shears", "shears", 0xD8D8D8, ["d": 0x5A3D1F], stack: 1)
+
+        // Food (hunger, saturation as in the reference game)
+        food("apple", "Apple", "apple_shape", 0xD11F1A, 4, 2.4, ["a": 0x5A3D1F])
+        food("golden_apple", "Golden Apple", "apple_shape", 0xF2D23A, 4, 9.6, ["a": 0x5A3D1F])
+        food("bread", "Bread", "bread", 0xC08A3E, 5, 6)
+        food("beef", "Raw Beef", "steak", 0xD43B3B, 3, 1.8, ["c": 0xF0E0D0])
+        food("cooked_beef", "Steak", "steak", 0x7A4A2A, 8, 12.8, ["c": 0xF0E0D0])
+        food("porkchop", "Raw Porkchop", "chop", 0xF08C8C, 3, 1.8, ["c": 0xF8D8D0])
+        food("cooked_porkchop", "Cooked Porkchop", "chop", 0xC9864A, 8, 12.8, ["c": 0xF0D0A0])
+        food("chicken", "Raw Chicken", "drumstick", 0xF2C6B0, 2, 1.2, ["c": 0xF0E8E0])
+        food("cooked_chicken", "Cooked Chicken", "drumstick", 0xC88A48, 6, 7.2, ["c": 0xF0E8E0])
+        food("mutton", "Raw Mutton", "chop", 0xD24848, 2, 1.2, ["c": 0xF0E0D0])
+        food("cooked_mutton", "Cooked Mutton", "chop", 0x8A4E2E, 6, 9.6, ["c": 0xE8C8A0])
+        food("rabbit", "Raw Rabbit", "drumstick", 0xE8B0A0, 3, 1.8, ["c": 0xF0E8E0])
+        food("cooked_rabbit", "Cooked Rabbit", "drumstick", 0xB57A48, 5, 6, ["c": 0xF0E8E0])
+        food("cod", "Raw Cod", "fish", 0xB8A58A, 2, 0.4, ["c": 0x303030])
+        food("cooked_cod", "Cooked Cod", "fish", 0xD8C8A8, 5, 6, ["c": 0x303030])
+        food("salmon", "Raw Salmon", "fish", 0xC0504A, 2, 0.4, ["c": 0x303030])
+        food("cooked_salmon", "Cooked Salmon", "fish", 0xD8804A, 6, 9.6, ["c": 0x303030])
+        food("rotten_flesh", "Rotten Flesh", "rotten", 0x9A6A4A, 4, 0.8, ["c": 0x6A8A3A, "d": 0x4A2A1A])
+        food("potato", "Potato", "potato", 0xC8A050, 1, 0.6)
+        food("baked_potato", "Baked Potato", "potato", 0xD8A040, 5, 6)
+        food("carrot", "Carrot", "carrot", 0xF08A1A, 3, 3.6)
+        food("golden_carrot", "Golden Carrot", "carrot", 0xF2D23A, 6, 14.4)
+        food("beetroot", "Beetroot", "potato", 0xA02838, 1, 1.2)
+        food("cookie", "Cookie", "cookie", 0xC88A48, 2, 0.4, ["a": 0x4A2A1A])
+        food("melon_slice", "Melon Slice", "melon", 0xE04A3A, 2, 1.2, ["c": 0x4A9A2A])
+        food("sweet_berries", "Sweet Berries", "berries", 0xC0203A, 2, 0.4, ["a": 0x3A6A2A])
+        food("pumpkin_pie", "Pumpkin Pie", "pie", 0xE8A050, 8, 4.8, ["c": 0xA85A1A])
+        food("mushroom_stew", "Mushroom Stew", "stew", 0x8A6435, 6, 7.2, ["c": 0xB08858, "d": 0xD8C0A0], stack: 1)
+        food("beetroot_soup", "Beetroot Soup", "stew", 0x8A6435, 6, 7.2, ["c": 0xA02838, "d": 0xC04050], stack: 1)
+        food("dried_kelp", "Dried Kelp", "leather", 0x3A4A2A, 1, 0.6)
+
+        // Tools: (name, harvest tier, durability, mining speed, colour)
+        let tiers: [(String, String, Int, Int, Float, UInt32)] = [
+            ("wooden", "Wooden", 0, 59, 2, 0x9A7A4A), ("stone", "Stone", 1, 131, 4, 0x8A8A8A),
+            ("iron", "Iron", 2, 250, 6, 0xE0E0E0), ("golden", "Golden", 0, 32, 12, 0xF8D84A),
+            ("diamond", "Diamond", 3, 1561, 8, 0x4AEDD9), ("netherite", "Netherite", 4, 2031, 9, 0x5A555A),
+        ]
+        let swordDmg: [Float] = [4, 5, 6, 4, 7, 8], axeDmg: [Float] = [7, 9, 9, 7, 9, 10]
+        let axeSpd: [Float] = [0.8, 0.8, 0.9, 1.0, 1.0, 1.0]
+        for (i, t) in tiers.enumerated() {
+            let kinds: [(String, String, ToolType, Float, Float)] = [
+                ("sword", "Sword", .sword, swordDmg[i], 1.6),
+                ("shovel", "Shovel", .shovel, swordDmg[i] - 1.5, 1),
+                ("pickaxe", "Pickaxe", .pickaxe, swordDmg[i] - 2, 1.2),
+                ("axe", "Axe", .axe, axeDmg[i], axeSpd[i]),
+                ("hoe", "Hoe", .hoe, 1, Float(i == 0 || i == 3 ? 1 : i + 1)),
+            ]
+            for k in kinds {
+                var d = ItemDef("\(t.0)_\(k.0)", "\(t.1) \(k.1)")
+                d.sprite = Sprite(mask: k.0, base: t.5, extras: [:])
+                d.maxStack = 1
+                d.tool = k.2
+                d.tier = t.2
+                d.durability = t.3
+                d.toolSpeed = t.4
+                d.attack = k.3
+                d.attackSpeed = k.4
+                if t.0 == "wooden" { d.fuelTicks = 200 }
+                add(d)
+            }
+        }
+
+        // Armor: (name, points per slot head/chest/legs/feet, durability multiplier, toughness, colour)
+        let armors: [(String, String, [Int], Int, Float, UInt32)] = [
+            ("leather", "Leather", [1, 3, 2, 1], 5, 0, 0xA0592B), ("chainmail", "Chainmail", [2, 5, 4, 1], 15, 0, 0x9A9A9A),
+            ("iron", "Iron", [2, 6, 5, 2], 15, 0, 0xE0E0E0), ("golden", "Golden", [2, 5, 3, 1], 7, 0, 0xF8D84A),
+            ("diamond", "Diamond", [3, 8, 6, 3], 33, 2, 0x4AEDD9), ("netherite", "Netherite", [3, 8, 6, 3], 37, 3, 0x5A555A),
+        ]
+        let pieces: [(String, String, ArmorSlot, Int)] = [("helmet", "Helmet", .head, 11), ("chestplate", "Chestplate", .chest, 16),
+                                                           ("leggings", "Leggings", .legs, 15), ("boots", "Boots", .feet, 13)]
+        for a in armors {
+            for (pi, p) in pieces.enumerated() {
+                let n = a.0 == "leather" && p.0 == "helmet" ? "leather_helmet" : "\(a.0)_\(p.0)"
+                let disp = a.0 == "leather" ? "Leather \(p.0 == "chestplate" ? "Tunic" : (p.0 == "leggings" ? "Pants" : (p.0 == "helmet" ? "Cap" : p.1)))" : "\(a.1) \(p.1)"
+                var d = ItemDef(n, disp)
+                d.sprite = Sprite(mask: p.0, base: a.5, extras: [:])
+                d.maxStack = 1
+                d.armorSlot = p.2
+                d.armor = a.2[pi]
+                d.toughness = a.4
+                d.durability = p.3 * a.3
+                add(d)
+            }
+        }
     }
 }
 
 let Items = ItemRegistry()
 
 enum ItemTextures {
-    static func painters() -> [String: TextureGen.Painter] {
-        let r = TextureGen.r
-        var p: [String: TextureGen.Painter] = [:]
-        p["apple"] = { x, y in
-            if x == 8 && y >= 1 && y <= 4 { return TextureGen.hex(0x5A3D1F) }
-            if y >= 1 && y <= 3 && x >= 9 && x <= 11 && (x - 9) == (3 - y) { return TextureGen.hex(0x4D9E33) }
-            let dx = Float(x) - 7.5, dy = Float(y) - 9.5
-            let d = (dx * dx + dy * dy * 1.1).squareRoot()
-            if d < 5.8 {
-                if dx < -1.5 && dy < -1.5 && d > 2.5 && d < 4.2 { return V4(1, 0.72, 0.68, 1) }
-                return TextureGen.hex(0xD11F1A, 0.85 + 0.2 * (1 - d / 6) + 0.05 * r(x, y, 1))
-            }
-            return TextureGen.clear
+    // Material shades from a base colour: 1 outline ... 5 highlight.
+    static func shade(_ base: UInt32, _ k: Int) -> V4 {
+        let c = TextureGen.hex(base)
+        switch k {
+        case 1: return V4(c.x * 0.3, c.y * 0.3, c.z * 0.3, 1)
+        case 2: return V4(c.x * 0.6, c.y * 0.6, c.z * 0.6, 1)
+        case 3: return V4(c.x * 0.8, c.y * 0.8, c.z * 0.8, 1)
+        case 4: return c
+        default: return V4(min(1, c.x * 0.6 + 0.4), min(1, c.y * 0.6 + 0.4), min(1, c.z * 0.6 + 0.4), 1)
         }
+    }
+
+    static func painter(_ s: Sprite) -> TextureGen.Painter {
+        let rows = (ItemArt.masks[s.mask] ?? []).map { Array($0) }
+        return { x, y in
+            guard y < rows.count, x < rows[y].count else { return TextureGen.clear }
+            let ch = rows[y][x]
+            switch ch {
+            case ".": return TextureGen.clear
+            case "1", "2", "3", "4", "5": return shade(s.base, Int(String(ch))!)
+            case "a": return TextureGen.hex(s.extras["a"] ?? 0x49361B)
+            case "b": return TextureGen.hex(s.extras["b"] ?? 0x896727)
+            default: return TextureGen.hex(s.extras[ch] ?? 0xFF00FF)
+            }
+        }
+    }
+
+    static func painters() -> [String: TextureGen.Painter] {
+        var p: [String: TextureGen.Painter] = [:]
+        for d in Items.defs { if let s = d.sprite { p["item_" + d.name] = painter(s) } }
         return p
     }
 }

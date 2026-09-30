@@ -23,6 +23,8 @@ enum HudTex {
     static let heart = Int(Tex.id("heart")), heartHalf = Int(Tex.id("heart_half")), heartEmpty = Int(Tex.id("heart_empty"))
     static let food = Int(Tex.id("food")), foodHalf = Int(Tex.id("food_half")), foodEmpty = Int(Tex.id("food_empty"))
     static let bubble = Int(Tex.id("bubble"))
+    static let armor = Int(Tex.id("armor")), armorHalf = Int(Tex.id("armor_half")), armorEmpty = Int(Tex.id("armor_empty"))
+    static func destroy(_ i: Int) -> Int { Int(Tex.id("destroy_\(max(0, min(9, i)))")) }
 }
 
 final class Renderer: NSObject, MTKViewDelegate {
@@ -36,6 +38,8 @@ final class Renderer: NSObject, MTKViewDelegate {
     let starPipe: MTLRenderPipelineState
     let cloudPipe: MTLRenderPipelineState
     let mobPipe: MTLRenderPipelineState
+    let entityPipe: MTLRenderPipelineState
+    let crackPipe: MTLRenderPipelineState
     let starBuf: MTLBuffer
     let starVerts: Int
     let depthWrite: MTLDepthStencilState
@@ -89,6 +93,8 @@ final class Renderer: NSObject, MTKViewDelegate {
         starPipe = try pipe("starVS", "simpleFS", blend: true)
         cloudPipe = try pipe("cloudVS", "cloudFS", blend: true)
         mobPipe = try pipe("mobVS", "mobFS", blend: false)
+        entityPipe = try pipe("entityVS", "entityFS", blend: false)
+        crackPipe = try pipe("entityVS", "crackFS", blend: true)
 
         // Star field: fixed random directions on a sphere of radius 90 (sky frame, rotated per frame).
         var stars: [SimpleVert] = []
@@ -328,6 +334,55 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
         }
 
+        // Dropped items and the crack overlay (written straight into the scratch ring)
+        do {
+            let entOff = (scratchOff + 255) & ~255
+            let stride = MemoryLayout<EntityVert>.stride
+            let entCap = (ringSize - entOff) / stride
+            if entCap > 64 {
+                let ptr = (scratch.contents() + entOff).bindMemory(to: EntityVert.self, capacity: entCap)
+                var wr = EntityWriter(out: ptr, capacity: entCap)
+                let right = V3(cosf(p.yaw), 0, -sinf(p.yaw))
+                let up = simd_normalize(simd_cross(right, p.look))
+                game.drops.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight, time: Float(game.clock))
+                let nItems = wr.n
+                if let m = game.mining, game.mineProgress > 0 {
+                    let layer = HudTex.destroy(Int(game.mineProgress * 10))
+                    let o = V3(Float(m.x), Float(m.y), Float(m.z)) - eye
+                    let CT = Mesher.cornerTable
+                    let uvs = [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)]
+                    for (bmn, bmx) in game.world.selectionBoxes(game.world.block(m.x, m.y, m.z)) {
+                        let a = o + bmn - V3(repeating: 0.002), b = o + bmx + V3(repeating: 0.002)
+                        for f in 0..<6 {
+                            var ps: [V3] = []
+                            for k in 0..<4 {
+                                let ci = (f * 4 + k) * 3
+                                ps.append(V3(CT[ci] == 1 ? b.x : a.x, CT[ci + 1] == 1 ? b.y : a.y, CT[ci + 2] == 1 ? b.z : a.z))
+                            }
+                            wr.quad(ps, uvs, layer, V4(1, 1, 1, 0.9))
+                        }
+                    }
+                }
+                if wr.n > 0 {
+                    scratchOff = entOff + wr.n * stride
+                    enc.setDepthStencilState(depthWrite)
+                    enc.setCullMode(.none)
+                    enc.setVertexBuffer(scratch, offset: entOff, index: 0)
+                    enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+                    enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+                    if nItems > 0 {
+                        enc.setRenderPipelineState(entityPipe)
+                        enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: nItems)
+                    }
+                    if wr.n > nItems {
+                        enc.setRenderPipelineState(crackPipe)
+                        enc.setDepthStencilState(depthRead)
+                        enc.drawPrimitives(type: .triangle, vertexStart: nItems, vertexCount: wr.n - nItems)
+                    }
+                }
+            }
+        }
+
         // Target block outline (the block's selection boxes)
         if let t = game.target {
             let e: Float = 0.003
@@ -450,33 +505,105 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
         let slot = L.slot
 
-        if game.inventoryOpen {
-            // Creative inventory: dimmed world, panel with every placeable block, highlighted cursor.
-            let items = game.inventoryItems
-            let n = items.count
-            let o = L.gridOrigin(n)
-            let gw = slot * Float(HudLayout.cols), gh = slot * Float(L.gridRows(n))
-            rect(0, 0, W, H, V4(0, 0, 0, 0.4))
-            rect(o.x - 6 * s, o.y - 6 * s, gw + 12 * s, gh + 12 * s, V4(0.1, 0.1, 0.12, 0.88))
-            frame(o.x - 6 * s, o.y - 6 * s, gw + 12 * s, gh + 12 * s, s, V4(0.55, 0.55, 0.6, 0.9))
-            for i in 0..<n {
-                let p = L.gridSlot(i, n)
-                let hi = i == game.invCursor
-                rect(p.x + s, p.y + s, slot - 2 * s, slot - 2 * s, hi ? V4(0.75, 0.75, 0.8, 0.6) : V4(0.3, 0.3, 0.34, 0.6))
-                icon(items[i], center: V2(p.x + slot / 2, p.y + slot / 2), size: slot * 0.62, quad)
+        // Item icon (block cube or sprite) with count and durability bar; size = slot pixel size.
+        func itemIcon(_ st: ItemStack, _ x: Float, _ y: Float, _ size: Float, counts: Bool = true) {
+            if st.isEmpty { return }
+            let c = V2(x + size / 2, y + size / 2)
+            if let layer = Items.texLayer(st.item) {
+                let h = size * 0.5
+                quad([V2(c.x - h, c.y - h), V2(c.x + h, c.y - h), V2(c.x + h, c.y + h), V2(c.x - h, c.y + h)],
+                     [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)], V4(1, 1, 1, 1), Float(layer))
+            } else if let b = st.def.block {
+                icon(b, center: c, size: size * 0.78, quad)
             }
-            let c = L.gridSlot(game.invCursor, n)
-            frame(c.x - s, c.y - s, slot + 2 * s, slot + 2 * s, 2 * s, V4(1, 1, 1, 0.95))
-        } else {
-            // Crosshair
-            let cx = floor(W / 2), cy = floor(H / 2)
-            let arm = 5 * s, th = max(1, s)
-            let shadow = V4(0, 0, 0, 0.45), white = V4(1, 1, 1, 0.9)
-            rect(cx - arm - 1, cy - th / 2 - 1, arm * 2 + 2, th + 2, shadow)
-            rect(cx - th / 2 - 1, cy - arm - 1, th + 2, arm * 2 + 2, shadow)
-            rect(cx - arm, cy - th / 2, arm * 2, th, white)
-            rect(cx - th / 2, cy - arm, th, arm * 2, white)
+            let def = st.def
+            if def.durability > 0 && st.damage > 0 {
+                let f = 1 - Float(st.damage) / Float(def.durability)
+                let bw = size * 13 / 16, bx = x + size * 1.5 / 16, by = y + size * 13 / 16
+                rect(bx, by, bw, size / 8, V4(0, 0, 0, 1))
+                rect(bx, by, bw * f, size / 16, V4(1 - f, f, 0, 1))
+            }
+            if counts && st.count > 1 {
+                let t = "\(st.count)"
+                text(t, x + size - textWidth(t, s) - s * 0.5 + s, y + size - 7 * s + s, s)
+            }
         }
+
+        let slot = L.slot
+        if let m = game.menu {
+            // Container screen: dimmed world, bevelled panel, slots, items, cursor stack, tooltip.
+            rect(0, 0, W, H, V4(0, 0, 0, 0.45))
+            let o = m.origin(L)
+            let pw = Float(m.width) * s, ph = Float(m.height) * s
+            let bg = V4(0.776, 0.776, 0.776, 1)
+            rect(o.x + s, o.y, pw - 2 * s, ph, V4(0, 0, 0, 1))
+            rect(o.x, o.y + s, pw, ph - 2 * s, V4(0, 0, 0, 1))
+            rect(o.x + s, o.y + s, pw - 2 * s, ph - 2 * s, bg)
+            rect(o.x + s, o.y + s, pw - 3 * s, 2 * s, V4(1, 1, 1, 1))
+            rect(o.x + s, o.y + s, 2 * s, ph - 3 * s, V4(1, 1, 1, 1))
+            rect(o.x + 2 * s, o.y + ph - 3 * s, pw - 3 * s, 2 * s, V4(0.333, 0.333, 0.333, 1))
+            rect(o.x + pw - 3 * s, o.y + 2 * s, 2 * s, ph - 3 * s, V4(0.333, 0.333, 0.333, 1))
+            let titleC = V4(0.25, 0.25, 0.25, 1)
+            text(m.title, o.x + 8 * s, o.y + 6 * s, s, titleC, shadow: false)
+            if m.showInventoryLabel { text("Inventory", o.x + 8 * s, o.y + 73 * s, s, titleC, shadow: false) }
+            if let f = m as? FurnaceMenu {
+                // Flame (fuel left) and arrow (cook progress).
+                let fx = o.x + 57 * s, fy = o.y + 37 * s
+                rect(fx, fy, 13 * s, 13 * s, V4(0.55, 0.55, 0.55, 1))
+                if f.be.burn > 0 && f.be.burnMax > 0 {
+                    let k = Float(f.be.burn) / Float(f.be.burnMax)
+                    rect(fx, fy + 13 * s * (1 - k), 13 * s, 13 * s * k, V4(1, 0.55, 0.1, 1))
+                }
+                let ax = o.x + 79 * s, ay = o.y + 34 * s
+                rect(ax, ay + 5 * s, 22 * s, 6 * s, V4(0.55, 0.55, 0.55, 1))
+                rect(ax, ay + 5 * s, 22 * s * Float(f.be.cook) / 200, 6 * s, V4(1, 1, 1, 1))
+            }
+            if m is InventoryMenu {
+                rect(o.x + 26 * s, o.y + 8 * s, 50 * s, 70 * s, V4(0, 0, 0, 1))
+                rect(o.x + 27 * s, o.y + 9 * s, 48 * s, 68 * s, V4(0.35, 0.35, 0.38, 1))
+                text("Crafting", o.x + 97 * s, o.y + 7 * s, s, titleC, shadow: false)
+                rect(o.x + 136 * s, o.y + 33 * s, 12 * s, 3 * s, V4(0.55, 0.55, 0.55, 1))
+            }
+            if m is CraftingTableMenu { rect(o.x + 90 * s, o.y + 33 * s, 22 * s, 6 * s, V4(0.55, 0.55, 0.55, 1)) }
+            for sl in m.slots {
+                let x = o.x + Float(sl.x - 1) * s, y = o.y + Float(sl.y - 1) * s
+                let big: Float = { if case .result = sl.kind { return 4 } else if case .output = sl.kind { return 4 } else { return 0 } }()
+                let bx = x - big * s, by = y - big * s, bs = (18 + 2 * big) * s
+                rect(bx, by, bs, bs, V4(0.216, 0.216, 0.216, 1))
+                rect(bx + s, by + s, bs - s, bs - s, V4(1, 1, 1, 1))
+                rect(bx + s, by + s, bs - 2 * s, bs - 2 * s, V4(0.545, 0.545, 0.545, 1))
+                itemIcon(sl.stack, x + s, y + s, 16 * s)
+                if sl === game.menuHover { rect(x + s, y + s, 16 * s, 16 * s, V4(1, 1, 1, 0.45)) }
+            }
+            if let c = m as? CreativeMenu, c.maxScroll > 0 {
+                let tx = o.x + 175 * s, ty = o.y + 18 * s, th = 90 * s
+                rect(tx, ty, 12 * s, th, V4(0.216, 0.216, 0.216, 1))
+                let k = Float(c.scroll) / Float(c.maxScroll)
+                rect(tx + s, ty + (th - 15 * s) * k, 10 * s, 15 * s, V4(0.8, 0.8, 0.8, 1))
+            }
+            // Cursor stack follows the mouse, or the controller's hovered slot.
+            var cursorPos = V2(game.input.mouseX, game.input.mouseY)
+            if cursorPos.x < 0, let h = game.menuHover { cursorPos = o + V2(Float(h.x + 8), Float(h.y + 8)) * s }
+            if !game.carried.isEmpty { itemIcon(game.carried, cursorPos.x - 8 * s, cursorPos.y - 8 * s, 16 * s) }
+            else if let h = game.menuHover, !h.stack.isEmpty {
+                let name = h.stack.def.display
+                let tw = textWidth(name, s)
+                let tx = cursorPos.x + 12 * s, ty = cursorPos.y - 12 * s
+                rect(tx - 3 * s, ty - 3 * s, tw + 6 * s, 13 * s, V4(0.063, 0, 0.063, 0.94))
+                frame(tx - 2 * s, ty - 2 * s, tw + 4 * s, 11 * s, s, V4(0.31, 0, 1, 0.5))
+                text(name, tx, ty, s)
+            }
+            return v
+        }
+
+        // Crosshair
+        let cx = floor(W / 2), cy = floor(H / 2)
+        let arm = 5 * s, th = max(1, s)
+        let shadow = V4(0, 0, 0, 0.45), white = V4(1, 1, 1, 0.9)
+        rect(cx - arm - 1, cy - th / 2 - 1, arm * 2 + 2, th + 2, shadow)
+        rect(cx - th / 2 - 1, cy - arm - 1, th + 2, arm * 2 + 2, shadow)
+        rect(cx - arm, cy - th / 2, arm * 2, th, white)
+        rect(cx - th / 2, cy - arm, th, arm * 2, white)
 
         // Hotbar
         let total = slot * 9
@@ -486,18 +613,11 @@ final class Renderer: NSObject, MTKViewDelegate {
         for i in 0..<9 {
             let x = x0 + Float(i) * slot
             rect(x + s, y0 + s, slot - 2 * s, slot - 2 * s, V4(0.35, 0.35, 0.38, 0.55))
-            if i == game.selected {
-                let b = 2 * s
-                let c = V4(1, 1, 1, 0.95)
-                rect(x - s, y0 - s, slot + 2 * s, b, c)
-                rect(x - s, y0 + slot - b + s, slot + 2 * s, b, c)
-                rect(x - s, y0 - s, b, slot + 2 * s, c)
-                rect(x + slot - b + s, y0 - s, b, slot + 2 * s, c)
-            }
-            icon(game.hotbar[i], center: V2(x + slot / 2, y0 + slot / 2), size: slot * 0.62, quad)
+            if i == game.selected { frame(x - s, y0 - s, slot + 2 * s, slot + 2 * s, 2 * s, V4(1, 1, 1, 0.95)) }
+            itemIcon(game.inventory.main[i], x + 2 * s, y0 + 2 * s, slot - 4 * s)
         }
 
-        // Survival status: hearts (left), hunger (right, filling right-to-left), air bubbles when submerged.
+        // Survival status: hearts (left), hunger (right, filling right-to-left), armor, air bubbles.
         if game.survival {
             let isz = 9 * s, step = 8 * s
             let yh = y0 - 3 * s - isz
@@ -511,11 +631,19 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let f = game.hunger - i * 2
                 sprite(f >= 2 ? HudTex.food : (f == 1 ? HudTex.foodHalf : HudTex.foodEmpty), x0 + total - isz - Float(i) * step, yh)
             }
+            let ap = game.inventory.armorPoints
+            if ap > 0 {
+                for i in 0..<10 {
+                    let a = ap - i * 2
+                    sprite(a >= 2 ? HudTex.armor : (a == 1 ? HudTex.armorHalf : HudTex.armorEmpty), x0 + Float(i) * step, yh - step - s)
+                }
+            }
             if game.air < 15 {
                 let b = Int(ceilf(game.air / 1.5))
                 for i in 0..<b { sprite(HudTex.bubble, x0 + total - isz - Float(i) * step, yh - step - s) }
             }
         }
+
         // Toast (item names, messages) above the hotbar, fading out.
         let since = game.clock - game.toastTime
         if since < 2.2 && !game.toastText.isEmpty {

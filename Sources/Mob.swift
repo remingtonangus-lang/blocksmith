@@ -117,6 +117,12 @@ final class Mob {
         walkAmount += (min(1, hs / 1.2) - walkAmount) * min(1, dt * 8)
     }
 
+    func intersects(_ b: IVec3) -> Bool {
+        let bx = Float(b.x), by = Float(b.y), bz = Float(b.z)
+        return pos.x + kind.halfW > bx && pos.x - kind.halfW < bx + 1 && pos.y + kind.height > by && pos.y < by + 1
+            && pos.z + kind.halfW > bz && pos.z - kind.halfW < bz + 1
+    }
+
     func hit(from src: V3, damage: Int) {
         health -= damage
         hurt = 0.4

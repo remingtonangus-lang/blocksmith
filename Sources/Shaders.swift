@@ -206,6 +206,37 @@ fragment float4 mobFS(MobOut in [[stage_in]], constant Uniforms& u [[buffer(1)]]
     return float4(applyFog(c * in.shade, in.dist, u), 1.0);
 }
 
+// Textured entities: dropped items (cutout) and the block-breaking crack overlay (blended).
+struct EntityVert { float4 pos; float4 uv; float4 color; };
+struct EntOut { float4 pos [[position]]; float2 uv; float layer [[flat]]; float4 color; float dist; };
+
+vertex EntOut entityVS(uint vid [[vertex_id]],
+                       const device EntityVert* verts [[buffer(0)]],
+                       constant Uniforms& u [[buffer(1)]]) {
+    EntityVert e = verts[vid];
+    EntOut o;
+    o.pos = u.viewProj * float4(e.pos.xyz, 1.0);
+    o.uv = e.uv.xy;
+    o.layer = e.pos.w;
+    o.color = e.color;
+    o.dist = length(e.pos.xyz);
+    return o;
+}
+
+fragment float4 entityFS(EntOut in [[stage_in]],
+                         texture2d_array<float> tex [[texture(0)]],
+                         constant Uniforms& u [[buffer(1)]]) {
+    float4 c = tex.sample(texSampler, in.uv, uint(in.layer));
+    if (c.a < 0.5) { discard_fragment(); }
+    return float4(applyFog(c.rgb * in.color.rgb, in.dist, u), 1.0);
+}
+
+fragment float4 crackFS(EntOut in [[stage_in]], texture2d_array<float> tex [[texture(0)]]) {
+    float4 c = tex.sample(texSampler, in.uv, uint(in.layer), level(0.0));
+    if (c.a < 0.1) { discard_fragment(); }
+    return float4(c.rgb, c.a * in.color.a);
+}
+
 struct HudVert { float2 pos; float2 uv; float4 color; float4 extra; };
 struct HudOut { float4 pos [[position]]; float2 uv; float4 color; float layer [[flat]]; };
 

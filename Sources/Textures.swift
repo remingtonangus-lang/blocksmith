@@ -291,6 +291,81 @@ enum TextureGen {
             return v > 0.9 ? hex(0xFFF3C4) : (v > 0.6 ? hex(0xE8B55A) : hex(0x9A6A30, 0.9 + 0.2 * r(x, y, 82)))
         }
 
+        let plank = planks(0xA2824E, salt: 41)
+        p["crafting_table_top"] = { x, y in
+            if x == 0 || y == 0 || x == 15 || y == 15 { return hex(0x5A4020) }
+            if x == 7 || y == 7 { return hex(0x6B4F2C) }
+            return hex(0xB08850, 0.9 + 0.12 * r(x, y, 101))
+        }
+        p["crafting_table_side"] = { x, y in
+            if y < 3 { return hex(0x5A4020, 0.9 + 0.1 * r(x, y, 102)) }
+            if (x == 2 || x == 13) && y >= 3 { return hex(0x3E2C16) }
+            return plank(x, y)
+        }
+        p["crafting_table_front"] = { x, y in
+            if y < 3 { return hex(0x5A4020, 0.9 + 0.1 * r(x, y, 102)) }
+            // A saw and a hammer hanging on the front.
+            if y >= 5 && y <= 12 && x >= 3 && x <= 6 && (x - 3) + (12 - y) <= 6 { return hex(0xB8B8B8, 0.9 + 0.2 * r(x, y, 103)) }
+            if x >= 9 && x <= 13 && y == 5 { return hex(0x8A8A8A) }
+            if x == 11 && y > 5 && y < 13 { return hex(0x6B4F2C) }
+            return plank(x, y)
+        }
+        let cobbleP = cobble(0x7A7A7A, 0x444444, 9)
+        let furnaceSide: Painter = { x, y in
+            if y == 0 || y == 15 || x == 0 || x == 15 { return hex(0x555555) }
+            return hex(0x7E7E7E, 0.9 + 0.12 * r(x, y, 104))
+        }
+        p["furnace_side"] = furnaceSide
+        p["furnace_top"] = { x, y in cobbleP(x, y) }
+        func furnaceFront(_ lit: Bool) -> Painter {
+            { x, y in
+                if x >= 4 && x <= 11 && y >= 9 && y <= 13 {
+                    if !lit { return hex(0x1A1A1A) }
+                    let fl = r(x, y, 105)
+                    return y >= 11 ? hex(fl > 0.5 ? 0xFFD040 : 0xFF8A1A) : hex(fl > 0.6 ? 0xFF6A10 : 0x3A1A0A)
+                }
+                if (x == 3 || x == 12) && y >= 8 && y <= 14 { return hex(0x3A3A3A) }
+                if y == 8 && x >= 3 && x <= 12 { return hex(0x3A3A3A) }
+                if y >= 3 && y <= 5 && x >= 4 && x <= 11 { return hex(0x4A4A4A) }
+                return furnaceSide(x, y)
+            }
+        }
+        p["furnace_front"] = furnaceFront(false)
+        p["furnace_front_on"] = furnaceFront(true)
+        func chestWood(_ x: Int, _ y: Int) -> V4 { hex(0xA2702F, 0.88 + 0.14 * r(x / 3, y, 106)) }
+        p["chest_top"] = { x, y in
+            if x <= 1 || y <= 1 || x >= 14 || y >= 14 { return hex(0x4E3414) }
+            return chestWood(x, y)
+        }
+        p["chest_side"] = { x, y in
+            if x <= 1 || x >= 14 || y <= 2 || y >= 15 || y == 7 || y == 8 { return hex(0x4E3414) }
+            return chestWood(x, y)
+        }
+        p["chest_front"] = { x, y in
+            if x >= 7 && x <= 8 && y >= 6 && y <= 9 { return hex(0xC8C8C8) }
+            if x <= 1 || x >= 14 || y <= 2 || y >= 15 || y == 7 || y == 8 { return hex(0x4E3414) }
+            return chestWood(x, y)
+        }
+        func storage(_ c: UInt32, _ salt: Int) -> Painter {
+            { x, y in
+                if x == 0 || y == 0 { return hex(c, 1.25) }
+                if x == 15 || y == 15 { return hex(c, 0.65) }
+                if (x == 1 || y == 1) { return hex(c, 1.1) }
+                return hex(c, 0.93 + 0.1 * r(x, y, salt))
+            }
+        }
+        p["coal_block"] = storage(0x1E1E1E, 110)
+        p["iron_block"] = storage(0xDCDCDC, 111)
+        p["gold_block"] = storage(0xF8D84A, 112)
+        p["diamond_block"] = storage(0x62EDE0, 113)
+        p["emerald_block"] = storage(0x2ADB6A, 114)
+        p["lapis_block"] = storage(0x2A5BC8, 115)
+        p["redstone_block"] = storage(0xB01010, 116)
+        p["copper_block"] = storage(0xC8704A, 117)
+        p["oak_sapling"] = ItemTextures.painter(Sprite(mask: "sapling", base: 0x4A8A2A, extras: ["a": 0x6B4F2C, "b": 0x8A6435]))
+        p["birch_sapling"] = ItemTextures.painter(Sprite(mask: "sapling", base: 0x7AA850, extras: ["a": 0xD8D4C8, "b": 0xB0ACA0]))
+        p["spruce_sapling"] = ItemTextures.painter(Sprite(mask: "sapling", base: 0x3A6A3A, extras: ["a": 0x4A3420, "b": 0x6A4A2A]))
+
         // HUD
         func heart(_ x: Int, _ y: Int, _ fill: Int) -> V4 {
             let nx = (Float(x) - 7.5) / 7.2, ny = -(Float(y) - 8.2) / 7.2
