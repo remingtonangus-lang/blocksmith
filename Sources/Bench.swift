@@ -232,12 +232,19 @@ enum Bench {
             if coverage(world, pos) >= 1 { full = now - d; break }
             usleep(16_000)
         }
+        // Renderer init breakdown (each repeated here on its own).
+        var e = now
+        _ = TextureGen.mipChain()
+        put("startup.textures_ms", (now - e) * 1000)
+        e = now
+        _ = try? device.makeLibrary(source: shaderSource, options: nil)
+        put("startup.shader_compile_ms", (now - e) * 1000)
         put("startup.world_init_ms", tWorld * 1000)
         put("startup.first_load_ms", tFirst * 1000)
         put("startup.renderer_init_ms", tRenderer * 1000)
         put("startup.fill_rd12_s", full)
         put("startup.since_launch_s", now - processT0)
-        print("bench startup: world+game init \(f(tWorld * 1000, 0)) ms, first load (r 4) \(f(tFirst * 1000, 0)) ms, renderer \(f(tRenderer * 1000, 0)) ms, fill rd 12 \(f(full, 2)) s")
+        print("bench startup: world+game init \(f(tWorld * 1000, 0)) ms, first load (r 4) \(f(tFirst * 1000, 0)) ms, renderer \(f(tRenderer * 1000, 0)) ms (textures \(f(metrics["startup.textures_ms"] ?? 0, 0)) ms, shaders \(f(metrics["startup.shader_compile_ms"] ?? 0, 0)) ms), fill rd 12 \(f(full, 2)) s")
     }
 
     static func frame(_ device: MTLDevice, _ seed: UInt64) {
