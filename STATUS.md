@@ -105,7 +105,13 @@ B close, RS scroll creative.
   mules and horse stat inheritance; reference baby odds; Cloudwailer (happy ghast) with harnesses.
 - Newest roster, approximations from memory of the reference: Sunscorched Skeleton (parched, weakness arrows, desert,
   sun-proof), Dust Camel (camel husk carrying a dust zombie + sunscorched skeleton), Nautilus (warm oceans) and Sunken
-  Nautilus (ridden by 5% of ocean sunken). Not yet: riding/taming nautiluses, the spear, copper golem (needs copper chests).
+  Nautilus (ridden by 5% of ocean sunken); nautiluses tame with pufferfish and can be saddled and ridden underwater.
+  Not yet: the spear, copper golem (needs copper chests).
+- More reference details: patrols move as a group (captain leads), structure spawns (watchtower marauders, sea-temple
+  spikefish), villagers hide at beds during raids, zombification odds by difficulty, spiders leap, voidwalkers blink
+  toward far targets and ignore pumpkin-headed players, loot pickup (55% x regional difficulty), boarling guard triggers
+  (chests/gold), soul-fire / warped-fungus repellents, neutral mobs forgive after 30 s, llama caravans, deep stalkers dig
+  out of the ground, village cats / desert camels at generation, shearing snow golems and mire skeletons.
 - `--mobtests` (MobTests.swift) checks all of the above headlessly and exits non-zero on a failure.
 
 ## Known gaps / decisions
