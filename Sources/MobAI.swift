@@ -154,4 +154,46 @@ extension Mob {
         g.sfx(.bow, 0.8, at: pos)
         return true
     }
+
+    static let voidwalkerHoldable: Set<String> = [
+        "grass_block", "dirt", "coarse_dirt", "podzol", "rooted_dirt", "mycelium", "sand", "red_sand", "gravel", "clay", "pumpkin",
+        "carved_pumpkin", "melon", "tnt", "cactus", "dandelion", "poppy", "blue_orchid", "allium", "azure_bluet", "oxeye_daisy",
+        "cornflower", "lily_of_the_valley", "red_mushroom", "brown_mushroom", "netherrack", "crimson_nylium", "warped_nylium",
+        "crimson_fungus", "warped_fungus", "mud", "moss_block", "muddy_mangrove_roots"]
+
+    static func carryColor(_ b: BlockID) -> V3 {
+        let k = Blocks.key(Blocks.groupBase[Int(b)])
+        if k.contains("grass") || k.contains("moss") || k == "cactus" || k == "melon" { return V3(0.4, 0.62, 0.3) }
+        if k.contains("sand") { return V3(0.86, 0.8, 0.6) }
+        if k.contains("pumpkin") { return V3(0.85, 0.5, 0.12) }
+        if k == "tnt" || k.contains("nylium") || k == "netherrack" { return V3(0.7, 0.2, 0.2) }
+        if k == "gravel" || k == "clay" { return V3(0.6, 0.6, 0.62) }
+        return V3(0.5, 0.36, 0.24)
+    }
+
+    // Voidwalker extras (reference): picks up a holdable block now and then (1/20 per tick at a random
+    // nearby spot), sets it down again (1/2000 per tick), and hurts + teleports in rain.
+    func voidwalkerTick(_ dt: Float, _ g: Game) {
+        let w = g.world
+        let c = IVec3(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z)))
+        if g.isRainingAt(pos) && w.lightAt(c.x, c.y + 2, c.z).sky >= 15 {
+            fireTick += dt
+            if fireTick >= 1 { fireTick = 0; health -= 1; hurt = 0.3; teleport(w) }
+        }
+        let ticks = dt * 20
+        if carriedBlock == 0 {
+            guard Float.random(in: 0..<1) < ticks / 20 else { return }
+            let q = IVec3(c.x + Int.random(in: -2...2), c.y + Int.random(in: 0...2), c.z + Int.random(in: -2...2))
+            let b = w.block(q.x, q.y, q.z)
+            guard b != AIR, Mob.voidwalkerHoldable.contains(Blocks.key(Blocks.groupBase[Int(b)])) else { return }
+            carriedBlock = Blocks.groupBase[Int(b)]
+            w.setBlock(q.x, q.y, q.z, AIR)
+        } else {
+            guard Float.random(in: 0..<1) < ticks / 2000 else { return }
+            let q = IVec3(c.x + Int.random(in: -1...1), c.y + Int.random(in: 0...2), c.z + Int.random(in: -1...1))
+            guard w.block(q.x, q.y, q.z) == AIR, Blocks.opaque[Int(w.block(q.x, q.y - 1, q.z))] else { return }
+            w.setBlock(q.x, q.y, q.z, carriedBlock)
+            carriedBlock = 0
+        }
+    }
 }

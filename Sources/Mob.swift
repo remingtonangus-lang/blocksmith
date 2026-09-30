@@ -330,6 +330,7 @@ final class Mob {
     var convertTime: Float = 0      // drowning zombie / freezing skeleton / boarling out of the Emberdeep / tadpole (Conversions.swift)
     var reinforceChance = Float.random(in: 0..<0.1)
     var trap = false                // skeleton trap horse
+    var carriedBlock: BlockID = 0   // voidwalker: block it picked up
     var sleptAt: Double = -1e9      // villager: game time it last slept (golem summoning needs sleep within a day)
     var golemSeenAt: Double = -1e9  // villager: last saw an iron golem
     var gossipCooldown: Float = 0
@@ -713,6 +714,7 @@ final class Mob {
                 if simd_dot(g.player.look, toHead) > 0.99 && w.canSee(g.player.eye, head) { aggro = true; g.sfx(.mobVoidwalker, 1, at: pos) }
             }
             if inWater { teleport(w) }
+            voidwalkerTick(dt, g)
             if aggro && canTarget {
                 face(player)
                 speed = spec.speed * 2
@@ -1042,6 +1044,7 @@ private func parts(_ m: Mob) -> [Part] {
         let hy = bodyY + 12
         if en {
             p += [box(-3, hy + 3.5, -4.2, 2.2, 1, 0.3, V3(0.85, 0.3, 0.95)), box(0.8, hy + 3.5, -4.2, 2.2, 1, 0.3, V3(0.85, 0.3, 0.95))]
+            if m.carriedBlock != 0 { p.append(box(-5, bodyY + 4, -12, 10, 10, 10, Mob.carryColor(m.carriedBlock), 4)) }
         } else {
             p += eyes(hy + 3.5, -4, 1, 1.5, sk ? V3(0.15, 0.15, 0.15) : (m.kind == .drowned ? V3(0.3, 0.9, 0.9) : black))
             if sk { p.append(box(-2, hy + 1, -4.1, 4, 1, 0.2, V3(0.2, 0.2, 0.2))) }

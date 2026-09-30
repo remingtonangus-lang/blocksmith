@@ -289,6 +289,7 @@ extension VillagerData {
 extension Game {
     // A villager killed by the player: every villager within 16 blocks that can see it remembers (major negative 25).
     func villagerDied(_ m: Mob) {
+        if m.carriedBlock != 0, let it = Items.item(forBlock: m.carriedBlock) { drops.spawn(ItemStack(it, 1), at: m.pos + V3(0, 1, 0)) }
         guard m.kind == .villager, m.killedByPlayer else { return }
         for o in mobs.mobs where o !== m && o.kind == .villager && o.health > 0 && simd_length(o.pos - m.pos) < 16
             && world.canSee(o.eye, m.eye) {
