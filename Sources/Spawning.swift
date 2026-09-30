@@ -274,6 +274,11 @@ extension MobManager {
     func canSpawnMonster(_ k: MobKind, _ w: World, _ x: Int, _ y: Int, _ z: Int, _ b: Biome, _ game: Game) -> Bool {
         let feet = w.block(x, y, z)
         let wet = Blocks.fluidKind[Int(feet)] == 1
+        // Every pack member needs its own valid spot: a solid top below and room for the body (water for drowned).
+        if !wet {
+            let below = w.block(x, y - 1, z)
+            if !Blocks.opaque[Int(below)] || below == BEDROCK || Blocks.collide[Int(feet)] || Blocks.collide[Int(w.block(x, y + 1, z))] { return false }
+        }
         switch k {
         case .drowned:
             // In water only: rivers 1/15, elsewhere 1/40, at least 5 below sea level; dark enough.

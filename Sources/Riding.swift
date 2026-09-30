@@ -8,9 +8,9 @@ extension Game {
         let key = Items.key(held.item)
         let pos = m.pos + V3(0, m.height, 0)
         // Taming with a chance per item (reference: 1 in 3).
-        func tameTry() {
+        func tameTry(_ odds: Int = 3) {
             consumeHeld()
-            if Int.random(in: 0..<3) == 0 {
+            if Int.random(in: 0..<odds) == 0 {
                 m.owner = true; m.persistent = true; m.aggro = false
                 if m.kind == .wolf { m.health = 40 }
                 particles.hearts(at: pos)
@@ -23,7 +23,7 @@ extension Game {
             consumeHeld()
             if Int.random(in: 0..<3) == 0 { m.owner = false; m.persistent = true; particles.hearts(at: pos) }        // trusting
             return true
-        case .parrot where !m.tamed && key.hasSuffix("_seeds"): tameTry(); return true
+        case .parrot where !m.tamed && key.hasSuffix("_seeds"): tameTry(10); return true          // reference: 1 in 10
         case .parrot where key == "cookie": consumeHeld(); m.health = 0; return true          // poisonous to parrots
         case .allay:
             if !held.isEmpty && m.heldItem == 0 { m.heldItem = held.item; m.owner = true; m.persistent = true; particles.hearts(at: pos); return true }
@@ -37,6 +37,12 @@ extension Game {
             if Items.has(mush) { drops.spawn(ItemStack(Items.id(mush), 5), at: pos) }
             m.health = -2000
             damageHeld(1)
+            return true
+        case .ironGolem where key == "iron_ingot" && m.health < m.spec.health:
+            // Reference: an iron ingot repairs 25 health.
+            m.health = min(m.spec.health, m.health + 25)
+            if survival { consumeHeld() }
+            sfx(.anvil, 0.5, at: pos)
             return true
         case .goat where key == "bucket" && !m.baby:
             consumeHeld(); giveOrReplaceHeldAfterConsume(ItemStack(Items.id("milk_bucket"), 1)); return true
@@ -87,7 +93,8 @@ extension Game {
         }
         // Feeding: breed or grow up.
         if let food = MobKind.animalFood[m.kind], food.contains(key) {
-            if m.baby { m.age += 60; consumeHeld(); particles.hearts(at: pos); return true }
+            // Reference: feeding a baby takes 10% off the time it still needs to grow up.
+            if m.baby { m.age += max(1, (1200 - m.age) * 0.1); consumeHeld(); particles.hearts(at: pos); return true }
             let needsTame: Set<MobKind> = [.wolf, .cat, .horse, .donkey, .llama, .parrot]
             if needsTame.contains(m.kind) && !m.tamed {
                 if m.horseLike { m.temper += 5; consumeHeld(); return true }
