@@ -254,6 +254,7 @@ enum Tutorial {
 
 enum HudExtras {
     static var enabled = true       // the snapshot harness turns tips and prompts off unless --hints
+    static var loading: String?     // full-screen "Loading..." while a world switch blocks the main thread
 
     // Per frame from Game.tick (also while a menu is open).
     static func tick(_ g: Game) {

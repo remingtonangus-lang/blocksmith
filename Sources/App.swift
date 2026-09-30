@@ -133,6 +133,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     // Switches to another world in place (saving the current one).
     func switchWorld(name: String, seed: UInt64?, survival: Bool?, difficulty: Int?) {
+        // One synchronous frame of the loading screen before the (blocking) save + load.
+        HudExtras.loading = "Loading \(name)..."
+        view.draw()
+        defer { HudExtras.loading = nil }
         game.saveNow()
         makeGame(name: name, seed: seed, survival: survival, difficulty: difficulty)
         view.input = game.input
@@ -143,8 +147,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         worldsPanel = nil
         overlay.removeFromSuperview()
         buildOverlay()
-        pauseChanged(true)
         window.title = "Blocksmith — \(name)"
+        // Straight into the world (console style) rather than back to a pause menu.
+        game.paused = false
+        pauseChanged(false)
     }
 
     func buildWindow() {
@@ -177,10 +183,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // Controller hotplugging: toast on connect; losing the pad mid-game pauses (like a console).
         let pads = PadManager.shared
         pads.onConnect = { [weak self] name in self?.toast("\(name) connected") }
-        pads.onDisconnect = { [weak self] name in
+        pads.onDisconnect = { [weak self] name, wasUsing in
             guard let self, let g = self.game else { return }
             self.toast("\(name) disconnected")
-            if g.menu == nil && !g.paused { g.paused = true }
+            if wasUsing && g.menu == nil && !g.paused { g.paused = true }
         }
         pads.start()
         NotificationCenter.default.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main) { [weak self] _ in

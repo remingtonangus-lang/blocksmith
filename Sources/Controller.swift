@@ -13,7 +13,7 @@ final class PadManager {
     var simulated: PadSnapshot?          // harness input; replaces the real pad while set
     private(set) var usingPad = false    // the last input came from a controller
     var onConnect: ((String) -> Void)?
-    var onDisconnect: ((String) -> Void)?
+    var onDisconnect: ((String, Bool) -> Void)?   // name, whether the player was using it
     private var started = false
     private var haptics: CHHapticEngine?
     private var hapticsFailed = false
@@ -44,9 +44,9 @@ final class PadManager {
         }
         nc.addObserver(forName: .GCControllerDidDisconnect, object: nil, queue: .main) { [weak self] n in
             guard let self, let c = n.object as? GCController else { return }
-            let wasActive = self.controller === c
+            let wasActive = self.controller === c, wasUsing = self.usingPad
             self.pick()
-            if wasActive { self.haptics = nil; self.onDisconnect?(c.vendorName ?? "Controller") }
+            if wasActive { self.haptics = nil; self.onDisconnect?(c.vendorName ?? "Controller", wasUsing) }
         }
         nc.addObserver(forName: .GCControllerDidBecomeCurrent, object: nil, queue: .main) { [weak self] _ in self?.pick() }
         pick()
@@ -57,6 +57,7 @@ final class PadManager {
         let cur = GCController.current
         let next = (cur?.extendedGamepad != nil ? cur : nil) ?? pads.first
         if next !== controller {
+            if controller == nil && next != nil { usingPad = true }   // a pad just arrived: show its buttons
             controller = next
             haptics = nil
             hapticsFailed = false

@@ -693,6 +693,14 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
         func textWidth(_ str: String, _ scale: Float) -> Float { Float(Font.width(str)) * scale }
 
+        if let t = HudExtras.loading {
+            // Loading screen: dirt-dark backdrop, big title, the world name.
+            rect(0, 0, W, H, V4(0.09, 0.07, 0.06, 1))
+            let big = s * 2
+            text("BLOCKSMITH", floor((W - textWidth("BLOCKSMITH", big * 2)) / 2), H * 0.3, big * 2, V4(0.86, 0.78, 0.55, 1))
+            text(t, floor((W - textWidth(t, big)) / 2), H * 0.55, big)
+            return v
+        }
         if game.player.headInWater { rect(0, 0, W, H, V4(0.05, 0.15, 0.45, 0.35)) }
         if game.sleeping > 0 { rect(0, 0, W, H, V4(0.02, 0.02, 0.06, min(1, game.sleeping / 1.5))) }
         if game.hurtFlash > 0 { rect(0, 0, W, H, V4(0.75, 0.02, 0.02, min(0.45, game.hurtFlash * 1.3))) }
@@ -1077,6 +1085,11 @@ final class Renderer: NSObject, MTKViewDelegate {
                 text(logo, lx, ly, ls, V4(0.86, 0.78, 0.55, 1), shadow: false)
                 let tag = "Build. Explore. Survive."
                 text(tag, floor((W - textWidth(tag, s)) / 2), ly + 9 * ls, s, V4(1, 1, 0.4, 1))
+                // Controller status along the bottom edge (inside the safe area).
+                let pads = PadManager.shared
+                let status = pads.connected ? Glyph.a.s + " " + pads.name + " ready" + (pads.battery.map { "  (battery \(Int($0 * 100))%)" } ?? "")
+                    : "Connect a controller any time, or play with keyboard and mouse"
+                text(status, floor((W - textWidth(status, s)) / 2), H - ML.insetY - 12 * s, s, V4(0.9, 0.9, 0.9, 0.9))
             }
             if let pm = m as? PauseMenu {
                 // Big labelled buttons; the controller cursor shows as the highlighted one.

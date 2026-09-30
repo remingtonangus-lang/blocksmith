@@ -234,6 +234,15 @@ enum PadTest {
         g.damage(2, "test")
         check(!PadManager.shared.rumbleLog.isEmpty, "taking damage rumbles")
 
+        // Subtitles: a sound to the player's right gets a caption with a right arrow.
+        Settings.shared.subtitles = true
+        let right = V3(cosf(g.player.yaw), 0, -sinf(g.player.yaw))
+        g.sfx(.mobZombie, 1, at: g.player.eye + right * 6)
+        let cap = Subtitles.shared.entries.first { $0.label == "Zombie groans" }
+        check(cap?.side == 1, "subtitles caption a zombie on the right with a right arrow")
+        Settings.shared.subtitles = false
+        check(ContextPrompts.items(g).allSatisfy { !$0.isEmpty }, "contextual prompts build (\(ContextPrompts.items(g).count) shown)")
+
         // Layout: a two-column-free options panel fits a 1080p TV in couch mode with a safe area.
         let couch = HudLayout.couch, safe = Settings.shared.safeArea
         HudLayout.couch = true
