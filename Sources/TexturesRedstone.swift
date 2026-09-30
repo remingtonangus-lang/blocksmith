@@ -109,21 +109,27 @@ extension TextureGen {
         p["hopper_outside"] = { x, y in hex(0x3A3A3E, 0.85 + 0.25 * r(x, y, 717)) }
         p["hopper_top"] = { x, y in x < 2 || x > 13 || y < 2 || y > 13 ? hex(0x4A4A4E) : hex(0x1E1E22, 0.9 + 0.1 * r(x, y, 718)) }
         p["note_block"] = { x, y in
-            if (x > 4 && x < 11 && (y == 4 || y == 5)) || (x == 10 && y > 4 && y < 12) || (x == 5 && y > 4 && y < 12) { return hex(0x2A1A10) }
+            let bar = x > 4 && x < 11 && (y == 4 || y == 5)
+            let stems = (x == 10 || x == 5) && y > 4 && y < 12
+            if bar || stems { return hex(0x2A1A10) }
             return hex(0x6A4A2E, 0.88 + 0.2 * r(x, y, 719))
         }
         p["daylight_detector_side"] = planks(0x9A7A4A, salt: 720)
         p["daylight_detector_top"] = { x, y in
-            if x == 0 || y == 0 || x == 15 || y == 15 || x == 7 || y == 7 { return hex(0x9A7A4A) }
+            let frame = x == 0 || y == 0 || x == 15 || y == 15
+            if frame || x == 7 || y == 7 { return hex(0x9A7A4A) }
             return hex(0xC8C8D8, 0.85 + 0.2 * r(x, y, 721))
         }
         p["daylight_detector_inverted_top"] = { x, y in
-            if x == 0 || y == 0 || x == 15 || y == 15 || x == 7 || y == 7 { return hex(0x9A7A4A) }
+            let frame = x == 0 || y == 0 || x == 15 || y == 15
+            if frame || x == 7 || y == 7 { return hex(0x9A7A4A) }
             return hex(0x3A4A6A, 0.85 + 0.2 * r(x, y, 722))
         }
         p["target_top"] = { x, y in
-            let d = Int(((Float(x) - 7.5) * (Float(x) - 7.5) + (Float(y) - 7.5) * (Float(y) - 7.5)).squareRoot())
-            return hex(d % 4 < 2 ? 0xE8E0D0 : 0xC82A1E, 0.92 + 0.1 * r(x, y, 723))
+            let dx = Float(x) - 7.5, dy = Float(y) - 7.5
+            let d = Int((dx * dx + dy * dy).squareRoot())
+            let c: UInt32 = d % 4 < 2 ? 0xE8E0D0 : 0xC82A1E
+            return hex(c, 0.92 + 0.1 * r(x, y, 723))
         }
         p["target_side"] = p["target_top"]
     }
