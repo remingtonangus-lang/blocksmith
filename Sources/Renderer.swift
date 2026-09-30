@@ -62,6 +62,10 @@ final class Renderer: NSObject, MTKViewDelegate {
     private var fpsTime: Double = 0
     private(set) var drawnChunks = 0
     private var visibleScratch: [(Chunk, Int, Float)] = []
+    private var visitGen: [UInt32] = []
+    private var gen: UInt32 = 0
+    private var bfs: [(Chunk, Int, Int, Int, Int, Int)] = []
+    var caveCulling = true
     var onFrame: ((Double) -> Void)?
 
     init(device: MTLDevice, game: Game, colorFormat: MTLPixelFormat) throws {
@@ -280,6 +284,46 @@ final class Renderer: NSObject, MTKViewDelegate {
         let pcx = floorDiv(Int(floor(eye.x)), CS), pcz = floorDiv(Int(floor(eye.z)), CS)
         visibleScratch.removeAll(keepingCapacity: true)
         var drawnSet = 0
+        let pSec = Int(floor(eye.y / 16))
+        if caveCulling, let startC = game.world.chunks[ChunkKey(x: pcx, z: pcz)], pSec >= 0 && pSec < NSEC {
+            // Cave culling: walk sections outward from the camera, only through faces that connect via
+            // open cells and never back toward the camera; frustum-test every step.
+            let R = game.world.renderDistance + 1, span = 2 * R + 1
+            let need = span * span * NSEC
+            if visitGen.count < need { visitGen = [UInt32](repeating: 0, count: need) }
+            gen &+= 1
+            if gen == 0 { gen = 1; for i in visitGen.indices { visitGen[i] = 0 } }
+            func vidx(_ dx: Int, _ dz: Int, _ sy: Int) -> Int { ((dx + R) + (dz + R) * span) * NSEC + sy }
+            bfs.removeAll(keepingCapacity: true)
+            bfs.append((startC, 0, 0, pSec, -1, 0))
+            visitGen[vidx(0, 0, pSec)] = gen
+            var head = 0
+            let dirs = [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)]
+            while head < bfs.count {
+                let (c, dx, dz, sy, entry, dirMask) = bfs[head]; head += 1
+                let sec = c.sections[sy]
+                let mn = V3(Float(c.cx * CS), Float(sy * 16), Float(c.cz * CS))
+                if !sec.empty {
+                    visibleScratch.append((c, sy, simd_length_squared(mn + V3(8, 8, 8) - eye)))
+                    if c.drawnMark != gen { c.drawnMark = gen; drawnSet += 1 }
+                }
+                let vis = sec.meshedVersion == -1 ? ~UInt64(0) : sec.vis
+                for f in 0..<6 {
+                    if dirMask & (1 << (f ^ 1)) != 0 { continue }
+                    if entry >= 0 && vis & (1 << UInt64(entry * 6 + f)) == 0 { continue }
+                    let (ox, oy, oz) = dirs[f]
+                    let ndx = dx + ox, ndz = dz + oz, nsy = sy + oy
+                    if nsy < 0 || nsy >= NSEC || !game.world.inMeshRadius(ndx, ndz) || abs(ndx) > R || abs(ndz) > R { continue }
+                    let vi = vidx(ndx, ndz, nsy)
+                    if visitGen[vi] == gen { continue }
+                    let nmn = V3(Float((pcx + ndx) * CS), Float(nsy * 16), Float((pcz + ndz) * CS))
+                    if !frustum.visible(min: nmn, max: nmn + V3(16, 16, 16)) { continue }
+                    guard let nc = ox == 0 && oz == 0 ? c : game.world.chunks[ChunkKey(x: pcx + ndx, z: pcz + ndz)], nc.meshedOnce else { continue }
+                    visitGen[vi] = gen
+                    bfs.append((nc, ndx, ndz, nsy, f ^ 1, dirMask | (1 << f)))
+                }
+            }
+        } else {
         for (_, c) in game.world.chunks where c.meshedOnce {
             let dx = c.cx - pcx, dz = c.cz - pcz
             if !game.world.inMeshRadius(dx, dz) { continue }
@@ -295,6 +339,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 any = true
             }
             if any { drawnSet += 1 }
+        }
         }
         visibleScratch.sort { $0.2 < $1.2 }
         drawnChunks = drawnSet

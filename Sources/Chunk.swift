@@ -20,6 +20,7 @@ final class Section {
     var transQuads = 0
     var version = 0          // bumped when the section (or light around it) changes
     var meshedVersion = -1
+    var vis: UInt64 = ~0         // face connectivity (cave culling)
     var needsMesh: Bool { meshedVersion != version }
     var empty: Bool { opaqueQuads == 0 && transQuads == 0 }
 }
@@ -37,6 +38,7 @@ final class Chunk {
     var modified = false
     var meshInFlight = false
     var meshedOnce = false
+    var drawnMark: UInt32 = 0
     var lod = 0                    // 0 full detail, 1 far (flat light, merged faces, no small decorations)
 
     init(cx: Int, cz: Int, blocks: [BlockID], height: [Int16], tint: [UInt32]) {

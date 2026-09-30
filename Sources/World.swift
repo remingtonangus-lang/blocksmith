@@ -311,6 +311,7 @@ final class World {
         s.transBuf = makeBuffer(m.trans)
         s.transQuads = m.trans.count / 8
         s.meshedVersion = version
+        s.vis = m.vis
         if c.tintBuf == nil {
             c.tintBuf = c.tint.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: $0.count, options: .storageModeShared) }
         }

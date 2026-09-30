@@ -4,6 +4,7 @@ struct SectionMesh {
     var opaque: [UInt32]
     var trans: [UInt32]
     var light: [UInt8]?     // 4096 values (sky << 4 | block) for the section, nil if not computed
+    var vis: UInt64 = ~0    // face-to-face connectivity through open cells (bit a*6+b), for cave culling
 }
 
 // Builds one 16x16x16 section. The 3x3 chunk neighbourhood (n9, index cx+cz*3, centre 4) and its
@@ -178,7 +179,7 @@ enum Mesher {
                 }
             }
         }
-        if buried { return SectionMesh(opaque: [], trans: [], light: [UInt8](repeating: 0, count: 4096)) }
+        if buried { return SectionMesh(opaque: [], trans: [], light: [UInt8](repeating: 0, count: 4096), vis: 0) }
 
         var heights = [Int](repeating: -1, count: RL)
         for cz in 0..<3 {
@@ -484,6 +485,39 @@ enum Mesher {
                 }
             }
         }
-        return SectionMesh(opaque: opq, trans: trn, light: lightOut)
+        return SectionMesh(opaque: opq, trans: trn, light: lightOut, vis: connectivity(R, opaqueT))
+    }
+
+    // Which section faces see each other through non-opaque cells (flood fill per open region).
+    static func connectivity(_ R: [BlockID], _ opaqueT: [Bool]) -> UInt64 {
+        var seen = [Bool](repeating: false, count: 4096)
+        var stack = [Int]()
+        stack.reserveCapacity(4096)
+        var vis: UInt64 = 0
+        for start in 0..<4096 where !seen[start] {
+            let sx = start & 15, sz = (start >> 4) & 15, sy = start >> 8
+            if opaqueT[Int(R[(sx + C0) + (sz + C0) * RW + (sy + C0) * RL])] { seen[start] = true; continue }
+            var faces = 0
+            seen[start] = true
+            stack.append(start)
+            while let i = stack.popLast() {
+                let x = i & 15, z = (i >> 4) & 15, y = i >> 8
+                if x == 15 { faces |= 1 }; if x == 0 { faces |= 2 }
+                if y == 15 { faces |= 4 }; if y == 0 { faces |= 8 }
+                if z == 15 { faces |= 16 }; if z == 0 { faces |= 32 }
+                for (dx, dy, dz) in [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)] {
+                    let nx = x + dx, ny = y + dy, nz = z + dz
+                    if nx < 0 || nx > 15 || ny < 0 || ny > 15 || nz < 0 || nz > 15 { continue }
+                    let ni = nx + nz * 16 + ny * 256
+                    if seen[ni] { continue }
+                    seen[ni] = true
+                    if opaqueT[Int(R[(nx + C0) + (nz + C0) * RW + (ny + C0) * RL])] { continue }
+                    stack.append(ni)
+                }
+            }
+            for a in 0..<6 where faces & (1 << a) != 0 { for b in 0..<6 where faces & (1 << b) != 0 { vis |= 1 << UInt64(a * 6 + b) } }
+            if vis == (1 << 36) - 1 { break }
+        }
+        return vis
     }
 }
