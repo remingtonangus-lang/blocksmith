@@ -670,6 +670,18 @@ enum Composer {
             }
         }
 
+        // Final cadence: a held tonic chord (pad + lead) on the last bar.
+        let endT = Float(totalBars - 1) * barLen
+        for (k, d) in [0, 2, 4, 7].enumerated() {
+            notes.append(MusicNote(t: endT, dur: barLen * 1.5, inst: k == 3 ? lead : sp.pad, midi: pitch(d, octave: k == 3 ? 1 : 0), vel: 0.4, pan: Float(k) * 0.3 - 0.45))
+        }
+        // Dynamics: sections breathe (intro soft, B sections fuller, a swell into each section's last bars).
+        for i in notes.indices {
+            let bar = min(totalBars - 1, max(0, Int(notes[i].t / barLen)))
+            var k: Float = [0.8, 0.95, 1.1, 0.85][sectionOf[bar]]
+            if (bar - 4) % 8 >= 6 && sectionOf[bar] != 0 { k *= 1.08 }
+            notes[i].vel = min(1, notes[i].vel * k)
+        }
         notes.sort { $0.t < $1.t }
         let length = Float(totalBars) * barLen + 6
         let titles = ["Long Meadow", "Slate and Sky", "Lantern Hours", "Hollow Bells", "Under Stone", "Ember March", "Tidewater", "First Light", "Far Hills", "Quiet Forge", "Glass Sea", "Night Watch"]
