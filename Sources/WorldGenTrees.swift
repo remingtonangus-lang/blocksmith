@@ -321,7 +321,7 @@ extension WorldGen {
                 let all = ["dandelion", "poppy", "allium", "azure_bluet", "red_tulip", "orange_tulip", "white_tulip", "pink_tulip",
                            "oxeye_daisy", "cornflower", "lily_of_the_valley"]
                 let c = flora.noise2(Float(wx) / 24 + 90, Float(wz) / 24 + 90)
-                return g(all[min(all.count - 1, Int((c + 0.6) / 1.2 * Float(all.count)))])
+                return g(all[max(0, min(all.count - 1, Int((c + 0.6) / 1.2 * Float(all.count))))])
             case .meadow:
                 return g(["allium", "azure_bluet", "oxeye_daisy", "cornflower", "dandelion", "poppy"][pick % 6])
             case .swamp: return g("blue_orchid")

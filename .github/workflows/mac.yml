@@ -49,7 +49,8 @@ jobs:
           mkdir -p snaps
           CMD=$(sed -n "${L:-10}p" snap.sh)
           echo "rerun (debug build): $CMD" > debug.log
-          (eval "$CMD") >> debug.log 2>&1 || true
+          ARGS=${CMD#\"\$BIN\" }
+          (eval "lldb --batch -o run -o 'bt 40' -- \"$BIN\" $ARGS") >> debug.log 2>&1 || true
           tail -80 debug.log
 
       - name: Publish to ci-snaps
