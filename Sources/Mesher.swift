@@ -19,6 +19,10 @@ struct SectionMesh {
 //   w1: u(5) v(5)<<5 layer(10)<<10 ao(2)<<20 sky(4)<<22 block(4)<<26 overlay(1)<<30
 // 4 verts per quad (corners 0..3 CCW seen from outside), drawn with a shared index buffer.
 enum Mesher {
+    // Shared light arrays for uniform sections (most of a chunk's sections are fully dark or fully sky-lit).
+    static let dark = [UInt8](repeating: 0, count: 4096)
+    static let fullSky = [UInt8](repeating: 0xF0, count: 4096)
+
     static let RW = 48
     static let RH = 48
     static let RL = RW * RW
@@ -180,7 +184,7 @@ enum Mesher {
                 }
             }
         }
-        if buried { return SectionMesh(opaque: [], trans: [], light: [UInt8](repeating: 0, count: 4096), vis: 0) }
+        if buried { return SectionMesh(opaque: [], trans: [], light: Mesher.dark, vis: 0) }
 
         var heights = [Int](repeating: -1, count: RL)
         for cz in 0..<3 {
@@ -437,11 +441,15 @@ enum Mesher {
                         let tintF = (tintB == 3 && f == 3) ? 0 : tintV
                         if !isLiquid && rt == rCube && aos[0] == aos[1] && aos[1] == aos[2] && aos[2] == aos[3]
                             && lit[0] == lit[1] && lit[1] == lit[2] && lit[2] == lit[3] {
-                            let axis = f / 2
-                            let lc = [lx, ly, lz]
-                            let a = lc[(axis + 1) % 3], bb = lc[(axis + 2) % 3]
+                            // Slice along the face axis; a, bb = the next two axes (x->y,z  y->z,x  z->x,y).
+                            let sl: Int, a: Int, bb: Int
+                            switch f >> 1 {
+                            case 0: sl = lx; a = ly; bb = lz
+                            case 1: sl = ly; a = lz; bb = lx
+                            default: sl = lz; a = lx; bb = ly
+                            }
                             let key = layer | (tintF << 11) | ((overlay ? 1 : 0) << 13) | (aos[0] << 14) | ((lit[0] & 255) << 16) | ((isTrans ? 1 : 0) << 24) | ((curCut ? 1 : 0) << 25)
-                            mask[(f * 16 + lc[axis]) * 256 + a + bb * 16] = Int32(key + 1)
+                            mask[(f * 16 + sl) * 256 + a + bb * 16] = Int32(key + 1)
                             continue
                         }
                         for k in 0..<4 {
@@ -483,11 +491,14 @@ enum Mesher {
                         curCut = (key >> 25) & 1 == 1
                         for c in 0..<4 {
                             let ci = (f * 4 + c) * 3
-                            var p = [0, 0, 0]
-                            p[axis] = (sl + CT[ci + axis]) * 16
-                            p[a1] = (CT[ci + a1] == 1 ? a + w : a) * 16
-                            p[a2] = (CT[ci + a2] == 1 ? bb + h : bb) * 16
-                            vert(trans, p[0], p[1], p[2], f, tint, 31, 31, layer, ao, l, overlay)
+                            let ps = (sl + CT[ci + axis]) * 16
+                            let pa = (CT[ci + a1] == 1 ? a + w : a) * 16
+                            let pb = (CT[ci + a2] == 1 ? bb + h : bb) * 16
+                            switch axis {
+                            case 0: vert(trans, ps, pa, pb, f, tint, 31, 31, layer, ao, l, overlay)
+                            case 1: vert(trans, pb, ps, pa, f, tint, 31, 31, layer, ao, l, overlay)
+                            default: vert(trans, pa, pb, ps, f, tint, 31, 31, layer, ao, l, overlay)
+                            }
                         }
                         a += w
                     }
@@ -496,7 +507,15 @@ enum Mesher {
         }
         let solid = opq.count / 8
         opq += cut
-        return SectionMesh(opaque: opq, trans: trn, light: lightOut, vis: connectivity(R, opaqueT), solidQuads: solid)
+        return SectionMesh(opaque: opq, trans: trn, light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT), solidQuads: solid)
+    }
+
+    // A uniform light array is swapped for the shared copy so loaded chunks don't each hold their own.
+    static func shared(_ l: [UInt8]) -> [UInt8] {
+        let v = l[0]
+        guard v == 0 || v == 0xF0 else { return l }
+        for x in l where x != v { return l }
+        return v == 0 ? dark : fullSky
     }
 
     static let leafT: [Bool] = (0..<Blocks.count).map { Blocks.key(BlockID($0)).hasSuffix("_leaves") }
@@ -518,13 +537,20 @@ enum Mesher {
                 if x == 15 { faces |= 1 }; if x == 0 { faces |= 2 }
                 if y == 15 { faces |= 4 }; if y == 0 { faces |= 8 }
                 if z == 15 { faces |= 16 }; if z == 0 { faces |= 32 }
-                for (dx, dy, dz) in [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)] {
-                    let nx = x + dx, ny = y + dy, nz = z + dz
-                    if nx < 0 || nx > 15 || ny < 0 || ny > 15 || nz < 0 || nz > 15 { continue }
-                    let ni = nx + nz * 16 + ny * 256
+                for d in 0..<6 {
+                    let ni: Int, ri: Int
+                    let r0 = (x + C0) + (z + C0) * RW + (y + C0) * RL
+                    switch d {
+                    case 0: if x == 15 { continue }; ni = i + 1; ri = r0 + 1
+                    case 1: if x == 0 { continue }; ni = i - 1; ri = r0 - 1
+                    case 2: if y == 15 { continue }; ni = i + 256; ri = r0 + RL
+                    case 3: if y == 0 { continue }; ni = i - 256; ri = r0 - RL
+                    case 4: if z == 15 { continue }; ni = i + 16; ri = r0 + RW
+                    default: if z == 0 { continue }; ni = i - 16; ri = r0 - RW
+                    }
                     if seen[ni] { continue }
                     seen[ni] = true
-                    if opaqueT[Int(R[(nx + C0) + (nz + C0) * RW + (ny + C0) * RL])] { continue }
+                    if opaqueT[Int(R[ri])] { continue }
                     stack.append(ni)
                 }
             }

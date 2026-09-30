@@ -56,6 +56,8 @@ enum Bench {
             case "edit": edit(device, seed)
             case "mobs": mobs(device, seed)
             case "save": save(device, seed)
+            case "meshprof": meshLoop(device, seed, seconds: Double(arg("--secs") ?? "") ?? 12)
+            case "genprof": genLoop(device, seed, seconds: Double(arg("--secs") ?? "") ?? 12)
             case let name where name.hasPrefix("flight"):
                 flight(device, seed, rd: Int(name.dropFirst(6)) ?? 16, seconds: quick ? 5 : 12, speed: 20)
             default: print("bench: unknown scene \(s)")
@@ -100,7 +102,11 @@ enum Bench {
     // Loaded chunk storage: block ids + light per chunk.
     static func chunkMB(_ w: World) -> Double {
         var b = 0
-        for c in w.chunks.values { b += c.blocks.count * MemoryLayout<BlockID>.stride + c.light.count + c.height.count * 2 + c.tint.count * 4 }
+        let shared = Set([Mesher.dark, Mesher.fullSky].map { $0.withUnsafeBufferPointer { Int(bitPattern: $0.baseAddress) } })
+        for c in w.chunks.values {
+            b += c.blocks.count * MemoryLayout<BlockID>.stride + c.height.count * 2 + c.tint.count * 4
+            for l in c.light { if let l, !shared.contains(l.withUnsafeBufferPointer { Int(bitPattern: $0.baseAddress) }) { b += l.count } }
+        }
         return Double(b) / 1_048_576
     }
 
@@ -177,6 +183,35 @@ enum Bench {
             put("\(k).quads_per_chunk", Double(quads) / Double(max(1, chunkMs.count)))
             print("bench \(k): \(f(d.mean)) ms/chunk (\(NSEC) sections, \(nonEmpty) non-empty), section mean \(f(s.mean, 0)) us p95 \(f(s.p95, 0)) us max \(f(s.max, 0)) us, \(quads / max(1, chunkMs.count)) quads/chunk")
         }
+    }
+
+    // Profiling loops (perf/profile.sh): single-thread meshing / generation for a fixed time.
+    static func meshLoop(_ device: MTLDevice, _ seed: UInt64, seconds: Double) {
+        let (world, game, pos) = setup(device, seed, rd: 4)
+        defer { withExtendedLifetime(game) {} }
+        _ = world.loadSync(center: pos, radius: 3)
+        let cx = floorDiv(Int(pos.x), CS), cz = floorDiv(Int(pos.z), CS)
+        var n9: [[BlockID]] = [], h9: [[Int16]] = []
+        for dz in -1...1 { for dx in -1...1 {
+            guard let c = world.chunks[ChunkKey(x: cx + dx, z: cz + dz)] else { return }
+            n9.append(c.blocks); h9.append(c.height)
+        } }
+        let a = now
+        var n = 0
+        while now - a < seconds { for sy in 0..<NSEC { _ = Mesher.buildSection(n9, h9, sy: sy) }; n += 1 }
+        print("bench meshprof: \(n) chunks in \(f(seconds, 0)) s")
+    }
+
+    static func genLoop(_ device: MTLDevice, _ seed: UInt64, seconds: Double) {
+        let world = World(seed: seed, device: device, save: nil)
+        let a = now
+        var n = 0
+        while now - a < seconds {
+            var b = world.gen.generate(cx: n % 17, cz: n / 17)
+            if let st = world.gen.structures { _ = st.place(into: &b, cx: n % 17, cz: n / 17) }
+            n += 1
+        }
+        print("bench genprof: \(n) chunks in \(f(seconds, 0)) s")
     }
 
     static func startup(_ device: MTLDevice, _ seed: UInt64, _ processT0: Double) {

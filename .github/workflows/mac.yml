@@ -41,6 +41,14 @@ jobs:
           set -o pipefail
           bash ./bench.sh 2>&1 | tee bench.log
 
+      - name: Profile (sample)
+        if: always() && steps.build.outcome == 'success'
+        continue-on-error: true
+        run: |
+          bash perf/profile.sh flight16 10 2>&1 | tee profile.log
+          bash perf/profile.sh meshprof 8 2>&1 | tee -a profile.log
+          bash perf/profile.sh genprof 8 2>&1 | tee -a profile.log
+
       - name: Snapshots
         id: snap
         if: always() && steps.build.outcome == 'success'
@@ -73,7 +81,7 @@ jobs:
           rm -rf "$PUB"; mkdir -p "$PUB"
           cp snaps/*.png "$PUB/" 2>/dev/null || true
           if [ -d snaps/sounds ]; then cp -r snaps/sounds "$PUB/sounds"; fi
-          cp build.log snap.log debug.log bench.log snaps/bench.json snaps/bench.md "$PUB/" 2>/dev/null || true
+          cp build.log snap.log debug.log bench.log profile.log snaps/bench.json snaps/bench.md snaps/profile_*.txt "$PUB/" 2>/dev/null || true
           cd "$PUB"
           {
             echo "# Blocksmith CI snapshots"
@@ -118,7 +126,9 @@ jobs:
             snaps/sounds/*.wav
             snaps/bench.json
             snaps/bench.md
+            snaps/profile_*.txt
             bench.log
+            profile.log
             build.log
             snap.log
           if-no-files-found: ignore

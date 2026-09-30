@@ -73,12 +73,20 @@ final class World {
         portals = Set(save?.loadPortals() ?? [])
     }
 
+    // Chunks to load: the meshed disc grown by one chunk (every meshed chunk needs its 8 neighbours).
+    // A disc instead of the old square skips ~20% of the chunks (the corners were never drawn).
     private func rebuildOffsets() {
         let r = renderDistance + 1
         var o: [(Int, Int, Int)] = []
-        for dz in -r...r { for dx in -r...r { o.append((dx, dz, dx * dx + dz * dz)) } }
+        for dz in -r...r { for dx in -r...r where World.inDisc(dx, dz, renderDistance, grow: 1) { o.append((dx, dz, dx * dx + dz * dz)) } }
         o.sort { $0.2 < $1.2 }
         offsets = o
+    }
+
+    // Whether (dx, dz) lies within `grow` chunks (Chebyshev) of the mesh disc of radius r.
+    @inline(__always) static func inDisc(_ dx: Int, _ dz: Int, _ r: Int, grow: Int) -> Bool {
+        let ax = max(0, abs(dx) - grow), az = max(0, abs(dz) - grow)
+        return ax * ax + az * az <= r * r + r
     }
 
     // Chunks farther than 8 chunks are meshed at LOD 1.
@@ -111,8 +119,8 @@ final class World {
         if y < 0 { return (0, 0) }
         guard let c = chunkAt(x, z) else { return (15, 0) }
         let lx = mod(x, CS), lz = mod(z, CS)
-        if c.lightValid[y >> 4] {
-            let l = c.light[Chunk.index(lx, y, lz)]
+        if let sl = c.light[y >> 4] {
+            let l = sl[lx + lz * CS + (y & 15) * CSQ]
             return (Int(l >> 4), Int(l & 15))
         }
         return (y > Int(c.height[lx + lz * CS]) ? 15 : 0, 0)
@@ -315,11 +323,7 @@ final class World {
 
     private func apply(_ m: SectionMesh, to c: Chunk, sy: Int, version: Int) {
         let s = c.sections[sy]
-        if let l = m.light {
-            let base = sy * 4096
-            for i in 0..<4096 { c.light[base + i] = l[i] }
-            c.lightValid[sy] = true
-        }
+        if let l = m.light { c.light[sy] = l }
         guard version == s.version else { return }
         s.opaqueBuf = makeBuffer(m.opaque)
         s.opaqueQuads = m.opaque.count / 8
@@ -367,9 +371,9 @@ final class World {
 
         if center != lastCenter {
             lastCenter = center
-            let limit = renderDistance + 2
+            // Unload outside the load disc grown by one more chunk (hysteresis when walking back and forth).
             var gone: [ChunkKey] = []
-            for (k, c) in chunks where abs(k.x - center.x) > limit || abs(k.z - center.z) > limit {
+            for (k, c) in chunks where !World.inDisc(k.x - center.x, k.z - center.z, renderDistance, grow: 2) {
                 if c.modified { save?.saveChunk(k, c.blocks) }
                 gone.append(k)
             }
@@ -497,7 +501,7 @@ final class World {
         let cx = floorDiv(Int(floor(pos.x)), CS), cz = floorDiv(Int(floor(pos.z)), CS)
         let r = radius + 1
         var keys: [ChunkKey] = []
-        for dz in -r...r { for dx in -r...r {
+        for dz in -r...r { for dx in -r...r where World.inDisc(dx, dz, radius, grow: 1) {
             let k = ChunkKey(x: cx + dx, z: cz + dz)
             if chunks[k] == nil { keys.append(k) }
         } }
@@ -513,7 +517,7 @@ final class World {
         let t1 = CFAbsoluteTimeGetCurrent()
 
         var toMesh: [(Chunk, Int, Int, [[BlockID]], [[Int16]])] = []
-        for dz in -radius...radius { for dx in -radius...radius where inMeshRadius(dx, dz) {
+        for dz in -radius...radius { for dx in -radius...radius where World.inDisc(dx, dz, radius, grow: 0) && inMeshRadius(dx, dz) {
             if let c = chunks[ChunkKey(x: cx + dx, z: cz + dz)], c.needsMesh, let nb = neighbourhood(c) {
                 c.lod = lodFor(dx, dz)
                 for (sy, v) in dirtySections(c) { toMesh.append((c, sy, v, nb.0, nb.1)) }

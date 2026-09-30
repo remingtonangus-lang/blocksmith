@@ -30,8 +30,9 @@ final class Chunk {
     let cx: Int
     let cz: Int
     var blocks: [BlockID]          // index = x + z*16 + y*256
-    var light: [UInt8]             // sky << 4 | block, filled in by the mesher per section
-    var lightValid = [Bool](repeating: false, count: NSEC)
+    // Per-section light (sky << 4 | block, index x + z*16 + (y&15)*256) from the mesher; nil until meshed
+    // (then World.lightAt falls back to the heightmap). Uniform sections share Mesher.dark / Mesher.fullSky.
+    var light = [[UInt8]?](repeating: nil, count: NSEC)
     var height: [Int16]            // highest sky-stopping block per column (-1 = none)
     var tint: [UInt32]             // 256 grass, 256 foliage, 256 water colours (RGBA8)
     var tintBuf: MTLBuffer?
@@ -48,7 +49,6 @@ final class Chunk {
         self.blocks = blocks
         self.height = height
         self.tint = tint
-        light = [UInt8](repeating: 0, count: CSQ * CH)
         sections = (0..<NSEC).map { _ in Section() }
     }
 
