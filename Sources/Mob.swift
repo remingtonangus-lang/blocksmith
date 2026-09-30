@@ -336,6 +336,7 @@ final class Mob {
     var reinforceChance = Float.random(in: 0..<0.1)
     var trap = false                // skeleton trap horse
     var carriedBlock: BlockID = 0   // voidwalker: block it picked up
+    var emergeTime: Float = 0       // deep stalker digging out of the ground (invulnerable meanwhile)
     var patrolling = false          // marauder patrol member (Raid.swift patrolTick)
     weak var patrolLeader: Mob?
     var patrolGoal: V3?
@@ -908,6 +909,7 @@ final class Mob {
     }
 
     func hit(from src: V3, damage: Int, knockback: Float = 1) {
+        if kind == .warden && emergeTime > 0 { return }
         if kind == .creaking { hurt = 0.25; return }            // only breaking its heart ends a Barkwraith
         if kind == .enderDragon {
             // Hits land at a quarter (+1) unless the dragon is perched; it never dies instantly.

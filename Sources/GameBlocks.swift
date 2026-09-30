@@ -164,6 +164,7 @@ extension Game {
                             while y > c.y - 6 && !Blocks.collide[Int(world.block(x, y - 1, z))] { y -= 1 }
                             let w = Mob(.warden, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
                             w.anger = 80
+                            w.emergeTime = 6.7
                             mobs.mobs.append(w)
                             sfx(.mobWarden, 1.5, at: w.pos)
                         }

@@ -409,6 +409,10 @@ extension Mob {
             age += dt
             if age > 120 { health = -2000 }
             wander(); return moving ? spec.speed * 0.5 : 0
+        case .warden where emergeTime > 0:
+            emergeTime -= dt                                  // still digging out of the ground
+            if Float.random(in: 0..<1) < dt * 8 { g.particles.smoke(at: pos + V3(Float.random(in: -0.6...0.6), 0.1, Float.random(in: -0.6...0.6))) }
+            return 0
         case .warden:
             // Blind: tracks the player by vibrations (moving, not sneaking) and anger; melee 30, sonic boom 10 at range.
             let noisy = g.survival && g.alive && dist < 16 && (!g.player.sneaking && simd_length(g.player.vel) > 0.5)
@@ -678,7 +682,8 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
         return [box(-2, 0, -3, 4, 3, 2, c), box(-1.5, 0, -1, 3, 3, 3, c), box(-1, 0, 2, 2, 2, 2, c), box(-0.5, 0, 4, 1, 1, 2, c)]
     case .warden:
         let c = V3(0.05, 0.22, 0.26), glow = V3(0.3, 0.95, 0.95)
-        return [
+        let sink: Float = m.emergeTime > 0 ? -48 * m.emergeTime / 6.7 : 0     // rising out of the ground
+        let parts: [Part] = [
             Part(mn: V3(-6, 0, -3), mx: V3(-1, 13, 3), pivot: V3(-3.5, 13, 0), rotX: swing, color: c, pattern: 4),
             Part(mn: V3(1, 0, -3), mx: V3(6, 13, 3), pivot: V3(3.5, 13, 0), rotX: -swing, color: c, pattern: 4),
             box(-9, 13, -5, 18, 21, 11, c, 4), box(-5.5, 34, -6, 11, 12, 11, c, 4),
@@ -686,6 +691,7 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
             Part(mn: V3(9, 14, -4), mx: V3(13, 34, 4), pivot: V3(11, 33, 0), rotX: swing * 0.6, color: c, pattern: 4),
             box(-4, 22, -5.3, 8, 6, 0.3, glow), box(-9, 42, -2, 3, 6, 1, glow * 0.8), box(6, 42, -2, 3, 6, 1, glow * 0.8),
         ]
+        return sink == 0 ? parts : parts.map { var q = $0; q.mn.y += sink; q.mx.y += sink; q.pivot.y += sink; return q }
     case .breeze:
         let c = V3(0.75, 0.8, 0.95)
         let spin = Float(m.walkPhase)
