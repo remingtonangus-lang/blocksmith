@@ -343,7 +343,8 @@ extension Game {
                 stream.stop(fade: 2.5)
                 m.mood = nil
                 m.silence = want == .title ? 1 : Float.random(in: 4...10)
-                m.wait = 0
+                // Entering a dimension or a boss fight scores at once; leaving the title screen gives the world a quiet minute.
+                m.wait = hard.contains(want) ? 0 : Float.random(in: 30...90)
             }
             return
         }
@@ -352,6 +353,7 @@ extension Game {
             m.mood = nil
             m.wait = want == .title ? Float.random(in: 8...20) : Float.random(in: 360...900)
         }
+        if want == .title && m.wait > 2 { m.wait = 2 }
         if m.silence > 0 { m.silence -= dt; return }
         m.wait -= dt
         if m.wait <= 0 && AudioSettings.volume(.music) > 0 {
