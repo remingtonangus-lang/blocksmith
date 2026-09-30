@@ -237,6 +237,10 @@ vertex SimpleOut starVS(uint vid [[vertex_id]],
     SimpleOut o;
     o.pos = u.viewProj * (sp.rot * float4(verts[vid].pos.xyz, 1.0));
     o.color = verts[vid].color * sp.tint;
+    // Gentle twinkle: each star (6 vertices) gets its own phase and speed.
+    float star = float(vid / 6u);
+    float ph = fract(sin(star * 12.9898) * 43758.5453);
+    o.color.rgb *= 0.78 + 0.22 * sin(u.params.z * (1.5 + 2.5 * ph) + ph * 40.0);
     return o;
 }
 
