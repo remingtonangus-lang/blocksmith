@@ -946,6 +946,9 @@ final class Game {
         case "frame":
             if t.normal.y == 0 { id = blockItem + BlockID(t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))) }
             else { id = blockItem + (t.normal.y == 1 ? 4 : 5) }
+        case "banner":
+            guard let bs = bannerState(blockItem, normal: t.normal) else { return }
+            id = bs
         case "painting":
             guard t.normal.y == 0, useNow else { return }
             let f = t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))
@@ -995,6 +998,7 @@ final class Game {
             if key == "trapped_chest" { world.blockEntities[at] = BlockEntity(.chest) }
             if key == "lightning_rod" { lightningRods.append(at) }
             if Blocks.shape[Int(id)] == "sign" { openSignEditor(at) }
+            if Blocks.shape[Int(id)] == "banner" { let be = BlockEntity(.banner); be.patterns = h.pat ?? []; world.blockEntities[at] = be }
             if Rails.isRail(id) { Rails.autoShape(world, at) }
             if key == "wither_skeleton_skull" { trySummonWither(at) }
             if key == "carved_pumpkin" || key == "jack_o_lantern" { trySummonGolem(at) }
@@ -1026,7 +1030,7 @@ final class Game {
         return k == "crafting_table" || k == "furnace" || k == "lit_furnace" || k == "chest" || k == "brewing_stand"
             || k == "enchanting_table" || k.hasSuffix("anvil") || k == "beacon" || k == "smithing_table" || k == "stonecutter" || k == "grindstone"
             || k == "ender_chest" || k == "trapped_chest" || k.hasSuffix("shulker_box") || k == "cake" || k.hasSuffix("candle")
-            || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table"
+            || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table" || k == "loom"
     }
 
     // Opens/closes a wooden door (both halves), trapdoor or fence gate.
@@ -1088,6 +1092,7 @@ final class Game {
             openMenu(ShulkerMenu(game: self, entity: be))
         case "item_frame", "glow_item_frame": _ = useItemFrame(p)
         case "cartography_table": openMenu(CartographyMenu(game: self))
+        case "loom": openMenu(LoomMenu(game: self))
         case _ where k.hasSuffix("_sign"): openSignEditor(p)
         case "cake":
             // Eat a slice: 2 hunger, 0.4 saturation; seven slices.
@@ -1163,6 +1168,12 @@ final class Game {
             }
         }
         if let be = world.blockEntities.removeValue(forKey: p) {
+            if be.kind == .banner {
+                var s = ItemStack(Items.item(forBlock: b) ?? 0, 1)
+                s.pat = be.patterns.isEmpty ? nil : be.patterns
+                if s.item != 0 && (drop || survival) { drops.spawn(s, at: center) }
+                return
+            }
             if be.kind == .shulker {
                 // Shulker boxes keep their contents as an item.
                 var box = ItemStack(Items.item(forBlock: b) ?? 0, 1)

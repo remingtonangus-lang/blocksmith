@@ -360,6 +360,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.writeDecor(&wr, eye: eye)
                 game.writeBobber(&wr, eye: eye, right: right, up: -up)
                 game.writeLeads(&wr, eye: eye)
+                game.writeBanners(&wr, eye: eye)
                 game.particles.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight)
                 let nItems = wr.n
                 if let m = game.mining, game.mineProgress > 0 {
@@ -635,6 +636,23 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
         let slot = L.slot
 
+        // Banner cloth: base colour (-1 = none) and pattern layers in a w x h rect.
+        func bannerArt(_ base: Int, _ layers: [Int], _ x: Float, _ y: Float, _ w: Float, _ h: Float) {
+            for half in 0..<2 {
+                let y0 = y + h / 2 * Float(half)
+                let pts = [V2(x, y0), V2(x + w, y0), V2(x + w, y0 + h / 2), V2(x, y0 + h / 2)]
+                let uvs = [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)]
+                let sfx = half == 0 ? "_t" : "_b"
+                if base >= 0 { let t = Banners.tint(base); quad(pts, uvs, V4(t, 1), Float(Tex.id("banner_cloth" + sfx))) }
+                for l in layers {
+                    let (pi, ci) = Banners.decode(l)
+                    guard pi < Banners.patterns.count else { continue }
+                    let t = Banners.tint(ci)
+                    quad(pts, uvs, V4(t, 1), Float(Tex.id("banner_pat_\(Banners.patterns[pi].0)" + sfx)))
+                }
+            }
+        }
+
         // Item icon (block cube or sprite) with count and durability bar; size = slot pixel size.
         func itemIcon(_ st: ItemStack, _ x: Float, _ y: Float, _ size: Float, counts: Bool = true) {
             if st.isEmpty { return }
@@ -644,6 +662,9 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let pts = [V2(c.x - h, c.y - h), V2(c.x + h, c.y - h), V2(c.x + h, c.y + h), V2(c.x - h, c.y + h)]
                 let uvs = [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)]
                 quad(pts, uvs, V4(1, 1, 1, 1), Float(layer))
+                if let pat = st.pat {
+                    bannerArt(-1, pat, x + size * 3 / 16, y + size * 2 / 16, size * 10 / 16, size * 12 / 16)
+                }
                 if case let (ol, col)? = Items.overlayLayer(st.item) {
                     let t = TextureGen.hex(col)
                     quad(pts, uvs, V4(t.x, t.y, t.z, 1), Float(ol))
@@ -786,6 +807,29 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let b = sm.slots[0]
                 rect(o.x + Float(b.x) * s, o.y + Float(b.y) * s, 50 * s, 16 * s, game.menuHover === b ? V4(0.7, 0.7, 0.8, 1) : V4(0.5, 0.5, 0.55, 1))
                 text("Done", o.x + Float(b.x + 13) * s, o.y + Float(b.y + 4) * s, s)
+            }
+            if let lm = m as? LoomMenu {
+                // Pattern choices previewed on the banner's colour with the dye's colour.
+                rect(o.x + 59 * s, o.y + 12 * s, 58 * s, 58 * s, V4(0.35, 0.35, 0.35, 1))
+                let base = lm.box[0].def.block.map { Blocks.shape[Int($0)] == "banner" ? Banners.baseColor($0) : 0 } ?? 0
+                let dye = Banners.colorIndex(ofDye: Items.key(lm.box[1].item)) ?? 15
+                let opts = lm.options
+                for sl in lm.slots where sl.isButton {
+                    guard case .button(let i) = sl.kind else { continue }
+                    let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
+                    if i >= 100 {
+                        rect(x, y, 12 * s, 12 * s, game.menuHover === sl ? V4(0.7, 0.7, 0.75, 1) : V4(0.5, 0.5, 0.55, 1))
+                        text(i == 100 ? "^" : "v", x + 3 * s, y + 2 * s, s)
+                        continue
+                    }
+                    let idx = lm.scroll + i
+                    guard idx < opts.count else { continue }
+                    rect(x, y, 14 * s, 14 * s, opts[idx] == lm.selected ? V4(0.55, 0.75, 0.55, 1) : (game.menuHover === sl ? V4(0.7, 0.7, 0.7, 1) : V4(0.55, 0.55, 0.55, 1)))
+                    bannerArt(base, [Banners.encode(opts[idx], dye)], x + 3.5 * s, y + 1 * s, 7 * s, 12 * s)
+                }
+                if !lm.out[0].isEmpty {
+                    bannerArt(base, lm.out[0].pat ?? [], o.x + 140 * s, o.y + 8 * s, 14 * s, 28 * s)
+                }
             }
             if let sc = m as? StonecutterMenu {
                 rect(o.x + 50 * s, o.y + 13 * s, 68 * s, 56 * s, V4(0.35, 0.35, 0.35, 1))

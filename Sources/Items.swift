@@ -98,6 +98,10 @@ final class ItemRegistry {
             var d = ItemDef(bd.name, bd.display)
             d.block = BlockID(b)
             if bd.sound == .wood { d.fuelTicks = 300 }
+            if bd.shape == "banner" {
+                d.sprite = Sprite(mask: "banner", base: BlockRegistry.colorHex[String(bd.name.dropLast(7))] ?? 0xFFFFFF, extras: [:])
+                d.maxStack = 16
+            }
             forBlock[b] = add(d)
         }
 
@@ -233,6 +237,7 @@ final class ItemRegistry {
         item("diamond_horse_armor", "Diamond Horse Armor", "chestplate", 0x4AEDD9, stack: 1)
         item("lead", "Lead", "string", 0xB08A5A)
         item("spyglass", "Spyglass", "stick", 0xC8783A, stack: 1)
+        for (_, disp, need) in Banners.patterns { if let n = need { item(n, "Banner Pattern (\(disp))", "paper", 0xE0D8C0, ["a": 0x5A5040], stack: 1) } }
         item("armor_stand", "Armor Stand", "stick", 0x9A7A4A, stack: 16)
         item("cocoa_beans", "Cocoa Beans", "seeds", 0x7A4A2A)
         item("torchflower_seeds", "Torchflower Seeds", "seeds", 0x5A7A2A)

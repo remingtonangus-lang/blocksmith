@@ -556,6 +556,7 @@ final class BlockRegistry {
         registerCopperBlocks()
         registerMoreBlocks()
         registerDecorBlocks()
+        registerBanners()
         // Building families: stairs, slabs, fences, walls for each material.
         let woods: [(String, String)] = [("oak", "Oak"), ("birch", "Birch"), ("spruce", "Spruce"), ("crimson", "Crimson"), ("warped", "Warped")]
             + BlockRegistry.extraWoods

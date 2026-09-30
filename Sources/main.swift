@@ -99,6 +99,18 @@ enum Snapshot {
             var s = game.inventory.main[9]; s.damage = 120; game.inventory.main[9] = s
             switch which {
             case "creative": game.openMenu(CreativeMenu(game: game))
+            case "loom":
+                let m = LoomMenu(game: game)
+                var ban = ItemStack(Items.id("blue_banner"), 1)
+                ban.pat = [Banners.encode(28, 0)]
+                m.box[0] = ban
+                m.box[1] = ItemStack(Items.id("yellow_dye"), 4)
+                m.selected = 9
+                m.changed()
+                game.inventory.main[9] = ItemStack(Items.id("red_banner"), 3)
+                var om = ItemStack(Items.id("white_banner"), 1); om.pat = Banners.ominous
+                game.inventory.main[10] = om
+                game.openMenu(m)
             case "crafting":
                 let m = CraftingTableMenu(game: game)
                 for (i, n) in ["oak_planks", "oak_planks", "oak_planks", "", "stick", "", "", "stick", ""].enumerated() where !n.isEmpty {
@@ -307,6 +319,23 @@ enum Snapshot {
                 game.inventory.main[game.selected] = game.inventory.main[i]
             }
             for _ in 0..<256 { game.mapTick() }
+        }
+        if CommandLine.arguments.contains("--banners") {
+            // A row of standing banners 5 blocks ahead (the last one ominous) plus two on a wall behind.
+            let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)), r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))
+            let sets: [(String, [Int])] = [("red", [Banners.encode(10, 0)]), ("blue", [Banners.encode(27, 4), Banners.encode(29, 0)]),
+                                           ("white", Banners.ominous), ("black", [Banners.encode(34, 5)]), ("yellow", [Banners.encode(30, 11), Banners.encode(36, 14)]),
+                                           ("green", [Banners.encode(23, 0), Banners.encode(24, 0), Banners.encode(33, 12)])]
+            for (i, st) in sets.enumerated() {
+                let p = pos + f * 5 + r * (Float(i) - Float(sets.count - 1) / 2) * 1.6
+                let x = Int(floor(p.x)), z = Int(floor(p.z))
+                let y = world.topY(x, z) + 1
+                var a = (game.player.yaw + .pi) / (2 * .pi) * 16
+                a = a.rounded()
+                world.setBlock(x, y, z, Blocks.id("\(st.0)_banner") + BlockID(((Int(a) % 16) + 16) % 16))
+                let be = BlockEntity(.banner); be.patterns = st.1
+                world.blockEntities[IVec3(x, y, z)] = be
+            }
         }
         if CommandLine.arguments.contains("--decor") {
             // A stone wall 5 blocks ahead with a sign, item frames and a painting on it.

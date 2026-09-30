@@ -767,6 +767,7 @@ enum TextureGen {
         copperPainters(&p)
         morePainters(&p)
         decorPainters(&p)
+        bannerPainters(&p)
         for (k, v) in ItemTextures.painters() { p[k] = v }
         for (k, v) in Font.painters() { p[k] = v }
         return p
