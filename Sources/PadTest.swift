@@ -240,6 +240,36 @@ enum PadTest {
         g.damage(2, "test")
         check(!PadManager.shared.rumbleLog.isEmpty, "taking damage rumbles")
 
+        // Block-targeting assist: two stone blocks in the sky; the highlight holds across the shared edge.
+        do {
+            let keep = (g.player.pos, g.player.yaw, g.player.pitch, g.player.flying)
+            PadManager.shared.forcePad(true)
+            g.player.flying = true
+            let bx = Int(floor(keep.0.x)), bz = Int(floor(keep.0.z))
+            g.player.pos = V3(Float(bx) + 0.5, Float(CH - 40), Float(bz) + 0.5)
+            let ey = Int(floor(g.player.eye.y))
+            let A = IVec3(bx, ey, bz - 3), B = IVec3(bx + 1, ey, bz - 3)
+            g.world.setBlock(A.x, A.y, A.z, STONE)
+            g.world.setBlock(B.x, B.y, B.z, STONE)
+            func aim(_ px: Float) {
+                let d = simd_normalize(V3(px, Float(ey) + 0.5, Float(A.z) + 1) - g.player.eye)
+                g.player.yaw = atan2f(-d.x, -d.z)
+                g.player.pitch = asinf(d.y)
+            }
+            func pick() -> IVec3? { AimAssist.sticky(g, g.world.raycast(g.player.eye, g.player.look, maxDist: 5), reach: 5)?.hit }
+            AimAssist.last = nil
+            aim(Float(A.x) + 0.5)
+            check(pick() == A, "aiming at a block targets it")
+            aim(Float(B.x) + 0.06)
+            check(pick() == A, "the highlight holds just past the block edge")
+            aim(Float(B.x) + 0.5)
+            check(pick() == B, "moving well onto the neighbour switches to it")
+            g.world.setBlock(A.x, A.y, A.z, AIR)
+            g.world.setBlock(B.x, B.y, B.z, AIR)
+            AimAssist.last = nil
+            (g.player.pos, g.player.yaw, g.player.pitch, g.player.flying) = keep
+        }
+
         // Subtitles: a sound to the player's right gets a caption with a right arrow.
         Settings.shared.subtitles = true
         let right = V3(cosf(g.player.yaw), 0, -sinf(g.player.yaw))
