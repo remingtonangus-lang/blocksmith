@@ -13,7 +13,8 @@ enum TextureGen {
                            "heart_wither", "heart_wither_half", "rain_drop", "snow_flake", "food", "food_half", "food_empty", "bubble",
                            "destroy_0", "destroy_1", "destroy_2", "destroy_3", "destroy_4",
                            "destroy_5", "destroy_6", "destroy_7", "destroy_8", "destroy_9",
-                           "armor", "armor_half", "armor_empty", "xp_bar", "smoke"]
+                           "armor", "armor_half", "armor_empty", "xp_bar", "smoke", "sun", "shadow",
+                           "moon_0", "moon_1", "moon_2", "moon_3", "moon_4", "moon_5", "moon_6", "moon_7"]
 
     // Makes sure every texture that may be referenced exists in the registry.
     static func registerAll() {
@@ -90,12 +91,26 @@ enum TextureGen {
         }
     }
 
-    static func foliage(_ c: UInt32, holes: Float, salt: Int) -> Painter {
+    // Leaves: clumps of 4x4 leaves in staggered rows, each lit from the top-left with a shaded
+    // bottom-right, gaps at the clump corners (reads as foliage instead of per-pixel static).
+    // c = nil paints greyscale for biome tinting. Tiles seamlessly.
+    static func leafy(_ c: UInt32?, holes: Float, salt: Int) -> Painter {
         { x, y in
-            if r(x, y, salt) < holes { return clear }
-            return hex(c, 0.72 + 0.45 * r(x, y, salt + 1))
+            let cy = y / 4, ox = (cy % 2) * 2
+            let cx = ((x + ox) / 4) % 4
+            let lx = (x + ox) % 4, ly = y % 4
+            let corner = (lx == 0 || lx == 3) && (ly == 0 || ly == 3)
+            if corner && r(x, y, salt + 1) < 0.72 { return clear }
+            if r(x, y, salt + 2) < holes * 0.4 { return clear }
+            var k: Float = 0.66 + 0.26 * r(cx, cy, salt)
+            if lx + ly <= 2 { k += 0.13 } else if lx + ly >= 5 { k -= 0.15 }
+            k += (r(x, y, salt + 3) - 0.5) * 0.1
+            if let c = c { return hex(c, k + 0.12) }
+            return V4(k, k, k, 1)
         }
     }
+
+    static func foliage(_ c: UInt32, holes: Float, salt: Int) -> Painter { leafy(c, holes: holes, salt: salt) }
 
     static func painters() -> [String: Painter] {
         var p: [String: Painter] = [:]
@@ -167,11 +182,7 @@ enum TextureGen {
             if dash || r(x, y, 27) < 0.05 { return hex(0x2E2B26, 0.9 + 0.2 * r(x, y, 28)) }
             return hex(0xE3E0D6, 0.92 + 0.08 * r(x, y, 29))
         }
-        p["oak_leaves"] = { x, y in
-            if r(x, y, 12) < 0.2 { return clear }
-            let v: Float = 0.5 + 0.45 * r(x, y, 13)
-            return V4(v, v, v, 1)
-        }
+        p["oak_leaves"] = leafy(nil, holes: 0.2, salt: 12)
         p["birch_leaves"] = foliage(0x80A755, holes: 0.22, salt: 32)
         p["spruce_leaves"] = foliage(0x619961, holes: 0.12, salt: 34)
         p["glass"] = { x, y in
@@ -758,18 +769,69 @@ enum TextureGen {
             if d > 7 || r(x / 2, y / 2, 160) < 0.25 { return clear }
             return V4(0.8, 0.8, 0.8, 1)
         }
-        // Block-breaking cracks: progressively more dark crack pixels.
+        // Block-breaking cracks: one-pixel crack lines that branch out from the centre, each stage
+        // reaching further (a stage's cracks are a superset of the previous stage's).
+        var crackDist = [Int](repeating: 99, count: 256)   // stage at which each pixel cracks
+        do {
+            var rng = SRng(0xC4AC)
+            // Six main cracks from near the centre, each forking once or twice.
+            var walkers: [(Float, Float, Float, Int)] = []   // x, y, angle, start step
+            for k in 0..<6 {
+                let a = Float(k) / 6 * 2 * .pi + rng.float() * 0.6
+                walkers.append((7.5 + rng.float() - 0.5, 7.5 + rng.float() - 0.5, a, 0))
+            }
+            var w = 0
+            while w < walkers.count {
+                var (x, y, a, step) = walkers[w]
+                for _ in 0..<14 {
+                    let ix = Int(x.rounded(.down)), iy = Int(y.rounded(.down))
+                    if ix < 0 || iy < 0 || ix > 15 || iy > 15 { break }
+                    let st = min(9, step * 10 / 12)
+                    if st < crackDist[ix + iy * 16] { crackDist[ix + iy * 16] = st }
+                    a += (rng.float() - 0.5) * 0.9
+                    x += cosf(a); y += sinf(a)
+                    step += 1
+                    if walkers.count < 18 && rng.float() < 0.12 { walkers.append((x, y, a + (rng.float() < 0.5 ? 0.9 : -0.9), step)) }
+                }
+                w += 1
+            }
+        }
+        let crackMap = crackDist
         for stage in 0..<10 {
             p["destroy_\(stage)"] = { x, y in
-                let thr = Float(stage + 1) / 10
-                let c = r(x / 2, y / 2, 90) * 0.6 + r(x, y, 91) * 0.4
-                let fx: Float = Float(x) - 7.5, fy: Float = Float(y) - 7.5
-                let skew: Float = r(y / 4, 0, 92) - 0.5
-                let l1: Bool = abs(fx - fy * skew) < 1
-                let l2: Bool = abs(fy + fx * 0.4) < 0.8
-                let line = l1 || l2
-                if (line && c < thr * 1.4) || c < thr * 0.35 { return V4(0.05, 0.05, 0.05, 0.75) }
-                return clear
+                let d = crackMap[x + y * 16]
+                if d > stage { return clear }
+                // Fresh crack ends are fainter; older parts darker.
+                let age = Float(stage - d)
+                return V4(0.08, 0.07, 0.06, min(0.8, 0.45 + age * 0.08))
+            }
+        }
+        // Blob shadow under entities: a soft disc (alpha falls off toward the edge).
+        p["shadow"] = { x, y in
+            let dx = Float(x) - 7.5, dy = Float(y) - 7.5
+            let d = (dx * dx + dy * dy).squareRoot() / 7.5
+            if d > 1 { return clear }
+            return V4(0, 0, 0, 1 - d * d)
+        }
+        // Sky bodies: a warm square sun and a cratered moon in eight phases (0 = full, 4 = new).
+        p["sun"] = { x, y in
+            let dx = Float(x) - 7.5, dy = Float(y) - 7.5
+            let d = max(abs(dx), abs(dy)) / 7.5
+            let k = 1 - 0.08 * d * d
+            return V4(1, 0.98 * k, 0.86 * k, 1)
+        }
+        for phase in 0..<8 {
+            p["moon_\(phase)"] = { x, y in
+                let px = (Float(x) - 7.5) / 7, py = (Float(y) - 7.5) / 7
+                let rr = px * px + py * py
+                if rr > 1 { return clear }
+                let z = (1 - rr).squareRoot()
+                let ang = Float(phase) * .pi / 4
+                let lit = px * sinf(ang) + z * cosf(ang)
+                if lit <= 0.02 { return V4(0.07, 0.08, 0.12, 1) }
+                let crater = r(x, y, 230) < 0.16 ? 0.8 : 1
+                let v: Float = (0.86 + 0.1 * r(x / 2, y / 2, 231)) * Float(crater)
+                return V4(v, v, v * 1.05, 1)
             }
         }
         overworldPainters(&p)

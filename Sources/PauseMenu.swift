@@ -150,7 +150,7 @@ final class PauseMenu: Menu {
                         ("Button Prompts: \(["Auto", "Controller", "Keyboard"][max(0, min(2, st.glyphStyle))])", "glyphs"),
                         ("Button Mapping...", "padmap")]
             case .video:
-                rows = [("Render Distance: \(g.world.renderDistance)", "rd"), ("Fullscreen: \(on(VideoState.fullscreen))", "fullscreen"),
+                rows = [("Render Distance: \(g.world.renderDistance)", "rd"), ("Graphics: \(g.fancyGraphics ? "Fancy" : "Fast")", "graphics"), ("Fullscreen: \(on(VideoState.fullscreen))", "fullscreen"),
                         ("Display: \(VideoState.current.isEmpty ? "Main" : VideoState.current)", "display"),
                         ("Start in Fullscreen: \(on(st.launchFullscreen))", "launchfs"), ("VSync: \(on(st.vsync))", "vsync"),
                         ("Max Frame Rate: \(st.fpsCap == 0 ? "Display" : "\(st.fpsCap)")", "fps"),
@@ -430,6 +430,7 @@ final class PauseMenu: Menu {
         case "fps": st.fpsCap = step(Settings.fpsOptions, st.fpsCap); g.appAction?("video")
         case "rscale": st.renderScale = step(Settings.renderScaleOptions, st.renderScale); g.appAction?("video")
         case "gui": HudLayout.userScale = step([0, 1, 2, 3, 4, 5, 6], HudLayout.userScale)
+        case "graphics": g.fancyGraphics.toggle()
         case "couch": HudLayout.couch.toggle()
         case "safe": st.safeArea = step([0, 2, 4, 6, 8, 10], st.safeArea)
         case "hints": st.buttonHints.toggle()

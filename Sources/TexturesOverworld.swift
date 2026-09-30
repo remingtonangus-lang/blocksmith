@@ -64,11 +64,7 @@ extension TextureGen {
             p["\(w.0)_log_top"] = rings(w.1, w.2)
             p["\(w.0)_planks"] = planks(w.2, salt: s + 3)
             if w.3 == 0 {
-                p["\(w.0)_leaves"] = { x, y in
-                    if r(x, y, s + 4) < (w.0 == "jungle" ? 0.12 : 0.2) { return clear }
-                    let v: Float = 0.5 + 0.45 * r(x, y, s + 5)
-                    return V4(v, v, v, 1)
-                }
+                p["\(w.0)_leaves"] = leafy(nil, holes: w.0 == "jungle" ? 0.1 : 0.2, salt: s + 4)
             } else {
                 p["\(w.0)_leaves"] = foliage(w.3, holes: 0.15, salt: s + 4)
             }

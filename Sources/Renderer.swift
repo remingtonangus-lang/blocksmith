@@ -11,7 +11,9 @@ struct Uniforms {
     var fogColor: V4
     var params: V4
     var sunDir: V4
+    var eye: V4
 }
+struct SkyParams { var invViewProj: float4x4; var zenith: V4; var horizon: V4; var sun: V4 }
 
 struct SimpleVert { var pos: V4; var color: V4 }
 struct SectionRec { var x: Float; var y: Float; var z: Float; var tint: UInt32 }     // chunkVS buffer(2), 16 bytes
@@ -42,6 +44,10 @@ final class Renderer: NSObject, MTKViewDelegate {
     let mobPipe: MTLRenderPipelineState
     let entityPipe: MTLRenderPipelineState
     let crackPipe: MTLRenderPipelineState
+    let skyPipe: MTLRenderPipelineState
+    let hollowSkyPipe: MTLRenderPipelineState
+    let cloudBoxPipe: MTLRenderPipelineState
+    let clouds: CloudMesh?
     let starBuf: MTLBuffer
     let starVerts: Int
     let depthWrite: MTLDepthStencilState
@@ -110,6 +116,10 @@ final class Renderer: NSObject, MTKViewDelegate {
         mobPipe = try pipe("mobVS", "mobFS", blend: false)
         entityPipe = try pipe("entityVS", "entityFS", blend: false)
         crackPipe = try pipe("entityVS", "crackFS", blend: true)
+        skyPipe = try pipe("skyVS", "skyFS", blend: false)
+        hollowSkyPipe = try pipe("skyVS", "hollowSkyFS", blend: false)
+        cloudBoxPipe = try pipe("cloudBoxVS", "cloudBoxFS", blend: true)
+        clouds = CloudMesh(device: device)
 
         // Star field: fixed random directions on a sphere of radius 90 (sky frame, rotated per frame).
         var stars: [SimpleVert] = []
@@ -228,7 +238,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             inflight.signal()
         }
         let sky = game.skyColor
-        let clear = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInWater ? V3(0.05, 0.12, 0.3) : sky)
+        let clear = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInWater ? game.underwaterFog : sky)
         rpd.colorAttachments[0].clearColor = MTLClearColor(red: Double(clear.x), green: Double(clear.y), blue: Double(clear.z), alpha: 1)
         let enc = cmd.makeRenderCommandEncoder(descriptor: rpd)!
         let s = view.drawableSize
@@ -323,9 +333,9 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         let sky = game.skyColor
         let hasSky = game.dim.dim.hasSky
-        var fogEnd: Float = underwater ? 20 : (game.dim.dim == .nether ? min(rd * 16 - 6, 96) : rd * 16 - 6)
+        var fogEnd: Float = underwater ? 28 : (game.dim.dim == .nether ? min(rd * 16 - 6, 96) : rd * 16 - 6)
         var fogStart: Float = underwater ? 1 : fogEnd * 0.62
-        var fogColor = underwater ? V3(0.05, 0.12, 0.3) : sky
+        var fogColor = underwater ? game.underwaterFog : sky
         if let bf = game.blindFog { fogEnd = min(fogEnd, bf); fogStart = bf * 0.2; fogColor = V3(0, 0, 0) }
         let daylight = game.daylight
         // Night vision lifts every light level toward full brightness.
@@ -334,25 +344,45 @@ final class Renderer: NSObject, MTKViewDelegate {
         var u = Uniforms(viewProj: viewProj,
                          fogColor: V4(fogColor, fogStart),
                          params: V4(fogEnd, daylight, Float(game.time.truncatingRemainder(dividingBy: 1000)), underwater ? 1 : 0),
-                         sunDir: V4(game.sunDir, ambient))
+                         sunDir: V4(game.sunDir, ambient),
+                         eye: V4(eye, game.fancyGraphics ? 1 : 0))
 
         enc.setFragmentTexture(texture, index: 0)
 
-        // Sky bodies (camera-relative, no depth)
+        // Fancy sky: gradient dome + sun glow drawn over the clear colour before anything else.
+        if game.fancyGraphics && !underwater && hasSky && game.blindFog == nil {
+            let sd = game.sunDir
+            let dusk = max(0, 1 - abs(sd.y - 0.02) / 0.22)
+            let glow = (dusk * 0.9 + 0.12 * daylight) * (1 - min(1, game.weather.rain))
+            var sp = SkyParams(invViewProj: viewProj.inverse, zenith: V4(game.skyZenith, 0),
+                               horizon: V4(sky, glow), sun: V4(sd, daylight))
+            enc.setRenderPipelineState(skyPipe)
+            enc.setDepthStencilState(depthNone)
+            enc.setCullMode(.none)
+            enc.setFragmentBytes(&sp, length: MemoryLayout<SkyParams>.stride, index: 1)
+            enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+        } else if game.fancyGraphics && game.dim.dim == .end && !underwater && game.blindFog == nil {
+            var sp = SkyParams(invViewProj: viewProj.inverse, zenith: V4(sky, 0), horizon: V4(sky, 0),
+                               sun: V4(0, 1, 0, Float(game.clock.truncatingRemainder(dividingBy: 10000))))
+            enc.setRenderPipelineState(hollowSkyPipe)
+            enc.setDepthStencilState(depthNone)
+            enc.setCullMode(.none)
+            enc.setFragmentBytes(&sp, length: MemoryLayout<SkyParams>.stride, index: 1)
+            enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+        }
+
+        // Sky bodies (camera-relative, no depth): stars, then the textured sun and moon.
         do {
             var verts: [SimpleVert] = []
-            func body(_ dir: V3, _ size: Float, _ color: V4) {
-                let c = dir * 90
-                let r = simd_normalize(simd_cross(dir, V3(0, 0, 1))) * size
-                let up = simd_normalize(simd_cross(r, dir)) * size
-                let q = [c - r - up, c + r - up, c + r + up, c - r + up]
-                for i in [0, 1, 2, 0, 2, 3] { verts.append(SimpleVert(pos: V4(q[i], 1), color: color)) }
-            }
             let sd = game.sunDir
-            if !underwater && hasSky {
-                body(sd, 7, V4(1.0, 0.95, 0.75, 1))
-                body(sd, 11, V4(1.0, 0.85, 0.5, 0.18))
-                body(-sd, 5, V4(0.85, 0.88, 0.95, 1))
+            let dusk = max(0, 1 - abs(sd.y - 0.02) / 0.22)
+            if !underwater && hasSky && !game.fancyGraphics {
+                // Fast: a square halo behind the sun (the Fancy sky shades its own glow).
+                let c = sd * 90
+                let r = simd_normalize(simd_cross(sd, V3(0, 0, 1))) * 11
+                let up = simd_normalize(simd_cross(r, sd)) * 11
+                let q = [c - r - up, c + r - up, c + r + up, c - r + up]
+                for i in [0, 1, 2, 0, 2, 3] { verts.append(SimpleVert(pos: V4(q[i], 1), color: V4(1.0, 0.85, 0.5, 0.18))) }
             }
             let starAlpha = simd_clamp((0.6 - daylight) / 0.35, 0, 1)
             if !underwater && starAlpha > 0 && hasSky {
@@ -372,6 +402,27 @@ final class Renderer: NSObject, MTKViewDelegate {
                 enc.setVertexBuffer(scratch, offset: off, index: 0)
                 enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
                 enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: verts.count)
+            }
+            if !underwater && hasSky {
+                // Sun (reddening at dawn/dusk) and the moon in its current phase: textured, blended, no fog.
+                let bodyOff = (scratchOff + 255) & ~255
+                let ptr = (scratch.contents() + bodyOff).bindMemory(to: EntityVert.self, capacity: 12)
+                var bw = EntityWriter(out: ptr, capacity: 12)
+                func body(_ dir: V3, _ size: Float, _ layer: Int, _ color: V4) {
+                    let c = dir * 90
+                    let r = simd_normalize(simd_cross(dir, V3(0, 0, 1))) * size
+                    let up = simd_normalize(simd_cross(r, dir)) * size
+                    bw.quad([c - r - up, c + r - up, c + r + up, c - r + up], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], layer, color)
+                }
+                body(sd, 7, Int(Tex.id("sun")), V4(1, 1 - 0.3 * dusk, 1 - 0.55 * dusk, 1))
+                body(-sd, 5, Int(Tex.id("moon_\(game.moonPhase)")), V4(1, 1, 1, 1))
+                scratchOff = bodyOff + bw.n * MemoryLayout<EntityVert>.stride
+                enc.setRenderPipelineState(crackPipe)
+                enc.setDepthStencilState(depthNone)
+                enc.setCullMode(.none)
+                enc.setVertexBuffer(scratch, offset: bodyOff, index: 0)
+                enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+                enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: bw.n)
             }
         }
 
@@ -540,7 +591,6 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.writeEndEntities(&wr, eye: eye, right: right, up: -up)
                 game.writeFangs(&wr, eye: eye)
                 game.writeBeams(&wr, eye: eye)
-                game.writeWeather(&wr, eye: eye)
                 game.writeFalling(&wr, eye: eye)
                 game.writeDecor(&wr, eye: eye)
                 game.writeBobber(&wr, eye: eye, right: right, up: -up)
@@ -551,6 +601,9 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.writeShelves(&wr, eye: eye)
                 game.particles.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight)
                 let nItems = wr.n
+                // Blended pass: entity shadows, rain / snow / lightning glow, then the crack overlay.
+                game.writeShadows(&wr, eye: eye)
+                game.writeWeather(&wr, eye: eye)
                 if let m = game.mining, game.mineProgress > 0 {
                     let layer = HudTex.destroy(Int(game.mineProgress * 10))
                     let o = V3(Float(m.x), Float(m.y), Float(m.z)) - eye
@@ -630,7 +683,27 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
 
         // Cloud layer (after water so both blend over terrain; depth-tested against terrain).
-        if !underwater && hasSky {
+        if !underwater && hasSky, game.fancyGraphics, let cm = clouds {
+            // Fancy: shaded boxes. Depth-written so blobs occlude each other instead of double-blending.
+            let ext = far
+            let wind = Float((game.time * 1.3).truncatingRemainder(dividingBy: 12 * 8192))
+            let cs = CloudMesh.cell
+            let ccx = Int(floor((eye.x + wind) / cs)), ccz = Int(floor(eye.z / cs))
+            let n = cm.update(centerX: ccx, centerZ: ccz, radius: min(32, Int(ext / cs) + 1))
+            if n > 0 {
+                var off = V4(-wind - eye.x, CLOUD_Y - eye.y, -eye.z, 0)
+                var cp = V4(0, 0, ext * 0.95, 0)
+                enc.setRenderPipelineState(cloudBoxPipe)
+                enc.setDepthStencilState(depthWrite)
+                enc.setCullMode(.back)
+                enc.setVertexBuffer(cm.buffer, offset: 0, index: 0)
+                enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+                enc.setVertexBytes(&off, length: 16, index: 2)
+                enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+                enc.setFragmentBytes(&cp, length: 16, index: 2)
+                enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: n)
+            }
+        } else if !underwater && hasSky {
             let ext = far
             let cy = CLOUD_Y - eye.y
             let q = [V3(-ext, cy, -ext), V3(ext, cy, -ext), V3(ext, cy, ext), V3(-ext, cy, ext)]
@@ -664,7 +737,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             let held = game.held
             // Arm (skin-coloured box angled up into the screen).
             let armOff = (scratchOff + 255) & ~255
-            let armPtr = (scratch.contents() + armOff).bindMemory(to: MobVert.self, capacity: 64)
+            let armPtr = (scratch.contents() + armOff).bindMemory(to: MobVert.self, capacity: 80)
             var an = 0
             let skin = V3(0.84, 0.64, 0.5)
             let axL = simd_normalize(V3(-0.12, 0.62, -0.78)) * (held.isEmpty ? 0.36 : 0.3)
@@ -672,12 +745,18 @@ final class Renderer: NSObject, MTKViewDelegate {
             let ac = base + V3(0.12, -0.34, 0.3) + (held.isEmpty ? V3(-0.05, 0.12, -0.1) : .zero)
             let CT = Mesher.cornerTable
             let faceShade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
-            for f in 0..<6 {
-                for k in [0, 1, 2, 0, 2, 3] {
-                    let ci = (f * 4 + k) * 3
-                    let pp = ac + axW * Float(CT[ci] * 2 - 1) + axL * Float(CT[ci + 1] * 2 - 1) + axD * Float(CT[ci + 2] * 2 - 1)
-                    armPtr[an] = MobVert(pos: V4(pp, 4), color: V4(skin, faceShade[f] * light), local: V4(pp * 32, 0))
-                    an += 1
+            // Sleeve over the upper (shoulder) half: tunic colour, or the chestplate's when armour is worn.
+            let chest = game.inventory.armor[1]
+            let sleeve = chest.isEmpty ? V3(0.62, 0.26, 0.16) : (ArmorLook.color(chest.item) ?? V3(0.62, 0.26, 0.16))
+            let boxes: [(V3, Float, Float, V3, Float)] = [(ac, 1, 1, skin, 4), (ac - axL * 0.45, 0.56, 1.1, sleeve, 2)]
+            for (c0, lenK, thick, col, pat) in boxes {
+                for f in 0..<6 {
+                    for k in [0, 1, 2, 0, 2, 3] {
+                        let ci = (f * 4 + k) * 3
+                        let pp = c0 + axW * (Float(CT[ci] * 2 - 1) * thick) + axL * (Float(CT[ci + 1] * 2 - 1) * lenK) + axD * (Float(CT[ci + 2] * 2 - 1) * thick)
+                        armPtr[an] = MobVert(pos: V4(pp, pat), color: V4(col, faceShade[f] * light), local: V4(pp * 32, 0))
+                        an += 1
+                    }
                 }
             }
             scratchOff = armOff + an * MemoryLayout<MobVert>.stride
@@ -800,7 +879,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             text(t, floor((W - textWidth(t, big)) / 2), H * 0.55, big)
             return v
         }
-        if game.player.headInWater { rect(0, 0, W, H, V4(0.05, 0.15, 0.45, 0.35)) }
+        if game.player.headInWater { rect(0, 0, W, H, V4(0.05, 0.15, 0.45, 0.18)) }
         if game.sleeping > 0 { rect(0, 0, W, H, V4(0.02, 0.02, 0.06, min(1, game.sleeping / 1.5))) }
         let fx: Float = Settings.shared.screenEffects ? 1 : 0.3       // Accessibility > Screen Flashes
         if game.hurtFlash > 0 { rect(0, 0, W, H, V4(0.75, 0.02, 0.02, min(0.45, game.hurtFlash * 1.3) * fx)) }
@@ -1692,7 +1771,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         rpd.colorAttachments[0].texture = color
         rpd.colorAttachments[0].loadAction = .clear
         rpd.colorAttachments[0].storeAction = .store
-        let sky = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInWater ? V3(0.05, 0.12, 0.3) : game.skyColor)
+        let sky = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInWater ? game.underwaterFog : game.skyColor)
         rpd.colorAttachments[0].clearColor = MTLClearColor(red: Double(sky.x), green: Double(sky.y), blue: Double(sky.z), alpha: 1)
         rpd.depthAttachment.texture = depth
         rpd.depthAttachment.loadAction = .clear

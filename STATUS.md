@@ -237,6 +237,17 @@ Findings / changes (performance branch):
   sun-proof), Dust Camel (camel husk carrying a dust zombie + sunscorched skeleton), Nautilus (warm oceans) and Sunken
   Nautilus (ridden by 5% of ocean sunken). Not yet: riding/taming nautiluses, the spear, copper golem (needs copper chests).
 - `--mobtests` (MobTests.swift) checks all of the above headlessly and exits non-zero on a failure.
+## Graphics (visuals session)
+- Options > Graphics: Fancy (default) / Fast, saved in UserDefaults `fancyGraphics`; harness `--fast` renders one shot in Fast
+  without touching the saved choice.
+- Fancy only: gradient sky dome (deeper blue overhead, warm glow around the sun at dawn/dusk, exactly the fog colour
+  below the horizon), 3D cloud boxes (12x12x4, shaded sides, CPU mesh rebuilt only when the wind crosses a cell),
+  water Fresnel + sun glint on surfaces seen from above, blob shadows under mobs/items/the third-person player,
+  grass and flowers swaying in the wind (vertex shader, top corners only).
+- Both modes: textured sun that reddens near the horizon, a moon with 8 phases (one per day), translucent rain/snow,
+  lightning with a soft glow, blue-tinted moonlight, branching block-breaking cracks.
+- Harness: `--underwater`, `--crack <0..1>`, `--fast`; shots sunset_fast, sunset_sun, lake, lake_glint, underwater, crack.
+
 
 ## Known gaps / decisions
 - Save format changed with the engine rework (chunks3/, name-paletted); worlds from the 8-bit engine start fresh terrain.

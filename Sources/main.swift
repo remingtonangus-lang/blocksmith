@@ -120,6 +120,12 @@ enum Snapshot {
             game.sfx(.birdCall, at: e + r * 8 + V3(0, 4, 0))
             game.sfx(.hurt)
         }
+        if CommandLine.arguments.contains("--fast") {
+            // Fast graphics for this shot only: keep the user's saved preference untouched.
+            let saved = UserDefaults.standard.object(forKey: "fancyGraphics")
+            game.fancyGraphics = false
+            if let s = saved { UserDefaults.standard.set(s, forKey: "fancyGraphics") } else { UserDefaults.standard.removeObject(forKey: "fancyGraphics") }
+        }
         if CommandLine.arguments.contains("--debug") {
             game.showDebug = true
             game.onToast?("Grass Block")
@@ -810,6 +816,10 @@ enum Snapshot {
             }
             print("treecheck: \(checked) trunks, \(bad.count) in the wrong biome\(bad.isEmpty ? "" : ": " + bad.prefix(12).joined(separator: " "))")
         }
+        if let s = arg("--crack"), let t = game.target {
+            game.mining = t.hit
+            game.mineProgress = min(0.99, max(0.01, Float(s) ?? 0.6))
+        }
         if CommandLine.arguments.contains("--swim") {
             game.player.flying = false
             game.player.swimming = true
@@ -819,6 +829,15 @@ enum Snapshot {
         if CommandLine.arguments.contains("--bugnotetest") {
             // Voice bug notes pipeline with a synthesized voice (BugNotes.selfTest).
             BugNotes.selfTest(game) { url in _ = renderer.renderToPNG(path: url.path, width: 640, height: 400) }
+        }
+        if CommandLine.arguments.contains("--ambient") {
+            // Two seconds of ambient block particles (torch smoke, campfire columns, lava sparks).
+            for _ in 0..<40 { game.ambientParticles(0.05); game.emberMotes(0.05); game.particles.update(0.05, world) }
+        }
+        if CommandLine.arguments.contains("--underwater") {
+            // Head under the sea surface (fog, overlay, water seen from below).
+            game.player.pos.y = Float(SEA) - 4
+            game.player.headInWater = true
         }
         _ = renderer.renderToPNG(path: out, width: w, height: h) // warm-up (pipeline + residency)
         _ = renderer.renderToPNG(path: out, width: w, height: h)
@@ -962,6 +981,10 @@ if let dir = arg("--music") {
 
 if let out = arg("--bench") {
     exit(Bench.run(out))
+}
+
+if let out = arg("--atlas") {
+    exit(dumpAtlas(out))
 }
 
 if let out = arg("--snapshot") {

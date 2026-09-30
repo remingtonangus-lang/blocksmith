@@ -105,10 +105,13 @@ final class ParticleManager {
     }
 
     func write(_ wr: inout EntityWriter, eye: V3, right: V3, up: V3, world: World, daylight: Float) {
+        let amb = world.dim.ambient
         for p in list {
             let c = p.pos - eye
             let l = world.lightAt(Int(floor(p.pos.x)), Int(floor(p.pos.y)), Int(floor(p.pos.z)))
-            let light = p.glow ? 1 : max(0.15, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
+            // Same dimension ambient lift as terrain (Emberdeep ash would otherwise be black).
+            let base = max(0.15, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
+            let light = p.glow ? 1 : base + (1 - base) * amb
             let s = p.size
             let r = right * s, u = up * s
             let a = p.uv0, b = p.uv0 + V2(p.uvSize, p.uvSize)
