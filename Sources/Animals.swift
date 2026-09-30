@@ -207,7 +207,14 @@ extension Mob {
             return 0
         case .bee:
             return beeAI(dt, g)
+        case .allay where g.jukeboxes.contains(where: { simd_length(V3(Float($0.pos.x) + 0.5, Float($0.pos.y), Float($0.pos.z) + 0.5) - pos) < 10 }):
+            // Dancing to a jukebox within 10 blocks (an amethyst shard now duplicates it).
+            sitting = true
+            vel *= expf(-3 * dt)
+            walkPhase += dt * 6
+            return 0
         case .allay:
+            sitting = false
             // Follows the player who gave it an item and collects matching drops.
             if tamed {
                 let want = heldItem

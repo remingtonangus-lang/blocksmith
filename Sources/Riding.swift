@@ -25,6 +25,15 @@ extension Game {
             return true
         case .parrot where !m.tamed && key.hasSuffix("_seeds"): tameTry(10); return true          // reference: 1 in 10
         case .parrot where key == "cookie": consumeHeld(); m.health = 0; return true          // poisonous to parrots
+        case .allay where key == "amethyst_shard" && m.sitting && m.breedCooldown <= 0:
+            // Reference duplication: a dancing fetchling given an amethyst shard splits in two (5 min cooldown).
+            consumeHeld()
+            let twin = Mob(.allay, at: m.pos + V3(0.3, 0.2, 0))
+            twin.breedCooldown = 300; m.breedCooldown = 300
+            twin.persistent = true
+            mobs.mobs.append(twin)
+            particles.hearts(at: pos)
+            return true
         case .allay:
             if !held.isEmpty && m.heldItem == 0 { m.heldItem = held.item; m.owner = true; m.persistent = true; particles.hearts(at: pos); return true }
             if held.isEmpty && m.heldItem != 0 { m.heldItem = 0; m.owner = nil; return true }
