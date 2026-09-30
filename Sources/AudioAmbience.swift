@@ -18,6 +18,8 @@ final class AudioState {
     var lastHurtSound: Float = -10
     var stepTimer: Float = 0
     var discPlaying: JukeboxPlayer? = nil
+    var armorSeen: [ItemID] = [0, 0, 0, 0]
+    var armorPrimed = false
     static var kindTable: [UInt8] = []      // block id -> emitter kind (built once)
 }
 
@@ -193,6 +195,15 @@ extension Game {
                 sfx(.windGust, 0.5, at: eye + off)      // high peaks
             }
         }
+        // Armor put on (any path: menus, shift-click, dispensers): the material's equip sound.
+        for i in 0..<min(4, inventory.armor.count) {
+            let it = inventory.armor[i].isEmpty ? 0 : inventory.armor[i].item
+            if it != a.armorSeen[i] {
+                if a.armorPrimed && it != 0 { sfx(.armorEquip(Game.armorSoundTier(Items.key(it))), 0.8) }
+                a.armorSeen[i] = it
+            }
+        }
+        a.armorPrimed = true
         // Jukebox nearby: duck the background music.
         let jukeboxNear = a.discPlaying != nil
         snd.musicDuck += ((jukeboxNear ? 0 : 1) - snd.musicDuck) * min(1, dt * 2)

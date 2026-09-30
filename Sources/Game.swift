@@ -787,9 +787,9 @@ final class Game {
                     particles.crit(at: m.pos + V3(0, m.height * 0.5, 0))
                 }
                 if crit { particles.crit(at: m.pos + V3(0, m.height * 0.7, 0)) }
-                sfx(.attack, 0.7, at: m.pos)
-                sfx(m.kind.call, 0.9, at: m.pos + V3(0, m.height * 0.8, 0))
-                if m.health <= 0 { sfx(.breakBlock(.plant), 0.8, at: m.pos) }
+                let swept = held.def.tool == .sword && charge > 0.9 && player.onGround && !player.sprinting && !crit
+                let hitSound: Snd = crit ? .attackCrit : (swept ? .attackSweep : (charge < 0.5 ? .attackWeak : (player.sprinting ? .attackKnockback : .attack)))
+                sfx(hitSound, 0.8, at: m.pos + V3(0, m.height * 0.5, 0))
                 if survival { exhaustion += 0.1 }
                 damageHeld(held.def.tool == .sword ? 1 : 2)
             }

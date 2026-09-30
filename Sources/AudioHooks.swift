@@ -79,6 +79,16 @@ extension Game {
         return .breakBlock(soundMat(b))
     }
 
+    // 0 leather (and anything soft), 1 chain, 2 iron, 3 gold, 4 diamond, 5 duskium.
+    static func armorSoundTier(_ key: String) -> Int {
+        if key.hasPrefix("chainmail") { return 1 }
+        if key.hasPrefix("iron") { return 2 }
+        if key.hasPrefix("golden") { return 3 }
+        if key.hasPrefix("diamond") { return 4 }
+        if key.hasPrefix("netherite") { return 5 }
+        return 0
+    }
+
     func audioHurt(_ type: DamageType) {
         // Rate-limit so a burst of damage ticks does not stack grunts.
         if Float(clock) - audio.lastHurtSound < 0.25 { return }

@@ -40,12 +40,12 @@ extension Game {
         var s = slotIsMain ? held : inventory.offhand[0]
         if amount >= 3 && survival && !Enchant.wearSkipped(s) {
             s.damage += 1 + amount
-            if s.damage >= s.def.durability { s = .empty; sfx(.breakBlock(.wood), 0.8) }
+            if s.damage >= s.def.durability { s = .empty; sfx(.shieldBreak, 0.9) }
             if slotIsMain { inventory.held = s } else { inventory.offhand[0] = s }
         }
-        sfx(.place(.wood), 0.9, at: player.pos + V3(0, 1, 0))
+        sfx(.shieldBlock, 0.9, at: player.pos + V3(0, 1, 0))
         // Axes (brigands, players) disable the shield for 5 s.
-        if let a = attacker, a.kind == .vindicator || a.kind == .piglinBrute { shieldCooldown = 5; blocking = false; sfx(.breakBlock(.wood), 0.6) }
+        if let a = attacker, a.kind == .vindicator || a.kind == .piglinBrute { shieldCooldown = 5; blocking = false; sfx(.shieldBreak, 0.7) }
         if let a = attacker, a.kind == .ravager { a.stun = 2 }
         if let a = attacker, type == .generic { a.hit(from: player.pos, damage: 0, knockback: 0.5) }
         return true
