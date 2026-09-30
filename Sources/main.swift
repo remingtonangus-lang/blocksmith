@@ -266,8 +266,12 @@ enum Snapshot {
             // Default spawn view: step off tree canopies onto open ground so the camera isn't in leaves.
             let bx = Int(floor(pos.x)), bz = Int(floor(pos.z))
             func openGround(_ x: Int, _ z: Int) -> Bool {
-                let k = Blocks.key(world.block(x, world.topY(x, z), z))
-                return !k.hasSuffix("_leaves") && !k.hasSuffix("_log") && !Blocks.isLiquid(world.block(x, world.topY(x, z), z))
+                let t = world.topY(x, z)
+                let k = Blocks.key(world.block(x, t, z))
+                if k.hasSuffix("_leaves") || k.hasSuffix("_log") || Blocks.isLiquid(world.block(x, t, z)) { return false }
+                // Room to look around: nothing solid within 2 blocks of the eye (walls, portal frames).
+                for dy in 1...3 { for dz in -2...2 { for dx in -2...2 where Blocks.collide[Int(world.block(x + dx, t + dy, z + dz))] { return false } } }
+                return true
             }
             if !openGround(bx, bz) {
                 search: for r in 1...24 { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r && openGround(bx + dx, bz + dz) {
