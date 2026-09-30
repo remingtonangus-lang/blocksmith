@@ -297,7 +297,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let hour = Int(game.dayFraction * 24 + 6) % 24
         debugLabel.stringValue = """
         Blocksmith  \(Int(renderer.fps.rounded())) fps  ·  seed \(w.seed)
-        XYZ \(String(format: "%.2f %.2f %.2f", p.pos.x, p.pos.y, p.pos.z))  ·  facing \(facing)  ·  \(biome)
+        XYZ \(String(format: "%.2f %.2f %.2f", p.pos.x, p.pos.y - Float(YOFF), p.pos.z))  ·  facing \(facing)  ·  \(biome)
         chunks \(w.chunks.count) loaded · \(w.meshedCount) meshed · \(renderer.drawnChunks) drawn · \(w.pendingJobs) jobs · RD \(w.renderDistance)
         target \(tgt)  ·  \(p.flying ? "flying" : (p.onGround ? "ground" : "air"))\(p.inWater ? " · water" : "")
         time \(String(format: "%02d:00", hour))  ·  controller \(game.padConnected ? "yes" : "no")

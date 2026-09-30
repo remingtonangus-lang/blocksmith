@@ -32,13 +32,7 @@ final class Player {
     var look: V3 { V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch)) }
 
     func collides(at p: V3, _ w: World) -> Bool {
-        let eps: Float = 1e-4
-        let x0 = Int(floor(p.x - halfW)), x1 = Int(floor(p.x + halfW - eps))
-        let y0 = Int(floor(p.y)), y1 = Int(floor(p.y + height - eps))
-        let z0 = Int(floor(p.z - halfW)), z1 = Int(floor(p.z + halfW - eps))
-        let col = Blocks.collide
-        for y in y0...y1 { for z in z0...z1 { for x in x0...x1 where col[Int(w.block(x, y, z))] { return true } } }
-        return false
+        w.collides(V3(p.x - halfW, p.y, p.z - halfW), V3(p.x + halfW, p.y + height, p.z + halfW))
     }
 
     func intersectsBlock(_ b: IVec3) -> Bool {
@@ -46,26 +40,6 @@ final class Player {
         return pos.x + halfW > bx && pos.x - halfW < bx + 1 &&
             pos.y + height > by && pos.y < by + 1 &&
             pos.z + halfW > bz && pos.z - halfW < bz + 1
-    }
-
-    // Moves along one axis; returns true if blocked. Snaps flush against the obstacle.
-    private func moveAxis(_ a: Int, _ d: Float, _ w: World) -> Bool {
-        if d == 0 { return false }
-        var p = pos
-        p[a] += d
-        if !collides(at: p, w) { pos = p; return false }
-        let lo: Float = a == 1 ? 0 : halfW
-        let hi: Float = a == 1 ? height : halfW
-        var s = pos
-        if d > 0 {
-            let cell = floor(p[a] + hi - 1e-4)
-            s[a] = cell - hi - 1e-3
-        } else {
-            let cell = floor(p[a] - lo)
-            s[a] = cell + 1 + lo + 1e-3
-        }
-        if (d > 0 ? s[a] >= pos[a] : s[a] <= pos[a]) && !collides(at: s, w) { pos = s }
-        return true
     }
 
     private func groundBelow(_ p: V3, _ w: World) -> Bool {
@@ -127,27 +101,22 @@ final class Player {
             if input.jump && onGround { vel.y = 8.6; jumped = true }
         }
 
-        // Sub-step so no single axis move exceeds 0.4 blocks (prevents tunnelling).
-        let dist = max(abs(vel.x), abs(vel.y), abs(vel.z)) * dt
-        let steps = max(1, Int(ceil(dist / 0.4)))
-        let sdt = dt / Float(steps)
-        var landed = false
-        for _ in 0..<steps {
-            if moveAxis(1, vel.y * sdt, w) {
-                if vel.y < 0 { landed = true }
-                vel.y = 0
-            }
-            let edgeGuard = onGround && sneaking
+        // Sneak edge guard: don't let horizontal motion carry us off a ledge.
+        if onGround && sneaking {
             for a in [0, 2] {
-                let d = vel[a] * sdt
-                if edgeGuard {
-                    var p = pos
-                    p[a] += d
-                    if !groundBelow(p, w) { vel[a] = 0; continue }
-                }
-                if moveAxis(a, d, w) { vel[a] = 0 }
+                var p = pos
+                p[a] += vel[a] * dt
+                if !groundBelow(p, w) { vel[a] = 0 }
             }
         }
+        let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: flying ? 0 : 0.6, onGround: onGround)
+        var landed = false
+        if hit.y {
+            if vel.y < 0 { landed = true }
+            vel.y = 0
+        }
+        if hit.x { vel.x = 0 }
+        if hit.z { vel.z = 0 }
         onGround = landed || (vel.y <= 0 && groundBelow(pos, w))
         if flying && landed { flying = false }
         if onGround {

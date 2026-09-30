@@ -12,7 +12,7 @@ final class Game {
     let persistent: Bool
 
     var time: Double = DAY_LENGTH * 0.06
-    var hotbar: [UInt8] = [GRASS, DIRT, STONE, COBBLE, PLANKS, LOG, GLASS, TORCH, LAMP]
+    var hotbar: [BlockID] = [GRASS, DIRT, STONE, COBBLE, PLANKS, LOG, GLASS, TORCH, LAMP]
     var selected = 0
     var paused = true { didSet { if paused != oldValue { onPauseChanged?(paused) } } }
     var showDebug = false
@@ -26,7 +26,7 @@ final class Game {
         }
     }
     var invCursor = 0
-    let inventoryItems: [UInt8] = Blocks.placeable
+    let inventoryItems: [BlockID] = Blocks.placeable
     var screen = V2(1280, 800) // drawable size, updated by the renderer each frame
     var onInventoryChanged: ((Bool) -> Void)?
     private var navTimer: Double = 0
@@ -305,15 +305,13 @@ final class Game {
         let placeHeld = input.rightDown || p.lt > 0.5
         let placeNow = input.rightClicked || (p.lt > 0.5 && q.lt <= 0.5)
         eatCooldown -= dt
-        if Blocks.isItem(hotbar[selected]) {
-            if (placeNow || placeHeld) && eatCooldown <= 0 { eat(hotbar[selected]); eatCooldown = 0.8 }
-        } else if let t = target, placeNow || (placeHeld && placeCooldown <= 0) {
+        if let t = target, placeNow || (placeHeld && placeCooldown <= 0) {
             // Clicking a plant replaces it (like tall grass); otherwise place against the face.
             let at = Blocks.isPlant(world.block(t.hit.x, t.hit.y, t.hit.z)) ? t.hit : t.hit + t.normal
             let existing = world.block(at.x, at.y, at.z)
             let id = hotbar[selected]
             let solid = Blocks.collide[Int(id)]
-            let replaceable = existing == AIR || Blocks.isLiquid(existing) || Blocks.isPlant(existing)
+            let replaceable = Blocks.replaceable[Int(existing)]
             let supported: Bool
             if id == TORCH {
                 // Torches stand on the floor or hang on a wall.
@@ -341,15 +339,13 @@ final class Game {
         onToast?(survival ? "Survival mode" : "Creative mode")
     }
 
-    func eat(_ id: UInt8) {
+    func eat(_ f: FoodInfo, _ name: String) {
         guard survival else { onToast?("Food only matters in survival"); return }
         guard hunger < 20 else { onToast?("Not hungry"); return }
-        if id == APPLE {
-            sfx(.eat)
-            hunger = min(20, hunger + 4)
-            saturation = min(Float(hunger), saturation + 2.4)
-            onToast?("Ate an apple")
-        }
+        sfx(.eat)
+        hunger = min(20, hunger + f.hunger)
+        saturation = min(Float(hunger), saturation + f.saturation)
+        onToast?("Ate \(name)")
     }
 
     func damage(_ amount: Int, _ cause: String) {

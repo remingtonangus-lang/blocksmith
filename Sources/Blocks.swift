@@ -1,155 +1,327 @@
 import Foundation
 
-// Block IDs. To add a block: add an ID here, a texture layer in T (paint it in Textures.swift),
-// then register it in BlockTable.init. Registration order must match the ID values.
-let AIR: UInt8 = 0
-let STONE: UInt8 = 1
-let GRASS: UInt8 = 2
-let DIRT: UInt8 = 3
-let COBBLE: UInt8 = 4
-let PLANKS: UInt8 = 5
-let BEDROCK: UInt8 = 6
-let SAND: UInt8 = 7
-let GRAVEL: UInt8 = 8
-let LOG: UInt8 = 9
-let LEAVES: UInt8 = 10
-let GLASS: UInt8 = 11
-let WATER: UInt8 = 12
-let COAL_ORE: UInt8 = 13
-let IRON_ORE: UInt8 = 14
-let GOLD_ORE: UInt8 = 15
-let DIAMOND_ORE: UInt8 = 16
-let BRICKS: UInt8 = 17
-let SNOWY_GRASS: UInt8 = 18
-let CACTUS: UInt8 = 19
-let SNOW: UInt8 = 20
-let STONE_BRICKS: UInt8 = 21
-let SANDSTONE: UInt8 = 22
-let BIRCH_LOG: UInt8 = 23
-let BIRCH_LEAVES: UInt8 = 24
-let SPRUCE_LOG: UInt8 = 25
-let SPRUCE_LEAVES: UInt8 = 26
-let TALL_GRASS: UInt8 = 27
-let RED_FLOWER: UInt8 = 28
-let YELLOW_FLOWER: UInt8 = 29
-let BLUE_FLOWER: UInt8 = 30
-let TORCH: UInt8 = 31
-let LAMP: UInt8 = 32
-// Flowing water: WATER_FLOW[k] for k = 1...7 (index 0 = the source, WATER). WATER_FALL is a falling column.
-let WATER_FLOW: [UInt8] = [WATER, 33, 34, 35, 36, 37, 38, 39]
-let WATER_FALL: UInt8 = 40
-let APPLE: UInt8 = 41
+// Block states are 16-bit IDs ("flattened" states: every variant of a block — each water level,
+// each facing of a stair — gets its own ID). All per-state properties live in flat tables so
+// hot loops (meshing, physics, lighting) index arrays instead of touching structs or strings.
+//
+// To add a block: register it in BlockRegistry.init (by name; textures by name, painted in
+// Textures.swift) and, if code needs it, add a global `let NAME = Blocks.id("name")` below.
 
-enum T {
-    static let stone = 0, grassTop = 1, grassSide = 2, dirt = 3, cobble = 4, planks = 5, bedrock = 6, sand = 7
-    static let gravel = 8, logSide = 9, logTop = 10, leaves = 11, glass = 12, water = 13, coal = 14, iron = 15
-    static let gold = 16, diamond = 17, brick = 18, snow = 19, snowSide = 20, cactusSide = 21, cactusTop = 22
-    static let stoneBrick = 23, sandstoneSide = 24, sandstoneTop = 25
-    static let birchSide = 26, birchTop = 27, spruceSide = 28, spruceTop = 29, birchLeaves = 30, spruceLeaves = 31
-    static let tallGrass = 32, redFlower = 33, yellowFlower = 34, blueFlower = 35
-    static let torch = 36, lamp = 37
-    static let apple = 38, heart = 39, heartHalf = 40, heartEmpty = 41, food = 42, foodHalf = 43, foodEmpty = 44, bubble = 45
-    static let count = 46
+typealias BlockID = UInt16
+
+enum RenderType: UInt8 { case none, cube, cross, liquid, model }
+enum RenderLayer: UInt8 { case opaque, cutout, translucent }
+enum ToolType: UInt8 { case none, pickaxe, axe, shovel, hoe, sword, shears }
+
+// Axis-aligned box in 1/16 block units, with a texture per face (+X -X +Y -Y +Z -Z).
+struct Box {
+    var x0: UInt8, y0: UInt8, z0: UInt8, x1: UInt8, y1: UInt8, z1: UInt8
+    var tex: [UInt16]
+    init(_ x0: Int, _ y0: Int, _ z0: Int, _ x1: Int, _ y1: Int, _ z1: Int, tex: [UInt16] = []) {
+        self.x0 = UInt8(x0); self.y0 = UInt8(y0); self.z0 = UInt8(z0)
+        self.x1 = UInt8(x1); self.y1 = UInt8(y1); self.z1 = UInt8(z1)
+        self.tex = tex
+    }
+    var minV: V3 { V3(Float(x0), Float(y0), Float(z0)) / 16 }
+    var maxV: V3 { V3(Float(x1), Float(y1), Float(z1)) / 16 }
 }
-
-// plant = cross-shaped cutout sprite (two diagonal quads), no collision, doesn't block light.
-// item = lives only in the hotbar/inventory (food); never placed in the world.
-enum BlockKind: UInt8 { case air = 0, solid = 1, cutout = 2, liquid = 3, plant = 4, item = 5 }
 
 struct BlockDef {
     var name: String
-    var kind: BlockKind
-    var tex: [Int] // face order: +X -X +Y -Y +Z -Z
+    var display: String
+    var render: RenderType = .cube
+    var layer: RenderLayer = .opaque
+    var tex: [String] = []           // 6 faces +X -X +Y -Y +Z -Z
+    var opaque = true                // full opaque cube: hides neighbour faces, blocks light
+    var skyStop: Bool? = nil         // stops the straight-down skylight column (default: !air-like)
+    var emit: UInt8 = 0
+    var collide = true
+    var boxes: [Box] = []            // model geometry / collision for non-full blocks (1/16 units)
+    var noCollideBoxes = false       // model boxes are visual only (e.g. carpets still collide; flowers don't)
+    var hardness: Float = 1          // < 0 = unbreakable
+    var tool: ToolType = .none
+    var harvestLevel = 0             // 0 wood/gold, 1 stone, 2 iron, 3 diamond
+    var requiresTool = false
+    var cullSame = false
+    var tint: UInt8 = 0              // 1 grass, 2 foliage, 3 grass overlay (tint only marked texels)
+    var replaceable = false          // placing a block here overwrites it (air, plants, fluids, snow layer)
+    var fluid: Int8 = -1             // -1 none, 0 source, 1...7 flowing, 8 falling
+    var sound: SoundMat = .stone
+    var aoOcc: Bool? = nil
+    var hidden = false               // not offered in the creative inventory
+    var group: String? = nil         // state group (defaults to name)
+
+    init(_ name: String, _ display: String) { self.name = name; self.display = display }
 }
 
-// Flat lookup tables so hot loops (meshing, physics) never touch structs or strings.
-final class BlockTable {
-    var defs: [BlockDef] = []
-    var kind = [UInt8](repeating: 0, count: 256)
-    var opaque = [Bool](repeating: false, count: 256)
-    var sky = [Bool](repeating: false, count: 256)        // stops the straight-down 15 skylight column
-    var lightOpaque = [Bool](repeating: false, count: 256) // light can't enter (solid blocks)
-    var emit = [UInt8](repeating: 0, count: 256)          // block light emitted (0-15)
-    var fluidLevel = [Int8](repeating: -1, count: 256)    // -1 not water, 0 source, 1-7 flowing, 8 falling
-    var hidden = [Bool](repeating: false, count: 256)     // internal states, not offered to the player
-    var aoOcc = [Bool](repeating: false, count: 256)
-    var collide = [Bool](repeating: false, count: 256)
-    var cullSame = [Bool](repeating: false, count: 256)
-    var tex = [UInt8](repeating: 0, count: 256 * 6)
+final class TextureRegistry {
+    private(set) var names: [String] = []
+    private var index: [String: UInt16] = [:]
+    func id(_ n: String) -> UInt16 {
+        if let i = index[n] { return i }
+        let i = UInt16(names.count)
+        names.append(n)
+        index[n] = i
+        return i
+    }
+    var count: Int { names.count }
+}
+
+let Tex = TextureRegistry()
+
+final class BlockRegistry {
+    private(set) var defs: [BlockDef] = []
+    private var byName: [String: BlockID] = [:]
+    // Per-state tables
+    var render: [UInt8] = []
+    var layer: [UInt8] = []
+    var opaque: [Bool] = []
+    var sky: [Bool] = []            // stops the direct skylight column
+    var lightOpaque: [Bool] = []
+    var emit: [UInt8] = []
+    var aoOcc: [Bool] = []
+    var collide: [Bool] = []        // has any collision
+    var fullCollide: [Bool] = []    // collision is the full cube
+    var cullSame: [Bool] = []
+    var tint: [UInt8] = []
+    var replaceable: [Bool] = []
+    var fluidLevel: [Int8] = []
+    var hidden: [Bool] = []
+    var hardness: [Float] = []
+    var tool: [UInt8] = []
+    var harvestLevel: [UInt8] = []
+    var requiresTool: [Bool] = []
+    var groupBase: [BlockID] = []   // first state of this state's group
+    var tex: [UInt16] = []          // state*6 + face
+    var boxes: [[Box]] = []
+
+    var count: Int { defs.count }
+
+    @discardableResult
+    func add(_ d0: BlockDef) -> BlockID {
+        var d = d0
+        let id = BlockID(defs.count)
+        precondition(byName[d.name] == nil, "duplicate block \(d.name)")
+        byName[d.name] = id
+        let g = d.group ?? d.name
+        if let first = byName["#group:" + g] { groupBase.append(first) } else { byName["#group:" + g] = id; groupBase.append(id) }
+        if d.tex.count == 1 { d.tex = Array(repeating: d.tex[0], count: 6) }
+        if d.tex.isEmpty { d.tex = Array(repeating: "missing", count: 6) }
+        defs.append(d)
+        render.append(d.render.rawValue)
+        layer.append(d.layer.rawValue)
+        opaque.append(d.opaque)
+        let airLike = d.render == .none || d.render == .cross
+        sky.append(d.skyStop ?? !airLike)
+        lightOpaque.append(d.opaque)
+        emit.append(d.emit)
+        aoOcc.append(d.aoOcc ?? (d.opaque || (d.render == .cube && d.layer == .cutout && !d.cullSame)))
+        collide.append(d.collide)
+        fullCollide.append(d.collide && (d.boxes.isEmpty || d.render == .cube))
+        cullSame.append(d.cullSame)
+        tint.append(d.tint)
+        replaceable.append(d.replaceable)
+        fluidLevel.append(d.fluid)
+        hidden.append(d.hidden)
+        hardness.append(d.hardness)
+        tool.append(d.tool.rawValue)
+        harvestLevel.append(UInt8(d.harvestLevel))
+        requiresTool.append(d.requiresTool)
+        for f in 0..<6 { tex.append(Tex.id(d.tex[f])) }
+        var bx = d.boxes
+        for i in 0..<bx.count where bx[i].tex.isEmpty { bx[i].tex = (0..<6).map { tex[Int(id) * 6 + $0] } }
+        boxes.append(bx)
+        return id
+    }
+
+    func id(_ name: String) -> BlockID {
+        guard let i = byName[name] else { fatalError("unknown block \(name)") }
+        return i
+    }
+    func has(_ name: String) -> Bool { byName[name] != nil }
+    func name(_ id: BlockID) -> String { Int(id) < defs.count ? defs[Int(id)].display : "?" }
+    func key(_ id: BlockID) -> String { Int(id) < defs.count ? defs[Int(id)].name : "?" }
+    func def(_ id: BlockID) -> BlockDef { defs[Int(id)] }
+
+    @inline(__always) func isPlant(_ id: BlockID) -> Bool { render[Int(id)] == RenderType.cross.rawValue }
+    // Drawn as a flat sprite in the HUD rather than an isometric cube.
+    func flatIcon(_ id: BlockID) -> Bool { isPlant(id) || id == Blocks.id("torch") }
+    @inline(__always) func isLiquid(_ id: BlockID) -> Bool { fluidLevel[Int(id)] >= 0 }
+    @inline(__always) func targetable(_ id: BlockID) -> Bool {
+        let r = render[Int(id)]
+        return r != RenderType.none.rawValue && r != RenderType.liquid.rawValue
+    }
+
+    // Blocks offered in the creative inventory (one per state group, visible ones).
+    var placeable: [BlockID] {
+        (1..<count).filter { !hidden[$0] && Int(groupBase[$0]) == $0 }.map { BlockID($0) }
+    }
+
+    // MARK: Definitions
 
     init() {
-        func all(_ t: Int) -> [Int] { [t, t, t, t, t, t] }
-        func column(_ side: Int, _ top: Int, _ bottom: Int) -> [Int] { [side, side, top, bottom, side, side] }
-        add("Air", .air, all(0))
-        add("Stone", .solid, all(T.stone))
-        add("Grass Block", .solid, column(T.grassSide, T.grassTop, T.dirt))
-        add("Dirt", .solid, all(T.dirt))
-        add("Cobblestone", .solid, all(T.cobble))
-        add("Oak Planks", .solid, all(T.planks))
-        add("Bedrock", .solid, all(T.bedrock))
-        add("Sand", .solid, all(T.sand))
-        add("Gravel", .solid, all(T.gravel))
-        add("Oak Log", .solid, column(T.logSide, T.logTop, T.logTop))
-        add("Oak Leaves", .cutout, all(T.leaves))
-        add("Glass", .cutout, all(T.glass), sky: false, cullSame: true)
-        add("Water", .liquid, all(T.water), sky: true)
-        add("Coal Ore", .solid, all(T.coal))
-        add("Iron Ore", .solid, all(T.iron))
-        add("Gold Ore", .solid, all(T.gold))
-        add("Diamond Ore", .solid, all(T.diamond))
-        add("Bricks", .solid, all(T.brick))
-        add("Snowy Grass", .solid, column(T.snowSide, T.snow, T.dirt))
-        add("Cactus", .solid, column(T.cactusSide, T.cactusTop, T.cactusTop))
-        add("Snow Block", .solid, all(T.snow))
-        add("Stone Bricks", .solid, all(T.stoneBrick))
-        add("Sandstone", .solid, column(T.sandstoneSide, T.sandstoneTop, T.sandstoneTop))
-        add("Birch Log", .solid, column(T.birchSide, T.birchTop, T.birchTop))
-        add("Birch Leaves", .cutout, all(T.birchLeaves))
-        add("Spruce Log", .solid, column(T.spruceSide, T.spruceTop, T.spruceTop))
-        add("Spruce Leaves", .cutout, all(T.spruceLeaves))
-        add("Tall Grass", .plant, all(T.tallGrass))
-        add("Red Flower", .plant, all(T.redFlower))
-        add("Yellow Flower", .plant, all(T.yellowFlower))
-        add("Blue Flower", .plant, all(T.blueFlower))
-        add("Torch", .plant, all(T.torch), emit: 14)
-        add("Lamp", .solid, all(T.lamp), emit: 15)
-        for k in 1...7 { add("Flowing Water \(k)", .liquid, all(T.water), sky: true, hidden: true); fluidLevel[defs.count - 1] = Int8(k) }
-        add("Falling Water", .liquid, all(T.water), sky: true, hidden: true)
-        add("Apple", .item, all(T.apple))
-        fluidLevel[Int(WATER)] = 0
-        fluidLevel[Int(WATER_FALL)] = 8
+        func cube(_ n: String, _ disp: String, _ t: String, h: Float = 1.5, tool: ToolType = .pickaxe, lvl: Int = 0,
+                  req: Bool = false, snd: SoundMat = .stone) {
+            var d = BlockDef(n, disp)
+            d.tex = [t]; d.hardness = h; d.tool = tool; d.harvestLevel = lvl; d.requiresTool = req; d.sound = snd
+            add(d)
+        }
+        func column(_ n: String, _ disp: String, side: String, top: String, bottom: String? = nil, h: Float = 2,
+                    tool: ToolType = .axe, snd: SoundMat = .wood) {
+            var d = BlockDef(n, disp)
+            let b = bottom ?? top
+            d.tex = [side, side, top, b, side, side]; d.hardness = h; d.tool = tool; d.sound = snd
+            add(d)
+        }
+        func leaves(_ n: String, _ disp: String, _ t: String, tint: UInt8) {
+            var d = BlockDef(n, disp)
+            d.tex = [t]; d.opaque = false; d.layer = .cutout; d.hardness = 0.2; d.tool = .hoe; d.sound = .plant; d.tint = tint
+            add(d)
+        }
+        func plant(_ n: String, _ disp: String, _ t: String, tint: UInt8 = 0, emit: UInt8 = 0) {
+            var d = BlockDef(n, disp)
+            d.tex = [t]; d.render = .cross; d.layer = .cutout; d.opaque = false; d.collide = false
+            d.hardness = 0; d.sound = .plant; d.replaceable = emit == 0; d.tint = tint; d.emit = emit
+            add(d)
+        }
+
+        var air = BlockDef("air", "Air")
+        air.render = .none; air.opaque = false; air.collide = false; air.replaceable = true; air.hidden = true; air.hardness = 0
+        add(air)
+        cube("stone", "Stone", "stone", h: 1.5, req: true)
+        var grass = BlockDef("grass_block", "Grass Block")
+        grass.tex = ["grass_block_side", "grass_block_side", "grass_block_top", "dirt", "grass_block_side", "grass_block_side"]
+        grass.hardness = 0.6; grass.tool = .shovel; grass.sound = .dirt; grass.tint = 3
+        add(grass)
+        cube("dirt", "Dirt", "dirt", h: 0.5, tool: .shovel, snd: .dirt)
+        cube("cobblestone", "Cobblestone", "cobblestone", h: 2, req: true)
+        cube("oak_planks", "Oak Planks", "oak_planks", h: 2, tool: .axe, snd: .wood)
+        cube("bedrock", "Bedrock", "bedrock", h: -1)
+        cube("sand", "Sand", "sand", h: 0.5, tool: .shovel, snd: .sand)
+        cube("gravel", "Gravel", "gravel", h: 0.6, tool: .shovel, snd: .dirt)
+        column("oak_log", "Oak Log", side: "oak_log", top: "oak_log_top")
+        leaves("oak_leaves", "Oak Leaves", "oak_leaves", tint: 2)
+        var glass = BlockDef("glass", "Glass")
+        glass.tex = ["glass"]; glass.opaque = false; glass.layer = .cutout; glass.cullSame = true
+        glass.skyStop = false; glass.hardness = 0.3; glass.sound = .glass; glass.aoOcc = false
+        add(glass)
+        // Water: 9 states (source, flowing 1-7, falling). Only the source is placeable.
+        for k in 0...8 {
+            var w = BlockDef(k == 0 ? "water" : (k == 8 ? "water_falling" : "water_\(k)"), "Water")
+            w.render = .liquid; w.layer = .translucent; w.tex = ["water"]; w.opaque = false; w.collide = false
+            w.skyStop = true; w.replaceable = true; w.fluid = Int8(k); w.hardness = -1; w.hidden = k != 0
+            w.group = "water"; w.sound = .snow
+            add(w)
+        }
+        cube("coal_ore", "Coal Ore", "coal_ore", h: 3, req: true)
+        cube("iron_ore", "Iron Ore", "iron_ore", h: 3, lvl: 1, req: true)
+        cube("gold_ore", "Gold Ore", "gold_ore", h: 3, lvl: 2, req: true)
+        cube("diamond_ore", "Diamond Ore", "diamond_ore", h: 3, lvl: 2, req: true)
+        cube("bricks", "Bricks", "bricks", h: 2, req: true)
+        var snowy = BlockDef("snowy_grass_block", "Snowy Grass Block")
+        snowy.tex = ["grass_block_snow", "grass_block_snow", "snow", "dirt", "grass_block_snow", "grass_block_snow"]
+        snowy.hardness = 0.6; snowy.tool = .shovel; snowy.sound = .snow; snowy.hidden = true
+        add(snowy)
+        var cactus = BlockDef("cactus", "Cactus")
+        cactus.tex = ["cactus_side", "cactus_side", "cactus_top", "cactus_bottom", "cactus_side", "cactus_side"]
+        cactus.render = .model; cactus.opaque = false; cactus.layer = .cutout; cactus.hardness = 0.4; cactus.sound = .plant
+        cactus.boxes = [Box(1, 0, 1, 15, 16, 15)]
+        add(cactus)
+        cube("snow_block", "Snow Block", "snow", h: 0.2, tool: .shovel, snd: .snow)
+        cube("stone_bricks", "Stone Bricks", "stone_bricks", h: 1.5, req: true)
+        var sst = BlockDef("sandstone", "Sandstone")
+        sst.tex = ["sandstone", "sandstone", "sandstone_top", "sandstone_bottom", "sandstone", "sandstone"]
+        sst.hardness = 0.8; sst.tool = .pickaxe; sst.requiresTool = true
+        add(sst)
+        column("birch_log", "Birch Log", side: "birch_log", top: "birch_log_top")
+        leaves("birch_leaves", "Birch Leaves", "birch_leaves", tint: 0)
+        column("spruce_log", "Spruce Log", side: "spruce_log", top: "spruce_log_top")
+        leaves("spruce_leaves", "Spruce Leaves", "spruce_leaves", tint: 0)
+        plant("short_grass", "Short Grass", "short_grass", tint: 1)
+        plant("poppy", "Poppy", "poppy")
+        plant("dandelion", "Dandelion", "dandelion")
+        plant("cornflower", "Cornflower", "cornflower")
+        var torch = BlockDef("torch", "Torch")
+        torch.tex = ["torch"]; torch.render = .model; torch.layer = .cutout; torch.opaque = false; torch.collide = false
+        torch.emit = 14; torch.hardness = 0; torch.sound = .wood; torch.skyStop = false
+        torch.boxes = [Box(7, 0, 7, 9, 10, 9, tex: [Tex.id("torch"), Tex.id("torch"), Tex.id("torch_top"), Tex.id("torch_bottom"), Tex.id("torch"), Tex.id("torch")])]
+        add(torch)
+        var glow = BlockDef("glowstone", "Glowstone")
+        glow.tex = ["glowstone"]; glow.emit = 15; glow.hardness = 0.3; glow.sound = .glass
+        add(glow)
+        cube("deepslate", "Deepslate", "deepslate", h: 3, req: true)
+        cube("cobbled_deepslate", "Cobbled Deepslate", "cobbled_deepslate", h: 3.5, req: true)
+        cube("andesite", "Andesite", "andesite", h: 1.5, req: true)
+        cube("diorite", "Diorite", "diorite", h: 1.5, req: true)
+        cube("granite", "Granite", "granite", h: 1.5, req: true)
+        cube("tuff", "Tuff", "tuff", h: 1.5, req: true)
+        cube("clay", "Clay", "clay", h: 0.6, tool: .shovel, snd: .dirt)
+        cube("obsidian", "Obsidian", "obsidian", h: 50, lvl: 3, req: true)
+        cube("red_sand", "Red Sand", "red_sand", h: 0.5, tool: .shovel, snd: .sand)
+        cube("terracotta", "Terracotta", "terracotta", h: 1.25, req: true)
+        cube("lapis_ore", "Lapis Lazuli Ore", "lapis_ore", h: 3, lvl: 1, req: true)
+        cube("redstone_ore", "Redstone Ore", "redstone_ore", h: 3, lvl: 2, req: true)
+        cube("emerald_ore", "Emerald Ore", "emerald_ore", h: 3, lvl: 2, req: true)
+        cube("copper_ore", "Copper Ore", "copper_ore", h: 3, lvl: 1, req: true)
+        cube("deepslate_coal_ore", "Deepslate Coal Ore", "deepslate_coal_ore", h: 4.5, req: true)
+        cube("deepslate_iron_ore", "Deepslate Iron Ore", "deepslate_iron_ore", h: 4.5, lvl: 1, req: true)
+        cube("deepslate_gold_ore", "Deepslate Gold Ore", "deepslate_gold_ore", h: 4.5, lvl: 2, req: true)
+        cube("deepslate_diamond_ore", "Deepslate Diamond Ore", "deepslate_diamond_ore", h: 4.5, lvl: 2, req: true)
+        cube("deepslate_lapis_ore", "Deepslate Lapis Lazuli Ore", "deepslate_lapis_ore", h: 4.5, lvl: 1, req: true)
+        cube("deepslate_redstone_ore", "Deepslate Redstone Ore", "deepslate_redstone_ore", h: 4.5, lvl: 2, req: true)
+        cube("deepslate_copper_ore", "Deepslate Copper Ore", "deepslate_copper_ore", h: 4.5, lvl: 1, req: true)
+        cube("mossy_cobblestone", "Mossy Cobblestone", "mossy_cobblestone", h: 2, req: true)
+        cube("smooth_stone", "Smooth Stone", "smooth_stone", h: 2, req: true)
+        column("oak_wood", "Oak Wood", side: "oak_log", top: "oak_log")
+        cube("birch_planks", "Birch Planks", "birch_planks", h: 2, tool: .axe, snd: .wood)
+        cube("spruce_planks", "Spruce Planks", "spruce_planks", h: 2, tool: .axe, snd: .wood)
+        var slab = BlockDef("stone_slab", "Stone Slab")
+        slab.tex = ["smooth_stone"]; slab.render = .model; slab.opaque = false; slab.hardness = 2; slab.tool = .pickaxe
+        slab.requiresTool = true; slab.boxes = [Box(0, 0, 0, 16, 8, 16)]; slab.skyStop = true
+        add(slab)
+        var oslab = BlockDef("oak_slab", "Oak Slab")
+        oslab.tex = ["oak_planks"]; oslab.render = .model; oslab.opaque = false; oslab.hardness = 2; oslab.tool = .axe
+        oslab.sound = .wood; oslab.boxes = [Box(0, 0, 0, 16, 8, 16)]; oslab.skyStop = true
+        add(oslab)
     }
-
-    func add(_ name: String, _ kind: BlockKind, _ tex: [Int], sky: Bool? = nil, cullSame: Bool = false, emit: UInt8 = 0, hidden: Bool = false) {
-        let id = defs.count
-        let blocksSky = sky ?? (kind == .solid || kind == .cutout)
-        defs.append(BlockDef(name: name, kind: kind, tex: tex))
-        self.kind[id] = kind.rawValue
-        opaque[id] = kind == .solid
-        self.sky[id] = blocksSky
-        lightOpaque[id] = kind == .solid
-        self.emit[id] = emit
-        self.hidden[id] = hidden
-        aoOcc[id] = kind == .solid || (kind == .cutout && !cullSame)
-        collide[id] = kind == .solid || kind == .cutout
-        self.cullSame[id] = cullSame
-        for f in 0..<6 { self.tex[id * 6 + f] = UInt8(tex[f]) }
-    }
-
-    @inline(__always) func isPlant(_ id: UInt8) -> Bool { kind[Int(id)] == BlockKind.plant.rawValue }
-    // Blocks the crosshair can target (everything except air and liquids).
-    @inline(__always) func targetable(_ id: UInt8) -> Bool {
-        let k = kind[Int(id)]
-        return k != BlockKind.air.rawValue && k != BlockKind.liquid.rawValue
-    }
-
-    @inline(__always) func isItem(_ id: UInt8) -> Bool { kind[Int(id)] == BlockKind.item.rawValue }
-    // Drawn as a flat sprite in the HUD rather than an isometric cube.
-    @inline(__always) func flatIcon(_ id: UInt8) -> Bool { isPlant(id) || isItem(id) }
-    @inline(__always) func isLiquid(_ id: UInt8) -> Bool { kind[Int(id)] == BlockKind.liquid.rawValue }
-
-    var placeable: [UInt8] { (1..<defs.count).filter { !hidden[$0] }.map { UInt8($0) } }
-    func name(_ id: UInt8) -> String { Int(id) < defs.count ? defs[Int(id)].name : "?" }
 }
 
-let Blocks = BlockTable()
+let Blocks = BlockRegistry()
+
+// Frequently used states (resolved once, lazily, by name).
+let AIR: BlockID = 0
+let STONE = Blocks.id("stone")
+let GRASS = Blocks.id("grass_block")
+let DIRT = Blocks.id("dirt")
+let COBBLE = Blocks.id("cobblestone")
+let PLANKS = Blocks.id("oak_planks")
+let BEDROCK = Blocks.id("bedrock")
+let SAND = Blocks.id("sand")
+let GRAVEL = Blocks.id("gravel")
+let LOG = Blocks.id("oak_log")
+let LEAVES = Blocks.id("oak_leaves")
+let GLASS = Blocks.id("glass")
+let WATER = Blocks.id("water")
+let WATER_FLOW: [BlockID] = [WATER] + (1...7).map { Blocks.id("water_\($0)") }
+let WATER_FALL = Blocks.id("water_falling")
+let COAL_ORE = Blocks.id("coal_ore")
+let IRON_ORE = Blocks.id("iron_ore")
+let GOLD_ORE = Blocks.id("gold_ore")
+let DIAMOND_ORE = Blocks.id("diamond_ore")
+let BRICKS = Blocks.id("bricks")
+let SNOWY_GRASS = Blocks.id("snowy_grass_block")
+let CACTUS = Blocks.id("cactus")
+let SNOW = Blocks.id("snow_block")
+let STONE_BRICKS = Blocks.id("stone_bricks")
+let SANDSTONE = Blocks.id("sandstone")
+let BIRCH_LOG = Blocks.id("birch_log")
+let BIRCH_LEAVES = Blocks.id("birch_leaves")
+let SPRUCE_LOG = Blocks.id("spruce_log")
+let SPRUCE_LEAVES = Blocks.id("spruce_leaves")
+let TALL_GRASS = Blocks.id("short_grass")
+let RED_FLOWER = Blocks.id("poppy")
+let YELLOW_FLOWER = Blocks.id("dandelion")
+let BLUE_FLOWER = Blocks.id("cornflower")
+let TORCH = Blocks.id("torch")
+let LAMP = Blocks.id("glowstone")
+let DEEPSLATE = Blocks.id("deepslate")

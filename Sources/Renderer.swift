@@ -17,7 +17,13 @@ struct SimpleVert { var pos: V4; var color: V4 }
 struct HudVert { var pos: V2; var uv: V2; var color: V4; var extra: V4 }
 struct StarParams { var rot: float4x4; var tint: V4 }
 
-let CLOUD_Y: Float = 158
+let CLOUD_Y: Float = 192 + Float(YOFF)
+
+enum HudTex {
+    static let heart = Int(Tex.id("heart")), heartHalf = Int(Tex.id("heart_half")), heartEmpty = Int(Tex.id("heart_empty"))
+    static let food = Int(Tex.id("food")), foodHalf = Int(Tex.id("food_half")), foodEmpty = Int(Tex.id("food_empty"))
+    static let bubble = Int(Tex.id("bubble"))
+}
 
 final class Renderer: NSObject, MTKViewDelegate {
     let device: MTLDevice
@@ -51,6 +57,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     private var fpsFrames = 0
     private var fpsTime: Double = 0
     private(set) var drawnChunks = 0
+    private var visibleScratch: [(Chunk, Int, Float)] = []
     var onFrame: ((Double) -> Void)?
 
     init(device: MTLDevice, game: Game, colorFormat: MTLPixelFormat) throws {
@@ -115,12 +122,13 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         // Texture array with CPU-built mip chain
         let levels = TextureGen.mipChain()
+        let layers = Tex.count
         let td = MTLTextureDescriptor()
         td.textureType = .type2DArray
         td.pixelFormat = .rgba8Unorm
         td.width = TextureGen.S
         td.height = TextureGen.S
-        td.arrayLength = T.count
+        td.arrayLength = layers
         td.mipmapLevelCount = levels.count
         td.usage = .shaderRead
         let tex = device.makeTexture(descriptor: td)!
@@ -128,7 +136,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         for (lvl, data) in levels.enumerated() {
             let bytesPerImage = size * size * 4
             data.withUnsafeBytes { raw in
-                for layer in 0..<T.count {
+                for layer in 0..<layers {
                     tex.replace(region: MTLRegionMake2D(0, 0, size, size), mipmapLevel: lvl, slice: layer,
                                     withBytes: raw.baseAddress! + layer * bytesPerImage,
                                     bytesPerRow: size * 4, bytesPerImage: bytesPerImage)
@@ -257,23 +265,31 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
         }
 
-        // Visible chunks, near to far
+        // Visible sections, near to far
         let pcx = floorDiv(Int(floor(eye.x)), CS), pcz = floorDiv(Int(floor(eye.z)), CS)
-        var visible: [(Chunk, Float)] = []
-        visible.reserveCapacity(game.world.chunks.count)
-        for (_, c) in game.world.chunks where c.meshedVersion >= 0 && (c.opaqueQuads > 0 || c.waterQuads > 0) {
+        visibleScratch.removeAll(keepingCapacity: true)
+        var drawnSet = 0
+        for (_, c) in game.world.chunks where c.meshedOnce {
             let dx = c.cx - pcx, dz = c.cz - pcz
             if !game.world.inMeshRadius(dx, dz) { continue }
-            let mn = V3(Float(c.cx * CS), c.minY, Float(c.cz * CS))
-            let mx = V3(Float(c.cx * CS + CS), c.maxY, Float(c.cz * CS + CS))
-            if !frustum.visible(min: mn, max: mx) { continue }
-            let center = (mn + mx) * 0.5 - eye
-            visible.append((c, simd_length_squared(V2(center.x, center.z))))
+            let cmn = V3(Float(c.cx * CS), 0, Float(c.cz * CS))
+            if !frustum.visible(min: cmn, max: cmn + V3(16, Float(CH), 16)) { continue }
+            var any = false
+            for (sy, sec) in c.sections.enumerated() where !sec.empty {
+                let mn = V3(cmn.x, Float(sy * 16), cmn.z)
+                let mx = mn + V3(16, 16, 16)
+                if !frustum.visible(min: mn, max: mx) { continue }
+                let center = (mn + mx) * 0.5 - eye
+                visibleScratch.append((c, sy, simd_length_squared(center)))
+                any = true
+            }
+            if any { drawnSet += 1 }
         }
-        visible.sort { $0.1 < $1.1 }
-        drawnChunks = visible.count
+        visibleScratch.sort { $0.2 < $1.2 }
+        drawnChunks = drawnSet
+        let visible = visibleScratch
 
-        func offset(_ c: Chunk) -> V4 { V4(Float(c.cx * CS) - eye.x, -eye.y, Float(c.cz * CS) - eye.z, 0) }
+        func offset(_ c: Chunk, _ sy: Int) -> V4 { V4(Float(c.cx * CS) - eye.x, Float(sy * 16) - eye.y, Float(c.cz * CS) - eye.z, 0) }
 
         enc.setRenderPipelineState(chunkPipe)
         enc.setDepthStencilState(depthWrite)
@@ -281,12 +297,14 @@ final class Renderer: NSObject, MTKViewDelegate {
         enc.setFrontFacing(.counterClockwise)
         enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
         enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
-        for (c, _) in visible where c.opaqueQuads > 0 {
-            guard let buf = c.opaqueBuf else { continue }
-            var o = offset(c)
+        for (c, sy, _) in visible {
+            let sec = c.sections[sy]
+            guard sec.opaqueQuads > 0, let buf = sec.opaqueBuf, let tb = c.tintBuf else { continue }
+            var o = offset(c, sy)
             enc.setVertexBuffer(buf, offset: 0, index: 0)
             enc.setVertexBytes(&o, length: 16, index: 2)
-            enc.drawIndexedPrimitives(type: .triangle, indexCount: min(c.opaqueQuads, Renderer.maxQuads) * 6,
+            enc.setVertexBuffer(tb, offset: 0, index: 3)
+            enc.drawIndexedPrimitives(type: .triangle, indexCount: min(sec.opaqueQuads, Renderer.maxQuads) * 6,
                                       indexType: .uint32, indexBuffer: quadIndices, indexBufferOffset: 0)
         }
 
@@ -310,16 +328,19 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
         }
 
-        // Target block outline
+        // Target block outline (the block's selection boxes)
         if let t = game.target {
             let e: Float = 0.003
             let o = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) - eye
-            let a = o - V3(repeating: e), b = o + V3(repeating: 1 + e)
-            let cs = [V3(a.x, a.y, a.z), V3(b.x, a.y, a.z), V3(b.x, a.y, b.z), V3(a.x, a.y, b.z),
-                      V3(a.x, b.y, a.z), V3(b.x, b.y, a.z), V3(b.x, b.y, b.z), V3(a.x, b.y, b.z)]
-            let edges = [0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7]
+            var verts: [SimpleVert] = []
             let col = V4(0, 0, 0, 0.7)
-            let verts = edges.map { SimpleVert(pos: V4(cs[$0], 1), color: col) }
+            let edges = [0, 1, 1, 2, 2, 3, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4, 0, 4, 1, 5, 2, 6, 3, 7]
+            for (bmn, bmx) in game.world.selectionBoxes(game.world.block(t.hit.x, t.hit.y, t.hit.z)) {
+                let a = o + bmn - V3(repeating: e), b = o + bmx + V3(repeating: e)
+                let cs = [V3(a.x, a.y, a.z), V3(b.x, a.y, a.z), V3(b.x, a.y, b.z), V3(a.x, a.y, b.z),
+                          V3(a.x, b.y, a.z), V3(b.x, b.y, a.z), V3(b.x, b.y, b.z), V3(a.x, b.y, b.z)]
+                for i in edges { verts.append(SimpleVert(pos: V4(cs[i], 1), color: col)) }
+            }
             if let off = push(verts) {
                 enc.setRenderPipelineState(simplePipe)
                 enc.setDepthStencilState(depthRead)
@@ -336,12 +357,14 @@ final class Renderer: NSObject, MTKViewDelegate {
         enc.setCullMode(.none)
         enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
         enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
-        for (c, _) in visible.reversed() where c.waterQuads > 0 {
-            guard let buf = c.waterBuf else { continue }
-            var o = offset(c)
+        for (c, sy, _) in visible.reversed() {
+            let sec = c.sections[sy]
+            guard sec.transQuads > 0, let buf = sec.transBuf, let tb = c.tintBuf else { continue }
+            var o = offset(c, sy)
             enc.setVertexBuffer(buf, offset: 0, index: 0)
             enc.setVertexBytes(&o, length: 16, index: 2)
-            enc.drawIndexedPrimitives(type: .triangle, indexCount: min(c.waterQuads, Renderer.maxQuads) * 6,
+            enc.setVertexBuffer(tb, offset: 0, index: 3)
+            enc.drawIndexedPrimitives(type: .triangle, indexCount: min(sec.transQuads, Renderer.maxQuads) * 6,
                                       indexType: .uint32, indexBuffer: quadIndices, indexBufferOffset: 0)
         }
 
@@ -463,34 +486,38 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
             for i in 0..<10 {
                 let h = game.health - i * 2
-                sprite(h >= 2 ? T.heart : (h == 1 ? T.heartHalf : T.heartEmpty), x0 + Float(i) * step, yh)
+                sprite(h >= 2 ? HudTex.heart : (h == 1 ? HudTex.heartHalf : HudTex.heartEmpty), x0 + Float(i) * step, yh)
                 let f = game.hunger - i * 2
-                sprite(f >= 2 ? T.food : (f == 1 ? T.foodHalf : T.foodEmpty), x0 + total - isz - Float(i) * step, yh)
+                sprite(f >= 2 ? HudTex.food : (f == 1 ? HudTex.foodHalf : HudTex.foodEmpty), x0 + total - isz - Float(i) * step, yh)
             }
             if game.air < 15 {
                 let b = Int(ceilf(game.air / 1.5))
-                for i in 0..<b { sprite(T.bubble, x0 + total - isz - Float(i) * step, yh - step - s) }
+                for i in 0..<b { sprite(HudTex.bubble, x0 + total - isz - Float(i) * step, yh - step - s) }
             }
         }
         return v
     }
 
-    // Isometric block icon from three textured faces.
-    func icon(_ id: UInt8, center c: V2, size sz: Float, _ quad: ([V2], [V2], V4, Float) -> Void) {
+    // Isometric block icon from three textured faces (grass/leaves tinted with default biome colours).
+    func icon(_ id: BlockID, center c: V2, size sz: Float, _ quad: ([V2], [V2], V4, Float) -> Void) {
         let tex = Blocks.tex
         let uv = [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)]
+        let tintMode = Blocks.tint[Int(id)]
+        let grassC = V4(0.57, 0.74, 0.35, 1), leafC = V4(0.47, 0.67, 0.18, 1)
+        let full: V4 = tintMode == 1 ? grassC : (tintMode == 2 ? leafC : V4(1, 1, 1, 1))
         if Blocks.flatIcon(id) {
             let h = sz * 0.55
-            quad([V2(c.x - h, c.y - h), V2(c.x + h, c.y - h), V2(c.x + h, c.y + h), V2(c.x - h, c.y + h)], uv, V4(1, 1, 1, 1), Float(tex[Int(id) * 6]))
+            quad([V2(c.x - h, c.y - h), V2(c.x + h, c.y - h), V2(c.x + h, c.y + h), V2(c.x - h, c.y + h)], uv, full, Float(tex[Int(id) * 6]))
             return
         }
         let top = Float(tex[Int(id) * 6 + 2]), left = Float(tex[Int(id) * 6 + 4]), right = Float(tex[Int(id) * 6 + 0])
         let hx = sz * 0.5, hy = sz * 0.25, vh = sz * 0.55
         let t = V2(c.x, c.y - hy - vh / 2 + hy)
         let n = V2(c.x, t.y - hy), e = V2(c.x + hx, t.y), s = V2(c.x, t.y + hy), w = V2(c.x - hx, t.y)
-        quad([n, e, s, w], uv, V4(1, 1, 1, 1), top)
-        quad([w, s, s + V2(0, vh), w + V2(0, vh)], uv, V4(0.78, 0.78, 0.78, 1), left)
-        quad([s, e, e + V2(0, vh), s + V2(0, vh)], uv, V4(0.6, 0.6, 0.6, 1), right)
+        let topC = tintMode == 3 ? grassC : full
+        quad([n, e, s, w], uv, topC, top)
+        quad([w, s, s + V2(0, vh), w + V2(0, vh)], uv, full * V4(0.78, 0.78, 0.78, 1), left)
+        quad([s, e, e + V2(0, vh), s + V2(0, vh)], uv, full * V4(0.6, 0.6, 0.6, 1), right)
     }
 
     // MARK: Headless snapshot

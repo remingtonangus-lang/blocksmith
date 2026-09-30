@@ -45,26 +45,8 @@ final class Mob {
     // MARK: Physics
 
     func collides(_ p: V3, _ w: World) -> Bool {
-        let hw = kind.halfW, eps: Float = 1e-4
-        let x0 = Int(floor(p.x - hw)), x1 = Int(floor(p.x + hw - eps))
-        let y0 = Int(floor(p.y)), y1 = Int(floor(p.y + kind.height - eps))
-        let z0 = Int(floor(p.z - hw)), z1 = Int(floor(p.z + hw - eps))
-        let col = Blocks.collide
-        for y in y0...y1 { for z in z0...z1 { for x in x0...x1 where col[Int(w.block(x, y, z))] { return true } } }
-        return false
-    }
-
-    private func moveAxis(_ a: Int, _ d: Float, _ w: World) -> Bool {
-        if d == 0 { return false }
-        var p = pos
-        p[a] += d
-        if !collides(p, w) { pos = p; return false }
-        let lo: Float = a == 1 ? 0 : kind.halfW
-        let hi: Float = a == 1 ? kind.height : kind.halfW
-        var s = pos
-        if d > 0 { s[a] = floor(p[a] + hi - 1e-4) - hi - 1e-3 } else { s[a] = floor(p[a] - lo) + 1 + lo + 1e-3 }
-        if (d > 0 ? s[a] >= pos[a] : s[a] <= pos[a]) && !collides(s, w) { pos = s }
-        return true
+        let hw = kind.halfW
+        return w.collides(V3(p.x - hw, p.y, p.z - hw), V3(p.x + hw, p.y + kind.height, p.z + hw))
     }
 
     private func solid(_ x: Float, _ y: Float, _ z: Float, _ w: World) -> Bool {
@@ -121,15 +103,11 @@ final class Mob {
             vel.y = max(vel.y, -40)
         }
 
-        let dist = max(abs(vel.x), abs(vel.y), abs(vel.z)) * dt
-        let steps = max(1, Int(ceil(dist / 0.4)))
-        let sdt = dt / Float(steps)
+        let hit = w.moveBody(&pos, halfW: kind.halfW, height: kind.height, vel * dt, step: 0.6, onGround: onGround)
         var landed = false, bumped = false
-        for _ in 0..<steps {
-            if moveAxis(1, vel.y * sdt, w) { if vel.y < 0 { landed = true }; vel.y = 0 }
-            if moveAxis(0, vel.x * sdt, w) { vel.x = 0; bumped = true }
-            if moveAxis(2, vel.z * sdt, w) { vel.z = 0; bumped = true }
-        }
+        if hit.y { if vel.y < 0 { landed = true }; vel.y = 0 }
+        if hit.x { vel.x = 0; bumped = true }
+        if hit.z { vel.z = 0; bumped = true }
         onGround = landed || (vel.y <= 0 && collides(pos - V3(0, 0.06, 0), w))
         if bumped && onGround && speed > 0 { vel.y = 7.4 } // hop up one block
         if pos.y < -10 { health = 0 }
@@ -314,7 +292,7 @@ final class MobManager {
         let pcx = floorDiv(Int(floor(game.player.pos.x)), CS), pcz = floorDiv(Int(floor(game.player.pos.z)), CS)
         let dx = Int.random(in: -rd...rd), dz = Int.random(in: -rd...rd)
         if max(abs(dx), abs(dz)) < 2 { return } // never pop in right next to the player
-        guard let c = w.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)], c.meshedVersion >= 0 else { return }
+        guard let c = w.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)], c.meshedOnce else { return }
         let x = c.cx * CS + Int.random(in: 2..<(CS - 2)), z = c.cz * CS + Int.random(in: 2..<(CS - 2))
         guard grassSurface(w, x, z) != nil else { return }
         let kind: MobKind

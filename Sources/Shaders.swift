@@ -18,6 +18,8 @@ struct ChunkOut {
     float2 uv;
     float layer [[flat]];
     float3 shade;
+    float3 tint;
+    float overlay [[flat]];
     float dist;
 };
 
@@ -25,28 +27,36 @@ constexpr sampler texSampler(filter::nearest, mip_filter::linear, address::repea
 
 constant float faceShade[8] = { 0.80, 0.80, 1.00, 0.55, 0.68, 0.68, 0.88, 0.88 };
 constant float aoCurve[4] = { 0.42, 0.62, 0.81, 1.0 };
-constant float2 cornerUV[4] = { float2(0, 1), float2(1, 1), float2(1, 0), float2(0, 0) };
 
+// See Mesher.swift for the vertex layout. tints: 256 grass, 256 foliage, 256 water colours (RGBA8).
 vertex ChunkOut chunkVS(uint vid [[vertex_id]],
                         const device uint2* verts [[buffer(0)]],
                         constant Uniforms& u [[buffer(1)]],
-                        constant float4& chunkOffset [[buffer(2)]]) {
+                        constant float4& sectionOffset [[buffer(2)]],
+                        const device uint* tints [[buffer(3)]]) {
     uint2 v = verts[vid];
     uint w0 = v.x, w1 = v.y;
-    float3 p = float3(float(w0 & 31u), float((w0 >> 5) & 511u), float((w0 >> 14) & 31u));
-    uint face = (w0 >> 19) & 7u;
-    uint corner = (w0 >> 22) & 3u;
-    uint ao = (w0 >> 24) & 3u;
-    p.y -= float((w0 >> 26) & 7u) * 0.125;   // water surface drop (flow level)
-    uint layer = w1 & 255u;
-    float skyL = float((w1 >> 8) & 15u) / 15.0;
-    float blkL = float((w1 >> 12) & 15u) / 15.0;
+    uint xi = w0 & 511u, zi = (w0 >> 18) & 511u;
+    float3 p = float3(float(xi), float((w0 >> 9) & 511u), float(zi)) / 16.0;
+    uint face = (w0 >> 27) & 7u;
+    uint tintMode = w0 >> 30;
+    float2 uv = float2(float(w1 & 31u), float((w1 >> 5) & 31u)) / 16.0;
+    uint layer = (w1 >> 10) & 1023u;
+    uint ao = (w1 >> 20) & 3u;
+    float skyL = float((w1 >> 22) & 15u) / 15.0;
+    float blkL = float((w1 >> 26) & 15u) / 15.0;
 
-    float3 rel = p + chunkOffset.xyz;
+    float3 rel = p + sectionOffset.xyz;
     ChunkOut o;
     o.pos = u.viewProj * float4(rel, 1.0);
-    o.uv = cornerUV[corner];
+    o.uv = uv;
     o.layer = float(layer);
+    o.tint = float3(1.0);
+    if (tintMode != 0u) {
+        uint cx = min(15u, xi >> 4), cz = min(15u, zi >> 4);
+        o.tint = unpack_unorm4x8_to_float(tints[cx + cz * 16u + (tintMode - 1u) * 256u]).rgb;
+    }
+    o.overlay = float((w1 >> 30) & 1u);
     // Skylight scales with daylight; block light (torches) is warm and constant.
     float sky = skyL * (0.35 + 0.65 * skyL) * u.params.y;
     float blk = blkL / (4.0 - 3.0 * blkL) * 1.1;   // steep falloff: bright pool, dark edges
@@ -67,7 +77,9 @@ fragment float4 chunkFS(ChunkOut in [[stage_in]],
                         constant Uniforms& u [[buffer(1)]]) {
     float4 c = tex.sample(texSampler, in.uv, uint(in.layer));
     if (c.a < 0.5) { discard_fragment(); }
-    float3 rgb = c.rgb * in.shade;
+    // Overlay faces (grass sides): only the marked texels (alpha ~0.9) take the biome tint.
+    float3 t = (in.overlay > 0.5 && c.a > 0.95) ? float3(1.0) : in.tint;
+    float3 rgb = c.rgb * t * in.shade;
     return float4(applyFog(rgb, in.dist, u), 1.0);
 }
 
@@ -77,7 +89,7 @@ fragment float4 waterFS(ChunkOut in [[stage_in]],
     float t = u.params.z;
     float2 uv = in.uv + float2(t * 0.03, t * 0.017);
     float4 c = tex.sample(texSampler, uv, uint(in.layer));
-    float3 rgb = c.rgb * max(in.shade, float3(0.05));
+    float3 rgb = c.rgb * in.tint * max(in.shade, float3(0.05));
     float f = smoothstep(u.fogColor.w, u.params.x, in.dist);
     return float4(mix(rgb, u.fogColor.rgb, f), mix(c.a, 1.0, f * 0.8));
 }

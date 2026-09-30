@@ -29,7 +29,8 @@ final class SaveManager {
     init(name: String) {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         dir = base.appendingPathComponent("Blocksmith/Worlds/\(name)", isDirectory: true)
-        chunkDir = dir.appendingPathComponent("chunks", isDirectory: true)
+        // v2 chunks: 16-bit block states, 384 tall (v1 "chunks/" from the 8-bit engine is ignored).
+        chunkDir = dir.appendingPathComponent("chunks2", isDirectory: true)
         try? FileManager.default.createDirectory(at: chunkDir, withIntermediateDirectories: true)
     }
 
@@ -49,15 +50,19 @@ final class SaveManager {
     func chunkURL(_ k: ChunkKey) -> URL { chunkDir.appendingPathComponent("c.\(k.x).\(k.z).lz") }
 
     // Thread-safe: called from world worker threads.
-    func loadChunk(_ k: ChunkKey) -> [UInt8]? {
+    func loadChunk(_ k: ChunkKey) -> [BlockID]? {
         guard let d = try? Data(contentsOf: chunkURL(k)) else { return nil }
         guard let raw = try? (d as NSData).decompressed(using: .lzfse) as Data else { return nil }
-        guard raw.count == CSQ * CH else { return nil }
-        return [UInt8](raw)
+        guard raw.count == CSQ * CH * 2 else { return nil }
+        var out = [BlockID](repeating: 0, count: CSQ * CH)
+        out.withUnsafeMutableBytes { dst in raw.copyBytes(to: dst.bindMemory(to: UInt8.self)) }
+        let n = Blocks.count
+        for i in 0..<out.count where Int(out[i]) >= n { out[i] = 0 }   // unknown states (downgrade) -> air
+        return out
     }
 
-    func saveChunk(_ k: ChunkKey, _ blocks: [UInt8]) {
-        let raw = Data(blocks)
+    func saveChunk(_ k: ChunkKey, _ blocks: [BlockID]) {
+        let raw = blocks.withUnsafeBytes { Data($0) }
         guard let c = try? (raw as NSData).compressed(using: .lzfse) as Data else { return }
         try? c.write(to: chunkURL(k), options: .atomic)
     }

@@ -14,19 +14,7 @@ enum Snd: Hashable {
     case splash, land, hurt, eat, click, open, mobCow, mobSheep, mobChicken
 }
 
-func soundMat(_ id: UInt8) -> SoundMat {
-    switch id {
-    case GRASS, DIRT, GRAVEL, SNOWY_GRASS: return .dirt
-    case SAND: return .sand
-    case SNOW: return .snow
-    case PLANKS, LOG, BIRCH_LOG, SPRUCE_LOG: return .wood
-    case LEAVES, BIRCH_LEAVES, SPRUCE_LEAVES, CACTUS: return .plant
-    case GLASS, LAMP: return .glass
-    default:
-        if Blocks.isPlant(id) { return .plant }
-        return .stone
-    }
-}
+func soundMat(_ id: BlockID) -> SoundMat { Blocks.def(id).sound }
 
 struct SoundBank {
     static let rate: Double = 44100

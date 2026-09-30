@@ -31,7 +31,7 @@ final class WorldGen {
         let hl = hills.fbm2(fx / 160, fz / 160, 4)
         let m = mount.fbm2(fx / 380, fz / 380, 3)
         let rg = 1 - abs(ridge.noise2(fx / 110, fz / 110))
-        var h: Float = 66 + c * 46 + hl * 12
+        var h: Float = Float(YOFF) + 66 + c * 46 + hl * 12
         if m > 0.12 {
             let k = min(1, (m - 0.12) * 3.5)
             h += k * k * (20 + rg * rg * 55)
@@ -42,7 +42,7 @@ final class WorldGen {
         let biome: Biome
         if height < SEA { biome = .ocean }
         else if height <= SEA + 2 && t > -0.25 && m < 0.1 { biome = .beach }
-        else if height > 108 { biome = .mountains }
+        else if height > 108 + YOFF { biome = .mountains }
         else if t < -0.2 { biome = .snowy }
         else if t > 0.2 && u < 0.02 { biome = .desert }
         else if u > 0.04 { biome = .forest }
@@ -50,8 +50,8 @@ final class WorldGen {
         return (height, biome)
     }
 
-    func generate(cx: Int, cz: Int) -> [UInt8] {
-        var b = [UInt8](repeating: AIR, count: CSQ * CH)
+    func generate(cx: Int, cz: Int) -> [BlockID] {
+        var b = [BlockID](repeating: AIR, count: CSQ * CH)
         var heights = [Int](repeating: 0, count: CSQ)
         var biomes = [Biome](repeating: .plains, count: CSQ)
         let bx = cx * CS, bz = cz * CS
@@ -67,12 +67,12 @@ final class WorldGen {
                 case .beach, .desert: top = SAND; filler = SAND
                 case .snowy: top = SNOWY_GRASS
                 case .mountains:
-                    top = h > 125 ? SNOW : (h > 116 ? STONE : GRASS)
-                    filler = h > 116 ? STONE : DIRT
+                    top = h > 125 + YOFF ? SNOW : (h > 116 + YOFF ? STONE : GRASS)
+                    filler = h > 116 + YOFF ? STONE : DIRT
                 default: break
                 }
                 for y in 0...h {
-                    var id = STONE
+                    var id = y < YOFF - 4 + Int(hash3(wx, y, wz, s32 ^ 0xDEE) % 8) ? DEEPSLATE : STONE
                     if y == 0 { id = BEDROCK }
                     else if y < 4 && hash3(wx, y, wz, s32) % 3 == 0 { id = BEDROCK }
                     else if y == h { id = top }
@@ -92,7 +92,7 @@ final class WorldGen {
         return b
     }
 
-    private func carveCaves(_ b: inout [UInt8], _ bx: Int, _ bz: Int, _ heights: [Int]) {
+    private func carveCaves(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ heights: [Int]) {
         for lz in 0..<CS {
             for lx in 0..<CS {
                 let h = heights[lx + lz * CS]
@@ -104,7 +104,7 @@ final class WorldGen {
                     let a = cave1.noise3(wx / 38, fy / 26, wz / 38)
                     let c = cave2.noise3(wx / 38, fy / 26, wz / 38)
                     var carve = a * a + c * c < 0.0045            // spaghetti tunnels
-                    if !carve && y < 45 {
+                    if !carve && y < 45 + YOFF && y > 12 {
                         carve = cave3.noise3(wx / 70, fy / 34, wz / 70) > 0.42 // caverns
                     }
                     if carve {
@@ -116,27 +116,65 @@ final class WorldGen {
         }
     }
 
-    private func placeOres(_ b: inout [UInt8], _ bx: Int, _ bz: Int) {
-        for y in 1..<128 {
+    private func placeOres(_ b: inout [BlockID], _ bx: Int, _ bz: Int) {
+        let stone = STONE, deep = DEEPSLATE
+        let coal = COAL_ORE, iron = IRON_ORE, gold = GOLD_ORE, diamond = DIAMOND_ORE
+        let dCoal = Blocks.id("deepslate_coal_ore"), dIron = Blocks.id("deepslate_iron_ore")
+        let dGold = Blocks.id("deepslate_gold_ore"), dDiamond = Blocks.id("deepslate_diamond_ore")
+        let lapis = Blocks.id("lapis_ore"), dLapis = Blocks.id("deepslate_lapis_ore")
+        let red = Blocks.id("redstone_ore"), dRed = Blocks.id("deepslate_redstone_ore")
+        let copper = Blocks.id("copper_ore"), dCopper = Blocks.id("deepslate_copper_ore")
+        for y in 1..<(YOFF + 192) {
+            let my = y - YOFF   // displayed y
             for lz in 0..<CS {
                 for lx in 0..<CS {
                     let i = Chunk.index(lx, y, lz)
-                    if b[i] != STONE { continue }
+                    let host = b[i]
+                    if host != stone && host != deep { continue }
                     let wx = bx + lx, wz = bz + lz
                     let cell = hash3(wx >> 1, y >> 1, wz >> 1, s32 ^ 0xA5A5) % 10000
-                    var ore = AIR
-                    if cell < 12 { if y < 16 { ore = DIAMOND_ORE } }
-                    else if cell < 30 { if y < 32 { ore = GOLD_ORE } }
-                    else if cell < 100 { if y < 64 { ore = IRON_ORE } }
-                    else if cell < 220 { ore = COAL_ORE }
-                    if ore != AIR && hash3(wx, y, wz, s32 ^ 0x5A5A) % 100 < 60 { b[i] = ore }
+                    var ore: BlockID = AIR, dOre: BlockID = AIR
+                    if cell < 14 { if my < 16 { ore = diamond; dOre = dDiamond } }
+                    else if cell < 34 { if my < 32 { ore = gold; dOre = dGold } }
+                    else if cell < 52 { if my < 32 { ore = lapis; dOre = dLapis } }
+                    else if cell < 90 { if my < 16 { ore = red; dOre = dRed } }
+                    else if cell < 190 { if my < 72 { ore = iron; dOre = dIron } }
+                    else if cell < 260 { if my > -16 && my < 112 { ore = copper; dOre = dCopper } }
+                    else if cell < 400 { if my > 0 { ore = coal; dOre = dCoal } }
+                    if ore != AIR && hash3(wx, y, wz, s32 ^ 0x5A5A) % 100 < 60 { b[i] = host == deep ? dOre : ore }
                 }
             }
         }
     }
 
+    // Biome colours for grass, foliage and water (RGBA8, 256 each), used by the shader tint.
+    func tints(cx: Int, cz: Int) -> [UInt32] {
+        var t = [UInt32](repeating: 0, count: 768)
+        func rgba(_ h: UInt32) -> UInt32 { // 0xRRGGBB -> little-endian RGBA8 (unpack_unorm4x8)
+            ((h >> 16) & 255) | (((h >> 8) & 255) << 8) | ((h & 255) << 16) | (255 << 24)
+        }
+        for lz in 0..<CS {
+            for lx in 0..<CS {
+                let (_, biome) = column(cx * CS + lx, cz * CS + lz)
+                let g: UInt32, f: UInt32, w: UInt32
+                switch biome {
+                case .ocean: g = 0x8EB971; f = 0x71A74D; w = 0x3F76E4
+                case .beach: g = 0x91BD59; f = 0x77AB2F; w = 0x3F76E4
+                case .plains: g = 0x91BD59; f = 0x77AB2F; w = 0x3F76E4
+                case .forest: g = 0x79C05A; f = 0x59AE30; w = 0x3F76E4
+                case .desert: g = 0xBFB755; f = 0xAEA42A; w = 0x32A598
+                case .snowy: g = 0x80B497; f = 0x60A17B; w = 0x3D57D6
+                case .mountains: g = 0x8AB689; f = 0x6DA36B; w = 0x3F76E4
+                }
+                let i = lx + lz * CS
+                t[i] = rgba(g); t[256 + i] = rgba(f); t[512 + i] = rgba(w)
+            }
+        }
+        return t
+    }
+
     // Tall grass everywhere green, flowers mostly in meadow patches with one dominant colour each.
-    private func placePlants(_ b: inout [UInt8], _ bx: Int, _ bz: Int, _ heights: [Int], _ biomes: [Biome]) {
+    private func placePlants(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ heights: [Int], _ biomes: [Biome]) {
         for lz in 0..<CS {
             for lx in 0..<CS {
                 let h = heights[lx + lz * CS]
@@ -172,10 +210,10 @@ final class WorldGen {
     // trees straddling chunk borders come out identical from both sides.
     private enum TreeKind { case oak, bigOak, birch, spruce }
 
-    private func placeTrees(_ b: inout [UInt8], _ cx: Int, _ cz: Int) {
+    private func placeTrees(_ b: inout [BlockID], _ cx: Int, _ cz: Int) {
         let bx = cx * CS, bz = cz * CS
         let cell = 5, margin = 3
-        func put(_ x: Int, _ y: Int, _ z: Int, _ id: UInt8) {
+        func put(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) {
             let lx = x - bx, lz = z - bz
             if lx < 0 || lx >= CS || lz < 0 || lz >= CS || y < 1 || y >= CH { return }
             let i = Chunk.index(lx, y, lz)
@@ -214,14 +252,14 @@ final class WorldGen {
                     if roll > 0.08 + 0.35 * density { continue }
                     kind = pick < 40 ? .oak : .spruce
                 case .mountains:
-                    if h > 116 || roll > 0.1 { continue }
+                    if h > 116 + YOFF || roll > 0.1 { continue }
                     kind = pick < 90 ? .oak : .spruce
                 default:
                     continue
                 }
 
                 let trunk: Int
-                let log: UInt8
+                let log: BlockID
                 switch kind {
                 case .oak: trunk = 4 + Int(hv >> 28) % 3; log = LOG
                 case .bigOak: trunk = 6 + Int(hv >> 28) % 3; log = LOG
@@ -233,7 +271,7 @@ final class WorldGen {
                     if b[gi] == GRASS || b[gi] == SNOWY_GRASS { b[gi] = DIRT }
                     for y in (h + 1)...(h + trunk) {
                         let i = Chunk.index(lx, y, lz)
-                        if b[i] == AIR || Blocks.kind[Int(b[i])] == BlockKind.cutout.rawValue { b[i] = log }
+                        if b[i] == AIR || Blocks.layer[Int(b[i])] == RenderLayer.cutout.rawValue { b[i] = log }
                     }
                 }
                 let topY = h + trunk

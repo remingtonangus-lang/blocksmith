@@ -54,7 +54,6 @@ enum Snapshot {
             game.health = Int(hp) ?? 20
             game.hunger = 13
             game.air = 7
-            game.hotbar[8] = APPLE
         }
         if let c = arg("--inventory") { game.inventoryOpen = true; game.invCursor = Int(c) ?? 0 }
 
@@ -100,7 +99,7 @@ enum Snapshot {
             t.mesh += t2.mesh
         }
         var quads = 0, water = 0
-        for (_, c) in world.chunks { quads += c.opaqueQuads; water += c.waterQuads }
+        for (_, c) in world.chunks { for sec in c.sections { quads += sec.opaqueQuads; water += sec.transQuads } }
 
         if let simSeconds = Double(arg("--sim") ?? "") {
             // Gameplay smoke test: scripted input through the real Game.tick (survival, walking, jumping,
@@ -143,12 +142,16 @@ enum Snapshot {
                          game.mobs.mobs.count, world.fluidPending.count, Blocks.name(game.hotbar[0])))
         }
 
-        // Mesh benchmark: re-mesh the spawn chunk a few times on one thread.
+        // Mesh benchmark: re-mesh the section at the camera a few times on one thread.
         let key = ChunkKey(x: floorDiv(Int(pos.x), CS), z: floorDiv(Int(pos.z), CS))
-        var n9: [[UInt8]] = []
-        for dz in -1...1 { for dx in -1...1 { n9.append(world.chunks[ChunkKey(x: key.x + dx, z: key.z + dz)]!.blocks) } }
+        var n9: [[BlockID]] = [], h9: [[Int16]] = []
+        for dz in -1...1 { for dx in -1...1 {
+            let c = world.chunks[ChunkKey(x: key.x + dx, z: key.z + dz)]!
+            n9.append(c.blocks); h9.append(c.height)
+        } }
+        let sy = max(0, min(NSEC - 1, (world.topY(Int(pos.x), Int(pos.z))) >> 4))
         let m0 = CFAbsoluteTimeGetCurrent()
-        for _ in 0..<5 { _ = Mesher.build(n9) }
+        for _ in 0..<5 { _ = Mesher.buildSection(n9, h9, sy: sy) }
         let meshMs = (CFAbsoluteTimeGetCurrent() - m0) / 5 * 1000
 
         let renderer: Renderer
@@ -159,7 +162,7 @@ enum Snapshot {
         let gpu = renderer.renderToPNG(path: out, width: w, height: h)
 
         print(String(format: "seed %llu  pos %.1f %.1f %.1f  rd %ld  chunks %ld  (drawn %ld)", seed, pos.x, pos.y, pos.z, rd, world.chunks.count, renderer.drawnChunks))
-        print(String(format: "gen %.0f ms  mesh(all, parallel) %.0f ms  mesh(1 chunk) %.2f ms  quads %ld opaque / %ld water", t.gen * 1000, t.mesh * 1000, meshMs, quads, water))
+        print(String(format: "gen %.0f ms  mesh(all, parallel) %.0f ms  mesh(1 section) %.2f ms  quads %ld opaque / %ld water", t.gen * 1000, t.mesh * 1000, meshMs, quads, water))
         print(String(format: "frame (encode+GPU, offscreen) %.2f ms  biome %@", gpu * 1000, "\(world.gen.column(Int(pos.x), Int(pos.z)).biome)"))
         print("wrote \(out)")
         return 0
