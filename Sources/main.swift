@@ -792,6 +792,10 @@ enum Snapshot {
             game.player.pos.y = Float(SEA) - 0.35
             print("swim pose: prone \(game.player.prone) eye \(game.player.eye.y - game.player.pos.y)")
         }
+        if CommandLine.arguments.contains("--ambient") {
+            // Two seconds of ambient block particles (torch smoke, campfire columns, lava sparks).
+            for _ in 0..<40 { game.ambientParticles(0.05); game.particles.update(0.05, world) }
+        }
         if CommandLine.arguments.contains("--underwater") {
             // Head under the sea surface (fog, overlay, water seen from below).
             game.player.pos.y = Float(SEA) - 4

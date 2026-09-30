@@ -1775,6 +1775,7 @@ final class Game {
         projectiles.update(Float(dt), game: self)
         tnts.update(Float(dt), game: self)
         particles.update(Float(dt), world)
+        ambientParticles(Float(dt))
         if survival { timeSinceRest += Float(dt) }
         if sleeping > 0 {
             timeSinceRest = 0
