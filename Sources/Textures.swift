@@ -750,6 +750,9 @@ enum TextureGen {
         let count = Tex.count
         let table = painters()
         var data = [UInt8](repeating: 0, count: S * S * 4 * count)
+        let missing = Tex.names.filter { table[$0] == nil }
+        if !missing.isEmpty { print("textures without a painter: \(missing.joined(separator: ", "))") }
+        if count > 1024 { print("warning: \(count) texture layers exceed the 10-bit layer index") }
         for (layer, name) in Tex.names.enumerated() {
             let f: Painter = table[name] ?? { x, y in ((x / 4 + y / 4) % 2 == 0) ? V4(1, 0, 1, 1) : V4(0, 0, 0, 1) }
             for y in 0..<S {

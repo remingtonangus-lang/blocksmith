@@ -359,8 +359,9 @@ extension WorldGen {
                     } else if h < 0.4 { b[Chunk.index(lx, fy + 1, lz)] = g(["tube", "brain", "bubble", "fire", "horn"][Int(h2 * 5) % 5] + "_coral") }
                     else if h < 0.6 { b[Chunk.index(lx, fy + 1, lz)] = g("seagrass") }
                 } else if (biome.isOcean || biome.isRiver) && biome != .frozenOcean && biome != .deepFrozenOcean {
-                    if h < 0.1 && depth > 3 && biome != .warmOcean && !biome.isRiver {
-                        let len = min(depth - 1, 2 + Int(h2 * Float(depth)))
+                    let kelpPatch = flora.noise2(Float(wx) / 18 + 700, Float(wz) / 18 + 700) > 0.2
+                    if kelpPatch && h < 0.12 && depth > 3 && biome != .warmOcean && !biome.isRiver {
+                        let len = min(depth - 2, 1 + Int(h2 * h2 * Float(depth)))
                         for k in 1...len { b[Chunk.index(lx, fy + k, lz)] = g("kelp") }
                     } else if h < 0.4 { b[Chunk.index(lx, fy + 1, lz)] = g("seagrass") }
                 } else if biome == .swamp || biome == .mangroveSwamp {

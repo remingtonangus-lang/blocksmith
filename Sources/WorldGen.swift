@@ -367,8 +367,11 @@ final class WorldGen: TerrainGenerator {
         case .beach, .snowyBeach: topBlock = SAND; filler = SAND; under = SANDSTONE; underDepth = 2
         case .stonyShore: topBlock = n > 0.2 ? GRAVEL : STONE; filler = STONE
         case .badlands, .erodedBadlands, .woodedBadlands:
+            // Red sand on low flat ground, bare terracotta bands on slopes and higher up.
             let high = biome == .woodedBadlands && top > YOFF + 97
-            topBlock = high ? (n > 0 ? g("coarse_dirt") : GRASS) : g("red_sand"); filler = high ? DIRT : g("red_sand"); depth = 1 + (n > 0.3 ? 1 : 0)
+            if high { topBlock = n > 0 ? g("coarse_dirt") : GRASS; filler = DIRT }
+            else if !steep && top < YOFF + 72 + Int(n * 6) { topBlock = g("red_sand"); filler = g("red_sand"); depth = 1 + (n > 0.3 ? 1 : 0) }
+            else { topBlock = bands[(top + Int(n * 3)) & 63]; filler = topBlock; depth = 1 }
         case .mushroomFields: topBlock = g("mycelium")
         case .oldGrowthPineTaiga, .oldGrowthSpruceTaiga:
             topBlock = n > 0.25 ? g("coarse_dirt") : (n < -0.1 ? g("podzol") : GRASS)
