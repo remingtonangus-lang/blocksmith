@@ -371,6 +371,7 @@ final class WorldGen: TerrainGenerator {
         // 5. Trees and vegetation.
         placeTrees(&b, cx, cz, lat)
         placeVegetation(&b, bx, bz, biomes, &rng)
+        freeze(&b, biomes)
         return b
     }
 
@@ -456,22 +457,33 @@ final class WorldGen: TerrainGenerator {
                 if hgt > 0 && top + 1 <= CH - 2 { for yy in (top + 1)...min(CH - 2, top + hgt) { b[Chunk.index(lx, yy, lz)] = bands[yy & 63] } }
             }
         }
-        // Water and ice.
+        // Water up to sea level (ice and snow come in the final freeze pass).
         if top < SEA {
-            let frozen = biome.snows(at: SEA)
             for yy in (top + 1)...SEA {
                 let i = Chunk.index(lx, yy, lz)
                 if b[i] == AIR { b[i] = WATER }
             }
-            if frozen && (biome.isOcean || biome.isRiver || biome == .snowyBeach || biome.snows(at: SEA)) {
-                b[Chunk.index(lx, SEA, lz)] = g("ice")
-            }
-        } else if biome.snows(at: top + 1) && top + 1 < CH {
-            // Snow cover.
-            let i = Chunk.index(lx, top, lz)
-            if b[i] == GRASS { b[i] = SNOWY_GRASS }
-            if b[i] != SNOW && b[i] != g("powder_snow") && b[i] != g("packed_ice") { b[Chunk.index(lx, top + 1, lz)] = g("snow") }
         }
+    }
+
+    // Last decoration step, like the reference game's freeze_top_layer: snow on whatever is on top
+    // (ground, leaves) and ice on still water where it is cold enough.
+    private func freeze(_ b: inout [BlockID], _ biomes: [Biome]) {
+        let snowLayer = Blocks.id("snow"), ice = Blocks.id("ice")
+        for lz in 0..<CS { for lx in 0..<CS {
+            let biome = biomes[lx + lz * CS]
+            var y = CH - 2
+            while y > 1 && b[Chunk.index(lx, y, lz)] == AIR { y -= 1 }
+            guard biome.snows(at: y + 1) else { continue }
+            let i = Chunk.index(lx, y, lz)
+            let top = b[i]
+            if top == WATER { b[i] = ice; continue }
+            if top == GRASS { b[i] = SNOWY_GRASS }
+            let solidTop = Blocks.opaque[Int(top)] || Blocks.key(top).hasSuffix("_leaves")
+            if solidTop && top != SNOW && top != ice && Blocks.key(top) != "packed_ice" && Blocks.key(top) != "powder_snow" {
+                b[i + CSQ] = snowLayer
+            }
+        } }
     }
 
     // MARK: Caves
