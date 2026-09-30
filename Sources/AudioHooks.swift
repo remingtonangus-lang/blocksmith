@@ -1,0 +1,94 @@
+import Foundation
+import simd
+
+// Small helpers the rest of the game calls: block sound materials (with overrides for blocks whose
+// definitions predate the extra materials), openables, container menus, hurt and death sounds.
+
+// Sound material per block id: the block definition's material, refined by name for metal, wool,
+// gravel, slime, mud, bone, amethyst, soul sand and sculk.
+let SoundMats: [SoundMat] = {
+    var t: [SoundMat] = []
+    t.reserveCapacity(Blocks.count)
+    for i in 0..<Blocks.count {
+        let id = BlockID(i)
+        let k = Blocks.key(Blocks.groupBase[i])
+        var m = Blocks.def(id).sound
+        if k.hasSuffix("_wool") || k.hasSuffix("_carpet") || k == "honeycomb_block" || k.hasSuffix("_bed") { m = .wool }
+        else if k == "gravel" || k == "suspicious_gravel" { m = .gravel }
+        else if (k.contains("copper") && !k.hasSuffix("_ore")) || k == "iron_block" || k == "iron_door" || k == "iron_trapdoor" || k == "iron_bars"
+                    || k == "gold_block" || k == "netherite_block" || k.hasSuffix("anvil") || k == "chain" || k.hasSuffix("lantern") || k == "cauldron"
+                    || k == "hopper" || k == "bell" || k.hasSuffix("_rail") || k == "rail" || k == "lightning_rod" || k.hasPrefix("raw_") { m = .metal }
+        else if k == "bone_block" { m = .bone }
+        else if k.contains("amethyst") { m = .amethyst }
+        else if k == "slime_block" || k == "honey_block" { m = .slime }
+        else if k == "mud" || k == "muddy_mangrove_roots" { m = .mud }
+        else if k == "soul_sand" || k == "soul_soil" { m = .soul }
+        else if k.hasPrefix("sculk") { m = .sculk }
+        else if k == "powder_snow" || k == "snow_block" || k == "snow" { m = .snow }
+        t.append(m)
+    }
+    return t
+}()
+
+func soundMat(_ id: BlockID) -> SoundMat { Int(id) < SoundMats.count ? SoundMats[Int(id)] : .stone }
+
+extension Game {
+    // Doors, trapdoors and fence gates (player use or a circuit).
+    func audioOpenable(shape: String, base: BlockID, opening: Bool, at p: IVec3) {
+        audioOpenable(shape: shape, iron: Blocks.key(base).hasPrefix("iron"), opening: opening, at: p)
+    }
+    func audioOpenable(shape: String, iron: Bool, opening: Bool, at p: IVec3) {
+        let s: Snd
+        switch shape {
+        case "door": s = iron ? (opening ? .ironDoorOpen : .ironDoorClose) : (opening ? .doorOpen : .doorClose)
+        case "trapdoor": s = iron ? (opening ? .ironTrapdoorOpen : .ironTrapdoorClose) : (opening ? .trapdoorOpen : .trapdoorClose)
+        default: s = opening ? .gateOpen : .gateClose
+        }
+        blockSound(s, at: p, 0.8)
+    }
+
+    // Container menus open and close with their own lids; everything else gets the interface blip.
+    func audioMenuOpened(_ m: Menu) {
+        let t = m.title
+        if m is ShellBoxMenu { sfx(.shulkerOpen, 0.7) }
+        else if m is ChestMenu || m is DoubleChestMenu {
+            if t == "Barrel" { sfx(.barrelOpen, 0.7) }
+            else if t == "Void Chest" { sfx(.enderChestOpen, 0.7) }
+            else { sfx(.chestOpen, 0.7) }
+        } else { sfx(.open, 0.6) }
+    }
+    func audioMenuClosed(_ m: Menu) {
+        let t = m.title
+        if m is ShellBoxMenu { sfx(.shulkerClose, 0.7) }
+        else if m is ChestMenu || m is DoubleChestMenu {
+            if t == "Barrel" { sfx(.barrelClose, 0.7) }
+            else if t == "Void Chest" { sfx(.enderChestClose, 0.7) }
+            else { sfx(.chestClose, 0.7) }
+        } else if m is PauseMenu || m is DeathMenu {
+            // silent
+        } else { sfx(.uiBack, 0.5) }
+    }
+
+    func audioHurt(_ type: DamageType) {
+        // Rate-limit so a burst of damage ticks does not stack grunts.
+        if Float(clock) - audio.lastHurtSound < 0.25 { return }
+        audio.lastHurtSound = Float(clock)
+        switch type {
+        case .fall: sfx(.hurtFall)
+        case .drown: sfx(.hurtDrown)
+        case .fire: sfx(.hurtFire)
+        default: sfx(.hurt)
+        }
+    }
+
+    func audioMobDied(_ m: Mob) {
+        let at = m.pos + V3(0, m.height * 0.6, 0)
+        switch m.kind {
+        case .enderDragon: sfx(.dragonDeath, 2, at: at)
+        case .wither: sfx(.witherDeath, 2, at: at)
+        case .endCrystal: sfx(.crystalBreak, 1.2, at: at)
+        default:
+            if MobVoice.profile(m.kind).family != .silent { sfx(.mob(m.kind, .death), 0.9, at: at) }
+        }
+    }
+}

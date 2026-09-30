@@ -762,19 +762,59 @@ enum Snapshot {
 }
 
 if let dir = arg("--sounds") {
-    // Synth check: render every sound effect (variant 0) to a WAV file.
+    // Synth check: render every sound effect (take 0) to a WAV and verify it is non-silent, unclipped,
+    // finite, the expected length, click-free and (for loops) seamless. Exit 1 on any failure.
     let t0 = CFAbsoluteTimeGetCurrent()
-    let bank = SoundBank()
     try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-    var total = 0
-    for s in SoundBank.allSounds {
-        let c = bank.clip(s, variant: 0)
+    var total = 0, failures = 0
+    var list = SoundBank.allSounds
+    for inst in 0..<13 { list.append(.note(inst, 12)) }
+    var byCategory: [SoundCategory: Int] = [:]
+    for s in list {
+        let c = SoundBank.render(s, variant: 0)
+        let chk = SoundBank.check(s, c)
         total += c.count
-        let name = String("\(s)".replacingOccurrences(of: "Blocksmith.SoundMat.", with: "").map { $0.isLetter || $0.isNumber ? $0 : "_" })
-        SoundBank.writeWAV(c, to: "\(dir)/\(name).wav")
+        byCategory[s.category, default: 0] += 1
+        SoundBank.writeWAV(c, to: "\(dir)/\(s.name).wav")
+        if !chk.ok { failures += 1; print("FAIL \(s.name): \(chk.problems.joined(separator: ", "))") }
     }
-    print(String(format: "synthesized %ld sounds (%.1f s of audio) in %.0f ms", SoundBank.allSounds.count, Double(total) / SoundBank.rate, (CFAbsoluteTimeGetCurrent() - t0) * 1000))
-    exit(0)
+    for c in SoundCategory.allCases where byCategory[c] != nil { print("  \(c.label): \(byCategory[c]!) sounds") }
+    print(String(format: "synthesized %ld sounds (%.1f s of audio) in %.0f ms, %ld failed", list.count, Double(total) / SoundBank.rate, (CFAbsoluteTimeGetCurrent() - t0) * 1000, failures))
+    exit(failures == 0 ? 0 : 1)
+}
+
+if let dir = arg("--music") {
+    // Music check: compose a piece per mood (fixed seed), render the first 20 s and check it.
+    let t0 = CFAbsoluteTimeGetCurrent()
+    try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+    var failures = 0
+    let seconds: Float = Float(arg("--seconds") ?? "") ?? 20
+    for mood in MusicMood.allCases {
+        let score = Composer.compose(mood, seed: 12345)
+        let want = min(score.length, seconds)
+        let x = MusicRenderer.renderMono(score, seconds: want)
+        var peak: Float = 0, sq: Float = 0, sum: Float = 0, nan = 0
+        for v in x { if !v.isFinite { nan += 1; continue }; peak = max(peak, abs(v)); sq += v * v; sum += v }
+        let rms = x.isEmpty ? 0 : sqrtf(sq / Float(x.count)), dc = x.isEmpty ? 0 : sum / Float(x.count)
+        let secs = Float(x.count) / Float(SoundBank.rate)
+        var problems: [String] = []
+        if nan > 0 { problems.append("\(nan) non-finite samples") }
+        if peak < 0.05 { problems.append(String(format: "silent (peak %.3f)", peak)) }
+        if peak >= 0.999 { problems.append("clipped") }
+        if rms < 0.005 { problems.append(String(format: "too quiet (rms %.4f)", rms)) }
+        if abs(dc) > 0.03 { problems.append(String(format: "dc offset %.3f", dc)) }
+        if abs(secs - want) > 0.5 { problems.append(String(format: "length %.1fs, wanted %.1fs", secs, want)) }
+        if score.notes.count < 40 { problems.append("only \(score.notes.count) notes") }
+        if score.length < 60 || score.length > 400 { problems.append(String(format: "piece length %.0fs", score.length)) }
+        // Every note must be inside the piece with a sane pitch.
+        for n in score.notes where n.t < 0 || n.t > score.length || n.midi < 20 || n.midi > 110 || n.dur <= 0 { problems.append("bad note at \(n.t)"); break }
+        SoundBank.writeWAV(x, to: "\(dir)/music_\(mood.rawValue).wav")
+        print(String(format: "%-12@ %4ld notes  %5.0f s  peak %.2f rms %.3f  \"%@\"%@", mood.rawValue as NSString, score.notes.count, score.length, peak, rms, score.title as NSString,
+                     (problems.isEmpty ? "" : "  FAIL: " + problems.joined(separator: ", ")) as NSString))
+        if !problems.isEmpty { failures += 1 }
+    }
+    print(String(format: "rendered %ld pieces in %.0f ms, %ld failed", MusicMood.allCases.count, (CFAbsoluteTimeGetCurrent() - t0) * 1000, failures))
+    exit(failures == 0 ? 0 : 1)
 }
 
 if let out = arg("--snapshot") {

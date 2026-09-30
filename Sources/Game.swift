@@ -130,8 +130,9 @@ final class Game {
     var lastDeath: V3?
     let music = MusicDirector()
     var caveTimer: Float = 30
+    let audio = AudioState()
     var musicVolume: Float = { UserDefaults.standard.object(forKey: "musicVolume") == nil ? 1 : UserDefaults.standard.float(forKey: "musicVolume") }() {
-        didSet { UserDefaults.standard.set(musicVolume, forKey: "musicVolume") }
+        didSet { AudioSettings.set(.music, musicVolume) }
     }
     var equipAnim: Float = 0          // lowers and raises the held item after switching
     var lastSiegeDay = -1
@@ -198,7 +199,9 @@ final class Game {
     private var wasInWater = false
 
     func sfx(_ s: Snd, _ v: Float = 1, at pos: V3? = nil) {
-        sound?.play(s, volume: v, at: pos, listener: player.eye, yaw: player.yaw)
+        guard let snd = sound else { return }
+        let occ = pos.map { audioOcclusion(player.eye, $0) } ?? 0
+        snd.play(s, volume: v, at: pos, occlusion: occ)
     }
 
     var onPauseChanged: ((Bool) -> Void)?
@@ -461,11 +464,12 @@ final class Game {
     func openMenu(_ m: Menu) {
         menu = m
         menuCursor = m.slots.firstIndex(where: { $0.isHotbar && $0.index == selected }) ?? 0
-        sfx(.open, 0.6)
+        audioMenuOpened(m)
     }
 
     func closeMenu() {
         guard let m = menu, !(m is DeathMenu) else { return }
+        audioMenuClosed(m)
         m.onClose()
         if !carried.isEmpty {
             let rest = inventory.add(carried)
@@ -812,7 +816,7 @@ final class Game {
                     mineProgress += secs <= 0 ? 1 : fdt / secs
                     swing = max(swing, 0.5)
                     mineSoundTimer -= fdt
-                    if mineSoundTimer <= 0 { mineSoundTimer = 0.25; sfx(.step(soundMat(b)), 0.5, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5) }
+                    if mineSoundTimer <= 0 { mineSoundTimer = 0.25; sfx(.hit(soundMat(b)), 0.5, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5) }
                     if mineProgress >= 1 && breakCooldown <= 0 {
                         breakBlock(t.hit, b, drop: true)
                         damageHeld(held.def.tool == .sword ? 2 : 1)
@@ -1143,7 +1147,7 @@ final class Game {
             let ob = world.block(other.x, other.y, other.z)
             if Blocks.groupBase[Int(ob)] == base { world.setBlock(other.x, other.y, other.z, base + BlockID(Int(ob - base) ^ 4)) }
         }
-        sfx(.open, 0.7, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+        audioOpenable(shape: shape, base: base, opening: (flipped & 4) != 0, at: p)
     }
 
     func openBlock(_ p: IVec3) {
@@ -1166,7 +1170,6 @@ final class Game {
             let be = world.blockEntities[p] ?? BlockEntity(.chest)
             world.blockEntities[p] = be
             openMenu(ChestMenu(game: self, container: be.container, title: "Barrel"))
-            sfx(.open, 0.5)
         case "bell":
             sfx(.bell, 1.5, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
             ringBell(p)
@@ -1418,6 +1421,7 @@ final class Game {
         let xp = m.sized ? m.slimeSize : m.spec.xp
         if m.killedByPlayer && !m.baby { addXP(xp + (m.kind.hostile ? 0 : Int.random(in: 0...1))) }
         particles.explosion(at: m.pos + V3(0, m.height / 2, 0), power: 0.5)
+        audioMobDied(m)
     }
 
     // MARK: Survival
@@ -1594,7 +1598,7 @@ final class Game {
             }
         }
         hurtFlash = 0.35
-        sfx(.hurt)
+        audioHurt(type)
         guard dmg >= 0.5 else { return }
         health -= max(1, Int(dmg.rounded()))
         if health <= 0 && useTotem() { return }
@@ -1622,6 +1626,7 @@ final class Game {
 
     func die(_ cause: String) {
         guard !(menu is DeathMenu) else { return }
+        sfx(.playerDeath)
         deathScore = xpPoints + xpLevel * 7
         lastDeath = player.pos
         // Drop everything where we died (plus up to 100 XP worth: 7 per level).
@@ -1679,8 +1684,14 @@ final class Game {
         let p = player
         if p.inWater && !wasInWater && p.vel.y < -3 { sfx(.splash, min(1, -p.vel.y / 12)) }
         wasInWater = p.inWater
+        if p.inWater && !p.onGround {
+            // Swimming strokes while moving through water.
+            audio.stepTimer += simd_length(V2(p.pos.x - before.x, p.pos.z - before.z)) + abs(p.pos.y - before.y) * 0.5
+            if audio.stepTimer > 1.6 { audio.stepTimer = 0; sfx(.swim, p.headInWater ? 0.35 : 0.6) }
+        }
         if p.pendingFall > 1.2 && !p.inWater {
-            sfx(.land, min(1, p.pendingFall / 8))
+            let under = world.block(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))
+            sfx(p.pendingFall > 3 && under != AIR ? .fall(soundMat(under)) : .land, min(1, p.pendingFall / 8))
             // Landing kicks up bits of the block underneath (more for bigger falls).
             let under = world.block(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))
             if under != AIR { particles.dust(under, at: p.pos, count: min(24, Int(p.pendingFall * 3)), spread: 0.5) }
@@ -1694,7 +1705,7 @@ final class Game {
         if stepDist > (p.sprinting ? 2.1 : 1.7) {
             stepDist = 0
             let under = world.block(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))
-            if under != AIR { sfx(.step(soundMat(under)), p.sneaking ? 0.4 : 1, at: p.pos) }
+            if under != AIR { sfx(.step(soundMat(under)), p.sneaking ? 0.35 : 0.9) }
         }
     }
 
@@ -1798,6 +1809,7 @@ final class Game {
         rocketTick(Float(dt))
         composterTick()
         musicTick(Float(dt))
+        audioAmbientTick(Float(dt))
         siegeTick()
         ashenTick(Float(dt))
         advancementTick()

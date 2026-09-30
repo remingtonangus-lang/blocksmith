@@ -414,7 +414,8 @@ final class Circuit {
                         let ob = block(o)
                         if base(ob) == base(b) { setQuiet(o, base(b) + BlockID(st(ob) ^ 4)); edge.insert(o) }
                     }
-                    game?.sfx(.open, 0.6, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+                    let iron = k == .ironDoor || Blocks.key(base(b)).hasPrefix("iron")
+                    game?.audioOpenable(shape: Blocks.shape[Int(b)], iron: iron, opening: powered, at: p)
                 }
             }
         case .tnt:
@@ -425,7 +426,7 @@ final class Circuit {
             if powered && !was {
                 edge.insert(p)
                 if Circuit.kind(b) == .note { playNote(p, s) }
-                else if Circuit.kind(b) == .bell { game?.sfx(.levelUp, 0.8, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
+                else if Circuit.kind(b) == .bell { game?.sfx(.bell, 1.2, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
                 else { schedule(p, 4) }
             } else if !powered && was { edge.remove(p) }
         case .hopper:
@@ -451,7 +452,7 @@ final class Circuit {
             let d = simd_length(V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5) - pos)
             guard d <= 8 else { continue }
             sensor[p] = (max(1, 15 - Int(d * 15 / 8)), now + 30)
-            game?.sfx(.click, 0.3, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+            game?.sfx(.sculkClick, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
             wakeAround(p)
             let q = p + IVec3(0, -1, 0); mark(q); wakeAround(q)
         }
@@ -527,7 +528,7 @@ final class Circuit {
             // Button release.
             if Circuit.kind(b) == .button && s >= 12 {
                 setQuiet(p, base(b) + BlockID(s - 12))
-                game?.sfx(.click, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+                game?.sfx(Blocks.key(base(b)).hasPrefix("stone") || Blocks.key(base(b)).hasPrefix("polished") ? .buttonStone : .buttonWood, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
                 switchChanged(p, s - 12)
             }
         case .dispenser, .dropper:
@@ -611,7 +612,7 @@ final class Circuit {
                     // Plates release after 20 ticks (10 for weighted) with nothing on them.
                     if level < s && now % (Circuit.kind(b) == .weightedPlate ? 10 : 20) != 0 { continue }
                     setQuiet(p, base(b) + BlockID(level))
-                    g.sfx(.click, 0.4, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+                    g.sfx(level > s ? .plateOn : .plateOff, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
                     wakeAround(p); let q = p + IVec3(0, -1, 0); mark(q); wakeAround(q)
                 }
             case .daylight:
@@ -644,7 +645,7 @@ final class Circuit {
                 let on = armed && !cells.isEmpty && cells.contains { g.entitiesOn($0, items: true) > 0 }
                 if on != (s >= 4) {
                     setQuiet(p, base(b) + BlockID((s & 3) + (on ? 4 : 0)))
-                    g.sfx(.click, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+                    g.sfx(.tripwire, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
                     wakeAround(p)
                     let a = p + Circuit.D[Circuit.opp[Circuit.d6(s & 3)]]
                     mark(a); wakeAround(a)
@@ -722,7 +723,7 @@ final class Circuit {
             if move(from: p + Circuit.D[face], dir: face, push: true, piston: p) {
                 setQuiet(p, base(b) + BlockID(face + 6))
                 setQuiet(p + Circuit.D[face], Blocks.id("piston_head") + BlockID(face + (sticky ? 6 : 0)))
-                game?.sfx(.place(.wood), 0.6, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+                game?.sfx(.pistonExtend, 0.6, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
                 wakeAround(p + Circuit.D[face] + Circuit.D[face])
             }
         } else if !powered && extended {
@@ -734,7 +735,7 @@ final class Circuit {
                 let qb = block(q)
                 if !Circuit.fragile(qb) && !Circuit.immovable(qb, w, q) { _ = move(from: q, dir: Circuit.opp[face], push: false, piston: p) }
             }
-            game?.sfx(.place(.wood), 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+            game?.sfx(.pistonContract, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
             wakeAround(head)
         }
     }

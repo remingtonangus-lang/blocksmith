@@ -243,6 +243,7 @@ final class Mob {
     var aiTimer: Float
     var panic: Float = 0
     var hurt: Float = 0
+    var hurtSound = false           // set by hit(); MobManager plays the hurt call once
     var callTimer: Float
     var attackCooldown: Float = 0
     var fuse: Float = 0             // hisser
@@ -801,6 +802,7 @@ final class Mob {
     }
 
     func hit(from src: V3, damage: Int, knockback: Float = 1) {
+        hurtSound = true
         if kind == .creaking { hurt = 0.25; return }            // only breaking its heart ends a Barkwraith
         if kind == .enderDragon {
             // Hits land at a quarter (+1) unless the dragon is perched; it never dies instantly.
@@ -1297,9 +1299,15 @@ final class MobManager {
         let p = game.player.pos
         for m in mobs {
             m.update(dt, game: game)
+            if m.hurtSound {
+                m.hurtSound = false
+                if MobVoice.profile(m.kind).family != .silent { game.sfx(.mob(m.kind, .hurt), 0.8, at: m.pos + V3(0, m.height * 0.8, 0)) }
+            }
             if m.callTimer <= 0 {
                 m.callTimer = Float.random(in: 8...24)
-                if m.kind != .creeper && m.kind != .magmaCube { game.sfx(m.kind.call, 0.6, at: m.pos + V3(0, m.height * 0.8, 0)) }
+                if m.kind != .creeper && m.kind != .magmaCube && MobVoice.profile(m.kind).family != .silent {
+                    game.sfx(.mob(m.kind, .ambient), 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
+                }
             }
         }
         // Breeding: two mobs of a kind in love next to each other make a baby.
