@@ -19,6 +19,7 @@ enum MobTests {
         raidTables()
         raidSimulation(game: game, world: world, pos: pos)
         pathScenarios(game: game, world: world, pos: pos)
+        spawnRules(game: game, world: world, pos: pos)
         print(String(format: "mobtests: %ld failed (%.1f s)%@", failures.count, CFAbsoluteTimeGetCurrent() - t0,
                      failures.isEmpty ? "" : " -> " + failures.joined(separator: ", ")))
         game.player.pos = pos
@@ -110,6 +111,7 @@ enum MobTests {
         check(sawOmen, "raid ill omen -> siege omen")
         check(r != nil && r!.totalWaves == 6, "raid omen II has a bonus wave", "total \(r?.totalWaves ?? -1)")
         check(waves.count == 6, "raid waves spawned", "\(waves.count): " + waves.joined(separator: " | "))
+        check((r?.log.count ?? 0) == 6 && r!.log.allSatisfy { $0.contains("*") }, "raid every wave has a captain", (r?.log ?? []).joined(separator: " | "))
         check(r?.state == 2, "raid victory", "state \(r?.state ?? -1) after \(Int(t)) s")
         check(game.effects.level(.heroOfTheVillage) == 2, "raid village hero II", "level \(game.effects.level(.heroOfTheVillage))")
         game.effects.remove(.heroOfTheVillage)
@@ -276,5 +278,89 @@ enum MobTests {
         let (dt, dd) = chase(.vindicator, room.p(0, 0, -5), room.p(0, 0, 5), seconds: 25)
         check(dt >= 0, "live brigand opens door", dt >= 0 ? String(format: "after %.1f s", dt) : String(format: "still %.1f away", dd))
         game.mobs.mobs.removeAll()
+    }
+
+    // MARK: Spawning
+
+    static func spawnRules(game: Game, world: World, pos: V3) {
+        let mm = game.mobs
+        // Tables and categories.
+        check(Spawns.monsters(.mushroomFields).isEmpty && Spawns.monsters(.deepDark).isEmpty, "spawn no monsters in mushroom fields / deep dark")
+        check(Spawns.monsters(.desert).contains { $0.kind == .husk && $0.weight == 80 }, "spawn desert husks 80")
+        check(Spawns.monsters(.snowyPlains).contains { $0.kind == .stray && $0.weight == 80 }, "spawn snowy strays 80")
+        check(Spawns.monsters(.river).contains { $0.kind == .drowned && $0.weight == 100 }, "spawn river drowned 100")
+        check(MobKind.zombie.category == .monster && MobKind.cow.category == .creature && MobKind.bat.category == .ambient
+              && MobKind.cod.category == .waterAmbient && MobKind.squid.category == .waterCreature && MobKind.glowSquid.category == .undergroundWater
+              && MobKind.axolotl.category == .axolotls && MobKind.villager.category == .misc, "spawn categories")
+        check(SpawnCategory.monster.cap == 70 && SpawnCategory.creature.cap == 10 && SpawnCategory.ambient.cap == 15
+              && SpawnCategory.waterAmbient.cap == 20, "spawn caps 70/10/15/20")
+
+        // Night: monster spawning around the player obeys distance, light, floor and cap rules.
+        game.survival = true
+        game.difficulty = 2
+        game.player.pos = pos
+        game.time = 0.75 * DAY_LENGTH
+        game.tick(0.05)
+        mm.mobs.removeAll()
+        for _ in 0..<600 { mm.trySpawnHostile(game) }
+        let night = mm.mobs.filter { $0.kind.category == .monster }
+        var bad: [String] = []
+        let allowed: Set<MobKind> = [.spider, .zombie, .zombieVillager, .husk, .skeleton, .stray, .bogged, .creeper, .slime, .enderman, .witch, .drowned]
+        for m in night where m.mount == nil {
+            let x = Int(floor(m.pos.x)), y = Int(floor(m.pos.y)), z = Int(floor(m.pos.z))
+            let l = world.lightAt(x, y, z)
+            let wet = Blocks.fluidKind[Int(world.block(x, y, z))] == 1
+            let floorOK = wet || Blocks.opaque[Int(world.block(x, y - 1, z))]
+            let far = simd_length(m.pos - pos) >= 23.9
+            if !(floorOK && far && (m.kind == .slime || l.block == 0) && allowed.contains(m.kind)) {
+                bad.append("\(m.kind.key)@\(x - Int(floor(pos.x))),\(y - YOFF),\(z - Int(floor(pos.z))) l\(l.block)/\(l.sky)")
+            }
+        }
+        var kinds: [String: Int] = [:]
+        for m in night { kinds[m.kind.key, default: 0] += 1 }
+        check(!night.isEmpty && bad.isEmpty, "spawn night monsters placed legally", "\(night.count): " + kinds.sorted { $0.key < $1.key }.map { "\($0.value) \($0.key)" }.joined(separator: " ")
+              + (bad.isEmpty ? "" : " | bad " + bad.prefix(6).joined(separator: " ")))
+        check(mm.count(.monster, near: pos) <= SpawnCategory.monster.cap + 16, "spawn monster cap", "\(mm.count(.monster, near: pos))")
+        let packs = Dictionary(grouping: night.filter { $0.kind != .slime }) { m in "\(m.kind.key)\(Int(floor(m.pos.x / 12))),\(Int(floor(m.pos.z / 12)))" }
+        check(packs.values.contains { $0.count >= 2 }, "spawn monsters come in packs", "biggest \(packs.values.map { $0.count }.max() ?? 0)")
+
+        // Noon: nothing spawns in daylight (raw sky light above 7).
+        mm.mobs.removeAll()
+        game.time = 0.25 * DAY_LENGTH
+        game.tick(0.05)
+        mm.mobs.removeAll()
+        for _ in 0..<600 { mm.trySpawnHostile(game) }
+        let lit = mm.mobs.filter { m in m.kind.category == .monster && m.kind != .slime && world.lightAt(Int(floor(m.pos.x)), Int(floor(m.pos.y)), Int(floor(m.pos.z))).sky > 7 }
+        check(lit.isEmpty, "spawn none in daylight", "\(lit.count) of \(mm.mobs.count) in sky light > 7")
+
+        // Animals: generation-time packs in about 10% of chunks, on grass-like ground, only once per chunk.
+        mm.mobs.removeAll()
+        mm.populated.removeAll()
+        mm.populateChunks(game)
+        let animals = mm.mobs.filter { $0.kind.category == .creature }
+        let chunks = world.chunks.count
+        let onGrass = animals.allSatisfy { m in
+            let k = Blocks.key(world.block(Int(floor(m.pos.x)), Int(floor(m.pos.y)) - 1, Int(floor(m.pos.z))))
+            return k.contains("grass") || k.contains("sand") || k.contains("snow") || k.contains("podzol") || k.contains("dirt") || k.contains("mycelium")
+                || k.contains("mud") || k.contains("stone") || k.contains("terracotta") || k.contains("ice") || k.contains("leaves") || k.contains("root")
+        }
+        check(animals.count > chunks / 40 && animals.count < chunks, "spawn chunk animal packs", "\(animals.count) animals in \(chunks) chunks")
+        check(onGrass, "spawn animals on natural ground")
+        let before = mm.mobs.count
+        mm.populateChunks(game)
+        check(mm.mobs.count == before, "spawn chunk population runs once")
+
+        // Despawning: monsters beyond 128 at once, beyond 32 after 30 s at 1/800 per tick; animals never; named never.
+        let far = Mob(.zombie, at: pos + V3(130, 0, 0))
+        let mid = Mob(.zombie, at: pos + V3(50, 0, 0))
+        let cow = Mob(.cow, at: pos + V3(200, 0, 0))
+        let named = Mob(.zombie, at: pos + V3(200, 0, 0)); named.customName = "Kept"
+        check(mm.shouldDespawn(far, 130, 0.05, game), "despawn beyond 128")
+        check(!mm.shouldDespawn(cow, 200, 0.05, game) && !mm.shouldDespawn(named, 200, 0.05, game), "despawn spares animals and named mobs")
+        var gone: Float = -1
+        var t: Float = 0
+        while t < 600 && gone < 0 { t += 0.05; if mm.shouldDespawn(mid, 50, 0.05, game) { gone = t } }
+        check(gone > 30, "despawn after 30 s far away", String(format: "gone after %.1f s", gone))
+        mm.mobs.removeAll()
     }
 }

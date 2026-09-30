@@ -21,6 +21,7 @@ final class Raid {
     var timer: Float = 15         // countdown before the next wave / to disappear after the end
     var waveHealth: Float = 1
     var idle: Float = 0           // seconds active (a raid times out after 40 min)
+    var log: [String] = []        // what each wave spawned (harness)
     init(center: V3, level: Int, difficulty: Int = 2) {
         self.center = center
         self.level = max(1, min(5, level))
@@ -216,6 +217,9 @@ extension Game {
         }
         mobs.mobs += spawned
         r.raiders = spawned
+        var n: [String: Int] = [:]
+        for m in spawned { n[m.kind.key + (m.captain ? "*" : ""), default: 0] += 1 }
+        r.log.append(n.sorted { $0.key < $1.key }.map { "\($0.value) \($0.key)" }.joined(separator: " "))
         r.waveHealth = spawned.reduce(Float(0)) { $0 + Float($1.health) }
         sfx(.raidHorn, 1.5, at: at)
     }

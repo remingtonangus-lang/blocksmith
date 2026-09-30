@@ -313,6 +313,11 @@ final class Mob {
     var jobTimer: Float = Float.random(in: 0...5)
     var giftTimer: Float = 0        // villager: seconds until it may throw the Village Hero another gift
     var breaksDoors = false         // zombie able to break wooden doors on Hard (reference: 10% x regional difficulty)
+    var farTime: Float = 0          // seconds spent more than 32 blocks from the player (despawn timer)
+    var jockey = false              // spawned riding another mob (chicken / spider jockeys)
+    var driven: Float = 0           // mount steered by its rider this long
+    var driveSpeed: Float = 0
+    var driveYaw: Float = 0
 
     init(_ kind: MobKind, at p: V3) {
         self.kind = kind
@@ -692,9 +697,17 @@ final class Mob {
             }
         }
 
+        // A passive mount carrying a jockey goes where the rider wants.
+        if driven > 0 {
+            driven -= dt
+            yaw = driveYaw
+            speed = driveSpeed
+            faceGoal = nil
+        }
         // Riders sit on their mount (and attack from there).
         if let mt = mount {
             if mt.health > 0 {
+                if speed != 0 && !mt.kind.hostile { mt.driven = 0.3; mt.driveSpeed = abs(speed); mt.driveYaw = speed < 0 ? yaw + .pi : yaw }
                 pos = mt.pos + V3(0, mt.height * 0.8, 0)
                 vel = .zero
                 onGround = true
@@ -1298,10 +1311,12 @@ final class MobManager {
     var mobs: [Mob] = []
     var stored: [ChunkKey: [MobRecord]] = [:]     // mobs outside the loaded area (see MobSave.swift)
     private var restoreTimer: Float = 0
-    static let passiveCap = 16
-    static let hostileCap = 35
-    private var passiveTimer: Float = 2
-    private var hostileTimer: Float = 1
+    static let passiveCap = 10
+    static let hostileCap = 70
+    var passiveTimer: Float = 2
+    var hostileTimer: Float = 1
+    var populateTimer: Float = 0.5
+    var populated = Set<ChunkKey>()               // chunks that already had their generation-time animals (Spawning.swift)
     static let breedFood: [MobKind: [String]] = [
         .cow: ["wheat"], .sheep: ["wheat"], .pig: ["carrot", "potato", "beetroot"], .chicken: ["wheat_seeds", "beetroot_seeds"],
         .hoglin: ["crimson_fungus"], .strider: ["warped_fungus"],
@@ -1355,27 +1370,12 @@ final class MobManager {
                 if m.keepOnUnload { stash(m) }
                 return true
             }
-            if m.kind.hostile && d > 128 { return true }
-            if m.kind.hostile && !m.persistent && d > 32 && Float.random(in: 0..<1) < dt / 40 { return true }
-            return false
+            return shouldDespawn(m, d, dt, game)
         }
         mobs += spawned
         restoreTimer -= dt
         if restoreTimer <= 0 { restoreTimer = 1; restore(w, center: p, limit: limit) }
-        passiveTimer -= dt
-        if passiveTimer <= 0 {
-            passiveTimer = 2
-            if mobs.filter({ !$0.kind.hostile }).count < MobManager.passiveCap { trySpawnPassive(game) }
-        }
-        hostileTimer -= dt
-        if hostileTimer <= 0 {
-            hostileTimer = 0.5
-            if game.difficulty == 0 { mobs.removeAll { $0.kind.hostile && !$0.persistent } }
-            if game.survival && game.difficulty > 0 && mobs.filter({ $0.kind.hostile }).count < MobManager.hostileCap {
-                for _ in 0..<3 { trySpawnHostile(game) }
-            }
-            trySpawnWaterAndAmbient(game)
-        }
+        spawnTick(dt, game)
     }
 
     // Surface y (feet) at a column if it's grass with two free blocks above, else nil.
@@ -1386,27 +1386,6 @@ final class MobManager {
         let a = w.block(x, y + 1, z), b = w.block(x, y + 2, z)
         guard !Blocks.collide[Int(a)] && !Blocks.collide[Int(b)] && !Blocks.isLiquid(a) else { return nil }
         return y + 1
-    }
-
-    func trySpawnPassive(_ game: Game) {
-        let w = game.world
-        let rd = min(w.renderDistance, 6)
-        guard rd >= 3, w.dim == .overworld else { return }
-        let pcx = floorDiv(Int(floor(game.player.pos.x)), CS), pcz = floorDiv(Int(floor(game.player.pos.z)), CS)
-        let dx = Int.random(in: -rd...rd), dz = Int.random(in: -rd...rd)
-        if max(abs(dx), abs(dz)) < 2 { return }
-        guard let c = w.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)], c.meshedOnce else { return }
-        let x = c.cx * CS + Int.random(in: 2..<(CS - 2)), z = c.cz * CS + Int.random(in: 2..<(CS - 2))
-        let biome = w.gen.column(x, z).biome
-        guard case let (kind, lo, hi)? = MobManager.pickAnimal(biome) else { return }
-        for _ in 0..<Int.random(in: lo...hi) {
-            let sx = x + Int.random(in: -2...2), sz = z + Int.random(in: -2...2)
-            guard let y = animalSurface(w, sx, sz, kind) else { continue }
-            let m = Mob(kind, at: V3(Float(sx) + 0.5, Float(y), Float(sz) + 0.5))
-            if kind == .fox && [.snowyTaiga, .grove, .snowySlopes].contains(biome) { m.variant = 1 }
-            if kind == .mooshroom && Int.random(in: 0..<10) == 0 { m.variant = 1 }
-            mobs.append(m)
-        }
     }
 
     // Reference spawn weights per biome (creature category).
@@ -1460,127 +1439,6 @@ final class MobManager {
         let a = w.block(x, y + 1, z), b = w.block(x, y + 2, z)
         guard !Blocks.collide[Int(a)] && !Blocks.collide[Int(b)] && !Blocks.isLiquid(a) else { return nil }
         return y + 1
-    }
-
-    // Water creatures and ambient bats (called with the monster spawner).
-    func trySpawnWaterAndAmbient(_ game: Game) {
-        let w = game.world
-        guard w.dim == .overworld else { return }
-        let pp = game.player.pos
-        let a = Float.random(in: 0..<(2 * .pi)), r = Float.random(in: 24...56)
-        let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
-        guard w.isLoaded(x, z) else { return }
-        let biome = w.gen.column(x, z).biome
-        let aquatic = mobs.filter { $0.spec.aquatic }.count
-        if aquatic < 14 {
-            let y = Int.random(in: max(1, YOFF - 50)...(YOFF + 62))
-            if Blocks.fluidKind[Int(w.block(x, y, z))] == 1 && Blocks.fluidKind[Int(w.block(x, y + 1, z))] == 1 {
-                var kind: MobKind?
-                var n = 1
-                let dark = w.lightAt(x, y, z).sky == 0
-                if dark && y < YOFF + 30 { kind = Int.random(in: 0..<2) == 0 ? .glowSquid : nil; n = Int.random(in: 2...4) }
-                else if biome.isOcean || biome.isRiver {
-                    let warm = biome == .warmOcean || biome == .lukewarmOcean || biome == .deepLukewarmOcean
-                    let cold = biome == .coldOcean || biome == .deepColdOcean || biome == .frozenOcean || biome == .deepFrozenOcean || biome == .frozenRiver
-                    let roll = Int.random(in: 0..<100)
-                    if warm { kind = roll < 50 ? .tropicalFish : (roll < 65 ? .pufferfish : (roll < 80 ? .dolphin : .squid)); n = kind == .tropicalFish ? 8 : (kind == .dolphin ? 2 : Int.random(in: 1...3)) }
-                    else if cold { kind = roll < 50 ? .salmon : (roll < 80 ? .cod : .squid); n = Int.random(in: 1...5) }
-                    else if biome.isRiver { kind = roll < 60 ? .salmon : .squid; n = Int.random(in: 1...4) }
-                    else { kind = roll < 55 ? .cod : (roll < 80 ? .squid : .dolphin); n = kind == .dolphin ? Int.random(in: 1...2) : Int.random(in: 3...6) }
-                } else if biome == .lushCaves { kind = .axolotl; n = Int.random(in: 1...2) }
-                if let k = kind {
-                    for _ in 0..<n {
-                        let q = V3(Float(x) + Float.random(in: 0...1), Float(y), Float(z) + Float.random(in: 0...1))
-                        mobs.append(Mob(k, at: q))
-                    }
-                }
-            }
-        }
-        // Bats: dark caves below sea level.
-        if mobs.filter({ $0.kind == .bat }).count < 5 {
-            let y = Int.random(in: max(1, YOFF - 60)...(YOFF + 60))
-            if w.block(x, y, z) == AIR && w.lightAt(x, y, z).sky == 0 && w.lightAt(x, y, z).block < 4 && Int.random(in: 0..<4) == 0 {
-                mobs.append(Mob(.bat, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)))
-            }
-        }
-        // Nightwings: at night, over a player who hasn't slept for 3+ days.
-        if game.survival && game.daylight < 0.3 && game.timeSinceRest > 3600 && Float.random(in: 0..<1) < Float(game.timeSinceRest - 3600) / 3600 * 0.02,
-           mobs.filter({ $0.kind == .phantom }).count < 4, game.skyExposed(Int(floor(pp.x)), Int(floor(pp.y + 1)), Int(floor(pp.z))), pp.y > Float(YOFF + SEA) {
-            for _ in 0..<Int.random(in: 1...3) {
-                mobs.append(Mob(.phantom, at: pp + V3(Float.random(in: -10...10), 20 + Float.random(in: 0...14), Float.random(in: -10...10))))
-            }
-        }
-    }
-
-    // Monster spawning: block light 0, combined light <= random(0...7), solid floor with 2 free
-    // blocks, 24-64 blocks from the player.
-    func trySpawnHostile(_ game: Game) {
-        let w = game.world
-        if w.dim == .nether { trySpawnEmberdeep(game); return }
-        if w.dim == .end {
-            // Voidwalkers (groups of up to 4) on hollow stone anywhere 24-64 blocks out.
-            let pp = game.player.pos
-            let a = Float.random(in: 0..<(2 * .pi)), r = Float.random(in: 24...64)
-            let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
-            guard w.isLoaded(x, z), mobs.filter({ $0.kind == .enderman }).count < 30 else { return }
-            let top = w.topY(x, z)
-            guard top > 0, Blocks.key(w.block(x, top, z)) == "end_stone" else { return }
-            for _ in 0..<Int.random(in: 1...4) {
-                let sx = x + Int.random(in: -2...2), sz = z + Int.random(in: -2...2)
-                let ty = w.topY(sx, sz)
-                guard ty > 0, Blocks.key(w.block(sx, ty, sz)) == "end_stone" else { continue }
-                mobs.append(Mob(.enderman, at: V3(Float(sx) + 0.5, Float(ty + 1), Float(sz) + 0.5)))
-            }
-            return
-        }
-        let pp = game.player.pos
-        let a = Float.random(in: 0..<(2 * .pi)), r = Float.random(in: 24...64)
-        let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
-        guard w.isLoaded(x, z) else { return }
-        let top = w.topY(x, z)
-        guard top > 2 else { return }
-        var y = Int.random(in: 2...(top + 1))
-        while y > 1 && !(Blocks.opaque[Int(w.block(x, y - 1, z))] && !Blocks.collide[Int(w.block(x, y, z))] && !Blocks.collide[Int(w.block(x, y + 1, z))]) { y -= 1 }
-        if y <= 1 { return }
-        if w.block(x, y - 1, z) == BEDROCK { return }
-        if Blocks.isLiquid(w.block(x, y, z)) {
-            let bb = w.gen.column(x, z).biome
-            if (bb.isOcean || bb.isRiver) && w.lightAt(x, y, z).block == 0 && Float.random(in: 0..<1) < (bb.isRiver ? 0.3 : 0.1)
-                && simd_length(V3(Float(x), Float(y), Float(z)) - pp) > 24 {
-                mobs.append(Mob(.drowned, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)))
-            }
-            return
-        }
-        let l = w.lightAt(x, y, z)
-        if l.block > 0 { return }
-        if l.sky > Int.random(in: 0..<32) { return }
-        let darken = Int((1 - (game.daylight - 0.12) / 0.88) * 11)
-        let raw = max(l.block, l.sky - (11 - darken))
-        if raw > Int.random(in: 0...7) { return }
-        let spawnPos = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
-        if simd_length(spawnPos - pp) < 24 { return }
-        // Slime chunks (10% of chunks) spawn slimes below y=40.
-        let slimeChunk = hash3(floorDiv(x, 16), 0, floorDiv(z, 16), 0x51113) % 10 == 0
-        if slimeChunk && y - YOFF < 40 && Float.random(in: 0..<1) < 0.3 {
-            let s = Mob(.slime, at: spawnPos)
-            s.makeSlime(size: [1, 2, 4][Int.random(in: 0...2)])
-            if !s.collides(spawnPos, w) { mobs.append(s) }
-            return
-        }
-        let roll = Int.random(in: 0..<420)
-        var kind: MobKind = roll < 95 ? .zombie : (roll < 195 ? .skeleton : (roll < 295 ? .creeper : (roll < 395 ? .spider : (roll < 405 ? .enderman : .witch))))
-        let b = w.gen.column(x, z).biome
-        if kind == .zombie && (b == .desert) && Float.random(in: 0..<1) < 0.8 && l.sky > 0 { kind = .husk }
-        if kind == .zombie && Float.random(in: 0..<1) < 0.05 { kind = .zombieVillager }
-        if kind == .skeleton && (b == .swamp || b == .mangroveSwamp) && Float.random(in: 0..<1) < 0.3 { kind = .bogged }
-        if kind == .skeleton && [.snowyPlains, .iceSpikes, .frozenRiver, .snowySlopes, .frozenPeaks, .jaggedPeaks].contains(b) && Float.random(in: 0..<1) < 0.8 && l.sky > 0 { kind = .stray }
-        if Blocks.isLiquid(w.block(x, y, z)) { return }
-        let m = Mob(kind, at: spawnPos)
-        if kind == .zombie && Float.random(in: 0..<1) < 0.05 { m.baby = true; m.scale = 0.5 }
-        m.rollEquipment(difficulty: game.difficulty, regional: game.regionalDifficulty)
-        m.breaksDoors = m.isZombie && kind != .drowned && Float.random(in: 0..<1) < game.regionalDifficulty * 0.1
-        if m.collides(spawnPos, w) { return }
-        mobs.append(m)
     }
 
     // Emberdeep spawning (no light requirement): per-biome weighted lists, overridden inside fortresses.
