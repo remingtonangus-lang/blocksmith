@@ -325,8 +325,10 @@ enum TextureGen {
         p["food_half"] = { food($0, $1, 1) }
         p["food_empty"] = { food($0, $1, 0) }
         func armor(_ x: Int, _ y: Int, _ fill: Int) -> V4 {
-            let inShape = (y >= 2 && y <= 13) && (abs(Float(x) - 7.5) < (y < 5 ? 6.5 : 5.5 - Float(y - 5) * 0.35)) && !(y < 5 && abs(Float(x) - 7.5) < 2)
-            if !inShape { return clear }
+            let dx: Float = abs(Float(x) - 7.5)
+            let halfWidth: Float = y < 5 ? 6.5 : 5.5 - Float(y - 5) * 0.35
+            let notch = y < 5 && dx < 2
+            if y < 2 || y > 13 || dx >= halfWidth || notch { return clear }
             let filled = fill == 2 || (fill == 1 && x < 8)
             return filled ? hex(0xC6C6C6, 0.85 + 0.2 * r(x, y, 83)) : V4(0.15, 0.15, 0.15, 0.9)
         }

@@ -9,7 +9,7 @@ struct WorldMeta: Codable {
     var pitch: Float
     var time: Double
     var flying: Bool
-    var hotbar: [UInt8]
+    var hotbar: [UInt16]
     var selected: Int
     var renderDistance: Int
     // Added after v0.1: optional so older world.json files still decode.
@@ -55,7 +55,7 @@ final class SaveManager {
         guard let raw = try? (d as NSData).decompressed(using: .lzfse) as Data else { return nil }
         guard raw.count == CSQ * CH * 2 else { return nil }
         var out = [BlockID](repeating: 0, count: CSQ * CH)
-        out.withUnsafeMutableBytes { dst in raw.copyBytes(to: dst.bindMemory(to: UInt8.self)) }
+        _ = out.withUnsafeMutableBytes { dst in raw.copyBytes(to: dst.bindMemory(to: UInt8.self)) }
         let n = Blocks.count
         for i in 0..<out.count where Int(out[i]) >= n { out[i] = 0 }   // unknown states (downgrade) -> air
         return out
