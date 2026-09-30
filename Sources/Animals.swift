@@ -99,6 +99,7 @@ extension Mob {
             if dist > 3 { face(player); return spec.speed }
             wander(); return moving ? spec.speed * 0.3 : 0
         }
+        if kind == .panda, let sp = pandaAI(dt, g) { return sp }
         // Foxes sleep through the day unless disturbed (a player close by and not sneaking, danger, a hit).
         if kind == .fox {
             let day = g.dayFraction > 0.02 && g.dayFraction < 0.45 && !g.isRainingAt(pos)
@@ -155,7 +156,6 @@ extension Mob {
             face(mate.pos)
             return simd_length(mate.pos - pos) > halfW + 1 ? spec.speed : 0
         }
-        if kind == .panda, let sp = pandaAI(dt, g) { return sp }
         if home == nil && kind == .turtle { home = pos }            // home beach: where it first appeared
         if layEgg(g) { return spec.speed * 0.8 }
         // Rabbits hop; frogs hop and eat small slimes; armadillos roll up near danger.
