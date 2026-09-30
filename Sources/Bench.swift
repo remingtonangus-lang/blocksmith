@@ -91,6 +91,16 @@ enum Bench {
         return (world, game, pos)
     }
 
+    // Whether any chunk inside the render distance still has sections waiting to be (re-)meshed.
+    static func unmeshed(_ w: World, _ p: V3) -> Bool {
+        let cx = floorDiv(Int(floor(p.x)), CS), cz = floorDiv(Int(floor(p.z)), CS)
+        let r = w.renderDistance
+        for dz in -r...r { for dx in -r...r where w.inMeshRadius(dx, dz) {
+            if let c = w.chunks[ChunkKey(x: cx + dx, z: cz + dz)], c.needsMesh { return true }
+        } }
+        return false
+    }
+
     // Fraction of chunks inside the render distance that have a mesh.
     static func coverage(_ w: World, _ p: V3) -> Double {
         let cx = floorDiv(Int(floor(p.x)), CS), cz = floorDiv(Int(floor(p.z)), CS)
@@ -371,7 +381,7 @@ enum Bench {
             game.tick(dt)
             ticks.append((now - a) * 1000)
             usleep(4000)
-        } while (world.pendingJobs > 0 || world.chunks.values.contains { $0.needsMesh }) && now - s < 15
+        } while (world.pendingJobs > 0 || unmeshed(world, pos)) && now - s < 15
         let settle = now - s
         let b = dist(blast), t = dist(ticks)
         put("tnt.blast_ms", b, "mean,max")
