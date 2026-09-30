@@ -994,6 +994,32 @@ final class Renderer: NSObject, MTKViewDelegate {
                     text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
                 }
             }
+            if let cm = m as? CommandMenu {
+                // Input line with caret, the console log (newest at the bottom), then quick buttons.
+                rect(o.x + 8 * s, o.y + 16 * s, 264 * s, 13 * s, V4(0, 0, 0, 1))
+                rect(o.x + 9 * s, o.y + 17 * s, 262 * s, 11 * s, V4(0.08, 0.08, 0.08, 1))
+                var ln = cm.line
+                while textWidth(ln, s) > 254 * s && !ln.isEmpty { ln.removeFirst() }
+                let caret = Int(game.clock * 2) % 2 == 0 ? "_" : ""
+                text(ln + caret, o.x + 12 * s, o.y + 19 * s, s, V4(0.95, 0.95, 0.95, 1))
+                rect(o.x + 8 * s, o.y + 32 * s, 264 * s, 100 * s, V4(0.12, 0.12, 0.14, 0.85))
+                let log = game.commandLog.suffix(9)
+                for (i, l) in log.enumerated() {
+                    var t = l
+                    while textWidth(t, s) > 258 * s && !t.isEmpty { t.removeLast() }
+                    let c = l.hasPrefix("  ") ? V4(0.75, 0.75, 0.75, 1) : (l.hasPrefix("/") ? V4(1, 1, 0.55, 1) : V4(1, 1, 1, 1))
+                    text(t, o.x + 11 * s, o.y + Float(35 + i * 11) * s, s, c)
+                }
+                if game.commandLog.isEmpty { text("Type /help, Tab completes names", o.x + 11 * s, o.y + 35 * s, s, V4(0.6, 0.6, 0.6, 1)) }
+                for sl in cm.slots where sl.isButton {
+                    guard case .button(let i) = sl.kind, i < CommandMenu.buttons.count else { continue }
+                    let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
+                    let hot = game.menuHover === sl
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.42, 0.55, 0.85, 1) : V4(0.42, 0.42, 0.46, 1))
+                    let label = CommandMenu.buttons[i]
+                    text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
+                }
+            }
             if let dm = m as? DeathMenu {
                 text("You Died!", o.x + (Float(dm.width) * s - textWidth("You Died!", s * 2)) / 2, o.y + 8 * s, s * 2, V4(0.9, 0.2, 0.2, 1))
                 text(dm.message, o.x + (Float(dm.width) * s - textWidth(dm.message, s)) / 2, o.y + 30 * s, s, V4(0.2, 0.2, 0.2, 1), shadow: false)

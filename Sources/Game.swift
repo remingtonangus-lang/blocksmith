@@ -40,6 +40,8 @@ final class Game {
     }
     var showDebug = false
     var hideHUD = false               // F1
+    var commandLog: [String] = []     // console output (Commands.swift)
+    var commandHistory: [String] = []
     var cameraMode = 0                // F5 / View button: 0 first person, 1 behind, 2 in front
     var screenshotRequested = false   // F2
     var target: (hit: IVec3, normal: IVec3)?
@@ -658,6 +660,8 @@ final class Game {
         if input.tapped(Key.f) || (p.up && !q.up) { toggleFly() }
         if input.tapped(Key.f3) { showDebug.toggle() }
         if input.tapped(Key.f1) { hideHUD.toggle() }
+        if input.tapped(Key.t) { openMenu(CommandMenu(game: self)); return }
+        if input.tapped(Key.slash) { openMenu(CommandMenu(game: self, prefill: "/")); return }
         if input.tapped(Key.f2) { screenshotRequested = true }
         if input.tapped(Key.f5) || (p.view && !q.view) { cameraMode = (cameraMode + 1) % 3 }
         if input.tapped(Key.q) || (p.down && !q.down) { dropHeld(all: input.control) }

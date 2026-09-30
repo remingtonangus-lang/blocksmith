@@ -25,7 +25,7 @@ final class PauseMenu: Menu {
                     ("Create World... (keyboard)", "worlds"), ("Options...", "options"), ("Quit Game", "quit")]
         case .main:
             title = "Game Paused"
-            rows = [("Back to Game", "resume"), ("Options...", "options"), ("Advancements", "advancements"),
+            rows = [("Back to Game", "resume"), ("Options...", "options"), ("Advancements", "advancements"), ("Commands...", "commands"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Game.difficultyNames[g.difficulty])", "difficulty"),
                     ("Load World...", "load"), ("New World (random seed)", "newworld"), ("Create World... (keyboard)", "worlds"),
@@ -74,6 +74,7 @@ final class PauseMenu: Menu {
         case "load": cameFromTitle = page == .title; page = .worlds
         case _ where id.hasPrefix("play:"): g.appAction?(id)
         case "advancements": g.closeMenu(); g.openMenu(AdvancementMenu(game: g))
+        case "commands": g.closeMenu(); g.openMenu(CommandMenu(game: g))
         case "mode": g.toggleMode(); g.onModeChanged?(g.survival)
         case "difficulty": g.difficulty = step([0, 1, 2, 3], g.difficulty)
         case "fov": g.fovSetting = step([60, 70, 80, 90, 100, 110], g.fovSetting)

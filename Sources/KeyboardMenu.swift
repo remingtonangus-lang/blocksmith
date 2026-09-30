@@ -1,6 +1,7 @@
 import Foundation
 
-// On-screen keyboard for controller-only text entry (signs, book pages and titles, anvil names).
+// On-screen keyboard for controller-only text entry (signs, book pages and titles, anvil names, commands).
+// Shift turns the digit row into symbols (/ - ~ : ...).
 // Press Y in a text screen to open it; A types the highlighted key, B (or "Done") returns.
 final class KeyboardMenu: Menu {
     let target: Menu
@@ -20,7 +21,8 @@ final class KeyboardMenu: Menu {
             for (c, ch) in row.enumerated() {
                 let b = MenuSlot(8 + c * 16, 18 + r * 18, nil, 0, .button(keys.count)); b.w = 14; b.h = 16
                 slots.append(b)
-                keys.append(upper ? String(ch).uppercased() : String(ch))
+                let sym = Array("!/-~:;()+=")[c]
+                keys.append(upper ? (r == 0 ? String(sym) : String(ch).uppercased()) : String(ch))
             }
         }
         for (i, (label, w)) in [("Shift", 30), ("Space", 62), ("Del", 30), ("Enter", 30)].enumerated() {
@@ -39,6 +41,7 @@ final class KeyboardMenu: Menu {
         case "Del": target.typed("\u{8}")
         case "Enter":
             if let b = target as? BookMenu, !b.signing { b.typed("\n") } else if let s = target as? SignMenu { s.line = min(3, s.line + 1) }
+            else if let cm = target as? CommandMenu { cm.run() }
         case "Done": finish()
         default: target.typed(keys[i])
         }

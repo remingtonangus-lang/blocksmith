@@ -107,6 +107,11 @@ enum Snapshot {
             case "creative": game.openMenu(CreativeMenu(game: game))
             case "death":
                 game.openMenu(DeathMenu(game: game, message: "Player was blown up by Hisser"))
+            case "commands":
+                for c in ["/help", "/time set noon", "/give diamond 5", "/give hisser_head", "/locate sea_temple", "/summon hisser", "hello", "/tp ~ ~2 ~", "/xp 5L", "/bogus"] { game.command(c) }
+                let m = CommandMenu(game: game, prefill: "/give dia")
+                m.complete()
+                game.openMenu(m)
             case "recipes":
                 game.inventory.main[18] = ItemStack(Items.id("oak_log"), 8)
                 game.inventory.main[19] = ItemStack(Items.id("cobblestone"), 20)
