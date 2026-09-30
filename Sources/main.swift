@@ -242,6 +242,8 @@ enum Snapshot {
             game.player.pitch = atan2f(d.y, simd_length(V2(d.x, d.z)))
             let t2 = world.loadSync(center: pos, radius: rd)
             t.mesh += t2.mesh
+            let pp = IVec3(bx + 1, gy + 1, bz + 3)
+            print("piston debug: power \(world.redstone.received(pp)) block west \(Blocks.key(world.block(pp.x - 1, pp.y, pp.z))) front \(Blocks.key(world.block(pp.x + 1, pp.y, pp.z))) kind \(Redstone.kind(world.block(pp.x, pp.y, pp.z)))")
             print("redstone bench: lamp A \(Blocks.key(world.block(bx + 9, gy + 1, bz))), piston \(Blocks.key(world.block(bx + 1, gy + 1, bz + 3))), lamp C \(Blocks.key(world.block(bx + 5, gy + 1, bz + 6))) / \(Blocks.key(world.block(bx + 11, gy + 1, bz + 6))), wire E \(Blocks.key(world.block(bx + 11, gy + 1, bz + 10)))")
         }
         if CommandLine.arguments.contains("--torches") {
