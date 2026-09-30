@@ -298,7 +298,7 @@ fragment float4 hollowSkyFS(SkyOut in [[stage_in]], constant SkyParams& s [[buff
     float n = vnoise(q * 3.0 + float2(t * 0.01, 0.0)) * 0.6 + vnoise(q * 9.0 - float2(0.0, t * 0.015)) * 0.4;
     float streak = smoothstep(0.55, 0.85, vnoise(float2(q.x * 1.5, q.y * 7.0) + 11.0));
     float3 base = s.horizon.rgb;
-    float3 col = base * (0.7 + 0.5 * n) + float3(0.09, 0.04, 0.12) * streak;
+    float3 col = base * (0.85 + 0.3 * n) + float3(0.035, 0.015, 0.05) * streak;
     return float4(col, 1.0);
 }
 
