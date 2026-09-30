@@ -298,21 +298,18 @@ final class Renderer: NSObject, MTKViewDelegate {
             enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         }
 
-        // Sky bodies (camera-relative, no depth)
+        // Sky bodies (camera-relative, no depth): stars, then the textured sun and moon.
         do {
             var verts: [SimpleVert] = []
-            func body(_ dir: V3, _ size: Float, _ color: V4) {
-                let c = dir * 90
-                let r = simd_normalize(simd_cross(dir, V3(0, 0, 1))) * size
-                let up = simd_normalize(simd_cross(r, dir)) * size
-                let q = [c - r - up, c + r - up, c + r + up, c - r + up]
-                for i in [0, 1, 2, 0, 2, 3] { verts.append(SimpleVert(pos: V4(q[i], 1), color: color)) }
-            }
             let sd = game.sunDir
-            if !underwater && hasSky {
-                body(sd, 7, V4(1.0, 0.95, 0.75, 1))
-                body(sd, 11, V4(1.0, 0.85, 0.5, 0.18))
-                body(-sd, 5, V4(0.85, 0.88, 0.95, 1))
+            let dusk = max(0, 1 - abs(sd.y - 0.02) / 0.22)
+            if !underwater && hasSky && !game.fancyGraphics {
+                // Fast: a square halo behind the sun (the Fancy sky shades its own glow).
+                let c = sd * 90
+                let r = simd_normalize(simd_cross(sd, V3(0, 0, 1))) * 11
+                let up = simd_normalize(simd_cross(r, sd)) * 11
+                let q = [c - r - up, c + r - up, c + r + up, c - r + up]
+                for i in [0, 1, 2, 0, 2, 3] { verts.append(SimpleVert(pos: V4(q[i], 1), color: V4(1.0, 0.85, 0.5, 0.18))) }
             }
             let starAlpha = simd_clamp((0.6 - daylight) / 0.35, 0, 1)
             if !underwater && starAlpha > 0 && hasSky {
@@ -332,6 +329,27 @@ final class Renderer: NSObject, MTKViewDelegate {
                 enc.setVertexBuffer(scratch, offset: off, index: 0)
                 enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
                 enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: verts.count)
+            }
+            if !underwater && hasSky {
+                // Sun (reddening at dawn/dusk) and the moon in its current phase: textured, blended, no fog.
+                let bodyOff = (scratchOff + 255) & ~255
+                let ptr = (scratch.contents() + bodyOff).bindMemory(to: EntityVert.self, capacity: 12)
+                var bw = EntityWriter(out: ptr, capacity: 12)
+                func body(_ dir: V3, _ size: Float, _ layer: Int, _ color: V4) {
+                    let c = dir * 90
+                    let r = simd_normalize(simd_cross(dir, V3(0, 0, 1))) * size
+                    let up = simd_normalize(simd_cross(r, dir)) * size
+                    bw.quad([c - r - up, c + r - up, c + r + up, c - r + up], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], layer, color)
+                }
+                body(sd, 7, Int(Tex.id("sun")), V4(1, 1 - 0.3 * dusk, 1 - 0.55 * dusk, 1))
+                body(-sd, 5, Int(Tex.id("moon_\(game.moonPhase)")), V4(1, 1, 1, 1))
+                scratchOff = bodyOff + bw.n * MemoryLayout<EntityVert>.stride
+                enc.setRenderPipelineState(crackPipe)
+                enc.setDepthStencilState(depthNone)
+                enc.setCullMode(.none)
+                enc.setVertexBuffer(scratch, offset: bodyOff, index: 0)
+                enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+                enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: bw.n)
             }
         }
 

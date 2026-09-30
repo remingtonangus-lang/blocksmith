@@ -13,7 +13,8 @@ enum TextureGen {
                            "heart_wither", "heart_wither_half", "rain_drop", "snow_flake", "food", "food_half", "food_empty", "bubble",
                            "destroy_0", "destroy_1", "destroy_2", "destroy_3", "destroy_4",
                            "destroy_5", "destroy_6", "destroy_7", "destroy_8", "destroy_9",
-                           "armor", "armor_half", "armor_empty", "xp_bar", "smoke"]
+                           "armor", "armor_half", "armor_empty", "xp_bar", "smoke", "sun",
+                           "moon_0", "moon_1", "moon_2", "moon_3", "moon_4", "moon_5", "moon_6", "moon_7"]
 
     // Makes sure every texture that may be referenced exists in the registry.
     static func registerAll() {
@@ -770,6 +771,27 @@ enum TextureGen {
                 let line = l1 || l2
                 if (line && c < thr * 1.4) || c < thr * 0.35 { return V4(0.05, 0.05, 0.05, 0.75) }
                 return clear
+            }
+        }
+        // Sky bodies: a warm square sun and a cratered moon in eight phases (0 = full, 4 = new).
+        p["sun"] = { x, y in
+            let dx = Float(x) - 7.5, dy = Float(y) - 7.5
+            let d = max(abs(dx), abs(dy)) / 7.5
+            let k = 1 - 0.18 * d * d
+            return V4(1, 0.97 * k, 0.78 * k * k, 1)
+        }
+        for phase in 0..<8 {
+            p["moon_\(phase)"] = { x, y in
+                let px = (Float(x) - 7.5) / 7, py = (Float(y) - 7.5) / 7
+                let rr = px * px + py * py
+                if rr > 1 { return clear }
+                let z = (1 - rr).squareRoot()
+                let ang = Float(phase) * .pi / 4
+                let lit = px * sinf(ang) + z * cosf(ang)
+                if lit <= 0.02 { return V4(0.07, 0.08, 0.12, 1) }
+                let crater = r(x, y, 230) < 0.16 ? 0.8 : 1
+                let v: Float = (0.86 + 0.1 * r(x / 2, y / 2, 231)) * Float(crater)
+                return V4(v, v, v * 1.05, 1)
             }
         }
         overworldPainters(&p)

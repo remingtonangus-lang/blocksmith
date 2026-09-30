@@ -361,6 +361,9 @@ final class Game {
         return simd_normalize(V3(cosf(a), sinf(a), 0.35))
     }
 
+    // Moon phase 0...7 (0 = full), one step per day.
+    var moonPhase: Int { ((Int(time / DAY_LENGTH) % 8) + 8) % 8 }
+
     var daylight: Float {
         if !dim.dim.hasSky { return dim.dim == .end ? 0.75 : 1 }
         let s = sunDir.y
