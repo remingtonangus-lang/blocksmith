@@ -1,5 +1,6 @@
 import AppKit
 import Metal
+import simd
 
 // Headless test harness. Renders one frame offscreen to a PNG and prints timings, e.g.
 //   Blocksmith --snapshot /tmp/shot.png --seed 42 --yaw 45 --pitch -20 --time 0.25 --up 30 --rd 8

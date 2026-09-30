@@ -63,8 +63,9 @@ enum Stronghold {
             frontier.append(to)
         }
         // The farthest leaf becomes the portal room; other leaves may be libraries.
-        let leaves = nodes.filter { $0.key != IVec2Key(0, 0) && $0.value.links.filter { $0 }.count == 1 }.map { $0.key }
-            .sorted { ($0.x * $0.x + $0.z * $0.z, $0.x, $0.z) > ($1.x * $1.x + $1.z * $1.z, $1.x, $1.z) }
+        func isLeaf(_ k: IVec2Key, _ n: Node) -> Bool { k != IVec2Key(0, 0) && n.links.filter { $0 }.count == 1 }
+        func rank(_ k: IVec2Key) -> Int { (k.x * k.x + k.z * k.z) * 10_000 + (k.x + 50) * 100 + (k.z + 50) }
+        let leaves: [IVec2Key] = nodes.filter { isLeaf($0.key, $0.value) }.map { $0.key }.sorted { rank($0) > rank($1) }
         if let far = leaves.first { nodes[far]!.kind = .portal }
         else {
             // Degenerate layout: hang the portal room off the start.
