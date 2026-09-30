@@ -108,7 +108,8 @@ enum Glyphs {
             disc(x + u, y0 + u, shadow); disc(x, y0, bg)
             rect(x + 3 * u, y0 + 3 * u, 3 * u, 3 * u, fg)
         case .dpad, .dup, .ddown, .dleft, .dright, .dpadH, .dpadV:
-            let base = V4(0.16, 0.16, 0.18, alpha), hi = V4(1, 1, 1, alpha)
+            // Grey cross with the used arm(s) white and a dark hub, readable on light panels and the dark world alike.
+            let base = V4(0.42, 0.42, 0.46, alpha), hi = V4(1, 1, 1, alpha)
             let all = g == .dpad
             func arm(_ ax: Float, _ ay: Float, _ w: Float, _ h: Float, _ lit: Bool) { rect(x + ax * u, y0 + ay * u, w * u, h * u, lit ? hi : base) }
             rect(x + 3 * u + u, y0 + u, 3 * u, 9 * u, shadow)
@@ -117,7 +118,7 @@ enum Glyphs {
             arm(3, 6, 3, 3, all || g == .ddown || g == .dpadV)
             arm(0, 3, 3, 3, all || g == .dleft || g == .dpadH)
             arm(6, 3, 3, 3, all || g == .dright || g == .dpadH)
-            arm(3, 3, 3, 3, false)
+            rect(x + 3 * u, y0 + 3 * u, 3 * u, 3 * u, V4(0.16, 0.16, 0.18, alpha))
         case .mouseL, .mouseR, .mouseM:
             let body = V4(0.88, 0.88, 0.9, alpha), line = V4(0.3, 0.3, 0.33, alpha), hi = V4(1, 0.62, 0.12, alpha)
             rect(x + u + u, y0 + u, 5 * u, 9 * u, shadow)

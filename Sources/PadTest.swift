@@ -249,6 +249,7 @@ enum PadTest {
         g.survival = false
         g.health = 20
         g.menu = nil
+        g.paused = false
         g.paused = true
         if let p = g.menu as? PauseMenu { p.go(.options); p.cat = .controller; p.build(); g.menuCursor = 2; g.menuHover = p.slots[2] }
         PadManager.shared.forcePad(true)
@@ -259,8 +260,9 @@ enum PadTest {
     static func view(_ g: Game, _ name: String) {
         PadManager.shared.forcePad(true)
         g.menu = nil
-        g.paused = true
-        guard let pm = g.menu as? PauseMenu else { return }
+        g.paused = false
+        g.paused = true                  // opens the pause menu (didSet only fires on a change)
+        guard let pm = g.menu as? PauseMenu else { print("padview: no pause menu"); return }
         let fm = FileManager.default
         let tmp = fm.temporaryDirectory.appendingPathComponent("blocksmith-padview-\(getpid())", isDirectory: true)
         try? fm.createDirectory(at: tmp, withIntermediateDirectories: true)
