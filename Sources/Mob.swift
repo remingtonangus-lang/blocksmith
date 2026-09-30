@@ -682,7 +682,7 @@ final class Mob {
                 if simd_length(v.pos - pos) < halfW + v.halfW + 1 && attackCooldown <= 0 {
                     attackCooldown = 1
                     v.hit(from: pos, damage: meleeDamage, knockback: 0.6)
-                    if v.health <= 0 && v.kind == .villager && isZombie && Float.random(in: 0..<1) < [0, 0, 0.5, 1][max(0, min(3, g.difficulty))] { v.health = -2000; g.zombify(v) }
+                    if v.health <= 0 && v.kind == .villager && isZombie && Float.random(in: 0..<1) < ([0, 0, 0.5, 1] as [Float])[max(0, min(3, g.difficulty))] { v.health = -2000; g.zombify(v) }
                 }
             } else if canTarget && hostileNow {
                 face(player)
