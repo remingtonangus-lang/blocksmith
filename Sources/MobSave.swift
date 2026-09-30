@@ -19,6 +19,7 @@ struct MobRecord: Codable {
     var name: String? = nil
     var villager: VillagerData? = nil
     var extra: [String: Float]? = nil
+    var inv: [ItemStack]? = nil
 }
 
 extension Mob {
@@ -38,6 +39,7 @@ extension Mob {
         if let h = home { r.home = [h.x, h.y, h.z] }
         r.name = customName
         r.villager = villager
+        if let c = cargo { r.inv = c.slots }
         var ex: [String: Float] = [:]
         saveExtra(&ex)
         if !ex.isEmpty { r.extra = ex }
@@ -57,6 +59,7 @@ extension Mob {
         if let h = r.home, h.count == 3 { m.home = V3(h[0], h[1], h[2]) }
         m.customName = r.name
         m.villager = r.villager
+        if let i = r.inv { let c = ItemContainer(i.count); c.slots = i; m.cargo = c }
         if let ex = r.extra { m.loadExtra(ex) }
         return m
     }

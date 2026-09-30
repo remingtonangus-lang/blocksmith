@@ -20,6 +20,7 @@ enum MobKind: Int, CaseIterable {
     case rabbit, fox, wolf, cat, ocelot, horse, donkey, mule, llama, traderLlama, camel, goat, panda, polarBear, turtle, frog, tadpole
     case armadillo, sniffer, mooshroom, bee, parrot, bat, allay, axolotl, squid, glowSquid, dolphin, cod, salmon, tropicalFish, pufferfish
     case wanderingTrader, skeletonHorse, phantom, guardian, elderGuardian, endermite, warden, breeze, bogged, zoglin
+    case boat
 
     struct Spec {
         var name: String
@@ -88,6 +89,8 @@ enum MobKind: Int, CaseIterable {
                                      drops: [("iron_ingot", 3, 5), ("poppy", 0, 2)], xp: 0, call: .mobGolem)
         case .minecart: return Spec(name: "Minecart", halfW: 0.49, height: 0.7, health: 6, speed: 0, behavior: .vehicle,
                                     drops: [("minecart", 1, 1)], xp: 0, call: .click)
+        case .boat: return Spec(name: "Boat", halfW: 0.6875, height: 0.5625, health: 4, speed: 0, behavior: .vehicle,
+                                drops: [], xp: 0, call: .click)
         case .husk: return Spec(name: "Husk", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
                                 drops: [("rotten_flesh", 0, 2)], xp: 5, call: .mobZombie)
         case .stray: return Spec(name: "Stray", halfW: 0.3, height: 1.99, health: 20, speed: 2.5, behavior: .ranged,
@@ -188,6 +191,8 @@ final class Mob {
     var saddled = false
     var armorTier = 0               // horse / wolf armour
     var chested = false
+    var cargo: ItemContainer?      // chest boat / pack animal inventory
+    var spin: Float = 0            // boat turn rate (deg per tick)
     var raider = false              // part of a raid
     var breakTimer: Float = 0       // wither: breaks surrounding blocks when this runs out
     var lifeSpan: Float = 1e9       // vex: seconds before it starts to wither away
@@ -269,6 +274,7 @@ final class Mob {
         inLove = max(0, inLove - dt)
         breedCooldown = max(0, breedCooldown - dt)
         if baby { age += dt; if age >= 1200 { baby = false; scale = 1 } }
+        if kind == .boat { updateBoat(dt, g); return }
         if g.riding === self && kind != .minecart { updateRidden(dt, g); return }
         if kind == .enderDragon { updateDragon(dt, g); return }
         if kind == .endCrystal { updateCrystal(dt, g); return }
@@ -703,6 +709,7 @@ final class Mob {
         health -= kind == .shulker && peek < 0.2 ? damage / 5 : damage
         hurt = 0.4
         if kind == .shulker { aggro = true; return }
+        if kind == .boat { spin += Float.random(in: -8...8); return }
         if spec.behavior == .passive { panic = 5; aiTimer = 0 }
         aggro = true
         admire = 0
@@ -1010,6 +1017,8 @@ private func parts(_ m: Mob) -> [Part] {
             box(-3, 6, -3, 6, 6 + lift, 6, head),
             box(-2, 8 + lift * 0.6, -3.2, 1.2, 1.2, 0.2, V3(0.1, 0.1, 0.1)), box(0.8, 8 + lift * 0.6, -3.2, 1.2, 1.2, 0.2, V3(0.1, 0.1, 0.1)),
         ]
+    case .boat:
+        return boatParts(m)
     case .minecart:
         let iron = V3(0.55, 0.56, 0.6), dark = V3(0.3, 0.3, 0.33)
         return [

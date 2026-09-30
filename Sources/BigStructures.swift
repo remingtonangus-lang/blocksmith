@@ -219,11 +219,13 @@ enum BigStructures {
             w.fill(x - r + 1, y - 1, z - r + 1, x + r - 1, y - 1, z + r - 1, pt)
             for (dx, dz) in [(-1, -1), (1, -1), (-1, 1), (1, 1)] { w.fill(x + dx * (r - 1), y, z + dz * (r - 1), x + dx * (r - 1), y + h - 1, z + dz * (r - 1), cu) }
             w.set(x, y + h - 1, z, bulb)
-            for (dx, dz) in [(-(r - 1), 0), (r - 1, 0), (0, -(r - 1)), (0, r - 1)] { w.set(x + dx, y + 2, z + dz, bulb) }
+            // Wall bulbs above corridor height (corridors are cut up to y+3 later).
+            for off in [-(r / 2), r / 2] {
+                for (dx, dz) in [(-r, off), (r, off), (off, -r), (off, r)] { w.set(x + dx, y + 4, z + dz, bulb) }
+            }
         }
         room(cx, cz, 9, 12)
         w.fill(cx - 3, y + 10, cz - 3, cx + 3, y + 10, cz + 3, grate)
-        for (dx, dz) in [(-8, 0), (8, 0), (0, -8), (0, 8)] { w.set(cx + dx, y + 3, cz + dz, bulb) }
         let spots = [(cx + 20, cz), (cx - 20, cz), (cx, cz + 20), (cx, cz - 20)]
         for (i, s) in spots.enumerated() {
             room(s.0, s.1, 6, 7)

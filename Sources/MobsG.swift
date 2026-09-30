@@ -184,7 +184,7 @@ extension Mob {
         var target: V3?
         let player = g.player.pos
         if g.survival && g.alive && simd_length(player - pos) < 48 { target = g.player.eye - V3(0, 0.4, 0) }
-        if target == nil, let m = g.mobs.mobs.first(where: { !$0.undead && $0.kind != .wither && $0.health > 0 && simd_length($0.pos - pos) < 32 && $0.kind != .minecart }) {
+        if target == nil, let m = g.mobs.mobs.first(where: { !$0.undead && $0.kind != .wither && $0.health > 0 && simd_length($0.pos - pos) < 32 && $0.kind.spec.behavior != .vehicle }) {
             target = m.pos + V3(0, m.height * 0.6, 0)
         }
         let armored = health <= 150

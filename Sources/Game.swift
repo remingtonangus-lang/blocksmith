@@ -699,7 +699,7 @@ final class Game {
                     let se = Enchant.level(.sweepingEdge, held)
                     let sweep = max(1, Int((1 + base * Float(se) / Float(se + 1)).rounded()))
                     for o in mobs.mobs where o !== m && o.health > 0 && simd_length(o.pos - m.pos) < 1.5 && simd_length(o.pos - player.pos) < 4
-                        && o.kind != .villager && o.kind != .minecart {
+                        && o.kind != .villager && o.kind.spec.behavior != .vehicle {
                         o.hit(from: player.pos, damage: sweep, knockback: 0.4)
                         o.killedByPlayer = true
                     }
@@ -856,6 +856,7 @@ final class Game {
         placeCooldown = 0.25
         if useNow && useBottleOrCauldron(target) { swing = 1; return }
         if useBucket() { return }
+        if useNow && placeBoat() { return }
         guard let t = target else { return }
         if useNow && !(input.shift || p.b) && isRedstoneInteractive(t.hit) && useRedstone(t.hit) { swing = 1; return }
         if isInteractive(t.hit) && !(input.shift || p.b) && useNow {
@@ -1248,6 +1249,12 @@ final class Game {
                 drops.spawn(ItemStack(Items.id("wither_skeleton_skull"), 1), at: at)
             }
         }
+        if m.kind == .boat {
+            let k = Boats.itemKey(m.variant, chest: m.chested)
+            if Items.has(k) { drops.spawn(ItemStack(Items.id(k), 1), at: at) }
+        }
+        if let c = m.cargo { for s in c.slots where !s.isEmpty { drops.spawn(s, at: at) }; m.cargo = nil }
+        if m.chested && m.kind != .boat { drops.spawn(ItemStack(Items.id("chest"), 1), at: at) }
         captainDied(m)
         sculkBloom(at: m.pos, xp: m.spec.xp)
         let xp = m.sized ? m.slimeSize : m.spec.xp

@@ -306,6 +306,7 @@ extension Game {
     // Right-click on a mob with the held item.
     func useItemOnMob(_ m: Mob) -> Bool {
         let key = Items.key(held.item)
+        if useBoat(m) || openPack(m) { return true }
         if m.kind == .minecart {
             if riding === m { return false }
             riding = m

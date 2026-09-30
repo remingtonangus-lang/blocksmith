@@ -302,6 +302,8 @@ enum Snapshot {
             // Hold a freshly explored map.
             game.inventory.main[game.selected] = ItemStack(Items.id("map"), 1)
             _ = game.useEmptyMap()
+            // Creative keeps the empty map; hold the new filled one.
+            if let i = (0..<9).first(where: { Items.key(game.inventory.main[$0].item) == "filled_map" }) { game.selected = i }
             for _ in 0..<256 { game.mapTick() }
         }
         if CommandLine.arguments.contains("--decor") {
@@ -337,7 +339,11 @@ enum Snapshot {
                 let x = Int(floor(p.x)), z = Int(floor(p.z))
                 let m = Mob(k, at: V3(Float(x) + 0.5, Float(world.topY(x, z) + 1), Float(z) + 0.5))
                 m.yaw = game.player.yaw
-                if parts.count > 1 { var d = VillagerData(); d.profession = parts[1]; m.villager = d }
+                if k == .boat {
+                    m.variant = parts.count > 1 ? Int(parts[1]) ?? 0 : 0
+                    m.chested = parts.count > 2
+                    m.yaw += Float(i) * 0.4
+                } else if parts.count > 1 { var d = VillagerData(); d.profession = parts[1]; m.villager = d }
                 if k == .wither { m.phase = 0; m.pos.y += 2 }
                 if k == .evoker { m.spellTimer = 4.5 }
                 game.mobs.mobs.append(m)
