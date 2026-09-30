@@ -59,7 +59,7 @@ enum MobKind: Int, CaseIterable {
         case .creeper: return Spec(name: "Hisser", halfW: 0.3, height: 1.7, health: 20, speed: 2.5, behavior: .creeper,
                                    drops: [("gunpowder", 0, 2)], xp: 5, call: .creeperHiss)
         case .spider: return Spec(name: "Spider", halfW: 0.7, height: 0.9, health: 16, speed: 3.0, behavior: .spider, attack: 2,
-                                  drops: [("string", 0, 2), ("spider_eye", 0, 1)], xp: 5, call: .mobSpider)
+                                  drops: [("string", 0, 2)], xp: 5, call: .mobSpider)
         case .enderman: return Spec(name: "Voidwalker", halfW: 0.3, height: 2.9, health: 40, speed: 3.0, behavior: .enderman, attack: 7,
                                     drops: [("ender_pearl", 0, 1)], xp: 5, call: .mobVoidwalker)
         case .slime: return Spec(name: "Slime", halfW: 0.26, height: 0.52, health: 1, speed: 2.0, behavior: .slime, attack: 0,
@@ -103,7 +103,7 @@ enum MobKind: Int, CaseIterable {
         case .drowned: return Spec(name: "Sunken", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
                                    burnsInSun: true, drops: [("rotten_flesh", 0, 2), ("copper_ingot", 0, 1)], xp: 5, call: .mobZombie)
         case .caveSpider: return Spec(name: "Cave Spider", halfW: 0.35, height: 0.5, health: 12, speed: 3.0, behavior: .spider, attack: 2,
-                                      drops: [("string", 0, 2), ("spider_eye", 0, 1)], xp: 5, call: .mobSpider)
+                                      drops: [("string", 0, 2)], xp: 5, call: .mobSpider)
         case .witch: return Spec(name: "Witch", halfW: 0.3, height: 1.95, health: 26, speed: 2.3, behavior: .witch,
                                  drops: [("glass_bottle", 0, 2), ("glowstone_dust", 0, 2), ("gunpowder", 0, 2), ("redstone", 0, 2),
                                          ("spider_eye", 0, 2), ("sugar", 0, 2), ("stick", 0, 2)], xp: 5, call: .mobVillager)
