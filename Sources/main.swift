@@ -216,9 +216,10 @@ enum Snapshot {
             // Row B: redstone block powering a sticky piston that pushes slime + stone.
             put(0, 3, "redstone_block")
             put(1, 3, "sticky_piston", 5)                                 // facing east
-            put(2, 3, "slime_block"); put(3, 3, "cobblestone"); put(2, 3, "slime_block", dy: 2)
+            put(2, 3, "cobblestone"); put(3, 3, "oak_planks")
+            put(6, 3, "piston", 5); put(7, 3, "slime_block", dy: 1); put(7, 3, "stone", dy: 2) // unpowered for comparison
             // Row C: torch inverter: lever on a block, torch on its far side stays off; unpowered torch on the right.
-            put(0, 6, "stone"); put(-1 + 0, 6, "lever", 2, dy: 2)
+            put(0, 6, "stone"); put(0, 6, "lever", 3 + 12, dy: 2)             // lever on top of the block, on
             put(1, 6, "redstone_torch", 2 + 3)                            // wall torch facing east (attached west)
             for x in 2...4 { put(x, 6, "redstone_wire") }
             put(5, 6, "redstone_lamp")
@@ -232,6 +233,13 @@ enum Snapshot {
             put(7, 10, "comparator", 3)
             for x in 8...11 { put(x, 10, "redstone_wire") }
             for _ in 0..<60 { world.redstone.tick() }
+            // Look at the bench from the south-west, above.
+            pos = V3(Float(bx) - 5, Float(gy) + 11, Float(bz) + 16)
+            game.player.pos = pos
+            let c = V3(Float(bx) + 6, Float(gy), Float(bz) + 5)
+            let d = c - pos
+            game.player.yaw = atan2f(-d.x, -d.z)
+            game.player.pitch = atan2f(d.y, simd_length(V2(d.x, d.z)))
             let t2 = world.loadSync(center: pos, radius: rd)
             t.mesh += t2.mesh
             print("redstone bench: lamp A \(Blocks.key(world.block(bx + 9, gy + 1, bz))), piston \(Blocks.key(world.block(bx + 1, gy + 1, bz + 3))), lamp C \(Blocks.key(world.block(bx + 5, gy + 1, bz + 6))) / \(Blocks.key(world.block(bx + 11, gy + 1, bz + 6))), wire E \(Blocks.key(world.block(bx + 11, gy + 1, bz + 10)))")

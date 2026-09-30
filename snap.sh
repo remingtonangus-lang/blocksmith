@@ -60,4 +60,4 @@ done
 "$BIN" --snapshot snaps/end_outer.png --seed 12345 --dim end --x 1250 --z 40 --yaw 90 --pitch -15 --up 10
 "$BIN" --snapshot snaps/end_city.png --seed 12345 --dim end --structure end_city --yaw 45 --pitch -18 --up 25 --rd 8
 "$BIN" --snapshot snaps/portal.png --seed 12345 --yaw 30 --pitch -5 --time 0.3 --up 1 --portal
-"$BIN" --snapshot snaps/redstone.png --seed 12345 --yaw 225 --pitch -38 --time 0.3 --up 7 --redstone --x 2000 --z 2000
+"$BIN" --snapshot snaps/redstone.png --seed 12345 --yaw 225 --pitch -38 --time 0.3 --up 7 --redstone
