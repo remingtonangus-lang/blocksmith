@@ -799,6 +799,7 @@ enum Snapshot {
         if CommandLine.arguments.contains("--underwater") {
             // Head under the sea surface (fog, overlay, water seen from below).
             game.player.pos.y = Float(SEA) - 4
+            game.player.headInWater = true
         }
         _ = renderer.renderToPNG(path: out, width: w, height: h) // warm-up (pipeline + residency)
         _ = renderer.renderToPNG(path: out, width: w, height: h)

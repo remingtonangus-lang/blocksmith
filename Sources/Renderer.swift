@@ -213,7 +213,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         let cmd = queue.makeCommandBuffer()!
         cmd.addCompletedHandler { [inflight] _ in inflight.signal() }
         let sky = game.skyColor
-        let clear = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInWater ? V3(0.05, 0.12, 0.3) : sky)
+        let clear = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInWater ? game.underwaterFog : sky)
         rpd.colorAttachments[0].clearColor = MTLClearColor(red: Double(clear.x), green: Double(clear.y), blue: Double(clear.z), alpha: 1)
         let enc = cmd.makeRenderCommandEncoder(descriptor: rpd)!
         let s = view.drawableSize
@@ -270,9 +270,9 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         let sky = game.skyColor
         let hasSky = game.dim.dim.hasSky
-        var fogEnd: Float = underwater ? 20 : (game.dim.dim == .nether ? min(rd * 16 - 6, 96) : rd * 16 - 6)
+        var fogEnd: Float = underwater ? 28 : (game.dim.dim == .nether ? min(rd * 16 - 6, 96) : rd * 16 - 6)
         var fogStart: Float = underwater ? 1 : fogEnd * 0.62
-        var fogColor = underwater ? V3(0.05, 0.12, 0.3) : sky
+        var fogColor = underwater ? game.underwaterFog : sky
         if let bf = game.blindFog { fogEnd = min(fogEnd, bf); fogStart = bf * 0.2; fogColor = V3(0, 0, 0) }
         let daylight = game.daylight
         // Night vision lifts every light level toward full brightness.
@@ -745,7 +745,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
         func textWidth(_ str: String, _ scale: Float) -> Float { Float(Font.width(str)) * scale }
 
-        if game.player.headInWater { rect(0, 0, W, H, V4(0.05, 0.15, 0.45, 0.35)) }
+        if game.player.headInWater { rect(0, 0, W, H, V4(0.05, 0.15, 0.45, 0.18)) }
         if game.sleeping > 0 { rect(0, 0, W, H, V4(0.02, 0.02, 0.06, min(1, game.sleeping / 1.5))) }
         if game.hurtFlash > 0 { rect(0, 0, W, H, V4(0.75, 0.02, 0.02, min(0.45, game.hurtFlash * 1.3))) }
         if game.portalTime > 0 { rect(0, 0, W, H, V4(0.45, 0.1, 0.8, min(0.7, game.portalTime / 4 * 0.7))) }
@@ -1566,7 +1566,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         rpd.colorAttachments[0].texture = color
         rpd.colorAttachments[0].loadAction = .clear
         rpd.colorAttachments[0].storeAction = .store
-        let sky = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInWater ? V3(0.05, 0.12, 0.3) : game.skyColor)
+        let sky = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInWater ? game.underwaterFog : game.skyColor)
         rpd.colorAttachments[0].clearColor = MTLClearColor(red: Double(sky.x), green: Double(sky.y), blue: Double(sky.z), alpha: 1)
         rpd.depthAttachment.texture = depth
         rpd.depthAttachment.loadAction = .clear
