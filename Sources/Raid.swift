@@ -242,6 +242,7 @@ extension Game {
         let biome = world.gen.column(x, z).biome
         if biome == .mushroomFields || nearVillage(V3(Float(x), player.pos.y, Float(z))) != nil { return }
         let n = Int(ceilf(effectiveDifficulty)) + 1
+        var leader: Mob?
         for i in 0..<n {
             let px = x + (i == 0 ? 0 : Int.random(in: 0..<5) - Int.random(in: 0..<5))
             let pz = z + (i == 0 ? 0 : Int.random(in: 0..<5) - Int.random(in: 0..<5))
@@ -250,7 +251,9 @@ extension Game {
             let b = world.block(px, y, pz)
             if Blocks.isLiquid(b) || world.lightAt(px, y + 1, pz).block > 8 { continue }
             let m = Mob(.pillager, at: V3(Float(px) + 0.5, Float(y + 1), Float(pz) + 0.5))
-            if i == 0 { m.captain = true }
+            if leader == nil { m.captain = true; leader = m }
+            m.patrolling = true
+            m.patrolLeader = leader
             m.persistent = false
             m.applyRaidBuffs(wave: 0, level: 0)
             mobs.mobs.append(m)
@@ -320,6 +323,26 @@ extension Mob {
         return Mob.hardMode ? 2 : 3
     }
     static var hardMode = false
+
+    // Patrol goal (reference): the captain walks toward a far point, picking a new one on arrival; the
+    // others keep within 4 blocks of the captain. Returns the walk speed, or nil when not patrolling.
+    func patrolStep(_ g: Game) -> Float? {
+        guard patrolling, !raider else { return nil }
+        if captain {
+            if let p = patrolGoal, simd_length(V2(p.x - pos.x, p.z - pos.z)) > 4 {
+                face(p)
+            } else {
+                let a = Float.random(in: 0..<(2 * .pi))
+                patrolGoal = pos + V3(cosf(a) * 80, 0, sinf(a) * 80)
+                face(patrolGoal ?? pos)
+            }
+            return spec.speed * 0.6
+        }
+        guard let l = patrolLeader, l.health > 0 else { patrolling = false; return nil }
+        if simd_length(V2(l.pos.x - pos.x, l.pos.z - pos.z)) > 4 { face(l.pos); return spec.speed * 0.7 }
+        wander()
+        return moving ? spec.speed * 0.3 : 0
+    }
 
     var isZombie: Bool { kind == .zombie || kind == .husk || kind == .drowned || kind == .zombieVillager }
 

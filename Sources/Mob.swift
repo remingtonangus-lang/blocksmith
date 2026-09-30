@@ -331,6 +331,9 @@ final class Mob {
     var reinforceChance = Float.random(in: 0..<0.1)
     var trap = false                // skeleton trap horse
     var carriedBlock: BlockID = 0   // voidwalker: block it picked up
+    var patrolling = false          // marauder patrol member (Raid.swift patrolTick)
+    weak var patrolLeader: Mob?
+    var patrolGoal: V3?
     var hasEgg = false              // turtle / frog / snuffler carrying an egg after breeding
     var hive: IVec3?                // bee: its nest / hive (Bees.swift)
     var nectar = false
@@ -687,7 +690,7 @@ final class Mob {
                     if kind == .caveSpider { g.applyEffect(.poison, amp: 0, seconds: 7) }
                     if kind == .husk { g.applyEffect(.hunger, amp: 0, seconds: 7) }
                 }
-            } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
+            } else if let ps = patrolStep(g) { speed = ps } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .ranged:
             if kind == .illusioner && canTarget { illusionerSpells(dt, g) }
             if let v = villagerTarget(g), !(canTarget && dist <= simd_length(v.pos - pos)), w.canSee(eye, v.pos + V3(0, v.height * 0.6, 0)) {
@@ -714,7 +717,7 @@ final class Mob {
                     tipArrow(g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 40 : 32 + Float.random(in: -3...3), fromPlayer: false, damage: 2))
                     g.sfx(.bow, 0.7, at: pos)
                 }
-            } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
+            } else if let ps = patrolStep(g) { speed = ps } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .creeper:
             if canTarget {
                 face(player)
