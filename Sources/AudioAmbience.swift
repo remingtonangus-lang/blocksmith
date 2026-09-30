@@ -131,6 +131,15 @@ extension Game {
         emitter("spawner", .spawnerLoop, base: 0.4, per: 0.1, cap: 0.7)
         emitter("anchor", .respawnAnchorLoop, base: 0.3, per: 0.1, cap: 0.5)
         emitter("bubbles", .underwaterLoop, base: 0.2, per: 0.02, cap: 0.5)
+        // Lava pops now and then; drips near driprock.
+        if let e = a.emitters["lava"], simd_length(e.pos - eye) < 12, Float.random(in: 0..<1) < dt * min(1.5, 0.3 + 0.05 * Float(e.count)) {
+            let j = V3(Float.random(in: -2...2), 0.4, Float.random(in: -2...2))
+            sfx(.lavaPop, 0.7, at: e.pos + j)
+        }
+        if a.caveBiome == 3 && Float.random(in: 0..<1) < dt * 0.25 {
+            let j = V3(Float.random(in: -6...6), Float.random(in: 0...3), Float.random(in: -6...6))
+            sfx(.caveDrip, 0.4, at: eye + j)
+        }
 
         // Weather.
         if dim.dim == .overworld && weather.rain > 0.05 {
