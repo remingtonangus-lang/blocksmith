@@ -810,8 +810,14 @@ if let dir = arg("--sounds") {
     var list = SoundBank.allSounds
     for inst in 0..<13 { list.append(.note(inst, 12)) }
     var byCategory: [SoundCategory: Int] = [:]
+    var slow: [(String, Double)] = []
     for s in list {
+        let r0 = CFAbsoluteTimeGetCurrent()
         let c = SoundBank.render(s, variant: 0)
+        slow.append((s.name, (CFAbsoluteTimeGetCurrent() - r0) * 1000))
+        // Takes must differ (variation) and be deterministic (same seed, same samples).
+        if SoundBank.variants(for: s) > 1 && SoundBank.render(s, variant: 1) == c { failures += 1; print("FAIL \(s.name): variants identical") }
+        if s.name.hasPrefix("step_stone") && SoundBank.render(s, variant: 0) != c { failures += 1; print("FAIL \(s.name): not deterministic") }
         let chk = SoundBank.check(s, c)
         total += c.count
         byCategory[s.category, default: 0] += 1
@@ -819,6 +825,8 @@ if let dir = arg("--sounds") {
         if !chk.ok { failures += 1; print("FAIL \(s.name): \(chk.problems.joined(separator: ", "))") }
     }
     for c in SoundCategory.allCases where byCategory[c] != nil { print("  \(c.label): \(byCategory[c]!) sounds") }
+    slow.sort { $0.1 > $1.1 }
+    print("  slowest renders: " + slow.prefix(6).map { String(format: "%@ %.0f ms", $0.0 as NSString, $0.1) }.joined(separator: ", "))
     print(String(format: "synthesized %ld sounds (%.1f s of audio) in %.0f ms, %ld failed", list.count, Double(total) / SoundBank.rate, (CFAbsoluteTimeGetCurrent() - t0) * 1000, failures))
     exit(failures == 0 ? 0 : 1)
 }
@@ -831,6 +839,9 @@ if let dir = arg("--music") {
     let seconds: Float = Float(arg("--seconds") ?? "") ?? 20
     for mood in MusicMood.allCases {
         let score = Composer.compose(mood, seed: 12345)
+        let again = Composer.compose(mood, seed: 12345), other = Composer.compose(mood, seed: 999)
+        if again.notes.count != score.notes.count || again.length != score.length { failures += 1; print("FAIL \(mood.rawValue): composer not deterministic") }
+        if other.notes.count == score.notes.count && other.length == score.length && other.title == score.title { print("note \(mood.rawValue): seeds 12345 and 999 gave the same shape") }
         let want = min(score.length, seconds)
         let x = MusicRenderer.renderMono(score, seconds: want)
         var peak: Float = 0, sq: Float = 0, sum: Float = 0, nan = 0
