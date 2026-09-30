@@ -336,6 +336,7 @@ final class Mob {
     var reinforceChance = Float.random(in: 0..<0.1)
     var trap = false                // skeleton trap horse
     var carriedBlock: BlockID = 0   // voidwalker: block it picked up
+    var canPickUp = false           // zombie / skeleton that picks up gear (55% x regional difficulty)
     var emergeTime: Float = 0       // deep stalker digging out of the ground (invulnerable meanwhile)
     var patrolling = false          // marauder patrol member (Raid.swift patrolTick)
     weak var patrolLeader: Mob?
@@ -469,6 +470,7 @@ final class Mob {
             if effects?.has(.fireResistance) ?? false { fire = 0 }
         }
         effectTick(dt, g)
+        if canPickUp { pickUpLoot(g) }
         if conversionTick(dt, g) { return }
         if trap { trapTick(g) }
         if spec.aquatic { updateAquatic(dt, g, inWater: inWater); return }

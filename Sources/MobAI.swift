@@ -336,6 +336,24 @@ extension Mob {
         if p == 1 { wander(); return moving ? spec.speed * 0.3 : 0 }                                    // lazy
         return nil
     }
+
+    // Picks up armour for an empty slot and a weapon for an empty hand lying at its feet; a mob holding
+    // picked-up gear no longer despawns (reference).
+    func pickUpLoot(_ g: Game) {
+        for e in g.drops.items where !e.stack.isEmpty && e.pickupDelay <= 0 && simd_length(e.pos - pos) < 1.3 {
+            let d = e.stack.def
+            var eq = equip ?? [ItemStack](repeating: .empty, count: 5)
+            if let slot = d.armorSlot, eq[slot.rawValue].isEmpty {
+                eq[slot.rawValue] = ItemStack(e.stack.item, 1, damage: e.stack.damage)
+            } else if eq[4].isEmpty && (d.tool == .sword || d.tool == .axe || Items.key(e.stack.item) == "bow") {
+                eq[4] = e.stack
+            } else { continue }
+            var st = e.stack; st.count -= 1; e.stack = st.count > 0 ? st : .empty
+            equip = eq
+            persistent = true
+            return
+        }
+    }
 }
 
 extension Game {
@@ -374,4 +392,3 @@ extension Game {
         }
     }
 }
-

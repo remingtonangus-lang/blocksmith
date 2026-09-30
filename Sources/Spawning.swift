@@ -357,6 +357,7 @@ extension MobManager {
     func finishMonster(_ m: Mob, _ game: Game) {
         let w = game.world
         m.rollEquipment(difficulty: game.difficulty, regional: game.regionalDifficulty)
+        m.canPickUp = ArmorLook.fits(m.kind) && Float.random(in: 0..<1) < 0.55 * game.regionalDifficulty
         // Sunken: 10% hold something - 10 in 16 a trident, else a fishing rod; 3% a nautilus shell.
         if m.kind == .drowned && Float.random(in: 0..<1) > 0.9 {
             let n = Int.random(in: 0..<16) < 10 ? "trident" : "fishing_rod"
