@@ -60,6 +60,8 @@ B close, RS scroll creative.
   anvil names) works pad-only too via the on-screen keyboard (Y in any text screen).
 
 ## Polish (latest)
+- Poses: sprint-swimming (0.6 tall, follows the view), crawling when there is no headroom, forced crouch under
+  1.5-high gaps (sneak height 1.5, eye 1.27).
 - Mob navigation: A* over block cells (walk, jump one, drop three, swim; avoids lava/fire/cactus/fence tops) for
   every mob walking towards something (chasing, food, beds, job sites); 4 searches / 1.5 ms per tick. --pathtest: a zombie
   walks around a 17-block wall to the player in ~9 s.

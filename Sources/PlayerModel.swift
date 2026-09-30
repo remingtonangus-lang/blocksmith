@@ -25,7 +25,7 @@ func writePlayerModel(_ g: Game, eye: V3, daylight: Float, into out: UnsafeMutab
         Part(mn: V3(4, 12, -2.01), mx: V3(8, 15, 2.01), pivot: V3(6, 22, 0), rotX: walk + hit, color: skin),
     ]
     // Head turns with the view pitch around the neck.
-    let neck = V3(0, 24, 0), pitch = p.pitch
+    let neck = V3(0, 24, 0), pitch = p.prone ? p.pitch + .pi / 2 * 0.8 : p.pitch
     func head(_ mn: V3, _ mx: V3, _ c: V3) -> Part { Part(mn: mn, mx: mx, pivot: neck, rotX: pitch, color: c) }
     parts.append(head(V3(-4, 24, -4), V3(4, 32, 4), skin))
     parts.append(head(V3(-4.2, 29.5, -4.2), V3(4.2, 32.3, 4.2), armor[0].isEmpty ? hair : tone(0, hair)))
@@ -48,7 +48,11 @@ func writePlayerModel(_ g: Game, eye: V3, daylight: Float, into out: UnsafeMutab
     let order = [0, 1, 2, 0, 2, 3]
     let cy = cosf(p.yaw), sy = sinf(p.yaw)
     let sneak: Float = p.sneaking && !p.flying ? -0.15 : 0
-    let base = p.pos + V3(0, sneak, 0) - eye
+    let base = p.pos + V3(0, p.prone ? 0.3 : sneak, 0) - eye
+    // Swimming / crawling / gliding: the whole body lies along the view, head first.
+    let tilt: Float = p.prone ? -.pi / 2 : 0
+    let ct = cosf(tilt), st = sinf(tilt)
+    let lift: Float = p.prone ? -0.9 : 0
     var n = 0
     for part in parts {
         if n + 36 > capacity { return n }
@@ -61,6 +65,10 @@ func writePlayerModel(_ g: Game, eye: V3, daylight: Float, into out: UnsafeMutab
                 var q = lp - part.pivot
                 q = V3(q.x, q.y * ca - q.z * sa, q.y * sa + q.z * ca) + part.pivot
                 q *= 0.9375 / 16
+                if tilt != 0 {
+                    let yy = q.y + lift
+                    q = V3(q.x, yy * ct - q.z * st, yy * st + q.z * ct)
+                }
                 let r = V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z) + base
                 out[n] = MobVert(pos: V4(r, part.pattern), color: V4(part.color, faceShade[f] * bright), local: V4(lp, 0))
                 n += 1

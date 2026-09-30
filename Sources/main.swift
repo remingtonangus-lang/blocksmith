@@ -93,6 +93,11 @@ enum Snapshot {
             game.cameraMode = Int(c) ?? 1
             game.inventory.armor[0] = ItemStack(Items.id("iron_helmet"), 1)
             game.inventory.main[game.selected] = ItemStack(Items.id("iron_pickaxe"), 1)
+            if CommandLine.arguments.contains("--swim") {
+                game.player.flying = false
+                game.player.swimming = true
+                game.player.pos.y = Float(SEA) - 0.35
+            }
         }
         if CommandLine.arguments.contains("--debug") {
             game.showDebug = true

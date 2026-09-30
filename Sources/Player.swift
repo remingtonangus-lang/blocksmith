@@ -38,11 +38,15 @@ final class Player {
     var impact: Float = 0          // kinetic energy of the last wall hit while gliding (Game turns it into damage)
     private var glideAcc: Float = 0
 
+    var swimming = false           // sprint-swimming: 0.6 tall, moves along the look direction
+    var crawling = false           // no headroom to stand (after swimming into a low gap): 0.6 tall
+
     let halfW: Float = 0.3
-    let height: Float = 1.8
+    var prone: Bool { swimming || crawling || gliding }
+    var height: Float { prone ? 0.6 : (sneaking && !flying ? 1.5 : 1.8) }
     let eyeHeight: Float = 1.62
 
-    var eye: V3 { pos + V3(0, (sneaking && !flying) ? eyeHeight - 0.15 : eyeHeight, 0) }
+    var eye: V3 { pos + V3(0, prone ? 0.4 : ((sneaking && !flying) ? eyeHeight - 0.35 : eyeHeight), 0) }
     var look: V3 { V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch)) }
 
     func collides(at p: V3, _ w: World) -> Bool {
@@ -64,12 +68,21 @@ final class Player {
         // Freeze until the chunk under us exists, so we never fall through ungenerated terrain.
         guard w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) else { return }
 
+        // Pose: sprint-swim in water; crawl when there is no room to stand or sneak.
+        let wet = Blocks.isLiquid(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))
+        if swimming {
+            if !(wet && input.sprint && input.forward > 0) || flying { swimming = false }
+        } else if !flying && input.sprint && input.forward > 0 && headInWater { swimming = true }
+        func fits(_ h: Float) -> Bool { !w.collides(V3(pos.x - halfW, pos.y, pos.z - halfW), V3(pos.x + halfW, pos.y + h, pos.z + halfW)) }
+        crawling = !flying && !swimming && !gliding && fits(0.6) && !fits(1.5)
+        let forcedCrouch = !flying && !prone && fits(1.5) && !fits(1.8)
+
         // Unstuck: if spawned or placed inside a block, pop upward.
         var tries = 0
         while collides(at: pos, w) && tries < 64 { pos.y += 1; tries += 1 }
 
         let feet = w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.1)), Int(floor(pos.z)))
-        let body = w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.9)), Int(floor(pos.z)))
+        let body = w.block(Int(floor(pos.x)), Int(floor(pos.y + (prone ? 0.3 : 0.9))), Int(floor(pos.z)))
         inWater = Blocks.isLiquid(feet) || Blocks.isLiquid(body)
         let e = eye
         headInWater = Blocks.isLiquid(w.block(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))))
@@ -79,8 +92,8 @@ final class Player {
         if gliding && (onGround || inWater || flying) { gliding = false }
         if gliding { glide(dt, w); return }
 
-        sneaking = input.sneak && !flying
-        sprinting = input.sprint && input.forward > 0 && !sneaking
+        sneaking = (input.sneak || forcedCrouch) && !flying && !prone
+        sprinting = (input.sprint && input.forward > 0 && !sneaking) || swimming
 
         let f = V3(-sinf(yaw), 0, -cosf(yaw))
         let r = V3(cosf(yaw), 0, -sinf(yaw))
@@ -96,7 +109,7 @@ final class Player {
             if depthStrider > 0 { speed += (4.317 - speed) * Float(min(3, depthStrider)) / 3 }
             if dolphinsGrace { speed *= 2.2 }
         }
-        else if sneaking { speed = 4.317 * min(1, 0.3 + 0.15 * Float(swiftSneak)) }
+        else if sneaking || crawling { speed = 4.317 * min(1, 0.3 + 0.15 * Float(swiftSneak)) }
         else { speed = sprinting ? 5.612 : 4.317 }
         if !flying { speed *= speedMul }
         if soulSpeed > 0 && onGround {
@@ -116,6 +129,14 @@ final class Player {
             if input.sneak { vy -= 1 }
             let ty = vy * (sprinting ? 12 : 8)
             vel.y += (ty - vel.y) * (1 - expf(-10 * dt))
+        } else if swimming {
+            // Sprint-swimming goes where you look (dive and surface with the view), about sprint speed.
+            var sp: Float = 5.6 * speedMul
+            if depthStrider > 0 { sp *= 1 + 0.1 * Float(min(3, depthStrider)) }
+            if dolphinsGrace { sp *= 1.8 }
+            let t = look * sp
+            let ks = 1 - expf(-5 * dt)
+            vel += (t - vel) * ks
         } else if inWater {
             vel.y -= 9 * dt
             vel.y *= expf(-2.5 * dt)
