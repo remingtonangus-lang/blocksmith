@@ -11,9 +11,15 @@ final class SubtitleState {
 
 extension AudioSettings {
     static var forceSubtitles = false        // harness only (not saved)
+    private static var subtitlesCache: Bool? = nil
     static var subtitles: Bool {
-        get { forceSubtitles || UserDefaults.standard.bool(forKey: "audio_subtitles") }
-        set { UserDefaults.standard.set(newValue, forKey: "audio_subtitles") }
+        get {
+            if let c = subtitlesCache { return forceSubtitles || c }
+            let v = UserDefaults.standard.bool(forKey: "audio_subtitles")
+            subtitlesCache = v
+            return forceSubtitles || v
+        }
+        set { subtitlesCache = newValue; UserDefaults.standard.set(newValue, forKey: "audio_subtitles") }
     }
 }
 
