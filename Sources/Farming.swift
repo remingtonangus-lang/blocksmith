@@ -287,6 +287,13 @@ extension Game {
             sfx(.step(.plant), 1, at: m.pos)
             return true
         }
+        if key == "name_tag", let l = held.label, !l.isEmpty {
+            m.customName = l
+            m.persistent = true
+            consumeHeld()
+            return true
+        }
+        if m.kind == .villager && !m.baby { return openTrading(m) }
         if m.kind == .cow && key == "bucket" && !m.baby {
             consumeHeld()
             let rest = inventory.add(ItemStack(Items.id("milk_bucket"), 1))

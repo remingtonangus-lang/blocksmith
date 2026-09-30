@@ -65,4 +65,6 @@ done
 "$BIN" --snapshot snaps/enchant.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu enchant
 "$BIN" --snapshot snaps/anvil.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu anvil
 "$BIN" --snapshot snaps/effects.png --seed 12345 --yaw 30 --pitch -12 --time 0.75 --effects --slot 2
-"$BIN" --snapshot snaps/magic_blocks.png --seed 12345 --yaw 30 --pitch -25 --time 0.3 --up 1 --place brewing_stand:5,enchanting_table,beacon,anvil,chipped_anvil,water_cauldron:2,lava_cauldron,bookshelf
+"$BIN" --snapshot snaps/magic_blocks.png --seed 12345 --yaw 30 --pitch -25 --time 0.3 --up 1 --find plains --place brewing_stand:5,enchanting_table,beacon,anvil,chipped_anvil,water_cauldron:2,lava_cauldron,bookshelf
+"$BIN" --snapshot snaps/trade.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu trade
+"$BIN" --snapshot snaps/villagers.png --seed 12345 --structure village --frame 0.35 --time 0.3 --ticks 12

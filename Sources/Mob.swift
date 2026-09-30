@@ -157,6 +157,18 @@ final class Mob {
     weak var target: Mob?           // golem: the monster it is chasing
     var effects: EffectSet?         // status effects (allocated on first use)
     var lootingLevel = 0            // Looting on the weapon that last hit it
+    var villager: VillagerData?     // profession, level, trades
+    var customName: String?         // name tag
+    var owner: Bool?                // tamed by the player (wolves, cats, horses, parrots)
+    var variant = 0                 // colour / breed variant
+    var sitting = false
+    var collar = 0
+    var saddled = false
+    var armorTier = 0               // horse / wolf armour
+    var chested = false
+    var raider = false              // part of a raid
+    var captain = false             // raid / patrol captain (banner)
+    var jobTimer: Float = Float.random(in: 0...5)
 
     init(_ kind: MobKind, at p: V3) {
         self.kind = kind
@@ -362,8 +374,26 @@ final class Mob {
                 }
             } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .villager:
-            // Wander near home; run from zombies.
+            // Wander near home; run from zombies; claim a job site; work there by day; restock.
             if home == nil { home = pos }
+            jobTimer -= dt
+            if jobTimer <= 0 {
+                jobTimer = 5
+                if villager == nil {
+                    var v = VillagerData()
+                    let b = g.world.gen.column(Int(floor(pos.x)), Int(floor(pos.z))).biome
+                    v.type = Villagers.type(for: b)
+                    // One in ~8 village villagers is a nitwit (reference spawn odds for unemployed variants).
+                    if !baby && Float.random(in: 0..<1) < 0.12 { v.profession = "nitwit" }
+                    villager = v
+                }
+                findJob(g)
+                restock(g)
+            }
+            if let js = villager?.jobSite, g.dayFraction > 0.05 && g.dayFraction < 0.45, aiTimer <= 0, Float.random(in: 0..<1) < 0.3 {
+                let site = V3(Float(js[0]) + 0.5, Float(js[1]), Float(js[2]) + 0.5)
+                if simd_length(site - pos) > 2.5 { face(site); moving = true; aiTimer = 2 }
+            }
             if let z = g.mobs.mobs.first(where: { ($0.kind == .zombie) && simd_length($0.pos - pos) < 8 }) {
                 face(pos * 2 - z.pos); speed = 2.2; moving = true
             } else {
@@ -892,8 +922,18 @@ private func parts(_ m: Mob) -> [Part] {
             box(-8, 0, -7, 3, 2, 1, dark), box(5, 0, -7, 3, 2, 1, dark), box(-8, 0, 6, 3, 2, 1, dark), box(5, 0, 6, 3, 2, 1, dark),
         ]
     case .villager:
-        let robe = V3(0.45, 0.32, 0.22), skin = V3(0.72, 0.52, 0.42)
-        return [
+        // Robe colour from the biome type; apron / hat colour from the profession.
+        let v = m.villager
+        let robes: [String: V3] = ["plains": V3(0.45, 0.32, 0.22), "desert": V3(0.72, 0.58, 0.34), "savanna": V3(0.62, 0.36, 0.2),
+                                   "snow": V3(0.36, 0.45, 0.6), "jungle": V3(0.32, 0.46, 0.2), "swamp": V3(0.3, 0.38, 0.3),
+                                   "taiga": V3(0.42, 0.3, 0.24)]
+        let jobs: [String: V3] = ["farmer": V3(0.85, 0.75, 0.4), "librarian": V3(0.62, 0.16, 0.15), "cleric": V3(0.5, 0.2, 0.56),
+                                  "armorer": V3(0.18, 0.18, 0.2), "butcher": V3(0.92, 0.92, 0.9), "cartographer": V3(0.3, 0.36, 0.62),
+                                  "fisherman": V3(0.56, 0.46, 0.26), "fletcher": V3(0.42, 0.56, 0.3), "leatherworker": V3(0.46, 0.3, 0.16),
+                                  "mason": V3(0.5, 0.5, 0.52), "shepherd": V3(0.82, 0.82, 0.8), "toolsmith": V3(0.3, 0.3, 0.36),
+                                  "weaponsmith": V3(0.24, 0.24, 0.26), "nitwit": V3(0.3, 0.55, 0.3)]
+        let robe = robes[v?.type ?? "plains"] ?? V3(0.45, 0.32, 0.22), skin = V3(0.72, 0.52, 0.42)
+        var parts = [
             Part(mn: V3(-4, 0, -3), mx: V3(-0.01, 12, 3), pivot: V3(-2, 12, 0), rotX: swing, color: robe, pattern: 4),
             Part(mn: V3(0.01, 0, -3), mx: V3(4, 12, 3), pivot: V3(2, 12, 0), rotX: -swing, color: robe, pattern: 4),
             box(-4, 12, -3, 8, 12, 6, robe, 4),
@@ -902,6 +942,15 @@ private func parts(_ m: Mob) -> [Part] {
             box(-6, 17, -5, 12, 4, 3, robe, 4),                                               // folded arms
             box(-4, 30, -4.2, 8, 1, 0.3, V3(0.3, 0.2, 0.15)),                                 // brow
         ] + eyes(28.5, -4, 1, 1.2, V3(0.2, 0.5, 0.2))
+        if let p = v?.profession, let c = jobs[p] {
+            if p == "nitwit" { parts[2].color = c } else { parts.append(box(-4.2, 4, -3.3, 8.4, 20, 0.3, c, 4)) }       // apron
+            if ["farmer", "fisherman", "fletcher", "shepherd"].contains(p) { parts.append(box(-6, 34, -6, 12, 1, 12, c, 4)); parts.append(box(-4, 34, -4, 8, 2, 8, c, 4)) }
+            if p == "librarian" || p == "cartographer" { parts.append(box(-4.5, 34, -4.5, 9, 1.5, 9, c, 4)) }
+            if p == "armorer" { parts.append(box(-4.3, 27, -4.4, 8.6, 5, 0.4, c)) }             // welding mask
+            if p == "weaponsmith" { parts.append(box(-3, 28, -4.4, 2.5, 2, 0.4, V3(0.1, 0.1, 0.1))) } // eye patch
+            if p == "cleric" { parts.append(box(-4.3, 31, -4.3, 8.6, 4, 8.6, c, 4)) }            // hood top
+        }
+        return parts
     case .ironGolem:
         let iron = V3(0.82, 0.8, 0.76), vine = V3(0.3, 0.55, 0.2)
         let armSwing = m.attackCooldown > 0.9 ? -1.4 : swing * 0.5
@@ -994,6 +1043,8 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
 
 final class MobManager {
     var mobs: [Mob] = []
+    var stored: [ChunkKey: [MobRecord]] = [:]     // mobs outside the loaded area (see MobSave.swift)
+    private var restoreTimer: Float = 0
     static let passiveCap = 16
     static let hostileCap = 35
     private var passiveTimer: Float = 2
@@ -1044,12 +1095,17 @@ final class MobManager {
         mobs.removeAll { m in
             if m.health <= 0 { return true }
             let d = simd_length(V2(m.pos.x - p.x, m.pos.z - p.z))
-            if abs(m.pos.x - p.x) > limit || abs(m.pos.z - p.z) > limit || !w.isLoaded(Int(floor(m.pos.x)), Int(floor(m.pos.z))) { return true }
+            if abs(m.pos.x - p.x) > limit || abs(m.pos.z - p.z) > limit || !w.isLoaded(Int(floor(m.pos.x)), Int(floor(m.pos.z))) {
+                if m.keepOnUnload { stash(m) }
+                return true
+            }
             if m.kind.hostile && d > 128 { return true }
             if m.kind.hostile && !m.persistent && d > 32 && Float.random(in: 0..<1) < dt / 40 { return true }
             return false
         }
         mobs += spawned
+        restoreTimer -= dt
+        if restoreTimer <= 0 { restoreTimer = 1; restore(w, center: p, limit: limit) }
         passiveTimer -= dt
         if passiveTimer <= 0 {
             passiveTimer = 2

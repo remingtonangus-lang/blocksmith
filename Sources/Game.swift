@@ -207,6 +207,7 @@ final class Game {
     func saveNow() {
         guard persistent, let s = save else { return }
         world.saveAll()
+        mobs.save(to: world.save)
         s.saveMeta(meta)
     }
 
@@ -236,7 +237,11 @@ final class Game {
     // Moves the player to another dimension (saving and unloading the one we leave).
     func changeDimension(to d: Dim, at p: V3) {
         let old = world
+        let oldMobs = mobs
         if persistent { old.saveAll() }
+        for m in oldMobs.mobs where m.keepOnUnload { oldMobs.stash(m) }
+        oldMobs.mobs.removeAll()
+        if persistent { oldMobs.save(to: old.save) }
         let rd = old.renderDistance
         dim = dimensionState(d)
         world.renderDistance = rd
@@ -413,6 +418,9 @@ final class Game {
         if let c = creative {
             if input.scrollSteps != 0 { c.scrollBy(-input.scrollSteps) }
             if abs(rs.y) > 0.5 && (!navHeld || navTimer <= 0.05) { c.scrollBy(rs.y > 0 ? -1 : 1) }
+        }
+        if let mm = m as? MerchantMenu, input.scrollSteps != 0 {
+            mm.scroll = max(0, min(max(0, mm.offers.count - MerchantMenu.visible), mm.scroll - input.scrollSteps))
         }
         let mouse = V2(input.mouseX, input.mouseY)
         if input.mouseMoved, let s = m.slotAt(mouse, L), let i = m.slots.firstIndex(where: { $0 === s }) { menuCursor = i }

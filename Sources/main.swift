@@ -138,6 +138,22 @@ enum Snapshot {
                 game.inventory.main[10] = sword
                 game.menuCursor = 5 + 18 + 1
                 game.menuHover = m.slots[game.menuCursor]
+            case "trade":
+                game.survival = true
+                let v = Mob(.villager, at: pos + V3(2, 0, 0))
+                var d = VillagerData()
+                d.profession = arg("--profession") ?? "librarian"
+                d.level = 3; d.xp = 90
+                for l in 1...3 { Villagers.addOffers(&d, level: l) }
+                if d.offers.count > 1 { d.offers[1].uses = d.offers[1].maxUses }
+                v.villager = d
+                game.mobs.mobs.append(v)
+                game.inventory.main[9] = ItemStack(Items.id("emerald"), 40)
+                game.inventory.main[10] = ItemStack(Items.id("paper"), 30)
+                game.inventory.main[11] = ItemStack(Items.id("book"), 3)
+                let mm = MerchantMenu(game: game, villager: v)
+                game.openMenu(mm)
+                mm.buttonPressed(0)
             case "anvil":
                 game.survival = true
                 game.xpLevel = 12
@@ -337,6 +353,19 @@ enum Snapshot {
         var quads = 0, water = 0
         for (_, c) in world.chunks { for sec in c.sections { quads += sec.opaqueQuads; water += sec.transQuads } }
 
+        if let secs = Double(arg("--ticks") ?? "") {
+            // Let the world run (mobs, redstone, villagers) with the camera held still.
+            let keep = (game.player.pos, game.player.yaw, game.player.pitch)
+            game.paused = false
+            game.player.flying = true
+            for _ in 0..<Int(secs * 20) {
+                game.tick(0.05)
+                game.player.pos = keep.0; game.player.vel = .zero; game.player.yaw = keep.1; game.player.pitch = keep.2
+            }
+            var jobs: [String: Int] = [:]
+            for m in game.mobs.mobs where m.kind == .villager { jobs[m.villager?.profession ?? "?", default: 0] += 1 }
+            print("after \(secs) s: \(game.mobs.mobs.count) mobs, villagers \(jobs.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))")
+        }
         if let simSeconds = Double(arg("--sim") ?? "") {
             // Gameplay smoke test: scripted input through the real Game.tick (survival, walking, jumping,
             // breaking/placing, inventory, flowing water, mobs), timing the main-thread tick.

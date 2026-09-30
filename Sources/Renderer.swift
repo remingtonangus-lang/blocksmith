@@ -458,7 +458,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             uh.viewProj = perspectiveRH(fovy: 70 * .pi / 180, aspect: W / max(H, 1), near: 0.01, far: 8)
             uh.fogColor.w = 100; uh.params.x = 200
             let l = game.world.lightAt(Int(floor(eye.x)), Int(floor(eye.y)), Int(floor(eye.z)))
-            let light = max(0.12, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
+            let light = max(0.12, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15), game.nightVision * 0.9)
             let sw = game.swing
             let a = sinf(sqrtf(sw) * .pi)
             let bob = sinf(game.walkBob * 2) * 0.02 * game.walkAmount
@@ -739,7 +739,8 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let ct = "\(e.costs[i])"
                     text(ct, bx + 106 * s - textWidth(ct, s), by + 10 * s, s, ok ? V4(0.5, 1, 0.13, 1) : V4(0.25, 0.45, 0.1, 1))
                     if let c = e.clues[i] {
-                        let clue = Enchant.displayLine(c.0, c.1) + " . . . ?"
+                        var clue = Enchant.displayLine(c.0, c.1) + " . . . ?"
+                        while textWidth(clue, s) > 84 * s && clue.count > 4 { clue.removeLast() }
                         text(clue, bx + 18 * s, by + 3 * s, s, ok ? V4(0.2, 0.15, 0.3, 1) : V4(0.3, 0.3, 0.3, 1), shadow: false)
                     }
                 }
@@ -759,6 +760,39 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let ok = !a.tooExpensive && (!game.survival || game.xpLevel >= a.cost)
                     text(t, o.x + 168 * s - textWidth(t, s), o.y + 69 * s, s, ok ? V4(0.5, 1, 0.13, 1) : V4(1, 0.38, 0.38, 1))
                 }
+            }
+            if let mm = m as? MerchantMenu {
+                // Offer list: cost (and second cost) -> result; used-up offers are crossed out.
+                let offers = mm.offers
+                for i in 0..<MerchantMenu.visible {
+                    let idx = mm.scroll + i
+                    guard idx < offers.count else { break }
+                    let of = offers[idx]
+                    let x: Float = 4, y = o.y + Float(17 + 20 * i) * s
+                    let sel = idx == mm.selected, hov = game.menuHover === mm.slots[i]
+                    rect(o.x + x * s, y, 88 * s, 20 * s, V4(0.2, 0.2, 0.2, 1))
+                    rect(o.x + (x + 1) * s, y + s, 86 * s, 18 * s, sel ? V4(0.62, 0.62, 0.7, 1) : (hov ? V4(0.7, 0.7, 0.7, 1) : V4(0.55, 0.55, 0.55, 1)))
+                    let price = mm.price(of)
+                    itemIcon(price, o.x + (x + 3) * s, y + 2 * s, 16 * s)
+                    if price.count != of.buyA.count && !of.disabled {
+                        text("\(of.buyA.count)", o.x + (x + 3) * s, y + 1 * s, s * 0.8, V4(1, 0.4, 0.4, 1))
+                    }
+                    if !of.buyB.isEmpty { itemIcon(of.buyB, o.x + (x + 30) * s, y + 2 * s, 16 * s) }
+                    text(">", o.x + (x + 52) * s, y + 6 * s, s, of.disabled ? V4(0.8, 0.2, 0.2, 1) : V4(1, 1, 1, 1))
+                    itemIcon(of.sell, o.x + (x + 64) * s, y + 2 * s, 16 * s)
+                    if of.disabled { rect(o.x + (x + 1) * s, y + 9 * s, 86 * s, 2 * s, V4(0.8, 0.15, 0.15, 0.9)) }
+                }
+                // Level name and XP bar.
+                if let v = mm.mob?.villager {
+                    let lvl = max(1, min(5, v.level))
+                    let t = Villagers.levelNames[lvl - 1]
+                    text(t, o.x + 150 * s, o.y + 6 * s, s, titleC, shadow: false)
+                    let lo = Villagers.levelXP[lvl - 1], hi = lvl < 5 ? Villagers.levelXP[lvl] : lo + 1
+                    let f = lvl < 5 ? Float(v.xp - lo) / Float(max(1, hi - lo)) : 1
+                    rect(o.x + 136 * s, o.y + 16 * s, 102 * s, 5 * s, V4(0.2, 0.2, 0.2, 1))
+                    rect(o.x + 137 * s, o.y + 17 * s, 100 * s * max(0, min(1, f)), 3 * s, V4(0.5, 1, 0.13, 1))
+                }
+                rect(o.x + 186 * s, o.y + 40 * s, 22 * s, 6 * s, V4(0.55, 0.55, 0.55, 1))
             }
             for sl in m.slots where !sl.isButton {
                 let x = o.x + Float(sl.x - 1) * s, y = o.y + Float(sl.y - 1) * s
@@ -845,7 +879,9 @@ final class Renderer: NSObject, MTKViewDelegate {
                 quad([V2(x, y), V2(x + isz, y), V2(x + isz, y + isz), V2(x, y + isz)], uv4, V4(1, 1, 1, 1), Float(layer))
             }
             // Hearts: rows of ten (health boost adds rows), then golden absorption hearts; poison/wither tint them.
-            let heartTint: V4 = game.effects.has(.wither) ? V4(0.35, 0.3, 0.3, 1) : (game.effects.has(.poison) ? V4(0.6, 0.85, 0.3, 1) : V4(1, 1, 1, 1))
+            let heartKind = game.effects.has(.wither) ? "wither" : (game.effects.has(.poison) ? "poison" : "")
+            let fullH = heartKind.isEmpty ? HudTex.heart : Int(Tex.id("heart_" + heartKind))
+            let halfH = heartKind.isEmpty ? HudTex.heartHalf : Int(Tex.id("heart_\(heartKind)_half"))
             let slotsH = (game.maxHealth + 1) / 2
             let absorb = Int(game.absorption.rounded(.up))
             let totalHearts = slotsH + (absorb + 1) / 2
@@ -858,10 +894,10 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let x = x0 + Float(i % 10) * step, y = yh - Float(i / 10) * rowStep
                 if i < slotsH {
                     let h = game.health - i * 2
-                    heartSprite(h >= 2 ? HudTex.heart : (h == 1 ? HudTex.heartHalf : HudTex.heartEmpty), x, y, h > 0 ? heartTint : V4(1, 1, 1, 1))
+                    heartSprite(h >= 2 ? fullH : (h == 1 ? halfH : HudTex.heartEmpty), x, y, V4(1, 1, 1, 1))
                 } else {
                     let a = absorb - (i - slotsH) * 2
-                    heartSprite(a >= 2 ? HudTex.heart : HudTex.heartHalf, x, y, V4(1, 0.85, 0.2, 1))
+                    heartSprite(Int(Tex.id(a >= 2 ? "heart_gold" : "heart_gold_half")), x, y, V4(1, 1, 1, 1))
                 }
             }
             let hungerTint: V4 = game.effects.has(.hunger) ? V4(0.6, 0.8, 0.4, 1) : V4(1, 1, 1, 1)

@@ -172,7 +172,8 @@ extension Game {
     func endTick(_ dt: Float) {
         guard dim.dim == .end else { return }
         // The dragon is present until it has been killed (respawns if it was lost to unloading).
-        if !dragonKilled && !mobs.mobs.contains(where: { $0.kind == .enderDragon }) {
+        if !dragonKilled && !mobs.mobs.contains(where: { $0.kind == .enderDragon })
+            && !mobs.stored.values.contains(where: { $0.contains { $0.k == "ender_dragon" } }) {
             dragonSpawnTimer -= dt
             if dragonSpawnTimer <= 0 && world.isLoaded(0, 0) {
                 dragonSpawnTimer = 5

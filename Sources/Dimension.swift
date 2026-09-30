@@ -33,5 +33,5 @@ final class DimensionState {
     let drops = ItemEntityManager()
     let projectiles = ProjectileManager()
     let tnts = TNTManager()
-    init(dim: Dim, world: World) { self.dim = dim; self.world = world }
+    init(dim: Dim, world: World) { self.dim = dim; self.world = world; mobs.load(from: world.save) }
 }
