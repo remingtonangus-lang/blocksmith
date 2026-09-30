@@ -310,6 +310,14 @@ extension MusicDiscs {
         let moods: [MusicMood] = [.day, .night, .creative, .rain, .title, .hollow, .ember]
         var s = Composer.compose(moods[Int(h % UInt64(moods.count))], seed: h)
         let len = Float(all.first { $0.0 == name }?.2 ?? 120)
+        // Long discs repeat the piece (a second pass one step up) until the disc's length.
+        let piece = s.notes, span = max(30, s.length - 4)
+        var k = 1
+        while Float(k) * span < len - 4 {
+            let off = Float(k) * span, lift = Float(k % 2 == 1 ? 2 : 0)
+            s.notes += piece.map { n in var m = n; m.t += off; m.midi += lift; return m }
+            k += 1
+        }
         s.notes = s.notes.filter { $0.t < len - 4 }
         s.length = len
         s.title = title(name)
