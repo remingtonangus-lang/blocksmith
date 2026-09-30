@@ -155,6 +155,7 @@ extension Mob {
             face(mate.pos)
             return simd_length(mate.pos - pos) > halfW + 1 ? spec.speed : 0
         }
+        if kind == .panda, let sp = pandaAI(dt, g) { return sp }
         if home == nil && kind == .turtle { home = pos }            // home beach: where it first appeared
         if layEgg(g) { return spec.speed * 0.8 }
         // Rabbits hop; frogs hop and eat small slimes; armadillos roll up near danger.
@@ -494,7 +495,8 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
         p.append(box(-1, 14, -13.5, 2, 3, 1, c))                           // beard
         return p
     case .panda:
-        let w = V3(0.95, 0.95, 0.93), b = V3(0.12, 0.12, 0.12)
+        let brown = m.pandaPersonality == 4
+        let w = brown ? V3(0.72, 0.58, 0.45) : V3(0.95, 0.95, 0.93), b = brown ? V3(0.35, 0.22, 0.14) : V3(0.12, 0.12, 0.12)
         var p = quadruped(.zero, V3(13, 12, 20), legH: 8, head: V3(0, 12, -10), headSize: V3(12, 10, 8), w, legW: 5)
         for i in 0..<4 { p[2 + i].color = b }
         p.append(box(-5, 16, -18.3, 3, 3, 0.3, b)); p.append(box(2, 16, -18.3, 3, 3, 0.3, b))

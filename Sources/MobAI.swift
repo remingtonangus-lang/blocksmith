@@ -254,6 +254,10 @@ extension Mob {
             let colour = (Bool.random() ? a.variant : b.variant) & 15
             variant = colour | (sp << 4) | (jp << 8)
             health = (a.health + b.health + Int.random(in: 15...30)) / 3
+        } else if kind == .panda {
+            // One gene from each parent, with a 1 in 32 mutation.
+            func pick(_ v: Int) -> Int { Int.random(in: 0..<32) == 0 ? Mob.pandaGene() : (Bool.random() ? v & 7 : (v >> 3) & 7) }
+            variant = pick(a.variant) | (pick(b.variant) << 3)
         } else if a.kind == b.kind {
             variant = Bool.random() ? a.variant : b.variant
         }
@@ -289,6 +293,39 @@ extension Mob {
             hasEgg = false
             return false
         }
+    }
+
+    // Panda genes (reference): 0 normal, 1 lazy, 2 worried, 3 playful, 4 brown, 5 weak, 6 aggressive.
+    // Brown and weak are recessive: they only show when both genes match.
+    static func pandaGene() -> Int {
+        let r = Int.random(in: 0..<15)
+        if r == 0 { return 1 }
+        if r == 1 { return 2 }
+        if r == 2 { return 3 }
+        if r == 3 { return 5 }
+        if r == 4 { return 6 }
+        return Int.random(in: 0..<50) == 0 ? 4 : 0
+    }
+    var pandaPersonality: Int {
+        let main = variant & 7, hidden = (variant >> 3) & 7
+        return (main == 4 || main == 5) && main != hidden ? 0 : main
+    }
+
+    // Personality behaviour (from animalAI); returns a speed when it takes over, else nil.
+    func pandaAI(_ dt: Float, _ g: Game) -> Float? {
+        let p = pandaPersonality
+        if aggro && p != 6 { aggro = false; panic = max(panic, 5) }             // only aggressive pandas fight back
+        if p == 2 && g.weather.thunder > 0.5 { sitting = true; return 0 }       // worried: hides from storms
+        sitting = false
+        // Babies sneeze now and then (weak ones far more), dropping a slime ball and startling the others.
+        if baby && Float.random(in: 0..<1) < dt * 20 / (p == 5 ? 500 : 6000) {
+            if Items.has("slime_ball") { g.drops.spawn(ItemStack(Items.id("slime_ball"), 1), at: pos + V3(0, 0.4, 0)) }
+            for o in g.mobs.of(.panda) where o !== self && simd_length(o.pos - pos) < 10 { o.vel.y = 5 }
+            g.sfx(.mobPig, 0.7, at: pos)
+        }
+        if p == 3 && onGround && Float.random(in: 0..<1) < dt / 8 { vel += forward * 3 + V3(0, 4, 0) }   // playful roll
+        if p == 1 { wander(); return moving ? spec.speed * 0.3 : 0 }                                    // lazy
+        return nil
     }
 }
 
