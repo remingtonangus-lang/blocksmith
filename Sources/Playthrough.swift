@@ -58,9 +58,19 @@ final class Playthrough {
 
     // The death screen: log what killed the player, get up where they fell and pick their things back up.
     var deaths = 0
+    var inDeath = false
     func handleDeath() {
-        guard let dm = game.menu as? DeathMenu else { return }
+        guard !inDeath, let dm = game.menu as? DeathMenu else { return }
+        inDeath = true
+        defer { inDeath = false }
         deaths += 1
+        if deaths > 25 {
+            // A death loop: stop here with the report rather than running into the CI timeout.
+            check(false, "no death loop (\(deaths) deaths, last: \(dm.message))")
+            print("playthrough: aborted, \(fails.count) failed checks")
+            for f in fails { print("  failed: \(f)") }
+            exit(1)
+        }
         let at = game.player.pos
         info(String(format: "died (%@) at %.0f %.0f %.0f in %@", dm.message, at.x, at.y - Float(YOFF), at.z, game.dim.dim.rawValue))
         game.menu = nil
@@ -304,7 +314,16 @@ final class Playthrough {
         return t.fails.isEmpty ? 0 : 1
     }
 
-    func kit(_ names: [String]) { for n in names { give(n, 1) } }
+    func kit(_ names: [String]) { for n in names { give(n, 1) }; wearArmor() }
+
+    func wearArmor() {
+        let pieces = ["golden_helmet", "diamond_chestplate", "diamond_leggings", "diamond_boots"]
+        for (slot, n) in pieces.enumerated() {
+            if count(n) == 0 { give(n, 1, bulk: "armour") }
+            if let i = (0..<36).first(where: { Items.key(inv[$0].item) == n }) { game.inventory.armor[slot] = inv[i]; inv[i] = .empty }
+        }
+        check(game.inventory.armorPoints >= 17, "armour: \(game.inventory.armorPoints) armour points worn")
+    }
 
     // The story advancements a full run must have earned.
     func advancementsCheck(_ full: Bool) {
@@ -454,6 +473,13 @@ final class Playthrough {
         give("flint", 4, bulk: "gravel"); give("feather", 4, bulk: "chickens")
         craft(["F", "S", "E"], ["F": "flint", "S": "stick", "E": "feather"], "arrow", times: 4)
         check(count("diamond_pickaxe") == 1 && count("bow") == 1 && count("arrow") >= 16, "craft: diamond pickaxe, sword, bow, \(count("arrow")) arrows")
+        // Armour for the Emberdeep: diamond, with a golden helmet so boarlings stay calm.
+        give("diamond", 19, bulk: "more diamonds"); give("gold_ingot", 5, bulk: "gold ore")
+        craft(["DDD", "D D"], ["D": "gold_ingot"], "golden_helmet")
+        craft(["D D", "DDD", "DDD"], ["D": "diamond"], "diamond_chestplate")
+        craft(["DDD", "D D", "D D"], ["D": "diamond"], "diamond_leggings")
+        craft(["D D", "D D"], ["D": "diamond"], "diamond_boots")
+        wearArmor()
 
         // Obsidian (lava + water) needs the diamond pickaxe.
         section("obsidian + portal")
