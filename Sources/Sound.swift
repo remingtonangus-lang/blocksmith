@@ -14,6 +14,7 @@ enum Snd: Hashable {
     case splash, land, hurt, eat, click, open, mobCow, mobSheep, mobChicken, pickup, dig, attack, burp
     case mobPig, mobZombie, mobSkeleton, creeperHiss, mobSpider, mobEnderman, mobSlime, bow, explode, arrowHit, fizz, xp, levelUp
     case mobGhast, mobBlaze, mobPiglin, mobZombPiglin, fireball, mobVillager, mobGolem
+    case note(Int, Int)            // note block: instrument, pitch 0...24 (made on demand)
 }
 
 func soundMat(_ id: BlockID) -> SoundMat { Blocks.def(id).sound }
@@ -211,6 +212,24 @@ struct Synth {
         case .mobBlaze: out = Synth.mix(burst(1.0, lp: 1200 * p, hp: 90, attack: 0.15, decay: 0.7, gain: 1.4), grains(14, spread: 0.8, lp: 3000, hp: 800, decay: 0.01, gain: 0.5))
         case .mobPiglin: out = Synth.mix(voice(0.35, f0: 210 * p, f1: 160 * p, vib: 0.2, lp: 1100, gain: 1), voice(0.3, f0: 240 * p, f1: 170 * p, vib: 0.15, lp: 900, gain: 0.8), at: frames(0.3))
         case .mobZombPiglin: out = Synth.mix(voice(0.8, f0: 160 * p, f1: 110 * p, vib: 0.25, lp: 800, gain: 1.2), burst(0.8, lp: 600, hp: 80, attack: 0.1, decay: 0.4, gain: 0.3))
+        case .note(let inst, let n):
+            // Pitch 0 = F#3 for the harp family; bass instruments two octaves down, chimes two up.
+            let f: Float = 185 * powf(2, Float(n) / 12)
+            switch inst {
+            case 1: out = modes(0.5, [(f / 4, 0.9, 0.25), (f / 2, 0.3, 0.12)])                                   // bass
+            case 2: out = burst(0.18, lp: 5000, hp: 800, attack: 0.002, decay: 0.05, gain: 1.4)                  // snare
+            case 3: out = burst(0.08, lp: 12000, hp: 6000, attack: 0.001, decay: 0.02, gain: 1.2)                // hat
+            case 4: out = Synth.mix(modes(0.3, [(60 + f / 20, 1.2, 0.08)]), burst(0.05, lp: 800, hp: 40, decay: 0.02, gain: 1)) // bass drum
+            case 5: out = modes(1.2, [(f * 2, 0.6, 0.6), (f * 2 * 2.76, 0.25, 0.3), (f * 2 * 5.4, 0.1, 0.15)])  // bell
+            case 6: out = voice(0.6, f0: f * 2, f1: f * 2, vib: 0.02, lp: 3000, gain: 0.9)                       // flute
+            case 7: out = modes(1.0, [(f * 4, 0.5, 0.5), (f * 4 * 2.4, 0.2, 0.3)])                              // chime
+            case 8: out = modes(0.6, [(f / 2, 0.7, 0.3), (f, 0.35, 0.2), (f * 1.5, 0.15, 0.1)])                 // guitar
+            case 9: out = modes(0.35, [(f * 4, 0.7, 0.08), (f * 4 * 3.9, 0.2, 0.04)])                           // xylophone
+            case 10: out = modes(0.5, [(f, 0.7, 0.25), (f * 3.9, 0.25, 0.12)])                                  // iron xylophone
+            case 11: out = modes(0.4, [(f, 0.7, 0.12), (f * 2, 0.35, 0.08), (f * 3, 0.2, 0.05)])                // banjo
+            case 12: out = Synth.mix(modes(0.8, [(f, 0.6, 0.35)]), modes(0.8, [(f * 2.01, 0.3, 0.3)]))          // pling
+            default: out = modes(0.7, [(f, 0.7, 0.3), (f * 2, 0.25, 0.15), (f * 3, 0.1, 0.08)])                 // harp
+            }
         case .mobVillager: out = Synth.mix(voice(0.22, f0: 190 * p, f1: 240 * p, vib: 0.05, lp: 1200, gain: 1), voice(0.25, f0: 230 * p, f1: 170 * p, vib: 0.05, lp: 1100, gain: 0.9), at: frames(0.2))
         case .mobGolem: out = Synth.mix(burst(0.5, lp: 300 * p, hp: 40, attack: 0.05, decay: 0.3, gain: 2), modes(0.4, [(90 * p, 0.4, 0.2), (140 * p, 0.2, 0.15)]))
         case .fireball: out = Synth.mix(burst(0.8, lp: 900 * p, hp: 60, attack: 0.02, decay: 0.3, gain: 2.2), burst(0.5, lp: 5000, hp: 1500, attack: 0.01, decay: 0.2, gain: 0.5))
@@ -280,6 +299,15 @@ final class SoundEngine {
 
     // Plays a sound; with a world position it is attenuated with distance and panned by the listener.
     func play(_ s: Snd, volume v: Float = 1, at pos: V3? = nil, listener: V3 = .zero, yaw: Float = 0) {
+        if buffers[s] == nil, case .note = s {
+            var g = Synth(seed: 77)
+            let data = g.render(s, pitch: 1)
+            if let b = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(data.count)), let ch = b.floatChannelData {
+                b.frameLength = AVAudioFrameCount(data.count)
+                for i in 0..<data.count { ch[0][i] = data[i] }
+                buffers[s] = [b]
+            }
+        }
         guard let list = buffers[s], !list.isEmpty else { return }
         var gain = v * volume
         var pan: Float = 0

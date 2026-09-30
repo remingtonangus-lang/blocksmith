@@ -41,6 +41,7 @@ class Menu {
     var slots: [MenuSlot] = []
     unowned let game: Game
     var showInventoryLabel = true
+    var inventoryLabelY = 73
 
     init(_ title: String, game: Game) {
         self.title = title
@@ -349,6 +350,24 @@ final class ChestMenu: Menu {
         super.init("Chest", game: game)
         for r in 0..<3 { for c in 0..<9 { slots.append(MenuSlot(8 + c * 18, 18 + r * 18, entity.container, c + r * 9)) } }
         addPlayerInventory()
+    }
+}
+
+final class DispenserMenu: Menu {
+    init(game: Game, entity: BlockEntity, title: String) {
+        super.init(title, game: game)
+        for r in 0..<3 { for c in 0..<3 { slots.append(MenuSlot(62 + c * 18, 17 + r * 18, entity.container, c + r * 3)) } }
+        addPlayerInventory()
+    }
+}
+
+final class HopperMenu: Menu {
+    init(game: Game, entity: BlockEntity) {
+        super.init("Hopper", game: game)
+        height = 133
+        inventoryLabelY = 40
+        for c in 0..<5 { slots.append(MenuSlot(44 + c * 18, 20, entity.container, c)) }
+        addPlayerInventory(y: 51)
     }
 }
 

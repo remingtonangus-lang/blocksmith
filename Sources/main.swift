@@ -198,6 +198,44 @@ enum Snapshot {
                 game.mobs.mobs.append(m)
             }
         }
+        if CommandLine.arguments.contains("--redstone") {
+            // A test bench on a stone platform east of the camera, then 3 s of redstone ticks.
+            let bx = Int(floor(pos.x)) + 3, bz = Int(floor(pos.z)) - 6
+            let gy = world.topY(bx + 6, bz + 5)
+            func put(_ x: Int, _ z: Int, _ n: String, _ st: Int = 0, dy: Int = 1) { world.setBlock(bx + x, gy + dy, bz + z, Blocks.id(n) + BlockID(st)) }
+            for z in -1...12 { for x in -1...14 {
+                world.setBlock(bx + x, gy, bz + z, Blocks.id("smooth_stone"))
+                for k in 1...5 { world.setBlock(bx + x, gy + k, bz + z, AIR) }
+            } }
+            // Row A: lever -> dust -> repeater -> dust -> lamp.
+            put(0, 0, "lever", 3 + 12)                                   // floor lever, on
+            for x in 1...5 { put(x, 0, "redstone_wire") }
+            put(6, 0, "repeater", 3 + 4 * 2)                             // facing east, delay 3
+            for x in 7...8 { put(x, 0, "redstone_wire") }
+            put(9, 0, "redstone_lamp")
+            // Row B: redstone block powering a sticky piston that pushes slime + stone.
+            put(0, 3, "redstone_block")
+            put(1, 3, "sticky_piston", 5)                                 // facing east
+            put(2, 3, "slime_block"); put(3, 3, "cobblestone"); put(2, 3, "slime_block", dy: 2)
+            // Row C: torch inverter: lever on a block, torch on its far side stays off; unpowered torch on the right.
+            put(0, 6, "stone"); put(-1 + 0, 6, "lever", 2, dy: 2)
+            put(1, 6, "redstone_torch", 2 + 3)                            // wall torch facing east (attached west)
+            for x in 2...4 { put(x, 6, "redstone_wire") }
+            put(5, 6, "redstone_lamp")
+            put(8, 6, "redstone_torch"); for x in 9...10 { put(x, 6, "redstone_wire") }; put(11, 6, "redstone_lamp")
+            // Row D: observer clock driving a lamp.
+            put(0, 9, "observer", 5); put(1, 9, "observer", 4)
+            put(2, 9, "redstone_wire"); put(3, 9, "redstone_lamp")
+            // Row E: comparator reading a chest with items.
+            put(6, 10, "chest")
+            world.blockEntities[IVec3(bx + 6, gy + 1, bz + 10)] = { let b = BlockEntity(.chest); b.container[0] = ItemStack(Items.id("cobblestone"), 64); b.container[1] = ItemStack(Items.id("cobblestone"), 64); return b }()
+            put(7, 10, "comparator", 3)
+            for x in 8...11 { put(x, 10, "redstone_wire") }
+            for _ in 0..<60 { world.redstone.tick() }
+            let t2 = world.loadSync(center: pos, radius: rd)
+            t.mesh += t2.mesh
+            print("redstone bench: lamp A \(Blocks.key(world.block(bx + 9, gy + 1, bz))), piston \(Blocks.key(world.block(bx + 1, gy + 1, bz + 3))), lamp C \(Blocks.key(world.block(bx + 5, gy + 1, bz + 6))) / \(Blocks.key(world.block(bx + 11, gy + 1, bz + 6))), wire E \(Blocks.key(world.block(bx + 11, gy + 1, bz + 10)))")
+        }
         if CommandLine.arguments.contains("--torches") {
             // Light test: a ring of torches plus a lamp around the camera, then remesh what changed.
             for k in 0..<10 {

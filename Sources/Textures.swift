@@ -742,6 +742,7 @@ enum TextureGen {
         }
         overworldPainters(&p)
         buildingPainters(&p)
+        redstonePainters(&p)
         for (k, v) in ItemTextures.painters() { p[k] = v }
         for (k, v) in Font.painters() { p[k] = v }
         return p

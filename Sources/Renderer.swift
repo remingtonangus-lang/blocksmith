@@ -656,7 +656,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             rect(o.x + pw - 3 * s, o.y + 2 * s, 2 * s, ph - 3 * s, V4(0.333, 0.333, 0.333, 1))
             let titleC = V4(0.25, 0.25, 0.25, 1)
             text(m.title, o.x + 8 * s, o.y + 6 * s, s, titleC, shadow: false)
-            if m.showInventoryLabel { text("Inventory", o.x + 8 * s, o.y + 73 * s, s, titleC, shadow: false) }
+            if m.showInventoryLabel { text("Inventory", o.x + 8 * s, o.y + Float(m.inventoryLabelY) * s, s, titleC, shadow: false) }
             if let f = m as? FurnaceMenu {
                 // Flame (fuel left) and arrow (cook progress).
                 let fx = o.x + 57 * s, fy = o.y + 37 * s

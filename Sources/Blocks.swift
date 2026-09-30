@@ -9,7 +9,7 @@ import Foundation
 
 typealias BlockID = UInt16
 
-enum RenderType: UInt8 { case none, cube, cross, liquid, model, connect }   // connect: fences/panes/walls
+enum RenderType: UInt8 { case none, cube, cross, liquid, model, connect, wire }   // connect: fences/panes/walls; wire: redstone dust
 enum RenderLayer: UInt8 { case opaque, cutout, translucent }
 enum ToolType: UInt8 { case none, pickaxe, axe, shovel, hoe, sword, shears }
 
@@ -549,6 +549,7 @@ final class BlockRegistry {
         cube("spruce_planks", "Spruce Planks", "spruce_planks", h: 2, tool: .axe, snd: .wood)
         registerOverworldBlocks()
         registerBuildingBlocks()
+        registerRedstoneBlocks()
         // Building families: stairs, slabs, fences, walls for each material.
         let woods: [(String, String)] = [("oak", "Oak"), ("birch", "Birch"), ("spruce", "Spruce"), ("crimson", "Crimson"), ("warped", "Warped")]
             + BlockRegistry.extraWoods

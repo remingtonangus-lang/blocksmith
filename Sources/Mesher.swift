@@ -133,6 +133,7 @@ enum Mesher {
         let rCube = RenderType.cube.rawValue, rCross = RenderType.cross.rawValue
         let rLiquid = RenderType.liquid.rawValue, rModel = RenderType.model.rawValue, rNone = RenderType.none.rawValue
         let rConnect = RenderType.connect.rawValue, connT = Blocks.connectKind
+        let rWire = RenderType.wire.rawValue, rsK = Redstone.kinds, gbT = Blocks.groupBase
         let translucent = RenderLayer.translucent.rawValue
         let y0 = sy * 16 - 16
 
@@ -259,6 +260,51 @@ enum Mesher {
                                 let ci = (q * 4 + k) * 3
                                 vert(isTrans, bx16 + PTab[ci] * 16, by16 + PTab[ci + 1] * 16, bz16 + PTab[ci + 2] * 16,
                                      6, tintV, cornerU[k], cornerV[k], layer, 3, l, false)
+                            }
+                        }
+                        continue
+                    }
+
+                    if rt == rWire {
+                        // Redstone dust: a cross when alone, lines toward what it connects to, and
+                        // strips up the side of blocks it climbs.
+                        func connects(_ n: BlockID, _ d: Int) -> Bool {
+                            let st = Int(n - gbT[Int(n)])
+                            switch rsK[Int(n)] {
+                            case .wire, .torch, .block, .lever, .button, .plate, .weightedPlate, .target, .daylight, .comparator: return true
+                            case .repeater: return ((st & 3) + 2) / 2 == d / 2
+                            case .observer: return st % 6 == d
+                            default: return false
+                            }
+                        }
+                        var conn = [false, false, false, false], climb = [false, false, false, false]
+                        let aboveSolid = opaqueT[Int(R[i + RL])]
+                        let nOff = [-RW, RW, -1, 1]
+                        for k in 0..<4 {
+                            let n = R[i + nOff[k]]
+                            if connects(n, k + 2) { conn[k] = true; continue }
+                            if !opaqueT[Int(n)] && rsK[Int(R[i + nOff[k] - RL])] == .wire { conn[k] = true; continue }
+                            if opaqueT[Int(n)] && !aboveSolid && rsK[Int(R[i + nOff[k] + RL])] == .wire { conn[k] = true; climb[k] = true }
+                        }
+                        let count = conn.filter { $0 }.count
+                        if count == 0 { conn = [true, true, true, true] }
+                        else if count == 1, let k = conn.firstIndex(of: true) { conn[[1, 0, 3, 2][k]] = true }
+                        var quads: [(Box, Int)] = [(Box(5, 1, 5, 11, 1, 11), 2)]
+                        let arms = [Box(6, 1, 0, 10, 1, 5), Box(6, 1, 11, 10, 1, 16), Box(0, 1, 6, 5, 1, 10), Box(11, 1, 6, 16, 1, 10)]
+                        let walls = [(Box(6, 0, 1, 10, 16, 1), 4), (Box(6, 0, 15, 10, 16, 15), 5), (Box(1, 0, 6, 1, 16, 10), 0), (Box(15, 0, 6, 15, 16, 10), 1)]
+                        for k in 0..<4 where conn[k] { quads.append((arms[k], 2)) }
+                        for k in 0..<4 where climb[k] { quads.append(walls[k]) }
+                        let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
+                        let layer = Int(texT[bi * 6 + 2])
+                        for (box, f) in quads {
+                            let mn = [Int(box.x0), Int(box.y0), Int(box.z0)], mx = [Int(box.x1), Int(box.y1), Int(box.z1)]
+                            for k in 0..<4 {
+                                let ci = (f * 4 + k) * 3
+                                let px = CT[ci] == 1 ? mx[0] : mn[0]
+                                let py = CT[ci + 1] == 1 ? mx[1] : mn[1]
+                                let pz = CT[ci + 2] == 1 ? mx[2] : mn[2]
+                                let (u, v) = faceUV(f, px, py, pz)
+                                vert(false, bx16 + px, by16 + py, bz16 + pz, f, 0, u, v, layer, 3, l, false)
                             }
                         }
                         continue

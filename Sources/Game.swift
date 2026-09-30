@@ -219,6 +219,7 @@ final class Game {
     }
 
     func hookWorld(_ w: World) {
+        w.redstone.game = self
         w.onFluidEvent = { [weak self] p in self?.sfx(.fizz, 0.8, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
         w.onIgnite = { [weak self] p, b in
             guard let self else { return }
@@ -686,11 +687,23 @@ final class Game {
         placeCooldown = 0.25
         if useBucket() { return }
         guard let t = target else { return }
+        if useNow && !(input.shift || p.b) && isRedstoneInteractive(t.hit) && useRedstone(t.hit) { swing = 1; return }
         if isInteractive(t.hit) && !(input.shift || p.b) && useNow {
             openBlock(t.hit)
             return
         }
         if useNow && useItemOnBlock(t) { return }
+        if Items.key(h.item) == "redstone" {
+            // Redstone dust goes on top of solid blocks.
+            let c0 = world.block(t.hit.x, t.hit.y, t.hit.z)
+            let at = Blocks.replaceable[Int(c0)] && !Blocks.isLiquid(c0) ? t.hit : t.hit + t.normal
+            if Blocks.replaceable[Int(world.block(at.x, at.y, at.z))] && Blocks.opaque[Int(world.block(at.x, at.y - 1, at.z))] {
+                world.setBlock(at.x, at.y, at.z, Blocks.id("redstone_wire"))
+                sfx(.place(.stone), 0.6, at: V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5)
+                consumeHeld(); swing = 1
+            }
+            return
+        }
         guard let blockItem = h.def.block else { return }
         let clicked = world.block(t.hit.x, t.hit.y, t.hit.z)
         // Slabs: clicking a matching half slab from the open side makes a double slab.
@@ -748,6 +761,11 @@ final class Game {
         case "lantern": id = blockItem + (t.normal.y == -1 ? 1 : 0)
         default: break
         }
+        let rsShapes: Set<String> = ["lever", "button", "plate", "repeater", "comparator", "observer", "piston", "dispenser", "hopper", "daylight"]
+        if rsShapes.contains(Blocks.shape[Int(blockItem)]) || Redstone.kind(blockItem) == .torch {
+            guard let rid = redstonePlacement(blockItem, at: at, normal: t.normal, upperHalf: upperHalf) else { return }
+            id = rid
+        }
         let supported: Bool
         if id == TORCH {
             supported = Blocks.opaque[Int(world.block(at.x, at.y - 1, at.z))]
@@ -763,6 +781,8 @@ final class Game {
             world.setBlock(at.x, at.y, at.z, id)
             if key == "furnace" { world.blockEntities[at] = BlockEntity(.furnace) }
             if key == "chest" { world.blockEntities[at] = BlockEntity(.chest) }
+            if key == "dispenser" || key == "dropper" { world.blockEntities[at] = BlockEntity(.dispenser) }
+            if key == "hopper" { world.blockEntities[at] = BlockEntity(.hopper) }
             if key.hasSuffix("leaves") { placedLeaves.insert(at) }
             sfx(.place(soundMat(id)), at: V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5)
             swing = 1
@@ -842,6 +862,21 @@ final class Game {
         }
         let center = V3(Float(p.x) + 0.5, Float(p.y) + 0.3, Float(p.z) + 0.5)
         if bk.hasPrefix("infested_") && survival { mobs.mobs.append(Mob(.silverfish, at: center)) }
+        if Redstone.kind(b) == .pistonHead {
+            // The piston behind the head goes too (and drops).
+            let face = Int(b - Blocks.groupBase[Int(b)]) % 6
+            let back = p + BlockRegistry.dir6[[1, 0, 3, 2, 5, 4][face]]
+            let bb = world.block(back.x, back.y, back.z)
+            if Redstone.kind(bb) == .piston || Redstone.kind(bb) == .stickyPiston {
+                if drop && survival { drops.spawn(ItemStack(Items.item(forBlock: bb) ?? 0, 1), at: center) }
+                world.setBlock(back.x, back.y, back.z, AIR)
+            }
+        }
+        if (Redstone.kind(b) == .piston || Redstone.kind(b) == .stickyPiston) && Int(b - Blocks.groupBase[Int(b)]) >= 6 {
+            let face = Int(b - Blocks.groupBase[Int(b)]) % 6
+            let head = p + BlockRegistry.dir6[face]
+            if Redstone.kind(world.block(head.x, head.y, head.z)) == .pistonHead { world.setBlock(head.x, head.y, head.z, AIR) }
+        }
         if Blocks.shape[Int(b)] == "door" {
             // Take the other half with it (only one door drops).
             let upper = Int(b - Blocks.groupBase[Int(b)]) & 8 != 0
@@ -1184,6 +1219,7 @@ final class Game {
     private func gameTick() {
         randomTicks()
         spawnerTick(0.05)
+        world.redstone.tick()
         for (p, be) in world.blockEntities where be.kind == .furnace {
             if be.tickFurnace() {
                 // Swap between furnace and lit furnace, keeping the facing.

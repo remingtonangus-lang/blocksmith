@@ -14,6 +14,7 @@ final class World {
     var chunks: [ChunkKey: Chunk] = [:]
     var blockEntities: [IVec3: BlockEntity] = [:]
     var pendingMobs: [(String, V3)] = []          // structure mobs waiting for the game to spawn them
+    lazy var redstone = Redstone(world: self)
     var portals = Set<IVec3>()
     var renderDistance: Int = 8 { didSet { lastCenter = nil; rebuildOffsets() } }
 
@@ -98,7 +99,9 @@ final class World {
         guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return }
         let lx = mod(x, CS), lz = mod(z, CS)
         let oldH = Int(c.height[lx + lz * CS])
+        let old = c.blocks[Chunk.index(lx, y, lz)]
         c.blocks[Chunk.index(lx, y, lz)] = id
+        if !redstone.isBusy && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
         c.modified = true
         c.recomputeHeight(lx, lz)
         let newH = Int(c.height[lx + lz * CS])
@@ -135,7 +138,9 @@ final class World {
     func setBlockAsync(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) -> Bool {
         guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return false }
         let lx = mod(x, CS), lz = mod(z, CS)
+        let old = c.blocks[Chunk.index(lx, y, lz)]
         c.blocks[Chunk.index(lx, y, lz)] = id
+        if !redstone.isBusy && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
         c.modified = true
         c.recomputeHeight(lx, lz)
         for dz in -1...1 {
@@ -420,6 +425,7 @@ final class World {
         let c = Chunk(cx: k.x, cz: k.z, blocks: p.blocks, height: p.height, tint: p.tint)
         c.modified = p.fromDisk
         chunks[k] = c
+        redstone.chunkLoaded(c)
         // Generated chests/spawners; a regenerated chunk keeps any existing (already looted) entity.
         for (pos, be) in p.entities where blockEntities[pos] == nil { blockEntities[pos] = be }
         // Structure mobs (bastion piglins...) appear once: the chunk is saved so it never regenerates.
