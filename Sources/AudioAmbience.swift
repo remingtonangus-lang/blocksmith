@@ -19,6 +19,9 @@ final class AudioState {
     var stepTimer: Float = 0
     var discPlaying: JukeboxPlayer? = nil
     var armorSeen: [ItemID] = [0, 0, 0, 0]
+    var biomeTimer: Float = 0
+    var biomeHere: Biome = .plains
+    var nearOcean = false
     var armorPrimed = false
     static var kindTable: [UInt8] = []      // block id -> emitter kind (built once)
 }
@@ -182,6 +185,7 @@ extension Game {
             if a.cave > 0.6 && a.caveBiome > 0 {
                 ask("bed", a.caveBiome == 1 ? .deepDarkLoop : (a.caveBiome == 2 ? .lushLoop : .dripstoneLoop), 0.45 * a.cave)
             }
+            if a.cave < 0.6 && !player.headInWater { overworldAmbience(dt, open: 1 - a.cave, ask: ask) }
         }
 
         // Stings: cave noises in the dark, nether moods, underwater moans.
@@ -218,6 +222,56 @@ extension Game {
         snd.musicDuck += ((jukeboxNear ? 0 : 1) - snd.musicDuck) * min(1, dt * 2)
         a.asked = asked
         snd.update(dt, asked: asked)
+    }
+
+    // Surface ambience by biome and time of day: birds and owls, crickets, frogs, surf, wind, jungle insects.
+    private func overworldAmbience(_ dt: Float, open: Float, ask: (String, Snd, Float, V3?) -> Void) {
+        let a = audio
+        let p = player.pos
+        a.biomeTimer -= dt
+        if a.biomeTimer <= 0 {
+            a.biomeTimer = 2
+            a.biomeHere = world.gen.column(Int(floor(p.x)), Int(floor(p.z))).biome
+            // Surf: any ocean column within 24 blocks.
+            var ocean = false
+            for (dx, dz) in [(24, 0), (-24, 0), (0, 24), (0, -24), (16, 16), (-16, -16), (16, -16), (-16, 16), (0, 0)] {
+                let b = world.gen.column(Int(floor(p.x)) + dx, Int(floor(p.z)) + dz).biome
+                if [.ocean, .deepOcean, .warmOcean, .lukewarmOcean, .deepLukewarmOcean, .coldOcean, .deepColdOcean].contains(b) { ocean = true; break }
+            }
+            a.nearOcean = ocean
+        }
+        let b = a.biomeHere
+        let f = Float(dayFraction)
+        let day: Float = f < 0.02 || f > 0.48 ? 0 : 1                 // birds from sunrise to sunset
+        let night: Float = f > 0.52 && f < 0.98 ? 1 : 0
+        let wet: Float = 1 - min(1, weather.rain * 1.5)                // rain hushes the wildlife
+        let high = p.y > Float(SEA + 50)
+        let snowy: Set<Biome> = [.snowyPlains, .iceSpikes, .snowyTaiga, .snowySlopes, .frozenPeaks, .jaggedPeaks, .grove, .snowyBeach, .frozenRiver, .frozenOcean, .deepFrozenOcean]
+        let dry: Set<Biome> = [.desert, .badlands, .erodedBadlands, .woodedBadlands]
+        let wooded: Set<Biome> = [.forest, .flowerForest, .birchForest, .oldGrowthBirchForest, .darkForest, .taiga, .oldGrowthPineTaiga, .oldGrowthSpruceTaiga,
+                                  .windsweptForest, .cherryGrove, .meadow, .plains, .sunflowerPlains, .savanna, .savannaPlateau, .river, .paleGarden]
+        let jungle: Set<Biome> = [.jungle, .sparseJungle, .bambooJungle]
+        let swamp: Set<Biome> = [.swamp, .mangroveSwamp]
+        if a.nearOcean { ask("surf", .oceanLoop, 0.55 * open, nil) }
+        if high || snowy.contains(b) || dry.contains(b) { ask("wind", .windLoop, (high ? 0.6 : 0.35) * open, nil) }
+        if jungle.contains(b) { ask("jungle", .jungleLoop, (0.5 * day + 0.35 * night) * wet * open, nil) }
+        if swamp.contains(b) { ask("swamp", .swampLoop, (0.2 + 0.4 * night) * wet * open, nil) }
+        if night > 0 && !snowy.contains(b) && !dry.contains(b) && !jungle.contains(b) && !high {
+            ask("crickets", .cricketsLoop, 0.3 * wet * open, nil)
+        }
+        // Stings: birdsong by day in wooded land, an owl at night in forests.
+        if wooded.contains(b) || jungle.contains(b) {
+            let rate: Float = (jungle.contains(b) ? 0.5 : 0.25) * day * wet * open
+            if Float.random(in: 0..<1) < dt * rate {
+                let ang = Float.random(in: 0..<(2 * .pi))
+                let at = player.eye + V3(cosf(ang) * Float.random(in: 5...14), Float.random(in: 2...7), sinf(ang) * Float.random(in: 5...14))
+                sfx(.birdCall, 0.6, at: at)
+            }
+            if night > 0 && Float.random(in: 0..<1) < dt * 0.02 * wet * open {
+                let ang = Float.random(in: 0..<(2 * .pi))
+                sfx(.owlHoot, 0.7, at: player.eye + V3(cosf(ang) * 12, 4, sinf(ang) * 12))
+            }
+        }
     }
 
     // Finds the nearest block of each emitter kind (and how many there are) within 8 blocks.

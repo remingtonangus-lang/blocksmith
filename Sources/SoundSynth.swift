@@ -471,6 +471,88 @@ struct Synth {
         return Synth.loopify(out, fade: 0.8)
     }
 
+    // A songbird phrase: 2-6 FM chirps with pitch sweeps, sometimes a trill.
+    mutating func birdCall(pitch p: Float) -> [Float] {
+        var out: [Float] = []
+        let n = 2 + Int(rnd() * 5)
+        let base: Float = rnd(2200, 4200) * p
+        var t: Float = 0
+        let trill = rnd() < 0.3
+        for k in 0..<n {
+            let len: Float = trill ? 0.04 : rnd(0.05, 0.16)
+            let f0: Float = base * rnd(0.85, 1.2)
+            let up: Bool = rnd() < 0.5
+            let f1: Float = up ? f0 * rnd(1.1, 1.5) : f0 * rnd(0.6, 0.9)
+            let c = tone(len, f0: f0, f1: f1, wave: .sine, attack: 0.006, release: len * 0.5, vib: trill ? 0 : 0.03, vibRate: 40, gain: 0.5)
+            out = Synth.mix(out, c, at: frames(t))
+            t += len + (trill ? 0.015 : rnd(0.03, 0.12))
+            if k == n - 1 && rnd() < 0.4 { t += 0.05 }
+        }
+        return Synth.echo(out, delay: 0.13, feedback: 0.15, mix: 0.2, tail: 0.3)
+    }
+
+    // Several crickets: pulse trains (~30 pulses/s) of a 4-5 kHz tone, each cricket with its own rhythm.
+    mutating func cricketsLoop(_ dur: Float, voices: Int = 3) -> [Float] {
+        let n = frames(dur)
+        var out = [Float](repeating: 0, count: n)
+        for _ in 0..<voices {
+            let f: Float = rnd(3800, 5200)
+            let pulse: Float = rnd(25, 40)
+            let chirpLen: Float = rnd(0.12, 0.3), gap: Float = rnd(0.25, 0.7)
+            let pan: Float = rnd(0.4, 1)
+            var t: Float = rnd(0, gap)
+            while t < dur - chirpLen {
+                let c = tone(chirpLen, f0: f, f1: f, wave: .sine, attack: 0.01, release: 0.03, gain: 0.25 * pan)
+                var gated = c
+                for i in 0..<gated.count {
+                    let ph: Float = Float(i) / Synth.sr * pulse
+                    let gate: Float = ph - floorf(ph) < 0.45 ? 1 : 0
+                    gated[i] *= gate
+                }
+                let at = frames(t)
+                for i in 0..<gated.count where at + i < n { out[at + i] += gated[i] }
+                t += chirpLen + gap * rnd(0.8, 1.2)
+            }
+        }
+        out = Synth.bandpass(out, 4500, q: 1.2)
+        return Synth.loopify(out, fade: 0.3)
+    }
+
+    // Waves: slow swells of filtered noise with a hiss on each break.
+    mutating func oceanLoop(_ dur: Float) -> [Float] {
+        let n = frames(dur)
+        let low = wash(dur, lp: 700, hp: 60, wobble: 0.5, rate: 0.5, gain: 1.2)
+        let high = wash(dur, lp: 5000, hp: 1500, wobble: 0.8, rate: 1, gain: 0.25)
+        var out = [Float](repeating: 0, count: n)
+        let period: Float = dur / 2
+        for i in 0..<n {
+            let t: Float = Float(i) / Synth.sr
+            let ph: Float = (t / period).truncatingRemainder(dividingBy: 1)
+            let swell: Float = 0.35 + 0.65 * powf(sinf(ph * Float.pi), 2)
+            let brk: Float = ph > 0.45 && ph < 0.75 ? sinf((ph - 0.45) / 0.3 * Float.pi) : 0
+            out[i] = low[i] * swell + high[i] * brk
+        }
+        return Synth.loopify(out, fade: 0.4)
+    }
+
+    // Frogs: low throaty croaks in loose rhythm.
+    mutating func frogs(_ dur: Float) -> [Float] {
+        var out = [Float](repeating: 0, count: frames(dur))
+        for _ in 0..<3 {
+            let f0: Float = rnd(90, 180)
+            var t: Float = rnd(0, 0.8)
+            while t < dur - 0.4 {
+                let croaks = 1 + Int(rnd() * 3)
+                for k in 0..<croaks {
+                    let c = formant(0.12, f0: f0, f1: f0 * 0.9, formants: [(300, 5, 1), (900, 7, 0.4)], breath: 0.2, attack: 0.01, release: 0.04, growl: 0.4, gain: 0.8)
+                    out = Synth.mix(out, c, at: frames(t + Float(k) * 0.16))
+                }
+                t += 0.5 + rnd(0.4, 1.6)
+            }
+        }
+        return out
+    }
+
     // MARK: Post
 
     // Normalizes, level-matches families and de-clicks both ends.
@@ -716,6 +798,24 @@ struct Synth {
         case .deepDarkLoop: out = Synth.loopify(Synth.mix(droneLoop(6.0, f: 41, partials: 2, detune: 0.01, noiseLP: 200, noiseGain: 0.5, gain: 0.3), bubbles(6.0, count: 3, fLo: 80, fHi: 200, len: 0.3, gain: 0.2)), fade: 0.05)
         case .lushLoop: out = Synth.loopify(Synth.mix(windLoop(5.0, lp: 1200, gain: 0.35), bubbles(5.0, count: 8, fLo: 1200, fHi: 3000, len: 0.05, gain: 0.25)), fade: 0.05)
         case .dripstoneLoop: out = Synth.loopify(Synth.mix(windLoop(5.0, lp: 700, gain: 0.5), Synth.echo(bubbles(5.0, count: 5, fLo: 1500, fHi: 3500, len: 0.03, gain: 0.5), delay: 0.23, feedback: 0.4, mix: 0.4, tail: 0)), fade: 0.05)
+
+        // Overworld biome ambience
+        case .birdCall: out = birdCall(pitch: p)
+        case .owlHoot:
+            out = []
+            for (k, d) in [(0, 0.35), (1, 0.25), (2, 0.6)] as [(Int, Float)] {
+                let t = formant(d, f0: 390 * p, f1: 350 * p, formants: [(400, 8, 1), (800, 10, 0.2)], breath: 0.15, vib: 0.01, attack: 0.04, release: 0.12, gain: 0.9)
+                out = Synth.mix(out, t, at: frames(Float(k) * 0.45))
+            }
+            out = Synth.echo(out, delay: 0.21, feedback: 0.3, mix: 0.3, tail: 0.6)
+        case .cricketsLoop: out = cricketsLoop(4.0)
+        case .oceanLoop: out = oceanLoop(7.0)
+        case .swampLoop: out = Synth.loopify(Synth.mix(frogs(5.0), Synth.scaled(cricketsLoop(5.0, voices: 2), 0.4)), fade: 0.05)
+        case .windLoop: out = windLoop(6.0, lp: 700, gain: 0.8)
+        case .jungleLoop:
+            var j = Synth.scaled(cricketsLoop(5.0, voices: 4), 0.5)
+            for _ in 0..<5 { j = Synth.mix(j, Synth.scaled(birdCall(pitch: rnd(0.8, 1.3)), 0.35), at: frames(rnd(0, 4.0))) }
+            out = Synth.loopify(Array(j.prefix(frames(5.3))), fade: 0.3)
 
         // Ambience stings
         case .caveAmbience: out = Synth.reverb(Synth.mix(voice(4.5, f0: 55 * p, f1: 41 * p, vib: 0.3, lp: 300, gain: 0.9), burst(4.5, lp: 500, hp: 60, attack: 1.2, decay: 2.5, gain: 0.5)), size: 1.4, damp: 0.3, mix: 0.4, tail: 1.5)

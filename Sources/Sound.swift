@@ -60,8 +60,9 @@ enum Snd: Hashable {
     // Loops (seamless, 2-6 s): fire, furnaces, lava, water, portals, beacons, minecarts, gliding, breathing under water, weather, biome ambience.
     case fireLoop, furnaceLoop, campfireLoop, lavaLoop, waterLoop, portalLoop, beaconLoop, minecartLoop, elytraLoop, underwaterLoop, rain, rainRoof
     case respawnAnchorLoop, spawnerLoop, netherWastesLoop, soulValleyLoop, crimsonLoop, warpedLoop, basaltLoop, endLoop, deepDarkLoop, lushLoop, dripstoneLoop
+    case cricketsLoop, oceanLoop, swampLoop, windLoop, jungleLoop
     // One-shot ambience stings
-    case caveAmbience, caveDrip, caveWind, netherMood, underwaterMood, thunder, lightning, windGust
+    case birdCall, owlHoot, caveAmbience, caveDrip, caveWind, netherMood, underwaterMood, thunder, lightning, windGust
     // Every mob: ambient call, hurt, death.
     case mob(MobKind, MobSound)
     // Mob specials, bosses and villagers
@@ -98,7 +99,8 @@ enum Snd: Hashable {
         case .rain, .rainRoof, .thunder, .lightning, .windGust: return .weather
         case .fireLoop, .furnaceLoop, .campfireLoop, .lavaLoop, .waterLoop, .portalLoop, .beaconLoop, .respawnAnchorLoop, .spawnerLoop,
              .netherWastesLoop, .soulValleyLoop, .crimsonLoop, .warpedLoop, .basaltLoop, .endLoop, .deepDarkLoop, .lushLoop, .dripstoneLoop,
-             .caveAmbience, .caveDrip, .caveWind, .netherMood, .underwaterMood, .lavaPop:
+             .caveAmbience, .caveDrip, .caveWind, .netherMood, .underwaterMood, .lavaPop,
+             .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop, .birdCall, .owlHoot:
             return .ambient
         case .note: return .blocks
         default: return .blocks
@@ -109,7 +111,8 @@ enum Snd: Hashable {
     var isLoop: Bool {
         switch self {
         case .fireLoop, .furnaceLoop, .campfireLoop, .lavaLoop, .waterLoop, .portalLoop, .beaconLoop, .minecartLoop, .elytraLoop, .underwaterLoop, .rain, .rainRoof,
-             .respawnAnchorLoop, .spawnerLoop, .netherWastesLoop, .soulValleyLoop, .crimsonLoop, .warpedLoop, .basaltLoop, .endLoop, .deepDarkLoop, .lushLoop, .dripstoneLoop:
+             .respawnAnchorLoop, .spawnerLoop, .netherWastesLoop, .soulValleyLoop, .crimsonLoop, .warpedLoop, .basaltLoop, .endLoop, .deepDarkLoop, .lushLoop, .dripstoneLoop,
+             .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop:
             return true
         default: return false
         }
@@ -180,6 +183,7 @@ final class SoundBank {
               .fireExtinguish, .lavaPop, .boatPaddle, .railClick,
               .fireLoop, .furnaceLoop, .campfireLoop, .lavaLoop, .waterLoop, .portalLoop, .beaconLoop, .minecartLoop, .elytraLoop, .underwaterLoop, .rain, .rainRoof,
               .respawnAnchorLoop, .spawnerLoop, .netherWastesLoop, .soulValleyLoop, .crimsonLoop, .warpedLoop, .basaltLoop, .endLoop, .deepDarkLoop, .lushLoop, .dripstoneLoop,
+              .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop, .birdCall, .owlHoot,
               .caveAmbience, .caveDrip, .caveWind, .netherMood, .underwaterMood, .thunder, .lightning, .windGust,
               .creeperHiss, .fireball, .evokerCast, .fangs, .raidHorn, .mobVoidwalker, .teleport,
               .dragonGrowl, .dragonFlap, .dragonShoot, .dragonDeath, .crystalBreak, .witherSpawn, .witherShoot, .witherDeath,
@@ -211,6 +215,7 @@ final class SoundBank {
     static func variants(for s: Snd) -> Int {
         switch s {
         case .step, .hit, .breakBlock, .place, .fall, .attack, .attackSweep, .eat, .lavaPop, .caveDrip, .villagerWork: return 3
+        case .birdCall: return 6
         case .mob(_, .ambient), .mob(_, .hurt): return 2
         case .note: return 1
         case _ where s.isLoop: return 1
