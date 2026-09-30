@@ -6,12 +6,13 @@ import simd
 
 struct MobVert { var pos: V4; var color: V4; var local: V4 } // pos.w = pattern id, color.a = shade
 
-enum Behavior { case passive, melee, ranged, creeper, spider, enderman, slime, neutral, piglin, ghast, blaze, dragon, crystal, shulker }
+enum Behavior { case passive, melee, ranged, creeper, spider, enderman, slime, neutral, piglin, ghast, blaze, dragon, crystal, shulker, villager, golem }
 
 enum MobKind: Int, CaseIterable {
     case cow, sheep, chicken, pig, zombie, skeleton, creeper, spider, enderman, slime
     case zombifiedPiglin, piglin, ghast, blaze, magmaCube, witherSkeleton, hoglin, piglinBrute, strider
     case enderDragon, endCrystal, silverfish, shulker
+    case villager, ironGolem
 
     struct Spec {
         var name: String
@@ -73,13 +74,17 @@ enum MobKind: Int, CaseIterable {
                                       drops: [], xp: 0, call: .click, fireImmune: true, flying: true)
         case .shulker: return Spec(name: "Shulker", halfW: 0.5, height: 1, health: 30, speed: 0, behavior: .shulker,
                                    drops: [("shulker_shell", 0, 1)], xp: 5, call: .click, flying: true)
+        case .villager: return Spec(name: "Villager", halfW: 0.3, height: 1.95, health: 20, speed: 1.6, behavior: .villager,
+                                    drops: [], xp: 0, call: .mobVillager)
+        case .ironGolem: return Spec(name: "Iron Golem", halfW: 0.7, height: 2.7, health: 100, speed: 1.6, behavior: .golem, attack: 14,
+                                     drops: [("iron_ingot", 3, 5), ("poppy", 0, 2)], xp: 0, call: .mobGolem)
         case .silverfish: return Spec(name: "Silverfish", halfW: 0.2, height: 0.3, health: 8, speed: 2.5, behavior: .melee, attack: 1,
                                       drops: [], xp: 5, call: .mobSpider)
         case .witherSkeleton: return Spec(name: "Wither Skeleton", halfW: 0.35, height: 2.4, health: 20, speed: 2.5, behavior: .melee, attack: 8,
                                           drops: [("coal", 0, 1), ("bone", 0, 2)], xp: 5, call: .mobSkeleton, fireImmune: true)
         }
     }
-    var hostile: Bool { spec.behavior != .passive }
+    var hostile: Bool { spec.behavior != .passive && spec.behavior != .villager && spec.behavior != .golem }
     var key: String { spec.name.lowercased().replacingOccurrences(of: " ", with: "_") }
     static func named(_ n: String) -> MobKind? { allCases.first { $0.key == n } }
     var call: Snd { spec.call }
@@ -129,6 +134,8 @@ final class Mob {
     var circleAngle: Float = 0
     weak var healTarget: Mob?       // end crystal currently healing the dragon
     var peek: Float = 0             // shulker lid opening 0...1
+    var home: V3?                   // villager / golem: where it was placed (it stays near)
+    weak var target: Mob?           // golem: the monster it is chasing
 
     init(_ kind: MobKind, at p: V3) {
         self.kind = kind
@@ -299,6 +306,43 @@ final class Mob {
             if Float.random(in: 0..<1) < dt * 6 { g.particles.smoke(at: pos + V3(Float.random(in: -0.4...0.4), Float.random(in: 0.2...1.4), Float.random(in: -0.4...0.4))) }
         case .dragon, .crystal, .shulker:
             break
+        case .villager:
+            // Wander near home; run from zombies.
+            if home == nil { home = pos }
+            if let z = g.mobs.mobs.first(where: { ($0.kind == .zombie) && simd_length($0.pos - pos) < 8 }) {
+                face(pos * 2 - z.pos); speed = 2.2; moving = true
+            } else {
+                wander()
+                if let h = home, simd_length(V2(h.x - pos.x, h.z - pos.z)) > 16 { face(h) }
+                speed = moving ? spec.speed * 0.6 : 0
+            }
+        case .golem:
+            if home == nil { home = pos }
+            if target == nil || target!.health <= 0 || simd_length(target!.pos - pos) > 20 {
+                target = g.mobs.mobs.first { $0.kind.hostile && $0.kind != .creeper && $0.health > 0 && simd_length($0.pos - pos) < 16 }
+            }
+            if let t = target {
+                face(t.pos)
+                let d = simd_length(t.pos - pos)
+                speed = d > halfW + t.halfW + 0.8 ? spec.speed * 1.4 : 0
+                if d < halfW + t.halfW + 1.2 && attackCooldown <= 0 {
+                    attackCooldown = 1.25
+                    t.hit(from: pos, damage: Int.random(in: 7...21), knockback: 1)
+                    t.vel.y += 8
+                    g.sfx(.attack, 0.9, at: t.pos)
+                }
+            } else if aggro && canTarget && dist < 16 {
+                face(player)
+                speed = spec.speed * 1.4
+                if dist < 2.2 && attackCooldown <= 0 {
+                    attackCooldown = 1.25
+                    g.hurtPlayer(Int.random(in: 7...21), from: pos, cause: "was slain by Iron Golem", knockback: 2)
+                }
+            } else {
+                wander()
+                if let h = home, simd_length(V2(h.x - pos.x, h.z - pos.z)) > 12 { face(h) }
+                speed = moving ? spec.speed * 0.4 : 0
+            }
         case .melee, .spider:
             let l = w.lightAt(Int(floor(pos.x)), Int(floor(pos.y + 0.5)), Int(floor(pos.z)))
             let hostileNow = spec.behavior == .melee || aggro || Float(l.sky) * g.daylight < 4.8
@@ -763,6 +807,31 @@ private func parts(_ m: Mob) -> [Part] {
             box(-3, 6, -3, 6, 6 + lift, 6, head),
             box(-2, 8 + lift * 0.6, -3.2, 1.2, 1.2, 0.2, V3(0.1, 0.1, 0.1)), box(0.8, 8 + lift * 0.6, -3.2, 1.2, 1.2, 0.2, V3(0.1, 0.1, 0.1)),
         ]
+    case .villager:
+        let robe = V3(0.45, 0.32, 0.22), skin = V3(0.72, 0.52, 0.42)
+        return [
+            Part(mn: V3(-4, 0, -3), mx: V3(-0.01, 12, 3), pivot: V3(-2, 12, 0), rotX: swing, color: robe, pattern: 4),
+            Part(mn: V3(0.01, 0, -3), mx: V3(4, 12, 3), pivot: V3(2, 12, 0), rotX: -swing, color: robe, pattern: 4),
+            box(-4, 12, -3, 8, 12, 6, robe, 4),
+            box(-4, 24, -4, 8, 10, 8, skin, 4),
+            box(-1, 26, -6, 2, 4, 2, V3(0.66, 0.46, 0.38)),                                    // nose
+            box(-6, 17, -5, 12, 4, 3, robe, 4),                                               // folded arms
+            box(-4, 30, -4.2, 8, 1, 0.3, V3(0.3, 0.2, 0.15)),                                 // brow
+        ] + eyes(28.5, -4, 1, 1.2, V3(0.2, 0.5, 0.2))
+    case .ironGolem:
+        let iron = V3(0.82, 0.8, 0.76), vine = V3(0.3, 0.55, 0.2)
+        let armSwing = m.attackCooldown > 0.9 ? -1.4 : swing * 0.5
+        return [
+            Part(mn: V3(-7, 0, -3), mx: V3(-1, 16, 3), pivot: V3(-4, 16, 0), rotX: swing, color: iron, pattern: 4),
+            Part(mn: V3(1, 0, -3), mx: V3(7, 16, 3), pivot: V3(4, 16, 0), rotX: -swing, color: iron, pattern: 4),
+            box(-9, 16, -6, 18, 12, 11, iron, 4),
+            box(-4.5, 28, -2.5, 9, 5, 5, iron, 4),
+            Part(mn: V3(-13, 5, -3), mx: V3(-9, 33, 3), pivot: V3(-11, 32, 0), rotX: armSwing, color: iron, pattern: 4),
+            Part(mn: V3(9, 5, -3), mx: V3(13, 33, 3), pivot: V3(11, 32, 0), rotX: -armSwing, color: iron, pattern: 4),
+            box(-4, 33, -7.5, 8, 10, 8, iron, 4),
+            box(-1, 34, -9.5, 2, 4, 2, iron),
+            box(-9.2, 18, -4, 0.4, 6, 3, vine), box(5, 26, -6.2, 3, 4, 0.3, vine),
+        ] + eyes(38, -7.5, 1, 1.4, V3(0.7, 0.15, 0.1))
     case .silverfish:
         let c = V3(0.55, 0.57, 0.62)
         var p: [Part] = []

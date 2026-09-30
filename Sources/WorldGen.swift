@@ -201,6 +201,33 @@ final class WorldGen: TerrainGenerator {
         return base + n * amp
     }
 
+    // Top solid internal y at a column (terrain only: no caves, trees or water), bit-identical to what
+    // the chunk lattice produces, so structures can agree on ground height across chunks.
+    func groundY(_ x: Int, _ z: Int) -> Int {
+        let x0 = floorDiv(x, 4) * 4, z0 = floorDiv(z, 4) * 4
+        let fx = Float(x - x0) / 4, fz = Float(z - z0) / 4
+        let c00 = colInfo(x0, z0), c10 = colInfo(x0 + 4, z0), c01 = colInfo(x0, z0 + 4), c11 = colInfo(x0 + 4, z0 + 4)
+        var y = min(CH - 2, YOFF + Int(max(max(c00.h, c10.h), max(c01.h, c11.h))) + 40)
+        var cachedGY = -1
+        var L0: (Float, Float, Float, Float) = (0, 0, 0, 0), L1: (Float, Float, Float, Float) = (0, 0, 0, 0)
+        while y > 4 {
+            let gy = min(Lattice.ny - 2, y >> 3)
+            if gy != cachedGY {
+                cachedGY = gy
+                L0 = (density(c00, x0, gy * 8, z0), density(c10, x0 + 4, gy * 8, z0), density(c01, x0, gy * 8, z0 + 4), density(c11, x0 + 4, gy * 8, z0 + 4))
+                let y1 = (gy + 1) * 8
+                L1 = (density(c00, x0, y1, z0), density(c10, x0 + 4, y1, z0), density(c01, x0, y1, z0 + 4), density(c11, x0 + 4, y1, z0 + 4))
+            }
+            let fy = Float(y - gy * 8) / 8
+            let x00 = L0.0 + (L0.1 - L0.0) * fx, x10 = L1.0 + (L1.1 - L1.0) * fx
+            let x01 = L0.2 + (L0.3 - L0.2) * fx, x11 = L1.2 + (L1.3 - L1.2) * fx
+            let y0 = x00 + (x10 - x00) * fy, y1v = x01 + (x11 - x01) * fy
+            if y0 + (y1v - y0) * fz > 0 { return y }
+            y -= 1
+        }
+        return 0
+    }
+
     // Lattice of density corners around a chunk (x/z step 4 from bx-8 to bx+24, y step 8).
     private struct Lattice {
         static let nx = 9, ny = CH / 8 + 1

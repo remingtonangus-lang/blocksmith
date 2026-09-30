@@ -106,7 +106,6 @@ extension BlockRegistry {
         cube("polished_deepslate", "Polished Deepslate", h: 3.5, req: true)
         cube("deepslate_bricks", "Deepslate Bricks", h: 3.5, req: true)
         cube("deepslate_tiles", "Deepslate Tiles", h: 3.5, req: true)
-        cube("soul_lantern", "Soul Lantern", h: 3.5, emit: 10)
 
         // Plants.
         plant("fern", "Fern", tint: 1)

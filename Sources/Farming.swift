@@ -169,6 +169,15 @@ extension Game {
         let key = Items.key(h.item)
         let b = world.block(t.hit.x, t.hit.y, t.hit.z)
         let bkey = Blocks.key(Blocks.groupBase[Int(b)])
+        // Shovel: grass into a dirt path.
+        if h.def.tool == .shovel && (b == GRASS || Blocks.key(b) == "podzol" || Blocks.key(b) == "coarse_dirt" || Blocks.key(b) == "mycelium")
+            && t.normal.y == 1 && world.block(t.hit.x, t.hit.y + 1, t.hit.z) == AIR {
+            world.setBlock(t.hit.x, t.hit.y, t.hit.z, Blocks.id("dirt_path"))
+            sfx(.step(.dirt), 1, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
+            damageHeld(1)
+            swing = 1
+            return true
+        }
         // Hoe: till grass/dirt with air above.
         if h.def.tool == .hoe && (b == GRASS || b == DIRT) && world.block(t.hit.x, t.hit.y + 1, t.hit.z) == AIR {
             world.setBlock(t.hit.x, t.hit.y, t.hit.z, Blocks.id("farmland"))

@@ -112,6 +112,14 @@ final class Player {
             if input.jump && onGround { vel.y = 8.6; jumped = true }
         }
 
+        // Ladders and vines: climb when pushing forward or jumping, hold with sneak, slow slide otherwise.
+        if !flying && (Player.climbable(feet) || Player.climbable(body)) {
+            if input.jump || (input.forward > 0.1 && (collides(at: pos + f * 0.35, w))) { vel.y = 2.35 }
+            else if input.sneak { vel.y = max(vel.y, 0) }
+            else { vel.y = max(vel.y, -3) }
+            airPeak = pos.y
+        }
+
         // Sneak edge guard: don't let horizontal motion carry us off a ledge.
         if onGround && sneaking {
             for a in [0, 2] {
@@ -191,4 +199,12 @@ final class Player {
         airPeak = pos.y
         if pos.y < -64 { pos.y = Float(CH); vel = .zero }
     }
+
+    static let climbIds: Set<BlockID> = {
+        var s = Set<BlockID>()
+        for i in 0..<Blocks.count where Blocks.shape[i] == "ladder" { s.insert(BlockID(i)) }
+        for n in ["vine", "cave_vines"] where Blocks.has(n) { s.insert(Blocks.id(n)) }
+        return s
+    }()
+    static func climbable(_ b: BlockID) -> Bool { climbIds.contains(b) }
 }

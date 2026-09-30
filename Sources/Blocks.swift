@@ -548,6 +548,7 @@ final class BlockRegistry {
         cube("birch_planks", "Birch Planks", "birch_planks", h: 2, tool: .axe, snd: .wood)
         cube("spruce_planks", "Spruce Planks", "spruce_planks", h: 2, tool: .axe, snd: .wood)
         registerOverworldBlocks()
+        registerBuildingBlocks()
         // Building families: stairs, slabs, fences, walls for each material.
         let woods: [(String, String)] = [("oak", "Oak"), ("birch", "Birch"), ("spruce", "Spruce"), ("crimson", "Crimson"), ("warped", "Warped")]
             + BlockRegistry.extraWoods

@@ -723,9 +723,27 @@ final class Game {
         }
         let fracY = hitPoint(t).y - Float(t.hit.y)
         let upperHalf = t.normal.y == -1 || (t.normal.y == 0 && fracY > 0.5)
+        let facing = BlockRegistry.facingToward(yaw: player.yaw)
         switch Blocks.shape[Int(blockItem)] {
-        case "stairs": id = blockItem + BlockID((upperHalf ? 4 : 0) + (BlockRegistry.facingToward(yaw: player.yaw) ^ 1))
+        case "stairs": id = blockItem + BlockID((upperHalf ? 4 : 0) + (facing ^ 1))
         case "slab": id = blockItem + (upperHalf ? 1 : 0)
+        case "door":
+            // Two blocks tall; needs room above and ground below.
+            guard useNow, at.y + 1 < CH, Blocks.replaceable[Int(world.block(at.x, at.y + 1, at.z))],
+                  Blocks.opaque[Int(world.block(at.x, at.y - 1, at.z))] || Blocks.collide[Int(world.block(at.x, at.y - 1, at.z))],
+                  !player.intersectsBlock(at), !player.intersectsBlock(IVec3(at.x, at.y + 1, at.z)) else { return }
+            world.setBlock(at.x, at.y + 1, at.z, blockItem + BlockID(facing + 8))
+            world.setBlock(at.x, at.y, at.z, blockItem + BlockID(facing))
+            sfx(.place(soundMat(blockItem)), at: V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5)
+            consumeHeld(); swing = 1
+            return
+        case "trapdoor": id = blockItem + BlockID(facing + (upperHalf ? 8 : 0))
+        case "gate": id = blockItem + BlockID(facing)
+        case "ladder":
+            guard t.normal.y == 0 else { return }
+            let f = t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))
+            id = blockItem + BlockID(f)
+        case "lantern": id = blockItem + (t.normal.y == -1 ? 1 : 0)
         default: break
         }
         let supported: Bool
@@ -763,12 +781,33 @@ final class Game {
     }
 
     func isInteractive(_ p: IVec3) -> Bool {
-        let k = Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))])
+        let b = world.block(p.x, p.y, p.z)
+        let k = Blocks.key(Blocks.groupBase[Int(b)])
+        let shape = Blocks.shape[Int(b)]
+        if (shape == "door" || shape == "trapdoor") && !k.hasPrefix("iron_") { return true }
+        if shape == "gate" { return true }
         return k == "crafting_table" || k == "furnace" || k == "lit_furnace" || k == "chest"
+    }
+
+    // Opens/closes a wooden door (both halves), trapdoor or fence gate.
+    func toggleOpenable(_ p: IVec3) {
+        let b = world.block(p.x, p.y, p.z)
+        let base = Blocks.groupBase[Int(b)]
+        let st = Int(b - base)
+        let shape = Blocks.shape[Int(b)]
+        let flipped = BlockID(st ^ 4)
+        world.setBlock(p.x, p.y, p.z, base + flipped)
+        if shape == "door" {
+            let other = IVec3(p.x, p.y + (st & 8 != 0 ? -1 : 1), p.z)
+            let ob = world.block(other.x, other.y, other.z)
+            if Blocks.groupBase[Int(ob)] == base { world.setBlock(other.x, other.y, other.z, base + BlockID(Int(ob - base) ^ 4)) }
+        }
+        sfx(.open, 0.7, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
     }
 
     func openBlock(_ p: IVec3) {
         let k = Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))])
+        if ["door", "trapdoor", "gate"].contains(Blocks.shape[Int(world.block(p.x, p.y, p.z))]) { toggleOpenable(p); return }
         switch k {
         case "crafting_table": openMenu(CraftingTableMenu(game: self))
         case "furnace", "lit_furnace":
@@ -801,6 +840,12 @@ final class Game {
         }
         let center = V3(Float(p.x) + 0.5, Float(p.y) + 0.3, Float(p.z) + 0.5)
         if bk.hasPrefix("infested_") && survival { mobs.mobs.append(Mob(.silverfish, at: center)) }
+        if Blocks.shape[Int(b)] == "door" {
+            // Take the other half with it (only one door drops).
+            let upper = Int(b - Blocks.groupBase[Int(b)]) & 8 != 0
+            let o = IVec3(p.x, p.y + (upper ? -1 : 1), p.z)
+            if Blocks.groupBase[Int(world.block(o.x, o.y, o.z))] == Blocks.groupBase[Int(b)] { world.setBlock(o.x, o.y, o.z, AIR) }
+        }
         if bk == "chorus_plant" || bk == "chorus_flower" {
             // Chorus plants collapse above a broken stem.
             var y = p.y + 1

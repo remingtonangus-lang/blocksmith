@@ -94,6 +94,35 @@ enum Recipes {
         r.append(shaped(["##", "##"], ["#": "nether_brick"], "nether_bricks"))
         r.append(shaped(["##", "##"], ["#": "blackstone"], "polished_blackstone", 4))
         r.append(shapeless(["blaze_rod"], "blaze_powder", 2))
+        for w in BlockRegistry.doorWoods {
+            r.append(shaped(["##", "##", "##"], ["#": "\(w)_planks"], "\(w)_door", 3))
+            r.append(shaped(["###", "###"], ["#": "\(w)_planks"], "\(w)_trapdoor", 2))
+            r.append(shaped(["S#S", "S#S"], ["#": "\(w)_planks", "S": "stick"], "\(w)_fence_gate", 1))
+        }
+        r.append(shaped(["##", "##", "##"], ["#": "iron_ingot"], "iron_door", 3))
+        r.append(shaped(["##", "##"], ["#": "iron_ingot"], "iron_trapdoor", 1))
+        r.append(shaped(["S S", "SSS", "S S"], ["S": "stick"], "ladder", 3))
+        r.append(shaped(["NNN", "NTN", "NNN"], ["N": "iron_nugget", "T": "torch"], "lantern", 1))
+        r.append(shaped(["###", "###", "###"], ["#": "wheat"], "hay_block", 1))
+        r.append(shapeless(["hay_block"], "wheat", 9))
+        r.append(shaped(["# #", "# #", "###"], ["#": "oak_slab"], "composter", 1))
+        r.append(shaped(["PSP", "P P", "PSP"], ["P": "#planks", "S": "oak_slab"], "barrel", 1))
+        r.append(shaped([" L ", "LFL", " L "], ["L": "#logs", "F": "furnace"], "smoker", 1))
+        r.append(shaped(["III", "IFI", "SSS"], ["I": "iron_ingot", "F": "furnace", "S": "smooth_stone"], "blast_furnace", 1))
+        r.append(shaped(["pp", "##", "##"], ["p": "paper", "#": "#planks"], "cartography_table", 1))
+        r.append(shaped(["ff", "##", "##"], ["f": "flint", "#": "#planks"], "fletching_table", 1))
+        r.append(shaped(["ii", "##", "##"], ["i": "iron_ingot", "#": "#planks"], "smithing_table", 1))
+        r.append(shaped(["ss", "##"], ["s": "string", "#": "#planks"], "loom", 1))
+        r.append(shaped([" i ", "SSS"], ["i": "iron_ingot", "S": "stone"], "stonecutter", 1))
+        r.append(shaped(["SsS", "# #"], ["S": "stick", "s": "stone_slab", "#": "#planks"], "grindstone", 1))
+        r.append(shaped(["sss", " B ", " s "], ["s": "oak_slab", "B": "bookshelf"], "lectern", 1))
+        r.append(shaped(["BBB", " i ", "iii"], ["B": "iron_block", "i": "iron_ingot"], "anvil", 1))
+        r.append(shaped(["i i", "i i", "iii"], ["i": "iron_ingot"], "cauldron", 1))
+        r.append(shaped(["b b", " b "], ["b": "brick"], "flower_pot", 1))
+        for (c, _) in BlockRegistry.colors { r.append(shaped(["##"], ["#": "\(c)_wool"], "\(c)_carpet", 3)) }
+        r.append(shaped(["##", "##"], ["#": "sandstone"], "cut_sandstone", 4))
+        r.append(shaped(["#", "#"], ["#": "sandstone_slab"], "chiseled_sandstone", 1))
+        r.append(shaped(["##", "##"], ["#": "red_sandstone"], "cut_red_sandstone", 4))
         r.append(shapeless(["paper", "gunpowder"], "firework_rocket", 3))
         r.append(shaped(["##", "##"], ["#": "popped_chorus_fruit"], "purpur_block", 4))
         r.append(shaped(["#", "#"], ["#": "purpur_slab"], "purpur_pillar", 1))
@@ -160,6 +189,35 @@ enum Recipes {
         r.append(shapeless(["paper", "paper", "paper", "leather"], "book"))
         r.append(shapeless(["bone"], "bone_meal", 3))
         r.append(shapeless(["blaze_rod"], "blaze_powder", 2))
+        for w in BlockRegistry.doorWoods {
+            r.append(shaped(["##", "##", "##"], ["#": "\(w)_planks"], "\(w)_door", 3))
+            r.append(shaped(["###", "###"], ["#": "\(w)_planks"], "\(w)_trapdoor", 2))
+            r.append(shaped(["S#S", "S#S"], ["#": "\(w)_planks", "S": "stick"], "\(w)_fence_gate", 1))
+        }
+        r.append(shaped(["##", "##", "##"], ["#": "iron_ingot"], "iron_door", 3))
+        r.append(shaped(["##", "##"], ["#": "iron_ingot"], "iron_trapdoor", 1))
+        r.append(shaped(["S S", "SSS", "S S"], ["S": "stick"], "ladder", 3))
+        r.append(shaped(["NNN", "NTN", "NNN"], ["N": "iron_nugget", "T": "torch"], "lantern", 1))
+        r.append(shaped(["###", "###", "###"], ["#": "wheat"], "hay_block", 1))
+        r.append(shapeless(["hay_block"], "wheat", 9))
+        r.append(shaped(["# #", "# #", "###"], ["#": "oak_slab"], "composter", 1))
+        r.append(shaped(["PSP", "P P", "PSP"], ["P": "#planks", "S": "oak_slab"], "barrel", 1))
+        r.append(shaped([" L ", "LFL", " L "], ["L": "#logs", "F": "furnace"], "smoker", 1))
+        r.append(shaped(["III", "IFI", "SSS"], ["I": "iron_ingot", "F": "furnace", "S": "smooth_stone"], "blast_furnace", 1))
+        r.append(shaped(["pp", "##", "##"], ["p": "paper", "#": "#planks"], "cartography_table", 1))
+        r.append(shaped(["ff", "##", "##"], ["f": "flint", "#": "#planks"], "fletching_table", 1))
+        r.append(shaped(["ii", "##", "##"], ["i": "iron_ingot", "#": "#planks"], "smithing_table", 1))
+        r.append(shaped(["ss", "##"], ["s": "string", "#": "#planks"], "loom", 1))
+        r.append(shaped([" i ", "SSS"], ["i": "iron_ingot", "S": "stone"], "stonecutter", 1))
+        r.append(shaped(["SsS", "# #"], ["S": "stick", "s": "stone_slab", "#": "#planks"], "grindstone", 1))
+        r.append(shaped(["sss", " B ", " s "], ["s": "oak_slab", "B": "bookshelf"], "lectern", 1))
+        r.append(shaped(["BBB", " i ", "iii"], ["B": "iron_block", "i": "iron_ingot"], "anvil", 1))
+        r.append(shaped(["i i", "i i", "iii"], ["i": "iron_ingot"], "cauldron", 1))
+        r.append(shaped(["b b", " b "], ["b": "brick"], "flower_pot", 1))
+        for (c, _) in BlockRegistry.colors { r.append(shaped(["##"], ["#": "\(c)_wool"], "\(c)_carpet", 3)) }
+        r.append(shaped(["##", "##"], ["#": "sandstone"], "cut_sandstone", 4))
+        r.append(shaped(["#", "#"], ["#": "sandstone_slab"], "chiseled_sandstone", 1))
+        r.append(shaped(["##", "##"], ["#": "red_sandstone"], "cut_red_sandstone", 4))
         r.append(shapeless(["paper", "gunpowder"], "firework_rocket", 3))
         r.append(shaped(["##", "##"], ["#": "popped_chorus_fruit"], "purpur_block", 4))
         r.append(shaped(["#", "#"], ["#": "purpur_slab"], "purpur_pillar", 1))
@@ -224,7 +282,7 @@ enum Recipes {
         "oak_wood": "charcoal", "beef": "cooked_beef", "porkchop": "cooked_porkchop", "chicken": "cooked_chicken",
         "mutton": "cooked_mutton", "rabbit": "cooked_rabbit", "cod": "cooked_cod", "salmon": "cooked_salmon",
         "potato": "baked_potato", "netherrack": "nether_brick", "nether_gold_ore": "gold_ingot", "nether_quartz_ore": "quartz",
-        "ancient_debris": "netherite_scrap", "kelp": "dried_kelp", "wet_sponge": "sponge", "chorus_fruit": "popped_chorus_fruit", "polished_blackstone_bricks": "cracked_polished_blackstone_bricks",
+        "ancient_debris": "netherite_scrap", "sandstone": "smooth_sandstone", "red_sandstone": "smooth_red_sandstone", "kelp": "dried_kelp", "wet_sponge": "sponge", "chorus_fruit": "popped_chorus_fruit", "polished_blackstone_bricks": "cracked_polished_blackstone_bricks",
     ]
     static func smelt(_ i: ItemID) -> ItemID? {
         guard let r = smelting[Items.key(i)], Items.has(r) else { return nil }
