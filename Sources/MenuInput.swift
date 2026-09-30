@@ -143,6 +143,11 @@ extension Game {
                 }
             }
         }
+        // Keyboard-only: Enter presses the highlighted button (arrow keys move, left/right change settings).
+        if input.tapped(Key.enter) && !m.capturesText && keyboard == nil, let s = menuHover, s.isButton {
+            m.click(s, button: 0, shift: false)
+            if menu !== m { return }
+        }
         // RT drops the held stack (or one item from the hovered slot), like dropping outside the panel.
         if p.rt > 0.5 && q.rt <= 0.5 && !(m is PauseMenu) && !(m is KeyboardMenu) && creative == nil {
             if !carried.isEmpty { dropItem(carried); carried = .empty }
