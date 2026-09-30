@@ -300,6 +300,7 @@ extension Mob {
         }
         v.restocksToday += 1
         villager = v
+        if let w = MobVoice.workIndex(v.profession) { g.sfx(.villagerWork(w), 0.8, at: site + V3(0, 0.8, 0)) }
     }
 }
 

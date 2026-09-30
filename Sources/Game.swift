@@ -734,7 +734,7 @@ final class Game {
         if breakNow, let t = target, Blocks.shape[Int(world.block(t.hit.x, t.hit.y, t.hit.z))] == "frame", let be = world.blockEntities[t.hit], !be.container[0].isEmpty {
             drops.spawn(be.container[0], at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
             be.container[0] = .empty
-            sfx(.place(.wood), 0.5)
+            blockSound(.itemFrameRemove, at: t.hit, 0.7)
             return
         }
         if let m = mobHit {
@@ -1051,7 +1051,7 @@ final class Game {
             guard t.normal.y == 0, useNow else { return }
             let f = t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))
             placePainting(at: at, facing: f)
-            if Blocks.groupBase[Int(world.block(at.x, at.y, at.z))] == blockItem { consumeHeld(); swing = 1; sfx(.place(.wood), 0.6) }
+            if Blocks.groupBase[Int(world.block(at.x, at.y, at.z))] == blockItem { consumeHeld(); swing = 1; blockSound(.paintingPlace, at: at, 0.8) }
             return
         case "skull":
             if t.normal.y == 0 {
@@ -1231,7 +1231,7 @@ final class Game {
             // Right-click a lit candle to blow it out.
             let b = world.block(p.x, p.y, p.z)
             let st = Int(b - Blocks.groupBase[Int(b)])
-            if st >= 4 { world.setBlock(p.x, p.y, p.z, b - 4); sfx(.fizz, 0.3) }
+            if st >= 4 { world.setBlock(p.x, p.y, p.z, b - 4); blockSound(.candleOut, at: p, 0.6) }
         case "beacon":
             let be = world.blockEntities[p] ?? BlockEntity(.beacon)
             world.blockEntities[p] = be
@@ -1242,7 +1242,7 @@ final class Game {
     }
 
     func breakBlock(_ p: IVec3, _ b: BlockID, drop: Bool) {
-        sfx(.breakBlock(soundMat(b)), at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+        blockSound(audioBreakSound(b), at: p)
         particles.blockBreak(b, at: p)
         world.setBlock(p.x, p.y, p.z, AIR)
         world.redstone.vibrate(at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))

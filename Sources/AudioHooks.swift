@@ -70,6 +70,15 @@ extension Game {
         } else { sfx(.uiBack, 0.5) }
     }
 
+    // Break sound with a few block-specific ones (paintings, pots, glass panes use the glass material already).
+    func audioBreakSound(_ b: BlockID) -> Snd {
+        let k = Blocks.key(Blocks.groupBase[Int(b)])
+        if k == "painting" { return .paintingBreak }
+        if k == "decorated_pot" { return .potBreak }
+        if k.hasSuffix("ice") && k != "blue_ice" { return .glassBreak }
+        return .breakBlock(soundMat(b))
+    }
+
     func audioHurt(_ type: DamageType) {
         // Rate-limit so a burst of damage ticks does not stack grunts.
         if Float(clock) - audio.lastHurtSound < 0.25 { return }

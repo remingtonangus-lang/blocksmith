@@ -118,6 +118,7 @@ extension Game {
             guard !held.isEmpty else { return true }
             be.container[0] = held.with(count: 1)
             consumeHeld()
+            blockSound(.itemFrameAdd, at: p, 0.7)
         } else {
             be.delay = Float((Int(be.delay) + 1) % 8)          // rotation in 45° steps
             sfx(.itemFrameRotate, 0.6)
