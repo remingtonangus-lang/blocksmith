@@ -117,6 +117,11 @@ final class Game {
     }
     var rockets: [Rocket] = []
     var lastWind: Double = -10
+    let music = MusicDirector()
+    var caveTimer: Float = 30
+    var musicVolume: Float = { UserDefaults.standard.object(forKey: "musicVolume") == nil ? 1 : UserDefaults.standard.float(forKey: "musicVolume") }() {
+        didSet { UserDefaults.standard.set(musicVolume, forKey: "musicVolume") }
+    }
     var equipAnim: Float = 0          // lowers and raises the held item after switching
     var lastSiegeDay = -1
     var respawnTimer: Float = 0
@@ -1758,6 +1763,7 @@ final class Game {
         mapTick()
         rocketTick(Float(dt))
         composterTick()
+        musicTick(Float(dt))
         siegeTick()
         advancementTick()
         weatherTick(Float(dt))

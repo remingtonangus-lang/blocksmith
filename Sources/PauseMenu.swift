@@ -30,7 +30,7 @@ final class PauseMenu: Menu {
             rows = [("FOV: \(Int(g.fovSetting))", "fov"), ("Sensitivity: \(Int(g.sensitivity * 100))%", "sens"),
                     ("Invert Y: \(g.invertY ? "On" : "Off")", "invert"), ("Stick Dead Zone: \(Int(g.deadZone * 100))%", "dead"),
                     ("Render Distance: \(g.world.renderDistance)", "rd"), ("GUI Scale: \(gui)", "gui"),
-                    ("Couch Mode (TV): \(HudLayout.couch ? "On" : "Off")", "couch"), ("Volume: \(Int(g.volumeSetting * 100))%", "volume"),
+                    ("Couch Mode (TV): \(HudLayout.couch ? "On" : "Off")", "couch"), ("Volume: \(Int(g.volumeSetting * 100))%", "volume"), ("Music: \(Int(g.musicVolume * 100))%", "music"),
                     ("Done", "back")]
         case .worlds:
             title = "Load World"
@@ -82,6 +82,7 @@ final class PauseMenu: Menu {
         case "gui": HudLayout.userScale = step([0, 1, 2, 3, 4, 5, 6], HudLayout.userScale)
         case "couch": HudLayout.couch.toggle()
         case "volume": g.volumeSetting = step([0, 0.25, 0.5, 0.8, 1], g.volumeSetting)
+        case "music": g.musicVolume = step([0, 0.25, 0.5, 0.75, 1], g.musicVolume)
         default: g.appAction?(id)
         }
         g.sfx(.click, 0.5)
