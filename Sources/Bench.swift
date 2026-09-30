@@ -135,6 +135,12 @@ enum Bench {
             for v in b { hash = (hash ^ UInt64(v)) &* 0x100000001b3 }
         }
         put("gen.terrain_hash", Double(hash >> 12))       // 52 bits: exact in a Double
+        if let wg = g as? WorldGen {
+            var bad = 0
+            for i in 0..<6 { bad += wg.latticeRowMismatches(cx: i * 11 - 30, cz: i * 5 - 12) }
+            put("gen.lattice_mismatches", Double(bad))
+            print("bench gen: stone-fill interpolation vs Lattice.sample: \(bad) mismatching samples (must be 0)")
+        }
         let d = dist(times)
         put("gen.chunk_ms", d, "mean,p95,max")
         // Parallel throughput over all cores (what streaming can reach at best).
