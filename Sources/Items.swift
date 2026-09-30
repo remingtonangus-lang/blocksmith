@@ -273,7 +273,7 @@ final class ItemRegistry {
         item("ominous_trial_key", "Omen Proving Key", "nugget", 0x3A8A7A)
         item("netherite_upgrade_smithing_template", "Duskium Upgrade", "paper", 0x3A2A2A, ["a": 0x6A4A3A])
         for t in Smithing.trims {
-            item("\(t)_armor_trim_smithing_template", "\(t.capitalized) Armor Trim", "paper", 0x2A3A4A, ["a": 0x6A8AAA])
+            item("\(t)_armor_trim_smithing_template", "\(t == "vex" ? "Hexling" : t.capitalized) Armor Trim", "paper", 0x2A3A4A, ["a": 0x6A8AAA])
         }
 
         // Food (hunger, saturation as in the reference game)

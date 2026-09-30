@@ -22,7 +22,7 @@ enum Smithing {
         let p = (s.tag & 0xFF) - 1, m = ((s.tag >> 8) & 0xFF) - 1
         guard p >= 0 && p < trims.count && m >= 0 && m < trimMaterials.count else { return nil }
         let mat = Items.name(Items.id(trimMaterials[m])).replacingOccurrences(of: " Ingot", with: "").replacingOccurrences(of: " Shard", with: "")
-        return "\(trims[p].capitalized) Armor Trim (\(mat))"
+        return "\(trims[p] == "vex" ? "Hexling" : trims[p].capitalized) Armor Trim (\(mat))"
     }
 
     static func result(template: ItemStack, base: ItemStack, addition: ItemStack) -> ItemStack? {
