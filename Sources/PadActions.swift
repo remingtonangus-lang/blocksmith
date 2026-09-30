@@ -78,3 +78,27 @@ enum AimAssist {
 extension PadLook {
     static let shared = PadLook()
 }
+
+// Block-targeting assist (controller only): the highlighted block holds on while the crosshair drifts up to
+// ~0.12 blocks past its edge, so it doesn't flicker to a neighbour when you aim at a corner or mine with a
+// slightly moving stick. A block that comes clearly closer (a mob-placed block, a new wall) still wins.
+extension AimAssist {
+    static var last: (hit: IVec3, normal: IVec3)?
+
+    static func sticky(_ g: Game, _ t: (hit: IVec3, normal: IVec3)?, reach: Float) -> (hit: IVec3, normal: IVec3)? {
+        guard Settings.shared.aimAssist, PadManager.shared.usingPad, let prev = last else { last = t; return t }
+        if let t = t, t.hit == prev.hit { last = t; return t }
+        let b = g.world.block(prev.hit.x, prev.hit.y, prev.hit.z)
+        guard Blocks.targetable(b) else { last = t; return t }
+        let m: Float = 0.12
+        let lo = V3(Float(prev.hit.x) - m, Float(prev.hit.y) - m, Float(prev.hit.z) - m)
+        let hi = lo + V3(repeating: 1 + 2 * m)
+        let eye = g.player.eye
+        guard let h = World.rayBox(eye, g.player.look, lo, hi), h.0 <= reach + 0.2 else { last = t; return t }
+        if let nt = t {
+            let c = V3(Float(nt.hit.x) + 0.5, Float(nt.hit.y) + 0.5, Float(nt.hit.z) + 0.5)
+            if simd_length(c - eye) + 0.6 < h.0 { last = t; return t }
+        }
+        return prev
+    }
+}

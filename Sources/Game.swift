@@ -627,7 +627,7 @@ final class Game {
     private func interact(_ p: PadSnapshot, _ q: PadSnapshot, _ dt: Double) {
         let fdt = Float(dt)
         let reach: Float = survival ? 4.5 : 5
-        target = world.raycast(player.eye, player.look, maxDist: reach)
+        target = AimAssist.sticky(self, world.raycast(player.eye, player.look, maxDist: reach), reach: reach)
         breakCooldown -= dt
         placeCooldown -= dt
         let breakHeld = input.leftDown || p.rt > 0.5
