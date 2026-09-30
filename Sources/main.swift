@@ -7,7 +7,7 @@ import Metal
 // --x/--z pick a world position (default: spawn); --up raises the camera above the terrain;
 // --find <biome> (forest, desert, snowy, ...) spirals out from spawn to the middle of that biome.
 enum Snapshot {
-    static func findBiome(_ gen: WorldGen, _ want: String) -> V3? {
+    static func findBiome(_ gen: TerrainGenerator, _ want: String) -> V3? {
         var x = 0, z = 0, dx = 0, dz = -1
         for _ in 0..<40000 {
             let wx = x * 16 + 8, wz = z * 16 + 8

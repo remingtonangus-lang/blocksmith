@@ -67,8 +67,8 @@ final class Game {
     var portalTime: Float = 0
     var portalCooldown: Float = 0
     var onFire: Float = 0          // seconds the player keeps burning
-    private var fireDamageTimer: Float = 0
-    private var contactTimer: Float = 0
+    var fireDamageTimer: Float = 0
+    var contactTimer: Float = 0
     private var lavaTimer: Double = 0
     private var fireTimer: Double = 0
     var walkBob: Float = 0
