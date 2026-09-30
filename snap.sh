@@ -42,6 +42,9 @@ done
 "$BIN" --snapshot snaps/bastion.png --seed 12345 --dim nether --structure bastion --yaw 150 --pitch -10 --up 1 --rd 6
 "$BIN" --snapshot snaps/bastion_far.png --seed 12345 --dim nether --structure bastion --yaw 150 --pitch -35 --up 14 --rd 8
 "$BIN" --snapshot snaps/village.png --seed 12345 --structure village --yaw 45 --pitch -28 --up 14 --time 0.25
+"$BIN" --snapshot snaps/village_top.png --seed 12345 --structure village --yaw 0 --pitch -89 --up 70 --time 0.25
+"$BIN" --snapshot snaps/village2.png --seed 12345 --structure village --x 1500 --z -900 --yaw 45 --pitch -30 --up 16 --time 0.25
+"$BIN" --snapshot snaps/village3.png --seed 12345 --structure village --x -1200 --z 600 --yaw 45 --pitch -30 --up 16 --time 0.25
 "$BIN" --snapshot snaps/village_street.png --seed 12345 --structure village --yaw 135 --pitch -8 --up 1 --time 0.25 --rd 6
 "$BIN" --snapshot snaps/stronghold.png --seed 12345 --structure stronghold --yaw 180 --pitch 5 --up 0.5 --rd 4
 "$BIN" --snapshot snaps/end.png --seed 12345 --dim end --x 70 --z 35 --yaw 63 --pitch 2 --up 16 --dragon

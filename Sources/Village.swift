@@ -244,10 +244,11 @@ enum Village {
 
     static func foundation(_ w: inout StructWriter, _ b: LB, _ m: Mats) {
         let l = b.l
+        let clear = [Kind.farm, .pen].contains(l.kind) ? 3 : (l.kind == .temple ? 14 : (l.kind == .bigHouse ? 13 : 9))
         for v in 0..<l.d { for u in 0..<l.w {
             let (x, z) = world(l, u, v)
             w.pillarDown(x, l.y - 1, z, m.foundation, minY: l.y - 12)
-            for dy in 0...12 where w.inside(x, l.y + dy, z) && w.get(x, l.y + dy, z) != AIR { w.set(x, l.y + dy, z, AIR) }
+            for dy in 0...clear where w.inside(x, l.y + dy, z) && w.get(x, l.y + dy, z) != AIR { w.set(x, l.y + dy, z, AIR) }
         } }
     }
 
