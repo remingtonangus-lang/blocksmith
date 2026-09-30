@@ -91,6 +91,24 @@ extension Game {
         if key == "chest" && [MobKind.donkey, .mule, .llama, .traderLlama].contains(m.kind) && m.tamed && !m.chested {
             m.chested = true; consumeHeld(); return true
         }
+        // Horse treats (reference): temper toward taming, healing, growth; golden food breeds tamed horses.
+        let treats: [String: (temper: Int, heal: Int, grow: Float)] = [
+            "sugar": (3, 1, 30), "wheat": (3, 2, 20), "apple": (3, 3, 60), "golden_carrot": (5, 4, 60),
+            "golden_apple": (10, 10, 240), "enchanted_golden_apple": (10, 10, 240), "hay_block": (0, 20, 180)]
+        if [MobKind.horse, .donkey, .mule, .zombieHorse].contains(m.kind), let t = treats[key] {
+            let golden = key == "golden_carrot" || key.hasSuffix("golden_apple")
+            if golden && m.tamed && !m.baby && m.kind != .mule && m.breedCooldown <= 0 && m.inLove <= 0 {
+                m.inLove = 30
+            } else if m.health >= 30 && !m.baby && (m.tamed || t.temper == 0) {
+                return false
+            }
+            m.health = min(30, m.health + t.heal)
+            if m.baby { m.age += t.grow }
+            if !m.tamed { m.temper = min(100, m.temper + t.temper) }
+            consumeHeld()
+            particles.hearts(at: pos)
+            return true
+        }
         // Feeding: breed or grow up.
         if let food = MobKind.animalFood[m.kind], food.contains(key) {
             // Reference: feeding a baby takes 10% off the time it still needs to grow up.
