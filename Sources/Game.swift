@@ -68,6 +68,8 @@ final class Game {
     var portalCooldown: Float = 0
     var onFire: Float = 0          // seconds the player keeps burning
     var fireDamageTimer: Float = 0
+    var witherTime: Float = 0      // seconds of the wither effect left
+    var witherTick: Float = 0
     var contactTimer: Float = 0
     private var lavaTimer: Double = 0
     private var fireTimer: Double = 0
@@ -540,6 +542,7 @@ final class Game {
             }
         }
         if breakNow { swing = 1 }
+        if breakNow && projectiles.deflect(from: player.eye, look: player.look) { attackTimer = 0; sfx(.attack, 0.7); return }
         if let m = mobHit {
             mining = nil
             if useNow && useItemOnMob(m) { swing = 1; return }
@@ -553,6 +556,7 @@ final class Game {
                 if crit { dmg *= 1.5 }
                 attackTimer = 0
                 m.hit(from: player.pos, damage: max(1, Int(dmg.rounded())), knockback: player.sprinting ? 1.6 : 1)
+                m.provoke(self)
                 m.killedByPlayer = true
                 if crit { particles.crit(at: m.pos + V3(0, m.height * 0.7, 0)) }
                 sfx(.attack, 0.7, at: m.pos)
@@ -822,9 +826,16 @@ final class Game {
             if m.kind == .zombie && Float.random(in: 0..<1) < 0.025 {
                 drops.spawn(ItemStack(Items.id(["iron_ingot", "carrot", "potato"][Int.random(in: 0...2)]), 1), at: at)
             }
-            if m.kind == .slime && m.slimeSize > 1 { /* only small slimes drop slimeballs */ }
+            let r = Float.random(in: 0..<1)
+            if m.kind == .blaze && m.killedByPlayer && r < 0.5 { drops.spawn(ItemStack(Items.id("blaze_rod"), 1), at: at) }
+            if m.kind == .magmaCube && m.slimeSize > 1 && r < 0.25 { drops.spawn(ItemStack(Items.id("magma_cream"), 1), at: at) }
+            if m.kind == .zombifiedPiglin && m.killedByPlayer && r < 0.025 { drops.spawn(ItemStack(Items.id("gold_ingot"), 1), at: at) }
+            if m.kind == .witherSkeleton && m.killedByPlayer && r < 0.025, Items.has("wither_skeleton_skull") {
+                drops.spawn(ItemStack(Items.id("wither_skeleton_skull"), 1), at: at)
+            }
         }
-        if m.killedByPlayer && !m.baby { addXP(m.spec.xp + (m.kind.hostile ? 0 : Int.random(in: 0...1))) }
+        let xp = m.sized ? m.slimeSize : m.spec.xp
+        if m.killedByPlayer && !m.baby { addXP(xp + (m.kind.hostile ? 0 : Int.random(in: 0...1))) }
         particles.explosion(at: m.pos + V3(0, m.height / 2, 0), power: 0.5)
     }
 

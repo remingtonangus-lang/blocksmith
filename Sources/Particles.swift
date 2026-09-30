@@ -14,6 +14,7 @@ struct Particle {
     var gravity: Float
     var color: V3
     var collide: Bool
+    var glow = false
 }
 
 final class ParticleManager {
@@ -44,6 +45,19 @@ final class ParticleManager {
                          life: Float.random(in: 0.6...1.6), maxLife: 1.6, layer: smoke, uv0: V2(0, 0), uvSize: 1,
                          size: Float.random(in: 0.3...0.8), gravity: -1, color: V3(g, g, g), collide: false))
         }
+    }
+
+    func smoke(at c: V3, dark: Bool = true) {
+        let g: Float = dark ? Float.random(in: 0.15...0.3) : Float.random(in: 0.6...0.8)
+        add(Particle(pos: c, vel: V3(Float.random(in: -0.2...0.2), Float.random(in: 0.5...1.2), Float.random(in: -0.2...0.2)),
+                     life: Float.random(in: 0.5...1.2), maxLife: 1.2, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
+                     size: Float.random(in: 0.08...0.18), gravity: -0.5, color: V3(g, g, g), collide: false))
+    }
+
+    func flame(at c: V3) {
+        add(Particle(pos: c, vel: V3(Float.random(in: -0.1...0.1), Float.random(in: 0.1...0.4), Float.random(in: -0.1...0.1)),
+                     life: Float.random(in: 0.3...0.6), maxLife: 0.6, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
+                     size: Float.random(in: 0.06...0.12), gravity: -0.3, color: V3(1, 0.62, 0.2), collide: false, glow: true))
     }
 
     func hearts(at c: V3) {
@@ -82,7 +96,7 @@ final class ParticleManager {
         for p in list {
             let c = p.pos - eye
             let l = world.lightAt(Int(floor(p.pos.x)), Int(floor(p.pos.y)), Int(floor(p.pos.z)))
-            let light = max(0.15, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
+            let light = p.glow ? 1 : max(0.15, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
             let s = p.size
             let r = right * s, u = up * s
             let a = p.uv0, b = p.uv0 + V2(p.uvSize, p.uvSize)

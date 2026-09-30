@@ -233,6 +233,13 @@ extension Game {
     // Right-click on a mob with the held item.
     func useItemOnMob(_ m: Mob) -> Bool {
         let key = Items.key(held.item)
+        if m.kind == .piglin && key == "gold_ingot" && m.admire <= 0 && !m.baby {
+            m.admire = 6
+            m.aggro = false
+            consumeHeld()
+            sfx(.mobPiglin, 1, at: m.pos + V3(0, 1.6, 0))
+            return true
+        }
         if let food = MobManager.breedFood[m.kind], food.contains(key) {
             guard !m.baby, m.breedCooldown <= 0, m.inLove <= 0 else { return false }
             m.inLove = 30
@@ -331,6 +338,34 @@ extension Game {
             fireDamageTimer -= dt
             if fireDamageTimer <= 0 { fireDamageTimer = 1; damage(1, "burned to death") }
         }
+        // Wither effect (wither skeleton hits): 1 damage every 2 s, bypassing armor.
+        if witherTime > 0 {
+            witherTime -= dt
+            witherTick -= dt
+            if witherTick <= 0 { witherTick = 2; damage(1, "withered away", bypassArmor: true) }
+        }
+    }
+
+    // Piglin bartering (weights of the reference game's barter table, total 459; potions and
+    // enchanted items are left out until brewing/enchanting exist).
+    func barter(_ m: Mob) {
+        let table: [(String, Int, Int, Int)] = [
+            ("ender_pearl", 2, 4, 10), ("string", 3, 9, 20), ("quartz", 5, 12, 20), ("obsidian", 1, 1, 40),
+            ("crying_obsidian", 1, 3, 40), ("fire_charge", 1, 1, 40), ("leather", 2, 4, 40), ("soul_sand", 2, 8, 40),
+            ("nether_brick", 2, 8, 40), ("spectral_arrow", 6, 12, 40), ("gravel", 8, 16, 40), ("blackstone", 8, 16, 40),
+            ("iron_nugget", 10, 36, 10),
+        ].filter { Items.has($0.0) }
+        let total = table.reduce(0) { $0 + $1.3 }
+        var r = Int.random(in: 0..<max(1, total))
+        for e in table {
+            r -= e.3
+            if r < 0 {
+                let dir = simd_normalize(player.pos - m.pos + V3(0, 0.001, 0))
+                drops.spawn(ItemStack(Items.id(e.0), Int.random(in: e.1...e.2)), at: m.eye, vel: dir * 3 + V3(0, 2, 0))
+                break
+            }
+        }
+        sfx(.mobPiglin, 0.8, at: m.pos + V3(0, 1.6, 0))
     }
 }
 

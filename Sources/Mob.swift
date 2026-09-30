@@ -6,10 +6,11 @@ import simd
 
 struct MobVert { var pos: V4; var color: V4; var local: V4 } // pos.w = pattern id, color.a = shade
 
-enum Behavior { case passive, melee, ranged, creeper, spider, enderman, slime }
+enum Behavior { case passive, melee, ranged, creeper, spider, enderman, slime, neutral, piglin, ghast, blaze }
 
 enum MobKind: Int, CaseIterable {
     case cow, sheep, chicken, pig, zombie, skeleton, creeper, spider, enderman, slime
+    case zombifiedPiglin, piglin, ghast, blaze, magmaCube, witherSkeleton
 
     struct Spec {
         var name: String
@@ -23,6 +24,8 @@ enum MobKind: Int, CaseIterable {
         var drops: [(String, Int, Int)] = []
         var xp = 0
         var call: Snd
+        var fireImmune = false
+        var flying = false
     }
 
     var spec: Spec {
@@ -47,6 +50,18 @@ enum MobKind: Int, CaseIterable {
                                     drops: [("ender_pearl", 0, 1)], xp: 5, call: .mobEnderman)
         case .slime: return Spec(name: "Slime", halfW: 0.26, height: 0.52, health: 1, speed: 2.0, behavior: .slime, attack: 0,
                                  drops: [("slime_ball", 0, 2)], xp: 1, call: .mobSlime)
+        case .zombifiedPiglin: return Spec(name: "Zombified Piglin", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .neutral, attack: 8,
+                                           drops: [("rotten_flesh", 0, 1), ("gold_nugget", 0, 1)], xp: 5, call: .mobZombPiglin, fireImmune: true)
+        case .piglin: return Spec(name: "Piglin", halfW: 0.3, height: 1.95, health: 16, speed: 2.5, behavior: .piglin, attack: 8,
+                                  drops: [], xp: 5, call: .mobPiglin)
+        case .ghast: return Spec(name: "Ghast", halfW: 2, height: 4, health: 10, speed: 2.0, behavior: .ghast,
+                                 drops: [("ghast_tear", 0, 1), ("gunpowder", 0, 2)], xp: 5, call: .mobGhast, fireImmune: true, flying: true)
+        case .blaze: return Spec(name: "Blaze", halfW: 0.3, height: 1.8, health: 20, speed: 2.3, behavior: .blaze, attack: 6,
+                                 drops: [], xp: 10, call: .mobBlaze, fireImmune: true, flying: true)
+        case .magmaCube: return Spec(name: "Magma Cube", halfW: 0.26, height: 0.52, health: 1, speed: 2.4, behavior: .slime, attack: 0,
+                                     drops: [], xp: 1, call: .mobSlime, fireImmune: true)
+        case .witherSkeleton: return Spec(name: "Wither Skeleton", halfW: 0.35, height: 2.4, health: 20, speed: 2.5, behavior: .melee, attack: 8,
+                                          drops: [("coal", 0, 1), ("bone", 0, 2)], xp: 5, call: .mobSkeleton, fireImmune: true)
         }
     }
     var hostile: Bool { spec.behavior != .passive }
@@ -85,8 +100,12 @@ final class Mob {
     var killedByPlayer = false
     var slimeSize = 1
 
-    var halfW: Float { spec.halfW * (kind == .slime ? Float(slimeSize) : scale) }
-    var height: Float { spec.height * (kind == .slime ? Float(slimeSize) : scale) }
+    var sized: Bool { kind == .slime || kind == .magmaCube }
+    var halfW: Float { spec.halfW * (sized ? Float(slimeSize) : scale) }
+    var height: Float { spec.height * (sized ? Float(slimeSize) : scale) }
+    var admire: Float = 0           // piglin: seconds left inspecting a gold ingot before bartering
+    var flyTarget: V3?              // ghast / blaze hover target
+    var volley = 0                  // blaze: fireballs left in the current burst
 
     init(_ kind: MobKind, at p: V3) {
         self.kind = kind
@@ -105,6 +124,14 @@ final class Mob {
     func makeSlime(size: Int) {
         slimeSize = size
         health = size * size
+    }
+
+    // Anger this mob and every zombified piglin nearby at the player.
+    func provoke(_ g: Game) {
+        aggro = true
+        if kind == .zombifiedPiglin {
+            for o in g.mobs.mobs where o.kind == .zombifiedPiglin && simd_length(o.pos - pos) < 20 { o.aggro = true }
+        }
     }
 
     var forward: V3 { V3(-sinf(yaw), 0, -cosf(yaw)) }
@@ -148,7 +175,8 @@ final class Mob {
             if l.sky >= 15 { fire = max(fire, 8) }
         }
         if inWater && Blocks.fluidKind[Int(feetBlock)] == 1 { fire = 0 }
-        let contact = Blocks.contactDamage[Int(feetBlock)]
+        if spec.fireImmune { fire = 0 }
+        let contact = spec.fireImmune ? 0 : Blocks.contactDamage[Int(feetBlock)]
         if contact > 0 && kind != .slime {
             if Blocks.fluidKind[Int(feetBlock)] == 2 || feetBlock == FIRE { fire = max(fire, 8) }
             if attackCooldown < -0.5 { health -= Int(contact); hurt = 0.3; attackCooldown = 0 }
@@ -181,6 +209,68 @@ final class Mob {
                 eggTimer -= dt
                 if eggTimer <= 0 { eggTimer = Float.random(in: 300...600); g.drops.spawn(ItemStack(Items.id("egg"), 1), at: pos + V3(0, 0.3, 0)) }
             }
+        case .neutral, .piglin:
+            // Zombified piglins only fight back; piglins attack players not wearing gold armor.
+            let goldWorn = g.inventory.armor.slots.contains { !$0.isEmpty && Items.key($0.item).hasPrefix("golden_") }
+            let angry = aggro || (spec.behavior == .piglin && !goldWorn && dist < 12 && admire <= 0)
+            if admire > 0 {
+                admire -= dt
+                speed = 0
+                if admire <= 0 { g.barter(self) }
+            } else if canTarget && angry {
+                face(player)
+                speed = spec.speed * 1.2
+                if dist < halfW + 1.3 && abs(toPlayer.y) < 2 && attackCooldown <= 0 {
+                    attackCooldown = 1
+                    g.hurtPlayer(spec.attack, from: pos, cause: "was slain by \(spec.name)")
+                }
+            } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
+        case .ghast:
+            // Drifts around; shoots an explosive fireball at a visible player within 64 blocks every 3 s.
+            if flyTarget == nil || aiTimer <= 0 || simd_length(flyTarget! - pos) < 2 {
+                aiTimer = Float.random(in: 3...7)
+                flyTarget = pos + V3(Float.random(in: -16...16), Float.random(in: -8...8), Float.random(in: -16...16))
+            }
+            if canTargetFar(g, dist, 64) && w.canSee(eye, g.player.eye) {
+                face(player)
+                attackCooldown -= 0
+                if attackCooldown <= 0 {
+                    attackCooldown = 3
+                    let from = pos + V3(0, height * 0.5, 0) + forward * 2.2
+                    g.projectiles.fireball(from: from, dir: simd_normalize(g.player.eye - from), big: true, byPlayer: false)
+                    g.sfx(.fireball, 1.2, at: from)
+                }
+            } else {
+                let d = flyTarget! - pos
+                yaw = atan2f(-d.x, -d.z)
+            }
+            speed = 0
+            let d = flyTarget! - pos
+            let l = simd_length(d)
+            if l > 0.1 { vel += (d / l * spec.speed - vel) * min(1, dt * 1.5) }
+        case .blaze:
+            // Hovers a little above the player; bursts of three small fireballs.
+            let hover = canTargetFar(g, dist, 48) ? player.y + 2.5 : pos.y + Float.random(in: -1...1)
+            vel.y += ((hover - pos.y) * 1.5 - vel.y) * min(1, dt * 2)
+            if canTargetFar(g, dist, 48) && w.canSee(eye, g.player.eye) {
+                face(player)
+                speed = dist > 6 ? spec.speed : 0
+                if dist < 1.8 && attackCooldown <= 0 && volley == 0 {
+                    attackCooldown = 1
+                    g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Blaze")
+                } else if attackCooldown <= 0 {
+                    if volley == 0 { volley = 3 }
+                    let from = eye + forward * 0.5
+                    var dir = simd_normalize(g.player.eye - V3(0, 0.4, 0) - from)
+                    let spread = sqrtf(dist) * 0.02
+                    dir = simd_normalize(dir + V3(Float.random(in: -spread...spread), 0, Float.random(in: -spread...spread)))
+                    g.projectiles.fireball(from: from, dir: dir, big: false, byPlayer: false)
+                    g.sfx(.fireball, 0.6, at: from)
+                    volley -= 1
+                    attackCooldown = volley > 0 ? 0.3 : 3
+                }
+            } else { wander(); speed = moving ? spec.speed * 0.5 : 0; volley = 0 }
+            if Float.random(in: 0..<1) < dt * 6 { g.particles.smoke(at: pos + V3(Float.random(in: -0.4...0.4), Float.random(in: 0.2...1.4), Float.random(in: -0.4...0.4))) }
         case .melee, .spider:
             let l = w.lightAt(Int(floor(pos.x)), Int(floor(pos.y + 0.5)), Int(floor(pos.z)))
             let hostileNow = spec.behavior == .melee || aggro || Float(l.sky) * g.daylight < 4.8
@@ -191,6 +281,7 @@ final class Mob {
                 if dist < reach + 0.2 && abs(toPlayer.y) < 2 && attackCooldown <= 0 {
                     attackCooldown = 1
                     g.hurtPlayer(spec.attack, from: pos, cause: "was slain by \(spec.name)")
+                    if kind == .witherSkeleton { g.witherTime = 10; g.witherTick = min(g.witherTick, 2) }
                 }
             } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .ranged:
@@ -244,14 +335,15 @@ final class Mob {
             if onGround && aiTimer <= 0 {
                 aiTimer = Float.random(in: 1...2)
                 if canTarget { face(player) } else { yaw += Float.random(in: -1.5...1.5) }
-                vel.y = 7
+                vel.y = kind == .magmaCube ? 7 + Float(slimeSize) * 0.8 : 7
                 vel.x = forward.x * spec.speed * 1.5
                 vel.z = forward.z * spec.speed * 1.5
                 g.sfx(.mobSlime, 0.5, at: pos)
             }
-            if canTarget && slimeSize > 1 && dist < halfW + 0.9 && attackCooldown <= 0 {
+            if canTarget && (slimeSize > 1 || kind == .magmaCube) && dist < halfW + 0.9 && attackCooldown <= 0 {
                 attackCooldown = 1
-                g.hurtPlayer(slimeSize == 4 ? 4 : 2, from: pos, cause: "was slain by Slime")
+                let dmg = kind == .magmaCube ? [0, 3, 4, 0, 6][min(4, slimeSize)] : (slimeSize == 4 ? 4 : 2)
+                g.hurtPlayer(dmg, from: pos, cause: "was slain by \(spec.name)")
             }
         }
 
@@ -263,6 +355,21 @@ final class Mob {
             if wet || drop { yaw += .pi * Float.random(in: 0.6...1.4); speed = 0; moving = false; aiTimer = Float.random(in: 1...3) }
         }
 
+        if spec.flying {
+            if kind == .blaze && speed != 0 {
+                let target = forward * speed
+                vel.x += (target.x - vel.x) * min(1, dt * 4)
+                vel.z += (target.z - vel.z) * min(1, dt * 4)
+            }
+            if kind == .blaze && speed == 0 { vel.x *= expf(-3 * dt); vel.z *= expf(-3 * dt) }
+            let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: 0, onGround: false)
+            if hit.x { vel.x = 0; flyTarget = nil }
+            if hit.y { vel.y = 0; flyTarget = nil }
+            if hit.z { vel.z = 0; flyTarget = nil }
+            onGround = false
+            walkPhase += dt * 3
+            return
+        }
         if spec.behavior != .slime || onGround {
             let target = forward * speed
             let k = 1 - expf(-(onGround ? 12 : 3) * dt)
@@ -301,6 +408,10 @@ final class Mob {
         return w.collides(V3(p.x - hw, p.y, p.z - hw), V3(p.x + hw, p.y + height, p.z + hw))
     }
 
+    private func canTargetFar(_ g: Game, _ dist: Float, _ range: Float) -> Bool {
+        g.survival && g.alive && dist < range
+    }
+
     private func wander() {
         if panic > 0 {
             moving = true
@@ -329,6 +440,8 @@ final class Mob {
         hurt = 0.4
         if spec.behavior == .passive { panic = 5; aiTimer = 0 }
         aggro = true
+        admire = 0
+        if spec.flying { vel += V3(0, 1, 0); return }
         if kind == .enderman && Float.random(in: 0..<1) < 0.5 { return }
         var away = pos - src
         away.y = 0
@@ -472,7 +585,87 @@ private func parts(_ m: Mob) -> [Part] {
             p.append(Part(mn: V3(-18, 7, z - 1), mx: V3(-3, 9, z + 1), pivot: V3(-3, 8, z), rotX: -wiggle, rotZ: 0.5, color: body))
         }
         return p
-    case .slime:
+    case .zombifiedPiglin, .piglin:
+        let zp = m.kind == .zombifiedPiglin
+        let skin = V3(0.93, 0.6, 0.55), rot = V3(0.45, 0.62, 0.35)
+        let tunic = zp ? V3(0.55, 0.45, 0.35) : V3(0.5, 0.33, 0.18)
+        let arm = zp ? rot : skin
+        let armFwd: Float = m.aggro || zp && m.aggro ? -1.3 : 0
+        var p: [Part] = [
+            Part(mn: V3(-4.01, 0, -2), mx: V3(-0.01, 12, 2), pivot: V3(-2, 12, 0), rotX: swing, color: V3(0.35, 0.25, 0.15), pattern: 4),
+            Part(mn: V3(0.01, 0, -2), mx: V3(4.01, 12, 2), pivot: V3(2, 12, 0), rotX: -swing, color: V3(0.35, 0.25, 0.15), pattern: 4),
+            box(-4, 12, -2, 8, 12, 4, tunic, 4),
+            Part(mn: V3(-8, 12, -2), mx: V3(-4, 24, 2), pivot: V3(-6, 22, 0), rotX: armFwd + swing, color: arm, pattern: 4),
+            Part(mn: V3(4, 12, -2), mx: V3(8, 24, 2), pivot: V3(6, 22, 0), rotX: armFwd - swing, color: skin, pattern: 4),
+            box(-5, 24, -4, 10, 8, 8, zp ? V3(0.85, 0.55, 0.5) : skin, 4),
+            box(-2, 25, -5, 4, 3, 1, V3(0.98, 0.7, 0.65)),
+            box(-1.4, 26, -5.2, 0.8, 1, 0.3, V3(0.3, 0.15, 0.15)), box(0.6, 26, -5.2, 0.8, 1, 0.3, V3(0.3, 0.15, 0.15)),
+            box(-6, 27, -1, 1, 4, 3, skin), box(5, 27, -1, 1, 4, 3, skin),        // ears
+            box(-3, 23.5, -5.1, 1, 1.5, 0.3, V3(0.95, 0.9, 0.8)), box(2, 23.5, -5.1, 1, 1.5, 0.3, V3(0.95, 0.9, 0.8)), // tusks
+            // Golden sword in the right hand.
+            Part(mn: V3(5.5, 11, -12), mx: V3(6.5, 12.5, 0), pivot: V3(6, 22, 0), rotX: armFwd - swing, color: V3(0.98, 0.84, 0.3)),
+        ] + eyes(29, -4, 1, 1.5, zp ? V3(0.8, 0.8, 0.3) : black)
+        if zp { p.append(box(-5.1, 27, -3, 0.3, 3, 4, V3(0.8, 0.85, 0.8), 5)) }     // exposed skull patch
+        return p
+    case .ghast:
+        // 16px cube scaled 4x, nine tentacles; the face opens its eyes and mouth while shooting.
+        let white = V3(0.94, 0.94, 0.94), grey = V3(0.55, 0.55, 0.55)
+        let firing = m.attackCooldown > 2.4
+        var p: [Part] = [box(-32, 16, -32, 64, 64, 64, white, 4)]
+        p += [box(-20, 52, -32.4, 12, firing ? 8 : 3, 0.3, firing ? V3(0.8, 0.1, 0.1) : grey),
+              box(8, 52, -32.4, 12, firing ? 8 : 3, 0.3, firing ? V3(0.8, 0.1, 0.1) : grey),
+              box(-12, 30, -32.4, 24, firing ? 12 : 4, 0.3, firing ? V3(0.15, 0.15, 0.15) : grey)]
+        for i in 0..<9 {
+            let tx = Float(i % 3 - 1) * 20, tz = Float(i / 3 - 1) * 20
+            let len: Float = 28 + Float((i * 7) % 5) * 6
+            let wig = sinf(m.walkPhase * 1.3 + Float(i)) * 0.25
+            p.append(Part(mn: V3(tx - 4, 16 - len, tz - 4), mx: V3(tx + 4, 16, tz + 4), pivot: V3(tx, 16, tz), rotX: wig, color: white))
+        }
+        return p
+    case .blaze:
+        let yellow = V3(1.0, 0.78, 0.2), dark = V3(0.7, 0.4, 0.05)
+        var p: [Part] = [box(-4, 20, -4, 8, 8, 8, yellow, 4)]
+        p += eyes(24, -4, 1, 1.5, V3(0.15, 0.08, 0.02))
+        let t = m.walkPhase * 0.9
+        for i in 0..<12 {
+            let ring = i / 4
+            let a = t * (ring == 1 ? -1 : 1) + Float(i % 4) * .pi / 2 + Float(ring) * 0.4
+            let r: Float = [9, 7, 5][ring]
+            let y: Float = [14, 6, -2][ring] + 2 + sinf(t * 2 + Float(i)) * 1.2
+            let x = cosf(a) * r, z = sinf(a) * r
+            p.append(box(x - 1, y + 2, z - 1, 2, 8, 2, i % 2 == 0 ? yellow : dark, 4))
+        }
+        return p
+    case .witherSkeleton:
+        let c = V3(0.16, 0.16, 0.17)
+        let s: Float = 1.2
+        func sb(_ x: Float, _ y: Float, _ z: Float, _ w: Float, _ h: Float, _ d: Float, _ col: V3) -> Part { box(x * s, y * s, z * s, w * s, h * s, d * s, col, 5) }
+        return [
+            Part(mn: V3(-2.4, 0, -1.2), mx: V3(0, 14.4, 1.2), pivot: V3(-1.2, 14.4, 0), rotX: swing, color: c, pattern: 5),
+            Part(mn: V3(0, 0, -1.2), mx: V3(2.4, 14.4, 1.2), pivot: V3(1.2, 14.4, 0), rotX: -swing, color: c, pattern: 5),
+            sb(-4, 12, -2, 8, 12, 4, c),
+            Part(mn: V3(-7.2, 14.4, -1.2), mx: V3(-4.8, 28.8, 1.2), pivot: V3(-6, 27, 0), rotX: m.aggro ? -1.4 : swing, color: c, pattern: 5),
+            Part(mn: V3(4.8, 14.4, -1.2), mx: V3(7.2, 28.8, 1.2), pivot: V3(6, 27, 0), rotX: m.aggro ? -1.4 : -swing, color: c, pattern: 5),
+            // Stone sword.
+            Part(mn: V3(5.5, 13, -14), mx: V3(6.5, 14.5, 0), pivot: V3(6, 27, 0), rotX: m.aggro ? -1.4 : -swing, color: V3(0.5, 0.5, 0.5)),
+            sb(-4, 24, -4, 8, 8, 8, c),
+            sb(-2.5, 27.5, -4.1, 1.5, 1.5, 0.2, V3(0.02, 0.02, 0.02)), sb(1, 27.5, -4.1, 1.5, 1.5, 0.2, V3(0.02, 0.02, 0.02)),
+        ]
+    case .slime, .magmaCube:
+        if m.kind == .magmaCube {
+            let s = Float(m.slimeSize) * 8
+            let stretch: Float = m.onGround ? 1 : 1.35
+            var p: [Part] = []
+            // Stacked slices that spread apart mid-jump; glowing core.
+            for i in 0..<4 {
+                let y0 = Float(i) * s / 4 * stretch
+                p.append(box(-s / 2, y0, -s / 2, s, s / 4, s, i % 2 == 0 ? V3(0.35, 0.08, 0.05) : V3(0.5, 0.12, 0.05), 4))
+            }
+            p.append(box(-s * 0.3, s * 0.25, -s * 0.3, s * 0.6, s * 0.5 * stretch, s * 0.6, V3(1, 0.55, 0.1)))
+            p += [box(-s * 0.32, s * 0.55 * stretch, -s / 2 - 0.1, s * 0.18, s * 0.12, 0.2, V3(1, 0.8, 0.2)),
+                  box(s * 0.14, s * 0.55 * stretch, -s / 2 - 0.1, s * 0.18, s * 0.12, 0.2, V3(1, 0.8, 0.2))]
+            return p
+        }
         let s = Float(m.slimeSize) * 8
         let squash: Float = m.onGround ? 1 : 1.15
         return [
@@ -492,11 +685,14 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
     var n = 0
     for m in mobs {
         let l = world.lightAt(Int(floor(m.pos.x)), Int(floor(m.pos.y + m.height * 0.5)), Int(floor(m.pos.z)))
-        let bright = max(0.05, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
+        var bright = max(0.05, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
+        bright = bright + (1 - bright) * world.dim.ambient
         let cy = cosf(m.yaw), sy = sinf(m.yaw)
         let base = m.pos - eye
         let tint = m.hurt > 0 ? V3(1, 0.45, 0.45) : (m.fire > 0 ? V3(1, 0.7, 0.4) : V3(1, 1, 1))
-        let scale: Float = m.kind == .slime ? 1 : m.scale
+        let scale: Float = m.sized ? 1 : m.scale
+        let glow = m.kind == .blaze || m.kind == .magmaCube || m.kind == .ghast
+        let lit = glow ? max(bright, 0.85) : bright
         for p in parts(m) {
             if n + 36 > capacity { return n }
             let ca = cosf(p.rotX), sa = sinf(p.rotX)
@@ -511,7 +707,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                     q = V3(q.x * cz - q.y * sz, q.x * sz + q.y * cz, q.z) + p.pivot
                     q *= scale / 16
                     let r = V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z) + base
-                    out[n] = MobVert(pos: V4(r, p.pattern), color: V4(p.color * tint, faceShade[f] * bright), local: V4(lp, 0))
+                    out[n] = MobVert(pos: V4(r, p.pattern), color: V4(p.color * tint, faceShade[f] * lit), local: V4(lp, 0))
                     n += 1
                 }
             }
@@ -539,7 +735,7 @@ final class MobManager {
             m.update(dt, game: game)
             if m.callTimer <= 0 {
                 m.callTimer = Float.random(in: 8...24)
-                if m.kind != .creeper { game.sfx(m.kind.call, 0.6, at: m.pos + V3(0, m.height * 0.8, 0)) }
+                if m.kind != .creeper && m.kind != .magmaCube { game.sfx(m.kind.call, 0.6, at: m.pos + V3(0, m.height * 0.8, 0)) }
             }
         }
         // Breeding: two mobs of a kind in love next to each other make a baby.
@@ -560,9 +756,9 @@ final class MobManager {
         // Deaths: loot + XP, slime splitting.
         var spawned: [Mob] = []
         for m in mobs where m.health <= 0 {
-            if m.kind == .slime && m.slimeSize > 1 {
+            if m.sized && m.slimeSize > 1 {
                 for _ in 0..<Int.random(in: 2...4) {
-                    let s = Mob(.slime, at: m.pos + V3(Float.random(in: -0.4...0.4), 0.2, Float.random(in: -0.4...0.4)))
+                    let s = Mob(m.kind, at: m.pos + V3(Float.random(in: -0.4...0.4), 0.2, Float.random(in: -0.4...0.4)))
                     s.makeSlime(size: m.slimeSize / 2)
                     spawned.append(s)
                 }
@@ -632,6 +828,8 @@ final class MobManager {
     // blocks, 24-64 blocks from the player.
     func trySpawnHostile(_ game: Game) {
         let w = game.world
+        if w.dim == .nether { trySpawnNether(game); return }
+        if w.dim == .end { return }
         let pp = game.player.pos
         let a = Float.random(in: 0..<(2 * .pi)), r = Float.random(in: 24...64)
         let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
@@ -664,6 +862,54 @@ final class MobManager {
         if kind == .zombie && Float.random(in: 0..<1) < 0.05 { m.baby = true; m.scale = 0.5 }
         if m.collides(spawnPos, w) { return }
         mobs.append(m)
+    }
+
+    // Nether spawning (no light requirement): per-biome weighted lists, overridden inside fortresses.
+    func trySpawnNether(_ game: Game) {
+        let w = game.world
+        let pp = game.player.pos
+        let a = Float.random(in: 0..<(2 * .pi)), r = Float.random(in: 24...64)
+        let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
+        guard w.isLoaded(x, z) else { return }
+        var y = YOFF + Int.random(in: 1...126)
+        // Walk down to a floor with two free blocks above it.
+        while y > YOFF + 1 && !(Blocks.opaque[Int(w.block(x, y - 1, z))] && !Blocks.collide[Int(w.block(x, y, z))]
+                                 && !Blocks.collide[Int(w.block(x, y + 1, z))]) { y -= 1 }
+        if y <= YOFF + 1 || Blocks.isLiquid(w.block(x, y, z)) || w.block(x, y - 1, z) == BEDROCK { return }
+        let spawnPos = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
+        if simd_length(spawnPos - pp) < 24 { return }
+        typealias Entry = (MobKind, Int, Int, Int)      // kind, weight, min group, max group
+        var list: [Entry]
+        if w.gen.structures?.structure(at: x, y, z, kind: "fortress") != nil && Blocks.key(w.block(x, y - 1, z)) == "nether_bricks" {
+            list = [(.blaze, 10, 2, 3), (.zombifiedPiglin, 5, 4, 4), (.witherSkeleton, 8, 5, 5), (.skeleton, 2, 5, 5), (.magmaCube, 3, 4, 4)]
+        } else {
+            switch w.gen.column(x, z).biome {
+            case .soulSandValley: list = [(.skeleton, 20, 5, 5), (.ghast, 50, 4, 4), (.enderman, 1, 4, 4)]
+            case .basaltDeltas: list = [(.ghast, 40, 1, 1), (.magmaCube, 100, 2, 5)]
+            case .crimsonForest: list = [(.zombifiedPiglin, 1, 2, 4), (.piglin, 5, 3, 4)]
+            case .warpedForest: list = [(.enderman, 1, 4, 4)]
+            default: list = [(.zombifiedPiglin, 100, 4, 4), (.ghast, 50, 4, 4), (.magmaCube, 2, 4, 4), (.enderman, 1, 4, 4), (.piglin, 15, 4, 4)]
+            }
+        }
+        let total = list.reduce(0) { $0 + $1.1 }
+        var roll = Int.random(in: 0..<total)
+        var pick = list[0]
+        for e in list { roll -= e.1; if roll < 0 { pick = e; break } }
+        // Ghasts are rare per attempt (they need a big open space) — the reference game's spawn
+        // attempts fail for them most of the time.
+        if pick.0 == .ghast && Float.random(in: 0..<1) < 0.8 { return }
+        let n = Int.random(in: pick.2...pick.3)
+        for _ in 0..<n {
+            let sx = x + Int.random(in: -3...3), sz = z + Int.random(in: -3...3)
+            var sy = y + 2
+            while sy > y - 4 && !Blocks.opaque[Int(w.block(sx, sy - 1, sz))] { sy -= 1 }
+            let p = V3(Float(sx) + 0.5, Float(sy), Float(sz) + 0.5)
+            let m = Mob(pick.0, at: pick.0 == .ghast ? p + V3(0, 3, 0) : p)
+            if m.sized { m.makeSlime(size: [1, 2, 4][Int.random(in: 0...2)]) }
+            if m.collides(m.pos, w) { continue }
+            mobs.append(m)
+            if mobs.count >= MobManager.hostileCap + 10 { return }
+        }
     }
 
     // Nearest mob along a ray.

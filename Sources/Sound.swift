@@ -13,6 +13,7 @@ enum Snd: Hashable {
     case step(SoundMat)
     case splash, land, hurt, eat, click, open, mobCow, mobSheep, mobChicken, pickup, dig, attack, burp
     case mobPig, mobZombie, mobSkeleton, creeperHiss, mobSpider, mobEnderman, mobSlime, bow, explode, arrowHit, fizz, xp, levelUp
+    case mobGhast, mobBlaze, mobPiglin, mobZombPiglin, fireball
 }
 
 func soundMat(_ id: BlockID) -> SoundMat { Blocks.def(id).sound }
@@ -26,7 +27,8 @@ struct SoundBank {
         var s: [Snd] = []
         for m in SoundMat.allCases { s += [.breakBlock(m), .place(m), .step(m)] }
         return s + [.splash, .land, .hurt, .eat, .click, .open, .mobCow, .mobSheep, .mobChicken, .pickup, .dig, .attack, .burp,
-                    .mobPig, .mobZombie, .mobSkeleton, .creeperHiss, .mobSpider, .mobEnderman, .mobSlime, .bow, .explode, .arrowHit, .fizz, .xp, .levelUp]
+                    .mobPig, .mobZombie, .mobSkeleton, .creeperHiss, .mobSpider, .mobEnderman, .mobSlime, .bow, .explode, .arrowHit, .fizz, .xp, .levelUp,
+                    .mobGhast, .mobBlaze, .mobPiglin, .mobZombPiglin, .fireball]
     }
 
     init() {
@@ -205,6 +207,11 @@ struct Synth {
         case .xp: out = modes(0.2, [(1760 * p, 0.25, 0.05), (2637 * p, 0.12, 0.04)])
         case .levelUp: out = Synth.mix(Synth.mix(modes(0.5, [(523, 0.3, 0.15)]), modes(0.5, [(659, 0.3, 0.15)]), at: frames(0.1)), modes(0.8, [(784, 0.3, 0.3)]), at: frames(0.2))
         case .open: out = Synth.mix(modes(0.12, [(660 * p, 0.25, 0.03)]), modes(0.12, [(990 * p, 0.2, 0.03)]), at: frames(0.05))
+        case .mobGhast: out = Synth.mix(voice(1.4, f0: 520 * p, f1: 260 * p, vib: 0.35, lp: 2400, gain: 1.0), burst(1.2, lp: 1800, hp: 400, attack: 0.2, decay: 0.8, gain: 0.25))
+        case .mobBlaze: out = Synth.mix(burst(1.0, lp: 1200 * p, hp: 90, attack: 0.15, decay: 0.7, gain: 1.4), grains(14, spread: 0.8, lp: 3000, hp: 800, decay: 0.01, gain: 0.5))
+        case .mobPiglin: out = Synth.mix(voice(0.35, f0: 210 * p, f1: 160 * p, vib: 0.2, lp: 1100, gain: 1), voice(0.3, f0: 240 * p, f1: 170 * p, vib: 0.15, lp: 900, gain: 0.8), at: frames(0.3))
+        case .mobZombPiglin: out = Synth.mix(voice(0.8, f0: 160 * p, f1: 110 * p, vib: 0.25, lp: 800, gain: 1.2), burst(0.8, lp: 600, hp: 80, attack: 0.1, decay: 0.4, gain: 0.3))
+        case .fireball: out = Synth.mix(burst(0.8, lp: 900 * p, hp: 60, attack: 0.02, decay: 0.3, gain: 2.2), burst(0.5, lp: 5000, hp: 1500, attack: 0.01, decay: 0.2, gain: 0.5))
         case .mobCow: out = voice(0.85, f0: 150 * p, f1: 105 * p, vib: 0.02, lp: 700, gain: 1.3)
         case .mobSheep: out = voice(0.6, f0: 420 * p, f1: 380 * p, vib: 0.09, lp: 1800, gain: 0.9)
         case .mobChicken:

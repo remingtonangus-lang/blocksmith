@@ -142,15 +142,23 @@ enum Snapshot {
         if CommandLine.arguments.contains("--mobs") {
             // A few animals standing in front of the camera, legs mid-stride.
             let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)), r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))
-            let spots: [(MobKind, Float, Float)] = CommandLine.arguments.contains("--hostile")
+            let nether = CommandLine.arguments.contains("--nethermobs")
+            let spots: [(MobKind, Float, Float)] = nether
+                ? [(.zombifiedPiglin, 5, -2.5), (.piglin, 5, 0), (.witherSkeleton, 6, 2.5), (.blaze, 8, -3.5), (.magmaCube, 7, 3.5), (.ghast, 22, 2)]
+                : CommandLine.arguments.contains("--hostile")
                 ? [(.zombie, 5, -2.5), (.skeleton, 6, 0), (.creeper, 5, 2.5), (.spider, 9, -3.5), (.enderman, 10, 1), (.slime, 8, 4)]
                 : [(.cow, 6, -2.5), (.sheep, 6, 1.5), (.chicken, 4, 0), (.pig, 10, 3), (.sheep, 9, -4), (.chicken, 5, 2.5)]
             for (i, spot) in spots.enumerated() {
                 let p = pos + f * spot.1 + r * spot.2
                 let x = Int(floor(p.x)), z = Int(floor(p.z))
-                let y = game.mobs.grassSurface(world, x, z) ?? (world.gen.column(x, z).height + 1)
+                var y = game.mobs.grassSurface(world, x, z) ?? (world.gen.column(x, z).height + 1)
+                if nether {
+                    y = Int(floor(pos.y)) + 1
+                    while y > Int(pos.y) - 12 && !Blocks.collide[Int(world.block(x, y - 1, z))] { y -= 1 }
+                    if spot.0 == .ghast || spot.0 == .blaze { y += spot.0 == .ghast ? 5 : 2 }
+                }
                 let m = Mob(spot.0, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
-                if spot.0 == .slime { m.makeSlime(size: 2) }
+                if spot.0 == .slime || spot.0 == .magmaCube { m.makeSlime(size: 2) }
                 m.yaw = game.player.yaw + .pi + Float(i) * 0.9
                 m.walkPhase = Float(i) * 0.8
                 m.walkAmount = 1
