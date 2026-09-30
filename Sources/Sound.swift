@@ -262,6 +262,11 @@ final class SoundBank {
         }
     }
 
+    // Drops a sound's float copy once the engine holds it as PCM buffers (halves resident audio memory).
+    func evict(_ s: Snd) {
+        lock.lock(); clips[s] = nil; lock.unlock()
+    }
+
     var cachedCount: Int { lock.lock(); defer { lock.unlock() }; return clips.count }
     var cachedBytes: Int {
         lock.lock(); defer { lock.unlock() }

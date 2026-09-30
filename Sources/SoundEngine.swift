@@ -192,6 +192,7 @@ final class SoundEngine {
             list.append(b)
         }
         buffers[s] = list
+        bank.evict(s)
         return list.isEmpty ? nil : list[v % list.count]
     }
 
