@@ -13,7 +13,8 @@ final class World {
     let save: SaveManager?
     var chunks: [ChunkKey: Chunk] = [:]
     var blockEntities: [IVec3: BlockEntity] = [:]
-    var pendingMobs: [(String, V3)] = []          // structure mobs waiting for the game to spawn them
+    var pendingMobs: [(String, V3)] = []
+    var rainLevel: Float = 0                        // set by the game: rain puts out exposed fires          // structure mobs waiting for the game to spawn them
     lazy var redstone = Redstone(world: self)
     var portals = Set<IVec3>()
     var renderDistance: Int = 8 { didSet { lastCenter = nil; rebuildOffsets() } }
@@ -709,6 +710,13 @@ final class World {
             if !isLoaded(p.x, p.z) { continue }
             let below = block(p.x, p.y - 1, p.z)
             let eternal = below == NETHERRACK || Blocks.key(below) == "magma_block"
+            if rainLevel > 0.5 && !eternal, let c = chunks[ChunkKey(x: floorDiv(p.x, CS), z: floorDiv(p.z, CS))],
+               p.y >= Int(c.height[mod(p.x, CS) + mod(p.z, CS) * CS]), Int.random(in: 0..<3) == 0 {
+                let b = gen.column(p.x, p.z).biome
+                if !(b == .desert || b.isBadlands || b == .savanna || b == .savannaPlateau) {
+                    setBlockAsync(p.x, p.y, p.z, AIR); fires.removeValue(forKey: p); continue
+                }
+            }
             var anyFlammable = false
             for d in World.allDirs {
                 let q = p + d

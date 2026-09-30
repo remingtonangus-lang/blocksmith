@@ -15,7 +15,7 @@ enum Snd: Hashable {
     case mobPig, mobZombie, mobSkeleton, creeperHiss, mobSpider, mobEnderman, mobSlime, bow, explode, arrowHit, fizz, xp, levelUp
     case mobGhast, mobBlaze, mobPiglin, mobZombPiglin, fireball, mobVillager, mobGolem
     case anvil, brew, enchant, drink, glassBreak
-    case mobWither, witherSpawn, witherShoot, mobVex, mobRavager, evokerCast, bell, raidHorn, fangs
+    case mobWither, witherSpawn, witherShoot, mobVex, mobRavager, evokerCast, bell, raidHorn, fangs, rain, thunder
     case note(Int, Int)            // note block: instrument, pitch 0...24 (made on demand)
 }
 
@@ -33,7 +33,7 @@ struct SoundBank {
                     .mobPig, .mobZombie, .mobSkeleton, .creeperHiss, .mobSpider, .mobEnderman, .mobSlime, .bow, .explode, .arrowHit, .fizz, .xp, .levelUp,
                     .mobGhast, .mobBlaze, .mobPiglin, .mobZombPiglin, .fireball, .mobVillager, .mobGolem,
                     .anvil, .brew, .enchant, .drink, .glassBreak,
-                    .mobWither, .witherSpawn, .witherShoot, .mobVex, .mobRavager, .evokerCast, .bell, .raidHorn, .fangs]
+                    .mobWither, .witherSpawn, .witherShoot, .mobVex, .mobRavager, .evokerCast, .bell, .raidHorn, .fangs, .rain, .thunder]
     }
 
     init() {
@@ -234,6 +234,9 @@ struct Synth {
         case .bell: out = modes(2.5, [(880, 0.5, 1.8), (2094.4, 0.25, 1.0), (2666.4, 0.15, 0.7), (440, 0.2, 1.5)])
         case .raidHorn: out = Synth.mix(voice(3.5, f0: 98, f1: 92, vib: 0.08, lp: 1400, gain: 1.4), voice(3.5, f0: 147, f1: 139, vib: 0.08, lp: 1400, gain: 0.8))
         case .fangs: out = Synth.mix(burst(0.25, lp: 3000 * p, hp: 300, attack: 0.005, decay: 0.08, gain: 1.2), modes(0.2, [(180 * p, 0.3, 0.08)]))
+        case .rain: out = Synth.mix(burst(1.6, lp: 6000, hp: 1500, attack: 0.3, decay: 1.0, gain: 0.5), grains(60, spread: 1.5, lp: 9000, hp: 3000, decay: 0.004, gain: 0.35))
+        case .thunder:
+            out = Synth.mix(burst(0.15, lp: 8000, hp: 200, attack: 0.001, decay: 0.08, gain: 1.4), burst(4.0, lp: 220 * p, hp: 20, attack: 0.05, decay: 2.2, gain: 2.2))
         case .note(let inst, let n):
             // Pitch 0 = F#3 for the harp family; bass instruments two octaves down, chimes two up.
             let f: Float = 185 * powf(2, Float(n) / 12)

@@ -14,6 +14,10 @@ final class Arrow {
     var flame = false              // Flame enchantment: sets targets on fire
     var punch = 0                  // Punch enchantment: extra knockback
     var pickup = true              // Infinity arrows can't be picked up
+    var pierce = 0                 // Piercing: mobs it may pass through
+    var hitMobs: [ObjectIdentifier] = []
+    var trident: ItemStack?        // a thrown trident (keeps its enchantments / wear)
+    var returning = false          // Loyalty: flying back to the player
     init(_ p: V3, _ v: V3, fromPlayer: Bool, damage: Float) { pos = p; vel = v; self.fromPlayer = fromPlayer; self.damage = damage }
 }
 
@@ -140,7 +144,30 @@ final class ProjectileManager {
         updateFireballs(dt, game: g)
         for a in arrows {
             a.age += dt
+            if a.returning, let t = a.trident {
+                // Loyalty: fly back and drop into the inventory.
+                let to = g.player.eye - a.pos
+                let d = simd_length(to)
+                let sp = 10 + 5 * Float(Enchant.level(.loyalty, t))
+                a.vel = to / max(d, 0.01) * sp
+                a.pos += a.vel * dt
+                if d < 1.2 {
+                    a.dead = true
+                    if g.survival { let rest = g.inventory.add(t); if !rest.isEmpty { g.dropItem(rest) } }
+                    g.sfx(.pickup, 0.5)
+                }
+                continue
+            }
             if a.stuck {
+                if let t = a.trident {
+                    if Enchant.level(.loyalty, t) > 0 && a.age > 0.5 { a.returning = true; a.stuck = false; continue }
+                    if simd_length(a.pos - (g.player.pos + V3(0, 0.9, 0))) < 1.4 {
+                        a.dead = true
+                        if g.survival { let rest = g.inventory.add(t); if !rest.isEmpty { g.dropItem(rest) } }
+                        g.sfx(.pickup, 0.4)
+                    }
+                    continue
+                }
                 if a.age > 60 { a.dead = true }
                 // Player picks up their own stuck arrows.
                 if a.fromPlayer && simd_length(a.pos - (g.player.pos + V3(0, 0.9, 0))) < 1.4 {
@@ -161,7 +188,7 @@ final class ProjectileManager {
             var hitMob: Mob?
             var hitPlayer = false
             if a.fromPlayer {
-                if let h = g.mobs.raycast(a.pos, dir, maxDist: len) { hitT = h.1; hitMob = h.0 }
+                if let h = g.mobs.raycast(a.pos, dir, maxDist: len), !a.hitMobs.contains(ObjectIdentifier(h.0)) { hitT = h.1; hitMob = h.0 }
             } else {
                 let pp = g.player.pos
                 if let h = World.rayBox(a.pos, dir, V3(pp.x - 0.3, pp.y, pp.z - 0.3), V3(pp.x + 0.3, pp.y + 1.8, pp.z + 0.3)), h.0 <= len {
@@ -182,7 +209,9 @@ final class ProjectileManager {
                 var dmg = Int(ceilf(speedPerTick * a.damage))
                 if a.fromPlayer && Float.random(in: 0..<1) < 0.25 { dmg += Int.random(in: 0...(dmg / 2 + 1)) }
                 if let m = hitMob {
+                    if let t = a.trident { dmg = 8 + Int(Enchant.damageBonus(t, against: m)) }
                     m.hit(from: a.pos, damage: dmg, knockback: 0.6 + 0.6 * Float(a.punch))
+                    if a.trident != nil { g.tridentHit(a, mob: m) }
                     if a.fromPlayer { m.killedByPlayer = true; m.provoke(g) }
                     if a.flame && !m.spec.fireImmune { m.fire = max(m.fire, 5) }
                     if a.tip != 0 { g.arrowEffects(a.tip, onPlayer: false, mob: m) }
@@ -191,12 +220,23 @@ final class ProjectileManager {
                     g.hurtPlayer(dmg, from: a.pos, cause: "was shot by Skeleton", type: .projectile)
                     if a.tip != 0 { g.arrowEffects(a.tip, onPlayer: true, mob: nil) }
                 }
-                a.dead = true
+                if let m = hitMob, a.pierce > 0 {
+                    a.pierce -= 1
+                    a.hitMobs.append(ObjectIdentifier(m))
+                    a.pos += step
+                } else if a.trident != nil {
+                    // Tridents bounce off and drop.
+                    a.vel = V3(-a.vel.x * 0.05, 2, -a.vel.z * 0.05)
+                    if let m = hitMob { a.hitMobs.append(ObjectIdentifier(m)) }
+                } else {
+                    a.dead = true
+                }
             } else if blockT <= len {
                 a.pos += dir * max(0, blockT - 0.05)
                 a.stuck = true
                 a.age = 0
                 g.sfx(.arrowHit, 0.5, at: a.pos)
+                if a.trident != nil { g.tridentHit(a, mob: nil); a.returning = false }
             } else {
                 a.pos += step
             }
@@ -243,11 +283,13 @@ final class ProjectileManager {
             let l = world.lightAt(Int(floor(a.pos.x)), Int(floor(a.pos.y)), Int(floor(a.pos.z)))
             let light = max(0.1, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
             // Two crossed quads along the flight direction; the sprite's diagonal is the shaft.
-            let half: Float = 0.35
+            let isTrident = a.trident != nil
+            let half: Float = isTrident ? 0.8 : 0.35
+            let lay = isTrident ? (Items.texLayer(Items.id("trident")) ?? layer) : layer
             for n in [side, up] {
                 let tip = c + d * half, tail = c - d * half
                 wr.quad([tail - n * 0.1, tip - n * 0.1, tip + n * 0.1, tail + n * 0.1],
-                        [V2(0.1, 0.9), V2(0.9, 0.1), V2(0.95, 0.2), V2(0.2, 0.95)], layer, V4(light, light, light, 1))
+                        [V2(0.1, 0.9), V2(0.9, 0.1), V2(0.95, 0.2), V2(0.2, 0.95)], lay, V4(light, light, light, 1))
             }
         }
     }

@@ -187,6 +187,7 @@ final class Mob {
     var stun: Float = 0             // ravager: stunned by a shield block, then roars
     var playerBuilt = false         // iron golem built by the player (never attacks them)
     var cureTimer: Float = 0        // zombie villager being cured
+    var charged = false             // creeper struck by lightning (bigger blast)
     weak var mount: Mob?            // rider (raid ravager riders)
     var captain = false             // raid / patrol captain (banner)
     var jobTimer: Float = Float.random(in: 0...5)
@@ -261,7 +262,7 @@ final class Mob {
         let inWater = Blocks.isLiquid(feetBlock)
 
         // Undead burn in daylight under open sky.
-        if spec.burnsInSun && !inWater && g.dim.dim.hasSky && g.daylight > 0.6 {
+        if spec.burnsInSun && !inWater && g.dim.dim.hasSky && g.daylight > 0.6 && !g.isRainingAt(pos) {
             let l = w.lightAt(Int(floor(pos.x)), Int(floor(pos.y + height)), Int(floor(pos.z)))
             if l.sky >= 15 { fire = max(fire, 8) }
         }
@@ -518,7 +519,7 @@ final class Mob {
                     speed = spec.speed
                 }
                 if fuse >= 1.5 {
-                    Explosion.explode(at: pos + V3(0, 0.8, 0), power: 3, game: g)
+                    Explosion.explode(at: pos + V3(0, 0.8, 0), power: charged ? 6 : 3, game: g)
                     health = -1000
                     return
                 }

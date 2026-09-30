@@ -190,6 +190,11 @@ final class ItemRegistry {
         item("clock", "Clock", "compass", 0xF2C94A, ["c": 0x3F76E4, "d": 0x404040])
         item("bow", "Bow", "bow", 0x6B4F2C, ["s": 0xDDDDDD], stack: 1)
         item("shears", "Shears", "shears", 0xD8D8D8, ["d": 0x5A3D1F], stack: 1)
+        item("shield", "Shield", "shield", 0x9A7A4A, ["a": 0x5A5A5A], stack: 1)
+        item("crossbow", "Crossbow", "crossbow", 0x6B4F2C, ["s": 0xDDDDDD], stack: 1)
+        item("trident", "Trident", "trident", 0x4AA89A, stack: 1)
+        item("fishing_rod", "Fishing Rod", "fishing_rod", 0x6B4F2C, ["s": 0xDDDDDD, "c": 0xD03030], stack: 1)
+        item("carrot_on_a_stick", "Carrot on a Stick", "fishing_rod", 0x6B4F2C, ["s": 0xDDDDDD, "c": 0xF08A1A], stack: 1)
         item("glass_bottle", "Glass Bottle", "bucket", 0xD0DCF0, ["c": 0xA8B8D8])
         item("fermented_spider_eye", "Fermented Spider Eye", "eye", 0xB0506A, ["c": 0xE8C0C8, "d": 0x5A2030])
         item("glistering_melon_slice", "Glistering Melon Slice", "melon", 0xF0C040, ["c": 0xF8E080])
@@ -322,6 +327,13 @@ final class ItemRegistry {
         ely.sprite = Sprite(mask: "chestplate", base: 0x8E8AA8, extras: [:])
         ely.maxStack = 1; ely.armorSlot = .chest; ely.armor = 0; ely.durability = 432
         add(ely)
+        // Durability / combat numbers for the weapon items above.
+        for (n, dur, atk, spd) in [("shield", 336, Float(1), Float(4)), ("crossbow", 465, 1, 4), ("trident", 250, 9, 1.1), ("fishing_rod", 64, 1, 4),
+                                   ("carrot_on_a_stick", 25, 1, 4), ("bow", 384, 1, 4), ("flint_and_steel", 64, 1, 4), ("shears", 238, 1, 4)] where has(n) {
+            defs[Int(id(n))].durability = dur
+            defs[Int(id(n))].attack = atk
+            defs[Int(id(n))].attackSpeed = spd
+        }
         Potions.register(self)
         for n in ["milk_bucket"] { defs[Int(id(n))].drink = true }
         for n in ["honey_bottle", "ominous_bottle"] { defs[Int(id(n))].drink = true }

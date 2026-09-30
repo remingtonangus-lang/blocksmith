@@ -355,6 +355,8 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.writeEndEntities(&wr, eye: eye, right: right, up: -up)
                 game.writeFangs(&wr, eye: eye)
                 game.writeBeams(&wr, eye: eye)
+                game.writeWeather(&wr, eye: eye)
+                game.writeBobber(&wr, eye: eye, right: right, up: -up)
                 game.particles.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight)
                 let nItems = wr.n
                 if let m = game.mining, game.mineProgress > 0 {

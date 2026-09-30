@@ -86,6 +86,17 @@ final class Game {
     var blocking = false           // holding a raised shield
     var lastPearl: Double = -10
     private var beaconTicks = 0
+    var shieldCooldown: Float = 0
+    var shieldRaise: Float = 0
+    var crossbowCharge: Float = 0
+    var tridentCharge: Float = 0
+    var bobber: Bobber?
+    var weather = Weather()
+    var bolts: [Bolt] = []
+    var lightningFlash: Float = 0
+    var rainSoundTimer: Float = 0
+    var lightningTimer: Float = 8
+    var lightningRods: [IVec3] = []
     var raid: Raid?
     var raidOmenAt: V3?
     var patrolTimer: Float = 600
@@ -276,7 +287,10 @@ final class Game {
         if !dim.dim.hasSky { return dim.dim == .end ? 0.75 : 1 }
         let s = sunDir.y
         let t = simd_clamp((s + 0.12) / 0.4, 0, 1)
-        return 0.12 + 0.88 * t * t * (3 - 2 * t)
+        let d = 0.12 + 0.88 * t * t * (3 - 2 * t)
+        // Rain and thunder darken the day (reference: -5/16 and another -5/16 of sky light).
+        let overcast = 1 - 0.3 * weather.rain - 0.25 * weather.thunder
+        return max(0.1, d * overcast) + lightningFlash * 0.6
     }
 
     var skyColor: V3 {
@@ -286,6 +300,10 @@ final class Game {
         let s = sunDir.y
         let dusk = max(0, 1 - abs(s - 0.02) / 0.22)
         c = simd_mix(c, V3(0.95, 0.5, 0.28), V3(repeating: dusk * 0.45))
+        // Overcast: desaturate toward grey; lightning flashes it white.
+        let grey = V3(repeating: (c.x + c.y + c.z) / 3 * 0.6)
+        c = simd_mix(c, grey, V3(repeating: weather.rain * 0.75))
+        c = simd_mix(c, V3(0.8, 0.82, 0.9), V3(repeating: min(1, lightningFlash)))
         return c
     }
 
@@ -535,7 +553,7 @@ final class Game {
         if input.control || (p.l3 && !q.l3) { player.sprinting = true }
         mi.sprint = player.sprinting && (mi.forward > 0.3) && !(survival && hunger <= 6) && eatProgress == 0
         if mi.forward <= 0.3 { player.sprinting = false }
-        if eatProgress > 0 { mi.forward *= 0.3; mi.strafe *= 0.3 }
+        if eatProgress > 0 || blocking || bowCharge > 0 || crossbowCharge > 0 || tridentCharge > 0 { mi.forward *= 0.3; mi.strafe *= 0.3 }
 
         if input.tapped(Key.space) || (p.a && !q.a) {
             let chest = inventory.armor[1]
@@ -702,6 +720,14 @@ final class Game {
             swing = 1
             return
         }
+        // Shield: raised 0.25 s after holding use (not while an axe hit has it disabled).
+        shieldCooldown = max(0, shieldCooldown - fdt)
+        if useHeld && shieldInHand && shieldCooldown <= 0 && eatProgress == 0 { shieldRaise += fdt } else { shieldRaise = 0 }
+        blocking = shieldRaise >= 0.25
+        if useHeld && shieldInHand && Items.key(held.item) == "shield" { return }
+        if crossbowUse(useHeld, useNow, fdt) { return }
+        if tridentUse(useHeld, fdt) { return }
+        if fishingUse(useNow) { return }
         // Bow: hold to draw, release to shoot.
         if Items.key(h.item) == "bow" {
             let ammo = arrowSlot()
@@ -1152,6 +1178,7 @@ final class Game {
     // Mob hits on the player: armor-reduced damage plus knockback away from the attacker.
     func hurtPlayer(_ amount: Int, from src: V3, cause: String, knockback: Float = 1, type: DamageType = .generic, attacker: Mob? = nil) {
         guard survival, alive, amount > 0 else { return }
+        if shieldBlocks(amount, from: src, type: type, attacker: attacker) { return }
         damage(amount, cause, type: type, attacker: attacker)
         if knockback > 0 {
             var d = player.pos - src
@@ -1379,6 +1406,9 @@ final class Game {
         effectTick(Float(dt))
         cloudTick(Float(dt))
         fangTick(Float(dt))
+        bobberTick(Float(dt))
+        weatherTick(Float(dt))
+        world.rainLevel = wetWorld ? weather.rain : 0
         raidTimer += Float(dt)
         if raidTimer >= 1 { raidTick(raidTimer); patrolTick(raidTimer); raidTimer = 0 }
         if !world.pendingMobs.isEmpty {
@@ -1403,6 +1433,7 @@ final class Game {
     // 20 Hz fixed-rate logic (furnaces...).
     private func gameTick() {
         randomTicks()
+        precipitationTicks()
         beaconTicks += 1
         if beaconTicks >= 80 { beaconTicks = 0; beaconTick() }
         spawnerTick(0.05)

@@ -10,7 +10,7 @@ enum TextureGen {
 
     // Textures used only by the HUD (registered up front so they exist before the atlas is built).
     static let hudNames = ["heart", "heart_half", "heart_empty", "heart_gold", "heart_gold_half", "heart_poison", "heart_poison_half",
-                           "heart_wither", "heart_wither_half", "food", "food_half", "food_empty", "bubble",
+                           "heart_wither", "heart_wither_half", "rain_drop", "snow_flake", "food", "food_half", "food_empty", "bubble",
                            "destroy_0", "destroy_1", "destroy_2", "destroy_3", "destroy_4",
                            "destroy_5", "destroy_6", "destroy_7", "destroy_8", "destroy_9",
                            "armor", "armor_half", "armor_empty", "xp_bar", "smoke"]
@@ -685,6 +685,12 @@ enum TextureGen {
         p["heart"] = { heart($0, $1, 2) }
         p["heart_half"] = { heart($0, $1, 1) }
         p["heart_empty"] = { heart($0, $1, 0) }
+        p["rain_drop"] = { x, y in (x == 7 || x == 8) ? V4(0.8, 0.85, 1, 0.8) : clear }
+        p["snow_flake"] = { x, y in
+            let dx = abs(x * 2 - 15), dy = abs(y * 2 - 15)
+            if dx + dy < 14 && (dx < 3 || dy < 3 || abs(dx - dy) < 3) { return V4(1, 1, 1, 0.95) }
+            return clear
+        }
         // Recoloured hearts: absorption (gold), poison (green), wither (black).
         for (name, tint) in [("gold", V3(1.0, 0.8, 0.15)), ("poison", V3(0.55, 0.72, 0.2)), ("wither", V3(0.28, 0.24, 0.22))] {
             for (suffix, fill) in [("", 2), ("_half", 1)] {

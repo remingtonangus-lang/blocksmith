@@ -269,6 +269,16 @@ enum Snapshot {
                 game.mobs.mobs.append(m)
             }
         }
+        if let wx = arg("--weather") {
+            game.weather.raining = true; game.weather.rain = 1
+            if wx == "thunder" {
+                game.weather.thundering = true; game.weather.thunder = 1
+                let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
+                let sp = pos + f * 18
+                game.strike(V3(sp.x, Float(world.topY(Int(floor(sp.x)), Int(floor(sp.z))) + 1), sp.z))
+                game.lightningFlash = 0.3
+            }
+        }
         if CommandLine.arguments.contains("--beacon") {
             // A four-layer iron/gold/diamond pyramid with a powered beacon 12 blocks ahead.
             let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
