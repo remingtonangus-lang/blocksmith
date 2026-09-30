@@ -491,7 +491,8 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.writeShelves(&wr, eye: eye)
                 game.particles.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight)
                 let nItems = wr.n
-                // Blended pass: rain / snow / lightning glow, then the crack overlay.
+                // Blended pass: entity shadows, rain / snow / lightning glow, then the crack overlay.
+                game.writeShadows(&wr, eye: eye)
                 game.writeWeather(&wr, eye: eye)
                 if let m = game.mining, game.mineProgress > 0 {
                     let layer = HudTex.destroy(Int(game.mineProgress * 10))

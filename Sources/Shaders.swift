@@ -63,6 +63,14 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     float blkL = float((w1 >> 26) & 15u) / 15.0;
 
     float3 rel = p + sectionOffset.xyz;
+    if (face == 6u && vv == 0u && u.eye.w > 0.5) {
+        // Fancy: grass and flowers sway; only the top corners move so the base stays planted.
+        float3 wp = rel + u.eye.xyz;
+        float t = u.params.z;
+        float sway = sin(wp.x * 0.9 + wp.z * 0.6 + t * 1.7) * 0.6 + sin(wp.z * 1.3 - wp.x * 0.4 + t * 2.3) * 0.4;
+        rel.x += sway * 0.045;
+        rel.z += cos(wp.x * 0.7 - wp.z * 0.8 + t * 1.9) * 0.03;
+    }
     ChunkOut o;
     o.pos = u.viewProj * float4(rel, 1.0);
     o.uv = uv;

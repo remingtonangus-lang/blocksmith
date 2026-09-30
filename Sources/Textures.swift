@@ -13,7 +13,7 @@ enum TextureGen {
                            "heart_wither", "heart_wither_half", "rain_drop", "snow_flake", "food", "food_half", "food_empty", "bubble",
                            "destroy_0", "destroy_1", "destroy_2", "destroy_3", "destroy_4",
                            "destroy_5", "destroy_6", "destroy_7", "destroy_8", "destroy_9",
-                           "armor", "armor_half", "armor_empty", "xp_bar", "smoke", "sun",
+                           "armor", "armor_half", "armor_empty", "xp_bar", "smoke", "sun", "shadow",
                            "moon_0", "moon_1", "moon_2", "moon_3", "moon_4", "moon_5", "moon_6", "moon_7"]
 
     // Makes sure every texture that may be referenced exists in the registry.
@@ -772,6 +772,13 @@ enum TextureGen {
                 if (line && c < thr * 1.4) || c < thr * 0.35 { return V4(0.05, 0.05, 0.05, 0.75) }
                 return clear
             }
+        }
+        // Blob shadow under entities: a soft disc (alpha falls off toward the edge).
+        p["shadow"] = { x, y in
+            let dx = Float(x) - 7.5, dy = Float(y) - 7.5
+            let d = (dx * dx + dy * dy).squareRoot() / 7.5
+            if d > 1 { return clear }
+            return V4(0, 0, 0, 1 - d * d)
         }
         // Sky bodies: a warm square sun and a cratered moon in eight phases (0 = full, 4 = new).
         p["sun"] = { x, y in
