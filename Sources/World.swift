@@ -333,7 +333,7 @@ final class World {
         s.meshedVersion = version
         s.vis = m.vis
         if c.tintBuf == nil {
-            c.tintBuf = c.tint.withUnsafeBytes { MeshArena.shared.alloc(device, $0) }
+            c.tintBuf = c.tint.withUnsafeBytes { MeshArena.tints.alloc(device, $0) }
         }
     }
 

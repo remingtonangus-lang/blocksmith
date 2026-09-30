@@ -14,6 +14,7 @@ struct Uniforms {
 }
 
 struct SimpleVert { var pos: V4; var color: V4 }
+struct SectionRec { var x: Float; var y: Float; var z: Float; var tint: UInt32 }     // chunkVS buffer(2), 16 bytes
 struct HudVert { var pos: V2; var uv: V2; var color: V4; var extra: V4 }
 struct StarParams { var rot: float4x4; var tint: V4 }
 
@@ -67,6 +68,8 @@ final class Renderer: NSObject, MTKViewDelegate {
     private var gen: UInt32 = 0
     private var bfs: [(Chunk, Int, Int, Int, Int, Int)] = []
     private var chunkGrid: [Chunk?] = []
+    // Base vertex / base instance draws (every Apple-silicon GPU; the old per-draw binding path otherwise).
+    private lazy var baseVertexOK: Bool = device.supportsFamily(.apple3) || device.supportsFamily(.mac2)
     var caveCulling = true
     var onFrame: ((Double) -> Void)?
 
@@ -383,29 +386,54 @@ final class Renderer: NSObject, MTKViewDelegate {
         drawnChunks = drawnSet
         let visible = visibleScratch
 
-        func offset(_ c: Chunk, _ sy: Int) -> V4 { V4(Float(c.cx * CS) - eye.x, Float(sy * 16) - eye.y, Float(c.cz * CS) - eye.z, 0) }
+        // Per-section draw records in the frame's scratch ring (origin relative to the camera + tint table
+        // offset), read by instance id: a section draw is then one draw call, with buffers rebound only when
+        // its mesh slab changes (base vertex = the slice's offset), instead of four calls with a constant upload.
+        let recOff = (scratchOff + 255) & ~255
+        let nRec = max(0, min(visible.count, (ringSize - recOff) / 16))
+        if nRec > 0 {
+            let recs = (scratch.contents() + recOff).bindMemory(to: SectionRec.self, capacity: nRec)
+            for i in 0..<nRec {
+                let (c, sy, _) = visible[i]
+                recs[i] = SectionRec(x: Float(c.cx * CS) - eye.x, y: Float(sy * 16) - eye.y, z: Float(c.cz * CS) - eye.z,
+                                     tint: UInt32((c.tintBuf?.offset ?? 0) / 4))
+            }
+            scratchOff = recOff + nRec * 16
+        }
+        let baseOK = baseVertexOK
+        var boundVerts: MTLBuffer?, boundTints: MTLBuffer?
+        func drawSection(_ i: Int, _ slice: MeshSlice, _ tb: MeshSlice, first: Int, count: Int) {
+            if tb.buffer !== boundTints { enc.setVertexBuffer(tb.buffer, offset: 0, index: 3); boundTints = tb.buffer }
+            if baseOK {
+                if slice.buffer !== boundVerts { enc.setVertexBuffer(slice.buffer, offset: 0, index: 0); boundVerts = slice.buffer }
+                enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quadIndices,
+                                          indexBufferOffset: first * 6 * 4, instanceCount: 1, baseVertex: slice.offset / 8, baseInstance: i)
+            } else {
+                enc.setVertexBuffer(slice.buffer, offset: slice.offset, index: 0)
+                enc.setVertexBufferOffset(recOff + i * 16, index: 2)
+                enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quadIndices,
+                                          indexBufferOffset: first * 6 * 4)
+            }
+        }
 
         enc.setDepthStencilState(depthWrite)
         enc.setCullMode(.back)
         enc.setFrontFacing(.counterClockwise)
         enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
         enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+        enc.setVertexBuffer(scratch, offset: recOff, index: 2)
         // Two passes, near to far: solid cube faces without alpha test first (the GPU can then reject
         // hidden fragments before shading), then the alpha-tested cutout faces (leaves, plants, models).
         for pass in 0..<2 {
             enc.setRenderPipelineState(pass == 0 ? chunkSolidPipe : chunkPipe)
-            for (c, sy, _) in visible {
+            for i in 0..<nRec {
+                let (c, sy, _) = visible[i]
                 let sec = c.sections[sy]
                 guard sec.opaqueQuads > 0, let buf = sec.opaqueBuf, let tb = c.tintBuf else { continue }
                 let total = min(sec.opaqueQuads, Renderer.maxQuads), solid = min(sec.solidQuads, total)
                 let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
                 if count <= 0 { continue }
-                var o = offset(c, sy)
-                enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
-                enc.setVertexBytes(&o, length: 16, index: 2)
-                enc.setVertexBuffer(tb.buffer, offset: tb.offset, index: 3)
-                enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6,
-                                          indexType: .uint32, indexBuffer: quadIndices, indexBufferOffset: first * 6 * 4)
+                drawSection(i, buf, tb, first: first, count: count)
             }
         }
 
@@ -525,15 +553,14 @@ final class Renderer: NSObject, MTKViewDelegate {
         enc.setCullMode(.none)
         enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
         enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
-        for (c, sy, _) in visible.reversed() {
+        // Other passes (mobs, entities, outline) rebound buffers 0 and 2.
+        enc.setVertexBuffer(scratch, offset: recOff, index: 2)
+        boundVerts = nil; boundTints = nil
+        for i in stride(from: nRec - 1, through: 0, by: -1) {
+            let (c, sy, _) = visible[i]
             let sec = c.sections[sy]
             guard sec.transQuads > 0, let buf = sec.transBuf, let tb = c.tintBuf else { continue }
-            var o = offset(c, sy)
-            enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
-            enc.setVertexBytes(&o, length: 16, index: 2)
-            enc.setVertexBuffer(tb.buffer, offset: tb.offset, index: 3)
-            enc.drawIndexedPrimitives(type: .triangle, indexCount: min(sec.transQuads, Renderer.maxQuads) * 6,
-                                      indexType: .uint32, indexBuffer: quadIndices, indexBufferOffset: 0)
+            drawSection(i, buf, tb, first: 0, count: min(sec.transQuads, Renderer.maxQuads))
         }
 
         // Cloud layer (after water so both blend over terrain; depth-tested against terrain).
