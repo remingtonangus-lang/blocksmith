@@ -83,7 +83,7 @@ enum BigStructures {
             guard gen.column(x, z).biome == .darkForest else { return nil }
             let y = gen.groundY(x, z)
             guard y > SEA else { return nil }
-            return StructureStart(kind: "mansion", pieces: [piece(x - 23, y - 6, z - 23, x + 23, y + 20, z + 23) { w in buildMansion(&w, x, y + 1, z, seed) }],
+            return StructureStart(kind: "mansion", pieces: [piece(x - 23, y - 6, z - 23, x + 23, y + 48, z + 23) { w in buildMansion(&w, x, y + 1, z, seed) }],
                                   anchor: IVec3(x, y + 2, z - 26))
         }
     }
@@ -94,7 +94,7 @@ enum BigStructures {
         let stairs = g("cobblestone_stairs"), roof = g("dark_oak_stairs")
         // Cleared plot and cobblestone base.
         for z in (cz - 22)...(cz + 22) { for x in (cx - 22)...(cx + 22) { w.pillarDown(x, y - 1, z, cob, minY: y - 8) } }
-        w.fill(cx - 22, y, cz - 22, cx + 22, y + 18, cz + 22, AIR)
+        w.fill(cx - 22, y, cz - 22, cx + 22, y + 46, cz + 22, AIR)          // clears tree tops above the plot too
         w.fill(cx - 22, y - 1, cz - 22, cx + 22, y - 1, cz + 22, cob)
         // Three floors of 6 blocks.
         for f in 0..<3 {

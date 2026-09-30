@@ -378,6 +378,8 @@ enum Recipes {
         }
         r.append(shaped(["SSS", "SLS", "SSS"], ["S": "stick", "L": "leather"], "item_frame"))
         r.append(shapeless(["item_frame", "glow_ink_sac"], "glow_item_frame"))
+        r.append(shaped(["A", "C", "C"], ["A": "amethyst_shard", "C": "copper_ingot"], "spyglass"))
+        r.append(shaped(["SSS", " S ", "SXS"], ["S": "stick", "X": "smooth_stone_slab"], "armor_stand"))
         for (i, w) in Boats.woods.enumerated() where Items.has("\(w.0)_planks") {
             r.append(shaped(["P P", "PPP"], ["P": "\(w.0)_planks"], Boats.itemKey(i, chest: false)))
             r.append(shapeless([Boats.itemKey(i, chest: false), "chest"], Boats.itemKey(i, chest: true)))

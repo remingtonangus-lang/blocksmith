@@ -232,6 +232,8 @@ final class ItemRegistry {
         item("golden_horse_armor", "Golden Horse Armor", "chestplate", 0xF8D84A, stack: 1)
         item("diamond_horse_armor", "Diamond Horse Armor", "chestplate", 0x4AEDD9, stack: 1)
         item("lead", "Lead", "string", 0xB08A5A)
+        item("spyglass", "Spyglass", "stick", 0xC8783A, stack: 1)
+        item("armor_stand", "Armor Stand", "stick", 0x9A7A4A, stack: 16)
         item("cocoa_beans", "Cocoa Beans", "seeds", 0x7A4A2A)
         item("torchflower_seeds", "Torchflower Seeds", "seeds", 0x5A7A2A)
         item("pitcher_pod", "Pitcher Pod", "seeds", 0x3A7A6A)

@@ -206,6 +206,8 @@ extension Game {
             return true
         }
         if (key == "honeycomb" || key.hasSuffix("_axe")) && copperInteract(t.hit, key: key) { return true }
+        if placeArmorStand(t) { return true }
+        if bkey.hasSuffix("_fence") && useFenceLeash(t.hit) { swing = 1; return true }
         // Candles: add one more (up to four) or light them.
         if bkey.hasSuffix("candle") {
             let st = Int(b - Blocks.groupBase[Int(b)])
@@ -306,7 +308,7 @@ extension Game {
     // Right-click on a mob with the held item.
     func useItemOnMob(_ m: Mob) -> Bool {
         let key = Items.key(held.item)
-        if useBoat(m) || openPack(m) { return true }
+        if useBoat(m) || openPack(m) || useArmorStand(m) || useLead(m) { return true }
         if m.kind == .minecart {
             if riding === m { return false }
             riding = m

@@ -20,7 +20,7 @@ enum MobKind: Int, CaseIterable {
     case rabbit, fox, wolf, cat, ocelot, horse, donkey, mule, llama, traderLlama, camel, goat, panda, polarBear, turtle, frog, tadpole
     case armadillo, sniffer, mooshroom, bee, parrot, bat, allay, axolotl, squid, glowSquid, dolphin, cod, salmon, tropicalFish, pufferfish
     case wanderingTrader, skeletonHorse, phantom, guardian, elderGuardian, endermite, warden, breeze, bogged, zoglin
-    case boat
+    case boat, armorStand
 
     struct Spec {
         var name: String
@@ -91,6 +91,8 @@ enum MobKind: Int, CaseIterable {
                                     drops: [("minecart", 1, 1)], xp: 0, call: .click)
         case .boat: return Spec(name: "Boat", halfW: 0.6875, height: 0.5625, health: 4, speed: 0, behavior: .vehicle,
                                 drops: [], xp: 0, call: .click)
+        case .armorStand: return Spec(name: "Armor Stand", halfW: 0.25, height: 1.975, health: 1, speed: 0, behavior: .vehicle,
+                                      drops: [("armor_stand", 1, 1)], xp: 0, call: .click)
         case .husk: return Spec(name: "Husk", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
                                 drops: [("rotten_flesh", 0, 2)], xp: 5, call: .mobZombie)
         case .stray: return Spec(name: "Stray", halfW: 0.3, height: 1.99, health: 20, speed: 2.5, behavior: .ranged,
@@ -193,6 +195,9 @@ final class Mob {
     var chested = false
     var cargo: ItemContainer?      // chest boat / pack animal inventory
     var spin: Float = 0            // boat turn rate (deg per tick)
+    var equip: [ItemStack]?        // head, chest, legs, feet, main hand
+    var leashed = false
+    var knot: IVec3?               // fence the lead is tied to (nil = the player)
     var raider = false              // part of a raid
     var breakTimer: Float = 0       // wither: breaks surrounding blocks when this runs out
     var lifeSpan: Float = 1e9       // vex: seconds before it starts to wither away
@@ -274,7 +279,9 @@ final class Mob {
         inLove = max(0, inLove - dt)
         breedCooldown = max(0, breedCooldown - dt)
         if baby { age += dt; if age >= 1200 { baby = false; scale = 1 } }
+        if leashed { leashTick(dt, g) }
         if kind == .boat { updateBoat(dt, g); return }
+        if kind == .armorStand { updateArmorStand(dt, g); return }
         if g.riding === self && kind != .minecart { updateRidden(dt, g); return }
         if kind == .enderDragon { updateDragon(dt, g); return }
         if kind == .endCrystal { updateCrystal(dt, g); return }
@@ -706,10 +713,12 @@ final class Mob {
             return
         }
         // A closed shulker shell shrugs off most of a hit.
+        let damage = armorReduced(damage)
         health -= kind == .shulker && peek < 0.2 ? damage / 5 : damage
         hurt = 0.4
         if kind == .shulker { aggro = true; return }
         if kind == .boat { spin += Float.random(in: -8...8); return }
+        if kind == .armorStand { return }
         if spec.behavior == .passive { panic = 5; aiTimer = 0 }
         aggro = true
         admire = 0
@@ -1019,6 +1028,8 @@ private func parts(_ m: Mob) -> [Part] {
         ]
     case .boat:
         return boatParts(m)
+    case .armorStand:
+        return armorStandParts(m)
     case .minecart:
         let iron = V3(0.55, 0.56, 0.6), dark = V3(0.3, 0.3, 0.33)
         return [
@@ -1122,7 +1133,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         let scale: Float = m.sized ? 1 : m.scale
         let glow = m.kind == .blaze || m.kind == .magmaCube || m.kind == .ghast || m.kind == .endCrystal
         let lit = glow ? max(bright, 0.85) : bright
-        for p in parts(m) {
+        for p in parts(m) + equipmentParts(m) {
             if n + 36 > capacity { return n }
             let ca = cosf(p.rotX), sa = sinf(p.rotX)
             let cz = cosf(p.rotZ), sz = sinf(p.rotZ)
@@ -1427,6 +1438,7 @@ final class MobManager {
         if Blocks.isLiquid(w.block(x, y, z)) { return }
         let m = Mob(kind, at: spawnPos)
         if kind == .zombie && Float.random(in: 0..<1) < 0.05 { m.baby = true; m.scale = 0.5 }
+        m.rollEquipment(difficulty: game.difficulty, regional: game.regionalDifficulty)
         if m.collides(spawnPos, w) { return }
         mobs.append(m)
     }

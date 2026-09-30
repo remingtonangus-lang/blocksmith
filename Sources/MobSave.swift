@@ -20,13 +20,15 @@ struct MobRecord: Codable {
     var villager: VillagerData? = nil
     var extra: [String: Float]? = nil
     var inv: [ItemStack]? = nil
+    var eq: [ItemStack]? = nil
+    var knot: [Int]? = nil
 }
 
 extension Mob {
     var keepOnUnload: Bool {
         if health <= 0 { return false }
         if persistent || customName != nil || villager != nil { return true }
-        return !kind.hostile || kind == .minecart
+        return !kind.hostile || kind == .minecart || equip != nil
     }
 
     var record: MobRecord {
@@ -40,6 +42,8 @@ extension Mob {
         r.name = customName
         r.villager = villager
         if let c = cargo { r.inv = c.slots }
+        r.eq = equip
+        if let k = knot { r.knot = [k.x, k.y, k.z] }
         var ex: [String: Float] = [:]
         saveExtra(&ex)
         if !ex.isEmpty { r.extra = ex }
@@ -60,6 +64,8 @@ extension Mob {
         m.customName = r.name
         m.villager = r.villager
         if let i = r.inv { let c = ItemContainer(i.count); c.slots = i; m.cargo = c }
+        m.equip = r.eq
+        if let k = r.knot, k.count == 3 { m.knot = IVec3(k[0], k[1], k[2]); m.leashed = true }
         if let ex = r.extra { m.loadExtra(ex) }
         return m
     }

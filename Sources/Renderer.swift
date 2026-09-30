@@ -217,7 +217,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         let rd = Float(game.world.renderDistance)
         let underwater = p.headInWater
         let far = rd * 16 + 96
-        let proj = perspectiveRH(fovy: 70 * .pi / 180, aspect: W / max(H, 1), near: 0.05, far: far)
+        let proj = perspectiveRH(fovy: 70 * game.fovScale * .pi / 180, aspect: W / max(H, 1), near: 0.05, far: far)
         let viewRot = rotationX(-p.pitch) * rotationY(-p.yaw)
         let viewProj = proj * viewRot
         let frustum = Frustum(viewProj * translationMatrix(-eye))
@@ -359,6 +359,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.writeFalling(&wr, eye: eye)
                 game.writeDecor(&wr, eye: eye)
                 game.writeBobber(&wr, eye: eye, right: right, up: -up)
+                game.writeLeads(&wr, eye: eye)
                 game.particles.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight)
                 let nItems = wr.n
                 if let m = game.mining, game.mineProgress > 0 {
@@ -1000,6 +1001,10 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
         }
 
+        // Spyglass: black outside the lens circle.
+        if game.fovScale < 0.5 && Items.key(game.held.item) == "spyglass" {
+            for r in Renderer.scopeRects(W: W, H: H) where r.2 > 0 && r.3 > 0 { rect(r.0, r.1, r.2, r.3, V4(0, 0, 0, 1)) }
+        }
         // A held filled map is drawn above the hotbar.
         if Items.key(game.held.item) == "filled_map", let md = game.maps[game.held.tag] {
             let px = max(1, floor(s)), size = 128 * px

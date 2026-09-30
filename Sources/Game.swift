@@ -91,6 +91,9 @@ final class Game {
     var timeSinceRest: Float = 0
     var anchorSpawn: IVec3?          // charged respawn anchor in the Nether
     var jukeboxes: [JukeboxPlayer] = []
+    var fovScale: Float = 1
+    var scoping = false
+    var lastHorn: Double = -100
     var difficulty = 2               // 0 peaceful, 1 easy, 2 normal, 3 hard
     static let difficultyNames = ["Peaceful", "Easy", "Normal", "Hard"]
     var maps: [Int: MapData] = [:]
@@ -618,6 +621,7 @@ final class Game {
         survivalTick(dt, from: before)
 
         interact(p, q, dt)
+        updateFov(Float(dt))
         if input.middleClicked || (p.x && !q.x) { pickBlock() }
 
         advance(dt)
@@ -828,6 +832,7 @@ final class Game {
             default: break
             }
         }
+        if useGadget(useHeld: useHeld, useNow: useNow) { return }
         let alwaysEdible = ["golden_apple", "enchanted_golden_apple", "chorus_fruit", "honey_bottle", "suspicious_stew"]
         let hk = Items.key(h.item)
         let canEat = h.def.food != nil && survival && (hunger < 20 || alwaysEdible.contains { hk.hasPrefix($0) })
@@ -1254,6 +1259,12 @@ final class Game {
             if Items.has(k) { drops.spawn(ItemStack(Items.id(k), 1), at: at) }
         }
         if let c = m.cargo { for s in c.slots where !s.isEmpty { drops.spawn(s, at: at) }; m.cargo = nil }
+        if let e = m.equip {
+            // Worn gear drops 8.5% (+1% per looting level) from mobs, always from armor stands.
+            for s in e where !s.isEmpty && (m.kind == .armorStand || Float.random(in: 0..<1) < 0.085 + 0.01 * Float(m.killedByPlayer ? m.lootingLevel : 0)) { drops.spawn(s, at: at) }
+            m.equip = nil
+        }
+        if m.leashed { drops.spawn(ItemStack(Items.id("lead"), 1), at: at) }
         if m.chested && m.kind != .boat { drops.spawn(ItemStack(Items.id("chest"), 1), at: at) }
         captainDied(m)
         sculkBloom(at: m.pos, xp: m.spec.xp)

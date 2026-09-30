@@ -303,7 +303,9 @@ enum Snapshot {
             game.inventory.main[game.selected] = ItemStack(Items.id("map"), 1)
             _ = game.useEmptyMap()
             // Creative keeps the empty map; hold the new filled one.
-            if let i = (0..<9).first(where: { Items.key(game.inventory.main[$0].item) == "filled_map" }) { game.selected = i }
+            if let i = (0..<36).first(where: { Items.key(game.inventory.main[$0].item) == "filled_map" }) {
+                game.inventory.main[game.selected] = game.inventory.main[i]
+            }
             for _ in 0..<256 { game.mapTick() }
         }
         if CommandLine.arguments.contains("--decor") {
