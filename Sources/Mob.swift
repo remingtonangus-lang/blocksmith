@@ -197,6 +197,7 @@ final class Mob {
     var playerBuilt = false         // iron golem built by the player (never attacks them)
     var cureTimer: Float = 0        // zombie villager being cured
     var charged = false             // creeper struck by lightning (bigger blast)
+    var lastHitBySkeleton = false   // creepers killed by skeleton arrows drop a music disc
     var scuteTimer: Float = Float.random(in: 300...600)   // armadillo scutes / sniffer digging
     var heldItem: ItemID = 0        // allay: item it collects
     var carried = 0                 // allay: collected count

@@ -16,6 +16,10 @@ final class BlockEntity: Codable {
     var level = 0        // beacon: pyramid layers (0 = off)
     var secondary = ""   // beacon: secondary power (primary is kept in `mob`)
     var cooks = [0, 0, 0, 0]  // campfire: ticks left per slot
+    var trial = false    // trial spawner (waves, then a reward and a 30-minute cooldown)
+    var spawned = 0      // trial spawner: mobs spawned this round
+    var cooldown: Float = 0
+    var used = false     // vault: already opened by the player
     lazy var container: ItemContainer = {
         let c = ItemContainer(items.count)
         c.slots = items
@@ -27,7 +31,7 @@ final class BlockEntity: Codable {
         items = Array(repeating: .empty, count: k == .chest || k == .shulker ? 27 : (k == .furnace ? 3 : (k == .hopper || k == .brewing ? 5 : k == .campfire ? 4 : (k == .dispenser ? 9 : 0))))
     }
 
-    enum CodingKeys: String, CodingKey { case kind, items, burn, burnMax, cook, mob, fuel, brewTime, secondary }
+    enum CodingKeys: String, CodingKey { case kind, items, burn, burnMax, cook, mob, fuel, brewTime, secondary, trial, used }
     init(from dec: Decoder) throws {
         let c = try dec.container(keyedBy: CodingKeys.self)
         kind = try c.decode(Kind.self, forKey: .kind)
@@ -39,6 +43,8 @@ final class BlockEntity: Codable {
         fuel = (try? c.decode(Int.self, forKey: .fuel)) ?? 0
         brewTime = (try? c.decode(Int.self, forKey: .brewTime)) ?? 0
         secondary = (try? c.decode(String.self, forKey: .secondary)) ?? ""
+        trial = (try? c.decode(Bool.self, forKey: .trial)) ?? false
+        used = (try? c.decode(Bool.self, forKey: .used)) ?? false
     }
     func encode(to e: Encoder) throws {
         var c = e.container(keyedBy: CodingKeys.self)
@@ -50,6 +56,8 @@ final class BlockEntity: Codable {
         if !mob.isEmpty { try c.encode(mob, forKey: .mob) }
         if kind == .brewing { try c.encode(fuel, forKey: .fuel); try c.encode(brewTime, forKey: .brewTime) }
         if !secondary.isEmpty { try c.encode(secondary, forKey: .secondary) }
+        if trial { try c.encode(trial, forKey: .trial) }
+        if used { try c.encode(used, forKey: .used) }
     }
 
     // One furnace game tick (20 per second). Returns true if the lit state changed.

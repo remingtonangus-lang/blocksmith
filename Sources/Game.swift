@@ -90,6 +90,8 @@ final class Game {
     let enderChest = ItemContainer(27)     // the player's ender chest inventory (shared by all ender chests)
     var timeSinceRest: Float = 0
     var anchorSpawn: IVec3?          // charged respawn anchor in the Nether
+    var jukeboxes: [JukeboxPlayer] = []
+    var brushProgress: Float = 0
     var shriekCooldown = 0
     var warningLevel = 0
     var shriekDecay = 600    // phantoms appear after 3 days (3600 s) without sleep
@@ -753,6 +755,26 @@ final class Game {
         if tridentUse(useHeld, fdt) { return }
         if fishingUse(useNow) { return }
         // Bow: hold to draw, release to shoot.
+        // Brushing suspicious sand / gravel (archaeology).
+        if Items.key(h.item) == "brush", useHeld, let t = target, Blocks.key(world.block(t.hit.x, t.hit.y, t.hit.z)).hasPrefix("suspicious_") {
+            brushProgress += fdt
+            if Int(brushProgress * 4) != Int((brushProgress - fdt) * 4) { sfx(.step(.sand), 0.4, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5) }
+            if brushProgress >= 2.5 {
+                brushProgress = 0
+                let k = Blocks.key(world.block(t.hit.x, t.hit.y, t.hit.z))
+                let biome = world.gen.column(t.hit.x, t.hit.z).biome
+                let table = biome == .desert ? "archaeology_desert" : (biome.isOcean ? "archaeology_ocean" : "archaeology_trail")
+                let tmp = ItemContainer(3)
+                var rng = SRng(UInt64.random(in: 1...UInt64.max))
+                Loot.fill(tmp, table: table, rng: &rng)
+                let at = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5 + V3(Float(t.normal.x), Float(t.normal.y), Float(t.normal.z)) * 0.6
+                for s in tmp.slots where !s.isEmpty { drops.spawn(s, at: at) }
+                world.setBlock(t.hit.x, t.hit.y, t.hit.z, k == "suspicious_sand" ? SAND : Blocks.id("gravel"))
+                damageHeld(1)
+            }
+            return
+        }
+        brushProgress = 0
         if Items.key(h.item) == "bow" {
             let ammo = arrowSlot()
             let infinity = Enchant.level(.infinity, h) > 0
@@ -1182,6 +1204,9 @@ final class Game {
             let r = Float.random(in: 0..<1)
             if m.kind == .blaze && m.killedByPlayer && r < 0.5 { drops.spawn(ItemStack(Items.id("blaze_rod"), 1), at: at) }
             if m.kind == .magmaCube && m.slimeSize > 1 && r < 0.25 { drops.spawn(ItemStack(Items.id("magma_cream"), 1), at: at) }
+            if m.kind == .creeper && m.lastHitBySkeleton, let d = MusicDiscs.creeperDrops.randomElement(), Items.has("music_disc_\(d)") {
+                drops.spawn(ItemStack(Items.id("music_disc_\(d)"), 1), at: at)
+            }
             if m.kind == .zombifiedPiglin && m.killedByPlayer && r < 0.025 { drops.spawn(ItemStack(Items.id("gold_ingot"), 1), at: at) }
             if m.kind == .witherSkeleton && m.killedByPlayer && r < 0.025 + 0.01 * Float(looting), Items.has("wither_skeleton_skull") {
                 drops.spawn(ItemStack(Items.id("wither_skeleton_skull"), 1), at: at)
@@ -1203,6 +1228,29 @@ final class Game {
         for (p, be) in world.blockEntities where be.kind == .spawner {
             let c = V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)
             guard simd_length(c - pp) < 16, let kind = MobKind.named(be.mob) else { continue }
+            if be.trial {
+                // Trial spawner: six mobs (two at a time) for a nearby player, then a reward and a 30-minute rest.
+                if be.cooldown > 0 { be.cooldown -= dt; continue }
+                guard simd_length(c - pp) < 14, survival else { continue }
+                let alive = mobs.mobs.filter { $0.kind == kind && simd_length($0.pos - c) < 16 }.count
+                be.delay -= dt
+                if be.spawned < 6 && alive < 2 && be.delay <= 0 {
+                    be.delay = 2
+                    let sp = c + V3(Float.random(in: -3...3), 0, Float.random(in: -3...3))
+                    let m = Mob(kind, at: V3(floor(sp.x) + 0.5, Float(p.y), floor(sp.z) + 0.5))
+                    if m.sized { m.makeSlime(size: 2) }
+                    if !m.collides(m.pos, world) { mobs.mobs.append(m); be.spawned += 1; particles.flame(at: m.pos + V3(0, 0.5, 0)) }
+                } else if be.spawned >= 6 && alive == 0 {
+                    be.spawned = 0
+                    be.cooldown = 1800
+                    let tmp = ItemContainer(3)
+                    var rng = SRng(UInt64.random(in: 1...UInt64.max))
+                    Loot.fill(tmp, table: "trial_spawner", rng: &rng)
+                    for s in tmp.slots where !s.isEmpty { drops.spawn(s, at: c + V3(0, 0.8, 0), vel: V3(0, 3, 0)) }
+                    sfx(.levelUp, 0.6, at: c)
+                }
+                continue
+            }
             if Float.random(in: 0..<1) < 0.3 { particles.flame(at: c + V3(Float.random(in: -0.5...0.5), Float.random(in: -0.5...0.5), Float.random(in: -0.5...0.5))) }
             be.delay -= dt
             guard be.delay <= 0 else { continue }
@@ -1503,6 +1551,7 @@ final class Game {
         fangTick(Float(dt))
         bobberTick(Float(dt))
         fallingTick(Float(dt))
+        jukeboxTick(Float(dt))
         weatherTick(Float(dt))
         world.rainLevel = wetWorld ? weather.rain : 0
         raidTimer += Float(dt)

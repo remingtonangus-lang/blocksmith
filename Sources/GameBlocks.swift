@@ -63,6 +63,21 @@ extension Game {
             if key == "turtle_egg" && st < 3 { world.setBlock(p.x, p.y, p.z, b + 1); consumeHeld(); return true }
         case "cocoa":
             if key == "bone_meal" && st < 2 { world.setBlock(p.x, p.y, p.z, b + 1); consumeHeld(); particles.hearts(at: c); return true }
+        case "jukebox":
+            return useJukebox(p)
+        case "vault":
+            // A trial key opens a vault once.
+            let be = world.blockEntities[p] ?? BlockEntity(.chest)
+            world.blockEntities[p] = be
+            guard key == "trial_key" && !be.used else { sfx(.click, 0.4, at: c); return true }
+            be.used = true
+            consumeHeld()
+            let tmp = ItemContainer(9)
+            var rng = SRng(UInt64.random(in: 1...UInt64.max))
+            Loot.fill(tmp, table: "trial_vault", rng: &rng)
+            for s in tmp.slots where !s.isEmpty { drops.spawn(s, at: c + V3(0, 0.7, 0), vel: V3(0, 3, 0)) }
+            sfx(.levelUp, 0.5, at: c)
+            return true
         case "lodestone":
             if key == "compass" { onToast?("Lodestone compass linked"); return true }
         default: break

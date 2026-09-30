@@ -41,7 +41,7 @@ final class WorldGen: TerrainGenerator {
             i += 2
         }
         bands = bs
-        structures = StructureCache(seed: seed, types: OverworldStructures.types(self), fixed: Stronghold.starts(seed: seed))
+        structures = StructureCache(seed: seed, types: OverworldStructures.types(self) + BigStructures.types(self), fixed: Stronghold.starts(seed: seed))
     }
 
     // MARK: Climate and height
@@ -679,16 +679,29 @@ final class WorldGen: TerrainGenerator {
                 let h = hashf(bx + lx, y, bz + lz, s32 ^ 0xCA7)
                 if dark && y < YOFF {
                     if Blocks.opaque[Int(below)] && h < 0.6 { b[i - CSQ] = g("sculk") }
-                    if Blocks.opaque[Int(below)] && h > 0.995 { b[i] = g("sculk_shrieker") }
+                    if Blocks.opaque[Int(below)] {
+                        if h > 0.997 { b[i] = g("sculk_shrieker") }
+                        else if h > 0.993 { b[i] = g("sculk_sensor") }
+                        else if h > 0.9925 { b[i] = g("sculk_catalyst") }
+                        else if h > 0.75 && h < 0.85 { b[i] = g("sculk_vein") }
+                    }
                 } else if lush {
                     if Blocks.opaque[Int(below)] && below != BEDROCK {
                         b[i - CSQ] = g("moss_block")
                         if h < 0.08 { b[i] = g("azalea") } else if h < 0.3 { b[i] = g("moss_carpet") } else if h < 0.4 { b[i] = TALL_GRASS }
+                        else if h < 0.43 { b[i] = g("small_dripleaf") } else if h < 0.45 { b[i] = g("big_dripleaf") }
+                        else if h > 0.97 { b[i - CSQ] = g("clay") }
+                    } else if Blocks.opaque[Int(above)] && h > 0.985 {
+                        b[i] = g("spore_blossom")
+                    } else if Blocks.opaque[Int(above)] && h > 0.9 {
+                        b[i] = g("hanging_roots")
                     } else if Blocks.opaque[Int(above)] && h < 0.12 {
                         var yy = y
                         let len = 1 + Int(h * 60)
                         while yy > y - len && b[Chunk.index(lx, yy, lz)] == AIR { b[Chunk.index(lx, yy, lz)] = g("cave_vines"); yy -= 1 }
                     }
+                } else if !dark && y < SEA - 20 && (Blocks.opaque[Int(below)] || Blocks.opaque[Int(above)]) && h > 0.996 {
+                    b[i] = g("glow_lichen")
                 } else if drip {
                     if Blocks.opaque[Int(below)] && h < 0.25 { b[i - CSQ] = g("dripstone_block"); if h < 0.06 { b[i] = g("pointed_dripstone") } }
                     if Blocks.opaque[Int(above)] && h > 0.8 { b[i + CSQ] = g("dripstone_block"); if h > 0.93 { b[i] = g("pointed_dripstone") } }

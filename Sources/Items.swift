@@ -237,6 +237,13 @@ final class ItemRegistry {
         item("mace", "Mace", "shovel", 0x6A6A70, stack: 1)
         item("wind_charge", "Wind Charge", "ball", 0xBDC9FF)
         item("trial_key", "Trial Key", "nugget", 0xE8A040)
+        for s in ["angler", "archer", "arms_up", "blade", "brewer", "burn", "danger", "explorer", "flow", "friend", "guster", "heart",
+                  "heartbreak", "howl", "miner", "mourner", "plenty", "prize", "scrape", "sheaf", "shelter", "skull", "snort"] {
+            item("\(s)_pottery_sherd", "\(s.replacingOccurrences(of: "_", with: " ").capitalized) Pottery Sherd", "paper", 0xA8583A, ["a": 0x6A3A2A])
+        }
+        for d in MusicDiscs.all {
+            item("music_disc_\(d.0)", "Music Disc", "compass", 0x1A1A1A, ["c": d.1, "d": 0x3A3A3A], stack: 1)
+        }
         item("ominous_trial_key", "Ominous Trial Key", "nugget", 0x3A8A7A)
         item("netherite_upgrade_smithing_template", "Netherite Upgrade", "paper", 0x3A2A2A, ["a": 0x6A4A3A])
         for t in Smithing.trims {
