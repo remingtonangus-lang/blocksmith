@@ -483,6 +483,7 @@ enum MobTests {
 
         // Bees: a bee with nectar enters its hive (honey +1) and comes back out by day after 2 minutes.
         game.time = 0.25 * DAY_LENGTH
+        game.weather.raining = false; game.weather.thundering = false; game.weather.rain = 0; game.weather.thunder = 0
         a.set(5, 0, 5, Blocks.id("beehive"))
         let hp = IVec3(a.cx + 5, a.gy, a.cz + 5)
         let bee = Mob(.bee, at: V3(Float(hp.x) + 0.5, Float(hp.y) + 0.6, Float(hp.z) + 0.5))
