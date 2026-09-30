@@ -321,6 +321,11 @@ final class Mob {
     var lockTime: Float = 0         // remembers the player this long after last seeing them (MobAI.swift)
     var sightTimer: Float = Float.random(in: 0...0.5)
     var wasHit = false              // hit since the last update (pack rally)
+    var sleptAt: Double = -1e9      // villager: game time it last slept (golem summoning needs sleep within a day)
+    var golemSeenAt: Double = -1e9  // villager: last saw an iron golem
+    var gossipCooldown: Float = 0
+    var meetPoint: IVec3?           // villager: the bell it meets at
+    var meetSearch: Float = 0
 
     init(_ kind: MobKind, at p: V3) {
         self.kind = kind
@@ -345,6 +350,7 @@ final class Mob {
     // Anger this mob and every undead boarling nearby at the player.
     func provoke(_ g: Game) {
         aggro = true
+        if kind == .villager, var v = villager { v.addGossip(.minorNeg, 25); villager = v }
         if kind == .zombifiedPiglin {
             for o in g.mobs.mobs where o.kind == .zombifiedPiglin && simd_length(o.pos - pos) < 20 { o.aggro = true }
         }
@@ -572,20 +578,15 @@ final class Mob {
                 villageTick(g)
             }
             if villagerNight(g) { speed = 0; break }
-            if let js = villager?.jobSite, g.dayFraction > 0.05 && g.dayFraction < 0.45, aiTimer <= 0, Float.random(in: 0..<1) < 0.3 {
-                let site = V3(Float(js[0]) + 0.5, Float(js[1]), Float(js[2]) + 0.5)
-                if simd_length(site - pos) > 2.5 { face(site); moving = true; aiTimer = 2 }
-            }
-            if let z = g.mobs.mobs.first(where: { ($0.isZombie || $0.raider || $0.kind == .vex || $0.kind == .ravager || $0.kind == .evoker
-                                                   || $0.kind == .vindicator || $0.kind == .pillager) && simd_length($0.pos - pos) < 8 }) {
-                face(pos * 2 - z.pos); speed = 2.2; moving = true
-            } else {
-                wander()
-                if let h = home, simd_length(V2(h.x - pos.x, h.z - pos.z)) > 16 { face(h) }
-                speed = moving ? spec.speed * 0.6 : 0
-            }
+            speed = villagerDay(dt, g)
         case .golem:
             if home == nil { home = pos }
+            // Village-made golems defend villagers from a player they think badly of (reputation <= -100).
+            jobTimer -= dt
+            if jobTimer <= 0 {
+                jobTimer = 1
+                if !playerBuilt && g.villagersHatePlayer(near: pos) { aggro = true; lockTime = max(lockTime, 5) }
+            }
             if target == nil || target!.health <= 0 || simd_length(target!.pos - pos) > 20 {
                 target = g.mobs.mobs.first { $0.kind.hostile && $0.kind != .creeper && $0.health > 0 && simd_length($0.pos - pos) < 16 }
             }

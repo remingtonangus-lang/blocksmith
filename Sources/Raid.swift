@@ -258,6 +258,7 @@ extension Game {
 
     // Killed captains (outside raids) drop an omen bottle (level I-V).
     func captainDied(_ m: Mob) {
+        villagerDied(m)
         guard m.captain, !m.raider, m.killedByPlayer, Items.has("ominous_bottle") else { return }
         drops.spawn(ItemStack(Items.id("ominous_bottle"), 1, damage: Int.random(in: 0...4)), at: m.pos + V3(0, 0.5, 0))
     }
@@ -336,6 +337,8 @@ extension Mob {
         let v = Mob(.villager, at: pos)
         var d = villager ?? VillagerData()
         d.cured = true
+        d.addGossip(.majorPos, 20)
+        d.addGossip(.minorPos, 25)
         v.villager = d
         v.yaw = yaw
         v.persistent = true

@@ -20,6 +20,7 @@ enum MobTests {
         raidSimulation(game: game, world: world, pos: pos)
         pathScenarios(game: game, world: world, pos: pos)
         spawnRules(game: game, world: world, pos: pos)
+        villagerRules(game: game, world: world, pos: pos)
         print(String(format: "mobtests: %ld failed (%.1f s)%@", failures.count, CFAbsoluteTimeGetCurrent() - t0,
                      failures.isEmpty ? "" : " -> " + failures.joined(separator: ", ")))
         game.player.pos = pos
@@ -362,6 +363,74 @@ enum MobTests {
         var t: Float = 0
         while t < 600 && gone < 0 { t += 0.05; if mm.shouldDespawn(mid, 50, 0.05, game) { gone = t } }
         check(gone > 30, "despawn after 30 s far away", String(format: "gone after %.1f s", gone))
+        mm.mobs.removeAll()
+    }
+
+    // MARK: Villagers
+
+    static func villagerRules(game: Game, world: World, pos: V3) {
+        let mm = game.mobs
+        mm.mobs.removeAll()
+        // Schedule.
+        let v0 = Mob(.villager, at: pos)
+        var d = VillagerData(); d.profession = "farmer"; v0.villager = d
+        let acts = [0.05, 0.2, 0.4, 0.48].map { v0.activity($0) }
+        check(acts == [.idle, .work, .meet, .idle], "villager schedule idle/work/meet/idle")
+        d.profession = "nitwit"; v0.villager = d
+        check(v0.activity(0.2) == .idle, "villager nitwits don't work")
+        let kid = Mob(.villager, at: pos); kid.baby = true
+        check(kid.activity(0.2) == .play && kid.activity(0.3) == .idle, "villager children play")
+
+        // Reputation: trading caps at 25, four hits reach -100, curing is worth +125.
+        var g = VillagerData()
+        for _ in 0..<20 { g.addGossip(.trading, 2) }
+        check(g.reputation == 25, "gossip trading cap", "\(g.reputation)")
+        var h = VillagerData()
+        for _ in 0..<4 { h.addGossip(.minorNeg, 25) }
+        check(h.reputation == -100, "gossip four hits = -100", "\(h.reputation)")
+        var c = VillagerData(); c.addGossip(.majorPos, 20); c.addGossip(.minorPos, 25)
+        check(c.reputation == 125, "gossip cured = +125", "\(c.reputation)")
+        var offer = TradeOffer(buyA: ItemStack(Items.id("emerald"), 10), buyB: .empty, sell: ItemStack(Items.id("bread"), 6), maxUses: 16, xp: 1, priceMult: 0.05)
+        offer.special = -Int(floor(Float(c.reputation) * offer.priceMult))
+        check(offer.costA.count == 4, "gossip cured discount", "cost \(offer.costA.count)")
+        var decayed = h
+        decayed.decayGossip(day: 0); decayed.decayGossip(day: 2)
+        check(decayed.reputation == -60, "gossip decays 20/day (minor negative)", "\(decayed.reputation)")
+
+        // Gossip spreads between neighbours, losing 20 per hop for minor negatives.
+        let x0 = Int(floor(pos.x)), z0 = Int(floor(pos.z))
+        func villager(_ dx: Int, _ dz: Int) -> Mob {
+            let x = x0 + dx, z = z0 + dz
+            let m = Mob(.villager, at: V3(Float(x) + 0.5, Float(world.topY(x, z) + 1), Float(z) + 0.5))
+            var vd = VillagerData(); vd.profession = "farmer"; m.villager = vd
+            m.persistent = true
+            mm.mobs.append(m)
+            return m
+        }
+        let a = villager(0, 0), b = villager(1, 0)
+        var ad = a.villager!; ad.addGossip(.minorNeg, 60); a.villager = ad
+        a.gossipTick(game)
+        check(b.villager?.gossip?[Gossip.minorNeg.rawValue] == 40, "gossip transfer minus 20", "\(b.villager?.gossip ?? [])")
+        check(game.villagersHatePlayer(near: a.pos) == false, "golems calm above -100")
+        for m in [a, b] { var vd = m.villager!; vd.gossip = [0, 100, 0, 0, 0]; m.villager = vd }
+        check(game.villagersHatePlayer(near: a.pos), "golems hostile at reputation -100")
+
+        // Golem summoning: five villagers that slept recently and gossip call one; four don't.
+        mm.mobs.removeAll()
+        let four = (0..<4).map { villager($0 - 2, 3) }
+        for m in four { m.sleptAt = game.time; m.gossipCooldown = 0 }
+        four[0].spawnGolemIfNeeded(game, needed: 5)
+        check(!mm.mobs.contains { $0.kind == .ironGolem }, "golem not summoned by four")
+        let fifth = villager(2, 3); fifth.sleptAt = game.time
+        four[0].spawnGolemIfNeeded(game, needed: 5)
+        check(mm.mobs.contains { $0.kind == .ironGolem }, "golem summoned by five sleepers")
+        let before = mm.mobs.filter { $0.kind == .ironGolem }.count
+        four[1].spawnGolemIfNeeded(game, needed: 5)
+        check(mm.mobs.filter { $0.kind == .ironGolem }.count == before, "golem summon waits after one appears")
+        let sleepless = (0..<5).map { villager($0 - 2, -3) }
+        for m in sleepless { m.sleptAt = -1e9 }
+        sleepless[0].spawnGolemIfNeeded(game, needed: 5)
+        check(mm.mobs.filter { $0.kind == .ironGolem }.count == before, "golem needs villagers that slept")
         mm.mobs.removeAll()
     }
 }
