@@ -61,10 +61,10 @@ enum Mesher {
 
     // MARK: Light
 
-    static func flood(_ L: inout [UInt8], _ q: inout [Int32], _ R: [BlockID], _ lo: [Bool]) {
+    static func flood(_ L: UnsafeMutablePointer<UInt8>, _ q: GrowBuf<Int32>, _ R: UnsafeMutablePointer<BlockID>, _ lo: [Bool]) {
         var head = 0
         while head < q.count {
-            let i = Int(q[head])
+            let i = Int(q.ptr[head])
             head += 1
             let l = L[i]
             if l <= 1 { continue }
@@ -90,12 +90,14 @@ enum Mesher {
         }
     }
 
-    static func computeLight(_ R: [BlockID], _ heights: [Int], y0: Int) -> (sky: [UInt8], blk: [UInt8]) {
+    // Fills sc.sky / sc.blk for the region.
+    static func computeLight(_ R: UnsafeMutablePointer<BlockID>, _ heights: UnsafeMutablePointer<Int>, y0: Int, _ sc: MeshScratch) {
         let lo = Blocks.lightOpaque, emitT = Blocks.emit
-        var sky = [UInt8](repeating: 0, count: RL * RH)
-        var blk = [UInt8](repeating: 0, count: RL * RH)
-        var q = [Int32]()
-        q.reserveCapacity(1 << 14)
+        let sky = sc.sky, blk = sc.blk
+        sky.initialize(repeating: 0, count: RL * RH)
+        blk.initialize(repeating: 0, count: RL * RH)
+        let q = sc.queue
+        q.count = 0
         for z in 0..<RW {
             for x in 0..<RW {
                 let c = x + z * RW
@@ -124,15 +126,14 @@ enum Mesher {
         check: for z in (C0 - 1)...(C0 + 16) {
             for x in (C0 - 1)...(C0 + 16) where heights[x + z * RW] >= y0 + C0 - 1 { shellLit = false; break check }
         }
-        if !shellLit { flood(&sky, &q, R, lo) }
+        if !shellLit { flood(sky, q, R, lo) }
 
-        q.removeAll(keepingCapacity: true)
+        q.count = 0
         for i in 0..<(RL * RH) {
             let e = emitT[Int(R[i])]
             if e > 0 { blk[i] = e; q.append(Int32(i)) }
         }
-        if !q.isEmpty { flood(&blk, &q, R, lo) }
-        return (sky, blk)
+        if q.count > 0 { flood(blk, q, R, lo) }
     }
 
     // MARK: Build
@@ -160,7 +161,11 @@ enum Mesher {
         if !anyBlock { return SectionMesh(opaque: [], trans: [], light: nil) }
 
         // Gather the region: index = x + z*RW + ry*RL, world y = y0 + ry.
-        var region = [BlockID](repeating: AIR, count: RL * RH)
+        // All scratch memory is per worker thread and reused (allocating and zeroing three 110K-cell arrays
+        // per section, plus copy-on-write checks on every array write, were ~half of the meshing time).
+        let sc = MeshScratch.current
+        let region = sc.region
+        region.initialize(repeating: AIR, count: RL * RH)
         for ry in 0..<RH {
             let y = y0 + ry
             if y < 0 {
@@ -195,29 +200,31 @@ enum Mesher {
         }
         if buried { return SectionMesh(opaque: [], trans: [], light: Mesher.dark, vis: 0) }
 
-        var heights = [Int](repeating: -1, count: RL)
+        let heights = sc.heights
+        heights.initialize(repeating: -1, count: RL)
         for cz in 0..<3 {
             for cx in 0..<3 {
                 let h = h9[cx + cz * 3]
                 for z in 0..<CS { for x in 0..<CS { heights[cx * CS + x + (cz * CS + z) * RW] = Int(h[x + z * CS]) } }
             }
         }
-        let (skyL, blkL) = computeLight(R, heights, y0: y0)
+        computeLight(R, heights, y0: y0, sc)
+        let skyL = sc.sky, blkL = sc.blk
 
-        var lightOut = [UInt8](repeating: 0, count: 4096)
-        for ly in 0..<16 {
-            for lz in 0..<16 {
-                for lx in 0..<16 {
-                    let ri = (lx + C0) + (lz + C0) * RW + (ly + C0) * RL
-                    lightOut[lx + lz * 16 + ly * 256] = (skyL[ri] << 4) | blkL[ri]
+        let lightOut = [UInt8](unsafeUninitializedCapacity: 4096) { out, n in
+            for ly in 0..<16 {
+                for lz in 0..<16 {
+                    for lx in 0..<16 {
+                        let ri = (lx + C0) + (lz + C0) * RW + (ly + C0) * RL
+                        out[lx + lz * 16 + ly * 256] = (skyL[ri] << 4) | blkL[ri]
+                    }
                 }
             }
+            n = 4096
         }
 
-        var opq = [UInt32]()
-        opq.reserveCapacity(8192)
-        var cut = [UInt32]()            // alpha-tested faces (leaves, plants, models), appended after the solid ones
-        var trn = [UInt32]()
+        let opq = sc.opq, cut = sc.cut, trn = sc.trn     // cut: alpha-tested faces (leaves, plants, models), after the solid ones
+        opq.count = 0; cut.count = 0; trn.count = 0
         var curCut = false
         let solidLayer = RenderLayer.opaque.rawValue
         let leafT = Mesher.leafT
@@ -254,12 +261,14 @@ enum Mesher {
             return best
         }
 
-        var lit = [Int](repeating: 0, count: 4)
-        var aos = [Int](repeating: 3, count: 4)
+        let lit = sc.lit, aos = sc.aos
+        lit.initialize(repeating: 0, count: 4)
+        aos.initialize(repeating: 3, count: 4)
         // Greedy meshing: flat-lit cube faces are collected per face direction and slice, then merged
         // into big quads (u = v = 31 tells the shader to take UVs from the position, repeating per block).
         // key = 1 + (layer | tint<<11 | overlay<<13 | ao<<14 | light<<16 | trans<<24)
-        var mask = [Int32](repeating: 0, count: 6 * 16 * 256)
+        let mask = sc.mask
+        mask.initialize(repeating: 0, count: 6 * 16 * 256)
         for ly in 0..<16 {
             let y = ly + C0
             for z in C0..<(C0 + 16) {
@@ -523,8 +532,11 @@ enum Mesher {
             }
         }
         let solid = opq.count / 8
-        opq += cut
-        return SectionMesh(opaque: opq, trans: trn, light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT), solidQuads: solid)
+        var opaqueOut = [UInt32]()
+        opaqueOut.reserveCapacity(opq.count + cut.count)
+        opaqueOut.append(contentsOf: UnsafeBufferPointer(start: opq.ptr, count: opq.count))
+        opaqueOut.append(contentsOf: UnsafeBufferPointer(start: cut.ptr, count: cut.count))
+        return SectionMesh(opaque: opaqueOut, trans: trn.toArray(), light: Mesher.shared(lightOut), vis: connectivity(R, opaqueT, sc), solidQuads: solid)
     }
 
     // A uniform light array is swapped for the shared copy so loaded chunks don't each hold their own.
@@ -538,25 +550,28 @@ enum Mesher {
     static let leafT: [Bool] = (0..<Blocks.count).map { Blocks.key(BlockID($0)).hasSuffix("_leaves") }
 
     // Which section faces see each other through non-opaque cells (flood fill per open region).
-    static func connectivity(_ R: [BlockID], _ opaqueT: [Bool]) -> UInt64 {
-        var seen = [Bool](repeating: false, count: 4096)
-        var stack = [Int]()
-        stack.reserveCapacity(4096)
+    static func connectivity(_ R: UnsafeMutablePointer<BlockID>, _ opaqueT: [Bool], _ sc: MeshScratch) -> UInt64 {
+        let seen = sc.seen
+        seen.initialize(repeating: false, count: 4096)
+        let stack = sc.stack
         var vis: UInt64 = 0
         for start in 0..<4096 where !seen[start] {
             let sx = start & 15, sz = (start >> 4) & 15, sy = start >> 8
             if opaqueT[Int(R[(sx + C0) + (sz + C0) * RW + (sy + C0) * RL])] { seen[start] = true; continue }
             var faces = 0
             seen[start] = true
-            stack.append(start)
-            while let i = stack.popLast() {
+            var top = 0
+            stack[top] = Int32(start); top += 1
+            while top > 0 {
+                top -= 1
+                let i = Int(stack[top])
                 let x = i & 15, z = (i >> 4) & 15, y = i >> 8
                 if x == 15 { faces |= 1 }; if x == 0 { faces |= 2 }
                 if y == 15 { faces |= 4 }; if y == 0 { faces |= 8 }
                 if z == 15 { faces |= 16 }; if z == 0 { faces |= 32 }
+                let r0 = (x + C0) + (z + C0) * RW + (y + C0) * RL
                 for d in 0..<6 {
                     let ni: Int, ri: Int
-                    let r0 = (x + C0) + (z + C0) * RW + (y + C0) * RL
                     switch d {
                     case 0: if x == 15 { continue }; ni = i + 1; ri = r0 + 1
                     case 1: if x == 0 { continue }; ni = i - 1; ri = r0 - 1
@@ -566,14 +581,64 @@ enum Mesher {
                     default: if z == 0 { continue }; ni = i - 16; ri = r0 - RW
                     }
                     if seen[ni] { continue }
-                    seen[ni] = true
+                    seen[ni] = true                     // each cell is pushed at most once: 4096 slots suffice
                     if opaqueT[Int(R[ri])] { continue }
-                    stack.append(ni)
+                    stack[top] = Int32(ni); top += 1
                 }
             }
             for a in 0..<6 where faces & (1 << a) != 0 { for b in 0..<6 where faces & (1 << b) != 0 { vis |= 1 << UInt64(a * 6 + b) } }
             if vis == (1 << 36) - 1 { break }
         }
         return vis
+    }
+}
+
+// Growable buffer of trivial values (no copy-on-write checks on append).
+final class GrowBuf<T> {
+    private(set) var ptr: UnsafeMutablePointer<T>
+    private(set) var cap: Int
+    var count = 0
+    init(_ cap: Int) { self.cap = cap; ptr = UnsafeMutablePointer<T>.allocate(capacity: cap) }
+    deinit { ptr.deallocate() }
+    @inline(__always) func append(_ v: T) {
+        if count == cap { grow() }
+        ptr[count] = v
+        count += 1
+    }
+    private func grow() {
+        let n = cap * 2
+        let p = UnsafeMutablePointer<T>.allocate(capacity: n)
+        p.moveInitialize(from: ptr, count: count)
+        ptr.deallocate()
+        ptr = p; cap = n
+    }
+    func toArray() -> [T] { Array(UnsafeBufferPointer(start: ptr, count: count)) }
+}
+
+// Per-thread meshing scratch memory (kept in the thread dictionary; worker threads reuse theirs).
+final class MeshScratch {
+    let region = UnsafeMutablePointer<BlockID>.allocate(capacity: Mesher.RL * Mesher.RH)
+    let sky = UnsafeMutablePointer<UInt8>.allocate(capacity: Mesher.RL * Mesher.RH)
+    let blk = UnsafeMutablePointer<UInt8>.allocate(capacity: Mesher.RL * Mesher.RH)
+    let heights = UnsafeMutablePointer<Int>.allocate(capacity: Mesher.RL)
+    let mask = UnsafeMutablePointer<Int32>.allocate(capacity: 6 * 16 * 256)
+    let lit = UnsafeMutablePointer<Int>.allocate(capacity: 4)
+    let aos = UnsafeMutablePointer<Int>.allocate(capacity: 4)
+    let seen = UnsafeMutablePointer<Bool>.allocate(capacity: 4096)
+    let stack = UnsafeMutablePointer<Int32>.allocate(capacity: 4096)
+    let queue = GrowBuf<Int32>(1 << 16)
+    let opq = GrowBuf<UInt32>(1 << 14), cut = GrowBuf<UInt32>(1 << 12), trn = GrowBuf<UInt32>(1 << 12)
+
+    deinit {
+        region.deallocate(); sky.deallocate(); blk.deallocate(); heights.deallocate(); mask.deallocate()
+        lit.deallocate(); aos.deallocate(); seen.deallocate(); stack.deallocate()
+    }
+
+    static var current: MeshScratch {
+        let d = Thread.current.threadDictionary
+        if let s = d["blocksmith.meshScratch"] as? MeshScratch { return s }
+        let s = MeshScratch()
+        d["blocksmith.meshScratch"] = s
+        return s
     }
 }

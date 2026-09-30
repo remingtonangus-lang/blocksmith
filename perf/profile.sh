@@ -14,4 +14,4 @@ sample "$PID" "$SECS" 1 -file "$OUT" > /dev/null 2>&1 || true
 wait "$PID" || true
 echo "== $SCENE: hottest functions (samples at top of stack, all threads) =="
 # The report ends with "Sort by top of stack, same collapsed (when >= 5):" followed by "  symbol  (in image)  count".
-awk '/Sort by top of stack/{on=1; next} on && NF' "$OUT" | head -45
+awk '/Sort by top of stack/{on=1; next} /^Binary Images/{exit} on && NF' "$OUT" | head -45 || true
