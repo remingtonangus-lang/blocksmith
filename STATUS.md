@@ -39,12 +39,43 @@ No third-party text, textures, sounds or logos: everything is procedural or writ
 
 ## Controls
 Keyboard/mouse: WASD, Space (double-tap = fly in creative), Shift sneak, Ctrl sprint, LMB attack/mine (hold),
-RMB use/place/eat (hold), MMB pick block, 1–9/scroll hotbar, E inventory, Q drop (Ctrl+Q stack), F fly, T / slash commands, F1 hide HUD, F2 screenshot
-(~/Pictures/Blocksmith), F3 debug, F5 camera (first person / behind / in front, with a player model).
-Menus: click / right-click / shift-click, number keys swap with hotbar, click outside drops.
-Controller: LS move, RS look, A jump, B sneak, L3 sprint, RT attack/mine, LT use, LB/RB hotbar, Y inventory, View camera,
-X pick block, D-pad ↓ drop, D-pad ↑ fly. In menus: D-pad/LS move cursor, A = click, X = right-click, Y = shift-click,
-B close, RS scroll creative.
+RMB use/place/eat (hold), MMB pick block, 1–9/scroll hotbar, E inventory, Q drop (Ctrl+Q stack), R swap off hand, F fly, T / slash commands,
+F1 hide HUD, F2 screenshot (~/Pictures/Blocksmith), F3 debug, F5 camera (first person / behind / in front, with a player model).
+Menus: click / right-click / shift-click, number keys swap with hotbar, click outside drops, arrow keys move the cursor, Tab switches creative tabs.
+Controller (console layout): LS move (full forward = auto-sprint), RS look, A jump, B / RS click sneak (hold or toggle), L3 sprint,
+RT attack/mine, LT use/place/eat, LB/RB hotbar, Y inventory, X pick block, D-pad ↓ drop (hold: whole stack), ↑ fly, → swap off hand,
+← command console, View camera, Menu pause, Share screenshot. Options > Controller: southpaw sticks.
+In menus: D-pad/LS move the cursor (held directions repeat), A take/place/select, X split/place one/previous value, Y quick move,
+RT drop, B back/close, LB/RB tabs (options pages, creative tabs, advancement tabs, recipe book pages), RS / LT / RT scroll and page.
+On-screen keyboard (Y in any text field): A type, X delete, Y space, LT shift, Menu done.
+
+## Couch / TV mode (controller workstream)
+- `PadManager` (Controller.swift): hotplugging with toasts, the pad dropping out mid-game pauses, player LED, battery shown in
+  Options > Controller, rumble through CoreHaptics (hurt, explosions, mining, attacks, bow, landing, thunder, level up; strength option),
+  and "last device used" so every prompt shows controller glyphs or key caps automatically (Options: Button Prompts auto/pad/keys).
+- Button glyphs (Glyphs.swift): private-use characters drawn by the HUD text renderer as pixel-art badges (coloured A/B/X/Y,
+  LB/RB pills, LT/RT triggers, sticks, D-pad arms, Menu/View/Share) and key caps / mouse buttons. Menu legends change with the hovered
+  slot ("A Pick up  X Pick up half  Y Quick move" / "A Place all  X Place one"); pad cursor is a bright frame.
+- Options (PauseMenu.swift): six pages switched with LB/RB — Keyboard & Mouse, Controller (look speed X/Y, look acceleration, invert,
+  dead zone, aim assist, vibration, southpaw, sneak hold/toggle, auto-sprint, prompts), Video (render distance, fullscreen, start in
+  fullscreen [default on], VSync, frame-rate cap, resolution scale, FOV, GUI scale), Audio (+ subtitles), Interface (GUI scale, couch
+  mode, safe area 0–10 %, button hints, text background, hide HUD, debug), Accessibility (subtitles, colourblind-safe colours,
+  text background, tutorial tips). D-pad left/right changes the highlighted setting; every row has a help line; long pages scroll.
+  Settings persist in UserDefaults (Settings.swift `@Pref`).
+- Menus shrink to a GUI scale that fits the screen and safe area (HudLayout.fitted), so couch mode on a 1080p TV never overflows.
+- Worlds (WorldStore.swift): newest first with mode + last played; per-world Play / Rename / Copy / Delete (confirmation with Cancel
+  selected; deletes go to the Trash). The open world can be copied but not renamed/deleted. Save and Quit to Title.
+- Creative palette: 9 tabs (All, Building, Natural, Functional, Sparkstone, Tools & Combat, Food & Potions, Ingredients, Search) with
+  an icon tab strip; Search filters by name (keyboard or on-screen keyboard).
+- In game: contextual prompts bottom-right ("RT Mine  LT Place  X Pick Block"), LB/RB beside the hotbar, first-steps tutorial tips
+  (look, move, jump, mine, place, inventory, hotbar), subtitles with left/right arrows, aim assist (view slows over hostile mobs and
+  while mining; controller only).
+- Harness: `--padtest` drives Game.tick with a simulated pad through ~45 checks (pause, options pages/values, keyboard typing,
+  world copy/delete/rename, inventory, creative tabs/search, gameplay buttons, look, rumble, TV fit); a failure makes the run exit 3.
+  `--pad` (pad glyphs), `--couch`, `--safe N`, `--hints`, `--padview keyboard|worlds|world|confirm|controls|title|video`.
+  Options changed by the harness are restored and worlds live in a temp folder. Snapshot shots hide tips/prompts unless `--hints`.
+- Not yet: key rebinding for keyboard or pad, controller-driven sign/book editing beyond the on-screen keyboard, a TV-sized
+  loading screen.
 
 ## Rendering performance
 - Greedy meshing of flat-lit cube faces (merged quads take repeating UVs from their position in the shader).
@@ -52,12 +83,6 @@ B close, RS scroll creative.
   cells; they re-mesh when crossing the boundary. Render distance goes up to 24 in Options.
 - Cave culling: each section stores which faces connect through open cells; the renderer walks sections outward from the
   camera through connected faces only (plus frustum). CI rd 12 overworld frame: ~26 ms -> ~9 ms (VM GPU).
-
-## Couch / TV mode
-- In-game pause + options screens (Metal-drawn) drive fully with a controller: FOV, sensitivity, invert Y, stick dead
-  zone, render distance, GUI scale (auto/1-6), couch mode (bigger HUD), volume, music, difficulty, game mode, load world,
-  new world. Button legends show under every menu when a pad is connected. Text entry (signs, book pages/titles,
-  anvil names) works pad-only too via the on-screen keyboard (Y in any text screen).
 
 ## Polish (latest)
 - Auto-Jump option (hops one-block steps while walking into them; handy on a controller). Long pause/options pages

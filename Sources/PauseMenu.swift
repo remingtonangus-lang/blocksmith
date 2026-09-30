@@ -5,7 +5,7 @@ import Foundation
 // D-pad / stick to move, A to choose or step a setting forward, X (or D-pad left/right) to step it,
 // B to go back. The list scrolls when it is longer than the panel.
 final class PauseMenu: Menu {
-    enum Page { case title, main, options, controls, worlds, world, confirm, create, rename }
+    enum Page { case title, main, options, controls, keys, worlds, world, confirm, create, rename }
     enum Cat: Int, CaseIterable {
         case controls, controller, video, audio, interface, accessibility
         var name: String { ["Keyboard & Mouse", "Controller", "Video", "Audio", "Interface", "Accessibility"][rawValue] }
@@ -28,6 +28,7 @@ final class PauseMenu: Menu {
     var selWorld = ""              // world picked on the worlds page
     var renameText = ""
     var worlds: [WorldStore.Info] = []
+    var binding: KeyBinds.Action? = nil   // waiting for a key press on the Key Bindings page
 
     init(game: Game) {
         super.init("Game Paused", game: game)
@@ -74,6 +75,8 @@ final class PauseMenu: Menu {
         "tutorial": "First-steps tips while you play.",
         "resethints": "Show the first-steps tips again from the start.",
         "controls": "Every control for keyboard, mouse and controller.",
+        "keys": "Choose which keys walk, jump, open the inventory and more.",
+        "bindreset": "Put every key back to the default layout.",
         "volume": "Overall sound volume.",
         "music": "Background music volume.",
         "mode": "Survival: health, hunger, mining. Creative: fly and build freely.",
@@ -115,7 +118,7 @@ final class PauseMenu: Menu {
             case .controls:
                 rows = [("Mouse Sensitivity: \(pct(g.sensitivity))", "sens"), ("Invert Y: \(on(g.invertY))", "invert"),
                         ("Auto-Jump: \(on(g.autoJump))", "autojump"), ("Field of View: \(Int(g.fovSetting))", "fov"),
-                        ("Controls Reference...", "controls"), ("Reset Tutorial Hints", "resethints")]
+                        ("Key Bindings...", "keys"), ("Controls Reference...", "controls"), ("Reset Tutorial Hints", "resethints")]
             case .controller:
                 let pm = PadManager.shared
                 let info = pm.connected ? pm.name + (pm.battery.map { " (\(Int($0 * 100))%)" } ?? "") : "No controller"
@@ -147,6 +150,12 @@ final class PauseMenu: Menu {
                         ("Vibration: \(st.rumble == 0 ? "Off" : pct(st.rumble))", "rumble")]
             }
             rows.append(("Done", "back"))
+        case .keys:
+            title = "Key Bindings"
+            subtitle = binding == nil ? "Shift sneaks and Ctrl sprints on every layout" : "Press a key for \(binding!.title) (Esc cancels)"
+            rows = KeyBinds.Action.allCases.map { a in
+                ("\(a.title): " + (binding == a ? "> ? <" : KeyBinds.name(KeyBinds.key(a))), "bind:" + a.rawValue)
+            } + [("Reset to Defaults", "bindreset"), ("Done", "back")]
         case .controls:
             title = "Controls"
             rows = ControlsReference.rows().map { ($0, "noop") } + [("Done", "back")]
@@ -273,6 +282,10 @@ final class PauseMenu: Menu {
             if page == .title { g.paused = false } else { g.closeMenu() }
         case "options": go(.options); resetCursor = true
         case "controls": go(.controls); resetCursor = true
+        case "keys": go(.keys); binding = nil; resetCursor = true
+        case _ where id.hasPrefix("bind:"):
+            binding = KeyBinds.Action(rawValue: String(id.dropFirst(5)))
+        case "bindreset": KeyBinds.reset(); g.onToast?("Keys reset to defaults")
         case "worlds": go(.worlds); resetCursor = true
         case "back":
             page = stack.popLast() ?? (page == .title ? .title : .main)
@@ -382,7 +395,7 @@ final class PauseMenu: Menu {
         }
     }
 
-    override var capturesText: Bool { (page == .create || page == .rename) && editing != nil }
+    override var capturesText: Bool { ((page == .create || page == .rename) && editing != nil) || binding != nil }
     override func typed(_ str: String) {
         guard let e = editing else { return }
         for c in str {
@@ -398,6 +411,18 @@ final class PauseMenu: Menu {
         build()
     }
     override func tick() {
+        if let a = binding {
+            // First key pressed (that isn't reserved) becomes the binding.
+            if let k = game.input.pressed.first(where: { !KeyBinds.reserved.contains($0) }) {
+                KeyBinds.set(a, k)
+                binding = nil
+                game.sfx(.click, 0.5)
+                let cur = game.menuCursor
+                build()
+                game.menuCursor = cur
+            }
+            return
+        }
         if page == .create || page == .rename {
             if editing != nil && game.input.tapped(Key.enter) { editing = nil }
             build()            // blinking caret
@@ -406,6 +431,7 @@ final class PauseMenu: Menu {
     }
 
     override func backPressed() -> Bool {
+        if binding != nil { binding = nil; build(); return true }
         if editing != nil { editing = nil; build(); return true }
         guard page != .main && page != .title else { return page == .title }
         act("back", back: false)
@@ -422,22 +448,23 @@ enum VideoState {
 // Text for the Controls Reference page.
 enum ControlsReference {
     static func rows() -> [String] {
-        [
-            Glyph.ls.s + " / " + Glyphs.key("WASD") + " Move",
+        func k(_ a: Prompt.Act) -> String { Prompt.keyGlyph(a) }
+        return [
+            Glyph.ls.s + " / " + k(.move) + " Move",
             Glyph.rs.s + " / mouse Look",
-            Glyph.a.s + " / " + Glyphs.key("Space") + " Jump (twice: fly)",
+            Glyph.a.s + " / " + k(.jump) + " Jump (twice: fly)",
             Glyph.b.s + " " + Glyph.r3.s + " / " + Glyphs.key("Shift") + " Sneak",
             Glyph.l3.s + " / " + Glyphs.key("Ctrl") + " Sprint",
             Glyph.rt.s + " / " + Glyph.mouseL.s + " Attack, mine",
             Glyph.lt.s + " / " + Glyph.mouseR.s + " Use, place, eat",
             Glyph.lb.s + Glyph.rb.s + " / " + Glyphs.key("1-9") + " Hotbar",
-            Glyph.y.s + " / " + Glyphs.key("E") + " Inventory",
+            Glyph.y.s + " / " + k(.inventory) + " Inventory",
             Glyph.x.s + " / " + Glyph.mouseM.s + " Pick block",
-            Glyph.ddown.s + " / " + Glyphs.key("Q") + " Drop (hold: stack)",
-            Glyph.dright.s + " / " + Glyphs.key("R") + " Swap off hand",
-            Glyph.dleft.s + " / " + Glyphs.key("T") + " Commands",
-            Glyph.dup.s + " / " + Glyphs.key("F") + " Fly (creative)",
-            Glyph.view.s + " / " + Glyphs.key("F5") + " Camera",
+            Glyph.ddown.s + " / " + k(.drop) + " Drop (hold: stack)",
+            Glyph.dright.s + " / " + k(.offhand) + " Swap off hand",
+            Glyph.dleft.s + " / " + k(.chat) + " Commands",
+            Glyph.dup.s + " / " + k(.fly) + " Fly (creative)",
+            Glyph.view.s + " / " + k(.camera) + " Camera",
             Glyph.menu.s + " / " + Glyphs.key("Esc") + " Pause",
             Glyph.share.s + " / " + Glyphs.key("F2") + " Screenshot",
         ]

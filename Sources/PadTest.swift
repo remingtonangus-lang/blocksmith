@@ -114,6 +114,18 @@ enum PadTest {
         tap(g, "b")
         check(pm.page == .main, "B returns to the pause menu")
 
+        // Key bindings: A arms a row, the next key press binds it, B backs out.
+        pm.go(.keys); pm.build(); g.menuCursor = 0
+        tap(g, "a")
+        check(pm.binding == .forward, "A on Walk Forward waits for a key")
+        g.input.pressed.insert(5)            // G
+        frame(g)
+        check(KeyBinds.key(.forward) == 5 && pm.binding == nil, "the next key press becomes the binding (\(KeyBinds.name(KeyBinds.key(.forward))))")
+        check(Prompt.keyGlyph(.move).contains("G"), "keyboard prompts follow the new binding")
+        KeyBinds.reset()
+        tap(g, "b")
+        check(pm.page == .main, "B leaves Key Bindings")
+
         // Worlds list: create page + on-screen keyboard.
         try? fm.createDirectory(at: tmp.appendingPathComponent("Beta"), withIntermediateDirectories: true)
         try? fm.createDirectory(at: tmp.appendingPathComponent("Alpha"), withIntermediateDirectories: true)
@@ -177,12 +189,23 @@ enum PadTest {
         g.survival = false
         tap(g, "y")
         if let c = g.menu as? CreativeMenu {
+            tap(g, "rt")
+            check(c.scroll == min(c.maxScroll, c.rows), "RT pages the creative palette")
+            tap(g, "lt")
+            check(c.scroll == 0, "LT pages back")
             tap(g, "rb")
-            check(c.scroll == min(c.maxScroll, c.rows), "RB pages the creative palette")
-            tap(g, "lb")
-            check(c.scroll == 0, "LB pages back")
+            check(c.tab == .building && c.all.count > 20 && c.all.count < CreativeMenu.every.count, "RB opens the Building tab (\(c.all.count) items)")
+            tap(g, "lb*2")
+            check(c.tab == .search, "LB wraps around to Search")
+            c.typed("pick")
+            check(!c.all.isEmpty && c.all.allSatisfy { Items.def($0).display.lowercased().contains("pick") || Items.key($0).contains("pick") }, "search filters by name (\(c.all.count) hits)")
+            tap(g, "y")
+            check(g.menu is KeyboardMenu, "Y in Search opens the on-screen keyboard")
+            tap(g, "menu")
+            let counts = CreativeMenu.Tab.allCases.map { CreativeMenu.items($0, query: "").count }
+            print("padtest: creative tab sizes " + zip(CreativeMenu.Tab.allCases, counts).map { "\($0.0.short) \($0.1)" }.joined(separator: ", "))
         } else { check(false, "Y opens the creative palette") }
-        tap(g, "b")
+        g.closeMenu()
 
         // Gameplay buttons.
         g.selected = 0

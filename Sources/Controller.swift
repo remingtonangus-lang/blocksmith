@@ -158,13 +158,15 @@ final class PadLook {
 // Maps game sounds to controller rumble, so every hit, explosion and broken block is felt as well as heard.
 enum Feedback {
     static func sound(_ g: Game, _ s: Snd, _ v: Float, at pos: V3?) {
-        let pm = PadManager.shared
-        guard pm.connected && pm.usingPad && Settings.shared.rumble > 0 else { return }
         var near: Float = 1
         if let p = pos {
             let d = simd_length(p - g.player.eye)
             near = max(0, 1 - d / 12)
         }
+        Subtitles.shared.add(g, s, at: pos)
+        Tutorial.sound(g, s, near: near > 0.55)
+        let pm = PadManager.shared
+        guard pm.connected && pm.usingPad && Settings.shared.rumble > 0 else { return }
         switch s {
         case .hurt: pm.rumble(0.8, 0.18, sharpness: 0.6)
         case .explode: pm.rumble(max(0.25, near), 0.45, sharpness: 0.2)
@@ -174,8 +176,25 @@ enum Feedback {
         case .bow: pm.rumble(0.4, 0.08, sharpness: 0.6)
         case .land: pm.rumble(0.5 * v, 0.1, sharpness: 0.3)
         case .levelUp: pm.rumble(0.4, 0.25, sharpness: 0.5)
+        case .dig: if near > 0.55 { pm.rumble(0.15, 0.03, sharpness: 0.9) }
+        case .pickup: pm.rumble(0.1, 0.03, sharpness: 0.9)
+        case .eat: pm.rumble(0.12, 0.05, sharpness: 0.3)
         case .fireworkBlastLarge, .witherSpawn, .raidHorn: pm.rumble(0.5 * max(0.3, near), 0.4, sharpness: 0.2)
         default: break
+        }
+    }
+}
+
+extension Feedback {
+    static var heartTimer: Double = 0
+    // Per frame: a heartbeat pulse while health is low in survival.
+    static func tick(_ g: Game) {
+        guard g.survival, g.alive, g.health <= 4, g.menu == nil, !g.paused else { heartTimer = 0; return }
+        if g.clock - heartTimer > 1.1 {
+            heartTimer = g.clock
+            let pm = PadManager.shared
+            guard pm.usingPad else { return }
+            pm.rumble(0.35, 0.07, sharpness: 0.2)
         }
     }
 }

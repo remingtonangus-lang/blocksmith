@@ -386,7 +386,7 @@ final class Game {
 
     func select(_ i: Int) {
         let n = (i % 9 + 9) % 9
-        if n != selected { eatProgress = 0; mining = nil; equipAnim = 1 }
+        if n != selected { eatProgress = 0; mining = nil; equipAnim = 1; Tutorial.selected(self) }
         selected = n
         let h = held
         if !h.isEmpty { onToast?(h.def.display) }
@@ -489,6 +489,7 @@ final class Game {
         let pad = readPad()
         padConnected = pad != nil
         PadManager.shared.note(pad: pad, input: input)
+        HudExtras.tick(self)
         let p = pad ?? PadSnapshot()
         let q = prevPad
         defer { prevPad = p; input.endFrame() }
@@ -526,8 +527,8 @@ final class Game {
             advance(dt)
             return
         }
-        if input.tapped(Key.e) || (p.y && !q.y) { openInventory(); return }
-        if input.tapped(37) { openMenu(AdvancementMenu(game: self)); return }
+        if input.tapped(KeyBinds.key(.inventory)) || (p.y && !q.y) { openInventory(); return }
+        if input.tapped(KeyBinds.key(.advancements)) { openMenu(AdvancementMenu(game: self)); return }
 
         // Look
         if input.captured {
@@ -544,23 +545,23 @@ final class Game {
 
         // Movement
         var mi = MoveInput()
-        if input.down(Key.w) { mi.forward += 1 }
-        if input.down(Key.s) { mi.forward -= 1 }
-        if input.down(Key.d) { mi.strafe += 1 }
-        if input.down(Key.a) { mi.strafe -= 1 }
+        if input.down(KeyBinds.key(.forward)) { mi.forward += 1 }
+        if input.down(KeyBinds.key(.back)) { mi.forward -= 1 }
+        if input.down(KeyBinds.key(.right)) { mi.strafe += 1 }
+        if input.down(KeyBinds.key(.left)) { mi.strafe -= 1 }
         let ls = stick(p.lx, p.ly, dead: deadZone)
         mi.forward += ls.y
         mi.strafe += ls.x
         mi.forward = simd_clamp(mi.forward, -1, 1)
         mi.strafe = simd_clamp(mi.strafe, -1, 1)
-        mi.jump = input.down(Key.space) || p.a
+        mi.jump = input.down(KeyBinds.key(.jump)) || p.a
         mi.sneak = input.shift || PadActions.sneak(p, q, self)
         if input.control || (p.l3 && !q.l3) || PadActions.autoSprint(ls, fdt) { player.sprinting = true }
         mi.sprint = player.sprinting && (mi.forward > 0.3) && !(survival && hunger <= 6) && eatProgress == 0
         if mi.forward <= 0.3 { player.sprinting = false }
         if eatProgress > 0 || blocking || bowCharge > 0 || crossbowCharge > 0 || tridentCharge > 0 { mi.forward *= 0.3; mi.strafe *= 0.3 }
 
-        if input.tapped(Key.space) || (p.a && !q.a) {
+        if input.tapped(KeyBinds.key(.jump)) || (p.a && !q.a) {
             let chest = inventory.armor[1]
             let hasElytra = !chest.isEmpty && Items.key(chest.item) == "elytra" && chest.damage < chest.def.durability - 1
             if hasElytra && !player.onGround && !player.flying && !player.inWater && !player.gliding {
@@ -580,15 +581,15 @@ final class Game {
             if player.impact >= 1 { damage(Int(player.impact), "experienced kinetic energy") }
             player.impact = 0
         }
-        if input.tapped(Key.f) || (p.up && !q.up) { toggleFly() }
+        if input.tapped(KeyBinds.key(.fly)) || (p.up && !q.up) { toggleFly() }
         if input.tapped(Key.f3) { showDebug.toggle() }
         if input.tapped(Key.f1) { hideHUD.toggle() }
-        if input.tapped(Key.t) { openMenu(CommandMenu(game: self)); return }
+        if input.tapped(KeyBinds.key(.chat)) { openMenu(CommandMenu(game: self)); return }
         if input.tapped(Key.slash) { openMenu(CommandMenu(game: self, prefill: "/")); return }
         if input.tapped(Key.f2) || (p.share && !q.share) { screenshotRequested = true }
         if PadActions.extras(p, q, self) { return }
-        if input.tapped(Key.f5) || (p.view && !q.view) { cameraMode = (cameraMode + 1) % 3 }
-        if input.tapped(Key.q) { dropHeld(all: input.control) }
+        if input.tapped(KeyBinds.key(.camera)) || (p.view && !q.view) { cameraMode = (cameraMode + 1) % 3 }
+        if input.tapped(KeyBinds.key(.drop)) { dropHeld(all: input.control) }
 
         // Hotbar
         for (i, k) in Key.digits.enumerated() where input.tapped(k) { select(i) }

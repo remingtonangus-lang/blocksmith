@@ -158,8 +158,9 @@ enum Prompt {
         }
     }
 
-    static func g(_ a: Act) -> String {
-        if pad {
+    static func g(_ a: Act) -> String { g(a, pad: pad) }
+    static func g(_ a: Act, pad usePad: Bool) -> String {
+        if usePad {
             switch a {
             case .jump, .select: return Glyph.a.s
             case .sneak, .back: return Glyph.b.s
@@ -182,20 +183,21 @@ enum Prompt {
             }
         }
         switch a {
-        case .jump, .space: return Glyphs.key("Space")
+        case .jump: return Glyphs.key(KeyBinds.name(KeyBinds.key(.jump)))
+        case .space: return Glyphs.key("Space")
         case .sneak, .shift: return Glyphs.key("Shift")
         case .sprint: return Glyphs.key("Ctrl")
         case .attack, .select: return Glyph.mouseL.s
         case .use, .alt: return Glyph.mouseR.s
         case .pick: return Glyph.mouseM.s
-        case .drop: return Glyphs.key("Q")
-        case .inventory: return Glyphs.key("E")
+        case .drop: return Glyphs.key(KeyBinds.name(KeyBinds.key(.drop)))
+        case .inventory: return Glyphs.key(KeyBinds.name(KeyBinds.key(.inventory)))
         case .hotbar: return Glyphs.key("1-9")
-        case .fly: return Glyphs.key("F")
-        case .camera: return Glyphs.key("F5")
+        case .fly: return Glyphs.key(KeyBinds.name(KeyBinds.key(.fly)))
+        case .camera: return Glyphs.key(KeyBinds.name(KeyBinds.key(.camera)))
         case .pause, .back: return Glyphs.key("Esc")
-        case .offhand: return Glyphs.key("R")
-        case .chat: return Glyphs.key("T")
+        case .offhand: return Glyphs.key(KeyBinds.name(KeyBinds.key(.offhand)))
+        case .chat: return Glyphs.key(KeyBinds.name(KeyBinds.key(.chat)))
         case .screenshot: return Glyphs.key("F2")
         case .quick: return Glyphs.key("Shift") + Glyph.mouseL.s
         case .tabs: return Glyphs.key("Tab")
@@ -203,9 +205,12 @@ enum Prompt {
         case .keyboard: return ""
         case .delete: return Glyphs.key("Del")
         case .done: return Glyphs.key("Enter")
-        case .move: return Glyphs.key("WASD")
+        case .move: return Glyphs.key([KeyBinds.Action.forward, .left, .back, .right].map { KeyBinds.name(KeyBinds.key($0)) }.joined())
         }
     }
+
+    // The keyboard/mouse glyph for an action whatever device is in use.
+    static func keyGlyph(_ a: Act) -> String { g(a, pad: false) }
 
     // "glyph label   glyph label ..." for a legend line.
     static func line(_ items: [(Act, String)]) -> String {
@@ -223,11 +228,11 @@ enum Prompt {
         }
         if m is DeathMenu { return line([(.select, "Select")]) }
         if let pm = m as? PauseMenu { return pm.legend }
-        if m.capturesText {
+        if m.capturesText && !(m is CreativeMenu) {
             return pad ? line([(.keyboard, "Keyboard"), (.select, "Select"), (.back, "Close")]) : line([(.select, "Select"), (.back, "Close")])
         }
         let hover = game.menuHover
-        if let h = hover, h.isButton { return line([(.select, "Select"), (.back, "Close")]) }
+        if let h = hover, h.isButton, !(m is CreativeMenu) { return line([(.select, "Select"), (.back, "Close")]) }
         if m is CreativeMenu {
             var items: [(Act, String)] = []
             if let h = hover, case .palette = h.kind {
@@ -235,6 +240,8 @@ enum Prompt {
             } else if hover != nil {
                 items = game.carried.isEmpty ? [(.select, "Pick up"), (.quick, "Clear slot")] : [(.select, "Place"), (.alt, "Place one")]
             }
+            if let c = m as? CreativeMenu, c.tab == .search, pad { items.insert((.keyboard, "Type"), at: 0) }
+            items.append((.tabs, "Tab"))
             items.append((.scroll, "Scroll"))
             items.append((.back, "Close"))
             return line(items)

@@ -39,7 +39,7 @@ done
 "$BIN" --snapshot snaps/tv_worlds.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --w 1920 --h 1080 --couch --padview worlds
 "$BIN" --snapshot snaps/tv_confirm.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --w 1920 --h 1080 --couch --padview confirm
 "$BIN" --snapshot snaps/controls_ref.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --padview controls
-"$BIN" --snapshot snaps/tv_hud.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --w 1920 --h 1080 --couch --safe 5 --survival 13 --slot 2 --pad
+"$BIN" --snapshot snaps/tv_hud.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --w 1920 --h 1080 --couch --safe 5 --survival 13 --slot 2 --pad --hints
 "$BIN" --snapshot snaps/furnace.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu furnace
 "$BIN" --snapshot snaps/drops.png --seed 12345 --yaw 30 --pitch -30 --time 0.22 --up 1 --drops
 "$BIN" --snapshot snaps/survival.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --survival 13 --slot 8 --debug

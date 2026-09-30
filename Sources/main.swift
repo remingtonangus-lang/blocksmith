@@ -787,6 +787,7 @@ if let dir = arg("--sounds") {
 }
 
 if let out = arg("--snapshot") {
+    HudExtras.enabled = CommandLine.arguments.contains("--hints")
     let code = Snapshot.run(out)
     PrefsSandbox.end()
     exit(PadTest.failures > 0 ? 3 : code)

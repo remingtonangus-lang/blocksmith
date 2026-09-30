@@ -35,7 +35,7 @@ extension Game {
             if abs(ls.x) > abs(ls.y) { hx = ls.x > 0 ? 1 : -1 } else { hy = ls.y > 0 ? -1 : 1 }
         }
         var (mx, my) = navStep(hx, hy, dt)
-        if !m.capturesText || m is KeyboardMenu || m is PauseMenu {
+        if !m.capturesText || m is KeyboardMenu || (m as? PauseMenu).map({ $0.binding == nil }) == true {
             if input.tapped(Key.arrowLeft) { mx -= 1 }
             if input.tapped(Key.arrowRight) { mx += 1 }
             if input.tapped(Key.arrowUp) { my -= 1 }
@@ -67,7 +67,9 @@ extension Game {
         let tab = (p.rb && !q.rb ? 1 : 0) - (p.lb && !q.lb ? 1 : 0)
         if let c = creative {
             if scroll != 0 { c.scrollBy(scroll) }
-            if tab != 0 { c.scrollBy(tab * c.rows) }
+            if tab != 0 { c.switchTab(tab) }
+            let page = (p.rt > 0.5 && q.rt <= 0.5 ? 1 : 0) - (p.lt > 0.5 && q.lt <= 0.5 ? 1 : 0)
+            if page != 0 { c.scrollBy(page * c.rows) }
         }
         if let mm = m as? MerchantMenu, scroll != 0 {
             mm.scroll = max(0, min(max(0, mm.offers.count - MerchantMenu.visible), mm.scroll + scroll))
@@ -122,7 +124,7 @@ extension Game {
             }
         }
         // RT drops the held stack (or one item from the hovered slot), like dropping outside the panel.
-        if p.rt > 0.5 && q.rt <= 0.5 && !(m is PauseMenu) && !(m is KeyboardMenu) {
+        if p.rt > 0.5 && q.rt <= 0.5 && !(m is PauseMenu) && !(m is KeyboardMenu) && creative == nil {
             if !carried.isEmpty { dropItem(carried); carried = .empty }
             else if let s = menuHover, !s.isButton, !s.stack.isEmpty {
                 if case .palette = s.kind {} else if case .result = s.kind {} else {
@@ -138,11 +140,11 @@ extension Game {
         guard menu === m else { return }
         if !input.typed.isEmpty { m.typed(input.typed) }
         if (p.b && !q.b) && m.backPressed() { m.tick(); return }
-        if m.capturesText && p.y && !q.y && !(m is KeyboardMenu) {
+        if m.capturesText && p.y && !q.y && !(m is KeyboardMenu) && (m as? PauseMenu)?.binding == nil {
             menu = KeyboardMenu(game: self, target: m)
             menuCursor = 0
             return
         }
-        if (input.tapped(Key.e) && !m.capturesText) || input.tapped(Key.esc) || (p.b && !q.b) || (p.view && !q.view) { closeMenu() }
+        if (input.tapped(KeyBinds.key(.inventory)) && !m.capturesText) || input.tapped(Key.esc) || (p.b && !q.b) || (p.view && !q.view) { closeMenu() }
     }
 }

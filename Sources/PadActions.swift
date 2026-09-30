@@ -34,7 +34,7 @@ enum PadActions {
         }
         if !p.down { dropPressedAt = -1 }
         // D-pad right / R: swap main hand and off hand.
-        if (p.right && !q.right) || g.input.tapped(Key.r) { swapOffhand(g) }
+        if (p.right && !q.right) || g.input.tapped(KeyBinds.key(.offhand)) { swapOffhand(g) }
         // D-pad left: command console (it has pad quick buttons and the on-screen keyboard).
         if p.left && !q.left { g.openMenu(CommandMenu(game: g)); return true }
         return false
