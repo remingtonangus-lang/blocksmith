@@ -245,6 +245,7 @@ final class Mob {
     var hurt: Float = 0
     var hurtSound = false           // set by hit(); MobManager plays the hurt call once
     var teleportSound = false       // set by teleport(); MobManager plays it at both ends
+    var stepAcc: Float = 0          // distance walked since the last footstep sound
     var callTimer: Float
     var attackCooldown: Float = 0
     var fuse: Float = 0             // hisser
@@ -1302,6 +1303,24 @@ final class MobManager {
         for m in mobs {
             let before = m.pos
             m.update(dt, game: game)
+            // Footsteps for walking mobs near the listener (size sets the stride and loudness).
+            let dxm = m.pos.x - before.x, dzm = m.pos.z - before.z
+            if m.onGround && dxm * dxm + dzm * dzm > 1e-6 && simd_length_squared(m.pos - p) < 256 {
+                let sp = m.spec
+                let moved: Float = sqrtf(dxm * dxm + dzm * dzm)
+                if moved < 1 && !sp.flying && !sp.aquatic && sp.behavior != .vehicle { m.stepAcc += moved }
+                let stride: Float = 0.9 + sp.halfW * 1.6
+                if m.stepAcc > stride {
+                    m.stepAcc = 0
+                    do {
+                        let under = w.block(Int(floor(m.pos.x)), Int(floor(m.pos.y - 0.2)), Int(floor(m.pos.z)))
+                        if under != AIR {
+                            let vol: Float = min(0.9, 0.2 + sp.halfW * 0.5) * (m.baby ? 0.5 : 1)
+                            game.sfx(.step(soundMat(under)), vol, at: m.pos)
+                        }
+                    }
+                }
+            }
             if m.teleportSound {
                 m.teleportSound = false
                 game.sfx(.teleport, 0.9, at: before + V3(0, 1, 0))
