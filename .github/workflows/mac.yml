@@ -40,6 +40,18 @@ jobs:
           set -o pipefail
           bash ./snap.sh 2>&1 | tee snap.log
 
+      - name: Debug rerun of the failing shot
+        if: failure() && steps.snap.outcome == 'failure'
+        run: |
+          L=$(grep -o 'snap.sh: line [0-9]*' snap.log | tail -1 | grep -o '[0-9]*$' || true)
+          bash ./build.sh debug 2>&1 | tail -5
+          BIN=build/Blocksmith.app/Contents/MacOS/Blocksmith
+          mkdir -p snaps
+          CMD=$(sed -n "${L:-10}p" snap.sh)
+          echo "rerun (debug build): $CMD" > debug.log
+          (eval "$CMD") >> debug.log 2>&1 || true
+          tail -80 debug.log
+
       - name: Publish to ci-snaps
         if: always()
         env:
@@ -51,7 +63,7 @@ jobs:
           rm -rf "$PUB"; mkdir -p "$PUB"
           cp snaps/*.png "$PUB/" 2>/dev/null || true
           if [ -d snaps/sounds ]; then cp -r snaps/sounds "$PUB/sounds"; fi
-          cp build.log snap.log "$PUB/" 2>/dev/null || true
+          cp build.log snap.log debug.log "$PUB/" 2>/dev/null || true
           cd "$PUB"
           {
             echo "# Blocksmith CI snapshots"
