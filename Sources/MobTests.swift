@@ -22,6 +22,7 @@ enum MobTests {
         spawnRules(game: game, world: world, pos: pos)
         villagerRules(game: game, world: world, pos: pos)
         conversions(game: game, world: world, pos: pos)
+        behaviours(game: game, world: world, pos: pos)
         print(String(format: "mobtests: %ld failed (%.1f s)%@", failures.count, CFAbsoluteTimeGetCurrent() - t0,
                      failures.isEmpty ? "" : " -> " + failures.joined(separator: ", ")))
         game.player.pos = pos
@@ -524,6 +525,62 @@ enum MobTests {
         game.spawnWanderingTrader()
         let traders = mm.mobs.filter { $0.kind == .wanderingTrader }.count, llamas = mm.mobs.filter { $0.kind == .traderLlama }.count
         check(traders == 1 && llamas >= 1, "wandering trader arrives with llamas", "\(traders) trader, \(llamas) llamas")
+        mm.mobs.removeAll()
+    }
+
+    // MARK: Behaviour details
+
+    static func behaviours(game: Game, world: World, pos: V3) {
+        let mm = game.mobs
+        mm.mobs.removeAll()
+        let x0 = Int(floor(pos.x)), z0 = Int(floor(pos.z))
+        var top = 0
+        for x in stride(from: x0 - 40, through: x0 - 20, by: 4) { for z in stride(from: z0 + 20, through: z0 + 40, by: 4) { top = max(top, world.topY(x, z)) } }
+        let a = Arena(w: world, cx: x0 - 30, cz: z0 + 30, gy: min(CH - 24, top + 14))
+        a.clear()
+        game.time = 0.25 * DAY_LENGTH
+        game.weather.raining = false; game.weather.thundering = false; game.weather.rain = 0; game.weather.thunder = 0
+
+        // Sheep graze grass to regrow wool.
+        a.set(0, -1, 0, GRASS)
+        let sheep = Mob(.sheep, at: a.p(0, 0, 0)); sheep.sheared = true; sheep.onGround = true
+        sheep.sheepGraze(50, game)
+        check(!sheep.sheared && world.block(a.cx, a.gy - 1, a.cz) == Blocks.id("dirt"), "sheep graze regrows wool")
+
+        // Voidwalkers pick up holdable blocks around them.
+        a.fill(-2, 0, 3, 2, 2, 7, Blocks.id("dirt"))
+        a.fill(0, 0, 5, 0, 2, 5, AIR)
+        let vw = Mob(.enderman, at: a.p(0, 0, 5))
+        var n = 0
+        while vw.carriedBlock == 0 && n < 4000 { vw.voidwalkerTick(0.05, game); n += 1 }
+        check(vw.carriedBlock != 0, "voidwalker picks up a block", "after \(n) ticks")
+
+        // Panda genes: brown and weak are recessive.
+        let pd = Mob(.panda, at: a.p(0, 0, -5))
+        pd.variant = 4 | (0 << 3)
+        let hiddenBrown = pd.pandaPersonality
+        pd.variant = 4 | (4 << 3)
+        check(hiddenBrown == 0 && pd.pandaPersonality == 4, "panda recessive brown gene")
+
+        // Tamed wolves attack what hurts their owner, never a hisser.
+        game.player.pos = a.p(-4, 0, -4)
+        let wolf = Mob(.wolf, at: a.p(-3, 0, -4)); wolf.owner = true
+        mm.mobs.append(wolf)
+        mm.rebuildIndex()
+        let hisser = Mob(.creeper, at: a.p(-5, 0, -2))
+        game.petsAttack(hisser)
+        check(wolf.target == nil, "pets leave hissers alone")
+        let zom = Mob(.zombie, at: a.p(-5, 0, -2))
+        game.petsAttack(zom)
+        check(wolf.target === zom, "pets attack what hurts the owner")
+        mm.mobs.removeAll()
+        game.player.pos = pos
+
+        // Foxes sleep by day when nobody is near.
+        let fox = Mob(.fox, at: a.p(6, 0, -6)); fox.onGround = true
+        _ = fox.animalAI(0.05, game, dist: 50, canTarget: false, inWater: false)
+        check(fox.sitting, "fox sleeps by day")
+        check(Mob.wolfVariant(.forest) == 1 && Mob.wolfVariant(.grove) == 8 && Mob.wolfVariant(.plains) == 0, "wolf variants by biome")
         mm.mobs.removeAll()
     }
 }
