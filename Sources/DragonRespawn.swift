@@ -30,7 +30,7 @@ extension Game {
         respawnCrystals = placed
         // The exit portal closes while the dragon is back.
         HollowGen.fountainBlocks(fy, active: false) { x, y, z, b in world.setBlockAsync(x, y, z, b) }
-        sfx(.mobBlight, 0.6)
+        sfx(.dragonGrowl, 1.2)
     }
 
     // Runs the ~12 s summoning: pillar crystals come back one by one, then the dragon.
@@ -62,7 +62,7 @@ extension Game {
             d.persistent = true
             mobs.mobs.append(d)
             dragonKilled = false
-            sfx(.mobWailer, 1.2)
+            sfx(.dragonGrowl, 2)
             achieve("respawn_dragon")
         }
     }

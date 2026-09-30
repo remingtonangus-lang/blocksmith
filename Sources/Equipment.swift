@@ -192,7 +192,7 @@ extension Game {
             inventory.held = old
         }
         m.equip = eq.contains(where: { !$0.isEmpty }) ? eq : nil
-        sfx(.place(.wood), 0.5, at: m.pos)
+        sfx(.armorEquip(2), 0.7, at: m.pos)
         return true
     }
 }

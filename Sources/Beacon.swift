@@ -130,7 +130,7 @@ final class BeaconMenu: Menu {
             pay[0] = .empty
             be.mob = p.key
             be.secondary = secondary?.key ?? ""
-            game.sfx(.enchant, 0.8)
+            game.sfx(.beaconPower, 0.9)
             game.closeMenu()
         }
     }

@@ -477,7 +477,6 @@ final class Game {
             carried = .empty
         }
         menu = nil
-        sfx(.open, 0.5)
     }
 
     func openInventory() {
@@ -516,7 +515,7 @@ final class Game {
             // Scroll the creative palette when pushing past its top/bottom row.
             if let c = creative, menuCursor == before, my != 0, before < c.rows * 9 { c.scrollBy(my) }
             padMoved = true
-            sfx(.click, 0.3)
+            sfx(.uiHover, 0.3)
         }
         let rs = stick(p.rx, p.ry)
         if let c = creative {
@@ -1365,10 +1364,10 @@ final class Game {
             if let tg = target { at = tg.hit + tg.normal } else if fluidHit == nil { at = lastAir }
             if let a = at, Blocks.replaceable[Int(world.block(a.x, a.y, a.z))] {
                 if k == "water_bucket" && dim.dim == .nether {
-                    sfx(.fizz, 0.8)          // water evaporates in the Emberdeep
+                    sfx(.fireExtinguish, 0.8)          // water evaporates in the Emberdeep
                 } else {
                     world.setBlock(a.x, a.y, a.z, k == "water_bucket" ? WATER : LAVA)
-                    sfx(.splash, 0.4)
+                    sfx(k == "water_bucket" ? .bucketEmpty : .bucketEmptyLava, 0.8, at: V3(Float(a.x), Float(a.y), Float(a.z)) + 0.5)
                 }
                 if survival { inventory.held = ItemStack(Items.id("bucket"), 1) }
             }
@@ -1452,7 +1451,7 @@ final class Game {
                     var rng = SRng(UInt64.random(in: 1...UInt64.max))
                     Loot.fill(tmp, table: "trial_spawner", rng: &rng)
                     for s in tmp.slots where !s.isEmpty { drops.spawn(s, at: c + V3(0, 0.8, 0), vel: V3(0, 3, 0)) }
-                    sfx(.levelUp, 0.6, at: c)
+                    sfx(.vaultEject, 0.8, at: c)
                 }
                 continue
             }

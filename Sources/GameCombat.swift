@@ -78,7 +78,7 @@ extension Game {
             h.tag = 0
             h.contents = nil
             inventory.held = h
-            sfx(.bow, 1)
+            sfx(.crossbowShoot, 1)
             damageHeld(multi ? 3 : 1)
             swing = 1
             return true
@@ -103,7 +103,7 @@ extension Game {
                     h.tag = Int(Items.id("arrow"))
                 }
                 inventory.held = h
-                sfx(.click, 0.8)
+                sfx(.crossbowLoad, 0.8)
             }
             return true
         }
@@ -129,14 +129,14 @@ extension Game {
             player.vel = player.look * f * 20
             player.airPeak = player.pos.y
             damageHeld(1)
-            sfx(.splash, 0.8)
+            sfx(.riptide, 0.9)
             return true
         }
         let a = projectiles.shoot(from: player.eye, dir: player.look, speed: 50, fromPlayer: true, damage: 8 / 2.5)
         a.trident = h
         a.pickup = survival
         if survival { inventory.held = .empty }
-        sfx(.bow, 0.9)
+        sfx(.tridentThrow, 0.9)
         swing = 1
         return true
     }
@@ -167,14 +167,14 @@ extension Game {
             else if let m = b.hooked { m.vel += simd_normalize(player.pos - m.pos) * 8 + V3(0, 3, 0); damageHeld(3) }
             else if !b.inWater && Blocks.collide[Int(world.block(Int(floor(b.pos.x)), Int(floor(b.pos.y - 0.1)), Int(floor(b.pos.z))))] { damageHeld(2) }
             bobber = nil
-            sfx(.splash, 0.3)
+            sfx(.fishReel, 0.5)
             swing = 1
             return true
         }
         let lure = Enchant.level(.lure, held)
         let wait = max(1, Float.random(in: 5...30) - 5 * Float(lure))
         bobber = Bobber(player.eye + player.look * 0.5, player.look * 18 + V3(0, 3, 0), wait: wait)
-        sfx(.bow, 0.5)
+        sfx(.fishCast, 0.6)
         swing = 1
         return true
     }
@@ -203,7 +203,7 @@ extension Game {
                 if b.approach <= 0 {
                     b.bite = Float.random(in: 1...2)
                     b.vel.y = -3
-                    sfx(.splash, 0.6, at: b.pos)
+                    sfx(.fishSplash, 0.8, at: b.pos)
                 }
             } else if b.bite > 0 {
                 b.bite -= dt
@@ -250,7 +250,7 @@ extension Game {
         drops.spawn(out, at: b.pos + V3(0, 0.3, 0), vel: dir * 1.1 + V3(0, sqrtf(simd_length(dir)) * 1.6, 0))
         addXP(Int.random(in: 1...6))
         damageHeld(1)
-        sfx(.splash, 0.6, at: b.pos)
+        sfx(.fishSplash, 0.6, at: b.pos)
     }
 
     private func weighted(_ t: [(String, Int)]) -> String {

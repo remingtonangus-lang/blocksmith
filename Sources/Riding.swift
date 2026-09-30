@@ -46,7 +46,7 @@ extension Game {
             guard Items.has(name) else { break }
             inventory.held = ItemStack(Items.id(name), 1, damage: m.variant)
             m.health = -2000
-            sfx(.splash, 0.5)
+            sfx(.breakBlock(.wood), 0.6)
             return true
         case .wanderingTrader:
             if m.villager == nil { m.villager = WanderingTrader.data() }
@@ -105,7 +105,7 @@ extension Game {
             riding = m
             m.persistent = true
             player.pos = m.pos + V3(0, m.height * 0.75, 0)
-            sfx(.click, 0.5, at: m.pos)
+            sfx(.armorEquip(0), 0.5, at: m.pos)
             return true
         }
         return false

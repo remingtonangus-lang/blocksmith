@@ -43,15 +43,15 @@ extension Game {
         if let t = hit, Blocks.key(world.block(t.hit.x, t.hit.y, t.hit.z)) == "end_portal_frame" {
             world.setBlock(t.hit.x, t.hit.y, t.hit.z, Blocks.id("end_portal_frame") + 1)
             consumeHeld()
-            sfx(.place(.stone), 1, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
-            if tryActivateEndPortal(near: t.hit) { sfx(.levelUp, 1) }
+            sfx(.endPortalFrame, 1, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
+            if tryActivateEndPortal(near: t.hit) { sfx(.endPortalOpen, 1.5, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5) }
             return true
         }
         guard dim.dim == .overworld, let s = world.gen.structures?.nearest("stronghold", x: Int(player.pos.x), z: Int(player.pos.z)) else { return false }
         let target = V3(Float(s.anchor.x) + 0.5, Float(s.anchor.y), Float(s.anchor.z) + 0.5)
         eyes.append(SeekerEye(player.eye, target))
         consumeHeld()
-        sfx(.bow, 0.6)
+        sfx(.pearlThrow, 0.7)
         return true
     }
 
@@ -162,7 +162,7 @@ extension Game {
         player.pos = dest
         player.vel = .zero
         player.airPeak = dest.y
-        sfx(.levelUp, 0.4)
+        sfx(.portalTravel, 0.8)
     }
 
     // MARK: Dragon fight
