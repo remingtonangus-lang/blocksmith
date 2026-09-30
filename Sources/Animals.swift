@@ -300,6 +300,23 @@ extension Mob {
                 sitting = dist < 3
                 if sitting && dist < 1.2 && attackCooldown <= 0 && g.survival { attackCooldown = 1; g.hurtPlayer(2, from: pos, cause: "was stung to death", knockback: 0.2); g.applyEffect(.poison, amp: 0, seconds: 6) }
             }
+            // Axolotls play dead for 10 s when hurt (1 in 3), regenerating; nothing hunts them meanwhile.
+            if kind == .axolotl && wasHit && health > 0 && Int.random(in: 0..<3) == 0 {
+                sitting = true; phaseTime = 10
+                applyEffect(.regeneration, amp: 0, seconds: 10, game: g)
+            }
+            if kind == .axolotl && sitting {
+                phaseTime -= dt
+                if phaseTime <= 0 { sitting = false }
+                vel *= expf(-3 * dt)
+                attackCooldown -= dt
+                aiTimer -= dt
+                wasHit = false
+                let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: 0, onGround: onGround)
+                if hit.y { vel.y = 0 }
+                return
+            }
+            if kind == .axolotl { wasHit = false }
             if kind == .axolotl, let prey = g.mobs.mobs.first(where: { [.cod, .salmon, .tropicalFish, .pufferfish, .squid, .glowSquid, .drowned, .guardian].contains($0.kind) && simd_length($0.pos - pos) < 8 }) {
                 flyTarget = prey.pos
                 if simd_length(prey.pos - pos) < 1.2 && attackCooldown <= 0 { attackCooldown = 1; prey.hit(from: pos, damage: 2, knockback: 0.3) }
