@@ -68,6 +68,20 @@ extension Game {
         if key == "saddle" && rideable.contains(m.kind) && !m.saddled && !m.baby && (m.tamed || m.kind == .pig || m.kind == .strider) {
             m.saddled = true; m.persistent = true; consumeHeld(); sfx(.place(.wood), 0.6); return true
         }
+        // Horse armour (leather/iron/gold/diamond) and wolf armour.
+        let horseArmor = ["leather_horse_armor", "iron_horse_armor", "golden_horse_armor", "diamond_horse_armor"]
+        if let t = horseArmor.firstIndex(of: key), m.kind == .horse, m.tamed, !m.baby, m.armorTier == 0 {
+            m.armorTier = t + 1; consumeHeld(); sfx(.place(.stone), 0.6); return true
+        }
+        if key == "wolf_armor" && m.kind == .wolf && m.tamed && !m.baby && m.armorTier == 0 {
+            m.armorTier = 5; m.armorHP = 64; consumeHeld(); sfx(.place(.stone), 0.6); return true
+        }
+        if key == "shears" && m.kind == .wolf && m.tamed && m.armorTier == 5 {
+            m.armorTier = 0
+            var w = ItemStack(Items.id("wolf_armor"), 1); w.damage = 64 - m.armorHP
+            drops.spawn(w, at: m.pos + V3(0, 0.6, 0))
+            damageHeld(1); achieve("wolf_armor"); return true
+        }
         if key == "chest" && [MobKind.donkey, .mule, .llama, .traderLlama].contains(m.kind) && m.tamed && !m.chested {
             m.chested = true; consumeHeld(); return true
         }

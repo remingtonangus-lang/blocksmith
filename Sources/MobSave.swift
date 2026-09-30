@@ -78,6 +78,7 @@ extension Mob {
         if collar != 0 { d["collar"] = Float(collar) }
         if saddled { d["saddle"] = 1 }
         if armorTier != 0 { d["armor"] = Float(armorTier) }
+        if armorHP != 0 { d["armorHP"] = Float(armorHP) }
         if chested { d["chest"] = 1 }
         if raider { d["raider"] = 1 }
         if captain { d["captain"] = 1 }
@@ -89,6 +90,7 @@ extension Mob {
         collar = Int(d["collar"] ?? 0)
         saddled = (d["saddle"] ?? 0) > 0
         armorTier = Int(d["armor"] ?? 0)
+        armorHP = Int(d["armorHP"] ?? 0)
         chested = (d["chest"] ?? 0) > 0
         raider = (d["raider"] ?? 0) > 0
         captain = (d["captain"] ?? 0) > 0

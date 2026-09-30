@@ -207,6 +207,7 @@ extension Game {
         }
         if (key == "honeycomb" || key.hasSuffix("_axe")) && copperInteract(t.hit, key: key) { return true }
         if placeArmorStand(t) { return true }
+        if placeEndCrystal(t) { return true }
         // Powder snow buckets.
         if key == "bucket" && bkey == "powder_snow" {
             world.setBlock(t.hit.x, t.hit.y, t.hit.z, AIR)

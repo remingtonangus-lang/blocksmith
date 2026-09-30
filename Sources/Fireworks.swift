@@ -78,6 +78,24 @@ enum Fireworks {
             r.tag = b.tag + 1
             return (r, [i])
         }
+        // Leather armour (and horse armour) dyeing: the reference colour-averaging formula.
+        if dyes.count >= 1 && keys.count == dyes.count + 1,
+           case let (li, armor)? = items.first(where: { let k = Items.key($0.element.item); return k.hasPrefix("leather_") && Items.def($0.element.item).maxStack == 1 }) {
+            var sum = [0, 0, 0], maxSum = 0, n = 0
+            var cols: [UInt32] = dyes.map { BlockRegistry.colorHex[Banners.colors[$0]] ?? 0xFFFFFF }
+            if let c = armor.pat?.first { cols.append(UInt32(c)) }
+            for c in cols {
+                let r = Int((c >> 16) & 255), g = Int((c >> 8) & 255), b = Int(c & 255)
+                sum[0] += r; sum[1] += g; sum[2] += b; maxSum += max(r, max(g, b)); n += 1
+            }
+            var avg = sum.map { $0 / n }
+            let maxAvg = Float(maxSum) / Float(n), top = Float(max(avg[0], max(avg[1], avg[2])))
+            if top > 0 { avg = avg.map { Int(Float($0) * maxAvg / top) } }
+            var r = armor.with(count: 1)
+            r.pat = [(avg[0] << 16) | (avg[1] << 8) | avg[2]]
+            _ = li
+            return (r, [])
+        }
         // Map copy.
         if count("filled_map") == 1 && count("map") >= 1 && keys.count == 1 + count("map") {
             let m = items.first { Items.key($0.element.item) == "filled_map" }!.element

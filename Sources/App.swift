@@ -122,6 +122,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             if let d = difficulty { game.difficulty = d }
         }
         game.sound = soundEngine
+        game.sound?.volume = game.volumeSetting
         _ = game.world.loadSync(center: game.player.pos, radius: min(4, game.world.renderDistance))
     }
 
@@ -237,17 +238,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         hint.alignment = .center
         hint.stringValue = """
         Keyboard: WASD move · Space jump (double-tap: fly) · Shift sneak/descend · Ctrl sprint · F fly
-        Left click break · Right click place · Middle click pick · 1–9 / scroll slot · [ ] change block · F3 debug · Esc pause
-        Controller: LS move · RS look · A jump · B sneak · L3 sprint · RT break · LT place · LB/RB slot
-        D-pad ↑↓ change block · X pick · Y fly · View inventory · Menu pause   (paused: A resume · X game mode · D-pad ←→ render distance)
-        Survival: hearts, hunger, fall damage, drowning; hold an Apple and right click / LT to eat
-        Inventory (E / View): D-pad, left stick, arrows or mouse to choose · A / Enter / click puts it in the selected slot · LB/RB or 1–9 pick slot · B / E / Esc close
+        Left click attack/mine · Right click use/place/eat · Middle click pick · 1–9 / scroll slot · E inventory · Q drop · L advancements · F3 debug · Esc pause
+        Controller: LS move · RS look · A jump · B sneak · L3 sprint · RT attack/mine · LT use/place · LB/RB slot · Y / View inventory · X pick
+        D-pad ↓ drop · ↑ fly · Menu pause   (paused: A resume · X game mode · D-pad ←→ render distance)
+        Menus: click / right-click / shift-click (controller: A / X / Y) · number keys swap with the hotbar · B / E / Esc close
         """
         let stack = NSStackView(views: [title,
                                         button("Back to Game", #selector(resume)),
                                         rdButton,
                                         modeButton,
                                         button("Difficulty: \(Game.difficultyNames[game.difficulty])", #selector(cycleDifficulty)),
+                                        button("FOV: \(Int(game.fovSetting))", #selector(cycleFOV)),
+                                        button("Mouse Sensitivity: \(Int(game.sensitivity * 100))%", #selector(cycleSens)),
+                                        button("Volume: \(Int(game.volumeSetting * 100))%", #selector(cycleVolume)),
+                                        button("Advancements (L)", #selector(openAdvancements)),
                                         button("Worlds…", #selector(showWorlds)),
                                         button("Toggle Fullscreen", #selector(toggleFS)),
                                         button("Save and Quit", #selector(saveQuit)),
@@ -255,7 +259,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         stack.orientation = .vertical
         stack.spacing = 12
         stack.setCustomSpacing(24, after: title)
-        stack.setCustomSpacing(24, after: stack.views[7])
+        stack.setCustomSpacing(24, after: stack.views[11])
         stack.translatesAutoresizingMaskIntoConstraints = false
         overlay.addSubview(stack)
         NSLayoutConstraint.activate([
@@ -269,6 +273,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc func cycleRD() { game.cycleRenderDistance() }
     @objc func toggleMode() { game.toggleMode() }
     @objc func toggleFS() { window.toggleFullScreen(nil) }
+    @objc func cycleFOV(_ sender: NSButton) {
+        let opts: [Float] = [60, 70, 80, 90, 100, 110]
+        game.fovSetting = opts[((opts.firstIndex(of: game.fovSetting) ?? 1) + 1) % opts.count]
+        sender.title = "FOV: \(Int(game.fovSetting))"
+    }
+    @objc func cycleSens(_ sender: NSButton) {
+        let opts: [Float] = [0.5, 0.75, 1, 1.25, 1.5, 2]
+        game.sensitivity = opts[((opts.firstIndex(of: game.sensitivity) ?? 2) + 1) % opts.count]
+        sender.title = "Mouse Sensitivity: \(Int(game.sensitivity * 100))%"
+    }
+    @objc func cycleVolume(_ sender: NSButton) {
+        let opts: [Float] = [0, 0.25, 0.5, 0.8, 1]
+        game.volumeSetting = opts[((opts.firstIndex(of: game.volumeSetting) ?? 3) + 1) % opts.count]
+        sender.title = "Volume: \(Int(game.volumeSetting * 100))%"
+    }
+    @objc func openAdvancements() {
+        game.paused = false
+        game.openMenu(AdvancementMenu(game: game))
+    }
     @objc func cycleDifficulty(_ sender: NSButton) {
         game.difficulty = (game.difficulty + 1) % 4
         sender.title = "Difficulty: \(Game.difficultyNames[game.difficulty])"

@@ -83,7 +83,12 @@ func equipmentParts(_ m: Mob) -> [Part] {
     let armAngle = armFwd + (armFwd == 0 ? swing : 0)
     let limb: Float = [.skeleton, .stray, .bogged, .armorStand].contains(m.kind) ? 2 : 4
     var p: [Part] = []
-    if !e[0].isEmpty, let c = ArmorLook.color(e[0].item) {
+    func dyed(_ s: ItemStack, _ c: V3) -> V3 {
+        guard Items.key(s.item).hasPrefix("leather_"), let v = s.pat?.first else { return c }
+        return V3(Float((v >> 16) & 255) / 255, Float((v >> 8) & 255) / 255, Float(v & 255) / 255)
+    }
+    if !e[0].isEmpty, let c0 = ArmorLook.color(e[0].item) {
+        let c = dyed(e[0], c0)
         let k = Items.key(e[0].item)
         if k == "carved_pumpkin" || k.hasSuffix("_head") || k.hasSuffix("_skull") {
             p.append(box(-4.4, 23.6, -4.4, 8.8, 8.8, 8.8, c))
@@ -95,19 +100,22 @@ func equipmentParts(_ m: Mob) -> [Part] {
             p.append(box(-4, 25, 4, 8, 3.5, 0.6, c))
         }
     }
-    if !e[1].isEmpty, let c = ArmorLook.color(e[1].item) {
+    if !e[1].isEmpty, let c1 = ArmorLook.color(e[1].item) {
+        let c = dyed(e[1], c1)
         p.append(box(-4.6, 11.6, -2.6, 9.2, 12.8, 5.2, c))
         let px = 4 + limb / 2
         p.append(Part(mn: V3(-4 - limb - 0.6, 16, -limb / 2 - 0.6), mx: V3(-3.9, 24.6, limb / 2 + 0.6), pivot: V3(-px, 22, 0), rotX: armAngle, color: c))
         p.append(Part(mn: V3(3.9, 16, -limb / 2 - 0.6), mx: V3(4 + limb + 0.6, 24.6, limb / 2 + 0.6), pivot: V3(px, 22, 0),
                       rotX: armFwd == 0 ? -armAngle : armAngle, color: c))
     }
-    if !e[2].isEmpty, let c = ArmorLook.color(e[2].item) {
+    if !e[2].isEmpty, let c2 = ArmorLook.color(e[2].item) {
+        let c = dyed(e[2], c2)
         p.append(box(-4.4, 10, -2.4, 8.8, 3, 4.8, c * 0.9))
         p.append(Part(mn: V3(-limb - 0.5, 4, -limb / 2 - 0.5), mx: V3(0, 12, limb / 2 + 0.5), pivot: V3(-limb / 2, 12, 0), rotX: swing, color: c * 0.9))
         p.append(Part(mn: V3(0, 4, -limb / 2 - 0.5), mx: V3(limb + 0.5, 12, limb / 2 + 0.5), pivot: V3(limb / 2, 12, 0), rotX: -swing, color: c * 0.9))
     }
-    if !e[3].isEmpty, let c = ArmorLook.color(e[3].item) {
+    if !e[3].isEmpty, let c3 = ArmorLook.color(e[3].item) {
+        let c = dyed(e[3], c3)
         p.append(Part(mn: V3(-limb - 0.6, -0.1, -limb / 2 - 0.6), mx: V3(0, 4, limb / 2 + 0.6), pivot: V3(-limb / 2, 12, 0), rotX: swing, color: c * 0.8))
         p.append(Part(mn: V3(0, -0.1, -limb / 2 - 0.6), mx: V3(limb + 0.6, 4, limb / 2 + 0.6), pivot: V3(limb / 2, 12, 0), rotX: -swing, color: c * 0.8))
     }

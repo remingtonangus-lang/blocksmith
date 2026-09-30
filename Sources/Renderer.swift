@@ -217,7 +217,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         let rd = Float(game.world.renderDistance)
         let underwater = p.headInWater
         let far = rd * 16 + 96
-        let proj = perspectiveRH(fovy: 70 * game.fovScale * .pi / 180, aspect: W / max(H, 1), near: 0.05, far: far)
+        let proj = perspectiveRH(fovy: game.fovSetting * game.fovScale * .pi / 180, aspect: W / max(H, 1), near: 0.05, far: far)
         let viewRot = rotationX(-p.pitch) * rotationY(-p.yaw)
         let viewProj = proj * viewRot
         let frustum = Frustum(viewProj * translationMatrix(-eye))
@@ -664,8 +664,14 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let h = size * 0.5
                 let pts = [V2(c.x - h, c.y - h), V2(c.x + h, c.y - h), V2(c.x + h, c.y + h), V2(c.x - h, c.y + h)]
                 let uvs = [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)]
-                quad(pts, uvs, V4(1, 1, 1, 1), Float(layer))
-                if let pat = st.pat {
+                // Dyed leather: tint the sprite from its leather brown to the dye colour.
+                var tint = V4(1, 1, 1, 1)
+                if st.def.name.hasPrefix("leather_"), let c = st.pat?.first {
+                    let base = V3(0xA0 / 255.0, 0x59 / 255.0, 0x2B / 255.0)
+                    tint = V4(Float((c >> 16) & 255) / 255 / base.x, Float((c >> 8) & 255) / 255 / base.y, Float(c & 255) / 255 / base.z, 1)
+                }
+                quad(pts, uvs, tint, Float(layer))
+                if let pat = st.pat, !st.def.name.hasPrefix("leather_") {
                     bannerArt(-1, pat, x + size * 3 / 16, y + size * 2 / 16, size * 10 / 16, size * 12 / 16)
                 }
                 if case let (ol, col)? = Items.overlayLayer(st.item) {

@@ -172,6 +172,15 @@ extension Game {
                 func setLevel(_ l: Int) {
                     world.setBlock(p.x, p.y, p.z, l == 0 ? Blocks.id("cauldron") : Blocks.id("water_cauldron") + BlockID(l - 1))
                 }
+                // Washing dye off leather armour (and banner layers) costs a level of water.
+                if level > 0 && (held.def.name.hasPrefix("leather_") || Blocks.shape[Int(held.def.block ?? 0)] == "banner"), var h = Optional(held), h.pat != nil {
+                    if Blocks.shape[Int(h.def.block ?? 0)] == "banner" { h.pat = (h.pat?.dropLast()).map(Array.init); if h.pat?.isEmpty == true { h.pat = nil } }
+                    else { h.pat = nil }
+                    inventory.held = h
+                    setLevel(level - 1)
+                    sfx(.splash, 0.4, at: at)
+                    return true
+                }
                 if key == "water_bucket" {
                     setLevel(3); sfx(.splash, 0.4, at: at)
                     if survival { inventory.held = ItemStack(Items.id("bucket"), 1) }

@@ -362,6 +362,8 @@ enum Recipes {
         r.append(shaped(["##", "##"], ["#": "honeycomb"], "honeycomb_block"))
         r.append(shaped(["H", "B"], ["H": "heavy_core", "B": "breeze_rod"], "mace"))
         r.append(shapeless(["breeze_rod"], "wind_charge", 4))
+        r.append(shaped(["GGG", "GEG", "GTG"], ["G": "glass", "E": "ender_eye", "T": "ghast_tear"], "end_crystal"))
+        r.append(shaped(["X  ", "XXX", "X X"], ["X": "armadillo_scute"], "wolf_armor"))
         r.append(shaped(["F", "C", "S"], ["F": "feather", "C": "copper_ingot", "S": "stick"], "brush"))
         r.append(shaped(["# #", "#S#", "# #"], ["#": "bamboo", "S": "string"], "scaffolding", 6))
         r.append(shaped(["N", "I", "N"], ["N": "iron_nugget", "I": "iron_ingot"], "chain"))

@@ -226,6 +226,8 @@ final class ItemRegistry {
         item("honeycomb", "Honeycomb", "ball", 0xE8A020)
         item("goat_horn", "Goat Horn", "bone", 0xC8C0A8, stack: 1)
         item("armadillo_scute", "Armadillo Scute", "leather", 0xA06A58)
+        item("wolf_armor", "Wolf Armor", "chestplate", 0xA06A58, stack: 1)
+        item("end_crystal", "End Crystal", "gem", 0xD8A8E8)
         item("ominous_bottle", "Ominous Bottle", "bucket", 0x2A5A4A, ["c": 0x0B6138])
         for (n, d, c) in [("cod_bucket", "Bucket of Cod", 0xB8A58A), ("salmon_bucket", "Bucket of Salmon", 0xC0504A),
                           ("tropical_fish_bucket", "Bucket of Tropical Fish", 0xE87A2A), ("pufferfish_bucket", "Bucket of Pufferfish", 0xE8C040),

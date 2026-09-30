@@ -415,6 +415,7 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
         p.append(box(-3, 15, -7, 2, 2, 1, c)); p.append(box(1, 15, -7, 2, 2, 1, c))
         p.append(Part(mn: V3(-1, 10, 5), mx: V3(1, 12, 13), pivot: V3(0, 11, 5), rotX: m.tamed ? -0.6 : 0.4, color: c))
         if m.tamed { p.append(box(-3.2, 9, -5.5, 6.4, 1.2, 1, TextureGen.hex(BlockRegistry.colorHex[BlockRegistry.colors[m.collar % 16].0] ?? 0xA12722).rgb3)) }
+        if m.armorTier == 5 { p.append(box(-3.4, 7.6, -5.4, 6.8, 6.8, 9, V3(0.62, 0.42, 0.36))) }
         if m.sitting { for i in 0..<p.count { p[i].mn.y -= 3; p[i].mx.y -= 3 } }
         return p
     case .cat, .ocelot:
@@ -432,6 +433,11 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
         p.append(Part(mn: V3(-1.5, 16, 11), mx: V3(1.5, 20, 19), pivot: V3(0, 20, 11), rotX: 0.8, color: c * 0.7))              // tail
         if m.saddled { p.append(box(-5.2, 21.8, -4, 10.4, 1.5, 9, V3(0.35, 0.2, 0.1))) }
         if m.chested { p.append(box(-7, 14, 0, 2, 7, 7, V3(0.55, 0.38, 0.2))); p.append(box(5, 14, 0, 2, 7, 7, V3(0.55, 0.38, 0.2))) }
+        if m.armorTier > 0 {
+            let ac = [V3(0.55, 0.35, 0.2), V3(0.86, 0.86, 0.86), V3(0.95, 0.82, 0.25), V3(0.3, 0.88, 0.84)][min(3, m.armorTier - 1)]
+            p.append(box(-5.4, 11.6, -10, 10.8, 10.2, 16, ac))
+            p.append(Part(mn: V3(-3.4, 14, -13.4), mx: V3(3.4, 24.4, -6.6), pivot: V3(0, 16, -9), rotX: 0.5, color: ac))
+        }
         return p
     case .llama, .traderLlama:
         let c = m.kind == .traderLlama ? V3(0.85, 0.8, 0.7) : [V3(0.85, 0.8, 0.7), V3(0.95, 0.95, 0.93), V3(0.5, 0.35, 0.25), V3(0.55, 0.52, 0.5)][m.variant % 4]

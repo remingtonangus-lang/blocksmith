@@ -92,8 +92,20 @@ final class Game {
     var anchorSpawn: IVec3?          // charged respawn anchor in the Nether
     var jukeboxes: [JukeboxPlayer] = []
     var fovScale: Float = 1
+    // Options (saved in user defaults).
+    var fovSetting: Float = { let v = UserDefaults.standard.float(forKey: "fov"); return v > 0 ? v : 70 }() {
+        didSet { UserDefaults.standard.set(fovSetting, forKey: "fov") }
+    }
+    var sensitivity: Float = { let v = UserDefaults.standard.float(forKey: "sensitivity"); return v > 0 ? v : 1 }() {
+        didSet { UserDefaults.standard.set(sensitivity, forKey: "sensitivity") }
+    }
+    var volumeSetting: Float = { UserDefaults.standard.object(forKey: "volume") == nil ? 0.8 : UserDefaults.standard.float(forKey: "volume") }() {
+        didSet { UserDefaults.standard.set(volumeSetting, forKey: "volume"); sound?.volume = volumeSetting }
+    }
     var rockets: [Rocket] = []
     var lastWind: Double = -10
+    var respawnTimer: Float = 0
+    var respawnCrystals: [Mob] = []
     var stepVibe: Float = 0
     var freeze: Float = 0
     var freezeTick: Float = 0
@@ -560,7 +572,7 @@ final class Game {
 
         // Look
         if input.captured {
-            let sens: Float = 0.0022
+            let sens: Float = 0.0022 * sensitivity
             player.yaw -= input.mouseDX * sens
             player.pitch -= input.mouseDY * sens
         }
@@ -1705,6 +1717,7 @@ final class Game {
         endPortalTick()
         updateEyes(Float(dt))
         endTick(Float(dt))
+        dragonRespawnTick(Float(dt))
         hazardTick(Float(dt))
         effectTick(Float(dt))
         cloudTick(Float(dt))

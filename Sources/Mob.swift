@@ -192,6 +192,7 @@ final class Mob {
     var collar = 0
     var saddled = false
     var armorTier = 0               // horse / wolf armour
+    var armorHP = 0                 // wolf armour durability
     var chested = false
     var cargo: ItemContainer?      // chest boat / pack animal inventory
     var spin: Float = 0            // boat turn rate (deg per tick)
@@ -713,7 +714,16 @@ final class Mob {
             return
         }
         // A closed shulker shell shrugs off most of a hit.
-        let damage = armorReduced(damage)
+        var damage = armorReduced(damage)
+        // Wolf armour takes the hit until it breaks; horse armour reduces like player armour.
+        if kind == .wolf && armorTier == 5 && damage > 0 {
+            armorHP -= damage; damage = 0
+            if armorHP <= 0 { armorTier = 0 }
+        }
+        if kind == .horse && armorTier > 0 {
+            let pts = Float([0, 3, 5, 7, 11][min(4, armorTier)])
+            damage = Int((Float(damage) * (1 - min(20, max(pts / 5, pts - Float(damage) / 2)) / 25)).rounded())
+        }
         health -= kind == .shulker && peek < 0.2 ? damage / 5 : damage
         hurt = 0.4
         if kind == .shulker { aggro = true; return }
