@@ -1321,10 +1321,12 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         // Crosshair
         let cx = floor(W / 2), cy = floor(H / 2)
-        let arm = 5 * s, th = max(1, s)
-        let shadow = V4(0, 0, 0, 0.45), white = V4(1, 1, 1, 0.9)
-        rect(cx - arm - 1, cy - th / 2 - 1, arm * 2 + 2, th + 2, shadow)
-        rect(cx - th / 2 - 1, cy - arm - 1, th + 2, arm * 2 + 2, shadow)
+        let style = Settings.shared.crosshair
+        let arm = (style == 2 ? 1.5 : 5) * s, th = style == 1 ? max(2, 2 * s) : max(1, s)
+        let edge: Float = style == 1 ? max(2, s) : 1
+        let shadow = V4(0, 0, 0, style == 1 ? 0.9 : 0.45), white = V4(1, 1, 1, style == 1 ? 1 : 0.9)
+        rect(cx - arm - edge, cy - th / 2 - edge, arm * 2 + 2 * edge, th + 2 * edge, shadow)
+        rect(cx - th / 2 - edge, cy - arm - edge, th + 2 * edge, arm * 2 + 2 * edge, shadow)
         rect(cx - arm, cy - th / 2, arm * 2, th, white)
         rect(cx - th / 2, cy - arm, th, arm * 2, white)
 

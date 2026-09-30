@@ -90,6 +90,7 @@ extension Game {
             if tab != 0 { pm.switchTab(tab) }
             if scroll != 0 { pm.scrollList(scroll) }
         }
+        if let bm = m as? BookMenu, tab != 0, !bm.signing { bm.buttonPressed(tab > 0 ? 1 : 0); sfx(.click, 0.4) }
         if let hb = m as? HasRecipeBook, hb.book.open, tab != 0 {
             _ = hb.recipeBookButton(tab > 0 ? 492 : 491, hb.book, grid: hb.craftGrid) { hb.rebuildBook() }
         }

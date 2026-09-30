@@ -41,7 +41,7 @@ final class PauseMenu: Menu {
     static let valueIDs: Set<String> = ["sens", "invert", "autojump", "fov", "lookx", "looky", "accel", "dead", "aim", "rumble", "southpaw",
                                         "sneaktoggle", "autosprint", "glyphs", "rd", "fullscreen", "launchfs", "vsync", "fps", "rscale",
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
-                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug"]
+                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair"]
 
     static let help: [String: String] = [
         "resume": "Return to the game.",
@@ -81,6 +81,7 @@ final class PauseMenu: Menu {
         "music": "Background music volume.",
         "mode": "Survival: health, hunger, mining. Creative: fly and build freely.",
         "difficulty": "How much damage mobs do and whether hunger can kill.",
+        "crosshair": "Bold is thicker with a dark edge, easy to see on a TV. Dot is a small square.",
         "hidehud": "Hide the hotbar and crosshair (screenshots). F1 on the keyboard.",
         "debug": "Position, biome, frame rate and chunk details (F3).",
         "quit": "Save the world and close Blocksmith.",
@@ -106,6 +107,9 @@ final class PauseMenu: Menu {
             rows = [("Play: \(last)", "resume"), ("Worlds...", "worlds"), ("Options...", "options"), ("Quit Game", "quit")]
         case .main:
             title = "Game Paused"
+            if let t = PadManager.shared.disconnectedAt, g.clock - t < 600, !PadManager.shared.connected {
+                subtitle = "Controller disconnected - reconnect it or use the keyboard"
+            }
             rows = [("Back to Game", "resume"), ("Options...", "options"), ("Advancements", "advancements"), ("Commands...", "commands"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Game.difficultyNames[g.difficulty])", "difficulty"),
@@ -141,11 +145,13 @@ final class PauseMenu: Menu {
                 rows = [("GUI Scale: \(gui)", "gui"), ("Couch Mode (TV): \(on(HudLayout.couch))", "couch"),
                         ("Safe Area: \(st.safeArea)%", "safe"), ("Button Hints: \(on(st.buttonHints))", "hints"),
                         ("Text Background: \(st.textBackground == 0 ? "Off" : pct(st.textBackground))", "textbg"),
+                        ("Crosshair: \(["Classic", "Bold", "Dot"][max(0, min(2, st.crosshair))])", "crosshair"),
                         ("Hide HUD: \(on(g.hideHUD))", "hidehud"), ("Debug Info: \(on(g.showDebug))", "debug")]
             case .accessibility:
                 rows = [("Subtitles: \(on(st.subtitles))", "subtitles"), ("Colorblind-Safe Colors: \(on(st.colorblind))", "colorblind"),
                         ("Text Background: \(st.textBackground == 0 ? "Off" : pct(st.textBackground))", "textbg"),
                         ("Tutorial Hints: \(on(st.tutorialHints))", "tutorial"),
+                        ("Crosshair: \(["Classic", "Bold", "Dot"][max(0, min(2, st.crosshair))])", "crosshair"),
                         ("Button Prompts: \(["Auto", "Controller", "Keyboard"][max(0, min(2, st.glyphStyle))])", "glyphs"),
                         ("Vibration: \(st.rumble == 0 ? "Off" : pct(st.rumble))", "rumble")]
             }
@@ -376,6 +382,7 @@ final class PauseMenu: Menu {
         case "safe": st.safeArea = step([0, 2, 4, 6, 8, 10], st.safeArea)
         case "hints": st.buttonHints.toggle()
         case "textbg": st.textBackground = step([0, 0.25, 0.5, 0.75], st.textBackground)
+        case "crosshair": st.crosshair = step([0, 1, 2], st.crosshair)
         case "hidehud": g.hideHUD.toggle()
         case "debug": g.showDebug.toggle()
         case "subtitles": st.subtitles.toggle()

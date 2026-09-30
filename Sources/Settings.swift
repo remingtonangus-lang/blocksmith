@@ -40,6 +40,7 @@ final class Settings {
     @Pref("buttonHints") var buttonHints = true      // control legends under menus and contextual prompts in game
     @Pref("glyphStyle") var glyphStyle = 0           // 0 auto (last used device), 1 controller, 2 keyboard
     @Pref("textBackground") var textBackground: Float = 0   // dark box behind HUD text (0...0.8)
+    @Pref("crosshair") var crosshair = 0             // 0 classic, 1 bold (high contrast), 2 dot
 
     // Accessibility
     @Pref("subtitles") var subtitles = false

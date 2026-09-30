@@ -188,6 +188,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self.toast("\(name) disconnected")
             if wasUsing && g.menu == nil && !g.paused { g.paused = true }
         }
+        pads.clock = { [weak self] in self?.game?.clock ?? 0 }
         pads.start()
         NotificationCenter.default.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main) { [weak self] _ in
             guard let self else { return }

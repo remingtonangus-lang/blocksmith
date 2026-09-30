@@ -18,7 +18,9 @@ final class PadManager {
     private var haptics: CHHapticEngine?
     private var hapticsFailed = false
     private var lastRumble: Double = 0
-    var rumbleLog: [Float] = []          // harness: strengths of requested rumbles (kept short)
+    var rumbleLog: [Float] = []
+    var disconnectedAt: Double?          // game clock when the active pad dropped out (pause-menu notice)
+    var clock: () -> Double = { 0 }          // harness: strengths of requested rumbles (kept short)
 
     var connected: Bool { simulated != nil || controller != nil }
     var name: String {
@@ -46,7 +48,11 @@ final class PadManager {
             guard let self, let c = n.object as? GCController else { return }
             let wasActive = self.controller === c, wasUsing = self.usingPad
             self.pick()
-            if wasActive { self.haptics = nil; self.onDisconnect?(c.vendorName ?? "Controller", wasUsing) }
+            if wasActive {
+                self.haptics = nil
+                self.disconnectedAt = self.clock()
+                self.onDisconnect?(c.vendorName ?? "Controller", wasUsing)
+            }
         }
         nc.addObserver(forName: .GCControllerDidBecomeCurrent, object: nil, queue: .main) { [weak self] _ in self?.pick() }
         pick()
