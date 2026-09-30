@@ -130,7 +130,8 @@ extension Game {
                     menuCursor = r
                 }
                 // A pad user who just activated a text field (anvil name, creative search) gets the keyboard at once.
-                if keyboard == nil && !wasText && m.capturesText && menu === m && Prompt.pad {
+                // (Not the pause menu: it opens the keyboard itself for its text rows, and key capture isn't typing.)
+                if keyboard == nil && !wasText && m.capturesText && menu === m && Prompt.pad && !(m is PauseMenu) {
                     menu = KeyboardMenu(game: self, target: m)
                     menuCursor = 0
                     return
