@@ -854,6 +854,10 @@ if let dir = arg("--sounds") {
         ("hollow", [(.endLoop, 0.8)], [(.teleport, 0.3, 0.1)]),
         ("underwater", [(.underwaterLoop, 0.8)], [(.underwaterMood, 0.5, 0.08)]),
         ("portal", [(.portalLoop, 0.8)], []),
+        ("meadow_night", [(.cricketsLoop, 0.4), (.fireflyLoop, 0.5)], [(.owlHoot, 0.5, 0.06)]),
+        ("apiary", [(.hiveLoop, 0.7), (.windLoop, 0.15)], [(.birdCall, 0.4, 0.25), (.beePollinate, 0.5, 0.3)]),
+        ("ashen_grove", [(.windLoop, 0.3)], [(.heartCreak, 0.7, 0.2), (.owlHoot, 0.4, 0.05)]),
+        ("badlands", [(.windLoop, 0.6)], [(.dryGrassRustle, 0.5, 0.3)]),
     ]
     let scapeLen = Int(8 * SoundBank.rate)
     var rng = SRng(2024)
