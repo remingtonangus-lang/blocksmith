@@ -127,6 +127,7 @@ enum Mining {
         case "tall_grass", "large_fern", "dead_bush", "seagrass", "vine":
             return shears ? one(Blocks.key(Blocks.groupBase[Int(b)])) : (key == "dead_bush" ? one("stick", rnd(0, 2)) : [])
         case "melon": return one("melon_slice", rnd(3, 7))
+        case "creaking_heart": return one("resin_clump", rnd(1, 3))
         case "sweet_berry_bush_2": return one("sweet_berries", rnd(1, 2))
         case "sweet_berry_bush_3": return one("sweet_berries", rnd(2, 3))
         case "budding_amethyst", "reinforced_deepslate", "cave_vines", "sculk_shrieker": return key == "cave_vines" ? one("glow_berries") : []

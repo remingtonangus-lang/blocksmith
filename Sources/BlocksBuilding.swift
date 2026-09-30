@@ -11,7 +11,7 @@ import Foundation
 //   lantern:  hanging                          (2)
 // facing: 0 north, 1 south, 2 west, 3 east (the side facing the player who placed it).
 extension BlockRegistry {
-    static let doorWoods = ["oak", "spruce", "birch", "jungle", "acacia", "dark_oak", "mangrove", "cherry", "crimson", "warped"]
+    static let doorWoods = ["oak", "spruce", "birch", "jungle", "acacia", "dark_oak", "mangrove", "cherry", "crimson", "warped", "pale_oak"]
     // Player-facing wood names (Blocksmith names where the reference game's are its own).
     static func woodName(_ w: String) -> String {
         switch w {

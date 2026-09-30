@@ -5,7 +5,7 @@ extension TextureGen {
     static func buildingPainters(_ p: inout [String: Painter]) {
         let woods: [(String, UInt32)] = [("oak", 0xA2824E), ("spruce", 0x735531), ("birch", 0xC5B57A), ("jungle", 0xA07351),
                                          ("acacia", 0xAD5D32), ("dark_oak", 0x4F3218), ("mangrove", 0x773631), ("cherry", 0xE2B2AC),
-                                         ("crimson", 0x6A344B), ("warped", 0x2B6963), ("iron", 0xD4D4D4)]
+                                         ("crimson", 0x6A344B), ("warped", 0x2B6963), ("iron", 0xD4D4D4), ("pale_oak", 0xE4DAD3)]
         for (i, w) in woods.enumerated() {
             let s = 520 + i * 6
             let c = w.1

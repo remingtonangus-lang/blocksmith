@@ -83,6 +83,7 @@ extension Game {
             if Float.random(in: 0..<1) < 1 / (floorf(25 / f) + 1) {
                 world.setBlock(p.x, p.y, p.z, b + 1)
             }
+        case "closed_eyeblossom", "open_eyeblossom": nightbloomTick(p, key)
         case "nether_wart":
             if stage < 3 && Int.random(in: 0..<10) == 0 { world.setBlock(p.x, p.y, p.z, b + 1) }
         case "sugar_cane":
@@ -140,6 +141,7 @@ extension Game {
         case "acacia_sapling": kind = .acacia
         case "dark_oak_sapling": kind = square != nil ? .darkOak : nil
         case "cherry_sapling": kind = .cherry
+        case "pale_oak_sapling": kind = square != nil ? .paleOak : nil
         case "mangrove_propagule": kind = .mangrove
         case "azalea", "flowering_azalea": kind = .oak
         case "red_mushroom": kind = .hugeRed
@@ -149,7 +151,7 @@ extension Game {
         guard let k = kind else { return }
         // Room check: a clear trunk column.
         for y in 1...4 where !Blocks.replaceable[Int(world.block(p.x, p.y + y, p.z))] && world.block(p.x, p.y + y, p.z) != AIR { return }
-        if let sq = square, k == .megaSpruce || k == .megaJungle || k == .darkOak {
+        if let sq = square, k == .megaSpruce || k == .megaJungle || k == .darkOak || k == .paleOak {
             for q in [sq, sq + IVec3(1, 0, 0), sq + IVec3(0, 0, 1), sq + IVec3(1, 0, 1)] { world.setBlockAsync(q.x, q.y, q.z, AIR) }
             p = sq
         } else {

@@ -13,8 +13,8 @@ struct Recipe {
 enum Recipes {
     static let tags: [String: [String]] = [
         "planks": ["oak_planks", "birch_planks", "spruce_planks", "crimson_planks", "warped_planks", "acacia_planks", "dark_oak_planks",
-                   "jungle_planks", "mangrove_planks", "cherry_planks", "bamboo_planks"],
-        "logs": ["oak_log", "birch_log", "spruce_log", "oak_wood", "acacia_log", "dark_oak_log", "jungle_log", "mangrove_log", "cherry_log"],
+                   "jungle_planks", "mangrove_planks", "cherry_planks", "bamboo_planks", "pale_oak_planks"],
+        "logs": ["oak_log", "birch_log", "spruce_log", "oak_wood", "acacia_log", "dark_oak_log", "jungle_log", "mangrove_log", "cherry_log", "pale_oak_log"],
         "stone_tool": ["cobblestone", "cobbled_deepslate"],
         "coals": ["coal", "charcoal"],
         "wooden_slabs": ["oak_slab"],
@@ -62,7 +62,7 @@ enum Recipes {
         r.append(shaped(["C", "S", "X"], ["C": "#coals", "S": "stick", "X": "soul_sand"], "soul_torch", 4))
         r.append(shaped(["C", "S", "X"], ["C": "#coals", "S": "stick", "X": "soul_soil"], "soul_torch", 4))
         for (log, plank) in [("crimson_stem", "crimson_planks"), ("warped_stem", "warped_planks")] { r.append(shapeless([log], plank, 4)) }
-        for w in ["acacia", "dark_oak", "jungle", "mangrove", "cherry"] { r.append(shapeless(["\(w)_log"], "\(w)_planks", 4)) }
+        for w in ["acacia", "dark_oak", "jungle", "mangrove", "cherry", "pale_oak"] { r.append(shapeless(["\(w)_log"], "\(w)_planks", 4)) }
         for (w, _, lw, ww) in Woods.all {
             for src in ["\(w)_\(ww)", "stripped_\(w)_\(lw)", "stripped_\(w)_\(ww)"] { r.append(shapeless([src], "\(w)_planks", 4)) }
             r.append(shaped(["##", "##"], ["#": "\(w)_\(lw)"], "\(w)_\(ww)", 3))
@@ -499,7 +499,7 @@ enum Recipes {
                                    "sandstone": "smooth_sandstone", "red_sandstone": "smooth_red_sandstone", "quartz_block": "smooth_quartz",
                                    "stone_bricks": "cracked_stone_bricks", "basalt": "smooth_basalt", "clay": "terracotta", "glass": "glass",
                                    "acacia_log": "charcoal", "dark_oak_log": "charcoal", "jungle_log": "charcoal", "mangrove_log": "charcoal",
-                                   "cherry_log": "charcoal", "iron_sword": "iron_nugget", "golden_sword": "gold_nugget", "resin_clump": "resin_brick"]
+                                   "cherry_log": "charcoal", "pale_oak_log": "charcoal", "iron_sword": "iron_nugget", "golden_sword": "gold_nugget", "resin_clump": "resin_brick"]
         for (c, _) in BlockRegistry.colors { m["\(c)_terracotta"] = "\(c)_glazed_terracotta" }
         return m
     }()

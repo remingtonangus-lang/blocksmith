@@ -8,7 +8,7 @@ enum Woods {
     static let all: [(String, UInt32, String, String)] = [
         ("oak", 0xB08C58, "log", "wood"), ("spruce", 0x7A5A35, "log", "wood"), ("birch", 0xD2C28A, "log", "wood"),
         ("jungle", 0xAA7C58, "log", "wood"), ("acacia", 0xB8663A, "log", "wood"), ("dark_oak", 0x5A3A1E, "log", "wood"),
-        ("mangrove", 0x803A34, "log", "wood"), ("cherry", 0xE6BAB2, "log", "wood"),
+        ("mangrove", 0x803A34, "log", "wood"), ("cherry", 0xE6BAB2, "log", "wood"), ("pale_oak", 0xE8E0DA, "log", "wood"),
         ("crimson", 0x8A3A5E, "stem", "hyphae"), ("warped", 0x3A7A72, "stem", "hyphae"),
     ]
     static func logKey(_ w: String, _ word: String) -> String { "\(w)_\(word)" }

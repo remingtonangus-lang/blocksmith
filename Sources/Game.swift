@@ -43,6 +43,9 @@ final class Game {
     var hideHUD = false               // F1
     var commandLog: [String] = []     // console output (Commands.swift)
     var commandHistory: [String] = []
+    var hearts: [IVec3] = []          // Barkwraith hearts near the player (AshenGrove.swift)
+    var heartTimer: Float = 0
+    var heartScanAge: Float = 100
     var cameraMode = 0                // F5 / View button: 0 first person, 1 behind, 2 in front
     var screenshotRequested = false   // F2
     var target: (hit: IVec3, normal: IVec3)?
@@ -1796,6 +1799,7 @@ final class Game {
         composterTick()
         musicTick(Float(dt))
         siegeTick()
+        ashenTick(Float(dt))
         advancementTick()
         weatherTick(Float(dt))
         world.rainLevel = wetWorld ? weather.rain : 0

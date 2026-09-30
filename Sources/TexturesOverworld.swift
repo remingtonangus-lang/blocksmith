@@ -56,6 +56,7 @@ extension TextureGen {
             ("acacia", 0x676157, 0xAD5D32, 0, 0x6E8A2A), ("dark_oak", 0x3C2E1A, 0x4F3218, 0, 0x2E5A1E),
             ("jungle", 0x564419, 0xA07351, 0, 0x3E8A1E), ("mangrove", 0x544130, 0x773631, 0, 0x4E8A3A),
             ("cherry", 0x36202A, 0xE2B2AC, 0xE9A5C4, 0xE9A5C4),
+            ("pale_oak", 0x5E5652, 0xE4DAD3, 0xA3AB97, 0xA3AB97),
         ]
         for (i, w) in woods.enumerated() {
             let s = 300 + i * 10

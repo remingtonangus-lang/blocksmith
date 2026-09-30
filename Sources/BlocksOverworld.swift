@@ -4,7 +4,7 @@ import Foundation
 // blocks, surface plants (incl. two-tall plants), water plants, cave blocks and badlands terracotta.
 extension BlockRegistry {
     static let extraWoods: [(String, String)] = [("acacia", "Acacia"), ("dark_oak", "Dark Oak"), ("jungle", "Jungle"),
-                                                 ("mangrove", "Mangrove"), ("cherry", "Cherry")]
+                                                 ("mangrove", "Mangrove"), ("cherry", "Cherry"), ("pale_oak", "Ashbark")]
 
     func registerOverworldBlocks() {
         func cube(_ n: String, _ disp: String, _ t: String? = nil, h: Float = 1.5, tool: ToolType = .pickaxe, lvl: Int = 0,
@@ -41,7 +41,7 @@ extension BlockRegistry {
             pillar("\(w)_log", "\(disp) Log", side: "\(w)_log", top: "\(w)_log_top")
             var lv = BlockDef("\(w)_leaves", "\(disp) Leaves")
             lv.tex = ["\(w)_leaves"]; lv.opaque = false; lv.layer = .cutout; lv.hardness = 0.2; lv.tool = .hoe; lv.sound = .plant
-            lv.tint = w == "cherry" ? 0 : 2
+            lv.tint = w == "cherry" || w == "pale_oak" ? 0 : 2
             add(lv)
             cube("\(w)_planks", "\(disp) Planks", h: 2, tool: .axe, snd: .wood)
             var sap = BlockDef(w == "mangrove" ? "mangrove_propagule" : "\(w)_sapling", w == "mangrove" ? "Mangrove Propagule" : "\(disp) Sapling")

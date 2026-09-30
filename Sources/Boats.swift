@@ -8,7 +8,7 @@ enum Boats {
     static let woods: [(String, String, UInt32)] = [
         ("oak", "Oak", 0xA2824E), ("spruce", "Spruce", 0x735531), ("birch", "Birch", 0xC5B57A), ("jungle", "Jungle", 0xA07351),
         ("acacia", "Acacia", 0xAD5D32), ("dark_oak", "Dark Oak", 0x4F3218), ("mangrove", "Mangrove", 0x773631),
-        ("cherry", "Cherry", 0xE2B2AC), ("bamboo", "Bamboo", 0xC8B25A),
+        ("cherry", "Cherry", 0xE2B2AC), ("bamboo", "Bamboo", 0xC8B25A), ("pale_oak", "Ashbark", 0xE4DAD3),
     ]
     static func itemKey(_ variant: Int, chest: Bool) -> String {
         let w = woods[max(0, min(woods.count - 1, variant))].0

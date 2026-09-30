@@ -54,6 +54,7 @@ extension MobKind {
         case .warden: return a("Deep Stalker", 0.45, 2.9, 500, 3, drops: [("sculk_catalyst", 1, 1)], xp: 5, call: .mobWarden, attack: 30, beh: .monster)
         case .breeze: return a("Gustling", 0.3, 1.77, 30, 3, drops: [("breeze_rod", 1, 2)], xp: 10, call: .mobVex, beh: .monster)
         case .bogged: return a("Mire Skeleton", 0.3, 1.99, 16, 2.5, drops: [("bone", 0, 2), ("arrow", 0, 2)], xp: 5, call: .mobSkeleton, beh: .ranged, sun: true)
+        case .creaking: return a("Barkwraith", 0.45, 2.7, 100, 3.4, xp: 0, call: .mobSkeleton, attack: 3, beh: .monster, fire: true)
         case .zoglin: return a("Rot Tusker", 0.7, 1.4, 40, 2.5, drops: [("rotten_flesh", 1, 3)], xp: 5, call: .mobRavager, attack: 6, beh: .melee, fire: false)
         default: return a("?", 0.3, 1, 10, 1)
         }
@@ -323,6 +324,8 @@ extension Mob {
             // Cats scare nightwings.
             if g.mobs.mobs.contains(where: { $0.kind == .cat && simd_length($0.pos - pos) < 16 }) { phase = 0; vel.y += 4 * dt }
             return 0
+        case .creaking:
+            return barkwraithAI(dt, g, dist: dist, canTarget: canTarget)
         case .endermite:
             if canTarget {
                 face(player)
@@ -602,6 +605,8 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
         return [box(-4, 14, -4, 8, 8, 8, c, 4), box(-1, 3, -1, 2, 11, 2, c * 0.9),
                 Part(mn: V3(-5, 6, -5), mx: V3(5, 8, 5), pivot: V3(0, 7, 0), rotX: 0, rotZ: sinf(spin) * 0.2, color: c * 0.85),
                 Part(mn: V3(-4, 0, -4), mx: V3(4, 2, 4), pivot: V3(0, 1, 0), rotX: cosf(spin) * 0.2, color: c * 0.85)] + eyes(18, -4, 1.2, 1.2, V3(0.2, 0.3, 0.6))
+    case .creaking:
+        return barkwraithParts(m, swing: swing)
     case .bogged, .zoglin:
         if m.kind == .zoglin {
             let c = V3(0.8, 0.55, 0.55)

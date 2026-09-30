@@ -140,7 +140,7 @@ final class WorldGen: TerrainGenerator {
             switch ti {
             case 0: return hi <= 2 ? .snowyPlains : .snowyTaiga
             case 1: return [Biome.meadow, .meadow, .forest, .taiga, .oldGrowthSpruceTaiga][hi]
-            case 2: return hi <= 1 ? (wPos ? .cherryGrove : .meadow) : (hi == 2 ? .meadow : (hi == 3 ? .forest : .darkForest))
+            case 2: return hi <= 1 ? (wPos ? .cherryGrove : .meadow) : (hi == 2 ? .meadow : (hi == 3 ? .forest : (k.w > 0.35 ? .paleGarden : .darkForest)))
             case 3: return hi <= 1 ? .savannaPlateau : (hi == 4 ? .jungle : .forest)
             default: return .badlands
             }
@@ -158,7 +158,7 @@ final class WorldGen: TerrainGenerator {
             case 1: return wPos ? .sunflowerPlains : .plains
             case 2: return .forest
             case 3: return wPos ? .oldGrowthBirchForest : .birchForest
-            default: return .darkForest
+            default: return k.w > 0.35 ? .paleGarden : .darkForest
             }
         case 3:
             switch hi {

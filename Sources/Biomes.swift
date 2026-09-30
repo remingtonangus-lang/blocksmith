@@ -17,6 +17,8 @@ enum Biome: Int, CaseIterable {
     case dripstoneCaves, lushCaves, deepDark
     // Emberdeep / End
     case netherWastes, soulSandValley, crimsonForest, warpedForest, basaltDeltas, theEnd
+    // Later additions (appended so saved biome numbers stay put)
+    case paleGarden
 
     struct Info {
         let id: String
@@ -86,6 +88,7 @@ enum Biome: Int, CaseIterable {
         Info(id: "warped_forest", temp: 2.0, grass: 0xBFB755, foliage: 0xAEA42A, water: 0x3F76E4),
         Info(id: "basalt_deltas", temp: 2.0, grass: 0xBFB755, foliage: 0xAEA42A, water: 0x3F76E4),
         Info(id: "the_end", temp: 0.5, grass: 0x8EB971, foliage: 0x71A74D, water: 0x3F76E4),
+        Info(id: "pale_garden", temp: 0.7, grass: 0x778272, foliage: 0x878D76, water: 0x76889D),
     ]
 
     var info: Info { Biome.table[rawValue] }
@@ -93,7 +96,7 @@ enum Biome: Int, CaseIterable {
     // Player-facing biome name (Blocksmith names for the other dimensions).
     var displayName: String {
         let own: [String: String] = ["nether_wastes": "Ember Wastes", "soul_sand_valley": "Ghost Sand Valley", "crimson_forest": "Rustcap Forest",
-                                     "warped_forest": "Tealcap Forest", "basalt_deltas": "Basalt Deltas", "the_end": "The Hollow", "deep_dark": "Murk Depths"]
+                                     "warped_forest": "Tealcap Forest", "basalt_deltas": "Basalt Deltas", "the_end": "The Hollow", "deep_dark": "Murk Depths", "pale_garden": "Ashen Grove"]
         return own[info.id] ?? info.id.split(separator: "_").map { $0.capitalized }.joined(separator: " ")
     }
     static func named(_ n: String) -> Biome? { allCases.first { $0.name == n } }

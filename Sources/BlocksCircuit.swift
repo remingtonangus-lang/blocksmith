@@ -17,7 +17,7 @@ import Foundation
 // dir6: 0 down, 1 up, 2 north(-Z), 3 south(+Z), 4 west(-X), 5 east(+X). facing (4): 0 north, 1 south, 2 west, 3 east.
 extension BlockRegistry {
     static let dir6 = [IVec3(0, -1, 0), IVec3(0, 1, 0), IVec3(0, 0, -1), IVec3(0, 0, 1), IVec3(-1, 0, 0), IVec3(1, 0, 0)]
-    static let buttonWoods = ["oak", "spruce", "birch", "jungle", "acacia", "dark_oak", "mangrove", "cherry", "crimson", "warped"]
+    static let buttonWoods = ["oak", "spruce", "birch", "jungle", "acacia", "dark_oak", "mangrove", "cherry", "crimson", "warped", "pale_oak"]
 
     // Face index (+X -X +Y -Y +Z -Z) of a dir6.
     static func faceOf(_ d: Int) -> Int { [3, 2, 5, 4, 1, 0][d] }

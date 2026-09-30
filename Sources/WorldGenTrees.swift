@@ -6,7 +6,7 @@ import Foundation
 // are identical from both sides. Each chunk writes only its own blocks.
 enum TreeKind {
     case oak, fancyOak, birch, tallBirch, spruce, pine, megaSpruce, megaPine, jungle, megaJungle, jungleBush
-    case acacia, darkOak, swampOak, mangrove, cherry, hugeRed, hugeBrown, iceSpike, smallOak
+    case acacia, darkOak, swampOak, mangrove, cherry, hugeRed, hugeBrown, iceSpike, smallOak, paleOak
 }
 
 struct TreeWriter {
@@ -58,6 +58,7 @@ enum TreePlacer {
         case .windsweptHills, .windsweptGravellyHills: return p(0.02) ? (pick < 0.7 ? .oak : .spruce) : nil
         case .meadow: return p(0.002) ? (pick < 0.5 ? .fancyOak : .birch) : nil
         case .cherryGrove: return p(0.18) ? .cherry : nil
+        case .paleGarden: return p(0.6) ? (pick < 0.85 ? .paleOak : .darkOak) : nil
         case .swamp: return p(0.07) ? .swampOak : nil
         case .mangroveSwamp: return p(0.35) ? .mangrove : nil
         case .mushroomFields: return p(0.02) ? (pick < 0.5 ? .hugeRed : .hugeBrown) : nil
@@ -88,7 +89,7 @@ enum TreePlacer {
                     // Soil check where we can see it (inside this chunk).
                     if w.inside(tx, gy, tz) {
                         let soil = Blocks.key(w.get(tx, gy, tz))
-                        let ok = ["grass_block", "snowy_grass_block", "dirt", "podzol", "coarse_dirt", "mud", "mycelium", "moss_block", "snow_block", "packed_ice", "red_sand"].contains(soil)
+                        let ok = ["grass_block", "snowy_grass_block", "dirt", "podzol", "coarse_dirt", "mud", "mycelium", "moss_block", "pale_moss_block", "snow_block", "packed_ice", "red_sand"].contains(soil)
                         if !ok { continue }
                         if w.get(tx, gy + 1, tz) != AIR && !Blocks.replaceable[Int(w.get(tx, gy + 1, tz))] { continue }
                     }
@@ -244,6 +245,24 @@ enum TreePlacer {
                     let ddx = Float(dx) - 0.5, ddz = Float(dz) - 0.5
                     if ddx * ddx + ddz * ddz <= Float(r * r) + 1 { w.leaf(x + dx, y + h + dy, z + dz, leaf) }
                 } }
+            }
+        case .paleOak:
+            // Ashbark: a 2x2 dark-oak-like trunk, flat pale crown, hanging moss curtains; sometimes a heart in the trunk.
+            let h = rng.range(6, 9)
+            let log = g("pale_oak_log"), leaf = g("pale_oak_leaves"), moss = g("pale_hanging_moss")
+            trunk(h, log, wide: true)
+            if rng.chance(0.12) { w.force(x + rng.int(2), y + rng.range(2, max(2, h - 3)), z + rng.int(2), g("creaking_heart")) }
+            for dy in -1...1 {
+                let r = dy == 1 ? 2 : (dy == 0 ? 4 : 3)
+                for dz in -r...r + 1 { for dx in -r...r + 1 {
+                    let ddx = Float(dx) - 0.5, ddz = Float(dz) - 0.5
+                    if ddx * ddx + ddz * ddz <= Float(r * r) + 1 { w.leaf(x + dx, y + h + dy, z + dz, leaf) }
+                } }
+            }
+            for _ in 0..<10 {
+                let dx = rng.range(-3, 4), dz = rng.range(-3, 4)
+                let len = rng.range(1, 4)
+                for k in 0..<len where w.get(x + dx, y + h - 2 - k, z + dz) == AIR { w.leaf(x + dx, y + h - 2 - k, z + dz, moss) }
             }
         case .swampOak:
             let h = rng.range(5, 6)
@@ -409,6 +428,7 @@ extension WorldGen {
             case .forest, .birchForest, .oldGrowthBirchForest: grassP = 0.14; flowerP = 0.01
             case .flowerForest: grassP = 0.1; flowerP = 0.35
             case .darkForest: grassP = 0.12; flowerP = 0
+            case .paleGarden: grassP = 0.06; flowerP = 0
             case .taiga, .oldGrowthPineTaiga, .oldGrowthSpruceTaiga: grassP = 0.06; fernP = 0.12; tallP = 0.02
             case .jungle, .sparseJungle, .bambooJungle: grassP = 0.25; fernP = 0.1; tallP = 0.03
             case .savanna, .savannaPlateau, .windsweptSavanna: grassP = 0.3; tallP = 0.06
@@ -433,6 +453,11 @@ extension WorldGen {
             }
             if (biome == .darkForest || biome == .oldGrowthSpruceTaiga) && h > 0.985 {
                 b[above] = h2 < 0.5 ? g("red_mushroom") : g("brown_mushroom"); continue
+            }
+            if biome == .paleGarden {
+                if h > 0.985 { b[above] = g("closed_eyeblossom"); continue }
+                let patch = flora.noise2(Float(wx) / 9 + 300, Float(wz) / 9 + 300)
+                if patch > 0.1 { b[i] = g("pale_moss_block"); if h2 < 0.45 { b[above] = g("pale_moss_carpet") }; continue }
             }
             if h > 0.9993 && ground == GRASS { b[above] = g("pumpkin"); continue }
             if h < flowerP {
