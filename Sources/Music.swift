@@ -155,30 +155,41 @@ final class MusicVoice {
                 phase2 += f * 1.004 / sr; if phase2 >= 1 { phase2 -= 1 }
                 phase3 += f * 0.996 / sr; if phase3 >= 1 { phase3 -= 1 }
                 let raw = (phase + phase2 + phase3) * 2 - 3
-                let cut = 1 - expf(-2 * .pi * (500 + 1600 * env * vel) / sr)
+                let cutHz: Float = 500 + 1600 * env * vel
+                let cut: Float = 1 - expf(-2 * Float.pi * cutHz / sr)
                 lp += cut * (raw - lp); lp2 += cut * (lp - lp2)
                 s = lp2 * 0.35
             case .drone:
                 phase += f / sr; if phase >= 1 { phase -= 1 }
-                s = (sinf(2 * .pi * phase) + 0.4 * sinf(4 * .pi * phase + 0.3) + 0.2 * sinf(6 * .pi * phase)) * 0.45 * (1 + 0.15 * sinf(2 * .pi * 0.17 * t))
+                let ph: Float = 2 * Float.pi * phase
+                let h1: Float = sinf(ph), h2: Float = 0.4 * sinf(2 * ph + 0.3), h3: Float = 0.2 * sinf(3 * ph)
+                let swell: Float = 1 + 0.15 * sinf(2 * Float.pi * 0.17 * t)
+                s = (h1 + h2 + h3) * 0.45 * swell
             case .organ:
                 phase += f / sr; if phase >= 1 { phase -= 1 }
                 let p2 = 2 * Float.pi * phase
-                s = (sinf(p2) + 0.5 * sinf(2 * p2) + 0.25 * sinf(3 * p2) + 0.12 * sinf(4 * p2)) * 0.4 * (1 + 0.08 * sinf(2 * .pi * 4.5 * t))
+                let o1: Float = sinf(p2) + 0.5 * sinf(2 * p2)
+                let o2: Float = 0.25 * sinf(3 * p2) + 0.12 * sinf(4 * p2)
+                let trem: Float = 1 + 0.08 * sinf(2 * Float.pi * 4.5 * t)
+                s = (o1 + o2) * 0.4 * trem
             case .flute:
-                let vib = 1 + 0.006 * sinf(2 * .pi * 5.2 * t) * min(1, t / 0.4)
+                let vibDepth: Float = min(1, t / 0.4)
+                let vib: Float = 1 + 0.006 * sinf(2 * Float.pi * 5.2 * t) * vibDepth
                 phase += f * vib / sr; if phase >= 1 { phase -= 1 }
                 let p2 = 2 * Float.pi * phase
-                s = (sinf(p2) + 0.25 * sinf(2 * p2) + 0.08 * sinf(3 * p2)) * 0.5 + noise() * 0.02
+                let fl: Float = sinf(p2) + 0.25 * sinf(2 * p2) + 0.08 * sinf(3 * p2)
+                s = fl * 0.5 + noise() * 0.02
             case .shimmer:
                 phase += f / sr; if phase >= 1 { phase -= 1 }
-                s = sinf(2 * .pi * phase) * 0.4 * (0.7 + 0.3 * sinf(2 * .pi * 6.7 * t + Float(start % 97)))
+                let shim: Float = 0.7 + 0.3 * sinf(2 * Float.pi * 6.7 * t + Float(start % 97))
+                s = sinf(2 * Float.pi * phase) * 0.4 * shim
             case .bass:
                 phase += f / sr; if phase >= 1 { phase -= 1 }
-                let raw = sinf(2 * .pi * phase) + 0.35 * (phase * 2 - 1)
-                let cut = 1 - expf(-2 * .pi * 380 / sr)
+                let raw: Float = sinf(2 * Float.pi * phase) + 0.35 * (phase * 2 - 1)
+                let cut: Float = 1 - expf(-2 * Float.pi * 380 / sr)
                 lp += cut * (raw - lp)
-                s = lp * 0.9 * (released ? 1 : (0.6 + 0.4 * expf(-t / 0.35)))
+                let pluckEnv: Float = released ? 1 : (0.6 + 0.4 * expf(-t / 0.35))
+                s = lp * 0.9 * pluckEnv
             case .pluck, .harp:
                 let len = ks.count
                 let nxt = (ksIdx + 1) % len
@@ -187,24 +198,29 @@ final class MusicVoice {
                 ksIdx = nxt
                 s = v * 0.8
             case .bell:
-                let idx = 2.2 * env
-                s = sinf(w * Float(age) + idx * sinf(w * 3.01 * Float(age))) * 0.5
+                let idx: Float = 2.2 * env
+                let ang: Float = w * Float(age)
+                s = sinf(ang + idx * sinf(3.01 * ang)) * 0.5
             case .metal:
-                s = sinf(w * Float(age) + 3 * env * sinf(w * 1.41 * Float(age))) * 0.5
+                let ang: Float = w * Float(age)
+                let modIdx: Float = 3 * env
+                s = sinf(ang + modIdx * sinf(1.41 * ang)) * 0.5
             case .kick:
-                let fk = 40 + 110 * expf(-t / 0.045)
+                let fk: Float = 40 + 110 * expf(-t / 0.045)
                 phase += fk / sr; if phase >= 1 { phase -= 1 }
                 s = sinf(2 * .pi * phase) * 0.9
             case .tom:
-                phase += (f * 0.5 + 40 * expf(-t / 0.03)) / sr; if phase >= 1 { phase -= 1 }
-                s = sinf(2 * .pi * phase) * 0.7 + (t < 0.01 ? noise() * 0.3 : 0)
+                let ft: Float = f * 0.5 + 40 * expf(-t / 0.03)
+                phase += ft / sr; if phase >= 1 { phase -= 1 }
+                let click: Float = t < 0.01 ? noise() * 0.3 : 0
+                s = sinf(2 * Float.pi * phase) * 0.7 + click
             case .shaker:
                 let nz = noise()
                 hp += 0.5 * (nz - hp)
                 s = (nz - hp) * 0.6
             case .thud:
                 let nz = noise()
-                let cut = 1 - expf(-2 * .pi * 140 / sr)
+                let cut: Float = 1 - expf(-2 * Float.pi * 140 / sr)
                 lp += cut * (nz - lp); lp2 += cut * (lp - lp2)
                 s = lp2 * 3.0
             }
@@ -316,10 +332,13 @@ final class MusicStream {
     private var lock = NSLock()
     private var rendererFinished = true
 
+    let mono: Bool
+
     init(format f: AVAudioFormat) {
         format = f
-        l = [Float](repeating: 0, count: block)
-        r = [Float](repeating: 0, count: block)
+        mono = f.channelCount == 1
+        l = [Float](repeating: 0, count: 4096)
+        r = [Float](repeating: 0, count: 4096)
         node.volume = volume
     }
 
@@ -354,8 +373,12 @@ final class MusicStream {
         let fin = renderer.finished
         lock.lock(); rendererFinished = fin; lock.unlock()
         buf.frameLength = AVAudioFrameCount(block)
-        l.withUnsafeBufferPointer { ch[0].update(from: $0.baseAddress!, count: block) }
-        r.withUnsafeBufferPointer { ch[1].update(from: $0.baseAddress!, count: block) }
+        if mono {
+            for i in 0..<block { ch[0][i] = (l[i] + r[i]) * 0.5 }
+        } else {
+            l.withUnsafeBufferPointer { ch[0].update(from: $0.baseAddress!, count: block) }
+            r.withUnsafeBufferPointer { ch[1].update(from: $0.baseAddress!, count: block) }
+        }
         queued += 1
         node.scheduleBuffer(buf, at: nil, options: [], completionCallbackType: .dataConsumed) { [weak self] _ in
             guard let self = self else { return }

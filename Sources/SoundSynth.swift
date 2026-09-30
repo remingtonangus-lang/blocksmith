@@ -54,6 +54,27 @@ struct Synth {
         return out
     }
 
+    // Envelope shapes applied over a whole buffer.
+    static func window(_ x: [Float]) -> [Float] {
+        var out = x
+        let n = Float(max(1, x.count))
+        for i in 0..<out.count { let k: Float = Float(i) / n; out[i] *= sinf(k * Float.pi) }
+        return out
+    }
+    static func decayEnv(_ x: [Float], _ tau: Float) -> [Float] {
+        var out = x
+        let k: Float = expf(-1 / (tau * sr))
+        var e: Float = 1
+        for i in 0..<out.count { out[i] *= e; e *= k }
+        return out
+    }
+    static func rampIn(_ x: [Float], _ seconds: Float) -> [Float] {
+        var out = x
+        let n: Float = max(1, seconds * sr)
+        for i in 0..<out.count { let k: Float = Float(i) / n; out[i] *= min(1, k) }
+        return out
+    }
+
     // MARK: Filters (applied to whole buffers)
 
     static func lowpass(_ x: [Float], _ hz: Float, passes: Int = 1) -> [Float] {
@@ -154,7 +175,8 @@ struct Synth {
             if count == 0 { target = noise(); count = step }
             count -= 1
             mod += (target - mod) * 0.0005
-            let a = 1 - expf(-2 * .pi * lp * (1 + wobble * mod) / Synth.sr)
+            let hz: Float = lp * (1 + wobble * mod)
+            let a: Float = 1 - expf(-2 * Float.pi * hz / Synth.sr)
             lpS += a * (noise() - lpS)
             hpS += b * (lpS - hpS)
             out[i] = (lpS - hpS) * gain * (1 + 0.5 * wobble * mod)
@@ -209,8 +231,11 @@ struct Synth {
         let wc = 2 * Float.pi * f / Synth.sr, wm = wc * ratio
         for i in 0..<n {
             let t = Float(i) / Synth.sr
-            let env = expf(-t / decay)
-            out[i] = sinf(wc * Float(i) + index * env * sinf(wm * Float(i))) * env * gain * min(1, t / 0.002)
+            let env: Float = expf(-t / decay)
+            let fi: Float = Float(i)
+            let modv: Float = index * env * sinf(wm * fi)
+            let atk: Float = min(1, t / 0.002)
+            out[i] = sinf(wc * fi + modv) * env * gain * atk
         }
         return out
     }
@@ -286,7 +311,11 @@ struct Synth {
         for i in 0..<n {
             let t = Float(i) / Synth.sr, k = t / dur
             var f = (f0 + (f1 - f0) * k) * (1 + vib * sinf(2 * .pi * vibRate * t))
-            if growl > 0 { gPhase += 28 / Synth.sr; f *= 1 + growl * (gPhase - floorf(gPhase) < 0.5 ? 1 : -1) * 0.5 }
+            if growl > 0 {
+                gPhase += 28 / Synth.sr
+                let sq: Float = gPhase - floorf(gPhase) < 0.5 ? 1 : -1
+                f *= 1 + growl * sq * 0.5
+            }
             phase += f / Synth.sr
             if phase >= 1 { phase -= 1 }
             // Glottal pulse: a sharp rise then a soft fall, plus aspiration noise.
@@ -505,7 +534,7 @@ struct Synth {
         case .pickup: out = Synth.mix(modes(0.09, [(1500 * p, 0.3, 0.02)]), modes(0.08, [(2100 * p, 0.25, 0.02)]), at: frames(0.03))
         case .dig: out = burst(0.06, lp: 2500 * p, hp: 300, decay: 0.012, gain: 0.8)
         case .attack: out = burst(0.12, lp: 1800 * p, hp: 200, decay: 0.03, gain: 1.4)
-        case .attackSweep: out = wash(0.28, lp: 2600 * p, hp: 500, wobble: 0.2, rate: 30, gain: 0.8).enumerated().map { $0.element * sinf(Float($0.offset) / Synth.sr / 0.28 * .pi) }
+        case .attackSweep: out = Synth.window(wash(0.28, lp: 2600 * p, hp: 500, wobble: 0.2, rate: 30, gain: 0.8))
         case .attackCrit: out = Synth.mix(burst(0.15, lp: 2200 * p, hp: 300, decay: 0.03, gain: 1.4), modes(0.3, [(2600 * p, 0.3, 0.06), (3900 * p, 0.2, 0.05)]))
         case .attackKnockback: out = Synth.mix(burst(0.2, lp: 800 * p, hp: 60, decay: 0.05, gain: 2.5), burst(0.1, lp: 3000, hp: 500, decay: 0.02, gain: 0.6))
         case .attackWeak: out = burst(0.07, lp: 1200 * p, hp: 200, decay: 0.015, gain: 0.9)
@@ -525,7 +554,7 @@ struct Synth {
         case .bucketEmpty: out = Synth.mix(burst(0.5, lp: 1200 * p, hp: 200, attack: 0.03, decay: 0.15, gain: 1.0), bubbles(0.4, count: 6, fLo: 300, fHi: 900, len: 0.05, gain: 0.4))
         case .bucketFillLava: out = Synth.mix(bubbles(0.5, count: 4, fLo: 70 * p, fHi: 160 * p, len: 0.15, gain: 1.0), burst(0.5, lp: 400, hp: 40, attack: 0.02, decay: 0.15, gain: 1.4))
         case .bucketEmptyLava: out = Synth.mix(burst(0.6, lp: 350 * p, hp: 30, attack: 0.05, decay: 0.2, gain: 1.8), wash(0.5, lp: 4000, hp: 1500, wobble: 1, rate: 3, gain: 0.08))
-        case .fishCast: out = Synth.mix(wash(0.25, lp: 3000, hp: 600, wobble: 0.2, rate: 20, gain: 0.5).enumerated().map { $0.element * expf(-Float($0.offset) / Synth.sr / 0.08) }, modes(0.1, [(1400 * p, 0.3, 0.02)]))
+        case .fishCast: out = Synth.mix(Synth.decayEnv(wash(0.25, lp: 3000, hp: 600, wobble: 0.2, rate: 20, gain: 0.5), 0.08), modes(0.1, [(1400 * p, 0.3, 0.02)]))
         case .fishSplash: out = Synth.mix(burst(0.3, lp: 1600 * p, hp: 200, attack: 0.005, decay: 0.08, gain: 1.2), bubbles(0.3, count: 5, fLo: 500, fHi: 1500, len: 0.04, gain: 0.4))
         case .fishReel: out = Synth.mix(burst(0.3, lp: 2000 * p, hp: 300, attack: 0.005, decay: 0.08, gain: 1.0), grains(6, spread: 0.2, lp: 3000, hp: 800, decay: 0.008, gain: 0.5))
         case .xp: out = modes(0.2, [(1760 * p, 0.25, 0.05), (2637 * p, 0.12, 0.04)])
@@ -533,20 +562,20 @@ struct Synth {
         case .totem:
             out = []
             for (k, f) in [392, 523, 659, 784, 1047].enumerated() { out = Synth.mix(out, fm(1.2, f: Float(f), ratio: 2, index: 1.2, decay: 0.5, gain: 0.3), at: frames(Float(k) * 0.09)) }
-            out = Synth.mix(out, wash(1.4, lp: 4000, hp: 800, wobble: 0.5, rate: 6, gain: 0.15).enumerated().map { $0.element * sinf(Float($0.offset) / Synth.sr / 1.4 * .pi) })
+            out = Synth.mix(out, Synth.window(wash(1.4, lp: 4000, hp: 800, wobble: 0.5, rate: 6, gain: 0.15)))
         case .gasp: out = Synth.mix(burst(0.35, lp: 2500 * p, hp: 400, attack: 0.15, decay: 0.12, gain: 0.7), formant(0.3, f0: 200 * p, f1: 260 * p, formants: [(700, 6, 0.6), (1500, 8, 0.4)], breath: 0.6, gain: 0.5))
-        case .throwItem: out = wash(0.2, lp: 2400 * p, hp: 500, wobble: 0.2, rate: 20, gain: 0.6).enumerated().map { $0.element * sinf(Float($0.offset) / Synth.sr / 0.2 * .pi) }
+        case .throwItem: out = Synth.window(wash(0.2, lp: 2400 * p, hp: 500, wobble: 0.2, rate: 20, gain: 0.6))
         case .pearlThrow: out = Synth.mix(tone(0.25, f0: 900 * p, f1: 1500 * p, wave: .sine, attack: 0.01, release: 0.1, gain: 0.3), wash(0.2, lp: 3000, hp: 600, wobble: 0.2, rate: 20, gain: 0.4))
         case .potionThrow: out = Synth.mix(modes(0.15, [(1800 * p, 0.3, 0.03), (2700 * p, 0.2, 0.02)]), wash(0.2, lp: 2400, hp: 500, wobble: 0.2, rate: 20, gain: 0.4))
         case .potionSplash: out = Synth.mix(burst(0.25, lp: 9000, hp: 2500, decay: 0.05, gain: 0.8), bubbles(0.3, count: 8, fLo: 800, fHi: 2400, len: 0.03, gain: 0.3))
         case .snowballHit: out = burst(0.12, lp: 1800 * p, hp: 300, decay: 0.03, gain: 1.0)
         case .eggCrack: out = Synth.mix(grains(4, spread: 0.04, lp: 4000 * p, hp: 900, decay: 0.008, gain: 1.0), burst(0.1, lp: 1500, hp: 300, decay: 0.03, gain: 0.5))
-        case .bowDraw: out = Synth.mix(wash(0.4, lp: 1200 * p, hp: 200, wobble: 0.3, rate: 15, gain: 0.5).enumerated().map { $0.element * min(1, Float($0.offset) / Synth.sr / 0.3) }, tone(0.4, f0: 90 * p, f1: 140 * p, wave: .saw, attack: 0.05, release: 0.05, gain: 0.08))
+        case .bowDraw: out = Synth.mix(Synth.rampIn(wash(0.4, lp: 1200 * p, hp: 200, wobble: 0.3, rate: 15, gain: 0.5), 0.3), tone(0.4, f0: 90 * p, f1: 140 * p, wave: .saw, attack: 0.05, release: 0.05, gain: 0.08))
         case .bow: out = Synth.mix(modes(0.25, [(220 * p, 0.5, 0.05), (440 * p, 0.2, 0.03)]), burst(0.15, lp: 3000, hp: 800, decay: 0.03, gain: 0.5))
         case .arrowHit: out = Synth.mix(modes(0.15, [(160 * p, 0.6, 0.03)]), burst(0.05, lp: 2000, hp: 300, decay: 0.01, gain: 0.6))
         case .crossbowLoad: out = repeated({ g in g.grains(3, spread: 0.03, lp: 3000, hp: 600, decay: 0.008, gain: 0.9) }, times: 5, interval: 0.11)
         case .crossbowShoot: out = Synth.mix(modes(0.2, [(170 * p, 0.6, 0.04), (340 * p, 0.3, 0.03)]), burst(0.12, lp: 4000, hp: 1000, decay: 0.03, gain: 0.8))
-        case .tridentThrow: out = Synth.mix(wash(0.35, lp: 2600 * p, hp: 400, wobble: 0.2, rate: 20, gain: 0.7).enumerated().map { $0.element * sinf(Float($0.offset) / Synth.sr / 0.35 * .pi) }, modes(0.3, [(1200 * p, 0.2, 0.08)]))
+        case .tridentThrow: out = Synth.mix(Synth.window(wash(0.35, lp: 2600 * p, hp: 400, wobble: 0.2, rate: 20, gain: 0.7)), modes(0.3, [(1200 * p, 0.2, 0.08)]))
         case .tridentHit: out = Synth.mix(modes(0.4, [(900 * p, 0.5, 0.1), (1900 * p, 0.3, 0.06)]), burst(0.06, lp: 6000, hp: 1200, decay: 0.012, gain: 0.7))
         case .tridentReturn: out = Synth.mix(tone(0.4, f0: 600 * p, f1: 1400 * p, wave: .sine, attack: 0.02, release: 0.15, gain: 0.3), wash(0.35, lp: 3000, hp: 600, wobble: 0.2, rate: 20, gain: 0.4))
         case .riptide: out = Synth.mix(burst(0.8, lp: 1500 * p, hp: 200, attack: 0.05, decay: 0.25, gain: 1.2), bubbles(0.7, count: 12, fLo: 400, fHi: 1400, len: 0.05, gain: 0.4))
@@ -584,7 +613,7 @@ struct Synth {
         case .shulkerClose: out = Synth.mix(tone(0.3, f0: 520 * p, f1: 280 * p, wave: .tri, attack: 0.02, release: 0.1, gain: 0.25), burst(0.15, lp: 900, hp: 100, decay: 0.04, gain: 1.0), at: frames(0.18))
 
         // Mechanisms
-        case .pistonExtend: out = Synth.mix(wash(0.3, lp: 1400 * p, hp: 200, wobble: 0.3, rate: 30, gain: 0.6).enumerated().map { $0.element * min(1, Float($0.offset) / Synth.sr / 0.05) }, material(.stone, pitch: p * 0.8, scale: 0.7, gain: 0.5), at: frames(0.22))
+        case .pistonExtend: out = Synth.mix(Synth.rampIn(wash(0.3, lp: 1400 * p, hp: 200, wobble: 0.3, rate: 30, gain: 0.6), 0.05), material(.stone, pitch: p * 0.8, scale: 0.7, gain: 0.5), at: frames(0.22))
         case .pistonContract: out = Synth.mix(wash(0.25, lp: 1200 * p, hp: 200, wobble: 0.3, rate: 30, gain: 0.6), material(.wood, pitch: p * 0.8, scale: 0.7, gain: 0.5), at: frames(0.18))
         case .lever: out = Synth.mix(modes(0.08, [(1500 * p, 0.4, 0.015), (700 * p, 0.3, 0.02)]), burst(0.04, lp: 4000, hp: 800, decay: 0.008, gain: 0.8))
         case .buttonWood: out = Synth.mix(modes(0.07, [(900 * p, 0.5, 0.015)]), burst(0.03, lp: 3000, hp: 600, decay: 0.006, gain: 0.7))
@@ -691,14 +720,14 @@ struct Synth {
         // Ambience stings
         case .caveAmbience: out = Synth.reverb(Synth.mix(voice(4.5, f0: 55 * p, f1: 41 * p, vib: 0.3, lp: 300, gain: 0.9), burst(4.5, lp: 500, hp: 60, attack: 1.2, decay: 2.5, gain: 0.5)), size: 1.4, damp: 0.3, mix: 0.4, tail: 1.5)
         case .caveDrip: out = Synth.echo(Synth.mix(modes(0.15, [(2400 * p, 0.4, 0.02)]), bubbles(0.1, count: 1, fLo: 1800 * p, fHi: 2600 * p, len: 0.03, gain: 0.5)), delay: 0.19, feedback: 0.45, mix: 0.5, tail: 0.8)
-        case .caveWind: out = Synth.reverb(wash(4.0, lp: 600 * p, hp: 80, wobble: 1.5, rate: 0.5, gain: 0.6).enumerated().map { $0.element * sinf(Float($0.offset) / Synth.sr / 4.0 * .pi) }, size: 1.5, damp: 0.4, mix: 0.3, tail: 1.0)
+        case .caveWind: out = Synth.reverb(Synth.window(wash(4.0, lp: 600 * p, hp: 80, wobble: 1.5, rate: 0.5, gain: 0.6)), size: 1.5, damp: 0.4, mix: 0.3, tail: 1.0)
         case .netherMood: out = Synth.reverb(Synth.mix(formant(3.0, f0: 90 * p, f1: 60 * p, formants: [(300, 4, 1), (800, 6, 0.4)], breath: 0.3, vib: 0.1, vibRate: 3, attack: 0.8, release: 1.2, growl: 0.3, gain: 0.8), rumble(3.0, f: 70, attack: 0.5, decay: 1.2, gain: 1.5)), size: 1.3, damp: 0.5, mix: 0.35, tail: 1.5)
         case .underwaterMood: out = Synth.lowpass(Synth.mix(formant(3.5, f0: 140 * p, f1: 110 * p, formants: [(350, 5, 1), (700, 6, 0.4)], breath: 0.2, vib: 0.05, vibRate: 2, attack: 1.0, release: 1.5, gain: 0.6), bubbles(3.5, count: 10, fLo: 150, fHi: 500, len: 0.15, gain: 0.3)), 800)
         case .thunder:
             out = Synth.mix(burst(0.15, lp: 8000, hp: 200, attack: 0.001, decay: 0.08, gain: 1.4), burst(4.0, lp: 220 * p, hp: 20, attack: 0.05, decay: 2.2, gain: 2.2))
             out = Synth.mix(out, rumble(4.0, f: 45, attack: 0.3, decay: 1.5, gain: 2.0), at: frames(0.6))
         case .lightning: out = Synth.mix(burst(0.25, lp: 12000, hp: 600, attack: 0.001, decay: 0.1, gain: 1.6), burst(1.8, lp: 400, hp: 30, attack: 0.01, decay: 0.7, gain: 2.5))
-        case .windGust: out = wash(2.5, lp: 1200 * p, hp: 100, wobble: 1.2, rate: 1, gain: 0.6).enumerated().map { $0.element * sinf(Float($0.offset) / Synth.sr / 2.5 * .pi) }
+        case .windGust: out = Synth.window(wash(2.5, lp: 1200 * p, hp: 100, wobble: 1.2, rate: 1, gain: 0.6))
 
         // Mobs and specials (SoundMobs.swift)
         case .mob(let k, let m): out = MobVoice.render(&self, k, m, pitch: p)

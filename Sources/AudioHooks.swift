@@ -6,6 +6,9 @@ import simd
 
 // Sound material per block id: the block definition's material, refined by name for metal, wool,
 // gravel, slime, mud, bone, amethyst, soul sand and sculk.
+private let metalKeys: Set<String> = ["iron_block", "iron_door", "iron_trapdoor", "iron_bars", "gold_block", "netherite_block", "chain", "cauldron",
+                                      "hopper", "bell", "rail", "lightning_rod"]
+
 let SoundMats: [SoundMat] = {
     var t: [SoundMat] = []
     t.reserveCapacity(Blocks.count)
@@ -15,9 +18,7 @@ let SoundMats: [SoundMat] = {
         var m = Blocks.def(id).sound
         if k.hasSuffix("_wool") || k.hasSuffix("_carpet") || k == "honeycomb_block" || k.hasSuffix("_bed") { m = .wool }
         else if k == "gravel" || k == "suspicious_gravel" { m = .gravel }
-        else if (k.contains("copper") && !k.hasSuffix("_ore")) || k == "iron_block" || k == "iron_door" || k == "iron_trapdoor" || k == "iron_bars"
-                    || k == "gold_block" || k == "netherite_block" || k.hasSuffix("anvil") || k == "chain" || k.hasSuffix("lantern") || k == "cauldron"
-                    || k == "hopper" || k == "bell" || k.hasSuffix("_rail") || k == "rail" || k == "lightning_rod" || k.hasPrefix("raw_") { m = .metal }
+        else if (k.contains("copper") && !k.hasSuffix("_ore")) || metalKeys.contains(k) || k.hasSuffix("anvil") || k.hasSuffix("lantern") || k.hasSuffix("_rail") || k.hasPrefix("raw_") { m = .metal }
         else if k == "bone_block" { m = .bone }
         else if k.contains("amethyst") { m = .amethyst }
         else if k == "slime_block" || k == "honey_block" { m = .slime }

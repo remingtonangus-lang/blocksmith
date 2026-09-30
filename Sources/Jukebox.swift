@@ -52,10 +52,11 @@ enum MusicDiscs {
 final class JukeboxPlayer {
     let pos: IVec3
     let disc: String
-    let notes: [MusicDiscs.Note]
+    let length: Float
     var t: Float = 0
-    var next = 0
-    init(_ p: IVec3, _ d: String) { pos = p; disc = d; notes = MusicDiscs.song(d) }
+    var playing: Bool { t < length }
+    var center: V3 { V3(Float(pos.x) + 0.5, Float(pos.y) + 0.5, Float(pos.z) + 0.5) }
+    init(_ p: IVec3, _ d: String) { pos = p; disc = d; length = Float(MusicDiscs.all.first { $0.0 == d }?.2 ?? 120) }
 }
 
 extension Game {
@@ -64,6 +65,7 @@ extension Game {
         if let i = jukeboxes.firstIndex(where: { $0.pos == p }) {
             let j = jukeboxes.remove(at: i)
             drops.spawn(ItemStack(Items.id("music_disc_\(j.disc)"), 1), at: V3(Float(p.x) + 0.5, Float(p.y) + 1.1, Float(p.z) + 0.5))
+            if audio.discPlaying === j { audio.discPlaying = nil; sound?.disc?.stop(fade: 0.3); sound?.setDisc(at: nil) }
             return true
         }
         let k = Items.key(held.item)
@@ -75,20 +77,27 @@ extension Game {
         return true
     }
 
+    // The nearest playing jukebox within 64 blocks owns the disc stream; its piece is composed from the disc name.
     func jukeboxTick(_ dt: Float) {
-        guard !jukeboxes.isEmpty else { return }
-        for j in jukeboxes {
-            j.t += dt
-            let c = V3(Float(j.pos.x) + 0.5, Float(j.pos.y) + 0.5, Float(j.pos.z) + 0.5)
-            while j.next < j.notes.count && j.notes[j.next].t <= j.t {
-                let n = j.notes[j.next]
-                if simd_length(c - player.pos) < 64 { sfx(.note(n.inst, n.pitch), 0.7, at: c) }
-                j.next += 1
-            }
-            if Float.random(in: 0..<1) < dt * 2 { particles.hearts(at: c + V3(0, 0.8, 0)) }
+        for j in jukeboxes { j.t += dt }
+        let a = audio
+        let near = jukeboxes.filter { $0.playing && simd_length($0.center - player.pos) < 64 }
+        let best = near.min { simd_length($0.center - player.pos) < simd_length($1.center - player.pos) }
+        if let cur = a.discPlaying, best !== cur {
+            sound?.disc?.stop(fade: cur.playing ? 1.5 : 3)
+            a.discPlaying = nil
+            _ = cur
         }
-        // Finished discs stay in the jukebox, silent (like the reference game).
-        for j in jukeboxes where j.next >= j.notes.count { j.t = min(j.t, 1e6) }
+        guard let b = best else { sound?.setDisc(at: nil); return }
+        if a.discPlaying == nil {
+            a.discPlaying = b
+            var score = MusicDiscs.score(b.disc)
+            // Join a disc that was already spinning when we came in range.
+            if b.t > 2 { score.notes = score.notes.filter { $0.t >= b.t }.map { n in var m = n; m.t -= b.t; return m }; score.length = max(4, score.length - b.t) }
+            sound?.disc?.play(score, fadeIn: 0.5)
+        }
+        sound?.setDisc(at: b.center, occlusion: audioOcclusion(player.eye, b.center))
+        if Float.random(in: 0..<1) < dt * 2 { particles.hearts(at: b.center + V3(0, 0.8, 0)) }
     }
 }
 

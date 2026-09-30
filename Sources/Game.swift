@@ -1692,7 +1692,6 @@ final class Game {
             let under = world.block(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))
             sfx(p.pendingFall > 3 && under != AIR ? .fall(soundMat(under)) : .land, min(1, p.pendingFall / 8))
             // Landing kicks up bits of the block underneath (more for bigger falls).
-            let under = world.block(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))
             if under != AIR { particles.dust(under, at: p.pos, count: min(24, Int(p.pendingFall * 3)), spread: 0.5) }
         }
         if p.sprinting && p.onGround && !p.inWater && Float.random(in: 0..<1) < 0.5 {

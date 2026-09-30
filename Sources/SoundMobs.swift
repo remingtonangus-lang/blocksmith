@@ -239,7 +239,7 @@ enum MobVoice {
         case .raidHorn: return Synth.mix(g.formant(3.5, f0: 98, f1: 92, formants: [(300, 4, 1), (800, 6, 0.5), (1600, 8, 0.2)], breath: 0.05, vib: 0.08, vibRate: 5, attack: 0.1, release: 0.6, gain: 1.4), g.voice(3.5, f0: 147, f1: 139, vib: 0.08, lp: 1400, gain: 0.5))
         case .teleport:
             let up = g.tone(0.5, f0: 300 * p, f1: 1500 * p, wave: .sine, attack: 0.05, release: 0.2, vib: 0.1, vibRate: 12, gain: 0.3)
-            return Synth.mix(Synth.echo(up, delay: 0.07, feedback: 0.4, mix: 0.4, tail: 0.3), g.wash(0.6, lp: 3500, hp: 500, wobble: 1.5, rate: 8, gain: 0.35).enumerated().map { $0.element * sinf(Float($0.offset) / Synth.sr / 0.6 * .pi) })
+            return Synth.mix(Synth.echo(up, delay: 0.07, feedback: 0.4, mix: 0.4, tail: 0.3), Synth.window(g.wash(0.6, lp: 3500, hp: 500, wobble: 1.5, rate: 8, gain: 0.35)))
         case .dragonGrowl:
             return Synth.mix(g.formant(1.8, f0: 75 * p, f1: 52 * p, formants: [(190, 4, 1), (480, 5, 0.6), (1100, 7, 0.3)], breath: 0.3, vib: 0.05, vibRate: 3, attack: 0.15, release: 0.5, growl: 0.7, gain: 1.6), g.rumble(1.8, f: 40, attack: 0.1, decay: 0.9, gain: 2.2))
         case .dragonFlap:
@@ -269,7 +269,14 @@ enum MobVoice {
                                        g.rumble(2.2, f: 35, attack: 0.05, decay: 1.0, gain: 2.5)), g.burst(2.0, lp: 3000, hp: 400, attack: 0.1, decay: 0.8, gain: 0.35))
         case .wardenSonicCharge:
             var out: [Float] = []
-            for k in 0..<5 { out = Synth.mix(out, g.tone(1.7 - 0.2 * Float(k), f0: 120 * powf(1.5, Float(k)) * p, f1: 240 * powf(1.5, Float(k)) * p, wave: .sine, attack: 0.3, release: 0.2, vib: 0.03, vibRate: 8, gain: 0.25 / Float(k + 1)), at: g.frames(0.2 * Float(k))) }
+            for k in 0..<5 {
+                let kf: Float = Float(k)
+                let dur: Float = 1.7 - 0.2 * kf
+                let base: Float = 120 * powf(1.5, kf) * p
+                let gain: Float = 0.25 / (kf + 1)
+                let t = g.tone(dur, f0: base, f1: base * 2, wave: .sine, attack: 0.3, release: 0.2, vib: 0.03, vibRate: 8, gain: gain)
+                out = Synth.mix(out, t, at: g.frames(0.2 * kf))
+            }
             return Synth.mix(out, g.wash(1.7, lp: 2500, hp: 300, wobble: 1, rate: 6, gain: 0.3))
         case .wardenSonicBoom:
             return Synth.mix(Synth.mix(g.burst(1.2, lp: 300 * p, hp: 20, attack: 0.002, decay: 0.35, gain: 4), g.tone(0.8, f0: 90 * p, f1: 35 * p, wave: .sine, attack: 0.002, release: 0.5, gain: 0.8)), g.burst(0.5, lp: 6000, hp: 1500, decay: 0.1, gain: 0.8))

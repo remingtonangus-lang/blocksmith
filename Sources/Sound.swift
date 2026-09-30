@@ -150,10 +150,6 @@ enum Snd: Hashable {
 
 }
 
-extension MobKind {
-    // Save-key style name used for sound files (the enum case name).
-    var key: String { String(describing: self) }
-}
 
 // Renders and caches clips. Rendering is deterministic (seeded per sound and variant), so the
 // headless harness and the running game produce identical audio.

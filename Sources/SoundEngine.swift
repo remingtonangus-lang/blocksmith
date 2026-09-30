@@ -40,6 +40,8 @@ final class SoundEngine {
     private var buffers: [Snd: [AVAudioPCMBuffer]] = [:]
     private var nextSpatial = 0, nextFlat = 0, nextUI = 0, variant = 0
     private(set) var music: MusicStream?
+    private(set) var disc: MusicStream?          // jukebox discs: mono, positional, through the environment node
+    private var discPos: V3? = nil
 
     // Listener state (world space) and environment.
     private var eye = V3.zero, fwd = V3(0, 0, -1), right = V3(1, 0, 0), up = V3(0, 1, 0)
@@ -112,11 +114,18 @@ final class SoundEngine {
         engine.attach(ms.node)
         engine.connect(ms.node, to: engine.mainMixerNode, format: stereo)
         music = ms
+        let ds = MusicStream(format: mono)
+        engine.attach(ds.node)
+        engine.connect(ds.node, to: env, format: mono)
+        ds.node.renderingAlgorithm = .equalPowerPanning
+        disc = ds
         engine.mainMixerNode.outputVolume = 1
         do { try engine.start() } catch { print("audio disabled: \(error)"); return nil }
         for p in spatial + flat + ui { p.play() }
         ms.node.play()
         ms.start()
+        ds.node.play()
+        ds.start()
         bank.prewarm(SoundBank.commonSounds + [.explode, .thunder, .lightning, .caveAmbience, .caveDrip, .caveWind, .levelUp, .totem, .playerDeath])
     }
 
@@ -144,6 +153,19 @@ final class SoundEngine {
         // Re-aim the spatial one-shots that are still playing and the loops.
         for i in 0..<spatial.count { if let p = spatialPos[i], spatial[i].isPlaying { spatial[i].position = point(p, range: spatialRange[i]) } }
         for l in loops.values where l.positional { if let p = l.pos { l.node.position = point(p, range: 16) } }
+        if let p = discPos, let d = disc { d.node.position = point(p, range: 64); d.node.reverbBlend = 0.05 + 0.4 * cave }
+    }
+
+    // Where the playing jukebox is (nil stops it); volume is the Blocks category.
+    func setDisc(at p: V3?, occlusion: Float = 0) {
+        discPos = p
+        guard let d = disc else { return }
+        if let p = p {
+            d.node.position = point(p, range: 64)
+            d.node.obstruction = -32 * occlusion
+            d.node.occlusion = -18 * occlusion
+            d.volume = AudioSettings.volume(.master) * AudioSettings.volume(.blocks) * 1.2
+        }
     }
 
     // World position -> listener space (listener at the origin looking down -Z). `range` scales the distance

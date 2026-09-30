@@ -17,6 +17,7 @@ final class AudioState {
     var asked: Set<String> = []
     var lastHurtSound: Float = -10
     var stepTimer: Float = 0
+    var discPlaying: JukeboxPlayer? = nil
     static var kindTable: [UInt8] = []      // block id -> emitter kind (built once)
 }
 
@@ -193,7 +194,7 @@ extension Game {
             }
         }
         // Jukebox nearby: duck the background music.
-        let jukeboxNear = jukeboxes.contains { simd_length(V3(Float($0.pos.x), Float($0.pos.y), Float($0.pos.z)) - p) < 64 && $0.next < $0.notes.count }
+        let jukeboxNear = a.discPlaying != nil
         snd.musicDuck += ((jukeboxNear ? 0 : 1) - snd.musicDuck) * min(1, dt * 2)
         a.asked = asked
         snd.update(dt, asked: asked)
