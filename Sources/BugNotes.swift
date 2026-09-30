@@ -299,12 +299,17 @@ final class BugNotes {
 
     static func writeM4A(_ bufs: [AVAudioPCMBuffer], to url: URL) -> Bool {
         guard let f = bufs.first?.format else { return false }
+        // No fixed bit rate: AAC's allowed range depends on the sample rate (16 kHz mono tops out well below 64 kbps).
         let settings: [String: Any] = [AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: f.sampleRate,
-                                       AVNumberOfChannelsKey: 1, AVEncoderBitRateKey: 64000]
+                                       AVNumberOfChannelsKey: 1, AVEncoderAudioQualityKey: AVAudioQuality.medium.rawValue]
         do {
             let file = try AVAudioFile(forWriting: url, settings: settings, commonFormat: .pcmFormatFloat32, interleaved: false)
             for b in bufs { try file.write(from: b) }
-        } catch { return false }
+        } catch {
+            print("bug notes: audio write failed: \(error)")
+            try? FileManager.default.removeItem(at: url)
+            return false
+        }
         return true
     }
 
