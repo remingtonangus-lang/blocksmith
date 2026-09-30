@@ -50,6 +50,10 @@ RT drop, B back/close, LB/RB tabs (options pages, creative tabs, advancement tab
 On-screen keyboard (Y in any text field): A type, X delete, Y space, LT shift, Menu done.
 
 ## Couch / TV mode (controller workstream)
+Playing on the TV: pair the Xbox controller in System Settings > Bluetooth (hold the pairing button until the logo flashes
+fast), plug the Mac into the TV, launch Blocksmith — it opens full screen and the title screen says "<pad> ready". Turn on
+Options > Interface > Couch Mode for a bigger HUD; if the TV crops the edges raise Safe Area; on a 4K TV set
+Options > Video > Resolution to 75% for a steady 60 fps on the M1.
 - `PadManager` (Controller.swift): hotplugging with toasts, the pad dropping out mid-game pauses, player LED, battery shown in
   Options > Controller, rumble through CoreHaptics (hurt, explosions, mining, attacks, bow, landing, thunder, level up; strength option),
   and "last device used" so every prompt shows controller glyphs or key caps automatically (Options: Button Prompts auto/pad/keys).
