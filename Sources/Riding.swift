@@ -52,6 +52,19 @@ extension Game {
             if survival { consumeHeld() }
             sfx(.anvil, 0.5, at: pos)
             return true
+        case .dolphin where key == "cod" || key == "salmon":
+            // Fed raw fish, a dolphin leads the way to the nearest treasure, shipwreck or ocean ruin for a minute.
+            consumeHeld()
+            particles.hearts(at: pos)
+            if let sc = world.gen.structures {
+                let x = Int(floor(m.pos.x)), z = Int(floor(m.pos.z))
+                let found = ["buried_treasure", "shipwreck", "ocean_ruin"].compactMap { sc.nearest($0, x: x, z: z) }
+                if let s = found.min(by: { simd_length(V2(Float($0.anchor.x - x), Float($0.anchor.z - z))) < simd_length(V2(Float($1.anchor.x - x), Float($1.anchor.z - z))) }) {
+                    m.home = V3(Float(s.anchor.x) + 0.5, Float(s.anchor.y), Float(s.anchor.z) + 0.5)
+                    m.phaseTime = 60
+                }
+            }
+            return true
         case .goat where key == "bucket" && !m.baby:
             consumeHeld(); giveOrReplaceHeldAfterConsume(ItemStack(Items.id("milk_bucket"), 1)); return true
         case .cod, .salmon, .tropicalFish, .pufferfish, .axolotl, .tadpole:

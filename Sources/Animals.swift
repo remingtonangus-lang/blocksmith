@@ -295,7 +295,13 @@ extension Mob {
                 g.sfx(.mobRavager, 0.8)
             }
             // Dolphins circle players and give Dolphin's Grace; pufferfish puff up and poison.
-            if kind == .dolphin && dist < 8 && g.player.inWater { flyTarget = player + V3(Float.random(in: -2...2), 0, Float.random(in: -2...2)); g.applyEffect(.dolphinsGrace, amp: 0, seconds: 5) }
+            // Leading the way to treasure: swim ahead toward it, staying below the surface.
+            if kind == .dolphin && phaseTime > 0, let h = home {
+                phaseTime -= dt
+                var t = h - pos
+                t.y = min(0, max(-2, t.y))
+                if simd_length(t) > 1 { flyTarget = pos + simd_normalize(t) * 6 }
+            } else if kind == .dolphin && dist < 8 && g.player.inWater { flyTarget = player + V3(Float.random(in: -2...2), 0, Float.random(in: -2...2)); g.applyEffect(.dolphinsGrace, amp: 0, seconds: 5) }
             if kind == .pufferfish {
                 sitting = dist < 3
                 if sitting && dist < 1.2 && attackCooldown <= 0 && g.survival { attackCooldown = 1; g.hurtPlayer(2, from: pos, cause: "was stung to death", knockback: 0.2); g.applyEffect(.poison, amp: 0, seconds: 6) }
