@@ -400,8 +400,16 @@ enum Mesher {
                             if fkT[Int(nb)] == fk { continue }
                         } else if cullSameT[bi] && nb == b {
                             continue
-                        } else if lod > 0 && leafT[bi] && leafT[Int(nb)] {
-                            continue            // far: "fast" leaves, no faces inside the canopy
+                        } else if leafT[bi] && leafT[Int(nb)] {
+                            if lod > 0 { continue }            // far: "fast" leaves, no faces inside the canopy
+                            // Near: skip faces into a leaf cell that is itself closed in on all sides.
+                            let j = i + offs[f]
+                            var enclosed = true
+                            for g in 0..<6 {
+                                let q = R[j + offs[g]]
+                                if !(opaqueT[Int(q)] || leafT[Int(q)]) { enclosed = false; break }
+                            }
+                            if enclosed { continue }
                         }
                         let nx = NT[f * 3], ny = NT[f * 3 + 1], nz = NT[f * 3 + 2]
                         let ax = x + nx, ay = y + ny, az = z + nz
