@@ -835,6 +835,10 @@ if let dir = arg("--sounds") {
     exit(0)
 }
 
+if let out = arg("--atlas") {
+    exit(dumpAtlas(out))
+}
+
 if let out = arg("--snapshot") {
     exit(Snapshot.run(out))
 }
