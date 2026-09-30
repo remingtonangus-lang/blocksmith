@@ -139,7 +139,7 @@ enum Snapshot {
         }
         if CommandLine.arguments.contains("--subtitles") {
             // Subtitle test: a few sounds around the camera (left, right, ahead, the player's own).
-            AudioSettings.subtitles = true
+            AudioSettings.forceSubtitles = true
             let e = game.player.eye, r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))
             game.sfx(.mob(.cow, .ambient), at: e - r * 6)
             game.sfx(.explode, at: e + r * 10)

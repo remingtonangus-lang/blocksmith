@@ -10,8 +10,9 @@ final class SubtitleState {
 }
 
 extension AudioSettings {
+    static var forceSubtitles = false        // harness only (not saved)
     static var subtitles: Bool {
-        get { UserDefaults.standard.bool(forKey: "audio_subtitles") }
+        get { forceSubtitles || UserDefaults.standard.bool(forKey: "audio_subtitles") }
         set { UserDefaults.standard.set(newValue, forKey: "audio_subtitles") }
     }
 }
