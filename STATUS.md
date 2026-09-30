@@ -53,6 +53,44 @@ B close, RS scroll creative.
 - Cave culling: each section stores which faces connect through open cells; the renderer walks sections outward from the
   camera through connected faces only (plus frustum). CI rd 12 overworld frame: ~26 ms -> ~9 ms (VM GPU).
 
+## Performance (benchmarks)
+`./bench.sh` (CI step "Benchmarks") runs `Blocksmith --bench snaps/bench.json`: gen, mesh, startup, frame (rd 16 at
+800p/1080p/4K), edit, mobs, save, and flights at rd 8/16/24 (20 blocks/s for 12 s, paced to 60 fps). `perf/compare.py`
+compares with `perf/baseline.json` (table in the ci-snaps README) and fails CI on large regressions of stable metrics.
+`perf/profile.sh <scene>` samples a scene with macOS `sample` (CI step "Profile": flight16, meshprof, genprof).
+Numbers are from the CI runner (Apple Paravirtual GPU, 3 cores → 2 workers), so absolute values are pessimistic
+next to an M1 Air (8 cores → 6 workers, real GPU); compare runs with each other.
+
+| metric (CI) | baseline 37e7b89 | now |
+|---|---|---|
+| gen, single thread | 1.94 ms/chunk | |
+| mesh, single thread | 9.92 ms/chunk (413 µs/section) | |
+| startup: fill rd 12 | 33.8 s | |
+| flight16 frame p50 / p95 / p99 | 4.6 / 7.5 / 11.8 ms | |
+| flight16 coverage min / mean | 77% / 91% | |
+| flight16 gen / mesh throughput | 19 chunks/s, 1611 sections/s | |
+| flight24 frame p50 / p95 | 8.7 / 12.4 ms (encode p95 5.4, GPU p95 12.3) | |
+| flight24 chunks / chunk data / resident peak | 2186 / 622 MB / 771 MB | |
+| flight16 chunks / chunk data / resident peak | 959 / 273 MB / 238 MB | |
+| frame rd 16 GPU p50 800p / 1080p / 4K | 2.9 / 3.3 / 4.4 ms | |
+| save | 2.9 ms/chunk on the main thread, every loaded-from-disk chunk rewritten each autosave | |
+| edit (sync remesh) | 1.1 ms per break | |
+| mobs | 0.94 ms tick with 150 mobs (+3 µs/mob) | |
+
+Findings / changes (performance branch):
+- Streaming throughput was capped by scheduling, not CPU: only `maxJobs` jobs were handed out per frame, so ~120
+  jobs/s on CI (~360 on an M1) no matter how fast gen/mesh are. Workers now run from an OperationQueue kept 4x deep;
+  results are applied within a 4 ms per-frame budget.
+- Loaded area is a disc (mesh radius + 1 ring, unload at + 2) instead of a square: ~20% fewer chunks.
+- Light is stored per section (nil until meshed; uniform dark / sky sections share one array) instead of 96 KB per chunk.
+- Saves: chunks unchanged since their last save/load are skipped (copy-on-write identity check), writes happen on a
+  background queue (queued data stays readable, flushed on quit), palette through a flat table.
+- GPU buffer pool: freed mesh slices wait 0.25 s before reuse (in-flight frames could read overwritten meshes); tint
+  tables come from one shared slab instead of one MTLBuffer each; chunk draws are one draw call per section
+  (per-section records read by instance id, base vertex, slab rebound only on change).
+- Mesher: no per-face array allocations in hot loops; skylight flood skipped when the section's shell is all above the
+  heightmap. Renderer: cave-culling walk uses a per-frame chunk grid instead of dictionary lookups.
+
 ## Couch / TV mode
 - In-game pause + options screens (Metal-drawn) drive fully with a controller: FOV, sensitivity, invert Y, stick dead
   zone, render distance, GUI scale (auto/1-6), couch mode (bigger HUD), volume, music, difficulty, game mode, load world,
