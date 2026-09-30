@@ -60,7 +60,7 @@ enum Fortress {
                 build(&w, n, cx: cxw, cz: czw, y: y, seed: pseed)
             })
         }
-        return StructureStart(kind: "fortress", pieces: pieces)
+        return StructureStart(kind: "fortress", pieces: pieces, anchor: IVec3(ox, y + 1, oz))
     }
 
     // Blocks of one cell. Arms run from the centre to the cell edge (5 cells) along linked directions.

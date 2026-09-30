@@ -63,7 +63,8 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     float sky = skyL * (0.35 + 0.65 * skyL) * u.params.y;
     float blk = blkL / (4.0 - 3.0 * blkL) * 1.1;   // steep falloff: bright pool, dark edges
     float3 lit = max(float3(sky), blk * float3(1.0, 0.76, 0.46));
-    lit = max(lit, float3(0.035 + u.sunDir.w));    // dimension ambient (Nether/End are never pitch black)
+    // Dimension ambient lifts the whole light curve (the Nether/End are never pitch black).
+    lit = mix(max(lit, float3(0.035)), float3(1.0), u.sunDir.w);
     o.shade = lit * (faceShade[face] * aoCurve[ao]);
     o.dist = length(rel);
     return o;

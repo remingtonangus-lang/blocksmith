@@ -77,8 +77,10 @@ final class StructureStart {
     let pieces: [Piece]
     let min: IVec3
     let max: IVec3
-    init(kind: String, pieces: [Piece]) {
+    let anchor: IVec3                     // a representative walkable spot (start piece floor)
+    init(kind: String, pieces: [Piece], anchor: IVec3) {
         self.kind = kind
+        self.anchor = anchor
         self.pieces = pieces
         var a = IVec3(Int.max, Int.max, Int.max), b = IVec3(Int.min, Int.min, Int.min)
         for p in pieces {
