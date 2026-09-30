@@ -289,6 +289,8 @@ final class SoundEngine {
         l.target = v * AudioSettings.gain(s)
         l.pos = pos
         if !l.started {
+            // Loops can wait a tick or two: render them off the main thread the first time.
+            if buffers[s] == nil && !bank.has(s) { bank.prewarm([s], qos: .userInitiated); return }
             guard let buf = buffer(s, variant: 0) else { return }
             l.node.scheduleBuffer(buf, at: nil, options: [.loops, .interrupts], completionHandler: nil)
             l.node.volume = 0

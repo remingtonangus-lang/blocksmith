@@ -219,7 +219,7 @@ final class SoundBank {
         var s: [Snd] = []
         for m in [SoundMat.stone, .dirt, .wood, .plant, .sand, .gravel, .snow] { s += [.step(m), .hit(m), .breakBlock(m), .place(m)] }
         s += [.click, .open, .uiBack, .pickup, .splash, .land, .hurt, .eat, .attack, .attackSweep, .doorOpen, .doorClose, .chestOpen, .chestClose, .xp, .levelUp, .bow,
-              .fireLoop, .waterLoop, .lavaLoop, .rain, .underwaterLoop, .caveAmbience]
+              .fireLoop, .waterLoop, .lavaLoop, .rain, .underwaterLoop, .caveAmbience, .birdCall, .caveDrip, .netherMood, .thunder, .explode]
         for k in [MobKind.cow, .sheep, .chicken, .pig, .zombie, .skeleton, .creeper, .spider, .enderman, .villager] {
             for m in MobSound.allCases { s.append(.mob(k, m)) }
         }
