@@ -54,9 +54,15 @@ B close, RS scroll creative.
 
 ## Couch / TV mode
 - In-game pause + options screens (Metal-drawn) drive fully with a controller: FOV, sensitivity, invert Y, stick dead
-  zone, render distance, GUI scale (auto/1-6), couch mode (bigger HUD), volume, difficulty, game mode, load world,
-  new world. Button legends show under every menu when a pad is connected. Text entry (signs, book titles, named worlds,
-  anvil names) still needs a keyboard; everything else works pad-only.
+  zone, render distance, GUI scale (auto/1-6), couch mode (bigger HUD), volume, music, difficulty, game mode, load world,
+  new world. Button legends show under every menu when a pad is connected. Text entry (signs, book pages/titles,
+  anvil names) works pad-only too via the on-screen keyboard (Y in any text screen).
+
+## Polish (latest)
+- Death screen (message, score, Respawn / Title Screen; XP drops as orbs), live compass / recovery compass / clock icons.
+- Background music director (calm procedural pieces every 10-20 min, dimension moods), cave ambience, disc titles.
+- Landing / sprint dust, item equip animation, denser rain with ground splashes lit by daylight.
+- Village life: beds and sleeping, food pickup + breeding, farmers harvesting, golems, midnight zombie sieges.
 
 ## Known gaps / decisions
 - Save format changed with the engine rework (chunks3/, name-paletted); worlds from the 8-bit engine start fresh terrain.

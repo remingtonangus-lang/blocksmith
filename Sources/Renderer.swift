@@ -766,7 +766,7 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         if let m = game.menu {
             // Container screen: dimmed world, bevelled panel, slots, items, cursor stack, tooltip.
-            rect(0, 0, W, H, V4(0, 0, 0, 0.45))
+            rect(0, 0, W, H, m is DeathMenu ? V4(0.45, 0, 0, 0.55) : V4(0, 0, 0, 0.45))
             let o = m.origin(L)
             let pw = Float(m.width) * s, ph = Float(m.height) * s
             let bg = V4(0.776, 0.776, 0.776, 1)
