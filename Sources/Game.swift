@@ -544,6 +544,11 @@ final class Game {
         m.tick()
         if !input.typed.isEmpty { m.typed(input.typed) }
         if (p.b && !q.b) && m.backPressed() { m.tick(); return }
+        if m.capturesText && p.y && !q.y && !(m is KeyboardMenu) {
+            menu = KeyboardMenu(game: self, target: m)
+            menuCursor = 0
+            return
+        }
         if (input.tapped(Key.e) && !m.capturesText) || input.tapped(Key.esc) || (p.b && !q.b) || (p.view && !q.view) { closeMenu() }
     }
 

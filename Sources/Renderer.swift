@@ -782,7 +782,8 @@ final class Renderer: NSObject, MTKViewDelegate {
             if m.showInventoryLabel { text("Inventory", o.x + 8 * s, o.y + Float(m.inventoryLabelY) * s, s, titleC, shadow: false) }
             if game.padConnected || HudLayout.couch {
                 // Controller legend under the panel.
-                let legend = m is PauseMenu || m is AdvancementMenu ? "A select   X previous   B back"
+                let legend = m.capturesText ? "Y on-screen keyboard   A select   B close"
+                    : m is PauseMenu || m is AdvancementMenu || m is KeyboardMenu || m is DeathMenu ? "A select   X previous   B back"
                     : "A take/place   X split   Y quick move   B close   LB/RB hotbar"
                 text(legend, floor((W - textWidth(legend, s)) / 2), min(H - 10 * s, o.y + ph + 4 * s), s)
             }
@@ -914,6 +915,15 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let label = [0: "<", 1: ">", 2: bm.signing ? "Sign" : "Done", 3: "Sign", 6: "Take"][i] ?? ""
                     if i == 3 && bm.signing { continue }
                     rect(x, y, Float(sl.w) * s, Float(sl.h) * s, game.menuHover === sl ? V4(0.7, 0.7, 0.8, 1) : V4(0.5, 0.5, 0.55, 1))
+                    text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
+                }
+            }
+            if let km = m as? KeyboardMenu {
+                for (i, sl) in km.slots.enumerated() where i < km.keys.count {
+                    let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
+                    let hot = game.menuHover === sl
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.42, 0.55, 0.85, 1) : V4(0.45, 0.45, 0.5, 1))
+                    let label = km.keys[i]
                     text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
                 }
             }

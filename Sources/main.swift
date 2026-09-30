@@ -204,8 +204,9 @@ enum Snapshot {
                 game.openMenu(InventoryMenu(game: game))
             }
             if !(game.menu is EnchantMenu) {
-                game.menuCursor = 12
-                game.menuHover = game.menu?.slots[12]
+                let n = game.menu?.slots.count ?? 0
+                game.menuCursor = min(12, max(0, n - 1))
+                game.menuHover = n > 0 ? game.menu?.slots[game.menuCursor] : nil
             }
             game.input.mouseX = -1
         }
