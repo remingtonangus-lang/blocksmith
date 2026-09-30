@@ -94,7 +94,11 @@ B close, RS scroll creative.
   grass and flowers swaying in the wind (vertex shader, top corners only).
 - Both modes: textured sun that reddens near the horizon, a moon with 8 phases (one per day), translucent rain/snow,
   lightning with a soft glow, blue-tinted moonlight, branching block-breaking cracks.
-- Harness: `--underwater`, `--crack <0..1>`, `--fast`; shots sunset_fast, sunset_sun, lake, lake_glint, underwater, crack.
+- Also both modes: twinkling stars, leaf textures painted as lit clumps, lava hot spots, ambient block particles (torch
+  smoke/flames, campfire smoke columns, lava sparks, fire smoke), Emberdeep per-biome fog + drifting embers/spores/ash,
+  underwater fog from the biome water colour and daylight, a tunic sleeve on the first-person arm. Fancy: Hollow sky streaks.
+- Harness: `--underwater`, `--crack <0..1>`, `--fast`, `--ambient` (2 s of ambient particles); `Blocksmith --atlas <prefix>`
+  writes every texture layer as grid pages (prefix_0.png...) for texture review.
 
 
 ## Known gaps / decisions
