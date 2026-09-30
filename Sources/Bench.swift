@@ -43,7 +43,7 @@ enum Bench {
         guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); return 1 }
         let seed = UInt64(arg("--seed") ?? "") ?? 12345
         let quick = CommandLine.arguments.contains("--quick")
-        let all = "gen,mesh,startup,frame,edit,mobs,save,flight8,flight16,flight24"
+        let all = "gen,mesh,startup,frame,edit,mobs,save,tnt,fluids,flight8,flight16,flight24"
         let scenes = (arg("--scenes") ?? all).split(separator: ",").map(String.init)
         print("bench: device \(device.name), \(ProcessInfo.processInfo.activeProcessorCount) cores, seed \(seed)\(quick ? ", quick" : "")")
         for s in scenes {
@@ -56,6 +56,8 @@ enum Bench {
             case "edit": edit(device, seed)
             case "mobs": mobs(device, seed)
             case "save": save(device, seed)
+            case "tnt": tnt(device, seed)
+            case "fluids": fluids(device, seed)
             case "meshprof": meshLoop(device, seed, seconds: Double(arg("--secs") ?? "") ?? 12)
             case "genprof": genLoop(device, seed, seconds: Double(arg("--secs") ?? "") ?? 12)
             case let name where name.hasPrefix("flight"):
@@ -344,6 +346,68 @@ enum Bench {
         put("mobs.tick_150_ms", loaded, "mean,p95,max")
         put("mobs.per_mob_us", max(0, loaded.mean - base.mean) * 1000 / Double(spawned))
         print("bench mobs: tick \(f(base.mean)) ms empty, \(f(loaded.mean)) ms with \(spawned) mobs (p95 \(f(loaded.p95)), max \(f(loaded.max))), \(game.mobs.mobs.count) alive")
+    }
+
+    // Ten power-4 explosions on the surface: main-thread cost of each blast, then how long the background
+    // re-mesh of everything they touched takes, with ticks running.
+    static func tnt(_ device: MTLDevice, _ seed: UInt64) {
+        let (world, game, pos) = setup(device, seed, rd: 6)
+        _ = world.loadSync(center: pos, radius: 6)
+        var blast: [Double] = []
+        let bx = Int(floor(pos.x)), bz = Int(floor(pos.z))
+        for i in 0..<10 {
+            let x = bx + (i % 5) * 7 - 14, z = bz + (i / 5) * 9 - 4
+            let c = V3(Float(x) + 0.5, Float(world.topY(x, z)) + 0.5, Float(z) + 0.5)
+            let a = now
+            Explosion.explode(at: c, power: 4, game: game)
+            blast.append((now - a) * 1000)
+        }
+        let dt = 1.0 / 60
+        var ticks: [Double] = []
+        let s = now
+        repeat {
+            game.player.pos = pos
+            let a = now
+            game.tick(dt)
+            ticks.append((now - a) * 1000)
+            usleep(4000)
+        } while (world.pendingJobs > 0 || world.chunks.values.contains { $0.needsMesh }) && now - s < 15
+        let settle = now - s
+        let b = dist(blast), t = dist(ticks)
+        put("tnt.blast_ms", b, "mean,max")
+        put("tnt.tick_ms", t, "p50,p95,max")
+        put("tnt.remesh_s", settle)
+        print("bench tnt: blast mean \(f(b.mean)) ms max \(f(b.max)) ms (main thread) | re-mesh done in \(f(settle)) s, tick p95 \(f(t.p95)) max \(f(t.max)) ms")
+    }
+
+    // 16 water springs on the terrain around the player, 6 s of ticks: fluid spreading and re-mesh load.
+    static func fluids(_ device: MTLDevice, _ seed: UInt64) {
+        let (world, game, pos) = setup(device, seed, rd: 6)
+        _ = world.loadSync(center: pos, radius: 6)
+        let bx = Int(floor(pos.x)), bz = Int(floor(pos.z))
+        for i in 0..<16 {
+            let x = bx + (i % 4) * 6 - 9, z = bz + (i / 4) * 6 - 9
+            world.setBlock(x, world.topY(x, z) + 1, z, WATER)
+        }
+        let dt = 1.0 / 60
+        var ticks: [Double] = []
+        let s0 = world.perf
+        let start = now
+        for i in 0..<360 {
+            game.player.pos = pos
+            let a = now
+            game.tick(dt)
+            ticks.append((now - a) * 1000)
+            let slack = start + Double(i + 1) * dt - now
+            if slack > 0 { usleep(useconds_t(slack * 1e6)) }
+        }
+        let s1 = world.perf
+        let t = dist(ticks)
+        let sections = Double(s1.meshSections - s0.meshSections)
+        put("fluids.tick_ms", t, "p50,p95,max")
+        put("fluids.remeshed_sections", sections)
+        put("fluids.pending", Double(world.fluidPending.count))
+        print("bench fluids: tick p50 \(f(t.p50)) p95 \(f(t.p95)) max \(f(t.max)) ms, \(Int(sections)) sections re-meshed in 6 s, \(world.fluidPending.count) cells still pending")
     }
 
     static func save(_ device: MTLDevice, _ seed: UInt64) {
