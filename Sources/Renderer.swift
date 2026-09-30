@@ -941,6 +941,11 @@ final class Renderer: NSObject, MTKViewDelegate {
                         let ok = RecipeBook.craftable(r, pool)
                         rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.7, 0.7, 0.8, 1) : (ok ? V4(0.45, 0.6, 0.45, 1) : V4(0.6, 0.4, 0.4, 1)))
                         itemIcon(r.result, x + 2 * s, y + 2 * s, 16 * s)
+                        if hot {
+                            let name = r.result.displayName
+                            rect(x - 2 * s, y - 12 * s, textWidth(name, s) + 4 * s, 11 * s, V4(0.1, 0.05, 0.15, 0.92))
+                            text(name, x, y - 10 * s, s)
+                        }
                     } else {
                         rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.7, 0.7, 0.8, 1) : V4(0.5, 0.5, 0.55, 1))
                         let label = id == 491 ? "<" : (id == 492 ? ">" : (book.craftableOnly ? "Can" : "All"))

@@ -59,6 +59,7 @@ B close, RS scroll creative.
   anvil names) works pad-only too via the on-screen keyboard (Y in any text screen).
 
 ## Polish (latest)
+- Title screen at launch; recipe book in crafting screens (craftable/all, fills the grid).
 - Death screen (message, score, Respawn / Title Screen; XP drops as orbs), live compass / recovery compass / clock icons.
 - Background music director (calm procedural pieces every 10-20 min, dimension moods), cave ambience, disc titles.
 - Landing / sprint dust, item equip animation, denser rain with ground splashes lit by daylight.
