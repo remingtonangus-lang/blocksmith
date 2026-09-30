@@ -104,8 +104,10 @@ B close, RS scroll creative.
   rays: enclosure + size pick small room / chamber / hall / cavern). Audio restarts itself when the output device changes
   (headphones, TV). Young mobs have higher voices. Materials now include netherrack and deepslate. Daytime music takes a
   biome flavour (Snowfields, Dunes, Open Water, Blossom). `--sounds` also writes 8 s soundscapes of 17 places.
-- Audio next: subtitles (caption + direction for recent sounds; needs a HUD hook), per-mob pitch jitter at playback
-  (varispeed per voice), more distinct voices for rare mobs.
+- Audio extras: subtitles (Options → Audio: caption + direction arrow per sound, `--subtitles` shot), sounds carry by kind
+  (explosions 64 blocks, thunder 160), note blocks with all 16 instruments and mob heads, beehive hum, fireflies, dry grass,
+  Barkwraith hearts, boat paddling, a room reverb on the music. CI: `--sounds` 606 sounds / 0 failed, `--music` 14 moods / 0 failed.
+- Audio possible later: per-voice pitch jitter at playback (varispeed per voice); more distinct voices for rare mobs.
 - Landing / sprint dust, item equip animation, denser rain with ground splashes lit by daylight.
 - Village life: beds and sleeping, food pickup + breeding, farmers harvesting, golems, midnight zombie sieges.
 
