@@ -669,7 +669,7 @@ final class WorldGen: TerrainGenerator {
 
     // MARK: Trees and vegetation (see WorldGenTrees.swift)
 
-    fileprivate func placeTrees(_ b: inout [BlockID], _ cx: Int, _ cz: Int, _ lat: Lattice) {
+    private func placeTrees(_ b: inout [BlockID], _ cx: Int, _ cz: Int, _ lat: Lattice) {
         TreePlacer.place(&b, cx, cz, gen: self, top: { x, z, hint in lat.top(x, z, from: hint) })
     }
 }
