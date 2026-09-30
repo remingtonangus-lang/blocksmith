@@ -104,7 +104,7 @@ extension Game {
                 player.vel = .zero
                 player.airPeak = t.y
                 damage(5, "fell from a high place", bypassArmor: true, type: .fall)
-                sfx(.mobVoidwalker, 0.6)
+                sfx(.teleport, 0.8)
             }
         case .witherSkull, .blueSkull:
             if hitP {

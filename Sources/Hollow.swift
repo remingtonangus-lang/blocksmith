@@ -230,7 +230,7 @@ extension Game {
             world.setBlock(gx, gy, gz, Blocks.id("end_gateway"))
             gateways += 1
         }
-        sfx(.explode, 1, at: d.pos)
+        sfx(.endPortalOpen, 2, at: d.pos)
         onToast?("The Hollow: exit portal open")
     }
 }
@@ -279,6 +279,9 @@ extension Mob {
         let w = g.world
         let fy = Float(g.fountainY)
         phaseTime += dt
+        // Wing beats every ~1.3 s while flying; an occasional growl.
+        if phase != 4 && phase != 6 && Int(phaseTime / 1.3) != Int((phaseTime - dt) / 1.3) { g.sfx(.dragonFlap, 2.5, at: pos) }
+        if phase != 6 && Float.random(in: 0..<1) < dt / 9 { g.sfx(.dragonGrowl, 3, at: pos) }
         let player = g.player.pos
         let toPlayer = player - pos
         let dist = simd_length(toPlayer)
@@ -309,7 +312,7 @@ extension Mob {
             if (dist < 50 && phaseTime > 2) || phaseTime > 10 {
                 let from = pos + forward * 5
                 g.projectiles.fireball(from: from, dir: simd_normalize(g.player.eye - from), big: true, byPlayer: false, dragon: true)
-                g.sfx(.fireball, 1.2, at: from)
+                g.sfx(.dragonShoot, 2, at: from)
                 phase = 0; phaseTime = 0
             }
         case 2:
@@ -331,7 +334,7 @@ extension Mob {
             if phaseTime > 2 && Int(phaseTime / 3) != Int((phaseTime - dt) / 3) && dist < 24 {
                 // Breath: a cloud of acid where the player stands.
                 g.clouds.append(AcidCloud(pos: V3(player.x, floor(player.y) + 0.05, player.z), radius: 3, time: 6))
-                g.sfx(.mobWailer, 0.8, at: pos)
+                g.sfx(.dragonShoot, 1.5, at: pos)
             }
             if phaseTime > Float.random(in: 12...18) { phase = 5; phaseTime = 0 }
         case 5:
@@ -394,7 +397,7 @@ extension Mob {
             attackCooldown = Float.random(in: 1...5.5)
             let from = pos + V3(0, 1.3, 0)
             g.bullets.append(SentryBolt(from, simd_normalize(target - from) * 4))
-            g.sfx(.fireball, 0.3, at: from)
+            g.sfx(.shulkerOpen, 0.5, at: from)
         }
     }
 

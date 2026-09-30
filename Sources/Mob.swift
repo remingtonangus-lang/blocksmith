@@ -244,6 +244,7 @@ final class Mob {
     var panic: Float = 0
     var hurt: Float = 0
     var hurtSound = false           // set by hit(); MobManager plays the hurt call once
+    var teleportSound = false       // set by teleport(); MobManager plays it at both ends
     var callTimer: Float
     var attackCooldown: Float = 0
     var fuse: Float = 0             // hisser
@@ -795,6 +796,7 @@ final class Mob {
             let top = w.topY(x, z)
             if top < 1 { continue }
             if Blocks.isLiquid(w.block(x, top, z)) { continue }
+            teleportSound = true
             pos = V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5)
             vel = .zero
             return
@@ -1298,7 +1300,13 @@ final class MobManager {
         let w = game.world
         let p = game.player.pos
         for m in mobs {
+            let before = m.pos
             m.update(dt, game: game)
+            if m.teleportSound {
+                m.teleportSound = false
+                game.sfx(.teleport, 0.9, at: before + V3(0, 1, 0))
+                game.sfx(.teleport, 0.9, at: m.pos + V3(0, 1, 0))
+            }
             if m.hurtSound {
                 m.hurtSound = false
                 if MobVoice.profile(m.kind).family != .silent { game.sfx(.mob(m.kind, .hurt), 0.8, at: m.pos + V3(0, m.height * 0.8, 0)) }
