@@ -688,6 +688,10 @@ final class Mob {
                 face(player)
                 speed = spec.speed * (baby ? 1.5 : 1)
                 if drownedThrow(g, dist: dist) { speed = 0 }
+                // Spiders leap at a target 2-4 blocks away (reference leap goal).
+                if (kind == .spider || kind == .caveSpider) && onGround && dist > 2 && dist < 4 && Float.random(in: 0..<1) < dt * 4 {
+                    vel += forward * 4 + V3(0, 5, 0)
+                }
                 let reach = halfW + 1.1
                 if dist < reach + 0.2 && abs(toPlayer.y) < 2 && attackCooldown <= 0 {
                     attackCooldown = 1
@@ -754,6 +758,17 @@ final class Mob {
             if aggro && canTarget {
                 face(player)
                 speed = spec.speed * 2
+                // Far from its target, an angry voidwalker blinks closer (reference teleport-towards).
+                if dist > 16 && Float.random(in: 0..<1) < dt * 0.5 {
+                    let back = simd_normalize(V3(pos.x - player.x, 0, pos.z - player.z))
+                    let to = player + back * Float.random(in: 3...8)
+                    let x = Int(floor(to.x)), z = Int(floor(to.z))
+                    let top = w.topY(x, z)
+                    if top > 0 && abs(Float(top + 1) - player.y) < 8 && !Blocks.isLiquid(w.block(x, top, z)) {
+                        pos = V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5)
+                        vel = .zero
+                    }
+                }
                 if dist < 1.6 && attackCooldown <= 0 {
                     attackCooldown = 1
                     g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Voidwalker", attacker: self)
