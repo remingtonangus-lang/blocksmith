@@ -124,6 +124,11 @@ extension Game {
             if p.a && !q.a {
                 let wasText = m.capturesText
                 m.click(s, button: 0, shift: false)
+                // Picking a recipe with the pad jumps the cursor to the crafting result, ready for A / Y.
+                if m is HasRecipeBook, case .button(let id) = s.kind, id >= RecipeBook.base, id < RecipeBook.base + RecipeBook.perPage,
+                   let r = m.slots.firstIndex(where: { if case .result = $0.kind { return true } else { return false } }), !m.slots[r].stack.isEmpty {
+                    menuCursor = r
+                }
                 // A pad user who just activated a text field (anvil name, creative search) gets the keyboard at once.
                 if keyboard == nil && !wasText && m.capturesText && menu === m && Prompt.pad {
                     menu = KeyboardMenu(game: self, target: m)
