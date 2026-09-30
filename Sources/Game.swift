@@ -35,6 +35,7 @@ final class Game {
     }
     var appAction: ((String) -> Void)?
     var invertY: Bool = UserDefaults.standard.bool(forKey: "invertY") { didSet { UserDefaults.standard.set(invertY, forKey: "invertY") } }
+    var autoJump: Bool = UserDefaults.standard.bool(forKey: "autoJump") { didSet { UserDefaults.standard.set(autoJump, forKey: "autoJump"); player.autoJump = autoJump } }
     var deadZone: Float = { let v = UserDefaults.standard.float(forKey: "deadZone"); return v > 0 ? v : 0.15 }() {
         didSet { UserDefaults.standard.set(deadZone, forKey: "deadZone") }
     }
@@ -679,6 +680,7 @@ final class Game {
             rideInput = mi
             if mi.sneak { dismount() }
         } else {
+            player.autoJump = autoJump
             player.update(dt: fdt, input: mi, world: world)
             powderSnowTick(fdt)
             vibrationTick(fdt)

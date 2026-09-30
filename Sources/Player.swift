@@ -39,6 +39,7 @@ final class Player {
     private var glideAcc: Float = 0
 
     var swimming = false           // sprint-swimming: 0.6 tall, moves along the look direction
+    var autoJump = false           // hop up one-block steps automatically while walking into them
     var crawling = false           // no headroom to stand (after swimming into a low gap): 0.6 tall
 
     let halfW: Float = 0.3
@@ -174,6 +175,13 @@ final class Player {
         if hit.y {
             if vel.y < 0 { landed = true }
             vel.y = 0
+        }
+        if autoJump && onGround && !flying && !sneaking && !prone && (hit.x || hit.z) && simd_length(wish) > 0.3 {
+            // Auto-jump: a one-block step ahead with room above it.
+            let d = simd_normalize(wish) * 0.35
+            if collides(at: pos + d, w) && !collides(at: pos + d + V3(0, 1.05, 0), w) && !collides(at: pos + V3(0, 1.05, 0), w) {
+                vel.y = 8.6 + 2 * Float(jumpBoost)
+            }
         }
         if hit.x { vel.x = 0 }
         if hit.z { vel.z = 0 }

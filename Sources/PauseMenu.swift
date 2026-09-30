@@ -34,7 +34,7 @@ final class PauseMenu: Menu {
             title = "Options"
             let gui = HudLayout.userScale == 0 ? "Auto" : "\(HudLayout.userScale)"
             rows = [("FOV: \(Int(g.fovSetting))", "fov"), ("Sensitivity: \(Int(g.sensitivity * 100))%", "sens"),
-                    ("Invert Y: \(g.invertY ? "On" : "Off")", "invert"), ("Stick Dead Zone: \(Int(g.deadZone * 100))%", "dead"),
+                    ("Invert Y: \(g.invertY ? "On" : "Off")", "invert"), ("Auto-Jump: \(g.autoJump ? "On" : "Off")", "autojump"), ("Stick Dead Zone: \(Int(g.deadZone * 100))%", "dead"),
                     ("Render Distance: \(g.world.renderDistance)", "rd"), ("GUI Scale: \(gui)", "gui"),
                     ("Couch Mode (TV): \(HudLayout.couch ? "On" : "Off")", "couch"), ("Volume: \(Int(g.volumeSetting * 100))%", "volume"), ("Music: \(Int(g.musicVolume * 100))%", "music"),
                     ("Done", "back")]
@@ -44,11 +44,14 @@ final class PauseMenu: Menu {
             let names = ((try? FileManager.default.contentsOfDirectory(atPath: base.path)) ?? []).filter { !$0.hasPrefix(".") }.sorted()
             rows = names.prefix(10).map { ("Play \($0)", "play:" + $0) } + [("Back", "back")]
         }
+        // Long pages (options) use two columns so they fit a TV-sized GUI scale.
         slots = []
-        width = 220
-        height = 30 + rows.count * 22 + 8
+        let cols = rows.count > 8 ? 2 : 1
+        let perCol = (rows.count + cols - 1) / cols
+        width = 20 + cols * 200 + (cols - 1) * 6
+        height = 30 + perCol * 22 + 8
         for i in rows.indices {
-            let b = MenuSlot(10, 26 + i * 22, nil, 0, .button(i))
+            let b = MenuSlot(10 + (i / perCol) * 206, 26 + (i % perCol) * 22, nil, 0, .button(i))
             b.w = 200; b.h = 18
             slots.append(b)
         }
@@ -80,6 +83,7 @@ final class PauseMenu: Menu {
         case "fov": g.fovSetting = step([60, 70, 80, 90, 100, 110], g.fovSetting)
         case "sens": g.sensitivity = step([0.5, 0.75, 1, 1.25, 1.5, 2, 3], g.sensitivity)
         case "invert": g.invertY.toggle()
+        case "autojump": g.autoJump.toggle()
         case "dead": g.deadZone = step([0.05, 0.1, 0.15, 0.2, 0.25, 0.3], g.deadZone)
         case "rd":
             let opts = [4, 6, 8, 10, 12, 16, 20, 24]

@@ -60,6 +60,8 @@ B close, RS scroll creative.
   anvil names) works pad-only too via the on-screen keyboard (Y in any text screen).
 
 ## Polish (latest)
+- Auto-Jump option (hops one-block steps while walking into them; handy on a controller). Long pause/options pages
+  use two columns so they fit couch-mode GUI scales.
 - Poses: sprint-swimming (0.6 tall, follows the view), crawling when there is no headroom, forced crouch under
   1.5-high gaps (sneak height 1.5, eye 1.27).
 - Mob navigation: A* over block cells (walk, jump one, drop three, swim; avoids lava/fire/cactus/fence tops) for
