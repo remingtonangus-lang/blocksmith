@@ -44,7 +44,7 @@ final class PauseMenu: Menu {
     static let valueIDs: Set<String> = ["sens", "invert", "autojump", "fov", "lookx", "looky", "accel", "dead", "aim", "rumble", "southpaw",
                                         "sneaktoggle", "autosprint", "glyphs", "rd", "fullscreen", "launchfs", "vsync", "fps", "rscale",
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
-                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve"]
+                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator"]
 
     static let help: [String: String] = [
         "resume": "Return to the game.",
@@ -88,6 +88,7 @@ final class PauseMenu: Menu {
         "mode": "Survival: health, hunger, mining. Creative: fly and build freely.",
         "difficulty": "How much damage mobs do and whether hunger can kill.",
         "crosshair": "Bold is thicker with a dark edge, easy to see on a TV. Dot is a small square.",
+        "narrator": "Reads the highlighted menu item and messages aloud with the system voice.",
         "flashes": "Reduced makes the red damage flash and portal tint faint.",
         "resetask": "Put every option and key binding back to its default.",
         "hidehud": "Hide the hotbar and crosshair (screenshots). F1 on the keyboard.",
@@ -159,7 +160,8 @@ final class PauseMenu: Menu {
                         ("Hide HUD: \(on(g.hideHUD))", "hidehud"), ("Debug Info: \(on(g.showDebug))", "debug"),
                         ("Reset Options...", "resetask")]
             case .accessibility:
-                rows = [("Subtitles: \(on(st.subtitles))", "subtitles"), ("Colorblind-Safe Colors: \(on(st.colorblind))", "colorblind"),
+                rows = [("Subtitles: \(on(st.subtitles))", "subtitles"), ("Narrator: \(on(st.narrator))", "narrator"),
+                        ("Colorblind-Safe Colors: \(on(st.colorblind))", "colorblind"),
                         ("Text Background: \(st.textBackground == 0 ? "Off" : pct(st.textBackground))", "textbg"),
                         ("Tutorial Hints: \(on(st.tutorialHints))", "tutorial"),
                         ("Screen Flashes: \(st.screenEffects ? "Full" : "Reduced")", "flashes"),
@@ -412,6 +414,7 @@ final class PauseMenu: Menu {
         case "hints": st.buttonHints.toggle()
         case "textbg": st.textBackground = step([0, 0.25, 0.5, 0.75], st.textBackground)
         case "flashes": st.screenEffects.toggle()
+        case "narrator": st.narrator.toggle(); if st.narrator { Narrator.shared.say("Narrator on", clock: g.clock) }
         case "resetask": go(.confirm); confirmReset = true; resetCursor = true
         case "reset_yes":
             st.resetAll(g)
