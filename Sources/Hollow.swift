@@ -104,7 +104,16 @@ extension Game {
         let p = player.pos
         let feet = world.block(Int(floor(p.x)), Int(floor(p.y + 0.1)), Int(floor(p.z)))
         let key = Blocks.key(feet)
-        if key == "end_gateway" && portalCooldown <= 0 { portalCooldown = 3; gatewayTeleport(); return }
+        // Rifts sit between bedrock caps, so any part of the body touching one counts (walking up to a far-island
+        // return rift, or standing on a pillar next to a floating one); void pearls work too (MobsG.swift).
+        if portalCooldown <= 0 && dim.dim == .end {
+            for y in [p.y + 0.1, p.y + 0.9, p.y + 1.7] {
+                for (dx, dz) in [(Float(0), Float(0)), (0.4, 0), (-0.4, 0), (0, 0.4), (0, -0.4)]
+                where Blocks.key(world.block(Int(floor(p.x + dx)), Int(floor(y)), Int(floor(p.z + dz)))) == "end_gateway" {
+                    portalCooldown = 3; gatewayTeleport(); return
+                }
+            }
+        }
         guard key == "end_portal", portalCooldown <= 0 else { return }
         portalCooldown = 3
         if dim.dim == .end {

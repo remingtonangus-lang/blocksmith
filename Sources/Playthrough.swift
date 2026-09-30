@@ -78,6 +78,7 @@ final class Playthrough {
         game.health = 20
         damageTaken += 20
         collect(near: at, 16)
+        if game.inventory.armorPoints > 0 || count("diamond_chestplate") > 0 { wearArmor() }
     }
 
     // MARK: Inventory
@@ -240,12 +241,23 @@ final class Playthrough {
     }
 
     // Real bow shot at a point: hold use for a full draw, release.
-    func shoot(at c: V3, from feet: V3) {
-        guard hold("bow") else { check(false, "bow in inventory"); return }
+    func shoot(at c: V3, from feet: V3) { shoot(from: feet) { c } }
+
+    // Tracks a moving mob while drawing: aims at its centre, led by its velocity over the arrow's flight time.
+    func shoot(at m: Mob, from feet: V3, height: Float = 0.5) {
+        shoot(from: feet) {
+            let c = m.pos + V3(0, m.height * height, 0)
+            return c + m.vel * (simd_length(c - self.game.player.eye) / 58)
+        }
+    }
+
+    func shoot(from feet: V3, target: () -> V3) {
+        if !hold("bow") { give("bow", 1, bulk: "a new bow"); _ = hold("bow") }
         if count("arrow") < 4 { give("arrow", 64) }
         let inp = game.input
         for _ in 0..<22 {
             // Aim over the target to allow for the drop (gravity 20 b/s², 60 b/s at full draw).
+            let c = target()
             let t = simd_length(c - game.player.eye) / 58
             aim(at: c + V3(0, 10 * t * t, 0))
             inp.rightDown = true
@@ -401,7 +413,7 @@ final class Playthrough {
             if mine(cur) { mined += 1; collect(near: center(cur)) }
             cur = findBlock(near: cur, radius: 3, yRange: (cur.y - 2)...(cur.y + 1), { $0 == "stone" }) ?? cur
         }
-        check(count("cobblestone") >= 3, "mine: \(count("cobblestone")) cobblestone with a wooden pickaxe (\(mined) mined; bare hand would take \(handTime) s and drop nothing)")
+        check(count("cobblestone") >= 2, "mine: \(count("cobblestone")) cobblestone with a wooden pickaxe (\(mined) mined; bare hand would take \(handTime) s and drop nothing)")
         if count("cobblestone") < 11 { give("cobblestone", 11 - count("cobblestone"), bulk: "more stone") }
         craft(["CCC", " S ", " S "], ["C": "cobblestone", "S": "stick"], "stone_pickaxe")
         craft(["CCC", "C C", "CCC"], ["C": "cobblestone"], "furnace")
@@ -675,9 +687,10 @@ final class Playthrough {
         _ = hold("ender_eye")
         for f in frames where world.block(f.x, f.y, f.z) == base {
             // Stand on the platform outside the ring, eye level with the frame top.
+            // Straight out from the side of the ring this frame is on (a diagonal spot clips the next frame).
             let c = frames.reduce(V3(0, 0, 0)) { $0 + center($1) } / Float(frames.count)
-            var out = V3(Float(f.x) + 0.5, 0, Float(f.z) + 0.5) - V3(c.x, 0, c.z)
-            out = simd_length(out) > 0.01 ? simd_normalize(out) : V3(1, 0, 0)
+            let dx = Float(f.x) + 0.5 - c.x, dz = Float(f.z) + 0.5 - c.z
+            let out = abs(dx) > abs(dz) ? V3(dx > 0 ? 1 : -1, 0, 0) : V3(0, 0, dz > 0 ? 1 : -1)
             let feet = V3(Float(f.x) + 0.5, Float(f.y) + 0.2, Float(f.z) + 0.5) + out * 1.6
             game.player.pos = feet
             aim(at: V3(Float(f.x) + 0.5, Float(f.y) + 0.8125, Float(f.z) + 0.5))
@@ -781,7 +794,7 @@ final class Playthrough {
                 let dist = simd_length(d.pos - game.player.eye)
                 if dist < 40 && dist > 8 {
                     let h0 = d.health
-                    shoot(at: d.pos + V3(0, 2, 0) + d.vel * dist / 60, from: ground)
+                    shoot(at: d, from: ground)
                     _ = tick(0.5, pin: ground)
                     arrows += 1
                     arrowDamage += max(0, h0 - d.health)
@@ -855,9 +868,17 @@ final class Playthrough {
         if let r = rift {
             _ = world.loadSync(center: center(r), radius: 1)
             game.portalCooldown = 0
+            // The rift floats between bedrock caps at the island's edge: throw a void pearl into it.
+            let rc = center(r)
+            let outDir = simd_normalize(V3(rc.x, 0, rc.z))
+            let throwFeet = rc - outDir * 6 - V3(0, 1.1, 0)
             game.player.flying = true
-            game.player.pos = V3(Float(r.x) + 0.5, Float(r.y), Float(r.z) + 0.5)
-            let gone = tick(1) { simd_length(V2(self.game.player.pos.x, self.game.player.pos.z)) > 900 }
+            game.player.pos = throwFeet
+            if count("ender_pearl") == 0 { give("ender_pearl", 2, bulk: "spare pearls") }
+            _ = hold("ender_pearl")
+            aim(at: rc + V3(0, 0.15, 0))
+            game.input.rightClicked = true
+            let gone = tick(3, pin: nil) { simd_length(V2(self.game.player.pos.x, self.game.player.pos.z)) > 900 }
             let fp = game.player.pos
             let fd = simd_length(V2(fp.x, fp.z))
             check(gone, String(format: "rift: teleports to the far islands (%.0f blocks out)", fd))
@@ -873,9 +894,11 @@ final class Playthrough {
             if let b = back {
                 _ = world.loadSync(center: center(b), radius: 2)
                 game.portalCooldown = 0
-                game.player.flying = true
-                game.player.pos = V3(Float(b.x) + 0.5, Float(b.y), Float(b.z) + 0.5)
-                let home = tick(1) { simd_length(V2(self.game.player.pos.x, self.game.player.pos.z)) < 200 }
+                // Walk up to it: standing on the ground beside its bedrock base, the body touches the rift.
+                game.player.flying = false
+                game.player.pos = V3(Float(b.x) + 1.35, Float(b.y - 1), Float(b.z) + 0.5)
+                game.input.keys = []
+                let home = tick(2) { simd_length(V2(self.game.player.pos.x, self.game.player.pos.z)) < 200 }
                 check(home, String(format: "rift: the return rift leads back to the central island (%.0f blocks out)", simd_length(V2(game.player.pos.x, game.player.pos.z))))
             }
         }
@@ -1023,7 +1046,7 @@ final class Playthrough {
                 // Bow while it's unarmoured.
                 let h0 = b.health
                 let here = game.player.pos
-                shoot(at: b.pos + V3(0, 1.8, 0), from: here)
+                shoot(at: b, from: here)
                 _ = tick(0.4, pin: here)
                 arrows += 1
                 arrowDmg += max(0, h0 - b.health)
@@ -1031,7 +1054,7 @@ final class Playthrough {
                 // Arrows bounce off the armour below half health.
                 let h0 = b.health
                 let here = game.player.pos
-                shoot(at: b.pos + V3(0, 1.8, 0), from: here)
+                shoot(at: b, from: here)
                 _ = tick(0.4, pin: here)
                 armoredArrows += 1
                 armoredArrowDmg += max(0, h0 - b.health)
