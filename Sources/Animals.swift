@@ -197,7 +197,17 @@ extension Mob {
             if aiTimer <= 0 || flyTarget == nil { aiTimer = Float.random(in: 0.5...2); flyTarget = pos + V3(Float.random(in: -5...5), Float.random(in: -2...3), Float.random(in: -5...5)) }
             if let f = flyTarget { let d = f - pos; vel += (d * 0.8 - vel) * min(1, dt * 3) }
             return 0
+        case .parrot where g.jukeboxes.contains(where: { simd_length(V3(Float($0.pos.x) + 0.5, Float($0.pos.y), Float($0.pos.z) + 0.5) - pos) < 3.5 }):
+            sitting = true                                   // dancing to the music
+            vel *= expf(-3 * dt)
+            walkPhase += dt * 8
+            return 0
         case .parrot:
+            sitting = false
+            // Now and then a parrot imitates a monster within 20 blocks (reference: 1 in ~1000 per tick).
+            if Float.random(in: 0..<1) < dt / 50, let o = g.mobs.mobs.first(where: { $0.kind.hostile && simd_length($0.pos - pos) < 20 }) {
+                g.sfx(o.kind.call, 0.7, at: pos)
+            }
             if aiTimer <= 0 || flyTarget == nil {
                 aiTimer = Float.random(in: 2...5)
                 let base = tamed ? player : pos
