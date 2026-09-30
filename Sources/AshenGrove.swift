@@ -39,8 +39,15 @@ extension BlockRegistry {
 extension TextureGen {
     static func ashenPainters(_ p: inout [String: Painter]) {
         p["pale_moss_block"] = { x, y in
-            let k = 0.82 + 0.3 * r(x, y, 1701) + (blot(x, y, 1702, 4) - 0.5) * 0.18
-            return hex(0x9AA392, k)
+            // Soft grey-green: gentle blotches, very little per-pixel grain.
+            let k = 0.9 + (blot(x, y, 1702, 4) - 0.5) * 0.16 + (blot(x, y, 1703, 8) - 0.5) * 0.1 + (r(x, y, 1701) - 0.5) * 0.05
+            return hex(0x98A48E, k)
+        }
+        // Ashbark leaves: soft clumps with gaps (less contrast than per-pixel noise, which read as gravel).
+        p["pale_oak_leaves"] = { x, y in
+            let clump = blot(x, y, 1720, 4)
+            if clump < 0.32 || r(x, y, 1721) < 0.12 { return clear }
+            return hex(0xA2AE98, 0.78 + 0.28 * clump + 0.08 * r(x, y, 1722))
         }
         p["pale_hanging_moss"] = { x, y in
             let strand = (x * 7 + 3) % 5 == 0 || (x * 3 + 1) % 7 == 0

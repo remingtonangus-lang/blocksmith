@@ -77,6 +77,13 @@ enum Village {
             guard let style = style(gen.column(ox, oz).biome) else { return nil }
             let cy = gen.groundY(ox, oz)
             guard cy >= SEA else { return nil }
+            // Skip very broken ground (the street network would collapse into a handful of lots).
+            var lo = cy, hi = cy
+            for (dx, dz) in [(-20, 0), (20, 0), (0, -20), (0, 20), (-14, -14), (14, 14), (-14, 14), (14, -14)] {
+                let y = gen.groundY(ox + dx, oz + dz)
+                lo = min(lo, y); hi = max(hi, y)
+            }
+            guard hi - lo <= 12 else { return nil }
             return layout(gen, seed: seed, ox: ox, oz: oz, cy: cy, style: style)
         }
     }
@@ -167,7 +174,7 @@ enum Village {
                 s += rng.range(7, 10)
             }
         }
-        guard lots.count >= 3 else { return nil }
+        guard lots.count >= 6 else { return nil }
         var pieces: [Piece] = []
         let plaza = cy
         let styleV = style
