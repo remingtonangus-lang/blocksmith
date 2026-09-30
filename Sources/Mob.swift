@@ -1568,7 +1568,18 @@ final class MobManager {
         if Float.random(in: 0..<1) < 0.1 {
             if Blocks.fluidKind[Int(w.block(x, lavaY, z))] == 2 && w.block(x, lavaY + 1, z) == AIR && w.block(x, lavaY + 2, z) == AIR
                 && mobs.filter({ $0.kind == .strider }).count < 8 {
-                for i in 0..<Int.random(in: 1...2) { mobs.append(Mob(.strider, at: V3(Float(x + i) + 0.5, Float(lavaY + 1), Float(z) + 0.5))) }
+                for i in 0..<Int.random(in: 1...2) {
+                    let st = Mob(.strider, at: V3(Float(x + i) + 0.5, Float(lavaY + 1), Float(z) + 0.5))
+                    mobs.append(st)
+                    // Reference jockeys: 1 in 30 carry an undead boarling, otherwise 1 in 10 a young magmastrider.
+                    let riderKind: MobKind? = Int.random(in: 0..<30) == 0 ? .zombifiedPiglin : (Int.random(in: 0..<10) == 0 ? .strider : nil)
+                    if let rk = riderKind {
+                        let r = Mob(rk, at: st.pos + V3(0, st.height, 0))
+                        if rk == .strider { r.baby = true; r.scale = 0.5 }
+                        r.mount = st; r.jockey = true
+                        mobs.append(r)
+                    }
+                }
             }
             return
         }
