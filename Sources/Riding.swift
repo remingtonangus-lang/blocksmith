@@ -18,6 +18,7 @@ extension Game {
         }
         switch m.kind {
         case .wolf where !m.tamed && key == "bone": tameTry(); return true
+        case .nautilus where !m.tamed && key == "pufferfish": tameTry(); return true
         case .cat where !m.tamed && (key == "cod" || key == "salmon"): tameTry(); return true
         case .ocelot where !m.tamed && (key == "cod" || key == "salmon"):
             consumeHeld()
@@ -107,7 +108,7 @@ extension Game {
             m.health = min(m.kind == .wolf ? 40 : m.spec.health, m.health + 4); consumeHeld(); particles.hearts(at: pos); return true
         }
         // Saddles and chests.
-        let rideable: Set<MobKind> = [.horse, .donkey, .mule, .camel, .pig, .strider, .skeletonHorse, .zombieHorse]
+        let rideable: Set<MobKind> = [.horse, .donkey, .mule, .camel, .pig, .strider, .skeletonHorse, .zombieHorse, .nautilus]
         if key == "saddle" && rideable.contains(m.kind) && !m.saddled && !m.baby && (m.tamed || m.kind == .pig || m.kind == .strider) {
             m.saddled = true; m.persistent = true; consumeHeld(); sfx(.place(.wood), 0.6); return true
         }
@@ -162,7 +163,7 @@ extension Game {
             return true
         }
         // Mount.
-        if (m.horseLike && m.kind != .traderLlama) || ((m.kind == .pig || m.kind == .strider || m.kind == .happyGhast) && m.saddled) {
+        if (m.horseLike && m.kind != .traderLlama) || ((m.kind == .pig || m.kind == .strider || m.kind == .happyGhast || m.kind == .nautilus) && m.saddled) {
             guard !m.baby, riding == nil else { return false }
             riding = m
             m.persistent = true
@@ -179,6 +180,7 @@ extension Mob {
     // the stick; untamed horses buck until tamed.
     func updateRidden(_ dt: Float, _ g: Game) {
         if kind == .happyGhast { rideCloudwailer(dt, g); return }
+        if kind == .nautilus { rideNautilus(dt, g); return }
         let w = g.world
         let inp = g.rideInput
         var speed: Float = 0

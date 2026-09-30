@@ -119,6 +119,33 @@ extension Mob {
         g.player.vel = .zero
         g.player.airPeak = g.player.pos.y
     }
+
+    // Ridden nautilus: swims where the rider looks, jump dashes (every 2 s); the rider keeps breathing.
+    func rideNautilus(_ dt: Float, _ g: Game) {
+        let w = g.world
+        let inp = g.rideInput
+        yaw = g.player.yaw
+        let wet = Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.4)), Int(floor(pos.z))))] == 1
+        attackCooldown -= dt
+        if wet {
+            var target = g.player.look * (5.5 * max(0, inp.forward))
+            if inp.jump && attackCooldown <= 0 { attackCooldown = 2; vel += g.player.look * 10 }
+            vel += (target - vel) * min(1, dt * 2)
+            target = .zero
+            g.applyEffect(.waterBreathing, amp: 0, seconds: 2)
+        } else {
+            vel.y -= 28 * dt
+            vel.x *= expf(-4 * dt); vel.z *= expf(-4 * dt)
+        }
+        let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: 0.5, onGround: onGround)
+        if hit.x { vel.x = 0 }
+        if hit.y { onGround = vel.y < 0; vel.y = 0 } else { onGround = false }
+        if hit.z { vel.z = 0 }
+        walkPhase += dt * 4
+        g.player.pos = pos + V3(0, height * 0.6, 0)
+        g.player.vel = .zero
+        g.player.airPeak = g.player.pos.y
+    }
 }
 
 // Model: a soft white cube with a calm face, short tentacles, and harness + goggles when saddled.
