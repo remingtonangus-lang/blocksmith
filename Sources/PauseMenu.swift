@@ -32,7 +32,6 @@ final class PauseMenu: Menu {
                     ("Render Distance: \(g.world.renderDistance)", "rd"), ("GUI Scale: \(gui)", "gui"),
                     ("Couch Mode (TV): \(HudLayout.couch ? "On" : "Off")", "couch"), ("Volume: \(Int(g.volumeSetting * 100))%", "volume"),
                     ("Done", "back")]
-        }
         case .worlds:
             title = "Load World"
             let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Blocksmith/Worlds")
