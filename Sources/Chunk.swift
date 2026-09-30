@@ -14,9 +14,10 @@ struct ChunkKey: Hashable {
 
 // One 16x16x16 slice of a chunk's mesh.
 final class Section {
-    var opaqueBuf: MTLBuffer?
+    var opaqueBuf: MeshSlice?
     var opaqueQuads = 0
-    var transBuf: MTLBuffer?
+    var solidQuads = 0          // leading opaque quads drawn without alpha test
+    var transBuf: MeshSlice?
     var transQuads = 0
     var version = 0          // bumped when the section (or light around it) changes
     var meshedVersion = -1

@@ -10,12 +10,23 @@ import simd
 enum Snapshot {
     static func findBiome(_ gen: TerrainGenerator, _ want: String) -> V3? {
         var x = 0, z = 0, dx = 0, dz = -1
+        // Cave biomes live underground: match their climate rule (WorldGen.decorateCaves) instead.
+        let cave: ((Climate) -> Bool)? = {
+            switch want {
+            case "lush_caves": return { $0.h > 0.55 }
+            case "dripstone_caves": return { $0.c > 0.75 }
+            case "deep_dark": return { $0.e < -0.6 }
+            default: return nil
+            }
+        }()
+        let wg = gen as? WorldGen
         for _ in 0..<40000 {
             let wx = x * 16 + 8, wz = z * 16 + 8
             var ok = true
-            for (ox, oz) in [(0, 0), (24, 0), (-24, 0), (0, 24), (0, -24)] where gen.column(wx + ox, wz + oz).biome.name != want {
-                ok = false
-                break
+            for (ox, oz) in [(0, 0), (24, 0), (-24, 0), (0, 24), (0, -24)] {
+                let hit: Bool
+                if let c = cave, let wg { hit = c(wg.climate(wx + ox, wz + oz)) } else { hit = gen.column(wx + ox, wz + oz).biome.name == want }
+                if !hit { ok = false; break }
             }
             if ok {
                 let h = gen.column(wx, wz).height
@@ -242,11 +253,53 @@ enum Snapshot {
             game.input.mouseX = -1
         }
         var t = world.loadSync(center: pos, radius: rd)
-        if snapDim == .overworld && arg("--structure") == nil {
+        let caveFind = ["lush_caves", "dripstone_caves", "deep_dark"].contains(arg("--find") ?? "")
+        if caveFind {
+            // Down the column to the first open cave pocket with a floor (deep dark: below y 0).
+            let x = Int(floor(pos.x)), z = Int(floor(pos.z))
+            var y = arg("--find") == "deep_dark" ? YOFF - 2 : SEA - 12
+            while y > 8 && !(world.block(x, y, z) == AIR && world.block(x, y + 1, z) == AIR && Blocks.collide[Int(world.block(x, y - 1, z))]) { y -= 1 }
+            pos.y = Float(y) + (Float(arg("--up") ?? "") ?? 0)
+            game.player.pos = pos
+            print("cave pocket at y \(y - YOFF)")
+        } else if snapDim == .overworld && arg("--structure") == nil && arg("--find") == nil && arg("--x") == nil {
+            // Default spawn view: step off tree canopies onto open ground so the camera isn't in leaves.
+            let bx = Int(floor(pos.x)), bz = Int(floor(pos.z))
+            func openGround(_ x: Int, _ z: Int) -> Bool {
+                let k = Blocks.key(world.block(x, world.topY(x, z), z))
+                return !k.hasSuffix("_leaves") && !k.hasSuffix("_log") && !Blocks.isLiquid(world.block(x, world.topY(x, z), z))
+            }
+            if !openGround(bx, bz) {
+                search: for r in 1...24 { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r && openGround(bx + dx, bz + dz) {
+                    pos.x = Float(bx + dx) + 0.5; pos.z = Float(bz + dz) + 0.5; break search
+                } } }
+            }
+            let up = Float(arg("--up") ?? "") ?? 0
+            pos.y = Float(world.topY(Int(floor(pos.x)), Int(floor(pos.z))) + 1) + up
+            game.player.pos = pos
+        }
+        if snapDim == .overworld && arg("--structure") == nil && !caveFind {
             // Stand on whatever is actually at the column (trees, overhangs), keeping --up.
             let up = Float(arg("--up") ?? "") ?? 0
             let ty = Float(world.topY(Int(floor(pos.x)), Int(floor(pos.z))) + 1)
             if ty + up > pos.y { pos.y = ty + up; game.player.pos = pos }
+        }
+        // Never render from inside solid blocks: move to the nearest two-high air pocket.
+        func solidAt(_ p: V3) -> Bool { Blocks.collide[Int(world.block(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))))] }
+        if solidAt(game.player.eye) || solidAt(game.player.pos + V3(0, 0.1, 0)) {
+            let b = IVec3(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z)))
+            var best: IVec3?
+            search: for r in 1...24 {
+                for dy in [0] + (1...r).flatMap({ [$0, -$0] }) { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz), abs(dy)) == r {
+                    let q = IVec3(b.x + dx, b.y + dy, b.z + dz)
+                    if !Blocks.collide[Int(world.block(q.x, q.y, q.z))] && !Blocks.collide[Int(world.block(q.x, q.y + 1, q.z))] { best = q; break search }
+                } } }
+            }
+            if let q = best {
+                print("camera in solid at \(b.x) \(b.y - YOFF) \(b.z): moved to \(q.x) \(q.y - YOFF) \(q.z)")
+                pos = V3(Float(q.x) + 0.5, Float(q.y), Float(q.z) + 0.5)
+                game.player.pos = pos
+            } else { print("camera in solid: no air pocket nearby") }
         }
         if snapDim == .nether {
             // Stand in the first open space above the lava sea.
@@ -693,13 +746,15 @@ enum Snapshot {
             print("swim pose: prone \(game.player.prone) eye \(game.player.eye.y - game.player.pos.y)")
         }
         _ = renderer.renderToPNG(path: out, width: w, height: h) // warm-up (pipeline + residency)
-        let gpu = renderer.renderToPNG(path: out, width: w, height: h)
+        _ = renderer.renderToPNG(path: out, width: w, height: h)
+        let gpu = renderer.medianFrame(30, width: w, height: h)
 
         print(String(format: "seed %llu  pos %.1f %.1f %.1f  rd %ld  chunks %ld  (drawn %ld)", seed, pos.x, pos.y, pos.z, rd, world.chunks.count, renderer.drawnChunks))
         print(String(format: "gen %.0f ms  mesh(all, parallel) %.0f ms  mesh(1 section) %.2f ms  quads %ld opaque / %ld water", t.gen * 1000, t.mesh * 1000, meshMs, quads, water))
-        print(String(format: "frame (encode+GPU, offscreen) %.2f ms  biome %@", gpu * 1000, "\(world.gen.column(Int(pos.x), Int(pos.z)).biome)"))
+        print(String(format: "frame (encode+GPU, offscreen, median of 30) %.2f ms  biome %@", gpu * 1000, "\(world.gen.column(Int(pos.x), Int(pos.z)).biome)"))
         var meshBytes = 0
         for c in world.chunks.values { for sec in c.sections { meshBytes += (sec.opaqueBuf?.length ?? 0) + (sec.transBuf?.length ?? 0) } }
+        print(String(format: "mesh slabs %.0f MB, chunks %ld", Double(MeshArena.shared.slabBytes) / 1_048_576, world.chunks.count))
         print(String(format: "memory: resident %.0f MB  (section meshes %.0f MB)", residentMB(), Double(meshBytes) / 1_048_576))
         print("wrote \(out)")
         return 0

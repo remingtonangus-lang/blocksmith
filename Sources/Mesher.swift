@@ -5,6 +5,7 @@ struct SectionMesh {
     var trans: [UInt32]
     var light: [UInt8]?     // 4096 values (sky << 4 | block) for the section, nil if not computed
     var vis: UInt64 = ~0    // face-to-face connectivity through open cells (bit a*6+b), for cave culling
+    var solidQuads = 0      // opaque = solid quads first (no alpha test: keeps the GPU's hidden-surface removal), then cutout
 }
 
 // Builds one 16x16x16 section. The 3x3 chunk neighbourhood (n9, index cx+cz*3, centre 4) and its
@@ -202,7 +203,11 @@ enum Mesher {
 
         var opq = [UInt32]()
         opq.reserveCapacity(8192)
+        var cut = [UInt32]()            // alpha-tested faces (leaves, plants, models), appended after the solid ones
         var trn = [UInt32]()
+        var curCut = false
+        let solidLayer = RenderLayer.opaque.rawValue
+        let leafT = Mesher.leafT
         let offs = [1, -1, RL, -RL, RW, -RW]
 
         func at(_ x: Int, _ y: Int, _ z: Int) -> BlockID { R[x + z * RW + y * RL] }
@@ -218,7 +223,7 @@ enum Mesher {
             let w0 = UInt32(x16) | (UInt32(y16) << 9) | (UInt32(z16) << 18) | (UInt32(shade) << 27) | (UInt32(tint) << 30)
             let w1 = UInt32(u) | (UInt32(v) << 5) | (UInt32(layer) << 10) | (UInt32(ao) << 20)
                 | (UInt32(l & 15) << 22) | (UInt32((l >> 4) & 15) << 26) | (overlay ? (1 << 30) : 0) | (UInt32((layer >> 10) & 1) << 31)
-            if trans { trn.append(w0); trn.append(w1) } else { opq.append(w0); opq.append(w1) }
+            if trans { trn.append(w0); trn.append(w1) } else if curCut { cut.append(w0); cut.append(w1) } else { opq.append(w0); opq.append(w1) }
         }
         // Water surface drop (eighths) at a corner: highest of the up-to-4 liquid cells sharing it.
         func cornerDrop(_ cx: Int, _ y: Int, _ cz: Int, _ kind: UInt8) -> Int {
@@ -257,6 +262,7 @@ enum Mesher {
                     let tintB = Int(tintT[bi])
                     let tintV = tintB == 3 ? 1 : tintB
                     let isTrans = layerT[bi] == translucent
+                    curCut = !(rt == rCube && layerT[bi] == solidLayer)
 
                     if lod > 0 && (rt == rCross || rt == rRail || rt == rWire) { continue }     // far: no small decorations
                     if rt == rCross {
@@ -394,6 +400,8 @@ enum Mesher {
                             if fkT[Int(nb)] == fk { continue }
                         } else if cullSameT[bi] && nb == b {
                             continue
+                        } else if lod > 0 && leafT[bi] && leafT[Int(nb)] {
+                            continue            // far: "fast" leaves, no faces inside the canopy
                         }
                         let nx = NT[f * 3], ny = NT[f * 3 + 1], nz = NT[f * 3 + 2]
                         let ax = x + nx, ay = y + ny, az = z + nz
@@ -432,7 +440,7 @@ enum Mesher {
                             let axis = f / 2
                             let lc = [lx, ly, lz]
                             let a = lc[(axis + 1) % 3], bb = lc[(axis + 2) % 3]
-                            let key = layer | (tintF << 11) | ((overlay ? 1 : 0) << 13) | (aos[0] << 14) | ((lit[0] & 255) << 16) | ((isTrans ? 1 : 0) << 24)
+                            let key = layer | (tintF << 11) | ((overlay ? 1 : 0) << 13) | (aos[0] << 14) | ((lit[0] & 255) << 16) | ((isTrans ? 1 : 0) << 24) | ((curCut ? 1 : 0) << 25)
                             mask[(f * 16 + lc[axis]) * 256 + a + bb * 16] = Int32(key + 1)
                             continue
                         }
@@ -472,6 +480,7 @@ enum Mesher {
                         let key = Int(k) - 1
                         let layer = key & 2047, tint = (key >> 11) & 3, overlay = (key >> 13) & 1 == 1
                         let ao = (key >> 14) & 3, l = (key >> 16) & 255, trans = (key >> 24) & 1 == 1
+                        curCut = (key >> 25) & 1 == 1
                         for c in 0..<4 {
                             let ci = (f * 4 + c) * 3
                             var p = [0, 0, 0]
@@ -485,8 +494,12 @@ enum Mesher {
                 }
             }
         }
-        return SectionMesh(opaque: opq, trans: trn, light: lightOut, vis: connectivity(R, opaqueT))
+        let solid = opq.count / 8
+        opq += cut
+        return SectionMesh(opaque: opq, trans: trn, light: lightOut, vis: connectivity(R, opaqueT), solidQuads: solid)
     }
+
+    static let leafT: [Bool] = (0..<Blocks.count).map { Blocks.key(BlockID($0)).hasSuffix("_leaves") }
 
     // Which section faces see each other through non-opaque cells (flood fill per open region).
     static func connectivity(_ R: [BlockID], _ opaqueT: [Bool]) -> UInt64 {

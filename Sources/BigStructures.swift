@@ -23,7 +23,7 @@ enum BigStructures {
             guard b.isDeepOcean else { return nil }
             // The 58x58 footprint must be ocean all round.
             for (dx, dz) in [(-29, -29), (29, -29), (-29, 29), (29, 29)] where !gen.column(x + dx, z + dz).biome.isOcean { return nil }
-            let y0 = SEA - 23
+            let y0 = SEA - 26
             return StructureStart(kind: "monument", pieces: [piece(x - 29, y0 - 4, z - 29, x + 29, SEA, z + 29) { w in buildMonument(&w, x, y0, z, seed) }],
                                   anchor: IVec3(x, y0 + 12, z - 8))
         }

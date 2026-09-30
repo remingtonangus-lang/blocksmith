@@ -73,7 +73,11 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     o.anim = face == 7u ? 1.0 : 0.0;
     // Skylight scales with daylight; block light (torches) is warm and constant.
     float sky = skyL * (0.35 + 0.65 * skyL) * u.params.y;
-    float blk = blkL / (4.0 - 3.0 * blkL) * 1.1;   // steep falloff: bright pool, dark edges
+    // Reference light curve (l / (4 - 3l)) with the default-brightness gamma lift, so a torch (14, -1 per
+    // block) clearly lights ~6-7 blocks around it. Block light is never scaled by daylight.
+    float blk0 = blkL / (4.0 - 3.0 * blkL);
+    float inv = 1.0 - blk0;
+    float blk = min(1.0, mix(blk0, 1.0 - inv * inv * inv * inv, 0.6) * 1.05);
     float3 lit = max(float3(sky), blk * float3(1.0, 0.76, 0.46));
     // Dimension ambient lifts the whole light curve (the Emberdeep/End are never pitch black).
     lit = mix(max(lit, float3(0.035)), float3(1.0), u.sunDir.w);
@@ -85,6 +89,16 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
 static float3 applyFog(float3 c, float dist, constant Uniforms& u) {
     float f = smoothstep(u.fogColor.w, u.params.x, dist);
     return mix(c, u.fogColor.rgb, f);
+}
+
+fragment float4 chunkSolidFS(ChunkOut in [[stage_in]],
+                             texture2d_array<float> tex [[texture(0)]],
+                             constant Uniforms& u [[buffer(1)]]) {
+    float2 uv = in.uv;
+    if (in.anim > 0.5) { uv += float2(0.0, fract(u.params.z * 0.04)); }
+    float4 c = tex.sample(texSampler, uv, uint(in.layer));
+    float3 t = (in.overlay > 0.5 && c.a > 0.95) ? float3(1.0) : in.tint;
+    return float4(applyFog(c.rgb * t * in.shade, in.dist, u), 1.0);
 }
 
 fragment float4 chunkFS(ChunkOut in [[stage_in]],

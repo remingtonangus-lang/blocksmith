@@ -32,6 +32,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     let queue: MTLCommandQueue
     let game: Game
     let chunkPipe: MTLRenderPipelineState
+    let chunkSolidPipe: MTLRenderPipelineState   // same as chunkPipe without the alpha test (keeps hidden-surface removal)
     let waterPipe: MTLRenderPipelineState
     let simplePipe: MTLRenderPipelineState
     let hudPipe: MTLRenderPipelineState
@@ -91,6 +92,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             return try device.makeRenderPipelineState(descriptor: d)
         }
         chunkPipe = try pipe("chunkVS", "chunkFS", blend: false)
+        chunkSolidPipe = try pipe("chunkVS", "chunkSolidFS", blend: false)
         waterPipe = try pipe("chunkVS", "waterFS", blend: true)
         simplePipe = try pipe("simpleVS", "simpleFS", blend: true)
         hudPipe = try pipe("hudVS", "hudFS", blend: true)
@@ -377,21 +379,28 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         func offset(_ c: Chunk, _ sy: Int) -> V4 { V4(Float(c.cx * CS) - eye.x, Float(sy * 16) - eye.y, Float(c.cz * CS) - eye.z, 0) }
 
-        enc.setRenderPipelineState(chunkPipe)
         enc.setDepthStencilState(depthWrite)
         enc.setCullMode(.back)
         enc.setFrontFacing(.counterClockwise)
         enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
         enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
-        for (c, sy, _) in visible {
-            let sec = c.sections[sy]
-            guard sec.opaqueQuads > 0, let buf = sec.opaqueBuf, let tb = c.tintBuf else { continue }
-            var o = offset(c, sy)
-            enc.setVertexBuffer(buf, offset: 0, index: 0)
-            enc.setVertexBytes(&o, length: 16, index: 2)
-            enc.setVertexBuffer(tb, offset: 0, index: 3)
-            enc.drawIndexedPrimitives(type: .triangle, indexCount: min(sec.opaqueQuads, Renderer.maxQuads) * 6,
-                                      indexType: .uint32, indexBuffer: quadIndices, indexBufferOffset: 0)
+        // Two passes, near to far: solid cube faces without alpha test first (the GPU can then reject
+        // hidden fragments before shading), then the alpha-tested cutout faces (leaves, plants, models).
+        for pass in 0..<2 {
+            enc.setRenderPipelineState(pass == 0 ? chunkSolidPipe : chunkPipe)
+            for (c, sy, _) in visible {
+                let sec = c.sections[sy]
+                guard sec.opaqueQuads > 0, let buf = sec.opaqueBuf, let tb = c.tintBuf else { continue }
+                let total = min(sec.opaqueQuads, Renderer.maxQuads), solid = min(sec.solidQuads, total)
+                let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
+                if count <= 0 { continue }
+                var o = offset(c, sy)
+                enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
+                enc.setVertexBytes(&o, length: 16, index: 2)
+                enc.setVertexBuffer(tb, offset: 0, index: 3)
+                enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6,
+                                          indexType: .uint32, indexBuffer: quadIndices, indexBufferOffset: first * 6 * 4)
+            }
         }
 
         // Mobs (written straight into the scratch ring: no per-frame arrays)
@@ -480,7 +489,9 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
 
         // Target block outline (the block's selection boxes)
-        if let t = game.target {
+        let pe = game.player.eye
+        let eyeCell = IVec3(Int(floor(pe.x)), Int(floor(pe.y)), Int(floor(pe.z)))
+        if let t = game.target, t.hit != eyeCell {   // never outline the block the camera is in
             let e: Float = 0.003
             let o = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) - eye
             var verts: [SimpleVert] = []
@@ -512,7 +523,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             let sec = c.sections[sy]
             guard sec.transQuads > 0, let buf = sec.transBuf, let tb = c.tintBuf else { continue }
             var o = offset(c, sy)
-            enc.setVertexBuffer(buf, offset: 0, index: 0)
+            enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
             enc.setVertexBytes(&o, length: 16, index: 2)
             enc.setVertexBuffer(tb, offset: 0, index: 3)
             enc.drawIndexedPrimitives(type: .triangle, indexCount: min(sec.transQuads, Renderer.maxQuads) * 6,
@@ -1437,6 +1448,36 @@ final class Renderer: NSObject, MTKViewDelegate {
     }
 
     // MARK: Headless snapshot
+
+    // Harness timing: median of n offscreen frames (encode + GPU), no readback.
+    func medianFrame(_ n: Int, width: Int, height: Int) -> Double {
+        let cd = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm, width: width, height: height, mipmapped: false)
+        cd.usage = [.renderTarget]; cd.storageMode = .private
+        let dd = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .depth32Float, width: width, height: height, mipmapped: false)
+        dd.usage = .renderTarget; dd.storageMode = .private
+        guard let color = device.makeTexture(descriptor: cd), let depth = device.makeTexture(descriptor: dd) else { return 0 }
+        let rpd = MTLRenderPassDescriptor()
+        rpd.colorAttachments[0].texture = color
+        rpd.colorAttachments[0].loadAction = .clear
+        rpd.colorAttachments[0].storeAction = .dontCare
+        rpd.depthAttachment.texture = depth
+        rpd.depthAttachment.loadAction = .clear
+        rpd.depthAttachment.storeAction = .dontCare
+        rpd.depthAttachment.clearDepth = 1
+        var times: [Double] = []
+        for _ in 0..<n {
+            let t0 = CFAbsoluteTimeGetCurrent()
+            let cmd = queue.makeCommandBuffer()!
+            let enc = cmd.makeRenderCommandEncoder(descriptor: rpd)!
+            encode(enc, width: Float(width), height: Float(height))
+            enc.endEncoding()
+            cmd.commit()
+            cmd.waitUntilCompleted()
+            times.append(CFAbsoluteTimeGetCurrent() - t0)
+        }
+        times.sort()
+        return times.isEmpty ? 0 : times[times.count / 2]
+    }
 
     func renderToPNG(path: String, width: Int, height: Int) -> Double {
         let cd = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm, width: width, height: height, mipmapped: false)

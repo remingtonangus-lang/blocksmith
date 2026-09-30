@@ -293,9 +293,9 @@ final class World {
         apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod), to: c, sy: sy, version: c.sections[sy].version)
     }
 
-    private func makeBuffer(_ words: [UInt32]) -> MTLBuffer? {
+    private func makeBuffer(_ words: [UInt32]) -> MeshSlice? {
         if words.isEmpty { return nil }
-        return words.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: $0.count, options: .storageModeShared) }
+        return words.withUnsafeBytes { MeshArena.shared.alloc(device, $0) }
     }
 
     private func apply(_ m: SectionMesh, to c: Chunk, sy: Int, version: Int) {
@@ -308,6 +308,7 @@ final class World {
         guard version == s.version else { return }
         s.opaqueBuf = makeBuffer(m.opaque)
         s.opaqueQuads = m.opaque.count / 8
+        s.solidQuads = m.solidQuads
         s.transBuf = makeBuffer(m.trans)
         s.transQuads = m.trans.count / 8
         s.meshedVersion = version

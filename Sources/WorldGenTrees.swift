@@ -72,6 +72,15 @@ enum TreePlacer {
     static func place(_ b: inout [BlockID], _ cx: Int, _ cz: Int, gen: WorldGen, top: (Int, Int, Int) -> Int?) {
         let bx = cx * CS, bz = cz * CS
         let cell = 3, margin = 7
+        // Surface structure footprints (plus a margin): no trees growing through manors, outposts, temples...
+        var keepOut: [(IVec3, IVec3)] = []
+        if let sc = gen.structures {
+            for t in sc.types { for st in sc.startsNear(cx: cx, cz: cz, t) { keepOut.append((st.min, st.max)) } }
+            for st in sc.fixed where st.max.x >= bx - 16 && st.min.x < bx + CS + 16 && st.max.z >= bz - 16 && st.min.z < bz + CS + 16 { keepOut.append((st.min, st.max)) }
+        }
+        func blocked(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+            keepOut.contains { mn, mx in x >= mn.x - 4 && x <= mx.x + 4 && z >= mn.z - 4 && z <= mx.z + 4 && y + 14 >= mn.y && y - 2 <= mx.y }
+        }
         b.withUnsafeMutableBufferPointer { buf in
             let w = TreeWriter(b: buf.baseAddress!, bx: bx, bz: bz)
             for gz in floorDiv(bz - margin, cell)...floorDiv(bz + CS - 1 + margin, cell) {
@@ -86,6 +95,7 @@ enum TreePlacer {
                     let pick = hashf(tx, 1, tz, gen.s32 ^ 0x7EE6)
                     let hint = YOFF + Int(s.h) + 30
                     guard let kind = choose(biome, roll, pick, YOFF + Int(s.h)), let gy = top(tx, tz, hint), gy >= SEA else { continue }
+                    if !keepOut.isEmpty && blocked(tx, gy, tz) { continue }
                     // Soil check where we can see it (inside this chunk).
                     if w.inside(tx, gy, tz) {
                         let soil = Blocks.key(w.get(tx, gy, tz))
@@ -457,7 +467,7 @@ extension WorldGen {
             if biome == .paleGarden {
                 if h > 0.985 { b[above] = g("closed_eyeblossom"); continue }
                 let patch = flora.noise2(Float(wx) / 9 + 300, Float(wz) / 9 + 300)
-                if patch > 0.1 { b[i] = g("pale_moss_block"); if h2 < 0.45 { b[above] = g("pale_moss_carpet") }; continue }
+                if patch > 0.25 { b[i] = g("pale_moss_block"); if h2 < 0.45 { b[above] = g("pale_moss_carpet") }; continue }
             }
             if h > 0.9993 && ground == GRASS { b[above] = g("pumpkin"); continue }
             if h < flowerP {
