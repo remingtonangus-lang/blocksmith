@@ -7,6 +7,10 @@ cd "$(dirname "$0")"
 BIN=build/Blocksmith.app/Contents/MacOS/Blocksmith
 mkdir -p snaps
 if [ $# -gt 0 ]; then n="$1"; shift; "$BIN" --snapshot "snaps/$n.png" "$@"; exit; fi
+# Full run: a failing shot or test is recorded and the rest still run; the script fails at the end.
+set +e
+FAILED=()
+trap 'rc=$?; FAILED+=("$LINENO"); echo "snap.sh: line $LINENO: failed (exit $rc)"' ERR
 "$BIN" --snapshot snaps/spawn.png   --seed 12345 --yaw 30  --pitch -12 --time 0.2
 "$BIN" --snapshot snaps/aerial.png  --seed 12345 --yaw 200 --pitch -35 --time 0.25 --up 45 --rd 12
 "$BIN" --snapshot snaps/aerial16.png --seed 12345 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16
@@ -155,3 +159,8 @@ cp -r build/sounds/scapes snaps/sounds/scapes
 "$BIN" --snapshot snaps/seabed_deep.png --seed 12345 --find deep_ocean --up -12 --pitch -20 --time 0.3
 "$BIN" --snapshot snaps/cave_torches.png --seed 12345 --find dripstone_caves --yaw 60 --pitch -25 --time 0.3 --torches
 "$BIN" --snapshot snaps/selftest.png --seed 12345 --find plains --yaw 30 --pitch 10 --time 0.3 --up 1 --selftest
+trap - ERR
+if [ ${#FAILED[@]} -gt 0 ]; then
+  echo "snap.sh: ${#FAILED[@]} failing line(s): ${FAILED[*]}"
+  exit 1
+fi
