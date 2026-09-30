@@ -566,7 +566,8 @@ final class Renderer: NSObject, MTKViewDelegate {
             if m is CraftingTableMenu { rect(o.x + 90 * s, o.y + 33 * s, 22 * s, 6 * s, V4(0.55, 0.55, 0.55, 1)) }
             for sl in m.slots {
                 let x = o.x + Float(sl.x - 1) * s, y = o.y + Float(sl.y - 1) * s
-                let big: Float = { if case .result = sl.kind { return 4 } else if case .output = sl.kind { return 4 } else { return 0 } }()
+                let bigSlot = (m is CraftingTableMenu || m is FurnaceMenu) && { if case .result = sl.kind { return true } else if case .output = sl.kind { return true } else { return false } }()
+                let big: Float = bigSlot ? 4 : 0
                 let bx = x - big * s, by = y - big * s, bs = (18 + 2 * big) * s
                 rect(bx, by, bs, bs, V4(0.216, 0.216, 0.216, 1))
                 rect(bx + s, by + s, bs - s, bs - s, V4(1, 1, 1, 1))

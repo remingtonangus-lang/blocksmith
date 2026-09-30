@@ -270,7 +270,7 @@ final class CraftingGrid {
 final class InventoryMenu: Menu {
     let craft = CraftingGrid(2)
     init(game: Game) {
-        super.init("Crafting", game: game)
+        super.init("", game: game)
         for i in 0..<4 { slots.append(MenuSlot(8, 8 + i * 18, game.inventory.armor, i, .armor(ArmorSlot(rawValue: i)!))) }
         slots.append(MenuSlot(77, 62, game.inventory.offhand, 0))
         for r in 0..<2 { for c in 0..<2 { slots.append(MenuSlot(98 + c * 18, 18 + r * 18, craft.grid, c + r * 2)) } }

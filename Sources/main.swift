@@ -88,6 +88,7 @@ enum Snapshot {
             game.menuHover = game.menu?.slots[12]
             game.input.mouseX = -1
         }
+        var t = world.loadSync(center: pos, radius: rd)
         if CommandLine.arguments.contains("--drops") {
             // A few dropped items and a half-broken block in front of the camera.
             let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
@@ -102,7 +103,6 @@ enum Snapshot {
             game.mineProgress = 0.55
         }
 
-        var t = world.loadSync(center: pos, radius: rd)
         if CommandLine.arguments.contains("--flood") {
             // Fluid test: a spring on the ground and one hanging in the air, then simulate 12 s of flow.
             let bx = Int(floor(pos.x)), bz = Int(floor(pos.z)) - 8
