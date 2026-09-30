@@ -149,13 +149,13 @@ enum PathFinder {
 extension Mob {
     // Called after the AI picked a walk target (via face) and a positive speed: turn towards the next
     // waypoint of a path to it instead of the target itself.
-    func steerAlongPath(_ target: V3, _ dt: Float, _ w: World) {
+    func steerAlongPath(_ target: V3, _ dt: Float, _ w: World, repath: Bool) {
         path.timer -= dt
         let dx = target.x - pos.x, dz = target.z - pos.z
         if dx * dx + dz * dz < 2.25 && abs(target.y - pos.y) < 1.2 { path.nodes.removeAll(keepingCapacity: true); return }
         let moved = simd_length(target - path.goal) > 1.5
         let done = path.index >= path.nodes.count
-        if path.timer <= 0 && (moved || done || path.timer < -3) && PathFinder.budget > 0 {
+        if repath && path.timer <= 0 && (moved || done || path.timer < -3) && PathFinder.budget > 0 {
             PathFinder.budget -= 1
             path.timer = Float.random(in: 0.7...1.3)
             path.goal = target
@@ -165,7 +165,13 @@ extension Mob {
         while path.index < path.nodes.count {
             let n = path.nodes[path.index]
             let cx = Float(n.x) + 0.5 - pos.x, cz = Float(n.z) + 0.5 - pos.z
-            let near: Float = path.index + 1 < path.nodes.count && path.nodes[path.index + 1].y == n.y ? 0.6 : 0.35
+            // Cut ahead early only on straight runs; at turns walk to the cell centre so the body clears corners.
+            var straight = false
+            if path.index + 1 < path.nodes.count && path.index > 0 {
+                let a = path.nodes[path.index - 1], b = path.nodes[path.index + 1]
+                straight = b.y == n.y && a.y == n.y && b.x - n.x == n.x - a.x && b.z - n.z == n.z - a.z
+            }
+            let near: Float = straight ? 0.6 : 0.2
             if cx * cx + cz * cz < near * near && abs(Float(n.y) - pos.y) < 1.2 { path.index += 1 } else { break }
         }
         guard path.index < path.nodes.count else { return }
