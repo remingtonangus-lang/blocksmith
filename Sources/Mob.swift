@@ -318,6 +318,9 @@ final class Mob {
     var driven: Float = 0           // mount steered by its rider this long
     var driveSpeed: Float = 0
     var driveYaw: Float = 0
+    var lockTime: Float = 0         // remembers the player this long after last seeing them (MobAI.swift)
+    var sightTimer: Float = Float.random(in: 0...0.5)
+    var wasHit = false              // hit since the last update (pack rally)
 
     init(_ kind: MobKind, at p: V3) {
         self.kind = kind
@@ -422,10 +425,18 @@ final class Mob {
         let toPlayer = player - pos
         let dist = simd_length(toPlayer)
         // Invisible players are only noticed up close.
-        let canTarget = g.survival && g.alive && dist < (g.effects.has(.invisibility) ? 7 : 24)
+        let canTarget = senseTarget(g, dist: dist, dt)
         var speed: Float = 0
+        if wasHit { wasHit = false; rallyPack(g) }
+        let fleeFrom = panic > 0 ? nil : threat(g)
 
         switch spec.behavior {
+        case _ where fleeFrom != nil:
+            // Avoid-entity goal: walk away from the threat (and never attack while fleeing).
+            face(pos * 2 - fleeFrom!)
+            moving = true
+            speed = spec.speed * 1.25
+            fuse = max(0, fuse - dt)
         case .passive:
             // Follow a player holding breeding food; seek a mate when in love.
             if let food = MobManager.breedFood[kind], dist < 8, food.contains(Items.key(g.held.item)), !baby {
@@ -433,6 +444,8 @@ final class Mob {
             } else if inLove > 0, let mate = g.mobs.mobs.first(where: { $0 !== self && $0.kind == kind && $0.inLove > 0 && simd_length($0.pos - pos) < 8 }) {
                 face(mate.pos)
                 speed = simd_length(mate.pos - pos) > 1.2 ? spec.speed : 0
+            } else if panic <= 0 && followParent(g) {
+                speed = spec.speed
             } else {
                 wander()
                 speed = moving ? (panic > 0 ? (kind == .chicken ? 2.4 : 2.8) : spec.speed) : 0
@@ -651,7 +664,8 @@ final class Mob {
         case .creeper:
             if canTarget {
                 face(player)
-                if dist < 3 {
+                // Reference swell goal: starts within 3 blocks, keeps swelling until the target is 7+ away.
+                if dist < 3 || (fuse > 0 && dist < 7) {
                     if fuse == 0 { g.sfx(.creeperHiss, 1, at: pos) }
                     fuse += dt
                     speed = 0
@@ -870,6 +884,8 @@ final class Mob {
         if kind == .armorStand { return }
         if spec.behavior == .passive { panic = 5; aiTimer = 0 }
         aggro = true
+        lockTime = max(lockTime, 10)
+        wasHit = true
         admire = 0
         if spec.flying { vel += V3(0, 1, 0); return }
         if kind == .enderman && Float.random(in: 0..<1) < 0.5 { return }

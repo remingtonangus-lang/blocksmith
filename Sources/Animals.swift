@@ -215,6 +215,7 @@ extension Mob {
             if age > 2400 { health = -2000 }
         default: break
         }
+        if panic <= 0 && followParent(g) { return spec.speed * 0.8 }
         wander()
         let base = spec.speed * (panic > 0 ? 1.8 : 0.6)
         return moving ? base : 0

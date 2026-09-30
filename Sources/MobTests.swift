@@ -257,6 +257,7 @@ enum MobTests {
         func chase(_ kind: MobKind, _ from: V3, _ to: V3, seconds: Float) -> (Float, Float) {
             let m = Mob(kind, at: from)
             m.persistent = true
+            m.lockTime = 60
             game.mobs.mobs.removeAll()
             game.mobs.mobs.append(m)
             var reached: Float = -1
