@@ -11,7 +11,7 @@ enum Snapshot {
     static func findBiome(_ gen: TerrainGenerator, _ want: String) -> V3? {
         var x = 0, z = 0, dx = 0, dz = -1
         // Cave biomes live underground: match their climate rule (WorldGen.decorateCaves) instead.
-        let cave: ((Climate) -> Bool)? = {
+        let cave: ((WorldGen.Climate) -> Bool)? = {
             switch want {
             case "lush_caves": return { $0.h > 0.55 }
             case "dripstone_caves": return { $0.c > 0.75 }
@@ -775,6 +775,10 @@ if let dir = arg("--sounds") {
     }
     print(String(format: "synthesized %ld sounds (%.1f s of audio) in %.0f ms", SoundBank.allSounds.count, Double(total) / SoundBank.rate, (CFAbsoluteTimeGetCurrent() - t0) * 1000))
     exit(0)
+}
+
+if let out = arg("--bench") {
+    exit(Bench.run(out))
 }
 
 if let out = arg("--snapshot") {

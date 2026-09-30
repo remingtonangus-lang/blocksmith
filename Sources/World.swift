@@ -42,6 +42,21 @@ final class World {
     private(set) var meshedCount = 0
     var pendingJobs: Int { jobs }
 
+    // Perf counters (--bench, F3). Worker totals are updated under `lock`; updateSeconds is the last
+    // update() call on the main thread.
+    struct PerfStats {
+        var genChunks = 0, genSeconds = 0.0
+        var meshJobs = 0, meshSections = 0, meshSeconds = 0.0
+        var updateSeconds = 0.0
+    }
+    private var perfShared = PerfStats()
+    private var lastUpdateSeconds = 0.0
+    var perf: PerfStats {
+        lock.lock(); var p = perfShared; lock.unlock()
+        p.updateSeconds = lastUpdateSeconds
+        return p
+    }
+
     init(seed: UInt64, device: MTLDevice, save: SaveManager?, dim: Dim = .overworld) {
         self.seed = seed
         self.dim = dim
@@ -327,6 +342,8 @@ final class World {
     // MARK: Streaming (call once per frame)
 
     func update(center pos: V3) {
+        let tUpdate = CFAbsoluteTimeGetCurrent()
+        defer { lastUpdateSeconds = CFAbsoluteTimeGetCurrent() - tUpdate }
         let center = ChunkKey(x: floorDiv(Int(floor(pos.x)), CS), z: floorDiv(Int(floor(pos.z)), CS))
 
         lock.lock()
@@ -386,17 +403,27 @@ final class World {
                     c.meshInFlight = true
                     jobs += 1
                     workQueue.async { [self] in
+                        let t0 = CFAbsoluteTimeGetCurrent()
                         var out: [(Int, Int, SectionMesh)] = []
                         for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod))) }
-                        lock.lock(); meshResults.append((k, out)); lock.unlock()
+                        let el = CFAbsoluteTimeGetCurrent() - t0
+                        lock.lock()
+                        meshResults.append((k, out))
+                        perfShared.meshJobs += 1; perfShared.meshSections += todo.count; perfShared.meshSeconds += el
+                        lock.unlock()
                     }
                 }
             } else if jobs < maxJobs && !genInFlight.contains(k) {
                 genInFlight.insert(k)
                 jobs += 1
                 workQueue.async { [self] in
+                    let t0 = CFAbsoluteTimeGetCurrent()
                     let r = produce(k)
-                    lock.lock(); genResults.append((k, r)); lock.unlock()
+                    let el = CFAbsoluteTimeGetCurrent() - t0
+                    lock.lock()
+                    genResults.append((k, r))
+                    perfShared.genChunks += 1; perfShared.genSeconds += el
+                    lock.unlock()
                 }
             }
         }
