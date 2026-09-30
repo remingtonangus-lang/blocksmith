@@ -312,6 +312,7 @@ final class Mob {
     var captain = false             // raid / patrol captain (banner)
     var jobTimer: Float = Float.random(in: 0...5)
     var giftTimer: Float = 0        // villager: seconds until it may throw the Village Hero another gift
+    var breaksDoors = false         // zombie able to break wooden doors on Hard (reference: 10% x regional difficulty)
 
     init(_ kind: MobKind, at p: V3) {
         self.kind = kind
@@ -366,6 +367,7 @@ final class Mob {
         let w = g.world
         guard w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) else { return }
         faceGoal = nil
+        path.climbUp = false
         hurt = max(0, hurt - dt)
         panic = max(0, panic - dt)
         callTimer -= dt
@@ -747,6 +749,19 @@ final class Mob {
             vel.y = max(vel.y, -40)
         }
 
+        // Ladders and vines: climb when the path leads up (centred on the rung), slow slide otherwise.
+        let lx = Int(floor(pos.x)), lz = Int(floor(pos.z))
+        let onLadder = !spec.flying && (PathFinder.climbable(w.block(lx, Int(floor(pos.y)), lz)) || PathFinder.climbable(w.block(lx, Int(floor(pos.y + 1)), lz)))
+        if onLadder {
+            if path.climbUp {
+                vel.y = 2.35
+                vel.x = (Float(lx) + 0.5 - pos.x) * 4
+                vel.z = (Float(lz) + 0.5 - pos.z) * 4
+            } else {
+                vel.y = max(vel.y, -3)
+            }
+        }
+
         let before = pos
         let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: 0.6, onGround: onGround)
         if self === Mob.trace {
@@ -759,7 +774,8 @@ final class Mob {
         if hit.z { vel.z = 0; bumped = true }
         onGround = landed || (vel.y <= 0 && collides(pos - V3(0, 0.06, 0), w))
         if bumped && speed != 0 {
-            if kind == .spider { vel.y = 3.5 }                            // climbs walls
+            if kind == .spider || kind == .caveSpider { vel.y = 3.5 }     // climbs walls
+            else if onLadder { vel.y = 2.35 }
             else if onGround && spec.behavior != .slime { vel.y = 7.4 }  // hop up one block
         }
         if pos.y < -10 { health = 0 }
@@ -1562,6 +1578,7 @@ final class MobManager {
         let m = Mob(kind, at: spawnPos)
         if kind == .zombie && Float.random(in: 0..<1) < 0.05 { m.baby = true; m.scale = 0.5 }
         m.rollEquipment(difficulty: game.difficulty, regional: game.regionalDifficulty)
+        m.breaksDoors = m.isZombie && kind != .drowned && Float.random(in: 0..<1) < game.regionalDifficulty * 0.1
         if m.collides(spawnPos, w) { return }
         mobs.append(m)
     }
