@@ -211,6 +211,12 @@ extension Mob {
                 if let f = flyTarget { let d = f - pos; vel += (d * 0.4 - vel) * min(1, dt * 2) }
             }
             return 0
+        case .traderLlama:
+            // Follows its wandering trader and leaves with it.
+            if let t = target {
+                if t.health <= 0 { health = -2000; return 0 }
+                if simd_length(t.pos - pos) > 4 { face(t.pos); moving = true; return spec.speed }
+            }
         case .wanderingTrader:
             // Leaves after 40-60 minutes (despawn timer); drinks invisibility at night.
             age += dt

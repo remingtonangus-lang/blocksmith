@@ -21,6 +21,7 @@ enum MobTests {
         pathScenarios(game: game, world: world, pos: pos)
         spawnRules(game: game, world: world, pos: pos)
         villagerRules(game: game, world: world, pos: pos)
+        conversions(game: game, world: world, pos: pos)
         print(String(format: "mobtests: %ld failed (%.1f s)%@", failures.count, CFAbsoluteTimeGetCurrent() - t0,
                      failures.isEmpty ? "" : " -> " + failures.joined(separator: ", ")))
         game.player.pos = pos
@@ -431,6 +432,59 @@ enum MobTests {
         for m in sleepless { m.sleptAt = -1e9 }
         sleepless[0].spawnGolemIfNeeded(game, needed: 5)
         check(mm.mobs.filter { $0.kind == .ironGolem }.count == before, "golem needs villagers that slept")
+        mm.mobs.removeAll()
+    }
+
+    // MARK: Conversions and special spawners
+
+    static func conversions(game: Game, world: World, pos: V3) {
+        let mm = game.mobs
+        mm.mobs.removeAll()
+        var top = 0
+        let x0 = Int(floor(pos.x)), z0 = Int(floor(pos.z))
+        for x in stride(from: x0 + 20, through: x0 + 40, by: 4) { for z in stride(from: z0 + 20, through: z0 + 40, by: 4) { top = max(top, world.topY(x, z)) } }
+        let a = Arena(w: world, cx: x0 + 30, cz: z0 + 30, gy: min(CH - 24, top + 14))
+        a.clear()
+        a.fill(-2, 0, -2, 2, 3, 2, WATER)
+        func run(_ m: Mob, seconds: Float) -> MobKind? {
+            mm.mobs.append(m)
+            var t: Float = 0
+            while t < seconds {
+                t += 0.05
+                m.pos = V3(m.pos.x, min(m.pos.y, a.p(0, 0, 0).y + 0.1), m.pos.z)      // held under water
+                if m.conversionTick(0.05, game) { return mm.mobs.last?.kind }
+            }
+            return nil
+        }
+        let z = Mob(.zombie, at: a.p(0, 0, 0))
+        let zt = run(z, seconds: 50)
+        check(zt == .drowned, "convert zombie -> sunken after 45 s under water", "\(zt.map { $0.key } ?? "none")")
+        let h = Mob(.husk, at: a.p(0, 0, 0))
+        check(run(h, seconds: 50) == .zombie, "convert dust zombie -> zombie under water")
+        let dry = Mob(.zombie, at: a.p(6, 0, 6))
+        check(run(dry, seconds: 50) == nil, "convert no change out of water")
+        let p = Mob(.piglin, at: a.p(6, 0, -6))
+        check(run(p, seconds: 16) == .zombifiedPiglin, "convert boarling out of the Emberdeep")
+        let hog = Mob(.hoglin, at: a.p(-6, 0, -6))
+        check(run(hog, seconds: 16) == .zoglin, "convert tusker -> rot tusker")
+        let tad = Mob(.tadpole, at: a.p(0, 0, 0)); tad.convertTime = 1199.9
+        check(run(tad, seconds: 1) == .frog, "convert tadpole grows into a frog")
+        mm.mobs.removeAll()
+
+        // Skeleton trap: springs within 10 blocks into four skeleton horsemen.
+        let trap = Mob(.skeletonHorse, at: a.p(-6, 0, 6)); trap.trap = true
+        mm.mobs.append(trap)
+        game.player.pos = a.p(-6, 0, 12)
+        trap.trapTick(game)
+        let riders = mm.mobs.filter { $0.kind == .skeleton && $0.mount?.kind == .skeletonHorse }.count
+        check(riders == 4 && mm.mobs.filter { $0.kind == .skeletonHorse }.count == 4, "skeleton trap: four horsemen", "\(riders) riders")
+        mm.mobs.removeAll()
+        game.player.pos = pos
+
+        // Wandering trader with two llamas.
+        game.spawnWanderingTrader()
+        let traders = mm.mobs.filter { $0.kind == .wanderingTrader }.count, llamas = mm.mobs.filter { $0.kind == .traderLlama }.count
+        check(traders == 1 && llamas >= 1, "wandering trader arrives with llamas", "\(traders) trader, \(llamas) llamas")
         mm.mobs.removeAll()
     }
 }

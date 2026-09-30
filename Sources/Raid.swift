@@ -230,6 +230,7 @@ extension Game {
     // patrol 24-47 blocks from the player along each axis (never next to a village or in mushroom
     // fields). Size = ceil(effective regional difficulty) + 1; the first one is the captain.
     func patrolTick(_ dt: Float) {
+        specialSpawnersTick(dt)
         guard survival, difficulty > 0, dim.dim == .overworld, time / DAY_LENGTH >= 5 else { return }
         patrolTimer -= dt
         guard patrolTimer <= 0 else { return }

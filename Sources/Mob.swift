@@ -325,6 +325,9 @@ final class Mob {
     var lockTime: Float = 0         // remembers the player this long after last seeing them (MobAI.swift)
     var sightTimer: Float = Float.random(in: 0...0.5)
     var wasHit = false              // hit since the last update (pack rally)
+    var convertTime: Float = 0      // drowning zombie / freezing skeleton / boarling out of the Emberdeep / tadpole (Conversions.swift)
+    var reinforceChance = Float.random(in: 0..<0.1)
+    var trap = false                // skeleton trap horse
     var sleptAt: Double = -1e9      // villager: game time it last slept (golem summoning needs sleep within a day)
     var golemSeenAt: Double = -1e9  // villager: last saw an iron golem
     var gossipCooldown: Float = 0
@@ -429,6 +432,8 @@ final class Mob {
             if effects?.has(.fireResistance) ?? false { fire = 0 }
         }
         effectTick(dt, g)
+        if conversionTick(dt, g) { return }
+        if trap { trapTick(g) }
         if spec.aquatic { updateAquatic(dt, g, inWater: inWater); return }
 
         let player = g.player.pos

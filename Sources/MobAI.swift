@@ -115,6 +115,7 @@ extension Mob {
             for o in g.mobs.mobs where o !== self && o.kind == .wolf && !o.tamed && simd_length(o.pos - pos) < 16 { o.aggro = true; o.lockTime = 10 }
         }
         if kind == .zombifiedPiglin { provoke(g) }
+        callReinforcement(g)
     }
 
     // Mirage caster (reference illusioner): every 9 s either blinds its target for 20 s or, when the
