@@ -83,6 +83,12 @@ extension Game {
             }
         case "nether_wart":
             if stage < 3 && Int.random(in: 0..<10) == 0 { world.setBlock(p.x, p.y, p.z, b + 1) }
+        case "sugar_cane":
+            // Grows to 3 tall, one block per ~16 random ticks.
+            guard world.block(p.x, p.y + 1, p.z) == AIR, Int.random(in: 0..<16) == 0 else { return }
+            var h = 1
+            while h < 3 && world.block(p.x, p.y - h, p.z) == b { h += 1 }
+            if h < 3 { world.setBlock(p.x, p.y + 1, p.z, b) }
         case "oak_sapling", "birch_sapling", "spruce_sapling":
             let l = world.lightAt(p.x, p.y + 1, p.z)
             if max(l.sky, l.block) >= 9 && Int.random(in: 0..<7) == 0 { growTree(p, key) }

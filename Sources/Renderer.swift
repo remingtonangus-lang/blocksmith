@@ -348,6 +348,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.drops.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight, time: Float(game.clock))
                 game.projectiles.write(&wr, eye: eye, world: game.world, daylight: daylight)
                 game.tnts.write(&wr, eye: eye, world: game.world, daylight: daylight)
+                game.writeEndEntities(&wr, eye: eye, right: right, up: -up)
                 game.particles.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight)
                 let nItems = wr.n
                 if let m = game.mining, game.mineProgress > 0 {
@@ -582,6 +583,30 @@ final class Renderer: NSObject, MTKViewDelegate {
                 quad([V2(Float(i) * w, H - hh), V2(Float(i + 1) * w, H - hh), V2(Float(i + 1) * w, H), V2(Float(i) * w, H)],
                      [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)], V4(1, 1, 1, 0.85), fireLayer)
             }
+        }
+
+        if let c = game.credits {
+            // Credits: black screen, lines scrolling up from the bottom.
+            rect(0, 0, W, H, V4(0, 0, 0, 1))
+            let lineH = 14 * s
+            let y0 = H + 20 - c * lineH / 1.4
+            for (i, line) in Game.creditsLines.enumerated() {
+                let y = y0 + Float(i) * lineH
+                if y < -lineH || y > H { continue }
+                let big = i == 0
+                let sc = big ? s * 2 : s
+                let col = big ? V4(0.95, 0.85, 0.4, 1) : V4(0.9, 0.9, 0.9, 1)
+                text(line, (W - textWidth(line, sc)) / 2, y, sc, col)
+            }
+            return v
+        }
+        if let d = game.mobs.mobs.first(where: { $0.kind == .enderDragon }), game.menu == nil {
+            // Boss bar.
+            let bw = 182 * s, bx = (W - bw) / 2, by = 12 * s
+            let name = "Ender Dragon"
+            text(name, (W - textWidth(name, s)) / 2, by - 9 * s, s)
+            rect(bx, by, bw, 5 * s, V4(0.25, 0.05, 0.3, 1))
+            rect(bx, by, bw * max(0, Float(d.health)) / 200, 5 * s, V4(0.9, 0.3, 0.95, 1))
         }
 
         func frame(_ x: Float, _ y: Float, _ w: Float, _ h: Float, _ b: Float, _ c: V4) {

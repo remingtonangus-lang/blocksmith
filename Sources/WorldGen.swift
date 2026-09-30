@@ -23,7 +23,9 @@ final class WorldGen: TerrainGenerator {
         cave2 = Noise(seed: seed &+ 8)
         cave3 = Noise(seed: seed &+ 9)
         flora = Noise(seed: seed &+ 10)
+        structures = StructureCache(seed: seed, types: [], fixed: Stronghold.starts(seed: seed))
     }
+    let structures: StructureCache?
 
     func column(_ x: Int, _ z: Int) -> (height: Int, biome: Biome) {
         let fx = Float(x), fz = Float(z)

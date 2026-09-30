@@ -22,6 +22,9 @@ struct WorldMeta: Codable {
     var health: Int?
     var hunger: Int?
     var saturation: Float?
+    var dragonKilled: Bool? = nil
+    var gateways: Int? = nil       // end gateways opened (one per dragon kill, up to 20)
+    var seenCredits: Bool? = nil
 }
 
 // Layout: ~/Library/Application Support/Blocksmith/Worlds/<name>/

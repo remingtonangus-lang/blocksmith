@@ -575,6 +575,82 @@ enum TextureGen {
             if r(x, y, 215) < 0.08 { return hex(0xC8C088) }
             return hex(0xDDDFA5, 0.9 + 0.12 * r(x, y, 216))
         }
+        p["end_stone_bricks"] = { x, y in
+            let row = y / 4
+            if y % 4 == 3 || (x + (row % 2) * 4) % 8 == 7 { return hex(0xB9B77E) }
+            return hex(0xE2E4AE, 0.93 + 0.1 * r(x, y, 217))
+        }
+        p["purpur_block"] = { x, y in
+            if x % 8 == 0 || y % 8 == 0 { return hex(0x8A5E8A) }
+            return hex(0xA97BA9, 0.92 + 0.12 * r(x, y, 218))
+        }
+        p["purpur_pillar"] = { x, y in hex(x % 4 == 0 ? 0x8E628E : 0xAB7FAB, 0.93 + 0.1 * r(x, y / 4, 219)) }
+        p["purpur_pillar_top"] = { x, y in
+            let dx = abs(Float(x) - 7.5), dy = abs(Float(y) - 7.5)
+            return hex(Int(max(dx, dy)) % 3 == 0 ? 0x8E628E : 0xAB7FAB, 0.95 + 0.08 * r(x, y, 220))
+        }
+        let stoneBricks = p["stone_bricks"]!
+        p["mossy_stone_bricks"] = { x, y in
+            r(x / 2, y / 2, 221) < 0.35 + 0.2 * Float(y) / 15 ? hex(0x5A7A3A, 0.85 + 0.25 * r(x, y, 222)) : stoneBricks(x, y)
+        }
+        p["cracked_stone_bricks"] = { x, y in
+            if (x == 3 + y / 2 && y < 10) || (x == 12 - (y - 6) / 3 && y > 6) { return hex(0x3E3E3E) }
+            return stoneBricks(x, y)
+        }
+        p["chiseled_stone_bricks"] = { x, y in
+            let dx = abs(Float(x) - 7.5), dy = abs(Float(y) - 7.5)
+            if x == 0 || y == 0 || x == 15 || y == 15 { return hex(0x525252) }
+            let m = max(dx, dy)
+            if (m > 5.5 && m < 6.5) || (m < 2.5 && m > 1.5) { return hex(0x5E5E5E) }
+            return hex(0x7A7A7A, 0.95 + 0.08 * r(x, y, 223))
+        }
+        p["bookshelf"] = { x, y in
+            if y == 0 || y == 15 || y == 7 || y == 8 { return hex(0xA2824E, 0.9 + 0.1 * r(x, y, 224)) }
+            let book = x / 2
+            let colors: [UInt32] = [0x8A2A2A, 0x2A4A8A, 0x3A6A2A, 0x6A4A2A, 0x7A2A6A, 0x2A6A6A, 0x8A6A2A, 0x4A2A2A]
+            let c = colors[Int(r(book, y / 8, 225) * 8) % 8]
+            if x % 2 == 1 && r(book, y / 8, 226) < 0.3 { return hex(0x2A1E12) }
+            let edge = y % 8 == 1 || y % 8 == 6
+            return hex(c, edge ? 1.2 : 0.95)
+        }
+        p["cobweb"] = { x, y in
+            let ring = max(abs(x - 8), abs(y - 8))
+            if x == y || x == 15 - y || x == 8 || y == 8 { return V4(0.9, 0.9, 0.92, r(x, y, 227) < 0.2 ? 0 : 1) }
+            if ring == 3 || ring == 6 { return V4(0.85, 0.85, 0.88, r(x, y, 228) < 0.4 ? 0 : 1) }
+            return clear
+        }
+        p["sugar_cane"] = { x, y in
+            let stalk = x == 3 || x == 4 || x == 9 || x == 10 || x == 13
+            if !stalk { return clear }
+            let v: Float = (y + x) % 6 == 0 ? 0.65 : 0.8
+            return V4(v, v, v, 1)
+        }
+        p["end_portal_frame_top"] = { x, y in
+            let dx = abs(Float(x) - 7.5), dy = abs(Float(y) - 7.5)
+            if max(dx, dy) < 4 { return hex(0x2A4A3A, 0.9 + 0.2 * r(x, y, 229)) }
+            return hex(0x3E6A5A, 0.85 + 0.2 * r(x, y, 230))
+        }
+        p["end_portal_frame_side"] = { x, y in
+            if y < 3 { return hex(0x3E6A5A, 0.85 + 0.2 * r(x, y, 231)) }
+            return hex(0xDDDFA5, 0.85 + 0.15 * r(x, y, 232))
+        }
+        p["end_portal_frame_eye"] = { x, y in
+            let dx = abs(Float(x) - 7.5), dy = abs(Float(y) - 7.5)
+            if dx < 1.5 && dy < 3 { return hex(0x0E2A12) }
+            return hex(max(dx, dy) > 6 ? 0x1E5A3A : 0x3E9A5A, 0.9 + 0.2 * r(x, y, 233))
+        }
+        p["end_portal"] = { x, y in
+            if r(x, y, 234) > 0.93 {
+                let stars: [UInt32] = [0x2A8A7A, 0x5AB0A0, 0x9AD0E0, 0x3A5AA0]
+                return hex(stars[Int(r(x, y, 235) * 4) % 4])
+            }
+            return hex(0x060A10, 0.8 + 0.4 * r(x / 2, y / 2, 236))
+        }
+        p["dragon_egg"] = { x, y in
+            if r(x, y, 237) > 0.9 { return hex(0x5A1A6A) }
+            return hex(0x0E0A14, 0.8 + 0.4 * r(x, y, 238))
+        }
+        p["end_rod"] = { x, y in hex(x < 8 ? 0xF4EEE0 : 0xE0D6C8, 0.95 + 0.05 * r(x, y, 239)) }
         p["oak_sapling"] = ItemTextures.painter(Sprite(mask: "sapling", base: 0x4A8A2A, extras: ["a": 0x6B4F2C, "b": 0x8A6435]))
         p["birch_sapling"] = ItemTextures.painter(Sprite(mask: "sapling", base: 0x7AA850, extras: ["a": 0xD8D4C8, "b": 0xB0ACA0]))
         p["spruce_sapling"] = ItemTextures.painter(Sprite(mask: "sapling", base: 0x3A6A3A, extras: ["a": 0x4A3420, "b": 0x6A4A2A]))

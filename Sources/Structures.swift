@@ -114,7 +114,10 @@ final class StructureCache {
     private let lock = NSLock()
     let seed: UInt64
     let types: [StructureType]
-    init(seed: UInt64, types: [StructureType]) { self.seed = seed; self.types = types }
+    let fixed: [StructureStart]           // starts at precomputed positions (strongholds)
+    init(seed: UInt64, types: [StructureType], fixed: [StructureStart] = []) {
+        self.seed = seed; self.types = types; self.fixed = fixed
+    }
 
     // The structure start in the region containing chunk (rx, rz) for a type, if any.
     func start(_ t: StructureType, regionX rx: Int, regionZ rz: Int) -> StructureStart? {
@@ -153,6 +156,10 @@ final class StructureCache {
                     for p in s.pieces where p.overlaps(cx * CS, cz * CS) { p.build(&w) }
                 }
             }
+            let bx = cx * CS, bz = cz * CS
+            for s in fixed where s.max.x >= bx && s.min.x < bx + CS && s.max.z >= bz && s.min.z < bz + CS {
+                for p in s.pieces where p.overlaps(bx, bz) { p.build(&w) }
+            }
             ents = w.entities
             mobs = w.mobs
         }
@@ -161,6 +168,14 @@ final class StructureCache {
 
     // Nearest structure start of a kind (searching regions outward), for locating / the snapshot harness.
     func nearest(_ kind: String, x: Int, z: Int, maxRegions: Int = 6) -> StructureStart? {
+        let fx = fixed.filter { $0.kind == kind }
+        if !fx.isEmpty {
+            return fx.min { a, b in
+                let da = (a.anchor.x - x) * (a.anchor.x - x) + (a.anchor.z - z) * (a.anchor.z - z)
+                let db = (b.anchor.x - x) * (b.anchor.x - x) + (b.anchor.z - z) * (b.anchor.z - z)
+                return da < db
+            }
+        }
         guard let t = types.first(where: { $0.name == kind }) else { return nil }
         let rx = floorDiv(floorDiv(x, CS), t.spacing), rz = floorDiv(floorDiv(z, CS), t.spacing)
         var best: StructureStart?, bd = Int.max
@@ -181,6 +196,7 @@ final class StructureCache {
         for t in types where t.name == kind {
             for s in startsNear(cx: cx, cz: cz, t) where s.contains(x, y, z) { return s }
         }
+        for s in fixed where s.kind == kind && s.contains(x, y, z) { return s }
         return nil
     }
 }
@@ -200,6 +216,8 @@ enum Loot {
                                         ("redstone", 4, 9, 5), ("bread", 1, 3, 15), ("apple", 1, 3, 15), ("iron_pickaxe", 1, 1, 5),
                                         ("iron_sword", 1, 1, 5), ("iron_chestplate", 1, 1, 5), ("iron_helmet", 1, 1, 5),
                                         ("iron_leggings", 1, 1, 5), ("iron_boots", 1, 1, 5), ("golden_apple", 1, 1, 1)]),
+        "stronghold_library": (2...10, [("book", 1, 3, 20), ("paper", 2, 7, 20), ("map", 1, 1, 1), ("compass", 1, 1, 1),
+                                         ("enchanted_book", 1, 1, 10)]),
         "village": (3...8, [("diamond", 1, 3, 3), ("iron_ingot", 1, 5, 10), ("gold_ingot", 1, 3, 5), ("bread", 1, 3, 15),
                             ("apple", 1, 3, 15), ("iron_pickaxe", 1, 1, 5), ("iron_sword", 1, 1, 5), ("obsidian", 3, 7, 5),
                             ("oak_sapling", 3, 7, 5), ("iron_helmet", 1, 1, 5)]),

@@ -1,0 +1,366 @@
+import Foundation
+import simd
+
+// Eyes of ender, the end portal, the dragon fight and the credits.
+
+// A thrown eye of ender: rises and flies toward the nearest stronghold (at most 12 blocks), hovers,
+// then drops as an item (80%) or shatters.
+final class EnderEye {
+    var pos: V3
+    let target: V3
+    var age: Float = 0
+    var dead = false
+    init(_ p: V3, _ t: V3) { pos = p; target = t }
+}
+
+// Lingering dragon breath: 6 damage per second to a player standing in it.
+struct AcidCloud { var pos: V3; var radius: Float; var time: Float; var tick: Float = 0 }
+
+let ENDER_EYE_FLIGHT: Float = 12
+
+extension Game {
+    var endGen: EndGen? { world.gen as? EndGen }
+
+    // MARK: Eyes of ender
+
+    // Right-click with an eye: fill a portal frame, or throw it toward the nearest stronghold.
+    func useEnderEye(on hit: (hit: IVec3, normal: IVec3)?) -> Bool {
+        if let t = hit, Blocks.key(world.block(t.hit.x, t.hit.y, t.hit.z)) == "end_portal_frame" {
+            world.setBlock(t.hit.x, t.hit.y, t.hit.z, Blocks.id("end_portal_frame") + 1)
+            consumeHeld()
+            sfx(.place(.stone), 1, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
+            if tryActivateEndPortal(near: t.hit) { sfx(.levelUp, 1) }
+            return true
+        }
+        guard dim.dim == .overworld, let s = world.gen.structures?.nearest("stronghold", x: Int(player.pos.x), z: Int(player.pos.z)) else { return false }
+        let target = V3(Float(s.anchor.x) + 0.5, Float(s.anchor.y), Float(s.anchor.z) + 0.5)
+        eyes.append(EnderEye(player.eye, target))
+        consumeHeld()
+        sfx(.bow, 0.6)
+        return true
+    }
+
+    func updateEyes(_ dt: Float) {
+        for e in eyes {
+            e.age += dt
+            var to = V2(e.target.x - e.pos.x, e.target.z - e.pos.z)
+            let d = simd_length(to)
+            if e.age < 1.6 && d > 0.5 {
+                to /= d
+                let speed: Float = 8
+                e.pos.x += to.x * speed * dt
+                e.pos.z += to.y * speed * dt
+                e.pos.y += (e.age < 1 ? 3.5 : 0.5) * dt
+            } else {
+                e.pos.y += sinf(e.age * 8) * 0.2 * dt
+            }
+            if Float.random(in: 0..<1) < dt * 20 { particles.flame(at: e.pos) }
+            if e.age > 2.6 {
+                e.dead = true
+                if Float.random(in: 0..<1) < 0.8 { drops.spawn(ItemStack(Items.id("ender_eye"), 1), at: e.pos, vel: V3(0, 0, 0), delay: 0.2) }
+                else { sfx(.breakBlock(.glass), 0.8, at: e.pos); particles.explosion(at: e.pos, power: 0.3) }
+            }
+        }
+        eyes.removeAll { $0.dead }
+    }
+
+    // A complete ring of 12 filled frames (a 5x5 square without corners) lights the 3x3 inside.
+    func tryActivateEndPortal(near p: IVec3) -> Bool {
+        let eye = Blocks.id("end_portal_frame") + 1
+        for dz in -3...3 { for dx in -3...3 {
+            let c = IVec3(p.x + dx, p.y, p.z + dz)
+            var ok = true
+            for i in -1...1 where ok {
+                for q in [IVec3(c.x + i, c.y, c.z - 2), IVec3(c.x + i, c.y, c.z + 2), IVec3(c.x - 2, c.y, c.z + i), IVec3(c.x + 2, c.y, c.z + i)] {
+                    if world.block(q.x, q.y, q.z) != eye { ok = false; break }
+                }
+            }
+            guard ok else { continue }
+            for z in -1...1 { for x in -1...1 { world.setBlockAsync(c.x + x, c.y, c.z + z, Blocks.id("end_portal")) } }
+            world.setBlock(c.x, c.y, c.z, Blocks.id("end_portal"))
+            return true
+        } }
+        return false
+    }
+
+    // MARK: Travel
+
+    func endPortalTick() {
+        let p = player.pos
+        let feet = world.block(Int(floor(p.x)), Int(floor(p.y + 0.1)), Int(floor(p.z)))
+        let key = Blocks.key(feet)
+        if key == "end_gateway" && portalCooldown <= 0 { portalCooldown = 3; gatewayTeleport(); return }
+        guard key == "end_portal", portalCooldown <= 0 else { return }
+        portalCooldown = 3
+        if dim.dim == .end {
+            // Exit portal: credits the first time, then home.
+            if !seenCredits { credits = 0 } else { returnFromEnd() }
+        } else {
+            enterEnd()
+        }
+    }
+
+    func enterEnd() {
+        // The obsidian landing platform at 100, 48, 0 (5x5, cleared above), like the reference game.
+        let py = YOFF + 48
+        changeDimension(to: .end, at: V3(100.5, Float(py + 1), 0.5))
+        for z in -2...2 { for x in -2...2 {
+            world.setBlockAsync(100 + x, py, z, OBSIDIAN)
+            for y in 1...3 { world.setBlockAsync(100 + x, py + y, z, AIR) }
+        } }
+        world.setBlock(100, py, 0, OBSIDIAN)
+        player.pos = V3(100.5, Float(py + 1), 0.5)
+        player.yaw = .pi / 2
+        player.vel = .zero
+        player.airPeak = player.pos.y
+    }
+
+    func returnFromEnd() {
+        credits = nil
+        seenCredits = true
+        changeDimension(to: .overworld, at: spawnPoint)
+        player.pos = spawnPoint
+        player.vel = .zero
+        player.airPeak = spawnPoint.y
+    }
+
+    func gatewayTeleport() {
+        // Out along the gateway's direction to the first outer island past 1000 blocks.
+        var dir = V2(player.pos.x, player.pos.z)
+        dir = simd_length(dir) > 1 ? simd_normalize(dir) : V2(1, 0)
+        guard let g = endGen else { return }
+        var r: Float = 1024
+        var spot: V3?
+        while r < 1400 && spot == nil {
+            let x = Int(dir.x * r), z = Int(dir.y * r)
+            for dz in stride(from: -16, through: 16, by: 4) { for dx in stride(from: -16, through: 16, by: 4) where spot == nil {
+                if let top = g.surface(x + dx, z + dz) { spot = V3(Float(x + dx) + 0.5, Float(top + 1), Float(z + dz) + 0.5) }
+            } }
+            r += 16
+        }
+        let dest = spot ?? V3(dir.x * 1024, Float(YOFF + 70), dir.y * 1024)
+        _ = world.loadSync(center: dest, radius: 2)
+        if spot == nil {
+            // No island found: a small end stone platform.
+            for z in -1...1 { for x in -1...1 { world.setBlock(Int(dest.x) + x, Int(dest.y) - 1, Int(dest.z) + z, Blocks.id("end_stone")) } }
+        }
+        player.pos = dest
+        player.vel = .zero
+        player.airPeak = dest.y
+        sfx(.levelUp, 0.4)
+    }
+
+    // MARK: Dragon fight
+
+    var fountainY: Int { endGen.map { $0.surface(0, 0) ?? (YOFF + 60) } ?? (YOFF + 60) }
+
+    func endTick(_ dt: Float) {
+        guard dim.dim == .end else { return }
+        // The dragon is present until it has been killed (respawns if it was lost to unloading).
+        if !dragonKilled && !mobs.mobs.contains(where: { $0.kind == .enderDragon }) {
+            dragonSpawnTimer -= dt
+            if dragonSpawnTimer <= 0 && world.isLoaded(0, 0) {
+                dragonSpawnTimer = 5
+                let d = Mob(.enderDragon, at: V3(0.5, Float(fountainY + 40), 0.5))
+                d.persistent = true
+                mobs.mobs.append(d)
+            }
+        }
+        for i in clouds.indices {
+            clouds[i].time -= dt
+            clouds[i].tick -= dt
+            let c = clouds[i]
+            if Float.random(in: 0..<1) < dt * 30 {
+                let a = Float.random(in: 0..<(2 * .pi)), r = Float.random(in: 0..<c.radius)
+                particles.add(Particle(pos: c.pos + V3(cosf(a) * r, 0.1, sinf(a) * r), vel: V3(0, 0.4, 0), life: 1, maxLife: 1,
+                                       layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1, size: 0.12, gravity: -0.2,
+                                       color: V3(0.75, 0.2, 0.9), collide: false, glow: true))
+            }
+            let d = player.pos - c.pos
+            if c.tick <= 0 && simd_length(V2(d.x, d.z)) < c.radius && abs(d.y) < 2 {
+                clouds[i].tick = 1
+                hurtPlayer(6, from: c.pos, cause: "was killed by Dragon's Breath", knockback: 0)
+            }
+        }
+        clouds.removeAll { $0.time <= 0 }
+    }
+
+    func dragonDied(_ d: Mob) {
+        let first = !dragonKilled
+        dragonKilled = true
+        addXP(first ? 12000 : 500)
+        let fy = fountainY
+        EndGen.fountainBlocks(fy, active: true) { x, y, z, b in world.setBlockAsync(x, y, z, b) }
+        if first { world.setBlockAsync(0, fy + 4, 0, Blocks.id("dragon_egg")) }
+        world.setBlock(0, fy + 3, 0, BEDROCK)
+        // A new end gateway (up to 20) on the ring of radius 96 at y 75.
+        if gateways < 20 {
+            let a = 2 * Double.pi * Double((gateways * 7) % 20) / 20
+            let gx = Int((96 * cos(a)).rounded()), gz = Int((96 * sin(a)).rounded()), gy = YOFF + 75
+            world.setBlockAsync(gx, gy - 1, gz, BEDROCK)
+            world.setBlockAsync(gx, gy + 1, gz, BEDROCK)
+            world.setBlock(gx, gy, gz, Blocks.id("end_gateway"))
+            gateways += 1
+        }
+        sfx(.explode, 1, at: d.pos)
+        onToast?("The End: exit portal open")
+    }
+}
+
+extension Game {
+    // Original credits text (not the reference game's poem).
+    static let creditsLines: [String] = [
+        "BLOCKSMITH", "", "", "The dragon is gone. The island is quiet.", "",
+        "You came from a world of grass and water,", "dug down through stone and deepslate,",
+        "walked through fire in the Nether,", "followed the eyes across the land,",
+        "and crossed the dark to the End.", "", "Every block you placed was a choice.",
+        "Every tunnel, every tower, every farm", "was a small world of your own making.", "",
+        "The portal home is open.", "The world you built is waiting.", "", "", "",
+        "Made for Remington", "", "Game design, code, art and sound", "generated procedurally in Swift and Metal", "",
+        "Thanks for playing.", "", "", "", "",
+    ]
+    static var creditsLength: Float { Float(creditsLines.count) * 1.4 + 12 }
+
+    // Thrown eyes and the crystal healing beams.
+    func writeEndEntities(_ wr: inout EntityWriter, eye: V3, right: V3, up: V3) {
+        if let layer = Items.texLayer(Items.id("ender_eye")) {
+            for e in eyes { wr.sprite(center: e.pos - eye, half: 0.15, right: right, up: up, layer: layer, light: 1) }
+        }
+        let white = Int(Tex.id("smoke"))
+        for d in mobs.mobs where d.kind == .enderDragon {
+            guard let c = d.healTarget else { continue }
+            let a = c.pos + V3(0, 1.25, 0) - eye, b = d.pos + V3(0, 2.5, 0) - eye
+            let dir = simd_normalize(b - a)
+            var side = simd_cross(dir, simd_normalize(-(a + b) * 0.5))
+            if simd_length(side) < 1e-3 { side = V3(1, 0, 0) }
+            side = simd_normalize(side) * 0.12
+            wr.quad([a - side, b - side, b + side, a + side], [V2(0.4, 0.4), V2(0.6, 0.4), V2(0.6, 0.6), V2(0.4, 0.6)],
+                    white, V4(1.0, 0.5, 1.4, 1))
+        }
+    }
+}
+
+// MARK: Dragon + crystal behaviour
+
+extension Mob {
+    // Phases: 0 circling, 1 strafing (fireball), 2 charging, 3 landing, 4 perched, 5 taking off, 6 dying.
+    func updateDragon(_ dt: Float, _ g: Game) {
+        let w = g.world
+        let fy = Float(g.fountainY)
+        phaseTime += dt
+        let player = g.player.pos
+        let toPlayer = player - pos
+        let dist = simd_length(toPlayer)
+        // Crystals heal the dragon: +1 every 0.5 s from the nearest crystal within 32 blocks.
+        healTarget = g.mobs.mobs.filter { $0.kind == .endCrystal && $0.health > 0 && simd_length($0.pos - pos) < 32 }
+            .min { simd_length($0.pos - pos) < simd_length($1.pos - pos) }
+        if healTarget != nil && phase != 6 {
+            fireTick += dt
+            if fireTick >= 0.5 { fireTick = 0; health = min(spec.health, health + 1) }
+        }
+        var goal = pos
+        var speed: Float = 14
+        switch phase {
+        case 0:
+            circleAngle += dt * 0.25
+            goal = V3(cosf(circleAngle) * 55, fy + 22 + sinf(circleAngle * 2.3) * 8, sinf(circleAngle) * 55)
+            if phaseTime > Float.random(in: 8...14) {
+                phaseTime = 0
+                let crystals = g.mobs.mobs.filter { $0.kind == .endCrystal && $0.health > 0 }.count
+                let r = Int.random(in: 0..<(3 + crystals))
+                let canFight = g.survival && g.alive && dist < 150
+                if r == 0 { phase = 3 }
+                else if canFight && r < 3 { phase = 1 }
+                else if canFight && r < 5 { phase = 2 }
+            }
+        case 1:
+            goal = player + V3(0, 18, 0) - simd_normalize(V3(toPlayer.x, 0, toPlayer.z) + V3(0.001, 0, 0)) * 30
+            if (dist < 50 && phaseTime > 2) || phaseTime > 10 {
+                let from = pos + forward * 5
+                g.projectiles.fireball(from: from, dir: simd_normalize(g.player.eye - from), big: true, byPlayer: false, dragon: true)
+                g.sfx(.fireball, 1.2, at: from)
+                phase = 0; phaseTime = 0
+            }
+        case 2:
+            goal = player + V3(0, 1, 0)
+            speed = 20
+            if dist < 5 {
+                g.hurtPlayer(10, from: pos, cause: "was slain by Ender Dragon", knockback: 2.5)
+                phase = 0; phaseTime = 0
+            }
+            if phaseTime > 8 { phase = 0; phaseTime = 0 }
+        case 3:
+            goal = V3(0.5, fy + 4, 0.5)
+            speed = 10
+            if simd_length(goal - pos) < 3 { phase = 4; phaseTime = 0; vel = .zero }
+        case 4:
+            goal = V3(0.5, fy + 4, 0.5)
+            speed = 0
+            face(player)
+            if phaseTime > 2 && Int(phaseTime / 3) != Int((phaseTime - dt) / 3) && dist < 24 {
+                // Breath: a cloud of acid where the player stands.
+                g.clouds.append(AcidCloud(pos: V3(player.x, floor(player.y) + 0.05, player.z), radius: 3, time: 6))
+                g.sfx(.mobGhast, 0.8, at: pos)
+            }
+            if phaseTime > Float.random(in: 12...18) { phase = 5; phaseTime = 0 }
+        case 5:
+            goal = V3(pos.x, fy + 30, pos.z)
+            speed = 8
+            if pos.y > fy + 26 { phase = 0; phaseTime = 0 }
+        default:
+            // Dying: rise slowly while bursting, then vanish.
+            vel = V3(0, 1, 0)
+            pos += vel * dt
+            if Float.random(in: 0..<1) < dt * 10 {
+                g.particles.explosion(at: pos + V3(Float.random(in: -4...4), Float.random(in: 0...4), Float.random(in: -4...4)), power: 0.8)
+            }
+            if phaseTime > 10 {
+                health = -1000
+                g.dragonDied(self)
+            }
+            return
+        }
+        let d = goal - pos
+        let l = simd_length(d)
+        if speed > 0 && l > 0.5 {
+            let want = d / l * min(speed, l * 2)
+            vel += (want - vel) * min(1, dt * 1.5)
+            yaw = atan2f(-vel.x, -vel.z)
+        } else {
+            vel *= expf(-4 * dt)
+        }
+        // The dragon smashes through anything but obsidian, end stone, bedrock and iron bars.
+        pos += vel * dt
+        if phase != 4 && Int(phaseTime * 4) != Int((phaseTime - dt) * 4) {
+            let c = IVec3(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z)))
+            for dy in 0...3 { for dz in -2...2 { for dx in -2...2 {
+                let b = w.block(c.x + dx, c.y + dy, c.z + dz)
+                let k = Blocks.key(b)
+                if b != AIR && !Blocks.isLiquid(b) && b != OBSIDIAN && b != BEDROCK && b != FIRE && k != "end_stone"
+                    && k != "iron_bars" && k != "end_portal" && k != "end_gateway" && Blocks.hardness[Int(b)] >= 0 {
+                    w.setBlockAsync(c.x + dx, c.y + dy, c.z + dz, AIR)
+                }
+            } } }
+        }
+        walkPhase += dt * (phase == 4 ? 1 : 3)
+        // Wing buffet: knock the player away when very close.
+        if dist < 6 && phase != 6 && attackCooldown <= 0 {
+            attackCooldown = 1
+            g.hurtPlayer(5, from: pos, cause: "was slain by Ender Dragon", knockback: 2)
+        }
+    }
+
+    func updateCrystal(_ dt: Float, _ g: Game) {
+        walkPhase += dt * 2
+        if health <= 0 && health > -1000 {
+            health = -1000
+            // Destroying the crystal that is healing the dragon hurts it.
+            for d in g.mobs.mobs where d.kind == .enderDragon && d.healTarget === self && d.phase != 6 {
+                d.health -= 10
+                d.hurt = 0.4
+                if d.health <= 0 { d.health = 1; d.phase = 6; d.phaseTime = 0 }
+            }
+            Explosion.explode(at: pos + V3(0, 1, 0), power: 6, game: g)
+        }
+    }
+}

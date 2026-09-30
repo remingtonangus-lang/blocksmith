@@ -68,8 +68,15 @@ final class Game {
     var portalCooldown: Float = 0
     var onFire: Float = 0          // seconds the player keeps burning
     var fireDamageTimer: Float = 0
+    var dragonKilled = false
+    var gateways = 0
+    var seenCredits = false
+    var credits: Float?            // seconds into the end credits while they are showing
+    var dragonSpawnTimer: Float = 3
     var witherTime: Float = 0      // seconds of the wither effect left
     var witherTick: Float = 0
+    var eyes: [EnderEye] = []
+    var clouds: [AcidCloud] = []
     var contactTimer: Float = 0
     private var lavaTimer: Double = 0
     private var fireTimer: Double = 0
@@ -169,6 +176,9 @@ final class Game {
         xpLevel = m.xpLevel ?? 0
         xpPoints = m.xpPoints ?? 0
         if let sp = m.spawn, sp.count == 3 { spawnPoint = V3(sp[0], sp[1], sp[2]) }
+        dragonKilled = m.dragonKilled ?? false
+        gateways = m.gateways ?? 0
+        seenCredits = m.seenCredits ?? false
         if let d = m.dimension, d != .overworld {
             dim = dimensionState(d)
             world.renderDistance = m.renderDistance
@@ -180,7 +190,8 @@ final class Game {
                   yaw: player.yaw, pitch: player.pitch, time: time, flying: player.flying,
                   hotbar: nil, inventory: inventory.saved, dimension: dim.dim, spawn: [spawnPoint.x, spawnPoint.y, spawnPoint.z],
                   xpLevel: xpLevel, xpPoints: xpPoints, selected: selected, renderDistance: world.renderDistance,
-                  survival: survival, health: health, hunger: hunger, saturation: saturation)
+                  survival: survival, health: health, hunger: hunger, saturation: saturation,
+                  dragonKilled: dragonKilled, gateways: gateways, seenCredits: seenCredits)
     }
 
     func saveNow() {
@@ -448,6 +459,14 @@ final class Game {
         swing = max(0, swing - fdt * 4)
         attackTimer += fdt
 
+        if let c = credits {
+            // End credits: scroll; any key, click or A/B skips.
+            credits = c + fdt
+            let skip = c > 1 && (input.tapped(Key.esc) || input.tapped(Key.space) || input.leftClicked || (p.a && !q.a) || (p.b && !q.b))
+            if skip || c + fdt > Game.creditsLength { returnFromEnd() }
+            return
+        }
+
         if menu != nil {
             tickMenu(p, q, dt)
             let before = player.pos
@@ -603,6 +622,7 @@ final class Game {
         // Use
         let h = held
         if useNow, let m = mobHit ?? mobs.raycast(player.eye, player.look, maxDist: 3.5)?.0, useItemOnMob(m) { swing = 1; return }
+        if useNow && Items.key(h.item) == "ender_eye" && useEnderEye(on: target) { swing = 1; return }
         // Bow: hold to draw, release to shoot.
         if Items.key(h.item) == "bow" {
             let hasArrow = !survival || inventory.main.countOf(Items.id("arrow")) > 0
@@ -754,6 +774,7 @@ final class Game {
             if let r = ores[bk], Mining.canHarvest(b, held) { addXP(Int.random(in: r)) }
         }
         let center = V3(Float(p.x) + 0.5, Float(p.y) + 0.3, Float(p.z) + 0.5)
+        if bk.hasPrefix("infested_") && survival { mobs.mobs.append(Mob(.silverfish, at: center)) }
         if let be = world.blockEntities.removeValue(forKey: p) {
             for s in be.container.slots where !s.isEmpty { drops.spawn(s, at: center) }
         }
@@ -1034,6 +1055,9 @@ final class Game {
         fireTimer += dt
         if fireTimer >= Double.random(in: 1.2...1.8) { fireTimer = 0; world.fireTick() }
         portalTick(Float(dt))
+        endPortalTick()
+        updateEyes(Float(dt))
+        endTick(Float(dt))
         hazardTick(Float(dt))
         if !world.pendingMobs.isEmpty {
             for (name, p) in world.pendingMobs {

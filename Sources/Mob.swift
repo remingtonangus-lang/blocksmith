@@ -6,11 +6,12 @@ import simd
 
 struct MobVert { var pos: V4; var color: V4; var local: V4 } // pos.w = pattern id, color.a = shade
 
-enum Behavior { case passive, melee, ranged, creeper, spider, enderman, slime, neutral, piglin, ghast, blaze }
+enum Behavior { case passive, melee, ranged, creeper, spider, enderman, slime, neutral, piglin, ghast, blaze, dragon, crystal }
 
 enum MobKind: Int, CaseIterable {
     case cow, sheep, chicken, pig, zombie, skeleton, creeper, spider, enderman, slime
     case zombifiedPiglin, piglin, ghast, blaze, magmaCube, witherSkeleton, hoglin, piglinBrute, strider
+    case enderDragon, endCrystal, silverfish
 
     struct Spec {
         var name: String
@@ -66,6 +67,12 @@ enum MobKind: Int, CaseIterable {
                                        drops: [], xp: 20, call: .mobPiglin)
         case .strider: return Spec(name: "Strider", halfW: 0.45, height: 1.7, health: 20, speed: 1.0, behavior: .passive,
                                    drops: [("string", 2, 5)], xp: 2, call: .mobPig, fireImmune: true)
+        case .enderDragon: return Spec(name: "Ender Dragon", halfW: 4, height: 4, health: 200, speed: 14, behavior: .dragon,
+                                       drops: [], xp: 0, call: .mobGhast, fireImmune: true, flying: true)
+        case .endCrystal: return Spec(name: "End Crystal", halfW: 1, height: 2, health: 1, speed: 0, behavior: .crystal,
+                                      drops: [], xp: 0, call: .click, fireImmune: true, flying: true)
+        case .silverfish: return Spec(name: "Silverfish", halfW: 0.2, height: 0.3, health: 8, speed: 2.5, behavior: .melee, attack: 1,
+                                      drops: [], xp: 5, call: .mobSpider)
         case .witherSkeleton: return Spec(name: "Wither Skeleton", halfW: 0.35, height: 2.4, health: 20, speed: 2.5, behavior: .melee, attack: 8,
                                           drops: [("coal", 0, 1), ("bone", 0, 2)], xp: 5, call: .mobSkeleton, fireImmune: true)
         }
@@ -115,6 +122,10 @@ final class Mob {
     var flyTarget: V3?              // ghast / blaze hover target
     var volley = 0                  // blaze: fireballs left in the current burst
     var persistent = false          // structure mobs never despawn at random
+    var phase = 0                   // ender dragon phase (see updateDragon)
+    var phaseTime: Float = 0
+    var circleAngle: Float = 0
+    weak var healTarget: Mob?       // end crystal currently healing the dragon
 
     init(_ kind: MobKind, at p: V3) {
         self.kind = kind
@@ -174,6 +185,8 @@ final class Mob {
         inLove = max(0, inLove - dt)
         breedCooldown = max(0, breedCooldown - dt)
         if baby { age += dt; if age >= 1200 { baby = false; scale = 1 } }
+        if kind == .enderDragon { updateDragon(dt, g); return }
+        if kind == .endCrystal { updateCrystal(dt, g); return }
 
         let feetBlock = w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))
         let inWater = Blocks.isLiquid(feetBlock)
@@ -280,6 +293,8 @@ final class Mob {
                 }
             } else { wander(); speed = moving ? spec.speed * 0.5 : 0; volley = 0 }
             if Float.random(in: 0..<1) < dt * 6 { g.particles.smoke(at: pos + V3(Float.random(in: -0.4...0.4), Float.random(in: 0.2...1.4), Float.random(in: -0.4...0.4))) }
+        case .dragon, .crystal:
+            break
         case .melee, .spider:
             let l = w.lightAt(Int(floor(pos.x)), Int(floor(pos.y + 0.5)), Int(floor(pos.z)))
             let hostileNow = spec.behavior == .melee || aggro || Float(l.sky) * g.daylight < 4.8
@@ -447,6 +462,15 @@ final class Mob {
     }
 
     func hit(from src: V3, damage: Int, knockback: Float = 1) {
+        if kind == .enderDragon {
+            // Hits land at a quarter (+1) unless the dragon is perched; it never dies instantly.
+            if phase == 6 { return }
+            health -= phase == 4 ? damage : damage / 4 + 1
+            hurt = 0.4
+            if health <= 0 { health = 1; phase = 6; phaseTime = 0 }
+            else if phase == 4 && Float.random(in: 0..<1) < 0.2 { phase = 5; phaseTime = 0 }
+            return
+        }
         health -= damage
         hurt = 0.4
         if spec.behavior == .passive { panic = 5; aiTimer = 0 }
@@ -683,6 +707,56 @@ private func parts(_ m: Mob) -> [Part] {
             sb(-4, 24, -4, 8, 8, 8, c),
             sb(-2.5, 27.5, -4.1, 1.5, 1.5, 0.2, V3(0.02, 0.02, 0.02)), sb(1, 27.5, -4.1, 1.5, 1.5, 0.2, V3(0.02, 0.02, 0.02)),
         ]
+    case .enderDragon:
+        // ~9 blocks nose to tail, 12-block wingspan; wings flap, neck and tail sway.
+        let hide = V3(0.1, 0.09, 0.12), belly = V3(0.2, 0.17, 0.22), purple = V3(0.85, 0.35, 1.0)
+        let flap = sinf(m.walkPhase * 1.6) * (m.phase == 4 ? 0.15 : 0.7)
+        var p: [Part] = [box(-12, 24, -32, 24, 24, 64, hide, 4), box(-10, 22, -30, 20, 2, 60, belly, 4)]
+        for i in 0..<5 {
+            let z = -32 - Float(i + 1) * 10, y = 34 + Float(i) * 2 + sinf(m.walkPhase + Float(i) * 0.6) * 1.5
+            p.append(box(-5, y, z, 10, 10, 10, hide, 4))
+            p.append(box(-1, y + 10, z + 3, 2, 3, 4, belly))
+        }
+        let hy: Float = 44 + sinf(m.walkPhase + 3) * 1.5, hz: Float = -82
+        p += [box(-8, hy, hz - 16, 16, 16, 16, hide, 4),
+              box(-6, hy - 4, hz - 32, 12, 5, 16, hide, 4),                 // lower jaw
+              box(-6, hy + 1, hz - 32, 12, 5, 16, hide, 4),                 // upper jaw
+              box(-6, hy + 9, hz - 12, 3, 2, 1, purple), box(3, hy + 9, hz - 12, 3, 2, 1, purple),
+              box(-6, hy + 16, hz - 8, 2, 4, 6, belly), box(4, hy + 16, hz - 8, 2, 4, 6, belly)]
+        for i in 0..<12 {
+            let z = 32 + Float(i) * 10, y = 32 + sinf(m.walkPhase * 0.8 + Float(i) * 0.5) * Float(i) * 0.6
+            p.append(box(-5, y, z, 10, 10, 10, hide, 4))
+            if i % 2 == 0 { p.append(box(-1, y + 10, z + 3, 2, 3, 4, belly)) }
+        }
+        for side: Float in [-1, 1] {
+            let pivot = V3(side * 12, 44, -20)
+            p.append(Part(mn: side < 0 ? V3(-68, 42, -24) : V3(12, 42, -24), mx: side < 0 ? V3(-12, 46, -16) : V3(68, 46, -16),
+                          pivot: pivot, rotZ: side * flap, color: hide, pattern: 4))
+            p.append(Part(mn: side < 0 ? V3(-68, 43, -16) : V3(12, 43, -16), mx: side < 0 ? V3(-12, 44, 36) : V3(68, 44, 36),
+                          pivot: pivot, rotZ: side * flap, color: V3(0.16, 0.13, 0.2), pattern: 4))
+            p.append(leg(side * 10, -20, 6, 24, 0.3, hide, 4))
+            p.append(leg(side * 12, 20, 8, 26, -0.3, hide, 4))
+        }
+        return p
+    case .endCrystal:
+        // Spinning glass cubes around a core over a bedrock base.
+        let spin = m.walkPhase
+        let bob = sinf(spin * 1.5) * 3
+        return [
+            box(-6, 0, -6, 12, 4, 12, V3(0.25, 0.25, 0.25), 4),
+            Part(mn: V3(-8, 12 + bob, -8), mx: V3(8, 28 + bob, 8), pivot: V3(0, 20 + bob, 0), rotX: spin, rotZ: spin * 0.7, color: V3(0.75, 0.6, 0.95)),
+            Part(mn: V3(-6, 14 + bob, -6), mx: V3(6, 26 + bob, 6), pivot: V3(0, 20 + bob, 0), rotX: -spin * 1.3, rotZ: spin, color: V3(0.9, 0.8, 1.0)),
+            Part(mn: V3(-3.5, 16.5 + bob, -3.5), mx: V3(3.5, 23.5 + bob, 3.5), pivot: V3(0, 20 + bob, 0), rotX: spin * 2, color: V3(1.0, 0.45, 0.85)),
+        ]
+    case .silverfish:
+        let c = V3(0.55, 0.57, 0.62)
+        var p: [Part] = []
+        for i in 0..<5 {
+            let w: Float = [3, 4, 6, 4, 2][i], z = -4 + Float(i) * 2.5
+            let wob = sinf(m.walkPhase * 3 + Float(i)) * 0.6
+            p.append(box(-w / 2 + wob, 0, z, w, w * 0.7, 2.5, c, 4))
+        }
+        return p
     case .slime, .magmaCube:
         if m.kind == .magmaCube {
             let s = Float(m.slimeSize) * 8
@@ -723,7 +797,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         let base = m.pos - eye
         let tint = m.hurt > 0 ? V3(1, 0.45, 0.45) : (m.fire > 0 ? V3(1, 0.7, 0.4) : V3(1, 1, 1))
         let scale: Float = m.sized ? 1 : m.scale
-        let glow = m.kind == .blaze || m.kind == .magmaCube || m.kind == .ghast
+        let glow = m.kind == .blaze || m.kind == .magmaCube || m.kind == .ghast || m.kind == .endCrystal
         let lit = glow ? max(bright, 0.85) : bright
         for p in parts(m) {
             if n + 36 > capacity { return n }
@@ -862,7 +936,22 @@ final class MobManager {
     func trySpawnHostile(_ game: Game) {
         let w = game.world
         if w.dim == .nether { trySpawnNether(game); return }
-        if w.dim == .end { return }
+        if w.dim == .end {
+            // Endermen (groups of up to 4) on end stone anywhere 24-64 blocks out.
+            let pp = game.player.pos
+            let a = Float.random(in: 0..<(2 * .pi)), r = Float.random(in: 24...64)
+            let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
+            guard w.isLoaded(x, z), mobs.filter({ $0.kind == .enderman }).count < 30 else { return }
+            let top = w.topY(x, z)
+            guard top > 0, Blocks.key(w.block(x, top, z)) == "end_stone" else { return }
+            for _ in 0..<Int.random(in: 1...4) {
+                let sx = x + Int.random(in: -2...2), sz = z + Int.random(in: -2...2)
+                let ty = w.topY(sx, sz)
+                guard ty > 0, Blocks.key(w.block(sx, ty, sz)) == "end_stone" else { continue }
+                mobs.append(Mob(.enderman, at: V3(Float(sx) + 0.5, Float(ty + 1), Float(sz) + 0.5)))
+            }
+            return
+        }
         let pp = game.player.pos
         let a = Float.random(in: 0..<(2 * .pi)), r = Float.random(in: 24...64)
         let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))

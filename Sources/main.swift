@@ -106,6 +106,19 @@ enum Snapshot {
             pos = V3(pos.x, Float(YOFF + 70) + (Float(arg("--up") ?? "") ?? 0), pos.z)
             game.player.pos = pos
         }
+        // Structure mobs (crystals, piglins...) that generation queued.
+        for (name, mp) in world.pendingMobs {
+            if let k = MobKind.named(name) { game.mobs.mobs.append(Mob(k, at: mp)) }
+        }
+        world.pendingMobs.removeAll()
+        if CommandLine.arguments.contains("--dragon") {
+            let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
+            let d = Mob(.enderDragon, at: pos + f * 26 + V3(0, 2, 0))
+            d.yaw = game.player.yaw + 1.2
+            d.walkPhase = 0.7
+            d.healTarget = game.mobs.mobs.filter { $0.kind == .endCrystal }.min { simd_length($0.pos - d.pos) < simd_length($1.pos - d.pos) }
+            game.mobs.mobs.append(d)
+        }
         if CommandLine.arguments.contains("--portal") {
             let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
             let c = pos + f * 6

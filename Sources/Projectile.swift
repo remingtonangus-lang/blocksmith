@@ -21,6 +21,7 @@ final class Fireball {
     var byPlayer: Bool
     var age: Float = 0
     var dead = false
+    var dragon = false             // ender dragon fireball: leaves a cloud of acid instead of exploding
     init(_ p: V3, _ v: V3, big: Bool, byPlayer: Bool) { pos = p; vel = v; self.big = big; self.byPlayer = byPlayer }
 }
 
@@ -28,8 +29,10 @@ final class ProjectileManager {
     var arrows: [Arrow] = []
     var fireballs: [Fireball] = []
 
-    func fireball(from p: V3, dir: V3, big: Bool, byPlayer: Bool) {
-        fireballs.append(Fireball(p, dir * (big ? 18 : 22), big: big, byPlayer: byPlayer))
+    func fireball(from p: V3, dir: V3, big: Bool, byPlayer: Bool, dragon: Bool = false) {
+        let f = Fireball(p, dir * (big ? 18 : 22), big: big, byPlayer: byPlayer)
+        f.dragon = dragon
+        fireballs.append(f)
     }
 
     // Player punch: deflect the first fireball along the look ray.
@@ -63,7 +66,7 @@ final class ProjectileManager {
                     hitT = h.0; hitPlayer = true
                 }
             }
-            if let h = g.mobs.raycast(f.pos, dir, maxDist: len), h.1 < hitT, f.byPlayer || (h.0.kind != .blaze && h.0.kind != .ghast) {
+            if let h = g.mobs.raycast(f.pos, dir, maxDist: len), h.1 < hitT, f.byPlayer || (h.0.kind != .blaze && h.0.kind != .ghast && h.0.kind != .enderDragon && h.0.kind != .endCrystal) {
                 hitT = h.1; hitMob = h.0; hitPlayer = false
             }
             var blockT = Float.greatestFiniteMagnitude
@@ -87,7 +90,9 @@ final class ProjectileManager {
                     if f.byPlayer { m.killedByPlayer = true }
                     if !f.big && !m.spec.fireImmune { m.fire = max(m.fire, 5) }
                 }
-                if f.big {
+                if f.dragon {
+                    g.clouds.append(AcidCloud(pos: at, radius: 3, time: 8))
+                } else if f.big {
                     Explosion.explode(at: at, power: 1, game: g, fire: true)
                 } else if let b = blockHit {
                     w.placeFire(b.hit + b.normal)

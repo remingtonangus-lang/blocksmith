@@ -401,6 +401,53 @@ final class BlockRegistry {
             add(c)
         }
         cube("end_stone", "End Stone", "end_stone", h: 3, req: true)
+        cube("end_stone_bricks", "End Stone Bricks", "end_stone_bricks", h: 3, req: true)
+        cube("purpur_block", "Purpur Block", "purpur_block", h: 1.5, req: true)
+        column("purpur_pillar", "Purpur Pillar", side: "purpur_pillar", top: "purpur_pillar_top", h: 1.5, tool: .pickaxe, snd: .stone)
+        cube("mossy_stone_bricks", "Mossy Stone Bricks", "mossy_stone_bricks", h: 1.5, req: true)
+        cube("cracked_stone_bricks", "Cracked Stone Bricks", "cracked_stone_bricks", h: 1.5, req: true)
+        cube("chiseled_stone_bricks", "Chiseled Stone Bricks", "chiseled_stone_bricks", h: 1.5, req: true)
+        var infested = BlockDef("infested_stone_bricks", "Infested Stone Bricks")
+        infested.tex = ["stone_bricks"]; infested.hardness = 0.75; infested.sound = .stone
+        add(infested)
+        var shelf = BlockDef("bookshelf", "Bookshelf")
+        shelf.tex = ["bookshelf", "bookshelf", "oak_planks", "oak_planks", "bookshelf", "bookshelf"]; shelf.hardness = 1.5
+        shelf.tool = .axe; shelf.sound = .wood; shelf.flammable = true
+        add(shelf)
+        var web = BlockDef("cobweb", "Cobweb")
+        web.tex = ["cobweb"]; web.render = .cross; web.layer = .cutout; web.opaque = false; web.collide = false
+        web.hardness = 4; web.tool = .sword; web.requiresTool = true; web.skyStop = false
+        add(web)
+        var cane = BlockDef("sugar_cane", "Sugar Cane")
+        cane.tex = ["sugar_cane"]; cane.render = .cross; cane.layer = .cutout; cane.opaque = false; cane.collide = false
+        cane.hardness = 0; cane.sound = .plant; cane.tint = 1; cane.randomTicks = true; cane.skyStop = false
+        add(cane)
+        // End portal frame: empty and with an eye of ender; unbreakable.
+        for eye in [false, true] {
+            var f = BlockDef(eye ? "end_portal_frame[eye]" : "end_portal_frame", "End Portal Frame")
+            f.tex = ["end_portal_frame_side", "end_portal_frame_side", "end_portal_frame_top", "end_stone", "end_portal_frame_side", "end_portal_frame_side"]
+            f.render = .model; f.opaque = false; f.hardness = -1; f.emit = 1; f.group = "end_portal_frame"; f.hidden = eye
+            f.boxes = [Box(0, 0, 0, 16, 13, 16)]
+            if eye { f.boxes.append(Box(4, 13, 4, 12, 16, 12, tex: Array(repeating: Tex.id("end_portal_frame_eye"), count: 6))) }
+            f.skyStop = true
+            add(f)
+        }
+        var ep = BlockDef("end_portal", "End Portal")
+        ep.tex = ["end_portal"]; ep.render = .model; ep.opaque = false; ep.collide = false; ep.hardness = -1; ep.emit = 15
+        ep.boxes = [Box(0, 11, 0, 16, 12, 16)]; ep.hidden = true; ep.skyStop = false
+        add(ep)
+        var gw = BlockDef("end_gateway", "End Gateway")
+        gw.tex = ["end_portal"]; gw.opaque = false; gw.collide = false; gw.hardness = -1; gw.emit = 15; gw.hidden = true
+        add(gw)
+        var egg = BlockDef("dragon_egg", "Dragon Egg")
+        egg.tex = ["dragon_egg"]; egg.render = .model; egg.opaque = false; egg.hardness = 3; egg.emit = 1
+        egg.boxes = [Box(6, 15, 6, 10, 16, 10), Box(5, 14, 5, 11, 15, 11), Box(4, 13, 4, 12, 14, 12), Box(3, 11, 3, 13, 13, 13),
+                     Box(2, 8, 2, 14, 11, 14), Box(1, 3, 1, 15, 8, 15), Box(2, 1, 2, 14, 3, 14), Box(3, 0, 3, 13, 1, 13)]
+        add(egg)
+        var rod = BlockDef("end_rod", "End Rod")
+        rod.tex = ["end_rod"]; rod.render = .model; rod.opaque = false; rod.hardness = 0; rod.emit = 14; rod.layer = .cutout
+        rod.boxes = [Box(7, 1, 7, 9, 16, 9), Box(6, 0, 6, 10, 1, 10)]; rod.skyStop = false
+        add(rod)
         for (n, d, lvl) in [("coal_block", "Block of Coal", 0), ("iron_block", "Block of Iron", 1), ("gold_block", "Block of Gold", 2),
                             ("diamond_block", "Block of Diamond", 2), ("emerald_block", "Block of Emerald", 2),
                             ("lapis_block", "Block of Lapis Lazuli", 1), ("redstone_block", "Block of Redstone", 0),
@@ -507,6 +554,8 @@ final class BlockRegistry {
             ("smooth_stone", "smooth_stone", "Smooth Stone", false),
             ("polished_blackstone", "polished_blackstone", "Polished Blackstone", true),
             ("polished_blackstone_bricks", "polished_blackstone_brick", "Polished Blackstone Brick", true),
+            ("end_stone_bricks", "end_stone_brick", "End Stone Brick", true), ("purpur_block", "purpur", "Purpur", false),
+            ("mossy_stone_bricks", "mossy_stone_brick", "Mossy Stone Brick", true),
         ]
         for (tex, n, d, wall) in stones {
             family(tex, n, d, h: 2, tool: .pickaxe, req: true, snd: .stone, stairs: n != "smooth_stone", slab: true, fence: n == "nether_brick", wall: wall)
