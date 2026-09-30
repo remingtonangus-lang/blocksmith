@@ -2,9 +2,11 @@ import Foundation
 
 // Per-block state that doesn't fit in a block ID: chest and furnace inventories, furnace progress.
 final class BlockEntity: Codable {
-    enum Kind: String, Codable { case chest, furnace }
+    enum Kind: String, Codable { case chest, furnace, spawner }
     let kind: Kind
     var items: [ItemStack]
+    var mob: String = ""      // spawner: mob kind name
+    var delay: Float = 10     // spawner: seconds until the next spawn attempt
     var burn = 0         // furnace: fuel ticks left
     var burnMax = 0
     var cook = 0         // furnace: progress ticks (200 = one item)
@@ -16,10 +18,19 @@ final class BlockEntity: Codable {
 
     init(_ k: Kind) {
         kind = k
-        items = Array(repeating: .empty, count: k == .chest ? 27 : 3)
+        items = Array(repeating: .empty, count: k == .chest ? 27 : (k == .furnace ? 3 : 0))
     }
 
-    enum CodingKeys: String, CodingKey { case kind, items, burn, burnMax, cook }
+    enum CodingKeys: String, CodingKey { case kind, items, burn, burnMax, cook, mob }
+    init(from dec: Decoder) throws {
+        let c = try dec.container(keyedBy: CodingKeys.self)
+        kind = try c.decode(Kind.self, forKey: .kind)
+        items = try c.decode([ItemStack].self, forKey: .items)
+        burn = (try? c.decode(Int.self, forKey: .burn)) ?? 0
+        burnMax = (try? c.decode(Int.self, forKey: .burnMax)) ?? 0
+        cook = (try? c.decode(Int.self, forKey: .cook)) ?? 0
+        mob = (try? c.decode(String.self, forKey: .mob)) ?? ""
+    }
     func encode(to e: Encoder) throws {
         var c = e.container(keyedBy: CodingKeys.self)
         try c.encode(kind, forKey: .kind)
@@ -27,6 +38,7 @@ final class BlockEntity: Codable {
         try c.encode(burn, forKey: .burn)
         try c.encode(burnMax, forKey: .burnMax)
         try c.encode(cook, forKey: .cook)
+        if !mob.isEmpty { try c.encode(mob, forKey: .mob) }
     }
 
     // One furnace game tick (20 per second). Returns true if the lit state changed.

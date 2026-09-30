@@ -12,7 +12,7 @@ struct Recipe {
 
 enum Recipes {
     static let tags: [String: [String]] = [
-        "planks": ["oak_planks", "birch_planks", "spruce_planks"],
+        "planks": ["oak_planks", "birch_planks", "spruce_planks", "crimson_planks", "warped_planks"],
         "logs": ["oak_log", "birch_log", "spruce_log", "oak_wood"],
         "stone_tool": ["cobblestone", "cobbled_deepslate"],
         "coals": ["coal", "charcoal"],
@@ -58,8 +58,25 @@ enum Recipes {
         r.append(shaped(["###", "# #", "###"], ["#": "#planks"], "chest"))
         r.append(shaped(["###", "# #", "###"], ["#": "#stone_tool"], "furnace"))
         r.append(shaped(["C", "S"], ["C": "#coals", "S": "stick"], "torch", 4))
-        r.append(shaped(["###"], ["#": "oak_planks"], "oak_slab", 6))
-        r.append(shaped(["###"], ["#": "smooth_stone"], "stone_slab", 6))
+        for (log, plank) in [("crimson_stem", "crimson_planks"), ("warped_stem", "warped_planks")] { r.append(shapeless([log], plank, 4)) }
+        // Stairs / slabs / fences / walls for every material family.
+        let families: [(String, String)] = [
+            ("oak_planks", "oak"), ("birch_planks", "birch"), ("spruce_planks", "spruce"), ("crimson_planks", "crimson"), ("warped_planks", "warped"),
+            ("cobblestone", "cobblestone"), ("stone", "stone"), ("stone_bricks", "stone_brick"), ("bricks", "brick"), ("sandstone", "sandstone"),
+            ("nether_bricks", "nether_brick"), ("red_nether_bricks", "red_nether_brick"), ("blackstone", "blackstone"),
+            ("cobbled_deepslate", "cobbled_deepslate"), ("mossy_cobblestone", "mossy_cobblestone"), ("andesite", "andesite"),
+            ("diorite", "diorite"), ("granite", "granite"), ("smooth_stone", "smooth_stone"),
+        ]
+        for (mat, n) in families {
+            r.append(shaped(["#  ", "## ", "###"], ["#": mat], "\(n)_stairs", 4))
+            r.append(shaped(["###"], ["#": mat], "\(n)_slab", 6))
+            r.append(shaped(["###", "###"], ["#": mat], "\(n)_wall", 6))
+            if mat.hasSuffix("_planks") { r.append(shaped(["#S#", "#S#"], ["#": mat, "S": "stick"], "\(n)_fence", 3)) }
+        }
+        r.append(shaped(["#B#", "#B#"], ["#": "nether_bricks", "B": "nether_brick"], "nether_brick_fence", 6))
+        r.append(shaped(["##", "##"], ["#": "nether_brick"], "nether_bricks"))
+        r.append(shaped(["###", "###"], ["#": "glass"], "glass_pane", 16))
+        r.append(shaped(["###", "###"], ["#": "iron_ingot"], "iron_bars", 16))
         r.append(shaped(["# #", " # "], ["#": "#planks"], "bowl", 4))
         r.append(shaped(["##", "##"], ["#": "stone"], "stone_bricks", 4))
         r.append(shaped(["##", "##"], ["#": "sand"], "sandstone"))
@@ -168,7 +185,8 @@ enum Recipes {
         "clay_ball": "brick", "clay": "terracotta", "oak_log": "charcoal", "birch_log": "charcoal", "spruce_log": "charcoal",
         "oak_wood": "charcoal", "beef": "cooked_beef", "porkchop": "cooked_porkchop", "chicken": "cooked_chicken",
         "mutton": "cooked_mutton", "rabbit": "cooked_rabbit", "cod": "cooked_cod", "salmon": "cooked_salmon",
-        "potato": "baked_potato",
+        "potato": "baked_potato", "netherrack": "nether_brick", "nether_gold_ore": "gold_ingot", "nether_quartz_ore": "quartz",
+        "ancient_debris": "netherite_scrap",
     ]
     static func smelt(_ i: ItemID) -> ItemID? {
         guard let r = smelting[Items.key(i)], Items.has(r) else { return nil }

@@ -146,6 +146,13 @@ final class ItemRegistry {
         item("ghast_tear", "Ghast Tear", "tear", 0xDDF2F2)
         item("wheat", "Wheat", "wheat", 0xD8B64A, ["a": 0x8C7A30])
         item("wheat_seeds", "Wheat Seeds", "seeds", 0x3EA42B)
+        item("nether_wart", "Nether Wart", "berries", 0x8A1A20, ["a": 0x5A0E12])
+        item("saddle", "Saddle", "leather", 0x8A4A22, stack: 1)
+        item("name_tag", "Name Tag", "paper", 0xE6E0C8, ["a": 0x6B4F2C])
+        item("magma_cream", "Magma Cream", "ball", 0xE8762A)
+        item("fire_charge", "Fire Charge", "ball", 0x4A2A1A)
+        item("melon_seeds", "Melon Seeds", "seeds", 0x4A3A2A)
+        item("pumpkin_seeds", "Pumpkin Seeds", "seeds", 0xD8C88A)
         item("beetroot_seeds", "Beetroot Seeds", "seeds", 0x8A5A3A)
         item("egg", "Egg", "egg", 0xE9DCBC, stack: 16)
         item("arrow", "Arrow", "arrow", 0x9A9A9A, ["f": 0xEDEDED, "a": 0x6B4F2C])
@@ -193,7 +200,7 @@ final class ItemRegistry {
         food("dried_kelp", "Dried Kelp", "leather", 0x3A4A2A, 1, 0.6)
         food("spider_eye", "Spider Eye", "eye", 0x8A2A3A, 2, 3.2, ["c": 0xC04050, "d": 0x200810])
 
-        for (n, crop) in [("wheat_seeds", "wheat"), ("beetroot_seeds", "beetroots"), ("carrot", "carrots"), ("potato", "potatoes")] {
+        for (n, crop) in [("wheat_seeds", "wheat"), ("beetroot_seeds", "beetroots"), ("carrot", "carrots"), ("potato", "potatoes"), ("nether_wart", "nether_wart")] {
             defs[Int(id(n))].plants = crop
         }
 

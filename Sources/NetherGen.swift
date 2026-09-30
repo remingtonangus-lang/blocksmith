@@ -8,6 +8,7 @@ final class NetherGen: TerrainGenerator {
     let d1: Noise, d2: Noise, bT: Noise, bH: Noise, deco: Noise
     static let base = YOFF          // internal y of displayed y 0
     static let lavaLevel = 31
+    let structures: StructureCache?
 
     init(seed: UInt64) {
         self.seed = seed
@@ -17,6 +18,7 @@ final class NetherGen: TerrainGenerator {
         bT = Noise(seed: seed &+ 103)
         bH = Noise(seed: seed &+ 104)
         deco = Noise(seed: seed &+ 105)
+        structures = StructureCache(seed: seed, types: [Fortress.type])
     }
 
     func biome(_ x: Int, _ z: Int) -> Biome {

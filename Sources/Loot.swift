@@ -39,6 +39,23 @@ enum Mining {
         let shears = !tool.isEmpty && tool.def.tool == .shears
         func one(_ n: String, _ c: Int = 1) -> [ItemStack] { [ItemStack(item(n), c)] }
         func rnd(_ a: Int, _ b: Int) -> Int { Int.random(in: a...b) }
+        // Crops: drops by growth stage (seeds roll binomially at full growth, as in the reference game).
+        let base = Blocks.groupBase[Int(b)]
+        let gkey = Blocks.key(base), stage = Int(b - base)
+        func binom(_ n: Int, _ p: Float) -> Int { (0..<n).reduce(0) { a, _ in a + (Float.random(in: 0..<1) < p ? 1 : 0) } }
+        switch gkey {
+        case "wheat":
+            return stage == 7 ? one("wheat") + one("wheat_seeds", 1 + binom(3, 0.5714)) : one("wheat_seeds")
+        case "carrots": return one("carrot", stage == 7 ? 1 + binom(3, 0.5714) : 1)
+        case "potatoes":
+            var out = one("potato", stage == 7 ? 1 + binom(3, 0.5714) : 1)
+            if stage == 7 && Items.has("poisonous_potato") && Float.random(in: 0..<1) < 0.02 { out += one("poisonous_potato") }
+            return out
+        case "beetroots":
+            return stage == 3 ? one("beetroot") + one("beetroot_seeds", 1 + binom(3, 0.5714)) : one("beetroot_seeds")
+        case "nether_wart": return one("nether_wart", stage == 3 ? rnd(2, 4) : 1)
+        default: break
+        }
         switch key {
         case "stone": return one("cobblestone")
         case "deepslate": return one("cobbled_deepslate")

@@ -132,6 +132,7 @@ enum Mesher {
         let CT = cornerTable, NT = normalTable, PTab = plantTable
         let rCube = RenderType.cube.rawValue, rCross = RenderType.cross.rawValue
         let rLiquid = RenderType.liquid.rawValue, rModel = RenderType.model.rawValue, rNone = RenderType.none.rawValue
+        let rConnect = RenderType.connect.rawValue, connT = Blocks.connectKind
         let translucent = RenderLayer.translucent.rawValue
         let y0 = sy * 16 - 16
 
@@ -263,8 +264,14 @@ enum Mesher {
                         continue
                     }
 
-                    if rt == rModel {
-                        for box in boxesT[bi] {
+                    if rt == rModel || rt == rConnect {
+                        var boxes = boxesT[bi]
+                        if rt == rConnect {
+                            let ck = connT[bi]
+                            boxes = BlockRegistry.connectBoxes(ck, n: Blocks.connects(ck, R[i - RW]), s: Blocks.connects(ck, R[i + RW]),
+                                                               w: Blocks.connects(ck, R[i - 1]), e: Blocks.connects(ck, R[i + 1]), collision: false)
+                        }
+                        for box in boxes {
                             let mn = [Int(box.x0), Int(box.y0), Int(box.z0)], mx = [Int(box.x1), Int(box.y1), Int(box.z1)]
                             for f in 0..<6 {
                                 let axis = f / 2
@@ -280,7 +287,7 @@ enum Mesher {
                                 } else {
                                     l = Int(skyL[i]) | (Int(blkL[i]) << 4)
                                 }
-                                let layer = Int(box.tex[f])
+                                let layer = box.tex.isEmpty ? Int(texT[bi * 6 + f]) : Int(box.tex[f])
                                 for k in 0..<4 {
                                     let ci = (f * 4 + k) * 3
                                     let px = CT[ci] == 1 ? mx[0] : mn[0]

@@ -177,6 +177,26 @@ enum TextureGen {
             if (x == y || x == y + 1) && x > 3 && x < 8 { return V4(0.95, 0.98, 1, 1) }
             return clear
         }
+        p["iron_bars"] = { x, y in
+            let bar = x % 5 == 2 || x % 5 == 3
+            let rail = y == 1 || y == 14
+            if bar || (rail && x > 0 && x < 15) {
+                let v: Float = (x % 5 == 2 ? 0.62 : 0.46) + 0.08 * r(x, y, 77)
+                return V4(v, v, v * 1.02, 1)
+            }
+            return clear
+        }
+        p["spawner"] = { x, y in
+            // Dark iron cage: a grid of bars with rivets, see-through between them.
+            let edge = x == 0 || y == 0 || x == 15 || y == 15
+            let bar = x % 4 == 0 || y % 4 == 0
+            if edge || bar {
+                let v: Float = edge ? 0.2 : 0.14 + 0.08 * r(x, y, 78)
+                let rivet = x % 4 == 0 && y % 4 == 0
+                return rivet ? V4(0.32, 0.34, 0.4, 1) : V4(v, v * 1.05, v * 1.2, 1)
+            }
+            return clear
+        }
         p["water"] = { x, y in
             let v: Float = 0.8 + 0.2 * r(x / 2, y, 14)
             return V4(v, v, v, 0.72)

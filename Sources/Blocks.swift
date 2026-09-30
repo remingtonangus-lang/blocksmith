@@ -9,7 +9,7 @@ import Foundation
 
 typealias BlockID = UInt16
 
-enum RenderType: UInt8 { case none, cube, cross, liquid, model }
+enum RenderType: UInt8 { case none, cube, cross, liquid, model, connect }   // connect: fences/panes/walls
 enum RenderLayer: UInt8 { case opaque, cutout, translucent }
 enum ToolType: UInt8 { case none, pickaxe, axe, shovel, hoe, sword, shears }
 
@@ -51,6 +51,8 @@ struct BlockDef {
     var fluid: Int8 = -1             // -1 none, 0 source, 1...7 flowing, 8 falling
     var fluidKind: UInt8 = 0         // 1 water, 2 lava
     var damage: UInt8 = 0            // contact damage per second (cactus, magma, fire, lava)
+    var connect: UInt8 = 0           // 1 fence, 2 pane/bars, 3 wall (render .connect)
+    var shape: String = ""           // "stairs", "slab" (placement rules)
     var sound: SoundMat = .stone
     var aoOcc: Bool? = nil
     var hidden = false               // not offered in the creative inventory
@@ -93,6 +95,8 @@ final class BlockRegistry {
     var fluidLevel: [Int8] = []
     var fluidKind: [UInt8] = []
     var contactDamage: [UInt8] = []
+    var connectKind: [UInt8] = []
+    var shape: [String] = []
     var hidden: [Bool] = []
     var hardness: [Float] = []
     var resistance: [Float] = []
@@ -127,13 +131,15 @@ final class BlockRegistry {
         emit.append(d.emit)
         aoOcc.append(d.aoOcc ?? (d.opaque || (d.render == .cube && d.layer == .cutout && !d.cullSame)))
         collide.append(d.collide)
-        fullCollide.append(d.collide && (d.boxes.isEmpty || d.render == .cube))
+        fullCollide.append(d.collide && (d.render == .cube || (d.render != .model && d.render != .connect && d.boxes.isEmpty)))
         cullSame.append(d.cullSame)
         tint.append(d.tint)
         replaceable.append(d.replaceable)
         fluidLevel.append(d.fluid)
         fluidKind.append(d.fluid >= 0 ? (d.fluidKind == 0 ? 1 : d.fluidKind) : 0)
         contactDamage.append(d.damage)
+        connectKind.append(d.connect)
+        shape.append(d.shape)
         hidden.append(d.hidden)
         hardness.append(d.hardness)
         resistance.append(d.resistance ?? (d.hardness < 0 ? 3_600_000 : d.hardness))
@@ -481,14 +487,125 @@ final class BlockRegistry {
         column("oak_wood", "Oak Wood", side: "oak_log", top: "oak_log")
         cube("birch_planks", "Birch Planks", "birch_planks", h: 2, tool: .axe, snd: .wood)
         cube("spruce_planks", "Spruce Planks", "spruce_planks", h: 2, tool: .axe, snd: .wood)
-        var slab = BlockDef("stone_slab", "Stone Slab")
-        slab.tex = ["smooth_stone"]; slab.render = .model; slab.opaque = false; slab.hardness = 2; slab.tool = .pickaxe
-        slab.requiresTool = true; slab.boxes = [Box(0, 0, 0, 16, 8, 16)]; slab.skyStop = true
-        add(slab)
-        var oslab = BlockDef("oak_slab", "Oak Slab")
-        oslab.tex = ["oak_planks"]; oslab.render = .model; oslab.opaque = false; oslab.hardness = 2; oslab.tool = .axe
-        oslab.sound = .wood; oslab.boxes = [Box(0, 0, 0, 16, 8, 16)]; oslab.skyStop = true
-        add(oslab)
+        // Building families: stairs, slabs, fences, walls for each material.
+        let woods: [(String, String)] = [("oak", "Oak"), ("birch", "Birch"), ("spruce", "Spruce"), ("crimson", "Crimson"), ("warped", "Warped")]
+        for (w, d) in woods {
+            family("\(w)_planks", "\(w)", d, h: 2, tool: .axe, req: false, snd: .wood, stairs: true, slab: true, fence: true, wall: false)
+        }
+        let stones: [(String, String, String, Bool)] = [
+            ("cobblestone", "cobblestone", "Cobblestone", true), ("stone", "stone", "Stone", false),
+            ("stone_bricks", "stone_brick", "Stone Brick", true), ("bricks", "brick", "Brick", true),
+            ("sandstone", "sandstone", "Sandstone", true), ("nether_bricks", "nether_brick", "Nether Brick", true),
+            ("red_nether_bricks", "red_nether_brick", "Red Nether Brick", true), ("blackstone", "blackstone", "Blackstone", true),
+            ("cobbled_deepslate", "cobbled_deepslate", "Cobbled Deepslate", true), ("mossy_cobblestone", "mossy_cobblestone", "Mossy Cobblestone", true),
+            ("andesite", "andesite", "Andesite", true), ("diorite", "diorite", "Diorite", true), ("granite", "granite", "Granite", true),
+            ("smooth_stone", "smooth_stone", "Smooth Stone", false),
+        ]
+        for (tex, n, d, wall) in stones {
+            family(tex, n, d, h: 2, tool: .pickaxe, req: true, snd: .stone, stairs: n != "smooth_stone", slab: true, fence: n == "nether_brick", wall: wall)
+        }
+        var pane = BlockDef("glass_pane", "Glass Pane")
+        pane.tex = ["glass"]; pane.render = .connect; pane.connect = 2; pane.layer = .cutout; pane.opaque = false
+        pane.hardness = 0.3; pane.sound = .glass; pane.skyStop = false
+        add(pane)
+        var bars = BlockDef("iron_bars", "Iron Bars")
+        bars.tex = ["iron_bars"]; bars.render = .connect; bars.connect = 2; bars.layer = .cutout; bars.opaque = false
+        bars.hardness = 5; bars.tool = .pickaxe; bars.requiresTool = true; bars.skyStop = false
+        add(bars)
+        var spawner = BlockDef("spawner", "Monster Spawner")
+        spawner.tex = ["spawner"]; spawner.opaque = false; spawner.layer = .cutout; spawner.hardness = 5; spawner.tool = .pickaxe
+        spawner.requiresTool = true; spawner.aoOcc = false; spawner.skyStop = true
+        add(spawner)
+    }
+
+    // Stairs (8 states: 4 facings x bottom/top), slabs (bottom/top/double), fence, wall for one material.
+    func family(_ tex: String, _ n: String, _ disp: String, h: Float, tool: ToolType, req: Bool, snd: SoundMat,
+                stairs: Bool, slab: Bool, fence: Bool, wall: Bool) {
+        let t = (tex == "sandstone") ? ["sandstone", "sandstone", "sandstone_top", "sandstone_bottom", "sandstone", "sandstone"] : [tex]
+        func base(_ name: String, _ display: String) -> BlockDef {
+            var d = BlockDef(name, display)
+            d.tex = t; d.render = .model; d.opaque = false; d.hardness = h; d.tool = tool; d.requiresTool = req; d.sound = snd
+            d.skyStop = true
+            return d
+        }
+        if stairs {
+            let steps = [Box(0, 8, 0, 16, 16, 8), Box(0, 8, 8, 16, 16, 16), Box(0, 8, 0, 8, 16, 16), Box(8, 8, 0, 16, 16, 16)]
+            for top in [false, true] {
+                for (k, dir) in ["north", "south", "west", "east"].enumerated() {
+                    let name = !top && k == 0 ? "\(n)_stairs" : "\(n)_stairs[\(dir)\(top ? ",top" : "")]"
+                    var d = base(name, "\(disp) Stairs")
+                    d.group = "\(n)_stairs"; d.hidden = top || k != 0; d.shape = "stairs"
+                    var st = steps[k]
+                    if top { st.y0 = 0; st.y1 = 8 }
+                    d.boxes = [top ? Box(0, 8, 0, 16, 16, 16) : Box(0, 0, 0, 16, 8, 16), st]
+                    add(d)
+                }
+            }
+        }
+        if slab {
+            for (k, part) in ["bottom", "top", "double"].enumerated() {
+                var d = base(k == 0 ? "\(n)_slab" : "\(n)_slab[\(part)]", "\(disp) Slab")
+                d.group = "\(n)_slab"; d.hidden = k != 0; d.shape = "slab"
+                d.boxes = [k == 0 ? Box(0, 0, 0, 16, 8, 16) : (k == 1 ? Box(0, 8, 0, 16, 16, 16) : Box(0, 0, 0, 16, 16, 16))]
+                add(d)
+            }
+        }
+        if fence {
+            var d = BlockDef(n == "nether_brick" ? "nether_brick_fence" : "\(n)_fence", "\(disp) Fence")
+            d.tex = t; d.render = .connect; d.connect = 1; d.opaque = false; d.hardness = h; d.tool = tool; d.sound = snd
+            d.requiresTool = req; d.skyStop = false
+            add(d)
+        }
+        if wall {
+            var d = BlockDef("\(n)_wall", "\(disp) Wall")
+            d.tex = t; d.render = .connect; d.connect = 3; d.opaque = false; d.hardness = h; d.tool = tool; d.sound = snd
+            d.requiresTool = req; d.skyStop = true
+            add(d)
+        }
+    }
+
+    // Geometry of a connecting block given which sides connect (n = -Z, s = +Z, w = -X, e = +X).
+    static func connectBoxes(_ kind: UInt8, n: Bool, s: Bool, w: Bool, e: Bool, collision: Bool) -> [Box] {
+        var out: [Box] = []
+        switch kind {
+        case 1:
+            let top = collision ? 24 : 16
+            out.append(Box(6, 0, 6, 10, top, 10))
+            if collision {
+                if n { out.append(Box(6, 0, 0, 10, 24, 6)) }
+                if s { out.append(Box(6, 0, 10, 10, 24, 16)) }
+                if w { out.append(Box(0, 0, 6, 6, 24, 10)) }
+                if e { out.append(Box(10, 0, 6, 16, 24, 10)) }
+            } else {
+                for (y0, y1) in [(6, 9), (12, 15)] {
+                    if n { out.append(Box(7, y0, 0, 9, y1, 6)) }
+                    if s { out.append(Box(7, y0, 10, 9, y1, 16)) }
+                    if w { out.append(Box(0, y0, 7, 6, y1, 9)) }
+                    if e { out.append(Box(10, y0, 7, 16, y1, 9)) }
+                }
+            }
+        case 2:
+            out.append(Box(7, 0, 7, 9, 16, 9))
+            if n { out.append(Box(7, 0, 0, 9, 16, 7)) }
+            if s { out.append(Box(7, 0, 9, 9, 16, 16)) }
+            if w { out.append(Box(0, 0, 7, 7, 16, 9)) }
+            if e { out.append(Box(9, 0, 7, 16, 16, 9)) }
+        default:
+            let top = collision ? 24 : 16, arm = collision ? 24 : 14
+            out.append(Box(4, 0, 4, 12, top, 12))
+            if n { out.append(Box(5, 0, 0, 11, arm, 4)) }
+            if s { out.append(Box(5, 0, 12, 11, arm, 16)) }
+            if w { out.append(Box(0, 0, 5, 4, arm, 11)) }
+            if e { out.append(Box(12, 0, 5, 16, arm, 11)) }
+        }
+        return out
+    }
+
+    // Whether a connecting block of `kind` joins the neighbour `nb`.
+    @inline(__always) func connects(_ kind: UInt8, _ nb: BlockID) -> Bool {
+        let k = connectKind[Int(nb)]
+        if k != 0 { return k == kind || (kind == 3 && k == 1) || (kind == 1 && k == 3) }
+        return opaque[Int(nb)]
     }
 }
 

@@ -641,6 +641,24 @@ final class Game {
         if useNow && useItemOnBlock(t) { return }
         guard let blockItem = h.def.block else { return }
         let clicked = world.block(t.hit.x, t.hit.y, t.hit.z)
+        // Slabs: clicking a matching half slab from the open side makes a double slab.
+        if Blocks.shape[Int(blockItem)] == "slab" {
+            let cb = Blocks.groupBase[Int(clicked)]
+            let part = Int(clicked) - Int(cb)
+            if cb == blockItem && ((part == 0 && t.normal.y == 1) || (part == 1 && t.normal.y == -1)) {
+                world.setBlock(t.hit.x, t.hit.y, t.hit.z, blockItem + 2)
+                sfx(.place(soundMat(blockItem)), at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
+                consumeHeld(); swing = 1
+                return
+            }
+            let nb = t.hit + t.normal
+            let nbb = world.block(nb.x, nb.y, nb.z)
+            if Blocks.groupBase[Int(nbb)] == blockItem && Int(nbb) - Int(blockItem) < 2 {
+                world.setBlock(nb.x, nb.y, nb.z, blockItem + 2)
+                consumeHeld(); swing = 1
+                return
+            }
+        }
         let at = Blocks.replaceable[Int(clicked)] && !Blocks.isLiquid(clicked) ? t.hit : t.hit + t.normal
         let existing = world.block(at.x, at.y, at.z)
         guard Blocks.replaceable[Int(existing)], at.y >= 0, at.y < CH else { return }
@@ -652,6 +670,13 @@ final class Game {
         }
         if key == "furnace" || key == "chest" {
             id = blockItem + BlockID(BlockRegistry.facingToward(yaw: player.yaw))
+        }
+        let fracY = hitPoint(t).y - Float(t.hit.y)
+        let upperHalf = t.normal.y == -1 || (t.normal.y == 0 && fracY > 0.5)
+        switch Blocks.shape[Int(blockItem)] {
+        case "stairs": id = blockItem + BlockID((upperHalf ? 4 : 0) + (BlockRegistry.facingToward(yaw: player.yaw) ^ 1))
+        case "slab": id = blockItem + (upperHalf ? 1 : 0)
+        default: break
         }
         let supported: Bool
         if id == TORCH {
@@ -673,6 +698,18 @@ final class Game {
             swing = 1
             consumeHeld()
         }
+    }
+
+    // Exact point where the look ray meets the targeted face.
+    func hitPoint(_ t: (hit: IVec3, normal: IVec3)) -> V3 {
+        let o = player.eye, d = player.look
+        let bmin = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z))
+        var best: Float = .greatestFiniteMagnitude
+        for (mn, mx) in world.selectionBoxes(world.block(t.hit.x, t.hit.y, t.hit.z)) {
+            if let h = World.rayBox(o, d, bmin + mn, bmin + mx) { best = min(best, h.0) }
+        }
+        if best == .greatestFiniteMagnitude { return bmin + 0.5 }
+        return o + d * best
     }
 
     func isInteractive(_ p: IVec3) -> Bool {

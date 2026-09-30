@@ -18,7 +18,7 @@ final class World {
 
     private let workQueue = DispatchQueue(label: "blocksmith.world", qos: .userInitiated, attributes: .concurrent)
     private let lock = NSLock()
-    private var genResults: [(ChunkKey, [BlockID], [Int16], [UInt32], Bool)] = []
+    private var genResults: [(ChunkKey, Produced)] = []
     private var meshResults: [(ChunkKey, [(Int, Int, SectionMesh)])] = []
     private var genInFlight = Set<ChunkKey>()
     private var jobs = 0
@@ -154,7 +154,15 @@ final class World {
         if !Blocks.collide[b] { return }
         let o = V3(Float(x), Float(y), Float(z))
         if Blocks.fullCollide[b] { out.append((o, o + 1)); return }
-        for bx in Blocks.boxes[b] { out.append((o + bx.minV, o + bx.maxV)) }
+        for bx in shapeBoxes(x, y, z, BlockID(b), collision: true) { out.append((o + bx.minV, o + bx.maxV)) }
+    }
+
+    // Model boxes of a block, resolving connecting blocks (fences, panes, walls) from their neighbours.
+    func shapeBoxes(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID, collision: Bool) -> [Box] {
+        let ck = Blocks.connectKind[Int(b)]
+        if ck == 0 { return Blocks.boxes[Int(b)] }
+        return BlockRegistry.connectBoxes(ck, n: Blocks.connects(ck, block(x, y, z - 1)), s: Blocks.connects(ck, block(x, y, z + 1)),
+                                          w: Blocks.connects(ck, block(x - 1, y, z)), e: Blocks.connects(ck, block(x + 1, y, z)), collision: collision)
     }
 
     func collides(_ mn: V3, _ mx: V3) -> Bool {
@@ -301,13 +309,11 @@ final class World {
         let mr = meshResults; meshResults.removeAll(keepingCapacity: true)
         lock.unlock()
 
-        for (k, blocks, height, tint, fromDisk) in gr {
+        for (k, p) in gr {
             genInFlight.remove(k)
             jobs -= 1
             if chunks[k] != nil { continue }
-            let c = Chunk(cx: k.x, cz: k.z, blocks: blocks, height: height, tint: tint)
-            c.modified = fromDisk
-            chunks[k] = c
+            install(k, p)
         }
         for (k, list) in mr {
             jobs -= 1
@@ -351,7 +357,7 @@ final class World {
                 jobs += 1
                 workQueue.async { [self] in
                     let r = produce(k)
-                    lock.lock(); genResults.append((k, r.0, r.1, r.2, r.3)); lock.unlock()
+                    lock.lock(); genResults.append((k, r)); lock.unlock()
                 }
             }
         }
@@ -359,12 +365,33 @@ final class World {
     }
 
     // Loads a chunk from disk or generates it (thread-safe).
-    private func produce(_ k: ChunkKey) -> ([BlockID], [Int16], [UInt32], Bool) {
+    struct Produced {
+        var blocks: [BlockID]
+        var height: [Int16]
+        var tint: [UInt32]
+        var fromDisk: Bool
+        var entities: [(IVec3, BlockEntity)]
+    }
+
+    private func produce(_ k: ChunkKey) -> Produced {
         var fromDisk = false
-        let blocks: [BlockID]
+        var blocks: [BlockID]
+        var ents: [(IVec3, BlockEntity)] = []
         if let saved = save?.loadChunk(k) { blocks = saved; fromDisk = true }
-        else { blocks = gen.generate(cx: k.x, cz: k.z) }
-        return (blocks, Chunk.computeHeights(blocks), gen.tints(cx: k.x, cz: k.z), fromDisk)
+        else {
+            blocks = gen.generate(cx: k.x, cz: k.z)
+            if let st = gen.structures { ents = st.place(into: &blocks, cx: k.x, cz: k.z) }
+        }
+        return Produced(blocks: blocks, height: Chunk.computeHeights(blocks), tint: gen.tints(cx: k.x, cz: k.z),
+                        fromDisk: fromDisk, entities: ents)
+    }
+
+    private func install(_ k: ChunkKey, _ p: Produced) {
+        let c = Chunk(cx: k.x, cz: k.z, blocks: p.blocks, height: p.height, tint: p.tint)
+        c.modified = p.fromDisk
+        chunks[k] = c
+        // Generated chests/spawners; a regenerated chunk keeps any existing (already looted) entity.
+        for (pos, be) in p.entities where blockEntities[pos] == nil { blockEntities[pos] = be }
     }
 
     // Blocking load of everything around a point (used by --snapshot and first spawn).
@@ -377,17 +404,13 @@ final class World {
             if chunks[k] == nil { keys.append(k) }
         } }
         let t0 = CFAbsoluteTimeGetCurrent()
-        typealias Produced = ([BlockID], [Int16], [UInt32], Bool)
         let res = UnsafeMutablePointer<Produced>.allocate(capacity: max(1, keys.count))
         defer { res.deallocate() }
         DispatchQueue.concurrentPerform(iterations: keys.count) { i in
             (res + i).initialize(to: produce(keys[i]))
         }
         for (i, k) in keys.enumerated() {
-            let p = (res + i).move()
-            let c = Chunk(cx: k.x, cz: k.z, blocks: p.0, height: p.1, tint: p.2)
-            c.modified = p.3
-            chunks[k] = c
+            install(k, (res + i).move())
         }
         let t1 = CFAbsoluteTimeGetCurrent()
 
@@ -432,6 +455,11 @@ final class World {
         if r == RenderType.cross.rawValue { return [(V3(0.125, 0, 0.125), V3(0.875, 0.8125, 0.875))] }
         if r == RenderType.model.rawValue && !Blocks.boxes[Int(b)].isEmpty {
             return Blocks.boxes[Int(b)].map { ($0.minV, $0.maxV) }
+        }
+        if r == RenderType.connect.rawValue {
+            let ck = Blocks.connectKind[Int(b)]
+            let bx = BlockRegistry.connectBoxes(ck, n: false, s: false, w: false, e: false, collision: false)
+            return bx.map { ($0.minV, $0.maxV) }
         }
         return [(V3(0, 0, 0), V3(1, 1, 1))]
     }

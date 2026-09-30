@@ -19,6 +19,11 @@ protocol TerrainGenerator: AnyObject {
     func generate(cx: Int, cz: Int) -> [BlockID]
     func tints(cx: Int, cz: Int) -> [UInt32]
     func column(_ x: Int, _ z: Int) -> (height: Int, biome: Biome)
+    var structures: StructureCache? { get }
+}
+
+extension TerrainGenerator {
+    var structures: StructureCache? { nil }
 }
 
 final class DimensionState {

@@ -43,6 +43,13 @@ enum Snapshot {
             pos = V3(x, Float(max(hgt, SEA) + 1), z)
         }
         if let want = arg("--find"), let p = findBiome(world.gen, want) { pos = p }
+        // --structure <kind>: stand above the start piece of the nearest structure of that kind.
+        if let kind = arg("--structure"), let s = world.gen.structures?.nearest(kind, x: Int(pos.x), z: Int(pos.z)),
+           let first = s.pieces.first {
+            let c = V3(Float(s.min.x + s.max.x) / 2, Float(first.max.y), Float(s.min.z + s.max.z) / 2)
+            pos = c + V3(-14, 6, 14)
+            print("structure \(kind) at \(Int(c.x)) \(Int(c.y) - YOFF) \(Int(c.z)) (\(s.pieces.count) pieces)")
+        }
         pos.y += Float(arg("--up") ?? "") ?? 0
         game.player.pos = pos
         game.player.yaw = (Float(arg("--yaw") ?? "") ?? 30) * .pi / 180

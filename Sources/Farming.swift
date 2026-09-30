@@ -81,6 +81,8 @@ extension Game {
             if Float.random(in: 0..<1) < 1 / (floorf(25 / f) + 1) {
                 world.setBlock(p.x, p.y, p.z, b + 1)
             }
+        case "nether_wart":
+            if stage < 3 && Int.random(in: 0..<10) == 0 { world.setBlock(p.x, p.y, p.z, b + 1) }
         case "oak_sapling", "birch_sapling", "spruce_sapling":
             let l = world.lightAt(p.x, p.y + 1, p.z)
             if max(l.sky, l.block) >= 9 && Int.random(in: 0..<7) == 0 { growTree(p, key) }
@@ -170,7 +172,7 @@ extension Game {
             return true
         }
         // Seeds / crops onto farmland.
-        if let crop = h.def.plants, bkey == "farmland", t.normal.y == 1, world.block(t.hit.x, t.hit.y + 1, t.hit.z) == AIR {
+        if let crop = h.def.plants, bkey == (crop == "nether_wart" ? "soul_sand" : "farmland"), t.normal.y == 1, world.block(t.hit.x, t.hit.y + 1, t.hit.z) == AIR {
             world.setBlock(t.hit.x, t.hit.y + 1, t.hit.z, Blocks.id(crop))
             sfx(.place(.plant), 1, at: V3(Float(t.hit.x), Float(t.hit.y + 1), Float(t.hit.z)) + 0.5)
             consumeHeld()
