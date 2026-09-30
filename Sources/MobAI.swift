@@ -355,4 +355,19 @@ extension Game {
             c.pos = player.pos + V3(Float.random(in: -1...1), 0, Float.random(in: -1...1))
         }
     }
+
+    // Boarlings within 16 blocks that can see it are angered by a player opening a chest or breaking gold
+    // blocks, gold ore or gilded blackstone (reference), gold armour or not.
+    func boarlingsGuard(_ p: IVec3, block b: BlockID) {
+        guard dim.dim == .nether, survival else { return }
+        let k = Blocks.key(Blocks.groupBase[Int(b)])
+        guard k == "chest" || k == "trapped_chest" || k == "barrel" || k == "gold_block" || k.hasSuffix("gold_ore") || k == "gilded_blackstone" else { return }
+        let c = V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)
+        for kind in [MobKind.piglin, .piglinBrute] {
+            for m in mobs.of(kind) where simd_length(m.pos - c) < 16 && world.canSee(m.eye, player.eye) {
+                m.aggro = true; m.admire = 0; m.lockTime = 10
+            }
+        }
+    }
 }
+

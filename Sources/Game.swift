@@ -1180,6 +1180,7 @@ final class Game {
             openMenu(CrafterMenu(game: self, entity: be))
         case "decorated_pot": usePot(p)
         case "chest":
+            boarlingsGuard(p, block: world.block(p.x, p.y, p.z))
             let be = world.blockEntities[p] ?? BlockEntity(.chest)
             world.blockEntities[p] = be
             // A neighbouring chest with the same facing along the chest's width makes a large chest.
@@ -1241,6 +1242,7 @@ final class Game {
     }
 
     func breakBlock(_ p: IVec3, _ b: BlockID, drop: Bool) {
+        boarlingsGuard(p, block: b)
         sfx(.breakBlock(soundMat(b)), at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
         particles.blockBreak(b, at: p)
         world.setBlock(p.x, p.y, p.z, AIR)
