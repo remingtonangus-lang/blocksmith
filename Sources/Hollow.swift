@@ -267,6 +267,7 @@ extension Game {
         // (dragonKilled goes back to false while a respawned wyrm is alive).
         let first = !dragonKilled && gateways == 0
         dragonKilled = true
+        achieve("kill_ender_dragon")
         addXP(first ? 12000 : 500)
         let fy = fountainY
         HollowGen.fountainBlocks(fy, active: true) { x, y, z, b in world.setBlockAsync(x, y, z, b) }
@@ -289,8 +290,8 @@ extension Game {
 extension Game {
     // Original credits text (not the reference game's poem).
     static let creditsLines: [String] = [
-        "BLOCKSMITH", "", "", "The dragon is gone. The island is quiet.", "",
-        "You came from a world of grass and water,", "dug down through stone and deepslate,",
+        "BLOCKSMITH", "", "", "The wyrm is gone. The island is quiet.", "",
+        "You came from a world of grass and water,", "dug down through stone and deeprock,",
         "walked through fire in the Emberdeep,", "followed the eyes across the land,",
         "and crossed the dark to the Hollow.", "", "Every block you placed was a choice.",
         "Every tunnel, every tower, every farm", "was a small world of your own making.", "",
@@ -367,7 +368,7 @@ extension Mob {
             goal = player + V3(0, 1, 0)
             speed = 20
             if dist < 5 {
-                g.hurtPlayer(10, from: pos, cause: "was slain by Hollow Wyrm", knockback: 2.5)
+                g.hurtPlayer(10, from: pos, cause: "was slain by Hollow Wyrm", knockback: 2.5, attacker: self)
                 attackCooldown = 1
                 phase = 0; phaseTime = 0
             }
@@ -431,10 +432,10 @@ extension Mob {
         if phase != 6 && attackCooldown <= 0 && hurt <= 0 {
             if simd_length(g.player.eye - headAt) < 2.2 {
                 attackCooldown = 1
-                g.hurtPlayer(10, from: headAt, cause: "was slain by Hollow Wyrm", knockback: 1)
+                g.hurtPlayer(10, from: headAt, cause: "was slain by Hollow Wyrm", knockback: 1, attacker: self)
             } else if dist < 6 && phase != 4 {
                 attackCooldown = 1
-                g.hurtPlayer(5, from: pos, cause: "was slain by Hollow Wyrm", knockback: 2)
+                g.hurtPlayer(5, from: pos, cause: "was slain by Hollow Wyrm", knockback: 2, attacker: self)
             }
         }
     }

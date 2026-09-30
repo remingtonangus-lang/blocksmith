@@ -115,7 +115,8 @@ extension Game {
         case .witherSkull, .blueSkull:
             if hitP {
                 hurtPlayer(8, from: f.pos, cause: "was shot by a Blight Skull", knockback: 0.3, type: .projectile)
-                applyEffect(.wither, amp: 1, seconds: 10)
+                // Blight II: none on Easy, 10 s on Normal, 40 s on Hard (reference).
+                if difficulty >= 2 { applyEffect(.wither, amp: 1, seconds: difficulty >= 3 ? 40 : 10) }
             } else if let m = mob, m.kind != .wither {
                 m.hit(from: f.pos, damage: 8, knockback: 0.3)
                 m.applyEffect(.wither, amp: 1, seconds: 10, game: self)

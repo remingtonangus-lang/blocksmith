@@ -244,14 +244,25 @@ final class Playthrough {
         let inp = game.input
         for _ in 0..<13 {
             game.tick(0.05); simSeconds += 0.05
-            game.player.pos = feet ?? (m.pos + offset); game.player.vel = .zero
+            game.player.pos = feet ?? chaseSpot(m, offset); game.player.vel = .zero
             game.health = max(game.health, 14)
             if !game.alive { damageTaken += 20; revive() }
         }
         aim(at: m.pos + V3(0, min(m.height * 0.5, 1.5), 0))
         inp.leftClicked = true
         game.tick(0.05); simSeconds += 0.05
-        game.player.pos = feet ?? (m.pos + offset); game.player.vel = .zero
+        game.player.pos = feet ?? chaseSpot(m, offset); game.player.vel = .zero
+    }
+
+    // Where a chasing player would stand to hit a mob: the preferred side if the body fits there, else another.
+    func chaseSpot(_ m: Mob, _ pref: V3) -> V3 {
+        func cell(_ p: V3) -> IVec3 { IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))) }
+        let sides = [pref, V3(-pref.x, pref.y, -pref.z), V3(pref.z, pref.y, pref.x), V3(-pref.z, pref.y, -pref.x)]
+        for o in sides {
+            let f = m.pos + o
+            if clear(cell(f + V3(0, 0.3, 0))) && clear(cell(f + V3(0, 1.62, 0))) { return f }
+        }
+        return m.pos + V3(0, m.height + 0.3, 0)
     }
 
     // MARK: Run
@@ -276,6 +287,7 @@ final class Playthrough {
         if want("stronghold") { t.eyesAndStronghold() }
         if want("end") { t.theHollow() }
         if want("blight") { t.blight() }
+        t.advancementsCheck(only.isEmpty)
         t.section("summary")
         print(String(format: "playthrough: %ld failed checks, %.0f s of game time in %.1f s wall", t.fails.count, t.simSeconds, CFAbsoluteTimeGetCurrent() - t.t0))
         for f in t.fails { print("  failed: \(f)") }
@@ -283,6 +295,17 @@ final class Playthrough {
     }
 
     func kit(_ names: [String]) { for n in names { give(n, 1) } }
+
+    // The story advancements a full run must have earned.
+    func advancementsCheck(_ full: Bool) {
+        section("advancements")
+        tick(1.1)
+        let must = ["nether/obtain_blaze_rod", "end/root", "end/kill_dragon", "end/dragon_egg", "end/enter_end_gateway", "nether/summon_wither"]
+        for id in must where Advancements.index[id] != nil {
+            if full { check(game.advancements.contains(id), "advancement \(id)") } else { info("advancement \(id): \(game.advancements.contains(id))") }
+        }
+        info("\(game.advancements.count) advancements earned: \(game.advancements.sorted().joined(separator: ", "))")
+    }
 
     func start() {
         section("spawn")
@@ -810,13 +833,38 @@ final class Playthrough {
             let lp = IVec3(Int(floor(game.player.pos.x)), Int(floor(game.player.pos.y)), Int(floor(game.player.pos.z)))
             let back = findBlock(near: lp, radius: 12, yRange: max(0, lp.y - 12)...min(CH - 1, lp.y + 12), { $0 == "end_gateway" })
             check(back != nil, "rift: a return rift near the landing spot")
+            spire(from: lp)
             if let b = back {
+                _ = world.loadSync(center: center(b), radius: 2)
                 game.portalCooldown = 0
                 game.player.flying = true
                 game.player.pos = V3(Float(b.x) + 0.5, Float(b.y), Float(b.z) + 0.5)
                 let home = tick(1) { simd_length(V2(self.game.player.pos.x, self.game.player.pos.z)) < 200 }
                 check(home, String(format: "rift: the return rift leads back to the central island (%.0f blocks out)", simd_length(V2(game.player.pos.x, game.player.pos.z))))
             }
+        }
+
+        // Quit and reload: the wyrm stays dead, the exit portal stays open, the egg stays in the bag.
+        section("save + reload")
+        game.saveNow()
+        if let save = game.save, let meta = save.loadMeta() {
+            let w2 = World(seed: world.seed, device: world.device, save: save, dim: .overworld)
+            w2.renderDistance = 4
+            let g2 = Game(world: w2, save: save, persistent: false)
+            g2.apply(meta)
+            check(g2.dim.dim == .end, "reload: back in the Hollow (\(g2.dim.dim))")
+            check(g2.dragonKilled && g2.gateways >= 1, "reload: wyrm stays defeated (\(g2.dragonKilled), \(g2.gateways) rifts)")
+            check(g2.inventory.main.countOf(id("dragon_egg")) == 1, "reload: the egg is still in the inventory")
+            _ = g2.world.loadSync(center: V3(0.5, Float(fy), 0.5), radius: 2)
+            var open = 0
+            for z in -2...2 { for x in -2...2 where Blocks.key(g2.world.block(x, fy, z)) == "end_portal" { open += 1 } }
+            check(open >= 12, "reload: exit portal still open (\(open))")
+            g2.paused = false
+            g2.closeMenu()
+            for _ in 0..<120 { g2.tick(0.05) }
+            check(!g2.mobs.mobs.contains { $0.kind == .enderDragon }, "reload: no new wyrm appears")
+        } else {
+            check(false, "reload: world.json written")
         }
 
         // Exit portal -> credits -> home.
@@ -834,6 +882,58 @@ final class Playthrough {
         _ = tick(2)
         check(game.alive, "credits: alive at home")
         // A second trip goes straight home without credits.
+    }
+
+    // Far islands: the nearest hollow spire, the glider wings in its ship, a glide off the top.
+    func spire(from lp: IVec3) {
+        section("hollow spire")
+        guard let city = world.gen.structures?.nearest("end_city", x: lp.x, z: lp.z, maxRegions: 4) else {
+            check(false, "spire: a hollow spire on the far islands"); return
+        }
+        let d = simd_length(V2(Float(city.anchor.x - lp.x), Float(city.anchor.z - lp.z)))
+        check(d < 1000, "spire: nearest hollow spire \(Int(d)) blocks from the landing spot (\(city.pieces.count > 1 ? "with" : "no") ship)")
+        let cc = V3(Float(city.anchor.x), Float(city.anchor.y), Float(city.anchor.z))
+        _ = world.loadSync(center: cc, radius: 3)
+        game.player.flying = true
+        game.player.pos = cc + V3(0, 30, 0)
+        tick(1, pin: game.player.pos)
+        let sentries = game.mobs.mobs.filter { $0.kind == .shulker && city.contains(Int(floor($0.pos.x)), Int(floor($0.pos.y)), Int(floor($0.pos.z))) }.count
+        info("spire: \(sentries) shellsentries")
+        var wings: IVec3?
+        for (p, be) in world.blockEntities where be.kind == .chest && city.contains(p.x, p.y, p.z) {
+            if be.container.slots.contains(where: { Items.key($0.item) == "elytra" }) { wings = p }
+        }
+        if city.pieces.count > 1 {
+            check(wings != nil, "spire: the ship's hold has glider wings")
+        }
+        if let w = wings, let be = world.blockEntities[w] {
+            for i in 0..<be.container.count where Items.key(be.container[i].item) == "elytra" {
+                game.inventory.add(be.container[i]); be.container[i] = .empty
+            }
+        }
+        if count("elytra") == 0 { give("elytra", 1, bulk: "no ship at this spire") }
+        // Wear them and glide off from high up: space while falling opens the wings.
+        if let i = (0..<36).first(where: { Items.key(inv[$0].item) == "elytra" }) { game.inventory.armor[1] = inv[i]; inv[i] = .empty }
+        let start = cc + V3(0, 40, 0)
+        game.player.flying = false
+        game.player.pos = start
+        game.player.vel = .zero
+        game.player.airPeak = start.y
+        game.player.yaw = 0
+        game.player.pitch = -0.35
+        tick(0.4)
+        game.input.pressed.insert(Key.space)
+        tick(0.05)
+        check(game.player.gliding, "wings: open with space while falling")
+        let hp = game.health
+        game.health = 20
+        for _ in 0..<120 { game.player.pitch = -0.2; game.tick(0.05); simSeconds += 0.05; if !game.player.gliding { break } }
+        let flown = simd_length(V2(game.player.pos.x - start.x, game.player.pos.z - start.z))
+        let dropped = start.y - game.player.pos.y
+        check(flown > 30 && flown > dropped * 2, String(format: "wings: glided %.0f blocks while dropping %.0f", flown, dropped))
+        game.health = max(hp, game.health)
+        game.inventory.armor[1] = .empty
+        game.player.gliding = false
     }
 
     // MARK: The Blight
