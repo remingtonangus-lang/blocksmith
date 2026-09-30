@@ -58,9 +58,16 @@ extension Game {
             particles.hearts(at: pos)
             if let sc = world.gen.structures {
                 let x = Int(floor(m.pos.x)), z = Int(floor(m.pos.z))
-                let found = ["buried_treasure", "shipwreck", "ocean_ruin"].compactMap { sc.nearest($0, x: x, z: z) }
-                if let s = found.min(by: { simd_length(V2(Float($0.anchor.x - x), Float($0.anchor.z - z))) < simd_length(V2(Float($1.anchor.x - x), Float($1.anchor.z - z))) }) {
-                    m.home = V3(Float(s.anchor.x) + 0.5, Float(s.anchor.y), Float(s.anchor.z) + 0.5)
+                var best: IVec3?
+                var bd = Int.max
+                for k in ["buried_treasure", "shipwreck", "ocean_ruin"] {
+                    guard let s = sc.nearest(k, x: x, z: z) else { continue }
+                    let dx = s.anchor.x - x, dz = s.anchor.z - z
+                    let d = dx * dx + dz * dz
+                    if d < bd { bd = d; best = s.anchor }
+                }
+                if let a = best {
+                    m.home = V3(Float(a.x) + 0.5, Float(a.y), Float(a.z) + 0.5)
                     m.phaseTime = 60
                 }
             }
