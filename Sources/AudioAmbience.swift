@@ -62,6 +62,9 @@ extension Game {
                 else if k == "end_portal" || k == "end_gateway" { kind = 12 }
                 else if k == "respawn_anchor" { kind = 13 }
                 else if k == "bubble_column" || k == "magma_block" { kind = 14 }
+                else if k == "firefly_bush" { kind = 15 }
+                else if k == "short_dry_grass" || k == "tall_dry_grass" { kind = 16 }
+                else if k == "creaking_heart" { kind = 17 }
                 t[i] = kind
             }
             AudioState.kindTable = t
@@ -141,6 +144,13 @@ extension Game {
         emitter("spawner", .spawnerLoop, base: 0.4, per: 0.1, cap: 0.7)
         emitter("anchor", .respawnAnchorLoop, base: 0.3, per: 0.1, cap: 0.5)
         emitter("bubbles", .underwaterLoop, base: 0.2, per: 0.02, cap: 0.5)
+        // Fireflies glitter at night; dry grass rustles by day; a Barkwraith heart creaks now and then.
+        let isNight = dayFraction > 0.52 && dayFraction < 0.98
+        if isNight { emitter("fireflies", .fireflyLoop, base: 0.3, per: 0.05, cap: 0.6) }
+        if let e = a.emitters["drygrass"], !isNight, Float.random(in: 0..<1) < dt * min(0.3, 0.05 + 0.01 * Float(e.count)) {
+            sfx(.dryGrassRustle, 0.5, at: e.pos + V3(Float.random(in: -2...2), 0.3, Float.random(in: -2...2)))
+        }
+        if let e = a.emitters["heart"], Float.random(in: 0..<1) < dt / 6 { sfx(.heartCreak, 0.8, at: e.pos) }
         // Lava pops now and then; drips near driprock.
         if let e = a.emitters["lava"], simd_length(e.pos - eye) < 12, Float.random(in: 0..<1) < dt * min(1.5, 0.3 + 0.05 * Float(e.count)) {
             let j = V3(Float.random(in: -2...2), 0.4, Float.random(in: -2...2))
@@ -312,7 +322,8 @@ extension Game {
                 best[kind] = (c, d2, 1)
             }
         } } }
-        let names = [1: "fire", 2: "campfire", 3: "furnace", 4: "lava", 5: "water", 6: "portal", 7: "beacon", 8: "spawner", 12: "portal", 13: "anchor", 14: "bubbles"]
+        let names = [1: "fire", 2: "campfire", 3: "furnace", 4: "lava", 5: "water", 6: "portal", 7: "beacon", 8: "spawner", 12: "portal", 13: "anchor", 14: "bubbles",
+                     15: "fireflies", 16: "drygrass", 17: "heart"]
         var out: [String: (pos: V3, count: Int)] = [:]
         for (k, v) in best { if let n = names[k] { if let e = out[n] { out[n] = (e.pos, e.count + v.2) } else { out[n] = (v.0, v.2) } } }
         a.emitters = out

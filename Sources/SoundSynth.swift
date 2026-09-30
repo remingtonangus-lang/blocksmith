@@ -817,6 +817,18 @@ struct Synth {
             }
             out = Synth.echo(out, delay: 0.21, feedback: 0.3, mix: 0.3, tail: 0.6)
         case .cricketsLoop: out = cricketsLoop(4.0)
+        case .fireflyLoop:
+            // Soft glassy twinkles over a faint shimmer.
+            var ff = wash(4.0, lp: 7000, hp: 3000, wobble: 0.5, rate: 2, gain: 0.03)
+            for _ in 0..<14 {
+                let f: Float = rnd(2600, 5200)
+                ff = Synth.mix(ff, fm(0.35, f: f, ratio: 2.4, index: 0.8, decay: 0.08, gain: 0.18), at: frames(rnd(0, 3.6)))
+            }
+            out = Synth.loopify(Array(ff.prefix(frames(4.0))), fade: 0.3)
+        case .dryGrassRustle: out = Synth.window(Synth.mix(wash(1.2, lp: 5000 * p, hp: 1500, wobble: 1.2, rate: 8, gain: 0.5), grains(10, spread: 1.0, lp: 6000, hp: 2000, decay: 0.008, gain: 0.4)))
+        case .heartCreak:
+            let c = Synth.lowpass(tone(0.9, f0: 160 * p, f1: 120 * p, wave: .saw, attack: 0.15, release: 0.3, vib: 0.2, vibRate: 3, gain: 0.35), 900)
+            out = Synth.mix(Synth.mix(c, crackle(0.9, density: 30, f: 700, q: 4, gain: 1.2)), modes(0.4, [(70 * p, 0.8, 0.12)]), at: frames(0.5))
         case .oceanLoop: out = oceanLoop(7.0)
         case .swampLoop: out = Synth.loopify(Synth.mix(frogs(5.0), Synth.scaled(cricketsLoop(5.0, voices: 2), 0.4)), fade: 0.05)
         case .windLoop: out = windLoop(6.0, lp: 700, gain: 0.8)
