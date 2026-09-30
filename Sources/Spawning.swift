@@ -154,8 +154,20 @@ extension MobManager {
     func populateChunks(_ game: Game) {
         let w = game.world
         guard w.dim == .overworld else { return }
+        let nest = Blocks.has("bee_nest") ? Blocks.id("bee_nest") : AIR
         for (k, c) in w.chunks where !populated.contains(k) {
             populated.insert(k)
+            // Tree nests come with 2-3 bees inside (reference generation).
+            if nest != AIR {
+                for lz in 0..<CS { for lx in 0..<CS {
+                    let x = c.cx * CS + lx, z = c.cz * CS + lz
+                    let top = w.topY(x, z)
+                    for y in max(1, top - 12)...max(1, top) where Blocks.groupBase[Int(w.block(x, y, z))] == nest {
+                        let h = IVec3(x, y, z)
+                        if hives[h] == nil { hives[h] = (0..<Int.random(in: 2...3)).map { _ in (nectar: false, time: 0) } }
+                    }
+                } }
+            }
             var rng = SRng(UInt64(hash3(k.x, 7, k.z, 0xA41A1)) | 1)
             guard rng.float() < 0.1 else { continue }
             let x = c.cx * CS + rng.int(16), z = c.cz * CS + rng.int(16)
