@@ -918,6 +918,36 @@ final class Renderer: NSObject, MTKViewDelegate {
                     text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
                 }
             }
+            if let hb = m as? HasRecipeBook {
+                let book = hb.book
+                if book.open {
+                    let bx = o.x - 122 * s
+                    rect(bx, o.y, 120 * s, 162 * s, V4(0.776, 0.776, 0.776, 1))
+                    frame(bx, o.y, 120 * s, 162 * s, s, V4(0.33, 0.33, 0.33, 1))
+                    text("Recipes \(book.page + 1)/\(book.pages)", bx + 4 * s, o.y + 16 * s, s, titleC, shadow: false)
+                }
+                let pool = hb.poolFor(hb.craftGrid)
+                for sl in hb.slots where sl.isButton {
+                    guard case .button(let id) = sl.kind, id >= 490 && id < 600 else { continue }
+                    let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
+                    let hot = game.menuHover === sl
+                    if id == 490 {
+                        rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.6, 0.75, 0.6, 1) : V4(0.55, 0.45, 0.3, 1))
+                        itemIcon(ItemStack(Items.id("book"), 1), x + s, y + s, 16 * s, counts: false)
+                    } else if id >= RecipeBook.base {
+                        let k = book.page * RecipeBook.perPage + id - RecipeBook.base
+                        guard k < book.list.count else { continue }
+                        let r = Recipes.all[book.list[k]]
+                        let ok = RecipeBook.craftable(r, pool)
+                        rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.7, 0.7, 0.8, 1) : (ok ? V4(0.45, 0.6, 0.45, 1) : V4(0.6, 0.4, 0.4, 1)))
+                        itemIcon(r.result, x + 2 * s, y + 2 * s, 16 * s)
+                    } else {
+                        rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.7, 0.7, 0.8, 1) : V4(0.5, 0.5, 0.55, 1))
+                        let label = id == 491 ? "<" : (id == 492 ? ">" : (book.craftableOnly ? "Can" : "All"))
+                        text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + 3 * s, s)
+                    }
+                }
+            }
             if let km = m as? KeyboardMenu {
                 for (i, sl) in km.slots.enumerated() where i < km.keys.count {
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s

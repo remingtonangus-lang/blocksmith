@@ -101,6 +101,13 @@ enum Snapshot {
             case "creative": game.openMenu(CreativeMenu(game: game))
             case "death":
                 game.openMenu(DeathMenu(game: game, message: "Player was blown up by Hisser"))
+            case "recipes":
+                game.inventory.main[18] = ItemStack(Items.id("oak_log"), 8)
+                game.inventory.main[19] = ItemStack(Items.id("cobblestone"), 20)
+                game.inventory.main[20] = ItemStack(Items.id("iron_ingot"), 6)
+                let m = CraftingTableMenu(game: game)
+                game.openMenu(m)
+                m.buttonPressed(490)
             case "title":
                 let pm = PauseMenu(game: game); pm.page = .title; pm.build()
                 game.openMenu(pm)

@@ -294,8 +294,11 @@ final class CraftingGrid {
     }
 }
 
-final class InventoryMenu: Menu {
+final class InventoryMenu: Menu, HasRecipeBook {
     let craft = CraftingGrid(2)
+    let book = RecipeBook(size: 2)
+    var craftGrid: ItemContainer { craft.grid }
+    override func buttonPressed(_ i: Int) { _ = recipeBookButton(i, book, grid: craft.grid) { rebuildBook() } }
     init(game: Game) {
         super.init("", game: game)
         for i in 0..<4 { slots.append(MenuSlot(8, 8 + i * 18, game.inventory.armor, i, .armor(ArmorSlot(rawValue: i)!))) }
@@ -304,6 +307,7 @@ final class InventoryMenu: Menu {
         slots.append(MenuSlot(154, 28, craft.result, 0, .result))
         addPlayerInventory()
         showInventoryLabel = false
+        slots += book.slots()
     }
     override func changed() { craft.update() }
     override func takeResult(_ slot: MenuSlot) -> ItemStack? { craft.take() }
@@ -327,13 +331,17 @@ final class InventoryMenu: Menu {
     }
 }
 
-final class CraftingTableMenu: Menu {
+final class CraftingTableMenu: Menu, HasRecipeBook {
     let craft = CraftingGrid(3)
+    let book = RecipeBook(size: 3)
+    var craftGrid: ItemContainer { craft.grid }
+    override func buttonPressed(_ i: Int) { _ = recipeBookButton(i, book, grid: craft.grid) { rebuildBook() } }
     init(game: Game) {
         super.init("Crafting", game: game)
         for r in 0..<3 { for c in 0..<3 { slots.append(MenuSlot(30 + c * 18, 17 + r * 18, craft.grid, c + r * 3)) } }
         slots.append(MenuSlot(124, 35, craft.result, 0, .result))
         addPlayerInventory()
+        slots += book.slots()
     }
     override func changed() { craft.update() }
     override func takeResult(_ slot: MenuSlot) -> ItemStack? { craft.take() }
