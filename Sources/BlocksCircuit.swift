@@ -121,7 +121,7 @@ extension BlockRegistry {
         switchBlock("stone_button", "Stone Button", tex: "stone", lever: false)
         switchBlock("polished_blackstone_button", "Polished Onyxstone Button", tex: "polished_blackstone", lever: false)
         for w in BlockRegistry.buttonWoods {
-            switchBlock("\(w)_button", "\(w.split(separator: "_").map { $0.capitalized }.joined(separator: " ")) Button", tex: "\(w)_planks", lever: false)
+            switchBlock("\(w)_button", "\(BlockRegistry.woodName(w)) Button", tex: "\(w)_planks", lever: false)
         }
         // Pressure plates.
         func plate(_ n: String, _ disp: String, tex: String, levels: Int, wood: Bool) {
@@ -135,7 +135,7 @@ extension BlockRegistry {
             }
         }
         for w in BlockRegistry.buttonWoods {
-            plate("\(w)_pressure_plate", "\(w.split(separator: "_").map { $0.capitalized }.joined(separator: " ")) Pressure Plate", tex: "\(w)_planks", levels: 2, wood: true)
+            plate("\(w)_pressure_plate", "\(BlockRegistry.woodName(w)) Pressure Plate", tex: "\(w)_planks", levels: 2, wood: true)
         }
         plate("stone_pressure_plate", "Stone Pressure Plate", tex: "stone", levels: 2, wood: false)
         plate("polished_blackstone_pressure_plate", "Polished Onyxstone Pressure Plate", tex: "polished_blackstone", levels: 2, wood: false)

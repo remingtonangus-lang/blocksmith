@@ -20,7 +20,7 @@ extension BlockRegistry {
     func registerDecorBlocks() {
         // Signs: 4 standing facings (0-3) + 4 wall facings (4-7), per wood.
         for wood in BlockRegistry.doorWoods {
-            let disp = wood.split(separator: "_").map { $0.capitalized }.joined(separator: " ")
+            let disp = BlockRegistry.woodName(wood)
             for st in 0..<8 {
                 let f = st % 4
                 var d = BlockDef(st == 0 ? "\(wood)_sign" : "\(wood)_sign[\(st)]", "\(disp) Sign")
@@ -38,7 +38,7 @@ extension BlockRegistry {
         }
         // Hanging signs: 4 ceiling facings (0-3, chains up) + 4 wall facings (4-7, hung from a bar).
         for wood in BlockRegistry.doorWoods {
-            let disp = wood.split(separator: "_").map { $0.capitalized }.joined(separator: " ")
+            let disp = BlockRegistry.woodName(wood)
             for st in 0..<8 {
                 let f = st % 4, ns = f < 2
                 var d = BlockDef(st == 0 ? "\(wood)_hanging_sign" : "\(wood)_hanging_sign[\(st)]", "\(disp) Hanging Sign")

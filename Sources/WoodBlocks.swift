@@ -35,7 +35,7 @@ extension BlockRegistry {
 
     func registerWoodExtras() {
         for (w, _, logW, woodW) in Woods.all {
-            let disp = w.split(separator: "_").map { $0.capitalized }.joined(separator: " ")
+            let disp = BlockRegistry.woodName(w)
             let lw = logW.capitalized, ww = woodW.capitalized
             if !has("\(w)_\(woodW)") { pillar("\(w)_\(woodW)", "\(disp) \(ww)", side: "\(w)_\(logW)", top: "\(w)_\(logW)") }
             pillar("stripped_\(w)_\(logW)", "Stripped \(disp) \(lw)", side: "stripped_\(w)_log", top: "stripped_\(w)_log_top")

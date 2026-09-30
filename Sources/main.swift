@@ -610,6 +610,20 @@ enum Snapshot {
             var bundle = st("bundle")
             (bundle, _) = Bundles.insert(bundle, st("cobblestone", 32))
             (bundle, _) = Bundles.insert(bundle, st("iron_sword"))
+            // Naming audit (the repo is public): no reference-game proper names in anything the player reads.
+            let banned = ["Nether", "Ender", "End Stone", "End Rod", "End Crystal", "End Portal", "End Gateway", "Creeper", "Crimson", "Warped",
+                          "Sculk", "Wither", "Piglin", "Blaze", "Ghast", "Shulker", "Elytra", "Redstone", "Glowstone", "Purpur",
+                          "Prismarine", "Chorus", "Pillager", "Evoker", "Vindicator", "Ravager", "Warden", "Deepslate", "Blackstone",
+                          "Hoglin", "Strider", "Zoglin", "Guardian", "Undying", "Mooshroom", "Allay", "Sniffer", "Bogged", "Endermite",
+                          "Minecraft", "Mojang", "Overworld", "Nylium", "Shroomlight", "Pale Oak", "Creaking", "Eyeblossom", "Vex"]
+            var shown: [String] = []
+            for i in 0..<Blocks.count { shown.append(Blocks.name(BlockID(i))) }
+            for i in 0..<Items.count { shown.append(Items.name(ItemID(i))) }
+            for k in MobKind.allCases { shown.append(k.name) }
+            for b in Biome.allCases { shown.append(b.displayName) }
+            for a in Advancements.all { shown.append(a.title); shown.append(a.desc) }
+            let flagged = Set(shown.filter { n in banned.contains { n.contains($0) } }).sorted()
+            print("naming audit: \(shown.count) names, \(flagged.count) flagged\(flagged.isEmpty ? "" : ": " + flagged.prefix(80).joined(separator: " | "))")
             print("selftest: \(placed) blocks, \(MobKind.allCases.count) mob kinds, \(crafted)/4 special recipes, bundle fill \(Bundles.fill(bundle))/64, \(Advancements.all.count) advancements")
             for _ in 0..<180 { game.tick(1.0 / 60) }
             print("selftest ok: \(game.mobs.mobs.count) mobs after 3 s")

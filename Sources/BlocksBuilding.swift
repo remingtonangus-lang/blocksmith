@@ -12,6 +12,15 @@ import Foundation
 // facing: 0 north, 1 south, 2 west, 3 east (the side facing the player who placed it).
 extension BlockRegistry {
     static let doorWoods = ["oak", "spruce", "birch", "jungle", "acacia", "dark_oak", "mangrove", "cherry", "crimson", "warped"]
+    // Player-facing wood names (Blocksmith names where the reference game's are its own).
+    static func woodName(_ w: String) -> String {
+        switch w {
+        case "crimson": return "Rustcap"
+        case "warped": return "Tealcap"
+        case "pale_oak": return "Ashbark"
+        default: return w.split(separator: "_").map { $0.capitalized }.joined(separator: " ")
+        }
+    }
 
     // Thin panel on one side of the block: 0 -Z side, 1 +Z, 2 -X, 3 +X.
     static func panel(_ side: Int, t: Int = 3) -> Box {
@@ -53,7 +62,7 @@ extension BlockRegistry {
         let metal: [(String, String)] = [("iron", "Iron")]
         for w in BlockRegistry.doorWoods + metal.map({ $0.0 }) {
             let iron = w == "iron"
-            let disp = iron ? "Iron" : w.split(separator: "_").map { $0.capitalized }.joined(separator: " ")
+            let disp = iron ? "Iron" : BlockRegistry.woodName(w)
             for upper in [false, true] { for open in [false, true] { for f in 0..<4 {
                 let k = f + (open ? 4 : 0) + (upper ? 8 : 0)
                 var d = BlockDef(k == 0 ? "\(w)_door" : "\(w)_door[\(k)]", "\(disp) Door")
