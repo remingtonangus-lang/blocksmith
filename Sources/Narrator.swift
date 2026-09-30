@@ -78,7 +78,7 @@ final class Narrator {
             if !m.title.isEmpty { parts.append(m.title) }
         }
         // Compare by text: pause pages rebuild their buttons every few frames.
-        let d = g.menuHover.map { Narrator.describe(m, $0) } ?? ""
+        let d = (g.menuHover.map { Narrator.describe(m, $0) } ?? "").trimmingCharacters(in: CharacterSet(charactersIn: "_ "))   // no blinking caret
         if d != lastDesc || fresh {
             lastDesc = d
             if !d.isEmpty { parts.append(d) }
