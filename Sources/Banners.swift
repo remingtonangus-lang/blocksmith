@@ -332,7 +332,7 @@ final class LoomMenu: Menu {
         guard !out[0].isEmpty else { return nil }
         let r = out[0]
         for i in 0..<2 { var s = box[i]; s.count -= 1; box[i] = s.count > 0 ? s : .empty }
-        game.sfx(.place(.plant), 0.6)
+        game.sfx(.shearsSnip, 0.5)
         changed()
         return r
     }

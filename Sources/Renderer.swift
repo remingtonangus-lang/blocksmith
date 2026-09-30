@@ -1479,6 +1479,21 @@ final class Renderer: NSObject, MTKViewDelegate {
             text(game.toastText, floor((W - textWidth(game.toastText, s)) / 2), ty, s, V4(1, 1, 1, a))
         }
 
+        // Sound subtitles (Options → Audio → Subtitles), bottom right above the hotbar.
+        let subs = game.subtitleLines()
+        if !subs.isEmpty && game.menu == nil {
+            let lineH = 10 * s
+            var sy = L.hotbarY0 - 6 * s - Float(subs.count) * lineH
+            var widest: Float = 0
+            for (t, _) in subs { widest = max(widest, textWidth(t, s)) }
+            let sx = W - widest - 8 * s
+            for (t, a) in subs {
+                rect(sx - 2 * s, sy - s, widest + 4 * s, lineH, V4(0, 0, 0, 0.55 * a))
+                text(t, sx, sy, s, V4(1, 1, 1, a), shadow: false)
+                sy += lineH
+            }
+        }
+
         // F3 debug overlay
         if game.showDebug {
             var y = 4 * s

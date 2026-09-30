@@ -47,7 +47,7 @@ extension Game {
         m.leashed = true
         m.knot = nil
         if survival { consumeHeld() }
-        sfx(.place(.plant), 0.6, at: m.pos)
+        sfx(.armorEquip(0), 0.5, at: m.pos)
         return true
     }
 

@@ -43,15 +43,15 @@ extension Game {
         if let t = hit, Blocks.key(world.block(t.hit.x, t.hit.y, t.hit.z)) == "end_portal_frame" {
             world.setBlock(t.hit.x, t.hit.y, t.hit.z, Blocks.id("end_portal_frame") + 1)
             consumeHeld()
-            sfx(.place(.stone), 1, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
-            if tryActivateEndPortal(near: t.hit) { sfx(.levelUp, 1) }
+            sfx(.endPortalFrame, 1, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
+            if tryActivateEndPortal(near: t.hit) { sfx(.endPortalOpen, 1.5, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5) }
             return true
         }
         guard dim.dim == .overworld, let s = world.gen.structures?.nearest("stronghold", x: Int(player.pos.x), z: Int(player.pos.z)) else { return false }
         let target = V3(Float(s.anchor.x) + 0.5, Float(s.anchor.y), Float(s.anchor.z) + 0.5)
         eyes.append(SeekerEye(player.eye, target))
         consumeHeld()
-        sfx(.bow, 0.6)
+        sfx(.pearlThrow, 0.7)
         return true
     }
 
@@ -190,7 +190,7 @@ extension Game {
         player.vel = .zero
         player.airPeak = player.pos.y
         achieve("gateway")
-        sfx(.levelUp, 0.4)
+        sfx(.portalTravel, 0.8)
     }
 
     // MARK: Wyrm egg
@@ -282,7 +282,7 @@ extension Game {
             world.setBlock(gx, gy, gz, Blocks.id("end_gateway"))
             gateways += 1
         }
-        sfx(.explode, 1, at: d.pos)
+        sfx(.endPortalOpen, 2, at: d.pos)
         onToast?("The Hollow: exit portal open")
     }
 }
@@ -331,6 +331,9 @@ extension Mob {
         let w = g.world
         let fy = Float(g.fountainY)
         phaseTime += dt
+        // Wing beats every ~1.3 s while flying; an occasional growl.
+        if phase != 4 && phase != 6 && Int(phaseTime / 1.3) != Int((phaseTime - dt) / 1.3) { g.sfx(.dragonFlap, 2.5, at: pos) }
+        if phase != 6 && Float.random(in: 0..<1) < dt / 9 { g.sfx(.dragonGrowl, 3, at: pos) }
         let player = g.player.pos
         let toPlayer = player - pos
         let dist = simd_length(toPlayer)
@@ -361,7 +364,7 @@ extension Mob {
             if (dist < 50 && phaseTime > 2) || phaseTime > 10 {
                 let from = pos + forward * 5
                 g.projectiles.fireball(from: from, dir: simd_normalize(g.player.eye - from), big: true, byPlayer: false, dragon: true)
-                g.sfx(.fireball, 1.2, at: from)
+                g.sfx(.dragonShoot, 2, at: from)
                 phase = 0; phaseTime = 0
             }
         case 2:
@@ -389,7 +392,7 @@ extension Mob {
                 let at = pos + forward * 6
                 let gy = Float(w.topY(Int(floor(at.x)), Int(floor(at.z))) + 1)
                 g.clouds.append(AcidCloud(pos: V3(at.x, min(gy, pos.y) + 0.05, at.z), radius: 5, time: 10))
-                g.sfx(.mobWailer, 0.8, at: pos)
+                g.sfx(.dragonShoot, 1.5, at: pos)
             }
             breakTimer = dist < 20 ? 0 : breakTimer + dt
             if phaseTime > cycle * 4 || breakTimer > 5 { phase = 5; phaseTime = 0; breakTimer = 0 }
@@ -459,7 +462,7 @@ extension Mob {
             attackCooldown = Float.random(in: 1...5.5)
             let from = pos + V3(0, 1.3, 0)
             g.bullets.append(SentryBolt(from, simd_normalize(target - from) * 4))
-            g.sfx(.fireball, 0.3, at: from)
+            g.sfx(.shulkerOpen, 0.5, at: from)
         }
     }
 

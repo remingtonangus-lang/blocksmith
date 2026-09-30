@@ -313,7 +313,7 @@ extension Mob {
             } else { beam = 0 }
             if kind == .elderGuardian && dist < 50 && g.survival && Float.random(in: 0..<1) < dt / 60 {
                 g.applyEffect(.miningFatigue, amp: 2, seconds: 300)
-                g.sfx(.mobRavager, 0.8)
+                g.sfx(.elderCurse, 1)
             }
             // Dolphins circle players and give Dolphin's Grace; pufferfish puff up and poison.
             // Leading the way to treasure: swim ahead toward it, staying below the surface.
@@ -417,6 +417,10 @@ extension Mob {
             // Blind: tracks the player by vibrations (moving, not sneaking) and anger; melee 30, sonic boom 10 at range.
             let noisy = g.survival && g.alive && dist < 16 && (!g.player.sneaking && simd_length(g.player.vel) > 0.5)
             if noisy { anger = min(150, anger + dt * 35) } else { anger = max(0, anger - dt * 2) }
+            // Heartbeat speeds up with anger; sniffing while it listens.
+            let beatRate: Float = 0.5 + anger / 80
+            if dist < 32 && Float.random(in: 0..<1) < dt * beatRate { g.sfx(.wardenHeartbeat, 1.2, at: pos + V3(0, 2, 0)) }
+            if dist < 24 && anger > 10 && anger < 80 && Float.random(in: 0..<1) < dt / 7 { g.sfx(.wardenSniff, 1, at: pos + V3(0, 2.5, 0)) }
             if dist < 20 && g.survival && Float.random(in: 0..<1) < dt / 6 { g.applyEffect(.darkness, amp: 0, seconds: 12) }
             if anger >= 80 && canTarget {
                 face(player)
@@ -427,7 +431,7 @@ extension Mob {
                 } else if dist < 15 && dist > 4 && spellTimer <= 0 {
                     spellTimer = 5
                     g.hurtPlayer(10, from: pos, cause: "was obliterated by a sonically-charged shriek", knockback: 2.5, type: .void)
-                    g.sfx(.mobWarden, 1.4, at: pos)
+                    g.sfx(.wardenSonicBoom, 2, at: pos)
                 }
                 spellTimer -= dt
                 return spec.speed * 1.2
@@ -446,7 +450,7 @@ extension Mob {
                     if dist < 16 && g.world.canSee(eye, g.player.eye) {
                         g.hurtPlayer(1, from: pos, cause: "was blown away by a Gustling", knockback: 0, type: .projectile)
                         g.player.vel += simd_normalize(g.player.pos - pos + V3(0, 1, 0)) * 12
-                        g.sfx(.fireball, 0.5, at: pos)
+                        g.sfx(.breezeShoot, 1, at: pos)
                     }
                 }
                 return 0

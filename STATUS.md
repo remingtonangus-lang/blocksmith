@@ -40,7 +40,8 @@ No third-party text, textures, sounds or logos: everything is procedural or writ
   `--structure <kind>` (camera at the nearest structure's anchor), `--menu brewing|enchant|anvil|trade`, `--effects`,
   `--spawn kind[:profession|:armour material|boat:variant[:c]],...`, `--place block[:state],...`, `--beacon`, `--weather rain|thunder`, `--ticks SECONDS`,
   `--decor`, `--map`, `--banners`, `--fireworks`, `--menu loom|book|advancements`;
-  `Blocksmith --sounds DIR`.
+  `Blocksmith --sounds DIR` (renders every sound; fails on silence, clipping, NaN, DC, wrong length, end clicks, loop seams),
+  `Blocksmith --music DIR [--seconds N]` (renders every music mood; fails on level/clipping/note/length problems).
 
 ## Controls
 Keyboard/mouse: WASD, Space (double-tap = fly in creative), Shift sneak, Ctrl sprint, LMB attack/mine (hold),
@@ -134,7 +135,30 @@ Findings / changes (performance branch):
 - Nether wood family shown as Rustcap / Tealcap (display names only).
 - Title screen at launch; recipe book in crafting screens (craftable/all, fills the grid).
 - Death screen (message, score, Respawn / Title Screen; XP drops as orbs), live compass / recovery compass / clock icons.
-- Background music director (calm procedural pieces every 10-20 min, dimension moods), cave ambience, disc titles.
+- Audio (session: audio and music): every sound synthesized at launch or on first use (no samples). 3D sources through an
+  AVAudioEnvironmentNode with distance rolloff, panning, obstruction/occlusion from a block raycast, and reverb that follows a
+  cave factor; underwater low-pass; flat / interface / music buses. Looping emitters found by scanning around the player (fire,
+  campfires, furnaces, lava, water, portals, beacons, spawners, rebirth anchors), rain / rain-on-roof, underwater, gliding,
+  minecart, Emberdeep / Hollow / cave-biome beds; cave, Emberdeep, underwater and mountain-wind stings. Full roster: 16 block
+  materials × break/place/step/hit/fall, every player action, doors/containers/mechanisms, bosses, villager work sounds, and
+  ambient/hurt/death calls for every mob from 27 voice families. Volume sliders per category (Options → Audio…).
+- Music: streaming synth (14 instruments) rendered on a background queue; motif-based composer per mood (title, day, night, rain,
+  underground, underwater, creative, Emberdeep, the Hollow, boss). Director: instant switch for dimension/boss/title, else a
+  piece every 6-15 min; ducks under a nearby jukebox. Discs are composed pieces (seeded by the disc name, tiled to the disc's
+  length) played through a mono stream placed at the nearest playing jukebox (3D + occlusion).
+- Audio hooks: mob hurt/death/ambient from the voice table, mob footsteps within 16 blocks, attack variants (crit/sweep/
+  knockback/weak), shield block/break, armor equip per material (any path), doors/trapdoors/gates (wood/iron), container lids,
+  pistons/levers/buttons/plates/tripwires, TNT fuse, copper wax/scrape, candles, paintings, item frames, pots, crafters,
+  composters, vaults, rebirth anchors, sculk shriekers, villager work sounds at job sites, trades/level-ups/refusals, raid
+  victory, zombie infection/cure, wyrm flaps/growls/breath, deep stalker heartbeat/sniff/sonic boom/emerge, voidwalker
+  teleports, elder curse, gustling shots. Spatial voices are allocated by priority (free, else quietest/soonest-ending).
+- Surface ambience by biome and time: birdsong in wooded land by day, owls and crickets at night, swamp frogs, jungle
+  insects, surf near oceans, wind on peaks / snowy / dry biomes; rain hushes wildlife. Reverb follows the room (14 probe
+  rays: enclosure + size pick small room / chamber / hall / cavern). Audio restarts itself when the output device changes
+  (headphones, TV). Young mobs have higher voices. Materials now include netherrack and deepslate. Daytime music takes a
+  biome flavour (Snowfields, Dunes, Open Water, Blossom). `--sounds` also writes 8 s soundscapes of 17 places.
+- Audio next: subtitles (caption + direction for recent sounds; needs a HUD hook), per-mob pitch jitter at playback
+  (varispeed per voice), more distinct voices for rare mobs.
 - Landing / sprint dust, item equip animation, denser rain with ground splashes lit by daylight.
 - Village life: beds and sleeping, food pickup + breeding, farmers harvesting, golems, midnight zombie sieges.
 

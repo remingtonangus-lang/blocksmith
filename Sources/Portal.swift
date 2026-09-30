@@ -39,7 +39,7 @@ extension Game {
             for i in 0..<width { for j in 0..<height { w.setBlockAsync(b.x + dx * i, b.y + j, b.z + dz * i, portal) } }
             w.setBlock(b.x, b.y, b.z, portal)
             w.portals.insert(b)
-            sfx(.fizz, 1, at: V3(Float(b.x), Float(b.y), Float(b.z)))
+            sfx(.portalTrigger, 1, at: V3(Float(b.x), Float(b.y), Float(b.z)))
             return true
         }
         return false
@@ -117,7 +117,7 @@ extension Game {
             player.vel = .zero
             player.airPeak = player.pos.y
         }
-        sfx(.levelUp, 0.4)
+        sfx(.portalTravel, 0.8)
     }
 
     // Builds a 4x5 obsidian frame with a lit 2x3 portal near `c`; returns the interior bottom-left cell.

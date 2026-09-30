@@ -105,6 +105,6 @@ extension Mob {
         let screaming = variant & 1 == 1
         h.tag = (screaming ? 4 : 0) + Int.random(in: 0..<4)
         g.drops.spawn(h, at: a)
-        g.sfx(.place(.stone), 0.9, at: a)
+        g.sfx(.goatRam, 1, at: a)
     }
 }

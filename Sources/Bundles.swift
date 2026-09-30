@@ -56,7 +56,7 @@ extension Menu {
                 guard nb != carried else { return false }
                 carried = nb; slot.stack = rest
             }
-            game.sfx(.place(.plant), 0.4)
+            game.sfx(.bundleInsert, 0.6)
             return true
         }
         if Bundles.isBundle(s) && slot.container != nil {
@@ -68,7 +68,7 @@ extension Menu {
                 guard nb != s else { return false }
                 slot.stack = nb; carried = rest
             }
-            game.sfx(.place(.plant), 0.4)
+            game.sfx(.bundleRemove, 0.6)
             return true
         }
         return false
@@ -82,7 +82,7 @@ extension Game {
         for s in list { drops.spawn(s, at: player.eye + player.look * 0.5) }
         h.contents = nil
         inventory.held = h
-        sfx(.place(.plant), 0.6)
+        sfx(.bundleRemove, 0.7)
         return true
     }
 }

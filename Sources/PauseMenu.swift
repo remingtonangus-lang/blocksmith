@@ -3,7 +3,7 @@ import Foundation
 // In-game pause and options screens (drawn with the HUD, so a controller can drive them: D-pad /
 // stick to move, A to choose or step a setting forward, X to step it back, B to go back).
 final class PauseMenu: Menu {
-    enum Page { case title, main, options, worlds, create }
+    enum Page { case title, main, options, worlds, create, audio }
     var page: Page = .main
     // (label, action id); settings show their current value in the label.
     var rows: [(String, String)] = []
@@ -42,8 +42,11 @@ final class PauseMenu: Menu {
             rows = [("FOV: \(Int(g.fovSetting))", "fov"), ("Sensitivity: \(Int(g.sensitivity * 100))%", "sens"),
                     ("Invert Y: \(g.invertY ? "On" : "Off")", "invert"), ("Auto-Jump: \(g.autoJump ? "On" : "Off")", "autojump"), ("Stick Dead Zone: \(Int(g.deadZone * 100))%", "dead"),
                     ("Render Distance: \(g.world.renderDistance)", "rd"), ("GUI Scale: \(gui)", "gui"),
-                    ("Couch Mode (TV): \(HudLayout.couch ? "On" : "Off")", "couch"), ("Volume: \(Int(g.volumeSetting * 100))%", "volume"), ("Music: \(Int(g.musicVolume * 100))%", "music"),
+                    ("Couch Mode (TV): \(HudLayout.couch ? "On" : "Off")", "couch"), ("Audio...", "audio"),
                     ("Done", "back")]
+        case .audio:
+            title = "Audio"
+            rows = audioRows()
         case .create:
             title = "Create New World"
             let caret = Int(g.clock * 2) % 2 == 0 ? "_" : " "
@@ -87,6 +90,9 @@ final class PauseMenu: Menu {
         switch id {
         case "resume": g.closeMenu()
         case "options": cameFromTitle = page == .title; page = .options
+        case "audio": page = .audio
+        case "audio_back": page = .options
+        case _ where id.hasPrefix("vol:") || id == "audio_test" || id == "audio_subs": audioAct(id, back: back)
         case "back": page = cameFromTitle ? .title : .main
         case "load": cameFromTitle = page == .title; page = .worlds
         case "create": cameFromTitle = page == .title; page = .create; editing = nil
@@ -124,7 +130,7 @@ final class PauseMenu: Menu {
             let cur = g.menuCursor
             build()
             g.menuCursor = min(cur, slots.count - 1)
-            if id == "options" || id == "back" || id == "load" { g.menuCursor = 0 }
+            if id == "options" || id == "back" || id == "load" || id == "audio" || id == "audio_back" { g.menuCursor = 0 }
         }
     }
 

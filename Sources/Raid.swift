@@ -167,7 +167,7 @@ extension Game {
                         applyEffect(.heroOfTheVillage, amp: r.level - 1, seconds: 2400)
                         achieve("raid_win")
                     }
-                    sfx(.levelUp, 1)
+                    sfx(.villagerCelebrate, 1.2)
                     for v in mobs.mobs where v.kind == .villager && simd_length(v.pos - r.center) < 64 { particles.hearts(at: v.pos + V3(0, 2.2, 0)) }
                 } else {
                     r.state = 0
@@ -274,7 +274,7 @@ extension Game {
         z.villager = v.villager
         z.persistent = true
         mobs.mobs.append(z)
-        sfx(.mobZombie, 1, at: v.pos)
+        sfx(.zombieInfect, 1, at: v.pos)
     }
 
     // Zombie villager with Weakness + golden apple: cures in 3-5 minutes into a discounted villager.
@@ -283,7 +283,7 @@ extension Game {
         m.cureTimer = Float.random(in: 180...300)
         m.persistent = true
         consumeHeld()
-        sfx(.mobZombie, 0.8, at: m.pos)
+        sfx(.zombieCure, 1, at: m.pos)
         return true
     }
 }
@@ -381,7 +381,7 @@ extension Mob {
         v.persistent = true
         g.mobs.mobs.append(v)
         g.applyEffect(.nausea, amp: 0, seconds: 0.1)
-        g.sfx(.mobVillager, 1, at: pos)
+        g.sfx(.villagerYes, 1, at: pos)
         health = -2000
         return true
     }
