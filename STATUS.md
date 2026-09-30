@@ -78,8 +78,12 @@ Options > Video > Resolution to 75% for a steady 60 fps on the M1.
   world copy/delete/rename, inventory, creative tabs/search, gameplay buttons, look, rumble, TV fit); a failure makes the run exit 3.
   `--pad` (pad glyphs), `--couch`, `--safe N`, `--hints`, `--padview keyboard|worlds|world|confirm|controls|title|video`.
   Options changed by the harness are restored and worlds live in a temp folder. Snapshot shots hide tips/prompts unless `--hints`.
-- Not yet: key rebinding for keyboard or pad, controller-driven sign/book editing beyond the on-screen keyboard, a TV-sized
-  loading screen.
+- Later additions: keyboard key rebinding (Options > Keyboard & Mouse > Key Bindings; conflicts swap; prompts follow the
+  bindings), crosshair styles (classic / bold / dot), reduced screen flashes, Reset Options (confirmation), sticky block
+  targeting for the pad (highlight holds ~0.12 blocks past an edge), on-screen keyboard with a live preview that opens by
+  itself for signs and text fields, LB/RB page turning in books, loading screen on world switch (and straight into the
+  world afterwards), pad status on the title, "controller disconnected" note on the pause menu.
+- Not yet: controller button remapping, a free-moving pad cursor option for menus.
 
 ## Rendering performance
 - Solid cube faces are drawn first without alpha test (keeps the GPU's hidden-surface removal), cutout faces
