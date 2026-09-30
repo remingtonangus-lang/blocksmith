@@ -65,6 +65,7 @@ enum Bench {
             print("bench: \(s) took \(f(now - ts, 1)) s")
         }
         put("worlds_alive", Double(World.alive))           // every scene's world should be gone by now
+        print("bench: worlds still alive after the scenes: \(World.alive)")
         put("total_s", now - t0)
         let dir = (out as NSString).deletingLastPathComponent
         if !dir.isEmpty { try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true) }
