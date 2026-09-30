@@ -511,7 +511,7 @@ enum Snapshot {
         if CommandLine.arguments.contains("--selftest") {
             // Crash smoke test: every mob kind, every block, the special crafting paths, bundles, and 3 s of ticks.
             game.paused = false
-            game.survival = true
+            game.survival = false          // stay alive next to wardens and ravagers
             let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
             for (i, k) in MobKind.allCases.enumerated() where k != .enderDragon && k != .wither {
                 let p = pos + f * 12 + V3(Float(i % 10) * 2 - 10, 0, Float(i / 10) * 2)
@@ -540,6 +540,7 @@ enum Snapshot {
             print("selftest: \(placed) blocks, \(MobKind.allCases.count) mob kinds, \(crafted)/4 special recipes, bundle fill \(Bundles.fill(bundle))/64, \(Advancements.all.count) advancements")
             for _ in 0..<180 { game.tick(1.0 / 60) }
             print("selftest ok: \(game.mobs.mobs.count) mobs after 3 s")
+            game.player.pos = pos
         }
         if let simSeconds = Double(arg("--sim") ?? "") {
             // Gameplay smoke test: scripted input through the real Game.tick (survival, walking, jumping,
