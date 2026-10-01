@@ -82,6 +82,7 @@ enum Snd: Hashable {
     case gun(Int), gunReload(Int), gunDistant(Int), bulletImpact(SoundMat), bulletWhizz, bulletFlesh, grenadeBounce
     case soldier(Int, Bark), soldierStep(Int)
     case rocketFlightLoop, shellFlightLoop          // projectiles in flight (heard as they pass)
+    case explodeSmall, explodeLarge, debrisRain       // grenades / big blasts, and the debris pattering down after
     // Ships, airships and land vehicles (VehicleAudio.swift): idle/full layers are cross-faded by throttle.
     case engineIdleLoop, engineFullLoop, propSlowLoop, propFastLoop, airshipWindLoop, wheelRollLoop, hullWaterLoop
     case hullCreak, shipCollide, shipCollideHard, shipSplash, helmTake, engineStart
@@ -118,6 +119,7 @@ enum Snd: Hashable {
         case .gun, .gunReload, .gunDistant, .bulletImpact, .bulletWhizz, .bulletFlesh, .grenadeBounce: return .players
         case .soldier, .soldierStep: return .hostile
         case .rocketFlightLoop, .shellFlightLoop: return .players
+        case .explodeSmall, .explodeLarge, .debrisRain: return .blocks
         case .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
              .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart: return .blocks
         case .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .swampInsectsLoop, .iceCreak, .rockfall: return .ambient
@@ -132,6 +134,8 @@ enum Snd: Hashable {
         case .explode, .fireworkBlastLarge, .lightning, .wardenSonicBoom, .crystalBreak, .endPortalOpen: return 64
         case .gun(let k): return k == 9 ? 128 : (k == 10 ? 96 : (k <= 5 ? 48 : 16))
         case .gunDistant: return 220
+        case .explodeLarge: return 128
+        case .explodeSmall: return 48
         case .shipCollideHard: return 48
         case .shipCollide, .engineStart: return 32
         case .raidHorn, .goatHorn, .bellResonate: return 96
@@ -255,7 +259,7 @@ final class SoundBank {
         for k in 0...5 { s.append(.gunReload(k)); s.append(.gunDistant(k)) }
         s.append(.gunDistant(WeaponAudio.heavySlot))
         for m in SoundMat.allCases { s.append(.bulletImpact(m)) }
-        s += [.bulletWhizz, .bulletFlesh, .grenadeBounce, .rocketFlightLoop, .shellFlightLoop]
+        s += [.bulletWhizz, .bulletFlesh, .grenadeBounce, .rocketFlightLoop, .shellFlightLoop, .explodeSmall, .explodeLarge, .debrisRain]
         s += [.engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
               .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart]
         s += [.riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop,

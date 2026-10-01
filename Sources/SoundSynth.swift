@@ -898,6 +898,15 @@ struct Synth {
 
         case .note(let inst, let n): out = MusicSynth.noteBlock(&self, inst: inst, pitch: n)
         case .gun(let k): out = WeaponAudio.gun(&self, k, p: p)
+        case .explodeSmall:
+            out = Synth.mix(burst(1.0, lp: 600 * p, hp: 35, attack: 0.002, decay: 0.2, gain: 3.4), burst(0.5, lp: 4500, hp: 700, decay: 0.06, gain: 1.4))
+            out = Synth.mix(out, modes(0.3, [(70 * p, 0.8, 0.08)]))
+        case .explodeLarge:
+            out = Synth.mix(burst(3.0, lp: 200 * p, hp: 18, attack: 0.003, decay: 0.8, gain: 4.5), burst(1.0, lp: 2800, hp: 250, decay: 0.15, gain: 1.6))
+            out = Synth.mix(out, rumble(4.0, f: 32, attack: 0.05, decay: 1.4, gain: 3), at: frames(0.1))
+            out = Synth.echo(out, delay: 0.45, feedback: 0.3, mix: 0.3, tail: 1.2)
+        case .debrisRain:
+            out = Synth.mix(grains(28, spread: 1.4, lp: 3000 * p, hp: 300, decay: 0.012, gain: 0.9), grains(10, spread: 1.2, lp: 1200, hp: 100, decay: 0.03, gain: 0.8), at: frames(0.1))
         case .rocketFlightLoop:
             // Rocket motor: a hissing roar with crackle.
             let roar = wash(2.0, lp: 2600 * p, hp: 300, wobble: 0.4, rate: 14, gain: 0.8)

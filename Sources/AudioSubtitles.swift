@@ -308,6 +308,8 @@ extension Snd {
         case .bulletImpact: return "Bullet hits"
         case .bulletWhizz: return "Bullet whizzes"
         case .rocketFlightLoop: return "Rocket roars past"
+        case .explodeSmall, .explodeLarge: return "Explosion"
+        case .debrisRain: return "Debris falls"
         case .shellFlightLoop: return "Shell whistles"
         case .bulletFlesh: return "Bullet hits flesh"
         case .grenadeBounce: return "Grenade bounces"
