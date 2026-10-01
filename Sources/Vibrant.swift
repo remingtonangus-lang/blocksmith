@@ -10,6 +10,9 @@ final class Vibrant {
     // World pipelines rendering into the HDR target.
     let chunk, chunkSolid, water, simple, star, cloud, cloudBox, mob, entity, crack, sky, hollowSky: MTLRenderPipelineState
     let shadowSolid, shadowCut: MTLRenderPipelineState
+    // Moving block structures (ships/vehicles) in the Fancy world pass: shipVibVS (buffer 2 = model matrix +
+    // section origin, the ship renderer's per-draw record) with the terrain fragment shaders.
+    let shipSolid, shipCut, shipTrans: MTLRenderPipelineState
     let bloomDown, bloomUp, rays, composite: MTLRenderPipelineState
     let shadowDepth: MTLDepthStencilState
     let shadowMap: MTLTexture
@@ -68,6 +71,9 @@ final class Vibrant {
         crack = try pipe("entityVS", "crackFS", color: hdrF, blend: 1)
         sky = try pipe("skyVS", "skyFS", color: hdrF)
         hollowSky = try pipe("skyVS", "hollowSkyFS", color: hdrF)
+        shipSolid = try pipe("shipVibVS", "chunkVibSolidFS", color: hdrF)
+        shipCut = try pipe("shipVibVS", "chunkVibFS", color: hdrF)
+        shipTrans = try pipe("shipVibVS", "waterVibFS", color: hdrF, blend: 1)
         shadowSolid = try pipe("shadowVS", nil, color: nil)
         shadowCut = try pipe("shadowVS", "shadowCutFS", color: nil)
         bloomDown = try pipe("fsVS", "bloomDownFS", color: hdrF, depth: .invalid)
