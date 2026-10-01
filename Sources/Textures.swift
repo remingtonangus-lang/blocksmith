@@ -175,7 +175,14 @@ enum TextureGen {
             return hex(0x866043, k)
         }
         // Grass/leaf textures are greyscale and tinted per biome in the shader.
-        func grayGrass(_ x: Int, _ y: Int) -> V4 { let v: Float = 0.62 + 0.3 * r(x, y, 2); return V4(v, v, v, 1) }
+        // Grass: tufts (soft clumps), short lit blade tips and darker gaps between blades.
+        func grayGrass(_ x: Int, _ y: Int) -> V4 {
+            var v: Float = 0.7 + (blot(x, y, 33, 4) - 0.5) * 0.16 + (r(x, y, 2) - 0.5) * 0.16
+            let tip = r(x, y, 34)
+            if tip > 0.9 && r(x, y + 1, 34) < 0.6 { v += 0.12 }
+            if tip < 0.08 { v -= 0.12 }
+            return V4(v, v, v, 1)
+        }
         func snowC(_ x: Int, _ y: Int) -> V4 { hex(0xF2F7FF, 0.94 + 0.06 * r(x, y, 19)) }
         func edge(_ x: Int, _ base: Int) -> Int { base + (r(x, 0, 21) > 0.5 ? 1 : 0) + (r(x, 0, 22) > 0.8 ? 1 : 0) }
 
