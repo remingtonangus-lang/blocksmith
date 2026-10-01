@@ -91,6 +91,12 @@ enum Advancements {
         Advancement(id: "adventure/sniper_duel", tab: 3, title: "Long Shot", desc: "Kill a Skeleton from at least 50 blocks away", crit: .event("sniper")),
         Advancement(id: "adventure/play_jukebox_in_meadows", tab: 3, title: "Hillside Tunes", desc: "Play a music disc in a Meadow", crit: .event("meadow_music")),
         Advancement(id: "adventure/proving_run", tab: 3, title: "Proving Run", desc: "Step foot in a Proving Hall", crit: .event("trial_chambers")),
+        // Ships (Blocksmith's own: moving block structures).
+        Advancement(id: "adventure/set_sail", tab: 3, title: "Anchors Aweigh", desc: "Steer a ship from its helm", crit: .event("pilot_ship")),
+        Advancement(id: "adventure/prize_crew", tab: 3, title: "Prize Crew", desc: "Take the helm of a Skyward Frigate or an Ironstride Siege Carriage",
+                    crit: .event("capture_vessel"), challenge: true),
+        Advancement(id: "adventure/brought_low", tab: 3, title: "Brought Low", desc: "Wreck a Skyward Frigate or an Ironstride Siege Carriage",
+                    crit: .event("wreck_vessel"), challenge: true),
         // Husbandry
         Advancement(id: "husbandry/root", tab: 4, title: "Homestead", desc: "The world is full of friends and food", crit: .event("eat")),
         Advancement(id: "husbandry/plant_seed", tab: 4, title: "Sown", desc: "Plant a seed and watch it grow", crit: .event("plant")),

@@ -549,6 +549,7 @@ enum ShipTest {
         run(g, seconds: 3, input: steerIn)
         print(String(format: "physicstest frigate: captured %@, piloted 3 s: %.1f blocks", fg.captured ? "yes" : "no", horiz(fg.pos - cap0)))
         check(fg.captured && w.ships.pilot === fg && horiz(fg.pos - cap0) > 2, "a vessel can be captured and steered")
+        check(g.advancements.contains("adventure/prize_crew"), "capturing a vessel earns Prize Crew")
         // The throttle holds after letting go; holding S brings it back to stop, where it rests.
         run(g, seconds: 1)
         let held = fg.throttle

@@ -171,6 +171,8 @@ extension Game {
         ships.pilot = s
         ships.aboard = s
         s.piloted = true
+        achieve("pilot_ship")
+        if s.isVessel && !s.captured { achieve("capture_vessel") }
         s.captured = true
         s.wrecked = false                // a new crew (the player) takes over
         if s.balloons > 0 && s.hoverY == nil { s.hoverY = s.pos.y }

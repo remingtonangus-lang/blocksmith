@@ -274,7 +274,10 @@ extension ShipManager {
             // Lose the helm or most of the hull and the vessel founders: the crew gives up, guns fall silent.
             if !s.wrecked && (s.helm == nil || s.blockCount * 100 < s.initialBlocks * 45) {
                 s.wrecked = true
-                if simd_length(s.pos - g.player.pos) < 160 { g.onToast?("The \(s.name) is going down!") }
+                if simd_length(s.pos - g.player.pos) < 160 {
+                    g.onToast?("The \(s.name) is going down!")
+                    if g.survival { g.achieve("wreck_vessel") }
+                }
                 g.sfx(.explode, 1, at: s.pos)
             }
             if s.wrecked {
