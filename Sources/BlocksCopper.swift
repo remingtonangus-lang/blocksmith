@@ -9,7 +9,7 @@ enum Copper {
     ]
     static let forms = ["block", "cut_copper", "chiseled_copper", "copper_grate", "copper_bulb", "cut_copper_stairs", "cut_copper_slab",
                         "copper_chest", "copper_golem_statue", "copper_lantern", "copper_bars", "copper_chain",
-                        "copper_door", "copper_trapdoor"]
+                        "copper_door", "copper_trapdoor", "lightning_rod"]
 
     static func name(_ form: String, stage: Int, waxed: Bool) -> String {
         let w = waxed ? "waxed_" : ""
@@ -100,6 +100,12 @@ extension BlockRegistry {
                 chain.tex = ["\(st.prefix)copper_chain"]; chain.render = .model; chain.layer = .cutout; chain.opaque = false; chain.boxes = [Box(7, 0, 7, 9, 16, 9)]
                 chain.hardness = 5; chain.tool = .pickaxe; chain.skyStop = false; chain.randomTicks = !waxed && s < 3
                 add(chain)
+                // Lightning rod: draws strikes within 64 blocks (Weather.swift); a strike scrapes its copper clean.
+                var rod = BlockDef(Copper.name("lightning_rod", stage: s, waxed: waxed), "\(w)\(st.disp)Lightning Rod")
+                rod.tex = [tex]; rod.render = .model; rod.layer = .cutout; rod.opaque = false; rod.skyStop = false
+                rod.boxes = [Box(7, 0, 7, 9, 12, 9), Box(6, 12, 6, 10, 16, 10)]; rod.hardness = 3; rod.tool = .pickaxe
+                rod.randomTicks = !waxed && s < 3
+                add(rod)
                 // Copper door and trapdoor: open by hand like wooden ones.
                 let dn = Copper.name("copper_door", stage: s, waxed: waxed), tn = Copper.name("copper_trapdoor", stage: s, waxed: waxed)
                 for upper in [false, true] { for open in [false, true] { for f in 0..<4 {
@@ -222,6 +228,23 @@ extension Game {
         sfx(key == "honeycomb" ? .waxOn : (waxed ? .waxOff : .scrape), 0.8, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
         swing = 1
         return true
+    }
+
+    // Lightning striking copper (a rod, a roof) clears the struck block's oxidation and knocks a stage off
+    // a few copper blocks around it. Wax is kept.
+    func scrapeCopperByLightning(_ p: IVec3) {
+        func clean(_ q: IVec3, to stage: (Int) -> Int) {
+            let b = world.block(q.x, q.y, q.z)
+            guard case let (_, st, waxed)? = Copper.index[Blocks.key(Blocks.groupBase[Int(b)])], st > 0,
+                  let t = Copper.convert(b, stage: stage(st), waxed: waxed) else { return }
+            world.setBlock(q.x, q.y, q.z, t)
+        }
+        guard Copper.index[Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))])] != nil else { return }
+        clean(p) { _ in 0 }
+        for _ in 0..<5 {
+            let q = IVec3(p.x + Int.random(in: -3...3), p.y + Int.random(in: -3...1), p.z + Int.random(in: -3...3))
+            clean(q) { $0 - 1 }
+        }
     }
 
     // Random-tick oxidation (roughly one stage per hour of loaded time, like the reference average).

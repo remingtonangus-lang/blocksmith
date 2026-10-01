@@ -97,6 +97,7 @@ extension Game {
     // boarling, villager -> witch, mushroom cow colour swap; sets fire to the struck block.
     func strike(_ at: V3) {
         bolts.append(Bolt(pos: at, life: 0.35, seed: UInt64.random(in: 1...UInt64.max)))
+        scrapeCopperByLightning(IVec3(Int(floor(at.x)), Int(floor(at.y)) - 1, Int(floor(at.z))))
         lightningFlash = 1
         addFlash(at: at + V3(0, 6, 0), color: V3(5, 5.5, 7), radius: 40, life: 0.35)
         let d = simd_length(at - player.pos)

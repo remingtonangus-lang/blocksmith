@@ -18,7 +18,7 @@ let SoundMats: [SoundMat] = {
         var m = Blocks.def(id).sound
         if k.hasSuffix("_wool") || k.hasSuffix("_carpet") || k == "honeycomb_block" || k.hasSuffix("_bed") { m = .wool }
         else if k == "gravel" || k == "suspicious_gravel" { m = .gravel }
-        else if (k.contains("copper") && !k.hasSuffix("_ore")) || metalKeys.contains(k) || k.hasSuffix("anvil") || k.hasSuffix("lantern") || k.hasSuffix("_rail") || k.hasPrefix("raw_") { m = .metal }
+        else if (k.contains("copper") && !k.hasSuffix("_ore")) || metalKeys.contains(k) || k.hasSuffix("anvil") || k.hasSuffix("lantern") || k.hasSuffix("lightning_rod") || k.hasSuffix("_rail") || k.hasPrefix("raw_") { m = .metal }
         else if k == "bone_block" { m = .bone }
         else if k.contains("amethyst") { m = .amethyst }
         else if k == "slime_block" || k == "honey_block" { m = .slime }

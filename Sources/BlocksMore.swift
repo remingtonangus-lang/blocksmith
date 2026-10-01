@@ -81,7 +81,7 @@ extension BlockRegistry {
               [Box(0, 14, 0, 16, 16, 16), Box(0, 0, 0, 2, 14, 2, tex: t6("scaffolding_side")), Box(14, 0, 0, 16, 14, 2, tex: t6("scaffolding_side")),
                Box(0, 0, 14, 2, 14, 16, tex: t6("scaffolding_side")), Box(14, 0, 14, 16, 14, 16, tex: t6("scaffolding_side"))], h: 0, tool: .none, snd: .wood)
         model("chain", "Chain", ["chain"], [Box(7, 0, 7, 9, 16, 9)], h: 5)
-        model("lightning_rod", "Lightning Rod", ["copper_block"], [Box(7, 0, 7, 9, 12, 9), Box(6, 12, 6, 10, 16, 10)], h: 3)
+        // Lightning rods are registered with the copper blocks (they oxidize): BlocksCopper.swift.
         for (n, disp, fire, emit) in [("campfire", "Campfire", "campfire_fire", UInt8(15)), ("soul_campfire", "Ghost Campfire", "soul_campfire_fire", UInt8(10))] {
             for lit in [false, true] {
                 var d = BlockDef(lit ? n : "\(n)[off]", disp)

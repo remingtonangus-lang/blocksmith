@@ -1082,7 +1082,7 @@ final class Game {
                 world.blockEntities[at] = be
             }
             if key == "trapped_chest" { world.blockEntities[at] = BlockEntity(.chest) }
-            if key == "lightning_rod" { lightningRods.append(at) }
+            if key.hasSuffix("lightning_rod") { lightningRods.append(at) }
             placedReactions(at)
             world.redstone.vibrate(at: V3(Float(at.x) + 0.5, Float(at.y) + 0.5, Float(at.z) + 0.5))
             if Blocks.shape[Int(id)] == "sign" || Blocks.shape[Int(id)] == "hsign" { openSignEditor(at) }
