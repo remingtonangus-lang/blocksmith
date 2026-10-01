@@ -41,7 +41,7 @@ final class PauseMenu: Menu {
             let gui = HudLayout.userScale == 0 ? "Auto" : "\(HudLayout.userScale)"
             rows = [("FOV: \(Int(g.fovSetting))", "fov"), ("Sensitivity: \(Int(g.sensitivity * 100))%", "sens"),
                     ("Invert Y: \(g.invertY ? "On" : "Off")", "invert"), ("Auto-Jump: \(g.autoJump ? "On" : "Off")", "autojump"), ("Stick Dead Zone: \(Int(g.deadZone * 100))%", "dead"),
-                    ("Render Distance: \(g.world.renderDistance)", "rd"), ("Graphics: \(g.fancyGraphics ? "Fancy" : "Fast")", "graphics"), ("GUI Scale: \(gui)", "gui"),
+                    ("Render Distance: \(g.world.renderDistance)", "rd"), ("Graphics: \(g.fancyGraphics ? "Fancy" : "Fast")", "graphics"), ("Render Scale: \(Int((g.renderScale * 100).rounded()))%", "rscale"), ("GUI Scale: \(gui)", "gui"),
                     ("Couch Mode (TV): \(HudLayout.couch ? "On" : "Off")", "couch"), ("Volume: \(Int(g.volumeSetting * 100))%", "volume"), ("Music: \(Int(g.musicVolume * 100))%", "music"),
                     ("Done", "back")]
         case .create:
@@ -115,6 +115,7 @@ final class PauseMenu: Menu {
             UserDefaults.standard.set(g.world.renderDistance, forKey: "renderDistance")
         case "gui": HudLayout.userScale = step([0, 1, 2, 3, 4, 5, 6], HudLayout.userScale)
         case "graphics": g.fancyGraphics.toggle()
+        case "rscale": g.renderScale = step([1, 0.85, 0.7], g.renderScale)
         case "couch": HudLayout.couch.toggle()
         case "volume": g.volumeSetting = step([0, 0.25, 0.5, 0.8, 1], g.volumeSetting)
         case "music": g.musicVolume = step([0, 0.25, 0.5, 0.75, 1], g.musicVolume)

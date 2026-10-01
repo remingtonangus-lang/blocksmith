@@ -306,7 +306,8 @@ final class Renderer: NSObject, MTKViewDelegate {
             encode(enc, width: Float(width), height: Float(height)).endEncoding()
             return
         }
-        v.ensure(width, height)
+        let rs = max(0.5, min(1, game.renderScale))
+        v.ensure(max(1, Int(Float(width) * rs)), max(1, Int(Float(height) * rs)))
         lightFrame = Vibrant.lightFrame(game: game, eye: cameraEye().eye)
         shadowPass(cmd, v)
         let a = MTLRenderPassDescriptor()
@@ -411,6 +412,9 @@ final class Renderer: NSObject, MTKViewDelegate {
     func encode(_ enc0: MTLRenderCommandEncoder, width W: Float, height H: Float,
                 split: ((Split, MTLRenderCommandEncoder) -> MTLRenderCommandEncoder)? = nil) -> MTLRenderCommandEncoder {
         var enc = enc0
+        // World passes may render below the output size (Fancy render scale); the HUD always uses W x H.
+        let VW = hdrActive ? Float(vib?.hdr?.width ?? Int(W)) : W
+        let VH = hdrActive ? Float(vib?.hdr?.height ?? Int(H)) : H
         frame = (frame + 1) % ring.count
         let scratch = ring[frame]
         var scratchOff = 0
@@ -466,7 +470,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             u.sunColor = V4(lf.color, lf.shadowStrength)
             u.ambColor = V4(lf.ambient, game.dim.dim.hasSky ? min(1, game.weather.rain) : 0)
             u.lightDir = V4(lf.dir, Float(game.dayFraction))
-            u.screen = V4(W, H, 1 / max(W, 1), 1 / max(H, 1))
+            u.screen = V4(VW, VH, 1 / max(VW, 1), 1 / max(VH, 1))
             // Post: sun position for god rays, bloom, haze and grading.
             var pp = PostParams()
             pp.grade = V4(1.0, 1.14, 1.06, 0.16)
@@ -873,7 +877,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 }
             }
             scratchOff = armOff + an * MemoryLayout<MobVert>.stride
-            enc.setViewport(MTLViewport(originX: 0, originY: 0, width: Double(W), height: Double(H), znear: 0, zfar: 0.001))
+            enc.setViewport(MTLViewport(originX: 0, originY: 0, width: Double(VW), height: Double(VH), znear: 0, zfar: 0.001))
             enc.setDepthStencilState(depthWrite)
             enc.setCullMode(.none)
             enc.setRenderPipelineState(mobPipe)
@@ -907,7 +911,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: wr.n)
                 }
             }
-            enc.setViewport(MTLViewport(originX: 0, originY: 0, width: Double(W), height: Double(H), znear: 0, zfar: 1))
+            enc.setViewport(MTLViewport(originX: 0, originY: 0, width: Double(VW), height: Double(VH), znear: 0, zfar: 1))
         }
 
         if let sp = split { enc = sp(.beforeHUD, enc) }
