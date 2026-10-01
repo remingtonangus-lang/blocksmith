@@ -256,7 +256,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         let cmd = queue.makeCommandBuffer()!
         cmd.addCompletedHandler { [inflight, weak self] cb in
             let g = cb.gpuEndTime - cb.gpuStartTime
-            if g > 0 && g < 1, let s = self { s.gpuLock.lock(); s.gpuMs = s.gpuMs * 0.92 + g * 1000 * 0.08; s.gpuLock.unlock() }
+            if g > 0 && g < 1, let s = self { s.frameGPULock.lock(); s.frameGPUMs = s.frameGPUMs * 0.92 + g * 1000 * 0.08; s.frameGPULock.unlock() }
             inflight.signal()
         }
         let s = view.drawableSize
@@ -273,9 +273,9 @@ final class Renderer: NSObject, MTKViewDelegate {
     var postParams = PostParams()
     private var shadowList: [(Chunk, Int)] = []
     private var flashScratch: [V4] = []
-    private let gpuLock = NSLock()
-    private var gpuMs: Double = 0
-    var gpuFrameMs: Double { gpuLock.lock(); defer { gpuLock.unlock() }; return gpuMs }
+    private let frameGPULock = NSLock()
+    private var frameGPUMs: Double = 0
+    var gpuFrameMs: Double { frameGPULock.lock(); defer { frameGPULock.unlock() }; return frameGPUMs }
     private var lastShadow = Vibrant.LightFrame()
     private var shadowAge = 0
     var shadowFresh = false
