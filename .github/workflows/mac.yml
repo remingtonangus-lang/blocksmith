@@ -33,7 +33,16 @@ jobs:
         id: build
         run: |
           set -o pipefail
-          bash ./build.sh 2>&1 | tee build.log
+          EXTRA_SWIFTC_FLAGS="-Xfrontend -warn-long-expression-type-checking=150" bash ./build.sh 2>&1 | tee build.log
+
+      - name: Type-check time gate (expressions that could time out on an M1 with a newer Swift)
+        if: always() && steps.build.outcome == 'success'
+        run: |
+          # Report every expression over 150 ms; fail on any over 400 ms (the Mac hit the hard limit on one of these).
+          grep -E "warning: expression took [0-9]+ms to type-check" build.log | sort -u | tee typecheck.log || true
+          slow=$(grep -oE "expression took [0-9]+ms" typecheck.log | grep -oE "[0-9]+" | awk '$1 >= 400' | wc -l | tr -d ' ')
+          echo "type-check: $(wc -l < typecheck.log | tr -d ' ') expressions over 150 ms, $slow over 400 ms"
+          [ "$slow" -eq 0 ]
 
       - name: Smoke test (play 60 s at render distance 8, 16, 24, and 24 in Fast)
         id: smoke
@@ -130,7 +139,7 @@ jobs:
           rm -rf "$PUB"; mkdir -p "$PUB"
           cp snaps/*.png "$PUB/" 2>/dev/null || true
           if [ -d snaps/sounds ]; then cp -r snaps/sounds "$PUB/sounds"; fi
-          cp build.log smoke.log snap.log debug.log benchdebug.log bench.log profile.log playthrough.log terrain.log snaps/bench.json snaps/bench.md snaps/profile_*.txt "$PUB/" 2>/dev/null || true
+          cp build.log typecheck.log smoke.log snap.log debug.log benchdebug.log bench.log profile.log playthrough.log terrain.log snaps/bench.json snaps/bench.md snaps/profile_*.txt "$PUB/" 2>/dev/null || true
           cd "$PUB"
           {
             echo "# Blocksmith CI snapshots"

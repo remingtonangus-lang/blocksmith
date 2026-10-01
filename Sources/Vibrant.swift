@@ -117,8 +117,12 @@ final class Vibrant {
             var next = [UInt8](repeating: 0, count: ns * ns * layers)
             for l in 0..<layers { for y in 0..<ns { for x in 0..<ns {
                 let b = l * cs * cs
-                let s = Int(cur[b + (2 * y) * cs + 2 * x]) + Int(cur[b + (2 * y) * cs + 2 * x + 1])
-                    + Int(cur[b + (2 * y + 1) * cs + 2 * x]) + Int(cur[b + (2 * y + 1) * cs + 2 * x + 1])
+                // Typed steps: the one-line 4-term sum timed out the type checker on the Mac (Swift 6.3).
+                let r0: Int = b + (2 * y) * cs + 2 * x
+                let r1: Int = r0 + cs
+                let s0: Int = Int(cur[r0]) + Int(cur[r0 + 1])
+                let s1: Int = Int(cur[r1]) + Int(cur[r1 + 1])
+                let s: Int = s0 + s1
                 next[l * ns * ns + y * ns + x] = UInt8(s / 4)
             } } }
             cur = next; cs = ns

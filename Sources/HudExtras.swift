@@ -86,7 +86,7 @@ final class Subtitles {
 
     func add(_ g: Game, _ s: Snd, at pos: V3?) {
         // The audio workstream's captions first (they know every mob voice), then our own table.
-        guard Settings.shared.subtitles else { return }
+        guard AudioSettings.subtitles else { return }
         var caption = s.caption(positional: pos != nil)
         if caption == nil || caption == "Creature calls" { caption = Subtitles.label(s) ?? caption }     // ours names the creature
         guard let label = caption else { return }

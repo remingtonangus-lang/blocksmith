@@ -12,6 +12,7 @@ final class SubtitleState {
 extension AudioSettings {
     static var forceSubtitles = false        // harness only (not saved)
     // One subtitles option shared by Options → Audio and Options → Accessibility (Settings.subtitles).
+    // Storage lives in Settings.subtitles (never forward back from there: that recursed forever).
     static var subtitles: Bool {
         get { forceSubtitles || Settings.shared.subtitles }
         set { Settings.shared.subtitles = newValue }

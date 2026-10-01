@@ -488,6 +488,13 @@ enum PadTest {
         let cap = Subtitles.shared.entries.first { $0.label == "Zombie groans" }
         check(cap?.side == 1, "subtitles caption a zombie on the right with a right arrow")
         Settings.shared.subtitles = false
+        // One setting, two menus: Options > Audio ("audio_subs") and Options > Accessibility ("subtitles") toggle
+        // the same value, and reading it returns (the two used to forward to each other forever).
+        let subsMenu = PauseMenu(game: g)
+        subsMenu.act("audio_subs", back: false)
+        check(Settings.shared.subtitles && AudioSettings.subtitles, "Audio menu turns subtitles on for both settings")
+        subsMenu.act("subtitles", back: false)
+        check(!Settings.shared.subtitles && !AudioSettings.subtitles, "Accessibility menu turns them off again")
         check(ContextPrompts.items(g).allSatisfy { !$0.isEmpty }, "contextual prompts build (\(ContextPrompts.items(g).count) shown)")
 
         // Layout: a two-column-free options panel fits a 1080p TV in couch mode with a safe area.

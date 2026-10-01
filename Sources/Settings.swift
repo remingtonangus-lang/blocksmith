@@ -47,11 +47,9 @@ final class Settings {
     @Pref("crosshair") var crosshair = 0             // 0 classic, 1 bold (high contrast), 2 dot
 
     // Accessibility
-    // One subtitles setting for the whole game (the audio workstream's AudioSettings stores it).
-    var subtitles: Bool {
-        get { AudioSettings.subtitles }
-        set { AudioSettings.subtitles = newValue }
-    }
+    // One subtitles setting for the whole game; stored here (key kept from the audio workstream). AudioSettings.subtitles
+    // reads it (plus the harness override). Both used to forward to each other: infinite recursion, a hang every frame.
+    @Pref("audio_subtitles") var subtitles = false
     @Pref("colorblind") var colorblind = false       // blue/orange instead of green/red cues
     @Pref("tutorialHints") var tutorialHints = true
     @Pref("tutorialStep") var tutorialStep = 0       // how far the first-steps hints have got
