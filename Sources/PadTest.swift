@@ -410,6 +410,8 @@ enum PadTest {
             MapCache.shared.discover(g, kind: "military_base", x: Int(g.player.pos.x) + 45, z: Int(g.player.pos.z))
             check(MapCache.shared.marks.count == 1, "the same base isn't marked twice")
             check(MapCache.shade(.ocean, height: 40) != MapCache.shade(.desert, height: 140), "biomes get distinct map colours")
+            MapCache.shared.discover(g, kind: "vessel_frigate", x: Int(g.player.pos.x) - 300, z: Int(g.player.pos.z))
+            check(MapCache.shared.marks.count == 2 && MapCache.style("vessel_frigate").letter == "F", "vessel patrols are marked with their own letter")
             MapCache.shared.resetMarks()
         }
 
