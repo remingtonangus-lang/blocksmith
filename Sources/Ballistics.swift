@@ -197,7 +197,9 @@ final class Armory {
         if s.kind == .rocket || s.kind == .shell { detonate(s, at: at - dir * 0.3, g); return }
         let whole = floorf(s.damage)
         let n = Int(whole) + (Float.random(in: 0..<1) < s.damage - whole ? 1 : 0)
+        g.bulletHit = true
         g.hurtPlayer(max(1, n), from: at - dir * 3, cause: "was shot by \(s.by)", knockback: 0.25, type: .projectile)
+        g.bulletHit = false
     }
 
     func detonate(_ s: Slug, at: V3, _ g: Game) {

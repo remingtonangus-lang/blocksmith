@@ -16,6 +16,9 @@ final class Game {
     let input = InputState()
     let particles = ParticleManager()
     let arms = Armory()               // gun rounds in flight and the player's gun state (Ballistics.swift)
+    var lastHurtAt: Double = -10      // hurt cooldown (reference: 10 ticks of invulnerability after a hit)
+    var lastHurtAmount = 0
+    var bulletHit = false             // gun rounds ignore the hurt cooldown (each round lands)
     let inventory = PlayerInventory()
     let save: SaveManager?
     let persistent: Bool
@@ -1571,9 +1574,22 @@ final class Game {
 
     // Damage in half-hearts: armor (reference formula), resistance, enchantment protection,
     // absorption hearts, then the totem of rebirth.
-    func damage(_ amount: Int, _ cause: String, bypassArmor: Bool = false, type: DamageType = .generic, attacker: Mob? = nil) {
-        guard survival, alive, amount > 0 else { return }
+    func damage(_ amount0: Int, _ cause: String, bypassArmor: Bool = false, type: DamageType = .generic, attacker: Mob? = nil) {
+        guard survival, alive, amount0 > 0 else { return }
         if type == .fire && effects.has(.fireResistance) { return }
+        // Hurt cooldown: within half a second of a hit, only the part of a bigger hit that exceeds it lands
+        // (a blight skull and its blast, a creeper after an arrow...). The void and gun rounds skip it.
+        var amount = amount0
+        if type != .void && !bulletHit {
+            if clock - lastHurtAt < 0.5 {
+                guard amount > lastHurtAmount else { return }
+                amount -= lastHurtAmount
+                lastHurtAmount = amount0
+            } else {
+                lastHurtAt = clock
+                lastHurtAmount = amount0
+            }
+        }
         var dmg = Float(amount)
         if !bypassArmor {
             let a = Float(inventory.armorPoints), tough = inventory.toughness

@@ -432,8 +432,23 @@ final class Playthrough {
         if let io = ironOre {
             // A wooden pickaxe can't harvest it.
             check(!Mining.canHarvest(world.block(io.x, io.y, io.z), ItemStack(id("wooden_pickaxe"), 1)), "rules: wooden pickaxe can't harvest iron ore")
-            _ = hold("stone_pickaxe")
-            if mine(io) { collect(near: center(io)) }
+            // Up to four ore blocks (one can sit in water or over a drop the item falls into).
+            var tried: [IVec3] = []
+            var next: IVec3? = io
+            while let o = next, tried.count < 4, count("raw_iron") == 0 {
+                tried.append(o)
+                let held = hold("stone_pickaxe")
+                let k = baseKey(world.block(o.x, o.y, o.z))
+                let ok = mine(o)
+                if ok { collect(near: center(o)) }
+                if count("raw_iron") == 0 {
+                    info(String(format: "iron attempt %ld at %ld %ld %ld (%@, pickaxe %@): mined %@, now %@, %ld drops near",
+                                tried.count, o.x, o.y - YOFF, o.z, k, held ? "held" : "missing", ok ? "yes" : "no",
+                                baseKey(world.block(o.x, o.y, o.z)), game.drops.items.filter { simd_length($0.pos - self.center(o)) < 12 }.count))
+                }
+                next = findBlock(near: home, radius: r, yRange: 1...min(CH - 1, home.y), { $0 == "iron_ore" || $0 == "deepslate_iron_ore" })
+                if let n = next, tried.contains(n) { next = nil }
+            }
             check(count("raw_iron") >= 1, "mine: raw iron with a stone pickaxe (\(count("raw_iron")))")
         }
         if let co = findBlock(near: home, radius: r, yRange: 1...min(CH - 1, home.y), { $0 == "coal_ore" || $0 == "deepslate_coal_ore" }) {
@@ -898,8 +913,8 @@ final class Playthrough {
                 game.portalCooldown = 0
                 // Pearl into it from a few blocks away (walking into it by body contact is also supported; see STATUS).
                 let bc = center(b)
-                let tf = bc + V3(4, -1.1, 0)
-                for y in (b.y - 1)...(b.y + 1) { for dx in 1...4 where carvable(IVec3(b.x + dx, y, b.z)) { world.setBlock(b.x + dx, y, b.z, AIR) } }
+                let tf = bc + V3(6, -1.1, 0)
+                for y in (b.y - 1)...(b.y + 1) { for dx in 1...6 where carvable(IVec3(b.x + dx, y, b.z)) { world.setBlock(b.x + dx, y, b.z, AIR) } }
                 game.player.flying = true
                 game.player.pos = tf
                 if count("ender_pearl") == 0 { give("ender_pearl", 2, bulk: "spare pearls") }
@@ -1053,8 +1068,10 @@ final class Playthrough {
         info("bulk: Smite V on the sword, Power V on the bow")
         let fightStart = simSeconds
         let dmgStart = damageTaken
-        var arrows = 0, swings = 0, arrowDmg = 0, armoredArrowDmg = 0, armoredArrows = 0
+        var arrows = 0, swings = 0, arrowDmg = 0, armoredArrowDmg = 0, armoredArrows = 0, landed = 0, swordDmg = 0, regear = 0
         while b.health > 0 && simSeconds - fightStart < 600 {
+            // After a death (skull blasts can destroy the dropped gear) the fighter comes back equipped.
+            if game.inventory.armorPoints < 17 && regear < 6 { regear += 1; wearArmor() }
             if b.health > 150 {
                 // Bow while it's unarmoured.
                 let h0 = b.health
@@ -1078,9 +1095,15 @@ final class Playthrough {
                 var at = game.player.pos
                 if l > 2.2 { at = V3(b.pos.x, max(Float(gy), b.pos.y - 1), b.pos.z) - simd_normalize(to + V3(0.001, 0, 0)) * 2 }
                 game.player.flying = true
-                _ = hold("diamond_sword")
+                if !hold("diamond_sword") {
+                    give("diamond_sword", 1, bulk: "a new sword")
+                    for i in 0..<36 where Items.key(inv[i].item) == "diamond_sword" { var st = inv[i]; st.ench = Enchant.pack([(.smite, 5)]); inv[i] = st }
+                    _ = hold("diamond_sword")
+                }
+                let h0 = b.health
                 swing(at: b, from: at)
                 swings += 1
+                if b.health < h0 { landed += 1; swordDmg += h0 - b.health }
             }
             // Keep the player near the arena floor.
             if game.player.pos.y < Float(gy) - 3 || simd_length(game.player.pos - feet) > 40 { game.player.pos = feet; game.player.vel = .zero }
@@ -1088,7 +1111,7 @@ final class Playthrough {
         let t = simSeconds - fightStart
         check(b.health <= 0, String(format: "blight: defeated in %.0f s (%ld arrows for %ld damage, %ld sword hits)", t, arrows, arrowDmg, swings))
         check(armoredArrows == 0 || armoredArrowDmg == 0, "blight: arrows bounce off its armour below half health (\(armoredArrowDmg) damage from \(armoredArrows))")
-        info("blight fight: player took \(damageTaken - dmgStart) damage (healed by the test)")
+        info("blight fight: player took \(damageTaken - dmgStart) damage (healed by the test); \(landed) of \(swings) sword hits landed for \(swordDmg)")
         collect(near: b.pos, 24)
         _ = tick(1)
         collect(near: game.player.pos, 24)
