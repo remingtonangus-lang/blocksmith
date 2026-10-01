@@ -18,7 +18,7 @@ concurrency:
 jobs:
   build:
     runs-on: macos-14
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -46,6 +46,7 @@ jobs:
       - name: Benchmarks
         id: bench
         if: always() && steps.build.outcome == 'success'
+        timeout-minutes: 12
         run: |
           set -o pipefail
           bash ./bench.sh 2>&1 | tee bench.log
@@ -53,6 +54,7 @@ jobs:
       - name: Debug rerun of a crashed benchmark scene
         if: always() && steps.bench.outcome == 'failure'
         continue-on-error: true
+        timeout-minutes: 12
         run: |
           S=$(grep -E 'Segmentation fault|Abort trap|Illegal instruction|Trace/BPT trap|Bus error' bench.log | head -1 || true)
           [ -n "$S" ] || { echo "benchmarks failed without a crash (see compare)"; exit 0; }
@@ -69,6 +71,7 @@ jobs:
       - name: Profile (sample)
         if: always() && steps.build.outcome == 'success'
         continue-on-error: true
+        timeout-minutes: 8
         run: |
           bash perf/profile.sh flight16 10 2>&1 | tee profile.log
           bash perf/profile.sh meshprof 8 2>&1 | tee -a profile.log
@@ -85,6 +88,7 @@ jobs:
       - name: Snapshots
         id: snap
         if: always() && steps.build.outcome == 'success'
+        timeout-minutes: 25
         run: |
           set -o pipefail
           bash ./snap.sh 2>&1 | tee snap.log
@@ -92,12 +96,14 @@ jobs:
       - name: Terrain check
         id: terrain
         if: always() && steps.build.outcome == 'success'
+        timeout-minutes: 5
         run: |
           set -o pipefail
           build/Blocksmith.app/Contents/MacOS/Blocksmith --terrainmap snaps/check --step 32 --strict 2>&1 | tee terrain.log
 
       - name: Debug rerun of the failing shot
         if: failure() && steps.snap.outcome == 'failure'
+        timeout-minutes: 10
         run: |
           L=$(grep -o 'snap.sh: line [0-9]*' snap.log | tail -1 | grep -o '[0-9]*$' || true)
           bash ./build.sh debug 2>&1 | tail -5

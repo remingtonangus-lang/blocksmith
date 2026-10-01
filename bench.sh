@@ -8,14 +8,16 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 BIN=build/Blocksmith.app/Contents/MacOS/Blocksmith
+# Each benchmark process gets 4 minutes (a hang shows which scene instead of a CI timeout with no logs).
+run() { perl -e 'alarm shift; exec @ARGV' 240 "$@"; rc=$?; [ $rc -eq 142 ] && echo "bench: TIMEOUT after 240 s: $*"; return $rc; }
 mkdir -p snaps
 rm -f snaps/bench_part_*.json
 if [[ " $* " == *" --scenes "* ]]; then
-  "$BIN" --bench snaps/bench_part_0.json "$@"
+  run "$BIN" --bench snaps/bench_part_0.json "$@"
 else
-  "$BIN" --bench snaps/bench_part_0.json --scenes gen,mesh,startup,frame,edit,mobs,save,tnt,fluids,ships "$@"
+  run "$BIN" --bench snaps/bench_part_0.json --scenes gen,mesh,startup,frame,edit,mobs,save,tnt,fluids,ships "$@"
   for f in flight8 flight16 flight24; do
-    "$BIN" --bench "snaps/bench_part_$f.json" --scenes "$f" "$@"
+    run "$BIN" --bench "snaps/bench_part_$f.json" --scenes "$f" "$@"
   done
 fi
 python3 - <<'PY'

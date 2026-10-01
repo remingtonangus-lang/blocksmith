@@ -39,6 +39,21 @@ enum Smoke {
         var minCov = 1.0, peak = residentMB(), maxMobs = 0
         let start = CFAbsoluteTimeGetCurrent()
         let flyAt = frames / 2
+        // Watchdog: a hang (deadlock, a GPU wait that never returns) becomes a reported failure instead of a CI timeout.
+        let progress = SmokeProgress()
+        Thread.detachNewThread {
+            var last = -1, still = 0
+            while true {
+                sleep(5)
+                let (f, phase) = progress.read()
+                if f == last { still += 5 } else { still = 0; last = f }
+                if still >= 20 {
+                    print("smoke rd \(rd): FAIL stalled for \(still) s at frame \(f) in \(phase)")
+                    fflush(stdout)
+                    exit(4)
+                }
+            }
+        }
         for i in 0..<frames {
             // Scripted controller: forward (sprinting), slow turn, a jump every 2 s; the inventory at 10 s and
             // the pause menu at 20 s (each closed half a second later); flight from the halfway mark.
@@ -55,7 +70,9 @@ enum Smoke {
             if i > flyAt { p.rx = 0.05 }
             PadManager.shared.simulated = p
             let b = CFAbsoluteTimeGetCurrent()
+            progress.set(i, "Game.tick")
             game.tick(dt)
+            progress.set(i, "renderFrame")
             if i > flyAt {
                 // Fly at 20 blocks/s (like the benchmark flights) so streaming is stressed at every distance.
                 let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
@@ -68,7 +85,9 @@ enum Smoke {
             cmd.addCompletedHandler { _ in MeshArena.frameCompleted(fence) }
             r.renderFrame(cmd, final: target.rpd, width: W, height: H)
             cmd.commit()
+            progress.set(i, "GPU wait")
             cmd.waitUntilCompleted()
+            progress.set(i + 1, "frame done")
             frameMs.append((CFAbsoluteTimeGetCurrent() - b) * 1000)
             let pp = game.player.pos
             guard pp.x.isFinite && pp.y.isFinite && pp.z.isFinite else {
@@ -103,4 +122,12 @@ enum Smoke {
         print("smoke rd \(rd)\(game.fancyGraphics ? "" : " Fast"): PASS")
         return 0
     }
+}
+
+// Frame counter + phase shared with the smoke watchdog thread.
+final class SmokeProgress {
+    private let lock = NSLock()
+    private var frame = 0, phase = "start"
+    func set(_ f: Int, _ p: String) { lock.lock(); frame = f; phase = p; lock.unlock() }
+    func read() -> (Int, String) { lock.lock(); defer { lock.unlock() }; return (frame, phase) }
 }
