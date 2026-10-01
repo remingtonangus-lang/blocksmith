@@ -524,6 +524,24 @@ enum ShipTest {
         } }
         print("physicstest encounters: \(frigates) frigates, \(carriages) siege carriages in 441 regions of 2048 blocks")
         check(frigates + carriages > 0 && frigates + carriages < 110, "vessel encounters are rare")
+        // The real encounter path: walk up to the nearest seeded home and the vessel appears.
+        var home: (String, IVec3)?
+        search: for r in 0...6 { for rz in -r...r { for rx in -r...r where max(abs(rx), abs(rz)) == r {
+            if let e = Vessels.encounter(seed: w.seed, rx: rx, rz: rz, gen: w.gen) { home = e; break search }
+        } } }
+        if let (kind, hp) = home.map({ ($0.0, $0.1) }) {
+            let near = V3(Float(hp.x) + 40, Float(hp.y) + 10, Float(hp.z))
+            _ = w.loadSync(center: near, radius: 6)
+            let before = w.ships.list.filter { $0.role == kind }.count
+            g.player.flying = true
+            g.player.pos = near
+            w.ships.encounters = true
+            for _ in 0..<7 { g.player.pos = near; w.ships.update(1, game: g) }
+            w.ships.encounters = false
+            let after = w.ships.list.filter { $0.role == kind }.count
+            print("physicstest encounters: nearest \(kind) home at \(hp.x), \(hp.z): \(after - before) appeared")
+            check(after == before + 1, "a vessel appears when the player nears its home")
+        } else { check(false, "an encounter within six regions") }
 
         print(String(format: "physicstest: %ld checks failed, %.1f s, ships %ld", fails, CFAbsoluteTimeGetCurrent() - t0, w.ships.list.count))
         // Final view: the boat.
