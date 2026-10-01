@@ -217,6 +217,24 @@ extension Game {
                 world.setBlockAsync(p.x, p.y, p.z, AIR)
                 for _ in 0..<Int.random(in: 2...5) { mobs.mobs.append(Mob(.tadpole, at: V3(Float(p.x) + 0.5, Float(p.y) - 0.5, Float(p.z) + 0.5))) }
             }
+        case "dried_ghast":
+            // Next to water it soaks up a stage every few random ticks (about 20 minutes to hatch); dry, it shrivels back.
+            var wet = false
+            for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] where !wet {
+                wet = Blocks.fluidKind[Int(world.block(p.x + d.x, p.y + d.y, p.z + d.z))] == 1
+            }
+            if wet && Int.random(in: 0..<4) == 0 {
+                if st < 3 { world.setBlockAsync(p.x, p.y, p.z, b + 1) }
+                else {
+                    world.setBlockAsync(p.x, p.y, p.z, AIR)
+                    let w = Mob(.happyGhast, at: V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5))
+                    w.baby = true; w.scale = 0.25; w.persistent = true
+                    mobs.mobs.append(w)
+                    sfx(.mob(.happyGhast, .ambient), 0.8, at: w.pos)
+                }
+            } else if !wet && st > 0 && Int.random(in: 0..<6) == 0 {
+                world.setBlockAsync(p.x, p.y, p.z, b - 1)
+            }
         case "sniffer_egg":
             if Int.random(in: 0..<20) == 0 {
                 world.setBlockAsync(p.x, p.y, p.z, AIR)

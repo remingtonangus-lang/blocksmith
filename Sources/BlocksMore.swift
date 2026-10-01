@@ -26,7 +26,7 @@ extension BlockRegistry {
             var d = BlockDef(n, disp)
             d.tex = tex; d.render = .model; d.layer = .cutout; d.opaque = false; d.boxes = boxes; d.hardness = h; d.tool = tool; d.sound = snd
             d.emit = emit; d.collide = collide; d.skyStop = false; d.group = group; d.hidden = hidden; d.shape = shape
-            d.randomTicks = ["cocoa", "turtle_egg", "sniffer_egg"].contains(group ?? n)
+            d.randomTicks = ["cocoa", "turtle_egg", "sniffer_egg", "dried_ghast"].contains(group ?? n)
             add(d)
         }
         func cross(_ n: String, _ disp: String, emit: UInt8 = 0, tex: String? = nil, group: String? = nil, hidden: Bool = false) {
@@ -131,6 +131,12 @@ extension BlockRegistry {
                   group: "turtle_egg", hidden: k != 0, shape: "egg")
         }
         model("sniffer_egg", "Snuffler Egg", ["sniffer_egg"], [Box(1, 0, 2, 15, 16, 14)], h: 0.5)
+        // Dried Wailer: soaks up water over about 20 minutes (4 stages) and hatches a Wailerling (GameBlocks).
+        for k in 0..<4 {
+            model(k == 0 ? "dried_ghast" : "dried_ghast[\(k)]", "Dried Wailer", ["dried_ghast_\(k)", "dried_ghast_\(k)", "dried_ghast_top_\(k)",
+                  "dried_ghast_top_\(k)", "dried_ghast_\(k)", "dried_ghast_\(k)"], [Box(3, 0, 3, 13, 10, 13)], h: 0, snd: .soul,
+                  group: "dried_ghast", hidden: k != 0)
+        }
         var spawn = BlockDef("frogspawn", "Frogspawn")
         spawn.tex = ["frogspawn"]; spawn.render = .model; spawn.layer = .cutout; spawn.opaque = false; spawn.collide = false
         spawn.boxes = [Box(0, 0, 0, 16, 1, 16)]; spawn.hardness = 0; spawn.skyStop = false; spawn.randomTicks = true
@@ -267,6 +273,17 @@ extension TextureGen {
         }
         p["turtle_egg"] = { x, y in r(x / 2, y / 2, 970) < 0.2 ? hex(0x6AA84A) : hex(0xE8E4C8, 0.95) }
         p["sniffer_egg"] = { x, y in r(x / 2, y / 2, 971) < 0.3 ? hex(0x6A3A2A) : hex(0xA84A3A, 0.9 + 0.12 * r(x, y, 972)) }
+        // Dried Wailer: shrivelled grey-brown, whitening as it soaks; closed eyes and a frown on the sides.
+        for k in 0..<4 {
+            let c: UInt32 = [0x8A7F74, 0xA8A098, 0xC8C4C0, 0xE6E6E6][k]
+            p["dried_ghast_\(k)"] = { x, y in
+                let eye = (x == 5 || x == 6 || x == 9 || x == 10) && y == 9          // the 10-px box shows the lower rows
+                let mouth = x >= 6 && x <= 9 && y == 12
+                if eye || mouth { return hex(0x3A3434) }
+                return hex(c, 0.85 + 0.2 * r(x, y / 2, 973 + k))
+            }
+            p["dried_ghast_top_\(k)"] = { x, y in hex(c, 0.8 + 0.25 * r(x, y, 977 + k)) }
+        }
         p["frogspawn"] = { x, y in (x % 3 == 1 && y % 3 == 1) ? hex(0x1A1A1A) : ((x + y) % 3 == 0 ? V4(0.6, 0.6, 0.55, 0.4) : clear) }
         for age in 0..<4 { p["frosted_ice_\(age)"] = { x, y in V4(0.72, 0.85, 1, 0.6 + 0.1 * Float(age) + (r(x, y, 973 + age) < Float(age) * 0.15 ? 0.3 : 0)) } }
         p["tripwire_hook"] = { x, y in hex(0x9A9A9A) }

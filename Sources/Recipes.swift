@@ -229,6 +229,7 @@ enum Recipes {
         r.append(shaped(["N", "I", "N"], ["N": "copper_nugget", "I": "copper_ingot"], "copper_chain"))
         r.append(shaped(["##", "##", "##"], ["#": "copper_ingot"], "copper_door", 3))
         r.append(shaped(["##", "##"], ["#": "copper_ingot"], "copper_trapdoor", 1))
+        r.append(shaped(["TTT", "TST", "TTT"], ["T": "ghast_tear", "S": "soul_sand"], "dried_ghast"))            // hatches a Wailerling
         // Wooden shelves (Shelf.swift): six stripped logs (or stems), top and bottom rows.
         for w in BlockRegistry.doorWoods {
             let log = Items.has("stripped_\(w)_log") ? "stripped_\(w)_log" : "stripped_\(w)_stem"

@@ -72,7 +72,7 @@ extension Game {
     func randomTick(_ p: IVec3, _ b: BlockID) {
         let key = Blocks.key(Blocks.groupBase[Int(b)])
         if Copper.index[key] != nil { copperAge(p, b); return }
-        if ["frosted_ice", "cocoa", "turtle_egg", "frogspawn", "sniffer_egg", "bee_nest", "beehive", "torchflower_crop", "pitcher_crop"].contains(key) { newBlockRandomTick(p, b, key); return }
+        if ["frosted_ice", "cocoa", "turtle_egg", "frogspawn", "sniffer_egg", "bee_nest", "beehive", "torchflower_crop", "pitcher_crop", "dried_ghast"].contains(key) { newBlockRandomTick(p, b, key); return }
         let stage = Int(b - Blocks.groupBase[Int(b)])
         switch key {
         case "wheat", "carrots", "potatoes", "beetroots":
