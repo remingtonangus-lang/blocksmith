@@ -238,35 +238,6 @@ final class WorldGen: TerrainGenerator {
 
     // MARK: Generation
 
-    // Harness self-check (--bench gen): the stone fill's per-column row interpolation must give exactly
-    // Lattice.sample's value for every block. Returns the number of mismatching samples.
-    func latticeRowMismatches(cx: Int, cz: Int) -> Int {
-        let bx = cx * CS, bz = cz * CS
-        let (lat, _) = lattice(bx, bz)
-        var rowA = [Float](repeating: 0, count: Lattice.ny), rowB = [Float](repeating: 0, count: Lattice.ny)
-        var bad = 0
-        for lz in 0..<CS { for lx in 0..<CS {
-            let wx = bx + lx, wz = bz + lz
-            let llx = wx - (bx - 8), llz = wz - (bz - 8)
-            let gx = llx >> 2, gz = llz >> 2
-            let fx = Float(llx & 3) / 4, fz = Float(llz & 3) / 4
-            for gy in 0..<Lattice.ny {
-                let c0 = lat.at(gx, gy, gz), c1 = lat.at(gx + 1, gy, gz)
-                let d0 = lat.at(gx, gy, gz + 1), d1 = lat.at(gx + 1, gy, gz + 1)
-                rowA[gy] = c0 + (c1 - c0) * fx
-                rowB[gy] = d0 + (d1 - d0) * fx
-            }
-            for y in 0..<CH {
-                let gy = min(Lattice.ny - 2, y >> 3)
-                let fy = Float(y - gy * 8) / 8
-                let y0 = rowA[gy] + (rowA[gy + 1] - rowA[gy]) * fy
-                let y1 = rowB[gy] + (rowB[gy + 1] - rowB[gy]) * fy
-                if (y0 + (y1 - y0) * fz).bitPattern != lat.sample(wx, y, wz).bitPattern { bad += 1 }
-            }
-        } }
-        return bad
-    }
-
     // Lattice nodes covering a chunk and its 8-block margin (9 x 9, x-major like the density lattice).
     func chunkNodes(_ bx: Int, _ bz: Int) -> [Terrain.Node] {
         var nodes = [Terrain.Node]()
