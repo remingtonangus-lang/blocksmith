@@ -150,8 +150,11 @@ extension Game {
         if mi.jump || (pad?.rb ?? false) { climb += 1 }
         if input.control || (pad?.lb ?? false) { climb -= 1 }
         s.climb = climb
-        // Turrets follow the view.
+        // Turrets follow the view; barrels rise with it.
+        let elev = max(-0.2, min(0.6, player.pitch + 0.05))
+        s.gunPitch = elev
         for t in ships.turrets(of: s) {
+            t.gunPitch = elev
             var rel = player.yaw - s.yaw
             while rel > .pi { rel -= 2 * .pi }
             while rel < -.pi { rel += 2 * .pi }

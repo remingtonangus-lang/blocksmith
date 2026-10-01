@@ -314,11 +314,12 @@ extension ShipManager {
             let seen = gunsEngage(s, g)
             for t in turrets(of: s) {
                 t.aimAt = seen ? pp : nil
-                if !seen { t.aimYaw = 0 }
+                if !seen { t.aimYaw = 0; t.gunPitch *= max(0, 1 - dt) }
             }
             s.fireTimer -= dt
-            if seen && s.fireTimer <= 0 {
-                s.fireTimer = s.role == "frigate" ? 3.5 : 6
+            if seen {
+                let volley = s.fireTimer <= 0
+                if volley { s.fireTimer = s.role == "frigate" ? 3.5 : 6 }
                 for t in turrets(of: s) {
                     let muzzle = t.toWorld(t.pivot)
                     let d = pp - muzzle
@@ -328,10 +329,11 @@ extension ShipManager {
                     let v: Float = 45, gr: Float = 20
                     let disc = v * v * v * v - gr * (gr * horiz * horiz + 2 * d.y * v * v)
                     let elev = disc > 0 ? atanf((v * v - sqrtf(disc)) / (gr * horiz)) : 0.6
+                    t.gunPitch += (max(-0.2, min(0.6, elev)) - t.gunPitch) * min(1, dt * 3)     // barrels follow the aim
                     // Only when the turret points at the target.
                     let tf = t.dirToWorld(V3(0, 0, -1))
                     let aimErr = acosf(max(-1, min(1, simd_dot(simd_normalize(V2(tf.x, tf.z) + V2(1e-5, 0)), simd_normalize(V2(d.x, d.z) + V2(1e-5, 0))))))
-                    if aimErr < 0.15 { fire(t, pitch: elev, game: g) }
+                    if volley && aimErr < 0.15 { fire(t, pitch: elev, game: g) }
                 }
             }
         }

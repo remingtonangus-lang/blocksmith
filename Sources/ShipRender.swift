@@ -110,7 +110,7 @@ final class ShipMesh {
         let vh = sy + 16
         let nsec = min(NSEC - 1, (vh + 15) / 16)
         let skyT = Blocks.sky
-        // Propellers and wheels are drawn on their own, turning (ShipRenderer), so the hull mesh leaves them out.
+        // Propellers, wheels and cannons are drawn on their own, moving (ShipRenderer), so the hull mesh leaves them out.
         let kinds = ShipParts.kinds
         var stores: [Int: (BlockStore, [Int16])] = [:]
         let empty = (BlockStore([]), [Int16](repeating: -1, count: CSQ))
@@ -130,7 +130,7 @@ final class ShipMesh {
                         let gx = cx * 16 + x
                         if gx >= sx { break }
                         let b = blocks[gx + gz * sx + y * sx * sz]
-                        if b == AIR || (spinning && (kinds[Int(b)] == .propeller || kinds[Int(b)] == .wheel)) { continue }
+                        if b == AIR || (spinning && (kinds[Int(b)] == .propeller || kinds[Int(b)] == .wheel || kinds[Int(b)] == .cannon)) { continue }
                         a[x + z * 16 + vy * CSQ] = b
                         if skyT[Int(b)] { h[x + z * 16] = Int16(vy) }
                     }
@@ -307,7 +307,18 @@ final class ShipRenderer {
         return s.mesh.wheelSecs
     }
 
-    // One propeller block meshed on its own (cached per facing state), drawn turned about its shaft.
+    // A cannon state's render-only mount and barrel states (same facing).
+    private var cannonParts: [BlockID: (BlockID, BlockID)] = [:]
+    private func cannonHalves(_ b: BlockID) -> (BlockID, BlockID) {
+        if let p = cannonParts[b] { return p }
+        let name = Blocks.key(b)
+        let suffix = name.hasPrefix("ship_cannon") ? String(name.dropFirst("ship_cannon".count)) : ""
+        let p = (Blocks.id("ship_cannon_mount" + suffix), Blocks.id("ship_cannon_barrel" + suffix))
+        cannonParts[b] = p
+        return p
+    }
+
+    // One block meshed on its own (cached per state): propellers, cannon mounts and barrels.
     private func propMesh(_ b: BlockID) -> ShipMesh.Sec? {
         if let m = propMeshes[b] { return m }
         guard let sec = secs(ShipMesh.build(sx: 1, sy: 1, sz: 1, blocks: [b], only: nil, spinning: false)).first else { return nil }
@@ -423,6 +434,24 @@ final class ShipRenderer {
                                                   indexBufferOffset: first * 6 * 4)
                         drawCalls += 1
                     }
+                }
+            }
+            // Cannons: the carriage fixed, the barrel raised about its trunnions to the guns' elevation.
+            for (c, d) in s.cannons {
+                let (mountB, barrelB) = cannonHalves(s.grid.get(Int(floor(c.x)), Int(floor(c.y)), Int(floor(c.z))))
+                let raise = float4x4(simd_quatf(angle: s.gunPitch, axis: simd_normalize(simd_cross(d, V3(0, 1, 0)))))
+                let half = V3(0.5, 0.5, 0.5)
+                for (b, pm4) in [(mountB, m * translationMatrix(c - half)), (barrelB, m * translationMatrix(c) * raise * translationMatrix(-half))] {
+                    guard let pm = propMesh(b), let buf = pm.opaque else { continue }
+                    let total = min(pm.opaqueQuads, Renderer.maxQuads), solid = min(pm.solidQuads, total)
+                    let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
+                    if count <= 0 { continue }
+                    var rec = ShipDrawRec(model: pm4, origin: V4(pm.origin, s.skyLight))
+                    enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
+                    enc.setVertexBytes(&rec, length: MemoryLayout<ShipDrawRec>.stride, index: 2)
+                    enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quads,
+                                              indexBufferOffset: first * 6 * 4)
+                    drawCalls += 1
                 }
             }
             // Propellers, turned about their shafts.
