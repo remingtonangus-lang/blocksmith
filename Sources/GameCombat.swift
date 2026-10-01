@@ -22,7 +22,7 @@ extension Game {
     var heldHasUse: Bool {
         let d = held.def
         let k = d.name
-        return d.food != nil || d.drink || k == "bow" || k == "crossbow" || k == "trident" || k == "fishing_rod" || d.block != nil
+        return d.food != nil || d.drink || k == "bow" || k == "crossbow" || k == "trident" || k.hasSuffix("_spear") || k == "fishing_rod" || d.block != nil
     }
 
     // Returns true if the shield took the hit.

@@ -42,7 +42,8 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
   - [ ] Soldiers' cover/flank inside a real fortress; gun damage balance vs soldiers and players.
   - [ ] Pad-control gameplay tests for the airship and aircraft (padtest drives only the car).
 - Content
-  - [ ] Copper golem (needs copper chests); the spear.
+  - [x] Spears (every tier): longer, slower jab; hold use for a charge that scales with closing speed (mobtests).
+  - [ ] Copper golem (needs copper chests).
   - [ ] Biome balance (snowy northern seeds, rare badlands/pale garden); lakes, deltas, fjords in game.
   - [x] Steelhold soldiers crew the vessels (marksmen + rifle troopers on the frigate, trooper + arc ironclad on the
         carriage) and hold their stations aboard (aim and fire, no cover runs overboard); physicstest check.

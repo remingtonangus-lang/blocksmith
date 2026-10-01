@@ -362,6 +362,16 @@ final class ItemRegistry {
                 if t.0 == "wooden" { d.fuelTicks = 200 }
                 add(d)
             }
+            // Spear (Spear.swift): a longer jab than the sword, slower, and a charge attack while moving fast.
+            var sp = ItemDef("\(t.0)_spear", "\(t.1) Spear")
+            sp.sprite = Sprite(mask: "spear", base: t.5, extras: [:])
+            sp.maxStack = 1
+            sp.tier = t.2
+            sp.durability = t.3
+            sp.attack = Spear.jabDamage[i]
+            sp.attackSpeed = Spear.jabSpeed[i]
+            if t.0 == "wooden" { sp.fuelTicks = 200 }
+            add(sp)
         }
 
         // Armor: (name, points per slot head/chest/legs/feet, durability multiplier, toughness, colour)

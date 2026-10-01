@@ -175,6 +175,8 @@ final class Game {
     var shieldRaise: Float = 0
     var crossbowCharge: Float = 0
     var tridentCharge: Float = 0
+    var spearCharge: Float = 0             // seconds the use button has held a spear level (Spear.swift)
+    var spearHitAt: [ObjectIdentifier: Float] = [:]
     var bobber: Bobber?
     var weather = Weather()
     let emberAtmosphere = EmberAtmosphere()
@@ -691,7 +693,7 @@ final class Game {
 
         // Attack: an animal in front of the block takes priority.
         var mobHit: Mob?
-        if let hit = mobs.raycast(player.eye, player.look, maxDist: 3.5) {
+        if let hit = mobs.raycast(player.eye, player.look, maxDist: Spear.isSpear(held.item) ? Spear.reach : 3.5) {
             let (m, dist) = hit
             if let t = target {
                 let c = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5
@@ -822,6 +824,7 @@ final class Game {
         if useHeld && shieldInHand && Items.key(held.item) == "shield" { return }
         if crossbowUse(useHeld, useNow, fdt) { return }
         if tridentUse(useHeld, fdt) { return }
+        if spearUse(useHeld, fdt) { return }
         if fishingUse(useNow) { return }
         // Bow: hold to draw, release to shoot.
         // Brushing suspicious sand / gravel (archaeology).

@@ -25,6 +25,7 @@ enum MobTests {
         behaviours(game: game, world: world, pos: pos)
         military(game: game, world: world, pos: pos)
         raidSave(game: game, pos: pos)
+        spears(game: game, world: world, pos: pos)
         print(String(format: "mobtests: %ld failed (%.1f s)%@", failures.count, CFAbsoluteTimeGetCurrent() - t0,
                      failures.isEmpty ? "" : " -> " + failures.joined(separator: ", ")))
         game.player.pos = pos
@@ -531,6 +532,49 @@ enum MobTests {
     }
 
     // MARK: Behaviour details
+
+    // MARK: Spears (Spear.swift)
+
+    static func spears(game g: Game, world: World, pos: V3) {
+        let all = ["wooden", "stone", "iron", "golden", "diamond", "netherite"].allSatisfy { Items.has("\($0)_spear") }
+        check(all, "a spear for every tool tier")
+        guard Items.has("iron_spear") else { return }
+        let sp = Items.def(Items.id("iron_spear")), sw = Items.def(Items.id("iron_sword"))
+        check(sp.attack < sw.attack && sp.attackSpeed < sw.attackSpeed && Spear.reach > 3.5, "spear jabs further, weaker and slower than a sword")
+        check(Recipes.all.contains { $0.result.item == Items.id("iron_spear") }, "spears are crafted")
+        check(Enchant.category(Items.id("iron_spear")).contains(.sword), "spears take melee enchantments")
+        let mm = g.mobs
+        mm.mobs.removeAll()
+        let x0 = Int(floor(pos.x)), z0 = Int(floor(pos.z))
+        let a = Arena(w: world, cx: x0 + 30, cz: z0 - 30, gy: min(CH - 24, world.topY(x0 + 30, z0 - 30) + 14))
+        a.clear()
+        let keep = (g.player.pos, g.player.vel, g.player.yaw, g.player.pitch, g.inventory.held)
+        g.inventory.held = ItemStack(Items.id("iron_spear"), 1)
+        g.player.pos = a.p(0, 0, 4); g.player.yaw = 0; g.player.pitch = 0
+        func charge(speed: Float, seconds: Float, hold from: Float = 0) -> (Int, Int) {
+            mm.mobs.removeAll()
+            let z = Mob(.zombie, at: a.p(0, 0, 1)); z.persistent = true; z.onGround = true
+            mm.mobs.append(z)
+            let hp = z.health
+            _ = g.spearUse(false, 0)
+            var t: Float = 0
+            while t < from { _ = g.spearUse(true, 0.05); t += 0.05 }   // already held this long (tired)
+            g.player.vel = V3(0, 0, -speed)
+            t = 0
+            while t < seconds { _ = g.spearUse(true, 0.05); z.vel = .zero; t += 0.05 }
+            _ = g.spearUse(false, 0)
+            return (hp, z.health)
+        }
+        let (h0, h1) = charge(speed: 8, seconds: 0.6)
+        check(h1 < h0, "a spear charge at 8 blocks/s strikes", "\(h0) -> \(h1)")
+        let (s0, s1) = charge(speed: 2, seconds: 0.6)
+        check(s1 == s0, "a slow charge does no harm", "\(s0) -> \(s1)")
+        let (t0, t1) = charge(speed: 8, seconds: 0.6, hold: 4)
+        check(t1 == t0, "a tired charge only shoves", "\(t0) -> \(t1)")
+        check(Spear.chargeDamage(jab: 5, speed: 14) > Spear.chargeDamage(jab: 5, speed: 5), "faster charges hit harder")
+        mm.mobs.removeAll()
+        (g.player.pos, g.player.vel, g.player.yaw, g.player.pitch, g.inventory.held) = keep
+    }
 
     static func behaviours(game: Game, world: World, pos: V3) {
         let mm = game.mobs

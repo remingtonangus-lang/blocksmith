@@ -175,6 +175,7 @@ enum Enchant {
         if k == "trident" { c.insert(.trident) }
         if k == "fishing_rod" { c.insert(.rod) }
         if k == "mace" { c.insert(.mace) }
+        if k.hasSuffix("_spear") { c.insert(.sword) }                     // spears take the melee weapon enchantments
         if d.durability > 0 { c.insert(.durable); c.insert(.vanishable) }
         if d.armorSlot != nil || k == "carved_pumpkin" || k.hasSuffix("_skull") || k.hasSuffix("_head") { c.insert(.wearable); c.insert(.vanishable) }
         if k == "compass" || k == "recovery_compass" { c.insert(.vanishable) }
@@ -183,7 +184,7 @@ enum Enchant {
 
     static func assignEnchantability(_ reg: ItemRegistry) {
         let tools: [(String, Int)] = [("wooden", 15), ("stone", 5), ("iron", 14), ("golden", 22), ("diamond", 10), ("netherite", 15)]
-        for (m, v) in tools { for t in ["sword", "shovel", "pickaxe", "axe", "hoe"] { reg.setEnchantability("\(m)_\(t)", v) } }
+        for (m, v) in tools { for t in ["sword", "shovel", "pickaxe", "axe", "hoe", "spear"] { reg.setEnchantability("\(m)_\(t)", v) } }
         let armor: [(String, Int)] = [("leather", 15), ("chainmail", 12), ("iron", 9), ("golden", 25), ("diamond", 10), ("netherite", 15)]
         for (m, v) in armor { for p in ["helmet", "chestplate", "leggings", "boots"] { reg.setEnchantability("\(m)_\(p)", v) } }
         reg.setEnchantability("turtle_helmet", 9)

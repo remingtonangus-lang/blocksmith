@@ -202,6 +202,7 @@ enum Recipes {
             r.append(shaped(["X", "#", "#"], k, "\(t)_shovel"))
             r.append(shaped(["XX", " #", " #"], k, "\(t)_hoe"))
             r.append(shaped(["X", "X", "#"], k, "\(t)_sword"))
+            r.append(shaped(["  X", " # ", "#  "], k, "\(t)_spear"))
         }
         // Armor
         for (m, a) in [("leather", "leather"), ("iron_ingot", "iron"), ("gold_ingot", "golden"), ("diamond", "diamond")] {
