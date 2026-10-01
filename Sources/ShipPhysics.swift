@@ -411,7 +411,8 @@ extension ShipManager {
             let right = simd_normalize(simd_cross(fwdW, up))
             // No input: hold a slight nose-up trim so level flight needs no constant correction.
             let pitch = asinf(max(-1, min(1, fwdW.y)))
-            let target = abs(s.climb) > 0.05 ? s.climb * 0.9 : max(-0.5, min(0.5, (0.08 - pitch) * 2))
+            let trim: Float = 0.08 + max(-0.2, min(0.3, -s.vel.y * 0.06))          // nose up while sinking
+            let target = abs(s.climb) > 0.05 ? s.climb * 0.9 : max(-0.5, min(0.5, (trim - pitch) * 2))
             let wr = simd_dot(s.angVel, right)
             T += right * (I.x * 4 * (target - wr))
         }
