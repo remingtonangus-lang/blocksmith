@@ -276,6 +276,17 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
         float2 w2 = wp.xz * 2.1 - float2(t * 0.35, -t * 0.6);
         float2 g = float2(cos(w1.x + w1.y * 0.6), sin(w1.y - w1.x * 0.45)) * 0.045
                  + (float2(vnoise(w2), vnoise(w2 + 7.3)) - 0.5) * 0.11;
+        if (u.ambColor.w > 0.05 && dist < 40.0) {
+            // Rain: expanding drop rings, one per half-block cell at random times.
+            float2 cell = floor(wp.xz * 2.0);
+            float h = fract(sin(dot(cell, float2(41.3, 289.1))) * 43758.5);
+            float ph = fract(t * 1.4 + h * 7.0);
+            float2 ctr = (cell + 0.25 + 0.5 * float2(h, fract(h * 13.7))) * 0.5;
+            float2 dv = wp.xz - ctr;
+            float dd = length(dv);
+            float ring = sin((dd - ph * 0.22) * 90.0) * (1.0 - ph) * (1.0 - smoothstep(0.0, 0.25, abs(dd - ph * 0.22) * 6.0));
+            g += dv / max(dd, 1e-3) * ring * 0.12 * u.ambColor.w;
+        }
         n = normalize(float3(g.x, 1.0, g.y));
     }
     float3 deep = in.tint * (u.ambColor.rgb * 0.30 + u.sunColor.rgb * 0.10 + float3(0.01, 0.015, 0.02)) * mix(1.0, 0.4, u.params.w);
