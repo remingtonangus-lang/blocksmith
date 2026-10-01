@@ -43,7 +43,7 @@ enum Bench {
         guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); return 1 }
         let seed = UInt64(arg("--seed") ?? "") ?? 12345
         let quick = CommandLine.arguments.contains("--quick")
-        let all = "gen,mesh,startup,frame,edit,mobs,save,tnt,fluids,flight8,flight16,flight24"
+        let all = "gen,mesh,startup,frame,edit,mobs,save,tnt,fluids,ships,flight8,flight16,flight24"
         let scenes = (arg("--scenes") ?? all).split(separator: ",").map(String.init)
         print("bench: device \(device.name), \(ProcessInfo.processInfo.activeProcessorCount) cores, seed \(seed)\(quick ? ", quick" : "")")
         for s in scenes {
@@ -58,6 +58,7 @@ enum Bench {
             case "save": save(device, seed)
             case "tnt": tnt(device, seed)
             case "fluids": fluids(device, seed)
+            case "ships": ships(device, seed)
             case "meshprof": meshLoop(device, seed, seconds: Double(arg("--secs") ?? "") ?? 12)
             case "genprof": genLoop(device, seed, seconds: Double(arg("--secs") ?? "") ?? 12)
             case let name where name.hasPrefix("flight"):
