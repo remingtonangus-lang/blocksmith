@@ -233,11 +233,12 @@ final class Vibrant {
             let hz: Float = 0.25 + 0.75 * dusk
             f.hazeStrength = hz * (1 - rain) * up
         } else {
-            f.color = V3(0.45, 0.55, 0.85) * (0.14 * up) * (1 - 0.75 * rain)
+            let moonDim: Float = 1 - 0.75 * rain
+            f.color = V3(0.5, 0.6, 0.95) * (0.2 * up * moonDim)
         }
         f.shadowStrength = simd_clamp((L.y - 0.03) / 0.15, 0, 1) * (1 - 0.85 * rain)
         let dl = simd_clamp((game.daylight - 0.1) / 0.9, 0, 1)
-        let dayAmb = V3(0.5, 0.55, 0.63), nightAmb = V3(0.07, 0.085, 0.15)
+        let dayAmb = V3(0.52, 0.57, 0.66), nightAmb = V3(0.12, 0.14, 0.24)
         f.ambient = simd_mix(nightAmb, dayAmb, V3(repeating: dl))
         // Shadow map basis: light travels along -L.
         let fwd = -L
@@ -317,4 +318,6 @@ struct PostParams {
     var sun = V4(0, 0, 0, 0)      // xy = sun uv, z = god ray strength, w = bloom strength
     var sunCol = V4(0, 0, 0, 0)   // rgb = sun colour, w = haze strength
     var grade = V4(1, 1, 1, 0)    // exposure, saturation, contrast, vignette
+    var mist = V4(0, 0, 0, 0)     // rgb = mist colour, w = density (0 = off)
+    var mistH = V4(0, 0, 0, 0)    // x = mist base height relative to the eye, y = falloff height
 }
