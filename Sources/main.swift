@@ -541,6 +541,7 @@ enum Snapshot {
                 } else if parts.count > 1 { var d = VillagerData(); d.profession = parts[1]; m.villager = d }
                 if k == .wither { m.phase = 0; m.pos.y += 2 }
                 if k == .evoker { m.spellTimer = 4.5 }
+                if CommandLine.arguments.contains("--facecam") { m.yaw = game.player.yaw + .pi }
                 game.mobs.mobs.append(m)
             }
         }
