@@ -99,6 +99,15 @@ B close, RS scroll creative.
   shade rims, gradient); potions/splash/lingering bottles + tipped arrows use the same art. ItemArt masks remain as
   a fallback for anything without a shape.
 - Not done: hardware ray tracing (optional in the brief; the raster path already covers shadows/reflections).
+- Later round: dynamic flash lights (Game.addFlash: explosions, lightning, fireworks; ready for muzzle flashes),
+  explosion fireballs + flash-lit smoke, HDR glow particles, shoreline foam, rain rings on water, rain puddles that
+  mirror the sky, snow glitter, storm darkening, Snell's-window surface from below, HDR-lit clouds (warm sunset tops),
+  galactic band at night, firelight flicker, backlit foliage, shadow-map reuse while nothing moved, distance LOD for
+  shadow taps and water reflection steps, F3 GPU ms readout. Textures: planks, bark, stone, ores, wool, concrete,
+  sand, gravel, dirt, grass. Harness: --gallery (block walls) + 5 family galleries, --boom, shore/underwater_up,
+  rd16 Fancy vs Fast ground/aerial shots.
+- Integration with the ship PR (#8): chunkVibVS already reads per-instance section records (VibSection); ship
+  pipelines need an rgba16Float variant for the Fancy world pass (see the PR #6 comment).
 - Options > Graphics: Fancy (default) / Fast, saved in UserDefaults `fancyGraphics`; harness `--fast` renders one shot in Fast
   without touching the saved choice.
 - Fancy only: gradient sky dome (deeper blue overhead, warm glow around the sun at dawn/dusk, exactly the fog colour
