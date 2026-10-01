@@ -267,7 +267,9 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
     }
     float e = emis.sample(texSampler, in.uv, layer).r;
     // Lava keeps its orange body (a strong boost clips it to flat yellow); other emitters glow harder.
-    col += albedo * e * (in.anim > 0.5 ? 0.7 : 2.4);
+    // In full daylight emitters need far less boost (they'd clip to white); at night/underground they glow.
+    float eK = mix(2.4, 0.8, sunVis * saturate(u.params.y));
+    col += albedo * e * (in.anim > 0.5 ? 0.7 : eK);
     col = waterAmbient(col, albedo, u);
     return float4(applyFogDir(col, in.rel, length(in.rel), u), 1.0);
 }
