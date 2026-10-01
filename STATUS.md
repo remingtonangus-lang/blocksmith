@@ -39,8 +39,8 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
   - [ ] Visuals (#6): verify the half-res volumetric shafts (~4.7 ms tour avg), cave_torches shot, glowstone not clipping.
   - [ ] Terrain (#7): CI on the WIP commit (lake/delta tours, climate maps, --onland aerial tours); terrain check 0 problems.
   - [x] Physics (#8): frigate patrol altitude (hoverY floor is the spawn altitude); calib.cpu_ms in perf/baseline.json.
-  - [ ] Physics (#8): round-6 commits compile and pass physicstest; ship snapshots (props/wheels/barrels in place);
-        flight24 cull_ms under 1.20 ms p50; refresh the perf baseline with the ships metrics.
+  - [x] Physics (#8): round-6 commits compile; flight24 cull 0.76 ms p50 (target < 1.20); ships metrics in the baseline.
+  - [ ] Physics (#8): physicstest fully green on CI (fixes in c6bfae5); ship snapshots (props/wheels/barrels in place).
   - [x] Gameplay (#2/#3): mobtests 0 failed; playthrough reaches the credits and kills the Blight (furnace step fixed in 0cdfe9a).
 - Gameplay
   - [x] Fancy ships use Vibrant's ship pipelines (shadows, emissive, flashes; dark under cover).
