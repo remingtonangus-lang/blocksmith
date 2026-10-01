@@ -21,6 +21,18 @@ enum ShipTest {
         return y
     }
 
+    // Flattens a grass pad (clears 12 blocks above it) centred on x, z; returns the y of the first air block above it.
+    @discardableResult
+    static func levelPad(_ w: World, _ x: Int, _ z: Int, half: Int) -> Int {
+        let y = groundTop(w, x, z) + 1
+        for dz in -half...half { for dx in -half...half {
+            for yy in y..<(y + 12) { w.setBlockAsync(x + dx, yy, z + dz, AIR) }
+            w.setBlockAsync(x + dx, y - 1, z + dz, GRASS)
+            for yy in (y - 4)..<(y - 1) where !Blocks.collide[Int(w.rawBlock(x + dx, yy, z + dz))] { w.setBlockAsync(x + dx, yy, z + dz, DIRT) }
+        } }
+        return y
+    }
+
     // Builds a demo vessel with its lowest layer at o; returns the helm cell. Bow toward -Z.
     @discardableResult
     static func build(_ w: World, _ kind: String, at o: IVec3) -> IVec3 {
@@ -39,7 +51,7 @@ enum ShipTest {
             put(4, 0, 9, "ship_propeller[south]")
             for x in [0, 4] { put(x, 0, 9 - 1, planks) }
             return IVec3(o.x + 2, o.y + 1, o.z + 6)
-        case "plane":
+        case "plane", "taxiplane":
             for z in 0..<11 { for x in 0..<3 { put(x, 0, z, planks) } }
             for x in -5...7 where x < 0 || x > 2 { for z in 4...6 { put(x, 0, z, "ship_wing") } }
             for x in -2...4 where x < 0 || x > 2 { for z in 9...10 { put(x, 0, z, "ship_wing") } }
@@ -48,6 +60,9 @@ enum ShipTest {
             put(1, 1, 1, "ship_engine")
             put(1, 1, 6, "ship_helm[south]")
             put(1, 1, 7, "glass")
+            if kind == "plane" { return IVec3(o.x + 1, o.y + 1, o.z + 6) }
+            // Landing gear: a nose wheel and two main wheels under the fuselage.
+            put(1, -1, 1, "ship_wheel"); put(0, -1, 6, "ship_wheel"); put(2, -1, 6, "ship_wheel")
             return IVec3(o.x + 1, o.y + 1, o.z + 6)
         case "car":
             for z in 0..<7 { for x in 0..<5 { put(x, 0, z, planks) } }
@@ -57,6 +72,16 @@ enum ShipTest {
             for x in [0, 4] { put(x, 1, 0, "oak_slab"); put(x, 1, 6, "oak_slab") }
             put(1, 1, 0, "glass"); put(2, 1, 0, "glass"); put(3, 1, 0, "glass")
             return IVec3(o.x + 2, o.y + 1, o.z + 4)
+        case "gunboat":
+            build(w, "boat", at: o)
+            // A pedestal at the bow carries the ring; the turret above it touches nothing but the ring.
+            put(1, 1, 1, "oak_planks")                       // (no chest)
+            put(2, 1, 1, "oak_planks"); put(2, 2, 1, "oak_planks")
+            put(2, 3, 1, "ship_turret_ring")
+            for x in 1...3 { put(x, 4, 1, "iron_block") }
+            put(2, 5, 1, "ship_cannon[south]")
+            put(1, 5, 1, "ship_cannon[south]"); put(3, 5, 1, "ship_cannon[south]")
+            return IVec3(o.x + 2, o.y + 1, o.z + 7)
         default:                                  // boat
             for z in 0..<11 { for x in 0..<5 { put(x, 0, z, planks) } }
             for y in 1...2 { for z in 0..<11 { for x in 0..<5 where x == 0 || x == 4 || z == 0 || z == 10 { put(x, y, z, y == 2 ? "spruce_planks" : planks) } } }
@@ -81,7 +106,7 @@ enum ShipTest {
         case "car":
             // Level the ground under it first.
             let y = groundTop(w, x + 2, z + 3) + 1
-            for dz in -2..<10 { for dx in -3..<8 {
+            for dz in -48..<10 { for dx in -3..<8 {
                 for yy in y..<(y + 6) { w.setBlockAsync(x + dx, yy, z + dz, AIR) }
                 w.setBlockAsync(x + dx, y - 1, z + dz, GRASS)
                 if !Blocks.collide[Int(w.rawBlock(x + dx, y - 2, z + dz))] { w.setBlockAsync(x + dx, y - 2, z + dz, DIRT) }
@@ -133,6 +158,20 @@ enum ShipTest {
     // --ship <kind>: a demo vessel under way. Returns the camera position.
     static func scene(_ kind: String, game g: Game, at p: V3, rd: Int) -> V3 {
         let w = g.world
+        w.ships.encounters = false
+        if kind == "frigate" || kind == "carriage" {
+            let x = Int(floor(p.x)), z = Int(floor(p.z)) - 30
+            if kind == "carriage" { levelPad(w, x, z, half: 40) }
+            let ground = groundTop(w, x, z)
+            let s = w.ships.spawnVessel(kind, home: IVec3(x, kind == "frigate" ? max(ground, SEA) + 40 : ground + 1, z), game: g)
+            run(g, seconds: kind == "frigate" ? 4 : 5)
+            print(String(format: "ship %@: %ld blocks %.0f t  pos %.1f %.1f %.1f  speed %.2f b/s  turrets %ld  crew %ld  physics %.2f ms/frame",
+                         kind, s.blockCount, s.mass, s.pos.x, s.pos.y, s.pos.z, simd_length(s.vel), w.ships.turrets(of: s).count,
+                         s.crewStations.count, w.ships.stepMs))
+            if kind == "frigate" { chase(g, s, dist: 60, height: 14, side: 0.6) } else { chase(g, s, dist: 34, height: 12, side: 0.7) }
+            settle(g, rd: rd)
+            return g.player.pos
+        }
         let helm = place(w, kind == "deck" ? "boat" : kind, near: p)
         let (ship, msg) = w.ships.assemble(at: helm, game: g)
         print("ship \(kind): \(msg)")
@@ -165,6 +204,13 @@ enum ShipTest {
             run(g, seconds: 2)
             mi.forward = 1; run(g, seconds: 4, input: mi)
             mi.strafe = 1; run(g, seconds: 2, input: mi)
+            if kind == "gunboat" {
+                // Swing the turret to port and fire a salvo; the shot shows the shells in flight.
+                for t in w.ships.turrets(of: s) { t.aimYaw = .pi / 2 }
+                mi.strafe = 0; run(g, seconds: 2.5, input: mi)
+                w.ships.fire(s, pitch: 0.15, game: g)
+                run(g, seconds: 0.25, input: mi)
+            }
             chase(g, s, dist: 16, height: 6)
         }
         let v = s.vel
@@ -186,6 +232,7 @@ enum ShipTest {
         func upright(_ s: Ship) -> Float { s.dirToWorld(V3(0, 1, 0)).y }
         let t0 = CFAbsoluteTimeGetCurrent()
         g.player.flying = false
+        w.ships.encounters = false
 
         // 1. Boat: floats, sails, turns, carries a rider, saves and loads.
         guard let sea = Snapshot.findBiome(w.gen, "ocean") else { print("physicstest: no ocean"); return 1 }
@@ -222,6 +269,13 @@ enum ShipTest {
         while dyaw < -.pi { dyaw += 2 * .pi }
         print(String(format: "physicstest boat: turned %.0f degrees in 5 s", dyaw * 180 / .pi))
         check(dyaw < -0.5, "boat turns right under helm")
+        // Sails: engines idle, someone at the helm, the wind carries the boat.
+        boat.autopilot = V3(0, 0, 0)
+        run(g, seconds: 3)
+        let s0 = boat.pos
+        run(g, seconds: 8)
+        print(String(format: "physicstest boat: %ld sails, wind %.1f b/s: drifted %.1f blocks in 8 s", boat.sails, simd_length(w.ships.wind), horiz(boat.pos - s0)))
+        check(horiz(boat.pos - s0) > 2, "sails carry the boat with the wind")
         boat.autopilot = nil
         // Save / load round trip.
         if let data = w.ships.encode() {
@@ -232,6 +286,65 @@ enum ShipTest {
             check(probe.list.count == before + 1 && copy?.blockCount == boat.blockCount && simd_length((copy?.pos ?? .zero) - boat.pos) < 0.01,
                   "ship saves and loads (\(data.count) bytes)")
         } else { check(false, "ship saves and loads") }
+
+        // 1b. Gunboat: the turret turns on its ring and rides the hull, cannons hit a target, blasts break hulls.
+        let gunAt = sea + V3(40, 0, 0)
+        _ = w.loadSync(center: gunAt, radius: max(rd, 6))
+        let gh = place(w, "gunboat", near: gunAt)
+        let (gbOpt, gmsg) = w.ships.assemble(at: gh, game: g)
+        print("physicstest gunboat: \(gmsg)")
+        if let gb = gbOpt, let turret = w.ships.turrets(of: gb).first {
+            check(turret.cannons.count == 3, "turret carries its cannons")
+            run(g, seconds: 2)
+            turret.aimYaw = .pi / 2
+            run(g, seconds: 3)
+            let drift = simd_length(turret.toWorld(turret.pivot) - gb.toWorld(turret.mountLocal))
+            print(String(format: "physicstest gunboat: turret yaw %.2f (wanted 1.57), bearing gap %.3f", turret.turretYaw, drift))
+            check(abs(turret.turretYaw - .pi / 2) < 0.05 && drift < 0.05, "turret turns on its ring and stays mounted")
+            if let data = w.ships.encode() {
+                let probe = ShipManager(world: w)
+                probe.decode(data)
+                let tcopy = probe.list.first { $0.id == turret.id }
+                check(tcopy?.parent?.id == gb.id && abs((tcopy?.turretYaw ?? 0) - turret.turretYaw) < 0.001, "turret link saves and loads")
+            }
+            turret.aimYaw = 0
+            run(g, seconds: 2.5)
+            // Target wall 22 blocks ahead of the bow.
+            let f = gb.dirToWorld(gb.fwd)
+            let bow = turret.toWorld(turret.pivot)
+            let wc = bow + f * 22
+            var wall: [IVec3] = []
+            for dy in 0...3 { for dx in -2...2 {
+                let p = IVec3(Int(floor(wc.x + f.z * Float(dx))), Int(floor(bow.y)) - 1 + dy, Int(floor(wc.z - f.x * Float(dx))))
+                w.setBlockAsync(p.x, p.y, p.z, STONE); wall.append(p)
+            } }
+            let fired = w.ships.fire(gb, pitch: 0.05, game: g)
+            run(g, seconds: 3)
+            let broken = wall.filter { w.rawBlock($0.x, $0.y, $0.z) != STONE }.count
+            print("physicstest gunboat: fired \(fired) shells, \(broken) of \(wall.count) wall blocks destroyed, \(w.ships.shells.count) in flight")
+            check(fired == 3 && broken > 0 && w.ships.shells.isEmpty, "cannon shells fly and explode on impact")
+            let n0 = gb.blockCount
+            Explosion.explode(at: gb.toWorld(V3(0.5, 1.5, 6)), power: 3, game: g)
+            print("physicstest gunboat: blast removed \(n0 - gb.blockCount) hull blocks")
+            check(gb.blockCount < n0, "explosions break ship blocks")
+            // Saw the hull in two across its middle: the bow (with the turret) floats off as its own ship.
+            let before = w.ships.list.count, blocks0 = gb.blockCount
+            let mid = Int(gb.localMin.z + gb.localMax.z) / 2
+            var cut = 0
+            let rows = gb.grid
+            for y in 0..<rows.sy { for x in 0..<rows.sx where gb.grid.get(x, y, mid) != AIR {
+                // (the grid object stays the same; a split moves the other half's blocks out of it)
+                w.ships.setBlock(gb, IVec3(x, y, mid), AIR); cut += 1
+            } }
+            let parts = w.ships.list.filter { $0.name.hasSuffix("wreck") }
+            let partBlocks = parts.reduce(0) { $0 + $1.blockCount }
+            print("physicstest gunboat: sawn through \(cut) blocks: \(w.ships.list.count - before) new ship(s), \(gb.blockCount) + \(partBlocks) blocks")
+            check(parts.count == 1 && gb.blockCount + partBlocks + cut == blocks0, "a hull cut in two becomes two ships")
+            run(g, seconds: 2)
+            for p in parts { w.ships.remove(p) }
+            for t in w.ships.list where t.parent != nil || t.name == "Turret" { w.ships.remove(t) }
+            w.ships.remove(gb)
+        } else { check(false, "gunboat assembles with a turret") }
 
         // 2. Airship: hovers, climbs, flies forward.
         let land = Snapshot.findBiome(w.gen, "plains") ?? V3(sea.x + 400, 80, sea.z)
@@ -261,7 +374,9 @@ enum ShipTest {
         } else { check(false, "airship assembles") }
 
         // 3. Aircraft: launched level at speed, holds its altitude under power and climbs on command.
-        let ph = place(w, "plane", near: land + V3(60, 0, -60))
+        // The plane flies north from the south edge of a wide loaded area (ships freeze over unloaded ground).
+        _ = w.loadSync(center: land + V3(0, 0, -60), radius: 14)
+        let ph = place(w, "plane", near: land + V3(0, 0, 60))
         let (planeOpt, pmsg) = w.ships.assemble(at: ph, game: g)
         print("physicstest plane: \(pmsg)")
         if let plane = planeOpt {
@@ -280,6 +395,33 @@ enum ShipTest {
             plane.autopilot = nil
             w.ships.remove(plane)
         } else { check(false, "aircraft assembles") }
+
+        // 3b. Takeoff: a plane with landing gear rolls down a runway and lifts off when pulled up.
+        let runway = land + V3(-60, 0, 30)
+        let rwx = Int(runway.x), rwz = Int(runway.z)
+        let ry = groundTop(w, rwx, rwz) + 1
+        for dz in -140..<12 { for dx in -9..<10 {
+            for yy in ry..<(ry + 10) { w.setBlockAsync(rwx + dx, yy, rwz + dz, AIR) }
+            w.setBlockAsync(rwx + dx, ry - 1, rwz + dz, GRASS)        // (natural: the helm never grabs it)
+        } }
+        _ = w.loadSync(center: runway + V3(0, 0, -70), radius: 12)
+        let tp = build(w, "taxiplane", at: IVec3(rwx - 1, ry + 1, rwz - 5))
+        let (taxiOpt, tmsg) = w.ships.assemble(at: tp, game: g)
+        print("physicstest takeoff: \(tmsg)")
+        if let pl = taxiOpt {
+            run(g, seconds: 2)
+            let g0 = pl.pos
+            pl.autopilot = V3(1, 0, 0)
+            run(g, seconds: 4)
+            let roll = horiz(pl.pos - g0)
+            pl.autopilot = V3(1, 0, 0.8)
+            run(g, seconds: 3)
+            print(String(format: "physicstest takeoff: rolled %.1f blocks in 4 s (%.1f b/s), then 3 s pulled up: climbed %.1f, up %.2f",
+                         roll, horiz(pl.vel), pl.pos.y - g0.y, upright(pl)))
+            check(roll > 20 && pl.pos.y - g0.y > 3, "aircraft takes off from a runway")
+            pl.autopilot = nil
+            w.ships.remove(pl)
+        } else { check(false, "plane with landing gear assembles") }
 
         // 4. Land vehicle: settles on its wheels, drives, docks.
         let carSpot = land + V3(-40, 0, 20)
@@ -309,6 +451,46 @@ enum ShipTest {
             print("physicstest car: docked \(found) of \(n) blocks back into the world")
             check(w.ships.list.allSatisfy { $0 !== car } && found >= n, "car docks back into the world")
         } else { check(false, "car assembles") }
+
+        // 5. Vessels: the frigate holds its altitude on patrol, turrets track; the carriage drives; encounters are rare.
+        let vf = land + V3(150, 0, 150)
+        _ = w.loadSync(center: vf, radius: max(rd, 6))
+        let fg = w.ships.spawnVessel("frigate", home: IVec3(Int(vf.x), max(groundTop(w, Int(vf.x), Int(vf.z)), SEA) + 40, Int(vf.z)), game: g)
+        let fy = fg.pos.y, fp = fg.pos
+        g.player.pos = vf + V3(0, 80, 0)
+        for _ in 0..<10 { w.ships.crewTick(1, game: g); run(g, seconds: 1) }
+        print(String(format: "physicstest frigate: %ld blocks %.0f t, %ld balloons, lift %.2f, 10 s patrol: %.1f blocks, altitude change %.2f, up %.3f",
+                     fg.blockCount, fg.mass, fg.balloons, fg.liftLevel, horiz(fg.pos - fp), fg.pos.y - fy, upright(fg)))
+        check(abs(fg.pos.y - fy) < 3 && upright(fg) > 0.95 && horiz(fg.pos - fp) > 8, "frigate patrols at its altitude")
+        if let tur = w.ships.turrets(of: fg).first {
+            let aim = fg.pos + fg.dirToWorld(V3(1, 0, 0)) * 40
+            tur.aimAt = aim
+            run(g, seconds: 4)
+            let tf = tur.dirToWorld(V3(0, 0, -1)), d = aim - tur.toWorld(tur.pivot)
+            let err = acosf(max(-1, min(1, simd_dot(simd_normalize(V2(tf.x, tf.z)), simd_normalize(V2(d.x, d.z))))))
+            print(String(format: "physicstest frigate: turret aim error %.3f rad", err))
+            check(err < 0.12, "frigate turret tracks a target")
+        } else { check(false, "frigate has turrets") }
+        let vc = land + V3(15, 0, -40)
+        _ = w.loadSync(center: vc, radius: max(rd, 6))
+        let cx = Int(vc.x), cz = Int(vc.z)
+        levelPad(w, cx, cz, half: 40)
+        let cg = w.ships.spawnVessel("carriage", home: IVec3(cx, groundTop(w, cx, cz) + 1, cz), game: g)
+        run(g, seconds: 3)
+        let c0 = cg.pos
+        for _ in 0..<6 { w.ships.crewTick(1, game: g); run(g, seconds: 1) }
+        print(String(format: "physicstest carriage: %ld blocks %.0f t, grounded %@, up %.3f, 6 s: %.1f blocks",
+                     cg.blockCount, cg.mass, cg.grounded ? "yes" : "no", upright(cg), horiz(cg.pos - c0)))
+        check(cg.grounded && upright(cg) > 0.95 && horiz(cg.pos - c0) > 5, "siege carriage rolls on six wheels")
+        if let gt = w.ships.turrets(of: cg).first {
+            check(gt.cannons.count == 3 && w.ships.fire(cg, pitch: 0.1, game: g) == 3, "siege carriage's giant gun fires")
+        } else { check(false, "siege carriage has a turret") }
+        var frigates = 0, carriages = 0
+        for rz in -10...10 { for rx in -10...10 {
+            if let e = Vessels.encounter(seed: w.seed, rx: rx, rz: rz, gen: w.gen) { if e.0 == "frigate" { frigates += 1 } else { carriages += 1 } }
+        } }
+        print("physicstest encounters: \(frigates) frigates, \(carriages) siege carriages in 441 regions of 2048 blocks")
+        check(frigates + carriages > 0 && frigates + carriages < 110, "vessel encounters are rare")
 
         print(String(format: "physicstest: %ld checks failed, %.1f s, ships %ld", fails, CFAbsoluteTimeGetCurrent() - t0, w.ships.list.count))
         // Final view: the boat.

@@ -458,7 +458,9 @@ final class World {
                     let lod = c.lod
                     c.meshInFlight = true
                     jobs += 1
-                    workQueue.addOperation { [self] in
+                    // Weak: a finished operation can linger in a worker's autorelease pool and would keep the World alive.
+                    workQueue.addOperation { [weak self] in
+                        guard let self else { return }
                         let t0 = CFAbsoluteTimeGetCurrent()
                         var out: [(Int, Int, SectionMesh)] = []
                         for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod))) }
@@ -472,9 +474,10 @@ final class World {
             } else if jobs < maxQueued && !genInFlight.contains(k) {
                 genInFlight.insert(k)
                 jobs += 1
-                workQueue.addOperation { [self] in
+                workQueue.addOperation { [weak self] in
+                    guard let self else { return }
                     let t0 = CFAbsoluteTimeGetCurrent()
-                    let r = produce(k)
+                    let r = self.produce(k)
                     let el = CFAbsoluteTimeGetCurrent() - t0
                     lock.lock()
                     genResults.append((k, r))

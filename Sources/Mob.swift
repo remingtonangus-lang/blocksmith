@@ -449,7 +449,7 @@ final class Mob {
         if kind == .vex { updateVex(dt, g); return }
 
         let feetBlock = w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))
-        let inWater = Blocks.isLiquid(feetBlock)
+        let inWater = Blocks.isLiquid(feetBlock) && !w.ships.dry(at: pos + V3(0, 0.2, 0))     // not inside a hull
 
         // Undead burn in daylight under open sky.
         if spec.burnsInSun && !inWater && g.dim.dim.hasSky && g.daylight > 0.6 && !g.isRainingAt(pos) {

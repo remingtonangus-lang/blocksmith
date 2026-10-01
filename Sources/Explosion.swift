@@ -7,6 +7,7 @@ import simd
 enum Explosion {
     static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true) {
         let w = g.world
+        w.ships.blast(at: c, power: power, game: g)          // ship blocks (ShipCombat.swift)
         var destroyed = Set<IVec3>()
         for i in 0..<16 { for j in 0..<16 { for k in 0..<16 {
             if !(i == 0 || i == 15 || j == 0 || j == 15 || k == 0 || k == 15) { continue }
