@@ -109,8 +109,37 @@ final class MapCache {
     func discover(_ g: Game, kind: String, x: Int, z: Int) {
         guard !marks.contains(where: { $0.kind == kind && abs($0.x - x) < 24 && abs($0.z - z) < 24 }) else { return }
         marks.append(Mark(kind: kind, x: x, z: z))
-        if let u = marksURL(g), let d = try? JSONEncoder().encode(marks) { try? d.write(to: u, options: .atomic) }
+        saveMarks(g)
         g.onToast?("\(MapCache.style(kind).name) marked on the map")
+    }
+
+    private func saveMarks(_ g: Game) {
+        if let u = marksURL(g), let d = try? JSONEncoder().encode(marks) { try? d.write(to: u, options: .atomic) }
+    }
+
+    // Your own waypoints (up to 32): placing one within `near` blocks of another removes that one instead.
+    // Returns true when a pin was added.
+    @discardableResult
+    func togglePin(_ g: Game, x: Int, z: Int, near: Int) -> Bool {
+        loadMarks(g)
+        if let i = marks.firstIndex(where: { $0.kind == "pin" && abs($0.x - x) <= near && abs($0.z - z) <= near }) {
+            marks.remove(at: i)
+            saveMarks(g)
+            return false
+        }
+        if marks.filter({ $0.kind == "pin" }).count >= 32, let i = marks.firstIndex(where: { $0.kind == "pin" }) { marks.remove(at: i) }
+        marks.append(Mark(kind: "pin", x: x, z: z))
+        saveMarks(g)
+        return true
+    }
+
+    // Nearest waypoint to a point (for the HUD distance line).
+    func nearestPin(_ x: Float, _ z: Float) -> Mark? {
+        marks.filter { $0.kind == "pin" }.min { (a: Mark, b: Mark) -> Bool in
+            let da = (Float(a.x) - x) * (Float(a.x) - x) + (Float(a.z) - z) * (Float(a.z) - z)
+            let db = (Float(b.x) - x) * (Float(b.x) - x) + (Float(b.z) - z) * (Float(b.z) - z)
+            return da < db
+        }
     }
 
     // Marker letter, colour and name per discovery kind.
@@ -120,6 +149,7 @@ final class MapCache {
         case "village": return ("V", V4(0.95, 0.8, 0.3, 1), "Village")
         case "vessel_frigate": return ("F", V4(0.6, 0.35, 0.9, 1), "Skyward Frigate patrol")
         case "vessel_carriage": return ("C", V4(0.95, 0.5, 0.15, 1), "Siege Carriage patrol")
+        case "pin": return ("+", V4(0.2, 0.8, 0.85, 1), "Waypoint")
         default: return ("?", V4(0.7, 0.7, 0.7, 1), kind)
         }
     }
@@ -260,6 +290,17 @@ enum Minimap {
         let coords = "\(Int(floor(g.player.pos.x))) \(Int(floor(g.player.pos.z)))"
         out.append(HudLine(text: coords, x: x0 + size - Float(Font.width(coords)) * s, y: y0 + size + 4 * s, scale: s, color: V4(0.9, 0.9, 0.9, 0.9),
                            bg: Settings.shared.textBackground > 0 ? V4(0, 0, 0, Settings.shared.textBackground) : nil))
+        // Nearest waypoint: distance and compass direction under the coordinates.
+        if g.dim.dim == .overworld, let pin = MapCache.shared.nearestPin(g.player.pos.x, g.player.pos.z) {
+            let dx: Float = Float(pin.x) + 0.5 - g.player.pos.x, dz: Float = Float(pin.z) + 0.5 - g.player.pos.z
+            let dist = Int((dx * dx + dz * dz).squareRoot())
+            let dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+            let ang: Float = atan2f(dx, -dz)                               // 0 = north (-z), clockwise
+            let i = Int(((ang / (2 * .pi) * 8) + 8.5).rounded(.down)) % 8
+            let t = dist < 3 ? "+ here" : "+ \(dist) \(dirs[i])"
+            out.append(HudLine(text: t, x: x0 + size - Float(Font.width(t)) * s, y: y0 + size + 13 * s, scale: s, color: V4(0.4, 0.9, 0.95, 0.95),
+                               bg: Settings.shared.textBackground > 0 ? V4(0, 0, 0, Settings.shared.textBackground) : nil))
+        }
         return out
     }
 }
@@ -304,6 +345,11 @@ final class MapMenu: Menu, CustomDrawnMenu {
         dz -= g.input.scrollSteps
         if dz != 0 { zoom = max(0, min(MapMenu.zooms.count - 1, zoom + (dz > 0 ? 1 : -1))); g.sfx(.click, 0.3) }
         if (p.a && !q.a) || g.input.tapped(Key.space) { cx = g.player.pos.x; cz = g.player.pos.z }
+        // Waypoint at the centre cross: X on the pad, Enter or right-click (again on a waypoint removes it).
+        if (p.x && !q.x) || g.input.tapped(Key.enter) || g.input.rightClicked {
+            let added = MapCache.shared.togglePin(g, x: Int(floor(cx)), z: Int(floor(cz)), near: max(3, bpc * 3))
+            g.sfx(added ? .click : .uiBack, 0.4)
+        }
         if g.input.leftDown {
             let m = V2(g.input.mouseX, g.input.mouseY)
             if let f = dragFrom {
@@ -346,9 +392,9 @@ final class MapMenu: Menu, CustomDrawnMenu {
 
     var legend: String {
         if Prompt.pad {
-            return Prompt.line([(.move, "Pan"), (.tabs, "Zoom"), (.select, "Centre"), (.back, "Close")])
+            return Prompt.line([(.move, "Pan"), (.tabs, "Zoom"), (.select, "Centre"), (.alt, "Waypoint"), (.back, "Close")])
         }
-        return "Arrows / drag Pan   " + Glyph.mouseM.s + " Zoom   " + Glyphs.key("Space") + " Centre   " + Glyphs.key("Esc") + " Close"
+        return "Arrows / drag Pan   " + Glyph.mouseM.s + " Zoom   " + Glyphs.key("Space") + " Centre   " + Glyph.mouseR.s + " Waypoint   " + Glyphs.key("Esc") + " Close"
     }
 }
 

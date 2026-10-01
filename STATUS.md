@@ -49,7 +49,8 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
   - [x] Steelhold soldiers crew the vessels (marksmen + rifle troopers on the frigate, trooper + arc ironclad on the
         carriage) and hold their stations aboard (aim and fire, no cover runs overboard); physicstest check.
 - Polish
-  - [ ] Map waypoint/pin; free pad cursor for menus; per-voice pitch jitter; waterfall/river audiotest.
+  - [x] Map waypoints (X / Enter / right-click at the map centre; nearest one shown under the minimap).
+  - [ ] Free pad cursor for menus; per-voice pitch jitter; waterfall/river audiotest.
   - [ ] Mob shadow-map shadows, eye adaptation, gun icons via ItemTextures.autoPainter; terrain gen perf (ore veins, tints).
   - [ ] Real-M1 checks: base-vertex path, Fancy GPU time (F3), the seed 777 night ocean seam grid.
 
