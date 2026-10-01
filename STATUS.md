@@ -23,6 +23,9 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
 ### Session log (routine actions)
 - 2026-10-01 21:56 UTC: hourly keep-alive routine created (trig_019e6C9f3St5eDiGSBQish95, fires at :56, bound to this
   session); the one-off chain retired (trig_01JhcJ9cXAD7omTdUy5EJBox and trig_01WVtiN1sAsWHdmHNXQYvsWK disabled).
+- 2026-10-01 22:27 UTC: pushed 05e83c4 (discs, advancements, sign dyes, mob shadows); this cancelled run 333 (8e5b872)
+  mid-smoke, whose build, type-check gate and debug-build check had passed. Run 334 tests the whole batch. 22:35: the
+  container restarted; the CI watcher was re-armed.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
