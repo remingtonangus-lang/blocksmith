@@ -512,6 +512,7 @@ final class ShipManager {
     var mineCell: (Ship, IVec3)?
     var mineProgress: Float = 0
     var breakCooldown: Float = 0
+    private var boxScratch: [(V3, V3)] = []
     var shells: [Shell] = []         // cannon shells in flight (ShipCombat.swift)
     var ghosts: [(Ship, Float)] = [] // docked ships still drawn while the world remeshes their blocks
     var wind = V3(4, 0, 2)           // world wind (b/s): sails (set each frame from the clock and weather)
@@ -584,10 +585,10 @@ final class ShipManager {
     }
 
     func overlaps(_ mn: V3, _ mx: V3) -> Bool {
-        var b: [(V3, V3)] = []
-        boxes(mn, mx, &b)
+        boxScratch.removeAll(keepingCapacity: true)
+        boxes(mn, mx, &boxScratch)
         let eps: Float = 1e-4
-        for (a, c) in b where a.x < mx.x - eps && c.x > mn.x + eps && a.y < mx.y - eps && c.y > mn.y + eps && a.z < mx.z - eps && c.z > mn.z + eps {
+        for (a, c) in boxScratch where a.x < mx.x - eps && c.x > mn.x + eps && a.y < mx.y - eps && c.y > mn.y + eps && a.z < mx.z - eps && c.z > mn.z + eps {
             return true
         }
         return false
