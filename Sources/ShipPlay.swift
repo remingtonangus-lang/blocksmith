@@ -79,6 +79,13 @@ extension Game {
         }
     }
 
+    // Third-person camera distance: farther back while steering, scaled to the ship.
+    var thirdPersonDistance: Float {
+        guard let s = world.ships.pilot else { return 4 }
+        let size = simd_length(s.localMax - s.localMin)
+        return max(4, min(48, size * 0.9))
+    }
+
     // HUD while steering: speed, height above sea level, throttle and lift.
     func shipHUDLine() -> String? {
         guard let s = world.ships.pilot else { return nil }

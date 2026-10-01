@@ -297,9 +297,10 @@ final class Renderer: NSObject, MTKViewDelegate {
             let front = game.cameraMode == 2
             let dir = front ? p.look : -p.look
             if front { camYaw = p.yaw + .pi; camPitch = -p.pitch }
-            var dist: Float = 4
+            let reach = game.thirdPersonDistance          // 4, or farther back while steering a big ship
+            var dist: Float = reach
             var t: Float = 0.1
-            while t < 4 {
+            while t < reach {
                 let q = p.eye + dir * t
                 if Blocks.opaque[Int(game.world.block(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))))] { dist = max(0.2, t - 0.3); break }
                 t += 0.1
