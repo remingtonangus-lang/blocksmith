@@ -164,6 +164,13 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
     float inv = 1.0 - blk0;
     float blk = min(1.0, mix(blk0, 1.0 - inv * inv * inv * inv, 0.6) * 1.05);
     float3 blkPart = blk * float3(1.0, 0.7, 0.4) * 1.1 * mix(0.75, 1.0, in.ao);
+    if (blk > 0.01) {
+        // Fire-lit areas flicker gently (slow per-area phase so neighbouring blocks move together).
+        float3 cellp = floor((in.rel + u.eye.xyz) / 6.0);
+        float ph = fract(sin(dot(cellp, float3(12.9, 78.2, 37.7))) * 4375.85) * 6.28;
+        float tt = u.params.z;
+        blkPart *= 1.0 + (sin(tt * 9.0 + ph) * 0.5 + sin(tt * 23.0 + ph * 2.0) * 0.3) * 0.06;
+    }
     float3 lit = max(skyPart, blkPart) + min(skyPart, blkPart) * 0.3;
     lit = mix(max(lit, float3(0.03)), float3(1.0), u.sunDir.w);
     lit += flashLight(in.rel, n, fl);
