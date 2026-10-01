@@ -11,6 +11,8 @@ import simd
 //   ships.collide_us            one mob-sized World.collides query next to a ship (ship boxes included)
 //   ships.collide_far_us        the same query away from ships (should cost what it did before ships)
 extension Bench {
+    static func turrets(_ m: ShipManager, _ s: Ship) -> Int { m.turrets(of: s).reduce(0) { $0 + $1.blockCount } }
+
     static func ships(_ device: MTLDevice, _ seed: UInt64) {
         let (world, game, pos) = setup(device, seed, rd: 6)
         _ = world.loadSync(center: pos, radius: 6)
@@ -60,6 +62,39 @@ extension Bench {
             }
             _ = hits
             return (now - a) / Double(n) * 1_000_000
+        }
+        // Docking the frigate into the world and assembling it again from its helm: main-thread time, then how long
+        // the background remesh of the touched sections takes.
+        func remeshWait(_ around: V3) -> Double {
+            let a = now
+            while now - a < 20 {
+                world.update(center: around)
+                if !unmeshed(world, around) { break }
+                usleep(2_000)
+            }
+            return now - a
+        }
+        fg.vel = .zero; fg.angVel = .zero
+        let helmWorld = fg.helm.map { fg.toWorld(V3(Float($0.x), Float($0.y), Float($0.z)) + 0.5) }
+        let blocks = fg.blockCount + turrets(ships, fg)
+        t = now
+        _ = ships.disassemble(fg, game: game)
+        put("ships.dock_ms", (now - t) * 1000)
+        put("ships.dock_remesh_s", remeshWait(pos))
+        // (docking snaps to a quarter turn, so look for the helm around where it was)
+        var helmCell: IVec3?
+        if let hw = helmWorld {
+            search: for r in 0...12 { for dy in -2...2 { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
+                let c = IVec3(Int(floor(hw.x)) + dx, Int(floor(hw.y)) + dy, Int(floor(hw.z)) + dz)
+                if ShipParts.kinds[Int(world.rawBlock(c.x, c.y, c.z))] == .helm { helmCell = c; break search }
+            } } } }
+        }
+        if let hc = helmCell {
+            t = now
+            let (again, _) = ships.assemble(at: hc, game: game)
+            put("ships.assemble_ms", (now - t) * 1000)
+            put("ships.assemble_remesh_s", remeshWait(pos))
+            print("bench ships: docked \(blocks) blocks in \(f(metrics["ships.dock_ms"] ?? 0)) ms (world remesh \(f(metrics["ships.dock_remesh_s"] ?? 0)) s), assembled \(again?.blockCount ?? 0) in \(f(metrics["ships.assemble_ms"] ?? 0)) ms")
         }
         put("ships.collide_us", queries(cg.toWorld(V3(Float(cg.grid.sx) / 2, Float(cg.grid.sy) - 0.5, Float(cg.grid.sz) / 2))))
         put("ships.collide_far_us", queries(pos + V3(200, 0, 200)))
