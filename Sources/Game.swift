@@ -1118,7 +1118,7 @@ final class Game {
         return k == "crafting_table" || k == "furnace" || k == "lit_furnace" || k == "chest" || k == "brewing_stand"
             || k == "enchanting_table" || k.hasSuffix("anvil") || k == "beacon" || k == "smithing_table" || k == "stonecutter" || k == "grindstone"
             || k == "ender_chest" || k == "trapped_chest" || k.hasSuffix("copper_chest") || k.hasSuffix("shulker_box") || k == "cake" || k.hasSuffix("candle")
-            || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table" || k == "loom" || k == "smoker" || k == "blast_furnace" || k == "barrel" || k == "bell" || k == "composter" || k == "lectern" || k == "chiseled_bookshelf" || k == "crafter" || k == "decorated_pot"
+            || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table" || k == "loom" || k == "smoker" || k == "blast_furnace" || k == "barrel" || k == "bell" || k == "composter" || k == "lectern" || k == "chiseled_bookshelf" || k == "crafter" || k == "decorated_pot" || k.hasSuffix("_shelf")
     }
 
     // Opens/closes a wooden door (both halves), trapdoor or fence gate.
@@ -1163,6 +1163,7 @@ final class Game {
         case "composter": useComposter(p)
         case "lectern": useLectern(p)
         case "chiseled_bookshelf": useShelf(p)
+        case _ where k.hasSuffix("_shelf"): useDisplayShelf(p)
         case "crafter":
             let be = world.blockEntities[p] ?? BlockEntity(.crafter)
             world.blockEntities[p] = be

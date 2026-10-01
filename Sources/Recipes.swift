@@ -229,6 +229,11 @@ enum Recipes {
         r.append(shaped(["N", "I", "N"], ["N": "copper_nugget", "I": "copper_ingot"], "copper_chain"))
         r.append(shaped(["##", "##", "##"], ["#": "copper_ingot"], "copper_door", 3))
         r.append(shaped(["##", "##"], ["#": "copper_ingot"], "copper_trapdoor", 1))
+        // Wooden shelves (Shelf.swift): six stripped logs (or stems), top and bottom rows.
+        for w in BlockRegistry.doorWoods {
+            let log = Items.has("stripped_\(w)_log") ? "stripped_\(w)_log" : "stripped_\(w)_stem"
+            if Items.has(log) && Items.has("\(w)_shelf") { r.append(shaped(["SSS", "   ", "SSS"], ["S": log], "\(w)_shelf", 6)) }
+        }
         r.append(shaped(["XXX", "XXX", "XXX"], ["X": "gold_nugget"], "gold_ingot"))
         r.append(shapeless(["gold_ingot"], "gold_nugget", 9))
         // Misc

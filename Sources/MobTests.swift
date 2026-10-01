@@ -548,6 +548,10 @@ enum MobTests {
                          "copper_lantern", "copper_bars", "copper_chain", "copper_door", "copper_trapdoor", "copper_chest"]
         let missing: [String] = copperSet.filter { (k: String) -> Bool in !Items.has(k) || !Recipes.all.contains { $0.result.item == Items.id(k) } }
         check(missing.isEmpty, "the copper set is craftable", missing.joined(separator: ", "))
+        let shelves: Bool = ["oak_shelf", "crimson_shelf", "pale_oak_shelf"].allSatisfy { (k: String) -> Bool in
+            Items.has(k) && Recipes.all.contains { $0.result.item == Items.id(k) && $0.result.count == 6 }
+        }
+        check(shelves, "wooden shelves are crafted from stripped logs and stems")
         let agers: [String] = ["copper_lantern", "copper_bars", "copper_chain", "copper_door", "copper_trapdoor", "copper_chest"]
         let ages: Bool = agers.allSatisfy { (k: String) -> Bool in
             guard Blocks.has(k) else { return false }
