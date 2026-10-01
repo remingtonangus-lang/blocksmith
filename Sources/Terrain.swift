@@ -633,15 +633,15 @@ final class Terrain {
         let high = h - SEA_D
         // Shores.
         if k.c < 0.014 && h < SEA_D + 3 && k.u < 0.25 {
-            if k.slope > 0.9 { return .stonyShore }
+            if k.slope > 0.6 { return .stonyShore }                     // rocky coasts (was 0.9: never seen)
             if t < -0.4 { return .snowyBeach }
             if ts > 0.55 && w < -0.35 { return .desert }
             return .beach
         }
         if k.dry > 0.5 { return ts > 0.4 ? .desert : .plains }
         if k.delta > 0.4 && high < 4 && w > -0.15 { return t > 0.4 ? .mangroveSwamp : (t > -0.1 ? .swamp : .plains) }
-        // Frozen: tundra, snowy forest, glaciated peaks.
-        if t < -0.5 {
+        // Frozen: tundra, snowy forest, glaciated peaks. (Thresholds lowered a little: snow covered ~25% of land.)
+        if t < -0.56 {
             if high > 75 && (k.slope > 0.55 || k.u > 0.45) {
                 if k.slope > 0.9 || k.u > 0.6 { return v > 0 ? .jaggedPeaks : .frozenPeaks }
                 return .snowySlopes
@@ -650,7 +650,7 @@ final class Terrain {
             if w < -0.2 { return (w < -0.4 && v > 0.45 && t < -0.65) ? .iceSpikes : .snowyPlains }
             return .snowyTaiga
         }
-        if t < -0.25 {
+        if t < -0.31 {
             if high > 80 && (k.slope > 0.7 || k.u > 0.5) { return .snowySlopes }
             if high > 45 && w > -0.05 { return .grove }
             if w < -0.3 { return .snowyPlains }
@@ -660,7 +660,7 @@ final class Terrain {
         if high > 100 && k.u > 0.4 && k.slope > 0.5 { return .stonyPeaks }
         // Boreal.
         if t < 0.02 {
-            if high > 35 && k.r > 0.5 && k.slope > 0.3 {
+            if high > 28 && k.r > 0.42 && k.slope > 0.25 {
                 if w < -0.25 { return .windsweptGravellyHills }
                 return w > 0.2 ? .windsweptForest : .windsweptHills
             }
@@ -671,7 +671,7 @@ final class Terrain {
         }
         // Temperate.
         if t < 0.32 {
-            if high > 40 && k.r > 0.55 && k.slope > 0.35 { return w > 0.1 ? .windsweptForest : .windsweptHills }
+            if high > 32 && k.r > 0.45 && k.slope > 0.3 { return w > 0.1 ? .windsweptForest : .windsweptHills }
             if high > 55 && w > -0.1 && w < 0.35 && k.slope < 0.5 { return v > 0.35 ? .cherryGrove : .meadow }
             if w > 0.38 && high < 6 && k.slope < 0.25 { return .swamp }
             if w < -0.3 { return v > 0.55 ? .sunflowerPlains : .plains }
@@ -691,15 +691,15 @@ final class Terrain {
                 return k.r > 0.5 && k.slope > 0.35 ? .windsweptSavanna : .savanna
             }
             if w < 0.2 { return v < 0 ? .plains : .forest }
-            if w < 0.45 { return .sparseJungle }
+            if w < 0.38 { return .sparseJungle }
             return .jungle
         }
         // Hot.
         if w > 0.3 && high < 5 && k.slope < 0.25 { return .mangroveSwamp }
         if w < -0.32 {
             let rough = k.r + (w < -0.4 ? 0.4 : 0) + k.slope
-            if high > 14 && rough > 0.45 {
-                if high > 55 && w > -0.5 { return .woodedBadlands }
+            if high > 8 && rough > 0.3 {                                // mesas: more of the hot dry country
+                if high > 38 && w > -0.5 { return .woodedBadlands }
                 return v > 0.35 ? .erodedBadlands : .badlands
             }
             return .desert
@@ -708,7 +708,7 @@ final class Terrain {
             if high > 50 && k.slope < 0.35 { return .savannaPlateau }
             return k.r > 0.5 && k.slope > 0.35 ? .windsweptSavanna : .savanna
         }
-        if w < 0.25 { return .sparseJungle }
+        if w < 0.12 { return .sparseJungle }
         return v > 0.5 ? .bambooJungle : .jungle
     }
 
