@@ -1,0 +1,89 @@
+rerun (debug build): "$BIN" --snapshot snaps/physicstest.png --seed 12345 --time 0.3 --physicstest
+(lldb) target create "build/Blocksmith.app/Contents/MacOS/Blocksmith"
+Current executable set to '/Users/runner/work/blocksmith/blocksmith/build/Blocksmith.app/Contents/MacOS/Blocksmith' (arm64).
+(lldb) settings set -- target.run-args  "--snapshot" "snaps/physicstest.png" "--seed" "12345" "--time" "0.3" "--physicstest"
+(lldb) run
+physicstest boat: Assembled 126 blocks (68.0 t)
+physicstest PASS: boat has helm, propeller and engine
+physicstest boat: mass 68.0 t, submerged 0.0, draft 1.88, vy 0.000, up 1.000
+physicstest PASS: boat floats upright at rest
+physicstest boat: 10 s at full throttle: 40.8 blocks, speed 4.81 b/s, rider at 2.50 1.00 5.70 (deck 2.5 1.0 5.5)
+physicstest PASS: boat sails under propeller power
+physicstest PASS: player stays on the moving deck
+physicstest boat: turned -91 degrees in 5 s
+physicstest PASS: boat turns right under helm
+physicstest boat: 6 sails, wind 5.0 b/s: drifted 10.2 blocks in 8 s
+physicstest PASS: sails carry the boat with the wind
+physicstest PASS: ship saves and loads (624 bytes)
+physicstest gunboat: Assembled 135 blocks (94.1 t, 1 turret)
+physicstest PASS: turret carries its cannons
+physicstest gunboat: turret yaw 1.57 (wanted 1.57), bearing gap 0.000
+physicstest PASS: turret turns on its ring and stays mounted
+physicstest PASS: turret link saves and loads
+physicstest gunboat: fired 3 shells, 20 of 20 wall blocks destroyed, 0 in flight
+physicstest PASS: cannon shells fly and explode on impact
+physicstest gunboat: blast removed 11 hull blocks
+physicstest PASS: explosions break ship blocks
+physicstest gunboat: sawn through 4 blocks: 1 new ship(s), 70 + 44 blocks
+physicstest PASS: a hull cut in two becomes two ships
+physicstest ramming: struck boat moved 16.7 blocks, closest centres 11.9 (hull length 12)
+physicstest PASS: ships collide with each other
+physicstest airship: Assembled 236 blocks (46.3 t)
+physicstest airship: mass 46.3 t, 154 balloons, lift 0.15, drift -0.00 in 4 s
+physicstest PASS: airship hovers
+physicstest airship: climbed 11.5 in 3 s
+physicstest PASS: airship climbs
+physicstest airship: flew 95.2 blocks in 6 s, altitude change -0.07
+physicstest PASS: airship flies level under propellers
+physicstest plane: Assembled 78 blocks (25.7 t)
+physicstest plane: mass 25.7 t, 38 airfoils, 6 s: 149.7 blocks, altitude change -4.9, speed 27.5, up 1.00
+physicstest PASS: aircraft flies under power
+physicstest plane: climb input 2 s: altitude change 11.2
+physicstest PASS: aircraft climbs when pulled up
+physicstest takeoff: Assembled 81 blocks (27.5 t)
+physicstest takeoff: rolled 49.7 blocks in 4 s (12.0 b/s), then 3 s pulled up: climbed 11.2, up 0.72
+physicstest PASS: aircraft takes off from a runway
+physicstest car: Assembled 48 blocks (28.5 t)
+physicstest car: mass 28.5 t, grounded yes, up 1.000, vy -0.000
+physicstest PASS: car rests on its wheels
+physicstest car: drove 41.1 blocks in 6 s, speed 8.42, up 1.000
+physicstest PASS: car drives
+physicstest car: docked 48 of 48 blocks back into the world
+physicstest PASS: car docks back into the world
+physicstest frigate: 3151 blocks 826 t, 1716 balloons, lift 0.24, 10 s patrol: 23.9 blocks, altitude change -6.00, up 1.000
+physicstest FAIL: frigate patrols at its altitude
+physicstest frigate: turret aim error 0.000 rad
+physicstest PASS: frigate turret tracks a target
+physicstest frigate: guns engage a player 40 blocks off: true, one on the deck: false
+physicstest PASS: vessel guns engage outsiders, not boarders
+physicstest frigate: captain's chest holds 3 stacks, 0 of 4 crew aboard
+physicstest PASS: frigate carries loot
+physicstest frigate: captured yes, piloted 3 s: 18.9 blocks
+physicstest PASS: a vessel can be captured and steered
+physicstest PASS: capturing a vessel earns Prize Crew
+physicstest frigate: throttle held at 1.00 after letting go, 0.00 after S for 1.5 s, 0.00 after 0.3 s more
+physicstest PASS: ship throttle holds and stops at zero
+physicstest carriage: 1037 blocks 1925 t, grounded yes, up 1.000, 6 s: 22.3 blocks
+physicstest PASS: siege carriage rolls on six wheels
+physicstest PASS: siege carriage's giant gun fires
+physicstest encounters: 34 frigates, 21 siege carriages in 441 regions of 2048 blocks
+physicstest PASS: vessel encounters are rare
+physicstest encounters: nearest frigate home at 592, 909: 1 appeared
+physicstest PASS: a vessel appears when the player nears its home
+physicstest sleep: 600 blocks away asleep+released true, back near awake true meshed true
+physicstest PASS: far ships sleep and wake
+physicstest wreck: helm gone -> wrecked yes, sank 5.4 blocks in 4 s, autopilot off
+physicstest PASS: a vessel without its helm founders and sinks
+physicstest: 1 checks failed, 448.1 s, ships 18
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 33) sky 0 block 0 in water, daylight 1.0
+seed 12345  pos -386.2 131.4 -75.7  rd 8  chunks 1601  (drawn 74)
+gen 21918 ms  mesh(all, parallel) 79445 ms  mesh(1 section) 202.18 ms  quads 827022 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 14.56 ms  biome ocean
+mesh slabs 156 MB, chunks 1601 (block+light arrays 142 MB), Metal allocated 187 MB
+memory: resident 316 MB  (section meshes 140 MB)
+wrote snaps/physicstest.png
+Process 14570 exited with status = 1 (0x00000001)
+Process 14570 launched: '/Users/runner/work/blocksmith/blocksmith/build/Blocksmith.app/Contents/MacOS/Blocksmith' (arm64)
+(lldb) bt 40
+error: Command requires a process which is currently stopped.
