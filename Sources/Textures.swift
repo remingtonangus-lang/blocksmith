@@ -443,6 +443,20 @@ enum TextureGen {
         p["torch_wall"] = { x, y in y == 3 ? hex(0xFFF6C8) : (y == 4 ? hex(0xFFC43A) : (y > 4 && y < 13 ? hex(0x6B4F2C, 0.85 + 0.2 * r(x, y, 47)) : clear)) }
         p["soul_torch_wall"] = { x, y in y == 3 ? hex(0xD8FFFF) : (y == 4 ? hex(0x3AD8E8) : (y > 4 && y < 13 ? hex(0x6B4F2C, 0.85 + 0.2 * r(x, y, 47)) : clear)) }
         p["torch_top_full"] = { x, y in hex(0xFFE27A) }
+        // Copper torch: a green flame.
+        p["copper_torch"] = { x, y in
+            guard x == 7 || x == 8 else { return clear }
+            if y == 6 { return hex(0xE0FFC8) }
+            if y == 7 { return hex(0x6CE04A) }
+            if y >= 8 { return hex(0x6B4F2C, 0.85 + 0.2 * r(x, y, 46)) }
+            return clear
+        }
+        p["copper_torch_wall"] = { x, y in y == 3 ? hex(0xE0FFC8) : (y == 4 ? hex(0x6CE04A) : (y > 4 && y < 13 ? hex(0x6B4F2C, 0.85 + 0.2 * r(x, y, 47)) : clear)) }
+        p["copper_torch_top_full"] = { x, y in hex(0x9CF07A) }
+        p["copper_torch_top"] = { x, y in
+            guard x >= 7 && x <= 8 && y >= 7 && y <= 8 else { return clear }
+            return hex(0x9CF07A)
+        }
         p["soul_torch_top_full"] = { x, y in hex(0x7AE8F2) }
         p["glowstone"] = { x, y in
             let v = blot(x, y, 80, 4) + r(x, y, 81) * 0.4

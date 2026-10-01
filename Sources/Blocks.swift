@@ -303,17 +303,19 @@ final class BlockRegistry {
         plant("dandelion", "Dandelion", "dandelion")
         plant("cornflower", "Cornflower", "cornflower")
         // Torches: standing (0) and on walls (1+f, f = the side the torch faces), soul torches the same.
-        for soul in [false, true] {
-            let n = soul ? "soul_torch" : "torch"
+        for kind in 0..<3 {
+            let soul = kind == 1, copper = kind == 2                          // torch, ghost torch, copper torch (green flame)
+            let n = ["torch", "soul_torch", "copper_torch"][kind]
             for st in 0..<5 {
-                var torch = BlockDef(st == 0 ? n : "\(n)[\(st)]", soul ? "Ghost Torch" : "Torch")
+                var torch = BlockDef(st == 0 ? n : "\(n)[\(st)]", ["Torch", "Ghost Torch", "Copper Torch"][kind])
                 torch.group = n; torch.hidden = st != 0; torch.shape = "torch"
                 torch.tex = [n]; torch.render = .model; torch.layer = .cutout; torch.opaque = false; torch.collide = false
                 torch.emit = soul ? 10 : 14; torch.hardness = 0; torch.sound = .wood; torch.skyStop = false
                 if st == 0 {
-                    torch.boxes = [Box(7, 0, 7, 9, 10, 9, tex: [Tex.id(n), Tex.id(n), Tex.id("torch_top"), Tex.id("torch_bottom"), Tex.id(n), Tex.id(n)])]
+                    let topTex = Tex.id(copper ? "copper_torch_top" : "torch_top")
+                    torch.boxes = [Box(7, 0, 7, 9, 10, 9, tex: [Tex.id(n), Tex.id(n), topTex, Tex.id("torch_bottom"), Tex.id(n), Tex.id(n)])]
                 } else {
-                    let w = Tex.id(n + "_wall"), top = Tex.id(soul ? "soul_torch_top_full" : "torch_top_full"), bot = Tex.id("torch_bottom")
+                    let w = Tex.id(n + "_wall"), top = Tex.id(n + "_top_full"), bot = Tex.id("torch_bottom")
                     // Leaning against the wall: the foot sits against it, the head steps out 1 px per third
                     // (boxes are whole 1/16 units, so the tilt is stepped).
                     let base = [Box(7, 3, 12, 9, 13, 14), Box(7, 3, 2, 9, 13, 4), Box(12, 3, 7, 14, 13, 9), Box(2, 3, 7, 4, 13, 9)][st - 1]

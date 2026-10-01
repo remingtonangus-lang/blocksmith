@@ -13,7 +13,7 @@ extension Game {
             let k = Blocks.key(BlockID(id))
             let base = k.split(separator: "[").first.map(String.init) ?? k
             switch base {
-            case "torch": t[id] = Emitter.torch.rawValue
+            case "torch", "copper_torch": t[id] = Emitter.torch.rawValue
             case "soul_torch": t[id] = Emitter.soulTorch.rawValue
             case "campfire", "soul_campfire": if !k.hasSuffix("[off]") { t[id] = Emitter.campfire.rawValue }
             case "lava": t[id] = Emitter.lava.rawValue

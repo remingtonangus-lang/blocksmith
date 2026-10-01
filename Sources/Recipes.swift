@@ -223,6 +223,10 @@ enum Recipes {
         r.append(shapeless(["iron_ingot"], "iron_nugget", 9))
         r.append(shaped(["XXX", "XXX", "XXX"], ["X": "copper_nugget"], "copper_ingot"))
         r.append(shapeless(["copper_ingot"], "copper_nugget", 9))
+        r.append(shaped(["N", "C", "S"], ["N": "copper_nugget", "C": "#coals", "S": "stick"], "copper_torch", 4))
+        r.append(shaped(["NNN", "NTN", "NNN"], ["N": "copper_nugget", "T": "copper_torch"], "copper_lantern", 1))
+        r.append(shaped(["III", "III"], ["I": "copper_ingot"], "copper_bars", 16))
+        r.append(shaped(["N", "I", "N"], ["N": "copper_nugget", "I": "copper_ingot"], "copper_chain"))
         r.append(shaped(["XXX", "XXX", "XXX"], ["X": "gold_nugget"], "gold_ingot"))
         r.append(shapeless(["gold_ingot"], "gold_nugget", 9))
         // Misc

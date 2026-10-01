@@ -8,7 +8,7 @@ enum Copper {
         ("", "", 0xC06B4F), ("exposed_", "Exposed ", 0xA17E68), ("weathered_", "Weathered ", 0x6C9A6C), ("oxidized_", "Oxidized ", 0x52A284),
     ]
     static let forms = ["block", "cut_copper", "chiseled_copper", "copper_grate", "copper_bulb", "cut_copper_stairs", "cut_copper_slab",
-                        "copper_chest", "copper_golem_statue"]
+                        "copper_chest", "copper_golem_statue", "copper_lantern", "copper_bars", "copper_chain"]
 
     static func name(_ form: String, stage: Int, waxed: Bool) -> String {
         let w = waxed ? "waxed_" : ""
@@ -81,6 +81,24 @@ extension BlockRegistry {
                 gs.boxes = [Box(5, 0, 7, 7, 3, 10), Box(9, 0, 7, 11, 3, 10), Box(4, 3, 6, 12, 8, 11), Box(2, 4, 7, 4, 8, 10),
                             Box(12, 4, 7, 14, 8, 10), Box(3, 8, 5, 13, 13, 12), Box(7, 13, 8, 9, 15, 10), Box(6, 15, 7, 10, 16, 11)]
                 add(gs)
+                // Copper lantern (green flame; standing / hanging), copper bars and copper chain.
+                let ln = Copper.name("copper_lantern", stage: s, waxed: waxed)
+                for hanging in [false, true] {
+                    var d = BlockDef(hanging ? "\(ln)[hanging]" : ln, "\(w)\(st.disp)Copper Lantern")
+                    d.tex = ["\(st.prefix)copper_lantern"]; d.render = .model; d.layer = .cutout; d.opaque = false
+                    d.boxes = hanging ? [Box(5, 1, 5, 11, 8, 11), Box(6, 8, 6, 10, 10, 10), Box(7, 10, 7, 9, 16, 9)] : [Box(5, 0, 5, 11, 7, 11), Box(6, 7, 6, 10, 9, 10)]
+                    d.emit = 15; d.hardness = 3.5; d.tool = .pickaxe; d.group = ln; d.hidden = hanging; d.skyStop = false
+                    d.shape = "lantern"; d.randomTicks = !waxed && s < 3
+                    add(d)
+                }
+                var bars = BlockDef(Copper.name("copper_bars", stage: s, waxed: waxed), "\(w)\(st.disp)Copper Bars")
+                bars.tex = ["\(st.prefix)copper_bars"]; bars.render = .connect; bars.connect = 2; bars.layer = .cutout; bars.opaque = false
+                bars.hardness = 5; bars.tool = .pickaxe; bars.requiresTool = true; bars.skyStop = false; bars.randomTicks = !waxed && s < 3
+                add(bars)
+                var chain = BlockDef(Copper.name("copper_chain", stage: s, waxed: waxed), "\(w)\(st.disp)Copper Chain")
+                chain.tex = ["\(st.prefix)copper_chain"]; chain.render = .model; chain.layer = .cutout; chain.opaque = false; chain.boxes = [Box(7, 0, 7, 9, 16, 9)]
+                chain.hardness = 5; chain.tool = .pickaxe; chain.skyStop = false; chain.randomTicks = !waxed && s < 3
+                add(chain)
             }
         }
     }
@@ -111,6 +129,17 @@ extension TextureGen {
                 if (x % 4 == 1 || x % 4 == 2) && (y % 4 == 1 || y % 4 == 2) { return clear }
                 return hex(c, 0.85 + 0.15 * r(x, y, 924))
             }
+            p["\(st.prefix)copper_lantern"] = { x, y in
+                if y < 3 || y > 13 || x < 3 || x > 12 { return hex(c, 0.7) }
+                return hex(0x9CF07A, 0.85 + 0.25 * r(x, y, 928))
+            }
+            p["\(st.prefix)copper_bars"] = { x, y in
+                let bar = x % 5 == 2 || x % 5 == 3
+                let rail = y == 1 || y == 14
+                if bar || (rail && x > 0 && x < 15) { return hex(c, (x % 5 == 2 ? 1.0 : 0.78) + 0.08 * r(x, y, 929)) }
+                return clear
+            }
+            p["\(st.prefix)copper_chain"] = { x, y in (x == 7 || x == 8) && (y % 4 != 3) ? hex(c, 0.75) : clear }
             // Copper chest: riveted plates with a dark band and a latch.
             p["\(st.prefix)copper_chest_top"] = { x, y in
                 if x <= 1 || y <= 1 || x >= 14 || y >= 14 { return hex(c, 0.62) }
