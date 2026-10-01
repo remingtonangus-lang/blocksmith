@@ -65,24 +65,23 @@ compares with `perf/baseline.json` (table in the ci-snaps README) and fails CI o
 Numbers are from the CI runner (Apple Paravirtual GPU, 3 cores → 2 workers), so absolute values are pessimistic
 next to an M1 Air (8 cores → 6 workers, real GPU); compare runs with each other.
 
-| metric (CI) | baseline 37e7b89 | abcfc58 |
+| metric (CI) | baseline 37e7b89 | 9a60a5e (final) |
 |---|---|---|
-| gen, single thread | 1.94 ms/chunk | 1.74 ms/chunk |
-| mesh, single thread (full / far LOD) | 9.9 / 9.8 ms/chunk | 2.3 / 1.9 ms/chunk |
-| startup: first load r 4 / fill rd 12 | 304 ms / 33.8 s | 116 ms / 8.7 s |
-| flight16 frame p50 / p95 / p99 / max | 4.6 / 7.5 / 11.8 / 25.2 ms | 4.5 / 6.1 / 6.9 / 9.4 ms |
-| flight24 frame p50 / p95 / p99 / max | 8.7 / 12.4 / 16.7 / 28.0 ms | 7.0 / 9.0 / 9.9 / 16.4 ms |
+| gen, single thread | 1.94 ms/chunk | 1.68 ms/chunk |
+| mesh, single thread (full / far LOD) | 9.9 / 9.8 ms/chunk | 2.4 / 1.9 ms/chunk |
+| startup: first load r 4 / fill rd 12 | 304 ms / 33.8 s | 118 ms / 4.6 s |
+| flight16 frame p50 / p95 / p99 / max | 4.6 / 7.5 / 11.8 / 25.2 ms | 4.1 / 5.2 / 5.9 / 14.4 ms |
+| flight24 frame p50 / p95 / p99 / max | 8.7 / 12.4 / 16.7 / 28.0 ms | 7.1 / 8.0 / 8.8 / 10.9 ms |
 | flight16 / flight24 coverage min | 77% / 86% | 96% / 97% |
-| flight16 / flight24 gen throughput | 19 / 25 chunks/s | 44 / 64 chunks/s |
-| flight24 preload (rd 24 from scratch) | 8.4 s | 2.7 s |
-| flight24 chunk block+light data | 622 MB | 222 MB |
-| frame rd 16 GPU p50 800p / 1080p / 4K | 2.9 / 3.3 / 4.4 ms | 1.9 / 2.2 / 3.1 ms |
-| edit (sync remesh) | 1.09 ms per break | 0.46 ms |
-| game tick: empty / 150 mobs | 0.46 / 0.94 ms | 0.03 / 0.28 ms |
-| save | 2.9 ms/chunk on the main thread; every chunk ever loaded from disk rewritten each autosave | background queue; unchanged chunks skipped |
+| flight24 resident peak / chunk data / meshes | 771 / 622 / 126 MB | 418 / 222 / 131 MB |
+| frame rd 16 GPU p50 800p / 1080p / 4K | 2.9 / 3.3 / 4.4 ms | 1.9 / 2.2 / 3.2 ms |
+| edit (sync remesh) | 1.09 ms | 0.43 ms |
+| game tick: empty / 150 mobs | 0.46 / 0.94 ms | 0.03 / 0.22 ms |
+| save | 2.9 ms/chunk on the main thread, all disk chunks rewritten each autosave | background queue, unchanged chunks skipped |
 
-Resident-memory peaks in that run were inflated because every scene ran in one process (pools and earlier
-worlds carried over); flights now run in their own processes.
+Open: `--bench` shows `World` objects that outlive their scene (their Game is freed, no jobs queued): something
+still references the World (seen after save, tnt, fluids, startup and flight scenes). Would leak a world per world
+switch in the app. `bench.log` prints each live world's state.
 
 Findings / changes (performance branch):
 - Streaming throughput was capped by scheduling, not CPU: only `maxJobs` jobs were handed out per frame, so ~120
