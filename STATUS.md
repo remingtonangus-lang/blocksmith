@@ -42,7 +42,8 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
   - [x] Audio (#4): --sounds 0 failed (wind loops audible), --audiotest 0 failed on CI.
   - [x] UI (#5): padtest 122/122; tv_combat / vehicle_hud / tv_map reviewed (toast and tip overlaps fixed).
   - [x] Visuals (#6): tour frames 2.9-6.4 ms (avg ~4.6, the half-res shafts' target); flight16 GPU 4.2 ms p50.
-  - [ ] cave_torches shot is mostly dark (re-check with eye adaptation).
+  - [ ] cave_torches shot is mostly dark: the camera faced a wall (now pitched down at the torch ring); the mineshaft shot,
+        which it overwrote, is mineshaft_torches.
   - [x] Terrain (#7): WIP commit green on CI; terrain check 0 problems over 5 seeds; aerial tours on land.
   - [x] Physics (#8): frigate patrol altitude (hoverY floor is the spawn altitude); calib.cpu_ms in perf/baseline.json.
   - [x] Physics (#8): round-6 commits compile; flight24 cull 0.76 ms p50 (target < 1.20); ships metrics in the baseline.
@@ -61,7 +62,8 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
   - [x] Wooden shelves (3 display slots, swap with the held stack); Dried Wailer hatches a Wailerling in water.
   - [x] Lightning rod oxidation; powered shelves (rows of up to 3) swap their items with the hotbar.
   - [x] Biome balance pass: less snow, more (wooded) badlands, windswept hills, stony shores, less sparse jungle.
-  - [ ] Lakes, deltas, fjords in game (tours now stand back to frame the feature: check tour_lake / tour_delta).
+  - [ ] Lakes, deltas, fjords in game: tour_lake frames a lake; tour_delta found no mouth within 5 km (search widened to
+        9 km for rivers wide enough to fan; tour_delta_777 added).
   - [ ] Far ocean in tour_777_aerial shows dark vertical sticks above the water near the horizon: they are kelp (cross
         shapes in the crop), drawn past the water's edge. --kelpcheck (snap.sh) counts water plants not under water there.
   - [x] Steelhold soldiers crew the vessels (marksmen + rifle troopers on the frigate, trooper + arc ironclad on the

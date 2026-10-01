@@ -478,13 +478,15 @@ final class Terrain {
     // Harness: nearest lake (non-dry basin) or river mouth with a delta, as a world position (x, z).
     func nearestFeature(_ kind: String, x: Int, z: Int) -> (Int, Int)? {
         let ci = floorDiv(x, Terrain.rs), cj = floorDiv(z, Terrain.rs)
-        for r in 0..<40 {
+        // Deltas need a coast: search farther (continents are thousands of blocks wide) for any sizeable river mouth.
+        let maxR = kind == "delta" ? 72 : 40
+        for r in 0..<maxR {
             for j in (cj - r)...(cj + r) { for i in (ci - r)...(ci + r) where max(abs(i - ci), abs(j - cj)) == r {
                 let n = rbase(i, j)
                 if n.ocean { continue }
                 let d = rdown(i, j)
                 if kind == "lake" && d < 0 { let lk = lake(i, j); if lk.valid && !lk.dry && lk.r2 > 40 { return (Int(lk.x), Int(lk.z)) } }
-                if kind == "delta" && d >= 0 && racc(i, j) > 40 {
+                if kind == "delta" && d >= 0 && racc(i, j) > 14.5 {         // half-width > 7: the delta fan threshold
                     let m = rbase(i + Terrain.dirs[d].0, j + Terrain.dirs[d].1)
                     if m.ocean { return (Int((n.x + m.x) / 2), Int((n.z + m.z) / 2)) }
                 }
