@@ -655,7 +655,7 @@ final class Playthrough {
                 }
                 if b.health <= 0 { kills += 1 }
             }
-            collect(near: feet, 20)
+            collect(near: feet, 48)                           // rods fall off the bridge: go down and fetch them
             game.player.pos = feet
             rods = count("blaze_rod")
         }

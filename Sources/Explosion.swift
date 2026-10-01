@@ -70,10 +70,12 @@ enum Explosion {
                 m.vel += dir * k * 12
             }
         }
+        let star: ItemID = Items.has("nether_star") ? Items.id("nether_star") : ItemID.max
         for it in g.drops.items {
             if let im = impact(it.pos, 0.25), im.0 > 0 {
                 let (k, dir) = im
-                if Float.random(in: 0..<1) < k * 0.5 { it.stack = .empty } else { it.vel += dir * k * 10 }
+                // The Blight Star survives blasts (the Blight's own skulls keep landing around its drop).
+                if it.stack.item != star && Float.random(in: 0..<1) < k * 0.5 { it.stack = .empty } else { it.vel += dir * k * 10 }
             }
         }
         // Grenade-sized blasts crack, TNT-sized ones boom, big ones (charged hissers, shells, beds) shake the ground.

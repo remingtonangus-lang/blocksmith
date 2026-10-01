@@ -33,6 +33,9 @@ cp -r build/sounds/scapes snaps/sounds/scapes
 "$BIN" --terrainmap snaps
 "$BIN" --genbench --seed 12345
 "$BIN" --kelpcheck --seed 777 --x 600 --z 300 --radius 18
+# Far-ocean kelp streaks in tour_777_aerial: the same view in Fast graphics and at render distance 8 (no far LOD).
+"$BIN" --snapshot snaps/tour_777_aerial_fast.png --seed 777 --x 600 --z 300 --onland --yaw 200 --pitch -28 --time 0.23 --up 55 --rd 16 --fast
+"$BIN" --snapshot snaps/tour_777_aerial_rd8.png --seed 777 --x 600 --z 300 --onland --yaw 200 --pitch -28 --time 0.23 --up 55 --rd 8
 # Terrain tours: high aerial, mountain range, river valley and ground level for several seeds.
 for s in 12345 777 424242 1 98765; do
   "$BIN" --snapshot snaps/tour_${s}_aerial.png --seed $s --x 600 --z 300 --onland --yaw 200 --pitch -28 --time 0.23 --up 55 --rd 16

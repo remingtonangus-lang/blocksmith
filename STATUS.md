@@ -48,6 +48,8 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
   - [x] Physics (#8): frigate patrol altitude (hoverY floor is the spawn altitude); calib.cpu_ms in perf/baseline.json.
   - [x] Physics (#8): round-6 commits compile; flight24 cull 0.76 ms p50 (target < 1.20); ships metrics in the baseline.
   - [x] Physics (#8): physicstest green on CI (c6bfae5); ship snapshots checked (props, wheels, turret in place).
+  - [x] Playthrough on d8c31fd: the Blight Star was lost to a blast (stars now survive explosions, as in the reference)
+        and cinder rods fell off the bridge out of the 20-block pickup radius (48 now).
   - [x] Gameplay (#2/#3): mobtests 0 failed; playthrough reaches the credits and kills the Blight (furnace step fixed in 0cdfe9a).
 - Gameplay
   - [x] Fancy ships use Vibrant's ship pipelines (shadows, emissive, flashes; dark under cover).
@@ -65,7 +67,8 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
   - [ ] Lakes, deltas, fjords in game: tour_lake frames a lake; tour_delta found no mouth within 5 km (search widened to
         9 km for rivers wide enough to fan; tour_delta_777 added).
   - [ ] Far ocean in tour_777_aerial shows dark vertical sticks above the water near the horizon: they are kelp (cross
-        shapes in the crop), drawn past the water's edge. --kelpcheck (snap.sh) counts water plants not under water there.
+        shapes in the crop), drawn past the water's edge. --kelpcheck: no kelp out of the water there (739 exposed plants are seagrass in
+        1-deep shallows), so it is a rendering issue; tour_777_aerial_fast / _rd8 split Fancy water vs the far LOD.
   - [x] Steelhold soldiers crew the vessels (marksmen + rifle troopers on the frigate, trooper + arc ironclad on the
         carriage) and hold their stations aboard (aim and fire, no cover runs overboard); physicstest check.
 - Polish
