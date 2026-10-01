@@ -898,6 +898,8 @@ struct Synth {
 
         case .note(let inst, let n): out = MusicSynth.noteBlock(&self, inst: inst, pitch: n)
         case .gun(let k): out = WeaponAudio.gun(&self, k, p: p)
+        case .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop, .thunderFar, .iceCreak, .rockfall:
+            out = TerrainAudio.render(&self, s, p: p)
         case .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
              .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart:
             out = VehicleAudio.render(&self, s, p: p)

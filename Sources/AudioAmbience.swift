@@ -24,6 +24,11 @@ final class AudioState {
     var biomeTimer: Float = 0
     var paddleTimer: Float = 0
     var ships: [Int: ShipAudioState] = [:]
+    var rockTimer: Float = 60
+    var combatHold: Float = 0               // combat music lingers this long after the last sign of a fight
+    var combatCheck: Float = 0
+    var combat = 0                          // 0 calm, 1 near a garrison, 2 fighting (soldiers aggro / raid wave)
+    var leafCover: Float = 0                // leaves overhead (rain on leaves)
     var biomeHere: Biome = .plains
     var nearOcean = false
     var armorPrimed = false
@@ -68,6 +73,7 @@ extension Game {
                 else if k == "short_dry_grass" || k == "tall_dry_grass" { kind = 16 }
                 else if k == "creaking_heart" { kind = 17 }
                 else if k == "beehive" || k == "bee_nest" { kind = 18 }
+                else if k.hasSuffix("leaves") { kind = 21 }
                 t[i] = kind
             }
             AudioState.kindTable = t
@@ -183,6 +189,7 @@ extension Game {
             // Under a roof near the surface: rain on the roof instead.
             if a.rainExposure < 0.5 && a.cave < 0.9 { ask("rainroof", .rainRoof, r * (1 - a.rainExposure) * (1 - a.cave) * 0.6) }
         }
+        weatherAudioTick(dt, ask: ask)
         vehicleAudioTick(dt, ask: ask)
         // Player state loops.
         if player.headInWater { ask("underwater", .underwaterLoop, 0.9) }
@@ -212,7 +219,10 @@ extension Game {
             if a.cave > 0.6 && a.caveBiome > 0 {
                 ask("bed", a.caveBiome == 1 ? .deepDarkLoop : (a.caveBiome == 2 ? .lushLoop : .dripstoneLoop), 0.45 * a.cave)
             }
-            if a.cave < 0.6 && !player.headInWater { overworldAmbience(dt, open: 1 - a.cave, ask: ask) }
+            if a.cave < 0.6 && !player.headInWater {
+                overworldAmbience(dt, open: 1 - a.cave, ask: ask)
+                terrainAudioTick(dt, open: 1 - a.cave, ask: ask)
+            }
         }
 
         // Stings: cave noises in the dark, nether moods, underwater moans.
@@ -306,7 +316,7 @@ extension Game {
         let eye = player.eye
         let cx = Int(floor(eye.x)), cy = Int(floor(eye.y)), cz = Int(floor(eye.z))
         var best: [Int: (V3, Float, Int)] = [:]      // kind -> (pos, dist², count)
-        var sculk = 0, moss = 0, drip = 0
+        var sculk = 0, moss = 0, drip = 0, leaves = 0
         for y in (cy - 5)...(cy + 5) { for z in (cz - 8)...(cz + 8) { for x in (cx - 8)...(cx + 8) {
             let b = world.block(x, y, z)
             if b == AIR { continue }
@@ -315,13 +325,15 @@ extension Game {
             if k == 9 { sculk += 1; continue }
             if k == 10 { moss += 1; continue }
             if k == 11 { drip += 1; continue }
+            if k == 21 { if y > cy { leaves += 1 }; continue }
             var kind = k
             if k == 5 {
                 // Still water only counts at its surface; flowing water everywhere.
                 let above = world.block(x, y + 1, z)
                 let flowing = Blocks.groupBase[Int(b)] != b
                 if !flowing && above != AIR { continue }
-                kind = 5
+                // Falling water is a waterfall, other flowing water a stream, still water a lake or sea surface.
+                kind = Blocks.key(b) == "water_falling" ? 20 : (flowing ? 19 : 5)
             }
             let c = V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5)
             let d2 = simd_length_squared(c - eye)
@@ -332,11 +344,12 @@ extension Game {
             }
         } } }
         let names = [1: "fire", 2: "campfire", 3: "furnace", 4: "lava", 5: "water", 6: "portal", 7: "beacon", 8: "spawner", 12: "portal", 13: "anchor", 14: "bubbles",
-                     15: "fireflies", 16: "drygrass", 17: "heart", 18: "hive"]
+                     15: "fireflies", 16: "drygrass", 17: "heart", 18: "hive", 19: "river", 20: "waterfall"]
         var out: [String: (pos: V3, count: Int)] = [:]
         for (k, v) in best { if let n = names[k] { if let e = out[n] { out[n] = (e.pos, e.count + v.2) } else { out[n] = (v.0, v.2) } } }
         a.emitters = out
         a.caveBiome = sculk >= 4 ? 1 : (moss >= 4 ? 2 : (drip >= 4 ? 3 : 0))
+        a.leafCover = Float(leaves) / 30
         // Room probe: 14 rays (6 axes + 8 diagonals) up to 24 blocks.
         var hits = 0
         var total: Float = 0
@@ -373,6 +386,12 @@ extension Game {
         case .overworld: break
         }
         if mobs.mobs.contains(where: { $0.kind == .wither && $0.health > 0 && simd_length($0.pos - player.pos) < 80 }) { return .boss }
+        // Firefights and raids score as combat; a Steelhold garrison nearby keeps a tense underscore.
+        switch combatLevel() {
+        case 2: return .combat
+        case 1: return .tension
+        default: break
+        }
         if player.headInWater { return .underwater }
         if audio.cave > 0.85 && player.pos.y < Float(SEA - 6) { return .underground }
         if !survival { return .creative }
@@ -385,22 +404,49 @@ extension Game {
         case .desert, .badlands, .erodedBadlands, .woodedBadlands: return .desert
         case .ocean, .deepOcean, .warmOcean, .lukewarmOcean, .deepLukewarmOcean, .coldOcean, .deepColdOcean, .frozenOcean, .deepFrozenOcean, .beach: return .ocean
         case .cherryGrove, .meadow, .flowerForest, .sunflowerPlains: return .grove
+        case .jaggedPeaks, .stonyPeaks, .windsweptHills, .windsweptGravellyHills, .windsweptForest: return .mountain
+        case .swamp, .mangroveSwamp: return .swamp
+        case .jungle, .sparseJungle, .bambooJungle: return .jungle
         default: return .day
         }
     }
 
+    // 2 = a fight is on (garrison soldiers or deck guns hunting the player within 48 blocks, or a raid wave
+    // near the player), held 15 s after it ends; 1 = a Steelhold garrison within 64 blocks; 0 = calm.
+    func combatLevel() -> Int { audio.combat }
+
+    func combatTick(_ dt: Float) {
+        let a = audio
+        a.combatHold = max(0, a.combatHold - dt)
+        a.combatCheck -= dt
+        guard a.combatCheck <= 0 else { return }
+        a.combatCheck = 0.5
+        let p = player.pos
+        var fighting = false, garrison = false
+        for m in mobs.mobs where m.health > 0 {
+            guard Soldier.rank(m.kind) != nil || m.kind == .deckGun else { continue }
+            let d = simd_length(m.pos - p)
+            if d < 64 { garrison = true }
+            if d < 48 && m.aggro { fighting = true; break }
+        }
+        if let r = raid, r.state == 1, simd_length(r.center - p) < 96 { fighting = true }
+        if fighting { a.combatHold = 15 }
+        a.combat = a.combatHold > 0 ? 2 : (garrison ? 1 : 0)
+    }
+
     func musicTick(_ dt: Float) {
+        combatTick(dt)
         guard let snd = sound, let stream = snd.music else { return }
         let m = music
         let want = musicMood()
         // Some moods take over at once (dimension change, boss, the title screen); the rest wait their turn.
-        let hard: Set<MusicMood> = [.title, .ember, .hollow, .boss]
+        let hard: Set<MusicMood> = [.title, .ember, .hollow, .boss, .combat, .tension]
         if let cur = m.mood, stream.isPlaying {
             let curHard = hard.contains(cur), wantHard = hard.contains(want)
             if cur != want && (curHard || wantHard) && !(cur == .title && want == .creative) {
-                stream.stop(fade: 2.5)
+                stream.stop(fade: want == .combat ? 0.8 : 2.5)
                 m.mood = nil
-                m.silence = want == .title ? 1 : Float.random(in: 4...10)
+                m.silence = want == .title ? 1 : (want == .combat ? 0.3 : Float.random(in: 4...10))
                 // Entering a dimension or a boss fight scores at once; leaving the title screen gives the world a quiet minute.
                 m.wait = hard.contains(want) ? 0 : Float.random(in: 30...90)
             }
@@ -409,7 +455,7 @@ extension Game {
         if m.mood != nil && !stream.isPlaying {
             // The piece ended by itself.
             m.mood = nil
-            m.wait = want == .title ? Float.random(in: 8...20) : Float.random(in: 360...900)
+            m.wait = want == .title ? Float.random(in: 8...20) : (want == .combat || want == .tension ? Float.random(in: 1...4) : Float.random(in: 360...900))
         }
         if want == .title && m.wait > 2 { m.wait = 2 }
         // Arriving in the Emberdeep or the Hollow (or a boss appearing) with nothing playing: score it soon.
@@ -420,10 +466,10 @@ extension Game {
         if m.wait <= 0 && AudioSettings.volume(.music) > 0 {
             let seed = UInt64.random(in: 0...UInt64(Int32.max))
             let score = Composer.compose(want, seed: seed)
-            stream.play(score, fadeIn: want == .boss ? 0.5 : 3)
+            stream.play(score, fadeIn: want == .boss || want == .combat ? 0.5 : 3)
             m.mood = want
             m.pieces += 1
-            if want != .title { onToast?("♪ \(score.title)") }
+            if want != .title && want != .combat && want != .tension { onToast?("♪ \(score.title)") }
         }
     }
 }

@@ -99,7 +99,7 @@ extension Game {
         bolts.append(Bolt(pos: at, life: 0.35, seed: UInt64.random(in: 1...UInt64.max)))
         lightningFlash = 1
         let d = simd_length(at - player.pos)
-        sfx(.thunder, max(0.3, 1.4 - d / 120), at: d < 32 ? at : nil)
+        if d > 72 { sfx(.thunderFar, max(0.4, 1.2 - d / 300)) } else { sfx(.thunder, max(0.3, 1.4 - d / 120), at: d < 32 ? at : nil) }
         if d < 24 { sfx(.lightning, 1.2, at: at) }
         let b = IVec3(Int(floor(at.x)), Int(floor(at.y)), Int(floor(at.z)))
         if world.block(b.x, b.y, b.z) == AIR && Blocks.opaque[Int(world.block(b.x, b.y - 1, b.z))] && Blocks.flammable[Int(world.block(b.x, b.y - 1, b.z))] == false {

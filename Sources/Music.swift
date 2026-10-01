@@ -18,6 +18,7 @@ struct MusicNote {
 
 enum MusicMood: String, CaseIterable {
     case title, day, night, underground, underwater, ember, hollow, creative, boss, rain, snow, desert, ocean, grove
+    case mountain, swamp, jungle, tension, combat
     var label: String {
         switch self {
         case .title: return "Title"
@@ -34,6 +35,11 @@ enum MusicMood: String, CaseIterable {
         case .desert: return "Dunes"
         case .ocean: return "Open Water"
         case .grove: return "Blossom"
+        case .mountain: return "High Passes"
+        case .swamp: return "Mire"
+        case .jungle: return "Canopy"
+        case .tension: return "Steelhold"
+        case .combat: return "Firefight"
         }
     }
 }
@@ -488,6 +494,11 @@ enum Composer {
         case .snow: return Spec(scales: ["lydian", "pentMajor", "major"], bpm: 48...60, lead: [.bell, .shimmer, .harp], pad: .pad, bass: false, arp: true, bells: true, drums: 0, density: 0.35, restiness: 0.55, root: 55...64, bars: 32...44, padVel: 0.35)
         case .desert: return Spec(scales: ["phrygian", "harmonicMinor", "pentMinor"], bpm: 58...72, lead: [.flute, .pluck], pad: .drone, bass: true, arp: false, bells: false, drums: 1, density: 0.5, restiness: 0.35, root: 45...52, bars: 36...48, padVel: 0.4)
         case .ocean: return Spec(scales: ["mixolydian", "lydian", "major"], bpm: 52...66, lead: [.harp, .organ, .flute], pad: .pad, bass: true, arp: true, bells: false, drums: 0, density: 0.45, restiness: 0.4, root: 47...55, bars: 36...48, padVel: 0.5)
+        case .mountain: return Spec(scales: ["lydian", "mixolydian", "pentMajor"], bpm: 50...62, lead: [.flute, .organ, .bell], pad: .pad, bass: true, arp: false, bells: true, drums: 0, density: 0.4, restiness: 0.45, root: 45...52, bars: 36...48, padVel: 0.5)
+        case .swamp: return Spec(scales: ["dorian", "aeolian", "pentMinor"], bpm: 54...66, lead: [.pluck, .flute], pad: .drone, bass: true, arp: false, bells: false, drums: 1, density: 0.45, restiness: 0.4, root: 43...50, bars: 32...44, padVel: 0.45)
+        case .jungle: return Spec(scales: ["pentMajor", "pentMinor", "dorian"], bpm: 76...92, lead: [.pluck, .bell, .flute], pad: .pad, bass: true, arp: true, bells: true, drums: 1, density: 0.65, restiness: 0.25, root: 48...56, bars: 36...48, padVel: 0.35)
+        case .tension: return Spec(scales: ["phrygian", "harmonicMinor", "aeolian"], bpm: 70...84, lead: [.metal, .organ], pad: .drone, bass: true, arp: false, bells: false, drums: 1, density: 0.3, restiness: 0.55, root: 38...45, bars: 32...40, padVel: 0.5)
+        case .combat: return Spec(scales: ["harmonicMinor", "phrygian", "aeolian"], bpm: 124...140, lead: [.organ, .metal, .pluck], pad: .pad, bass: true, arp: true, bells: false, drums: 2, density: 0.75, restiness: 0.15, root: 40...47, bars: 40...56, padVel: 0.55)
         case .grove: return Spec(scales: ["pentMajor", "major", "lydian"], bpm: 60...76, lead: [.pluck, .bell, .harp], pad: .pad, bass: true, arp: true, bells: true, drums: 0, density: 0.6, restiness: 0.3, root: 52...60, bars: 36...48, padVel: 0.4)
         }
     }
