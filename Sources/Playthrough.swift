@@ -912,6 +912,7 @@ final class Playthrough {
             let throwFeet = rc - outDir * 6 - V3(0, 1.1, 0)
             game.player.flying = true
             game.player.pos = throwFeet
+            clearMobs(near: rc, 10)                      // nothing in the pearl's way (a voidwalker would catch it)
             if count("ender_pearl") == 0 { give("ender_pearl", 2, bulk: "spare pearls") }
             _ = hold("ender_pearl")
             aim(at: rc + V3(0, 0.15, 0))
@@ -938,12 +939,20 @@ final class Playthrough {
                 for y in (b.y - 1)...(b.y + 1) { for dx in 1...6 where carvable(IVec3(b.x + dx, y, b.z)) { world.setBlock(b.x + dx, y, b.z, AIR) } }
                 game.player.flying = true
                 game.player.pos = tf
+                clearMobs(near: bc, 10)
                 if count("ender_pearl") == 0 { give("ender_pearl", 2, bulk: "spare pearls") }
                 _ = hold("ender_pearl")
                 aim(at: bc + V3(0, 0.15, 0))
+                let heldBefore = Items.key(game.held.item)
                 game.input.rightClicked = true
+                tick(0.05)
+                let thrown = game.projectiles.fireballs.filter { $0.kind == .pearl }.map { String(format: "%.1f,%.1f,%.1f", $0.pos.x, $0.pos.y - Float(YOFF), $0.pos.z) }
                 let home = tick(3) { simd_length(V2(self.game.player.pos.x, self.game.player.pos.z)) < 200 }
-                if !home { info(String(format: "after: player %.2f %.2f %.2f", game.player.pos.x, game.player.pos.y - Float(YOFF), game.player.pos.z)) }
+                if !home {
+                    info(String(format: "after: player %.2f %.2f %.2f; rift at %ld %ld %ld; held %@, pearls in flight %@, menu %@, gliding %@", game.player.pos.x,
+                                game.player.pos.y - Float(YOFF), game.player.pos.z, b.x, b.y - YOFF, b.z, heldBefore, thrown.description,
+                                game.menu.map { "\(type(of: $0))" } ?? "none", game.player.gliding ? "yes" : "no"))
+                }
                 check(home, String(format: "rift: the return rift leads back to the central island (%.0f blocks out)", simd_length(V2(game.player.pos.x, game.player.pos.z))))
             }
         }
@@ -1063,6 +1072,7 @@ final class Playthrough {
         world.setBlock(stem.x, stem.y, stem.z, soul)
         for dx in -1...1 { world.setBlock(stem.x + dx, stem.y + 1, stem.z, soul) }
         inv.remove(id("soul_sand"), 4)
+        clearMobs(near: center(stem), 6)                // a cow standing on the T would block the skulls
         game.survival = true
         for dx in [-1, 1, 0] {
             let top = IVec3(stem.x + dx, stem.y + 1, stem.z)
@@ -1076,6 +1086,12 @@ final class Playthrough {
         }
         let w = game.mobs.mobs.first { $0.kind == .wither }
         check(w != nil, "blight: soul sand T + three skulls summons the Blight")
+        if w == nil {
+            let tops = [-1, 0, 1].map { baseKey(world.block(stem.x + $0, stem.y + 2, stem.z)) }
+            let near = game.mobs.mobs.filter { simd_length($0.pos - center(stem)) < 6 }.map { $0.kind.key }
+            info("blight T: skulls row \(tops), arms \(baseKey(world.block(stem.x, stem.y + 1, stem.z))), held \(Items.key(game.held.item)), " +
+                 "skulls left \(count("wither_skeleton_skull")), mobs near \(near), menu \(game.menu.map { "\(type(of: $0))" } ?? "none")")
+        }
         guard let b = w else { return }
         check(b.phase == 1, "blight: charging after the summon")
         let feet = V3(Float(ax) + 0.5, Float(gy), Float(az) + 14.5)
