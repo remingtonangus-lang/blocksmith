@@ -905,6 +905,7 @@ final class Game {
         }
         if useNow && throwHeld() { return }
         if useNow && useEmptyMap() { swing = 1; return }
+        if useNow && useExplorerMap() { swing = 1; return }
         if useNow {
             switch Items.key(h.item) {
             case "snowball": throwItem(.snowball); return

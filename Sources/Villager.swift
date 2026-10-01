@@ -122,10 +122,10 @@ enum Villagers {
         ],
         "cartographer": [
             [emeraldFor("paper", 24, 16, 2), forEmeralds("map", 7, 1, 12, 1)],
-            [emeraldFor("glass_pane", 11, 16, 10), forEmeralds("map", 13, 1, 12, 5)],
-            [emeraldFor("compass", 1, 12, 20), forEmeralds("map", 14, 1, 12, 10)],
+            [emeraldFor("glass_pane", 11, 16, 10), swap("compass", 1, 13, "sea_temple_explorer_map", 1, 12, 5)],
+            [emeraldFor("compass", 1, 12, 20), swap("compass", 1, 14, "manor_explorer_map", 1, 12, 10)],
             [forEmeralds("item_frame", 7, 1, 12, 15)] + BlockRegistry.colors.map { forEmeralds("\($0.0)_banner", 3, 1, 12, 15) },
-            [forEmeralds("globe_banner_pattern", 8, 1, 12, 30)],
+            [forEmeralds("globe_banner_pattern", 8, 1, 12, 30), swap("compass", 1, 24, "steelhold_explorer_map", 1, 6, 30)],
         ],
         "cleric": [
             [emeraldFor("rotten_flesh", 32, 16, 2), forEmeralds("redstone", 1, 2, 12, 1)],
