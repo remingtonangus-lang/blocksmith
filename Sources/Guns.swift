@@ -86,6 +86,23 @@ enum Guns {
          Recipes.shapeless(["copper_ingot", "redstone", "redstone", "gold_nugget"], "arc_cell", 4)]
     }
 
+    // Tooltip lines for a gun: loaded rounds, ammunition, damage and fire rate.
+    static func tooltip(_ s: ItemStack) -> [String] {
+        guard let gi = index(s.item) else { return [] }
+        let g = all[gi]
+        let ammoName = Items.has(g.ammo) ? Items.def(Items.id(g.ammo)).display : g.ammo
+        var out = ["Loaded: \(s.tag) / \(g.mag)", "Ammo: \(ammoName)"]
+        switch g.shot {
+        case .bullet:
+            let dmg = g.pellets > 1 ? "\(Int(g.damage)) x \(g.pellets)" : "\(Int(g.damage))"
+            out.append("Damage: \(dmg)")
+        case .rocket: out.append("Explosive rockets")
+        case .beam: out.append("Damage: \(Int(g.damage)), ignites")
+        }
+        out.append(g.auto ? String(format: "Automatic, %.0f rounds/s", 1 / g.interval) : String(format: "%.1f shots/s", 1 / g.interval))
+        return out
+    }
+
     // A direction inside a cone of half-angle `spread` around `d`.
     static func scatter(_ d: V3, _ spread: Float) -> V3 {
         guard spread > 0 else { return d }
