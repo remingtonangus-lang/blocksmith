@@ -193,6 +193,11 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
         float fr = 0.25 + 0.75 * pow(1.0 - saturate(-v.y), 4.0);
         col = mix(col, fogColorAlong(r, u) * (0.45 + 0.55 * sunVis) * mix(0.35, 1.0, skyL), pd * fr * 0.8);
     }
+    if (((m.z > 0.15 && m.z < 0.35) || in.face > 5.5) && sunVis > 0.0) {
+        // Foliage and plants seen against the sun glow through (thin-leaf transmission).
+        float back = pow(saturate(dot(v, u.lightDir.xyz)), 4.0);
+        col += albedo * u.sunColor.rgb * back * sunVis * 0.9;
+    }
     if (m.z > 0.4 && m.z < 0.6 && sunVis > 0.0) {
         // Snow and ice glitter: a few texels catch the light.
         float2 tq = floor(in.uv * 16.0) + floor((in.rel + u.eye.xyz).xz) * 17.0;

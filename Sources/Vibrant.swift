@@ -180,7 +180,9 @@ final class Vibrant {
                 spec = 0.22; shin = 40
             } else if n == "snow" || n == "snow_block" || n == "powder_snow" || n == "grass_block_snow" {
                 spec = 0.2; shin = 60; metal = 0.5; wet = 0
-            } else if n.contains("leaves") || n.contains("wool") || n.hasSuffix("_carpet") {
+            } else if n.contains("leaves") {
+                spec = 0.0; wet = 0.6; metal = 0.25       // 0.25 = translucent foliage (backlit glow)
+            } else if n.contains("wool") || n.hasSuffix("_carpet") {
                 spec = 0.0; wet = 0.6
             }
             m[l * 4] = UInt8(spec * 255); m[l * 4 + 1] = UInt8(shin); m[l * 4 + 2] = UInt8(metal * 255); m[l * 4 + 3] = UInt8(wet * 255)
