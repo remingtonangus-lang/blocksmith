@@ -454,6 +454,14 @@ extension Game {
             if d < 48 && m.aggro { fighting = true; break }
         }
         if let r = raid, r.state == 1, simd_length(r.center - p) < 96 { fighting = true }
+        // A crewed vessel within its gun range has the player in its sights.
+        if !fighting && survival && difficulty > 0 {
+            for s in world.ships.list where s.isVessel && !s.captured && s.parent == nil {
+                let d = simd_length(s.pos - p)
+                if d < (s.role == "frigate" ? 64 : 80) { fighting = true; break }
+                if d < 140 { garrison = true }
+            }
+        }
         if fighting { a.combatHold = 15 }
         a.combat = a.combatHold > 0 ? 2 : (garrison ? 1 : 0)
     }
