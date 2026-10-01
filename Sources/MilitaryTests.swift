@@ -169,7 +169,7 @@ extension MobTests {
             game.armsTick(0.05)
             game.player.pos = at(0, 0); game.player.vel = .zero
             if hurtAt < 0 && game.health < 20 { hurtAt = t }
-            if game.health < 8 { game.health = 20 }
+            game.health = 20; game.alive = true; game.menu = nil
             t += 0.05
         }
         check(shooter.aggro && buddy.aggro, "soldiers alert each other")
@@ -191,7 +191,7 @@ extension MobTests {
             mm.update(0.05, game: game)
             game.armsTick(0.05)
             game.player.pos = at(0, 0); game.player.vel = .zero
-            if game.health < 10 { game.health = 20 }
+            game.health = 20; game.alive = true; game.menu = nil
             if tr.soldierBrain.reload > 0 && tr.soldierBrain.cover != nil && !world.canSee(tr.eye, game.player.eye) { hid = true }
             t += 0.05
         }
@@ -201,7 +201,7 @@ extension MobTests {
         game.arms.slugs.removeAll()
 
         // Marksman: holds a laser on the target before firing.
-        game.health = 20
+        game.health = 20; game.alive = true; game.menu = nil
         let mk = Mob(.soldierMarksman, at: at(0, -40)); mk.persistent = true; mk.variant = Guns.sniper; mk.yaw = .pi
         mm.mobs.append(mk)
         var lasered = false, firedSniper = false
@@ -212,6 +212,7 @@ extension MobTests {
             if game.arms.slugs.contains(where: { $0.shooter == ObjectIdentifier(mk) }) { firedSniper = true }
             game.armsTick(0.05)
             game.player.pos = at(0, 0)
+            game.health = 20; game.alive = true
             t += 0.05
         }
         check(lasered && firedSniper, "marksman aims a laser, then fires", "laser \(lasered), shot \(firedSniper)")
@@ -227,6 +228,7 @@ extension MobTests {
             gun.updateDeckGun(0.05, game)
             shells = game.arms.slugs.filter { $0.kind == .shell }.count
             game.player.pos = at(0, 0)
+            game.health = 20; game.alive = true
             t += 0.05
         }
         let face = simd_dot(V2(-sinf(gun.yaw), -cosf(gun.yaw)), simd_normalize(V2(game.player.pos.x - gun.pos.x, game.player.pos.z - gun.pos.z)))
