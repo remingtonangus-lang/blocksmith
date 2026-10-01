@@ -814,6 +814,12 @@ enum Snapshot {
             let le = world.lightAt(ex, ey, ez), lf = world.lightAt(ex, fy, ez)
             print("light probe: eye sky \(le.sky) block \(le.block) in \(Blocks.key(world.block(ex, ey, ez))); floor+1 (y \(fy - YOFF)) sky \(lf.sky) block \(lf.block) in \(Blocks.key(world.block(ex, fy, ez))), daylight \(game.daylight)")
         }
+        do {
+            // The harness doesn't step the player: derive the in-water flags the renderer uses.
+            let e = game.player.eye, f = game.player.pos
+            game.player.headInWater = Blocks.isLiquid(world.block(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))))
+            game.player.inWater = Blocks.isLiquid(world.block(Int(floor(f.x)), Int(floor(f.y + 0.1)), Int(floor(f.z))))
+        }
         if arg("--menu") == nil { game.advToasts.removeAll() }      // no "Advancement Made" toasts over test views
         if CommandLine.arguments.contains("--nightvision") { game.applyEffect(.nightVision, amp: 0, seconds: 300) }
         if CommandLine.arguments.contains("--treecheck") {
