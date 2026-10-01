@@ -351,12 +351,17 @@ enum TextureGen {
             if x == 0 || y == 0 || x == 15 || y == 15 { return clear }
             return hex(0xC3C586, 0.9 + 0.1 * r(x, y, 78))
         }
+        // Stone bricks: two courses of bevelled blocks (lit top/left edge, shaded bottom/right edge),
+        // per-block tone and soft mottling inside.
         p["stone_bricks"] = { x, y in
-            let row = y / 8
-            if y % 8 == 7 || x == (row == 0 ? 15 : 7) { return hex(0x525252) }
-            var v: Float = 0.93 + (r(x, y, 23) - 0.5) * 0.08
-            if y % 8 == 0 { v = 1.08 }
-            return hex(0x7A7A7A, v)
+            let row = y / 8, ly = y % 8
+            let joint = row == 0 ? 15 : 7
+            if ly == 7 || x == joint { return hex(0x4C4C4E) }
+            let left = row == 0 ? 0 : 8
+            let bx = (x - left + 16) % 16 < 8 ? 0 : 1
+            var v: Float = 0.92 + (r(row, bx, 23) - 0.5) * 0.08 + (blot(x, y, 25, 4) - 0.5) * 0.08 + (r(x, y, 26) - 0.5) * 0.04
+            if ly == 0 || x == (joint + 1) % 16 { v += 0.1 } else if ly == 6 || x == (joint + 15) % 16 { v -= 0.08 }
+            return hex(0x7C7C7C, v)
         }
         p["sandstone"] = { x, y in
             var k: Float = 0.96 + 0.06 * r(x, y, 24)
