@@ -125,13 +125,18 @@ enum TextureGen {
         }
     }
 
+    // Log end: bark rim, slightly wobbly growth rings that darken outward, a radial check crack.
     static func rings(_ barkC: UInt32, _ wood: UInt32) -> Painter {
         { x, y in
             let dx = Float(x) - 7.5, dy = Float(y) - 7.5
-            let d = (dx * dx + dy * dy).squareRoot()
-            if x == 0 || y == 0 || x == 15 || y == 15 { return hex(barkC, 0.85) }
-            let ring = Int(d * 1.15) % 2 == 0
-            return hex(wood, ring ? 1 : 0.86)
+            if x == 0 || y == 0 || x == 15 || y == 15 { return hex(barkC, 0.8 + 0.15 * r(x, y, 81)) }
+            let ang = atan2f(dy, dx)
+            let d = (dx * dx + dy * dy).squareRoot() + sinf(ang * 3 + 1.3) * 0.35
+            let ring = Int(d * 1.2) % 2 == 0
+            var k: Float = (ring ? 1.0 : 0.86) - d * 0.012 + (r(x, y, 82) - 0.5) * 0.05
+            if abs(dx - dy * 0.15) < 0.6 && dy < -1 && d < 6 { k *= 0.8 }
+            if d < 1.0 { k *= 0.9 }
+            return hex(wood, k)
         }
     }
 
@@ -270,8 +275,12 @@ enum TextureGen {
         p["birch_leaves"] = foliage(0x80A755, holes: 0.22, salt: 32)
         p["spruce_leaves"] = foliage(0x619961, holes: 0.12, salt: 34)
         p["glass"] = { x, y in
-            if x == 0 || y == 0 || x == 15 || y == 15 { return V4(0.75, 0.86, 0.92, 1) }
-            if (x == y || x == y + 1) && x > 3 && x < 8 { return V4(0.95, 0.98, 1, 1) }
+            let edge = x == 0 || y == 0 || x == 15 || y == 15
+            if edge { return (x + y) % 5 == 0 ? V4(0.9, 0.96, 1, 1) : V4(0.72, 0.84, 0.9, 1) }
+            // Two diagonal glints and a corner sparkle.
+            if (x == y || x == y + 1) && x > 2 && x < 8 { return V4(0.95, 0.98, 1, 1) }
+            if x == y + 3 && x > 5 && x < 9 { return V4(0.9, 0.96, 1, 1) }
+            if x == 13 && y == 2 { return V4(1, 1, 1, 1) }
             return clear
         }
         p["iron_bars"] = { x, y in
