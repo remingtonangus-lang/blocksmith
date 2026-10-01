@@ -161,6 +161,32 @@ enum ShipTest {
     static func scene(_ kind: String, game g: Game, at p: V3, rd: Int) -> V3 {
         let w = g.world
         w.ships.encounters = false
+        if kind == "battle" {
+            // A survival player on the ground off a frigate's beam, the moment its first shells are in the air.
+            let x = Int(floor(p.x)), z = Int(floor(p.z)) - 30
+            let ground = groundTop(w, x, z)
+            let s = w.ships.spawnVessel("frigate", home: IVec3(x, max(ground, SEA) + 28, z), game: g)
+            g.survival = true
+            let sx = Float(x) + 46, sz = Float(z) + 12
+            let gy = Float(groundTop(w, Int(sx), Int(sz)) + 1)
+            var t: Float = 0
+            let dt: Float = 1.0 / 60
+            while t < 16 {
+                g.player.pos = V3(sx, gy, sz); g.player.vel = .zero
+                g.health = 20
+                w.ships.crewTick(dt, game: g)
+                run(g, seconds: dt)
+                t += dt
+                if w.ships.shells.contains(where: { $0.age > 0.3 }) { break }
+            }
+            g.player.pos = V3(sx, gy, sz)
+            let to = s.pos - g.player.eye
+            g.player.yaw = atan2f(-to.x, -to.z)
+            g.player.pitch = atan2f(to.y, horiz(to))
+            print(String(format: "ship battle: %.1f s until shells were in the air (%ld in flight), frigate %.0f blocks away",
+                         t, w.ships.shells.count, simd_length(to)))
+            return g.player.pos
+        }
         if kind == "frigate" || kind == "carriage" {
             let x = Int(floor(p.x)), z = Int(floor(p.z)) - 30
             if kind == "carriage" { levelPad(w, x, z, half: 40) }
