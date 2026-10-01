@@ -238,6 +238,7 @@ final class Ship {
     var captured = false             // the player has steered it: crews stop giving orders
     var fireTimer: Float = 0
     var initialBlocks = 0            // block count when it appeared (hull bar)
+    var soundTimer: Float = 0
 
     // Diagnostics (harness).
     var submerged: Float = 0         // submerged volume last step

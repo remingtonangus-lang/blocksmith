@@ -142,7 +142,27 @@ extension ShipManager {
             }
         }
         for s in list { s.mesh.apply(device: world.device) }
+        if let game { shipSounds(dt, game) }
         stepMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+    }
+
+    // Engines chug with the throttle; hulls cutting through water splash at the bow.
+    private func shipSounds(_ dt: Float, _ g: Game) {
+        for s in list where s.parent == nil && simd_length(s.pos - g.player.pos) < 48 {
+            s.soundTimer -= dt
+            if s.soundTimer > 0 { continue }
+            let speed = simd_length(s.vel)
+            if s.piloted && s.throttle != 0 && s.engines > 0 {
+                g.sfx(.step(.stone), 0.25 + 0.2 * abs(s.throttle), at: s.toWorld(s.com))
+                s.soundTimer = 0.45 - 0.2 * abs(s.throttle)
+            } else {
+                s.soundTimer = 0.5
+            }
+            if s.submerged > 0 && speed > 2.5 && Float.random(in: 0..<1) < 0.35 {
+                let bow = s.toWorld(s.com + s.fwd * ((s.localMax - s.localMin).z * 0.5))
+                g.sfx(.splash, min(0.6, speed * 0.06), at: bow)
+            }
+        }
     }
 
     private func angleDelta(_ a: Float, _ b: Float) -> Float {
