@@ -42,6 +42,22 @@ jobs:
           set -o pipefail
           bash ./bench.sh 2>&1 | tee bench.log
 
+      - name: Debug rerun of a crashed benchmark scene
+        if: always() && steps.bench.outcome == 'failure'
+        continue-on-error: true
+        run: |
+          S=$(grep -E 'Segmentation fault|Abort trap|Illegal instruction|Trace/BPT trap|Bus error' bench.log | head -1 || true)
+          [ -n "$S" ] || { echo "benchmarks failed without a crash (see compare)"; exit 0; }
+          # The crashed scene is the one after the last scene that finished.
+          SCENE=$(grep -o 'bench: [a-z0-9]* took' bench.log | tail -1 | awk '{print $2}')
+          case "$SCENE" in flight8) NEXT=flight16;; flight16) NEXT=flight24;; fluids) NEXT=flight8;; *) NEXT=flight8;; esac
+          bash ./build.sh debug 2>&1 | tail -3
+          echo "rerun (debug build) of bench scene $NEXT" > benchdebug.log
+          lldb --batch -o run -o 'bt 40' -o 'thread backtrace all' -- build/Blocksmith.app/Contents/MacOS/Blocksmith \
+            --bench snaps/bench_debug.json --scenes "$NEXT" >> benchdebug.log 2>&1 || true
+          grep -v '^bench flight' benchdebug.log | tail -150
+          bash ./build.sh 2>&1 | tail -1
+
       - name: Profile (sample)
         if: always() && steps.build.outcome == 'success'
         continue-on-error: true
@@ -92,7 +108,7 @@ jobs:
           rm -rf "$PUB"; mkdir -p "$PUB"
           cp snaps/*.png "$PUB/" 2>/dev/null || true
           if [ -d snaps/sounds ]; then cp -r snaps/sounds "$PUB/sounds"; fi
-          cp build.log snap.log debug.log bench.log profile.log playthrough.log snaps/bench.json snaps/bench.md snaps/profile_*.txt "$PUB/" 2>/dev/null || true
+          cp build.log snap.log debug.log benchdebug.log bench.log profile.log playthrough.log snaps/bench.json snaps/bench.md snaps/profile_*.txt "$PUB/" 2>/dev/null || true
           cd "$PUB"
           {
             echo "# Blocksmith CI snapshots"
