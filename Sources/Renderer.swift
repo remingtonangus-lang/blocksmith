@@ -269,6 +269,9 @@ final class Renderer: NSObject, MTKViewDelegate {
     var postParams = PostParams()
     private var shadowList: [(Chunk, Int)] = []
     private var flashScratch: [V4] = []
+    private var lastShadow = Vibrant.LightFrame()
+    private var shadowAge = 0
+    var shadowFresh = false
 
     // Camera position and angles: first person, or pulled back behind / in front of the player (F5),
     // stopping short of blocks.
@@ -309,8 +312,24 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
         let rs = max(0.5, min(1, game.renderScale))
         v.ensure(max(1, Int(Float(width) * rs)), max(1, Int(Float(height) * rs)))
-        lightFrame = Vibrant.lightFrame(game: game, eye: cameraEye().eye)
-        shadowPass(cmd, v)
+        // The shadow map is re-rendered only when the light turned or the snapped centre moved (or every
+        // 8th frame for block edits); otherwise last frame's map and matrix are reused.
+        let lf = Vibrant.lightFrame(game: game, eye: cameraEye().eye)
+        shadowAge += 1
+        let turned = simd_dot(lf.dir, lastShadow.dir) < 0.99995
+        let moved = simd_length(lf.center - lastShadow.center) > 1.0
+        if turned || moved || shadowAge >= 8 || lf.shadowStrength != lastShadow.shadowStrength || shadowFresh == false {
+            lightFrame = lf
+            shadowPass(cmd, v)
+            lastShadow = lf
+            shadowAge = 0
+            shadowFresh = true
+        } else {
+            var keep = lf
+            keep.lightVP = lastShadow.lightVP
+            keep.center = lastShadow.center
+            lightFrame = keep
+        }
         let a = MTLRenderPassDescriptor()
         a.colorAttachments[0].texture = v.hdr
         a.colorAttachments[0].loadAction = .clear
