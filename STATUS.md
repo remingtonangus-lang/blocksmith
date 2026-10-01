@@ -54,7 +54,8 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
         a statue, honeycomb/axe care, axe revives a statue); mobtests checks.
   - [x] Copper set: tools, spear, armour, nuggets, copper torch, lanterns, bars, chains, doors, trapdoors (all stages).
   - [x] Wooden shelves (3 display slots, swap with the held stack); Dried Wailer hatches a Wailerling in water.
-  - [ ] Lightning rod oxidation; copper buttons pressed by golems; shelves swapping with the hotbar when powered.
+  - [x] Lightning rod oxidation; powered shelves (rows of up to 3) swap their items with the hotbar.
+  - [ ] Copper buttons pressed by golems.
   - [x] Biome balance pass: less snow, more (wooded) badlands, windswept hills, stony shores, less sparse jungle.
   - [ ] Lakes, deltas, fjords in game (tours now stand back to frame the feature: check tour_lake / tour_delta).
   - [ ] Far ocean in tour_777_aerial shows dark vertical sticks above the water near the horizon (kelp through LOD water?).

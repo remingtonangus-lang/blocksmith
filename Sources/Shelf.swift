@@ -84,6 +84,32 @@ extension Game {
         guard let t = target, t.hit == p else { return }
         let b = world.block(p.x, p.y, p.z)
         let f = min(3, Int(b - Blocks.groupBase[Int(b)]))
+        // Powered: the shelf (with up to two more of the same facing beside it, left to right) swaps everything it holds
+        // with the hotbar, three slots per shelf from the first hotbar slot.
+        if world.redstone.received(p) > 0 {
+            let leftV = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, -1), IVec3(0, 0, 1)][f]
+            func sameShelf(_ q: IVec3) -> Bool { world.block(q.x, q.y, q.z) == b }
+            var first = p
+            var n = 1
+            while n < 3 && sameShelf(first + leftV) { first = first + leftV; n += 1 }
+            var row: [IVec3] = []
+            var q = first
+            while row.count < 3 && sameShelf(q) { row.append(q); q = q - leftV }
+            var k = 0
+            for sp in row {
+                let sbe = world.blockEntities[sp] ?? BlockEntity(.display)
+                world.blockEntities[sp] = sbe
+                for slot in 0..<3 {
+                    let tmp = sbe.container[slot]
+                    sbe.container[slot] = inventory.main[k]
+                    inventory.main[k] = tmp
+                    k += 1
+                }
+            }
+            sfx(.itemFrameAdd, 0.7, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
+            swing = 1
+            return
+        }
         let be = world.blockEntities[p] ?? BlockEntity(.display)
         world.blockEntities[p] = be
         let hp = hitPoint(t) - V3(Float(p.x), Float(p.y), Float(p.z))
