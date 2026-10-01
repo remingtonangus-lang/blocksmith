@@ -682,6 +682,21 @@ enum Snapshot {
             game.player.pos = pos
         }
         if CommandLine.arguments.contains("--mobtests") && !MobTests.run(game: game, world: world, pos: pos, rd: rd) { return 1 }
+        if let secs = Double(arg("--fire") ?? "") {
+            // Hold the trigger for a while (guns in flight, muzzle flash, soldiers answering), camera held still.
+            let keep = (game.player.pos, game.player.yaw, game.player.pitch)
+            game.paused = false
+            game.player.flying = true
+            for i in 0..<Int(secs * 20) {
+                game.input.leftDown = true
+                if i == 0 { game.input.leftClicked = true }
+                game.tick(0.05)
+                game.player.pos = keep.0; game.player.vel = .zero; game.player.yaw = keep.1; game.player.pitch = keep.2
+                game.health = max(game.health, 20)
+            }
+            game.input.leftDown = false
+            print("fired \(game.arms.shotsFired) shots, \(game.arms.hits) hits, \(game.arms.slugs.count) rounds in flight")
+        }
         if let secs = Double(arg("--ticks") ?? "") {
             // Let the world run (mobs, sparkstone, villagers) with the camera held still.
             let keep = (game.player.pos, game.player.yaw, game.player.pitch)
