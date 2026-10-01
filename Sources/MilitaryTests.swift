@@ -295,6 +295,17 @@ extension MobTests {
             tt += 0.05
         }
         check(world.block(ex, gy, ez) == AIR, "zombies trample turtle eggs", String(format: "%.1f s", tt))
+        // Explorer map: points at the nearest Steelhold.
+        game.inventory.main.slots = Array(repeating: .empty, count: 36)
+        game.selected = 0
+        game.inventory.held = ItemStack(Items.id("steelhold_explorer_map"), 1)
+        let used = game.useExplorerMap()
+        let md = game.maps[game.held.tag]
+        let target = world.gen.structures?.nearest("military_base", x: Int(pos.x), z: Int(pos.z), maxRegions: 10)
+        check(used && Items.key(game.held.item) == "filled_map" && md?.marker != nil && target != nil
+              && abs((md?.marker?[0] ?? 0) - ((target?.min.x ?? 0) + (target?.max.x ?? 0)) / 2) <= 1,
+              "steelhold explorer map marks the nearest fortress", "marker \(md?.marker ?? [])")
+        game.inventory.held = .empty
         game.player.pos = pos
         game.health = 20
     }
