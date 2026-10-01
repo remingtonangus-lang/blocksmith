@@ -21,6 +21,18 @@ enum ShipTest {
         return y
     }
 
+    // Flattens a grass pad (clears 12 blocks above it) centred on x, z; returns the y of the first air block above it.
+    @discardableResult
+    static func levelPad(_ w: World, _ x: Int, _ z: Int, half: Int) -> Int {
+        let y = groundTop(w, x, z) + 1
+        for dz in -half...half { for dx in -half...half {
+            for yy in y..<(y + 12) { w.setBlockAsync(x + dx, yy, z + dz, AIR) }
+            w.setBlockAsync(x + dx, y - 1, z + dz, GRASS)
+            for yy in (y - 4)..<(y - 1) where !Blocks.collide[Int(w.rawBlock(x + dx, yy, z + dz))] { w.setBlockAsync(x + dx, yy, z + dz, DIRT) }
+        } }
+        return y
+    }
+
     // Builds a demo vessel with its lowest layer at o; returns the helm cell. Bow toward -Z.
     @discardableResult
     static func build(_ w: World, _ kind: String, at o: IVec3) -> IVec3 {
@@ -149,6 +161,7 @@ enum ShipTest {
         w.ships.encounters = false
         if kind == "frigate" || kind == "carriage" {
             let x = Int(floor(p.x)), z = Int(floor(p.z)) - 30
+            if kind == "carriage" { levelPad(w, x, z, half: 40) }
             let ground = groundTop(w, x, z)
             let s = w.ships.spawnVessel(kind, home: IVec3(x, kind == "frigate" ? max(ground, SEA) + 40 : ground + 1, z), game: g)
             run(g, seconds: kind == "frigate" ? 4 : 5)
@@ -445,10 +458,10 @@ enum ShipTest {
         let fg = w.ships.spawnVessel("frigate", home: IVec3(Int(vf.x), max(groundTop(w, Int(vf.x), Int(vf.z)), SEA) + 40, Int(vf.z)), game: g)
         let fy = fg.pos.y, fp = fg.pos
         g.player.pos = vf + V3(0, 80, 0)
-        for _ in 0..<6 { w.ships.crewTick(1, game: g); run(g, seconds: 1) }
-        print(String(format: "physicstest frigate: %ld blocks %.0f t, %ld balloons, lift %.2f, 6 s patrol: %.1f blocks, altitude change %.2f, up %.3f",
+        for _ in 0..<10 { w.ships.crewTick(1, game: g); run(g, seconds: 1) }
+        print(String(format: "physicstest frigate: %ld blocks %.0f t, %ld balloons, lift %.2f, 10 s patrol: %.1f blocks, altitude change %.2f, up %.3f",
                      fg.blockCount, fg.mass, fg.balloons, fg.liftLevel, horiz(fg.pos - fp), fg.pos.y - fy, upright(fg)))
-        check(abs(fg.pos.y - fy) < 3 && upright(fg) > 0.95 && horiz(fg.pos - fp) > 5, "frigate patrols at its altitude")
+        check(abs(fg.pos.y - fy) < 3 && upright(fg) > 0.95 && horiz(fg.pos - fp) > 8, "frigate patrols at its altitude")
         if let tur = w.ships.turrets(of: fg).first {
             let aim = fg.pos + fg.dirToWorld(V3(1, 0, 0)) * 40
             tur.aimAt = aim
@@ -461,6 +474,7 @@ enum ShipTest {
         let vc = land + V3(15, 0, -40)
         _ = w.loadSync(center: vc, radius: max(rd, 6))
         let cx = Int(vc.x), cz = Int(vc.z)
+        levelPad(w, cx, cz, half: 40)
         let cg = w.ships.spawnVessel("carriage", home: IVec3(cx, groundTop(w, cx, cz) + 1, cz), game: g)
         run(g, seconds: 3)
         let c0 = cg.pos

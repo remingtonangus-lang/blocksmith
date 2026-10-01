@@ -118,6 +118,8 @@ enum Vessels {
         // Engine room and stern propellers.
         for x in -2...2 { b.set(x, 1, 44, "ship_engine") }
         for x in [-3, -1, 1, 3] { b.set(x, 2, L, "ship_propeller[south]") }
+        // Two more on outriggers beside the stern.
+        for x in [-6, 6] { b.set(x, 3, 40, "spruce_planks"); b.set(x, 3, 41, "ship_propeller[south]") }
         // Lift envelope on posts.
         for z in 4..<44 { for y in 11...16 { for x in -6...6 {
             let ex = Float(x) / 6.2, ey = (Float(y) - 13.5) / 3.2, ez = (Float(z) - 24) / 20.5

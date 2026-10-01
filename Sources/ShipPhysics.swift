@@ -9,7 +9,7 @@ enum ShipTuning {
     static let balloonLift: Float = 2.0         // tonnes held up by one lift balloon
     static let propThrust: Float = 120          // per powered propeller at full throttle
     static let paddleThrust: Float = 18         // the helm alone moves a small boat slowly
-    static let wheelAccel: Float = 4            // drive per wheel: its share of the weight times this (b/s^2)
+    static let wheelAccel: Float = 7            // drive per wheel: its share of the weight times this (b/s^2)
     static let perEngine = 4                    // propellers / wheels one engine drives
     static let hullRadius: Float = 0.45
 }
