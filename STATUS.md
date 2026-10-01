@@ -210,6 +210,25 @@ Findings / changes (performance branch):
 - Landing / sprint dust, item equip animation, denser rain with ground splashes lit by daylight.
 - Village life: beds and sleeping, food pickup + breeding, farmers harvesting, golems, midnight zombie sieges.
 
+## Handoff (2026-10-01, session claude/eloquent-lovelace-bsc5v1 winding down)
+Last pushed commit d92f9b0: build + 120 snapshots green on CI (ci-snaps-claude-eloquent-lovelace-bsc5v1).
+Built in this session (latest round): Blocksmith naming pass + selftest naming audit (0 flagged); pause/options/
+create-world/death/title menus; recipe book; F1/F2/F5 + third-person player model; command console; mob A*
+pathfinding (doors for villagers/illagers); swim/crawl/forced-crouch poses; auto-jump; Ashen Grove biome (Ashbark
+wood family, moss, nightblooms, Barkwraith + heart); resin, bamboo planks/mosaic, firefly bush, bush, leaf litter,
+wildflowers, dry grass, cactus flowers; leaning wall torches; solid/cutout render split, fast far leaves, pooled
+mesh slabs; reference torch-light curve; ruined portals grounded and kept out of spawn; trees kept out of structure
+footprints; per-branch CI snapshot branches; harness: median-of-30 timing, memory/light probes, camera rescue,
+cave-biome --find, --ground, --nightvision, --treecheck, --pathtest, --camera/--swim.
+Left in this area (for the integration session):
+- Underwater view: seabed is no longer black (water-coloured ambient) but the underwater fog ends at 20 blocks, so
+  deep floors (seabed_warm/seabed_deep, ~27-33 blocks away) vanish into flat blue; lengthen underwater fog by depth/
+  daylight (reference sees ~40-60 blocks in clear daytime water).
+- rd 24 resident ~2.0-2.3 GB on the Mac vs ~1 GB accounted (see notes below) - performance work.
+- Wall torches lean in 1/16 steps (boxes are integer); a real tilt needs fractional model vertices.
+- treecheck reports 1-3 trunks per 200 in a neighbouring biome (trees straddling biome borders) - expected.
+Known failing tests: none (snap.sh and --selftest pass on CI at d92f9b0).
+
 ## Notes for the parallel sessions
 - Performance session: rd 24 resident is ~2.3 GB on the Mac while block+light arrays are ~740 MB (2601 chunks x ~285 KB)
   and Metal ~218 MB (harness prints both). Unaccounted ~1.3 GB: suspects are per-job mesher scratch (48^3 regions,
