@@ -92,7 +92,9 @@ enum AudioTests {
             g.player.flying = true
             g.player.pos = V3(p.x, Float(w.topY(x, z) + 3), p.z)
             g.player.vel = .zero
+            g.player.headInWater = false
             g.audio.cave = 0
+            g.audio.rainTimer = 0
             g.audio.biomeTimer = 0
             return true
         }
@@ -107,7 +109,13 @@ enum AudioTests {
             g.weather.raining = true; g.weather.rain = 1
             let r = listen(2)
             check(heard(r, "loop:snowwind"), "snow wind while it snows", loops(r))
-            check(r["loop:rain"] == nil && r["loop:rainleaves"] == nil, "no rain patter while it snows")
+            check(r["loop:rain"] == nil && r["loop:rainleaves"] == nil && r["loop:rainroof"] == nil, "no rain patter while it snows", loops(r))
+            g.weather.raining = false; g.weather.rain = 0
+        }
+        if visit("plains") {
+            g.weather.raining = true; g.weather.rain = 1
+            let r = listen(2)
+            check(r["loop:rain"] != nil && r["loop:snowwind"] == nil, "rain heard in the open on the plains", loops(r))
             g.weather.raining = false; g.weather.rain = 0
         }
         print(String(format: "audiotest: %ld failed (%.1f s)", fails, CFAbsoluteTimeGetCurrent() - t0))

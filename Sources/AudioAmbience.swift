@@ -15,6 +15,7 @@ final class AudioState {
     var caveTimer: Float = 25
     var moodTimer: Float = 40
     var rainExposure: Float = 0
+    var rainNear: Float = 0                 // share of nearby columns where it rains (not snows)
     var rainTimer: Float = 0
     var asked: Set<String> = []
     var lastHurtSound: Float = -10
@@ -182,18 +183,22 @@ extension Game {
             a.rainTimer -= dt
             if a.rainTimer <= 0 {
                 a.rainTimer = 0.6
-                var exposed = 0, total = 0
+                var exposed = 0, raining = 0, total = 0
                 for dz in stride(from: -8, through: 8, by: 4) { for dx in stride(from: -8, through: 8, by: 4) {
                     let x = Int(floor(p.x)) + dx, z = Int(floor(p.z)) + dz
                     total += 1
-                    if precipitation(x, Int(p.y), z) == 1 && skyExposed(x, Int(p.y), z) { exposed += 1 }
+                    guard precipitation(x, Int(p.y), z) == 1 else { continue }
+                    raining += 1
+                    if skyExposed(x, Int(p.y), z) { exposed += 1 }
                 } }
                 a.rainExposure = Float(exposed) / Float(max(1, total))
+                a.rainNear = Float(raining) / Float(max(1, total))
             }
             let r = weather.rain
             ask("rain", .rain, r * min(1, a.rainExposure * 1.6) * 0.9)
-            // Under a roof near the surface: rain on the roof instead.
-            if a.rainExposure < 0.5 && a.cave < 0.9 { ask("rainroof", .rainRoof, r * (1 - a.rainExposure) * (1 - a.cave) * 0.6) }
+            // Under a roof near the surface: rain on the roof instead (only where it rains, not snows).
+            let roofed = max(0, a.rainNear - a.rainExposure)
+            if a.rainExposure < 0.5 && a.cave < 0.9 && roofed > 0.3 { ask("rainroof", .rainRoof, r * roofed * (1 - a.cave) * 0.6) }
         }
         weatherAudioTick(dt, ask: ask)
         movingWaterTick(ask: ask)
