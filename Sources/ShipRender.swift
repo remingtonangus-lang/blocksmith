@@ -17,6 +17,8 @@ final class ShipMesh {
         var transQuads = 0
     }
     private(set) var sections: [Int: Sec] = [:]
+    var wheelSecs: [[Sec]] = []      // per Ship.wheelParts entry (ShipRenderer builds them)
+    var wheelGen = -1
     private var layoutGen = 0
     private let lock = NSLock()
     private var results: [(gen: Int, full: Bool, secs: [(Int, SectionMesh, V3)])] = []
@@ -95,7 +97,7 @@ final class ShipMesh {
         let vh = sy + 16
         let nsec = min(NSEC - 1, (vh + 15) / 16)
         let skyT = Blocks.sky
-        // Propellers are drawn on their own, turning (ShipRenderer.propMesh), so the hull mesh leaves them out.
+        // Propellers and wheels are drawn on their own, turning (ShipRenderer), so the hull mesh leaves them out.
         let kinds = ShipParts.kinds
         var stores: [Int: (BlockStore, [Int16])] = [:]
         let empty = (BlockStore([]), [Int16](repeating: -1, count: CSQ))
@@ -115,7 +117,7 @@ final class ShipMesh {
                         let gx = cx * 16 + x
                         if gx >= sx { break }
                         let b = blocks[gx + gz * sx + y * sx * sz]
-                        if b == AIR || (spinning && kinds[Int(b)] == .propeller) { continue }
+                        if b == AIR || (spinning && (kinds[Int(b)] == .propeller || kinds[Int(b)] == .wheel)) { continue }
                         a[x + z * 16 + vy * CSQ] = b
                         if skyT[Int(b)] { h[x + z * 16] = Int16(vy) }
                     }
@@ -269,15 +271,33 @@ final class ShipRenderer {
     private let device: MTLDevice
     private var propMeshes: [BlockID: ShipMesh.Sec] = [:]
 
+    private func secs(_ built: [(Int, SectionMesh, V3)]) -> [ShipMesh.Sec] {
+        var out: [ShipMesh.Sec] = []
+        for (_, m, origin) in built where !m.opaque.isEmpty {
+            var sec = ShipMesh.Sec(origin: origin)
+            sec.opaque = m.opaque.withUnsafeBytes { MeshArena.shared.alloc(device, $0) }
+            sec.opaqueQuads = m.opaque.count / 8
+            sec.solidQuads = m.solidQuads
+            out.append(sec)
+        }
+        return out
+    }
+
+    // Wheel parts meshed on their own (small grids; redone only when the parts change).
+    private func wheelMeshes(_ s: Ship) -> [[ShipMesh.Sec]] {
+        if s.mesh.wheelGen != s.wheelGen {
+            s.mesh.wheelSecs = s.wheelParts.map { p in
+                secs(ShipMesh.build(sx: p.size.x, sy: p.size.y, sz: p.size.z, blocks: p.blocks, only: nil, spinning: false))
+            }
+            s.mesh.wheelGen = s.wheelGen
+        }
+        return s.mesh.wheelSecs
+    }
+
     // One propeller block meshed on its own (cached per facing state), drawn turned about its shaft.
     private func propMesh(_ b: BlockID) -> ShipMesh.Sec? {
         if let m = propMeshes[b] { return m }
-        guard let r = ShipMesh.build(sx: 1, sy: 1, sz: 1, blocks: [b], only: nil, spinning: false).first(where: { !$0.1.opaque.isEmpty }) else { return nil }
-        let m = r.1
-        var sec = ShipMesh.Sec(origin: r.2)
-        sec.opaque = m.opaque.withUnsafeBytes { MeshArena.shared.alloc(device, $0) }
-        sec.opaqueQuads = m.opaque.count / 8
-        sec.solidQuads = m.solidQuads
+        guard let sec = secs(ShipMesh.build(sx: 1, sy: 1, sz: 1, blocks: [b], only: nil, spinning: false)).first else { return nil }
         propMeshes[b] = sec
         return sec
     }
@@ -369,6 +389,28 @@ final class ShipRenderer {
                 enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quads,
                                           indexBufferOffset: first * 6 * 4)
                 drawCalls += 1
+            }
+            // Wheels, rolled about their axles (across the heading).
+            if !s.wheelParts.isEmpty {
+                let meshes = wheelMeshes(s)
+                let axle = simd_normalize(simd_cross(s.fwd, V3(0, 1, 0)) + V3(1e-6, 0, 0))
+                for (i, p) in s.wheelParts.enumerated() where i < meshes.count {
+                    let roll = float4x4(simd_quatf(angle: -s.rollDist / max(0.5, p.radius), axis: axle))
+                    let lo = V3(Float(p.lo.x), Float(p.lo.y), Float(p.lo.z))
+                    let wmodel: float4x4 = m * translationMatrix(p.center) * roll * translationMatrix(lo - p.center)
+                    for sec in meshes[i] {
+                        guard let buf = sec.opaque else { continue }
+                        let total = min(sec.opaqueQuads, Renderer.maxQuads), solid = min(sec.solidQuads, total)
+                        let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
+                        if count <= 0 { continue }
+                        var rec = ShipDrawRec(model: wmodel, origin: V4(sec.origin, 0))
+                        enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
+                        enc.setVertexBytes(&rec, length: MemoryLayout<ShipDrawRec>.stride, index: 2)
+                        enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quads,
+                                                  indexBufferOffset: first * 6 * 4)
+                        drawCalls += 1
+                    }
+                }
             }
             // Propellers, turned about their shafts.
             for (c, d) in s.props {

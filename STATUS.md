@@ -55,10 +55,10 @@ ShipRender.swift, ShipPlay.swift, ShipBlocks.swift, ShipTest.swift).
   more than 55% of its hull founders: the crew stops, the guns fall silent and a frigate's envelope lets it down.
   Harness: `--ship gunboat|frigate|carriage`; bench scene `ships`.
 - Piloting: ships and aircraft hold their throttle like an engine telegraph (W/S or the stick move it, letting go
-  keeps it, it pauses at stop); wheeled vehicles drive only while W is held. Propellers spin with throttle and power.
+  keeps it, it pauses at stop); wheeled vehicles drive only while W is held. Propellers spin with throttle and power; wheels
+  (each connected group of wheel blocks, e.g. a 5x5 disc) roll with the ground speed.
 - A ship cut in two becomes two ships (hull splitting). A hull destroyed under a turret sets the turret loose.
-- Known gaps: mobs aboard use approximate collision; ship light is baked in ship space (no world shadows/caves);
-  wheels don't turn visually yet.
+- Known gaps: mobs aboard use approximate collision; ship light is baked in ship space (no world shadows/caves).
 - Next: tuning from CI numbers, soldier crews once the Gameplay session adds soldiers (MobKind "soldier" is
   picked up automatically).
 

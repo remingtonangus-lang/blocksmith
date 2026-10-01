@@ -145,6 +145,7 @@ extension ShipManager {
         }
         for s in list {
             s.mesh.apply(device: world.device)
+            if !s.wheelParts.isEmpty { s.rollDist += simd_dot(s.vel, s.dirToWorld(s.fwd)) * dt }
             // Propellers spin up with the throttle when engines drive them, and run down slowly.
             if !s.props.isEmpty {
                 let want: Float = s.piloted && s.engines > 0 ? s.throttle * 30 : 0

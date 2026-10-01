@@ -195,6 +195,11 @@ final class Ship {
     var helm: IVec3?
     var props: [(V3, V3)] = []       // propeller centre, thrust direction (ship space)
     var wheels: [V3] = []
+    // Wheel parts (connected wheel cells, e.g. a 5x5 disc) drawn rolling about their own centres.
+    struct WheelPart { var lo: IVec3; var size: IVec3; var center: V3; var radius: Float; var blocks: [BlockID] }
+    var wheelParts: [WheelPart] = []
+    var wheelGen = 0                 // bumped when the parts change (the renderer remeshes them)
+    var rollDist: Float = 0          // distance rolled along the heading (wheel angle = -rollDist / radius)
     var wheelBase = 0                // wheel cells in the lowest wheel row (they carry the load)
     var wings: [V3] = []
     var sails = 0                    // wool blocks (catch the wind while someone steers)
@@ -292,6 +297,43 @@ final class Ship {
 
     // Recomputes mass, centre of mass, inertia, parts, hull cells, buoyancy buckets and the dry mask.
     // Keeps the world position of the ship-space origin fixed (pos follows the moving centre of mass).
+    // Groups wheel cells into connected parts; each one turns about its centre, on the axle across the heading.
+    private func findWheelParts() {
+        var parts: [WheelPart] = []
+        if !wheels.isEmpty {
+            let g = grid
+            let kinds = ShipParts.kinds
+            var seen = Set<IVec3>()
+            for w in wheels {
+                let start = IVec3(Int(floor(w.x)), Int(floor(w.y)), Int(floor(w.z)))
+                if seen.contains(start) { continue }
+                var cells: [IVec3] = [start]
+                seen.insert(start)
+                var i = 0
+                while i < cells.count {
+                    let c = cells[i]; i += 1
+                    for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
+                        let n = c + d
+                        if !g.inside(n.x, n.y, n.z) || seen.contains(n) || kinds[Int(g.get(n.x, n.y, n.z))] != .wheel { continue }
+                        seen.insert(n); cells.append(n)
+                    }
+                }
+                var lo = start, hi = start
+                for c in cells { lo = IVec3(min(lo.x, c.x), min(lo.y, c.y), min(lo.z, c.z)); hi = IVec3(max(hi.x, c.x), max(hi.y, c.y), max(hi.z, c.z)) }
+                let size = IVec3(hi.x - lo.x + 1, hi.y - lo.y + 1, hi.z - lo.z + 1)
+                var blocks = [BlockID](repeating: AIR, count: size.x * size.y * size.z)
+                for c in cells { blocks[(c.x - lo.x) + (c.z - lo.z) * size.x + (c.y - lo.y) * size.x * size.z] = g.get(c.x, c.y, c.z) }
+                let center = V3(Float(lo.x + hi.x + 1), Float(lo.y + hi.y + 1), Float(lo.z + hi.z + 1)) * 0.5
+                // Radius in the rolling plane (heading and up).
+                let along = abs(fwd.x) > abs(fwd.z) ? size.x : size.z
+                parts.append(WheelPart(lo: lo, size: size, center: center, radius: Float(max(along, size.y)) * 0.5, blocks: blocks))
+            }
+        }
+        let changed = parts.count != wheelParts.count || zip(parts, wheelParts).contains { $0.lo != $1.lo || $0.blocks != $1.blocks }
+        wheelParts = parts
+        if changed { wheelGen += 1 }
+    }
+
     func rebuild() {
         let g = grid
         let sx = g.sx, sy = g.sy, sz = g.sz
@@ -326,6 +368,7 @@ final class Ship {
             }
         } } }
         blockCount = n
+        findWheelParts()
         let lowest = wheels.map { $0.y }.min() ?? 0
         wheelBase = wheels.filter { $0.y < lowest + 0.5 }.count
         localMin = n > 0 ? lo : V3(0, 0, 0)
