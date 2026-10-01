@@ -44,6 +44,7 @@ final class Armory {
     var hitMarker: Float = 0
     var heldGun = -1
     var heldSlot = -1
+    var placeCheck: Float = 0
     var shotsFired = 0             // harness counters
     var hits = 0
 
@@ -437,6 +438,15 @@ extension Game {
             a.recoilDebt -= r
         }
         if heldGun == nil { a.recoilDebt = 0 }
+        // Once a second: inside a Steelhold fortress?
+        a.placeCheck -= dt
+        if a.placeCheck <= 0 {
+            a.placeCheck = 1
+            let p = player.pos
+            if dim.dim == .overworld, world.gen.structures?.structure(at: Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)), kind: "military_base") != nil {
+                achieve("steelhold")
+            }
+        }
     }
 
     // FOV scale while aiming a gun.
