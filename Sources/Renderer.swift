@@ -541,9 +541,20 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let nd = V2(cp.x / cp.w, cp.y / cp.w)
                     pp.sun.x = nd.x * 0.5 + 0.5; pp.sun.y = 0.5 - nd.y * 0.5
                     let off = max(abs(nd.x), abs(nd.y))
-                    pp.sun.z = 0.45 * max(0, 1 - max(0, off - 1) / 0.8) * (1 - min(1, game.weather.rain)) * caveScale
+                    let onScreen: Float = max(0, 1 - max(0, off - 1) / 0.8)
+                    let clearSky: Float = 1 - min(1, game.weather.rain)
+                    pp.sun.z = 0.45 * onScreen * clearSky * caveScale
                 }
                 pp.sunCol = V4(lf.color * 1.6, lf.hazeStrength * caveScale)
+            }
+            if hasSky && !underwater && game.blindFog == nil {
+                // Morning and evening mist settles in the lowlands (sea level and a few blocks up); rain thickens it.
+                let tod = Float(game.dayFraction)
+                let morning = max(0, 1 - abs(tod - 0.03) / 0.09), evening = max(0, 1 - abs(tod - 0.5) / 0.08)
+                let rain = min(1, game.weather.rain)
+                let dens: Float = (0.004 + 0.022 * max(morning, evening * 0.6) + 0.012 * rain) * caveScale
+                pp.mist = V4(fogColor * 0.95 + lf.color * 0.25, dens)
+                pp.mistH = V4(Float(SEA) - eye.y + 2, 9, 0, 0)
             }
             postParams = pp
         }

@@ -366,6 +366,8 @@ struct PostParams {
     float4 sun;      // xy = sun position (uv), z = god ray strength, w = bloom strength
     float4 sunCol;   // rgb = sun colour, w = haze strength
     float4 grade;    // x = exposure, y = saturation, z = contrast, w = vignette
+    float4 mist;     // rgb = mist colour, w = density
+    float4 mistH;    // x = base height relative to the eye, y = falloff height
 };
 
 // God rays: march from each pixel toward the sun through the depth buffer; sky texels (depth 1) shine.
@@ -413,6 +415,21 @@ fragment float4 compositeFS(FsOut in [[stage_in]],
         float phase = pow(saturate(dot(dir, u.lightDir.xyz)), 5.0) * 0.8 + 0.08;
         float haze = (1.0 - exp(-dist * 0.0035)) * phase * p.sunCol.w;
         if (d < 1.0) { c += p.sunCol.rgb * haze; }
+    }
+    if (p.mist.w > 0.0) {
+        // Height mist: exponential density with height, integrated analytically along the view ray.
+        float d = dep.sample(ls, in.uv);
+        float3 rel = relAt(in.uv, d, u);
+        float dist = d >= 1.0 ? u.params.x : min(length(rel), u.params.x);
+        float3 dir = normalize(rel);
+        float h0 = -p.mistH.x;                       // eye height above the mist base
+        float k = 1.0 / p.mistH.y;
+        float dy = dir.y * dist * k;
+        float base = p.mist.w * exp(-max(h0, -8.0) * k);
+        float od = abs(dy) > 1e-3 ? base * dist * (1.0 - exp(-dy)) / dy : base * dist;
+        float m = 1.0 - exp(-od);
+        float phase = 1.0 + pow(saturate(dot(dir, u.lightDir.xyz)), 6.0) * 1.5;
+        c = mix(c, p.mist.rgb * phase, saturate(m));
     }
     c *= p.grade.x;
     c = toneShoulder(c);
