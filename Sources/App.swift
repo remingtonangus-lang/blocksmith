@@ -244,13 +244,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let fps = cap > 0 ? min(cap, display) : display
         return paused ? min(30, fps) : fps
     }
-    func updateDrawableSize() {
-        let k = CGFloat(Settings.shared.renderScale)
-        if k >= 0.999 { view.autoResizeDrawable = true; return }
-        view.autoResizeDrawable = false
-        let sc = window.backingScaleFactor
-        view.drawableSize = CGSize(width: max(64, floor(view.bounds.width * sc * k)), height: max(64, floor(view.bounds.height * sc * k)))
-    }
+    // The renderer sizes the drawable every frame (dynamic resolution x Options > Video > Resolution).
+    func updateDrawableSize() {}
+
     func windowDidResize(_ notification: Notification) { updateDrawableSize() }
     func windowDidExitFullScreen(_ notification: Notification) {
         VideoState.fullscreen = false
