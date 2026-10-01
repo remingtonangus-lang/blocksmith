@@ -892,6 +892,34 @@ enum Snapshot {
         do { renderer = try Renderer(device: device, game: game, colorFormat: .bgra8Unorm) }
         catch { print("renderer init failed: \(error)"); return 1 }
         if CommandLine.arguments.contains("--nocull") { renderer.caveCulling = false }   // draw every section in the frustum
+        if CommandLine.arguments.contains("--verifyworld") {
+            // World data check: every loaded chunk against a fresh main-thread generation (race / nondeterminism),
+            // and its stored heightmap against one recomputed from its blocks (skylight comes from the heightmap).
+            var badGen = 0, badH = 0, total = 0, samples: [String] = []
+            for (k, c) in world.chunks {
+                total += 1
+                var regen = world.gen.generate(cx: k.x, cz: k.z)
+                if let st = world.gen.structures { _ = st.place(into: &regen, cx: k.x, cz: k.z) }
+                let have = c.blocks.full()
+                var diff = 0, lo = CH, hi = -1
+                for i in 0..<min(have.count, regen.count) where have[i] != regen[i] {
+                    diff += 1; let y = i / CSQ; lo = min(lo, y); hi = max(hi, y)
+                }
+                if diff > 0 {
+                    badGen += 1
+                    if samples.count < 8 { samples.append("chunk \(k.x),\(k.z): \(diff) blocks differ (y \(lo - YOFF)...\(hi - YOFF))") }
+                }
+                let h = Chunk.computeHeights(have)
+                var hd = 0
+                for i in 0..<CSQ where h[i] != c.height[i] { hd += 1 }
+                if hd > 0 {
+                    badH += 1
+                    if samples.count < 12 { samples.append("chunk \(k.x),\(k.z): \(hd) heightmap columns differ") }
+                }
+            }
+            print("verifyworld: \(total) chunks, \(badGen) differ from a fresh generation, \(badH) with a stale heightmap")
+            for l in samples { print("verifyworld:   \(l)") }
+        }
         game.target = world.raycast(game.player.eye, game.player.look, maxDist: 5)
         do {
             // Light probe: the eye cell and the first floor below it (debugging dark views).
