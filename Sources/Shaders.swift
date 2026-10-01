@@ -237,6 +237,16 @@ fragment float4 skyFS(SkyOut in [[stage_in]], constant SkyParams& s [[buffer(1)]
     float3 warm = float3(1.0, 0.55, 0.25);
     col += warm * pow(sd, 5.0) * s.horizon.w * (0.35 + 0.65 * band);
     col += float3(1.0, 0.95, 0.85) * pow(sd, 24.0) * 0.18 * s.sun.w;
+    float night = saturate((0.45 - s.sun.w) / 0.35);
+    if (night > 0.0 && d.y > -0.05) {
+        // A faint galactic band across the night sky, turning with the stars (zenith.w = sky angle).
+        float a = s.zenith.w;
+        float3 bn = normalize(float3(0.3 * cos(a) - 0.2 * sin(a), 0.3 * sin(a) + 0.2 * cos(a), 0.93));
+        float band = exp(-pow(dot(d, bn) * 4.5, 2.0));
+        float3 q = d * 6.0;
+        float cl = vnoise(q.xy + q.z * 0.7) * 0.6 + vnoise(q.yz * 2.3 + 5.0) * 0.4;
+        col += float3(0.32, 0.3, 0.42) * band * smoothstep(0.3, 0.8, cl) * night * 0.22 * saturate(d.y * 4.0 + 0.2);
+    }
     return float4(col, 1.0);
 }
 

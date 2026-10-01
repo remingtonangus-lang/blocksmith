@@ -540,7 +540,7 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         // Fancy sky: gradient dome + sun glow drawn over the clear colour before anything else.
         if game.fancyGraphics && !underwater && hasSky && game.blindFog == nil {
-            var sp = SkyParams(invViewProj: viewProj.inverse, zenith: V4(game.skyZenith * caveScale, 0),
+            var sp = SkyParams(invViewProj: viewProj.inverse, zenith: V4(game.skyZenith * caveScale, Float(game.dayFraction * 2 * .pi)),
                                horizon: V4(sky, skyGlow), sun: V4(game.sunDir, daylight))
             enc.setRenderPipelineState(skyPipe)
             enc.setDepthStencilState(depthNone)
