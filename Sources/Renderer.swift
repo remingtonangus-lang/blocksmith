@@ -392,11 +392,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             for dz in -R...R { for dx in -R...R {
                 let c = game.world.inMeshRadius(dx, dz) ? game.world.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] : nil
                 chunkGrid[(dx + R) + (dz + R) * span] = c
-                if let c {
-                    var t = NSEC - 1
-                    while t > topSec && c.sections[t].empty && c.sections[t].meshedVersion != -1 { t -= 1 }
-                    topSec = max(topSec, t)
-                }
+                if let c, c.topSec > topSec { topSec = c.topSec }
             } }
             // Above the tallest geometry in range everything is open air: walking one layer of it is enough to get
             // around anything, so the walk never climbs higher (it used to cross every empty sky section).
