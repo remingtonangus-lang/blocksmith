@@ -116,6 +116,11 @@ final class ProjectileManager {
                 } else if let m = hitMob {
                     m.hit(from: f.pos, damage: f.big && f.byPlayer && m.kind == .ghast ? 1000 : (f.big ? 6 : 5), knockback: 0.5)
                     if f.byPlayer { m.killedByPlayer = true }
+                    // A wailer brought down by its own fireball sent back: the "Sent Back" advancement and its disc.
+                    if f.big && f.byPlayer && m.kind == .ghast {
+                        g.achieve("ghast_fireball")
+                        if Items.has("music_disc_tears") { g.drops.spawn(ItemStack(Items.id("music_disc_tears"), 1), at: m.pos + V3(0, 1, 0)) }
+                    }
                     if !f.big && !m.spec.fireImmune { m.fire = max(m.fire, 5) }
                 }
                 if f.dragon {

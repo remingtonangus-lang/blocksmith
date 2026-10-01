@@ -1394,6 +1394,10 @@ final class Game {
                 if n > 0 { drops.spawn(ItemStack(Items.id("blaze_rod"), n), at: at) }
             }
             if m.kind == .magmaCube && m.slimeSize > 1 && r < 0.25 { drops.spawn(ItemStack(Items.id("magma_cream"), 1), at: at) }
+            // A chicken jockey's rider drops the "Hot Coop" disc.
+            if m.isZombie && m.baby && m.mount?.kind == .chicken && m.killedByPlayer && Items.has("music_disc_lava_chicken") {
+                drops.spawn(ItemStack(Items.id("music_disc_lava_chicken"), 1), at: at)
+            }
             if m.kind == .creeper && m.lastHitBySkeleton, let d = MusicDiscs.creeperDrops.randomElement(), Items.has("music_disc_\(d)") {
                 drops.spawn(ItemStack(Items.id("music_disc_\(d)"), 1), at: at)
             }

@@ -10,6 +10,7 @@ enum MusicDiscs {
         ("mall", 0x8A5AE8, 197), ("mellohi", 0xC87AC8, 96), ("stal", 0x2A2A2A, 150), ("strad", 0xF0F0F0, 188), ("ward", 0x3A8A3A, 251),
         ("11", 0x3A3A3A, 71), ("wait", 0x3A8AE8, 238), ("pigstep", 0xB03A3A, 149), ("otherside", 0x3AB8D8, 195), ("5", 0x3A5A6A, 178),
         ("relic", 0x3A8A8A, 218), ("creator", 0xE8C040, 176), ("creator_music_box", 0xE8C040, 73), ("precipice", 0x8A6A4A, 299),
+        ("tears", 0xE8E8F0, 175), ("lava_chicken", 0xE8601A, 134),
     ]
     // Discs a hisser drops when a skeleton kills it.
     static let creeperDrops = ["13", "cat", "blocks", "chirp", "far", "mall", "mellohi", "stal", "strad", "ward", "11", "wait"]
@@ -108,6 +109,7 @@ extension MusicDiscs {
         "mall": "Market Day", "mellohi": "Slow Glow", "stal": "Stalwart", "strad": "Strings", "ward": "Warding",
         "11": "Broken Record", "wait": "Patience", "pigstep": "Ember March", "otherside": "Other Shore", "5": "Deep Signal",
         "relic": "Relic", "creator": "Maker", "creator_music_box": "Maker (Music Box)", "precipice": "Cliffside",
+        "tears": "Wailer's Lament", "lava_chicken": "Hot Coop",
     ]
     static func title(_ key: String) -> String { titles[key] ?? key }
 
