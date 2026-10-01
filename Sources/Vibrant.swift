@@ -160,8 +160,9 @@ final class Vibrant {
                     let t = simd_clamp((mx - 0.55) / 0.4, 0, 1)
                     e = t * t * (3 - 2 * t) * mode[l]
                 } else {
+                    // Ores: only a faint glint (a strong glow would light up and give away ore veins in the dark).
                     let t = simd_clamp((mx - mn - 0.2) / 0.3, 0, 1)
-                    e = t * 0.55
+                    e = t * 0.05
                 }
                 out[l * S * S + i] = UInt8(min(255, e * 255))
             }
