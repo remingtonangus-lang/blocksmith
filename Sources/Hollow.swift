@@ -392,6 +392,8 @@ extension Mob {
         case 4:
             goal = V3(0.5, fy + 4, 0.5)
             speed = 0
+            // Settle onto the portal pillar (landing ends within 3 blocks of it), in reach from the ground.
+            pos += (goal - pos) * min(1, dt * 3)
             face(player)
             // Reference sitting sequence: scan + roar (3.25 s), then 10 s of breath on the ground in front of the
             // head (radius 5); four rounds, then take off. Lost interest (no player within 20 for 5 s) ends it early.

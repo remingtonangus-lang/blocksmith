@@ -840,7 +840,7 @@ final class Playthrough {
         if var e = eggPos {
             game.portalCooldown = 60
             var hopped = 0
-            for _ in 0..<8 where count("dragon_egg") == 0 {
+            for _ in 0..<20 where count("dragon_egg") == 0 {
                 holdNothing()
                 standBeside(e)
                 game.input.leftClicked = true
@@ -901,7 +901,10 @@ final class Playthrough {
                 game.player.flying = true
                 game.player.pos = V3(Float(b.x) + 1.35, Float(b.y - 1), Float(b.z) + 0.5)
                 game.input.keys = []
+                info(String(format: "return rift at %ld %ld %ld is %@, player %.2f %.2f %.2f, cooldown %.1f", b.x, b.y - YOFF, b.z, key(b),
+                            game.player.pos.x, game.player.pos.y - Float(YOFF), game.player.pos.z, game.portalCooldown))
                 let home = tick(2) { simd_length(V2(self.game.player.pos.x, self.game.player.pos.z)) < 200 }
+                if !home { info(String(format: "after: player %.2f %.2f %.2f", game.player.pos.x, game.player.pos.y - Float(YOFF), game.player.pos.z)) }
                 check(home, String(format: "rift: the return rift leads back to the central island (%.0f blocks out)", simd_length(V2(game.player.pos.x, game.player.pos.z))))
             }
         }
@@ -1041,6 +1044,10 @@ final class Playthrough {
         _ = tick(12)
         check(b.phase == 0 && b.health >= 290, "blight: 11 s charge ends at full health (\(b.health)/300) with a blast")
         section("blight fight")
+        // Gear a Blight fighter brings (enchanting table / anvil): Smite V sword (it is undead), Power V bow.
+        for i in 0..<36 where Items.key(inv[i].item) == "diamond_sword" { var st = inv[i]; st.ench = Enchant.pack([(.smite, 5)]); inv[i] = st }
+        for i in 0..<36 where Items.key(inv[i].item) == "bow" { var st = inv[i]; st.ench = Enchant.pack([(.power, 5)]); inv[i] = st }
+        info("bulk: Smite V on the sword, Power V on the bow")
         let fightStart = simSeconds
         let dmgStart = damageTaken
         var arrows = 0, swings = 0, arrowDmg = 0, armoredArrowDmg = 0, armoredArrows = 0
