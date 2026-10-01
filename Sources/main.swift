@@ -603,7 +603,12 @@ enum Snapshot {
                     m.variant = parts.count > 1 ? Int(parts[1]) ?? 0 : 0
                     m.chested = parts.count > 2
                     m.yaw += Float(i) * 0.4
-                } else if parts.count > 1 && ["leather", "golden", "chainmail", "iron", "diamond", "netherite"].contains(parts[1]) {
+                } else if k == .copperGolem {
+                    // "copper_golem:2" = weathered; ":carry" holds a load.
+                    m.variant = parts.count > 1 ? Int(parts[1]) ?? 0 : 0
+                    m.cargo = ItemContainer(1)
+                    if parts.contains("carry") { m.cargo![0] = ItemStack(Items.id("cobblestone"), 16) }
+                } else if parts.count > 1 && ["leather", "golden", "chainmail", "iron", "diamond", "netherite", "copper"].contains(parts[1]) {
                     // "zombie:iron" / "armor_stand:diamond": a full set of that armour (+ a sword).
                     var eq = ["helmet", "chestplate", "leggings", "boots"].map { p -> ItemStack in
                         let n = parts[1] == "leather" && p == "helmet" ? "leather_helmet" : "\(parts[1])_\(p)"
