@@ -415,7 +415,7 @@ extension Game {
 }
 
 extension Mob {
-    // Zombies of every kind hunt turtle eggs within 10 blocks and trample them (reference). Returns a walk
+    // Zombies of every kind hunt turtle eggs within 8 blocks and trample them (reference). Returns a walk
     // speed while heading for one.
     func trampleEggs(_ dt: Float, _ g: Game) -> Float? {
         switch kind {
@@ -430,7 +430,13 @@ extension Mob {
             jobTimer -= dt
             guard jobTimer <= 0 else { return nil }
             jobTimer = 3
-            flower = findNearby(w, radius: 10) { Blocks.groupBase[Int(w.block($0.x, $0.y, $0.z))] == egg }
+            // Full scan of an 17x5x17 box (random sampling would almost never find a single egg).
+            let c = IVec3(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z)))
+            var best = Int.max
+            for dy in -2...2 { for dz in -8...8 { for dx in -8...8 where Blocks.groupBase[Int(w.block(c.x + dx, c.y + dy, c.z + dz))] == egg {
+                let d = dx * dx + dy * dy + dz * dz
+                if d < best { best = d; flower = IVec3(c.x + dx, c.y + dy, c.z + dz) }
+            } } }
         }
         guard let f = flower else { return nil }
         let c = V3(Float(f.x) + 0.5, Float(f.y), Float(f.z) + 0.5)
