@@ -246,7 +246,8 @@ extension ShipManager {
         s.initialBlocks = s.blockCount
         if let g {
             for st in s.crewStations {
-                let m = Mob(.pillager, at: s.toWorld(st + V3(0, 0.1, 0)))
+                // Soldiers crew the vessels once the game has them; Marauders until then.
+                let m = Mob(MobKind.named("soldier") ?? .pillager, at: s.toWorld(st + V3(0, 0.1, 0)))
                 m.persistent = true
                 g.mobs.mobs.append(m)
             }

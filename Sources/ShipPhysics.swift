@@ -114,6 +114,25 @@ extension ShipManager {
         for (it, s) in itemRiders where s.pos != s.prevPos || s.rot != s.prevRot {
             it.pos = s.toWorld(s.prevToLocal(it.pos))
         }
+        // Mobs a moving hull ran into are shoved aside (or lifted onto it when they are near its top).
+        if let game {
+            let riding = Set(mobRiders.map { ObjectIdentifier($0.0) })      // (crews on deck are carried, not shoved)
+            for m in game.mobs.mobs where m.health > 0 && game.riding !== m && !riding.contains(ObjectIdentifier(m)) {
+                let mn = V3(m.pos.x - m.halfW, m.pos.y, m.pos.z - m.halfW), mx = V3(m.pos.x + m.halfW, m.pos.y + m.height, m.pos.z + m.halfW)
+                guard let s = list.first(where: { mx.x > $0.worldMin.x && mn.x < $0.worldMax.x && mx.y > $0.worldMin.y && mn.y < $0.worldMax.y
+                    && mx.z > $0.worldMin.z && mn.z < $0.worldMax.z }), overlaps(mn, mx) else { continue }
+                var lifted = false
+                for up in [Float(0.35), 0.7, 1.05] where !overlaps(mn + V3(0, up, 0), mx + V3(0, up, 0)) {
+                    m.pos.y += up; lifted = true; break
+                }
+                if !lifted {
+                    var away = V3(m.pos.x - s.pos.x, 0, m.pos.z - s.pos.z)
+                    away = simd_length(away) > 0.01 ? simd_normalize(away) : V3(1, 0, 0)
+                    m.pos += away * 0.4
+                    m.vel += away * 2 + s.velocity(at: m.pos) * 0.5
+                }
+            }
+        }
         if let game {
             for s in list where (s === aboard || s === pilot) && (s.pos != s.prevPos || s.rot != s.prevRot) {
                 let p = game.player
