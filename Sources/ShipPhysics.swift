@@ -58,6 +58,9 @@ struct ShipBlockReader {
     }
 }
 
+// Reused every substep (no per-frame allocation).
+private var contactScratch: [Contact] = []
+
 private struct Contact {
     var p: V3
     var n: V3
@@ -92,6 +95,19 @@ extension ShipManager {
         }
         for s in list { s.children.removeAll(keepingCapacity: true) }
         for t in list { if let p = t.parent { p.children.append(t) } }
+        // Ships far from the player or over unloaded ground sleep (no physics); ships beyond the render distance
+        // give their meshes back and remesh when the player comes near again.
+        var rdr = ShipBlockReader(world)
+        let keep = Float((world.renderDistance + 2) * CS)
+        for s in list {
+            let r = s.root
+            let d = game.map { simd_length(V2(r.pos.x - $0.player.pos.x, r.pos.z - $0.player.pos.z)) } ?? 0
+            s.asleep = s !== pilot && (d > 384 || !rdr.loaded(Int(floor(r.pos.x)), Int(floor(r.pos.z))))
+            if game != nil {
+                if d > keep + 48 && !s.mesh.released { s.mesh.release() }
+                else if d < keep + 16 && s.mesh.released { s.mesh.rebuildAll(s, device: world.device, queue: meshQueue) }
+            }
+        }
         for s in list {
             s.prevPos = s.pos; s.prevRot = s.rot
             if s === pilot { continue }
@@ -210,25 +226,25 @@ extension ShipManager {
     func step(_ h: Float) {
         var reader = ShipBlockReader(world)
         for s in list where s.parent == nil {
-            // Frozen while the ground under it isn't loaded.
-            if !reader.loaded(Int(floor(s.pos.x)), Int(floor(s.pos.z))) { s.vel = .zero; s.angVel = .zero; continue }
+            // Frozen while asleep (far from the player, or the ground under it isn't loaded).
+            if s.asleep { s.vel = .zero; s.angVel = .zero; continue }
             integrateForces(s, h, &reader)
         }
-        // Contacts: terrain and ship-ship.
+        // Contacts: terrain and ship-ship (a sleeping ship can still be run into).
         for s in list where s.parent == nil {
-            var cs: [Contact] = []
-            terrainContacts(s, &reader, &cs)
-            for o in list where o !== s && o.id < s.id && o.parent == nil {
+            contactScratch.removeAll(keepingCapacity: true)
+            if !s.asleep { terrainContacts(s, &reader, &contactScratch) }
+            for o in list where o !== s && o.id < s.id && o.parent == nil && !(s.asleep && o.asleep) {
                 if o.worldMax.x < s.worldMin.x - 1 || o.worldMin.x > s.worldMax.x + 1 || o.worldMax.y < s.worldMin.y - 1
                     || o.worldMin.y > s.worldMax.y + 1 || o.worldMax.z < s.worldMin.z - 1 || o.worldMin.z > s.worldMax.z + 1 { continue }
-                shipContacts(s, o, &cs)
-                shipContacts(o, s, &cs, flip: true)
+                shipContacts(s, o, &contactScratch)
+                shipContacts(o, s, &contactScratch, flip: true)
             }
-            s.contacts = cs.count
-            if !cs.isEmpty { solve(s, &cs, h) }
+            s.contacts = contactScratch.count
+            if !contactScratch.isEmpty { solve(s, &contactScratch, h) }
         }
         for s in list where s.parent == nil {
-            if !reader.loaded(Int(floor(s.pos.x)), Int(floor(s.pos.z))) { continue }
+            if s.asleep { continue }
             let sp = simd_length(s.vel)
             if sp > 60 { s.vel *= 60 / sp }
             let w = simd_length(s.angVel)

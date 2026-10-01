@@ -150,6 +150,7 @@ enum ShipTest {
     // Remeshes the world around the camera and waits for ship meshes.
     static func settle(_ g: Game, rd: Int) {
         _ = g.world.loadSync(center: g.player.pos, radius: rd)
+        g.world.ships.update(0, game: g)                 // ships near the camera whose meshes were released remesh
         for s in g.world.ships.list {
             var n = 0
             while s.mesh.busy && n < 4000 { usleep(1000); s.mesh.apply(device: g.world.device); n += 1 }

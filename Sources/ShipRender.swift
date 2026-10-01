@@ -26,10 +26,22 @@ final class ShipMesh {
 
     @inline(__always) static func key(_ cx: Int, _ sy: Int, _ cz: Int) -> Int { (cx & 0xFFF) | ((sy & 0xFF) << 12) | ((cz & 0xFFF) << 20) }
 
+    private(set) var released = false
+
     // Remeshes everything (after assembly, loading, or a grid resize).
     func rebuildAll(_ s: Ship, device: MTLDevice, queue: DispatchQueue) {
         layoutGen += 1
+        released = false
         submit(s, only: nil, full: true, queue: queue)
+    }
+
+    // Gives the GPU meshes back (ship far away); rebuildAll brings them back.
+    func release() {
+        layoutGen += 1                   // results still in flight are dropped
+        sections.removeAll()
+        wheelSecs = []
+        wheelGen = -1
+        released = true
     }
 
     // Remeshes the sections within one section of a changed cell.
@@ -39,6 +51,7 @@ final class ShipMesh {
 
     // The same for many changed cells (a blast) in one job; the whole grid when they touch most of it anyway.
     func rebuildAround(_ s: Ship, _ cells: [IVec3], device: MTLDevice, queue: DispatchQueue) {
+        if released { return }
         var only = Set<Int>()
         var seen = Set<Int>()
         for c in cells {
@@ -376,7 +389,7 @@ final class ShipRenderer {
         enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
         enc.setVertexBuffer(tintBuf, offset: 0, index: 3)
         func draw(_ s: Ship, _ pass: Int) {
-            if !frustum.visible(min: s.worldMin, max: s.worldMax) { return }
+            if s.mesh.released || !frustum.visible(min: s.worldMin, max: s.worldMax) { return }
             let m = model(s, eye: eye)
             for sec in s.mesh.sections.values {
                 guard let buf = sec.opaque, sec.opaqueQuads > 0 else { continue }
@@ -464,7 +477,7 @@ final class ShipRenderer {
         }
         maskScratch.removeAll(keepingCapacity: true)
         var rd = ShipBlockReader(world)
-        for s in ships.list where frustum.visible(min: s.worldMin, max: s.worldMax) {
+        for s in ships.list where !s.mesh.released && frustum.visible(min: s.worldMin, max: s.worldMax) {
             guard let top = rd.waterTop(s.pos) ?? rd.waterTop(s.pos - V3(0, 2, 0)) else { continue }
             let plane = top + (eye.y > top ? 0.01 : -0.01)
             let r = simd_float3x3(s.rot)
