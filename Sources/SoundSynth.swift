@@ -898,6 +898,9 @@ struct Synth {
 
         case .note(let inst, let n): out = MusicSynth.noteBlock(&self, inst: inst, pitch: n)
         case .gun(let k): out = WeaponAudio.gun(&self, k, p: p)
+        case .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
+             .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart:
+            out = VehicleAudio.render(&self, s, p: p)
         case .gunReload(let k): out = WeaponAudio.reload(&self, k, p: p)
         case .gunDistant(let k):
             let size: Float = k == 9 ? 2.6 : (k == 2 ? 1.5 : (k == 3 ? 1.3 : (k == 1 ? 0.7 : 1)))

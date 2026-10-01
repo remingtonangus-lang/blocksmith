@@ -23,6 +23,7 @@ final class AudioState {
     var armorSeen: [ItemID] = [0, 0, 0, 0]
     var biomeTimer: Float = 0
     var paddleTimer: Float = 0
+    var ships: [Int: ShipAudioState] = [:]
     var biomeHere: Biome = .plains
     var nearOcean = false
     var armorPrimed = false
@@ -182,6 +183,7 @@ extension Game {
             // Under a roof near the surface: rain on the roof instead.
             if a.rainExposure < 0.5 && a.cave < 0.9 { ask("rainroof", .rainRoof, r * (1 - a.rainExposure) * (1 - a.cave) * 0.6) }
         }
+        vehicleAudioTick(dt, ask: ask)
         // Player state loops.
         if player.headInWater { ask("underwater", .underwaterLoop, 0.9) }
         if player.gliding { ask("glide", .elytraLoop, min(1, simd_length(player.vel) / 28)) }

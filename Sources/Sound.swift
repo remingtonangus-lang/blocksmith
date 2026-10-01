@@ -81,6 +81,9 @@ enum Snd: Hashable {
     // 4 rocket, 5 arc lance, 6 reload, 7 dry fire, 8 ricochet, 9 deck gun, 10 alarm, 11 radio call, 12 turret whine.
     case gun(Int), gunReload(Int), gunDistant(Int), bulletImpact(SoundMat), bulletWhizz, bulletFlesh, grenadeBounce
     case soldier(Int, Bark), soldierStep(Int)
+    // Ships, airships and land vehicles (VehicleAudio.swift): idle/full layers are cross-faded by throttle.
+    case engineIdleLoop, engineFullLoop, propSlowLoop, propFastLoop, airshipWindLoop, wheelRollLoop, hullWaterLoop
+    case hullCreak, shipCollide, shipCollideHard, shipSplash, helmTake, engineStart
 
     var category: SoundCategory {
         switch self {
@@ -110,6 +113,8 @@ enum Snd: Hashable {
         case .note: return .blocks
         case .gun, .gunReload, .gunDistant, .bulletImpact, .bulletWhizz, .bulletFlesh, .grenadeBounce: return .players
         case .soldier, .soldierStep: return .hostile
+        case .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
+             .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart: return .blocks
         default: return .blocks
         }
     }
@@ -120,6 +125,8 @@ enum Snd: Hashable {
         case .explode, .fireworkBlastLarge, .lightning, .wardenSonicBoom, .crystalBreak, .endPortalOpen: return 64
         case .gun(let k): return k == 9 ? 128 : (k == 10 ? 96 : (k <= 5 ? 48 : 16))
         case .gunDistant: return 220
+        case .shipCollideHard: return 48
+        case .shipCollide, .engineStart: return 32
         case .raidHorn, .goatHorn, .bellResonate: return 96
         case .dragonGrowl, .dragonDeath, .witherSpawn, .witherDeath, .dragonFlap: return 128
         case .thunder: return 160
@@ -133,7 +140,8 @@ enum Snd: Hashable {
         switch self {
         case .fireLoop, .furnaceLoop, .campfireLoop, .lavaLoop, .waterLoop, .portalLoop, .beaconLoop, .minecartLoop, .elytraLoop, .underwaterLoop, .rain, .rainRoof,
              .respawnAnchorLoop, .spawnerLoop, .netherWastesLoop, .soulValleyLoop, .crimsonLoop, .warpedLoop, .basaltLoop, .endLoop, .deepDarkLoop, .lushLoop, .dripstoneLoop,
-             .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop, .fireflyLoop, .hiveLoop:
+             .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop, .fireflyLoop, .hiveLoop,
+             .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop:
             return true
         default: return false
         }
@@ -236,6 +244,8 @@ final class SoundBank {
         s.append(.gunDistant(WeaponAudio.heavySlot))
         for m in SoundMat.allCases { s.append(.bulletImpact(m)) }
         s += [.bulletWhizz, .bulletFlesh, .grenadeBounce]
+        s += [.engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
+              .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart]
         for r in 0...3 { for b in Bark.allCases { s.append(.soldier(r, b)) }; s.append(.soldierStep(r)) }
         return s
     }
