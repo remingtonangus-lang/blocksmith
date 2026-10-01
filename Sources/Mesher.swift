@@ -216,9 +216,10 @@ enum Mesher {
             var minH = Int.max
             for i in 0..<RL where heights[i] < minH { minH = heights[i] }
             if minH > y0 + C0 + 16 + 15 {
+                // ...unless it holds an emitter or water (a seabed under deep water stays: it shows through).
                 let emitT = Blocks.emit
                 var lit = false
-                for i in 0..<(RL * RH) where emitT[Int(R[i])] > 0 { lit = true; break }
+                for i in 0..<(RL * RH) where emitT[Int(R[i])] > 0 || fkT[Int(R[i])] == 1 { lit = true; break }
                 if !lit { return SectionMesh(opaque: [], trans: [], light: Mesher.dark, vis: ~0) }
             }
         }
@@ -454,7 +455,9 @@ enum Mesher {
                         let nx = NT[f * 3], ny = NT[f * 3 + 1], nz = NT[f * 3 + 2]
                         let ax = x + nx, ay = y + ny, az = z + nz
                         let flat = max(0, light(ax, ay, az))
-                        if lod > 0 && flat == 0 && !isLiquid { continue }      // far: pitch-dark cave walls can't be seen
+                        // Far: pitch-dark cave walls can't be seen. Faces under water stay: a deep seabed gets no light,
+                        // and without it far oceans showed the sky through the water.
+                        if lod > 0 && flat == 0 && !isLiquid && fkT[Int(nb)] != 1 { continue }
                         if isLiquid || rt != rCube || lod > 0 {
                             for c in 0..<4 { lit[c] = flat; aos[c] = 3 }
                         } else {

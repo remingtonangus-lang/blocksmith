@@ -66,9 +66,9 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
   - [x] Biome balance pass: less snow, more (wooded) badlands, windswept hills, stony shores, less sparse jungle.
   - [ ] Lakes, deltas, fjords in game: tour_lake frames a lake; tour_delta found no mouth within 5 km (search widened to
         9 km for rivers wide enough to fan; tour_delta_777 added).
-  - [ ] Far ocean in tour_777_aerial shows dark vertical sticks above the water near the horizon: they are kelp (cross
-        shapes in the crop), drawn past the water's edge. --kelpcheck: no kelp out of the water there (739 exposed plants are seagrass in
-        1-deep shallows), so it is a rendering issue; tour_777_aerial_fast / _rd8 split Fancy water vs the far LOD.
+  - [x] Far ocean in tour_777_aerial showed dark streaks: far (LOD 1) sections dropped unlit faces, so a deep seabed (no
+        light under 15+ blocks of water) vanished and the sky showed through the water; the last near kelp stood out
+        against it. Faces into water and sections holding water now stay at LOD 1 (Mesher). Also seen in Fast.
   - [x] Steelhold soldiers crew the vessels (marksmen + rifle troopers on the frigate, trooper + arc ironclad on the
         carriage) and hold their stations aboard (aim and fire, no cover runs overboard); physicstest check.
 - Polish
