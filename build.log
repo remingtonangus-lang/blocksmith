@@ -1,0 +1,16 @@
+Sources/AudioAmbience.swift:408:14: warning: case is already handled by previous patterns; consider removing it
+406 |         case .ocean, .deepOcean, .warmOcean, .lukewarmOcean, .deepLukewarmOcean, .coldOcean, .deepColdOcean, .frozenOcean, .deepFrozenOcean, .beach: return .ocean
+407 |         case .cherryGrove, .meadow, .flowerForest, .sunflowerPlains: return .grove
+408 |         case .jaggedPeaks, .stonyPeaks, .windsweptHills, .windsweptGravellyHills, .windsweptForest: return .mountain
+    |              `- warning: case is already handled by previous patterns; consider removing it
+409 |         case .swamp, .mangroveSwamp: return .swamp
+410 |         case .jungle, .sparseJungle, .bambooJungle: return .jungle
+
+Sources/ShipRender.swift:317:15: warning: result of call to 'withUnsafeBytes' is unused
+315 |         guard off + n <= ShipRenderer.ringSize else { return nil }
+316 |         let b = ring[ringIndex]
+317 |         verts.withUnsafeBytes { memcpy(b.contents() + off, $0.baseAddress!, n) }
+    |               `- warning: result of call to 'withUnsafeBytes' is unused
+318 |         ringOff = off + n
+319 |         return (b, off)
+Built build/Blocksmith.app (release)
