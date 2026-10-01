@@ -70,6 +70,11 @@ enum Snapshot {
                 print("structure \(kind) at \(s.anchor.x) \(s.anchor.y - YOFF) \(s.anchor.z) (\(s.pieces.count) pieces, framed)")
             } else {
             pos = V3(Float(s.anchor.x) + 0.5, Float(s.anchor.y), Float(s.anchor.z) + 0.5)
+            // --offset dx,dy,dz: a camera spot relative to the anchor (inside a structure).
+            if let o = arg("--offset") {
+                let v = o.split(separator: ",").compactMap { Float($0) }
+                if v.count == 3 { pos += V3(v[0], v[1], v[2]) }
+            }
             print("structure \(kind) at \(s.anchor.x) \(s.anchor.y - YOFF) \(s.anchor.z) (\(s.pieces.count) pieces)")
             }
         }
