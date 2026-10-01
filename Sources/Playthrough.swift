@@ -943,9 +943,16 @@ final class Playthrough {
                 if count("ender_pearl") == 0 { give("ender_pearl", 2, bulk: "spare pearls") }
                 _ = hold("ender_pearl")
                 aim(at: bc + V3(0, 0.15, 0))
+                let heldBefore = Items.key(game.held.item)
                 game.input.rightClicked = true
+                tick(0.05)
+                let thrown = game.projectiles.fireballs.filter { $0.kind == .pearl }.map { String(format: "%.1f,%.1f,%.1f", $0.pos.x, $0.pos.y - Float(YOFF), $0.pos.z) }
                 let home = tick(3) { simd_length(V2(self.game.player.pos.x, self.game.player.pos.z)) < 200 }
-                if !home { info(String(format: "after: player %.2f %.2f %.2f", game.player.pos.x, game.player.pos.y - Float(YOFF), game.player.pos.z)) }
+                if !home {
+                    info(String(format: "after: player %.2f %.2f %.2f; rift at %ld %ld %ld; held %@, pearls in flight %@, menu %@, gliding %@", game.player.pos.x,
+                                game.player.pos.y - Float(YOFF), game.player.pos.z, b.x, b.y - YOFF, b.z, heldBefore, thrown.description,
+                                game.menu.map { "\(type(of: $0))" } ?? "none", game.player.gliding ? "yes" : "no"))
+                }
                 check(home, String(format: "rift: the return rift leads back to the central island (%.0f blocks out)", simd_length(V2(game.player.pos.x, game.player.pos.z))))
             }
         }
