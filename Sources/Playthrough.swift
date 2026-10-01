@@ -655,7 +655,14 @@ final class Playthrough {
                 }
                 if b.health <= 0 { kills += 1 }
             }
-            collect(near: feet, 48)                           // rods fall off the bridge: go down and fetch them
+            collect(near: feet, 20)
+            // Rods that fell off the bridge: go down for those only (other drops would keep the player from the spawner).
+            let fallen = game.drops.items.filter { Items.key($0.stack.item) == "blaze_rod" && simd_length($0.pos - feet) < 48 }
+            for e in fallen {
+                game.player.pos = e.pos
+                game.player.vel = .zero
+                _ = tick(0.1, pin: e.pos)
+            }
             game.player.pos = feet
             rods = count("blaze_rod")
         }
@@ -1157,13 +1164,15 @@ final class Playthrough {
                 arrows += 1
                 arrowDmg += max(0, h0 - b.health)
             } else if armoredArrows < 3 {
-                // Arrows bounce off the armour below half health.
-                let h0 = b.health
+                // Arrows bounce off the armour below half health (only arrow damage counts: thorns, fire and the
+                // like can still hurt it in the same moment).
+                if armoredArrows == 0 { _ = tick(1.5) }                 // let arrows already in flight land first
+                let a0 = b.arrowDamage
                 let here = game.player.pos
                 shoot(at: b, from: here)
                 _ = tick(0.4, pin: here)
                 armoredArrows += 1
-                armoredArrowDmg += max(0, h0 - b.health)
+                armoredArrowDmg += b.arrowDamage - a0
             } else {
                 // Sword: it hovers low when armoured; step up to it.
                 let to = V3(b.pos.x, 0, b.pos.z) - V3(game.player.pos.x, 0, game.player.pos.z)

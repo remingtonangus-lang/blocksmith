@@ -261,6 +261,7 @@ final class Mob {
     var aiTimer: Float
     var panic: Float = 0
     var hurt: Float = 0
+    var arrowDamage = 0               // harness: health lost to arrow hits (not saved)
     var hurtSound = false           // set by hit(); MobManager plays the hurt call once
     var teleportSound = false       // set by teleport(); MobManager plays it at both ends
     var stepAcc: Float = 0          // distance walked since the last footstep sound

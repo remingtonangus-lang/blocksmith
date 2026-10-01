@@ -230,7 +230,9 @@ final class ProjectileManager {
                     m.teleport(w)                                  // voidwalkers dodge arrows
                 } else if let m = hitMob {
                     if let t = a.trident { dmg = 8 + Int(Enchant.damageBonus(t, against: m)) }
+                    let h0 = m.health
                     m.hit(from: a.pos, damage: dmg, knockback: 0.6 + 0.6 * Float(a.punch))
+                    m.arrowDamage += max(0, h0 - m.health)
                     if a.trident != nil { g.tridentHit(a, mob: m) }
                     if a.fromPlayer { m.killedByPlayer = true; m.provoke(g); g.achieve(a.trident != nil ? "trident_hit" : "arrow_hit") }
                     else { m.lastHitBySkeleton = true }

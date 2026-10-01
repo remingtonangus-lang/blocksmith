@@ -28,6 +28,11 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   container restarted; the CI watcher was re-armed.
 - 2026-10-01 22:52 UTC: run 334 fully green on 05e83c4 (build, debug build, smoke rd 8/16/24/24-Fast, benchmarks,
   playthrough 0 failed, every snapshot/harness test) -> PLAYTEST READY posted on PR #9 with the updated what's-new list.
+- 2026-10-01 23:56 UTC: run 338 (1d894fa, far-ocean seabed fix): playthrough flaked twice (an armoured-phase health
+  drop from a non-arrow source counted as arrow damage; cinder-rod fetching at 48 blocks kept the player off the
+  spawner, 7 kills in 671 s) -> the test now counts arrow damage only and fetches only rods from afar. Bench gate:
+  edit break/place p50 1.45 ms (LOD 0 path, untouched by the change) with gen/world-init also slow on that runner;
+  watching the next run.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
