@@ -45,6 +45,7 @@ final class Armory {
     var heldGun = -1
     var heldSlot = -1
     var placeCheck: Float = 0
+    var lastNoise: Double = -10
     var shotsFired = 0             // harness counters
     var hits = 0
 
@@ -419,6 +420,15 @@ extension Game {
         a.sinceShot = 0
         a.shotsFired += 1
         sfx(.gun(gs.sound), 1)
+        // Gunfire carries: Steelhold soldiers within 32 blocks come to investigate.
+        if survival && clock - a.lastNoise > 0.5 {
+            a.lastNoise = clock
+            for m in mobs.mobs where m.kind.steelhold && m.health > 0 && simd_length(m.pos - player.pos) < 32 {
+                let b = m.soldierBrain
+                if !m.aggro { m.aggro = true; b.react = max(b.react, 0.8) }
+                if !b.sees { b.lastSeen = player.pos; b.seenAgo = min(b.seenAgo, 1) }
+            }
+        }
         let right = V3(cosf(player.yaw), 0, -sinf(player.yaw))
         let flash = player.eye + look * 0.9 + right * 0.2 * (1 - a.aim) - V3(0, 0.12, 0)
         particles.add(Particle(pos: flash, vel: look * 0.5, life: 0.05, maxLife: 0.05, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,

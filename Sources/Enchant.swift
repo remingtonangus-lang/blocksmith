@@ -366,6 +366,7 @@ enum Enchant {
         if k == "turtle_helmet" { return "turtle_scute" }
         if k == "elytra" { return "phantom_membrane" }
         if k == "mace" { return "breeze_rod" }
+        if k.hasPrefix("gun_") { return k == "gun_arc" ? "copper_ingot" : "iron_ingot" }     // Steelhold guns
         return nil
     }
 
