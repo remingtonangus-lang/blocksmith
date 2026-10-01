@@ -135,8 +135,14 @@ B close, RS scroll creative.
   Ironclad (60 HP, heavy armour, no knockback, launcher or arc lance, enrages). They alert each other, chase the last
   sighting, burst-fire and reload; drop their ammo and 25% their gun. Deck guns (150 HP) on the towers traverse slowly,
   solve a ballistic arc and fire twin explosive shells; they cannot depress far, so the wall foot is safe.
-- `--mobtests` covers reloads, kills, recoil, pellets, rockets, beams, armour, alerts, marksman laser, deck gun salvos,
-  drops, fortress rarity and layout. Snapshots: soldiers, deck_gun, gun_hip/aim/scope, steelhold, steelhold_gate.
+- Tactics: soldiers duck into cover to reload, rifle troopers flank, automatic guns lay suppressing fire on the last
+  sighting, marksmen relocate after shots; sentries walk the apron; the armory has weapon racks (guns in item frames).
+  Gun tooltips (loaded rounds, ammo, damage, rate). Advancements: Behind Steel Walls, Locked and Loaded, Silence the
+  Guns, The Bigger They Are.
+- Also: player hurt cooldown (0.5 s, bigger hits land the difference; gun rounds skip it), raids saved with the world,
+  bow skeletons circle-strafe, raid/patrol captains wear the omen banner.
+- `--mobtests` covers reloads, kills, recoil, pellets, rockets, beams, armour, alerts, cover, marksman laser, deck gun salvos,
+  drops, fortress rarity and layout, raid save/restore. Snapshots: soldiers, deck_gun, gun_hip/aim/scope, steelhold, steelhold_gate.
 
 ## Handoff (2026-10-01, session claude/eloquent-lovelace-bsc5v1 winding down)
 Last pushed commit d92f9b0: build + 120 snapshots green on CI (ci-snaps-claude-eloquent-lovelace-bsc5v1).
