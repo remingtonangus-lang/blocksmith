@@ -49,7 +49,7 @@ ShipRender.swift, ShipPlay.swift, ShipBlocks.swift, ShipTest.swift).
   shells) blow blocks out of ships and push them.
 - Vessels (ShipVessels.swift): the **Skyward Frigate** (48-block flying warship, lift envelope, two turrets, broadside
   guns, Marauder crew, captain's chest) and the **Ironstride Siege Carriage** (six big wheels, armoured hull, giant
-  three-gun turret). One region in ~6 of 2048 blocks hosts one (seeded); it appears when the player comes within 150
+  three-gun turret). About one 2048-block region in 8 hosts one (seeded); it appears when the player comes within 150
   blocks, patrols around its home, and its turrets track and shell a survival player within 64-80 blocks. Steer one
   (take its helm) to capture it. Harness: `--ship gunboat|frigate|carriage`; bench scene `ships`.
 - Known gaps: mobs aboard use approximate collision and can swim in hull water; ship light is baked in ship space
