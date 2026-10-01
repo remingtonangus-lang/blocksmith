@@ -527,6 +527,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
         lastUniforms = u
         ParticleManager.glowBoost = hdrActive ? 3.2 : 1
+        ParticleManager.flashes = game.flashes
 
         enc.setFragmentTexture(texture, index: 0)
 

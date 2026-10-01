@@ -311,7 +311,7 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
         // Beyond the critical angle the surface mirrors the water below (total internal reflection).
         float3 rd = refract(v, -n, 1.33);
         float3 col = length(rd) < 0.01 ? deep * 1.4 : mix(skyAlong(rd, u) * 0.85, deep, 0.3);
-        col += u.sunColor.rgb * pow(saturate(dot(rd, u.lightDir.xyz)), 40.0) * 3.0 * sunVis;
+        col += u.sunColor.rgb * pow(saturate(dot(rd, u.lightDir.xyz)), 220.0) * 2.0 * sunVis;
         return float4(applyFog(col, dist, u), 1.0);
     }
     // Reflection: march the reflected ray through the opaque depth; fall back to the sky.
@@ -487,19 +487,6 @@ fragment float4 compositeFS(FsOut in [[stage_in]],
         float m = 1.0 - exp(-od);
         float phase = 1.0 + pow(saturate(dot(dir, u.lightDir.xyz)), 6.0) * 1.5;
         c = mix(c, p.mist.rgb * phase, saturate(m));
-    }
-    if (u.params.w > 0.5 && u.sunColor.r + u.sunColor.g > 0.05) {
-        // Under water: slanted light shafts that sway, brightest near the surface and toward the sun.
-        float d = dep.sample(ls, in.uv);
-        float3 rel = relAt(in.uv, d, u);
-        float3 dir = normalize(rel);
-        float dist = d >= 1.0 ? 40.0 : min(length(rel), 40.0);
-        float t = u.params.z;
-        float3 pm = u.eye.xyz + dir * dist * 0.5;
-        float2 q = pm.xz - u.lightDir.xz * pm.y * 0.6;
-        float shaft = pow(vnoise(q * 0.35 + float2(t * 0.15, t * 0.1)), 3.0) * 1.6;
-        float up = saturate(dir.y * 0.8 + 0.4);
-        c += u.fogColor.rgb * u.sunColor.rgb * shaft * up * (1.0 - exp(-dist * 0.06)) * 3.0;
     }
     c *= p.grade.x;
     c = toneShoulder(c);

@@ -23,6 +23,8 @@ final class ParticleManager {
     // Brightness of glowing particles (flames, sparks, muzzle flashes, tracers): >1 in the HDR (Fancy)
     // renderer so they bloom, 1 in Fast. Set by the renderer each frame.
     static var glowBoost: Float = 1
+    // Active light flashes (explosions, muzzle flashes...) so smoke near them is lit, set by the renderer.
+    static var flashes: [LightFlash] = []
 
     func add(_ p: Particle) { if list.count < ParticleManager.cap { list.append(p) } }
 
@@ -53,6 +55,14 @@ final class ParticleManager {
 
     func explosion(at c: V3, power: Float) {
         let smoke = Int(Tex.id("smoke"))
+        // Fireball: short-lived glowing orange puffs at the core (bloom in Fancy).
+        for _ in 0..<Int(power * 6) {
+            let d = simd_normalize(V3(Float.random(in: -1...1), Float.random(in: -0.3...1), Float.random(in: -1...1)))
+            add(Particle(pos: c + d * Float.random(in: 0...power * 0.35), vel: d * Float.random(in: 1.5...3.5) + V3(0, 1.2, 0),
+                         life: Float.random(in: 0.2...0.45), maxLife: 0.45, layer: smoke, uv0: V2(0, 0), uvSize: 1,
+                         size: Float.random(in: 0.35...0.8), gravity: -2, color: V3(1.0, Float.random(in: 0.45...0.75), 0.18),
+                         collide: false, glow: true))
+        }
         for _ in 0..<Int(power * 12) {
             let d = simd_normalize(V3(Float.random(in: -1...1), Float.random(in: -1...1), Float.random(in: -1...1)))
             let g = Float.random(in: 0.5...1)
@@ -114,7 +124,16 @@ final class ParticleManager {
             let l = world.lightAt(Int(floor(p.pos.x)), Int(floor(p.pos.y)), Int(floor(p.pos.z)))
             // Same dimension ambient lift as terrain (Emberdeep ash would otherwise be black).
             let base = max(0.15, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
-            let light = p.glow ? ParticleManager.glowBoost : base + (1 - base) * amb
+            var light = p.glow ? ParticleManager.glowBoost : base + (1 - base) * amb
+            if !p.glow {
+                for f in ParticleManager.flashes {
+                    let d = simd_length(f.pos - p.pos)
+                    if d < f.radius {
+                        let k = max(0, f.life / f.maxLife), a = 1 - d / f.radius
+                        light += (f.color.x + f.color.y + f.color.z) / 3 * a * a * k * k * 0.6
+                    }
+                }
+            }
             let s = p.size
             let r = right * s, u = up * s
             let a = p.uv0, b = p.uv0 + V2(p.uvSize, p.uvSize)
