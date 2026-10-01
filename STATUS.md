@@ -119,6 +119,19 @@ Options > Video > Resolution to 75% for a steady 60 fps on the M1.
   world afterwards), pad status on the title, "controller disconnected" note on the pause menu.
 - Not yet: controller button remapping, a free-moving pad cursor option for menus.
 
+## Realistic terrain (branch claude/realistic-terrain, PR #7)
+- `Sources/Terrain.swift` drives the overworld surface; `WorldGen` turns it into blocks (density, caves, ores, surface
+  rules, trees). Fields: continents (warped fbm), mountain belts (crest + foothills, peaks ~250), hills, mesa terraces,
+  sea cliffs, an erosion filter (slope-aligned gullies), a 128-block river graph (steepest descent, rain-weighted
+  upstream counts) with valleys, channels, levees, floodplains, deltas, fjords on cold mountain coasts, basin lakes at
+  their spill level (salt flats when dry). Climate: latitude-like temperature bands along z (period 9000 blocks; z=0
+  temperate, +z warmer), altitude lapse, rainfall with latitude cells, continental drying, rain shadows.
+- Biomes are picked from local climate (+ coherent jitter for ecotones); tints are blended in climate space; trees
+  sample the climate with their own offset. `Terrain.implausible` lists pairs that must never touch.
+- Harness: `--terrainmap DIR [--seed N --size B --step B --x X --z Z --strict]` writes terrain_<seed>.png +
+  relief_<seed>.png and the neighbour check; `--genbench` prints ms/chunk on the perf bench's chunks and a water
+  leak count. Caches (macro 16-grid, lattice nodes, river graph) are pure memo tables, so output is order-independent.
+
 ## Rendering performance
 - Solid cube faces are drawn first without alpha test (keeps the GPU's hidden-surface removal), cutout faces
   (leaves, plants, models) second; far chunks use "fast" leaves (no faces inside canopies). Section meshes are

@@ -81,6 +81,7 @@ final class Terrain {
         var jt: Float = 0, jw: Float = 0   // ecotone jitter for temperature and rainfall
         var dry: Float = 0    // 1 on a dry lake bed (salt flat)
         var isl: Float = 0
+        var delta: Float = 0  // river delta flats near a mouth
     }
 
     let seed: UInt64
@@ -217,6 +218,11 @@ final class Terrain {
     // Hills, mountain massifs and mesa terraces on top of the smooth base (before erosion and rivers).
     func detail(_ x: Float, _ z: Float, _ m: Macro) -> Float {
         var h = m.e
+        // Sea cliffs: on some coasts the land steps up within a few blocks of the shoreline.
+        if m.c > -0.02 && m.c < 0.08 {
+            let cliff = Terrain.smooth(0.1, 0.35, detN.fbm2(x / 600 + 50, z / 600, 2)) * Terrain.smooth(0.15, -0.1, m.ts + 0.2 * m.w)
+            if cliff > 0.001 { h += cliff * 18 * Terrain.smooth(0.0, 0.012, m.c) }
+        }
         let hill = hillN.fbm2(x / 320, z / 320, 4)
         h += m.r * (24 * hill + 6) + 3 * detN.fbm2(x / 110, z / 110, 2)
         if m.u > 0.001 {
@@ -305,14 +311,14 @@ final class Terrain {
         n.v = varN.fbm2(fx / 500, fz / 500, 2) * 2.2
         n.jt = 0.1 * jitN.fbm2(fx / 40, fz / 40, 2)
         n.jw = 0.12 * jitN.fbm2(fx / 40 + 71, fz / 40 - 13, 2)
-        carveWater(&n, fx, fz, m.e)
+        carveWater(&n, fx, fz, m)
         return n
     }
 
     // Column fields: bilinear between the four lattice nodes; the water level is the highest corner's (rivers
     // and lakes flag the nodes around them, so whole channels share one level).
     struct Column {
-        var h: Float, wl: Float, rv: Float, ts: Float, w: Float, c: Float, u: Float, r: Float, slope: Float, v: Float, jt: Float, jw: Float, dry: Float, isl: Float
+        var h: Float, wl: Float, rv: Float, ts: Float, w: Float, c: Float, u: Float, r: Float, slope: Float, v: Float, jt: Float, jw: Float, dry: Float, isl: Float, delta: Float
     }
 
     static func blend(_ a: Node, _ b: Node, _ c: Node, _ d: Node, _ fx: Float, _ fz: Float) -> Column {
@@ -324,7 +330,7 @@ final class Terrain {
         return Column(h: l(a.h, b.h, c.h, d.h), wl: max(max(a.wl, b.wl), max(c.wl, d.wl)), rv: l(a.rv, b.rv, c.rv, d.rv),
                       ts: l(a.ts, b.ts, c.ts, d.ts), w: l(a.w, b.w, c.w, d.w), c: l(a.c, b.c, c.c, d.c), u: l(a.u, b.u, c.u, d.u),
                       r: l(a.r, b.r, c.r, d.r), slope: l(a.slope, b.slope, c.slope, d.slope), v: l(a.v, b.v, c.v, d.v),
-                      jt: l(a.jt, b.jt, c.jt, d.jt), jw: l(a.jw, b.jw, c.jw, d.jw), dry: l(a.dry, b.dry, c.dry, d.dry), isl: l(a.isl, b.isl, c.isl, d.isl))
+                      jt: l(a.jt, b.jt, c.jt, d.jt), jw: l(a.jw, b.jw, c.jw, d.jw), dry: l(a.dry, b.dry, c.dry, d.dry), isl: l(a.isl, b.isl, c.isl, d.isl), delta: l(a.delta, b.delta, c.delta, d.delta))
     }
 
     func column(_ x: Int, _ z: Int) -> Column {
@@ -444,7 +450,8 @@ final class Terrain {
     }
 
     // Cuts valleys, channels and lake basins into a node and records its water level.
-    private func carveWater(_ n: inout Node, _ x: Float, _ z: Float, _ e: Float) {
+    private func carveWater(_ n: inout Node, _ x: Float, _ z: Float, _ m: Macro) {
+        let e = m.e
         let set = riverSet(Int(floorf(x / Float(Terrain.rs))), Int(floorf(z / Float(Terrain.rs))))
         if set.segs.isEmpty && set.lakes.isEmpty { return }
         let raw = n.h
@@ -453,6 +460,8 @@ final class Terrain {
         let qx = x + 26 * mw1.fbm2(x / 110, z / 110, 2) + 50 * mw1.fbm2(x / 420 + 9, z / 420, 2)
         let qz = z + 26 * mw2.fbm2(x / 110, z / 110, 2) + 50 * mw2.fbm2(x / 420, z / 420 + 9, 2)
         var rv: Float = 99, bestL = SEA_D
+        var delta: Float = 0, deltaCh = false
+        let fjord = Terrain.smooth(-0.05, -0.35, m.ts) * Terrain.smooth(0.1, 0.35, m.u + 0.3 * m.r) * Terrain.smooth(0.5, 0.1, m.c)
         for s in set.segs {
             let dx = s.bx - s.ax, dz = s.bz - s.az
             let l2 = dx * dx + dz * dz
@@ -463,18 +472,38 @@ final class Terrain {
             let hw = s.mouth ? s.hw * (1 + 1.2 * t * t) : s.hw
             if dn > hw + 220 { continue }
             let lv = Terrain.lerp(s.la, s.lb, t)
-            let L = max(SEA_D, min(lv, e - 1))
+            var L = max(SEA_D, min(lv, e - 1))
+            var slope = 0.22 + 0.75 * Terrain.smooth(8, 90, max(0, raw - L))
+            var depth = s.depth
+            var hwv = hw
+            // Fjords: on cold mountain coasts the lower valley is a glacial trough drowned by the sea.
+            if fjord > 0.01 {
+                let low = Terrain.smooth(110, SEA_D, lv)
+                L -= fjord * low * 30
+                slope += fjord * 1.3
+                hwv += fjord * low * 16
+                depth += fjord * low * 4
+            }
             let relief = max(0, raw - L)
-            let slope = 0.22 + 0.75 * Terrain.smooth(8, 90, relief)
-            let fp = hw * 1.6 * (1 - Terrain.smooth(10, 50, relief)) + 2
-            let target = L + 1 + max(0, dn - hw - fp) * slope
+            let fp = hwv * 1.6 * (1 - Terrain.smooth(10, 50, relief)) + 2
+            let target = L + 1 + max(0, dn - hwv - fp) * slope
             h = min(h, target)
-            if dn < hw {
-                let q = dn / hw
-                let bed = L - s.depth * max(0, 1 - q * q).squareRoot()
+            if dn < hwv {
+                let q = dn / hwv
+                let bed = L - depth * max(0, 1 - q * q).squareRoot()
                 h = min(h, bed)
             }
-            let r = dn / hw
+            // Deltas: big lowland rivers fan out into flats cut by distributary channels near the mouth.
+            if s.mouth && s.hw > 7 && t > 0.35 && raw < SEA_D + 6 && fjord < 0.3 {
+                let fan = Terrain.smooth(hwv + 90 * t, hwv, dn) * Terrain.smooth(0.35, 0.7, t)
+                if fan > 0.01 {
+                    h = min(h, Terrain.lerp(h, SEA_D + 1, fan))
+                    delta = max(delta, fan)
+                    let ch = abs(detN.fbm2(x / 45 + 300, z / 45, 2))
+                    if ch < 0.05 * fan { h = min(h, SEA_D - 1.5); deltaCh = true }
+                }
+            }
+            let r = dn / hwv
             if r < rv { rv = r; bestL = L }
         }
         var lakeL: Float = -1
@@ -499,6 +528,8 @@ final class Terrain {
         if rv >= 1 && rv < 1.8 && raw >= SEA_D - 1 { h = max(h, bestL + 1) }
         n.h = h
         n.dry = dry
+        n.delta = delta
+        if deltaCh && rv > 0.9 { rv = 0.9 }
         if rv < 2 { n.wl = max(bestL, SEA_D) }
         if lakeL > 0 { n.wl = max(n.wl, lakeL); if rv > 1 { rv = 0.5 } }
         n.rv = rv
@@ -538,6 +569,7 @@ final class Terrain {
             return .beach
         }
         if k.dry > 0.5 { return ts > 0.4 ? .desert : .plains }
+        if k.delta > 0.4 && high < 4 && w > -0.15 { return t > 0.4 ? .mangroveSwamp : (t > -0.1 ? .swamp : .plains) }
         // Frozen: tundra, snowy forest, glaciated peaks.
         if t < -0.5 {
             if high > 75 && (k.slope > 0.55 || k.u > 0.45) {
