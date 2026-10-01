@@ -267,7 +267,9 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
     }
     float e = emis.sample(texSampler, in.uv, layer).r;
     // Lava keeps its orange body (a strong boost clips it to flat yellow); other emitters glow harder.
-    col += albedo * e * (in.anim > 0.5 ? 0.7 : 2.4);
+    // In full daylight emitters need far less boost (they'd clip to white); at night/underground they glow.
+    float eK = mix(2.4, 0.8, sunVis * saturate(u.params.y));
+    col += albedo * e * (in.anim > 0.5 ? 0.7 : eK);
     col = waterAmbient(col, albedo, u);
     return float4(applyFogDir(col, in.rel, length(in.rel), u), 1.0);
 }
@@ -507,8 +509,32 @@ struct PostParams {
 };
 
 // God rays: march from each pixel toward the sun through the depth buffer; sky texels (depth 1) shine.
-fragment float4 raysFS(FsOut in [[stage_in]], depth2d<float> dep [[texture(0)]], constant PostParams& p [[buffer(0)]]) {
+fragment float4 raysFS(FsOut in [[stage_in]], depth2d<float> dep [[texture(0)]], depth2d<float> sm [[texture(1)]],
+                       constant PostParams& p [[buffer(0)]], constant Uniforms& u [[buffer(1)]]) {
     constexpr sampler ls(filter::nearest, address::clamp_to_edge);
+    // Green: volumetric light shafts - the view ray (up to 40 blocks) marched through the sun/moon shadow
+    // map; lit air in-scatters, so shafts show through canopies even with the sun off screen.
+    float vol = 0.0;
+    if (u.sunColor.w > 0.05 && u.params.w < 0.5) {
+        constexpr sampler cmp(coord::normalized, filter::linear, address::clamp_to_edge, compare_func::less_equal);
+        float d = dep.sample(ls, in.uv);
+        float3 rel = relAt(in.uv, d, u);
+        float L = min(d >= 1.0 ? 40.0 : length(rel), 40.0);
+        float3 dir = normalize(rel);
+        float jit = fract(sin(dot(in.pos.xy, float2(12.9898, 78.233))) * 43758.5453);
+        float lit = 0.0;
+        for (int i = 0; i < 8; i++) {
+            float3 q = dir * (L * (float(i) + jit) / 8.0);
+            float4 sc = u.shadowMat * float4(q, 1.0);
+            float2 suv = float2(sc.x * 0.5 + 0.5, 0.5 - sc.y * 0.5);
+            lit += (suv.x > 0.0 && suv.y > 0.0 && suv.x < 1.0 && suv.y < 1.0) ? sm.sample_compare(cmp, suv, sc.z - 0.001) : 1.0;
+        }
+        lit /= 8.0;
+        float phase = 0.12 + pow(saturate(dot(dir, u.lightDir.xyz)), 8.0) * 0.9;
+        float scatter = (1.0 - exp(-L * 0.02)) * phase * (0.35 + p.sunCol.w + u.ambColor.w * 0.5);
+        vol = lit * scatter * 0.55 * u.sunColor.w;
+    }
+    if (p.sun.z <= 0.0) { return float4(0, vol, 0, 1); }
     const int N = 28;
     float2 uv = in.uv;
     float2 delta = (p.sun.xy - uv) / float(N) * 0.9;
@@ -522,7 +548,7 @@ fragment float4 raysFS(FsOut in [[stage_in]], depth2d<float> dep [[texture(0)]],
     }
     float r = illum / wsum;
     float fall = 1.0 - smoothstep(0.0, 0.75, length((in.uv - p.sun.xy) * float2(1.6, 1.0)));
-    return float4(r * fall, 0, 0, 1);
+    return float4(r * fall, vol, 0, 1);
 }
 
 static float3 toneShoulder(float3 x) {
@@ -536,7 +562,6 @@ fragment float4 compositeFS(FsOut in [[stage_in]],
                             texture2d<float> bloom [[texture(1)]],
                             texture2d<float> rays [[texture(2)]],
                             depth2d<float> dep [[texture(3)]],
-                            depth2d<float> sm [[texture(4)]],
                             constant PostParams& p [[buffer(0)]],
                             constant Uniforms& u [[buffer(1)]]) {
     constexpr sampler ls(filter::linear, address::clamp_to_edge);
@@ -544,26 +569,8 @@ fragment float4 compositeFS(FsOut in [[stage_in]],
     // One depth reconstruction shared by the shafts, haze and mist below.
     float d = dep.sample(ls, in.uv);
     float3 rel = relAt(in.uv, d, u);
-    if (p.grade.w > 0.0 && u.sunColor.w > 0.05 && u.params.w < 0.5) {
-        // Volumetric light shafts: march the view ray (up to 40 blocks) through the sun/moon shadow map and
-        // add in-scattered light where the air is lit, so shafts show through canopies and openings even
-        // with the sun off screen. 10 jittered steps; strongest looking toward the light.
-        constexpr sampler cmp(coord::normalized, filter::linear, address::clamp_to_edge, compare_func::less_equal);
-        float L = min(d >= 1.0 ? 40.0 : length(rel), 40.0);
-        float3 dir = normalize(rel);
-        float jit = fract(sin(dot(in.pos.xy, float2(12.9898, 78.233))) * 43758.5453);
-        float lit = 0.0;
-        for (int i = 0; i < 10; i++) {
-            float3 q = dir * (L * (float(i) + jit) / 10.0);
-            float4 sc = u.shadowMat * float4(q, 1.0);
-            float2 suv = float2(sc.x * 0.5 + 0.5, 0.5 - sc.y * 0.5);
-            lit += (suv.x > 0.0 && suv.y > 0.0 && suv.x < 1.0 && suv.y < 1.0) ? sm.sample_compare(cmp, suv, sc.z - 0.001) : 1.0;
-        }
-        lit /= 10.0;
-        float phase = 0.12 + pow(saturate(dot(dir, u.lightDir.xyz)), 8.0) * 0.9;
-        float scatter = (1.0 - exp(-L * 0.02)) * phase * (0.35 + p.sunCol.w + u.ambColor.w * 0.5);
-        c += u.sunColor.rgb * lit * scatter * 0.55 * u.sunColor.w;
-    }
+    // Volumetric shafts, computed at half resolution in raysFS (green channel).
+    c += rays.sample(ls, in.uv).g * u.sunColor.rgb;
     c += bloom.sample(ls, in.uv).rgb * p.sun.w;
     c += rays.sample(ls, in.uv).r * p.sunCol.rgb * p.sun.z;
     if (p.sunCol.w > 0.0) {

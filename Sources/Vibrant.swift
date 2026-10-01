@@ -246,7 +246,7 @@ final class Vibrant {
             let warm = simd_mix(V3(1.0, 0.95, 0.86), V3(1.0, 0.56, 0.3), V3(repeating: dusk * dusk))
             let rise: Float = up * up * (3 - 2 * up)
             let dim: Float = 1 - 0.75 * rain
-            f.color = warm * (0.62 * rise * dim)
+            f.color = warm * (0.68 * rise * dim)
             let hz: Float = 0.25 + 0.75 * dusk
             f.hazeStrength = hz * (1 - rain) * up
         } else {
@@ -255,7 +255,7 @@ final class Vibrant {
         }
         f.shadowStrength = simd_clamp((L.y - 0.03) / 0.15, 0, 1) * (1 - 0.85 * rain)
         let dl = simd_clamp((game.daylight - 0.1) / 0.9, 0, 1)
-        let dayAmb = V3(0.52, 0.57, 0.66), nightAmb = V3(0.17, 0.2, 0.33)
+        let dayAmb = V3(0.55, 0.58, 0.63), nightAmb = V3(0.17, 0.2, 0.33)
         f.ambient = simd_mix(nightAmb, dayAmb, V3(repeating: dl))
         // Thunderstorms: heavy cloud cover, a steely ambient and almost no direct sun.
         let storm = min(1, game.weather.thunder)
@@ -314,13 +314,15 @@ final class Vibrant {
             e.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
             e.endEncoding()
         }
-        // God rays (half resolution) only when the sun is in front of the camera.
+        // Half resolution: red = screen-space god rays (sun on screen), green = volumetric shafts.
         do {
             let e = pass(raysTex, load: false)
             e.setRenderPipelineState(rays)
             e.setFragmentTexture(depth, index: 0)
+            e.setFragmentTexture(shadowMap, index: 1)
             e.setFragmentBytes(&p, length: MemoryLayout<PostParams>.stride, index: 0)
-            if p.sun.z > 0 { e.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3) }
+            e.setFragmentBytes(&uu, length: MemoryLayout<Uniforms>.stride, index: 1)
+            e.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
             e.endEncoding()
         }
         let e = cmd.makeRenderCommandEncoder(descriptor: final)!
@@ -329,7 +331,6 @@ final class Vibrant {
         e.setFragmentTexture(bloom[0], index: 1)
         e.setFragmentTexture(raysTex, index: 2)
         e.setFragmentTexture(depth, index: 3)
-        e.setFragmentTexture(shadowMap, index: 4)
         e.setFragmentBytes(&p, length: MemoryLayout<PostParams>.stride, index: 0)
         e.setFragmentBytes(&uu, length: MemoryLayout<Uniforms>.stride, index: 1)
         e.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)

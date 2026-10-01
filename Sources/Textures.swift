@@ -179,7 +179,7 @@ enum TextureGen {
         func dirt(_ x: Int, _ y: Int) -> V4 {
             // Soil: soft clumps, small dark pores and the odd pale pebble.
             let n = r(x, y, 31)
-            if n < 0.05 { return hex(0x9A8A78, 0.95) }
+            if n < 0.035 { return hex(0x9A7A5C, 0.95) }
             var k: Float = 0.9 + (blot(x, y, 32, 4) - 0.5) * 0.22 + (r(x, y, 3) - 0.5) * 0.12
             if n > 0.9 { k *= 0.76 }
             return hex(0x866043, k)
