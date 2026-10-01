@@ -430,6 +430,7 @@ enum PadTest {
         // Rumble requests (logged instead of vibrating while simulated).
         g.survival = true
         PadManager.shared.rumbleLog.removeAll()
+        g.audio.lastHurtSound = -10          // the hit above is within the hurt sound's 0.25 s rate limit
         g.damage(2, "test")
         check(!PadManager.shared.rumbleLog.isEmpty, "taking damage rumbles")
         let log = { PadManager.shared.rumbleLog }
