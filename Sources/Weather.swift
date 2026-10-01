@@ -109,6 +109,7 @@ extension Game {
     func strike(_ at: V3) {
         bolts.append(Bolt(pos: at, life: 0.35, seed: UInt64.random(in: 1...UInt64.max)))
         lightningFlash = 1
+        addFlash(at: at + V3(0, 6, 0), color: V3(5, 5.5, 7), radius: 40, life: 0.35)
         let d = simd_length(at - player.pos)
         sfx(.thunder, max(0.3, 1.4 - d / 120), at: d < 32 ? at : nil)
         let b = IVec3(Int(floor(at.x)), Int(floor(at.y)), Int(floor(at.z)))

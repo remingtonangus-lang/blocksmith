@@ -268,6 +268,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     private(set) var lastUniforms: Uniforms?
     var postParams = PostParams()
     private var shadowList: [(Chunk, Int)] = []
+    private var flashScratch: [V4] = []
 
     // Camera position and angles: first person, or pulled back behind / in front of the player (F5),
     // stopping short of blocks.
@@ -324,6 +325,8 @@ final class Renderer: NSObject, MTKViewDelegate {
             e.setFragmentTexture(v.shadowMap, index: 1)
             e.setFragmentTexture(v.emissive, index: 2)
             e.setFragmentBuffer(v.materials, offset: 0, index: 4)
+            _ = self.game.packFlashes(eye: self.cameraEye().eye, into: &self.flashScratch)
+            self.flashScratch.withUnsafeBytes { e.setFragmentBytes($0.baseAddress!, length: $0.count, index: 5) }
         }
         hdrActive = true
         let encA = cmd.makeRenderCommandEncoder(descriptor: a)!

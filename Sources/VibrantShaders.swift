@@ -20,11 +20,18 @@ struct VibOut {
     float3 rel;
 };
 
+// Per-section record at buffer 2, indexed by instance id: camera-relative origin + tint table offset (words).
+// Same 16-byte layout as a float4 offset with w = 0, so single-section draws can pass (x, y, z, 0) bytes.
+struct VibSection { packed_float3 origin; uint tint; };
+
 vertex VibOut chunkVibVS(uint vid [[vertex_id]],
+                         uint iid [[instance_id]],
                          const device uint2* verts [[buffer(0)]],
                          constant Uniforms& u [[buffer(1)]],
-                         constant float4& sectionOffset [[buffer(2)]],
+                         const device VibSection* sections [[buffer(2)]],
                          const device uint* tints [[buffer(3)]]) {
+    float3 sectionOffset = float3(sections[iid].origin);
+    uint tintBase = sections[iid].tint;
     uint2 v = verts[vid];
     uint w0 = v.x, w1 = v.y;
     uint xi = w0 & 511u, zi = (w0 >> 18) & 511u;
@@ -45,7 +52,7 @@ vertex VibOut chunkVibVS(uint vid [[vertex_id]],
     }
     uint layer = ((w1 >> 10) & 1023u) | ((w1 >> 31) << 10);
     uint ao = (w1 >> 20) & 3u;
-    float3 rel = p + sectionOffset.xyz;
+    float3 rel = p + sectionOffset;
     if (face == 6u && vv == 0u) {
         float3 wp = rel + u.eye.xyz;
         float t = u.params.z;
@@ -60,7 +67,7 @@ vertex VibOut chunkVibVS(uint vid [[vertex_id]],
     o.tint = float3(1.0);
     if (tintMode != 0u) {
         uint cx = min(15u, xi >> 4), cz = min(15u, zi >> 4);
-        o.tint = unpack_unorm4x8_to_float(tints[cx + cz * 16u + (tintMode - 1u) * 256u]).rgb;
+        o.tint = unpack_unorm4x8_to_float(tints[tintBase + cx + cz * 16u + (tintMode - 1u) * 256u]).rgb;
     }
     o.overlay = float((w1 >> 30) & 1u);
     o.anim = face == 7u ? 1.0 : 0.0;
@@ -113,8 +120,22 @@ static float caustic(float2 p, float t) {
 
 // Shared terrain shading: ambient sky light (face shade, AO) + directional sun/moon light with shadows,
 // warm block light, rain wetness, material specular, emissive texels, fog.
+static float3 flashLight(float3 rel, float3 n, constant float4* fl) {
+    float3 acc = float3(0.0);
+    for (int i = 0; i < 8; i++) {
+        float4 pr = fl[i * 2];
+        if (pr.w <= 0.0) { break; }
+        float3 d = pr.xyz - rel;
+        float dist = length(d);
+        float att = saturate(1.0 - dist / pr.w);
+        float ndl = saturate(dot(n, d / max(dist, 0.001)) * 0.75 + 0.25);
+        acc += fl[i * 2 + 1].rgb * att * att * ndl;
+    }
+    return acc;
+}
+
 static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<float> emis,
-                       const device uchar4* mats, constant Uniforms& u) {
+                       const device uchar4* mats, constant Uniforms& u, constant float4* fl) {
     float3 t = (in.overlay > 0.5 && c.a > 0.95) ? float3(1.0) : in.tint;
     float3 albedo = c.rgb * t;
     uint layer = uint(in.layer);
@@ -141,6 +162,7 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
     float3 blkPart = blk * float3(1.0, 0.7, 0.4) * 1.1 * mix(0.75, 1.0, in.ao);
     float3 lit = max(skyPart, blkPart) + min(skyPart, blkPart) * 0.3;
     lit = mix(max(lit, float3(0.03)), float3(1.0), u.sunDir.w);
+    lit += flashLight(in.rel, n, fl);
     float3 col = albedo * lit;
     if (spec > 0.004 && sunVis > 0.0) {
         float3 h = normalize(u.lightDir.xyz - v);
@@ -163,13 +185,14 @@ fragment float4 chunkVibSolidFS(VibOut in [[stage_in]],
                                 depth2d<float> sm [[texture(1)]],
                                 texture2d_array<float> emis [[texture(2)]],
                                 constant Uniforms& u [[buffer(1)]],
-                                const device uchar4* mats [[buffer(4)]]) {
+                                const device uchar4* mats [[buffer(4)]],
+                                constant float4* fl [[buffer(5)]]) {
     float2 uv = in.uv;
     if (in.anim > 0.5) { uv += float2(0.0, fract(u.params.z * 0.04)); }
     float4 c = tex.sample(texSampler, uv, uint(in.layer));
     if (in.anim > 0.5) { c.rgb = lavaGlow(c.rgb, in.rel, u); }
     VibOut o = in; o.uv = uv;
-    return vibShade(o, c, sm, emis, mats, u);
+    return vibShade(o, c, sm, emis, mats, u, fl);
 }
 
 fragment float4 chunkVibFS(VibOut in [[stage_in]],
@@ -177,14 +200,15 @@ fragment float4 chunkVibFS(VibOut in [[stage_in]],
                            depth2d<float> sm [[texture(1)]],
                            texture2d_array<float> emis [[texture(2)]],
                            constant Uniforms& u [[buffer(1)]],
-                           const device uchar4* mats [[buffer(4)]]) {
+                           const device uchar4* mats [[buffer(4)]],
+                           constant float4* fl [[buffer(5)]]) {
     float2 uv = in.uv;
     if (in.anim > 0.5) { uv += float2(0.0, fract(u.params.z * 0.04)); }
     float4 c = tex.sample(texSampler, uv, uint(in.layer));
     if (c.a < 0.5) { discard_fragment(); }
     if (in.anim > 0.5) { c.rgb = lavaGlow(c.rgb, in.rel, u); }
     VibOut o = in; o.uv = uv;
-    return vibShade(o, c, sm, emis, mats, u);
+    return vibShade(o, c, sm, emis, mats, u, fl);
 }
 
 static float3 relAt(float2 suv, float d, constant Uniforms& u) {

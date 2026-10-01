@@ -113,6 +113,7 @@ done
 "$BIN" --snapshot snaps/create.png --seed 12345 --menu create
 "$BIN" --snapshot snaps/recipes.png --seed 12345 --menu recipes
 "$BIN" --snapshot snaps/commands.png --seed 12345 --menu commands
+"$BIN" --snapshot snaps/boom_night.png --seed 12345 --find plains --yaw 30 --pitch -15 --time 0.78 --up 2 --boom
 "$BIN" --snapshot snaps/fireworks.png --seed 12345 --find plains --yaw 30 --pitch 20 --time 0.8 --up 1 --fireworks
 "$BIN" --snapshot snaps/monument.png --seed 12345 --structure monument --frame 1 --time 0.25
 "$BIN" --snapshot snaps/mansion.png --seed 12345 --structure mansion --frame 1.7 --time 0.25
