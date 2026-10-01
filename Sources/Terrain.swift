@@ -172,10 +172,11 @@ final class Terrain {
         m.r = Terrain.smooth(-0.25, 0.45, rugN.fbm2(x / 1300, z / 1300, 3))
         let lz = z + 500 * latN.fbm2(x / 2500, z / 2500, 2)
         let sphi = sinf(2 * Float.pi * lz / Terrain.latPeriod)      // +1 tropics, -1 polar
-        m.ts = 0.5 * sphi + 0.12 + 0.95 * tempN.fbm2(x / 2100, z / 2100, 3)
         let lat01 = (1 - sphi) / 2                                     // 0 equator ... 1 pole
+        // Warm through the subtropics, falling off faster toward the poles (like Earth's profile).
+        m.ts = 0.64 - 1.22 * powf(lat01, 1.6) + 0.95 * tempN.fbm2(x / 2100, z / 2100, 3)
         var w = 1.05 * humN.fbm2(x / 1500, z / 1500, 3)
-        w += 0.28 * cosf(3 * Float.pi * lat01)
+        w += 0.36 * cosf(3 * Float.pi * lat01)
         w -= 0.28 * Terrain.smooth(0.3, 1.0, c)
         // Prevailing wind: trade easterlies, mid-latitude westerlies, polar easterlies.
         let windx = -cosf(3 * Float.pi * (lat01 - 1.0 / 6.0))
@@ -599,6 +600,7 @@ final class Terrain {
         let v = k.v
         // Water.
         if h < SEA_D - 0.5 && k.wl <= SEA_D + 0.01 {
+            let ts = k.ts + 0.3 * k.jt + dT
             let deep = h < SEA_D - 26
             if ts < -0.45 { return deep ? .deepFrozenOcean : .frozenOcean }
             if ts < -0.12 { return deep ? .deepColdOcean : .coldOcean }
@@ -611,7 +613,7 @@ final class Terrain {
         if k.isl > 0.5 && t > -0.2 { return .mushroomFields }
         let high = h - SEA_D
         // Shores.
-        if k.c < 0.04 && h < SEA_D + 2.5 && k.u < 0.25 {
+        if k.c < 0.014 && h < SEA_D + 3 && k.u < 0.25 {
             if k.slope > 0.9 { return .stonyShore }
             if t < -0.4 { return .snowyBeach }
             if ts > 0.55 && w < -0.35 { return .desert }
@@ -636,10 +638,10 @@ final class Terrain {
             return .snowyTaiga
         }
         // Bare rock above the treeline where it is too warm or dry for snow cover.
-        if high > 120 && k.u > 0.45 && k.slope > 0.6 { return .stonyPeaks }
+        if high > 100 && k.u > 0.4 && k.slope > 0.5 { return .stonyPeaks }
         // Boreal.
         if t < 0.02 {
-            if high > 50 && k.r > 0.55 && k.slope > 0.45 {
+            if high > 35 && k.r > 0.5 && k.slope > 0.3 {
                 if w < -0.25 { return .windsweptGravellyHills }
                 return w > 0.2 ? .windsweptForest : .windsweptHills
             }
@@ -650,7 +652,7 @@ final class Terrain {
         }
         // Temperate.
         if t < 0.32 {
-            if high > 50 && k.r > 0.6 && k.slope > 0.5 { return w > 0.1 ? .windsweptForest : .windsweptHills }
+            if high > 40 && k.r > 0.55 && k.slope > 0.35 { return w > 0.1 ? .windsweptForest : .windsweptHills }
             if high > 55 && w > -0.1 && w < 0.35 && k.slope < 0.5 { return v > 0.35 ? .cherryGrove : .meadow }
             if w > 0.38 && high < 6 && k.slope < 0.25 { return .swamp }
             if w < -0.3 { return v > 0.55 ? .sunflowerPlains : .plains }
@@ -664,10 +666,10 @@ final class Terrain {
         // Warm.
         if t < 0.58 {
             if w > 0.32 && high < 5 && k.slope < 0.25 { return t > 0.45 ? .mangroveSwamp : .swamp }
-            if w < -0.45 { return .desert }
+            if w < -0.36 { return high > 25 && w < -0.42 && t > 0.48 ? .badlands : .desert }
             if w < -0.12 {
                 if high > 50 && k.slope < 0.35 { return .savannaPlateau }
-                return k.r > 0.6 && k.slope > 0.5 ? .windsweptSavanna : .savanna
+                return k.r > 0.5 && k.slope > 0.35 ? .windsweptSavanna : .savanna
             }
             if w < 0.2 { return v < 0 ? .plains : .forest }
             if w < 0.45 { return .sparseJungle }
@@ -676,8 +678,8 @@ final class Terrain {
         // Hot.
         if w > 0.3 && high < 5 && k.slope < 0.25 { return .mangroveSwamp }
         if w < -0.32 {
-            let rough = k.r + (w < -0.4 ? 0.5 : 0)
-            if high > 18 && rough > 0.5 {
+            let rough = k.r + (w < -0.4 ? 0.4 : 0) + k.slope
+            if high > 14 && rough > 0.45 {
                 if high > 55 && w > -0.5 { return .woodedBadlands }
                 return v > 0.35 ? .erodedBadlands : .badlands
             }
@@ -685,7 +687,7 @@ final class Terrain {
         }
         if w < -0.05 {
             if high > 50 && k.slope < 0.35 { return .savannaPlateau }
-            return k.r > 0.6 && k.slope > 0.5 ? .windsweptSavanna : .savanna
+            return k.r > 0.5 && k.slope > 0.35 ? .windsweptSavanna : .savanna
         }
         if w < 0.25 { return .sparseJungle }
         return v > 0.5 ? .bambooJungle : .jungle
@@ -697,7 +699,7 @@ final class Terrain {
         case .snowyPlains, .iceSpikes, .snowyTaiga, .grove, .snowySlopes, .frozenPeaks, .jaggedPeaks, .snowyBeach, .frozenRiver,
              .frozenOcean, .deepFrozenOcean: return 0
         case .taiga, .oldGrowthPineTaiga, .oldGrowthSpruceTaiga, .windsweptGravellyHills, .windsweptHills, .windsweptForest,
-             .coldOcean, .deepColdOcean, .stonyShore, .meadow: return 1
+             .coldOcean, .deepColdOcean, .meadow: return 1
         case .desert, .badlands, .erodedBadlands, .woodedBadlands, .jungle, .bambooJungle, .warmOcean: return 4
         case .savanna, .savannaPlateau, .windsweptSavanna, .sparseJungle, .mangroveSwamp, .lukewarmOcean, .deepLukewarmOcean: return 3
         default: return 2

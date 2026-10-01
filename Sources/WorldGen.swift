@@ -15,6 +15,7 @@ final class WorldGen: TerrainGenerator {
     let ridgeN: Noise, detailN: Noise, dens1: Noise, dens2: Noise
     let cheeseN: Noise, spag1: Noise, spag2: Noise, noodle1: Noise, noodle2: Noise, spagMod: Noise
     let flora: Noise, surfN: Noise
+    let veinTog: Noise, veinA: Noise, veinB: Noise
     let bands: [BlockID]
     let terrain: Terrain
     private(set) var structures: StructureCache? = nil
@@ -29,6 +30,7 @@ final class WorldGen: TerrainGenerator {
         cheeseN = Noise(seed: seed &+ 10); spag1 = Noise(seed: seed &+ 11); spag2 = Noise(seed: seed &+ 12)
         noodle1 = Noise(seed: seed &+ 13); noodle2 = Noise(seed: seed &+ 14); spagMod = Noise(seed: seed &+ 15)
         flora = Noise(seed: seed &+ 16); surfN = Noise(seed: seed &+ 17)
+        veinTog = Noise(seed: seed &+ 30); veinA = Noise(seed: seed &+ 31); veinB = Noise(seed: seed &+ 32)
         terrain = Terrain(seed: seed)
         // Badlands terracotta bands: orange base with bands of other colours (fixed per world).
         var rng = SRng(seed ^ 0xBAD1)
@@ -347,6 +349,7 @@ final class WorldGen: TerrainGenerator {
         let chunkSeed = UInt64(bitPattern: Int64(cx &* 341873128712 &+ cz &* 132897987541)) ^ seed
         var rng = SRng(chunkSeed)
         placeOres(&b, bx, bz, &rng, biomes)
+        placeOreVeins(&b, bx, bz)
         placeGeode(&b, bx, bz, &rng)
         placeDungeons(&b, bx, bz, &rng)
         decorateCaves(&b, bx, bz, &rng, climates)
@@ -647,6 +650,52 @@ final class WorldGen: TerrainGenerator {
             let dEm = Blocks.has("deepslate_emerald_ore") ? g("deepslate_emerald_ore") : em
             for _ in 0..<100 { vein(&b, bx, bz, &rng, em, dEm, y: y(triangle(&rng, -16, 480)), size: 3) }
         }
+    }
+
+    // Large ore veins: thin snaking ribbons where two noise fields are both near zero, in regions picked by a
+    // third. Copper veins run through granite between y 0 and 50, iron veins through tuff between y -60 and -8.
+    private func placeOreVeins(_ b: inout [BlockID], _ bx: Int, _ bz: Int) {
+        let g = Blocks.id
+        let copper: (BlockID, BlockID, BlockID) = (GRANITE_ID, g("copper_ore"), Blocks.has("raw_copper_block") ? g("raw_copper_block") : g("copper_ore"))
+        let iron: (BlockID, BlockID, BlockID) = (TUFF_ID, g("deepslate_iron_ore"), Blocks.has("raw_iron_block") ? g("raw_iron_block") : g("deepslate_iron_ore"))
+        let y0 = YOFF - 60, y1 = YOFF + 50
+        let ny = (y1 - y0) / 4 + 2
+        // 4-block lattice of the three fields, trilinear inside.
+        var f = [Float](repeating: 0, count: 3 * 5 * 5 * ny)
+        @inline(__always) func at(_ k: Int, _ gx: Int, _ gy: Int, _ gz: Int) -> Float { f[((k * 5 + gx) * ny + gy) * 5 + gz] }
+        var any = false
+        for gx in 0..<5 { for gz in 0..<5 { for gy in 0..<ny {
+            let x = Float(bx + gx * 4), z = Float(bz + gz * 4), y = Float(y0 + gy * 4 - YOFF)
+            let tg = veinTog.noise3(x / 150, y / 150, z / 150)
+            f[((0 * 5 + gx) * ny + gy) * 5 + gz] = tg
+            if abs(tg) > 0.3 { any = true }
+            f[((1 * 5 + gx) * ny + gy) * 5 + gz] = veinA.noise3(x / 22, y / 22, z / 22)
+            f[((2 * 5 + gx) * ny + gy) * 5 + gz] = veinB.noise3(x / 22 + 40, y / 22, z / 22)
+        } } }
+        guard any else { return }
+        func sample(_ k: Int, _ lx: Int, _ ly: Int, _ lz: Int) -> Float {
+            let gx = lx >> 2, gy = ly >> 2, gz = lz >> 2
+            let fx = Float(lx & 3) / 4, fy = Float(ly & 3) / 4, fz = Float(lz & 3) / 4
+            let a = at(k, gx, gy, gz) + (at(k, gx + 1, gy, gz) - at(k, gx, gy, gz)) * fx
+            let c = at(k, gx, gy + 1, gz) + (at(k, gx + 1, gy + 1, gz) - at(k, gx, gy + 1, gz)) * fx
+            let d = at(k, gx, gy, gz + 1) + (at(k, gx + 1, gy, gz + 1) - at(k, gx, gy, gz + 1)) * fx
+            let e = at(k, gx, gy + 1, gz + 1) + (at(k, gx + 1, gy + 1, gz + 1) - at(k, gx, gy + 1, gz + 1)) * fx
+            let p = a + (c - a) * fy, q = d + (e - d) * fy
+            return p + (q - p) * fz
+        }
+        for lz in 0..<CS { for lx in 0..<CS { for y in y0..<y1 {
+            let ly = y - y0
+            let tg = sample(0, lx, ly, lz)
+            guard abs(tg) > 0.3 else { continue }
+            let kind = y < YOFF - 8 ? iron : copper
+            if y >= YOFF - 8 && y < YOFF { continue }
+            guard abs(sample(1, lx, ly, lz)) < 0.07, abs(sample(2, lx, ly, lz)) < 0.07 else { continue }
+            let i = Chunk.index(lx, y, lz)
+            let host = b[i]
+            guard host == STONE || host == DEEPSLATE || host == GRANITE_ID || host == DIORITE_ID || host == ANDESITE_ID || host == TUFF_ID else { continue }
+            let h = hashf(bx + lx, y, bz + lz, s32 ^ 0x0E1)
+            if h < 0.62 { b[i] = kind.0 } else if h < 0.88 { continue } else if h < 0.995 { b[i] = kind.1 } else { b[i] = kind.2 }
+        } } }
     }
 
     // Amethyst geode: 1 in 24 chunks, y -58...30.

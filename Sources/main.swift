@@ -25,7 +25,9 @@ enum Snapshot {
         for _ in 0..<16000 {
             let wx = x * stepB + 8, wz = z * stepB + 8
             var ok = true
-            for (ox, oz) in [(0, 0), (24, 0), (-24, 0), (0, 24), (0, -24)] {
+            // Narrow biomes (rivers, shores) only need the centre column.
+            let narrow = ["river", "frozen_river", "beach", "snowy_beach", "stony_shore"].contains(want)
+            for (ox, oz) in narrow ? [(0, 0)] : [(0, 0), (24, 0), (-24, 0), (0, 24), (0, -24)] {
                 let hit: Bool
                 if let c = cave, let wg { hit = c(wg.climate(wx + ox, wz + oz)) } else { hit = gen.column(wx + ox, wz + oz).biome.name == want }
                 if !hit { ok = false; break }
