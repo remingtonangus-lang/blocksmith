@@ -56,7 +56,8 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
   - [x] Wooden shelves (3 display slots, swap with the held stack); Dried Wailer hatches a Wailerling in water.
   - [ ] Lightning rod oxidation; copper buttons pressed by golems; shelves swapping with the hotbar when powered.
   - [x] Biome balance pass: less snow, more (wooded) badlands, windswept hills, stony shores, less sparse jungle.
-  - [ ] Lakes, deltas, fjords in game (look at the tours).
+  - [ ] Lakes, deltas, fjords in game (tours now stand back to frame the feature: check tour_lake / tour_delta).
+  - [ ] Far ocean in tour_777_aerial shows dark vertical sticks above the water near the horizon (kelp through LOD water?).
   - [x] Steelhold soldiers crew the vessels (marksmen + rifle troopers on the frigate, trooper + arc ironclad on the
         carriage) and hold their stations aboard (aim and fire, no cover runs overboard); physicstest check.
 - Polish

@@ -66,6 +66,14 @@ enum Snapshot {
         if let f = arg("--feature"), let wg = world.gen as? WorldGen {
             if let (fx, fz) = wg.terrain.nearestFeature(f, x: Int(pos.x), z: Int(pos.z)) {
                 pos = V3(Float(fx) + 0.5, Float(max(world.gen.column(fx, fz).height, SEA) + 1), Float(fz) + 0.5)
+                // Stand back along the view so a camera --up above, pitched down, looks at the feature (not past it).
+                let yawD = (Float(arg("--yaw") ?? "") ?? 0) * .pi / 180, pitchD = (Float(arg("--pitch") ?? "") ?? 0) * .pi / 180
+                let upD = Float(arg("--up") ?? "") ?? 0
+                if pitchD < -0.1 && upD > 0 {
+                    let back: Float = upD / tanf(-pitchD)
+                    pos.x += sinf(yawD) * back
+                    pos.z += cosf(yawD) * back
+                }
                 print("feature \(f) at \(fx) \(fz)")
             } else { print("feature \(f) not found") }
         }
