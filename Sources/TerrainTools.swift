@@ -44,11 +44,14 @@ enum TerrainTools {
         var hs = [Float](repeating: 0, count: n * n)
         var water = [Bool](repeating: false, count: n * n)
         var bio = [Biome](repeating: .plains, count: n * n)
+        var temp = [Float](repeating: 0, count: n * n), rain = [Float](repeating: 0, count: n * n)
         let t0 = CFAbsoluteTimeGetCurrent()
         hs.withUnsafeMutableBufferPointer { hp in
             water.withUnsafeMutableBufferPointer { wp in
                 bio.withUnsafeMutableBufferPointer { bp in
-                    let H = hp.baseAddress!, W = wp.baseAddress!, B = bp.baseAddress!
+                  temp.withUnsafeMutableBufferPointer { tp in
+                    rain.withUnsafeMutableBufferPointer { rp in
+                    let H = hp.baseAddress!, W = wp.baseAddress!, B = bp.baseAddress!, T = tp.baseAddress!, R = rp.baseAddress!
                     DispatchQueue.concurrentPerform(iterations: n) { row in
                         for col in 0..<n {
                             let nd = t.node(gx0 + col * s4, gz0 + row * s4)
@@ -57,8 +60,12 @@ enum TerrainTools {
                             H[i] = nd.h
                             W[i] = nd.wl > nd.h + 0.5
                             B[i] = t.biome(k, k.h)
+                            T[i] = t.temperature(k, max(k.h, SEA_D))
+                            R[i] = k.w
                         }
                     }
+                    }
+                  }
                 }
             }
         }
@@ -94,6 +101,14 @@ enum TerrainTools {
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         writePNG("\(dir)/terrain_\(seed).png", n, n, img)
         writePNG("\(dir)/relief_\(seed).png", n, n, rel)
+        // Climate: red = warm, blue = cold (surface temperature with altitude), green = rainfall.
+        var cli = [UInt8](repeating: 255, count: n * n * 4)
+        for i in 0..<(n * n) {
+            let tt = max(0, min(1, (temp[i] + 1) / 2)), ww = max(0, min(1, (rain[i] + 1) / 2))
+            cli[i * 4] = UInt8(tt * 255); cli[i * 4 + 1] = UInt8(40 + ww * 200); cli[i * 4 + 2] = UInt8((1 - tt) * 255)
+            if water[i] { cli[i * 4] /= 3; cli[i * 4 + 1] /= 3; cli[i * 4 + 2] /= 3 }
+        }
+        writePNG("\(dir)/climate_\(seed).png", n, n, cli)
         // Implausible neighbours (right and down).
         var bad = 0
         var pairs: [String: Int] = [:]
@@ -178,6 +193,21 @@ enum TerrainTools {
         let a = now()
         for i in 0..<24 { _ = g.generate(cx: i * 7 - 80, cz: (i * 13) % 50 - 25) }
         let warm = (now() - a) * 1000 / 24
+        // Breakdown on a fresh area: terrain fields (nodes + river graph) cold, then blocks with warm fields, then tints.
+        var tNodes = 0.0, tBlocks = 0.0, tTints = 0.0
+        for i in 0..<24 {
+            let cx = 500 + i * 5, cz = 400 - i * 3
+            var a = now()
+            _ = g.chunkNodes(cx * CS, cz * CS)
+            tNodes += now() - a
+            a = now()
+            _ = g.generate(cx: cx, cz: cz)
+            tBlocks += now() - a
+            a = now()
+            _ = g.tints(cx: cx, cz: cz)
+            tTints += now() - a
+        }
+        print(String(format: "genbench breakdown per chunk: terrain fields %.2f ms (cold), blocks %.2f ms, tints %.2f ms", tNodes * 1000 / 24, tBlocks * 1000 / 24, tTints * 1000 / 24))
         // Parallel throughput (fresh area).
         let n = 96
         let p0 = now()

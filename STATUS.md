@@ -197,6 +197,10 @@ Options > Video > Resolution to 75% for a steady 60 fps on the M1.
   fallen logs, shingle beaches on cold coasts.
 - Biomes are picked from local climate (+ coherent jitter for ecotones); tints are blended in climate space; trees
   sample the climate with their own offset. `Terrain.implausible` lists pairs that must never touch.
+- Handoff (session ended 2026-10-01): last green CI 8adc94a (0 implausible neighbours, 0 uphill rivers on 5 seeds;
+  genbench 1.95 ms/chunk cold, 1.40 warm). The final WIP commit (shrubs, climate maps, genbench breakdown, --onland,
+  --feature lake|delta, lake/delta tours, wider --find) has not been through CI yet. Left: verify it, tune aerial
+  tours, check lakes/deltas/fjords in-game, perf pass on block work, PR #7 lists the rest.
 - Harness: `--terrainmap DIR [--seed N --size B --step B --x X --z Z --strict]` writes terrain_<seed>.png +
   relief_<seed>.png and the neighbour check; `--genbench` prints ms/chunk on the perf bench's chunks and a water
   leak count. Caches (macro 16-grid, lattice nodes, river graph) are pure memo tables, so output is order-independent.

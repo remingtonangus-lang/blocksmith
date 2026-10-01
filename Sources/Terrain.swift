@@ -475,6 +475,24 @@ final class Terrain {
         }
     }
 
+    // Harness: nearest lake (non-dry basin) or river mouth with a delta, as a world position (x, z).
+    func nearestFeature(_ kind: String, x: Int, z: Int) -> (Int, Int)? {
+        let ci = floorDiv(x, Terrain.rs), cj = floorDiv(z, Terrain.rs)
+        for r in 0..<40 {
+            for j in (cj - r)...(cj + r) { for i in (ci - r)...(ci + r) where max(abs(i - ci), abs(j - cj)) == r {
+                let n = rbase(i, j)
+                if n.ocean { continue }
+                let d = rdown(i, j)
+                if kind == "lake" && d < 0 { let lk = lake(i, j); if lk.valid && !lk.dry && lk.r2 > 40 { return (Int(lk.x), Int(lk.z)) } }
+                if kind == "delta" && d >= 0 && racc(i, j) > 40 {
+                    let m = rbase(i + Terrain.dirs[d].0, j + Terrain.dirs[d].1)
+                    if m.ocean { return (Int((n.x + m.x) / 2), Int((n.z + m.z) / 2)) }
+                }
+            } }
+        }
+        return nil
+    }
+
     // Audit for CI: river segments in a rectangle of river cells whose water surface would rise downstream.
     func riverAudit(_ i0: Int, _ j0: Int, _ i1: Int, _ j1: Int) -> (segments: Int, uphill: Int, lakes: Int) {
         var segs = 0, up = 0, lakes = 0
