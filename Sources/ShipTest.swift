@@ -529,7 +529,8 @@ enum ShipTest {
         search: for r in 0...6 { for rz in -r...r { for rx in -r...r where max(abs(rx), abs(rz)) == r {
             if let e = Vessels.encounter(seed: w.seed, rx: rx, rz: rz, gen: w.gen) { home = e; break search }
         } } }
-        if let (kind, hp) = home.map({ ($0.0, $0.1) }) {
+        if let h = home {
+            let (kind, hp) = h
             let near = V3(Float(hp.x) + 40, Float(hp.y) + 10, Float(hp.z))
             _ = w.loadSync(center: near, radius: 6)
             let before = w.ships.list.filter { $0.role == kind }.count
