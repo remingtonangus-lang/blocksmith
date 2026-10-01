@@ -1571,6 +1571,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             "Target \(tgt)",
             "\(p.flying ? "flying" : (p.onGround ? "on ground" : "in air"))\(p.inWater ? ", in water" : "")  Time \(String(format: "%02d:00", hour))  Controller \(game.padConnected ? "yes" : "no")",
             "Mobs \(game.mobs.mobs.count)  Fluid queue \(w.fluidPending.count)",
+            game.audioDebugLine(),
         ]
     }
 
