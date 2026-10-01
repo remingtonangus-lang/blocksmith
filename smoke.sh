@@ -22,7 +22,11 @@ for rd in $RDS; do
 done
 if [ ${#FAILED[@]} -gt 0 ]; then
   echo "smoke: failed at render distance ${FAILED[*]}; rerunning the first under lldb (debug build)"
-  bash ./build.sh debug 2>&1 | tail -30
+  # Show every error / linker line of a failed debug build (a plain tail hid the ld message).
+  if ! bash ./build.sh debug > debugbuild.log 2>&1; then
+    echo "smoke: debug build failed:"; grep -E "error|ld:|Undefined|duplicate|symbol|warning: unable" debugbuild.log | head -60
+    tail -20 debugbuild.log
+  fi
   rd0="${FAILED[0]}"; extra=""; if [ "${rd0%f}" != "$rd0" ]; then extra="--fast"; rd0="${rd0%f}"; fi
   lldb --batch -o run -o 'bt 40' -o 'thread backtrace all' -- "$BIN" --smoke "$SECS" --rd "$rd0" $extra 2>&1 | tail -200
   bash ./build.sh 2>&1 | tail -1

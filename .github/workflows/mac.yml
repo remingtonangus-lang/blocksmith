@@ -70,7 +70,7 @@ jobs:
           # The crashed scene is the one after the last scene that finished.
           SCENE=$(grep -o 'bench: [a-z0-9]* took' bench.log | tail -1 | awk '{print $2}')
           case "$SCENE" in flight8) NEXT=flight16;; flight16) NEXT=flight24;; fluids) NEXT=flight8;; *) NEXT=flight8;; esac
-          bash ./build.sh debug 2>&1 | tail -3
+          bash ./build.sh debug > debugbuild.log 2>&1 || { echo "debug build failed:"; grep -E "error|ld:|Undefined|duplicate|symbol" debugbuild.log | head -60; tail -20 debugbuild.log; }
           echo "rerun (debug build) of bench scene $NEXT" > benchdebug.log
           lldb --batch -o run -o 'bt 40' -o 'thread backtrace all' -- build/Blocksmith.app/Contents/MacOS/Blocksmith \
             --bench snaps/bench_debug.json --scenes "$NEXT" >> benchdebug.log 2>&1 || true
@@ -115,7 +115,7 @@ jobs:
         timeout-minutes: 10
         run: |
           L=$(grep -o 'snap.sh: line [0-9]*' snap.log | tail -1 | grep -o '[0-9]*$' || true)
-          bash ./build.sh debug 2>&1 | tail -5
+          bash ./build.sh debug > debugbuild.log 2>&1 || { echo "debug build failed:"; grep -E "error|ld:|Undefined|duplicate|symbol" debugbuild.log | head -60; tail -20 debugbuild.log; }
           BIN=build/Blocksmith.app/Contents/MacOS/Blocksmith
           mkdir -p snaps
           CMD=$(sed -n "${L:-10}p" snap.sh)
@@ -139,7 +139,7 @@ jobs:
           rm -rf "$PUB"; mkdir -p "$PUB"
           cp snaps/*.png "$PUB/" 2>/dev/null || true
           if [ -d snaps/sounds ]; then cp -r snaps/sounds "$PUB/sounds"; fi
-          cp build.log typecheck.log smoke.log snap.log debug.log benchdebug.log bench.log profile.log playthrough.log terrain.log snaps/bench.json snaps/bench.md snaps/profile_*.txt "$PUB/" 2>/dev/null || true
+          cp build.log typecheck.log debugbuild.log smoke.log snap.log debug.log benchdebug.log bench.log profile.log playthrough.log terrain.log snaps/bench.json snaps/bench.md snaps/profile_*.txt "$PUB/" 2>/dev/null || true
           cd "$PUB"
           {
             echo "# Blocksmith CI snapshots"
