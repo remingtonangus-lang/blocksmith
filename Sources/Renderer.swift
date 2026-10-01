@@ -108,7 +108,10 @@ final class Renderer: NSObject, MTKViewDelegate {
     private var bfs: [(Chunk, Int, Int, Int, Int, Int)] = []
     private var chunkGrid: [Chunk?] = []
     // Base vertex / base instance draws (every Apple-silicon GPU; the old per-draw binding path otherwise).
-    private lazy var baseVertexOK: Bool = device.supportsFamily(.apple3) || device.supportsFamily(.mac2)
+    // Apple's paravirtual GPU (the CI runners) reports the family but draws base-vertex calls with the wrong
+    // vertices (scrambled, black terrain), so it takes the per-draw binding path; --no-base-vertex forces it too.
+    private lazy var baseVertexOK: Bool = (device.supportsFamily(.apple3) || device.supportsFamily(.mac2))
+        && !device.name.contains("Paravirtual") && !CommandLine.arguments.contains("--no-base-vertex")
     var caveCulling = true
     // Smoothed skylight at the player's eye (0...1, -1 = not sampled yet). Fog and sky colour fade toward
     // near-black when it is low, so distant cave walls no longer fog into bright sky blue underground.
@@ -350,9 +353,10 @@ final class Renderer: NSObject, MTKViewDelegate {
             let front = game.cameraMode == 2
             let dir = front ? p.look : -p.look
             if front { camYaw = p.yaw + .pi; camPitch = -p.pitch }
-            var dist: Float = 4
+            let reach = game.thirdPersonDistance          // 4, or farther back while steering a big ship
+            var dist: Float = reach
             var t: Float = 0.1
-            while t < 4 {
+            while t < reach {
                 let q = p.eye + dir * t
                 if Blocks.opaque[Int(game.world.block(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))))] { dist = max(0.2, t - 0.3); break }
                 t += 0.1
@@ -676,9 +680,19 @@ final class Renderer: NSObject, MTKViewDelegate {
             func vidx(_ dx: Int, _ dz: Int, _ sy: Int) -> Int { ((dx + R) + (dz + R) * span) * NSEC + sy }
             // Chunks around the camera in a flat grid: one dictionary lookup per column instead of one per step.
             if chunkGrid.count != span * span { chunkGrid = [Chunk?](repeating: nil, count: span * span) }
+            var topSec = 0
             for dz in -R...R { for dx in -R...R {
-                chunkGrid[(dx + R) + (dz + R) * span] = game.world.inMeshRadius(dx, dz) ? game.world.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] : nil
+                let c = game.world.inMeshRadius(dx, dz) ? game.world.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] : nil
+                chunkGrid[(dx + R) + (dz + R) * span] = c
+                if let c {
+                    var t = NSEC - 1
+                    while t > topSec && c.sections[t].empty && c.sections[t].meshedVersion != -1 { t -= 1 }
+                    topSec = max(topSec, t)
+                }
             } }
+            // Above the tallest geometry in range everything is open air: walking one layer of it is enough to get
+            // around anything, so the walk never climbs higher (it used to cross every empty sky section).
+            let yLimit = max(pSec, topSec + 1)
             bfs.removeAll(keepingCapacity: true)
             bfs.append((startC, 0, 0, pSec, -1, 0))
             visitGen[vidx(0, 0, pSec)] = gen
@@ -699,7 +713,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     if entry >= 0 && vis & (1 << UInt64(entry * 6 + f)) == 0 { continue }
                     let (ox, oy, oz) = dirs[f]
                     let ndx = dx + ox, ndz = dz + oz, nsy = sy + oy
-                    if nsy < 0 || nsy >= NSEC || !game.world.inMeshRadius(ndx, ndz) || abs(ndx) > R || abs(ndz) > R { continue }
+                    if nsy < 0 || nsy >= NSEC || nsy > yLimit || !game.world.inMeshRadius(ndx, ndz) || abs(ndx) > R || abs(ndz) > R { continue }
                     let vi = vidx(ndx, ndz, nsy)
                     if visitGen[vi] == gen { continue }
                     let nmn = V3(Float((pcx + ndx) * CS), Float(nsy * 16), Float((pcz + ndz) * CS))
@@ -828,6 +842,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.writeFangs(&wr, eye: eye)
                 game.writeBeams(&wr, eye: eye)
                 game.writeFalling(&wr, eye: eye)
+                game.world.ships.writeShells(&wr, eye: eye)
                 game.writeDecor(&wr, eye: eye)
                 game.writeBobber(&wr, eye: eye, right: right, up: -up)
                 game.writeLeads(&wr, eye: eye)
@@ -1174,12 +1189,14 @@ final class Renderer: NSObject, MTKViewDelegate {
                 bars.append((wi.customName ?? "Blight", Float(wi.health) / 300, V4(0.6, 0.2, 0.85, 1)))
             }
             if let r = game.raidBar { bars.append((r.0, r.1, V4(0.85, 0.15, 0.15, 1))) }
+            for b in game.shipBars() { bars.append((b.0, b.1, V4(0.75, 0.6, 0.3, 1))) }
             for (i, b) in bars.enumerated() {
                 let bw = 182 * s, bx = (W - bw) / 2, by = L.insetY + 12 * s + Float(i) * 19 * s
                 text(b.0, (W - textWidth(b.0, s)) / 2, by - 9 * s, s)
                 rect(bx, by, bw, 5 * s, V4(b.2.x * 0.3, b.2.y * 0.3, b.2.z * 0.3, 1))
                 rect(bx, by, bw * max(0, min(1, b.1)), 5 * s, b.2)
             }
+            if let line = game.shipHUDLine() { text(line, floor((W - textWidth(line, s)) / 2), H - 62 * s, s, V4(0.85, 0.95, 1, 1)) }
         }
 
         func frame(_ x: Float, _ y: Float, _ w: Float, _ h: Float, _ b: Float, _ c: V4) {

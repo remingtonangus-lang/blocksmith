@@ -59,17 +59,19 @@ final class ShipGrid {
 
 // Per-block-state properties the ship code needs, as flat tables.
 enum ShipParts {
-    enum Kind: UInt8 { case none, helm, propeller, engine, balloon, wing, wheel }
+    enum Kind: UInt8 { case none, helm, propeller, engine, balloon, wing, wheel, ring, cannon }
     static let kinds: [Kind] = {
         var t = [Kind](repeating: .none, count: Blocks.count)
         let names: [(String, Kind)] = [("ship_helm", .helm), ("ship_propeller", .propeller), ("ship_engine", .engine),
-                                       ("ship_balloon", .balloon), ("ship_wing", .wing), ("ship_wheel", .wheel)]
+                                       ("ship_balloon", .balloon), ("ship_wing", .wing), ("ship_wheel", .wheel),
+                                       ("ship_turret_ring", .ring), ("ship_cannon", .cannon)]
         for i in 0..<Blocks.count {
             let k = Blocks.key(Blocks.groupBase[i])
             for (n, kind) in names where n == k { t[i] = kind }
         }
         return t
     }()
+    static let wool: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]).hasSuffix("_wool") }
     // Unit direction of facing index 0...3 (north, south, west, east).
     static let facingDir: [V3] = [V3(0, 0, -1), V3(0, 0, 1), V3(-1, 0, 0), V3(1, 0, 0)]
     @inline(__always) static func facing(_ b: BlockID) -> Int { Int(b - Blocks.groupBase[Int(b)]) & 3 }
@@ -94,6 +96,8 @@ enum ShipParts {
             case .wing: d = 0.25
             case .wheel: d = 0.6
             case .helm: d = 0.4
+            case .ring: d = 2
+            case .cannon: d = 2.5
             case .none: break
             }
             // Partial blocks weigh their volume.
@@ -178,6 +182,8 @@ final class Ship {
     var angVel = V3(0, 0, 0)         // world space, rad/s
     var prevPos = V3(0, 0, 0), prevRot = Quat(angle: 0, axis: V3(0, 1, 0))
     var sleeping = 0                 // substeps at rest (physics thins out)
+    var terrainClear: Float = 0      // height of the hull above everything under its footprint (broadphase)
+    var terrainCheck = 0             // substeps until that is measured again
 
     // Mass properties (rebuilt when blocks change).
     var com = V3(0, 0, 0)            // ship space
@@ -189,7 +195,10 @@ final class Ship {
     var helm: IVec3?
     var props: [(V3, V3)] = []       // propeller centre, thrust direction (ship space)
     var wheels: [V3] = []
+    var wheelBase = 0                // wheel cells in the lowest wheel row (they carry the load)
     var wings: [V3] = []
+    var sails = 0                    // wool blocks (catch the wind while someone steers)
+    var cannons: [(V3, V3)] = []     // cannon centre, muzzle direction (ship space)
     var balloons = 0
     var engines = 0
     var hull: [V3] = []              // centres of exposed solid cells (contacts)
@@ -197,6 +206,7 @@ final class Ship {
     var colMin: [Int16] = []         // per column (x + z*sx): lowest solid cell, Int16.max if none
     var dryMask: [Bool] = []         // per cell: enclosed air that keeps water out
     var localMin = V3(0, 0, 0), localMax = V3(1, 1, 1)   // bounds of the blocks (ship space)
+    var gridOrigin = IVec3(0, 0, 0)  // world cell of ship cell (0, 0, 0) when it was assembled
     var area = V3(1, 1, 1)           // projected area across ship-space x, y, z (air drag)
 
     // World-space bounds of the blocks (refreshed every physics step).
@@ -210,6 +220,26 @@ final class Ship {
     var piloted = false
     var hoverY: Float?               // altitude held by an unpiloted airship
     var autopilot: V3?               // throttle, steer, climb when no player steers (harness, crews)
+
+    // Turrets: a ship mounted on another on a vertical-axis bearing (a Turret Ring), placed by its parent.
+    weak var parent: Ship?
+    var children: [Ship] = []        // turrets riding on this ship (refreshed every frame by the manager)
+    var parentId: Int?
+    var mountLocal = V3(0, 0, 0)     // bearing point in the parent's space
+    var pivot = V3(0, 0, 0)          // the same point in this ship's space
+    var turretYaw: Float = 0         // relative to the parent
+    var aimYaw: Float?               // wanted turretYaw
+    var aimAt: V3?                   // world point to track (crews); sets aimYaw
+    var reload: Float = 0            // seconds until the cannons can fire again
+
+    // Vessels (ShipVessels.swift): crewed encounter ships.
+    var role: String?                // "frigate", "carriage"
+    var home: V3?
+    var crewStations: [V3] = []
+    var captured = false             // the player has steered it: crews stop giving orders
+    var fireTimer: Float = 0
+    var initialBlocks = 0            // block count when it appeared (hull bar)
+    var soundTimer: Float = 0
 
     // Diagnostics (harness).
     var submerged: Float = 0         // submerged volume last step
@@ -265,7 +295,8 @@ final class Ship {
         var m: Float = 0
         var c = V3(0, 0, 0)
         var n = 0
-        props.removeAll(); wheels.removeAll(); wings.removeAll(); balloons = 0; engines = 0
+        props.removeAll(); wheels.removeAll(); wings.removeAll(); cannons.removeAll(); balloons = 0; engines = 0; sails = 0
+        let woolT = ShipParts.wool
         var lo = V3(Float(sx), Float(sy), Float(sz)), hi = V3(0, 0, 0)
         helm = nil
         for y in 0..<sy { for z in 0..<sz { for x in 0..<sx {
@@ -277,6 +308,7 @@ final class Ship {
             m += bm
             c += p * bm
             lo = simd_min(lo, p - 0.5); hi = simd_max(hi, p + 0.5)
+            if woolT[Int(b)] { sails += 1 }
             switch kinds[Int(b)] {
             case .helm:
                 if helm == nil { helm = IVec3(x, y, z); fwd = -ShipParts.facingDir[ShipParts.facing(b)] }
@@ -285,10 +317,13 @@ final class Ship {
             case .balloon: balloons += 1
             case .wing: wings.append(p)
             case .wheel: wheels.append(p)
-            case .none: break
+            case .cannon: cannons.append((p, -ShipParts.facingDir[ShipParts.facing(b)]))
+            case .ring, .none: break
             }
         } } }
         blockCount = n
+        let lowest = wheels.map { $0.y }.min() ?? 0
+        wheelBase = wheels.filter { $0.y < lowest + 0.5 }.count
         localMin = n > 0 ? lo : V3(0, 0, 0)
         localMax = n > 0 ? hi : V3(1, 1, 1)
         let oldCom = com
@@ -358,11 +393,13 @@ final class Ship {
         } } }
 
         // Projected areas (cells seen looking along each ship axis).
-        var ayz = Set<Int>(), axz = Set<Int>(), axy = Set<Int>()
+        var ayz = [Bool](repeating: false, count: sy * sz), axz = [Bool](repeating: false, count: sx * sz)
+        var axy = [Bool](repeating: false, count: sx * sy)
         for y in 0..<sy { for z in 0..<sz { for x in 0..<sx where collide[Int(g.blocks[g.index(x, y, z)])] {
-            ayz.insert(y + z * sy); axz.insert(x + z * sx); axy.insert(x + y * sx)
+            ayz[y + z * sy] = true; axz[x + z * sx] = true; axy[x + y * sx] = true
         } } }
-        area = V3(Float(max(1, ayz.count)), Float(max(1, axz.count)), Float(max(1, axy.count)))
+        func count(_ a: [Bool]) -> Int { a.reduce(0) { $0 + ($1 ? 1 : 0) } }
+        area = V3(Float(max(1, count(ayz))), Float(max(1, count(axz))), Float(max(1, count(axy))))
 
         // Buoyancy buckets (bigger for big ships so sampling stays cheap).
         let cells = sx * sy * sz
@@ -413,6 +450,13 @@ final class Ship {
             if dryMask[i] { return AIR }
         }
         let p = toWorld(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5))
+        // Turrets on this ship (their own grids, turned on their rings).
+        for t in children where p.x > t.worldMin.x && p.x < t.worldMax.x && p.y > t.worldMin.y && p.y < t.worldMax.y
+            && p.z > t.worldMin.z && p.z < t.worldMax.z {
+            let l = t.toLocal(p)
+            let tb = t.grid.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z)))
+            if tb != AIR { return tb }
+        }
         let wb = w.rawBlock(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
         // Inside the hull's columns the world's water never reaches above the ship's floor.
         if Blocks.isLiquid(wb) && grid.inside(x, y, z) && Int(colMin[x + z * grid.sx]) < y && Blocks.fluidKind[Int(wb)] == 1 { return AIR }
@@ -468,6 +512,13 @@ final class ShipManager {
     var mineCell: (Ship, IVec3)?
     var mineProgress: Float = 0
     var breakCooldown: Float = 0
+    private var boxScratch: [(V3, V3)] = []
+    var shells: [Shell] = []         // cannon shells in flight (ShipCombat.swift)
+    var ghosts: [(Ship, Float)] = [] // docked ships still drawn while the world remeshes their blocks
+    var wind = V3(4, 0, 2)           // world wind (b/s): sails (set each frame from the clock and weather)
+    var encounters = true            // rare vessels spawn near their home regions (off in harness scenes)
+    var encounterTimer: Float = 0
+    var spawnedRegions = Set<String>()   // regions whose vessel has already appeared
     let meshQueue = DispatchQueue(label: "blocksmith.shipmesh", qos: .userInitiated)
     var stepMs: Double = 0           // physics time last frame (harness / debug)
     var accum: Float = 0                  // unstepped time (ShipPhysics)
@@ -515,7 +566,10 @@ final class ShipManager {
                 let b = g.blocks[g.index(x, y, z)]
                 if !Blocks.collide[Int(b)] { continue }
                 var bl: Float = 0, bh: Float = 1
-                if !Blocks.fullCollide[Int(b)] {
+                if Blocks.connectKind[Int(b)] != 0 {
+                    // Fences and walls (their shape depends on neighbours): a full post, 1.5 high like their collision.
+                    bh = Blocks.connectKind[Int(b)] == 2 ? 1 : 1.5
+                } else if !Blocks.fullCollide[Int(b)] {
                     // Partial blocks (slabs, stairs...): their vertical extent.
                     bl = 1; bh = 0
                     for bx in Blocks.boxes[Int(b)] { bl = min(bl, Float(bx.y0) / 16); bh = max(bh, Float(bx.y1) / 16) }
@@ -531,10 +585,10 @@ final class ShipManager {
     }
 
     func overlaps(_ mn: V3, _ mx: V3) -> Bool {
-        var b: [(V3, V3)] = []
-        boxes(mn, mx, &b)
+        boxScratch.removeAll(keepingCapacity: true)
+        boxes(mn, mx, &boxScratch)
         let eps: Float = 1e-4
-        for (a, c) in b where a.x < mx.x - eps && c.x > mn.x + eps && a.y < mx.y - eps && c.y > mn.y + eps && a.z < mx.z - eps && c.z > mn.z + eps {
+        for (a, c) in boxScratch where a.x < mx.x - eps && c.x > mn.x + eps && a.y < mx.y - eps && c.y > mn.y + eps && a.z < mx.z - eps && c.z > mn.z + eps {
             return true
         }
         return false
@@ -557,70 +611,113 @@ final class ShipManager {
 
     // MARK: Assembly
 
-    // Builds a ship from everything connected to the helm at h (natural terrain excluded).
+    // Builds a ship from everything connected to the helm at h (natural terrain excluded). Structures standing on
+    // a Turret Ring become turrets: separate ships turning on the ring.
     @discardableResult
     func assemble(at h: IVec3, game: Game?) -> (Ship?, String) {
         let w = world
-        let natural = ShipParts.natural
+        let natural = ShipParts.natural, kinds = ShipParts.kinds
         let limit = 60000
-        var seen = Set<IVec3>([h])
-        var queue = [h]
-        var head = 0
         let dirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
-        while head < queue.count {
-            let c = queue[head]; head += 1
-            if queue.count > limit { return (nil, "Too big to move (over \(limit) blocks) - is it touching a building?") }
-            for d in dirs {
-                let n = c + d
-                if seen.contains(n) || n.y < 0 || n.y >= CH { continue }
-                let b = w.rawBlock(n.x, n.y, n.z)
-                if natural[Int(b)] { continue }
-                seen.insert(n)
-                queue.append(n)
+        // Connected cells from start, not entering `taken`, never going up out of a turret ring.
+        func collect(_ start: IVec3, _ taken: Set<IVec3>) -> [IVec3]? {
+            var seen = Set<IVec3>([start])
+            var queue = [start]
+            var head = 0
+            while head < queue.count {
+                let c = queue[head]; head += 1
+                if queue.count > limit { return nil }
+                let ring = kinds[Int(w.rawBlock(c.x, c.y, c.z))] == .ring
+                for (k, d) in dirs.enumerated() {
+                    if ring && k == 2 { continue }
+                    let n = c + d
+                    if seen.contains(n) || taken.contains(n) || n.y < 0 || n.y >= CH { continue }
+                    if natural[Int(w.rawBlock(n.x, n.y, n.z))] { continue }
+                    seen.insert(n)
+                    queue.append(n)
+                }
             }
+            return queue
         }
-        var lo = h, hi = h
-        for c in queue {
+        let tooBig = "Too big to move (over \(limit) blocks) - is it touching a building?"
+        guard let main = collect(h, []) else { return (nil, tooBig) }
+        var taken = Set(main)
+        var turrets: [(IVec3, [IVec3])] = []
+        for c in main where kinds[Int(w.rawBlock(c.x, c.y, c.z))] == .ring {
+            let top = c + IVec3(0, 1, 0)
+            if taken.contains(top) || natural[Int(w.rawBlock(top.x, top.y, top.z))] { continue }
+            guard let cells = collect(top, taken) else { return (nil, tooBig) }
+            for t in cells { taken.insert(t) }
+            turrets.append((c, cells))
+        }
+        let s = makeShip(main)
+        var made = [s]
+        for (ring, cells) in turrets {
+            let t = makeShip(cells)
+            t.parent = s
+            t.parentId = s.id
+            let bearing = V3(Float(ring.x) + 0.5, Float(ring.y) + 1, Float(ring.z) + 0.5)
+            t.mountLocal = s.toLocal(bearing)
+            t.pivot = t.toLocal(bearing)
+            t.name = "Turret"
+            made.append(t)
+        }
+        // Water level around the hull (to fill the hole it leaves).
+        var waterTop: Int?
+        for c in main {
+            for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
+                let n = c + d
+                if taken.contains(n) { continue }
+                let b = w.rawBlock(n.x, n.y, n.z)
+                if Blocks.fluidKind[Int(b)] == 1 && Blocks.fluidLevel[Int(b)] == 0 { waterTop = max(waterTop ?? n.y, n.y) }
+            }
+            if waterTop != nil && main.count > 4000 { break }
+        }
+        for c in taken { w.setBlockAsync(c.x, c.y, c.z, AIR) }
+        // Refill the water the hull kept out (the vacated cells and the dry air inside it).
+        if let top = waterTop {
+            let lo = s.gridOrigin
+            let g = s.grid
+            for y in lo.y...min(top, lo.y + g.sy - 1) { for z in lo.z..<(lo.z + g.sz) { for x in lo.x..<(lo.x + g.sx) {
+                let gx = x - lo.x, gy = y - lo.y, gz = z - lo.z
+                let wasShip = taken.contains(IVec3(x, y, z))
+                if (wasShip || s.dry(gx, gy, gz)) && w.rawBlock(x, y, z) == AIR { w.setBlockAsync(x, y, z, WATER) }
+            } } }
+        }
+        for m in made {
+            add(m)
+            m.mesh.rebuildAll(m, device: w.device, queue: meshQueue)
+        }
+        let total = made.reduce(0) { $0 + $1.blockCount }
+        let mass = made.reduce(Float(0)) { $0 + $1.mass }
+        let extra = turrets.isEmpty ? "" : ", \(turrets.count) turret\(turrets.count == 1 ? "" : "s")"
+        return (s, "Assembled \(total) blocks (\(String(format: "%.1f", mass)) t\(extra))")
+    }
+
+    // A ship from world cells (the blocks are read, not removed).
+    private func makeShip(_ cells: [IVec3]) -> Ship {
+        let w = world
+        var lo = cells[0], hi = cells[0]
+        for c in cells {
             lo = IVec3(min(lo.x, c.x), min(lo.y, c.y), min(lo.z, c.z))
             hi = IVec3(max(hi.x, c.x), max(hi.y, c.y), max(hi.z, c.z))
         }
         let grid = ShipGrid(sx: hi.x - lo.x + 1, sy: hi.y - lo.y + 1, sz: hi.z - lo.z + 1)
-        for c in queue { grid.set(c.x - lo.x, c.y - lo.y, c.z - lo.z, w.rawBlock(c.x, c.y, c.z)) }
+        for c in cells { grid.set(c.x - lo.x, c.y - lo.y, c.z - lo.z, w.rawBlock(c.x, c.y, c.z)) }
         let s = Ship(id: newId(), grid: grid)
-        for c in queue { if let be = w.blockEntities.removeValue(forKey: c) { s.blockEntities[ivSub(c, lo)] = be } }
-        let origin = V3(Float(lo.x), Float(lo.y), Float(lo.z))
+        for c in cells { if let be = w.blockEntities.removeValue(forKey: c) { s.blockEntities[ivSub(c, lo)] = be } }
         s.rebuild()
-        s.pos = origin + s.com
+        s.pos = V3(Float(lo.x), Float(lo.y), Float(lo.z)) + s.com
         s.prevPos = s.pos
+        s.gridOrigin = lo
         s.updateBounds()
-        // Water level around the hull (to fill the hole it leaves).
-        var waterTop: Int?
-        for c in queue {
-            for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
-                let n = c + d
-                if seen.contains(n) { continue }
-                let b = w.rawBlock(n.x, n.y, n.z)
-                if Blocks.fluidKind[Int(b)] == 1 && Blocks.fluidLevel[Int(b)] == 0 { waterTop = max(waterTop ?? n.y, n.y) }
-            }
-            if waterTop != nil && queue.count > 4000 { break }
-        }
-        for c in queue { w.setBlockAsync(c.x, c.y, c.z, AIR) }
-        // Refill the water the hull kept out (the vacated cells and the dry air inside it).
-        if let top = waterTop {
-            for y in lo.y...min(top, hi.y) { for z in lo.z...hi.z { for x in lo.x...hi.x {
-                let gx = x - lo.x, gy = y - lo.y, gz = z - lo.z
-                let wasShip = grid.get(gx, gy, gz) != AIR
-                if (wasShip || s.dry(gx, gy, gz)) && w.rawBlock(x, y, z) == AIR { w.setBlockAsync(x, y, z, WATER) }
-            } } }
-        }
-        add(s)
-        s.mesh.rebuildAll(s, device: w.device, queue: meshQueue)
-        return (s, "Assembled \(s.blockCount) blocks (\(String(format: "%.1f", s.mass)) t)")
+        return s
     }
 
     // Puts a ship back into the world, snapped to the block grid and the nearest quarter turn.
     @discardableResult
     func disassemble(_ s: Ship, game: Game?) -> String {
+        for t in list where t.parent === s { _ = disassemble(t, game: game) }
         let w = world
         let turns = Int((s.yaw / (.pi / 2)).rounded())
         let snapped = Quat(angle: Float(turns) * .pi / 2, axis: V3(0, 1, 0))
@@ -652,6 +749,12 @@ final class ShipManager {
             if let be = s.blockEntities[IVec3(x, y, z)] { w.blockEntities[p] = be }
         } } }
         remove(s)
+        // Keep drawing it, snapped into place, until the world's new meshes are in.
+        s.rot = Quat(angle: Float(turns) * .pi / 2, axis: V3(0, 1, 0))
+        let c0 = V3(Float(aCell.x), Float(aCell.y), Float(aCell.z)) + 0.5
+        s.pos = c0 - s.rot.act(anchorLocal - s.com)
+        s.updateBounds()
+        ghosts.append((s, 0.6))
         return dropped > 0 ? "Docked (\(dropped) blocks didn't fit and dropped)" : "Docked"
     }
 
@@ -680,6 +783,7 @@ final class ShipManager {
         s.rebuild()
         if s.blockCount == 0 { remove(s); return }
         s.mesh.rebuildAround(s, cell, device: world.device, queue: meshQueue)
+        if b == AIR { splitIfNeeded(s) }
     }
 
     // MARK: Save / load (ships.json in the dimension's save folder)
@@ -697,12 +801,23 @@ final class ShipManager {
         var liftLevel: Float
         var hoverY: Float?
         var entities: [String: BlockEntity]
+        var parent: Int?
+        var mount: [Float]?
+        var pivot: [Float]?
+        var turretYaw: Float?
+        var role: String?
+        var home: [Float]?
+        var captured: Bool?
+        var initial: Int?
     }
 
     private var url: URL? { world.save?.dir.appendingPathComponent("ships.json") }
 
     func save() {
         guard let url else { return }
+        if let r = world.save?.dir.appendingPathComponent("shipregions.json"), let d = try? JSONEncoder().encode(Array(spawnedRegions).sorted()) {
+            try? d.write(to: r, options: .atomic)
+        }
         guard let d = encode() else {
             if FileManager.default.fileExists(atPath: url.path) { try? FileManager.default.removeItem(at: url) }
             return
@@ -711,6 +826,8 @@ final class ShipManager {
     }
 
     private func load() {
+        if let r = world.save?.dir.appendingPathComponent("shipregions.json"), let d = try? Data(contentsOf: r),
+           let a = try? JSONDecoder().decode([String].self, from: d) { spawnedRegions = Set(a) }
         guard let url, let d = try? Data(contentsOf: url) else { return }
         decode(d)
     }
@@ -735,7 +852,10 @@ final class ShipManager {
             out.append(Saved(id: s.id, name: s.name, pos: [s.pos.x, s.pos.y, s.pos.z], rot: [q.x, q.y, q.z, q.w],
                              vel: [s.vel.x, s.vel.y, s.vel.z], angVel: [s.angVel.x, s.angVel.y, s.angVel.z],
                              size: [s.grid.sx, s.grid.sy, s.grid.sz], palette: names, cells: packed,
-                             liftLevel: s.liftLevel, hoverY: s.hoverY, entities: ents))
+                             liftLevel: s.liftLevel, hoverY: s.hoverY, entities: ents,
+                             parent: s.parent?.id, mount: [s.mountLocal.x, s.mountLocal.y, s.mountLocal.z],
+                             pivot: [s.pivot.x, s.pivot.y, s.pivot.z], turretYaw: s.turretYaw,
+                             role: s.role, home: s.home.map { [$0.x, $0.y, $0.z] }, captured: s.captured, initial: s.initialBlocks))
         }
         if out.isEmpty { return nil }
         return try? JSONEncoder().encode(out)
@@ -769,10 +889,22 @@ final class ShipManager {
                 let p = k.split(separator: ",").compactMap { Int($0) }
                 if p.count == 3 { s.blockEntities[IVec3(p[0], p[1], p[2])] = v }
             }
+            s.parentId = sv.parent
+            if let m = sv.mount, m.count == 3 { s.mountLocal = V3(m[0], m[1], m[2]) }
+            if let p = sv.pivot, p.count == 3 { s.pivot = V3(p[0], p[1], p[2]) }
+            s.turretYaw = sv.turretYaw ?? 0
+            s.role = sv.role
+            if let h = sv.home, h.count == 3 { s.home = V3(h[0], h[1], h[2]) }
+            s.captured = sv.captured ?? false
+            s.initialBlocks = sv.initial ?? 0
             s.updateBounds()
             s.mesh.rebuildAll(s, device: world.device, queue: meshQueue)
             list.append(s)
             nextId = max(nextId, sv.id + 1)
+        }
+        // Re-link turrets to their ships.
+        for s in list where s.parent == nil {
+            if let pid = s.parentId { s.parent = list.first { $0.id == pid && $0 !== s } }
         }
     }
 }

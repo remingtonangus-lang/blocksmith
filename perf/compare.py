@@ -23,8 +23,10 @@ GATES = {
     "flight16.coverage_min": 1.6,
     "flight16.resident_peak_mb": 1.4,
     "flight24.resident_peak_mb": 1.4,
+    "ships.physics_ms_mean": 2.0,       # ship physics with a frigate and a siege carriage under way
+    "ships.edit_ms_mean": 2.5,          # one block placed on a ship (mass properties; remesh is background)
 }
-IGNORE = ("total_s", "since_launch_s", "worlds_alive")
+IGNORE = ("total_s", "since_launch_s", "worlds_alive", "calib.")
 
 
 def worse_ratio(name, base, now):
@@ -44,6 +46,13 @@ def main():
     except (OSError, ValueError):
         base = {}
     rows, failed = [], []
+    # Runner speed (Bench.calibrate): CPU timings are judged relative to how fast this runner did a fixed
+    # workload. Only a slower runner is discounted, and by at most 2.5x.
+    speed = 1.0
+    cb, cc = base.get("calib.cpu_ms"), cur.get("calib.cpu_ms")
+    if cb and cc:
+        speed = min(2.5, max(1.0, cc / cb))
+    print(f"compare: runner speed factor {speed:.2f} (calibration {cb} -> {cc} ms)")
     for k in sorted(cur):
         if k.startswith(IGNORE):
             continue
@@ -65,8 +74,10 @@ def main():
         gate = GATES.get(k)
         # Tiny absolute values (sub-0.2 ms) are timer noise.
         noise = not any(h in k for h in HIGHER_IS_BETTER) and max(v, b) < 0.2 and k.endswith(("_ms", "_mean", "_p50", "_p95", "_max"))
-        if gate and r > gate and not noise:
-            failed.append(f"{k}: {b:g} -> {v:g} ({r:.2f}x worse, gate {gate}x)")
+        cpu = not any(h in k for h in HIGHER_IS_BETTER) and not k.endswith("_mb")
+        rg = r / speed if cpu else r
+        if gate and rg > gate and not noise:
+            failed.append(f"{k}: {b:g} -> {v:g} ({r:.2f}x worse, {rg:.2f}x for runner speed, gate {gate}x)")
             flag = " ❌ regression"
         rows.append(f"| {k} | {b:g} | {v:g} | {r:.2f}x{flag} |")
     with open(out_path, "w") as f:

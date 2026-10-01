@@ -5,8 +5,10 @@ import simd
 // placing and using blocks on ships. Controls at the helm (keyboard / controller):
 //   W/S, left stick up/down     throttle (propellers, wheels; the helm alone paddles a boat slowly)
 //   A/D, left stick left/right  turn (aircraft also bank)
-//   Space / A or RT             climb (airships: more lift; aircraft: nose up)
-//   Ctrl / LT                   descend (airships: less lift; aircraft: nose down)
+//   Space / A or RB             climb (airships: more lift; aircraft: nose up)
+//   Ctrl / LB                   descend (airships: less lift; aircraft: nose down)
+//   look                        turrets turn to the view
+//   attack (click / RT)         fire the cannons (elevated to the view pitch)
 //   Shift / B                   leave the helm
 // Using a helm that isn't part of a ship assembles everything connected to it; sneak-using the helm of a
 // ship docks it back into the world, snapped to the block grid.
@@ -49,6 +51,62 @@ extension Game {
         p.airPeak = w1.y + fall2
     }
 
+    // /vessel frigate|carriage: summon one ahead; /vessel locate: the nearest encounter home.
+    func vesselCommand(_ a: [String]) -> [String] {
+        let ships = world.ships
+        guard a.count >= 2 else { return ["Usage: /vessel <frigate|carriage|locate>"] }
+        let f = V3(-sinf(player.yaw), 0, -cosf(player.yaw))
+        switch a[1].lowercased() {
+        case "frigate", "carriage":
+            let at = player.pos + f * (a[1].lowercased() == "frigate" ? 50 : 30)
+            let x = Int(floor(at.x)), z = Int(floor(at.z))
+            let ground = world.topY(x, z)
+            let s = ships.spawnVessel(a[1].lowercased(), home: IVec3(x, a[1].lowercased() == "frigate" ? max(ground, SEA) + 30 : ground + 1, z), game: self)
+            return ["Summoned \(s.name) (\(s.blockCount) blocks)"]
+        case "locate":
+            let rx = floorDiv(Int(player.pos.x), Vessels.region), rz = floorDiv(Int(player.pos.z), Vessels.region)
+            var best: (String, IVec3, Float)?
+            for dz in -3...3 { for dx in -3...3 {
+                guard let e = Vessels.encounter(seed: world.seed, rx: rx + dx, rz: rz + dz, gen: world.gen) else { continue }
+                let d = simd_length(V2(Float(e.1.x) - player.pos.x, Float(e.1.z) - player.pos.z))
+                if best == nil || d < best!.2 { best = (e.0, e.1, d) }
+            } }
+            guard let b = best else { return ["No vessel within \(Vessels.region * 3) blocks"] }
+            let name = b.0 == "frigate" ? "Skyward Frigate" : "Ironstride Siege Carriage"
+            return ["The nearest \(name) patrols around [\(b.1.x), ~, \(b.1.z)] (\(Int(b.2)) blocks away)"]
+        default:
+            return ["Unknown vessel \(a[1])"]
+        }
+    }
+
+    // Third-person camera distance: farther back while steering, scaled to the ship.
+    var thirdPersonDistance: Float {
+        guard let s = world.ships.pilot else { return 4 }
+        let size = simd_length(s.localMax - s.localMin)
+        return max(4, min(48, size * 0.9))
+    }
+
+    // HUD while steering: speed, height above sea level, throttle and lift.
+    func shipHUDLine() -> String? {
+        guard let s = world.ships.pilot else { return nil }
+        let sp = (s.vel.x * s.vel.x + s.vel.z * s.vel.z).squareRoot()
+        var t = String(format: "%@  %.1f b/s  alt %d  throttle %d%%", s.name, sp, Int(s.pos.y) - YOFF, Int(s.throttle * 100))
+        if s.balloons > 0 { t += String(format: "  lift %d%%", Int(s.liftLevel * 100)) }
+        let guns = ([s] + world.ships.turrets(of: s)).reduce(0) { $0 + $1.cannons.count }
+        if guns > 0 { t += s.reload > 0 || world.ships.turrets(of: s).contains(where: { $0.reload > 0 }) ? "  guns reloading" : "  guns ready" }
+        return t
+    }
+
+    // Boss-style bars for crewed vessels near the player: name and how much of the hull is left.
+    func shipBars() -> [(String, Float)] {
+        var out: [(String, Float)] = []
+        for s in world.ships.list where s.isVessel && s.parent == nil && !s.captured && s.initialBlocks > 0
+            && simd_length(s.pos - player.pos) < 96 {
+            out.append((s.name, Float(s.blockCount) / Float(s.initialBlocks)))
+        }
+        return out
+    }
+
     // Where the pilot stands: on the pilot's side of the helm (its front).
     func helmStand(_ s: Ship) -> V3? {
         guard let h = s.helm else { return nil }
@@ -71,9 +129,17 @@ extension Game {
         s.throttle = max(-1, min(1, mi.forward))
         s.steer = max(-1, min(1, mi.strafe))
         var climb: Float = 0
-        if mi.jump || (pad?.rt ?? 0) > 0.3 { climb += 1 }
-        if input.control || (pad?.lt ?? 0) > 0.3 { climb -= 1 }
+        if mi.jump || (pad?.rb ?? false) { climb += 1 }
+        if input.control || (pad?.lb ?? false) { climb -= 1 }
         s.climb = climb
+        // Turrets follow the view.
+        for t in ships.turrets(of: s) {
+            var rel = player.yaw - s.yaw
+            while rel > .pi { rel -= 2 * .pi }
+            while rel < -.pi { rel += 2 * .pi }
+            t.aimAt = nil
+            t.aimYaw = rel
+        }
         player.pos = at
         player.vel = s.velocity(at: at)
         player.onGround = true
@@ -87,11 +153,12 @@ extension Game {
         ships.pilot = s
         ships.aboard = s
         s.piloted = true
+        s.captured = true
         if s.balloons > 0 && s.hoverY == nil { s.hoverY = s.pos.y }
         if let stand = helmStand(s) { player.pos = s.toWorld(stand) }
         player.flying = false
         sfx(.place(.wood), 0.5, at: player.pos)
-        onToast?("Steering \(s.name): W/S throttle, A/D turn, Space/Ctrl climb, Shift leave")
+        onToast?("Steering \(s.name): W/S throttle, A/D turn, Space/Ctrl climb, click fire, Shift leave")
     }
 
     func leaveHelm() {
@@ -110,7 +177,12 @@ extension Game {
     func shipInteract(breakHeld: Bool, breakNow: Bool, useNow: Bool, sneak: Bool, dt: Float) -> Bool {
         let ships = world.ships
         ships.breakCooldown -= dt
-        if ships.pilot != nil { ships.target = nil; target = nil; mining = nil; return true }
+        if let s = ships.pilot {
+            ships.target = nil; target = nil; mining = nil
+            // Attack fires the cannons, raised to the view pitch.
+            if breakNow && ships.fire(s, pitch: player.pitch + 0.05, game: self) > 0 { swing = 1 }
+            return true
+        }
         let eye = player.eye, look = player.look
         let reach: Float = survival ? 4.5 : 5
         var best: (Ship, IVec3, IVec3, Float)?
@@ -174,7 +246,13 @@ extension Game {
         guard useNow else { return true }
         swing = 1
 
-        // Using: the helm steers (sneak: docks the ship), containers open.
+        // Using: a labelled name tag names the ship; the helm steers (sneak: docks the ship); containers open.
+        if ShipParts.kinds[Int(b)] == .helm && s.helm == cell && Items.key(held.item) == "name_tag", let label = held.label, !label.isEmpty {
+            s.name = label
+            if survival { consumeHeld() }
+            onToast?("Named the ship \(label)")
+            return true
+        }
         if ShipParts.kinds[Int(b)] == .helm && s.helm == cell {
             if sneak {
                 let msg = ships.disassemble(s, game: self)

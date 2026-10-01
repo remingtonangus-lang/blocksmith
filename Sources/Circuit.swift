@@ -123,13 +123,21 @@ final class Circuit {
 
     // Registers periodic components of a chunk that just arrived.
     func chunkLoaded(_ c: Chunk) {
-        let bx = c.cx * CS, bz = c.cz * CS
-        for i in 0..<c.blocks.storedCount {     // above storedCount everything is air
-            let k = Circuit.kind(c.blocks[i])
+        for p in Circuit.trackedCells(c.blocks.data, cx: c.cx, cz: c.cz) { tracked.insert(p) }
+    }
+
+    // Components needing periodic work in a chunk's blocks (thread-safe: the world's workers run it when they
+    // produce a chunk, so installing it on the main thread is just the inserts).
+    static func trackedCells(_ blocks: [BlockID], cx: Int, cz: Int) -> [IVec3] {
+        let bx = cx * CS, bz = cz * CS
+        var out: [IVec3] = []
+        for i in 0..<min(blocks.count, CSQ * CH) {
+            let k = kinds[Int(blocks[i])]
             if k == .hopper || k == .daylight || k == .plate || k == .weightedPlate || k == .detectorRail || k == .tripHook || k == .sculkSensor {
-                tracked.insert(IVec3(bx + (i & 15), i >> 8, bz + ((i >> 4) & 15)))
+                out.append(IVec3(bx + (i & 15), i >> 8, bz + ((i >> 4) & 15)))
             }
         }
+        return out
     }
 
     // MARK: Power queries

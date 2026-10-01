@@ -76,6 +76,22 @@ extension BlockRegistry {
         wing.boxes = [Box(0, 6, 0, 16, 10, 16)]; wing.skyStop = true
         add(wing)
 
+        // Turret ring: a bearing; what stands on it becomes a turret when the ship is assembled.
+        var ring = BlockDef("ship_turret_ring", "Turret Ring")
+        ring.tex = ["ship_ring_side", "ship_ring_side", "ship_ring_top", "ship_metal", "ship_ring_side", "ship_ring_side"]
+        ring.hardness = 4; ring.tool = .pickaxe; ring.requiresTool = true; ring.sound = .stone; ring.resistance = 8
+        add(ring)
+
+        // Cannon: a carriage with a barrel; it fires out of the side opposite its front (away from whoever placed it).
+        var cannon = BlockDef("ship_cannon", "Cannon")
+        cannon.tex = ["ship_metal"]; cannon.render = .model; cannon.layer = .cutout; cannon.opaque = false; cannon.hardness = 4
+        cannon.tool = .pickaxe; cannon.requiresTool = true; cannon.sound = .stone; cannon.skyStop = false; cannon.resistance = 8
+        let barrel = t6("ship_barrel")
+        facing4(cannon, [
+            Box(3, 0, 2, 13, 5, 12, tex: dark), Box(2, 0, 3, 3, 4, 7, tex: wood), Box(13, 0, 3, 14, 4, 7, tex: wood),
+            Box(5, 5, 1, 11, 11, 8, tex: barrel), Box(6, 6, 8, 10, 10, 16, tex: barrel), Box(5, 5, 14, 11, 11, 16, tex: barrel),
+        ])
+
         // Wheel: a disc rolling along the facing axis (north/south roll along Z, west/east along X).
         var wheel = BlockDef("ship_wheel", "Wheel")
         wheel.tex = ["ship_tyre"]; wheel.render = .model; wheel.opaque = false; wheel.hardness = 1.5; wheel.tool = .axe; wheel.sound = .wood
@@ -133,6 +149,22 @@ extension TextureGen {
             if y % 8 == 0 { return hex(0x6E5434) }                   // ribs
             return hex(0xD8CDB0, 0.9 + 0.1 * r(x, y, 2610))
         }
+        p["ship_ring_top"] = { x, y in
+            let dx = Float(x) - 7.5, dy = Float(y) - 7.5
+            let d = (dx * dx + dy * dy).squareRoot()
+            if d > 5.5 && d < 7.5 { return hex(0xC9A23A, 0.8 + 0.2 * r(x, y, 2612)) }        // bearing race
+            if d < 2 { return hex(0x2E3236) }
+            return hex(0x6E767E, 0.9 + 0.1 * r(x, y, 2613))
+        }
+        p["ship_ring_side"] = { x, y in
+            if y < 3 || y > 12 { return hex(0x4C5258) }
+            if (x + y) % 4 == 0 { return hex(0xC9A23A, 0.85) }
+            return hex(0x6E767E, 0.88 + 0.12 * r(x, y, 2614))
+        }
+        p["ship_barrel"] = { x, y in
+            let band = y % 8 < 2
+            return hex(band ? 0x3A3E42 : 0x55595E, 0.9 + 0.1 * r(x, y, 2615))
+        }
         p["ship_tyre"] = { x, y in
             let tread = (x + y) % 4 == 0
             return hex(0x2B2B2D, tread ? 0.7 : 0.95 + 0.1 * r(x, y, 2611))
@@ -149,6 +181,8 @@ extension Recipes {
         r.append(shaped(["WWW", "WSW", "WWW"], ["W": "white_wool", "S": "string"], "ship_balloon", 4))
         r.append(shaped(["SSS", "PPP"], ["S": "stick", "P": "#planks"], "ship_wing", 4))
         r.append(shaped([" P ", "PIP", " P "], ["P": "#planks", "I": "iron_ingot"], "ship_wheel", 2))
+        r.append(shaped(["III", "I I", "III"], ["I": "iron_ingot"], "ship_turret_ring"))
+        r.append(shaped(["II ", "IGI", "PPP"], ["I": "iron_ingot", "G": "gunpowder", "P": "#planks"], "ship_cannon"))
         return r
     }
 }

@@ -52,16 +52,35 @@ ShipRender.swift, ShipPlay.swift, ShipBlocks.swift, ShipTest.swift).
 - Parts: Propeller (pushes away from its front, needs an Engine; one engine drives 4 propellers/wheels), Engine,
   Lift Balloon (2 t of lift each; airships hold altitude, Space/Ctrl climb/descend), Airfoil (flat-plate lift for
   aircraft; 4+ airfoils and no balloons = aircraft controls: climb input pitches), Wheel (suspension, rolls along the
-  ship's heading, grips sideways). The helm alone paddles a boat slowly.
+  ship's heading, grips sideways). The helm alone paddles a boat slowly. Wool blocks are **sails**: while someone
+  steers they turn the wind (direction drifts over time, stronger in rain/thunder) into drive along the heading.
 - Physics: 60 Hz substeps; buoyancy from blocks plus the hull's enclosed air (a stone hull floats like a steel ship),
   keel-like water drag, air drag, yaw-rate steering, self-righting, impulse contacts vs terrain and other ships.
 - Aboard: the player moves in the ship's frame (World.frame): walking, jumping, ladders, building all work on a
   moving ship. Mobs and items collide with ship blocks in world space (approximate boxes) and are carried.
 - Save: ships.json per dimension. Harness: `--ship boat|deck|airship|car`, `--physicstest` (strict, exit 1 on failure).
+- Turrets and guns: a **Turret Ring** under a structure makes it a turret when the ship is assembled (it must touch
+  the ship only through the ring); turrets turn to the pilot's view. **Cannons** fire shells (click / RT while
+  steering, elevated to the view pitch); shells explode on terrain, ships, mobs and players. Explosions (TNT, hissers,
+  shells) blow blocks out of ships and push them.
+- Vessels (ShipVessels.swift): the **Skyward Frigate** (48-block flying warship, lift envelope, two turrets, broadside
+  guns, Marauder crew, captain's chest) and the **Ironstride Siege Carriage** (six big wheels, armoured hull, giant
+  three-gun turret). About one 2048-block region in 8 hosts one (seeded); it appears when the player comes within 150
+  blocks, patrols around its home, and its turrets track and shell a survival player within 64-80 blocks. Steer one
+  (take its helm) to capture it. Harness: `--ship gunboat|frigate|carriage`; bench scene `ships`.
 - Known gaps: mobs aboard use approximate collision and can swim in hull water; ship light is baked in ship space
   (no world shadows/caves); no hull splitting when a ship is cut in two; explosions don't damage ships yet.
-- Next: aircraft scenario + tuning, then the rare huge vehicles (flying frigate-class warship, six-wheeled heavy gun
-  platform with a turret).
+- Next: tuning from CI numbers, soldier crews once the Gameplay session adds soldiers, hull splitting.
+
+## Rendering fix carried from the performance branch (Engine session)
+The single-draw-per-section path (base vertex + base instance) draws scrambled, black terrain on the CI runners'
+paravirtual GPU (every PR #1 snapshot showed it). Renderer.baseVertexOK now skips it when the device name contains
+"Paravirtual" (or with --no-base-vertex). Still to verify on a real M1 that the fast path renders correctly; if not,
+the same flag turns it off. Confirmed on CI (spawn.png clean again).
+Engine-session perf work since: background gen/mesh operations capture the World weakly (fix for the World leak the
+perf handoff left open; watch bench worlds_alive), the culling walk stops above the tallest geometry in range, chunk
+workers find circuit components that need periodic work. Ship costs (bench "ships", CI): physics 0.17 ms/frame with a
+frigate and a siege carriage under way, frigate mesh 3 ms (background), block edit 0.5 ms.
 
 ## CI (compile/test loop)
 - `.github/workflows/mac.yml` (macos-14 arm64, Xcode 16 / Swift 6.0.3): `./build.sh` + `./snap.sh` on every push;
@@ -157,6 +176,9 @@ Controller: LS move, RS look, A jump, B sneak, L3 sprint, RT attack/mine, LT use
 X pick block (reload while holding a gun), D-pad ↓ drop, D-pad ↑ fly. In menus: D-pad/LS move cursor, A = click, X = right-click, Y = shift-click,
 B close, RS scroll creative.
   leak count; the CI step "Terrain check" fails on implausible neighbours or rivers whose surface rises downstream. Caches (macro 16-grid, lattice nodes, river graph) are pure memo tables, so output is order-independent.
+Steering a ship (use its helm): W/S or LS throttle, A/D or LS turn, Space/A/RB climb, Ctrl/LB descend, LMB/RT fire
+cannons (turrets follow the view), Shift/B leave the helm, F5 pulls the camera back to fit the ship. Sneak-use the
+helm to dock the ship into the world. /vessel frigate|carriage|locate.
 
 ## Rendering performance
 - Solid cube faces are drawn first without alpha test (keeps the GPU's hidden-surface removal), cutout faces

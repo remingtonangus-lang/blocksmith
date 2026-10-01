@@ -254,6 +254,7 @@ final class ShipRenderer {
     private var ringOff = 0
     private static let ringSize = 1 << 20
     private(set) var drawCalls = 0
+    private var maskScratch: [SimpleVert] = []
 
     init(device: MTLDevice, colorFormat: MTLPixelFormat) throws {
         let lib = try device.makeLibrary(source: shipShaderSource, options: nil)
@@ -321,30 +322,33 @@ final class ShipRenderer {
 
     // Solid then cutout faces of every visible ship.
     func drawOpaque(_ enc: MTLRenderCommandEncoder, ships: ShipManager, eye: V3, u: inout Uniforms, frustum: Frustum, quads: MTLBuffer) {
-        if ships.isEmpty { return }
+        if ships.isEmpty && ships.ghosts.isEmpty { return }
         enc.setDepthStencilState(depthWrite)
         enc.setCullMode(.back)
         enc.setFrontFacing(.counterClockwise)
         enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
         enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
         enc.setVertexBuffer(tintBuf, offset: 0, index: 3)
+        func draw(_ s: Ship, _ pass: Int) {
+            if !frustum.visible(min: s.worldMin, max: s.worldMax) { return }
+            let m = model(s, eye: eye)
+            for sec in s.mesh.sections.values {
+                guard let buf = sec.opaque, sec.opaqueQuads > 0 else { continue }
+                let total = min(sec.opaqueQuads, Renderer.maxQuads), solid = min(sec.solidQuads, total)
+                let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
+                if count <= 0 { continue }
+                var rec = ShipDrawRec(model: m, origin: V4(sec.origin, 0))
+                enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
+                enc.setVertexBytes(&rec, length: MemoryLayout<ShipDrawRec>.stride, index: 2)
+                enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quads,
+                                          indexBufferOffset: first * 6 * 4)
+                drawCalls += 1
+            }
+        }
         for pass in 0..<2 {
             enc.setRenderPipelineState(pass == 0 ? solidPipe : cutPipe)
-            for s in ships.list where frustum.visible(min: s.worldMin, max: s.worldMax) {
-                let m = model(s, eye: eye)
-                for sec in s.mesh.sections.values {
-                    guard let buf = sec.opaque, sec.opaqueQuads > 0 else { continue }
-                    let total = min(sec.opaqueQuads, Renderer.maxQuads), solid = min(sec.solidQuads, total)
-                    let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
-                    if count <= 0 { continue }
-                    var rec = ShipDrawRec(model: m, origin: V4(sec.origin, 0))
-                    enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
-                    enc.setVertexBytes(&rec, length: MemoryLayout<ShipDrawRec>.stride, index: 2)
-                    enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quads,
-                                              indexBufferOffset: first * 6 * 4)
-                    drawCalls += 1
-                }
-            }
+            for s in ships.list { draw(s, pass) }
+            for g in ships.ghosts { draw(g.0, pass) }
         }
     }
 
@@ -374,7 +378,7 @@ final class ShipRenderer {
                 enc.drawPrimitives(type: .line, vertexStart: 0, vertexCount: verts.count)
             }
         }
-        var mask: [SimpleVert] = []
+        maskScratch.removeAll(keepingCapacity: true)
         var rd = ShipBlockReader(world)
         for s in ships.list where frustum.visible(min: s.worldMin, max: s.worldMax) {
             guard let top = rd.waterTop(s.pos) ?? rd.waterTop(s.pos - V3(0, 2, 0)) else { continue }
@@ -393,17 +397,22 @@ final class ShipRenderer {
                     let cy = Int(floor(yc))
                     if !s.dry(x, cy, z) { continue }
                     let fx = Float(x), fz = Float(z)
-                    let c = [V3(fx, ly(fx, fz), fz), V3(fx + 1, ly(fx + 1, fz), fz), V3(fx + 1, ly(fx + 1, fz + 1), fz + 1), V3(fx, ly(fx, fz + 1), fz + 1)]
-                    let w = c.map { V4(s.toWorld($0) - eye, 1) }
-                    for i in [0, 1, 2, 0, 2, 3] { mask.append(SimpleVert(pos: w[i], color: V4(0, 0, 0, 0))) }
+                    let w0 = V4(s.toWorld(V3(fx, ly(fx, fz), fz)) - eye, 1)
+                    let w1 = V4(s.toWorld(V3(fx + 1, ly(fx + 1, fz), fz)) - eye, 1)
+                    let w2 = V4(s.toWorld(V3(fx + 1, ly(fx + 1, fz + 1), fz + 1)) - eye, 1)
+                    let w3 = V4(s.toWorld(V3(fx, ly(fx, fz + 1), fz + 1)) - eye, 1)
+                    let none = V4(0, 0, 0, 0)
+                    maskScratch.append(SimpleVert(pos: w0, color: none)); maskScratch.append(SimpleVert(pos: w1, color: none))
+                    maskScratch.append(SimpleVert(pos: w2, color: none)); maskScratch.append(SimpleVert(pos: w0, color: none))
+                    maskScratch.append(SimpleVert(pos: w2, color: none)); maskScratch.append(SimpleVert(pos: w3, color: none))
                 }
             }
         }
-        if let pb = push(mask) {
+        if let pb = push(maskScratch) {
             enc.setRenderPipelineState(maskPipe)
             enc.setDepthStencilState(depthWrite)
             enc.setVertexBuffer(pb.0, offset: pb.1, index: 0)
-            enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: mask.count)
+            enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: maskScratch.count)
             drawCalls += 1
         }
     }

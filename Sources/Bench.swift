@@ -38,14 +38,31 @@ enum Bench {
     }
     static func f(_ v: Double, _ digits: Int = 2) -> String { String(format: "%.\(digits)f", v) }
 
+    // Runner speed: a fixed integer workload that no game change touches (median of 9 runs). perf/compare.py
+    // divides gated CPU timings by how much slower this ran than in the baseline, so a slow shared runner
+    // doesn't read as a regression.
+    static func calibrate() {
+        var runs: [Double] = []
+        var acc: UInt32 = 0
+        for r in 0..<9 {
+            let a = now
+            for i in 0..<400_000 { acc &+= hash3(i, r, i >> 3, acc) }
+            runs.append((now - a) * 1000)
+        }
+        let d = dist(runs)
+        put("calib.cpu_ms", d.p50)
+        print("bench: calibration \(f(d.p50)) ms (min \(f(runs.min() ?? 0)), max \(f(d.max))) [\(acc & 1)]")
+    }
+
     static func run(_ out: String) -> Int32 {
         let t0 = now
         guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); return 1 }
         let seed = UInt64(arg("--seed") ?? "") ?? 12345
         let quick = CommandLine.arguments.contains("--quick")
-        let all = "gen,mesh,startup,frame,edit,mobs,save,tnt,fluids,flight8,flight16,flight24"
+        let all = "gen,mesh,startup,frame,edit,mobs,save,tnt,fluids,ships,flight8,flight16,flight24"
         let scenes = (arg("--scenes") ?? all).split(separator: ",").map(String.init)
         print("bench: device \(device.name), \(ProcessInfo.processInfo.activeProcessorCount) cores, seed \(seed)\(quick ? ", quick" : "")")
+        if !scenes.allSatisfy({ $0.hasPrefix("flight") }) { calibrate() }
         for s in scenes {
             let ts = now
             switch s {
@@ -58,6 +75,7 @@ enum Bench {
             case "save": save(device, seed)
             case "tnt": tnt(device, seed)
             case "fluids": fluids(device, seed)
+            case "ships": ships(device, seed)
             case "meshprof": meshLoop(device, seed, seconds: Double(arg("--secs") ?? "") ?? 12)
             case "genprof": genLoop(device, seed, seconds: Double(arg("--secs") ?? "") ?? 12)
             case let name where name.hasPrefix("flight"):
@@ -307,6 +325,10 @@ enum Bench {
         let (world, game, pos) = setup(device, seed, rd: 6)
         defer { withExtendedLifetime(game) {} }
         _ = world.loadSync(center: pos, radius: 6)
+        // Let the background meshing of the loaded area finish first: edits timed against busy workers measure
+        // the runner's load, not the edit.
+        let w0 = now
+        while world.pendingJobs > 0 && now - w0 < 10 { world.update(center: pos); usleep(2000) }
         let bx = Int(floor(pos.x)), bz = Int(floor(pos.z))
         var brk: [Double] = [], plc: [Double] = []
         for i in 0..<48 {
@@ -325,8 +347,8 @@ enum Bench {
         let s = now
         while world.pendingJobs > 0 && now - s < 10 { world.update(center: pos); usleep(2000) }
         let b = dist(brk), p = dist(plc)
-        put("edit.break_ms", b, "mean,max")
-        put("edit.place_ms", p, "mean,max")
+        put("edit.break_ms", b, "mean,p50,max")
+        put("edit.place_ms", p, "mean,p50,max")
         print("bench edit: break mean \(f(b.mean)) ms max \(f(b.max)) ms, place mean \(f(p.mean)) ms max \(f(p.max)) ms (synchronous remesh)")
     }
 

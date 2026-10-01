@@ -458,7 +458,9 @@ final class World {
                     let lod = c.lod
                     c.meshInFlight = true
                     jobs += 1
-                    workQueue.addOperation { [self] in
+                    // Weak: a finished operation can linger in a worker's autorelease pool and would keep the World alive.
+                    workQueue.addOperation { [weak self] in
+                        guard let self else { return }
                         let t0 = CFAbsoluteTimeGetCurrent()
                         var out: [(Int, Int, SectionMesh)] = []
                         for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod))) }
@@ -472,9 +474,10 @@ final class World {
             } else if jobs < maxQueued && !genInFlight.contains(k) {
                 genInFlight.insert(k)
                 jobs += 1
-                workQueue.addOperation { [self] in
+                workQueue.addOperation { [weak self] in
+                    guard let self else { return }
                     let t0 = CFAbsoluteTimeGetCurrent()
-                    let r = produce(k)
+                    let r = self.produce(k)
                     let el = CFAbsoluteTimeGetCurrent() - t0
                     lock.lock()
                     genResults.append((k, r))
@@ -495,6 +498,8 @@ final class World {
         var fromDisk: Bool
         var entities: [(IVec3, BlockEntity)]
         var mobs: [(String, V3)]
+        var tracked: [IVec3] = []            // circuit components needing periodic work (found off the main thread)
+        var emitMask: UInt32 = ~0            // sections holding light emitters (BlockStore.emitMask)
     }
 
     private func produce(_ k: ChunkKey) -> Produced {
@@ -509,7 +514,8 @@ final class World {
             ents += World.orphanEntities(blocks, k, have: ents)
         }
         return Produced(blocks: blocks, height: Chunk.computeHeights(blocks), tint: gen.tints(cx: k.x, cz: k.z),
-                        fromDisk: fromDisk, entities: ents, mobs: mobs)
+                        fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: Circuit.trackedCells(blocks, cx: k.x, cz: k.z),
+                        emitMask: BlockStore.emitMask(of: blocks))
     }
 
     // Generated spawners/chests without a block entity (dungeons): mob and loot come from the position.
@@ -540,10 +546,11 @@ final class World {
 
     private func install(_ k: ChunkKey, _ p: Produced) {
         let c = Chunk(cx: k.x, cz: k.z, blocks: p.blocks, height: p.height, tint: p.tint)
+        c.blocks.emitMask = p.emitMask
         c.modified = p.fromDisk
         if p.fromDisk { c.savedBlocks = c.blocks }
         chunks[k] = c
-        redstone.chunkLoaded(c)
+        for t in p.tracked { redstone.tracked.insert(t) }
         // Generated chests/spawners; a regenerated chunk keeps any existing (already looted) entity.
         for (pos, be) in p.entities where blockEntities[pos] == nil { blockEntities[pos] = be }
         // Structure mobs (bastion boarlings...) appear once: the chunk is saved so it never regenerates.
