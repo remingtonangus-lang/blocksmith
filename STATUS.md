@@ -36,7 +36,8 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
   - [x] Combined-build CI shots render cleanly (the black/scrambled terrain was the CI GPU's base-vertex draws).
   - [x] Audio (#4): --sounds 0 failed (wind loops audible), --audiotest 0 failed on CI.
   - [x] UI (#5): padtest 122/122; tv_combat / vehicle_hud / tv_map reviewed (toast and tip overlaps fixed).
-  - [ ] Visuals (#6): verify the half-res volumetric shafts (~4.7 ms tour avg), cave_torches shot, glowstone not clipping.
+  - [x] Visuals (#6): tour frames 2.9-6.4 ms (avg ~4.6, the half-res shafts' target); flight16 GPU 4.2 ms p50.
+  - [ ] cave_torches shot is mostly dark (re-check with eye adaptation).
   - [x] Terrain (#7): WIP commit green on CI; terrain check 0 problems over 5 seeds; aerial tours on land.
   - [x] Physics (#8): frigate patrol altitude (hoverY floor is the spawn altitude); calib.cpu_ms in perf/baseline.json.
   - [x] Physics (#8): round-6 commits compile; flight24 cull 0.76 ms p50 (target < 1.20); ships metrics in the baseline.
