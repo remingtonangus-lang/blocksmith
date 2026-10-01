@@ -360,6 +360,8 @@ fragment float4 cloudBoxFS(CloudOut in [[stage_in]],
         // HDR (Fancy): sky ambient plus direct sun/moon light on the lit faces (pink-gold at sunset).
         float lit = smoothstep(0.75, 1.0, in.rel.y);
         col = u.ambColor.rgb * (0.9 + 0.5 * in.rel.y) + u.sunColor.rgb * (0.35 + 1.1 * lit);
+        // At night clouds are dim grey shapes against the stars, not lit blue blobs.
+        col *= mix(0.22, 1.0, smoothstep(0.12, 0.7, day));
         col = mix(col, u.fogColor.rgb, 0.15);
     }
     return float4(col, 0.82 * fade);
