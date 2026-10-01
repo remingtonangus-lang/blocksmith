@@ -26,6 +26,8 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
 - 2026-10-01 22:27 UTC: pushed 05e83c4 (discs, advancements, sign dyes, mob shadows); this cancelled run 333 (8e5b872)
   mid-smoke, whose build, type-check gate and debug-build check had passed. Run 334 tests the whole batch. 22:35: the
   container restarted; the CI watcher was re-armed.
+- 2026-10-01 22:52 UTC: run 334 fully green on 05e83c4 (build, debug build, smoke rd 8/16/24/24-Fast, benchmarks,
+  playthrough 0 failed, every snapshot/harness test) -> PLAYTEST READY posted on PR #9 with the updated what's-new list.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
@@ -35,7 +37,7 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
   - [x] Settings.subtitles <-> AudioSettings.subtitles infinite recursion (every frame hung); padtest toggles both menus.
   - [x] Vibrant mip average split into typed lets (Swift 6.3 type-check timeout); CI type-check time gate (>= 400 ms fails).
   - [x] rd 24 smoke (Fancy and Fast) passes on CI since the Paravirtual base-vertex guard (53932ee).
-  - [ ] Debug-build link error (now line tables + -wmo; debugbuild.log published).
+  - [x] Debug-build link error: links since line tables + -wmo (run 334 debugbuild.log).
   - [x] Combined-build CI shots render cleanly (the black/scrambled terrain was the CI GPU's base-vertex draws).
   - [x] Audio (#4): --sounds 0 failed (wind loops audible), --audiotest 0 failed on CI.
   - [x] UI (#5): padtest 122/122; tv_combat / vehicle_hud / tv_map reviewed (toast and tip overlaps fixed).
