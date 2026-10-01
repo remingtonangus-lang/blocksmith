@@ -110,6 +110,9 @@ B close, RS scroll creative.
   rd 16 aerial 1280x800 Fancy 4.64 ms vs Fast 4.25 ms; rd 16 ground 1440x900 Fancy 4.48 ms vs Fast 4.45 ms;
   tour average Fancy 3.9 ms (was 5.7 before the perf pass). On the Mac, F3 shows the real GPU ms; Render Scale
   85/70% is the lever if a MacBook Air at full retina resolution needs it.
+- Also: mobs/player model/arm shaded by the sun shadow map (mobVibFS), pink anti-twilight arch at dusk, world normals
+  in HDR shading + shipVibVS / Vibrant.shipSolid|shipCut|shipTrans for ships (wiring in the PR #6 comment); more
+  textures: bricks, stone bricks, log ends, glass, terracotta, packed/blue ice, snow, speckled family.
 - Integration with the ship PR (#8): chunkVibVS already reads per-instance section records (VibSection); ship
   pipelines need an rgba16Float variant for the Fancy world pass (see the PR #6 comment).
 - Options > Graphics: Fancy (default) / Fast, saved in UserDefaults `fancyGraphics`; harness `--fast` renders one shot in Fast
