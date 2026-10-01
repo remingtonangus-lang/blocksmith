@@ -186,9 +186,9 @@ enum Enchant {
     }
 
     static func assignEnchantability(_ reg: ItemRegistry) {
-        let tools: [(String, Int)] = [("wooden", 15), ("stone", 5), ("iron", 14), ("golden", 22), ("diamond", 10), ("netherite", 15)]
+        let tools: [(String, Int)] = [("wooden", 15), ("stone", 5), ("iron", 14), ("golden", 22), ("diamond", 10), ("netherite", 15), ("copper", 13)]
         for (m, v) in tools { for t in ["sword", "shovel", "pickaxe", "axe", "hoe", "spear"] { reg.setEnchantability("\(m)_\(t)", v) } }
-        let armor: [(String, Int)] = [("leather", 15), ("chainmail", 12), ("iron", 9), ("golden", 25), ("diamond", 10), ("netherite", 15)]
+        let armor: [(String, Int)] = [("leather", 15), ("chainmail", 12), ("iron", 9), ("golden", 25), ("diamond", 10), ("netherite", 15), ("copper", 8)]
         for (m, v) in armor { for p in ["helmet", "chestplate", "leggings", "boots"] { reg.setEnchantability("\(m)_\(p)", v) } }
         reg.setEnchantability("turtle_helmet", 9)
         for n in ["book", "bow", "crossbow", "trident", "fishing_rod"] { reg.setEnchantability(n, 1) }
@@ -364,7 +364,7 @@ enum Enchant {
     static func repairMaterial(_ item: ItemID) -> String? {
         let k = Items.key(item)
         for (pre, mat) in [("wooden_", "oak_planks"), ("stone_", "cobblestone"), ("iron_", "iron_ingot"), ("golden_", "gold_ingot"),
-                           ("diamond_", "diamond"), ("netherite_", "netherite_ingot"), ("leather_", "leather"), ("chainmail_", "iron_ingot")] where k.hasPrefix(pre) {
+                           ("diamond_", "diamond"), ("netherite_", "netherite_ingot"), ("leather_", "leather"), ("chainmail_", "iron_ingot"), ("copper_", "copper_ingot")] where k.hasPrefix(pre) {
             return mat
         }
         if k == "turtle_helmet" { return "turtle_scute" }

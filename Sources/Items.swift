@@ -137,6 +137,7 @@ final class ItemRegistry {
         item("netherite_ingot", "Duskium Ingot", "ingot", 0x4D494D)
         item("netherite_scrap", "Duskium Scrap", "lump", 0x5E4A45)
         item("iron_nugget", "Iron Nugget", "nugget", 0xD8D8D8)
+        item("copper_nugget", "Copper Nugget", "nugget", 0xC87A55)
         item("gold_nugget", "Gold Nugget", "nugget", 0xFAD64A)
         item("diamond", "Diamond", "gem", 0x4AEDD9)
         item("emerald", "Emerald", "gem", 0x17DD62)
@@ -338,16 +339,17 @@ final class ItemRegistry {
             ("wooden", "Wooden", 0, 59, 2, 0x9A7A4A), ("stone", "Stone", 1, 131, 4, 0x8A8A8A),
             ("iron", "Iron", 2, 250, 6, 0xE0E0E0), ("golden", "Golden", 0, 32, 12, 0xF8D84A),
             ("diamond", "Diamond", 3, 1561, 8, 0x4AEDD9), ("netherite", "Duskium", 4, 2031, 9, 0x5A555A),
+            ("copper", "Copper", 1, 190, 5, 0xC87A55),                     // between stone and iron; mines like stone
         ]
-        let swordDmg: [Float] = [4, 5, 6, 4, 7, 8], axeDmg: [Float] = [7, 9, 9, 7, 9, 10]
-        let axeSpd: [Float] = [0.8, 0.8, 0.9, 1.0, 1.0, 1.0]
+        let swordDmg: [Float] = [4, 5, 6, 4, 7, 8, 5], axeDmg: [Float] = [7, 9, 9, 7, 9, 10, 9]
+        let axeSpd: [Float] = [0.8, 0.8, 0.9, 1.0, 1.0, 1.0, 0.8]
         for (i, t) in tiers.enumerated() {
             let kinds: [(String, String, ToolType, Float, Float)] = [
                 ("sword", "Sword", .sword, swordDmg[i], 1.6),
                 ("shovel", "Shovel", .shovel, swordDmg[i] - 1.5, 1),
                 ("pickaxe", "Pickaxe", .pickaxe, swordDmg[i] - 2, 1.2),
                 ("axe", "Axe", .axe, axeDmg[i], axeSpd[i]),
-                ("hoe", "Hoe", .hoe, 1, Float(i == 0 || i == 3 ? 1 : i + 1)),
+                ("hoe", "Hoe", .hoe, 1, Float(i == 6 ? 2 : (i == 0 || i == 3 ? 1 : i + 1))),
             ]
             for k in kinds {
                 var d = ItemDef("\(t.0)_\(k.0)", "\(t.1) \(k.1)")
@@ -379,6 +381,7 @@ final class ItemRegistry {
             ("leather", "Leather", [1, 3, 2, 1], 5, 0, 0xA0592B), ("chainmail", "Chainmail", [2, 5, 4, 1], 15, 0, 0x9A9A9A),
             ("iron", "Iron", [2, 6, 5, 2], 15, 0, 0xE0E0E0), ("golden", "Golden", [2, 5, 3, 1], 7, 0, 0xF8D84A),
             ("diamond", "Diamond", [3, 8, 6, 3], 33, 2, 0x4AEDD9), ("netherite", "Duskium", [3, 8, 6, 3], 37, 3, 0x5A555A),
+            ("copper", "Copper", [2, 4, 3, 1], 11, 0, 0xC87A55),
         ]
         let pieces: [(String, String, ArmorSlot, Int)] = [("helmet", "Helmet", .head, 11), ("chestplate", "Chestplate", .chest, 16),
                                                            ("leggings", "Leggings", .legs, 15), ("boots", "Boots", .feet, 13)]

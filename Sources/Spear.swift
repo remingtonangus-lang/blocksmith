@@ -8,9 +8,9 @@ import simd
 //   knocked back. Later in the hold the arm tires and the spear only shoves; after that it does nothing until
 //   the use button is let go. Each mob can be struck once per half second.
 enum Spear {
-    // Per tier, in Items' tier order: wooden, stone, iron, golden, diamond, duskium.
-    static let jabDamage: [Float] = [3, 4, 5, 3, 6, 7]
-    static let jabSpeed: [Float] = [1.1, 1.1, 1.0, 1.2, 1.0, 1.0]
+    // Per tier, in Items' tier order: wooden, stone, iron, golden, diamond, duskium, copper.
+    static let jabDamage: [Float] = [3, 4, 5, 3, 6, 7, 4]          // ... copper last (Items' tier list)
+    static let jabSpeed: [Float] = [1.1, 1.1, 1.0, 1.2, 1.0, 1.0, 1.1]
     static let reach: Float = 4.5
     static let windUp: Float = 0.25
     static let engaged: Float = 3.25      // charge deals damage until here (seconds of holding)

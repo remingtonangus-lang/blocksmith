@@ -194,7 +194,7 @@ enum Recipes {
         r.append(shaped(["##", "##"], ["#": "glowstone_dust"], "glowstone"))
         // Tools and weapons
         let mats: [(String, String)] = [("#planks", "wooden"), ("#stone_tool", "stone"), ("iron_ingot", "iron"),
-                                        ("gold_ingot", "golden"), ("diamond", "diamond")]
+                                        ("gold_ingot", "golden"), ("diamond", "diamond"), ("copper_ingot", "copper")]
         for (m, t) in mats {
             let k: [Character: String] = ["X": m, "#": "stick"]
             r.append(shaped(["XXX", " # ", " # "], k, "\(t)_pickaxe"))
@@ -205,7 +205,7 @@ enum Recipes {
             r.append(shaped(["  X", " # ", "#  "], k, "\(t)_spear"))
         }
         // Armor
-        for (m, a) in [("leather", "leather"), ("iron_ingot", "iron"), ("gold_ingot", "golden"), ("diamond", "diamond")] {
+        for (m, a) in [("leather", "leather"), ("iron_ingot", "iron"), ("gold_ingot", "golden"), ("diamond", "diamond"), ("copper_ingot", "copper")] {
             let k: [Character: String] = ["X": m]
             r.append(shaped(["XXX", "X X"], k, a == "leather" ? "leather_helmet" : "\(a)_helmet"))
             r.append(shaped(["X X", "XXX", "XXX"], k, "\(a)_chestplate"))
@@ -221,6 +221,8 @@ enum Recipes {
         }
         r.append(shaped(["XXX", "XXX", "XXX"], ["X": "iron_nugget"], "iron_ingot"))
         r.append(shapeless(["iron_ingot"], "iron_nugget", 9))
+        r.append(shaped(["XXX", "XXX", "XXX"], ["X": "copper_nugget"], "copper_ingot"))
+        r.append(shapeless(["copper_ingot"], "copper_nugget", 9))
         r.append(shaped(["XXX", "XXX", "XXX"], ["X": "gold_nugget"], "gold_ingot"))
         r.append(shapeless(["gold_ingot"], "gold_nugget", 9))
         // Misc
@@ -507,6 +509,12 @@ enum Recipes {
                                    "acacia_log": "charcoal", "dark_oak_log": "charcoal", "jungle_log": "charcoal", "mangrove_log": "charcoal",
                                    "cherry_log": "charcoal", "pale_oak_log": "charcoal", "iron_sword": "iron_nugget", "golden_sword": "gold_nugget", "resin_clump": "resin_brick"]
         for (c, _) in BlockRegistry.colors { m["\(c)_terracotta"] = "\(c)_glazed_terracotta" }
+        // Iron, gold and copper tools and armour melt down to nuggets.
+        for (mat, nug) in [("iron", "iron_nugget"), ("golden", "gold_nugget"), ("copper", "copper_nugget")] {
+            for t in ["sword", "pickaxe", "axe", "shovel", "hoe", "spear", "helmet", "chestplate", "leggings", "boots"] where m["\(mat)_\(t)"] == nil {
+                m["\(mat)_\(t)"] = nug
+            }
+        }
         return m
     }()
 
