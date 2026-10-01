@@ -187,6 +187,19 @@ Findings / changes (performance branch):
 - Audio extras: subtitles (Options → Audio: caption + direction arrow per sound, `--subtitles` shot), sounds carry by kind
   (explosions 64 blocks, thunder 160), note blocks with all 16 instruments and mob heads, beehive hum, fireflies, dry grass,
   Barkwraith hearts, boat paddling, a room reverb on the music. CI: `--sounds` 606 sounds / 0 failed, `--music` 14 moods / 0 failed.
+- Audio round 2 (2026-10-01; this branch merges PRs #2, #7 and #8 so their content can be wired):
+  - Weapons (WeaponAudio.swift): rifle, chatter gun, shotgun, farsight, rocket and arc lance each have their own fire
+    (crack, body, ring, servo/pump/bolt, casing), reload, distant echo (automatic beyond 32 blocks) and dry fire;
+    bullet impacts per material, near-miss whizzes, flesh hits, grenade bounces, ricochets; deck guns boom with a
+    rolling tail, alarms, radio calls, turret whine.
+  - Soldiers: an original clipped patter through a helmet comm filter for each rank (alert, attack, reload,
+    grenade, retreat, idle, hurt, death) and boots-and-kit footsteps (ironclad plates clank).
+  - Vehicles (VehicleAudio.swift): engines idle/full cross-faded by throttle with a starter, propellers by spin,
+    rigging wind on airships, wheels on terrain, water on moving hulls, creaks, collisions, splashes, helm cues.
+  - Terrain and weather (TerrainAudio.swift): streams and waterfalls from the block scan, mountain wind and
+    rockfalls, tundra wind and ice creaks, swamp insects, rain on leaves, snow wind, far thunder beyond 72 blocks.
+  - Music: High Passes / Mire / Canopy by biome; Steelhold tension near a garrison; Firefight combat music while
+    soldiers or deck guns hunt the player or a raid wave is near (held 15 s after).
 - Audio possible later: per-voice pitch jitter at playback (varispeed per voice); more distinct voices for rare mobs.
 - Landing / sprint dust, item equip animation, denser rain with ground splashes lit by daylight.
 - Village life: beds and sleeping, food pickup + breeding, farmers harvesting, golems, midnight zombie sieges.
