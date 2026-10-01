@@ -550,7 +550,10 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
         if m.saddled { p.append(box(-5.2, 21.8, -4, 10.4, 1.5, 9, V3(0.35, 0.2, 0.1))) }
         if m.chested { p.append(box(-7, 14, 0, 2, 7, 7, V3(0.55, 0.38, 0.2))); p.append(box(5, 14, 0, 2, 7, 7, V3(0.55, 0.38, 0.2))) }
         if m.armorTier > 0 {
-            let ac = [V3(0.55, 0.35, 0.2), V3(0.86, 0.86, 0.86), V3(0.95, 0.82, 0.25), V3(0.3, 0.88, 0.84)][min(3, m.armorTier - 1)]
+            // leather, iron, gold, diamond, (5 is wolf armour), copper, duskium
+            let colors: [V3] = [V3(0.55, 0.35, 0.2), V3(0.86, 0.86, 0.86), V3(0.95, 0.82, 0.25), V3(0.3, 0.88, 0.84), V3(0.62, 0.42, 0.36),
+                                V3(0.78, 0.48, 0.33), V3(0.3, 0.27, 0.28)]
+            let ac = colors[min(colors.count - 1, m.armorTier - 1)]
             p.append(box(-5.4, 11.6, -10, 10.8, 10.2, 16, ac))
             p.append(Part(mn: V3(-3.4, 14, -13.4), mx: V3(3.4, 24.4, -6.6), pivot: V3(0, 16, -9), rotX: 0.5, color: ac))
         }

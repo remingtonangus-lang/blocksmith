@@ -340,6 +340,7 @@ enum Recipes {
         r.append(shaped(["#T#", "S$S", " # "], ["#": "stick", "T": "tripwire_hook", "S": "string", "$": "iron_ingot"], "crossbow"))
         r.append(shaped(["SS ", "SB ", "  S"], ["S": "string", "B": "slime_ball"], "lead", 2))
         r.append(shaped(["L L", "LLL", "L L"], ["L": "leather"], "leather_horse_armor"))
+        r.append(shaped(["C C", "CCC", "C C"], ["C": "copper_ingot"], "copper_horse_armor"))
         r.append(shaped(["D#D", "DND", "DDD"], ["D": "diamond", "#": "netherite_upgrade_smithing_template", "N": "netherrack"], "netherite_upgrade_smithing_template", 2))
         for t in Smithing.trims {
             let tpl = "\(t)_armor_trim_smithing_template"

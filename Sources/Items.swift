@@ -253,6 +253,8 @@ final class ItemRegistry {
         item("iron_horse_armor", "Iron Horse Armor", "horse_armor", 0xE0E0E0, stack: 1)
         item("golden_horse_armor", "Golden Horse Armor", "horse_armor", 0xF8D84A, stack: 1)
         item("diamond_horse_armor", "Diamond Horse Armor", "horse_armor", 0x4AEDD9, stack: 1)
+        item("copper_horse_armor", "Copper Horse Armor", "horse_armor", 0xC87A55, stack: 1)
+        item("netherite_horse_armor", "Duskium Horse Armor", "horse_armor", 0x5A555A, stack: 1)   // smithing upgrade of diamond
         item("lead", "Lead", "lead", 0xB08A5A)
         item("spyglass", "Spyglass", "spyglass", 0xC8783A, ["c": 0xE8C040], stack: 1)
         for (_, disp, need) in Banners.patterns { if let n = need { item(n, "Banner Pattern (\(disp))", "paper", 0xE0D8C0, ["a": 0x5A5040], stack: 1) } }

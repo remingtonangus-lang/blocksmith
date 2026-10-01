@@ -122,9 +122,11 @@ extension Game {
             m.saddled = true; m.persistent = true; consumeHeld(); sfx(.place(.wood), 0.6); return true
         }
         // Horse armour (leather/iron/gold/diamond) and wolf armour.
-        let horseArmor = ["leather_horse_armor", "iron_horse_armor", "golden_horse_armor", "diamond_horse_armor"]
-        if let t = horseArmor.firstIndex(of: key), m.kind == .horse, m.tamed, !m.baby, m.armorTier == 0 {
-            m.armorTier = t + 1; consumeHeld(); sfx(.place(.stone), 0.6); return true
+        // armorTier: 1 leather, 2 iron, 3 gold, 4 diamond, 6 copper, 7 duskium (5 is wolf armour).
+        let horseArmor: [String: Int] = ["leather_horse_armor": 1, "iron_horse_armor": 2, "golden_horse_armor": 3, "diamond_horse_armor": 4,
+                                         "copper_horse_armor": 6, "netherite_horse_armor": 7]
+        if let t = horseArmor[key], m.kind == .horse, m.tamed, !m.baby, m.armorTier == 0 {
+            m.armorTier = t; consumeHeld(); sfx(.place(.stone), 0.6); return true
         }
         if key == "wolf_armor" && m.kind == .wolf && m.tamed && !m.baby && m.armorTier == 0 {
             m.armorTier = 5; m.armorHP = 64; consumeHeld(); sfx(.place(.stone), 0.6); return true

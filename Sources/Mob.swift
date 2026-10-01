@@ -999,8 +999,8 @@ final class Mob {
             if armorHP <= 0 { armorTier = 0 }
         }
         if kind == .horse && armorTier > 0 {
-            let table: [Float] = [0, 3, 5, 7, 11]
-            let pts: Float = table[min(4, armorTier)]
+            let table: [Float] = [0, 3, 5, 7, 11, 0, 4, 19]              // ... 6 copper, 7 duskium
+            let pts: Float = table[min(7, armorTier)]
             let d: Float = Float(damage)
             let cut: Float = min(20, max(pts / 5, pts - d / 2)) / 25
             damage = Int((d * (1 - cut)).rounded())
