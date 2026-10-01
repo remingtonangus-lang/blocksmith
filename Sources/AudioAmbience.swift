@@ -315,7 +315,9 @@ extension Game {
         let jungle = AmbientBiomes.jungle
         let swamp = AmbientBiomes.swamp
         if a.nearOcean { ask("surf", .oceanLoop, 0.55 * open, nil) }
-        if high || snowy.contains(b) || dry.contains(b) { ask("wind", .windLoop, (high ? 0.6 : 0.35) * open, nil) }
+        // Plain wind where no landform bed takes over (TerrainAudio: mountain howl on peaks, tundra whistle).
+        let ownWind = AmbientBiomes.peaks.contains(b) || p.y - Float(SEA) > 60 || AmbientBiomes.tundra.contains(b)
+        if (high || snowy.contains(b) || dry.contains(b)) && !ownWind { ask("wind", .windLoop, (high ? 0.6 : 0.35) * open, nil) }
         if jungle.contains(b) { ask("jungle", .jungleLoop, (0.5 * day + 0.35 * night) * wet * open, nil) }
         if swamp.contains(b) { ask("swamp", .swampLoop, (0.2 + 0.4 * night) * wet * open, nil) }
         if night > 0 && !snowy.contains(b) && !dry.contains(b) && !jungle.contains(b) && !high {

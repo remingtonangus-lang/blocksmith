@@ -104,6 +104,7 @@ enum AudioTests {
             guard visit(biome) else { continue }
             let r = listen(3)
             check(heard(r, key), what, loops(r))
+            if biome != "swamp" { check(r["loop:wind"] == nil, "\(biome): the landform wind replaces the plain wind", loops(r)) }
         }
         if visit("snowy_plains") {
             g.weather.raining = true; g.weather.rain = 1
