@@ -223,6 +223,7 @@ final class Ship {
 
     // Turrets: a ship mounted on another on a vertical-axis bearing (a Turret Ring), placed by its parent.
     weak var parent: Ship?
+    var children: [Ship] = []        // turrets riding on this ship (refreshed every frame by the manager)
     var parentId: Int?
     var mountLocal = V3(0, 0, 0)     // bearing point in the parent's space
     var pivot = V3(0, 0, 0)          // the same point in this ship's space
@@ -449,6 +450,13 @@ final class Ship {
             if dryMask[i] { return AIR }
         }
         let p = toWorld(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5))
+        // Turrets on this ship (their own grids, turned on their rings).
+        for t in children where p.x > t.worldMin.x && p.x < t.worldMax.x && p.y > t.worldMin.y && p.y < t.worldMax.y
+            && p.z > t.worldMin.z && p.z < t.worldMax.z {
+            let l = t.toLocal(p)
+            let tb = t.grid.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z)))
+            if tb != AIR { return tb }
+        }
         let wb = w.rawBlock(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
         // Inside the hull's columns the world's water never reaches above the ship's floor.
         if Blocks.isLiquid(wb) && grid.inside(x, y, z) && Int(colMin[x + z * grid.sx]) < y && Blocks.fluidKind[Int(wb)] == 1 { return AIR }

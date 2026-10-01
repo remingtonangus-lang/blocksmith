@@ -90,6 +90,8 @@ extension ShipManager {
                 if let s = standing(on: it.pos) { itemRiders.append((it, s)) }
             }
         }
+        for s in list { s.children.removeAll(keepingCapacity: true) }
+        for t in list { if let p = t.parent { p.children.append(t) } }
         for s in list {
             s.prevPos = s.pos; s.prevRot = s.rot
             if s === pilot { continue }
