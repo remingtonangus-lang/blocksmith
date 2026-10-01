@@ -549,6 +549,20 @@ enum Snapshot {
                 world.setBlock(x, gy + 1, z, Blocks.id(String(parts[0])) + BlockID(parts.count > 1 ? Int(parts[1]) ?? 0 : 0))
             }
         }
+        if let list = arg("--gallery") {
+            // Block gallery: a wall of up to 8 x 4 blocks, 7 blocks ahead, facing the camera (texture review).
+            let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)), r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))
+            let names = list.split(separator: ",").map(String.init).filter { Blocks.has(String($0.split(separator: ":")[0])) }
+            let cols = min(8, max(1, names.count))
+            let base = game.player.eye + f * 7
+            for (i, n) in names.prefix(32).enumerated() {
+                let parts = n.split(separator: ":")
+                let col = i % cols, row = i / cols
+                let p = base + r * (Float(col) - Float(cols - 1) / 2) + V3(0, 1.5 - Float(row), 0)
+                world.setBlock(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)),
+                               Blocks.id(String(parts[0])) + BlockID(parts.count > 1 ? Int(parts[1]) ?? 0 : 0))
+            }
+        }
         if CommandLine.arguments.contains("--redstone") {
             // A test bench on a stone platform east of the camera, then 3 s of sparkstone ticks.
             let bx = Int(floor(pos.x)) + 3, bz = Int(floor(pos.z)) - 6
