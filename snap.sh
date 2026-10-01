@@ -162,20 +162,20 @@ done
 "$BIN" --snapshot snaps/magic_blocks.png --seed 12345 --yaw 30 --pitch -25 --time 0.3 --up 1 --find plains --place brewing_stand:5,enchanting_table,beacon,anvil,chipped_anvil,water_cauldron:2,lava_cauldron,bookshelf
 "$BIN" --snapshot snaps/trade.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu trade
 "$BIN" --snapshot snaps/villagers.png --seed 12345 --structure village --frame 0.7 --time 0.3 --ticks 12
-"$BIN" --snapshot snaps/mobs_g.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --spawn wither,ravager,evoker,vex,snow_golem,zombie_villager,witch
-"$BIN" --snapshot snaps/villager_jobs.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --spawn villager:farmer,villager:librarian,villager:cleric,villager:armorer,villager:butcher,villager:fisherman,villager:nitwit
-"$BIN" --snapshot snaps/hisser.png --seed 12345 --find plains --yaw 30 --pitch -6 --time 0.3 --up 1 --spawn creeper,creeper
+"$BIN" --snapshot snaps/mobs_g.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --spawn wither,ravager,evoker,vex,snow_golem,zombie_villager,witch --stage
+"$BIN" --snapshot snaps/villager_jobs.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --spawn villager:farmer,villager:librarian,villager:cleric,villager:armorer,villager:butcher,villager:fisherman,villager:nitwit --stage
+"$BIN" --snapshot snaps/hisser.png --seed 12345 --find plains --yaw 30 --pitch -6 --time 0.3 --up 1 --spawn creeper,creeper --stage
 "$BIN" --snapshot snaps/heads.png --seed 12345 --find plains --yaw 30 --pitch -25 --time 0.3 --up 1 --place skeleton_skull,wither_skeleton_skull:1,zombie_head,creeper_head:1,piglin_head,dragon_head:1,carved_pumpkin,jack_o_lantern:1
 "$BIN" --snapshot snaps/beacon.png --seed 12345 --find plains --yaw 30 --pitch 10 --time 0.55 --up 3 --beacon
 "$BIN" --snapshot snaps/rain.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --weather rain
 "$BIN" --snapshot snaps/thunder.png --seed 12345 --find plains --yaw 30 --pitch 5 --time 0.3 --up 1 --weather thunder
 "$BIN" --snapshot snaps/snowfall.png --seed 12345 --find snowy_plains --yaw 30 --pitch -5 --time 0.3 --up 1 --weather rain
-"$BIN" --snapshot snaps/animals1.png --seed 12345 --find plains --yaw 30 --pitch -12 --time 0.3 --up 1 --spawn rabbit,fox,wolf,cat,horse,donkey,llama,goat,panda
-"$BIN" --snapshot snaps/animals2.png --seed 12345 --find plains --yaw 30 --pitch -12 --time 0.3 --up 1 --spawn polar_bear,turtle,frog,armadillo,sniffer,mooshroom,camel,wandering_trader
-"$BIN" --snapshot snaps/animals3.png --seed 12345 --find plains --yaw 30 --pitch 0 --time 0.3 --up 1 --spawn bee,parrot,bat,allay,phantom,endermite,breeze,bogged,zoglin,warden
+"$BIN" --snapshot snaps/animals1.png --seed 12345 --find plains --yaw 30 --pitch -12 --time 0.3 --up 1 --spawn rabbit,fox,wolf,cat,horse,donkey,llama,goat,panda --stage
+"$BIN" --snapshot snaps/animals2.png --seed 12345 --find plains --yaw 30 --pitch -12 --time 0.3 --up 1 --spawn polar_bear,turtle,frog,armadillo,sniffer,mooshroom,camel,wandering_trader --stage
+"$BIN" --snapshot snaps/animals3.png --seed 12345 --find plains --yaw 30 --pitch 0 --time 0.3 --up 1 --spawn bee,parrot,bat,allay,phantom,endermite,breeze,bogged,zoglin,warden --stage
 "$BIN" --snapshot snaps/aquatic.png --seed 12345 --find warm_ocean --yaw 30 --pitch -30 --time 0.3 --up 1 --spawn squid,glow_squid,dolphin,cod,salmon,tropical_fish,pufferfish,axolotl,guardian,elder_guardian
 "$BIN" --snapshot snaps/boats.png --seed 12345 --find ocean --yaw 30 --pitch -25 --time 0.3 --up 1 --ticks 3 --spawn boat:0,boat:1:c,boat:2,boat:3,boat:4:c,boat:5,boat:6,boat:7,boat:8:c
-"$BIN" --snapshot snaps/armor.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --spawn armor_stand:leather,armor_stand:golden,zombie:chainmail,skeleton:iron,armor_stand:diamond,husk:netherite,armor_stand
+"$BIN" --snapshot snaps/armor.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --spawn armor_stand:leather,armor_stand:golden,zombie:chainmail,skeleton:iron,armor_stand:diamond,husk:netherite,armor_stand --stage
 "$BIN" --snapshot snaps/banners.png --seed 12345 --find plains --yaw 30 --pitch -22 --time 0.3 --up 3 --banners
 "$BIN" --snapshot snaps/loom.png --seed 12345 --menu loom
 "$BIN" --snapshot snaps/book.png --seed 12345 --menu book
@@ -200,11 +200,11 @@ done
 "$BIN" --snapshot snaps/third_back.png --seed 12345 --find plains --yaw 30 --pitch -15 --time 0.3 --up 1 --camera 1
 "$BIN" --snapshot snaps/third_swim.png --seed 12345 --find ocean --yaw 30 --pitch -20 --time 0.3 --camera 1 --swim
 "$BIN" --snapshot snaps/third_front.png --seed 12345 --find plains --yaw 30 --pitch 5 --time 0.3 --up 1 --camera 2
-"$BIN" --snapshot snaps/mobs_new.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --spawn zombie_horse,illusioner,happy_ghast,parched,camel_husk,nautilus,zombie_nautilus,skeleton
-"$BIN" --snapshot snaps/soldiers.png --seed 12345 --find plains --yaw 30 --pitch -18 --time 0.3 --up 1 --facecam --spawn soldier_recruit:aggro:0,soldier_recruit,soldier_trooper:aggro:2,soldier_marksman:aggro:3,soldier_ironclad:aggro:4,soldier_ironclad:aggro:5
-"$BIN" --snapshot snaps/captains.png --seed 12345 --find plains --yaw 30 --pitch -15 --time 0.3 --up 1 --facecam --spawn pillager:captain,vindicator:captain,pillager
-"$BIN" --snapshot snaps/firefight.png --seed 12345 --find plains --yaw 30 --pitch -12 --time 0.3 --up 1 --survival 20 --hold gun_smg --facecam --spawn soldier_trooper:aggro:0,soldier_recruit:aggro:1,soldier_ironclad:aggro:5 --fire 1.4
-"$BIN" --snapshot snaps/deck_gun.png --seed 12345 --find plains --yaw 30 --pitch -32 --time 0.3 --up 5 --spawn deck_gun:aggro
+"$BIN" --snapshot snaps/mobs_new.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --spawn zombie_horse,illusioner,happy_ghast,parched,camel_husk,nautilus,zombie_nautilus,skeleton --stage
+"$BIN" --snapshot snaps/soldiers.png --seed 12345 --find plains --yaw 30 --pitch -18 --time 0.3 --up 1 --facecam --spawn soldier_recruit:aggro:0,soldier_recruit,soldier_trooper:aggro:2,soldier_marksman:aggro:3,soldier_ironclad:aggro:4,soldier_ironclad:aggro:5 --stage
+"$BIN" --snapshot snaps/captains.png --seed 12345 --find plains --yaw 30 --pitch -15 --time 0.3 --up 1 --facecam --spawn pillager:captain,vindicator:captain,pillager --stage
+"$BIN" --snapshot snaps/firefight.png --seed 12345 --find plains --yaw 30 --pitch -12 --time 0.3 --up 1 --survival 20 --hold gun_smg --facecam --spawn soldier_trooper:aggro:0,soldier_recruit:aggro:1,soldier_ironclad:aggro:5 --fire 1.4 --stage
+"$BIN" --snapshot snaps/deck_gun.png --seed 12345 --find plains --yaw 30 --pitch -32 --time 0.3 --up 5 --spawn deck_gun:aggro --stage
 "$BIN" --snapshot snaps/spear_hold.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold copper_spear
 "$BIN" --snapshot snaps/gun_hip.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold gun_rifle
 "$BIN" --snapshot snaps/gun_aim.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold gun_shotgun:aim
@@ -239,8 +239,8 @@ done
 "$BIN" --snapshot snaps/gallery_ember.png --seed 12345 --find plains --yaw 0 --pitch 0 --time 0.28 --up 6 --gallery netherrack,nether_bricks,red_nether_bricks,cracked_nether_bricks,chiseled_nether_bricks,nether_quartz_ore,nether_gold_ore,ancient_debris,soul_sand,soul_soil,basalt,polished_basalt,blackstone,polished_blackstone,polished_blackstone_bricks,gilded_blackstone,crimson_nylium,warped_nylium,nether_wart_block,warped_wart_block,shroomlight,glowstone,magma_block,quartz_block
 "$BIN" --snapshot snaps/gallery_copper.png --seed 12345 --find plains --yaw 0 --pitch 0 --time 0.28 --up 6 --gallery copper_chest,exposed_copper_chest,weathered_copper_chest,oxidized_copper_chest,copper_lantern,oxidized_copper_lantern,copper_torch,copper_golem_statue,copper_bars,weathered_copper_bars,copper_chain,oxidized_copper_chain,copper_door,exposed_copper_door,oxidized_copper_door,copper_trapdoor,oak_shelf,cherry_shelf,crimson_shelf,pale_oak_shelf,dried_ghast,dried_ghast:3,weathered_copper_golem_statue,oxidized_copper_golem_statue
 "$BIN" --snapshot snaps/gallery_copper_night.png --seed 12345 --find plains --yaw 0 --pitch 0 --time 0.78 --up 6 --gallery copper_chest,exposed_copper_chest,weathered_copper_chest,oxidized_copper_chest,copper_lantern,oxidized_copper_lantern,copper_torch,copper_golem_statue,copper_bars,weathered_copper_bars,copper_chain,oxidized_copper_chain,copper_door,exposed_copper_door,oxidized_copper_door,copper_trapdoor,oak_shelf,cherry_shelf,crimson_shelf,pale_oak_shelf,dried_ghast,dried_ghast:3,weathered_copper_golem_statue,oxidized_copper_golem_statue
-"$BIN" --snapshot snaps/farm_variants.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --facecam --spawn cow:1,cow:2,cow:3,pig:1,pig:2,pig:3,chicken:1,chicken:2,chicken:3
-"$BIN" --snapshot snaps/copper_golems.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --facecam --spawn copper_golem:0,copper_golem:1:carry,copper_golem:2,copper_golem:3,zombie:copper
+"$BIN" --snapshot snaps/farm_variants.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --facecam --spawn cow:1,cow:2,cow:3,pig:1,pig:2,pig:3,chicken:1,chicken:2,chicken:3 --stage
+"$BIN" --snapshot snaps/copper_golems.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --facecam --spawn copper_golem:0,copper_golem:1:carry,copper_golem:2,copper_golem:3,zombie:copper --stage
 "$BIN" --snapshot snaps/gallery_hollow.png --seed 12345 --find plains --yaw 0 --pitch 0 --time 0.28 --up 6 --gallery end_stone,end_stone_bricks,purpur_block,purpur_pillar,obsidian,crying_obsidian,amethyst_block,budding_amethyst,sculk,sculk_catalyst,copper_block,exposed_copper,weathered_copper,oxidized_copper,cut_copper,copper_grate,prismarine,prismarine_bricks,dark_prismarine,sea_lantern,sponge,wet_sponge,honey_block,slime_block
 "$BIN" --snapshot snaps/selftest.png --seed 12345 --find plains --yaw 30 --pitch 10 --time 0.3 --up 1 --selftest
 trap - ERR

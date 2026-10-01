@@ -587,6 +587,21 @@ enum Snapshot {
             }
             game.placePainting(at: front(1, 1), facing: facing)
         }
+        if CommandLine.arguments.contains("--stage") {
+            // A flat grass stage in front of the camera (17 deep, 25 wide, open sky) so mob and item shots aren't hidden by
+            // the realistic terrain's slopes, ravines and bushes.
+            let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)), r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))
+            let up = Float(arg("--up") ?? "") ?? 0
+            let gb = Int(floor(pos.y - up)) - 1                      // the ground block under the camera
+            for sx in 0...16 { for t in -12...12 {
+                let q: V3 = pos + f * Float(sx) + r * Float(t)
+                let x = Int(floor(q.x)), z = Int(floor(q.z))
+                for y in (gb + 1)...(gb + 16) { _ = world.setBlockAsync(x, y, z, AIR) }
+                _ = world.setBlockAsync(x, gb, z, GRASS)
+                for y in (gb - 3)..<gb where !Blocks.collide[Int(world.block(x, y, z))] { _ = world.setBlockAsync(x, y, z, Blocks.id("dirt")) }
+            } }
+            _ = world.loadSync(center: pos, radius: rd)
+        }
         if let list = arg("--spawn") {
             // Mobs in a row 6 blocks in front of the camera, facing it ("kind" or "kind:profession").
             let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)), r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))
