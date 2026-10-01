@@ -18,16 +18,16 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   before ship interaction unless piloting; Reload Gun is a rebindable key (R, shared with Swap Off Hand: with a gun
   held R reloads); gun and helm button prompts + Controls Reference rows; renderer scratch ring 4 MB with a tail
   reserve so the first-person arm/gun can't be written past the end (render distance 24 segfault); duplicate items warn.
-- Known issues: scripted playthrough Blight fight; rd 24 Fancy smoke run aborts inside the CI paravirtual GPU driver;
-  the debug build fails to link on CI.
+- Known issues: the debug build fails to link on CI (only the lldb reruns need it).
 
 ### Work queue (2026-10-01: this is the only session now; the six workstream PRs are handed off and merged here)
 Priority: crashes/CI first, then gameplay, then content, then polish. [x] done here, [ ] open.
 - CI / crashes
   - [x] Settings.subtitles <-> AudioSettings.subtitles infinite recursion (every frame hung); padtest toggles both menus.
   - [x] Vibrant mip average split into typed lets (Swift 6.3 type-check timeout); CI type-check time gate (>= 400 ms fails).
-  - [ ] rd 24 Fancy smoke abort (AppleParavirtCommandBuffer endCurrentChunk) and the debug-build link error.
-  - [ ] Combined-build CI shots: confirm the Paravirtual base-vertex guard cleared the black/scrambled terrain.
+  - [x] rd 24 smoke (Fancy and Fast) passes on CI since the Paravirtual base-vertex guard (53932ee).
+  - [ ] Debug-build link error (now line tables + -wmo; debugbuild.log published).
+  - [x] Combined-build CI shots render cleanly (the black/scrambled terrain was the CI GPU's base-vertex draws).
   - [ ] Audio (#4): confirm Synth.wash clamp un-silences mountainWindLoop/snowWindLoop; first CI run of --audiotest.
   - [ ] UI (#5): padtest "taking damage rumbles" (lastHurtSound reset); look at tv_combat / vehicle_hud / tv_map.
   - [ ] Visuals (#6): verify the half-res volumetric shafts (~4.7 ms tour avg), cave_torches shot, glowstone not clipping.
@@ -35,7 +35,7 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
   - [x] Physics (#8): frigate patrol altitude (hoverY floor is the spawn altitude); calib.cpu_ms in perf/baseline.json.
   - [ ] Physics (#8): round-6 commits compile and pass physicstest; ship snapshots (props/wheels/barrels in place);
         flight24 cull_ms under 1.20 ms p50; refresh the perf baseline with the ships metrics.
-  - [ ] Gameplay (#2/#3): mobtests 0 failed incl. new checks; playthrough green (Blight summon T, return rift, Blight fight).
+  - [x] Gameplay (#2/#3): mobtests 0 failed; playthrough reaches the credits and kills the Blight (furnace step fixed in 0cdfe9a).
 - Gameplay
   - [x] Fancy ships use Vibrant's ship pipelines (shadows, emissive, flashes; dark under cover).
   - [x] Muzzle flashes light the terrain (player guns, soldiers, deck guns).
