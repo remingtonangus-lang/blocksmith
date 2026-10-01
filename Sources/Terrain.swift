@@ -145,7 +145,7 @@ final class Terrain {
         let wz = z + 520 * warpB.fbm2(x / 1700, z / 1700, 3)
         var c = contN.fbm2(wx / 3000, wz / 3000, 6) * 2.2 + 0.1
         // Rare islands rising from the deep ocean (the remote ones become mushroom fields).
-        let deepness = Terrain.smooth(-0.3, -0.5, c)
+        let deepness = Terrain.smooth(-0.42, -0.58, c)
         var isl: Float = 0
         if deepness > 0 {
             isl = Terrain.smooth(0.3, 0.45, islN.fbm2(x / 380, z / 380, 3)) * deepness
@@ -174,7 +174,7 @@ final class Terrain {
         let sphi = sinf(2 * Float.pi * lz / Terrain.latPeriod)      // +1 tropics, -1 polar
         let lat01 = (1 - sphi) / 2                                     // 0 equator ... 1 pole
         // Warm through the subtropics, falling off faster toward the poles (like Earth's profile).
-        m.ts = 0.64 - 1.22 * powf(lat01, 1.6) + 0.95 * tempN.fbm2(x / 2100, z / 2100, 3)
+        m.ts = 0.64 - 1.08 * powf(lat01, 1.6) + 0.95 * tempN.fbm2(x / 2100, z / 2100, 3)
         var w = 1.05 * humN.fbm2(x / 1500, z / 1500, 3)
         w += 0.36 * cosf(3 * Float.pi * lat01)
         w -= 0.28 * Terrain.smooth(0.3, 1.0, c)
@@ -232,10 +232,10 @@ final class Terrain {
             h += m.u * (30 + 115 * powf(s, 1.4))
         }
         // Dune fields in hot deserts: long ridges across the (east-west) prevailing wind.
-        let sandy = Terrain.smooth(-0.35, -0.6, m.w) * Terrain.smooth(0.45, 0.7, m.ts) * (1 - m.r) * (1 - m.u)
+        let sandy = Terrain.smooth(-0.25, -0.5, m.w) * Terrain.smooth(0.35, 0.6, m.ts) * (1 - m.r) * (1 - m.u)
         if sandy > 0.001 {
             let dn = 1 - abs(detN.noise2(x / 34 + 0.4 * z / 90, z / 110 + 900))
-            h += sandy * (dn * dn * 9 - 2) * Terrain.smooth(SEA_D + 1, SEA_D + 6, h)
+            h += sandy * (dn * dn * 14 - 3) * Terrain.smooth(SEA_D + 1, SEA_D + 6, h)
         }
         // Table lands: flat-topped uplands behind steep escarpments (the erosion filter then dissects the edges).
         if m.c > 0.12 && m.w < 0.35 && m.u < 0.4 {
@@ -437,7 +437,8 @@ final class Terrain {
             // Never above the rivers that feed it: every neighbour is higher than the basin node.
             var rim: Float = 1e9
             for d in Terrain.dirs { rim = min(rim, rbase(i + d.0, j + d.1).p - 1) }
-            let ll = max(SEA_D + 1, min(rim, max(n.p - 6, min(n.p + 12, ring - 1))))
+            let ll = min(rim, max(n.p - 6, min(n.p + 12, ring - 1)))
+            guard ll > SEA_D + 1.5 else { return Lake() }       // a basin at sea level is just low ground
             return Lake(valid: true, x: n.x, z: n.z, ll: ll, r2: r2, r: r2 * 0.45, dry: n.rain < 0.25)
         }
     }
@@ -610,7 +611,7 @@ final class Terrain {
         }
         if k.rv < 1 && h < k.wl - 0.5 { return t < -0.45 ? .frozenRiver : .river }
         // Remote islands out in the deep ocean.
-        if k.isl > 0.5 && t > -0.2 { return .mushroomFields }
+        if k.isl > 0.12 && t > -0.2 { return .mushroomFields }
         let high = h - SEA_D
         // Shores.
         if k.c < 0.014 && h < SEA_D + 3 && k.u < 0.25 {
@@ -661,7 +662,7 @@ final class Terrain {
                 if v > 0.35 { return v > 0.62 ? .oldGrowthBirchForest : .birchForest }
                 return .forest
             }
-            return v > 0.6 ? .paleGarden : .darkForest
+            return v > 0.45 ? .paleGarden : .darkForest
         }
         // Warm.
         if t < 0.58 {
@@ -698,8 +699,7 @@ final class Terrain {
         switch b {
         case .snowyPlains, .iceSpikes, .snowyTaiga, .grove, .snowySlopes, .frozenPeaks, .jaggedPeaks, .snowyBeach, .frozenRiver,
              .frozenOcean, .deepFrozenOcean: return 0
-        case .taiga, .oldGrowthPineTaiga, .oldGrowthSpruceTaiga, .windsweptGravellyHills, .windsweptHills, .windsweptForest,
-             .coldOcean, .deepColdOcean, .meadow: return 1
+        case .taiga, .oldGrowthPineTaiga, .oldGrowthSpruceTaiga, .coldOcean, .deepColdOcean: return 1
         case .desert, .badlands, .erodedBadlands, .woodedBadlands, .jungle, .bambooJungle, .warmOcean: return 4
         case .savanna, .savannaPlateau, .windsweptSavanna, .sparseJungle, .mangroveSwamp, .lukewarmOcean, .deepLukewarmOcean: return 3
         default: return 2
