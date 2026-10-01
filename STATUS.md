@@ -46,6 +46,26 @@ Controller: LS move, RS look, A jump, B sneak, L3 sprint, RT attack/mine, LT use
 X pick block, D-pad ↓ drop, D-pad ↑ fly. In menus: D-pad/LS move cursor, A = click, X = right-click, Y = shift-click,
 B close, RS scroll creative.
 
+## Realistic terrain (branch claude/realistic-terrain, PR #7)
+- `Sources/Terrain.swift` drives the overworld surface; `WorldGen` turns it into blocks (density, caves, ores, surface
+  rules, trees). Fields: continents (warped fbm), mountain belts (crest + foothills, peaks ~250), hills, mesa terraces,
+  sea cliffs, an erosion filter (slope-aligned gullies), a 128-block river graph (steepest descent, rain-weighted
+  upstream counts) with valleys, channels, levees, floodplains, deltas, fjords on cold mountain coasts, basin lakes at
+  their spill level (salt flats when dry). Climate: latitude-like temperature bands along z (period 9000 blocks; z=0
+  temperate, +z warmer), altitude lapse, rainfall with latitude cells, continental drying, rain shadows.
+- Also: dry washes and steep river canyons in arid country, table-land plateaus with escarpments, desert dune fields,
+  ravines (cave carver, ~1 per 150 chunks), large copper (granite) and iron (tuff) ore veins, swamp pools, boulders,
+  fallen logs, shingle beaches on cold coasts.
+- Biomes are picked from local climate (+ coherent jitter for ecotones); tints are blended in climate space; trees
+  sample the climate with their own offset. `Terrain.implausible` lists pairs that must never touch.
+- Handoff (session ended 2026-10-01): last green CI 8adc94a (0 implausible neighbours, 0 uphill rivers on 5 seeds;
+  genbench 1.95 ms/chunk cold, 1.40 warm). The final WIP commit (shrubs, climate maps, genbench breakdown, --onland,
+  --feature lake|delta, lake/delta tours, wider --find) has not been through CI yet. Left: verify it, tune aerial
+  tours, check lakes/deltas/fjords in-game, perf pass on block work, PR #7 lists the rest.
+- Harness: `--terrainmap DIR [--seed N --size B --step B --x X --z Z --strict]` writes terrain_<seed>.png +
+  relief_<seed>.png and the neighbour check; `--genbench` prints ms/chunk on the perf bench's chunks and a water
+  leak count; the CI step "Terrain check" fails on implausible neighbours or rivers whose surface rises downstream. Caches (macro 16-grid, lattice nodes, river graph) are pure memo tables, so output is order-independent.
+
 ## Rendering performance
 - Solid cube faces are drawn first without alpha test (keeps the GPU's hidden-surface removal), cutout faces
   (leaves, plants, models) second; far chunks use "fast" leaves (no faces inside canopies). Section meshes are

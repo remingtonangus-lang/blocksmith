@@ -20,14 +20,21 @@ enum Snapshot {
             }
         }()
         let wg = gen as? WorldGen
+        // Biomes follow climate belts thousands of blocks wide: spiral out in 48-block steps (~6 km across).
+        let stepB = 48
         for _ in 0..<40000 {
-            let wx = x * 16 + 8, wz = z * 16 + 8
-            var ok = true
-            for (ox, oz) in [(0, 0), (24, 0), (-24, 0), (0, 24), (0, -24)] {
+            let wx = x * stepB + 8, wz = z * stepB + 8
+            // Narrow biomes (rivers, shores) only need the centre column; others the centre and at least two
+            // of four points 24 blocks out (biome edges are frayed).
+            let narrow = ["river", "frozen_river", "beach", "snowy_beach", "stony_shore"].contains(want)
+            let probes: [(Int, Int)] = narrow ? [(0, 0)] : [(0, 0), (24, 0), (-24, 0), (0, 24), (0, -24)]
+            var hits = 0
+            for (k, p) in probes.enumerated() {
                 let hit: Bool
-                if let c = cave, let wg { hit = c(wg.climate(wx + ox, wz + oz)) } else { hit = gen.column(wx + ox, wz + oz).biome.name == want }
-                if !hit { ok = false; break }
+                if let c = cave, let wg { hit = c(wg.climate(wx + p.0, wz + p.1)) } else { hit = gen.column(wx + p.0, wz + p.1).biome.name == want }
+                if hit { hits += 1 } else if k == 0 { break }
             }
+            let ok = hits >= (narrow ? 1 : 3) && hits > 0
             if ok {
                 let h = gen.column(wx, wz).height
                 return V3(Float(wx) + 0.5, Float(max(h, SEA) + 1), Float(wz) + 0.5)
@@ -55,6 +62,27 @@ enum Snapshot {
             pos = V3(x, Float(max(hgt, SEA) + 1), z)
         }
         if let want = arg("--find"), let p = findBiome(world.gen, want) { pos = p }
+        // --feature lake|delta: the nearest lake or big river mouth from the river graph.
+        if let f = arg("--feature"), let wg = world.gen as? WorldGen {
+            if let (fx, fz) = wg.terrain.nearestFeature(f, x: Int(pos.x), z: Int(pos.z)) {
+                pos = V3(Float(fx) + 0.5, Float(max(world.gen.column(fx, fz).height, SEA) + 1), Float(fz) + 0.5)
+                print("feature \(f) at \(fx) \(fz)")
+            } else { print("feature \(f) not found") }
+        }
+        // --onland: if the start column is sea, spiral out to the nearest land at least 4 blocks above sea level.
+        if CommandLine.arguments.contains("--onland") {
+            var sx = 0, sz = 0, sdx = 0, sdz = -1
+            for _ in 0..<20000 {
+                let wx = Int(pos.x) + sx * 32, wz = Int(pos.z) + sz * 32
+                let c = world.gen.column(wx, wz)
+                if c.height > SEA + 4 && !c.biome.isOcean {
+                    pos = V3(Float(wx) + 0.5, Float(c.height + 1), Float(wz) + 0.5)
+                    break
+                }
+                if sx == sz || (sx < 0 && sx == -sz) || (sx > 0 && sx == 1 - sz) { (sdx, sdz) = (-sdz, sdx) }
+                sx += sdx; sz += sdz
+            }
+        }
         // --structure <kind>: stand above the start piece of the nearest structure of that kind.
         var frame: (yaw: Float, pitch: Float)?
         if let kind = arg("--structure"), let s = world.gen.structures?.nearest(kind, x: Int(pos.x), z: Int(pos.z)) {
@@ -857,6 +885,9 @@ if let dir = arg("--sounds") {
     print(String(format: "synthesized %ld sounds (%.1f s of audio) in %.0f ms", SoundBank.allSounds.count, Double(total) / SoundBank.rate, (CFAbsoluteTimeGetCurrent() - t0) * 1000))
     exit(0)
 }
+
+if let dir = arg("--terrainmap") { exit(TerrainTools.maps(dir)) }
+if CommandLine.arguments.contains("--genbench") { exit(TerrainTools.genBench()) }
 
 if let out = arg("--snapshot") {
     exit(Snapshot.run(out))
