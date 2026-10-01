@@ -87,7 +87,7 @@ enum Smoke {
         let sorted = frameMs.sorted()
         func pct(_ q: Double) -> Double { sorted.isEmpty ? 0 : sorted[min(sorted.count - 1, Int(Double(sorted.count) * q))] }
         let dist = simd_length(V2(game.player.pos.x - p0.x, game.player.pos.z - p0.z))
-        print(String(format: "smoke rd %d: %d frames in %.1f s wall, frame p50 %.2f p95 %.2f p99 %.2f max %.2f ms, coverage min %.0f%%, mobs max %d, travelled %.0f blocks, resident peak %.0f MB, menu %@",
+        print(String(format: "smoke rd %ld: %ld frames in %.1f s wall, frame p50 %.2f p95 %.2f p99 %.2f max %.2f ms, coverage min %.0f%%, mobs max %ld, travelled %.0f blocks, resident peak %.0f MB, menu %@",
                      rd, frames, wall, pct(0.5), pct(0.95), pct(0.99), sorted.last ?? 0, minCov * 100, maxMobs, dist, peak,
                      game.menu == nil && !game.paused ? "closed" : "STILL OPEN"))
         _ = r.renderToPNG(path: "snaps/smoke_rd\(rd).png", width: 960, height: 540)
