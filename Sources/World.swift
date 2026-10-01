@@ -368,6 +368,7 @@ final class World {
         s.transQuads = m.trans.count / 8
         s.meshedVersion = version
         s.vis = m.vis
+        if sy >= c.topSec { c.updateTopSec() }            // a mesh below the top section cannot move it
         if c.tintBuf == nil {
             c.tintBuf = c.tint.withUnsafeBytes { MeshArena.tints.alloc(device, $0) }
         }

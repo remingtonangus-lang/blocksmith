@@ -100,7 +100,7 @@ extension Game {
     // Boss-style bars for crewed vessels near the player: name and how much of the hull is left.
     func shipBars() -> [(String, Float)] {
         var out: [(String, Float)] = []
-        for s in world.ships.list where s.isVessel && s.parent == nil && !s.captured && s.initialBlocks > 0
+        for s in world.ships.list where s.isVessel && s.parent == nil && !s.captured && !s.wrecked && s.initialBlocks > 0
             && simd_length(s.pos - player.pos) < 96 {
             out.append((s.name, Float(s.blockCount) / Float(s.initialBlocks)))
         }
@@ -127,11 +127,32 @@ extension Game {
         s.piloted = true
         // Per-vehicle keyboard / controller layout (VehicleControls.swift).
         let c = VehicleControls.read(self, s, mi)
-        s.throttle = c.throttle
+        if s.wheels.isEmpty {
+            // Ships and aircraft keep their throttle (an engine telegraph): W/S, the stick or the triggers move it,
+            // letting go holds it, and passing through stop pauses there for a moment so stopping is easy.
+            let f = c.throttle
+            if s.telegraphPause > 0 {
+                s.telegraphPause -= dt
+                if abs(f) < 0.1 { s.telegraphPause = 0 }
+            } else if abs(f) > 0.1 {
+                let old = s.throttle
+                let t = max(-1, min(1, old + f * 0.8 * dt))
+                if old != 0 && (t > 0) != (old > 0) {
+                    s.throttle = 0; s.telegraphPause = 0.6
+                } else {
+                    s.throttle = t
+                }
+            }
+        } else {
+            s.throttle = c.throttle
+        }
         s.steer = c.steer
         s.climb = c.climb
-        // Turrets follow the view.
+        // Turrets follow the view; barrels rise with it.
+        let elev = max(-0.2, min(0.6, player.pitch + 0.05))
+        s.gunPitch = elev
         for t in ships.turrets(of: s) {
+            t.gunPitch = elev
             var rel = player.yaw - s.yaw
             while rel > .pi { rel -= 2 * .pi }
             while rel < -.pi { rel += 2 * .pi }
@@ -151,12 +172,16 @@ extension Game {
         ships.pilot = s
         ships.aboard = s
         s.piloted = true
+        achieve("pilot_ship")
+        if s.isVessel && !s.captured { achieve("capture_vessel") }
         s.captured = true
+        s.wrecked = false                // a new crew (the player) takes over
         if s.balloons > 0 && s.hoverY == nil { s.hoverY = s.pos.y }
         if let stand = helmStand(s) { player.pos = s.toWorld(stand) }
         player.flying = false
         sfx(.helmTake, 0.8, at: player.pos)
-        onToast?("Steering \(s.name) (\(VehicleControls.name(VehicleControls.kind(s))))")   // controls show as prompts
+        // Controls show as prompts (VehicleControls.prompts); ships and aircraft hold their throttle.
+        onToast?("Steering \(s.name) (\(VehicleControls.name(VehicleControls.kind(s)))\(s.wheels.isEmpty ? ", throttle holds" : ""))")
     }
 
     func leaveHelm() {

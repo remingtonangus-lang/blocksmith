@@ -26,7 +26,9 @@ enum ShipTest {
     static func levelPad(_ w: World, _ x: Int, _ z: Int, half: Int) -> Int {
         let y = groundTop(w, x, z) + 1
         for dz in -half...half { for dx in -half...half {
-            for yy in y..<(y + 12) { w.setBlockAsync(x + dx, yy, z + dz, AIR) }
+            // Clear up to the surface (a pad cut into a hillside would otherwise sit under a dark overhang).
+            let top = max(y + 12, w.topY(x + dx, z + dz) + 1)
+            for yy in y..<top { w.setBlockAsync(x + dx, yy, z + dz, AIR) }
             w.setBlockAsync(x + dx, y - 1, z + dz, GRASS)
             for yy in (y - 4)..<(y - 1) where !Blocks.collide[Int(w.rawBlock(x + dx, yy, z + dz))] { w.setBlockAsync(x + dx, yy, z + dz, DIRT) }
         } }
@@ -148,6 +150,7 @@ enum ShipTest {
     // Remeshes the world around the camera and waits for ship meshes.
     static func settle(_ g: Game, rd: Int) {
         _ = g.world.loadSync(center: g.player.pos, radius: rd)
+        g.world.ships.update(0, game: g)                 // ships near the camera whose meshes were released remesh
         for s in g.world.ships.list {
             var n = 0
             while s.mesh.busy && n < 4000 { usleep(1000); s.mesh.apply(device: g.world.device); n += 1 }
@@ -159,6 +162,32 @@ enum ShipTest {
     static func scene(_ kind: String, game g: Game, at p: V3, rd: Int) -> V3 {
         let w = g.world
         w.ships.encounters = false
+        if kind == "battle" {
+            // A survival player on the ground off a frigate's beam, the moment its first shells are in the air.
+            let x = Int(floor(p.x)), z = Int(floor(p.z)) - 30
+            let ground = groundTop(w, x, z)
+            let s = w.ships.spawnVessel("frigate", home: IVec3(x, max(ground, SEA) + 28, z), game: g)
+            g.survival = true
+            let sx = Float(x) + 46, sz = Float(z) + 12
+            let gy = Float(groundTop(w, Int(sx), Int(sz)) + 1)
+            var t: Float = 0
+            let dt: Float = 1.0 / 60
+            while t < 16 {
+                g.player.pos = V3(sx, gy, sz); g.player.vel = .zero
+                g.health = 20
+                w.ships.crewTick(dt, game: g)
+                run(g, seconds: dt)
+                t += dt
+                if w.ships.shells.contains(where: { $0.age > 0.3 }) { break }
+            }
+            g.player.pos = V3(sx, gy, sz)
+            let to = s.pos - g.player.eye
+            g.player.yaw = atan2f(-to.x, -to.z)
+            g.player.pitch = atan2f(to.y, horiz(to))
+            print(String(format: "ship battle: %.1f s until shells were in the air (%ld in flight), frigate %.0f blocks away",
+                         t, w.ships.shells.count, simd_length(to)))
+            return g.player.pos
+        }
         if kind == "frigate" || kind == "carriage" {
             let x = Int(floor(p.x)), z = Int(floor(p.z)) - 30
             if kind == "carriage" { levelPad(w, x, z, half: 40) }
@@ -491,6 +520,24 @@ enum ShipTest {
             print(String(format: "physicstest frigate: turret aim error %.3f rad", err))
             check(err < 0.12, "frigate turret tracks a target")
         } else { check(false, "frigate has turrets") }
+        // Guns engage a survival player off the side, not one who has boarded.
+        let wasSurvival = g.survival
+        g.survival = true
+        g.player.pos = fg.pos + fg.dirToWorld(V3(1, 0, 0)) * 40
+        g.player.vel = .zero
+        run(g, seconds: 0.1)
+        let gunsFar = w.ships.gunsEngage(fg, g)
+        var gunsDeck = true
+        if let st = fg.crewStations.first {
+            g.player.pos = fg.toWorld(st + V3(0, 0.1, 0))
+            g.player.vel = fg.velocity(at: g.player.pos)
+            run(g, seconds: 0.2)
+            gunsDeck = w.ships.gunsEngage(fg, g)
+        }
+        g.survival = wasSurvival
+        g.health = 20
+        print("physicstest frigate: guns engage a player 40 blocks off: \(gunsFar), one on the deck: \(gunsDeck)")
+        check(gunsFar && !gunsDeck, "vessel guns engage outsiders, not boarders")
         let loot = fg.blockEntities.values.reduce(0) { $0 + $1.container.slots.filter { !$0.isEmpty }.count }
         let aboard = g.mobs.mobs.filter { $0.health > 0 && w.ships.standing(on: $0.pos) === fg }.count
         print("physicstest frigate: captain's chest holds \(loot) stacks, \(aboard) of \(fg.crewStations.count) crew aboard")
@@ -503,6 +550,16 @@ enum ShipTest {
         run(g, seconds: 3, input: steerIn)
         print(String(format: "physicstest frigate: captured %@, piloted 3 s: %.1f blocks", fg.captured ? "yes" : "no", horiz(fg.pos - cap0)))
         check(fg.captured && w.ships.pilot === fg && horiz(fg.pos - cap0) > 2, "a vessel can be captured and steered")
+        check(g.advancements.contains("adventure/prize_crew"), "capturing a vessel earns Prize Crew")
+        // The throttle holds after letting go; holding S brings it back to stop, where it rests.
+        run(g, seconds: 1)
+        let held = fg.throttle
+        var back = MoveInput(); back.forward = -1
+        run(g, seconds: 1.5, input: back)
+        let stopped = fg.throttle
+        run(g, seconds: 0.3, input: back)
+        print(String(format: "physicstest frigate: throttle held at %.2f after letting go, %.2f after S for 1.5 s, %.2f after 0.3 s more", held, stopped, fg.throttle))
+        check(held > 0.9 && stopped == 0 && fg.throttle == 0, "ship throttle holds and stops at zero")
         g.leaveHelm()
         let vc = land + V3(15, 0, -40)
         _ = w.loadSync(center: vc, radius: max(rd, 6))
@@ -543,6 +600,30 @@ enum ShipTest {
             print("physicstest encounters: nearest \(kind) home at \(hp.x), \(hp.z): \(after - before) appeared")
             check(after == before + 1, "a vessel appears when the player nears its home")
         } else { check(false, "an encounter within six regions") }
+
+        // Far ships sleep and give their meshes back; they wake when the player returns.
+        let fpos = fg.pos
+        g.player.pos = fpos + V3(600, 0, 0)
+        w.ships.update(1.0 / 60, game: g)
+        let slept = fg.asleep && fg.mesh.released
+        g.player.pos = fpos + V3(20, 10, 0)
+        w.ships.update(1.0 / 60, game: g)
+        print("physicstest sleep: 600 blocks away asleep+released \(slept), back near awake \(!fg.asleep) meshed \(!fg.mesh.released)")
+        check(slept && !fg.asleep && !fg.mesh.released, "far ships sleep and wake")
+
+        // A vessel that loses its helm founders: no orders, its envelope lets it down.
+        let wa = land + V3(-150, 0, 150)
+        _ = w.loadSync(center: wa, radius: max(rd, 6))
+        let wf = w.ships.spawnVessel("frigate", home: IVec3(Int(wa.x), max(groundTop(w, Int(wa.x), Int(wa.z)), SEA) + 40, Int(wa.z)), game: g)
+        g.player.pos = wa + V3(0, 90, 0)
+        if let h = wf.helm { w.ships.setBlock(wf, h, AIR) }
+        w.ships.crewTick(0.1, game: g)
+        let wy = wf.pos.y
+        for _ in 0..<4 { w.ships.crewTick(1, game: g); run(g, seconds: 1) }
+        print(String(format: "physicstest wreck: helm gone -> wrecked %@, sank %.1f blocks in 4 s, autopilot %@", wf.wrecked ? "yes" : "no",
+                     wy - wf.pos.y, wf.autopilot == nil ? "off" : "on"))
+        check(wf.wrecked && wf.autopilot == nil && wy - wf.pos.y > 2, "a vessel without its helm founders and sinks")
+        w.ships.remove(wf)
 
         print(String(format: "physicstest: %ld checks failed, %.1f s, ships %ld", fails, CFAbsoluteTimeGetCurrent() - t0, w.ships.list.count))
         // Final view: the boat.

@@ -87,10 +87,23 @@ extension BlockRegistry {
         cannon.tex = ["ship_metal"]; cannon.render = .model; cannon.layer = .cutout; cannon.opaque = false; cannon.hardness = 4
         cannon.tool = .pickaxe; cannon.requiresTool = true; cannon.sound = .stone; cannon.skyStop = false; cannon.resistance = 8
         let barrel = t6("ship_barrel")
-        facing4(cannon, [
-            Box(3, 0, 2, 13, 5, 12, tex: dark), Box(2, 0, 3, 3, 4, 7, tex: wood), Box(13, 0, 3, 14, 4, 7, tex: wood),
-            Box(5, 5, 1, 11, 11, 8, tex: barrel), Box(6, 6, 8, 10, 10, 16, tex: barrel), Box(5, 5, 14, 11, 11, 16, tex: barrel),
-        ])
+        let carriageBoxes = [Box(3, 0, 2, 13, 5, 12, tex: dark), Box(2, 0, 3, 3, 4, 7, tex: wood), Box(13, 0, 3, 14, 4, 7, tex: wood)]
+        let barrelBoxes = [Box(5, 5, 1, 11, 11, 8, tex: barrel), Box(6, 6, 8, 10, 10, 16, tex: barrel), Box(5, 5, 14, 11, 11, 16, tex: barrel)]
+        facing4(cannon, carriageBoxes + barrelBoxes)
+        // Render-only halves of a cannon on a ship: the carriage stays put, the barrel is drawn raised to the guns'
+        // elevation (ShipRenderer). Hidden: no items, never placed in the world.
+        for (n, boxes) in [("ship_cannon_mount", carriageBoxes), ("ship_cannon_barrel", barrelBoxes)] {
+            var part = cannon
+            part.name = n
+            for (k, dir) in ["north", "south", "west", "east"].enumerated() {
+                var st = part
+                st.name = k == 0 ? n : "\(n)[\(dir)]"
+                st.group = n
+                st.hidden = true
+                st.boxes = turned(boxes, k)
+                add(st)
+            }
+        }
 
         // Wheel: a disc rolling along the facing axis (north/south roll along Z, west/east along X).
         var wheel = BlockDef("ship_wheel", "Wheel")

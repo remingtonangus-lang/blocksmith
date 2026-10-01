@@ -195,6 +195,11 @@ final class Ship {
     var helm: IVec3?
     var props: [(V3, V3)] = []       // propeller centre, thrust direction (ship space)
     var wheels: [V3] = []
+    // Wheel parts (connected wheel cells, e.g. a 5x5 disc) drawn rolling about their own centres.
+    struct WheelPart { var lo: IVec3; var size: IVec3; var center: V3; var radius: Float; var blocks: [BlockID] }
+    var wheelParts: [WheelPart] = []
+    var wheelGen = 0                 // bumped when the parts change (the renderer remeshes them)
+    var rollDist: Float = 0          // distance rolled along the heading (wheel angle = -rollDist / radius)
     var wheelBase = 0                // wheel cells in the lowest wheel row (they carry the load)
     var wings: [V3] = []
     var sails = 0                    // wool blocks (catch the wind while someone steers)
@@ -214,6 +219,12 @@ final class Ship {
 
     // Control (set by the pilot each frame, ShipPlay.swift).
     var throttle: Float = 0          // -1...1
+    var telegraphPause: Float = 0    // piloting: throttle resting at stop after passing through it
+    var asleep = false               // far from the player or over unloaded ground: no physics this frame
+    var gunPitch: Float = 0          // barrel elevation shown on this ship's cannons (radians)
+    var skyLight: Float = 1          // world sky light around the ship, 0...1 (ships darken in caves and under cover)
+    var propSpin: Float = 0          // propeller blade angle (drawn turning), and its rate in rad/s
+    var propRate: Float = 0
     var steer: Float = 0             // -1 (left) ... 1 (right)
     var climb: Float = 0             // -1...1
     var liftLevel: Float = 0         // 0...1 share of balloon lift in use (kept while nobody steers: airships hover)
@@ -237,6 +248,7 @@ final class Ship {
     var home: V3?
     var crewStations: [V3] = []
     var captured = false             // the player has steered it: crews stop giving orders
+    var wrecked = false              // lost its helm or most of its hull: no orders, lift bleeds away
     var fireTimer: Float = 0
     var initialBlocks = 0            // block count when it appeared (hull bar)
     var soundTimer: Float = 0
@@ -288,6 +300,43 @@ final class Ship {
 
     // Recomputes mass, centre of mass, inertia, parts, hull cells, buoyancy buckets and the dry mask.
     // Keeps the world position of the ship-space origin fixed (pos follows the moving centre of mass).
+    // Groups wheel cells into connected parts; each one turns about its centre, on the axle across the heading.
+    private func findWheelParts() {
+        var parts: [WheelPart] = []
+        if !wheels.isEmpty {
+            let g = grid
+            let kinds = ShipParts.kinds
+            var seen = Set<IVec3>()
+            for w in wheels {
+                let start = IVec3(Int(floor(w.x)), Int(floor(w.y)), Int(floor(w.z)))
+                if seen.contains(start) { continue }
+                var cells: [IVec3] = [start]
+                seen.insert(start)
+                var i = 0
+                while i < cells.count {
+                    let c = cells[i]; i += 1
+                    for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] {
+                        let n = c + d
+                        if !g.inside(n.x, n.y, n.z) || seen.contains(n) || kinds[Int(g.get(n.x, n.y, n.z))] != .wheel { continue }
+                        seen.insert(n); cells.append(n)
+                    }
+                }
+                var lo = start, hi = start
+                for c in cells { lo = IVec3(min(lo.x, c.x), min(lo.y, c.y), min(lo.z, c.z)); hi = IVec3(max(hi.x, c.x), max(hi.y, c.y), max(hi.z, c.z)) }
+                let size = IVec3(hi.x - lo.x + 1, hi.y - lo.y + 1, hi.z - lo.z + 1)
+                var blocks = [BlockID](repeating: AIR, count: size.x * size.y * size.z)
+                for c in cells { blocks[(c.x - lo.x) + (c.z - lo.z) * size.x + (c.y - lo.y) * size.x * size.z] = g.get(c.x, c.y, c.z) }
+                let center = V3(Float(lo.x + hi.x + 1), Float(lo.y + hi.y + 1), Float(lo.z + hi.z + 1)) * 0.5
+                // Radius in the rolling plane (heading and up).
+                let along = abs(fwd.x) > abs(fwd.z) ? size.x : size.z
+                parts.append(WheelPart(lo: lo, size: size, center: center, radius: Float(max(along, size.y)) * 0.5, blocks: blocks))
+            }
+        }
+        let changed = parts.count != wheelParts.count || zip(parts, wheelParts).contains { $0.lo != $1.lo || $0.blocks != $1.blocks }
+        wheelParts = parts
+        if changed { wheelGen += 1 }
+    }
+
     func rebuild() {
         let g = grid
         let sx = g.sx, sy = g.sy, sz = g.sz
@@ -322,6 +371,7 @@ final class Ship {
             }
         } } }
         blockCount = n
+        findWheelParts()
         let lowest = wheels.map { $0.y }.min() ?? 0
         wheelBase = wheels.filter { $0.y < lowest + 0.5 }.count
         localMin = n > 0 ? lo : V3(0, 0, 0)
@@ -513,6 +563,8 @@ final class ShipManager {
     var mineProgress: Float = 0
     var breakCooldown: Float = 0
     private var boxScratch: [(V3, V3)] = []
+    var mobRiders: [(Mob, Ship)] = []        // per-frame scratch (ShipPhysics.update): riders before the ships move
+    var itemRiders: [(ItemEntity, Ship)] = []
     var shells: [Shell] = []         // cannon shells in flight (ShipCombat.swift)
     var ghosts: [(Ship, Float)] = [] // docked ships still drawn while the world remeshes their blocks
     var wind = V3(4, 0, 2)           // world wind (b/s): sails (set each frame from the clock and weather)
@@ -531,7 +583,12 @@ final class ShipManager {
     var isEmpty: Bool { list.isEmpty }
 
     func add(_ s: Ship) { list.append(s) }
-    func remove(_ s: Ship) {
+    // Removes a ship with its turrets, or (turrets: false, a hull destroyed under them) sets the turrets loose as
+    // ships of their own.
+    func remove(_ s: Ship, turrets: Bool = true) {
+        for t in list where t !== s && t.root === s {
+            if turrets { remove(t) } else if t.parent === s { t.parent = nil; t.parentId = nil }
+        }
         list.removeAll { $0 === s }
         if pilot === s { pilot = nil }
         if aboard === s { aboard = nil }
@@ -781,7 +838,7 @@ final class ShipManager {
         s.grid.set(cell.x, cell.y, cell.z, b)
         if b == AIR { s.blockEntities.removeValue(forKey: cell) }
         s.rebuild()
-        if s.blockCount == 0 { remove(s); return }
+        if s.blockCount == 0 { remove(s, turrets: false); return }
         s.mesh.rebuildAround(s, cell, device: world.device, queue: meshQueue)
         if b == AIR { splitIfNeeded(s) }
     }
@@ -809,6 +866,7 @@ final class ShipManager {
         var home: [Float]?
         var captured: Bool?
         var initial: Int?
+        var wrecked: Bool?
     }
 
     private var url: URL? { world.save?.dir.appendingPathComponent("ships.json") }
@@ -855,7 +913,7 @@ final class ShipManager {
                              liftLevel: s.liftLevel, hoverY: s.hoverY, entities: ents,
                              parent: s.parent?.id, mount: [s.mountLocal.x, s.mountLocal.y, s.mountLocal.z],
                              pivot: [s.pivot.x, s.pivot.y, s.pivot.z], turretYaw: s.turretYaw,
-                             role: s.role, home: s.home.map { [$0.x, $0.y, $0.z] }, captured: s.captured, initial: s.initialBlocks))
+                             role: s.role, home: s.home.map { [$0.x, $0.y, $0.z] }, captured: s.captured, initial: s.initialBlocks, wrecked: s.wrecked ? true : nil))
         }
         if out.isEmpty { return nil }
         return try? JSONEncoder().encode(out)
@@ -896,6 +954,7 @@ final class ShipManager {
             s.role = sv.role
             if let h = sv.home, h.count == 3 { s.home = V3(h[0], h[1], h[2]) }
             s.captured = sv.captured ?? false
+            s.wrecked = sv.wrecked ?? false
             s.initialBlocks = sv.initial ?? 0
             s.updateBounds()
             s.mesh.rebuildAll(s, device: world.device, queue: meshQueue)

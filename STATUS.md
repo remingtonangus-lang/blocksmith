@@ -67,10 +67,19 @@ ShipRender.swift, ShipPlay.swift, ShipBlocks.swift, ShipTest.swift).
   guns, Marauder crew, captain's chest) and the **Ironstride Siege Carriage** (six big wheels, armoured hull, giant
   three-gun turret). About one 2048-block region in 8 hosts one (seeded); it appears when the player comes within 150
   blocks, patrols around its home, and its turrets track and shell a survival player within 64-80 blocks. Steer one
-  (take its helm) to capture it. Harness: `--ship gunboat|frigate|carriage`; bench scene `ships`.
-- Known gaps: mobs aboard use approximate collision and can swim in hull water; ship light is baked in ship space
-  (no world shadows/caves); no hull splitting when a ship is cut in two; explosions don't damage ships yet.
-- Next: tuning from CI numbers, soldier crews once the Gameplay session adds soldiers, hull splitting.
+  (take its helm) to capture it. Its guns hold fire on a player who has boarded. A vessel that loses its helm or
+  more than 55% of its hull founders: the crew stops, the guns fall silent and a frigate's envelope lets it down.
+  Harness: `--ship gunboat|frigate|carriage`; bench scene `ships`.
+- Piloting: ships and aircraft hold their throttle like an engine telegraph (W/S or the stick move it, letting go
+  keeps it, it pauses at stop); wheeled vehicles drive only while W is held. Propellers spin with throttle and power; wheels
+  (each connected group of wheel blocks, e.g. a 5x5 disc) roll with the ground speed.
+- A ship cut in two becomes two ships (hull splitting). A hull destroyed under a turret sets the turret loose.
+- Cannon barrels rise with the guns' elevation. Ships darken under cover (their sky light follows the world's around
+  them). Far ships sleep (no physics beyond 384 blocks) and free their meshes beyond the render distance. The steering
+  hint shows controller buttons when a pad is connected. Advancements: Anchors Aweigh, Prize Crew, Brought Low.
+- Known gaps: mobs aboard use approximate collision; ship light is baked in ship space (no world shadows/caves).
+- Next: tuning from CI numbers, soldier crews once the Gameplay session adds soldiers (MobKind "soldier" is
+  picked up automatically).
 
 ## Rendering fix carried from the performance branch (Engine session)
 The single-draw-per-section path (base vertex + base instance) draws scrambled, black terrain on the CI runners'
@@ -80,7 +89,10 @@ the same flag turns it off. Confirmed on CI (spawn.png clean again).
 Engine-session perf work since: background gen/mesh operations capture the World weakly (fix for the World leak the
 perf handoff left open; watch bench worlds_alive), the culling walk stops above the tallest geometry in range, chunk
 workers find circuit components that need periodic work. Ship costs (bench "ships", CI): physics 0.17 ms/frame with a
-frigate and a siege carriage under way, frigate mesh 3 ms (background), block edit 0.5 ms.
+frigate and a siege carriage under way, frigate mesh 3 ms (background), block edit 0.5 ms. A blast remeshes only the
+sections around its hole. The bench also times edit-to-visible, a blast, docking/assembling the frigate, and what
+drawing two vessels adds to a 1080p frame. perf/compare.py discounts a slow shared runner using a fixed CPU
+calibration workload (calib.cpu_ms) so gated CPU timings don't fail on runner noise.
 
 ## CI (compile/test loop)
 - `.github/workflows/mac.yml` (macos-14 arm64, Xcode 16 / Swift 6.0.3): `./build.sh` + `./snap.sh` on every push;
@@ -212,6 +224,7 @@ X pick block (reload while holding a gun), D-pad ↓ drop, D-pad ↑ fly. In men
 B close, RS scroll creative.
   leak count; the CI step "Terrain check" fails on implausible neighbours or rivers whose surface rises downstream. Caches (macro 16-grid, lattice nodes, river graph) are pure memo tables, so output is order-independent.
 Steering a ship (use its helm): W/S or LS throttle, A/D or LS turn, Space/A/RB climb, Ctrl/LB descend, LMB/RT fire
+Steering a ship (use its helm): W/S or LS throttle (ships and aircraft hold it like an engine telegraph, pausing at stop; wheeled vehicles drive while held), A/D or LS turn, Space/A/RB climb, Ctrl/LB descend, LMB/RT fire
 cannons (turrets follow the view), Shift/B leave the helm, F5 pulls the camera back to fit the ship. Sneak-use the
 helm to dock the ship into the world. /vessel frigate|carriage|locate.
 

@@ -58,6 +58,9 @@ struct ShipBlockReader {
     }
 }
 
+// Reused every substep (no per-frame allocation).
+private var contactScratch: [Contact] = []
+
 private struct Contact {
     var p: V3
     var n: V3
@@ -80,8 +83,8 @@ extension ShipManager {
         if list.isEmpty { return }
         let t0 = CFAbsoluteTimeGetCurrent()
         // Riders: mobs and items resting on a ship before it moves.
-        var mobRiders: [(Mob, Ship)] = []
-        var itemRiders: [(ItemEntity, Ship)] = []
+        mobRiders.removeAll(keepingCapacity: true)
+        itemRiders.removeAll(keepingCapacity: true)
         if let game {
             for m in game.mobs.mobs where m.onGround && game.riding !== m {
                 if let s = standing(on: m.pos) { mobRiders.append((m, s)) }
@@ -92,6 +95,27 @@ extension ShipManager {
         }
         for s in list { s.children.removeAll(keepingCapacity: true) }
         for t in list { if let p = t.parent { p.children.append(t) } }
+        // Ships far from the player or over unloaded ground sleep (no physics); ships beyond the render distance
+        // give their meshes back and remesh when the player comes near again.
+        var rdr = ShipBlockReader(world)
+        let keep = Float((world.renderDistance + 2) * CS)
+        for s in list {
+            let r = s.root
+            let d = game.map { simd_length(V2(r.pos.x - $0.player.pos.x, r.pos.z - $0.player.pos.z)) } ?? 0
+            s.asleep = s !== pilot && (d > 384 || !rdr.loaded(Int(floor(r.pos.x)), Int(floor(r.pos.z))))
+            if !s.asleep && dt > 0 {
+                // Sky light the world has around the ship (top and middle of its bounds): ships darken under cover.
+                let cx = Int(floor((s.worldMin.x + s.worldMax.x) * 0.5)), cz = Int(floor((s.worldMin.z + s.worldMax.z) * 0.5))
+                let top = world.lightAt(cx, Int(floor(s.worldMax.y)) + 1, cz).sky
+                let mid = world.lightAt(cx, Int(floor((s.worldMin.y + s.worldMax.y) * 0.5)), cz).sky
+                let want = Float(max(top, mid)) / 15
+                s.skyLight += (want - s.skyLight) * min(1, dt * 2)
+            }
+            if game != nil {
+                if d > keep + 48 && !s.mesh.released { s.mesh.release() }
+                else if d < keep + 16 && s.mesh.released { s.mesh.rebuildAll(s, device: world.device, queue: meshQueue) }
+            }
+        }
         for s in list {
             s.prevPos = s.pos; s.prevRot = s.rot
             if s === pilot { continue }
@@ -118,8 +142,8 @@ extension ShipManager {
         }
         // Mobs a moving hull ran into are shoved aside (or lifted onto it when they are near its top).
         if let game {
-            let riding = Set(mobRiders.map { ObjectIdentifier($0.0) })      // (crews on deck are carried, not shoved)
-            for m in game.mobs.mobs where m.health > 0 && game.riding !== m && !riding.contains(ObjectIdentifier(m)) {
+            // (crews on deck are carried, not shoved)
+            for m in game.mobs.mobs where m.health > 0 && game.riding !== m && !mobRiders.contains(where: { $0.0 === m }) {
                 let mn = V3(m.pos.x - m.halfW, m.pos.y, m.pos.z - m.halfW), mx = V3(m.pos.x + m.halfW, m.pos.y + m.height, m.pos.z + m.halfW)
                 guard let s = list.first(where: { mx.x > $0.worldMin.x && mn.x < $0.worldMax.x && mx.y > $0.worldMin.y && mn.y < $0.worldMax.y
                     && mx.z > $0.worldMin.z && mn.z < $0.worldMax.z }), overlaps(mn, mx) else { continue }
@@ -143,7 +167,16 @@ extension ShipManager {
                 p.airPeak = p.pos.y
             }
         }
-        for s in list { s.mesh.apply(device: world.device) }
+        for s in list {
+            s.mesh.apply(device: world.device)
+            if !s.wheelParts.isEmpty { s.rollDist += simd_dot(s.vel, s.dirToWorld(s.fwd)) * dt }
+            // Propellers spin up with the throttle when engines drive them, and run down slowly.
+            if !s.props.isEmpty {
+                let want: Float = s.piloted && s.engines > 0 ? s.throttle * 30 : 0
+                s.propRate += (want - s.propRate) * min(1, dt * (abs(want) > abs(s.propRate) ? 2.5 : 0.8))
+                s.propSpin = fmodf(s.propSpin + s.propRate * dt, 2 * .pi)
+            }
+        }
         if let game { shipSounds(dt, game) }
         stepMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
     }
@@ -201,25 +234,25 @@ extension ShipManager {
     func step(_ h: Float) {
         var reader = ShipBlockReader(world)
         for s in list where s.parent == nil {
-            // Frozen while the ground under it isn't loaded.
-            if !reader.loaded(Int(floor(s.pos.x)), Int(floor(s.pos.z))) { s.vel = .zero; s.angVel = .zero; continue }
+            // Frozen while asleep (far from the player, or the ground under it isn't loaded).
+            if s.asleep { s.vel = .zero; s.angVel = .zero; continue }
             integrateForces(s, h, &reader)
         }
-        // Contacts: terrain and ship-ship.
+        // Contacts: terrain and ship-ship (a sleeping ship can still be run into).
         for s in list where s.parent == nil {
-            var cs: [Contact] = []
-            terrainContacts(s, &reader, &cs)
-            for o in list where o !== s && o.id < s.id && o.parent == nil {
+            contactScratch.removeAll(keepingCapacity: true)
+            if !s.asleep { terrainContacts(s, &reader, &contactScratch) }
+            for o in list where o !== s && o.id < s.id && o.parent == nil && !(s.asleep && o.asleep) {
                 if o.worldMax.x < s.worldMin.x - 1 || o.worldMin.x > s.worldMax.x + 1 || o.worldMax.y < s.worldMin.y - 1
                     || o.worldMin.y > s.worldMax.y + 1 || o.worldMax.z < s.worldMin.z - 1 || o.worldMin.z > s.worldMax.z + 1 { continue }
-                shipContacts(s, o, &cs)
-                shipContacts(o, s, &cs, flip: true)
+                shipContacts(s, o, &contactScratch)
+                shipContacts(o, s, &contactScratch, flip: true)
             }
-            s.contacts = cs.count
-            if !cs.isEmpty { solve(s, &cs, h) }
+            s.contacts = contactScratch.count
+            if !contactScratch.isEmpty { solve(s, &contactScratch, h) }
         }
         for s in list where s.parent == nil {
-            if !reader.loaded(Int(floor(s.pos.x)), Int(floor(s.pos.z))) { continue }
+            if s.asleep { continue }
             let sp = simd_length(s.vel)
             if sp > 60 { s.vel *= 60 / sp }
             let w = simd_length(s.angVel)
@@ -268,7 +301,8 @@ extension ShipManager {
         let sp = simd_length(s.vel)
         let vlAir = s.dirToLocal(s.vel)
         let airK: Float = 0.1 + 0.03 * sp
-        let airLocal: V3 = vlAir * s.area * airK
+        var airLocal: V3 = vlAir * s.area * airK
+        airLocal[fwdAxis] *= 0.6                    // bows and envelope noses are streamlined
         F -= s.dirToWorld(airLocal)
         s.angVel *= expf(-(sub > 0 ? 0.4 : 0.8) * h)
 
@@ -313,7 +347,8 @@ extension ShipManager {
         if s.balloons > 0 {
             let cap = Float(s.balloons) * ShipTuning.balloonLift * g
             var vyTarget: Float
-            if piloted && abs(s.climb) > 0.1 { vyTarget = s.climb * 5; s.hoverY = s.pos.y }
+            if s.wrecked && !piloted { vyTarget = -1.5; s.hoverY = nil }                // holed envelope: settles down
+            else if piloted && abs(s.climb) > 0.1 { vyTarget = s.climb * 5; s.hoverY = s.pos.y }
             else {
                 if s.hoverY == nil { s.hoverY = s.pos.y }
                 vyTarget = max(-2, min(2, (s.hoverY! - s.pos.y) * 1.2))

@@ -35,6 +35,7 @@ Goals: polished, efficient on M1/8 GB, extensible. Later: Xbox controller on a T
   HUD helpers), Soldiers.swift (four soldier ranks + deck guns: AI, models, drops), MilitaryTests.swift (harness checks).
 - Mob workstream files: Raid.swift, Pathfinding.swift, Spawning.swift, MobAI.swift, VillageLife.swift, Conversions.swift, Bees.swift,
   Cloudwailer.swift, SpawnEggs.swift, MobTests.swift (`--mobtests`); Playthrough.swift (`--playthrough`, spawn to credits + Blight).
+- Ships (moving block structures, Engine session): Ships.swift (Ship grid/pose/mass, ShipManager: assembly, docking, editing, save, world-space collision boxes), ShipPhysics.swift (60 Hz rigid-body step, buoyancy, propulsion, contacts, sleeping), ShipRender.swift (ship meshes via Mesher on virtual chunks, own Metal library; spinning propellers/wheels/cannon barrels drawn separately), ShipPlay.swift (player in the ship's frame via World.frame, piloting, HUD), ShipCombat.swift (turrets = child ships, cannons, shells, blasts, hull splitting), ShipVessels.swift (blueprints, Skyward Frigate / Ironstride Siege Carriage, encounters, crew AI), ShipBlocks.swift, ShipTest.swift (--ship scenes, --physicstest), ShipBench.swift (bench scene ships).
 - Swift gotchas seen on CI: long float expressions time out the type checker (split them with typed lets); `import simd` in every file that uses simd_*.
 
 ## Voice bug notes

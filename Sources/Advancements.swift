@@ -98,6 +98,12 @@ enum Advancements {
         Advancement(id: "adventure/steelhold_deck_gun", tab: 3, title: "Silence the Guns", desc: "Destroy a Steelhold deck gun", crit: .event("deck_gun")),
         Advancement(id: "adventure/steelhold_ironclad", tab: 3, title: "The Bigger They Are", desc: "Defeat a Steelhold Ironclad",
                     crit: .event("ironclad"), challenge: true),
+        // Ships (Blocksmith's own: moving block structures).
+        Advancement(id: "adventure/set_sail", tab: 3, title: "Anchors Aweigh", desc: "Steer a ship from its helm", crit: .event("pilot_ship")),
+        Advancement(id: "adventure/prize_crew", tab: 3, title: "Prize Crew", desc: "Take the helm of a Skyward Frigate or an Ironstride Siege Carriage",
+                    crit: .event("capture_vessel"), challenge: true),
+        Advancement(id: "adventure/brought_low", tab: 3, title: "Brought Low", desc: "Wreck a Skyward Frigate or an Ironstride Siege Carriage",
+                    crit: .event("wreck_vessel"), challenge: true),
         // Husbandry
         Advancement(id: "husbandry/root", tab: 4, title: "Homestead", desc: "The world is full of friends and food", crit: .event("eat")),
         Advancement(id: "husbandry/plant_seed", tab: 4, title: "Sown", desc: "Plant a seed and watch it grow", crit: .event("plant")),

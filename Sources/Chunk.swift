@@ -105,6 +105,14 @@ final class Chunk {
     var tint: [UInt32]             // 256 grass, 256 foliage, 256 water colours (RGBA8)
     var tintBuf: MeshSlice?          // tint table on the GPU (carved from the mesh slabs)
     var sections: [Section]
+    // Highest section that has geometry or isn't meshed yet (everything above is meshed open air). Kept by
+    // World.apply so the renderer's culling walk can stop above the terrain without scanning the sky.
+    var topSec = NSEC - 1
+    func updateTopSec() {
+        var t = NSEC - 1
+        while t > 0 && sections[t].empty && sections[t].meshedVersion != -1 { t -= 1 }
+        topSec = t
+    }
     var modified = false
     // The block array as last saved or loaded. Any write to `blocks` copies it (copy-on-write), so
     // "same storage" means nothing changed since then and the save can be skipped.

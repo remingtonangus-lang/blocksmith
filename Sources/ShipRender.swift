@@ -17,6 +17,8 @@ final class ShipMesh {
         var transQuads = 0
     }
     private(set) var sections: [Int: Sec] = [:]
+    var wheelSecs: [[Sec]] = []      // per Ship.wheelParts entry (ShipRenderer builds them)
+    var wheelGen = -1
     private var layoutGen = 0
     private let lock = NSLock()
     private var results: [(gen: Int, full: Bool, secs: [(Int, SectionMesh, V3)])] = []
@@ -24,20 +26,44 @@ final class ShipMesh {
 
     @inline(__always) static func key(_ cx: Int, _ sy: Int, _ cz: Int) -> Int { (cx & 0xFFF) | ((sy & 0xFF) << 12) | ((cz & 0xFFF) << 20) }
 
+    private(set) var released = false
+
     // Remeshes everything (after assembly, loading, or a grid resize).
     func rebuildAll(_ s: Ship, device: MTLDevice, queue: DispatchQueue) {
         layoutGen += 1
+        released = false
         submit(s, only: nil, full: true, queue: queue)
+    }
+
+    // Gives the GPU meshes back (ship far away); rebuildAll brings them back.
+    func release() {
+        layoutGen += 1                   // results still in flight are dropped
+        sections.removeAll()
+        wheelSecs = []
+        wheelGen = -1
+        released = true
     }
 
     // Remeshes the sections within one section of a changed cell.
     func rebuildAround(_ s: Ship, _ c: IVec3, device: MTLDevice, queue: DispatchQueue) {
+        rebuildAround(s, [c], device: device, queue: queue)
+    }
+
+    // The same for many changed cells (a blast) in one job; the whole grid when they touch most of it anyway.
+    func rebuildAround(_ s: Ship, _ cells: [IVec3], device: MTLDevice, queue: DispatchQueue) {
+        if released { return }
         var only = Set<Int>()
-        let cx = c.x >> 4, sy = (c.y + 16) >> 4, cz = c.z >> 4
-        for dz in -1...1 { for dy in -1...1 { for dx in -1...1 where cx + dx >= 0 && cz + dz >= 0 && sy + dy >= 1 {
-            only.insert(ShipMesh.key(cx + dx, sy + dy, cz + dz))
-        } } }
-        submit(s, only: only, full: false, queue: queue)
+        var seen = Set<Int>()
+        for c in cells {
+            let cx = c.x >> 4, sy = (c.y + 16) >> 4, cz = c.z >> 4
+            if !seen.insert(ShipMesh.key(cx, sy, cz)).inserted { continue }
+            for dz in -1...1 { for dy in -1...1 { for dx in -1...1 where cx + dx >= 0 && cz + dz >= 0 && sy + dy >= 1 {
+                only.insert(ShipMesh.key(cx + dx, sy + dy, cz + dz))
+            } } }
+        }
+        if only.isEmpty { return }
+        let total = ((s.grid.sx + 15) / 16) * ((s.grid.sz + 15) / 16) * max(1, (s.grid.sy + 31) / 16)
+        submit(s, only: only.count * 3 >= total * 2 ? nil : only, full: false, queue: queue)
     }
 
     private func submit(_ s: Ship, only: Set<Int>?, full: Bool, queue: DispatchQueue) {
@@ -79,11 +105,13 @@ final class ShipMesh {
     }
 
     // Builds section meshes for a grid snapshot (any thread).
-    static func build(sx: Int, sy: Int, sz: Int, blocks: [BlockID], only: Set<Int>?) -> [(Int, SectionMesh, V3)] {
+    static func build(sx: Int, sy: Int, sz: Int, blocks: [BlockID], only: Set<Int>?, spinning: Bool = true) -> [(Int, SectionMesh, V3)] {
         let ncx = (sx + 15) / 16, ncz = (sz + 15) / 16
         let vh = sy + 16
         let nsec = min(NSEC - 1, (vh + 15) / 16)
         let skyT = Blocks.sky
+        // Propellers, wheels and cannons are drawn on their own, moving (ShipRenderer), so the hull mesh leaves them out.
+        let kinds = ShipParts.kinds
         var stores: [Int: (BlockStore, [Int16])] = [:]
         let empty = (BlockStore([]), [Int16](repeating: -1, count: CSQ))
         func store(_ cx: Int, _ cz: Int) -> (BlockStore, [Int16]) {
@@ -102,7 +130,7 @@ final class ShipMesh {
                         let gx = cx * 16 + x
                         if gx >= sx { break }
                         let b = blocks[gx + gz * sx + y * sx * sz]
-                        if b == AIR { continue }
+                        if b == AIR || (spinning && (kinds[Int(b)] == .propeller || kinds[Int(b)] == .wheel || kinds[Int(b)] == .cannon)) { continue }
                         a[x + z * 16 + vy * CSQ] = b
                         if skyT[Int(b)] { h[x + z * 16] = Int16(vy) }
                     }
@@ -115,6 +143,8 @@ final class ShipMesh {
         var out: [(Int, SectionMesh, V3)] = []
         for cz in 0..<ncz {
             for cx in 0..<ncx {
+                // Partial rebuilds: only the columns holding a wanted section (and their neighbours) are built.
+                if let only, !(1..<max(2, nsec)).contains(where: { only.contains(key(cx, $0, cz)) }) { continue }
                 var n9: [BlockStore] = [], h9: [[Int16]] = []
                 for dz in -1...1 { for dx in -1...1 { let s = store(cx + dx, cz + dz); n9.append(s.0); h9.append(s.1) } }
                 for s in 1..<max(2, nsec) {
@@ -132,7 +162,7 @@ final class ShipMesh {
 // Per-draw record for shipVS (buffer 2).
 struct ShipDrawRec {
     var model: float4x4            // ship space -> camera-relative world
-    var origin: V4                 // section origin in ship space
+    var origin: V4                 // section origin in ship space; w: sky light factor (Ship.skyLight)
 }
 
 let shipShaderSource = """
@@ -180,7 +210,7 @@ vertex ShipOut shipVS(uint vid [[vertex_id]],
     }
     uint layer = ((w1 >> 10) & 1023u) | ((w1 >> 31) << 10);
     uint ao = (w1 >> 20) & 3u;
-    float skyL = float((w1 >> 22) & 15u) / 15.0;
+    float skyL = float((w1 >> 22) & 15u) / 15.0 * d.origin.w;     // origin.w: the world's sky light around the ship
     float blkL = float((w1 >> 26) & 15u) / 15.0;
     float3 rel = (d.model * float4(p + d.origin.xyz, 1.0)).xyz;
     ShipOut o;
@@ -254,9 +284,55 @@ final class ShipRenderer {
     private var ringOff = 0
     private static let ringSize = 1 << 20
     private(set) var drawCalls = 0
+    var enabled = true               // bench: frames without ships for comparison
+    private let device: MTLDevice
+    private var propMeshes: [BlockID: ShipMesh.Sec] = [:]
+
+    private func secs(_ built: [(Int, SectionMesh, V3)]) -> [ShipMesh.Sec] {
+        var out: [ShipMesh.Sec] = []
+        for (_, m, origin) in built where !m.opaque.isEmpty {
+            var sec = ShipMesh.Sec(origin: origin)
+            sec.opaque = m.opaque.withUnsafeBytes { MeshArena.shared.alloc(device, $0) }
+            sec.opaqueQuads = m.opaque.count / 8
+            sec.solidQuads = m.solidQuads
+            out.append(sec)
+        }
+        return out
+    }
+
+    // Wheel parts meshed on their own (small grids; redone only when the parts change).
+    private func wheelMeshes(_ s: Ship) -> [[ShipMesh.Sec]] {
+        if s.mesh.wheelGen != s.wheelGen {
+            s.mesh.wheelSecs = s.wheelParts.map { p in
+                secs(ShipMesh.build(sx: p.size.x, sy: p.size.y, sz: p.size.z, blocks: p.blocks, only: nil, spinning: false))
+            }
+            s.mesh.wheelGen = s.wheelGen
+        }
+        return s.mesh.wheelSecs
+    }
+
+    // A cannon state's render-only mount and barrel states (same facing).
+    private var cannonParts: [BlockID: (BlockID, BlockID)] = [:]
+    private func cannonHalves(_ b: BlockID) -> (BlockID, BlockID) {
+        if let p = cannonParts[b] { return p }
+        let name = Blocks.key(b)
+        let suffix = name.hasPrefix("ship_cannon") ? String(name.dropFirst("ship_cannon".count)) : ""
+        let p = (Blocks.id("ship_cannon_mount" + suffix), Blocks.id("ship_cannon_barrel" + suffix))
+        cannonParts[b] = p
+        return p
+    }
+
+    // One block meshed on its own (cached per state): propellers, cannon mounts and barrels.
+    private func propMesh(_ b: BlockID) -> ShipMesh.Sec? {
+        if let m = propMeshes[b] { return m }
+        guard let sec = secs(ShipMesh.build(sx: 1, sy: 1, sz: 1, blocks: [b], only: nil, spinning: false)).first else { return nil }
+        propMeshes[b] = sec
+        return sec
+    }
     private var maskScratch: [SimpleVert] = []
 
     init(device: MTLDevice, colorFormat: MTLPixelFormat) throws {
+        self.device = device
         let lib = try device.makeLibrary(source: shipShaderSource, options: nil)
         func pipe(_ vs: String, _ fs: String, blend: Bool, colour: Bool = true, format colorFormat: MTLPixelFormat) throws -> MTLRenderPipelineState {
             let d = MTLRenderPipelineDescriptor()
@@ -322,7 +398,7 @@ final class ShipRenderer {
 
     // Solid then cutout faces of every visible ship.
     func drawOpaque(_ enc: MTLRenderCommandEncoder, ships: ShipManager, eye: V3, u: inout Uniforms, frustum: Frustum, quads: MTLBuffer) {
-        if ships.isEmpty && ships.ghosts.isEmpty { return }
+        if !enabled || (ships.isEmpty && ships.ghosts.isEmpty) { return }
         enc.setDepthStencilState(depthWrite)
         enc.setCullMode(.back)
         enc.setFrontFacing(.counterClockwise)
@@ -330,14 +406,70 @@ final class ShipRenderer {
         enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
         enc.setVertexBuffer(tintBuf, offset: 0, index: 3)
         func draw(_ s: Ship, _ pass: Int) {
-            if !frustum.visible(min: s.worldMin, max: s.worldMax) { return }
+            if s.mesh.released || !frustum.visible(min: s.worldMin, max: s.worldMax) { return }
             let m = model(s, eye: eye)
             for sec in s.mesh.sections.values {
                 guard let buf = sec.opaque, sec.opaqueQuads > 0 else { continue }
                 let total = min(sec.opaqueQuads, Renderer.maxQuads), solid = min(sec.solidQuads, total)
                 let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
                 if count <= 0 { continue }
-                var rec = ShipDrawRec(model: m, origin: V4(sec.origin, 0))
+                var rec = ShipDrawRec(model: m, origin: V4(sec.origin, s.skyLight))
+                enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
+                enc.setVertexBytes(&rec, length: MemoryLayout<ShipDrawRec>.stride, index: 2)
+                enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quads,
+                                          indexBufferOffset: first * 6 * 4)
+                drawCalls += 1
+            }
+            // Wheels, rolled about their axles (across the heading).
+            if !s.wheelParts.isEmpty {
+                let meshes = wheelMeshes(s)
+                let axle = simd_normalize(simd_cross(s.fwd, V3(0, 1, 0)) + V3(1e-6, 0, 0))
+                for (i, p) in s.wheelParts.enumerated() where i < meshes.count {
+                    let roll = float4x4(simd_quatf(angle: -s.rollDist / max(0.5, p.radius), axis: axle))
+                    let lo = V3(Float(p.lo.x), Float(p.lo.y), Float(p.lo.z))
+                    let wmodel: float4x4 = m * translationMatrix(p.center) * roll * translationMatrix(lo - p.center)
+                    for sec in meshes[i] {
+                        guard let buf = sec.opaque else { continue }
+                        let total = min(sec.opaqueQuads, Renderer.maxQuads), solid = min(sec.solidQuads, total)
+                        let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
+                        if count <= 0 { continue }
+                        var rec = ShipDrawRec(model: wmodel, origin: V4(sec.origin, s.skyLight))
+                        enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
+                        enc.setVertexBytes(&rec, length: MemoryLayout<ShipDrawRec>.stride, index: 2)
+                        enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quads,
+                                                  indexBufferOffset: first * 6 * 4)
+                        drawCalls += 1
+                    }
+                }
+            }
+            // Cannons: the carriage fixed, the barrel raised about its trunnions to the guns' elevation.
+            for (c, d) in s.cannons {
+                let (mountB, barrelB) = cannonHalves(s.grid.get(Int(floor(c.x)), Int(floor(c.y)), Int(floor(c.z))))
+                let raise = float4x4(simd_quatf(angle: s.gunPitch, axis: simd_normalize(simd_cross(d, V3(0, 1, 0)))))
+                let half = V3(0.5, 0.5, 0.5)
+                for (b, pm4) in [(mountB, m * translationMatrix(c - half)), (barrelB, m * translationMatrix(c) * raise * translationMatrix(-half))] {
+                    guard let pm = propMesh(b), let buf = pm.opaque else { continue }
+                    let total = min(pm.opaqueQuads, Renderer.maxQuads), solid = min(pm.solidQuads, total)
+                    let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
+                    if count <= 0 { continue }
+                    var rec = ShipDrawRec(model: pm4, origin: V4(pm.origin, s.skyLight))
+                    enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
+                    enc.setVertexBytes(&rec, length: MemoryLayout<ShipDrawRec>.stride, index: 2)
+                    enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quads,
+                                              indexBufferOffset: first * 6 * 4)
+                    drawCalls += 1
+                }
+            }
+            // Propellers, turned about their shafts.
+            for (c, d) in s.props {
+                let b = s.grid.get(Int(floor(c.x)), Int(floor(c.y)), Int(floor(c.z)))
+                guard let pm = propMesh(b), let buf = pm.opaque else { continue }
+                let total = min(pm.opaqueQuads, Renderer.maxQuads), solid = min(pm.solidQuads, total)
+                let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
+                if count <= 0 { continue }
+                let spin = float4x4(simd_quatf(angle: s.propSpin, axis: d))
+                let pmodel: float4x4 = m * translationMatrix(c) * spin * translationMatrix(V3(-0.5, -0.5, -0.5))
+                var rec = ShipDrawRec(model: pmodel, origin: V4(pm.origin, s.skyLight))
                 enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
                 enc.setVertexBytes(&rec, length: MemoryLayout<ShipDrawRec>.stride, index: 2)
                 enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quads,
@@ -355,7 +487,7 @@ final class ShipRenderer {
     // Target outline, then the depth-only water mask over each hull's enclosed air (keeps the sea
     // surface out of boats), drawn before the world's water.
     func drawBeforeWater(_ enc: MTLRenderCommandEncoder, ships: ShipManager, world: World, eye: V3, u: inout Uniforms, frustum: Frustum) {
-        if ships.isEmpty { return }
+        if !enabled || ships.isEmpty { return }
         enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
         enc.setCullMode(.none)
         if let t = ships.target {
@@ -380,7 +512,7 @@ final class ShipRenderer {
         }
         maskScratch.removeAll(keepingCapacity: true)
         var rd = ShipBlockReader(world)
-        for s in ships.list where frustum.visible(min: s.worldMin, max: s.worldMax) {
+        for s in ships.list where !s.mesh.released && frustum.visible(min: s.worldMin, max: s.worldMax) {
             guard let top = rd.waterTop(s.pos) ?? rd.waterTop(s.pos - V3(0, 2, 0)) else { continue }
             let plane = top + (eye.y > top ? 0.01 : -0.01)
             let r = simd_float3x3(s.rot)
@@ -419,7 +551,7 @@ final class ShipRenderer {
 
     // Translucent faces (stained glass, water on deck), after the world's water.
     func drawTranslucent(_ enc: MTLRenderCommandEncoder, ships: ShipManager, eye: V3, u: inout Uniforms, frustum: Frustum, quads: MTLBuffer) {
-        if ships.isEmpty { return }
+        if !enabled || ships.isEmpty { return }
         var any = false
         for s in ships.list where frustum.visible(min: s.worldMin, max: s.worldMax) {
             let m = model(s, eye: eye)
@@ -434,7 +566,7 @@ final class ShipRenderer {
                     enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
                     enc.setVertexBuffer(tintBuf, offset: 0, index: 3)
                 }
-                var rec = ShipDrawRec(model: m, origin: V4(sec.origin, 0))
+                var rec = ShipDrawRec(model: m, origin: V4(sec.origin, s.skyLight))
                 enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
                 enc.setVertexBytes(&rec, length: MemoryLayout<ShipDrawRec>.stride, index: 2)
                 enc.drawIndexedPrimitives(type: .triangle, indexCount: min(sec.transQuads, Renderer.maxQuads) * 6, indexType: .uint32,
