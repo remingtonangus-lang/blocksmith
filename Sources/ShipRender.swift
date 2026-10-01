@@ -32,12 +32,23 @@ final class ShipMesh {
 
     // Remeshes the sections within one section of a changed cell.
     func rebuildAround(_ s: Ship, _ c: IVec3, device: MTLDevice, queue: DispatchQueue) {
+        rebuildAround(s, [c], device: device, queue: queue)
+    }
+
+    // The same for many changed cells (a blast) in one job; the whole grid when they touch most of it anyway.
+    func rebuildAround(_ s: Ship, _ cells: [IVec3], device: MTLDevice, queue: DispatchQueue) {
         var only = Set<Int>()
-        let cx = c.x >> 4, sy = (c.y + 16) >> 4, cz = c.z >> 4
-        for dz in -1...1 { for dy in -1...1 { for dx in -1...1 where cx + dx >= 0 && cz + dz >= 0 && sy + dy >= 1 {
-            only.insert(ShipMesh.key(cx + dx, sy + dy, cz + dz))
-        } } }
-        submit(s, only: only, full: false, queue: queue)
+        var seen = Set<Int>()
+        for c in cells {
+            let cx = c.x >> 4, sy = (c.y + 16) >> 4, cz = c.z >> 4
+            if !seen.insert(ShipMesh.key(cx, sy, cz)).inserted { continue }
+            for dz in -1...1 { for dy in -1...1 { for dx in -1...1 where cx + dx >= 0 && cz + dz >= 0 && sy + dy >= 1 {
+                only.insert(ShipMesh.key(cx + dx, sy + dy, cz + dz))
+            } } }
+        }
+        if only.isEmpty { return }
+        let total = ((s.grid.sx + 15) / 16) * ((s.grid.sz + 15) / 16) * max(1, (s.grid.sy + 31) / 16)
+        submit(s, only: only.count * 3 >= total * 2 ? nil : only, full: false, queue: queue)
     }
 
     private func submit(_ s: Ship, only: Set<Int>?, full: Bool, queue: DispatchQueue) {
@@ -115,6 +126,8 @@ final class ShipMesh {
         var out: [(Int, SectionMesh, V3)] = []
         for cz in 0..<ncz {
             for cx in 0..<ncx {
+                // Partial rebuilds: only the columns holding a wanted section (and their neighbours) are built.
+                if let only, !(1..<max(2, nsec)).contains(where: { only.contains(key(cx, $0, cz)) }) { continue }
                 var n9: [BlockStore] = [], h9: [[Int16]] = []
                 for dz in -1...1 { for dx in -1...1 { let s = store(cx + dx, cz + dz); n9.append(s.0); h9.append(s.1) } }
                 for s in 1..<max(2, nsec) {

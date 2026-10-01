@@ -173,7 +173,7 @@ extension ShipManager {
             }
             s.rebuild()
             if s.blockCount == 0 { remove(s); continue }
-            s.mesh.rebuildAll(s, device: world.device, queue: meshQueue)
+            s.mesh.rebuildAround(s, Array(destroyed), device: world.device, queue: meshQueue)
             splitIfNeeded(s)
         }
     }

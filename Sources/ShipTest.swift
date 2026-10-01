@@ -26,7 +26,9 @@ enum ShipTest {
     static func levelPad(_ w: World, _ x: Int, _ z: Int, half: Int) -> Int {
         let y = groundTop(w, x, z) + 1
         for dz in -half...half { for dx in -half...half {
-            for yy in y..<(y + 12) { w.setBlockAsync(x + dx, yy, z + dz, AIR) }
+            // Clear up to the surface (a pad cut into a hillside would otherwise sit under a dark overhang).
+            let top = max(y + 12, w.topY(x + dx, z + dz) + 1)
+            for yy in y..<top { w.setBlockAsync(x + dx, yy, z + dz, AIR) }
             w.setBlockAsync(x + dx, y - 1, z + dz, GRASS)
             for yy in (y - 4)..<(y - 1) where !Blocks.collide[Int(w.rawBlock(x + dx, yy, z + dz))] { w.setBlockAsync(x + dx, yy, z + dz, DIRT) }
         } }

@@ -6,6 +6,8 @@ import simd
 //   ships.spawn_frigate_ms      building a 48-block frigate (+ turrets) from its blueprint (main thread)
 //   ships.mesh_frigate_ms       meshing the whole frigate grid on one thread (normally a background job)
 //   ships.edit_ms               one block placed on a ship (grid + mass properties; the remesh is background)
+//   ships.edit_remesh_ms        until that edit shows (background remesh of the sections around it)
+//   ships.blast_ms / _remesh_ms a power-3 blast on the frigate's deck: main-thread damage, then the remesh
 //   ships.tick_ms               game tick with a frigate and a siege carriage under way (mean / p95)
 //   ships.physics_ms            the ship physics share of that (all substeps of a frame)
 //   ships.collide_us            one mob-sized World.collides query next to a ship (ship boxes included)
@@ -38,6 +40,23 @@ extension Bench {
             edits.append((now - a) * 1000)
         }
         put("ships.edit_ms", dist(edits), "mean,max")
+        // How long a single-block edit takes to show: the background remesh of the sections around it.
+        func meshWait(_ s: Ship) -> Double {
+            let a = now
+            while s.mesh.busy && now - a < 5 { usleep(200); s.mesh.apply(device: world.device) }
+            return (now - a) * 1000
+        }
+        _ = meshWait(fg)
+        ships.setBlock(fg, deck + IVec3(1, 1, 0), PLANKS)
+        put("ships.edit_remesh_ms", meshWait(fg))
+        // A shell bursting on the frigate's deck: ray damage, mass properties, split check (main thread), then the
+        // remesh of the sections around the hole (background).
+        let shipsBefore = ships.list.count
+        t = now
+        ships.blast(at: fg.toWorld(V3(Float(deck.x) + 0.5, Float(deck.y) + 1.5, Float(deck.z) + 0.5)), power: 3, game: nil)
+        put("ships.blast_ms", (now - t) * 1000)
+        put("ships.blast_remesh_ms", meshWait(fg))
+        print("bench ships: edit remesh \(f(metrics["ships.edit_remesh_ms"] ?? 0)) ms, blast \(f(metrics["ships.blast_ms"] ?? 0)) ms + remesh \(f(metrics["ships.blast_remesh_ms"] ?? 0)) ms (\(fg.blockCount) blocks left, \(ships.list.count - shipsBefore) pieces split off)")
 
         // Ticks with both vessels under way (crews steering).
         let dt = 1.0 / 60
