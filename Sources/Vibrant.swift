@@ -238,7 +238,7 @@ final class Vibrant {
         }
         f.shadowStrength = simd_clamp((L.y - 0.03) / 0.15, 0, 1) * (1 - 0.85 * rain)
         let dl = simd_clamp((game.daylight - 0.1) / 0.9, 0, 1)
-        let dayAmb = V3(0.52, 0.57, 0.66), nightAmb = V3(0.12, 0.14, 0.24)
+        let dayAmb = V3(0.52, 0.57, 0.66), nightAmb = V3(0.17, 0.2, 0.33)
         f.ambient = simd_mix(nightAmb, dayAmb, V3(repeating: dl))
         // Shadow map basis: light travels along -L.
         let fwd = -L

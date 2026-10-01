@@ -36,6 +36,11 @@ final class Game {
     var appAction: ((String) -> Void)?
     var invertY: Bool = UserDefaults.standard.bool(forKey: "invertY") { didSet { UserDefaults.standard.set(invertY, forKey: "invertY") } }
     // Graphics: Fancy (sky gradient, water reflections, extra effects) or Fast (the plain renderer). Default Fancy.
+    // Fancy only: the 3D world renders at this fraction of the window size and is upscaled (HUD stays sharp).
+    // Saved as "fancyWorldScale": "renderScale" is the Resolution option (Settings.renderScale, whole frame).
+    var renderScale: Float = { let v = UserDefaults.standard.float(forKey: "fancyWorldScale"); return v > 0 ? v : 1 }() {
+        didSet { UserDefaults.standard.set(renderScale, forKey: "fancyWorldScale") }
+    }
     var fancyGraphics: Bool = UserDefaults.standard.object(forKey: "fancyGraphics") == nil ? true : UserDefaults.standard.bool(forKey: "fancyGraphics") {
         didSet { UserDefaults.standard.set(fancyGraphics, forKey: "fancyGraphics") }
     }
