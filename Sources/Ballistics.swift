@@ -184,8 +184,18 @@ final class Armory {
         let whole = floorf(dmg)
         let n = Int(whole) + (Float.random(in: 0..<1) < dmg - whole ? 1 : 0)
         m.hit(from: at - dir * 2, damage: max(1, n), knockback: s.kind == .bullet ? 0.25 : 0.5)
-        g.particles.add(Particle(pos: at, vel: -dir * 1.5 + V3(0, 1, 0), life: 0.25, maxLife: 0.25, layer: Int(Tex.id("smoke")),
-                                 uv0: V2(0, 0), uvSize: 1, size: 0.07, gravity: 6, color: V3(0.55, 0.08, 0.08), collide: false))
+        if m.kind == .soldierIronclad || m.kind == .deckGun || m.kind == .ironGolem {
+            // Rounds spark off heavy plate.
+            for _ in 0..<4 {
+                g.particles.add(Particle(pos: at, vel: (-dir + V3(Float.random(in: -1...1), Float.random(in: 0...1.5), Float.random(in: -1...1))) * 3,
+                                         life: 0.18, maxLife: 0.18, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1, size: 0.04, gravity: 10,
+                                         color: V3(2.2, 1.6, 0.6), collide: false, glow: true))
+            }
+            if Float.random(in: 0..<1) < 0.4 { g.sfx(.gun(8), 0.5, at: at) }
+        } else {
+            g.particles.add(Particle(pos: at, vel: -dir * 1.5 + V3(0, 1, 0), life: 0.25, maxLife: 0.25, layer: Int(Tex.id("smoke")),
+                                     uv0: V2(0, 0), uvSize: 1, size: 0.07, gravity: 6, color: V3(0.55, 0.08, 0.08), collide: false))
+        }
         if s.fromPlayer {
             m.killedByPlayer = true
             m.lootingLevel = 0
