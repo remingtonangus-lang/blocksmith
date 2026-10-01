@@ -208,7 +208,9 @@ final class ProjectileManager {
                 let speedPerTick = simd_length(a.vel) / 20
                 var dmg = Int(ceilf(speedPerTick * a.damage))
                 if a.fromPlayer && Float.random(in: 0..<1) < 0.25 { dmg += Int.random(in: 0...(dmg / 2 + 1)) }
-                if let m = hitMob {
+                if let m = hitMob, m.kind == .enderman, a.trident == nil {
+                    m.teleport(w)                                  // voidwalkers dodge arrows
+                } else if let m = hitMob {
                     if let t = a.trident { dmg = 8 + Int(Enchant.damageBonus(t, against: m)) }
                     m.hit(from: a.pos, damage: dmg, knockback: 0.6 + 0.6 * Float(a.punch))
                     if a.trident != nil { g.tridentHit(a, mob: m) }

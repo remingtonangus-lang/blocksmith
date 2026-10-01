@@ -19,6 +19,7 @@ enum Snd: Hashable {
     case mobWolf, mobCat, mobHorse, mobLlama, mobBee, mobWarden, goatHorn
     case fireworkLaunch, fireworkBlast, fireworkBlastLarge, fireworkTwinkle, caveAmbience
     case note(Int, Int)            // note block: instrument, pitch 0...24 (made on demand)
+    case gun(Int)                  // firearms, deck guns, alarms (Guns.swift)
 }
 
 func soundMat(_ id: BlockID) -> SoundMat { Blocks.def(id).sound }
@@ -36,7 +37,7 @@ struct SoundBank {
                     .mobWailer, .mobCinderwisp, .mobBoarling, .mobUndeadBoarling, .fireball, .mobVillager, .mobGolem,
                     .anvil, .brew, .enchant, .drink, .glassBreak,
                     .mobBlight, .witherSpawn, .witherShoot, .mobVex, .mobRavager, .evokerCast, .bell, .raidHorn, .fangs, .rain, .thunder,
-                    .mobWolf, .mobCat, .mobHorse, .mobLlama, .mobBee, .mobWarden, .goatHorn, .fireworkLaunch, .fireworkBlast, .fireworkBlastLarge, .fireworkTwinkle, .caveAmbience]
+                    .mobWolf, .mobCat, .mobHorse, .mobLlama, .mobBee, .mobWarden, .goatHorn, .fireworkLaunch, .fireworkBlast, .fireworkBlastLarge, .fireworkTwinkle, .caveAmbience] + Guns.sounds
     }
 
     init() {
@@ -275,6 +276,7 @@ struct Synth {
         case .fireball: out = Synth.mix(burst(0.8, lp: 900 * p, hp: 60, attack: 0.02, decay: 0.3, gain: 2.2), burst(0.5, lp: 5000, hp: 1500, attack: 0.01, decay: 0.2, gain: 0.5))
         case .mobCow: out = voice(0.85, f0: 150 * p, f1: 105 * p, vib: 0.02, lp: 700, gain: 1.3)
         case .mobSheep: out = voice(0.6, f0: 420 * p, f1: 380 * p, vib: 0.09, lp: 1800, gain: 0.9)
+        case .gun(let k): out = gunSound(k, p)
         case .mobChicken:
             out = []
             for k in 0..<2 {
