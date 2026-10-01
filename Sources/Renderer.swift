@@ -90,6 +90,8 @@ final class Renderer: NSObject, MTKViewDelegate {
     // could fill the ring, and the arm was then written past the buffer's end.
     private let ringTailReserve = 1 << 19
     private var frame = 0
+    private var eyeAdapt: Float = 1          // Fancy eye adaptation: current exposure from the surroundings' brightness
+    private var eyeAdaptT: Double = 0
     private var lastTime = CACurrentMediaTime()
     var drawHUD = true
 
@@ -591,6 +593,23 @@ final class Renderer: NSObject, MTKViewDelegate {
             // Eyes adapt at night: exposure rises as daylight falls (only with open sky above).
             let night: Float = hasSky ? simd_clamp((0.55 - daylight) / 0.45, 0, 1) * caveScale : 0
             pp.grade = V4(1.0 + 0.55 * night, 1.14 - 0.12 * night, 1.06, 0.16)
+            // Eye adaptation: exposure follows how bright the eye's surroundings are (sky and block light around it),
+            // opening up slowly in the dark and closing quickly in daylight, so leaving a cave is bright for a moment.
+            let ex = Int(floor(eye.x)), ey = Int(floor(eye.y)), ez = Int(floor(eye.z))
+            var lum: Float = 0
+            for (dx, dz) in [(0, 0), (2, 0), (-2, 0), (0, 2), (0, -2)] {
+                let l = game.world.lightAt(ex + dx, ey, ez + dz)
+                lum += max(Float(l.sky) / 15 * daylight, Float(l.block) / 15 * 0.85) / 5
+            }
+            let adaptRange: Float = hasSky ? 0.6 : 0.25                      // the Emberdeep and Hollow have their own ambient
+            let adaptTarget: Float = 1 + adaptRange * (1 - simd_clamp(lum, 0, 1))
+            let nowT = CFAbsoluteTimeGetCurrent()
+            if eyeAdaptT == 0 { eyeAdapt = adaptTarget }                      // first frame (and snapshots): already adapted
+            let adt = Float(min(0.1, max(0, nowT - eyeAdaptT)))
+            eyeAdaptT = nowT
+            let rate: Float = adaptTarget > eyeAdapt ? 0.7 : 2.0
+            eyeAdapt += (adaptTarget - eyeAdapt) * (1 - expf(-adt * rate))
+            pp.grade.x = max(pp.grade.x, eyeAdapt)
             pp.sun.w = 0.075
             let sunDay = game.sunDir.y > -0.02
             if hasSky && !underwater && game.blindFog == nil && sunDay {
