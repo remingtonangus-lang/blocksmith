@@ -325,6 +325,7 @@ final class Vibrant {
         e.setFragmentTexture(bloom[0], index: 1)
         e.setFragmentTexture(raysTex, index: 2)
         e.setFragmentTexture(depth, index: 3)
+        e.setFragmentTexture(shadowMap, index: 4)
         e.setFragmentBytes(&p, length: MemoryLayout<PostParams>.stride, index: 0)
         e.setFragmentBytes(&uu, length: MemoryLayout<Uniforms>.stride, index: 1)
         e.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)

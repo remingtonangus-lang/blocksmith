@@ -536,10 +536,33 @@ fragment float4 compositeFS(FsOut in [[stage_in]],
                             texture2d<float> bloom [[texture(1)]],
                             texture2d<float> rays [[texture(2)]],
                             depth2d<float> dep [[texture(3)]],
+                            depth2d<float> sm [[texture(4)]],
                             constant PostParams& p [[buffer(0)]],
                             constant Uniforms& u [[buffer(1)]]) {
     constexpr sampler ls(filter::linear, address::clamp_to_edge);
     float3 c = hdr.sample(ls, in.uv).rgb;
+    if (p.grade.w > 0.0 && u.sunColor.w > 0.05 && u.params.w < 0.5) {
+        // Volumetric light shafts: march the view ray (up to 40 blocks) through the sun/moon shadow map and
+        // add in-scattered light where the air is lit, so shafts show through canopies and openings even
+        // with the sun off screen. 10 jittered steps; strongest looking toward the light.
+        constexpr sampler cmp(coord::normalized, filter::linear, address::clamp_to_edge, compare_func::less_equal);
+        float d = dep.sample(ls, in.uv);
+        float3 rel = relAt(in.uv, d, u);
+        float L = min(d >= 1.0 ? 40.0 : length(rel), 40.0);
+        float3 dir = normalize(rel);
+        float jit = fract(sin(dot(in.pos.xy, float2(12.9898, 78.233))) * 43758.5453);
+        float lit = 0.0;
+        for (int i = 0; i < 10; i++) {
+            float3 q = dir * (L * (float(i) + jit) / 10.0);
+            float4 sc = u.shadowMat * float4(q, 1.0);
+            float2 suv = float2(sc.x * 0.5 + 0.5, 0.5 - sc.y * 0.5);
+            lit += (suv.x > 0.0 && suv.y > 0.0 && suv.x < 1.0 && suv.y < 1.0) ? sm.sample_compare(cmp, suv, sc.z - 0.001) : 1.0;
+        }
+        lit /= 10.0;
+        float phase = 0.12 + pow(saturate(dot(dir, u.lightDir.xyz)), 8.0) * 0.9;
+        float scatter = (1.0 - exp(-L * 0.02)) * phase * (0.35 + p.sunCol.w + u.ambColor.w * 0.5);
+        c += u.sunColor.rgb * lit * scatter * 0.55 * u.sunColor.w;
+    }
     c += bloom.sample(ls, in.uv).rgb * p.sun.w;
     c += rays.sample(ls, in.uv).r * p.sunCol.rgb * p.sun.z;
     if (p.sunCol.w > 0.0) {
