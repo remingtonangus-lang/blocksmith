@@ -85,7 +85,20 @@ B close, RS scroll creative.
 - Landing / sprint dust, item equip animation, denser rain with ground splashes lit by daylight.
 - Village life: beds and sleeping, food pickup + breeding, farmers harvesting, golems, midnight zombie sieges.
 
-## Graphics (visuals session)
+## Graphics (visuals + audio session)
+- Fancy = "vibrant" HDR renderer (Vibrant.swift, VibrantShaders.swift): 2048 sun/moon shadow map (64 blocks around the
+  camera, texel-snapped, leaves cast dappled shadows, 5-tap PCF), N.L sun light + sky ambient, warm block light,
+  emissive texels (lava, flames, lamps, lumenstone, faint ore specks), per-layer materials (glass/ice glossy, metal
+  blocks tinted highlights, polished stone sheen, skylit tops wet + glossy in rain), water with refraction of the
+  scene, screen-space reflections (sky fallback), Fresnel, depth absorption, caustics on the bed and seen from
+  below, HDR sun glint; 5-level bloom, half-res god rays, sun haze, dawn/dusk + rain height mist, highlight
+  shoulder tone curve, saturation/contrast/split-tone grade, vignette, night exposure lift. Options: Render Scale
+  100/85/70% (world renders smaller, HUD sharp). If the Fancy shaders fail to build, the game falls back to Fast.
+  CI frame (1280x800, VM GPU, median of 30): Fast ~2.5 ms, Fancy ~5.7 ms average over the tour.
+- Item icons: ItemShapes.swift (89 original silhouettes) painted by ItemTextures.autoPainter (outline, light and
+  shade rims, gradient); potions/splash/lingering bottles + tipped arrows use the same art. ItemArt masks remain as
+  a fallback for anything without a shape.
+- Not done: hardware ray tracing (optional in the brief; the raster path already covers shadows/reflections).
 - Options > Graphics: Fancy (default) / Fast, saved in UserDefaults `fancyGraphics`; harness `--fast` renders one shot in Fast
   without touching the saved choice.
 - Fancy only: gradient sky dome (deeper blue overhead, warm glow around the sun at dawn/dusk, exactly the fog colour
