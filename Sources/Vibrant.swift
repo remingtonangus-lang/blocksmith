@@ -97,12 +97,12 @@ final class Vibrant {
         while sz >= 1 { lv += 1; sz /= 2 }
         ed.mipmapLevelCount = lv
         ed.usage = .shaderRead
-        emissive = device.makeTexture(descriptor: ed)!
+        let em = device.makeTexture(descriptor: ed)!
         var cur = mask, cs = S
         for level in 0..<lv {
             cur.withUnsafeBytes { raw in
                 for l in 0..<layers {
-                    emissive.replace(region: MTLRegionMake2D(0, 0, cs, cs), mipmapLevel: level, slice: l,
+                    em.replace(region: MTLRegionMake2D(0, 0, cs, cs), mipmapLevel: level, slice: l,
                                      withBytes: raw.baseAddress! + l * cs * cs, bytesPerRow: cs, bytesPerImage: cs * cs)
                 }
             }
@@ -117,6 +117,7 @@ final class Vibrant {
             } } }
             cur = next; cs = ns
         }
+        emissive = em
         let mats = Vibrant.materialTable(layers: layers)
         materials = device.makeBuffer(bytes: mats, length: max(16, mats.count), options: .storageModeShared)!
     }
