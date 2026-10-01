@@ -271,7 +271,11 @@ final class WorldGen: TerrainGenerator {
         for lz in 0..<CS { for lx in 0..<CS {
             let k = cols[lx + lz * CS]
             climates[lx + lz * CS] = climate(bx + lx, bz + lz)
-            biomes[lx + lz * CS] = terrain.biome(k, k.h)
+            // Surface and plants use a per-column dithered climate, so borders fray into a mixed band of
+            // both biomes' ground cover rather than a crisp line.
+            let dT = (hashf(bx + lx, 5, bz + lz, s32 ^ 0xD17) - 0.5) * 0.07
+            let dW = (hashf(bx + lx, 6, bz + lz, s32 ^ 0xD18) - 0.5) * 0.09
+            biomes[lx + lz * CS] = terrain.biome(k, k.h, dT: dT, dW: dW)
             maxTop = max(maxTop, YOFF + Int(k.h) + 40)
         } }
         maxTop = min(CH - 1, maxTop)
@@ -323,9 +327,21 @@ final class WorldGen: TerrainGenerator {
             surface(&b, lx, lz, bx + lx, bz + lz, tops, biomes[lx + lz * CS], cols[lx + lz * CS], wls[lx + lz * CS])
         } }
 
+        // Shallow pools in the flat ground of swamps.
+        let tops0 = tops
+        for lz in 1..<(CS - 1) { for lx in 1..<(CS - 1) {
+            let biome = biomes[lx + lz * CS]
+            guard biome == .swamp || biome == .mangroveSwamp else { continue }
+            let top = tops[lx + lz * CS]
+            guard top >= wls[lx + lz * CS], flora.noise2(Float(bx + lx) / 11, Float(bz + lz) / 11) > 0.18 else { continue }
+            let held = [(1, 0), (-1, 0), (0, 1), (0, -1)].allSatisfy { d in tops0[lx + d.0 + (lz + d.1) * CS] >= top }
+            if held { b[Chunk.index(lx, top, lz)] = WATER; tops[lx + lz * CS] = top - 1 }
+        } }
+
         // 3. Caves, aquifers, lava.
         let caves = caveLattice(bx, bz, maxY: maxTop)
         carveCaves(&b, caves, bx, bz, tops, wls, cols)
+        carveRavines(&b, bx, bz, tops, wls)
 
         // 4. Ores, blobs, dungeons, geodes, cave biome decoration.
         let chunkSeed = UInt64(bitPattern: Int64(cx &* 341873128712 &+ cz &* 132897987541)) ^ seed
@@ -360,8 +376,11 @@ final class WorldGen: TerrainGenerator {
         let underwater = top < wl
         switch biome {
         case .desert: topBlock = SAND; filler = SAND; under = SANDSTONE; underDepth = 4
-        case .beach, .snowyBeach: topBlock = SAND; filler = SAND; under = SANDSTONE; underDepth = 2
-        case .stonyShore: topBlock = n > 0.2 ? GRAVEL : STONE; filler = STONE
+        case .beach, .snowyBeach:
+            // Shingle on cold coasts, sand elsewhere.
+            let shingle = k.ts < -0.05 && n > 0.15 - k.ts
+            topBlock = shingle ? GRAVEL : SAND; filler = topBlock; under = SANDSTONE; underDepth = 2
+        case .stonyShore: topBlock = n > 0.2 ? GRAVEL : (n < -0.35 ? g("andesite") : STONE); filler = STONE
         case .badlands, .erodedBadlands, .woodedBadlands:
             // Red sand on low flat ground, bare terracotta bands on slopes and higher up.
             let high = biome == .woodedBadlands && top > YOFF + 97
@@ -504,6 +523,58 @@ final class WorldGen: TerrainGenerator {
                 b[i] = AIR
             }
         } }
+    }
+
+    // Ravines: long, narrow, tall cracks (about one per 150 chunks), wandering slowly in heading and depth.
+    // Each 112-block region may hold one; its path depends only on the region, so chunks agree.
+    private func carveRavines(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ tops: [Int], _ wls: [Int]) {
+        let rsz = 112
+        let lavaLevel = YOFF - 55
+        for rz in (floorDiv(bz, rsz) - 1)...(floorDiv(bz + CS - 1, rsz) + 1) {
+            for rx in (floorDiv(bx, rsz) - 1)...(floorDiv(bx + CS - 1, rsz) + 1) {
+                var rng = SRng(UInt64(hash3(rx, 0x7A1, rz, s32 ^ 0x5A5A)) | 1)
+                guard rng.int(3) == 0 else { continue }
+                var px = Float(rx * rsz + rng.range(16, rsz - 16)), pz = Float(rz * rsz + rng.range(16, rsz - 16))
+                var py = Float(YOFF + rng.range(-20, 50))
+                var yaw = rng.float() * 2 * .pi, pitch = (rng.float() - 0.5) * 0.25
+                let len = rng.range(70, 120)
+                let wmax = 2.2 + rng.float() * 2.8
+                var dyaw: Float = 0, dpitch: Float = 0
+                for k in 0..<len {
+                    let t = Float(k) / Float(len)
+                    let r = 0.9 + wmax * sinf(Float.pi * t)
+                    let hh = r * 3
+                    px += cosf(yaw) * cosf(pitch); pz += sinf(yaw) * cosf(pitch); py += sinf(pitch)
+                    dyaw = dyaw * 0.5 + (rng.float() - 0.5) * 0.25
+                    dpitch = dpitch * 0.8 + (rng.float() - 0.5) * 0.08
+                    yaw += dyaw * 0.25; pitch = pitch * 0.7 + dpitch
+                    let ir = Int(r) + 1
+                    let cx = Int(floorf(px)), cz = Int(floorf(pz))
+                    if cx + ir < bx || cx - ir >= bx + CS || cz + ir < bz || cz - ir >= bz + CS { continue }
+                    let y0 = max(6, Int(py - hh)), y1 = min(CH - 2, Int(py + hh))
+                    guard y0 <= y1 else { continue }
+                    for z in max(bz, cz - ir)...min(bz + CS - 1, cz + ir) {
+                        for x in max(bx, cx - ir)...min(bx + CS - 1, cx + ir) {
+                            let dx = Float(x) + 0.5 - px, dz = Float(z) + 0.5 - pz
+                            let lx = x - bx, lz = z - bz
+                            let top = tops[lx + lz * CS]
+                            let wet = top < wls[lx + lz * CS] + 2
+                            for y in y0...y1 {
+                                if wet && y > top - 5 { break }
+                                let dy = (Float(y) + 0.5 - py) / hh
+                                let jag = (hashf(x, y, z, s32 ^ 0x5A5B) - 0.5) * 0.3
+                                if (dx * dx + dz * dz) / (r * r) + dy * dy > 1 + jag { continue }
+                                let i = Chunk.index(lx, y, lz)
+                                let cur = b[i]
+                                if cur == AIR || cur == BEDROCK || Blocks.isLiquid(cur) { continue }
+                                if y + 1 < CH && Blocks.isLiquid(b[i + CSQ]) { continue }
+                                b[i] = y <= lavaLevel ? LAVA : AIR
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // MARK: Ores

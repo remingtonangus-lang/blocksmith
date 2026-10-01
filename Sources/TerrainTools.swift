@@ -123,7 +123,11 @@ enum TerrainTools {
         print("  biomes: " + hist.joined(separator: ", "))
         if !missing.isEmpty { print("  not in this area: " + missing.map { $0.name }.joined(separator: " ")) }
         let worst = pairs.sorted { $0.value > $1.value }.prefix(10).map { "\($0.key) x\($0.value) (e.g. \(example[$0.key] ?? ""))" }
-        print("terraincheck seed \(seed): \(bad) implausible neighbour pairs" + (worst.isEmpty ? "" : ": " + worst.joined(separator: ", ")))
+        let ri0 = floorDiv(gx0 * 4, Terrain.rs), rj0 = floorDiv(gz0 * 4, Terrain.rs)
+        let ra = t.riverAudit(ri0, rj0, ri0 + size / Terrain.rs, rj0 + size / Terrain.rs)
+        print("  rivers: \(ra.segments) segments, \(ra.uphill) flowing uphill, \(ra.lakes) lakes")
+        bad += ra.uphill
+        print("terraincheck seed \(seed): \(bad) problems (implausible neighbour pairs + uphill rivers)" + (worst.isEmpty ? "" : ": " + worst.joined(separator: ", ")))
         return bad
     }
 
@@ -134,7 +138,7 @@ enum TerrainTools {
         let x = Int(arg("--x") ?? "") ?? 0, z = Int(arg("--z") ?? "") ?? 0
         var bad = 0
         for s in seeds { bad += map(dir: dir, seed: s, cx: x, cz: z, size: size, step: step) }
-        print("terraincheck total: \(bad) implausible neighbour pairs over \(seeds.count) seeds")
+        print("terraincheck total: \(bad) problems over \(seeds.count) seeds")
         return CommandLine.arguments.contains("--strict") && bad > 0 ? 2 : 0
     }
 
