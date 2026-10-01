@@ -162,7 +162,7 @@ final class ShipMesh {
 // Per-draw record for shipVS (buffer 2).
 struct ShipDrawRec {
     var model: float4x4            // ship space -> camera-relative world
-    var origin: V4                 // section origin in ship space
+    var origin: V4                 // section origin in ship space; w: sky light factor (Ship.skyLight)
 }
 
 let shipShaderSource = """
@@ -210,7 +210,7 @@ vertex ShipOut shipVS(uint vid [[vertex_id]],
     }
     uint layer = ((w1 >> 10) & 1023u) | ((w1 >> 31) << 10);
     uint ao = (w1 >> 20) & 3u;
-    float skyL = float((w1 >> 22) & 15u) / 15.0;
+    float skyL = float((w1 >> 22) & 15u) / 15.0 * d.origin.w;     // origin.w: the world's sky light around the ship
     float blkL = float((w1 >> 26) & 15u) / 15.0;
     float3 rel = (d.model * float4(p + d.origin.xyz, 1.0)).xyz;
     ShipOut o;
@@ -396,7 +396,7 @@ final class ShipRenderer {
                 let total = min(sec.opaqueQuads, Renderer.maxQuads), solid = min(sec.solidQuads, total)
                 let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
                 if count <= 0 { continue }
-                var rec = ShipDrawRec(model: m, origin: V4(sec.origin, 0))
+                var rec = ShipDrawRec(model: m, origin: V4(sec.origin, s.skyLight))
                 enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
                 enc.setVertexBytes(&rec, length: MemoryLayout<ShipDrawRec>.stride, index: 2)
                 enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quads,
@@ -416,7 +416,7 @@ final class ShipRenderer {
                         let total = min(sec.opaqueQuads, Renderer.maxQuads), solid = min(sec.solidQuads, total)
                         let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
                         if count <= 0 { continue }
-                        var rec = ShipDrawRec(model: wmodel, origin: V4(sec.origin, 0))
+                        var rec = ShipDrawRec(model: wmodel, origin: V4(sec.origin, s.skyLight))
                         enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
                         enc.setVertexBytes(&rec, length: MemoryLayout<ShipDrawRec>.stride, index: 2)
                         enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quads,
@@ -434,7 +434,7 @@ final class ShipRenderer {
                 if count <= 0 { continue }
                 let spin = float4x4(simd_quatf(angle: s.propSpin, axis: d))
                 let pmodel: float4x4 = m * translationMatrix(c) * spin * translationMatrix(V3(-0.5, -0.5, -0.5))
-                var rec = ShipDrawRec(model: pmodel, origin: V4(pm.origin, 0))
+                var rec = ShipDrawRec(model: pmodel, origin: V4(pm.origin, s.skyLight))
                 enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
                 enc.setVertexBytes(&rec, length: MemoryLayout<ShipDrawRec>.stride, index: 2)
                 enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quads,
@@ -531,7 +531,7 @@ final class ShipRenderer {
                     enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
                     enc.setVertexBuffer(tintBuf, offset: 0, index: 3)
                 }
-                var rec = ShipDrawRec(model: m, origin: V4(sec.origin, 0))
+                var rec = ShipDrawRec(model: m, origin: V4(sec.origin, s.skyLight))
                 enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
                 enc.setVertexBytes(&rec, length: MemoryLayout<ShipDrawRec>.stride, index: 2)
                 enc.drawIndexedPrimitives(type: .triangle, indexCount: min(sec.transQuads, Renderer.maxQuads) * 6, indexType: .uint32,

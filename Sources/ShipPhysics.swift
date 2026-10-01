@@ -103,6 +103,14 @@ extension ShipManager {
             let r = s.root
             let d = game.map { simd_length(V2(r.pos.x - $0.player.pos.x, r.pos.z - $0.player.pos.z)) } ?? 0
             s.asleep = s !== pilot && (d > 384 || !rdr.loaded(Int(floor(r.pos.x)), Int(floor(r.pos.z))))
+            if !s.asleep && dt > 0 {
+                // Sky light the world has around the ship (top and middle of its bounds): ships darken under cover.
+                let cx = Int(floor((s.worldMin.x + s.worldMax.x) * 0.5)), cz = Int(floor((s.worldMin.z + s.worldMax.z) * 0.5))
+                let top = world.lightAt(cx, Int(floor(s.worldMax.y)) + 1, cz).sky
+                let mid = world.lightAt(cx, Int(floor((s.worldMin.y + s.worldMax.y) * 0.5)), cz).sky
+                let want = Float(max(top, mid)) / 15
+                s.skyLight += (want - s.skyLight) * min(1, dt * 2)
+            }
             if game != nil {
                 if d > keep + 48 && !s.mesh.released { s.mesh.release() }
                 else if d < keep + 16 && s.mesh.released { s.mesh.rebuildAll(s, device: world.device, queue: meshQueue) }

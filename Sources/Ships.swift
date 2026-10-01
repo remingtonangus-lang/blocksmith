@@ -221,6 +221,7 @@ final class Ship {
     var throttle: Float = 0          // -1...1
     var telegraphPause: Float = 0    // piloting: throttle resting at stop after passing through it
     var asleep = false               // far from the player or over unloaded ground: no physics this frame
+    var skyLight: Float = 1          // world sky light around the ship, 0...1 (ships darken in caves and under cover)
     var propSpin: Float = 0          // propeller blade angle (drawn turning), and its rate in rad/s
     var propRate: Float = 0
     var steer: Float = 0             // -1 (left) ... 1 (right)
