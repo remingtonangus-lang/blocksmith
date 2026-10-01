@@ -167,8 +167,8 @@ final class StructureCache {
     }
 
     // Nearest structure start of a kind (searching regions outward), for locating / the snapshot harness.
-    func nearest(_ kind: String, x: Int, z: Int, maxRegions: Int = 6) -> StructureStart? {
-        let fx = fixed.filter { $0.kind == kind }
+    func nearest(_ kind: String, x: Int, z: Int, maxRegions: Int = 6, accept: (StructureStart) -> Bool = { _ in true }) -> StructureStart? {
+        let fx = fixed.filter { $0.kind == kind && accept($0) }
         if !fx.isEmpty {
             return fx.min { a, b in
                 let da = (a.anchor.x - x) * (a.anchor.x - x) + (a.anchor.z - z) * (a.anchor.z - z)
@@ -181,7 +181,7 @@ final class StructureCache {
         var best: StructureStart?, bd = Int.max
         for r in 0...maxRegions {
             for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
-                guard let s = start(t, regionX: rx + dx, regionZ: rz + dz) else { continue }
+                guard let s = start(t, regionX: rx + dx, regionZ: rz + dz), accept(s) else { continue }
                 let cx = (s.min.x + s.max.x) / 2 - x, cz = (s.min.z + s.max.z) / 2 - z
                 if cx * cx + cz * cz < bd { bd = cx * cx + cz * cz; best = s }
             } }

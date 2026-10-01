@@ -59,7 +59,12 @@ enum Snapshot {
         if let want = arg("--find"), let p = findBiome(world.gen, want) { pos = p }
         // --structure <kind>: stand above the start piece of the nearest structure of that kind.
         var frame: (yaw: Float, pitch: Float)?
-        if let kind = arg("--structure"), let s = world.gen.structures?.nearest(kind, x: Int(pos.x), z: Int(pos.z)) {
+        // --land: skip starts whose centre column is below sea level (ruined portals also generate under water).
+        let landOnly = CommandLine.arguments.contains("--land")
+        let onLand: (StructureStart) -> Bool = { s in
+            !landOnly || world.gen.column((s.min.x + s.max.x) / 2, (s.min.z + s.max.z) / 2).height > SEA
+        }
+        if let kind = arg("--structure"), let s = world.gen.structures?.nearest(kind, x: Int(pos.x), z: Int(pos.z), maxRegions: landOnly ? 12 : 6, accept: onLand) {
             if arg("--frame") != nil {
                 // Overview: from outside the footprint, aimed at its centre.
                 let c = V3(Float(s.min.x + s.max.x) / 2, Float(s.anchor.y), Float(s.min.z + s.max.z) / 2)
@@ -288,7 +293,14 @@ enum Snapshot {
             // Down the column to the first open cave pocket with a floor (deep dark: below y 0).
             let x = Int(floor(pos.x)), z = Int(floor(pos.z))
             var y = arg("--find") == "deep_dark" ? YOFF - 2 : SEA - 12
-            while y > 8 && !(world.block(x, y, z) == AIR && world.block(x, y + 1, z) == AIR && Blocks.collide[Int(world.block(x, y - 1, z))]) { y -= 1 }
+            // A dry pocket: two air blocks on a solid floor and no water or lava within 2 blocks of the floor or the
+            // eye (lava next to the pocket flows in and the camera ended up inside it).
+            func dryPocket(_ y: Int) -> Bool {
+                guard world.block(x, y, z) == AIR && world.block(x, y + 1, z) == AIR && Blocks.collide[Int(world.block(x, y - 1, z))] else { return false }
+                for dy in -1...3 { for dz in -2...2 { for dx in -2...2 where Blocks.fluidKind[Int(world.block(x + dx, y + dy, z + dz))] != 0 { return false } } }
+                return true
+            }
+            while y > 8 && !dryPocket(y) { y -= 1 }
             pos.y = Float(y) + (Float(arg("--up") ?? "") ?? 0)
             game.player.pos = pos
             print("cave pocket at y \(y - YOFF)")
@@ -317,6 +329,15 @@ enum Snapshot {
             let up = Float(arg("--up") ?? "") ?? 0
             let ty = Float(world.topY(Int(floor(pos.x)), Int(floor(pos.z))) + 1)
             if ty + up > pos.y { pos.y = ty + up; game.player.pos = pos }
+        }
+        if let n = Float(arg("--seabed") ?? "") {
+            // Under the sea: the camera N blocks above the floor (the floor is often 25-35 blocks down).
+            let x = Int(floor(pos.x)), z = Int(floor(pos.z))
+            var y = SEA
+            while y > 1 && !Blocks.collide[Int(world.block(x, y, z))] { y -= 1 }
+            pos.y = Float(y + 1) + n
+            game.player.pos = pos
+            print("seabed at y \(y - YOFF), camera \(n) above")
         }
         if CommandLine.arguments.contains("--ground") {
             // Under the canopy: stand on the real ground (skip leaves, logs, plants).
@@ -834,11 +855,23 @@ enum Snapshot {
             let le = world.lightAt(ex, ey, ez), lf = world.lightAt(ex, fy, ez)
             print("light probe: eye sky \(le.sky) block \(le.block) in \(Blocks.key(world.block(ex, ey, ez))); floor+1 (y \(fy - YOFF)) sky \(lf.sky) block \(lf.block) in \(Blocks.key(world.block(ex, fy, ez))), daylight \(game.daylight)")
         }
+        if CommandLine.arguments.contains("--inlava") {
+            // Lava view check: the camera inside a 5x4x5 lava pool (orange fog + overlay, not the underwater view).
+            let e = game.player.eye
+            let lava = Blocks.id("lava")
+            for dy in -2...1 { for dz in -2...2 { for dx in -2...2 {
+                world.setBlock(Int(floor(e.x)) + dx, Int(floor(e.y)) + dy, Int(floor(e.z)) + dz, lava)
+            } } }
+        }
         do {
             // The harness doesn't step the player: derive the in-water flags the renderer uses.
             let e = game.player.eye, f = game.player.pos
-            game.player.headInWater = Blocks.isLiquid(world.block(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))))
-            game.player.inWater = Blocks.isLiquid(world.block(Int(floor(f.x)), Int(floor(f.y + 0.1)), Int(floor(f.z))))
+            let headKind = Blocks.fluidKind[Int(world.block(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))))]
+            let feetKind = Blocks.fluidKind[Int(world.block(Int(floor(f.x)), Int(floor(f.y + 0.1)), Int(floor(f.z))))]
+            game.player.headInWater = headKind == 1          // 1 water, 2 lava (lava gets its own view)
+            game.player.headInLava = headKind == 2
+            game.player.inWater = feetKind == 1
+            game.player.inLava = feetKind == 2
         }
         if arg("--menu") == nil { game.advToasts.removeAll() }      // no "Advancement Made" toasts over test views
         if CommandLine.arguments.contains("--nightvision") { game.applyEffect(.nightVision, amp: 0, seconds: 300) }
@@ -905,6 +938,19 @@ enum Snapshot {
         print(String(format: "seed %llu  pos %.1f %.1f %.1f  rd %ld  chunks %ld  (drawn %ld)", seed, pos.x, pos.y, pos.z, rd, world.chunks.count, renderer.drawnChunks))
         print(String(format: "gen %.0f ms  mesh(all, parallel) %.0f ms  mesh(1 section) %.2f ms  quads %ld opaque / %ld water", t.gen * 1000, t.mesh * 1000, meshMs, quads, water))
         print(String(format: "frame (encode+GPU, offscreen, median of 30) %.2f ms  biome %@", gpu * 1000, "\(world.gen.column(Int(pos.x), Int(pos.z)).biome)"))
+        if caveFind {
+            // Cave biomes aren't column biomes: report what is actually around the eye.
+            let e = game.player.eye
+            var moss = 0, drip = 0, sculk = 0
+            for dy in -4...4 { for dz in -6...6 { for dx in -6...6 {
+                let k = Blocks.key(Blocks.groupBase[Int(world.block(Int(floor(e.x)) + dx, Int(floor(e.y)) + dy, Int(floor(e.z)) + dz))])
+                if k.hasPrefix("moss") || k.contains("azalea") || k.contains("cave_vines") || k == "clay" { moss += 1 }
+                else if k.contains("dripstone") { drip += 1 }
+                else if k.hasPrefix("sculk") { sculk += 1 }
+            } } }
+            let found = sculk >= 4 ? "deep_dark" : (moss >= 4 ? "lush_caves" : (drip >= 4 ? "dripstone_caves" : "none"))
+            print("cave biome around the eye: \(found) (moss \(moss), dripstone \(drip), sculk \(sculk))\(found == arg("--find") ? "" : " - NOT the requested \(arg("--find") ?? "")")")
+        }
         var meshBytes = 0
         for c in world.chunks.values { for sec in c.sections { meshBytes += (sec.opaqueBuf?.length ?? 0) + (sec.transBuf?.length ?? 0) } }
         let chunkBytes = Int(Bench.chunkMB(world) * 1_048_576)     // stored block sections + per-section light + heights + tints

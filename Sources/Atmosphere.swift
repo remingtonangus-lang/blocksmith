@@ -3,6 +3,7 @@ import simd
 
 extension Game {
     // Underwater fog: the local biome's water colour, dimmed at night (was one fixed dark blue).
+    static let lavaFog = V3(0.75, 0.22, 0.02)         // view colour with the eye inside lava
     var underwaterFog: V3 {
         let p = player.eye
         let w = world.gen.column(Int(floor(p.x)), Int(floor(p.z))).biome.info.water

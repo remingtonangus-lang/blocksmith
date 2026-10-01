@@ -117,9 +117,9 @@ cp -r build/sounds/scapes snaps/sounds/scapes
 "$BIN" --snapshot snaps/outpost.png --seed 12345 --structure pillager_outpost --frame 1.2 --time 0.25
 "$BIN" --snapshot snaps/outpost_close.png --seed 12345 --structure pillager_outpost --frame 0.5 --time 0.25
 "$BIN" --snapshot snaps/snowslope.png --seed 12345 --find snowy_slopes --yaw 45 --pitch -35 --time 0.25 --up 6
-"$BIN" --snapshot snaps/ruined_portal.png --seed 12345 --structure ruined_portal --frame 1 --time 0.25
+"$BIN" --snapshot snaps/ruined_portal.png --seed 12345 --structure ruined_portal --land --frame 1 --time 0.25
 "$BIN" --snapshot snaps/shipwreck.png --seed 12345 --structure shipwreck --frame 1 --time 0.25
-"$BIN" --snapshot snaps/mineshaft.png --seed 12345 --structure mineshaft --frame 0.4 --time 0.25
+"$BIN" --snapshot snaps/mineshaft.png --seed 12345 --structure mineshaft --frame 0.4 --time 0.25 --nightvision
 "$BIN" --snapshot snaps/stronghold.png --seed 12345 --structure stronghold --yaw 180 --pitch 5 --up 0.5 --rd 4
 "$BIN" --snapshot snaps/end.png --seed 12345 --dim end --x 70 --z 35 --yaw 63 --pitch 2 --up 16 --dragon
 "$BIN" --snapshot snaps/end_top.png --seed 12345 --dim end --x 0 --z 60 --yaw 0 --pitch -45 --up 50
@@ -189,9 +189,11 @@ cp -r build/sounds/scapes snaps/sounds/scapes
 "$BIN" --snapshot snaps/dripstone_caves.png --seed 12345 --find dripstone_caves --yaw 30 --pitch -10 --time 0.3
 "$BIN" --snapshot snaps/deep_dark.png --seed 12345 --find deep_dark --yaw 30 --pitch -10 --time 0.3 --nightvision
 "$BIN" --snapshot snaps/dark_forest.png --seed 12345 --find dark_forest --yaw 30 --pitch -15 --time 0.3 --up 4 --treecheck
-"$BIN" --snapshot snaps/seabed_warm.png --seed 12345 --find warm_ocean --up -6 --pitch -20 --time 0.3
-"$BIN" --snapshot snaps/seabed_deep.png --seed 12345 --find deep_ocean --up -12 --pitch -20 --time 0.3
+"$BIN" --snapshot snaps/seabed_warm.png --seed 12345 --find warm_ocean --seabed 5 --pitch -20 --time 0.3
+"$BIN" --snapshot snaps/seabed_deep.png --seed 12345 --find deep_ocean --seabed 5 --pitch -20 --time 0.3
+"$BIN" --snapshot snaps/seabed_deep_far.png --seed 12345 --find deep_ocean --seabed 14 --pitch -30 --time 0.3
 "$BIN" --snapshot snaps/cave_torches.png --seed 12345 --find dripstone_caves --yaw 60 --pitch -25 --time 0.3 --torches
+"$BIN" --snapshot snaps/in_lava.png --seed 12345 --find plains --yaw 30 --pitch -10 --time 0.3 --up 1 --inlava
 "$BIN" --snapshot snaps/spawn_portal_check.png --seed 12345 --rd 16 --up 2 --yaw 45 --pitch 20
 "$BIN" --snapshot snaps/selftest.png --seed 12345 --find plains --yaw 30 --pitch 10 --time 0.3 --up 1 --selftest
 # Fails the run when two biomes that should never touch are neighbours anywhere on the five maps.

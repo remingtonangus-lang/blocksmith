@@ -367,7 +367,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     // grading) into `final`, then the HUD.
     func renderFrame(_ cmd: MTLCommandBuffer, final: MTLRenderPassDescriptor, width: Int, height: Int) {
         updateCave()
-        let clear = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInWater ? game.underwaterFog : viewSky)
+        let clear = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInLava ? Game.lavaFog : (game.player.headInWater ? game.underwaterFog : viewSky))
         let cc = MTLClearColor(red: Double(clear.x), green: Double(clear.y), blue: Double(clear.z), alpha: 1)
         guard game.fancyGraphics, let v = vib else {
             final.colorAttachments[0].clearColor = cc
@@ -520,6 +520,10 @@ final class Renderer: NSObject, MTKViewDelegate {
         var fogEnd: Float = underwater ? uwSee : (game.dim.dim == .nether ? min(rd * 16 - 6, 96) : rd * 16 - 6)
         var fogStart: Float = underwater ? 1 : fogEnd * 0.62
         var fogColor = underwater ? game.underwaterFog : sky
+        if p.headInLava {
+            // Inside lava: a few blocks of glowing orange (a little more with fire resistance).
+            fogEnd = game.effects.has(.fireResistance) ? 6 : 2.5; fogStart = 0.2; fogColor = Game.lavaFog
+        }
         if let bf = game.blindFog { fogEnd = min(fogEnd, bf); fogStart = bf * 0.2; fogColor = V3(0, 0, 0) }
         let daylight = game.daylight
         // Night vision lifts every light level toward full brightness.
@@ -1130,6 +1134,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             return v
         }
         if game.player.headInWater { rect(0, 0, W, H, V4(0.05, 0.15, 0.45, 0.18)) }
+        if game.player.headInLava { rect(0, 0, W, H, V4(0.9, 0.3, 0.02, 0.45)) }
         if game.sleeping > 0 { rect(0, 0, W, H, V4(0.02, 0.02, 0.06, min(1, game.sleeping / 1.5))) }
         let fx: Float = Settings.shared.screenEffects ? 1 : 0.3       // Accessibility > Screen Flashes
         if game.hurtFlash > 0 { rect(0, 0, W, H, V4(0.75, 0.02, 0.02, min(0.45, game.hurtFlash * 1.3) * fx)) }
@@ -2049,7 +2054,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         rpd.colorAttachments[0].loadAction = .clear
         rpd.colorAttachments[0].storeAction = .store
         updateCave()
-        let sky = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInWater ? game.underwaterFog : viewSky)
+        let sky = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInLava ? Game.lavaFog : (game.player.headInWater ? game.underwaterFog : viewSky))
         rpd.colorAttachments[0].clearColor = MTLClearColor(red: Double(sky.x), green: Double(sky.y), blue: Double(sky.z), alpha: 1)
         rpd.depthAttachment.texture = depth
         rpd.depthAttachment.loadAction = .clear
