@@ -301,6 +301,50 @@ enum PadTest {
             g.player.vel = .zero
         }
 
+        // Airship and aircraft: held throttle (engine telegraph) on RT, the left stick climbs (aircraft: pull back by
+        // default, Options > Controller > Flight Stick flips it), B leaves.
+        for kind in ["airship", "plane"] {
+            PadManager.shared.forcePad(true)
+            let keep = (g.player.pos, g.player.yaw, g.player.pitch, g.player.flying)
+            let helm = ShipTest.place(g.world, kind, near: g.player.pos)
+            let (shipOpt, msg) = g.world.ships.assemble(at: helm, game: g)
+            guard let ship = shipOpt else { check(false, "test \(kind) assembles (\(msg))"); continue }
+            let want: VehicleControls.Kind = kind == "plane" ? .aircraft : .airship
+            check(VehicleControls.kind(ship) == want, "\(kind) reads as \(VehicleControls.name(want))")
+            g.startPiloting(ship)
+            var rt = PadSnapshot(); rt.rt = 1
+            for _ in 0..<60 { frame(g, rt) }
+            let held = ship.throttle
+            for _ in 0..<20 { frame(g) }
+            check(held > 0.5 && abs(ship.throttle - held) < 0.01, "\(kind): RT opens the throttle and it holds (\(held) -> \(ship.throttle))")
+            check(ContextPrompts.items(g).contains { $0.contains("Throttle") || $0.contains("Forward") }, "\(kind): piloting prompts show")
+            var stick = PadSnapshot()
+            if kind == "plane" {
+                let inv = Settings.shared.flightInverted
+                Settings.shared.flightInverted = true
+                stick.ly = -1
+                frame(g, stick)
+                check(ship.climb > 0.5, "plane: pulling the stick back climbs (\(ship.climb))")
+                Settings.shared.flightInverted = false
+                frame(g, stick)
+                check(ship.climb < -0.5, "plane: with Flight Stick flipped, pulling back dives (\(ship.climb))")
+                Settings.shared.flightInverted = inv
+            } else {
+                stick.ly = 1
+                frame(g, stick)
+                check(ship.climb > 0.5, "airship: stick up climbs (\(ship.climb))")
+            }
+            var rb = PadSnapshot(); rb.rb = true
+            frame(g, rb)
+            check(ship.climb > 0.5, "\(kind): RB climbs")
+            frame(g)
+            tap(g, "b")
+            check(g.world.ships.pilot == nil, "\(kind): B leaves the helm")
+            g.world.ships.remove(ship)
+            (g.player.pos, g.player.yaw, g.player.pitch, g.player.flying) = keep
+            g.player.vel = .zero
+        }
+
         // Deck gun: LT takes it, RT fires both barrels after the loading delay, B steps off.
         do {
             let keep = (g.player.pos, g.player.yaw, g.player.pitch)
