@@ -71,17 +71,6 @@ extension Game {
             }
         }
         // Rain sound near exposed columns.
-        rainSoundTimer -= dt
-        if w.rain > 0.2 && rainSoundTimer <= 0 {
-            rainSoundTimer = 1.2
-            let p = player.pos
-            var exposed = 0
-            for dz in stride(from: -8, through: 8, by: 4) { for dx in stride(from: -8, through: 8, by: 4) {
-                let x = Int(floor(p.x)) + dx, z = Int(floor(p.z)) + dz
-                if precipitation(x, Int(p.y), z) == 1 && skyExposed(x, Int(p.y), z) { exposed += 1 }
-            } }
-            if exposed > 0 { sfx(.rain, w.rain * min(1, Float(exposed) / 12) * 0.6) }
-        }
         // Rain extinguishes the player and burning mobs.
         if w.rain > 0.2 {
             if onFire > 0 && isRainingAt(player.pos) { onFire = 0 }
@@ -110,7 +99,8 @@ extension Game {
         bolts.append(Bolt(pos: at, life: 0.35, seed: UInt64.random(in: 1...UInt64.max)))
         lightningFlash = 1
         let d = simd_length(at - player.pos)
-        sfx(.thunder, max(0.3, 1.4 - d / 120), at: d < 32 ? at : nil)
+        if d > 72 { sfx(.thunderFar, max(0.4, 1.2 - d / 300)) } else { sfx(.thunder, max(0.3, 1.4 - d / 120), at: d < 32 ? at : nil) }
+        if d < 24 { sfx(.lightning, 1.2, at: at) }
         let b = IVec3(Int(floor(at.x)), Int(floor(at.y)), Int(floor(at.z)))
         if world.block(b.x, b.y, b.z) == AIR && Blocks.opaque[Int(world.block(b.x, b.y - 1, b.z))] && Blocks.flammable[Int(world.block(b.x, b.y - 1, b.z))] == false {
             world.placeFire(b)

@@ -63,7 +63,7 @@ extension Game {
             // Long pause/options lists scroll when the cursor pushes past the first/last visible row.
             if let pm = m as? PauseMenu, menuCursor == before, my != 0 { pm.scrollList(my > 0 ? 1 : -1) }
             padMoved = true
-            if menuCursor != before { sfx(.click, 0.25) }
+            if menuCursor != before { sfx(.uiHover, 0.3) }
         }
 
         // Right stick / triggers scroll lists; LB / RB switch tabs and pages.

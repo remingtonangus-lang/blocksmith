@@ -63,7 +63,8 @@ ShipRender.swift, ShipPlay.swift, ShipBlocks.swift, ShipTest.swift).
   `--structure <kind>` (camera at the nearest structure's anchor), `--menu brewing|enchant|anvil|trade`, `--effects`,
   `--spawn kind[:profession|:armour material|boat:variant[:c]],...`, `--place block[:state],...`, `--beacon`, `--weather rain|thunder`, `--ticks SECONDS`,
   `--decor`, `--map`, `--banners`, `--fireworks`, `--menu loom|book|advancements`;
-  `Blocksmith --sounds DIR`.
+  `Blocksmith --sounds DIR` (renders every sound; fails on silence, clipping, NaN, DC, wrong length, end clicks, loop seams),
+  `Blocksmith --music DIR [--seconds N]` (renders every music mood; fails on level/clipping/note/length problems).
 
 ## Controls
 Keyboard/mouse: WASD, Space (double-tap = fly in creative), Shift sneak, Ctrl sprint, LMB attack/mine (hold),
@@ -120,6 +121,19 @@ Options > Video > Resolution to 75% for a steady 60 fps on the M1.
   itself for signs and text fields, LB/RB page turning in books, loading screen on world switch (and straight into the
   world afterwards), pad status on the title, "controller disconnected" note on the pause menu.
 - Not yet: controller button remapping, a free-moving pad cursor option for menus.
+
+## Realistic terrain (branch claude/realistic-terrain, PR #7)
+- `Sources/Terrain.swift` drives the overworld surface; `WorldGen` turns it into blocks (density, caves, ores, surface
+  rules, trees). Fields: continents (warped fbm), mountain belts (crest + foothills, peaks ~250), hills, mesa terraces,
+  sea cliffs, an erosion filter (slope-aligned gullies), a 128-block river graph (steepest descent, rain-weighted
+  upstream counts) with valleys, channels, levees, floodplains, deltas, fjords on cold mountain coasts, basin lakes at
+  their spill level (salt flats when dry). Climate: latitude-like temperature bands along z (period 9000 blocks; z=0
+  temperate, +z warmer), altitude lapse, rainfall with latitude cells, continental drying, rain shadows.
+- Biomes are picked from local climate (+ coherent jitter for ecotones); tints are blended in climate space; trees
+  sample the climate with their own offset. `Terrain.implausible` lists pairs that must never touch.
+- Harness: `--terrainmap DIR [--seed N --size B --step B --x X --z Z --strict]` writes terrain_<seed>.png +
+  relief_<seed>.png and the neighbour check; `--genbench` prints ms/chunk on the perf bench's chunks and a water
+  leak count. Caches (macro 16-grid, lattice nodes, river graph) are pure memo tables, so output is order-independent.
 
 ## Rendering performance
 - Solid cube faces are drawn first without alpha test (keeps the GPU's hidden-surface removal), cutout faces
@@ -203,9 +217,66 @@ Findings / changes (performance branch):
 - Nether wood family shown as Rustcap / Tealcap (display names only).
 - Title screen at launch; recipe book in crafting screens (craftable/all, fills the grid).
 - Death screen (message, score, Respawn / Title Screen; XP drops as orbs), live compass / recovery compass / clock icons.
-- Background music director (calm procedural pieces every 10-20 min, dimension moods), cave ambience, disc titles.
+- Audio (session: audio and music): every sound synthesized at launch or on first use (no samples). 3D sources through an
+  AVAudioEnvironmentNode with distance rolloff, panning, obstruction/occlusion from a block raycast, and reverb that follows a
+  cave factor; underwater low-pass; flat / interface / music buses. Looping emitters found by scanning around the player (fire,
+  campfires, furnaces, lava, water, portals, beacons, spawners, rebirth anchors), rain / rain-on-roof, underwater, gliding,
+  minecart, Emberdeep / Hollow / cave-biome beds; cave, Emberdeep, underwater and mountain-wind stings. Full roster: 16 block
+  materials × break/place/step/hit/fall, every player action, doors/containers/mechanisms, bosses, villager work sounds, and
+  ambient/hurt/death calls for every mob from 27 voice families. Volume sliders per category (Options → Audio…).
+- Music: streaming synth (14 instruments) rendered on a background queue; motif-based composer per mood (title, day, night, rain,
+  underground, underwater, creative, Emberdeep, the Hollow, boss). Director: instant switch for dimension/boss/title, else a
+  piece every 6-15 min; ducks under a nearby jukebox. Discs are composed pieces (seeded by the disc name, tiled to the disc's
+  length) played through a mono stream placed at the nearest playing jukebox (3D + occlusion).
+- Audio hooks: mob hurt/death/ambient from the voice table, mob footsteps within 16 blocks, attack variants (crit/sweep/
+  knockback/weak), shield block/break, armor equip per material (any path), doors/trapdoors/gates (wood/iron), container lids,
+  pistons/levers/buttons/plates/tripwires, TNT fuse, copper wax/scrape, candles, paintings, item frames, pots, crafters,
+  composters, vaults, rebirth anchors, sculk shriekers, villager work sounds at job sites, trades/level-ups/refusals, raid
+  victory, zombie infection/cure, wyrm flaps/growls/breath, deep stalker heartbeat/sniff/sonic boom/emerge, voidwalker
+  teleports, elder curse, gustling shots. Spatial voices are allocated by priority (free, else quietest/soonest-ending).
+- Surface ambience by biome and time: birdsong in wooded land by day, owls and crickets at night, swamp frogs, jungle
+  insects, surf near oceans, wind on peaks / snowy / dry biomes; rain hushes wildlife. Reverb follows the room (14 probe
+  rays: enclosure + size pick small room / chamber / hall / cavern). Audio restarts itself when the output device changes
+  (headphones, TV). Young mobs have higher voices. Materials now include netherrack and deepslate. Daytime music takes a
+  biome flavour (Snowfields, Dunes, Open Water, Blossom). `--sounds` also writes 8 s soundscapes of 17 places.
+- Audio extras: subtitles (Options → Audio: caption + direction arrow per sound, `--subtitles` shot), sounds carry by kind
+  (explosions 64 blocks, thunder 160), note blocks with all 16 instruments and mob heads, beehive hum, fireflies, dry grass,
+  Barkwraith hearts, boat paddling, a room reverb on the music. CI: `--sounds` 606 sounds / 0 failed, `--music` 14 moods / 0 failed.
+- Audio round 2 (2026-10-01; this branch merges PRs #2, #7 and #8 so their content can be wired):
+  - Weapons (WeaponAudio.swift): rifle, chatter gun, shotgun, farsight, rocket and arc lance each have their own fire
+    (crack, body, ring, servo/pump/bolt, casing), reload, distant echo (automatic beyond 32 blocks) and dry fire;
+    bullet impacts per material, near-miss whizzes, flesh hits, grenade bounces, ricochets; deck guns boom with a
+    rolling tail, alarms, radio calls, turret whine.
+  - Soldiers: an original clipped patter through a helmet comm filter for each rank (alert, attack, reload,
+    grenade, retreat, idle, hurt, death) and boots-and-kit footsteps (ironclad plates clank).
+  - Vehicles (VehicleAudio.swift): engines idle/full cross-faded by throttle with a starter, propellers by spin,
+    rigging wind on airships, wheels on terrain, water on moving hulls, creaks, collisions, splashes, helm cues.
+  - Terrain and weather (TerrainAudio.swift): streams and waterfalls from the block scan, mountain wind and
+    rockfalls, tundra wind and ice creaks, swamp insects, rain on leaves, snow wind, far thunder beyond 72 blocks.
+  - Music: High Passes / Mire / Canopy by biome; Steelhold tension near a garrison; Firefight combat music while
+    soldiers or deck guns hunt the player or a raid wave is near (held 15 s after).
+- Audio possible later: per-voice pitch jitter at playback (varispeed per voice); more distinct voices for rare mobs.
 - Landing / sprint dust, item equip animation, denser rain with ground splashes lit by daylight.
 - Village life: beds and sleeping, food pickup + breeding, farmers harvesting, golems, midnight zombie sieges.
+
+## Handoff (2026-10-01, session claude/eloquent-lovelace-bsc5v1 winding down)
+Last pushed commit d92f9b0: build + 120 snapshots green on CI (ci-snaps-claude-eloquent-lovelace-bsc5v1).
+Built in this session (latest round): Blocksmith naming pass + selftest naming audit (0 flagged); pause/options/
+create-world/death/title menus; recipe book; F1/F2/F5 + third-person player model; command console; mob A*
+pathfinding (doors for villagers/illagers); swim/crawl/forced-crouch poses; auto-jump; Ashen Grove biome (Ashbark
+wood family, moss, nightblooms, Barkwraith + heart); resin, bamboo planks/mosaic, firefly bush, bush, leaf litter,
+wildflowers, dry grass, cactus flowers; leaning wall torches; solid/cutout render split, fast far leaves, pooled
+mesh slabs; reference torch-light curve; ruined portals grounded and kept out of spawn; trees kept out of structure
+footprints; per-branch CI snapshot branches; harness: median-of-30 timing, memory/light probes, camera rescue,
+cave-biome --find, --ground, --nightvision, --treecheck, --pathtest, --camera/--swim.
+Left in this area (for the integration session):
+- Underwater view: seabed is no longer black (water-coloured ambient) but the underwater fog ends at 20 blocks, so
+  deep floors (seabed_warm/seabed_deep, ~27-33 blocks away) vanish into flat blue; lengthen underwater fog by depth/
+  daylight (reference sees ~40-60 blocks in clear daytime water).
+- rd 24 resident ~2.0-2.3 GB on the Mac vs ~1 GB accounted (see notes below) - performance work.
+- Wall torches lean in 1/16 steps (boxes are integer); a real tilt needs fractional model vertices.
+- treecheck reports 1-3 trunks per 200 in a neighbouring biome (trees straddling biome borders) - expected.
+Known failing tests: none (snap.sh and --selftest pass on CI at d92f9b0).
 
 ## Mobs, villagers, raids (mob workstream, branch claude/epic-hamilton-t5vse7)
 - Raids: 3/5/7 waves by difficulty (+1 bonus wave above omen I), reference bonus spawns, a captain per wave,

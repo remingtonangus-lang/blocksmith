@@ -148,7 +148,7 @@ extension Game {
         d.y += 0.1
         projectiles.fireball(from: player.eye + player.look * 0.4, dir: simd_normalize(d), big: false, byPlayer: true, potion: h.item)
         if let f = projectiles.fireballs.last { f.vel = simd_normalize(d) * (key == "experience_bottle" ? 14 : 10) }
-        sfx(.bow, 0.5)
+        sfx(.potionThrow, 0.6)
         consumeHeld()
         swing = 1
         return true

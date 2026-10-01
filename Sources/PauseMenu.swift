@@ -46,6 +46,8 @@ final class PauseMenu: Menu {
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
                                         "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap"]
 
+    static func isValue(_ id: String) -> Bool { valueIDs.contains(id) || id.hasPrefix("vol:") || id == "audio_subs" }
+
     static let help: [String: String] = [
         "resume": "Return to the game.",
         "worlds": "Play, create, rename, copy or delete worlds.",
@@ -88,6 +90,8 @@ final class PauseMenu: Menu {
         "pbindreset": "Put every controller button back to the standard layout.",
         "bindreset": "Put every key back to the default layout.",
         "volume": "Overall sound volume.",
+        "audio_subs": "Shows captions for sounds, with the direction they come from (same as Accessibility > Subtitles).",
+        "audio_test": "Plays a sound in front of you at the current volumes.",
         "music": "Background music volume.",
         "mode": "Survival: health, hunger, mining. Creative: fly and build freely.",
         "difficulty": "How much damage mobs do and whether hunger can kill.",
@@ -160,7 +164,8 @@ final class PauseMenu: Menu {
                         ("Max Frame Rate: \(st.fpsCap == 0 ? "Display" : "\(st.fpsCap)")", "fps"),
                         ("Resolution: \(pct(st.renderScale))", "rscale"), ("Field of View: \(Int(g.fovSetting))", "fov"), ("GUI Scale: \(gui)", "gui")]
             case .audio:
-                rows = [("Volume: \(pct(g.volumeSetting))", "volume"), ("Music: \(pct(g.musicVolume))", "music"), ("Subtitles: \(on(st.subtitles))", "subtitles")]
+                // One slider per sound category, subtitles and a test sound (AudioMenu.swift); its own Done row is ours.
+                rows = audioRows().filter { $0.1 != "audio_back" }
             case .interface:
                 rows = [("GUI Scale: \(gui)", "gui"), ("Couch Mode (TV): \(on(HudLayout.couch))", "couch"),
                         ("Safe Area: \(st.safeArea)%", "safe"), ("Button Hints: \(on(st.buttonHints))", "hints"),
@@ -266,7 +271,7 @@ final class PauseMenu: Menu {
 
     var legend: String {
         var items: [(Prompt.Act, String)] = [(.select, "Select")]
-        let value = hoveredID.map { PauseMenu.valueIDs.contains($0) } ?? false
+        let value = hoveredID.map { PauseMenu.isValue($0) } ?? false
         if value && !Prompt.pad { items.append((.alt, "Previous")) }
         if page == .options { items.append((.tabs, "Page")) }
         if page != .title && page != .main { items.append((.back, "Back")) } else if page == .main { items.append((.back, "Resume")) }
@@ -280,7 +285,7 @@ final class PauseMenu: Menu {
         guard case .button(let i) = slot.kind, let r = row(forSlot: i) else { return }
         // Mouse: clicking the "<" end of a setting steps it back, like right-click.
         var back = button == 1
-        if !back && PauseMenu.valueIDs.contains(r.1) && game.input.mouseX >= 0 {
+        if !back && PauseMenu.isValue(r.1) && game.input.mouseX >= 0 {
             let L = HudLayout(game.screen.x, game.screen.y).fitted(self)
             let x0 = origin(L).x + Float(slot.x) * L.s
             if game.input.mouseX < x0 + Float(slot.w) * L.s * 0.2 { back = true }
@@ -291,7 +296,7 @@ final class PauseMenu: Menu {
 
     // D-pad left/right on a setting steps it; returns false when the hovered row isn't a setting.
     func adjust(_ dx: Int) -> Bool {
-        guard let id = hoveredID, PauseMenu.valueIDs.contains(id) else { return false }
+        guard let id = hoveredID, PauseMenu.isValue(id) else { return false }
         act(id, back: dx < 0)
         return true
     }
@@ -326,6 +331,7 @@ final class PauseMenu: Menu {
         var resetCursor = false
         switch id {
         case "noop": return
+        case _ where id.hasPrefix("vol:") || id == "audio_test" || id == "audio_subs": audioAct(id, back: back)
         case "resume":
             if page == .title { g.paused = false } else { g.closeMenu() }
         case "options": go(.options); resetCursor = true

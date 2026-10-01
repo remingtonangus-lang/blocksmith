@@ -1246,7 +1246,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let label = r.0
                     let lx = info ? x + 5 * s : x + (Float(sl.w) * s - textWidth(label, s)) / 2
                     text(label, lx, y + (Float(sl.h) - 7) / 2 * s, s)
-                    if hot && PauseMenu.valueIDs.contains(r.1) {
+                    if hot && PauseMenu.isValue(r.1) {
                         // Arrows: D-pad left / right steps the setting.
                         text("<", x + 4 * s, y + (Float(sl.h) - 7) / 2 * s, s, V4(1, 1, 0.6, 1))
                         text(">", x + Float(sl.w) * s - 8 * s, y + (Float(sl.h) - 7) / 2 * s, s, V4(1, 1, 0.6, 1))

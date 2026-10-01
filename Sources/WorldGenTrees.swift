@@ -90,11 +90,18 @@ enum TreePlacer {
                     if tx < bx - margin || tx >= bx + CS + margin || tz < bz - margin || tz >= bz + CS + margin { continue }
                     let roll = Float((hv >> 4) & 0xFFFF) / 65536
                     if roll > 0.7 { continue }
-                    let k = gen.climate(tx, tz), s = gen.shape(k, tx, tz)
-                    let biome = gen.biome(k, s)
+                    // Each tree samples the climate with its own small offset, so species and density mix
+                    // across a border (ecotone) instead of changing at a line; glades thin forests in patches.
+                    let k = gen.terrain.column(tx, tz)
+                    let dT = (hashf(tx, 2, tz, gen.s32 ^ 0x7EE8) - 0.5) * 0.16
+                    let dW = (hashf(tx, 3, tz, gen.s32 ^ 0x7EE9) - 0.5) * 0.18
+                    let biome = gen.terrain.biome(k, k.h, dT: dT, dW: dW)
+                    let glade = gen.flora.noise2(Float(tx) / 70 + 300, Float(tz) / 70)
+                    let r2 = roll / max(0.3, 0.8 + 0.9 * glade)
                     let pick = hashf(tx, 1, tz, gen.s32 ^ 0x7EE6)
-                    let hint = YOFF + Int(s.h) + 30
-                    guard let kind = choose(biome, roll, pick, YOFF + Int(s.h)), let gy = top(tx, tz, hint), gy >= SEA else { continue }
+                    let hint = YOFF + Int(k.h) + 30
+                    guard k.rv > 1.2, let kind = choose(biome, r2, pick, YOFF + Int(k.h)), let gy = top(tx, tz, hint),
+                          gy >= SEA, gy - YOFF >= Int(floorf(k.wl)) else { continue }
                     if !keepOut.isEmpty && blocked(tx, gy, tz) { continue }
                     // Soil check where we can see it (inside this chunk).
                     if w.inside(tx, gy, tz) {

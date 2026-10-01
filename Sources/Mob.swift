@@ -259,6 +259,9 @@ final class Mob {
     var aiTimer: Float
     var panic: Float = 0
     var hurt: Float = 0
+    var hurtSound = false           // set by hit(); MobManager plays the hurt call once
+    var teleportSound = false       // set by teleport(); MobManager plays it at both ends
+    var stepAcc: Float = 0          // distance walked since the last footstep sound
     var callTimer: Float
     var attackCooldown: Float = 0
     var fuse: Float = 0             // hisser
@@ -762,7 +765,7 @@ final class Mob {
             if !aggro && canTarget && dist < 64 && Items.key(g.inventory.armor[0].item) != "carved_pumpkin" {
                 let head = pos + V3(0, height - 0.3, 0)
                 let toHead = simd_normalize(head - g.player.eye)
-                if simd_dot(g.player.look, toHead) > 0.99 && w.canSee(g.player.eye, head) { aggro = true; g.sfx(.mobVoidwalker, 1, at: pos) }
+                if simd_dot(g.player.look, toHead) > 0.99 && w.canSee(g.player.eye, head) { aggro = true; g.sfx(.mob(.enderman, .hurt), 1.2, at: pos) }
             }
             if inWater { teleport(w) }
             voidwalkerTick(dt, g)
@@ -792,7 +795,7 @@ final class Mob {
                 vel.y = kind == .magmaCube ? 7 + Float(slimeSize) * 0.8 : 7
                 vel.x = forward.x * spec.speed * 1.5
                 vel.z = forward.z * spec.speed * 1.5
-                g.sfx(.mobSlime, 0.5, at: pos)
+                g.sfx(kind == .magmaCube ? .mob(.magmaCube, .ambient) : .place(.slime), slimeSize > 1 ? 0.6 : 0.35, at: pos)
             }
             if canTarget && (slimeSize > 1 || kind == .magmaCube) && dist < halfW + 0.9 && attackCooldown <= 0 {
                 attackCooldown = 1
@@ -932,6 +935,7 @@ final class Mob {
             let top = w.topY(x, z)
             if top < 1 { continue }
             if Blocks.isLiquid(w.block(x, top, z)) { continue }
+            teleportSound = true
             pos = V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5)
             vel = .zero
             return
@@ -940,6 +944,7 @@ final class Mob {
 
     func hit(from src: V3, damage: Int, knockback: Float = 1) {
         if kind == .warden && emergeTime > 0 { return }
+        hurtSound = true
         if kind == .creaking { hurt = 0.25; return }            // only breaking its heart ends a Barkwraith
         if kind == .enderDragon {
             // Hits land at a quarter (+1) unless the dragon is perched; it never dies instantly.
@@ -1458,10 +1463,45 @@ final class MobManager {
         Mob.hardMode = game.difficulty == 3
         hiveTick(dt, game)
         for m in mobs {
+            let before = m.pos
             m.update(dt, game: game)
+            // Footsteps for walking mobs near the listener (size sets the stride and loudness).
+            let dxm = m.pos.x - before.x, dzm = m.pos.z - before.z
+            if m.onGround && dxm * dxm + dzm * dzm > 1e-6 && simd_length_squared(m.pos - p) < 256 {
+                let sp = m.spec
+                let moved: Float = sqrtf(dxm * dxm + dzm * dzm)
+                if moved < 1 && !sp.flying && !sp.aquatic && sp.behavior != .vehicle { m.stepAcc += moved }
+                let stride: Float = 0.9 + sp.halfW * 1.6
+                if m.stepAcc > stride {
+                    m.stepAcc = 0
+                    do {
+                        let under = w.block(Int(floor(m.pos.x)), Int(floor(m.pos.y - 0.2)), Int(floor(m.pos.z)))
+                        if under != AIR {
+                            let vol: Float = min(0.9, 0.2 + sp.halfW * 0.5) * (m.baby ? 0.5 : 1)
+                            if let r = Soldier.rank(m.kind) { game.sfx(.soldierStep(r), vol + 0.15, at: m.pos) }
+                            else { game.sfx(.step(soundMat(under)), vol, at: m.pos) }
+                        }
+                    }
+                }
+            }
+            if m.teleportSound {
+                m.teleportSound = false
+                game.sfx(.teleport, 0.9, at: before + V3(0, 1, 0))
+                game.sfx(.teleport, 0.9, at: m.pos + V3(0, 1, 0))
+            }
+            if m.hurtSound {
+                m.hurtSound = false
+                if MobVoice.profile(m.kind).family != .silent { game.sfx(m.baby ? .babyMob(m.kind, .hurt) : .mob(m.kind, .hurt), 0.8, at: m.pos + V3(0, m.height * 0.8, 0)) }
+            }
             if m.callTimer <= 0 {
                 m.callTimer = Float.random(in: 8...24)
-                if m.kind != .creeper && m.kind != .magmaCube { game.sfx(m.kind.call, 0.6, at: m.pos + V3(0, m.height * 0.8, 0)) }
+                if let r = Soldier.rank(m.kind) {
+                    // Soldiers chatter at ease and shout orders in a fight (more often while fighting).
+                    if m.aggro { m.callTimer = Float.random(in: 4...9) }
+                    game.sfx(.soldier(r, m.aggro ? (Float.random(in: 0..<1) < 0.25 ? .retreat : .attack) : .idle), m.aggro ? 1 : 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
+                } else if m.kind != .creeper && m.kind != .magmaCube && MobVoice.profile(m.kind).family != .silent {
+                    game.sfx(m.baby ? .babyMob(m.kind, .ambient) : .mob(m.kind, .ambient), m.baby ? 0.45 : 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
+                }
             }
         }
         // Breeding: two mobs of a kind in love next to each other make a baby.

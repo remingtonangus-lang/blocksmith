@@ -7,6 +7,20 @@ cd "$(dirname "$0")"
 BIN=build/Blocksmith.app/Contents/MacOS/Blocksmith
 mkdir -p snaps
 if [ $# -gt 0 ]; then n="$1"; shift; "$BIN" --snapshot "snaps/$n.png" "$@"; exit; fi
+# Terrain: top-down maps of five seeds (8 km square, spawn marked), neighbour check, chunk generation timing.
+"$BIN" --terrainmap snaps
+"$BIN" --genbench --seed 12345
+# Terrain tours: high aerial, mountain range, river valley and ground level for several seeds.
+for s in 12345 777 424242 1 98765; do
+  "$BIN" --snapshot snaps/tour_${s}_aerial.png --seed $s --yaw 200 --pitch -30 --time 0.23 --up 110 --rd 16
+  "$BIN" --snapshot snaps/tour_${s}_ground.png --seed $s --yaw 120 --pitch -4 --time 0.22 --up 2 --rd 12
+done
+"$BIN" --snapshot snaps/tour_peaks.png --seed 12345 --find jagged_peaks --yaw 60 --pitch -20 --time 0.23 --up 40 --rd 16 || true
+"$BIN" --snapshot snaps/tour_river.png --seed 12345 --find river --yaw 30 --pitch -35 --time 0.23 --up 30 --rd 12 || true
+"$BIN" --snapshot snaps/tour_river_777.png --seed 777 --find river --yaw 30 --pitch -35 --time 0.23 --up 30 --rd 12 || true
+"$BIN" --snapshot snaps/tour_mesa.png --seed 12345 --find badlands --yaw 45 --pitch -25 --time 0.23 --up 35 --rd 12 || true
+"$BIN" --snapshot snaps/tour_coast.png --seed 12345 --find beach --yaw 0 --pitch -25 --time 0.23 --up 30 --rd 12 || true
+"$BIN" --snapshot snaps/tour_snowline.png --seed 424242 --find snowy_slopes --yaw 180 --pitch -15 --time 0.23 --up 25 --rd 16 || true
 "$BIN" --snapshot snaps/spawn.png   --seed 12345 --yaw 30  --pitch -12 --time 0.2
 "$BIN" --snapshot snaps/ship_boat.png --seed 12345 --find ocean --time 0.3 --ship boat
 "$BIN" --snapshot snaps/ship_deck.png --seed 12345 --find ocean --time 0.3 --ship deck
@@ -55,9 +69,22 @@ done
 "$BIN" --snapshot snaps/tv_hud.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --w 1920 --h 1080 --couch --safe 5 --survival 13 --slot 2 --pad --hints
 "$BIN" --snapshot snaps/furnace.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu furnace
 "$BIN" --snapshot snaps/drops.png --seed 12345 --yaw 30 --pitch -30 --time 0.22 --up 1 --drops
+"$BIN" --snapshot snaps/subtitles.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --subtitles
 "$BIN" --snapshot snaps/survival.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --survival 13 --slot 8 --debug
 "$BIN" --snapshot snaps/sim.png --seed 12345 --sim 12 --yaw 30 --pitch -10 --time 0.25
-"$BIN" --sounds snaps/sounds
+# Audio: every sound is rendered and checked into build/sounds (not published); a sampler, the soundscapes
+# and 10 s of every music mood go to snaps/sounds for listening on ci-snaps.
+rm -rf build/sounds snaps/sounds; mkdir -p snaps/sounds
+"$BIN" --sounds build/sounds
+for f in step_stone step_wood step_gravel break_glass break_wood place_metal doorOpen chestOpen pistonExtend lever explode thunder \
+         mob_cow_ambient mob_zombie_ambient mob_skeleton_hurt mob_enderman_ambient mob_ghast_ambient mob_villager_ambient mob_warden_death \
+         dragonGrowl wardenRoar witherSpawn villager_work_0 birdCall owlHoot bell levelUp note_0_12 \
+         gun_0 gun_1 gun_2 gun_3 gun_4 gun_5 gun_9 gun_10 gun_reload_0 gun_distant_0 bulletWhizz bullet_impact_metal soldier_1_alert soldier_3_death \
+         engineFullLoop propFastLoop hullCreak shipCollideHard waterfallLoop riverLoop mountainWindLoop thunderFar; do
+  cp "build/sounds/$f.wav" snaps/sounds/ 2>/dev/null || true
+done
+cp -r build/sounds/scapes snaps/sounds/scapes
+"$BIN" --music snaps/sounds/music --seconds 10
 "$BIN" --snapshot snaps/mobs.png --seed 12345 --yaw 30 --pitch -14 --time 0.22 --up 1 --mobs
 "$BIN" --snapshot snaps/hostile.png --seed 12345 --yaw 30 --pitch -12 --time 0.22 --up 1 --mobs --hostile
 "$BIN" --snapshot snaps/nether.png --seed 12345 --dim nether --yaw 30 --pitch -10 --up 2
@@ -151,3 +178,5 @@ done
 "$BIN" --snapshot snaps/cave_torches.png --seed 12345 --find dripstone_caves --yaw 60 --pitch -25 --time 0.3 --torches
 "$BIN" --snapshot snaps/spawn_portal_check.png --seed 12345 --rd 16 --up 2 --yaw 45 --pitch 20
 "$BIN" --snapshot snaps/selftest.png --seed 12345 --find plains --yaw 30 --pitch 10 --time 0.3 --up 1 --selftest
+# Fails the run when two biomes that should never touch are neighbours anywhere on the five maps.
+"$BIN" --terrainmap snaps/check --step 32 --strict

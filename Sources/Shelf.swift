@@ -53,13 +53,13 @@ extension Game {
             guard Shelf.bookKeys.contains(Items.key(held.item)) else { return }
             be.container[slot] = held.with(count: 1)
             if survival { consumeHeld() }
-            sfx(.place(.wood), 0.5, at: c)
+            sfx(.itemFrameAdd, 0.6, at: c)
         } else {
             let s = be.container[slot]
             be.container[slot] = .empty
             let rest = inventory.add(s)
             if !rest.isEmpty { dropItem(rest) }
-            sfx(.place(.wood), 0.4, at: c)
+            sfx(.itemFrameRemove, 0.6, at: c)
         }
         swing = 1
         world.redstone.wakeAround(p)
@@ -76,10 +76,10 @@ extension Game {
         if cur.isEmpty || (cur.stacks(with: h) && cur.count < cur.maxStack) {
             be.container[0] = cur.isEmpty ? h.with(count: 1) : cur.with(count: cur.count + 1)
             if survival { consumeHeld() }
-            sfx(.place(.stone), 0.5, at: c)
+            sfx(.potInsert, 0.7, at: c)
             particles.smoke(at: c, dark: false)
         } else {
-            sfx(.place(.stone), 0.3, at: c)       // full / different item: the pot just wobbles
+            sfx(.hit(.stone), 0.5, at: c)         // full / different item: the pot just wobbles
         }
         swing = 1
     }

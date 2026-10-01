@@ -86,6 +86,7 @@ final class PrimedTNT {
     var pos: V3
     var vel = V3(0, 3, 0)
     var fuse: Float
+    var hissed = false
     init(_ p: V3, fuse: Float) { pos = p; self.fuse = fuse }
 }
 
@@ -101,6 +102,7 @@ final class TNTManager {
     func update(_ dt: Float, game g: Game) {
         var boom: [V3] = []
         for t in list {
+            if !t.hissed { t.hissed = true; g.sfx(.tntFuse, 1, at: t.pos + V3(0, 0.5, 0)) }
             t.fuse -= dt
             t.vel.y -= 16 * dt
             t.vel.x *= expf(-2 * dt); t.vel.z *= expf(-2 * dt)

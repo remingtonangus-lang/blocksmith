@@ -36,7 +36,7 @@ final class Settings {
     @Pref("vsync") var vsync = true
     @Pref("fpsCap") var fpsCap = 0                   // 0 = display refresh rate
     @Pref("display") var display = ""                // screen name to play on ("" = main screen)
-    @Pref("renderScale") var renderScale: Float = 1  // drawable resolution scale (TVs at 4K: 0.75 saves a lot)
+    @Pref("resolutionScale") var renderScale: Float = 1   // (key differs from the Fancy renderer's "renderScale")  // drawable resolution scale (TVs at 4K: 0.75 saves a lot)
 
     // Interface
     @Pref("safeArea") var safeArea = 0               // percent of the screen kept clear at each edge (TV overscan)
@@ -47,7 +47,11 @@ final class Settings {
     @Pref("crosshair") var crosshair = 0             // 0 classic, 1 bold (high contrast), 2 dot
 
     // Accessibility
-    @Pref("subtitles") var subtitles = false
+    // One subtitles setting for the whole game (the audio workstream's AudioSettings stores it).
+    var subtitles: Bool {
+        get { AudioSettings.subtitles }
+        set { AudioSettings.subtitles = newValue }
+    }
     @Pref("colorblind") var colorblind = false       // blue/orange instead of green/red cues
     @Pref("tutorialHints") var tutorialHints = true
     @Pref("tutorialStep") var tutorialStep = 0       // how far the first-steps hints have got

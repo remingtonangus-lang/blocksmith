@@ -302,6 +302,7 @@ extension Mob {
         }
         v.restocksToday += 1
         villager = v
+        if let w = MobVoice.workIndex(v.profession) { g.sfx(.villagerWork(w), 0.8, at: site + V3(0, 0.8, 0)) }
     }
 }
 
@@ -313,7 +314,7 @@ extension Game {
         guard m.kind == .villager, !m.baby else { return false }
         var v = m.vdata
         if v.profession == "none" || v.profession == "nitwit" {
-            sfx(.mobVillager, 0.7, at: m.pos + V3(0, 1.6, 0))       // shakes head
+            sfx(.villagerNo, 0.8, at: m.pos + V3(0, 1.6, 0))       // shakes head
             return true
         }
         if v.offers.isEmpty { Villagers.addOffers(&v, level: 1); m.villager = v }
@@ -425,10 +426,10 @@ final class MerchantMenu: Menu {
             Villagers.addOffers(&v, level: v.level)
             game.addXP(5)
             game.particles.hearts(at: m.pos + V3(0, 2.2, 0))
-            game.sfx(.levelUp, 0.5, at: m.pos)
+            game.sfx(.villagerCelebrate, 0.8, at: m.pos + V3(0, 1.6, 0))
         }
         m.villager = v
-        game.sfx(.mobVillager, 0.6, at: m.pos + V3(0, 1.6, 0))
+        game.sfx(.villagerTrade, 0.7, at: m.pos + V3(0, 1.6, 0))
         let out = o.sell
         changed()
         return out

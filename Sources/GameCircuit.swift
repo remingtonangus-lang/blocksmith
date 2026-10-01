@@ -56,13 +56,14 @@ extension Game {
             let ns = s >= 12 ? s - 12 : s + 12
             world.setBlock(p.x, p.y, p.z, base + BlockID(ns))
             rs.switchChanged(p, ns)
-            sfx(.click, 0.6, at: at)
+            sfx(.lever, 0.6, at: at)
         case .button:
             guard s < 12 else { return true }
             world.setBlock(p.x, p.y, p.z, base + BlockID(s + 12))
             rs.switchChanged(p, s + 12)
-            rs.schedule(p, Blocks.key(base).hasPrefix("stone") || Blocks.key(base).hasPrefix("polished") ? 20 : 30)
-            sfx(.click, 0.6, at: at)
+            let stone = Blocks.key(base).hasPrefix("stone") || Blocks.key(base).hasPrefix("polished")
+            rs.schedule(p, stone ? 20 : 30)
+            sfx(stone ? .buttonStone : .buttonWood, 0.6, at: at)
         case .repeater:
             let delay = ((s >> 2) & 3 + 1) & 3
             world.setBlock(p.x, p.y, p.z, base + BlockID((s & ~12) | (delay << 2)))
