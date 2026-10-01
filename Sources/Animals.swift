@@ -464,6 +464,8 @@ extension Mob {
                 return 0
             }
             wander(); return moving ? spec.speed * 0.4 : 0
+        case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad:
+            return soldierAI(dt, g, dist: dist, canTarget: canTarget)
         default:
             wander(); return moving ? spec.speed * 0.5 : 0
         }

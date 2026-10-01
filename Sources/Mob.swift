@@ -25,6 +25,7 @@ enum MobKind: Int, CaseIterable {
     case zombieHorse, illusioner
     case happyGhast
     case parched, camelHusk, nautilus, zombieNautilus
+    case soldierRecruit, soldierTrooper, soldierMarksman, soldierIronclad, deckGun
 
     struct Spec {
         var name: String
@@ -131,6 +132,8 @@ enum MobKind: Int, CaseIterable {
              .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking,
              .zombieHorse, .illusioner, .happyGhast, .parched, .camelHusk, .nautilus, .zombieNautilus:
             return animalSpec
+        case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad, .deckGun:
+            return militarySpec
         case .witherSkeleton: return Spec(name: "Blight Skeleton", halfW: 0.35, height: 2.4, health: 20, speed: 2.5, behavior: .melee, attack: 8,
                                           drops: [("coal", 0, 1), ("bone", 0, 2)], xp: 5, call: .mobSkeleton, fireImmune: true)
         }
@@ -229,7 +232,9 @@ enum MobKind: Int, CaseIterable {
         .parched: "parched",
         .camelHusk: "camel_husk",
         .nautilus: "nautilus",
-        .zombieNautilus: "zombie_nautilus"
+        .zombieNautilus: "zombie_nautilus",
+        .soldierRecruit: "soldier_recruit", .soldierTrooper: "soldier_trooper", .soldierMarksman: "soldier_marksman",
+        .soldierIronclad: "soldier_ironclad", .deckGun: "deck_gun",
     ]
     static func named(_ n: String) -> MobKind? { allCases.first { $0.key == n } }
     var call: Snd { spec.call }
@@ -350,6 +355,8 @@ final class Mob {
     var gossipCooldown: Float = 0
     var meetPoint: IVec3?           // villager: the bell it meets at
     var meetSearch: Float = 0
+    var brain: SoldierBrain?        // Steelhold soldiers and deck guns (Soldiers.swift)
+    var strafe: Float = 0           // sideways walk speed this update (right is positive)
 
     init(_ kind: MobKind, at p: V3) {
         self.kind = kind
@@ -406,6 +413,7 @@ final class Mob {
         let w = g.world
         guard w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) else { return }
         faceGoal = nil
+        strafe = 0
         path.climbUp = false
         hurt = max(0, hurt - dt)
         panic = max(0, panic - dt)
@@ -431,6 +439,7 @@ final class Mob {
         if kind == .enderDragon { updateDragon(dt, g); return }
         if kind == .endCrystal { updateCrystal(dt, g); return }
         if kind == .shulker { updateSentry(dt, g); return }
+        if kind == .deckGun { updateDeckGun(dt, g); return }
         if kind == .minecart { updateMinecart(dt, g); cartExtras(dt, g); return }
         if kind == .wither { updateBlight(dt, g); return }
         if cureTick(dt, g) { return }
@@ -841,7 +850,8 @@ final class Mob {
             // Magmastriders out of lava are cold: half speed (reference).
             let cold: Float = kind == .strider && Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.2)), Int(floor(pos.z))))] != 2
                 && Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))] != 2 ? 0.5 : 1
-            let target = forward * speed * effectSpeed * cold
+            let side = V3(cosf(yaw), 0, -sinf(yaw)) * strafe
+            let target = (forward * speed + side) * effectSpeed * cold
             let k = 1 - expf(-(onGround ? 12 : 3) * dt)
             vel.x += (target.x - vel.x) * k
             vel.z += (target.z - vel.z) * k
@@ -978,7 +988,8 @@ final class Mob {
         away.y = 0
         let l = simd_length(away)
         away = l > 0.01 ? away / l : forward
-        vel += away * 5.5 * knockback + V3(0, 5, 0) * min(1, knockback)
+        let kb = knockback * knockbackTaken
+        vel += away * 5.5 * kb + V3(0, 5, 0) * min(1, kb)
     }
 
     // Ray vs AABB; returns the entry distance.
@@ -1064,6 +1075,10 @@ private func parts(_ m: Mob) -> [Part] {
          .armadillo, .sniffer, .mooshroom, .bee, .parrot, .bat, .allay, .axolotl, .squid, .glowSquid, .dolphin, .cod, .salmon, .tropicalFish, .pufferfish,
          .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking, .zombieHorse, .happyGhast, .camelHusk, .nautilus, .zombieNautilus:
         return animalParts(m, swing: swing)
+    case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad:
+        return soldierParts(m, swing: swing)
+    case .deckGun:
+        return deckGunParts(m)
     case .zombie, .skeleton, .enderman, .husk, .stray, .drowned, .pillager, .vindicator, .witch, .illusioner, .parched:
         let sk = m.kind == .skeleton || m.kind == .stray || m.kind == .parched, en = m.kind == .enderman
         let illager = m.kind == .pillager || m.kind == .vindicator || m.kind == .witch
