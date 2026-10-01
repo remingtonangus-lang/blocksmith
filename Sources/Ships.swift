@@ -557,7 +557,10 @@ final class ShipManager {
                 let b = g.blocks[g.index(x, y, z)]
                 if !Blocks.collide[Int(b)] { continue }
                 var bl: Float = 0, bh: Float = 1
-                if !Blocks.fullCollide[Int(b)] {
+                if Blocks.connectKind[Int(b)] != 0 {
+                    // Fences and walls (their shape depends on neighbours): a full post, 1.5 high like their collision.
+                    bh = Blocks.connectKind[Int(b)] == 2 ? 1 : 1.5
+                } else if !Blocks.fullCollide[Int(b)] {
                     // Partial blocks (slabs, stairs...): their vertical extent.
                     bl = 1; bh = 0
                     for bx in Blocks.boxes[Int(b)] { bl = min(bl, Float(bx.y0) / 16); bh = max(bh, Float(bx.y1) / 16) }
