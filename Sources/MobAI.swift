@@ -413,3 +413,40 @@ extension Game {
         }
     }
 }
+
+extension Mob {
+    // Zombies of every kind hunt turtle eggs within 10 blocks and trample them (reference). Returns a walk
+    // speed while heading for one.
+    func trampleEggs(_ dt: Float, _ g: Game) -> Float? {
+        switch kind {
+        case .zombie, .husk, .drowned, .zombieVillager, .zombifiedPiglin: break
+        default: return nil
+        }
+        guard !baby, Blocks.has("turtle_egg") else { return nil }
+        let w = g.world
+        let egg = Blocks.id("turtle_egg")
+        if let f = flower, Blocks.groupBase[Int(w.block(f.x, f.y, f.z))] != egg { flower = nil }
+        if flower == nil {
+            jobTimer -= dt
+            guard jobTimer <= 0 else { return nil }
+            jobTimer = 3
+            flower = findNearby(w, radius: 10) { Blocks.groupBase[Int(w.block($0.x, $0.y, $0.z))] == egg }
+        }
+        guard let f = flower else { return nil }
+        let c = V3(Float(f.x) + 0.5, Float(f.y), Float(f.z) + 0.5)
+        face(c)
+        if simd_length(V2(c.x - pos.x, c.z - pos.z)) < 1.1 && abs(c.y - pos.y) < 1.5 {
+            if attackCooldown <= 0 {
+                attackCooldown = 1.5
+                let b = w.block(f.x, f.y, f.z)
+                let count = Int(b - egg) % 4
+                w.setBlock(f.x, f.y, f.z, count > 0 ? b - 1 : AIR)
+                g.sfx(.breakBlock(.glass), 0.6, at: c)
+                g.particles.blockBreak(b, at: f)
+                if count == 0 { flower = nil }
+            }
+            return 0
+        }
+        return spec.speed
+    }
+}

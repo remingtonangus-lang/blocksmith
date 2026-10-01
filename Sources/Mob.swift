@@ -713,7 +713,7 @@ final class Mob {
                     if kind == .caveSpider { g.applyEffect(.poison, amp: 0, seconds: 7) }
                     if kind == .husk { g.applyEffect(.hunger, amp: 0, seconds: 7) }
                 }
-            } else if let ps = patrolStep(g) { speed = ps } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
+            } else if let ps = patrolStep(g) { speed = ps } else if let es = trampleEggs(dt, g) { speed = es } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .ranged:
             if kind == .illusioner && canTarget { illusionerSpells(dt, g) }
             if let v = villagerTarget(g), !(canTarget && dist <= simd_length(v.pos - pos)), w.canSee(eye, v.pos + V3(0, v.height * 0.6, 0)) {
