@@ -45,11 +45,16 @@ harness from its seed/position/facing, fix it, and cite the note's timestamp in 
 CI check: `--bugnotetest`.
 
 ## Roadmap
-Done: tree variety, plants, clouds/stars, block light + torches, flowing water, creative inventory, survival basics, synthesized sounds, passive mobs.
-Next: item drops/counts/mining time + crafting, food from animals, greedy meshing, first-person hand, controller-driven pause menu for TV play.
+Done: the full survival game through the Hollow and the Blight, plus Blocksmith's own additions (Steelhold fortresses,
+guns and soldiers; ships, airships and vehicles; realistic climate terrain; Fancy HDR renderer; synthesized audio and
+music; controller/TV play). The live to-do list is the Work queue in STATUS.md.
 
-## Parallel sessions (2026-09-30)
-Six other sessions work on branches cut from claude/eloquent-lovelace-bsc5v1 and open PRs into it: (1) End/Blight
-completability tests, (2) performance, (3) visuals, (4) audio/music, (5) mobs/villagers/raids, (6) controller/TV/UI.
-This branch keeps to blocks, items, enchanting, brewing, sparkstone, structures, world features and bug fixes; don't
-merge their PRs.
+## Sessions (2026-10-01)
+One session now: the six workstream sessions (PRs #1-#8) are wound down and merged into claude/blocksmith-playtest.
+Work directly on claude/blocksmith-playtest (draft PR #9 "Playtest build: all workstreams combined" keeps the
+player-facing what's-new list). Never push to main or claude/eloquent-lovelace-bsc5v1; never merge PRs. CI cancels an
+in-progress run on a new push, so batch commits and push when the previous run has published. Routine actions
+(keep-alives, merges, CI re-runs) are logged in STATUS.md's session log.
+- Newer files: Smoke.swift (--smoke), Spear.swift, CopperGolem.swift (+ copper chests/statues in BlocksCopper.swift),
+  FarmVariants.swift (cow/pig/chicken climate looks, eggs), Shelf.swift (wooden shelves), WorldMap.swift (map,
+  minimap, waypoints), VehicleControls.swift, CombatHUD.swift (weapon wheel, gauges), Vibrant*.swift (Fancy renderer).

@@ -63,9 +63,9 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
 - Polish
   - [x] Map waypoints (X / Enter / right-click at the map centre; nearest one shown under the minimap).
   - [x] Per-voice pitch jitter (3D voices, +-5% for blocks and creatures); waterfall/stream audiotest.
-  - [ ] Free pad cursor for menus.
+  - [-] Free pad cursor for menus: not needed (slot navigation covers every screen).
   - [x] Fancy eye adaptation. Gen perf checked: 2.05 ms/chunk cold, veins ~7% (no change needed).
-  - [ ] Mob shadow-map shadows; gun icons via the auto-painter.
+  - [ ] Mob shadow-map shadows (needs a per-frame shadow redraw). Gun icons: the existing pixel icons stay.
   - [ ] Real-M1 checks: base-vertex path, Fancy GPU time (F3), the seed 777 night ocean seam grid.
 
 ## Naming (repo is public)
