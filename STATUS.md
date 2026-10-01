@@ -18,8 +18,37 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   before ship interaction unless piloting; Reload Gun is a rebindable key (R, shared with Swap Off Hand: with a gun
   held R reloads); gun and helm button prompts + Controls Reference rows; renderer scratch ring 4 MB with a tail
   reserve so the first-person arm/gun can't be written past the end (render distance 24 segfault); duplicate items warn.
-- Known issues: scripted playthrough Blight fight (Gameplay session); ships in Fancy are drawn with their own LDR
-  shader (no HDR lighting/shadows); World objects outliving their scene in --bench (Engine session).
+- Known issues: scripted playthrough Blight fight; rd 24 Fancy smoke run aborts inside the CI paravirtual GPU driver;
+  the debug build fails to link on CI.
+
+### Work queue (2026-10-01: this is the only session now; the six workstream PRs are handed off and merged here)
+Priority: crashes/CI first, then gameplay, then content, then polish. [x] done here, [ ] open.
+- CI / crashes
+  - [x] Settings.subtitles <-> AudioSettings.subtitles infinite recursion (every frame hung); padtest toggles both menus.
+  - [x] Vibrant mip average split into typed lets (Swift 6.3 type-check timeout); CI type-check time gate (>= 400 ms fails).
+  - [ ] rd 24 Fancy smoke abort (AppleParavirtCommandBuffer endCurrentChunk) and the debug-build link error.
+  - [ ] Combined-build CI shots: confirm the Paravirtual base-vertex guard cleared the black/scrambled terrain.
+  - [ ] Audio (#4): confirm Synth.wash clamp un-silences mountainWindLoop/snowWindLoop; first CI run of --audiotest.
+  - [ ] UI (#5): padtest "taking damage rumbles" (lastHurtSound reset); look at tv_combat / vehicle_hud / tv_map.
+  - [ ] Visuals (#6): verify the half-res volumetric shafts (~4.7 ms tour avg), cave_torches shot, glowstone not clipping.
+  - [ ] Terrain (#7): CI on the WIP commit (lake/delta tours, climate maps, --onland aerial tours); terrain check 0 problems.
+  - [x] Physics (#8): frigate patrol altitude (hoverY floor is the spawn altitude); calib.cpu_ms in perf/baseline.json.
+  - [ ] Physics (#8): round-6 commits compile and pass physicstest; ship snapshots (props/wheels/barrels in place);
+        flight24 cull_ms under 1.20 ms p50; refresh the perf baseline with the ships metrics.
+  - [ ] Gameplay (#2/#3): mobtests 0 failed incl. new checks; playthrough green (Blight summon T, return rift, Blight fight).
+- Gameplay
+  - [x] Fancy ships use Vibrant's ship pipelines (shadows, emissive, flashes; dark under cover).
+  - [x] Muzzle flashes light the terrain (player guns, soldiers, deck guns).
+  - [ ] Soldiers' cover/flank inside a real fortress; gun damage balance vs soldiers and players.
+  - [ ] Pad-control gameplay tests for the airship and aircraft (padtest drives only the car).
+- Content
+  - [ ] Copper golem (needs copper chests); the spear.
+  - [ ] Biome balance (snowy northern seeds, rare badlands/pale garden); lakes, deltas, fjords in game.
+  - [ ] Soldier crews on vessels once a `soldier` MobKind exists (Marauders until then).
+- Polish
+  - [ ] Map waypoint/pin; free pad cursor for menus; per-voice pitch jitter; waterfall/river audiotest.
+  - [ ] Mob shadow-map shadows, eye adaptation, gun icons via ItemTextures.autoPainter; terrain gen perf (ore veins, tints).
+  - [ ] Real-M1 checks: base-vertex path, Fancy GPU time (F3), the seed 777 night ocean seam grid.
 
 ## Naming (repo is public)
 All player-facing names are Blocksmith's own: the Emberdeep (fiery dimension), the Hollow (void dimension), Hisser,
