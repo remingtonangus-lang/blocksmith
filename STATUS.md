@@ -85,6 +85,59 @@ B close, RS scroll creative.
 - Landing / sprint dust, item equip animation, denser rain with ground splashes lit by daylight.
 - Village life: beds and sleeping, food pickup + breeding, farmers harvesting, golems, midnight zombie sieges.
 
+## Graphics (visuals + audio session)
+- Fancy = "vibrant" HDR renderer (Vibrant.swift, VibrantShaders.swift): 2048 sun/moon shadow map (64 blocks around the
+  camera, texel-snapped, leaves cast dappled shadows, 5-tap PCF), N.L sun light + sky ambient, warm block light,
+  emissive texels (lava, flames, lamps, lumenstone, faint ore specks), per-layer materials (glass/ice glossy, metal
+  blocks tinted highlights, polished stone sheen, skylit tops wet + glossy in rain), water with refraction of the
+  scene, screen-space reflections (sky fallback), Fresnel, depth absorption, caustics on the bed and seen from
+  below, HDR sun glint; 5-level bloom, half-res god rays, sun haze, dawn/dusk + rain height mist, highlight
+  shoulder tone curve, saturation/contrast/split-tone grade, vignette, night exposure lift. Options: Render Scale
+  100/85/70% (world renders smaller, HUD sharp). If the Fancy shaders fail to build, the game falls back to Fast.
+  CI frame (1280x800, VM GPU, median of 30): Fast ~2.5 ms, Fancy ~5.7 ms average over the tour.
+- Item icons: ItemShapes.swift (89 original silhouettes) painted by ItemTextures.autoPainter (outline, light and
+  shade rims, gradient); potions/splash/lingering bottles + tipped arrows use the same art. ItemArt masks remain as
+  a fallback for anything without a shape.
+- Not done: hardware ray tracing (optional in the brief; the raster path already covers shadows/reflections).
+- Later round: dynamic flash lights (Game.addFlash: explosions, lightning, fireworks; ready for muzzle flashes),
+  explosion fireballs + flash-lit smoke, HDR glow particles, shoreline foam, rain rings on water, rain puddles that
+  mirror the sky, snow glitter, storm darkening, Snell's-window surface from below, HDR-lit clouds (warm sunset tops),
+  galactic band at night, firelight flicker, backlit foliage, shadow-map reuse while nothing moved, distance LOD for
+  shadow taps and water reflection steps, F3 GPU ms readout. Textures: planks, bark, stone, ores, wool, concrete,
+  sand, gravel, dirt, grass. Harness: --gallery (block walls) + 5 family galleries, --boom, shore/underwater_up,
+  rd16 Fancy vs Fast ground/aerial shots.
+- Performance (CI macos-14 VM GPU, median of 30 offscreen frames, after shadow-map reuse + distance LOD):
+  rd 16 aerial 1280x800 Fancy 4.64 ms vs Fast 4.25 ms; rd 16 ground 1440x900 Fancy 4.48 ms vs Fast 4.45 ms;
+  tour average Fancy 3.9 ms (was 5.7 before the perf pass). On the Mac, F3 shows the real GPU ms; Render Scale
+  85/70% is the lever if a MacBook Air at full retina resolution needs it.
+- Also: mobs/player model/arm shaded by the sun shadow map (mobVibFS), pink anti-twilight arch at dusk, world normals
+  in HDR shading + shipVibVS / Vibrant.shipSolid|shipCut|shipTrans for ships (wiring in the PR #6 comment); more
+  textures: bricks, stone bricks, log ends, glass, terracotta, packed/blue ice, snow, speckled family.
+- Volumetric light shafts (composite marches view rays through the shadow map: shafts through canopies even with the
+  sun off screen), dimension-tinted ambient (warm Emberdeep, violet Hollow), lava keeps its orange (no white clip),
+  ore emission only a faint glint (no x-ray glow in dark caves), night clouds dimmed, Violite/Hollow brick sheen,
+  netherrack lumps, torch-lit cave + building galleries (day/night) in CI.
+- Integration with the ship PR (#8): chunkVibVS already reads per-instance section records (VibSection); ship
+  pipelines need an rgba16Float variant for the Fancy world pass (see the PR #6 comment).
+- Options > Graphics: Fancy (default) / Fast, saved in UserDefaults `fancyGraphics`; harness `--fast` renders one shot in Fast
+  without touching the saved choice.
+- Fancy only: gradient sky dome (deeper blue overhead, warm glow around the sun at dawn/dusk, exactly the fog colour
+  below the horizon), 3D cloud boxes (12x12x4, shaded sides, CPU mesh rebuilt only when the wind crosses a cell),
+  water Fresnel + sun glint on surfaces seen from above, blob shadows under mobs/items/the third-person player,
+  grass and flowers swaying in the wind (vertex shader, top corners only).
+- Both modes: textured sun that reddens near the horizon, a moon with 8 phases (one per day), translucent rain/snow,
+  lightning with a soft glow, blue-tinted moonlight, branching block-breaking cracks.
+- Also both modes: twinkling stars, leaf textures painted as lit clumps, lava hot spots, ambient block particles (torch
+  smoke/flames, campfire smoke columns, lava sparks, fire smoke), Emberdeep per-biome fog + drifting embers/spores/ash,
+  underwater fog from the biome water colour and daylight, a tunic sleeve on the first-person arm. Fancy: Hollow sky streaks.
+- Underground: fog and sky colour fade toward near-black with the smoothed skylight at the eye (far cave walls used to
+  fog into bright sky blue). Fancy: terrain/water fog toward the sun takes the same dawn/dusk glow as the sky dome.
+- Hisser has an original face (wide-set glowing slit eyes, zigzag mouth) on the mob and its head block.
+- QA note "chunk-seam grid on distant night ocean, seed 777": not reproduced in the harness (ocean_night_777 shots,
+  rd 16, Fancy and Fast); needs a live-play screenshot if it still shows.
+- Harness: `--underwater`, `--crack <0..1>`, `--fast`, `--ambient` (2 s of ambient particles); `Blocksmith --atlas <prefix>`
+  writes every texture layer as grid pages (prefix_0.png...) for texture review.
+
 ## Handoff (2026-10-01, session claude/eloquent-lovelace-bsc5v1 winding down)
 Last pushed commit d92f9b0: build + 120 snapshots green on CI (ci-snaps-claude-eloquent-lovelace-bsc5v1).
 Built in this session (latest round): Blocksmith naming pass + selftest naming audit (0 flagged); pause/options/

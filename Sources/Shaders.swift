@@ -10,7 +10,16 @@ struct Uniforms {
     float4x4 viewProj;   // projection * rotation-only view (camera-relative rendering)
     float4 fogColor;     // rgb, w = fog start
     float4 params;       // x = fog end, y = daylight, z = time (s), w = underwater
-    float4 sunDir;
+    float4 sunDir;       // xyz, w = dimension ambient
+    float4 eye;          // xyz = camera position (world), w = 0 Fast, 1 + sun glow (0...0.99) for Fancy
+    // Fancy (HDR) pipeline only; zero in Fast.
+    float4x4 invViewProj; // inverse of viewProj (camera-relative), for depth reconstruction
+    float4x4 shadowMat;   // camera-relative position -> shadow map clip space
+    float4 sunColor;      // rgb = direct light (sun or moon) colour x intensity, w = shadow strength
+    float4 ambColor;      // rgb = sky ambient colour, w = rain wetness
+    float4 lightDir;      // xyz = direction toward the light, w = time of day fraction
+    float4 screen;        // xy = render size in pixels, zw = 1 / size
+    float4 dimTint;       // rgb = colour of the dimension ambient lift (Fancy; white in the overworld)
 };
 
 struct ChunkOut {
@@ -22,6 +31,8 @@ struct ChunkOut {
     float overlay [[flat]];
     float anim [[flat]];
     float dist;
+    float3 rel;
+    float face [[flat]];
 };
 
 constexpr sampler texSampler(filter::nearest, mip_filter::linear, address::repeat);
@@ -60,6 +71,14 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     float blkL = float((w1 >> 26) & 15u) / 15.0;
 
     float3 rel = p + sectionOffset.xyz;
+    if (face == 6u && vv == 0u && u.eye.w > 0.5) {
+        // Fancy: grass and flowers sway; only the top corners move so the base stays planted.
+        float3 wp = rel + u.eye.xyz;
+        float t = u.params.z;
+        float sway = sin(wp.x * 0.9 + wp.z * 0.6 + t * 1.7) * 0.6 + sin(wp.z * 1.3 - wp.x * 0.4 + t * 2.3) * 0.4;
+        rel.x += sway * 0.045;
+        rel.z += cos(wp.x * 0.7 - wp.z * 0.8 + t * 1.9) * 0.03;
+    }
     ChunkOut o;
     o.pos = u.viewProj * float4(rel, 1.0);
     o.uv = uv;
@@ -73,16 +92,20 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     o.anim = face == 7u ? 1.0 : 0.0;
     // Skylight scales with daylight; block light (torches) is warm and constant.
     float sky = skyL * (0.35 + 0.65 * skyL) * u.params.y;
+    // Moonlight: what little skylight is left at night is cool blue rather than grey.
+    float3 skyTint = mix(float3(0.6, 0.7, 1.0), float3(1.0), smoothstep(0.1, 0.55, u.params.y));
     // Reference light curve (l / (4 - 3l)) with the default-brightness gamma lift, so a torch (14, -1 per
     // block) clearly lights ~6-7 blocks around it. Block light is never scaled by daylight.
     float blk0 = blkL / (4.0 - 3.0 * blkL);
     float inv = 1.0 - blk0;
     float blk = min(1.0, mix(blk0, 1.0 - inv * inv * inv * inv, 0.6) * 1.05);
-    float3 lit = max(float3(sky), blk * float3(1.0, 0.76, 0.46));
+    float3 lit = max(sky * skyTint, blk * float3(1.0, 0.76, 0.46));
     // Dimension ambient lifts the whole light curve (the Emberdeep/End are never pitch black).
     lit = mix(max(lit, float3(0.035)), float3(1.0), u.sunDir.w);
     o.shade = lit * (faceShade[face] * aoCurve[ao]);
     o.dist = length(rel);
+    o.rel = rel;
+    o.face = float(face);
     return o;
 }
 
@@ -97,14 +120,50 @@ static float3 applyFog(float3 c, float dist, constant Uniforms& u) {
     return mix(c, u.fogColor.rgb, f);
 }
 
+// Fog colour seen along a view ray: Fancy adds the same warm dawn/dusk glow toward the sun as the sky
+// dome, so fogged terrain on that horizon melts into the glow instead of cutting a dark silhouette.
+static float3 fogColorAlong(float3 rel, constant Uniforms& u) {
+    float glow = u.eye.w - 1.0;
+    if (glow <= 0.0) { return u.fogColor.rgb; }
+    float sd = saturate(dot(normalize(rel), normalize(u.sunDir.xyz)));
+    return u.fogColor.rgb + float3(1.0, 0.55, 0.25) * pow(sd, 5.0) * glow;
+}
+
+static float3 applyFogDir(float3 c, float3 rel, float dist, constant Uniforms& u) {
+    float f = smoothstep(u.fogColor.w, u.params.x, dist);
+    return mix(c, fogColorAlong(rel, u), f);
+}
+
+static float hash21(float2 p) {
+    float3 p3 = fract(float3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+static float vnoise(float2 p) {
+    float2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = hash21(i), b = hash21(i + float2(1, 0)), c = hash21(i + float2(0, 1)), d = hash21(i + float2(1, 1));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+// Lava: slow drifting hot spots over the flowing texture (both graphics modes; a few ALU ops).
+static float3 lavaGlow(float3 c, float3 rel, constant Uniforms& u) {
+    float2 w = (rel + u.eye.xyz).xz;
+    float t = u.params.z;
+    float n = vnoise(w * 0.45 + float2(t * 0.11, t * 0.07)) * 0.65 + vnoise(w * 1.3 - float2(t * 0.05, t * 0.13)) * 0.35;
+    return c * (0.78 + 0.5 * n) + float3(0.12, 0.05, 0.0) * smoothstep(0.62, 0.9, n);
+}
+
 fragment float4 chunkSolidFS(ChunkOut in [[stage_in]],
                              texture2d_array<float> tex [[texture(0)]],
                              constant Uniforms& u [[buffer(1)]]) {
     float2 uv = in.uv;
     if (in.anim > 0.5) { uv += float2(0.0, fract(u.params.z * 0.04)); }
     float4 c = tex.sample(texSampler, uv, uint(in.layer));
+    if (in.anim > 0.5) { c.rgb = lavaGlow(c.rgb, in.rel, u); }
     float3 t = (in.overlay > 0.5 && c.a > 0.95) ? float3(1.0) : in.tint;
-    return float4(applyFog(waterAmbient(c.rgb * t * in.shade, c.rgb * t, u), in.dist, u), 1.0);
+    return float4(applyFogDir(waterAmbient(c.rgb * t * in.shade, c.rgb * t, u), in.rel, in.dist, u), 1.0);
 }
 
 fragment float4 chunkFS(ChunkOut in [[stage_in]],
@@ -114,10 +173,11 @@ fragment float4 chunkFS(ChunkOut in [[stage_in]],
     if (in.anim > 0.5) { uv += float2(0.0, fract(u.params.z * 0.04)); }   // slow lava flow
     float4 c = tex.sample(texSampler, uv, uint(in.layer));
     if (c.a < 0.5) { discard_fragment(); }
+    if (in.anim > 0.5) { c.rgb = lavaGlow(c.rgb, in.rel, u); }
     // Overlay faces (grass sides): only the marked texels (alpha ~0.9) take the biome tint.
     float3 t = (in.overlay > 0.5 && c.a > 0.95) ? float3(1.0) : in.tint;
     float3 rgb = waterAmbient(c.rgb * t * in.shade, c.rgb * t, u);
-    return float4(applyFog(rgb, in.dist, u), 1.0);
+    return float4(applyFogDir(rgb, in.rel, in.dist, u), 1.0);
 }
 
 fragment float4 waterFS(ChunkOut in [[stage_in]],
@@ -127,8 +187,72 @@ fragment float4 waterFS(ChunkOut in [[stage_in]],
     float2 uv = in.uv + float2(t * 0.03, t * 0.017);
     float4 c = tex.sample(texSampler, uv, uint(in.layer));
     float3 rgb = c.rgb * in.tint * max(in.shade, float3(0.05));
+    float a = c.a;
+    if (u.eye.w > 0.5 && in.face < 2.5 && in.face > 1.5 && u.params.w < 0.5) {
+        // Fancy water surface: grazing views reflect more sky (Fresnel), and small ripples catch a sun glint.
+        float3 v = normalize(in.rel);
+        float3 wp = in.rel + u.eye.xyz;
+        float2 rip = float2(sin(wp.x * 1.7 + wp.z * 0.9 + t * 1.6), sin(wp.z * 2.1 - wp.x * 0.7 + t * 1.3)) * 0.06;
+        float3 n = normalize(float3(rip.x, 1.0, rip.y));
+        float fres = pow(1.0 - saturate(-v.y), 3.0);
+        float lit = max(in.shade.x, max(in.shade.y, in.shade.z));
+        rgb = mix(rgb, u.fogColor.rgb * (0.6 + 0.4 * lit), fres * 0.45);
+        float3 r = reflect(v, n);
+        float spec = pow(saturate(dot(r, normalize(u.sunDir.xyz))), 180.0) * u.params.y * lit;
+        rgb += float3(1.0, 0.95, 0.8) * spec * 0.9;
+        a = mix(a, 1.0, fres * 0.55);
+    }
     float f = smoothstep(u.fogColor.w, u.params.x, in.dist);
-    return float4(mix(rgb, u.fogColor.rgb, f), mix(c.a, 1.0, f * 0.8));
+    return float4(mix(rgb, fogColorAlong(in.rel, u), f), mix(a, 1.0, f * 0.8));
+}
+
+// Fancy sky: one full-screen triangle; the fragment shader shades the view direction with a
+// zenith/horizon gradient, a warm glow around the sun at dawn/dusk and a faint haze around the sun.
+struct SkyParams {
+    float4x4 invViewProj;
+    float4 zenith;      // rgb
+    float4 horizon;     // rgb (= terrain fog colour), w = sun glow strength
+    float4 sun;         // xyz = sun direction, w = daylight
+};
+struct SkyOut { float4 pos [[position]]; float2 ndc; };
+
+vertex SkyOut skyVS(uint vid [[vertex_id]]) {
+    float2 p = float2(vid == 1 ? 3.0 : -1.0, vid == 2 ? 3.0 : -1.0);
+    SkyOut o;
+    o.pos = float4(p, 1.0, 1.0);
+    o.ndc = p;
+    return o;
+}
+
+fragment float4 skyFS(SkyOut in [[stage_in]], constant SkyParams& s [[buffer(1)]]) {
+    float4 w = s.invViewProj * float4(in.ndc, 1.0, 1.0);
+    float3 d = normalize(w.xyz / w.w);
+    // Slow start: the first few degrees above the horizon stay close to the fog colour, so fogged
+    // terrain and trees that poke above the horizon line don't show as pale silhouettes.
+    float h = saturate(d.y * 1.25);
+    h = h * h * (3.0 - 2.0 * h);
+    float3 col = mix(s.horizon.rgb, s.zenith.rgb, h);
+    if (d.y < 0.0) { col = s.horizon.rgb; }   // below the horizon: exactly the fog colour, so far terrain blends in
+    float sd = saturate(dot(d, s.sun.xyz));
+    float band = 1.0 - saturate(abs(d.y) * 3.0);                 // the glow hugs the horizon
+    float3 warm = float3(1.0, 0.55, 0.25);
+    col += warm * pow(sd, 5.0) * s.horizon.w * (0.35 + 0.65 * band);
+    col += float3(1.0, 0.95, 0.85) * pow(sd, 24.0) * 0.18 * s.sun.w;
+    // Dusk/dawn: a soft pink band above the horizon opposite the sun (the anti-twilight arch).
+    float anti = saturate(-dot(normalize(float3(d.x, 0.0, d.z) + 1e-4), normalize(float3(s.sun.x, 0.0, s.sun.z) + 1e-4)));
+    float arch = exp(-pow((d.y - 0.1) / 0.09, 2.0));
+    col += float3(0.55, 0.32, 0.42) * arch * anti * anti * saturate(s.horizon.w - 0.15) * 0.55;
+    float night = saturate((0.45 - s.sun.w) / 0.35);
+    if (night > 0.0 && d.y > -0.05) {
+        // A faint galactic band across the night sky, turning with the stars (zenith.w = sky angle).
+        float a = s.zenith.w;
+        float3 bn = normalize(float3(0.3 * cos(a) - 0.2 * sin(a), 0.3 * sin(a) + 0.2 * cos(a), 0.93));
+        float band = exp(-pow(dot(d, bn) * 4.5, 2.0));
+        float3 q = d * 6.0;
+        float cl = vnoise(q.xy + q.z * 0.7) * 0.6 + vnoise(q.yz * 2.3 + 5.0) * 0.4;
+        col += float3(0.32, 0.3, 0.42) * band * smoothstep(0.3, 0.8, cl) * night * 0.22 * saturate(d.y * 4.0 + 0.2);
+    }
+    return float4(col, 1.0);
 }
 
 struct SimpleVert { float4 pos; float4 color; };
@@ -155,6 +279,10 @@ vertex SimpleOut starVS(uint vid [[vertex_id]],
     SimpleOut o;
     o.pos = u.viewProj * (sp.rot * float4(verts[vid].pos.xyz, 1.0));
     o.color = verts[vid].color * sp.tint;
+    // Gentle twinkle: each star (6 vertices) gets its own phase and speed.
+    float star = float(vid / 6u);
+    float ph = fract(sin(star * 12.9898) * 43758.5453);
+    o.color.rgb *= 0.78 + 0.22 * sin(u.params.z * (1.5 + 2.5 * ph) + ph * 40.0);
     return o;
 }
 
@@ -172,19 +300,6 @@ vertex CloudOut cloudVS(uint vid [[vertex_id]],
     return o;
 }
 
-static float hash21(float2 p) {
-    float3 p3 = fract(float3(p.xyx) * 0.1031);
-    p3 += dot(p3, p3.yzx + 33.33);
-    return fract((p3.x + p3.y) * p3.z);
-}
-
-static float vnoise(float2 p) {
-    float2 i = floor(p), f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    float a = hash21(i), b = hash21(i + float2(1, 0)), c = hash21(i + float2(0, 1)), d = hash21(i + float2(1, 1));
-    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-}
-
 // cp: xy = world xz offset (eye + wind), z = fade distance, w = unused
 fragment float4 cloudFS(CloudOut in [[stage_in]],
                         constant Uniforms& u [[buffer(1)]],
@@ -200,9 +315,55 @@ fragment float4 cloudFS(CloudOut in [[stage_in]],
     return float4(col, 0.82 * fade);
 }
 
+// Fancy Hollow sky: the fog colour with faint drifting violet streaks and darker voids (no sun, no stars).
+fragment float4 hollowSkyFS(SkyOut in [[stage_in]], constant SkyParams& s [[buffer(1)]]) {
+    float4 w = s.invViewProj * float4(in.ndc, 1.0, 1.0);
+    float3 d = normalize(w.xyz / w.w);
+    float t = s.sun.w;
+    // Project onto a box around the viewer so the pattern has no pole pinch.
+    float3 a = abs(d);
+    float2 q = a.y > max(a.x, a.z) ? d.xz / a.y : (a.x > a.z ? d.zy / a.x : d.xy / a.z);
+    float n = vnoise(q * 3.0 + float2(t * 0.01, 0.0)) * 0.6 + vnoise(q * 9.0 - float2(0.0, t * 0.015)) * 0.4;
+    float streak = smoothstep(0.55, 0.85, vnoise(float2(q.x * 1.5, q.y * 7.0) + 11.0));
+    float3 base = s.horizon.rgb;
+    float3 col = base * (0.85 + 0.3 * n) + float3(0.035, 0.015, 0.05) * streak;
+    return float4(col, 1.0);
+}
+
+// Fancy clouds: boxes in cloud space (buffer 0, colour = face shade), one offset to the camera.
+vertex CloudOut cloudBoxVS(uint vid [[vertex_id]],
+                           const device SimpleVert* verts [[buffer(0)]],
+                           constant Uniforms& u [[buffer(1)]],
+                           constant float4& off [[buffer(2)]]) {
+    CloudOut o;
+    float3 p = verts[vid].pos.xyz + off.xyz;
+    o.pos = u.viewProj * float4(p, 1.0);
+    o.rel = float3(p.x, verts[vid].color.x, p.z);   // y carries the face shade
+    return o;
+}
+
+// cp: z = fade distance
+fragment float4 cloudBoxFS(CloudOut in [[stage_in]],
+                           constant Uniforms& u [[buffer(1)]],
+                           constant float4& cp [[buffer(2)]]) {
+    float fade = 1.0 - smoothstep(cp.z * 0.5, cp.z, length(in.rel.xz));
+    float day = u.params.y;
+    float3 col = float3(1.0) * mix(0.05, 1.0, smoothstep(0.12, 1.0, day)) * in.rel.y;
+    col = mix(col, u.fogColor.rgb, 0.2);
+    if (u.sunColor.r + u.sunColor.g + u.ambColor.r > 0.0) {
+        // HDR (Fancy): sky ambient plus direct sun/moon light on the lit faces (pink-gold at sunset).
+        float lit = smoothstep(0.75, 1.0, in.rel.y);
+        col = u.ambColor.rgb * (0.9 + 0.5 * in.rel.y) + u.sunColor.rgb * (0.35 + 1.1 * lit);
+        // At night clouds are dim grey shapes against the stars, not lit blue blobs.
+        col *= mix(0.22, 1.0, smoothstep(0.12, 0.7, day));
+        col = mix(col, u.fogColor.rgb, 0.15);
+    }
+    return float4(col, 0.82 * fade);
+}
+
 // Mobs: flat-coloured cuboids; the pattern id adds pixel detail in model space (1/16-block cells).
 struct MobVert { float4 pos; float4 color; float4 local; };
-struct MobOut { float4 pos [[position]]; float3 color; float shade; float3 local; float pattern [[flat]]; float dist; };
+struct MobOut { float4 pos [[position]]; float3 color; float shade; float3 local; float pattern [[flat]]; float dist; float3 rel; };
 
 vertex MobOut mobVS(uint vid [[vertex_id]],
                     const device MobVert* verts [[buffer(0)]],
@@ -215,6 +376,7 @@ vertex MobOut mobVS(uint vid [[vertex_id]],
     o.local = m.local.xyz;
     o.pattern = m.pos.w;
     o.dist = length(m.pos.xyz);
+    o.rel = m.pos.xyz;
     return o;
 }
 
@@ -222,6 +384,29 @@ static float hash31(float3 p) {
     p = fract(p * 0.1031);
     p += dot(p, p.zyx + 31.32);
     return fract((p.x + p.y) * p.z);
+}
+
+static float3 mobPattern(MobOut in) {
+    float3 cell = floor(in.local + 0.001);
+    float h = hash31(cell);
+    float3 c = in.color;
+    if (in.pattern > 0.5 && in.pattern < 1.5) {
+        float n = vnoise(cell.xz * 0.28 + cell.y * 0.21 + 3.0) * 0.7 + vnoise(cell.zy * 0.33 + 7.0) * 0.3;
+        if (n > 0.58) { c = float3(0.92, 0.9, 0.86); }
+        c *= 0.9 + 0.1 * h;
+    } else if (in.pattern > 1.5 && in.pattern < 2.5) {
+        c *= 0.8 + 0.2 * h;
+    } else if (in.pattern > 2.5 && in.pattern < 3.5) {
+        c *= 0.88 + 0.12 * step(0.5, h);
+    } else if (in.pattern > 3.5 && in.pattern < 4.5) {
+        float h2 = hash31(floor(in.local * 0.5 + 0.001));
+        c *= 0.72 + 0.28 * h2 + 0.12 * h;
+    } else if (in.pattern > 4.5) {
+        c *= 0.9 + 0.1 * h;
+    } else {
+        c *= 0.93 + 0.07 * h;
+    }
+    return c;
 }
 
 fragment float4 mobFS(MobOut in [[stage_in]], constant Uniforms& u [[buffer(1)]]) {
@@ -276,10 +461,11 @@ fragment float4 entityFS(EntOut in [[stage_in]],
     return float4(applyFog(rgb * in.color.rgb, in.dist, u), 1.0);
 }
 
+// Blended textured quads: the block-breaking crack overlay, rain and snow, lightning.
 fragment float4 crackFS(EntOut in [[stage_in]], texture2d_array<float> tex [[texture(0)]]) {
     float4 c = tex.sample(texSampler, in.uv, uint(in.layer), level(0.0));
     if (c.a < 0.1) { discard_fragment(); }
-    return float4(c.rgb, c.a * in.color.a);
+    return float4(c.rgb * in.color.rgb, c.a * in.color.a);
 }
 
 struct HudVert { float2 pos; float2 uv; float4 color; float4 extra; };

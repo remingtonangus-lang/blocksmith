@@ -13,7 +13,8 @@ enum TextureGen {
                            "heart_wither", "heart_wither_half", "rain_drop", "snow_flake", "food", "food_half", "food_empty", "bubble",
                            "destroy_0", "destroy_1", "destroy_2", "destroy_3", "destroy_4",
                            "destroy_5", "destroy_6", "destroy_7", "destroy_8", "destroy_9",
-                           "armor", "armor_half", "armor_empty", "xp_bar", "smoke"]
+                           "armor", "armor_half", "armor_empty", "xp_bar", "smoke", "sun", "shadow",
+                           "moon_0", "moon_1", "moon_2", "moon_3", "moon_4", "moon_5", "moon_6", "moon_7"]
 
     // Makes sure every texture that may be referenced exists in the registry.
     static func registerAll() {
@@ -46,72 +47,160 @@ enum TextureGen {
     // Generic "rock": base colour with per-pixel grain and blotches.
     static func rock(_ base: UInt32, grain: Float, blotch: Float, salt: Int) -> Painter {
         { x, y in
-            let k = 1 + (r(x, y, salt) - 0.5) * grain + (blot(x, y, salt + 1, 4) - 0.5) * blotch
+            let g: Float = (r(x, y, salt) - 0.5) * grain * 0.8
+            let b1: Float = (blot(x, y, salt + 1, 4) - 0.5) * blotch
+            let b2: Float = (blot(x, y, salt + 2, 8) - 0.5) * blotch * 0.7
+            var k: Float = 1 + g + b1 + b2
+            let s = r(x, y, salt + 3)
+            if s < 0.035 { k *= 0.84 } else if s > 0.97 { k *= 1.1 }
             return hex(base, k)
         }
     }
 
     // Ore: clusters of coloured specks over a base painter.
+    // Ore: 4-6 nuggets of 2-4 pixels set into the rock, each with a bright top-left pixel, a darker
+    // second shade and a one-pixel dark rim below/right (reads as embedded crystal).
     static func ore(_ base: @escaping Painter, _ c: UInt32, _ c2: UInt32, salt: Int) -> Painter {
-        { x, y in
-            let cx = x / 3, cy = y / 3
-            if r(cx, cy, salt) < 0.42 && r(x, y, salt + 1) < 0.62 {
-                let hi = r(x, y, salt + 2) > 0.55
-                return hex(hi ? c2 : c, 0.9 + 0.2 * r(x, y, salt + 3))
+        var cells = [Int](repeating: -1, count: 256)          // nugget index per pixel
+        var tops: [(Int, Int)] = []
+        let shapes: [[(Int, Int)]] = [[(0, 0), (1, 0), (0, 1), (1, 1)], [(0, 0), (1, 0), (1, 1)], [(0, 0), (0, 1), (1, 1)],
+                                      [(0, 0), (1, 0), (2, 0), (1, 1)], [(0, 0), (1, 0)], [(0, 0), (1, 1), (1, 0), (2, 1)]]
+        var k = 0
+        for i in 0..<14 where tops.count < 6 {
+            let ox = Int(r(i, 0, salt) * 13), oy = Int(r(i, 1, salt) * 13)
+            let sh = shapes[Int(r(i, 2, salt) * Float(shapes.count)) % shapes.count]
+            if sh.contains(where: { cells[(ox + $0.0) + (oy + $0.1) * 16] >= 0 || cells[min(255, ox + $0.0 + 1 + (oy + $0.1) * 16)] >= 0 }) { continue }
+            for (dx, dy) in sh { cells[(ox + dx) + (oy + dy) * 16] = k }
+            tops.append((ox, oy)); k += 1
+        }
+        let map = cells, tl = tops
+        return { x, y in
+            let n = map[x + y * 16]
+            if n >= 0 {
+                let (ox, oy) = tl[n]
+                if x == ox && y == oy { return hex(c, 1.25) }
+                let lower = map[x + min(15, y + 1) * 16] != n || map[min(15, x + 1) + y * 16] != n
+                return lower ? hex(c2, 0.95) : hex(c, 1.0 + 0.08 * r(x, y, salt + 3))
             }
+            let above = y > 0 ? map[x + (y - 1) * 16] : -1, left = x > 0 ? map[(x - 1) + y * 16] : -1
+            if above >= 0 || left >= 0 { let b = base(x, y); return V4(b.x * 0.55, b.y * 0.55, b.z * 0.55, 1) }
             return base(x, y)
         }
     }
 
+    // Four boards with a dark gap below each, staggered butt joints, wavy grain lines along each board,
+    // a lighter top edge and a knot here and there.
     static func planks(_ c: UInt32, salt: Int) -> Painter {
         { x, y in
-            let row = y / 4
-            let seam = (row * 7 + 3) % 16
-            var k: Float = 0.9 + 0.1 * r(x / 4, y, salt) + (r(x, row, salt + 1) - 0.5) * 0.08
-            if y % 4 == 3 { k = 0.62 } else if x == seam { k = 0.7 }
+            let row = y / 4, ry = y % 4
+            let seam = (row * 7 + 3 + Int(r(row, 0, salt + 7) * 3)) % 16
+            if ry == 3 { return hex(c, 0.58) }
+            if x == seam { return hex(c, 0.68) }
+            var k: Float = 0.92 + 0.08 * r(row, x / 6, salt)
+            let grain = sinf(Float(x) * 0.9 + Float(row) * 2.3 + r(row, 1, salt + 2) * 6) * 0.5 + 0.5
+            if (ry == 1 && grain > 0.7) || (ry == 2 && grain < 0.25) { k -= 0.09 }
+            if ry == 0 { k += 0.06 }
+            let knotX = Int(r(row, 2, salt + 3) * 16)
+            if abs(x - knotX) <= 0 && ry == 1 && r(row, 3, salt + 4) < 0.5 { k -= 0.2 }
+            k += (r(x, y, salt + 5) - 0.5) * 0.05
             return hex(c, k)
         }
     }
 
+    // Vertical bark ridges that wander a little, deep furrows between them, lit ridge crests.
     static func bark(_ c: UInt32, salt: Int) -> Painter {
         { x, y in
-            let stripe = (x + Int(r(0, y / 5, salt) * 2)) % 4 == 0
-            return hex(c, stripe ? 0.72 : 0.9 + 0.14 * r(x, y, salt + 1))
+            let wob = Int(r(x / 4, y / 6, salt) * 2.0)
+            let col = (x + wob + 16) % 4
+            var k: Float
+            switch col {
+            case 0: k = 0.66
+            case 1: k = 1.04
+            case 2: k = 0.94
+            default: k = 0.84
+            }
+            if r(x, y / 3, salt + 2) < 0.08 { k *= 0.85 }
+            k += (r(x, y, salt + 1) - 0.5) * 0.08
+            return hex(c, k)
         }
     }
 
+    // Log end: bark rim, slightly wobbly growth rings that darken outward, a radial check crack.
     static func rings(_ barkC: UInt32, _ wood: UInt32) -> Painter {
         { x, y in
             let dx = Float(x) - 7.5, dy = Float(y) - 7.5
-            let d = (dx * dx + dy * dy).squareRoot()
-            if x == 0 || y == 0 || x == 15 || y == 15 { return hex(barkC, 0.85) }
-            let ring = Int(d * 1.15) % 2 == 0
-            return hex(wood, ring ? 1 : 0.86)
+            if x == 0 || y == 0 || x == 15 || y == 15 { return hex(barkC, 0.8 + 0.15 * r(x, y, 81)) }
+            let ang = atan2f(dy, dx)
+            let d = (dx * dx + dy * dy).squareRoot() + sinf(ang * 3 + 1.3) * 0.35
+            let ring = Int(d * 1.2) % 2 == 0
+            var k: Float = (ring ? 1.0 : 0.86) - d * 0.012 + (r(x, y, 82) - 0.5) * 0.05
+            if abs(dx - dy * 0.15) < 0.6 && dy < -1 && d < 6 { k *= 0.8 }
+            if d < 1.0 { k *= 0.9 }
+            return hex(wood, k)
         }
     }
 
-    static func foliage(_ c: UInt32, holes: Float, salt: Int) -> Painter {
+    // Leaves: clumps of 4x4 leaves in staggered rows, each lit from the top-left with a shaded
+    // bottom-right, gaps at the clump corners (reads as foliage instead of per-pixel static).
+    // c = nil paints greyscale for biome tinting. Tiles seamlessly.
+    static func leafy(_ c: UInt32?, holes: Float, salt: Int) -> Painter {
         { x, y in
-            if r(x, y, salt) < holes { return clear }
-            return hex(c, 0.72 + 0.45 * r(x, y, salt + 1))
+            let cy = y / 4, ox = (cy % 2) * 2
+            let cx = ((x + ox) / 4) % 4
+            let lx = (x + ox) % 4, ly = y % 4
+            let corner = (lx == 0 || lx == 3) && (ly == 0 || ly == 3)
+            if corner && r(x, y, salt + 1) < 0.72 { return clear }
+            if r(x, y, salt + 2) < holes * 0.4 { return clear }
+            var k: Float = 0.66 + 0.26 * r(cx, cy, salt)
+            if lx + ly <= 2 { k += 0.13 } else if lx + ly >= 5 { k -= 0.15 }
+            k += (r(x, y, salt + 3) - 0.5) * 0.1
+            if let c = c { return hex(c, k + 0.12) }
+            return V4(k, k, k, 1)
         }
     }
+
+    static func foliage(_ c: UInt32, holes: Float, salt: Int) -> Painter { leafy(c, holes: holes, salt: salt) }
 
     static func painters() -> [String: Painter] {
         var p: [String: Painter] = [:]
-        let stone = rock(0x7F7F7F, grain: 0.14, blotch: 0.12, salt: 1)
+        // Stone: soft mottling, a few darker hairline cracks and lighter flecks.
+        let stone: Painter = { x, y in
+            var k: Float = 0.95 + (blot(x, y, 1, 4) - 0.5) * 0.14 + (blot(x, y, 2, 8) - 0.5) * 0.1 + (r(x, y, 3) - 0.5) * 0.06
+            let cx = Float(x) + r(y / 3, 0, 4) * 2.0
+            if Int(cx) % 7 == 3 && r(x / 2, y / 4, 5) < 0.35 { k *= 0.82 }
+            if r(x, y, 6) < 0.03 { k *= 1.12 }
+            return hex(0x808080, k)
+        }
         let deepslate: Painter = { x, y in
             var k: Float = 1 + (r(x, y, 60) - 0.5) * 0.12
             if (y + Int(r(x / 4, 0, 61) * 3)) % 4 == 0 { k *= 0.85 }
             return hex(0x4D4D52, k)
         }
         func dirt(_ x: Int, _ y: Int) -> V4 {
-            let speck: Float = r(x, y, 31) < 0.1 ? 0.78 : 1
-            return hex(0x866043, (0.84 + 0.28 * r(x, y, 3)) * speck)
+            // Soil: soft clumps, small dark pores and the odd pale pebble.
+            let n = r(x, y, 31)
+            if n < 0.035 { return hex(0x9A7A5C, 0.95) }
+            var k: Float = 0.9 + (blot(x, y, 32, 4) - 0.5) * 0.22 + (r(x, y, 3) - 0.5) * 0.12
+            if n > 0.9 { k *= 0.76 }
+            return hex(0x866043, k)
         }
         // Grass/leaf textures are greyscale and tinted per biome in the shader.
-        func grayGrass(_ x: Int, _ y: Int) -> V4 { let v: Float = 0.62 + 0.3 * r(x, y, 2); return V4(v, v, v, 1) }
-        func snowC(_ x: Int, _ y: Int) -> V4 { hex(0xF2F7FF, 0.94 + 0.06 * r(x, y, 19)) }
+        // Grass: tufts (soft clumps), short lit blade tips and darker gaps between blades.
+        func grayGrass(_ x: Int, _ y: Int) -> V4 {
+            var v: Float = 0.7 + (blot(x, y, 33, 4) - 0.5) * 0.16 + (r(x, y, 2) - 0.5) * 0.16
+            let tip = r(x, y, 34)
+            if tip > 0.9 && r(x, y + 1, 34) < 0.6 { v += 0.12 }
+            if tip < 0.08 { v -= 0.12 }
+            return V4(v, v, v, 1)
+        }
+        // Snow: soft drifts (faint blue-grey hollows) and a few bright crystals.
+        func snowC(_ x: Int, _ y: Int) -> V4 {
+            let d: Float = blot(x, y, 19, 8)
+            var c = hex(0xF4F8FF, 0.97 + (r(x, y, 20) - 0.5) * 0.03)
+            if d < 0.4 { let t = (0.4 - d) * 0.35; c = V4(c.x - t * 0.6, c.y - t * 0.4, c.z, 1) }
+            if r(x, y, 21) > 0.985 { c = V4(1, 1, 1, 1) }
+            return c
+        }
         func edge(_ x: Int, _ base: Int) -> Int { base + (r(x, 0, 21) > 0.5 ? 1 : 0) + (r(x, 0, 22) > 0.8 ? 1 : 0) }
 
         p["stone"] = stone
@@ -150,12 +239,34 @@ enum TextureGen {
         p["birch_planks"] = planks(0xC5B57A, salt: 43)
         p["spruce_planks"] = planks(0x735531, salt: 45)
         p["bedrock"] = { x, y in let v: Float = 0.12 + r(x, y, 6) * 0.45; return V4(v, v, v, 1) }
-        p["sand"] = { x, y in hex(0xDBD3A0, 0.93 + 0.12 * r(x, y, 7)) }
-        p["red_sand"] = { x, y in hex(0xBE6621, 0.9 + 0.14 * r(x, y, 8)) }
+        // Sand: fine grain over faint wind ripples, a few darker and lighter grains.
+        func sandP(_ c: UInt32, _ salt: Int) -> Painter {
+            { x, y in
+                let ripple = sinf(Float(y) * 1.6 + sinf(Float(x) * 0.7) * 1.2) * 0.035
+                let g = r(x, y, salt)
+                let k: Float = g < 0.07 ? 0.86 : (g > 0.95 ? 1.08 : 0.96 + (r(x, y, salt + 1) - 0.5) * 0.06)
+                return hex(c, k + ripple)
+            }
+        }
+        p["sand"] = sandP(0xDBD3A0, 7)
+        p["red_sand"] = sandP(0xBE6621, 8)
+        // Gravel: small rounded pebbles of three greys with dark gaps (a cell pattern like cobblestone, finer).
+        var gpts: [V2] = []
+        for k in 0..<22 { gpts.append(V2(r(k, 0, 300) * 16, r(k, 1, 300) * 16)) }
         p["gravel"] = { x, y in
-            let n = r(x, y, 8)
-            let v: Float = n < 0.33 ? 0.4 : (n < 0.66 ? 0.53 : 0.64)
-            return V4(v, v * 0.97, v * 0.95, 1)
+            let q = V2(Float(x) + 0.5, Float(y) + 0.5)
+            var d1: Float = 1e9, d2: Float = 1e9, k1 = 0
+            for (k, c) in gpts.enumerated() {
+                for oy in -1...1 { for ox in -1...1 {
+                    let d = simd_distance(q, c + V2(Float(ox * 16), Float(oy * 16)))
+                    if d < d1 { d2 = d1; d1 = d; k1 = k } else if d < d2 { d2 = d }
+                } }
+            }
+            if d2 - d1 < 0.9 { return V4(0.27, 0.26, 0.25, 1) }
+            let tone: [Float] = [0.42, 0.55, 0.66, 0.5]
+            var v = tone[k1 % 4] + (r(x, y, 301) - 0.5) * 0.06
+            if d1 < 1.2 { v += 0.06 }
+            return V4(v, v * 0.97, v * 0.94, 1)
         }
         p["oak_log"] = bark(0x6B5332, salt: 9)
         p["oak_log_top"] = rings(0x6B5332, 0xB0915B)
@@ -167,16 +278,16 @@ enum TextureGen {
             if dash || r(x, y, 27) < 0.05 { return hex(0x2E2B26, 0.9 + 0.2 * r(x, y, 28)) }
             return hex(0xE3E0D6, 0.92 + 0.08 * r(x, y, 29))
         }
-        p["oak_leaves"] = { x, y in
-            if r(x, y, 12) < 0.2 { return clear }
-            let v: Float = 0.5 + 0.45 * r(x, y, 13)
-            return V4(v, v, v, 1)
-        }
+        p["oak_leaves"] = leafy(nil, holes: 0.2, salt: 12)
         p["birch_leaves"] = foliage(0x80A755, holes: 0.22, salt: 32)
         p["spruce_leaves"] = foliage(0x619961, holes: 0.12, salt: 34)
         p["glass"] = { x, y in
-            if x == 0 || y == 0 || x == 15 || y == 15 { return V4(0.75, 0.86, 0.92, 1) }
-            if (x == y || x == y + 1) && x > 3 && x < 8 { return V4(0.95, 0.98, 1, 1) }
+            let edge = x == 0 || y == 0 || x == 15 || y == 15
+            if edge { return (x + y) % 5 == 0 ? V4(0.9, 0.96, 1, 1) : V4(0.72, 0.84, 0.9, 1) }
+            // Two diagonal glints and a corner sparkle.
+            if (x == y || x == y + 1) && x > 2 && x < 8 { return V4(0.95, 0.98, 1, 1) }
+            if x == y + 3 && x > 5 && x < 9 { return V4(0.9, 0.96, 1, 1) }
+            if x == 13 && y == 2 { return V4(1, 1, 1, 1) }
             return clear
         }
         p["iron_bars"] = { x, y in
@@ -239,10 +350,16 @@ enum TextureGen {
             if x == 0 || y == 0 || x == 15 || y == 15 { return hex(0x8E8E8E) }
             return hex(0xA0A0A0, 0.97 + 0.05 * r(x, y, 77))
         }
+        // Bricks: staggered courses in grey mortar, per-brick tone, lit top edge, shaded bottom edge, pitting.
         p["bricks"] = { x, y in
-            let row = y / 4
-            if y % 4 == 3 || x == (row % 2 == 0 ? 7 : 15) { return hex(0xB5B0A8, 0.9 + 0.1 * r(x, y, 16)) }
-            return hex(0x96503E, 0.85 + 0.3 * r(x, y, 15))
+            let row = y / 4, ly = y % 4
+            let joint = row % 2 == 0 ? 7 : 15
+            if ly == 3 || x == joint { return hex(0xB5B0A8, 0.88 + 0.1 * r(x, y, 16)) }
+            let brick = row % 2 == 0 ? (x < 7 ? 0 : 1) : (x < 15 ? 2 : 0)
+            var k: Float = 0.9 + (r(row, brick, 17) - 0.5) * 0.16 + (r(x, y, 15) - 0.5) * 0.1
+            if ly == 0 { k += 0.08 } else if ly == 2 { k -= 0.06 }
+            if r(x, y, 18) < 0.05 { k -= 0.12 }
+            return hex(0x96503E, k)
         }
         p["snow"] = snowC
         p["snow_block"] = snowC
@@ -261,12 +378,17 @@ enum TextureGen {
             if x == 0 || y == 0 || x == 15 || y == 15 { return clear }
             return hex(0xC3C586, 0.9 + 0.1 * r(x, y, 78))
         }
+        // Stone bricks: two courses of bevelled blocks (lit top/left edge, shaded bottom/right edge),
+        // per-block tone and soft mottling inside.
         p["stone_bricks"] = { x, y in
-            let row = y / 8
-            if y % 8 == 7 || x == (row == 0 ? 15 : 7) { return hex(0x525252) }
-            var v: Float = 0.93 + (r(x, y, 23) - 0.5) * 0.08
-            if y % 8 == 0 { v = 1.08 }
-            return hex(0x7A7A7A, v)
+            let row = y / 8, ly = y % 8
+            let joint = row == 0 ? 15 : 7
+            if ly == 7 || x == joint { return hex(0x4C4C4E) }
+            let left = row == 0 ? 0 : 8
+            let bx = (x - left + 16) % 16 < 8 ? 0 : 1
+            var v: Float = 0.92 + (r(row, bx, 23) - 0.5) * 0.08 + (blot(x, y, 25, 4) - 0.5) * 0.08 + (r(x, y, 26) - 0.5) * 0.04
+            if ly == 0 || x == (joint + 1) % 16 { v += 0.1 } else if ly == 6 || x == (joint + 15) % 16 { v -= 0.08 }
+            return hex(0x7C7C7C, v)
         }
         p["sandstone"] = { x, y in
             var k: Float = 0.96 + 0.06 * r(x, y, 24)
@@ -427,9 +549,12 @@ enum TextureGen {
         }
         for (n, _) in BlockRegistry.colors {
             let c = BlockRegistry.colorHex[n] ?? 0xFFFFFF
+            // Wool: soft knitted loops (2x2 cells with a lit top-left and a shaded bottom-right), fuzzy noise.
             p["\(n)_wool"] = { x, y in
-                let weave = ((x + y) % 4 == 0 ? 0.9 : 1.0) as Float
-                return hex(c, weave * (0.9 + 0.12 * r(x, y, 140)))
+                let lx = (x + (y / 2) % 2) % 2, ly = y % 2
+                var k: Float = lx == 0 && ly == 0 ? 1.06 : (lx == 1 && ly == 1 ? 0.86 : 0.96)
+                k += (blot(x, y, 143, 4) - 0.5) * 0.08 + (r(x, y, 140) - 0.5) * 0.08
+                return hex(c, k)
             }
             p["\(n)_bed_side"] = { x, y in
                 if y >= 10 { return y >= 13 && (x < 3 || x > 12) ? hex(0x6B4F2C) : clear }
@@ -456,9 +581,25 @@ enum TextureGen {
         }
         p["tnt_bottom"] = { x, y in hex(0xB8B0A0, 0.85 + 0.1 * r(x, y, 152)) }
         // Emberdeep
+        // Netherrack: lumpy fleshy rock - rounded lumps (cell pattern) lit on top, dark seams between them.
+        var npts: [V2] = []
+        for k in 0..<11 { npts.append(V2(r(k, 0, 175) * 16, r(k, 1, 175) * 16)) }
         let netherrack: Painter = { x, y in
-            let v = blot(x, y, 170, 4) * 0.6 + r(x, y, 171) * 0.4
-            return hex(v > 0.62 ? 0x8B3A3A : (v < 0.35 ? 0x5A1E1E : 0x6F2A2A), 0.92 + 0.12 * r(x, y, 172))
+            let q = V2(Float(x) + 0.5, Float(y) + 0.5)
+            var d1: Float = 1e9, d2: Float = 1e9, k1 = 0
+            var c1 = V2(0, 0)
+            for (k, c) in npts.enumerated() {
+                for oy in -1...1 { for ox in -1...1 {
+                    let cc = c + V2(Float(ox * 16), Float(oy * 16))
+                    let d = simd_distance(q, cc)
+                    if d < d1 { d2 = d1; d1 = d; k1 = k; c1 = cc } else if d < d2 { d2 = d }
+                } }
+            }
+            if d2 - d1 < 0.8 { return hex(0x4A1616, 0.9 + 0.1 * r(x, y, 172)) }
+            let up: Float = (c1.y - q.y) * 0.025
+            let tone: [UInt32] = [0x7A2E2E, 0x6A2626, 0x843434]
+            let k: Float = 0.94 + up + (r(x, y, 171) - 0.5) * 0.1
+            return hex(tone[k1 % 3], k)
         }
         p["netherrack"] = netherrack
         p["nether_quartz_ore"] = ore(netherrack, 0xEDE6DE, 0xC8BEB0, salt: 173)
@@ -758,18 +899,69 @@ enum TextureGen {
             if d > 7 || r(x / 2, y / 2, 160) < 0.25 { return clear }
             return V4(0.8, 0.8, 0.8, 1)
         }
-        // Block-breaking cracks: progressively more dark crack pixels.
+        // Block-breaking cracks: one-pixel crack lines that branch out from the centre, each stage
+        // reaching further (a stage's cracks are a superset of the previous stage's).
+        var crackDist = [Int](repeating: 99, count: 256)   // stage at which each pixel cracks
+        do {
+            var rng = SRng(0xC4AC)
+            // Six main cracks from near the centre, each forking once or twice.
+            var walkers: [(Float, Float, Float, Int)] = []   // x, y, angle, start step
+            for k in 0..<6 {
+                let a = Float(k) / 6 * 2 * .pi + rng.float() * 0.6
+                walkers.append((7.5 + rng.float() - 0.5, 7.5 + rng.float() - 0.5, a, 0))
+            }
+            var w = 0
+            while w < walkers.count {
+                var (x, y, a, step) = walkers[w]
+                for _ in 0..<14 {
+                    let ix = Int(x.rounded(.down)), iy = Int(y.rounded(.down))
+                    if ix < 0 || iy < 0 || ix > 15 || iy > 15 { break }
+                    let st = min(9, step * 10 / 12)
+                    if st < crackDist[ix + iy * 16] { crackDist[ix + iy * 16] = st }
+                    a += (rng.float() - 0.5) * 0.9
+                    x += cosf(a); y += sinf(a)
+                    step += 1
+                    if walkers.count < 18 && rng.float() < 0.12 { walkers.append((x, y, a + (rng.float() < 0.5 ? 0.9 : -0.9), step)) }
+                }
+                w += 1
+            }
+        }
+        let crackMap = crackDist
         for stage in 0..<10 {
             p["destroy_\(stage)"] = { x, y in
-                let thr = Float(stage + 1) / 10
-                let c = r(x / 2, y / 2, 90) * 0.6 + r(x, y, 91) * 0.4
-                let fx: Float = Float(x) - 7.5, fy: Float = Float(y) - 7.5
-                let skew: Float = r(y / 4, 0, 92) - 0.5
-                let l1: Bool = abs(fx - fy * skew) < 1
-                let l2: Bool = abs(fy + fx * 0.4) < 0.8
-                let line = l1 || l2
-                if (line && c < thr * 1.4) || c < thr * 0.35 { return V4(0.05, 0.05, 0.05, 0.75) }
-                return clear
+                let d = crackMap[x + y * 16]
+                if d > stage { return clear }
+                // Fresh crack ends are fainter; older parts darker.
+                let age = Float(stage - d)
+                return V4(0.08, 0.07, 0.06, min(0.8, 0.45 + age * 0.08))
+            }
+        }
+        // Blob shadow under entities: a soft disc (alpha falls off toward the edge).
+        p["shadow"] = { x, y in
+            let dx = Float(x) - 7.5, dy = Float(y) - 7.5
+            let d = (dx * dx + dy * dy).squareRoot() / 7.5
+            if d > 1 { return clear }
+            return V4(0, 0, 0, 1 - d * d)
+        }
+        // Sky bodies: a warm square sun and a cratered moon in eight phases (0 = full, 4 = new).
+        p["sun"] = { x, y in
+            let dx = Float(x) - 7.5, dy = Float(y) - 7.5
+            let d = max(abs(dx), abs(dy)) / 7.5
+            let k = 1 - 0.08 * d * d
+            return V4(1, 0.98 * k, 0.86 * k, 1)
+        }
+        for phase in 0..<8 {
+            p["moon_\(phase)"] = { x, y in
+                let px = (Float(x) - 7.5) / 7, py = (Float(y) - 7.5) / 7
+                let rr = px * px + py * py
+                if rr > 1 { return clear }
+                let z = (1 - rr).squareRoot()
+                let ang = Float(phase) * .pi / 4
+                let lit = px * sinf(ang) + z * cosf(ang)
+                if lit <= 0.02 { return V4(0.07, 0.08, 0.12, 1) }
+                let crater = r(x, y, 230) < 0.16 ? 0.8 : 1
+                let v: Float = (0.86 + 0.1 * r(x / 2, y / 2, 231)) * Float(crater)
+                return V4(v, v, v * 1.05, 1)
             }
         }
         overworldPainters(&p)

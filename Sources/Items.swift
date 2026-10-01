@@ -153,7 +153,7 @@ final class ItemRegistry {
         item("bone", "Bone", "bone", 0xE8E4D6)
         item("leather", "Leather", "leather", 0xA0592B)
         item("paper", "Paper", "paper", 0xE6E6DC)
-        item("book", "Book", "book", 0x7A4A28)
+        item("book", "Book", "book", 0x7A4A28, ["c": 0xD8B84A])
         item("slime_ball", "Slimeball", "ball", 0x74C45E)
         item("snowball", "Snowball", "ball", 0xF4FAFF, stack: 16)
         item("clay_ball", "Clay Ball", "ball", 0xA4A9B8)
@@ -163,31 +163,31 @@ final class ItemRegistry {
         item("ender_eye", "Seeker Eye", "eye", 0x2F8C7C, ["c": 0x7ED957, "d": 0x173D1A])
         item("blaze_rod", "Cinder Rod", "rod", 0xF7C23A)
         item("ghast_tear", "Wailer Tear", "tear", 0xDDF2F2)
-        item("wheat", "Wheat", "wheat", 0xD8B64A, ["a": 0x8C7A30])
+        item("wheat", "Wheat", "wheat", 0xD8B64A, ["c": 0xB0902A])
         item("wheat_seeds", "Wheat Seeds", "seeds", 0x3EA42B)
         item("nether_wart", "Ember Wart", "berries", 0x8A1A20, ["a": 0x5A0E12])
-        item("saddle", "Saddle", "leather", 0x8A4A22, stack: 1)
-        item("name_tag", "Name Tag", "paper", 0xE6E0C8, ["a": 0x6B4F2C])
+        item("saddle", "Saddle", "saddle", 0x8A4A22, stack: 1)
+        item("name_tag", "Name Tag", "name_tag", 0xE6E0C8)
         item("magma_cream", "Lava Cream", "ball", 0xE8762A)
-        item("fire_charge", "Fire Charge", "ball", 0xE8762A)
+        item("fire_charge", "Fire Charge", "charge", 0x3A2A22, ["c": 0xF08A2A])
         item("prismarine_shard", "Tidestone Shard", "gem", 0x6AA89A)
         item("prismarine_crystals", "Tidestone Crystals", "dust", 0xC8E0D0)
         item("heart_of_the_sea", "Tide Heart", "ball", 0x2A6AA8)
-        item("nautilus_shell", "Nautilus Shell", "bowl", 0xE8D8C8)
-        item("minecart", "Minecart", "bucket", 0x8A8A90, ["c": 0x4A4A50], stack: 1)
-        item("chest_minecart", "Minecart with Chest", "bucket", 0x8A8A90, ["c": 0x9A6A2A], stack: 1)
-        item("hopper_minecart", "Minecart with Hopper", "bucket", 0x8A8A90, ["c": 0x3A3A3A], stack: 1)
-        item("tnt_minecart", "Minecart with TNT", "bucket", 0x8A8A90, ["c": 0xC83A2A], stack: 1)
-        item("furnace_minecart", "Minecart with Furnace", "bucket", 0x8A8A90, ["c": 0x6A6A6A], stack: 1)
+        item("nautilus_shell", "Nautilus Shell", "shell", 0xE8D8C8)
+        item("minecart", "Minecart", "minecart", 0x8A8A90, ["c": 0x4A4A50], stack: 1)
+        item("chest_minecart", "Minecart with Chest", "minecart", 0x8A8A90, ["c": 0x9A6A2A], stack: 1)
+        item("hopper_minecart", "Minecart with Hopper", "minecart", 0x8A8A90, ["c": 0x3A3A3A], stack: 1)
+        item("tnt_minecart", "Minecart with TNT", "minecart", 0x8A8A90, ["c": 0xC83A2A], stack: 1)
+        item("furnace_minecart", "Minecart with Furnace", "minecart", 0x8A8A90, ["c": 0x6A6A6A], stack: 1)
         for (i, w) in Boats.woods.enumerated() {
             let raft = w.0 == "bamboo"
             item(Boats.itemKey(i, chest: false), raft ? "Bamboo Raft" : "\(w.1) Boat", "boat", w.2, stack: 1, fuel: 1200)
             item(Boats.itemKey(i, chest: true), raft ? "Bamboo Raft with Chest" : "\(w.1) Boat with Chest", "chest_boat", w.2, ["c": 0x9A6A2A, "d": 0x3A3A3A], stack: 1, fuel: 1200)
         }
-        item("shulker_shell", "Sentry Shell", "bowl", 0x9A6A9A)
-        item("dragon_breath", "Wyrm's Breath", "bucket", 0xE8D8F0, ["c": 0xC050E0])
-        item("firework_rocket", "Firework Rocket", "rod", 0xC83A3A)
-        item("firework_star", "Firework Star", "nugget", 0x6A6A6A)
+        item("shulker_shell", "Sentry Shell", "shell", 0x9A6A9A)
+        item("dragon_breath", "Wyrm's Breath", "bottle", 0xE8D8F0, ["c": 0xC050E0])
+        item("firework_rocket", "Firework Rocket", "rocket", 0xC83A3A)
+        item("firework_star", "Firework Star", "firework_star", 0x6A6A6A, ["c": 0x9A9AA0])
         item("bundle", "Bundle", "bundle", 0xB0703A, stack: 1)
         for (c, d) in BlockRegistry.colors { item("\(c)_bundle", "\(d) Bundle", "bundle", BlockRegistry.colorHex[c] ?? 0xB0703A, stack: 1) }
         item("writable_book", "Book and Quill", "book", 0x6A4A2A, ["c": 0xE8E8E8], stack: 1)
@@ -213,28 +213,28 @@ final class ItemRegistry {
         item("trident", "Trident", "trident", 0x4AA89A, stack: 1)
         item("fishing_rod", "Fishing Rod", "fishing_rod", 0x6B4F2C, ["s": 0xDDDDDD, "c": 0xD03030], stack: 1)
         item("carrot_on_a_stick", "Carrot on a Stick", "fishing_rod", 0x6B4F2C, ["s": 0xDDDDDD, "c": 0xF08A1A], stack: 1)
-        item("glass_bottle", "Glass Bottle", "bucket", 0xD0DCF0, ["c": 0xA8B8D8])
+        item("glass_bottle", "Glass Bottle", "bottle", 0xD0DCF0, ["c": 0xDCE8F6])
         item("fermented_spider_eye", "Fermented Spider Eye", "eye", 0xB0506A, ["c": 0xE8C0C8, "d": 0x5A2030])
-        item("glistering_melon_slice", "Glistering Melon Slice", "melon", 0xF0C040, ["c": 0xF8E080])
-        item("rabbit_foot", "Rabbit's Foot", "drumstick", 0xC8A078, ["c": 0xE8D8C0])
+        item("glistering_melon_slice", "Glistering Melon Slice", "melon", 0xF0C040, ["c": 0xFFF0A0, "d": 0xC89A20])
+        item("rabbit_foot", "Rabbit's Foot", "foot", 0xC8A078, ["c": 0xE8D8C0])
         item("rabbit_hide", "Rabbit Hide", "leather", 0xC8A078)
-        item("phantom_membrane", "Nightwing Membrane", "leather", 0xC8C0A0)
+        item("phantom_membrane", "Nightwing Membrane", "membrane", 0xC8C0A0)
         item("breeze_rod", "Gust Rod", "rod", 0xBDC9FF)
-        item("experience_bottle", "Bottle o' Enchanting", "bucket", 0xD0DCF0, ["c": 0x7ED957])
-        item("enchanted_book", "Enchanted Book", "book", 0x8A3AA8, stack: 1)
-        item("nether_star", "Blight Star", "gem", 0xF0F0FF)
-        item("totem_of_undying", "Totem of Rebirth", "ingot", 0xE8C040)
-        item("turtle_scute", "Turtle Scute", "leather", 0x4A9A3A)
-        item("ink_sac", "Ink Sac", "ball", 0x1A1A2A)
-        item("glow_ink_sac", "Glow Ink Sac", "ball", 0x4AE8C8)
-        item("honeycomb", "Honeycomb", "ball", 0xE8A020)
+        item("experience_bottle", "Bottle o' Enchanting", "bottle", 0xD0DCF0, ["c": 0x7ED957])
+        item("enchanted_book", "Enchanted Book", "book", 0x8A3AA8, ["c": 0xE8C850], stack: 1)
+        item("nether_star", "Blight Star", "star", 0xF0F0FF)
+        item("totem_of_undying", "Totem of Rebirth", "totem", 0xE8C040, ["c": 0x2A8A3A])
+        item("turtle_scute", "Turtle Scute", "scute", 0x4A9A3A)
+        item("ink_sac", "Ink Sac", "sac", 0x1A1A2A)
+        item("glow_ink_sac", "Glow Ink Sac", "sac", 0x4AE8C8)
+        item("honeycomb", "Honeycomb", "honeycomb", 0xE8A020, ["c": 0xF8C850])
         item("resin_clump", "Resin Clump", "ball", 0xD9701E)
         item("resin_brick", "Resin Brick", "ingot", 0xCC6420)
-        item("goat_horn", "Goat Horn", "bone", 0xC8C0A8, stack: 1)
-        item("armadillo_scute", "Armadillo Scute", "leather", 0xA06A58)
-        item("wolf_armor", "Wolf Armor", "chestplate", 0xA06A58, stack: 1)
-        item("end_crystal", "Hollow Crystal", "gem", 0xD8A8E8)
-        item("ominous_bottle", "Omen Bottle", "bucket", 0x2A5A4A, ["c": 0x0B6138])
+        item("goat_horn", "Goat Horn", "horn", 0xC8C0A8, stack: 1)
+        item("armadillo_scute", "Armadillo Scute", "scute", 0xA06A58)
+        item("wolf_armor", "Wolf Armor", "horse_armor", 0xA06A58, stack: 1)
+        item("end_crystal", "Hollow Crystal", "crystal", 0xD8A8E8)
+        item("ominous_bottle", "Omen Bottle", "bottle", 0x2A5A4A, ["c": 0x0B6138])
         for (n, d, c) in [("cod_bucket", "Bucket of Cod", 0xB8A58A), ("salmon_bucket", "Bucket of Salmon", 0xC0504A),
                           ("tropical_fish_bucket", "Bucket of Tropical Fish", 0xE87A2A), ("pufferfish_bucket", "Bucket of Pufferfish", 0xE8C040),
                           ("axolotl_bucket", "Bucket of Axolotl", 0xF09AB0), ("tadpole_bucket", "Bucket of Tadpole", 0x5A4A30)] as [(String, String, UInt32)] {
@@ -244,38 +244,38 @@ final class ItemRegistry {
         for (c, d) in BlockRegistry.colors {
             item("\(c)_dye", "\(d) Dye", "dust", BlockRegistry.colorHex[c] ?? 0xFFFFFF)
         }
-        item("leather_horse_armor", "Leather Horse Armor", "chestplate", 0xA0592B, stack: 1)
-        item("iron_horse_armor", "Iron Horse Armor", "chestplate", 0xE0E0E0, stack: 1)
-        item("golden_horse_armor", "Golden Horse Armor", "chestplate", 0xF8D84A, stack: 1)
-        item("diamond_horse_armor", "Diamond Horse Armor", "chestplate", 0x4AEDD9, stack: 1)
-        item("lead", "Lead", "string", 0xB08A5A)
-        item("spyglass", "Spyglass", "stick", 0xC8783A, stack: 1)
+        item("leather_horse_armor", "Leather Horse Armor", "horse_armor", 0xA0592B, stack: 1)
+        item("iron_horse_armor", "Iron Horse Armor", "horse_armor", 0xE0E0E0, stack: 1)
+        item("golden_horse_armor", "Golden Horse Armor", "horse_armor", 0xF8D84A, stack: 1)
+        item("diamond_horse_armor", "Diamond Horse Armor", "horse_armor", 0x4AEDD9, stack: 1)
+        item("lead", "Lead", "lead", 0xB08A5A)
+        item("spyglass", "Spyglass", "spyglass", 0xC8783A, ["c": 0xE8C040], stack: 1)
         for (_, disp, need) in Banners.patterns { if let n = need { item(n, "Banner Pattern (\(disp))", "paper", 0xE0D8C0, ["a": 0x5A5040], stack: 1) } }
-        item("armor_stand", "Armor Stand", "stick", 0x9A7A4A, stack: 16)
+        item("armor_stand", "Armor Stand", "armor_stand", 0x9A7A4A, stack: 16)
         item("cocoa_beans", "Cocoa Beans", "seeds", 0x7A4A2A)
         item("torchflower_seeds", "Torchflower Seeds", "seeds", 0x5A7A2A)
         item("pitcher_pod", "Pitcher Pod", "seeds", 0x3A7A6A)
-        item("brush", "Brush", "feather", 0xC8A878, ["a": 0x6B4F2C], stack: 1)
-        item("echo_shard", "Resonant Shard", "gem", 0x0A4A58)
+        item("brush", "Brush", "brush", 0xC8A878, ["a": 0x6B4F2C], stack: 1)
+        item("echo_shard", "Resonant Shard", "crystal", 0x0A4A58)
         item("recovery_compass", "Recovery Compass", "compass", 0x3A6A6A, ["c": 0x3AD8D8, "d": 0x1A2A2A], stack: 1)
         item("disc_fragment_5", "Disc Fragment", "nugget", 0x2A2A2A)
-        item("mace", "Mace", "shovel", 0x6A6A70, stack: 1)
+        item("mace", "Mace", "mace", 0x6A6A70, stack: 1)
         item("wind_charge", "Wind Charge", "ball", 0xBDC9FF)
         item("powder_snow_bucket", "Powder Snow Bucket", "bucket", 0xB0B0B8, ["c": 0xF8F8FF], stack: 1)
-        item("trial_key", "Proving Key", "nugget", 0xE8A040)
-        item("map", "Empty Map", "paper", 0xE8E0C0, ["a": 0x8A7A5A])
-        item("filled_map", "Map", "paper", 0xE8D8A8, ["a": 0x6A9A5A], stack: 1)
+        item("trial_key", "Proving Key", "key", 0xE8A040)
+        item("map", "Empty Map", "map", 0xC8B888, ["c": 0xE8E0C0, "d": 0xE8E0C0, "r": 0xE8E0C0])
+        item("filled_map", "Map", "map", 0xC8B888, ["c": 0xE8D8A8, "d": 0x6A9A5A], stack: 1)
         for s in ["angler", "archer", "arms_up", "blade", "brewer", "burn", "danger", "explorer", "flow", "friend", "guster", "heart",
                   "heartbreak", "howl", "miner", "mourner", "plenty", "prize", "scrape", "sheaf", "shelter", "skull", "snort"] {
-            item("\(s)_pottery_sherd", "\(s.replacingOccurrences(of: "_", with: " ").capitalized) Pottery Sherd", "paper", 0xA8583A, ["a": 0x6A3A2A])
+            item("\(s)_pottery_sherd", "\(s.replacingOccurrences(of: "_", with: " ").capitalized) Pottery Sherd", "sherd", 0xA8583A, ["c": 0x6A3A2A])
         }
         for d in MusicDiscs.all {
-            item("music_disc_\(d.0)", "Music Disc", "compass", 0x1A1A1A, ["c": d.1, "d": 0x3A3A3A], stack: 1)
+            item("music_disc_\(d.0)", "Music Disc", "disc", 0x1A1A1A, ["c": d.1], stack: 1)
         }
-        item("ominous_trial_key", "Omen Proving Key", "nugget", 0x3A8A7A)
-        item("netherite_upgrade_smithing_template", "Duskium Upgrade", "paper", 0x3A2A2A, ["a": 0x6A4A3A])
+        item("ominous_trial_key", "Omen Proving Key", "key", 0x3A8A7A)
+        item("netherite_upgrade_smithing_template", "Duskium Upgrade", "template", 0x3A2A2A, ["c": 0x8A5A4A])
         for t in Smithing.trims {
-            item("\(t)_armor_trim_smithing_template", "\(t == "vex" ? "Hexling" : t.capitalized) Armor Trim", "paper", 0x2A3A4A, ["a": 0x6A8AAA])
+            item("\(t)_armor_trim_smithing_template", "\(t == "vex" ? "Hexling" : t.capitalized) Armor Trim", "template", 0x2A3A4A, ["c": 0x6A8AAA])
         }
 
         // Food (hunger, saturation as in the reference game)
@@ -303,20 +303,20 @@ final class ItemRegistry {
         food("golden_carrot", "Golden Carrot", "carrot", 0xF2D23A, 6, 14.4)
         food("beetroot", "Beetroot", "potato", 0xA02838, 1, 1.2)
         food("cookie", "Cookie", "cookie", 0xC88A48, 2, 0.4, ["a": 0x4A2A1A])
-        food("melon_slice", "Melon Slice", "melon", 0xE04A3A, 2, 1.2, ["c": 0x4A9A2A])
+        food("melon_slice", "Melon Slice", "melon", 0xE04A3A, 2, 1.2, ["c": 0x2A1A10, "d": 0x4A9A2A])
         food("sweet_berries", "Sweet Berries", "berries", 0xC0203A, 2, 0.4, ["a": 0x3A6A2A])
         food("pumpkin_pie", "Pumpkin Pie", "pie", 0xE8A050, 8, 4.8, ["c": 0xA85A1A])
         food("mushroom_stew", "Mushroom Stew", "stew", 0x8A6435, 6, 7.2, ["c": 0xB08858, "d": 0xD8C0A0], stack: 1)
         food("beetroot_soup", "Beetroot Soup", "stew", 0x8A6435, 6, 7.2, ["c": 0xA02838, "d": 0xC04050], stack: 1)
-        food("dried_kelp", "Dried Kelp", "leather", 0x3A4A2A, 1, 0.6)
+        food("dried_kelp", "Dried Kelp", "kelp", 0x3A4A2A, 1, 0.6)
         food("glow_berries", "Glow Berries", "berries", 0xF2A83A, 2, 0.4, ["a": 0x3A6A2A])
         food("chorus_fruit", "Spiral Fruit", "berries", 0x8A5A9A, 4, 2.4, ["a": 0x4A2A5A])
         food("spider_eye", "Spider Eye", "eye", 0x8A2A3A, 2, 3.2, ["c": 0xC04050, "d": 0x200810])
         food("enchanted_golden_apple", "Enchanted Golden Apple", "apple_shape", 0xF8E050, 4, 9.6, ["a": 0x5A3D1F])
-        food("pufferfish", "Pufferfish", "fish", 0xE8C040, 1, 0.2, ["c": 0x303030])
+        food("pufferfish", "Pufferfish", "pufferfish", 0xE8C040, 1, 0.2, ["c": 0x303030])
         food("tropical_fish", "Tropical Fish", "fish", 0xE87A2A, 1, 0.2, ["c": 0xF8F8F8])
         food("poisonous_potato", "Poisonous Potato", "potato", 0xA8B050, 2, 1.2)
-        food("honey_bottle", "Honey Bottle", "bucket", 0xD0DCF0, 6, 1.2, ["c": 0xF0A020], stack: 16)
+        food("honey_bottle", "Honey Bottle", "bottle", 0xD0DCF0, 6, 1.2, ["c": 0xF0A020], stack: 16)
         food("rabbit_stew", "Rabbit Stew", "stew", 0x8A6435, 10, 12, ["c": 0xB07040, "d": 0xD8A060], stack: 1)
         for f in SuspiciousStew.flowers {
             var d = ItemDef("suspicious_stew_" + f.0, "Suspicious Stew")
@@ -423,7 +423,61 @@ enum ItemTextures {
         }
     }
 
+    // Auto-shaded silhouettes (ItemShapes): a dark outline around the shape, a light rim on the
+    // top-left edges, a shade rim on the bottom-right, a soft diagonal gradient. `hole` pixels are left
+    // clear (but still shape the outline); with `only`, just those pixels are painted (potion liquid).
+    static let fixed: [Character: UInt32] = ["a": 0x49361B, "b": 0x896727, "w": 0xF2F2F2, "k": 0x1E1E24, "g": 0xBFD6EE,
+                                             "r": 0xC42A2A, "y": 0xF2D23A, "z": 0x8A8A92, "l": 0x4A9A2A, "s": 0xDDDDDD]
+    static func autoPainter(_ rowsIn: [String], base: UInt32, extras: [Character: UInt32],
+                            hole: Character? = nil, only: Character? = nil) -> TextureGen.Painter {
+        let rows = rowsIn.map { Array($0) }
+        let b = TextureGen.hex(base)
+        func ch(_ x: Int, _ y: Int) -> Character {
+            if x < 0 || y < 0 || y >= rows.count || x >= rows[y].count || x > 15 { return "." }
+            return rows[y][x]
+        }
+        func mat(_ c: Character) -> V3 {
+            switch c {
+            case "#": return V3(b.x, b.y, b.z)
+            case "+": return V3(b.x, b.y, b.z) + (V3(1, 1, 1) - V3(b.x, b.y, b.z)) * 0.3
+            case "=": return V3(b.x, b.y, b.z) * 0.72
+            case "-": return V3(b.x, b.y, b.z) * 0.5
+            default:
+                if let h = extras[c] ?? fixed[c] { let v = TextureGen.hex(h); return V3(v.x, v.y, v.z) }
+                return V3(b.x, b.y, b.z) * 0.72
+            }
+        }
+        func filled(_ x: Int, _ y: Int) -> Bool { ch(x, y) != "." }
+        func solid(_ x: Int, _ y: Int) -> Bool { let c = ch(x, y); return c != "." && c != "s" }
+        return { x, y in
+            let c = ch(x, y)
+            if let o = only, c != o { return TextureGen.clear }
+            if c == "." {
+                var acc = V3(0, 0, 0), n: Float = 0
+                for (nx, ny) in [(x, y - 1), (x - 1, y), (x + 1, y), (x, y + 1)] where solid(nx, ny) {
+                    acc += mat(ch(nx, ny)); n += 1
+                }
+                if n == 0 { return TextureGen.clear }
+                let m = acc / n
+                return V4(m.x * 0.26, m.y * 0.26, m.z * 0.3, 1)
+            }
+            if let h = hole, c == h { return TextureGen.clear }
+            let m = mat(c)
+            if c == "s" { return V4(m.x, m.y, m.z, 1) }
+            let up = filled(x, y - 1), left = filled(x - 1, y), right = filled(x + 1, y), down = filled(x, y + 1)
+            var col: V3
+            if !up || !left { col = m + (V3(1, 1, 1) - m) * 0.38 }
+            else if !down || !right { col = m * 0.7 }
+            else if !filled(x - 1, y - 1) { col = m + (V3(1, 1, 1) - m) * 0.15 }
+            else if !filled(x + 1, y + 1) { col = m * 0.85 }
+            else { col = m }
+            let k = 1 + (7.5 - Float(x + y) / 2) * 0.012
+            return V4(min(1, col.x * k), min(1, col.y * k), min(1, col.z * k), 1)
+        }
+    }
+
     static func painter(_ s: Sprite) -> TextureGen.Painter {
+        if let shape = ItemShapes.s[s.mask] { return autoPainter(shape, base: s.base, extras: s.extras) }
         let rows = (ItemArt.masks[s.mask] ?? []).map { Array($0) }
         return { x, y in
             guard y < rows.count, x < rows[y].count else { return TextureGen.clear }
