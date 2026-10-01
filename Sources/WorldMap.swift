@@ -131,6 +131,26 @@ final class MapCache {
 
     // Harness: forget discoveries (temp world tests).
     func resetMarks() { marks = []; marksWorld = "" }
+
+    // Harness: sample a square of cells around (x, z) right now (snapshots can't wait for the worker).
+    func prefill(_ g: TerrainGenerator, x: Int, z: Int, radius: Int, step: Int) {
+        use(g)
+        var out: [(Int64, UInt32)] = []
+        var bz = z - radius
+        while bz <= z + radius {
+            var bx = x - radius
+            while bx <= x + radius {
+                let cx = floorDiv(bx, MapCache.cellBlocks), cz = floorDiv(bz, MapCache.cellBlocks)
+                let c = g.column(cx * MapCache.cellBlocks + 2, cz * MapCache.cellBlocks + 2)
+                out.append((MapCache.key(cx, cz), MapCache.shade(c.biome, height: c.height)))
+                bx += step
+            }
+            bz += step
+        }
+        lock.lock()
+        for (k, c) in out { cells[k] = c }
+        lock.unlock()
+    }
 }
 
 // Draws a top-down map into HudLines: `cells` x `rows` cells of `px` screen pixels each, centred on (wx, wz)
@@ -201,7 +221,7 @@ enum MapDraw {
 
 enum Minimap {
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
-        guard Settings.shared.minimap, g.menu == nil, g.alive, !g.hideHUD else { return [] }
+        guard Settings.shared.minimap, HudExtras.enabled, g.menu == nil, g.alive, !g.hideHUD else { return [] }
         let s = L.s
         let cols = 32, rows = 32
         let px = 2 * s

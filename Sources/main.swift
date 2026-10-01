@@ -694,6 +694,10 @@ enum Snapshot {
             if let sa = Int(arg("--safe") ?? "") { Settings.shared.safeArea = sa }
         }
         if let v = arg("--padview") { PadTest.view(game, v) }
+        if CommandLine.arguments.contains("--hints") {
+            // The minimap samples on a worker; fill its area now so the single frame shows it.
+            MapCache.shared.prefill(world.gen, x: Int(game.player.pos.x), z: Int(game.player.pos.z), radius: 72, step: 4)
+        }
         if CommandLine.arguments.contains("--selftest") {
             // Crash smoke test: every mob kind, every block, the special crafting paths, bundles, and 3 s of ticks.
             game.paused = false

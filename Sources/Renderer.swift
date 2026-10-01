@@ -958,6 +958,16 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
         }
 
+        // Positioned text / boxes / item icons from HudExtras, CombatHUD, the map (HudLine).
+        func drawHudLine(_ l: HudLine) {
+            if let b = l.bg {
+                if let box = l.box { rect(l.x, l.y, box.x, box.y, b) }
+                else { rect(l.x - 3 * l.scale, l.y - 3 * l.scale, textWidth(l.text, l.scale) + 6 * l.scale, 13 * l.scale, b) }
+            }
+            if let it = l.item { itemIcon(it, l.x, l.y, l.box?.x ?? 16 * l.scale) }
+            if !l.text.isEmpty { text(l.text, l.x, l.y, l.scale, l.color) }
+        }
+
         if let m = game.menu {
             // Container screen: dimmed world, bevelled panel, slots, items, cursor stack, tooltip.
             // Big panels drop to a smaller GUI scale so they always fit (TV GUI scales, safe area).
@@ -1369,6 +1379,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 }
                 rect(o.x + 186 * s, o.y + 40 * s, 22 * s, 6 * s, V4(0.55, 0.55, 0.55, 1))
             }
+            if let cm = m as? CustomDrawnMenu { for l in cm.drawLines(ML, o) { drawHudLine(l) } }
             for sl in m.slots where !sl.isButton {
                 let x = o.x + Float(sl.x - 1) * s, y = o.y + Float(sl.y - 1) * s
                 let bigSlot = (m is CraftingTableMenu || m is FurnaceMenu || m is AnvilMenu || m is SmithingMenu || m is StonecutterMenu || m is GrindstoneMenu) && { if case .result = sl.kind { return true } else if case .output = sl.kind { return true } else { return false } }()
@@ -1633,14 +1644,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
 
         // Tutorial tips, contextual button prompts and subtitles (HudExtras.swift).
-        for l in HudExtras.lines(game, L) {
-            if let b = l.bg {
-                if let box = l.box { rect(l.x, l.y, box.x, box.y, b) }
-                else { rect(l.x - 3 * l.scale, l.y - 3 * l.scale, textWidth(l.text, l.scale) + 6 * l.scale, 13 * l.scale, b) }
-            }
-            if let it = l.item { itemIcon(it, l.x, l.y, l.box?.x ?? 16 * l.scale) }
-            if !l.text.isEmpty { text(l.text, l.x, l.y, l.scale, l.color) }
-        }
+        for l in HudExtras.lines(game, L) { drawHudLine(l) }
 
         // F3 debug overlay
         if game.showDebug {

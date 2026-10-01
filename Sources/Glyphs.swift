@@ -281,6 +281,7 @@ enum Prompt {
         }
         if m is DeathMenu { return line([(.select, "Select")]) }
         if let pm = m as? PauseMenu { return pm.legend }
+        if let cm = m as? CustomDrawnMenu { return cm.legend }
         if m.capturesText && !(m is CreativeMenu) {
             return pad ? line([(.keyboard, "Keyboard"), (.select, "Select"), (.back, "Close")]) : line([(.select, "Select"), (.back, "Close")])
         }

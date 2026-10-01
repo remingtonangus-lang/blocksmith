@@ -282,6 +282,7 @@ enum HudExtras {
         Feedback.tick(g)
         Narrator.shared.tick(g)
         BugNotes.shared.tick(g)
+        MapCache.shared.tick(g)
     }
     // All extra lines for this frame (drawn after the normal HUD, before the F3 overlay).
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
@@ -306,7 +307,7 @@ enum HudExtras {
         out += prompts
         let top = prompts.map { $0.y }.min() ?? (L.H - L.insetY - 6 * L.s)
         out += Subtitles.shared.lines(g, L, bottom: top - 4 * L.s)
-        if g.menu == nil && g.alive { out = CombatHUD.shared.lines(g, L) + out }
+        if g.menu == nil && g.alive { out = Minimap.lines(g, L) + CombatHUD.shared.lines(g, L) + out }
         return out
     }
 }

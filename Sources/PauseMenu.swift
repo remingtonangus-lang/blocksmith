@@ -44,7 +44,7 @@ final class PauseMenu: Menu {
     static let valueIDs: Set<String> = ["sens", "invert", "autojump", "fov", "lookx", "looky", "accel", "dead", "aim", "rumble", "southpaw",
                                         "sneaktoggle", "autosprint", "glyphs", "rd", "fullscreen", "launchfs", "vsync", "fps", "rscale",
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
-                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight"]
+                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap"]
 
     static let help: [String: String] = [
         "resume": "Return to the game.",
@@ -60,6 +60,8 @@ final class PauseMenu: Menu {
         "rumble": "Controller vibration when you are hit, mine, attack or something explodes.",
         "southpaw": "Southpaw swaps the sticks: look with the left, move with the right.",
         "sneaktoggle": "Toggle: press B / right stick once to crouch, again to stand.",
+        "minimap": "A small biome map in the corner with nearby bases and villages. M or hold View for the full map.",
+        "worldmap": "Biomes around you and the Steelhold bases and villages you have found.",
         "flight": "Aircraft pitch on the left stick: pull back to climb (like a plane) or push up to climb.",
         "autosprint": "Push the left stick fully forward for a moment to sprint.",
         "glyphs": "Which buttons prompts show. Auto follows the last device you touched.",
@@ -124,7 +126,7 @@ final class PauseMenu: Menu {
             } else if !currentWorld.isEmpty {
                 subtitle = "\(currentWorld) - day \(Int(g.time / DAY_LENGTH) + 1)"
             }
-            rows = [("Back to Game", "resume"), ("Options...", "options"), ("Advancements", "advancements"), ("Commands...", "commands"),
+            rows = [("Back to Game", "resume"), ("Options...", "options"), ("World Map", "worldmap"), ("Advancements", "advancements"), ("Commands...", "commands"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Game.difficultyNames[g.difficulty])", "difficulty"),
                     ("Worlds...", "worlds"), ("Save and Quit to Title", "totitle"), ("Save and Quit Game", "quit")]
@@ -164,6 +166,7 @@ final class PauseMenu: Menu {
                         ("Safe Area: \(st.safeArea)%", "safe"), ("Button Hints: \(on(st.buttonHints))", "hints"),
                         ("Text Background: \(st.textBackground == 0 ? "Off" : pct(st.textBackground))", "textbg"),
                         ("Crosshair: \(["Classic", "Bold", "Dot"][max(0, min(2, st.crosshair))])", "crosshair"),
+                        ("Minimap: \(on(st.minimap))", "minimap"),
                         ("Hide HUD: \(on(g.hideHUD))", "hidehud"), ("Debug Info: \(on(g.showDebug))", "debug"),
                         ("Bug Notes: " + (BugNotes.denied ? "No mic access" : BugNotes.names[max(0, min(2, st.bugNotes))]), "bugnotes"),
                         ("Reset Options...", "resetask")]
@@ -394,6 +397,8 @@ final class PauseMenu: Menu {
             page = .title
             resetCursor = true
         case "advancements": g.closeMenu(); g.openMenu(AdvancementMenu(game: g))
+        case "worldmap": g.closeMenu(); g.openMenu(MapMenu(game: g))
+        case "minimap": st.minimap.toggle()
         case "commands": g.closeMenu(); g.openMenu(CommandMenu(game: g))
         case "mode": g.toggleMode(); g.onModeChanged?(g.survival)
         case "difficulty": g.difficulty = step([0, 1, 2, 3], g.difficulty)

@@ -147,7 +147,7 @@ enum PadTest {
         try? fm.createDirectory(at: tmp.appendingPathComponent("Beta"), withIntermediateDirectories: true)
         try? fm.createDirectory(at: tmp.appendingPathComponent("Alpha"), withIntermediateDirectories: true)
         try? fm.setAttributes([.modificationDate: Date(timeIntervalSinceNow: -3600)], ofItemAtPath: tmp.appendingPathComponent("Beta").path)
-        tap(g, "down*6 a")
+        tap(g, "down*7 a")
         check(pm.page == .worlds, "Worlds... opens the worlds list")
         check(pm.rows.count == 5 && pm.rows[2].1 == "world:Alpha", "worlds list is newest first")
         tap(g, "a")
@@ -363,6 +363,51 @@ enum PadTest {
             for i in 0..<36 { g.inventory.main[i] = .empty }
         }
 
+        // World map: M opens it, RT / LT zoom, the stick pans, A recentres, B closes; holding View opens it too
+        // while a tap still cycles the camera.
+        do {
+            g.menu = nil
+            MapCache.shared.prefill(g.world.gen, x: Int(g.player.pos.x), z: Int(g.player.pos.z), radius: 160, step: 8)
+            g.input.pressed.insert(46)           // M
+            frame(g)
+            if let mm = g.menu as? MapMenu {
+                check(true, "M opens the world map")
+                let z0 = mm.zoom
+                tap(g, "rt")
+                check(mm.zoom == max(0, z0 - 1), "RT zooms the map in")
+                tap(g, "lt lt")
+                check(mm.zoom == min(MapMenu.zooms.count - 1, z0 + 1), "LT zooms out")
+                let cx0 = mm.cx
+                var r = PadSnapshot(); r.lx = 1
+                for _ in 0..<15 { frame(g, r) }
+                frame(g)
+                check(mm.cx > cx0 + 10, "the left stick pans the map")
+                tap(g, "a")
+                check(abs(mm.cx - g.player.pos.x) < 1, "A recentres on the player")
+                let lines = mm.drawLines(HudLayout(1280, 800).fitted(mm), V2(100, 100))
+                check(lines.count > 80, "the map draws terrain runs and markers (\(lines.count))")
+                check(Prompt.menuLegend(mm, g).contains("Zoom"), "map legend")
+                tap(g, "b")
+                check(g.menu == nil, "B closes the map")
+            } else { check(false, "M opens the world map") }
+            var v = PadSnapshot(); v.view = true
+            for _ in 0..<30 { frame(g, v) }
+            check(g.menu is MapMenu, "holding View opens the map")
+            frame(g)
+            g.closeMenu()
+            let cam = g.cameraMode
+            tap(g, "view")
+            check(g.cameraMode == (cam + 1) % 3 && g.menu == nil, "a quick View tap still cycles the camera")
+            g.cameraMode = cam
+            MapCache.shared.resetMarks()
+            MapCache.shared.discover(g, kind: "military_base", x: Int(g.player.pos.x) + 40, z: Int(g.player.pos.z))
+            check(MapCache.shared.marks.count == 1, "a nearby base is marked on the map")
+            MapCache.shared.discover(g, kind: "military_base", x: Int(g.player.pos.x) + 45, z: Int(g.player.pos.z))
+            check(MapCache.shared.marks.count == 1, "the same base isn't marked twice")
+            check(MapCache.shade(.ocean, height: 40) != MapCache.shade(.desert, height: 140), "biomes get distinct map colours")
+            MapCache.shared.resetMarks()
+        }
+
         // Damage direction indicator.
         g.survival = true
         let rightV = V3(cosf(g.player.yaw), 0, -sinf(g.player.yaw))
@@ -469,6 +514,16 @@ enum PadTest {
         case "controls": pm.go(.controls); pm.build()
         case "padmap": PadMap.map = [2, 1, 0] + Array(3..<PadMap.count); pm.go(.padmap); pm.build(); cursor = 0
         case "title": pm.page = .title; pm.build()
+        case "map":
+            MapCache.shared.prefill(g.world.gen, x: Int(g.player.pos.x), z: Int(g.player.pos.z), radius: 700, step: 8)
+            MapCache.shared.resetMarks()
+            MapCache.shared.discover(g, kind: "military_base", x: Int(g.player.pos.x) + 180, z: Int(g.player.pos.z) - 90)
+            MapCache.shared.discover(g, kind: "village", x: Int(g.player.pos.x) - 220, z: Int(g.player.pos.z) + 60)
+            g.menu = nil
+            g.paused = false
+            let mm = MapMenu(game: g)
+            mm.zoom = 2
+            g.menu = mm
         default: pm.go(.options); pm.cat = .video; pm.build(); cursor = 1
         }
         WorldStore.base = old

@@ -596,7 +596,10 @@ final class Game {
         if input.tapped(Key.slash) { openMenu(CommandMenu(game: self, prefill: "/")); return }
         if input.tapped(Key.f2) || (p.share && !q.share) { screenshotRequested = true }
         if PadActions.extras(p, q, self) { return }
-        if input.tapped(KeyBinds.key(.camera)) || (p.view && !q.view) { cameraMode = (cameraMode + 1) % 3 }
+        if input.tapped(KeyBinds.key(.map)) { openMenu(MapMenu(game: self)); return }
+        // View: a tap cycles the camera, holding it opens the world map (WorldMap.swift).
+        if input.tapped(KeyBinds.key(.camera)) || MapInput.viewTap(self, p, q) { cameraMode = (cameraMode + 1) % 3 }
+        if menu != nil { return }
         if input.tapped(KeyBinds.key(.drop)) { dropHeld(all: input.control) }
 
         // Hotbar
