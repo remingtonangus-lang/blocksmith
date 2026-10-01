@@ -281,6 +281,18 @@ extension MobTests {
         } else {
             check(false, "fortress structure type registered")
         }
+        // Zombies trample turtle eggs.
+        let ex = x0 - 6, ez = z0 - 3
+        world.setBlockAsync(ex, gy, ez, Blocks.id("turtle_egg") + 1)
+        let zb = Mob(.zombie, at: V3(Float(ex) + 0.5, Float(gy), Float(ez) + 1.2))
+        zb.jobTimer = 0
+        var tt: Float = 0
+        while tt < 6 && Blocks.groupBase[Int(world.block(ex, gy, ez))] == Blocks.id("turtle_egg") {
+            zb.attackCooldown -= 0.05
+            _ = zb.trampleEggs(0.05, game)
+            tt += 0.05
+        }
+        check(world.block(ex, gy, ez) == AIR, "zombies trample turtle eggs", String(format: "%.1f s", tt))
         game.player.pos = pos
         game.health = 20
     }
