@@ -233,7 +233,7 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
         blkPart *= 1.0 + (sin(tt * 9.0 + ph) * 0.5 + sin(tt * 23.0 + ph * 2.0) * 0.3) * 0.06;
     }
     float3 lit = max(skyPart, blkPart) + min(skyPart, blkPart) * 0.3;
-    lit = mix(max(lit, float3(0.03)), float3(1.0), u.sunDir.w);
+    lit = mix(max(lit, float3(0.03)), u.dimTint.rgb, u.sunDir.w);
     lit += flashLight(in.rel, n, fl);
     float3 col = albedo * lit;
     if (spec > 0.004 && sunVis > 0.0) {
@@ -266,7 +266,8 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
         col += u.sunColor.rgb * step(0.975, g) * ndl * shadow * sunVis * 3.0;
     }
     float e = emis.sample(texSampler, in.uv, layer).r;
-    col += albedo * e * 2.4;
+    // Lava keeps its orange body (a strong boost clips it to flat yellow); other emitters glow harder.
+    col += albedo * e * (in.anim > 0.5 ? 0.7 : 2.4);
     col = waterAmbient(col, albedo, u);
     return float4(applyFogDir(col, in.rel, length(in.rel), u), 1.0);
 }
@@ -337,7 +338,7 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
     if (in.water < 0.5) {
         float4 c = tex.sample(texSampler, in.uv, uint(in.layer));
         float3 lit = u.ambColor.rgb * skyC * faceShade[uint(in.face)] + u.sunColor.rgb * sunVis * 0.6 + blkL * float3(1.0, 0.7, 0.4);
-        lit = mix(max(lit, float3(0.04)), float3(1.0), u.sunDir.w);
+        lit = mix(max(lit, float3(0.04)), u.dimTint.rgb, u.sunDir.w);
         float3 rgb = c.rgb * in.tint * lit;
         float3 n = normalize(in.nrm);
         float3 h = normalize(u.lightDir.xyz - v);
@@ -535,16 +536,38 @@ fragment float4 compositeFS(FsOut in [[stage_in]],
                             texture2d<float> bloom [[texture(1)]],
                             texture2d<float> rays [[texture(2)]],
                             depth2d<float> dep [[texture(3)]],
+                            depth2d<float> sm [[texture(4)]],
                             constant PostParams& p [[buffer(0)]],
                             constant Uniforms& u [[buffer(1)]]) {
     constexpr sampler ls(filter::linear, address::clamp_to_edge);
     float3 c = hdr.sample(ls, in.uv).rgb;
+    // One depth reconstruction shared by the shafts, haze and mist below.
+    float d = dep.sample(ls, in.uv);
+    float3 rel = relAt(in.uv, d, u);
+    if (p.grade.w > 0.0 && u.sunColor.w > 0.05 && u.params.w < 0.5) {
+        // Volumetric light shafts: march the view ray (up to 40 blocks) through the sun/moon shadow map and
+        // add in-scattered light where the air is lit, so shafts show through canopies and openings even
+        // with the sun off screen. 10 jittered steps; strongest looking toward the light.
+        constexpr sampler cmp(coord::normalized, filter::linear, address::clamp_to_edge, compare_func::less_equal);
+        float L = min(d >= 1.0 ? 40.0 : length(rel), 40.0);
+        float3 dir = normalize(rel);
+        float jit = fract(sin(dot(in.pos.xy, float2(12.9898, 78.233))) * 43758.5453);
+        float lit = 0.0;
+        for (int i = 0; i < 10; i++) {
+            float3 q = dir * (L * (float(i) + jit) / 10.0);
+            float4 sc = u.shadowMat * float4(q, 1.0);
+            float2 suv = float2(sc.x * 0.5 + 0.5, 0.5 - sc.y * 0.5);
+            lit += (suv.x > 0.0 && suv.y > 0.0 && suv.x < 1.0 && suv.y < 1.0) ? sm.sample_compare(cmp, suv, sc.z - 0.001) : 1.0;
+        }
+        lit /= 10.0;
+        float phase = 0.12 + pow(saturate(dot(dir, u.lightDir.xyz)), 8.0) * 0.9;
+        float scatter = (1.0 - exp(-L * 0.02)) * phase * (0.35 + p.sunCol.w + u.ambColor.w * 0.5);
+        c += u.sunColor.rgb * lit * scatter * 0.55 * u.sunColor.w;
+    }
     c += bloom.sample(ls, in.uv).rgb * p.sun.w;
     c += rays.sample(ls, in.uv).r * p.sunCol.rgb * p.sun.z;
     if (p.sunCol.w > 0.0) {
         // Sun haze: distant geometry toward the sun picks up warm in-scattered light.
-        float d = dep.sample(ls, in.uv);
-        float3 rel = relAt(in.uv, d, u);
         float dist = d >= 1.0 ? 400.0 : length(rel);
         float3 dir = normalize(rel);
         float phase = pow(saturate(dot(dir, u.lightDir.xyz)), 5.0) * 0.8 + 0.08;
@@ -553,8 +576,6 @@ fragment float4 compositeFS(FsOut in [[stage_in]],
     }
     if (p.mist.w > 0.0) {
         // Height mist: exponential density with height, integrated analytically along the view ray.
-        float d = dep.sample(ls, in.uv);
-        float3 rel = relAt(in.uv, d, u);
         float dist = d >= 1.0 ? u.params.x : min(length(rel), u.params.x);
         float3 dir = normalize(rel);
         float h0 = -p.mistH.x;                       // eye height above the mist base

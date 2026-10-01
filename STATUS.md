@@ -416,6 +416,10 @@ Known failing tests: none (snap.sh and --selftest pass on CI at d92f9b0).
 - Also: mobs/player model/arm shaded by the sun shadow map (mobVibFS), pink anti-twilight arch at dusk, world normals
   in HDR shading + shipVibVS / Vibrant.shipSolid|shipCut|shipTrans for ships (wiring in the PR #6 comment); more
   textures: bricks, stone bricks, log ends, glass, terracotta, packed/blue ice, snow, speckled family.
+- Volumetric light shafts (composite marches view rays through the shadow map: shafts through canopies even with the
+  sun off screen), dimension-tinted ambient (warm Emberdeep, violet Hollow), lava keeps its orange (no white clip),
+  ore emission only a faint glint (no x-ray glow in dark caves), night clouds dimmed, Violite/Hollow brick sheen,
+  netherrack lumps, torch-lit cave + building galleries (day/night) in CI.
 - Integration with the ship PR (#8): chunkVibVS already reads per-instance section records (VibSection); ship
   pipelines need an rgba16Float variant for the Fancy world pass (see the PR #6 comment).
 - Options > Graphics: Fancy (default) / Fast, saved in UserDefaults `fancyGraphics`; harness `--fast` renders one shot in Fast

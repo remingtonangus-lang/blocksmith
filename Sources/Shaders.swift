@@ -19,6 +19,7 @@ struct Uniforms {
     float4 ambColor;      // rgb = sky ambient colour, w = rain wetness
     float4 lightDir;      // xyz = direction toward the light, w = time of day fraction
     float4 screen;        // xy = render size in pixels, zw = 1 / size
+    float4 dimTint;       // rgb = colour of the dimension ambient lift (Fancy; white in the overworld)
 };
 
 struct ChunkOut {

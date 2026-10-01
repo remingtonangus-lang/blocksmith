@@ -160,8 +160,9 @@ final class Vibrant {
                     let t = simd_clamp((mx - 0.55) / 0.4, 0, 1)
                     e = t * t * (3 - 2 * t) * mode[l]
                 } else {
+                    // Ores: only a faint glint (a strong glow would light up and give away ore veins in the dark).
                     let t = simd_clamp((mx - mn - 0.2) / 0.3, 0, 1)
-                    e = t * 0.55
+                    e = t * 0.05
                 }
                 out[l * S * S + i] = UInt8(min(255, e * 255))
             }
@@ -184,6 +185,8 @@ final class Vibrant {
             } else if n.hasPrefix("polished_") || n.hasPrefix("smooth_") || n.contains("quartz") || n.hasSuffix("glazed_terracotta")
                         || n == "obsidian" || n == "crying_obsidian" || n.hasPrefix("prismarine") || n == "sea_lantern" || n.hasSuffix("_concrete") {
                 spec = 0.22; shin = 40
+            } else if n.hasPrefix("purpur") || n.hasPrefix("end_stone_brick") || n.hasPrefix("end_rod") {
+                spec = 0.18; shin = 32                    // Hollow building stone: a soft sheen
             } else if n == "snow" || n == "snow_block" || n == "powder_snow" || n == "grass_block_snow" {
                 spec = 0.2; shin = 60; metal = 0.5; wet = 0
             } else if n.contains("leaves") {
@@ -322,6 +325,7 @@ final class Vibrant {
         e.setFragmentTexture(bloom[0], index: 1)
         e.setFragmentTexture(raysTex, index: 2)
         e.setFragmentTexture(depth, index: 3)
+        e.setFragmentTexture(shadowMap, index: 4)
         e.setFragmentBytes(&p, length: MemoryLayout<PostParams>.stride, index: 0)
         e.setFragmentBytes(&uu, length: MemoryLayout<Uniforms>.stride, index: 1)
         e.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
