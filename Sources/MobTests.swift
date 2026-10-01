@@ -546,11 +546,15 @@ enum MobTests {
         // The rest of the copper set: every item has a recipe, every block ages and can be waxed.
         let copperSet = ["copper_sword", "copper_pickaxe", "copper_spear", "copper_helmet", "copper_boots", "copper_nugget", "copper_torch",
                          "copper_lantern", "copper_bars", "copper_chain", "copper_door", "copper_trapdoor", "copper_chest"]
-        let missing = copperSet.filter { k in !Items.has(k) || !Recipes.all.contains { $0.result.item == Items.id(k) } }
+        let missing: [String] = copperSet.filter { (k: String) -> Bool in !Items.has(k) || !Recipes.all.contains { $0.result.item == Items.id(k) } }
         check(missing.isEmpty, "the copper set is craftable", missing.joined(separator: ", "))
-        let ages = ["copper_lantern", "copper_bars", "copper_chain", "copper_door", "copper_trapdoor", "copper_chest"].allSatisfy { k in
-            Blocks.has(k) && Copper.convert(Blocks.id(k), stage: 3, waxed: false).map { Blocks.key($0) == "oxidized_" + k } == true
-                && Copper.convert(Blocks.id(k), stage: 0, waxed: true).map { Blocks.key($0) == "waxed_" + k } == true
+        let agers: [String] = ["copper_lantern", "copper_bars", "copper_chain", "copper_door", "copper_trapdoor", "copper_chest"]
+        let ages: Bool = agers.allSatisfy { (k: String) -> Bool in
+            guard Blocks.has(k) else { return false }
+            let id = Blocks.id(k)
+            let ox: String? = Copper.convert(id, stage: 3, waxed: false).map { Blocks.key($0) }
+            let wx: String? = Copper.convert(id, stage: 0, waxed: true).map { Blocks.key($0) }
+            return ox == "oxidized_" + k && wx == "waxed_" + k
         }
         check(ages, "copper blocks have every oxidation stage and a waxed form")
         // Built from a carved pumpkin on exposed copper: an exposed golem.
