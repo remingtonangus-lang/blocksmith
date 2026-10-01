@@ -50,8 +50,8 @@ extension Mob {
     }
 
     var armorPoints: (Int, Float) {
-        guard let e = equip else { return (0, 0) }
-        var pts = 0, tough: Float = 0
+        var (pts, tough) = steelholdArmor
+        guard let e = equip else { return (pts, tough) }
         for s in e.prefix(4) where !s.isEmpty { pts += s.def.armor; tough += s.def.toughness }
         return (pts, tough)
     }
@@ -212,7 +212,13 @@ extension Game {
     // Reference clamped regional difficulty (0...1): grows with world age and time spent in the area
     // (world time stands in for chunk inhabited time); halved on easy, always 0 early on normal.
     var regionalDifficulty: Float {
-        let ticks = Float(time * 20 / DAY_LENGTH * 24000)
+        let r = effectiveDifficulty
+        return r < 2 ? 0 : (r > 4 ? 1 : (r - 2) / 2)
+    }
+
+    // Unclamped regional difficulty (0 peaceful ... 6.75 on hard): patrol sizes, spawn buffs.
+    var effectiveDifficulty: Float {
+        let ticks = Float(time * 20)
         var f: Float = 0.75
         let h = max(0, min(1, (ticks - 72000) / 1_440_000)) * 0.25
         f += h
@@ -220,7 +226,6 @@ extension Game {
         i += min(0.125, h)
         if difficulty == 1 { i *= 0.5 }
         f += i
-        let r = Float(difficulty) * f
-        return r < 2 ? 0 : (r > 4 ? 1 : (r - 2) / 2)
+        return Float(difficulty) * f
     }
 }

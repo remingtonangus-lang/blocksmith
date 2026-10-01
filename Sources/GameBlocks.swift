@@ -86,7 +86,7 @@ extension Game {
     }
 
     func angerBees(near c: V3) {
-        for m in mobs.mobs where m.kind == .bee && simd_length(m.pos - c) < 16 { m.aggro = true }
+        beeHiveDisturbed(c)
     }
 
     // 20 Hz: campfires cook and hurt, frost walker freezes, conduits power players in water.
@@ -164,6 +164,7 @@ extension Game {
                             while y > c.y - 6 && !Blocks.collide[Int(world.block(x, y - 1, z))] { y -= 1 }
                             let w = Mob(.warden, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
                             w.anger = 80
+                            w.emergeTime = 6.7
                             mobs.mobs.append(w)
                             sfx(.wardenEmerge, 2, at: w.pos)
                         }
@@ -223,9 +224,7 @@ extension Game {
                 mobs.mobs.append(s)
             }
         case "bee_nest", "beehive":
-            if st < 5 && mobs.mobs.contains(where: { $0.kind == .bee && simd_length($0.pos - V3(Float(p.x), Float(p.y), Float(p.z))) < 22 }) && Int.random(in: 0..<3) == 0 {
-                world.setBlockAsync(p.x, p.y, p.z, b + 1)
-            }
+            break                                           // honey comes from bees returning with nectar (Bees.swift)
         case "torchflower_crop":
             if st < 1 { world.setBlockAsync(p.x, p.y, p.z, b + 1) } else { world.setBlockAsync(p.x, p.y, p.z, Blocks.id("torchflower")) }
         case "pitcher_crop":

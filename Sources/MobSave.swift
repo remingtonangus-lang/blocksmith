@@ -27,8 +27,9 @@ struct MobRecord: Codable {
 extension Mob {
     var keepOnUnload: Bool {
         if health <= 0 { return false }
-        if persistent || customName != nil || villager != nil { return true }
-        return !kind.hostile || kind == .minecart || equip != nil
+        if persistent || customName != nil || villager != nil || leashed { return true }
+        // Despawning categories (monsters, bats, fish, squid...) are simply dropped when their chunk unloads.
+        return !kind.category.despawns
     }
 
     var record: MobRecord {
@@ -82,6 +83,10 @@ extension Mob {
         if chested { d["chest"] = 1 }
         if raider { d["raider"] = 1 }
         if captain { d["captain"] = 1 }
+        if trap { d["trap"] = 1 }
+        if hasEgg { d["egg"] = 1 }
+        if canPickUp { d["pickup"] = 1 }
+        if let h = hive { d["hx"] = Float(h.x); d["hy"] = Float(h.y); d["hz"] = Float(h.z) }
     }
     func loadExtra(_ d: [String: Float]) {
         if let o = d["owned"] { owner = o > 0 }
@@ -94,6 +99,10 @@ extension Mob {
         chested = (d["chest"] ?? 0) > 0
         raider = (d["raider"] ?? 0) > 0
         captain = (d["captain"] ?? 0) > 0
+        trap = (d["trap"] ?? 0) > 0
+        hasEgg = (d["egg"] ?? 0) > 0
+        canPickUp = (d["pickup"] ?? 0) > 0
+        if let x = d["hx"], let y = d["hy"], let z = d["hz"] { hive = IVec3(Int(x), Int(y), Int(z)) }
     }
 }
 
@@ -127,9 +136,13 @@ extension MobManager {
             all[k, default: []].append(m.record)
         }
         if let d = try? JSONEncoder().encode(all) { try? d.write(to: s.dir.appendingPathComponent("mobs.json"), options: .atomic) }
+        savePopulated(to: s)
+        saveHives(to: s)
     }
 
     func load(from s: SaveManager?) {
+        loadPopulated(from: s)
+        loadHives(from: s)
         guard let s = s, let d = try? Data(contentsOf: s.dir.appendingPathComponent("mobs.json")),
               let all = try? JSONDecoder().decode([String: [MobRecord]].self, from: d) else { return }
         for (key, v) in all {

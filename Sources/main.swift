@@ -82,6 +82,16 @@ enum Snapshot {
         game.player.flying = true
         game.time = (Double(arg("--time") ?? "") ?? 0.2) * DAY_LENGTH
         if let s = arg("--slot") { game.selected = Int(s) ?? 0 }
+        if let h = arg("--hold") {
+            // --hold item[:aim]: put an item in the hand (guns come loaded; ":aim" aims down the sights).
+            let parts = h.split(separator: ":").map(String.init)
+            if Items.has(parts[0]) {
+                var st = ItemStack(Items.id(parts[0]), 1)
+                if let gi = Guns.index(st.item) { st.tag = Guns.all[gi].mag; game.arms.heldGun = gi; game.arms.heldSlot = game.selected }
+                game.inventory.held = st
+                if parts.count > 1 && parts[1] == "aim" { game.arms.aim = 1 }
+            }
+        }
         if let hp = arg("--survival") {
             game.survival = true
             game.health = Int(hp) ?? 20
@@ -535,6 +545,9 @@ enum Snapshot {
                     }
                     eq.append(Items.has("\(parts[1])_sword") ? ItemStack(Items.id("\(parts[1])_sword"), 1) : .empty)
                     m.equip = eq
+                } else if parts.count > 1 && parts[1] == "aggro" {
+                    m.aggro = true                                   // soldiers raise their guns
+                    if parts.count > 2, let gi = Int(parts[2]) { m.variant = gi }
                 } else if parts.count > 1 { var d = VillagerData(); d.profession = parts[1]; m.villager = d }
                 if k == .wither { m.phase = 0; m.pos.y += 2 }
                 if k == .evoker { m.spellTimer = 4.5 }
@@ -651,6 +664,7 @@ enum Snapshot {
             let route = PathFinder.find(world, from: from, to: to, tall: 2) ?? []
             print("path: \(route.count) nodes, ends \(route.last.map { "\($0.x - bx),\($0.y - gy),\($0.z - bz)" } ?? "-")")
             let z = Mob(.zombie, at: from)
+            z.lockTime = 60                                   // already chasing (the wall hides the player)
             game.mobs.mobs.removeAll()
             game.mobs.mobs.append(z)
             game.paused = false
@@ -669,6 +683,7 @@ enum Snapshot {
             print(String(format: "pathtest: zombie start %.1f from player, end %.1f, reached %@", d0, simd_length(z.pos - to), reached < 0 ? "never" : String(format: "after %.1f s", reached)))
             game.player.pos = pos
         }
+        if CommandLine.arguments.contains("--mobtests") && !MobTests.run(game: game, world: world, pos: pos, rd: rd) { return 1 }
         if let secs = Double(arg("--ticks") ?? "") {
             // Let the world run (mobs, sparkstone, villagers) with the camera held still.
             let keep = (game.player.pos, game.player.yaw, game.player.pitch)

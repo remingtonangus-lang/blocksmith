@@ -7,7 +7,7 @@ import Foundation
 enum MobVoice {
     enum Family {
         case silent, grunt, moo, bleat, cluck, groan, rattle, hiss, warble, squish, wail, crackle, hum, growl, bark, meow, neigh, buzz, chirp, roar
-        case bubble, click, rumble, creak, trill, snort, wind, squeak
+        case bubble, click, rumble, creak, trill, snort, wind, squeak, soldier
     }
     struct Profile { var family: Family; var f0: Float; var size: Float }
 
@@ -84,6 +84,18 @@ enum MobVoice {
         case .wither: return Profile(family: .groan, f0: 140, size: 2)
         case .creaking: return Profile(family: .creak, f0: 220, size: 1.3)
         case .minecart, .boat, .armorStand, .endCrystal: return Profile(family: .silent, f0: 0, size: 1)
+        case .zombieHorse: return Profile(family: .neigh, f0: 430, size: 1.2)
+        case .illusioner: return Profile(family: .hum, f0: 165, size: 1.1)
+        case .happyGhast: return Profile(family: .trill, f0: 700, size: 1.6)
+        case .parched: return Profile(family: .rattle, f0: 2600, size: 1.05)
+        case .camelHusk: return Profile(family: .snort, f0: 110, size: 1.4)
+        case .nautilus: return Profile(family: .bubble, f0: 520, size: 0.8)
+        case .zombieNautilus: return Profile(family: .bubble, f0: 320, size: 0.9)
+        case .soldierRecruit: return Profile(family: .soldier, f0: 0, size: 1)
+        case .soldierTrooper: return Profile(family: .soldier, f0: 1, size: 1)
+        case .soldierMarksman: return Profile(family: .soldier, f0: 2, size: 1)
+        case .soldierIronclad: return Profile(family: .soldier, f0: 3, size: 1.2)
+        case .deckGun: return Profile(family: .silent, f0: 0, size: 1)
         }
     }
 
@@ -117,6 +129,10 @@ enum MobVoice {
         switch pr.family {
         case .silent:
             out = g.modes(0.05, [(800, 0.2, 0.01)])
+        case .soldier:
+            // f0 holds the rank; idle chatter, a hurt grunt and a death cry from SoldierVoice.
+            let bark: Bark = s == .ambient ? .idle : (s == .hurt ? .hurt : .death)
+            return SoldierVoice.render(&g, rank: Int(pr.f0), bark, p: p)
         case .grunt:
             let (d, a, b) = shape(s, dur: 0.25 * sz, f0: f, f1: f * 0.75)
             let one = g.formant(d, f0: a, f1: b, formants: [(420, 5, 1), (950, 6, 0.6), (2300, 8, 0.2)], breath: 0.2, vib: 0.06, vibRate: 14, attack: 0.01, release: 0.05, growl: 0.35, gain: 1.2)

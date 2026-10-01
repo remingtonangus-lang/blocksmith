@@ -541,6 +541,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.writeLeads(&wr, eye: eye)
                 game.writeBanners(&wr, eye: eye)
                 game.writeRockets(&wr, eye: eye)
+                game.writeArms(&wr, eye: eye)
                 game.writeLecternBooks(&wr, eye: eye)
                 game.writeShelves(&wr, eye: eye)
                 game.particles.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight)
@@ -662,7 +663,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             let held = game.held
             // Arm (skin-coloured box angled up into the screen).
             let armOff = (scratchOff + 255) & ~255
-            let armPtr = (scratch.contents() + armOff).bindMemory(to: MobVert.self, capacity: 64)
+            let armPtr = (scratch.contents() + armOff).bindMemory(to: MobVert.self, capacity: 1024)
             var an = 0
             let skin = V3(0.84, 0.64, 0.5)
             let axL = simd_normalize(V3(-0.12, 0.62, -0.78)) * (held.isEmpty ? 0.36 : 0.3)
@@ -678,6 +679,13 @@ final class Renderer: NSObject, MTKViewDelegate {
                     an += 1
                 }
             }
+            // Guns are drawn as solid models (aiming moves them to the centre of the view).
+            let gunIndex = game.heldGun
+            if let gi = gunIndex, !game.sniperScoped {
+                let reloadDip: Float = game.arms.reload > 0 ? min(1, game.arms.reload * 3, (Guns.all[gi].reload - game.arms.reload) * 3) : 0
+                an += Guns.writeFirstPerson(gi, aim: game.arms.aim, kick: game.arms.kick, lower: reloadDip * 0.35 + game.equipAnim,
+                                            bob: V3(0, bob, 0), light: light, into: armPtr + an)
+            }
             scratchOff = armOff + an * MemoryLayout<MobVert>.stride
             enc.setViewport(MTLViewport(originX: 0, originY: 0, width: Double(W), height: Double(H), znear: 0, zfar: 0.001))
             enc.setDepthStencilState(depthWrite)
@@ -687,7 +695,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             enc.setVertexBytes(&uh, length: MemoryLayout<Uniforms>.stride, index: 1)
             enc.setFragmentBytes(&uh, length: MemoryLayout<Uniforms>.stride, index: 1)
             enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: an)
-            if !held.isEmpty {
+            if !held.isEmpty && gunIndex == nil {
                 let itOff = (scratchOff + 255) & ~255
                 let itPtr = (scratch.contents() + itOff).bindMemory(to: EntityVert.self, capacity: 64)
                 var wr = EntityWriter(out: itPtr, capacity: 64)
@@ -1486,6 +1494,35 @@ final class Renderer: NSObject, MTKViewDelegate {
             let a = Float(min(1, (2.2 - since) / 0.5))
             let ty = L.hotbarY0 - (game.survival ? 26 : 14) * s
             text(game.toastText, floor((W - textWidth(game.toastText, s)) / 2), ty, s, V4(1, 1, 1, a))
+        }
+        // Gun: ammo readout, hit marker and the farsight scope.
+        if game.menu == nil, let g = game.gunHUD {
+            if game.sniperScoped {
+                let r = floor(min(W, H) * 0.42), cx = W / 2, cy = H / 2
+                let dark = V4(0, 0, 0, 0.94)
+                rect(0, 0, W, cy - r, dark); rect(0, cy + r, W, H - cy - r, dark)
+                rect(0, cy - r, cx - r, 2 * r, dark); rect(cx + r, cy - r, W - cx - r, 2 * r, dark)
+                // Round lens: darken the corners of the square row by row.
+                let rows = 32
+                let rowH = 2 * r / Float(rows)
+                for i in 0..<rows {
+                    let y = cy - r + Float(i) * rowH
+                    let dy = (y + rowH / 2 - cy) / r
+                    let half = r * sqrtf(max(0, 1 - dy * dy))
+                    rect(cx - r, y, r - half, rowH, dark)
+                    rect(cx + half, y, r - half, rowH, dark)
+                }
+                rect(cx - r, cy - s * 0.5, 2 * r, s, V4(0, 0, 0, 0.85)); rect(cx - s * 0.5, cy - r, s, 2 * r, V4(0, 0, 0, 0.85))
+                rect(cx - 2 * s, cy - 2 * s, 4 * s, 4 * s, V4(0.9, 0.15, 0.1, 0.9))
+            }
+            if game.arms.hitMarker > 0 {
+                let c = V4(1, 1, 1, min(1, game.arms.hitMarker * 6)), cx = W / 2, cy = H / 2
+                for (dx, dy) in [(-1, -1), (1, -1), (-1, 1), (1, 1)] as [(Float, Float)] {
+                    for k in 2...4 { rect(cx + dx * Float(k) * s - s / 2, cy + dy * Float(k) * s - s / 2, s, s, c) }
+                }
+            }
+            let tw = textWidth(g.text, s * 1.5)
+            text(g.text, W - tw - 10 * s, L.hotbarY0 - 14 * s, s * 1.5, g.color)
         }
 
         // Sound subtitles (Options → Audio → Subtitles), bottom right above the hotbar.
