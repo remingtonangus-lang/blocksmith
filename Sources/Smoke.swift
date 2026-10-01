@@ -26,7 +26,7 @@ enum Smoke {
         let (world, game, p0) = Bench.setup(device, seed, rd: rd)
         game.survival = false
         game.player.flying = false
-        game.fancyGraphics = true
+        game.fancyGraphics = !args.contains("--fast")              // Fancy (the default) unless --fast
         _ = world.loadSync(center: p0, radius: min(rd, 6))
         let W = 1280, H = 720
         guard let r = try? Renderer(device: device, game: game, colorFormat: .bgra8Unorm),
@@ -74,6 +74,13 @@ enum Smoke {
             guard pp.x.isFinite && pp.y.isFinite && pp.z.isFinite else {
                 print("smoke rd \(rd): FAIL player position became \(pp) at \(String(format: "%.1f", t)) s"); return 1
             }
+            if i % 600 == 599 {
+                // Progress (stdout is a pipe on CI: flush so a crash still shows how far it got).
+                print(String(format: "smoke rd %ld %@: %.0f s, frame %.1f ms, resident %.0f MB, Metal %.0f MB, mobs %ld, coverage %.0f%%",
+                             rd, game.fancyGraphics ? "Fancy" : "Fast", t, frameMs.last ?? 0, residentMB(),
+                             Double(device.currentAllocatedSize) / 1_048_576, game.mobs.mobs.count, Bench.coverage(world, pp) * 100))
+                fflush(stdout)
+            }
             if i % 30 == 0 {
                 minCov = min(minCov, i > 120 ? Bench.coverage(world, pp) : 1)
                 peak = max(peak, residentMB())
@@ -93,7 +100,7 @@ enum Smoke {
         _ = r.renderToPNG(path: "snaps/smoke_rd\(rd).png", width: 960, height: 540)
         if dist < 100 { print("smoke rd \(rd): FAIL the player only moved \(Int(dist)) blocks (input or tick stalled)"); return 1 }
         if game.menu != nil || game.paused { print("smoke rd \(rd): FAIL a menu or the pause screen is still open"); return 1 }
-        print("smoke rd \(rd): PASS")
+        print("smoke rd \(rd)\(game.fancyGraphics ? "" : " Fast"): PASS")
         return 0
     }
 }
