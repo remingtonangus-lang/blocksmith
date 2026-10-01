@@ -53,13 +53,32 @@ enum TextureGen {
     }
 
     // Ore: clusters of coloured specks over a base painter.
+    // Ore: 4-6 nuggets of 2-4 pixels set into the rock, each with a bright top-left pixel, a darker
+    // second shade and a one-pixel dark rim below/right (reads as embedded crystal).
     static func ore(_ base: @escaping Painter, _ c: UInt32, _ c2: UInt32, salt: Int) -> Painter {
-        { x, y in
-            let cx = x / 3, cy = y / 3
-            if r(cx, cy, salt) < 0.42 && r(x, y, salt + 1) < 0.62 {
-                let hi = r(x, y, salt + 2) > 0.55
-                return hex(hi ? c2 : c, 0.9 + 0.2 * r(x, y, salt + 3))
+        var cells = [Int](repeating: -1, count: 256)          // nugget index per pixel
+        var tops: [(Int, Int)] = []
+        let shapes: [[(Int, Int)]] = [[(0, 0), (1, 0), (0, 1), (1, 1)], [(0, 0), (1, 0), (1, 1)], [(0, 0), (0, 1), (1, 1)],
+                                      [(0, 0), (1, 0), (2, 0), (1, 1)], [(0, 0), (1, 0)], [(0, 0), (1, 1), (1, 0), (2, 1)]]
+        var k = 0
+        for i in 0..<14 where tops.count < 6 {
+            let ox = Int(r(i, 0, salt) * 13), oy = Int(r(i, 1, salt) * 13)
+            let sh = shapes[Int(r(i, 2, salt) * Float(shapes.count)) % shapes.count]
+            if sh.contains(where: { cells[(ox + $0.0) + (oy + $0.1) * 16] >= 0 || cells[min(255, ox + $0.0 + 1 + (oy + $0.1) * 16)] >= 0 }) { continue }
+            for (dx, dy) in sh { cells[(ox + dx) + (oy + dy) * 16] = k }
+            tops.append((ox, oy)); k += 1
+        }
+        let map = cells, tl = tops
+        return { x, y in
+            let n = map[x + y * 16]
+            if n >= 0 {
+                let (ox, oy) = tl[n]
+                if x == ox && y == oy { return hex(c, 1.25) }
+                let lower = map[x + min(15, y + 1) * 16] != n || map[min(15, x + 1) + y * 16] != n
+                return lower ? hex(c2, 0.95) : hex(c, 1.0 + 0.08 * r(x, y, salt + 3))
             }
+            let above = y > 0 ? map[x + (y - 1) * 16] : -1, left = x > 0 ? map[(x - 1) + y * 16] : -1
+            if above >= 0 || left >= 0 { let b = base(x, y); return V4(b.x * 0.55, b.y * 0.55, b.z * 0.55, 1) }
             return base(x, y)
         }
     }
