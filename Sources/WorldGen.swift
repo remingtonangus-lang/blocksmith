@@ -356,8 +356,8 @@ final class WorldGen: TerrainGenerator {
 
         // 5. Trees and vegetation.
         placeTrees(&b, cx, cz, lat)
-        placeVegetation(&b, bx, bz, biomes, &rng)
-        freeze(&b, biomes, cols)
+        placeVegetation(&b, bx, bz, biomes, &rng, cols: cols)
+        freeze(&b, bx, bz, biomes, cols, tops)
         return b
     }
 
@@ -413,8 +413,8 @@ final class WorldGen: TerrainGenerator {
             topBlock = n > 0.3 ? g("andesite") : STONE; filler = STONE
         }
         // Gravel and sand bars along river and lake shores.
-        if !underwater && k.rv < 1.5 && top <= wl + 1 && !biome.isOcean && !biome.isBadlands && biome != .swamp && biome != .mangroveSwamp {
-            topBlock = n > 0.1 ? SAND : GRAVEL; filler = topBlock
+        if !underwater && k.rv < 1.5 && top <= wl + 1 && abs(n) > 0.3 && !biome.isOcean && !biome.isBadlands && biome != .swamp && biome != .mangroveSwamp {
+            topBlock = n > 0 ? SAND : GRAVEL; filler = topBlock
         }
         // Dry lake beds: salt crust and clay.
         if k.dry > 0.5 && !underwater { topBlock = n > -0.25 ? g("calcite") : g("clay"); filler = SAND }
@@ -469,15 +469,21 @@ final class WorldGen: TerrainGenerator {
     // Last decoration step, like the reference game's freeze_top_layer: snow on whatever is on top
     // (ground, leaves) and ice on still water where it is cold enough.
     // Snow follows the surface temperature (altitude lapse included), so snowlines climb in warm regions.
-    private func freeze(_ b: inout [BlockID], _ biomes: [Biome], _ cols: [Terrain.Column]) {
+    private func freeze(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ biomes: [Biome], _ cols: [Terrain.Column], _ tops: [Int]) {
         let snowLayer = Blocks.id("snow"), ice = Blocks.id("ice")
         for lz in 0..<CS { for lx in 0..<CS {
             let biome = biomes[lx + lz * CS]
             var y = CH - 2
             while y > 1 && b[Chunk.index(lx, y, lz)] == AIR { y -= 1 }
-            let t = terrain.temperature(cols[lx + lz * CS], Float(y + 1 - YOFF))
+            // Per-column dither: the snowline frays over a band instead of ending in a sharp edge.
+            let t = terrain.temperature(cols[lx + lz * CS], Float(y + 1 - YOFF)) + (hashf(bx + lx, y, bz + lz, s32 ^ 0x5110) - 0.5) * 0.12
             let cold = t < -0.25 || (biome.snows(at: y + 1) && t < -0.15)
             guard cold else { continue }
+            // Steep rock faces shed their snow.
+            let rise = max(abs(tops[max(0, lx - 1) + lz * CS] - tops[min(CS - 1, lx + 1) + lz * CS]),
+                           abs(tops[lx + max(0, lz - 1) * CS] - tops[lx + min(CS - 1, lz + 1) * CS]))
+            let rocky = b[Chunk.index(lx, y, lz)] == STONE || Blocks.key(b[Chunk.index(lx, y, lz)]) == "andesite"
+            if rocky && rise >= 4 { continue }
             let i = Chunk.index(lx, y, lz)
             let top = b[i]
             if top == WATER { b[i] = ice; continue }
@@ -683,18 +689,31 @@ final class WorldGen: TerrainGenerator {
             let p = a + (c - a) * fy, q = d + (e - d) * fy
             return p + (q - p) * fz
         }
-        for lz in 0..<CS { for lx in 0..<CS { for y in y0..<y1 {
-            let ly = y - y0
-            let tg = sample(0, lx, ly, lz)
-            guard abs(tg) > 0.3 else { continue }
-            let kind = y < YOFF - 8 ? iron : copper
-            if y >= YOFF - 8 && y < YOFF { continue }
-            guard abs(sample(1, lx, ly, lz)) < 0.07, abs(sample(2, lx, ly, lz)) < 0.07 else { continue }
-            let i = Chunk.index(lx, y, lz)
-            let host = b[i]
-            guard host == STONE || host == DEEPSLATE || host == GRANITE_ID || host == DIORITE_ID || host == ANDESITE_ID || host == TUFF_ID else { continue }
-            let h = hashf(bx + lx, y, bz + lz, s32 ^ 0x0E1)
-            if h < 0.62 { b[i] = kind.0 } else if h < 0.88 { continue } else if h < 0.995 { b[i] = kind.1 } else { b[i] = kind.2 }
+        // Walk 4x4x4 cells; skip a cell unless the region field is strong at a corner and both ribbon fields
+        // can cross zero inside it (trilinear values stay between the corner extremes).
+        for cgx in 0..<4 { for cgz in 0..<4 { for cgy in 0..<(ny - 1) {
+            var tmax: Float = 0, aLo: Float = 9, aHi: Float = -9, bLo: Float = 9, bHi: Float = -9
+            for c in 0..<8 {
+                let gx = cgx + (c & 1), gy = cgy + ((c >> 1) & 1), gz = cgz + (c >> 2)
+                tmax = max(tmax, abs(at(0, gx, gy, gz)))
+                let a = at(1, gx, gy, gz), bb = at(2, gx, gy, gz)
+                aLo = min(aLo, a); aHi = max(aHi, a); bLo = min(bLo, bb); bHi = max(bHi, bb)
+            }
+            if tmax < 0.3 || aLo > 0.07 || aHi < -0.07 || bLo > 0.07 || bHi < -0.07 { continue }
+            for dy in 0..<4 {
+                let ly = cgy * 4 + dy, y = y0 + ly
+                if y >= y1 || (y >= YOFF - 8 && y < YOFF) { continue }
+                let kind = y < YOFF - 8 ? iron : copper
+                for dz in 0..<4 { for dx in 0..<4 {
+                    let lx = cgx * 4 + dx, lz = cgz * 4 + dz
+                    guard abs(sample(0, lx, ly, lz)) > 0.3, abs(sample(1, lx, ly, lz)) < 0.07, abs(sample(2, lx, ly, lz)) < 0.07 else { continue }
+                    let i = Chunk.index(lx, y, lz)
+                    let host = b[i]
+                    guard host == STONE || host == DEEPSLATE || host == GRANITE_ID || host == DIORITE_ID || host == ANDESITE_ID || host == TUFF_ID else { continue }
+                    let h = hashf(bx + lx, y, bz + lz, s32 ^ 0x0E1)
+                    if h < 0.62 { b[i] = kind.0 } else if h < 0.88 { continue } else if h < 0.995 { b[i] = kind.1 } else { b[i] = kind.2 }
+                } }
+            }
         } } }
     }
 

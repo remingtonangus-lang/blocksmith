@@ -24,14 +24,17 @@ enum Snapshot {
         let stepB = 48
         for _ in 0..<16000 {
             let wx = x * stepB + 8, wz = z * stepB + 8
-            var ok = true
-            // Narrow biomes (rivers, shores) only need the centre column.
+            // Narrow biomes (rivers, shores) only need the centre column; others the centre and at least two
+            // of four points 24 blocks out (biome edges are frayed).
             let narrow = ["river", "frozen_river", "beach", "snowy_beach", "stony_shore"].contains(want)
-            for (ox, oz) in narrow ? [(0, 0)] : [(0, 0), (24, 0), (-24, 0), (0, 24), (0, -24)] {
+            let probes: [(Int, Int)] = narrow ? [(0, 0)] : [(0, 0), (24, 0), (-24, 0), (0, 24), (0, -24)]
+            var hits = 0
+            for (k, p) in probes.enumerated() {
                 let hit: Bool
-                if let c = cave, let wg { hit = c(wg.climate(wx + ox, wz + oz)) } else { hit = gen.column(wx + ox, wz + oz).biome.name == want }
-                if !hit { ok = false; break }
+                if let c = cave, let wg { hit = c(wg.climate(wx + p.0, wz + p.1)) } else { hit = gen.column(wx + p.0, wz + p.1).biome.name == want }
+                if hit { hits += 1 } else if k == 0 { break }
             }
+            let ok = hits >= (narrow ? 1 : 3) && hits > 0
             if ok {
                 let h = gen.column(wx, wz).height
                 return V3(Float(wx) + 0.5, Float(max(h, SEA) + 1), Float(wz) + 0.5)

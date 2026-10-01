@@ -12,7 +12,7 @@ if [ $# -gt 0 ]; then n="$1"; shift; "$BIN" --snapshot "snaps/$n.png" "$@"; exit
 "$BIN" --genbench --seed 12345
 # Terrain tours: high aerial, mountain range, river valley and ground level for several seeds.
 for s in 12345 777 424242 1 98765; do
-  "$BIN" --snapshot snaps/tour_${s}_aerial.png --seed $s --yaw 200 --pitch -22 --time 0.23 --up 60 --rd 16
+  "$BIN" --snapshot snaps/tour_${s}_aerial.png --seed $s --x 600 --z 300 --yaw 200 --pitch -28 --time 0.23 --up 55 --rd 16
   "$BIN" --snapshot snaps/tour_${s}_low.png --seed $s --yaw 120 --pitch -6 --time 0.22 --up 14 --rd 12
 done
 "$BIN" --snapshot snaps/tour_peaks.png --seed 12345 --find jagged_peaks --yaw 60 --pitch -12 --time 0.23 --up 25 --rd 16 || true
@@ -23,7 +23,7 @@ done
 "$BIN" --snapshot snaps/tour_river_777.png --seed 777 --find river --yaw 30 --pitch -35 --time 0.23 --up 30 --rd 12 || true
 "$BIN" --snapshot snaps/tour_mesa.png --seed 12345 --find badlands --yaw 45 --pitch -25 --time 0.23 --up 35 --rd 12 || true
 "$BIN" --snapshot snaps/tour_coast.png --seed 12345 --find beach --yaw 0 --pitch -25 --time 0.23 --up 30 --rd 12 || true
-"$BIN" --snapshot snaps/tour_snowline.png --seed 424242 --find snowy_slopes --yaw 180 --pitch -15 --time 0.23 --up 25 --rd 16 || true
+"$BIN" --snapshot snaps/tour_snowline.png --seed 424242 --find snowy_slopes --yaw 180 --pitch -8 --time 0.23 --up 6 --rd 16 || true
 "$BIN" --snapshot snaps/spawn.png   --seed 12345 --yaw 30  --pitch -12 --time 0.2
 "$BIN" --snapshot snaps/aerial.png  --seed 12345 --yaw 200 --pitch -35 --time 0.25 --up 45 --rd 12
 "$BIN" --snapshot snaps/aerial16.png --seed 12345 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16

@@ -348,7 +348,7 @@ enum TreePlacer {
 
 extension WorldGen {
     // Ground plants, flowers, sugar cane, cacti, water plants and icebergs, per column (own chunk only).
-    func placeVegetation(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ biomes: [Biome], _ rng: inout SRng) {
+    func placeVegetation(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ biomes: [Biome], _ rng: inout SRng, cols: [Terrain.Column]? = nil) {
         let g = Blocks.id
         let grassy: Set<BlockID> = [GRASS, SNOWY_GRASS, DIRT, g("podzol"), g("coarse_dirt"), g("moss_block")]
         func flowerFor(_ biome: Biome, _ h: Float, _ wx: Int, _ wz: Int) -> BlockID {
@@ -463,6 +463,8 @@ extension WorldGen {
             default: grassP = 0.04; flowerP = 0
             }
             if biome.snows(at: y + 1) { continue }
+            // Riverside: lusher grass and ferns along channels and lake shores.
+            if let cols, cols[lx + lz * CS].rv < 2.5 { grassP += 0.2; tallP += 0.06; fernP += 0.04 }
             // Specials.
             if (biome == .taiga || biome == .oldGrowthPineTaiga || biome == .oldGrowthSpruceTaiga) && h > 0.995 {
                 b[above] = g("sweet_berry_bush_3"); continue
