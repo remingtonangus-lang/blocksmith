@@ -730,6 +730,15 @@ final class Mob {
             } else if canTarget && w.canSee(eye, g.player.eye) {
                 face(player)
                 speed = dist > 10 ? spec.speed : (dist < 5 ? -spec.speed * 0.6 : 0)
+                // Bow skeletons circle-strafe in range, switching side now and then (reference ranged bow goal).
+                if kind != .pillager && kind != .illusioner && dist <= 12 {
+                    phaseTime -= dt
+                    if phaseTime <= 0 {
+                        phaseTime = 1
+                        if circleAngle == 0 || Float.random(in: 0..<1) < 0.3 { circleAngle = circleAngle > 0 ? -1 : 1 }
+                    }
+                    strafe = circleAngle * spec.speed * 0.5
+                }
                 if attackCooldown <= 0 && dist < 16 {
                     attackCooldown = crossbowReload
                     let target = g.player.eye - V3(0, 0.3, 0)
