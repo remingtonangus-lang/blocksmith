@@ -37,9 +37,14 @@ extension TextureGen {
         }
         func bricks(_ c: UInt32, _ mortar: UInt32, rowH: Int = 4, len: Int = 8, _ salt: Int) -> Painter {
             { x, y in
-                let row = y / rowH
-                if y % rowH == rowH - 1 || (x + (row % 2) * len / 2) % len == len - 1 { return hex(mortar) }
-                return hex(c, 0.9 + 0.18 * r(x, y, salt))
+                let row = y / rowH, ly = y % rowH
+                let lx = (x + (row % 2) * len / 2) % len
+                if ly == rowH - 1 || lx == len - 1 { return hex(mortar) }
+                // Per-brick tone, lit top edge and left end, shaded bottom edge, fine grain.
+                let brick = (x + (row % 2) * len / 2) / len
+                var k: Float = 0.94 + (r(row, brick, salt + 7) - 0.5) * 0.12 + (r(x, y, salt) - 0.5) * 0.1
+                if ly == 0 || lx == 0 { k += 0.08 } else if ly == rowH - 2 { k -= 0.07 }
+                return hex(c, k)
             }
         }
         func tallPlant(_ bottom: Bool, _ stem: UInt32, _ bloom: UInt32, _ salt: Int) -> Painter {
