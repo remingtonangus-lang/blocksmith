@@ -106,6 +106,10 @@ B close, RS scroll creative.
   shadow taps and water reflection steps, F3 GPU ms readout. Textures: planks, bark, stone, ores, wool, concrete,
   sand, gravel, dirt, grass. Harness: --gallery (block walls) + 5 family galleries, --boom, shore/underwater_up,
   rd16 Fancy vs Fast ground/aerial shots.
+- Performance (CI macos-14 VM GPU, median of 30 offscreen frames, after shadow-map reuse + distance LOD):
+  rd 16 aerial 1280x800 Fancy 4.64 ms vs Fast 4.25 ms; rd 16 ground 1440x900 Fancy 4.48 ms vs Fast 4.45 ms;
+  tour average Fancy 3.9 ms (was 5.7 before the perf pass). On the Mac, F3 shows the real GPU ms; Render Scale
+  85/70% is the lever if a MacBook Air at full retina resolution needs it.
 - Integration with the ship PR (#8): chunkVibVS already reads per-instance section records (VibSection); ship
   pipelines need an rgba16Float variant for the Fancy world pass (see the PR #6 comment).
 - Options > Graphics: Fancy (default) / Fast, saved in UserDefaults `fancyGraphics`; harness `--fast` renders one shot in Fast
