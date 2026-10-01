@@ -20,6 +20,9 @@ struct Particle {
 final class ParticleManager {
     var list: [Particle] = []
     static let cap = 2000
+    // Brightness of glowing particles (flames, sparks, muzzle flashes, tracers): >1 in the HDR (Fancy)
+    // renderer so they bloom, 1 in Fast. Set by the renderer each frame.
+    static var glowBoost: Float = 1
 
     func add(_ p: Particle) { if list.count < ParticleManager.cap { list.append(p) } }
 
@@ -111,7 +114,7 @@ final class ParticleManager {
             let l = world.lightAt(Int(floor(p.pos.x)), Int(floor(p.pos.y)), Int(floor(p.pos.z)))
             // Same dimension ambient lift as terrain (Emberdeep ash would otherwise be black).
             let base = max(0.15, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
-            let light = p.glow ? 1 : base + (1 - base) * amb
+            let light = p.glow ? ParticleManager.glowBoost : base + (1 - base) * amb
             let s = p.size
             let r = right * s, u = up * s
             let a = p.uv0, b = p.uv0 + V2(p.uvSize, p.uvSize)
