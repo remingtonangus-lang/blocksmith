@@ -301,7 +301,7 @@ extension ShipManager {
             if world.isLoaded(ax, az) {
                 let top = world.topY(ax, az)
                 if s.role == "frigate", let base = s.home?.y {
-                    s.hoverY = max(base, Float(top) + 25)
+                    s.hoverY = max(base + 6, Float(top) + 25)        // never below its spawn altitude (home + 6)
                 } else if s.role == "carriage" && Blocks.isLiquid(world.rawBlock(ax, top, az)) {
                     let back = simd_normalize(toHome + V2(1e-3, 0))
                     cross = fh.x * back.y - fh.y * back.x + (cross >= 0 ? 0.5 : -0.5)

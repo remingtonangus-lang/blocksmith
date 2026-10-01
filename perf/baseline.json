@@ -1,4 +1,5 @@
 {
+  "calib.cpu_ms": 2.04,
   "edit.break_ms_max": 0.6,
   "edit.break_ms_mean": 0.447,
   "edit.place_ms_max": 0.732,
