@@ -150,7 +150,7 @@ enum MilitaryBase {
         out += [("soldier_recruit", -16, 1, 16), ("soldier_recruit", -10, 1, 22)]
         out += [("soldier_trooper", 16, 1, 18), ("soldier_recruit", 0, 1, -24)]
         // Upper floor: command room, quarters, comms, barracks.
-        out += [("soldier_ironclad", 0, 7, 0), ("soldier_marksman", 4, 7, 4), ("soldier_trooper", -16, 7, -16), ("soldier_trooper", 16, 7, -16),
+        out += [("soldier_ironclad", -3, 7, 3), ("soldier_marksman", 4, 7, 4), ("soldier_trooper", -16, 7, -16), ("soldier_trooper", 16, 7, -16),
                 ("soldier_recruit", 16, 7, 16), ("soldier_trooper", 20, 7, 20)]
         // Basement depot and vault.
         out += [("soldier_trooper", -14, -5, 10), ("soldier_ironclad", 18, -5, 18), ("soldier_recruit", 10, -5, -14)]
