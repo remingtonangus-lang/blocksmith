@@ -1,0 +1,385 @@
+  Blocks: 198 sounds
+  Hostile Mobs: 197 sounds
+  Friendly Mobs: 176 sounds
+  Players: 129 sounds
+  Ambient: 42 sounds
+  Weather: 8 sounds
+  Interface: 5 sounds
+  wrote 37 soundscapes to build/sounds/scapes
+  slowest renders: frigateDroneLoop 52 ms, carriageTreadLoop 33 ms, beaconActivate 25 ms, mob_husk_ambient 25 ms, hiveLoop 21 ms, mob_iron_golem_death 21 ms
+synthesized 755 sounds (684.3 s of audio) in 5201 ms, 0 failed
+title  356 notes    136 s  peak 0.23 rms 0.064  "Quiet Forge (Title)"
+day  434 notes    152 s  peak 0.21 rms 0.053  "Quiet Forge (Overworld Day)"
+night  169 notes    138 s  peak 0.18 rms 0.050  "Quiet Forge (Overworld Night)"
+underground  138 notes    146 s  peak 0.18 rms 0.051  "Quiet Forge (Underground)"
+underwater  145 notes    136 s  peak 0.22 rms 0.060  "Quiet Forge (Underwater)"
+ember  204 notes    121 s  peak 0.21 rms 0.058  "Quiet Forge (Emberdeep)"
+hollow  171 notes    141 s  peak 0.20 rms 0.046  "Quiet Forge (The Hollow)"
+creative  615 notes    145 s  peak 0.19 rms 0.046  "Quiet Forge (Creative)"
+boss 1404 notes    125 s  peak 0.47 rms 0.094  "Quiet Forge (Boss)"
+rain  158 notes    130 s  peak 0.20 rms 0.054  "Quiet Forge (Rain)"
+snow  219 notes    136 s  peak 0.17 rms 0.041  "Quiet Forge (Snowfields)"
+desert  209 notes    122 s  peak 0.16 rms 0.045  "Quiet Forge (Dunes)"
+ocean  239 notes    134 s  peak 0.24 rms 0.065  "Quiet Forge (Open Water)"
+grove  260 notes    114 s  peak 0.17 rms 0.045  "Quiet Forge (Blossom)"
+mountain  169 notes    132 s  peak 0.24 rms 0.070  "Quiet Forge (High Passes)"
+swamp  204 notes    124 s  peak 0.17 rms 0.046  "Quiet Forge (Mire)"
+jungle  287 notes     94 s  peak 0.16 rms 0.044  "Quiet Forge (Canopy)"
+tension  197 notes    104 s  peak 0.16 rms 0.048  "Quiet Forge (Steelhold)"
+combat  933 notes     91 s  peak 0.42 rms 0.101  "Quiet Forge (Firefight)"
+rendered 19 pieces in 1593 ms, 0 failed
+audiotest PASS: car: engine heard while driving (speed 7.8, loop:ship1eng0 loop:ship1eng1 loop:ship1wheel)
+audiotest PASS: car: wheels rumble while rolling (speed 7.8, loop:ship1eng0 loop:ship1eng1 loop:ship1wheel)
+audiotest PASS: car: the engine starts once (1 starts)
+audiotest PASS: plane: propellers and wing rush in flight (speed 21.8, loop:mountainwind loop:ship2eng0 loop:ship2eng1 loop:ship2prop1 loop:ship2rush)
+audiotest PASS: frigate: engine drone heard from 120 blocks (loop:mountainwind loop:vessel3)
+audiotest PASS: frigate nearby: tension (level 1)
+audiotest PASS: frigate in gun range: combat music (level 2)
+audiotest PASS: mountain wind on the peaks (loop:mountainwind)
+audiotest PASS: jagged_peaks: the landform wind replaces the plain wind (loop:mountainwind)
+audiotest PASS: tundra wind on the snowy plains (loop:mountainwind loop:tundrawind)
+audiotest PASS: snowy_plains: the landform wind replaces the plain wind (loop:mountainwind loop:tundrawind)
+audiotest PASS: insects over the swamp (loop:swamp loop:swampbugs loop:water)
+audiotest PASS: snow wind while it snows (loop:mountainwind loop:snowwind loop:tundrawind)
+audiotest PASS: no rain patter while it snows (loop:mountainwind loop:snowwind loop:tundrawind)
+audiotest PASS: rain heard in the open on the plains (loop:rain loop:rainleaves)
+audiotest: 0 failed (0.7 s)
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 79) sky 15 block 0 in air, daylight 1.0
+seed 12345  pos -39.5 145.0 56.5  rd 6  chunks 405  (drawn 35)
+gen 259 ms  mesh(all, parallel) 301 ms  mesh(1 section) 1.15 ms  quads 590510 opaque / 20675 water
+frame (encode+GPU, offscreen, median of 30) 2.31 ms  biome plains
+mesh slabs 40 MB, chunks 405 (block+light arrays 43 MB), Metal allocated 71 MB
+memory: resident 125 MB  (section meshes 35 MB)
+wrote snaps/audiotest.png
+terrainmap seed 12345: 8192 x 8192 blocks every 16 (0.4 s), land 67%, max height 277
+  biomes: snowy_taiga 10.1%, snowy_plains 8.8%, plains 6.8%, forest 6.7%, warm_ocean 6.0%, lukewarm_ocean 5.7%, deep_lukewarm_ocean 5.1%, cold_ocean 4.9%, sparse_jungle 4.5%, ocean 4.2%, frozen_ocean 4.0%, taiga 3.5%, snowy_slopes 3.0%, savanna 2.5%, beach 2.5%, jungle 2.4%, desert 2.0%, grove 1.9%, meadow 1.7%, old_growth_spruce_taiga 1.5%, jagged_peaks 1.3%, frozen_peaks 1.2%, deep_frozen_ocean 1.2%, deep_cold_ocean 1.0%, deep_ocean 1.0%, old_growth_pine_taiga 0.9%, dark_forest 0.9%, snowy_beach 0.8%, mangrove_swamp 0.7%, birch_forest 0.6%, river 0.6%, flower_forest 0.4%, swamp 0.3%, savanna_plateau 0.3%, old_growth_birch_forest 0.2%, cherry_grove 0.2%, ice_spikes 0.1%, pale_garden 0.1%, sunflower_plains 0.1%, bamboo_jungle 0.1%, frozen_river 0.1%, badlands 0.1%, stony_peaks 0.1%, windswept_forest 0.0%, windswept_gravelly_hills 0.0%, windswept_hills 0.0%, mushroom_fields 0.0%, windswept_savanna 0.0%, eroded_badlands 0.0%, stony_shore 0.0%
+  not in this area: wooded_badlands
+  rivers: 313 segments, 1 flowing uphill, 35 lakes
+terraincheck seed 12345: 4 problems (implausible neighbour pairs + uphill rivers): desert|windswept_hills x3 (e.g. -736,3936)
+terrainmap seed 777: 8192 x 8192 blocks every 16 (0.4 s), land 55%, max height 262
+  biomes: deep_lukewarm_ocean 12.5%, snowy_plains 9.5%, warm_ocean 8.9%, frozen_ocean 8.8%, plains 5.9%, snowy_taiga 5.8%, taiga 5.2%, forest 4.7%, sparse_jungle 4.6%, lukewarm_ocean 3.9%, cold_ocean 3.5%, ocean 2.9%, desert 2.6%, savanna 2.4%, jungle 2.3%, beach 2.2%, deep_frozen_ocean 2.2%, dark_forest 1.3%, deep_ocean 1.2%, grove 1.1%, snowy_beach 0.7%, old_growth_spruce_taiga 0.7%, deep_cold_ocean 0.7%, frozen_peaks 0.6%, old_growth_pine_taiga 0.6%, river 0.5%, mangrove_swamp 0.5%, snowy_slopes 0.5%, birch_forest 0.4%, meadow 0.4%, sunflower_plains 0.4%, jagged_peaks 0.4%, old_growth_birch_forest 0.4%, swamp 0.4%, badlands 0.3%, flower_forest 0.3%, ice_spikes 0.2%, bamboo_jungle 0.2%, pale_garden 0.2%, savanna_plateau 0.1%, mushroom_fields 0.1%, cherry_grove 0.1%, eroded_badlands 0.0%, frozen_river 0.0%, windswept_hills 0.0%, windswept_savanna 0.0%, stony_peaks 0.0%, windswept_forest 0.0%, windswept_gravelly_hills 0.0%
+  not in this area: stony_shore wooded_badlands
+  rivers: 263 segments, 0 flowing uphill, 22 lakes
+terraincheck seed 777: 10 problems (implausible neighbour pairs + uphill rivers): desert|windswept_hills x10 (e.g. -1296,3504)
+terrainmap seed 424242: 8192 x 8192 blocks every 16 (0.4 s), land 62%, max height 278
+  biomes: sparse_jungle 8.1%, cold_ocean 7.0%, plains 6.8%, forest 5.9%, taiga 5.4%, snowy_taiga 5.4%, frozen_ocean 5.3%, lukewarm_ocean 5.1%, snowy_plains 5.0%, jungle 4.7%, deep_cold_ocean 4.5%, savanna 4.3%, deep_frozen_ocean 4.2%, warm_ocean 3.9%, ocean 3.3%, deep_ocean 2.4%, beach 2.2%, meadow 2.2%, desert 2.2%, deep_lukewarm_ocean 2.0%, dark_forest 1.1%, snowy_slopes 1.0%, grove 1.0%, jagged_peaks 0.8%, snowy_beach 0.8%, river 0.7%, frozen_peaks 0.7%, mangrove_swamp 0.6%, cherry_grove 0.5%, flower_forest 0.5%, bamboo_jungle 0.4%, savanna_plateau 0.3%, old_growth_spruce_taiga 0.3%, old_growth_pine_taiga 0.3%, sunflower_plains 0.2%, badlands 0.1%, ice_spikes 0.1%, birch_forest 0.1%, pale_garden 0.1%, swamp 0.1%, windswept_gravelly_hills 0.1%, windswept_hills 0.1%, stony_peaks 0.0%, old_growth_birch_forest 0.0%, eroded_badlands 0.0%, mushroom_fields 0.0%, windswept_savanna 0.0%, frozen_river 0.0%, windswept_forest 0.0%, stony_shore 0.0%
+  not in this area: wooded_badlands
+  rivers: 365 segments, 3 flowing uphill, 34 lakes
+terraincheck seed 424242: 5 problems (implausible neighbour pairs + uphill rivers): desert|windswept_hills x2 (e.g. 3072,1360)
+terrainmap seed 1: 8192 x 8192 blocks every 16 (0.4 s), land 65%, max height 240
+  biomes: sparse_jungle 9.5%, snowy_plains 8.9%, snowy_taiga 7.0%, deep_frozen_ocean 5.7%, forest 5.6%, plains 5.4%, warm_ocean 5.4%, taiga 5.1%, savanna 4.6%, cold_ocean 4.1%, jungle 4.0%, lukewarm_ocean 3.9%, ocean 3.8%, deep_cold_ocean 3.7%, frozen_ocean 2.8%, deep_lukewarm_ocean 2.8%, beach 2.7%, desert 2.5%, deep_ocean 2.2%, dark_forest 1.4%, meadow 1.3%, grove 1.0%, bamboo_jungle 0.7%, mangrove_swamp 0.7%, river 0.6%, snowy_beach 0.6%, old_growth_spruce_taiga 0.4%, snowy_slopes 0.4%, old_growth_pine_taiga 0.4%, savanna_plateau 0.3%, cherry_grove 0.3%, badlands 0.3%, old_growth_birch_forest 0.3%, birch_forest 0.2%, flower_forest 0.2%, jagged_peaks 0.2%, ice_spikes 0.2%, frozen_peaks 0.1%, eroded_badlands 0.1%, swamp 0.1%, sunflower_plains 0.1%, pale_garden 0.1%, frozen_river 0.0%, windswept_savanna 0.0%, mushroom_fields 0.0%, stony_peaks 0.0%, windswept_hills 0.0%, windswept_forest 0.0%, stony_shore 0.0%
+  not in this area: windswept_gravelly_hills wooded_badlands
+  rivers: 282 segments, 5 flowing uphill, 46 lakes
+terraincheck seed 1: 22 problems (implausible neighbour pairs + uphill rivers): mushroom_fields|taiga x11 (e.g. 1184,-3312), desert|windswept_hills x6 (e.g. -368,864)
+terrainmap seed 98765: 8192 x 8192 blocks every 16 (0.4 s), land 66%, max height 263
+  biomes: sparse_jungle 8.0%, snowy_taiga 7.4%, snowy_plains 7.0%, taiga 7.0%, lukewarm_ocean 6.6%, deep_lukewarm_ocean 6.2%, plains 5.9%, cold_ocean 5.5%, warm_ocean 5.2%, forest 5.0%, jungle 4.4%, frozen_ocean 3.7%, beach 2.8%, ocean 2.3%, savanna 2.2%, deep_ocean 1.9%, meadow 1.9%, dark_forest 1.8%, desert 1.5%, old_growth_spruce_taiga 1.4%, deep_frozen_ocean 1.4%, old_growth_pine_taiga 1.4%, deep_cold_ocean 1.1%, snowy_slopes 1.1%, mangrove_swamp 1.0%, grove 0.8%, river 0.8%, frozen_peaks 0.7%, jagged_peaks 0.7%, cherry_grove 0.5%, bamboo_jungle 0.5%, birch_forest 0.4%, snowy_beach 0.4%, ice_spikes 0.3%, old_growth_birch_forest 0.2%, sunflower_plains 0.2%, flower_forest 0.2%, pale_garden 0.2%, swamp 0.1%, savanna_plateau 0.1%, frozen_river 0.1%, mushroom_fields 0.1%, badlands 0.0%, windswept_hills 0.0%, stony_peaks 0.0%, windswept_forest 0.0%, windswept_gravelly_hills 0.0%, eroded_badlands 0.0%, windswept_savanna 0.0%
+  not in this area: stony_shore wooded_badlands
+  rivers: 399 segments, 2 flowing uphill, 34 lakes
+terraincheck seed 98765: 13 problems (implausible neighbour pairs + uphill rivers): jungle|windswept_forest x9 (e.g. -3440,1856), desert|windswept_hills x2 (e.g. -1856,3968)
+terraincheck total: 54 problems over 5 seeds
+genbench seed 12345: 2.64 ms/chunk mean (p95 4.19, max 4.52) single-thread cold, 2.20 ms warm, 1152 chunks/s parallel
+genbench water: 5406 water blocks above y 22, 0 beside open air at the same level
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 114) sky 15 block 0 in air, daylight 1.0
+seed 12345  pos 8.5 217.0 8.5  rd 16  chunks 997  (drawn 278)
+gen 1329 ms  mesh(all, parallel) 1519 ms  mesh(1 section) 0.78 ms  quads 1975148 opaque / 164044 water
+frame (encode+GPU, offscreen, median of 30) 3.88 ms  biome forest
+mesh slabs 72 MB, chunks 997 (block+light arrays 99 MB), Metal allocated 103 MB
+memory: resident 235 MB  (section meshes 65 MB)
+wrote snaps/tour_12345_aerial.png
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 93) sky 15 block 0 in air, daylight 1.0
+seed 12345  pos 8.5 171.0 8.5  rd 12  chunks 593  (drawn 152)
+gen 611 ms  mesh(all, parallel) 734 ms  mesh(1 section) 0.76 ms  quads 1493485 opaque / 102619 water
+frame (encode+GPU, offscreen, median of 30) 3.32 ms  biome forest
+mesh slabs 56 MB, chunks 593 (block+light arrays 57 MB), Metal allocated 87 MB
+memory: resident 198 MB  (section meshes 49 MB)
+wrote snaps/tour_12345_low.png
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 111) sky 15 block 0 in air, daylight 1.0
+seed 777  pos 8.5 214.0 8.5  rd 16  chunks 997  (drawn 279)
+gen 799 ms  mesh(all, parallel) 1142 ms  mesh(1 section) 1.04 ms  quads 1562254 opaque / 202537 water
+frame (encode+GPU, offscreen, median of 30) 5.12 ms  biome forest
+mesh slabs 60 MB, chunks 997 (block+light arrays 93 MB), Metal allocated 91 MB
+memory: resident 232 MB  (section meshes 54 MB)
+wrote snaps/tour_777_aerial.png
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 90) sky 15 block 0 in air, daylight 1.0
+seed 777  pos 8.5 168.0 8.5  rd 12  chunks 593  (drawn 151)
+gen 492 ms  mesh(all, parallel) 538 ms  mesh(1 section) 0.51 ms  quads 1284410 opaque / 118364 water
+frame (encode+GPU, offscreen, median of 30) 3.27 ms  biome forest
+mesh slabs 48 MB, chunks 593 (block+light arrays 55 MB), Metal allocated 79 MB
+memory: resident 190 MB  (section meshes 43 MB)
+wrote snaps/tour_777_low.png
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 120) sky 15 block 0 in air, daylight 1.0
+seed 424242  pos -3.5 223.0 17.5  rd 16  chunks 997  (drawn 272)
+gen 936 ms  mesh(all, parallel) 1157 ms  mesh(1 section) 0.89 ms  quads 1755518 opaque / 182484 water
+frame (encode+GPU, offscreen, median of 30) 3.94 ms  biome forest
+mesh slabs 68 MB, chunks 997 (block+light arrays 93 MB), Metal allocated 99 MB
+memory: resident 248 MB  (section meshes 59 MB)
+wrote snaps/tour_424242_aerial.png
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 99) sky 15 block 0 in air, daylight 1.0
+seed 424242  pos -3.5 177.0 17.5  rd 12  chunks 593  (drawn 131)
+gen 543 ms  mesh(all, parallel) 692 ms  mesh(1 section) 0.67 ms  quads 1340680 opaque / 106585 water
+frame (encode+GPU, offscreen, median of 30) 2.71 ms  biome forest
+mesh slabs 52 MB, chunks 593 (block+light arrays 55 MB), Metal allocated 83 MB
+memory: resident 184 MB  (section meshes 44 MB)
+wrote snaps/tour_424242_low.png
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 123) sky 15 block 0 in air, daylight 1.0
+seed 1  pos -3.5 226.0 16.5  rd 16  chunks 997  (drawn 267)
+gen 886 ms  mesh(all, parallel) 1029 ms  mesh(1 section) 0.85 ms  quads 1707620 opaque / 186014 water
+frame (encode+GPU, offscreen, median of 30) 4.74 ms  biome forest
+mesh slabs 64 MB, chunks 997 (block+light arrays 94 MB), Metal allocated 95 MB
+memory: resident 233 MB  (section meshes 58 MB)
+wrote snaps/tour_1_aerial.png
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 102) sky 15 block 0 in air, daylight 1.0
+seed 1  pos -3.5 180.0 16.5  rd 12  chunks 593  (drawn 130)
+gen 517 ms  mesh(all, parallel) 867 ms  mesh(1 section) 0.97 ms  quads 1320418 opaque / 107379 water
+frame (encode+GPU, offscreen, median of 30) 2.47 ms  biome forest
+mesh slabs 52 MB, chunks 593 (block+light arrays 56 MB), Metal allocated 83 MB
+memory: resident 187 MB  (section meshes 44 MB)
+wrote snaps/tour_1_low.png
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 112) sky 15 block 0 in air, daylight 1.0
+seed 98765  pos 8.5 215.0 8.5  rd 16  chunks 997  (drawn 274)
+gen 834 ms  mesh(all, parallel) 1030 ms  mesh(1 section) 0.69 ms  quads 1517781 opaque / 202627 water
+frame (encode+GPU, offscreen, median of 30) 5.61 ms  biome forest
+mesh slabs 60 MB, chunks 997 (block+light arrays 90 MB), Metal allocated 91 MB
+memory: resident 209 MB  (section meshes 53 MB)
+wrote snaps/tour_98765_aerial.png
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 91) sky 15 block 0 in air, daylight 1.0
+seed 98765  pos 8.5 169.0 8.5  rd 12  chunks 593  (drawn 149)
+gen 556 ms  mesh(all, parallel) 657 ms  mesh(1 section) 1.15 ms  quads 1252637 opaque / 118436 water
+frame (encode+GPU, offscreen, median of 30) 4.07 ms  biome forest
+mesh slabs 48 MB, chunks 593 (block+light arrays 54 MB), Metal allocated 79 MB
+memory: resident 182 MB  (section meshes 42 MB)
+wrote snaps/tour_98765_low.png
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 220) sky 15 block 0 in air, daylight 1.0
+seed 12345  pos 536.5 314.0 200.5  rd 16  chunks 997  (drawn 246)
+gen 1225 ms  mesh(all, parallel) 1127 ms  mesh(1 section) 0.37 ms  quads 1487420 opaque / 91295 water
+frame (encode+GPU, offscreen, median of 30) 3.82 ms  biome jaggedPeaks
+mesh slabs 56 MB, chunks 997 (block+light arrays 126 MB), Metal allocated 87 MB
+memory: resident 229 MB  (section meshes 48 MB)
+wrote snaps/tour_peaks.png
+textures without a painter: missing
+light probe: eye sky 13 block 0 in air; floor+1 (y 86) sky 12 block 0 in air, daylight 1.0
+seed 12345  pos 8.5 150.2 8.5  rd 8  chunks 297  (drawn 73)
+gen 330 ms  mesh(all, parallel) 360 ms  mesh(1 section) 1.40 ms  quads 955172 opaque / 50130 water
+frame (encode+GPU, offscreen, median of 30) 2.82 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 67 MB
+memory: resident 120 MB  (section meshes 31 MB)
+wrote snaps/tour_forest_floor.png
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 68) sky 15 block 0 in air, daylight 1.0
+seed 12345  pos 872.5 153.0 872.5  rd 12  chunks 593  (drawn 158)
+gen 874 ms  mesh(all, parallel) 1135 ms  mesh(1 section) 0.59 ms  quads 1446502 opaque / 127768 water
+frame (encode+GPU, offscreen, median of 30) 2.38 ms  biome desert
+mesh slabs 56 MB, chunks 593 (block+light arrays 63 MB), Metal allocated 87 MB
+memory: resident 206 MB  (section meshes 48 MB)
+wrote snaps/tour_desert.png
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 69) sky 15 block 0 in air, daylight 1.0
+seed 424242  pos -39.5 145.0 1208.5  rd 12  chunks 593  (drawn 154)
+gen 516 ms  mesh(all, parallel) 808 ms  mesh(1 section) 1.22 ms  quads 1748823 opaque / 77923 water
+frame (encode+GPU, offscreen, median of 30) 4.84 ms  biome jungle
+mesh slabs 64 MB, chunks 593 (block+light arrays 56 MB), Metal allocated 95 MB
+memory: resident 191 MB  (section meshes 56 MB)
+wrote snaps/tour_jungle.png
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 61) sky 11 block 0 in water, daylight 1.0
+seed 12345  pos 104.5 159.0 56.5  rd 12  chunks 593  (drawn 174)
+gen 648 ms  mesh(all, parallel) 819 ms  mesh(1 section) 0.63 ms  quads 1270154 opaque / 119453 water
+frame (encode+GPU, offscreen, median of 30) 6.37 ms  biome river
+mesh slabs 48 MB, chunks 593 (block+light arrays 56 MB), Metal allocated 79 MB
+memory: resident 166 MB  (section meshes 42 MB)
+wrote snaps/tour_river.png
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 13 block 0 in water, daylight 1.0
+seed 777  pos 296.5 168.0 -135.5  rd 12  chunks 593  (drawn 169)
+gen 666 ms  mesh(all, parallel) 737 ms  mesh(1 section) 0.48 ms  quads 1484272 opaque / 77875 water
+frame (encode+GPU, offscreen, median of 30) 4.76 ms  biome river
+mesh slabs 56 MB, chunks 593 (block+light arrays 58 MB), Metal allocated 87 MB
+memory: resident 187 MB  (section meshes 48 MB)
+wrote snaps/tour_river_777.png
+biome badlands not found
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 93) sky 15 block 0 in air, daylight 1.0
+seed 12345  pos 8.5 192.0 8.5  rd 12  chunks 593  (drawn 160)
+gen 609 ms  mesh(all, parallel) 792 ms  mesh(1 section) 0.66 ms  quads 1493485 opaque / 102619 water
+frame (encode+GPU, offscreen, median of 30) 5.25 ms  biome forest
+mesh slabs 56 MB, chunks 593 (block+light arrays 57 MB), Metal allocated 87 MB
+memory: resident 200 MB  (section meshes 49 MB)
+wrote snaps/tour_mesa.png
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 65) sky 15 block 0 in air, daylight 1.0
+seed 12345  pos 8.5 159.0 104.5  rd 12  chunks 593  (drawn 165)
+gen 693 ms  mesh(all, parallel) 487 ms  mesh(1 section) 0.44 ms  quads 1111976 opaque / 119261 water
+frame (encode+GPU, offscreen, median of 30) 3.64 ms  biome beach
+mesh slabs 44 MB, chunks 593 (block+light arrays 52 MB), Metal allocated 75 MB
+memory: resident 164 MB  (section meshes 38 MB)
+wrote snaps/tour_coast.png
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 189) sky 0 block 0 in powder_snow, daylight 1.0
+seed 424242  pos -663.5 279.0 -87.5  rd 16  chunks 997  (drawn 276)
+gen 743 ms  mesh(all, parallel) 986 ms  mesh(1 section) 0.35 ms  quads 1725099 opaque / 118573 water
+frame (encode+GPU, offscreen, median of 30) 3.31 ms  biome snowySlopes
+mesh slabs 64 MB, chunks 997 (block+light arrays 108 MB), Metal allocated 95 MB
+memory: resident 264 MB  (section meshes 56 MB)
+wrote snaps/tour_snowline.png
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 93) sky 15 block 0 in air, daylight 1.0
+seed 12345  pos 8.5 157.0 8.5  rd 8  chunks 297  (drawn 71)
+gen 253 ms  mesh(all, parallel) 328 ms  mesh(1 section) 1.60 ms  quads 955172 opaque / 50130 water
+frame (encode+GPU, offscreen, median of 30) 2.63 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 67 MB
+memory: resident 132 MB  (section meshes 31 MB)
+wrote snaps/spawn.png
+ship boat: Assembled 126 blocks (68.0 t)
+ship boat: 126 blocks 68.0 t  pos 106.3 127.0 81.0  speed 4.48 b/s  submerged 68.3  contacts 0  physics 0.01 ms/frame
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 57) sky 9 block 0 in seagrass, daylight 1.0
+seed 12345  pos 101.7 131.4 97.4  rd 8  chunks 297  (drawn 74)
+gen 269 ms  mesh(all, parallel) 235 ms  mesh(1 section) 0.38 ms  quads 691184 opaque / 70669 water
+frame (encode+GPU, offscreen, median of 30) 3.54 ms  biome ocean
+mesh slabs 28 MB, chunks 297 (block+light arrays 25 MB), Metal allocated 59 MB
+memory: resident 120 MB  (section meshes 23 MB)
+wrote snaps/ship_boat.png
+ship deck: Assembled 126 blocks (68.0 t)
+ship deck: 126 blocks 68.0 t  pos 104.5 127.0 93.9  speed 4.18 b/s  submerged 68.6  contacts 0  physics 0.01 ms/frame
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 57) sky 9 block 0 in seagrass, daylight 1.0
+seed 12345  pos 104.5 126.7 96.8  rd 8  chunks 297  (drawn 69)
+gen 277 ms  mesh(all, parallel) 265 ms  mesh(1 section) 1.05 ms  quads 691184 opaque / 70669 water
+frame (encode+GPU, offscreen, median of 30) 2.96 ms  biome ocean
+mesh slabs 28 MB, chunks 297 (block+light arrays 25 MB), Metal allocated 59 MB
+memory: resident 118 MB  (section meshes 23 MB)
+wrote snaps/ship_deck.png
+ship airship: Assembled 236 blocks (46.3 t)
+ship airship: 236 blocks 46.3 t  pos -21.7 170.4 3.7  speed 0.04 b/s  submerged 0.0  contacts 3  physics 0.01 ms/frame
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 90) sky 15 block 0 in air, daylight 1.0
+seed 12345  pos -30.7 174.8 25.3  rd 8  chunks 340  (drawn 81)
+gen 314 ms  mesh(all, parallel) 372 ms  mesh(1 section) 0.52 ms  quads 866717 opaque / 46466 water
+frame (encode+GPU, offscreen, median of 30) 2.97 ms  biome plains
+mesh slabs 40 MB, chunks 340 (block+light arrays 31 MB), Metal allocated 71 MB
+memory: resident 134 MB  (section meshes 34 MB)
+wrote snaps/ship_airship.png
+ship car: Assembled 48 blocks (28.5 t)
+ship car: 48 blocks 28.5 t  pos -37.4 144.8 19.4  speed 3.82 b/s  submerged 0.0  contacts 2  physics 0.02 ms/frame
+textures without a painter: missing
+light probe: eye sky 13 block 0 in air; floor+1 (y 80) sky 13 block 0 in air, daylight 1.0
+seed 12345  pos -38.8 148.2 34.2  rd 8  chunks 316  (drawn 66)
+gen 274 ms  mesh(all, parallel) 309 ms  mesh(1 section) 3.05 ms  quads 866717 opaque / 46466 water
+frame (encode+GPU, offscreen, median of 30) 3.19 ms  biome plains
+mesh slabs 36 MB, chunks 316 (block+light arrays 29 MB), Metal allocated 67 MB
+memory: resident 123 MB  (section meshes 31 MB)
+wrote snaps/ship_car.png
+ship plane: Assembled 78 blocks (25.7 t)
+ship plane: 78 blocks 25.7 t  pos -39.8 177.6 -6.8  speed 0.01 b/s  submerged 0.0  contacts 2  physics 0.01 ms/frame
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 98) sky 15 block 0 in air, daylight 1.0
+seed 12345  pos -31.6 180.9 10.4  rd 8  chunks 358  (drawn 74)
+gen 339 ms  mesh(all, parallel) 347 ms  mesh(1 section) 0.90 ms  quads 866717 opaque / 46466 water
+frame (encode+GPU, offscreen, median of 30) 4.46 ms  biome forest
+mesh slabs 44 MB, chunks 358 (block+light arrays 33 MB), Metal allocated 75 MB
+memory: resident 131 MB  (section meshes 37 MB)
+wrote snaps/ship_plane.png
+ship gunboat: Assembled 135 blocks (94.1 t, 1 turret)
+ship gunboat: 129 blocks 71.3 t  pos 113.3 128.0 72.1  speed 4.49 b/s  submerged 78.5  contacts 0  physics 0.02 ms/frame
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 57) sky 9 block 0 in water, daylight 1.0
+seed 12345  pos 108.1 132.4 88.2  rd 8  chunks 316  (drawn 75)
+gen 297 ms  mesh(all, parallel) 263 ms  mesh(1 section) 0.92 ms  quads 691184 opaque / 70669 water
+frame (encode+GPU, offscreen, median of 30) 3.41 ms  biome ocean
+mesh slabs 32 MB, chunks 316 (block+light arrays 27 MB), Metal allocated 63 MB
+memory: resident 115 MB  (section meshes 26 MB)
+wrote snaps/ship_gunboat.png
+ship frigate: 3151 blocks 826 t  pos -39.5 207.0 26.5  speed 0.01 b/s  turrets 2  crew 4  physics 0.01 ms/frame
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 117) sky 15 block 0 in air, daylight 1.0
+seed 12345  pos 28.2 219.4 9.0  rd 10  chunks 554  (drawn 105)
+gen 406 ms  mesh(all, parallel) 418 ms  mesh(1 section) 0.85 ms  quads 1137878 opaque / 72874 water
+frame (encode+GPU, offscreen, median of 30) 3.44 ms  biome forest
+mesh slabs 56 MB, chunks 554 (block+light arrays 52 MB), Metal allocated 87 MB
+memory: resident 176 MB  (section meshes 49 MB)
+wrote snaps/ship_frigate.png
+ship carriage: 1037 blocks 1925 t  pos -39.5 167.3 26.5  speed 0.00 b/s  turrets 1  crew 2  physics 0.24 ms/frame
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 84) sky 15 block 0 in air, daylight 1.0
+seed 12345  pos 2.0 177.7 24.9  rd 8  chunks 368  (drawn 70)
+gen 238 ms  mesh(all, parallel) 284 ms  mesh(1 section) 1.37 ms  quads 866717 opaque / 46466 water
+frame (encode+GPU, offscreen, median of 30) 2.76 ms  biome forest
+mesh slabs 44 MB, chunks 368 (block+light arrays 34 MB), Metal allocated 75 MB
+memory: resident 145 MB  (section meshes 37 MB)
+wrote snaps/ship_carriage.png
+physicstest boat: Assembled 126 blocks (68.0 t)
+physicstest PASS: boat has helm, propeller and engine
+physicstest boat: mass 68.0 t, submerged 68.0, draft 1.23, vy 0.000, up 1.000
+physicstest PASS: boat floats upright at rest
+physicstest boat: 10 s at full throttle: 39.0 blocks, speed 4.51 b/s, rider at 2.50 1.00 5.69 (deck 2.5 1.0 5.5)
+physicstest PASS: boat sails under propeller power
+physicstest PASS: player stays on the moving deck
+physicstest boat: turned -92 degrees in 5 s
+physicstest PASS: boat turns right under helm
+physicstest boat: 6 sails, wind 5.0 b/s: drifted 9.3 blocks in 8 s
+physicstest PASS: sails carry the boat with the wind
+physicstest PASS: ship saves and loads (620 bytes)
+physicstest gunboat: Assembled 135 blocks (94.1 t, 1 turret)
+physicstest PASS: turret carries its cannons
+physicstest gunboat: turret yaw 1.57 (wanted 1.57), bearing gap 0.000
+physicstest PASS: turret turns on its ring and stays mounted
+physicstest PASS: turret link saves and loads
+physicstest gunboat: fired 3 shells, 20 of 20 wall blocks destroyed, 0 in flight
+physicstest PASS: cannon shells fly and explode on impact
+physicstest gunboat: blast removed 9 hull blocks
+physicstest PASS: explosions break ship blocks
+physicstest gunboat: sawn through 4 blocks: 1 new ship(s), 71 + 45 blocks
+physicstest PASS: a hull cut in two becomes two ships
+physicstest airship: Assembled 236 blocks (46.3 t)
+physicstest airship: mass 46.3 t, 154 balloons, lift 0.15, drift -0.00 in 4 s
+physicstest PASS: airship hovers
+physicstest airship: climbed 11.5 in 3 s
+physicstest PASS: airship climbs
+physicstest airship: flew 52.9 blocks in 6 s, altitude change 0.11
+physicstest PASS: airship flies level under propellers
+physicstest plane: Assembled 78 blocks (25.7 t)
+physicstest plane: mass 25.7 t, 38 airfoils, 6 s: 85.9 blocks, altitude change -9.4, speed 0.0, up 0.94
+physicstest PASS: aircraft flies under power
+physicstest plane: climb input 2 s: altitude change -0.6
+physicstest FAIL: aircraft climbs when pulled up
+physicstest takeoff: Assembled 81 blocks (27.5 t)
+physicstest takeoff: rolled 46.0 blocks in 4 s (1.8 b/s), then 3 s pulled up: climbed 2.8, up 0.64
+physicstest FAIL: aircraft takes off from a runway
+physicstest car: Assembled 48 blocks (28.5 t)
+physicstest car: mass 28.5 t, grounded yes, up 1.000, vy -0.000
+physicstest PASS: car rests on its wheels
+physicstest car: drove 39.3 blocks in 6 s, speed 7.93, up 1.000
+physicstest PASS: car drives
+physicstest car: docked 48 of 48 blocks back into the world
+physicstest PASS: car docks back into the world
+physicstest frigate: 3151 blocks 826 t, 1716 balloons, lift 0.24, 10 s patrol: 15.3 blocks, altitude change -0.00, up 1.000
+physicstest PASS: frigate patrols at its altitude
+physicstest frigate: turret aim error 0.000 rad
+physicstest PASS: frigate turret tracks a target
+physicstest carriage: 1037 blocks 1925 t, grounded yes, up 1.000, 6 s: 22.2 blocks
+physicstest PASS: siege carriage rolls on six wheels
+physicstest PASS: siege carriage's giant gun fires
+physicstest encounters: 34 frigates, 20 siege carriages in 441 regions of 2048 blocks
+physicstest PASS: vessel encounters are rare
+physicstest: 2 checks failed, 2.1 s, ships 7
+textures without a painter: missing
+light probe: eye sky 15 block 0 in air; floor+1 (y 60) sky 9 block 0 in water, daylight 1.0
+seed 12345  pos 123.2 134.4 55.0  rd 8  chunks 1068  (drawn 71)
+gen 314 ms  mesh(all, parallel) 326 ms  mesh(1 section) 0.33 ms  quads 955172 opaque / 50130 water
+frame (encode+GPU, offscreen, median of 30) 2.26 ms  biome river
+mesh slabs 92 MB, chunks 1068 (block+light arrays 97 MB), Metal allocated 123 MB
+memory: resident 229 MB  (section meshes 82 MB)
+wrote snaps/physicstest.png
+snap.sh: line 54: exit 1

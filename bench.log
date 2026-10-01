@@ -1,0 +1,51 @@
+bench: device Apple Paravirtual device, 3 cores, seed 12345
+bench gen: stone-fill interpolation vs Lattice.sample: 0 mismatching samples (must be 0)
+bench gen: 3.46 ms/chunk (p95 6.08, max 10.64) single-thread | 852 chunks/s parallel
+bench: gen took 0.7 s (live worlds 0, games 0)
+bench mesh: 3.76 ms/chunk (24 sections, 91 non-empty), section mean 157 us p95 668 us max 1671 us, 4842 quads/chunk
+bench mesh_lod1: 2.57 ms/chunk (24 sections, 32 non-empty), section mean 107 us p95 530 us max 938 us, 1196 quads/chunk
+bench: mesh took 0.6 s (live worlds 0, games 0)
+textures without a painter: missing
+textures without a painter: missing
+textures without a painter: missing
+bench startup: world+game init 6 ms, first load (r 4) 232 ms, renderer 771 ms (textures 18 ms, shaders 1 ms), fill rd 12 5.26 s
+bench: startup took 6.6 s (live worlds 1, games 0)
+textures without a painter: missing
+bench frame 800p rd 16: encode p50 1.36 ms, GPU p50 3.17 ms (max 4.53), 257 chunks drawn
+bench frame 1080p rd 16: encode p50 1.28 ms, GPU p50 3.67 ms (max 4.81), 275 chunks drawn
+bench frame 4k rd 16: encode p50 1.11 ms, GPU p50 5.11 ms (max 5.66), 275 chunks drawn
+bench frame: 464 visible sections, 828 draw calls, 183k quads
+bench: frame took 4.3 s (live worlds 1, games 0)
+bench edit: break mean 1.06 ms max 2.36 ms, place mean 1.08 ms max 1.90 ms (synchronous remesh)
+bench: edit took 0.9 s (live worlds 1, games 0)
+bench mobs: tick 0.29 ms empty, 0.94 ms with 150 mobs (p95 3.06, max 5.41), 206 alive
+bench: mobs took 1.0 s (live worlds 1, games 0)
+bench save: 145 chunks, save 2.42 ms/chunk (main thread 5.6 ms total, unchanged re-save 2.9 ms), load 0.54 ms/chunk (145 ok), 5.0 KB/chunk
+bench: save took 1.1 s (live worlds 1, games 0)
+bench tnt: blast mean 2.53 ms max 3.31 ms (main thread) | re-mesh done in 0.09 s, tick p95 5.83 max 5.83 ms
+bench: tnt took 0.8 s (live worlds 1, games 0)
+bench fluids: tick p50 0.31 p95 2.54 max 5.73 ms, 2945 sections re-meshed in 6 s, 1122 cells still pending
+bench: fluids took 6.7 s (live worlds 2, games 0)
+bench ships: frigate 3077 blocks spawn 12.52 ms, mesh 6.98 ms; tick 0.40 ms (p95 0.99), physics 0.15 ms; collide 1.20 us near ships, 0.28 us far; 13 ships
+bench: ships took 1.0 s (live worlds 2, games 0)
+bench: worlds still alive after the scenes: 2
+bench: live world: jobs 16, queue ops 0, gen in flight 0, results 0/16, chunks 193
+bench: live world: jobs 0, queue ops 0, gen in flight 0, results 0/0, chunks 593
+bench: wrote 82 metrics to snaps/bench_part_0.json
+bench: device Apple Paravirtual device, 3 cores, seed 12345
+textures without a painter: missing
+bench flight8: frame p50 2.52 p95 6.84 p99 12.56 max 15.59 ms, 0 hitches >25 ms | tick p95 2.51 (update p95 0.72, max 4.91) encode p95 1.56 GPU p95 6.42 ms
+bench flight8: coverage min 92% mean 99% | gen 24 chunks/s (2.6 ms each on a worker) mesh 513 sections/s (179 us each) | realtime 1.00x
+bench flight8: 328 chunks, chunk data 34 MB, meshes 36 MB (slabs 48 MB), resident peak 138 MB, preload 670 ms
+bench: flight8 took 13.5 s (live worlds 0, games 0)
+bench: worlds still alive after the scenes: 0
+bench: wrote 36 metrics to snaps/bench_part_flight8.json
+bench: device Apple Paravirtual device, 3 cores, seed 12345
+textures without a painter: missing
+bench flight16: frame p50 4.52 p95 9.13 p99 14.44 max 20.99 ms, 0 hitches >25 ms | tick p95 3.51 (update p95 1.63, max 13.81) encode p95 3.56 GPU p95 9.05 ms
+bench flight16: coverage min 96% mean 99% | gen 44 chunks/s (2.9 ms each on a worker) mesh 1991 sections/s (178 us each) | realtime 1.00x
+bench flight16: 1056 chunks, chunk data 114 MB, meshes 75 MB (slabs 92 MB), resident peak 268 MB, preload 2186 ms
+bench: flight16 took 15.0 s (live worlds 0, games 0)
+bench: worlds still alive after the scenes: 0
+bench: wrote 36 metrics to snaps/bench_part_flight16.json
+./bench.sh: line 17:  8330 Segmentation fault: 11  "$BIN" --bench "snaps/bench_part_$f.json" --scenes "$f" "$@"

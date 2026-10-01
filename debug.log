@@ -1,0 +1,3 @@
+rerun (debug build): "$BIN" --snapshot snaps/physicstest.png --seed 12345 --time 0.3 --physicstest
+(lldb) target create "build/Blocksmith.app/Contents/MacOS/Blocksmith"
+error: unable to find executable for 'build/Blocksmith.app/Contents/MacOS/Blocksmith'
