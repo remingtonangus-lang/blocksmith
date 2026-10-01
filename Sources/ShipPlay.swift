@@ -179,7 +179,11 @@ extension Game {
         if let stand = helmStand(s) { player.pos = s.toWorld(stand) }
         player.flying = false
         sfx(.place(.wood), 0.5, at: player.pos)
-        onToast?("Steering \(s.name): W/S \(s.wheels.isEmpty ? "set throttle (it holds)" : "drive"), A/D turn, Space/Ctrl climb, click fire, Shift leave")
+        if padConnected || HudLayout.couch {
+            onToast?("Steering \(s.name): left stick \(s.wheels.isEmpty ? "sets throttle (it holds)" : "drives") and turns, A/RB climb, LB descend, RT fire, B leave")
+        } else {
+            onToast?("Steering \(s.name): W/S \(s.wheels.isEmpty ? "set throttle (it holds)" : "drive"), A/D turn, Space/Ctrl climb, click fire, Shift leave")
+        }
     }
 
     func leaveHelm() {
