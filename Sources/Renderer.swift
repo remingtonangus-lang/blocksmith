@@ -18,6 +18,7 @@ struct Uniforms {
     var ambColor = V4(0, 0, 0, 0)
     var lightDir = V4(0, 1, 0, 0)
     var screen = V4(1, 1, 1, 1)
+    var dimTint = V4(1, 1, 1, 0)
 }
 struct SkyParams { var invViewProj: float4x4; var zenith: V4; var horizon: V4; var sun: V4 }
 
@@ -502,6 +503,9 @@ final class Renderer: NSObject, MTKViewDelegate {
             u.ambColor = V4(lf.ambient, game.dim.dim.hasSky ? min(1, game.weather.rain) : 0)
             u.lightDir = V4(lf.dir, Float(game.dayFraction))
             u.screen = V4(VW, VH, 1 / max(VW, 1), 1 / max(VH, 1))
+            // Dimension ambient colour: ember-warm in the Emberdeep, cool violet in the Hollow (night vision stays white).
+            let dimC: V3 = game.dim.dim == .nether ? V3(1.0, 0.78, 0.68) : (game.dim.dim == .end ? V3(0.86, 0.8, 1.0) : V3(1, 1, 1))
+            u.dimTint = V4(simd_mix(dimC, V3(1, 1, 1), V3(repeating: game.nightVision)), 0)
             // Post: sun position for god rays, bloom, haze and grading.
             var pp = PostParams()
             // Eyes adapt at night: exposure rises as daylight falls (only with open sky above).
