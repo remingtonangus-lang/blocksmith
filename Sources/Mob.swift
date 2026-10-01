@@ -1495,7 +1495,11 @@ final class MobManager {
             }
             if m.callTimer <= 0 {
                 m.callTimer = Float.random(in: 8...24)
-                if m.kind != .creeper && m.kind != .magmaCube && MobVoice.profile(m.kind).family != .silent {
+                if let r = Soldier.rank(m.kind) {
+                    // Soldiers chatter at ease and shout orders in a fight (more often while fighting).
+                    if m.aggro { m.callTimer = Float.random(in: 4...9) }
+                    game.sfx(.soldier(r, m.aggro ? (Float.random(in: 0..<1) < 0.25 ? .retreat : .attack) : .idle), m.aggro ? 1 : 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
+                } else if m.kind != .creeper && m.kind != .magmaCube && MobVoice.profile(m.kind).family != .silent {
                     game.sfx(m.baby ? .babyMob(m.kind, .ambient) : .mob(m.kind, .ambient), m.baby ? 0.45 : 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
                 }
             }
