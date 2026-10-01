@@ -36,7 +36,8 @@ ShipRender.swift, ShipPlay.swift, ShipBlocks.swift, ShipTest.swift).
 - Parts: Propeller (pushes away from its front, needs an Engine; one engine drives 4 propellers/wheels), Engine,
   Lift Balloon (2 t of lift each; airships hold altitude, Space/Ctrl climb/descend), Airfoil (flat-plate lift for
   aircraft; 4+ airfoils and no balloons = aircraft controls: climb input pitches), Wheel (suspension, rolls along the
-  ship's heading, grips sideways). The helm alone paddles a boat slowly.
+  ship's heading, grips sideways). The helm alone paddles a boat slowly. Wool blocks are **sails**: while someone
+  steers they turn the wind (direction drifts over time, stronger in rain/thunder) into drive along the heading.
 - Physics: 60 Hz substeps; buoyancy from blocks plus the hull's enclosed air (a stone hull floats like a steel ship),
   keel-like water drag, air drag, yaw-rate steering, self-righting, impulse contacts vs terrain and other ships.
 - Aboard: the player moves in the ship's frame (World.frame): walking, jumping, ladders, building all work on a
@@ -54,6 +55,12 @@ ShipRender.swift, ShipPlay.swift, ShipBlocks.swift, ShipTest.swift).
 - Known gaps: mobs aboard use approximate collision and can swim in hull water; ship light is baked in ship space
   (no world shadows/caves); no hull splitting when a ship is cut in two; explosions don't damage ships yet.
 - Next: tuning from CI numbers, soldier crews once the Gameplay session adds soldiers, hull splitting.
+
+## Rendering fix carried from the performance branch (Engine session)
+The single-draw-per-section path (base vertex + base instance) draws scrambled, black terrain on the CI runners'
+paravirtual GPU (every PR #1 snapshot showed it). Renderer.baseVertexOK now skips it when the device name contains
+"Paravirtual" (or with --no-base-vertex). Still to verify on a real M1 that the fast path renders correctly; if not,
+the same flag turns it off. Open: World objects still outlive some --bench scenes (startup, tnt, fluids, flights).
 
 ## CI (compile/test loop)
 - `.github/workflows/mac.yml` (macos-14 arm64, Xcode 16 / Swift 6.0.3): `./build.sh` + `./snap.sh` on every push;

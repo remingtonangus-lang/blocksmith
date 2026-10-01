@@ -387,9 +387,19 @@ final class Renderer: NSObject, MTKViewDelegate {
             func vidx(_ dx: Int, _ dz: Int, _ sy: Int) -> Int { ((dx + R) + (dz + R) * span) * NSEC + sy }
             // Chunks around the camera in a flat grid: one dictionary lookup per column instead of one per step.
             if chunkGrid.count != span * span { chunkGrid = [Chunk?](repeating: nil, count: span * span) }
+            var topSec = 0
             for dz in -R...R { for dx in -R...R {
-                chunkGrid[(dx + R) + (dz + R) * span] = game.world.inMeshRadius(dx, dz) ? game.world.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] : nil
+                let c = game.world.inMeshRadius(dx, dz) ? game.world.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] : nil
+                chunkGrid[(dx + R) + (dz + R) * span] = c
+                if let c {
+                    var t = NSEC - 1
+                    while t > topSec && c.sections[t].empty && c.sections[t].meshedVersion != -1 { t -= 1 }
+                    topSec = max(topSec, t)
+                }
             } }
+            // Above the tallest geometry in range everything is open air: walking one layer of it is enough to get
+            // around anything, so the walk never climbs higher (it used to cross every empty sky section).
+            let yLimit = max(pSec, topSec + 1)
             bfs.removeAll(keepingCapacity: true)
             bfs.append((startC, 0, 0, pSec, -1, 0))
             visitGen[vidx(0, 0, pSec)] = gen
@@ -410,7 +420,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     if entry >= 0 && vis & (1 << UInt64(entry * 6 + f)) == 0 { continue }
                     let (ox, oy, oz) = dirs[f]
                     let ndx = dx + ox, ndz = dz + oz, nsy = sy + oy
-                    if nsy < 0 || nsy >= NSEC || !game.world.inMeshRadius(ndx, ndz) || abs(ndx) > R || abs(ndz) > R { continue }
+                    if nsy < 0 || nsy >= NSEC || nsy > yLimit || !game.world.inMeshRadius(ndx, ndz) || abs(ndx) > R || abs(ndz) > R { continue }
                     let vi = vidx(ndx, ndz, nsy)
                     if visitGen[vi] == gen { continue }
                     let nmn = V3(Float((pcx + ndx) * CS), Float(nsy * 16), Float((pcz + ndz) * CS))

@@ -51,6 +51,34 @@ extension Game {
         p.airPeak = w1.y + fall2
     }
 
+    // /vessel frigate|carriage: summon one ahead; /vessel locate: the nearest encounter home.
+    func vesselCommand(_ a: [String]) -> [String] {
+        let ships = world.ships
+        guard a.count >= 2 else { return ["Usage: /vessel <frigate|carriage|locate>"] }
+        let f = V3(-sinf(player.yaw), 0, -cosf(player.yaw))
+        switch a[1].lowercased() {
+        case "frigate", "carriage":
+            let at = player.pos + f * (a[1].lowercased() == "frigate" ? 50 : 30)
+            let x = Int(floor(at.x)), z = Int(floor(at.z))
+            let ground = world.topY(x, z)
+            let s = ships.spawnVessel(a[1].lowercased(), home: IVec3(x, a[1].lowercased() == "frigate" ? max(ground, SEA) + 30 : ground + 1, z), game: self)
+            return ["Summoned \(s.name) (\(s.blockCount) blocks)"]
+        case "locate":
+            let rx = floorDiv(Int(player.pos.x), Vessels.region), rz = floorDiv(Int(player.pos.z), Vessels.region)
+            var best: (String, IVec3, Float)?
+            for dz in -3...3 { for dx in -3...3 {
+                guard let e = Vessels.encounter(seed: world.seed, rx: rx + dx, rz: rz + dz, gen: world.gen) else { continue }
+                let d = simd_length(V2(Float(e.1.x) - player.pos.x, Float(e.1.z) - player.pos.z))
+                if best == nil || d < best!.2 { best = (e.0, e.1, d) }
+            } }
+            guard let b = best else { return ["No vessel within \(Vessels.region * 3) blocks"] }
+            let name = b.0 == "frigate" ? "Skyward Frigate" : "Ironstride Siege Carriage"
+            return ["The nearest \(name) patrols around [\(b.1.x), ~, \(b.1.z)] (\(Int(b.2)) blocks away)"]
+        default:
+            return ["Unknown vessel \(a[1])"]
+        }
+    }
+
     // HUD while steering: speed, height above sea level, throttle and lift.
     func shipHUDLine() -> String? {
         guard let s = world.ships.pilot else { return nil }

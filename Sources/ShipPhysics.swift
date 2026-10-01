@@ -35,6 +35,14 @@ struct ShipBlockReader {
         return chunk != nil
     }
 
+    // Highest sky-stopping block of a column (terrain, water, leaves), -1 if unloaded.
+    @inline(__always) mutating func columnTop(_ x: Int, _ z: Int) -> Int {
+        let cx = x >> 4, cz = z >> 4
+        if cx != key.x || cz != key.z { key = ChunkKey(x: cx, z: cz); chunk = w.chunks[key] }
+        guard let c = chunk else { return -1 }
+        return Int(c.height[(x & 15) + (z & 15) * 16])
+    }
+
     // Height of the water surface in the column at p (near p.y), nil if there is no water there.
     mutating func waterTop(_ p: V3) -> Float? {
         let x = Int(floor(p.x)), z = Int(floor(p.z))
@@ -62,6 +70,12 @@ extension ShipManager {
     // Advances every ship (call once per frame) and carries what stands on them.
     func update(_ dt: Float, game: Game?) {
         if !ghosts.isEmpty { ghosts = ghosts.map { ($0.0, $0.1 - dt) }.filter { $0.1 > 0 } }
+        if let game {
+            // Wind turns slowly over the days; rain and thunder strengthen it.
+            let a = Float((game.time / 900).truncatingRemainder(dividingBy: 2 * .pi)) + Float(world.seed % 628) / 100
+            let strength: Float = 5 + 4 * game.weather.rain + 5 * game.weather.thunder
+            wind = V3(cosf(a), 0, sinf(a)) * strength
+        }
         if encounters, let game { encounterTick(dt, game: game) }
         if list.isEmpty { return }
         let t0 = CFAbsoluteTimeGetCurrent()
@@ -117,6 +131,18 @@ extension ShipManager {
         while d > .pi { d -= 2 * .pi }
         while d < -.pi { d += 2 * .pi }
         return d
+    }
+
+    // Whether a world point is inside a ship's hull, above its floor (the sea there is kept out).
+    func dry(at p: V3) -> Bool {
+        if list.isEmpty { return false }
+        for s in list where p.x > s.worldMin.x && p.x < s.worldMax.x && p.y > s.worldMin.y && p.y < s.worldMax.y
+            && p.z > s.worldMin.z && p.z < s.worldMax.z {
+            let l = s.toLocal(p)
+            let x = Int(floor(l.x)), y = Int(floor(l.y)), z = Int(floor(l.z))
+            if s.grid.inside(x, y, z) && Int(s.colMin[x + z * s.grid.sx]) < y { return true }
+        }
+        return false
     }
 
     // The ship a body's feet rest on, if any.
@@ -220,6 +246,21 @@ extension ShipManager {
                 var at = p
                 at.y = s.com.y
                 apply(s.dirToWorld(d) * (s.throttle * ShipTuning.propThrust * power), at: s.toWorld(at))
+            }
+        }
+        // Sails (wool): pushed by the wind relative to the ship while someone steers (furled otherwise).
+        if piloted && s.sails > 0 {
+            let rel = wind - s.vel
+            let rh = V3(rel.x, 0, rel.z)
+            // Trimmed sails turn the wind into drive along the heading (the keel takes the rest): best running
+            // before the wind, weaker across it, a little even close to it (tacking), plus some leeway.
+            var fh = V3(fwdW.x, 0, fwdW.z)
+            fh = simd_length_squared(fh) > 1e-4 ? simd_normalize(fh) : V3(0, 0, -1)
+            let speed2 = simd_length_squared(rh)
+            if speed2 > 0.01 {
+                let cosA = simd_dot(rh / speed2.squareRoot(), fh)
+                let push = speed2 * 0.35 * Float(s.sails)
+                F += fh * (push * max(0.15, (1 + cosA) * 0.5)) + rh / speed2.squareRoot() * (push * 0.15)
             }
         }
         // Helm paddling in water.
@@ -344,6 +385,20 @@ extension ShipManager {
 
     private func terrainContacts(_ s: Ship, _ rd: inout ShipBlockReader, _ out: inout [Contact]) {
         let r = ShipTuning.hullRadius
+        // Broadphase: nothing under the ship reaches its lowest point (heightmaps of its footprint).
+        if s.terrainCheck <= 0 {
+            var top = -1
+            for z in Int(floor(s.worldMin.z))...Int(floor(s.worldMax.z)) {
+                for x in Int(floor(s.worldMin.x))...Int(floor(s.worldMax.x)) { top = max(top, rd.columnTop(x, z)) }
+            }
+            s.terrainClear = s.worldMin.y - Float(top + 1)
+            // Re-check sooner when close or fast.
+            let fall = max(1, simd_length(s.vel))
+            s.terrainCheck = s.terrainClear > 2 ? min(30, Int((s.terrainClear - 1) / fall * 60)) : 0
+        } else {
+            s.terrainCheck -= 1
+        }
+        if s.terrainClear > 1.5 && s.terrainCheck > 0 { return }
         let collide = Blocks.collide
         // Big hulls test half their cells each substep (alternating).
         let stride = s.hull.count > 6000 ? 2 : 1

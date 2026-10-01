@@ -39,7 +39,7 @@ enum ShipTest {
             put(4, 0, 9, "ship_propeller[south]")
             for x in [0, 4] { put(x, 0, 9 - 1, planks) }
             return IVec3(o.x + 2, o.y + 1, o.z + 6)
-        case "plane":
+        case "plane", "taxiplane":
             for z in 0..<11 { for x in 0..<3 { put(x, 0, z, planks) } }
             for x in -5...7 where x < 0 || x > 2 { for z in 4...6 { put(x, 0, z, "ship_wing") } }
             for x in -2...4 where x < 0 || x > 2 { for z in 9...10 { put(x, 0, z, "ship_wing") } }
@@ -48,6 +48,9 @@ enum ShipTest {
             put(1, 1, 1, "ship_engine")
             put(1, 1, 6, "ship_helm[south]")
             put(1, 1, 7, "glass")
+            if kind == "plane" { return IVec3(o.x + 1, o.y + 1, o.z + 6) }
+            // Landing gear: a nose wheel and two main wheels under the fuselage.
+            put(1, -1, 1, "ship_wheel"); put(0, -1, 6, "ship_wheel"); put(2, -1, 6, "ship_wheel")
             return IVec3(o.x + 1, o.y + 1, o.z + 6)
         case "car":
             for z in 0..<7 { for x in 0..<5 { put(x, 0, z, planks) } }
@@ -253,6 +256,13 @@ enum ShipTest {
         while dyaw < -.pi { dyaw += 2 * .pi }
         print(String(format: "physicstest boat: turned %.0f degrees in 5 s", dyaw * 180 / .pi))
         check(dyaw < -0.5, "boat turns right under helm")
+        // Sails: engines idle, someone at the helm, the wind carries the boat.
+        boat.autopilot = V3(0, 0, 0)
+        run(g, seconds: 3)
+        let s0 = boat.pos
+        run(g, seconds: 8)
+        print(String(format: "physicstest boat: %ld sails, wind %.1f b/s: drifted %.1f blocks in 8 s", boat.sails, simd_length(w.ships.wind), horiz(boat.pos - s0)))
+        check(horiz(boat.pos - s0) > 2, "sails carry the boat with the wind")
         boat.autopilot = nil
         // Save / load round trip.
         if let data = w.ships.encode() {
@@ -278,6 +288,12 @@ enum ShipTest {
             let drift = simd_length(turret.toWorld(turret.pivot) - gb.toWorld(turret.mountLocal))
             print(String(format: "physicstest gunboat: turret yaw %.2f (wanted 1.57), bearing gap %.3f", turret.turretYaw, drift))
             check(abs(turret.turretYaw - .pi / 2) < 0.05 && drift < 0.05, "turret turns on its ring and stays mounted")
+            if let data = w.ships.encode() {
+                let probe = ShipManager(world: w)
+                probe.decode(data)
+                let tcopy = probe.list.first { $0.id == turret.id }
+                check(tcopy?.parent?.id == gb.id && abs((tcopy?.turretYaw ?? 0) - turret.turretYaw) < 0.001, "turret link saves and loads")
+            }
             turret.aimYaw = 0
             run(g, seconds: 2.5)
             // Target wall 22 blocks ahead of the bow.
@@ -298,7 +314,22 @@ enum ShipTest {
             Explosion.explode(at: gb.toWorld(V3(0.5, 1.5, 6)), power: 3, game: g)
             print("physicstest gunboat: blast removed \(n0 - gb.blockCount) hull blocks")
             check(gb.blockCount < n0, "explosions break ship blocks")
-            for t in w.ships.turrets(of: gb) { w.ships.remove(t) }
+            // Saw the hull in two across its middle: the bow (with the turret) floats off as its own ship.
+            let before = w.ships.list.count, blocks0 = gb.blockCount
+            let mid = Int(gb.localMin.z + gb.localMax.z) / 2
+            var cut = 0
+            let rows = gb.grid
+            for y in 0..<rows.sy { for x in 0..<rows.sx where gb.grid.get(x, y, mid) != AIR {
+                // (the grid object stays the same; a split moves the other half's blocks out of it)
+                w.ships.setBlock(gb, IVec3(x, y, mid), AIR); cut += 1
+            } }
+            let parts = w.ships.list.filter { $0.name.hasSuffix("wreck") }
+            let partBlocks = parts.reduce(0) { $0 + $1.blockCount }
+            print("physicstest gunboat: sawn through \(cut) blocks: \(w.ships.list.count - before) new ship(s), \(gb.blockCount) + \(partBlocks) blocks")
+            check(parts.count == 1 && gb.blockCount + partBlocks + cut == blocks0, "a hull cut in two becomes two ships")
+            run(g, seconds: 2)
+            for p in parts { w.ships.remove(p) }
+            for t in w.ships.list where t.parent != nil || t.name == "Turret" { w.ships.remove(t) }
             w.ships.remove(gb)
         } else { check(false, "gunboat assembles with a turret") }
 
@@ -351,6 +382,33 @@ enum ShipTest {
             plane.autopilot = nil
             w.ships.remove(plane)
         } else { check(false, "aircraft assembles") }
+
+        // 3b. Takeoff: a plane with landing gear rolls down a runway and lifts off when pulled up.
+        let runway = land + V3(-60, 0, 30)
+        let rwx = Int(runway.x), rwz = Int(runway.z)
+        let ry = groundTop(w, rwx, rwz) + 1
+        for dz in -140..<12 { for dx in -9..<10 {
+            for yy in ry..<(ry + 10) { w.setBlockAsync(rwx + dx, yy, rwz + dz, AIR) }
+            w.setBlockAsync(rwx + dx, ry - 1, rwz + dz, GRASS)        // (natural: the helm never grabs it)
+        } }
+        _ = w.loadSync(center: runway + V3(0, 0, -70), radius: 12)
+        let tp = build(w, "taxiplane", at: IVec3(rwx - 1, ry + 1, rwz - 5))
+        let (taxiOpt, tmsg) = w.ships.assemble(at: tp, game: g)
+        print("physicstest takeoff: \(tmsg)")
+        if let pl = taxiOpt {
+            run(g, seconds: 2)
+            let g0 = pl.pos
+            pl.autopilot = V3(1, 0, 0)
+            run(g, seconds: 4)
+            let roll = horiz(pl.pos - g0)
+            pl.autopilot = V3(1, 0, 0.8)
+            run(g, seconds: 3)
+            print(String(format: "physicstest takeoff: rolled %.1f blocks in 4 s (%.1f b/s), then 3 s pulled up: climbed %.1f, up %.2f",
+                         roll, horiz(pl.vel), pl.pos.y - g0.y, upright(pl)))
+            check(roll > 20 && pl.pos.y - g0.y > 3, "aircraft takes off from a runway")
+            pl.autopilot = nil
+            w.ships.remove(pl)
+        } else { check(false, "plane with landing gear assembles") }
 
         // 4. Land vehicle: settles on its wheels, drives, docks.
         let carSpot = land + V3(-40, 0, 20)

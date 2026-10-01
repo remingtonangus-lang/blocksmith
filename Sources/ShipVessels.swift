@@ -149,6 +149,9 @@ enum Vessels {
         b.box(-5, 5, 3, 6, 0, 22, "stone_bricks", hollow: true)
         b.box(-5, 5, 6, 6, 0, 22, "polished_blackstone")
         for x in [-5, 5] { for z in stride(from: 1, to: 22, by: 3) { b.set(x, 5, z, "iron_block") } }
+        // Rail round the top deck so the crew stays aboard.
+        for z in 0...22 { b.set(-5, 7, z, "nether_brick_fence"); b.set(5, 7, z, "nether_brick_fence") }
+        for x in -4...4 { b.set(x, 7, 0, "nether_brick_fence") }
         for zc in [4, 11, 18] {
             for x in [-7, -6, 6, 7] { for y in 0...4 { for z in (zc - 2)...(zc + 2) {
                 let dy = Float(y) - 2, dz = Float(z - zc)

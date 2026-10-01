@@ -71,6 +71,7 @@ enum ShipParts {
         }
         return t
     }()
+    static let wool: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]).hasSuffix("_wool") }
     // Unit direction of facing index 0...3 (north, south, west, east).
     static let facingDir: [V3] = [V3(0, 0, -1), V3(0, 0, 1), V3(-1, 0, 0), V3(1, 0, 0)]
     @inline(__always) static func facing(_ b: BlockID) -> Int { Int(b - Blocks.groupBase[Int(b)]) & 3 }
@@ -181,6 +182,8 @@ final class Ship {
     var angVel = V3(0, 0, 0)         // world space, rad/s
     var prevPos = V3(0, 0, 0), prevRot = Quat(angle: 0, axis: V3(0, 1, 0))
     var sleeping = 0                 // substeps at rest (physics thins out)
+    var terrainClear: Float = 0      // height of the hull above everything under its footprint (broadphase)
+    var terrainCheck = 0             // substeps until that is measured again
 
     // Mass properties (rebuilt when blocks change).
     var com = V3(0, 0, 0)            // ship space
@@ -194,6 +197,7 @@ final class Ship {
     var wheels: [V3] = []
     var wheelBase = 0                // wheel cells in the lowest wheel row (they carry the load)
     var wings: [V3] = []
+    var sails = 0                    // wool blocks (catch the wind while someone steers)
     var cannons: [(V3, V3)] = []     // cannon centre, muzzle direction (ship space)
     var balloons = 0
     var engines = 0
@@ -289,7 +293,8 @@ final class Ship {
         var m: Float = 0
         var c = V3(0, 0, 0)
         var n = 0
-        props.removeAll(); wheels.removeAll(); wings.removeAll(); cannons.removeAll(); balloons = 0; engines = 0
+        props.removeAll(); wheels.removeAll(); wings.removeAll(); cannons.removeAll(); balloons = 0; engines = 0; sails = 0
+        let woolT = ShipParts.wool
         var lo = V3(Float(sx), Float(sy), Float(sz)), hi = V3(0, 0, 0)
         helm = nil
         for y in 0..<sy { for z in 0..<sz { for x in 0..<sx {
@@ -301,6 +306,7 @@ final class Ship {
             m += bm
             c += p * bm
             lo = simd_min(lo, p - 0.5); hi = simd_max(hi, p + 0.5)
+            if woolT[Int(b)] { sails += 1 }
             switch kinds[Int(b)] {
             case .helm:
                 if helm == nil { helm = IVec3(x, y, z); fwd = -ShipParts.facingDir[ShipParts.facing(b)] }
@@ -385,11 +391,13 @@ final class Ship {
         } } }
 
         // Projected areas (cells seen looking along each ship axis).
-        var ayz = Set<Int>(), axz = Set<Int>(), axy = Set<Int>()
+        var ayz = [Bool](repeating: false, count: sy * sz), axz = [Bool](repeating: false, count: sx * sz)
+        var axy = [Bool](repeating: false, count: sx * sy)
         for y in 0..<sy { for z in 0..<sz { for x in 0..<sx where collide[Int(g.blocks[g.index(x, y, z)])] {
-            ayz.insert(y + z * sy); axz.insert(x + z * sx); axy.insert(x + y * sx)
+            ayz[y + z * sy] = true; axz[x + z * sx] = true; axy[x + y * sx] = true
         } } }
-        area = V3(Float(max(1, ayz.count)), Float(max(1, axz.count)), Float(max(1, axy.count)))
+        func count(_ a: [Bool]) -> Int { a.reduce(0) { $0 + ($1 ? 1 : 0) } }
+        area = V3(Float(max(1, count(ayz))), Float(max(1, count(axz))), Float(max(1, count(axy))))
 
         // Buoyancy buckets (bigger for big ships so sampling stays cheap).
         let cells = sx * sy * sz
@@ -497,6 +505,7 @@ final class ShipManager {
     var breakCooldown: Float = 0
     var shells: [Shell] = []         // cannon shells in flight (ShipCombat.swift)
     var ghosts: [(Ship, Float)] = [] // docked ships still drawn while the world remeshes their blocks
+    var wind = V3(4, 0, 2)           // world wind (b/s): sails (set each frame from the clock and weather)
     var encounters = true            // rare vessels spawn near their home regions (off in harness scenes)
     var encounterTimer: Float = 0
     var spawnedRegions = Set<String>()   // regions whose vessel has already appeared
@@ -761,6 +770,7 @@ final class ShipManager {
         s.rebuild()
         if s.blockCount == 0 { remove(s); return }
         s.mesh.rebuildAround(s, cell, device: world.device, queue: meshQueue)
+        if b == AIR { splitIfNeeded(s) }
     }
 
     // MARK: Save / load (ships.json in the dimension's save folder)

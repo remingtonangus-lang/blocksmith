@@ -88,7 +88,7 @@ extension ItemRegistry {
 
 extension Game {
     static let commandNames = ["help", "time", "weather", "gamemode", "difficulty", "tp", "give", "summon", "kill", "clear",
-                               "effect", "xp", "locate", "seed", "spawnpoint", "setblock"]
+                               "effect", "xp", "locate", "seed", "spawnpoint", "setblock", "vessel"]
     static let structureNames: [(String, String)] = [
         ("village", "Village"), ("stronghold", "Stronghold"), ("monument", "Sea Temple"), ("mansion", "Forest Manor"),
         ("ancient_city", "Buried Citadel"), ("trial_chambers", "Proving Halls"), ("temple", "Temple"),
@@ -213,6 +213,8 @@ extension Game {
             m.yaw = player.yaw + .pi
             mobs.mobs.append(m)
             return ["Summoned new \(k.name)"]
+        case "vessel":
+            return vesselCommand(a)
         case "kill":
             if a.count >= 2 && a[1] == "@e" {
                 let n = mobs.mobs.count
