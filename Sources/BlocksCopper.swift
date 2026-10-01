@@ -8,7 +8,8 @@ enum Copper {
         ("", "", 0xC06B4F), ("exposed_", "Exposed ", 0xA17E68), ("weathered_", "Weathered ", 0x6C9A6C), ("oxidized_", "Oxidized ", 0x52A284),
     ]
     static let forms = ["block", "cut_copper", "chiseled_copper", "copper_grate", "copper_bulb", "cut_copper_stairs", "cut_copper_slab",
-                        "copper_chest", "copper_golem_statue", "copper_lantern", "copper_bars", "copper_chain"]
+                        "copper_chest", "copper_golem_statue", "copper_lantern", "copper_bars", "copper_chain",
+                        "copper_door", "copper_trapdoor"]
 
     static func name(_ form: String, stage: Int, waxed: Bool) -> String {
         let w = waxed ? "waxed_" : ""
@@ -99,6 +100,26 @@ extension BlockRegistry {
                 chain.tex = ["\(st.prefix)copper_chain"]; chain.render = .model; chain.layer = .cutout; chain.opaque = false; chain.boxes = [Box(7, 0, 7, 9, 16, 9)]
                 chain.hardness = 5; chain.tool = .pickaxe; chain.skyStop = false; chain.randomTicks = !waxed && s < 3
                 add(chain)
+                // Copper door and trapdoor: open by hand like wooden ones.
+                let dn = Copper.name("copper_door", stage: s, waxed: waxed), tn = Copper.name("copper_trapdoor", stage: s, waxed: waxed)
+                for upper in [false, true] { for open in [false, true] { for f in 0..<4 {
+                    let k = f + (open ? 4 : 0) + (upper ? 8 : 0)
+                    var d = BlockDef(k == 0 ? dn : "\(dn)[\(k)]", "\(w)\(st.disp)Copper Door")
+                    d.tex = [upper ? "\(st.prefix)copper_door_top" : "\(st.prefix)copper_door_bottom"]; d.render = .model; d.layer = .cutout; d.opaque = false
+                    d.boxes = [BlockRegistry.panel(open ? [2, 3, 1, 0][f] : [0, 1, 2, 3][f])]
+                    d.hardness = 3; d.tool = .pickaxe; d.group = dn; d.hidden = k != 0; d.shape = "door"; d.skyStop = false
+                    d.randomTicks = !waxed && s < 3
+                    add(d)
+                } } }
+                for top in [false, true] { for open in [false, true] { for f in 0..<4 {
+                    let k = f + (open ? 4 : 0) + (top ? 8 : 0)
+                    var d = BlockDef(k == 0 ? tn : "\(tn)[\(k)]", "\(w)\(st.disp)Copper Trapdoor")
+                    d.tex = ["\(st.prefix)copper_trapdoor"]; d.render = .model; d.layer = .cutout; d.opaque = false
+                    d.boxes = [open ? BlockRegistry.panel([1, 0, 3, 2][f]) : (top ? Box(0, 13, 0, 16, 16, 16) : Box(0, 0, 0, 16, 3, 16))]
+                    d.hardness = 3; d.tool = .pickaxe; d.group = tn; d.hidden = k != 0; d.shape = "trapdoor"; d.skyStop = false
+                    d.randomTicks = !waxed && s < 3
+                    add(d)
+                } } }
             }
         }
     }
@@ -140,6 +161,22 @@ extension TextureGen {
                 return clear
             }
             p["\(st.prefix)copper_chain"] = { x, y in (x == 7 || x == 8) && (y % 4 != 3) ? hex(c, 0.75) : clear }
+            // Copper door (two windows up top) and trapdoor (four-pane grille).
+            p["\(st.prefix)copper_door_top"] = { x, y in
+                if x <= 1 || x >= 14 || y <= 1 { return hex(c, 0.7) }
+                if (x == 7 || x == 8) || y == 8 { return hex(c, 0.75) }
+                if y < 8 { return clear }
+                return hex(c, 0.9 + 0.12 * r(x, y, 930))
+            }
+            p["\(st.prefix)copper_door_bottom"] = { x, y in
+                if x <= 1 || x >= 14 || y >= 14 { return hex(c, 0.7) }
+                if x == 11 && (y == 2 || y == 3) { return hex(0x2A2A2A) }
+                return hex(c, y % 5 == 0 ? 0.78 : 0.9 + 0.12 * r(x, y, 931))
+            }
+            p["\(st.prefix)copper_trapdoor"] = { x, y in
+                if x <= 1 || x >= 14 || y <= 1 || y >= 14 || x == 7 || x == 8 || y == 7 || y == 8 { return hex(c, 0.75 + 0.1 * r(x, y, 932)) }
+                return (x + y) % 3 == 0 ? hex(c, 0.6) : clear
+            }
             // Copper chest: riveted plates with a dark band and a latch.
             p["\(st.prefix)copper_chest_top"] = { x, y in
                 if x <= 1 || y <= 1 || x >= 14 || y >= 14 { return hex(c, 0.62) }
