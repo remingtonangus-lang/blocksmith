@@ -172,7 +172,8 @@ extension Mob {
             if !aggro && (dist < 10 || simd_dot(toP, forward) > 0.2 || hurt > 0) {
                 aggro = true
                 b.react = rank.react
-                g.sfx(.gun(11), 0.9, at: eye)
+                g.sfx(.soldier(r, .alert), 1.1, at: eye)
+                if Float.random(in: 0..<1) < 0.5 { g.sfx(.gun(11), 0.6, at: eye) }
                 alertGarrison(g, g.player.pos)
             }
             if aggro {
@@ -242,7 +243,8 @@ extension Mob {
         guard b.reload <= 0, b.react <= 0, dist < Soldier.ranks[r].sight else { b.aimTime = 0; return }
         if b.mag <= 0 {
             b.reload = gs.reload * (r == 3 ? 1.3 : 1)
-            g.sfx(.gun(6), 0.6, at: eye)
+            g.sfx(.gunReload(gs.sound), 0.6, at: eye)
+            if Float.random(in: 0..<1) < 0.4 { g.sfx(.soldier(r, .reload), 0.9, at: eye) }
             return
         }
         guard b.shotTimer <= 0 else { return }
@@ -299,7 +301,7 @@ extension Mob {
                      shooter: ObjectIdentifier(self), by: spec.name, life: 2.6, gravity: grav)
         s.power = 2
         g.arms.spawn(s)
-        g.sfx(.gun(11), 1, at: eye)
+        g.sfx(.soldier(Soldier.rank(kind) ?? 1, .grenade), 1.1, at: eye)
     }
 
     // MARK: Deck gun

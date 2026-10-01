@@ -897,7 +897,17 @@ struct Synth {
         case .fireworkTwinkle: out = grains(40, spread: 1.4, lp: 9000, hp: 2500, decay: 0.03, gain: 0.8)
 
         case .note(let inst, let n): out = MusicSynth.noteBlock(&self, inst: inst, pitch: n)
-        case .gun(let k): out = gunSound(k, p)
+        case .gun(let k): out = WeaponAudio.gun(&self, k, p: p)
+        case .gunReload(let k): out = WeaponAudio.reload(&self, k, p: p)
+        case .gunDistant(let k):
+            let size: Float = k == 9 ? 2.6 : (k == 2 ? 1.5 : (k == 3 ? 1.3 : (k == 1 ? 0.7 : 1)))
+            out = WeaponAudio.distant(&self, p: p * (k == 5 ? 1.4 : 1), size: size, roll: k == 9 ? 3.5 : 1.8)
+        case .bulletImpact(let m): out = WeaponAudio.impact(&self, m, p: p)
+        case .bulletWhizz: out = WeaponAudio.whizz(&self, p: p)
+        case .bulletFlesh: out = WeaponAudio.flesh(&self, p: p)
+        case .grenadeBounce: out = WeaponAudio.grenadeBounce(&self, p: p)
+        case .soldier(let r, let b): out = SoldierVoice.render(&self, rank: r, b, p: p)
+        case .soldierStep(let r): out = SoldierVoice.step(&self, rank: r, p: p)
         }
         if !s.isLoop { out = Synth.trimTail(out) }
         return Synth.finish(s, out)

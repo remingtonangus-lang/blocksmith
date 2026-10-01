@@ -210,6 +210,11 @@ final class Game {
     private var wasInWater = false
 
     func sfx(_ s: Snd, _ v: Float = 1, at pos: V3? = nil) {
+        // Far-off gunfire is heard as its distant boom and echo instead of the close crack.
+        if case .gun(let k) = s, WeaponAudio.hasDistant(k), let p = pos, simd_length(p - player.eye) > 32 {
+            sfx(.gunDistant(k), v, at: p)
+            return
+        }
         Feedback.sound(self, s, v, at: pos)
         guard let snd = sound else { return }
         let occ = pos.map { audioOcclusion(player.eye, $0) } ?? 0

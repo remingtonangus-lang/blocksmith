@@ -945,8 +945,8 @@ final class Mob {
     }
 
     func hit(from src: V3, damage: Int, knockback: Float = 1) {
-        hurtSound = true
         if kind == .warden && emergeTime > 0 { return }
+        hurtSound = true
         if kind == .creaking { hurt = 0.25; return }            // only breaking its heart ends a Barkwraith
         if kind == .enderDragon {
             // Head hits land in full; hits anywhere else (body, wings, tail) at a quarter + 1, like the reference
@@ -1491,7 +1491,8 @@ final class MobManager {
                         let under = w.block(Int(floor(m.pos.x)), Int(floor(m.pos.y - 0.2)), Int(floor(m.pos.z)))
                         if under != AIR {
                             let vol: Float = min(0.9, 0.2 + sp.halfW * 0.5) * (m.baby ? 0.5 : 1)
-                            game.sfx(.step(soundMat(under)), vol, at: m.pos)
+                            if let r = Soldier.rank(m.kind) { game.sfx(.soldierStep(r), vol + 0.15, at: m.pos) }
+                            else { game.sfx(.step(soundMat(under)), vol, at: m.pos) }
                         }
                     }
                 }

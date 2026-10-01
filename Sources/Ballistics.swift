@@ -19,6 +19,7 @@ struct Slug {
     var power: Float = 0          // explosive rounds
     var traveled: Float = 0
     var dead = false
+    var whizzed = false           // a near miss on the player already made its whizz
 }
 
 struct Beam {
@@ -122,7 +123,7 @@ final class Armory {
                     let n = V3(Float(b.2.x), Float(b.2.y), Float(b.2.z))
                     s.pos = at
                     s.vel = (s.vel - n * (2 * simd_dot(s.vel, n))) * 0.4
-                    if simd_length(s.vel) > 2 { g.sfx(.click, 0.5, at: at) }
+                    if simd_length(s.vel) > 2 { g.sfx(.grenadeBounce, 0.6, at: at) }
                     slugs[i] = s
                     continue
                 }
@@ -137,6 +138,15 @@ final class Armory {
                 slugs[i] = s
                 if let m = mob { impactMob(s, m, at: at, dir: dir, g) } else if player { impactPlayer(s, at: at, dir: dir, g) }
                 continue
+            }
+            // Enemy rounds passing within 2.5 blocks of the player's head whizz by.
+            if !s.fromPlayer && !s.whizzed && s.kind == .bullet {
+                let e = g.player.eye - s.pos
+                let along = simd_dot(e, dir)
+                if along > 0 && along < len {
+                    let near = s.pos + dir * along
+                    if simd_length(g.player.eye - near) < 2.5 { s.whizzed = true; g.sfx(.bulletWhizz, 0.9, at: near) }
+                }
             }
             s.pos += step
             s.traveled += len
@@ -167,7 +177,8 @@ final class Armory {
         g.particles.dust(id, at: at + V3(Float(n.x), Float(n.y), Float(n.z)) * 0.05, count: 3, spread: 0.05)
         g.particles.add(Particle(pos: at, vel: V3(Float(n.x), Float(n.y) + 1, Float(n.z)) * 2, life: 0.12, maxLife: 0.12, layer: Int(Tex.id("smoke")),
                                  uv0: V2(0, 0), uvSize: 1, size: 0.06, gravity: 0, color: V3(1.4, 1.1, 0.5), collide: false, glow: true))
-        if Float.random(in: 0..<1) < 0.3 { g.sfx(.gun(8), 0.35, at: at) }
+        g.sfx(.bulletImpact(soundMat(id)), 0.55, at: at)
+        if Float.random(in: 0..<1) < 0.2 { g.sfx(.gun(8), 0.35, at: at) }
     }
 
     private func impactMob(_ s: Slug, _ m: Mob, at: V3, dir: V3, _ g: Game) {
@@ -180,6 +191,7 @@ final class Armory {
         let whole = floorf(dmg)
         let n = Int(whole) + (Float.random(in: 0..<1) < dmg - whole ? 1 : 0)
         m.hit(from: at - dir * 2, damage: max(1, n), knockback: s.kind == .bullet ? 0.25 : 0.5)
+        g.sfx(.bulletFlesh, 0.6, at: at)
         g.particles.add(Particle(pos: at, vel: -dir * 1.5 + V3(0, 1, 0), life: 0.25, maxLife: 0.25, layer: Int(Tex.id("smoke")),
                                  uv0: V2(0, 0), uvSize: 1, size: 0.07, gravity: 6, color: V3(0.55, 0.08, 0.08), collide: false))
         if s.fromPlayer {
@@ -197,6 +209,7 @@ final class Armory {
         if s.kind == .rocket || s.kind == .shell { detonate(s, at: at - dir * 0.3, g); return }
         let whole = floorf(s.damage)
         let n = Int(whole) + (Float.random(in: 0..<1) < s.damage - whole ? 1 : 0)
+        g.sfx(.bulletFlesh, 0.8)
         g.hurtPlayer(max(1, n), from: at - dir * 3, cause: "was shot by \(s.by)", knockback: 0.25, type: .projectile)
     }
 
@@ -329,7 +342,7 @@ extension Game {
         arms.reload = gs.reload
         arms.reloadGun = gi
         arms.aim = 0
-        sfx(.gun(6), 0.8)
+        sfx(.gunReload(gs.sound), 0.8)
         return true
     }
 

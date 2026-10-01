@@ -49,6 +49,7 @@ extension MobVoice.Family {
         case .snort: return "snorts"
         case .wind: return "whirls"
         case .squeak: return "squeaks"
+        case .soldier: return "talks"
         }
     }
 }
@@ -268,20 +269,34 @@ extension Snd {
             return "Creature calls"
         case .note: return "Note block plays"
         case .gun(let k):
-            // 0 rifle, 1 chatter gun, 2 shotgun, 3 farsight, 4 rocket, 5 arc lance, 6 reload, 7 dry fire,
-            // 8 ricochet, 9 deck gun, 10 alarm, 11 radio call, 12 turret whine (Guns.swift)
             switch k {
-            case 4: return "Rocket fires"
-            case 5: return "Arc lance crackles"
-            case 6: return "Gun reloads"
+            case 0...5: return "Gunfire"
+            case 6: return "Reloading"
             case 7: return "Gun clicks empty"
-            case 8: return "Bullet ricochets"
-            case 9: return "Deck gun booms"
-            case 10: return "Alarm sounds"
+            case 8: return "Ricochet"
+            case 9: return "Heavy gun fires"
+            case 10: return "Alarm blares"
             case 11: return "Radio chatter"
-            case 12: return "Turret whirs"
-            default: return "Gunshot"
+            default: return "Turret turns"
             }
+        case .gunReload: return "Reloading"
+        case .gunDistant: return "Distant gunfire"
+        case .bulletImpact: return "Bullet hits"
+        case .bulletWhizz: return "Bullet whizzes"
+        case .bulletFlesh: return "Bullet hits flesh"
+        case .grenadeBounce: return "Grenade bounces"
+        case .soldier(_, let b):
+            switch b {
+            case .alert: return "Soldier shouts"
+            case .attack: return "Soldier orders"
+            case .reload: return "Soldier reloads"
+            case .grenade: return "Grenade warning"
+            case .hurt: return "Soldier hurts"
+            case .death: return "Soldier dies"
+            case .idle: return "Soldier chatters"
+            case .retreat: return "Soldier falls back"
+            }
+        case .soldierStep: return positional ? "Boots" : nil
         }
     }
 }

@@ -77,7 +77,10 @@ enum Snd: Hashable {
     case mobCow, mobSheep, mobChicken, mobPig, mobZombie, mobSkeleton, mobSpider, mobSlime, mobWailer, mobCinderwisp, mobBoarling, mobUndeadBoarling
     case mobVillager, mobGolem, mobBlight, mobVex, mobRavager, mobWolf, mobCat, mobHorse, mobLlama, mobBee, mobWarden
     case note(Int, Int)            // note block: instrument, pitch 0...24 (made on demand)
-    case gun(Int)                  // firearms, deck guns, alarms (Guns.swift, mob workstream)
+    // Firearms and the Steelhold garrison (WeaponAudio.swift). gun(k): 0 rifle, 1 chatter gun, 2 shotgun, 3 farsight,
+    // 4 rocket, 5 arc lance, 6 reload, 7 dry fire, 8 ricochet, 9 deck gun, 10 alarm, 11 radio call, 12 turret whine.
+    case gun(Int), gunReload(Int), gunDistant(Int), bulletImpact(SoundMat), bulletWhizz, bulletFlesh, grenadeBounce
+    case soldier(Int, Bark), soldierStep(Int)
 
     var category: SoundCategory {
         switch self {
@@ -105,7 +108,8 @@ enum Snd: Hashable {
              .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop, .birdCall, .owlHoot, .fireflyLoop, .dryGrassRustle, .heartCreak, .hiveLoop:
             return .ambient
         case .note: return .blocks
-        case .gun: return .players
+        case .gun, .gunReload, .gunDistant, .bulletImpact, .bulletWhizz, .bulletFlesh, .grenadeBounce: return .players
+        case .soldier, .soldierStep: return .hostile
         default: return .blocks
         }
     }
@@ -114,6 +118,8 @@ enum Snd: Hashable {
     var range: Float {
         switch self {
         case .explode, .fireworkBlastLarge, .lightning, .wardenSonicBoom, .crystalBreak, .endPortalOpen: return 64
+        case .gun(let k): return k == 9 ? 128 : (k == 10 ? 96 : (k <= 5 ? 48 : 16))
+        case .gunDistant: return 220
         case .raidHorn, .goatHorn, .bellResonate: return 96
         case .dragonGrowl, .dragonDeath, .witherSpawn, .witherDeath, .dragonFlap: return 128
         case .thunder: return 160
@@ -147,6 +153,11 @@ enum Snd: Hashable {
         case .babyMob(let k, let s): return "baby_\(k.key)_\(s.name)"
         case .note(let i, let p): return "note_\(i)_\(p)"
         case .gun(let k): return "gun_\(k)"
+        case .gunReload(let k): return "gun_reload_\(k)"
+        case .gunDistant(let k): return "gun_distant_\(k)"
+        case .bulletImpact(let m): return "bullet_impact_\(m.name)"
+        case .soldier(let r, let b): return "soldier_\(r)_\(b.name)"
+        case .soldierStep(let r): return "soldier_step_\(r)"
         default: return String(describing: self)
         }
     }
@@ -155,6 +166,12 @@ enum Snd: Hashable {
     var expectedSeconds: ClosedRange<Float> {
         switch self {
         case .step, .hit: return 0.02...0.7
+        case .gun(let k): return k == 9 ? 1.0...6 : (k == 7 ? 0.03...0.4 : 0.1...3)
+        case .gunReload: return 0.4...2.5
+        case .gunDistant: return 0.5...6
+        case .bulletImpact, .bulletFlesh, .grenadeBounce, .soldierStep: return 0.03...1.2
+        case .bulletWhizz: return 0.1...0.6
+        case .soldier: return 0.15...3
         case .breakBlock, .place, .fall: return 0.08...1.3
         case .click, .uiHover, .uiBack, .lever, .buttonWood, .buttonStone, .plateOn, .plateOff, .tripwire, .railClick: return 0.02...0.5
         case .mob(_, .death), .babyMob(_, .death), .playerDeath, .dragonDeath, .witherDeath: return 0.15...8
@@ -214,7 +231,12 @@ final class SoundBank {
             for m in MobSound.allCases { s.append(.mob(k, m)) }
         }
         for k in [MobKind.cow, .pig, .sheep, .chicken, .villager, .wolf, .cat, .horse, .fox, .goat] { s.append(.babyMob(k, .ambient)) }
-        s += Guns.sounds                 // firearms, deck guns, alarms (mob workstream)
+        for k in 0...12 { s.append(.gun(k)) }
+        for k in 0...5 { s.append(.gunReload(k)); s.append(.gunDistant(k)) }
+        s.append(.gunDistant(WeaponAudio.heavySlot))
+        for m in SoundMat.allCases { s.append(.bulletImpact(m)) }
+        s += [.bulletWhizz, .bulletFlesh, .grenadeBounce]
+        for r in 0...3 { for b in Bark.allCases { s.append(.soldier(r, b)) }; s.append(.soldierStep(r)) }
         return s
     }
 
@@ -235,6 +257,9 @@ final class SoundBank {
         switch s {
         case .step, .hit, .breakBlock, .place, .fall, .attack, .attackSweep, .eat, .lavaPop, .caveDrip, .villagerWork: return 3
         case .birdCall: return 6
+        case .gun(let k): return k <= 5 || k == 8 ? 3 : 2
+        case .bulletImpact, .bulletWhizz, .bulletFlesh, .soldierStep: return 3
+        case .soldier(_, let b): return b == .idle ? 4 : 3
         case .mob(_, .ambient), .mob(_, .hurt), .babyMob: return 2
         case .note: return 1
         case _ where s.isLoop: return 1
