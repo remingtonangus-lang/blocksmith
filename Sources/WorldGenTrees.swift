@@ -7,6 +7,7 @@ import Foundation
 enum TreeKind {
     case oak, fancyOak, birch, tallBirch, spruce, pine, megaSpruce, megaPine, jungle, megaJungle, jungleBush
     case acacia, darkOak, swampOak, mangrove, cherry, hugeRed, hugeBrown, iceSpike, smallOak, paleOak
+    case shrubOak, shrubSpruce, shrubAcacia
 }
 
 struct TreeWriter {
@@ -47,7 +48,7 @@ enum TreePlacer {
         case .windsweptForest: return p(0.15) ? (pick < 0.5 ? .spruce : .oak) : nil
         case .oldGrowthPineTaiga: return p(0.35) ? (pick < 0.3 ? .megaPine : (pick < 0.7 ? .pine : .spruce)) : nil
         case .oldGrowthSpruceTaiga: return p(0.35) ? (pick < 0.3 ? .megaSpruce : .spruce) : nil
-        case .savanna, .windsweptSavanna: return p(0.035) ? (pick < 0.8 ? .acacia : .oak) : nil
+        case .savanna, .windsweptSavanna: return p(0.035) ? (pick < 0.8 ? .acacia : .oak) : (p(0.06) ? .shrubAcacia : nil)
         case .savannaPlateau: return p(0.07) ? (pick < 0.8 ? .acacia : .oak) : nil
         case .jungle:
             guard p(0.7) else { return nil }
@@ -56,14 +57,14 @@ enum TreePlacer {
         case .bambooJungle: return p(0.35) ? (pick < 0.2 ? .jungle : .jungleBush) : nil
         case .woodedBadlands: return y > YOFF + 94 && p(0.15) ? .smallOak : nil
         case .windsweptHills, .windsweptGravellyHills: return p(0.02) ? (pick < 0.7 ? .oak : .spruce) : nil
-        case .meadow: return p(0.002) ? (pick < 0.5 ? .fancyOak : .birch) : nil
+        case .meadow: return p(0.002) ? (pick < 0.5 ? .fancyOak : .birch) : (p(0.008) ? .shrubOak : nil)
         case .cherryGrove: return p(0.18) ? .cherry : nil
         case .paleGarden: return p(0.32) ? (pick < 0.85 ? .paleOak : .darkOak) : nil
         case .swamp: return p(0.07) ? .swampOak : nil
         case .mangroveSwamp: return p(0.35) ? .mangrove : nil
         case .mushroomFields: return p(0.02) ? (pick < 0.5 ? .hugeRed : .hugeBrown) : nil
-        case .plains, .sunflowerPlains: return p(0.002) ? (pick < 0.33 ? .fancyOak : .oak) : nil
-        case .snowyPlains: return p(0.004) ? .spruce : nil
+        case .plains, .sunflowerPlains: return p(0.002) ? (pick < 0.33 ? .fancyOak : .oak) : (p(0.007) ? .shrubOak : nil)
+        case .snowyPlains: return p(0.004) ? .spruce : (p(0.012) ? .shrubSpruce : nil)
         case .iceSpikes: return p(0.035) ? .iceSpike : nil
         default: return nil
         }
@@ -333,6 +334,12 @@ enum TreePlacer {
                     w.leaf(x + dx, y + h - dy, z + dz, cap)
                 } } }
             }
+        case .shrubOak, .shrubSpruce, .shrubAcacia:
+            // A knee-high woody shrub: one log and a low, lopsided leaf mound.
+            let log = kind == .shrubSpruce ? SPRUCE_LOG : (kind == .shrubAcacia ? g("acacia_log") : LOG)
+            let leaf = kind == .shrubSpruce ? SPRUCE_LEAVES : (kind == .shrubAcacia ? g("acacia_leaves") : LEAVES)
+            w.log(x, y, z, log)
+            blob(w, x + rng.range(-1, 1) / 2, y + 1, z + rng.range(-1, 1) / 2, rx: 1.4 + rng.float() * 0.8, ry: 0.9, leaf, &rng)
         case .iceSpike:
             let ice = g("packed_ice")
             let giant = rng.int(60) == 0
