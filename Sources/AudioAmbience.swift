@@ -28,6 +28,7 @@ final class AudioState {
     var combatHold: Float = 0               // combat music lingers this long after the last sign of a fight
     var combatCheck: Float = 0
     var combat = 0                          // 0 calm, 1 near a garrison, 2 fighting (soldiers aggro / raid wave)
+    var record: [String: Int]? = nil        // harness: counts of every sound played while set
     var leafCover: Float = 0                // leaves overhead (rain on leaves)
     var biomeHere: Biome = .plains
     var nearOcean = false

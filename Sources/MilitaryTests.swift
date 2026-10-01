@@ -137,6 +137,7 @@ extension MobTests {
         let buddy = Mob(.soldierTrooper, at: at(6, -30)); buddy.persistent = true
         mm.mobs.append(shooter); mm.mobs.append(buddy)
         var hurtAt: Float = -1
+        game.audio.record = [:]
         t = 0
         while t < 8 {
             mm.update(0.05, game: game)
@@ -148,6 +149,16 @@ extension MobTests {
         }
         check(shooter.aggro && buddy.aggro, "soldiers alert each other")
         check(hurtAt > 0.5 && hurtAt < 6, "recruit shoots the player after a reaction delay", String(format: "first hit at %.2f s", hurtAt))
+        // Audio: the firefight is heard (barks, rifle fire, hits or whizzes) and scores combat music.
+        let heard = game.audio.record ?? [:]
+        game.audio.record = nil
+        let shots = heard.filter { $0.key.hasPrefix("gun_") && !$0.key.hasPrefix("gun_reload") }.values.reduce(0, +)
+        let near = (heard["bulletWhizz"] ?? 0) + (heard["bulletFlesh"] ?? 0)
+        let barks = heard.filter { $0.key.hasPrefix("soldier_") && $0.key.hasSuffix("_alert") }.values.reduce(0, +)
+        check(shots > 0 && near > 0 && barks > 0, "firefight audio: gunfire, hits or whizzes, alert barks", "\(shots) shots, \(near) near, \(barks) barks")
+        game.audio.combatCheck = 0
+        game.combatTick(0.05)
+        check(game.combatLevel() == 2, "combat music while soldiers hunt the player", "level \(game.combatLevel())")
         mm.mobs.removeAll()
         game.arms.slugs.removeAll()
 
