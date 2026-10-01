@@ -63,7 +63,7 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
         carriage) and hold their stations aboard (aim and fire, no cover runs overboard); physicstest check.
 - Polish
   - [x] Map waypoints (X / Enter / right-click at the map centre; nearest one shown under the minimap).
-  - [ ] Free pad cursor for menus; per-voice pitch jitter (waterfall/stream audiotest done).
+  - [ ] Free pad cursor for menus; per-voice pitch jitter done (3D voices, +-5% for blocks and creatures); waterfall/stream audiotest done.
   - [x] Fancy eye adaptation. Gen perf checked: 2.05 ms/chunk cold, veins ~7% (no change needed).
   - [ ] Mob shadow-map shadows; gun icons via the auto-painter.
   - [ ] Real-M1 checks: base-vertex path, Fancy GPU time (F3), the seed 777 night ocean seam grid.

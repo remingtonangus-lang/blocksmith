@@ -265,6 +265,11 @@ final class SoundEngine {
         node.reverbBlend = 0.06 + 0.5 * cave
         node.obstruction = -32 * occlusion
         node.occlusion = -18 * occlusion
+        // A little pitch variety per voice (footsteps, blocks and creatures), so repeats don't sound identical.
+        switch s.category {
+        case .blocks, .hostile, .friendly, .players: node.rate = Float.random(in: 0.95...1.05)
+        default: node.rate = 1
+        }
         node.scheduleBuffer(buf, at: nil, options: .interrupts, completionHandler: nil)
         if !node.isPlaying { node.play() }
     }
