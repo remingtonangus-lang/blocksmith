@@ -174,6 +174,20 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
         // Seen from under water: caustics dance on sunlit surfaces.
         col += albedo * caustic((in.rel + u.eye.xyz).xz, u.params.z) * u.sunColor.rgb * skyC * 0.5;
     }
+    if (wet > 0.05 && in.face == 2.0) {
+        // Rain puddles: patches of standing water mirror the sky.
+        float2 wq = (in.rel + u.eye.xyz).xz;
+        float pd = smoothstep(0.55, 0.72, vnoise(wq * 0.33) * 0.7 + vnoise(wq * 1.1) * 0.3) * wet;
+        float3 r = reflect(v, n);
+        float fr = 0.25 + 0.75 * pow(1.0 - saturate(-v.y), 4.0);
+        col = mix(col, fogColorAlong(r, u) * (0.45 + 0.55 * sunVis) * mix(0.35, 1.0, skyL), pd * fr * 0.8);
+    }
+    if (m.z > 0.4 && m.z < 0.6 && sunVis > 0.0) {
+        // Snow and ice glitter: a few texels catch the light.
+        float2 tq = floor(in.uv * 16.0) + floor((in.rel + u.eye.xyz).xz) * 17.0;
+        float g = fract(sin(dot(tq, float2(12.9898, 78.233))) * 43758.5453);
+        col += u.sunColor.rgb * step(0.975, g) * ndl * shadow * sunVis * 3.0;
+    }
     float e = emis.sample(texSampler, in.uv, layer).r;
     col += albedo * e * 2.4;
     col = waterAmbient(col, albedo, u);

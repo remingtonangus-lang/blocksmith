@@ -178,6 +178,8 @@ final class Vibrant {
             } else if n.hasPrefix("polished_") || n.hasPrefix("smooth_") || n.contains("quartz") || n.hasSuffix("glazed_terracotta")
                         || n == "obsidian" || n == "crying_obsidian" || n.hasPrefix("prismarine") || n == "sea_lantern" || n.hasSuffix("_concrete") {
                 spec = 0.22; shin = 40
+            } else if n == "snow" || n == "snow_block" || n == "powder_snow" || n == "grass_block_snow" {
+                spec = 0.2; shin = 60; metal = 0.5; wet = 0
             } else if n.contains("leaves") || n.contains("wool") || n.hasSuffix("_carpet") {
                 spec = 0.0; wet = 0.6
             }
@@ -240,6 +242,11 @@ final class Vibrant {
         let dl = simd_clamp((game.daylight - 0.1) / 0.9, 0, 1)
         let dayAmb = V3(0.52, 0.57, 0.66), nightAmb = V3(0.17, 0.2, 0.33)
         f.ambient = simd_mix(nightAmb, dayAmb, V3(repeating: dl))
+        // Thunderstorms: heavy cloud cover, a steely ambient and almost no direct sun.
+        let storm = min(1, game.weather.thunder)
+        f.ambient *= V3(1 - 0.35 * storm, 1 - 0.33 * storm, 1 - 0.25 * storm)
+        f.color *= 1 - 0.6 * storm
+        f.hazeStrength *= 1 - storm
         // Shadow map basis: light travels along -L.
         let fwd = -L
         let ref = abs(fwd.y) > 0.95 ? V3(0, 0, 1) : V3(0, 1, 0)
