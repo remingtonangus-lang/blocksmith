@@ -491,6 +491,19 @@ enum ShipTest {
             print(String(format: "physicstest frigate: turret aim error %.3f rad", err))
             check(err < 0.12, "frigate turret tracks a target")
         } else { check(false, "frigate has turrets") }
+        let loot = fg.blockEntities.values.reduce(0) { $0 + $1.container.slots.filter { !$0.isEmpty }.count }
+        let aboard = g.mobs.mobs.filter { $0.health > 0 && w.ships.standing(on: $0.pos) === fg }.count
+        print("physicstest frigate: captain's chest holds \(loot) stacks, \(aboard) of \(fg.crewStations.count) crew aboard")
+        check(loot > 0, "frigate carries loot")
+        // Take the helm: the vessel is captured and answers to the player.
+        g.player.flying = false
+        g.startPiloting(fg)
+        var steerIn = MoveInput(); steerIn.forward = 1
+        let cap0 = fg.pos
+        run(g, seconds: 3, input: steerIn)
+        print(String(format: "physicstest frigate: captured %@, piloted 3 s: %.1f blocks", fg.captured ? "yes" : "no", horiz(fg.pos - cap0)))
+        check(fg.captured && w.ships.pilot === fg && horiz(fg.pos - cap0) > 2, "a vessel can be captured and steered")
+        g.leaveHelm()
         let vc = land + V3(15, 0, -40)
         _ = w.loadSync(center: vc, radius: max(rd, 6))
         let cx = Int(vc.x), cz = Int(vc.z)
