@@ -199,12 +199,12 @@ extension Game {
             if s.kind == .rocket { if rocket == nil || d < rocket!.1 { rocket = (s.pos, d) } }
             else if shell == nil || d < shell!.1 { shell = (s.pos, d) }
         }
-        if let r = rocket { ask("rocketflight", .rocketFlightLoop, 0.9 * (1 - r.1 / 32), r.0) }
+        if let r = rocket { ask("rocketflight", .rocketFlightLoop, 0.9 * (1 - r.1 / 32), at: r.0) }
         for sh in world.ships.shells {
             let d = simd_length(sh.pos - eye)
             if d < 32 && (shell == nil || d < shell!.1) { shell = (sh.pos, d) }
         }
-        if let s = shell { ask("shellflight", .shellFlightLoop, 1.0 * (1 - s.1 / 32), s.0) }
+        if let s = shell { ask("shellflight", .shellFlightLoop, 1.0 * (1 - s.1 / 32), at: s.0) }
         vehicleAudioTick(dt, ask: ask)
         // Player state loops.
         if player.headInWater { ask("underwater", .underwaterLoop, 0.9) }
