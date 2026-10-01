@@ -86,6 +86,7 @@ enum Snd: Hashable {
     // Ships, airships and land vehicles (VehicleAudio.swift): idle/full layers are cross-faded by throttle.
     case engineIdleLoop, engineFullLoop, propSlowLoop, propFastLoop, airshipWindLoop, wheelRollLoop, hullWaterLoop
     case hullCreak, shipCollide, shipCollideHard, shipSplash, helmTake, engineStart
+    case shipCannon, turretTraverseLoop
     // Terrain and weather (TerrainAudio.swift): moving water, wind by landform, rain on leaves, snow, far thunder.
     case riverLoop, waterfallLoop, mountainWindLoop, tundraWindLoop, rainLeavesLoop, snowWindLoop, swampInsectsLoop
     case thunderFar, iceCreak, rockfall
@@ -121,7 +122,7 @@ enum Snd: Hashable {
         case .rocketFlightLoop, .shellFlightLoop: return .players
         case .explodeSmall, .explodeLarge, .debrisRain: return .blocks
         case .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
-             .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart: return .blocks
+             .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart, .shipCannon, .turretTraverseLoop: return .blocks
         case .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .swampInsectsLoop, .iceCreak, .rockfall: return .ambient
         case .rainLeavesLoop, .snowWindLoop, .thunderFar: return .weather
         default: return .blocks
@@ -137,6 +138,7 @@ enum Snd: Hashable {
         case .explodeLarge: return 128
         case .explodeSmall: return 48
         case .shipCollideHard: return 48
+        case .shipCannon: return 96
         case .shipCollide, .engineStart: return 32
         case .raidHorn, .goatHorn, .bellResonate: return 96
         case .dragonGrowl, .dragonDeath, .witherSpawn, .witherDeath, .dragonFlap: return 128
@@ -156,7 +158,7 @@ enum Snd: Hashable {
              .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop, .fireflyLoop, .hiveLoop,
              .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
              .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop,
-             .rocketFlightLoop, .shellFlightLoop:
+             .rocketFlightLoop, .shellFlightLoop, .turretTraverseLoop:
             return true
         default: return false
         }
@@ -262,7 +264,7 @@ final class SoundBank {
         for m in SoundMat.allCases { s.append(.bulletImpact(m)) }
         s += [.bulletWhizz, .bulletFlesh, .grenadeBounce, .rocketFlightLoop, .shellFlightLoop, .explodeSmall, .explodeLarge, .debrisRain]
         s += [.engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
-              .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart]
+              .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart, .shipCannon, .turretTraverseLoop]
         s += [.riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop,
               .thunderFar, .iceCreak, .rockfall]
         for r in 0...3 { for b in Bark.allCases { s.append(.soldier(r, b)) }; s.append(.soldierStep(r)) }

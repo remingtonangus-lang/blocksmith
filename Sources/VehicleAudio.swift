@@ -143,6 +143,10 @@ extension Game {
                 st.creak = Float.random(in: 3...8)
                 if s.blockCount > 6 && (s.submerged > 0 || s.balloons > 0 || powered) { sfx(.hullCreak, 0.6, at: s.pos) }
             }
+            // Turrets turning on their rings.
+            for t in world.ships.turrets(of: s) where simd_length(t.angVel - s.angVel) > 0.15 {
+                ask(key + "turret\(t.id)", .turretTraverseLoop, 0.6, t.pos)
+            }
             st.lastVel = s.vel
             st.lastSubmerged = s.submerged
         }

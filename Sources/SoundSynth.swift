@@ -921,6 +921,16 @@ struct Synth {
         case .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
              .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart:
             out = VehicleAudio.render(&self, s, p: p)
+        case .shipCannon:
+            // Ship cannon: a big black-powder bang with a wooden hull shudder and a smoky tail.
+            var o = WeaponAudio.shot(&self, p: p * 0.6, size: 2.0, bright: 0.7, tail: 1.2, mech: 0)
+            o = Synth.mix(o, material(.wood, pitch: p * 0.6, scale: 1.4, gain: 0.5), at: frames(0.03))
+            out = Synth.echo(o, delay: 0.3, feedback: 0.25, mix: 0.25, tail: 0.6)
+        case .turretTraverseLoop:
+            // Turret ring turning: geared rumble with a servo whine.
+            let gear = Synth.lowpass(tone(3.0, f0: 55 * p, f1: 55 * p, wave: .square, attack: 0.2, release: 0.2, gain: 0.25), 400)
+            let whine = tone(3.0, f0: 640 * p, f1: 660 * p, wave: .saw, attack: 0.2, release: 0.2, vib: 0.01, vibRate: 7, gain: 0.05)
+            out = Synth.loopify(Synth.mix(Synth.mix(gear, Synth.lowpass(whine, 2000)), crackle(3.0, density: 50, f: 1500, q: 3, gain: 0.5)), fade: 0.3)
         case .gunReload(let k): out = WeaponAudio.reload(&self, k, p: p)
         case .gunDistant(let k):
             let size: Float = k == 9 ? 2.6 : (k == 2 ? 1.5 : (k == 3 ? 1.3 : (k == 1 ? 0.7 : 1)))

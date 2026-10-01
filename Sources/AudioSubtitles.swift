@@ -304,6 +304,8 @@ extension Snd {
         case .shipSplash: return "Hull splashes"
         case .helmTake: return "Helm taken"
         case .engineStart: return "Engine starts"
+        case .shipCannon: return "Cannon fires"
+        case .turretTraverseLoop: return "Turret turns"
         case .gunDistant: return "Distant gunfire"
         case .bulletImpact: return "Bullet hits"
         case .bulletWhizz: return "Bullet whizzes"
