@@ -343,10 +343,16 @@ enum TextureGen {
             if x == 0 || y == 0 || x == 15 || y == 15 { return hex(0x8E8E8E) }
             return hex(0xA0A0A0, 0.97 + 0.05 * r(x, y, 77))
         }
+        // Bricks: staggered courses in grey mortar, per-brick tone, lit top edge, shaded bottom edge, pitting.
         p["bricks"] = { x, y in
-            let row = y / 4
-            if y % 4 == 3 || x == (row % 2 == 0 ? 7 : 15) { return hex(0xB5B0A8, 0.9 + 0.1 * r(x, y, 16)) }
-            return hex(0x96503E, 0.85 + 0.3 * r(x, y, 15))
+            let row = y / 4, ly = y % 4
+            let joint = row % 2 == 0 ? 7 : 15
+            if ly == 3 || x == joint { return hex(0xB5B0A8, 0.88 + 0.1 * r(x, y, 16)) }
+            let brick = row % 2 == 0 ? (x < 7 ? 0 : 1) : (x < 15 ? 2 : 0)
+            var k: Float = 0.9 + (r(row, brick, 17) - 0.5) * 0.16 + (r(x, y, 15) - 0.5) * 0.1
+            if ly == 0 { k += 0.08 } else if ly == 2 { k -= 0.06 }
+            if r(x, y, 18) < 0.05 { k -= 0.12 }
+            return hex(0x96503E, k)
         }
         p["snow"] = snowC
         p["snow_block"] = snowC
