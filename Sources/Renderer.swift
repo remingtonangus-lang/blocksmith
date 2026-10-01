@@ -1569,8 +1569,10 @@ final class Renderer: NSObject, MTKViewDelegate {
                     rect(x, y, Float(sl.w) * s, Float(sl.h) * s, info ? V4(0.3, 0.3, 0.33, 1) : (hot ? V4(0.42, 0.55, 0.85, 1) : V4(0.42, 0.42, 0.46, 1)))
                     frame(x, y, Float(sl.w) * s, Float(sl.h) * s, s, hot ? V4(1, 1, 1, 1) : V4(0.2, 0.2, 0.22, 1))
                     let label = r.0
-                    let lx = info ? x + 5 * s : x + (Float(sl.w) * s - textWidth(label, s)) / 2
-                    text(label, lx, y + (Float(sl.h) - 7) / 2 * s, s)
+                    // Long labels (remapped buttons, long values) shrink to fit between the value arrows.
+                    let ls = min(s, (Float(sl.w) - 20) * s / max(1, textWidth(label, s)) * s)
+                    let lx = info ? x + 5 * s : x + (Float(sl.w) * s - textWidth(label, ls)) / 2
+                    text(label, lx, y + (Float(sl.h) * s - 7 * ls) / 2, ls)
                     if hot && PauseMenu.isValue(r.1) {
                         // Arrows: D-pad left / right steps the setting.
                         text("<", x + 4 * s, y + (Float(sl.h) - 7) / 2 * s, s, V4(1, 1, 0.6, 1))

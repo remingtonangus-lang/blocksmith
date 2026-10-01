@@ -63,6 +63,15 @@ final class PauseMenu: Menu {
         "southpaw": "Southpaw swaps the sticks: look with the left, move with the right.",
         "sneaktoggle": "Toggle: press B / right stick once to crouch, again to stand.",
         "minimap": "A small biome map in the corner with nearby bases and villages. M or hold View for the full map.",
+        "fov": "How wide the view is. Wider shows more at the sides; narrower looks closer.",
+        "invert": "Moving the mouse or stick up looks down.",
+        "autojump": "Walk into a one-block step to climb it without jumping.",
+        "advancements": "Goals you have reached and the ones still ahead.",
+        "commands": "Type a command (time, weather, teleport, give...).",
+        "new_mode": "Survival: health, hunger, mining. Creative: fly and build freely.",
+        "new_diff": "How much damage mobs do and whether hunger can kill.",
+        "edit_name": "The name shown in the worlds list.",
+        "edit_seed": "Leave empty for a random world; the same seed always makes the same world.",
         "worldmap": "Biomes around you and the Steelhold bases and villages you have found.",
         "flight": "Aircraft pitch on the left stick: pull back to climb (like a plane) or push up to climb.",
         "autosprint": "Push the left stick fully forward for a moment to sprint.",
@@ -449,8 +458,6 @@ final class PauseMenu: Menu {
         case "fps": st.fpsCap = step(Settings.fpsOptions, st.fpsCap); g.appAction?("video")
         case "rscale": st.renderScale = step(Settings.renderScaleOptions, st.renderScale); g.appAction?("video")
         case "gui": HudLayout.userScale = step([0, 1, 2, 3, 4, 5, 6], HudLayout.userScale)
-        case "graphics": g.fancyGraphics.toggle()
-        case "rscale": g.renderScale = step([1, 0.85, 0.7], g.renderScale)
         case "couch": HudLayout.couch.toggle()
         case "safe": st.safeArea = step([0, 2, 4, 6, 8, 10], st.safeArea)
         case "hints": st.buttonHints.toggle()

@@ -36,7 +36,7 @@ final class Settings {
     @Pref("vsync") var vsync = true
     @Pref("fpsCap") var fpsCap = 0                   // 0 = display refresh rate
     @Pref("display") var display = ""                // screen name to play on ("" = main screen)
-    @Pref("resolutionScale") var renderScale: Float = 1   // (key differs from the Fancy renderer's "renderScale")  // drawable resolution scale (TVs at 4K: 0.75 saves a lot)
+    @Pref("renderScale") var renderScale: Float = 1  // whole-frame resolution scale (TVs at 4K: 0.75 saves a lot); Fancy world scale is Game.renderScale
 
     // Interface
     @Pref("safeArea") var safeArea = 0               // percent of the screen kept clear at each edge (TV overscan)
@@ -67,6 +67,8 @@ final class Settings {
         subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true; narrator = false
         g.fovSetting = 70; g.sensitivity = 1; g.invertY = false; g.autoJump = false; g.deadZone = 0.15
         g.volumeSetting = 0.8; g.musicVolume = 1
+        for c in SoundCategory.allCases { AudioSettings.set(c, c == .master ? 0.8 : 1) }
+        g.fancyGraphics = true; g.renderScale = 1
         HudLayout.userScale = 0; HudLayout.couch = false
         KeyBinds.reset()
         PadMap.reset()

@@ -283,6 +283,11 @@ enum PadTest {
                 var lt = PadSnapshot(); lt.lt = 1
                 frame(g, lt)
                 check(car.throttle < -0.9, "LT reverses")
+                // A hull hit (the vehicle lost blocks since last frame) is felt.
+                PadManager.shared.rumbleLog.removeAll()
+                Feedback.lastShipBlocks = [car.id: car.blockCount + 6]
+                Feedback.vehicleTick(g)
+                check(!PadManager.shared.rumbleLog.isEmpty, "a hull hit on the vehicle rumbles")
                 tap(g, "b")
                 check(g.world.ships.pilot == nil, "B leaves the helm")
                 g.world.ships.remove(car)
@@ -420,6 +425,21 @@ enum PadTest {
         PadManager.shared.rumbleLog.removeAll()
         g.damage(2, "test")
         check(!PadManager.shared.rumbleLog.isEmpty, "taking damage rumbles")
+        let log = { PadManager.shared.rumbleLog }
+        PadManager.shared.rumbleLog.removeAll()
+        Feedback.sound(g, .gun(2), 1, at: nil)
+        check((log().last ?? 0) > 0.4, "a shotgun blast rumbles hard")
+        PadManager.shared.rumbleLog.removeAll()
+        Feedback.sound(g, .gun(1), 1, at: nil)
+        check((log().last ?? 1) < 0.3 && !log().isEmpty, "chatter gun shots are light ticks")
+        PadManager.shared.rumbleLog.removeAll()
+        Feedback.sound(g, .gunReload(0), 1, at: nil)
+        check(!log().isEmpty, "seating a magazine ticks")
+        PadManager.shared.rumbleLog.removeAll()
+        Feedback.sound(g, .explode, 1, at: g.player.eye + V3(60, 0, 0))
+        check(log().isEmpty, "a far explosion doesn't rumble")
+        Feedback.sound(g, .explode, 1, at: g.player.eye + V3(3, 0, 0))
+        check((log().last ?? 0) > 0.4, "a close explosion rumbles")
 
         // Block-targeting assist: two stone blocks in the sky; the highlight holds across the shared edge.
         do {
@@ -471,6 +491,12 @@ enum PadTest {
         check(Float(pm.height) * L.s <= 1080 - 2 * L.insetY && Float(pm.width) * L.s <= 1920, "options panel fits a 1080p TV (scale \(Int(L.s)))")
         HudLayout.couch = couch
         Settings.shared.safeArea = safe
+
+        // Duplicate keys / ids across workstreams, help text and stepping for every option (Audit.swift).
+        let (bad, warns) = Audit.run(g)
+        for w in warns { print("padtest: audit warning: \(w)") }
+        for b in bad { check(false, "audit: \(b)") }
+        check(bad.isEmpty, "audit: settings keys, bindings, button mapping, option rows, mob keys (\(bad.count) problems)")
 
         print(String(format: "padtest: %d passed, %d failed (%.0f ms)", passes, failures, (CFAbsoluteTimeGetCurrent() - t0) * 1000))
 
