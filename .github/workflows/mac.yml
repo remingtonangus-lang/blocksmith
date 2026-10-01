@@ -45,6 +45,17 @@ jobs:
           echo "type-check: $(wc -l < typecheck.log | tr -d ' ') expressions over 150 ms, $slow over 600 ms"
           [ "$slow" -eq 0 ]
 
+      - name: Debug build check (temporary, to see the debug link error; the release app is kept aside)
+        if: always() && steps.build.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 10
+        run: |
+          cp -R build/Blocksmith.app build/release-keep.app
+          if bash ./build.sh debug > debugbuild.log 2>&1; then echo "debug build: OK"; else
+            echo "debug build: FAILED"; grep -nE "error|ld:|Undefined|duplicate|symbol|signal" debugbuild.log | head -60; tail -25 debugbuild.log
+          fi
+          rm -rf build/Blocksmith.app && mv build/release-keep.app build/Blocksmith.app
+
       - name: Smoke test (play 60 s at render distance 8, 16, 24, and 24 in Fast)
         id: smoke
         if: always() && steps.build.outcome == 'success'
