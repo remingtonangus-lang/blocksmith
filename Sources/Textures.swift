@@ -64,20 +64,40 @@ enum TextureGen {
         }
     }
 
+    // Four boards with a dark gap below each, staggered butt joints, wavy grain lines along each board,
+    // a lighter top edge and a knot here and there.
     static func planks(_ c: UInt32, salt: Int) -> Painter {
         { x, y in
-            let row = y / 4
-            let seam = (row * 7 + 3) % 16
-            var k: Float = 0.9 + 0.1 * r(x / 4, y, salt) + (r(x, row, salt + 1) - 0.5) * 0.08
-            if y % 4 == 3 { k = 0.62 } else if x == seam { k = 0.7 }
+            let row = y / 4, ry = y % 4
+            let seam = (row * 7 + 3 + Int(r(row, 0, salt + 7) * 3)) % 16
+            if ry == 3 { return hex(c, 0.58) }
+            if x == seam { return hex(c, 0.68) }
+            var k: Float = 0.92 + 0.08 * r(row, x / 6, salt)
+            let grain = sinf(Float(x) * 0.9 + Float(row) * 2.3 + r(row, 1, salt + 2) * 6) * 0.5 + 0.5
+            if (ry == 1 && grain > 0.7) || (ry == 2 && grain < 0.25) { k -= 0.09 }
+            if ry == 0 { k += 0.06 }
+            let knotX = Int(r(row, 2, salt + 3) * 16)
+            if abs(x - knotX) <= 0 && ry == 1 && r(row, 3, salt + 4) < 0.5 { k -= 0.2 }
+            k += (r(x, y, salt + 5) - 0.5) * 0.05
             return hex(c, k)
         }
     }
 
+    // Vertical bark ridges that wander a little, deep furrows between them, lit ridge crests.
     static func bark(_ c: UInt32, salt: Int) -> Painter {
         { x, y in
-            let stripe = (x + Int(r(0, y / 5, salt) * 2)) % 4 == 0
-            return hex(c, stripe ? 0.72 : 0.9 + 0.14 * r(x, y, salt + 1))
+            let wob = Int(r(x / 4, y / 6, salt) * 2.0)
+            let col = (x + wob + 16) % 4
+            var k: Float
+            switch col {
+            case 0: k = 0.66
+            case 1: k = 1.04
+            case 2: k = 0.94
+            default: k = 0.84
+            }
+            if r(x, y / 3, salt + 2) < 0.08 { k *= 0.85 }
+            k += (r(x, y, salt + 1) - 0.5) * 0.08
+            return hex(c, k)
         }
     }
 
@@ -114,7 +134,14 @@ enum TextureGen {
 
     static func painters() -> [String: Painter] {
         var p: [String: Painter] = [:]
-        let stone = rock(0x7F7F7F, grain: 0.14, blotch: 0.12, salt: 1)
+        // Stone: soft mottling, a few darker hairline cracks and lighter flecks.
+        let stone: Painter = { x, y in
+            var k: Float = 0.95 + (blot(x, y, 1, 4) - 0.5) * 0.14 + (blot(x, y, 2, 8) - 0.5) * 0.1 + (r(x, y, 3) - 0.5) * 0.06
+            let cx = Float(x) + r(y / 3, 0, 4) * 2.0
+            if Int(cx) % 7 == 3 && r(x / 2, y / 4, 5) < 0.35 { k *= 0.82 }
+            if r(x, y, 6) < 0.03 { k *= 1.12 }
+            return hex(0x808080, k)
+        }
         let deepslate: Painter = { x, y in
             var k: Float = 1 + (r(x, y, 60) - 0.5) * 0.12
             if (y + Int(r(x / 4, 0, 61) * 3)) % 4 == 0 { k *= 0.85 }
