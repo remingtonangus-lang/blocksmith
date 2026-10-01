@@ -43,7 +43,7 @@ RMB use/place/eat (hold), MMB pick block, 1–9/scroll hotbar, E inventory, Q dr
 (~/Pictures/Blocksmith), F3 debug, F5 camera (first person / behind / in front, with a player model).
 Menus: click / right-click / shift-click, number keys swap with hotbar, click outside drops.
 Controller: LS move, RS look, A jump, B sneak, L3 sprint, RT attack/mine, LT use, LB/RB hotbar, Y inventory, View camera,
-X pick block, D-pad ↓ drop, D-pad ↑ fly. In menus: D-pad/LS move cursor, A = click, X = right-click, Y = shift-click,
+X pick block (reload while holding a gun), D-pad ↓ drop, D-pad ↑ fly. In menus: D-pad/LS move cursor, A = click, X = right-click, Y = shift-click,
 B close, RS scroll creative.
 
 ## Rendering performance
@@ -113,6 +113,25 @@ B close, RS scroll creative.
   (chests/gold), soul-fire / warped-fungus repellents, neutral mobs forgive after 30 s, llama caravans, deep stalkers dig
   out of the ground, village cats / desert camels at generation, shearing snow golems and mire skeletons.
 - `--mobtests` (MobTests.swift) checks all of the above headlessly and exits non-zero on a failure.
+
+## Steelhold fortresses, soldiers and guns (gameplay session)
+- Fortress (MilitaryBase.swift): very rare (88-chunk grid, flat plains/savanna/desert/snowy plains/badlands), 63 blocks of
+  blast-proof steel plating with corner towers. Basement depot + generator + barred vault, ground floor (gate hall,
+  barracks, armory, mess hall, workshop), upper floor (command room, quarters, comms, medbay, barracks), roof with
+  marksman posts; loot tables steelhold_armory/supply/command/vault. New blocks: steel plating (+stairs/slab), steel floor
+  plate, hazard plating, armored glass, light panel, command console, ammo crate.
+- Guns (Guns.swift, Ballistics.swift): Steelhold Rifle, Chatter Gun (SMG), Breach Shotgun (9 pellets), Farsight Rifle
+  (scope), Skybreaker Launcher (rockets, break blocks), Arc Lance (instant energy beam, ignites). LMB/RT fires (hold for
+  automatics), RMB/LT aims (zoom, tighter spread, softer recoil), R / pad X reloads (auto when empty). Ammo is crafted:
+  rifle rounds, shotgun shells, heavy rounds, rockets, arc cells; magazine count in the stack tag; head shots x1.5;
+  bullets pass through plants and shatter glass. Tracers, muzzle flash, hit marker, ammo readout, 13 synthesized sounds.
+- Soldiers (Soldiers.swift): Recruit (20 HP, rifle/SMG, retreats when hurt), Trooper (30 HP, plated, shotgun rush or
+  strafing rifle, grenades into cover), Marksman (26 HP, farsight with a red laser before each shot, keeps distance),
+  Ironclad (60 HP, heavy armour, no knockback, launcher or arc lance, enrages). They alert each other, chase the last
+  sighting, burst-fire and reload; drop their ammo and 25% their gun. Deck guns (150 HP) on the towers traverse slowly,
+  solve a ballistic arc and fire twin explosive shells; they cannot depress far, so the wall foot is safe.
+- `--mobtests` covers reloads, kills, recoil, pellets, rockets, beams, armour, alerts, marksman laser, deck gun salvos,
+  drops, fortress rarity and layout. Snapshots: soldiers, deck_gun, gun_hip/aim/scope, fortress, fortress_gate.
 
 ## Notes for the parallel sessions
 - Performance session: rd 24 resident is ~2.3 GB on the Mac while block+light arrays are ~740 MB (2601 chunks x ~285 KB)
