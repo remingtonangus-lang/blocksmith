@@ -465,9 +465,12 @@ enum TextureGen {
         }
         for (n, _) in BlockRegistry.colors {
             let c = BlockRegistry.colorHex[n] ?? 0xFFFFFF
+            // Wool: soft knitted loops (2x2 cells with a lit top-left and a shaded bottom-right), fuzzy noise.
             p["\(n)_wool"] = { x, y in
-                let weave = ((x + y) % 4 == 0 ? 0.9 : 1.0) as Float
-                return hex(c, weave * (0.9 + 0.12 * r(x, y, 140)))
+                let lx = (x + (y / 2) % 2) % 2, ly = y % 2
+                var k: Float = lx == 0 && ly == 0 ? 1.06 : (lx == 1 && ly == 1 ? 0.86 : 0.96)
+                k += (blot(x, y, 143, 4) - 0.5) * 0.08 + (r(x, y, 140) - 0.5) * 0.08
+                return hex(c, k)
             }
             p["\(n)_bed_side"] = { x, y in
                 if y >= 10 { return y >= 13 && (x < 3 || x > 12) ? hex(0x6B4F2C) : clear }
