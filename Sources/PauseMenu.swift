@@ -44,7 +44,9 @@ final class PauseMenu: Menu {
     static let valueIDs: Set<String> = ["sens", "invert", "autojump", "fov", "lookx", "looky", "accel", "dead", "aim", "rumble", "southpaw",
                                         "sneaktoggle", "autosprint", "glyphs", "rd", "fullscreen", "launchfs", "vsync", "fps", "rscale", "wscale", "graphics",
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
-                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes"]
+                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap", "graphics", "wscale"]
+
+    static func isValue(_ id: String) -> Bool { valueIDs.contains(id) || id.hasPrefix("vol:") || id == "audio_subs" }
 
     static let help: [String: String] = [
         "resume": "Return to the game.",
@@ -60,6 +62,18 @@ final class PauseMenu: Menu {
         "rumble": "Controller vibration when you are hit, mine, attack or something explodes.",
         "southpaw": "Southpaw swaps the sticks: look with the left, move with the right.",
         "sneaktoggle": "Toggle: press B / right stick once to crouch, again to stand.",
+        "minimap": "A small biome map in the corner with nearby bases and villages. M or hold View for the full map.",
+        "fov": "How wide the view is. Wider shows more at the sides; narrower looks closer.",
+        "invert": "Moving the mouse or stick up looks down.",
+        "autojump": "Walk into a one-block step to climb it without jumping.",
+        "advancements": "Goals you have reached and the ones still ahead.",
+        "commands": "Type a command (time, weather, teleport, give...).",
+        "new_mode": "Survival: health, hunger, mining. Creative: fly and build freely.",
+        "new_diff": "How much damage mobs do and whether hunger can kill.",
+        "edit_name": "The name shown in the worlds list.",
+        "edit_seed": "Leave empty for a random world; the same seed always makes the same world.",
+        "worldmap": "Biomes around you and the Steelhold bases and villages you have found.",
+        "flight": "Aircraft pitch on the left stick: pull back to climb (like a plane) or push up to climb.",
         "autosprint": "Push the left stick fully forward for a moment to sprint.",
         "glyphs": "Which buttons prompts show. Auto follows the last device you touched.",
         "padinfo": "Press A to test vibration.",
@@ -69,6 +83,8 @@ final class PauseMenu: Menu {
         "launchfs": "Open Blocksmith straight into full screen, ready for the TV.",
         "vsync": "Sync frames to the display. Off can lower input lag but may tear.",
         "fps": "Frame rate cap. 30 or 60 keeps a laptop cooler.",
+        "graphics": "Fancy: sky gradient, water reflections, shadows and more effects. Fast: the plain renderer.",
+        "wscale": "Fancy graphics only: draws the world at fewer pixels and scales it up; menus and the HUD stay sharp.",
         "rscale": "Renders fewer pixels and scales up. 75% helps a lot on a 4K TV.",
         "wscale": "Fancy graphics only: draws the world at fewer pixels and scales it up; menus and the HUD stay sharp.",
         "gui": "Size of menus and the HUD. Auto picks the largest that fits.",
@@ -86,6 +102,8 @@ final class PauseMenu: Menu {
         "pbindreset": "Put every controller button back to the standard layout.",
         "bindreset": "Put every key back to the default layout.",
         "volume": "Overall sound volume.",
+        "audio_subs": "Shows captions for sounds, with the direction they come from (same as Accessibility > Subtitles).",
+        "audio_test": "Plays a sound in front of you at the current volumes.",
         "music": "Background music volume.",
         "mode": "Survival: health, hunger, mining. Creative: fly and build freely.",
         "difficulty": "How much damage mobs do and whether hunger can kill.",
@@ -124,7 +142,7 @@ final class PauseMenu: Menu {
             } else if !currentWorld.isEmpty {
                 subtitle = "\(currentWorld) - day \(Int(g.time / DAY_LENGTH) + 1)"
             }
-            rows = [("Back to Game", "resume"), ("Options...", "options"), ("Advancements", "advancements"), ("Commands...", "commands"),
+            rows = [("Back to Game", "resume"), ("Options...", "options"), ("World Map", "worldmap"), ("Advancements", "advancements"), ("Commands...", "commands"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Game.difficultyNames[g.difficulty])", "difficulty"),
                     ("Worlds...", "worlds"), ("Save and Quit to Title", "totitle"), ("Save and Quit Game", "quit")]
@@ -148,21 +166,26 @@ final class PauseMenu: Menu {
                         ("Aim Assist: \(on(st.aimAssist))", "aim"), ("Vibration: \(st.rumble == 0 ? "Off" : pct(st.rumble))", "rumble"),
                         ("Stick Layout: \(st.southpaw ? "Southpaw" : "Standard")", "southpaw"),
                         ("Sneak: \(st.sneakToggle ? "Toggle" : "Hold")", "sneaktoggle"), ("Auto-Sprint: \(on(st.autoSprint))", "autosprint"),
+                        ("Flight Stick: \(st.flightInverted ? "Pull Back to Climb" : "Push Up to Climb")", "flight"),
                         ("Button Prompts: \(["Auto", "Controller", "Keyboard"][max(0, min(2, st.glyphStyle))])", "glyphs"),
                         ("Button Mapping...", "padmap")]
             case .video:
-                rows = [("Render Distance: \(g.world.renderDistance)", "rd"), ("Graphics: \(g.fancyGraphics ? "Fancy" : "Fast")", "graphics"), ("Fullscreen: \(on(VideoState.fullscreen))", "fullscreen"),
+                rows = [("Render Distance: \(g.world.renderDistance)", "rd"), ("Graphics: \(g.fancyGraphics ? "Fancy" : "Fast")", "graphics"),
+                        ("Fullscreen: \(on(VideoState.fullscreen))", "fullscreen"),
                         ("Display: \(VideoState.current.isEmpty ? "Main" : VideoState.current)", "display"),
                         ("Start in Fullscreen: \(on(st.launchFullscreen))", "launchfs"), ("VSync: \(on(st.vsync))", "vsync"),
                         ("Max Frame Rate: \(st.fpsCap == 0 ? "Display" : "\(st.fpsCap)")", "fps"),
-                        ("Resolution: \(pct(st.renderScale))", "rscale"), ("World Scale (Fancy): \(pct(g.renderScale))", "wscale"), ("Field of View: \(Int(g.fovSetting))", "fov"), ("GUI Scale: \(gui)", "gui")]
+                        ("Resolution: \(pct(st.renderScale))", "rscale"), ("World Scale (Fancy): \(pct(g.renderScale))", "wscale"),
+                        ("Field of View: \(Int(g.fovSetting))", "fov"), ("GUI Scale: \(gui)", "gui")]
             case .audio:
-                rows = audioRows()          // one slider per sound category, subtitles, test sound (AudioMenu.swift)
+                // One slider per sound category, subtitles and a test sound (AudioMenu.swift); its own Done row is ours.
+                rows = audioRows().filter { $0.1 != "audio_back" }
             case .interface:
                 rows = [("GUI Scale: \(gui)", "gui"), ("Couch Mode (TV): \(on(HudLayout.couch))", "couch"),
                         ("Safe Area: \(st.safeArea)%", "safe"), ("Button Hints: \(on(st.buttonHints))", "hints"),
                         ("Text Background: \(st.textBackground == 0 ? "Off" : pct(st.textBackground))", "textbg"),
                         ("Crosshair: \(["Classic", "Bold", "Dot"][max(0, min(2, st.crosshair))])", "crosshair"),
+                        ("Minimap: \(on(st.minimap))", "minimap"),
                         ("Hide HUD: \(on(g.hideHUD))", "hidehud"), ("Debug Info: \(on(g.showDebug))", "debug"),
                         ("Bug Notes: " + (BugNotes.denied ? "No mic access" : BugNotes.names[max(0, min(2, st.bugNotes))]), "bugnotes"),
                         ("Reset Options...", "resetask")]
@@ -262,7 +285,7 @@ final class PauseMenu: Menu {
 
     var legend: String {
         var items: [(Prompt.Act, String)] = [(.select, "Select")]
-        let value = hoveredID.map { PauseMenu.valueIDs.contains($0) } ?? false
+        let value = hoveredID.map { PauseMenu.isValue($0) } ?? false
         if value && !Prompt.pad { items.append((.alt, "Previous")) }
         if page == .options { items.append((.tabs, "Page")) }
         if page != .title && page != .main { items.append((.back, "Back")) } else if page == .main { items.append((.back, "Resume")) }
@@ -276,7 +299,7 @@ final class PauseMenu: Menu {
         guard case .button(let i) = slot.kind, let r = row(forSlot: i) else { return }
         // Mouse: clicking the "<" end of a setting steps it back, like right-click.
         var back = button == 1
-        if !back && PauseMenu.valueIDs.contains(r.1) && game.input.mouseX >= 0 {
+        if !back && PauseMenu.isValue(r.1) && game.input.mouseX >= 0 {
             let L = HudLayout(game.screen.x, game.screen.y).fitted(self)
             let x0 = origin(L).x + Float(slot.x) * L.s
             if game.input.mouseX < x0 + Float(slot.w) * L.s * 0.2 { back = true }
@@ -287,7 +310,7 @@ final class PauseMenu: Menu {
 
     // D-pad left/right on a setting steps it; returns false when the hovered row isn't a setting.
     func adjust(_ dx: Int) -> Bool {
-        guard let id = hoveredID, PauseMenu.valueIDs.contains(id) else { return false }
+        guard let id = hoveredID, PauseMenu.isValue(id) else { return false }
         act(id, back: dx < 0)
         return true
     }
@@ -394,6 +417,8 @@ final class PauseMenu: Menu {
             page = .title
             resetCursor = true
         case "advancements": g.closeMenu(); g.openMenu(AdvancementMenu(game: g))
+        case "worldmap": g.closeMenu(); g.openMenu(MapMenu(game: g))
+        case "minimap": st.minimap.toggle()
         case "commands": g.closeMenu(); g.openMenu(CommandMenu(game: g))
         case "mode": g.toggleMode(); g.onModeChanged?(g.survival)
         case "difficulty": g.difficulty = step([0, 1, 2, 3], g.difficulty)
@@ -412,6 +437,7 @@ final class PauseMenu: Menu {
         case "southpaw": st.southpaw.toggle()
         case "sneaktoggle": st.sneakToggle.toggle()
         case "autosprint": st.autoSprint.toggle()
+        case "flight": st.flightInverted.toggle()
         case "glyphs": st.glyphStyle = step([0, 1, 2], st.glyphStyle)
         case "rd":
             let opts = [2, 4, 6, 8, 10, 12, 16, 20, 24]
@@ -420,6 +446,8 @@ final class PauseMenu: Menu {
             UserDefaults.standard.set(g.world.renderDistance, forKey: "renderDistance")
         case "fullscreen": g.appAction?("fullscreen")
         case "launchfs": st.launchFullscreen.toggle()
+        case "graphics": g.fancyGraphics.toggle()
+        case "wscale": g.renderScale = step([1, 0.85, 0.7], g.renderScale)
         case "display":
             let list = VideoState.displays
             if list.count > 1 {
@@ -431,8 +459,6 @@ final class PauseMenu: Menu {
         case "fps": st.fpsCap = step(Settings.fpsOptions, st.fpsCap); g.appAction?("video")
         case "rscale": st.renderScale = step(Settings.renderScaleOptions, st.renderScale); g.appAction?("video")
         case "gui": HudLayout.userScale = step([0, 1, 2, 3, 4, 5, 6], HudLayout.userScale)
-        case "graphics": g.fancyGraphics.toggle()
-        case "wscale": g.renderScale = step([1, 0.85, 0.7], g.renderScale)
         case "couch": HudLayout.couch.toggle()
         case "safe": st.safeArea = step([0, 2, 4, 6, 8, 10], st.safeArea)
         case "hints": st.buttonHints.toggle()

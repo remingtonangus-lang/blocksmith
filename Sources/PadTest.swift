@@ -124,10 +124,10 @@ enum PadTest {
         pm.go(.keys); pm.build(); g.menuCursor = 0
         tap(g, "a")
         check(pm.binding == .forward, "A on Walk Forward waits for a key")
-        g.input.pressed.insert(5)            // G
+        g.input.pressed.insert(4)            // H
         frame(g)
-        check(KeyBinds.key(.forward) == 5 && pm.binding == nil, "the next key press becomes the binding (\(KeyBinds.name(KeyBinds.key(.forward))))")
-        check(Prompt.keyGlyph(.move).contains("G"), "keyboard prompts follow the new binding")
+        check(KeyBinds.key(.forward) == 4 && pm.binding == nil, "the next key press becomes the binding (\(KeyBinds.name(KeyBinds.key(.forward))))")
+        check(Prompt.keyGlyph(.move).contains("H"), "keyboard prompts follow the new binding")
         KeyBinds.reset()
         tap(g, "b")
         check(pm.page == .main, "B leaves Key Bindings")
@@ -147,7 +147,7 @@ enum PadTest {
         try? fm.createDirectory(at: tmp.appendingPathComponent("Beta"), withIntermediateDirectories: true)
         try? fm.createDirectory(at: tmp.appendingPathComponent("Alpha"), withIntermediateDirectories: true)
         try? fm.setAttributes([.modificationDate: Date(timeIntervalSinceNow: -3600)], ofItemAtPath: tmp.appendingPathComponent("Beta").path)
-        tap(g, "down*6 a")
+        tap(g, "down*7 a")
         check(pm.page == .worlds, "Worlds... opens the worlds list")
         check(pm.rows.count == 5 && pm.rows[2].1 == "world:Alpha", "worlds list is newest first")
         tap(g, "a")
@@ -267,11 +267,179 @@ enum PadTest {
         frame(g)
         check(g.player.yaw < yaw - 0.3, "right stick turns the view")
 
+        // Vehicles: a car piloted with the pad (RT throttle, LT reverse, B leaves), gauges on the HUD.
+        do {
+            PadManager.shared.forcePad(true)
+            let keep = (g.player.pos, g.player.yaw, g.player.pitch, g.player.flying)
+            let helm = ShipTest.place(g.world, "car", near: g.player.pos)
+            let (carOpt, msg) = g.world.ships.assemble(at: helm, game: g)
+            if let car = carOpt {
+                g.startPiloting(car)
+                var rt = PadSnapshot(); rt.rt = 1
+                for _ in 0..<5 { frame(g, rt) }
+                check(g.world.ships.pilot === car && car.throttle > 0.9, "RT is the throttle on a land vehicle")
+                check(ContextPrompts.items(g).contains { $0.contains("Throttle") }, "piloting shows vehicle prompts")
+                check(CombatHUD.shared.lines(g, HudLayout(1280, 800)).contains { $0.text.contains("km/h") }, "vehicle gauges show speed")
+                var lt = PadSnapshot(); lt.lt = 1
+                frame(g, lt)
+                check(car.throttle < -0.9, "LT reverses")
+                // A hull hit (the vehicle lost blocks since last frame) is felt.
+                PadManager.shared.rumbleLog.removeAll()
+                Feedback.lastShipBlocks = [car.id: car.blockCount + 6]
+                Feedback.vehicleTick(g)
+                check(!PadManager.shared.rumbleLog.isEmpty, "a hull hit on the vehicle rumbles")
+                tap(g, "b")
+                check(g.world.ships.pilot == nil, "B leaves the helm")
+                g.world.ships.remove(car)
+            } else { check(false, "test car assembles (\(msg))") }
+            (g.player.pos, g.player.yaw, g.player.pitch, g.player.flying) = keep
+            g.player.vel = .zero
+        }
+
+        // Deck gun: LT takes it, RT fires both barrels after the loading delay, B steps off.
+        do {
+            let keep = (g.player.pos, g.player.yaw, g.player.pitch)
+            g.player.flying = true
+            g.player.pos = V3(g.player.pos.x, Float(CH - 40), g.player.pos.z)
+            let fwd = V3(-sinf(g.player.yaw), 0, -cosf(g.player.yaw))
+            let gunMob = Mob(.deckGun, at: g.player.eye + fwd * 2.5 - V3(0, 1.2, 0))
+            gunMob.persistent = true
+            g.mobs.mobs.append(gunMob)
+            let c = gunMob.pos + V3(0, gunMob.height * 0.5, 0) - g.player.eye
+            g.player.pitch = asinf(c.y / simd_length(c))
+            tap(g, "lt")
+            check(Turrets.shared.manned === gunMob, "LT mans a deck gun")
+            check(ContextPrompts.items(g).contains { $0.contains("Fire") || $0.contains("Reloading") }, "deck gun prompts")
+            for _ in 0..<40 { frame(g) }
+            let before = g.arms.slugs.count
+            tap(g, "rt")
+            check(g.arms.slugs.count >= before + 2, "RT fires the deck gun (\(g.arms.slugs.count - before) shells)")
+            tap(g, "b")
+            check(!Turrets.shared.active, "B steps off the gun")
+            g.mobs.mobs.removeAll { $0 === gunMob }
+            g.arms.slugs.removeAll()
+            (g.player.pos, g.player.yaw, g.player.pitch) = keep
+        }
+
+        // Guns: weapon wheel (hold RB), quick RB tap, reload on X, ADS snap onto a nearby enemy.
+        if Items.has("gun_rifle") && Items.has("gun_shotgun") {
+            g.survival = false
+            for i in 0..<36 { g.inventory.main[i] = .empty }
+            g.inventory.main[0] = ItemStack(Items.id("gun_rifle"), 1)
+            g.inventory.main[14] = ItemStack(Items.id("gun_shotgun"), 1)
+            g.selected = 0
+            var rb = PadSnapshot(); rb.rb = true
+            for _ in 0..<20 { frame(g, rb) }
+            check(WeaponWheel.shared.open && WeaponWheel.shared.entries.count == 2, "holding RB opens the weapon wheel")
+            rb.ry = -1
+            for _ in 0..<3 { frame(g, rb) }
+            frame(g)
+            check(Items.key(g.inventory.main[g.selected].item) == "gun_shotgun" && !WeaponWheel.shared.open, "pointing down and letting go equips the shotgun")
+            let sel = g.selected
+            tap(g, "rb")
+            check(g.selected == (sel + 1) % 9, "a quick RB tap still steps the hotbar")
+            g.select(sel)
+            // Reload: empty shotgun, shells in the pack.
+            g.survival = true
+            var sg = g.inventory.main[g.selected]; sg.tag = 0; g.inventory.main[g.selected] = sg
+            g.inventory.main[20] = ItemStack(Items.id("shotgun_shells"), 12)
+            tap(g, "x")
+            check(g.arms.reload > 0, "X reloads a gun")
+            for _ in 0..<200 { frame(g) }
+            check(g.inventory.main[g.selected].tag == Guns.all[Guns.shotgun].mag, "the reload fills the magazine (\(g.inventory.main[g.selected].tag))")
+            check(ContextPrompts.items(g).contains { $0.contains("Reload") }, "gun prompts list reload")
+            // ADS aim assist: a zombie 7 degrees to the side gets pulled toward the crosshair.
+            g.survival = false
+            let keep = (g.player.pos, g.player.yaw, g.player.pitch, g.player.flying)
+            g.player.flying = true
+            g.player.pos = V3(g.player.pos.x, Float(CH - 40), g.player.pos.z)
+            g.player.pitch = 0
+            let side = g.player.yaw - 0.12
+            let z = Mob(.zombie, at: g.player.eye + V3(-sinf(side), 0, -cosf(side)) * 10 - V3(0, 1.1, 0))
+            g.mobs.mobs.append(z)
+            let off0 = abs(AimAssist.wrap(AimAssist.angles(g, z).yaw - g.player.yaw))
+            var lt = PadSnapshot(); lt.lt = 1
+            for _ in 0..<12 { frame(g, lt) }
+            let off1 = abs(AimAssist.wrap(AimAssist.angles(g, z).yaw - g.player.yaw))
+            frame(g)
+            check(off1 < off0 * 0.6, String(format: "aiming down sights snaps toward the enemy (%.3f -> %.3f rad)", off0, off1))
+            g.mobs.mobs.removeAll { $0 === z }
+            (g.player.pos, g.player.yaw, g.player.pitch, g.player.flying) = keep
+            for i in 0..<36 { g.inventory.main[i] = .empty }
+        }
+
+        // World map: M opens it, RT / LT zoom, the stick pans, A recentres, B closes; holding View opens it too
+        // while a tap still cycles the camera.
+        do {
+            g.menu = nil
+            MapCache.shared.prefill(g.world.gen, x: Int(g.player.pos.x), z: Int(g.player.pos.z), radius: 160, step: 8)
+            g.input.pressed.insert(46)           // M
+            frame(g)
+            if let mm = g.menu as? MapMenu {
+                check(true, "M opens the world map")
+                let z0 = mm.zoom
+                tap(g, "rt")
+                check(mm.zoom == max(0, z0 - 1), "RT zooms the map in")
+                tap(g, "lt lt")
+                check(mm.zoom == min(MapMenu.zooms.count - 1, z0 + 1), "LT zooms out")
+                let cx0 = mm.cx
+                var r = PadSnapshot(); r.lx = 1
+                for _ in 0..<15 { frame(g, r) }
+                frame(g)
+                check(mm.cx > cx0 + 10, "the left stick pans the map")
+                tap(g, "a")
+                check(abs(mm.cx - g.player.pos.x) < 1, "A recentres on the player")
+                let lines = mm.drawLines(HudLayout(1280, 800).fitted(mm), V2(100, 100))
+                check(lines.count > 80, "the map draws terrain runs and markers (\(lines.count))")
+                check(Prompt.menuLegend(mm, g).contains("Zoom"), "map legend")
+                tap(g, "b")
+                check(g.menu == nil, "B closes the map")
+            } else { check(false, "M opens the world map") }
+            var v = PadSnapshot(); v.view = true
+            for _ in 0..<30 { frame(g, v) }
+            check(g.menu is MapMenu, "holding View opens the map")
+            frame(g)
+            g.closeMenu()
+            let cam = g.cameraMode
+            tap(g, "view")
+            check(g.cameraMode == (cam + 1) % 3 && g.menu == nil, "a quick View tap still cycles the camera")
+            g.cameraMode = cam
+            MapCache.shared.resetMarks()
+            MapCache.shared.discover(g, kind: "military_base", x: Int(g.player.pos.x) + 40, z: Int(g.player.pos.z))
+            check(MapCache.shared.marks.count == 1, "a nearby base is marked on the map")
+            MapCache.shared.discover(g, kind: "military_base", x: Int(g.player.pos.x) + 45, z: Int(g.player.pos.z))
+            check(MapCache.shared.marks.count == 1, "the same base isn't marked twice")
+            check(MapCache.shade(.ocean, height: 40) != MapCache.shade(.desert, height: 140), "biomes get distinct map colours")
+            MapCache.shared.resetMarks()
+        }
+
+        // Damage direction indicator.
+        g.survival = true
+        let rightV = V3(cosf(g.player.yaw), 0, -sinf(g.player.yaw))
+        g.hurtPlayer(1, from: g.player.pos + rightV * 3, cause: "test")
+        check(CombatHUD.shared.hits.last.map { simd_dot($0.dir, rightV) > 0.9 } ?? false, "a hit from the right marks the right side")
+        g.health = 20
+
         // Rumble requests (logged instead of vibrating while simulated).
         g.survival = true
         PadManager.shared.rumbleLog.removeAll()
         g.damage(2, "test")
         check(!PadManager.shared.rumbleLog.isEmpty, "taking damage rumbles")
+        let log = { PadManager.shared.rumbleLog }
+        PadManager.shared.rumbleLog.removeAll()
+        Feedback.sound(g, .gun(2), 1, at: nil)
+        check((log().last ?? 0) > 0.4, "a shotgun blast rumbles hard")
+        PadManager.shared.rumbleLog.removeAll()
+        Feedback.sound(g, .gun(1), 1, at: nil)
+        check((log().last ?? 1) < 0.3 && !log().isEmpty, "chatter gun shots are light ticks")
+        PadManager.shared.rumbleLog.removeAll()
+        Feedback.sound(g, .gunReload(0), 1, at: nil)
+        check(!log().isEmpty, "seating a magazine ticks")
+        PadManager.shared.rumbleLog.removeAll()
+        Feedback.sound(g, .explode, 1, at: g.player.eye + V3(60, 0, 0))
+        check(log().isEmpty, "a far explosion doesn't rumble")
+        Feedback.sound(g, .explode, 1, at: g.player.eye + V3(3, 0, 0))
+        check((log().last ?? 0) > 0.4, "a close explosion rumbles")
 
         // Block-targeting assist: two stone blocks in the sky; the highlight holds across the shared edge.
         do {
@@ -324,6 +492,12 @@ enum PadTest {
         HudLayout.couch = couch
         Settings.shared.safeArea = safe
 
+        // Duplicate keys / ids across workstreams, help text and stepping for every option (Audit.swift).
+        let (bad, warns) = Audit.run(g)
+        for w in warns { print("padtest: audit warning: \(w)") }
+        for b in bad { check(false, "audit: \(b)") }
+        check(bad.isEmpty, "audit: settings keys, bindings, button mapping, option rows, mob keys (\(bad.count) problems)")
+
         print(String(format: "padtest: %d passed, %d failed (%.0f ms)", passes, failures, (CFAbsoluteTimeGetCurrent() - t0) * 1000))
 
         // Leave the Controller options page open for the snapshot.
@@ -366,6 +540,16 @@ enum PadTest {
         case "controls": pm.go(.controls); pm.build()
         case "padmap": PadMap.map = [2, 1, 0] + Array(3..<PadMap.count); pm.go(.padmap); pm.build(); cursor = 0
         case "title": pm.page = .title; pm.build()
+        case "map":
+            MapCache.shared.prefill(g.world.gen, x: Int(g.player.pos.x), z: Int(g.player.pos.z), radius: 700, step: 8)
+            MapCache.shared.resetMarks()
+            MapCache.shared.discover(g, kind: "military_base", x: Int(g.player.pos.x) + 180, z: Int(g.player.pos.z) - 90)
+            MapCache.shared.discover(g, kind: "village", x: Int(g.player.pos.x) - 220, z: Int(g.player.pos.z) + 60)
+            g.menu = nil
+            g.paused = false
+            let mm = MapMenu(game: g)
+            mm.zoom = 2
+            g.menu = mm
         default: pm.go(.options); pm.cat = .video; pm.build(); cursor = 1
         }
         WorldStore.base = old

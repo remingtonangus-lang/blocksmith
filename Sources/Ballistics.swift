@@ -380,7 +380,7 @@ extension Game {
             }
             return true
         }
-        if input.tapped(KeyBinds.key(.reload)) || (p.x && !q.x) { startReload(gi); return true }     // Reload Gun key (R) or pad X
+        if input.tapped(KeyBinds.key(.reload)) || (p.x && !q.x) { startReload(gi); return true }     // R (rebindable) or pad X
         let trigger = gs.auto ? fire : firePressed
         guard trigger else { return true }
         if held.tag <= 0 {

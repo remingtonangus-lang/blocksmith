@@ -100,7 +100,8 @@ frigate and a siege carriage under way, frigate mesh 3 ms (background), block ed
 
 ## Controls
 Keyboard/mouse: WASD, Space (double-tap = fly in creative), Shift sneak, Ctrl sprint, LMB attack/mine (hold),
-RMB use/place/eat (hold), MMB pick block, 1–9/scroll hotbar, E inventory, Q drop (Ctrl+Q stack), R swap off hand, F fly, T / slash commands,
+RMB use/place/eat (hold), MMB pick block, 1–9/scroll hotbar, E inventory, Q drop (Ctrl+Q stack), G swap off hand, R reload, Tab weapon wheel,
+M world map, F fly, T / slash commands,
 F1 hide HUD, F2 screenshot (~/Pictures/Blocksmith), F3 debug, F5 camera (first person / behind / in front, with a player model).
 Menus: click / right-click / shift-click, number keys swap with hotbar, click outside drops, arrow keys move the cursor, Tab switches creative tabs.
 Controller (console layout): LS move (full forward = auto-sprint), RS look, A jump, B / RS click sneak (hold or toggle), L3 sprint,
@@ -152,7 +153,37 @@ Options > Video > Resolution to 75% for a steady 60 fps on the M1.
   targeting for the pad (highlight holds ~0.12 blocks past an edge), on-screen keyboard with a live preview that opens by
   itself for signs and text fields, LB/RB page turning in books, loading screen on world switch (and straight into the
   world afterwards), pad status on the title, "controller disconnected" note on the pause menu.
-- Not yet: controller button remapping, a free-moving pad cursor option for menus.
+- Button remapping: Options > Controller > Button Mapping (each logical button with all its uses: "Pick Block / Reload",
+  "Hotbar Right / Weapon Wheel", "Camera / World Map (hold)"...; swaps on conflict). Every pad read goes through PadMap.
+- Not yet: a free-moving pad cursor option for menus.
+
+### Vehicles, guns, combat HUD, maps (2026-10-01 queue, built on PR #8 vessels + PR #2 guns)
+- Vehicles (VehicleControls.swift): one input reader for every vessel kind. Unarmed boats / land vehicles: RT throttle, LT
+  reverse/brake, LS steer (W/S + A/D on keys); airships: RT/LT throttle, LS up/down climb; aircraft: RT throttle, LS pitch
+  (Options > Controller > Flight Stick: pull back to climb or push up), A/Space and RB/LB climb/descend on all. Armed vessels
+  keep PR #8's scheme (RT fires the cannons, stick throttle). B / Shift leaves. On-screen prompts change per vessel.
+- Deck guns (Turrets): LT / right-click on a Steelhold deck gun mans it; the barrels follow the view (clamped elevation),
+  RT / left-click fires both barrels, 3 s reload shown as a bar, B / Shift steps off.
+- Guns: R / X reload (rebindable), RT fire, LT aim down sights (look slows with the zoom), aim assist on the pad snaps toward the
+  nearest soldier or hostile in a narrow cone when ADS starts and tracks gently (Options > Aim Assist; line of sight only).
+  Weapon wheel (CombatHUD.swift): hold RB / Tab, pick a sector with RS / mouse, release to equip; a quick RB tap still turns
+  the hotbar, a quick Tab picks the next gun. Off while steering or manning a gun.
+- Combat HUD: ammo + reload (PR #2's counter), hit markers, red damage-direction marks around the crosshair (fade 1.6 s),
+  armour wear bars beside the hotbar (survival), vehicle panel (name, km/h, heading, altitude for aircraft, throttle bar,
+  hull integrity, lift %, guns ready/loading), deck-gun reload bar.
+- Maps (WorldMap.swift): M or hold View opens the world map (pan with LS / D-pad / arrows / drag, zoom with triggers / bumpers
+  / scroll, A recentres, legend); biome colours shaded by height, filled by a background worker. Discovered Steelhold bases and
+  villages (within 96 blocks) are marked, toasted and saved per world (mapmarks.json). Minimap top-right (Options > Interface).
+  Pause menu: World Map.
+- Rumble: per gun (rifle crack, light chatter ticks, heavy shotgun / farsight / launcher thumps, dry-fire click), reloads,
+  near misses, explosions with distance falloff (cannons, shells), vehicle crashes (sudden velocity change) and hull hits.
+- Settings: Video page also holds Graphics (Fancy/Fast) and World Scale (PR #6); one subtitles setting (the audio
+  workstream's); Resolution keeps "renderScale" and the Fancy world scale is saved as "fancyWorldScale"; Reset Options covers
+  volumes and graphics. Audit.swift (run by --padtest): duplicate settings keys, key bindings (incl. reserved keys), button
+  mapping, options rows (ids, labels, help text, every value steps and cycles back), mob save keys, shared names (warning).
+- CI: padtest drives the car (RT/LT/B, gauges, hull-hit rumble), the deck gun, the weapon wheel (hold + quick tap), reload,
+  ADS snap, the damage indicator, the world map (open/zoom/pan/recentre/close, hold View vs tap), discovery dedupe, rumble
+  per gun / explosion distance. `--padview map` / snaps tv_map.png.
 
 ## Realistic terrain (branch claude/realistic-terrain, PR #7)
 - `Sources/Terrain.swift` drives the overworld surface; `WorldGen` turns it into blocks (density, caves, ores, surface

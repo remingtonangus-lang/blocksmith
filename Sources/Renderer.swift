@@ -1222,7 +1222,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 rect(bx, by, bw, 5 * s, V4(b.2.x * 0.3, b.2.y * 0.3, b.2.z * 0.3, 1))
                 rect(bx, by, bw * max(0, min(1, b.1)), 5 * s, b.2)
             }
-            if let line = game.shipHUDLine() { text(line, floor((W - textWidth(line, s)) / 2), H - 62 * s, s, V4(0.85, 0.95, 1, 1)) }
+            // Piloting gauges (speed, altitude, throttle, hull, guns) are drawn by CombatHUD.swift; shipHUDLine stays for the harness.
         }
 
         func frame(_ x: Float, _ y: Float, _ w: Float, _ h: Float, _ b: Float, _ c: V4) {
@@ -1311,6 +1311,16 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let t = "\(st.count)"
                 text(t, x + size - textWidth(t, s) - s * 0.5 + s, y + size - 7 * s + s, s)
             }
+        }
+
+        // Positioned text / boxes / item icons from HudExtras, CombatHUD, the map (HudLine).
+        func drawHudLine(_ l: HudLine) {
+            if let b = l.bg {
+                if let box = l.box { rect(l.x, l.y, box.x, box.y, b) }
+                else { rect(l.x - 3 * l.scale, l.y - 3 * l.scale, textWidth(l.text, l.scale) + 6 * l.scale, 13 * l.scale, b) }
+            }
+            if let it = l.item { itemIcon(it, l.x, l.y, l.box?.x ?? 16 * l.scale) }
+            if !l.text.isEmpty { text(l.text, l.x, l.y, l.scale, l.color) }
         }
 
         if let m = game.menu {
@@ -1589,9 +1599,11 @@ final class Renderer: NSObject, MTKViewDelegate {
                     rect(x, y, Float(sl.w) * s, Float(sl.h) * s, info ? V4(0.3, 0.3, 0.33, 1) : (hot ? V4(0.42, 0.55, 0.85, 1) : V4(0.42, 0.42, 0.46, 1)))
                     frame(x, y, Float(sl.w) * s, Float(sl.h) * s, s, hot ? V4(1, 1, 1, 1) : V4(0.2, 0.2, 0.22, 1))
                     let label = r.0
-                    let lx = info ? x + 5 * s : x + (Float(sl.w) * s - textWidth(label, s)) / 2
-                    text(label, lx, y + (Float(sl.h) - 7) / 2 * s, s)
-                    if hot && PauseMenu.valueIDs.contains(r.1) {
+                    // Long labels (remapped buttons, long values) shrink to fit between the value arrows.
+                    let ls = min(s, (Float(sl.w) - 20) * s / max(1, textWidth(label, s)) * s)
+                    let lx = info ? x + 5 * s : x + (Float(sl.w) * s - textWidth(label, ls)) / 2
+                    text(label, lx, y + (Float(sl.h) * s - 7 * ls) / 2, ls)
+                    if hot && PauseMenu.isValue(r.1) {
                         // Arrows: D-pad left / right steps the setting.
                         text("<", x + 4 * s, y + (Float(sl.h) - 7) / 2 * s, s, V4(1, 1, 0.6, 1))
                         text(">", x + Float(sl.w) * s - 8 * s, y + (Float(sl.h) - 7) / 2 * s, s, V4(1, 1, 0.6, 1))
@@ -1724,6 +1736,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 }
                 rect(o.x + 186 * s, o.y + 40 * s, 22 * s, 6 * s, V4(0.55, 0.55, 0.55, 1))
             }
+            if let cm = m as? CustomDrawnMenu { for l in cm.drawLines(ML, o) { drawHudLine(l) } }
             for sl in m.slots where !sl.isButton {
                 let x = o.x + Float(sl.x - 1) * s, y = o.y + Float(sl.y - 1) * s
                 let bigSlot = (m is CraftingTableMenu || m is FurnaceMenu || m is AnvilMenu || m is SmithingMenu || m is StonecutterMenu || m is GrindstoneMenu) && { if case .result = sl.kind { return true } else if case .output = sl.kind { return true } else { return false } }()
@@ -2004,13 +2017,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
 
         // Tutorial tips, contextual button prompts and subtitles (HudExtras.swift).
-        for l in HudExtras.lines(game, L) {
-            if let b = l.bg {
-                if let box = l.box { rect(l.x, l.y, box.x, box.y, b) }
-                else { rect(l.x - 3 * l.scale, l.y - 3 * l.scale, textWidth(l.text, l.scale) + 6 * l.scale, 13 * l.scale, b) }
-            }
-            if !l.text.isEmpty { text(l.text, l.x, l.y, l.scale, l.color) }
-        }
+        for l in HudExtras.lines(game, L) { drawHudLine(l) }
 
         // F3 debug overlay
         if game.showDebug {

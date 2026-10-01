@@ -28,6 +28,7 @@ final class Settings {
     @Pref("padSouthpaw") var southpaw = false        // swap sticks (look left, move right)
     @Pref("padSneakToggle") var sneakToggle = false  // B / RS click toggles sneaking instead of holding
     @Pref("padAutoSprint") var autoSprint = true     // stick fully forward for a moment starts sprinting
+    @Pref("padFlightInverted") var flightInverted = true   // aircraft: pull the stick back to climb
     @Pref("padLookCurve") var lookCurve = 0          // right stick response: 0 classic, 1 linear, 2 precise
 
     // Video
@@ -35,17 +36,22 @@ final class Settings {
     @Pref("vsync") var vsync = true
     @Pref("fpsCap") var fpsCap = 0                   // 0 = display refresh rate
     @Pref("display") var display = ""                // screen name to play on ("" = main screen)
-    @Pref("renderScale") var renderScale: Float = 1  // drawable resolution scale (TVs at 4K: 0.75 saves a lot)
+    @Pref("renderScale") var renderScale: Float = 1  // whole-frame resolution scale (TVs at 4K: 0.75 saves a lot); Fancy world scale is Game.renderScale
 
     // Interface
     @Pref("safeArea") var safeArea = 0               // percent of the screen kept clear at each edge (TV overscan)
     @Pref("buttonHints") var buttonHints = true      // control legends under menus and contextual prompts in game
     @Pref("glyphStyle") var glyphStyle = 0           // 0 auto (last used device), 1 controller, 2 keyboard
     @Pref("textBackground") var textBackground: Float = 0   // dark box behind HUD text (0...0.8)
+    @Pref("minimap") var minimap = true             // biome minimap in the top-right corner
     @Pref("crosshair") var crosshair = 0             // 0 classic, 1 bold (high contrast), 2 dot
 
     // Accessibility
-    @Pref("subtitles") var subtitles = false
+    // One subtitles setting for the whole game (the audio workstream's AudioSettings stores it).
+    var subtitles: Bool {
+        get { AudioSettings.subtitles }
+        set { AudioSettings.subtitles = newValue }
+    }
     @Pref("colorblind") var colorblind = false       // blue/orange instead of green/red cues
     @Pref("tutorialHints") var tutorialHints = true
     @Pref("tutorialStep") var tutorialStep = 0       // how far the first-steps hints have got
@@ -55,12 +61,14 @@ final class Settings {
 
     // Options > Interface > Reset Options: everything back to the defaults (key bindings included).
     func resetAll(_ g: Game) {
-        lookX = 1; lookY = 1; lookAccel = 0.5; aimAssist = true; rumble = 0.7; southpaw = false; sneakToggle = false; autoSprint = true; lookCurve = 0
+        lookX = 1; lookY = 1; lookAccel = 0.5; aimAssist = true; rumble = 0.7; southpaw = false; sneakToggle = false; autoSprint = true; lookCurve = 0; flightInverted = true
         launchFullscreen = true; vsync = true; fpsCap = 0; renderScale = 1
-        safeArea = 0; buttonHints = true; glyphStyle = 0; textBackground = 0; crosshair = 0
+        safeArea = 0; buttonHints = true; glyphStyle = 0; textBackground = 0; crosshair = 0; minimap = true
         subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true; narrator = false
         g.fovSetting = 70; g.sensitivity = 1; g.invertY = false; g.autoJump = false; g.deadZone = 0.15
         g.volumeSetting = 0.8; g.musicVolume = 1
+        for c in SoundCategory.allCases { AudioSettings.set(c, c == .master ? 0.8 : 1) }
+        g.fancyGraphics = true; g.renderScale = 1
         HudLayout.userScale = 0; HudLayout.couch = false
         KeyBinds.reset()
         PadMap.reset()

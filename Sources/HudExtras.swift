@@ -11,6 +11,7 @@ struct HudLine {
     var color: V4 = V4(1, 1, 1, 1)
     var bg: V4? = nil
     var box: V2? = nil       // explicit background size (drawn at x, y); nil = fit the text with a small margin
+    var item: ItemStack? = nil   // item icon drawn at x, y in a box-sized square (weapon wheel, map markers)
 }
 
 // MARK: Subtitles
@@ -78,12 +79,17 @@ final class Subtitles {
         case .caveAmbience: return "Eerie noise"
         case .note: return "Note block plays"
         case .hurt: return "Damage taken"
+        case .gun(let k): return k == 9 ? "Cannon fires" : (k == 7 || k == 12 ? nil : (k == 10 ? "Alarm sounds" : "Gunshot"))
         default: return nil          // UI clicks, pickups, rain loops...
         }
     }
 
     func add(_ g: Game, _ s: Snd, at pos: V3?) {
-        guard AudioSettings.subtitles, let label = Subtitles.label(s) ?? s.caption(positional: pos != nil) else { return }
+        // The audio workstream's captions first (they know every mob voice), then our own table.
+        guard Settings.shared.subtitles else { return }
+        var caption = s.caption(positional: pos != nil)
+        if caption == nil || caption == "Creature calls" { caption = Subtitles.label(s) ?? caption }     // ours names the creature
+        guard let label = caption else { return }
         var side = 0
         if let p = pos {
             let d = V3(p.x - g.player.eye.x, 0, p.z - g.player.eye.z)
@@ -131,17 +137,27 @@ final class Subtitles {
 enum ContextPrompts {
     // What the triggers and face buttons do right now (at most four), e.g. "RT Mine   LT Place".
     static func items(_ g: Game) -> [String] {
+        // Vehicles and guns have their own layouts (VehicleControls.swift, Guns.swift).
+        if let s = g.world.ships.pilot { return VehicleControls.prompts(g, s) }
+        if Turrets.shared.active { return Turrets.shared.prompts() }
         var out: [(Prompt.Act, String)] = []
-        // Piloting a ship (ShipPlay): the helm owns the buttons.
-        if g.world.ships.pilot != nil {
-            return [Prompt.g(.move) + " Steer", Prompt.g(.jump) + " Climb", Prompt.g(.sneak) + " Leave Helm"]
-        }
-        // A held gun (Ballistics): fire, aim and reload replace mine / place.
-        if g.heldGun != nil {
-            return [Prompt.g(.attack) + " Fire", Prompt.g(.use) + " Aim", Prompt.g(.reload) + " Reload"]
-        }
         if g.riding != nil { out.append((.sneak, "Dismount")) }
         let held = g.held
+        if let gi = g.heldGun {
+            out = [(.attack, "Fire"), (.use, "Aim"), (.reload, "Reload")]
+            if Guns.all[gi].auto { out[0].1 = "Fire (hold)" }
+            out.append((.wheel, "Weapons"))
+            return out.map { Prompt.g($0.0) + " " + $0.1 }
+        }
+        if let hit = g.mobs.raycast(g.player.eye, g.player.look, maxDist: 4), Turrets.canMan(hit.0) {
+            out.append((.use, "Man the gun"))
+        }
+        if let st = g.world.ships.target {
+            let b = st.ship.grid.get(st.cell.x, st.cell.y, st.cell.z)
+            if ShipParts.kinds[Int(b)] == .helm { out.append((.use, "Steer")); out.append((.sneak, "+ Use: Dock")) }
+        } else if let t = g.target, ShipParts.kinds[Int(g.world.block(t.hit.x, t.hit.y, t.hit.z))] == .helm {
+            out.append((.use, "Launch vehicle"))
+        }
         if let t = g.target {
             out.append((.attack, g.survival ? "Mine" : "Break"))
             if g.isInteractive(t.hit) || g.isCircuitInteractive(t.hit) {
@@ -270,6 +286,7 @@ enum HudExtras {
         Feedback.tick(g)
         Narrator.shared.tick(g)
         BugNotes.shared.tick(g)
+        MapCache.shared.tick(g)
     }
     // All extra lines for this frame (drawn after the normal HUD, before the F3 overlay).
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
@@ -294,6 +311,7 @@ enum HudExtras {
         out += prompts
         let top = prompts.map { $0.y }.min() ?? (L.H - L.insetY - 6 * L.s)
         out += Subtitles.shared.lines(g, L, bottom: top - 4 * L.s)
+        if g.menu == nil && g.alive { out = Minimap.lines(g, L) + CombatHUD.shared.lines(g, L) + out }
         return out
     }
 }

@@ -79,13 +79,15 @@ final class PadManager {
 
     private(set) var lastRaw = PadSnapshot()   // physical buttons this frame / last frame (button mapping capture)
     private(set) var prevRaw = PadSnapshot()
+    private(set) var lastMapped: PadSnapshot?   // this frame's mapped pad (nil = none); for code outside Game.tick's p/q
 
     // This frame's pad state with the button mapping applied (nil when no pad).
     func read() -> PadSnapshot? {
-        guard let raw = readRaw() else { prevRaw = lastRaw; lastRaw = PadSnapshot(); return nil }
+        guard let raw = readRaw() else { prevRaw = lastRaw; lastRaw = PadSnapshot(); lastMapped = nil; return nil }
         prevRaw = lastRaw
         lastRaw = raw
-        return PadMap.apply(raw)
+        lastMapped = PadMap.apply(raw)
+        return lastMapped
     }
 
     private func readRaw() -> PadSnapshot? {
@@ -201,7 +203,10 @@ enum Feedback {
         guard pm.connected && pm.usingPad && Settings.shared.rumble > 0 else { return }
         switch s {
         case .hurt: pm.rumble(0.8, 0.18, sharpness: 0.6)
-        case .explode: pm.rumble(max(0.25, near), 0.45, sharpness: 0.2)
+        case .explode:
+            // Felt out to ~40 blocks (cannon fire, distant blasts), strongest close by.
+            let d = pos.map { simd_length($0 - g.player.eye) } ?? 0
+            if d < 40 { pm.rumble(max(0.2, 1 - d / 16) * min(1, 0.5 + v * 0.5), 0.45, sharpness: 0.2) }
         case .thunder: pm.rumble(0.35, 0.5, sharpness: 0.1)
         case .breakBlock: if near > 0.55 { pm.rumble(0.35, 0.06, sharpness: 0.7) }
         case .place: if near > 0.55 { pm.rumble(0.14, 0.035, sharpness: 0.8) }
@@ -209,6 +214,14 @@ enum Feedback {
         case .bow: pm.rumble(0.4, 0.08, sharpness: 0.6)
         case .land: pm.rumble(0.5 * v, 0.1, sharpness: 0.3)
         case .levelUp: pm.rumble(0.4, 0.25, sharpness: 0.5)
+        case .gun(let k):
+            // Own shots (at the player) by gun: rifle, chatter, shotgun, farsight, launcher, arc; 9 = deck gun boom.
+            let mine = pos == nil || near > 0.9
+            let table: [Int: (Float, Float, Float)] = [0: (0.35, 0.05, 0.8), 1: (0.25, 0.035, 0.9), 2: (0.85, 0.12, 0.35), 3: (0.9, 0.14, 0.4),
+                                                      4: (0.8, 0.22, 0.2), 5: (0.5, 0.12, 0.7), 7: (0.12, 0.03, 1), 9: (0.9, 0.3, 0.15)]
+            if let t = table[k] { pm.rumble(mine ? t.0 : t.0 * near * 0.6, t.1, sharpness: t.2) }
+        case .gunReload: if pos == nil || near > 0.9 { pm.rumble(0.18, 0.04, sharpness: 0.9) }   // magazine seated
+        case .bulletWhizz: if near > 0.7 { pm.rumble(0.15, 0.04, sharpness: 0.9) }               // a near miss
         case .dig: if near > 0.55 { pm.rumble(0.15, 0.03, sharpness: 0.9) }
         case .pickup: pm.rumble(0.1, 0.03, sharpness: 0.9)
         case .eat: pm.rumble(0.12, 0.05, sharpness: 0.3)
@@ -220,8 +233,29 @@ enum Feedback {
 
 extension Feedback {
     static var heartTimer: Double = 0
+    static var lastShipVel: [Int: V3] = [:]
+    static var lastShipBlocks: [Int: Int] = [:]
+    static var lastClock: Double = 0
+    // Vehicle impacts: a sudden change of the ship's velocity while aboard (crash, landing, ramming), and
+    // hull hits (the vessel losing blocks to shells or explosions).
+    static func vehicleTick(_ g: Game) {
+        guard let s = g.world.ships.aboard ?? g.world.ships.pilot else { lastShipVel.removeAll(); lastShipBlocks.removeAll(); return }
+        let dt = max(0.004, Float(g.clock - lastClock))
+        lastClock = g.clock
+        if let v0 = lastShipVel[s.id] {
+            let accel = simd_length(s.vel - v0) / dt
+            if accel > 18 { PadManager.shared.rumble(min(1, (accel - 18) / 50 + 0.3), 0.18, sharpness: 0.25) }
+        }
+        if let b0 = lastShipBlocks[s.id], s.blockCount < b0 {
+            let lost = Float(b0 - s.blockCount)
+            PadManager.shared.rumble(min(1, 0.35 + lost / 20), 0.25, sharpness: 0.3)
+        }
+        lastShipVel = [s.id: s.vel]
+        lastShipBlocks = [s.id: s.blockCount]
+    }
     // Per frame: a heartbeat pulse while health is low in survival.
     static func tick(_ g: Game) {
+        if PadManager.shared.usingPad && Settings.shared.rumble > 0 { vehicleTick(g) }
         guard g.survival, g.alive, g.health <= 4, g.menu == nil, !g.paused else { heartTimer = 0; return }
         if g.clock - heartTimer > 1.1 {
             heartTimer = g.clock

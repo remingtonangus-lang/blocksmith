@@ -218,8 +218,8 @@ final class Game {
             sfx(.gunDistant(k), v, at: p)
             return
         }
-        Feedback.sound(self, s, v, at: pos)
         if audio.record != nil { audio.record![s.name, default: 0] += 1 }
+        Feedback.sound(self, s, v, at: pos)        // rumble + the one subtitle system (HudExtras, AudioSettings.subtitles)
         guard let snd = sound else { return }
         let occ = pos.map { audioOcclusion(player.eye, $0) } ?? 0
         snd.play(s, volume: v, at: pos, occlusion: occ)
@@ -569,16 +569,19 @@ final class Game {
         if input.tapped(KeyBinds.key(.inventory)) || (p.y && !q.y) { openInventory(); return }
         if input.tapped(KeyBinds.key(.advancements)) { openMenu(AdvancementMenu(game: self)); return }
 
-        // Look
-        if input.captured {
-            let sens: Float = 0.0022 * sensitivity
+        // Look (the weapon wheel takes the sticks / mouse while open; aiming down sights slows the view)
+        let wheelOpen = WeaponWheel.shared.tick(self, p, q, fdt)
+        let adsK = AimAssist.lookScale(self)
+        if input.captured && !wheelOpen {
+            let sens: Float = 0.0022 * sensitivity * adsK
             player.yaw -= input.mouseDX * sens
             player.pitch -= input.mouseDY * sens * (invertY ? -1 : 1)
         }
-        let look = PadLook.shared.update(rx: p.rx, ry: p.ry, dead: deadZone, sensitivity: sensitivity, invert: invertY,
-                                         friction: AimAssist.friction(self), dt: fdt)
+        let look = wheelOpen ? V2(0, 0) : PadLook.shared.update(rx: p.rx, ry: p.ry, dead: deadZone, sensitivity: sensitivity * adsK, invert: invertY,
+                                                              friction: AimAssist.friction(self), dt: fdt)
         player.yaw += look.x
         player.pitch += look.y
+        AimAssist.gunTick(self, p, q, fdt)
         player.pitch = simd_clamp(player.pitch, -1.55, 1.55)
         player.yaw = player.yaw.truncatingRemainder(dividingBy: 2 * .pi)
 
@@ -627,15 +630,20 @@ final class Game {
         if input.tapped(Key.slash) { openMenu(CommandMenu(game: self, prefill: "/")); return }
         if input.tapped(Key.f2) || (p.share && !q.share) { screenshotRequested = true }
         if PadActions.extras(p, q, self) { return }
-        if input.tapped(KeyBinds.key(.camera)) || (p.view && !q.view) { cameraMode = (cameraMode + 1) % 3 }
+        if input.tapped(KeyBinds.key(.map)) { openMenu(MapMenu(game: self)); return }
+        // View: a tap cycles the camera, holding it opens the world map (WorldMap.swift).
+        if input.tapped(KeyBinds.key(.camera)) || MapInput.viewTap(self, p, q) { cameraMode = (cameraMode + 1) % 3 }
+        if menu != nil { return }
         if input.tapped(KeyBinds.key(.drop)) { dropHeld(all: input.control) }
 
         // Hotbar
         for (i, k) in Key.digits.enumerated() where input.tapped(k) { select(i) }
         if input.scrollSteps != 0 { select(selected - input.scrollSteps) }
-        if p.rb && !q.rb { select(selected + 1) }
-        if p.lb && !q.lb { select(selected - 1) }
+        let bumpersFree = world.ships.pilot == nil      // at the helm RB / LB climb and descend
+        if bumpersFree && p.rb && !q.rb && !WeaponWheel.shared.ownsRB(self) { select(selected + 1) }
+        if bumpersFree && p.lb && !q.lb { select(selected - 1) }
 
+        if Turrets.shared.tick(self, p, q, sneak: mi.sneak, dt: fdt) { updateFov(Float(dt)); advance(dt); return }
         let before = player.pos
         if let r = riding, r.health <= 0 { dismount() }
         if riding != nil {
@@ -673,6 +681,10 @@ final class Game {
         let breakNow = input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5)
         let useHeld = input.rightDown || p.lt > 0.5
         let useNow = input.rightClicked || (p.lt > 0.5 && q.lt <= 0.5)
+        // Deck guns: use one to take its controls (VehicleControls.swift).
+        if useNow, world.ships.pilot == nil, let hit = mobs.raycast(player.eye, player.look, maxDist: 4), Turrets.canMan(hit.0) {
+            Turrets.shared.mount(self, hit.0); return
+        }
         // A held gun fires even when aimed at a ship (unless piloting one, where the helm owns the buttons).
         if world.ships.pilot == nil && gunInteract(p, q, fire: breakHeld, firePressed: breakNow, aim: useHeld, dt: fdt) { mining = nil; return }
         if shipInteract(breakHeld: breakHeld, breakNow: breakNow, useNow: useNow, sneak: input.shift || p.b, dt: fdt) { return }
@@ -1476,6 +1488,7 @@ final class Game {
     // Mob hits on the player: armor-reduced damage plus knockback away from the attacker.
     func hurtPlayer(_ amount: Int, from src: V3, cause: String, knockback: Float = 1, type: DamageType = .generic, attacker: Mob? = nil) {
         guard survival, alive, amount > 0 else { return }
+        CombatHUD.shared.hurt(self, from: src, amount: amount)
         if let a = attacker { petsAttack(a) }
         if shieldBlocks(amount, from: src, type: type, attacker: attacker) { return }
         var amount = amount

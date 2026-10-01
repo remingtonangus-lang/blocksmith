@@ -124,14 +124,12 @@ extension Game {
         // Teleported, respawned or knocked away: no longer at the helm.
         if simd_length(at - player.pos) > 4 { leaveHelm(); return false }
         if mi.sneak { leaveHelm(); return false }
-        let pad = readPad()
         s.piloted = true
-        s.throttle = max(-1, min(1, mi.forward))
-        s.steer = max(-1, min(1, mi.strafe))
-        var climb: Float = 0
-        if mi.jump || (pad?.rb ?? false) { climb += 1 }
-        if input.control || (pad?.lb ?? false) { climb -= 1 }
-        s.climb = climb
+        // Per-vehicle keyboard / controller layout (VehicleControls.swift).
+        let c = VehicleControls.read(self, s, mi)
+        s.throttle = c.throttle
+        s.steer = c.steer
+        s.climb = c.climb
         // Turrets follow the view.
         for t in ships.turrets(of: s) {
             var rel = player.yaw - s.yaw
@@ -158,7 +156,7 @@ extension Game {
         if let stand = helmStand(s) { player.pos = s.toWorld(stand) }
         player.flying = false
         sfx(.helmTake, 0.8, at: player.pos)
-        onToast?("Steering \(s.name): W/S throttle, A/D turn, Space/Ctrl climb, click fire, Shift leave")
+        onToast?("Steering \(s.name) (\(VehicleControls.name(VehicleControls.kind(s))))")   // controls show as prompts
     }
 
     func leaveHelm() {

@@ -192,7 +192,8 @@ enum Glyphs {
 enum Prompt {
     enum Act {
         case jump, sneak, sprint, attack, use, pick, drop, inventory, hotbar, fly, camera, pause, offhand, chat, screenshot
-        case select, back, alt, quick, tabs, scroll, keyboard, delete, space, shift, done, move, reload
+        case select, back, alt, quick, tabs, scroll, keyboard, delete, space, shift, done, move
+        case reload, wheel, map
     }
 
     static var pad: Bool {
@@ -213,7 +214,7 @@ enum Prompt {
             case .sprint: return m(.l3)
             case .attack: return m(.rt)
             case .use: return m(.lt)
-            case .pick, .alt, .delete, .reload: return m(.x)
+            case .pick, .alt, .delete: return m(.x)
             case .drop: return m(.ddown)
             case .inventory, .quick, .keyboard, .space: return m(.y)
             case .hotbar, .tabs: return m(.lb) + m(.rb)
@@ -226,6 +227,9 @@ enum Prompt {
             case .scroll: return m(.rs)
             case .shift: return m(.lt)
             case .move: return m(.ls)
+            case .reload: return m(.x)
+            case .wheel: return m(.rb) + "(hold)"
+            case .map: return m(.view) + "(hold)"
             }
         }
         switch a {
@@ -245,7 +249,6 @@ enum Prompt {
         case .offhand: return Glyphs.key(KeyBinds.name(KeyBinds.key(.offhand)))
         case .chat: return Glyphs.key(KeyBinds.name(KeyBinds.key(.chat)))
         case .screenshot: return Glyphs.key("F2")
-        case .reload: return Glyphs.key(KeyBinds.name(KeyBinds.key(.reload)))
         case .quick: return Glyphs.key("Shift") + Glyph.mouseL.s
         case .tabs: return Glyphs.key("Tab")
         case .scroll: return Glyph.mouseM.s
@@ -253,6 +256,9 @@ enum Prompt {
         case .delete: return Glyphs.key("Del")
         case .done: return Glyphs.key("Enter")
         case .move: return Glyphs.key([KeyBinds.Action.forward, .left, .back, .right].map { KeyBinds.name(KeyBinds.key($0)) }.joined())
+        case .reload: return Glyphs.key(KeyBinds.name(KeyBinds.key(.reload)))
+        case .wheel: return Glyphs.key(KeyBinds.name(KeyBinds.key(.weapons))) + "(hold)"
+        case .map: return Glyphs.key(KeyBinds.name(KeyBinds.key(.map)))
         }
     }
 
@@ -275,6 +281,7 @@ enum Prompt {
         }
         if m is DeathMenu { return line([(.select, "Select")]) }
         if let pm = m as? PauseMenu { return pm.legend }
+        if let cm = m as? CustomDrawnMenu { return cm.legend }
         if m.capturesText && !(m is CreativeMenu) {
             return pad ? line([(.keyboard, "Keyboard"), (.select, "Select"), (.back, "Close")]) : line([(.select, "Select"), (.back, "Close")])
         }

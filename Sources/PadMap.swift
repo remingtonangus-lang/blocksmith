@@ -6,8 +6,9 @@ import Foundation
 // The Menu button and the analog triggers/sticks are fixed.
 enum PadMap {
     static let names = ["A", "B", "X", "Y", "LB", "RB", "L3", "R3", "View", "D-pad Up", "D-pad Down", "D-pad Left", "D-pad Right"]
-    static let actions = ["Jump / Select", "Sneak / Back", "Pick Block / Split", "Inventory / Quick Move", "Hotbar Left", "Hotbar Right",
-                          "Sprint", "Sneak", "Camera View", "Fly", "Drop", "Commands", "Swap Off Hand"]
+    // What each logical button does (gameplay / menus / guns / vehicles); remapping moves all of them together.
+    static let actions = ["Jump / Select", "Sneak / Back / Leave", "Pick Block / Reload", "Inventory / Quick Move", "Hotbar Left / Descend",
+                          "Hotbar Right / Weapon Wheel", "Sprint", "Sneak", "Camera / World Map (hold)", "Fly", "Drop", "Commands", "Swap Off Hand"]
     static let glyphs: [Glyph] = [.a, .b, .x, .y, .lb, .rb, .l3, .r3, .view, .dup, .ddown, .dleft, .dright]
     static var count: Int { names.count }
 
