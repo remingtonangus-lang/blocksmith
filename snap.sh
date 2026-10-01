@@ -17,7 +17,7 @@ for f in step_stone step_wood step_gravel break_glass break_wood place_metal doo
          mob_cow_ambient mob_zombie_ambient mob_skeleton_hurt mob_enderman_ambient mob_ghast_ambient mob_villager_ambient mob_warden_death \
          dragonGrowl wardenRoar witherSpawn villager_work_0 birdCall owlHoot bell levelUp note_0_12 \
          gun_0 gun_1 gun_2 gun_3 gun_4 gun_5 gun_9 gun_10 gun_reload_0 gun_distant_0 bulletWhizz bullet_impact_metal soldier_1_alert soldier_3_death \
-         engineFullLoop propFastLoop hullCreak shipCollideHard waterfallLoop riverLoop mountainWindLoop thunderFar; do
+         engineFullLoop propFastLoop wingRushLoop frigateDroneLoop carriageTreadLoop hullCreak shipCollideHard waterfallLoop riverLoop mountainWindLoop thunderFar; do
   cp "build/sounds/$f.wav" snaps/sounds/ 2>/dev/null || true
 done
 cp -r build/sounds/scapes snaps/sounds/scapes

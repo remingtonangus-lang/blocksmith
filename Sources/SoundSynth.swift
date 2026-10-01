@@ -919,6 +919,7 @@ struct Synth {
         case .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop, .thunderFar, .iceCreak, .rockfall:
             out = TerrainAudio.render(&self, s, p: p)
         case .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
+             .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop,
              .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart:
             out = VehicleAudio.render(&self, s, p: p)
         case .shipCannon:
