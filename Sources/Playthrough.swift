@@ -528,9 +528,22 @@ final class Playthrough {
         check(dia != nil, "worldgen: diamond ore within 80 blocks of spawn")
         if let d = dia {
             check(!Mining.canHarvest(world.block(d.x, d.y, d.z), ItemStack(id("stone_pickaxe"), 1)), "rules: stone pickaxe can't harvest diamond ore")
-            _ = hold("iron_pickaxe")
-            if mine(d) { collect(near: center(d)) }
-            check(count("diamond") >= 1, "mine: diamond with an iron pickaxe at y \(d.y - YOFF) (\(count("diamond")))")
+            // Up to four ores: a drop can fall into lava or a crevice down there (the iron step retries the same way).
+            var next: IVec3? = d
+            var attempts = 0
+            while let o = next, count("diamond") == 0, attempts < 4 {
+                attempts += 1
+                _ = hold("iron_pickaxe")
+                let ok = mine(o)
+                if ok { collect(near: center(o)) }
+                if count("diamond") == 0 {
+                    info(String(format: "diamond attempt %ld at %ld %ld %ld: mined %@, now %@, %ld drops near", attempts, o.x, o.y - YOFF, o.z,
+                                ok ? "yes" : "no", baseKey(world.block(o.x, o.y, o.z)), game.drops.items.filter { simd_length($0.pos - self.center(o)) < 12 }.count))
+                    if baseKey(world.block(o.x, o.y, o.z)).hasSuffix("diamond_ore") { world.setBlock(o.x, o.y, o.z, STONE) }
+                    next = findBlock(near: IVec3(home.x, 0, home.z), radius: 5 * CS, yRange: 1...(YOFF + 16), { $0 == "diamond_ore" || $0 == "deepslate_diamond_ore" })
+                }
+            }
+            check(count("diamond") >= 1, "mine: diamond with an iron pickaxe at y \(d.y - YOFF) (\(count("diamond")), \(attempts) ore\(attempts == 1 ? "" : "s"))")
         }
         if count("diamond") < 5 { give("diamond", 5 - count("diamond"), bulk: "more diamonds") }
         craft(["DDD", " S ", " S "], ["D": "diamond", "S": "stick"], "diamond_pickaxe")
