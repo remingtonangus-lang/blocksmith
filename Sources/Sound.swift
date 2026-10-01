@@ -193,6 +193,7 @@ enum Snd: Hashable {
         case .gunReload: return 0.4...2.5
         case .gunDistant: return 0.5...6
         case .thunderFar: return 2...9
+        case .explodeLarge: return 1.5...8
         case .bulletImpact, .bulletFlesh, .grenadeBounce, .soldierStep: return 0.03...1.2
         case .bulletWhizz: return 0.1...0.6
         case .soldier: return 0.15...3
