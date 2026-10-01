@@ -1,0 +1,99 @@
+import Foundation
+import Metal
+import simd
+
+// Launch-and-play smoke test (CI): `Blocksmith --smoke <seconds> --rd N [--seed S]`.
+// Builds the whole game the way the app does (world streaming, Game, Renderer), then plays in real time
+// through Game.tick with a simulated controller while every frame goes through the full renderFrame path
+// (Fancy HDR world, shadows, water, post, HUD) into an offscreen target:
+//   walk + sprint + jump with a slow turn, open/close the inventory and the pause menu, then fly fast to
+//   push chunk streaming. Exits non-zero on a non-finite player position or a stalled world; a crash fails
+//   the step by itself. Prints frame-time percentiles, streaming coverage, mob count and peak memory, and
+//   writes snaps/smoke_rd<N>.png at the end.
+enum Smoke {
+    static func run() -> Int32 {
+        let args = CommandLine.arguments
+        func arg(_ name: String) -> String? {
+            guard let i = args.firstIndex(of: name), i + 1 < args.count else { return nil }
+            return args[i + 1]
+        }
+        let seconds = Double(arg("--smoke") ?? "") ?? 60
+        let rd = Int(arg("--rd") ?? "") ?? 8
+        let seed = UInt64(arg("--seed") ?? "") ?? 12345
+        guard let device = MTLCreateSystemDefaultDevice() else { print("smoke: no Metal device"); return 2 }
+        PrefsSandbox.begin()                                   // never touch the saved options
+        defer { PrefsSandbox.end() }
+        let (world, game, p0) = Bench.setup(device, seed, rd: rd)
+        game.survival = false
+        game.player.flying = false
+        game.fancyGraphics = true
+        _ = world.loadSync(center: p0, radius: min(rd, 6))
+        let W = 1280, H = 720
+        guard let r = try? Renderer(device: device, game: game, colorFormat: .bgra8Unorm),
+              let target = OffscreenTarget(device, W, H) else { print("smoke: renderer init failed"); return 2 }
+        game.screen = V2(Float(W), Float(H))
+        let dt = 1.0 / 60
+        let frames = Int(seconds / dt)
+        var frameMs: [Double] = []
+        frameMs.reserveCapacity(frames)
+        var minCov = 1.0, peak = residentMB(), maxMobs = 0
+        let start = CFAbsoluteTimeGetCurrent()
+        let flyAt = frames / 2
+        for i in 0..<frames {
+            // Scripted controller: forward (sprinting), slow turn, a jump every 2 s; the inventory at 10 s and
+            // the pause menu at 20 s (each closed half a second later); flight from the halfway mark.
+            var p = PadSnapshot()
+            let t = Double(i) * dt
+            p.ly = 1
+            p.rx = 0.25
+            if i % 120 < 6 && i < flyAt { p.a = true }
+            if i == 600 { p.y = true }                         // inventory open
+            if i == 630 { p.b = true }                         // ... and closed
+            if i == 1200 || i == 1230 { p.menu = true }        // pause / resume
+            if i == flyAt { game.player.flying = true; game.player.vel.y = 0 }
+            if i > flyAt && i < flyAt + 60 { p.a = true }      // climb above the terrain
+            if i > flyAt { p.rx = 0.05 }
+            PadManager.shared.simulated = p
+            let b = CFAbsoluteTimeGetCurrent()
+            game.tick(dt)
+            if i > flyAt {
+                // Fly at 20 blocks/s (like the benchmark flights) so streaming is stressed at every distance.
+                let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
+                game.player.pos += f * Float(20 * dt)
+                let gy = Float(world.topY(Int(floor(game.player.pos.x)), Int(floor(game.player.pos.z))) + 12)
+                if game.player.pos.y < gy { game.player.pos.y = gy }
+            }
+            guard let cmd = r.queue.makeCommandBuffer() else { print("smoke: no command buffer"); return 2 }
+            let fence = MeshArena.frameSubmitted()
+            cmd.addCompletedHandler { _ in MeshArena.frameCompleted(fence) }
+            r.renderFrame(cmd, final: target.rpd, width: W, height: H)
+            cmd.commit()
+            cmd.waitUntilCompleted()
+            frameMs.append((CFAbsoluteTimeGetCurrent() - b) * 1000)
+            let pp = game.player.pos
+            guard pp.x.isFinite && pp.y.isFinite && pp.z.isFinite else {
+                print("smoke rd \(rd): FAIL player position became \(pp) at \(String(format: "%.1f", t)) s"); return 1
+            }
+            if i % 30 == 0 {
+                minCov = min(minCov, i > 120 ? Bench.coverage(world, pp) : 1)
+                peak = max(peak, residentMB())
+                maxMobs = max(maxMobs, game.mobs.mobs.count)
+            }
+            let slack = start + Double(i + 1) * dt - CFAbsoluteTimeGetCurrent()
+            if slack > 0 { usleep(useconds_t(slack * 1e6)) }
+        }
+        PadManager.shared.simulated = nil
+        let wall = CFAbsoluteTimeGetCurrent() - start
+        let sorted = frameMs.sorted()
+        func pct(_ q: Double) -> Double { sorted.isEmpty ? 0 : sorted[min(sorted.count - 1, Int(Double(sorted.count) * q))] }
+        let dist = simd_length(V2(game.player.pos.x - p0.x, game.player.pos.z - p0.z))
+        print(String(format: "smoke rd %d: %d frames in %.1f s wall, frame p50 %.2f p95 %.2f p99 %.2f max %.2f ms, coverage min %.0f%%, mobs max %d, travelled %.0f blocks, resident peak %.0f MB, menu %@",
+                     rd, frames, wall, pct(0.5), pct(0.95), pct(0.99), sorted.last ?? 0, minCov * 100, maxMobs, dist, peak,
+                     game.menu == nil && !game.paused ? "closed" : "STILL OPEN"))
+        _ = r.renderToPNG(path: "snaps/smoke_rd\(rd).png", width: 960, height: 540)
+        if dist < 100 { print("smoke rd \(rd): FAIL the player only moved \(Int(dist)) blocks (input or tick stalled)"); return 1 }
+        if game.menu != nil || game.paused { print("smoke rd \(rd): FAIL a menu or the pause screen is still open"); return 1 }
+        print("smoke rd \(rd): PASS")
+        return 0
+    }
+}

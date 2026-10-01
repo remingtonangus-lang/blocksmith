@@ -908,6 +908,11 @@ enum Snapshot {
     }
 }
 
+if CommandLine.arguments.contains("--smoke") {
+    // Launch-and-play smoke test at one render distance (Smoke.swift, smoke.sh); exits non-zero on a failure.
+    exit(Smoke.run())
+}
+
 if CommandLine.arguments.contains("--playthrough") {
     // Scripted start-to-credits playthrough + the Blight (Playthrough.swift); exits non-zero on a failed check.
     exit(Playthrough.run())
