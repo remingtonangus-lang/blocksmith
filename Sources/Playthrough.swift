@@ -486,7 +486,10 @@ final class Playthrough {
         info("coal from ore: \(count("coal"))")
         if count("raw_iron") < 6 { give("raw_iron", 6 - count("raw_iron"), bulk: "more iron ore") }
         // Place the furnace with a right click on the ground next to spawn, then smelt.
-        let fp = IVec3(home.x + 2, world.topY(home.x + 2, home.z) + 1, home.z)
+        // (The first solid block: shrubs, grass and leaf litter on top don't count; the furnace replaces them.)
+        var gy = world.topY(home.x + 2, home.z)
+        while gy > 1 && !Blocks.collide[Int(world.block(home.x + 2, gy, home.z))] { gy -= 1 }
+        let fp = IVec3(home.x + 2, gy + 1, home.z)
         _ = hold("furnace")
         standBeside(fp + IVec3(0, -1, 0))
         game.player.pos = V3(Float(fp.x) + 0.5, Float(fp.y) + 1.5, Float(fp.z) + 2.5)

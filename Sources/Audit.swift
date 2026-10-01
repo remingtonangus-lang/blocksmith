@@ -10,7 +10,7 @@ enum Audit {
     // UserDefaults keys stored outside Settings (Game, HudLayout, renderer, worlds, bindings).
     static let otherKeys = ["fancyGraphics", "fancyWorldScale", "invertY", "autoJump", "deadZone", "fov", "sensitivity",
                             "guiScale", "couchMode", "renderDistance", "lastWorld", "padMap", "dynamicResolution",
-                            "volume", "musicVolume", "audio_subtitles"]
+                            "volume", "musicVolume"]                  // ("audio_subtitles" is Settings.subtitles now)
     // Keys the game reads directly: Esc, Enter, F1 HUD, F2 screenshot, F3 debug, F7 bug notes, / commands, 1-9 hotbar.
     static let fixedKeys: [UInt16] = [Key.esc, Key.enter, Key.f1, Key.f2, Key.f3, 98, Key.slash] + Key.digits
 
