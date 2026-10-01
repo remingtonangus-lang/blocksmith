@@ -208,8 +208,11 @@ enum OverworldStructures {
     static func ruinedPortal(_ gen: WorldGen) -> StructureType {
         StructureType(name: "ruined_portal", spacing: 40, separation: 15, salt: 34222645, reach: 1) { [unowned gen] seed, cx, cz in
             let x = cx * CS + 8, z = cz * CS + 8
+            if abs(x) < 64 && abs(z) < 64 { return nil }          // keep the spawn area clear
             let y = gen.groundY(x, z)
             guard y > YOFF + 10 else { return nil }
+            // Only on ground that is roughly level across the footprint (no half-hanging frames).
+            for (dx, dz) in [(-5, -3), (5, -3), (-5, 3), (5, 3)] where abs(gen.groundY(x + dx, z + dz) - y) > 3 { return nil }
             let s = seed
             let underwater = y < SEA
             return StructureStart(kind: "ruined_portal", pieces: [piece(x - 5, y - 3, z - 3, x + 5, y + 7, z + 3) { w in ruinedPortalBuild(&w, x, y, z, s, underwater) }],
@@ -224,13 +227,17 @@ enum OverworldStructures {
         for dz in -3...3 { for dx in -5...5 where hashf(cx + dx, 0, cz + dz, UInt32(truncatingIfNeeded: seed)) < 0.65 {
             w.set(cx + dx, y, cz + dz, rng.chance(0.15) ? mag : nr)
         } }
-        // Broken 4x5 frame (interior 2x3), missing a few blocks.
-        for i in -1...2 { for j in 0...4 {
-            let edge = i == -1 || i == 2 || j == 0 || j == 4
-            guard edge else { continue }
-            if rng.chance(0.28) { continue }
-            w.set(cx + i, y + 1 + j, cz, rng.chance(0.12) ? cry : obs)
-        } }
+        // Earth under the patch and frame down to the real ground, so nothing floats.
+        for dz in -3...3 { for dx in -5...5 { w.pillarDown(cx + dx, y - 1, cz + dz, DIRT, minY: y - 10) } }
+        // Broken 4x5 frame (interior 2x3): each side pillar is worn down from the top, and a lintel block
+        // only stays where the pillar under its end is whole, so no piece hangs in the air.
+        let leftH = 5 - rng.int(3), rightH = 5 - rng.int(3)
+        func stone() -> BlockID { rng.chance(0.12) ? cry : obs }
+        for j in 0..<leftH { w.set(cx - 1, y + 1 + j, cz, stone()) }
+        for j in 0..<rightH { w.set(cx + 2, y + 1 + j, cz, stone()) }
+        for i in 0...1 where rng.chance(0.8) { w.set(cx + i, y + 1, cz, stone()) }
+        if leftH == 5 { w.set(cx, y + 5, cz, stone()); if rightH == 5 && rng.chance(0.7) { w.set(cx + 1, y + 5, cz, stone()) } }
+        else if rightH == 5 { w.set(cx + 1, y + 5, cz, stone()) }
         if rng.chance(0.3) { w.set(cx + 3, y + 1, cz + 1, gold) }
         w.chest(cx - 3, y + 1, cz + 1, loot: "ruined_portal", seed: rng.next(), facing: 1)
         _ = wet

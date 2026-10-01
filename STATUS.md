@@ -111,6 +111,32 @@ B close, RS scroll creative.
 - Landing / sprint dust, item equip animation, denser rain with ground splashes lit by daylight.
 - Village life: beds and sleeping, food pickup + breeding, farmers harvesting, golems, midnight zombie sieges.
 
+## Handoff (2026-10-01, session claude/eloquent-lovelace-bsc5v1 winding down)
+Last pushed commit d92f9b0: build + 120 snapshots green on CI (ci-snaps-claude-eloquent-lovelace-bsc5v1).
+Built in this session (latest round): Blocksmith naming pass + selftest naming audit (0 flagged); pause/options/
+create-world/death/title menus; recipe book; F1/F2/F5 + third-person player model; command console; mob A*
+pathfinding (doors for villagers/illagers); swim/crawl/forced-crouch poses; auto-jump; Ashen Grove biome (Ashbark
+wood family, moss, nightblooms, Barkwraith + heart); resin, bamboo planks/mosaic, firefly bush, bush, leaf litter,
+wildflowers, dry grass, cactus flowers; leaning wall torches; solid/cutout render split, fast far leaves, pooled
+mesh slabs; reference torch-light curve; ruined portals grounded and kept out of spawn; trees kept out of structure
+footprints; per-branch CI snapshot branches; harness: median-of-30 timing, memory/light probes, camera rescue,
+cave-biome --find, --ground, --nightvision, --treecheck, --pathtest, --camera/--swim.
+Left in this area (for the integration session):
+- Underwater view: seabed is no longer black (water-coloured ambient) but the underwater fog ends at 20 blocks, so
+  deep floors (seabed_warm/seabed_deep, ~27-33 blocks away) vanish into flat blue; lengthen underwater fog by depth/
+  daylight (reference sees ~40-60 blocks in clear daytime water).
+- rd 24 resident ~2.0-2.3 GB on the Mac vs ~1 GB accounted (see notes below) - performance work.
+- Wall torches lean in 1/16 steps (boxes are integer); a real tilt needs fractional model vertices.
+- treecheck reports 1-3 trunks per 200 in a neighbouring biome (trees straddling biome borders) - expected.
+Known failing tests: none (snap.sh and --selftest pass on CI at d92f9b0).
+
+## Notes for the parallel sessions
+- Performance session: rd 24 resident is ~2.3 GB on the Mac while block+light arrays are ~740 MB (2601 chunks x ~285 KB)
+  and Metal ~218 MB (harness prints both). Unaccounted ~1.3 GB: suspects are per-job mesher scratch (48^3 regions,
+  n9 copies), generation lattices and allocator high-water. Uniform sections (all air / all stone) could skip their
+  block+light arrays. This branch's pooled mesh slabs (MeshArena.swift) already removed the per-section 16 KB pages.
+- Visuals session: distant ocean at night shows faint chunk-seam grid on the water surface (QA, seed 777).
+
 ## Known gaps / decisions
 - Save format changed with the engine rework (chunks3/, name-paletted); worlds from the 8-bit engine start fresh terrain.
 - Terrain is generated with our own noises and numbers: same features, biome logic, rarities and ore distributions as the reference game, but not seed-identical worlds.
@@ -121,5 +147,5 @@ B close, RS scroll creative.
   game's ambient + default-brightness gamma.
 - Mobs are saved per chunk (mobs.json) and come back when their chunk loads; natural hostiles are not kept.
 - Credits text is original (the reference game's poem is not copied).
-- Wall torches stand upright against the wall (no tilt). Armor trims show in the tooltip (the player model isn't drawn in first person).
+- Armor trims show in the tooltip (the player model isn't drawn in first person).
 - Raids are not saved across a reload (an unfinished raid ends); the void chest, weather and insomnia timer are.
