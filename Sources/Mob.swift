@@ -1476,17 +1476,17 @@ final class MobManager {
             m.update(dt, game: game)
             // Footsteps for walking mobs near the listener (size sets the stride and loudness).
             let dxm = m.pos.x - before.x, dzm = m.pos.z - before.z
-            if m.onGround && dxm * dxm + dzm * dzm > 1e-6 && simd_length_squared(m.pos - p) < 256 {
-                let sp = m.spec
+            if game.sound != nil && m.onGround && dxm * dxm + dzm * dzm > 1e-6 && simd_length_squared(m.pos - p) < 256 {
+                let sp = MobVoice.stepInfo[m.kind.rawValue]
                 let moved: Float = sqrtf(dxm * dxm + dzm * dzm)
-                if moved < 1 && !sp.flying && !sp.aquatic && sp.behavior != .vehicle { m.stepAcc += moved }
-                let stride: Float = 0.9 + sp.halfW * 1.6
+                if moved < 1 && sp.walks { m.stepAcc += moved }
+                let stride: Float = sp.stride
                 if m.stepAcc > stride {
                     m.stepAcc = 0
                     do {
                         let under = w.block(Int(floor(m.pos.x)), Int(floor(m.pos.y - 0.2)), Int(floor(m.pos.z)))
                         if under != AIR {
-                            let vol: Float = min(0.9, 0.2 + sp.halfW * 0.5) * (m.baby ? 0.5 : 1)
+                            let vol: Float = sp.volume * (m.baby ? 0.5 : 1)
                             if let r = Soldier.rank(m.kind) { game.sfx(.soldierStep(r), vol + 0.15, at: m.pos) }
                             else { game.sfx(.step(soundMat(under)), vol, at: m.pos) }
                         }
