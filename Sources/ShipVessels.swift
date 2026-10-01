@@ -271,7 +271,19 @@ extension ShipManager {
             let dist = simd_length(toHome)
             let tangent = V2(-toHome.y, toHome.x) / max(1, dist)
             let want = simd_normalize(tangent + toHome / max(1, dist) * (dist - r) / r)
-            let cross = fh.x * want.y - fh.y * want.x
+            var cross = fh.x * want.y - fh.y * want.x
+            // Look ahead: the frigate climbs over high ground, the carriage turns home before water.
+            let ahead = s.pos + V3(fh.x, 0, fh.y) * 30
+            let ax = Int(floor(ahead.x)), az = Int(floor(ahead.z))
+            if world.isLoaded(ax, az) {
+                let top = world.topY(ax, az)
+                if s.role == "frigate", let base = s.home?.y {
+                    s.hoverY = max(base, Float(top) + 25)
+                } else if s.role == "carriage" && Blocks.isLiquid(world.rawBlock(ax, top, az)) {
+                    let back = simd_normalize(toHome + V2(1e-3, 0))
+                    cross = fh.x * back.y - fh.y * back.x + (cross >= 0 ? 0.5 : -0.5)
+                }
+            }
             let steer = max(-1, min(1, cross * 2))
             s.autopilot = V3(s.role == "frigate" ? 0.45 : 0.5, steer, 0)
             // Guns.
