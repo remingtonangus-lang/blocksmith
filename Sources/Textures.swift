@@ -193,7 +193,14 @@ enum TextureGen {
             if tip < 0.08 { v -= 0.12 }
             return V4(v, v, v, 1)
         }
-        func snowC(_ x: Int, _ y: Int) -> V4 { hex(0xF2F7FF, 0.94 + 0.06 * r(x, y, 19)) }
+        // Snow: soft drifts (faint blue-grey hollows) and a few bright crystals.
+        func snowC(_ x: Int, _ y: Int) -> V4 {
+            let d: Float = blot(x, y, 19, 8)
+            var c = hex(0xF4F8FF, 0.97 + (r(x, y, 20) - 0.5) * 0.03)
+            if d < 0.4 { let t = (0.4 - d) * 0.35; c = V4(c.x - t * 0.6, c.y - t * 0.4, c.z, 1) }
+            if r(x, y, 21) > 0.985 { c = V4(1, 1, 1, 1) }
+            return c
+        }
         func edge(_ x: Int, _ base: Int) -> Int { base + (r(x, 0, 21) > 0.5 ? 1 : 0) + (r(x, 0, 22) > 0.8 ? 1 : 0) }
 
         p["stone"] = stone
