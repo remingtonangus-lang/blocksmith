@@ -759,6 +759,11 @@ enum Snapshot {
                          game.inventory.main.slots.reduce(0) { $0 + $1.count }, game.drops.items.count))
         }
 
+        // Ships (ShipTest.swift): a demo vessel under way, or the scripted physics checks.
+        if let kind = arg("--ship") { pos = ShipTest.scene(kind, game: game, at: pos, rd: rd) }
+        var shipFails = 0
+        if CommandLine.arguments.contains("--physicstest") { shipFails = ShipTest.physicsTest(game: game, rd: rd); pos = game.player.pos }
+
         // Mesh benchmark: re-mesh the section at the camera a few times on one thread.
         let key = ChunkKey(x: floorDiv(Int(pos.x), CS), z: floorDiv(Int(pos.z), CS))
         var n9: [BlockStore] = [], h9: [[Int16]] = []
@@ -831,7 +836,7 @@ enum Snapshot {
                      world.chunks.count, Double(chunkBytes) / 1_048_576, Double(device.currentAllocatedSize) / 1_048_576))
         print(String(format: "memory: resident %.0f MB  (section meshes %.0f MB)", residentMB(), Double(meshBytes) / 1_048_576))
         print("wrote \(out)")
-        return 0
+        return shipFails > 0 ? 1 : 0
     }
 }
 

@@ -27,6 +27,8 @@ final class World {
     }()          // structure mobs waiting for the game to spawn them
     lazy var redstone = Circuit(world: self)
     var portals = Set<IVec3>()
+    lazy var ships = ShipManager(world: self)       // free-moving block structures (Ships.swift)
+    var frame: Ship?                                // while set, block and collision queries are in this ship's space
     var renderDistance: Int = 8 { didSet { lastCenter = nil; rebuildOffsets() } }
 
     // Workers: maxJobs run at once; up to maxQueued jobs are handed over per frame so workers never sit
@@ -130,13 +132,19 @@ final class World {
     }
 
     func block(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
+        if let s = frame { return s.frameBlock(x, y, z, self) }
+        return rawBlock(x, y, z)
+    }
+
+    // The world's own block, ignoring any ship frame.
+    @inline(__always) func rawBlock(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
         if y < 0 { return BEDROCK }
         if y >= CH { return AIR }
         guard let c = chunkAt(x, z) else { return AIR }
         return c.blocks[Chunk.index(mod(x, CS), y, mod(z, CS))]
     }
 
-    func isLoaded(_ x: Int, _ z: Int) -> Bool { chunkAt(x, z) != nil }
+    func isLoaded(_ x: Int, _ z: Int) -> Bool { frame != nil || chunkAt(x, z) != nil }
 
     // Light at a block: (sky 0-15, block 0-15). Uses the mesher's stored light when available,
     // otherwise approximates from the heightmap.
@@ -251,6 +259,7 @@ final class World {
                 }
             }
         }
+        if frame == nil && !ships.isEmpty && ships.overlaps(mn, mx) { return true }
         return false
     }
 
@@ -268,6 +277,7 @@ final class World {
                 }
             }
         }
+        if frame == nil && !ships.isEmpty { ships.boxes(lo, hi, &boxes) }
         var dd = d
         let b1 = (a + 1) % 3, b2 = (a + 2) % 3
         for (bmn, bmx) in boxes {
@@ -596,6 +606,7 @@ final class World {
         }
         save?.saveBlockEntities(blockEntities)
         save?.savePortals(Array(portals))
+        ships.save()
     }
 
     // MARK: Raycast (voxel DDA + per-box tests for partial blocks)

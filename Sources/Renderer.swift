@@ -42,6 +42,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     let mobPipe: MTLRenderPipelineState
     let entityPipe: MTLRenderPipelineState
     let crackPipe: MTLRenderPipelineState
+    let shipRenderer: ShipRenderer                // free-moving block structures (ShipRender.swift)
     let starBuf: MTLBuffer
     let starVerts: Int
     let depthWrite: MTLDepthStencilState
@@ -110,6 +111,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         mobPipe = try pipe("mobVS", "mobFS", blend: false)
         entityPipe = try pipe("entityVS", "entityFS", blend: false)
         crackPipe = try pipe("entityVS", "crackFS", blend: true)
+        shipRenderer = try ShipRenderer(device: device, colorFormat: colorFormat)
 
         // Star field: fixed random directions on a sphere of radius 90 (sky frame, rotated per frame).
         var stars: [SimpleVert] = []
@@ -492,6 +494,9 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
         }
 
+        shipRenderer.beginFrame()
+        shipRenderer.drawOpaque(enc, ships: game.world.ships, eye: eye, u: &u, frustum: frustum, quads: quadIndices)
+
         // Mobs (written straight into the scratch ring: no per-frame arrays)
         if !game.mobs.mobs.isEmpty || tp {
             let off = (scratchOff + 255) & ~255
@@ -602,6 +607,8 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
         }
 
+        shipRenderer.drawBeforeWater(enc, ships: game.world.ships, world: game.world, eye: eye, u: &u, frustum: frustum)
+
         // Water, far to near
         enc.setRenderPipelineState(waterPipe)
         enc.setDepthStencilState(depthRead)
@@ -617,6 +624,8 @@ final class Renderer: NSObject, MTKViewDelegate {
             guard sec.transQuads > 0, let buf = sec.transBuf, let tb = c.tintBuf else { continue }
             drawSection(i, buf, tb, first: 0, count: min(sec.transQuads, Renderer.maxQuads))
         }
+
+        shipRenderer.drawTranslucent(enc, ships: game.world.ships, eye: eye, u: &u, frustum: frustum, quads: quadIndices)
 
         // Cloud layer (after water so both blend over terrain; depth-tested against terrain).
         if !underwater && hasSky {
