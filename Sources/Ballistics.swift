@@ -365,14 +365,16 @@ extension Game {
         }
         if input.tapped(15) || (p.x && !q.x) { startReload(gi); return true }     // R key (keycode 15) or pad X
         let trigger = gs.auto ? fire : firePressed
-        guard trigger, a.cooldown <= 0 else { return true }
+        guard trigger else { return true }
         if held.tag <= 0 {
+            // Empty: pulling the trigger reloads (or clicks dry without ammunition).
             if !startReload(gi) && firePressed {
                 sfx(.gun(7), 0.8)
                 onToast?("No \(Items.def(Items.id(gs.ammo)).display)")
             }
             return true
         }
+        guard a.cooldown <= 0 else { return true }
         fireHeldGun(gi)
         return true
     }
