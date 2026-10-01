@@ -17,6 +17,7 @@ enum Recipes {
         "logs": ["oak_log", "birch_log", "spruce_log", "oak_wood", "acacia_log", "dark_oak_log", "jungle_log", "mangrove_log", "cherry_log", "pale_oak_log"],
         "stone_tool": ["cobblestone", "cobbled_deepslate"],
         "coals": ["coal", "charcoal"],
+        "eggs": ["egg", "brown_egg", "blue_egg"],
         "wooden_slabs": ["oak_slab"],
     ]
     private static var tagSets: [String: Set<ItemID>] = {
@@ -356,7 +357,7 @@ enum Recipes {
         r.append(shaped(["###", "#E#", "###"], ["#": "obsidian", "E": "ender_eye"], "ender_chest"))
         r.append(shapeless(["chest", "tripwire_hook"], "trapped_chest"))
         r.append(shaped(["CCC", "C#C", "CCC"], ["C": "copper_ingot", "#": "chest"], "copper_chest"))   // CopperGolem.swift
-        r.append(shaped(["MMM", "SES", "WWW"], ["M": "milk_bucket", "S": "sugar", "E": "egg", "W": "wheat"], "cake"))
+        r.append(shaped(["MMM", "SES", "WWW"], ["M": "milk_bucket", "S": "sugar", "E": "#eggs", "W": "wheat"], "cake"))
         for (i, st) in Copper.stages.enumerated() {
             for waxed in [false, true] {
                 let blk = Copper.name("block", stage: i, waxed: waxed)

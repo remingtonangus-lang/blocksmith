@@ -67,6 +67,12 @@ extension Game {
 
     // MARK: Thrown items
 
+    func throwEgg() {
+        let egg = held.item
+        throwItem(.egg)
+        projectiles.fireballs.last?.egg = egg
+    }
+
     func throwItem(_ kind: Thrown) {
         var d = player.look
         d.y += 0.05
@@ -92,6 +98,7 @@ extension Game {
                 for _ in 0..<n {
                     let c = Mob(.chicken, at: at + V3(0, 0.1, 0))
                     c.baby = true; c.scale = 0.5
+                    c.variant = FarmVariant.forEgg(f.egg)
                     mobs.mobs.append(c)
                 }
             }

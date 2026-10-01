@@ -524,9 +524,10 @@ final class Mob {
                 speed = moving ? (panic > 0 ? (kind == .chicken ? 2.4 : 2.8) : spec.speed) : 0
             }
             if kind == .sheep { sheepGraze(dt, g) }
+            if variant == 0 && (kind == .cow || kind == .pig || kind == .chicken) { variant = FarmVariant.forBiome(g.world, pos) }
             if kind == .chicken && !baby {
                 eggTimer -= dt
-                if eggTimer <= 0 { eggTimer = Float.random(in: 300...600); g.drops.spawn(ItemStack(Items.id("egg"), 1), at: pos + V3(0, 0.3, 0)) }
+                if eggTimer <= 0 { eggTimer = Float.random(in: 300...600); g.drops.spawn(ItemStack(Items.id(FarmVariant.eggKey(variant)), 1), at: pos + V3(0, 0.3, 0)) }
             }
         case .neutral, .piglin:
             // Zombified boarlings only fight back; boarlings attack players not wearing gold armor.
@@ -1060,8 +1061,12 @@ private func parts(_ m: Mob) -> [Part] {
     }
     switch m.kind {
     case .cow:
-        let hide = V3(0.36, 0.24, 0.16)
-        return [
+        let hide = [V3(0.36, 0.24, 0.16), V3(0.36, 0.24, 0.16), V3(0.6, 0.3, 0.17), V3(0.3, 0.22, 0.17)][min(3, m.variant)]
+        let fv = FarmVariant.climate(m.variant)
+        var extra: [Part] = []
+        if fv == 2 { extra = [box(-6, 21, -13, 2, 1.5, 1.5, V3(0.9, 0.85, 0.7)), box(4, 21, -13, 2, 1.5, 1.5, V3(0.9, 0.85, 0.7))] }   // long horns
+        if fv == 3 { extra = [box(-6.5, 11, -9.5, 13, 3, 19, hide * 0.85, 2), box(-4.5, 22, -14, 9, 2, 5, hide * 0.85, 2)] }          // shaggy coat
+        return extra + [
             Part(mn: V3(-6, 12, -9), mx: V3(6, 22, 9), color: hide, pattern: 1),
             Part(mn: V3(-4, 15, -15), mx: V3(4, 23, -9), pivot: V3(0, 19, -9), color: hide, pattern: 1),
             Part(mn: V3(-2.5, 15.5, -15.6), mx: V3(2.5, 18.5, -15), color: V3(0.82, 0.6, 0.55)),
@@ -1081,7 +1086,8 @@ private func parts(_ m: Mob) -> [Part] {
         else { p.append(box(-6, 11, -8, 12, 11, 16, wool, 2)); p.append(box(-3.5, 19.5, -12.5, 7, 2.5, 5.5, wool, 2)) }
         return p
     case .chicken:
-        let white = V3(0.95, 0.94, 0.9), orange = V3(0.95, 0.6, 0.15)
+        let white = [V3(0.95, 0.94, 0.9), V3(0.95, 0.94, 0.9), V3(0.75, 0.45, 0.24), V3(0.72, 0.76, 0.82)][min(3, m.variant)]
+        let orange = V3(0.95, 0.6, 0.15)
         let flap: Float = m.onGround ? 0 : sinf(m.walkPhase * 6 + m.hurt * 30) * 0.9
         return [
             box(-3, 5, -4, 6, 6, 8, white, 3),
@@ -1093,8 +1099,10 @@ private func parts(_ m: Mob) -> [Part] {
             leg(-1.5, 0.5, 1, 5, 1, orange), leg(1.5, 0.5, 1, 5, -1, orange),
         ] + eyes(13, -7, 1.2, 1)
     case .pig:
-        let pink = V3(0.94, 0.62, 0.6)
-        return [
+        let pink = [V3(0.94, 0.62, 0.6), V3(0.94, 0.62, 0.6), V3(0.56, 0.37, 0.27), V3(0.88, 0.66, 0.6)][min(3, m.variant)]
+        var fluff: [Part] = []
+        if FarmVariant.climate(m.variant) == 3 { fluff = [box(-5.5, 11, -8.5, 11, 3.5, 17, V3(0.95, 0.92, 0.88), 2)] }         // woolly back
+        return fluff + [
             box(-5, 6, -8, 10, 8, 16, pink, 4),
             Part(mn: V3(-4, 8, -15), mx: V3(4, 16, -7), pivot: V3(0, 12, -7), color: pink, pattern: 4),
             box(-2, 9, -16, 4, 3, 1, V3(0.98, 0.72, 0.7)),

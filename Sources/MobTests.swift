@@ -27,6 +27,7 @@ enum MobTests {
         raidSave(game: game, pos: pos)
         spears(game: game, world: world, pos: pos)
         copperGolems(game: game, world: world, pos: pos)
+        farmVariants(game: game, world: world, pos: pos)
         print(String(format: "mobtests: %ld failed (%.1f s)%@", failures.count, CFAbsoluteTimeGetCurrent() - t0,
                      failures.isEmpty ? "" : " -> " + failures.joined(separator: ", ")))
         game.player.pos = pos
@@ -533,6 +534,20 @@ enum MobTests {
     }
 
     // MARK: Behaviour details
+
+    // MARK: Farm animal climate variants (FarmVariants.swift)
+
+    static func farmVariants(game g: Game, world: World, pos: V3) {
+        check(FarmVariant.eggKey(2) == "brown_egg" && FarmVariant.eggKey(3) == "blue_egg" && FarmVariant.eggKey(1) == "egg",
+              "warm and cold chickens lay brown and blue eggs")
+        check(FarmVariant.forEgg(Items.id("blue_egg")) == 3 && FarmVariant.forEgg(Items.id("brown_egg")) == 2, "thrown eggs hatch their own kind")
+        check(FarmVariant.warm.contains(Biome.savanna.name) && FarmVariant.cold.contains(Biome.snowyPlains.name), "savanna is warm, snowy plains cold")
+        let a = Mob(.cow, at: pos), b = Mob(.cow, at: pos)
+        a.variant = 2; b.variant = 2
+        let calf = Mob(.cow, at: pos)
+        calf.inheritFrom(a, b)
+        check(calf.variant == 2, "calves take their parents' climate look")
+    }
 
     // MARK: Copper golems (CopperGolem.swift)
 

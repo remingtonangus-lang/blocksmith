@@ -35,6 +35,7 @@ final class Fireball {
     var dragon = false             // hollow wyrm fireball: leaves a cloud of acid instead of exploding
     var potion: ItemID = 0         // thrown splash / lingering potion or bottle o' enchanting (item)
     var kind: Thrown = .fire
+    var egg: ItemID = 0            // thrown egg: which one (the chick's climate variant)
     weak var shooter: Mob?
     init(_ p: V3, _ v: V3, big: Bool, byPlayer: Bool) { pos = p; vel = v; self.big = big; self.byPlayer = byPlayer }
 }
@@ -270,7 +271,7 @@ final class ProjectileManager {
                 let layer: Int
                 switch f.kind {
                 case .snowball: layer = Items.texLayer(Items.id("snowball")) ?? fl
-                case .egg: layer = Items.texLayer(Items.id("egg")) ?? fl
+                case .egg: layer = Items.texLayer(f.egg != 0 ? f.egg : Items.id("egg")) ?? fl
                 case .pearl: layer = Items.texLayer(Items.id("ender_pearl")) ?? fl
                 default: layer = Int(Tex.id(f.kind == .blueSkull ? "skull_skeleton_face" : "skull_wither_face"))
                 }

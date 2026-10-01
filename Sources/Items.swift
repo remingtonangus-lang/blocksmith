@@ -200,6 +200,8 @@ final class ItemRegistry {
         item("pumpkin_seeds", "Pumpkin Seeds", "seeds", 0xD8C88A)
         item("beetroot_seeds", "Beetroot Seeds", "seeds", 0x8A5A3A)
         item("egg", "Egg", "egg", 0xE9DCBC, stack: 16)
+        item("brown_egg", "Brown Egg", "egg", 0xB07A4A, stack: 16)          // warm-climate chickens (FarmVariants.swift)
+        item("blue_egg", "Blue Egg", "egg", 0x8FB8D8, stack: 16)            // cold-climate chickens
         item("arrow", "Arrow", "arrow", 0x9A9A9A, ["f": 0xEDEDED, "a": 0x6B4F2C])
         item("bowl", "Bowl", "bowl", 0x8A6435, fuel: 100)
         item("flint_and_steel", "Flint and Steel", "flint_steel", 0x7A7A7A, ["c": 0x3A3A3A, "d": 0x5A5A5A], stack: 1)

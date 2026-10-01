@@ -892,7 +892,7 @@ final class Game {
             switch Items.key(h.item) {
             case "snowball": throwItem(.snowball); return
             case "wind_charge": throwWindCharge(); return
-            case "egg": throwItem(.egg); return
+            case "egg", "brown_egg", "blue_egg": throwEgg(); return
             case "ender_pearl" where clock - lastPearl > 1: lastPearl = clock; throwItem(.pearl); return
             default: break
             }
