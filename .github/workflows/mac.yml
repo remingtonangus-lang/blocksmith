@@ -57,6 +57,12 @@ jobs:
           set -o pipefail
           bash ./snap.sh 2>&1 | tee snap.log
 
+      - name: Terrain check
+        id: terrain
+        run: |
+          set -o pipefail
+          build/Blocksmith.app/Contents/MacOS/Blocksmith --terrainmap snaps/check --step 32 --strict 2>&1 | tee terrain.log
+
       - name: Debug rerun of the failing shot
         if: failure() && steps.snap.outcome == 'failure'
         run: |
@@ -82,7 +88,7 @@ jobs:
           rm -rf "$PUB"; mkdir -p "$PUB"
           cp snaps/*.png "$PUB/" 2>/dev/null || true
           if [ -d snaps/sounds ]; then cp -r snaps/sounds "$PUB/sounds"; fi
-          cp build.log snap.log debug.log bench.log profile.log snaps/bench.json snaps/bench.md snaps/profile_*.txt "$PUB/" 2>/dev/null || true
+          cp build.log snap.log debug.log terrain.log bench.log profile.log snaps/bench.json snaps/bench.md snaps/profile_*.txt "$PUB/" 2>/dev/null || true
           cd "$PUB"
           {
             echo "# Blocksmith CI snapshots"
