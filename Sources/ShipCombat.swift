@@ -63,7 +63,7 @@ extension ShipManager {
                 shells.append(Shell(pos: muzzle, vel: dir * 45 + t.velocity(at: muzzle), owner: t.root.id, power: 2.5))
                 fired += 1
                 if let g = game {
-                    g.sfx(.explode, 0.5, at: muzzle)
+                    g.sfx(.shipCannon, 1, at: muzzle)
                     g.particles.smoke(at: muzzle)
                 }
             }

@@ -219,6 +219,7 @@ final class Game {
             return
         }
         Feedback.sound(self, s, v, at: pos)
+        if audio.record != nil { audio.record![s.name, default: 0] += 1 }
         guard let snd = sound else { return }
         let occ = pos.map { audioOcclusion(player.eye, $0) } ?? 0
         snd.play(s, volume: v, at: pos, occlusion: occ)

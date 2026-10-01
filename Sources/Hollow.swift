@@ -403,7 +403,8 @@ extension Mob {
                 let at = pos + forward * 6
                 let gy = Float(w.topY(Int(floor(at.x)), Int(floor(at.z))) + 1)
                 g.clouds.append(AcidCloud(pos: V3(at.x, min(gy, pos.y) + 0.05, at.z), radius: 5, time: 10))
-                g.sfx(.dragonShoot, 1.5, at: pos)
+                g.sfx(.dragonGrowl, 2, at: pos)
+                g.sfx(.dragonShoot, 1.5, at: at)
             }
             breakTimer = dist < 20 ? 0 : breakTimer + dt
             if phaseTime > cycle * 4 || breakTimer > 5 { phase = 5; phaseTime = 0; breakTimer = 0 }

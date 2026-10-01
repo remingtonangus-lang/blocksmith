@@ -203,7 +203,8 @@ extension Mob {
         b.flankTimer -= dt
         if b.mag <= 0 && b.reload <= 0 {
             b.reload = gs.reload * (r == 3 ? 1.3 : 1)
-            g.sfx(.gun(6), 0.6, at: eye)
+            g.sfx(.gunReload(gs.sound), 0.6, at: eye)
+            if Float.random(in: 0..<1) < 0.5 { g.sfx(.soldier(r, .reload), 0.9, at: eye) }
         }
         if b.reload <= 0 { b.cover = nil }
         let (near, far) = Soldier.band(r, b.gun)
@@ -254,6 +255,7 @@ extension Mob {
                 let toMe = simd_normalize(V3(pos.x - g.player.pos.x, 0, pos.z - g.player.pos.z) + V3(1e-4, 0, 0))
                 let side = V3(-toMe.z, 0, toMe.x) * (Float.random(in: 0..<1) < 0.5 ? -1 : 1)
                 b.flank = g.player.pos + simd_normalize(toMe + side * 1.4) * min(dist, (near + far) / 2)
+                if Float.random(in: 0..<1) < 0.5 { g.sfx(.soldier(r, .attack), 0.9, at: eye) }      // "flanking!"
             }
             let shotsBefore = b.mag
             soldierFire(dt, g, b, gs, rank: r, dist: dist, target: target)
@@ -262,6 +264,7 @@ extension Mob {
                 let right = V3(cosf(yaw), 0, -sinf(yaw))
                 b.flank = pos + right * (Float.random(in: 0..<1) < 0.5 ? -5 : 5)
                 b.flankTimer = 2.5
+                if Float.random(in: 0..<1) < 0.3 { g.sfx(.soldier(r, .retreat), 0.8, at: eye) }     // "moving!"
             }
         } else {
             b.aimTime = 0

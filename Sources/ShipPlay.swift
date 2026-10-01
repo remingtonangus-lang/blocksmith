@@ -157,7 +157,7 @@ extension Game {
         if s.balloons > 0 && s.hoverY == nil { s.hoverY = s.pos.y }
         if let stand = helmStand(s) { player.pos = s.toWorld(stand) }
         player.flying = false
-        sfx(.place(.wood), 0.5, at: player.pos)
+        sfx(.helmTake, 0.8, at: player.pos)
         onToast?("Steering \(s.name): W/S throttle, A/D turn, Space/Ctrl climb, click fire, Shift leave")
     }
 
@@ -197,7 +197,7 @@ extension Game {
             if useNow && !sneak, let tg = target, ShipParts.kinds[Int(world.block(tg.hit.x, tg.hit.y, tg.hit.z))] == .helm {
                 let (ship, msg) = ships.assemble(at: tg.hit, game: self)
                 onToast?(msg)
-                if let ship { sfx(.place(.wood), 1, at: ship.pos); target = nil }
+                if let ship { sfx(.hullCreak, 1, at: ship.pos); sfx(.helmTake, 0.8, at: ship.pos); target = nil }
                 swing = 1
                 return true
             }

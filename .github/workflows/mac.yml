@@ -91,6 +91,7 @@ jobs:
 
       - name: Terrain check
         id: terrain
+        if: always() && steps.build.outcome == 'success'
         run: |
           set -o pipefail
           build/Blocksmith.app/Contents/MacOS/Blocksmith --terrainmap snaps/check --step 32 --strict 2>&1 | tee terrain.log

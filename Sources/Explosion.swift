@@ -76,7 +76,9 @@ enum Explosion {
                 if Float.random(in: 0..<1) < k * 0.5 { it.stack = .empty } else { it.vel += dir * k * 10 }
             }
         }
-        g.sfx(.explode, 1, at: c)
+        // Grenade-sized blasts crack, TNT-sized ones boom, big ones (charged hissers, shells, beds) shake the ground.
+        g.sfx(power < 2.5 ? .explodeSmall : (power >= 5 ? .explodeLarge : .explode), 1, at: c)
+        if power >= 3 && breakBlocks { g.sfx(.debrisRain, 0.7, at: c + V3(0, 1, 0)) }
         g.particles.explosion(at: c, power: power)
         g.addFlash(at: c + V3(0, 0.5, 0), color: V3(6, 3.6, 1.6) * min(2, power / 3), radius: 6 + power * 2.5, life: 0.45)
     }

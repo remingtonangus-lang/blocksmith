@@ -1058,6 +1058,18 @@ if let dir = arg("--sounds") {
         ("apiary", [(.hiveLoop, 0.7), (.windLoop, 0.15)], [(.birdCall, 0.4, 0.25), (.beePollinate, 0.5, 0.3)]),
         ("ashen_grove", [(.windLoop, 0.3)], [(.heartCreak, 0.7, 0.2), (.owlHoot, 0.4, 0.05)]),
         ("badlands", [(.windLoop, 0.6)], [(.dryGrassRustle, 0.5, 0.3)]),
+        ("firefight", [(.windLoop, 0.2)], [(.gun(0), 0.7, 1.2), (.gun(1), 0.5, 1.0), (.gunDistant(2), 0.6, 0.3), (.bulletWhizz, 0.6, 0.8),
+                                           (.bulletImpact(.stone), 0.5, 1.5), (.soldier(1, .alert), 0.7, 0.2), (.soldier(2, .attack), 0.6, 0.15), (.gun(9), 0.6, 0.12)]),
+        ("steelhold_patrol", [(.windLoop, 0.3)], [(.soldierStep(1), 0.5, 1.6), (.soldierStep(3), 0.5, 0.8), (.soldier(0, .idle), 0.5, 0.2), (.gun(11), 0.4, 0.1)]),
+        ("waterfall", [(.waterfallLoop, 0.9), (.riverLoop, 0.4)], [(.birdCall, 0.3, 0.2)]),
+        ("mountain_pass", [(.mountainWindLoop, 0.8)], [(.rockfall, 0.5, 0.08), (.windGust, 0.4, 0.15)]),
+        ("tundra", [(.tundraWindLoop, 0.8)], [(.iceCreak, 0.5, 0.15)]),
+        ("snowstorm", [(.snowWindLoop, 0.8), (.tundraWindLoop, 0.4)], []),
+        ("rain_forest", [(.rain, 0.5), (.rainLeavesLoop, 0.7)], [(.thunderFar, 0.6, 0.08)]),
+        ("swamp_day", [(.swampInsectsLoop, 0.6), (.swampLoop, 0.4)], []),
+        ("ship_at_sea", [(.oceanLoop, 0.6), (.hullWaterLoop, 0.6), (.engineFullLoop, 0.4)], [(.hullCreak, 0.5, 0.2)]),
+        ("airship", [(.airshipWindLoop, 0.7), (.propFastLoop, 0.5)], [(.hullCreak, 0.4, 0.15)]),
+        ("land_vehicle", [(.wheelRollLoop, 0.7), (.engineIdleLoop, 0.5)], [(.shipCollide, 0.5, 0.1)]),
     ]
     let scapeLen = Int(8 * SoundBank.rate)
     var rng = SRng(2024)

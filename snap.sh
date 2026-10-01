@@ -13,6 +13,20 @@ if [ $# -gt 0 ]; then n="$1"; shift; "$BIN" --snapshot "snaps/$n.png" "$@"; exit
 set +e
 FAILED=()
 trap 'rc=$?; FAILED+=("$LINENO"); echo "snap.sh: line $LINENO: failed (exit $rc)"' ERR
+# Audio (first, so the sound and music checks always run): every sound is rendered and checked into build/sounds (not published); a sampler, the soundscapes
+# and 10 s of every music mood go to snaps/sounds for listening on ci-snaps.
+rm -rf build/sounds snaps/sounds; mkdir -p snaps/sounds
+"$BIN" --sounds build/sounds
+for f in step_stone step_wood step_gravel break_glass break_wood place_metal doorOpen chestOpen pistonExtend lever explode thunder \
+         mob_cow_ambient mob_zombie_ambient mob_skeleton_hurt mob_enderman_ambient mob_ghast_ambient mob_villager_ambient mob_warden_death \
+         dragonGrowl wardenRoar witherSpawn villager_work_0 birdCall owlHoot bell levelUp note_0_12 \
+         gun_0 gun_1 gun_2 gun_3 gun_4 gun_5 gun_9 gun_10 gun_reload_0 gun_distant_0 bulletWhizz bullet_impact_metal soldier_1_alert soldier_3_death \
+         engineFullLoop propFastLoop hullCreak shipCollideHard waterfallLoop riverLoop mountainWindLoop thunderFar; do
+  cp "build/sounds/$f.wav" snaps/sounds/ 2>/dev/null || true
+done
+cp -r build/sounds/scapes snaps/sounds/scapes
+"$BIN" --music snaps/sounds/music --seconds 10
+
 # Terrain: top-down maps of five seeds (8 km square, spawn marked), neighbour check, chunk generation timing.
 "$BIN" --terrainmap snaps
 "$BIN" --genbench --seed 12345
@@ -93,17 +107,6 @@ done
 "$BIN" --snapshot snaps/subtitles.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --subtitles
 "$BIN" --snapshot snaps/survival.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --survival 13 --slot 8 --debug
 "$BIN" --snapshot snaps/sim.png --seed 12345 --sim 12 --yaw 30 --pitch -10 --time 0.25
-# Audio: every sound is rendered and checked into build/sounds (not published); a sampler, the soundscapes
-# and 10 s of every music mood go to snaps/sounds for listening on ci-snaps.
-rm -rf build/sounds snaps/sounds; mkdir -p snaps/sounds
-"$BIN" --sounds build/sounds
-for f in step_stone step_wood step_gravel break_glass break_wood place_metal doorOpen chestOpen pistonExtend lever explode thunder \
-         mob_cow_ambient mob_zombie_ambient mob_skeleton_hurt mob_enderman_ambient mob_ghast_ambient mob_villager_ambient mob_warden_death \
-         dragonGrowl wardenRoar witherSpawn villager_work_0 birdCall owlHoot bell levelUp note_0_12; do
-  cp "build/sounds/$f.wav" snaps/sounds/ 2>/dev/null || true
-done
-cp -r build/sounds/scapes snaps/sounds/scapes
-"$BIN" --music snaps/sounds/music --seconds 10
 "$BIN" --atlas snaps/atlas
 "$BIN" --snapshot snaps/mobs.png --seed 12345 --yaw 30 --pitch -14 --time 0.22 --up 1 --mobs
 "$BIN" --snapshot snaps/hostile.png --seed 12345 --yaw 30 --pitch -12 --time 0.22 --up 1 --mobs --hostile
