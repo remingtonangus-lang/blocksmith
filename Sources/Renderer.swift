@@ -12,6 +12,12 @@ struct Uniforms {
     var params: V4
     var sunDir: V4
     var eye: V4
+    var invViewProj = matrix_identity_float4x4
+    var shadowMat = matrix_identity_float4x4
+    var sunColor = V4(0, 0, 0, 0)
+    var ambColor = V4(0, 0, 0, 0)
+    var lightDir = V4(0, 1, 0, 0)
+    var screen = V4(1, 1, 1, 1)
 }
 struct SkyParams { var invViewProj: float4x4; var zenith: V4; var horizon: V4; var sun: V4 }
 
@@ -34,19 +40,19 @@ final class Renderer: NSObject, MTKViewDelegate {
     let device: MTLDevice
     let queue: MTLCommandQueue
     let game: Game
-    let chunkPipe: MTLRenderPipelineState
-    let chunkSolidPipe: MTLRenderPipelineState   // same as chunkPipe without the alpha test (keeps hidden-surface removal)
-    let waterPipe: MTLRenderPipelineState
-    let simplePipe: MTLRenderPipelineState
+    let chunkPipeL: MTLRenderPipelineState
+    let chunkSolidPipeL: MTLRenderPipelineState   // same as chunkPipe without the alpha test (keeps hidden-surface removal)
+    let waterPipeL: MTLRenderPipelineState
+    let simplePipeL: MTLRenderPipelineState
     let hudPipe: MTLRenderPipelineState
-    let starPipe: MTLRenderPipelineState
-    let cloudPipe: MTLRenderPipelineState
-    let mobPipe: MTLRenderPipelineState
-    let entityPipe: MTLRenderPipelineState
-    let crackPipe: MTLRenderPipelineState
-    let skyPipe: MTLRenderPipelineState
-    let hollowSkyPipe: MTLRenderPipelineState
-    let cloudBoxPipe: MTLRenderPipelineState
+    let starPipeL: MTLRenderPipelineState
+    let cloudPipeL: MTLRenderPipelineState
+    let mobPipeL: MTLRenderPipelineState
+    let entityPipeL: MTLRenderPipelineState
+    let crackPipeL: MTLRenderPipelineState
+    let skyPipeL: MTLRenderPipelineState
+    let hollowSkyPipeL: MTLRenderPipelineState
+    let cloudBoxPipeL: MTLRenderPipelineState
     let clouds: CloudMesh?
     let starBuf: MTLBuffer
     let starVerts: Int
@@ -55,6 +61,23 @@ final class Renderer: NSObject, MTKViewDelegate {
     let depthNone: MTLDepthStencilState
     let texture: MTLTexture
     let quadIndices: MTLBuffer
+    // Fancy (HDR) pipeline: while a vibrant frame's world passes are encoded, the pipe names below
+    // resolve to the HDR variants (Vibrant.swift); Fast always uses the L (drawable-format) ones.
+    var vib: Vibrant?
+    var hdrActive = false
+    var lightFrame = Vibrant.LightFrame()
+    var chunkPipe: MTLRenderPipelineState { hdrActive ? vib!.chunk : chunkPipeL }
+    var chunkSolidPipe: MTLRenderPipelineState { hdrActive ? vib!.chunkSolid : chunkSolidPipeL }
+    var waterPipe: MTLRenderPipelineState { hdrActive ? vib!.water : waterPipeL }
+    var simplePipe: MTLRenderPipelineState { hdrActive ? vib!.simple : simplePipeL }
+    var starPipe: MTLRenderPipelineState { hdrActive ? vib!.star : starPipeL }
+    var cloudPipe: MTLRenderPipelineState { hdrActive ? vib!.cloud : cloudPipeL }
+    var mobPipe: MTLRenderPipelineState { hdrActive ? vib!.mob : mobPipeL }
+    var entityPipe: MTLRenderPipelineState { hdrActive ? vib!.entity : entityPipeL }
+    var crackPipe: MTLRenderPipelineState { hdrActive ? vib!.crack : crackPipeL }
+    var skyPipe: MTLRenderPipelineState { hdrActive ? vib!.sky : skyPipeL }
+    var hollowSkyPipe: MTLRenderPipelineState { hdrActive ? vib!.hollowSky : hollowSkyPipeL }
+    var cloudBoxPipe: MTLRenderPipelineState { hdrActive ? vib!.cloudBox : cloudBoxPipeL }
     static let maxQuads = 1 << 17
 
     private let inflight = DispatchSemaphore(value: 3)
@@ -122,19 +145,19 @@ final class Renderer: NSObject, MTKViewDelegate {
             d.depthAttachmentPixelFormat = .depth32Float
             return try device.makeRenderPipelineState(descriptor: d)
         }
-        chunkPipe = try pipe("chunkVS", "chunkFS", blend: false)
-        chunkSolidPipe = try pipe("chunkVS", "chunkSolidFS", blend: false)
-        waterPipe = try pipe("chunkVS", "waterFS", blend: true)
-        simplePipe = try pipe("simpleVS", "simpleFS", blend: true)
+        chunkPipeL = try pipe("chunkVS", "chunkFS", blend: false)
+        chunkSolidPipeL = try pipe("chunkVS", "chunkSolidFS", blend: false)
+        waterPipeL = try pipe("chunkVS", "waterFS", blend: true)
+        simplePipeL = try pipe("simpleVS", "simpleFS", blend: true)
         hudPipe = try pipe("hudVS", "hudFS", blend: true)
-        starPipe = try pipe("starVS", "simpleFS", blend: true)
-        cloudPipe = try pipe("cloudVS", "cloudFS", blend: true)
-        mobPipe = try pipe("mobVS", "mobFS", blend: false)
-        entityPipe = try pipe("entityVS", "entityFS", blend: false)
-        crackPipe = try pipe("entityVS", "crackFS", blend: true)
-        skyPipe = try pipe("skyVS", "skyFS", blend: false)
-        hollowSkyPipe = try pipe("skyVS", "hollowSkyFS", blend: false)
-        cloudBoxPipe = try pipe("cloudBoxVS", "cloudBoxFS", blend: true)
+        starPipeL = try pipe("starVS", "simpleFS", blend: true)
+        cloudPipeL = try pipe("cloudVS", "cloudFS", blend: true)
+        mobPipeL = try pipe("mobVS", "mobFS", blend: false)
+        entityPipeL = try pipe("entityVS", "entityFS", blend: false)
+        crackPipeL = try pipe("entityVS", "crackFS", blend: true)
+        skyPipeL = try pipe("skyVS", "skyFS", blend: false)
+        hollowSkyPipeL = try pipe("skyVS", "hollowSkyFS", blend: false)
+        cloudBoxPipeL = try pipe("cloudBoxVS", "cloudBoxFS", blend: true)
         clouds = CloudMesh(device: device)
 
         // Star field: fixed random directions on a sphere of radius 90 (sky frame, rotated per frame).
@@ -192,6 +215,10 @@ final class Renderer: NSObject, MTKViewDelegate {
             size = max(1, size / 2)
         }
         texture = tex
+        do {
+            let vlib = try device.makeLibrary(source: shaderSource + vibrantShaderSource, options: nil)
+            vib = try Vibrant(device: device, library: vlib, finalFormat: colorFormat, baseTexels: levels[0])
+        } catch { print("Fancy renderer unavailable (falling back to Fast): \(error)") }
 
         // Shared index buffer: every quad is 4 vertices -> 2 CCW triangles.
         // Written in place (building it through per-quad array literals cost a measurable slice of startup).
@@ -253,14 +280,8 @@ final class Renderer: NSObject, MTKViewDelegate {
             self?.recordGPU(cb.gpuEndTime - cb.gpuStartTime)
             inflight.signal()
         }
-        updateCave()
-        let sky = viewSky
-        let clear = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInWater ? game.underwaterFog : sky)
-        rpd.colorAttachments[0].clearColor = MTLClearColor(red: Double(clear.x), green: Double(clear.y), blue: Double(clear.z), alpha: 1)
-        let enc = cmd.makeRenderCommandEncoder(descriptor: rpd)!
         let s = view.drawableSize
-        encode(enc, width: Float(s.width), height: Float(s.height))
-        enc.endEncoding()
+        renderFrame(cmd, final: rpd, width: Int(s.width), height: Int(s.height))
         cmd.present(drawable)
         cmd.commit()
         onFrame?(dt)
@@ -306,23 +327,15 @@ final class Renderer: NSObject, MTKViewDelegate {
 
     // MARK: Scene
 
-    func encode(_ enc: MTLRenderCommandEncoder, width W: Float, height H: Float) {
-        frame = (frame + 1) % ring.count
-        let scratch = ring[frame]
-        var scratchOff = 0
-        func pushBytes(_ raw: UnsafeRawBufferPointer) -> Int? {
-            if raw.count == 0 { return nil }
-            let aligned = (scratchOff + 255) & ~255
-            guard aligned + raw.count <= ringSize else { return nil }
-            memcpy(scratch.contents() + aligned, raw.baseAddress!, raw.count)
-            scratchOff = aligned + raw.count
-            return aligned
-        }
-        func push(_ items: [SimpleVert]) -> Int? { items.withUnsafeBytes { pushBytes($0) } }
-        func push(_ items: [HudVert]) -> Int? { items.withUnsafeBytes { pushBytes($0) } }
+    enum Split { case afterOpaque, beforeHUD }
+    private(set) var lastUniforms: Uniforms?
+    var postParams = PostParams()
+    private var shadowList: [(Chunk, Int)] = []
 
+    // Camera position and angles: first person, or pulled back behind / in front of the player (F5),
+    // stopping short of blocks.
+    func cameraEye() -> (eye: V3, yaw: Float, pitch: Float) {
         let p = game.player
-        // Camera: first person, or pulled back behind / in front of the player (F5), stopping short of blocks.
         let tp = game.cameraMode != 0 && game.sleeping == 0
         var camYaw = p.yaw, camPitch = p.pitch
         var eye = p.eye
@@ -339,6 +352,145 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
             eye = p.eye + dir * dist
         }
+        return (eye, camYaw, camPitch)
+    }
+
+    // One frame into `final` (the drawable or an offscreen target). Fast: a single pass. Fancy: shadow
+    // map, HDR world pass, scene copy, HDR water/translucent pass, post (bloom, god rays, haze, tone map,
+    // grading) into `final`, then the HUD.
+    func renderFrame(_ cmd: MTLCommandBuffer, final: MTLRenderPassDescriptor, width: Int, height: Int) {
+        updateCave()
+        let clear = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInWater ? game.underwaterFog : viewSky)
+        let cc = MTLClearColor(red: Double(clear.x), green: Double(clear.y), blue: Double(clear.z), alpha: 1)
+        guard game.fancyGraphics, let v = vib else {
+            final.colorAttachments[0].clearColor = cc
+            final.colorAttachments[0].loadAction = .clear
+            let enc = cmd.makeRenderCommandEncoder(descriptor: final)!
+            encode(enc, width: Float(width), height: Float(height)).endEncoding()
+            return
+        }
+        v.ensure(width, height)
+        lightFrame = Vibrant.lightFrame(game: game, eye: cameraEye().eye)
+        shadowPass(cmd, v)
+        let a = MTLRenderPassDescriptor()
+        a.colorAttachments[0].texture = v.hdr
+        a.colorAttachments[0].loadAction = .clear
+        a.colorAttachments[0].clearColor = cc
+        a.colorAttachments[0].storeAction = .store
+        a.depthAttachment.texture = v.depth
+        a.depthAttachment.loadAction = .clear
+        a.depthAttachment.clearDepth = 1
+        a.depthAttachment.storeAction = .store
+        func bind(_ e: MTLRenderCommandEncoder) {
+            e.setFragmentTexture(texture, index: 0)
+            e.setFragmentTexture(v.shadowMap, index: 1)
+            e.setFragmentTexture(v.emissive, index: 2)
+            e.setFragmentBuffer(v.materials, offset: 0, index: 4)
+        }
+        hdrActive = true
+        let encA = cmd.makeRenderCommandEncoder(descriptor: a)!
+        bind(encA)
+        let last = encode(encA, width: Float(width), height: Float(height)) { stage, cur in
+            cur.endEncoding()
+            switch stage {
+            case .afterOpaque:
+                let b = cmd.makeBlitCommandEncoder()!
+                b.copy(from: v.hdr!, to: v.sceneCopy!)
+                b.copy(from: v.depth!, to: v.depthCopy!)
+                b.endEncoding()
+                let d = MTLRenderPassDescriptor()
+                d.colorAttachments[0].texture = v.hdr
+                d.colorAttachments[0].loadAction = .load
+                d.colorAttachments[0].storeAction = .store
+                d.depthAttachment.texture = v.depth
+                d.depthAttachment.loadAction = .load
+                d.depthAttachment.storeAction = .store
+                let e = cmd.makeRenderCommandEncoder(descriptor: d)!
+                bind(e)
+                e.setFragmentTexture(v.sceneCopy, index: 3)
+                e.setFragmentTexture(v.depthCopy, index: 4)
+                return e
+            case .beforeHUD:
+                self.hdrActive = false
+                final.colorAttachments[0].loadAction = .dontCare
+                let e = v.post(cmd, final: final, u: self.lastUniforms ?? Uniforms(viewProj: matrix_identity_float4x4, fogColor: .zero, params: .zero, sunDir: .zero, eye: .zero), params: self.postParams)
+                e.setFragmentTexture(self.texture, index: 0)
+                return e
+            }
+        }
+        last.endEncoding()
+        hdrActive = false
+    }
+
+    // Depth-only render of the terrain around the camera as seen from the sun / moon.
+    func shadowPass(_ cmd: MTLCommandBuffer, _ v: Vibrant) {
+        let d = MTLRenderPassDescriptor()
+        d.depthAttachment.texture = v.shadowMap
+        d.depthAttachment.loadAction = .clear
+        d.depthAttachment.clearDepth = 1
+        d.depthAttachment.storeAction = .store
+        let e = cmd.makeRenderCommandEncoder(descriptor: d)!
+        defer { e.endEncoding() }
+        let lf = lightFrame
+        if lf.shadowStrength <= 0 { return }
+        let fr = Frustum(lf.lightVP * translationMatrix(-lf.center))
+        let R = Int((Vibrant.shadowHalf * 1.5 / 16).rounded(.up)) + 1
+        let ccx = floorDiv(Int(floor(lf.center.x)), CS), ccz = floorDiv(Int(floor(lf.center.z)), CS)
+        shadowList.removeAll(keepingCapacity: true)
+        for dz in -R...R { for dx in -R...R {
+            guard let c = game.world.chunks[ChunkKey(x: ccx + dx, z: ccz + dz)], c.meshedOnce else { continue }
+            for sy in 0..<NSEC {
+                let sec = c.sections[sy]
+                if sec.empty || sec.opaqueQuads == 0 || sec.opaqueBuf == nil { continue }
+                let mn = V3(Float(c.cx * CS), Float(sy * 16), Float(c.cz * CS))
+                if !fr.visible(min: mn, max: mn + V3(16, 16, 16)) { continue }
+                shadowList.append((c, sy))
+            }
+        } }
+        var lvp = lf.lightVP
+        e.setDepthStencilState(v.shadowDepth)
+        e.setCullMode(.none)
+        e.setDepthClipMode(.clamp)
+        e.setVertexBytes(&lvp, length: MemoryLayout<float4x4>.stride, index: 1)
+        e.setFragmentTexture(texture, index: 0)
+        for pass in 0..<2 {
+            e.setRenderPipelineState(pass == 0 ? v.shadowSolid : v.shadowCut)
+            for (c, sy) in shadowList {
+                let sec = c.sections[sy]
+                guard let buf = sec.opaqueBuf else { continue }
+                let total = min(sec.opaqueQuads, Renderer.maxQuads), solid = min(sec.solidQuads, total)
+                let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
+                if count <= 0 { continue }
+                var o = V4(Float(c.cx * CS) - lf.center.x, Float(sy * 16) - lf.center.y, Float(c.cz * CS) - lf.center.z, 0)
+                e.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
+                e.setVertexBytes(&o, length: 16, index: 2)
+                e.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32,
+                                        indexBuffer: quadIndices, indexBufferOffset: first * 6 * 4)
+            }
+        }
+    }
+
+    @discardableResult
+    func encode(_ enc0: MTLRenderCommandEncoder, width W: Float, height H: Float,
+                split: ((Split, MTLRenderCommandEncoder) -> MTLRenderCommandEncoder)? = nil) -> MTLRenderCommandEncoder {
+        var enc = enc0
+        frame = (frame + 1) % ring.count
+        let scratch = ring[frame]
+        var scratchOff = 0
+        func pushBytes(_ raw: UnsafeRawBufferPointer) -> Int? {
+            if raw.count == 0 { return nil }
+            let aligned = (scratchOff + 255) & ~255
+            guard aligned + raw.count <= ringSize else { return nil }
+            memcpy(scratch.contents() + aligned, raw.baseAddress!, raw.count)
+            scratchOff = aligned + raw.count
+            return aligned
+        }
+        func push(_ items: [SimpleVert]) -> Int? { items.withUnsafeBytes { pushBytes($0) } }
+        func push(_ items: [HudVert]) -> Int? { items.withUnsafeBytes { pushBytes($0) } }
+
+        let p = game.player
+        let tp = game.cameraMode != 0 && game.sleeping == 0
+        let (eye, camYaw, camPitch) = cameraEye()
         let camLook = V3(-sinf(camYaw) * cosf(camPitch), sinf(camPitch), -cosf(camYaw) * cosf(camPitch))
         let rd = Float(game.world.renderDistance)
         let underwater = p.headInWater
@@ -370,6 +522,32 @@ final class Renderer: NSObject, MTKViewDelegate {
                          params: V4(fogEnd, daylight, Float(game.time.truncatingRemainder(dividingBy: 1000)), underwater ? 1 : 0),
                          sunDir: V4(game.sunDir, ambient),
                          eye: V4(eye, game.fancyGraphics ? 1 + fogGlow : 0))
+        if hdrActive {
+            let lf = lightFrame
+            u.invViewProj = viewProj.inverse
+            u.shadowMat = lf.lightVP * translationMatrix(eye - lf.center)
+            u.sunColor = V4(lf.color, lf.shadowStrength)
+            u.ambColor = V4(lf.ambient, game.dim.dim.hasSky ? min(1, game.weather.rain) : 0)
+            u.lightDir = V4(lf.dir, Float(game.dayFraction))
+            u.screen = V4(W, H, 1 / max(W, 1), 1 / max(H, 1))
+            // Post: sun position for god rays, bloom, haze and grading.
+            var pp = PostParams()
+            pp.grade = V4(1.0, 1.14, 1.06, 0.16)
+            pp.sun.w = 0.075
+            let sunDay = game.sunDir.y > -0.02
+            if hasSky && !underwater && game.blindFog == nil && sunDay {
+                let cp = viewProj * V4(game.sunDir * 100, 1)
+                if cp.w > 0 {
+                    let nd = V2(cp.x / cp.w, cp.y / cp.w)
+                    pp.sun.x = nd.x * 0.5 + 0.5; pp.sun.y = 0.5 - nd.y * 0.5
+                    let off = max(abs(nd.x), abs(nd.y))
+                    pp.sun.z = 0.45 * max(0, 1 - max(0, off - 1) / 0.8) * (1 - min(1, game.weather.rain)) * caveScale
+                }
+                pp.sunCol = V4(lf.color * 1.6, lf.hazeStrength * caveScale)
+            }
+            postParams = pp
+        }
+        lastUniforms = u
 
         enc.setFragmentTexture(texture, index: 0)
 
@@ -435,7 +613,8 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let up = simd_normalize(simd_cross(r, dir)) * size
                     bw.quad([c - r - up, c + r - up, c + r + up, c - r + up], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], layer, color)
                 }
-                body(sd, 7, Int(Tex.id("sun")), V4(1, 1 - 0.3 * dusk, 1 - 0.55 * dusk, 1))
+                let sunK: Float = hdrActive ? 4.5 : 1
+                body(sd, 7, Int(Tex.id("sun")), V4(sunK, sunK * (1 - 0.3 * dusk), sunK * (1 - 0.55 * dusk), 1))
                 body(-sd, 5, Int(Tex.id("moon_\(game.moonPhase)")), V4(1, 1, 1, 1))
                 scratchOff = bodyOff + bw.n * MemoryLayout<EntityVert>.stride
                 enc.setRenderPipelineState(crackPipe)
@@ -687,6 +866,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
         }
 
+        if let sp = split { enc = sp(.afterOpaque, enc) }
         // Water, far to near
         enc.setRenderPipelineState(waterPipe)
         enc.setDepthStencilState(depthRead)
@@ -818,6 +998,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             enc.setViewport(MTLViewport(originX: 0, originY: 0, width: Double(W), height: Double(H), znear: 0, zfar: 1))
         }
 
+        if let sp = split { enc = sp(.beforeHUD, enc) }
         if drawHUD && (!game.hideHUD || game.menu != nil), let off = push(buildHUD(W, H)) {
             let count = (scratchOff - off) / MemoryLayout<HudVert>.stride
             var screen = V2(W, H)
@@ -828,6 +1009,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             enc.setVertexBytes(&screen, length: 8, index: 1)
             enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: count)
         }
+        return enc
     }
 
     func bowPull() -> Float { Items.key(game.held.item) == "bow" ? min(1, game.bowCharge) * 0.12 : 0 }
@@ -1767,9 +1949,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         for _ in 0..<n {
             let t0 = CFAbsoluteTimeGetCurrent()
             let cmd = queue.makeCommandBuffer()!
-            let enc = cmd.makeRenderCommandEncoder(descriptor: rpd)!
-            encode(enc, width: Float(width), height: Float(height))
-            enc.endEncoding()
+            renderFrame(cmd, final: rpd, width: width, height: height)
             cmd.commit()
             cmd.waitUntilCompleted()
             times.append(CFAbsoluteTimeGetCurrent() - t0)
@@ -1802,9 +1982,7 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         let t0 = CFAbsoluteTimeGetCurrent()
         let cmd = queue.makeCommandBuffer()!
-        let enc = cmd.makeRenderCommandEncoder(descriptor: rpd)!
-        encode(enc, width: Float(width), height: Float(height))
-        enc.endEncoding()
+        renderFrame(cmd, final: rpd, width: width, height: height)
         let blit = cmd.makeBlitCommandEncoder()!
         blit.synchronize(resource: color)
         blit.endEncoding()

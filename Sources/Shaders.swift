@@ -12,6 +12,13 @@ struct Uniforms {
     float4 params;       // x = fog end, y = daylight, z = time (s), w = underwater
     float4 sunDir;       // xyz, w = dimension ambient
     float4 eye;          // xyz = camera position (world), w = 0 Fast, 1 + sun glow (0...0.99) for Fancy
+    // Fancy (HDR) pipeline only; zero in Fast.
+    float4x4 invViewProj; // inverse of viewProj (camera-relative), for depth reconstruction
+    float4x4 shadowMat;   // camera-relative position -> shadow map clip space
+    float4 sunColor;      // rgb = direct light (sun or moon) colour x intensity, w = shadow strength
+    float4 ambColor;      // rgb = sky ambient colour, w = rain wetness
+    float4 lightDir;      // xyz = direction toward the light, w = time of day fraction
+    float4 screen;        // xy = render size in pixels, zw = 1 / size
 };
 
 struct ChunkOut {
