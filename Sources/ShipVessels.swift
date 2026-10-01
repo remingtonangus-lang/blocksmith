@@ -257,6 +257,15 @@ extension ShipManager {
         return s
     }
 
+    // Whether a vessel's guns engage the player: a survival player in range who is not aboard (boarders are the
+    // crew's business; the guns won't shell their own deck).
+    func gunsEngage(_ s: Ship, _ g: Game) -> Bool {
+        let pp = g.player.pos + V3(0, 1, 0)
+        guard g.alive && g.survival && g.difficulty > 0 && simd_length(pp - s.pos) < (s.role == "frigate" ? 64 : 80) else { return false }
+        if aboard?.root === s || standing(on: g.player.pos)?.root === s { return false }
+        return true
+    }
+
     // Vessel crews: patrol around home, turrets track a nearby player and fire.
     func crewTick(_ dt: Float, game g: Game) {
         for s in list where s.isVessel && s !== pilot && s.parent == nil {
@@ -288,7 +297,7 @@ extension ShipManager {
             s.autopilot = V3(s.role == "frigate" ? 0.45 : 0.5, steer, 0)
             // Guns.
             let pp = g.player.pos + V3(0, 1, 0)
-            let seen = g.alive && g.survival && g.difficulty > 0 && simd_length(pp - s.pos) < (s.role == "frigate" ? 64 : 80)
+            let seen = gunsEngage(s, g)
             for t in turrets(of: s) {
                 t.aimAt = seen ? pp : nil
                 if !seen { t.aimYaw = 0 }
@@ -300,6 +309,7 @@ extension ShipManager {
                     let muzzle = t.toWorld(t.pivot)
                     let d = pp - muzzle
                     let horiz = simd_length(V2(d.x, d.z))
+                    if horiz < 10 { continue }                  // too close: the shell would burst on the gunners
                     // Elevation to land a 45 b/s shell at the player under gravity 20 (low arc), ignoring drag.
                     let v: Float = 45, gr: Float = 20
                     let disc = v * v * v * v - gr * (gr * horiz * horiz + 2 * d.y * v * v)

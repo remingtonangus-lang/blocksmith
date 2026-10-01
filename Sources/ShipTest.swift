@@ -493,6 +493,24 @@ enum ShipTest {
             print(String(format: "physicstest frigate: turret aim error %.3f rad", err))
             check(err < 0.12, "frigate turret tracks a target")
         } else { check(false, "frigate has turrets") }
+        // Guns engage a survival player off the side, not one who has boarded.
+        let wasSurvival = g.survival
+        g.survival = true
+        g.player.pos = fg.pos + fg.dirToWorld(V3(1, 0, 0)) * 40
+        g.player.vel = .zero
+        run(g, seconds: 0.1)
+        let gunsFar = w.ships.gunsEngage(fg, g)
+        var gunsDeck = true
+        if let st = fg.crewStations.first {
+            g.player.pos = fg.toWorld(st + V3(0, 0.1, 0))
+            g.player.vel = fg.velocity(at: g.player.pos)
+            run(g, seconds: 0.2)
+            gunsDeck = w.ships.gunsEngage(fg, g)
+        }
+        g.survival = wasSurvival
+        g.health = 20
+        print("physicstest frigate: guns engage a player 40 blocks off: \(gunsFar), one on the deck: \(gunsDeck)")
+        check(gunsFar && !gunsDeck, "vessel guns engage outsiders, not boarders")
         let loot = fg.blockEntities.values.reduce(0) { $0 + $1.container.slots.filter { !$0.isEmpty }.count }
         let aboard = g.mobs.mobs.filter { $0.health > 0 && w.ships.standing(on: $0.pos) === fg }.count
         print("physicstest frigate: captain's chest holds \(loot) stacks, \(aboard) of \(fg.crewStations.count) crew aboard")
