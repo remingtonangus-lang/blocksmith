@@ -540,6 +540,8 @@ enum Snapshot {
                     }
                     eq.append(Items.has("\(parts[1])_sword") ? ItemStack(Items.id("\(parts[1])_sword"), 1) : .empty)
                     m.equip = eq
+                } else if parts.count > 1 && parts[1] == "captain" {
+                    m.captain = true                                 // raid captain with the omen banner
                 } else if parts.count > 1 && parts[1] == "aggro" {
                     m.aggro = true                                   // soldiers raise their guns
                     if parts.count > 2, let gi = Int(parts[2]) { m.variant = gi }

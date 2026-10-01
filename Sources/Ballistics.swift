@@ -470,5 +470,21 @@ extension Game {
     func writeArms(_ wr: inout EntityWriter, eye: V3) {
         arms.write(&wr, eye: eye)
         writeSoldierLasers(&wr, eye: eye)
+        writeCaptainBanners(&wr, eye: eye)
+    }
+
+    // Raid and patrol captains wear the omen banner on their head (reference look).
+    func writeCaptainBanners(_ wr: inout EntityWriter, eye: V3) {
+        let layers = Banners.ominous
+        let white = Banners.colors.firstIndex(of: "white") ?? 0
+        for k in [MobKind.pillager, .vindicator, .evoker, .illusioner] {
+            for m in mobs.of(k) where m.captain && m.health > 0 && simd_length(m.pos - eye) < 64 {
+                let l = world.lightAt(Int(floor(m.pos.x)), Int(floor(m.pos.y + 1)), Int(floor(m.pos.z)))
+                let light = max(0.15, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
+                let right = V3(cosf(m.yaw), 0, -sinf(m.yaw))
+                let top = m.pos + V3(0, m.height + 0.55, 0) - m.forward * 0.28 - eye
+                wr.bannerCloth(topLeft: top - right * 0.28, right: right * 0.56, down: V3(0, -1.0, 0), base: white, layers: layers, light: light)
+            }
+        }
     }
 }
