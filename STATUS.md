@@ -20,6 +20,12 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   reserve so the first-person arm/gun can't be written past the end (render distance 24 segfault); duplicate items warn.
 - Known issues: the debug build fails to link on CI (only the lldb reruns need it).
 
+### Session log (routine actions)
+- 2026-10-01 21:56 UTC: hourly keep-alive routine created (trig_019e6C9f3St5eDiGSBQish95, fires at :56, bound to this
+  session); the one-off chain retired (trig_01JhcJ9cXAD7omTdUy5EJBox and trig_01WVtiN1sAsWHdmHNXQYvsWK disabled).
+- Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
+  queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
+
 ### Work queue (2026-10-01: this is the only session now; the six workstream PRs are handed off and merged here)
 Priority: crashes/CI first, then gameplay, then content, then polish. [x] done here, [ ] open.
 - CI / crashes

@@ -490,6 +490,10 @@ final class Playthrough {
         var fy = world.topY(home.x + 2, home.z)
         while fy > 1 && !Blocks.collide[Int(world.block(home.x + 2, fy, home.z))] { fy -= 1 }
         let fp = IVec3(home.x + 2, fy + 1, home.z)
+        // A clear pad: open air around the spot and the player's line of sight, solid ground under it (spawn can be a
+        // tree canopy, whose leaves would catch the click).
+        for dx in -1...1 { for dz in -1...3 { for dy in 0...4 { world.setBlock(fp.x + dx, fp.y + dy, fp.z + dz, AIR) } } }
+        world.setBlock(fp.x, fp.y - 1, fp.z, STONE)
         _ = hold("furnace")
         standBeside(fp + IVec3(0, -1, 0))
         game.player.pos = V3(Float(fp.x) + 0.5, Float(fp.y) + 1.5, Float(fp.z) + 2.5)

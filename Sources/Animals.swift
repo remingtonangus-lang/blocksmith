@@ -88,6 +88,7 @@ extension Mob {
         let player = g.player.pos
         // Being ridden: the rider steers (horses, camels, llamas with a carpet do not; pigs need the stick).
         if g.riding === self { return 0 }
+        if kind == .copperGolem { return copperGolemAI(dt, g) }          // sorts chests (CopperGolem.swift)
         // Tamed pets follow the owner, sit on command, and fight what hurt the owner.
         if tamed && (kind == .wolf || kind == .cat || kind == .parrot) {
             if sitting { moving = false; return 0 }
@@ -479,8 +480,6 @@ extension Mob {
                 return 0
             }
             wander(); return moving ? spec.speed * 0.4 : 0
-        case .copperGolem:
-            return copperGolemAI(dt, g)
         case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad:
             let sp = soldierAI(dt, g, dist: dist, canTarget: canTarget)
             // Vessel crews hold their stations: they turn, aim and fire, but cover runs and flanks would take them overboard.
