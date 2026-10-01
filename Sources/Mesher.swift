@@ -91,7 +91,7 @@ enum Mesher {
     }
 
     // Fills sc.sky / sc.blk for the region.
-    static func computeLight(_ R: UnsafeMutablePointer<BlockID>, _ heights: UnsafeMutablePointer<Int>, y0: Int, _ sc: MeshScratch) {
+    static func computeLight(_ R: UnsafeMutablePointer<BlockID>, _ heights: UnsafeMutablePointer<Int>, y0: Int, _ sc: MeshScratch, emitters: Bool = true) {
         let lo = Blocks.lightOpaque, emitT = Blocks.emit
         let sky = sc.sky, blk = sc.blk
         sky.initialize(repeating: 0, count: RL * RH)
@@ -129,6 +129,7 @@ enum Mesher {
         if !shellLit { flood(sky, q, R, lo) }
 
         q.count = 0
+        if !emitters { return }                     // no light-emitting block in the region (BlockStore.emitMask)
         for i in 0..<(RL * RH) {
             let e = emitT[Int(R[i])]
             if e > 0 { blk[i] = e; q.append(Int32(i)) }
@@ -221,7 +222,10 @@ enum Mesher {
                 if !lit { return SectionMesh(opaque: [], trans: [], light: Mesher.dark, vis: ~0) }
             }
         }
-        computeLight(R, heights, y0: y0, sc)
+        // The region spans sections sy-1...sy+1 of the nine chunks.
+        let near: UInt32 = sy == 0 ? 0b11 : (0b111 << UInt32(sy - 1))
+        let emitters = n9.contains { $0.emitMask & near != 0 }
+        computeLight(R, heights, y0: y0, sc, emitters: emitters)
         let skyL = sc.sky, blkL = sc.blk
 
         let lightOut = [UInt8](unsafeUninitializedCapacity: 4096) { out, n in

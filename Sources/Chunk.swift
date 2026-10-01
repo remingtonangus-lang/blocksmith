@@ -35,6 +35,26 @@ final class Section {
 struct BlockStore {
     private(set) var data: [BlockID]
     static let section = CSQ * 16
+    // Bit per 16-high section that may hold a light-emitting block (all set = unknown). The mesher skips the
+    // block-light pass when no section around the one it meshes has one (most of the surface).
+    var emitMask: UInt32 = ~0
+
+    // Exact emitter mask of a full block array (chunk workers).
+    static func emitMask(of blocks: [BlockID]) -> UInt32 {
+        let emit = Blocks.emit
+        var m: UInt32 = 0
+        var i = 0
+        while i < blocks.count {
+            if emit[Int(blocks[i])] > 0 {
+                let sec = i / section
+                m |= 1 << UInt32(sec)
+                i = (sec + 1) * section          // the rest of this section can't add anything
+                continue
+            }
+            i += 1
+        }
+        return m
+    }
 
     init(_ full: [BlockID]) {
         var top = min(full.count, CSQ * CH)
@@ -55,6 +75,7 @@ struct BlockStore {
                 data.append(contentsOf: repeatElement(AIR, count: need - data.count))
             }
             data[i] = newValue
+            if Blocks.emit[Int(newValue)] > 0 { emitMask |= 1 << UInt32(i / BlockStore.section) }
         }
     }
 

@@ -499,6 +499,7 @@ final class World {
         var entities: [(IVec3, BlockEntity)]
         var mobs: [(String, V3)]
         var tracked: [IVec3] = []            // circuit components needing periodic work (found off the main thread)
+        var emitMask: UInt32 = ~0            // sections holding light emitters (BlockStore.emitMask)
     }
 
     private func produce(_ k: ChunkKey) -> Produced {
@@ -513,7 +514,8 @@ final class World {
             ents += World.orphanEntities(blocks, k, have: ents)
         }
         return Produced(blocks: blocks, height: Chunk.computeHeights(blocks), tint: gen.tints(cx: k.x, cz: k.z),
-                        fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: Circuit.trackedCells(blocks, cx: k.x, cz: k.z))
+                        fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: Circuit.trackedCells(blocks, cx: k.x, cz: k.z),
+                        emitMask: BlockStore.emitMask(of: blocks))
     }
 
     // Generated spawners/chests without a block entity (dungeons): mob and loot come from the position.
@@ -544,6 +546,7 @@ final class World {
 
     private func install(_ k: ChunkKey, _ p: Produced) {
         let c = Chunk(cx: k.x, cz: k.z, blocks: p.blocks, height: p.height, tint: p.tint)
+        c.blocks.emitMask = p.emitMask
         c.modified = p.fromDisk
         if p.fromDisk { c.savedBlocks = c.blocks }
         chunks[k] = c
