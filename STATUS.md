@@ -45,6 +45,9 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
   - [x] Spears (every tier): longer, slower jab; hold use for a charge that scales with closing speed (mobtests).
   - [x] Copper chests (4 stages, waxable) and the Copper Golem (sorts copper-chest items into matching chests, ages into
         a statue, honeycomb/axe care, axe revives a statue); mobtests checks.
+  - [x] Copper set: tools, spear, armour, nuggets, copper torch, lanterns, bars, chains, doors, trapdoors (all stages).
+  - [x] Wooden shelves (3 display slots, swap with the held stack); Dried Wailer hatches a Wailerling in water.
+  - [ ] Lightning rod oxidation; copper buttons pressed by golems; shelves swapping with the hotbar when powered.
   - [ ] Biome balance (snowy northern seeds, rare badlands/pale garden); lakes, deltas, fjords in game.
   - [x] Steelhold soldiers crew the vessels (marksmen + rifle troopers on the frigate, trooper + arc ironclad on the
         carriage) and hold their stations aboard (aim and fire, no cover runs overboard); physicstest check.
