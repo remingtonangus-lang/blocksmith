@@ -124,7 +124,7 @@ final class Circuit {
     // Registers periodic components of a chunk that just arrived.
     func chunkLoaded(_ c: Chunk) {
         let bx = c.cx * CS, bz = c.cz * CS
-        for i in 0..<c.blocks.count {
+        for i in 0..<c.blocks.storedCount {     // above storedCount everything is air
             let k = Circuit.kind(c.blocks[i])
             if k == .hopper || k == .daylight || k == .plate || k == .weightedPlate || k == .detectorRail || k == .tripHook || k == .sculkSensor {
                 tracked.insert(IVec3(bx + (i & 15), i >> 8, bz + ((i >> 4) & 15)))

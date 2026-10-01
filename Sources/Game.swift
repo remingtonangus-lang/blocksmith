@@ -216,7 +216,11 @@ final class Game {
     private var tickAccum: Double = 0
     var padConnected = false
 
+    static var alive = 0            // live Game objects (leak check in --bench)
+    deinit { Game.alive -= 1 }
+
     init(world: World, save: SaveManager?, persistent: Bool) {
+        Game.alive += 1
         dim = DimensionState(dim: world.dim, world: world)
         dims[world.dim] = dim
         self.save = save
@@ -520,7 +524,7 @@ final class Game {
         if menu != nil {
             tickMenu(p, q, dt)
             let before = player.pos
-            player.update(dt: fdt, input: MoveInput(), world: world)
+            shipPlayerUpdate(fdt, MoveInput())
             survivalTick(dt, from: before)
             target = nil
             mining = nil
@@ -605,7 +609,7 @@ final class Game {
             if mi.sneak { dismount() }
         } else {
             player.autoJump = autoJump
-            player.update(dt: fdt, input: mi, world: world)
+            shipPlayerUpdate(fdt, mi)
             powderSnowTick(fdt)
             vibrationTick(fdt)
         }
@@ -634,6 +638,7 @@ final class Game {
         let breakNow = input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5)
         let useHeld = input.rightDown || p.lt > 0.5
         let useNow = input.rightClicked || (p.lt > 0.5 && q.lt <= 0.5)
+        if shipInteract(breakHeld: breakHeld, breakNow: breakNow, useNow: useNow, sneak: input.shift || p.b, dt: fdt) { return }
 
         // Attack: an animal in front of the block takes priority.
         var mobHit: Mob?
@@ -1678,6 +1683,7 @@ final class Game {
 
     // World clock, fluids, furnaces, entities and autosave (runs whenever the game isn't paused).
     private func advance(_ dt: Double) {
+        world.ships.update(Float(dt), game: self)
         mobs.update(Float(dt), game: self)
         drops.update(Float(dt), game: self)
         projectiles.update(Float(dt), game: self)
