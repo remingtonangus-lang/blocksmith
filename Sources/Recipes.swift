@@ -431,6 +431,7 @@ enum Recipes {
         for t in Potions.types where !t.effects.isEmpty {
             r.append(shaped(["AAA", "APA", "AAA"], ["A": "arrow", "P": Potions.itemName("lingering_potion", t.key)], Potions.itemName("tipped_arrow", t.key), 8))
         }
+        r += Guns.recipes()
         r += springRecipes()
         r += Cloudwailer.recipes()
         r += shipRecipes()

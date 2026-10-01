@@ -50,8 +50,8 @@ extension Mob {
     }
 
     var armorPoints: (Int, Float) {
-        guard let e = equip else { return (0, 0) }
-        var pts = 0, tough: Float = 0
+        var (pts, tough) = steelholdArmor
+        guard let e = equip else { return (pts, tough) }
         for s in e.prefix(4) where !s.isEmpty { pts += s.def.armor; tough += s.def.toughness }
         return (pts, tough)
     }

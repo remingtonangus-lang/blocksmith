@@ -91,6 +91,12 @@ enum MobVoice {
         case .camelHusk: return Profile(family: .snort, f0: 105, size: 1.5)
         case .nautilus: return Profile(family: .bubble, f0: 360, size: 1)
         case .zombieNautilus: return Profile(family: .bubble, f0: 250, size: 1.1)
+        // Steelhold soldiers (mob workstream): human voices; the deck gun is a machine (its shots are Snd.gun).
+        case .soldierRecruit: return Profile(family: .hum, f0: 170, size: 1)
+        case .soldierTrooper: return Profile(family: .hum, f0: 150, size: 1.1)
+        case .soldierMarksman: return Profile(family: .hum, f0: 160, size: 1)
+        case .soldierIronclad: return Profile(family: .hum, f0: 120, size: 1.4)
+        case .deckGun: return Profile(family: .silent, f0: 0, size: 1)
         case .minecart, .boat, .armorStand, .endCrystal: return Profile(family: .silent, f0: 0, size: 1)
         }
     }

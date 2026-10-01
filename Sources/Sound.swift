@@ -77,6 +77,7 @@ enum Snd: Hashable {
     case mobCow, mobSheep, mobChicken, mobPig, mobZombie, mobSkeleton, mobSpider, mobSlime, mobWailer, mobCinderwisp, mobBoarling, mobUndeadBoarling
     case mobVillager, mobGolem, mobBlight, mobVex, mobRavager, mobWolf, mobCat, mobHorse, mobLlama, mobBee, mobWarden
     case note(Int, Int)            // note block: instrument, pitch 0...24 (made on demand)
+    case gun(Int)                  // firearms, deck guns, alarms (Guns.swift, mob workstream)
 
     var category: SoundCategory {
         switch self {
@@ -104,6 +105,7 @@ enum Snd: Hashable {
              .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop, .birdCall, .owlHoot, .fireflyLoop, .dryGrassRustle, .heartCreak, .hiveLoop:
             return .ambient
         case .note: return .blocks
+        case .gun: return .players
         default: return .blocks
         }
     }
@@ -144,6 +146,7 @@ enum Snd: Hashable {
         case .mob(let k, let s): return "mob_\(k.key)_\(s.name)"
         case .babyMob(let k, let s): return "baby_\(k.key)_\(s.name)"
         case .note(let i, let p): return "note_\(i)_\(p)"
+        case .gun(let k): return "gun_\(k)"
         default: return String(describing: self)
         }
     }
@@ -211,6 +214,7 @@ final class SoundBank {
             for m in MobSound.allCases { s.append(.mob(k, m)) }
         }
         for k in [MobKind.cow, .pig, .sheep, .chicken, .villager, .wolf, .cat, .horse, .fox, .goat] { s.append(.babyMob(k, .ambient)) }
+        s += Guns.sounds                 // firearms, deck guns, alarms (mob workstream)
         return s
     }
 

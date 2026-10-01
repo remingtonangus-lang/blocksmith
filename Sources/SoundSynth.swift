@@ -897,6 +897,7 @@ struct Synth {
         case .fireworkTwinkle: out = grains(40, spread: 1.4, lp: 9000, hp: 2500, decay: 0.03, gain: 0.8)
 
         case .note(let inst, let n): out = MusicSynth.noteBlock(&self, inst: inst, pitch: n)
+        case .gun(let k): out = gunSound(k, p)
         }
         if !s.isLoop { out = Synth.trimTail(out) }
         return Synth.finish(s, out)

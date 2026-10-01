@@ -15,6 +15,7 @@ final class Game {
     let player = Player()
     let input = InputState()
     let particles = ParticleManager()
+    let arms = Armory()               // gun rounds in flight and the player's gun state (Ballistics.swift)
     let inventory = PlayerInventory()
     let save: SaveManager?
     let persistent: Bool
@@ -645,7 +646,7 @@ final class Game {
 
         interact(p, q, dt)
         updateFov(Float(dt))
-        if input.middleClicked || (p.x && !q.x) { pickBlock() }
+        if input.middleClicked || (p.x && !q.x && heldGun == nil) { pickBlock() }
 
         advance(dt)
     }
@@ -662,6 +663,8 @@ final class Game {
         let breakNow = input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5)
         let useHeld = input.rightDown || p.lt > 0.5
         let useNow = input.rightClicked || (p.lt > 0.5 && q.lt <= 0.5)
+        // A held gun fires even when aimed at a ship (unless piloting one, where the helm owns the buttons).
+        if world.ships.pilot == nil && gunInteract(p, q, fire: breakHeld, firePressed: breakNow, aim: useHeld, dt: fdt) { mining = nil; return }
         if shipInteract(breakHeld: breakHeld, breakNow: breakNow, useNow: useNow, sneak: input.shift || p.b, dt: fdt) { return }
 
         // Attack: an animal in front of the block takes priority.
@@ -1372,6 +1375,7 @@ final class Game {
         if m.chested && m.kind != .boat { drops.spawn(ItemStack(Items.id("chest"), 1), at: at) }
         if m.killedByPlayer { advancementKill(m) }
         captainDied(m)
+        soldierDied(m)
         sculkBloom(at: m.pos, xp: m.spec.xp)
         let xp = m.sized ? m.slimeSize : m.spec.xp
         if m.killedByPlayer && !m.baby { addXP(xp + (m.kind.hostile ? 0 : Int.random(in: 0...1))) }
@@ -1729,6 +1733,7 @@ final class Game {
         mobs.update(Float(dt), game: self)
         drops.update(Float(dt), game: self)
         projectiles.update(Float(dt), game: self)
+        armsTick(Float(dt))
         tnts.update(Float(dt), game: self)
         particles.update(Float(dt), world)
         ambientParticles(Float(dt))

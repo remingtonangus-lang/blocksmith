@@ -303,6 +303,20 @@ enum Loot {
                             ("diamond_sword@20-39", 1, 1, 3), ("diamond_chestplate@20-39", 1, 1, 3), ("diamond_helmet@20-39", 1, 1, 3),
                             ("diamond_boots@20-39", 1, 1, 3), ("enchanted_golden_apple", 1, 1, 2),
                             ("netherite_upgrade_smithing_template", 1, 1, 6), ("snout_armor_trim_smithing_template", 1, 1, 2)]),
+        // Steelhold fortresses (MilitaryBase.swift): guns, ammunition and supplies.
+        "steelhold_armory": (3...6, [("gun_rifle", 1, 1, 8), ("gun_smg", 1, 1, 8), ("gun_shotgun", 1, 1, 6), ("gun_sniper", 1, 1, 3),
+                                     ("rifle_rounds", 16, 48, 20), ("shotgun_shells", 6, 18, 12), ("heavy_rounds", 4, 12, 8), ("rocket_ammo", 1, 3, 4),
+                                     ("arc_cell", 2, 8, 4), ("iron_chestplate", 1, 1, 4), ("iron_helmet", 1, 1, 4), ("shield", 1, 1, 3)]),
+        "steelhold_supply": (4...8, [("bread", 2, 6, 15), ("cooked_beef", 2, 5, 10), ("baked_potato", 2, 6, 10), ("iron_ingot", 2, 6, 10),
+                                     ("copper_ingot", 4, 12, 8), ("gunpowder", 2, 8, 10), ("rifle_rounds", 8, 32, 12), ("redstone", 4, 12, 6),
+                                     ("tnt", 1, 3, 3), ("golden_apple", 1, 1, 2), ("compass", 1, 1, 2), ("map", 1, 1, 2)]),
+        "steelhold_command": (4...7, [("diamond", 2, 6, 8), ("emerald", 3, 8, 6), ("gun_sniper", 1, 1, 6), ("gun_launcher", 1, 1, 5),
+                                      ("gun_arc", 1, 1, 5), ("heavy_rounds", 6, 15, 8), ("rocket_ammo", 2, 6, 6), ("arc_cell", 4, 12, 6),
+                                      ("diamond_chestplate@20-30", 1, 1, 3), ("golden_apple", 1, 2, 5), ("enchanted_golden_apple", 1, 1, 1),
+                                      ("experience_bottle", 3, 8, 6)]),
+        "steelhold_vault": (5...9, [("diamond", 3, 8, 10), ("gold_ingot", 6, 16, 10), ("emerald", 4, 12, 8), ("gun_launcher", 1, 1, 6),
+                                    ("gun_arc", 1, 1, 6), ("rocket_ammo", 4, 8, 8), ("arc_cell", 8, 16, 8), ("netherite_scrap", 1, 2, 3),
+                                    ("diamond_sword@25-35", 1, 1, 3), ("enchanted_golden_apple", 1, 1, 2)]),
     ]
 
     // "name@a-b": enchant with a-b levels (treasure allowed); "name@0": enchant randomly (50%);

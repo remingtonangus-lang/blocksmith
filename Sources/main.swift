@@ -82,6 +82,16 @@ enum Snapshot {
         game.player.flying = true
         game.time = (Double(arg("--time") ?? "") ?? 0.2) * DAY_LENGTH
         if let s = arg("--slot") { game.selected = Int(s) ?? 0 }
+        if let h = arg("--hold") {
+            // --hold item[:aim]: put an item in the hand (guns come loaded; ":aim" aims down the sights).
+            let parts = h.split(separator: ":").map(String.init)
+            if Items.has(parts[0]) {
+                var st = ItemStack(Items.id(parts[0]), 1)
+                if let gi = Guns.index(st.item) { st.tag = Guns.all[gi].mag; game.arms.heldGun = gi; game.arms.heldSlot = game.selected }
+                game.inventory.held = st
+                if parts.count > 1 && parts[1] == "aim" { game.arms.aim = 1 }
+            }
+        }
         if let hp = arg("--survival") {
             game.survival = true
             game.health = Int(hp) ?? 20
@@ -543,6 +553,9 @@ enum Snapshot {
                     }
                     eq.append(Items.has("\(parts[1])_sword") ? ItemStack(Items.id("\(parts[1])_sword"), 1) : .empty)
                     m.equip = eq
+                } else if parts.count > 1 && parts[1] == "aggro" {
+                    m.aggro = true                                   // soldiers raise their guns
+                    if parts.count > 2, let gi = Int(parts[2]) { m.variant = gi }
                 } else if parts.count > 1 { var d = VillagerData(); d.profession = parts[1]; m.villager = d }
                 if k == .wither { m.phase = 0; m.pos.y += 2 }
                 if k == .evoker { m.spellTimer = 4.5 }
