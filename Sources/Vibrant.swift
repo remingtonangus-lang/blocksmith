@@ -227,8 +227,11 @@ final class Vibrant {
         if day {
             let dusk = simd_clamp(1 - sd.y / 0.4, 0, 1)
             let warm = simd_mix(V3(1.0, 0.95, 0.86), V3(1.0, 0.56, 0.3), V3(repeating: dusk * dusk))
-            f.color = warm * (0.62 * up * up * (3 - 2 * up)) * (1 - 0.75 * rain)
-            f.hazeStrength = (0.25 + 0.75 * dusk) * (1 - rain) * up
+            let rise: Float = up * up * (3 - 2 * up)
+            let dim: Float = 1 - 0.75 * rain
+            f.color = warm * (0.62 * rise * dim)
+            let hz: Float = 0.25 + 0.75 * dusk
+            f.hazeStrength = hz * (1 - rain) * up
         } else {
             f.color = V3(0.45, 0.55, 0.85) * (0.14 * up) * (1 - 0.75 * rain)
         }

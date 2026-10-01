@@ -478,7 +478,9 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let nd = V2(cp.x / cp.w, cp.y / cp.w)
                     pp.sun.x = nd.x * 0.5 + 0.5; pp.sun.y = 0.5 - nd.y * 0.5
                     let off = max(abs(nd.x), abs(nd.y))
-                    pp.sun.z = 0.45 * max(0, 1 - max(0, off - 1) / 0.8) * (1 - min(1, game.weather.rain)) * caveScale
+                    let onScreen: Float = max(0, 1 - max(0, off - 1) / 0.8)
+                    let clearSky: Float = 1 - min(1, game.weather.rain)
+                    pp.sun.z = 0.45 * onScreen * clearSky * caveScale
                 }
                 pp.sunCol = V4(lf.color * 1.6, lf.hazeStrength * caveScale)
             }
