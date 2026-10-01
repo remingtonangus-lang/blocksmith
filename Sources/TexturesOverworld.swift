@@ -91,8 +91,19 @@ extension TextureGen {
             let crack = (x * 3 + y * 7) % 13 == 0
             return V4(0.62, 0.78, 1.0, crack ? 0.9 : 0.62 + 0.08 * r(x, y, 373))
         }
-        p["packed_ice"] = speckle(0x8DB4FA, 0xB8D2FC, 0.15, 374)
-        p["blue_ice"] = speckle(0x74A8FB, 0x9CC4FF, 0.15, 375)
+        // Packed / blue ice: frosty mottling, pale fracture lines and a few bright crystal glints.
+        func iceP(_ c: UInt32, _ salt: Int) -> Painter {
+            { x, y in
+                var k: Float = 0.94 + (blot(x, y, salt, 4) - 0.5) * 0.14 + (r(x, y, salt + 1) - 0.5) * 0.05
+                let f1 = abs(Float(x) - Float(y) * 0.6 - 4 + sinf(Float(y) * 0.8) * 1.2) < 0.55
+                let f2 = abs(Float(y) - Float(x) * 0.35 - 9) < 0.5 && x > 4
+                if f1 || f2 { k += 0.16 }
+                if r(x, y, salt + 2) > 0.985 { k += 0.25 }
+                return hex(c, k)
+            }
+        }
+        p["packed_ice"] = iceP(0x8DB4FA, 374)
+        p["blue_ice"] = iceP(0x74A8FB, 375)
         p["calcite"] = speckle(0xDFE0DC, 0xC8C8C0, 0.12, 376)
         p["dripstone_block"] = { x, y in hex(0x866B5C, (x + Int(r(0, y / 3, 377) * 4)) % 4 == 0 ? 0.8 : 0.95 + 0.1 * r(x, y, 378)) }
         p["pointed_dripstone"] = { x, y in
