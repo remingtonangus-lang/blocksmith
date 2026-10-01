@@ -42,6 +42,9 @@ done
 "$BIN" --snapshot snaps/physicstest.png --seed 12345 --time 0.3 --physicstest
 "$BIN" --snapshot snaps/aerial.png  --seed 12345 --yaw 200 --pitch -35 --time 0.25 --up 45 --rd 12
 "$BIN" --snapshot snaps/aerial16.png --seed 12345 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16
+"$BIN" --snapshot snaps/aerial16_fast.png --seed 12345 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16 --fast
+"$BIN" --snapshot snaps/ground16.png --seed 12345 --yaw 200 --pitch -5 --time 0.3 --up 1 --rd 16 --w 1440 --h 900
+"$BIN" --snapshot snaps/ground16_fast.png --seed 12345 --yaw 200 --pitch -5 --time 0.3 --up 1 --rd 16 --w 1440 --h 900 --fast
 "$BIN" --snapshot snaps/aerial16_777.png --seed 777 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16
 "$BIN" --snapshot snaps/ocean_night_777.png --seed 777 --yaw 200 --pitch -12 --time 0.8 --up 30 --rd 16
 "$BIN" --snapshot snaps/ocean_night_777_fast.png --seed 777 --yaw 200 --pitch -12 --time 0.8 --up 30 --rd 16 --fast
@@ -207,6 +210,11 @@ cp -r build/sounds/scapes snaps/sounds/scapes
 "$BIN" --snapshot snaps/cave_torches.png --seed 12345 --find dripstone_caves --yaw 60 --pitch -25 --time 0.3 --torches
 "$BIN" --snapshot snaps/in_lava.png --seed 12345 --find plains --yaw 30 --pitch -10 --time 0.3 --up 1 --inlava
 "$BIN" --snapshot snaps/spawn_portal_check.png --seed 12345 --rd 16 --up 2 --yaw 45 --pitch 20
+"$BIN" --snapshot snaps/gallery_stone.png --seed 12345 --find plains --yaw 0 --pitch 0 --time 0.28 --up 6 --gallery stone,cobblestone,mossy_cobblestone,stone_bricks,mossy_stone_bricks,cracked_stone_bricks,smooth_stone,bricks,andesite,polished_andesite,diorite,polished_diorite,granite,polished_granite,tuff,calcite,deepslate,cobbled_deepslate,deepslate_bricks,deepslate_tiles,polished_deepslate,blackstone,basalt,obsidian
+"$BIN" --snapshot snaps/gallery_wood.png --seed 12345 --find plains --yaw 0 --pitch 0 --time 0.28 --up 6 --gallery oak_planks,spruce_planks,birch_planks,jungle_planks,acacia_planks,dark_oak_planks,mangrove_planks,cherry_planks,oak_log,spruce_log,birch_log,jungle_log,acacia_log,dark_oak_log,mangrove_log,cherry_log,crimson_planks,warped_planks,bamboo_planks,pale_oak_planks,crimson_stem,warped_stem,bamboo_block,pale_oak_log
+"$BIN" --snapshot snaps/gallery_ores.png --seed 12345 --find plains --yaw 0 --pitch 0 --time 0.28 --up 6 --gallery coal_ore,iron_ore,copper_ore,gold_ore,redstone_ore,emerald_ore,lapis_ore,diamond_ore,deepslate_coal_ore,deepslate_iron_ore,deepslate_copper_ore,deepslate_gold_ore,deepslate_redstone_ore,deepslate_emerald_ore,deepslate_lapis_ore,deepslate_diamond_ore,iron_block,gold_block,copper_block,diamond_block,emerald_block,lapis_block,redstone_block,netherite_block
+"$BIN" --snapshot snaps/gallery_earth.png --seed 12345 --find plains --yaw 0 --pitch 0 --time 0.28 --up 6 --gallery grass_block,dirt,coarse_dirt,podzol,mycelium,rooted_dirt,mud,clay,sand,red_sand,gravel,snow_block,ice,packed_ice,blue_ice,terracotta,sandstone,red_sandstone,moss_block,pale_moss_block,netherrack,soul_sand,end_stone,glowstone
+"$BIN" --snapshot snaps/gallery_color.png --seed 12345 --find plains --yaw 0 --pitch 0 --time 0.28 --up 6 --gallery white_wool,orange_wool,magenta_wool,light_blue_wool,yellow_wool,lime_wool,pink_wool,gray_wool,white_concrete,orange_concrete,magenta_concrete,light_blue_concrete,yellow_concrete,lime_concrete,pink_concrete,gray_concrete,white_terracotta,orange_terracotta,red_terracotta,blue_terracotta,glass,white_stained_glass,red_stained_glass,blue_stained_glass
 "$BIN" --snapshot snaps/selftest.png --seed 12345 --find plains --yaw 30 --pitch 10 --time 0.3 --up 1 --selftest
 trap - ERR
 if [ ${#FAILED[@]} -gt 0 ]; then

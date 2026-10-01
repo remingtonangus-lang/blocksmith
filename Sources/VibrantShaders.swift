@@ -6,6 +6,17 @@
 
 let vibrantShaderSource = """
 
+static float3 vibNormal(float face) {
+    switch (uint(face)) {
+        case 0u: return float3(1, 0, 0);
+        case 1u: return float3(-1, 0, 0);
+        case 3u: return float3(0, -1, 0);
+        case 4u: return float3(0, 0, 1);
+        case 5u: return float3(0, 0, -1);
+        default: return float3(0, 1, 0);
+    }
+}
+
 struct VibOut {
     float4 pos [[position]];
     float2 uv;
@@ -18,6 +29,7 @@ struct VibOut {
     float ao;
     float2 light;      // x = sky light, y = block light (0...1)
     float3 rel;
+    float3 nrm;        // world normal (face axis, rotated for moving structures)
 };
 
 // Per-section record at buffer 2, indexed by instance id: camera-relative origin + tint table offset (words).
@@ -76,19 +88,55 @@ vertex VibOut chunkVibVS(uint vid [[vertex_id]],
     o.ao = aoCurve[ao];
     o.light = float2(float((w1 >> 22) & 15u), float((w1 >> 26) & 15u)) / 15.0;
     o.rel = rel;
+    o.nrm = vibNormal(float(face));
     return o;
 }
 
-static float3 vibNormal(float face) {
-    switch (uint(face)) {
-        case 0u: return float3(1, 0, 0);
-        case 1u: return float3(-1, 0, 0);
-        case 3u: return float3(0, -1, 0);
-        case 4u: return float3(0, 0, 1);
-        case 5u: return float3(0, 0, -1);
-        default: return float3(0, 1, 0);
+// Moving block structures (ships, vehicles): the same vertex format placed with the structure's
+// transform (buffer 2: ship space -> camera-relative world, plus the section origin in ship space).
+// Pairs with chunkVibSolidFS / chunkVibFS / waterVibFS, so structures get the full Fancy lighting.
+struct ShipVibDraw { float4x4 model; float4 origin; };
+
+vertex VibOut shipVibVS(uint vid [[vertex_id]],
+                        const device uint2* verts [[buffer(0)]],
+                        constant Uniforms& u [[buffer(1)]],
+                        constant ShipVibDraw& d [[buffer(2)]],
+                        const device uint* tints [[buffer(3)]]) {
+    uint2 v = verts[vid];
+    uint w0 = v.x, w1 = v.y;
+    float3 p = float3(float(w0 & 511u), float((w0 >> 9) & 511u), float((w0 >> 18) & 511u)) / 16.0;
+    uint face = (w0 >> 27) & 7u;
+    uint tintMode = w0 >> 30;
+    uint uu = w1 & 31u, vv = (w1 >> 5) & 31u;
+    float2 uv = float2(float(uu), float(vv)) / 16.0;
+    if (uu == 31u && vv == 31u) {
+        switch (face) {
+            case 0u: uv = float2(-p.z, -p.y); break;
+            case 1u: uv = float2(p.z, -p.y); break;
+            case 2u: uv = float2(p.x, p.z); break;
+            case 3u: uv = float2(p.x, -p.z); break;
+            case 4u: uv = float2(p.x, -p.y); break;
+            default: uv = float2(-p.x, -p.y); break;
+        }
     }
+    uint layer = ((w1 >> 10) & 1023u) | ((w1 >> 31) << 10);
+    float3 rel = (d.model * float4(p + d.origin.xyz, 1.0)).xyz;
+    VibOut o;
+    o.pos = u.viewProj * float4(rel, 1.0);
+    o.uv = uv;
+    o.layer = float(layer);
+    o.tint = tintMode != 0u ? unpack_unorm4x8_to_float(tints[(tintMode - 1u) * 256u]).rgb : float3(1.0);
+    o.overlay = float((w1 >> 30) & 1u);
+    o.anim = face == 7u ? 1.0 : 0.0;
+    o.face = float(face);
+    o.water = tintMode == 3u ? 1.0 : 0.0;
+    o.ao = aoCurve[(w1 >> 20) & 3u];
+    o.light = float2(float((w1 >> 22) & 15u), float((w1 >> 26) & 15u)) / 15.0;
+    o.rel = rel;
+    o.nrm = normalize((d.model * float4(vibNormal(float(face)), 0.0)).xyz);
+    return o;
 }
+
 
 // Sun/moon shadow: 5-tap hardware PCF around the projected point, faded out at the map's edge.
 static float vibShadow(depth2d<float> sm, float3 rel, float3 n, constant Uniforms& u) {
@@ -99,13 +147,17 @@ static float vibShadow(depth2d<float> sm, float3 rel, float3 n, constant Uniform
     constexpr sampler cmp(coord::normalized, filter::linear, address::clamp_to_edge, compare_func::less_equal);
     float z = sc.z - 0.0006;
     float ts = 1.0 / 2048.0;
+    float edge = smoothstep(0.82, 0.97, max(abs(sc.x), abs(sc.y)));
+    if (length(rel) > 40.0) {
+        // Far away a single filtered tap is indistinguishable from the 6-tap kernel.
+        return mix(1.0, mix(sm.sample_compare(cmp, uv, z), 1.0, edge), u.sunColor.w);
+    }
     float s = sm.sample_compare(cmp, uv, z) * 2.0;
     s += sm.sample_compare(cmp, uv + float2(ts, ts) * 1.2, z);
     s += sm.sample_compare(cmp, uv + float2(-ts, ts) * 1.2, z);
     s += sm.sample_compare(cmp, uv + float2(ts, -ts) * 1.2, z);
     s += sm.sample_compare(cmp, uv + float2(-ts, -ts) * 1.2, z);
     s /= 6.0;
-    float edge = smoothstep(0.82, 0.97, max(abs(sc.x), abs(sc.y)));
     return mix(1.0, mix(s, 1.0, edge), u.sunColor.w);
 }
 
@@ -134,13 +186,26 @@ static float3 flashLight(float3 rel, float3 n, constant float4* fl) {
     return acc;
 }
 
+// Mobs, the player model and the first-person arm in Fancy: same patterns as mobFS, darkened where the
+// sun/moon shadow map says they stand in shade (trees, overhangs), plus nearby flash lights.
+fragment float4 mobVibFS(MobOut in [[stage_in]],
+                         depth2d<float> sm [[texture(1)]],
+                         constant Uniforms& u [[buffer(1)]],
+                         constant float4* fl [[buffer(5)]]) {
+    float3 c = mobPattern(in);
+    float sh = vibShadow(sm, in.rel, float3(0, 1, 0), u);
+    float k = mix(0.62, 1.0, sh);
+    float3 col = c * in.shade * k + c * flashLight(in.rel, float3(0, 1, 0), fl) * 0.8;
+    return float4(applyFogDir(col, in.rel, in.dist, u), 1.0);
+}
+
 static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<float> emis,
                        const device uchar4* mats, constant Uniforms& u, constant float4* fl) {
     float3 t = (in.overlay > 0.5 && c.a > 0.95) ? float3(1.0) : in.tint;
     float3 albedo = c.rgb * t;
     uint layer = uint(in.layer);
     float4 m = float4(mats[layer]) / 255.0;          // x spec, y shininess/255, z metal, w can get wet
-    float3 n = vibNormal(in.face);
+    float3 n = normalize(in.nrm);
     float3 v = normalize(in.rel);
     float skyL = in.light.x, blkL = in.light.y;
     float skyC = skyL * (0.35 + 0.65 * skyL);
@@ -160,6 +225,13 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
     float inv = 1.0 - blk0;
     float blk = min(1.0, mix(blk0, 1.0 - inv * inv * inv * inv, 0.6) * 1.05);
     float3 blkPart = blk * float3(1.0, 0.7, 0.4) * 1.1 * mix(0.75, 1.0, in.ao);
+    if (blk > 0.01) {
+        // Fire-lit areas flicker gently (slow per-area phase so neighbouring blocks move together).
+        float3 cellp = floor((in.rel + u.eye.xyz) / 6.0);
+        float ph = fract(sin(dot(cellp, float3(12.9, 78.2, 37.7))) * 4375.85) * 6.28;
+        float tt = u.params.z;
+        blkPart *= 1.0 + (sin(tt * 9.0 + ph) * 0.5 + sin(tt * 23.0 + ph * 2.0) * 0.3) * 0.06;
+    }
     float3 lit = max(skyPart, blkPart) + min(skyPart, blkPart) * 0.3;
     lit = mix(max(lit, float3(0.03)), float3(1.0), u.sunDir.w);
     lit += flashLight(in.rel, n, fl);
@@ -173,6 +245,25 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
     if (u.params.w > 0.5 && n.y > 0.5) {
         // Seen from under water: caustics dance on sunlit surfaces.
         col += albedo * caustic((in.rel + u.eye.xyz).xz, u.params.z) * u.sunColor.rgb * skyC * 0.5;
+    }
+    if (wet > 0.05 && in.face == 2.0) {
+        // Rain puddles: patches of standing water mirror the sky.
+        float2 wq = (in.rel + u.eye.xyz).xz;
+        float pd = smoothstep(0.55, 0.72, vnoise(wq * 0.33) * 0.7 + vnoise(wq * 1.1) * 0.3) * wet;
+        float3 r = reflect(v, n);
+        float fr = 0.25 + 0.75 * pow(1.0 - saturate(-v.y), 4.0);
+        col = mix(col, fogColorAlong(r, u) * (0.45 + 0.55 * sunVis) * mix(0.35, 1.0, skyL), pd * fr * 0.8);
+    }
+    if (((m.z > 0.15 && m.z < 0.35) || in.face > 5.5) && sunVis > 0.0) {
+        // Foliage and plants seen against the sun glow through (thin-leaf transmission).
+        float back = pow(saturate(dot(v, u.lightDir.xyz)), 4.0);
+        col += albedo * u.sunColor.rgb * back * sunVis * 0.9;
+    }
+    if (m.z > 0.4 && m.z < 0.6 && sunVis > 0.0) {
+        // Snow and ice glitter: a few texels catch the light.
+        float2 tq = floor(in.uv * 16.0) + floor((in.rel + u.eye.xyz).xz) * 17.0;
+        float g = fract(sin(dot(tq, float2(12.9898, 78.233))) * 43758.5453);
+        col += u.sunColor.rgb * step(0.975, g) * ndl * shadow * sunVis * 3.0;
     }
     float e = emis.sample(texSampler, in.uv, layer).r;
     col += albedo * e * 2.4;
@@ -248,7 +339,7 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
         float3 lit = u.ambColor.rgb * skyC * faceShade[uint(in.face)] + u.sunColor.rgb * sunVis * 0.6 + blkL * float3(1.0, 0.7, 0.4);
         lit = mix(max(lit, float3(0.04)), float3(1.0), u.sunDir.w);
         float3 rgb = c.rgb * in.tint * lit;
-        float3 n = vibNormal(in.face);
+        float3 n = normalize(in.nrm);
         float3 h = normalize(u.lightDir.xyz - v);
         rgb += u.sunColor.rgb * pow(saturate(dot(n, h)), 90.0) * sunVis * 1.5;
         float f = smoothstep(u.fogColor.w, u.params.x, dist);
@@ -256,12 +347,23 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
     }
     float2 suv = in.pos.xy * u.screen.zw;
     float3 wp = in.rel + u.eye.xyz;
-    float3 n = vibNormal(in.face);
+    float3 n = normalize(in.nrm);
     if (in.face == 2.0) {
         float2 w1 = wp.xz * 0.8 + float2(t * 0.55, t * 0.3);
         float2 w2 = wp.xz * 2.1 - float2(t * 0.35, -t * 0.6);
         float2 g = float2(cos(w1.x + w1.y * 0.6), sin(w1.y - w1.x * 0.45)) * 0.045
                  + (float2(vnoise(w2), vnoise(w2 + 7.3)) - 0.5) * 0.11;
+        if (u.ambColor.w > 0.05 && dist < 40.0) {
+            // Rain: expanding drop rings, one per half-block cell at random times.
+            float2 cell = floor(wp.xz * 2.0);
+            float h = fract(sin(dot(cell, float2(41.3, 289.1))) * 43758.5);
+            float ph = fract(t * 1.4 + h * 7.0);
+            float2 ctr = (cell + 0.25 + 0.5 * float2(h, fract(h * 13.7))) * 0.5;
+            float2 dv = wp.xz - ctr;
+            float dd = length(dv);
+            float ring = sin((dd - ph * 0.22) * 90.0) * (1.0 - ph) * (1.0 - smoothstep(0.0, 0.25, abs(dd - ph * 0.22) * 6.0));
+            g += dv / max(dd, 1e-3) * ring * 0.12 * u.ambColor.w;
+        }
         n = normalize(float3(g.x, 1.0, g.y));
     }
     float3 deep = in.tint * (u.ambColor.rgb * 0.30 + u.sunColor.rgb * 0.10 + float3(0.01, 0.015, 0.02)) * mix(1.0, 0.4, u.params.w);
@@ -286,7 +388,7 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
         // Beyond the critical angle the surface mirrors the water below (total internal reflection).
         float3 rd = refract(v, -n, 1.33);
         float3 col = length(rd) < 0.01 ? deep * 1.4 : mix(skyAlong(rd, u) * 0.85, deep, 0.3);
-        col += u.sunColor.rgb * pow(saturate(dot(rd, u.lightDir.xyz)), 40.0) * 3.0 * sunVis;
+        col += u.sunColor.rgb * pow(saturate(dot(rd, u.lightDir.xyz)), 220.0) * 2.0 * sunVis;
         return float4(applyFog(col, dist, u), 1.0);
     }
     // Reflection: march the reflected ray through the opaque depth; fall back to the sky.
@@ -295,7 +397,8 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
     if (r.y > -0.05) {
         float3 pr = in.rel;
         float stepL = 0.4 + dist * 0.02;
-        for (int i = 0; i < 20; i++) {
+        int steps = dist > 64.0 ? 8 : (dist > 24.0 ? 14 : 20);
+        for (int i = 0; i < steps; i++) {
             pr += r * stepL;
             stepL *= 1.18;
             float4 cp = u.viewProj * float4(pr, 1.0);
@@ -462,19 +565,6 @@ fragment float4 compositeFS(FsOut in [[stage_in]],
         float m = 1.0 - exp(-od);
         float phase = 1.0 + pow(saturate(dot(dir, u.lightDir.xyz)), 6.0) * 1.5;
         c = mix(c, p.mist.rgb * phase, saturate(m));
-    }
-    if (u.params.w > 0.5 && u.sunColor.r + u.sunColor.g > 0.05) {
-        // Under water: slanted light shafts that sway, brightest near the surface and toward the sun.
-        float d = dep.sample(ls, in.uv);
-        float3 rel = relAt(in.uv, d, u);
-        float3 dir = normalize(rel);
-        float dist = d >= 1.0 ? 40.0 : min(length(rel), 40.0);
-        float t = u.params.z;
-        float3 pm = u.eye.xyz + dir * dist * 0.5;
-        float2 q = pm.xz - u.lightDir.xz * pm.y * 0.6;
-        float shaft = pow(vnoise(q * 0.35 + float2(t * 0.15, t * 0.1)), 3.0) * 1.6;
-        float up = saturate(dir.y * 0.8 + 0.4);
-        c += u.fogColor.rgb * u.sunColor.rgb * shaft * up * (1.0 - exp(-dist * 0.06)) * 3.0;
     }
     c *= p.grade.x;
     c = toneShoulder(c);

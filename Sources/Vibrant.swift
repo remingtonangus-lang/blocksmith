@@ -10,6 +10,9 @@ final class Vibrant {
     // World pipelines rendering into the HDR target.
     let chunk, chunkSolid, water, simple, star, cloud, cloudBox, mob, entity, crack, sky, hollowSky: MTLRenderPipelineState
     let shadowSolid, shadowCut: MTLRenderPipelineState
+    // Moving block structures (ships/vehicles) in the Fancy world pass: shipVibVS (buffer 2 = model matrix +
+    // section origin, the ship renderer's per-draw record) with the terrain fragment shaders.
+    let shipSolid, shipCut, shipTrans: MTLRenderPipelineState
     let bloomDown, bloomUp, rays, composite: MTLRenderPipelineState
     let shadowDepth: MTLDepthStencilState
     let shadowMap: MTLTexture
@@ -63,11 +66,14 @@ final class Vibrant {
         star = try pipe("starVS", "simpleFS", color: hdrF, blend: 1)
         cloud = try pipe("cloudVS", "cloudFS", color: hdrF, blend: 1)
         cloudBox = try pipe("cloudBoxVS", "cloudBoxFS", color: hdrF, blend: 1)
-        mob = try pipe("mobVS", "mobFS", color: hdrF)
+        mob = try pipe("mobVS", "mobVibFS", color: hdrF)
         entity = try pipe("entityVS", "entityFS", color: hdrF)
         crack = try pipe("entityVS", "crackFS", color: hdrF, blend: 1)
         sky = try pipe("skyVS", "skyFS", color: hdrF)
         hollowSky = try pipe("skyVS", "hollowSkyFS", color: hdrF)
+        shipSolid = try pipe("shipVibVS", "chunkVibSolidFS", color: hdrF)
+        shipCut = try pipe("shipVibVS", "chunkVibFS", color: hdrF)
+        shipTrans = try pipe("shipVibVS", "waterVibFS", color: hdrF, blend: 1)
         shadowSolid = try pipe("shadowVS", nil, color: nil)
         shadowCut = try pipe("shadowVS", "shadowCutFS", color: nil)
         bloomDown = try pipe("fsVS", "bloomDownFS", color: hdrF, depth: .invalid)
@@ -178,7 +184,11 @@ final class Vibrant {
             } else if n.hasPrefix("polished_") || n.hasPrefix("smooth_") || n.contains("quartz") || n.hasSuffix("glazed_terracotta")
                         || n == "obsidian" || n == "crying_obsidian" || n.hasPrefix("prismarine") || n == "sea_lantern" || n.hasSuffix("_concrete") {
                 spec = 0.22; shin = 40
-            } else if n.contains("leaves") || n.contains("wool") || n.hasSuffix("_carpet") {
+            } else if n == "snow" || n == "snow_block" || n == "powder_snow" || n == "grass_block_snow" {
+                spec = 0.2; shin = 60; metal = 0.5; wet = 0
+            } else if n.contains("leaves") {
+                spec = 0.0; wet = 0.6; metal = 0.25       // 0.25 = translucent foliage (backlit glow)
+            } else if n.contains("wool") || n.hasSuffix("_carpet") {
                 spec = 0.0; wet = 0.6
             }
             m[l * 4] = UInt8(spec * 255); m[l * 4 + 1] = UInt8(shin); m[l * 4 + 2] = UInt8(metal * 255); m[l * 4 + 3] = UInt8(wet * 255)
@@ -240,6 +250,11 @@ final class Vibrant {
         let dl = simd_clamp((game.daylight - 0.1) / 0.9, 0, 1)
         let dayAmb = V3(0.52, 0.57, 0.66), nightAmb = V3(0.17, 0.2, 0.33)
         f.ambient = simd_mix(nightAmb, dayAmb, V3(repeating: dl))
+        // Thunderstorms: heavy cloud cover, a steely ambient and almost no direct sun.
+        let storm = min(1, game.weather.thunder)
+        f.ambient *= V3(1 - 0.35 * storm, 1 - 0.33 * storm, 1 - 0.25 * storm)
+        f.color *= 1 - 0.6 * storm
+        f.hazeStrength *= 1 - storm
         // Shadow map basis: light travels along -L.
         let fwd = -L
         let ref = abs(fwd.y) > 0.95 ? V3(0, 0, 1) : V3(0, 1, 0)

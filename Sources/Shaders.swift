@@ -244,6 +244,20 @@ fragment float4 skyFS(SkyOut in [[stage_in]], constant SkyParams& s [[buffer(1)]
     float3 warm = float3(1.0, 0.55, 0.25);
     col += warm * pow(sd, 5.0) * s.horizon.w * (0.35 + 0.65 * band);
     col += float3(1.0, 0.95, 0.85) * pow(sd, 24.0) * 0.18 * s.sun.w;
+    // Dusk/dawn: a soft pink band above the horizon opposite the sun (the anti-twilight arch).
+    float anti = saturate(-dot(normalize(float3(d.x, 0.0, d.z) + 1e-4), normalize(float3(s.sun.x, 0.0, s.sun.z) + 1e-4)));
+    float arch = exp(-pow((d.y - 0.1) / 0.09, 2.0));
+    col += float3(0.55, 0.32, 0.42) * arch * anti * anti * saturate(s.horizon.w - 0.15) * 0.55;
+    float night = saturate((0.45 - s.sun.w) / 0.35);
+    if (night > 0.0 && d.y > -0.05) {
+        // A faint galactic band across the night sky, turning with the stars (zenith.w = sky angle).
+        float a = s.zenith.w;
+        float3 bn = normalize(float3(0.3 * cos(a) - 0.2 * sin(a), 0.3 * sin(a) + 0.2 * cos(a), 0.93));
+        float band = exp(-pow(dot(d, bn) * 4.5, 2.0));
+        float3 q = d * 6.0;
+        float cl = vnoise(q.xy + q.z * 0.7) * 0.6 + vnoise(q.yz * 2.3 + 5.0) * 0.4;
+        col += float3(0.32, 0.3, 0.42) * band * smoothstep(0.3, 0.8, cl) * night * 0.22 * saturate(d.y * 4.0 + 0.2);
+    }
     return float4(col, 1.0);
 }
 
@@ -342,12 +356,18 @@ fragment float4 cloudBoxFS(CloudOut in [[stage_in]],
     float day = u.params.y;
     float3 col = float3(1.0) * mix(0.05, 1.0, smoothstep(0.12, 1.0, day)) * in.rel.y;
     col = mix(col, u.fogColor.rgb, 0.2);
+    if (u.sunColor.r + u.sunColor.g + u.ambColor.r > 0.0) {
+        // HDR (Fancy): sky ambient plus direct sun/moon light on the lit faces (pink-gold at sunset).
+        float lit = smoothstep(0.75, 1.0, in.rel.y);
+        col = u.ambColor.rgb * (0.9 + 0.5 * in.rel.y) + u.sunColor.rgb * (0.35 + 1.1 * lit);
+        col = mix(col, u.fogColor.rgb, 0.15);
+    }
     return float4(col, 0.82 * fade);
 }
 
 // Mobs: flat-coloured cuboids; the pattern id adds pixel detail in model space (1/16-block cells).
 struct MobVert { float4 pos; float4 color; float4 local; };
-struct MobOut { float4 pos [[position]]; float3 color; float shade; float3 local; float pattern [[flat]]; float dist; };
+struct MobOut { float4 pos [[position]]; float3 color; float shade; float3 local; float pattern [[flat]]; float dist; float3 rel; };
 
 vertex MobOut mobVS(uint vid [[vertex_id]],
                     const device MobVert* verts [[buffer(0)]],
@@ -360,6 +380,7 @@ vertex MobOut mobVS(uint vid [[vertex_id]],
     o.local = m.local.xyz;
     o.pattern = m.pos.w;
     o.dist = length(m.pos.xyz);
+    o.rel = m.pos.xyz;
     return o;
 }
 
@@ -367,6 +388,29 @@ static float hash31(float3 p) {
     p = fract(p * 0.1031);
     p += dot(p, p.zyx + 31.32);
     return fract((p.x + p.y) * p.z);
+}
+
+static float3 mobPattern(MobOut in) {
+    float3 cell = floor(in.local + 0.001);
+    float h = hash31(cell);
+    float3 c = in.color;
+    if (in.pattern > 0.5 && in.pattern < 1.5) {
+        float n = vnoise(cell.xz * 0.28 + cell.y * 0.21 + 3.0) * 0.7 + vnoise(cell.zy * 0.33 + 7.0) * 0.3;
+        if (n > 0.58) { c = float3(0.92, 0.9, 0.86); }
+        c *= 0.9 + 0.1 * h;
+    } else if (in.pattern > 1.5 && in.pattern < 2.5) {
+        c *= 0.8 + 0.2 * h;
+    } else if (in.pattern > 2.5 && in.pattern < 3.5) {
+        c *= 0.88 + 0.12 * step(0.5, h);
+    } else if (in.pattern > 3.5 && in.pattern < 4.5) {
+        float h2 = hash31(floor(in.local * 0.5 + 0.001));
+        c *= 0.72 + 0.28 * h2 + 0.12 * h;
+    } else if (in.pattern > 4.5) {
+        c *= 0.9 + 0.1 * h;
+    } else {
+        c *= 0.93 + 0.07 * h;
+    }
+    return c;
 }
 
 fragment float4 mobFS(MobOut in [[stage_in]], constant Uniforms& u [[buffer(1)]]) {
