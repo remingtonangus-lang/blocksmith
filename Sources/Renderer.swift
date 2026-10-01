@@ -110,7 +110,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     // Base vertex / base instance draws (every Apple-silicon GPU; the old per-draw binding path otherwise).
     // Apple's paravirtual GPU (the CI runners) reports the family but draws base-vertex calls with the wrong
     // vertices (scrambled, black terrain), so it takes the per-draw binding path; --no-base-vertex forces it too.
-    private lazy var baseVertexOK: Bool = (device.supportsFamily(.apple3) || device.supportsFamily(.mac2))
+    lazy var baseVertexOK: Bool = (device.supportsFamily(.apple3) || device.supportsFamily(.mac2)) && !CommandLine.arguments.contains("--nobase")
         && !device.name.contains("Paravirtual") && !CommandLine.arguments.contains("--no-base-vertex")
     var caveCulling = true
     // Smoothed skylight at the player's eye (0...1, -1 = not sampled yet). Fog and sky colour fade toward

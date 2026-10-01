@@ -888,6 +888,7 @@ enum Snapshot {
         let renderer: Renderer
         do { renderer = try Renderer(device: device, game: game, colorFormat: .bgra8Unorm) }
         catch { print("renderer init failed: \(error)"); return 1 }
+        if CommandLine.arguments.contains("--nocull") { renderer.caveCulling = false }   // draw every section in the frustum
         game.target = world.raycast(game.player.eye, game.player.look, maxDist: 5)
         do {
             // Light probe: the eye cell and the first floor below it (debugging dark views).
