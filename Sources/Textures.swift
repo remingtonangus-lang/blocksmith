@@ -47,7 +47,10 @@ enum TextureGen {
     // Generic "rock": base colour with per-pixel grain and blotches.
     static func rock(_ base: UInt32, grain: Float, blotch: Float, salt: Int) -> Painter {
         { x, y in
-            let k = 1 + (r(x, y, salt) - 0.5) * grain + (blot(x, y, salt + 1, 4) - 0.5) * blotch
+            var k = 1 + (r(x, y, salt) - 0.5) * grain * 0.8 + (blot(x, y, salt + 1, 4) - 0.5) * blotch
+                + (blot(x, y, salt + 2, 8) - 0.5) * blotch * 0.7
+            let s = r(x, y, salt + 3)
+            if s < 0.035 { k *= 0.84 } else if s > 0.97 { k *= 1.1 }
             return hex(base, k)
         }
     }
