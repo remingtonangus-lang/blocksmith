@@ -191,6 +191,16 @@ extension Game {
             if a.rainExposure < 0.5 && a.cave < 0.9 { ask("rainroof", .rainRoof, r * (1 - a.rainExposure) * (1 - a.cave) * 0.6) }
         }
         weatherAudioTick(dt, ask: ask)
+        // Rockets and shells in flight: the nearest of each within 32 blocks.
+        var rocket: (V3, Float)? = nil, shell: (V3, Float)? = nil
+        for s in arms.slugs where s.kind == .rocket || s.kind == .shell {
+            let d = simd_length(s.pos - eye)
+            if d > 32 { continue }
+            if s.kind == .rocket { if rocket == nil || d < rocket!.1 { rocket = (s.pos, d) } }
+            else if shell == nil || d < shell!.1 { shell = (s.pos, d) }
+        }
+        if let r = rocket { ask("rocketflight", .rocketFlightLoop, 0.9 * (1 - r.1 / 32), r.0) }
+        if let s = shell { ask("shellflight", .shellFlightLoop, 1.0 * (1 - s.1 / 32), s.0) }
         vehicleAudioTick(dt, ask: ask)
         // Player state loops.
         if player.headInWater { ask("underwater", .underwaterLoop, 0.9) }

@@ -898,6 +898,15 @@ struct Synth {
 
         case .note(let inst, let n): out = MusicSynth.noteBlock(&self, inst: inst, pitch: n)
         case .gun(let k): out = WeaponAudio.gun(&self, k, p: p)
+        case .rocketFlightLoop:
+            // Rocket motor: a hissing roar with crackle.
+            let roar = wash(2.0, lp: 2600 * p, hp: 300, wobble: 0.4, rate: 14, gain: 0.8)
+            out = Synth.loopify(Synth.mix(roar, crackle(2.0, density: 200, f: 1800, q: 1.5, gain: 0.8)), fade: 0.2)
+        case .shellFlightLoop:
+            // Heavy shell overhead: a tearing, whistling whoosh.
+            let tear = wash(2.0, lp: 1500 * p, hp: 200, wobble: 0.6, rate: 9, gain: 0.8)
+            let whistle = Synth.bandpass(wash(2.0, lp: 5000, hp: 400, wobble: 0.3, rate: 3, gain: 1.0), 1250 * p, q: 10)
+            out = Synth.loopify(Synth.mix(tear, Synth.scaled(whistle, 2.0)), fade: 0.2)
         case .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop, .thunderFar, .iceCreak, .rockfall:
             out = TerrainAudio.render(&self, s, p: p)
         case .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,

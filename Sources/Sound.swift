@@ -81,6 +81,7 @@ enum Snd: Hashable {
     // 4 rocket, 5 arc lance, 6 reload, 7 dry fire, 8 ricochet, 9 deck gun, 10 alarm, 11 radio call, 12 turret whine.
     case gun(Int), gunReload(Int), gunDistant(Int), bulletImpact(SoundMat), bulletWhizz, bulletFlesh, grenadeBounce
     case soldier(Int, Bark), soldierStep(Int)
+    case rocketFlightLoop, shellFlightLoop          // projectiles in flight (heard as they pass)
     // Ships, airships and land vehicles (VehicleAudio.swift): idle/full layers are cross-faded by throttle.
     case engineIdleLoop, engineFullLoop, propSlowLoop, propFastLoop, airshipWindLoop, wheelRollLoop, hullWaterLoop
     case hullCreak, shipCollide, shipCollideHard, shipSplash, helmTake, engineStart
@@ -116,6 +117,7 @@ enum Snd: Hashable {
         case .note: return .blocks
         case .gun, .gunReload, .gunDistant, .bulletImpact, .bulletWhizz, .bulletFlesh, .grenadeBounce: return .players
         case .soldier, .soldierStep: return .hostile
+        case .rocketFlightLoop, .shellFlightLoop: return .players
         case .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
              .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart: return .blocks
         case .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .swampInsectsLoop, .iceCreak, .rockfall: return .ambient
@@ -149,7 +151,8 @@ enum Snd: Hashable {
              .respawnAnchorLoop, .spawnerLoop, .netherWastesLoop, .soulValleyLoop, .crimsonLoop, .warpedLoop, .basaltLoop, .endLoop, .deepDarkLoop, .lushLoop, .dripstoneLoop,
              .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop, .fireflyLoop, .hiveLoop,
              .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
-             .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop:
+             .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop,
+             .rocketFlightLoop, .shellFlightLoop:
             return true
         default: return false
         }
@@ -252,7 +255,7 @@ final class SoundBank {
         for k in 0...5 { s.append(.gunReload(k)); s.append(.gunDistant(k)) }
         s.append(.gunDistant(WeaponAudio.heavySlot))
         for m in SoundMat.allCases { s.append(.bulletImpact(m)) }
-        s += [.bulletWhizz, .bulletFlesh, .grenadeBounce]
+        s += [.bulletWhizz, .bulletFlesh, .grenadeBounce, .rocketFlightLoop, .shellFlightLoop]
         s += [.engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
               .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart]
         s += [.riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop,

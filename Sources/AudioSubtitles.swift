@@ -307,6 +307,8 @@ extension Snd {
         case .gunDistant: return "Distant gunfire"
         case .bulletImpact: return "Bullet hits"
         case .bulletWhizz: return "Bullet whizzes"
+        case .rocketFlightLoop: return "Rocket roars past"
+        case .shellFlightLoop: return "Shell whistles"
         case .bulletFlesh: return "Bullet hits flesh"
         case .grenadeBounce: return "Grenade bounces"
         case .soldier(_, let b):
