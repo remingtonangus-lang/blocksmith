@@ -90,11 +90,13 @@ final class ShipMesh {
     }
 
     // Builds section meshes for a grid snapshot (any thread).
-    static func build(sx: Int, sy: Int, sz: Int, blocks: [BlockID], only: Set<Int>?) -> [(Int, SectionMesh, V3)] {
+    static func build(sx: Int, sy: Int, sz: Int, blocks: [BlockID], only: Set<Int>?, spinning: Bool = true) -> [(Int, SectionMesh, V3)] {
         let ncx = (sx + 15) / 16, ncz = (sz + 15) / 16
         let vh = sy + 16
         let nsec = min(NSEC - 1, (vh + 15) / 16)
         let skyT = Blocks.sky
+        // Propellers are drawn on their own, turning (ShipRenderer.propMesh), so the hull mesh leaves them out.
+        let kinds = ShipParts.kinds
         var stores: [Int: (BlockStore, [Int16])] = [:]
         let empty = (BlockStore([]), [Int16](repeating: -1, count: CSQ))
         func store(_ cx: Int, _ cz: Int) -> (BlockStore, [Int16]) {
@@ -113,7 +115,7 @@ final class ShipMesh {
                         let gx = cx * 16 + x
                         if gx >= sx { break }
                         let b = blocks[gx + gz * sx + y * sx * sz]
-                        if b == AIR { continue }
+                        if b == AIR || (spinning && kinds[Int(b)] == .propeller) { continue }
                         a[x + z * 16 + vy * CSQ] = b
                         if skyT[Int(b)] { h[x + z * 16] = Int16(vy) }
                     }
@@ -264,9 +266,25 @@ final class ShipRenderer {
     private static let ringSize = 1 << 20
     private(set) var drawCalls = 0
     var enabled = true               // bench: frames without ships for comparison
+    private let device: MTLDevice
+    private var propMeshes: [BlockID: ShipMesh.Sec] = [:]
+
+    // One propeller block meshed on its own (cached per facing state), drawn turned about its shaft.
+    private func propMesh(_ b: BlockID) -> ShipMesh.Sec? {
+        if let m = propMeshes[b] { return m }
+        guard let r = ShipMesh.build(sx: 1, sy: 1, sz: 1, blocks: [b], only: nil, spinning: false).first(where: { !$0.1.opaque.isEmpty }) else { return nil }
+        let m = r.1
+        var sec = ShipMesh.Sec(origin: r.2)
+        sec.opaque = m.opaque.withUnsafeBytes { MeshArena.shared.alloc(device, $0) }
+        sec.opaqueQuads = m.opaque.count / 8
+        sec.solidQuads = m.solidQuads
+        propMeshes[b] = sec
+        return sec
+    }
     private var maskScratch: [SimpleVert] = []
 
     init(device: MTLDevice, colorFormat: MTLPixelFormat) throws {
+        self.device = device
         let lib = try device.makeLibrary(source: shipShaderSource, options: nil)
         func pipe(_ vs: String, _ fs: String, blend: Bool, colour: Bool = true) throws -> MTLRenderPipelineState {
             let d = MTLRenderPipelineDescriptor()
@@ -346,6 +364,22 @@ final class ShipRenderer {
                 let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
                 if count <= 0 { continue }
                 var rec = ShipDrawRec(model: m, origin: V4(sec.origin, 0))
+                enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
+                enc.setVertexBytes(&rec, length: MemoryLayout<ShipDrawRec>.stride, index: 2)
+                enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quads,
+                                          indexBufferOffset: first * 6 * 4)
+                drawCalls += 1
+            }
+            // Propellers, turned about their shafts.
+            for (c, d) in s.props {
+                let b = s.grid.get(Int(floor(c.x)), Int(floor(c.y)), Int(floor(c.z)))
+                guard let pm = propMesh(b), let buf = pm.opaque else { continue }
+                let total = min(pm.opaqueQuads, Renderer.maxQuads), solid = min(pm.solidQuads, total)
+                let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
+                if count <= 0 { continue }
+                let spin = float4x4(simd_quatf(angle: s.propSpin, axis: d))
+                let pmodel: float4x4 = m * translationMatrix(c) * spin * translationMatrix(V3(-0.5, -0.5, -0.5))
+                var rec = ShipDrawRec(model: pmodel, origin: V4(pm.origin, 0))
                 enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
                 enc.setVertexBytes(&rec, length: MemoryLayout<ShipDrawRec>.stride, index: 2)
                 enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quads,

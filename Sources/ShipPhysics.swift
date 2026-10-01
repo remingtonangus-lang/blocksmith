@@ -143,7 +143,15 @@ extension ShipManager {
                 p.airPeak = p.pos.y
             }
         }
-        for s in list { s.mesh.apply(device: world.device) }
+        for s in list {
+            s.mesh.apply(device: world.device)
+            // Propellers spin up with the throttle when engines drive them, and run down slowly.
+            if !s.props.isEmpty {
+                let want: Float = s.piloted && s.engines > 0 ? s.throttle * 30 : 0
+                s.propRate += (want - s.propRate) * min(1, dt * (abs(want) > abs(s.propRate) ? 2.5 : 0.8))
+                s.propSpin = fmodf(s.propSpin + s.propRate * dt, 2 * .pi)
+            }
+        }
         if let game { shipSounds(dt, game) }
         stepMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
     }
