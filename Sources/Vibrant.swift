@@ -310,13 +310,15 @@ final class Vibrant {
             e.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
             e.endEncoding()
         }
-        // God rays (half resolution) only when the sun is in front of the camera.
+        // Half resolution: red = screen-space god rays (sun on screen), green = volumetric shafts.
         do {
             let e = pass(raysTex, load: false)
             e.setRenderPipelineState(rays)
             e.setFragmentTexture(depth, index: 0)
+            e.setFragmentTexture(shadowMap, index: 1)
             e.setFragmentBytes(&p, length: MemoryLayout<PostParams>.stride, index: 0)
-            if p.sun.z > 0 { e.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3) }
+            e.setFragmentBytes(&uu, length: MemoryLayout<Uniforms>.stride, index: 1)
+            e.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
             e.endEncoding()
         }
         let e = cmd.makeRenderCommandEncoder(descriptor: final)!
@@ -325,7 +327,6 @@ final class Vibrant {
         e.setFragmentTexture(bloom[0], index: 1)
         e.setFragmentTexture(raysTex, index: 2)
         e.setFragmentTexture(depth, index: 3)
-        e.setFragmentTexture(shadowMap, index: 4)
         e.setFragmentBytes(&p, length: MemoryLayout<PostParams>.stride, index: 0)
         e.setFragmentBytes(&uu, length: MemoryLayout<Uniforms>.stride, index: 1)
         e.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
