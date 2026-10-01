@@ -346,6 +346,26 @@ enum ShipTest {
             w.ships.remove(gb)
         } else { check(false, "gunboat assembles with a turret") }
 
+        // 1c. Ramming: one boat drives into the stern of another; the struck boat is shoved, hulls don't pass through.
+        let ramAt = sea + V3(-40, 0, 0)
+        _ = w.loadSync(center: ramAt, radius: max(rd, 6))
+        let ha = place(w, "boat", near: ramAt)
+        let hb = place(w, "boat", near: ramAt - V3(0, 0, 16))
+        let (raOpt, _) = w.ships.assemble(at: ha, game: g)
+        let (rbOpt, _) = w.ships.assemble(at: hb, game: g)
+        if let ra = raOpt, let rb = rbOpt {
+            run(g, seconds: 2)
+            let b0 = rb.pos
+            ra.autopilot = V3(1, 0, 0)
+            var closest: Float = 99
+            for _ in 0..<8 { run(g, seconds: 1); closest = min(closest, horiz(ra.pos - rb.pos)) }
+            print(String(format: "physicstest ramming: struck boat moved %.1f blocks, closest centres %.1f (hull length %.0f)",
+                         horiz(rb.pos - b0), closest, rb.localMax.z - rb.localMin.z))
+            check(horiz(rb.pos - b0) > 1 && closest > 9, "ships collide with each other")
+            ra.autopilot = nil
+            w.ships.remove(ra); w.ships.remove(rb)
+        } else { check(false, "two boats assemble") }
+
         // 2. Airship: hovers, climbs, flies forward.
         let land = Snapshot.findBiome(w.gen, "plains") ?? V3(sea.x + 400, 80, sea.z)
         _ = w.loadSync(center: land, radius: max(rd, 6))

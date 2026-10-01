@@ -60,7 +60,11 @@ ShipRender.swift, ShipPlay.swift, ShipBlocks.swift, ShipTest.swift).
 The single-draw-per-section path (base vertex + base instance) draws scrambled, black terrain on the CI runners'
 paravirtual GPU (every PR #1 snapshot showed it). Renderer.baseVertexOK now skips it when the device name contains
 "Paravirtual" (or with --no-base-vertex). Still to verify on a real M1 that the fast path renders correctly; if not,
-the same flag turns it off. Open: World objects still outlive some --bench scenes (startup, tnt, fluids, flights).
+the same flag turns it off. Confirmed on CI (spawn.png clean again).
+Engine-session perf work since: background gen/mesh operations capture the World weakly (fix for the World leak the
+perf handoff left open; watch bench worlds_alive), the culling walk stops above the tallest geometry in range, chunk
+workers find circuit components that need periodic work. Ship costs (bench "ships", CI): physics 0.17 ms/frame with a
+frigate and a siege carriage under way, frigate mesh 3 ms (background), block edit 0.5 ms.
 
 ## CI (compile/test loop)
 - `.github/workflows/mac.yml` (macos-14 arm64, Xcode 16 / Swift 6.0.3): `./build.sh` + `./snap.sh` on every push;
