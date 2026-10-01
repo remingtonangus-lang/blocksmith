@@ -461,6 +461,18 @@ fragment void shadowCutFS(ShadowOut in [[stage_in]], texture2d_array<float> tex 
     if (tex.sample(texSampler, in.uv, uint(in.layer)).a < 0.5) { discard_fragment(); }
 }
 
+// Mobs into the shadow map: their vertices are eye-relative; off = eye - shadow centre.
+struct MobShadowOut { float4 pos [[position]]; };
+
+vertex MobShadowOut mobShadowVS(uint vid [[vertex_id]],
+                                const device MobVert* verts [[buffer(0)]],
+                                constant float4x4& lightVP [[buffer(1)]],
+                                constant float4& off [[buffer(2)]]) {
+    MobShadowOut o;
+    o.pos = lightVP * float4(verts[vid].pos.xyz + off.xyz, 1.0);
+    return o;
+}
+
 // Post: full-screen triangle.
 struct FsOut { float4 pos [[position]]; float2 uv; };
 

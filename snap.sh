@@ -123,6 +123,7 @@ done
 "$BIN" --snapshot snaps/sim.png --seed 12345 --sim 12 --yaw 30 --pitch -10 --time 0.25
 "$BIN" --atlas snaps/atlas
 "$BIN" --snapshot snaps/mobs.png --seed 12345 --yaw 30 --pitch -14 --time 0.22 --up 1 --mobs
+"$BIN" --snapshot snaps/mob_shadows.png --seed 12345 --yaw 30 --pitch -14 --time 0.07 --up 1 --mobs
 "$BIN" --snapshot snaps/hostile.png --seed 12345 --yaw 30 --pitch -12 --time 0.22 --up 1 --mobs --hostile
 "$BIN" --snapshot snaps/nether.png --seed 12345 --dim nether --yaw 30 --pitch -10 --up 2 --ambient
 "$BIN" --snapshot snaps/ember_crimson.png --seed 12345 --dim nether --find crimson_forest --yaw 30 --pitch -5 --up 2 --ambient

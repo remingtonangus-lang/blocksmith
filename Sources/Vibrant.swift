@@ -9,13 +9,16 @@ final class Vibrant {
     let device: MTLDevice
     // World pipelines rendering into the HDR target.
     let chunk, chunkSolid, water, simple, star, cloud, cloudBox, mob, entity, crack, sky, hollowSky: MTLRenderPipelineState
-    let shadowSolid, shadowCut: MTLRenderPipelineState
+    let shadowSolid, shadowCut, mobShadow: MTLRenderPipelineState
     // Moving block structures (ships/vehicles) in the Fancy world pass: shipVibVS (buffer 2 = model matrix +
     // section origin, the ship renderer's per-draw record) with the terrain fragment shaders.
     let shipSolid, shipCut, shipTrans: MTLRenderPipelineState
     let bloomDown, bloomUp, rays, composite: MTLRenderPipelineState
     let shadowDepth: MTLDepthStencilState
     let shadowMap: MTLTexture
+    // Terrain-only shadow depth, re-rendered when the light turns or the centre moves; each frame with mobs
+    // around it is copied into `shadowMap` and the mobs are drawn on top (moving shadows without redrawing terrain).
+    let shadowStatic: MTLTexture
     let emissive: MTLTexture
     let materials: MTLBuffer
     static let shadowSize = 2048
@@ -76,6 +79,7 @@ final class Vibrant {
         shipTrans = try pipe("shipVibVS", "waterVibFS", color: hdrF, blend: 1)
         shadowSolid = try pipe("shadowVS", nil, color: nil)
         shadowCut = try pipe("shadowVS", "shadowCutFS", color: nil)
+        mobShadow = try pipe("mobShadowVS", nil, color: nil)
         bloomDown = try pipe("fsVS", "bloomDownFS", color: hdrF, depth: .invalid)
         bloomUp = try pipe("fsVS", "bloomUpFS", color: hdrF, depth: .invalid, blend: 2)
         rays = try pipe("fsVS", "raysFS", color: hdrF, depth: .invalid)
@@ -91,6 +95,7 @@ final class Vibrant {
         sd.usage = [.renderTarget, .shaderRead]
         sd.storageMode = .private
         shadowMap = device.makeTexture(descriptor: sd)!
+        shadowStatic = device.makeTexture(descriptor: sd)!
 
         // Emissive mask (R8) per texture layer, with box-filtered mips like the colour atlas.
         let S = TextureGen.S, layers = Tex.count

@@ -356,6 +356,13 @@ final class Renderer: NSObject, MTKViewDelegate {
     var gpuFrameMs: Double { frameGPULock.lock(); defer { frameGPULock.unlock() }; return frameGPUMs }
     private var lastShadow = Vibrant.LightFrame()
     private var shadowAge = 0
+    // Fancy: this frame's mob (and third-person player) vertices, written once before the shadow pass and
+    // drawn both into the shadow map and in the world pass.
+    private var mobBufs: [MTLBuffer] = []
+    private var mobBufIdx = 0
+    private var mobPre: (buf: MTLBuffer, count: Int)?
+    private var shadowHadMobs = false
+    private static let mobBufSize = 1 << 22
     var shadowFresh = false
 
     // Camera position and angles: first person, or pulled back behind / in front of the player (F5),
@@ -404,18 +411,22 @@ final class Renderer: NSObject, MTKViewDelegate {
         shadowAge += 1
         let turned = simd_dot(lf.dir, lastShadow.dir) < 0.99995
         let moved = simd_length(lf.center - lastShadow.center) > 1.0
+        var terrainShadow = false
         if turned || moved || shadowAge >= 8 || lf.shadowStrength != lastShadow.shadowStrength || shadowFresh == false {
             lightFrame = lf
             shadowPass(cmd, v)
             lastShadow = lf
             shadowAge = 0
             shadowFresh = true
+            terrainShadow = true
         } else {
             var keep = lf
             keep.lightVP = lastShadow.lightVP
             keep.center = lastShadow.center
             lightFrame = keep
         }
+        mobShadowPass(cmd, v, terrainChanged: terrainShadow)
+        defer { mobPre = nil }
         let a = MTLRenderPassDescriptor()
         a.colorAttachments[0].texture = v.hdr
         a.colorAttachments[0].loadAction = .clear
@@ -468,10 +479,58 @@ final class Renderer: NSObject, MTKViewDelegate {
         hdrActive = false
     }
 
-    // Depth-only render of the terrain around the camera as seen from the sun / moon.
-    func shadowPass(_ cmd: MTLCommandBuffer, _ v: Vibrant) {
+    // Mobs cast moving shadows: copy the terrain map and draw this frame's mob vertices on top. Skipped while
+    // no mob has been in the map since the terrain map last changed (then shadowMap already holds the terrain).
+    func mobShadowPass(_ cmd: MTLCommandBuffer, _ v: Vibrant, terrainChanged: Bool) {
+        let lf = lightFrame
+        let eye = cameraEye().eye
+        var n = 0
+        if !game.mobs.mobs.isEmpty || (game.cameraMode != 0 && game.sleeping == 0) {
+            if mobBufs.isEmpty {
+                for _ in 0..<3 { if let b = device.makeBuffer(length: Renderer.mobBufSize, options: .storageModeShared) { mobBufs.append(b) } }
+            }
+            if !mobBufs.isEmpty {
+                mobBufIdx = (mobBufIdx + 1) % mobBufs.count
+                let buf = mobBufs[mobBufIdx]
+                let cap = Renderer.mobBufSize / MemoryLayout<MobVert>.stride
+                let ptr = buf.contents().bindMemory(to: MobVert.self, capacity: cap)
+                n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: game.daylight, world: game.world, into: ptr, capacity: cap)
+                if game.cameraMode != 0 && game.sleeping == 0 {
+                    n += writePlayerModel(game, eye: eye, daylight: game.daylight, into: ptr + n, capacity: cap - n)
+                }
+                mobPre = (buf, n)
+            }
+        }
+        let cast = n > 0 && lf.shadowStrength > 0
+        guard cast || shadowHadMobs || terrainChanged else { return }
+        shadowHadMobs = cast
+        let b = cmd.makeBlitCommandEncoder()!
+        b.copy(from: v.shadowStatic, to: v.shadowMap)
+        b.endEncoding()
+        guard cast, let pre = mobPre else { return }
         let d = MTLRenderPassDescriptor()
         d.depthAttachment.texture = v.shadowMap
+        d.depthAttachment.loadAction = .load
+        d.depthAttachment.storeAction = .store
+        let e = cmd.makeRenderCommandEncoder(descriptor: d)!
+        var lvp = lf.lightVP
+        let o3: V3 = eye - lf.center
+        var o = V4(o3.x, o3.y, o3.z, 0)
+        e.setRenderPipelineState(v.mobShadow)
+        e.setDepthStencilState(v.shadowDepth)
+        e.setCullMode(.none)
+        e.setDepthClipMode(.clamp)
+        e.setVertexBuffer(pre.buf, offset: 0, index: 0)
+        e.setVertexBytes(&lvp, length: MemoryLayout<float4x4>.stride, index: 1)
+        e.setVertexBytes(&o, length: 16, index: 2)
+        e.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: pre.count)
+        e.endEncoding()
+    }
+
+    // Depth-only render of the terrain around the camera as seen from the sun / moon (into the static map).
+    func shadowPass(_ cmd: MTLCommandBuffer, _ v: Vibrant) {
+        let d = MTLRenderPassDescriptor()
+        d.depthAttachment.texture = v.shadowStatic
         d.depthAttachment.loadAction = .clear
         d.depthAttachment.clearDepth = 1
         d.depthAttachment.storeAction = .store
@@ -855,8 +914,18 @@ final class Renderer: NSObject, MTKViewDelegate {
         shipRenderer.hdr = hdrActive                 // Fancy draws into the HDR target
         shipRenderer.drawOpaque(enc, ships: game.world.ships, eye: eye, u: &u, frustum: frustum, quads: quadIndices)
 
-        // Mobs (written straight into the scratch ring: no per-frame arrays)
-        if !game.mobs.mobs.isEmpty || tp {
+        // Mobs (written straight into the scratch ring: no per-frame arrays); Fancy wrote them before the shadow pass.
+        if let pre = mobPre, hdrActive {
+            if pre.count > 0 {
+                enc.setRenderPipelineState(mobPipe)
+                enc.setDepthStencilState(depthWrite)
+                enc.setCullMode(.none)
+                enc.setVertexBuffer(pre.buf, offset: 0, index: 0)
+                enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+                enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+                enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: pre.count)
+            }
+        } else if !game.mobs.mobs.isEmpty || tp {
             let off = (scratchOff + 255) & ~255
             let cap = max(0, ringSize - ringTailReserve - off) / MemoryLayout<MobVert>.stride
             if cap > 36 {
