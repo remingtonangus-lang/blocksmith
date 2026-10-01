@@ -32,6 +32,7 @@ cp -r build/sounds/scapes snaps/sounds/scapes
 # Terrain: top-down maps of five seeds (8 km square, spawn marked), neighbour check, chunk generation timing.
 "$BIN" --terrainmap snaps
 "$BIN" --genbench --seed 12345
+"$BIN" --kelpcheck --seed 777 --x 600 --z 300 --radius 18
 # Terrain tours: high aerial, mountain range, river valley and ground level for several seeds.
 for s in 12345 777 424242 1 98765; do
   "$BIN" --snapshot snaps/tour_${s}_aerial.png --seed $s --x 600 --z 300 --onland --yaw 200 --pitch -28 --time 0.23 --up 55 --rd 16

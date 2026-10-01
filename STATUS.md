@@ -62,7 +62,8 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
   - [x] Lightning rod oxidation; powered shelves (rows of up to 3) swap their items with the hotbar.
   - [x] Biome balance pass: less snow, more (wooded) badlands, windswept hills, stony shores, less sparse jungle.
   - [ ] Lakes, deltas, fjords in game (tours now stand back to frame the feature: check tour_lake / tour_delta).
-  - [ ] Far ocean in tour_777_aerial shows dark vertical sticks above the water near the horizon (kelp through LOD water?).
+  - [ ] Far ocean in tour_777_aerial shows dark vertical sticks above the water near the horizon: they are kelp (cross
+        shapes in the crop), drawn past the water's edge. --kelpcheck (snap.sh) counts water plants not under water there.
   - [x] Steelhold soldiers crew the vessels (marksmen + rifle troopers on the frigate, trooper + arc ironclad on the
         carriage) and hold their stations aboard (aim and fire, no cover runs overboard); physicstest check.
 - Polish

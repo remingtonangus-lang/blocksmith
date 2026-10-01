@@ -157,6 +157,44 @@ enum TerrainTools {
         return CommandLine.arguments.contains("--strict") && bad > 0 ? 2 : 0
     }
 
+    // Water plants (kelp, seagrass) must stay under water: count plant blocks with something other than water or
+    // the same plant above them, over a square of chunks around --x/--z (the seed 777 aerial tour looks out to sea).
+    static func kelpCheck() -> Int32 {
+        let seed = UInt64(arg("--seed") ?? "") ?? 777
+        let g = WorldGen(seed: seed)
+        let x = Int(arg("--x") ?? "") ?? 600, z = Int(arg("--z") ?? "") ?? 300
+        let r = Int(arg("--radius") ?? "") ?? 20
+        let plants: Set<BlockID> = Set(["kelp", "seagrass", "tall_seagrass"].filter { Blocks.has($0) }.map { Blocks.id($0) })
+        var plantBlocks = 0, exposed = 0, aboveSea = 0
+        var samples: [String] = []
+        let c0x = floorDiv(x, CS), c0z = floorDiv(z, CS)
+        for cz in (c0z - r)...(c0z + r) { for cx in (c0x - r)...(c0x + r) {
+            var b = g.generate(cx: cx, cz: cz)
+            if let st = g.structures { _ = st.place(into: &b, cx: cx, cz: cz) }
+            for lz in 0..<CS { for lx in 0..<CS {
+                for y in 1..<(CH - 1) {
+                    let id = b[Chunk.index(lx, y, lz)]
+                    guard plants.contains(id) else { continue }
+                    plantBlocks += 1
+                    if y >= SEA { aboveSea += 1 }
+                    let up = b[Chunk.index(lx, y + 1, lz)]
+                    if up == WATER || Blocks.groupBase[Int(up)] == Blocks.groupBase[Int(id)] { continue }
+                    exposed += 1
+                    if samples.count < 12 {
+                        var top = y + 1
+                        while top < CH - 1 && b[Chunk.index(lx, top, lz)] != AIR { top += 1 }
+                        var surf = CH - 2
+                        while surf > 1 && b[Chunk.index(lx, surf, lz)] != WATER { surf -= 1 }
+                        samples.append("\(Blocks.key(id)) at \(cx * CS + lx) \(y - YOFF) \(cz * CS + lz): above \(Blocks.key(up)), column top y \(top - 1 - YOFF), highest water y \(surf - YOFF), biome \(g.column(cx * CS + lx, cz * CS + lz).biome)")
+                    }
+                }
+            } }
+        } }
+        for s in samples { print("kelpcheck   " + s) }
+        print("kelpcheck seed \(seed) around \(x) \(z) (\((2 * r + 1) * (2 * r + 1)) chunks): \(plantBlocks) water-plant blocks, \(exposed) not under water, \(aboveSea) at or above sea level")
+        return CommandLine.arguments.contains("--strict") && exposed > 0 ? 2 : 0
+    }
+
     // Chunk generation timing on the same chunks as the performance bench (gen scene), plus water checks.
     static func genBench() -> Int32 {
         let seed = UInt64(arg("--seed") ?? "") ?? 12345
