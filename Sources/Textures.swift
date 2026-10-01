@@ -167,8 +167,12 @@ enum TextureGen {
             return hex(0x4D4D52, k)
         }
         func dirt(_ x: Int, _ y: Int) -> V4 {
-            let speck: Float = r(x, y, 31) < 0.1 ? 0.78 : 1
-            return hex(0x866043, (0.84 + 0.28 * r(x, y, 3)) * speck)
+            // Soil: soft clumps, small dark pores and the odd pale pebble.
+            let n = r(x, y, 31)
+            if n < 0.05 { return hex(0x9A8A78, 0.95) }
+            var k: Float = 0.9 + (blot(x, y, 32, 4) - 0.5) * 0.22 + (r(x, y, 3) - 0.5) * 0.12
+            if n > 0.9 { k *= 0.76 }
+            return hex(0x866043, k)
         }
         // Grass/leaf textures are greyscale and tinted per biome in the shader.
         func grayGrass(_ x: Int, _ y: Int) -> V4 { let v: Float = 0.62 + 0.3 * r(x, y, 2); return V4(v, v, v, 1) }
@@ -211,12 +215,34 @@ enum TextureGen {
         p["birch_planks"] = planks(0xC5B57A, salt: 43)
         p["spruce_planks"] = planks(0x735531, salt: 45)
         p["bedrock"] = { x, y in let v: Float = 0.12 + r(x, y, 6) * 0.45; return V4(v, v, v, 1) }
-        p["sand"] = { x, y in hex(0xDBD3A0, 0.93 + 0.12 * r(x, y, 7)) }
-        p["red_sand"] = { x, y in hex(0xBE6621, 0.9 + 0.14 * r(x, y, 8)) }
+        // Sand: fine grain over faint wind ripples, a few darker and lighter grains.
+        func sandP(_ c: UInt32, _ salt: Int) -> Painter {
+            { x, y in
+                let ripple = sinf(Float(y) * 1.6 + sinf(Float(x) * 0.7) * 1.2) * 0.035
+                let g = r(x, y, salt)
+                let k: Float = g < 0.07 ? 0.86 : (g > 0.95 ? 1.08 : 0.96 + (r(x, y, salt + 1) - 0.5) * 0.06)
+                return hex(c, k + ripple)
+            }
+        }
+        p["sand"] = sandP(0xDBD3A0, 7)
+        p["red_sand"] = sandP(0xBE6621, 8)
+        // Gravel: small rounded pebbles of three greys with dark gaps (a cell pattern like cobblestone, finer).
+        var gpts: [V2] = []
+        for k in 0..<22 { gpts.append(V2(r(k, 0, 300) * 16, r(k, 1, 300) * 16)) }
         p["gravel"] = { x, y in
-            let n = r(x, y, 8)
-            let v: Float = n < 0.33 ? 0.4 : (n < 0.66 ? 0.53 : 0.64)
-            return V4(v, v * 0.97, v * 0.95, 1)
+            let q = V2(Float(x) + 0.5, Float(y) + 0.5)
+            var d1: Float = 1e9, d2: Float = 1e9, k1 = 0
+            for (k, c) in gpts.enumerated() {
+                for oy in -1...1 { for ox in -1...1 {
+                    let d = simd_distance(q, c + V2(Float(ox * 16), Float(oy * 16)))
+                    if d < d1 { d2 = d1; d1 = d; k1 = k } else if d < d2 { d2 = d }
+                } }
+            }
+            if d2 - d1 < 0.9 { return V4(0.27, 0.26, 0.25, 1) }
+            let tone: [Float] = [0.42, 0.55, 0.66, 0.5]
+            var v = tone[k1 % 4] + (r(x, y, 301) - 0.5) * 0.06
+            if d1 < 1.2 { v += 0.06 }
+            return V4(v, v * 0.97, v * 0.94, 1)
         }
         p["oak_log"] = bark(0x6B5332, salt: 9)
         p["oak_log_top"] = rings(0x6B5332, 0xB0915B)
