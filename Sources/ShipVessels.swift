@@ -118,6 +118,8 @@ enum Vessels {
         // Engine room and stern propellers.
         for x in -2...2 { b.set(x, 1, 44, "ship_engine") }
         for x in [-3, -1, 1, 3] { b.set(x, 2, L, "ship_propeller[south]") }
+        // Two more on outriggers beside the stern.
+        for x in [-6, 6] { b.set(x, 3, 40, "spruce_planks"); b.set(x, 3, 41, "ship_propeller[south]") }
         // Lift envelope on posts.
         for z in 4..<44 { for y in 11...16 { for x in -6...6 {
             let ex = Float(x) / 6.2, ey = (Float(y) - 13.5) / 3.2, ez = (Float(z) - 24) / 20.5
@@ -149,6 +151,9 @@ enum Vessels {
         b.box(-5, 5, 3, 6, 0, 22, "stone_bricks", hollow: true)
         b.box(-5, 5, 6, 6, 0, 22, "polished_blackstone")
         for x in [-5, 5] { for z in stride(from: 1, to: 22, by: 3) { b.set(x, 5, z, "iron_block") } }
+        // Rail round the top deck so the crew stays aboard.
+        for z in 0...22 { b.set(-5, 7, z, "nether_brick_fence"); b.set(5, 7, z, "nether_brick_fence") }
+        for x in -4...4 { b.set(x, 7, 0, "nether_brick_fence") }
         for zc in [4, 11, 18] {
             for x in [-7, -6, 6, 7] { for y in 0...4 { for z in (zc - 2)...(zc + 2) {
                 let dy = Float(y) - 2, dz = Float(z - zc)
@@ -243,7 +248,8 @@ extension ShipManager {
         s.initialBlocks = s.blockCount
         if let g {
             for st in s.crewStations {
-                let m = Mob(.pillager, at: s.toWorld(st + V3(0, 0.1, 0)))
+                // Soldiers crew the vessels once the game has them; Marauders until then.
+                let m = Mob(MobKind.named("soldier") ?? .pillager, at: s.toWorld(st + V3(0, 0.1, 0)))
                 m.persistent = true
                 g.mobs.mobs.append(m)
             }

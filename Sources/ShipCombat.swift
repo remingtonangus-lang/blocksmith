@@ -174,6 +174,96 @@ extension ShipManager {
             s.rebuild()
             if s.blockCount == 0 { remove(s); continue }
             s.mesh.rebuildAll(s, device: world.device, queue: meshQueue)
+            splitIfNeeded(s)
         }
+    }
+}
+
+// MARK: Hull splitting
+
+extension ShipManager {
+    // After blocks were removed: every part no longer connected to the largest one becomes its own ship,
+    // keeping its place, motion, block entities and the turrets mounted on it.
+    func splitIfNeeded(_ s: Ship) {
+        let g = s.grid
+        let sx = g.sx, sy = g.sy, sz = g.sz
+        let n = sx * sy * sz
+        if s.blockCount < 2 { return }
+        var comp = [Int32](repeating: -1, count: n)
+        var sizes: [Int] = []
+        var queue = [Int32]()
+        queue.reserveCapacity(1024)
+        let dirs: [(Int, Int, Int)] = [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)]
+        for start in 0..<n where g.blocks[start] != AIR && comp[start] < 0 {
+            let id = Int32(sizes.count)
+            comp[start] = id
+            queue.removeAll(keepingCapacity: true)
+            queue.append(Int32(start))
+            var head = 0
+            while head < queue.count {
+                let i = Int(queue[head]); head += 1
+                let y = i / (sx * sz), rem = i - y * sx * sz, z = rem / sx, x = rem - z * sx
+                for (dx, dy, dz) in dirs {
+                    let nx = x + dx, ny = y + dy, nz = z + dz
+                    if nx < 0 || ny < 0 || nz < 0 || nx >= sx || ny >= sy || nz >= sz { continue }
+                    let j = nx + nz * sx + ny * sx * sz
+                    if comp[j] >= 0 || g.blocks[j] == AIR { continue }
+                    comp[j] = id
+                    queue.append(Int32(j))
+                }
+            }
+            sizes.append(queue.count)
+        }
+        if sizes.count < 2 { return }
+        let keep = sizes.indices.max { sizes[$0] < sizes[$1] }!
+        var parts = [[Int]](repeating: [], count: sizes.count)
+        for i in 0..<n where comp[i] >= 0 && Int(comp[i]) != keep { parts[Int(comp[i])].append(i) }
+        let mounted = turrets(of: s)
+        for (pi, cells) in parts.enumerated() where pi != keep && !cells.isEmpty {
+            var lo = IVec3(Int.max, Int.max, Int.max), hi = IVec3(Int.min, Int.min, Int.min)
+            for i in cells {
+                let y = i / (sx * sz), rem = i - y * sx * sz, z = rem / sx, x = rem - z * sx
+                lo = IVec3(min(lo.x, x), min(lo.y, y), min(lo.z, z)); hi = IVec3(max(hi.x, x), max(hi.y, y), max(hi.z, z))
+            }
+            let ng = ShipGrid(sx: hi.x - lo.x + 1, sy: hi.y - lo.y + 1, sz: hi.z - lo.z + 1)
+            let part = Ship(id: newId(), grid: ng)
+            for i in cells {
+                let y = i / (sx * sz), rem = i - y * sx * sz, z = rem / sx, x = rem - z * sx
+                let c = IVec3(x, y, z)
+                ng.set(x - lo.x, y - lo.y, z - lo.z, g.blocks[i])
+                if let be = s.blockEntities.removeValue(forKey: c) { part.blockEntities[ivSub(c, lo)] = be }
+                g.set(x, y, z, AIR)
+            }
+            let off = V3(Float(lo.x), Float(lo.y), Float(lo.z))
+            part.name = s.name + " wreck"
+            part.rebuild()
+            part.rot = s.rot
+            part.pos = s.toWorld(off + part.com)
+            part.prevPos = part.pos; part.prevRot = part.rot
+            part.vel = s.velocity(at: part.pos)
+            part.angVel = s.angVel
+            part.updateBounds()
+            // Turrets whose ring went with this part.
+            for t in mounted {
+                let ring = t.mountLocal - V3(0.5, 1, 0.5)
+                let rc = IVec3(Int(floor(ring.x + 0.01)), Int(floor(ring.y + 0.01)), Int(floor(ring.z + 0.01)))
+                if rc.x >= lo.x && rc.x <= hi.x && rc.y >= lo.y && rc.y <= hi.y && rc.z >= lo.z && rc.z <= hi.z
+                    && ng.get(rc.x - lo.x, rc.y - lo.y, rc.z - lo.z) != AIR {
+                    t.parent = part; t.parentId = part.id
+                    t.mountLocal -= off
+                }
+            }
+            add(part)
+            part.mesh.rebuildAll(part, device: world.device, queue: meshQueue)
+        }
+        // Turrets whose ring is gone fall free.
+        for t in mounted where t.parent === s {
+            let ring = t.mountLocal - V3(0.5, 1, 0.5)
+            if s.grid.get(Int(floor(ring.x + 0.01)), Int(floor(ring.y + 0.01)), Int(floor(ring.z + 0.01))) == AIR { t.parent = nil; t.parentId = nil }
+        }
+        let wasPiloted = pilot === s
+        s.rebuild()
+        s.mesh.rebuildAll(s, device: world.device, queue: meshQueue)
+        if wasPiloted && s.helm == nil { pilot = nil; s.piloted = false }
     }
 }

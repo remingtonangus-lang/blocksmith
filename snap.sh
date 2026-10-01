@@ -4,6 +4,8 @@
 #   ./snap.sh name [args...]   one shot, e.g. ./snap.sh cave --x 100 --z 40 --pitch -60
 set -euo pipefail
 cd "$(dirname "$0")"
+# A failing shot names its line (the CI debug step reruns that line under lldb).
+trap 'echo "snap.sh: line $LINENO: exit $?" >&2' ERR
 BIN=build/Blocksmith.app/Contents/MacOS/Blocksmith
 mkdir -p snaps
 if [ $# -gt 0 ]; then n="$1"; shift; "$BIN" --snapshot "snaps/$n.png" "$@"; exit; fi
