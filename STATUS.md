@@ -5,6 +5,22 @@ every block, sparkstone, Emberdeep, End, terrain/caves/structures/villages with 
 Blight, and a completable game. Assets stay original/procedural (no copied textures, sounds or decompiled
 code); mechanics, names and numbers follow the reference game.
 
+## Playtest branch (claude/blocksmith-playtest, PR #9; integration + core session)
+Every PR branch (#1-#8 and new ones) plus the integration branch merged with real merges and re-merged as they move;
+PR #9's description keeps the player-facing what's-new list, the tested commit and known issues.
+- CI order: build, smoke test (`./smoke.sh`: 60 s of real play through Game.tick and the full renderFrame path at
+  render distances 8, 16 and 24, lldb backtrace on failure), benchmarks (a crashed scene is rerun under lldb ->
+  benchdebug.log), profile, scripted playthrough, then snap.sh (every shot and harness test; a failing line no longer
+  stops the rest, the step fails at the end with the failing lines listed).
+- Integration fixes that live only here so far: one subtitles system (HudExtras + Settings.subtitles, audio captions as
+  fallback); Options > Audio holds the per-category sliders; Resolution caps the dynamic resolution; World Scale
+  (Fancy) is its own option and key (fancyWorldScale); ShipRenderer has an HDR pipeline set for Fancy; a held gun fires
+  before ship interaction unless piloting; Reload Gun is a rebindable key (R, shared with Swap Off Hand: with a gun
+  held R reloads); gun and helm button prompts + Controls Reference rows; renderer scratch ring 4 MB with a tail
+  reserve so the first-person arm/gun can't be written past the end (render distance 24 segfault); duplicate items warn.
+- Known issues: scripted playthrough Blight fight (Gameplay session); ships in Fancy are drawn with their own LDR
+  shader (no HDR lighting/shadows); World objects outliving their scene in --bench (Engine session).
+
 ## Naming (repo is public)
 All player-facing names are Blocksmith's own: the Emberdeep (fiery dimension), the Hollow (void dimension), Hisser,
 Voidwalker, Wailer, Cinderwisp, Boarling/Tusker, Shellsentry, the Blight (summoned boss), Deep Stalker + Murk blocks,
@@ -296,7 +312,6 @@ Known failing tests: none (snap.sh and --selftest pass on CI at d92f9b0).
   (chests/gold), soul-fire / warped-fungus repellents, neutral mobs forgive after 30 s, llama caravans, deep stalkers dig
   out of the ground, village cats / desert camels at generation, shearing snow golems and mire skeletons.
 - `--mobtests` (MobTests.swift) checks all of the above headlessly and exits non-zero on a failure.
-## Graphics (visuals session)
 ## Graphics (visuals + audio session)
 - Fancy = "vibrant" HDR renderer (Vibrant.swift, VibrantShaders.swift): 2048 sun/moon shadow map (64 blocks around the
   camera, texel-snapped, leaves cast dappled shadows, 5-tap PCF), N.L sun light + sky ambient, warm block light,
@@ -329,32 +344,6 @@ Known failing tests: none (snap.sh and --selftest pass on CI at d92f9b0).
   rd 16, Fancy and Fast); needs a live-play screenshot if it still shows.
 - Harness: `--underwater`, `--crack <0..1>`, `--fast`, `--ambient` (2 s of ambient particles); `Blocksmith --atlas <prefix>`
   writes every texture layer as grid pages (prefix_0.png...) for texture review.
-
-## Handoff (2026-10-01, session claude/eloquent-lovelace-bsc5v1 winding down)
-Last pushed commit d92f9b0: build + 120 snapshots green on CI (ci-snaps-claude-eloquent-lovelace-bsc5v1).
-Built in this session (latest round): Blocksmith naming pass + selftest naming audit (0 flagged); pause/options/
-create-world/death/title menus; recipe book; F1/F2/F5 + third-person player model; command console; mob A*
-pathfinding (doors for villagers/illagers); swim/crawl/forced-crouch poses; auto-jump; Ashen Grove biome (Ashbark
-wood family, moss, nightblooms, Barkwraith + heart); resin, bamboo planks/mosaic, firefly bush, bush, leaf litter,
-wildflowers, dry grass, cactus flowers; leaning wall torches; solid/cutout render split, fast far leaves, pooled
-mesh slabs; reference torch-light curve; ruined portals grounded and kept out of spawn; trees kept out of structure
-footprints; per-branch CI snapshot branches; harness: median-of-30 timing, memory/light probes, camera rescue,
-cave-biome --find, --ground, --nightvision, --treecheck, --pathtest, --camera/--swim.
-Left in this area (for the integration session):
-- Underwater view: seabed is no longer black (water-coloured ambient) but the underwater fog ends at 20 blocks, so
-  deep floors (seabed_warm/seabed_deep, ~27-33 blocks away) vanish into flat blue; lengthen underwater fog by depth/
-  daylight (reference sees ~40-60 blocks in clear daytime water).
-- rd 24 resident ~2.0-2.3 GB on the Mac vs ~1 GB accounted (see notes below) - performance work.
-- Wall torches lean in 1/16 steps (boxes are integer); a real tilt needs fractional model vertices.
-- treecheck reports 1-3 trunks per 200 in a neighbouring biome (trees straddling biome borders) - expected.
-Known failing tests: none (snap.sh and --selftest pass on CI at d92f9b0).
-
-## Notes for the parallel sessions
-- Performance session: rd 24 resident is ~2.3 GB on the Mac while block+light arrays are ~740 MB (2601 chunks x ~285 KB)
-  and Metal ~218 MB (harness prints both). Unaccounted ~1.3 GB: suspects are per-job mesher scratch (48^3 regions,
-  n9 copies), generation lattices and allocator high-water. Uniform sections (all air / all stone) could skip their
-  block+light arrays. This branch's pooled mesh slabs (MeshArena.swift) already removed the per-section 16 KB pages.
-- Visuals session: distant ocean at night shows faint chunk-seam grid on the water surface (QA, seed 777).
 
 ## Known gaps / decisions
 - Save format changed with the engine rework (chunks3/, name-paletted); worlds from the 8-bit engine start fresh terrain.
