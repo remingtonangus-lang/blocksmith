@@ -186,6 +186,19 @@ static float3 flashLight(float3 rel, float3 n, constant float4* fl) {
     return acc;
 }
 
+// Mobs, the player model and the first-person arm in Fancy: same patterns as mobFS, darkened where the
+// sun/moon shadow map says they stand in shade (trees, overhangs), plus nearby flash lights.
+fragment float4 mobVibFS(MobOut in [[stage_in]],
+                         depth2d<float> sm [[texture(1)]],
+                         constant Uniforms& u [[buffer(1)]],
+                         constant float4* fl [[buffer(5)]]) {
+    float3 c = mobPattern(in);
+    float sh = vibShadow(sm, in.rel, float3(0, 1, 0), u);
+    float k = mix(0.62, 1.0, sh);
+    float3 col = c * in.shade * k + c * flashLight(in.rel, float3(0, 1, 0), fl) * 0.8;
+    return float4(applyFogDir(col, in.rel, in.dist, u), 1.0);
+}
+
 static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<float> emis,
                        const device uchar4* mats, constant Uniforms& u, constant float4* fl) {
     float3 t = (in.overlay > 0.5 && c.a > 0.95) ? float3(1.0) : in.tint;

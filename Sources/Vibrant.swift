@@ -66,7 +66,7 @@ final class Vibrant {
         star = try pipe("starVS", "simpleFS", color: hdrF, blend: 1)
         cloud = try pipe("cloudVS", "cloudFS", color: hdrF, blend: 1)
         cloudBox = try pipe("cloudBoxVS", "cloudBoxFS", color: hdrF, blend: 1)
-        mob = try pipe("mobVS", "mobFS", color: hdrF)
+        mob = try pipe("mobVS", "mobVibFS", color: hdrF)
         entity = try pipe("entityVS", "entityFS", color: hdrF)
         crack = try pipe("entityVS", "crackFS", color: hdrF, blend: 1)
         sky = try pipe("skyVS", "skyFS", color: hdrF)
