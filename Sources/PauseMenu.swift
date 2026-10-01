@@ -573,6 +573,12 @@ enum ControlsReference {
             PadMap.glyph(.view).s + " / " + k(.camera) + " Camera",
             Glyph.menu.s + " / " + Glyphs.key("Esc") + " Pause",
             Glyph.share.s + " / " + Glyphs.key("F2") + " Screenshot",
+            // Guns (Ballistics) and ship helms (ShipPlay).
+            Glyph.rt.s + " / " + Glyph.mouseL.s + " Fire gun,  " + Glyph.lt.s + " / " + Glyph.mouseR.s + " Aim",
+            PadMap.glyph(.x).s + " / " + k(.reload) + " Reload gun",
+            "At a helm: " + Glyph.ls.s + " / " + Glyphs.key("WASD") + " Throttle, steer",
+            "At a helm: " + PadMap.glyph(.a).s + Glyph.rt.s + " / " + Glyphs.key("Space") + " Climb,  " + Glyph.lt.s + " / " + Glyphs.key("Ctrl") + " Descend",
+            "At a helm: " + PadMap.glyph(.b).s + " / " + Glyphs.key("Shift") + " Leave",
         ]
     }
 }

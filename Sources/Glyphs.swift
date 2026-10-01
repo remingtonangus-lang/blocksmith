@@ -192,7 +192,7 @@ enum Glyphs {
 enum Prompt {
     enum Act {
         case jump, sneak, sprint, attack, use, pick, drop, inventory, hotbar, fly, camera, pause, offhand, chat, screenshot
-        case select, back, alt, quick, tabs, scroll, keyboard, delete, space, shift, done, move
+        case select, back, alt, quick, tabs, scroll, keyboard, delete, space, shift, done, move, reload
     }
 
     static var pad: Bool {
@@ -213,7 +213,7 @@ enum Prompt {
             case .sprint: return m(.l3)
             case .attack: return m(.rt)
             case .use: return m(.lt)
-            case .pick, .alt, .delete: return m(.x)
+            case .pick, .alt, .delete, .reload: return m(.x)
             case .drop: return m(.ddown)
             case .inventory, .quick, .keyboard, .space: return m(.y)
             case .hotbar, .tabs: return m(.lb) + m(.rb)
@@ -245,6 +245,7 @@ enum Prompt {
         case .offhand: return Glyphs.key(KeyBinds.name(KeyBinds.key(.offhand)))
         case .chat: return Glyphs.key(KeyBinds.name(KeyBinds.key(.chat)))
         case .screenshot: return Glyphs.key("F2")
+        case .reload: return Glyphs.key(KeyBinds.name(KeyBinds.key(.reload)))
         case .quick: return Glyphs.key("Shift") + Glyph.mouseL.s
         case .tabs: return Glyphs.key("Tab")
         case .scroll: return Glyph.mouseM.s

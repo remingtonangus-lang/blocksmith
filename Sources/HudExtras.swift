@@ -132,6 +132,14 @@ enum ContextPrompts {
     // What the triggers and face buttons do right now (at most four), e.g. "RT Mine   LT Place".
     static func items(_ g: Game) -> [String] {
         var out: [(Prompt.Act, String)] = []
+        // Piloting a ship (ShipPlay): the helm owns the buttons.
+        if g.world.ships.pilot != nil {
+            return [Prompt.g(.move) + " Steer", Prompt.g(.jump) + " Climb", Prompt.g(.sneak) + " Leave Helm"]
+        }
+        // A held gun (Ballistics): fire, aim and reload replace mine / place.
+        if g.heldGun != nil {
+            return [Prompt.g(.attack) + " Fire", Prompt.g(.use) + " Aim", Prompt.g(.reload) + " Reload"]
+        }
         if g.riding != nil { out.append((.sneak, "Dismount")) }
         let held = g.held
         if let t = g.target {
