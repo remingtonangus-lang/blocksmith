@@ -381,7 +381,7 @@ extension Game {
         let mood = music.mood?.label ?? "silent"
         let combat = ["calm", "garrison near", "combat"][max(0, min(2, audio.combat))]
         let loops = audio.asked.sorted().prefix(6).joined(separator: " ")
-        return String(format: "Audio: %@  %@  cave %.2f room %.0f  loops %@", mood, combat, audio.cave, audio.roomSize, loops.isEmpty ? "-" : loops)
+        return "Audio: \(mood)  \(combat)  " + String(format: "cave %.2f room %.0f", audio.cave, audio.roomSize) + "  loops \(loops.isEmpty ? "-" : loops)"
     }
 
     // MARK: Music director
