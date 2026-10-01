@@ -433,6 +433,7 @@ enum Recipes {
         }
         r += springRecipes()
         r += Cloudwailer.recipes()
+        r += shipRecipes()
         return r.compactMap { $0 }
     }
 
