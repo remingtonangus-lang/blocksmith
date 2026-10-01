@@ -475,7 +475,9 @@ final class Renderer: NSObject, MTKViewDelegate {
             u.screen = V4(VW, VH, 1 / max(VW, 1), 1 / max(VH, 1))
             // Post: sun position for god rays, bloom, haze and grading.
             var pp = PostParams()
-            pp.grade = V4(1.0, 1.14, 1.06, 0.16)
+            // Eyes adapt at night: exposure rises as daylight falls (only with open sky above).
+            let night: Float = hasSky ? simd_clamp((0.55 - daylight) / 0.45, 0, 1) * caveScale : 0
+            pp.grade = V4(1.0 + 0.55 * night, 1.14 - 0.12 * night, 1.06, 0.16)
             pp.sun.w = 0.075
             let sunDay = game.sunDir.y > -0.02
             if hasSky && !underwater && game.blindFog == nil && sunDay {
