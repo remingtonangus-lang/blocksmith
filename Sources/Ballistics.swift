@@ -178,6 +178,8 @@ final class Armory {
         // Head shots: the top fifth of an upright mob takes half again.
         let head = (at.y - m.pos.y) > m.height * 0.78 && m.height > 1.2
         if head { dmg *= 1.5 }
+        // Bosses shrug off most of a gun round (keeps the wyrm, the Blight and the deep stalker real fights).
+        if m.kind == .enderDragon || m.kind == .wither || m.kind == .warden || m.kind == .elderGuardian { dmg *= 0.35 }
         let whole = floorf(dmg)
         let n = Int(whole) + (Float.random(in: 0..<1) < dmg - whole ? 1 : 0)
         m.hit(from: at - dir * 2, damage: max(1, n), knockback: s.kind == .bullet ? 0.25 : 0.5)
@@ -222,7 +224,8 @@ final class Armory {
         let hit = o + dir * end
         beams.append(Beam(a: o, b: hit, life: 0.18, color: V4(0.9, 2.2, 2.6, 1), width: 0.09))
         if let m = mob {
-            m.hit(from: o, damage: Int(damage), knockback: 0.4)
+            let boss = m.kind == .enderDragon || m.kind == .wither || m.kind == .warden || m.kind == .elderGuardian
+            m.hit(from: o, damage: Int(damage * (boss ? 0.35 : 1)), knockback: 0.4)
             if !m.spec.fireImmune { m.fire = max(m.fire, 3) }
             if fromPlayer { m.killedByPlayer = true; m.provoke(g); hitMarker = 0.18; hits += 1 }
         } else if player {
