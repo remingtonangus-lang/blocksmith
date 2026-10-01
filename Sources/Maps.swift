@@ -10,6 +10,7 @@ final class MapData: Codable {
     var dim: String
     var colors: [UInt32]          // 128 x 128 RGBA (0 = unexplored)
     var locked = false
+    var marker: [Int]? = nil     // explorer maps: destination x, z and colour
     init(cx: Int, cz: Int, scale: Int, dim: String) {
         self.cx = cx; self.cz = cz; self.scale = scale; self.dim = dim
         colors = [UInt32](repeating: 0, count: 128 * 128)

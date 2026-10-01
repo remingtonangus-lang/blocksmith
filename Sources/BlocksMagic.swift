@@ -173,6 +173,7 @@ extension TextureGen {
         p["jack_o_lantern_face"] = carved(true)
         p["cauldron_water"] = { x, y in hex(0x3F76E4, 0.9 + 0.15 * r(x / 2, y, 808)) }
         Potions.painters(&p)
+        SpawnEggs.painters(&p)
         effectPainters(&p)
     }
 

@@ -447,6 +447,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.writeLeads(&wr, eye: eye)
                 game.writeBanners(&wr, eye: eye)
                 game.writeRockets(&wr, eye: eye)
+                game.writeArms(&wr, eye: eye)
                 game.writeLecternBooks(&wr, eye: eye)
                 game.writeShelves(&wr, eye: eye)
                 game.particles.write(&wr, eye: eye, right: right, up: -up, world: game.world, daylight: daylight)
@@ -565,7 +566,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             let held = game.held
             // Arm (skin-coloured box angled up into the screen).
             let armOff = (scratchOff + 255) & ~255
-            let armPtr = (scratch.contents() + armOff).bindMemory(to: MobVert.self, capacity: 64)
+            let armPtr = (scratch.contents() + armOff).bindMemory(to: MobVert.self, capacity: 1024)
             var an = 0
             let skin = V3(0.84, 0.64, 0.5)
             let axL = simd_normalize(V3(-0.12, 0.62, -0.78)) * (held.isEmpty ? 0.36 : 0.3)
@@ -581,6 +582,13 @@ final class Renderer: NSObject, MTKViewDelegate {
                     an += 1
                 }
             }
+            // Guns are drawn as solid models (aiming moves them to the centre of the view).
+            let gunIndex = game.heldGun
+            if let gi = gunIndex, !game.sniperScoped {
+                let reloadDip: Float = game.arms.reload > 0 ? min(1, game.arms.reload * 3, (Guns.all[gi].reload - game.arms.reload) * 3) : 0
+                an += Guns.writeFirstPerson(gi, aim: game.arms.aim, kick: game.arms.kick, lower: reloadDip * 0.35 + game.equipAnim,
+                                            bob: V3(0, bob, 0), light: light, into: armPtr + an)
+            }
             scratchOff = armOff + an * MemoryLayout<MobVert>.stride
             enc.setViewport(MTLViewport(originX: 0, originY: 0, width: Double(W), height: Double(H), znear: 0, zfar: 0.001))
             enc.setDepthStencilState(depthWrite)
@@ -590,7 +598,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             enc.setVertexBytes(&uh, length: MemoryLayout<Uniforms>.stride, index: 1)
             enc.setFragmentBytes(&uh, length: MemoryLayout<Uniforms>.stride, index: 1)
             enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: an)
-            if !held.isEmpty {
+            if !held.isEmpty && gunIndex == nil {
                 let itOff = (scratchOff + 255) & ~255
                 let itPtr = (scratch.contents() + itOff).bindMemory(to: EntityVert.self, capacity: 64)
                 var wr = EntityWriter(out: itPtr, capacity: 64)
@@ -1218,6 +1226,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 }
                 if let t = Smithing.trimName(st) { lines.append((t, V4(0.67, 0.67, 0.9, 1))) }
                 for l in Fireworks.tooltip(st) { lines.append((l, V4(0.67, 0.67, 0.67, 1))) }
+                for l in Guns.tooltip(st) { lines.append((l, V4(0.67, 0.67, 0.67, 1))) }
                 if st.def.name == "ominous_bottle" { lines.append(("Ill Omen " + Effect.roman(st.damage + 1) + " (100:00)", V4(0.33, 0.33, 1, 1))) }
                 if st.def.durability > 0 && st.damage > 0 {
                     lines.append(("Durability: \(st.def.durability - st.damage) / \(st.def.durability)", V4(0.8, 0.8, 0.8, 1)))
@@ -1237,10 +1246,25 @@ final class Renderer: NSObject, MTKViewDelegate {
         let cx = floor(W / 2), cy = floor(H / 2)
         let arm = 5 * s, th = max(1, s)
         let shadow = V4(0, 0, 0, 0.45), white = V4(1, 1, 1, 0.9)
-        rect(cx - arm - 1, cy - th / 2 - 1, arm * 2 + 2, th + 2, shadow)
-        rect(cx - th / 2 - 1, cy - arm - 1, th + 2, arm * 2 + 2, shadow)
-        rect(cx - arm, cy - th / 2, arm * 2, th, white)
-        rect(cx - th / 2, cy - arm, th, arm * 2, white)
+        if let spread = game.gunSpread, game.menu == nil {
+            // Guns: four ticks that open up with the current spread (hidden in the farsight scope).
+            if !game.sniperScoped {
+                let gap = 2 * s + spread / tanf(35 * .pi / 180 * game.fovScale) * H / 2
+                let len = 4 * s
+                for (dx, dy) in [(Float(-1), Float(0)), (1, 0), (0, -1), (0, 1)] {
+                    let x = cx + dx * (gap + len / 2), y = cy + dy * (gap + len / 2)
+                    let w = dx != 0 ? len : th, h = dx != 0 ? th : len
+                    rect(x - w / 2 - 1, y - h / 2 - 1, w + 2, h + 2, shadow)
+                    rect(x - w / 2, y - h / 2, w, h, white)
+                }
+                rect(cx - th / 2, cy - th / 2, th, th, white)
+            }
+        } else {
+            rect(cx - arm - 1, cy - th / 2 - 1, arm * 2 + 2, th + 2, shadow)
+            rect(cx - th / 2 - 1, cy - arm - 1, th + 2, arm * 2 + 2, shadow)
+            rect(cx - arm, cy - th / 2, arm * 2, th, white)
+            rect(cx - th / 2, cy - arm, th, arm * 2, white)
+        }
 
         // Hotbar
         let total = slot * 9
@@ -1360,8 +1384,18 @@ final class Renderer: NSObject, MTKViewDelegate {
                     x = e
                 }
             }
-            // The player marker.
             let per = Float(1 << md.scale)
+            // Explorer maps: the destination (a coloured mark with a dark rim).
+            if let mk = md.marker, mk.count == 3 {
+                let tx = (Float(mk[0]) - Float(md.cx)) / per + 64, tz = (Float(mk[1]) - Float(md.cz)) / per + 64
+                if tx >= 0 && tx < 128 && tz >= 0 && tz < 128 {
+                    let c = UInt32(truncatingIfNeeded: mk[2])
+                    rect(mx + tx * px - 4 * px, my + tz * px - 4 * px, 8 * px, 8 * px, V4(0.15, 0.1, 0.05, 1))
+                    rect(mx + tx * px - 3 * px, my + tz * px - 3 * px, 6 * px, 6 * px,
+                         V4(Float((c >> 16) & 255) / 255, Float((c >> 8) & 255) / 255, Float(c & 255) / 255, 1))
+                }
+            }
+            // The player marker.
             let ppx = (game.player.pos.x - Float(md.cx)) / per + 64, ppz = (game.player.pos.z - Float(md.cz)) / per + 64
             if ppx >= 0 && ppx < 128 && ppz >= 0 && ppz < 128 {
                 rect(mx + ppx * px - 2 * px, my + ppz * px - 2 * px, 4 * px, 4 * px, V4(1, 1, 1, 1))
@@ -1389,6 +1423,35 @@ final class Renderer: NSObject, MTKViewDelegate {
             let a = Float(min(1, (2.2 - since) / 0.5))
             let ty = L.hotbarY0 - (game.survival ? 26 : 14) * s
             text(game.toastText, floor((W - textWidth(game.toastText, s)) / 2), ty, s, V4(1, 1, 1, a))
+        }
+        // Gun: ammo readout, hit marker and the farsight scope.
+        if game.menu == nil, let g = game.gunHUD {
+            if game.sniperScoped {
+                let r = floor(min(W, H) * 0.42), cx = W / 2, cy = H / 2
+                let dark = V4(0, 0, 0, 0.94)
+                rect(0, 0, W, cy - r, dark); rect(0, cy + r, W, H - cy - r, dark)
+                rect(0, cy - r, cx - r, 2 * r, dark); rect(cx + r, cy - r, W - cx - r, 2 * r, dark)
+                // Round lens: darken the corners of the square row by row.
+                let rows = 32
+                let rowH = 2 * r / Float(rows)
+                for i in 0..<rows {
+                    let y = cy - r + Float(i) * rowH
+                    let dy = (y + rowH / 2 - cy) / r
+                    let half = r * sqrtf(max(0, 1 - dy * dy))
+                    rect(cx - r, y, r - half, rowH, dark)
+                    rect(cx + half, y, r - half, rowH, dark)
+                }
+                rect(cx - r, cy - s * 0.5, 2 * r, s, V4(0, 0, 0, 0.85)); rect(cx - s * 0.5, cy - r, s, 2 * r, V4(0, 0, 0, 0.85))
+                rect(cx - 2 * s, cy - 2 * s, 4 * s, 4 * s, V4(0.9, 0.15, 0.1, 0.9))
+            }
+            if game.arms.hitMarker > 0 {
+                let c = V4(1, 1, 1, min(1, game.arms.hitMarker * 6)), cx = W / 2, cy = H / 2
+                for (dx, dy) in [(-1, -1), (1, -1), (-1, 1), (1, 1)] as [(Float, Float)] {
+                    for k in 2...4 { rect(cx + dx * Float(k) * s - s / 2, cy + dy * Float(k) * s - s / 2, s, s, c) }
+                }
+            }
+            let tw = textWidth(g.text, s * 1.5)
+            text(g.text, W - tw - 10 * s, L.hotbarY0 - 14 * s, s * 1.5, g.color)
         }
 
         // F3 debug overlay

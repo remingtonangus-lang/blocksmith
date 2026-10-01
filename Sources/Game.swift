@@ -15,6 +15,10 @@ final class Game {
     let player = Player()
     let input = InputState()
     let particles = ParticleManager()
+    let arms = Armory()               // gun rounds in flight and the player's gun state (Ballistics.swift)
+    var lastHurtAt: Double = -10      // hurt cooldown (reference: 10 ticks of invulnerability after a hit)
+    var lastHurtAmount = 0
+    var bulletHit = false             // gun rounds ignore the hurt cooldown (each round lands)
     let inventory = PlayerInventory()
     let save: SaveManager?
     let persistent: Bool
@@ -696,7 +700,7 @@ final class Game {
 
         interact(p, q, dt)
         updateFov(Float(dt))
-        if input.middleClicked || (p.x && !q.x) { pickBlock() }
+        if input.middleClicked || (p.x && !q.x && heldGun == nil) { pickBlock() }
 
         advance(dt)
     }
@@ -713,6 +717,7 @@ final class Game {
         let breakNow = input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5)
         let useHeld = input.rightDown || p.lt > 0.5
         let useNow = input.rightClicked || (p.lt > 0.5 && q.lt <= 0.5)
+        if gunInteract(p, q, fire: breakHeld, firePressed: breakNow, aim: useHeld, dt: fdt) { mining = nil; return }
 
         // Attack: an animal in front of the block takes priority.
         var mobHit: Mob?
@@ -794,6 +799,7 @@ final class Game {
         }
 
         // Mining
+        if survival, breakNow, let t = target, teleportEgg(t.hit) { swing = 1; mining = nil; return }
         if let t = target, breakHeld {
             let b = world.block(t.hit.x, t.hit.y, t.hit.z)
             if !survival {
@@ -831,6 +837,7 @@ final class Game {
         let h = held
         if useNow, let m = mobHit ?? mobs.raycast(player.eye, player.look, maxDist: 3.5)?.0, useItemOnMob(m) { swing = 1; return }
         if useNow && Items.key(h.item) == "ender_eye" && useSeekerEye(on: target) { swing = 1; return }
+        if useNow && useSpawnEgg(on: target) { swing = 1; return }
         if useNow && Items.key(h.item) == "firework_rocket" && player.gliding {
             player.boost = 0.5 + 0.6 * Float(max(1, h.tag))
             consumeHeld()
@@ -898,6 +905,7 @@ final class Game {
         }
         if useNow && throwHeld() { return }
         if useNow && useEmptyMap() { swing = 1; return }
+        if useNow && useExplorerMap() { swing = 1; return }
         if useNow {
             switch Items.key(h.item) {
             case "snowball": throwItem(.snowball); return
@@ -939,6 +947,7 @@ final class Game {
         if useBucket() { return }
         if useNow && placeBoat() { return }
         guard let t = target else { return }
+        if useNow && !(input.shift || p.b) && teleportEgg(t.hit) { swing = 1; return }
         if useNow && !(input.shift || p.b) && isCircuitInteractive(t.hit) && useCircuit(t.hit) { swing = 1; return }
         if isInteractive(t.hit) && !(input.shift || p.b) && useNow {
             openBlock(t.hit)
@@ -1179,6 +1188,7 @@ final class Game {
             openMenu(CrafterMenu(game: self, entity: be))
         case "decorated_pot": usePot(p)
         case "chest":
+            boarlingsGuard(p, block: world.block(p.x, p.y, p.z))
             let be = world.blockEntities[p] ?? BlockEntity(.chest)
             world.blockEntities[p] = be
             // A neighbouring chest with the same facing along the chest's width makes a large chest.
@@ -1240,6 +1250,7 @@ final class Game {
     }
 
     func breakBlock(_ p: IVec3, _ b: BlockID, drop: Bool) {
+        boarlingsGuard(p, block: b)
         sfx(.breakBlock(soundMat(b)), at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
         particles.blockBreak(b, at: p)
         world.setBlock(p.x, p.y, p.z, AIR)
@@ -1389,7 +1400,11 @@ final class Game {
                 drops.spawn(ItemStack(Items.id(["iron_ingot", "carrot", "potato"][Int.random(in: 0...2)]), 1), at: at)
             }
             let r = Float.random(in: 0..<1)
-            if m.kind == .blaze && m.killedByPlayer && r < 0.5 { drops.spawn(ItemStack(Items.id("blaze_rod"), 1), at: at) }
+            if m.kind == .blaze && m.killedByPlayer {
+                // Cinder rods: 0-1, +0-1 per Looting level, only from player kills (reference loot table).
+                let n = Int.random(in: 0...1) + (looting > 0 ? Int.random(in: 0...looting) : 0)
+                if n > 0 { drops.spawn(ItemStack(Items.id("blaze_rod"), n), at: at) }
+            }
             if m.kind == .magmaCube && m.slimeSize > 1 && r < 0.25 { drops.spawn(ItemStack(Items.id("magma_cream"), 1), at: at) }
             if m.kind == .creeper && m.lastHitBySkeleton, let d = MusicDiscs.creeperDrops.randomElement(), Items.has("music_disc_\(d)") {
                 drops.spawn(ItemStack(Items.id("music_disc_\(d)"), 1), at: at)
@@ -1414,6 +1429,7 @@ final class Game {
         if m.chested && m.kind != .boat { drops.spawn(ItemStack(Items.id("chest"), 1), at: at) }
         if m.killedByPlayer { advancementKill(m) }
         captainDied(m)
+        soldierDied(m)
         sculkBloom(at: m.pos, xp: m.spec.xp)
         let xp = m.sized ? m.slimeSize : m.spec.xp
         if m.killedByPlayer && !m.baby { addXP(xp + (m.kind.hostile ? 0 : Int.random(in: 0...1))) }
@@ -1503,6 +1519,7 @@ final class Game {
     // Mob hits on the player: armor-reduced damage plus knockback away from the attacker.
     func hurtPlayer(_ amount: Int, from src: V3, cause: String, knockback: Float = 1, type: DamageType = .generic, attacker: Mob? = nil) {
         guard survival, alive, amount > 0 else { return }
+        if let a = attacker { petsAttack(a) }
         if shieldBlocks(amount, from: src, type: type, attacker: attacker) { return }
         var amount = amount
         if attacker != nil || type == .projectile {
@@ -1558,9 +1575,22 @@ final class Game {
 
     // Damage in half-hearts: armor (reference formula), resistance, enchantment protection,
     // absorption hearts, then the totem of rebirth.
-    func damage(_ amount: Int, _ cause: String, bypassArmor: Bool = false, type: DamageType = .generic, attacker: Mob? = nil) {
-        guard survival, alive, amount > 0 else { return }
+    func damage(_ amount0: Int, _ cause: String, bypassArmor: Bool = false, type: DamageType = .generic, attacker: Mob? = nil) {
+        guard survival, alive, amount0 > 0 else { return }
         if type == .fire && effects.has(.fireResistance) { return }
+        // Hurt cooldown: within half a second of a hit, only the part of a bigger hit that exceeds it lands
+        // (a blight skull and its blast, a creeper after an arrow...). The void and gun rounds skip it.
+        var amount = amount0
+        if type != .void && !bulletHit {
+            if clock - lastHurtAt < 0.5 {
+                guard amount > lastHurtAmount else { return }
+                amount -= lastHurtAmount
+                lastHurtAmount = amount0
+            } else {
+                lastHurtAt = clock
+                lastHurtAmount = amount0
+            }
+        }
         var dmg = Float(amount)
         if !bypassArmor {
             let a = Float(inventory.armorPoints), tough = inventory.toughness
@@ -1640,11 +1670,13 @@ final class Game {
         xpLevel = 0; xpPoints = 0
         if menu != nil { closeMenu() }
         riding = nil
+        alive = false        // no pickups, no targeting until respawn (the dropped items stay where they fell)
         openMenu(DeathMenu(game: self, message: "Player \(cause)"))
     }
 
     // Respawn (from the death screen): anchor, bed/world spawn.
     func respawn() {
+        alive = true
         if let a = anchorSpawn {
             // Respawn at a charged anchor in the Emberdeep (uses a charge).
             let nether = dimensionState(.nether).world
@@ -1760,6 +1792,7 @@ final class Game {
         mobs.update(Float(dt), game: self)
         drops.update(Float(dt), game: self)
         projectiles.update(Float(dt), game: self)
+        armsTick(Float(dt))
         tnts.update(Float(dt), game: self)
         particles.update(Float(dt), world)
         if survival { timeSinceRest += Float(dt) }
@@ -1771,6 +1804,7 @@ final class Game {
                 let day = floor(time / DAY_LENGTH)
                 time = (day + 1) * DAY_LENGTH + 0.01 * DAY_LENGTH
                 sleeping = 0
+                catGifts()
                 onToast?("Good morning")
                 weather.raining = false; weather.thundering = false; weather.rain = 0; weather.thunder = 0
                 weather.rainTime = Float.random(in: 600...9000); weather.thunderTime = Float.random(in: 600...9000)

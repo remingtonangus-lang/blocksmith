@@ -22,7 +22,7 @@ No third-party text, textures, sounds or logos: everything is procedural or writ
 | A4 Containers | MC-style menus (click/right-click/shift-click/number keys, controller cursor), 2×2 + 3×3 crafting with recipe engine (tags, mirroring), furnace (fuel/smelt ticks, lit state), chests, creative palette | done (recipe list keeps growing) |
 | B Survival content | zombie/skeleton/hisser/spider/voidwalker/slime with light-based spawning, combat (cooldown, crits, knockback), armor, bow, beds + sleeping, farming (wheat/carrots/potatoes/beetroot, farmland moisture, bone meal), breeding, TNT + explosions, XP, fire | done |
 | C Emberdeep | portals, lava, 5 emberdeep biomes, fortresses (bridges, castle, cinderwisp spawners, wart rooms), bastions (housing, treasure, stables, bridge), onyxstone set, spawners, undead boarling (group anger), boarling (bartering, gold armor), brute, tusker, magmastrider, wailer (deflectable fireballs), cinderwisp, lava blob, blight skeleton (blight effect), emberdeep wart | done |
-| D End | 128 strongholds in rings (portal room, libraries, prisons, fountains), eyes of ender, hollow gate (12 frames, 10% pre-filled), the Hollow (central island, 10 spikes with crystals/cages, bedrock fountain, 1000-block void, outer islands, spiral), hollow wyrm (circle/strafe/charge/perch, breath clouds, crystal healing, 12000 XP, egg, gateways), hollow spires + ships (glider wings), shellsentrys (levitation), glider wings flight + rockets, credits | done (untested in live play) |
+| D End | 128 strongholds in rings (portal room, libraries, prisons, fountains), eyes of ender, hollow gate (12 frames, 10% pre-filled), the Hollow (central island, 10 spikes with crystals/cages, bedrock fountain, 1000-block void, outer islands, spiral), hollow wyrm (circle/strafe/charge/perch, breath clouds, crystal healing, 12000 XP, egg, gateways), hollow spires + ships (glider wings), shellsentrys (levitation), glider wings flight + rockets, credits | done — scripted start-to-credits playthrough on CI (`--playthrough`, PR #3); see "Completability" below |
 | E Terrain parity | new surface generator: 5 climate noises → all 53 surface biomes (multi-noise tables), continentalness/erosion/weirdness height with rivers, plateaus, windswept hills and 250-block peaks, 3D density overhangs; cheese/spaghetti/noodle caves, aquifers, lava below y −55; 1.18 ore distributions + granite/diorite/andesite/tuff/dirt/gravel blobs; geodes, dungeons, lush/driprock/deep-dark cave decoration; per-biome surfaces (badlands bands, hoodoos, podzol, snow) and a final freeze pass; 20 tree shapes (fancy oak, mega spruce/jungle, acacia, dark oak, mangrove, cherry, huge mushrooms, ice spikes); vegetation incl. two-tall plants, sugar cane, cacti, bamboo, kelp, corals, lily pads, icebergs. Structures: villages (5 styles), desert pyramids, jungle temples, swamp huts, igloos, marauder watchtowers, ruined portals, shipwrecks, buried treasure, mineshafts, desert wells, strongholds  Big structures: sea temples (spikefishs, elder spikefishs, sponge rooms, gold core), forest manors (3 floors, brigands/conjurers, loot), buried citadels (murk, shriekers, deeprock, loot), proving halls (tuff/copper halls, proving spawners, vaults), ocean ruins, trail ruins (suspicious gravel), fossils | done — structures are hand-built approximations of the reference layouts |
 | F Sparkstone | power levels 0–15 with strong/weak conduction; dust networks (cross/line shapes, slopes), torches (1-tick inverters, burnout), levers, buttons (stone/wood timings), pressure plates (incl. weighted), repeaters (delay, locking), comparators (compare/subtract, container fill), observers, pistons + sticky pistons (12-block limit, slime/honey groups, quasi-connectivity, entity pushing), sparkstone lamps/blocks, dispensers (arrows, fire charges, buckets, TNT, bone meal, armor), droppers, hoppers (5 slots, 8-tick transfers, locking, furnaces), note blocks (13 instruments × 25 pitches), daylight detectors, targets; doors/trapdoors/gates/TNT/bells react to power; rails (10 shapes incl. slopes/curves, auto-shaping), powered/detector/activator rails, rideable minecarts | done — not yet: tripwire, trapped chest, murk sensor, lectern output, crafter |
 | G Long tail | **Effects**: all 39 status effects with reference numbers (regen/poison/blight timing, absorption + health boost hearts, speed/slowness/jump/slow falling/levitation, haste/fatigue mining, resistance, fire resistance, water breathing, night vision, blindness/darkness fog, hunger, ill omen/siege omen/hero), HUD icons + inventory list. **Brewing**: brewing stand (cinderwisp fuel, 20 s brews, 3 bottles), every potion (normal/long/strong) × drink/splash/lingering/tipped arrows, full recipe table incl. fermented spider eye corruption, witches using the reference potion logic. **Enchanting**: 42 enchantments (weights, level windows, exclusivity), table with bookshelves + lapis + XP and the reference selection algorithm, books, anvil (combine/repair/rename, prior-work penalty, too expensive, wear), grindstone, all effects (sharpness/smite/bane, knockback, fire aspect, looting, sweeping, efficiency, silk touch, fortune, unbreaking, mending, protection family, feather falling, thorns, respiration, aqua affinity, deep stride, swift sneak, ghost stride, power/punch/flame/infinity, multishot/piercing/quick charge, loyalty/riptide/channeling/impaling, luck/lure, curses). **Villagers**: 13 professions from job sites, 5 levels, reference trade tables, demand pricing, restocking, trading screen, nitwits, biome robes, zombie villagers + curing discount, wandering trader. **Raids**: omen bottles → Ill Omen → Siege Omen → 5(+1) waves of marauders/brigands/conjurers (fangs, vexes)/witches/siegebeasts (riders), raid bar, Village Hero; marauder patrols with captains. **Blight**: ghost sand + skulls summoning, 11 s charge + blast, skulls (blue), armor phase, block breaking, blight star; beacons (4 pyramid levels, powers, beam). **Mobs**: +46 kinds (animals with taming/riding/breeding foods, aquatic, bats, bees, parrots, fetchlings, nightwings from insomnia, spikefishs, deep stalker, gustling, mire skeleton, rot tusker, snow/iron golems built from blocks), biome spawn tables, mob persistence (per-chunk storage + mobs.json). **Weather**: rain/snow/thunder cycles, lightning (conversions, fire), snow layers/ice, sleeping skips storms. **Items/blocks**: shield, crossbow, trident, fishing (reference loot), thrown snowballs/eggs/void pearls, mob heads, carved pumpkins, falling blocks, 16-colour concrete/powder/stained glass/glazed terracotta/candles/shellsentry boxes, void chest, double + trapped chests, cake, dyes, smithing table (duskium upgrade, trims), stonecutter  **Blocks/items (later batch)**: copper family (oxidation, waxing, scraping, bulbs, grates), driprock, big dripleaf, murk + sensors/shriekers/catalysts (deep stalker summoning), campfires, beehives, rebirth anchors, sea pickles, turtle eggs, vaults, jukebox + 19 original procedural discs, signs (editable, text in the world), item frames (+ glow), paintings (40 motives, original art), maps (exploration, cartography table zoom/copy/lock), boats + chest boats + bamboo raft (9 woods), armor stands, mob armour (reference spawn odds with regional difficulty, reduction, drops), leads (leash, fence knots), spyglass + FOV effects, goat horns, banners (16 colours, 42 patterns, loom, pattern items, omen banner), fireworks (stars, shapes, trails, twinkle, fades, rockets, crossbow), barrel, smoker, blast furnace, composter, bell, books and quills / written books / lecterns, special crafting (banner/book/map copies, shield decoration), tripwire hooks + string, trapped chest power, murk sensor vibrations, copper bulbs toggling, crafter, bundles, log axes + stripped logs/wood/hyphae/bamboo blocks (axe stripping), hanging signs, chiseled bookshelves, decorated pots, wall torches + soul torches, wind charges, sponges, powder snow (freezing, leather boots), leather dyeing, horse + wolf armour, hollow crystals + dragon respawn ritual, minecart variants (chest/hopper/TNT/furnace), goat horns, advancements (76, five tabs, toasts, L screen), options (FOV, sensitivity, volume). **Worlds**: world list, create (name, seed text, mode, difficulty), difficulty (peaceful/easy/normal/hard damage scaling and starvation limits) | in progress — next: shield banner visuals, more structure-accurate layouts, controller-driven options menu, polish from live play |
@@ -30,6 +30,11 @@ No third-party text, textures, sounds or logos: everything is procedural or writ
 ## CI (compile/test loop)
 - `.github/workflows/mac.yml` (macos-14 arm64, Xcode 16 / Swift 6.0.3): `./build.sh` + `./snap.sh` on every push;
   PNGs, WAVs and logs force-pushed to the orphan branch `ci-snaps` (README embeds them).
+- Progression test: `Blocksmith --playthrough [--seed N] [--only overworld,emberdeep,stronghold,end,blight]` runs a
+  fresh survival world through the real game loop — hand-mined logs, tool tiers, furnace, obsidian from water on lava,
+  a lit portal, fortress cinderwisps (rod rate), voidwalker pearls, the way home, seeker eyes, the stronghold gate, the
+  Hollow (crystals, wyrm fight, egg, rifts both ways, credits) and the Blight (summon, charge, armour, star, beacon).
+  PASS/FAIL/INFO per step, non-zero exit on any failure; CI runs it after the build (log in `ci-snaps/playthrough.log`).
 - Harness flags: `--find <biome>`, `--torches`, `--flood`, `--mobs`, `--menu inventory|creative|crafting|furnace`,
   `--drops`, `--survival HP`, `--debug`, `--sim SECONDS`, `--dim emberdeep|end`, `--portal`, `--hostile`, `--nethermobs`,
   `--structure <kind>` (camera at the nearest structure's anchor), `--menu brewing|enchant|anvil|trade`, `--effects`,
@@ -43,7 +48,7 @@ RMB use/place/eat (hold), MMB pick block, 1–9/scroll hotbar, E inventory, Q dr
 (~/Pictures/Blocksmith), F3 debug, F5 camera (first person / behind / in front, with a player model).
 Menus: click / right-click / shift-click, number keys swap with hotbar, click outside drops.
 Controller: LS move, RS look, A jump, B sneak, L3 sprint, RT attack/mine, LT use, LB/RB hotbar, Y inventory, View camera,
-X pick block, D-pad ↓ drop, D-pad ↑ fly. In menus: D-pad/LS move cursor, A = click, X = right-click, Y = shift-click,
+X pick block (reload while holding a gun), D-pad ↓ drop, D-pad ↑ fly. In menus: D-pad/LS move cursor, A = click, X = right-click, Y = shift-click,
 B close, RS scroll creative.
 
 ## Rendering performance
@@ -85,6 +90,65 @@ B close, RS scroll creative.
 - Landing / sprint dust, item equip animation, denser rain with ground splashes lit by daylight.
 - Village life: beds and sleeping, food pickup + breeding, farmers harvesting, golems, midnight zombie sieges.
 
+## Mobs, villagers, raids (mob workstream, branch claude/epic-hamilton-t5vse7)
+- Raids: 3/5/7 waves by difficulty (+1 bonus wave above omen I), reference bonus spawns, a captain per wave,
+  siegebeast riders (marauder on Normal wave 5, conjurer + brigand from Hard wave 7), raid weapon enchants by omen level,
+  omen absorption into a running raid, Village Hero gifts; day-only patrols sized by regional difficulty.
+- Pathfinding (Pathfinding.swift): 8-way A*, ladders/vines/scaffolding, 2x2 footprint for wide mobs, water malus 8,
+  fire/lava proximity malus, per-mob fall limits, zombies break wooden doors on Hard.
+- Spawning (Spawning.swift): reference categories and caps, per-biome packs, light/sky rules, slimes, water/cave/ambient
+  spawns, generation-time animal packs (populated.json), despawn timers, chicken and spider jockeys.
+- AI (MobAI.swift): follow ranges with line of sight + memory, sneaking/heads/invisibility, avoidance goals, babies
+  follow adults. Villagers (VillageLife.swift): schedules, gossip/reputation (prices, golem hostility at -100), golem
+  summoning by sleeping + gossiping villagers. Spawn eggs for every mob; zombie horse; Mirage Caster (illusioner).
+- Behaviour (Conversions.swift, Bees.swift, MobAI.swift): zombies drown into Sunken, husks into zombies, skeletons
+  freeze into strays, boarlings/tuskers turn undead outside the Emberdeep, tadpoles grow into frogs; Hard zombie
+  reinforcements; wandering trader + llamas, village cats, skeleton trap horses; bees with hives, nectar, honey and
+  crop pollination; voidwalkers carry blocks and dodge arrows; helmets block sunburn; strays/mire skeletons tip arrows;
+  sunken throw tridents; tamed wolves defend the owner; cat morning gifts; sheep graze and regrow wool; foxes sleep by
+  day; polar bear mothers; llama spit; pandas with personality genes; axolotls play dead; turtles/frogs lay eggs;
+  mules and horse stat inheritance; reference baby odds; Cloudwailer (happy ghast) with harnesses.
+- Newest roster, approximations from memory of the reference: Sunscorched Skeleton (parched, weakness arrows, desert,
+  sun-proof), Dust Camel (camel husk carrying a dust zombie + sunscorched skeleton), Nautilus (warm oceans) and Sunken
+  Nautilus (ridden by 5% of ocean sunken); nautiluses tame with pufferfish and can be saddled and ridden underwater.
+  Not yet: the spear, copper golem (needs copper chests).
+- More reference details: patrols move as a group (captain leads), structure spawns (watchtower marauders, sea-temple
+  spikefish), villagers hide at beds during raids, zombification odds by difficulty, spiders leap, voidwalkers blink
+  toward far targets and ignore pumpkin-headed players, loot pickup (55% x regional difficulty), boarling guard triggers
+  (chests/gold), soul-fire / warped-fungus repellents, neutral mobs forgive after 30 s, llama caravans, deep stalkers dig
+  out of the ground, village cats / desert camels at generation, shearing snow golems and mire skeletons.
+- `--mobtests` (MobTests.swift) checks all of the above headlessly and exits non-zero on a failure.
+
+## Steelhold fortresses, soldiers and guns (gameplay session)
+- Fortress (MilitaryBase.swift): very rare (at most one per 64x64-chunk region, fairly level plains/savanna/desert/snowy plains/badlands/meadow/forest/taiga), 63 blocks of
+  blast-proof steel plating with corner towers. Basement depot + generator + barred vault, ground floor (gate hall,
+  barracks, armory, mess hall, workshop), upper floor (command room, quarters, comms, medbay, barracks), roof with
+  marksman posts; loot tables steelhold_armory/supply/command/vault. New blocks: steel plating (+stairs/slab), steel floor
+  plate, hazard plating, armored glass, light panel, command console, ammo crate.
+- Guns (Guns.swift, Ballistics.swift): Steelhold Rifle, Chatter Gun (SMG), Breach Shotgun (9 pellets), Farsight Rifle
+  (scope), Skybreaker Launcher (rockets, break blocks), Arc Lance (instant energy beam, ignites). LMB/RT fires (hold for
+  automatics), RMB/LT aims (zoom, tighter spread, softer recoil), R / pad X reloads (auto when empty). Ammo is crafted:
+  rifle rounds, shotgun shells, heavy rounds, rockets, arc cells; magazine count in the stack tag; head shots x1.5;
+  bullets pass through plants and shatter glass. Tracers, muzzle flash, hit marker, ammo readout, 13 synthesized sounds.
+- Soldiers (Soldiers.swift): Recruit (20 HP, rifle/SMG, retreats when hurt), Trooper (30 HP, plated, shotgun rush or
+  strafing rifle, grenades into cover), Marksman (26 HP, farsight with a red laser before each shot, keeps distance),
+  Ironclad (60 HP, heavy armour, no knockback, launcher or arc lance, enrages). They alert each other, chase the last
+  sighting, burst-fire and reload; drop their ammo and 25% their gun. Deck guns (150 HP) on the towers traverse slowly,
+  solve a ballistic arc and fire twin explosive shells; they cannot depress far, so the wall foot is safe.
+- Tactics: soldiers duck into cover to reload, rifle troopers flank, automatic guns lay suppressing fire on the last
+  sighting, marksmen relocate after shots; sentries walk the apron; the armory has weapon racks (guns in item frames).
+  Gun tooltips (loaded rounds, ammo, damage, rate). Advancements: Behind Steel Walls, Locked and Loaded, Silence the
+  Guns, The Bigger They Are.
+- Also: player hurt cooldown (0.5 s, bigger hits land the difference; gun rounds skip it), raids saved with the world,
+  bow skeletons circle-strafe, raid/patrol captains wear the omen banner.
+- Later in the session: explorer maps from cartographers (Sea Temple, Forest Manor, Steelhold for masters), zombies
+  trample turtle eggs, gun crosshair that opens with spread, gunfire alerts soldiers within 32 blocks, guns repair at
+  the anvil, rounds spark off armour, soldiers tilt guns toward the target, deck-gun barrels recoil, bosses take 35%
+  from guns. Playthrough: the test player clears bag junk, retries swallowed clicks, throws the return pearl from a
+  settled spot.
+- `--mobtests` covers reloads, kills, recoil, pellets, rockets, beams, armour, alerts, cover, marksman laser, deck gun salvos,
+  drops, fortress rarity and layout, raid save/restore. Snapshots: soldiers, deck_gun, gun_hip/aim/scope, steelhold, steelhold_gate.
+
 ## Handoff (2026-10-01, session claude/eloquent-lovelace-bsc5v1 winding down)
 Last pushed commit d92f9b0: build + 120 snapshots green on CI (ci-snaps-claude-eloquent-lovelace-bsc5v1).
 Built in this session (latest round): Blocksmith naming pass + selftest naming audit (0 flagged); pause/options/
@@ -122,4 +186,21 @@ Known failing tests: none (snap.sh and --selftest pass on CI at d92f9b0).
 - Mobs are saved per chunk (mobs.json) and come back when their chunk loads; natural hostiles are not kept.
 - Credits text is original (the reference game's poem is not copied).
 - Armor trims show in the tooltip (the player model isn't drawn in first person).
-- Raids are not saved across a reload (an unfinished raid ends); the void chest, weather and insomnia timer are.
+- Raids are saved with the world (raiders rejoin when their chunks load); so are the void chest, weather and insomnia timer.
+
+## Completability (End / Blight) — handoff notes
+- `Blocksmith --playthrough` (Sources/Playthrough.swift, CI step "Playthrough") plays seed 12345 from spawn to the
+  credits and through the Blight with real input/mining/recipes/portals/mobs. Last runs: everything passes from spawn
+  through the wyrm kill (~3 min of game time), egg, rift out (pearl), spire + glider wings, save/reload and credits.
+  Still failing at handoff: the Blight fight — with diamond armour, Smite V sword and Power V bow the test player dealt
+  ~475 arrow damage + 133 sword hits in 600 s but died ~10 times to skulls and never finished it (check: Blight
+  regen/skull damage vs the reference, and the test's melee positioning against a hovering Blight). The return rift
+  now uses a pearl in the test; walking into it by body contact (endPortalTick) did not trigger in CI although the
+  logged positions overlap — the player gets nudged ~2 blocks in the first frame; worth a look. The egg torch trick
+  depends on where the egg hops (up to 20 tries).
+- Fixed on the way: persistent bosses/crystals despawning past 128 blocks, wyrm deaths without the death sequence,
+  effects on bosses, head/body damage + 25% perch take-off, perch sequence + settling on the pillar, breath clouds,
+  arrows bouncing off a perched wyrm / armoured Blight, return rifts (+ pearls and body contact), first-kill-only
+  egg/XP, egg teleport, wyrm-kill + rift advancements, Blight movement/heads/difficulty, cinder rod looting, and
+  `alive` never going false (dead players re-picked their own drops).
+

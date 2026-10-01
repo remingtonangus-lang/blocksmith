@@ -40,6 +40,8 @@ struct VillagerData: Codable {
     var levelUpTimer: Float = 0
     var bed: [Int]? = nil                // claimed bed head
     var food: Int? = nil                 // food points (breeding needs 12)
+    var gossip: [Int]? = nil             // what it has heard about the player: see Gossip (VillageLife.swift)
+    var gossipDay: Int? = nil            // last day gossip decayed
 }
 
 enum Villagers {
@@ -120,10 +122,10 @@ enum Villagers {
         ],
         "cartographer": [
             [emeraldFor("paper", 24, 16, 2), forEmeralds("map", 7, 1, 12, 1)],
-            [emeraldFor("glass_pane", 11, 16, 10), forEmeralds("map", 13, 1, 12, 5)],
-            [emeraldFor("compass", 1, 12, 20), forEmeralds("map", 14, 1, 12, 10)],
+            [emeraldFor("glass_pane", 11, 16, 10), swap("compass", 1, 13, "sea_temple_explorer_map", 1, 12, 5)],
+            [emeraldFor("compass", 1, 12, 20), swap("compass", 1, 14, "manor_explorer_map", 1, 12, 10)],
             [forEmeralds("item_frame", 7, 1, 12, 15)] + BlockRegistry.colors.map { forEmeralds("\($0.0)_banner", 3, 1, 12, 15) },
-            [forEmeralds("globe_banner_pattern", 8, 1, 12, 30)],
+            [forEmeralds("globe_banner_pattern", 8, 1, 12, 30), swap("compass", 1, 24, "steelhold_explorer_map", 1, 6, 30)],
         ],
         "cleric": [
             [emeraldFor("rotten_flesh", 32, 16, 2), forEmeralds("redstone", 1, 2, 12, 1)],
@@ -360,7 +362,9 @@ final class MerchantMenu: Menu {
 
     func price(_ o: TradeOffer) -> ItemStack {
         var o2 = o
-        o2.special += game.heroDiscount(o) + ((mob?.villager?.cured ?? false) ? -max(1, o.buyA.count * 3 / 4) : 0)
+        // Reference special price: -floor(reputation x price multiplier), then the Village Hero discount.
+        let rep = mob?.villager?.reputation ?? 0
+        o2.special += game.heroDiscount(o) - Int(floor(Float(rep) * o.priceMult))
         return o2.costA
     }
 
@@ -411,6 +415,7 @@ final class MerchantMenu: Menu {
             }
         }
         v.offers[selected].uses += 1
+        v.addGossip(.trading, 2)
         v.xp += o.xp
         v.locked = true
         // Trades give the player XP too (3-6, more when the villager levels up).

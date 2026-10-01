@@ -90,6 +90,7 @@ done
 "$BIN" --snapshot snaps/loom.png --seed 12345 --menu loom
 "$BIN" --snapshot snaps/book.png --seed 12345 --menu book
 "$BIN" --snapshot snaps/advancements.png --seed 12345 --menu advancements
+"$BIN" --snapshot snaps/credits.png --seed 12345 --menu credits
 "$BIN" --snapshot snaps/pause.png --seed 12345 --menu pause
 "$BIN" --snapshot snaps/options.png --seed 12345 --menu options
 "$BIN" --snapshot snaps/death.png --seed 12345 --menu death
@@ -108,6 +109,19 @@ done
 "$BIN" --snapshot snaps/third_back.png --seed 12345 --find plains --yaw 30 --pitch -15 --time 0.3 --up 1 --camera 1
 "$BIN" --snapshot snaps/third_swim.png --seed 12345 --find ocean --yaw 30 --pitch -20 --time 0.3 --camera 1 --swim
 "$BIN" --snapshot snaps/third_front.png --seed 12345 --find plains --yaw 30 --pitch 5 --time 0.3 --up 1 --camera 2
+"$BIN" --snapshot snaps/mobs_new.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --spawn zombie_horse,illusioner,happy_ghast,parched,camel_husk,nautilus,zombie_nautilus,skeleton
+"$BIN" --snapshot snaps/soldiers.png --seed 12345 --find plains --yaw 30 --pitch -18 --time 0.3 --up 1 --facecam --spawn soldier_recruit:aggro:0,soldier_recruit,soldier_trooper:aggro:2,soldier_marksman:aggro:3,soldier_ironclad:aggro:4,soldier_ironclad:aggro:5
+"$BIN" --snapshot snaps/captains.png --seed 12345 --find plains --yaw 30 --pitch -15 --time 0.3 --up 1 --facecam --spawn pillager:captain,vindicator:captain,pillager
+"$BIN" --snapshot snaps/firefight.png --seed 12345 --find plains --yaw 30 --pitch -12 --time 0.3 --up 1 --survival 20 --hold gun_smg --facecam --spawn soldier_trooper:aggro:0,soldier_recruit:aggro:1,soldier_ironclad:aggro:5 --fire 1.4
+"$BIN" --snapshot snaps/deck_gun.png --seed 12345 --find plains --yaw 30 --pitch -32 --time 0.3 --up 5 --spawn deck_gun:aggro
+"$BIN" --snapshot snaps/gun_hip.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold gun_rifle
+"$BIN" --snapshot snaps/gun_aim.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold gun_shotgun:aim
+"$BIN" --snapshot snaps/gun_scope.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold gun_sniper:aim
+"$BIN" --snapshot snaps/steelhold.png --seed 12345 --structure military_base --frame 1 --time 0.3
+"$BIN" --snapshot snaps/steelhold_gate.png --seed 12345 --structure military_base --yaw 0 --pitch 5 --time 0.3 --up 1
+"$BIN" --snapshot snaps/steelhold_armory.png --seed 12345 --structure military_base --offset 14,0,-60 --yaw 0 --pitch 0 --time 0.3
+"$BIN" --snapshot snaps/steelhold_command.png --seed 12345 --structure military_base --offset 0,6,-33 --yaw 0 --pitch -15 --time 0.3
+"$BIN" --snapshot snaps/mobtests.png --seed 12345 --find plains --yaw 0 --pitch -30 --time 0.3 --up 3 --mobtests
 "$BIN" --snapshot snaps/pathtest.png --seed 12345 --find plains --yaw 0 --pitch -40 --time 0.75 --up 14 --pathtest
 "$BIN" --snapshot snaps/ashen_grove.png --seed 12345 --find pale_garden --yaw 210 --pitch -20 --time 0.3 --up 4 --treecheck
 "$BIN" --snapshot snaps/ashen_inside.png --seed 12345 --find pale_garden --yaw 120 --pitch 8 --time 0.3 --ground
