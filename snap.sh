@@ -75,6 +75,8 @@ done
 "$BIN" --snapshot snaps/underwater.png --seed 12345 --find ocean --yaw 30 --pitch -10 --time 0.25 --underwater
 "$BIN" --snapshot snaps/down.png    --seed 12345 --yaw 0   --pitch -80 --time 0.25 --up 3
 "$BIN" --snapshot snaps/forest.png  --seed 12345 --find forest --yaw 30 --pitch -28 --time 0.22 --up 22
+# Same view in Fast graphics (playtest QA: black blocks/holes seen in combined-build Fancy shots).
+"$BIN" --snapshot snaps/forest_fast.png  --seed 12345 --find forest --yaw 30 --pitch -28 --time 0.22 --up 22 --fast
 "$BIN" --snapshot snaps/forest_in.png --seed 12345 --find forest --yaw 120 --pitch -5 --time 0.22 --up 1
 "$BIN" --snapshot snaps/crack.png --seed 12345 --find forest --yaw 120 --pitch -5 --time 0.22 --up 1 --crack 0.7
 "$BIN" --snapshot snaps/snowy.png   --seed 12345 --find snowy_taiga --yaw 60 --pitch -25 --time 0.22 --up 20
