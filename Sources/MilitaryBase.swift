@@ -150,7 +150,7 @@ enum MilitaryBase {
         out += [("soldier_recruit", -16, 1, 16), ("soldier_recruit", -10, 1, 22)]
         out += [("soldier_trooper", 16, 1, 18), ("soldier_recruit", 0, 1, -24)]
         // Upper floor: command room, quarters, comms, barracks.
-        out += [("soldier_ironclad", 0, 7, 0), ("soldier_marksman", 4, 7, 4), ("soldier_trooper", -16, 7, -16), ("soldier_trooper", 16, 7, -16),
+        out += [("soldier_ironclad", -3, 7, 3), ("soldier_marksman", 4, 7, 4), ("soldier_trooper", -16, 7, -16), ("soldier_trooper", 16, 7, -16),
                 ("soldier_recruit", 16, 7, 16), ("soldier_trooper", 20, 7, 20)]
         // Basement depot and vault.
         out += [("soldier_trooper", -14, -5, 10), ("soldier_ironclad", 18, -5, 18), ("soldier_recruit", 10, -5, -14)]
@@ -300,7 +300,8 @@ enum MilitaryBase {
         }
         w.set(X(8), y0 + 1, Z(-12), g("anvil"))
         // Weapon racks: guns hung in frames above the crates on the north wall (punch one to take it).
-        for x in stride(from: 6, through: R - 3, by: 2) where rng.chance(0.6) {
+        let windows = Set(stride(from: -R + 6, through: R - 7, by: 5).filter { abs($0) > 5 && abs($0) < R - 5 }.flatMap { [$0, $0 + 1] })
+        for x in stride(from: 6, through: R - 3, by: 2) where !windows.contains(x) && rng.chance(0.75) {
             let gun = Guns.all[[Guns.rifle, Guns.rifle, Guns.smg, Guns.smg, Guns.shotgun, Guns.sniper][rng.int(6)]]
             if Items.has(gun.key) { w.frame(X(x), y0 + 3, Z(-R + 1), state: 1, item: ItemStack(Items.id(gun.key), 1)) }
         }

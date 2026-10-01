@@ -482,6 +482,11 @@ Known failing tests: none (snap.sh and --selftest pass on CI at d92f9b0).
   Guns, The Bigger They Are.
 - Also: player hurt cooldown (0.5 s, bigger hits land the difference; gun rounds skip it), raids saved with the world,
   bow skeletons circle-strafe, raid/patrol captains wear the omen banner.
+- Later in the session: explorer maps from cartographers (Sea Temple, Forest Manor, Steelhold for masters), zombies
+  trample turtle eggs, gun crosshair that opens with spread, gunfire alerts soldiers within 32 blocks, guns repair at
+  the anvil, rounds spark off armour, soldiers tilt guns toward the target, deck-gun barrels recoil, bosses take 35%
+  from guns. Playthrough: the test player clears bag junk, retries swallowed clicks, throws the return pearl from a
+  settled spot.
 - `--mobtests` covers reloads, kills, recoil, pellets, rockets, beams, armour, alerts, cover, marksman laser, deck gun salvos,
   drops, fortress rarity and layout, raid save/restore. Snapshots: soldiers, deck_gun, gun_hip/aim/scope, steelhold, steelhold_gate.
 

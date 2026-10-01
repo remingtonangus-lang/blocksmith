@@ -936,9 +936,15 @@ final class Playthrough {
                 // Pearl into it from a few blocks away (walking into it by body contact is also supported; see STATUS).
                 let bc = center(b)
                 let tf = bc + V3(6, -1.1, 0)
-                for y in (b.y - 1)...(b.y + 1) { for dx in 1...6 where carvable(IVec3(b.x + dx, y, b.z)) { world.setBlock(b.x + dx, y, b.z, AIR) } }
+                for y in (b.y - 1)...(b.y + 1) { for dz in -1...1 { for dx in 1...7 where carvable(IVec3(b.x + dx, y, b.z + dz)) {
+                    world.setBlock(b.x + dx, y, b.z + dz, AIR)
+                } } }
                 game.player.flying = true
                 game.player.pos = tf
+                // Let the body settle first (it used to get nudged ~2 blocks in the throw frame), then aim from where it is.
+                _ = tick(0.2, pin: tf)
+                game.player.pos = tf
+                game.player.vel = .zero
                 clearMobs(near: bc, 10)
                 if count("ender_pearl") == 0 { give("ender_pearl", 2, bulk: "spare pearls") }
                 _ = hold("ender_pearl")
@@ -1077,12 +1083,17 @@ final class Playthrough {
         for dx in [-1, 1, 0] {
             let top = IVec3(stem.x + dx, stem.y + 1, stem.z)
             let feet = V3(Float(top.x) + 0.5, Float(top.y) + 1.2, Float(top.z) + 2.5)
-            game.player.flying = true
-            game.player.pos = feet
-            aim(at: V3(Float(top.x) + 0.5, Float(top.y) + 1, Float(top.z) + 0.5))
-            _ = hold("wither_skeleton_skull")
-            game.input.rightClicked = true
-            _ = tick(0.1, pin: feet)
+            // A click can be swallowed (place cooldown after the previous action): retry until the skull is down.
+            for _ in 0..<4 where baseKey(world.block(top.x, top.y + 1, top.z)) != "wither_skeleton_skull"
+                && !game.mobs.mobs.contains(where: { $0.kind == .wither }) {
+                game.player.flying = true
+                game.player.pos = feet
+                _ = tick(0.3, pin: feet)
+                aim(at: V3(Float(top.x) + 0.5, Float(top.y) + 1, Float(top.z) + 0.5))
+                _ = hold("wither_skeleton_skull")
+                game.input.rightClicked = true
+                _ = tick(0.1, pin: feet)
+            }
         }
         let w = game.mobs.mobs.first { $0.kind == .wither }
         check(w != nil, "blight: soul sand T + three skulls summons the Blight")

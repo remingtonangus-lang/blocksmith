@@ -404,6 +404,7 @@ final class ItemRegistry {
         Potions.register(self)
         SpawnEggs.register(self)
         Guns.register(self)
+        ExplorerMaps.register(self)
         for n in ["milk_bucket"] { defs[Int(id(n))].drink = true }
         for n in ["honey_bottle", "ominous_bottle"] { defs[Int(id(n))].drink = true }
         Enchant.assignEnchantability(self)

@@ -27,8 +27,9 @@ final class SoldierBrain {
     var grenadeCD: Float = Float.random(in: 4...10)
     var retreat: Float = 0
     var retreatCD: Float = 0
-    var pitch: Float = 0
+    var pitch: Float = 0            // deck gun barrel elevation / soldier aim elevation
     var charge: Float = 0
+    var kick: Float = 0             // deck gun barrel recoil 1 -> 0
     var cover: V3?                  // a spot out of the player's sight to reload in
     var coverSearch: Float = 0
     var flank: V3?                  // where a flanking trooper / relocating marksman is heading
@@ -227,6 +228,8 @@ extension Mob {
         }
         if sees {
             face(g.player.pos)
+            let tp = g.player.eye - V3(0, 0.3, 0) - eye
+            b.pitch += (max(-0.9, min(0.9, atan2f(tp.y, simd_length(V2(tp.x, tp.z))))) - b.pitch) * min(1, dt * 8)
             if b.reload > 0 {
                 speed = dist < far ? -spec.speed * 0.7 : 0                       // give ground while reloading
             } else if let f = b.flank, b.flankTimer > 0 {
@@ -413,6 +416,7 @@ extension Mob {
         attackCooldown = max(attackCooldown, -1)
         if fire > 0 { fire -= dt }
         b.reload -= dt
+        b.kick = max(0, b.kick - dt * 1.5)
         let pivot = pos + V3(0, 1.0, 0)
         let player = g.player.eye - V3(0, 0.6, 0)
         let to = player - pivot
@@ -469,6 +473,7 @@ extension Mob {
                                              size: 0.5, gravity: 0, color: V3(2.6, 1.8, 0.7), collide: false, glow: true))
                 }
                 g.sfx(.gun(9), 2, at: pivot)
+                b.kick = 1
             }
         } else if !aligned {
             b.charge = max(0, b.charge - dt * 2)
@@ -516,8 +521,9 @@ func soldierParts(_ m: Mob, swing: Float) -> [Part] {
     let skin = V3(0.78, 0.6, 0.47)
     let boots = V3(0.12, 0.11, 0.1)
     let aiming = m.aggro
-    let armX: Float = aiming ? -1.45 : -0.9
-    let gunTilt: Float = aiming ? 0 : -0.5
+    let aimPitch: Float = aiming ? (m.brain?.pitch ?? 0) : 0
+    let armX: Float = aiming ? -1.45 - aimPitch : -0.9
+    let gunTilt: Float = aiming ? aimPitch : -0.5
     let big: Float = r == 3 ? 1.12 : 1
     let cloth: V3, plate: V3, trim: V3
     switch r {
@@ -585,6 +591,7 @@ func deckGunParts(_ m: Mob) -> [Part] {
     let steel = V3(0.3, 0.32, 0.35), dark = V3(0.14, 0.15, 0.17), hazard = V3(0.85, 0.68, 0.1)
     let pitch = m.brain?.pitch ?? 0
     let charge = m.brain?.charge ?? 0
+    let kick = (m.brain?.kick ?? 0) * 7                 // barrels slide back after a salvo
     let eyeGlow = m.aggro ? V3(1.4 + charge, 0.2, 0.15) : V3(0.3, 0.1, 0.1)
     var p: [Part] = [
         box(-20, 0, -20, 40, 5, 40, dark),
@@ -598,8 +605,8 @@ func deckGunParts(_ m: Mob) -> [Part] {
     ]
     for x: Float in [-7, 7] {
         p.append(Part(mn: V3(x - 2.5, 11.5, -22), mx: V3(x + 2.5, 16.5, -14), pivot: V3(x, 14, -14), rotX: pitch, color: dark))
-        p.append(Part(mn: V3(x - 1.6, 12.4, -62), mx: V3(x + 1.6, 15.6, -22), pivot: V3(x, 14, -14), rotX: pitch, color: steel * 0.8))
-        p.append(Part(mn: V3(x - 2.3, 11.7, -66), mx: V3(x + 2.3, 16.3, -60), pivot: V3(x, 14, -14), rotX: pitch, color: dark))
+        p.append(Part(mn: V3(x - 1.6, 12.4, -62 + kick), mx: V3(x + 1.6, 15.6, -22 + kick), pivot: V3(x, 14, -14), rotX: pitch, color: steel * 0.8))
+        p.append(Part(mn: V3(x - 2.3, 11.7, -66 + kick), mx: V3(x + 2.3, 16.3, -60 + kick), pivot: V3(x, 14, -14), rotX: pitch, color: dark))
         if charge > 0 {
             p.append(Part(mn: V3(x - 1, 13, -66.3), mx: V3(x + 1, 15, -65.9), pivot: V3(x, 14, -14), rotX: pitch, color: V3(1.5 + charge, 0.8, 0.2)))
         }

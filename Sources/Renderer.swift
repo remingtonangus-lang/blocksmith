@@ -1957,8 +1957,18 @@ final class Renderer: NSObject, MTKViewDelegate {
                     x = e
                 }
             }
-            // The player marker.
             let per = Float(1 << md.scale)
+            // Explorer maps: the destination (a coloured mark with a dark rim).
+            if let mk = md.marker, mk.count == 3 {
+                let tx = (Float(mk[0]) - Float(md.cx)) / per + 64, tz = (Float(mk[1]) - Float(md.cz)) / per + 64
+                if tx >= 0 && tx < 128 && tz >= 0 && tz < 128 {
+                    let c = UInt32(truncatingIfNeeded: mk[2])
+                    rect(mx + tx * px - 4 * px, my + tz * px - 4 * px, 8 * px, 8 * px, V4(0.15, 0.1, 0.05, 1))
+                    rect(mx + tx * px - 3 * px, my + tz * px - 3 * px, 6 * px, 6 * px,
+                         V4(Float((c >> 16) & 255) / 255, Float((c >> 8) & 255) / 255, Float(c & 255) / 255, 1))
+                }
+            }
+            // The player marker.
             let ppx = (game.player.pos.x - Float(md.cx)) / per + 64, ppz = (game.player.pos.z - Float(md.cz)) / per + 64
             if ppx >= 0 && ppx < 128 && ppz >= 0 && ppz < 128 {
                 rect(mx + ppx * px - 2 * px, my + ppz * px - 2 * px, 4 * px, 4 * px, V4(1, 1, 1, 1))

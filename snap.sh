@@ -202,7 +202,7 @@ done
 "$BIN" --snapshot snaps/soldiers.png --seed 12345 --find plains --yaw 30 --pitch -18 --time 0.3 --up 1 --facecam --spawn soldier_recruit:aggro:0,soldier_recruit,soldier_trooper:aggro:2,soldier_marksman:aggro:3,soldier_ironclad:aggro:4,soldier_ironclad:aggro:5
 "$BIN" --snapshot snaps/captains.png --seed 12345 --find plains --yaw 30 --pitch -15 --time 0.3 --up 1 --facecam --spawn pillager:captain,vindicator:captain,pillager
 "$BIN" --snapshot snaps/firefight.png --seed 12345 --find plains --yaw 30 --pitch -12 --time 0.3 --up 1 --survival 20 --hold gun_smg --facecam --spawn soldier_trooper:aggro:0,soldier_recruit:aggro:1,soldier_ironclad:aggro:5 --fire 1.4
-"$BIN" --snapshot snaps/deck_gun.png --seed 12345 --find plains --yaw 30 --pitch -22 --time 0.3 --up 3 --facecam --spawn deck_gun:aggro
+"$BIN" --snapshot snaps/deck_gun.png --seed 12345 --find plains --yaw 30 --pitch -32 --time 0.3 --up 5 --spawn deck_gun:aggro
 "$BIN" --snapshot snaps/gun_hip.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold gun_rifle
 "$BIN" --snapshot snaps/gun_aim.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold gun_shotgun:aim
 "$BIN" --snapshot snaps/gun_scope.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold gun_sniper:aim
