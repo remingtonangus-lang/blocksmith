@@ -135,11 +135,14 @@ final class MapCache {
 
     // Nearest waypoint to a point (for the HUD distance line).
     func nearestPin(_ x: Float, _ z: Float) -> Mark? {
-        marks.filter { $0.kind == "pin" }.min { (a: Mark, b: Mark) -> Bool in
-            let da = (Float(a.x) - x) * (Float(a.x) - x) + (Float(a.z) - z) * (Float(a.z) - z)
-            let db = (Float(b.x) - x) * (Float(b.x) - x) + (Float(b.z) - z) * (Float(b.z) - z)
-            return da < db
+        var best: Mark?
+        var bestD: Float = .greatestFiniteMagnitude
+        for m in marks where m.kind == "pin" {
+            let dx: Float = Float(m.x) - x, dz: Float = Float(m.z) - z
+            let d: Float = dx * dx + dz * dz
+            if d < bestD { bestD = d; best = m }
         }
+        return best
     }
 
     // Marker letter, colour and name per discovery kind.
