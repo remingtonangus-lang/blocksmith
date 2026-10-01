@@ -305,7 +305,7 @@ extension ShipManager {
                 }
             }
             let steer = max(-1, min(1, cross * 2))
-            s.autopilot = V3(s.role == "frigate" ? 0.45 : 0.5, steer, 0)
+            s.autopilot = V3(s.role == "frigate" ? 0.7 : 0.5, steer, 0)
             // Guns.
             let pp = g.player.pos + V3(0, 1, 0)
             let seen = gunsEngage(s, g)

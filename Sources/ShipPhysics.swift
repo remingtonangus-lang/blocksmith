@@ -277,7 +277,8 @@ extension ShipManager {
         let sp = simd_length(s.vel)
         let vlAir = s.dirToLocal(s.vel)
         let airK: Float = 0.1 + 0.03 * sp
-        let airLocal: V3 = vlAir * s.area * airK
+        var airLocal: V3 = vlAir * s.area * airK
+        airLocal[fwdAxis] *= 0.6                    // bows and envelope noses are streamlined
         F -= s.dirToWorld(airLocal)
         s.angVel *= expf(-(sub > 0 ? 0.4 : 0.8) * h)
 
