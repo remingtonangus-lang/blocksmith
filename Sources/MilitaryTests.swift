@@ -177,6 +177,29 @@ extension MobTests {
         mm.mobs.removeAll()
         game.arms.slugs.removeAll()
 
+        // Cover: a trooper with an empty magazine ducks behind a wall to reload.
+        for x in (x0 + 2)...(x0 + 4) { for y in gy..<(gy + 3) { world.setBlockAsync(x, y, z0 - 12, Blocks.id("cobblestone")) } }
+        game.health = 20
+        let tr = Mob(.soldierTrooper, at: at(0, -10)); tr.persistent = true; tr.variant = Guns.rifle; tr.yaw = .pi
+        mm.mobs.append(tr)
+        tr.aggro = true
+        tr.soldierBrain.mag = 0
+        tr.soldierBrain.react = 0
+        var hid = false
+        t = 0
+        while t < 3 && !hid {
+            mm.update(0.05, game: game)
+            game.armsTick(0.05)
+            game.player.pos = at(0, 0); game.player.vel = .zero
+            if game.health < 10 { game.health = 20 }
+            if tr.soldierBrain.reload > 0 && tr.soldierBrain.cover != nil && !world.canSee(tr.eye, game.player.eye) { hid = true }
+            t += 0.05
+        }
+        check(hid, "trooper takes cover to reload", String(format: "%.1f s, cover %@", t, tr.soldierBrain.cover.map { String(format: "%.1f,%.1f", $0.x - Float(x0), $0.z - Float(z0)) } ?? "none"))
+        for x in (x0 + 2)...(x0 + 4) { for y in gy..<(gy + 3) { world.setBlockAsync(x, y, z0 - 12, AIR) } }
+        mm.mobs.removeAll()
+        game.arms.slugs.removeAll()
+
         // Marksman: holds a laser on the target before firing.
         game.health = 20
         let mk = Mob(.soldierMarksman, at: at(0, -40)); mk.persistent = true; mk.variant = Guns.sniper; mk.yaw = .pi
