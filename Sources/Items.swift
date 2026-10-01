@@ -51,6 +51,8 @@ final class ItemRegistry {
     @discardableResult
     func add(_ d: ItemDef) -> ItemID {
         let i = ItemID(defs.count)
+        // The release build (-Ounchecked) drops preconditions; the warning shows up in CI logs either way.
+        if byName[d.name] != nil { print("warning: duplicate item \(d.name)") }
         precondition(byName[d.name] == nil, "duplicate item \(d.name)")
         byName[d.name] = i
         defs.append(d)

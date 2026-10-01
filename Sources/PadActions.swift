@@ -36,7 +36,10 @@ enum PadActions {
         }
         if !p.down { dropPressedAt = -1 }
         // D-pad right / R: swap main hand and off hand.
-        if (p.right && !q.right) || g.input.tapped(KeyBinds.key(.offhand)) { swapOffhand(g) }
+        // With a gun held, a key shared with Reload Gun (both default to R) reloads instead of swapping hands.
+        let offKey = KeyBinds.key(.offhand)
+        let keySwap = g.input.tapped(offKey) && !(g.heldGun != nil && offKey == KeyBinds.key(.reload))
+        if (p.right && !q.right) || keySwap { swapOffhand(g) }
         // D-pad left: command console (it has pad quick buttons and the on-screen keyboard).
         if p.left && !q.left { g.openMenu(CommandMenu(game: g)); return true }
         return false
