@@ -58,6 +58,9 @@ ShipRender.swift, ShipPlay.swift, ShipBlocks.swift, ShipTest.swift).
   keeps it, it pauses at stop); wheeled vehicles drive only while W is held. Propellers spin with throttle and power; wheels
   (each connected group of wheel blocks, e.g. a 5x5 disc) roll with the ground speed.
 - A ship cut in two becomes two ships (hull splitting). A hull destroyed under a turret sets the turret loose.
+- Cannon barrels rise with the guns' elevation. Ships darken under cover (their sky light follows the world's around
+  them). Far ships sleep (no physics beyond 384 blocks) and free their meshes beyond the render distance. The steering
+  hint shows controller buttons when a pad is connected. Advancements: Anchors Aweigh, Prize Crew, Brought Low.
 - Known gaps: mobs aboard use approximate collision; ship light is baked in ship space (no world shadows/caves).
 - Next: tuning from CI numbers, soldier crews once the Gameplay session adds soldiers (MobKind "soldier" is
   picked up automatically).
