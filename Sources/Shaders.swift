@@ -335,6 +335,12 @@ fragment float4 cloudBoxFS(CloudOut in [[stage_in]],
     float day = u.params.y;
     float3 col = float3(1.0) * mix(0.05, 1.0, smoothstep(0.12, 1.0, day)) * in.rel.y;
     col = mix(col, u.fogColor.rgb, 0.2);
+    if (u.sunColor.r + u.sunColor.g + u.ambColor.r > 0.0) {
+        // HDR (Fancy): sky ambient plus direct sun/moon light on the lit faces (pink-gold at sunset).
+        float lit = smoothstep(0.75, 1.0, in.rel.y);
+        col = u.ambColor.rgb * (0.9 + 0.5 * in.rel.y) + u.sunColor.rgb * (0.35 + 1.1 * lit);
+        col = mix(col, u.fogColor.rgb, 0.15);
+    }
     return float4(col, 0.82 * fade);
 }
 
