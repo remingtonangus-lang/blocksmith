@@ -348,6 +348,12 @@ Findings / changes (performance branch):
     rockfalls, tundra wind and ice creaks, swamp insects, rain on leaves, snow wind, far thunder beyond 72 blocks.
   - Music: High Passes / Mire / Canopy by biome; Steelhold tension near a garrison; Firefight combat music while
     soldiers or deck guns hunt the player or a raid wave is near (held 15 s after).
+  - Aircraft wing rush at speed; the Skyward Frigate's drone carries 160 blocks and the Ironstride Siege Carriage
+    clanks on its treads out to ~100; a crewed vessel in gun range scores combat music (tension when near).
+    Positional loops now use each sound's own range.
+  - Tests: `--sounds` renders and checks every sound (752+) and 35 soundscapes; `--audiotest` (snap.sh) runs the
+    ambient director headless in record mode and checks the loops it asks for: car engine and wheels, plane props
+    and wing rush, frigate drone, tension/combat levels, mountain/tundra/swamp beds, snow wind (no rain patter).
 - Audio possible later: per-voice pitch jitter at playback (varispeed per voice); more distinct voices for rare mobs.
 - Landing / sprint dust, item equip animation, denser rain with ground splashes lit by daylight.
 - Village life: beds and sleeping, food pickup + breeding, farmers harvesting, golems, midnight zombie sieges.

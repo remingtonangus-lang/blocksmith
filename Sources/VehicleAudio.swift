@@ -63,6 +63,32 @@ enum VehicleAudio {
             for _ in 0..<7 { o = Synth.mix(o, g.burst(0.35, lp: 1600, hp: 200, attack: 0.03, decay: 0.08, gain: 0.7), at: g.frames(g.rnd(0, 3.6))) }
             o = Synth.mix(o, g.bubbles(4.0, count: 12, fLo: 400, fHi: 1200, len: 0.04, gain: 0.25))
             return Synth.loopify(Array(o.prefix(g.frames(4.0))), fade: 0.4)
+        case .wingRushLoop:
+            // Fast flight: a hard broadband rush with buffeting over the wings and a thin edge whistle.
+            var w = g.wash(4.0, lp: 2600 * p, hp: 180, wobble: 0.9, rate: 2.5, gain: 0.9)
+            w = Synth.mix(w, g.wash(4.0, lp: 300 * p, hp: 40, wobble: 1.2, rate: 6, gain: 1.4))
+            w = Synth.mix(w, Synth.scaled(Synth.bandpass(g.wash(4.0, lp: 6000, hp: 1500, wobble: 0.6, rate: 1, gain: 1.0), 2300 * p, q: 8), 0.8))
+            return Synth.loopify(w, fade: 0.5)
+        case .frigateDroneLoop:
+            // A flying warship: several big slow engines beating against each other, felt more than heard,
+            // with a deep throb from the lift fans.
+            var o = engine(&g, dur: 6.0, rate: 7, p: p * 0.6, rough: 0.4)
+            o = Synth.mix(o, engine(&g, dur: 6.0, rate: 7.6, p: p * 0.55, rough: 0.4))
+            o = Synth.mix(o, g.tone(6.0, f0: 41 * p, f1: 41 * p, wave: .saw, attack: 0.5, release: 0.5, vib: 0.03, vibRate: 0.5, gain: 0.12))
+            let fans = prop(&g, dur: 6.0, bladeRate: 4.5, p: p * 0.6)
+            o = Synth.mix(Synth.lowpass(o, 700), Synth.scaled(fans, 0.6))
+            return Synth.loopify(o, fade: 0.6)
+        case .carriageTreadLoop:
+            // Armoured carriage: a laboured heavy engine, squealing drive gear and clanking track plates.
+            var o = engine(&g, dur: 4.0, rate: 15, p: p * 0.7, rough: 0.7)
+            o = Synth.mix(o, Synth.scaled(g.wash(4.0, lp: 220 * p, hp: 30, wobble: 0.5, rate: 4, gain: 1.4), 0.8))
+            var t: Float = 0
+            while t < 3.9 {
+                o = Synth.mix(o, g.material(.metal, pitch: p * g.rnd(0.45, 0.6), scale: 0.5, gain: 0.35), at: g.frames(t))
+                t += 0.16 * g.rnd(0.9, 1.1)
+            }
+            o = Synth.mix(o, Synth.lowpass(g.tone(4.0, f0: 1150 * p, f1: 1100 * p, wave: .saw, attack: 1, release: 1, vib: 0.03, vibRate: 0.7, gain: 0.015), 3000))
+            return Synth.loopify(Array(o.prefix(g.frames(4.0))), fade: 0.4)
         case .hullCreak:
             // Timber under load: a slow, grainy pitched groan.
             let base: Float = g.rnd(90, 160) * p
@@ -98,7 +124,17 @@ extension Game {
     func vehicleAudioTick(_ dt: Float, ask: (String, Snd, Float, V3?) -> Void) {
         let list = world.ships.list
         guard !list.isEmpty else { return }
+        audioWarm("vehicles", SoundBank.vehicleSounds)
         let eye = player.eye
+        // Vessels (the flying frigate, the siege carriage) are heard from far off while they run.
+        for s in list where s.isVessel && s.parent == nil {
+            let d = simd_length(s.pos - eye)
+            if s.role == "frigate" && d < 180 && !s.grounded {
+                ask("vessel\(s.id)", .frigateDroneLoop, 0.9, s.pos)
+            } else if s.role == "carriage" && d < 110 && (simd_length(s.vel) > 0.3 || s.autopilot != nil || s.piloted) {
+                ask("vessel\(s.id)", .carriageTreadLoop, min(1, 0.5 + simd_length(s.vel) / 6), s.pos)
+            }
+        }
         let near = list.filter { simd_length($0.pos - eye) < 64 }
             .sorted { simd_length($0.pos - eye) < simd_length($1.pos - eye) }.prefix(3)
         var seen = Set<Int>()
@@ -120,6 +156,9 @@ extension Game {
                 let spin = max(thr, min(1, speed / 20))
                 ask(key + "prop0", .propSlowLoop, 0.45 * (1 - spin), s.pos)
                 ask(key + "prop1", .propFastLoop, 0.6 * spin, s.pos)
+            }
+            if !s.wings.isEmpty && s.submerged <= 0 && !s.grounded && speed > 6 {
+                ask(key + "rush", .wingRushLoop, min(1, (speed - 6) / 24), s.pos)
             }
             if s.balloons > 0 && s.submerged <= 0 && !s.grounded {
                 ask(key + "wind", .airshipWindLoop, 0.25 + min(0.5, speed / 30), s.pos)

@@ -160,7 +160,7 @@ final class SoundEngine {
         // Re-aim the spatial one-shots that are still playing and the loops.
         let now = CFAbsoluteTimeGetCurrent()
         for i in 0..<spatial.count where spatialEnd[i] > now { if let p = spatialPos[i] { spatial[i].position = point(p, range: spatialRange[i]) } }
-        for l in loops.values where l.positional { if let p = l.pos { l.node.position = point(p, range: 16) } }
+        for l in loops.values where l.positional { if let p = l.pos { l.node.position = point(p, range: l.snd.range) } }
         if let p = discPos, let d = disc { d.node.position = point(p, range: 64); d.node.reverbBlend = 0.05 + 0.4 * cave }
     }
 
@@ -298,7 +298,7 @@ final class SoundEngine {
             l.started = true
         }
         if l.positional, let p = pos {
-            l.node.position = point(p, range: 16)
+            l.node.position = point(p, range: s.range)
             l.node.reverbBlend = 0.05 + 0.4 * cave
             l.node.obstruction = -32 * occlusion
             l.node.occlusion = -18 * occlusion

@@ -15,6 +15,7 @@ final class AudioState {
     var caveTimer: Float = 25
     var moodTimer: Float = 40
     var rainExposure: Float = 0
+    var rainNear: Float = 0                 // share of nearby columns where it rains (not snows)
     var rainTimer: Float = 0
     var asked: Set<String> = []
     var lastHurtSound: Float = -10
@@ -27,6 +28,7 @@ final class AudioState {
     var rockTimer: Float = 60
     var combatHold: Float = 0               // combat music lingers this long after the last sign of a fight
     var combatCheck: Float = 0
+    var warmed = Set<String>()              // sound groups already sent to the background renderer
     var combat = 0                          // 0 calm, 1 near a garrison, 2 fighting (soldiers aggro / raid wave)
     var record: [String: Int]? = nil        // harness: counts of every sound played while set
     var leafCover: Float = 0                // leaves overhead (rain on leaves)
@@ -103,7 +105,10 @@ extension Game {
     // MARK: Per-tick
 
     func audioAmbientTick(_ dt: Float) {
-        guard let snd = sound else { return }
+        // Headless harnesses set `audio.record` to run the director without an audio device: loops asked
+        // for are then counted under their key (as "loop:<key>").
+        let snd = sound
+        guard snd != nil || audio.record != nil else { return }
         let a = audio
         let p = player.pos
         let eye = player.eye
@@ -120,8 +125,8 @@ extension Game {
         a.cave += (caveTarget - a.cave) * min(1, dt * 1.5)
         // Reverb follows the space around the listener: how enclosed it is and how big.
         let wet: Float = max(a.enclosure * a.enclosure, a.cave * 0.6)
-        snd.setListener(eye: eye, yaw: player.yaw, pitch: player.pitch, cave: wet, underwater: player.headInWater)
-        snd.setRoom(size: a.roomSize, enclosure: a.enclosure)
+        snd?.setListener(eye: eye, yaw: player.yaw, pitch: player.pitch, cave: wet, underwater: player.headInWater)
+        snd?.setRoom(size: a.roomSize, enclosure: a.enclosure)
 
         // Scan the blocks around the player for looping emitters twice a second.
         a.scanTimer -= dt
@@ -135,7 +140,8 @@ extension Game {
             a.asked.insert(key)
             if v > 0.15 && AudioSettings.subtitles { subtitle(s, at: pos) }
             let occ = pos.map { audioOcclusion(eye, $0) } ?? 0
-            snd.loop(key, s, volume: v * max(0.15, 1 - occ * 0.7), at: pos, occlusion: occ)
+            if a.record != nil { a.record!["loop:" + key, default: 0] += 1 }
+            snd?.loop(key, s, volume: v * max(0.15, 1 - occ * 0.7), at: pos, occlusion: occ)
         }
         func emitter(_ kind: String, _ s: Snd, base: Float, per: Float, cap: Float = 1.2) {
             if let e = a.emitters[kind] {
@@ -177,18 +183,22 @@ extension Game {
             a.rainTimer -= dt
             if a.rainTimer <= 0 {
                 a.rainTimer = 0.6
-                var exposed = 0, total = 0
+                var exposed = 0, raining = 0, total = 0
                 for dz in stride(from: -8, through: 8, by: 4) { for dx in stride(from: -8, through: 8, by: 4) {
                     let x = Int(floor(p.x)) + dx, z = Int(floor(p.z)) + dz
                     total += 1
-                    if precipitation(x, Int(p.y), z) == 1 && skyExposed(x, Int(p.y), z) { exposed += 1 }
+                    guard precipitation(x, Int(p.y), z) == 1 else { continue }
+                    raining += 1
+                    if skyExposed(x, Int(p.y), z) { exposed += 1 }
                 } }
                 a.rainExposure = Float(exposed) / Float(max(1, total))
+                a.rainNear = Float(raining) / Float(max(1, total))
             }
             let r = weather.rain
             ask("rain", .rain, r * min(1, a.rainExposure * 1.6) * 0.9)
-            // Under a roof near the surface: rain on the roof instead.
-            if a.rainExposure < 0.5 && a.cave < 0.9 { ask("rainroof", .rainRoof, r * (1 - a.rainExposure) * (1 - a.cave) * 0.6) }
+            // Under a roof near the surface: rain on the roof instead (only where it rains, not snows).
+            let roofed = max(0, a.rainNear - a.rainExposure)
+            if a.rainExposure < 0.5 && a.cave < 0.9 && roofed > 0.3 { ask("rainroof", .rainRoof, r * roofed * (1 - a.cave) * 0.6) }
         }
         weatherAudioTick(dt, ask: ask)
         movingWaterTick(ask: ask)
@@ -272,6 +282,7 @@ extension Game {
         a.armorPrimed = true
         // Jukebox nearby: duck the background music.
         let jukeboxNear = a.discPlaying != nil
+        guard let snd else { return }
         snd.musicDuck += ((jukeboxNear ? 0 : 1) - snd.musicDuck) * min(1, dt * 2)
         snd.update(dt, asked: a.asked)
     }
@@ -298,14 +309,15 @@ extension Game {
         let night: Float = f > 0.52 && f < 0.98 ? 1 : 0
         let wet: Float = 1 - min(1, weather.rain * 1.5)                // rain hushes the wildlife
         let high = p.y > Float(SEA + 50)
-        let snowy: Set<Biome> = [.snowyPlains, .iceSpikes, .snowyTaiga, .snowySlopes, .frozenPeaks, .jaggedPeaks, .grove, .snowyBeach, .frozenRiver, .frozenOcean, .deepFrozenOcean]
-        let dry: Set<Biome> = [.desert, .badlands, .erodedBadlands, .woodedBadlands]
-        let wooded: Set<Biome> = [.forest, .flowerForest, .birchForest, .oldGrowthBirchForest, .darkForest, .taiga, .oldGrowthPineTaiga, .oldGrowthSpruceTaiga,
-                                  .windsweptForest, .cherryGrove, .meadow, .plains, .sunflowerPlains, .savanna, .savannaPlateau, .river, .paleGarden]
-        let jungle: Set<Biome> = [.jungle, .sparseJungle, .bambooJungle]
-        let swamp: Set<Biome> = [.swamp, .mangroveSwamp]
+        let snowy = AmbientBiomes.snowy
+        let dry = AmbientBiomes.dry
+        let wooded = AmbientBiomes.wooded
+        let jungle = AmbientBiomes.jungle
+        let swamp = AmbientBiomes.swamp
         if a.nearOcean { ask("surf", .oceanLoop, 0.55 * open, nil) }
-        if high || snowy.contains(b) || dry.contains(b) { ask("wind", .windLoop, (high ? 0.6 : 0.35) * open, nil) }
+        // Plain wind where no landform bed takes over (TerrainAudio: mountain howl on peaks, tundra whistle).
+        let ownWind = AmbientBiomes.peaks.contains(b) || p.y - Float(SEA) > 60 || AmbientBiomes.tundra.contains(b)
+        if (high || snowy.contains(b) || dry.contains(b)) && !ownWind { ask("wind", .windLoop, (high ? 0.6 : 0.35) * open, nil) }
         if jungle.contains(b) { ask("jungle", .jungleLoop, (0.5 * day + 0.35 * night) * wet * open, nil) }
         if swamp.contains(b) { ask("swamp", .swampLoop, (0.2 + 0.4 * night) * wet * open, nil) }
         if night > 0 && !snowy.contains(b) && !dry.contains(b) && !jungle.contains(b) && !high {
@@ -439,6 +451,13 @@ extension Game {
     // near the player), held 15 s after it ends; 1 = a Steelhold garrison within 64 blocks; 0 = calm.
     func combatLevel() -> Int { audio.combat }
 
+    // Renders a group of sounds in the background once, ahead of first use.
+    func audioWarm(_ group: String, _ list: @autoclosure () -> [Snd]) {
+        guard let snd = sound, !audio.warmed.contains(group) else { return }
+        audio.warmed.insert(group)
+        snd.bank.prewarm(list())
+    }
+
     func combatTick(_ dt: Float) {
         let a = audio
         a.combatHold = max(0, a.combatHold - dt)
@@ -454,6 +473,15 @@ extension Game {
             if d < 48 && m.aggro { fighting = true; break }
         }
         if let r = raid, r.state == 1, simd_length(r.center - p) < 96 { fighting = true }
+        // A crewed vessel within its gun range has the player in its sights.
+        if !fighting && survival && difficulty > 0 {
+            for s in world.ships.list where s.isVessel && !s.captured && s.parent == nil {
+                let d = simd_length(s.pos - p)
+                if d < (s.role == "frigate" ? 64 : 80) { fighting = true; break }
+                if d < 140 { garrison = true }
+            }
+        }
+        if fighting || garrison || Guns.index(held.item) != nil { audioWarm("combat", SoundBank.combatSounds) }
         if fighting { a.combatHold = 15 }
         a.combat = a.combatHold > 0 ? 2 : (garrison ? 1 : 0)
     }

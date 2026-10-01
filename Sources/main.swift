@@ -895,6 +895,10 @@ enum Snapshot {
         // Ships (ShipTest.swift): a demo vessel under way, or the scripted physics checks.
         if let kind = arg("--ship") { pos = ShipTest.scene(kind, game: game, at: pos, rd: rd) }
         var shipFails = 0
+        if CommandLine.arguments.contains("--audiotest") {
+            if AudioTests.run(game: game, at: pos, rd: rd) > 0 { return 1 }
+            pos = game.player.pos
+        }
         if CommandLine.arguments.contains("--physicstest") { shipFails = ShipTest.physicsTest(game: game, rd: rd); pos = game.player.pos }
 
         // Mesh benchmark: re-mesh the section at the camera a few times on one thread.
@@ -1129,6 +1133,9 @@ if let dir = arg("--sounds") {
         ("land_vehicle", [(.wheelRollLoop, 0.7), (.engineIdleLoop, 0.5)], [(.shipCollide, 0.5, 0.1)]),
         ("naval_battle", [(.oceanLoop, 0.5), (.engineFullLoop, 0.3), (.turretTraverseLoop, 0.3)],
          [(.shipCannon, 0.8, 0.4), (.explodeLarge, 0.5, 0.12), (.hullCreak, 0.4, 0.2)]),
+        ("aircraft", [(.wingRushLoop, 0.8), (.propFastLoop, 0.5), (.engineFullLoop, 0.4)], []),
+        ("frigate_overhead", [(.frigateDroneLoop, 0.9), (.windLoop, 0.3)], [(.shipCannon, 0.6, 0.15), (.hullCreak, 0.3, 0.1)]),
+        ("siege_carriage", [(.carriageTreadLoop, 0.9), (.turretTraverseLoop, 0.3)], [(.gun(9), 0.6, 0.15)]),
         ("fortress_siege", [(.windLoop, 0.3)], [(.gun(9), 0.7, 0.2), (.gun(10), 0.4, 0.05), (.explodeSmall, 0.5, 0.3), (.gunDistant(0), 0.5, 0.8),
                                                 (.debrisRain, 0.4, 0.15)]),
     ]

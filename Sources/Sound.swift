@@ -85,6 +85,7 @@ enum Snd: Hashable {
     case explodeSmall, explodeLarge, debrisRain       // grenades / big blasts, and the debris pattering down after
     // Ships, airships and land vehicles (VehicleAudio.swift): idle/full layers are cross-faded by throttle.
     case engineIdleLoop, engineFullLoop, propSlowLoop, propFastLoop, airshipWindLoop, wheelRollLoop, hullWaterLoop
+    case wingRushLoop, frigateDroneLoop, carriageTreadLoop
     case hullCreak, shipCollide, shipCollideHard, shipSplash, helmTake, engineStart
     case shipCannon, turretTraverseLoop
     // Terrain and weather (TerrainAudio.swift): moving water, wind by landform, rain on leaves, snow, far thunder.
@@ -122,6 +123,7 @@ enum Snd: Hashable {
         case .rocketFlightLoop, .shellFlightLoop: return .players
         case .explodeSmall, .explodeLarge, .debrisRain: return .blocks
         case .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
+             .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop,
              .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart, .shipCannon, .turretTraverseLoop: return .blocks
         case .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .swampInsectsLoop, .iceCreak, .rockfall: return .ambient
         case .rainLeavesLoop, .snowWindLoop, .thunderFar: return .weather
@@ -139,7 +141,11 @@ enum Snd: Hashable {
         case .explodeSmall: return 48
         case .shipCollideHard: return 48
         case .shipCannon: return 96
-        case .shipCollide, .engineStart: return 32
+        case .shipCollide, .engineStart, .engineIdleLoop, .propSlowLoop, .wheelRollLoop, .turretTraverseLoop, .airshipWindLoop: return 32
+        case .engineFullLoop, .propFastLoop, .wingRushLoop, .rocketFlightLoop, .shellFlightLoop: return 48
+        case .frigateDroneLoop: return 160
+        case .carriageTreadLoop: return 96
+        case .waterfallLoop: return 32
         case .raidHorn, .goatHorn, .bellResonate: return 96
         case .dragonGrowl, .dragonDeath, .witherSpawn, .witherDeath, .dragonFlap: return 128
         case .thunder: return 160
@@ -157,6 +163,7 @@ enum Snd: Hashable {
              .respawnAnchorLoop, .spawnerLoop, .netherWastesLoop, .soulValleyLoop, .crimsonLoop, .warpedLoop, .basaltLoop, .endLoop, .deepDarkLoop, .lushLoop, .dripstoneLoop,
              .cricketsLoop, .oceanLoop, .swampLoop, .windLoop, .jungleLoop, .fireflyLoop, .hiveLoop,
              .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
+             .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop,
              .riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop,
              .rocketFlightLoop, .shellFlightLoop, .turretTraverseLoop:
             return true
@@ -264,11 +271,29 @@ final class SoundBank {
         for m in SoundMat.allCases { s.append(.bulletImpact(m)) }
         s += [.bulletWhizz, .bulletFlesh, .grenadeBounce, .rocketFlightLoop, .shellFlightLoop, .explodeSmall, .explodeLarge, .debrisRain]
         s += [.engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
-              .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart, .shipCannon, .turretTraverseLoop]
+              .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake, .engineStart, .shipCannon, .turretTraverseLoop,
+              .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop]
         s += [.riverLoop, .waterfallLoop, .mountainWindLoop, .tundraWindLoop, .rainLeavesLoop, .snowWindLoop, .swampInsectsLoop,
               .thunderFar, .iceCreak, .rockfall]
         for r in 0...3 { for b in Bark.allCases { s.append(.soldier(r, b)) }; s.append(.soldierStep(r)) }
         return s
+    }
+
+    // Rendered in the background when a fight or a vehicle is near, so the first shot or engine doesn't hitch.
+    static var combatSounds: [Snd] {
+        var s: [Snd] = []
+        for k in 0...12 { s.append(.gun(k)) }
+        for k in 0...5 { s.append(.gunReload(k)); s.append(.gunDistant(k)) }
+        s.append(.gunDistant(WeaponAudio.heavySlot))
+        for m in [SoundMat.stone, .dirt, .sand, .wood, .plant, .glass, .gravel, .metal, .deepslate] { s.append(.bulletImpact(m)) }
+        s += [.bulletWhizz, .bulletFlesh, .grenadeBounce, .rocketFlightLoop, .shellFlightLoop, .explodeSmall, .explodeLarge, .debrisRain]
+        for r in 0...3 { for b in Bark.allCases { s.append(.soldier(r, b)) }; s.append(.soldierStep(r)) }
+        return s
+    }
+    static var vehicleSounds: [Snd] {
+        [.engineStart, .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
+         .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop, .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake,
+         .shipCannon, .turretTraverseLoop, .shellFlightLoop, .explodeLarge]
     }
 
     // Sounds worth having ready before the first frame (rendered first by the prewarm thread).
