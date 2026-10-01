@@ -60,7 +60,7 @@ enum AimAssist {
         var f: Float = 1
         if g.mining != nil { f = 0.7 }
         let eye = g.player.eye, look = g.player.look
-        for m in g.mobs.mobs where m.kind.hostile && m.health > 0 {
+        for m in g.mobs.mobs where (m.kind.hostile || m.kind.steelhold) && m.health > 0 {
             let c = m.pos + V3(0, m.height * 0.5, 0)
             let d = c - eye
             let dist = simd_length(d)
@@ -102,5 +102,69 @@ extension AimAssist {
             if simd_length(c - eye) + 0.6 < h.0 { last = t; return t }
         }
         return prev
+    }
+}
+
+// Gun aim assist (controller only, Options > Controller > Aim Assist): pulling LT to aim down the sights snaps
+// most of the way onto the nearest enemy within ~10 degrees (in sight and in range), then follows it gently
+// while it stays near the crosshair. Looking away drops the target. The view also slows while aiming.
+extension AimAssist {
+    static weak var snapTarget: Mob?
+    static var snapTime: Float = 0
+
+    static func lookScale(_ g: Game) -> Float {
+        guard g.heldGun != nil else { return 1 }
+        return powf(max(0.15, g.gunFovScale), 0.8)
+    }
+
+    static func angles(_ g: Game, _ m: Mob) -> (yaw: Float, pitch: Float, dist: Float) {
+        let c = m.pos + V3(0, m.height * 0.6, 0)
+        let d = c - g.player.eye
+        let l = max(0.001, simd_length(d))
+        return (atan2f(-d.x, -d.z), asinf(max(-1, min(1, d.y / l))), l)
+    }
+
+    static func wrap(_ a: Float) -> Float {
+        var v = a
+        while v > .pi { v -= 2 * .pi }
+        while v < -.pi { v += 2 * .pi }
+        return v
+    }
+
+    static func bestTarget(_ g: Game, cone: Float, range: Float) -> Mob? {
+        var best: (Mob, Float)?
+        for m in g.mobs.mobs where (m.kind.hostile || m.kind.steelhold) && m.health > 0 {
+            let a = angles(g, m)
+            guard a.dist < range else { continue }
+            let off = abs(wrap(a.yaw - g.player.yaw)) + abs(a.pitch - g.player.pitch)
+            guard off < cone, off < (best?.1 ?? .greatestFiniteMagnitude) else { continue }
+            guard g.world.canSee(g.player.eye, m.pos + V3(0, m.height * 0.6, 0)) else { continue }
+            best = (m, off)
+        }
+        return best?.0
+    }
+
+    static func gunTick(_ g: Game, _ p: PadSnapshot, _ q: PadSnapshot, _ dt: Float) {
+        guard Settings.shared.aimAssist, PadManager.shared.usingPad, let gi = g.heldGun else { snapTarget = nil; return }
+        let aiming = p.lt > 0.5
+        if aiming && q.lt <= 0.5 {
+            snapTarget = bestTarget(g, cone: 0.18, range: Guns.all[gi].range)
+            snapTime = 0.18
+        }
+        guard aiming, let m = snapTarget, m.health > 0 else { snapTarget = nil; return }
+        let a = angles(g, m)
+        let dy = wrap(a.yaw - g.player.yaw), dp = a.pitch - g.player.pitch
+        if snapTime > 0 {
+            let k = min(1, dt / snapTime) * 0.6           // pull 60% of the way over the first 0.18 s
+            g.player.yaw += dy * k
+            g.player.pitch += dp * k
+            snapTime -= dt
+        } else if abs(dy) < 0.12 && abs(dp) < 0.12 {
+            let k = min(1, dt * 3) * 0.5                  // gentle tracking of a moving target
+            g.player.yaw += dy * k
+            g.player.pitch += dp * k
+        } else {
+            snapTarget = nil
+        }
     }
 }

@@ -361,7 +361,7 @@ extension Game {
             }
             return true
         }
-        if input.tapped(15) || (p.x && !q.x) { startReload(gi); return true }     // R key (keycode 15) or pad X
+        if input.tapped(KeyBinds.key(.reload)) || (p.x && !q.x) { startReload(gi); return true }     // R (rebindable) or pad X
         let trigger = gs.auto ? fire : firePressed
         guard trigger, a.cooldown <= 0 else { return true }
         if held.tag <= 0 {

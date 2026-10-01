@@ -44,7 +44,7 @@ final class PauseMenu: Menu {
     static let valueIDs: Set<String> = ["sens", "invert", "autojump", "fov", "lookx", "looky", "accel", "dead", "aim", "rumble", "southpaw",
                                         "sneaktoggle", "autosprint", "glyphs", "rd", "fullscreen", "launchfs", "vsync", "fps", "rscale",
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
-                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes"]
+                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight"]
 
     static let help: [String: String] = [
         "resume": "Return to the game.",
@@ -60,6 +60,7 @@ final class PauseMenu: Menu {
         "rumble": "Controller vibration when you are hit, mine, attack or something explodes.",
         "southpaw": "Southpaw swaps the sticks: look with the left, move with the right.",
         "sneaktoggle": "Toggle: press B / right stick once to crouch, again to stand.",
+        "flight": "Aircraft pitch on the left stick: pull back to climb (like a plane) or push up to climb.",
         "autosprint": "Push the left stick fully forward for a moment to sprint.",
         "glyphs": "Which buttons prompts show. Auto follows the last device you touched.",
         "padinfo": "Press A to test vibration.",
@@ -147,6 +148,7 @@ final class PauseMenu: Menu {
                         ("Aim Assist: \(on(st.aimAssist))", "aim"), ("Vibration: \(st.rumble == 0 ? "Off" : pct(st.rumble))", "rumble"),
                         ("Stick Layout: \(st.southpaw ? "Southpaw" : "Standard")", "southpaw"),
                         ("Sneak: \(st.sneakToggle ? "Toggle" : "Hold")", "sneaktoggle"), ("Auto-Sprint: \(on(st.autoSprint))", "autosprint"),
+                        ("Flight Stick: \(st.flightInverted ? "Pull Back to Climb" : "Push Up to Climb")", "flight"),
                         ("Button Prompts: \(["Auto", "Controller", "Keyboard"][max(0, min(2, st.glyphStyle))])", "glyphs"),
                         ("Button Mapping...", "padmap")]
             case .video:
@@ -410,6 +412,7 @@ final class PauseMenu: Menu {
         case "southpaw": st.southpaw.toggle()
         case "sneaktoggle": st.sneakToggle.toggle()
         case "autosprint": st.autoSprint.toggle()
+        case "flight": st.flightInverted.toggle()
         case "glyphs": st.glyphStyle = step([0, 1, 2], st.glyphStyle)
         case "rd":
             let opts = [2, 4, 6, 8, 10, 12, 16, 20, 24]

@@ -305,6 +305,7 @@ extension Mob {
     // MARK: Deck gun
 
     func updateDeckGun(_ dt: Float, _ g: Game) {
+        if Turrets.shared.manned === self { vel = .zero; return }      // the player has it (VehicleControls.swift)
         let b = soldierBrain
         vel = .zero
         attackCooldown = max(attackCooldown, -1)

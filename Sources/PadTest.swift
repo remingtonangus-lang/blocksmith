@@ -124,10 +124,10 @@ enum PadTest {
         pm.go(.keys); pm.build(); g.menuCursor = 0
         tap(g, "a")
         check(pm.binding == .forward, "A on Walk Forward waits for a key")
-        g.input.pressed.insert(5)            // G
+        g.input.pressed.insert(4)            // H
         frame(g)
-        check(KeyBinds.key(.forward) == 5 && pm.binding == nil, "the next key press becomes the binding (\(KeyBinds.name(KeyBinds.key(.forward))))")
-        check(Prompt.keyGlyph(.move).contains("G"), "keyboard prompts follow the new binding")
+        check(KeyBinds.key(.forward) == 4 && pm.binding == nil, "the next key press becomes the binding (\(KeyBinds.name(KeyBinds.key(.forward))))")
+        check(Prompt.keyGlyph(.move).contains("H"), "keyboard prompts follow the new binding")
         KeyBinds.reset()
         tap(g, "b")
         check(pm.page == .main, "B leaves Key Bindings")
@@ -266,6 +266,109 @@ enum PadTest {
         for _ in 0..<20 { frame(g, look) }
         frame(g)
         check(g.player.yaw < yaw - 0.3, "right stick turns the view")
+
+        // Vehicles: a car piloted with the pad (RT throttle, LT reverse, B leaves), gauges on the HUD.
+        do {
+            PadManager.shared.forcePad(true)
+            let keep = (g.player.pos, g.player.yaw, g.player.pitch, g.player.flying)
+            let helm = ShipTest.place(g.world, "car", near: g.player.pos)
+            let (carOpt, msg) = g.world.ships.assemble(at: helm, game: g)
+            if let car = carOpt {
+                g.startPiloting(car)
+                var rt = PadSnapshot(); rt.rt = 1
+                for _ in 0..<5 { frame(g, rt) }
+                check(g.world.ships.pilot === car && car.throttle > 0.9, "RT is the throttle on a land vehicle")
+                check(ContextPrompts.items(g).contains { $0.contains("Throttle") }, "piloting shows vehicle prompts")
+                check(CombatHUD.shared.lines(g, HudLayout(1280, 800)).contains { $0.text.contains("km/h") }, "vehicle gauges show speed")
+                var lt = PadSnapshot(); lt.lt = 1
+                frame(g, lt)
+                check(car.throttle < -0.9, "LT reverses")
+                tap(g, "b")
+                check(g.world.ships.pilot == nil, "B leaves the helm")
+                g.world.ships.remove(car)
+            } else { check(false, "test car assembles (\(msg))") }
+            (g.player.pos, g.player.yaw, g.player.pitch, g.player.flying) = keep
+            g.player.vel = .zero
+        }
+
+        // Deck gun: LT takes it, RT fires both barrels after the loading delay, B steps off.
+        do {
+            let keep = (g.player.pos, g.player.yaw, g.player.pitch)
+            g.player.flying = true
+            g.player.pos = V3(g.player.pos.x, Float(CH - 40), g.player.pos.z)
+            let fwd = V3(-sinf(g.player.yaw), 0, -cosf(g.player.yaw))
+            let gunMob = Mob(.deckGun, at: g.player.eye + fwd * 2.5 - V3(0, 1.2, 0))
+            gunMob.persistent = true
+            g.mobs.mobs.append(gunMob)
+            let c = gunMob.pos + V3(0, gunMob.height * 0.5, 0) - g.player.eye
+            g.player.pitch = asinf(c.y / simd_length(c))
+            tap(g, "lt")
+            check(Turrets.shared.manned === gunMob, "LT mans a deck gun")
+            check(ContextPrompts.items(g).contains { $0.contains("Fire") || $0.contains("Reloading") }, "deck gun prompts")
+            for _ in 0..<40 { frame(g) }
+            let before = g.arms.slugs.count
+            tap(g, "rt")
+            check(g.arms.slugs.count >= before + 2, "RT fires the deck gun (\(g.arms.slugs.count - before) shells)")
+            tap(g, "b")
+            check(!Turrets.shared.active, "B steps off the gun")
+            g.mobs.mobs.removeAll { $0 === gunMob }
+            g.arms.slugs.removeAll()
+            (g.player.pos, g.player.yaw, g.player.pitch) = keep
+        }
+
+        // Guns: weapon wheel (hold RB), quick RB tap, reload on X, ADS snap onto a nearby enemy.
+        if Items.has("gun_rifle") && Items.has("gun_shotgun") {
+            g.survival = false
+            for i in 0..<36 { g.inventory.main[i] = .empty }
+            g.inventory.main[0] = ItemStack(Items.id("gun_rifle"), 1)
+            g.inventory.main[14] = ItemStack(Items.id("gun_shotgun"), 1)
+            g.selected = 0
+            var rb = PadSnapshot(); rb.rb = true
+            for _ in 0..<20 { frame(g, rb) }
+            check(WeaponWheel.shared.open && WeaponWheel.shared.entries.count == 2, "holding RB opens the weapon wheel")
+            rb.ry = -1
+            for _ in 0..<3 { frame(g, rb) }
+            frame(g)
+            check(Items.key(g.inventory.main[g.selected].item) == "gun_shotgun" && !WeaponWheel.shared.open, "pointing down and letting go equips the shotgun")
+            let sel = g.selected
+            tap(g, "rb")
+            check(g.selected == (sel + 1) % 9, "a quick RB tap still steps the hotbar")
+            g.select(sel)
+            // Reload: empty shotgun, shells in the pack.
+            g.survival = true
+            var sg = g.inventory.main[g.selected]; sg.tag = 0; g.inventory.main[g.selected] = sg
+            g.inventory.main[20] = ItemStack(Items.id("shotgun_shells"), 12)
+            tap(g, "x")
+            check(g.arms.reload > 0, "X reloads a gun")
+            for _ in 0..<200 { frame(g) }
+            check(g.inventory.main[g.selected].tag == Guns.all[Guns.shotgun].mag, "the reload fills the magazine (\(g.inventory.main[g.selected].tag))")
+            check(ContextPrompts.items(g).contains { $0.contains("Reload") }, "gun prompts list reload")
+            // ADS aim assist: a zombie 7 degrees to the side gets pulled toward the crosshair.
+            g.survival = false
+            let keep = (g.player.pos, g.player.yaw, g.player.pitch, g.player.flying)
+            g.player.flying = true
+            g.player.pos = V3(g.player.pos.x, Float(CH - 40), g.player.pos.z)
+            g.player.pitch = 0
+            let side = g.player.yaw - 0.12
+            let z = Mob(.zombie, at: g.player.eye + V3(-sinf(side), 0, -cosf(side)) * 10 - V3(0, 1.1, 0))
+            g.mobs.mobs.append(z)
+            let off0 = abs(AimAssist.wrap(AimAssist.angles(g, z).yaw - g.player.yaw))
+            var lt = PadSnapshot(); lt.lt = 1
+            for _ in 0..<12 { frame(g, lt) }
+            let off1 = abs(AimAssist.wrap(AimAssist.angles(g, z).yaw - g.player.yaw))
+            frame(g)
+            check(off1 < off0 * 0.6, String(format: "aiming down sights snaps toward the enemy (%.3f -> %.3f rad)", off0, off1))
+            g.mobs.mobs.removeAll { $0 === z }
+            (g.player.pos, g.player.yaw, g.player.pitch, g.player.flying) = keep
+            for i in 0..<36 { g.inventory.main[i] = .empty }
+        }
+
+        // Damage direction indicator.
+        g.survival = true
+        let rightV = V3(cosf(g.player.yaw), 0, -sinf(g.player.yaw))
+        g.hurtPlayer(1, from: g.player.pos + rightV * 3, cause: "test")
+        check(CombatHUD.shared.hits.last.map { simd_dot($0.dir, rightV) > 0.9 } ?? false, "a hit from the right marks the right side")
+        g.health = 20
 
         // Rumble requests (logged instead of vibrating while simulated).
         g.survival = true

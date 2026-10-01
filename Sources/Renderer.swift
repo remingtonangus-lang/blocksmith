@@ -1632,6 +1632,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 if let box = l.box { rect(l.x, l.y, box.x, box.y, b) }
                 else { rect(l.x - 3 * l.scale, l.y - 3 * l.scale, textWidth(l.text, l.scale) + 6 * l.scale, 13 * l.scale, b) }
             }
+            if let it = l.item { itemIcon(it, l.x, l.y, l.box?.x ?? 16 * l.scale) }
             if !l.text.isEmpty { text(l.text, l.x, l.y, l.scale, l.color) }
         }
 
