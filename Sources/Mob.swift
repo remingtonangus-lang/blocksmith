@@ -26,6 +26,7 @@ enum MobKind: Int, CaseIterable {
     case happyGhast
     case parched, camelHusk, nautilus, zombieNautilus
     case soldierRecruit, soldierTrooper, soldierMarksman, soldierIronclad, deckGun
+    case copperGolem
 
     struct Spec {
         var name: String
@@ -130,7 +131,7 @@ enum MobKind: Int, CaseIterable {
         case .rabbit, .fox, .wolf, .cat, .ocelot, .horse, .donkey, .mule, .llama, .traderLlama, .camel, .goat, .panda, .polarBear, .turtle, .frog, .tadpole,
              .armadillo, .sniffer, .mooshroom, .bee, .parrot, .bat, .allay, .axolotl, .squid, .glowSquid, .dolphin, .cod, .salmon, .tropicalFish, .pufferfish,
              .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking,
-             .zombieHorse, .illusioner, .happyGhast, .parched, .camelHusk, .nautilus, .zombieNautilus:
+             .zombieHorse, .illusioner, .happyGhast, .parched, .camelHusk, .nautilus, .zombieNautilus, .copperGolem:
             return animalSpec
         case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad, .deckGun:
             return militarySpec
@@ -235,6 +236,7 @@ enum MobKind: Int, CaseIterable {
         .zombieNautilus: "zombie_nautilus",
         .soldierRecruit: "soldier_recruit", .soldierTrooper: "soldier_trooper", .soldierMarksman: "soldier_marksman",
         .soldierIronclad: "soldier_ironclad", .deckGun: "deck_gun",
+        .copperGolem: "copper_golem",
     ]
     static func named(_ n: String) -> MobKind? { allCases.first { $0.key == n } }
     var call: Snd { spec.call }
@@ -353,6 +355,9 @@ final class Mob {
     var patrolGoal: V3?
     var hasEgg = false              // turtle / frog / snuffler carrying an egg after breeding
     var hive: IVec3?                // bee: its nest / hive (Bees.swift)
+    var golemGoal: IVec3?           // copper golem: the chest it is walking to (CopperGolem.swift)
+    var golemVisited: [IVec3] = []  // copper golem: chests tried on this trip
+    var golemTimer: Float = 0       // copper golem: search / give-up timer
     var nectar = false
     var flower: IVec3?
     var sleptAt: Double = -1e9      // villager: game time it last slept (golem summoning needs sleep within a day)
@@ -1106,6 +1111,8 @@ private func parts(_ m: Mob) -> [Part] {
         return soldierParts(m, swing: swing)
     case .deckGun:
         return deckGunParts(m)
+    case .copperGolem:
+        return copperGolemParts(m, swing: swing)
     case .zombie, .skeleton, .enderman, .husk, .stray, .drowned, .pillager, .vindicator, .witch, .illusioner, .parched:
         let sk = m.kind == .skeleton || m.kind == .stray || m.kind == .parched, en = m.kind == .enderman
         let illager = m.kind == .pillager || m.kind == .vindicator || m.kind == .witch

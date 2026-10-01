@@ -211,6 +211,7 @@ extension Game {
             swing = 1
             return true
         }
+        if key.hasSuffix("_axe") && reviveCopperStatue(t.hit) { return true }
         if (key == "honeycomb" || key.hasSuffix("_axe")) && copperInteract(t.hit, key: key) { return true }
         if placeArmorStand(t) { return true }
         if placeEndCrystal(t) { return true }
@@ -337,6 +338,7 @@ extension Game {
     // Right-click on a mob with the held item.
     func useItemOnMob(_ m: Mob) -> Bool {
         let key = Items.key(held.item)
+        if copperGolemUse(m) { return true }
         if useBoat(m) || openPack(m) || useArmorStand(m) || useLead(m) { return true }
         if useCart(m) { return true }
         if m.kind == .minecart {

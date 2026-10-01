@@ -1062,7 +1062,7 @@ final class Game {
         if supported && !(solid && player.intersectsBlock(at)) && !(solid && mobs.mobs.contains { $0.intersects(at) }) {
             world.setBlock(at.x, at.y, at.z, id)
             if key == "furnace" { world.blockEntities[at] = BlockEntity(.furnace) }
-            if key == "chest" { world.blockEntities[at] = BlockEntity(.chest) }
+            if key == "chest" || key.hasSuffix("copper_chest") { world.blockEntities[at] = BlockEntity(.chest) }
             if key == "dispenser" || key == "dropper" { world.blockEntities[at] = BlockEntity(.dispenser) }
             if key == "hopper" { world.blockEntities[at] = BlockEntity(.hopper) }
             if key == "brewing_stand" { world.blockEntities[at] = BlockEntity(.brewing) }
@@ -1080,7 +1080,7 @@ final class Game {
             if Blocks.shape[Int(id)] == "banner" { let be = BlockEntity(.banner); be.patterns = h.pat ?? []; world.blockEntities[at] = be }
             if Rails.isRail(id) { Rails.autoShape(world, at) }
             if key == "wither_skeleton_skull" { trySummonBlight(at) }
-            if key == "carved_pumpkin" || key == "jack_o_lantern" { trySummonGolem(at) }
+            if key == "carved_pumpkin" || key == "jack_o_lantern" { if !trySummonCopperGolem(at) { trySummonGolem(at) } }
             if key.hasSuffix("leaves") { placedLeaves.insert(at) }
             sfx(.place(soundMat(id)), at: V3(Float(at.x), Float(at.y), Float(at.z)) + 0.5)
             swing = 1
@@ -1108,7 +1108,7 @@ final class Game {
         if shape == "gate" { return true }
         return k == "crafting_table" || k == "furnace" || k == "lit_furnace" || k == "chest" || k == "brewing_stand"
             || k == "enchanting_table" || k.hasSuffix("anvil") || k == "beacon" || k == "smithing_table" || k == "stonecutter" || k == "grindstone"
-            || k == "ender_chest" || k == "trapped_chest" || k.hasSuffix("shulker_box") || k == "cake" || k.hasSuffix("candle")
+            || k == "ender_chest" || k == "trapped_chest" || k.hasSuffix("copper_chest") || k.hasSuffix("shulker_box") || k == "cake" || k.hasSuffix("candle")
             || k.hasSuffix("item_frame") || k.hasSuffix("_sign") || k == "cartography_table" || k == "loom" || k == "smoker" || k == "blast_furnace" || k == "barrel" || k == "bell" || k == "composter" || k == "lectern" || k == "chiseled_bookshelf" || k == "crafter" || k == "decorated_pot"
     }
 
@@ -1184,6 +1184,12 @@ final class Game {
         case "stonecutter": openMenu(StonecutterMenu(game: self))
         case "grindstone": openMenu(GrindstoneMenu(game: self))
         case "ender_chest": openMenu(ChestMenu(game: self, container: enderChest, title: "Void Chest"))
+        case _ where k.hasSuffix("copper_chest"):
+            let be = world.blockEntities[p] ?? BlockEntity(.chest)
+            world.blockEntities[p] = be
+            let m = ChestMenu(game: self, entity: be)
+            m.title = "Copper Chest"
+            openMenu(m)
         case "trapped_chest":
             let be = world.blockEntities[p] ?? BlockEntity(.chest)
             world.blockEntities[p] = be

@@ -341,6 +341,7 @@ enum Recipes {
         r.append(shaped(["S", "#", "S"], ["S": "shulker_shell", "#": "chest"], "shulker_box"))
         r.append(shaped(["###", "#E#", "###"], ["#": "obsidian", "E": "ender_eye"], "ender_chest"))
         r.append(shapeless(["chest", "tripwire_hook"], "trapped_chest"))
+        r.append(shaped(["CCC", "C#C", "CCC"], ["C": "copper_ingot", "#": "chest"], "copper_chest"))   // CopperGolem.swift
         r.append(shaped(["MMM", "SES", "WWW"], ["M": "milk_bucket", "S": "sugar", "E": "egg", "W": "wheat"], "cake"))
         for (i, st) in Copper.stages.enumerated() {
             for waxed in [false, true] {

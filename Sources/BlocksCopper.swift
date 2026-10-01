@@ -7,7 +7,8 @@ enum Copper {
     static let stages: [(prefix: String, disp: String, hex: UInt32)] = [
         ("", "", 0xC06B4F), ("exposed_", "Exposed ", 0xA17E68), ("weathered_", "Weathered ", 0x6C9A6C), ("oxidized_", "Oxidized ", 0x52A284),
     ]
-    static let forms = ["block", "cut_copper", "chiseled_copper", "copper_grate", "copper_bulb", "cut_copper_stairs", "cut_copper_slab"]
+    static let forms = ["block", "cut_copper", "chiseled_copper", "copper_grate", "copper_bulb", "cut_copper_stairs", "cut_copper_slab",
+                        "copper_chest", "copper_golem_statue"]
 
     static func name(_ form: String, stage: Int, waxed: Bool) -> String {
         let w = waxed ? "waxed_" : ""
@@ -67,6 +68,19 @@ extension BlockRegistry {
                     b.emit = lit ? UInt8([15, 12, 8, 4][s]) : 0; b.randomTicks = !waxed && s < 3
                     add(b)
                 }
+                // Copper chest (CopperGolem.swift: golems carry items out of these into ordinary chests); ages like copper.
+                var cc = BlockDef(Copper.name("copper_chest", stage: s, waxed: waxed), "\(w)\(st.disp)Copper Chest")
+                cc.tex = ["\(st.prefix)copper_chest_side", "\(st.prefix)copper_chest_side", "\(st.prefix)copper_chest_top",
+                          "\(st.prefix)copper_chest_top", "\(st.prefix)copper_chest_side", "\(st.prefix)copper_chest_side"]
+                cc.render = .model; cc.opaque = false; cc.hardness = 3; cc.tool = .axe; cc.skyStop = true
+                cc.randomTicks = !waxed && s < 3
+                addFacing(cc, front: "\(st.prefix)copper_chest_front", boxes: [Box(1, 0, 1, 15, 14, 15)])
+                // Copper golem statue: what an oxidized golem becomes (an axe scrapes it back to life).
+                var gs = BlockDef(Copper.name("copper_golem_statue", stage: s, waxed: waxed), "\(w)\(st.disp)Copper Golem Statue")
+                gs.tex = [tex]; gs.render = .model; gs.opaque = false; gs.hardness = 3; gs.tool = .pickaxe; gs.skyStop = false
+                gs.boxes = [Box(5, 0, 7, 7, 3, 10), Box(9, 0, 7, 11, 3, 10), Box(4, 3, 6, 12, 8, 11), Box(2, 4, 7, 4, 8, 10),
+                            Box(12, 4, 7, 14, 8, 10), Box(3, 8, 5, 13, 13, 12), Box(7, 13, 8, 9, 15, 10), Box(6, 15, 7, 10, 16, 11)]
+                add(gs)
             }
         }
     }
@@ -96,6 +110,21 @@ extension TextureGen {
             p["\(st.prefix)copper_grate"] = { x, y in
                 if (x % 4 == 1 || x % 4 == 2) && (y % 4 == 1 || y % 4 == 2) { return clear }
                 return hex(c, 0.85 + 0.15 * r(x, y, 924))
+            }
+            // Copper chest: riveted plates with a dark band and a latch.
+            p["\(st.prefix)copper_chest_top"] = { x, y in
+                if x <= 1 || y <= 1 || x >= 14 || y >= 14 { return hex(c, 0.62) }
+                if (x == 3 || x == 12) && (y == 3 || y == 12) { return hex(c, 1.2) }
+                return hex(c, 0.9 + 0.12 * r(x, y, 925))
+            }
+            p["\(st.prefix)copper_chest_side"] = { x, y in
+                if x <= 1 || x >= 14 || y <= 2 || y >= 15 || y == 7 || y == 8 { return hex(c, 0.62) }
+                return hex(c, 0.88 + 0.14 * r(x, y, 926))
+            }
+            p["\(st.prefix)copper_chest_front"] = { x, y in
+                if x >= 6 && x <= 9 && y >= 5 && y <= 10 { return x >= 7 && x <= 8 && y >= 7 && y <= 8 ? hex(0x2A2A2A) : hex(0xD8B070) }
+                if x <= 1 || x >= 14 || y <= 2 || y >= 15 || y == 7 || y == 8 { return hex(c, 0.62) }
+                return hex(c, 0.88 + 0.14 * r(x, y, 927))
             }
             for lit in [false, true] {
                 p["\(st.prefix)copper_bulb\(lit ? "_lit" : "")"] = { x, y in

@@ -43,7 +43,8 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
   - [ ] Pad-control gameplay tests for the airship and aircraft (padtest drives only the car).
 - Content
   - [x] Spears (every tier): longer, slower jab; hold use for a charge that scales with closing speed (mobtests).
-  - [ ] Copper golem (needs copper chests).
+  - [x] Copper chests (4 stages, waxable) and the Copper Golem (sorts copper-chest items into matching chests, ages into
+        a statue, honeycomb/axe care, axe revives a statue); mobtests checks.
   - [ ] Biome balance (snowy northern seeds, rare badlands/pale garden); lakes, deltas, fjords in game.
   - [x] Steelhold soldiers crew the vessels (marksmen + rifle troopers on the frigate, trooper + arc ironclad on the
         carriage) and hold their stations aboard (aim and fire, no cover runs overboard); physicstest check.

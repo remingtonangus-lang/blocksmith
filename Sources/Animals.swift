@@ -28,6 +28,7 @@ extension MobKind {
         case .parched: return a("Sunscorched Skeleton", 0.3, 1.99, 16, 2.5, drops: [("bone", 0, 2), ("arrow", 0, 2)], xp: 5, call: .mobSkeleton, beh: .ranged)
         case .nautilus: return a("Nautilus", 0.45, 0.9, 15, 3, drops: [("nautilus_shell", 0, 1)], xp: 2, call: .splash, aquatic: true)
         case .zombieNautilus: return a("Sunken Nautilus", 0.45, 0.9, 15, 3, drops: [("rotten_flesh", 0, 1)], xp: 5, call: .mobZombie, aquatic: true)
+        case .copperGolem: return a("Copper Golem", 0.3, 1.0, 12, 2.6, drops: [("copper_ingot", 1, 3)], xp: 0, call: .step(.metal))
         case .goat: return a("Goat", 0.45, 1.3, 10, 2.5, xp: 2, call: .mobSheep, attack: 2)
         case .panda: return a("Panda", 0.65, 1.25, 20, 1.8, drops: [("bamboo", 0, 1)], xp: 2, call: .mobPig, attack: 6)
         case .polarBear: return a("Polar Bear", 0.7, 1.4, 30, 3, drops: [("cod", 0, 2), ("salmon", 0, 2)], xp: 2, call: .mobRavager, attack: 6)
@@ -478,6 +479,8 @@ extension Mob {
                 return 0
             }
             wander(); return moving ? spec.speed * 0.4 : 0
+        case .copperGolem:
+            return copperGolemAI(dt, g)
         case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad:
             let sp = soldierAI(dt, g, dist: dist, canTarget: canTarget)
             // Vessel crews hold their stations: they turn, aim and fire, but cover runs and flanks would take them overboard.

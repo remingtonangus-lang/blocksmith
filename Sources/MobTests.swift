@@ -26,6 +26,7 @@ enum MobTests {
         military(game: game, world: world, pos: pos)
         raidSave(game: game, pos: pos)
         spears(game: game, world: world, pos: pos)
+        copperGolems(game: game, world: world, pos: pos)
         print(String(format: "mobtests: %ld failed (%.1f s)%@", failures.count, CFAbsoluteTimeGetCurrent() - t0,
                      failures.isEmpty ? "" : " -> " + failures.joined(separator: ", ")))
         game.player.pos = pos
@@ -532,6 +533,57 @@ enum MobTests {
     }
 
     // MARK: Behaviour details
+
+    // MARK: Copper golems (CopperGolem.swift)
+
+    static func copperGolems(game g: Game, world: World, pos: V3) {
+        let mm = g.mobs
+        mm.mobs.removeAll()
+        let x0 = Int(floor(pos.x)), z0 = Int(floor(pos.z))
+        let a = Arena(w: world, cx: x0 - 30, cz: z0 - 30, gy: min(CH - 24, world.topY(x0 - 30, z0 - 30) + 14))
+        a.clear()
+        guard Blocks.has("copper_chest"), Blocks.has("exposed_copper"), Items.has("cobblestone") else { check(false, "copper chest and golem blocks exist"); return }
+        // Built from a carved pumpkin on exposed copper: an exposed golem.
+        a.set(0, 0, 0, Blocks.id("exposed_copper"))
+        a.set(0, 1, 0, Blocks.id("carved_pumpkin"))
+        let built = g.trySummonCopperGolem(IVec3(a.cx, a.gy + 1, a.cz))
+        guard let golem = mm.mobs.first(where: { $0.kind == .copperGolem }) else { check(false, "carved pumpkin on copper builds a copper golem"); return }
+        check(built && golem.variant == 1 && world.block(a.cx, a.gy, a.cz) == AIR, "carved pumpkin on exposed copper builds an exposed copper golem")
+        golem.variant = 4                                                   // waxed, unaffected: no ageing during the test
+        golem.pos = a.p(0, 0, 0)
+        // A copper chest of 20 cobblestone, a chest already holding cobblestone and an empty chest.
+        let cobble = Items.id("cobblestone")
+        func chest(_ u: Int, _ v: Int, _ name: String, _ s: ItemStack?) -> BlockEntity {
+            a.set(u, 0, v, Blocks.id(name))
+            let be = BlockEntity(.chest)
+            if let s { be.container[0] = s }
+            world.blockEntities[IVec3(a.cx + u, a.gy, a.cz + v)] = be
+            return be
+        }
+        let src = chest(-4, 0, "copper_chest", ItemStack(cobble, 20))
+        let match = chest(5, 4, "chest", ItemStack(cobble, 1))
+        let empty = chest(5, -4, "chest", nil)
+        var t: Float = 0
+        func moved() -> Int { match.container.slots.reduce(0) { $0 + ($1.item == cobble ? $1.count : 0) } }
+        while t < 90 && moved() < 21 { mm.update(0.05, game: g); t += 0.05 }
+        let left = src.container.slots.reduce(0) { $0 + $1.count }
+        check(moved() == 21 && left == 0 && empty.container.slots.allSatisfy { $0.isEmpty },
+              "a copper golem carries a copper chest's items to the chest that holds them", "\(moved()) moved, \(left) left, \(String(format: "%.1f", t)) s")
+        // Honeycomb, axe, statue.
+        golem.variant = 3
+        g.petrifyCopperGolem(golem)
+        let sp = IVec3(Int(floor(golem.pos.x)), Int(floor(golem.pos.y + 0.1)), Int(floor(golem.pos.z)))
+        check(golem.health < -1000 && Blocks.key(world.block(sp.x, sp.y, sp.z)) == "oxidized_copper_golem_statue", "an oxidized golem becomes a statue")
+        mm.update(0.05, game: g)
+        let keep = g.inventory.held
+        g.inventory.held = ItemStack(Items.id("iron_axe"), 1)
+        let revived = g.reviveCopperStatue(sp)
+        check(revived && world.block(sp.x, sp.y, sp.z) == AIR && mm.mobs.contains { $0.kind == .copperGolem && $0.variant == 2 },
+              "an axe scrapes a statue back into a weathered golem")
+        g.inventory.held = keep
+        for d in [IVec3(-4, 0, 0), IVec3(5, 0, 4), IVec3(5, 0, -4)] { world.blockEntities[IVec3(a.cx + d.x, a.gy, a.cz + d.z)] = nil }
+        mm.mobs.removeAll()
+    }
 
     // MARK: Spears (Spear.swift)
 

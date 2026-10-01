@@ -36,7 +36,7 @@ extension MobKind {
         case .cod, .salmon, .tropicalFish, .pufferfish: return .waterAmbient
         case .axolotl: return .axolotls
         case .villager, .ironGolem, .snowGolem, .wanderingTrader, .traderLlama, .minecart, .boat, .armorStand, .endCrystal,
-             .enderDragon, .wither, .allay, .tadpole: return .misc
+             .enderDragon, .wither, .allay, .tadpole, .copperGolem: return .misc
         default: return hostile ? .monster : .creature
         }
     }
