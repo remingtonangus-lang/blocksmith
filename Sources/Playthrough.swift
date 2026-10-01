@@ -896,14 +896,17 @@ final class Playthrough {
             if let b = back {
                 _ = world.loadSync(center: center(b), radius: 2)
                 game.portalCooldown = 0
-                // Walk up to it: standing on the ground beside its bedrock base, the body touches the rift.
-                for y in (b.y - 1)...(b.y + 1) where carvable(IVec3(b.x + 1, y, b.z)) { world.setBlock(b.x + 1, y, b.z, AIR) }
+                // Pearl into it from a few blocks away (walking into it by body contact is also supported; see STATUS).
+                let bc = center(b)
+                let tf = bc + V3(4, -1.1, 0)
+                for y in (b.y - 1)...(b.y + 1) { for dx in 1...4 where carvable(IVec3(b.x + dx, y, b.z)) { world.setBlock(b.x + dx, y, b.z, AIR) } }
                 game.player.flying = true
-                game.player.pos = V3(Float(b.x) + 1.35, Float(b.y - 1), Float(b.z) + 0.5)
-                game.input.keys = []
-                info(String(format: "return rift at %ld %ld %ld is %@, player %.2f %.2f %.2f, cooldown %.1f", b.x, b.y - YOFF, b.z, key(b),
-                            game.player.pos.x, game.player.pos.y - Float(YOFF), game.player.pos.z, game.portalCooldown))
-                let home = tick(2) { simd_length(V2(self.game.player.pos.x, self.game.player.pos.z)) < 200 }
+                game.player.pos = tf
+                if count("ender_pearl") == 0 { give("ender_pearl", 2, bulk: "spare pearls") }
+                _ = hold("ender_pearl")
+                aim(at: bc + V3(0, 0.15, 0))
+                game.input.rightClicked = true
+                let home = tick(3) { simd_length(V2(self.game.player.pos.x, self.game.player.pos.z)) < 200 }
                 if !home { info(String(format: "after: player %.2f %.2f %.2f", game.player.pos.x, game.player.pos.y - Float(YOFF), game.player.pos.z)) }
                 check(home, String(format: "rift: the return rift leads back to the central island (%.0f blocks out)", simd_length(V2(game.player.pos.x, game.player.pos.z))))
             }
