@@ -96,8 +96,28 @@ final class Playthrough {
 
     func id(_ n: String) -> ItemID { Items.has(n) ? Items.id(n) : 0 }
     func count(_ n: String) -> Int { Items.has(n) ? inv.countOf(Items.id(n)) : 0 }
+    // Keeps a few slots free: a real player drops mob junk (flesh, bones, string, blocks) when the bag fills up.
+    static let keepWords = ["pickaxe", "sword", "bow", "arrow", "_axe", "shovel", "helmet", "chestplate", "leggings", "boots", "elytra",
+                            "ender_pearl", "ender_eye", "dragon_egg", "torch", "soul_sand", "skull", "obsidian", "flint_and_steel", "blaze",
+                            "nether_star", "diamond", "iron_ingot", "bucket", "crafting_table", "furnace", "glass", "shield", "bread",
+                            "cooked", "golden", "stick", "planks", "log", "cobblestone", "raw_iron", "coal"]
+    func makeRoom(_ need: Int = 4) {
+        var free = (0..<36).filter { inv[$0].isEmpty }.count
+        guard free < need else { return }
+        var dropped: [String] = []
+        for i in (0..<36).reversed() where free < need + 4 && !inv[i].isEmpty && i != game.selected {
+            let k = Items.key(inv[i].item)
+            if Playthrough.keepWords.contains(where: { k.contains($0) }) { continue }
+            dropped.append("\(inv[i].count) \(k)")
+            inv[i] = .empty
+            free += 1
+        }
+        if !dropped.isEmpty { info("bag full: dropped \(dropped.joined(separator: ", "))") }
+    }
+
     func give(_ n: String, _ c: Int, bulk: String? = nil) {
         guard Items.has(n) else { check(false, "item \(n) exists"); return }
+        makeRoom()
         var left = c
         while left > 0 {
             let k = min(left, Items.def(Items.id(n)).maxStack)
@@ -225,6 +245,7 @@ final class Playthrough {
 
     // Walks (teleports) over every dropped item within `r` blocks so it gets picked up.
     func collect(near c: V3, _ r: Float = 12) {
+        makeRoom(6)
         _ = tick(0.6)
         for _ in 0..<3 {
             let items = game.drops.items.filter { simd_length($0.pos - c) < r }
@@ -989,6 +1010,7 @@ final class Playthrough {
         if city.pieces.count > 1 {
             check(wings != nil, "spire: the ship's hold has glider wings")
         }
+        makeRoom()
         if let w = wings, let be = world.blockEntities[w] {
             for i in 0..<be.container.count where Items.key(be.container[i].item) == "elytra" {
                 game.inventory.add(be.container[i]); be.container[i] = .empty
