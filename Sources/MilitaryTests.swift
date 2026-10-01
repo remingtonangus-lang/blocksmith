@@ -4,6 +4,31 @@ import simd
 // Harness checks for the Steelhold content: gun items, reloading and firing (bullets, pellets, rockets,
 // beams), recoil, soldier armour and combat, the deck gun, drops, and fortress placement and layout.
 extension MobTests {
+    // A running raid survives a save: its state round-trips and saved raiders rejoin it.
+    static func raidSave(game: Game, pos: V3) {
+        let r = Raid(center: pos, level: 3, difficulty: 3)
+        r.wave = 4; r.state = 1; r.timer = 7; r.waveHealth = 120; r.idle = 300
+        guard let data = try? JSONEncoder().encode(r.record), let rec = try? JSONDecoder().decode(RaidRecord.self, from: data) else {
+            check(false, "raid record encodes"); return
+        }
+        let back = Raid(rec)
+        check(back.wave == 4 && back.state == 1 && back.level == 3 && back.groups == 7 && back.totalWaves == 8 && simd_length(back.center - pos) < 0.01,
+              "raid state round-trips through the save", "wave \(back.wave), level \(back.level), \(back.totalWaves) waves")
+        let saved = game.raid
+        game.raid = back
+        let m = Mob(.pillager, at: pos + V3(5, 0, 0))
+        m.raider = true
+        let restored = Mob.from(m.record)
+        if let rm = restored { game.mobs.mobs.append(rm) }
+        let villager = Mob(.villager, at: pos + V3(-3, 0, 0))
+        game.mobs.mobs.append(villager)
+        game.raidTick(1)
+        check(restored?.raider == true && back.raiders.count == 1 && back.state == 1 && back.wave == 4, "saved raiders rejoin the raid",
+              "\(back.raiders.count) raiders, state \(back.state)")
+        game.mobs.mobs.removeAll { $0 === restored || $0 === villager }
+        game.raid = saved
+    }
+
     static func military(game: Game, world: World, pos: V3) {
         let mm = game.mobs
         mm.mobs.removeAll()

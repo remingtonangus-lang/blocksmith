@@ -24,6 +24,7 @@ enum MobTests {
         conversions(game: game, world: world, pos: pos)
         behaviours(game: game, world: world, pos: pos)
         military(game: game, world: world, pos: pos)
+        raidSave(game: game, pos: pos)
         print(String(format: "mobtests: %ld failed (%.1f s)%@", failures.count, CFAbsoluteTimeGetCurrent() - t0,
                      failures.isEmpty ? "" : " -> " + failures.joined(separator: ", ")))
         game.player.pos = pos

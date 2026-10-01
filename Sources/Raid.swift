@@ -22,12 +22,36 @@ final class Raid {
     var waveHealth: Float = 1
     var idle: Float = 0           // seconds active (a raid times out after 40 min)
     var log: [String] = []        // what each wave spawned (harness)
+    var rejoin: Float = 0         // after loading: seconds to wait for saved raiders to come back
     init(center: V3, level: Int, difficulty: Int = 2) {
         self.center = center
         self.level = max(1, min(5, level))
         self.difficulty = difficulty
         groups = RaidTable.groupCount(difficulty)
     }
+
+    // Saved with the world; the raiders themselves are saved as mobs (raider flag) and rejoin on load.
+    var record: RaidRecord {
+        RaidRecord(c: [center.x, center.y, center.z], level: level, wave: wave, difficulty: difficulty, state: state, timer: timer,
+                   waveHealth: waveHealth, idle: idle)
+    }
+    convenience init(_ r: RaidRecord) {
+        self.init(center: r.c.count == 3 ? V3(r.c[0], r.c[1], r.c[2]) : .zero, level: r.level, difficulty: r.difficulty)
+        wave = r.wave; state = r.state; timer = r.timer; waveHealth = r.waveHealth; idle = r.idle
+        rejoin = 15
+        // A wave in progress picks its raiders back up as their chunks load (see raidTick).
+    }
+}
+
+struct RaidRecord: Codable {
+    var c: [Float]
+    var level: Int
+    var wave: Int
+    var difficulty: Int
+    var state: Int
+    var timer: Float
+    var waveHealth: Float
+    var idle: Float
 }
 
 enum RaidTable {
@@ -144,6 +168,12 @@ extension Game {
         }
         guard let r = raid else { return }
         r.raiders.removeAll { rd in rd.health <= 0 || !mobs.mobs.contains { $0 === rd } }
+        // Raiders restored from a save (or reloaded with their chunk) rejoin the raid.
+        if r.state == 1 {
+            for m in mobs.mobs where m.raider && m.health > 0 && simd_length(m.pos - r.center) < 112 && !r.raiders.contains(where: { $0 === m }) {
+                r.raiders.append(m)
+            }
+        }
         r.idle += dt
         let villagersLeft = mobs.mobs.contains { $0.kind == .villager && simd_length($0.pos - r.center) < 64 }
         switch r.state {
@@ -157,7 +187,8 @@ extension Game {
             // Raiders that wander more than 112 blocks off leave the raid; far ones march back.
             r.raiders.removeAll { simd_length($0.pos - r.center) > 112 }
             for m in r.raiders where simd_length(m.pos - r.center) > 48 && m.mount == nil { m.face(r.center); m.moving = true }
-            if r.raiders.isEmpty {
+            r.rejoin = max(0, r.rejoin - dt)
+            if r.raiders.isEmpty && r.rejoin <= 0 {
                 if r.wave >= r.totalWaves {
                     r.state = 2
                     r.timer = 30
