@@ -254,7 +254,11 @@ final class Renderer: NSObject, MTKViewDelegate {
             game.onToast?("Saved screenshot as \(name)")
         }
         let cmd = queue.makeCommandBuffer()!
-        cmd.addCompletedHandler { [inflight] _ in inflight.signal() }
+        cmd.addCompletedHandler { [inflight, weak self] cb in
+            let g = cb.gpuEndTime - cb.gpuStartTime
+            if g > 0 && g < 1, let s = self { s.gpuLock.lock(); s.gpuMs = s.gpuMs * 0.92 + g * 1000 * 0.08; s.gpuLock.unlock() }
+            inflight.signal()
+        }
         let s = view.drawableSize
         renderFrame(cmd, final: rpd, width: Int(s.width), height: Int(s.height))
         cmd.present(drawable)
@@ -269,6 +273,9 @@ final class Renderer: NSObject, MTKViewDelegate {
     var postParams = PostParams()
     private var shadowList: [(Chunk, Int)] = []
     private var flashScratch: [V4] = []
+    private let gpuLock = NSLock()
+    private var gpuMs: Double = 0
+    var gpuFrameMs: Double { gpuLock.lock(); defer { gpuLock.unlock() }; return gpuMs }
     private var lastShadow = Vibrant.LightFrame()
     private var shadowAge = 0
     var shadowFresh = false
@@ -1747,6 +1754,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             "Target \(tgt)",
             "\(p.flying ? "flying" : (p.onGround ? "on ground" : "in air"))\(p.inWater ? ", in water" : "")  Time \(String(format: "%02d:00", hour))  Controller \(game.padConnected ? "yes" : "no")",
             "Mobs \(game.mobs.mobs.count)  Fluid queue \(w.fluidPending.count)",
+            String(format: "GPU %.1f ms  Graphics %@  Render scale %d%%", gpuFrameMs, game.fancyGraphics ? "Fancy" : "Fast", Int((game.renderScale * 100).rounded())),
         ]
     }
 
