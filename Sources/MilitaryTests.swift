@@ -295,6 +295,18 @@ extension MobTests {
             tt += 0.05
         }
         check(world.block(ex, gy, ez) == AIR, "zombies trample turtle eggs", String(format: "%.1f s", tt))
+        // Steel stairs: soldiers can path up a fortress stair run to the next floor.
+        let sx = x0 - 7
+        let stairs = Blocks.has("steel_plating_stairs") ? Blocks.id("steel_plating_stairs") : STONE
+        for i in 0..<6 { world.setBlockAsync(sx, gy + i, z0 - 20 - i, stairs) }
+        for z in (z0 - 32)...(z0 - 26) { for x in (sx - 2)...(sx + 2) { world.setBlockAsync(x, gy + 5, z, Blocks.has("steel_grating") ? Blocks.id("steel_grating") : STONE) } }
+        let climber = Mob(.soldierTrooper, at: V3(Float(sx) + 0.5, Float(gy), Float(z0 - 17) + 0.5))
+        let route = PathFinder.find(world, from: climber.pos, to: V3(Float(sx) + 0.5, Float(gy + 6), Float(z0 - 29) + 0.5),
+                                    profile: climber.pathProfile(game), maxNodes: 2000) ?? []
+        check((route.last?.y ?? 0) == gy + 6, "soldiers path up steel stairs", "\(route.count) nodes, ends at y \((route.last?.y ?? 0) - gy)")
+        for i in 0..<6 { world.setBlockAsync(sx, gy + i, z0 - 20 - i, AIR) }
+        for z in (z0 - 32)...(z0 - 26) { for x in (sx - 2)...(sx + 2) { world.setBlockAsync(x, gy + 5, z, AIR) } }
+
         // Explorer map: points at the nearest Steelhold.
         game.inventory.main.slots = Array(repeating: .empty, count: 36)
         game.selected = 0
