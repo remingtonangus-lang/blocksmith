@@ -18,7 +18,9 @@ extension Game {
                 for h in c.height where Int(h) > hmax { hmax = Int(h) }
                 for sy in 0...min(NSEC - 1, (hmax + 1) >> 4) {
                     for _ in 0..<3 {
-                        let lx = Int.random(in: 0..<16), ly = Int.random(in: 0..<16), lz = Int.random(in: 0..<16)
+                        // One fast PRNG draw per tick position (the system generator was the main-thread hot spot).
+                        let r = Int(truncatingIfNeeded: RandomTickRng.state.next() >> 20)
+                        let lx = r & 15, ly = (r >> 4) & 15, lz = (r >> 8) & 15
                         let y = sy * 16 + ly
                         let b = c.blocks[Chunk.index(lx, y, lz)]
                         if rt[Int(b)] { randomTick(IVec3(c.cx * CS + lx, y, c.cz * CS + lz), b) }
@@ -163,7 +165,7 @@ extension Game {
         var changes: [(IVec3, BlockID)] = []
         for dz in -1...1 { for dx in -1...1 {
             guard let c = world.chunks[ChunkKey(x: ccx + dx, z: ccz + dz)] else { continue }
-            var buf = c.blocks
+            var buf = c.blocks.full()
             buf.withUnsafeMutableBufferPointer { bp in
                 let w = TreeWriter(b: bp.baseAddress!, bx: c.cx * CS, bz: c.cz * CS)
                 var rng = SRng(seed)
@@ -491,4 +493,9 @@ extension Game {
 
 extension IVec3 {
     static func - (a: IVec3, b: IVec3) -> IVec3 { IVec3(a.x - b.x, a.y - b.y, a.z - b.z) }
+}
+
+// Random-tick positions (main thread only): xorshift instead of the system CSPRNG behind Int.random.
+enum RandomTickRng {
+    static var state = SRng(0x5EED_71C4)
 }

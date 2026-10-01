@@ -37,9 +37,11 @@ final class GameView: MTKView {
     }
     private func track(_ e: NSEvent) {
         let p = convert(e.locationInWindow, from: nil)
-        let sc = window?.backingScaleFactor ?? 2
-        input.mouseX = Float(p.x * sc)
-        input.mouseY = Float((bounds.height - p.y) * sc)
+        // Drawable pixels per point (backing scale x the renderer's dynamic resolution scale).
+        let sx = bounds.width > 0 ? drawableSize.width / bounds.width : (window?.backingScaleFactor ?? 2)
+        let sy = bounds.height > 0 ? drawableSize.height / bounds.height : sx
+        input.mouseX = Float(p.x * sx)
+        input.mouseY = Float((bounds.height - p.y) * sy)
         input.mouseMoved = true
     }
     override func mouseMoved(with e: NSEvent) { track(e); look(e) }
@@ -395,7 +397,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         for b in t.utf8 { h = (h ^ UInt64(b)) &* 0x100000001b3 }
         return h
     }
-    @objc func saveQuit() { game.saveNow(); NSApp.terminate(nil) }
+    @objc func saveQuit() { game.saveNow(); SaveIO.flush(); NSApp.terminate(nil) }
 
     func pauseChanged(_ paused: Bool) {
         // The pause screen is drawn in-game (PauseMenu); the AppKit overlay only hosts the Worlds panel.
@@ -459,6 +461,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         setCapture(false)
         game?.saveNow()
+        SaveIO.flush()      // chunk writes run on a background queue
     }
 }
 

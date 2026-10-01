@@ -270,6 +270,35 @@ final class WorldGen: TerrainGenerator {
         return (Lattice(d: d, bx: bx, bz: bz), cols)
     }
 
+    // Harness self-check (--bench gen): the stone fill's per-column row interpolation must give exactly
+    // Lattice.sample's value for every block. Returns the number of mismatching samples.
+    func latticeRowMismatches(cx: Int, cz: Int) -> Int {
+        let bx = cx * CS, bz = cz * CS
+        let (lat, _) = lattice(bx, bz)
+        var rowA = [Float](repeating: 0, count: Lattice.ny), rowB = [Float](repeating: 0, count: Lattice.ny)
+        var bad = 0
+        for lz in 0..<CS { for lx in 0..<CS {
+            let wx = bx + lx, wz = bz + lz
+            let llx = wx - (bx - 8), llz = wz - (bz - 8)
+            let gx = llx >> 2, gz = llz >> 2
+            let fx = Float(llx & 3) / 4, fz = Float(llz & 3) / 4
+            for gy in 0..<Lattice.ny {
+                let c0 = lat.at(gx, gy, gz), c1 = lat.at(gx + 1, gy, gz)
+                let d0 = lat.at(gx, gy, gz + 1), d1 = lat.at(gx + 1, gy, gz + 1)
+                rowA[gy] = c0 + (c1 - c0) * fx
+                rowB[gy] = d0 + (d1 - d0) * fx
+            }
+            for y in 0..<CH {
+                let gy = min(Lattice.ny - 2, y >> 3)
+                let fy = Float(y - gy * 8) / 8
+                let y0 = rowA[gy] + (rowA[gy + 1] - rowA[gy]) * fy
+                let y1 = rowB[gy] + (rowB[gy + 1] - rowB[gy]) * fy
+                if (y0 + (y1 - y0) * fz).bitPattern != lat.sample(wx, y, wz).bitPattern { bad += 1 }
+            }
+        } }
+        return bad
+    }
+
     // MARK: Caves
 
     // Cave field lattice inside the chunk: 4-block cells, 5 fields.
@@ -331,14 +360,32 @@ final class WorldGen: TerrainGenerator {
 
         // 1. Stone / deeprock from density, bedrock floor.
         let deep = DEEPSLATE
+        // Per column, the lattice is first interpolated along x at every lattice layer (two z rows), then
+        // each block only lerps along y and z: the same operations in the same order as Lattice.sample
+        // (bit-identical, groundY relies on it) without 8 lattice loads per block.
+        var rowA = [Float](repeating: 0, count: Lattice.ny), rowB = [Float](repeating: 0, count: Lattice.ny)
+        let topGY = min(Lattice.ny - 1, min(Lattice.ny - 2, maxTop >> 3) + 1)
         for lz in 0..<CS { for lx in 0..<CS {
             let wx = bx + lx, wz = bz + lz
+            let llx = wx - (bx - 8), llz = wz - (bz - 8)
+            let gx = llx >> 2, gz = llz >> 2
+            let fx = Float(llx & 3) / 4, fz = Float(llz & 3) / 4
+            for gy in 0...topGY {
+                let c0 = lat.at(gx, gy, gz), c1 = lat.at(gx + 1, gy, gz)
+                let d0 = lat.at(gx, gy, gz + 1), d1 = lat.at(gx + 1, gy, gz + 1)
+                rowA[gy] = c0 + (c1 - c0) * fx
+                rowB[gy] = d0 + (d1 - d0) * fx
+            }
             for y in 0...maxTop {
                 let i = Chunk.index(lx, y, lz)
                 if y < 5 {
                     if y == 0 || hash3(wx, y, wz, s32) % 5 >= UInt32(y) { b[i] = BEDROCK; continue }
                 }
-                if lat.sample(wx, y, wz) > 0 {
+                let gy = min(Lattice.ny - 2, y >> 3)
+                let fy = Float(y - gy * 8) / 8
+                let y0 = rowA[gy] + (rowA[gy + 1] - rowA[gy]) * fy
+                let y1 = rowB[gy] + (rowB[gy + 1] - rowB[gy]) * fy
+                if y0 + (y1 - y0) * fz > 0 {
                     let yd = y - YOFF
                     b[i] = yd < 0 || (yd < 8 && Int(hash3(wx, y, wz, s32 ^ 0xDEE) % 8) > yd) ? deep : STONE
                 }

@@ -14,6 +14,7 @@ struct Uniforms {
 }
 
 struct SimpleVert { var pos: V4; var color: V4 }
+struct SectionRec { var x: Float; var y: Float; var z: Float; var tint: UInt32 }     // chunkVS buffer(2), 16 bytes
 struct HudVert { var pos: V2; var uv: V2; var color: V4; var extra: V4 }
 struct StarParams { var rot: float4x4; var tint: V4 }
 
@@ -41,6 +42,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     let mobPipe: MTLRenderPipelineState
     let entityPipe: MTLRenderPipelineState
     let crackPipe: MTLRenderPipelineState
+    let shipRenderer: ShipRenderer                // free-moving block structures (ShipRender.swift)
     let starBuf: MTLBuffer
     let starVerts: Int
     let depthWrite: MTLDepthStencilState
@@ -62,10 +64,21 @@ final class Renderer: NSObject, MTKViewDelegate {
     private var fpsFrames = 0
     private var fpsTime: Double = 0
     private(set) var drawnChunks = 0
+    private(set) var drawCalls = 0          // chunk section draws last frame (opaque, cutout, water)
+    private(set) var drawnQuads = 0
+    private(set) var visibleSections = 0
+    private(set) var bfsVisited = 0          // sections walked by cave culling last frame
+    private(set) var cullSeconds = 0.0       // culling walk + sort, last frame
     private var visibleScratch: [(Chunk, Int, Float)] = []
     private var visitGen: [UInt32] = []
     private var gen: UInt32 = 0
     private var bfs: [(Chunk, Int, Int, Int, Int, Int)] = []
+    private var chunkGrid: [Chunk?] = []
+    // Base vertex / base instance draws (every Apple-silicon GPU; the old per-draw binding path otherwise).
+    // Apple's paravirtual GPU (the CI runners) reports the family but draws base-vertex calls with the wrong
+    // vertices (scrambled, black terrain), so it takes the per-draw binding path; --no-base-vertex forces it too.
+    private lazy var baseVertexOK: Bool = (device.supportsFamily(.apple3) || device.supportsFamily(.mac2))
+        && !device.name.contains("Paravirtual") && !CommandLine.arguments.contains("--no-base-vertex")
     var caveCulling = true
     var onFrame: ((Double) -> Void)?
 
@@ -101,6 +114,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         mobPipe = try pipe("mobVS", "mobFS", blend: false)
         entityPipe = try pipe("entityVS", "entityFS", blend: false)
         crackPipe = try pipe("entityVS", "crackFS", blend: true)
+        shipRenderer = try ShipRenderer(device: device, colorFormat: colorFormat)
 
         // Star field: fixed random directions on a sphere of radius 90 (sky frame, rotated per frame).
         var stars: [SimpleVert] = []
@@ -159,13 +173,14 @@ final class Renderer: NSObject, MTKViewDelegate {
         texture = tex
 
         // Shared index buffer: every quad is 4 vertices -> 2 CCW triangles.
-        var idx = [UInt32]()
-        idx.reserveCapacity(Renderer.maxQuads * 6)
-        for q in 0..<UInt32(Renderer.maxQuads) {
-            let b = q * 4
-            idx.append(contentsOf: [b, b + 1, b + 2, b, b + 2, b + 3])
+        // Written in place (building it through per-quad array literals cost a measurable slice of startup).
+        let qi = device.makeBuffer(length: Renderer.maxQuads * 6 * 4, options: .storageModeShared)!
+        let ip = qi.contents().bindMemory(to: UInt32.self, capacity: Renderer.maxQuads * 6)
+        for q in 0..<Renderer.maxQuads {
+            let b = UInt32(q * 4), o = q * 6
+            ip[o] = b; ip[o + 1] = b + 1; ip[o + 2] = b + 2; ip[o + 3] = b; ip[o + 4] = b + 2; ip[o + 5] = b + 3
         }
-        quadIndices = device.makeBuffer(bytes: idx, length: idx.count * 4, options: .storageModeShared)!
+        quadIndices = qi
 
         super.init()
         for _ in 0..<3 { ring.append(device.makeBuffer(length: ringSize, options: .storageModeShared)!) }
@@ -185,6 +200,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         fpsTime += dt
         if fpsTime >= 0.5 { fps = Double(fpsFrames) / fpsTime; fpsFrames = 0; fpsTime = 0 }
 
+        adjustResolution(view)
         guard let rpd = view.currentRenderPassDescriptor, let drawable = view.currentDrawable else { return }
         inflight.wait()
         if game.screenshotRequested {
@@ -201,7 +217,12 @@ final class Renderer: NSObject, MTKViewDelegate {
             game.onToast?("Saved screenshot as \(name)")
         }
         let cmd = queue.makeCommandBuffer()!
-        cmd.addCompletedHandler { [inflight] _ in inflight.signal() }
+        let fence = MeshArena.frameSubmitted()      // freed meshes wait for this frame before reuse
+        cmd.addCompletedHandler { [inflight, weak self] cb in
+            MeshArena.frameCompleted(fence)
+            self?.recordGPU(cb.gpuEndTime - cb.gpuStartTime)
+            inflight.signal()
+        }
         let sky = game.skyColor
         let clear = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInWater ? V3(0.05, 0.12, 0.3) : sky)
         rpd.colorAttachments[0].clearColor = MTLClearColor(red: Double(clear.x), green: Double(clear.y), blue: Double(clear.z), alpha: 1)
@@ -212,6 +233,42 @@ final class Renderer: NSObject, MTKViewDelegate {
         cmd.present(drawable)
         cmd.commit()
         onFrame?(dt)
+    }
+
+    // MARK: Dynamic resolution
+    // Above 1440p (a 4K TV, a big external display) the drawable shrinks in 5% steps, down to 60%, while the
+    // GPU needs more than ~85% of the frame budget, and grows back once it has headroom; the layer scales it
+    // to the window. At 1440p and below it always renders at full resolution.
+    private(set) var renderScale: Double = 1
+    private var gpuAvgMs = 0.0
+    private var scaleCooldown = 0
+    private let gpuLock = NSLock()
+    var dynamicResolution = UserDefaults.standard.object(forKey: "dynamicResolution") as? Bool ?? true
+
+    private func recordGPU(_ seconds: Double) {
+        guard seconds > 0 && seconds < 1 else { return }
+        gpuLock.lock(); gpuAvgMs = gpuAvgMs * 0.9 + seconds * 1000 * 0.1; gpuLock.unlock()
+    }
+
+    private func adjustResolution(_ view: MTKView) {
+        let full = view.convertToBacking(view.bounds).size
+        guard full.width >= 1, full.height >= 1 else { return }
+        gpuLock.lock(); let g = gpuAvgMs; gpuLock.unlock()
+        let budget = 1000.0 / Double(max(30, view.preferredFramesPerSecond))
+        if !dynamicResolution || Double(full.width * full.height) <= 2560 * 1440 * 1.05 {
+            renderScale = 1
+        } else if scaleCooldown > 0 {
+            scaleCooldown -= 1
+        } else if g > budget * 0.85 && renderScale > 0.6 {
+            renderScale = max(0.6, renderScale - 0.05); scaleCooldown = 20
+        } else if g < budget * 0.55 && renderScale < 1 {
+            renderScale = min(1, renderScale + 0.05); scaleCooldown = 40
+        }
+        let want = CGSize(width: (full.width * renderScale).rounded(), height: (full.height * renderScale).rounded())
+        if view.autoResizeDrawable { view.autoResizeDrawable = false }
+        if abs(view.drawableSize.width - want.width) >= 1 || abs(view.drawableSize.height - want.height) >= 1 {
+            view.drawableSize = want
+        }
     }
 
     // MARK: Scene
@@ -240,9 +297,10 @@ final class Renderer: NSObject, MTKViewDelegate {
             let front = game.cameraMode == 2
             let dir = front ? p.look : -p.look
             if front { camYaw = p.yaw + .pi; camPitch = -p.pitch }
-            var dist: Float = 4
+            let reach = game.thirdPersonDistance          // 4, or farther back while steering a big ship
+            var dist: Float = reach
             var t: Float = 0.1
-            while t < 4 {
+            while t < reach {
                 let q = p.eye + dir * t
                 if Blocks.opaque[Int(game.world.block(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))))] { dist = max(0.2, t - 0.3); break }
                 t += 0.1
@@ -314,6 +372,8 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         // Visible sections, near to far
         let pcx = floorDiv(Int(floor(eye.x)), CS), pcz = floorDiv(Int(floor(eye.z)), CS)
+        let cullStart = CFAbsoluteTimeGetCurrent()
+        bfsVisited = 0
         visibleScratch.removeAll(keepingCapacity: true)
         var drawnSet = 0
         let pSec = Int(floor(eye.y / 16))
@@ -326,6 +386,17 @@ final class Renderer: NSObject, MTKViewDelegate {
             gen &+= 1
             if gen == 0 { gen = 1; for i in visitGen.indices { visitGen[i] = 0 } }
             func vidx(_ dx: Int, _ dz: Int, _ sy: Int) -> Int { ((dx + R) + (dz + R) * span) * NSEC + sy }
+            // Chunks around the camera in a flat grid: one dictionary lookup per column instead of one per step.
+            if chunkGrid.count != span * span { chunkGrid = [Chunk?](repeating: nil, count: span * span) }
+            var topSec = 0
+            for dz in -R...R { for dx in -R...R {
+                let c = game.world.inMeshRadius(dx, dz) ? game.world.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] : nil
+                chunkGrid[(dx + R) + (dz + R) * span] = c
+                if let c, c.topSec > topSec { topSec = c.topSec }
+            } }
+            // Above the tallest geometry in range everything is open air: walking one layer of it is enough to get
+            // around anything, so the walk never climbs higher (it used to cross every empty sky section).
+            let yLimit = max(pSec, topSec + 1)
             bfs.removeAll(keepingCapacity: true)
             bfs.append((startC, 0, 0, pSec, -1, 0))
             visitGen[vidx(0, 0, pSec)] = gen
@@ -333,6 +404,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             let dirs = [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)]
             while head < bfs.count {
                 let (c, dx, dz, sy, entry, dirMask) = bfs[head]; head += 1
+                bfsVisited += 1
                 let sec = c.sections[sy]
                 let mn = V3(Float(c.cx * CS), Float(sy * 16), Float(c.cz * CS))
                 if !sec.empty {
@@ -345,12 +417,12 @@ final class Renderer: NSObject, MTKViewDelegate {
                     if entry >= 0 && vis & (1 << UInt64(entry * 6 + f)) == 0 { continue }
                     let (ox, oy, oz) = dirs[f]
                     let ndx = dx + ox, ndz = dz + oz, nsy = sy + oy
-                    if nsy < 0 || nsy >= NSEC || !game.world.inMeshRadius(ndx, ndz) || abs(ndx) > R || abs(ndz) > R { continue }
+                    if nsy < 0 || nsy >= NSEC || nsy > yLimit || !game.world.inMeshRadius(ndx, ndz) || abs(ndx) > R || abs(ndz) > R { continue }
                     let vi = vidx(ndx, ndz, nsy)
                     if visitGen[vi] == gen { continue }
                     let nmn = V3(Float((pcx + ndx) * CS), Float(nsy * 16), Float((pcz + ndz) * CS))
                     if !frustum.visible(min: nmn, max: nmn + V3(16, 16, 16)) { continue }
-                    guard let nc = ox == 0 && oz == 0 ? c : game.world.chunks[ChunkKey(x: pcx + ndx, z: pcz + ndz)], nc.meshedOnce else { continue }
+                    guard let nc = ox == 0 && oz == 0 ? c : chunkGrid[(ndx + R) + (ndz + R) * span], nc.meshedOnce else { continue }
                     visitGen[vi] = gen
                     bfs.append((nc, ndx, ndz, nsy, f ^ 1, dirMask | (1 << f)))
                 }
@@ -374,34 +446,66 @@ final class Renderer: NSObject, MTKViewDelegate {
         }
         }
         visibleScratch.sort { $0.2 < $1.2 }
+        cullSeconds = CFAbsoluteTimeGetCurrent() - cullStart
         drawnChunks = drawnSet
+        visibleSections = visibleScratch.count
         let visible = visibleScratch
 
-        func offset(_ c: Chunk, _ sy: Int) -> V4 { V4(Float(c.cx * CS) - eye.x, Float(sy * 16) - eye.y, Float(c.cz * CS) - eye.z, 0) }
+        // Per-section draw records in the frame's scratch ring (origin relative to the camera + tint table
+        // offset), read by instance id: a section draw is then one draw call, with buffers rebound only when
+        // its mesh slab changes (base vertex = the slice's offset), instead of four calls with a constant upload.
+        let recOff = (scratchOff + 255) & ~255
+        let nRec = max(0, min(visible.count, (ringSize - recOff) / 16))
+        if nRec > 0 {
+            let recs = (scratch.contents() + recOff).bindMemory(to: SectionRec.self, capacity: nRec)
+            for i in 0..<nRec {
+                let (c, sy, _) = visible[i]
+                recs[i] = SectionRec(x: Float(c.cx * CS) - eye.x, y: Float(sy * 16) - eye.y, z: Float(c.cz * CS) - eye.z,
+                                     tint: UInt32((c.tintBuf?.offset ?? 0) / 4))
+            }
+            scratchOff = recOff + nRec * 16
+        }
+        let baseOK = baseVertexOK
+        var boundVerts: MTLBuffer?, boundTints: MTLBuffer?
+        drawCalls = 0; drawnQuads = 0
+        func drawSection(_ i: Int, _ slice: MeshSlice, _ tb: MeshSlice, first: Int, count: Int) {
+            drawCalls += 1; drawnQuads += count
+            if tb.buffer !== boundTints { enc.setVertexBuffer(tb.buffer, offset: 0, index: 3); boundTints = tb.buffer }
+            if baseOK {
+                if slice.buffer !== boundVerts { enc.setVertexBuffer(slice.buffer, offset: 0, index: 0); boundVerts = slice.buffer }
+                enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quadIndices,
+                                          indexBufferOffset: first * 6 * 4, instanceCount: 1, baseVertex: slice.offset / 8, baseInstance: i)
+            } else {
+                enc.setVertexBuffer(slice.buffer, offset: slice.offset, index: 0)
+                enc.setVertexBufferOffset(recOff + i * 16, index: 2)
+                enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quadIndices,
+                                          indexBufferOffset: first * 6 * 4)
+            }
+        }
 
         enc.setDepthStencilState(depthWrite)
         enc.setCullMode(.back)
         enc.setFrontFacing(.counterClockwise)
         enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
         enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+        enc.setVertexBuffer(scratch, offset: recOff, index: 2)
         // Two passes, near to far: solid cube faces without alpha test first (the GPU can then reject
         // hidden fragments before shading), then the alpha-tested cutout faces (leaves, plants, models).
         for pass in 0..<2 {
             enc.setRenderPipelineState(pass == 0 ? chunkSolidPipe : chunkPipe)
-            for (c, sy, _) in visible {
+            for i in 0..<nRec {
+                let (c, sy, _) = visible[i]
                 let sec = c.sections[sy]
                 guard sec.opaqueQuads > 0, let buf = sec.opaqueBuf, let tb = c.tintBuf else { continue }
                 let total = min(sec.opaqueQuads, Renderer.maxQuads), solid = min(sec.solidQuads, total)
                 let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
                 if count <= 0 { continue }
-                var o = offset(c, sy)
-                enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
-                enc.setVertexBytes(&o, length: 16, index: 2)
-                enc.setVertexBuffer(tb, offset: 0, index: 3)
-                enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6,
-                                          indexType: .uint32, indexBuffer: quadIndices, indexBufferOffset: first * 6 * 4)
+                drawSection(i, buf, tb, first: first, count: count)
             }
         }
+
+        shipRenderer.beginFrame()
+        shipRenderer.drawOpaque(enc, ships: game.world.ships, eye: eye, u: &u, frustum: frustum, quads: quadIndices)
 
         // Mobs (written straight into the scratch ring: no per-frame arrays)
         if !game.mobs.mobs.isEmpty || tp {
@@ -442,6 +546,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.writeBeams(&wr, eye: eye)
                 game.writeWeather(&wr, eye: eye)
                 game.writeFalling(&wr, eye: eye)
+                game.world.ships.writeShells(&wr, eye: eye)
                 game.writeDecor(&wr, eye: eye)
                 game.writeBobber(&wr, eye: eye, right: right, up: -up)
                 game.writeLeads(&wr, eye: eye)
@@ -513,22 +618,25 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
         }
 
+        shipRenderer.drawBeforeWater(enc, ships: game.world.ships, world: game.world, eye: eye, u: &u, frustum: frustum)
+
         // Water, far to near
         enc.setRenderPipelineState(waterPipe)
         enc.setDepthStencilState(depthRead)
         enc.setCullMode(.none)
         enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
         enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
-        for (c, sy, _) in visible.reversed() {
+        // Other passes (mobs, entities, outline) rebound buffers 0 and 2.
+        enc.setVertexBuffer(scratch, offset: recOff, index: 2)
+        boundVerts = nil; boundTints = nil
+        for i in stride(from: nRec - 1, through: 0, by: -1) {
+            let (c, sy, _) = visible[i]
             let sec = c.sections[sy]
             guard sec.transQuads > 0, let buf = sec.transBuf, let tb = c.tintBuf else { continue }
-            var o = offset(c, sy)
-            enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
-            enc.setVertexBytes(&o, length: 16, index: 2)
-            enc.setVertexBuffer(tb, offset: 0, index: 3)
-            enc.drawIndexedPrimitives(type: .triangle, indexCount: min(sec.transQuads, Renderer.maxQuads) * 6,
-                                      indexType: .uint32, indexBuffer: quadIndices, indexBufferOffset: 0)
+            drawSection(i, buf, tb, first: 0, count: min(sec.transQuads, Renderer.maxQuads))
         }
+
+        shipRenderer.drawTranslucent(enc, ships: game.world.ships, eye: eye, u: &u, frustum: frustum, quads: quadIndices)
 
         // Cloud layer (after water so both blend over terrain; depth-tested against terrain).
         if !underwater && hasSky {
@@ -711,12 +819,14 @@ final class Renderer: NSObject, MTKViewDelegate {
                 bars.append((wi.customName ?? "Blight", Float(wi.health) / 300, V4(0.6, 0.2, 0.85, 1)))
             }
             if let r = game.raidBar { bars.append((r.0, r.1, V4(0.85, 0.15, 0.15, 1))) }
+            for b in game.shipBars() { bars.append((b.0, b.1, V4(0.75, 0.6, 0.3, 1))) }
             for (i, b) in bars.enumerated() {
                 let bw = 182 * s, bx = (W - bw) / 2, by = 12 * s + Float(i) * 19 * s
                 text(b.0, (W - textWidth(b.0, s)) / 2, by - 9 * s, s)
                 rect(bx, by, bw, 5 * s, V4(b.2.x * 0.3, b.2.y * 0.3, b.2.z * 0.3, 1))
                 rect(bx, by, bw * max(0, min(1, b.1)), 5 * s, b.2)
             }
+            if let line = game.shipHUDLine() { text(line, floor((W - textWidth(line, s)) / 2), H - 62 * s, s, V4(0.85, 0.95, 1, 1)) }
         }
 
         func frame(_ x: Float, _ y: Float, _ w: Float, _ h: Float, _ b: Float, _ c: V4) {
