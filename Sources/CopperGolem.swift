@@ -132,6 +132,7 @@ extension Mob {
                     cargo!.slots[0] = rest
                     g.sfx(.chestClose, 0.5, at: c)
                     if rest.isEmpty { golemVisited.removeAll(keepingCapacity: true) } else { golemVisited.append(goal) }
+                    if CopperGolem.isCopperChest(key) { golemTimer = 10 }        // carried it back: nowhere to put it, rest a while
                 }
                 return 0
             }
