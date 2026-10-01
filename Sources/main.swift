@@ -508,8 +508,12 @@ enum Snapshot {
             for i in 0..<5 {
                 var st = ItemStack(Items.id("firework_star"), 1)
                 st.tag = i | (i % 2 == 0 ? 8 : 0) | (i == 3 ? 16 : 0) | (1 << 8)
-                st.pat = [[14, 4], [11, 3], [5, 0], [13, 5], [1, 2, 4]][i] + (i == 1 ? [16 + 0] : [])
-                let rk = Rocket(at: pos + f * 22 + r * (Float(i) - 2) * 7 + V3(0, 10 + Float(i % 2) * 4, 0), dir: V3(0, 1, 0), flight: 1, stars: [st])
+                let pats: [[Int]] = [[14, 4], [11, 3], [5, 0], [13, 5], [1, 2, 4]]
+                st.pat = pats[i] + (i == 1 ? [16] : [])
+                let lift: Float = 10 + Float(i % 2) * 4
+                let side: Float = (Float(i) - 2) * 7
+                let at: V3 = pos + f * 22 + r * side + V3(0, lift, 0)
+                let rk = Rocket(at: at, dir: V3(0, 1, 0), flight: 1, stars: [st])
                 game.explode(rk)
             }
             game.particles.update(0.45, world)
@@ -550,7 +554,8 @@ enum Snapshot {
                                            ("white", Banners.ominous), ("black", [Banners.encode(34, 5)]), ("yellow", [Banners.encode(30, 11), Banners.encode(36, 14)]),
                                            ("green", [Banners.encode(23, 0), Banners.encode(24, 0), Banners.encode(33, 12)])]
             for (i, st) in sets.enumerated() {
-                let p = pos + f * 8 + r * (Float(i) - Float(sets.count - 1) / 2) * 1.6
+                let off: Float = (Float(i) - Float(sets.count - 1) / 2) * 1.6
+                let p: V3 = pos + f * 8 + r * off
                 let x = Int(floor(p.x)), z = Int(floor(p.z))
                 let y = world.topY(x, z) + 1
                 var a = (game.player.yaw + .pi) / (2 * .pi) * 16
@@ -589,7 +594,8 @@ enum Snapshot {
             for (i, n) in names.enumerated() {
                 let parts = n.split(separator: ":").map(String.init)
                 guard let k = MobKind.named(parts[0]) else { print("unknown mob \(n)"); continue }
-                let p = pos + f * 6 + r * (Float(i) - Float(names.count - 1) / 2) * 2.2
+                let off: Float = (Float(i) - Float(names.count - 1) / 2) * 2.2
+                let p: V3 = pos + f * 6 + r * off
                 let x = Int(floor(p.x)), z = Int(floor(p.z))
                 let m = Mob(k, at: V3(Float(x) + 0.5, Float(world.topY(x, z) + 1), Float(z) + 0.5))
                 m.yaw = game.player.yaw
@@ -624,7 +630,8 @@ enum Snapshot {
             for (i, n) in names.enumerated() {
                 let parts = n.split(separator: ":")
                 guard Blocks.has(String(parts[0])) else { print("unknown block \(n)"); continue }
-                let p = pos + f * 4 + r * (Float(i) - Float(names.count - 1) / 2) * 1.5
+                let off: Float = (Float(i) - Float(names.count - 1) / 2) * 1.5
+                let p: V3 = pos + f * 4 + r * off
                 let x = Int(floor(p.x)), z = Int(floor(p.z))
                 let gy = world.topY(x, z)
                 world.setBlock(x, gy, z, Blocks.id("smooth_stone"))
@@ -634,7 +641,7 @@ enum Snapshot {
         if let list = arg("--gallery") {
             // Block gallery: a wall of up to 8 x 4 blocks, 7 blocks ahead, facing the camera (texture review).
             let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)), r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))
-            let names = list.split(separator: ",").map(String.init).filter { Blocks.has(String($0.split(separator: ":")[0])) }
+            let names: [String] = list.split(separator: ",").map { String($0) }.filter { (n: String) -> Bool in Blocks.has(String(n.split(separator: ":")[0])) }
             let cols = min(8, max(1, names.count))
             let base = game.player.eye + f * 7
             for (i, n) in names.prefix(32).enumerated() {

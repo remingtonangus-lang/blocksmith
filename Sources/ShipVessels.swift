@@ -298,7 +298,8 @@ extension ShipManager {
             let r: Float = s.role == "frigate" ? 70 : 30
             let dist = simd_length(toHome)
             let tangent = V2(-toHome.y, toHome.x) / max(1, dist)
-            let want = simd_normalize(tangent + toHome / max(1, dist) * (dist - r) / r)
+            let pull: Float = (dist - r) / (r * max(1, dist))
+            let want: V2 = simd_normalize(tangent + toHome * pull)
             var cross = fh.x * want.y - fh.y * want.x
             // Look ahead: the frigate climbs over high ground, the carriage turns home before water.
             let ahead = s.pos + V3(fh.x, 0, fh.y) * 30

@@ -236,7 +236,8 @@ final class Player {
             }
             if boost > 0 {
                 boost -= 0.05
-                v += l * 0.1 + (l * 1.5 - v) * 0.5
+                let push: V3 = l * 0.1
+                v += push + (l * 1.5 - v) * 0.5
             }
             v *= V3(0.99, 0.98, 0.99)
         }

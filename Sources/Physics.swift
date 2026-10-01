@@ -17,12 +17,18 @@ extension Game {
         for m in mobs.mobs where m.health > 0 {
             let d = m.pos + V3(0, m.height / 2, 0) - c
             let l = simd_length(d)
-            if l < 2.5 { m.vel += (l > 0.01 ? d / l : V3(0, 1, 0)) * (2.5 - l) * 6 + V3(0, 4, 0) }
+            if l < 2.5 {
+                let dir: V3 = l > 0.01 ? d / l : V3(0, 1, 0)
+                let s: Float = (2.5 - l) * 6
+                m.vel += dir * s + V3(0, 4, 0)
+            }
         }
         let d = player.pos + V3(0, 0.9, 0) - c
         let l = simd_length(d)
         if l < 2.5 {
-            player.vel += (l > 0.01 ? d / l : V3(0, 1, 0)) * (2.5 - l) * 7 + V3(0, 6, 0)
+            let dir: V3 = l > 0.01 ? d / l : V3(0, 1, 0)
+            let s: Float = (2.5 - l) * 7
+            player.vel += dir * s + V3(0, 6, 0)
             player.airPeak = player.pos.y                   // no fall damage from the launch height
         }
         // Flips doors, trapdoors, gates, levers and buttons it touches.

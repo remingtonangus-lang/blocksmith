@@ -233,12 +233,16 @@ extension Mob {
             if tamed {
                 let want = heldItem
                 if let it = g.drops.items.first(where: { !$0.stack.isEmpty && $0.stack.item == want && simd_length($0.pos - pos) < 32 }) {
-                    let d = it.pos - pos
-                    vel += (d / max(0.1, simd_length(d)) * 5 - vel) * min(1, dt * 2)
+                    let d: V3 = it.pos - pos
+                    let want: V3 = d * (5 / max(0.1, simd_length(d)))
+                    let k: Float = min(1, dt * 2)
+                    vel += (want - vel) * k
                     if simd_length(d) < 1 { carried += it.stack.count; it.stack = .empty }
                 } else if carried > 0 && dist > 2 {
-                    let d = g.player.eye - pos
-                    vel += (d / max(0.1, simd_length(d)) * 5 - vel) * min(1, dt * 2)
+                    let d: V3 = g.player.eye - pos
+                    let want: V3 = d * (5 / max(0.1, simd_length(d)))
+                    let k: Float = min(1, dt * 2)
+                    vel += (want - vel) * k
                 } else if carried > 0 {
                     g.drops.spawn(ItemStack(want, carried), at: pos)
                     carried = 0
@@ -360,11 +364,17 @@ extension Mob {
                 flyTarget = prey.pos
                 if simd_length(prey.pos - pos) < 1.2 && attackCooldown <= 0 { attackCooldown = 1; prey.hit(from: pos, damage: 2, knockback: 0.3) }
             }
-            if panic > 0, flyTarget == nil || aiTimer > 0.5 { flyTarget = pos + simd_normalize(pos - player + V3(0.01, 0, 0)) * 6 }
+            if panic > 0, flyTarget == nil || aiTimer > 0.5 { let away: V3 = simd_normalize(pos - player + V3(0.01, 0, 0)); flyTarget = pos + away * 6 }
             if let t = flyTarget {
                 let d = t - pos
                 let l = simd_length(d)
-                if l > 0.3 { vel += (d / l * spec.speed * (panic > 0 ? 1.8 : 1) - vel) * min(1, dt * 2); face(t) } else { vel *= expf(-2 * dt) }
+                if l > 0.3 {
+                    let sp: Float = spec.speed * (panic > 0 ? 1.8 : 1) / l
+                    let want: V3 = d * sp
+                    let k: Float = min(1, dt * 2)
+                    vel += (want - vel) * k
+                    face(t)
+                } else { vel *= expf(-2 * dt) }
             }
             // Squid squirt ink when hurt.
             if (kind == .squid || kind == .glowSquid) && hurt > 0.35 { for _ in 0..<6 { g.particles.smoke(at: pos + V3(0, 0.4, 0)) } }

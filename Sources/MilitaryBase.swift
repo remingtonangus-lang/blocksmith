@@ -300,9 +300,11 @@ enum MilitaryBase {
         }
         w.set(X(8), y0 + 1, Z(-12), g("anvil"))
         // Weapon racks: guns hung in frames above the crates on the north wall (punch one to take it).
-        let windows = Set(stride(from: -R + 6, through: R - 7, by: 5).filter { abs($0) > 5 && abs($0) < R - 5 }.flatMap { [$0, $0 + 1] })
+        var windows = Set<Int>()
+        for wx in stride(from: -R + 6, through: R - 7, by: 5) where abs(wx) > 5 && abs(wx) < R - 5 { windows.insert(wx); windows.insert(wx + 1) }
         for x in stride(from: 6, through: R - 3, by: 2) where !windows.contains(x) && rng.chance(0.75) {
-            let gun = Guns.all[[Guns.rifle, Guns.rifle, Guns.smg, Guns.smg, Guns.shotgun, Guns.sniper][rng.int(6)]]
+            let rack: [Int] = [Guns.rifle, Guns.rifle, Guns.smg, Guns.smg, Guns.shotgun, Guns.sniper]
+            let gun = Guns.all[rack[rng.int(6)]]
             if Items.has(gun.key) { w.frame(X(x), y0 + 3, Z(-R + 1), state: 1, item: ItemStack(Items.id(gun.key), 1)) }
         }
         // SW mess hall: long tables with benches, a food chest.

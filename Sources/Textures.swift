@@ -685,7 +685,8 @@ enum TextureGen {
             { x, y in
                 if y >= 9 && (x == 7 || x == 8) { return hex(stem) }
                 let dx = Float(x) - 7.5, dy = Float(y) - 6
-                if dx * dx * 0.5 + dy * dy < 9 && y <= 8 { return hex(cap, 0.85 + 0.25 * r(x, y, 201)) }
+                let dd: Float = dx * dx * 0.5 + dy * dy
+                if dd < 9 && y <= 8 { return hex(cap, 0.85 + 0.25 * r(x, y, 201)) }
                 return clear
             }
         }

@@ -267,7 +267,9 @@ extension Game {
                 let bar = o + V3(0, 1.72, 0)
                 wr.orientedBox(bar, right * 0.62, V3(0, 0.06, 0), fwd * 0.06, layer: planks, color: lc)
                 let sway = fwd * (0.04 * wave)
-                wr.bannerCloth(topLeft: bar - right * 0.58 + fwd * 0.09 + V3(0, -0.04, 0), right: right * 1.16, down: V3(0, -1.62, 0) + sway,
+                let tl: V3 = bar - right * 0.58 + fwd * 0.09 + V3(0, -0.04, 0)
+                let dn: V3 = V3(0, -1.62, 0) + sway
+                wr.bannerCloth(topLeft: tl, right: right * 1.16, down: dn,
                                base: base, layers: be.patterns, light: light)
             } else {
                 let f = st - 16
@@ -275,7 +277,9 @@ extension Game {
                 let right = V3(-n.z, 0, n.x) * -1
                 let o = c - eye - n * 0.42
                 let bar = o + V3(0, 0.94, 0)
-                wr.bannerCloth(topLeft: bar - right * 0.58 + n * 0.06 + V3(0, -0.04, 0), right: right * 1.16, down: V3(0, -1.62, 0) + n * (0.03 * wave),
+                let tl: V3 = bar - right * 0.58 + n * 0.06 + V3(0, -0.04, 0)
+                let dn: V3 = V3(0, -1.62, 0) + n * (0.03 * wave)
+                wr.bannerCloth(topLeft: tl, right: right * 1.16, down: dn,
                                base: base, layers: be.patterns, light: light)
             }
         }

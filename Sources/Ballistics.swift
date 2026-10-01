@@ -293,7 +293,9 @@ final class Armory {
                 let up = simd_cross(side, d)
                 let c = s.pos - eye
                 for n in [side, up] {
-                    wr.quad([c - d * 0.4 - n * 0.12, c + d * 0.4 - n * 0.12, c + d * 0.4 + n * 0.12, c - d * 0.4 + n * 0.12],
+                    let dd: V3 = d * 0.4, nn: V3 = n * 0.12
+                    let lo: V3 = c - nn, hi: V3 = c + nn
+                    wr.quad([lo - dd, lo + dd, hi + dd, hi - dd],
                             [V2(0.1, 0.9), V2(0.9, 0.1), V2(0.95, 0.2), V2(0.2, 0.95)], rocketLayer, V4(1, 1, 1, 1))
                 }
                 streak(s.pos - d * 1.2, s.pos - d * 0.4, 0.08, V4(2.4, 1.3, 0.4, 1))
@@ -454,7 +456,8 @@ extension Game {
             }
         }
         let right = V3(cosf(player.yaw), 0, -sinf(player.yaw))
-        let flash = player.eye + look * 0.9 + right * 0.2 * (1 - a.aim) - V3(0, 0.12, 0)
+        let sideOff: Float = 0.2 * (1 - a.aim)
+        let flash: V3 = player.eye + look * 0.9 + right * sideOff - V3(0, 0.12, 0)
         particles.add(Particle(pos: flash, vel: look * 0.5, life: 0.05, maxLife: 0.05, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
                                size: gs.shot == .beam ? 0.12 : 0.16, gravity: 0, color: gs.shot == .beam ? V3(0.8, 2, 2.4) : V3(2.4, 1.7, 0.6),
                                collide: false, glow: true))

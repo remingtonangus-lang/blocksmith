@@ -95,7 +95,9 @@ extension Mob {
         let d = goal - pos
         let l = simd_length(d)
         let sp: Float = baby ? 2 : 1.5
-        vel += ((l > 0.5 ? d / l * min(sp, l) : .zero) - vel) * min(1, dt * 1.5)
+        let want: V3 = l > 0.5 ? d * (min(sp, l) / l) : V3.zero
+        let k: Float = min(1, dt * 1.5)
+        vel += (want - vel) * k
         walkPhase += dt
         return 0
     }

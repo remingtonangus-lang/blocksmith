@@ -335,7 +335,9 @@ extension ShipManager {
             if speed2 > 0.01 {
                 let cosA = simd_dot(rh / speed2.squareRoot(), fh)
                 let push = speed2 * 0.35 * Float(s.sails)
-                F += fh * (push * max(0.15, (1 + cosA) * 0.5)) + rh / speed2.squareRoot() * (push * 0.15)
+                let along: Float = push * max(0.15, (1 + cosA) * 0.5)
+                let side: Float = push * 0.15 / speed2.squareRoot()
+                F += fh * along + rh * side
             }
         }
         // Helm paddling in water.

@@ -480,8 +480,10 @@ final class WorldGen: TerrainGenerator {
             let cold = t < -0.25 || (biome.snows(at: y + 1) && t < -0.15)
             guard cold else { continue }
             // Steep rock faces shed their snow.
-            let rise = max(abs(tops[max(0, lx - 1) + lz * CS] - tops[min(CS - 1, lx + 1) + lz * CS]),
-                           abs(tops[lx + max(0, lz - 1) * CS] - tops[lx + min(CS - 1, lz + 1) * CS]))
+            let xa = max(0, lx - 1) + lz * CS, xb = min(CS - 1, lx + 1) + lz * CS
+            let za = lx + max(0, lz - 1) * CS, zb = lx + min(CS - 1, lz + 1) * CS
+            let riseX = abs(tops[xa] - tops[xb]), riseZ = abs(tops[za] - tops[zb])
+            let rise = max(riseX, riseZ)
             let rocky = b[Chunk.index(lx, y, lz)] == STONE || Blocks.key(b[Chunk.index(lx, y, lz)]) == "andesite"
             if rocky && rise >= 4 { continue }
             let i = Chunk.index(lx, y, lz)

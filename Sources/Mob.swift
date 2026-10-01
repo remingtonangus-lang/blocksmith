@@ -574,7 +574,11 @@ final class Mob {
             speed = 0
             let d = flyTarget! - pos
             let l = simd_length(d)
-            if l > 0.1 { vel += (d / l * spec.speed - vel) * min(1, dt * 1.5) }
+            if l > 0.1 {
+                let want: V3 = d * (spec.speed / l)
+                let k: Float = min(1, dt * 1.5)
+                vel += (want - vel) * k
+            }
         case .blaze:
             // Hovers a little above the player; bursts of three small fireballs.
             let hover = canTargetFar(g, dist, 48) ? player.y + 2.5 : pos.y + Float.random(in: -1...1)

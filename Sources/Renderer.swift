@@ -187,7 +187,8 @@ final class Renderer: NSObject, MTKViewDelegate {
             let ref = abs(dir.y) > 0.9 ? V3(1, 0, 0) : V3(0, 1, 0)
             let r = simd_normalize(simd_cross(dir, ref)) * size
             let up = simd_normalize(simd_cross(r, dir)) * size
-            let q = [c - r - up, c + r - up, c + r + up, c - r + up]
+            let lo: V3 = c - up, hi: V3 = c + up
+            let q: [V3] = [lo - r, lo + r, hi + r, hi - r]
             for k in [0, 1, 2, 0, 2, 3] { stars.append(SimpleVert(pos: V4(q[k], 1), color: col)) }
         }
         starVerts = stars.count
@@ -231,7 +232,6 @@ final class Renderer: NSObject, MTKViewDelegate {
         do {
             let vlib = try device.makeLibrary(source: shaderSource + vibrantShaderSource, options: nil)
             vib = try Vibrant(device: device, library: vlib, finalFormat: colorFormat, baseTexels: levels[0])
-            if let v = vib { shipRenderer.vibPipes = [v.shipSolid, v.shipCut, v.shipTrans] }   // ships lit like terrain in Fancy
         } catch { print("Fancy renderer unavailable (falling back to Fast): \(error)") }
 
         // Shared index buffer: every quad is 4 vertices -> 2 CCW triangles.
@@ -245,6 +245,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         quadIndices = qi
 
         super.init()
+        if let v = vib { shipRenderer.vibPipes = [v.shipSolid, v.shipCut, v.shipTrans] }   // ships lit like terrain in Fancy
         for _ in 0..<3 { ring.append(device.makeBuffer(length: ringSize, options: .storageModeShared)!) }
     }
 
@@ -650,7 +651,8 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let c = sd * 90
                 let r = simd_normalize(simd_cross(sd, V3(0, 0, 1))) * 11
                 let up = simd_normalize(simd_cross(r, sd)) * 11
-                let q = [c - r - up, c + r - up, c + r + up, c - r + up]
+                let lo: V3 = c - up, hi: V3 = c + up
+                let q: [V3] = [lo - r, lo + r, hi + r, hi - r]
                 for i in [0, 1, 2, 0, 2, 3] { verts.append(SimpleVert(pos: V4(q[i], 1), color: V4(1.0, 0.85, 0.5, 0.18))) }
             }
             let starAlpha = simd_clamp((0.6 - daylight) / 0.35, 0, 1)

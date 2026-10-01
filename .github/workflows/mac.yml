@@ -38,10 +38,11 @@ jobs:
       - name: Type-check time gate (expressions that could time out on an M1 with a newer Swift)
         if: always() && steps.build.outcome == 'success'
         run: |
-          # Report every expression over 150 ms; fail on any over 400 ms (the Mac hit the hard limit on one of these).
+          # Report every expression over 150 ms; fail on any over 600 ms (the Mac hit the hard limit on
+          # one of these; the CI VM type-checks about twice as slowly as an M1, so 600 ms here is ~300 ms there).
           grep -E "warning: expression took [0-9]+ms to type-check" build.log | sort -u | tee typecheck.log || true
-          slow=$(grep -oE "expression took [0-9]+ms" typecheck.log | grep -oE "[0-9]+" | awk '$1 >= 400' | wc -l | tr -d ' ')
-          echo "type-check: $(wc -l < typecheck.log | tr -d ' ') expressions over 150 ms, $slow over 400 ms"
+          slow=$(grep -oE "expression took [0-9]+ms" typecheck.log | grep -oE "[0-9]+" | awk '$1 >= 600' | wc -l | tr -d ' ')
+          echo "type-check: $(wc -l < typecheck.log | tr -d ' ') expressions over 150 ms, $slow over 600 ms"
           [ "$slow" -eq 0 ]
 
       - name: Smoke test (play 60 s at render distance 8, 16, 24, and 24 in Fast)

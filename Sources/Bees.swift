@@ -140,7 +140,9 @@ extension Mob {
         if let t = goal {
             let d = t - pos
             let l = simd_length(d)
-            vel += ((l > 0.2 ? d / l * min(3, l * 2) : .zero) - vel) * min(1, dt * 2.5)
+            let want: V3 = l > 0.2 ? d * (min(3, l * 2) / l) : V3.zero
+            let k: Float = min(1, dt * 2.5)
+            vel += (want - vel) * k
             if l > 0.2 { face(t) }
         }
         return 0

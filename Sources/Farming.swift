@@ -160,7 +160,8 @@ extension Game {
             world.setBlockAsync(p.x, p.y, p.z, AIR)
         }
         // Build into copies of the 3x3 chunks around, then apply the differences.
-        let seed = UInt64(bitPattern: Int64(p.x &* 73856093 ^ p.y &* 19349663 ^ p.z &* 83492791)) | 1
+        let hx: Int = p.x &* 73856093, hy: Int = p.y &* 19349663, hz: Int = p.z &* 83492791
+        let seed: UInt64 = UInt64(bitPattern: Int64(hx ^ hy ^ hz)) | 1
         let ccx = floorDiv(p.x, CS), ccz = floorDiv(p.z, CS)
         var changes: [(IVec3, BlockID)] = []
         for dz in -1...1 { for dx in -1...1 {

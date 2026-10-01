@@ -235,7 +235,11 @@ extension Mob {
         }
         let d = goal - pos
         let l = simd_length(d)
-        if l > 0.2 { vel += (d / l * min(spec.speed, l * 2) - vel) * min(1, dt * 1.5) } else { vel *= expf(-3 * dt) }
+        if l > 0.2 {
+            let want: V3 = d * (min(spec.speed, l * 2) / l)
+            let k: Float = min(1, dt * 1.5)
+            vel += (want - vel) * k
+        } else { vel *= expf(-3 * dt) }
         // Breaks blocks it touches after being hurt (the reference "block break counter").
         if breakTimer > 0 {
             breakTimer -= dt
@@ -291,7 +295,9 @@ extension Mob {
                 if simd_length(g.player.eye - V3(0, 0.6, 0) - t) < 0.01 { g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Hexling", attacker: self) }
                 else if let v = g.mobs.mobs.first(where: { simd_length($0.pos + V3(0, $0.height * 0.5, 0) - t) < 0.01 }) { v.hit(from: pos, damage: spec.attack) }
             }
-            vel += (d / max(l, 0.01) * spec.speed - vel) * min(1, dt * 3)
+            let want: V3 = d * (spec.speed / max(l, 0.01))
+            let k: Float = min(1, dt * 3)
+            vel += (want - vel) * k
         } else {
             if aiTimer <= 0 { aiTimer = 2; flyTarget = pos + V3(Float.random(in: -6...6), Float.random(in: -2...3), Float.random(in: -6...6)) }
             aiTimer -= dt

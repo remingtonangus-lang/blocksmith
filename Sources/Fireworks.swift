@@ -147,7 +147,8 @@ final class Rocket {
         shotBy = crossbow
         vel = crossbow ? dir * 16 : V3(Float.random(in: -0.1...0.1), 1, Float.random(in: -0.1...0.1)) * 4
         // Reference lifetime: 10 x (flight + 1) + rand(6) + rand(7) ticks.
-        life = Float(10 * (max(1, flight) + 1) + Int.random(in: 0...5) + Int.random(in: 0...6)) / 20
+        let ticks: Int = 10 * (max(1, flight) + 1) + Int.random(in: 0...5) + Int.random(in: 0...6)
+        life = Float(ticks) / 20
         self.stars = stars
     }
 }

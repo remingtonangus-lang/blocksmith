@@ -244,7 +244,11 @@ extension Game {
             b.age += dt
             let to = player.eye - V3(0, 0.4, 0) - b.pos
             let d = simd_length(to)
-            if d > 0.01 { b.vel += (to / d * 4 - b.vel) * min(1, dt * 1.5) }
+            if d > 0.01 {
+                let want: V3 = to * (4 / d)
+                let k: Float = min(1, dt * 1.5)
+                b.vel += (want - b.vel) * k
+            }
             b.pos += b.vel * dt
             if Float.random(in: 0..<1) < dt * 20 { particles.smoke(at: b.pos, dark: false) }
             if d < 0.7 {
