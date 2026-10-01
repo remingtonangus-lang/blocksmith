@@ -581,9 +581,25 @@ enum TextureGen {
         }
         p["tnt_bottom"] = { x, y in hex(0xB8B0A0, 0.85 + 0.1 * r(x, y, 152)) }
         // Emberdeep
+        // Netherrack: lumpy fleshy rock - rounded lumps (cell pattern) lit on top, dark seams between them.
+        var npts: [V2] = []
+        for k in 0..<11 { npts.append(V2(r(k, 0, 175) * 16, r(k, 1, 175) * 16)) }
         let netherrack: Painter = { x, y in
-            let v = blot(x, y, 170, 4) * 0.6 + r(x, y, 171) * 0.4
-            return hex(v > 0.62 ? 0x8B3A3A : (v < 0.35 ? 0x5A1E1E : 0x6F2A2A), 0.92 + 0.12 * r(x, y, 172))
+            let q = V2(Float(x) + 0.5, Float(y) + 0.5)
+            var d1: Float = 1e9, d2: Float = 1e9, k1 = 0
+            var c1 = V2(0, 0)
+            for (k, c) in npts.enumerated() {
+                for oy in -1...1 { for ox in -1...1 {
+                    let cc = c + V2(Float(ox * 16), Float(oy * 16))
+                    let d = simd_distance(q, cc)
+                    if d < d1 { d2 = d1; d1 = d; k1 = k; c1 = cc } else if d < d2 { d2 = d }
+                } }
+            }
+            if d2 - d1 < 0.8 { return hex(0x4A1616, 0.9 + 0.1 * r(x, y, 172)) }
+            let up: Float = (c1.y - q.y) * 0.025
+            let tone: [UInt32] = [0x7A2E2E, 0x6A2626, 0x843434]
+            let k: Float = 0.94 + up + (r(x, y, 171) - 0.5) * 0.1
+            return hex(tone[k1 % 3], k)
         }
         p["netherrack"] = netherrack
         p["nether_quartz_ore"] = ore(netherrack, 0xEDE6DE, 0xC8BEB0, salt: 173)
