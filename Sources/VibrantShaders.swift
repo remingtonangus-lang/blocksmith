@@ -99,13 +99,17 @@ static float vibShadow(depth2d<float> sm, float3 rel, float3 n, constant Uniform
     constexpr sampler cmp(coord::normalized, filter::linear, address::clamp_to_edge, compare_func::less_equal);
     float z = sc.z - 0.0006;
     float ts = 1.0 / 2048.0;
+    float edge = smoothstep(0.82, 0.97, max(abs(sc.x), abs(sc.y)));
+    if (length(rel) > 40.0) {
+        // Far away a single filtered tap is indistinguishable from the 6-tap kernel.
+        return mix(1.0, mix(sm.sample_compare(cmp, uv, z), 1.0, edge), u.sunColor.w);
+    }
     float s = sm.sample_compare(cmp, uv, z) * 2.0;
     s += sm.sample_compare(cmp, uv + float2(ts, ts) * 1.2, z);
     s += sm.sample_compare(cmp, uv + float2(-ts, ts) * 1.2, z);
     s += sm.sample_compare(cmp, uv + float2(ts, -ts) * 1.2, z);
     s += sm.sample_compare(cmp, uv + float2(-ts, -ts) * 1.2, z);
     s /= 6.0;
-    float edge = smoothstep(0.82, 0.97, max(abs(sc.x), abs(sc.y)));
     return mix(1.0, mix(s, 1.0, edge), u.sunColor.w);
 }
 
@@ -320,7 +324,8 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
     if (r.y > -0.05) {
         float3 pr = in.rel;
         float stepL = 0.4 + dist * 0.02;
-        for (int i = 0; i < 20; i++) {
+        int steps = dist > 64.0 ? 8 : (dist > 24.0 ? 14 : 20);
+        for (int i = 0; i < steps; i++) {
             pr += r * stepL;
             stepL *= 1.18;
             float4 cp = u.viewProj * float4(pr, 1.0);
