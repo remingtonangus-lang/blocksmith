@@ -601,6 +601,16 @@ enum ShipTest {
             check(after == before + 1, "a vessel appears when the player nears its home")
         } else { check(false, "an encounter within six regions") }
 
+        // Far ships sleep and give their meshes back; they wake when the player returns.
+        let fpos = fg.pos
+        g.player.pos = fpos + V3(600, 0, 0)
+        w.ships.update(1.0 / 60, game: g)
+        let slept = fg.asleep && fg.mesh.released
+        g.player.pos = fpos + V3(20, 10, 0)
+        w.ships.update(1.0 / 60, game: g)
+        print("physicstest sleep: 600 blocks away asleep+released \(slept), back near awake \(!fg.asleep) meshed \(!fg.mesh.released)")
+        check(slept && !fg.asleep && !fg.mesh.released, "far ships sleep and wake")
+
         // A vessel that loses its helm founders: no orders, its envelope lets it down.
         let wa = land + V3(-150, 0, 150)
         _ = w.loadSync(center: wa, radius: max(rd, 6))
