@@ -18,7 +18,7 @@ concurrency:
 jobs:
   build:
     runs-on: macos-14
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -50,6 +50,14 @@ jobs:
           bash perf/profile.sh meshprof 8 2>&1 | tee -a profile.log
           bash perf/profile.sh genprof 8 2>&1 | tee -a profile.log
 
+      - name: Playthrough (progression tests)
+        id: play
+        if: always() && steps.build.outcome == 'success'
+        timeout-minutes: 20
+        run: |
+          set -o pipefail
+          build/Blocksmith.app/Contents/MacOS/Blocksmith --playthrough 2>&1 | tee playthrough.log
+
       - name: Snapshots
         id: snap
         if: always() && steps.build.outcome == 'success'
@@ -59,6 +67,7 @@ jobs:
 
       - name: Terrain check
         id: terrain
+        if: always() && steps.build.outcome == 'success'
         run: |
           set -o pipefail
           build/Blocksmith.app/Contents/MacOS/Blocksmith --terrainmap snaps/check --step 32 --strict 2>&1 | tee terrain.log
@@ -78,6 +87,7 @@ jobs:
 
       - name: Publish to ci-snaps
         if: always()
+        continue-on-error: true     # parallel branches race for the shared ci-snaps ref
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
@@ -88,7 +98,7 @@ jobs:
           rm -rf "$PUB"; mkdir -p "$PUB"
           cp snaps/*.png "$PUB/" 2>/dev/null || true
           if [ -d snaps/sounds ]; then cp -r snaps/sounds "$PUB/sounds"; fi
-          cp build.log snap.log debug.log terrain.log bench.log profile.log snaps/bench.json snaps/bench.md snaps/profile_*.txt "$PUB/" 2>/dev/null || true
+          cp build.log snap.log debug.log terrain.log playthrough.log bench.log profile.log snaps/bench.json snaps/bench.md snaps/profile_*.txt "$PUB/" 2>/dev/null || true
           cd "$PUB"
           {
             echo "# Blocksmith CI snapshots"
@@ -106,6 +116,12 @@ jobs:
               grep '^bench' bench.log 2>/dev/null || true
               echo '```'
               cat bench.md
+            fi
+            if [ -f playthrough.log ]; then
+              echo "### Playthrough"
+              echo '```'
+              grep -E '^(PASS|FAIL|INFO|----|playthrough)' playthrough.log | tail -n 150
+              echo '```'
             fi
             if [ -d sounds ]; then
               echo "### Synthesized sounds"
@@ -127,6 +143,13 @@ jobs:
             git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ci-snaps
           fi
 
+      - name: Report
+        if: always()
+        run: |
+          echo "== build errors"; grep -E "error:" build.log | head -20 || true
+          echo "== playthrough"; grep -E "^(PASS|FAIL|INFO|----|playthrough)|Fatal|fatal error" playthrough.log | cut -c1-220 | tail -n 170 || true
+          echo "== snapshots"; grep -E "Fatal|fatal error|Abort|Segmentation" snap.log | head -10 || true
+
       - name: Upload artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -142,4 +165,5 @@ jobs:
             profile.log
             build.log
             snap.log
+            playthrough.log
           if-no-files-found: ignore

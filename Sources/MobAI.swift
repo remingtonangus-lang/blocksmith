@@ -19,6 +19,11 @@ extension MobKind {
         case .pillager, .vindicator, .evoker, .ravager: return 32
         case .phantom: return 64
         case .warden: return 24
+        case .soldierRecruit: return 26
+        case .soldierTrooper: return 32
+        case .soldierMarksman: return 60
+        case .soldierIronclad: return 40
+        case .deckGun: return 80
         default: return 16
         }
     }

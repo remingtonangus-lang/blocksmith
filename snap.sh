@@ -9,6 +9,20 @@ trap 'echo "snap.sh: line $LINENO: exit $?" >&2' ERR
 BIN=build/Blocksmith.app/Contents/MacOS/Blocksmith
 mkdir -p snaps
 if [ $# -gt 0 ]; then n="$1"; shift; "$BIN" --snapshot "snaps/$n.png" "$@"; exit; fi
+# Audio (first, so the sound and music checks always run): every sound is rendered and checked into build/sounds (not published); a sampler, the soundscapes
+# and 10 s of every music mood go to snaps/sounds for listening on ci-snaps.
+rm -rf build/sounds snaps/sounds; mkdir -p snaps/sounds
+"$BIN" --sounds build/sounds
+for f in step_stone step_wood step_gravel break_glass break_wood place_metal doorOpen chestOpen pistonExtend lever explode thunder \
+         mob_cow_ambient mob_zombie_ambient mob_skeleton_hurt mob_enderman_ambient mob_ghast_ambient mob_villager_ambient mob_warden_death \
+         dragonGrowl wardenRoar witherSpawn villager_work_0 birdCall owlHoot bell levelUp note_0_12 \
+         gun_0 gun_1 gun_2 gun_3 gun_4 gun_5 gun_9 gun_10 gun_reload_0 gun_distant_0 bulletWhizz bullet_impact_metal soldier_1_alert soldier_3_death \
+         engineFullLoop propFastLoop hullCreak shipCollideHard waterfallLoop riverLoop mountainWindLoop thunderFar; do
+  cp "build/sounds/$f.wav" snaps/sounds/ 2>/dev/null || true
+done
+cp -r build/sounds/scapes snaps/sounds/scapes
+"$BIN" --music snaps/sounds/music --seconds 10
+
 # Terrain: top-down maps of five seeds (8 km square, spawn marked), neighbour check, chunk generation timing.
 "$BIN" --terrainmap snaps
 "$BIN" --genbench --seed 12345
@@ -65,19 +79,6 @@ done
 "$BIN" --snapshot snaps/subtitles.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --subtitles
 "$BIN" --snapshot snaps/survival.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --survival 13 --slot 8 --debug
 "$BIN" --snapshot snaps/sim.png --seed 12345 --sim 12 --yaw 30 --pitch -10 --time 0.25
-# Audio: every sound is rendered and checked into build/sounds (not published); a sampler, the soundscapes
-# and 10 s of every music mood go to snaps/sounds for listening on ci-snaps.
-rm -rf build/sounds snaps/sounds; mkdir -p snaps/sounds
-"$BIN" --sounds build/sounds
-for f in step_stone step_wood step_gravel break_glass break_wood place_metal doorOpen chestOpen pistonExtend lever explode thunder \
-         mob_cow_ambient mob_zombie_ambient mob_skeleton_hurt mob_enderman_ambient mob_ghast_ambient mob_villager_ambient mob_warden_death \
-         dragonGrowl wardenRoar witherSpawn villager_work_0 birdCall owlHoot bell levelUp note_0_12 \
-         gun_0 gun_1 gun_2 gun_3 gun_4 gun_5 gun_9 gun_10 gun_reload_0 gun_distant_0 bulletWhizz bullet_impact_metal soldier_1_alert soldier_3_death \
-         engineFullLoop propFastLoop hullCreak shipCollideHard waterfallLoop riverLoop mountainWindLoop thunderFar; do
-  cp "build/sounds/$f.wav" snaps/sounds/ 2>/dev/null || true
-done
-cp -r build/sounds/scapes snaps/sounds/scapes
-"$BIN" --music snaps/sounds/music --seconds 10
 "$BIN" --snapshot snaps/mobs.png --seed 12345 --yaw 30 --pitch -14 --time 0.22 --up 1 --mobs
 "$BIN" --snapshot snaps/hostile.png --seed 12345 --yaw 30 --pitch -12 --time 0.22 --up 1 --mobs --hostile
 "$BIN" --snapshot snaps/nether.png --seed 12345 --dim nether --yaw 30 --pitch -10 --up 2
@@ -131,6 +132,7 @@ cp -r build/sounds/scapes snaps/sounds/scapes
 "$BIN" --snapshot snaps/loom.png --seed 12345 --menu loom
 "$BIN" --snapshot snaps/book.png --seed 12345 --menu book
 "$BIN" --snapshot snaps/advancements.png --seed 12345 --menu advancements
+"$BIN" --snapshot snaps/credits.png --seed 12345 --menu credits
 "$BIN" --snapshot snaps/pause.png --seed 12345 --menu pause
 "$BIN" --snapshot snaps/options.png --seed 12345 --menu options
 "$BIN" --snapshot snaps/death.png --seed 12345 --menu death
@@ -155,8 +157,8 @@ cp -r build/sounds/scapes snaps/sounds/scapes
 "$BIN" --snapshot snaps/gun_hip.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold gun_rifle
 "$BIN" --snapshot snaps/gun_aim.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold gun_shotgun:aim
 "$BIN" --snapshot snaps/gun_scope.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold gun_sniper:aim
-"$BIN" --snapshot snaps/fortress.png --seed 12345 --structure military_base --frame 1 --time 0.3
-"$BIN" --snapshot snaps/fortress_gate.png --seed 12345 --structure military_base --yaw 0 --pitch 5 --time 0.3 --up 1
+"$BIN" --snapshot snaps/steelhold.png --seed 12345 --structure military_base --frame 1 --time 0.3
+"$BIN" --snapshot snaps/steelhold_gate.png --seed 12345 --structure military_base --yaw 0 --pitch 5 --time 0.3 --up 1
 "$BIN" --snapshot snaps/mobtests.png --seed 12345 --find plains --yaw 0 --pitch -30 --time 0.3 --up 3 --mobtests
 "$BIN" --snapshot snaps/pathtest.png --seed 12345 --find plains --yaw 0 --pitch -40 --time 0.75 --up 14 --pathtest
 "$BIN" --snapshot snaps/ashen_grove.png --seed 12345 --find pale_garden --yaw 210 --pitch -20 --time 0.3 --up 4 --treecheck

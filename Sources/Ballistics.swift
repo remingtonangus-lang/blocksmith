@@ -210,7 +210,9 @@ final class Armory {
         let whole = floorf(s.damage)
         let n = Int(whole) + (Float.random(in: 0..<1) < s.damage - whole ? 1 : 0)
         g.sfx(.bulletFlesh, 0.8)
+        g.bulletHit = true
         g.hurtPlayer(max(1, n), from: at - dir * 3, cause: "was shot by \(s.by)", knockback: 0.25, type: .projectile)
+        g.bulletHit = false
     }
 
     func detonate(_ s: Slug, at: V3, _ g: Game) {
@@ -376,14 +378,16 @@ extension Game {
         }
         if input.tapped(15) || (p.x && !q.x) { startReload(gi); return true }     // R key (keycode 15) or pad X
         let trigger = gs.auto ? fire : firePressed
-        guard trigger, a.cooldown <= 0 else { return true }
+        guard trigger else { return true }
         if held.tag <= 0 {
+            // Empty: pulling the trigger reloads (or clicks dry without ammunition).
             if !startReload(gi) && firePressed {
                 sfx(.gun(7), 0.8)
                 onToast?("No \(Items.def(Items.id(gs.ammo)).display)")
             }
             return true
         }
+        guard a.cooldown <= 0 else { return true }
         fireHeldGun(gi)
         return true
     }

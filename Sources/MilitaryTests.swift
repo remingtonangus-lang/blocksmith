@@ -41,7 +41,8 @@ extension MobTests {
             game.selected = 0
             var s = ItemStack(Items.id(name), 1); s.tag = tag
             game.inventory.held = s
-            game.arms.reload = 0; game.arms.cooldown = 0; game.arms.heldGun = -1
+            game.arms.reload = 0; game.arms.cooldown = 0
+            game.arms.heldGun = Guns.index(s.item) ?? -1; game.arms.heldSlot = game.selected
         }
         func trigger(_ seconds: Float, fire: Bool, aim: Bool = false) {
             var t: Float = 0
@@ -217,7 +218,7 @@ extension MobTests {
         if let sc = world.gen.structures, let type = sc.types.first(where: { $0.name == "military_base" }) {
             var found = 0
             for rz in -6..<6 { for rx in -6..<6 where sc.start(type, regionX: rx, regionZ: rz) != nil { found += 1 } }
-            check(found >= 1 && found <= 60, "fortresses are rare", "\(found) in 144 regions of 88x88 chunks")
+            check(found >= 1 && found <= 60, "fortresses are rare", "\(found) in 144 regions of 64x64 chunks")
             // Lay one out on a plain stone slab, chunk by chunk.
             var built: [String: Int] = [:]
             var mobs: [String: Int] = [:]

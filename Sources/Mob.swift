@@ -289,6 +289,8 @@ final class Mob {
     var phaseTime: Float = 0
     var circleAngle: Float = 0
     weak var healTarget: Mob?       // hollow crystal currently healing the dragon
+    var sitDamage = 0               // damage the wyrm has taken during this perch
+    var sideHeads: [Float] = [1, 1.5]   // Blight side heads: seconds until each fires again
     var peek: Float = 0             // shellsentry lid opening 0...1
     var home: V3?                   // villager / golem: where it was placed (it stays near)
     weak var target: Mob?           // golem: the monster it is chasing
@@ -947,12 +949,19 @@ final class Mob {
         hurtSound = true
         if kind == .creaking { hurt = 0.25; return }            // only breaking its heart ends a Barkwraith
         if kind == .enderDragon {
-            // Hits land at a quarter (+1) unless the dragon is perched; it never dies instantly.
+            // Head hits land in full; hits anywhere else (body, wings, tail) at a quarter + 1, like the reference
+            // game's multi-part wyrm. A perched wyrm takes off once it has lost a quarter of its health up there.
             if phase == 6 { return }
-            health -= phase == 4 ? damage : damage / 4 + 1
+            let head = pos + forward * 5 + V3(0, 2, 0)
+            let onHead = simd_length(src - head) < simd_length(src - (pos + V3(0, 2, 0)))
+            let dealt = onHead ? damage : damage / 4 + min(damage, 1)
+            health -= dealt
             hurt = 0.4
             if health <= 0 { health = 1; phase = 6; phaseTime = 0 }
-            else if phase == 4 && Float.random(in: 0..<1) < 0.2 { phase = 5; phaseTime = 0 }
+            else if phase == 4 {
+                sitDamage += dealt
+                if sitDamage > spec.health / 4 { sitDamage = 0; phase = 5; phaseTime = 0 }
+            }
             return
         }
         if kind == .wither {
@@ -1523,6 +1532,9 @@ final class MobManager {
             }
         }
         mobs += babies
+        // The wyrm never just vanishes: however its health ran out (potions, /kill, explosions) it plays its death
+        // sequence, which opens the exit portal (Hollow.swift).
+        for m in mobs where m.kind == .enderDragon && m.health <= 0 && m.health > -1000 { m.health = 1; m.phase = 6; m.phaseTime = 0 }
         // Deaths: loot + XP, slime splitting.
         var spawned: [Mob] = []
         for m in mobs where m.health <= 0 {

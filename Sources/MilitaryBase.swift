@@ -1,8 +1,8 @@
 import Foundation
 import simd
 
-// Steelhold fortresses: very rare square steel bases on open flat land (plains, savanna, desert, snowy
-// plains, badlands). 63 blocks across with four corner towers, three levels and a roof:
+// Steelhold fortresses: very rare square steel bases (one per 64x64-chunk region at most) on fairly level land
+// (plains, savanna, desert, snowy plains, badlands, meadows, forests, taiga). 63 blocks across with four corner towers, three levels and a roof:
 //   basement   supply depot, generator and a barred vault
 //   ground     entrance hall, barracks, armory, mess hall, workshop around two crossing corridors
 //   upper      the command room in the middle, officers' quarters, comms, medbay and a second barracks
@@ -100,12 +100,13 @@ extension TextureGen {
 
 enum MilitaryBase {
     static let R = 31                 // outer wall half-size
-    static let biomes: Set<Biome> = [.plains, .sunflowerPlains, .savanna, .desert, .snowyPlains, .badlands]
+    static let biomes: Set<Biome> = [.plains, .sunflowerPlains, .savanna, .savannaPlateau, .desert, .snowyPlains, .badlands, .meadow,
+                                     .forest, .birchForest, .taiga, .snowyTaiga]
 
     static func g(_ n: String) -> BlockID { Blocks.has(n) ? Blocks.id(n) : STONE }
 
     static func type(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "military_base", spacing: 88, separation: 30, salt: 70411993, reach: 3) { [unowned gen] seed, cx, cz in
+        StructureType(name: "military_base", spacing: 64, separation: 20, salt: 70411993, reach: 3) { [unowned gen] seed, cx, cz in
             let x = cx * CS + 8, z = cz * CS + 8
             guard MilitaryBase.biomes.contains(gen.column(x, z).biome) else { return nil }
             // Open, fairly flat ground over the whole footprint.
@@ -114,7 +115,7 @@ enum MilitaryBase {
             let R = MilitaryBase.R
             for (dx, dz) in [(-R, -R), (R, -R), (-R, R), (R, R), (0, -R), (0, R), (-R, 0), (R, 0)] {
                 let gy = gen.groundY(x + dx, z + dz)
-                if abs(gy - y) > 7 || gy <= SEA { return nil }
+                if abs(gy - y) > 12 || gy <= SEA { return nil }
                 if gen.column(x + dx, z + dz).biome.isOcean { return nil }
             }
             let y0 = y + 1
