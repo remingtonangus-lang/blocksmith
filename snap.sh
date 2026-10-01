@@ -90,6 +90,7 @@ done
 "$BIN" --snapshot snaps/loom.png --seed 12345 --menu loom
 "$BIN" --snapshot snaps/book.png --seed 12345 --menu book
 "$BIN" --snapshot snaps/advancements.png --seed 12345 --menu advancements
+"$BIN" --snapshot snaps/credits.png --seed 12345 --menu credits
 "$BIN" --snapshot snaps/pause.png --seed 12345 --menu pause
 "$BIN" --snapshot snaps/options.png --seed 12345 --menu options
 "$BIN" --snapshot snaps/death.png --seed 12345 --menu death

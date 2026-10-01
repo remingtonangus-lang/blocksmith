@@ -97,7 +97,13 @@ extension Game {
             }
         case .pearl:
             // Teleport to the landing point; 5 damage (fall), 5% voidmite.
-            if f.byPlayer {
+            if f.byPlayer, let b = block, Blocks.key(world.block(b.hit.x, b.hit.y, b.hit.z)) == "end_gateway" {
+                // A pearl thrown into a hollow rift carries the player through it.
+                player.pos = V3(Float(b.hit.x) + 0.5, Float(b.hit.y), Float(b.hit.z) + 0.5)
+                portalCooldown = 3
+                gatewayTeleport()
+                damage(5, "fell from a high place", bypassArmor: true, type: .fall)
+            } else if f.byPlayer {
                 var t = at
                 if let b = block { t = V3(Float(b.hit.x + b.normal.x), Float(b.hit.y + b.normal.y), Float(b.hit.z + b.normal.z)) + V3(0.5, 0, 0.5) }
                 player.pos = t
@@ -109,7 +115,8 @@ extension Game {
         case .witherSkull, .blueSkull:
             if hitP {
                 hurtPlayer(8, from: f.pos, cause: "was shot by a Blight Skull", knockback: 0.3, type: .projectile)
-                applyEffect(.wither, amp: 1, seconds: 10)
+                // Blight II: none on Easy, 10 s on Normal, 40 s on Hard (reference).
+                if difficulty >= 2 { applyEffect(.wither, amp: 1, seconds: difficulty >= 3 ? 40 : 10) }
             } else if let m = mob, m.kind != .wither {
                 m.hit(from: f.pos, damage: 8, knockback: 0.3)
                 m.applyEffect(.wither, amp: 1, seconds: 10, game: self)
@@ -199,17 +206,27 @@ extension Mob {
             // Hover above the target (lower when armored).
             let hdir = V2(t.x - pos.x, t.z - pos.z)
             let hd = simd_length(hdir)
-            let want: Float = armored ? 1 : 5
+            // Reference movement: 5 blocks above the target (level with it once armoured), closing to within 3.
+            let want: Float = armored ? -1.2 : 3.8          // t is ~1.2 above the target's feet
             goal = V3(pos.x, t.y + want, pos.z)
-            if hd > 9 { goal.x += hdir.x / hd * 3; goal.z += hdir.y / hd * 3 }
-            // Heads: the middle one fires at the target every 2 s; the side heads at random targets.
+            if hd > 3 { goal.x += hdir.x / hd * min(3, hd - 3); goal.z += hdir.y / hd * min(3, hd - 3) }
+            // Heads: the middle one fires at the target every 2 s (range 20); each side head picks the nearest
+            // living target within 20 blocks (the player included) and fires every 2-3 s.
             attackCooldown -= dt
-            if attackCooldown <= 0 {
-                attackCooldown = armored ? 1.2 : 2
+            if attackCooldown <= 0 && simd_length(t - pos) < 20 {
+                attackCooldown = 2
                 shootSkull(at: t, g, blue: Float.random(in: 0..<1) < 0.001)
-                if Float.random(in: 0..<1) < 0.5, let other = g.mobs.mobs.filter({ !$0.undead && $0.kind != .wither && simd_length($0.pos - pos) < 20 }).randomElement() {
-                    shootSkull(at: other.pos + V3(0, other.height / 2, 0), g, blue: false, side: true)
+            }
+            for i in 0..<2 {
+                sideHeads[i] -= dt
+                guard sideHeads[i] <= 0 else { continue }
+                sideHeads[i] = Float.random(in: 2...3)
+                var aimAt: V3?
+                if g.survival && g.alive && simd_length(g.player.pos - pos) < 20 { aimAt = g.player.eye - V3(0, 0.4, 0) }
+                if i == 1 || aimAt == nil, let other = g.mobs.mobs.filter({ !$0.undead && $0.kind != .wither && $0.health > 0 && $0.kind.spec.behavior != .vehicle && simd_length($0.pos - pos) < 20 }).randomElement() {
+                    aimAt = other.pos + V3(0, other.height / 2, 0)
                 }
+                if let a = aimAt { shootSkull(at: a, g, blue: false, side: true, left: i == 0) }
             }
         } else {
             circleAngle += dt * 0.3
@@ -242,8 +259,8 @@ extension Mob {
         if Float.random(in: 0..<1) < dt * 8 { g.particles.smoke(at: pos + V3(Float.random(in: -0.6...0.6), Float.random(in: 1...3.5), Float.random(in: -0.6...0.6))) }
     }
 
-    func shootSkull(at t: V3, _ g: Game, blue: Bool, side: Bool = false) {
-        let from = pos + V3(0, 3.1, 0) + (side ? V3(cosf(yaw), 0, -sinf(yaw)) * (Bool.random() ? 1.3 : -1.3) : .zero)
+    func shootSkull(at t: V3, _ g: Game, blue: Bool, side: Bool = false, left: Bool = false) {
+        let from = pos + V3(0, 3.1, 0) + (side ? V3(cosf(yaw), 0, -sinf(yaw)) * (left ? 1.3 : -1.3) : .zero)
         let f = Fireball(from, simd_normalize(t - from) * (blue ? 8 : 16), big: false, byPlayer: false)
         f.kind = blue ? .blueSkull : .witherSkull
         f.shooter = self
