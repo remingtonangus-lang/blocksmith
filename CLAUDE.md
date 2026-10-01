@@ -23,13 +23,19 @@ Goals: polished, efficient on M1/8 GB, extensible. Later: Xbox controller on a T
 - Chunk.swift: CS=16, CH=384 (YOFF=64 → displayed y = y−64), SEA=126, Section (per-16³ buffers, versions), Chunk (blocks, light, heightmap, tints).
 - Mesher.swift: `buildSection(n9, h9, sy)` → 48³ region, light flood, vertex format documented in the file (1/16 positions, uv, 10-bit layer, tint, overlay, smooth light).
 - World.swift: streaming/scheduling per section, setBlock (sync remesh around the block, async for light radius), lightAt, box collision (`collides`, `sweep`, `moveBody` with step-up), raycast with selection boxes, fluid sim, blockEntities.
-- Loot.swift (mining speed/harvest/drops), Recipes.swift (crafting/smelting/fuel), BlockEntities.swift (chest/furnace), Menu.swift (container screens), Entities.swift (dropped items, EntityWriter), Mob.swift (animals), Sound.swift (synth + AVAudioEngine), Player.swift, Game.swift (tick, interaction, survival, menus), Renderer.swift (sections, entities, HUD, menus), Shaders.swift, App.swift, main.swift (snapshot harness).
+- Loot.swift (mining speed/harvest/drops), Recipes.swift (crafting/smelting/fuel), BlockEntities.swift (chest/furnace), Menu.swift (container screens), Entities.swift (dropped items, EntityWriter), Mob.swift (animals), Sound.swift / SoundSynth.swift / SoundMobs.swift / SoundEngine.swift / Music.swift / AudioAmbience.swift / AudioHooks.swift (procedural audio: roster + bank, DSP + renderers, mob voices, AVAudioEngine 3D/loops/settings, music synth + composer, game-side loops/stings/director, materials/hooks — add a sound: new `Snd` case, list it in `SoundBank.allSounds`, render it in `Synth.render`, categorize it in `Snd.category`, then `Blocksmith --sounds DIR` checks it), Player.swift, Game.swift (tick, interaction, survival, menus), Renderer.swift (sections, entities, HUD, menus), Shaders.swift, App.swift, main.swift (snapshot harness).
 
 - Structures.swift: StructureCache (region grid spacing/separation + fixed starts), StructWriter (per-chunk clipped writes, chests with Loot tables, spawners, structure mobs → World.pendingMobs), Piece/StructureStart. Fortress.swift, Bastion.swift, Stronghold.swift, EndCity.swift build on it; generators expose `structures`.
 - End.swift: eyes of ender, hollow gate activation/travel, dragon + crystal AI, acid clouds, sentry bolts, gateways, credits. NetherGen.swift also holds EndGen (island, spikes, fountain, outer islands, spiral).
 
 - Later systems (one file each, mostly `extension Game`): Effects, Potions, Enchant, Villager, Raid, Beacon, Weather, GameCombat (shield/crossbow/trident/fishing), Animals + Riding, Boats, Equipment (mob armour, armor stands), Gadgets (FOV, spyglass, leads), Banners (+ loom), Fireworks (also special crafting: Fireworks.craft), Books (+ lecterns), Bundles, Workblocks (composter, bell), WoodBlocks (pillar axes, stripped wood), Shelf (chiseled bookshelf, decorated pot), Crafter, Physics (wind charge, sponge, powder snow), DragonRespawn, MinecartVariants (+ goat horns), Advancements, Decor (signs/hanging signs/frames/paintings), Maps, Jukebox, BigStructures. Sparkstone.swift holds every sparkstone component kind (incl. tripwire, trapped chest, copper bulb, crafter, murk sensor).
 - Swift gotchas seen on CI: long float expressions time out the type checker (split them with typed lets); `import simd` in every file that uses simd_*.
+
+## Voice bug notes
+Remington speaks bugs while playing. They land in ~/Documents/Blocksmith/BugNotes/bug-notes.md (transcript + game state +
+screenshot + .m4a per entry). When he hands you that file, follow BUGNOTES.md: reproduce each `Status: open` entry with the
+harness from its seed/position/facing, fix it, and cite the note's timestamp in the commit. Code: Sources/BugNotes.swift;
+CI check: `--bugnotetest`.
 
 ## Roadmap
 Done: tree variety, plants, clouds/stars, block light + torches, flowing water, creative inventory, survival basics, synthesized sounds, passive mobs.

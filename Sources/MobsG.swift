@@ -104,7 +104,8 @@ extension Game {
                 player.vel = .zero
                 player.airPeak = t.y
                 damage(5, "fell from a high place", bypassArmor: true, type: .fall)
-                sfx(.mobVoidwalker, 0.6)
+                sfx(.teleport, 0.8)
+                if Int.random(in: 0..<20) == 0 { mobs.mobs.append(Mob(.endermite, at: t)) }
             }
         case .witherSkull, .blueSkull:
             if hitP {
@@ -289,6 +290,12 @@ extension Mob {
     func aiEvoker(_ dt: Float, _ g: Game, dist: Float, canTarget: Bool) -> Float {
         spellTimer -= dt
         guard let t = raidTarget(g) ?? (canTarget && dist < 16 ? g.player.pos : nil) else {
+            // Idle conjurers turn blue sheep within 16 blocks red (reference).
+            if spellTimer <= 0, let sh = g.mobs.of(.sheep).first(where: { $0.woolColor == "blue" && simd_length($0.pos - pos) < 16 }) {
+                spellTimer = 5
+                sh.woolColor = "red"
+                g.sfx(.evokerCast, 0.8, at: pos)
+            }
             wander(); return moving ? spec.speed * 0.5 : 0
         }
         face(t)
@@ -349,7 +356,8 @@ extension Mob {
             stun -= dt
             if stun <= 0 {
                 // Roar: knock everything back and hurt it.
-                g.sfx(.mobRavager, 1.5, at: pos)
+                g.sfx(.mob(.ravager, .hurt), 1.5, at: pos)
+                g.sfx(.goatRam, 1, at: pos)
                 if simd_length(g.player.pos - pos) < 4 { g.hurtPlayer(6, from: pos, cause: "was slain by Siegebeast", knockback: 2) }
                 for m in g.mobs.mobs where m !== self && !m.raider && simd_length(m.pos - pos) < 4 { m.hit(from: pos, damage: 6, knockback: 2) }
             }
@@ -439,7 +447,7 @@ func extraParts(_ m: Mob, swing: Float) -> [Part] {
         return [
             box(-6, 0, -6, 12, 12, 12, snow, 2),
             box(-5, 11, -5, 10, 10, 10, snow, 2),
-            box(-4, 21, -4, 8, 8, 8, V3(0.9, 0.55, 0.12), 4),
+            box(-4, 21, -4, 8, 8, 8, m.variant == 1 ? snow : V3(0.9, 0.55, 0.12), m.variant == 1 ? 2 : 4),
             box(-2.5, 24.5, -4.2, 1.5, 1.5, 0.3, V3(0.2, 0.12, 0.05)), box(1, 24.5, -4.2, 1.5, 1.5, 0.3, V3(0.2, 0.12, 0.05)),
             box(-2, 22.5, -4.2, 4, 1, 0.3, V3(0.2, 0.12, 0.05)),
             Part(mn: V3(-13, 17, -0.5), mx: V3(-5, 18, 0.5), pivot: V3(-5, 17.5, 0), rotZ: -0.4 + arm, color: stick),

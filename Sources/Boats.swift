@@ -77,7 +77,7 @@ extension Game {
         if riding != nil { return false }
         riding = m
         player.pos = m.pos + V3(0, 0.1, 0)
-        sfx(.place(.wood), 0.4, at: m.pos)
+        sfx(.boatPaddle, 0.5, at: m.pos)
         return true
     }
 

@@ -20,8 +20,10 @@ enum Snapshot {
             }
         }()
         let wg = gen as? WorldGen
-        for _ in 0..<40000 {
-            let wx = x * 16 + 8, wz = z * 16 + 8
+        // Biomes follow climate belts thousands of blocks wide: spiral out in 48-block steps (~6 km across).
+        let stepB = 48
+        for _ in 0..<16000 {
+            let wx = x * stepB + 8, wz = z * stepB + 8
             var ok = true
             for (ox, oz) in [(0, 0), (24, 0), (-24, 0), (0, 24), (0, -24)] {
                 let hit: Bool
@@ -80,6 +82,16 @@ enum Snapshot {
         game.player.flying = true
         game.time = (Double(arg("--time") ?? "") ?? 0.2) * DAY_LENGTH
         if let s = arg("--slot") { game.selected = Int(s) ?? 0 }
+        if let h = arg("--hold") {
+            // --hold item[:aim]: put an item in the hand (guns come loaded; ":aim" aims down the sights).
+            let parts = h.split(separator: ":").map(String.init)
+            if Items.has(parts[0]) {
+                var st = ItemStack(Items.id(parts[0]), 1)
+                if let gi = Guns.index(st.item) { st.tag = Guns.all[gi].mag; game.arms.heldGun = gi; game.arms.heldSlot = game.selected }
+                game.inventory.held = st
+                if parts.count > 1 && parts[1] == "aim" { game.arms.aim = 1 }
+            }
+        }
         if let hp = arg("--survival") {
             game.survival = true
             game.health = Int(hp) ?? 20
@@ -109,6 +121,22 @@ enum Snapshot {
                 game.player.swimming = true
                 game.player.pos.y = Float(SEA) - 0.35
             }
+        }
+        if CommandLine.arguments.contains("--subtitles") {
+            // Subtitle test: a few sounds around the camera (left, right, ahead, the player's own).
+            AudioSettings.forceSubtitles = true
+            let e = game.player.eye, r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))
+            game.sfx(.mob(.cow, .ambient), at: e - r * 6)
+            game.sfx(.explode, at: e + r * 10)
+            game.sfx(.doorOpen, at: e + game.player.look * 5)
+            game.sfx(.birdCall, at: e + r * 8 + V3(0, 4, 0))
+            game.sfx(.hurt)
+        }
+        if CommandLine.arguments.contains("--fast") {
+            // Fast graphics for this shot only: keep the user's saved preference untouched.
+            let saved = UserDefaults.standard.object(forKey: "fancyGraphics")
+            game.fancyGraphics = false
+            if let s = saved { UserDefaults.standard.set(s, forKey: "fancyGraphics") } else { UserDefaults.standard.removeObject(forKey: "fancyGraphics") }
         }
         if CommandLine.arguments.contains("--debug") {
             game.showDebug = true
@@ -523,6 +551,9 @@ enum Snapshot {
                     }
                     eq.append(Items.has("\(parts[1])_sword") ? ItemStack(Items.id("\(parts[1])_sword"), 1) : .empty)
                     m.equip = eq
+                } else if parts.count > 1 && parts[1] == "aggro" {
+                    m.aggro = true                                   // soldiers raise their guns
+                    if parts.count > 2, let gi = Int(parts[2]) { m.variant = gi }
                 } else if parts.count > 1 { var d = VillagerData(); d.profession = parts[1]; m.villager = d }
                 if k == .wither { m.phase = 0; m.pos.y += 2 }
                 if k == .evoker { m.spellTimer = 4.5 }
@@ -541,6 +572,20 @@ enum Snapshot {
                 let gy = world.topY(x, z)
                 world.setBlock(x, gy, z, Blocks.id("smooth_stone"))
                 world.setBlock(x, gy + 1, z, Blocks.id(String(parts[0])) + BlockID(parts.count > 1 ? Int(parts[1]) ?? 0 : 0))
+            }
+        }
+        if let list = arg("--gallery") {
+            // Block gallery: a wall of up to 8 x 4 blocks, 7 blocks ahead, facing the camera (texture review).
+            let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)), r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))
+            let names = list.split(separator: ",").map(String.init).filter { Blocks.has(String($0.split(separator: ":")[0])) }
+            let cols = min(8, max(1, names.count))
+            let base = game.player.eye + f * 7
+            for (i, n) in names.prefix(32).enumerated() {
+                let parts = n.split(separator: ":")
+                let col = i % cols, row = i / cols
+                let p = base + r * (Float(col) - Float(cols - 1) / 2) + V3(0, 1.5 - Float(row), 0)
+                world.setBlock(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)),
+                               Blocks.id(String(parts[0])) + BlockID(parts.count > 1 ? Int(parts[1]) ?? 0 : 0))
             }
         }
         if CommandLine.arguments.contains("--redstone") {
@@ -639,6 +684,7 @@ enum Snapshot {
             let route = PathFinder.find(world, from: from, to: to, tall: 2) ?? []
             print("path: \(route.count) nodes, ends \(route.last.map { "\($0.x - bx),\($0.y - gy),\($0.z - bz)" } ?? "-")")
             let z = Mob(.zombie, at: from)
+            z.lockTime = 60                                   // already chasing (the wall hides the player)
             game.mobs.mobs.removeAll()
             game.mobs.mobs.append(z)
             game.paused = false
@@ -657,6 +703,7 @@ enum Snapshot {
             print(String(format: "pathtest: zombie start %.1f from player, end %.1f, reached %@", d0, simd_length(z.pos - to), reached < 0 ? "never" : String(format: "after %.1f s", reached)))
             game.player.pos = pos
         }
+        if CommandLine.arguments.contains("--mobtests") && !MobTests.run(game: game, world: world, pos: pos, rd: rd) { return 1 }
         if let secs = Double(arg("--ticks") ?? "") {
             // Let the world run (mobs, sparkstone, villagers) with the camera held still.
             let keep = (game.player.pos, game.player.yaw, game.player.pitch)
@@ -669,6 +716,19 @@ enum Snapshot {
             var jobs: [String: Int] = [:]
             for m in game.mobs.mobs where m.kind == .villager { jobs[m.villager?.profession ?? "?", default: 0] += 1 }
             print("after \(secs) s: \(game.mobs.mobs.count) mobs, villagers \(jobs.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))")
+        }
+        if CommandLine.arguments.contains("--padtest") { PadTest.run(game) }     // scripted controller menu tests
+        if CommandLine.arguments.contains("--pad") { PadManager.shared.forcePad(true) }   // draw prompts with pad glyphs
+        if CommandLine.arguments.contains("--couch") || arg("--safe") != nil {
+            // TV layout checks without touching the saved options (restored after the shot).
+            PrefsSandbox.begin()
+            if CommandLine.arguments.contains("--couch") { HudLayout.couch = true }
+            if let sa = Int(arg("--safe") ?? "") { Settings.shared.safeArea = sa }
+        }
+        if let v = arg("--padview") { PadTest.view(game, v) }
+        if CommandLine.arguments.contains("--hints") {
+            // The minimap samples on a worker; fill its area now so the single frame shows it.
+            MapCache.shared.prefill(world.gen, x: Int(game.player.pos.x), z: Int(game.player.pos.z), radius: 72, step: 4)
         }
         if CommandLine.arguments.contains("--selftest") {
             // Crash smoke test: every mob kind, every block, the special crafting paths, bundles, and 3 s of ticks.
@@ -759,9 +819,14 @@ enum Snapshot {
                          game.inventory.main.slots.reduce(0) { $0 + $1.count }, game.drops.items.count))
         }
 
+        // Ships (ShipTest.swift): a demo vessel under way, or the scripted physics checks.
+        if let kind = arg("--ship") { pos = ShipTest.scene(kind, game: game, at: pos, rd: rd) }
+        var shipFails = 0
+        if CommandLine.arguments.contains("--physicstest") { shipFails = ShipTest.physicsTest(game: game, rd: rd); pos = game.player.pos }
+
         // Mesh benchmark: re-mesh the section at the camera a few times on one thread.
         let key = ChunkKey(x: floorDiv(Int(pos.x), CS), z: floorDiv(Int(pos.z), CS))
-        var n9: [[BlockID]] = [], h9: [[Int16]] = []
+        var n9: [BlockStore] = [], h9: [[Int16]] = []
         for dz in -1...1 { for dx in -1...1 {
             let c = world.chunks[ChunkKey(x: key.x + dx, z: key.z + dz)]!
             n9.append(c.blocks); h9.append(c.height)
@@ -775,6 +840,10 @@ enum Snapshot {
         do { renderer = try Renderer(device: device, game: game, colorFormat: .bgra8Unorm) }
         catch { print("renderer init failed: \(error)"); return 1 }
         game.target = world.raycast(game.player.eye, game.player.look, maxDist: 5)
+        if let s = arg("--crack"), let t = game.target {
+            game.mining = t.hit
+            game.mineProgress = min(0.99, max(0.01, Float(s) ?? 0.6))
+        }
         do {
             // Light probe: the eye cell and the first floor below it (debugging dark views).
             let e = game.player.eye
@@ -823,6 +892,27 @@ enum Snapshot {
             game.player.pos.y = Float(SEA) - 0.35
             print("swim pose: prone \(game.player.prone) eye \(game.player.eye.y - game.player.pos.y)")
         }
+        if CommandLine.arguments.contains("--bugnotetest") {
+            // Voice bug notes pipeline with a synthesized voice (BugNotes.selfTest).
+            BugNotes.selfTest(game) { url in _ = renderer.renderToPNG(path: url.path, width: 640, height: 400) }
+        }
+        if CommandLine.arguments.contains("--boom") {
+            // An explosion 9 blocks ahead (no block damage): flash light, smoke and debris mid-burst.
+            let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
+            var c = game.player.pos + f * 9
+            c.y = Float(world.topY(Int(floor(c.x)), Int(floor(c.z))) + 1)
+            Explosion.explode(at: c, power: 4, game: game, breakBlocks: false)
+            game.particles.update(0.12, world)
+        }
+        if CommandLine.arguments.contains("--ambient") {
+            // Two seconds of ambient block particles (torch smoke, campfire columns, lava sparks).
+            for _ in 0..<40 { game.ambientParticles(0.05); game.emberMotes(0.05); game.particles.update(0.05, world) }
+        }
+        if CommandLine.arguments.contains("--underwater") {
+            // Head under the sea surface (fog, overlay, water seen from below).
+            game.player.pos.y = Float(SEA) - 4
+            game.player.headInWater = true
+        }
         _ = renderer.renderToPNG(path: out, width: w, height: h) // warm-up (pipeline + residency)
         _ = renderer.renderToPNG(path: out, width: w, height: h)
         let gpu = renderer.medianFrame(30, width: w, height: h)
@@ -832,34 +922,160 @@ enum Snapshot {
         print(String(format: "frame (encode+GPU, offscreen, median of 30) %.2f ms  biome %@", gpu * 1000, "\(world.gen.column(Int(pos.x), Int(pos.z)).biome)"))
         var meshBytes = 0
         for c in world.chunks.values { for sec in c.sections { meshBytes += (sec.opaqueBuf?.length ?? 0) + (sec.transBuf?.length ?? 0) } }
-        var chunkBytes = 0
-        for c in world.chunks.values { chunkBytes += c.blocks.count * 2 + c.light.count + c.height.count * 2 + c.tint.count * 4 }
+        let chunkBytes = Int(Bench.chunkMB(world) * 1_048_576)     // stored block sections + per-section light + heights + tints
         print(String(format: "mesh slabs %.0f MB, chunks %ld (block+light arrays %.0f MB), Metal allocated %.0f MB", Double(MeshArena.shared.slabBytes) / 1_048_576,
                      world.chunks.count, Double(chunkBytes) / 1_048_576, Double(device.currentAllocatedSize) / 1_048_576))
         print(String(format: "memory: resident %.0f MB  (section meshes %.0f MB)", residentMB(), Double(meshBytes) / 1_048_576))
         print("wrote \(out)")
-        return 0
+        return shipFails > 0 ? 1 : 0
     }
 }
 
 if let dir = arg("--sounds") {
-    // Synth check: render every sound effect (variant 0) to a WAV file.
+    // Synth check: render every sound effect (take 0) to a WAV and verify it is non-silent, unclipped,
+    // finite, the expected length, click-free and (for loops) seamless. Exit 1 on any failure.
     let t0 = CFAbsoluteTimeGetCurrent()
-    let bank = SoundBank()
     try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-    var total = 0
-    for s in SoundBank.allSounds {
-        let c = bank.clip(s, variant: 0)
+    var total = 0, failures = 0
+    var list = SoundBank.allSounds
+    for inst in 0..<16 { list.append(.note(inst, 12)) }
+    var byCategory: [SoundCategory: Int] = [:]
+    var slow: [(String, Double)] = []
+    for s in list {
+        let r0 = CFAbsoluteTimeGetCurrent()
+        let c = SoundBank.render(s, variant: 0)
+        slow.append((s.name, (CFAbsoluteTimeGetCurrent() - r0) * 1000))
+        // Takes must differ (variation) and be deterministic (same seed, same samples).
+        if SoundBank.variants(for: s) > 1 && SoundBank.render(s, variant: 1) == c { failures += 1; print("FAIL \(s.name): variants identical") }
+        if s.name.hasPrefix("step_stone") && SoundBank.render(s, variant: 0) != c { failures += 1; print("FAIL \(s.name): not deterministic") }
+        let chk = SoundBank.check(s, c)
         total += c.count
-        let name = String("\(s)".replacingOccurrences(of: "Blocksmith.SoundMat.", with: "").map { $0.isLetter || $0.isNumber ? $0 : "_" })
-        SoundBank.writeWAV(c, to: "\(dir)/\(name).wav")
+        byCategory[s.category, default: 0] += 1
+        SoundBank.writeWAV(c, to: "\(dir)/\(s.name).wav")
+        if !chk.ok { failures += 1; print("FAIL \(s.name): \(chk.problems.joined(separator: ", "))") }
     }
-    print(String(format: "synthesized %ld sounds (%.1f s of audio) in %.0f ms", SoundBank.allSounds.count, Double(total) / SoundBank.rate, (CFAbsoluteTimeGetCurrent() - t0) * 1000))
-    exit(0)
+    for c in SoundCategory.allCases where byCategory[c] != nil { print("  \(c.label): \(byCategory[c]!) sounds") }
+    // Soundscapes: 8 s mixes of the beds and stings the game layers in each place (for listening, not checked).
+    let scapes: [(String, [(Snd, Float)], [(Snd, Float, Float)])] = [
+        ("forest_day", [(.windLoop, 0.2)], [(.birdCall, 0.6, 0.35)]),
+        ("forest_night", [(.cricketsLoop, 0.5)], [(.owlHoot, 0.7, 0.08)]),
+        ("jungle", [(.jungleLoop, 0.7)], [(.birdCall, 0.5, 0.5)]),
+        ("swamp_night", [(.swampLoop, 0.7), (.cricketsLoop, 0.3)], []),
+        ("beach", [(.oceanLoop, 0.8), (.windLoop, 0.2)], []),
+        ("rain", [(.rain, 0.8), (.rainRoof, 0.2)], [(.thunder, 0.7, 0.05)]),
+        ("cave", [(.dripstoneLoop, 0.5), (.waterLoop, 0.2)], [(.caveAmbience, 0.6, 0.06), (.caveDrip, 0.4, 0.3)]),
+        ("deep_dark", [(.deepDarkLoop, 0.7)], [(.wardenHeartbeat, 0.4, 0.3)]),
+        ("lava_lake", [(.lavaLoop, 0.8), (.fireLoop, 0.3)], [(.lavaPop, 0.6, 0.8)]),
+        ("emberdeep_wastes", [(.netherWastesLoop, 0.7), (.lavaLoop, 0.3)], [(.netherMood, 0.5, 0.08)]),
+        ("ghost_valley", [(.soulValleyLoop, 0.8)], [(.netherMood, 0.4, 0.06)]),
+        ("rustcap_forest", [(.crimsonLoop, 0.8)], []),
+        ("tealcap_forest", [(.warpedLoop, 0.8)], []),
+        ("basalt_deltas", [(.basaltLoop, 0.8)], []),
+        ("hollow", [(.endLoop, 0.8)], [(.teleport, 0.3, 0.1)]),
+        ("underwater", [(.underwaterLoop, 0.8)], [(.underwaterMood, 0.5, 0.08)]),
+        ("portal", [(.portalLoop, 0.8)], []),
+        ("meadow_night", [(.cricketsLoop, 0.4), (.fireflyLoop, 0.5)], [(.owlHoot, 0.5, 0.06)]),
+        ("apiary", [(.hiveLoop, 0.7), (.windLoop, 0.15)], [(.birdCall, 0.4, 0.25), (.beePollinate, 0.5, 0.3)]),
+        ("ashen_grove", [(.windLoop, 0.3)], [(.heartCreak, 0.7, 0.2), (.owlHoot, 0.4, 0.05)]),
+        ("badlands", [(.windLoop, 0.6)], [(.dryGrassRustle, 0.5, 0.3)]),
+        ("firefight", [(.windLoop, 0.2)], [(.gun(0), 0.7, 1.2), (.gun(1), 0.5, 1.0), (.gunDistant(2), 0.6, 0.3), (.bulletWhizz, 0.6, 0.8),
+                                           (.bulletImpact(.stone), 0.5, 1.5), (.soldier(1, .alert), 0.7, 0.2), (.soldier(2, .attack), 0.6, 0.15), (.gun(9), 0.6, 0.12)]),
+        ("steelhold_patrol", [(.windLoop, 0.3)], [(.soldierStep(1), 0.5, 1.6), (.soldierStep(3), 0.5, 0.8), (.soldier(0, .idle), 0.5, 0.2), (.gun(11), 0.4, 0.1)]),
+        ("waterfall", [(.waterfallLoop, 0.9), (.riverLoop, 0.4)], [(.birdCall, 0.3, 0.2)]),
+        ("mountain_pass", [(.mountainWindLoop, 0.8)], [(.rockfall, 0.5, 0.08), (.windGust, 0.4, 0.15)]),
+        ("tundra", [(.tundraWindLoop, 0.8)], [(.iceCreak, 0.5, 0.15)]),
+        ("snowstorm", [(.snowWindLoop, 0.8), (.tundraWindLoop, 0.4)], []),
+        ("rain_forest", [(.rain, 0.5), (.rainLeavesLoop, 0.7)], [(.thunderFar, 0.6, 0.08)]),
+        ("swamp_day", [(.swampInsectsLoop, 0.6), (.swampLoop, 0.4)], []),
+        ("ship_at_sea", [(.oceanLoop, 0.6), (.hullWaterLoop, 0.6), (.engineFullLoop, 0.4)], [(.hullCreak, 0.5, 0.2)]),
+        ("airship", [(.airshipWindLoop, 0.7), (.propFastLoop, 0.5)], [(.hullCreak, 0.4, 0.15)]),
+        ("land_vehicle", [(.wheelRollLoop, 0.7), (.engineIdleLoop, 0.5)], [(.shipCollide, 0.5, 0.1)]),
+    ]
+    let scapeLen = Int(8 * SoundBank.rate)
+    var rng = SRng(2024)
+    for (name, beds, stings) in scapes {
+        var mix = [Float](repeating: 0, count: scapeLen)
+        for (snd, v) in beds {
+            let loop = SoundBank.render(snd, variant: 0)
+            guard !loop.isEmpty else { continue }
+            for i in 0..<scapeLen { mix[i] += loop[i % loop.count] * v }
+        }
+        for (snd, v, perSecond) in stings {
+            var t: Float = 0.5
+            while t < 7 {
+                t += -logf(max(0.001, rng.float())) / perSecond
+                if t >= 7 { break }
+                let clip = SoundBank.render(snd, variant: rng.int(max(1, SoundBank.variants(for: snd))))
+                let at = Int(t * Float(SoundBank.rate))
+                for i in 0..<clip.count where at + i < scapeLen { mix[at + i] += clip[i] * v }
+            }
+        }
+        var peak: Float = 0
+        for x in mix { peak = max(peak, abs(x)) }
+        if peak > 0.95 { let k = 0.95 / peak; for i in 0..<scapeLen { mix[i] *= k } }
+        try? FileManager.default.createDirectory(atPath: "\(dir)/scapes", withIntermediateDirectories: true)
+        SoundBank.writeWAV(mix, to: "\(dir)/scapes/scape_\(name).wav")
+    }
+    print("  wrote \(scapes.count) soundscapes to \(dir)/scapes")
+    slow.sort { $0.1 > $1.1 }
+    print("  slowest renders: " + slow.prefix(6).map { String(format: "%@ %.0f ms", $0.0 as NSString, $0.1) }.joined(separator: ", "))
+    print(String(format: "synthesized %ld sounds (%.1f s of audio) in %.0f ms, %ld failed", list.count, Double(total) / SoundBank.rate, (CFAbsoluteTimeGetCurrent() - t0) * 1000, failures))
+    exit(failures == 0 ? 0 : 1)
+}
+
+if let dir = arg("--music") {
+    // Music check: compose a piece per mood (fixed seed), render the first 20 s and check it.
+    let t0 = CFAbsoluteTimeGetCurrent()
+    try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+    var failures = 0
+    let seconds: Float = Float(arg("--seconds") ?? "") ?? 20
+    for mood in MusicMood.allCases {
+        let score = Composer.compose(mood, seed: 12345)
+        let again = Composer.compose(mood, seed: 12345), other = Composer.compose(mood, seed: 999)
+        if again.notes.count != score.notes.count || again.length != score.length { failures += 1; print("FAIL \(mood.rawValue): composer not deterministic") }
+        if other.notes.count == score.notes.count && other.length == score.length && other.title == score.title { print("note \(mood.rawValue): seeds 12345 and 999 gave the same shape") }
+        let want = min(score.length, seconds)
+        let x = MusicRenderer.renderMono(score, seconds: want)
+        var peak: Float = 0, sq: Float = 0, sum: Float = 0, nan = 0
+        for v in x { if !v.isFinite { nan += 1; continue }; peak = max(peak, abs(v)); sq += v * v; sum += v }
+        let rms = x.isEmpty ? 0 : sqrtf(sq / Float(x.count)), dc = x.isEmpty ? 0 : sum / Float(x.count)
+        let secs = Float(x.count) / Float(SoundBank.rate)
+        var problems: [String] = []
+        if nan > 0 { problems.append("\(nan) non-finite samples") }
+        if peak < 0.05 { problems.append(String(format: "silent (peak %.3f)", peak)) }
+        if peak >= 0.999 { problems.append("clipped") }
+        if rms < 0.005 { problems.append(String(format: "too quiet (rms %.4f)", rms)) }
+        if abs(dc) > 0.03 { problems.append(String(format: "dc offset %.3f", dc)) }
+        if abs(secs - want) > 0.5 { problems.append(String(format: "length %.1fs, wanted %.1fs", secs, want)) }
+        if score.notes.count < 40 { problems.append("only \(score.notes.count) notes") }
+        if score.length < 60 || score.length > 400 { problems.append(String(format: "piece length %.0fs", score.length)) }
+        // Every note must be inside the piece with a sane pitch.
+        for n in score.notes where n.t < 0 || n.t > score.length || n.midi < 20 || n.midi > 110 || n.dur <= 0 { problems.append("bad note at \(n.t)"); break }
+        SoundBank.writeWAV(x, to: "\(dir)/music_\(mood.rawValue).wav")
+        print(String(format: "%-12@ %4ld notes  %5.0f s  peak %.2f rms %.3f  \"%@\"%@", mood.rawValue as NSString, score.notes.count, score.length, peak, rms, score.title as NSString,
+                     (problems.isEmpty ? "" : "  FAIL: " + problems.joined(separator: ", ")) as NSString))
+        if !problems.isEmpty { failures += 1 }
+    }
+    print(String(format: "rendered %ld pieces in %.0f ms, %ld failed", MusicMood.allCases.count, (CFAbsoluteTimeGetCurrent() - t0) * 1000, failures))
+    exit(failures == 0 ? 0 : 1)
+}
+
+if let out = arg("--bench") {
+    exit(Bench.run(out))
+}
+
+if let dir = arg("--terrainmap") { exit(TerrainTools.maps(dir)) }
+if CommandLine.arguments.contains("--genbench") { exit(TerrainTools.genBench()) }
+
+if let out = arg("--atlas") {
+    exit(dumpAtlas(out))
 }
 
 if let out = arg("--snapshot") {
-    exit(Snapshot.run(out))
+    HudExtras.enabled = CommandLine.arguments.contains("--hints")
+    let code = Snapshot.run(out)
+    PrefsSandbox.end()
+    exit(PadTest.failures > 0 ? 3 : code)
 }
 
 let app = NSApplication.shared

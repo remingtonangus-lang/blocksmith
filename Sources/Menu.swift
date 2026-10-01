@@ -435,39 +435,3 @@ final class HopperMenu: Menu {
         addPlayerInventory(y: 51)
     }
 }
-
-final class CreativeMenu: Menu {
-    let all: [ItemID] = Items.creativeList
-    var scroll = 0
-    let rows = 5
-    init(game: Game) {
-        super.init("Creative Inventory", game: game)
-        width = 195
-        height = 136
-        for r in 0..<rows { for c in 0..<9 {
-            let s = MenuSlot(9 + c * 18, 18 + r * 18, nil, 0, .palette)
-            slots.append(s)
-        } }
-        for c in 0..<9 {
-            let s = MenuSlot(9 + c * 18, 112, game.inventory.main, c)
-            s.isPlayerInv = true
-            s.isHotbar = true
-            slots.append(s)
-        }
-        showInventoryLabel = false
-        refresh()
-    }
-    var maxScroll: Int { max(0, (all.count + 8) / 9 - rows) }
-    func refresh() {
-        for i in 0..<(rows * 9) {
-            let k = scroll * 9 + i
-            slots[i].paletteItem = k < all.count ? all[k] : 0
-        }
-    }
-    func scrollBy(_ d: Int) { scroll = max(0, min(maxScroll, scroll + d)); refresh() }
-    override func quickMoveTargets(from: MenuSlot) -> [MenuSlot] { [] }
-    override func click(_ slot: MenuSlot, button: Int, shift: Bool) {
-        if slot.isHotbar && shift { slot.stack = .empty; return }
-        super.click(slot, button: button, shift: shift)
-    }
-}

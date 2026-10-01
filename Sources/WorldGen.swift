@@ -1,10 +1,9 @@
 import Foundation
 
-// Surface generator modelled on the reference game's 1.18+ design (own noises and numbers):
-//  - five climate parameters per column: temperature, humidity, continentalness, erosion and
-//    weirdness (peaks & valleys = 1 - |3|w| - 2|), which pick the biome from multi-noise style tables;
-//  - terrain height from continentalness/erosion/PV (oceans, coasts, rivers along weirdness zero
-//    lines, plateaus, windswept hills, peaks up to ~y 250) shaped by 3D density for overhangs;
+// Surface generator: heights, rivers, lakes, climate and biomes come from Terrain (Terrain.swift); this
+// class turns them into blocks:
+//  - 3D density on a 4x8x4 lattice around the terrain height (overhangs and cliffs in the mountains, calm
+//    banks along rivers and lakes);
 //  - noise caves (cheese caverns, spaghetti tunnels, noodles), aquifers, lava below y -55;
 //  - biome surface rules, 1.18 ore distributions, dungeons, geodes, cave biomes, per-biome trees
 //    and vegetation, ocean plants, icebergs, ice spikes.
@@ -17,6 +16,7 @@ final class WorldGen: TerrainGenerator {
     let cheeseN: Noise, spag1: Noise, spag2: Noise, noodle1: Noise, noodle2: Noise, spagMod: Noise
     let flora: Noise, surfN: Noise
     let bands: [BlockID]
+    let terrain: Terrain
     private(set) var structures: StructureCache? = nil
 
     init(seed: UInt64) {
@@ -29,6 +29,7 @@ final class WorldGen: TerrainGenerator {
         cheeseN = Noise(seed: seed &+ 10); spag1 = Noise(seed: seed &+ 11); spag2 = Noise(seed: seed &+ 12)
         noodle1 = Noise(seed: seed &+ 13); noodle2 = Noise(seed: seed &+ 14); spagMod = Noise(seed: seed &+ 15)
         flora = Noise(seed: seed &+ 16); surfN = Noise(seed: seed &+ 17)
+        terrain = Terrain(seed: seed)
         // Badlands terracotta bands: orange base with bands of other colours (fixed per world).
         var rng = SRng(seed ^ 0xBAD1)
         let colors = ["white", "orange", "yellow", "brown", "red", "light_gray"].map { Blocks.id("\($0)_terracotta") }
@@ -41,17 +42,15 @@ final class WorldGen: TerrainGenerator {
             i += 2
         }
         bands = bs
-        structures = StructureCache(seed: seed, types: OverworldStructures.types(self) + BigStructures.types(self), fixed: Stronghold.starts(seed: seed))
+        structures = StructureCache(seed: seed, types: OverworldStructures.types(self) + BigStructures.types(self) + [MilitaryBase.type(self)], fixed: Stronghold.starts(seed: seed))
     }
 
-    // MARK: Climate and height
+    // MARK: Cave climate
 
+    // Underground climate (cave biomes, murk depths sites): five independent noises, unrelated to the surface.
     struct Climate { var t: Float; var h: Float; var c: Float; var e: Float; var w: Float }
 
-    @inline(__always) static func smooth(_ e0: Float, _ e1: Float, _ x: Float) -> Float {
-        let t = max(0, min(1, (x - e0) / (e1 - e0)))
-        return t * t * (3 - 2 * t)
-    }
+    @inline(__always) static func smooth(_ e0: Float, _ e1: Float, _ x: Float) -> Float { Terrain.smooth(e0, e1, x) }
 
     func climate(_ x: Int, _ z: Int) -> Climate {
         let fx = Float(x), fz = Float(z)
@@ -64,141 +63,39 @@ final class WorldGen: TerrainGenerator {
         return Climate(t: t, h: h, c: c, e: e, w: w)
     }
 
-    struct Shape { var h: Float; var mount: Float; var river: Float }
+    // MARK: Columns
 
-    // Surface height (displayed y) before 3D shaping.
-    func shape(_ k: Climate, _ x: Int, _ z: Int) -> Shape {
-        let c = k.c
-        var h: Float
-        if c < -1.05 {
-            h = 25 + 45 * WorldGen.smooth(-1.05, -1.12, c)                 // mushroom islands
-        } else {
-            let pts: [(Float, Float)] = [(-1.05, 22), (-0.455, 30), (-0.19, 46), (-0.11, 60), (-0.05, 64), (0.03, 67), (0.3, 76), (1.0, 96)]
-            h = pts.last!.1
-            for i in 1..<pts.count where c <= pts[i].0 {
-                let a = pts[i - 1], b = pts[i]
-                h = a.1 + (b.1 - a.1) * (c - a.0) / (b.0 - a.0)
-                break
-            }
-        }
-        let fx = Float(x), fz = Float(z)
-        let inland = WorldGen.smooth(-0.11, 0.25, c)
-        let pv = 1 - abs(3 * abs(k.w) - 2)
-        let pvn = (pv + 1) / 2
-        let m = WorldGen.smooth(0.1, -0.7, k.e) * inland
-        let ridge = 1 - abs(ridgeN.noise2(fx / 70, fz / 70))
-        h += m * (12 + 150 * powf(pvn, 1.6) + ridge * ridge * ridge * 28 * pvn)
-        let hill = (1 - m) * inland * WorldGen.smooth(0.2, 0.75, pv) * WorldGen.smooth(0.5, -0.2, k.e)
-        h += hill * 30
-        h += detailN.fbm2(fx / 90, fz / 90, 3) * (3 + 7 * inland)
-        let flat = WorldGen.smooth(0.45, 0.62, k.e) * (1 - m)
-        h += (63 + (h - 63) * 0.25 - h) * flat
-        let rv = WorldGen.smooth(0.075, 0.018, abs(k.w)) * WorldGen.smooth(-0.19, -0.1, c) * (1 - min(1, m * 1.6))
-        if h > 57 { h += (57 - h) * rv }
-        return Shape(h: h, mount: m, river: rv)
-    }
-
-    // Multi-noise style biome choice.
-    func biome(_ k: Climate, _ s: Shape) -> Biome {
-        func band(_ v: Float, _ edges: [Float]) -> Int { var i = 0; while i < edges.count && v > edges[i] { i += 1 }; return i }
-        let ti = band(k.t, [-0.45, -0.15, 0.2, 0.55])
-        let hi = band(k.h, [-0.35, -0.1, 0.1, 0.3])
-        let ei = band(k.e, [-0.78, -0.375, -0.2225, 0.05, 0.45, 0.55])
-        let pv = 1 - abs(3 * abs(k.w) - 2)
-        let wPos = k.w > 0
-        if k.c < -1.05 { return .mushroomFields }
-        if k.c < -0.455 { return [Biome.deepFrozenOcean, .deepColdOcean, .deepOcean, .deepLukewarmOcean, .warmOcean][ti] }
-        if k.c < -0.19 { return [Biome.frozenOcean, .coldOcean, .ocean, .lukewarmOcean, .warmOcean][ti] }
-        if s.river > 0.5 && s.h < 62 { return ti == 0 ? .frozenRiver : .river }
-        if k.c < -0.11 && s.h < 66 {
-            if ei <= 2 { return .stonyShore }
-            return ti == 0 ? .snowyBeach : (ti == 4 ? .desert : .beach)
-        }
-        // Peaks and slopes.
-        if s.mount > 0.55 && pv > 0.55 {
-            if ti <= 2 { return wPos ? .jaggedPeaks : .frozenPeaks }
-            return ti == 3 ? .stonyPeaks : .badlands
-        }
-        if s.mount > 0.4 && pv > 0.1 {
-            if ti <= 1 { return hi <= 1 ? .snowySlopes : .grove }
-            if ti == 4 { return .badlands }
-        }
-        // Swamps on the flattest ground near the coast.
-        if ei == 6 && k.c < 0.1 && ti >= 1 && ti <= 4 { return ti >= 3 ? .mangroveSwamp : .swamp }
-        // Windswept.
-        if ei == 5 && pv > -0.2 {
-            if ti <= 1 { return hi <= 1 ? .windsweptGravellyHills : .windsweptHills }
-            if ti == 2 { return hi >= 3 ? .windsweptForest : .windsweptHills }
-            return .windsweptSavanna
-        }
-        let plateau = pv > 0.25 && ei >= 1 && ei <= 3 && k.c > 0.03
-        if ti == 4 && (plateau || (ei <= 3 && pv > -0.2)) {
-            if hi >= 3 { return .woodedBadlands }
-            return wPos && hi <= 1 ? .erodedBadlands : .badlands
-        }
-        if plateau {
-            switch ti {
-            case 0: return hi <= 2 ? .snowyPlains : .snowyTaiga
-            case 1: return [Biome.meadow, .meadow, .forest, .taiga, .oldGrowthSpruceTaiga][hi]
-            case 2: return hi <= 1 ? (wPos ? .cherryGrove : .meadow) : (hi == 2 ? .meadow : (hi == 3 ? .forest : (k.w > 0.35 ? .paleGarden : .darkForest)))
-            case 3: return hi <= 1 ? .savannaPlateau : (hi == 4 ? .jungle : .forest)
-            default: return .badlands
-            }
-        }
-        switch ti {
-        case 0:
-            if hi == 0 && wPos { return .iceSpikes }
-            return hi <= 2 ? .snowyPlains : (hi == 3 ? .snowyTaiga : .taiga)
-        case 1:
-            if hi == 4 { return wPos ? .oldGrowthPineTaiga : .oldGrowthSpruceTaiga }
-            return [Biome.plains, .plains, .forest, .taiga, .taiga][hi]
-        case 2:
-            switch hi {
-            case 0: return .flowerForest
-            case 1: return wPos ? .sunflowerPlains : .plains
-            case 2: return .forest
-            case 3: return wPos ? .oldGrowthBirchForest : .birchForest
-            default: return k.w > 0.35 ? .paleGarden : .darkForest
-            }
-        case 3:
-            switch hi {
-            case 0, 1: return .savanna
-            case 2: return wPos ? .plains : .forest
-            case 3: return wPos ? .sparseJungle : .jungle
-            default: return wPos ? .bambooJungle : .jungle
-            }
-        default:
-            return .desert
-        }
-    }
+    // Surface fields at a column (bilinear between lattice nodes).
+    func columnData(_ x: Int, _ z: Int) -> Terrain.Column { terrain.column(x, z) }
 
     func column(_ x: Int, _ z: Int) -> (height: Int, biome: Biome) {
-        let k = climate(x, z)
-        let s = shape(k, x, z)
-        return (YOFF + Int(s.h.rounded()), biome(k, s))
+        let k = terrain.column(x, z)
+        return (YOFF + Int(floorf(k.h)), terrain.biome(k, k.h))
     }
 
     // MARK: Density
 
-    private struct Col { var h: Float; var mount: Float; var ocean: Bool }
+    private struct Col { var h: Float; var amp: Float; var s: Float }
 
-    private func colInfo(_ x: Int, _ z: Int) -> Col {
-        let k = climate(x, z)
-        let s = shape(k, x, z)
-        return Col(h: s.h, mount: s.mount, ocean: k.c < -0.19)
+    private func colInfo(_ n: Terrain.Node) -> Col {
+        let ocean = n.h < SEA_D - 1 && n.wl <= SEA_D
+        let wet = n.rv < 3 || n.wl > SEA_D + 0.01
+        var amp: Float = ocean ? 0.15 : 0.2 + n.u * 0.35
+        if wet { amp = 0.03 }
+        return Col(h: n.h, amp: amp, s: 7 + n.u * 14)
     }
+
+    private func colInfo(_ x: Int, _ z: Int) -> Col { colInfo(terrain.node(floorDiv(x, 4), floorDiv(z, 4))) }
 
     // Density at a lattice point (world x, internal y, world z): > 0 is solid.
     private func density(_ col: Col, _ x: Int, _ y: Int, _ z: Int) -> Float {
         let yd = Float(y - YOFF)
-        let s: Float = 7 + col.mount * 18
-        let base = (col.h - yd) / s
+        let base = (col.h - yd) / col.s
         if base > 2.5 { return base }
         if base < -2.5 { return base }
-        let amp: Float = (col.ocean ? 0.15 : 0.25) + col.mount * 0.45
         let fx = Float(x), fz = Float(z)
         let n = dens1.noise3(fx / 80, yd / 50, fz / 80) + dens2.noise3(fx / 28, yd / 18, fz / 28) * 0.5
-        return base + n * amp
+        return base + n * col.amp
     }
 
     // Top solid internal y at a column (terrain only: no caves, trees or water), bit-identical to what
@@ -270,6 +167,35 @@ final class WorldGen: TerrainGenerator {
         return (Lattice(d: d, bx: bx, bz: bz), cols)
     }
 
+    // Harness self-check (--bench gen): the stone fill's per-column row interpolation must give exactly
+    // Lattice.sample's value for every block. Returns the number of mismatching samples.
+    func latticeRowMismatches(cx: Int, cz: Int) -> Int {
+        let bx = cx * CS, bz = cz * CS
+        let (lat, _) = lattice(bx, bz)
+        var rowA = [Float](repeating: 0, count: Lattice.ny), rowB = [Float](repeating: 0, count: Lattice.ny)
+        var bad = 0
+        for lz in 0..<CS { for lx in 0..<CS {
+            let wx = bx + lx, wz = bz + lz
+            let llx = wx - (bx - 8), llz = wz - (bz - 8)
+            let gx = llx >> 2, gz = llz >> 2
+            let fx = Float(llx & 3) / 4, fz = Float(llz & 3) / 4
+            for gy in 0..<Lattice.ny {
+                let c0 = lat.at(gx, gy, gz), c1 = lat.at(gx + 1, gy, gz)
+                let d0 = lat.at(gx, gy, gz + 1), d1 = lat.at(gx + 1, gy, gz + 1)
+                rowA[gy] = c0 + (c1 - c0) * fx
+                rowB[gy] = d0 + (d1 - d0) * fx
+            }
+            for y in 0..<CH {
+                let gy = min(Lattice.ny - 2, y >> 3)
+                let fy = Float(y - gy * 8) / 8
+                let y0 = rowA[gy] + (rowA[gy + 1] - rowA[gy]) * fy
+                let y1 = rowB[gy] + (rowB[gy + 1] - rowB[gy]) * fy
+                if (y0 + (y1 - y0) * fz).bitPattern != lat.sample(wx, y, wz).bitPattern { bad += 1 }
+            }
+        } }
+        return bad
+    }
+
     // MARK: Caves
 
     // Cave field lattice inside the chunk: 4-block cells, 5 fields.
@@ -312,53 +238,94 @@ final class WorldGen: TerrainGenerator {
 
     // MARK: Generation
 
+    // Lattice nodes covering a chunk and its 8-block margin (9 x 9, x-major like the density lattice).
+    func chunkNodes(_ bx: Int, _ bz: Int) -> [Terrain.Node] {
+        var nodes = [Terrain.Node]()
+        nodes.reserveCapacity(81)
+        let gx0 = floorDiv(bx - 8, 4), gz0 = floorDiv(bz - 8, 4)
+        for gx in 0..<9 { for gz in 0..<9 { nodes.append(terrain.node(gx0 + gx, gz0 + gz)) } }
+        return nodes
+    }
+
+    // Column fields for the chunk's 256 columns from its node grid.
+    func chunkColumns(_ nodes: [Terrain.Node]) -> [Terrain.Column] {
+        var cols = [Terrain.Column]()
+        cols.reserveCapacity(CSQ)
+        for lz in 0..<CS { for lx in 0..<CS {
+            let gx = (lx + 8) >> 2, gz = (lz + 8) >> 2
+            let fx = Float((lx + 8) & 3) / 4, fz = Float((lz + 8) & 3) / 4
+            cols.append(Terrain.blend(nodes[gx * 9 + gz], nodes[(gx + 1) * 9 + gz], nodes[gx * 9 + gz + 1], nodes[(gx + 1) * 9 + gz + 1], fx, fz))
+        } }
+        return cols
+    }
+
     func generate(cx: Int, cz: Int) -> [BlockID] {
         var b = [BlockID](repeating: AIR, count: CSQ * CH)
         let bx = cx * CS, bz = cz * CS
         let (lat, _) = lattice(bx, bz)
-        // Per-column climate, shape and biome.
+        // Per-column terrain fields and biome.
+        let cols = chunkColumns(chunkNodes(bx, bz))
         var biomes = [Biome](repeating: .plains, count: CSQ)
         var climates = [Climate](repeating: Climate(t: 0, h: 0, c: 0, e: 0, w: 0), count: CSQ)
-        var shapes = [Shape](repeating: Shape(h: 0, mount: 0, river: 0), count: CSQ)
         var maxTop = 0
         for lz in 0..<CS { for lx in 0..<CS {
-            let k = climate(bx + lx, bz + lz), s = shape(k, bx + lx, bz + lz)
-            climates[lx + lz * CS] = k; shapes[lx + lz * CS] = s
-            biomes[lx + lz * CS] = biome(k, s)
-            maxTop = max(maxTop, YOFF + Int(s.h) + 40)
+            let k = cols[lx + lz * CS]
+            climates[lx + lz * CS] = climate(bx + lx, bz + lz)
+            biomes[lx + lz * CS] = terrain.biome(k, k.h)
+            maxTop = max(maxTop, YOFF + Int(k.h) + 40)
         } }
         maxTop = min(CH - 1, maxTop)
 
         // 1. Stone / deeprock from density, bedrock floor.
         let deep = DEEPSLATE
+        // Per column, the lattice is first interpolated along x at every lattice layer (two z rows), then
+        // each block only lerps along y and z: the same operations in the same order as Lattice.sample
+        // (bit-identical, groundY relies on it) without 8 lattice loads per block.
+        var rowA = [Float](repeating: 0, count: Lattice.ny), rowB = [Float](repeating: 0, count: Lattice.ny)
+        let topGY = min(Lattice.ny - 1, min(Lattice.ny - 2, maxTop >> 3) + 1)
         for lz in 0..<CS { for lx in 0..<CS {
             let wx = bx + lx, wz = bz + lz
+            let llx = wx - (bx - 8), llz = wz - (bz - 8)
+            let gx = llx >> 2, gz = llz >> 2
+            let fx = Float(llx & 3) / 4, fz = Float(llz & 3) / 4
+            for gy in 0...topGY {
+                let c0 = lat.at(gx, gy, gz), c1 = lat.at(gx + 1, gy, gz)
+                let d0 = lat.at(gx, gy, gz + 1), d1 = lat.at(gx + 1, gy, gz + 1)
+                rowA[gy] = c0 + (c1 - c0) * fx
+                rowB[gy] = d0 + (d1 - d0) * fx
+            }
             for y in 0...maxTop {
                 let i = Chunk.index(lx, y, lz)
                 if y < 5 {
                     if y == 0 || hash3(wx, y, wz, s32) % 5 >= UInt32(y) { b[i] = BEDROCK; continue }
                 }
-                if lat.sample(wx, y, wz) > 0 {
+                let gy = min(Lattice.ny - 2, y >> 3)
+                let fy = Float(y - gy * 8) / 8
+                let y0 = rowA[gy] + (rowA[gy + 1] - rowA[gy]) * fy
+                let y1 = rowB[gy] + (rowB[gy + 1] - rowB[gy]) * fy
+                if y0 + (y1 - y0) * fz > 0 {
                     let yd = y - YOFF
                     b[i] = yd < 0 || (yd < 8 && Int(hash3(wx, y, wz, s32 ^ 0xDEE) % 8) > yd) ? deep : STONE
                 }
             }
         } }
 
-        // 2. Surface rules on the topmost solid block, water / ice up to sea level.
+        // 2. Surface rules on the topmost solid block, water up to the local water level (sea, river, lake).
         var tops = [Int](repeating: 0, count: CSQ)
+        var wls = [Int](repeating: SEA, count: CSQ)
         for lz in 0..<CS { for lx in 0..<CS {
             var y = maxTop
             while y > 0 && b[Chunk.index(lx, y, lz)] == AIR { y -= 1 }
             tops[lx + lz * CS] = y
+            wls[lx + lz * CS] = YOFF + Int(floorf(cols[lx + lz * CS].wl))
         } }
         for lz in 0..<CS { for lx in 0..<CS {
-            surface(&b, lx, lz, bx + lx, bz + lz, tops, biomes[lx + lz * CS], climates[lx + lz * CS], shapes[lx + lz * CS])
+            surface(&b, lx, lz, bx + lx, bz + lz, tops, biomes[lx + lz * CS], cols[lx + lz * CS], wls[lx + lz * CS])
         } }
 
         // 3. Caves, aquifers, lava.
         let caves = caveLattice(bx, bz, maxY: maxTop)
-        carveCaves(&b, caves, bx, bz, tops, biomes)
+        carveCaves(&b, caves, bx, bz, tops, wls, cols)
 
         // 4. Ores, blobs, dungeons, geodes, cave biome decoration.
         let chunkSeed = UInt64(bitPattern: Int64(cx &* 341873128712 &+ cz &* 132897987541)) ^ seed
@@ -371,25 +338,26 @@ final class WorldGen: TerrainGenerator {
         // 5. Trees and vegetation.
         placeTrees(&b, cx, cz, lat)
         placeVegetation(&b, bx, bz, biomes, &rng)
-        freeze(&b, biomes)
+        freeze(&b, biomes, cols)
         return b
     }
 
     // MARK: Surface
 
-    private func surface(_ b: inout [BlockID], _ lx: Int, _ lz: Int, _ wx: Int, _ wz: Int, _ tops: [Int], _ biome: Biome, _ k: Climate, _ s: Shape) {
+    private func surface(_ b: inout [BlockID], _ lx: Int, _ lz: Int, _ wx: Int, _ wz: Int, _ tops: [Int], _ biome: Biome, _ k: Terrain.Column, _ wl: Int) {
         let top = tops[lx + lz * CS]
         guard top > 4 else { return }
         let n = surfN.noise2(Float(wx) / 12, Float(wz) / 12)
-        let steep: Bool = {
+        let rise: Int = {
             let a = tops[max(0, lx - 1) + lz * CS], c = tops[min(CS - 1, lx + 1) + lz * CS]
             let d = tops[lx + max(0, lz - 1) * CS], e = tops[lx + min(CS - 1, lz + 1) * CS]
-            return max(abs(a - c), abs(d - e)) >= 4
+            return max(abs(a - c), abs(d - e))
         }()
-        let underwater = top < SEA
+        let steep = rise >= 4
         var topBlock = GRASS, filler = DIRT, depth = 3 + Int(hash3(wx, 0, wz, s32 ^ 0x51) % 2)
         var under: BlockID? = nil, underDepth = 0
         let g = Blocks.id
+        let underwater = top < wl
         switch biome {
         case .desert: topBlock = SAND; filler = SAND; under = SANDSTONE; underDepth = 4
         case .beach, .snowyBeach: topBlock = SAND; filler = SAND; under = SANDSTONE; underDepth = 2
@@ -418,6 +386,16 @@ final class WorldGen: TerrainGenerator {
         if steep && [.windsweptHills, .windsweptForest, .stonyPeaks, .jaggedPeaks, .frozenPeaks, .grove, .snowySlopes].contains(biome) && n > -0.2 {
             topBlock = STONE; filler = STONE
         }
+        // Cliffs show bare rock whatever grows above and below them.
+        if rise >= 7 && !underwater && !biome.isBadlands && topBlock != SAND {
+            topBlock = n > 0.3 ? g("andesite") : STONE; filler = STONE
+        }
+        // Gravel and sand bars along river and lake shores.
+        if !underwater && k.rv < 1.5 && top <= wl + 1 && !biome.isOcean && !biome.isBadlands && biome != .swamp && biome != .mangroveSwamp {
+            topBlock = n > 0.1 ? SAND : GRAVEL; filler = topBlock
+        }
+        // Dry lake beds: salt crust and clay.
+        if k.dry > 0.5 && !underwater { topBlock = n > -0.25 ? g("calcite") : g("clay"); filler = SAND }
         if underwater && !biome.isOcean && !biome.isRiver && biome != .swamp && biome != .mangroveSwamp {
             topBlock = n > 0 ? SAND : GRAVEL; filler = topBlock
         }
@@ -457,9 +435,9 @@ final class WorldGen: TerrainGenerator {
                 if hgt > 0 && top + 1 <= CH - 2 { for yy in (top + 1)...min(CH - 2, top + hgt) { b[Chunk.index(lx, yy, lz)] = bands[yy & 63] } }
             }
         }
-        // Water up to sea level (ice and snow come in the final freeze pass).
-        if top < SEA {
-            for yy in (top + 1)...SEA {
+        // Water up to the local water level (ice and snow come in the final freeze pass).
+        if top < wl {
+            for yy in (top + 1)...wl {
                 let i = Chunk.index(lx, yy, lz)
                 if b[i] == AIR { b[i] = WATER }
             }
@@ -468,13 +446,16 @@ final class WorldGen: TerrainGenerator {
 
     // Last decoration step, like the reference game's freeze_top_layer: snow on whatever is on top
     // (ground, leaves) and ice on still water where it is cold enough.
-    private func freeze(_ b: inout [BlockID], _ biomes: [Biome]) {
+    // Snow follows the surface temperature (altitude lapse included), so snowlines climb in warm regions.
+    private func freeze(_ b: inout [BlockID], _ biomes: [Biome], _ cols: [Terrain.Column]) {
         let snowLayer = Blocks.id("snow"), ice = Blocks.id("ice")
         for lz in 0..<CS { for lx in 0..<CS {
             let biome = biomes[lx + lz * CS]
             var y = CH - 2
             while y > 1 && b[Chunk.index(lx, y, lz)] == AIR { y -= 1 }
-            guard biome.snows(at: y + 1) else { continue }
+            let t = terrain.temperature(cols[lx + lz * CS], Float(y + 1 - YOFF))
+            let cold = t < -0.25 || (biome.snows(at: y + 1) && t < -0.15)
+            guard cold else { continue }
             let i = Chunk.index(lx, y, lz)
             let top = b[i]
             if top == WATER { b[i] = ice; continue }
@@ -488,11 +469,11 @@ final class WorldGen: TerrainGenerator {
 
     // MARK: Caves
 
-    private func carveCaves(_ b: inout [BlockID], _ cl: CaveLattice, _ bx: Int, _ bz: Int, _ tops: [Int], _ biomes: [Biome]) {
+    private func carveCaves(_ b: inout [BlockID], _ cl: CaveLattice, _ bx: Int, _ bz: Int, _ tops: [Int], _ wls: [Int], _ cols: [Terrain.Column]) {
         let lavaLevel = YOFF - 55
         for lz in 0..<CS { for lx in 0..<CS {
             let top = tops[lx + lz * CS]
-            let wetColumn = top < SEA + 2
+            let wetColumn = top < wls[lx + lz * CS] + 2 || cols[lx + lz * CS].rv < 2.5
             let wx = bx + lx, wz = bz + lz
             let maxY = min(CH - 2, wetColumn ? top - 5 : top + 1)
             guard maxY > 6 else { continue }
@@ -712,14 +693,36 @@ final class WorldGen: TerrainGenerator {
 
     // MARK: Tints
 
+    // Grass, foliage and water colours blended in climate space: each column averages the colours of the
+    // biomes a little warmer, colder, wetter and drier than itself, so tints fade across borders over tens of
+    // blocks (wider where the climate changes slowly) instead of switching at a line.
+    private static let tintOffsets: [(Float, Float, Float)] = [(0, 0, 2), (0.09, 0, 1), (-0.09, 0, 1), (0, 0.1, 1), (0, -0.1, 1),
+                                                                (0.06, 0.07, 1), (-0.06, -0.07, 1), (0.06, -0.07, 1), (-0.06, 0.07, 1)]
+
     func tints(cx: Int, cz: Int) -> [UInt32] {
         var t = [UInt32](repeating: 0, count: 768)
-        func rgba(_ h: UInt32) -> UInt32 { ((h >> 16) & 255) | (((h >> 8) & 255) << 8) | ((h & 255) << 16) | (255 << 24) }
-        for lz in 0..<CS { for lx in 0..<CS {
-            let info = column(cx * CS + lx, cz * CS + lz).biome.info
-            let i = lx + lz * CS
-            t[i] = rgba(info.grass); t[256 + i] = rgba(info.foliage); t[512 + i] = rgba(info.water)
-        } }
+        func byte(_ v: Float) -> UInt32 { UInt32(max(0, min(255, v.rounded()))) }
+        func rgba(_ r: Float, _ g: Float, _ b: Float) -> UInt32 {
+            let lo: UInt32 = byte(r) | (byte(g) << 8)
+            return lo | (byte(b) << 16) | (255 << 24)
+        }
+        let cols = chunkColumns(chunkNodes(cx * CS, cz * CS))
+        for i in 0..<CSQ {
+            let k = cols[i]
+            var gr: Float = 0, gg: Float = 0, gb: Float = 0, fr: Float = 0, fg: Float = 0, fb: Float = 0
+            var wr: Float = 0, wg: Float = 0, wb: Float = 0, wsum: Float = 0
+            for (dT, dW, wt) in WorldGen.tintOffsets {
+                let info = terrain.biome(k, k.h, dT: dT, dW: dW).info
+                gr += Float((info.grass >> 16) & 255) * wt; gg += Float((info.grass >> 8) & 255) * wt; gb += Float(info.grass & 255) * wt
+                fr += Float((info.foliage >> 16) & 255) * wt; fg += Float((info.foliage >> 8) & 255) * wt; fb += Float(info.foliage & 255) * wt
+                wr += Float((info.water >> 16) & 255) * wt; wg += Float((info.water >> 8) & 255) * wt; wb += Float(info.water & 255) * wt
+                wsum += wt
+            }
+            let inv = 1 / wsum
+            t[i] = rgba(gr * inv, gg * inv, gb * inv)
+            t[256 + i] = rgba(fr * inv, fg * inv, fb * inv)
+            t[512 + i] = rgba(wr * inv, wg * inv, wb * inv)
+        }
         return t
     }
 

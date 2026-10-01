@@ -8,9 +8,9 @@ extension Game {
         let key = Items.key(held.item)
         let pos = m.pos + V3(0, m.height, 0)
         // Taming with a chance per item (reference: 1 in 3).
-        func tameTry() {
+        func tameTry(_ odds: Int = 3) {
             consumeHeld()
-            if Int.random(in: 0..<3) == 0 {
+            if Int.random(in: 0..<odds) == 0 {
                 m.owner = true; m.persistent = true; m.aggro = false
                 if m.kind == .wolf { m.health = 40 }
                 particles.hearts(at: pos)
@@ -18,13 +18,23 @@ extension Game {
         }
         switch m.kind {
         case .wolf where !m.tamed && key == "bone": tameTry(); return true
+        case .nautilus where !m.tamed && key == "pufferfish": tameTry(); return true
         case .cat where !m.tamed && (key == "cod" || key == "salmon"): tameTry(); return true
         case .ocelot where !m.tamed && (key == "cod" || key == "salmon"):
             consumeHeld()
             if Int.random(in: 0..<3) == 0 { m.owner = false; m.persistent = true; particles.hearts(at: pos) }        // trusting
             return true
-        case .parrot where !m.tamed && key.hasSuffix("_seeds"): tameTry(); return true
+        case .parrot where !m.tamed && key.hasSuffix("_seeds"): tameTry(10); return true          // reference: 1 in 10
         case .parrot where key == "cookie": consumeHeld(); m.health = 0; return true          // poisonous to parrots
+        case .allay where key == "amethyst_shard" && m.sitting && m.breedCooldown <= 0:
+            // Reference duplication: a dancing fetchling given an amethyst shard splits in two (5 min cooldown).
+            consumeHeld()
+            let twin = Mob(.allay, at: m.pos + V3(0.3, 0.2, 0))
+            twin.breedCooldown = 300; m.breedCooldown = 300
+            twin.persistent = true
+            mobs.mobs.append(twin)
+            particles.hearts(at: pos)
+            return true
         case .allay:
             if !held.isEmpty && m.heldItem == 0 { m.heldItem = held.item; m.owner = true; m.persistent = true; particles.hearts(at: pos); return true }
             if held.isEmpty && m.heldItem != 0 { m.heldItem = 0; m.owner = nil; return true }
@@ -38,6 +48,49 @@ extension Game {
             m.health = -2000
             damageHeld(1)
             return true
+        case .happyGhast where Cloudwailer.harnessColor[held.item] != nil && !m.saddled && !m.baby:
+            m.saddled = true; m.collar = Cloudwailer.harnessColor[held.item] ?? 0; m.persistent = true; m.home = m.pos
+            consumeHeld(); sfx(.place(.wood), 0.6); return true
+        case .happyGhast where key == "shears" && m.saddled && riding !== m:
+            if let h = Cloudwailer.harnessColor.first(where: { $0.value == m.collar })?.key { drops.spawn(ItemStack(h, 1), at: pos) }
+            m.saddled = false; damageHeld(1); return true
+        case .happyGhast where key == "snowball" && m.health < m.spec.health:
+            m.health += 1; consumeHeld(); particles.hearts(at: pos); return true
+        case .snowGolem where key == "shears" && m.variant == 0:
+            // Sheared snow golems lose their pumpkin (reference).
+            m.variant = 1
+            if Items.has("carved_pumpkin") { drops.spawn(ItemStack(Items.id("carved_pumpkin"), 1), at: pos) }
+            damageHeld(1); return true
+        case .bogged where key == "shears" && m.variant == 0:
+            m.variant = 1
+            for n in ["red_mushroom", "brown_mushroom"] where Items.has(n) { drops.spawn(ItemStack(Items.id(n), 1), at: pos) }
+            damageHeld(1); return true
+        case .ironGolem where key == "iron_ingot" && m.health < m.spec.health:
+            // Reference: an iron ingot repairs 25 health.
+            m.health = min(m.spec.health, m.health + 25)
+            if survival { consumeHeld() }
+            sfx(.anvil, 0.5, at: pos)
+            return true
+        case .dolphin where key == "cod" || key == "salmon":
+            // Fed raw fish, a dolphin leads the way to the nearest treasure, shipwreck or ocean ruin for a minute.
+            consumeHeld()
+            particles.hearts(at: pos)
+            if let sc = world.gen.structures {
+                let x = Int(floor(m.pos.x)), z = Int(floor(m.pos.z))
+                var best: IVec3?
+                var bd = Int.max
+                for k in ["buried_treasure", "shipwreck", "ocean_ruin"] {
+                    guard let s = sc.nearest(k, x: x, z: z) else { continue }
+                    let dx = s.anchor.x - x, dz = s.anchor.z - z
+                    let d = dx * dx + dz * dz
+                    if d < bd { bd = d; best = s.anchor }
+                }
+                if let a = best {
+                    m.home = V3(Float(a.x) + 0.5, Float(a.y), Float(a.z) + 0.5)
+                    m.phaseTime = 60
+                }
+            }
+            return true
         case .goat where key == "bucket" && !m.baby:
             consumeHeld(); giveOrReplaceHeldAfterConsume(ItemStack(Items.id("milk_bucket"), 1)); return true
         case .cod, .salmon, .tropicalFish, .pufferfish, .axolotl, .tadpole:
@@ -46,7 +99,7 @@ extension Game {
             guard Items.has(name) else { break }
             inventory.held = ItemStack(Items.id(name), 1, damage: m.variant)
             m.health = -2000
-            sfx(.splash, 0.5)
+            sfx(.breakBlock(.wood), 0.6)
             return true
         case .wanderingTrader:
             if m.villager == nil { m.villager = WanderingTrader.data() }
@@ -64,7 +117,7 @@ extension Game {
             m.health = min(m.kind == .wolf ? 40 : m.spec.health, m.health + 4); consumeHeld(); particles.hearts(at: pos); return true
         }
         // Saddles and chests.
-        let rideable: Set<MobKind> = [.horse, .donkey, .mule, .camel, .pig, .strider, .skeletonHorse]
+        let rideable: Set<MobKind> = [.horse, .donkey, .mule, .camel, .pig, .strider, .skeletonHorse, .zombieHorse, .nautilus]
         if key == "saddle" && rideable.contains(m.kind) && !m.saddled && !m.baby && (m.tamed || m.kind == .pig || m.kind == .strider) {
             m.saddled = true; m.persistent = true; consumeHeld(); sfx(.place(.wood), 0.6); return true
         }
@@ -85,9 +138,28 @@ extension Game {
         if key == "chest" && [MobKind.donkey, .mule, .llama, .traderLlama].contains(m.kind) && m.tamed && !m.chested {
             m.chested = true; consumeHeld(); return true
         }
+        // Horse treats (reference): temper toward taming, healing, growth; golden food breeds tamed horses.
+        let treats: [String: (temper: Int, heal: Int, grow: Float)] = [
+            "sugar": (3, 1, 30), "wheat": (3, 2, 20), "apple": (3, 3, 60), "golden_carrot": (5, 4, 60),
+            "golden_apple": (10, 10, 240), "enchanted_golden_apple": (10, 10, 240), "hay_block": (0, 20, 180)]
+        if [MobKind.horse, .donkey, .mule, .zombieHorse].contains(m.kind), let t = treats[key] {
+            let golden = key == "golden_carrot" || key.hasSuffix("golden_apple")
+            if golden && m.tamed && !m.baby && m.kind != .mule && m.breedCooldown <= 0 && m.inLove <= 0 {
+                m.inLove = 30
+            } else if m.health >= 30 && !m.baby && (m.tamed || t.temper == 0) {
+                return false
+            }
+            m.health = min(30, m.health + t.heal)
+            if m.baby { m.age += t.grow }
+            if !m.tamed { m.temper = min(100, m.temper + t.temper) }
+            consumeHeld()
+            particles.hearts(at: pos)
+            return true
+        }
         // Feeding: breed or grow up.
         if let food = MobKind.animalFood[m.kind], food.contains(key) {
-            if m.baby { m.age += 60; consumeHeld(); particles.hearts(at: pos); return true }
+            // Reference: feeding a baby takes 10% off the time it still needs to grow up.
+            if m.baby { m.age += max(1, (1200 - m.age) * 0.1); consumeHeld(); particles.hearts(at: pos); return true }
             let needsTame: Set<MobKind> = [.wolf, .cat, .horse, .donkey, .llama, .parrot]
             if needsTame.contains(m.kind) && !m.tamed {
                 if m.horseLike { m.temper += 5; consumeHeld(); return true }
@@ -100,12 +172,12 @@ extension Game {
             return true
         }
         // Mount.
-        if (m.horseLike && m.kind != .traderLlama) || ((m.kind == .pig || m.kind == .strider) && m.saddled) {
+        if (m.horseLike && m.kind != .traderLlama) || ((m.kind == .pig || m.kind == .strider || m.kind == .happyGhast || m.kind == .nautilus) && m.saddled) {
             guard !m.baby, riding == nil else { return false }
             riding = m
             m.persistent = true
             player.pos = m.pos + V3(0, m.height * 0.75, 0)
-            sfx(.click, 0.5, at: m.pos)
+            sfx(.armorEquip(0), 0.5, at: m.pos)
             return true
         }
         return false
@@ -116,6 +188,8 @@ extension Mob {
     // A mount carrying the player: WASD steers (horses, camels, donkeys, mules), pigs and magmastriders follow
     // the stick; untamed horses buck until tamed.
     func updateRidden(_ dt: Float, _ g: Game) {
+        if kind == .happyGhast { rideCloudwailer(dt, g); return }
+        if kind == .nautilus { rideNautilus(dt, g); return }
         let w = g.world
         let inp = g.rideInput
         var speed: Float = 0
@@ -133,7 +207,7 @@ extension Mob {
                 if jumpCharge > 1 {
                     jumpCharge = 0
                     if Int.random(in: 0..<100) < temper { owner = true; g.particles.hearts(at: pos + V3(0, height, 0)) }
-                    else { temper += 5; g.dismount(); vel.y = 4; g.sfx(.mobHorse, 1, at: pos); return }
+                    else { temper += 5; g.dismount(); vel.y = 4; g.sfx(.mob(kind, .hurt), 1, at: pos); return }
                 }
             }
             yaw = g.player.yaw
@@ -216,12 +290,14 @@ extension Mob {
         case .donkey, .mule, .llama, .traderLlama:
             variant = Int.random(in: 0..<4) | (Int.random(in: 0..<16) << 4) | (Int.random(in: 0..<16) << 8)
             health = Int.random(in: 15...30)
-        case .skeletonHorse: variant = (8 << 4) | (8 << 8)
+        case .skeletonHorse, .zombieHorse: variant = (8 << 4) | (8 << 8)
         case .rabbit, .cat, .tropicalFish: variant = Int.random(in: 0..<4)
         case .parrot: variant = Int.random(in: 0..<5)
         case .axolotl: variant = Int.random(in: 0..<1200) == 0 ? 4 : Int.random(in: 0..<4)       // blue is 1 in 1200
         case .goat: variant = Int.random(in: 0..<50) == 0 ? 1 : 0                                     // screaming goats: 2%
         case .frog: variant = Int.random(in: 0..<3)
+        case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad: variant = Soldier.pickGun(kind)
+        case .panda: variant = Mob.pandaGene() | (Mob.pandaGene() << 3)
         default: break
         }
     }

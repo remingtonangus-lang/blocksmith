@@ -71,17 +71,6 @@ extension Game {
             }
         }
         // Rain sound near exposed columns.
-        rainSoundTimer -= dt
-        if w.rain > 0.2 && rainSoundTimer <= 0 {
-            rainSoundTimer = 1.2
-            let p = player.pos
-            var exposed = 0
-            for dz in stride(from: -8, through: 8, by: 4) { for dx in stride(from: -8, through: 8, by: 4) {
-                let x = Int(floor(p.x)) + dx, z = Int(floor(p.z)) + dz
-                if precipitation(x, Int(p.y), z) == 1 && skyExposed(x, Int(p.y), z) { exposed += 1 }
-            } }
-            if exposed > 0 { sfx(.rain, w.rain * min(1, Float(exposed) / 12) * 0.6) }
-        }
         // Rain extinguishes the player and burning mobs.
         if w.rain > 0.2 {
             if onFire > 0 && isRainingAt(player.pos) { onFire = 0 }
@@ -109,8 +98,10 @@ extension Game {
     func strike(_ at: V3) {
         bolts.append(Bolt(pos: at, life: 0.35, seed: UInt64.random(in: 1...UInt64.max)))
         lightningFlash = 1
+        addFlash(at: at + V3(0, 6, 0), color: V3(5, 5.5, 7), radius: 40, life: 0.35)
         let d = simd_length(at - player.pos)
-        sfx(.thunder, max(0.3, 1.4 - d / 120), at: d < 32 ? at : nil)
+        if d > 72 { sfx(.thunderFar, max(0.4, 1.2 - d / 300)) } else { sfx(.thunder, max(0.3, 1.4 - d / 120), at: d < 32 ? at : nil) }
+        if d < 24 { sfx(.lightning, 1.2, at: at) }
         let b = IVec3(Int(floor(at.x)), Int(floor(at.y)), Int(floor(at.z)))
         if world.block(b.x, b.y, b.z) == AIR && Blocks.opaque[Int(world.block(b.x, b.y - 1, b.z))] && Blocks.flammable[Int(world.block(b.x, b.y - 1, b.z))] == false {
             world.placeFire(b)
@@ -133,6 +124,7 @@ extension Game {
             if m.kind.key == "mooshroom" { m.variant = m.variant == 0 ? 1 : 0 }
         }
         mobs.mobs += add
+        lightningTrap(at)
     }
 
     // Snow layers and ice form during snowfall / cold weather (a few columns per tick).
@@ -174,7 +166,7 @@ extension Game {
         if weather.rain > 0.05 && wetWorld {
             let ex = Int(floor(eye.x)), ez = Int(floor(eye.z))
             let right = simd_normalize(V3(cosf(player.yaw), 0, -sinf(player.yaw)))
-            let a = min(1, weather.rain) * 0.65
+            let a = min(1, weather.rain) * 0.55
             for dz in -10...10 { for dx in -10...10 where dx * dx + dz * dz <= 100 {
                 let x = ex + dx, z = ez + dz
                 guard let c = world.chunks[ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))] else { continue }
@@ -202,25 +194,29 @@ extension Game {
                     } else {
                         let len: Float = min(0.9, span)
                         let r = right * 0.012
-                        let lum = 0.25 + 0.55 * daylight
-                        wr.quad([c3 - r, c3 + r, c3 + r + V3(0, len, 0), c3 - r + V3(0, len, 0)], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], layer, V4(0.72 * lum, 0.78 * lum, 0.95 * lum, a))
+                        let lum = 0.35 + 0.65 * daylight
+                        wr.quad([c3 - r, c3 + r, c3 + r + V3(0, len, 0), c3 - r + V3(0, len, 0)], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], layer, V4(0.8 * lum, 0.85 * lum, 0.95 * lum, a))
                     }
                 }
             } }
         }
-        // Lightning: a jagged bright polyline from the sky to the strike point.
+        // Lightning: a jagged bright polyline from the sky to the strike point, with a soft glow around it.
         let white = Int(Tex.id("smoke"))
         for b in bolts {
-            var rng = SRng(b.seed)
-            var p = b.pos + V3(0, 90, 0)
-            let right = simd_normalize(V3(cosf(player.yaw), 0, -sinf(player.yaw))) * 0.18
-            while p.y > b.pos.y {
-                var q = p - V3(0, Float(rng.range(3, 7)), 0)
-                q.x += rng.float() * 3 - 1.5; q.z += rng.float() * 3 - 1.5
-                if q.y < b.pos.y { q = b.pos }
-                let a = p - eye, c = q - eye
-                wr.quad([a - right, a + right, c + right, c - right], [V2(0.4, 0.4), V2(0.6, 0.4), V2(0.6, 0.6), V2(0.4, 0.6)], white, V4(2.2, 2.2, 2.6, 1))
-                p = q
+            let fade = min(1, b.life / 0.12)
+            for pass in 0..<2 {
+                var rng = SRng(b.seed)
+                var p = b.pos + V3(0, 90, 0)
+                let right = simd_normalize(V3(cosf(player.yaw), 0, -sinf(player.yaw))) * (pass == 0 ? 0.55 : 0.16)
+                let col = pass == 0 ? V4(0.65, 0.7, 1.0, 0.22 * fade) : V4(2.2, 2.2, 2.6, fade)
+                while p.y > b.pos.y {
+                    var q = p - V3(0, Float(rng.range(3, 7)), 0)
+                    q.x += rng.float() * 3 - 1.5; q.z += rng.float() * 3 - 1.5
+                    if q.y < b.pos.y { q = b.pos }
+                    let a = p - eye, c = q - eye
+                    wr.quad([a - right, a + right, c + right, c - right], [V2(0.4, 0.4), V2(0.6, 0.4), V2(0.6, 0.6), V2(0.4, 0.6)], white, col)
+                    p = q
+                }
             }
         }
     }

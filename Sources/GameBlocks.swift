@@ -17,7 +17,7 @@ extension Game {
         case "campfire", "soul_campfire":
             let lit = st == 0
             if !lit && (key == "flint_and_steel" || key == "fire_charge") { world.setBlock(p.x, p.y, p.z, base); if key == "fire_charge" { consumeHeld() } else { damageHeld(1) }; return true }
-            if lit && key.hasSuffix("_shovel") { world.setBlock(p.x, p.y, p.z, base + 1); sfx(.fizz, 0.6, at: c); damageHeld(1); return true }
+            if lit && key.hasSuffix("_shovel") { world.setBlock(p.x, p.y, p.z, base + 1); sfx(.fireExtinguish, 0.7, at: c); damageHeld(1); return true }
             // Put raw food on it (up to four items, 30 s each).
             if lit, Recipes.smelt(held.item) != nil, held.def.food != nil {
                 let be = world.blockEntities[p] ?? BlockEntity(.campfire)
@@ -45,7 +45,7 @@ extension Game {
                 return true
             }
         case "respawn_anchor":
-            if key == "glowstone" && st < 4 { world.setBlock(p.x, p.y, p.z, b + 1); consumeHeld(); sfx(.enchant, 0.5, at: c); return true }
+            if key == "glowstone" && st < 4 { world.setBlock(p.x, p.y, p.z, b + 1); consumeHeld(); sfx(.respawnAnchorCharge, 0.8, at: c); return true }
             if st > 0 {
                 if dim.dim == .nether {
                     anchorSpawn = p
@@ -69,14 +69,14 @@ extension Game {
             // A proving key opens a vault once.
             let be = world.blockEntities[p] ?? BlockEntity(.chest)
             world.blockEntities[p] = be
-            guard key == "trial_key" && !be.used else { sfx(.click, 0.4, at: c); return true }
+            guard key == "trial_key" && !be.used else { sfx(.vaultReject, 0.6, at: c); return true }
             be.used = true
             consumeHeld()
             let tmp = ItemContainer(9)
             var rng = SRng(UInt64.random(in: 1...UInt64.max))
             Loot.fill(tmp, table: "trial_vault", rng: &rng)
             for s in tmp.slots where !s.isEmpty { drops.spawn(s, at: c + V3(0, 0.7, 0), vel: V3(0, 3, 0)) }
-            sfx(.levelUp, 0.5, at: c)
+            sfx(.vaultOpen, 0.8, at: c)
             return true
         case "lodestone":
             if key == "compass" { onToast?("Lodestone compass linked"); return true }
@@ -86,7 +86,7 @@ extension Game {
     }
 
     func angerBees(near c: V3) {
-        for m in mobs.mobs where m.kind == .bee && simd_length(m.pos - c) < 16 { m.aggro = true }
+        beeHiveDisturbed(c)
     }
 
     // 20 Hz: campfires cook and hurt, frost walker freezes, conduits power players in water.
@@ -153,7 +153,7 @@ extension Game {
                 if found {
                     shriekCooldown = 10
                     warningLevel += 1
-                    sfx(.mobWarden, 0.6)
+                    sfx(.sculkShriek, 1.2, at: V3(Float(c.x), Float(c.y), Float(c.z)) + 0.5)
                     applyEffect(.darkness, amp: 0, seconds: 12)
                     if warningLevel >= 4 {
                         warningLevel = 0
@@ -164,8 +164,9 @@ extension Game {
                             while y > c.y - 6 && !Blocks.collide[Int(world.block(x, y - 1, z))] { y -= 1 }
                             let w = Mob(.warden, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
                             w.anger = 80
+                            w.emergeTime = 6.7
                             mobs.mobs.append(w)
-                            sfx(.mobWarden, 1.5, at: w.pos)
+                            sfx(.wardenEmerge, 2, at: w.pos)
                         }
                     }
                 }
@@ -223,9 +224,7 @@ extension Game {
                 mobs.mobs.append(s)
             }
         case "bee_nest", "beehive":
-            if st < 5 && mobs.mobs.contains(where: { $0.kind == .bee && simd_length($0.pos - V3(Float(p.x), Float(p.y), Float(p.z))) < 22 }) && Int.random(in: 0..<3) == 0 {
-                world.setBlockAsync(p.x, p.y, p.z, b + 1)
-            }
+            break                                           // honey comes from bees returning with nectar (Bees.swift)
         case "torchflower_crop":
             if st < 1 { world.setBlockAsync(p.x, p.y, p.z, b + 1) } else { world.setBlockAsync(p.x, p.y, p.z, Blocks.id("torchflower")) }
         case "pitcher_crop":
