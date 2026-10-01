@@ -263,6 +263,7 @@ final class ShipRenderer {
     private var ringOff = 0
     private static let ringSize = 1 << 20
     private(set) var drawCalls = 0
+    var enabled = true               // bench: frames without ships for comparison
     private var maskScratch: [SimpleVert] = []
 
     init(device: MTLDevice, colorFormat: MTLPixelFormat) throws {
@@ -329,7 +330,7 @@ final class ShipRenderer {
 
     // Solid then cutout faces of every visible ship.
     func drawOpaque(_ enc: MTLRenderCommandEncoder, ships: ShipManager, eye: V3, u: inout Uniforms, frustum: Frustum, quads: MTLBuffer) {
-        if ships.isEmpty && ships.ghosts.isEmpty { return }
+        if !enabled || (ships.isEmpty && ships.ghosts.isEmpty) { return }
         enc.setDepthStencilState(depthWrite)
         enc.setCullMode(.back)
         enc.setFrontFacing(.counterClockwise)
@@ -362,7 +363,7 @@ final class ShipRenderer {
     // Target outline, then the depth-only water mask over each hull's enclosed air (keeps the sea
     // surface out of boats), drawn before the world's water.
     func drawBeforeWater(_ enc: MTLRenderCommandEncoder, ships: ShipManager, world: World, eye: V3, u: inout Uniforms, frustum: Frustum) {
-        if ships.isEmpty { return }
+        if !enabled || ships.isEmpty { return }
         enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
         enc.setCullMode(.none)
         if let t = ships.target {
@@ -426,7 +427,7 @@ final class ShipRenderer {
 
     // Translucent faces (stained glass, water on deck), after the world's water.
     func drawTranslucent(_ enc: MTLRenderCommandEncoder, ships: ShipManager, eye: V3, u: inout Uniforms, frustum: Frustum, quads: MTLBuffer) {
-        if ships.isEmpty { return }
+        if !enabled || ships.isEmpty { return }
         var any = false
         for s in ships.list where frustum.visible(min: s.worldMin, max: s.worldMax) {
             let m = model(s, eye: eye)

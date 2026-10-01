@@ -82,6 +82,31 @@ extension Bench {
             _ = hits
             return (now - a) / Double(n) * 1_000_000
         }
+        // Drawing: 1080p frames with both vessels in view, against the same frames with ships switched off.
+        if let r = try? Renderer(device: device, game: game, colorFormat: .bgra8Unorm), let tgt = OffscreenTarget(device, 1920, 1080) {
+            for s in ships.list { let a = now; while s.mesh.busy && now - a < 5 { usleep(500); s.mesh.apply(device: world.device) } }
+            let mid = (fg.pos + cg.pos) * 0.5
+            let eye = mid + V3(0, 25, 70)
+            let d = simd_normalize(mid - eye)
+            game.player.pos = eye - V3(0, game.player.eyeHeight, 0)
+            game.player.yaw = atan2f(-d.x, -d.z)
+            game.player.pitch = asinf(d.y)
+            func frames(_ on: Bool) -> (Double, Double) {
+                r.shipRenderer.enabled = on
+                for _ in 0..<3 { _ = r.benchFrame(tgt) }
+                var e: [Double] = [], g: [Double] = []
+                for _ in 0..<20 { let (a, b) = r.benchFrame(tgt); e.append(a * 1000); g.append(b * 1000) }
+                return (dist(e).p50, dist(g).p50)
+            }
+            let (eOn, gOn) = frames(true)
+            let calls = r.shipRenderer.drawCalls
+            let (eOff, gOff) = frames(false)
+            r.shipRenderer.enabled = true
+            put("ships.frame_encode_ms", eOn - eOff)
+            put("ships.frame_gpu_ms", gOn - gOff)
+            put("ships.draw_calls", Double(calls))
+            print("bench ships: drawing two vessels at 1080p adds \(f(eOn - eOff)) ms encode, \(f(gOn - gOff)) ms GPU (\(calls) draw calls)")
+        }
         // Docking the frigate into the world and assembling it again from its helm: main-thread time, then how long
         // the background remesh of the touched sections takes.
         func remeshWait(_ around: V3) -> Double {
