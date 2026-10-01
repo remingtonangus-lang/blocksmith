@@ -20,8 +20,10 @@ enum Snapshot {
             }
         }()
         let wg = gen as? WorldGen
-        for _ in 0..<40000 {
-            let wx = x * 16 + 8, wz = z * 16 + 8
+        // Biomes follow climate belts thousands of blocks wide: spiral out in 48-block steps (~6 km across).
+        let stepB = 48
+        for _ in 0..<16000 {
+            let wx = x * stepB + 8, wz = z * stepB + 8
             var ok = true
             for (ox, oz) in [(0, 0), (24, 0), (-24, 0), (0, 24), (0, -24)] {
                 let hit: Bool
@@ -851,6 +853,9 @@ if let dir = arg("--sounds") {
     print(String(format: "synthesized %ld sounds (%.1f s of audio) in %.0f ms", SoundBank.allSounds.count, Double(total) / SoundBank.rate, (CFAbsoluteTimeGetCurrent() - t0) * 1000))
     exit(0)
 }
+
+if let dir = arg("--terrainmap") { exit(TerrainTools.maps(dir)) }
+if CommandLine.arguments.contains("--genbench") { exit(TerrainTools.genBench()) }
 
 if let out = arg("--snapshot") {
     exit(Snapshot.run(out))

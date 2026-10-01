@@ -7,6 +7,20 @@ cd "$(dirname "$0")"
 BIN=build/Blocksmith.app/Contents/MacOS/Blocksmith
 mkdir -p snaps
 if [ $# -gt 0 ]; then n="$1"; shift; "$BIN" --snapshot "snaps/$n.png" "$@"; exit; fi
+# Terrain: top-down maps of five seeds (8 km square, spawn marked), neighbour check, chunk generation timing.
+"$BIN" --terrainmap snaps
+"$BIN" --genbench --seed 12345
+# Terrain tours: high aerial, mountain range, river valley and ground level for several seeds.
+for s in 12345 777 424242 1 98765; do
+  "$BIN" --snapshot snaps/tour_${s}_aerial.png --seed $s --yaw 200 --pitch -30 --time 0.23 --up 110 --rd 16
+  "$BIN" --snapshot snaps/tour_${s}_ground.png --seed $s --yaw 120 --pitch -4 --time 0.22 --up 2 --rd 12
+done
+"$BIN" --snapshot snaps/tour_peaks.png --seed 12345 --find jagged_peaks --yaw 60 --pitch -20 --time 0.23 --up 40 --rd 16 || true
+"$BIN" --snapshot snaps/tour_river.png --seed 12345 --find river --yaw 30 --pitch -35 --time 0.23 --up 30 --rd 12 || true
+"$BIN" --snapshot snaps/tour_river_777.png --seed 777 --find river --yaw 30 --pitch -35 --time 0.23 --up 30 --rd 12 || true
+"$BIN" --snapshot snaps/tour_mesa.png --seed 12345 --find badlands --yaw 45 --pitch -25 --time 0.23 --up 35 --rd 12 || true
+"$BIN" --snapshot snaps/tour_coast.png --seed 12345 --find beach --yaw 0 --pitch -25 --time 0.23 --up 30 --rd 12 || true
+"$BIN" --snapshot snaps/tour_snowline.png --seed 424242 --find snowy_slopes --yaw 180 --pitch -15 --time 0.23 --up 25 --rd 16 || true
 "$BIN" --snapshot snaps/spawn.png   --seed 12345 --yaw 30  --pitch -12 --time 0.2
 "$BIN" --snapshot snaps/aerial.png  --seed 12345 --yaw 200 --pitch -35 --time 0.25 --up 45 --rd 12
 "$BIN" --snapshot snaps/aerial16.png --seed 12345 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16
@@ -121,3 +135,5 @@ done
 "$BIN" --snapshot snaps/cave_torches.png --seed 12345 --find dripstone_caves --yaw 60 --pitch -25 --time 0.3 --torches
 "$BIN" --snapshot snaps/spawn_portal_check.png --seed 12345 --rd 16 --up 2 --yaw 45 --pitch 20
 "$BIN" --snapshot snaps/selftest.png --seed 12345 --find plains --yaw 30 --pitch 10 --time 0.3 --up 1 --selftest
+# Fails the run when two biomes that should never touch are neighbours anywhere on the five maps.
+"$BIN" --terrainmap snaps/check --step 32 --strict
