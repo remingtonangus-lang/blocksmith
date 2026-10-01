@@ -703,6 +703,15 @@ final class Game {
             }
         }
         if breakNow { swing = 1 }
+        // Lunge (spear): the jab carries the player forward (not when digging a block, swimming or gliding).
+        if breakNow, Spear.isSpear(held.item), mobHit != nil || target == nil, !player.inWater && !player.gliding {
+            let lv = Enchant.level(.lunge, held)
+            if lv > 0 && (!survival || hunger > 6) {
+                let f = simd_normalize(V3(player.look.x, 0, player.look.z) + V3(1e-4, 0, 0))
+                player.vel += f * (2.5 + 2.5 * Float(lv))
+                if survival { exhaustion += Float(lv) }
+            }
+        }
         if breakNow && (projectiles.deflect(from: player.eye, look: player.look) || punchBullet()) { attackTimer = 0; sfx(.attack, 0.7); return }
         // Punching a filled item frame takes the item out first.
         if breakNow, let t = target, Blocks.shape[Int(world.block(t.hit.x, t.hit.y, t.hit.z))] == "frame", let be = world.blockEntities[t.hit], !be.container[0].isEmpty {

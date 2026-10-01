@@ -594,7 +594,7 @@ enum MobTests {
         let sp = Items.def(Items.id("iron_spear")), sw = Items.def(Items.id("iron_sword"))
         check(sp.attack < sw.attack && sp.attackSpeed < sw.attackSpeed && Spear.reach > 3.5, "spear jabs further, weaker and slower than a sword")
         check(Recipes.all.contains { $0.result.item == Items.id("iron_spear") }, "spears are crafted")
-        check(Enchant.category(Items.id("iron_spear")).contains(.sword), "spears take melee enchantments")
+        check(Enchant.category(Items.id("iron_spear")).contains(.spear) && Enchant.def(.sharpness).primary.contains(.spear) && Enchant.def(.lunge).primary == .spear, "spears take melee enchantments and Lunge")
         let mm = g.mobs
         mm.mobs.removeAll()
         let x0 = Int(floor(pos.x)), z0 = Int(floor(pos.z))
