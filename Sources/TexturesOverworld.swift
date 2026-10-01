@@ -27,7 +27,13 @@ extension TextureGen {
             }
         }
         func speckle(_ base: UInt32, _ dot: UInt32, _ amount: Float, _ salt: Int) -> Painter {
-            { x, y in r(x, y, salt) < amount ? hex(dot, 0.9 + 0.2 * r(x, y, salt + 1)) : hex(base, 0.88 + 0.2 * r(x, y, salt + 2)) }
+            { x, y in
+                // Dots gather in clumps (blotch-weighted), the base gets soft two-scale mottling.
+                let clump: Float = blot(x, y, salt + 3, 4)
+                if r(x, y, salt) < amount * (0.4 + 1.2 * clump) { return hex(dot, 0.9 + 0.2 * r(x, y, salt + 1)) }
+                let m: Float = (blot(x, y, salt + 4, 8) - 0.5) * 0.12 + (r(x, y, salt + 2) - 0.5) * 0.12
+                return hex(base, 0.96 + m)
+            }
         }
         func bricks(_ c: UInt32, _ mortar: UInt32, rowH: Int = 4, len: Int = 8, _ salt: Int) -> Painter {
             { x, y in
