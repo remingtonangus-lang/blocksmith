@@ -23,6 +23,8 @@ GATES = {
     "flight16.coverage_min": 1.6,
     "flight16.resident_peak_mb": 1.4,
     "flight24.resident_peak_mb": 1.4,
+    "ships.physics_ms_mean": 2.0,       # ship physics with a frigate and a siege carriage under way
+    "ships.edit_ms_mean": 2.5,          # one block placed on a ship (mass properties; remesh is background)
 }
 IGNORE = ("total_s", "since_launch_s", "worlds_alive")
 
