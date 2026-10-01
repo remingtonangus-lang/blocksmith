@@ -237,6 +237,10 @@ fragment float4 skyFS(SkyOut in [[stage_in]], constant SkyParams& s [[buffer(1)]
     float3 warm = float3(1.0, 0.55, 0.25);
     col += warm * pow(sd, 5.0) * s.horizon.w * (0.35 + 0.65 * band);
     col += float3(1.0, 0.95, 0.85) * pow(sd, 24.0) * 0.18 * s.sun.w;
+    // Dusk/dawn: a soft pink band above the horizon opposite the sun (the anti-twilight arch).
+    float anti = saturate(-dot(normalize(float3(d.x, 0.0, d.z) + 1e-4), normalize(float3(s.sun.x, 0.0, s.sun.z) + 1e-4)));
+    float arch = exp(-pow((d.y - 0.1) / 0.09, 2.0));
+    col += float3(0.55, 0.32, 0.42) * arch * anti * anti * saturate(s.horizon.w - 0.15) * 0.55;
     float night = saturate((0.45 - s.sun.w) / 0.35);
     if (night > 0.0 && d.y > -0.05) {
         // A faint galactic band across the night sky, turning with the stars (zenith.w = sky angle).
