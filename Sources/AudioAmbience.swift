@@ -303,12 +303,11 @@ extension Game {
         let night: Float = f > 0.52 && f < 0.98 ? 1 : 0
         let wet: Float = 1 - min(1, weather.rain * 1.5)                // rain hushes the wildlife
         let high = p.y > Float(SEA + 50)
-        let snowy: Set<Biome> = [.snowyPlains, .iceSpikes, .snowyTaiga, .snowySlopes, .frozenPeaks, .jaggedPeaks, .grove, .snowyBeach, .frozenRiver, .frozenOcean, .deepFrozenOcean]
-        let dry: Set<Biome> = [.desert, .badlands, .erodedBadlands, .woodedBadlands]
-        let wooded: Set<Biome> = [.forest, .flowerForest, .birchForest, .oldGrowthBirchForest, .darkForest, .taiga, .oldGrowthPineTaiga, .oldGrowthSpruceTaiga,
-                                  .windsweptForest, .cherryGrove, .meadow, .plains, .sunflowerPlains, .savanna, .savannaPlateau, .river, .paleGarden]
-        let jungle: Set<Biome> = [.jungle, .sparseJungle, .bambooJungle]
-        let swamp: Set<Biome> = [.swamp, .mangroveSwamp]
+        let snowy = AmbientBiomes.snowy
+        let dry = AmbientBiomes.dry
+        let wooded = AmbientBiomes.wooded
+        let jungle = AmbientBiomes.jungle
+        let swamp = AmbientBiomes.swamp
         if a.nearOcean { ask("surf", .oceanLoop, 0.55 * open, nil) }
         if high || snowy.contains(b) || dry.contains(b) { ask("wind", .windLoop, (high ? 0.6 : 0.35) * open, nil) }
         if jungle.contains(b) { ask("jungle", .jungleLoop, (0.5 * day + 0.35 * night) * wet * open, nil) }

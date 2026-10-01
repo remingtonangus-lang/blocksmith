@@ -4,6 +4,18 @@ import simd
 // Terrain and weather beds: streams and waterfalls (found by the block scan), wind by landform (mountain
 // howl, thin tundra whistle), rain pattering on leaves, snow wind, distant thunder, ice creaks, rockfalls.
 
+// Biome groups the ambient director tests every tick (static: no per-tick set building).
+enum AmbientBiomes {
+    static let snowy: Set<Biome> = [.snowyPlains, .iceSpikes, .snowyTaiga, .snowySlopes, .frozenPeaks, .jaggedPeaks, .grove, .snowyBeach, .frozenRiver, .frozenOcean, .deepFrozenOcean]
+    static let dry: Set<Biome> = [.desert, .badlands, .erodedBadlands, .woodedBadlands]
+    static let wooded: Set<Biome> = [.forest, .flowerForest, .birchForest, .oldGrowthBirchForest, .darkForest, .taiga, .oldGrowthPineTaiga, .oldGrowthSpruceTaiga,
+                                     .windsweptForest, .cherryGrove, .meadow, .plains, .sunflowerPlains, .savanna, .savannaPlateau, .river, .paleGarden]
+    static let jungle: Set<Biome> = [.jungle, .sparseJungle, .bambooJungle]
+    static let swamp: Set<Biome> = [.swamp, .mangroveSwamp]
+    static let tundra: Set<Biome> = [.snowyPlains, .iceSpikes, .snowyTaiga, .frozenRiver, .frozenOcean, .deepFrozenOcean, .snowyBeach]
+    static let peaks: Set<Biome> = [.jaggedPeaks, .frozenPeaks, .stonyPeaks, .snowySlopes, .grove, .windsweptHills, .windsweptGravellyHills]
+}
+
 enum TerrainAudio {
     static func render(_ g: inout Synth, _ s: Snd, p: Float) -> [Float] {
         switch s {
@@ -71,8 +83,8 @@ extension Game {
         let a = audio
         let p = player.pos
         let b = a.biomeHere
-        let tundra: Set<Biome> = [.snowyPlains, .iceSpikes, .snowyTaiga, .frozenRiver, .frozenOcean, .deepFrozenOcean, .snowyBeach]
-        let peaks: Set<Biome> = [.jaggedPeaks, .frozenPeaks, .stonyPeaks, .snowySlopes, .grove, .windsweptHills, .windsweptGravellyHills]
+        let tundra = AmbientBiomes.tundra
+        let peaks = AmbientBiomes.peaks
         let height = p.y - Float(SEA)
         if peaks.contains(b) || height > 60 {
             ask("mountainwind", .mountainWindLoop, min(0.9, 0.25 + max(0, height - 30) / 120) * open, nil)
