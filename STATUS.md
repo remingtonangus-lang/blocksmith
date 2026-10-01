@@ -65,7 +65,9 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
   - [x] Per-voice pitch jitter (3D voices, +-5% for blocks and creatures); waterfall/stream audiotest.
   - [-] Free pad cursor for menus: not needed (slot navigation covers every screen).
   - [x] Fancy eye adaptation. Gen perf checked: 2.05 ms/chunk cold, veins ~7% (no change needed).
-  - [ ] Mob shadow-map shadows (needs a per-frame shadow redraw). Gun icons: the existing pixel icons stay.
+  - [x] Mob shadow-map shadows: static terrain map + per-frame copy with mobs drawn in (snap mob_shadows). Gun icons stay.
+  - [x] Advancements: the nine events never reported are wired (anchor, arrow/trident hit, barter, cure, glow sign,
+        levitation 50, meadow music, trims); signs take dyes, glow ink and ink sacs.
   - [ ] Real-M1 checks: base-vertex path, Fancy GPU time (F3), the seed 777 night ocean seam grid.
 
 ## Naming (repo is public)
