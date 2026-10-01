@@ -45,7 +45,8 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
 - Gameplay
   - [x] Fancy ships use Vibrant's ship pipelines (shadows, emissive, flashes; dark under cover).
   - [x] Muzzle flashes light the terrain (player guns, soldiers, deck guns).
-  - [ ] Soldiers' cover/flank inside a real fortress; gun damage balance vs soldiers and players.
+  - [x] --fortresstest: 20 s inside a generated Steelhold fortress (engage, move/cover, nobody stuck in blocks).
+  - [ ] Gun damage balance vs soldiers and players (needs real play).
   - [ ] Pad-control gameplay tests for the airship and aircraft (padtest drives only the car).
 - Content
   - [x] Spears (every tier): longer, slower jab; hold use for a charge that scales with closing speed (mobtests).
@@ -54,13 +55,15 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
   - [x] Copper set: tools, spear, armour, nuggets, copper torch, lanterns, bars, chains, doors, trapdoors (all stages).
   - [x] Wooden shelves (3 display slots, swap with the held stack); Dried Wailer hatches a Wailerling in water.
   - [ ] Lightning rod oxidation; copper buttons pressed by golems; shelves swapping with the hotbar when powered.
-  - [ ] Biome balance (snowy northern seeds, rare badlands/pale garden); lakes, deltas, fjords in game.
+  - [x] Biome balance pass: less snow, more (wooded) badlands, windswept hills, stony shores, less sparse jungle.
+  - [ ] Lakes, deltas, fjords in game (look at the tours).
   - [x] Steelhold soldiers crew the vessels (marksmen + rifle troopers on the frigate, trooper + arc ironclad on the
         carriage) and hold their stations aboard (aim and fire, no cover runs overboard); physicstest check.
 - Polish
   - [x] Map waypoints (X / Enter / right-click at the map centre; nearest one shown under the minimap).
   - [ ] Free pad cursor for menus; per-voice pitch jitter; waterfall/river audiotest.
-  - [ ] Mob shadow-map shadows, eye adaptation, gun icons via ItemTextures.autoPainter; terrain gen perf (ore veins, tints).
+  - [x] Fancy eye adaptation. Gen perf checked: 2.05 ms/chunk cold, veins ~7% (no change needed).
+  - [ ] Mob shadow-map shadows; gun icons via the auto-painter.
   - [ ] Real-M1 checks: base-vertex path, Fancy GPU time (F3), the seed 777 night ocean seam grid.
 
 ## Naming (repo is public)
