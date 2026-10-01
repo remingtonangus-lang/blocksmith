@@ -232,7 +232,8 @@ final class ProjectileManager {
                     if let t = a.trident { dmg = 8 + Int(Enchant.damageBonus(t, against: m)) }
                     m.hit(from: a.pos, damage: dmg, knockback: 0.6 + 0.6 * Float(a.punch))
                     if a.trident != nil { g.tridentHit(a, mob: m) }
-                    if a.fromPlayer { m.killedByPlayer = true; m.provoke(g) } else { m.lastHitBySkeleton = true }
+                    if a.fromPlayer { m.killedByPlayer = true; m.provoke(g); g.achieve(a.trident != nil ? "trident_hit" : "arrow_hit") }
+                    else { m.lastHitBySkeleton = true }
                     if a.flame && !m.spec.fireImmune { m.fire = max(m.fire, 5) }
                     if a.tip != 0 { g.arrowEffects(a.tip, onPlayer: false, mob: m) }
                     g.sfx(.arrowHit, 0.7, at: a.pos)

@@ -65,6 +65,7 @@ final class SmithingMenu: Menu {
     }
     override func takeResult(_ slot: MenuSlot) -> ItemStack? {
         guard let r = Smithing.result(template: box[0], base: box[1], addition: box[2]) else { return nil }
+        if Items.key(box[0].item).hasSuffix("_armor_trim_smithing_template") { game.achieve("trim") }
         for i in 0..<3 { var s = box[i]; s.count -= 1; box[i] = s.count > 0 ? s : .empty }
         game.sfx(.anvil, 0.5)
         changed()

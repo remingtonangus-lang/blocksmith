@@ -356,6 +356,7 @@ extension Game {
         }
         if m.kind == .piglin && key == "gold_ingot" && m.admire <= 0 && !m.baby {
             m.admire = 6
+            achieve("barter")
             m.aggro = false
             consumeHeld()
             sfx(.mob(.piglin, .ambient), 1, at: m.pos + V3(0, 1.6, 0))

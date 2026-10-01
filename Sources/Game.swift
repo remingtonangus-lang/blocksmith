@@ -123,6 +123,7 @@ final class Game {
     let enderChest = ItemContainer(27)     // the player's void chest inventory (shared by all void chests)
     var timeSinceRest: Float = 0
     var anchorSpawn: IVec3?          // charged rebirth anchor in the Emberdeep
+    var levitateFromY: Float?        // where the current levitation began (advancement)
     var jukeboxes: [JukeboxPlayer] = []
     var fovScale: Float = 1
     // Options (saved in user defaults).
@@ -1215,7 +1216,7 @@ final class Game {
         case "item_frame", "glow_item_frame": _ = useItemFrame(p)
         case "cartography_table": openMenu(CartographyMenu(game: self))
         case "loom": openMenu(LoomMenu(game: self))
-        case _ where k.hasSuffix("_sign"): openSignEditor(p)
+        case _ where k.hasSuffix("_sign"): if !dyeSign(p) { openSignEditor(p) }
         case "cake":
             // Eat a slice: 2 hunger, 0.4 saturation; seven slices.
             guard !survival || hunger < 20 else { return }

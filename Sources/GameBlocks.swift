@@ -45,7 +45,11 @@ extension Game {
                 return true
             }
         case "respawn_anchor":
-            if key == "glowstone" && st < 4 { world.setBlock(p.x, p.y, p.z, b + 1); consumeHeld(); sfx(.respawnAnchorCharge, 0.8, at: c); return true }
+            if key == "glowstone" && st < 4 {
+                world.setBlock(p.x, p.y, p.z, b + 1); consumeHeld(); sfx(.respawnAnchorCharge, 0.8, at: c)
+                if st + 1 == 4 { achieve("anchor_full") }
+                return true
+            }
             if st > 0 {
                 if dim.dim == .nether {
                     anchorSpawn = p

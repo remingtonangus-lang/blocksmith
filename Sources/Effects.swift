@@ -210,6 +210,11 @@ extension Game {
 
     // One step of every active effect on the player (runs every frame).
     func effectTick(_ dt: Float) {
+        // Levitation carrying the player 50 blocks up ("Lifted").
+        if player.levitate > 0 {
+            if levitateFromY == nil { levitateFromY = player.pos.y }
+            if let y0 = levitateFromY, player.pos.y - y0 >= 50 { achieve("levitate50") }
+        } else { levitateFromY = nil }
         guard effects.any else { applyMovementEffects(); return }
         var anyLeft = false
         for i in effects.slots.indices {

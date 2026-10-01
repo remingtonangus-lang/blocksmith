@@ -423,6 +423,7 @@ extension Mob {
         g.mobs.mobs.append(v)
         g.applyEffect(.nausea, amp: 0, seconds: 0.1)
         g.sfx(.villagerYes, 1, at: pos)
+        g.achieve("cure")
         health = -2000
         return true
     }

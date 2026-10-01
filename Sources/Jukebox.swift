@@ -73,6 +73,7 @@ extension Game {
         guard k.hasPrefix("music_disc_") else { return false }
         let name = String(k.dropFirst("music_disc_".count))
         jukeboxes.append(JukeboxPlayer(p, name))
+        if world.gen.column(p.x, p.z).biome == .meadow { achieve("meadow_music") }
         consumeHeld()
         onToast?("Now Playing: \(MusicDiscs.title(name))")
         return true

@@ -616,6 +616,26 @@ enum MobTests {
         g.inventory.held = keep
         for d in [IVec3(-4, 0, 0), IVec3(5, 0, 4), IVec3(5, 0, -4)] { world.blockEntities[IVec3(a.cx + d.x, a.gy, a.cz + d.z)] = nil }
         mm.mobs.removeAll()
+        // Signs: a dye colours the text, a glow ink sac makes it glow (Bright Letters), an ink sac dims it again.
+        if Blocks.has("oak_sign") {
+            let sp2 = IVec3(a.cx + 2, a.gy, a.cz + 2)
+            a.set(2, 0, 2, Blocks.id("oak_sign"))
+            let be = BlockEntity(.sign)
+            be.lines = ["Hi", "", "", ""]
+            world.blockEntities[sp2] = be
+            let keepAdv = g.advancements
+            g.inventory.held = ItemStack(Items.id("red_dye"), 1)
+            let dyed = g.dyeSign(sp2)
+            g.inventory.held = ItemStack(Items.id("glow_ink_sac"), 1)
+            let glowed = g.dyeSign(sp2) && be.burnMax == 1 && g.advancements.contains("husbandry/make_a_sign_glow")
+            let red = Game.signTextColor(be, light: 0.2)
+            g.inventory.held = ItemStack(Items.id("ink_sac"), 1)
+            let dimmed = g.dyeSign(sp2) && be.burnMax == 0
+            check(dyed && be.burn > 0 && glowed && red.x > red.z && red.x > 0.8 && dimmed, "dye, glow ink and ink sac on a sign")
+            g.advancements = keepAdv
+            g.inventory.held = keep
+            world.blockEntities[sp2] = nil
+        }
     }
 
     // MARK: Spears (Spear.swift)
