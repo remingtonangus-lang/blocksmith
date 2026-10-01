@@ -119,6 +119,21 @@ enum AudioTests {
             check(r["loop:rain"] != nil && r["loop:snowwind"] == nil, "rain heard in the open on the plains", loops(r))
             g.weather.raining = false; g.weather.rain = 0
         }
+        // 5. Moving water: a column of falling water beside the player roars; water flowing over the ground babbles.
+        if visit("plains") {
+            let x = Int(floor(g.player.pos.x)) + 3, z = Int(floor(g.player.pos.z))
+            let y0 = w.topY(x, z) + 1
+            for y in y0..<(y0 + 6) { _ = w.setBlockAsync(x, y, z, WATER_FALL) }
+            g.audio.biomeTimer = 0
+            let r = listen(2)
+            check(heard(r, "loop:waterfall"), "a waterfall is heard beside it", loops(r))
+            for y in y0..<(y0 + 6) { _ = w.setBlockAsync(x, y, z, AIR) }
+            let sy = w.topY(x, z + 3) + 1
+            for dx in 0..<5 { _ = w.setBlockAsync(x + dx - 2, sy, z + 3, WATER + 3) }
+            let r2 = listen(2)
+            check(heard(r2, "loop:river"), "flowing water is heard as a stream", loops(r2))
+            for dx in 0..<5 { _ = w.setBlockAsync(x + dx - 2, sy, z + 3, AIR) }
+        }
         print(String(format: "audiotest: %ld failed (%.1f s)", fails, CFAbsoluteTimeGetCurrent() - t0))
         return fails
     }
