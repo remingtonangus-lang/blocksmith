@@ -541,13 +541,14 @@ fragment float4 compositeFS(FsOut in [[stage_in]],
                             constant Uniforms& u [[buffer(1)]]) {
     constexpr sampler ls(filter::linear, address::clamp_to_edge);
     float3 c = hdr.sample(ls, in.uv).rgb;
+    // One depth reconstruction shared by the shafts, haze and mist below.
+    float d = dep.sample(ls, in.uv);
+    float3 rel = relAt(in.uv, d, u);
     if (p.grade.w > 0.0 && u.sunColor.w > 0.05 && u.params.w < 0.5) {
         // Volumetric light shafts: march the view ray (up to 40 blocks) through the sun/moon shadow map and
         // add in-scattered light where the air is lit, so shafts show through canopies and openings even
         // with the sun off screen. 10 jittered steps; strongest looking toward the light.
         constexpr sampler cmp(coord::normalized, filter::linear, address::clamp_to_edge, compare_func::less_equal);
-        float d = dep.sample(ls, in.uv);
-        float3 rel = relAt(in.uv, d, u);
         float L = min(d >= 1.0 ? 40.0 : length(rel), 40.0);
         float3 dir = normalize(rel);
         float jit = fract(sin(dot(in.pos.xy, float2(12.9898, 78.233))) * 43758.5453);
@@ -567,8 +568,6 @@ fragment float4 compositeFS(FsOut in [[stage_in]],
     c += rays.sample(ls, in.uv).r * p.sunCol.rgb * p.sun.z;
     if (p.sunCol.w > 0.0) {
         // Sun haze: distant geometry toward the sun picks up warm in-scattered light.
-        float d = dep.sample(ls, in.uv);
-        float3 rel = relAt(in.uv, d, u);
         float dist = d >= 1.0 ? 400.0 : length(rel);
         float3 dir = normalize(rel);
         float phase = pow(saturate(dot(dir, u.lightDir.xyz)), 5.0) * 0.8 + 0.08;
@@ -577,8 +576,6 @@ fragment float4 compositeFS(FsOut in [[stage_in]],
     }
     if (p.mist.w > 0.0) {
         // Height mist: exponential density with height, integrated analytically along the view ray.
-        float d = dep.sample(ls, in.uv);
-        float3 rel = relAt(in.uv, d, u);
         float dist = d >= 1.0 ? u.params.x : min(length(rel), u.params.x);
         float3 dir = normalize(rel);
         float h0 = -p.mistH.x;                       // eye height above the mist base
