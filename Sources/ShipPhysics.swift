@@ -83,8 +83,8 @@ extension ShipManager {
         if list.isEmpty { return }
         let t0 = CFAbsoluteTimeGetCurrent()
         // Riders: mobs and items resting on a ship before it moves.
-        var mobRiders: [(Mob, Ship)] = []
-        var itemRiders: [(ItemEntity, Ship)] = []
+        mobRiders.removeAll(keepingCapacity: true)
+        itemRiders.removeAll(keepingCapacity: true)
         if let game {
             for m in game.mobs.mobs where m.onGround && game.riding !== m {
                 if let s = standing(on: m.pos) { mobRiders.append((m, s)) }
@@ -142,8 +142,8 @@ extension ShipManager {
         }
         // Mobs a moving hull ran into are shoved aside (or lifted onto it when they are near its top).
         if let game {
-            let riding = Set(mobRiders.map { ObjectIdentifier($0.0) })      // (crews on deck are carried, not shoved)
-            for m in game.mobs.mobs where m.health > 0 && game.riding !== m && !riding.contains(ObjectIdentifier(m)) {
+            // (crews on deck are carried, not shoved)
+            for m in game.mobs.mobs where m.health > 0 && game.riding !== m && !mobRiders.contains(where: { $0.0 === m }) {
                 let mn = V3(m.pos.x - m.halfW, m.pos.y, m.pos.z - m.halfW), mx = V3(m.pos.x + m.halfW, m.pos.y + m.height, m.pos.z + m.halfW)
                 guard let s = list.first(where: { mx.x > $0.worldMin.x && mn.x < $0.worldMax.x && mx.y > $0.worldMin.y && mn.y < $0.worldMax.y
                     && mx.z > $0.worldMin.z && mn.z < $0.worldMax.z }), overlaps(mn, mx) else { continue }

@@ -563,6 +563,8 @@ final class ShipManager {
     var mineProgress: Float = 0
     var breakCooldown: Float = 0
     private var boxScratch: [(V3, V3)] = []
+    var mobRiders: [(Mob, Ship)] = []        // per-frame scratch (ShipPhysics.update): riders before the ships move
+    var itemRiders: [(ItemEntity, Ship)] = []
     var shells: [Shell] = []         // cannon shells in flight (ShipCombat.swift)
     var ghosts: [(Ship, Float)] = [] // docked ships still drawn while the world remeshes their blocks
     var wind = V3(4, 0, 2)           // world wind (b/s): sails (set each frame from the clock and weather)
