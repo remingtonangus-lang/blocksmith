@@ -240,6 +240,7 @@ final class Ship {
     var home: V3?
     var crewStations: [V3] = []
     var captured = false             // the player has steered it: crews stop giving orders
+    var wrecked = false              // lost its helm or most of its hull: no orders, lift bleeds away
     var fireTimer: Float = 0
     var initialBlocks = 0            // block count when it appeared (hull bar)
     var soundTimer: Float = 0
@@ -534,7 +535,12 @@ final class ShipManager {
     var isEmpty: Bool { list.isEmpty }
 
     func add(_ s: Ship) { list.append(s) }
-    func remove(_ s: Ship) {
+    // Removes a ship with its turrets, or (turrets: false, a hull destroyed under them) sets the turrets loose as
+    // ships of their own.
+    func remove(_ s: Ship, turrets: Bool = true) {
+        for t in list where t !== s && t.root === s {
+            if turrets { remove(t) } else if t.parent === s { t.parent = nil; t.parentId = nil }
+        }
         list.removeAll { $0 === s }
         if pilot === s { pilot = nil }
         if aboard === s { aboard = nil }
@@ -784,7 +790,7 @@ final class ShipManager {
         s.grid.set(cell.x, cell.y, cell.z, b)
         if b == AIR { s.blockEntities.removeValue(forKey: cell) }
         s.rebuild()
-        if s.blockCount == 0 { remove(s); return }
+        if s.blockCount == 0 { remove(s, turrets: false); return }
         s.mesh.rebuildAround(s, cell, device: world.device, queue: meshQueue)
         if b == AIR { splitIfNeeded(s) }
     }
@@ -812,6 +818,7 @@ final class ShipManager {
         var home: [Float]?
         var captured: Bool?
         var initial: Int?
+        var wrecked: Bool?
     }
 
     private var url: URL? { world.save?.dir.appendingPathComponent("ships.json") }
@@ -858,7 +865,7 @@ final class ShipManager {
                              liftLevel: s.liftLevel, hoverY: s.hoverY, entities: ents,
                              parent: s.parent?.id, mount: [s.mountLocal.x, s.mountLocal.y, s.mountLocal.z],
                              pivot: [s.pivot.x, s.pivot.y, s.pivot.z], turretYaw: s.turretYaw,
-                             role: s.role, home: s.home.map { [$0.x, $0.y, $0.z] }, captured: s.captured, initial: s.initialBlocks))
+                             role: s.role, home: s.home.map { [$0.x, $0.y, $0.z] }, captured: s.captured, initial: s.initialBlocks, wrecked: s.wrecked ? true : nil))
         }
         if out.isEmpty { return nil }
         return try? JSONEncoder().encode(out)
@@ -899,6 +906,7 @@ final class ShipManager {
             s.role = sv.role
             if let h = sv.home, h.count == 3 { s.home = V3(h[0], h[1], h[2]) }
             s.captured = sv.captured ?? false
+            s.wrecked = sv.wrecked ?? false
             s.initialBlocks = sv.initial ?? 0
             s.updateBounds()
             s.mesh.rebuildAll(s, device: world.device, queue: meshQueue)

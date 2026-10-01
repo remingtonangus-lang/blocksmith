@@ -573,6 +573,20 @@ enum ShipTest {
             check(after == before + 1, "a vessel appears when the player nears its home")
         } else { check(false, "an encounter within six regions") }
 
+        // A vessel that loses its helm founders: no orders, its envelope lets it down.
+        let wa = land + V3(-150, 0, 150)
+        _ = w.loadSync(center: wa, radius: max(rd, 6))
+        let wf = w.ships.spawnVessel("frigate", home: IVec3(Int(wa.x), max(groundTop(w, Int(wa.x), Int(wa.z)), SEA) + 40, Int(wa.z)), game: g)
+        g.player.pos = wa + V3(0, 90, 0)
+        if let h = wf.helm { w.ships.setBlock(wf, h, AIR) }
+        w.ships.crewTick(0.1, game: g)
+        let wy = wf.pos.y
+        for _ in 0..<4 { w.ships.crewTick(1, game: g); run(g, seconds: 1) }
+        print(String(format: "physicstest wreck: helm gone -> wrecked %@, sank %.1f blocks in 4 s, autopilot %@", wf.wrecked ? "yes" : "no",
+                     wy - wf.pos.y, wf.autopilot == nil ? "off" : "on"))
+        check(wf.wrecked && wf.autopilot == nil && wy - wf.pos.y > 2, "a vessel without its helm founders and sinks")
+        w.ships.remove(wf)
+
         print(String(format: "physicstest: %ld checks failed, %.1f s, ships %ld", fails, CFAbsoluteTimeGetCurrent() - t0, w.ships.list.count))
         // Final view: the boat.
         chase(g, boat, dist: 16, height: 6)

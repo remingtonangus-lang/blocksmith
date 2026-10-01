@@ -100,7 +100,7 @@ extension Game {
     // Boss-style bars for crewed vessels near the player: name and how much of the hull is left.
     func shipBars() -> [(String, Float)] {
         var out: [(String, Float)] = []
-        for s in world.ships.list where s.isVessel && s.parent == nil && !s.captured && s.initialBlocks > 0
+        for s in world.ships.list where s.isVessel && s.parent == nil && !s.captured && !s.wrecked && s.initialBlocks > 0
             && simd_length(s.pos - player.pos) < 96 {
             out.append((s.name, Float(s.blockCount) / Float(s.initialBlocks)))
         }
@@ -172,6 +172,7 @@ extension Game {
         ships.aboard = s
         s.piloted = true
         s.captured = true
+        s.wrecked = false                // a new crew (the player) takes over
         if s.balloons > 0 && s.hoverY == nil { s.hoverY = s.pos.y }
         if let stand = helmStand(s) { player.pos = s.toWorld(stand) }
         player.flying = false

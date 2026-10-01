@@ -321,7 +321,8 @@ extension ShipManager {
         if s.balloons > 0 {
             let cap = Float(s.balloons) * ShipTuning.balloonLift * g
             var vyTarget: Float
-            if piloted && abs(s.climb) > 0.1 { vyTarget = s.climb * 5; s.hoverY = s.pos.y }
+            if s.wrecked && !piloted { vyTarget = -1.5; s.hoverY = nil }                // holed envelope: settles down
+            else if piloted && abs(s.climb) > 0.1 { vyTarget = s.climb * 5; s.hoverY = s.pos.y }
             else {
                 if s.hoverY == nil { s.hoverY = s.pos.y }
                 vyTarget = max(-2, min(2, (s.hoverY! - s.pos.y) * 1.2))

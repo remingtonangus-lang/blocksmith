@@ -271,6 +271,17 @@ extension ShipManager {
         for s in list where s.isVessel && s !== pilot && s.parent == nil {
             // A vessel the player has taken (steered) keeps no crew orders.
             if s.captured { s.autopilot = nil; continue }
+            // Lose the helm or most of the hull and the vessel founders: the crew gives up, guns fall silent.
+            if !s.wrecked && (s.helm == nil || s.blockCount * 100 < s.initialBlocks * 45) {
+                s.wrecked = true
+                if simd_length(s.pos - g.player.pos) < 160 { g.onToast?("The \(s.name) is going down!") }
+                g.sfx(.explode, 1, at: s.pos)
+            }
+            if s.wrecked {
+                s.autopilot = nil
+                for t in turrets(of: s) { t.aimAt = nil }
+                continue
+            }
             let home = s.home ?? s.pos
             let toHome = V2(home.x - s.pos.x, home.z - s.pos.z)
             let f = s.dirToWorld(s.fwd)

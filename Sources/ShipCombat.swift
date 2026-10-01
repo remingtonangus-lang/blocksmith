@@ -172,7 +172,7 @@ extension ShipManager {
                 s.angVel += s.invInertiaWorld * simd_cross(c - s.pos, j) * 0.3
             }
             s.rebuild()
-            if s.blockCount == 0 { remove(s); continue }
+            if s.blockCount == 0 { remove(s, turrets: false); continue }
             s.mesh.rebuildAround(s, Array(destroyed), device: world.device, queue: meshQueue)
             splitIfNeeded(s)
         }
