@@ -42,10 +42,18 @@ ShipRender.swift, ShipPlay.swift, ShipBlocks.swift, ShipTest.swift).
 - Aboard: the player moves in the ship's frame (World.frame): walking, jumping, ladders, building all work on a
   moving ship. Mobs and items collide with ship blocks in world space (approximate boxes) and are carried.
 - Save: ships.json per dimension. Harness: `--ship boat|deck|airship|car`, `--physicstest` (strict, exit 1 on failure).
+- Turrets and guns: a **Turret Ring** under a structure makes it a turret when the ship is assembled (it must touch
+  the ship only through the ring); turrets turn to the pilot's view. **Cannons** fire shells (click / RT while
+  steering, elevated to the view pitch); shells explode on terrain, ships, mobs and players. Explosions (TNT, hissers,
+  shells) blow blocks out of ships and push them.
+- Vessels (ShipVessels.swift): the **Skyward Frigate** (48-block flying warship, lift envelope, two turrets, broadside
+  guns, Marauder crew, captain's chest) and the **Ironstride Siege Carriage** (six big wheels, armoured hull, giant
+  three-gun turret). One region in ~6 of 2048 blocks hosts one (seeded); it appears when the player comes within 150
+  blocks, patrols around its home, and its turrets track and shell a survival player within 64-80 blocks. Steer one
+  (take its helm) to capture it. Harness: `--ship gunboat|frigate|carriage`; bench scene `ships`.
 - Known gaps: mobs aboard use approximate collision and can swim in hull water; ship light is baked in ship space
   (no world shadows/caves); no hull splitting when a ship is cut in two; explosions don't damage ships yet.
-- Next: aircraft scenario + tuning, then the rare huge vehicles (flying frigate-class warship, six-wheeled heavy gun
-  platform with a turret).
+- Next: tuning from CI numbers, soldier crews once the Gameplay session adds soldiers, hull splitting.
 
 ## CI (compile/test loop)
 - `.github/workflows/mac.yml` (macos-14 arm64, Xcode 16 / Swift 6.0.3): `./build.sh` + `./snap.sh` on every push;

@@ -9,7 +9,7 @@ enum ShipTuning {
     static let balloonLift: Float = 2.0         // tonnes held up by one lift balloon
     static let propThrust: Float = 120          // per powered propeller at full throttle
     static let paddleThrust: Float = 18         // the helm alone moves a small boat slowly
-    static let wheelDrive: Float = 30           // per powered wheel
+    static let wheelAccel: Float = 4            // drive per wheel: its share of the weight times this (b/s^2)
     static let perEngine = 4                    // propellers / wheels one engine drives
     static let hullRadius: Float = 0.45
 }
@@ -61,6 +61,8 @@ private struct Contact {
 extension ShipManager {
     // Advances every ship (call once per frame) and carries what stands on them.
     func update(_ dt: Float, game: Game?) {
+        if !ghosts.isEmpty { ghosts = ghosts.map { ($0.0, $0.1 - dt) }.filter { $0.1 > 0 } }
+        if encounters, let game { encounterTick(dt, game: game) }
         if list.isEmpty { return }
         let t0 = CFAbsoluteTimeGetCurrent()
         // Riders: mobs and items resting on a ship before it moves.
@@ -89,6 +91,7 @@ extension ShipManager {
             steps += 1
         }
         if steps == 4 { accum = 0 }
+        updateShells(dt, game: game)
         // Carry riders with their ship.
         for (m, s) in mobRiders where s.pos != s.prevPos || s.rot != s.prevRot {
             m.pos = s.toWorld(s.prevToLocal(m.pos))
@@ -130,16 +133,16 @@ extension ShipManager {
     // One fixed physics substep for every ship.
     func step(_ h: Float) {
         var reader = ShipBlockReader(world)
-        for s in list {
+        for s in list where s.parent == nil {
             // Frozen while the ground under it isn't loaded.
             if !reader.loaded(Int(floor(s.pos.x)), Int(floor(s.pos.z))) { s.vel = .zero; s.angVel = .zero; continue }
             integrateForces(s, h, &reader)
         }
         // Contacts: terrain and ship-ship.
-        for s in list {
+        for s in list where s.parent == nil {
             var cs: [Contact] = []
             terrainContacts(s, &reader, &cs)
-            for o in list where o !== s && o.id < s.id {
+            for o in list where o !== s && o.id < s.id && o.parent == nil {
                 if o.worldMax.x < s.worldMin.x - 1 || o.worldMin.x > s.worldMax.x + 1 || o.worldMax.y < s.worldMin.y - 1
                     || o.worldMin.y > s.worldMax.y + 1 || o.worldMax.z < s.worldMin.z - 1 || o.worldMin.z > s.worldMax.z + 1 { continue }
                 shipContacts(s, o, &cs)
@@ -148,7 +151,7 @@ extension ShipManager {
             s.contacts = cs.count
             if !cs.isEmpty { solve(s, &cs, h) }
         }
-        for s in list {
+        for s in list where s.parent == nil {
             if !reader.loaded(Int(floor(s.pos.x)), Int(floor(s.pos.z))) { continue }
             let sp = simd_length(s.vel)
             if sp > 60 { s.vel *= 60 / sp }
@@ -160,6 +163,8 @@ extension ShipManager {
             }
             s.updateBounds()
         }
+        // Turrets ride on their (now moved) parents; turrets of turrets after their parent turret.
+        for _ in 0..<2 { for s in list where s.parent != nil { s.followParent(h) } }
     }
 
     // MARK: Forces
@@ -203,7 +208,8 @@ extension ShipManager {
         let up = s.dirToWorld(V3(0, 1, 0))
         let fwdW = s.dirToWorld(s.fwd)
         let props = s.props.count, wheels = s.wheels.count
-        let drives = props + wheels
+        // Drive units: each propeller, and wheels by the square root of their cells (big wheels are made of many).
+        let drives = props + (wheels > 0 ? Int(ceil(sqrtf(Float(wheels)))) : 0)
         let power: Float = s.engines > 0 && drives > 0 ? min(1, Float(s.engines * ShipTuning.perEngine) / Float(drives)) : 0
         let aircraft = s.wings.count >= 4 && s.balloons == 0
         let piloted = s.piloted
@@ -248,7 +254,8 @@ extension ShipManager {
         // Wheels: spring-damper suspension, rolling along the heading, gripping sideways.
         s.grounded = false
         if wheels > 0 {
-            let share = s.mass / Float(wheels)
+            // The load is carried by the lowest row of wheel cells.
+            let share = s.mass / Float(max(1, s.wheelBase))
             let k = share * g / 0.15
             let c = 2 * sqrtf(k * share) * 0.6
             var fh = V3(fwdW.x, 0, fwdW.z)
@@ -269,7 +276,8 @@ extension ShipManager {
                     }
                     y -= 1
                 }
-                guard let ground = top, ground <= wp.y + 0.3 else { continue }
+                // Up to half a block above the axle: the wheel rides up onto a step.
+                guard let ground = top, ground <= wp.y + 0.55 else { continue }
                 let comp = 0.75 - (wp.y - ground)
                 if comp <= 0 { continue }
                 let cp = V3(wp.x, ground, wp.z)
@@ -283,7 +291,7 @@ extension ShipManager {
                 var long: Float
                 if piloted && s.throttle != 0 && power > 0 {
                     let fade = s.throttle * vf > 0 ? max(0, 1 - abs(vf) / 16) : 1
-                    long = s.throttle * ShipTuning.wheelDrive * power * fade - vf * share * 0.3
+                    long = s.throttle * share * ShipTuning.wheelAccel * power * fade - vf * share * 0.3
                 } else {
                     long = -vf * share * (piloted ? 0.6 : 8)       // rolling resistance / parking brake
                 }
@@ -342,6 +350,7 @@ extension ShipManager {
         let phase = stride > 1 ? Int(s.pos.x * 7 + s.pos.z * 3) & 1 : 0
         var i = phase
         let hull = s.hull
+        let stepUp = !s.wheels.isEmpty && s.grounded
         while i < hull.count {
             let w = s.toWorld(hull[i])
             i += stride
@@ -374,6 +383,12 @@ extension ShipManager {
                     var f = faces[0]
                     for c in faces.dropFirst() where c.0 < f.0 { f = c }
                     n = f.1; pen = r + max(0, f.0)
+                }
+                // Wheeled vehicles on the ground climb low steps: a side hit low on the hull against a block with room
+                // above it pushes the hull up onto the step instead of stopping it.
+                if stepUp && abs(n.y) < 0.7 && mx.y - (w.y - r) < 1.05 && !collide[Int(rd.get(x, y + 1, z))] {
+                    n = V3(0, 1, 0)
+                    pen = min(0.35, mx.y - (w.y - r))
                 }
                 if best == nil || pen > best!.1 { best = (n, pen) }
             } } }

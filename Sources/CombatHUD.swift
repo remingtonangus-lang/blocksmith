@@ -20,7 +20,7 @@ final class CombatHUD {
     }
 
     func integrity(_ s: Ship) -> Float {
-        let p = max(peak[s.id] ?? 0, s.blockCount)
+        let p = max(s.initialBlocks, peak[s.id] ?? 0, s.blockCount)
         peak[s.id] = p
         return p > 0 ? Float(s.blockCount) / Float(p) : 1
     }
@@ -95,6 +95,12 @@ final class CombatHUD {
             if kind == .airship {
                 out.append(HudLine(text: String(format: "Lift %d%%", Int(ship.liftLevel * 100)), x: x, y: y0 + 43 * s, scale: s, color: V4(0.8, 0.9, 1, 1)))
             }
+            if VehicleControls.armed(g, ship) {
+                let loading = ship.reload > 0 || g.world.ships.turrets(of: ship).contains { $0.reload > 0 }
+                let t = loading ? "Guns loading" : "Guns ready"
+                out.append(HudLine(text: t, x: x + w - Float(Font.width(t)) * s, y: y0 + 43 * s, scale: s,
+                                   color: loading ? V4(0.95, 0.75, 0.2, 1) : Settings.shared.goodColor))
+            }
         }
         // Manned deck gun: reload bar under the crosshair.
         if Turrets.shared.active {
@@ -131,6 +137,7 @@ final class WeaponWheel {
     // Per frame before look/hotbar handling; returns true while the wheel is open (it takes the look input).
     func tick(_ g: Game, _ p: PadSnapshot, _ q: PadSnapshot, _ dt: Float) -> Bool {
         let key = KeyBinds.key(.weapons)
+        if g.world.ships.pilot != nil || Turrets.shared.active { holding = false; open = false; return false }
         if !holding {
             let has = !WeaponWheel.guns(g).isEmpty
             if has && p.rb && !q.rb { holding = true; viaPad = true; holdTime = 0 }

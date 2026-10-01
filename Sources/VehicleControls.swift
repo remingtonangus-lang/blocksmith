@@ -27,15 +27,23 @@ enum VehicleControls {
         }
     }
 
+    // Cannons on the vessel or its turrets: then RT fires them (ShipPlay) and the left stick is the throttle.
+    static func armed(_ g: Game, _ s: Ship) -> Bool {
+        !s.cannons.isEmpty || g.world.ships.turrets(of: s).contains { !$0.cannons.isEmpty }
+    }
+
     // Throttle, steer and climb (each -1...1) for this frame.
     static func read(_ g: Game, _ s: Ship, _ mi: MoveInput) -> (throttle: Float, steer: Float, climb: Float) {
         var throttle = mi.forward, steer = mi.strafe, climb: Float = 0
         if mi.jump { climb += 1 }
         if g.input.control { climb -= 1 }
         if let p = PadManager.shared.lastMapped {
+            if p.rb { climb += 1 }                       // RB / LB climb and descend on every vehicle
+            if p.lb { climb -= 1 }
             let ls = stick(p.lx, p.ly, dead: g.deadZone)
             let keysForward = mi.forward - ls.y          // what the keys alone asked for
             let trig = p.rt - p.lt
+            if armed(g, s) { return (max(-1, min(1, throttle)), max(-1, min(1, steer)), max(-1, min(1, climb))) }
             switch kind(s) {
             case .boat, .land:
                 throttle = keysForward + trig + ls.y * 0.5
@@ -55,10 +63,14 @@ enum VehicleControls {
     static func prompts(_ g: Game, _ s: Ship) -> [String] {
         if !Prompt.pad {
             func n(_ a: KeyBinds.Action) -> String { KeyBinds.name(KeyBinds.key(a)) }
-            return [Glyphs.key(n(.forward) + "/" + n(.back)) + " Throttle", Glyphs.key(n(.left) + "/" + n(.right)) + " Steer",
-                    Glyphs.key(n(.jump)) + Glyphs.key("Ctrl") + " Climb", Glyphs.key("Shift") + " Leave"]
+            var k = [Glyphs.key(n(.forward) + "/" + n(.back)) + " Throttle", Glyphs.key(n(.left) + "/" + n(.right)) + " Steer",
+                     Glyphs.key(n(.jump)) + Glyphs.key("Ctrl") + " Climb", Glyphs.key("Shift") + " Leave"]
+            if armed(g, s) { k.insert(Glyph.mouseL.s + " Fire", at: 2) }
+            return k
         }
         let rt = PadMap.glyph(.rt).s, lt = PadMap.glyph(.lt).s, ls = Glyph.ls.s, b = PadMap.glyph(.b).s
+        let climb = PadMap.glyph(.rb).s + PadMap.glyph(.lb).s
+        if armed(g, s) { return [ls + " Throttle / Steer", rt + " Fire", climb + " Climb", b + " Leave"] }
         switch kind(s) {
         case .boat, .land: return [rt + " Throttle", lt + " Reverse", ls + " Steer", b + " Leave"]
         case .airship: return [rt + " Forward", ls + " Turn / Climb", lt + " Reverse", b + " Leave"]

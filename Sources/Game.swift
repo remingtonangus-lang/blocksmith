@@ -602,8 +602,9 @@ final class Game {
         // Hotbar
         for (i, k) in Key.digits.enumerated() where input.tapped(k) { select(i) }
         if input.scrollSteps != 0 { select(selected - input.scrollSteps) }
-        if p.rb && !q.rb && !WeaponWheel.shared.ownsRB(self) { select(selected + 1) }
-        if p.lb && !q.lb { select(selected - 1) }
+        let bumpersFree = world.ships.pilot == nil      // at the helm RB / LB climb and descend
+        if bumpersFree && p.rb && !q.rb && !WeaponWheel.shared.ownsRB(self) { select(selected + 1) }
+        if bumpersFree && p.lb && !q.lb { select(selected - 1) }
 
         if Turrets.shared.tick(self, p, q, sneak: mi.sneak, dt: fdt) { updateFov(Float(dt)); advance(dt); return }
         let before = player.pos

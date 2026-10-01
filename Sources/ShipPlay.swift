@@ -5,8 +5,10 @@ import simd
 // placing and using blocks on ships. Controls at the helm (keyboard / controller):
 //   W/S, left stick up/down     throttle (propellers, wheels; the helm alone paddles a boat slowly)
 //   A/D, left stick left/right  turn (aircraft also bank)
-//   Space / A or RT             climb (airships: more lift; aircraft: nose up)
-//   Ctrl / LT                   descend (airships: less lift; aircraft: nose down)
+//   Space / A or RB             climb (airships: more lift; aircraft: nose up)
+//   Ctrl / LB                   descend (airships: less lift; aircraft: nose down)
+//   look                        turrets turn to the view
+//   attack (click / RT)         fire the cannons (elevated to the view pitch)
 //   Shift / B                   leave the helm
 // Using a helm that isn't part of a ship assembles everything connected to it; sneak-using the helm of a
 // ship docks it back into the world, snapped to the block grid.
@@ -49,6 +51,27 @@ extension Game {
         p.airPeak = w1.y + fall2
     }
 
+    // HUD while steering: speed, height above sea level, throttle and lift.
+    func shipHUDLine() -> String? {
+        guard let s = world.ships.pilot else { return nil }
+        let sp = (s.vel.x * s.vel.x + s.vel.z * s.vel.z).squareRoot()
+        var t = String(format: "%@  %.1f b/s  alt %d  throttle %d%%", s.name, sp, Int(s.pos.y) - YOFF, Int(s.throttle * 100))
+        if s.balloons > 0 { t += String(format: "  lift %d%%", Int(s.liftLevel * 100)) }
+        let guns = ([s] + world.ships.turrets(of: s)).reduce(0) { $0 + $1.cannons.count }
+        if guns > 0 { t += s.reload > 0 || world.ships.turrets(of: s).contains(where: { $0.reload > 0 }) ? "  guns reloading" : "  guns ready" }
+        return t
+    }
+
+    // Boss-style bars for crewed vessels near the player: name and how much of the hull is left.
+    func shipBars() -> [(String, Float)] {
+        var out: [(String, Float)] = []
+        for s in world.ships.list where s.isVessel && s.parent == nil && !s.captured && s.initialBlocks > 0
+            && simd_length(s.pos - player.pos) < 96 {
+            out.append((s.name, Float(s.blockCount) / Float(s.initialBlocks)))
+        }
+        return out
+    }
+
     // Where the pilot stands: on the pilot's side of the helm (its front).
     func helmStand(_ s: Ship) -> V3? {
         guard let h = s.helm else { return nil }
@@ -72,6 +95,14 @@ extension Game {
         s.throttle = c.throttle
         s.steer = c.steer
         s.climb = c.climb
+        // Turrets follow the view.
+        for t in ships.turrets(of: s) {
+            var rel = player.yaw - s.yaw
+            while rel > .pi { rel -= 2 * .pi }
+            while rel < -.pi { rel += 2 * .pi }
+            t.aimAt = nil
+            t.aimYaw = rel
+        }
         player.pos = at
         player.vel = s.velocity(at: at)
         player.onGround = true
@@ -85,6 +116,7 @@ extension Game {
         ships.pilot = s
         ships.aboard = s
         s.piloted = true
+        s.captured = true
         if s.balloons > 0 && s.hoverY == nil { s.hoverY = s.pos.y }
         if let stand = helmStand(s) { player.pos = s.toWorld(stand) }
         player.flying = false
@@ -108,7 +140,12 @@ extension Game {
     func shipInteract(breakHeld: Bool, breakNow: Bool, useNow: Bool, sneak: Bool, dt: Float) -> Bool {
         let ships = world.ships
         ships.breakCooldown -= dt
-        if ships.pilot != nil { ships.target = nil; target = nil; mining = nil; return true }
+        if let s = ships.pilot {
+            ships.target = nil; target = nil; mining = nil
+            // Attack fires the cannons, raised to the view pitch.
+            if breakNow && ships.fire(s, pitch: player.pitch + 0.05, game: self) > 0 { swing = 1 }
+            return true
+        }
         let eye = player.eye, look = player.look
         let reach: Float = survival ? 4.5 : 5
         var best: (Ship, IVec3, IVec3, Float)?

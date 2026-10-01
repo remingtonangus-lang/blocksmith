@@ -315,30 +315,33 @@ final class ShipRenderer {
 
     // Solid then cutout faces of every visible ship.
     func drawOpaque(_ enc: MTLRenderCommandEncoder, ships: ShipManager, eye: V3, u: inout Uniforms, frustum: Frustum, quads: MTLBuffer) {
-        if ships.isEmpty { return }
+        if ships.isEmpty && ships.ghosts.isEmpty { return }
         enc.setDepthStencilState(depthWrite)
         enc.setCullMode(.back)
         enc.setFrontFacing(.counterClockwise)
         enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
         enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
         enc.setVertexBuffer(tintBuf, offset: 0, index: 3)
+        func draw(_ s: Ship, _ pass: Int) {
+            if !frustum.visible(min: s.worldMin, max: s.worldMax) { return }
+            let m = model(s, eye: eye)
+            for sec in s.mesh.sections.values {
+                guard let buf = sec.opaque, sec.opaqueQuads > 0 else { continue }
+                let total = min(sec.opaqueQuads, Renderer.maxQuads), solid = min(sec.solidQuads, total)
+                let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
+                if count <= 0 { continue }
+                var rec = ShipDrawRec(model: m, origin: V4(sec.origin, 0))
+                enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
+                enc.setVertexBytes(&rec, length: MemoryLayout<ShipDrawRec>.stride, index: 2)
+                enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quads,
+                                          indexBufferOffset: first * 6 * 4)
+                drawCalls += 1
+            }
+        }
         for pass in 0..<2 {
             enc.setRenderPipelineState(pass == 0 ? solidPipe : cutPipe)
-            for s in ships.list where frustum.visible(min: s.worldMin, max: s.worldMax) {
-                let m = model(s, eye: eye)
-                for sec in s.mesh.sections.values {
-                    guard let buf = sec.opaque, sec.opaqueQuads > 0 else { continue }
-                    let total = min(sec.opaqueQuads, Renderer.maxQuads), solid = min(sec.solidQuads, total)
-                    let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
-                    if count <= 0 { continue }
-                    var rec = ShipDrawRec(model: m, origin: V4(sec.origin, 0))
-                    enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
-                    enc.setVertexBytes(&rec, length: MemoryLayout<ShipDrawRec>.stride, index: 2)
-                    enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quads,
-                                              indexBufferOffset: first * 6 * 4)
-                    drawCalls += 1
-                }
-            }
+            for s in ships.list { draw(s, pass) }
+            for g in ships.ghosts { draw(g.0, pass) }
         }
     }
 

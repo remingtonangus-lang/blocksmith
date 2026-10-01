@@ -75,7 +75,10 @@ final class Renderer: NSObject, MTKViewDelegate {
     private var bfs: [(Chunk, Int, Int, Int, Int, Int)] = []
     private var chunkGrid: [Chunk?] = []
     // Base vertex / base instance draws (every Apple-silicon GPU; the old per-draw binding path otherwise).
-    private lazy var baseVertexOK: Bool = device.supportsFamily(.apple3) || device.supportsFamily(.mac2)
+    // Apple's paravirtual GPU (the CI runners) reports the family but draws base-vertex calls with the wrong
+    // vertices (scrambled, black terrain), so it takes the per-draw binding path; --no-base-vertex forces it too.
+    private lazy var baseVertexOK: Bool = (device.supportsFamily(.apple3) || device.supportsFamily(.mac2))
+        && !device.name.contains("Paravirtual") && !CommandLine.arguments.contains("--no-base-vertex")
     var caveCulling = true
     var onFrame: ((Double) -> Void)?
 
@@ -546,6 +549,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.writeBeams(&wr, eye: eye)
                 game.writeWeather(&wr, eye: eye)
                 game.writeFalling(&wr, eye: eye)
+                game.world.ships.writeShells(&wr, eye: eye)
                 game.writeDecor(&wr, eye: eye)
                 game.writeBobber(&wr, eye: eye, right: right, up: -up)
                 game.writeLeads(&wr, eye: eye)
@@ -856,12 +860,14 @@ final class Renderer: NSObject, MTKViewDelegate {
                 bars.append((wi.customName ?? "Blight", Float(wi.health) / 300, V4(0.6, 0.2, 0.85, 1)))
             }
             if let r = game.raidBar { bars.append((r.0, r.1, V4(0.85, 0.15, 0.15, 1))) }
+            for b in game.shipBars() { bars.append((b.0, b.1, V4(0.75, 0.6, 0.3, 1))) }
             for (i, b) in bars.enumerated() {
                 let bw = 182 * s, bx = (W - bw) / 2, by = L.insetY + 12 * s + Float(i) * 19 * s
                 text(b.0, (W - textWidth(b.0, s)) / 2, by - 9 * s, s)
                 rect(bx, by, bw, 5 * s, V4(b.2.x * 0.3, b.2.y * 0.3, b.2.z * 0.3, 1))
                 rect(bx, by, bw * max(0, min(1, b.1)), 5 * s, b.2)
             }
+            // Piloting gauges (speed, altitude, throttle, hull, guns) are drawn by CombatHUD.swift; shipHUDLine stays for the harness.
         }
 
         func frame(_ x: Float, _ y: Float, _ w: Float, _ h: Float, _ b: Float, _ c: V4) {
