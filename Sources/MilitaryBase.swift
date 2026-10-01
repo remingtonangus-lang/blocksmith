@@ -139,6 +139,9 @@ enum MilitaryBase {
     // Soldier posts: (kind, dx, dy, dz) relative to the centre at ground-floor level.
     static func garrison() -> [(String, Int, Int, Int)] {
         var out: [(String, Int, Int, Int)] = []
+        // Sentries walking the apron outside the walls.
+        let o = R + 5
+        out += [("soldier_recruit", -o, 1, -10), ("soldier_recruit", o, 1, 10), ("soldier_trooper", 10, 1, -o), ("soldier_recruit", -12, 1, o)]
         // Gate guards and entrance hall.
         out += [("soldier_recruit", -4, 1, 26), ("soldier_recruit", 4, 1, 26), ("soldier_trooper", 0, 1, 18)]
         // Ground floor: barracks (NW), armory (NE), mess (SW), workshop (SE), corridors.
