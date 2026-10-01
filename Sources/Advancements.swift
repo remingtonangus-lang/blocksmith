@@ -91,6 +91,13 @@ enum Advancements {
         Advancement(id: "adventure/sniper_duel", tab: 3, title: "Long Shot", desc: "Kill a Skeleton from at least 50 blocks away", crit: .event("sniper")),
         Advancement(id: "adventure/play_jukebox_in_meadows", tab: 3, title: "Hillside Tunes", desc: "Play a music disc in a Meadow", crit: .event("meadow_music")),
         Advancement(id: "adventure/proving_run", tab: 3, title: "Proving Run", desc: "Step foot in a Proving Hall", crit: .event("trial_chambers")),
+        // Steelhold fortresses (original content).
+        Advancement(id: "adventure/steelhold", tab: 3, title: "Behind Steel Walls", desc: "Set foot inside a Steelhold fortress", crit: .event("steelhold")),
+        Advancement(id: "adventure/steelhold_gun", tab: 3, title: "Locked and Loaded", desc: "Get your hands on a Steelhold gun",
+                    crit: .anyItem(["gun_rifle", "gun_smg", "gun_shotgun", "gun_sniper", "gun_launcher", "gun_arc"])),
+        Advancement(id: "adventure/steelhold_deck_gun", tab: 3, title: "Silence the Guns", desc: "Destroy a Steelhold deck gun", crit: .event("deck_gun")),
+        Advancement(id: "adventure/steelhold_ironclad", tab: 3, title: "The Bigger They Are", desc: "Defeat a Steelhold Ironclad",
+                    crit: .event("ironclad"), challenge: true),
         // Husbandry
         Advancement(id: "husbandry/root", tab: 4, title: "Homestead", desc: "The world is full of friends and food", crit: .event("eat")),
         Advancement(id: "husbandry/plant_seed", tab: 4, title: "Sown", desc: "Plant a seed and watch it grow", crit: .event("plant")),
@@ -179,6 +186,8 @@ extension Game {
         if m.kind == .enderDragon { achieve("kill_ender_dragon") }
         if m.captain { achieve("kill_captain") }
         if m.kind == .skeleton && simd_length(m.pos - player.pos) >= 50 { achieve("sniper") }
+        if m.kind == .deckGun { achieve("deck_gun") }
+        if m.kind == .soldierIronclad { achieve("ironclad") }
     }
 
     func saveAdvancements(_ d: inout [String: String]) {

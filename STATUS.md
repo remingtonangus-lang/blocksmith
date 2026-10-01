@@ -395,6 +395,14 @@ Known failing tests: none (snap.sh and --selftest pass on CI at d92f9b0).
   solve a ballistic arc and fire twin explosive shells; they cannot depress far, so the wall foot is safe.
 - `--mobtests` covers reloads, kills, recoil, pellets, rockets, beams, armour, alerts, marksman laser, deck gun salvos,
   drops, fortress rarity and layout. Snapshots: soldiers, deck_gun, gun_hip/aim/scope, steelhold, steelhold_gate.
+- Tactics: soldiers duck into cover to reload, rifle troopers flank, automatic guns lay suppressing fire on the last
+  sighting, marksmen relocate after shots; sentries walk the apron; the armory has weapon racks (guns in item frames).
+  Gun tooltips (loaded rounds, ammo, damage, rate). Advancements: Behind Steel Walls, Locked and Loaded, Silence the
+  Guns, The Bigger They Are.
+- Also: player hurt cooldown (0.5 s, bigger hits land the difference; gun rounds skip it), raids saved with the world,
+  bow skeletons circle-strafe, raid/patrol captains wear the omen banner.
+- `--mobtests` covers reloads, kills, recoil, pellets, rockets, beams, armour, alerts, cover, marksman laser, deck gun salvos,
+  drops, fortress rarity and layout, raid save/restore. Snapshots: soldiers, deck_gun, gun_hip/aim/scope, steelhold, steelhold_gate.
 
 ## Known gaps / decisions
 - Save format changed with the engine rework (chunks3/, name-paletted); worlds from the 8-bit engine start fresh terrain.
@@ -407,7 +415,7 @@ Known failing tests: none (snap.sh and --selftest pass on CI at d92f9b0).
 - Mobs are saved per chunk (mobs.json) and come back when their chunk loads; natural hostiles are not kept.
 - Credits text is original (the reference game's poem is not copied).
 - Armor trims show in the tooltip (the player model isn't drawn in first person).
-- Raids are not saved across a reload (an unfinished raid ends); the void chest, weather and insomnia timer are.
+- Raids are saved with the world (raiders rejoin when their chunks load); so are the void chest, weather and insomnia timer.
 
 ## Completability (End / Blight) — handoff notes
 - `Blocksmith --playthrough` (Sources/Playthrough.swift, CI step "Playthrough") plays seed 12345 from spawn to the

@@ -45,6 +45,7 @@ final class Armory {
     var hitMarker: Float = 0
     var heldGun = -1
     var heldSlot = -1
+    var placeCheck: Float = 0
     var shotsFired = 0             // harness counters
     var hits = 0
 
@@ -188,6 +189,8 @@ final class Armory {
         // Head shots: the top fifth of an upright mob takes half again.
         let head = (at.y - m.pos.y) > m.height * 0.78 && m.height > 1.2
         if head { dmg *= 1.5 }
+        // Bosses shrug off most of a gun round (keeps the wyrm, the Blight and the deep stalker real fights).
+        if m.kind == .enderDragon || m.kind == .wither || m.kind == .warden || m.kind == .elderGuardian { dmg *= 0.35 }
         let whole = floorf(dmg)
         let n = Int(whole) + (Float.random(in: 0..<1) < dmg - whole ? 1 : 0)
         m.hit(from: at - dir * 2, damage: max(1, n), knockback: s.kind == .bullet ? 0.25 : 0.5)
@@ -234,7 +237,8 @@ final class Armory {
         let hit = o + dir * end
         beams.append(Beam(a: o, b: hit, life: 0.18, color: V4(0.9, 2.2, 2.6, 1), width: 0.09))
         if let m = mob {
-            m.hit(from: o, damage: Int(damage), knockback: 0.4)
+            let boss = m.kind == .enderDragon || m.kind == .wither || m.kind == .warden || m.kind == .elderGuardian
+            m.hit(from: o, damage: Int(damage * (boss ? 0.35 : 1)), knockback: 0.4)
             if !m.spec.fireImmune { m.fire = max(m.fire, 3) }
             if fromPlayer { m.killedByPlayer = true; m.provoke(g); hitMarker = 0.18; hits += 1 }
         } else if player {
@@ -450,6 +454,15 @@ extension Game {
             a.recoilDebt -= r
         }
         if heldGun == nil { a.recoilDebt = 0 }
+        // Once a second: inside a Steelhold fortress?
+        a.placeCheck -= dt
+        if a.placeCheck <= 0 {
+            a.placeCheck = 1
+            let p = player.pos
+            if dim.dim == .overworld, world.gen.structures?.structure(at: Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)), kind: "military_base") != nil {
+                achieve("steelhold")
+            }
+        }
     }
 
     // FOV scale while aiming a gun.
@@ -468,10 +481,33 @@ extension Game {
         return ("\(n) / \(reserve)", n == 0 ? V4(1, 0.35, 0.3, 1) : V4(1, 1, 1, 1))
     }
 
+    // Current cone of fire for the crosshair (nil without a gun).
+    var gunSpread: Float? {
+        guard let gi = heldGun else { return nil }
+        let gs = Guns.all[gi]
+        return gs.spread + (gs.aimSpread - gs.spread) * arms.aim + arms.bloom
+    }
+
     var sniperScoped: Bool { heldGun == Guns.sniper && arms.aim > 0.85 }
 
     func writeArms(_ wr: inout EntityWriter, eye: V3) {
         arms.write(&wr, eye: eye)
         writeSoldierLasers(&wr, eye: eye)
+        writeCaptainBanners(&wr, eye: eye)
+    }
+
+    // Raid and patrol captains wear the omen banner on their head (reference look).
+    func writeCaptainBanners(_ wr: inout EntityWriter, eye: V3) {
+        let layers = Banners.ominous
+        let white = Banners.colors.firstIndex(of: "white") ?? 0
+        for k in [MobKind.pillager, .vindicator, .evoker, .illusioner] {
+            for m in mobs.of(k) where m.captain && m.health > 0 && simd_length(m.pos - eye) < 64 {
+                let l = world.lightAt(Int(floor(m.pos.x)), Int(floor(m.pos.y + 1)), Int(floor(m.pos.z)))
+                let light = max(0.15, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
+                let right = V3(cosf(m.yaw), 0, -sinf(m.yaw))
+                let top = m.pos + V3(0, m.height + 0.55, 0) - m.forward * 0.28 - eye
+                wr.bannerCloth(topLeft: top - right * 0.28, right: right * 0.56, down: V3(0, -1.0, 0), base: white, layers: layers, light: light)
+            }
+        }
     }
 }

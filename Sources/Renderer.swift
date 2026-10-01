@@ -1755,6 +1755,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 }
                 if let t = Smithing.trimName(st) { lines.append((t, V4(0.67, 0.67, 0.9, 1))) }
                 for l in Fireworks.tooltip(st) { lines.append((l, V4(0.67, 0.67, 0.67, 1))) }
+                for l in Guns.tooltip(st) { lines.append((l, V4(0.67, 0.67, 0.67, 1))) }
                 if st.def.name == "ominous_bottle" { lines.append(("Ill Omen " + Effect.roman(st.damage + 1) + " (100:00)", V4(0.33, 0.33, 1, 1))) }
                 if st.def.durability > 0 && st.damage > 0 {
                     lines.append(("Durability: \(st.def.durability - st.damage) / \(st.def.durability)", V4(0.8, 0.8, 0.8, 1)))
@@ -1776,10 +1777,25 @@ final class Renderer: NSObject, MTKViewDelegate {
         let arm = (style == 2 ? 1.5 : 5) * s, th = style == 1 ? max(2, 2 * s) : max(1, s)
         let edge: Float = style == 1 ? max(2, s) : 1
         let shadow = V4(0, 0, 0, style == 1 ? 0.9 : 0.45), white = V4(1, 1, 1, style == 1 ? 1 : 0.9)
-        rect(cx - arm - edge, cy - th / 2 - edge, arm * 2 + 2 * edge, th + 2 * edge, shadow)
-        rect(cx - th / 2 - edge, cy - arm - edge, th + 2 * edge, arm * 2 + 2 * edge, shadow)
-        rect(cx - arm, cy - th / 2, arm * 2, th, white)
-        rect(cx - th / 2, cy - arm, th, arm * 2, white)
+        if let spread = game.gunSpread, game.menu == nil {
+            // Guns: four ticks that open up with the current spread (hidden in the farsight scope).
+            if !game.sniperScoped {
+                let gap = 2 * s + spread / tanf(35 * .pi / 180 * game.fovScale) * H / 2
+                let len = 4 * s
+                for (dx, dy) in [(Float(-1), Float(0)), (1, 0), (0, -1), (0, 1)] {
+                    let x = cx + dx * (gap + len / 2), y = cy + dy * (gap + len / 2)
+                    let w = dx != 0 ? len : th, h = dx != 0 ? th : len
+                    rect(x - w / 2 - 1, y - h / 2 - 1, w + 2, h + 2, shadow)
+                    rect(x - w / 2, y - h / 2, w, h, white)
+                }
+                rect(cx - th / 2, cy - th / 2, th, th, white)
+            }
+        } else {
+            rect(cx - arm - edge, cy - th / 2 - edge, arm * 2 + 2 * edge, th + 2 * edge, shadow)
+            rect(cx - th / 2 - edge, cy - arm - edge, th + 2 * edge, arm * 2 + 2 * edge, shadow)
+            rect(cx - arm, cy - th / 2, arm * 2, th, white)
+            rect(cx - th / 2, cy - arm, th, arm * 2, white)
+        }
 
         // Hotbar
         let total = slot * 9

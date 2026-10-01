@@ -86,6 +86,23 @@ enum Guns {
          Recipes.shapeless(["copper_ingot", "redstone", "redstone", "gold_nugget"], "arc_cell", 4)]
     }
 
+    // Tooltip lines for a gun: loaded rounds, ammunition, damage and fire rate.
+    static func tooltip(_ s: ItemStack) -> [String] {
+        guard let gi = index(s.item) else { return [] }
+        let g = all[gi]
+        let ammoName = Items.has(g.ammo) ? Items.def(Items.id(g.ammo)).display : g.ammo
+        var out = ["Loaded: \(s.tag) / \(g.mag)", "Ammo: \(ammoName)"]
+        switch g.shot {
+        case .bullet:
+            let dmg = g.pellets > 1 ? "\(Int(g.damage)) x \(g.pellets)" : "\(Int(g.damage))"
+            out.append("Damage: \(dmg)")
+        case .rocket: out.append("Explosive rockets")
+        case .beam: out.append("Damage: \(Int(g.damage)), ignites")
+        }
+        out.append(g.auto ? String(format: "Automatic, %.0f rounds/s", 1 / g.interval) : String(format: "%.1f shots/s", 1 / g.interval))
+        return out
+    }
+
     // A direction inside a cone of half-angle `spread` around `d`.
     static func scatter(_ d: V3, _ spread: Float) -> V3 {
         guard spread > 0 else { return d }
@@ -140,14 +157,14 @@ enum Guns {
     static func writeFirstPerson(_ gi: Int, aim: Float, kick: Float, lower: Float, bob: V3, light: Float,
                                  into out: UnsafeMutablePointer<MobVert>) -> Int {
         let CT = Mesher.cornerTable
-        let hip = V3(0.27, -0.27, -0.6), ads = V3(0, -0.068, -0.44)
+        let hip = V3(0.2, -0.2, -0.5), ads = V3(0, -0.05, -0.46)
         let sway: V3 = bob * (1 - aim * 0.8)
         let recoil = V3(0, 0.012 * kick - 0.25 * lower, 0.06 * kick)
         let at: V3 = hip + (ads - hip) * aim + sway + recoil
         let yawR: Float = (1 - aim) * 0.07
         let pitchR: Float = kick * 0.07 - lower * 0.6
         let cy = cosf(yawR), sy = sinf(yawR), cp = cosf(pitchR), sp = sinf(pitchR)
-        let s: Float = 0.021
+        let s: Float = 0.0125
         var n = 0
         for p in models[gi] {
             let size = p.mx - p.mn

@@ -98,6 +98,17 @@ extension TextureGen {
     }
 }
 
+extension StructWriter {
+    // An item frame (state = wall side, see Decor.swift) holding an item.
+    mutating func frame(_ x: Int, _ y: Int, _ z: Int, state: Int, item: ItemStack) {
+        guard inside(x, y, z), Blocks.has("item_frame") else { return }
+        set(x, y, z, Blocks.id("item_frame") + BlockID(state))
+        let be = BlockEntity(.frame)
+        be.container[0] = item
+        entities.append((IVec3(x, y, z), be))
+    }
+}
+
 enum MilitaryBase {
     static let R = 31                 // outer wall half-size
     static let biomes: Set<Biome> = [.plains, .sunflowerPlains, .savanna, .savannaPlateau, .desert, .snowyPlains, .badlands, .meadow,
@@ -128,6 +139,9 @@ enum MilitaryBase {
     // Soldier posts: (kind, dx, dy, dz) relative to the centre at ground-floor level.
     static func garrison() -> [(String, Int, Int, Int)] {
         var out: [(String, Int, Int, Int)] = []
+        // Sentries walking the apron outside the walls.
+        let o = R + 5
+        out += [("soldier_recruit", -o, 1, -10), ("soldier_recruit", o, 1, 10), ("soldier_trooper", 10, 1, -o), ("soldier_recruit", -12, 1, o)]
         // Gate guards and entrance hall.
         out += [("soldier_recruit", -4, 1, 26), ("soldier_recruit", 4, 1, 26), ("soldier_trooper", 0, 1, 18)]
         // Ground floor: barracks (NW), armory (NE), mess (SW), workshop (SE), corridors.
@@ -285,6 +299,11 @@ enum MilitaryBase {
             w.chest(X(14 + i * 4), y0 + 1, Z(z), loot: "steelhold_armory", seed: rng.next(), facing: rng.int(4))
         }
         w.set(X(8), y0 + 1, Z(-12), g("anvil"))
+        // Weapon racks: guns hung in frames above the crates on the north wall (punch one to take it).
+        for x in stride(from: 6, through: R - 3, by: 2) where rng.chance(0.6) {
+            let gun = Guns.all[[Guns.rifle, Guns.rifle, Guns.smg, Guns.smg, Guns.shotgun, Guns.sniper][rng.int(6)]]
+            if Items.has(gun.key) { w.frame(X(x), y0 + 3, Z(-R + 1), state: 1, item: ItemStack(Items.id(gun.key), 1)) }
+        }
         // SW mess hall: long tables with benches, a food chest.
         for z in stride(from: 8, through: R - 4, by: 6) {
             w.fill(X(-R + 4), y0 + 1, Z(z), X(-8), y0 + 1, Z(z), SlTop)

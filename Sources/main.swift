@@ -79,6 +79,11 @@ enum Snapshot {
                 print("structure \(kind) at \(s.anchor.x) \(s.anchor.y - YOFF) \(s.anchor.z) (\(s.pieces.count) pieces, framed)")
             } else {
             pos = V3(Float(s.anchor.x) + 0.5, Float(s.anchor.y), Float(s.anchor.z) + 0.5)
+            // --offset dx,dy,dz: a camera spot relative to the anchor (inside a structure).
+            if let o = arg("--offset") {
+                let v = o.split(separator: ",").compactMap { Float($0) }
+                if v.count == 3 { pos += V3(v[0], v[1], v[2]) }
+            }
             print("structure \(kind) at \(s.anchor.x) \(s.anchor.y - YOFF) \(s.anchor.z) (\(s.pieces.count) pieces)")
             }
         }
@@ -576,12 +581,15 @@ enum Snapshot {
                     }
                     eq.append(Items.has("\(parts[1])_sword") ? ItemStack(Items.id("\(parts[1])_sword"), 1) : .empty)
                     m.equip = eq
+                } else if parts.count > 1 && parts[1] == "captain" {
+                    m.captain = true                                 // raid captain with the omen banner
                 } else if parts.count > 1 && parts[1] == "aggro" {
                     m.aggro = true                                   // soldiers raise their guns
                     if parts.count > 2, let gi = Int(parts[2]) { m.variant = gi }
                 } else if parts.count > 1 { var d = VillagerData(); d.profession = parts[1]; m.villager = d }
                 if k == .wither { m.phase = 0; m.pos.y += 2 }
                 if k == .evoker { m.spellTimer = 4.5 }
+                if CommandLine.arguments.contains("--facecam") { m.yaw = game.player.yaw + .pi }
                 game.mobs.mobs.append(m)
             }
         }
@@ -715,6 +723,21 @@ enum Snapshot {
             game.player.pos = pos
         }
         if CommandLine.arguments.contains("--mobtests") && !MobTests.run(game: game, world: world, pos: pos, rd: rd) { return 1 }
+        if let secs = Double(arg("--fire") ?? "") {
+            // Hold the trigger for a while (guns in flight, muzzle flash, soldiers answering), camera held still.
+            let keep = (game.player.pos, game.player.yaw, game.player.pitch)
+            game.paused = false
+            game.player.flying = true
+            for i in 0..<Int(secs * 20) {
+                game.input.leftDown = true
+                if i == 0 { game.input.leftClicked = true }
+                game.tick(0.05)
+                game.player.pos = keep.0; game.player.vel = .zero; game.player.yaw = keep.1; game.player.pitch = keep.2
+                game.health = max(game.health, 20)
+            }
+            game.input.leftDown = false
+            print("fired \(game.arms.shotsFired) shots, \(game.arms.hits) hits, \(game.arms.slugs.count) rounds in flight")
+        }
         if let secs = Double(arg("--ticks") ?? "") {
             // Let the world run (mobs, sparkstone, villagers) with the camera held still.
             let keep = (game.player.pos, game.player.yaw, game.player.pitch)

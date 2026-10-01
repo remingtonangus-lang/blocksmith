@@ -4,6 +4,31 @@ import simd
 // Harness checks for the Steelhold content: gun items, reloading and firing (bullets, pellets, rockets,
 // beams), recoil, soldier armour and combat, the deck gun, drops, and fortress placement and layout.
 extension MobTests {
+    // A running raid survives a save: its state round-trips and saved raiders rejoin it.
+    static func raidSave(game: Game, pos: V3) {
+        let r = Raid(center: pos, level: 3, difficulty: 3)
+        r.wave = 4; r.state = 1; r.timer = 7; r.waveHealth = 120; r.idle = 300
+        guard let data = try? JSONEncoder().encode(r.record), let rec = try? JSONDecoder().decode(RaidRecord.self, from: data) else {
+            check(false, "raid record encodes"); return
+        }
+        let back = Raid(rec)
+        check(back.wave == 4 && back.state == 1 && back.level == 3 && back.groups == 7 && back.totalWaves == 8 && simd_length(back.center - pos) < 0.01,
+              "raid state round-trips through the save", "wave \(back.wave), level \(back.level), \(back.totalWaves) waves")
+        let saved = game.raid
+        game.raid = back
+        let m = Mob(.pillager, at: pos + V3(5, 0, 0))
+        m.raider = true
+        let restored = Mob.from(m.record)
+        if let rm = restored { game.mobs.mobs.append(rm) }
+        let villager = Mob(.villager, at: pos + V3(-3, 0, 0))
+        game.mobs.mobs.append(villager)
+        game.raidTick(1)
+        check(restored?.raider == true && back.raiders.count == 1 && back.state == 1 && back.wave == 4, "saved raiders rejoin the raid",
+              "\(back.raiders.count) raiders, state \(back.state)")
+        game.mobs.mobs.removeAll { $0 === restored || $0 === villager }
+        game.raid = saved
+    }
+
     static func military(game: Game, world: World, pos: V3) {
         let mm = game.mobs
         mm.mobs.removeAll()
@@ -144,7 +169,7 @@ extension MobTests {
             game.armsTick(0.05)
             game.player.pos = at(0, 0); game.player.vel = .zero
             if hurtAt < 0 && game.health < 20 { hurtAt = t }
-            if game.health < 8 { game.health = 20 }
+            game.health = 20; game.alive = true; game.menu = nil
             t += 0.05
         }
         check(shooter.aggro && buddy.aggro, "soldiers alert each other")
@@ -152,8 +177,31 @@ extension MobTests {
         mm.mobs.removeAll()
         game.arms.slugs.removeAll()
 
-        // Marksman: holds a laser on the target before firing.
+        // Cover: a trooper with an empty magazine ducks behind a wall to reload.
+        for x in (x0 + 2)...(x0 + 4) { for y in gy..<(gy + 3) { world.setBlockAsync(x, y, z0 - 12, Blocks.id("cobblestone")) } }
         game.health = 20
+        let tr = Mob(.soldierTrooper, at: at(0, -10)); tr.persistent = true; tr.variant = Guns.rifle; tr.yaw = .pi
+        mm.mobs.append(tr)
+        tr.aggro = true
+        tr.soldierBrain.mag = 0
+        tr.soldierBrain.react = 0
+        var hid = false
+        t = 0
+        while t < 3 && !hid {
+            mm.update(0.05, game: game)
+            game.armsTick(0.05)
+            game.player.pos = at(0, 0); game.player.vel = .zero
+            game.health = 20; game.alive = true; game.menu = nil
+            if tr.soldierBrain.reload > 0 && tr.soldierBrain.cover != nil && !world.canSee(tr.eye, game.player.eye) { hid = true }
+            t += 0.05
+        }
+        check(hid, "trooper takes cover to reload", String(format: "%.1f s, cover %@", t, tr.soldierBrain.cover.map { String(format: "%.1f,%.1f", $0.x - Float(x0), $0.z - Float(z0)) } ?? "none"))
+        for x in (x0 + 2)...(x0 + 4) { for y in gy..<(gy + 3) { world.setBlockAsync(x, y, z0 - 12, AIR) } }
+        mm.mobs.removeAll()
+        game.arms.slugs.removeAll()
+
+        // Marksman: holds a laser on the target before firing.
+        game.health = 20; game.alive = true; game.menu = nil
         let mk = Mob(.soldierMarksman, at: at(0, -40)); mk.persistent = true; mk.variant = Guns.sniper; mk.yaw = .pi
         mm.mobs.append(mk)
         var lasered = false, firedSniper = false
@@ -164,6 +212,7 @@ extension MobTests {
             if game.arms.slugs.contains(where: { $0.shooter == ObjectIdentifier(mk) }) { firedSniper = true }
             game.armsTick(0.05)
             game.player.pos = at(0, 0)
+            game.health = 20; game.alive = true
             t += 0.05
         }
         check(lasered && firedSniper, "marksman aims a laser, then fires", "laser \(lasered), shot \(firedSniper)")
@@ -179,6 +228,7 @@ extension MobTests {
             gun.updateDeckGun(0.05, game)
             shells = game.arms.slugs.filter { $0.kind == .shell }.count
             game.player.pos = at(0, 0)
+            game.health = 20; game.alive = true
             t += 0.05
         }
         let face = simd_dot(V2(-sinf(gun.yaw), -cosf(gun.yaw)), simd_normalize(V2(game.player.pos.x - gun.pos.x, game.player.pos.z - gun.pos.z)))
@@ -233,6 +283,18 @@ extension MobTests {
         } else {
             check(false, "fortress structure type registered")
         }
+        // Zombies trample turtle eggs.
+        let ex = x0 - 6, ez = z0 - 3
+        world.setBlockAsync(ex, gy, ez, Blocks.id("turtle_egg") + 1)
+        let zb = Mob(.zombie, at: V3(Float(ex) + 0.5, Float(gy), Float(ez) + 1.2))
+        zb.jobTimer = 0
+        var tt: Float = 0
+        while tt < 6 && Blocks.groupBase[Int(world.block(ex, gy, ez))] == Blocks.id("turtle_egg") {
+            zb.attackCooldown -= 0.05
+            _ = zb.trampleEggs(0.05, game)
+            tt += 0.05
+        }
+        check(world.block(ex, gy, ez) == AIR, "zombies trample turtle eggs", String(format: "%.1f s", tt))
         game.player.pos = pos
         game.health = 20
     }

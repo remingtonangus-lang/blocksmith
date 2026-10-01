@@ -311,7 +311,8 @@ extension Mob {
         aimAt += g.player.vel * flight * 0.8
         if b.gun == Guns.launcher { aimAt = g.player.pos + V3(0, 0.3, 0) + g.player.vel * flight * 0.6 }
         let dir = simd_normalize(aimAt - muzzle)
-        let scale = Soldier.difficultyScale(g.difficulty) * rank.damage
+        // Soldiers' shotgun pellets hit softer (a point-blank volley shouldn't one-shot a full-health player).
+        let scale = Soldier.difficultyScale(g.difficulty) * rank.damage * (gs.pellets > 1 ? 0.6 : 1)
         switch gs.shot {
         case .bullet:
             for _ in 0..<gs.pellets {
