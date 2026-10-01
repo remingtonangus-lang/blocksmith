@@ -78,6 +78,7 @@ enum Explosion {
         }
         g.sfx(.explode, 1, at: c)
         g.particles.explosion(at: c, power: power)
+        g.addFlash(at: c + V3(0, 0.5, 0), color: V3(6, 3.6, 1.6) * min(2, power / 3), radius: 6 + power * 2.5, life: 0.45)
     }
 }
 

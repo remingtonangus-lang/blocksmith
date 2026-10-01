@@ -160,98 +160,18 @@ enum Potions {
 
     // Bottle and liquid sprites (original pixel art).
     static func painters(_ p: inout [String: TextureGen.Painter]) {
-        let bottle: [String] = [
-            "................",
-            "......1111......",
-            "......1551......",
-            ".......15.......",
-            ".......15.......",
-            "......1..1......",
-            ".....1....1.....",
-            "....1......1....",
-            "...1........1...",
-            "...1........1...",
-            "...1........1...",
-            "...1........1...",
-            "....1......1....",
-            ".....111111.....",
-            "................",
-            "................",
-        ]
-        let liquid: [String] = [
-            "................",
-            "................",
-            "................",
-            "................",
-            "................",
-            "................",
-            "......4444......",
-            ".....444444.....",
-            "....44454444....",
-            "....44544444....",
-            "....44444444....",
-            "....44444444....",
-            ".....444444.....",
-            "................",
-            "................",
-            "................",
-        ]
-        func mask(_ rows: [String], _ colors: [Character: V4]) -> TextureGen.Painter {
-            let r = rows.map { Array($0) }
-            return { x, y in
-                guard y < r.count, x < r[y].count, let c = colors[r[y][x]] else { return TextureGen.clear }
-                return c
-            }
+        // Bottles from the auto-shaded silhouettes (ItemShapes): the glass and cork layer leaves the liquid
+        // as a hole; the liquid layer (drawn tinted on top) paints only those pixels.
+        let shapes = ItemShapes.s
+        for (key, shape) in [("item_potion_bottle", "bottle"), ("item_splash_bottle", "splash"), ("item_lingering_bottle", "lingering")] {
+            let rows = shapes[shape] ?? []
+            p[key] = ItemTextures.autoPainter(rows, base: 0xD0DCF0, extras: ["d": 0xB080C8], hole: "c")
         }
-        let glass = V4(0.82, 0.86, 0.95, 1), cork = V4(0.55, 0.38, 0.2, 1)
-        p["item_potion_bottle"] = mask(bottle, ["1": glass, "5": cork])
-        var splash = bottle
-        splash[1] = ".....111111....."
-        splash[2] = ".....155551....."
-        p["item_splash_bottle"] = mask(splash, ["1": glass, "5": V4(0.65, 0.65, 0.7, 1)])
-        var ling = bottle
-        ling[1] = "......1111......"
-        ling[2] = ".....155551....."
-        p["item_lingering_bottle"] = mask(ling, ["1": glass, "5": V4(0.75, 0.55, 0.85, 1)])
-        p["item_potion_liquid"] = mask(liquid, ["4": V4(1, 1, 1, 1), "5": V4(1, 1, 1, 0.55)])
-        let arrow: [String] = [
-            "................",
-            "................",
-            "................",
-            "................",
-            "................",
-            "................",
-            "................",
-            "................",
-            "........1.......",
-            ".....a.1........",
-            "......a.........",
-            "....aa.a........",
-            "...ff...........",
-            "..ff............",
-            ".f..............",
-            "................",
-        ]
-        let head: [String] = [
-            "................",
-            "................",
-            "................",
-            "...........444..",
-            "..........4444..",
-            ".........44444..",
-            "..........444...",
-            "...........4....",
-            "................",
-            "................",
-            "................",
-            "................",
-            "................",
-            "................",
-            "................",
-            "................",
-        ]
-        p["item_tipped_arrow"] = mask(arrow, ["1": V4(0.55, 0.55, 0.55, 1), "a": V4(0.42, 0.31, 0.17, 1), "f": V4(0.93, 0.93, 0.93, 1)])
-        p["item_tipped_arrow_head"] = mask(head, ["4": V4(1, 1, 1, 1)])
+        let liquidRows = shapes["bottle"] ?? []
+        p["item_potion_liquid"] = ItemTextures.autoPainter(liquidRows, base: 0xFFFFFF, extras: ["c": 0xFFFFFF], only: "c")
+        let arrowRows = shapes["arrow"] ?? []
+        p["item_tipped_arrow"] = ItemTextures.autoPainter(arrowRows, base: 0x9A9A9A, extras: [:])
+        p["item_tipped_arrow_head"] = ItemTextures.autoPainter(arrowRows, base: 0xFFFFFF, extras: ["z": 0xF4F4F4], only: "z")
     }
 }
 

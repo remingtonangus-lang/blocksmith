@@ -237,11 +237,15 @@ fragment float4 shipLineFS(LineOut in [[stage_in]]) { return in.color; }
 """
 
 final class ShipRenderer {
-    let solidPipe: MTLRenderPipelineState
-    let cutPipe: MTLRenderPipelineState
-    let transPipe: MTLRenderPipelineState
-    let linePipe: MTLRenderPipelineState
-    let maskPipe: MTLRenderPipelineState      // depth only: keeps the sea out of hulls
+    // Two pipeline sets: [0] the drawable format (Fast graphics), [1] the Fancy renderer's HDR target
+    // (Vibrant, rgba16Float); `hdr` picks one per frame (Renderer sets it from hdrActive).
+    private let pipes: [[MTLRenderPipelineState]]
+    var hdr = false
+    var solidPipe: MTLRenderPipelineState { pipes[hdr ? 1 : 0][0] }
+    var cutPipe: MTLRenderPipelineState { pipes[hdr ? 1 : 0][1] }
+    var transPipe: MTLRenderPipelineState { pipes[hdr ? 1 : 0][2] }
+    var linePipe: MTLRenderPipelineState { pipes[hdr ? 1 : 0][3] }
+    var maskPipe: MTLRenderPipelineState { pipes[hdr ? 1 : 0][4] }   // depth only: keeps the sea out of hulls
     let depthWrite: MTLDepthStencilState
     let depthRead: MTLDepthStencilState
     let tintBuf: MTLBuffer
@@ -253,7 +257,7 @@ final class ShipRenderer {
 
     init(device: MTLDevice, colorFormat: MTLPixelFormat) throws {
         let lib = try device.makeLibrary(source: shipShaderSource, options: nil)
-        func pipe(_ vs: String, _ fs: String, blend: Bool, colour: Bool = true) throws -> MTLRenderPipelineState {
+        func pipe(_ vs: String, _ fs: String, blend: Bool, colour: Bool = true, format colorFormat: MTLPixelFormat) throws -> MTLRenderPipelineState {
             let d = MTLRenderPipelineDescriptor()
             d.vertexFunction = lib.makeFunction(name: vs)
             d.fragmentFunction = lib.makeFunction(name: fs)
@@ -270,11 +274,13 @@ final class ShipRenderer {
             d.depthAttachmentPixelFormat = .depth32Float
             return try device.makeRenderPipelineState(descriptor: d)
         }
-        solidPipe = try pipe("shipVS", "shipSolidFS", blend: false)
-        cutPipe = try pipe("shipVS", "shipCutFS", blend: false)
-        transPipe = try pipe("shipVS", "shipTransFS", blend: true)
-        linePipe = try pipe("shipLineVS", "shipLineFS", blend: true)
-        maskPipe = try pipe("shipLineVS", "shipLineFS", blend: false, colour: false)
+        pipes = try [colorFormat, MTLPixelFormat.rgba16Float].map { f in
+            [try pipe("shipVS", "shipSolidFS", blend: false, format: f),
+             try pipe("shipVS", "shipCutFS", blend: false, format: f),
+             try pipe("shipVS", "shipTransFS", blend: true, format: f),
+             try pipe("shipLineVS", "shipLineFS", blend: true, format: f),
+             try pipe("shipLineVS", "shipLineFS", blend: false, colour: false, format: f)]
+        }
         func ds(_ cmp: MTLCompareFunction, _ write: Bool) -> MTLDepthStencilState {
             let d = MTLDepthStencilDescriptor()
             d.depthCompareFunction = cmp

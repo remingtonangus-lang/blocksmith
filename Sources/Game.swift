@@ -36,6 +36,14 @@ final class Game {
     }
     var appAction: ((String) -> Void)?
     var invertY: Bool = UserDefaults.standard.bool(forKey: "invertY") { didSet { UserDefaults.standard.set(invertY, forKey: "invertY") } }
+    // Graphics: Fancy (sky gradient, water reflections, extra effects) or Fast (the plain renderer). Default Fancy.
+    // Fancy only: the 3D world renders at this fraction of the window size and is upscaled (HUD stays sharp).
+    var renderScale: Float = { let v = UserDefaults.standard.float(forKey: "renderScale"); return v > 0 ? v : 1 }() {
+        didSet { UserDefaults.standard.set(renderScale, forKey: "renderScale") }
+    }
+    var fancyGraphics: Bool = UserDefaults.standard.object(forKey: "fancyGraphics") == nil ? true : UserDefaults.standard.bool(forKey: "fancyGraphics") {
+        didSet { UserDefaults.standard.set(fancyGraphics, forKey: "fancyGraphics") }
+    }
     var autoJump: Bool = UserDefaults.standard.bool(forKey: "autoJump") { didSet { UserDefaults.standard.set(autoJump, forKey: "autoJump"); player.autoJump = autoJump } }
     var deadZone: Float = { let v = UserDefaults.standard.float(forKey: "deadZone"); return v > 0 ? v : 0.15 }() {
         didSet { UserDefaults.standard.set(deadZone, forKey: "deadZone") }
@@ -165,6 +173,8 @@ final class Game {
     var tridentCharge: Float = 0
     var bobber: Bobber?
     var weather = Weather()
+    let emberAtmosphere = EmberAtmosphere()
+    var flashes: [LightFlash] = []
     var bolts: [Bolt] = []
     var lightningFlash: Float = 0
     var rainSoundTimer: Float = 0
@@ -371,6 +381,9 @@ final class Game {
         return simd_normalize(V3(cosf(a), sinf(a), 0.35))
     }
 
+    // Moon phase 0...7 (0 = full), one step per day.
+    var moonPhase: Int { ((Int(time / DAY_LENGTH) % 8) + 8) % 8 }
+
     var daylight: Float {
         if !dim.dim.hasSky { return dim.dim == .end ? 0.75 : 1 }
         let s = sunDir.y
@@ -382,6 +395,7 @@ final class Game {
     }
 
     var skyColor: V3 {
+        if dim.dim == .nether { return emberAtmosphere.fog(at: player.pos, gen: world.gen) }
         if !dim.dim.hasSky { return dim.dim.fogColor }
         let day = V3(0.52, 0.72, 0.96), night = V3(0.015, 0.02, 0.06)
         var c = simd_mix(night, day, V3(repeating: (daylight - 0.12) / 0.88))
@@ -393,6 +407,12 @@ final class Game {
         c = simd_mix(c, grey, V3(repeating: weather.rain * 0.75))
         c = simd_mix(c, V3(0.8, 0.82, 0.9), V3(repeating: min(1, lightningFlash)))
         return c
+    }
+
+    // Colour straight up for the Fancy sky gradient: a deeper blue than the horizon by day, near black at night.
+    var skyZenith: V3 {
+        let c = skyColor
+        return simd_mix(c * V3(0.45, 0.6, 0.92), c, V3(repeating: min(1, weather.rain * 0.6 + lightningFlash)))
     }
 
     // MARK: Hotbar / items
@@ -1726,6 +1746,9 @@ final class Game {
         armsTick(Float(dt))
         tnts.update(Float(dt), game: self)
         particles.update(Float(dt), world)
+        ambientParticles(Float(dt))
+        emberMotes(Float(dt))
+        updateFlashes(Float(dt))
         if survival { timeSinceRest += Float(dt) }
         if sleeping > 0 {
             timeSinceRest = 0

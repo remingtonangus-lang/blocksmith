@@ -44,7 +44,7 @@ final class PauseMenu: Menu {
     static let valueIDs: Set<String> = ["sens", "invert", "autojump", "fov", "lookx", "looky", "accel", "dead", "aim", "rumble", "southpaw",
                                         "sneaktoggle", "autosprint", "glyphs", "rd", "fullscreen", "launchfs", "vsync", "fps", "rscale",
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
-                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap"]
+                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap", "graphics", "wscale"]
 
     static func isValue(_ id: String) -> Bool { valueIDs.contains(id) || id.hasPrefix("vol:") || id == "audio_subs" }
 
@@ -74,6 +74,8 @@ final class PauseMenu: Menu {
         "launchfs": "Open Blocksmith straight into full screen, ready for the TV.",
         "vsync": "Sync frames to the display. Off can lower input lag but may tear.",
         "fps": "Frame rate cap. 30 or 60 keeps a laptop cooler.",
+        "graphics": "Fancy: sky gradient, water reflections, shadows and more effects. Fast: the plain renderer.",
+        "wscale": "Fancy graphics only: draws the world at fewer pixels and scales it up; menus and the HUD stay sharp.",
         "rscale": "Renders fewer pixels and scales up. 75% helps a lot on a 4K TV.",
         "gui": "Size of menus and the HUD. Auto picks the largest that fits.",
         "couch": "Bigger HUD and menus for playing from the sofa.",
@@ -158,11 +160,13 @@ final class PauseMenu: Menu {
                         ("Button Prompts: \(["Auto", "Controller", "Keyboard"][max(0, min(2, st.glyphStyle))])", "glyphs"),
                         ("Button Mapping...", "padmap")]
             case .video:
-                rows = [("Render Distance: \(g.world.renderDistance)", "rd"), ("Fullscreen: \(on(VideoState.fullscreen))", "fullscreen"),
+                rows = [("Render Distance: \(g.world.renderDistance)", "rd"), ("Graphics: \(g.fancyGraphics ? "Fancy" : "Fast")", "graphics"),
+                        ("Fullscreen: \(on(VideoState.fullscreen))", "fullscreen"),
                         ("Display: \(VideoState.current.isEmpty ? "Main" : VideoState.current)", "display"),
                         ("Start in Fullscreen: \(on(st.launchFullscreen))", "launchfs"), ("VSync: \(on(st.vsync))", "vsync"),
                         ("Max Frame Rate: \(st.fpsCap == 0 ? "Display" : "\(st.fpsCap)")", "fps"),
-                        ("Resolution: \(pct(st.renderScale))", "rscale"), ("Field of View: \(Int(g.fovSetting))", "fov"), ("GUI Scale: \(gui)", "gui")]
+                        ("Resolution: \(pct(st.renderScale))", "rscale"), ("World Scale (Fancy): \(pct(g.renderScale))", "wscale"),
+                        ("Field of View: \(Int(g.fovSetting))", "fov"), ("GUI Scale: \(gui)", "gui")]
             case .audio:
                 // One slider per sound category, subtitles and a test sound (AudioMenu.swift); its own Done row is ours.
                 rows = audioRows().filter { $0.1 != "audio_back" }
@@ -432,6 +436,8 @@ final class PauseMenu: Menu {
             UserDefaults.standard.set(g.world.renderDistance, forKey: "renderDistance")
         case "fullscreen": g.appAction?("fullscreen")
         case "launchfs": st.launchFullscreen.toggle()
+        case "graphics": g.fancyGraphics.toggle()
+        case "wscale": g.renderScale = step([1, 0.85, 0.7], g.renderScale)
         case "display":
             let list = VideoState.displays
             if list.count > 1 {
@@ -443,6 +449,8 @@ final class PauseMenu: Menu {
         case "fps": st.fpsCap = step(Settings.fpsOptions, st.fpsCap); g.appAction?("video")
         case "rscale": st.renderScale = step(Settings.renderScaleOptions, st.renderScale); g.appAction?("video")
         case "gui": HudLayout.userScale = step([0, 1, 2, 3, 4, 5, 6], HudLayout.userScale)
+        case "graphics": g.fancyGraphics.toggle()
+        case "rscale": g.renderScale = step([1, 0.85, 0.7], g.renderScale)
         case "couch": HudLayout.couch.toggle()
         case "safe": st.safeArea = step([0, 2, 4, 6, 8, 10], st.safeArea)
         case "hints": st.buttonHints.toggle()

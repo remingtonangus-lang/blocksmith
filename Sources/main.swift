@@ -132,6 +132,12 @@ enum Snapshot {
             game.sfx(.birdCall, at: e + r * 8 + V3(0, 4, 0))
             game.sfx(.hurt)
         }
+        if CommandLine.arguments.contains("--fast") {
+            // Fast graphics for this shot only: keep the user's saved preference untouched.
+            let saved = UserDefaults.standard.object(forKey: "fancyGraphics")
+            game.fancyGraphics = false
+            if let s = saved { UserDefaults.standard.set(s, forKey: "fancyGraphics") } else { UserDefaults.standard.removeObject(forKey: "fancyGraphics") }
+        }
         if CommandLine.arguments.contains("--debug") {
             game.showDebug = true
             game.onToast?("Grass Block")
@@ -568,6 +574,20 @@ enum Snapshot {
                 world.setBlock(x, gy + 1, z, Blocks.id(String(parts[0])) + BlockID(parts.count > 1 ? Int(parts[1]) ?? 0 : 0))
             }
         }
+        if let list = arg("--gallery") {
+            // Block gallery: a wall of up to 8 x 4 blocks, 7 blocks ahead, facing the camera (texture review).
+            let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)), r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))
+            let names = list.split(separator: ",").map(String.init).filter { Blocks.has(String($0.split(separator: ":")[0])) }
+            let cols = min(8, max(1, names.count))
+            let base = game.player.eye + f * 7
+            for (i, n) in names.prefix(32).enumerated() {
+                let parts = n.split(separator: ":")
+                let col = i % cols, row = i / cols
+                let p = base + r * (Float(col) - Float(cols - 1) / 2) + V3(0, 1.5 - Float(row), 0)
+                world.setBlock(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)),
+                               Blocks.id(String(parts[0])) + BlockID(parts.count > 1 ? Int(parts[1]) ?? 0 : 0))
+            }
+        }
         if CommandLine.arguments.contains("--redstone") {
             // A test bench on a stone platform east of the camera, then 3 s of sparkstone ticks.
             let bx = Int(floor(pos.x)) + 3, bz = Int(floor(pos.z)) - 6
@@ -820,6 +840,10 @@ enum Snapshot {
         do { renderer = try Renderer(device: device, game: game, colorFormat: .bgra8Unorm) }
         catch { print("renderer init failed: \(error)"); return 1 }
         game.target = world.raycast(game.player.eye, game.player.look, maxDist: 5)
+        if let s = arg("--crack"), let t = game.target {
+            game.mining = t.hit
+            game.mineProgress = min(0.99, max(0.01, Float(s) ?? 0.6))
+        }
         do {
             // Light probe: the eye cell and the first floor below it (debugging dark views).
             let e = game.player.eye
@@ -871,6 +895,23 @@ enum Snapshot {
         if CommandLine.arguments.contains("--bugnotetest") {
             // Voice bug notes pipeline with a synthesized voice (BugNotes.selfTest).
             BugNotes.selfTest(game) { url in _ = renderer.renderToPNG(path: url.path, width: 640, height: 400) }
+        }
+        if CommandLine.arguments.contains("--boom") {
+            // An explosion 9 blocks ahead (no block damage): flash light, smoke and debris mid-burst.
+            let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
+            var c = game.player.pos + f * 9
+            c.y = Float(world.topY(Int(floor(c.x)), Int(floor(c.z))) + 1)
+            Explosion.explode(at: c, power: 4, game: game, breakBlocks: false)
+            game.particles.update(0.12, world)
+        }
+        if CommandLine.arguments.contains("--ambient") {
+            // Two seconds of ambient block particles (torch smoke, campfire columns, lava sparks).
+            for _ in 0..<40 { game.ambientParticles(0.05); game.emberMotes(0.05); game.particles.update(0.05, world) }
+        }
+        if CommandLine.arguments.contains("--underwater") {
+            // Head under the sea surface (fog, overlay, water seen from below).
+            game.player.pos.y = Float(SEA) - 4
+            game.player.headInWater = true
         }
         _ = renderer.renderToPNG(path: out, width: w, height: h) // warm-up (pipeline + residency)
         _ = renderer.renderToPNG(path: out, width: w, height: h)
@@ -1025,6 +1066,10 @@ if let out = arg("--bench") {
 
 if let dir = arg("--terrainmap") { exit(TerrainTools.maps(dir)) }
 if CommandLine.arguments.contains("--genbench") { exit(TerrainTools.genBench()) }
+
+if let out = arg("--atlas") {
+    exit(dumpAtlas(out))
+}
 
 if let out = arg("--snapshot") {
     HudExtras.enabled = CommandLine.arguments.contains("--hints")
