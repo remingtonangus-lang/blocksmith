@@ -271,9 +271,12 @@ final class ShipRenderer {
     // (Vibrant, rgba16Float); `hdr` picks one per frame (Renderer sets it from hdrActive).
     private let pipes: [[MTLRenderPipelineState]]
     var hdr = false
-    var solidPipe: MTLRenderPipelineState { pipes[hdr ? 1 : 0][0] }
-    var cutPipe: MTLRenderPipelineState { pipes[hdr ? 1 : 0][1] }
-    var transPipe: MTLRenderPipelineState { pipes[hdr ? 1 : 0][2] }
+    // Fancy: Vibrant's ship pipelines (terrain fragment shaders: sun shadows, emissive, materials, flashes, fog),
+    // set by Renderer; the plain HDR variants stand in if Vibrant is unavailable.
+    var vibPipes: [MTLRenderPipelineState]? = nil
+    var solidPipe: MTLRenderPipelineState { hdr ? (vibPipes?[0] ?? pipes[1][0]) : pipes[0][0] }
+    var cutPipe: MTLRenderPipelineState { hdr ? (vibPipes?[1] ?? pipes[1][1]) : pipes[0][1] }
+    var transPipe: MTLRenderPipelineState { hdr ? (vibPipes?[2] ?? pipes[1][2]) : pipes[0][2] }
     var linePipe: MTLRenderPipelineState { pipes[hdr ? 1 : 0][3] }
     var maskPipe: MTLRenderPipelineState { pipes[hdr ? 1 : 0][4] }   // depth only: keeps the sea out of hulls
     let depthWrite: MTLDepthStencilState

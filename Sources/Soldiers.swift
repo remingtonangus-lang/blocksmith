@@ -337,6 +337,7 @@ extension Mob {
         g.sfx(.gun(gs.sound), 1, at: muzzle)
         g.particles.add(Particle(pos: muzzle + dir * 0.2, vel: dir * 0.5, life: 0.06, maxLife: 0.06, layer: Int(Tex.id("smoke")), uv0: V2(0, 0),
                                  uvSize: 1, size: 0.14, gravity: 0, color: gs.shot == .beam ? V3(0.8, 2, 2.4) : V3(2.4, 1.7, 0.6), collide: false, glow: true))
+        g.addFlash(at: muzzle + dir * 0.3, color: gs.shot == .beam ? V3(1.2, 2.6, 3.2) : V3(4, 3, 1.6), radius: 6, life: 0.06)   // lights the terrain (Fancy)
         b.mag -= 1
         if b.burst <= 0 { b.burst = Int.random(in: rank.burst) }
         b.burst -= 1
@@ -365,6 +366,7 @@ extension Mob {
         }
         b.mag -= 1
         g.sfx(.gun(gs.sound), 1, at: muzzle)
+        g.addFlash(at: muzzle + dir * 0.3, color: gs.shot == .beam ? V3(1.2, 2.6, 3.2) : V3(4, 3, 1.6), radius: 6, life: 0.06)
     }
 
     // A nearby standing spot the player can't see (sampled in a ring of 2-6 blocks).
@@ -471,6 +473,7 @@ extension Mob {
                     for _ in 0..<6 { g.particles.smoke(at: muzzle + fwd * Float.random(in: 0...1), dark: false) }
                     g.particles.add(Particle(pos: muzzle, vel: fwd, life: 0.08, maxLife: 0.08, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
                                              size: 0.5, gravity: 0, color: V3(2.6, 1.8, 0.7), collide: false, glow: true))
+                    g.addFlash(at: muzzle + fwd * 0.5, color: V3(6, 4, 2), radius: 10, life: 0.1)
                 }
                 g.sfx(.gun(9), 2, at: pivot)
                 b.kick = 1

@@ -132,6 +132,7 @@ vertex VibOut shipVibVS(uint vid [[vertex_id]],
     o.water = tintMode == 3u ? 1.0 : 0.0;
     o.ao = aoCurve[(w1 >> 20) & 3u];
     o.light = float2(float((w1 >> 22) & 15u), float((w1 >> 26) & 15u)) / 15.0;
+    o.light.x *= d.origin.w;                     // the world's sky light around the ship (Ship.skyLight): dark under cover
     o.rel = rel;
     o.nrm = normalize((d.model * float4(vibNormal(float(face)), 0.0)).xyz);
     return o;

@@ -231,6 +231,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         do {
             let vlib = try device.makeLibrary(source: shaderSource + vibrantShaderSource, options: nil)
             vib = try Vibrant(device: device, library: vlib, finalFormat: colorFormat, baseTexels: levels[0])
+            if let v = vib { shipRenderer.vibPipes = [v.shipSolid, v.shipCut, v.shipTrans] }   // ships lit like terrain in Fancy
         } catch { print("Fancy renderer unavailable (falling back to Fast): \(error)") }
 
         // Shared index buffer: every quad is 4 vertices -> 2 CCW triangles.
