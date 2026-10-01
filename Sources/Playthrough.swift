@@ -404,7 +404,14 @@ final class Playthrough {
         // Wood by hand.
         var logs = 0
         for _ in 0..<3 {
-            guard let lp = findBlock(near: home, radius: 40, yRange: max(0, home.y - 8)...min(CH - 1, home.y + 20), { $0.hasSuffix("_log") }) else { break }
+            var near = findBlock(near: home, radius: 40, yRange: max(0, home.y - 8)...min(CH - 1, home.y + 20), { $0.hasSuffix("_log") })
+            if near == nil {
+                // Open country (the realistic terrain has treeless plains and steppe): walk further for a tree.
+                _ = world.loadSync(center: V3(Float(home.x), Float(home.y), Float(home.z)), radius: 7)
+                near = findBlock(near: home, radius: 100, yRange: max(0, home.y - 30)...min(CH - 1, home.y + 40), { $0.hasSuffix("_log") })
+                if let n = near { info("nearest tree is \(Int(simd_length(V2(Float(n.x - home.x), Float(n.z - home.z))))) blocks away") }
+            }
+            guard let lp = near else { break }
             holdNothing()
             let lk = baseKey(world.block(lp.x, lp.y, lp.z))
             if mine(lp) { collect(near: center(lp)) }
