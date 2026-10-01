@@ -621,6 +621,8 @@ enum Snapshot {
                 } else if parts.count > 1 && parts[1] == "aggro" {
                     m.aggro = true                                   // soldiers raise their guns
                     if parts.count > 2, let gi = Int(parts[2]) { m.variant = gi }
+                } else if parts.count > 1, let v = Int(parts[1]) {
+                    m.variant = v                                    // "cow:2" = a warm cow (FarmVariants), "cat:3"...
                 } else if parts.count > 1 { var d = VillagerData(); d.profession = parts[1]; m.villager = d }
                 if k == .wither { m.phase = 0; m.pos.y += 2 }
                 if k == .evoker { m.spellTimer = 4.5 }
