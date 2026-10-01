@@ -45,6 +45,8 @@ done
 "$BIN" --snapshot snaps/night.png   --seed 12345 --yaw 90  --pitch -10 --time 0.75 --up 5
 "$BIN" --snapshot snaps/lake.png --seed 12345 --find ocean --yaw 30 --pitch -6 --time 0.25 --up 2
 "$BIN" --snapshot snaps/lake_glint.png --seed 12345 --find ocean --yaw 90 --pitch -5 --time 0.48 --up 2
+"$BIN" --snapshot snaps/shore.png --seed 12345 --find beach --yaw 30 --pitch -30 --time 0.22 --up 4
+"$BIN" --snapshot snaps/underwater_up.png --seed 12345 --find ocean --yaw 90 --pitch 45 --time 0.3 --underwater
 "$BIN" --snapshot snaps/underwater.png --seed 12345 --find ocean --yaw 30 --pitch -10 --time 0.25 --underwater
 "$BIN" --snapshot snaps/down.png    --seed 12345 --yaw 0   --pitch -80 --time 0.25 --up 3
 "$BIN" --snapshot snaps/forest.png  --seed 12345 --find forest --yaw 30 --pitch -28 --time 0.22 --up 22
@@ -158,6 +160,7 @@ cp -r build/sounds/scapes snaps/sounds/scapes
 "$BIN" --snapshot snaps/create.png --seed 12345 --menu create
 "$BIN" --snapshot snaps/recipes.png --seed 12345 --menu recipes
 "$BIN" --snapshot snaps/commands.png --seed 12345 --menu commands
+"$BIN" --snapshot snaps/boom_night.png --seed 12345 --find plains --yaw 30 --pitch -15 --time 0.78 --up 2 --boom
 "$BIN" --snapshot snaps/fireworks.png --seed 12345 --find plains --yaw 30 --pitch 20 --time 0.8 --up 1 --fireworks
 "$BIN" --snapshot snaps/monument.png --seed 12345 --structure monument --frame 1 --time 0.25
 "$BIN" --snapshot snaps/mansion.png --seed 12345 --structure mansion --frame 1.7 --time 0.25

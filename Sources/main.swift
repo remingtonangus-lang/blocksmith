@@ -881,6 +881,14 @@ enum Snapshot {
             // Voice bug notes pipeline with a synthesized voice (BugNotes.selfTest).
             BugNotes.selfTest(game) { url in _ = renderer.renderToPNG(path: url.path, width: 640, height: 400) }
         }
+        if CommandLine.arguments.contains("--boom") {
+            // An explosion 9 blocks ahead (no block damage): flash light, smoke and debris mid-burst.
+            let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
+            var c = game.player.pos + f * 9
+            c.y = Float(world.topY(Int(floor(c.x)), Int(floor(c.z))) + 1)
+            Explosion.explode(at: c, power: 4, game: game, breakBlocks: false)
+            game.particles.update(0.12, world)
+        }
         if CommandLine.arguments.contains("--ambient") {
             // Two seconds of ambient block particles (torch smoke, campfire columns, lava sparks).
             for _ in 0..<40 { game.ambientParticles(0.05); game.emberMotes(0.05); game.particles.update(0.05, world) }

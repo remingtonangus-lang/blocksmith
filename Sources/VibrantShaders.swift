@@ -20,13 +20,16 @@ struct VibOut {
     float3 rel;
 };
 
+// Per-section record at buffer 2, indexed by instance id: camera-relative origin + tint table offset (words).
+// Same 16-byte layout as a float4 offset with w = 0, so single-section draws can pass (x, y, z, 0) bytes.
+struct VibSection { packed_float3 origin; uint tint; };
+
 vertex VibOut chunkVibVS(uint vid [[vertex_id]],
                          uint iid [[instance_id]],
                          const device uint2* verts [[buffer(0)]],
                          constant Uniforms& u [[buffer(1)]],
-                         const device SectionRec* sections [[buffer(2)]],
+                         const device VibSection* sections [[buffer(2)]],
                          const device uint* tints [[buffer(3)]]) {
-    // Per-section records indexed by instance id, like chunkVS (Shaders.swift).
     float3 sectionOffset = float3(sections[iid].origin);
     uint tintBase = sections[iid].tint;
     uint2 v = verts[vid];
@@ -117,8 +120,22 @@ static float caustic(float2 p, float t) {
 
 // Shared terrain shading: ambient sky light (face shade, AO) + directional sun/moon light with shadows,
 // warm block light, rain wetness, material specular, emissive texels, fog.
+static float3 flashLight(float3 rel, float3 n, constant float4* fl) {
+    float3 acc = float3(0.0);
+    for (int i = 0; i < 8; i++) {
+        float4 pr = fl[i * 2];
+        if (pr.w <= 0.0) { break; }
+        float3 d = pr.xyz - rel;
+        float dist = length(d);
+        float att = saturate(1.0 - dist / pr.w);
+        float ndl = saturate(dot(n, d / max(dist, 0.001)) * 0.75 + 0.25);
+        acc += fl[i * 2 + 1].rgb * att * att * ndl;
+    }
+    return acc;
+}
+
 static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<float> emis,
-                       const device uchar4* mats, constant Uniforms& u) {
+                       const device uchar4* mats, constant Uniforms& u, constant float4* fl) {
     float3 t = (in.overlay > 0.5 && c.a > 0.95) ? float3(1.0) : in.tint;
     float3 albedo = c.rgb * t;
     uint layer = uint(in.layer);
@@ -145,6 +162,7 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
     float3 blkPart = blk * float3(1.0, 0.7, 0.4) * 1.1 * mix(0.75, 1.0, in.ao);
     float3 lit = max(skyPart, blkPart) + min(skyPart, blkPart) * 0.3;
     lit = mix(max(lit, float3(0.03)), float3(1.0), u.sunDir.w);
+    lit += flashLight(in.rel, n, fl);
     float3 col = albedo * lit;
     if (spec > 0.004 && sunVis > 0.0) {
         float3 h = normalize(u.lightDir.xyz - v);
@@ -167,13 +185,14 @@ fragment float4 chunkVibSolidFS(VibOut in [[stage_in]],
                                 depth2d<float> sm [[texture(1)]],
                                 texture2d_array<float> emis [[texture(2)]],
                                 constant Uniforms& u [[buffer(1)]],
-                                const device uchar4* mats [[buffer(4)]]) {
+                                const device uchar4* mats [[buffer(4)]],
+                                constant float4* fl [[buffer(5)]]) {
     float2 uv = in.uv;
     if (in.anim > 0.5) { uv += float2(0.0, fract(u.params.z * 0.04)); }
     float4 c = tex.sample(texSampler, uv, uint(in.layer));
     if (in.anim > 0.5) { c.rgb = lavaGlow(c.rgb, in.rel, u); }
     VibOut o = in; o.uv = uv;
-    return vibShade(o, c, sm, emis, mats, u);
+    return vibShade(o, c, sm, emis, mats, u, fl);
 }
 
 fragment float4 chunkVibFS(VibOut in [[stage_in]],
@@ -181,14 +200,15 @@ fragment float4 chunkVibFS(VibOut in [[stage_in]],
                            depth2d<float> sm [[texture(1)]],
                            texture2d_array<float> emis [[texture(2)]],
                            constant Uniforms& u [[buffer(1)]],
-                           const device uchar4* mats [[buffer(4)]]) {
+                           const device uchar4* mats [[buffer(4)]],
+                           constant float4* fl [[buffer(5)]]) {
     float2 uv = in.uv;
     if (in.anim > 0.5) { uv += float2(0.0, fract(u.params.z * 0.04)); }
     float4 c = tex.sample(texSampler, uv, uint(in.layer));
     if (c.a < 0.5) { discard_fragment(); }
     if (in.anim > 0.5) { c.rgb = lavaGlow(c.rgb, in.rel, u); }
     VibOut o = in; o.uv = uv;
-    return vibShade(o, c, sm, emis, mats, u);
+    return vibShade(o, c, sm, emis, mats, u, fl);
 }
 
 static float3 relAt(float2 suv, float d, constant Uniforms& u) {
@@ -263,7 +283,10 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
     float3 under = refr * absorb + deep * (1.0 - absorb);
     if (u.params.w > 0.5) {
         // Looking up at the surface from below: the bright world above, tinted.
-        float3 col = mix(skyAlong(refract(v, -n, 1.33), u) * 0.8, deep, 0.35);
+        // Beyond the critical angle the surface mirrors the water below (total internal reflection).
+        float3 rd = refract(v, -n, 1.33);
+        float3 col = length(rd) < 0.01 ? deep * 1.4 : mix(skyAlong(rd, u) * 0.85, deep, 0.3);
+        col += u.sunColor.rgb * pow(saturate(dot(rd, u.lightDir.xyz)), 40.0) * 3.0 * sunVis;
         return float4(applyFog(col, dist, u), 1.0);
     }
     // Reflection: march the reflected ray through the opaque depth; fall back to the sky.
@@ -293,6 +316,15 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
     float cosT = saturate(dot(-v, n));
     float fres = 0.02 + 0.98 * pow(1.0 - cosT, 5.0);
     float3 col = mix(under, refl, saturate(fres * 1.1));
+    if (in.face == 2.0) {
+        // Shoreline foam: where the water is shallow over the bed (or meets a wall), a broken white
+        // band that drifts with the waves.
+        float shore = 1.0 - smoothstep(0.0, 1.1, thick0);
+        float fn = vnoise(wp.xz * 2.6 + float2(t * 0.4, -t * 0.3)) * 0.6 + vnoise(wp.xz * 6.0 - t * 0.5) * 0.4;
+        float foam = shore * smoothstep(0.35, 0.75, fn + shore * 0.35);
+        float3 foamLit = u.ambColor.rgb * skyC + u.sunColor.rgb * sunVis * 0.9 + blkL * float3(1.0, 0.7, 0.4) * 0.6;
+        col = mix(col, foamLit * 0.95, foam * 0.85);
+    }
     float3 h = normalize(u.lightDir.xyz - v);
     float sp = pow(saturate(dot(n, h)), 500.0) * 7.0 + pow(saturate(dot(n, h)), 70.0) * 0.18;
     col += u.sunColor.rgb * sp * sunVis;
@@ -430,6 +462,19 @@ fragment float4 compositeFS(FsOut in [[stage_in]],
         float m = 1.0 - exp(-od);
         float phase = 1.0 + pow(saturate(dot(dir, u.lightDir.xyz)), 6.0) * 1.5;
         c = mix(c, p.mist.rgb * phase, saturate(m));
+    }
+    if (u.params.w > 0.5 && u.sunColor.r + u.sunColor.g > 0.05) {
+        // Under water: slanted light shafts that sway, brightest near the surface and toward the sun.
+        float d = dep.sample(ls, in.uv);
+        float3 rel = relAt(in.uv, d, u);
+        float3 dir = normalize(rel);
+        float dist = d >= 1.0 ? 40.0 : min(length(rel), 40.0);
+        float t = u.params.z;
+        float3 pm = u.eye.xyz + dir * dist * 0.5;
+        float2 q = pm.xz - u.lightDir.xz * pm.y * 0.6;
+        float shaft = pow(vnoise(q * 0.35 + float2(t * 0.15, t * 0.1)), 3.0) * 1.6;
+        float up = saturate(dir.y * 0.8 + 0.4);
+        c += u.fogColor.rgb * u.sunColor.rgb * shaft * up * (1.0 - exp(-dist * 0.06)) * 3.0;
     }
     c *= p.grade.x;
     c = toneShoulder(c);

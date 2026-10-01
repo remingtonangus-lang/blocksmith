@@ -175,6 +175,7 @@ final class Game {
     var bobber: Bobber?
     var weather = Weather()
     let emberAtmosphere = EmberAtmosphere()
+    var flashes: [LightFlash] = []
     var bolts: [Bolt] = []
     var lightningFlash: Float = 0
     var rainSoundTimer: Float = 0
@@ -1738,6 +1739,7 @@ final class Game {
         particles.update(Float(dt), world)
         ambientParticles(Float(dt))
         emberMotes(Float(dt))
+        updateFlashes(Float(dt))
         if survival { timeSinceRest += Float(dt) }
         if sleeping > 0 {
             timeSinceRest = 0

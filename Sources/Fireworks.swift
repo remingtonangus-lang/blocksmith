@@ -181,6 +181,7 @@ extension Game {
     func explode(_ r: Rocket) {
         r.dead = true
         guard !r.stars.isEmpty else { sfx(.fireworkBlast, 0.4, at: r.pos); return }
+        addFlash(at: r.pos, color: V3(3, 2.6, 2.2), radius: 14, life: 0.6)
         // Damage: 5 + 2 per extra star within 5 blocks (reference), less with distance.
         let dmg = Float(5 + 2 * (r.stars.count - 1))
         for m in mobs.mobs where m.health > 0 {
