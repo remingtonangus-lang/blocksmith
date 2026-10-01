@@ -39,6 +39,16 @@ enum ShipTest {
             put(4, 0, 9, "ship_propeller[south]")
             for x in [0, 4] { put(x, 0, 9 - 1, planks) }
             return IVec3(o.x + 2, o.y + 1, o.z + 6)
+        case "plane":
+            for z in 0..<11 { for x in 0..<3 { put(x, 0, z, planks) } }
+            for x in -5...7 where x < 0 || x > 2 { for z in 4...6 { put(x, 0, z, "ship_wing") } }
+            for x in -2...4 where x < 0 || x > 2 { for z in 9...10 { put(x, 0, z, "ship_wing") } }
+            put(1, 1, 10, planks); put(1, 2, 10, planks)
+            put(0, 0, -1, "ship_propeller[south]"); put(2, 0, -1, "ship_propeller[south]")
+            put(1, 1, 1, "ship_engine")
+            put(1, 1, 6, "ship_helm[south]")
+            put(1, 1, 7, "glass")
+            return IVec3(o.x + 1, o.y + 1, o.z + 6)
         case "car":
             for z in 0..<7 { for x in 0..<5 { put(x, 0, z, planks) } }
             for (x, z) in [(-1, 1), (5, 1), (-1, 5), (5, 5)] { put(x, 0, z, "ship_wheel") }
@@ -66,6 +76,8 @@ enum ShipTest {
         switch kind {
         case "airship":
             return build(w, kind, at: IVec3(x, groundTop(w, x, z) + 18, z))
+        case "plane":
+            return build(w, kind, at: IVec3(x, groundTop(w, x, z) + 40, z))
         case "car":
             // Level the ground under it first.
             let y = groundTop(w, x + 2, z + 3) + 1
@@ -133,6 +145,11 @@ enum ShipTest {
             mi.jump = true; run(g, seconds: 2, input: mi)
             mi.jump = false; mi.forward = 1; mi.strafe = 0.4; run(g, seconds: 5, input: mi)
             chase(g, s, dist: 22, height: 6)
+        case "plane":
+            s.vel = s.dirToWorld(s.fwd) * 18
+            mi.forward = 1; run(g, seconds: 3, input: mi)
+            mi.strafe = 0.6; run(g, seconds: 1.5, input: mi)
+            chase(g, s, dist: 18, height: 5)
         case "car":
             run(g, seconds: 2)
             mi.forward = 1; run(g, seconds: 4, input: mi)
@@ -243,7 +260,28 @@ enum ShipTest {
             air.autopilot = nil
         } else { check(false, "airship assembles") }
 
-        // 3. Land vehicle: settles on its wheels, drives, docks.
+        // 3. Aircraft: launched level at speed, holds its altitude under power and climbs on command.
+        let ph = place(w, "plane", near: land + V3(60, 0, -60))
+        let (planeOpt, pmsg) = w.ships.assemble(at: ph, game: g)
+        print("physicstest plane: \(pmsg)")
+        if let plane = planeOpt {
+            plane.vel = plane.dirToWorld(plane.fwd) * 18
+            plane.autopilot = V3(1, 0, 0)
+            let p0 = plane.pos
+            run(g, seconds: 6)
+            print(String(format: "physicstest plane: mass %.1f t, %ld airfoils, 6 s: %.1f blocks, altitude change %.1f, speed %.1f, up %.2f",
+                         plane.mass, plane.wings.count, horiz(plane.pos - p0), plane.pos.y - p0.y, simd_length(plane.vel), upright(plane)))
+            check(horiz(plane.pos - p0) > 60 && plane.pos.y - p0.y > -12 && upright(plane) > 0.8, "aircraft flies under power")
+            plane.autopilot = V3(1, 0, 1)
+            let y1 = plane.pos.y
+            run(g, seconds: 2)
+            print(String(format: "physicstest plane: climb input 2 s: altitude change %.1f", plane.pos.y - y1))
+            check(plane.pos.y - y1 > 2, "aircraft climbs when pulled up")
+            plane.autopilot = nil
+            w.ships.remove(plane)
+        } else { check(false, "aircraft assembles") }
+
+        // 4. Land vehicle: settles on its wheels, drives, docks.
         let carSpot = land + V3(-40, 0, 20)
         _ = w.loadSync(center: carSpot, radius: max(rd, 6))
         let ch = place(w, "car", near: carSpot)
