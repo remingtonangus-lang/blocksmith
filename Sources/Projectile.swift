@@ -107,7 +107,9 @@ final class ProjectileManager {
                     g.thrownImpact(f, at: at, mob: hitMob, player: hitPlayer, block: blockHit)
                     continue
                 }
-                if hitPlayer {
+                if f.dragon {
+                    // Wyrm fireballs only burst into a lingering breath cloud (below).
+                } else if hitPlayer {
                     g.hurtPlayer(f.big ? 6 : 5, from: f.pos, cause: f.big ? "was fireballed by Wailer" : "was fireballed by Cinderwisp", type: .projectile)
                     if !f.big { g.onFire = max(g.onFire, 5) }
                 } else if let m = hitMob {
@@ -116,7 +118,8 @@ final class ProjectileManager {
                     if !f.big && !m.spec.fireImmune { m.fire = max(m.fire, 5) }
                 }
                 if f.dragon {
-                    g.clouds.append(AcidCloud(pos: at, radius: 3, time: 8))
+                    // Reference: a breath cloud lasting 30 s that spreads from radius 3 to 7.
+                    g.clouds.append(AcidCloud(pos: at, radius: 3, time: 30, maxTime: 30))
                 } else if f.big {
                     Explosion.explode(at: at, power: 1, game: g, fire: true)
                 } else if let b = blockHit {
@@ -204,11 +207,22 @@ final class ProjectileManager {
                 }
                 if blockT == .greatestFiniteMagnitude { blockT = len }
             }
+            if hitT < blockT, let m = hitMob, a.trident == nil,
+               (m.kind == .enderDragon && m.phase == 4) || (m.kind == .wither && m.phase == 0 && m.health <= m.spec.health / 2) {
+                // A perched wyrm and an armoured Blight (below half health) shrug arrows off: they bounce away.
+                a.pos += dir * max(0, hitT - 0.05)
+                a.vel = V3(-a.vel.x * 0.1, 1.5, -a.vel.z * 0.1)
+                a.hitMobs.append(ObjectIdentifier(m))
+                g.sfx(.arrowHit, 0.5, at: a.pos)
+                continue
+            }
             if hitT < blockT {
                 let speedPerTick = simd_length(a.vel) / 20
                 var dmg = Int(ceilf(speedPerTick * a.damage))
                 if a.fromPlayer && Float.random(in: 0..<1) < 0.25 { dmg += Int.random(in: 0...(dmg / 2 + 1)) }
-                if let m = hitMob {
+                if let m = hitMob, m.kind == .enderman, a.trident == nil {
+                    m.teleport(w)                                  // voidwalkers dodge arrows
+                } else if let m = hitMob {
                     if let t = a.trident { dmg = 8 + Int(Enchant.damageBonus(t, against: m)) }
                     m.hit(from: a.pos, damage: dmg, knockback: 0.6 + 0.6 * Float(a.punch))
                     if a.trident != nil { g.tridentHit(a, mob: m) }

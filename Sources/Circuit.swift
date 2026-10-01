@@ -124,7 +124,7 @@ final class Circuit {
     // Registers periodic components of a chunk that just arrived.
     func chunkLoaded(_ c: Chunk) {
         let bx = c.cx * CS, bz = c.cz * CS
-        for i in 0..<c.blocks.count {
+        for i in 0..<c.blocks.storedCount {     // above storedCount everything is air
             let k = Circuit.kind(c.blocks[i])
             if k == .hopper || k == .daylight || k == .plate || k == .weightedPlate || k == .detectorRail || k == .tripHook || k == .sculkSensor {
                 tracked.insert(IVec3(bx + (i & 15), i >> 8, bz + ((i >> 4) & 15)))
@@ -414,7 +414,8 @@ final class Circuit {
                         let ob = block(o)
                         if base(ob) == base(b) { setQuiet(o, base(b) + BlockID(st(ob) ^ 4)); edge.insert(o) }
                     }
-                    game?.sfx(.open, 0.6, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+                    let iron = k == .ironDoor || Blocks.key(base(b)).hasPrefix("iron")
+                    game?.audioOpenable(shape: Blocks.shape[Int(b)], iron: iron, opening: powered, at: p)
                 }
             }
         case .tnt:
@@ -425,7 +426,7 @@ final class Circuit {
             if powered && !was {
                 edge.insert(p)
                 if Circuit.kind(b) == .note { playNote(p, s) }
-                else if Circuit.kind(b) == .bell { game?.sfx(.levelUp, 0.8, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
+                else if Circuit.kind(b) == .bell { game?.sfx(.bell, 1.2, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
                 else { schedule(p, 4) }
             } else if !powered && was { edge.remove(p) }
         case .hopper:
@@ -451,7 +452,7 @@ final class Circuit {
             let d = simd_length(V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5) - pos)
             guard d <= 8 else { continue }
             sensor[p] = (max(1, 15 - Int(d * 15 / 8)), now + 30)
-            game?.sfx(.click, 0.3, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+            game?.sfx(.sculkClick, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
             wakeAround(p)
             let q = p + IVec3(0, -1, 0); mark(q); wakeAround(q)
         }
@@ -527,7 +528,7 @@ final class Circuit {
             // Button release.
             if Circuit.kind(b) == .button && s >= 12 {
                 setQuiet(p, base(b) + BlockID(s - 12))
-                game?.sfx(.click, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+                game?.sfx(Blocks.key(base(b)).hasPrefix("stone") || Blocks.key(base(b)).hasPrefix("polished") ? .buttonStone : .buttonWood, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
                 switchChanged(p, s - 12)
             }
         case .dispenser, .dropper:
@@ -611,7 +612,7 @@ final class Circuit {
                     // Plates release after 20 ticks (10 for weighted) with nothing on them.
                     if level < s && now % (Circuit.kind(b) == .weightedPlate ? 10 : 20) != 0 { continue }
                     setQuiet(p, base(b) + BlockID(level))
-                    g.sfx(.click, 0.4, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+                    g.sfx(level > s ? .plateOn : .plateOff, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
                     wakeAround(p); let q = p + IVec3(0, -1, 0); mark(q); wakeAround(q)
                 }
             case .daylight:
@@ -644,7 +645,7 @@ final class Circuit {
                 let on = armed && !cells.isEmpty && cells.contains { g.entitiesOn($0, items: true) > 0 }
                 if on != (s >= 4) {
                     setQuiet(p, base(b) + BlockID((s & 3) + (on ? 4 : 0)))
-                    g.sfx(.click, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+                    g.sfx(.tripwire, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
                     wakeAround(p)
                     let a = p + Circuit.D[Circuit.opp[Circuit.d6(s & 3)]]
                     mark(a); wakeAround(a)
@@ -722,7 +723,7 @@ final class Circuit {
             if move(from: p + Circuit.D[face], dir: face, push: true, piston: p) {
                 setQuiet(p, base(b) + BlockID(face + 6))
                 setQuiet(p + Circuit.D[face], Blocks.id("piston_head") + BlockID(face + (sticky ? 6 : 0)))
-                game?.sfx(.place(.wood), 0.6, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+                game?.sfx(.pistonExtend, 0.6, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
                 wakeAround(p + Circuit.D[face] + Circuit.D[face])
             }
         } else if !powered && extended {
@@ -734,7 +735,7 @@ final class Circuit {
                 let qb = block(q)
                 if !Circuit.fragile(qb) && !Circuit.immovable(qb, w, q) { _ = move(from: q, dir: Circuit.opp[face], push: false, piston: p) }
             }
-            game?.sfx(.place(.wood), 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+            game?.sfx(.pistonContract, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
             wakeAround(head)
         }
     }
@@ -790,14 +791,21 @@ final class Circuit {
     // MARK: Note blocks
 
     private func playNote(_ p: IVec3, _ note: Int) {
+        let aboveKey = Blocks.key(base(block(p + IVec3(0, 1, 0))))
+        // A mob head on top plays that mob's call instead of a note.
+        let headMobs: [String: MobKind] = ["skeleton_skull": .skeleton, "wither_skeleton_skull": .witherSkeleton, "zombie_head": .zombie,
+                                           "creeper_head": .creeper, "piglin_head": .piglin, "dragon_head": .enderDragon, "player_head": .villager]
+        if let k = headMobs[aboveKey] {
+            let at = V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5
+            if k == .enderDragon { game?.sfx(.dragonGrowl, 1, at: at) } else if k == .creeper { game?.sfx(.creeperHiss, 1, at: at) } else { game?.sfx(.mob(k, .ambient), 1, at: at) }
+            return
+        }
         guard block(p + IVec3(0, 1, 0)) == AIR else { return }
-        let below = Blocks.key(base(block(p + IVec3(0, -1, 0))))
+        let belowID = block(p + IVec3(0, -1, 0))
+        let below = Blocks.key(base(belowID))
+        let mat = soundMat(belowID)
         let inst: Int
-        if below.hasSuffix("_planks") || below.hasSuffix("_log") { inst = 1 }            // bass
-        else if below == "sand" || below == "gravel" { inst = 2 }                          // snare
-        else if below == "glass" || below == "sea_lantern" { inst = 3 }                    // hat
-        else if below == "stone" || below == "cobblestone" || below.hasSuffix("_ore") || below == "obsidian" || below == "netherrack" { inst = 4 } // bass drum
-        else if below == "gold_block" { inst = 5 }                                         // bell
+        if below == "gold_block" { inst = 5 }                                              // bell
         else if below == "clay" { inst = 6 }                                               // flute
         else if below == "packed_ice" { inst = 7 }                                         // chime
         else if below.hasSuffix("_wool") { inst = 8 }                                      // guitar
@@ -805,6 +813,13 @@ final class Circuit {
         else if below == "iron_block" { inst = 10 }                                        // iron xylophone
         else if below == "hay_block" { inst = 11 }                                         // banjo
         else if below == "glowstone" { inst = 12 }                                         // pling
+        else if below == "soul_sand" { inst = 13 }                                         // cow bell
+        else if below == "pumpkin" { inst = 14 }                                           // didgeridoo
+        else if below == "emerald_block" { inst = 15 }                                     // bit
+        else if mat == .wood { inst = 1 }                                                  // bass
+        else if below == "sand" || below == "gravel" || below.hasSuffix("concrete_powder") || mat == .sand || mat == .gravel { inst = 2 } // snare
+        else if below.hasSuffix("glass") || below == "sea_lantern" || mat == .glass { inst = 3 }                                        // hat
+        else if mat == .stone || mat == .deepslate || mat == .netherrack || below == "obsidian" { inst = 4 }                            // bass drum
         else { inst = 0 }                                                                  // harp
         game?.sfx(.note(inst, note), 1, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
         game?.particles.hearts(at: V3(Float(p.x) + 0.5, Float(p.y) + 1.2, Float(p.z) + 0.5))

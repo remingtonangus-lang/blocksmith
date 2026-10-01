@@ -124,7 +124,7 @@ extension Game {
         }
         guard let t = target else { return false }
         world.setBlock(p.x, p.y, p.z, t)
-        sfx(.dig, 0.6, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+        sfx(key == "honeycomb" ? .waxOn : (waxed ? .waxOff : .scrape), 0.8, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
         swing = 1
         return true
     }

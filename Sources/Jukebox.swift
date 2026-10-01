@@ -52,10 +52,11 @@ enum MusicDiscs {
 final class JukeboxPlayer {
     let pos: IVec3
     let disc: String
-    let notes: [MusicDiscs.Note]
+    let length: Float
     var t: Float = 0
-    var next = 0
-    init(_ p: IVec3, _ d: String) { pos = p; disc = d; notes = MusicDiscs.song(d) }
+    var playing: Bool { t < length }
+    var center: V3 { V3(Float(pos.x) + 0.5, Float(pos.y) + 0.5, Float(pos.z) + 0.5) }
+    init(_ p: IVec3, _ d: String) { pos = p; disc = d; length = Float(MusicDiscs.all.first { $0.0 == d }?.2 ?? 120) }
 }
 
 extension Game {
@@ -64,6 +65,7 @@ extension Game {
         if let i = jukeboxes.firstIndex(where: { $0.pos == p }) {
             let j = jukeboxes.remove(at: i)
             drops.spawn(ItemStack(Items.id("music_disc_\(j.disc)"), 1), at: V3(Float(p.x) + 0.5, Float(p.y) + 1.1, Float(p.z) + 0.5))
+            if audio.discPlaying === j { audio.discPlaying = nil; sound?.disc?.stop(fade: 0.3); sound?.setDisc(at: nil) }
             return true
         }
         let k = Items.key(held.item)
@@ -75,20 +77,27 @@ extension Game {
         return true
     }
 
+    // The nearest playing jukebox within 64 blocks owns the disc stream; its piece is composed from the disc name.
     func jukeboxTick(_ dt: Float) {
-        guard !jukeboxes.isEmpty else { return }
-        for j in jukeboxes {
-            j.t += dt
-            let c = V3(Float(j.pos.x) + 0.5, Float(j.pos.y) + 0.5, Float(j.pos.z) + 0.5)
-            while j.next < j.notes.count && j.notes[j.next].t <= j.t {
-                let n = j.notes[j.next]
-                if simd_length(c - player.pos) < 64 { sfx(.note(n.inst, n.pitch), 0.7, at: c) }
-                j.next += 1
-            }
-            if Float.random(in: 0..<1) < dt * 2 { particles.hearts(at: c + V3(0, 0.8, 0)) }
+        for j in jukeboxes { j.t += dt }
+        let a = audio
+        let near = jukeboxes.filter { $0.playing && simd_length($0.center - player.pos) < 64 }
+        let best = near.min { simd_length($0.center - player.pos) < simd_length($1.center - player.pos) }
+        if let cur = a.discPlaying, best !== cur {
+            sound?.disc?.stop(fade: cur.playing ? 1.5 : 3)
+            a.discPlaying = nil
+            _ = cur
         }
-        // Finished discs stay in the jukebox, silent (like the reference game).
-        for j in jukeboxes where j.next >= j.notes.count { j.t = min(j.t, 1e6) }
+        guard let b = best else { sound?.setDisc(at: nil); return }
+        if a.discPlaying == nil {
+            a.discPlaying = b
+            var score = MusicDiscs.score(b.disc)
+            // Join a disc that was already spinning when we came in range.
+            if b.t > 2 { score.notes = score.notes.filter { $0.t >= b.t }.map { n in var m = n; m.t -= b.t; return m }; score.length = max(4, score.length - b.t) }
+            sound?.disc?.play(score, fadeIn: 0.5)
+        }
+        sound?.setDisc(at: b.center, occlusion: audioOcclusion(player.eye, b.center))
+        if Float.random(in: 0..<1) < dt * 2 { particles.hearts(at: b.center + V3(0, 0.8, 0)) }
     }
 }
 
@@ -126,48 +135,5 @@ extension MusicDiscs {
             t += beat * Float(2 + rng.int(5))
         }
         return out
-    }
-}
-
-// Background music: a piece every 10-20 minutes (first one 1-3 minutes in), mood by dimension,
-// quiet while a jukebox plays nearby.
-final class MusicDirector {
-    var wait: Float = Float.random(in: 60...180)
-    var notes: [MusicDiscs.Note] = []
-    var t: Float = 0
-    var next = 0
-    var playing: Bool { next < notes.count }
-}
-
-extension Game {
-    func musicTick(_ dt: Float) {
-        // Cave ambience: an occasional low rumble when standing in darkness underground.
-        caveTimer -= dt
-        if caveTimer <= 0 {
-            caveTimer = Float.random(in: 20...60)
-            let l = world.lightAt(Int(floor(player.pos.x)), Int(floor(player.eye.y)), Int(floor(player.pos.z)))
-            if dim.dim == .overworld && l.sky == 0 && l.block < 4 && Float.random(in: 0..<1) < 0.5 {
-                let a = Float.random(in: 0..<(2 * .pi))
-                sfx(.caveAmbience, 0.6, at: player.eye + V3(cosf(a), 0, sinf(a)) * 6)
-            }
-        }
-        let m = music
-        let jukeboxNear = jukeboxes.contains { simd_length(V3(Float($0.pos.x), Float($0.pos.y), Float($0.pos.z)) - player.pos) < 64 && $0.next < $0.notes.count }
-        if m.playing {
-            m.t += dt
-            while m.next < m.notes.count && m.notes[m.next].t <= m.t {
-                let n = m.notes[m.next]
-                if !jukeboxNear && musicVolume > 0 { sfx(.note(n.inst, n.pitch), 0.32 * musicVolume) }
-                m.next += 1
-            }
-            if !m.playing { m.wait = Float.random(in: 600...1200) }
-            return
-        }
-        m.wait -= dt
-        if m.wait <= 0 {
-            let mood = dim.dim == .nether ? 1 : (dim.dim == .end ? 2 : 0)
-            m.notes = MusicDiscs.ambient(seed: UInt64.random(in: 0...UInt64(Int32.max)), mood: mood)
-            m.t = 0; m.next = 0
-        }
     }
 }

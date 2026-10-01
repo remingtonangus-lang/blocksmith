@@ -22,20 +22,61 @@ No third-party text, textures, sounds or logos: everything is procedural or writ
 | A4 Containers | MC-style menus (click/right-click/shift-click/number keys, controller cursor), 2×2 + 3×3 crafting with recipe engine (tags, mirroring), furnace (fuel/smelt ticks, lit state), chests, creative palette | done (recipe list keeps growing) |
 | B Survival content | zombie/skeleton/hisser/spider/voidwalker/slime with light-based spawning, combat (cooldown, crits, knockback), armor, bow, beds + sleeping, farming (wheat/carrots/potatoes/beetroot, farmland moisture, bone meal), breeding, TNT + explosions, XP, fire | done |
 | C Emberdeep | portals, lava, 5 emberdeep biomes, fortresses (bridges, castle, cinderwisp spawners, wart rooms), bastions (housing, treasure, stables, bridge), onyxstone set, spawners, undead boarling (group anger), boarling (bartering, gold armor), brute, tusker, magmastrider, wailer (deflectable fireballs), cinderwisp, lava blob, blight skeleton (blight effect), emberdeep wart | done |
-| D End | 128 strongholds in rings (portal room, libraries, prisons, fountains), eyes of ender, hollow gate (12 frames, 10% pre-filled), the Hollow (central island, 10 spikes with crystals/cages, bedrock fountain, 1000-block void, outer islands, spiral), hollow wyrm (circle/strafe/charge/perch, breath clouds, crystal healing, 12000 XP, egg, gateways), hollow spires + ships (glider wings), shellsentrys (levitation), glider wings flight + rockets, credits | done (untested in live play) |
+| D End | 128 strongholds in rings (portal room, libraries, prisons, fountains), eyes of ender, hollow gate (12 frames, 10% pre-filled), the Hollow (central island, 10 spikes with crystals/cages, bedrock fountain, 1000-block void, outer islands, spiral), hollow wyrm (circle/strafe/charge/perch, breath clouds, crystal healing, 12000 XP, egg, gateways), hollow spires + ships (glider wings), shellsentrys (levitation), glider wings flight + rockets, credits | done — scripted start-to-credits playthrough on CI (`--playthrough`, PR #3); see "Completability" below |
 | E Terrain parity | new surface generator: 5 climate noises → all 53 surface biomes (multi-noise tables), continentalness/erosion/weirdness height with rivers, plateaus, windswept hills and 250-block peaks, 3D density overhangs; cheese/spaghetti/noodle caves, aquifers, lava below y −55; 1.18 ore distributions + granite/diorite/andesite/tuff/dirt/gravel blobs; geodes, dungeons, lush/driprock/deep-dark cave decoration; per-biome surfaces (badlands bands, hoodoos, podzol, snow) and a final freeze pass; 20 tree shapes (fancy oak, mega spruce/jungle, acacia, dark oak, mangrove, cherry, huge mushrooms, ice spikes); vegetation incl. two-tall plants, sugar cane, cacti, bamboo, kelp, corals, lily pads, icebergs. Structures: villages (5 styles), desert pyramids, jungle temples, swamp huts, igloos, marauder watchtowers, ruined portals, shipwrecks, buried treasure, mineshafts, desert wells, strongholds  Big structures: sea temples (spikefishs, elder spikefishs, sponge rooms, gold core), forest manors (3 floors, brigands/conjurers, loot), buried citadels (murk, shriekers, deeprock, loot), proving halls (tuff/copper halls, proving spawners, vaults), ocean ruins, trail ruins (suspicious gravel), fossils | done — structures are hand-built approximations of the reference layouts |
 | F Sparkstone | power levels 0–15 with strong/weak conduction; dust networks (cross/line shapes, slopes), torches (1-tick inverters, burnout), levers, buttons (stone/wood timings), pressure plates (incl. weighted), repeaters (delay, locking), comparators (compare/subtract, container fill), observers, pistons + sticky pistons (12-block limit, slime/honey groups, quasi-connectivity, entity pushing), sparkstone lamps/blocks, dispensers (arrows, fire charges, buckets, TNT, bone meal, armor), droppers, hoppers (5 slots, 8-tick transfers, locking, furnaces), note blocks (13 instruments × 25 pitches), daylight detectors, targets; doors/trapdoors/gates/TNT/bells react to power; rails (10 shapes incl. slopes/curves, auto-shaping), powered/detector/activator rails, rideable minecarts | done — not yet: tripwire, trapped chest, murk sensor, lectern output, crafter |
 | G Long tail | **Effects**: all 39 status effects with reference numbers (regen/poison/blight timing, absorption + health boost hearts, speed/slowness/jump/slow falling/levitation, haste/fatigue mining, resistance, fire resistance, water breathing, night vision, blindness/darkness fog, hunger, ill omen/siege omen/hero), HUD icons + inventory list. **Brewing**: brewing stand (cinderwisp fuel, 20 s brews, 3 bottles), every potion (normal/long/strong) × drink/splash/lingering/tipped arrows, full recipe table incl. fermented spider eye corruption, witches using the reference potion logic. **Enchanting**: 42 enchantments (weights, level windows, exclusivity), table with bookshelves + lapis + XP and the reference selection algorithm, books, anvil (combine/repair/rename, prior-work penalty, too expensive, wear), grindstone, all effects (sharpness/smite/bane, knockback, fire aspect, looting, sweeping, efficiency, silk touch, fortune, unbreaking, mending, protection family, feather falling, thorns, respiration, aqua affinity, deep stride, swift sneak, ghost stride, power/punch/flame/infinity, multishot/piercing/quick charge, loyalty/riptide/channeling/impaling, luck/lure, curses). **Villagers**: 13 professions from job sites, 5 levels, reference trade tables, demand pricing, restocking, trading screen, nitwits, biome robes, zombie villagers + curing discount, wandering trader. **Raids**: omen bottles → Ill Omen → Siege Omen → 5(+1) waves of marauders/brigands/conjurers (fangs, vexes)/witches/siegebeasts (riders), raid bar, Village Hero; marauder patrols with captains. **Blight**: ghost sand + skulls summoning, 11 s charge + blast, skulls (blue), armor phase, block breaking, blight star; beacons (4 pyramid levels, powers, beam). **Mobs**: +46 kinds (animals with taming/riding/breeding foods, aquatic, bats, bees, parrots, fetchlings, nightwings from insomnia, spikefishs, deep stalker, gustling, mire skeleton, rot tusker, snow/iron golems built from blocks), biome spawn tables, mob persistence (per-chunk storage + mobs.json). **Weather**: rain/snow/thunder cycles, lightning (conversions, fire), snow layers/ice, sleeping skips storms. **Items/blocks**: shield, crossbow, trident, fishing (reference loot), thrown snowballs/eggs/void pearls, mob heads, carved pumpkins, falling blocks, 16-colour concrete/powder/stained glass/glazed terracotta/candles/shellsentry boxes, void chest, double + trapped chests, cake, dyes, smithing table (duskium upgrade, trims), stonecutter  **Blocks/items (later batch)**: copper family (oxidation, waxing, scraping, bulbs, grates), driprock, big dripleaf, murk + sensors/shriekers/catalysts (deep stalker summoning), campfires, beehives, rebirth anchors, sea pickles, turtle eggs, vaults, jukebox + 19 original procedural discs, signs (editable, text in the world), item frames (+ glow), paintings (40 motives, original art), maps (exploration, cartography table zoom/copy/lock), boats + chest boats + bamboo raft (9 woods), armor stands, mob armour (reference spawn odds with regional difficulty, reduction, drops), leads (leash, fence knots), spyglass + FOV effects, goat horns, banners (16 colours, 42 patterns, loom, pattern items, omen banner), fireworks (stars, shapes, trails, twinkle, fades, rockets, crossbow), barrel, smoker, blast furnace, composter, bell, books and quills / written books / lecterns, special crafting (banner/book/map copies, shield decoration), tripwire hooks + string, trapped chest power, murk sensor vibrations, copper bulbs toggling, crafter, bundles, log axes + stripped logs/wood/hyphae/bamboo blocks (axe stripping), hanging signs, chiseled bookshelves, decorated pots, wall torches + soul torches, wind charges, sponges, powder snow (freezing, leather boots), leather dyeing, horse + wolf armour, hollow crystals + dragon respawn ritual, minecart variants (chest/hopper/TNT/furnace), goat horns, advancements (76, five tabs, toasts, L screen), options (FOV, sensitivity, volume). **Worlds**: world list, create (name, seed text, mode, difficulty), difficulty (peaceful/easy/normal/hard damage scaling and starvation limits) | in progress — next: shield banner visuals, more structure-accurate layouts, controller-driven options menu, polish from live play |
 
+## Moving block structures (Engine session, branch claude/free-physics)
+Ships are free-moving block structures: boats, airships, aircraft, land vehicles (Ships.swift, ShipPhysics.swift,
+ShipRender.swift, ShipPlay.swift, ShipBlocks.swift, ShipTest.swift).
+- Build a structure, place a **Ship Helm** on it and use the helm: everything connected to it (not natural terrain,
+  fluids or plants; up to 60 000 blocks) becomes a ship. Use the helm again to steer; sneak-use it to dock the ship
+  back into the world (snapped to the grid and the nearest quarter turn).
+- Parts: Propeller (pushes away from its front, needs an Engine; one engine drives 4 propellers/wheels), Engine,
+  Lift Balloon (2 t of lift each; airships hold altitude, Space/Ctrl climb/descend), Airfoil (flat-plate lift for
+  aircraft; 4+ airfoils and no balloons = aircraft controls: climb input pitches), Wheel (suspension, rolls along the
+  ship's heading, grips sideways). The helm alone paddles a boat slowly. Wool blocks are **sails**: while someone
+  steers they turn the wind (direction drifts over time, stronger in rain/thunder) into drive along the heading.
+- Physics: 60 Hz substeps; buoyancy from blocks plus the hull's enclosed air (a stone hull floats like a steel ship),
+  keel-like water drag, air drag, yaw-rate steering, self-righting, impulse contacts vs terrain and other ships.
+- Aboard: the player moves in the ship's frame (World.frame): walking, jumping, ladders, building all work on a
+  moving ship. Mobs and items collide with ship blocks in world space (approximate boxes) and are carried.
+- Save: ships.json per dimension. Harness: `--ship boat|deck|airship|car`, `--physicstest` (strict, exit 1 on failure).
+- Turrets and guns: a **Turret Ring** under a structure makes it a turret when the ship is assembled (it must touch
+  the ship only through the ring); turrets turn to the pilot's view. **Cannons** fire shells (click / RT while
+  steering, elevated to the view pitch); shells explode on terrain, ships, mobs and players. Explosions (TNT, hissers,
+  shells) blow blocks out of ships and push them.
+- Vessels (ShipVessels.swift): the **Skyward Frigate** (48-block flying warship, lift envelope, two turrets, broadside
+  guns, Marauder crew, captain's chest) and the **Ironstride Siege Carriage** (six big wheels, armoured hull, giant
+  three-gun turret). One region in ~6 of 2048 blocks hosts one (seeded); it appears when the player comes within 150
+  blocks, patrols around its home, and its turrets track and shell a survival player within 64-80 blocks. Steer one
+  (take its helm) to capture it. Harness: `--ship gunboat|frigate|carriage`; bench scene `ships`.
+- Known gaps: mobs aboard use approximate collision and can swim in hull water; ship light is baked in ship space
+  (no world shadows/caves); no hull splitting when a ship is cut in two; explosions don't damage ships yet.
+- Next: tuning from CI numbers, soldier crews once the Gameplay session adds soldiers, hull splitting.
+
+## Rendering fix carried from the performance branch (Engine session)
+The single-draw-per-section path (base vertex + base instance) draws scrambled, black terrain on the CI runners'
+paravirtual GPU (every PR #1 snapshot showed it). Renderer.baseVertexOK now skips it when the device name contains
+"Paravirtual" (or with --no-base-vertex). Still to verify on a real M1 that the fast path renders correctly; if not,
+the same flag turns it off. Open: World objects still outlive some --bench scenes (startup, tnt, fluids, flights).
+
 ## CI (compile/test loop)
 - `.github/workflows/mac.yml` (macos-14 arm64, Xcode 16 / Swift 6.0.3): `./build.sh` + `./snap.sh` on every push;
   PNGs, WAVs and logs force-pushed to the orphan branch `ci-snaps` (README embeds them).
+- Progression test: `Blocksmith --playthrough [--seed N] [--only overworld,emberdeep,stronghold,end,blight]` runs a
+  fresh survival world through the real game loop — hand-mined logs, tool tiers, furnace, obsidian from water on lava,
+  a lit portal, fortress cinderwisps (rod rate), voidwalker pearls, the way home, seeker eyes, the stronghold gate, the
+  Hollow (crystals, wyrm fight, egg, rifts both ways, credits) and the Blight (summon, charge, armour, star, beacon).
+  PASS/FAIL/INFO per step, non-zero exit on any failure; CI runs it after the build (log in `ci-snaps/playthrough.log`).
 - Harness flags: `--find <biome>`, `--torches`, `--flood`, `--mobs`, `--menu inventory|creative|crafting|furnace`,
   `--drops`, `--survival HP`, `--debug`, `--sim SECONDS`, `--dim emberdeep|end`, `--portal`, `--hostile`, `--nethermobs`,
   `--structure <kind>` (camera at the nearest structure's anchor), `--menu brewing|enchant|anvil|trade`, `--effects`,
   `--spawn kind[:profession|:armour material|boat:variant[:c]],...`, `--place block[:state],...`, `--beacon`, `--weather rain|thunder`, `--ticks SECONDS`,
   `--decor`, `--map`, `--banners`, `--fireworks`, `--menu loom|book|advancements`;
-  `Blocksmith --sounds DIR`.
+  `Blocksmith --sounds DIR` (renders every sound; fails on silence, clipping, NaN, DC, wrong length, end clicks, loop seams),
+  `Blocksmith --music DIR [--seconds N]` (renders every music mood; fails on level/clipping/note/length problems).
 
 ## Controls
 Keyboard/mouse: WASD, Space (double-tap = fly in creative), Shift sneak, Ctrl sprint, LMB attack/mine (hold),
@@ -43,8 +84,24 @@ RMB use/place/eat (hold), MMB pick block, 1–9/scroll hotbar, E inventory, Q dr
 (~/Pictures/Blocksmith), F3 debug, F5 camera (first person / behind / in front, with a player model).
 Menus: click / right-click / shift-click, number keys swap with hotbar, click outside drops.
 Controller: LS move, RS look, A jump, B sneak, L3 sprint, RT attack/mine, LT use, LB/RB hotbar, Y inventory, View camera,
-X pick block, D-pad ↓ drop, D-pad ↑ fly. In menus: D-pad/LS move cursor, A = click, X = right-click, Y = shift-click,
+X pick block (reload while holding a gun), D-pad ↓ drop, D-pad ↑ fly. In menus: D-pad/LS move cursor, A = click, X = right-click, Y = shift-click,
 B close, RS scroll creative.
+
+## Realistic terrain (branch claude/realistic-terrain, PR #7)
+- `Sources/Terrain.swift` drives the overworld surface; `WorldGen` turns it into blocks (density, caves, ores, surface
+  rules, trees). Fields: continents (warped fbm), mountain belts (crest + foothills, peaks ~250), hills, mesa terraces,
+  sea cliffs, an erosion filter (slope-aligned gullies), a 128-block river graph (steepest descent, rain-weighted
+  upstream counts) with valleys, channels, levees, floodplains, deltas, fjords on cold mountain coasts, basin lakes at
+  their spill level (salt flats when dry). Climate: latitude-like temperature bands along z (period 9000 blocks; z=0
+  temperate, +z warmer), altitude lapse, rainfall with latitude cells, continental drying, rain shadows.
+- Also: dry washes and steep river canyons in arid country, table-land plateaus with escarpments, desert dune fields,
+  ravines (cave carver, ~1 per 150 chunks), large copper (granite) and iron (tuff) ore veins, swamp pools, boulders,
+  fallen logs, shingle beaches on cold coasts.
+- Biomes are picked from local climate (+ coherent jitter for ecotones); tints are blended in climate space; trees
+  sample the climate with their own offset. `Terrain.implausible` lists pairs that must never touch.
+- Harness: `--terrainmap DIR [--seed N --size B --step B --x X --z Z --strict]` writes terrain_<seed>.png +
+  relief_<seed>.png and the neighbour check; `--genbench` prints ms/chunk on the perf bench's chunks and a water
+  leak count; the CI step "Terrain check" fails on implausible neighbours or rivers whose surface rises downstream. Caches (macro 16-grid, lattice nodes, river graph) are pure memo tables, so output is order-independent.
 
 ## Rendering performance
 - Solid cube faces are drawn first without alpha test (keeps the GPU's hidden-surface removal), cutout faces
@@ -56,6 +113,53 @@ B close, RS scroll creative.
   cells; they re-mesh when crossing the boundary. Render distance goes up to 24 in Options.
 - Cave culling: each section stores which faces connect through open cells; the renderer walks sections outward from the
   camera through connected faces only (plus frustum). CI rd 12 overworld frame: ~26 ms -> ~9 ms (VM GPU).
+
+## Performance (benchmarks)
+`./bench.sh` (CI step "Benchmarks") runs `Blocksmith --bench snaps/bench.json`: gen, mesh, startup, frame (rd 16 at
+800p/1080p/4K), edit, mobs, save, and flights at rd 8/16/24 (20 blocks/s for 12 s, paced to 60 fps). `perf/compare.py`
+compares with `perf/baseline.json` (table in the ci-snaps README) and fails CI on large regressions of stable metrics.
+`perf/profile.sh <scene>` samples a scene with macOS `sample` (CI step "Profile": flight16, meshprof, genprof).
+Numbers are from the CI runner (Apple Paravirtual GPU, 3 cores → 2 workers), so absolute values are pessimistic
+next to an M1 Air (8 cores → 6 workers, real GPU); compare runs with each other.
+
+| metric (CI) | baseline 37e7b89 | 9a60a5e (final) |
+|---|---|---|
+| gen, single thread | 1.94 ms/chunk | 1.68 ms/chunk |
+| mesh, single thread (full / far LOD) | 9.9 / 9.8 ms/chunk | 2.4 / 1.9 ms/chunk |
+| startup: first load r 4 / fill rd 12 | 304 ms / 33.8 s | 118 ms / 4.6 s |
+| flight16 frame p50 / p95 / p99 / max | 4.6 / 7.5 / 11.8 / 25.2 ms | 4.1 / 5.2 / 5.9 / 14.4 ms |
+| flight24 frame p50 / p95 / p99 / max | 8.7 / 12.4 / 16.7 / 28.0 ms | 7.1 / 8.0 / 8.8 / 10.9 ms |
+| flight16 / flight24 coverage min | 77% / 86% | 96% / 97% |
+| flight24 resident peak / chunk data / meshes | 771 / 622 / 126 MB | 418 / 222 / 131 MB |
+| frame rd 16 GPU p50 800p / 1080p / 4K | 2.9 / 3.3 / 4.4 ms | 1.9 / 2.2 / 3.2 ms |
+| edit (sync remesh) | 1.09 ms | 0.43 ms |
+| game tick: empty / 150 mobs | 0.46 / 0.94 ms | 0.03 / 0.22 ms |
+| save | 2.9 ms/chunk on the main thread, all disk chunks rewritten each autosave | background queue, unchanged chunks skipped |
+
+Open: `--bench` shows `World` objects that outlive their scene (their Game is freed, no jobs queued): something
+still references the World (seen after save, tnt, fluids, startup and flight scenes). Would leak a world per world
+switch in the app. `bench.log` prints each live world's state.
+
+Findings / changes (performance branch):
+- Streaming throughput was capped by scheduling, not CPU: only `maxJobs` jobs were handed out per frame, so ~120
+  jobs/s on CI (~360 on an M1) no matter how fast gen/mesh are. Workers now run from an OperationQueue kept 4x deep;
+  results are applied within a 4 ms per-frame budget.
+- Loaded area is a disc (mesh radius + 1 ring, unload at + 2) instead of a square: ~20% fewer chunks.
+- Light is stored per section (nil until meshed; uniform dark / sky sections share one array) instead of 96 KB per chunk.
+- Saves: chunks unchanged since their last save/load are skipped (copy-on-write identity check), writes happen on a
+  background queue (queued data stays readable, flushed on quit), palette through a flat table.
+- GPU buffer pool: freed mesh slices wait 0.25 s before reuse (in-flight frames could read overwritten meshes); tint
+  tables come from one shared slab instead of one MTLBuffer each; chunk draws are one draw call per section
+  (per-section records read by instance id, base vertex, slab rebound only on change).
+- Mesher: per-thread scratch buffers through pointers (the profile showed ~40% of meshing in copy-on-write checks and
+  page zeroing of per-section 110K-cell arrays); skylight flood skipped when the shell is all above the heightmap;
+  provably dark far (LOD 1) sections skip light/faces entirely. Renderer: cave-culling walk uses a per-frame chunk grid.
+- Random ticks drew 3 system-CSPRNG numbers per section per frame (top main-thread cost): now one xorshift draw.
+- World.update skips its scheduling scan when nothing changed; LOD boundary has one chunk of hysteresis.
+- Worldgen stone fill interpolates the density lattice per column (bit-identical; `--bench` self-checks it).
+- Dynamic resolution above 1440p (4K TV): the drawable scales 60-100% with GPU frame time (`dynamicResolution` default).
+- Harness: draw calls / drawn quads / visible sections, terrain hash (flags terrain changes), renderer init twice
+  (first launch compiles shaders ~0.5 s; the second takes ~15 ms thanks to Metal's cache).
 
 ## Couch / TV mode
 - In-game pause + options screens (Metal-drawn) drive fully with a controller: FOV, sensitivity, invert Y, stick dead
@@ -81,7 +185,51 @@ B close, RS scroll creative.
 - Nether wood family shown as Rustcap / Tealcap (display names only).
 - Title screen at launch; recipe book in crafting screens (craftable/all, fills the grid).
 - Death screen (message, score, Respawn / Title Screen; XP drops as orbs), live compass / recovery compass / clock icons.
-- Background music director (calm procedural pieces every 10-20 min, dimension moods), cave ambience, disc titles.
+- Audio (session: audio and music): every sound synthesized at launch or on first use (no samples). 3D sources through an
+  AVAudioEnvironmentNode with distance rolloff, panning, obstruction/occlusion from a block raycast, and reverb that follows a
+  cave factor; underwater low-pass; flat / interface / music buses. Looping emitters found by scanning around the player (fire,
+  campfires, furnaces, lava, water, portals, beacons, spawners, rebirth anchors), rain / rain-on-roof, underwater, gliding,
+  minecart, Emberdeep / Hollow / cave-biome beds; cave, Emberdeep, underwater and mountain-wind stings. Full roster: 16 block
+  materials × break/place/step/hit/fall, every player action, doors/containers/mechanisms, bosses, villager work sounds, and
+  ambient/hurt/death calls for every mob from 27 voice families. Volume sliders per category (Options → Audio…).
+- Music: streaming synth (14 instruments) rendered on a background queue; motif-based composer per mood (title, day, night, rain,
+  underground, underwater, creative, Emberdeep, the Hollow, boss). Director: instant switch for dimension/boss/title, else a
+  piece every 6-15 min; ducks under a nearby jukebox. Discs are composed pieces (seeded by the disc name, tiled to the disc's
+  length) played through a mono stream placed at the nearest playing jukebox (3D + occlusion).
+- Audio hooks: mob hurt/death/ambient from the voice table, mob footsteps within 16 blocks, attack variants (crit/sweep/
+  knockback/weak), shield block/break, armor equip per material (any path), doors/trapdoors/gates (wood/iron), container lids,
+  pistons/levers/buttons/plates/tripwires, TNT fuse, copper wax/scrape, candles, paintings, item frames, pots, crafters,
+  composters, vaults, rebirth anchors, sculk shriekers, villager work sounds at job sites, trades/level-ups/refusals, raid
+  victory, zombie infection/cure, wyrm flaps/growls/breath, deep stalker heartbeat/sniff/sonic boom/emerge, voidwalker
+  teleports, elder curse, gustling shots. Spatial voices are allocated by priority (free, else quietest/soonest-ending).
+- Surface ambience by biome and time: birdsong in wooded land by day, owls and crickets at night, swamp frogs, jungle
+  insects, surf near oceans, wind on peaks / snowy / dry biomes; rain hushes wildlife. Reverb follows the room (14 probe
+  rays: enclosure + size pick small room / chamber / hall / cavern). Audio restarts itself when the output device changes
+  (headphones, TV). Young mobs have higher voices. Materials now include netherrack and deepslate. Daytime music takes a
+  biome flavour (Snowfields, Dunes, Open Water, Blossom). `--sounds` also writes 8 s soundscapes of 17 places.
+- Audio extras: subtitles (Options → Audio: caption + direction arrow per sound, `--subtitles` shot), sounds carry by kind
+  (explosions 64 blocks, thunder 160), note blocks with all 16 instruments and mob heads, beehive hum, fireflies, dry grass,
+  Barkwraith hearts, boat paddling, a room reverb on the music. CI: `--sounds` 606 sounds / 0 failed, `--music` 14 moods / 0 failed.
+- Audio round 2 (2026-10-01; this branch merges PRs #2, #7 and #8 so their content can be wired):
+  - Weapons (WeaponAudio.swift): rifle, chatter gun, shotgun, farsight, rocket and arc lance each have their own fire
+    (crack, body, ring, servo/pump/bolt, casing), reload, distant echo (automatic beyond 32 blocks) and dry fire;
+    bullet impacts per material, near-miss whizzes, flesh hits, grenade bounces, ricochets; deck guns boom with a
+    rolling tail, alarms, radio calls, turret whine.
+  - Soldiers: an original clipped patter through a helmet comm filter for each rank (alert, attack, reload,
+    grenade, retreat, idle, hurt, death) and boots-and-kit footsteps (ironclad plates clank).
+  - Vehicles (VehicleAudio.swift): engines idle/full cross-faded by throttle with a starter, propellers by spin,
+    rigging wind on airships, wheels on terrain, water on moving hulls, creaks, collisions, splashes, helm cues.
+  - Terrain and weather (TerrainAudio.swift): streams and waterfalls from the block scan, mountain wind and
+    rockfalls, tundra wind and ice creaks, swamp insects, rain on leaves, snow wind, far thunder beyond 72 blocks.
+  - Music: High Passes / Mire / Canopy by biome; Steelhold tension near a garrison; Firefight combat music while
+    soldiers or deck guns hunt the player or a raid wave is near (held 15 s after).
+  - Aircraft wing rush at speed; the Skyward Frigate's drone carries 160 blocks and the Ironstride Siege Carriage
+    clanks on its treads out to ~100; a crewed vessel in gun range scores combat music (tension when near).
+    Positional loops now use each sound's own range.
+  - Tests: `--sounds` renders and checks every sound (752+) and 35 soundscapes; `--audiotest` (snap.sh) runs the
+    ambient director headless in record mode and checks the loops it asks for: car engine and wheels, plane props
+    and wing rush, frigate drone, tension/combat levels, mountain/tundra/swamp beds, snow wind (no rain patter).
+- Audio possible later: per-voice pitch jitter at playback (varispeed per voice); more distinct voices for rare mobs.
 - Landing / sprint dust, item equip animation, denser rain with ground splashes lit by daylight.
 - Village life: beds and sleeping, food pickup + breeding, farmers harvesting, golems, midnight zombie sieges.
 
@@ -104,6 +252,54 @@ Left in this area (for the integration session):
 - treecheck reports 1-3 trunks per 200 in a neighbouring biome (trees straddling biome borders) - expected.
 Known failing tests: none (snap.sh and --selftest pass on CI at d92f9b0).
 
+## Mobs, villagers, raids (mob workstream, branch claude/epic-hamilton-t5vse7)
+- Raids: 3/5/7 waves by difficulty (+1 bonus wave above omen I), reference bonus spawns, a captain per wave,
+  siegebeast riders (marauder on Normal wave 5, conjurer + brigand from Hard wave 7), raid weapon enchants by omen level,
+  omen absorption into a running raid, Village Hero gifts; day-only patrols sized by regional difficulty.
+- Pathfinding (Pathfinding.swift): 8-way A*, ladders/vines/scaffolding, 2x2 footprint for wide mobs, water malus 8,
+  fire/lava proximity malus, per-mob fall limits, zombies break wooden doors on Hard.
+- Spawning (Spawning.swift): reference categories and caps, per-biome packs, light/sky rules, slimes, water/cave/ambient
+  spawns, generation-time animal packs (populated.json), despawn timers, chicken and spider jockeys.
+- AI (MobAI.swift): follow ranges with line of sight + memory, sneaking/heads/invisibility, avoidance goals, babies
+  follow adults. Villagers (VillageLife.swift): schedules, gossip/reputation (prices, golem hostility at -100), golem
+  summoning by sleeping + gossiping villagers. Spawn eggs for every mob; zombie horse; Mirage Caster (illusioner).
+- Behaviour (Conversions.swift, Bees.swift, MobAI.swift): zombies drown into Sunken, husks into zombies, skeletons
+  freeze into strays, boarlings/tuskers turn undead outside the Emberdeep, tadpoles grow into frogs; Hard zombie
+  reinforcements; wandering trader + llamas, village cats, skeleton trap horses; bees with hives, nectar, honey and
+  crop pollination; voidwalkers carry blocks and dodge arrows; helmets block sunburn; strays/mire skeletons tip arrows;
+  sunken throw tridents; tamed wolves defend the owner; cat morning gifts; sheep graze and regrow wool; foxes sleep by
+  day; polar bear mothers; llama spit; pandas with personality genes; axolotls play dead; turtles/frogs lay eggs;
+  mules and horse stat inheritance; reference baby odds; Cloudwailer (happy ghast) with harnesses.
+- Newest roster, approximations from memory of the reference: Sunscorched Skeleton (parched, weakness arrows, desert,
+  sun-proof), Dust Camel (camel husk carrying a dust zombie + sunscorched skeleton), Nautilus (warm oceans) and Sunken
+  Nautilus (ridden by 5% of ocean sunken); nautiluses tame with pufferfish and can be saddled and ridden underwater.
+  Not yet: the spear, copper golem (needs copper chests).
+- More reference details: patrols move as a group (captain leads), structure spawns (watchtower marauders, sea-temple
+  spikefish), villagers hide at beds during raids, zombification odds by difficulty, spiders leap, voidwalkers blink
+  toward far targets and ignore pumpkin-headed players, loot pickup (55% x regional difficulty), boarling guard triggers
+  (chests/gold), soul-fire / warped-fungus repellents, neutral mobs forgive after 30 s, llama caravans, deep stalkers dig
+  out of the ground, village cats / desert camels at generation, shearing snow golems and mire skeletons.
+- `--mobtests` (MobTests.swift) checks all of the above headlessly and exits non-zero on a failure.
+
+## Steelhold fortresses, soldiers and guns (gameplay session)
+- Fortress (MilitaryBase.swift): very rare (at most one per 64x64-chunk region, fairly level plains/savanna/desert/snowy plains/badlands/meadow/forest/taiga), 63 blocks of
+  blast-proof steel plating with corner towers. Basement depot + generator + barred vault, ground floor (gate hall,
+  barracks, armory, mess hall, workshop), upper floor (command room, quarters, comms, medbay, barracks), roof with
+  marksman posts; loot tables steelhold_armory/supply/command/vault. New blocks: steel plating (+stairs/slab), steel floor
+  plate, hazard plating, armored glass, light panel, command console, ammo crate.
+- Guns (Guns.swift, Ballistics.swift): Steelhold Rifle, Chatter Gun (SMG), Breach Shotgun (9 pellets), Farsight Rifle
+  (scope), Skybreaker Launcher (rockets, break blocks), Arc Lance (instant energy beam, ignites). LMB/RT fires (hold for
+  automatics), RMB/LT aims (zoom, tighter spread, softer recoil), R / pad X reloads (auto when empty). Ammo is crafted:
+  rifle rounds, shotgun shells, heavy rounds, rockets, arc cells; magazine count in the stack tag; head shots x1.5;
+  bullets pass through plants and shatter glass. Tracers, muzzle flash, hit marker, ammo readout, 13 synthesized sounds.
+- Soldiers (Soldiers.swift): Recruit (20 HP, rifle/SMG, retreats when hurt), Trooper (30 HP, plated, shotgun rush or
+  strafing rifle, grenades into cover), Marksman (26 HP, farsight with a red laser before each shot, keeps distance),
+  Ironclad (60 HP, heavy armour, no knockback, launcher or arc lance, enrages). They alert each other, chase the last
+  sighting, burst-fire and reload; drop their ammo and 25% their gun. Deck guns (150 HP) on the towers traverse slowly,
+  solve a ballistic arc and fire twin explosive shells; they cannot depress far, so the wall foot is safe.
+- `--mobtests` covers reloads, kills, recoil, pellets, rockets, beams, armour, alerts, marksman laser, deck gun salvos,
+  drops, fortress rarity and layout. Snapshots: soldiers, deck_gun, gun_hip/aim/scope, steelhold, steelhold_gate.
+
 ## Notes for the parallel sessions
 - Performance session: rd 24 resident is ~2.3 GB on the Mac while block+light arrays are ~740 MB (2601 chunks x ~285 KB)
   and Metal ~218 MB (harness prints both). Unaccounted ~1.3 GB: suspects are per-job mesher scratch (48^3 regions,
@@ -123,3 +319,20 @@ Known failing tests: none (snap.sh and --selftest pass on CI at d92f9b0).
 - Credits text is original (the reference game's poem is not copied).
 - Armor trims show in the tooltip (the player model isn't drawn in first person).
 - Raids are not saved across a reload (an unfinished raid ends); the void chest, weather and insomnia timer are.
+
+## Completability (End / Blight) — handoff notes
+- `Blocksmith --playthrough` (Sources/Playthrough.swift, CI step "Playthrough") plays seed 12345 from spawn to the
+  credits and through the Blight with real input/mining/recipes/portals/mobs. Last runs: everything passes from spawn
+  through the wyrm kill (~3 min of game time), egg, rift out (pearl), spire + glider wings, save/reload and credits.
+  Still failing at handoff: the Blight fight — with diamond armour, Smite V sword and Power V bow the test player dealt
+  ~475 arrow damage + 133 sword hits in 600 s but died ~10 times to skulls and never finished it (check: Blight
+  regen/skull damage vs the reference, and the test's melee positioning against a hovering Blight). The return rift
+  now uses a pearl in the test; walking into it by body contact (endPortalTick) did not trigger in CI although the
+  logged positions overlap — the player gets nudged ~2 blocks in the first frame; worth a look. The egg torch trick
+  depends on where the egg hops (up to 20 tries).
+- Fixed on the way: persistent bosses/crystals despawning past 128 blocks, wyrm deaths without the death sequence,
+  effects on bosses, head/body damage + 25% perch take-off, perch sequence + settling on the pillar, breath clouds,
+  arrows bouncing off a perched wyrm / armoured Blight, return rifts (+ pearls and body contact), first-kill-only
+  egg/XP, egg teleport, wyrm-kill + rift advancements, Blight movement/heads/difficulty, cinder rod looting, and
+  `alive` never going false (dead players re-picked their own drops).
+

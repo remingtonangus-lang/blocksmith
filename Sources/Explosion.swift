@@ -7,6 +7,7 @@ import simd
 enum Explosion {
     static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true) {
         let w = g.world
+        w.ships.blast(at: c, power: power, game: g)          // ship blocks (ShipCombat.swift)
         var destroyed = Set<IVec3>()
         for i in 0..<16 { for j in 0..<16 { for k in 0..<16 {
             if !(i == 0 || i == 15 || j == 0 || j == 15 || k == 0 || k == 15) { continue }
@@ -75,7 +76,9 @@ enum Explosion {
                 if Float.random(in: 0..<1) < k * 0.5 { it.stack = .empty } else { it.vel += dir * k * 10 }
             }
         }
-        g.sfx(.explode, 1, at: c)
+        // Grenade-sized blasts crack, TNT-sized ones boom, big ones (charged hissers, shells, beds) shake the ground.
+        g.sfx(power < 2.5 ? .explodeSmall : (power >= 5 ? .explodeLarge : .explode), 1, at: c)
+        if power >= 3 && breakBlocks { g.sfx(.debrisRain, 0.7, at: c + V3(0, 1, 0)) }
         g.particles.explosion(at: c, power: power)
     }
 }
@@ -85,6 +88,7 @@ final class PrimedTNT {
     var pos: V3
     var vel = V3(0, 3, 0)
     var fuse: Float
+    var hissed = false
     init(_ p: V3, fuse: Float) { pos = p; self.fuse = fuse }
 }
 
@@ -100,6 +104,7 @@ final class TNTManager {
     func update(_ dt: Float, game g: Game) {
         var boom: [V3] = []
         for t in list {
+            if !t.hissed { t.hissed = true; g.sfx(.tntFuse, 1, at: t.pos + V3(0, 0.5, 0)) }
             t.fuse -= dt
             t.vel.y -= 16 * dt
             t.vel.x *= expf(-2 * dt); t.vel.z *= expf(-2 * dt)

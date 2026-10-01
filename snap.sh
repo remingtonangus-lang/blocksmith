@@ -4,10 +4,54 @@
 #   ./snap.sh name [args...]   one shot, e.g. ./snap.sh cave --x 100 --z 40 --pitch -60
 set -euo pipefail
 cd "$(dirname "$0")"
+# A failing shot names its line (the CI debug step reruns that line under lldb).
+trap 'echo "snap.sh: line $LINENO: exit $?" >&2' ERR
 BIN=build/Blocksmith.app/Contents/MacOS/Blocksmith
 mkdir -p snaps
 if [ $# -gt 0 ]; then n="$1"; shift; "$BIN" --snapshot "snaps/$n.png" "$@"; exit; fi
+# Audio (first, so the sound and music checks always run): every sound is rendered and checked into build/sounds (not published); a sampler, the soundscapes
+# and 10 s of every music mood go to snaps/sounds for listening on ci-snaps.
+rm -rf build/sounds snaps/sounds; mkdir -p snaps/sounds
+"$BIN" --sounds build/sounds
+for f in step_stone step_wood step_gravel break_glass break_wood place_metal doorOpen chestOpen pistonExtend lever explode thunder \
+         mob_cow_ambient mob_zombie_ambient mob_skeleton_hurt mob_enderman_ambient mob_ghast_ambient mob_villager_ambient mob_warden_death \
+         dragonGrowl wardenRoar witherSpawn villager_work_0 birdCall owlHoot bell levelUp note_0_12 \
+         gun_0 gun_1 gun_2 gun_3 gun_4 gun_5 gun_9 gun_10 gun_reload_0 gun_distant_0 bulletWhizz bullet_impact_metal soldier_1_alert soldier_3_death \
+         engineFullLoop propFastLoop wingRushLoop frigateDroneLoop carriageTreadLoop hullCreak shipCollideHard waterfallLoop riverLoop mountainWindLoop thunderFar; do
+  cp "build/sounds/$f.wav" snaps/sounds/ 2>/dev/null || true
+done
+cp -r build/sounds/scapes snaps/sounds/scapes
+"$BIN" --music snaps/sounds/music --seconds 10
+# The audio director (headless, record mode): vehicle, vessel, terrain and weather loops, and combat music.
+"$BIN" --snapshot snaps/audiotest.png --seed 12345 --time 0.3 --rd 6 --audiotest
+
+# Terrain: top-down maps of five seeds (8 km square, spawn marked), neighbour check, chunk generation timing.
+"$BIN" --terrainmap snaps
+"$BIN" --genbench --seed 12345
+# Terrain tours: high aerial, mountain range, river valley and ground level for several seeds.
+for s in 12345 777 424242 1 98765; do
+  "$BIN" --snapshot snaps/tour_${s}_aerial.png --seed $s --yaw 200 --pitch -22 --time 0.23 --up 60 --rd 16
+  "$BIN" --snapshot snaps/tour_${s}_low.png --seed $s --yaw 120 --pitch -6 --time 0.22 --up 14 --rd 12
+done
+"$BIN" --snapshot snaps/tour_peaks.png --seed 12345 --find jagged_peaks --yaw 60 --pitch -12 --time 0.23 --up 25 --rd 16 || true
+"$BIN" --snapshot snaps/tour_forest_floor.png --seed 12345 --find forest --yaw 30 --pitch 0 --time 0.22 --ground --up 0.2 --rd 8 || true
+"$BIN" --snapshot snaps/tour_desert.png --seed 12345 --find desert --yaw 80 --pitch -15 --time 0.24 --up 20 --rd 12 || true
+"$BIN" --snapshot snaps/tour_jungle.png --seed 424242 --find jungle --yaw 80 --pitch -10 --time 0.24 --up 12 --rd 12 || true
+"$BIN" --snapshot snaps/tour_river.png --seed 12345 --find river --yaw 30 --pitch -35 --time 0.23 --up 30 --rd 12 || true
+"$BIN" --snapshot snaps/tour_river_777.png --seed 777 --find river --yaw 30 --pitch -35 --time 0.23 --up 30 --rd 12 || true
+"$BIN" --snapshot snaps/tour_mesa.png --seed 12345 --find badlands --yaw 45 --pitch -25 --time 0.23 --up 35 --rd 12 || true
+"$BIN" --snapshot snaps/tour_coast.png --seed 12345 --find beach --yaw 0 --pitch -25 --time 0.23 --up 30 --rd 12 || true
+"$BIN" --snapshot snaps/tour_snowline.png --seed 424242 --find snowy_slopes --yaw 180 --pitch -15 --time 0.23 --up 25 --rd 16 || true
 "$BIN" --snapshot snaps/spawn.png   --seed 12345 --yaw 30  --pitch -12 --time 0.2
+"$BIN" --snapshot snaps/ship_boat.png --seed 12345 --find ocean --time 0.3 --ship boat
+"$BIN" --snapshot snaps/ship_deck.png --seed 12345 --find ocean --time 0.3 --ship deck
+"$BIN" --snapshot snaps/ship_airship.png --seed 12345 --find plains --time 0.3 --ship airship
+"$BIN" --snapshot snaps/ship_car.png --seed 12345 --find plains --time 0.3 --ship car
+"$BIN" --snapshot snaps/ship_plane.png --seed 12345 --find plains --time 0.3 --ship plane
+"$BIN" --snapshot snaps/ship_gunboat.png --seed 12345 --find ocean --time 0.3 --ship gunboat
+"$BIN" --snapshot snaps/ship_frigate.png --seed 12345 --find plains --time 0.3 --rd 10 --ship frigate
+"$BIN" --snapshot snaps/ship_carriage.png --seed 12345 --find plains --time 0.3 --ship carriage
+"$BIN" --snapshot snaps/physicstest.png --seed 12345 --time 0.3 --physicstest
 "$BIN" --snapshot snaps/aerial.png  --seed 12345 --yaw 200 --pitch -35 --time 0.25 --up 45 --rd 12
 "$BIN" --snapshot snaps/aerial16.png --seed 12345 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16
 "$BIN" --snapshot snaps/aerial16_777.png --seed 777 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16
@@ -34,9 +78,9 @@ done
 "$BIN" --snapshot snaps/crafting.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu crafting
 "$BIN" --snapshot snaps/furnace.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu furnace
 "$BIN" --snapshot snaps/drops.png --seed 12345 --yaw 30 --pitch -30 --time 0.22 --up 1 --drops
+"$BIN" --snapshot snaps/subtitles.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --subtitles
 "$BIN" --snapshot snaps/survival.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --survival 13 --slot 8 --debug
 "$BIN" --snapshot snaps/sim.png --seed 12345 --sim 12 --yaw 30 --pitch -10 --time 0.25
-"$BIN" --sounds snaps/sounds
 "$BIN" --snapshot snaps/mobs.png --seed 12345 --yaw 30 --pitch -14 --time 0.22 --up 1 --mobs
 "$BIN" --snapshot snaps/hostile.png --seed 12345 --yaw 30 --pitch -12 --time 0.22 --up 1 --mobs --hostile
 "$BIN" --snapshot snaps/nether.png --seed 12345 --dim nether --yaw 30 --pitch -10 --up 2
@@ -90,6 +134,7 @@ done
 "$BIN" --snapshot snaps/loom.png --seed 12345 --menu loom
 "$BIN" --snapshot snaps/book.png --seed 12345 --menu book
 "$BIN" --snapshot snaps/advancements.png --seed 12345 --menu advancements
+"$BIN" --snapshot snaps/credits.png --seed 12345 --menu credits
 "$BIN" --snapshot snaps/pause.png --seed 12345 --menu pause
 "$BIN" --snapshot snaps/options.png --seed 12345 --menu options
 "$BIN" --snapshot snaps/death.png --seed 12345 --menu death
@@ -108,6 +153,15 @@ done
 "$BIN" --snapshot snaps/third_back.png --seed 12345 --find plains --yaw 30 --pitch -15 --time 0.3 --up 1 --camera 1
 "$BIN" --snapshot snaps/third_swim.png --seed 12345 --find ocean --yaw 30 --pitch -20 --time 0.3 --camera 1 --swim
 "$BIN" --snapshot snaps/third_front.png --seed 12345 --find plains --yaw 30 --pitch 5 --time 0.3 --up 1 --camera 2
+"$BIN" --snapshot snaps/mobs_new.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --spawn zombie_horse,illusioner,happy_ghast,parched,camel_husk,nautilus,zombie_nautilus,skeleton
+"$BIN" --snapshot snaps/soldiers.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --spawn soldier_recruit:aggro:0,soldier_recruit,soldier_trooper:aggro:2,soldier_marksman:aggro:3,soldier_ironclad:aggro:4,soldier_ironclad:aggro:5
+"$BIN" --snapshot snaps/deck_gun.png --seed 12345 --find plains --yaw 30 --pitch -12 --time 0.3 --up 2 --spawn deck_gun:aggro
+"$BIN" --snapshot snaps/gun_hip.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold gun_rifle
+"$BIN" --snapshot snaps/gun_aim.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold gun_shotgun:aim
+"$BIN" --snapshot snaps/gun_scope.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold gun_sniper:aim
+"$BIN" --snapshot snaps/steelhold.png --seed 12345 --structure military_base --frame 1 --time 0.3
+"$BIN" --snapshot snaps/steelhold_gate.png --seed 12345 --structure military_base --yaw 0 --pitch 5 --time 0.3 --up 1
+"$BIN" --snapshot snaps/mobtests.png --seed 12345 --find plains --yaw 0 --pitch -30 --time 0.3 --up 3 --mobtests
 "$BIN" --snapshot snaps/pathtest.png --seed 12345 --find plains --yaw 0 --pitch -40 --time 0.75 --up 14 --pathtest
 "$BIN" --snapshot snaps/ashen_grove.png --seed 12345 --find pale_garden --yaw 210 --pitch -20 --time 0.3 --up 4 --treecheck
 "$BIN" --snapshot snaps/ashen_inside.png --seed 12345 --find pale_garden --yaw 120 --pitch 8 --time 0.3 --ground

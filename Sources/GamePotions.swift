@@ -91,6 +91,9 @@ extension Game {
                 color = V3(h.x, h.y, h.z)
                 // Lingering clouds shrink as they age.
                 clouds[i].radius = max(0.5, 3 * c.time / max(1, c.maxTime))
+            } else if c.maxTime > 0 {
+                // Wyrm fireball clouds spread out (3 -> 7) as they age.
+                clouds[i].radius = 3 + 4 * (1 - max(0, c.time) / c.maxTime)
             }
             if Float.random(in: 0..<1) < dt * 30 {
                 let a = Float.random(in: 0..<(2 * .pi)), r = Float.random(in: 0..<c.radius)
@@ -148,7 +151,7 @@ extension Game {
         d.y += 0.1
         projectiles.fireball(from: player.eye + player.look * 0.4, dir: simd_normalize(d), big: false, byPlayer: true, potion: h.item)
         if let f = projectiles.fireballs.last { f.vel = simd_normalize(d) * (key == "experience_bottle" ? 14 : 10) }
-        sfx(.bow, 0.5)
+        sfx(.potionThrow, 0.6)
         consumeHeld()
         swing = 1
         return true

@@ -18,7 +18,9 @@ extension Game {
                 for h in c.height where Int(h) > hmax { hmax = Int(h) }
                 for sy in 0...min(NSEC - 1, (hmax + 1) >> 4) {
                     for _ in 0..<3 {
-                        let lx = Int.random(in: 0..<16), ly = Int.random(in: 0..<16), lz = Int.random(in: 0..<16)
+                        // One fast PRNG draw per tick position (the system generator was the main-thread hot spot).
+                        let r = Int(truncatingIfNeeded: RandomTickRng.state.next() >> 20)
+                        let lx = r & 15, ly = (r >> 4) & 15, lz = (r >> 8) & 15
                         let y = sy * 16 + ly
                         let b = c.blocks[Chunk.index(lx, y, lz)]
                         if rt[Int(b)] { randomTick(IVec3(c.cx * CS + lx, y, c.cz * CS + lz), b) }
@@ -163,7 +165,7 @@ extension Game {
         var changes: [(IVec3, BlockID)] = []
         for dz in -1...1 { for dx in -1...1 {
             guard let c = world.chunks[ChunkKey(x: ccx + dx, z: ccz + dz)] else { continue }
-            var buf = c.blocks
+            var buf = c.blocks.full()
             buf.withUnsafeMutableBufferPointer { bp in
                 let w = TreeWriter(b: bp.baseAddress!, bx: c.cx * CS, bz: c.cz * CS)
                 var rng = SRng(seed)
@@ -215,14 +217,14 @@ extension Game {
         if key == "bucket" && bkey == "powder_snow" {
             world.setBlock(t.hit.x, t.hit.y, t.hit.z, AIR)
             giveOrReplaceHeld(ItemStack(Items.id("powder_snow_bucket"), 1))
-            sfx(.step(.snow), 0.8); swing = 1; return true
+            sfx(.bucketFill, 0.8); swing = 1; return true
         }
         if key == "powder_snow_bucket" {
             let at = t.hit + t.normal
             if Blocks.replaceable[Int(world.block(at.x, at.y, at.z))] {
                 world.setBlock(at.x, at.y, at.z, Blocks.id("powder_snow"))
                 if survival { inventory.held = ItemStack(Items.id("bucket"), 1) }
-                sfx(.place(.snow), 0.8); swing = 1; return true
+                sfx(.bucketEmpty, 0.8); swing = 1; return true
             }
         }
         if stripLog(t) { return true }
@@ -240,7 +242,7 @@ extension Game {
             if (key == "flint_and_steel" || key == "fire_charge") && st < 4 {
                 world.setBlock(t.hit.x, t.hit.y, t.hit.z, b + 4)
                 if key == "fire_charge" { consumeHeld() } else { damageHeld(1) }
-                sfx(.fireball, 0.3); swing = 1
+                sfx(.ignite, 0.8); swing = 1
                 return true
             }
         }
@@ -250,7 +252,7 @@ extension Game {
             world.setBlock(t.hit.x, t.hit.y, t.hit.z, Blocks.id("carved_pumpkin") + BlockID(f))
             drops.spawn(ItemStack(Items.id("pumpkin_seeds"), 4), at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5 + V3(Float(t.normal.x), 0, Float(t.normal.z)) * 0.6)
             damageHeld(1)
-            sfx(.step(.plant), 1)
+            sfx(.shearsSnip, 1)
             swing = 1
             return true
         }
@@ -318,7 +320,7 @@ extension Game {
                 let at = t.hit + t.normal
                 if !tryLightPortal(at: at) { world.placeFire(at) }
             }
-            sfx(.fizz, 1, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
+            sfx(.ignite, 1, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
             damageHeld(1)
             swing = 1
             return true
@@ -340,7 +342,7 @@ extension Game {
             if riding === m { return false }
             riding = m
             player.pos = m.pos + V3(0, 0.35, 0)
-            sfx(.click, 0.5, at: m.pos)
+            sfx(.armorEquip(0), 0.5, at: m.pos)
             return true
         }
         if animalInteract(m) { return true }
@@ -353,7 +355,7 @@ extension Game {
             m.admire = 6
             m.aggro = false
             consumeHeld()
-            sfx(.mobBoarling, 1, at: m.pos + V3(0, 1.6, 0))
+            sfx(.mob(.piglin, .ambient), 1, at: m.pos + V3(0, 1.6, 0))
             return true
         }
         if let food = MobManager.breedFood[m.kind], food.contains(key) {
@@ -368,7 +370,7 @@ extension Game {
             let wool = "\(m.woolColor)_wool"
             if Items.has(wool) { drops.spawn(ItemStack(Items.id(wool), Int.random(in: 1...3)), at: m.pos + V3(0, 1, 0)) }
             damageHeld(1)
-            sfx(.step(.plant), 1, at: m.pos)
+            sfx(.shearsSnip, 1, at: m.pos)
             return true
         }
         if key == "name_tag", let l = held.label, !l.isEmpty {
@@ -485,10 +487,15 @@ extension Game {
                 break
             }
         }
-        sfx(.mobBoarling, 0.8, at: m.pos + V3(0, 1.6, 0))
+        sfx(.mob(.piglin, .ambient), 0.8, at: m.pos + V3(0, 1.6, 0))
     }
 }
 
 extension IVec3 {
     static func - (a: IVec3, b: IVec3) -> IVec3 { IVec3(a.x - b.x, a.y - b.y, a.z - b.z) }
+}
+
+// Random-tick positions (main thread only): xorshift instead of the system CSPRNG behind Int.random.
+enum RandomTickRng {
+    static var state = SRng(0x5EED_71C4)
 }

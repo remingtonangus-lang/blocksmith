@@ -33,7 +33,7 @@ extension Game {
         if lvl == 8 {
             world.setBlock(p.x, p.y, p.z, base)
             drops.spawn(ItemStack(Items.id("bone_meal"), 1), at: c + V3(0, 0.4, 0))
-            sfx(.place(.dirt), 0.8, at: c)
+            sfx(.composterFill, 0.8, at: c)
             return
         }
         guard lvl < 7, let ch = Compost.chance(Items.key(held.item)) else { return }
@@ -43,9 +43,9 @@ extension Game {
         if lvl == 0 || Float.random(in: 0..<1) < ch {
             world.setBlock(p.x, p.y, p.z, base + BlockID(lvl + 1))
             if lvl + 1 == 7 { composterReady[p] = clock + 1 }
-            sfx(.place(.plant), 0.8, at: c)
+            sfx(.composterFill, 0.8, at: c)
         } else {
-            sfx(.step(.plant), 0.6, at: c)
+            sfx(.composterFill, 0.5, at: c)
         }
         for _ in 0..<4 { particles.smoke(at: c + V3(Float.random(in: -0.3...0.3), 0, Float.random(in: -0.3...0.3)), dark: false) }
     }
@@ -57,7 +57,7 @@ extension Game {
             let b = world.block(p.x, p.y, p.z)
             if Blocks.key(Blocks.groupBase[Int(b)]) == "composter" && Int(b - Blocks.groupBase[Int(b)]) == 7 {
                 world.setBlock(p.x, p.y, p.z, Blocks.groupBase[Int(b)] + 8)
-                sfx(.place(.dirt), 0.8, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.8, Float(p.z) + 0.5))
+                sfx(.composterReady, 0.9, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.8, Float(p.z) + 0.5))
             }
         }
     }

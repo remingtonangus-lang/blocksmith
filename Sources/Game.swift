@@ -15,6 +15,10 @@ final class Game {
     let player = Player()
     let input = InputState()
     let particles = ParticleManager()
+    let arms = Armory()               // gun rounds in flight and the player's gun state (Ballistics.swift)
+    var lastHurtAt: Double = -10      // hurt cooldown (reference: 10 ticks of invulnerability after a hit)
+    var lastHurtAmount = 0
+    var bulletHit = false             // gun rounds ignore the hurt cooldown (each round lands)
     let inventory = PlayerInventory()
     let save: SaveManager?
     let persistent: Bool
@@ -130,8 +134,10 @@ final class Game {
     var lastDeath: V3?
     let music = MusicDirector()
     var caveTimer: Float = 30
+    let audio = AudioState()
+    let subtitles = SubtitleState()
     var musicVolume: Float = { UserDefaults.standard.object(forKey: "musicVolume") == nil ? 1 : UserDefaults.standard.float(forKey: "musicVolume") }() {
-        didSet { UserDefaults.standard.set(musicVolume, forKey: "musicVolume") }
+        didSet { AudioSettings.set(.music, musicVolume) }
     }
     var equipAnim: Float = 0          // lowers and raises the held item after switching
     var lastSiegeDay = -1
@@ -198,7 +204,16 @@ final class Game {
     private var wasInWater = false
 
     func sfx(_ s: Snd, _ v: Float = 1, at pos: V3? = nil) {
-        sound?.play(s, volume: v, at: pos, listener: player.eye, yaw: player.yaw)
+        // Far-off gunfire is heard as its distant boom and echo instead of the close crack.
+        if case .gun(let k) = s, WeaponAudio.hasDistant(k), let p = pos, simd_length(p - player.eye) > 32 {
+            sfx(.gunDistant(k), v, at: p)
+            return
+        }
+        subtitle(s, at: pos)
+        if audio.record != nil { audio.record![s.name, default: 0] += 1 }
+        guard let snd = sound else { return }
+        let occ = pos.map { audioOcclusion(player.eye, $0) } ?? 0
+        snd.play(s, volume: v, at: pos, occlusion: occ)
     }
 
     var onPauseChanged: ((Bool) -> Void)?
@@ -217,7 +232,11 @@ final class Game {
     private var tickAccum: Double = 0
     var padConnected = false
 
+    static var alive = 0            // live Game objects (leak check in --bench)
+    deinit { Game.alive -= 1 }
+
     init(world: World, save: SaveManager?, persistent: Bool) {
+        Game.alive += 1
         dim = DimensionState(dim: world.dim, world: world)
         dims[world.dim] = dim
         self.save = save
@@ -461,11 +480,12 @@ final class Game {
     func openMenu(_ m: Menu) {
         menu = m
         menuCursor = m.slots.firstIndex(where: { $0.isHotbar && $0.index == selected }) ?? 0
-        sfx(.open, 0.6)
+        audioMenuOpened(m)
     }
 
     func closeMenu() {
         guard let m = menu, !(m is DeathMenu) else { return }
+        audioMenuClosed(m)
         m.onClose()
         if !carried.isEmpty {
             let rest = inventory.add(carried)
@@ -473,7 +493,6 @@ final class Game {
             carried = .empty
         }
         menu = nil
-        sfx(.open, 0.5)
     }
 
     func openInventory() {
@@ -512,7 +531,7 @@ final class Game {
             // Scroll the creative palette when pushing past its top/bottom row.
             if let c = creative, menuCursor == before, my != 0, before < c.rows * 9 { c.scrollBy(my) }
             padMoved = true
-            sfx(.click, 0.3)
+            sfx(.uiHover, 0.3)
         }
         let rs = stick(p.rx, p.ry)
         if let c = creative {
@@ -600,7 +619,7 @@ final class Game {
         if menu != nil {
             tickMenu(p, q, dt)
             let before = player.pos
-            player.update(dt: fdt, input: MoveInput(), world: world)
+            shipPlayerUpdate(fdt, MoveInput())
             survivalTick(dt, from: before)
             target = nil
             mining = nil
@@ -684,7 +703,7 @@ final class Game {
             if mi.sneak { dismount() }
         } else {
             player.autoJump = autoJump
-            player.update(dt: fdt, input: mi, world: world)
+            shipPlayerUpdate(fdt, mi)
             powderSnowTick(fdt)
             vibrationTick(fdt)
         }
@@ -696,7 +715,7 @@ final class Game {
 
         interact(p, q, dt)
         updateFov(Float(dt))
-        if input.middleClicked || (p.x && !q.x) { pickBlock() }
+        if input.middleClicked || (p.x && !q.x && heldGun == nil) { pickBlock() }
 
         advance(dt)
     }
@@ -713,6 +732,8 @@ final class Game {
         let breakNow = input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5)
         let useHeld = input.rightDown || p.lt > 0.5
         let useNow = input.rightClicked || (p.lt > 0.5 && q.lt <= 0.5)
+        if shipInteract(breakHeld: breakHeld, breakNow: breakNow, useNow: useNow, sneak: input.shift || p.b, dt: fdt) { return }
+        if gunInteract(p, q, fire: breakHeld, firePressed: breakNow, aim: useHeld, dt: fdt) { mining = nil; return }
 
         // Attack: an animal in front of the block takes priority.
         var mobHit: Mob?
@@ -731,7 +752,7 @@ final class Game {
         if breakNow, let t = target, Blocks.shape[Int(world.block(t.hit.x, t.hit.y, t.hit.z))] == "frame", let be = world.blockEntities[t.hit], !be.container[0].isEmpty {
             drops.spawn(be.container[0], at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
             be.container[0] = .empty
-            sfx(.place(.wood), 0.5)
+            blockSound(.itemFrameRemove, at: t.hit, 0.7)
             return
         }
         if let m = mobHit {
@@ -784,9 +805,9 @@ final class Game {
                     particles.crit(at: m.pos + V3(0, m.height * 0.5, 0))
                 }
                 if crit { particles.crit(at: m.pos + V3(0, m.height * 0.7, 0)) }
-                sfx(.attack, 0.7, at: m.pos)
-                sfx(m.kind.call, 0.9, at: m.pos + V3(0, m.height * 0.8, 0))
-                if m.health <= 0 { sfx(.breakBlock(.plant), 0.8, at: m.pos) }
+                let swept = held.def.tool == .sword && charge > 0.9 && player.onGround && !player.sprinting && !crit
+                let hitSound: Snd = crit ? .attackCrit : (swept ? .attackSweep : (charge < 0.5 ? .attackWeak : (player.sprinting ? .attackKnockback : .attack)))
+                sfx(hitSound, 0.8, at: m.pos + V3(0, m.height * 0.5, 0))
                 if survival { exhaustion += 0.1 }
                 damageHeld(held.def.tool == .sword ? 1 : 2)
             }
@@ -794,6 +815,7 @@ final class Game {
         }
 
         // Mining
+        if survival, breakNow, let t = target, teleportEgg(t.hit) { swing = 1; mining = nil; return }
         if let t = target, breakHeld {
             let b = world.block(t.hit.x, t.hit.y, t.hit.z)
             if !survival {
@@ -812,7 +834,7 @@ final class Game {
                     mineProgress += secs <= 0 ? 1 : fdt / secs
                     swing = max(swing, 0.5)
                     mineSoundTimer -= fdt
-                    if mineSoundTimer <= 0 { mineSoundTimer = 0.25; sfx(.step(soundMat(b)), 0.5, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5) }
+                    if mineSoundTimer <= 0 { mineSoundTimer = 0.25; sfx(.hit(soundMat(b)), 0.5, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5) }
                     if mineProgress >= 1 && breakCooldown <= 0 {
                         breakBlock(t.hit, b, drop: true)
                         damageHeld(held.def.tool == .sword ? 2 : 1)
@@ -831,6 +853,7 @@ final class Game {
         let h = held
         if useNow, let m = mobHit ?? mobs.raycast(player.eye, player.look, maxDist: 3.5)?.0, useItemOnMob(m) { swing = 1; return }
         if useNow && Items.key(h.item) == "ender_eye" && useSeekerEye(on: target) { swing = 1; return }
+        if useNow && useSpawnEgg(on: target) { swing = 1; return }
         if useNow && Items.key(h.item) == "firework_rocket" && player.gliding {
             player.boost = 0.5 + 0.6 * Float(max(1, h.tag))
             consumeHeld()
@@ -915,7 +938,7 @@ final class Game {
         let canDrink = h.def.drink && (survival || Potions.potion(of: h.item) != nil)
         if (canEat || canDrink) && useHeld && target.map({ !isInteractive($0.hit) }) ?? true {
             eatProgress += fdt
-            if Int(eatProgress * 5) != Int((eatProgress - fdt) * 5) { sfx(.eat, 0.5) }
+            if Int(eatProgress * 5) != Int((eatProgress - fdt) * 5) { sfx(h.def.drink || hk.hasSuffix("_bottle") || hk.hasSuffix("_stew") || hk.hasSuffix("_soup") ? .drink : .eat, 0.5) }
             if eatProgress >= 1.61 {
                 if let f = h.def.food { eat(f, h.def.display) }
                 foodEffects(hk)
@@ -939,6 +962,7 @@ final class Game {
         if useBucket() { return }
         if useNow && placeBoat() { return }
         guard let t = target else { return }
+        if useNow && !(input.shift || p.b) && teleportEgg(t.hit) { swing = 1; return }
         if useNow && !(input.shift || p.b) && isCircuitInteractive(t.hit) && useCircuit(t.hit) { swing = 1; return }
         if isInteractive(t.hit) && !(input.shift || p.b) && useNow {
             openBlock(t.hit)
@@ -1048,7 +1072,7 @@ final class Game {
             guard t.normal.y == 0, useNow else { return }
             let f = t.normal.z == -1 ? 0 : (t.normal.z == 1 ? 1 : (t.normal.x == -1 ? 2 : 3))
             placePainting(at: at, facing: f)
-            if Blocks.groupBase[Int(world.block(at.x, at.y, at.z))] == blockItem { consumeHeld(); swing = 1; sfx(.place(.wood), 0.6) }
+            if Blocks.groupBase[Int(world.block(at.x, at.y, at.z))] == blockItem { consumeHeld(); swing = 1; blockSound(.paintingPlace, at: at, 0.8) }
             return
         case "skull":
             if t.normal.y == 0 {
@@ -1143,7 +1167,7 @@ final class Game {
             let ob = world.block(other.x, other.y, other.z)
             if Blocks.groupBase[Int(ob)] == base { world.setBlock(other.x, other.y, other.z, base + BlockID(Int(ob - base) ^ 4)) }
         }
-        sfx(.open, 0.7, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+        audioOpenable(shape: shape, base: base, opening: (flipped & 4) != 0, at: p)
     }
 
     func openBlock(_ p: IVec3) {
@@ -1166,7 +1190,6 @@ final class Game {
             let be = world.blockEntities[p] ?? BlockEntity(.chest)
             world.blockEntities[p] = be
             openMenu(ChestMenu(game: self, container: be.container, title: "Barrel"))
-            sfx(.open, 0.5)
         case "bell":
             sfx(.bell, 1.5, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
             ringBell(p)
@@ -1179,6 +1202,7 @@ final class Game {
             openMenu(CrafterMenu(game: self, entity: be))
         case "decorated_pot": usePot(p)
         case "chest":
+            boarlingsGuard(p, block: world.block(p.x, p.y, p.z))
             let be = world.blockEntities[p] ?? BlockEntity(.chest)
             world.blockEntities[p] = be
             // A neighbouring chest with the same facing along the chest's width makes a large chest.
@@ -1229,7 +1253,7 @@ final class Game {
             // Right-click a lit candle to blow it out.
             let b = world.block(p.x, p.y, p.z)
             let st = Int(b - Blocks.groupBase[Int(b)])
-            if st >= 4 { world.setBlock(p.x, p.y, p.z, b - 4); sfx(.fizz, 0.3) }
+            if st >= 4 { world.setBlock(p.x, p.y, p.z, b - 4); blockSound(.candleOut, at: p, 0.6) }
         case "beacon":
             let be = world.blockEntities[p] ?? BlockEntity(.beacon)
             world.blockEntities[p] = be
@@ -1240,7 +1264,8 @@ final class Game {
     }
 
     func breakBlock(_ p: IVec3, _ b: BlockID, drop: Bool) {
-        sfx(.breakBlock(soundMat(b)), at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+        boarlingsGuard(p, block: b)
+        blockSound(audioBreakSound(b), at: p)
         particles.blockBreak(b, at: p)
         world.setBlock(p.x, p.y, p.z, AIR)
         world.redstone.vibrate(at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
@@ -1362,10 +1387,10 @@ final class Game {
             if let tg = target { at = tg.hit + tg.normal } else if fluidHit == nil { at = lastAir }
             if let a = at, Blocks.replaceable[Int(world.block(a.x, a.y, a.z))] {
                 if k == "water_bucket" && dim.dim == .nether {
-                    sfx(.fizz, 0.8)          // water evaporates in the Emberdeep
+                    sfx(.fireExtinguish, 0.8)          // water evaporates in the Emberdeep
                 } else {
                     world.setBlock(a.x, a.y, a.z, k == "water_bucket" ? WATER : LAVA)
-                    sfx(.splash, 0.4)
+                    sfx(k == "water_bucket" ? .bucketEmpty : .bucketEmptyLava, 0.8, at: V3(Float(a.x), Float(a.y), Float(a.z)) + 0.5)
                 }
                 if survival { inventory.held = ItemStack(Items.id("bucket"), 1) }
             }
@@ -1389,7 +1414,11 @@ final class Game {
                 drops.spawn(ItemStack(Items.id(["iron_ingot", "carrot", "potato"][Int.random(in: 0...2)]), 1), at: at)
             }
             let r = Float.random(in: 0..<1)
-            if m.kind == .blaze && m.killedByPlayer && r < 0.5 { drops.spawn(ItemStack(Items.id("blaze_rod"), 1), at: at) }
+            if m.kind == .blaze && m.killedByPlayer {
+                // Cinder rods: 0-1, +0-1 per Looting level, only from player kills (reference loot table).
+                let n = Int.random(in: 0...1) + (looting > 0 ? Int.random(in: 0...looting) : 0)
+                if n > 0 { drops.spawn(ItemStack(Items.id("blaze_rod"), n), at: at) }
+            }
             if m.kind == .magmaCube && m.slimeSize > 1 && r < 0.25 { drops.spawn(ItemStack(Items.id("magma_cream"), 1), at: at) }
             if m.kind == .creeper && m.lastHitBySkeleton, let d = MusicDiscs.creeperDrops.randomElement(), Items.has("music_disc_\(d)") {
                 drops.spawn(ItemStack(Items.id("music_disc_\(d)"), 1), at: at)
@@ -1414,10 +1443,12 @@ final class Game {
         if m.chested && m.kind != .boat { drops.spawn(ItemStack(Items.id("chest"), 1), at: at) }
         if m.killedByPlayer { advancementKill(m) }
         captainDied(m)
+        soldierDied(m)
         sculkBloom(at: m.pos, xp: m.spec.xp)
         let xp = m.sized ? m.slimeSize : m.spec.xp
         if m.killedByPlayer && !m.baby { addXP(xp + (m.kind.hostile ? 0 : Int.random(in: 0...1))) }
         particles.explosion(at: m.pos + V3(0, m.height / 2, 0), power: 0.5)
+        audioMobDied(m)
     }
 
     // MARK: Survival
@@ -1448,7 +1479,7 @@ final class Game {
                     var rng = SRng(UInt64.random(in: 1...UInt64.max))
                     Loot.fill(tmp, table: "trial_spawner", rng: &rng)
                     for s in tmp.slots where !s.isEmpty { drops.spawn(s, at: c + V3(0, 0.8, 0), vel: V3(0, 3, 0)) }
-                    sfx(.levelUp, 0.6, at: c)
+                    sfx(.vaultEject, 0.8, at: c)
                 }
                 continue
             }
@@ -1503,6 +1534,7 @@ final class Game {
     // Mob hits on the player: armor-reduced damage plus knockback away from the attacker.
     func hurtPlayer(_ amount: Int, from src: V3, cause: String, knockback: Float = 1, type: DamageType = .generic, attacker: Mob? = nil) {
         guard survival, alive, amount > 0 else { return }
+        if let a = attacker { petsAttack(a) }
         if shieldBlocks(amount, from: src, type: type, attacker: attacker) { return }
         var amount = amount
         if attacker != nil || type == .projectile {
@@ -1550,7 +1582,7 @@ final class Game {
                 player.pos = t
                 player.vel = .zero
                 player.airPeak = t.y
-                sfx(.mobVoidwalker, 0.6)
+                sfx(.teleport, 0.8)
                 return
             }
         }
@@ -1558,9 +1590,22 @@ final class Game {
 
     // Damage in half-hearts: armor (reference formula), resistance, enchantment protection,
     // absorption hearts, then the totem of rebirth.
-    func damage(_ amount: Int, _ cause: String, bypassArmor: Bool = false, type: DamageType = .generic, attacker: Mob? = nil) {
-        guard survival, alive, amount > 0 else { return }
+    func damage(_ amount0: Int, _ cause: String, bypassArmor: Bool = false, type: DamageType = .generic, attacker: Mob? = nil) {
+        guard survival, alive, amount0 > 0 else { return }
         if type == .fire && effects.has(.fireResistance) { return }
+        // Hurt cooldown: within half a second of a hit, only the part of a bigger hit that exceeds it lands
+        // (a blight skull and its blast, a creeper after an arrow...). The void and gun rounds skip it.
+        var amount = amount0
+        if type != .void && !bulletHit {
+            if clock - lastHurtAt < 0.5 {
+                guard amount > lastHurtAmount else { return }
+                amount -= lastHurtAmount
+                lastHurtAmount = amount0
+            } else {
+                lastHurtAt = clock
+                lastHurtAmount = amount0
+            }
+        }
         var dmg = Float(amount)
         if !bypassArmor {
             let a = Float(inventory.armorPoints), tough = inventory.toughness
@@ -1594,7 +1639,7 @@ final class Game {
             }
         }
         hurtFlash = 0.35
-        sfx(.hurt)
+        audioHurt(type)
         guard dmg >= 0.5 else { return }
         health -= max(1, Int(dmg.rounded()))
         if health <= 0 && useTotem() { return }
@@ -1622,6 +1667,7 @@ final class Game {
 
     func die(_ cause: String) {
         guard !(menu is DeathMenu) else { return }
+        sfx(.playerDeath)
         deathScore = xpPoints + xpLevel * 7
         lastDeath = player.pos
         // Drop everything where we died (plus up to 100 XP worth: 7 per level).
@@ -1640,11 +1686,13 @@ final class Game {
         xpLevel = 0; xpPoints = 0
         if menu != nil { closeMenu() }
         riding = nil
+        alive = false        // no pickups, no targeting until respawn (the dropped items stay where they fell)
         openMenu(DeathMenu(game: self, message: "Player \(cause)"))
     }
 
     // Respawn (from the death screen): anchor, bed/world spawn.
     func respawn() {
+        alive = true
         if let a = anchorSpawn {
             // Respawn at a charged anchor in the Emberdeep (uses a charge).
             let nether = dimensionState(.nether).world
@@ -1679,10 +1727,15 @@ final class Game {
         let p = player
         if p.inWater && !wasInWater && p.vel.y < -3 { sfx(.splash, min(1, -p.vel.y / 12)) }
         wasInWater = p.inWater
+        if p.inWater && !p.onGround {
+            // Swimming strokes while moving through water.
+            audio.stepTimer += simd_length(V2(p.pos.x - before.x, p.pos.z - before.z)) + abs(p.pos.y - before.y) * 0.5
+            if audio.stepTimer > 1.6 { audio.stepTimer = 0; sfx(.swim, p.headInWater ? 0.35 : 0.6) }
+        }
         if p.pendingFall > 1.2 && !p.inWater {
-            sfx(.land, min(1, p.pendingFall / 8))
-            // Landing kicks up bits of the block underneath (more for bigger falls).
             let under = world.block(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))
+            sfx(p.pendingFall > 3 && under != AIR ? .fall(soundMat(under)) : .land, min(1, p.pendingFall / 8))
+            // Landing kicks up bits of the block underneath (more for bigger falls).
             if under != AIR { particles.dust(under, at: p.pos, count: min(24, Int(p.pendingFall * 3)), spread: 0.5) }
         }
         if p.sprinting && p.onGround && !p.inWater && Float.random(in: 0..<1) < 0.5 {
@@ -1694,7 +1747,7 @@ final class Game {
         if stepDist > (p.sprinting ? 2.1 : 1.7) {
             stepDist = 0
             let under = world.block(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))
-            if under != AIR { sfx(.step(soundMat(under)), p.sneaking ? 0.4 : 1, at: p.pos) }
+            if under != AIR { sfx(.step(soundMat(under)), p.sneaking ? 0.35 : 0.9) }
         }
     }
 
@@ -1757,9 +1810,11 @@ final class Game {
 
     // World clock, fluids, furnaces, entities and autosave (runs whenever the game isn't paused).
     private func advance(_ dt: Double) {
+        world.ships.update(Float(dt), game: self)
         mobs.update(Float(dt), game: self)
         drops.update(Float(dt), game: self)
         projectiles.update(Float(dt), game: self)
+        armsTick(Float(dt))
         tnts.update(Float(dt), game: self)
         particles.update(Float(dt), world)
         if survival { timeSinceRest += Float(dt) }
@@ -1771,6 +1826,7 @@ final class Game {
                 let day = floor(time / DAY_LENGTH)
                 time = (day + 1) * DAY_LENGTH + 0.01 * DAY_LENGTH
                 sleeping = 0
+                catGifts()
                 onToast?("Good morning")
                 weather.raining = false; weather.thundering = false; weather.rain = 0; weather.thunder = 0
                 weather.rainTime = Float.random(in: 600...9000); weather.thunderTime = Float.random(in: 600...9000)
@@ -1798,6 +1854,7 @@ final class Game {
         rocketTick(Float(dt))
         composterTick()
         musicTick(Float(dt))
+        audioAmbientTick(Float(dt))
         siegeTick()
         ashenTick(Float(dt))
         advancementTick()

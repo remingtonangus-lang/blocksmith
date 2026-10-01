@@ -40,6 +40,8 @@ struct VillagerData: Codable {
     var levelUpTimer: Float = 0
     var bed: [Int]? = nil                // claimed bed head
     var food: Int? = nil                 // food points (breeding needs 12)
+    var gossip: [Int]? = nil             // what it has heard about the player: see Gossip (VillageLife.swift)
+    var gossipDay: Int? = nil            // last day gossip decayed
 }
 
 enum Villagers {
@@ -300,6 +302,7 @@ extension Mob {
         }
         v.restocksToday += 1
         villager = v
+        if let w = MobVoice.workIndex(v.profession) { g.sfx(.villagerWork(w), 0.8, at: site + V3(0, 0.8, 0)) }
     }
 }
 
@@ -311,7 +314,7 @@ extension Game {
         guard m.kind == .villager, !m.baby else { return false }
         var v = m.vdata
         if v.profession == "none" || v.profession == "nitwit" {
-            sfx(.mobVillager, 0.7, at: m.pos + V3(0, 1.6, 0))       // shakes head
+            sfx(.villagerNo, 0.8, at: m.pos + V3(0, 1.6, 0))       // shakes head
             return true
         }
         if v.offers.isEmpty { Villagers.addOffers(&v, level: 1); m.villager = v }
@@ -360,7 +363,9 @@ final class MerchantMenu: Menu {
 
     func price(_ o: TradeOffer) -> ItemStack {
         var o2 = o
-        o2.special += game.heroDiscount(o) + ((mob?.villager?.cured ?? false) ? -max(1, o.buyA.count * 3 / 4) : 0)
+        // Reference special price: -floor(reputation x price multiplier), then the Village Hero discount.
+        let rep = mob?.villager?.reputation ?? 0
+        o2.special += game.heroDiscount(o) - Int(floor(Float(rep) * o.priceMult))
         return o2.costA
     }
 
@@ -411,6 +416,7 @@ final class MerchantMenu: Menu {
             }
         }
         v.offers[selected].uses += 1
+        v.addGossip(.trading, 2)
         v.xp += o.xp
         v.locked = true
         // Trades give the player XP too (3-6, more when the villager levels up).
@@ -420,10 +426,10 @@ final class MerchantMenu: Menu {
             Villagers.addOffers(&v, level: v.level)
             game.addXP(5)
             game.particles.hearts(at: m.pos + V3(0, 2.2, 0))
-            game.sfx(.levelUp, 0.5, at: m.pos)
+            game.sfx(.villagerCelebrate, 0.8, at: m.pos + V3(0, 1.6, 0))
         }
         m.villager = v
-        game.sfx(.mobVillager, 0.6, at: m.pos + V3(0, 1.6, 0))
+        game.sfx(.villagerTrade, 0.7, at: m.pos + V3(0, 1.6, 0))
         let out = o.sell
         changed()
         return out
