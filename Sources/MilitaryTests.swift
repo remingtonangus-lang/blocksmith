@@ -29,6 +29,41 @@ extension MobTests {
         game.raid = saved
     }
 
+    // --fortresstest N: the camera stands inside a generated Steelhold fortress (--structure military_base) as a survival
+    // player for N seconds of real Game.tick. The garrison must notice and engage (the player takes hits), at least one
+    // soldier must move or duck into cover, and none may end up inside a block. The player is healed every tick.
+    static func fortressFight(game g: Game, world: World, seconds: Float) -> Bool {
+        let p0 = g.player.pos
+        g.survival = true; g.player.flying = false; g.paused = false; g.menu = nil; g.difficulty = 2
+        for (name, mp) in world.pendingMobs { if let k = MobKind.named(name) { g.mobs.mobs.append(Mob(k, at: mp)) } }
+        world.pendingMobs.removeAll()
+        let near = g.mobs.mobs.filter { $0.kind.steelhold && $0.kind != .deckGun && simd_length($0.pos - p0) < 48 }
+        let start = near.map { $0.pos }
+        var hurt = 0, coverSeen = false, t: Float = 0
+        while t < seconds {
+            let h0 = g.health
+            g.tick(0.05)
+            if g.health < h0 { hurt += h0 - g.health }
+            g.health = 20; g.alive = true; g.menu = nil
+            g.player.pos = p0; g.player.vel = .zero
+            for m in near where m.health > 0 {
+                if let c = m.brain?.cover, simd_length(V2(c.x - m.pos.x, c.z - m.pos.z)) < 1, !world.canSee(m.eye, g.player.eye) { coverSeen = true }
+            }
+            t += 0.05
+        }
+        var moved = 0, stuck = 0, aggro = 0
+        for (i, m) in near.enumerated() where m.health > 0 {
+            if simd_length(V2(m.pos.x - start[i].x, m.pos.z - start[i].z)) > 2 { moved += 1 }
+            if m.collides(m.pos, world) { stuck += 1 }
+            if m.aggro { aggro += 1 }
+        }
+        print(String(format: "fortresstest: %ld soldiers within 48, %ld aggro, %ld moved, %ld stuck in blocks, player took %ld damage, cover %@ (%.0f s)",
+                     near.count, aggro, moved, stuck, hurt, coverSeen ? "yes" : "no", seconds))
+        let ok = !near.isEmpty && aggro > 0 && hurt > 0 && moved > 0 && stuck == 0
+        print("fortresstest: \(ok ? "PASS" : "FAIL")")
+        return ok
+    }
+
     static func military(game: Game, world: World, pos: V3) {
         let mm = game.mobs
         mm.mobs.removeAll()
