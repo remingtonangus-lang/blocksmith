@@ -279,6 +279,23 @@ final class SoundBank {
         return s
     }
 
+    // Rendered in the background when a fight or a vehicle is near, so the first shot or engine doesn't hitch.
+    static var combatSounds: [Snd] {
+        var s: [Snd] = []
+        for k in 0...12 { s.append(.gun(k)) }
+        for k in 0...5 { s.append(.gunReload(k)); s.append(.gunDistant(k)) }
+        s.append(.gunDistant(WeaponAudio.heavySlot))
+        for m in [SoundMat.stone, .dirt, .sand, .wood, .plant, .glass, .gravel, .metal, .deepslate] { s.append(.bulletImpact(m)) }
+        s += [.bulletWhizz, .bulletFlesh, .grenadeBounce, .rocketFlightLoop, .shellFlightLoop, .explodeSmall, .explodeLarge, .debrisRain]
+        for r in 0...3 { for b in Bark.allCases { s.append(.soldier(r, b)) }; s.append(.soldierStep(r)) }
+        return s
+    }
+    static var vehicleSounds: [Snd] {
+        [.engineStart, .engineIdleLoop, .engineFullLoop, .propSlowLoop, .propFastLoop, .airshipWindLoop, .wheelRollLoop, .hullWaterLoop,
+         .wingRushLoop, .frigateDroneLoop, .carriageTreadLoop, .hullCreak, .shipCollide, .shipCollideHard, .shipSplash, .helmTake,
+         .shipCannon, .turretTraverseLoop, .shellFlightLoop, .explodeLarge]
+    }
+
     // Sounds worth having ready before the first frame (rendered first by the prewarm thread).
     static var commonSounds: [Snd] {
         var s: [Snd] = []

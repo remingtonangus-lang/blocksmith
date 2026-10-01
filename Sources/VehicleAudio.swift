@@ -124,6 +124,7 @@ extension Game {
     func vehicleAudioTick(_ dt: Float, ask: (String, Snd, Float, V3?) -> Void) {
         let list = world.ships.list
         guard !list.isEmpty else { return }
+        audioWarm("vehicles", SoundBank.vehicleSounds)
         let eye = player.eye
         // Vessels (the flying frigate, the siege carriage) are heard from far off while they run.
         for s in list where s.isVessel && s.parent == nil {

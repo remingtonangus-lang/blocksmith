@@ -27,6 +27,7 @@ final class AudioState {
     var rockTimer: Float = 60
     var combatHold: Float = 0               // combat music lingers this long after the last sign of a fight
     var combatCheck: Float = 0
+    var warmed = Set<String>()              // sound groups already sent to the background renderer
     var combat = 0                          // 0 calm, 1 near a garrison, 2 fighting (soldiers aggro / raid wave)
     var record: [String: Int]? = nil        // harness: counts of every sound played while set
     var leafCover: Float = 0                // leaves overhead (rain on leaves)
@@ -443,6 +444,13 @@ extension Game {
     // near the player), held 15 s after it ends; 1 = a Steelhold garrison within 64 blocks; 0 = calm.
     func combatLevel() -> Int { audio.combat }
 
+    // Renders a group of sounds in the background once, ahead of first use.
+    func audioWarm(_ group: String, _ list: @autoclosure () -> [Snd]) {
+        guard let snd = sound, !audio.warmed.contains(group) else { return }
+        audio.warmed.insert(group)
+        snd.bank.prewarm(list())
+    }
+
     func combatTick(_ dt: Float) {
         let a = audio
         a.combatHold = max(0, a.combatHold - dt)
@@ -466,6 +474,7 @@ extension Game {
                 if d < 140 { garrison = true }
             }
         }
+        if fighting || garrison || Guns.index(held.item) != nil { audioWarm("combat", SoundBank.combatSounds) }
         if fighting { a.combatHold = 15 }
         a.combat = a.combatHold > 0 ? 2 : (garrison ? 1 : 0)
     }
