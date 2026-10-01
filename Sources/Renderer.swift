@@ -443,7 +443,9 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         let sky = viewSky
         let hasSky = game.dim.dim.hasSky
-        var fogEnd: Float = underwater ? 28 : (game.dim.dim == .nether ? min(rd * 16 - 6, 96) : rd * 16 - 6)
+        // Under water: clear daytime water sees ~56 blocks, night and murky depths much less.
+        let uwSee: Float = 18 + 38 * game.daylight * caveScale
+        var fogEnd: Float = underwater ? uwSee : (game.dim.dim == .nether ? min(rd * 16 - 6, 96) : rd * 16 - 6)
         var fogStart: Float = underwater ? 1 : fogEnd * 0.62
         var fogColor = underwater ? game.underwaterFog : sky
         if let bf = game.blindFog { fogEnd = min(fogEnd, bf); fogStart = bf * 0.2; fogColor = V3(0, 0, 0) }
