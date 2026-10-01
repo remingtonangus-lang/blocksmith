@@ -44,7 +44,8 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
 - Content
   - [ ] Copper golem (needs copper chests); the spear.
   - [ ] Biome balance (snowy northern seeds, rare badlands/pale garden); lakes, deltas, fjords in game.
-  - [ ] Soldier crews on vessels once a `soldier` MobKind exists (Marauders until then).
+  - [x] Steelhold soldiers crew the vessels (marksmen + rifle troopers on the frigate, trooper + arc ironclad on the
+        carriage) and hold their stations aboard (aim and fire, no cover runs overboard); physicstest check.
 - Polish
   - [ ] Map waypoint/pin; free pad cursor for menus; per-voice pitch jitter; waterfall/river audiotest.
   - [ ] Mob shadow-map shadows, eye adaptation, gun icons via ItemTextures.autoPainter; terrain gen perf (ore veins, tints).

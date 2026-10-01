@@ -542,6 +542,8 @@ enum ShipTest {
         let aboard = g.mobs.mobs.filter { $0.health > 0 && w.ships.standing(on: $0.pos) === fg }.count
         print("physicstest frigate: captain's chest holds \(loot) stacks, \(aboard) of \(fg.crewStations.count) crew aboard")
         check(loot > 0, "frigate carries loot")
+        let soldiers = g.mobs.mobs.filter { $0.health > 0 && $0.kind.steelhold && w.ships.standing(on: $0.pos) === fg }.count
+        check(soldiers * 2 >= fg.crewStations.count, "Steelhold soldiers crew the frigate and stay at their stations (\(soldiers) aboard)")
         // Take the helm: the vessel is captured and answers to the player.
         g.player.flying = false
         g.startPiloting(fg)

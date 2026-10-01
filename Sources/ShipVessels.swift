@@ -3,7 +3,7 @@ import simd
 
 // Huge vehicles built on the ship system, and their rare world encounters:
 // - Skyward Frigate: a 48-block flying warship under a lift envelope, two cannon turrets and broadside guns,
-//   crewed by Marauders; it patrols in slow circles and shells players who come close.
+//   crewed by Steelhold soldiers; it patrols in slow circles and shells players who come close.
 // - Ironstride Siege Carriage: a six-wheeled armoured gun platform with a giant turret, roaming open land.
 // Both are original designs. Blueprints build ships straight into their grids (no world assembly); an encounter
 // is decided per 2048-block region from the world seed, so they are rare and always in the same place.
@@ -247,9 +247,14 @@ extension ShipManager {
         s.home = homeV
         s.initialBlocks = s.blockCount
         if let g {
-            for st in s.crewStations {
-                // Soldiers crew the vessels once the game has them; Marauders until then.
-                let m = Mob(MobKind.named("soldier") ?? .pillager, at: s.toWorld(st + V3(0, 0.1, 0)))
+            // Steelhold soldiers crew the vessels (they hold their stations aboard, Animals.swift): marksmen and troopers
+            // on the frigate's decks, a trooper and an ironclad on the carriage.
+            let ranks: [MobKind] = kind == "frigate" ? [.soldierMarksman, .soldierTrooper, .soldierTrooper, .soldierMarksman]
+                                                     : [.soldierTrooper, .soldierIronclad]
+            for (i, st) in s.crewStations.enumerated() {
+                let m = Mob(ranks[i % ranks.count], at: s.toWorld(st + V3(0, 0.1, 0)))
+                if m.kind == .soldierTrooper { m.variant = Guns.rifle }      // stations fight at range: no shotguns
+                if m.kind == .soldierIronclad { m.variant = Guns.arc }       // no rockets bursting on their own rails
                 m.persistent = true
                 g.mobs.mobs.append(m)
             }
