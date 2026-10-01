@@ -142,6 +142,9 @@ Options > Video > Resolution to 75% for a steady 60 fps on the M1.
   upstream counts) with valleys, channels, levees, floodplains, deltas, fjords on cold mountain coasts, basin lakes at
   their spill level (salt flats when dry). Climate: latitude-like temperature bands along z (period 9000 blocks; z=0
   temperate, +z warmer), altitude lapse, rainfall with latitude cells, continental drying, rain shadows.
+- Also: dry washes and steep river canyons in arid country, table-land plateaus with escarpments, desert dune fields,
+  ravines (cave carver, ~1 per 150 chunks), large copper (granite) and iron (tuff) ore veins, swamp pools, boulders,
+  fallen logs, shingle beaches on cold coasts.
 - Biomes are picked from local climate (+ coherent jitter for ecotones); tints are blended in climate space; trees
   sample the climate with their own offset. `Terrain.implausible` lists pairs that must never touch.
 - Harness: `--terrainmap DIR [--seed N --size B --step B --x X --z Z --strict]` writes terrain_<seed>.png +
@@ -153,6 +156,7 @@ Menus: click / right-click / shift-click, number keys swap with hotbar, click ou
 Controller: LS move, RS look, A jump, B sneak, L3 sprint, RT attack/mine, LT use, LB/RB hotbar, Y inventory, View camera,
 X pick block (reload while holding a gun), D-pad ↓ drop, D-pad ↑ fly. In menus: D-pad/LS move cursor, A = click, X = right-click, Y = shift-click,
 B close, RS scroll creative.
+  leak count; the CI step "Terrain check" fails on implausible neighbours or rivers whose surface rises downstream. Caches (macro 16-grid, lattice nodes, river graph) are pure memo tables, so output is order-independent.
 
 ## Rendering performance
 - Solid cube faces are drawn first without alpha test (keeps the GPU's hidden-surface removal), cutout faces

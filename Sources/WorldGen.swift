@@ -15,6 +15,7 @@ final class WorldGen: TerrainGenerator {
     let ridgeN: Noise, detailN: Noise, dens1: Noise, dens2: Noise
     let cheeseN: Noise, spag1: Noise, spag2: Noise, noodle1: Noise, noodle2: Noise, spagMod: Noise
     let flora: Noise, surfN: Noise
+    let veinTog: Noise, veinA: Noise, veinB: Noise
     let bands: [BlockID]
     let terrain: Terrain
     private(set) var structures: StructureCache? = nil
@@ -29,6 +30,7 @@ final class WorldGen: TerrainGenerator {
         cheeseN = Noise(seed: seed &+ 10); spag1 = Noise(seed: seed &+ 11); spag2 = Noise(seed: seed &+ 12)
         noodle1 = Noise(seed: seed &+ 13); noodle2 = Noise(seed: seed &+ 14); spagMod = Noise(seed: seed &+ 15)
         flora = Noise(seed: seed &+ 16); surfN = Noise(seed: seed &+ 17)
+        veinTog = Noise(seed: seed &+ 30); veinA = Noise(seed: seed &+ 31); veinB = Noise(seed: seed &+ 32)
         terrain = Terrain(seed: seed)
         // Badlands terracotta bands: orange base with bands of other colours (fixed per world).
         var rng = SRng(seed ^ 0xBAD1)
@@ -271,7 +273,11 @@ final class WorldGen: TerrainGenerator {
         for lz in 0..<CS { for lx in 0..<CS {
             let k = cols[lx + lz * CS]
             climates[lx + lz * CS] = climate(bx + lx, bz + lz)
-            biomes[lx + lz * CS] = terrain.biome(k, k.h)
+            // Surface and plants use a per-column dithered climate, so borders fray into a mixed band of
+            // both biomes' ground cover rather than a crisp line.
+            let dT = (hashf(bx + lx, 5, bz + lz, s32 ^ 0xD17) - 0.5) * 0.07
+            let dW = (hashf(bx + lx, 6, bz + lz, s32 ^ 0xD18) - 0.5) * 0.09
+            biomes[lx + lz * CS] = terrain.biome(k, k.h, dT: dT, dW: dW)
             maxTop = max(maxTop, YOFF + Int(k.h) + 40)
         } }
         maxTop = min(CH - 1, maxTop)
@@ -323,14 +329,27 @@ final class WorldGen: TerrainGenerator {
             surface(&b, lx, lz, bx + lx, bz + lz, tops, biomes[lx + lz * CS], cols[lx + lz * CS], wls[lx + lz * CS])
         } }
 
+        // Shallow pools in the flat ground of swamps.
+        let tops0 = tops
+        for lz in 1..<(CS - 1) { for lx in 1..<(CS - 1) {
+            let biome = biomes[lx + lz * CS]
+            guard biome == .swamp || biome == .mangroveSwamp else { continue }
+            let top = tops[lx + lz * CS]
+            guard top >= wls[lx + lz * CS], flora.noise2(Float(bx + lx) / 11, Float(bz + lz) / 11) > 0.18 else { continue }
+            let held = [(1, 0), (-1, 0), (0, 1), (0, -1)].allSatisfy { d in tops0[lx + d.0 + (lz + d.1) * CS] >= top }
+            if held { b[Chunk.index(lx, top, lz)] = WATER; tops[lx + lz * CS] = top - 1 }
+        } }
+
         // 3. Caves, aquifers, lava.
         let caves = caveLattice(bx, bz, maxY: maxTop)
         carveCaves(&b, caves, bx, bz, tops, wls, cols)
+        carveRavines(&b, bx, bz, tops, wls)
 
         // 4. Ores, blobs, dungeons, geodes, cave biome decoration.
         let chunkSeed = UInt64(bitPattern: Int64(cx &* 341873128712 &+ cz &* 132897987541)) ^ seed
         var rng = SRng(chunkSeed)
         placeOres(&b, bx, bz, &rng, biomes)
+        placeOreVeins(&b, bx, bz)
         placeGeode(&b, bx, bz, &rng)
         placeDungeons(&b, bx, bz, &rng)
         decorateCaves(&b, bx, bz, &rng, climates)
@@ -360,8 +379,11 @@ final class WorldGen: TerrainGenerator {
         let underwater = top < wl
         switch biome {
         case .desert: topBlock = SAND; filler = SAND; under = SANDSTONE; underDepth = 4
-        case .beach, .snowyBeach: topBlock = SAND; filler = SAND; under = SANDSTONE; underDepth = 2
-        case .stonyShore: topBlock = n > 0.2 ? GRAVEL : STONE; filler = STONE
+        case .beach, .snowyBeach:
+            // Shingle on cold coasts, sand elsewhere.
+            let shingle = k.ts < -0.05 && n > 0.15 - k.ts
+            topBlock = shingle ? GRAVEL : SAND; filler = topBlock; under = SANDSTONE; underDepth = 2
+        case .stonyShore: topBlock = n > 0.2 ? GRAVEL : (n < -0.35 ? g("andesite") : STONE); filler = STONE
         case .badlands, .erodedBadlands, .woodedBadlands:
             // Red sand on low flat ground, bare terracotta bands on slopes and higher up.
             let high = biome == .woodedBadlands && top > YOFF + 97
@@ -506,6 +528,58 @@ final class WorldGen: TerrainGenerator {
         } }
     }
 
+    // Ravines: long, narrow, tall cracks (about one per 150 chunks), wandering slowly in heading and depth.
+    // Each 112-block region may hold one; its path depends only on the region, so chunks agree.
+    private func carveRavines(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ tops: [Int], _ wls: [Int]) {
+        let rsz = 112
+        let lavaLevel = YOFF - 55
+        for rz in (floorDiv(bz, rsz) - 1)...(floorDiv(bz + CS - 1, rsz) + 1) {
+            for rx in (floorDiv(bx, rsz) - 1)...(floorDiv(bx + CS - 1, rsz) + 1) {
+                var rng = SRng(UInt64(hash3(rx, 0x7A1, rz, s32 ^ 0x5A5A)) | 1)
+                guard rng.int(3) == 0 else { continue }
+                var px = Float(rx * rsz + rng.range(16, rsz - 16)), pz = Float(rz * rsz + rng.range(16, rsz - 16))
+                var py = Float(YOFF + rng.range(-20, 50))
+                var yaw = rng.float() * 2 * .pi, pitch = (rng.float() - 0.5) * 0.25
+                let len = rng.range(70, 120)
+                let wmax = 2.2 + rng.float() * 2.8
+                var dyaw: Float = 0, dpitch: Float = 0
+                for k in 0..<len {
+                    let t = Float(k) / Float(len)
+                    let r = 0.9 + wmax * sinf(Float.pi * t)
+                    let hh = r * 3
+                    px += cosf(yaw) * cosf(pitch); pz += sinf(yaw) * cosf(pitch); py += sinf(pitch)
+                    dyaw = dyaw * 0.5 + (rng.float() - 0.5) * 0.25
+                    dpitch = dpitch * 0.8 + (rng.float() - 0.5) * 0.08
+                    yaw += dyaw * 0.25; pitch = pitch * 0.7 + dpitch
+                    let ir = Int(r) + 1
+                    let cx = Int(floorf(px)), cz = Int(floorf(pz))
+                    if cx + ir < bx || cx - ir >= bx + CS || cz + ir < bz || cz - ir >= bz + CS { continue }
+                    let y0 = max(6, Int(py - hh)), y1 = min(CH - 2, Int(py + hh))
+                    guard y0 <= y1 else { continue }
+                    for z in max(bz, cz - ir)...min(bz + CS - 1, cz + ir) {
+                        for x in max(bx, cx - ir)...min(bx + CS - 1, cx + ir) {
+                            let dx = Float(x) + 0.5 - px, dz = Float(z) + 0.5 - pz
+                            let lx = x - bx, lz = z - bz
+                            let top = tops[lx + lz * CS]
+                            let wet = top < wls[lx + lz * CS] + 2
+                            for y in y0...y1 {
+                                if wet && y > top - 5 { break }
+                                let dy = (Float(y) + 0.5 - py) / hh
+                                let jag = (hashf(x, y, z, s32 ^ 0x5A5B) - 0.5) * 0.3
+                                if (dx * dx + dz * dz) / (r * r) + dy * dy > 1 + jag { continue }
+                                let i = Chunk.index(lx, y, lz)
+                                let cur = b[i]
+                                if cur == AIR || cur == BEDROCK || Blocks.isLiquid(cur) { continue }
+                                if y + 1 < CH && Blocks.isLiquid(b[i + CSQ]) { continue }
+                                b[i] = y <= lavaLevel ? LAVA : AIR
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: Ores
 
     private func vein(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ rng: inout SRng, _ ore: BlockID, _ deepOre: BlockID, y: Int, size: Int) {
@@ -576,6 +650,52 @@ final class WorldGen: TerrainGenerator {
             let dEm = Blocks.has("deepslate_emerald_ore") ? g("deepslate_emerald_ore") : em
             for _ in 0..<100 { vein(&b, bx, bz, &rng, em, dEm, y: y(triangle(&rng, -16, 480)), size: 3) }
         }
+    }
+
+    // Large ore veins: thin snaking ribbons where two noise fields are both near zero, in regions picked by a
+    // third. Copper veins run through granite between y 0 and 50, iron veins through tuff between y -60 and -8.
+    private func placeOreVeins(_ b: inout [BlockID], _ bx: Int, _ bz: Int) {
+        let g = Blocks.id
+        let copper: (BlockID, BlockID, BlockID) = (GRANITE_ID, g("copper_ore"), Blocks.has("raw_copper_block") ? g("raw_copper_block") : g("copper_ore"))
+        let iron: (BlockID, BlockID, BlockID) = (TUFF_ID, g("deepslate_iron_ore"), Blocks.has("raw_iron_block") ? g("raw_iron_block") : g("deepslate_iron_ore"))
+        let y0 = YOFF - 60, y1 = YOFF + 50
+        let ny = (y1 - y0) / 4 + 2
+        // 4-block lattice of the three fields, trilinear inside.
+        var f = [Float](repeating: 0, count: 3 * 5 * 5 * ny)
+        @inline(__always) func at(_ k: Int, _ gx: Int, _ gy: Int, _ gz: Int) -> Float { f[((k * 5 + gx) * ny + gy) * 5 + gz] }
+        var any = false
+        for gx in 0..<5 { for gz in 0..<5 { for gy in 0..<ny {
+            let x = Float(bx + gx * 4), z = Float(bz + gz * 4), y = Float(y0 + gy * 4 - YOFF)
+            let tg = veinTog.noise3(x / 150, y / 150, z / 150)
+            f[((0 * 5 + gx) * ny + gy) * 5 + gz] = tg
+            if abs(tg) > 0.3 { any = true }
+            f[((1 * 5 + gx) * ny + gy) * 5 + gz] = veinA.noise3(x / 22, y / 22, z / 22)
+            f[((2 * 5 + gx) * ny + gy) * 5 + gz] = veinB.noise3(x / 22 + 40, y / 22, z / 22)
+        } } }
+        guard any else { return }
+        func sample(_ k: Int, _ lx: Int, _ ly: Int, _ lz: Int) -> Float {
+            let gx = lx >> 2, gy = ly >> 2, gz = lz >> 2
+            let fx = Float(lx & 3) / 4, fy = Float(ly & 3) / 4, fz = Float(lz & 3) / 4
+            let a = at(k, gx, gy, gz) + (at(k, gx + 1, gy, gz) - at(k, gx, gy, gz)) * fx
+            let c = at(k, gx, gy + 1, gz) + (at(k, gx + 1, gy + 1, gz) - at(k, gx, gy + 1, gz)) * fx
+            let d = at(k, gx, gy, gz + 1) + (at(k, gx + 1, gy, gz + 1) - at(k, gx, gy, gz + 1)) * fx
+            let e = at(k, gx, gy + 1, gz + 1) + (at(k, gx + 1, gy + 1, gz + 1) - at(k, gx, gy + 1, gz + 1)) * fx
+            let p = a + (c - a) * fy, q = d + (e - d) * fy
+            return p + (q - p) * fz
+        }
+        for lz in 0..<CS { for lx in 0..<CS { for y in y0..<y1 {
+            let ly = y - y0
+            let tg = sample(0, lx, ly, lz)
+            guard abs(tg) > 0.3 else { continue }
+            let kind = y < YOFF - 8 ? iron : copper
+            if y >= YOFF - 8 && y < YOFF { continue }
+            guard abs(sample(1, lx, ly, lz)) < 0.07, abs(sample(2, lx, ly, lz)) < 0.07 else { continue }
+            let i = Chunk.index(lx, y, lz)
+            let host = b[i]
+            guard host == STONE || host == DEEPSLATE || host == GRANITE_ID || host == DIORITE_ID || host == ANDESITE_ID || host == TUFF_ID else { continue }
+            let h = hashf(bx + lx, y, bz + lz, s32 ^ 0x0E1)
+            if h < 0.62 { b[i] = kind.0 } else if h < 0.88 { continue } else if h < 0.995 { b[i] = kind.1 } else { b[i] = kind.2 }
+        } } }
     }
 
     // Amethyst geode: 1 in 24 chunks, y -58...30.
