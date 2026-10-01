@@ -147,6 +147,12 @@ Options > Video > Resolution to 75% for a steady 60 fps on the M1.
 - Harness: `--terrainmap DIR [--seed N --size B --step B --x X --z Z --strict]` writes terrain_<seed>.png +
   relief_<seed>.png and the neighbour check; `--genbench` prints ms/chunk on the perf bench's chunks and a water
   leak count. Caches (macro 16-grid, lattice nodes, river graph) are pure memo tables, so output is order-independent.
+RMB use/place/eat (hold), MMB pick block, 1–9/scroll hotbar, E inventory, Q drop (Ctrl+Q stack), F fly, T / slash commands, F1 hide HUD, F2 screenshot
+(~/Pictures/Blocksmith), F3 debug, F5 camera (first person / behind / in front, with a player model).
+Menus: click / right-click / shift-click, number keys swap with hotbar, click outside drops.
+Controller: LS move, RS look, A jump, B sneak, L3 sprint, RT attack/mine, LT use, LB/RB hotbar, Y inventory, View camera,
+X pick block (reload while holding a gun), D-pad ↓ drop, D-pad ↑ fly. In menus: D-pad/LS move cursor, A = click, X = right-click, Y = shift-click,
+B close, RS scroll creative.
 
 ## Rendering performance
 - Solid cube faces are drawn first without alpha test (keeps the GPU's hidden-surface removal), cutout faces
@@ -344,6 +350,32 @@ Known failing tests: none (snap.sh and --selftest pass on CI at d92f9b0).
   rd 16, Fancy and Fast); needs a live-play screenshot if it still shows.
 - Harness: `--underwater`, `--crack <0..1>`, `--fast`, `--ambient` (2 s of ambient particles); `Blocksmith --atlas <prefix>`
   writes every texture layer as grid pages (prefix_0.png...) for texture review.
+
+## Steelhold fortresses, soldiers and guns (gameplay session)
+- Fortress (MilitaryBase.swift): very rare (at most one per 64x64-chunk region, fairly level plains/savanna/desert/snowy plains/badlands/meadow/forest/taiga), 63 blocks of
+  blast-proof steel plating with corner towers. Basement depot + generator + barred vault, ground floor (gate hall,
+  barracks, armory, mess hall, workshop), upper floor (command room, quarters, comms, medbay, barracks), roof with
+  marksman posts; loot tables steelhold_armory/supply/command/vault. New blocks: steel plating (+stairs/slab), steel floor
+  plate, hazard plating, armored glass, light panel, command console, ammo crate.
+- Guns (Guns.swift, Ballistics.swift): Steelhold Rifle, Chatter Gun (SMG), Breach Shotgun (9 pellets), Farsight Rifle
+  (scope), Skybreaker Launcher (rockets, break blocks), Arc Lance (instant energy beam, ignites). LMB/RT fires (hold for
+  automatics), RMB/LT aims (zoom, tighter spread, softer recoil), R / pad X reloads (auto when empty). Ammo is crafted:
+  rifle rounds, shotgun shells, heavy rounds, rockets, arc cells; magazine count in the stack tag; head shots x1.5;
+  bullets pass through plants and shatter glass. Tracers, muzzle flash, hit marker, ammo readout, 13 synthesized sounds.
+- Soldiers (Soldiers.swift): Recruit (20 HP, rifle/SMG, retreats when hurt), Trooper (30 HP, plated, shotgun rush or
+  strafing rifle, grenades into cover), Marksman (26 HP, farsight with a red laser before each shot, keeps distance),
+  Ironclad (60 HP, heavy armour, no knockback, launcher or arc lance, enrages). They alert each other, chase the last
+  sighting, burst-fire and reload; drop their ammo and 25% their gun. Deck guns (150 HP) on the towers traverse slowly,
+  solve a ballistic arc and fire twin explosive shells; they cannot depress far, so the wall foot is safe.
+- `--mobtests` covers reloads, kills, recoil, pellets, rockets, beams, armour, alerts, marksman laser, deck gun salvos,
+  drops, fortress rarity and layout. Snapshots: soldiers, deck_gun, gun_hip/aim/scope, steelhold, steelhold_gate.
+
+## Notes for the parallel sessions
+- Performance session: rd 24 resident is ~2.3 GB on the Mac while block+light arrays are ~740 MB (2601 chunks x ~285 KB)
+  and Metal ~218 MB (harness prints both). Unaccounted ~1.3 GB: suspects are per-job mesher scratch (48^3 regions,
+  n9 copies), generation lattices and allocator high-water. Uniform sections (all air / all stone) could skip their
+  block+light arrays. This branch's pooled mesh slabs (MeshArena.swift) already removed the per-section 16 KB pages.
+- Visuals session: distant ocean at night shows faint chunk-seam grid on the water surface (QA, seed 777).
 
 ## Known gaps / decisions
 - Save format changed with the engine rework (chunks3/, name-paletted); worlds from the 8-bit engine start fresh terrain.

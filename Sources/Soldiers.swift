@@ -29,6 +29,10 @@ final class SoldierBrain {
     var retreatCD: Float = 0
     var pitch: Float = 0
     var charge: Float = 0
+    var cover: V3?                  // a spot out of the player's sight to reload in
+    var coverSearch: Float = 0
+    var flank: V3?                  // where a flanking trooper / relocating marksman is heading
+    var flankTimer: Float = Float.random(in: 2...5)
     init(gun: Int) { self.gun = gun; mag = gun >= 0 ? Guns.all[gun].mag : 0 }
 }
 
@@ -195,6 +199,13 @@ extension Mob {
             return moving ? spec.speed * 0.45 : 0
         }
         b.react -= dt
+        b.coverSearch -= dt
+        b.flankTimer -= dt
+        if b.mag <= 0 && b.reload <= 0 {
+            b.reload = gs.reload * (r == 3 ? 1.3 : 1)
+            g.sfx(.gun(6), 0.6, at: eye)
+        }
+        if b.reload <= 0 { b.cover = nil }
         let (near, far) = Soldier.band(r, b.gun)
         var speed: Float = 0
         // Recruits fall back when badly hurt; marksmen back off from anyone who gets close.
@@ -204,10 +215,29 @@ extension Mob {
             face(pos * 2 - g.player.pos)
             return spec.speed * 1.15
         }
+        // Reloading: duck out of sight first (ironclads don't bother).
+        if b.reload > 0 && r != 3 {
+            if b.cover == nil && b.coverSearch <= 0 && sees { b.cover = findCover(g, from: g.player.eye); b.coverSearch = 1 }
+            if let c = b.cover {
+                if simd_length(V2(c.x - pos.x, c.z - pos.z)) > 0.6 { face(c); return spec.speed * 1.1 }
+                face(g.player.pos)
+                return 0
+            }
+        }
         if sees {
             face(g.player.pos)
             if b.reload > 0 {
                 speed = dist < far ? -spec.speed * 0.7 : 0                       // give ground while reloading
+            } else if let f = b.flank, b.flankTimer > 0 {
+                // Flank / relocate while facing the target: walk the offset with forward + sideways steps.
+                var d = f - pos
+                d.y = 0
+                let l = simd_length(d)
+                if l < 1 { b.flank = nil } else {
+                    let right = V3(cosf(yaw), 0, -sinf(yaw))
+                    speed = simd_dot(d / l, forward) * spec.speed
+                    strafe = simd_dot(d / l, right) * spec.speed
+                }
             } else if dist > far {
                 speed = spec.speed
             } else if dist < near {
@@ -218,9 +248,28 @@ extension Mob {
             }
             if b.gun == Guns.shotgun && dist > near { speed = spec.speed * 1.25 }   // shotgunners rush in
             if r == 3 && health < spec.health / 2 { speed = max(speed, spec.speed * 0.6) }
+            // Rifle troopers swing round the target's side every few seconds.
+            if r == 1 && b.gun != Guns.shotgun && b.flankTimer <= 0 && b.reload <= 0 {
+                b.flankTimer = Float.random(in: 4...7)
+                let toMe = simd_normalize(V3(pos.x - g.player.pos.x, 0, pos.z - g.player.pos.z) + V3(1e-4, 0, 0))
+                let side = V3(-toMe.z, 0, toMe.x) * (Float.random(in: 0..<1) < 0.5 ? -1 : 1)
+                b.flank = g.player.pos + simd_normalize(toMe + side * 1.4) * min(dist, (near + far) / 2)
+            }
+            let shotsBefore = b.mag
             soldierFire(dt, g, b, gs, rank: r, dist: dist, target: target)
+            // Marksmen move to a new spot after a shot now and then.
+            if r == 2 && b.mag < shotsBefore && Float.random(in: 0..<1) < 0.5 {
+                let right = V3(cosf(yaw), 0, -sinf(yaw))
+                b.flank = pos + right * (Float.random(in: 0..<1) < 0.5 ? -5 : 5)
+                b.flankTimer = 2.5
+            }
         } else {
             b.aimTime = 0
+            // Suppressing fire: automatic guns keep shooting where the player ducked out of sight.
+            if let ls = b.lastSeen, b.seenAgo < 2.5, b.gun == Guns.rifle || b.gun == Guns.smg || r == 3,
+               b.reload <= 0, b.react <= 0, b.shotTimer <= 0, b.mag > 0, simd_length(ls - pos) < rank.sight {
+                suppress(g, b, gs, at: ls + V3(0, 1.2, 0), rank: rank)
+            }
             if let ls = b.lastSeen, b.seenAgo < 14 {
                 // Troopers flush players out of cover with a grenade, everyone closes in on the last sighting.
                 let d = simd_length(ls - pos)
@@ -286,6 +335,53 @@ extension Mob {
         b.burst -= 1
         let rate: Float = enraged ? 0.6 : 1
         b.shotTimer = b.burst > 0 ? gs.interval * 1.4 * rate : Float.random(in: rank.gap) * rate
+    }
+
+    // A short burst into the player's last position (wider spread; it pins them behind cover).
+    private func suppress(_ g: Game, _ b: SoldierBrain, _ gs: GunSpec, at t: V3, rank: Soldier.Rank) {
+        let muzzle = eye + forward * 0.6 - V3(0, 0.15, 0)
+        let dir = simd_normalize(t - muzzle)
+        let scale = Soldier.difficultyScale(g.difficulty) * rank.damage
+        if gs.shot == .bullet {
+            g.arms.spawn(Slug(pos: muzzle, vel: Guns.scatter(dir, rank.spread + 0.05) * gs.speed, kind: .bullet, damage: gs.damage * scale,
+                              fromPlayer: false, shooter: ObjectIdentifier(self), by: spec.name, life: gs.range / gs.speed, gravity: 1.5))
+            b.shotTimer = gs.interval * 2.5
+        } else if gs.shot == .rocket {
+            var s = Slug(pos: muzzle + dir * 0.5, vel: dir * gs.speed, kind: .rocket, damage: 0, fromPlayer: false,
+                         shooter: ObjectIdentifier(self), by: spec.name, life: gs.range / gs.speed, gravity: 0.6)
+            s.power = 1.8
+            g.arms.spawn(s)
+            b.shotTimer = 3
+        } else {
+            g.arms.beam(g, from: muzzle, dir: Guns.scatter(dir, 0.03), range: gs.range, damage: gs.damage * scale, fromPlayer: false, shooter: self, by: spec.name)
+            b.shotTimer = 2.5
+        }
+        b.mag -= 1
+        g.sfx(.gun(gs.sound), 1, at: muzzle)
+    }
+
+    // A nearby standing spot the player can't see (sampled in a ring of 2-6 blocks).
+    private func findCover(_ g: Game, from threat: V3) -> V3? {
+        let w = g.world
+        var best: V3?
+        var bd = Float.greatestFiniteMagnitude
+        let y = Int(floor(pos.y + 0.1))
+        for i in 0..<14 {
+            let a = Float(i) / 14 * 2 * .pi
+            let rr = Float.random(in: 2...6)
+            let x = Int(floor(pos.x + cosf(a) * rr)), z = Int(floor(pos.z + sinf(a) * rr))
+            for dy in [0, 1, -1] {
+                let fy = y + dy
+                guard Blocks.collide[Int(w.block(x, fy - 1, z))], !Blocks.collide[Int(w.block(x, fy, z))], !Blocks.collide[Int(w.block(x, fy + 1, z))] else { continue }
+                let spot = V3(Float(x) + 0.5, Float(fy), Float(z) + 0.5)
+                if !w.canSee(spot + V3(0, 1.5, 0), threat) {
+                    let d = simd_length(spot - pos)
+                    if d < bd { bd = d; best = spot }
+                }
+                break
+            }
+        }
+        return best
     }
 
     private func throwGrenade(_ g: Game, at t: V3) {
