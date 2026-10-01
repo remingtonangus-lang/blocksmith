@@ -1079,6 +1079,12 @@ final class Playthrough {
         }
         let w = game.mobs.mobs.first { $0.kind == .wither }
         check(w != nil, "blight: soul sand T + three skulls summons the Blight")
+        if w == nil {
+            let tops = [-1, 0, 1].map { baseKey(world.block(stem.x + $0, stem.y + 2, stem.z)) }
+            let near = game.mobs.mobs.filter { simd_length($0.pos - center(stem)) < 6 }.map { $0.kind.key }
+            info("blight T: skulls row \(tops), arms \(baseKey(world.block(stem.x, stem.y + 1, stem.z))), held \(Items.key(game.held.item)), " +
+                 "skulls left \(count("wither_skeleton_skull")), mobs near \(near), menu \(game.menu.map { "\(type(of: $0))" } ?? "none")")
+        }
         guard let b = w else { return }
         check(b.phase == 1, "blight: charging after the summon")
         let feet = V3(Float(ax) + 0.5, Float(gy), Float(az) + 14.5)
