@@ -912,6 +912,7 @@ final class Playthrough {
             let throwFeet = rc - outDir * 6 - V3(0, 1.1, 0)
             game.player.flying = true
             game.player.pos = throwFeet
+            clearMobs(near: rc, 10)                      // nothing in the pearl's way (a voidwalker would catch it)
             if count("ender_pearl") == 0 { give("ender_pearl", 2, bulk: "spare pearls") }
             _ = hold("ender_pearl")
             aim(at: rc + V3(0, 0.15, 0))
@@ -938,6 +939,7 @@ final class Playthrough {
                 for y in (b.y - 1)...(b.y + 1) { for dx in 1...6 where carvable(IVec3(b.x + dx, y, b.z)) { world.setBlock(b.x + dx, y, b.z, AIR) } }
                 game.player.flying = true
                 game.player.pos = tf
+                clearMobs(near: bc, 10)
                 if count("ender_pearl") == 0 { give("ender_pearl", 2, bulk: "spare pearls") }
                 _ = hold("ender_pearl")
                 aim(at: bc + V3(0, 0.15, 0))
@@ -1063,6 +1065,7 @@ final class Playthrough {
         world.setBlock(stem.x, stem.y, stem.z, soul)
         for dx in -1...1 { world.setBlock(stem.x + dx, stem.y + 1, stem.z, soul) }
         inv.remove(id("soul_sand"), 4)
+        clearMobs(near: center(stem), 6)                // a cow standing on the T would block the skulls
         game.survival = true
         for dx in [-1, 1, 0] {
             let top = IVec3(stem.x + dx, stem.y + 1, stem.z)
