@@ -191,6 +191,7 @@ extension Game {
             if a.rainExposure < 0.5 && a.cave < 0.9 { ask("rainroof", .rainRoof, r * (1 - a.rainExposure) * (1 - a.cave) * 0.6) }
         }
         weatherAudioTick(dt, ask: ask)
+        movingWaterTick(ask: ask)
         // Rockets and shells in flight: the nearest of each within 32 blocks.
         var rocket: (V3, Float)? = nil, shell: (V3, Float)? = nil
         for s in arms.slugs where s.kind == .rocket || s.kind == .shell {

@@ -70,14 +70,6 @@ extension Game {
     func terrainAudioTick(_ dt: Float, open: Float, ask: (String, Snd, Float, V3?) -> Void) {
         let a = audio
         let p = player.pos
-        if let e = a.emitters["river"] {
-            let d = simd_length(e.pos - player.eye)
-            ask("river", .riverLoop, min(0.8, 0.2 + 0.015 * Float(e.count)) * max(0, 1 - d / 16), e.pos)
-        }
-        if let e = a.emitters["waterfall"] {
-            let d = simd_length(e.pos - player.eye)
-            ask("waterfall", .waterfallLoop, min(1.2, 0.35 + 0.04 * Float(e.count)) * max(0, 1 - d / 24), e.pos)
-        }
         let b = a.biomeHere
         let tundra: Set<Biome> = [.snowyPlains, .iceSpikes, .snowyTaiga, .frozenRiver, .frozenOcean, .deepFrozenOcean, .snowyBeach]
         let peaks: Set<Biome> = [.jaggedPeaks, .frozenPeaks, .stonyPeaks, .snowySlopes, .grove, .windsweptHills, .windsweptGravellyHills]
@@ -96,6 +88,19 @@ extension Game {
             if Float.random(in: 0..<1) < dt / 25 { sfx(.iceCreak, 0.5, at: player.eye + V3(Float.random(in: -10...10), -1, Float.random(in: -10...10))) }
         }
         if b == .swamp || b == .mangroveSwamp { ask("swampbugs", .swampInsectsLoop, 0.3 * open, nil) }
+    }
+
+    // Streams and waterfalls, anywhere (surface rivers, cave springs, falls down cliffs).
+    func movingWaterTick(ask: (String, Snd, Float, V3?) -> Void) {
+        let a = audio
+        if let e = a.emitters["river"] {
+            let d = simd_length(e.pos - player.eye)
+            ask("river", .riverLoop, min(0.8, 0.2 + 0.015 * Float(e.count)) * max(0, 1 - d / 16), e.pos)
+        }
+        if let e = a.emitters["waterfall"] {
+            let d = simd_length(e.pos - player.eye)
+            ask("waterfall", .waterfallLoop, min(1.2, 0.35 + 0.04 * Float(e.count)) * max(0, 1 - d / 24), e.pos)
+        }
     }
 
     // Weather beds beyond plain rain: rain on leaves under trees, snow wind while it snows.
