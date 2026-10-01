@@ -184,6 +184,13 @@ final class WeaponWheel {
         return false
     }
 
+    // Harness (--padview combat): the wheel open with entry `pick` highlighted.
+    func showForSnapshot(_ g: Game, pick: Int) {
+        entries = WeaponWheel.guns(g)
+        holding = true; viaPad = true; open = !entries.isEmpty
+        choice = entries.isEmpty ? -1 : pick % entries.count
+    }
+
     func equip(_ g: Game, _ idx: Int) {
         guard idx >= 0, idx < 36 else { return }
         if idx < 9 { g.select(idx); return }

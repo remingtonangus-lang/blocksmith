@@ -160,7 +160,7 @@ Options > Video > Resolution to 75% for a steady 60 fps on the M1.
 ### Vehicles, guns, combat HUD, maps (2026-10-01 queue, built on PR #8 vessels + PR #2 guns)
 - Vehicles (VehicleControls.swift): one input reader for every vessel kind. Unarmed boats / land vehicles: RT throttle, LT
   reverse/brake, LS steer (W/S + A/D on keys); airships: RT/LT throttle, LS up/down climb; aircraft: RT throttle, LS pitch
-  (Options > Controller > Flight Stick: pull back to climb or push up), A/Space and RB/LB climb/descend on all. Armed vessels
+  (Options > Controller > Flight Stick: pull back to climb or push up), Space/Ctrl (keys) and RB/LB (pad) climb/descend on all. Armed vessels
   keep PR #8's scheme (RT fires the cannons, stick throttle). B / Shift leaves. On-screen prompts change per vessel.
 - Deck guns (Turrets): LT / right-click on a Steelhold deck gun mans it; the barrels follow the view (clamped elevation),
   RT / left-click fires both barrels, 3 s reload shown as a bar, B / Shift steps off.

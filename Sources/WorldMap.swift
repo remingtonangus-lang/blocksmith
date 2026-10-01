@@ -110,7 +110,18 @@ final class MapCache {
         guard !marks.contains(where: { $0.kind == kind && abs($0.x - x) < 24 && abs($0.z - z) < 24 }) else { return }
         marks.append(Mark(kind: kind, x: x, z: z))
         if let u = marksURL(g), let d = try? JSONEncoder().encode(marks) { try? d.write(to: u, options: .atomic) }
-        g.onToast?(kind == "military_base" ? "Steelhold base marked on the map" : "Village marked on the map")
+        g.onToast?("\(MapCache.style(kind).name) marked on the map")
+    }
+
+    // Marker letter, colour and name per discovery kind.
+    static func style(_ kind: String) -> (letter: String, color: V4, name: String) {
+        switch kind {
+        case "military_base": return ("B", V4(0.85, 0.2, 0.15, 1), "Steelhold base")
+        case "village": return ("V", V4(0.95, 0.8, 0.3, 1), "Village")
+        case "vessel_frigate": return ("F", V4(0.6, 0.35, 0.9, 1), "Skyward Frigate patrol")
+        case "vessel_carriage": return ("C", V4(0.95, 0.5, 0.15, 1), "Siege Carriage patrol")
+        default: return ("?", V4(0.7, 0.7, 0.7, 1), kind)
+        }
     }
 
     // Once a second: bases and villages within 96 blocks count as discovered (overworld only).
@@ -127,6 +138,13 @@ final class MapCache {
                 if dx * dx + dz * dz < 96 * 96 { discover(g, kind: t.name, x: cx, z: cz) }
             }
         }
+        // Vessel patrols (ShipVessels): their home point counts once you come within 200 blocks of it.
+        let rx = floorDiv(px, Vessels.region), rz = floorDiv(pz, Vessels.region)
+        for dz in -1...1 { for dx in -1...1 {
+            guard let e = Vessels.encounter(seed: g.world.seed, rx: rx + dx, rz: rz + dz, gen: g.world.gen) else { continue }
+            let ex = e.1.x - px, ez = e.1.z - pz
+            if ex * ex + ez * ez < 200 * 200 { discover(g, kind: "vessel_" + e.0, x: e.1.x, z: e.1.z) }
+        } }
     }
 
     // Harness: forget discoveries (temp world tests).
@@ -197,12 +215,18 @@ enum MapDraw {
             }
             for m in MapCache.shared.marks {
                 guard let p = at(Float(m.x), Float(m.z)) else { continue }
-                let base = m.kind == "military_base"
-                let col = base ? V4(0.85, 0.2, 0.15, 1) : V4(0.95, 0.8, 0.3, 1)
+                let st = MapCache.style(m.kind)
                 out.append(HudLine(text: "", x: p.x - 4 * s, y: p.y - 4 * s, scale: s, bg: V4(0, 0, 0, 0.8), box: V2(8 * s, 8 * s)))
-                out.append(HudLine(text: "", x: p.x - 3 * s, y: p.y - 3 * s, scale: s, bg: col, box: V2(6 * s, 6 * s)))
-                out.append(HudLine(text: base ? "B" : "V", x: p.x - 2 * s, y: p.y - 3 * s, scale: s * 0.85, color: V4(1, 1, 1, 1)))
+                out.append(HudLine(text: "", x: p.x - 3 * s, y: p.y - 3 * s, scale: s, bg: st.color, box: V2(6 * s, 6 * s)))
+                out.append(HudLine(text: st.letter, x: p.x - 2 * s, y: p.y - 3 * s, scale: s * 0.85, color: V4(1, 1, 1, 1)))
             }
+        }
+        // Vehicles loaded nearby: hostile vessels as red diamonds, the rest (yours) blue; the one you steer is the player dot.
+        for sh in g.world.ships.list where sh !== g.world.ships.pilot {
+            guard let p = at(sh.pos.x, sh.pos.z) else { continue }
+            let col = sh.isVessel ? V4(0.95, 0.25, 0.2, 1) : V4(0.35, 0.6, 1, 1)
+            out.append(HudLine(text: "", x: p.x - 3 * s, y: p.y - 3 * s, scale: s, bg: V4(0, 0, 0, 0.85), box: V2(6 * s, 6 * s)))
+            out.append(HudLine(text: "", x: p.x - 2 * s, y: p.y - 2 * s, scale: s, bg: col, box: V2(4 * s, 4 * s)))
         }
         // The player: a dot with a facing tick.
         if let p = at(g.player.pos.x, g.player.pos.z) {
@@ -311,9 +335,11 @@ final class MapMenu: Menu, CustomDrawnMenu {
         let biome = g.world.gen.column(bx, bz).biome.displayName
         let info = "\(biome)   \(bx), \(bz)   1 cell = \(bpc) blocks"
         out.append(HudLine(text: info, x: o.x + 8 * s, y: o.y + Float(height - 13) * s, scale: s, color: V4(0.2, 0.2, 0.22, 1)))
-        let bases = MapCache.shared.marks.filter { $0.kind == "military_base" }.count
-        let vill = MapCache.shared.marks.count - bases
-        let key = "B bases \(bases)   V villages \(vill)"
+        let marks = MapCache.shared.marks
+        let bases = marks.filter { $0.kind == "military_base" }.count
+        let vill = marks.filter { $0.kind == "village" }.count
+        let vessels = marks.filter { $0.kind.hasPrefix("vessel_") }.count
+        let key = "B bases \(bases)   V villages \(vill)" + (vessels > 0 ? "   F/C patrols \(vessels)" : "")
         out.append(HudLine(text: key, x: o.x + Float(width - 8) * s - Float(Font.width(key)) * s, y: o.y + 6 * s, scale: s, color: V4(0.25, 0.25, 0.28, 1)))
         return out
     }
