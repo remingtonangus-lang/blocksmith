@@ -246,7 +246,13 @@ extension Game {
         guard useNow else { return true }
         swing = 1
 
-        // Using: the helm steers (sneak: docks the ship), containers open.
+        // Using: a labelled name tag names the ship; the helm steers (sneak: docks the ship); containers open.
+        if ShipParts.kinds[Int(b)] == .helm && s.helm == cell && Items.key(held.item) == "name_tag", let label = held.label, !label.isEmpty {
+            s.name = label
+            if survival { consumeHeld() }
+            onToast?("Named the ship \(label)")
+            return true
+        }
         if ShipParts.kinds[Int(b)] == .helm && s.helm == cell {
             if sneak {
                 let msg = ships.disassemble(s, game: self)
