@@ -79,6 +79,8 @@ done
 "$BIN" --snapshot snaps/tv_confirm.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --w 1920 --h 1080 --couch --padview confirm
 "$BIN" --snapshot snaps/tv_title.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --w 1920 --h 1080 --couch --padview title
 "$BIN" --snapshot snaps/padmap.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --padview padmap
+"$BIN" --snapshot snaps/tv_combat.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --w 1920 --h 1080 --couch --pad --padview combat
+"$BIN" --snapshot snaps/vehicle_hud.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --pad --padview vehicle
 "$BIN" --snapshot snaps/tv_map.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --w 1920 --h 1080 --couch --pad --padview map
 "$BIN" --snapshot snaps/controls_ref.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --padview controls
 "$BIN" --snapshot snaps/tv_hud.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --w 1920 --h 1080 --couch --safe 5 --survival 13 --slot 2 --pad --hints

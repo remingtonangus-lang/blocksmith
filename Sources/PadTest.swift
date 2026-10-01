@@ -552,6 +552,35 @@ enum PadTest {
             let mm = MapMenu(game: g)
             mm.zoom = 2
             g.menu = mm
+        case "combat", "vehicle":
+            // Survival HUD with the minimap, armour wear, two damage marks and either the weapon wheel or a car's gauges.
+            g.menu = nil
+            g.paused = false
+            HudExtras.enabled = true
+            MapCache.shared.prefill(g.world.gen, x: Int(g.player.pos.x), z: Int(g.player.pos.z), radius: 72, step: 4)
+            g.survival = true
+            g.health = 13
+            for (i, n) in ["iron_helmet", "iron_chestplate", "iron_leggings", "iron_boots"].enumerated() where Items.has(n) {
+                g.inventory.armor[i] = ItemStack(Items.id(n), 1)
+                g.inventory.armor[i].damage = [20, 140, 60, 170][i]
+            }
+            let r = V3(cosf(g.player.yaw), 0, -sinf(g.player.yaw)), f = V3(-sinf(g.player.yaw), 0, -cosf(g.player.yaw))
+            CombatHUD.shared.hurt(g, from: g.player.pos + r * 4, amount: 4)
+            CombatHUD.shared.hurt(g, from: g.player.pos - f * 4 - r * 2, amount: 2)
+            if name == "combat" {
+                for (i, n) in ["gun_rifle", "gun_shotgun", "gun_smg", "gun_sniper", "gun_launcher"].enumerated() where Items.has(n) {
+                    g.inventory.main[[0, 1, 12, 20, 30][i]] = ItemStack(Items.id(n), 1)
+                }
+                g.select(0)
+                WeaponWheel.shared.showForSnapshot(g, pick: 1)
+            } else {
+                let helm = ShipTest.place(g.world, "car", near: g.player.pos)
+                if let car = g.world.ships.assemble(at: helm, game: g).0 {
+                    g.startPiloting(car)
+                    car.throttle = 0.7
+                    car.vel = f * 9
+                }
+            }
         default: pm.go(.options); pm.cat = .video; pm.build(); cursor = 1
         }
         WorldStore.base = old
