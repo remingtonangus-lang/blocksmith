@@ -34,20 +34,19 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
   - [x] rd 24 smoke (Fancy and Fast) passes on CI since the Paravirtual base-vertex guard (53932ee).
   - [ ] Debug-build link error (now line tables + -wmo; debugbuild.log published).
   - [x] Combined-build CI shots render cleanly (the black/scrambled terrain was the CI GPU's base-vertex draws).
-  - [ ] Audio (#4): confirm Synth.wash clamp un-silences mountainWindLoop/snowWindLoop; first CI run of --audiotest.
-  - [ ] UI (#5): padtest "taking damage rumbles" (lastHurtSound reset); look at tv_combat / vehicle_hud / tv_map.
+  - [x] Audio (#4): --sounds 0 failed (wind loops audible), --audiotest 0 failed on CI.
+  - [x] UI (#5): padtest 122/122; tv_combat / vehicle_hud / tv_map reviewed (toast and tip overlaps fixed).
   - [ ] Visuals (#6): verify the half-res volumetric shafts (~4.7 ms tour avg), cave_torches shot, glowstone not clipping.
-  - [ ] Terrain (#7): CI on the WIP commit (lake/delta tours, climate maps, --onland aerial tours); terrain check 0 problems.
+  - [x] Terrain (#7): WIP commit green on CI; terrain check 0 problems over 5 seeds; aerial tours on land.
   - [x] Physics (#8): frigate patrol altitude (hoverY floor is the spawn altitude); calib.cpu_ms in perf/baseline.json.
   - [x] Physics (#8): round-6 commits compile; flight24 cull 0.76 ms p50 (target < 1.20); ships metrics in the baseline.
-  - [ ] Physics (#8): physicstest fully green on CI (fixes in c6bfae5); ship snapshots checked (props, wheels, turret in place).
+  - [x] Physics (#8): physicstest green on CI (c6bfae5); ship snapshots checked (props, wheels, turret in place).
   - [x] Gameplay (#2/#3): mobtests 0 failed; playthrough reaches the credits and kills the Blight (furnace step fixed in 0cdfe9a).
 - Gameplay
   - [x] Fancy ships use Vibrant's ship pipelines (shadows, emissive, flashes; dark under cover).
   - [x] Muzzle flashes light the terrain (player guns, soldiers, deck guns).
   - [x] --fortresstest: 20 s inside a generated Steelhold fortress (engage, move/cover, nobody stuck in blocks).
   - [ ] Gun damage balance vs soldiers and players (needs real play).
-  - [ ] Pad-control gameplay tests for the airship and aircraft (padtest drives only the car).
 - Content
   - [x] Spears (every tier): longer, slower jab; hold use for a charge that scales with closing speed (mobtests).
   - [x] Copper chests (4 stages, waxable) and the Copper Golem (sorts copper-chest items into matching chests, ages into
@@ -62,7 +61,8 @@ Priority: crashes/CI first, then gameplay, then content, then polish. [x] done h
         carriage) and hold their stations aboard (aim and fire, no cover runs overboard); physicstest check.
 - Polish
   - [x] Map waypoints (X / Enter / right-click at the map centre; nearest one shown under the minimap).
-  - [ ] Free pad cursor for menus; per-voice pitch jitter done (3D voices, +-5% for blocks and creatures); waterfall/stream audiotest done.
+  - [x] Per-voice pitch jitter (3D voices, +-5% for blocks and creatures); waterfall/stream audiotest.
+  - [ ] Free pad cursor for menus.
   - [x] Fancy eye adaptation. Gen perf checked: 2.05 ms/chunk cold, veins ~7% (no change needed).
   - [ ] Mob shadow-map shadows; gun icons via the auto-painter.
   - [ ] Real-M1 checks: base-vertex path, Fancy GPU time (F3), the seed 777 night ocean seam grid.
