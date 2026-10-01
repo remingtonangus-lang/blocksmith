@@ -175,11 +175,11 @@ struct Synth {
             if count == 0 { target = noise(); count = step }
             count -= 1
             mod += (target - mod) * 0.0005
-            let hz: Float = lp * (1 + wobble * mod)
+            let hz: Float = max(20, lp * (1 + wobble * mod))   // big wobble must not drive the cutoff negative
             let a: Float = 1 - expf(-2 * Float.pi * hz / Synth.sr)
             lpS += a * (noise() - lpS)
             hpS += b * (lpS - hpS)
-            out[i] = (lpS - hpS) * gain * (1 + 0.5 * wobble * mod)
+            out[i] = (lpS - hpS) * gain * max(0, 1 + 0.5 * wobble * mod)
         }
         return out
     }
