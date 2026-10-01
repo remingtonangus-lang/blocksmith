@@ -175,7 +175,7 @@ Known failing tests: none (snap.sh and --selftest pass on CI at d92f9b0).
 - Mobs are saved per chunk (mobs.json) and come back when their chunk loads; natural hostiles are not kept.
 - Credits text is original (the reference game's poem is not copied).
 - Armor trims show in the tooltip (the player model isn't drawn in first person).
-- Raids are not saved across a reload (an unfinished raid ends); the void chest, weather and insomnia timer are.
+- Raids are saved with the world (raiders rejoin when their chunks load); so are the void chest, weather and insomnia timer.
 
 ## Completability (End / Blight) — handoff notes
 - `Blocksmith --playthrough` (Sources/Playthrough.swift, CI step "Playthrough") plays seed 12345 from spawn to the
