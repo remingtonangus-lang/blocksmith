@@ -262,7 +262,7 @@ enum Tutorial {
 
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
         let st = Settings.shared
-        guard HudExtras.enabled, st.tutorialHints, st.tutorialStep < steps, g.menu == nil, g.alive else { return [] }
+        guard HudExtras.enabled, st.tutorialHints, st.tutorialStep < steps, g.menu == nil, g.alive, !WeaponWheel.shared.open else { return [] }
         let s = L.s
         let t = text(st.tutorialStep)
         let head = "Tip \(st.tutorialStep + 1)/\(steps)"
