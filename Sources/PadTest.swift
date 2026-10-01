@@ -283,6 +283,11 @@ enum PadTest {
                 var lt = PadSnapshot(); lt.lt = 1
                 frame(g, lt)
                 check(car.throttle < -0.9, "LT reverses")
+                // Keyboard: the forward key is the throttle too, the strafe keys steer.
+                g.input.keys.insert(KeyBinds.key(.forward)); g.input.keys.insert(KeyBinds.key(.left))
+                for _ in 0..<3 { frame(g) }
+                check(car.throttle > 0.9 && car.steer < -0.5, "W throttles and A steers a land vehicle (\(car.throttle), \(car.steer))")
+                g.input.keys.remove(KeyBinds.key(.forward)); g.input.keys.remove(KeyBinds.key(.left))
                 // A hull hit (the vehicle lost blocks since last frame) is felt.
                 PadManager.shared.rumbleLog.removeAll()
                 Feedback.lastShipBlocks = [car.id: car.blockCount + 6]
