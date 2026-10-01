@@ -29,6 +29,11 @@ Goals: polished, efficient on M1/8 GB, extensible. Later: Xbox controller on a T
 - End.swift: eyes of ender, hollow gate activation/travel, dragon + crystal AI, acid clouds, sentry bolts, gateways, credits. NetherGen.swift also holds EndGen (island, spikes, fountain, outer islands, spiral).
 
 - Later systems (one file each, mostly `extension Game`): Effects, Potions, Enchant, Villager, Raid, Beacon, Weather, GameCombat (shield/crossbow/trident/fishing), Animals + Riding, Boats, Equipment (mob armour, armor stands), Gadgets (FOV, spyglass, leads), Banners (+ loom), Fireworks (also special crafting: Fireworks.craft), Books (+ lecterns), Bundles, Workblocks (composter, bell), WoodBlocks (pillar axes, stripped wood), Shelf (chiseled bookshelf, decorated pot), Crafter, Physics (wind charge, sponge, powder snow), DragonRespawn, MinecartVariants (+ goat horns), Advancements, Decor (signs/hanging signs/frames/paintings), Maps, Jukebox, BigStructures. Sparkstone.swift holds every sparkstone component kind (incl. tripwire, trapped chest, copper bulb, crafter, murk sensor).
+- Steelhold (original content): MilitaryBase.swift (fortress structure, steel blocks, loot tables), Guns.swift (gun specs, items,
+  icons, first-person models, sounds), Ballistics.swift (Armory: rounds, rockets, shells, grenades, beams; player gun handling,
+  HUD helpers), Soldiers.swift (four soldier ranks + deck guns: AI, models, drops), MilitaryTests.swift (harness checks).
+- Mob workstream files: Raid.swift, Pathfinding.swift, Spawning.swift, MobAI.swift, VillageLife.swift, Conversions.swift, Bees.swift,
+  Cloudwailer.swift, SpawnEggs.swift, MobTests.swift (`--mobtests`); Playthrough.swift (`--playthrough`, spawn to credits + Blight).
 - Swift gotchas seen on CI: long float expressions time out the type checker (split them with typed lets); `import simd` in every file that uses simd_*.
 
 ## Roadmap
