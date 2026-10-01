@@ -22,6 +22,8 @@ for f in step_stone step_wood step_gravel break_glass break_wood place_metal doo
 done
 cp -r build/sounds/scapes snaps/sounds/scapes
 "$BIN" --music snaps/sounds/music --seconds 10
+# The audio director (headless, record mode): vehicle, vessel, terrain and weather loops, and combat music.
+"$BIN" --snapshot snaps/audiotest.png --seed 12345 --time 0.3 --rd 6 --audiotest
 
 # Terrain: top-down maps of five seeds (8 km square, spawn marked), neighbour check, chunk generation timing.
 "$BIN" --terrainmap snaps

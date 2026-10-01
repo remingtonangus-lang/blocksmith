@@ -794,6 +794,10 @@ enum Snapshot {
         // Ships (ShipTest.swift): a demo vessel under way, or the scripted physics checks.
         if let kind = arg("--ship") { pos = ShipTest.scene(kind, game: game, at: pos, rd: rd) }
         var shipFails = 0
+        if CommandLine.arguments.contains("--audiotest") {
+            if AudioTests.run(game: game, at: pos, rd: rd) > 0 { return 1 }
+            pos = game.player.pos
+        }
         if CommandLine.arguments.contains("--physicstest") { shipFails = ShipTest.physicsTest(game: game, rd: rd); pos = game.player.pos }
 
         // Mesh benchmark: re-mesh the section at the camera a few times on one thread.

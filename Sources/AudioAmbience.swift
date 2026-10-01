@@ -103,7 +103,10 @@ extension Game {
     // MARK: Per-tick
 
     func audioAmbientTick(_ dt: Float) {
-        guard let snd = sound else { return }
+        // Headless harnesses set `audio.record` to run the director without an audio device: loops asked
+        // for are then counted under their key (as "loop:<key>").
+        let snd = sound
+        guard snd != nil || audio.record != nil else { return }
         let a = audio
         let p = player.pos
         let eye = player.eye
@@ -120,8 +123,8 @@ extension Game {
         a.cave += (caveTarget - a.cave) * min(1, dt * 1.5)
         // Reverb follows the space around the listener: how enclosed it is and how big.
         let wet: Float = max(a.enclosure * a.enclosure, a.cave * 0.6)
-        snd.setListener(eye: eye, yaw: player.yaw, pitch: player.pitch, cave: wet, underwater: player.headInWater)
-        snd.setRoom(size: a.roomSize, enclosure: a.enclosure)
+        snd?.setListener(eye: eye, yaw: player.yaw, pitch: player.pitch, cave: wet, underwater: player.headInWater)
+        snd?.setRoom(size: a.roomSize, enclosure: a.enclosure)
 
         // Scan the blocks around the player for looping emitters twice a second.
         a.scanTimer -= dt
@@ -135,7 +138,8 @@ extension Game {
             a.asked.insert(key)
             if v > 0.15 && AudioSettings.subtitles { subtitle(s, at: pos) }
             let occ = pos.map { audioOcclusion(eye, $0) } ?? 0
-            snd.loop(key, s, volume: v * max(0.15, 1 - occ * 0.7), at: pos, occlusion: occ)
+            if a.record != nil { a.record!["loop:" + key, default: 0] += 1 }
+            snd?.loop(key, s, volume: v * max(0.15, 1 - occ * 0.7), at: pos, occlusion: occ)
         }
         func emitter(_ kind: String, _ s: Snd, base: Float, per: Float, cap: Float = 1.2) {
             if let e = a.emitters[kind] {
@@ -272,6 +276,7 @@ extension Game {
         a.armorPrimed = true
         // Jukebox nearby: duck the background music.
         let jukeboxNear = a.discPlaying != nil
+        guard let snd else { return }
         snd.musicDuck += ((jukeboxNear ? 0 : 1) - snd.musicDuck) * min(1, dt * 2)
         snd.update(dt, asked: a.asked)
     }
