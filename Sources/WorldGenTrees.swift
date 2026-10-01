@@ -58,7 +58,7 @@ enum TreePlacer {
         case .windsweptHills, .windsweptGravellyHills: return p(0.02) ? (pick < 0.7 ? .oak : .spruce) : nil
         case .meadow: return p(0.002) ? (pick < 0.5 ? .fancyOak : .birch) : nil
         case .cherryGrove: return p(0.18) ? .cherry : nil
-        case .paleGarden: return p(0.6) ? (pick < 0.85 ? .paleOak : .darkOak) : nil
+        case .paleGarden: return p(0.32) ? (pick < 0.85 ? .paleOak : .darkOak) : nil
         case .swamp: return p(0.07) ? .swampOak : nil
         case .mangroveSwamp: return p(0.35) ? .mangrove : nil
         case .mushroomFields: return p(0.02) ? (pick < 0.5 ? .hugeRed : .hugeBrown) : nil
@@ -264,7 +264,7 @@ enum TreePlacer {
             trunk(h, log, wide: true)
             if rng.chance(0.12) { w.force(x + rng.int(2), y + rng.range(2, max(2, h - 3)), z + rng.int(2), g("creaking_heart")) }
             for dy in -1...1 {
-                let r = dy == 1 ? 2 : (dy == 0 ? 4 : 3)
+                let r = dy == 1 ? 2 : 3
                 for dz in -r...r + 1 { for dx in -r...r + 1 {
                     let ddx = Float(dx) - 0.5, ddz = Float(dz) - 0.5
                     if ddx * ddx + ddz * ddz <= Float(r * r) + 1 { w.leaf(x + dx, y + h + dy, z + dz, leaf) }
