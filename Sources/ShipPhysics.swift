@@ -192,11 +192,12 @@ extension ShipManager {
         }
         s.submerged = sub
 
-        // Air drag and damping.
-        let area = powf(Float(max(1, s.blockCount)), 2.0 / 3.0) * 0.5
+        // Air drag on the projected area across each ship axis, and damping.
         let sp = simd_length(s.vel)
-        let airK: Float = (0.15 + 0.08 * sp) * area
-        F -= s.vel * airK
+        let vlAir = s.dirToLocal(s.vel)
+        let airK: Float = 0.1 + 0.03 * sp
+        let airLocal: V3 = vlAir * s.area * airK
+        F -= s.dirToWorld(airLocal)
         s.angVel *= expf(-(sub > 0 ? 0.4 : 0.8) * h)
 
         let up = s.dirToWorld(V3(0, 1, 0))
@@ -241,7 +242,7 @@ extension ShipManager {
             let v = s.velocity(at: wp)
             let vn = simd_dot(v, up)
             let mag = simd_length(v)
-            apply(-up * (0.08 * mag * vn + 0.3 * vn), at: wp)
+            apply(-up * (0.15 * mag * vn + 0.3 * vn), at: wp)
         }
 
         // Wheels: spring-damper suspension, rolling along the heading, gripping sideways.
@@ -320,7 +321,9 @@ extension ShipManager {
         T += err * (kr * iAvg) - damped * kd
         if aircraft && piloted {
             let right = simd_normalize(simd_cross(fwdW, up))
-            let target = s.climb * 0.9
+            // No input: hold a slight nose-up trim so level flight needs no constant correction.
+            let pitch = asinf(max(-1, min(1, fwdW.y)))
+            let target = abs(s.climb) > 0.05 ? s.climb * 0.9 : max(-0.5, min(0.5, (0.08 - pitch) * 2))
             let wr = simd_dot(s.angVel, right)
             T += right * (I.x * 4 * (target - wr))
         }

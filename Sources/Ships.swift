@@ -197,6 +197,7 @@ final class Ship {
     var colMin: [Int16] = []         // per column (x + z*sx): lowest solid cell, Int16.max if none
     var dryMask: [Bool] = []         // per cell: enclosed air that keeps water out
     var localMin = V3(0, 0, 0), localMax = V3(1, 1, 1)   // bounds of the blocks (ship space)
+    var area = V3(1, 1, 1)           // projected area across ship-space x, y, z (air drag)
 
     // World-space bounds of the blocks (refreshed every physics step).
     var worldMin = V3(0, 0, 0), worldMax = V3(0, 0, 0)
@@ -355,6 +356,13 @@ final class Ship {
                 hull.append(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5))
             }
         } } }
+
+        // Projected areas (cells seen looking along each ship axis).
+        var ayz = Set<Int>(), axz = Set<Int>(), axy = Set<Int>()
+        for y in 0..<sy { for z in 0..<sz { for x in 0..<sx where collide[Int(g.blocks[g.index(x, y, z)])] {
+            ayz.insert(y + z * sy); axz.insert(x + z * sx); axy.insert(x + y * sx)
+        } } }
+        area = V3(Float(max(1, ayz.count)), Float(max(1, axz.count)), Float(max(1, axy.count)))
 
         // Buoyancy buckets (bigger for big ships so sampling stays cheap).
         let cells = sx * sy * sz
