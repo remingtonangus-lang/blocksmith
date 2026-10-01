@@ -1106,6 +1106,10 @@ if let dir = arg("--sounds") {
         ("ship_at_sea", [(.oceanLoop, 0.6), (.hullWaterLoop, 0.6), (.engineFullLoop, 0.4)], [(.hullCreak, 0.5, 0.2)]),
         ("airship", [(.airshipWindLoop, 0.7), (.propFastLoop, 0.5)], [(.hullCreak, 0.4, 0.15)]),
         ("land_vehicle", [(.wheelRollLoop, 0.7), (.engineIdleLoop, 0.5)], [(.shipCollide, 0.5, 0.1)]),
+        ("naval_battle", [(.oceanLoop, 0.5), (.engineFullLoop, 0.3), (.turretTraverseLoop, 0.3)],
+         [(.shipCannon, 0.8, 0.4), (.explodeLarge, 0.5, 0.12), (.hullCreak, 0.4, 0.2)]),
+        ("fortress_siege", [(.windLoop, 0.3)], [(.gun(9), 0.7, 0.2), (.gun(10), 0.4, 0.05), (.explodeSmall, 0.5, 0.3), (.gunDistant(0), 0.5, 0.8),
+                                                (.debrisRain, 0.4, 0.15)]),
     ]
     let scapeLen = Int(8 * SoundBank.rate)
     var rng = SRng(2024)

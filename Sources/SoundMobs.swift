@@ -11,6 +11,13 @@ enum MobVoice {
     }
     struct Profile { var family: Family; var f0: Float; var size: Float }
 
+    // Per-kind footstep data, computed once (a mob's spec is rebuilt on every access).
+    struct StepInfo { var walks: Bool; var stride: Float; var volume: Float }
+    static let stepInfo: [StepInfo] = MobKind.allCases.map { k in
+        let sp = k.spec
+        return StepInfo(walks: !sp.flying && !sp.aquatic && sp.behavior != .vehicle, stride: 0.9 + sp.halfW * 1.6, volume: min(0.9, 0.2 + sp.halfW * 0.5))
+    }
+
     static let professions = ["armorer", "butcher", "cartographer", "cleric", "farmer", "fisherman", "fletcher", "leatherworker", "librarian", "mason", "shepherd", "toolsmith", "weaponsmith"]
     static func workIndex(_ profession: String) -> Int? { professions.firstIndex(of: profession) }
 
