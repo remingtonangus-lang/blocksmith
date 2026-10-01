@@ -505,6 +505,15 @@ enum ShipTest {
         run(g, seconds: 3, input: steerIn)
         print(String(format: "physicstest frigate: captured %@, piloted 3 s: %.1f blocks", fg.captured ? "yes" : "no", horiz(fg.pos - cap0)))
         check(fg.captured && w.ships.pilot === fg && horiz(fg.pos - cap0) > 2, "a vessel can be captured and steered")
+        // The throttle holds after letting go; holding S brings it back to stop, where it rests.
+        run(g, seconds: 1)
+        let held = fg.throttle
+        var back = MoveInput(); back.forward = -1
+        run(g, seconds: 1.5, input: back)
+        let stopped = fg.throttle
+        run(g, seconds: 0.3, input: back)
+        print(String(format: "physicstest frigate: throttle held at %.2f after letting go, %.2f after S for 1.5 s, %.2f after 0.3 s more", held, stopped, fg.throttle))
+        check(held > 0.9 && stopped == 0 && fg.throttle == 0, "ship throttle holds and stops at zero")
         g.leaveHelm()
         let vc = land + V3(15, 0, -40)
         _ = w.loadSync(center: vc, radius: max(rd, 6))

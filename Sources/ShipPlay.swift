@@ -126,7 +126,25 @@ extension Game {
         if mi.sneak { leaveHelm(); return false }
         let pad = readPad()
         s.piloted = true
-        s.throttle = max(-1, min(1, mi.forward))
+        let f = max(-1, min(1, mi.forward))
+        if s.wheels.isEmpty {
+            // Ships and aircraft keep their throttle (an engine telegraph): W/S or the stick move it, letting go holds
+            // it, and passing through stop pauses there for a moment so stopping is easy.
+            if s.telegraphPause > 0 {
+                s.telegraphPause -= dt
+                if abs(f) < 0.1 { s.telegraphPause = 0 }
+            } else if abs(f) > 0.1 {
+                let old = s.throttle
+                let t = max(-1, min(1, old + f * 0.8 * dt))
+                if old != 0 && (t > 0) != (old > 0) {
+                    s.throttle = 0; s.telegraphPause = 0.6
+                } else {
+                    s.throttle = t
+                }
+            }
+        } else {
+            s.throttle = f
+        }
         s.steer = max(-1, min(1, mi.strafe))
         var climb: Float = 0
         if mi.jump || (pad?.rb ?? false) { climb += 1 }
@@ -158,7 +176,7 @@ extension Game {
         if let stand = helmStand(s) { player.pos = s.toWorld(stand) }
         player.flying = false
         sfx(.place(.wood), 0.5, at: player.pos)
-        onToast?("Steering \(s.name): W/S throttle, A/D turn, Space/Ctrl climb, click fire, Shift leave")
+        onToast?("Steering \(s.name): W/S \(s.wheels.isEmpty ? "set throttle (it holds)" : "drive"), A/D turn, Space/Ctrl climb, click fire, Shift leave")
     }
 
     func leaveHelm() {

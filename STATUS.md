@@ -84,7 +84,7 @@ Menus: click / right-click / shift-click, number keys swap with hotbar, click ou
 Controller: LS move, RS look, A jump, B sneak, L3 sprint, RT attack/mine, LT use, LB/RB hotbar, Y inventory, View camera,
 X pick block, D-pad ↓ drop, D-pad ↑ fly. In menus: D-pad/LS move cursor, A = click, X = right-click, Y = shift-click,
 B close, RS scroll creative.
-Steering a ship (use its helm): W/S or LS throttle, A/D or LS turn, Space/A/RB climb, Ctrl/LB descend, LMB/RT fire
+Steering a ship (use its helm): W/S or LS throttle (ships and aircraft hold it like an engine telegraph, pausing at stop; wheeled vehicles drive while held), A/D or LS turn, Space/A/RB climb, Ctrl/LB descend, LMB/RT fire
 cannons (turrets follow the view), Shift/B leave the helm, F5 pulls the camera back to fit the ship. Sneak-use the
 helm to dock the ship into the world. /vessel frigate|carriage|locate.
 

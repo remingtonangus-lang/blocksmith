@@ -214,6 +214,7 @@ final class Ship {
 
     // Control (set by the pilot each frame, ShipPlay.swift).
     var throttle: Float = 0          // -1...1
+    var telegraphPause: Float = 0    // piloting: throttle resting at stop after passing through it
     var steer: Float = 0             // -1 (left) ... 1 (right)
     var climb: Float = 0             // -1...1
     var liftLevel: Float = 0         // 0...1 share of balloon lift in use (kept while nobody steers: airships hover)
