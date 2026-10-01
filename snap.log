@@ -1,0 +1,917 @@
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 75)
+gen 208 ms  mesh(all, parallel) 620 ms  mesh(1 section) 1.52 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.89 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 198 MB  (section meshes 28 MB)
+wrote snaps/spawn.png
+textures without a painter: missing
+seed 12345  pos 24.5 183.0 8.5  rd 12  chunks 729  (drawn 173)
+gen 454 ms  mesh(all, parallel) 1147 ms  mesh(1 section) 0.95 ms  quads 1322580 opaque / 132839 water
+frame (encode+GPU, offscreen, median of 30) 2.87 ms  biome oldGrowthBirchForest
+mesh slabs 68 MB, chunks 729 (block+light arrays 208 MB), Metal allocated 88 MB
+memory: resident 337 MB  (section meshes 44 MB)
+wrote snaps/aerial.png
+textures without a painter: missing
+seed 12345  pos 24.5 168.0 8.5  rd 16  chunks 1225  (drawn 259)
+gen 644 ms  mesh(all, parallel) 1867 ms  mesh(1 section) 0.84 ms  quads 1683572 opaque / 220352 water
+frame (encode+GPU, offscreen, median of 30) 3.08 ms  biome oldGrowthBirchForest
+mesh slabs 88 MB, chunks 1225 (block+light arrays 349 MB), Metal allocated 114 MB
+memory: resident 544 MB  (section meshes 58 MB)
+wrote snaps/aerial16.png
+textures without a painter: missing
+seed 777  pos 6.5 163.0 6.5  rd 16  chunks 1225  (drawn 264)
+gen 677 ms  mesh(all, parallel) 1958 ms  mesh(1 section) 0.92 ms  quads 1486916 opaque / 272858 water
+frame (encode+GPU, offscreen, median of 30) 4.50 ms  biome forest
+mesh slabs 80 MB, chunks 1225 (block+light arrays 349 MB), Metal allocated 106 MB
+memory: resident 536 MB  (section meshes 54 MB)
+wrote snaps/aerial16_777.png
+textures without a painter: missing
+seed 424242  pos 8.5 173.0 8.5  rd 16  chunks 1225  (drawn 233)
+gen 712 ms  mesh(all, parallel) 2459 ms  mesh(1 section) 0.87 ms  quads 2448007 opaque / 190558 water
+frame (encode+GPU, offscreen, median of 30) 5.83 ms  biome forest
+mesh slabs 116 MB, chunks 1225 (block+light arrays 349 MB), Metal allocated 142 MB
+memory: resident 586 MB  (section meshes 81 MB)
+wrote snaps/aerial16_424242.png
+textures without a painter: missing
+seed 424242  pos 8.5 173.0 8.5  rd 24  chunks 2601  (drawn 509)
+gen 1457 ms  mesh(all, parallel) 5146 ms  mesh(1 section) 1.06 ms  quads 4128713 opaque / 385146 water
+frame (encode+GPU, offscreen, median of 30) 12.28 ms  biome forest
+mesh slabs 200 MB, chunks 2601 (block+light arrays 740 MB), Metal allocated 242 MB
+memory: resident 1096 MB  (section meshes 138 MB)
+wrote snaps/aerial24.png
+textures without a painter: missing
+seed 12345  pos 24.5 148.0 8.5  rd 8  chunks 361  (drawn 73)
+gen 193 ms  mesh(all, parallel) 511 ms  mesh(1 section) 0.88 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 2.25 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 202 MB  (section meshes 28 MB)
+wrote snaps/sunset.png
+textures without a painter: missing
+seed 12345  pos 24.5 143.0 8.5  rd 8  chunks 361  (drawn 76)
+gen 193 ms  mesh(all, parallel) 593 ms  mesh(1 section) 0.98 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.81 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 201 MB  (section meshes 28 MB)
+wrote snaps/night.png
+textures without a painter: missing
+seed 12345  pos 24.5 141.0 8.5  rd 8  chunks 361  (drawn 29)
+gen 197 ms  mesh(all, parallel) 515 ms  mesh(1 section) 0.84 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 0.83 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 196 MB  (section meshes 28 MB)
+wrote snaps/down.png
+textures without a painter: missing
+seed 12345  pos -87.5 219.0 408.5  rd 8  chunks 361  (drawn 80)
+gen 217 ms  mesh(all, parallel) 561 ms  mesh(1 section) 0.85 ms  quads 973365 opaque / 46809 water
+frame (encode+GPU, offscreen, median of 30) 2.00 ms  biome forest
+mesh slabs 48 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 64 MB
+memory: resident 199 MB  (section meshes 31 MB)
+wrote snaps/forest.png
+textures without a painter: missing
+seed 12345  pos -87.5 198.0 408.5  rd 8  chunks 361  (drawn 53)
+gen 210 ms  mesh(all, parallel) 560 ms  mesh(1 section) 0.88 ms  quads 973365 opaque / 46809 water
+frame (encode+GPU, offscreen, median of 30) 1.81 ms  biome forest
+mesh slabs 48 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 64 MB
+memory: resident 205 MB  (section meshes 31 MB)
+wrote snaps/forest_in.png
+textures without a painter: missing
+seed 12345  pos 248.5 213.0 -647.5  rd 8  chunks 361  (drawn 84)
+gen 221 ms  mesh(all, parallel) 635 ms  mesh(1 section) 1.13 ms  quads 1258966 opaque / 41016 water
+frame (encode+GPU, offscreen, median of 30) 2.95 ms  biome snowyTaiga
+mesh slabs 60 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 76 MB
+memory: resident 239 MB  (section meshes 40 MB)
+wrote snaps/snowy.png
+textures without a painter: missing
+seed 12345  pos 24.5 172.0 104.5  rd 8  chunks 361  (drawn 83)
+gen 200 ms  mesh(all, parallel) 680 ms  mesh(1 section) 0.84 ms  quads 766565 opaque / 46519 water
+frame (encode+GPU, offscreen, median of 30) 2.12 ms  biome desert
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 191 MB  (section meshes 25 MB)
+wrote snaps/biome_desert.png
+textures without a painter: missing
+seed 12345  pos 536.5 176.0 504.5  rd 8  chunks 361  (drawn 74)
+gen 211 ms  mesh(all, parallel) 582 ms  mesh(1 section) 1.32 ms  quads 1144348 opaque / 47216 water
+frame (encode+GPU, offscreen, median of 30) 2.34 ms  biome jungle
+mesh slabs 52 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 68 MB
+memory: resident 206 MB  (section meshes 36 MB)
+wrote snaps/biome_jungle.png
+textures without a painter: missing
+seed 12345  pos 360.5 178.0 568.5  rd 8  chunks 361  (drawn 80)
+gen 213 ms  mesh(all, parallel) 465 ms  mesh(1 section) 0.63 ms  quads 713298 opaque / 39417 water
+frame (encode+GPU, offscreen, median of 30) 1.40 ms  biome badlands
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 202 MB  (section meshes 23 MB)
+wrote snaps/biome_badlands.png
+textures without a painter: missing
+seed 12345  pos 280.5 168.0 -103.5  rd 8  chunks 361  (drawn 76)
+gen 215 ms  mesh(all, parallel) 690 ms  mesh(1 section) 1.39 ms  quads 1683150 opaque / 44984 water
+frame (encode+GPU, offscreen, median of 30) 3.32 ms  biome darkForest
+mesh slabs 80 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 96 MB
+memory: resident 233 MB  (section meshes 53 MB)
+wrote snaps/biome_dark_forest.png
+textures without a painter: missing
+seed 12345  pos -679.5 232.0 -87.5  rd 8  chunks 361  (drawn 87)
+gen 208 ms  mesh(all, parallel) 553 ms  mesh(1 section) 1.34 ms  quads 970150 opaque / 42753 water
+frame (encode+GPU, offscreen, median of 30) 1.83 ms  biome cherryGrove
+mesh slabs 48 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 64 MB
+memory: resident 200 MB  (section meshes 31 MB)
+wrote snaps/biome_cherry_grove.png
+textures without a painter: missing
+seed 12345  pos -1031.5 346.0 504.5  rd 8  chunks 361  (drawn 81)
+gen 269 ms  mesh(all, parallel) 788 ms  mesh(1 section) 0.78 ms  quads 1256115 opaque / 47533 water
+frame (encode+GPU, offscreen, median of 30) 1.73 ms  biome jaggedPeaks
+mesh slabs 60 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 76 MB
+memory: resident 225 MB  (section meshes 40 MB)
+wrote snaps/biome_jagged_peaks.png
+textures without a painter: missing
+seed 12345  pos -55.5 170.0 136.5  rd 8  chunks 361  (drawn 73)
+gen 208 ms  mesh(all, parallel) 515 ms  mesh(1 section) 0.76 ms  quads 824814 opaque / 42838 water
+frame (encode+GPU, offscreen, median of 30) 1.94 ms  biome savanna
+mesh slabs 40 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 56 MB
+memory: resident 201 MB  (section meshes 26 MB)
+wrote snaps/biome_savanna.png
+textures without a painter: missing
+seed 12345  pos 1080.5 150.0 376.5  rd 8  chunks 361  (drawn 79)
+gen 191 ms  mesh(all, parallel) 444 ms  mesh(1 section) 0.84 ms  quads 783024 opaque / 55179 water
+frame (encode+GPU, offscreen, median of 30) 2.05 ms  biome swamp
+mesh slabs 40 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 56 MB
+memory: resident 195 MB  (section meshes 26 MB)
+wrote snaps/biome_swamp.png
+textures without a painter: missing
+seed 12345  pos 248.5 145.0 -327.5  rd 8  chunks 361  (drawn 78)
+gen 206 ms  mesh(all, parallel) 668 ms  mesh(1 section) 0.84 ms  quads 1359791 opaque / 61233 water
+frame (encode+GPU, offscreen, median of 30) 2.29 ms  biome taiga
+mesh slabs 64 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 80 MB
+memory: resident 222 MB  (section meshes 43 MB)
+wrote snaps/biome_taiga.png
+textures without a painter: missing
+seed 12345  pos -407.5 145.0 -519.5  rd 8  chunks 361  (drawn 78)
+gen 169 ms  mesh(all, parallel) 429 ms  mesh(1 section) 1.03 ms  quads 595572 opaque / 96655 water
+frame (encode+GPU, offscreen, median of 30) 2.24 ms  biome warmOcean
+mesh slabs 32 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 48 MB
+memory: resident 185 MB  (section meshes 21 MB)
+wrote snaps/biome_warm_ocean.png
+textures without a painter: missing
+seed 12345  pos -359.5 171.0 456.5  rd 8  chunks 361  (drawn 79)
+gen 211 ms  mesh(all, parallel) 537 ms  mesh(1 section) 1.09 ms  quads 1054947 opaque / 34527 water
+frame (encode+GPU, offscreen, median of 30) 2.26 ms  biome birchForest
+mesh slabs 48 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 64 MB
+memory: resident 202 MB  (section meshes 33 MB)
+wrote snaps/biome_birch_forest.png
+textures without a painter: missing
+seed 12345  pos -103.5 148.0 -775.5  rd 8  chunks 361  (drawn 78)
+gen 202 ms  mesh(all, parallel) 424 ms  mesh(1 section) 1.37 ms  quads 719705 opaque / 34438 water
+frame (encode+GPU, offscreen, median of 30) 1.94 ms  biome mangroveSwamp
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 191 MB  (section meshes 23 MB)
+wrote snaps/biome_mangrove_swamp.png
+textures without a painter: missing
+seed 12345  pos -311.5 146.0 72.5  rd 8  chunks 361  (drawn 71)
+gen 195 ms  mesh(all, parallel) 449 ms  mesh(1 section) 0.62 ms  quads 714357 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.78 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 193 MB  (section meshes 24 MB)
+wrote snaps/meadow.png
+textures without a painter: missing
+seed 12345  pos 24.5 143.0 8.5  rd 8  chunks 361  (drawn 44)
+gen 197 ms  mesh(all, parallel) 512 ms  mesh(1 section) 0.85 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.26 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 193 MB  (section meshes 28 MB)
+wrote snaps/stars.png
+textures without a painter: missing
+seed 12345  pos 24.5 143.0 8.5  rd 8  chunks 361  (drawn 74)
+gen 199 ms  mesh(all, parallel) 585 ms  mesh(1 section) 1.01 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.63 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 198 MB  (section meshes 28 MB)
+wrote snaps/clouds.png
+textures without a painter: missing
+seed 12345  pos -311.5 151.0 72.5  rd 8  chunks 361  (drawn 84)
+gen 193 ms  mesh(all, parallel) 462 ms  mesh(1 section) 0.74 ms  quads 714512 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.83 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 188 MB  (section meshes 24 MB)
+wrote snaps/torches.png
+textures without a painter: missing
+seed 12345  pos -311.5 148.0 72.5  rd 8  chunks 361  (drawn 85)
+gen 191 ms  mesh(all, parallel) 462 ms  mesh(1 section) 0.74 ms  quads 714512 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.70 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 189 MB  (section meshes 24 MB)
+wrote snaps/torches_near.png
+textures without a painter: missing
+seed 12345  pos -311.5 148.0 72.5  rd 8  chunks 361  (drawn 85)
+gen 192 ms  mesh(all, parallel) 460 ms  mesh(1 section) 0.74 ms  quads 714512 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.70 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 190 MB  (section meshes 24 MB)
+wrote snaps/torches_day.png
+fluid cells pending after 60 ticks: 0
+textures without a painter: missing
+seed 12345  pos 24.5 145.0 8.5  rd 8  chunks 361  (drawn 79)
+gen 197 ms  mesh(all, parallel) 525 ms  mesh(1 section) 0.87 ms  quads 857499 opaque / 54914 water
+frame (encode+GPU, offscreen, median of 30) 2.28 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 197 MB  (section meshes 28 MB)
+wrote snaps/water_flow.png
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 75)
+gen 201 ms  mesh(all, parallel) 505 ms  mesh(1 section) 0.84 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 2.01 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 194 MB  (section meshes 28 MB)
+wrote snaps/inventory.png
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 75)
+gen 192 ms  mesh(all, parallel) 503 ms  mesh(1 section) 0.90 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.98 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 195 MB  (section meshes 28 MB)
+wrote snaps/creative.png
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 75)
+gen 207 ms  mesh(all, parallel) 528 ms  mesh(1 section) 0.92 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.98 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 194 MB  (section meshes 28 MB)
+wrote snaps/crafting.png
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 75)
+gen 197 ms  mesh(all, parallel) 507 ms  mesh(1 section) 0.84 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.94 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 212 MB  (section meshes 28 MB)
+wrote snaps/furnace.png
+textures without a painter: missing
+seed 12345  pos 24.5 139.0 8.5  rd 8  chunks 361  (drawn 77)
+gen 197 ms  mesh(all, parallel) 506 ms  mesh(1 section) 0.85 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.87 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 195 MB  (section meshes 28 MB)
+wrote snaps/drops.png
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 75)
+gen 198 ms  mesh(all, parallel) 527 ms  mesh(1 section) 0.99 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.95 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 196 MB  (section meshes 28 MB)
+wrote snaps/survival.png
+sim 12.0 s: tick avg 0.80 ms, worst 4.83 ms | pos 10.0 132.0 7.0 | health 20 hunger 20 | mobs 36 | fluid pending 0 | items held 574, dropped 0
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 380  (drawn 68)
+gen 197 ms  mesh(all, parallel) 514 ms  mesh(1 section) 0.94 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.56 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 380 (block+light arrays 108 MB), Metal allocated 60 MB
+memory: resident 198 MB  (section meshes 30 MB)
+wrote snaps/sim.png
+synthesized 82 sounds (64.2 s of audio) in 365 ms
+textures without a painter: missing
+seed 12345  pos 24.5 139.0 8.5  rd 8  chunks 361  (drawn 76)
+gen 203 ms  mesh(all, parallel) 503 ms  mesh(1 section) 0.97 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.92 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 195 MB  (section meshes 28 MB)
+wrote snaps/mobs.png
+textures without a painter: missing
+seed 12345  pos 24.5 139.0 8.5  rd 8  chunks 361  (drawn 75)
+gen 191 ms  mesh(all, parallel) 497 ms  mesh(1 section) 0.87 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.91 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 196 MB  (section meshes 28 MB)
+wrote snaps/hostile.png
+textures without a painter: missing
+seed 12345  pos 0.5 140.0 0.5  rd 8  chunks 361  (drawn 61)
+gen 82 ms  mesh(all, parallel) 459 ms  mesh(1 section) 0.62 ms  quads 377376 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 1.57 ms  biome netherWastes
+mesh slabs 20 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 36 MB
+memory: resident 168 MB  (section meshes 12 MB)
+wrote snaps/nether.png
+textures without a painter: missing
+seed 12345  pos 300.0 112.0 -200.0  rd 8  chunks 361  (drawn 47)
+gen 80 ms  mesh(all, parallel) 363 ms  mesh(1 section) 0.60 ms  quads 326715 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 1.26 ms  biome netherWastes
+mesh slabs 16 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 32 MB
+memory: resident 166 MB  (section meshes 10 MB)
+wrote snaps/nether_wide.png
+structure fortress at 136 62 24 (25 pieces)
+textures without a painter: missing
+seed 12345  pos 136.5 127.0 24.5  rd 6  chunks 225  (drawn 45)
+gen 53 ms  mesh(all, parallel) 255 ms  mesh(1 section) 0.60 ms  quads 226412 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 1.19 ms  biome crimsonForest
+mesh slabs 12 MB, chunks 225 (block+light arrays 64 MB), Metal allocated 26 MB
+memory: resident 111 MB  (section meshes 7 MB)
+wrote snaps/fortress.png
+structure fortress at 136 62 24 (25 pieces)
+camera in solid at 136 71 24: moved to 134 69 22
+textures without a painter: missing
+seed 12345  pos 134.5 137.0 22.5  rd 8  chunks 361  (drawn 81)
+gen 88 ms  mesh(all, parallel) 424 ms  mesh(1 section) 0.65 ms  quads 335473 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 1.47 ms  biome crimsonForest
+mesh slabs 16 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 32 MB
+memory: resident 164 MB  (section meshes 10 MB)
+wrote snaps/fortress_far.png
+structure fortress at 136 62 24 (25 pieces)
+textures without a painter: missing
+seed 12345  pos 136.5 127.0 24.5  rd 6  chunks 225  (drawn 41)
+gen 57 ms  mesh(all, parallel) 250 ms  mesh(1 section) 0.60 ms  quads 226384 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 1.27 ms  biome crimsonForest
+mesh slabs 12 MB, chunks 225 (block+light arrays 64 MB), Metal allocated 26 MB
+memory: resident 111 MB  (section meshes 7 MB)
+wrote snaps/nether_mobs.png
+structure bastion at 200 34 -334 (1 pieces)
+textures without a painter: missing
+seed 12345  pos 200.5 99.0 -333.5  rd 6  chunks 225  (drawn 5)
+gen 53 ms  mesh(all, parallel) 250 ms  mesh(1 section) 0.70 ms  quads 226134 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 0.68 ms  biome soulSandValley
+mesh slabs 12 MB, chunks 225 (block+light arrays 64 MB), Metal allocated 26 MB
+memory: resident 115 MB  (section meshes 7 MB)
+wrote snaps/bastion.png
+structure bastion at 200 34 -334 (1 pieces)
+camera in solid at 200 48 -334: moved to 195 43 -339
+textures without a painter: missing
+seed 12345  pos 195.5 112.0 -338.5  rd 8  chunks 361  (drawn 39)
+gen 98 ms  mesh(all, parallel) 412 ms  mesh(1 section) 0.57 ms  quads 362918 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 0.95 ms  biome soulSandValley
+mesh slabs 20 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 36 MB
+memory: resident 167 MB  (section meshes 11 MB)
+wrote snaps/bastion_far.png
+structure village at -162 68 -850 (28 pieces)
+textures without a painter: missing
+seed 12345  pos -161.5 146.0 -849.5  rd 8  chunks 361  (drawn 83)
+gen 198 ms  mesh(all, parallel) 463 ms  mesh(1 section) 0.98 ms  quads 776688 opaque / 38946 water
+frame (encode+GPU, offscreen, median of 30) 2.13 ms  biome desert
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 210 MB  (section meshes 25 MB)
+wrote snaps/village.png
+structure village at -162 68 -850 (28 pieces)
+textures without a painter: missing
+seed 12345  pos -161.5 202.0 -849.5  rd 8  chunks 361  (drawn 116)
+gen 236 ms  mesh(all, parallel) 606 ms  mesh(1 section) 1.22 ms  quads 776688 opaque / 38946 water
+frame (encode+GPU, offscreen, median of 30) 2.22 ms  biome desert
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 189 MB  (section meshes 25 MB)
+wrote snaps/village_top.png
+structure village at 910 70 -898 (44 pieces)
+textures without a painter: missing
+seed 12345  pos 910.5 150.0 -897.5  rd 8  chunks 361  (drawn 83)
+gen 192 ms  mesh(all, parallel) 439 ms  mesh(1 section) 1.22 ms  quads 649252 opaque / 47505 water
+frame (encode+GPU, offscreen, median of 30) 2.12 ms  biome sunflowerPlains
+mesh slabs 32 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 48 MB
+memory: resident 196 MB  (section meshes 21 MB)
+wrote snaps/village2.png
+structure village at -1314 67 958 (36 pieces)
+textures without a painter: missing
+seed 12345  pos -1313.5 147.0 958.5  rd 8  chunks 361  (drawn 88)
+gen 189 ms  mesh(all, parallel) 453 ms  mesh(1 section) 1.10 ms  quads 705734 opaque / 57261 water
+frame (encode+GPU, offscreen, median of 30) 1.98 ms  biome snowyPlains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 191 MB  (section meshes 23 MB)
+wrote snaps/village3.png
+structure village at -162 68 -850 (28 pieces)
+textures without a painter: missing
+seed 12345  pos -161.5 133.0 -849.5  rd 6  chunks 225  (drawn 47)
+gen 125 ms  mesh(all, parallel) 268 ms  mesh(1 section) 0.93 ms  quads 427796 opaque / 22786 water
+frame (encode+GPU, offscreen, median of 30) 1.24 ms  biome desert
+mesh slabs 20 MB, chunks 225 (block+light arrays 64 MB), Metal allocated 34 MB
+memory: resident 125 MB  (section meshes 14 MB)
+wrote snaps/village_street.png
+structure temple at -808 65 -479 (1 pieces, framed)
+textures without a painter: missing
+seed 12345  pos -817.8 136.7 -481.8  rd 8  chunks 361  (drawn 71)
+gen 199 ms  mesh(all, parallel) 508 ms  mesh(1 section) 0.90 ms  quads 913190 opaque / 58684 water
+frame (encode+GPU, offscreen, median of 30) 1.72 ms  biome stonyShore
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 197 MB  (section meshes 30 MB)
+wrote snaps/temple.png
+structure temple at 2760 105 3226 (1 pieces, framed)
+textures without a painter: missing
+seed 12345  pos 2748.4 178.1 3228.4  rd 8  chunks 361  (drawn 76)
+gen 218 ms  mesh(all, parallel) 551 ms  mesh(1 section) 0.75 ms  quads 849495 opaque / 37547 water
+frame (encode+GPU, offscreen, median of 30) 2.07 ms  biome desert
+mesh slabs 40 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 56 MB
+memory: resident 201 MB  (section meshes 27 MB)
+wrote snaps/temple2.png
+structure pillager_outpost at 616 220 -276 (1 pieces, framed)
+camera in solid at 604 229 -276: moved to 603 233 -280
+textures without a painter: missing
+seed 12345  pos 603.5 297.0 -279.5  rd 8  chunks 361  (drawn 90)
+gen 259 ms  mesh(all, parallel) 980 ms  mesh(1 section) 0.81 ms  quads 1812947 opaque / 42647 water
+frame (encode+GPU, offscreen, median of 30) 2.76 ms  biome frozenPeaks
+mesh slabs 84 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 100 MB
+memory: resident 256 MB  (section meshes 57 MB)
+wrote snaps/outpost.png
+structure pillager_outpost at 616 220 -276 (1 pieces, framed)
+camera in solid at 611 223 -269: moved to 615 225 -265
+textures without a painter: missing
+seed 12345  pos 615.5 289.0 -264.5  rd 8  chunks 361  (drawn 82)
+gen 263 ms  mesh(all, parallel) 954 ms  mesh(1 section) 0.92 ms  quads 1865907 opaque / 46034 water
+frame (encode+GPU, offscreen, median of 30) 2.80 ms  biome frozenPeaks
+mesh slabs 88 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 104 MB
+memory: resident 274 MB  (section meshes 58 MB)
+wrote snaps/outpost_close.png
+textures without a painter: missing
+seed 12345  pos -1223.5 235.0 552.5  rd 8  chunks 361  (drawn 89)
+gen 231 ms  mesh(all, parallel) 627 ms  mesh(1 section) 0.60 ms  quads 953255 opaque / 44965 water
+frame (encode+GPU, offscreen, median of 30) 1.83 ms  biome snowySlopes
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 214 MB  (section meshes 30 MB)
+wrote snaps/snowslope.png
+structure ruined_portal at 24 75 0 (1 pieces, framed)
+textures without a painter: missing
+seed 12345  pos 14.2 146.7 -1.8  rd 8  chunks 361  (drawn 65)
+gen 200 ms  mesh(all, parallel) 593 ms  mesh(1 section) 1.53 ms  quads 848774 opaque / 59481 water
+frame (encode+GPU, offscreen, median of 30) 1.86 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 198 MB  (section meshes 28 MB)
+wrote snaps/ruined_portal.png
+structure shipwreck at -104 64 -210 (1 pieces, framed)
+textures without a painter: missing
+seed 12345  pos -115.6 137.1 -211.6  rd 8  chunks 361  (drawn 79)
+gen 164 ms  mesh(all, parallel) 478 ms  mesh(1 section) 1.01 ms  quads 577499 opaque / 98300 water
+frame (encode+GPU, offscreen, median of 30) 2.27 ms  biome deepColdOcean
+mesh slabs 32 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 48 MB
+memory: resident 187 MB  (section meshes 21 MB)
+wrote snaps/shipwreck.png
+structure mineshaft at 88 23 136 (27 pieces, framed)
+camera in solid at 69 40 122: moved to 63 36 127
+textures without a painter: missing
+seed 12345  pos 63.5 100.0 127.5  rd 8  chunks 361  (drawn 34)
+gen 203 ms  mesh(all, parallel) 455 ms  mesh(1 section) 0.64 ms  quads 679314 opaque / 47564 water
+frame (encode+GPU, offscreen, median of 30) 0.96 ms  biome windsweptSavanna
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 187 MB  (section meshes 22 MB)
+wrote snaps/mineshaft.png
+structure stronghold at 604 2 1619 (19 pieces)
+textures without a painter: missing
+seed 12345  pos 604.5 66.5 1619.5  rd 4  chunks 121  (drawn 27)
+gen 71 ms  mesh(all, parallel) 142 ms  mesh(1 section) 0.64 ms  quads 258337 opaque / 18706 water
+frame (encode+GPU, offscreen, median of 30) 0.91 ms  biome snowyPlains
+mesh slabs 16 MB, chunks 121 (block+light arrays 34 MB), Metal allocated 29 MB
+memory: resident 83 MB  (section meshes 8 MB)
+wrote snaps/stronghold.png
+textures without a painter: missing
+seed 12345  pos 70.0 150.0 35.0  rd 8  chunks 361  (drawn 60)
+gen 57 ms  mesh(all, parallel) 51 ms  mesh(1 section) 0.75 ms  quads 50729 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 0.89 ms  biome theEnd
+mesh slabs 4 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 20 MB
+memory: resident 151 MB  (section meshes 2 MB)
+wrote snaps/end.png
+textures without a painter: missing
+seed 12345  pos 0.0 184.0 60.0  rd 8  chunks 361  (drawn 96)
+gen 53 ms  mesh(all, parallel) 56 ms  mesh(1 section) 0.56 ms  quads 58107 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 1.22 ms  biome theEnd
+mesh slabs 4 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 20 MB
+memory: resident 156 MB  (section meshes 2 MB)
+wrote snaps/end_top.png
+textures without a painter: missing
+seed 12345  pos 1250.0 144.0 40.0  rd 8  chunks 361  (drawn 18)
+gen 51 ms  mesh(all, parallel) 77 ms  mesh(1 section) 0.00 ms  quads 63403 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 0.63 ms  biome theEnd
+mesh slabs 4 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 20 MB
+memory: resident 153 MB  (section meshes 2 MB)
+wrote snaps/end_outer.png
+structure end_city at 400 67 -1216 (2 pieces)
+textures without a painter: missing
+seed 12345  pos 400.5 159.0 -1215.5  rd 8  chunks 361  (drawn 11)
+gen 50 ms  mesh(all, parallel) 47 ms  mesh(1 section) 0.76 ms  quads 37508 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 0.72 ms  biome theEnd
+mesh slabs 4 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 20 MB
+memory: resident 158 MB  (section meshes 1 MB)
+wrote snaps/end_city.png
+textures without a painter: missing
+seed 12345  pos 24.5 139.0 8.5  rd 8  chunks 361  (drawn 74)
+gen 190 ms  mesh(all, parallel) 502 ms  mesh(1 section) 0.90 ms  quads 857833 opaque / 53748 water
+frame (encode+GPU, offscreen, median of 30) 1.88 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 197 MB  (section meshes 28 MB)
+wrote snaps/portal.png
+piston debug: power 15 block west redstone_block front piston_head[11] kind stickyPiston
+redstone bench: lamp A redstone_lamp[lit], piston sticky_piston[11], lamp C redstone_lamp / redstone_lamp[lit], wire E redstone_wire
+textures without a painter: missing
+seed 12345  pos 22.0 149.0 18.0  rd 8  chunks 380  (drawn 86)
+gen 191 ms  mesh(all, parallel) 543 ms  mesh(1 section) 0.82 ms  quads 918838 opaque / 57676 water
+frame (encode+GPU, offscreen, median of 30) 2.86 ms  biome forest
+mesh slabs 44 MB, chunks 380 (block+light arrays 108 MB), Metal allocated 60 MB
+memory: resident 198 MB  (section meshes 30 MB)
+wrote snaps/redstone.png
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 75)
+gen 194 ms  mesh(all, parallel) 496 ms  mesh(1 section) 0.86 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.96 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 198 MB  (section meshes 28 MB)
+wrote snaps/brewing.png
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 75)
+gen 192 ms  mesh(all, parallel) 500 ms  mesh(1 section) 0.85 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.98 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 195 MB  (section meshes 28 MB)
+wrote snaps/enchant.png
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 75)
+gen 192 ms  mesh(all, parallel) 542 ms  mesh(1 section) 1.06 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.98 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 194 MB  (section meshes 28 MB)
+wrote snaps/anvil.png
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 75)
+gen 193 ms  mesh(all, parallel) 499 ms  mesh(1 section) 0.84 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.93 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 194 MB  (section meshes 28 MB)
+wrote snaps/effects.png
+textures without a painter: missing
+seed 12345  pos -311.5 146.0 72.5  rd 8  chunks 361  (drawn 82)
+gen 189 ms  mesh(all, parallel) 453 ms  mesh(1 section) 0.69 ms  quads 714640 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.64 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 190 MB  (section meshes 24 MB)
+wrote snaps/magic_blocks.png
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 75)
+gen 190 ms  mesh(all, parallel) 495 ms  mesh(1 section) 0.84 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.91 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 197 MB  (section meshes 28 MB)
+wrote snaps/trade.png
+structure village at -162 68 -850 (28 pieces, framed)
+after 12.0 s: 22 mobs, villagers cartographer 1, farmer 1, leatherworker 1, mason 1, nitwit 5, none 9, shepherd 1, weaponsmith 1
+textures without a painter: missing
+seed 12345  pos -187.6 152.5 -887.6  rd 8  chunks 361  (drawn 87)
+gen 193 ms  mesh(all, parallel) 477 ms  mesh(1 section) 0.88 ms  quads 826939 opaque / 41710 water
+frame (encode+GPU, offscreen, median of 30) 1.81 ms  biome desert
+mesh slabs 40 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 56 MB
+memory: resident 191 MB  (section meshes 27 MB)
+wrote snaps/villagers.png
+textures without a painter: missing
+seed 12345  pos -311.5 146.0 72.5  rd 8  chunks 361  (drawn 76)
+gen 193 ms  mesh(all, parallel) 451 ms  mesh(1 section) 0.62 ms  quads 714357 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.52 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 192 MB  (section meshes 24 MB)
+wrote snaps/mobs_g.png
+textures without a painter: missing
+seed 12345  pos -311.5 146.0 72.5  rd 8  chunks 361  (drawn 76)
+gen 210 ms  mesh(all, parallel) 460 ms  mesh(1 section) 0.64 ms  quads 714357 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.55 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 190 MB  (section meshes 24 MB)
+wrote snaps/villager_jobs.png
+textures without a painter: missing
+seed 12345  pos -311.5 146.0 72.5  rd 8  chunks 361  (drawn 82)
+gen 198 ms  mesh(all, parallel) 452 ms  mesh(1 section) 0.63 ms  quads 714409 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.67 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 192 MB  (section meshes 24 MB)
+wrote snaps/heads.png
+beacon level 4, player speed 2
+textures without a painter: missing
+seed 12345  pos -311.5 148.0 72.5  rd 8  chunks 361  (drawn 67)
+gen 195 ms  mesh(all, parallel) 457 ms  mesh(1 section) 0.68 ms  quads 714419 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.37 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 192 MB  (section meshes 24 MB)
+wrote snaps/beacon.png
+textures without a painter: missing
+seed 12345  pos -311.5 146.0 72.5  rd 8  chunks 361  (drawn 74)
+gen 196 ms  mesh(all, parallel) 452 ms  mesh(1 section) 0.64 ms  quads 714357 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.75 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 187 MB  (section meshes 24 MB)
+wrote snaps/rain.png
+textures without a painter: missing
+seed 12345  pos -311.5 146.0 72.5  rd 8  chunks 361  (drawn 70)
+gen 193 ms  mesh(all, parallel) 484 ms  mesh(1 section) 0.95 ms  quads 714357 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.75 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 187 MB  (section meshes 24 MB)
+wrote snaps/thunder.png
+textures without a painter: missing
+seed 12345  pos -615.5 133.0 664.5  rd 8  chunks 361  (drawn 74)
+gen 207 ms  mesh(all, parallel) 537 ms  mesh(1 section) 0.78 ms  quads 1094923 opaque / 47034 water
+frame (encode+GPU, offscreen, median of 30) 2.04 ms  biome snowyPlains
+mesh slabs 52 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 68 MB
+memory: resident 213 MB  (section meshes 35 MB)
+wrote snaps/snowfall.png
+textures without a painter: missing
+seed 12345  pos -311.5 146.0 72.5  rd 8  chunks 361  (drawn 77)
+gen 192 ms  mesh(all, parallel) 518 ms  mesh(1 section) 0.73 ms  quads 714357 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.56 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 190 MB  (section meshes 24 MB)
+wrote snaps/animals1.png
+textures without a painter: missing
+seed 12345  pos -311.5 146.0 72.5  rd 8  chunks 361  (drawn 77)
+gen 276 ms  mesh(all, parallel) 453 ms  mesh(1 section) 0.65 ms  quads 714357 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.57 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 190 MB  (section meshes 24 MB)
+wrote snaps/animals2.png
+textures without a painter: missing
+seed 12345  pos -311.5 146.0 72.5  rd 8  chunks 361  (drawn 73)
+gen 189 ms  mesh(all, parallel) 444 ms  mesh(1 section) 0.61 ms  quads 714357 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.45 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 207 MB  (section meshes 24 MB)
+wrote snaps/animals3.png
+textures without a painter: missing
+seed 12345  pos -407.5 128.0 -519.5  rd 8  chunks 361  (drawn 81)
+gen 168 ms  mesh(all, parallel) 428 ms  mesh(1 section) 1.10 ms  quads 595572 opaque / 96655 water
+frame (encode+GPU, offscreen, median of 30) 2.37 ms  biome warmOcean
+mesh slabs 32 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 48 MB
+memory: resident 187 MB  (section meshes 21 MB)
+wrote snaps/aquatic.png
+after 3.0 s: 9 mobs, villagers 
+textures without a painter: missing
+seed 12345  pos -407.5 128.0 -23.5  rd 8  chunks 361  (drawn 88)
+gen 179 ms  mesh(all, parallel) 440 ms  mesh(1 section) 1.06 ms  quads 627169 opaque / 95272 water
+frame (encode+GPU, offscreen, median of 30) 2.63 ms  biome ocean
+mesh slabs 32 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 48 MB
+memory: resident 188 MB  (section meshes 22 MB)
+wrote snaps/boats.png
+textures without a painter: missing
+seed 12345  pos -311.5 146.0 72.5  rd 8  chunks 361  (drawn 76)
+gen 190 ms  mesh(all, parallel) 448 ms  mesh(1 section) 0.64 ms  quads 714357 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.52 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 188 MB  (section meshes 24 MB)
+wrote snaps/armor.png
+textures without a painter: missing
+seed 12345  pos -311.5 148.0 72.5  rd 8  chunks 361  (drawn 80)
+gen 197 ms  mesh(all, parallel) 449 ms  mesh(1 section) 0.60 ms  quads 714379 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.71 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 189 MB  (section meshes 24 MB)
+wrote snaps/banners.png
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 76)
+gen 192 ms  mesh(all, parallel) 495 ms  mesh(1 section) 0.90 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 2.02 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 196 MB  (section meshes 28 MB)
+wrote snaps/loom.png
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 76)
+gen 194 ms  mesh(all, parallel) 500 ms  mesh(1 section) 0.87 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.98 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 198 MB  (section meshes 28 MB)
+wrote snaps/book.png
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 76)
+gen 223 ms  mesh(all, parallel) 627 ms  mesh(1 section) 0.91 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 2.15 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 194 MB  (section meshes 28 MB)
+wrote snaps/advancements.png
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 76)
+gen 192 ms  mesh(all, parallel) 496 ms  mesh(1 section) 0.87 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.86 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 194 MB  (section meshes 28 MB)
+wrote snaps/credits.png
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 76)
+gen 195 ms  mesh(all, parallel) 512 ms  mesh(1 section) 0.86 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.88 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 194 MB  (section meshes 28 MB)
+wrote snaps/pause.png
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 76)
+gen 195 ms  mesh(all, parallel) 511 ms  mesh(1 section) 0.85 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.89 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 196 MB  (section meshes 28 MB)
+wrote snaps/options.png
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 76)
+gen 196 ms  mesh(all, parallel) 496 ms  mesh(1 section) 0.86 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.83 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 195 MB  (section meshes 28 MB)
+wrote snaps/death.png
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 76)
+gen 192 ms  mesh(all, parallel) 503 ms  mesh(1 section) 0.99 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.96 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 198 MB  (section meshes 28 MB)
+wrote snaps/title.png
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 76)
+gen 203 ms  mesh(all, parallel) 499 ms  mesh(1 section) 0.96 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 1.96 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 193 MB  (section meshes 28 MB)
+wrote snaps/create.png
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 76)
+gen 202 ms  mesh(all, parallel) 502 ms  mesh(1 section) 0.85 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 2.03 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 196 MB  (section meshes 28 MB)
+wrote snaps/recipes.png
+console: /help
+console:   Commands: help time weather gamemode difficulty tp give summon kill clear effect xp locate seed spawnpoint setblock
+console:   Tab completes names; arrow keys recall earlier commands.
+console: /time set noon
+console:   Set the time to 6000
+console: /give diamond 5
+console:   Gave 5 [Diamond] to Player
+console: /give hisser_head
+console:   Gave 1 [Hisser Head] to Player
+console: /locate sea_temple
+console:   The nearest Sea Temple is at [-184, ~, 1200] (1209 blocks away)
+console: /summon hisser
+console:   Summoned new Hisser
+console: <Player> hello
+console: /tp ~ ~2 ~
+console:   Teleported Player to 24.5, 76.0, 8.5
+console: /xp 5L
+console:   Gave 5 experience levels to Player
+console: /bogus
+console:   Unknown command: bogus. Type /help for a list
+textures without a painter: missing
+seed 12345  pos 24.5 138.0 8.5  rd 8  chunks 361  (drawn 76)
+gen 201 ms  mesh(all, parallel) 494 ms  mesh(1 section) 0.86 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 2.07 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 195 MB  (section meshes 28 MB)
+wrote snaps/commands.png
+textures without a painter: missing
+seed 12345  pos -311.5 146.0 72.5  rd 8  chunks 361  (drawn 54)
+gen 197 ms  mesh(all, parallel) 453 ms  mesh(1 section) 0.61 ms  quads 714357 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.18 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 193 MB  (section meshes 24 MB)
+wrote snaps/fireworks.png
+structure monument at -184 48 1200 (1 pieces, framed)
+textures without a painter: missing
+seed 12345  pos -214.4 135.9 1177.6  rd 8  chunks 361  (drawn 80)
+gen 182 ms  mesh(all, parallel) 436 ms  mesh(1 section) 0.90 ms  quads 483329 opaque / 104378 water
+frame (encode+GPU, offscreen, median of 30) 1.74 ms  biome deepFrozenOcean
+mesh slabs 28 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 44 MB
+memory: resident 187 MB  (section meshes 18 MB)
+wrote snaps/monument.png
+structure mansion at -760 70 1470 (1 pieces, framed)
+textures without a painter: missing
+seed 12345  pos -801.1 166.3 1454.9  rd 8  chunks 361  (drawn 77)
+gen 235 ms  mesh(all, parallel) 580 ms  mesh(1 section) 0.92 ms  quads 1124659 opaque / 60748 water
+frame (encode+GPU, offscreen, median of 30) 2.92 ms  biome taiga
+mesh slabs 52 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 68 MB
+memory: resident 208 MB  (section meshes 36 MB)
+wrote snaps/mansion.png
+structure ancient_city at -136 -50 836 (1 pieces)
+textures without a painter: missing
+seed 12345  pos -135.5 26.0 836.5  rd 5  chunks 169  (drawn 31)
+gen 116 ms  mesh(all, parallel) 326 ms  mesh(1 section) 0.97 ms  quads 660206 opaque / 21545 water
+frame (encode+GPU, offscreen, median of 30) 1.09 ms  biome oldGrowthPineTaiga
+mesh slabs 32 MB, chunks 169 (block+light arrays 48 MB), Metal allocated 46 MB
+memory: resident 116 MB  (section meshes 21 MB)
+wrote snaps/ancient_city.png
+structure trial_chambers at 184 -29 184 (1 pieces)
+textures without a painter: missing
+seed 12345  pos 184.5 41.0 184.5  rd 5  chunks 169  (drawn 4)
+gen 97 ms  mesh(all, parallel) 187 ms  mesh(1 section) 0.61 ms  quads 219109 opaque / 10292 water
+frame (encode+GPU, offscreen, median of 30) 0.68 ms  biome desert
+mesh slabs 12 MB, chunks 169 (block+light arrays 48 MB), Metal allocated 26 MB
+memory: resident 95 MB  (section meshes 7 MB)
+wrote snaps/trial_chambers.png
+textures without a painter: missing
+seed 12345  pos -311.5 146.0 72.5  rd 8  chunks 361  (drawn 82)
+gen 191 ms  mesh(all, parallel) 456 ms  mesh(1 section) 0.66 ms  quads 714461 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.67 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 206 MB  (section meshes 24 MB)
+wrote snaps/copper.png
+textures without a painter: missing
+seed 12345  pos -311.5 146.0 72.5  rd 8  chunks 361  (drawn 76)
+gen 190 ms  mesh(all, parallel) 449 ms  mesh(1 section) 0.63 ms  quads 714394 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.41 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 188 MB  (section meshes 24 MB)
+wrote snaps/decor.png
+textures without a painter: missing
+seed 12345  pos 24.5 158.0 8.5  rd 8  chunks 361  (drawn 76)
+gen 190 ms  mesh(all, parallel) 522 ms  mesh(1 section) 1.02 ms  quads 857728 opaque / 53722 water
+frame (encode+GPU, offscreen, median of 30) 2.68 ms  biome oldGrowthBirchForest
+mesh slabs 44 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 60 MB
+memory: resident 194 MB  (section meshes 28 MB)
+wrote snaps/map.png
+textures without a painter: missing
+seed 12345  pos -311.5 146.0 72.5  rd 8  chunks 361  (drawn 81)
+gen 192 ms  mesh(all, parallel) 450 ms  mesh(1 section) 0.65 ms  quads 714357 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.65 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 200 MB  (section meshes 24 MB)
+wrote snaps/third_back.png
+textures without a painter: missing
+swim pose: prone true eye 0.40000153
+seed 12345  pos -407.5 127.0 -23.5  rd 8  chunks 361  (drawn 83)
+gen 192 ms  mesh(all, parallel) 426 ms  mesh(1 section) 0.99 ms  quads 627169 opaque / 95272 water
+frame (encode+GPU, offscreen, median of 30) 2.57 ms  biome ocean
+mesh slabs 32 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 48 MB
+memory: resident 190 MB  (section meshes 22 MB)
+wrote snaps/third_swim.png
+textures without a painter: missing
+seed 12345  pos -311.5 146.0 72.5  rd 8  chunks 361  (drawn 65)
+gen 195 ms  mesh(all, parallel) 452 ms  mesh(1 section) 0.70 ms  quads 714357 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.74 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 190 MB  (section meshes 24 MB)
+wrote snaps/third_front.png
+path: 24 nodes, ends 0,0,5
+pathtest: zombie start 10.0 from player, end 0.0, reached after 9.4 s
+textures without a painter: missing
+seed 12345  pos -311.5 159.0 72.5  rd 8  chunks 361  (drawn 86)
+gen 194 ms  mesh(all, parallel) 453 ms  mesh(1 section) 0.82 ms  quads 714357 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.63 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 189 MB  (section meshes 24 MB)
+wrote snaps/pathtest.png
+textures without a painter: missing
+treecheck: 200 trunks, 1 in the wrong biome: pale_oak_log@156,-51=windsweptForest
+seed 12345  pos 72.5 145.0 -39.5  rd 8  chunks 361  (drawn 73)
+gen 195 ms  mesh(all, parallel) 524 ms  mesh(1 section) 1.41 ms  quads 1011081 opaque / 59264 water
+frame (encode+GPU, offscreen, median of 30) 2.38 ms  biome paleGarden
+mesh slabs 48 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 64 MB
+memory: resident 201 MB  (section meshes 33 MB)
+wrote snaps/ashen_grove.png
+after 4.0 s: 27 mobs, villagers 
+textures without a painter: missing
+seed 12345  pos 72.5 143.0 -39.5  rd 8  chunks 361  (drawn 81)
+gen 193 ms  mesh(all, parallel) 526 ms  mesh(1 section) 1.44 ms  quads 1011099 opaque / 59264 water
+frame (encode+GPU, offscreen, median of 30) 2.48 ms  biome paleGarden
+mesh slabs 52 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 68 MB
+memory: resident 206 MB  (section meshes 33 MB)
+wrote snaps/ashen_night.png
+cave pocket at y -50
+textures without a painter: missing
+seed 12345  pos 40.5 14.0 -71.5  rd 8  chunks 361  (drawn 41)
+gen 192 ms  mesh(all, parallel) 593 ms  mesh(1 section) 1.29 ms  quads 936523 opaque / 69951 water
+frame (encode+GPU, offscreen, median of 30) 1.20 ms  biome ocean
+mesh slabs 48 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 64 MB
+memory: resident 197 MB  (section meshes 31 MB)
+wrote snaps/lush_caves.png
+cave pocket at y -56
+textures without a painter: missing
+seed 12345  pos 72.5 8.0 184.5  rd 8  chunks 361  (drawn 46)
+gen 204 ms  mesh(all, parallel) 455 ms  mesh(1 section) 0.69 ms  quads 629916 opaque / 40823 water
+frame (encode+GPU, offscreen, median of 30) 1.03 ms  biome windsweptSavanna
+mesh slabs 32 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 48 MB
+memory: resident 183 MB  (section meshes 20 MB)
+wrote snaps/dripstone_caves.png
+cave pocket at y -19
+textures without a painter: missing
+seed 12345  pos 152.5 45.0 -311.5  rd 8  chunks 361  (drawn 48)
+gen 189 ms  mesh(all, parallel) 600 ms  mesh(1 section) 1.00 ms  quads 992785 opaque / 79554 water
+frame (encode+GPU, offscreen, median of 30) 1.39 ms  biome coldOcean
+mesh slabs 48 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 64 MB
+memory: resident 200 MB  (section meshes 33 MB)
+wrote snaps/deep_dark.png
+textures without a painter: missing
+treecheck: 200 trunks, 3 in the wrong biome: pale_oak_log@327,-132=darkForest dark_oak_log@351,-59=oldGrowthBirchForest pale_oak_log@200,-8=oldGrowthBirchForest
+seed 12345  pos 280.5 154.0 -103.5  rd 8  chunks 361  (drawn 58)
+gen 219 ms  mesh(all, parallel) 709 ms  mesh(1 section) 1.36 ms  quads 1683150 opaque / 44984 water
+frame (encode+GPU, offscreen, median of 30) 2.94 ms  biome darkForest
+mesh slabs 80 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 96 MB
+memory: resident 237 MB  (section meshes 53 MB)
+wrote snaps/dark_forest.png
+textures without a painter: missing
+seed 12345  pos -407.5 121.0 -519.5  rd 8  chunks 361  (drawn 78)
+gen 177 ms  mesh(all, parallel) 435 ms  mesh(1 section) 1.05 ms  quads 595572 opaque / 96655 water
+frame (encode+GPU, offscreen, median of 30) 2.24 ms  biome warmOcean
+mesh slabs 32 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 48 MB
+memory: resident 186 MB  (section meshes 21 MB)
+wrote snaps/seabed_warm.png
+textures without a painter: missing
+seed 12345  pos -135.5 115.0 -247.5  rd 8  chunks 361  (drawn 84)
+gen 183 ms  mesh(all, parallel) 580 ms  mesh(1 section) 1.23 ms  quads 561970 opaque / 97322 water
+frame (encode+GPU, offscreen, median of 30) 2.28 ms  biome deepOcean
+mesh slabs 32 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 48 MB
+memory: resident 187 MB  (section meshes 20 MB)
+wrote snaps/seabed_deep.png
+cave pocket at y -56
+textures without a painter: missing
+seed 12345  pos 72.5 8.0 184.5  rd 8  chunks 361  (drawn 20)
+gen 203 ms  mesh(all, parallel) 451 ms  mesh(1 section) 0.64 ms  quads 629916 opaque / 40823 water
+frame (encode+GPU, offscreen, median of 30) 0.78 ms  biome windsweptSavanna
+mesh slabs 32 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 48 MB
+memory: resident 191 MB  (section meshes 20 MB)
+wrote snaps/cave_torches.png
+naming audit: 5195 names, 0 flagged
+selftest: 887 blocks, 84 mob kinds, 4/4 special recipes, bundle fill 32/64, 76 advancements
+selftest ok: 82 mobs after 3 s
+textures without a painter: missing
+seed 12345  pos -311.5 146.0 72.5  rd 8  chunks 361  (drawn 73)
+gen 189 ms  mesh(all, parallel) 452 ms  mesh(1 section) 0.68 ms  quads 714357 opaque / 65674 water
+frame (encode+GPU, offscreen, median of 30) 1.65 ms  biome plains
+mesh slabs 36 MB, chunks 361 (block+light arrays 103 MB), Metal allocated 52 MB
+memory: resident 190 MB  (section meshes 24 MB)
+wrote snaps/selftest.png
