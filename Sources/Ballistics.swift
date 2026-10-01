@@ -468,6 +468,13 @@ extension Game {
         return ("\(n) / \(reserve)", n == 0 ? V4(1, 0.35, 0.3, 1) : V4(1, 1, 1, 1))
     }
 
+    // Current cone of fire for the crosshair (nil without a gun).
+    var gunSpread: Float? {
+        guard let gi = heldGun else { return nil }
+        let gs = Guns.all[gi]
+        return gs.spread + (gs.aimSpread - gs.spread) * arms.aim + arms.bloom
+    }
+
     var sniperScoped: Bool { heldGun == Guns.sniper && arms.aim > 0.85 }
 
     func writeArms(_ wr: inout EntityWriter, eye: V3) {

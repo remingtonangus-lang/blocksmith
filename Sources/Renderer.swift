@@ -1246,10 +1246,25 @@ final class Renderer: NSObject, MTKViewDelegate {
         let cx = floor(W / 2), cy = floor(H / 2)
         let arm = 5 * s, th = max(1, s)
         let shadow = V4(0, 0, 0, 0.45), white = V4(1, 1, 1, 0.9)
-        rect(cx - arm - 1, cy - th / 2 - 1, arm * 2 + 2, th + 2, shadow)
-        rect(cx - th / 2 - 1, cy - arm - 1, th + 2, arm * 2 + 2, shadow)
-        rect(cx - arm, cy - th / 2, arm * 2, th, white)
-        rect(cx - th / 2, cy - arm, th, arm * 2, white)
+        if let spread = game.gunSpread, game.menu == nil {
+            // Guns: four ticks that open up with the current spread (hidden in the farsight scope).
+            if !game.sniperScoped {
+                let gap = 2 * s + spread / tanf(35 * .pi / 180 * game.fovScale) * H / 2
+                let len = 4 * s
+                for (dx, dy) in [(Float(-1), Float(0)), (1, 0), (0, -1), (0, 1)] {
+                    let x = cx + dx * (gap + len / 2), y = cy + dy * (gap + len / 2)
+                    let w = dx != 0 ? len : th, h = dx != 0 ? th : len
+                    rect(x - w / 2 - 1, y - h / 2 - 1, w + 2, h + 2, shadow)
+                    rect(x - w / 2, y - h / 2, w, h, white)
+                }
+                rect(cx - th / 2, cy - th / 2, th, th, white)
+            }
+        } else {
+            rect(cx - arm - 1, cy - th / 2 - 1, arm * 2 + 2, th + 2, shadow)
+            rect(cx - th / 2 - 1, cy - arm - 1, th + 2, arm * 2 + 2, shadow)
+            rect(cx - arm, cy - th / 2, arm * 2, th, white)
+            rect(cx - th / 2, cy - arm, th, arm * 2, white)
+        }
 
         // Hotbar
         let total = slot * 9
