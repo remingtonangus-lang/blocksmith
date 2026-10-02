@@ -875,6 +875,18 @@ enum Snapshot {
             let eye = pos + V3(0, 1.62, 0)
             if let h = world.raycast(eye, game.player.look, maxDist: 32) {
                 ringC = V3(Float(h.hit.x) + 0.5, Float(h.hit.y) + 1, Float(h.hit.z) + 0.5)
+                // In a cave the ray ends on the far wall: centre the ring well short of it, in the open space being
+                // looked at (round the wall cell, torches went behind it into another cave: cave_torches stayed dark).
+                let d = simd_length(ringC - eye)
+                if d > 8 { ringC = eye + game.player.look * (d * 0.6) }
+            }
+            // Only spots the eye can see (a torch behind a pillar lights nothing in frame).
+            func seen(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+                let c = V3(Float(x) + 0.5, Float(y) + 0.4, Float(z) + 0.5)
+                let to = c - eye
+                let dist = simd_length(to)
+                guard let h = world.raycast(eye, to / max(dist, 0.01), maxDist: dist) else { return true }
+                return h.hit == IVec3(x, y, z) || h.hit == IVec3(x, y - 1, z)
             }
             func floorBelow(_ x: Int, _ z: Int) -> Int? {
                 var y = min(Int(floor(ringC.y)) + 2, world.topY(x, z) + 1)
@@ -890,7 +902,7 @@ enum Snapshot {
             for k in 0..<10 {
                 let a = Float(k) / 10 * 2 * Float.pi
                 let x = Int(floor(ringC.x + cosf(a) * 5)), z = Int(floor(ringC.z + sinf(a) * 5))
-                if let y = floorBelow(x, z) { world.setBlock(x, y, z, TORCH); placed += 1 }
+                if let y = floorBelow(x, z), seen(x, y, z) { world.setBlock(x, y, z, TORCH); placed += 1 }
             }
             // Too few spots round the target (a cave pool: run 395 cave_torches showed no torch at all): a tighter ring
             // halfway between the camera and the target.
@@ -900,7 +912,7 @@ enum Snapshot {
                 for k in 0..<8 {
                     let a = Float(k) / 8 * 2 * Float.pi + 0.2
                     let x = Int(floor(ringC.x + cosf(a) * 3)), z = Int(floor(ringC.z + sinf(a) * 3))
-                    if let y = floorBelow(x, z) { world.setBlock(x, y, z, TORCH); placed += 1 }
+                    if let y = floorBelow(x, z), seen(x, y, z) { world.setBlock(x, y, z, TORCH); placed += 1 }
                 }
             }
             let lx = Int(floor(ringC.x)) + 3, lz = Int(floor(ringC.z))
