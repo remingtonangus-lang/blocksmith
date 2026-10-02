@@ -1192,6 +1192,10 @@ enum Snapshot {
                 print("control frame at \(q.x) \(q.y - YOFF) \(q.z) holding an apple")
                 renderer.probes.append(("control apple", V3(Float(q.x) + 0.5, Float(q.y) + 0.5, Float(q.z) + 0.5) - V3(0, 0, 0.42)))
             }
+            // A dropped apple two blocks ahead: does anything in the entity pass reach the image here?
+            let dropAt = e + game.player.look * 2 - V3(0, 0.25, 0)
+            game.drops.spawn(ItemStack(Items.id("apple"), 1), at: dropAt, vel: .zero, delay: 100)
+            renderer.probes.append(("dropped apple", dropAt + V3(0, 0.25, 0)))
             print("frames listed: \(n) (block entities \(world.blockEntities.count))")
         }
         if CommandLine.arguments.contains("--inlava") {
