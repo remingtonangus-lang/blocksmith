@@ -215,6 +215,11 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   the ground 9 blocks below its death spot (harness pickup timing; fixed). collisiontest 17 -> 7, trunk_floating
   29 -> 11. Run 347 (3692d74): smoke + bench crashed at start-up: the batched texture build read Tex.count before
   TextureGen.registerAll (array and emissive mask too small); fixed and pushed 03:28 (run 348).
+- 2026-10-02 03:58 UTC: run 348 (bb3da78) fully green -> PLAYTEST READY on PR #9 with a "quality pass" what's-new
+  section. Numbers: collisiontest no issues (17 before), trunk_floating 0 (29), behaviorsim fell 80 -> 5 (oracle
+  fix), spinning 82 -> 31, work goals 19/25; structcheck poi_unreachable 230 -> 161 (outposts 7 -> 0, trial chambers
+  19 -> 0, mansion 24 -> 12, stronghold 80 -> 49; end city still 33/33: diagnostics added). 128 px textures pass the
+  smoke test at every render distance. Gemini critic + a blind Claude subagent critic run on 348's shots.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
