@@ -443,7 +443,7 @@ final class Playthrough {
         var mined = 0
         var cur = st
         for _ in 0..<3 {
-            if mine(cur) { mined += 1; collect(near: center(cur)) }
+            if mine(cur) { mined += 1; collect(near: center(cur), 24) }       // a drop can fall into a cave below
             cur = findBlock(near: cur, radius: 3, yRange: (cur.y - 2)...(cur.y + 1), { $0 == "stone" }) ?? cur
         }
         check(count("cobblestone") >= 2, "mine: \(count("cobblestone")) cobblestone with a wooden pickaxe (\(mined) mined; bare hand would take \(handTime) s and drop nothing)")

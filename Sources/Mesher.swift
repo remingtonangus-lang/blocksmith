@@ -216,10 +216,19 @@ enum Mesher {
             var minH = Int.max
             for i in 0..<RL where heights[i] < minH { minH = heights[i] }
             if minH > y0 + C0 + 16 + 15 {
-                // ...unless it holds an emitter or water (a seabed under deep water stays: it shows through).
+                // ...unless it holds an emitter, or a seabed (water and solid blocks in this section): under deep
+                // water the floor is unlit but shows through the surface. All-water sections still skip.
                 let emitT = Blocks.emit
                 var lit = false
-                for i in 0..<(RL * RH) where emitT[Int(R[i])] > 0 || fkT[Int(R[i])] == 1 { lit = true; break }
+                for i in 0..<(RL * RH) where emitT[Int(R[i])] > 0 { lit = true; break }
+                if !lit {
+                    var wet = false, solid = false
+                    for ly in 0..<16 { for lz in 0..<16 { for lx in 0..<16 {
+                        let b = Int(R[(lx + C0) + (lz + C0) * RW + (ly + C0) * RL])
+                        if fkT[b] == 1 { wet = true } else if opaqueT[b] { solid = true }
+                    } } }
+                    lit = wet && solid
+                }
                 if !lit { return SectionMesh(opaque: [], trans: [], light: Mesher.dark, vis: ~0) }
             }
         }
