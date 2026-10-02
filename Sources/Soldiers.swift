@@ -609,8 +609,12 @@ func deckGunParts(_ m: Mob) -> [Part] {
     ]
     for x: Float in [-7, 7] {
         p.append(Part(mn: V3(x - 2.5, 11.5, -22), mx: V3(x + 2.5, 16.5, -14), pivot: V3(x, 14, -14), rotX: pitch, color: dark))
-        p.append(Part(mn: V3(x - 1.6, 12.4, -62 + kick), mx: V3(x + 1.6, 15.6, -22 + kick), pivot: V3(x, 14, -14), rotX: pitch, color: steel * 0.8))
-        p.append(Part(mn: V3(x - 2.3, 11.7, -66 + kick), mx: V3(x + 2.3, 16.3, -60 + kick), pivot: V3(x, 14, -14), rotX: pitch, color: dark))
+        // Heavier barrels with a reinforcing jacket and a slotted muzzle brake (thin prongs read as a lawnmower:
+        // blind critic, run 385 deck_gun).
+        p.append(Part(mn: V3(x - 2.2, 11.8, -62 + kick), mx: V3(x + 2.2, 16.2, -22 + kick), pivot: V3(x, 14, -14), rotX: pitch, color: steel * 0.8))
+        p.append(Part(mn: V3(x - 2.9, 11.1, -36 + kick), mx: V3(x + 2.9, 16.9, -22 + kick), pivot: V3(x, 14, -14), rotX: pitch, color: steel * 0.65))
+        p.append(Part(mn: V3(x - 3.1, 10.9, -68 + kick), mx: V3(x + 3.1, 17.1, -60 + kick), pivot: V3(x, 14, -14), rotX: pitch, color: dark))
+        p.append(Part(mn: V3(x - 3.3, 13.4, -66 + kick), mx: V3(x + 3.3, 14.6, -62 + kick), pivot: V3(x, 14, -14), rotX: pitch, color: V3(0.05, 0.05, 0.06)))
         if charge > 0 {
             p.append(Part(mn: V3(x - 1, 13, -66.3), mx: V3(x + 1, 15, -65.9), pivot: V3(x, 14, -14), rotX: pitch, color: V3(1.5 + charge, 0.8, 0.2)))
         }
