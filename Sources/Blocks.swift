@@ -109,8 +109,23 @@ final class BlockRegistry {
     var groupBase: [BlockID] = []   // first state of this state's group
     var tex: [UInt16] = []          // state*6 + face
     var boxes: [[Box]] = []
+    var collBoxes: [[Box]] = []      // collision shape per state (render boxes unless collisionShape overrides)
 
     var count: Int { defs.count }
+
+    // Reference collision shapes where the model's decorative parts would otherwise form a staircase the 0.6
+    // step-up climbs (collisiontest walk_through: dragon egg layers, brewing stand bottles, lantern chains, the
+    // bell's rim, the stonecutter blade).
+    static func collisionShape(_ d: BlockDef) -> [Box]? {
+        if d.shape == "lantern" && d.name.hasSuffix("[hanging]") { return Array(d.boxes.prefix(2)) }
+        switch d.group ?? d.name {
+        case "dragon_egg": return [Box(1, 0, 1, 15, 16, 15)]
+        case "brewing_stand": return [Box(1, 0, 1, 15, 2, 15), Box(7, 0, 7, 9, 14, 9)]
+        case "stonecutter": return [Box(0, 0, 0, 16, 9, 16)]
+        case "bell": return [Box(4, 3, 4, 12, 13, 12), Box(7, 13, 7, 9, 16, 9)]
+        default: return nil
+        }
+    }
 
     @discardableResult
     func add(_ d0: BlockDef) -> BlockID {
@@ -160,6 +175,7 @@ final class BlockRegistry {
         var bx = d.boxes
         for i in 0..<bx.count where bx[i].tex.isEmpty { bx[i].tex = (0..<6).map { tex[Int(id) * 6 + $0] } }
         boxes.append(bx)
+        collBoxes.append(BlockRegistry.collisionShape(d) ?? d.boxes)
         return id
     }
 

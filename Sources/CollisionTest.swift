@@ -34,7 +34,7 @@ enum CollisionTest {
             guard Blocks.collide[i], Blocks.fluidKind[i] == 0 else { continue }
             let key = Blocks.key(b)
             // One state per distinct shape.
-            let sig: String = Blocks.fullCollide[i] ? "full" : Blocks.boxes[i].map { "\($0.minV)\($0.maxV)" }.joined() + "c\(Blocks.connectKind[i])"
+            let sig: String = Blocks.fullCollide[i] ? "full" : Blocks.collBoxes[i].map { "\($0.minV)\($0.maxV)" }.joined() + "c\(Blocks.connectKind[i])"
             if !seen.insert(sig).inserted { continue }
             tested += 1
             _ = world.setBlockAsync(P.x, P.y, P.z, b)

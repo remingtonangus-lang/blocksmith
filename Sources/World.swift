@@ -240,7 +240,7 @@ final class World {
     // Model boxes of a block, resolving connecting blocks (fences, panes, walls) from their neighbours.
     func shapeBoxes(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID, collision: Bool) -> [Box] {
         let ck = Blocks.connectKind[Int(b)]
-        if ck == 0 { return Blocks.boxes[Int(b)] }
+        if ck == 0 { return collision ? Blocks.collBoxes[Int(b)] : Blocks.boxes[Int(b)] }
         return BlockRegistry.connectBoxes(ck, n: Blocks.connects(ck, block(x, y, z - 1)), s: Blocks.connects(ck, block(x, y, z + 1)),
                                           w: Blocks.connects(ck, block(x - 1, y, z)), e: Blocks.connects(ck, block(x + 1, y, z)), collision: collision)
     }
