@@ -141,7 +141,7 @@ enum OverworldStructures {
         w.set(cx - 1, y, cz + 1, Blocks.id("white_bed") + 1); w.set(cx - 1, y, cz, Blocks.id("white_bed_head") + 1)
         w.set(cx + 1, y, cz + 1, Blocks.id("furnace"))
         w.set(cx + 2, y, cz, Blocks.id("crafting_table"))
-        w.set(cx - 2, y + 1, cz - 1, TORCH)
+        w.set(cx - 2, y + 1, cz - 1, TORCH + 4)                                // on the west snow wall (stood over air)
         // Half of igloos hide a basement: a ladder shaft to a stone-brick lab with a chest.
         if rng.chance(0.5) {
             let by = y - 11
