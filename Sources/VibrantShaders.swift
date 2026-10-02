@@ -364,6 +364,8 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
         float2 w2 = wp.xz * 2.1 - float2(t * 0.35, -t * 0.6);
         float2 g = float2(cos(w1.x + w1.y * 0.6), sin(w1.y - w1.x * 0.45)) * 0.045
                  + (float2(vnoise(w2), vnoise(w2 + 7.3)) - 0.5) * 0.11;
+        // Ripples a pixel can't resolve alias into contour bands on far water (blind critic, tour_777_aerial): fade them.
+        g *= 1.0 - 0.8 * smoothstep(32.0, 128.0, dist);
         if (u.ambColor.w > 0.05 && dist < 40.0) {
             // Rain: expanding drop rings, one per half-block cell at random times.
             float2 cell = floor(wp.xz * 2.0);
