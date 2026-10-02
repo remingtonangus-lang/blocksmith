@@ -5028,6 +5028,296 @@ enum HDTex {
         }
     }
 
+    // MARK: Odds and ends (2026-10-02 batch): beacons, brewing stands, cauldron water, conduits, decorated pots,
+    // chiseled bookshelves, frogspawn, spore blossoms, eggs, tripwires, frames, trial spawners, vaults, bee nests,
+    // froglights.
+
+    static func beaconFace(core: Bool) -> Gen {
+        { n, s in
+            let fn = Float(n), u = n / 16
+            let fine = vnoise(n, max(1, n / 64), s)
+            if core {
+                var img = Img(n)
+                let v = voronoi(n, 5, s &+ 3, jitter: 0.8)
+                for y in 0..<n { for x in 0..<n {
+                    let i = y * n + x
+                    let ox: Float = (Float(x) + 0.5 - fn / 2) / (fn / 2), oy: Float = (Float(y) + 0.5 - fn / 2) / (fn / 2)
+                    let k: Float = max(0, 1 - (ox * ox + oy * oy) * 0.6)
+                    let facet: Float = 0.9 + 0.2 * v.id[i]
+                    let seam: Bool = v.f2[i] - v.f1[i] < fn / 90
+                    var c: V3 = V3(0.55 + 0.45 * k, 0.93, 0.88 + 0.12 * k) * facet
+                    if seam { c = c * 0.85 }
+                    img.px[i] = solid(c)
+                } }
+                return img
+            }
+            var img = Img(n, V4(0.8, 0.95, 1, 0.18))
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let edge: Int = min(min(x, y), min(n - 1 - x, n - 1 - y))
+                if edge < u {
+                    let k: Float = edge == 0 ? 0.8 : 1
+                    img.px[i] = V4(0.72 * k, 0.94 * k, 0.94 * k, 0.92)
+                    continue
+                }
+                let d: Float = abs(Float(x) - Float(y))
+                if d < fn * 0.03 && x > n / 6 && x < n / 2 { img.px[i] = V4(0.92, 1, 1, 0.5) }
+                else if fine[i] > 0.97 { img.px[i] = V4(0.9, 1, 1, 0.3) }
+            } }
+            return img
+        }
+    }
+
+    // Cauldron water: a still surface with soft ripples and a lighter rim reflection.
+    static func cauldronWater(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n)
+        var img = Img(n)
+        let w = fbm(n, n / 4, 3, s)
+        let fine = vnoise(n, max(1, n / 64), s &+ 1)
+        for y in 0..<n { for x in 0..<n {
+            let i = y * n + x
+            let r: Float = (Float(x) + Float(y) * 0.6) / fn + w[i] * 0.4
+            let rip: Float = 0.5 + 0.5 * sinf(r * 2 * Float.pi * 5)
+            let k: Float = 0.85 + 0.12 * rip + 0.06 * fine[i]
+            img.px[i] = solid(col(0x3F76E4) * k)
+        } }
+        return img
+    }
+
+    // Decorated pot: fired clay with two incised bands and faint throwing rings.
+    static func decoratedPot(_ n: Int, _ s: Int) -> Img {
+        let u = n / 16
+        var img = stone(pal(col(0xA8583A), lo: 0.82, hi: 1.12), veins: 0, strata: 0.08)(n, s)
+        for y in 0..<n { for x in 0..<n {
+            let band: Int = y / u
+            guard band == 3 || band == 10 else { continue }
+            let ly: Int = y % u
+            var k: Float = 0.55
+            if ly == 0 { k = 0.45 } else if ly == u - 1 { k = 0.8 }
+            img[x, y] = scaled(img[x, y], k)
+        } }
+        return img
+    }
+
+    // Chiseled bookshelf: a bevelled plank case; the empty face shows six dark cubbies.
+    static func chiseledShelf(_ part: Int) -> Gen {          // 0 side, 1 top, 2 empty front
+        { n, s in
+            let u = n / 16
+            var img = planks(pal(col(0xA2824E), lo: 0.8, hi: 1.12))(n, s)
+            let fine = vnoise(n, max(1, n / 64), s &+ 2)
+            func frame(_ x: Int, _ y: Int) -> Bool {
+                let xx = ((x % n) + n) % n, yy = ((y % n) + n) % n
+                let rim: Bool = xx < u || yy < u || xx >= n - u || yy >= n - u
+                guard part == 2 else { return rim }
+                let shelf: Bool = yy >= 7 * u && yy < 9 * u
+                let post: Bool = (xx >= 5 * u && xx < 6 * u) || (xx >= 10 * u && xx < 11 * u)
+                return rim || shelf || post
+            }
+            if part == 2 {
+                for y in 0..<n { for x in 0..<n where !frame(x, y) {
+                    let i = y * n + x
+                    let shadowTop: Bool = frame(x, y - u / 2 - 1)
+                    let shadowLeft: Bool = frame(x - u / 2 - 1, y)
+                    var k: Float = 0.9 + 0.15 * fine[i]
+                    if shadowTop || shadowLeft { k *= 0.6 }
+                    img.px[i] = solid(col(0x2A1E12) * k)
+                } }
+            }
+            bevelFrame(&img, inFrame: frame)
+            return img
+        }
+    }
+
+    // Frogspawn: dark embryos in clear jelly beads, clustered.
+    static func frogspawnHD(_ n: Int, _ s: Int) -> Img {
+        let fu = Float(n) / 16
+        var img = Img(n, V4(0, 0, 0, 0))
+        let v = voronoi(n, 9, s, jitter: 0.7)
+        let blot = fbm(n, n / 4, 3, s &+ 1)
+        for i in 0..<(n * n) where blot[i] > 0.42 {
+            let r: Float = v.f1[i] / fu
+            if r < 0.45 { img.px[i] = solid(col(0x1A1A1A) * (1.2 - r)) }
+            else if r < 1.3 {
+                let rim: Float = r > 1.1 ? 0.55 : 0.32
+                img.px[i] = V4(0.66, 0.68, 0.6, rim)
+            }
+        }
+        return img
+    }
+
+    // Spore blossom (hangs from the ceiling, seen from below): pink petals round a bright centre over a ring of leaves.
+    static func sporeBlossom(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n), fu = Float(n) / 16
+        var img = Img(n, V4(0, 0, 0, 0))
+        for k in 0..<6 {
+            let ang: Float = Float(k) / 6 * 2 * Float.pi + 0.3
+            let cx: Float = fn / 2 + cosf(ang) * fu * 4.2, cy: Float = fn / 2 + sinf(ang) * fu * 4.2
+            leafBlob(&img, cx, cy, fu * 3.4, ang, col(0x5A8A2A))
+        }
+        for y in 0..<n { for x in 0..<n {
+            let ox: Float = Float(x) + 0.5 - fn / 2, oy: Float = Float(y) + 0.5 - fn / 2
+            let r: Float = (ox * ox + oy * oy).squareRoot() / fu
+            let a: Float = atan2f(oy, ox)
+            let petal: Float = 2.6 + 0.6 * cosf(a * 5)
+            guard r < petal else { continue }
+            var c: V3 = col(0xE87AB0) * (1.1 - 0.25 * r / petal)
+            if r < 0.9 { c = col(0xF8C8E0) }
+            img[x, y] = solid(c)
+        } }
+        return img
+    }
+
+    // Eggs: a smooth shell with soft speckles (turtle: cream with green; sniffer: rust with dark mottles).
+    static func eggShell(_ base: UInt32, _ spot: UInt32, amount: Float) -> Gen {
+        { n, s in
+            var img = Img(n)
+            let blot = fbm(n, n / 8, 3, s)
+            let fine = vnoise(n, max(1, n / 64), s &+ 1)
+            let sp = vnoise(n, max(1, n / 16), s &+ 2)
+            for i in 0..<(n * n) {
+                var c: V3 = col(base) * (0.92 + 0.1 * blot[i] + 0.04 * fine[i])
+                let m: Float = sp[i] * 0.7 + blot[i] * 0.3
+                if m > 1 - amount { c = col(spot) * (0.9 + 0.15 * fine[i]) }
+                img.px[i] = solid(c)
+            }
+            return img
+        }
+    }
+
+    // Tripwire: a thin twisted string across the middle.
+    static func tripwireHD(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n), fu = Float(n) / 16
+        var img = Img(n, V4(0, 0, 0, 0))
+        for y in 0..<n { for x in 0..<n {
+            let oy: Float = Float(y) + 0.5 - fn / 2
+            guard abs(oy) < fu * 0.6 else { continue }
+            let twist: Float = 0.5 + 0.5 * sinf((Float(x) + oy * 3) / fu * Float.pi)
+            let k: Float = 0.75 + 0.25 * twist
+            img.px[y * n + x] = V4(0.9 * k, 0.9 * k, 0.88 * k, 0.9)
+        } }
+        return img
+    }
+
+    // A straight plant stem down the middle (big dripleaf), rounded, with faint nodes.
+    static func stemHD(_ c: UInt32) -> Gen {
+        { n, s in
+            let fn = Float(n), fu = Float(n) / 16
+            var img = Img(n, V4(0, 0, 0, 0))
+            let fine = vnoise(n, max(1, n / 32), s)
+            for y in 0..<n { for x in 0..<n {
+                let ox: Float = (Float(x) + 0.5 - fn / 2) / fu
+                guard abs(ox) < 1 else { continue }
+                let round: Float = 1.1 - 0.35 * abs(ox + 0.3)
+                let node: Bool = (y % (n / 2)) < max(1, n / 64)
+                var k: Float = round * (0.9 + 0.12 * fine[y * n + x])
+                if node { k *= 0.8 }
+                img.px[y * n + x] = solid(col(c) * k)
+            } }
+            return img
+        }
+    }
+
+    // Glow item frame: a bevelled glowing-teal frame round a dark leather backing.
+    static func glowFrame(_ n: Int, _ s: Int) -> Img {
+        let u = n / 16
+        var img = wool(col(0x2E7468))(n, s)
+        let fine = vnoise(n, max(1, n / 64), s &+ 1)
+        func frame(_ x: Int, _ y: Int) -> Bool {
+            let xx = ((x % n) + n) % n, yy = ((y % n) + n) % n
+            return xx < 2 * u || yy < 2 * u || xx >= n - 2 * u || yy >= n - 2 * u
+        }
+        for i in 0..<(n * n) where frame(i % n, i / n) { img.px[i] = solid(col(0x6AD8C8) * (0.88 + 0.18 * fine[i])) }
+        bevelFrame(&img, inFrame: frame)
+        return img
+    }
+
+    // Trial spawner / vault: a dark steel cage (side: bars over a dark interior with accent lights; top: a grate).
+    static func trialCage(_ accent: UInt32, top: Bool) -> Gen {
+        { n, s in
+            let u = n / 16, fu = Float(n) / 16
+            var img = Img(n, V4(0, 0, 0, 0))
+            let steel = metal(0x4A4A50, shine: 0.1)(n, s)
+            let fine = vnoise(n, max(1, n / 64), s &+ 3)
+            func frame(_ x: Int, _ y: Int) -> Bool {
+                let xx = ((x % n) + n) % n, yy = ((y % n) + n) % n
+                return xx < 2 * u || yy < 2 * u || xx >= n - 2 * u || yy >= n - 2 * u
+            }
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                if frame(x, y) { img.px[i] = steel.px[i]; continue }
+                if top { img.px[i] = solid(col(0x2A2A30) * (0.85 + 0.2 * fine[i])); continue }
+                let d: Float = (Float(x + y) / (fu * 4)).truncatingRemainder(dividingBy: 1)
+                if d < 0.18 {
+                    img.px[i] = scaled(steel.px[i], 0.85)
+                } else if fine[i] > 0.9 {
+                    img.px[i] = solid(col(accent) * (0.9 + 0.3 * fine[i]))
+                }
+            } }
+            bevelFrame(&img, inFrame: frame)
+            if top {
+                for y in (2 * u)..<(14 * u) { for x in (2 * u)..<(14 * u) {
+                    let gx: Int = (x - 2 * u) % (3 * u), gy: Int = (y - 2 * u) % (3 * u)
+                    if gx < u / 2 || gy < u / 2 { img[x, y] = scaled(steel[x, y], 0.8) }
+                } }
+            }
+            return img
+        }
+    }
+
+    // Bee nest / beehive: woven straw or planks in courses, the entrance a dark hole (honey dripping when full).
+    static func hiveFace(_ base: UInt32, _ part: String) -> Gen {
+        { n, s in
+            let u = n / 16, fu = Float(n) / 16
+            var img = part == "top" ? hayTop(n, s) : haySide(n, s)
+            let target: V3 = col(base)
+            var mean = V3(0, 0, 0)
+            for p in img.px { mean += V3(p.x, p.y, p.z) }
+            mean /= Float(n * n)
+            let tint: V3 = target / simd_max(V3(repeating: 0.05), mean)
+            for i in 0..<(n * n) {
+                let p = img.px[i]
+                img.px[i] = solid(V3(p.x * tint.x, p.y * tint.y, p.z * tint.z))
+            }
+            if part == "top" { return img }
+            // Courses: a dark groove every 4/16.
+            for y in 0..<n { for x in 0..<n where y % (4 * u) < max(1, u / 2) { img[x, y] = scaled(img[x, y], 0.62) } }
+            guard part.hasPrefix("front") else { return img }
+            let cx: Float = Float(n) / 2, cy: Float = fu * 9
+            for y in Int(cy - fu * 2)...Int(cy + fu * 2) { for x in Int(cx - fu * 2)...Int(cx + fu * 2) {
+                let ox: Float = (Float(x) + 0.5 - cx) / (fu * 1.7), oy: Float = (Float(y) + 0.5 - cy) / (fu * 1.4)
+                let d: Float = (ox * ox + oy * oy).squareRoot()
+                guard d < 1 else { continue }
+                let k: Float = 0.15 + 0.15 * d
+                img[x, y] = V4(k, k * 0.8, k * 0.5, 1)
+            } }
+            if part == "front_honey" {
+                for x in 0..<n {
+                    let len: Float = fu * (1 + 4 * h2(x / max(1, u), 7, s))
+                    guard h2(x / max(1, u), 8, s) > 0.45 else { continue }
+                    for y in (11 * u)..<min(n, 11 * u + Int(len)) { img[x, y] = solid(col(0xF0A020) * (0.9 + 0.2 * h2(x, y, s))) }
+                }
+            }
+            return img
+        }
+    }
+
+    // Froglight: glowing jelly cells (side ringed by soft membranes; top an even glow).
+    static func froglight(_ c: UInt32, top: Bool) -> Gen {
+        { n, s in
+            var img = Img(n)
+            let v = voronoi(n, top ? 5 : 4, s, jitter: 0.6)
+            let fine = vnoise(n, max(1, n / 64), s &+ 1)
+            let base = col(c)
+            for i in 0..<(n * n) {
+                let seam: Float = cl((v.f2[i] - v.f1[i]) / (Float(n) / 40))
+                var k: Float = 0.82 + 0.18 * seam + 0.05 * fine[i]
+                if top { k = 0.95 + 0.05 * seam }
+                img.px[i] = solid(base * k)
+            }
+            return img
+        }
+    }
+
     static func generator(_ name: String, _ src: [V4]) -> Gen? {
         if let g = table[name] { return g }
         if let g = crop(name) { return g }
@@ -5089,7 +5379,7 @@ enum HDTex {
     // past the 600 ms gate).
     static let table: [String: Gen] = {
         var t: [String: Gen] = [:]
-        for part in [tablePart0, tablePart1, tablePart2, tablePart3, tablePart4, tablePart5, tablePart6, tablePart7, tablePart8] { t.merge(part) { a, _ in a } }
+        for part in [tablePart0, tablePart1, tablePart2, tablePart3, tablePart4, tablePart5, tablePart6, tablePart7, tablePart8, tablePart9] { t.merge(part) { a, _ in a } }
         return t
     }()
     static let tablePart0: [String: Gen] = [
@@ -5535,6 +5825,47 @@ enum HDTex {
         "ship_ring_side": shipFace("ship_ring_side"),
         "ship_barrel": shipFace("ship_barrel"),
         "ship_tyre": shipFace("ship_tyre")
+    ]
+    static let tablePart9: [String: Gen] = [
+        "beacon_core": beaconFace(core: true),
+        "beacon_glass": beaconFace(core: false),
+        "brewing_stand_base": polished(stone([(0, 0x585858), (0.5, 0x6A6A6A), (1, 0x808080)], veins: 0.2, strata: 0)),
+        "brewing_stand_rod": metal(0xF7C23A, shine: 0.22),
+        "cauldron_water": cauldronWater,
+        "conduit": ore(stone([(0, 0x4E4230), (0.5, 0x6A5A40), (1, 0x86745A)], veins: 0.3, strata: 0), 0xC8A030, 0xF8E080, clusters: 5),
+        "decorated_pot": decoratedPot,
+        "chiseled_bookshelf_side": chiseledShelf(0),
+        "chiseled_bookshelf_top": chiseledShelf(1),
+        "chiseled_bookshelf_empty": chiseledShelf(2),
+        "frogspawn": frogspawnHD,
+        "spore_blossom": sporeBlossom,
+        "torchflower": flowerHD(0xF08A2A, 0xF8D040, .ring, top: 4, size: 3, salt: 450),
+        "pitcher_plant": flowerHD(0x5A7AC8, 0x3A5AA8, .cup, top: 5, size: 2.6, salt: 452),
+        "turtle_egg": eggShell(0xE8E4C8, 0x6AA84A, amount: 0.22),
+        "sniffer_egg": eggShell(0xA84A3A, 0x6A3A2A, amount: 0.3),
+        "tripwire": tripwireHD,
+        "tripwire_hook": metal(0x9A9A9A, shine: 0.12),
+        "big_dripleaf_stem": stemHD(0x5A8A2A),
+        "glow_item_frame": glowFrame,
+        "painting_back": planks(pal(col(0x9A7A4A), lo: 0.8, hi: 1.12)),
+        "trial_spawner_side": trialCage(0xE8A040, top: false),
+        "trial_spawner_top": trialCage(0xE8A040, top: true),
+        "vault_side": trialCage(0x3A5A8A, top: false),
+        "vault_top": trialCage(0x3A5A8A, top: true),
+        "bee_nest_side": hiveFace(0xD8A840, "side"),
+        "bee_nest_top": hiveFace(0xD8A840, "top"),
+        "bee_nest_front": hiveFace(0xD8A840, "front"),
+        "bee_nest_front_honey": hiveFace(0xD8A840, "front_honey"),
+        "beehive_side": hiveFace(0xB88A4A, "side"),
+        "beehive_top": hiveFace(0xB88A4A, "top"),
+        "beehive_front": hiveFace(0xB88A4A, "front"),
+        "beehive_front_honey": hiveFace(0xB88A4A, "front_honey"),
+        "ochre_froglight_side": froglight(0xF8D880, top: false),
+        "ochre_froglight_top": froglight(0xF8D880, top: true),
+        "verdant_froglight_side": froglight(0xD8F0B0, top: false),
+        "verdant_froglight_top": froglight(0xD8F0B0, top: true),
+        "pearlescent_froglight_side": froglight(0xF0D8F0, top: false),
+        "pearlescent_froglight_top": froglight(0xF0D8F0, top: true)
     ]
 
     // MARK: Upscale for textures without an HD material
