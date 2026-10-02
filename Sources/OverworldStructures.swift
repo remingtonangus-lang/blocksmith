@@ -345,14 +345,27 @@ enum OverworldStructures {
             let y = gen.groundY(x, z)
             guard y >= SEA else { return nil }
             let s = rng.next()
-            return StructureStart(kind: "pillager_outpost", pieces: [piece(x - 6, y - 8, z - 6, x + 6, y + 24, z + 6) { w in outpostTower(&w, x, y + 1, z, s) }],
-                                  anchor: IVec3(x, y + 2, z - 12))
+            var pieces = [piece(x - 6, y - 8, z - 6, x + 6, y + 30, z + 6) { w in outpostTower(&w, x, y + 1, z, s) }]
+            // The camp round the tower: a cage with a captive golem, tents, a log pile and archery targets, each on
+            // ground within a few blocks of the tower's (skipped on steep or wet ground).
+            let camp: [(Int, Int, Int)] = [(0, 11, -6), (1, -11, 6), (2, 9, 9), (3, -9, -8)]
+            for (kind, dx, dz) in camp {
+                let fx = x + dx, fz = z + dz
+                let fy = gen.groundY(fx, fz)
+                guard fy >= SEA && abs(fy - y) <= 4 else { continue }
+                let fs = rng.next()
+                pieces.append(piece(fx - 3, fy - 4, fz - 3, fx + 3, fy + 5, fz + 3) { w in outpostCamp(&w, kind, fx, fy + 1, fz, fs) })
+            }
+            return StructureStart(kind: "pillager_outpost", pieces: pieces, anchor: IVec3(x, y + 4, z - 16))
         }
     }
 
+    // A four-storey watchtower: cobblestone plinth, birch walls on a dark oak frame with fence-slit windows, an open
+    // lookout storey, an overhanging platform with the loot chest under a stepped dark oak roof.
     static func outpostTower(_ w: inout StructWriter, _ cx: Int, _ y: Int, _ cz: Int, _ seed: UInt64) {
         var rng = SRng(seed)
         let log = Blocks.id("dark_oak_log"), pl = Blocks.id("dark_oak_planks"), cob = COBBLE, fence = Blocks.id("dark_oak_fence")
+        let wall = Blocks.id("birch_planks"), mossy = Blocks.has("mossy_cobblestone") ? Blocks.id("mossy_cobblestone") : COBBLE
         for z in (cz - 4)...(cz + 4) { for x in (cx - 4)...(cx + 4) { w.pillarDown(x, y - 1, z, cob, minY: y - 8) } }
         w.fill(cx - 4, y - 1, cz - 4, cx + 4, y - 1, cz + 4, cob)
         for fl in 0..<4 {
@@ -360,19 +373,48 @@ enum OverworldStructures {
             for yy in by...(by + 4) { for z in (cz - 3)...(cz + 3) { for x in (cx - 3)...(cx + 3) {
                 let corner = abs(x - cx) == 3 && abs(z - cz) == 3
                 let edge = abs(x - cx) == 3 || abs(z - cz) == 3
+                let mid = x == cx || z == cz
                 if corner { w.set(x, yy, z, log) }
                 else if yy == by { w.set(x, yy, z, pl) }
-                else if edge { w.set(x, yy, z, yy == by + 2 && (x + z) % 2 == 0 ? fence : (fl == 3 ? AIR : pl)) }
-                else { w.set(x, yy, z, AIR) }
+                else if !edge { w.set(x, yy, z, AIR) }
+                else if fl == 3 { w.set(x, yy, z, yy == by + 1 ? fence : AIR) }            // open lookout, railed
+                else if fl == 0 && yy <= by + 2 { w.set(x, yy, z, hashf(x, yy, z, 77) < 0.25 ? mossy : cob) }
+                else if fl > 0 && mid && (yy == by + 2 || yy == by + 3) { w.set(x, yy, z, fence) }   // window slits
+                else { w.set(x, yy, z, wall) }
             } } }
             for yy in by...(by + 4) { w.set(cx + 2, yy, cz + 2, Blocks.id("ladder") + 2) }
-            w.set(cx + 2, by, cz + 2, Blocks.id("ladder") + 2)
             w.mob("pillager", V3(Float(cx) + 0.5, Float(by + 1), Float(cz) + 0.5))
         }
+        // Furnishing: a fletching table and a barrel of arrows below, bedrolls of hay above.
+        if Blocks.has("fletching_table") { w.set(cx - 2, y + 1, cz + 2, Blocks.id("fletching_table")) }
+        if Blocks.has("barrel") { w.set(cx - 2, y + 1, cz - 2, Blocks.id("barrel")) }
+        w.set(cx - 2, y + 6, cz + 2, Blocks.id("hay_block")); w.set(cx - 2, y + 6, cz + 1, Blocks.id("hay_block"))
+        // Platform, overhanging the walls by two, with a rail.
         let top = y + 20
-        w.fill(cx - 4, top, cz - 4, cx + 4, top, cz + 4, pl)
-        for x in (cx - 4)...(cx + 4) { w.set(x, top + 1, cz - 4, fence); w.set(x, top + 1, cz + 4, fence) }
-        for z in (cz - 4)...(cz + 4) { w.set(cx - 4, top + 1, z, fence); w.set(cx + 4, top + 1, z, fence) }
+        w.fill(cx - 5, top, cz - 5, cx + 5, top, cz + 5, pl)
+        for x in (cx - 5)...(cx + 5) { w.set(x, top + 1, cz - 5, fence); w.set(x, top + 1, cz + 5, fence) }
+        for z in (cz - 5)...(cz + 5) { w.set(cx - 5, top + 1, z, fence); w.set(cx + 5, top + 1, z, fence) }
+        // Log beams under the overhang.
+        for k in -4...4 where k % 4 == 0 {
+            w.set(cx + k, top - 1, cz - 4, log); w.set(cx + k, top - 1, cz + 4, log)
+            w.set(cx - 4, top - 1, cz + k, log); w.set(cx + 4, top - 1, cz + k, log)
+        }
+        // Roof on four posts: stairs stepping up to a plank cap.
+        for (dx, dz) in [(-4, -4), (4, -4), (-4, 4), (4, 4)] { w.fill(cx + dx, top + 1, cz + dz, cx + dx, top + 3, cz + dz, log) }
+        let stairs = Blocks.has("dark_oak_stairs")
+        for k in 0..<4 {
+            let hw = 5 - k, ry = top + 4 + k
+            for i in -hw...hw {
+                if stairs {
+                    w.set(cx + i, ry, cz - hw, Blocks.id("dark_oak_stairs[south]")); w.set(cx + i, ry, cz + hw, Blocks.id("dark_oak_stairs"))
+                    if abs(i) < hw { w.set(cx - hw, ry, cz + i, Blocks.id("dark_oak_stairs[east]")); w.set(cx + hw, ry, cz + i, Blocks.id("dark_oak_stairs[west]")) }
+                } else {
+                    w.set(cx + i, ry, cz - hw, pl); w.set(cx + i, ry, cz + hw, pl); w.set(cx - hw, ry, cz + i, pl); w.set(cx + hw, ry, cz + i, pl)
+                }
+            }
+        }
+        w.fill(cx - 1, top + 7, cz - 1, cx + 1, top + 7, cz + 1, pl)
+        if Blocks.has("lantern") { w.set(cx, top + 6, cz, Blocks.id("lantern")) }
         // A way in and up: a doorway with a slab step on the ground floor, and the ladder continued through the roof
         // platform (the tower was sealed and the platform covered the shaft: structcheck, every outpost chest
         // unreachable).
@@ -383,6 +425,44 @@ enum OverworldStructures {
         w.chest(cx - 2, top + 1, cz - 2, loot: "pillager_outpost", seed: rng.next(), facing: 1)
         w.mob("pillager", V3(Float(cx) + 0.5, Float(top + 1), Float(cz) + 0.5))
         w.mob("pillager", V3(Float(cx) + 2.5, Float(top + 1), Float(cz) - 1.5))
+    }
+
+    // Camp pieces round an outpost: 0 cage (captive golem), 1 tent, 2 log pile, 3 archery targets.
+    static func outpostCamp(_ w: inout StructWriter, _ kind: Int, _ cx: Int, _ y: Int, _ cz: Int, _ seed: UInt64) {
+        let pl = Blocks.id("dark_oak_planks"), fence = Blocks.id("dark_oak_fence"), log = Blocks.id("dark_oak_log")
+        switch kind {
+        case 0:
+            for z in (cz - 2)...(cz + 2) { for x in (cx - 2)...(cx + 2) {
+                w.pillarDown(x, y - 1, z, DIRT, minY: y - 5)
+                let edge = abs(x - cx) == 2 || abs(z - cz) == 2
+                for yy in y...(y + 2) { w.set(x, yy, z, edge ? fence : AIR) }
+                w.set(x, y + 3, z, pl)
+            } }
+            w.mob("iron_golem", V3(Float(cx) + 0.5, Float(y), Float(cz) + 0.5))
+        case 1:
+            let wool = Blocks.id("white_wool")
+            for z in (cz - 2)...(cz + 2) {
+                for x in (cx - 2)...(cx + 2) { w.pillarDown(x, y - 1, z, DIRT, minY: y - 5); for yy in y...(y + 2) { w.set(x, yy, z, AIR) } }
+                w.set(cx - 2, y, z, wool); w.set(cx + 2, y, z, wool)
+                w.set(cx - 1, y + 1, z, wool); w.set(cx + 1, y + 1, z, wool)
+                w.set(cx, y + 2, z, wool)
+            }
+            w.set(cx, y, cz + 2, Blocks.id("crafting_table"))
+            w.set(cx + 1, y, cz + 1, Blocks.id("hay_block"))
+        case 2:
+            for z in (cz - 1)...(cz + 1) { for x in (cx - 2)...(cx + 2) { w.pillarDown(x, y - 1, z, DIRT, minY: y - 5) } }
+            let along = Blocks.has("dark_oak_log[x]") ? Blocks.id("dark_oak_log[x]") : log
+            for x in (cx - 2)...(cx + 2) { w.set(x, y, cz - 1, along); w.set(x, y, cz, along) }
+            for x in (cx - 1)...(cx + 1) { w.set(x, y + 1, cz - 1, along) }
+            w.set(cx - 1, y, cz + 1, Blocks.id("pumpkin")); w.set(cx + 1, y, cz + 1, Blocks.id("hay_block"))
+            if hashf(cx, y, cz, UInt32(truncatingIfNeeded: seed)) < 0.5 { w.set(cx + 2, y, cz + 1, Blocks.id("pumpkin")) }
+        default:
+            let target = Blocks.has("target") ? Blocks.id("target") : Blocks.id("hay_block")
+            for dx in [-2, 0, 2] {
+                w.pillarDown(cx + dx, y - 1, cz, DIRT, minY: y - 5)
+                w.set(cx + dx, y, cz, fence); w.set(cx + dx, y + 1, cz, target)
+            }
+        }
     }
 
     // MARK: Ruined portal
