@@ -3443,11 +3443,26 @@ enum HDTex {
         let pal: [(Float, UInt32)] = [(0, 0xBEB8AA), (0.5, 0xDCD8CC), (1, 0xF0EEE6)]
         var img = Img(n)
         var hh = [Float](repeating: 0, count: n * n)
+        // Weathered grey patches and many thin grey lenticel dashes under the dark marks (flat white with hard black
+        // dashes read as a drawing, not bark).
+        let weather = fbm(n, n / 4, 3, s &+ 3)
+        let grey = col(0x9E9A90)
         for i in 0..<(n * n) {
-            let c = ramp(0.7 + (blot[i] - 0.5) * 0.25 + (fine[i] - 0.5) * 0.08, pal)
+            let t: Float = 0.7 + (blot[i] - 0.5) * 0.4 + (fine[i] - 0.5) * 0.08
+            var c = ramp(t, pal)
+            let wk: Float = cl((weather[i] - 0.6) * 4) * 0.55
+            c += (grey - c) * wk
             img.px[i] = V4(c.x, c.y, c.z, 1)
         }
         var rng = SRng(UInt64(truncatingIfNeeded: s) &* 7741 &+ 5)
+        for _ in 0..<(n / 2) {
+            let cx = rng.int(n), cy = rng.int(n)
+            let len = 2 + rng.int(max(2, n / 24))
+            for dx in 0..<len {
+                let p = img[cx + dx, cy]
+                img[cx + dx, cy] = V4(p.x * 0.78, p.y * 0.78, p.z * 0.76, 1)
+            }
+        }
         let dk = col(0x2E2B26)
         for _ in 0..<(n / 6) {
             let cx = rng.int(n), cy = rng.int(n)
@@ -3459,10 +3474,16 @@ enum HDTex {
                 let i = y * n + x
                 let wv = Int((w[i] - 0.5) * fn * 0.02)
                 let yy = dy + wv
-                if Float(abs(dx)) < L * (0.6 + 0.4 * fine[i]) && yy >= 0 && yy < hgt {
+                let reach: Float = L * (0.6 + 0.4 * fine[i])
+                if Float(abs(dx)) < reach && yy >= 0 && yy < hgt {
+                    // Fading toward the ends of the mark instead of a hard-edged dash.
+                    let e: Float = Float(abs(dx)) / reach
+                    let a: Float = cl((1 - e) * 3) * 0.92
                     let k: Float = 0.8 + fine[i] * 0.4
-                    img.px[i] = V4(dk.x * k, dk.y * k, dk.z * k, 1)
-                    hh[i] = -0.2
+                    let o = img.px[i]
+                    let d: V3 = dk * k
+                    img.px[i] = V4(o.x + (d.x - o.x) * a, o.y + (d.y - o.y) * a, o.z + (d.z - o.z) * a, 1)
+                    hh[i] = -0.2 * a
                 }
             } }
         }
