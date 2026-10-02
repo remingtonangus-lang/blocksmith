@@ -275,7 +275,9 @@ enum HDTex {
         let sh = fbm(n, n / 2, 5, s)
         let fine = vnoise(n, max(1, n / 64), s &+ 1)
         let sp = vnoise(n, 1, s &+ 2)
-        let a = col(0xC9D6EA), b = col(0xF6F9FF)
+        // A touch below pure white: lit by the sun plus the sky, 0.96 snow ran past the tone curve's shoulder and every
+        // snow face came out the same flat white (blind critic, run 395 tour_peaks).
+        let a = col(0xADBBD2), b = col(0xE6ECF7)
         var img = Img(n)
         var hh = [Float](repeating: 0, count: n * n)
         for i in 0..<(n * n) {

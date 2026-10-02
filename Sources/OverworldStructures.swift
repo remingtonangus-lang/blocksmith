@@ -148,6 +148,12 @@ enum OverworldStructures {
             if r > 3.6 { continue }
             w.set(cx + dx, y + dy, cz + dz, r > 2.6 ? snow : AIR)
         } } }
+        // Close the crown: an inner (air) cell whose cell above isn't inner gets a snow cap (the shell above the inner
+        // plus at dy 2 fell outside the 3.6 radius, leaving a cross-shaped hole in the roof: blind critic, run 395).
+        func inner(_ dx: Int, _ dy: Int, _ dz: Int) -> Bool { sqrtf(Float(dx * dx + dz * dz) + Float(dy * dy) * 1.4) <= 2.6 }
+        for dy in 0...4 { for dz in -3...3 { for dx in -3...3 where inner(dx, dy, dz) && !inner(dx, dy + 1, dz) {
+            w.set(cx + dx, y + dy + 1, cz + dz, snow)
+        } } }
         w.fill(cx - 2, y - 1, cz - 2, cx + 2, y - 1, cz + 2, snow)
         w.set(cx - 3, y + 1, cz, ice); w.set(cx + 3, y + 1, cz, ice)
         w.fill(cx, y, cz - 4, cx, y + 1, cz - 3, AIR)

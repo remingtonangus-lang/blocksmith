@@ -200,12 +200,15 @@ enum TreePlacer {
                     } }
                 }
             } else {
-                let pattern = [0, 1, 2, 1, 2, 3, 2, 3]
+                // The tier under the tip is a leafy cross (a bare trunk block between the tip and the first tier read as a
+                // stump poking out of every snowy crown: blind critic, run 395 snowy).
+                let pattern = [1, 2, 1, 2, 3, 2, 3]
                 var yy = y + h - 1, k = 0
                 while yy >= y + 2 {
                     let r = pattern[min(k, pattern.count - 1)]
+                    let round: Int = k == 0 ? 1 : r * r + 1
                     if r > 0 {
-                        for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= r * r + 1 { w.leaf(x + dx, yy, z + dz, SPRUCE_LEAVES) } }
+                        for dz in -r...r { for dx in -r...r where dx * dx + dz * dz <= round { w.leaf(x + dx, yy, z + dz, SPRUCE_LEAVES) } }
                     } else { w.leaf(x, yy, z, SPRUCE_LEAVES) }
                     yy -= 1; k += 1
                 }

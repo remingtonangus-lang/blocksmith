@@ -80,7 +80,7 @@ for s in 12345 777 424242 1 98765; do
   "$BIN" --snapshot snaps/tour_${s}_aerial.png --seed $s --x 600 --z 300 --onland --yaw 200 --pitch -28 --time 0.23 --up 55 --rd 16
   "$BIN" --snapshot snaps/tour_${s}_low.png --seed $s --yaw 120 --pitch -6 --time 0.22 --up 14 --rd 12
 done
-"$BIN" --snapshot snaps/tour_peaks.png --seed 12345 --find jagged_peaks --yaw 60 --pitch -12 --time 0.23 --up 25 --rd 16 || true
+"$BIN" --snapshot snaps/tour_peaks.png --seed 12345 --find jagged_peaks --yaw 60 --pitch -22 --time 0.23 --up 25 --rd 16 || true
 "$BIN" --snapshot snaps/tour_forest_floor.png --seed 12345 --find forest --yaw 30 --pitch 0 --time 0.22 --ground --up 0.2 --rd 8 || true
 "$BIN" --snapshot snaps/tour_desert.png --seed 12345 --find desert --yaw biome --pitch -15 --time 0.24 --up 20 --rd 12 || true
 "$BIN" --snapshot snaps/tour_jungle.png --seed 424242 --find jungle --yaw 80 --pitch -10 --time 0.24 --up 12 --rd 12 || true
@@ -117,7 +117,7 @@ done
 "$BIN" --snapshot snaps/sunset.png  --seed 12345 --yaw 270 --pitch 0   --time 0.47 --up 10
 "$BIN" --snapshot snaps/sunset_fast.png --seed 12345 --yaw 270 --pitch 0 --time 0.47 --up 10 --fast
 "$BIN" --snapshot snaps/sunset_sun.png --seed 12345 --yaw 90 --pitch 4 --time 0.49 --up 10
-"$BIN" --snapshot snaps/night.png   --seed 12345 --yaw 90  --pitch -10 --time 0.75 --up 5
+"$BIN" --snapshot snaps/night.png   --seed 12345 --yaw 90  --pitch -10 --time 0.75 --up 5 --unblock
 "$BIN" --snapshot snaps/lake.png --seed 12345 --find ocean --yaw 30 --pitch -6 --time 0.25 --up 2
 "$BIN" --snapshot snaps/lake_glint.png --seed 12345 --find ocean --yaw 90 --pitch -5 --time 0.48 --up 2
 "$BIN" --snapshot snaps/shore.png --seed 12345 --find beach --yaw 30 --pitch -30 --time 0.22 --up 4
@@ -279,7 +279,7 @@ done
 "$BIN" --snapshot snaps/dripstone_caves.png --seed 12345 --find dripstone_caves --yaw 30 --pitch -10 --time 0.3 --torches
 "$BIN" --snapshot snaps/mineshaft_torches.png --seed 12345 --structure mineshaft --frame 0.4 --time 0.3 --torches --ambient
 "$BIN" --snapshot snaps/deep_dark.png --seed 12345 --find deep_dark --yaw 30 --pitch -10 --time 0.3 --nightvision
-"$BIN" --snapshot snaps/dark_forest.png --seed 12345 --find dark_forest --yaw 30 --pitch -15 --time 0.3 --up 4 --treecheck
+"$BIN" --snapshot snaps/dark_forest.png --seed 12345 --find dark_forest --yaw 30 --pitch -15 --time 0.3 --up 4 --treecheck --unblock
 "$BIN" --snapshot snaps/seabed_warm.png --seed 12345 --find warm_ocean --seabed 5 --pitch -20 --time 0.3
 "$BIN" --snapshot snaps/seabed_deep.png --seed 12345 --find deep_ocean --seabed 5 --pitch -20 --time 0.3
 "$BIN" --snapshot snaps/seabed_deep_far.png --seed 12345 --find deep_ocean --seabed 14 --pitch -30 --time 0.3

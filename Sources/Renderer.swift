@@ -1180,7 +1180,10 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
             let ey = Int(floor(eye.y)) + (Blocks.opaque[Int(game.world.block(Int(floor(eye.x)), Int(floor(eye.y)), Int(floor(eye.z))))] ? 1 : 0)
             let l = game.world.lightAt(Int(floor(eye.x)), ey, Int(floor(eye.z)))
-            let light = max(0.12, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15), game.nightVision * 0.9)
+            // Skylight keeps a moonlit floor like the terrain's night ambient (the held block was a black cube on a
+            // moonlit meadow: blind critic, run 395 torches).
+            let skyK: Float = 0.3 + 0.7 * daylight
+            let light = max(0.12, max(Float(l.sky) / 15 * skyK, Float(l.block) / 15), game.nightVision * 0.9)
             let sw = game.swing
             let a = sinf(sqrtf(sw) * .pi)
             let bob = sinf(game.walkBob * 2) * 0.02 * game.walkAmount

@@ -116,6 +116,7 @@ enum Snapshot {
         }
         // --structure <kind>: stand above the start piece of the nearest structure of that kind.
         var frame: (yaw: Float, pitch: Float)?
+        var insideFrame: IVec3?
         // --land: skip starts whose centre column is below sea level (ruined portals also generate under water).
         let landOnly = CommandLine.arguments.contains("--land")
         let onLand: (StructureStart) -> Bool = { s in
@@ -126,6 +127,10 @@ enum Snapshot {
                 // Overview: from outside the footprint, aimed at its centre.
                 let c = V3(Float(s.min.x + s.max.x) / 2, Float(s.anchor.y), Float(s.min.z + s.max.z) / 2)
                 let ext = Float(max(s.max.x - s.min.x, s.max.z - s.min.z))
+                // A buried structure (mineshaft) can't be seen from outside: stand at its start and look down the
+                // longest open corridor instead (the outside view landed in a stone pocket: blind critic, run 395).
+                let ground: Int = world.gen.column(s.anchor.x, s.anchor.z).height
+                if ground > s.max.y + 3 { insideFrame = s.anchor }
                 let dist = max(14, ext * 0.75) * (Float(arg("--frame") ?? "") ?? 1)
                 let p = c + V3(-dist * 0.7, dist * 0.55, -dist * 0.7)
                 let d = c - p
@@ -427,6 +432,29 @@ enum Snapshot {
         }
         // --feet Y: the camera's feet at displayed height Y (structcheck issue views from inside a structure).
         if let fy = Float(arg("--feet") ?? "") { pos.y = fy + Float(YOFF); game.player.pos = pos }
+        if let a = insideFrame {
+            // Feet on the start piece's floor, facing the heading with the longest clear line at eye level.
+            var fy = a.y + 3
+            func free(_ x: Int, _ y: Int, _ z: Int) -> Bool { !Blocks.collide[Int(world.block(x, y, z))] }
+            while fy > a.y - 6 && !(free(a.x, fy, a.z) && free(a.x, fy + 1, a.z) && !free(a.x, fy - 1, a.z)) { fy -= 1 }
+            var bestYaw: Float = 0, bestRun = -1
+            for h in 0..<16 {
+                let yaw: Float = Float(h) * Float.pi / 8
+                let dir = V3(-sinf(yaw), 0, -cosf(yaw))
+                var run = 0
+                for step in 1...80 {
+                    let q: V3 = V3(Float(a.x) + 0.5, Float(fy) + 1.6, Float(a.z) + 0.5) + dir * (Float(step) * 0.5)
+                    if !free(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))) { break }
+                    run = step
+                }
+                if run > bestRun { bestRun = run; bestYaw = yaw }
+            }
+            pos = V3(Float(a.x) + 0.5, Float(fy), Float(a.z) + 0.5)
+            game.player.pos = pos
+            game.player.yaw = bestYaw
+            game.player.pitch = -6 * Float.pi / 180
+            print("structure buried: camera at its start \(a.x) \(fy - YOFF) \(a.z), facing \(Int(bestYaw * 180 / Float.pi)) deg down a \(bestRun / 2)-block corridor")
+        }
         // Never render from inside solid blocks: move to the nearest two-high air pocket.
         func solidAt(_ p: V3) -> Bool { Blocks.collide[Int(world.block(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))))] }
         if solidAt(game.player.eye) || solidAt(game.player.pos + V3(0, 0.1, 0)) {
@@ -453,6 +481,31 @@ enum Snapshot {
                 pos = V3(Float(q.x) + 0.5, Float(q.y), Float(q.z) + 0.5)
                 game.player.pos = pos
             } else { print("camera in solid: no air pocket nearby") }
+        }
+        if CommandLine.arguments.contains("--unblock") {
+            // A view pressed against a wall or a canopy (night / dark_forest showed one leaf face: blind critic, run 395):
+            // step back and up until the line of sight runs at least 12 blocks, keeping the best spot found.
+            func clearAhead(_ p: V3) -> Float {
+                let e = p + V3(0, 1.62, 0)
+                if Blocks.collide[Int(world.block(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))))] { return 0 }
+                if let h = world.raycast(e, game.player.look, maxDist: 32) {
+                    return simd_length(V3(Float(h.hit.x) + 0.5, Float(h.hit.y) + 0.5, Float(h.hit.z) + 0.5) - e)
+                }
+                return 32
+            }
+            let back = simd_normalize(V3(-game.player.look.x, 0, -game.player.look.z))
+            var bestP = pos, bestD = clearAhead(pos)
+            if bestD < 12 {
+                search: for up in 0...6 { for k in 0...10 {
+                    let q = pos + back * Float(k) + V3(0, Float(up), 0)
+                    let d = clearAhead(q)
+                    if d > bestD + 0.5 { bestD = d; bestP = q }
+                    if d >= 12 { break search }
+                } }
+                print(String(format: "unblock: moved %.1f blocks for a %.1f-block view", simd_length(bestP - pos), bestD))
+                pos = bestP
+                game.player.pos = pos
+            }
         }
         if snapDim == .nether {
             // Stand in the first open space above the lava sea.
@@ -810,13 +863,26 @@ enum Snapshot {
                 }
                 return nil
             }
+            var placed = 0
             for k in 0..<10 {
                 let a = Float(k) / 10 * 2 * Float.pi
                 let x = Int(floor(ringC.x + cosf(a) * 5)), z = Int(floor(ringC.z + sinf(a) * 5))
-                if let y = floorBelow(x, z) { world.setBlock(x, y, z, TORCH) }
+                if let y = floorBelow(x, z) { world.setBlock(x, y, z, TORCH); placed += 1 }
+            }
+            // Too few spots round the target (a cave pool: run 395 cave_torches showed no torch at all): a tighter ring
+            // halfway between the camera and the target.
+            if placed < 5 {
+                let mid = (ringC + eye) * 0.5
+                ringC = V3(mid.x, max(mid.y, ringC.y), mid.z)
+                for k in 0..<8 {
+                    let a = Float(k) / 8 * 2 * Float.pi + 0.2
+                    let x = Int(floor(ringC.x + cosf(a) * 3)), z = Int(floor(ringC.z + sinf(a) * 3))
+                    if let y = floorBelow(x, z) { world.setBlock(x, y, z, TORCH); placed += 1 }
+                }
             }
             let lx = Int(floor(ringC.x)) + 3, lz = Int(floor(ringC.z))
             if let y = floorBelow(lx, lz) { world.setBlock(lx, y, lz, LAMP) }
+            print(String(format: "torches: %d placed round %.0f %.0f %.0f", placed, ringC.x, ringC.y - Float(YOFF), ringC.z))
             let t2 = world.loadSync(center: pos, radius: rd)
             t.mesh += t2.mesh
         }

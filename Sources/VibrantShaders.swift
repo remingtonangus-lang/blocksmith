@@ -411,7 +411,10 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
     float3 refr = scene.sample(ls, ruv).rgb;
     if (d1 < 1.0 && u.params.w < 0.5) {
         float3 bed = relAt(ruv, d1, u) + u.eye.xyz;
-        refr += refr * caustic(bed.xz, t) * float3(0.8, 1.0, 0.95) * dot(u.sunColor.rgb, float3(0.3, 0.59, 0.11)) * sunVis * exp(-thick * 0.3) * 1.3;
+        // Caustics need some water above to focus: none at the very surface, strongest 2-3 blocks down (a shipwreck deck
+        // a block under the surface glowed lime with full-strength bands: blind critic, run 395).
+        float focus = smoothstep(0.3, 2.5, thick) * exp(-thick * 0.25);
+        refr += refr * caustic(bed.xz, t) * float3(0.8, 1.0, 0.95) * dot(u.sunColor.rgb, float3(0.3, 0.59, 0.11)) * sunVis * focus * 1.1;
     }
     float3 absorb = exp(-thick * float3(0.42, 0.15, 0.09));
     float3 under = refr * absorb + deep * (1.0 - absorb);
