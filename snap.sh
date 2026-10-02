@@ -124,7 +124,7 @@ done
 "$BIN" --snapshot snaps/forest_nocull.png  --seed 12345 --find forest --yaw 30 --pitch -28 --time 0.22 --up 22 --nocull
 "$BIN" --snapshot snaps/forest_nobase.png  --seed 12345 --find forest --yaw 30 --pitch -28 --time 0.22 --up 22 --nobase
 "$BIN" --snapshot snaps/forest_verify.png  --seed 12345 --find forest --yaw 30 --pitch -28 --time 0.22 --up 22 --verifyworld
-"$BIN" --snapshot snaps/forest_in.png --seed 12345 --find forest --yaw 120 --pitch -5 --time 0.22 --up 1
+"$BIN" --snapshot snaps/forest_in.png --seed 12345 --find forest --yaw 120 --pitch -5 --time 0.22 --ground --up 1   # under the canopy (it stood on the treetops)
 "$BIN" --snapshot snaps/crack.png --seed 12345 --find forest --yaw 120 --pitch -50 --time 0.22 --ground --up 1.6 --crack 0.7
 "$BIN" --snapshot snaps/snowy.png   --seed 12345 --find snowy_taiga --yaw 60 --pitch -25 --time 0.22 --up 20
 for b in desert jungle badlands dark_forest cherry_grove jagged_peaks savanna swamp taiga warm_ocean birch_forest mangrove_swamp; do
