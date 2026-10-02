@@ -119,8 +119,11 @@ enum BigStructures {
             }
             // Room walls: a grid of 8x8 rooms with doorways.
             for k in stride(from: -r + 8, through: r - 8, by: 8) {
-                w.fill(cx + k, fy + 1, cz - r + 1, cx + k, fy + 5, cz + r - 1, pl)
-                w.fill(cx - r + 1, fy + 1, cz + k, cx + r - 1, fy + 5, cz + k, pl)
+                // Pale birch partitions (all-dark-oak rooms read as a black-brown void: blind critic, run 385).
+                w.fill(cx + k, fy + 1, cz - r + 1, cx + k, fy + 4, cz + r - 1, panel)
+                w.fill(cx - r + 1, fy + 1, cz + k, cx + r - 1, fy + 4, cz + k, panel)
+                w.fill(cx + k, fy + 5, cz - r + 1, cx + k, fy + 5, cz + r - 1, pl)
+                w.fill(cx - r + 1, fy + 5, cz + k, cx + r - 1, fy + 5, cz + k, pl)
             }
             for k in stride(from: -r + 4, through: r - 4, by: 8) {
                 for q in stride(from: -r + 8, through: r - 8, by: 8) {
@@ -137,6 +140,7 @@ enum BigStructures {
                 if stairRoom || cellRoom { continue }
                 let x0 = cx + rx, z0 = cz + rz
                 w.set(x0 - 2, fy + 3, z0 - 3, TORCH + 2)                         // on the north wall, facing south
+                w.set(x0, fy + 4, z0, g("lantern[hanging]"))                       // and a lantern from the ceiling
                 let style = Int(hash3(x0, fy, z0, 0x3A75) % 3)
                 for dx in [-3, -2, 2, 3] {
                     if style == 0 { w.fill(x0 + dx, fy + 1, z0 + 3, x0 + dx, fy + 2, z0 + 3, shelf) }
