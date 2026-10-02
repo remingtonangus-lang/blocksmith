@@ -208,6 +208,11 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   `generate_content_free_tier_requests, limit: 0`). Remington notified: enable billing on the key's Google project
   to generate textures. tools/gemini_textures.py now works without GEMINI_API_KEY in the env (proxy header) and
   fails fast on a zero quota. Textures continue procedurally (the HANDOFF's chosen path) until then.
+- 2026-10-02 03:01 UTC: run 346 (8aadc7e): build/smoke green; type-check gate red (new icon UV arrays, split in
+  the next push), bench edit break/place mean 2.3-2.5x (p50 only 1.2x: outliers), playthrough: Blight Star found on
+  the ground 9 blocks below its death spot (harness pickup timing; fixed). collisiontest 17 -> 7, trunk_floating
+  29 -> 11. Run 347 (3692d74): smoke + bench crashed at start-up: the batched texture build read Tex.count before
+  TextureGen.registerAll (array and emissive mask too small); fixed and pushed 03:28 (run 348).
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
