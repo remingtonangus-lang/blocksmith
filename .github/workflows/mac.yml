@@ -6,8 +6,8 @@ name: mac
 #
 # HEAVY lane: every 5th run, any push whose head commit message contains [full], a manual dispatch (full: true) or the
 # nightly schedule (schedules fire only from the default branch's copy of this file). One release build shared as an
-# artifact, then five parallel jobs: smoke test, benchmarks + profile, playthrough + terrain check, snap.sh "checks"
-# (audio, structure walker, gen check, behaviour sim, bots), snap.sh "tours" + "shots". Published to
+# artifact, then six parallel jobs: smoke test, benchmarks + profile, playthrough + terrain check, snap.sh "checks"
+# (audio, structure walker, gen check, behaviour sim, bots), snap.sh "tours", snap.sh "shots". Published to
 # `ci-snaps-<branch>` (runs of claude/eloquent-lovelace-bsc5v1 also update `ci-snaps`).
 on:
   push:
@@ -152,7 +152,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        part: [smoke, perf, play, checks, shots]
+        part: [smoke, perf, play, checks, tours, shots]
     concurrency:
       group: heavy-${{ matrix.part }}-${{ github.ref }}
       cancel-in-progress: false
@@ -227,19 +227,22 @@ jobs:
         run: |
           set -o pipefail
           SNAP_SHARD=checks bash ./snap.sh 2>&1 | tee out/snap_checks.log
-      - name: Snapshots (tours, shots)
+      - name: Snapshots (tours)
+        id: snapt
+        if: matrix.part == 'tours'
+        timeout-minutes: 25
+        run: |
+          set -o pipefail
+          SNAP_SHARD=tours bash ./snap.sh 2>&1 | tee out/snap_tours.log
+      - name: Snapshots (shots)
         id: snaps
         if: matrix.part == 'shots'
-        timeout-minutes: 35
+        timeout-minutes: 30
         run: |
-          set +e -o pipefail
-          SNAP_SHARD=tours bash ./snap.sh 2>&1 | tee out/snap_tours.log; a=${PIPESTATUS[0]}
-          cp snaps/imagecheck.log snaps/imagecheck_tours.log 2>/dev/null || true
-          SNAP_SHARD=shots bash ./snap.sh 2>&1 | tee out/snap_shots.log; b=${PIPESTATUS[0]}
-          cat snaps/imagecheck_tours.log >> snaps/imagecheck.log 2>/dev/null || true
-          [ $a -eq 0 ] && [ $b -eq 0 ]
+          set -o pipefail
+          SNAP_SHARD=shots bash ./snap.sh 2>&1 | tee out/snap_shots.log
       - name: Debug rerun of the failing shot
-        if: failure() && (steps.snapc.outcome == 'failure' || steps.snaps.outcome == 'failure')
+        if: failure() && (steps.snapc.outcome == 'failure' || steps.snapt.outcome == 'failure' || steps.snaps.outcome == 'failure')
         continue-on-error: true
         timeout-minutes: 10
         run: |
@@ -256,7 +259,8 @@ jobs:
         if: always()
         run: |
           cp snaps/*.png out/ 2>/dev/null || true
-          cp snaps/*.md snaps/imagecheck.log snaps/bench.json snaps/profile_*.txt snaps/replay_*.jsonl out/ 2>/dev/null || true
+          cp snaps/*.md snaps/bench.json snaps/profile_*.txt snaps/replay_*.jsonl out/ 2>/dev/null || true
+          cp snaps/imagecheck.log out/imagecheck_${{ matrix.part }}.log 2>/dev/null || true
           if [ -d snaps/sounds ]; then cp -r snaps/sounds out/sounds; fi
           echo "${{ job.status }}" > out/status_${{ matrix.part }}.txt
       - uses: actions/upload-artifact@v4
@@ -284,6 +288,7 @@ jobs:
         run: |
           cd pub
           cat snap_checks.log snap_tours.log snap_shots.log > snap.log 2>/dev/null || true
+          cat imagecheck_*.log > imagecheck.log 2>/dev/null || true
           {
             echo "# Blocksmith CI snapshots (heavy lane)"
             echo
