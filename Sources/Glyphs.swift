@@ -180,12 +180,13 @@ enum Glyphs {
 
     // Key cap behind a label that is `w` screen px wide in total (from capOpen to capClose).
     static func cap(_ x: Float, _ y: Float, _ w: Float, _ u: Float, _ alpha: Float, rect: Rect) {
-        let y0 = y - u
+        // A row of face above the label: its top row sat on the dark edge, so "Tab" read as "Iab" (creative shot, run 362).
+        let y0 = y - 2 * u
         let edge = V4(0.12, 0.12, 0.14, alpha), face = V4(0.9, 0.9, 0.92, alpha), low = V4(0.62, 0.62, 0.66, alpha)
-        rect(x + u, y0, w - 2 * u, 9 * u, edge)
-        rect(x, y0 + u, w, 7 * u, edge)
-        rect(x + u, y0 + u, w - 2 * u, 7 * u, face)
-        rect(x + u, y0 + 7 * u, w - 2 * u, u, low)
+        rect(x + u, y0, w - 2 * u, 10 * u, edge)
+        rect(x, y0 + u, w, 8 * u, edge)
+        rect(x + u, y0 + u, w - 2 * u, 8 * u, face)
+        rect(x + u, y0 + 8 * u, w - 2 * u, u, low)
     }
     static let capInk = V4(0.1, 0.1, 0.12, 1)
 }
