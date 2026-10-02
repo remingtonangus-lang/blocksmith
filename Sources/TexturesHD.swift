@@ -541,10 +541,10 @@ enum HDTex {
         let thin = vnoise(n, max(1, n / 128), s &+ 3)
         for y in 0..<n { for x in 0..<n {
             let i = y * n + x
-            // Straws: the fibre noise stretched 12x down the face, interpolated between its rows (sampling one row per
+            // Straws: the fibre noise stretched down the face, interpolated between its rows (sampling one row per
             // 12 texels left 12-tall blocks), swaying a little, with a finer strand layer over it.
-            let ry: Float = Float(y) / 12
-            let r0 = Int(ry) % n, r1 = (Int(ry) + 1) % n
+            let ry: Float = Float(y) / (fn / 16)                  // 16 rows a tile, wrapping, so the face tiles down
+            let r0 = Int(ry) % 16, r1 = (Int(ry) + 1) % 16
             let fr: Float = ry - floorf(ry)
             let sx = (x + Int(sinf(Float(y) / fn * 2 * .pi) * 2) + n) % n
             let f0: Float = fib[r0 * n + sx], f1: Float = fib[r1 * n + sx]
