@@ -466,11 +466,7 @@ vertex EntOut entityVS(uint vid [[vertex_id]],
 fragment float4 entityFS(EntOut in [[stage_in]],
                          texture2d_array<float> tex [[texture(0)]],
                          constant Uniforms& u [[buffer(1)]]) {
-    // Item sprites a few blocks off sampled their coarse mips and vanished under the alpha test (the armory's framed
-    // guns, and even an apple, drew nothing past ~6 blocks while the same frames 4.5 blocks away showed: harness
-    // probes, run 410): never go past mip 1 here.
-    float lod = min(tex.calculate_clamped_lod(texSampler, in.uv), 1.0);
-    float4 c = tex.sample(texSampler, in.uv, uint(in.layer), level(lod));
+    float4 c = tex.sample(texSampler, in.uv, uint(in.layer));
     if (c.a < 0.5) { discard_fragment(); }
     float3 rgb = c.rgb;
     if (in.overlay > 0.5 && c.a < 0.95) { rgb *= float3(0.57, 0.74, 0.35); }   // grass-side overlay (default grass colour)

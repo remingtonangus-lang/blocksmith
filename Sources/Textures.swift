@@ -1209,12 +1209,17 @@ enum TextureGen {
             for i in 0..<(n * n) where Float(px[i * 4 + 3]) * k >= 127.5 { c += 1 }
             return Float(c) / total
         }
-        var lo: Float = 0.25, hi: Float = 8
+        // Only ever boost. A crisp 0/255 sprite (item art, the cactus side's transparent edge columns) keeps its coverage
+        // exactly at the first mips; searching down from there settled just above k = 0.5, and truncation left every
+        // opaque texel at 127, under the shaders' 0.5 cutoff: whole textures vanished at mips 1-3, i.e. at mid range
+        // (Remington: cacti seen near and far but not between; framed items gone past 6 blocks; mip dump, run 412).
+        if cov(1) >= target { return }
+        var lo: Float = 1, hi: Float = 8
         for _ in 0..<12 {
             let mid: Float = (lo + hi) / 2
             if cov(mid) < target { lo = mid } else { hi = mid }
         }
-        let k: Float = (lo + hi) / 2
-        for i in 0..<(n * n) { px[i * 4 + 3] = UInt8(min(255, Float(px[i * 4 + 3]) * k)) }
+        let k: Float = hi                                   // the end that reaches the target
+        for i in 0..<(n * n) { px[i * 4 + 3] = UInt8(min(255, (Float(px[i * 4 + 3]) * k).rounded())) }
     }
 }
