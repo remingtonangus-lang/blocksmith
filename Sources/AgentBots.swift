@@ -541,7 +541,7 @@ final class CaveBot: AgentBot {
                 }
             } }
             cands.sort { $0.0 < $1.0 }
-            for (_, c) in cands.prefix(10) {
+            for (_, c) in cands.prefix(25) {                 // 10 found none with a way back on two seeds (run 356)
                 let t = V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5)
                 plan(s, a, to: t)
                 guard let last = path.last, abs(last.x - c.x) <= 1 && abs(last.z - c.z) <= 1 && abs(last.y - c.y) <= 1 else { continue }
