@@ -82,7 +82,7 @@ enum Stronghold {
             let cx = ox + k.x * cell, cz = oz + k.z * cell
             if n.kind == .portal { portalAt = IVec3(cx, y, cz) }
             let pseed = seed &+ UInt64(bitPattern: Int64(k.x &* 92821 &+ k.z &* 68917))
-            pieces.append(Piece(min: IVec3(cx - 6, y - 41, cz - 6), max: IVec3(cx + 6, y + 40, cz + 6)) { w in
+            pieces.append(Piece(min: IVec3(cx - 6, y - 11, cz - 6), max: IVec3(cx + 6, y + 40, cz + 6)) { w in      // y range only for checks: writes below it (foundations) still land
                 build(&w, n, cx: cx, cz: cz, y: y, seed: pseed)
             })
         }

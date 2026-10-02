@@ -28,7 +28,7 @@ enum OverworldStructures {
                 return StructureStart(kind: "desert_pyramid", pieces: [piece(x - 11, y - 16, z - 11, x + 11, y + 12, z + 11) { w in desertPyramid(&w, x, y, z, s) }],
                                       anchor: IVec3(x, y + 1, z - 14))
             case .jungle, .bambooJungle, .sparseJungle:
-                return StructureStart(kind: "jungle_temple", pieces: [piece(x - 7, y - 20, z - 8, x + 7, y + 14, z + 8) { w in jungleTemple(&w, x, y, z, s) }],
+                return StructureStart(kind: "jungle_temple", pieces: [piece(x - 7, y - 6, z - 8, x + 7, y + 14, z + 8) { w in jungleTemple(&w, x, y, z, s) }],
                                       anchor: IVec3(x, y + 2, z - 12))
             case .swamp, .mangroveSwamp:
                 return StructureStart(kind: "swamp_hut", pieces: [piece(x - 4, y - 8, z - 5, x + 4, y + 9, z + 5) { w in swampHut(&w, x, max(y, SEA) + 2, z, s) }],
