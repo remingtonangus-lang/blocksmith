@@ -1472,10 +1472,16 @@ final class Renderer: NSObject, MTKViewDelegate {
                 // At TV scales a slightly smaller count covers less of the icon and stays above 14 px at 1080p (the
                 // counts hid half of each hotbar icon: blind critic, tv_hud).
                 var cs: Float = s
-                if s >= 3 { cs = s * 0.8 }
+                if s >= 3 { cs = s * 0.8 } else if s >= 2 { cs = s * 0.85 }
                 let t = "\(st.count)"
                 let tx: Float = x + size - textWidth(t, cs) - cs * 0.5 + s
-                let ty: Float = y + size - 7 * cs + s
+                let ty: Float = y + size - 7 * cs
+                // A dark outline round the digits (white on the grey slot was 3.4:1, under the 4.5:1 the spec asks:
+                // blind critic, inventory); the bottom row no longer runs past the slot.
+                let o: Float = max(1, cs * 0.5)
+                for (ox, oy) in [(-o, 0), (o, 0), (0, -o), (0, o)] as [(Float, Float)] {
+                    text(t, tx + ox, ty + oy, cs, V4(0.1, 0.1, 0.1, 0.85), shadow: false)
+                }
                 text(t, tx, ty, cs)
             }
         }
