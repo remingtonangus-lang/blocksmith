@@ -218,7 +218,7 @@ enum ShipTest {
                              c.pos.x, c.pos.y, c.pos.z, buildMs, w.ships.stepMs, st?.target == nil ? "none" : (st?.target?.player == true ? "player" : "foe")))
             }
             print("ship \(kind): \(w.ships.shells.count) shells in flight")
-            if let f = w.ships.capitals.first {
+            if let f = w.ships.capitals.first(where: { $0.role != "dropship" }) {
                 let big = f.role == "warfrigate"
                 chase(g, f, dist: big ? 230 : 60, height: big ? 70 : 22, side: big ? 0.9 : 0.8)
             }
