@@ -165,6 +165,7 @@ enum Bench {
         var hash: UInt64 = 0xcbf29ce484222325           // FNV-1a over every generated block: flags terrain changes
         WorldGen.timing = true
         for k in 0..<WorldGen.phaseMs.count { WorldGen.phaseMs[k] = 0 }
+        StructureCache.startMs = [:]
         var placeMs: Double = 0
         for i in 0..<24 {
             let cx = i * 7 - 80, cz = (i * 13) % 50 - 25
@@ -189,6 +190,8 @@ enum Bench {
         put("genphase.structures_ms", placeMs / 24)
         parts.append(String(format: "structures %.2f", placeMs / 24))
         print("bench gen phases (ms/chunk): " + parts.joined(separator: ", "))
+        let kinds = StructureCache.startMs.sorted { $0.value > $1.value }.prefix(8).map { String(format: "%@ %.1f", $0.key, $0.value) }
+        print("bench gen structure starts (ms over 24 chunks): " + kinds.joined(separator: ", "))
         put("gen.terrain_hash", Double(hash >> 12))       // 52 bits: exact in a Double
         if let wg = g as? WorldGen {
             var bad = 0

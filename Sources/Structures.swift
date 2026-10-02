@@ -156,7 +156,10 @@ struct StructureType {
 }
 
 final class StructureCache {
-    private var cache: [String: StructureStart?] = [:]
+    private struct StartKey: Hashable { let name: String; let rx: Int; let rz: Int }
+    private var cache: [StartKey: StructureStart?] = [:]
+    // Bench gen: time spent computing structure starts, per kind (ms).
+    static var startMs: [String: Double] = [:]
     private let lock = NSLock()
     let seed: UInt64
     let types: [StructureType]
@@ -167,10 +170,11 @@ final class StructureCache {
 
     // The structure start in the region containing chunk (rx, rz) for a type, if any.
     func start(_ t: StructureType, regionX rx: Int, regionZ rz: Int) -> StructureStart? {
-        let key = "\(t.name):\(rx):\(rz)"
+        let key = StartKey(name: t.name, rx: rx, rz: rz)          // no string built per lookup (several hundred per chunk)
         lock.lock()
         if let c = cache[key] { lock.unlock(); return c }
         lock.unlock()
+        let t0: Double = WorldGen.timing ? CFAbsoluteTimeGetCurrent() : 0
         var rng = SRng(seed &+ UInt64(bitPattern: Int64(rx)) &* 341873128712 &+ UInt64(bitPattern: Int64(rz)) &* 132897987541 &+ t.salt)
         let span = t.spacing - t.separation
         let cx = rx * t.spacing + rng.int(span), cz = rz * t.spacing + rng.int(span)
@@ -178,6 +182,7 @@ final class StructureCache {
         lock.lock()
         cache[key] = s
         if cache.count > 4096 { cache.removeAll() }
+        if WorldGen.timing { StructureCache.startMs[t.name, default: 0] += (CFAbsoluteTimeGetCurrent() - t0) * 1000 }
         lock.unlock()
         return s
     }

@@ -340,8 +340,8 @@ final class WorldGen: TerrainGenerator {
     // Per-phase generation time (bench gen only, single-threaded): columns, stone, surface+water, caves, ores and
     // cave decoration, trees, vegetation and freeze.
     static var timing = false
-    static var phaseMs = [Double](repeating: 0, count: 7)
-    static let phaseNames = ["columns", "stone", "surface", "caves", "ores", "trees", "plants"]
+    static var phaseMs = [Double](repeating: 0, count: 8)
+    static let phaseNames = ["columns", "stone", "surface", "caves", "ores", "trees", "plants", "starts"]
 
     func generate(cx: Int, cz: Int) -> [BlockID] {
         var tp: Double = WorldGen.timing ? CFAbsoluteTimeGetCurrent() : 0
@@ -460,6 +460,9 @@ final class WorldGen: TerrainGenerator {
         clearIsolated(&b, tops)
 
         mark(4)
+        // Structure starts near the chunk (layouts computed on first use; trees keep out of them). Timed on their own:
+        // they were counted as tree time.
+        if WorldGen.timing, let sc = structures { for t in sc.types { _ = sc.startsNear(cx: cx, cz: cz, t) }; mark(7) }
         // 5. Trees and vegetation.
         placeTrees(&b, cx, cz, lat)
         mark(5)

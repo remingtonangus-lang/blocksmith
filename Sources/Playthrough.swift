@@ -1203,7 +1203,9 @@ final class Playthrough {
                 if armoredArrows == 0 { _ = tick(1.5) }                 // let arrows already in flight land first
                 // It regenerates 1 HP/s: back above half health it is unarmoured again (run 350 counted arrows that
                 // hit it at 151-152 HP as bouncing failures). Shoot only while it really wears the armour.
-                if b.health > 150 { continue }
+                // A margin of three: an arrow loosed at 150 HP landed at 151 after a second of regeneration and hit it
+                // unarmoured (run 366: 14 damage from 3 arrows).
+                if b.health > 147 { _ = tick(0.5); continue }                 // (it regenerates past 150, the bow brings it down)
                 let a0 = b.arrowDamage
                 let here = game.player.pos
                 shoot(at: b, from: here)
