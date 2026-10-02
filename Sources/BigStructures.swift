@@ -134,6 +134,11 @@ enum BigStructures {
             // Stairs up the middle.
             if f < 2 { for k in 0..<6 { w.set(cx + 2, fy + 1 + k, cz - 3 + k, stairs + 1); w.fill(cx + 2, fy + 2 + k, cz - 3 + k, cx + 2, fy + 5, cz - 3 + k, AIR) } }
         }
+        // A roof over the second floor's outer ring: the top floor is narrower (16 against 20), so the ring between
+        // them stood open to the sky (blind critic, run 362 mansion: an open channel round the stepped roof).
+        for z in (cz - 20)...(cz + 20) { for x in (cx - 20)...(cx + 20) where max(abs(x - cx), abs(z - cz)) > 16 {
+            w.set(x, y + 12, z, pl)
+        } }
         // Stairwells re-cut after every floor is laid: the next floor's solid floor covered each stair's top, so the
         // upper floors were unreachable on foot (structcheck: 24 of 36 mansion POIs unreachable).
         for f in 0..<2 {
