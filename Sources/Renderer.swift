@@ -2263,6 +2263,9 @@ final class Renderer: NSObject, MTKViewDelegate {
         let order = boxes.sorted { depth($0) < depth($1) }
         let leftC: V4 = full * V4(0.78, 0.78, 0.78, 1), rightC: V4 = full * V4(0.6, 0.6, 0.6, 1)
         let leafy = Blocks.key(Blocks.groupBase[Int(id)]).hasSuffix("leaves")
+        // Glass is nearly all clear: a faint pale-blue body behind its frame, or the icon read as an empty outline
+        // (blind critic, tv_hud).
+        let glassy = Blocks.key(Blocks.groupBase[Int(id)]).contains("glass") && !Blocks.opaque[Int(id)]
         let backC: V4 = full * V4(0.38, 0.38, 0.38, 1)
         for b in order {
             let lo: V3 = b.minV, hi: V3 = b.maxV
@@ -2275,6 +2278,11 @@ final class Renderer: NSObject, MTKViewDelegate {
             let lu: [V2] = [V2(lo.x, tl), V2(hi.x, tl), V2(hi.x, bl), V2(lo.x, bl)]
             let rp0: [V2] = [P(hi.x, hi.y, hi.z), P(hi.x, hi.y, lo.z), P(hi.x, lo.y, lo.z), P(hi.x, lo.y, hi.z)]
             let tp0: [V2] = [P(lo.x, hi.y, lo.z), P(hi.x, hi.y, lo.z), P(hi.x, hi.y, hi.z), P(lo.x, hi.y, hi.z)]
+            if glassy {
+                let zero = [V2](repeating: .zero, count: 4)
+                let gc = V4(0.78, 0.88, 0.95, 0.28)
+                quad(lp, zero, gc * V4(0.85, 0.85, 0.85, 1), -1); quad(rp0, zero, gc * V4(0.7, 0.7, 0.7, 1), -1); quad(tp0, zero, gc, -1)
+            }
             if leafy {
                 // Leaves are cutout: a dark foliage backing so the icon reads as a solid bush, not a sieve.
                 let zero = [V2](repeating: .zero, count: 4)
