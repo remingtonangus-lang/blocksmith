@@ -328,6 +328,9 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   type-check warnings only, one 16 px snapshot -> ci-fast-<branch>); heavy lane every 5th run / [full] / dispatch /
   nightly, release build artifact + 5 parallel jobs -> ci-snaps-<branch>. Gemini textures: chat-Claude uploads
   assets/gemini/<name>.png per docs/texture_requests.md (66 names, 4 tiers); tools/gemini_import.sh imports them.
+- 2026-10-02 19:20 UTC: first heavy lanes: run 377 (75e72af) 21.5 min wall, run 380 (f0d1d2f) all green (gen 2.08
+  ms/chunk, playthrough 0 failed). Fast lane 1.9-2.6 min. Since: wide-mob spawns, mineshaft ends boarded, lava springs,
+  mansion furniture + interior shot, snow clumps, village terraces, two type-check batches; run 385 is the next heavy.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
