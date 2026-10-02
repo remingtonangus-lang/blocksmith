@@ -139,8 +139,10 @@ enum Capital {
         let zf = Float(z)
         func lerp(_ a: Float, _ b: Float, _ t: Float) -> Float { a + (b - a) * max(0, min(1, t)) }
         if z < 100 {
-            let f: Float = min(1, (zf + 6) / 22)
-            return (24 + 20 * f, 22 - 12 * f, 70 + 18 * f)
+            // The prow: a long chisel wedge (the top slopes down over 45 blocks to the brow over the rail-cannon
+            // muzzle, the chin rises over 30, the flanks draw in over 35), not a flat-faced box.
+            let ft: Float = min(1, zf / 45), fb: Float = min(1, zf / 30), fw: Float = min(1, zf / 35)
+            return (26 + 18 * fw * (2 - fw), 22 - 12 * fb, 68 + 20 * ft * (2 - ft))
         }
         if z < 140 { let t: Float = (zf - 100) / 40; return (lerp(44, 30, t), lerp(10, 20, t), lerp(88, 72, t)) }
         if z < 360 { return (30, 20, 72) }
@@ -164,6 +166,12 @@ enum Capital {
         if z >= 296 && z <= 336 && abs(x) <= 10 && yf > yt - 1 && y <= 90 {
             if Float(z - 296) >= Float(y - 72) * 0.5 { return true }
         }
+        // Drive nacelles bulging from the aft flanks, and a dorsal spine ridge along the midships.
+        if z >= 386 && z <= 470 && ax <= 48 && y >= 22 && y <= 50 {
+            let cut: Float = Float(max(0, 392 - z)) * 1.2
+            if ax <= 48 - cut { return true }
+        }
+        if z >= 140 && z <= 296 && abs(x) <= 5 && yf > yt - 1 && yf <= yt + 3 - Float(abs(x)) * 0.5 { return true }
         // Armour skirts along the flanks (tapered at both ends).
         if y >= 40 && y <= 42 && z >= 150 && z <= 350 {
             let taper: Float = min(Float(z - 150), Float(350 - z)) / 3
@@ -193,9 +201,12 @@ enum Capital {
                 else if hashf(z / 8, y / 5, x / 8, 0x5A1) < 0.12 { b = panel }
                 if y == Int(yt) - 6 || y == 41 { b = stripe }
                 let flank: Bool = Float(abs(x)) >= hw - 0.5
-                if flank && (y == 30 || y == 34 || y == 50 || y == 54 || y == 66) && z % 4 == 1 && z > 20 && z < 470 && !(y < 43 && z >= 213 && z <= 293) {
-                    b = light
-                }
+                // Windows only where people live: two rows along the habitation decks midships, one under the
+                // bridge, the engineering gallery aft (rows the whole length lit like a liner: run 404 shots).
+                let habit: Bool = (y == 50 || y == 54) && z > 140 && z < 360 && z % 5 == 1
+                let under: Bool = y == 66 && z > 270 && z < 350 && z % 3 == 1
+                let aft: Bool = y == 56 && z > 392 && z < 466 && z % 6 == 1
+                if flank && (habit || under || aft) { b = light }
                 hb.set(x, y, z, b)
             } }
         }
@@ -258,7 +269,7 @@ enum Capital {
         // Turrets: six dorsal, six ventral, four on the flank skirts.
         for z in [34, 72, 170, 215, 262, 405] {
             let (_, _, yt) = frigateSection(z)
-            var top = Int(yt)
+            var top = Int(yt) + 4                                   // over the dorsal spine where it runs
             while top > 0 && !frigateInside(0, top, z) { top -= 1 }
             hb.set(0, top, z, Blocks.id("ship_turret_ring"))
             hb.turrets.append((hb.grid(0, top, z), navalTurret(hang: false, size: 4), naval))
