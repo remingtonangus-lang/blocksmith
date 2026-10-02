@@ -129,6 +129,15 @@ extension Game {
         // Vessels (the flying frigate, the siege carriage) are heard from far off while they run.
         for s in list where s.isVessel && s.parent == nil {
             let d = simd_length(s.pos - eye)
+            // Capital ships: heard from much further, from the nearest point of the hull (a 480-block frigate's
+            // centre can be far off while its bow passes overhead).
+            if s.kinematic && !s.wrecked {
+                let c = simd_clamp(eye, s.worldMin, s.worldMax)
+                let dc = simd_length(c - eye)
+                if s.role == "warfrigate" && dc < 400 { ask("vessel\(s.id)", .frigateDroneLoop, 1.0, c) }
+                if s.role == "crawler" && dc < 220 { ask("vessel\(s.id)", .carriageTreadLoop, 1.0, c) }
+                continue
+            }
             if s.role == "frigate" && d < 180 && !s.grounded {
                 ask("vessel\(s.id)", .frigateDroneLoop, 0.9, s.pos)
             } else if s.role == "carriage" && d < 110 && (simd_length(s.vel) > 0.3 || s.autopilot != nil || s.piloted) {
