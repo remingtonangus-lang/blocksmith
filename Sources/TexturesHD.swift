@@ -574,7 +574,8 @@ enum HDTex {
     // curving with its own lean, darker at the base, lit from the left. Lengths are in tiles (1 = one block); a tall
     // plant's top half draws the same blades (fixed salt) from height 1 up, so they continue across the seam. Ferns:
     // fronds arching out from the centre with alternating leaflets.
-    static func blades(salt: Int, count: Int, len lmin: Float, _ lmax: Float, from y0: Float = 0, fern: Bool = false) -> Gen {
+    static func blades(salt: Int, count: Int, len lmin: Float, _ lmax: Float, from y0: Float = 0, fern: Bool = false,
+                       lean leanAmt: Float = 0.9, colour: UInt32? = nil) -> Gen {
         { n, _ in
             let fn = Float(n)
             var img = Img(n, V4(0, 0, 0, 0))
@@ -588,7 +589,7 @@ enum HDTex {
                 func r(_ k: Int) -> Float { h2(b, k, salt) }
                 let bx: Float = fern ? fn / 2 + (r(0) - 0.5) * fn * 0.3 : (Float(b) + r(0)) / Float(count) * fn
                 let len: Float = (lmin + (lmax - lmin) * r(1)) * fn
-                let lean: Float = (r(2) - 0.5) * (fern ? 3.6 : 0.9)
+                let lean: Float = (r(2) - 0.5) * (fern ? 3.6 : leanAmt)
                 let w0: Float = fern ? fn / 64 : fn / 26 * (0.7 + 0.6 * r(3))
                 let tone: Float = (r(4) - 0.5) * 0.16
                 for yy in 0..<n {
@@ -627,8 +628,74 @@ enum HDTex {
                     hh += step; k += 1
                 }
             }
+            if let c = colour {
+                // Untinted plants (seagrass): the grey ramp coloured around this colour.
+                let k: V3 = col(c) / 0.7
+                for i in 0..<(n * n) { let p = img.px[i]; img.px[i] = V4(p.x * k.x, p.y * k.y, p.z * k.z, p.w) }
+            }
             return img
         }
+    }
+
+    // Kelp (cutout, tiles vertically: kelp stacks): a gently waving stalk with three broad leaves per block on
+    // alternating sides, each lit along its midrib.
+    static func kelpHD(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n)
+        var img = Img(n, V4(0, 0, 0, 0))
+        let dark = col(0x3A6418), light = col(0x6E9E30)
+        func cx(_ y: Float) -> Float { fn / 2 + sinf(y / fn * 2 * .pi) * fn / 24 }
+        for i in 0..<3 {
+            let side: Float = i % 2 == 0 ? 1 : -1
+            let by: Float = (Float(i) + 0.5) * fn / 3
+            let len: Float = fn * 0.34, wid: Float = fn * 0.09
+            let ang: Float = -.pi / 2 + side * 0.9
+            let ox: Float = cx(by) + cosf(ang) * len * 0.5, oy: Float = by + sinf(ang) * len * 0.5
+            let ca = cosf(ang), sa = sinf(ang)
+            for y in Int(oy - len)...Int(oy + len) { for x in Int(ox - len)...Int(ox + len) {
+                let dx: Float = Float(x) + 0.5 - ox, dy: Float = Float(y) + 0.5 - oy
+                let u: Float = (dx * ca + dy * sa) / (len * 0.5), v: Float = (-dx * sa + dy * ca) / wid
+                let edge: Float = 1 - u * u
+                guard edge > 0, abs(v) < edge.squareRoot() else { continue }
+                let k: Float = 0.45 + 0.4 * (1 - abs(v)) + 0.1 * u
+                let c: V3 = dark + (light - dark) * k
+                img[x, y] = V4(c.x, c.y, c.z, 1)
+            } }
+        }
+        let w: Float = fn / 22
+        for y in 0..<n {
+            let c0: Float = cx(Float(y))
+            for x in Int(c0 - w)...Int(c0 + w) {
+                let u: Float = (Float(x) + 0.5 - c0) / w
+                guard abs(u) <= 1 else { continue }
+                let k: Float = 0.55 - 0.35 * u
+                let c: V3 = dark + (light - dark) * k
+                img[x, y] = V4(c.x, c.y, c.z, 1)
+            }
+        }
+        return img
+    }
+
+    // Sugar cane (cutout, greyscale for the tint, tiles vertically): three round stalks with darker joints and a
+    // pale band above each, lit from the left.
+    static func caneHD(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n)
+        var img = Img(n, V4(0, 0, 0, 0))
+        for (i, xc) in [Float(0.24), 0.58, 0.84].enumerated() {
+            let w: Float = fn / 15 * (i == 1 ? 1.15 : 0.95)
+            let off: Float = h2(i, 1, 77) * fn
+            for y in 0..<n {
+                let seg: Float = (Float(y) + off).truncatingRemainder(dividingBy: fn / 2) / (fn / 2)
+                var k: Float = 0.82
+                if seg < 0.05 { k = 0.58 } else if seg < 0.11 { k = 0.95 }
+                for x in Int(xc * fn - w)...Int(xc * fn + w) {
+                    let u: Float = (Float(x) + 0.5 - xc * fn) / w
+                    guard abs(u) <= 1 else { continue }
+                    let v: Float = k * (0.92 - 0.18 * u) * (0.97 + 0.06 * h2(x, y / 6, 78))
+                    img[x, y] = V4(v, v, v, 1)
+                }
+            }
+        }
+        return img
     }
 
     // Flower sprites (cutout): a slightly swaying stem, two lance leaves at the base and a head by kind: ring (petals
@@ -1249,6 +1316,9 @@ enum HDTex {
         "lily_of_the_valley": flowerHD(0xF8F8F8, 0xE8F0E0, .bells, top: 6, size: 1.8, salt: 444),
         "blue_orchid": flowerHD(0x2AA8F0, 0x1A78C8, .ring, top: 5, size: 2.8, salt: 446),
         "short_grass": blades(salt: 101, count: 26, len: 0.3, 0.9),
+        "seagrass": blades(salt: 105, count: 12, len: 0.55, 1.0, lean: 1.6, colour: 0x3A8A2A),
+        "kelp": kelpHD,
+        "sugar_cane": caneHD,
         "tall_grass_bottom": blades(salt: 102, count: 14, len: 1.3, 1.9),
         "tall_grass_top": blades(salt: 102, count: 14, len: 1.3, 1.9, from: 1),
         "fern": blades(salt: 103, count: 7, len: 0.55, 0.95, fern: true),
