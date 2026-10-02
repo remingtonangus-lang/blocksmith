@@ -9,7 +9,7 @@ import simd
 //   stuck          wants to move (moving) but covers < 0.5 blocks in 10 s while away from its goal
 //   spinning       turns > 2 full circles in 10 s while covering < 1.5 blocks
 //   jitter         reverses direction > 12 times in 10 s
-//   fell           drops more than 6 blocks
+//   fell           lands more than 4.5 blocks below where it last stood (not swimming or flying)
 //   strayed        a villager ends up > 48 blocks from home
 // and every villager is scored on its schedule goals: its job site during work hours, the bell at meeting time
 // and its bed at night (never within 2 blocks during that phase = goal_missed, with the closest distance).
@@ -24,6 +24,7 @@ enum BehaviorSim {
         var reversals = 0
         var wallSeconds = 0
         var startY: Float
+        var groundY: Float?                   // feet height when last standing (falls are ground-to-ground drops)
         var flags: [String: Int] = [:]
         var best: [String: Float] = [:]       // phase -> closest distance to its goal
         var seen: Set<String> = []            // phases it was alive for (with a goal)
@@ -150,7 +151,12 @@ enum BehaviorSim {
             t.yawSum = 0; t.reversals = 0
             t.window.removeAll(keepingCapacity: true)
         }
-        if t.startY - p.y > 6 { t.flags["fell", default: 0] = 1 }
+        // A fall: landing more than 4.5 blocks below where it last stood (swimmers and fliers don't fall).
+        let wet = Blocks.isLiquid(w.block(Int(floor(p.x)), Int(floor(p.y + 0.2)), Int(floor(p.z))))
+        if wet || m.spec.flying { t.groundY = nil } else if m.onGround {
+            if let g = t.groundY, g - p.y > 4.5 { t.flags["fell", default: 0] += 1 }
+            t.groundY = p.y
+        }
         if m.kind == .villager, let h = m.home, simd_length(V2(h.x - p.x, h.z - p.z)) > 48 { t.flags["strayed", default: 0] = 1 }
         // Schedule goals (villagers).
         if m.kind == .villager, phase != "free", let goal = goalPoint(m, phase) {
