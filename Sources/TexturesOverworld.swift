@@ -106,8 +106,11 @@ extension TextureGen {
         func iceP(_ c: UInt32, _ salt: Int) -> Painter {
             { x, y in
                 var k: Float = 0.94 + (blot(x, y, salt, 4) - 0.5) * 0.14 + (r(x, y, salt + 1) - 0.5) * 0.05
-                let f1 = abs(Float(x) - Float(y) * 0.6 - 4 + sinf(Float(y) * 0.8) * 1.2) < 0.55
-                let f2 = abs(Float(y) - Float(x) * 0.35 - 9) < 0.5 && x > 4
+                let w1: Float = sinf(Float(y) * 0.8) * 1.2
+                let e1: Float = Float(x) - Float(y) * 0.6 - 4 + w1
+                let f1 = abs(e1) < 0.55
+                let e2: Float = Float(y) - Float(x) * 0.35 - 9
+                let f2 = abs(e2) < 0.5 && x > 4
                 if f1 || f2 { k += 0.16 }
                 if r(x, y, salt + 2) > 0.985 { k += 0.25 }
                 return hex(c, k)

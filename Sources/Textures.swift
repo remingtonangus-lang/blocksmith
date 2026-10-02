@@ -632,7 +632,8 @@ enum TextureGen {
         }
         p["ancient_debris_top"] = { x, y in
             let dx = Float(x) - 7.5, dy = Float(y) - 7.5
-            return hex((dx * dx + dy * dy) < 20 ? 0x6E5650 : 0x4E3E3A, 0.85 + 0.2 * r(x, y, 176))
+            let d2 = dx * dx + dy * dy
+            return hex(d2 < 20 ? 0x6E5650 : 0x4E3E3A, 0.85 + 0.2 * r(x, y, 176))
         }
         p["soul_sand"] = { x, y in
             let face = ((x % 8 == 2 || x % 8 == 5) && (y % 8 == 3)) || (x % 8 == 3 && y % 8 == 5) || (x % 8 == 4 && y % 8 == 5)

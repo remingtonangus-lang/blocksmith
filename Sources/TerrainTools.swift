@@ -79,7 +79,8 @@ enum TerrainTools {
             for col in 0..<n {
                 let i = row * n + col
                 let hx = (hs[row * n + min(n - 1, col + 1)] - hs[row * n + max(0, col - 1)]) / Float(2 * step)
-                let hz = (hs[min(n - 1, row + 1) * n + col] - hs[max(0, row - 1) * n + col]) / Float(2 * step)
+                let zi1: Int = min(n - 1, row + 1) * n + col, zi0: Int = max(0, row - 1) * n + col
+                let hz: Float = (hs[zi1] - hs[zi0]) / Float(2 * step)
                 let nl = (hx * hx + hz * hz + 1).squareRoot()
                 let dot = (-hx * lx - hz * ly + lz) / (nl * ll)
                 let shade = max(0.2, min(1.3, 0.25 + dot))

@@ -2187,7 +2187,8 @@ enum HDTex {
                     for row in 0..<2 {
                         let ry: Float = ty + Float(row) * fn * 0.045
                         for k in 0..<count {
-                            let f: Float = (Float(k) + 0.5 * Float(row) + 0.25) / Float(count) * 2 - 1
+                            let fk: Float = Float(k) + 0.5 * Float(row) + 0.25
+                            let f: Float = fk / Float(count) * 2 - 1
                             let x0: Float = fn / 2 + f * half
                             let droop: Float = 0.35 + 0.3 * abs(f)
                             let ang: Float = f > 0 ? droop : Float.pi - droop

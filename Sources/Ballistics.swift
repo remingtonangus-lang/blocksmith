@@ -461,7 +461,8 @@ extension Game {
         particles.add(Particle(pos: flash, vel: look * 0.5, life: 0.05, maxLife: 0.05, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
                                size: gs.shot == .beam ? 0.12 : 0.16, gravity: 0, color: gs.shot == .beam ? V3(0.8, 2, 2.4) : V3(2.4, 1.7, 0.6),
                                collide: false, glow: true))
-        if gs.shot == .rocket { for _ in 0..<6 { particles.smoke(at: player.eye - look * 0.6 + right * 0.2, dark: false) } }
+        let smokeAt: V3 = player.eye - look * 0.6 + right * 0.2
+        if gs.shot == .rocket { for _ in 0..<6 { particles.smoke(at: smokeAt, dark: false) } }
     }
 
     // Per-frame: rounds in flight, recoil recovery, timers.

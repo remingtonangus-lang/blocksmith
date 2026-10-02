@@ -259,7 +259,8 @@ final class MusicRenderer {
     init(sampleRate: Float = Float(SoundBank.rate)) {
         sr = sampleRate
         let lens = [1557, 1617, 1491, 1422, 1277, 1356]
-        combs = lens.map { [Float](repeating: 0, count: Int(Float($0) * sampleRate / 44100)) }
+        let rate: Float = Float(sampleRate) / 44100
+        combs = lens.map { (l: Int) -> [Float] in [Float](repeating: 0, count: Int(Float(l) * rate)) }
         combIdx = [Int](repeating: 0, count: lens.count)
         combLP = [Float](repeating: 0, count: lens.count)
     }

@@ -327,7 +327,8 @@ extension Game {
             guard let c = d.healTarget else { continue }
             let a = c.pos + V3(0, 1.25, 0) - eye, b = d.pos + V3(0, 2.5, 0) - eye
             let dir = simd_normalize(b - a)
-            var side = simd_cross(dir, simd_normalize(-(a + b) * 0.5))
+            let mid: V3 = (a + b) * -0.5
+            var side = simd_cross(dir, simd_normalize(mid))
             if simd_length(side) < 1e-3 { side = V3(1, 0, 0) }
             side = simd_normalize(side) * 0.12
             wr.quad([a - side, b - side, b + side, a + side], [V2(0.4, 0.4), V2(0.6, 0.4), V2(0.6, 0.6), V2(0.4, 0.6)],

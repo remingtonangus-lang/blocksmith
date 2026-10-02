@@ -129,7 +129,8 @@ extension Mob {
         let len = simd_length(d)
         if len > 10 { breakLeash(g); return }
         if len > 6 {
-            let pull = d / len * (len - 6) * 6
+            let k: Float = (len - 6) * 6 / len
+            let pull = d * k
             vel.x += pull.x * dt * 4
             vel.z += pull.z * dt * 4
             if spec.flying || spec.aquatic { vel.y += pull.y * dt * 4 }
