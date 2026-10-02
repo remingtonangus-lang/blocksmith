@@ -232,6 +232,9 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   ran long (the menu tour left the game unpaused with the pause menu open, so the scripted resume paused it again: fixed).
   Pushed b299d49 (run 352) with those fixes, HD torches/doors/trapdoors/ladder/crafting table/furnace/water/crops,
   shared detail-noise fields (start-up cost) and the villager local-stroll fix.
+- 2026-10-02 05:12 UTC: cancelling run 351 didn't stop it (every step was `if: always()`, which also runs after a cancel),
+  so it held the queue ~20 more minutes; steps now use `!cancelled()`. Pushed 29ae5ad (supersedes the queued 352):
+  life and cave bots, HD rails, run-351 fixes.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
