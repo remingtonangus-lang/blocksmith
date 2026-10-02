@@ -429,6 +429,18 @@ enum StructCheck {
                         let py: Int = y - YOFF, x0: Int = x - 7, z0: Int = z - 5
                         print("structcheck map \(kind) \(x) \(py) \(z) (columns from x \(x0), rows from z \(z0)):")
                         for r in rows { print("  |\(r)|") }
+                        // What closes the room: the first blocking cell each way from the POI (feet / head blocks).
+                        var walls: [String] = []
+                        for (dx, dz, nm) in [(1, 0, "+x"), (-1, 0, "-x"), (0, 1, "+z"), (0, -1, "-z")] {
+                            for d in 1...12 {
+                                let fb = w.block(x + dx * d, y, z + dz * d), hb = w.block(x + dx * d, y + 1, z + dz * d)
+                                if Blocks.collide[Int(fb)] || Blocks.collide[Int(hb)] {
+                                    walls.append("\(nm) at \(d): \(Blocks.key(fb))/\(Blocks.key(hb))"); break
+                                }
+                            }
+                        }
+                        let ax = s.anchor.x, az = s.anchor.z
+                        print("  closed by: \(walls.joined(separator: "; ")) (structure anchor \(ax) \(az))")
                         let ddx = Float(x - best.x), ddz = Float(z - best.z)
                         let yawD: Float = atan2f(-ddx, -ddz) * 180 / Float.pi
                         let dimArg = w.dim == .overworld ? "" : " --dim \(w.dim.rawValue)"
