@@ -238,7 +238,10 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
     float blk0 = blkL / (4.0 - 3.0 * blkL);
     float inv = 1.0 - blk0;
     float blk = min(1.0, mix(blk0, 1.0 - inv * inv * inv * inv, 0.6) * 1.05);
-    float3 blkPart = blk * float3(1.0, 0.82, 0.6) * 1.1 * mix(0.75, 1.0, in.ao);
+    // Warm at the edge of a light's reach, near white right next to it (a constant warm cast turned glow-berry-lit
+    // lush-cave stone brown like bark: eyes-on, run 370).
+    float3 blkTint = mix(float3(1.0, 0.8, 0.57), float3(1.0, 0.94, 0.84), blk * blk);
+    float3 blkPart = blk * blkTint * 1.1 * mix(0.75, 1.0, in.ao);
     if (blk > 0.01) {
         // Fire-lit areas flicker gently (slow per-area phase so neighbouring blocks move together).
         float3 cellp = floor((in.rel + u.eye.xyz) / 6.0);
