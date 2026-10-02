@@ -264,7 +264,7 @@ enum Village {
         let clear = [Kind.farm, .pen].contains(l.kind) ? 3 : (l.kind == .temple ? 14 : (l.kind == .bigHouse ? 13 : 9))
         for v in 0..<l.d { for u in 0..<l.w {
             let (x, z) = world(l, u, v)
-            w.pillarDown(x, l.y - 1, z, m.foundation, minY: l.y - 24)      // over deeper caves too (structcheck floating)
+            w.pillarDown(x, l.y - 1, z, m.foundation, minY: l.y - 40)      // over deeper caves too (structcheck floating; 24 left 6-8 columns, run 357)
             for dy in 0...clear where w.inside(x, l.y + dy, z) && w.get(x, l.y + dy, z) != AIR { w.set(x, l.y + dy, z, AIR) }
         } }
     }
@@ -430,7 +430,7 @@ enum Village {
     static func meetingPoint(_ w: inout StructWriter, _ ox: Int, _ y: Int, _ oz: Int, _ m: Mats, _ style: Style) {
         // Plaza of path blocks with a well in the middle and a bell beside it.
         for dz in -4...4 { for dx in -4...4 {
-            w.pillarDown(ox + dx, y - 1, oz + dz, m.foundation, minY: y - 6)
+            w.pillarDown(ox + dx, y - 1, oz + dz, m.foundation, minY: y - 24)
             w.set(ox + dx, y, oz + dz, m.path)
             for k in 1...6 where w.get(ox + dx, y + k, oz + dz) != AIR { w.set(ox + dx, y + k, oz + dz, AIR) }
         } }

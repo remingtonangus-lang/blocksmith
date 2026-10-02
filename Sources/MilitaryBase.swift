@@ -173,12 +173,12 @@ enum MilitaryBase {
         // Apron: cleared, levelled ground around the walls; a plated road to the gate.
         let A = R + 9
         w.fill(X(-A), y0 + 1, Z(-A), X(A), y0 + 30, Z(A), AIR)
-        for dz in -A...A { for dx in -A...A where abs(dx) > R + T || abs(dz) > R + T { w.pillarDown(X(dx), y0, Z(dz), DIRT, minY: y0 - 24) } }   // 12 left the apron edge hanging over dips (structcheck floating 31-36 columns)
+        for dz in -A...A { for dx in -A...A where abs(dx) > R + T || abs(dz) > R + T { w.pillarDown(X(dx), y0, Z(dz), DIRT, minY: y0 - 48) } }   // 12, then 24, left the apron edge hanging over dips and ravines (structcheck floating 27-36 columns)
         w.fill(X(-A), y0, Z(-A), X(A), y0, Z(A), gravel)
         w.fill(X(-3), y0, Z(R), X(3), y0, Z(A), F)
         for k in stride(from: R + 2, through: A, by: 3) { w.set(X(-4), y0, Z(k), Hz); w.set(X(4), y0, Z(k), Hz) }
         // Foundations under the whole footprint.
-        for dz in -(R + T)...(R + T) { for dx in -(R + T)...(R + T) { w.pillarDown(X(dx), yB - 1, Z(dz), P, minY: yB - 24) } }
+        for dz in -(R + T)...(R + T) { for dx in -(R + T)...(R + T) { w.pillarDown(X(dx), yB - 1, Z(dz), P, minY: yB - 48) } }
         // Main block: solid steel, then hollow levels.
         w.fill(X(-R), yB - 1, Z(-R), X(R), yR, Z(R), P)
         for (floorY, top) in [(yB, y0 - 1), (y0, yU - 1), (yU, yR - 1)] {
