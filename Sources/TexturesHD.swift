@@ -2238,9 +2238,10 @@ enum HDTex {
                             let iris: V3 = col(0x3E9A5A) * (1.15 - 0.5 * d)
                             let pupil: Bool = ax < 0.9 * Float(u) && ay < 2.6 * Float(u)
                             c = pupil ? col(0x0E2A12) : iris
-                            let lim: Float = fn / 2 - Float(u)
-                            let upLeft: Bool = Float(x) < lim && Float(y) < lim
-                            if upLeft && d < 0.45 { c = V3(0.75, 0.95, 0.8) }                     // glint
+                            let gx: Float = Float(x) + 0.5 - (fn / 2 - 1.6 * Float(u))
+                            let gy: Float = Float(y) + 0.5 - (fn / 2 - 1.6 * Float(u))
+                            let glintR: Float = 0.6 * Float(u)
+                            if gx * gx + gy * gy < glintR * glintR { c = V3(0.8, 0.97, 0.85) }      // glint
                         }
                     }
                     img.px[i] = V4(c.x, c.y, c.z, 1)
