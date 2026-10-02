@@ -157,7 +157,7 @@ enum Guns {
     static func writeFirstPerson(_ gi: Int, aim: Float, kick: Float, lower: Float, bob: V3, light: Float,
                                  into out: UnsafeMutablePointer<MobVert>) -> Int {
         let CT = Mesher.cornerTable
-        let hip = V3(0.2, -0.2, -0.5), ads = V3(0, -0.05, -0.46)
+        let hip = V3(0.2, -0.2, -0.5), ads = V3(0, -0.085, -0.44)   // a little below the line of sight: the top and barrel show (at -0.05 only the stock's back face did: critic, run 385 gun_aim)
         let sway: V3 = bob * (1 - aim * 0.8)
         let recoil = V3(0, 0.012 * kick - 0.25 * lower, 0.06 * kick)
         let at: V3 = hip + (ads - hip) * aim + sway + recoil

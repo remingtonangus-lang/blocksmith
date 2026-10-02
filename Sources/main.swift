@@ -1054,6 +1054,21 @@ enum Snapshot {
             let le = world.lightAt(ex, ey, ez), lf = world.lightAt(ex, fy, ez)
             print("light probe: eye sky \(le.sky) block \(le.block) in \(Blocks.key(world.block(ex, ey, ez))); floor+1 (y \(fy - YOFF)) sky \(lf.sky) block \(lf.block) in \(Blocks.key(world.block(ex, fy, ez))), daylight \(game.daylight)")
         }
+        if CommandLine.arguments.contains("--listframes") {
+            // Item frames within 16 blocks: block state and what they hold (the armory's gun racks drew empty: critic run 385).
+            let e = game.player.eye
+            var n = 0
+            for (p, be) in world.blockEntities where be.kind == .frame {
+                let d = simd_length(V3(Float(p.x), Float(p.y), Float(p.z)) - e)
+                guard d < 16, n < 12 else { continue }
+                n += 1
+                let b = world.block(p.x, p.y, p.z)
+                let it = be.container[0]
+                let layer = it.isEmpty ? -1 : (Items.texLayer(it.item) ?? -2)
+                print("frame at \(p.x) \(p.y - YOFF) \(p.z): \(Blocks.key(b)), item \(it.isEmpty ? "none" : Items.key(it.item)) layer \(layer)")
+            }
+            print("frames listed: \(n) (block entities \(world.blockEntities.count))")
+        }
         if CommandLine.arguments.contains("--inlava") {
             // Lava view check: the camera inside a 5x4x5 lava pool (orange fog + overlay, not the underwater view).
             let e = game.player.eye

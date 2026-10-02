@@ -267,7 +267,7 @@ done
 "$BIN" --snapshot snaps/gun_scope.png --seed 12345 --find plains --yaw 30 --pitch -5 --time 0.3 --up 1 --survival 20 --hold gun_sniper:aim
 "$BIN" --snapshot snaps/steelhold.png --seed 12345 --structure military_base --frame 1 --time 0.3
 "$BIN" --snapshot snaps/steelhold_gate.png --seed 12345 --structure military_base --yaw 0 --pitch 5 --time 0.3 --up 1
-"$BIN" --snapshot snaps/steelhold_armory.png --seed 12345 --structure military_base --offset 14,0,-60 --yaw 0 --pitch 0 --time 0.3
+"$BIN" --snapshot snaps/steelhold_armory.png --seed 12345 --structure military_base --offset 14,0,-60 --yaw 0 --pitch 0 --time 0.3 --listframes
 "$BIN" --snapshot snaps/steelhold_fight.png --seed 12345 --structure military_base --offset 14,0,-60 --yaw 0 --pitch 0 --time 0.3 --fortresstest 20
 "$BIN" --snapshot snaps/steelhold_command.png --seed 12345 --structure military_base --offset 0,6,-33 --yaw 0 --pitch -15 --time 0.3
 "$BIN" --snapshot snaps/mobtests.png --seed 12345 --find plains --yaw 0 --pitch -30 --time 0.3 --up 3 --mobtests
