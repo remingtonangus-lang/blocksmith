@@ -317,23 +317,28 @@ enum OverworldStructures {
 
     static func mineshaftLayout(_ rng: inout SRng, _ ox: Int, _ oy: Int, _ oz: Int, mesa: Bool) -> StructureStart {
         // Random corridor tree from a central room: corridors are 3 wide, 3 tall, 5-block support spacing.
-        struct Seg { let x: Int; let y: Int; let z: Int; let dx: Int; let dz: Int; let len: Int }
+        // `from`: the floor height where the segment joins its parent; the first blocks ramp from there to `y` one
+        // block per step (a branch 2-4 blocks higher or lower joined with a wall or a pit: structcheck poi_unreachable).
+        struct Seg {
+            let x: Int; let y: Int; let z: Int; let dx: Int; let dz: Int; let len: Int; let from: Int
+            func floor(_ k: Int) -> Int { y == from ? y : from + (y > from ? 1 : -1) * min(k + 1, abs(y - from)) }
+        }
         var segs: [Seg] = []
-        var frontier: [(Int, Int, Int, Int, Int)] = []
-        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] { frontier.append((ox + dx * 4, oy, oz + dz * 4, dx, dz)) }
+        var frontier: [(Int, Int, Int, Int, Int, Int)] = []
+        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] { frontier.append((ox + dx * 4, oy, oz + dz * 4, dx, dz, oy)) }
         var n = 0
         while let f = frontier.popLast(), n < 26 {
             n += 1
             let len = rng.range(8, 24)
-            let s = Seg(x: f.0, y: f.1, z: f.2, dx: f.3, dz: f.4, len: len)
+            let s = Seg(x: f.0, y: f.1, z: f.2, dx: f.3, dz: f.4, len: len, from: f.5)
             if abs(s.x + s.dx * len - ox) > 72 || abs(s.z + s.dz * len - oz) > 72 { continue }
             segs.append(s)
             // Branch at the hollow and sometimes midway.
             let ex = s.x + s.dx * len, ez = s.z + s.dz * len
             let ny = s.y + (rng.chance(0.2) ? rng.range(-4, 4) : 0)
-            if rng.chance(0.7) { frontier.insert((ex, ny, ez, s.dx, s.dz), at: 0) }
-            if rng.chance(0.6) { frontier.insert((ex, s.y, ez, s.dz, s.dx), at: 0) }
-            if rng.chance(0.5) { frontier.insert((ex, s.y, ez, -s.dz, -s.dx), at: 0) }
+            if rng.chance(0.7) { frontier.insert((ex, ny, ez, s.dx, s.dz, s.y), at: 0) }
+            if rng.chance(0.6) { frontier.insert((ex, s.y, ez, s.dz, s.dx, s.y), at: 0) }
+            if rng.chance(0.5) { frontier.insert((ex, s.y, ez, -s.dz, -s.dx, s.y), at: 0) }
         }
         let wood = mesa ? Blocks.id("dark_oak_planks") : Blocks.id("oak_planks")
         let fence = mesa ? Blocks.id("dark_oak_fence") : Blocks.id("oak_fence")
@@ -345,28 +350,29 @@ enum OverworldStructures {
         })
         for (i, s) in segs.enumerated() {
             let ex = s.x + s.dx * s.len, ez = s.z + s.dz * s.len
-            pieces.append(piece(min(s.x, ex) - 2, s.y - 1, min(s.z, ez) - 2, max(s.x, ex) + 2, s.y + 4, max(s.z, ez) + 2) { w in
+            pieces.append(piece(min(s.x, ex) - 2, min(s.y, s.from) - 1, min(s.z, ez) - 2, max(s.x, ex) + 2, max(s.y, s.from) + 4, max(s.z, ez) + 2) { w in
                 var r = SRng(seed &+ UInt64(i) &* 977)
                 for k in 0...s.len {
                     let x = s.x + s.dx * k, z = s.z + s.dz * k
+                    let fy = s.floor(k)
                     for side in -1...1 {
                         let bx = x + (s.dz != 0 ? side : 0), bz = z + (s.dx != 0 ? side : 0)
-                        for h in 0...2 where !Blocks.isLiquid(w.get(bx, s.y + h, bz)) { w.set(bx, s.y + h, bz, AIR) }
-                        if w.get(bx, s.y - 1, bz) == AIR || Blocks.isLiquid(w.get(bx, s.y - 1, bz)) { w.set(bx, s.y - 1, bz, wood) }
+                        for h in 0...2 where !Blocks.isLiquid(w.get(bx, fy + h, bz)) { w.set(bx, fy + h, bz, AIR) }
+                        if w.get(bx, fy - 1, bz) == AIR || Blocks.isLiquid(w.get(bx, fy - 1, bz)) { w.set(bx, fy - 1, bz, wood) }
                     }
                     if k % 5 == 2 {
                         // Supports: two fence posts and a plank beam.
                         let (ax, az) = (s.dz != 0 ? 1 : 0, s.dx != 0 ? 1 : 0)
-                        w.set(x - ax, s.y, z - az, fence); w.set(x - ax, s.y + 1, z - az, fence)
-                        w.set(x + ax, s.y, z + az, fence); w.set(x + ax, s.y + 1, z + az, fence)
-                        for side in -1...1 { w.set(x + ax * side, s.y + 2, z + az * side, wood) }
+                        w.set(x - ax, fy, z - az, fence); w.set(x - ax, fy + 1, z - az, fence)
+                        w.set(x + ax, fy, z + az, fence); w.set(x + ax, fy + 1, z + az, fence)
+                        for side in -1...1 { w.set(x + ax * side, fy + 2, z + az * side, wood) }
                         // A torch hung on the near post (it stood in mid-tunnel under the beam).
-                        if r.chance(0.3) { w.set(x, s.y + 1, z, TORCH + BlockID(ax != 0 ? 4 : 2)) }
+                        if r.chance(0.3) { w.set(x, fy + 1, z, TORCH + BlockID(ax != 0 ? 4 : 2)) }
                     }
-                    if r.chance(0.7) && k % 5 != 2 { w.set(x, s.y, z, Blocks.id("rail") + (s.dx != 0 ? 1 : 0)) }
-                    if r.chance(0.06) { w.set(x + (s.dz != 0 ? 1 : 0), s.y + 2, z + (s.dx != 0 ? 1 : 0), Blocks.id("cobweb")) }
-                    if r.chance(0.012) { w.chest(x + (s.dz != 0 ? -1 : 0), s.y, z + (s.dx != 0 ? -1 : 0), loot: "mineshaft", seed: r.next(), facing: 0) }
-                    if r.chance(0.004) && !mesa { w.spawner(x, s.y, z, mob: "cave_spider") }
+                    if r.chance(0.7) && k % 5 != 2 { w.set(x, fy, z, Blocks.id("rail") + (s.dx != 0 ? 1 : 0)) }
+                    if r.chance(0.06) { w.set(x + (s.dz != 0 ? 1 : 0), fy + 2, z + (s.dx != 0 ? 1 : 0), Blocks.id("cobweb")) }
+                    if r.chance(0.012) { w.chest(x + (s.dz != 0 ? -1 : 0), fy, z + (s.dx != 0 ? -1 : 0), loot: "mineshaft", seed: r.next(), facing: 0) }
+                    if r.chance(0.004) && !mesa { w.spawner(x, fy, z, mob: "cave_spider") }
                 }
             })
         }
