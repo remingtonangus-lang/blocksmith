@@ -17,6 +17,9 @@ struct PathState {
     var climbUp = false                       // next waypoint is straight up a ladder / vine
     var span = 1                              // footprint of the current path (cells per side)
     var breakTime: Float = 0                  // zombie hammering at a door (12 s on Hard)
+    var partial = false                       // the last search ended short of the goal (unreachable)
+    var stallPos = V3(0, -9999, 0)            // watchdog: where the mob was when it last made progress
+    var stallTime: Float = 0
 }
 
 // How one mob moves: body height and footprint in cells, how far it may drop, what water costs it,
@@ -289,6 +292,15 @@ extension Mob {
             path.span = pr.span
             path.nodes = PathFinder.find(w, from: pos, to: target, profile: pr) ?? []
             path.index = 0
+            // Partial: the closest reachable cell isn't next to the goal (beds and job sites themselves aren't
+            // standable, so a neighbouring cell counts as arriving).
+            let ga = PathFinder.anchor(target, span: pr.span)
+            if let last = path.nodes.last {
+                path.partial = max(abs(last.x - ga.x), abs(last.z - ga.z)) > 1 || abs(last.y - ga.y) > 1
+            } else {
+                let here = PathFinder.anchor(pos, span: pr.span)
+                path.partial = max(abs(here.x - ga.x), abs(here.z - ga.z)) > 1 || abs(here.y - ga.y) > 1
+            }
         }
         let off: Float = path.span == 2 ? 1 : 0.5
         while path.index < path.nodes.count {
@@ -305,11 +317,32 @@ extension Mob {
             if cx * cx + cz * cz < near * near && vertical < 0.6 && vertical > -1.2 { path.index += 1 } else { break }
         }
         if opensDoors || breaksDoors { handleDoors(g, dt) }
+        // Can't reach it: at the end of a partial path (or making no progress for 4 s) the mob gives the goal up
+        // for a while instead of pushing into the wall in front of it (reference: cant_reach_walk_target memory;
+        // behaviour sim: villagers stood stuck against house walls most of the day).
+        let sameGoal = simd_length(target - path.goal) < 1.5
+        if sameGoal && path.partial && path.index >= path.nodes.count { giveUp(target); return }
+        if simd_length(pos - path.stallPos) > 0.75 { path.stallPos = pos; path.stallTime = 0 } else {
+            path.stallTime += dt
+            if path.stallTime > 4 { path.stallTime = 0; path.nodes.removeAll(keepingCapacity: true); path.timer = 0; giveUp(target); return }
+        }
         guard path.index < path.nodes.count else { return }
         let n = path.nodes[path.index]
         let cx = Float(n.x) + off - pos.x, cz = Float(n.z) + off - pos.z
         if Float(n.y) > pos.y + 0.3 && cx * cx + cz * cz < 0.36 { path.climbUp = true }
         if cx * cx + cz * cz > 1e-4 { yaw = atan2f(-cx, -cz) }
+    }
+}
+
+extension Mob {
+    // Calm walkers (strolls, villager schedules) skip a goal they couldn't reach for 15 s, then try again.
+    func giveUp(_ target: V3) {
+        unreachable = target
+        unreachableTimer = 15
+    }
+    func gaveUp(_ p: V3) -> Bool {
+        guard unreachableTimer > 0, let u = unreachable else { return false }
+        return simd_length(V2(u.x - p.x, u.z - p.z)) < 2 && abs(u.y - p.y) < 3
     }
 }
 

@@ -121,7 +121,9 @@ extension Mob {
         guard f > 0.5 && f < 0.995, let b = villager?.bed else { sitting = false; return false }
         let bedPos = V3(Float(b[0]) + 0.5, Float(b[1]) + 0.6, Float(b[2]) + 0.5)
         if simd_length(V2(bedPos.x - pos.x, bedPos.z - pos.z)) > 1.2 {
-            face(bedPos); moving = true
+            // Walk there through villagerDay (threats, panic and raids still come first; it used to face the bed
+            // here and then let the day schedule re-aim the same tick, so few villagers ever reached their beds).
+            if !gaveUp(V3(bedPos.x, Float(b[1]), bedPos.z)) { bedWalk = V3(bedPos.x, Float(b[1]), bedPos.z) }
             sitting = false
             return false
         }
@@ -150,7 +152,7 @@ extension Mob {
 
     // Walks toward `anchor` when farther than `r`, else strolls; returns the speed.
     func stroll(around anchor: V3, _ r: Float, _ pace: Float) -> Float {
-        if simd_length(V2(anchor.x - pos.x, anchor.z - pos.z)) > r { face(anchor); moving = true; return spec.speed * pace }
+        if simd_length(V2(anchor.x - pos.x, anchor.z - pos.z)) > r && !gaveUp(anchor) { face(anchor); moving = true; return spec.speed * pace }
         wander()
         return moving ? spec.speed * pace * 0.8 : 0
     }
@@ -173,6 +175,11 @@ extension Mob {
             let bed = V3(Float(b[0]) + 0.5, Float(b[1]), Float(b[2]) + 0.5)
             if simd_length(V2(bed.x - pos.x, bed.z - pos.z)) > 1.2 { face(bed); moving = true; return spec.speed * 1.2 }
             return 0
+        }
+        if let bed = bedWalk {
+            bedWalk = nil
+            face(bed); moving = true
+            return spec.speed * 0.6
         }
         let home = self.home ?? pos
         switch activity(g.dayFraction) {

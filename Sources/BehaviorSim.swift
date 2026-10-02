@@ -27,6 +27,8 @@ enum BehaviorSim {
         var flags: [String: Int] = [:]
         var best: [String: Float] = [:]       // phase -> closest distance to its goal
         var seen: Set<String> = []            // phases it was alive for (with a goal)
+        var gaveUp = 0                        // walk targets the pathfinder couldn't reach (Mob.giveUp)
+        var gaveUpAt: [String] = []           // the first few of them: target cell and block there
         init(_ m: Mob) { mob = m; last = m.pos; lastYaw = m.yaw; startY = m.pos.y }
     }
 
@@ -91,7 +93,8 @@ enum BehaviorSim {
                 let goals = t.seen.sorted().map { ph -> String in String(format: "%@ %.1f", ph, t.best[ph] ?? 999) }.joined(separator: ", ")
                 if !fl.isEmpty || goals.contains("999") || rows.count < 4 {
                     let p = String(format: "%.1f %.1f %.1f", t.mob.pos.x, t.mob.pos.y - Float(YOFF), t.mob.pos.z)
-                    rows.append("- \(t.mob.kind.key) at \(p): \(fl.isEmpty ? "ok" : fl)\(goals.isEmpty ? "" : "; closest to goals: " + goals)")
+                    let gu = t.gaveUp > 0 ? "; gave up \(t.gaveUp)x (\(t.gaveUpAt.joined(separator: "; ")))" : ""
+                    rows.append("- \(t.mob.kind.key) at \(p): \(fl.isEmpty ? "ok" : fl)\(goals.isEmpty ? "" : "; closest to goals: " + goals)\(gu)")
                 }
             }
             for (k, n) in counts { totals[k, default: 0] += n }
@@ -154,6 +157,14 @@ enum BehaviorSim {
             t.seen.insert(phase)
             let d: Float = simd_length(goal - p)
             t.best[phase] = min(t.best[phase] ?? 999, d)
+        }
+        // Unreachable walk targets (giveUp sets a 15 s timer; sampled once a second).
+        if m.unreachableTimer > 14, let u = m.unreachable {
+            t.gaveUp += 1
+            if t.gaveUpAt.count < 3 {
+                let c = IVec3(Int(floor(u.x)), Int(floor(u.y)), Int(floor(u.z)))
+                t.gaveUpAt.append("\(c.x) \(c.y - YOFF) \(c.z) \(Blocks.key(Blocks.groupBase[Int(w.block(c.x, c.y, c.z))]))")
+            }
         }
         t.last = p
     }

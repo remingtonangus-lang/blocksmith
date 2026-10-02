@@ -257,6 +257,9 @@ final class Mob {
     var walkAmount: Float = 0
     var moving = false
     var wanderGoal: V3?             // current stroll target (wander)
+    var unreachable: V3?            // a walk target the pathfinder couldn't reach (giveUp)
+    var unreachableTimer: Float = 0
+    var bedWalk: V3?                // villager: heading to its bed tonight (villagerNight -> villagerDay)
     static weak var world: World?   // the world mobs are updating in (stroll targets)
     var path = PathState()          // ground navigation (Pathfinding.swift)
     var faceGoal: V3?               // what face() last aimed at during this update
@@ -435,6 +438,7 @@ final class Mob {
         panic = max(0, panic - dt)
         callTimer -= dt
         aiTimer -= dt
+        unreachableTimer -= dt
         attackCooldown -= dt
         inLove = max(0, inLove - dt)
         breedCooldown = max(0, breedCooldown - dt)
@@ -963,7 +967,7 @@ final class Mob {
         }
         if moving, let goal = wanderGoal {
             let d: Float = simd_length(V2(goal.x - pos.x, goal.z - pos.z))
-            if d < 0.7 { moving = false; wanderGoal = nil; aiTimer = Rand.float(in: 2...6) } else { face(goal) }
+            if d < 0.7 || gaveUp(goal) { moving = false; wanderGoal = nil; aiTimer = Rand.float(in: 2...6) } else { face(goal) }
         }
     }
 
