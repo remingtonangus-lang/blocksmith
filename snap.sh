@@ -196,6 +196,8 @@ done
 "$BIN" --snapshot snaps/village_street.png --seed 12345 --structure village --yaw 135 --pitch -8 --up 1 --time 0.25 --rd 6
 "$BIN" --snapshot snaps/temple.png --seed 12345 --structure temple --frame 1 --time 0.25
 "$BIN" --snapshot snaps/temple2.png --seed 12345 --structure temple --x 3000 --z 3000 --frame 1 --time 0.25
+"$BIN" --snapshot snaps/desert_temple.png --seed 12345 --structure temple --subkind desert_pyramid --frame 1 --time 0.25
+"$BIN" --snapshot snaps/desert_temple_inside.png --seed 12345 --structure temple --subkind desert_pyramid --offset 0,0,9 --yaw 180 --pitch 12 --time 0.25
 "$BIN" --snapshot snaps/outpost.png --seed 12345 --structure pillager_outpost --frame 1.2 --time 0.25
 "$BIN" --snapshot snaps/outpost_close.png --seed 12345 --structure pillager_outpost --frame 0.5 --time 0.25
 "$BIN" --snapshot snaps/snowslope.png --seed 12345 --find snowy_slopes --yaw 45 --pitch -35 --time 0.25 --up 6

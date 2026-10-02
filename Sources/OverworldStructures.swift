@@ -25,8 +25,8 @@ enum OverworldStructures {
             let s = rng.next()
             switch biome {
             case .desert:
-                return StructureStart(kind: "desert_pyramid", pieces: [piece(x - 11, y - 16, z - 11, x + 11, y + 12, z + 11) { w in desertPyramid(&w, x, y, z, s) }],
-                                      anchor: IVec3(x, y + 1, z - 14))
+                return StructureStart(kind: "desert_pyramid", pieces: [piece(x - 11, y - 16, z - 15, x + 11, y + 16, z + 11) { w in desertPyramid(&w, x, y, z, s) }],
+                                      anchor: IVec3(x, y + 1, z - 17))
             case .jungle, .bambooJungle, .sparseJungle:
                 return StructureStart(kind: "jungle_temple", pieces: [piece(x - 7, y - 6, z - 8, x + 7, y + 14, z + 8) { w in jungleTemple(&w, x, y, z, s) }],
                                       anchor: IVec3(x, y + 2, z - 12))
@@ -45,38 +45,127 @@ enum OverworldStructures {
         }
     }
 
+    // Sun temple (desert): a walled hall under a stepped roof, two front towers with ladders to their parapets, a
+    // pillared forecourt, a ring corridor with windows round the tall central hall (blue and orange floor pattern), and
+    // the treasure chamber under the pattern (four chests in wall niches, a pressure-plate trap). Rebuilt for Remington's
+    // playtest 2 ("went into a desert temple, needs rework"): the old one was a solid stepped cone over a 3-high room,
+    // towers with no way up and a bare chamber.
     static func desertPyramid(_ w: inout StructWriter, _ cx: Int, _ gy: Int, _ cz: Int, _ seed: UInt64) {
         var rng = SRng(seed)
         let ss = SANDSTONE, cut = Blocks.id("cut_sandstone"), chis = Blocks.id("chiseled_sandstone"), smooth = Blocks.id("smooth_sandstone")
         let orange = Blocks.id("orange_terracotta"), blue = Blocks.has("blue_terracotta") ? Blocks.id("blue_terracotta") : Blocks.id("light_gray_terracotta")
+        let ladder = Blocks.id("ladder"), slab = Blocks.has("sandstone_slab") ? Blocks.id("sandstone_slab") : cut
         let y = gy
-        // Base and stepped pyramid (21x21).
-        for z in (cz - 10)...(cz + 10) { for x in (cx - 10)...(cx + 10) { w.pillarDown(x, y - 1, z, ss, minY: y - 8) } }
-        for k in 0...9 {
-            w.fill(cx - 10 + k, y + k, cz - 10 + k, cx + 10 - k, y + k, cz + 10 - k, ss)
-            if k < 9 { w.fill(cx - 9 + k, y + k, cz - 9 + k, cx + 9 - k, y + k, cz + 9 - k, k < 4 ? AIR : ss) }
+        func B(_ dx: Int, _ dy: Int, _ dz: Int, _ b: BlockID) { w.set(cx + dx, y + dy, cz + dz, b) }
+        func F(_ x0: Int, _ y0: Int, _ z0: Int, _ x1: Int, _ y1: Int, _ z1: Int, _ b: BlockID) {
+            w.fill(cx + x0, y + y0, cz + z0, cx + x1, y + y1, cz + z1, b)
         }
-        w.fill(cx - 9, y, cz - 9, cx + 9, y, cz + 9, smooth)
-        // Front towers.
+        // Foundation, a clear volume (dunes), the floor.
+        for dz in -14...10 { for dx in -10...10 { w.pillarDown(cx + dx, y - 1, cz + dz, ss, minY: y - 10) } }
+        F(-10, 1, -14, 10, 15, 10, AIR)
+        F(-10, 0, -14, 10, 0, 10, ss)
+        F(-9, 0, -9, 9, 0, 9, smooth)
+        F(-5, 0, -14, 5, 0, -11, smooth)
+
+        // Main body: walls 5 high with a cut-sandstone base course and a terracotta band, then the stepped roof whose
+        // inside steps up too (the hall is open to 10 blocks under the peak).
+        for dy in 1...5 {
+            for k in -10...10 {
+                let band: Bool = dy == 4
+                let b: BlockID = dy == 1 ? cut : (band ? (k % 2 == 0 ? orange : cut) : ss)
+                B(k, dy, -10, b); B(k, dy, 10, b); B(-10, dy, k, b); B(10, dy, k, b)
+            }
+            for (sx, sz) in [(-10, -10), (10, -10), (-10, 10), (10, 10)] { B(sx, dy, sz, dy == 4 ? chis : cut) }
+        }
+        for dy in 6...12 {
+            let h = 15 - dy
+            F(-h, dy, -h, h, dy, h, ss)
+            let ih = h - 2
+            if ih >= 3 && dy <= 10 { F(-ih, dy, -ih, ih, dy, ih, AIR) }
+            // A slab lip along each step's outer edge (the old cone was plain blocks).
+            if h <= 9 {
+                for k in -(h + 1)...(h + 1) { B(k, dy, -(h + 1), slab); B(k, dy, h + 1, slab); B(-(h + 1), dy, k, slab); B(h + 1, dy, k, slab) }
+            }
+        }
+        F(-1, 13, -1, 1, 13, 1, cut)
+        B(0, 14, 0, chis)
+
+        // Inner hall (half-size 4) inside a ring corridor: cut-sandstone walls with a doorway on each side.
+        for dy in 1...5 {
+            for k in -5...5 { B(k, dy, -5, cut); B(k, dy, 5, cut); B(-5, dy, k, cut); B(5, dy, k, cut) }
+        }
+        for (dx, dz) in [(0, -5), (0, 5), (-5, 0), (5, 0)] {
+            let ax = dz == 0 ? 0 : 1, az = dz == 0 ? 1 : 0
+            for t in -1...1 { for dy in 1...3 { B(dx + ax * t, dy, dz + az * t, AIR) } }
+            B(dx, 4, dz, chis)
+        }
+        // Corner pillars and the floor pattern: a blue centre stone (the way down) in an orange diamond.
+        for (px, pz) in [(-4, -4), (4, -4), (-4, 4), (4, 4)] {
+            for dy in 1...5 { B(px, dy, pz, dy == 3 ? chis : cut) }
+        }
+        for dz in -2...2 { for dx in -2...2 {
+            let m = abs(dx) + abs(dz)
+            if m == 2 || m == 1 { B(dx, 0, dz, orange) }
+        } }
+        for (dx, dz) in [(3, 0), (-3, 0), (0, 3), (0, -3)] { B(dx, 0, dz, blue) }
+        B(0, 0, 0, blue)
+        // Windows: light into the corridor from three sides.
+        for k in [-6, 6] {
+            for dy in 2...3 { B(-10, dy, k, AIR); B(10, dy, k, AIR); B(k, dy, 10, AIR) }
+        }
+        // Urns and dry plants in the corridor corners.
+        let pot = Blocks.has("decorated_pot") ? Blocks.id("decorated_pot") : Blocks.id("flower_pot")
+        for (dx, dz) in [(-9, -9), (9, -9), (-9, 9), (9, 9), (-8, 9), (8, 9)] { B(dx, 1, dz, pot) }
+
+        // Entrance: a framed doorway with a terracotta pediment.
+        F(-1, 1, -10, 1, 3, -10, AIR)
+        for dy in 1...4 { B(-2, dy, -10, chis); B(2, dy, -10, chis) }
+        F(-1, 4, -10, 1, 4, -10, cut)
+        B(0, 5, -10, blue); B(-1, 5, -10, orange); B(1, 5, -10, orange)
+
+        // Front towers (5x5, 13 high) with a ladder up the inside to a crenellated top, doors to the forecourt and
+        // the corridor, terracotta rings and an eye on the front.
         for sx in [-1, 1] {
-            let tx = cx + sx * 8
-            w.fill(tx - 2, y, cz - 10, tx + 2, y + 9, cz - 6, ss)
-            w.fill(tx - 1, y + 1, cz - 9, tx + 1, y + 8, cz - 7, AIR)
-            w.fill(tx - 2, y + 10, cz - 10, tx + 2, y + 10, cz - 6, cut)
-            for k in 0..<3 { w.set(tx, y + 3 + k * 2, cz - 10, orange) }
+            let tx = sx * 8
+            F(tx - 2, 1, -14, tx + 2, 12, -10, ss)
+            F(tx - 1, 1, -13, tx + 1, 11, -11, AIR)
+            for dy in [4, 8] {
+                for k in -2...2 { B(tx + k, dy, -14, orange); B(tx + k, dy, -10, orange); B(tx - 2, dy, -12 + k, orange); B(tx + 2, dy, -12 + k, orange) }
+            }
+            B(tx, 9, -14, orange); B(tx - 1, 10, -14, orange); B(tx + 1, 10, -14, orange); B(tx, 11, -14, orange); B(tx, 10, -14, blue)
+            F(tx - 2, 12, -14, tx + 2, 12, -10, cut)
+            for k in -2...2 {
+                if k % 2 == 0 { B(tx + k, 13, -14, cut); B(tx + k, 13, -10, cut); B(tx - 2, 13, -12 + k, cut); B(tx + 2, 13, -12 + k, cut) }
+            }
+            for (ex, ez) in [(-2, -14), (2, -14), (-2, -10), (2, -10)] { B(tx + ex, 13, ez, chis) }
+            // Ladder on the back wall (z -10) from the floor through a hatch in the roof.
+            let lx = tx + sx
+            for dy in 1...12 { B(lx, dy, -11, ladder) }
+            // Doors: forecourt side and into the corridor.
+            for dy in 1...2 { B(tx - sx * 2, dy, -12, AIR); B(tx - sx, dy, -10, AIR) }
         }
-        // Entrance.
-        w.fill(cx - 1, y + 1, cz - 10, cx + 1, y + 3, cz - 6, AIR)
-        w.set(cx, y + 4, cz - 10, chis)
-        // Floor pattern: blue centre with orange cross.
-        w.set(cx, y, cz, blue)
-        for d in 1...2 { for (dx, dz) in [(d, 0), (-d, 0), (0, d), (0, -d)] { w.set(cx + dx, y, cz + dz, orange) } }
-        // Secret chamber under the pattern: 4 chests in wall niches, TNT trap under a pressure plate.
+        // Forecourt pillars.
+        for px in [-5, 5] {
+            for dy in 1...4 { B(px, dy, -14, dy == 4 ? chis : cut) }
+            B(px, 5, -14, slab)
+        }
+
+        // Treasure chamber 12 below the blue stone: chests in wall niches, carved walls, the pressure-plate trap.
         let fy = y - 12
-        w.fill(cx - 4, fy - 1, cz - 4, cx + 4, y - 1, cz + 4, ss)
+        w.fill(cx - 5, fy - 1, cz - 5, cx + 5, y - 1, cz + 5, ss)
         w.fill(cx - 3, fy, cz - 3, cx + 3, fy + 3, cz + 3, AIR)
+        for k in -3...3 {
+            for (bx, bz) in [(k, -4), (k, 4), (-4, k), (4, k)] {
+                w.set(cx + bx, fy + 2, cz + bz, k % 2 == 0 ? orange : cut)
+                w.set(cx + bx, fy + 1, cz + bz, abs(k) == 2 ? chis : cut)
+            }
+        }
+        w.fill(cx - 3, fy - 1, cz - 3, cx + 3, fy - 1, cz + 3, cut)
+        w.set(cx, fy - 1, cz, blue)
+        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] { w.set(cx + dx, fy - 1, cz + dz, orange) }
         w.fill(cx, fy + 4, cz, cx, y - 1, cz, AIR)
-        for (dx, dz, f) in [(0, -3, 1), (0, 3, 0), (-3, 0, 3), (3, 0, 2)] {
+        for (dx, dz, f) in [(0, -4, 1), (0, 4, 0), (-4, 0, 3), (4, 0, 2)] {
+            w.set(cx + dx, fy + 1, cz + dz, AIR)
             w.chest(cx + dx, fy, cz + dz, loot: "desert_pyramid", seed: rng.next(), facing: f)
         }
         w.fill(cx - 1, fy - 2, cz - 1, cx + 1, fy - 2, cz + 1, TNT_ID)

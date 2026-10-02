@@ -119,10 +119,12 @@ enum Snapshot {
         var insideFrame: IVec3?
         // --land: skip starts whose centre column is below sea level (ruined portals also generate under water).
         let landOnly = CommandLine.arguments.contains("--land")
+        // --subkind <kind>: one variant of a type (temple -> desert_pyramid, jungle_temple, swamp_hut, igloo).
+        let subkind = arg("--subkind")
         let onLand: (StructureStart) -> Bool = { s in
-            !landOnly || world.gen.column((s.min.x + s.max.x) / 2, (s.min.z + s.max.z) / 2).height > SEA
+            (subkind == nil || s.kind == subkind) && (!landOnly || world.gen.column((s.min.x + s.max.x) / 2, (s.min.z + s.max.z) / 2).height > SEA)
         }
-        if let kind = arg("--structure"), let s = world.gen.structures?.nearest(kind, x: Int(pos.x), z: Int(pos.z), maxRegions: landOnly ? 12 : 6, accept: onLand) {
+        if let kind = arg("--structure"), let s = world.gen.structures?.nearest(kind, x: Int(pos.x), z: Int(pos.z), maxRegions: landOnly || subkind != nil ? 16 : 6, accept: onLand) {
             if arg("--frame") != nil {
                 // Overview: from outside the footprint, aimed at its centre.
                 let c = V3(Float(s.min.x + s.max.x) / 2, Float(s.anchor.y), Float(s.min.z + s.max.z) / 2)
