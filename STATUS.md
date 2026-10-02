@@ -220,6 +220,10 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   fix), spinning 82 -> 31, work goals 19/25; structcheck poi_unreachable 230 -> 161 (outposts 7 -> 0, trial chambers
   19 -> 0, mansion 24 -> 12, stronghold 80 -> 49; end city still 33/33: diagnostics added). 128 px textures pass the
   smoke test at every render distance. Gemini critic + a blind Claude subagent critic run on 348's shots.
+- 2026-10-02 04:20 UTC: run 349 (bf4306e): build/smoke/playthrough/snapshots green; bench edit mean 2.2x again (median
+  1.2-1.4x) -> edit gates moved to the median. Regression found and reverted: village fill-under filled under roof
+  eaves over doorways (door_needs_jump 4; villager spinning 31 -> 57). Gemini free-tier vision quota ran out after 2
+  shots (critic runs: budget ~10/day); the blind Claude subagent critic is the main critic. Pushed 4e591b6 (run 350).
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
