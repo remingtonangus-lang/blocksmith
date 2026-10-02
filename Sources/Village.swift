@@ -250,6 +250,9 @@ enum Village {
         func fill(_ w: inout StructWriter, _ u0: Int, _ y0: Int, _ v0: Int, _ u1: Int, _ y1: Int, _ v1: Int, _ b: BlockID) {
             for dy in y0...y1 { for v in v0...v1 { for u in u0...u1 { set(&w, u, dy, v, b) } } }
         }
+        // A torch on the wall behind it, facing the local direction (wall torch state = 1 + world facing): the house
+        // torches stood in mid-air or on top of chests and job blocks.
+        func wallTorch(facing local: Int) -> BlockID { TORCH + BlockID(1 + Village.dir(l, local)) }
         // Stairs whose high side points toward a local direction (world stairs state = facing index).
         func stair(_ base: BlockID, high local: Int, top: Bool = false) -> BlockID {
             base + BlockID(Village.dir(l, local) + (top ? 4 : 0))
@@ -333,7 +336,7 @@ enum Village {
         case .smallHouse, .jobHut:
             house(&w, b, m, wallH: 4)
             bed(&w, b, m, u: 1, v: 2)
-            b.set(&w, l.w - 2, 1, l.d - 2, TORCH)
+            b.set(&w, l.w - 2, 2, l.d - 2, b.wallTorch(facing: 1))                 // on the back wall (was on the chest)
             villager(&w, b, u: l.w - 2, v: 2)
             if l.kind == .jobHut {
                 let job = ["butcher": "smoker", "cartographer": "cartography_table", "fletcher": "fletching_table", "shepherd": "loom",
@@ -350,7 +353,7 @@ enum Village {
             let c = world(l, 2, l.d - 2)
             w.chest(c.0, l.y, c.1, loot: "village_house", seed: rng.next(), facing: dir(l, 1))
             b.set(&w, 4, 0, l.d - 2, g("flower_pot"))
-            b.set(&w, 1, 2, 1, TORCH)
+            b.set(&w, 1, 2, 1, b.wallTorch(facing: 2))                            // on the side wall (was in mid-air)
             villager(&w, b, u: 3, v: 2); villager(&w, b, u: 3, v: 3)
         case .bigHouse:
             house(&w, b, m, wallH: 8)
@@ -360,7 +363,7 @@ enum Village {
             b.set(&w, 5, 0, l.d - 2, g("crafting_table"))
             let c = world(l, 1, l.d - 2)
             w.chest(c.0, l.y, c.1, loot: "village_house", seed: rng.next(), facing: dir(l, 1))
-            b.set(&w, 4, 2, 1, TORCH); b.set(&w, 4, 6, l.d - 2, TORCH)
+            b.set(&w, 4, 2, 1, b.wallTorch(facing: 0)); b.set(&w, 4, 6, l.d - 2, b.wallTorch(facing: 1))
             villager(&w, b, u: 4, v: 3); villager(&w, b, u: 2, v: 4, dy: 5); villager(&w, b, u: 5, v: 3)
         case .farm:
             foundation(&w, b, m)
@@ -410,7 +413,7 @@ enum Village {
             for u in 1..<(l.w - 1) where u != l.w / 2 { b.fill(&w, u, 0, l.d - 2, u, 2, l.d - 2, g("bookshelf")) }
             b.fill(&w, 1, 0, 2, 1, 2, l.d - 3, g("bookshelf"))
             b.set(&w, l.w / 2, 0, l.d - 3, g("lectern"))
-            b.set(&w, l.w - 2, 3, 1, TORCH)
+            b.set(&w, l.w - 2, 3, 1, b.wallTorch(facing: 0))
             villager(&w, b, u: l.w / 2, v: 2)
         case .temple:
             house(&w, b, m, wallH: 11, roof: false)
@@ -419,7 +422,7 @@ enum Village {
             b.fill(&w, 1, 4, 3, l.w - 2, 4, l.d - 2, m.floor)
             for dy in 0...4 { b.set(&w, 1, dy, 2, g("ladder") + BlockID(dir(l, 2))) }
             b.set(&w, l.w / 2, 0, l.d - 2, g("cauldron"))
-            b.set(&w, l.w / 2, 5, l.d - 2, TORCH)
+            b.set(&w, l.w / 2, 5, l.d - 2, b.wallTorch(facing: 1))
             villager(&w, b, u: 2, v: 3)
         }
     }
