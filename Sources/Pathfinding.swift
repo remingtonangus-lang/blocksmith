@@ -66,6 +66,30 @@ enum PathFinder {
         return top
     }
 
+    // A door (open or shut) in the cell at feet or head height.
+    @inline(__always) static func hasDoor(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Bool {
+        Blocks.shape[Int(w.block(x, y, z))] == "door" || Blocks.shape[Int(w.block(x, y + 1, z))] == "door"
+    }
+
+    // Where to aim inside a door cell: the middle of the gap beside an open door's panel (the cell centre left
+    // 1/80 of a block to spare, so villagers coming in a little off-centre clipped the panel and stood in the
+    // doorway: behaviour-sim traces, run 374). (0.5, 0.5) for any other cell.
+    static func doorAim(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> (Float, Float) {
+        guard hasDoor(w, x, y, z) else { return (0.5, 0.5) }
+        var fx: Float = 0.5, fz: Float = 0.5
+        for yy in [y, y + 1] where Blocks.shape[Int(w.block(x, yy, z))] == "door" {
+            boxes.removeAll(keepingCapacity: true)
+            w.collisionBoxes(x, yy, z, &boxes)
+            for (lo, hi) in boxes {
+                let x0 = lo.x - Float(x), x1 = hi.x - Float(x), z0 = lo.z - Float(z), z1 = hi.z - Float(z)
+                if x1 - x0 < 0.5 { fx = x0 > 1 - x1 ? x0 / 2 : (x1 + 1) / 2 }
+                if z1 - z0 < 0.5 { fz = z0 > 1 - z1 ? z0 / 2 : (z1 + 1) / 2 }
+            }
+            break
+        }
+        return (fx, fz)
+    }
+
     static func isWoodDoor(_ b: BlockID) -> Bool {
         Blocks.shape[Int(b)] == "door" && !Blocks.key(Blocks.groupBase[Int(b)]).hasPrefix("iron_")
     }
@@ -241,6 +265,8 @@ enum PathFinder {
             for (dx, dz) in diags {
                 let a = dx > 0 ? 0 : 1, b = dz > 0 ? 2 : 3
                 guard flat[a] && flat[b], let c = standCost(w, p.x + dx, p.y, p.z + dz, pr) else { continue }
+                // Never diagonally into or out of a doorway (the body clips the frame or an open panel).
+                if hasDoor(w, p.x, p.y, p.z) || hasDoor(w, p.x + dx, p.y, p.z + dz) { continue }
                 add(i, IVec3(p.x + dx, p.y, p.z + dz), c * 1.4142)
             }
             // Ladders / vines straight up and down; swimming up and down.
@@ -324,7 +350,8 @@ extension Mob {
         let off: Float = path.span == 2 ? 1 : 0.5
         while path.index < path.nodes.count {
             let n = path.nodes[path.index]
-            let cx = Float(n.x) + off - pos.x, cz = Float(n.z) + off - pos.z
+            let (ax, az) = path.span == 2 ? (off, off) : PathFinder.doorAim(w, n.x, n.y, n.z)
+            let cx = Float(n.x) + ax - pos.x, cz = Float(n.z) + az - pos.z
             // Cut ahead early only on straight runs; at turns walk to the cell centre so the body clears corners.
             var straight = false
             if path.index + 1 < path.nodes.count && path.index > 0 {
@@ -343,7 +370,8 @@ extension Mob {
         if sameGoal && path.partial && path.index >= path.nodes.count { giveUp(target); return }
         guard path.index < path.nodes.count else { return }
         let n = path.nodes[path.index]
-        let cx = Float(n.x) + off - pos.x, cz = Float(n.z) + off - pos.z
+        let (ax, az) = path.span == 2 ? (off, off) : PathFinder.doorAim(w, n.x, n.y, n.z)
+        let cx = Float(n.x) + ax - pos.x, cz = Float(n.z) + az - pos.z
         if Float(n.y) > pos.y + 0.3 && cx * cx + cz * cz < 0.36 { path.climbUp = true }
         if cx * cx + cz * cz > 1e-4 { yaw = atan2f(-cx, -cz) }
     }
