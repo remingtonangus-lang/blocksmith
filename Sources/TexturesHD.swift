@@ -866,6 +866,137 @@ enum HDTex {
         return img
     }
 
+    // Gourds and cactus.
+    // Ribbed side (pumpkin): `ribs` rounded lobes across the face, dark grooves between them, faint vertical streaks.
+    static func ribbedSide(_ pal: [(Float, UInt32)], ribs: Int) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            var img = Img(n)
+            let streak = vnoise(n, max(1, n / 32), s)
+            let blot = fbm(n, n / 4, 4, s &+ 1)
+            var hh = [Float](repeating: 0, count: n * n)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let w: Float = Float(x) + sinf(Float(y) / fn * 2 * .pi) * fn / 64
+                let u: Float = (w / fn * Float(ribs)).truncatingRemainder(dividingBy: 1)
+                let prof: Float = sinf(.pi * (u < 0 ? u + 1 : u))
+                let st: Float = streak[(y / 8) * n + x]
+                let t: Float = 0.2 + 0.62 * powf(prof, 0.6) + (st - 0.5) * 0.12 + (blot[i] - 0.5) * 0.12
+                let c = ramp(t, pal)
+                img.px[i] = V4(c.x, c.y, c.z, 1)
+                hh[i] = prof * 0.6
+            } }
+            shade(&img, hh, 0.7)
+            return img
+        }
+    }
+    // Radial top (pumpkin, melon): lobes or stripes converging on a stem scar in the middle.
+    static func radialTop(_ pal: [(Float, UInt32)], lobes: Int, stem: UInt32, stripes: Bool = false) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            var img = Img(n)
+            let blot = fbm(n, n / 4, 4, s)
+            let wob = fbm(n, n / 8, 3, s &+ 4)
+            var hh = [Float](repeating: 0, count: n * n)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
+                let d: Float = (dx * dx + dy * dy).squareRoot()
+                let a: Float = atan2f(dy, dx) + (wob[i] - 0.5) * 0.5
+                let f: Float = (a / (2 * .pi) * Float(lobes) + 8).truncatingRemainder(dividingBy: 1)
+                let prof: Float = stripes ? (f < 0.35 ? 0 : 1) : sinf(.pi * f)
+                var t: Float = 0.25 + 0.55 * prof + (blot[i] - 0.5) * 0.15
+                t *= 0.8 + 0.2 * min(1, d / (fn * 0.25))
+                var c = ramp(t, pal)
+                if d < fn / 11 {
+                    let k: Float = 0.8 + 0.3 * (1 - d / (fn / 11)) + (blot[i] - 0.5) * 0.2
+                    c = col(stem) * k
+                }
+                img.px[i] = V4(c.x, c.y, c.z, 1)
+                hh[i] = stripes ? 0 : prof * 0.5 * min(1, d / (fn * 0.2)) + (d < fn / 11 ? 0.6 : 0)
+            } }
+            shade(&img, hh, 0.7)
+            return img
+        }
+    }
+    // Melon side: irregular dark green stripes over a mottled pale rind.
+    static func melonSide(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n)
+        var img = Img(n)
+        let blot = fbm(n, n / 4, 5, s)
+        let wob = fbm(n, n / 4, 3, s &+ 2)
+        let pale = [(Float(0), UInt32(0x7EA82A)), (0.5, 0x9AC23A), (1, 0xB4D452)]
+        let dark = [(Float(0), UInt32(0x3E6A12)), (0.5, 0x52801A), (1, 0x689622)]
+        for y in 0..<n { for x in 0..<n {
+            let i = y * n + x
+            let w: Float = Float(x) + (wob[i] - 0.5) * fn / 8
+            let u: Float = (w / fn * 4 + 8).truncatingRemainder(dividingBy: 1)
+            let inStripe = u < 0.38 + (blot[i] - 0.5) * 0.25
+            let t: Float = 0.3 + blot[i] * 0.5
+            let c = ramp(t, inStripe ? dark : pale)
+            img.px[i] = V4(c.x, c.y, c.z, 1)
+        } }
+        return img
+    }
+    // Cactus: the model is inset a sixteenth on every side, so those texels stay clear as in the small painter.
+    static func cactusSide(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n)
+        var img = Img(n, V4(0, 0, 0, 0))
+        let blot = fbm(n, n / 4, 4, s)
+        let edge = max(1, n / 16)
+        let pal = [(Float(0), UInt32(0x1E5A22)), (0.5, 0x2F7F32), (1, 0x4A9E44)]
+        var hh = [Float](repeating: 0, count: n * n)
+        let inner: Float = fn - 2 * Float(edge)
+        for y in 0..<n { for x in edge..<(n - edge) {
+            let i = y * n + x
+            let u: Float = ((Float(x - edge) + 0.5) / inner * 4).truncatingRemainder(dividingBy: 1)
+            let prof: Float = sinf(.pi * u)
+            let t: Float = 0.15 + 0.7 * prof + (blot[i] - 0.5) * 0.15
+            let c = ramp(t, pal)
+            img.px[i] = V4(c.x, c.y, c.z, 1)
+            hh[i] = prof * 0.6
+        } }
+        shade(&img, hh, 0.6)
+        // Spine tufts on the rib crests.
+        let sp = max(1, n / 64)
+        for rib in 0..<4 {
+            let cx: Float = Float(edge) + (Float(rib) + 0.5) * inner / 4
+            for k in 0..<6 {
+                let cy: Float = (Float(k) + 0.3 + h2(rib, k, s) * 0.4) / 6 * fn
+                for dy in -sp...sp { for dx in -sp...sp {
+                    let x = Int(cx) + dx, y = Int(cy) + dy
+                    guard x >= edge && x < n - edge else { continue }
+                    let k2: Float = 0.85 + 0.15 * h2(x, y, s &+ 1)
+                    img[x, y] = V4(0.9 * k2, 0.9 * k2, 0.7 * k2, 1)
+                } }
+            }
+        }
+        return img
+    }
+    static func cactusEnd(_ top: Bool) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            var img = Img(n, V4(0, 0, 0, 0))
+            let blot = fbm(n, n / 4, 4, s)
+            let e = max(1, n / 16)
+            for y in e..<(n - e) { for x in e..<(n - e) {
+                let i = y * n + x
+                let border = x < 2 * e || y < 2 * e || x >= n - 2 * e || y >= n - 2 * e
+                let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
+                let d: Float = (dx * dx + dy * dy).squareRoot() / (fn / 2)
+                var c: V3
+                if top {
+                    let k: Float = (border ? 0.68 : 0.9 + 0.12 * (1 - d)) + (blot[i] - 0.5) * 0.12
+                    c = col(0x55A043) * k
+                } else {
+                    c = col(0xC3C586) * (0.88 + blot[i] * 0.16)
+                }
+                img.px[i] = V4(c.x, c.y, c.z, 1)
+            } }
+            return img
+        }
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -1435,6 +1566,13 @@ enum HDTex {
         "soul_sand": soil([(0, 0x3A2A20), (0.5, 0x52402E), (1, 0x6A5440)], pebble: 0x2A1E16, pebbles: 10, clods: 8),
         "soul_soil": soil([(0, 0x3E3024), (0.5, 0x54442F), (1, 0x6A5840)], pebble: 0x4A3A2A, pebbles: 4, clods: 7),
         "ice": iceHD,
+        "pumpkin_side": ribbedSide([(0, 0x9A520A), (0.5, 0xD8801A), (1, 0xF0A030)], ribs: 4),
+        "pumpkin_top": radialTop([(0, 0x9A520A), (0.5, 0xD8801A), (1, 0xF0A030)], lobes: 8, stem: 0x5A6A1A),
+        "melon_side": melonSide,
+        "melon_top": radialTop([(0, 0x52801A), (0.5, 0x7EA82A), (1, 0x9AC23A)], lobes: 8, stem: 0x6A7A2A, stripes: true),
+        "cactus_side": cactusSide,
+        "cactus_top": cactusEnd(true),
+        "cactus_bottom": cactusEnd(false),
         "packed_ice": stone([(0, 0x7C9ED8), (0.5, 0x94B2E6), (1, 0xB0C8F2)], veins: 0.5, strata: 0),
         "blue_ice": stone([(0, 0x5A86D8), (0.5, 0x74A0EC), (1, 0x96BCF8)], veins: 0.5, strata: 0),
         "prismarine": stone([(0, 0x4A8A80), (0.5, 0x62A898), (1, 0x86C4B0)], veins: 0.7, strata: 0),
