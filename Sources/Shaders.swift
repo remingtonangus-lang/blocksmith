@@ -35,7 +35,7 @@ struct ChunkOut {
     float face [[flat]];
 };
 
-constexpr sampler texSampler(filter::nearest, mip_filter::linear, address::repeat);
+constexpr sampler texSampler(mag_filter::nearest, min_filter::linear, mip_filter::linear, address::repeat, max_anisotropy(8));
 
 constant float faceShade[8] = { 0.80, 0.80, 1.00, 0.55, 0.68, 0.68, 0.88, 1.00 };
 constant float aoCurve[4] = { 0.42, 0.62, 0.81, 1.0 };

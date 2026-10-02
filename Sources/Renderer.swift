@@ -212,13 +212,13 @@ final class Renderer: NSObject, MTKViewDelegate {
         let td = MTLTextureDescriptor()
         td.textureType = .type2DArray
         td.pixelFormat = .rgba8Unorm
-        td.width = TextureGen.S
-        td.height = TextureGen.S
+        td.width = TextureGen.size
+        td.height = TextureGen.size
         td.arrayLength = layers
         td.mipmapLevelCount = levels.count
         td.usage = .shaderRead
         let tex = device.makeTexture(descriptor: td)!
-        var size = TextureGen.S
+        var size = TextureGen.size
         for (lvl, data) in levels.enumerated() {
             let bytesPerImage = size * size * 4
             data.withUnsafeBytes { raw in

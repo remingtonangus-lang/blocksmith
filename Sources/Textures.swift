@@ -5,7 +5,15 @@ import simd
 // Textures are registered by name (Tex.id) by the block/item registries; this file holds a painter
 // for each name. Unknown names render as a magenta/black checker so they are easy to spot.
 enum TextureGen {
-    static let S = 16
+    static let S = 16              // the painters' grid (16 x 16 "pixels" per face)
+    // Texture resolution on the GPU (pixels per face): HD materials (TexturesHD.swift) where they exist, the 16 px
+    // painters upscaled otherwise. BLOCKSMITH_TEXRES or the "textureRes" setting picks 16 / 32 / 64 / 128.
+    static let size: Int = {
+        let env = ProcessInfo.processInfo.environment["BLOCKSMITH_TEXRES"].flatMap { Int($0) }
+        let pref = UserDefaults.standard.integer(forKey: "textureRes")
+        let v = env ?? (pref > 0 ? pref : 64)
+        return [16, 32, 64, 128].contains(v) ? v : 64
+    }()
     typealias Painter = (Int, Int) -> V4
 
     // Textures used only by the HUD (registered up front so they exist before the atlas is built).
@@ -1002,24 +1010,48 @@ enum TextureGen {
         return p
     }
 
-    static func base() -> [UInt8] {
+    // Every layer at `size` x `size` (RGBA8): the 16 px painters run first (serially: some build shared state),
+    // then HD materials / upscales are produced in parallel per layer.
+    static func base(size n: Int = TextureGen.size) -> [UInt8] {
         registerAll()
         let count = Tex.count
         let table = painters()
-        var data = [UInt8](repeating: 0, count: S * S * 4 * count)
         let missing = Tex.names.filter { table[$0] == nil }
         if !missing.isEmpty { print("textures without a painter: \(missing.joined(separator: ", "))") }
         if count > 2048 { print("warning: \(count) texture layers exceed the 11-bit layer index") }
-        for (layer, name) in Tex.names.enumerated() {
+        let names = Tex.names
+        var small = [V4](repeating: V4(0, 0, 0, 0), count: S * S * count)
+        for (layer, name) in names.enumerated() {
             let f: Painter = table[name] ?? { x, y in ((x / 4 + y / 4) % 2 == 0) ? V4(1, 0, 1, 1) : V4(0, 0, 0, 1) }
-            for y in 0..<S {
-                for x in 0..<S {
-                    let c = simd_clamp(f(x, y), V4(repeating: 0), V4(repeating: 1))
-                    let i = ((layer * S + y) * S + x) * 4
-                    data[i] = UInt8(c.x * 255)
-                    data[i + 1] = UInt8(c.y * 255)
-                    data[i + 2] = UInt8(c.z * 255)
-                    data[i + 3] = UInt8(c.w * 255)
+            for y in 0..<S { for x in 0..<S {
+                small[(layer * S + y) * S + x] = simd_clamp(f(x, y), V4(repeating: 0), V4(repeating: 1))
+            } }
+        }
+        let crisp = Set(hudNames + Font.names)
+        var data = [UInt8](repeating: 0, count: n * n * 4 * count)
+        data.withUnsafeMutableBufferPointer { buf in
+            let out = buf.baseAddress!
+            DispatchQueue.concurrentPerform(iterations: count) { layer in
+                let name = names[layer]
+                let src = Array(small[(layer * S * S)..<((layer + 1) * S * S)])
+                var px: [V4]
+                if n == S {
+                    px = src
+                } else if let g = HDTex.table[name] {
+                    px = g(n, Int(hash3(layer, 7, 3, 0x7E57) & 0xFFFF)).px
+                } else if crisp.contains(name) || name.hasPrefix("item_") || name.hasPrefix("effect_") || table[name] == nil {
+                    px = [V4](repeating: V4(0, 0, 0, 0), count: n * n)
+                    for y in 0..<n { for x in 0..<n { px[y * n + x] = src[(y * S / n) * S + x * S / n] } }
+                } else {
+                    px = HDTex.upscale(src, detail: 0.10, salt: layer, n: n).px
+                }
+                let base = layer * n * n * 4
+                for i in 0..<(n * n) {
+                    let c = simd_clamp(px[i], V4(repeating: 0), V4(repeating: 1))
+                    out[base + i * 4] = UInt8(c.x * 255)
+                    out[base + i * 4 + 1] = UInt8(c.y * 255)
+                    out[base + i * 4 + 2] = UInt8(c.z * 255)
+                    out[base + i * 4 + 3] = UInt8(c.w * 255)
                 }
             }
         }
@@ -1027,10 +1059,10 @@ enum TextureGen {
     }
 
     // Alpha-weighted box-filter mip chain (keeps leaves/glass from darkening at distance).
-    static func mipChain() -> [[UInt8]] {
-        var levels = [base()]
+    static func mipChain(size n: Int = TextureGen.size) -> [[UInt8]] {
+        var levels = [base(size: n)]
         let count = Tex.count
-        var size = S
+        var size = n
         let taps = [(0, 0), (1, 0), (0, 1), (1, 1)]
         while size > 1 {
             let prev = levels[levels.count - 1]

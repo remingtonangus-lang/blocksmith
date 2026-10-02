@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 // (atlas_0.png, atlas_1.png...), 24 x 20 tiles of 48 px on a grey background, and prints
 // "page row col name" lines so a tile can be traced back to its painter.
 func dumpAtlas(_ prefix: String) -> Int32 {
-    let data = TextureGen.base()
+    let data = TextureGen.base(size: TextureGen.S)
     let names = Tex.names
     let S = TextureGen.S, cols = 24, rows = 20, scale = 3, gap = 2
     let cell = S * scale + gap
@@ -50,5 +50,47 @@ func dumpAtlas(_ prefix: String) -> Int32 {
         first += perPage
     }
     print("atlas: \(names.count) layers on \(page) pages")
+    return 0
+}
+
+// Harness: `Blocksmith --hdatlas snaps/hdatlas.png [--names a,b,c]` writes tiles at the GPU texture resolution
+// (TextureGen.size) for review: the HD materials, then upscaled painters for comparison. 8 columns, labels in
+// the log ("hdatlas row col name").
+func dumpHDAtlas(_ path: String) -> Int32 {
+    let n = TextureGen.size
+    let data = TextureGen.base(size: n)
+    let names = Tex.names
+    var want: [String] = arg("--names").map { $0.split(separator: ",").map(String.init) }
+        ?? (HDTex.table.keys.sorted() + ["grass_block_side", "snow", "bricks", "stone_bricks", "oak_log_top", "sandstone", "terracotta",
+                                         "white_wool", "glass", "water", "lava", "netherrack", "end_stone", "furnace_front"])
+    want = want.filter { names.contains($0) }
+    let cols = 8, gap = 4
+    let rows = (want.count + cols - 1) / cols
+    let W = cols * (n + gap) + gap, H = rows * (n + gap) + gap
+    var px = [UInt8](repeating: 30, count: W * H * 4)
+    for i in 0..<(W * H) { px[i * 4 + 3] = 255 }
+    for (k, name) in want.enumerated() {
+        guard let layer = names.firstIndex(of: name) else { continue }
+        let r = k / cols, c = k % cols
+        print("hdatlas r\(r) c\(c) \(name)")
+        let ox = gap + c * (n + gap), oy = gap + r * (n + gap)
+        for y in 0..<n { for x in 0..<n {
+            let si = ((layer * n + y) * n + x) * 4
+            let a = Float(data[si + 3]) / 255
+            let bg: Float = ((x / 8 + y / 8) % 2 == 0) ? 70 : 100
+            let o = ((oy + y) * W + ox + x) * 4
+            for ch in 0..<3 { px[o + ch] = UInt8(Float(data[si + ch]) * a + bg * (1 - a)) }
+        } }
+    }
+    let cs = CGColorSpaceCreateDeviceRGB()
+    guard let provider = CGDataProvider(data: Data(px) as CFData),
+          let img = CGImage(width: W, height: H, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: W * 4, space: cs,
+                            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue), provider: provider, decode: nil,
+                            shouldInterpolate: false, intent: .defaultIntent),
+          let dest = CGImageDestinationCreateWithURL(URL(fileURLWithPath: path) as CFURL, UTType.png.identifier as CFString, 1, nil)
+    else { return 1 }
+    CGImageDestinationAddImage(dest, img, nil)
+    CGImageDestinationFinalize(dest)
+    print("hdatlas: \(want.count) layers at \(n) px -> \(path)")
     return 0
 }

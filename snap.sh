@@ -139,6 +139,7 @@ done
 "$BIN" --snapshot snaps/survival.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --survival 13 --slot 8 --debug
 "$BIN" --snapshot snaps/sim.png --seed 12345 --sim 12 --yaw 30 --pitch -10 --time 0.25
 "$BIN" --atlas snaps/atlas
+BLOCKSMITH_TEXRES=128 "$BIN" --hdatlas snaps/hdatlas.png
 "$BIN" --snapshot snaps/mobs.png --seed 12345 --yaw 30 --pitch -14 --time 0.22 --up 1 --mobs
 "$BIN" --snapshot snaps/mob_shadows.png --seed 12345 --yaw 30 --pitch -14 --time 0.07 --up 1 --mobs
 "$BIN" --snapshot snaps/hostile.png --seed 12345 --yaw 30 --pitch -12 --time 0.22 --up 1 --mobs --hostile

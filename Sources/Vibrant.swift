@@ -98,7 +98,7 @@ final class Vibrant {
         shadowStatic = device.makeTexture(descriptor: sd)!
 
         // Emissive mask (R8) per texture layer, with box-filtered mips like the colour atlas.
-        let S = TextureGen.S, layers = Tex.count
+        let S = TextureGen.size, layers = Tex.count
         let mask = Vibrant.emissiveMask(baseTexels, layers: layers)
         let ed = MTLTextureDescriptor()
         ed.textureType = .type2DArray
@@ -140,7 +140,7 @@ final class Vibrant {
     // Glowing texels: layers of light-emitting blocks glow where they are bright (lava, flames, lamps,
     // lumenstone); ore layers glow faintly in their coloured specks.
     static func emissiveMask(_ base: [UInt8], layers: Int) -> [UInt8] {
-        let S = TextureGen.S
+        let S = TextureGen.size
         var mode = [Float](repeating: 0, count: layers)       // >0: emitter strength, <0: ore
         // Layers shared with non-glowing blocks (carved pumpkin sides, furnace stone) never glow.
         var dark = [Bool](repeating: false, count: layers)

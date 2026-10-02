@@ -1268,6 +1268,7 @@ if CommandLine.arguments.contains("--structcheck") {
     exit(StructCheck.run(device: device))
 }
 
+if let out = arg("--hdatlas") { exit(dumpHDAtlas(out)) }
 if let out = arg("--atlas") {
     exit(dumpAtlas(out))
 }
