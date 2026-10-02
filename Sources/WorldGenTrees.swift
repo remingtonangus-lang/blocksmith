@@ -22,7 +22,7 @@ struct TreeWriter {
         guard inside(x, y, z) else { return }
         let i = Chunk.index(x - bx, y, z - bz)
         let c = b[i]
-        if c == AIR || Blocks.replaceable[Int(c)] && !Blocks.isLiquid(c) || Blocks.key(c).hasSuffix("_leaves") { b[i] = id }
+        if c == AIR || Blocks.replaceable[Int(c)] && !Blocks.isLiquid(c) || Mesher.leafT[Int(c)] { b[i] = id }
     }
     func leaf(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) {
         guard inside(x, y, z) else { return }
@@ -121,7 +121,12 @@ enum TreePlacer {
 
     static func blob(_ w: TreeWriter, _ x: Int, _ y: Int, _ z: Int, rx: Float, ry: Float, _ leaf: BlockID, _ rng: inout SRng) {
         let ix = Int(rx.rounded(.up)), iy = Int(ry.rounded(.up))
+        // Crowns of trees in the 7-block margin mostly miss this chunk: skip them (and the outside voxels) before the
+        // per-voxel hash (tree placement was half of world generation's time: bench gen phases, run 365).
+        if x + ix < w.bx || x - ix >= w.bx + CS || z + ix < w.bz || z - ix >= w.bz + CS { return }
         for dy in -iy...iy { for dz in -ix...ix { for dx in -ix...ix {
+            let qx = x + dx, qz = z + dz
+            if qx < w.bx || qx >= w.bx + CS || qz < w.bz || qz >= w.bz + CS { continue }
             let e = Float(dx * dx + dz * dz) / (rx * rx) + Float(dy * dy) / (ry * ry)
             if e > 1 + (hashf(x + dx, y + dy, z + dz, 0x1EAF) - 0.5) * 0.3 { continue }
             w.leaf(x + dx, y + dy, z + dz, leaf)
