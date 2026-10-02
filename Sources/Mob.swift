@@ -1004,10 +1004,13 @@ final class Mob {
                 let rr: Float = a.1 * 0.8 * Rand.float(in: 0.2...1)
                 x = Int(floor(c.x + sinf(ang) * rr)); z = Int(floor(c.z + cosf(ang) * rr))
             }
+            // The footprint's centre: a 2-wide mob (iron golem) stands centred on the corner of its 2x2 cells, so a
+            // cell-centre goal sat 0.71 from where it could ever stand, outside the 0.7 arrival radius; it circled
+            // the goal (behaviour sim: golems spinning 15 and 8 windows, every one on a stroll).
+            let off: Float = pr.span == 2 ? 1 : 0.5
             for dy in [0, 1, -1, 2, -2] {
-                if let c = PathFinder.standCost(w, x, y0 + dy, z, pr), c < 5, !gaveUp(V3(Float(x) + 0.5, Float(y0 + dy), Float(z) + 0.5)) {
-                    return V3(Float(x) + 0.5, Float(y0 + dy), Float(z) + 0.5)
-                }
+                let g = V3(Float(x) + off, Float(y0 + dy), Float(z) + off)
+                if let c = PathFinder.standCost(w, x, y0 + dy, z, pr), c < 5, !gaveUp(g) { return g }
             }
         }
         return nil
