@@ -36,6 +36,7 @@ final class CapitalState {
     var groundTimer: Float = 0
     var groundMax: Float = 0           // highest terrain under and ahead of a frigate (sampled twice a second)
     var crushTimer: Float = 0
+    var crushedAll = false
     var sinkSpeed: Float = 0
     var wreckFx: Float = 0
     var settled = false
@@ -810,7 +811,13 @@ extension ShipManager {
         let lo = s.localMin, hi = s.localMax
         var n = 0
         let hardness = Blocks.hardness
-        for lz in stride(from: lo.z - 1, through: lo.z + 6, by: 1) {
+        // On arrival the whole footprint is cleared once (it spawned among trees that hid its wheels: run 404),
+        // afterwards only the front rows it drives into.
+        let full = !st.crushedAll && world.isLoaded(Int(floor(s.pos.x)), Int(floor(s.pos.z)))
+        if full { st.crushedAll = true }
+        let zEnd: Float = full ? hi.z : lo.z + 6
+        let cap = full ? 4000 : 80
+        for lz in stride(from: lo.z - 1, through: zEnd, by: 1) {
             for lx in stride(from: lo.x, through: hi.x, by: 1) {
                 for ly in stride(from: lo.y + 2, through: hi.y, by: 1) {
                     let w = s.toWorld(V3(lx, ly, lz))
@@ -820,11 +827,12 @@ extension ShipManager {
                     if b == AIR || Blocks.isLiquid(b) { continue }
                     let key = Blocks.key(Blocks.groupBase[Int(b)])
                     let soft: Bool = key.hasSuffix("_leaves") || key.hasSuffix("_log") || key.hasSuffix("_planks") || key.hasSuffix("_fence")
-                        || key.contains("glass") || !Blocks.collide[Int(b)] || (hardness[Int(b)] >= 0 && hardness[Int(b)] < 1)
+                        || key.contains("glass") || key.hasSuffix("_wood") || key.contains("mushroom_block") || key == "cactus"
+                        || key == "bamboo" || (!Blocks.collide[Int(b)] && hardness[Int(b)] >= 0)
                     if !soft { continue }
                     world.setBlockAsync(x, y, z, AIR)
                     n += 1
-                    if n >= 80 { return }
+                    if n >= cap { return }
                 }
             }
         }
