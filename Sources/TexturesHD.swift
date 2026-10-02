@@ -2029,6 +2029,36 @@ enum HDTex {
         }
     }
 
+    // Iron bars (cutout, same layout as the small painter: bars at 16ths 2-3, 7-8, 12-13, rails at rows 1 and 14):
+    // round bars lit from the left, flat rails with rivets where they cross, a few rust specks.
+    static func ironBarsHD(_ n: Int, _ s: Int) -> Img {
+        var img = Img(n, V4(0, 0, 0, 0))
+        let u = n / 16
+        let fine = vnoise(n, max(1, n / 64), s)
+        for y in 0..<n { for x in 0..<n {
+            let lx = x / u, ly = y / u
+            let bar = lx % 5 == 2 || lx % 5 == 3
+            let rail = (ly == 1 || ly == 14) && lx > 0 && lx < 15
+            guard bar || rail else { continue }
+            var k: Float
+            if bar {
+                let barX0: Int = (lx - lx % 5 + 2) * u
+                let across: Float = (Float(x - barX0) + 0.5) / Float(2 * u)              // 0...1 over the bar
+                let off: Float = across - 0.3
+                k = 0.72 - 0.84 * off * off
+                if rail { k = 0.8 }                                                     // rivet where they cross
+            } else {
+                let down: Float = (Float(y % u) + 0.5) / Float(u)
+                k = 0.66 - 0.18 * down
+            }
+            k *= 0.94 + 0.12 * fine[y * n + x]
+            var c = V3(k, k, k * 1.03)
+            if h2(x / max(1, n / 64), y / max(1, n / 64), s &+ 5) > 0.97 { c = V3(k * 1.1, k * 0.75, k * 0.5) }   // rust
+            img.px[y * n + x] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
+        } }
+        return img
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -2593,6 +2623,7 @@ enum HDTex {
         "activator_rail": railHD(tie: 0x7A2A1A, rail: 0xA8A8A8, mid: 0x5A1410),
         "activator_rail_on": railHD(tie: 0x7A2A1A, rail: 0xA8A8A8, mid: 0xF8301A),
         "ladder": ladderHD,
+        "iron_bars": ironBarsHD,
         "torch": torchHD(core: 0xFFF6C8, flame: 0xFFC43A, x0: 7, x1: 9, coreRow: 6, stickTo: 16),
         "torch_wall": torchHD(core: 0xFFF6C8, flame: 0xFFC43A, x0: 0, x1: 16, coreRow: 3, stickTo: 13),
         "soul_torch": torchHD(core: 0xD8FFFF, flame: 0x3AD8E8, x0: 7, x1: 9, coreRow: 6, stickTo: 16),
