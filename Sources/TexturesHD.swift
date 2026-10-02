@@ -813,17 +813,35 @@ enum HDTex {
     }
 
     // Grey (tinted) leaves: overlapping leaf ellipses with gaps for the cutout.
+    // Leaves (cutout, greyscale for biome tint): leaves grouped into a dozen clumps that share a brightness and are
+    // lit from the top-left (darker toward each clump's lower right), larger and fewer than before; ~400 tiny leaves
+    // with random brightness read as photographic speckle next to the stylised ground (both critics).
     static func leaves(_ n: Int, _ s: Int) -> Img {
-        var img = Img(n, V4(0, 0, 0, 0))
+        var img = Img(n, V4(0.5, 0.5, 0.5, 0))
         var rng = SRng(UInt64(truncatingIfNeeded: s) &* 104729 &+ 3)
-        let count = n * n / 40
-        let scale: Float = Float(n) / 128
+        let fn = Float(n)
+        let scale: Float = fn / 128
+        // Clump centres (wrapping) and their base brightness.
+        var clumps: [(Float, Float, Float)] = []
+        for _ in 0..<12 { clumps.append((rng.float() * fn, rng.float() * fn, 0.55 + rng.float() * 0.35)) }
+        let clumpR: Float = fn * 0.2
+        let count = n * n / 70
         for _ in 0..<count {
-            let cx: Float = rng.float() * Float(n), cy: Float = rng.float() * Float(n)
+            let cx: Float = rng.float() * fn, cy: Float = rng.float() * fn
+            // Nearest clump (wrap-aware).
+            var best: Float = 1e9, base: Float = 0.7, ox: Float = 0, oy: Float = 0
+            for (kx, ky, kb) in clumps {
+                var dx: Float = cx - kx, dy: Float = cy - ky
+                if dx > fn / 2 { dx -= fn } else if dx < -fn / 2 { dx += fn }
+                if dy > fn / 2 { dy -= fn } else if dy < -fn / 2 { dy += fn }
+                let d2: Float = dx * dx + dy * dy
+                if d2 < best { best = d2; base = kb; ox = dx; oy = dy }
+            }
+            let side: Float = max(-1, min(1, (ox + oy) / (clumpR * 1.4)))   // -1 top-left (lit) ... 1 bottom-right
+            let v: Float = base * (1 - 0.22 * side) * (0.92 + rng.float() * 0.12)
             let ang: Float = rng.float() * .pi
-            let L: Float = (5 + rng.float() * 4) * scale
-            let W: Float = L * 0.45
-            let v: Float = 0.45 + rng.float() * 0.55
+            let L: Float = (7 + rng.float() * 5) * scale
+            let W: Float = L * 0.48
             let r = Int(L) + 1
             let ca = cosf(ang), sa = sinf(ang)
             for dy in -r...r { for dx in -r...r {
@@ -831,9 +849,10 @@ enum HDTex {
                 let u: Float = fdx * ca + fdy * sa
                 let w: Float = fdy * ca - fdx * sa
                 let ue: Float = u / L, we: Float = w / W
-                if ue * ue + we * we >= 1 { continue }
-                let vein: Float = abs(w) < W * 0.12 ? 0.78 : 1
-                let k: Float = v * (0.8 + 0.2 * ue) * vein
+                let e: Float = ue * ue + we * we
+                if e >= 1 { continue }
+                let vein: Float = abs(w) < W * 0.1 ? 0.85 : 1
+                let k: Float = min(1, v * (0.86 + 0.14 * ue) * vein * (1 - 0.1 * e))
                 img[Int(cx) + dx, Int(cy) + dy] = V4(k, k, k, 1)
             } }
         }
