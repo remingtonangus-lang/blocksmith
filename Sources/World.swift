@@ -592,7 +592,7 @@ final class World {
         // Structure mobs (bastion boarlings...) appear once: the chunk is saved so it never regenerates.
         if !p.mobs.isEmpty {
             c.modified = true
-            for (name, at) in p.mobs { pendingMobs.append((name, freeSpawn(at))) }
+            for (name, at) in p.mobs { pendingMobs.append((name, freeSpawn(at, wide: name == "iron_golem" || name == "ravager"))) }
         }
     }
 
@@ -639,7 +639,9 @@ final class World {
 
     // A structure mob placed inside a wall, floor or furniture (structcheck mob_in_block) moves to the nearest
     // cell where a two-block body fits: straight up first, then one and two blocks around.
-    func freeSpawn(_ p: V3) -> V3 {
+    // wide: a body over a block across (iron golems, siegebeasts) stands on a cell corner with all four cells round it
+    // clear (a golem placed in a one-block gap between a house and the bank stood in both walls: behaviour sim, run 377).
+    func freeSpawn(_ p: V3, wide: Bool = false) -> V3 {
         func clear(_ x: Int, _ y: Int, _ z: Int) -> Bool {
             for k in 0...1 {
                 let b = Int(block(x, y + k, z))
@@ -652,6 +654,17 @@ final class World {
             return true
         }
         let x = Int(floor(p.x)), y = Int(floor(p.y + 0.01)), z = Int(floor(p.z))
+        if wide {
+            func clear4(_ cx: Int, _ cy: Int, _ cz: Int) -> Bool {
+                clear(cx - 1, cy, cz - 1) && clear(cx, cy, cz - 1) && clear(cx - 1, cy, cz) && clear(cx, cy, cz)
+                    && Blocks.collide[Int(block(cx - 1, cy - 1, cz - 1))] && Blocks.collide[Int(block(cx, cy - 1, cz))]
+            }
+            let rx = Int((p.x).rounded()), rz = Int((p.z).rounded())
+            for r in 0...3 { for dy in [0, 1, -1, 2] { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
+                if clear4(rx + dx, y + dy, rz + dz) { return V3(Float(rx + dx), Float(y + dy), Float(rz + dz)) }
+            } } } }
+            return p
+        }
         if clear(x, y, z) { return p }
         for dy in 1...4 where clear(x, y + dy, z) { return V3(p.x, Float(y + dy), p.z) }
         for r in 1...2 { for dy in -1...2 { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
