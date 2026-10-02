@@ -2168,6 +2168,31 @@ enum HDTex {
         return img
     }
 
+    // Chiseled stone: one dressed block with a bevelled border and a carved ring round a raised boss, cut into the
+    // base stone (lit top-left, shaded bottom-right).
+    static func chiseled(_ base: @escaping Gen) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            var img = polished(base, calm: 0.5)(n, s)
+            var hh = [Float](repeating: 0, count: n * n)
+            for y in 0..<n { for x in 0..<n {
+                let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
+                let r: Float = (dx * dx + dy * dy).squareRoot() / (fn / 2)
+                let edge: Float = Float(min(min(x, y), min(n - 1 - x, n - 1 - y))) / fn
+                var h: Float = edge < 0.06 ? -0.4 : 0
+                if r > 0.52 && r < 0.62 { h = -0.5 }                                    // carved ring
+                else if r < 0.3 { h = 0.35 * (1 - r / 0.3) }                            // raised boss
+                hh[y * n + x] = h
+            } }
+            shade(&img, hh, 2.2)
+            for i in 0..<(n * n) where hh[i] < -0.3 {
+                let p = img.px[i]
+                img.px[i] = V4(p.x * 0.78, p.y * 0.78, p.z * 0.78, p.w)
+            }
+            return img
+        }
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -2896,6 +2921,9 @@ enum HDTex {
         "stone_bricks": stoneBricks,
         "mossy_stone_bricks": mossy(stoneBricks, amount: 0.45),
         "cracked_stone_bricks": cracked(stoneBricks),
+        "chiseled_sandstone": chiseled(stone(sandstonePal, veins: 0, strata: 0.05)),
+        "chiseled_polished_blackstone": chiseled(stone([(0, 0x1E1A20), (0.5, 0x2E2830), (1, 0x443C46)], veins: 0.2, strata: 0)),
+        "chiseled_stone_bricks": chiseled(stone([(0, 0x5E5E60), (0.5, 0x7E7E80), (1, 0x9C9C9C)], veins: 0.2, strata: 0)),
         "mossy_cobblestone": mossy(cobble([(0, 0x585A5C), (0.5, 0x808082), (1, 0xA2A09E)], mortar: 0x3A3838), amount: 0.5),
         "bricks": masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 18, [(0, 0x7A3A2C), (0.5, 0x985040), (1, 0xB4705A)], mortar: 0xB0AAA0, clay: true, chips: 1.4),
         "deepslate_bricks": masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 26, [(0, 0x343436), (0.5, 0x4A4A4C), (1, 0x626264)], mortar: 0x202022, chips: 1.2),
