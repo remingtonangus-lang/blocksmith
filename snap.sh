@@ -39,6 +39,7 @@ cp -r build/sounds/scapes snaps/sounds/scapes
 # Bots playing the real Game.tick (Agent.swift): oracles every tick, replays for every finding (snaps/agent_*.md).
 "$BIN" --behaviorsim --seeds 12345,777 --minutes 20 --out snaps/behaviorsim.md
 "$BIN" --gencheck --seeds 12345,777,424242 --areas 6 --out snaps/gencheck.md
+"$BIN" --collisiontest --out snaps/collisiontest.md
 "$BIN" --agent village --seeds 12345,777,424242 --ticks 4800 --out snaps
 "$BIN" --agent explorer --seeds 12345,777 --ticks 3600 --out snaps
 "$BIN" --agent monkey --seeds 12345,424242 --ticks 3600 --minimize --out snaps

@@ -1255,6 +1255,10 @@ if CommandLine.arguments.contains("--genbench") { exit(TerrainTools.genBench()) 
 if CommandLine.arguments.contains("--kelpcheck") { exit(TerrainTools.kelpCheck()) }
 if arg("--agent") != nil { exit(AgentRun.run()) }
 if CommandLine.arguments.contains("--behaviorsim") { exit(BehaviorSim.run()) }
+if CommandLine.arguments.contains("--collisiontest") {
+    guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); exit(1) }
+    exit(CollisionTest.run(device: device))
+}
 if CommandLine.arguments.contains("--gencheck") {
     guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); exit(1) }
     exit(GenCheck.run(device: device))
