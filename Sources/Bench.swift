@@ -281,7 +281,8 @@ enum Bench {
         }
         // Renderer init breakdown (each repeated here on its own).
         var e = now
-        _ = TextureGen.mipChain()
+        var first = 0
+        while first < Tex.count { _ = TextureGen.mipChain(layers: first..<min(Tex.count, first + 256)); first += 256 }   // as the renderer batches
         put("startup.textures_ms", (now - e) * 1000)
         e = now
         _ = try? device.makeLibrary(source: shaderSource, options: nil)

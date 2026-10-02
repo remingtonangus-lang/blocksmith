@@ -6,13 +6,13 @@ import simd
 // for each name. Unknown names render as a magenta/black checker so they are easy to spot.
 enum TextureGen {
     static let S = 16              // the painters' grid (16 x 16 "pixels" per face)
-    // Texture resolution on the GPU (pixels per face): HD materials (TexturesHD.swift) where they exist, the 16 px
+    // Texture resolution on the GPU (pixels per face, default 128; BC3-compressed about 35 MB with mips): HD materials (TexturesHD.swift) where they exist, the 16 px
     // painters upscaled otherwise. BLOCKSMITH_TEXRES or the "textureRes" setting picks 16 / 32 / 64 / 128.
     static let size: Int = {
         let env = ProcessInfo.processInfo.environment["BLOCKSMITH_TEXRES"].flatMap { Int($0) }
         let pref = UserDefaults.standard.integer(forKey: "textureRes")
-        let v = env ?? (pref > 0 ? pref : 64)
-        return [16, 32, 64, 128].contains(v) ? v : 64
+        let v = env ?? (pref > 0 ? pref : 128)
+        return [16, 32, 64, 128].contains(v) ? v : 128
     }()
     typealias Painter = (Int, Int) -> V4
 
@@ -1012,29 +1012,36 @@ enum TextureGen {
 
     // Every layer at `size` x `size` (RGBA8): the 16 px painters run first (serially: some build shared state),
     // then HD materials / upscales are produced in parallel per layer.
-    static func base(size n: Int = TextureGen.size) -> [UInt8] {
+    // Full-size RGBA for the layers in `range` (all layers by default), layer-major from range.lowerBound. The
+    // renderer builds the array in batches of layers so 128 px faces never sit in memory all at once.
+    static func base(size n: Int = TextureGen.size, layers range: Range<Int>? = nil) -> [UInt8] {
         registerAll()
-        let count = Tex.count
+        let r = range ?? 0..<Tex.count
+        let count = r.count
         let table = painters()
-        let missing = Tex.names.filter { table[$0] == nil }
-        if !missing.isEmpty { print("textures without a painter: \(missing.joined(separator: ", "))") }
-        if !Blocks.untextured.isEmpty { print("blocks without textures: \(Blocks.untextured.prefix(20).joined(separator: ", "))") }
-        if count > 2048 { print("warning: \(count) texture layers exceed the 11-bit layer index") }
+        if r.lowerBound == 0 {
+            let missing = Tex.names.filter { table[$0] == nil }
+            if !missing.isEmpty { print("textures without a painter: \(missing.joined(separator: ", "))") }
+            if !Blocks.untextured.isEmpty { print("blocks without textures: \(Blocks.untextured.prefix(20).joined(separator: ", "))") }
+            if Tex.count > 2048 { print("warning: \(Tex.count) texture layers exceed the 11-bit layer index") }
+        }
         let names = Tex.names
         var small = [V4](repeating: V4(0, 0, 0, 0), count: S * S * count)
-        for (layer, name) in names.enumerated() {
+        for li in 0..<count {
+            let name = names[r.lowerBound + li]
             let f: Painter = table[name] ?? { x, y in ((x / 4 + y / 4) % 2 == 0) ? V4(1, 0, 1, 1) : V4(0, 0, 0, 1) }
             for y in 0..<S { for x in 0..<S {
-                small[(layer * S + y) * S + x] = simd_clamp(f(x, y), V4(repeating: 0), V4(repeating: 1))
+                small[(li * S + y) * S + x] = simd_clamp(f(x, y), V4(repeating: 0), V4(repeating: 1))
             } }
         }
         let crisp = Set(hudNames + Font.names)
         var data = [UInt8](repeating: 0, count: n * n * 4 * count)
         data.withUnsafeMutableBufferPointer { buf in
             let out = buf.baseAddress!
-            DispatchQueue.concurrentPerform(iterations: count) { layer in
+            DispatchQueue.concurrentPerform(iterations: count) { li in
+                let layer = r.lowerBound + li
                 let name = names[layer]
-                let src = Array(small[(layer * S * S)..<((layer + 1) * S * S)])
+                let src = Array(small[(li * S * S)..<((li + 1) * S * S)])
                 var px: [V4]
                 if n == S {
                     px = src
@@ -1048,7 +1055,7 @@ enum TextureGen {
                 } else {
                     px = HDTex.upscale(src, detail: 0.10, salt: layer, n: n).px
                 }
-                let base = layer * n * n * 4
+                let base = li * n * n * 4
                 for i in 0..<(n * n) {
                     let c = simd_clamp(px[i], V4(repeating: 0), V4(repeating: 1))
                     out[base + i * 4] = UInt8(c.x * 255)
@@ -1066,9 +1073,9 @@ enum TextureGen {
     // linear and anisotropic filtering at the cutout edge doesn't blend in black (distant crowns turned into black
     // speckles), and (b) alpha coverage preserved per level: the share of texels passing the shaders' 0.5 cutoff
     // stays what it is at full size, instead of thinning out with distance (Castano's coverage-preserving mips).
-    static func mipChain(size n: Int = TextureGen.size) -> [[UInt8]] {
-        var levels = [base(size: n)]
-        let count = Tex.count
+    static func mipChain(size n: Int = TextureGen.size, layers range: Range<Int>? = nil) -> [[UInt8]] {
+        var levels = [base(size: n, layers: range)]
+        let count = (range ?? 0..<Tex.count).count
         var cutout = [Bool](repeating: false, count: count)
         var coverage = [Float](repeating: 0, count: count)
         levels[0].withUnsafeMutableBufferPointer { buf in

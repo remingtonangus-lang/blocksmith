@@ -33,7 +33,7 @@ final class Vibrant {
     private(set) var raysTex: MTLTexture?
     private var size = (0, 0)
 
-    init(device: MTLDevice, library lib: MTLLibrary, finalFormat: MTLPixelFormat, baseTexels: [UInt8]) throws {
+    init(device: MTLDevice, library lib: MTLLibrary, finalFormat: MTLPixelFormat, emissive mask: [UInt8]) throws {
         self.device = device
         let hdrF = MTLPixelFormat.rgba16Float
         func pipe(_ vs: String, _ fs: String?, color: MTLPixelFormat?, depth: MTLPixelFormat = .depth32Float,
@@ -99,7 +99,6 @@ final class Vibrant {
 
         // Emissive mask (R8) per texture layer, with box-filtered mips like the colour atlas.
         let S = TextureGen.size, layers = Tex.count
-        let mask = Vibrant.emissiveMask(baseTexels, layers: layers)
         let ed = MTLTextureDescriptor()
         ed.textureType = .type2DArray
         ed.pixelFormat = .r8Unorm
@@ -139,8 +138,8 @@ final class Vibrant {
 
     // Glowing texels: layers of light-emitting blocks glow where they are bright (lava, flames, lamps,
     // lumenstone); ore layers glow faintly in their coloured specks.
-    static func emissiveMask(_ base: [UInt8], layers: Int) -> [UInt8] {
-        let S = TextureGen.size
+    // Glow per layer: > 0 emitter strength, < 0 ore glint, 0 none.
+    static func emissiveModes(layers: Int) -> [Float] {
         var mode = [Float](repeating: 0, count: layers)       // >0: emitter strength, <0: ore
         // Layers shared with non-glowing blocks (carved pumpkin sides, furnace stone) never glow.
         var dark = [Bool](repeating: false, count: layers)
@@ -157,10 +156,17 @@ final class Vibrant {
         for (l, n) in Tex.names.enumerated() where l < layers && mode[l] == 0 && n.hasSuffix("_ore") && !n.contains("coal") {
             mode[l] = -1
         }
-        var out = [UInt8](repeating: 0, count: S * S * layers)
-        for l in 0..<layers where mode[l] != 0 {
+        return mode
+    }
+
+    // Emissive mask (R8, S x S per layer) for layers first..<first+count, from their full-size RGBA (`base` holds just
+    // those layers), written into `out` (all layers). The renderer calls it once per batch of built layers.
+    static func emissiveMask(_ base: [UInt8], first: Int, count: Int, modes mode: [Float], into out: inout [UInt8]) {
+        let S = TextureGen.size
+        for lb in 0..<count where mode[first + lb] != 0 {
+            let l = first + lb
             for i in 0..<(S * S) {
-                let p = (l * S * S + i) * 4
+                let p = (lb * S * S + i) * 4
                 let r = Float(base[p]) / 255, g = Float(base[p + 1]) / 255, b = Float(base[p + 2]) / 255, a = Float(base[p + 3]) / 255
                 if a < 0.5 { continue }
                 let mx = max(r, max(g, b)), mn = min(r, min(g, b))
@@ -176,7 +182,6 @@ final class Vibrant {
                 out[l * S * S + i] = UInt8(min(255, e * 255))
             }
         }
-        return out
     }
 
     // Per-layer material: x = specular strength, y = shininess, z = metal (tints the highlight), w = gets wet in rain.

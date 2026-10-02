@@ -206,8 +206,8 @@ final class Renderer: NSObject, MTKViewDelegate {
         depthRead = ds(.lessEqual, false)
         depthNone = ds(.always, false)
 
-        // Texture array with CPU-built mip chain
-        let levels = TextureGen.mipChain()
+        // Texture array with a CPU-built mip chain, built, compressed and uploaded in batches of layers (128 px RGBA
+        // for every layer at once would hold ~145 MB on the CPU side during start-up).
         let layers = Tex.count
         // BC3-compressed where the GPU samples BC formats (TexCompress), RGBA8 otherwise.
         let bc = TexCompress.enabled && device.supportsBCTextureCompression
@@ -217,53 +217,69 @@ final class Renderer: NSObject, MTKViewDelegate {
         td.width = TextureGen.size
         td.height = TextureGen.size
         td.arrayLength = layers
-        td.mipmapLevelCount = levels.count
+        var levelCount = 1
+        while (TextureGen.size >> (levelCount - 1)) > 1 { levelCount += 1 }
+        td.mipmapLevelCount = levelCount
         td.usage = .shaderRead
         let tex = device.makeTexture(descriptor: td)!
-        var size = TextureGen.size
-        let tc0 = CFAbsoluteTimeGetCurrent()
         var texBytes = 0
-        for (lvl, data) in levels.enumerated() {
-            let bytesPerImage = size * size * 4
-            if bc {
-                let bw = max(1, (size + 3) / 4)
-                let blockBytes = bw * bw * 16
-                var packed = [UInt8](repeating: 0, count: blockBytes * layers)
-                let sz = size
-                data.withUnsafeBytes { raw in
-                    packed.withUnsafeMutableBufferPointer { dst in
-                        let base = dst.baseAddress!
-                        DispatchQueue.concurrentPerform(iterations: layers) { layer in
-                            TexCompress.encode(raw.baseAddress! + layer * bytesPerImage, size: sz, into: base + layer * blockBytes)
+        var tgMs: Double = 0, tcMs: Double = 0
+        let batch = 256
+        var first = 0
+        let glow = Vibrant.emissiveModes(layers: layers)
+        var emissive = [UInt8](repeating: 0, count: TextureGen.size * TextureGen.size * layers)
+        while first < layers {
+            let range = first..<min(layers, first + batch)
+            let tg0 = CFAbsoluteTimeGetCurrent()
+            let levels = TextureGen.mipChain(layers: range)
+            Vibrant.emissiveMask(levels[0], first: range.lowerBound, count: range.count, modes: glow, into: &emissive)
+            tgMs += (CFAbsoluteTimeGetCurrent() - tg0) * 1000
+            let tc0 = CFAbsoluteTimeGetCurrent()
+            let n = range.count
+            var size = TextureGen.size
+            for (lvl, data) in levels.enumerated() where lvl < levelCount {
+                let bytesPerImage = size * size * 4
+                if bc {
+                    let bw = max(1, (size + 3) / 4)
+                    let blockBytes = bw * bw * 16
+                    var packed = [UInt8](repeating: 0, count: blockBytes * n)
+                    let sz = size
+                    data.withUnsafeBytes { raw in
+                        packed.withUnsafeMutableBufferPointer { dst in
+                            let base = dst.baseAddress!
+                            DispatchQueue.concurrentPerform(iterations: n) { layer in
+                                TexCompress.encode(raw.baseAddress! + layer * bytesPerImage, size: sz, into: base + layer * blockBytes)
+                            }
                         }
                     }
-                }
-                packed.withUnsafeBytes { raw in
-                    for layer in 0..<layers {
-                        tex.replace(region: MTLRegionMake2D(0, 0, size, size), mipmapLevel: lvl, slice: layer,
-                                    withBytes: raw.baseAddress! + layer * blockBytes, bytesPerRow: bw * 16, bytesPerImage: blockBytes)
+                    packed.withUnsafeBytes { raw in
+                        for layer in 0..<n {
+                            tex.replace(region: MTLRegionMake2D(0, 0, size, size), mipmapLevel: lvl, slice: range.lowerBound + layer,
+                                        withBytes: raw.baseAddress! + layer * blockBytes, bytesPerRow: bw * 16, bytesPerImage: blockBytes)
+                        }
                     }
-                }
-                texBytes += blockBytes * layers
-            } else {
-                data.withUnsafeBytes { raw in
-                    for layer in 0..<layers {
-                        tex.replace(region: MTLRegionMake2D(0, 0, size, size), mipmapLevel: lvl, slice: layer,
+                    texBytes += blockBytes * n
+                } else {
+                    data.withUnsafeBytes { raw in
+                        for layer in 0..<n {
+                            tex.replace(region: MTLRegionMake2D(0, 0, size, size), mipmapLevel: lvl, slice: range.lowerBound + layer,
                                         withBytes: raw.baseAddress! + layer * bytesPerImage,
                                         bytesPerRow: size * 4, bytesPerImage: bytesPerImage)
+                        }
                     }
+                    texBytes += bytesPerImage * n
                 }
-                texBytes += bytesPerImage * layers
+                size = max(1, size / 2)
             }
-            size = max(1, size / 2)
+            tcMs += (CFAbsoluteTimeGetCurrent() - tc0) * 1000
+            first = range.upperBound
         }
-        let tcMs: Double = (CFAbsoluteTimeGetCurrent() - tc0) * 1000
-        print(String(format: "textures: %d layers at %d px, %@, %.1f MB with mips (upload %.0f ms)", layers, TextureGen.size,
-                     bc ? "BC3" : "RGBA8", Double(texBytes) / 1_048_576, tcMs))
+        print(String(format: "textures: %d layers at %d px, %@, %.1f MB with mips (build %.0f ms, upload %.0f ms)", layers, TextureGen.size,
+                     bc ? "BC3" : "RGBA8", Double(texBytes) / 1_048_576, tgMs, tcMs))
         texture = tex
         do {
             let vlib = try device.makeLibrary(source: shaderSource + vibrantShaderSource, options: nil)
-            vib = try Vibrant(device: device, library: vlib, finalFormat: colorFormat, baseTexels: levels[0])
+            vib = try Vibrant(device: device, library: vlib, finalFormat: colorFormat, emissive: emissive)
         } catch { print("Fancy renderer unavailable (falling back to Fast): \(error)") }
 
         // Shared index buffer: every quad is 4 vertices -> 2 CCW triangles.

@@ -274,6 +274,8 @@ done
 "$BIN" --snapshot snaps/farm_variants.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --facecam --spawn cow:1,cow:2,cow:3,pig:1,pig:2,pig:3,chicken:1,chicken:2,chicken:3 --stage
 "$BIN" --snapshot snaps/copper_golems.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --facecam --spawn copper_golem:0,copper_golem:1:carry,copper_golem:2,copper_golem:3,zombie:copper --stage
 "$BIN" --snapshot snaps/gallery_hollow.png --seed 12345 --find plains --yaw 0 --pitch 0 --time 0.28 --up 6 --gallery end_stone,end_stone_bricks,purpur_block,purpur_pillar,obsidian,crying_obsidian,amethyst_block,budding_amethyst,sculk,sculk_catalyst,copper_block,exposed_copper,weathered_copper,oxidized_copper,cut_copper,copper_grate,prismarine,prismarine_bricks,dark_prismarine,sea_lantern,sponge,wet_sponge,honey_block,slime_block
+"$BIN" --snapshot snaps/leak_12345.png --seed 12345 --x 36 --z 56 --up 6 --yaw 200 --pitch -35 --time 0.25
+"$BIN" --snapshot snaps/agent_door_777.png --seed 777 --x 959.5 --z 272.5 --up 4 --yaw 180 --pitch -20 --time 0.25
 "$BIN" --snapshot snaps/selftest.png --seed 12345 --find plains --yaw 30 --pitch 10 --time 0.3 --up 1 --selftest
 # Z-fighting probes: each view rendered twice with the camera nudged 1/1000 block (ImageCheck.swift).
 "$BIN" --snapshot snaps/flicker_village.png --seed 12345 --structure village --frame 0.8 --time 0.3 --flicker
