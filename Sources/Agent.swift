@@ -266,7 +266,24 @@ final class Agent {
                 let b0 = world.block(Int(floor(ahead.x)), Int(floor(pos.y)), Int(floor(ahead.z)))
                 let b1 = world.block(Int(floor(ahead.x)), Int(floor(pos.y + 1)), Int(floor(ahead.z)))
                 counts["stuck_events", default: 0] += 1
-                if b0 == AIR && b1 == AIR { flag("stuck_open", "pressing forward for 4 s into open space without moving") }
+                if b0 == AIR && b1 == AIR {
+                    // What actually stops the body: a block whose boxes overlap it nudged forward, or a mob in the way.
+                    var why = "nothing found"
+                    let n = pos + f * 0.15
+                    let blo = V3(n.x - 0.3, n.y + 0.01, n.z - 0.3), bhi = V3(n.x + 0.3, n.y + 1.79, n.z + 0.3)
+                    var boxes: [(V3, V3)] = []
+                    search: for dy in 0...1 { for dz in -1...1 { for dx in -1...1 {
+                        let cx = Int(floor(n.x)) + dx, cy = Int(floor(n.y)) + dy, cz = Int(floor(n.z)) + dz
+                        boxes.removeAll(keepingCapacity: true)
+                        world.collisionBoxes(cx, cy, cz, &boxes)
+                        for (l, h) in boxes where l.x < bhi.x && h.x > blo.x && l.y < bhi.y && h.y > blo.y && l.z < bhi.z && h.z > blo.z {
+                            why = "\(Blocks.key(world.block(cx, cy, cz))) at \(dx),\(dy),\(dz)"
+                            break search
+                        }
+                    } } }
+                    if why == "nothing found", let m = game.mobs.mobs.first(where: { simd_length($0.pos - n) < 0.9 }) { why = "a \(m.kind.key)" }
+                    flag("stuck_open", "pressing forward for 4 s into open space without moving (blocked by \(why))")
+                }
             }
         } else { stillTicks = 0 }
         // Damage the player didn't walk into: anything but fall / mob / known hazards is reported with its cause.
