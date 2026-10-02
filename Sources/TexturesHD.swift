@@ -2220,6 +2220,88 @@ enum HDTex {
         return img
     }
 
+    // Gilded blackstone (faceted gold nuggets set in blackstone), reinforced deepslate (a pale bevelled frame round
+    // dark tiles), budding amethyst (crystal sockets in the amethyst), amethyst clusters (faceted spikes) and pointed
+    // dripstone (a ridged taper).
+    static let blackstoneGen: Gen = stone([(0, 0x1E1A20), (0.5, 0x2E2830), (1, 0x443C46)], veins: 0.3, strata: 0.05)
+    static func mineralFace(_ kind: String) -> Gen {
+        { n, s in
+            let fn = Float(n), u = n / 16
+            let fine = vnoise(n, max(1, n / 64), s &+ 2)
+            switch kind {
+            case "gilded_blackstone":
+                var img = blackstoneGen(n, s)
+                let cells = voronoi(n, 7, s &+ 9, jitter: 1)
+                let facets = voronoi(n, 22, s &+ 11, jitter: 1)
+                let gold: [(Float, UInt32)] = [(0, 0x9A6410), (0.5, 0xD8A030), (1, 0xFFE07A)]
+                for i in 0..<(n * n) where cells.id[i] < 0.24 && cells.f1[i] < fn / 9 {
+                    let t: Float = 0.3 + 0.6 * facets.id[i] - 0.25 * cl(cells.f1[i] / (fn / 9))
+                    let c = ramp(t, gold)
+                    img.px[i] = V4(c.x, c.y, c.z, 1)
+                }
+                return img
+            case "reinforced_deepslate":
+                var img = masonry(rows: 2, perRow: 2, offset: 0, mortarW: 1 / 30, [(0, 0x222226), (0.5, 0x303034), (1, 0x44444A)],
+                                  mortar: 0x121214, chips: 0.6)(n, s)
+                let rim = polished(stone([(0, 0x5A5A4C), (0.5, 0x6E6E5E), (1, 0x86867A)], veins: 0, strata: 0), calm: 0.5, rim: 0)(n, s &+ 3)
+                for y in 0..<n { for x in 0..<n {
+                    let edge: Int = min(min(x, y), min(n - 1 - x, n - 1 - y))
+                    guard edge < 2 * u else { continue }
+                    var c = rim[x, y]
+                    var k: Float = 1
+                    if edge == 0 { k = 1.15 } else if edge == 2 * u - 1 { k = 0.55 }
+                    c = V4(c.x * k, c.y * k, c.z * k, 1)
+                    img[x, y] = c
+                } }
+                return img
+            case "budding_amethyst":
+                var img = cobble([(0, 0x6A4AA0), (0.5, 0x8A66C4), (1, 0xB08EE4)], mortar: 0x4A3274, cells: 6)(n, s)
+                let sockets = voronoi(n, 9, s &+ 13, jitter: 1)
+                for i in 0..<(n * n) where sockets.id[i] < 0.3 {
+                    let r: Float = sockets.f1[i] / (fn / 14)
+                    guard r < 1 else { continue }
+                    let k: Float = 0.5 + 0.6 * r
+                    var c: V3 = col(0x4A2278) * k
+                    if r < 0.3 { c = col(0xE0C0FF) * (1.1 - r) }
+                    img.px[i] = V4(c.x, c.y, c.z, 1)
+                }
+                return img
+            case "amethyst_cluster":
+                var img = Img(n, V4(0, 0, 0, 0))
+                let spikes: [(Float, Float, Float)] = [(4.5, 6, 2.4), (8.5, 1.5, 3), (11.5, 5, 2.2), (6.5, 9, 1.8)]
+                for (sx, top, half) in spikes {
+                    let cx: Float = sx / 16 * fn, ty: Float = top / 16 * fn, hw: Float = half / 16 * fn
+                    for y in Int(ty)..<n { for x in Int(cx - hw - 1)...Int(cx + hw + 1) where x >= 0 && x < n {
+                        let t: Float = (Float(y) - ty) / (fn - ty)
+                        let w: Float = hw * min(1, t * 3)
+                        let dx: Float = Float(x) + 0.5 - cx
+                        guard abs(dx) <= w else { continue }
+                        let lit: Float = dx < 0 ? 1.15 : 0.82
+                        let edge: Float = abs(abs(dx) - w) < 1 ? 1.2 : 1
+                        let k: Float = lit * edge * (0.85 + 0.1 * fine[y * n + x] + 0.15 * (1 - t))
+                        let c: V3 = col(0xC89AF5) * k
+                        img.px[y * n + x] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
+                    } }
+                }
+                return img
+            default:  // pointed_dripstone
+                var img = Img(n, V4(0, 0, 0, 0))
+                for y in 0..<n {
+                    let t: Float = Float(y) / fn
+                    let w: Float = fn * 0.2 * (1 - t) + fn / 64
+                    let ridge: Float = 0.9 + 0.12 * sinf(Float(y) / fn * 2 * .pi * 6)
+                    for x in Int(fn / 2 - w)...Int(fn / 2 + w) where x >= 0 && x < n {
+                        let uu: Float = (Float(x) + 0.5 - fn / 2) / w
+                        let k: Float = ridge * (1.08 - 0.35 * abs(uu + 0.3)) * (0.88 + 0.2 * fine[y * n + x])
+                        let c: V3 = col(0x866B5C) * k
+                        img.px[y * n + x] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
+                    }
+                }
+                return img
+            }
+        }
+    }
+
     // Water (greyscale for the biome tint, translucent like the small painter): soft ripple bands from a warped field,
     // brighter crests, no hard texels.
     static func waterHD(_ n: Int, _ s: Int) -> Img {
@@ -3565,6 +3647,12 @@ enum HDTex {
         "smithing_table_side": smithingSide,
         "grindstone": stone([(0, 0x6E6E6E), (0.5, 0x8E8E8E), (1, 0xA8A8A8)], veins: 0, strata: 0.06),
         "stonecutter_side": furnaceStone,
+        "gilded_blackstone": mineralFace("gilded_blackstone"),
+        "reinforced_deepslate": mineralFace("reinforced_deepslate"),
+        "budding_amethyst": mineralFace("budding_amethyst"),
+        "amethyst_cluster": mineralFace("amethyst_cluster"),
+        "pointed_dripstone": mineralFace("pointed_dripstone"),
+        "cracked_polished_blackstone_bricks": cracked(masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 24, [(0, 0x262228), (0.5, 0x363038), (1, 0x4A424C)], mortar: 0x141216, chips: 1.4)),
         "oak_sapling": saplingHD(leaf: 0x4A8A2A, trunk: 0x6B4F2C, conifer: false),
         "birch_sapling": saplingHD(leaf: 0x7AA850, trunk: 0xD8D4C8, conifer: false),
         "spruce_sapling": saplingHD(leaf: 0x3A6A3A, trunk: 0x4A3420, conifer: true),
