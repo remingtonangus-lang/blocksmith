@@ -59,6 +59,13 @@ for f in sorted(os.listdir(root)):
         for k, l in enumerate(src.split('\n'), 1):
             if re.search(r'\b(Float|Int|Double|UInt64|Bool)\.random\(|\.randomElement\(\)|\.shuffled\(\)', l):
                 errors.append(f'{f}:{k}: unseeded randomness (use Rand.* / .pick() / .shuffledRand())')
+            # A unary minus on the implicit member .pi (`-.pi / 2 + side * x` took 2 s in run 354): write -Float.pi.
+            # .pi as a ternary branch is the next slowest form.
+            code = l.split('//')[0]
+            if re.search(r'(?<![A-Za-z0-9_)\]\s])\s*-\.pi\b|[(=,]\s*-\.pi\b', code):
+                warns.append(f'{f}:{k}: -.pi (type-check risk in longer arithmetic: write -Float.pi)')
+            elif re.search(r'[?:]\s*\.pi\b', code):
+                warns.append(f'{f}:{k}: .pi in a ternary (type-check risk: write Float.pi)')
             # Long interpolated print lines and long chained vector math have timed out the type checker.
             if l.count('\\(') >= 5 and ('*' in l or '+' in l.split('"')[0]):
                 warns.append(f'{f}:{k}: {l.count(chr(92) + "(")} interpolations with arithmetic (type-check risk)')
