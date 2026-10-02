@@ -138,7 +138,9 @@ enum GenCheck {
         md.append(summary); md.append("")
         for h in hits {
             let y = h.p.y - YOFF
-            md.append("- **\(h.cls)** seed \(h.seed) at \(h.p.x) \(y) \(h.p.z): \(h.detail)  `--snapshot snaps/g.png --seed \(h.seed) --x \(h.p.x) --z \(h.p.z) --up 2 --pitch -40`")
+            let snap: String = "`--snapshot snaps/g.png --seed \(h.seed) --x \(h.p.x) --z \(h.p.z) --up 2 --pitch -40`"
+            let head: String = "- **\(h.cls)** seed \(h.seed) at \(h.p.x) \(y) \(h.p.z): "
+            md.append(head + h.detail + "  " + snap)
         }
         try? (md.joined(separator: "\n") + "\n").write(toFile: arg("--out") ?? "snaps/gencheck.md", atomically: true, encoding: .utf8)
         print(summary)
