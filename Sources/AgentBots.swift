@@ -102,6 +102,7 @@ final class ExplorerBot: AgentBot {
     var startY: Float = 0
     var lowest: Float = 999
     var reportedNoPath = false
+    var waterTarget = false          // heading for water: arrived only once in it (stopping on the shore never swam)
     init(seed: UInt64) { rng = SRng(seed) }
 
     func pick(_ s: AgentState, _ a: Agent) {
@@ -121,12 +122,13 @@ final class ExplorerBot: AgentBot {
             if !a.visitedChunks.contains(ck) || k == 9 { break }
         }
         // Until it has swum: head for visible water within 30 blocks now and then.
-        if !swam && chosen % 3 == 2 {
-            search: for r in stride(from: 4, through: 30, by: 2) { for k in 0..<12 {
-                let ang: Float = Float(k) / 12 * 2 * .pi
+        waterTarget = false
+        if !swam && chosen % 2 == 1 {
+            search: for r in stride(from: 4, through: 44, by: 2) { for k in 0..<16 {
+                let ang: Float = Float(k) / 16 * 2 * .pi
                 let x = Int(floor(s.pos.x + sinf(ang) * Float(r))), z = Int(floor(s.pos.z + cosf(ang) * Float(r)))
                 let ty = a.world.topY(x, z)
-                if Blocks.fluidKind[Int(a.world.block(x, ty, z))] == 1 { best = V3(Float(x) + 0.5, Float(ty), Float(z) + 0.5); break search }
+                if Blocks.fluidKind[Int(a.world.block(x, ty, z))] == 1 { best = V3(Float(x) + 0.5, Float(ty), Float(z) + 0.5); waterTarget = true; break search }
             } }
         }
         target = best
@@ -174,7 +176,8 @@ final class ExplorerBot: AgentBot {
         since += 1
         guard let t = target else { return act }
         let flatToT: Float = simd_length(V2(t.x - s.pos.x, t.z - s.pos.z))
-        if flatToT < 1.5 { reached += 1; pick(s, a); return act }
+        if flatToT < 1.5 && (!waterTarget || s.inWater) { reached += 1; pick(s, a); return act }
+        if waterTarget && flatToT < 1.5 { act = Steer.toward(s, a, t); act.jump = true; return act }   // wade in
         if targetTicks > 60 * 45 { failed += 1; pick(s, a); return act }
         if idx >= path.count {
             if path.isEmpty || targetTicks % 120 == 0 { replan(s, a) }
