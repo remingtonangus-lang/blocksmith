@@ -845,6 +845,27 @@ enum HDTex {
         return img
     }
 
+    // Ice (translucent): clear blue with frosty patches, fracture lines along cell edges (paler, more opaque) and a
+    // few trapped bubbles.
+    static func iceHD(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n)
+        var img = Img(n)
+        let frost = fbm(n, n / 4, 4, s)
+        let cells = voronoi(n, 5, s &+ 3)
+        let fine = vnoise(n, max(1, n / 64), s &+ 5)
+        for y in 0..<n { for x in 0..<n {
+            let i = y * n + x
+            let edge: Float = cl(1 - (cells.f2[i] - cells.f1[i]) / (fn / 90))
+            let fr: Float = cl((frost[i] - 0.45) * 2.5)
+            var c = V3(0.62, 0.78, 1.0) * (0.94 + fine[i] * 0.08)
+            c += (V3(0.9, 0.95, 1.0) - c) * max(fr * 0.5, edge * 0.8)
+            let bubble = h2(x / max(1, n / 32), y / max(1, n / 32), s &+ 9) > 0.985
+            let a: Float = 0.58 + fr * 0.14 + edge * 0.3 + (bubble ? 0.2 : 0)
+            img.px[i] = V4(min(1, c.x), min(1, c.y), min(1, c.z), min(1, a))
+        } }
+        return img
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -1413,6 +1434,7 @@ enum HDTex {
         "farmland_moist": soil([(0, 0x2E1E12), (0.5, 0x3E2A1C), (1, 0x52382A)], pebble: 0x48362A, pebbles: 5, clods: 12),
         "soul_sand": soil([(0, 0x3A2A20), (0.5, 0x52402E), (1, 0x6A5440)], pebble: 0x2A1E16, pebbles: 10, clods: 8),
         "soul_soil": soil([(0, 0x3E3024), (0.5, 0x54442F), (1, 0x6A5840)], pebble: 0x4A3A2A, pebbles: 4, clods: 7),
+        "ice": iceHD,
         "packed_ice": stone([(0, 0x7C9ED8), (0.5, 0x94B2E6), (1, 0xB0C8F2)], veins: 0.5, strata: 0),
         "blue_ice": stone([(0, 0x5A86D8), (0.5, 0x74A0EC), (1, 0x96BCF8)], veins: 0.5, strata: 0),
         "prismarine": stone([(0, 0x4A8A80), (0.5, 0x62A898), (1, 0x86C4B0)], veins: 0.7, strata: 0),
