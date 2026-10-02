@@ -424,12 +424,31 @@ final class WorldGen: TerrainGenerator {
         placeGeode(&b, bx, bz, &rng)
         placeDungeons(&b, bx, bz, &rng)
         decorateCaves(&b, bx, bz, &rng, climates)
+        clearIsolated(&b, tops)
 
         // 5. Trees and vegetation.
         placeTrees(&b, cx, cz, lat)
         placeVegetation(&b, bx, bz, biomes, &rng, cols: cols)
         freeze(&b, bx, bz, biomes, cols, tops)
         return b
+    }
+
+    // Single blocks the cave and ravine carvers left hanging with air on all six sides (gencheck floating_block: lone
+    // stone and ore cells in cave air). Chunk interior only (a neighbour across the border isn't known here).
+    private func clearIsolated(_ b: inout [BlockID], _ tops: [Int]) {
+        let up = CSQ
+        for lz in 1..<(CS - 1) { for lx in 1..<(CS - 1) {
+            let top = tops[lx + lz * CS]
+            guard top > 8 else { continue }
+            for y in 6..<(top - 1) {
+                let i = Chunk.index(lx, y, lz)
+                let c = b[i]
+                if c == AIR || b[i - up] != AIR || b[i + up] != AIR { continue }
+                if b[i - 1] != AIR || b[i + 1] != AIR || b[i - CS] != AIR || b[i + CS] != AIR { continue }
+                if Blocks.isLiquid(c) { continue }
+                b[i] = AIR
+            }
+        } }
     }
 
     // MARK: Surface
