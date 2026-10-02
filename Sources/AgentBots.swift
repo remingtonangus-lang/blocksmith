@@ -498,7 +498,7 @@ final class CaveBot: AgentBot {
     let name = "cave"
     var phase = 0                        // 0 pick, 1 down, 2 back, 3 done
     var down = false, back = false
-    var downDetail = "no reachable cave floor within 48 blocks", backDetail = "never got down"
+    var downDetail = "no cave floor within 48 blocks with a walkable way down and back", backDetail = "never got down"
     var start = V3(0, 0, 0)
     var goal = V3(0, 0, 0)
     var path: [IVec3] = []
@@ -538,7 +538,15 @@ final class CaveBot: AgentBot {
             for (_, c) in cands.prefix(10) {
                 let t = V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5)
                 plan(s, a, to: t)
-                if let last = path.last, abs(last.x - c.x) <= 1 && abs(last.z - c.z) <= 1 && abs(last.y - c.y) <= 1 {
+                guard let last = path.last, abs(last.x - c.x) <= 1 && abs(last.z - c.z) <= 1 && abs(last.y - c.y) <= 1 else { continue }
+                // Only a floor a path also leads back up from: the way down may drop further than a jump climbs (a
+                // one-way drop into a cave is ordinary terrain, not a bug; run 353 seed 12345 got down and found no way back).
+                var pr2 = PathProfile()
+                pr2.doors = true
+                pr2.waterCost = 3
+                let up = PathFinder.find(a.world, from: t, to: s.pos, profile: pr2, maxNodes: 8000) ?? []
+                let sx = Int(floor(s.pos.x)), sy = Int(floor(s.pos.y)), sz = Int(floor(s.pos.z))
+                if let top = up.last, abs(top.x - sx) <= 1 && abs(top.z - sz) <= 1 && abs(top.y - sy) <= 1 {
                     goal = t; phase = 1; phaseTicks = 0
                     downDetail = "walking to the cave floor at \(c.x) \(c.y - YOFF) \(c.z)"
                     return AgentAction()
