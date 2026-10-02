@@ -5591,6 +5591,7 @@ enum HDTex {
         if name.hasPrefix("stripped_") && (name.hasSuffix("_log") || name.hasSuffix("_stem")) { return strippedSide(pal(avg, lo: 0.78, hi: 1.16)) }
         if name.hasPrefix("frosted_ice_") { return iceHD }
         if name.hasPrefix("cocoa_stage") { return cocoaPod(avg) }
+        if name.hasPrefix("moon_"), let ph = Int(name.dropFirst("moon_".count)) { return moonHD(ph) }
         if name.hasPrefix("redstone_dust_"), let lv = Int(name.dropFirst("redstone_dust_".count)) { return sparkDust(lv) }
         if name.hasSuffix("_wool") { return wool(avg / 0.9) }
         if let g = copperFamily(name) { return g }
@@ -6113,6 +6114,34 @@ enum HDTex {
         "closed_eyeblossom": flowerHD(0x8A8490, 0x6A6470, .cup, top: 4, size: 2.4, salt: 456),
         "sculk_tendril": stemHD(0x3AB8C8)
     ]
+
+    // The moon in its eight phases at full resolution (the upscaled 16 px disc grew a hook-shaped tail at the
+    // terminator: blind critic, run 364 sunset). Same terminator maths as the 16 px painter; maria and craters.
+    static func moonHD(_ phase: Int) -> Gen {
+        { n, s in
+            var img = Img(n, V4(0, 0, 0, 0))
+            let mare = fbm(n, max(1, n / 4), 3, s &+ 31)
+            let pits = vnoise(n, max(1, n / 32), s &+ 33)
+            let half: Float = Float(n) / 2
+            let ang: Float = Float(phase) * Float.pi / 4
+            for y in 0..<n { for x in 0..<n {
+                let px: Float = (Float(x) + 0.5 - half) / (half * 0.94), py: Float = (Float(y) + 0.5 - half) / (half * 0.94)
+                let rr: Float = px * px + py * py
+                if rr > 1 { continue }
+                let z: Float = (1 - rr).squareRoot()
+                let lit: Float = px * sinf(ang) + z * cosf(ang)
+                let edge: Float = min(1, (1 - rr.squareRoot()) * Float(n) * 0.25)       // soft limb
+                let i = y * n + x
+                if lit <= 0.02 { img.px[i] = V4(0.07, 0.08, 0.12, edge); continue }
+                var v: Float = 0.9 - 0.16 * Terrain.smooth(0.45, 0.7, mare[i])
+                if pits[i] > 0.82 { v *= 0.82 }
+                let term: Float = min(1, lit * 6)                                    // soft terminator
+                v *= 0.55 + 0.45 * term
+                img.px[i] = V4(v, v, v * 1.05, edge)
+            }}
+            return img
+        }
+    }
 
     // Cocoa pod skin: rounded ribs (every 3 texels, as the 16 px art) with a fine bumpy grain, in the stage's colour.
     static func cocoaPod(_ avg: V3) -> Gen {
