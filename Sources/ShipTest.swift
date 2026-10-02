@@ -45,7 +45,13 @@ enum ShipTest {
             for z in 0..<9 { for x in 0..<5 { put(x, 0, z, planks) } }
             for z in 0..<9 { for x in 0..<5 where x == 0 || x == 4 || z == 0 || z == 8 { put(x, 1, z, "oak_fence") } }
             for (x, z) in [(0, 0), (4, 0), (0, 8), (4, 8)] { for y in 1...3 { put(x, y, z, "oak_log") } }
-            for y in 4...5 { for z in -1..<10 { for x in -1..<6 { put(x, y, z, "ship_balloon") } } }
+            // A rounded envelope on a centre mast (a flat two-layer slab on four posts read as a gazebo: blind critic,
+            // run 385 ship_airship).
+            for y in 1...3 { put(2, y, 4, "oak_log") }
+            for y in 4...9 { for z in -2..<11 { for x in -2..<7 {
+                let ex: Float = (Float(x) - 2) / 3.6, ey: Float = (Float(y) - 6.5) / 2.7, ez: Float = (Float(z) - 4) / 6.6
+                if ex * ex + ey * ey + ez * ez <= 1 { put(x, y, z, "ship_balloon") }
+            } } }
             put(2, 1, 6, "ship_helm[south]")
             put(2, 1, 7, "ship_engine")
             put(2, 0, 9, "ship_propeller[south]")
