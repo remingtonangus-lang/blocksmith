@@ -886,7 +886,7 @@ enum HDTex {
         "packed_mud": soil([(0, 0x7A5A42), (0.5, 0x8E6A4E), (1, 0xA27C5C)], pebble: 0x6A4E3A, pebbles: 5, clods: 9),
         "mud": soil([(0, 0x2E2628), (0.5, 0x3C3236), (1, 0x4E4246)], pebble: 0x5A4E50, pebbles: 3, clods: 6),
         // Emberdeep and the Hollow.
-        "netherrack": stone([(0, 0x5A2222), (0.45, 0x723030), (0.8, 0x8A4040), (1, 0x9E5050)], veins: 0.6, strata: 0),
+        "netherrack": stone([(0, 0x3E1414), (0.35, 0x642424), (0.7, 0x8A3838), (1, 0xAC5656)], veins: 0.9, strata: 0),
         "blackstone": stone([(0, 0x1E1A20), (0.5, 0x2E2830), (1, 0x443C46)], veins: 0.3, strata: 0.05),
         "basalt_side": stone([(0, 0x3A3A3E), (0.5, 0x4E4E54), (1, 0x66666C)], veins: 0, strata: 0, streak: 0.8),
         "end_stone": stone([(0, 0xC8C88E), (0.5, 0xDCDCA2), (1, 0xEEEEBC)], veins: 0, strata: 0),
