@@ -248,6 +248,12 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   HDTex.generator) and smoke failed again (log pending at the time of writing). Local meanwhile: structcheck round 2
   (stronghold library aisle and foundations, bastion stair/bridge/anchors, ancient-city halls in passes, mineshaft
   ramps) and ~60 more HD materials (job sites, sparkstone machines, small plants, minerals, chorus, shrieker).
+- 2026-10-02 06:40 UTC: run 354 published: smoke failed once at rd 24 Fancy on a paravirtual-GPU driver assertion
+  (AppleParavirtCommandBuffer endCurrentChunk; the lldb rerun passed), the first bench process was killed at 240 s
+  with no output (stdout now line-buffered with a start line per scene), playthrough missed two pickups (diagnostics
+  added). Pushed 05290fe (run 355, 45 commits): smoke, benchmarks and playthrough all green; the type-check gate failed
+  on `-.pi / 2 + ...` (2 s) and the grown HD table literal (Float.pi everywhere in TexturesHD, table in 7 parts; precheck
+  warns on -.pi). PR #9 updated.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
