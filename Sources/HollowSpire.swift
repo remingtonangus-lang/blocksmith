@@ -89,6 +89,13 @@ enum HollowSpire {
                 w.mob("shulker", V3(Float(ox) + 0.5, Float(y + 7), Float(oz + 4) + 0.5))
             }
         }
+        // Stairs from the house up through its ceiling into the first tower floor (the house had no way up, so the
+        // tower and its treasure room were unreachable on foot: structcheck poi_unreachable 33 of 33).
+        for i in 0..<6 {
+            let sz = oz + 3 - i
+            w.set(ox - 2, y0 + 1 + i, sz, st)
+            w.fill(ox - 2, y0 + 2 + i, sz, ox - 2, y0 + 4 + i, sz, AIR)
+        }
         w.mob("shulker", V3(Float(ox + 4) + 0.5, Float(y0 + 1), Float(oz + 4) + 0.5))
     }
 
