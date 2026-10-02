@@ -91,7 +91,7 @@ enum BigStructures {
     static func buildMansion(_ w: inout StructWriter, _ cx: Int, _ y: Int, _ cz: Int, _ seed: UInt64) {
         var rng = SRng(seed)
         let cob = COBBLE, pl = g("dark_oak_planks"), log = g("dark_oak_log"), glass = g("glass_pane"), carpet = g("white_carpet")
-        let stairs = g("cobblestone_stairs"), roof = g("dark_oak_stairs")
+        let stairs = g("cobblestone_stairs"), roof = g("dark_oak_stairs"), slab = g("dark_oak_slab"), panel = g("birch_planks")
         // Cleared plot and cobblestone base.
         for z in (cz - 22)...(cz + 22) { for x in (cx - 22)...(cx + 22) { w.pillarDown(x, y - 1, z, cob, minY: y - 8) } }
         w.fill(cx - 22, y, cz - 22, cx + 22, y + 46, cz + 22, AIR)          // clears tree tops above the plot too
@@ -105,10 +105,17 @@ enum BigStructures {
             // Upper floors: carpet laid on the plank floor (it replaced the planks, so each floor was carpet over the
             // room below with no ceiling between them).
             if f > 0 { w.fill(cx - r + 1, fy + 1, cz - r + 1, cx + r - 1, fy + 1, cz + r - 1, carpet) }
-            // Corner logs and windows.
+            // Facade: dark plank bands at each floor line, log posts every 4 blocks, pale birch panels between them
+            // with a window in the middle of each (one brown plank box with pin-hole windows: eyes-on, run 370).
             for (sx, sz) in [(-1, -1), (1, -1), (-1, 1), (1, 1)] { w.fill(cx + sx * r, fy, cz + sz * r, cx + sx * r, fy + 5, cz + sz * r, log) }
-            for k in stride(from: -r + 3, through: r - 3, by: 4) {
-                for (x, z) in [(cx + k, cz - r), (cx + k, cz + r), (cx - r, cz + k), (cx + r, cz + k)] { w.fill(x, fy + 2, z, x, fy + 3, z, glass) }
+            for k in (-r + 1)...(r - 1) {
+                let m = (k + r) % 4
+                for (x, z) in [(cx + k, cz - r), (cx + k, cz + r), (cx - r, cz + k), (cx + r, cz + k)] {
+                    if f == 0 { w.set(x, fy, z, cob) }
+                    if m == 0 { w.fill(x, fy + 1, z, x, fy + 4, z, log); continue }
+                    w.fill(x, fy + 1, z, x, fy + 4, z, panel)
+                    if m == 2 { w.fill(x, fy + 2, z, x, fy + 3, z, glass) }
+                }
             }
             // Room walls: a grid of 8x8 rooms with doorways.
             for k in stride(from: -r + 8, through: r - 8, by: 8) {
@@ -136,8 +143,23 @@ enum BigStructures {
         }
         // A roof over the second floor's outer ring: the top floor is narrower (16 against 20), so the ring between
         // them stood open to the sky (blind critic, run 362 mansion: an open channel round the stepped roof).
-        for z in (cz - 20)...(cz + 20) { for x in (cx - 20)...(cx + 20) where max(abs(x - cx), abs(z - cz)) > 16 {
+        // A lean-to over it, rising toward the top floor's walls (slab, stair, then one step up: slab, stair).
+        // Stair state = the side its high half faces: 0 -z, 1 +z, 2 -x, 3 +x.
+        func inward(_ x: Int, _ z: Int) -> BlockID {
+            let dx = x - cx, dz = z - cz
+            if abs(dz) >= abs(dx) { return roof + BlockID(dz < 0 ? 1 : 0) }
+            return roof + BlockID(dx < 0 ? 3 : 2)
+        }
+        for z in (cz - 20)...(cz + 20) { for x in (cx - 20)...(cx + 20) {
+            let d = max(abs(x - cx), abs(z - cz))
+            guard d > 16 else { continue }
             w.set(x, y + 12, z, pl)
+            switch d {
+            case 20: w.set(x, y + 13, z, slab)
+            case 19: w.set(x, y + 13, z, inward(x, z))
+            case 18: w.set(x, y + 13, z, pl); w.set(x, y + 14, z, slab)
+            default: w.set(x, y + 13, z, pl); w.set(x, y + 14, z, inward(x, z))
+            }
         } }
         // Stairwells re-cut after every floor is laid: the next floor's solid floor covered each stair's top, so the
         // upper floors were unreachable on foot (structcheck: 24 of 36 mansion POIs unreachable).
@@ -152,12 +174,20 @@ enum BigStructures {
         w.fill(cx - 3, y + 1, cz + 16, cx - 1, y + 3, cz + 18, g("iron_bars"))
         w.fill(cx - 2, y + 1, cz + 17, cx - 2, y + 2, cz + 17, AIR)
         w.mob("allay", V3(Float(cx) - 1.5, Float(y + 1), Float(cz) + 17.5))
+        // Hipped roof at a 2:1 pitch: each layer a slab ring at the eave side and a stair ring facing inward (every
+        // ring was a stair of one facing with flat planks behind it: a stepped ziggurat, eyes-on run 370).
         for k in 0...8 {
             let r = 17 - k * 2
             if r < 0 { break }
-            w.fill(cx - r, y + 18 + k, cz - r, cx + r, y + 18 + k, cz + r, roof)
-            if r > 1 { w.fill(cx - r + 1, y + 18 + k, cz - r + 1, cx + r - 1, y + 18 + k, cz + r - 1, pl) }
+            let ry = y + 18 + k
+            for z in (cz - r)...(cz + r) { for x in (cx - r)...(cx + r) {
+                let d = max(abs(x - cx), abs(z - cz))
+                if d == r && r > 0 { w.set(x, ry, z, slab) }
+                else if d == r - 1 || r == 0 { w.set(x, ry, z, d == 0 ? pl : inward(x, z)) }
+                else { w.set(x, ry, z, pl) }
+            } }
         }
+        w.set(cx, y + 27, cz, slab)
         // Front door.
         w.fill(cx - 1, y + 1, cz - 20, cx + 1, y + 3, cz - 20, AIR)
     }
