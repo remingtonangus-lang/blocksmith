@@ -445,6 +445,21 @@ final class ShipRenderer {
         enc.setVertexBuffer(tintBuf, offset: 0, index: 3)
         func draw(_ s: Ship, _ pass: Int) {
             if s.mesh.released || !frustum.visible(min: s.worldMin, max: s.worldMax) { return }
+            // Capital ships: their own long haze instead of the terrain's fog wall (seen from 900 blocks).
+            let capital = s.root.kinematic && u.params.w < 0.5 && u.params.x > 40
+            if capital {
+                var uc = u
+                uc.fogColor.w = max(u.fogColor.w, 240)
+                uc.params.x = max(u.params.x, 950)
+                enc.setVertexBytes(&uc, length: MemoryLayout<Uniforms>.stride, index: 1)
+                enc.setFragmentBytes(&uc, length: MemoryLayout<Uniforms>.stride, index: 1)
+            }
+            defer {
+                if capital {
+                    enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+                    enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+                }
+            }
             let m = model(s, eye: eye)
             // Big hulls (capital ships: over a thousand sections) are culled per section.
             let perSection = s.mesh.sections.count > 48

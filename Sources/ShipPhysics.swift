@@ -120,8 +120,9 @@ extension ShipManager {
                 s.skyLight += (want - s.skyLight) * min(1, dt * 2)
             }
             if game != nil {
-                if d > keep + 48 && !s.mesh.released { s.mesh.release() }
-                else if d < keep + 16 && s.mesh.released { s.mesh.rebuildAll(s, device: world.device, queue: meshQueue) }
+                let k: Float = r.kinematic ? 900 : keep                // capital ships stay drawn out to the horizon
+                if d > k + 48 && !s.mesh.released { s.mesh.release() }
+                else if d < k + 16 && s.mesh.released { s.mesh.rebuildAll(s, device: world.device, queue: meshQueue) }
             }
         }
         for s in list {
