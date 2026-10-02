@@ -956,8 +956,9 @@ final class Playthrough {
         section("egg")
         if var e = eggPos {
             game.portalCooldown = 60
-            var hopped = 0
+            var hopped = 0, lost = 0
             var why = "no attempt"
+            let e0 = e
             for _ in 0..<20 where count("dragon_egg") == 0 {
                 holdNothing()
                 standBeside(e)
@@ -967,7 +968,13 @@ final class Playthrough {
                 game.input.leftDown = false
                 tick(3)
                 guard let ne = findBlock(near: e, radius: 20, yRange: max(1, e.y - 30)...min(CH - 2, e.y + 10), { $0 == "dragon_egg" }) else {
-                    why = "no egg within 20 blocks of \(e.x) \(e.y - YOFF) \(e.z) after the hit"; break
+                    // A hop can drop it into the open exit portal (it then falls out in the overworld, as in the
+                    // reference: run 374). Put a new one back on the pillar, up to twice.
+                    why = "no egg within 20 blocks of \(e.x) \(e.y - YOFF) \(e.z) after the hit"
+                    if lost >= 2 { break }
+                    lost += 1
+                    world.setBlock(e0.x, e0.y, e0.z, Blocks.id("dragon_egg")); e = e0
+                    continue
                 }
                 if ne != e { hopped += 1 }
                 e = ne
@@ -985,6 +992,11 @@ final class Playthrough {
                 if mine(under, maxSeconds: 10) { tick(2); collect(near: center(under), 8); why = "mined under the egg at \(e.x) \(e.y - YOFF) \(e.z); torch cell now \(key(below2))" }
                 else { why = "couldn't mine \(key(under)) under the egg" }
             }
+            // Off the fountain before the portal cooldown ends: an egg that hopped out of reach left the player beside
+            // the bedrock pillar, who dropped into the open exit portal at the next tick and went home (run 374: the
+            // rift, spire, reload and credits checks then all ran in the overworld).
+            let ty = world.topY(12, 0)
+            game.player.pos = V3(12.5, Float(ty + 1), 0.5); game.player.vel = .zero
             game.portalCooldown = 0
             check(hopped > 0, "egg: hitting the egg makes it teleport (\(hopped) hops)")
             check(count("dragon_egg") == 1, "egg: collected by dropping it onto a torch (\(count("dragon_egg")))")
