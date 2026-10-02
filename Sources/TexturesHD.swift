@@ -570,6 +570,67 @@ enum HDTex {
 
     // Leaf litter (cutout overlay on the ground): scattered small fallen leaves, pointed ellipses in muted browns and
     // ochres with a darker midrib, overlapping; clear between them (the 16 px version was saturated orange noise).
+    // Grass and fern sprites (cutout, greyscale for the biome tint): tapered blades rising from the ground, each
+    // curving with its own lean, darker at the base, lit from the left. Lengths are in tiles (1 = one block); a tall
+    // plant's top half draws the same blades (fixed salt) from height 1 up, so they continue across the seam. Ferns:
+    // fronds arching out from the centre with alternating leaflets.
+    static func blades(salt: Int, count: Int, len lmin: Float, _ lmax: Float, from y0: Float = 0, fern: Bool = false) -> Gen {
+        { n, _ in
+            let fn = Float(n)
+            var img = Img(n, V4(0, 0, 0, 0))
+            func plot(_ x: Int, _ yy: Int, _ v: Float, _ a: Float) {
+                guard x >= 0 && x < n && yy >= 0 && yy < n, a > 0 else { return }
+                let i = yy * n + x
+                let o = img.px[i]
+                if a >= o.w || v > o.x { img.px[i] = V4(v, v, v, max(a, o.w)) }
+            }
+            for b in 0..<count {
+                func r(_ k: Int) -> Float { h2(b, k, salt) }
+                let bx: Float = fern ? fn / 2 + (r(0) - 0.5) * fn * 0.3 : (Float(b) + r(0)) / Float(count) * fn
+                let len: Float = (lmin + (lmax - lmin) * r(1)) * fn
+                let lean: Float = (r(2) - 0.5) * (fern ? 3.6 : 0.9)
+                let w0: Float = fern ? fn / 64 : fn / 26 * (0.7 + 0.6 * r(3))
+                let tone: Float = (r(4) - 0.5) * 0.16
+                for yy in 0..<n {
+                    let h: Float = y0 * fn + Float(n - 1 - yy) + 0.5
+                    let t: Float = h / len
+                    if t < 0 || t > 1 { continue }
+                    let cx: Float = bx + lean * t * t * len * 0.5
+                    let w: Float = w0 * powf(1 - t, 0.7) + 0.6
+                    for x in Int(cx - w / 2 - 1)...Int(cx + w / 2 + 2) {
+                        let u: Float = (Float(x) + 0.5 - cx) / (w / 2)
+                        let cov: Float = cl((1 - abs(u)) * w / 2 + 0.5)
+                        let v: Float = (0.5 + 0.42 * t + tone) * (0.9 - 0.1 * u)
+                        plot(x, yy, v, cov)
+                    }
+                }
+                guard fern else { continue }
+                // Leaflets every 1/24 of the tile, alternating sides, shorter toward the tip.
+                let step: Float = fn / 24
+                var hh: Float = step
+                var k = 0
+                while hh < len * 0.95 {
+                    let t: Float = hh / len
+                    let cx: Float = bx + lean * t * t * len * 0.5
+                    let side: Float = k % 2 == 0 ? 1 : -1
+                    let ll: Float = powf(1 - t, 0.6) * fn / 5.5 * (0.7 + 0.3 * r(10 + k))
+                    let steps = Int(ll) + 2
+                    for j in 0...steps {
+                        let sj: Float = Float(j) / Float(steps)
+                        let px: Float = cx + side * sj * ll
+                        let ph: Float = hh + sj * ll * 0.45
+                        let yy = Int(fn - 1 - (ph - y0 * fn))
+                        let ww: Float = max(1, (1 - sj) * fn / 48 + 0.8)
+                        let v: Float = 0.55 + 0.4 * t + 0.05 * sj + tone
+                        for x in Int(px - ww / 2)...Int(px + ww / 2) { for dy in 0...Int(ww / 2) { plot(x, yy + dy, v, 1) } }
+                    }
+                    hh += step; k += 1
+                }
+            }
+            return img
+        }
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -1085,6 +1146,12 @@ enum HDTex {
         "stone": stone(stoneGrey),
         "lava": lava,
         "leaf_litter": leafLitter,
+        "short_grass": blades(salt: 101, count: 26, len: 0.3, 0.9),
+        "tall_grass_bottom": blades(salt: 102, count: 14, len: 1.3, 1.9),
+        "tall_grass_top": blades(salt: 102, count: 14, len: 1.3, 1.9, from: 1),
+        "fern": blades(salt: 103, count: 7, len: 0.55, 0.95, fern: true),
+        "large_fern_bottom": blades(salt: 104, count: 7, len: 1.2, 1.9, fern: true),
+        "large_fern_top": blades(salt: 104, count: 7, len: 1.2, 1.9, from: 1, fern: true),
         "hay_block_side": haySide,
         "hay_block_top": hayTop,
         "glass": glass,
