@@ -117,7 +117,8 @@ enum MilitaryBase {
     static func g(_ n: String) -> BlockID { Blocks.has(n) ? Blocks.id(n) : STONE }
 
     static func type(_ gen: WorldGen) -> StructureType {
-        StructureType(name: "military_base", spacing: 64, separation: 20, salt: 70411993, reach: 3) { [unowned gen] seed, cx, cz in
+        // One candidate per 40x40-chunk region (64 left most players never meeting one: Remington playtest 2).
+        StructureType(name: "military_base", spacing: 40, separation: 14, salt: 70411993, reach: 3) { [unowned gen] seed, cx, cz in
             let x = cx * CS + 8, z = cz * CS + 8
             guard MilitaryBase.biomes.contains(gen.column(x, z).biome) else { return nil }
             // Open, fairly flat ground over the whole footprint.
@@ -131,7 +132,7 @@ enum MilitaryBase {
             }
             let y0 = y + 1
             let e = R + 10
-            let piece = Piece(min: IVec3(x - e, y0 - 20, z - e), max: IVec3(x + e, y0 + 24, z + e), build: { w in MilitaryBase.build(&w, x, y0, z, seed) })
+            let piece = Piece(min: IVec3(x - e, y0 - 20, z - e), max: IVec3(x + e, y0 + 48, z + e), build: { w in MilitaryBase.build(&w, x, y0, z, seed) })
             return StructureStart(kind: "military_base", pieces: [piece], anchor: IVec3(x, y0 + 1, z + R + 6))
         }
     }
@@ -391,9 +392,17 @@ enum MilitaryBase {
         w.chest(X(R - 4), yB + 1, Z(R - 2), loot: "steelhold_vault", seed: rng.next(), facing: 0)
         w.chest(X(R - 2), yB + 1, Z(R - 5), loot: "steelhold_command", seed: rng.next(), facing: 2)
 
-        // Roof: an observation mast and sandbag-like crate nests at the marksman posts.
-        w.fill(X(0), yR + 1, Z(0), X(0), yR + 7, Z(0), P)
-        w.set(X(0), yR + 8, Z(0), L)
+        // Roof: a lattice radio mast 30 over the roof with a lit cap and a red pennant, a landmark seen from far off
+        // (bases were hard to find: Remington playtest 2), and sandbag-like crate nests at the marksman posts.
+        let red = g("red_wool")
+        for h in 1...28 {
+            for (dx, dz) in [(-1, -1), (1, -1), (-1, 1), (1, 1)] { w.set(X(dx), yR + h, Z(dz), h % 4 == 0 ? P : bars) }
+            if h % 4 == 0 { for (dx, dz) in [(0, -1), (0, 1), (-1, 0), (1, 0)] { w.set(X(dx), yR + h, Z(dz), P) } }
+        }
+        w.fill(X(0), yR + 29, Z(0), X(0), yR + 31, Z(0), P)
+        w.set(X(0), yR + 32, Z(0), L)
+        for k in 1...4 { for h in 0..<(k < 3 ? 2 : 1) { w.set(X(1 + k), yR + 25 + h, Z(0), red) } }
+        w.set(X(-2), yR + 20, Z(0), L); w.set(X(2), yR + 12, Z(0), L)
         for (dx, dz) in [(0, -27), (0, 27), (-27, 0), (27, 0)] {
             let ox: Int = dx == 0 ? 1 : 0, oz: Int = dz == 0 ? 1 : 0
             let sx = dx.signum(), sz = dz.signum()
