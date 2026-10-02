@@ -265,6 +265,14 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
 - 2026-10-02 08:03 UTC: run 358 passed the build and the type-check gate (no expression >= 300 ms). Committed locally
   meanwhile: two 128 px batches (furnishings; Steelhold, resin, tuff, pale grove, archaeology, bamboo ends, shulker
   boxes, candles) and an --hdatlas list of the layers still without an HD material.
+- 2026-10-02 08:24 UTC: run 358 (1e3ffb2) green except two playthrough pickups (harness: a drop still falling into a
+  cave chased at a stale position; the Blight Star with a full bag; both fixed). Village bot 0 unmet goals, ruined
+  portals walkable, end-city POIs 33 -> 15. Pushed fedf316 (run 359, 30 commits): ~150 more 128 px materials
+  (furnishings, Steelhold, ship fittings, families by name: stained glass, candles, shulker boxes, copper forms,
+  glazed terracotta, coral), cave bot BFS candidates, golem strolls, lake border banks, gravel off cave ceilings,
+  deeper foundations, jungle-temple steps, water ripple fade. Run 359: build, type-check gate (no expression >= 300 ms),
+  smoke, bench and playthrough green. Gemini critic hit the free-tier quota after one shot; a Claude subagent critic
+  covers the rest.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
