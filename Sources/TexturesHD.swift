@@ -2207,6 +2207,50 @@ enum HDTex {
         return img
     }
 
+    // Hollow gate frame (same layout as the small painters). Side: pale hollow stone under a teal capstone band. Top:
+    // a teal capstone with a recessed square socket. Eye: the socket holding a green eye with a slit pupil.
+    static let gateTeal: [(Float, UInt32)] = [(0, 0x2A4A3E), (0.5, 0x3E6A5A), (1, 0x588A76)]
+    static func gateFrame(_ part: Int) -> Gen {                 // 0 side, 1 top, 2 eye
+        { n, s in
+            let fn = Float(n), u = n / 16
+            var img = stone(gateTeal, veins: 0.3, strata: 0)(n, s)
+            var hh = [Float](repeating: 0, count: n * n)
+            if part == 0 {
+                let pale = stone([(0, 0xB8BA84), (0.5, 0xDDDFA5), (1, 0xEEF0C0)], veins: 0, strata: 0.04)(n, s &+ 5)
+                for y in (3 * u)..<n { for x in 0..<n { img.px[y * n + x] = pale.px[y * n + x] } }
+                for x in 0..<n { hh[(3 * u) * n + x] = -0.4; hh[(3 * u - 1) * n + x] = 0.2 }
+                shade(&img, hh, 1.5)
+                return img
+            }
+            for y in 0..<n { for x in 0..<n {
+                let ax: Float = abs(Float(x) + 0.5 - fn / 2)
+                let ay: Float = abs(Float(y) + 0.5 - fn / 2)
+                let m: Float = max(ax, ay)
+                let i = y * n + x
+                if m < 4 * Float(u) {
+                    hh[i] = -0.5
+                    var c: V3 = col(0x2A4A3A) * 0.8
+                    if part == 2 {
+                        let er: Float = 3.4 * Float(u)
+                        let dx: Float = ax / er, dy: Float = ay / er
+                        let d: Float = (dx * dx + dy * dy).squareRoot()
+                        if d < 1 {
+                            let iris: V3 = col(0x3E9A5A) * (1.15 - 0.5 * d)
+                            let pupil: Bool = ax < 0.9 * Float(u) && ay < 2.6 * Float(u)
+                            c = pupil ? col(0x0E2A12) : iris
+                            let lim: Float = fn / 2 - Float(u)
+                            let upLeft: Bool = Float(x) < lim && Float(y) < lim
+                            if upLeft && d < 0.45 { c = V3(0.75, 0.95, 0.8) }                     // glint
+                        }
+                    }
+                    img.px[i] = V4(c.x, c.y, c.z, 1)
+                }
+            } }
+            shade(&img, hh, 1.5)
+            return img
+        }
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -2771,6 +2815,9 @@ enum HDTex {
         "activator_rail": railHD(tie: 0x7A2A1A, rail: 0xA8A8A8, mid: 0x5A1410),
         "activator_rail_on": railHD(tie: 0x7A2A1A, rail: 0xA8A8A8, mid: 0xF8301A),
         "ladder": ladderHD,
+        "end_portal_frame_side": gateFrame(0),
+        "end_portal_frame_top": gateFrame(1),
+        "end_portal_frame_eye": gateFrame(2),
         "cobweb": cobwebHD,
         "spawner": spawnerHD,
         "lantern": lanternHD(glow: 0xF8C85A, core: 0xFFF4C8),
