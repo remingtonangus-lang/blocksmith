@@ -1520,6 +1520,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             if m is InventoryMenu {
                 rect(o.x + 26 * s, o.y + 8 * s, 50 * s, 70 * s, V4(0, 0, 0, 1))
                 rect(o.x + 27 * s, o.y + 9 * s, 48 * s, 68 * s, V4(0.35, 0.35, 0.38, 1))
+                playerPreview(x: o.x + 27 * s, y: o.y + 9 * s, w: 48 * s, h: 68 * s, quad)
                 text("Crafting", o.x + 97 * s, o.y + 7 * s, s, titleC, shadow: false)
                 rect(o.x + 136 * s, o.y + 33 * s, 12 * s, 3 * s, V4(0.55, 0.55, 0.55, 1))
             }
@@ -2250,6 +2251,54 @@ final class Renderer: NSObject, MTKViewDelegate {
             quad([P(lo.x, hi.y, lo.z), P(hi.x, hi.y, lo.z), P(hi.x, hi.y, hi.z), P(lo.x, hi.y, hi.z)],
                  [V2(lo.x, lo.z), V2(hi.x, lo.z), V2(hi.x, hi.z), V2(lo.x, hi.z)], topC, layer(2))
         }
+    }
+
+    // The player in the inventory's preview box (it was left empty): the third-person model's boxes projected
+    // flat into the HUD (no depth pass needed, so it works in the Fast and Fancy final passes alike), turned toward
+    // the cursor, back faces dropped, faces drawn far to near.
+    func playerPreview(x: Float, y: Float, w: Float, h: Float, _ quad: ([V2], [V2], V4, Float) -> Void) {
+        let cx = x + w / 2
+        let mx = game.input.mouseX, my = game.input.mouseY
+        var yaw: Float = 0.45, pitch: Float = 0
+        if mx > 0 || my > 0 {
+            yaw = max(-1.1, min(1.1, atanf((mx - cx) / (w * 0.8))))
+            pitch = max(-0.6, min(0.6, -atanf((my - (y + h * 0.25)) / (h * 0.8))))
+        }
+        let parts = playerParts(game, pitch: pitch, walk: 0, hit: 0)
+        let k: Float = h * 0.86 / 32.5
+        let feetY: Float = y + h * 0.95
+        let cyw = cosf(yaw), syw = sinf(yaw)
+        let CT = Mesher.cornerTable
+        let shade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
+        var faces: [(depth: Float, pts: [V2], color: V4)] = []
+        for part in parts {
+            let ca = cosf(part.rotX), sa = sinf(part.rotX)
+            let size = part.mx - part.mn
+            func place(_ lp: V3) -> V3 {
+                var q = lp - part.pivot
+                q = V3(q.x, q.y * ca - q.z * sa, q.y * sa + q.z * ca) + part.pivot
+                return V3(cyw * q.x + syw * q.z, q.y, -syw * q.x + cyw * q.z)
+            }
+            let mid = place(part.mn + size * 0.5)
+            for f in 0..<6 {
+                var pts: [V2] = []
+                var fc = V3(0, 0, 0)
+                for c in 0..<4 {
+                    let ci = (f * 4 + c) * 3
+                    let lp: V3 = part.mn + size * V3(Float(CT[ci]), Float(CT[ci + 1]), Float(CT[ci + 2]))
+                    let r = place(lp)
+                    fc += r * 0.25
+                    pts.append(V2(cx - r.x * k, feetY - r.y * k))
+                }
+                // The camera looks along +Z from the front (the model faces -Z): keep faces turned toward it.
+                if fc.z - mid.z > -0.001 { continue }
+                let c = part.color * shade[f]
+                faces.append((fc.z, pts, V4(c.x, c.y, c.z, 1)))
+            }
+        }
+        faces.sort { $0.depth > $1.depth }
+        let uv = [V2](repeating: .zero, count: 4)
+        for f in faces { quad(f.pts, uv, f.color, -1) }
     }
 
     // MARK: Headless snapshot
