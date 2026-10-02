@@ -1252,6 +1252,13 @@ final class Playthrough {
             info(String(format: "star lost: Blight health %ld at %.0f %.0f %.0f, still listed %@, stars on the ground %@", b.health, b.pos.x, b.pos.y, b.pos.z,
                         game.mobs.mobs.contains { $0 === b } ? "yes" : "no", "\(stars)"))
             let free = (0..<36).filter { inv[$0].isEmpty }.count
+            if let e = game.drops.items.first(where: { !$0.stack.isEmpty && Items.key($0.stack.item) == "nether_star" }) {
+                let d: V3 = e.pos - game.player.pos
+                let menuName: String = game.menu.map { "\(type(of: $0))" } ?? "none"
+                let state: String = "ground \(e.onGround), menu \(menuName), paused \(game.paused), credits \(game.credits != nil)"
+                let nums: String = String(format: "delay %.2f age %.1f offset %.2f %.2f %.2f", e.pickupDelay, e.age, d.x, d.y, d.z)
+                info("star lost: star " + nums + "; " + state)
+            }
             info(String(format: "star lost: player at %.1f %.1f %.1f, alive %@, %ld free slots", game.player.pos.x, game.player.pos.y, game.player.pos.z,
                         game.alive ? "yes" : "no", free))
         }
