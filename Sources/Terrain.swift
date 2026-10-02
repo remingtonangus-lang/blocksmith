@@ -691,7 +691,9 @@ final class Terrain {
         // Warm.
         if t < 0.58 {
             if w > 0.32 && high < 5 && k.slope < 0.25 { return t > 0.45 ? .mangroveSwamp : .swamp }
-            if w < -0.36 { return high > 25 && w < -0.42 && t > 0.48 ? .badlands : .desert }
+            // Dry threshold as in the hot band (-0.36 here turned every hill terrace of a desert edge to savanna grass
+            // as the temperature lapsed with height: eyes-on biome_desert, run 372).
+            if w < -0.32 { return high > 25 && w < -0.42 && t > 0.48 ? .badlands : .desert }
             if w < -0.12 {
                 if high > 50 && k.slope < 0.35 { return .savannaPlateau }
                 return k.r > 0.5 && k.slope > 0.35 ? .windsweptSavanna : .savanna
