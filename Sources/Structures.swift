@@ -190,7 +190,7 @@ final class StructureCache {
 
     // Kinds whose footprint is filled underneath (and how deep): buried ones over caves, hillside ones over slopes.
     static let fillDepth: [String: Int] = ["ancient_city": 12, "trial_chambers": 10, "stronghold": 10, "mansion": 8,
-                                           "military_base": 8, "trail_ruins": 4, "village": 6]
+                                           "military_base": 16, "trail_ruins": 4, "village": 6]
 
     // Builds every structure piece overlapping this chunk into `blocks`; returns block entities.
     func place(into blocks: inout [BlockID], cx: Int, cz: Int) -> (entities: [(IVec3, BlockEntity)], mobs: [(String, V3)]) {
