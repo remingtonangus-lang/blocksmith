@@ -5526,6 +5526,34 @@ enum HDTex {
         }
     }
 
+    // Stripped log side: bare wood, long vertical fibres (noise stretched along the trunk) with a few darker growth
+    // streaks and faint knots; the colour from the block's own art.
+    static func strippedSide(_ pal: [(Float, UInt32)]) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            var img = Img(n)
+            let fib = vnoise(n, max(1, n / 64), s)
+            let streak = vnoise(n, max(1, n / 16), s &+ 1)
+            let blot = fbm(n, n / 4, 3, s &+ 2)
+            var hh = [Float](repeating: 0, count: n * n)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let f: Float = fib[(y / 12) * n + x]                    // fibres: noise stretched 12x along y
+                let st: Float = streak[(y / 24) * n + x]
+                var t: Float = 0.5 + (f - 0.5) * 0.35 + (blot[i] - 0.5) * 0.18
+                if st > 0.78 { t -= (st - 0.78) * 1.4 }
+                let kx: Float = Float(x) / fn * 2 * Float.pi
+                let ring: Float = 0.5 + 0.5 * sinf(kx * 5 + blot[i] * 3)
+                t += (ring - 0.5) * 0.08
+                hh[i] = f * 0.25
+                let c = ramp(t, pal)
+                img.px[i] = V4(c.x, c.y, c.z, 1)
+            } }
+            shade(&img, hh, 0.6)
+            return img
+        }
+    }
+
     static func derived(_ name: String, _ src: [V4]) -> Gen? {
         let S = TextureGen.S
         var sum = V3(0, 0, 0), rim = V3(0, 0, 0), mid = V3(0, 0, 0)
@@ -5555,6 +5583,8 @@ enum HDTex {
                 return img
             }
         }
+        if name.hasPrefix("stripped_") && (name.hasSuffix("_log") || name.hasSuffix("_stem")) { return strippedSide(pal(avg, lo: 0.78, hi: 1.16)) }
+        if name.hasPrefix("frosted_ice_") { return iceHD }
         if name.hasSuffix("_wool") { return wool(avg / 0.9) }
         if let g = copperFamily(name) { return g }
         if name.hasSuffix("_glazed_terracotta") { return glazed(src) }
@@ -5770,6 +5800,12 @@ enum HDTex {
         "oak_sapling": saplingHD(leaf: 0x4A8A2A, trunk: 0x6B4F2C, conifer: false),
         "birch_sapling": saplingHD(leaf: 0x7AA850, trunk: 0xD8D4C8, conifer: false),
         "spruce_sapling": saplingHD(leaf: 0x3A6A3A, trunk: 0x4A3420, conifer: true),
+        "acacia_sapling": saplingHD(leaf: 0x7A9A2A, trunk: 0x6A5A4A, conifer: false),
+        "dark_oak_sapling": saplingHD(leaf: 0x3A6A1E, trunk: 0x3E2A16, conifer: false),
+        "jungle_sapling": saplingHD(leaf: 0x3A8A1E, trunk: 0x5A4220, conifer: false),
+        "cherry_sapling": saplingHD(leaf: 0xE8A8C8, trunk: 0x4A2A30, conifer: false),
+        "pale_oak_sapling": saplingHD(leaf: 0xA8B4A0, trunk: 0x5E5652, conifer: false),
+        "mangrove_propagule": saplingHD(leaf: 0x6A9A3A, trunk: 0x7A6A3A, conifer: false),
         "crimson_fungus": fungusHD(cap: 0xB02A2A, wart: 0xE8C080),
         "warped_fungus": fungusHD(cap: 0x1E8A7A, wart: 0xE89060),
         "crimson_roots": blades(salt: 131, count: 9, len: 0.4, 0.85, lean: 1.6, colour: 0x9A1E30),
