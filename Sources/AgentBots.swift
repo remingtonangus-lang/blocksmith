@@ -27,6 +27,10 @@ struct Steer {
         act.sprint = run && flat > 6
         // Step or jump up when the goal is higher, swim up in water.
         if (goal.y > s.pos.y + 0.55 && s.onGround && flat < 1.8) || s.inWater { act.jump = true }
+        // Pressing on but not moving (a low wall, the rim of an empty composter or cauldron it dropped into): hop, as a
+        // player would (run 348: the village bot sat in a composter for 45 s).
+        let hv: Float = (s.vel.x * s.vel.x + s.vel.z * s.vel.z).squareRoot()
+        if act.forward > 0.5 && s.onGround && hv < 0.3 && flat > 1 && s.tick % 30 < 2 { act.jump = true }
         // A closed wooden door straight ahead: look at it and use it.
         let f = V3(-sinf(s.yaw), 0, -cosf(s.yaw))
         let ahead: V3 = s.pos + f * 0.9
