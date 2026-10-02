@@ -2426,6 +2426,19 @@ enum HDTex {
         }
         return img
     }
+    // Composter top: the plank rim round a dark, lumpy compost well.
+    static func composterTop(_ n: Int, _ s: Int) -> Img {
+        let u = n / 16
+        var img = planks(pal(col(0x8A6A3A), lo: 0.78, hi: 1.15))(n, s)
+        let soilImg = soil([(0, 0x2A2010), (0.5, 0x4A3A1A), (1, 0x5E4A24)], pebble: 0x6A5A2A, pebbles: 4, clods: 12)(n, s &+ 3)
+        for y in (2 * u)..<(14 * u) { for x in (2 * u)..<(14 * u) {
+            let edge: Int = min(min(x - 2 * u, y - 2 * u), min(14 * u - 1 - x, 14 * u - 1 - y))
+            var c = soilImg[x, y]
+            if edge < u / 2 { c = V4(c.x * 0.55, c.y * 0.55, c.z * 0.55, 1) }
+            img[x, y] = c
+        } }
+        return img
+    }
     static func oddFace(_ kind: String) -> Gen {
         { n, s in
             let fn = Float(n), u = n / 16
@@ -3906,6 +3919,8 @@ enum HDTex {
         "smithing_table_side": smithingSide,
         "grindstone": stone([(0, 0x6E6E6E), (0.5, 0x8E8E8E), (1, 0xA8A8A8)], veins: 0, strata: 0.06),
         "stonecutter_side": furnaceStone,
+        "composter_top": composterTop,
+        "lever": planks(pal(col(0x7A5A30), lo: 0.75, hi: 1.18)),
         "fire": fireHD(core: 0xFFF2A0, mid: 0xFFA020, tip: 0xE04010),
         "soul_fire": fireHD(core: 0xC8FFFF, mid: 0x40E0E8, tip: 0x2090A0),
         "nether_portal": portalHD,
