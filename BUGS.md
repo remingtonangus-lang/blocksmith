@@ -20,3 +20,4 @@ Status: open (oracle finds instances), fixed (oracle at 0 on CI, check made stri
 | Floating fancy-oak branch tips (log at len/2 and len: 2-block gap for len 3) | `--gencheck` trunk_floating | 29 | branches drawn as connected limbs | fix pushed |
 | Grass / bushes left standing on structure blocks (village cobblestone) | `--gencheck` plant_soil | 3 | StructWriter removes soil plants above any non-soil block it writes | fix pushed |
 | Missing-texture oracle false positive on crying obsidian's glowing tears | imagecheck magenta (gallery_hollow) | 1 shot | magenta counted only when red = blue (missing texture is pure magenta) | fix pushed |
+| Distant cutout leaves turn into sparse black speckles (transparent texels' black RGB filtered in; alpha coverage thins per mip) | tour_777_aerial / forest_in eyes-on | spruce, dark oak crowns at 20+ blocks | colour bled into transparent texels; coverage-preserving alpha per mip level | fix pushed |

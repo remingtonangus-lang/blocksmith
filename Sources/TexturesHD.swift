@@ -401,6 +401,27 @@ enum HDTex {
         }
     }
 
+    // Lava: darker cooling plates (warped Voronoi cells) split by bright molten seams, with hot swirls inside.
+    static func lava(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n)
+        let wx = fbm(n, n / 4, 3, s &+ 1), wy = fbm(n, n / 4, 3, s &+ 2)
+        let cells = voronoi(n, 5, s &+ 3, jitter: 1)
+        let swirl = warp(fbm(n, n / 4, 5, s &+ 4), n, wx, wy, fn * 0.25)
+        var gap = [Float](repeating: 0, count: n * n)
+        for i in 0..<(n * n) { gap[i] = cells.f2[i] - cells.f1[i] }
+        let edgeW = warp(gap, n, wx, wy, fn * 0.06)
+        let pal: [(Float, UInt32)] = [(0, 0x8A2A0C), (0.35, 0xC4501A), (0.6, 0xEC8A22), (0.82, 0xFFC44A), (1, 0xFFF0A8)]
+        var img = Img(n)
+        for i in 0..<(n * n) {
+            let seam: Float = 1 - cl(edgeW[i] / (fn / 14))
+            let plate: Float = (cells.id[i] - 0.5) * 0.12
+            let t: Float = 0.3 + (swirl[i] - 0.5) * 0.5 + plate + seam * seam * 0.65
+            let c = ramp(t, pal)
+            img.px[i] = V4(c.x, c.y, c.z, 1)
+        }
+        return img
+    }
+
     // Cracks across a base material: a few long wandering dark lines with a lit lower lip.
     static func cracked(_ base: @escaping Gen) -> Gen {
         { n, s in
@@ -844,6 +865,7 @@ enum HDTex {
 
     static let table: [String: Gen] = [
         "stone": stone(stoneGrey),
+        "lava": lava,
         // Polished and smooth stones (bevelled rim, calmed grain).
         "polished_andesite": polished(stone([(0, 0x6E6E6E), (0.5, 0x8A8A8A), (1, 0xA6A6A4)], veins: 0)),
         "polished_diorite": polished(stone([(0, 0x9E9E9C), (0.5, 0xC6C6C4), (1, 0xE8E8E6)], veins: 0)),
