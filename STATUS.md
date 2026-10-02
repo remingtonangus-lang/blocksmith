@@ -113,9 +113,11 @@ code); mechanics, names and numbers follow the reference game.
 
 ## Playtest 2 (Remington, 2026-10-02 evening)
 - [x] "No render distance setting": it was on Options page 3; now on the pause menu itself and Options opens on Video.
-- [~] Cacti vanish far away and pop in close: not reproduced. Far meshes keep cacti (--lodcheck: every cactus
-      section has far quads), cactus_far vs cactus_far_nolod (rd 16) and tour_desert (rd 12) show cacti to the
-      horizon. Needs the in-game setting (Fast or Fancy, render distance) or a voice note with position.
+- [x] Cacti vanish at mid range (Remington: "seen short range, long range, but not mid range"): the coverage-preserving
+      mip builder scaled crisp 0/255 alpha to 127 at mips 1-3 (under the 0.5 cutoff), so the cactus side texture
+      vanished at those distances (near: mip 0; far: the far mesh draws cacti opaque). Same bug hid framed and dropped
+      items past ~6 blocks (armory racks). Found with --listframes pixel probes + a per-mip alpha dump; fixed in
+      Textures.keepCoverage (only ever boost alpha, round). cactus_mid shots probe every cactus 8-120 blocks off.
 - [x] Falling water seen from afar showed a bright blue sheet: Fancy water side faces are tumbling water, not a sky mirror.
 - [x] All kinds of rabbits in the desert: coats by biome (desert gold, snowy white / black-and-white, else brown, salt
       and pepper, black).
