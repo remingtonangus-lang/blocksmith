@@ -25,6 +25,15 @@ Bug discovery is fully automated (Remington is not the bug finder). Keep CI gree
    - [ ] .claude/skills/blocksmith-qa/SKILL.md (the loop), nightly scheduled CI with a summary artifact.
    - [ ] Fix the villager AI and the house floor/entrance problem properly (house floors sit a block above the door
          sill: every house needs a jump to enter and furniture/villager spawns are set into the floor).
+2. Texture source trial (2026-10-02, docs/qa/texture_trial_*.png; tools/texlab.py, tools/matlab.py):
+   - Pollinations: not usable (one image came back as an isometric scene, not a texture; then HTTP 402 Payment
+     Required). Generated images in general: not needed, procedural beats them for coherence.
+   - CC0 photos (Poly Haven / ambientCG via the assets workflow): richer detail but photographic and off-style;
+     several "rock" sets are walls, colours clash after palette matching. At most a faint detail map for bark/dirt.
+   - Upscaling the 16 px art (edge-preserving + noise + relief): smoother but still blocky, not "better".
+   - Procedural 128 px material generators (warped fbm, Voronoi cells, palette ramps, relief lighting): clearly the
+     best and coherent; first pass shown in texture_trial_procedural_v1.png. Chosen: port to Swift and extend to
+     every block family, with BC3 compression where supported (1665 layers at 128 px RGBA = ~145 MB uncompressed).
 2. 128x128 textures (8x): richer procedural art (and/or stylised CC0 sources, trials below), mipmaps + anisotropic
    filtering, cheap normal/roughness hints, real 3D isometric inventory icons crisp at TV scale; 60 fps rd 8 on M1,
    watch texture memory.
