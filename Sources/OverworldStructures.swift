@@ -369,12 +369,25 @@ enum OverworldStructures {
                 }
             })
         }
+        // Every carved corridor cell, from the layout itself (reading blocks missed corridors in the next chunk, so a
+        // support still stood across a crossing at chunk borders: structcheck, run 357).
+        var carved = Set<IVec3>()
+        for s in segs {
+            for k in 0...s.len {
+                let x = s.x + s.dx * k, z = s.z + s.dz * k, fy = s.floor(k)
+                for side in -1...1 {
+                    let bx = x + (s.dz != 0 ? side : 0), bz = z + (s.dx != 0 ? side : 0)
+                    for h in 0...2 { carved.insert(IVec3(bx, fy + h, bz)) }
+                }
+            }
+        }
+        let corridorCells = carved
         for (i, s) in segs.enumerated() {
             let (lo, hi) = box(s)
             pieces.append(piece(lo.x, lo.y, lo.z, hi.x, hi.y, hi.z) { w in
                 var r = SRng(seed &+ UInt64(i) &* 977)
-                // A wall cell (outside this chunk counts as wall: it can't be checked here).
-                func wall(_ x: Int, _ y: Int, _ z: Int) -> Bool { !w.inside(x, y, z) || Blocks.collide[Int(w.get(x, y, z))] }
+                // A wall cell: not inside any corridor of this mineshaft.
+                func wall(_ x: Int, _ y: Int, _ z: Int) -> Bool { !corridorCells.contains(IVec3(x, y, z)) }
                 for k in 0...s.len {
                     let x = s.x + s.dx * k, z = s.z + s.dz * k
                     let fy = s.floor(k)
