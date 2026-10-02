@@ -370,6 +370,8 @@ extension Mob {
                     let b = w.block(d.x, d.y, d.z)
                     if PathFinder.isWoodDoor(b) && Int(b - Blocks.groupBase[Int(b)]) & 4 != 0 { g.toggleOpenable(d) }
                     path.door = nil
+                } else if dx * dx + dz * dz > 36 {
+                    path.door = nil                         // walked on: leave it open, handle the next door
                 }
             }
         }
