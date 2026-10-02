@@ -514,35 +514,85 @@ enum OverworldStructures {
             guard biome.isOcean || biome.isBeach else { return nil }
             let y = gen.groundY(x, z)
             let s = seed
-            return StructureStart(kind: "shipwreck", pieces: [piece(x - 11, y - 2, z - 4, x + 11, y + 10, z + 4) { w in shipwreckBuild(&w, x, y + 1, z, s) }],
-                                  anchor: IVec3(x, max(y + 4, SEA + 2), z - 10))
+            return StructureStart(kind: "shipwreck", pieces: [piece(x - 15, y - 3, z - 8, x + 15, y + 16, z + 8) { w in shipwreckBuild(&w, x, y - 1, z, s) }],
+                                  anchor: IVec3(x, max(y + 6, SEA + 2), z - 15))
         }
     }
 
+    // A sunken sailing ship lying half buried in the seabed (y is its keel): a V-section hull of planks on a log keel,
+    // a hold under a deck with hatches, a raised stern cabin, a forecastle and bowsprit, masts with yards. Broken
+    // wrecks lose their bow above the hold, have holes in the planking and a snapped mast lying on deck.
     static func shipwreckBuild(_ w: inout StructWriter, _ cx: Int, _ y: Int, _ cz: Int, _ seed: UInt64) {
         var rng = SRng(seed)
-        let pl = rng.chance(0.5) ? Blocks.id("oak_planks") : Blocks.id("spruce_planks"), log = Blocks.id("spruce_log")
+        let wood = ["oak", "spruce", "dark_oak"][rng.int(3)]
+        let pl = Blocks.id("\(wood)_planks"), fence = Blocks.id("\(wood)_fence")
+        let log = Blocks.id("spruce_log")
+        let logA = Blocks.has("spruce_log[x]") ? Blocks.id("spruce_log[x]") : log       // along the ship
+        let logB = Blocks.has("spruce_log[z]") ? Blocks.id("spruce_log[z]") : log       // across it
         let broken = rng.chance(0.5)
-        for a in -10...10 {
-            if broken && a > 4 && rng.chance(0.6) { continue }
-            let taper = abs(a) > 7 ? abs(a) - 7 : 0
-            let half = 3 - taper
-            guard half >= 0 else { continue }
-            for b in -half...half {
-                w.set(cx + a, y, cz + b, pl)
-                if abs(b) == half { for h in 1...3 where !(broken && rng.chance(0.3)) { w.set(cx + a, y + h, cz + b, pl) } }
-                else { for h in 1...3 { w.set(cx + a, y + h, cz + b, WATER_IF_BELOW_SEA(y + h)) } }
+        let dir = rng.chance(0.5) ? 1 : -1                                              // bow toward +x or -x
+        func at(_ a: Int, _ h: Int, _ b: Int, _ id: BlockID) { w.set(cx + a * dir, y + h, cz + b, id) }
+        func wet(_ h: Int) -> BlockID { WATER_IF_BELOW_SEA(y + h) }
+        func beam(_ a: Int) -> Int {
+            if a <= -9 { return 2 }
+            if a <= 5 { return 3 }
+            if a <= 8 { return 2 }
+            return a <= 10 ? 1 : 0
+        }
+        func rail(_ a: Int) -> Int { a <= -8 ? 7 : (a >= 10 ? 6 : (a >= 8 ? 5 : 4)) }
+        for a in -12...12 {
+            let hw = beam(a), top = rail(a)
+            let snapped = broken && a >= 6                              // the bow broke off above the hold
+            for h in 0...top {
+                if snapped && h > 2 { break }
+                let hh = h == 0 ? 0 : (h == 1 ? max(0, hw - 1) : hw)
+                for b in -hh...hh {
+                    let end = a == -12 || hw == 0
+                    let shell = h <= 1 || abs(b) == hh || end
+                    if shell {
+                        let hole = broken && h >= 2 && rng.chance(0.12)
+                        at(a, h, b, h == 0 ? logA : (hole ? wet(h) : pl))
+                    } else {
+                        at(a, h, b, wet(h))
+                    }
+                }
             }
-            // A deck over the hold at the rail's height, with hatches down to it (a lone plank line along the middle
-            // read as a beam hanging over the open hull: blind critic, run 369 shipwreck). Broken wrecks lose planks.
-            if abs(a) <= 6 && half > 0 && abs(a) % 6 != 0 && a != 0 {
-                for b in (-half + 1)...(half - 1) where !(broken && rng.chance(0.25)) { w.set(cx + a, y + 3, cz + b, pl) }
+            if snapped { continue }
+            // Decks: main deck at 4 midships (hatches over the hold), the cabin floor and its roof aft, the
+            // forecastle forward. Rails along the main deck.
+            if hw > 0 {
+                for b in (-hw + 1)...(hw - 1) {
+                    if a > -8 && a < 8 && !((a == 3 || a == -3) && abs(b) <= 1) { at(a, 4, b, pl) }
+                    if a <= -8 { at(a, 4, b, pl); at(a, 7, b, pl); for h in 5...6 { at(a, h, b, wet(h)) } }
+                    if a >= 8 && a <= 10 { at(a, 5, b, pl) }
+                }
+                if a > -8 && a < 8 { at(a, 5, -hw, fence); at(a, 5, hw, fence) }
             }
         }
-        if !broken { for h in 1...8 { w.set(cx - 1, y + h, cz, log) } }
-        w.chest(cx - 7, y + 1, cz, loot: "shipwreck_supply", seed: rng.next(), facing: 2)
-        w.chest(cx + 7, y + 1, cz, loot: "shipwreck_treasure", seed: rng.next(), facing: 3)
-        w.chest(cx, y + 1, cz + 1, loot: "shipwreck_map", seed: rng.next(), facing: 0)
+        // Cabin door toward midships, stern windows, the rail round the poop deck.
+        for b in -2...2 { at(-8, 5, b, pl); at(-8, 6, b, pl) }
+        at(-8, 5, 0, wet(5)); at(-8, 6, 0, wet(6))
+        at(-12, 6, -1, wet(6)); at(-12, 6, 1, wet(6))
+        for a in -12...(-8) { at(a, 8, -beam(a), fence); at(a, 8, beam(a), fence) }
+        if !broken {
+            for k in 13...15 { at(k, 5, 0, logA) }                          // bowsprit
+        }
+        // Masts: the main mast with two yards, the mizzen aft. A broken wreck's main mast snapped at the deck and
+        // lies along it.
+        if broken {
+            for h in 1...6 { at(1, h, 0, log) }
+            for a in 2...6 { at(a, 5, 1, logA) }
+        } else {
+            for h in 1...13 { at(1, h, 0, log) }
+            for b in -3...3 { at(1, 9, b, logB) }
+            for b in -2...2 { at(1, 12, b, logB) }
+            for h in 1...10 { at(-5, h, 0, log) }
+            for b in -2...2 { at(-5, 8, b, logB) }
+        }
+        let supply = (cx - 6 * dir, y + 2, cz), treasure = (cx + (broken ? 4 : 6) * dir, y + 2, cz), map = (cx - 10 * dir, y + 5, cz)
+        w.chest(supply.0, supply.1, supply.2, loot: "shipwreck_supply", seed: rng.next(), facing: 2)
+        w.chest(treasure.0, treasure.1, treasure.2, loot: "shipwreck_treasure", seed: rng.next(), facing: 3)
+        w.chest(map.0, map.1, map.2, loot: "shipwreck_map", seed: rng.next(), facing: 0)
     }
 
     static func WATER_IF_BELOW_SEA(_ y: Int) -> BlockID { y <= SEA ? WATER : AIR }
