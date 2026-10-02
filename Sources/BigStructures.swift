@@ -102,7 +102,9 @@ enum BigStructures {
             let r = f == 2 ? 16 : 20
             w.fill(cx - r, fy, cz - r, cx + r, fy + 5, cz + r, pl)
             w.fill(cx - r + 1, fy + 1, cz - r + 1, cx + r - 1, fy + 5, cz + r - 1, AIR)
-            w.fill(cx - r + 1, fy, cz - r + 1, cx + r - 1, fy, cz + r - 1, f == 0 ? pl : carpet)
+            // Upper floors: carpet laid on the plank floor (it replaced the planks, so each floor was carpet over the
+            // room below with no ceiling between them).
+            if f > 0 { w.fill(cx - r + 1, fy + 1, cz - r + 1, cx + r - 1, fy + 1, cz + r - 1, carpet) }
             // Corner logs and windows.
             for (sx, sz) in [(-1, -1), (1, -1), (-1, 1), (1, 1)] { w.fill(cx + sx * r, fy, cz + sz * r, cx + sx * r, fy + 5, cz + sz * r, log) }
             for k in stride(from: -r + 3, through: r - 3, by: 4) {
@@ -126,7 +128,8 @@ enum BigStructures {
             }
             for _ in 0..<(f == 0 ? 4 : 3) {
                 let mx = cx + Int(rng.float() * Float(2 * r - 6)) - r + 3, mz = cz + Int(rng.float() * Float(2 * r - 6)) - r + 3
-                w.mob(rng.chance(0.35) ? "evoker" : "vindicator", V3(Float(mx) + 0.5, Float(fy + 1), Float(mz) + 0.5))
+                let my: Float = Float(fy + 1) + (f > 0 ? 0.07 : 0)                       // on the carpet
+                w.mob(rng.chance(0.35) ? "evoker" : "vindicator", V3(Float(mx) + 0.5, my, Float(mz) + 0.5))
             }
             // Stairs up the middle.
             if f < 2 { for k in 0..<6 { w.set(cx + 2, fy + 1 + k, cz - 3 + k, stairs + 1); w.fill(cx + 2, fy + 2 + k, cz - 3 + k, cx + 2, fy + 5, cz - 3 + k, AIR) } }
