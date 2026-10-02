@@ -2261,8 +2261,9 @@ final class Renderer: NSObject, MTKViewDelegate {
         let since = game.clock - game.toastTime
         if since < 2.2 && !game.toastText.isEmpty {
             let a = Float(min(1, (2.2 - since) / 0.5))
-            // Above the survival rows: hearts and hunger, and the armour row when armour is worn.
-            let armourRow: Float = game.survival && game.inventory.armorPoints > 0 ? 10 : 0
+            // Above the survival rows: hearts and hunger, and the armour (left) or air-bubble (right) row above them
+            // (the name sat in the bubble row beside the bubbles: run 362 survival shot).
+            let armourRow: Float = game.survival && (game.inventory.armorPoints > 0 || game.air < 15) ? 10 : 0
             let ty = L.hotbarY0 - ((game.survival ? 26 : 14) + armourRow) * s
             let tb = Settings.shared.textBackground
             if tb > 0 { let tw = textWidth(game.toastText, s); rect(floor((W - tw) / 2) - 3 * s, ty - 3 * s, tw + 6 * s, 13 * s, V4(0, 0, 0, tb * a)) }
