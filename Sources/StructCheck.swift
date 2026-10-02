@@ -10,6 +10,7 @@ import simd
 //   door_no_floor     nothing to stand on in the doorway itself
 //   door_unreachable  no walking route reaches either side of the door from outside / the structure's start
 //   door_needs_jump   (villages) a door is only reachable with 1-block jumps (villagers path poorly over those)
+//   door_half         a door's upper half is missing (overwritten by a later write)
 //   poi_unreachable   a bed, job site, chest, bell... has no reachable cell next to it
 //   mob_in_block      a structure mob spawns inside a solid block
 //   mob_no_floor      a walking structure mob spawns with nothing under it
@@ -318,6 +319,10 @@ enum StructCheck {
                 let (ax, az) = f < 2 ? (0, 1) : (1, 0)
                 let p = IVec3(x, y, z)
                 let iron = Blocks.key(Blocks.groupBase[Int(b)]).hasPrefix("iron_")
+                // The upper half: another write in the same column (a wall, a roof row, a neighbour piece) can replace it,
+                // leaving a one-block door under a wall.
+                let up = w.block(x, y + 1, z)
+                if Blocks.groupBase[Int(up)] != Blocks.groupBase[Int(b)] { add("door_half", p, "a door without its upper half (\(Blocks.key(up)) above)") }
                 guard let fd = feet(w, x, y, z) else { add("door_no_floor", p, "nothing to stand on in the doorway"); continue }
                 var sideOK = 0
                 var sides: [IVec3] = []
