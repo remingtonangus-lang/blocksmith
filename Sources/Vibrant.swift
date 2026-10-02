@@ -207,6 +207,9 @@ final class Vibrant {
                 spec = 0.0; wet = 0.6; metal = 0.25       // 0.25 = translucent foliage (backlit glow)
             } else if n.contains("wool") || n.hasSuffix("_carpet") {
                 spec = 0.0; wet = 0.6
+            } else if n.hasPrefix("grass_block") || n.hasSuffix("sand") || n.hasPrefix("moss") || n.hasPrefix("podzol")
+                        || n.hasPrefix("mycelium") || n.hasSuffix("_nylium") || n == "rooted_dirt" {
+                wet = 0.7                                 // soaks up rain: darkens, no puddles (a grey film over the grass)
             }
             m[l * 4] = UInt8(spec * 255); m[l * 4 + 1] = UInt8(shin); m[l * 4 + 2] = UInt8(metal * 255); m[l * 4 + 3] = UInt8(wet * 255)
         }

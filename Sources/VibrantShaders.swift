@@ -264,8 +264,9 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
         // Cyan-green: warm sand under the blue haze turned the lines pink-magenta (blind critic, underwater).
         col += (albedo * 0.35 + 0.1) * caustic((in.rel + u.eye.xyz).xz, u.params.z) * sl * float3(0.55, 0.95, 0.9) * skyC * 0.45;
     }
-    if (wet > 0.05 && in.face == 2.0) {
-        // Rain puddles: patches of standing water mirror the sky.
+    if (wet > 0.05 && in.face == 2.0 && m.w > 0.85) {
+        // Rain puddles on hard ground: patches of standing water mirror the sky (not on grass, sand or moss, where they
+        // read as a grey film floating over the blades: blind critic, run 364 rain).
         float2 wq = (in.rel + u.eye.xyz).xz;
         float pd = smoothstep(0.55, 0.72, vnoise(wq * 0.33) * 0.7 + vnoise(wq * 1.1) * 0.3) * wet;
         float3 r = reflect(v, n);
