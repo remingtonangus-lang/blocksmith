@@ -221,7 +221,12 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
     float3 amb = u.ambColor.rgb * skyC * fs * in.ao;
     float ndl = in.face > 5.5 ? 0.55 + 0.45 * saturate(u.lightDir.y) : saturate(dot(n, u.lightDir.xyz));
     float3 direct = u.sunColor.rgb * ndl * shadow * sunVis * mix(0.7, 1.0, in.ao);
-    float3 skyPart = amb + direct;
+    // Bounce off the sunlit ground onto faces that don't look up: a terrace's dirt side in the sun's shadow got sky
+    // ambient only and read as a black line from the air (blind critics; tour_777_aerial p5/p50 luminance 5 % in
+    // Fancy against 22 % in Fast).
+    float notUp = 1.0 - saturate(n.y);
+    float3 bounce = u.sunColor.rgb * saturate(u.lightDir.y) * sunVis * 0.3 * notUp * mix(0.6, 1.0, in.ao);
+    float3 skyPart = amb + direct + bounce;
     float blk0 = blkL / (4.0 - 3.0 * blkL);
     float inv = 1.0 - blk0;
     float blk = min(1.0, mix(blk0, 1.0 - inv * inv * inv * inv, 0.6) * 1.05);
