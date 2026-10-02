@@ -242,6 +242,12 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
 - 2026-10-02 05:12 UTC: cancelling run 351 didn't stop it (every step was `if: always()`, which also runs after a cancel),
   so it held the queue ~20 more minutes; steps now use `!cancelled()`. Pushed 29ae5ad (supersedes the queued 352):
   life and cave bots, HD rails, run-351 fixes.
+- 2026-10-02 05:45 UTC: run 353 (29ae5ad): bench/playthrough/snapshots/terrain green; smoke failed (the scripted A presses
+  chose Resume in the pause menu, so the tour found none). Pushed 0f51c64 (run 354): no jumps around the pause press, a
+  self-contained tour. Run 354: type-check gate failed (a five-way `??` chain of HD generator lookups; split into
+  HDTex.generator) and smoke failed again (log pending at the time of writing). Local meanwhile: structcheck round 2
+  (stronghold library aisle and foundations, bastion stair/bridge/anchors, ancient-city halls in passes, mineshaft
+  ramps) and ~60 more HD materials (job sites, sparkstone machines, small plants, minerals, chorus, shrieker).
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
