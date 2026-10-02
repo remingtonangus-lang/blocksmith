@@ -1078,6 +1078,35 @@ enum HDTex {
         return img
     }
 
+    // Storage blocks (diamond, emerald, lapis, redstone, coal): a bevelled frame around a field of flat cut facets,
+    // each with its own tone and a lit top-left edge; `flecks` adds gold pyrite specks (lapis).
+    static func gemBlock(_ pal: [(Float, UInt32)], cells: Int = 5, flecks: Bool = false) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            var img = Img(n)
+            let v = voronoi(n, cells, s, jitter: 0.85)
+            let fine = vnoise(n, max(1, n / 64), s &+ 2)
+            let bevel: Float = fn / 16
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let fx = Float(x), fy = Float(y)
+                let edgeD: Float = min(min(fx, fy), min(fn - 1 - fx, fn - 1 - fy))
+                var t: Float = 0.3 + v.id[i] * 0.45 + (fine[i] - 0.5) * 0.06
+                let seam: Float = v.f2[i] - v.f1[i]
+                if seam < fn / 96 { t -= 0.22 } else if seam < fn / 48 { t += 0.12 }
+                if edgeD < bevel {
+                    // Lit on the top / left bevel, shaded on the bottom / right one.
+                    let dTL: Float = min(fx, fy), dBR: Float = min(fn - 1 - fx, fn - 1 - fy)
+                    t = dTL <= dBR ? 0.92 : 0.18
+                }
+                var c = ramp(t, pal)
+                if flecks && edgeD >= bevel && h2(x / max(1, n / 64), y / max(1, n / 64), s &+ 7) > 0.975 { c = col(0xE8C860) }
+                img.px[i] = V4(c.x, c.y, c.z, 1)
+            } }
+            return img
+        }
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -1650,6 +1679,11 @@ enum HDTex {
         "pumpkin_side": ribbedSide([(0, 0x9A520A), (0.5, 0xD8801A), (1, 0xF0A030)], ribs: 4),
         "pumpkin_top": radialTop([(0, 0x9A520A), (0.5, 0xD8801A), (1, 0xF0A030)], lobes: 8, stem: 0x5A6A1A),
         "melon_side": melonSide,
+        "diamond_block": gemBlock([(0, 0x2A9A9A), (0.5, 0x6ADCD8), (1, 0xD0FFFA)]),
+        "emerald_block": gemBlock([(0, 0x0E6A30), (0.5, 0x2AB85A), (1, 0x9AF0B8)]),
+        "lapis_block": gemBlock([(0, 0x142A78), (0.5, 0x2A4EB0), (1, 0x6A8AE0)], cells: 7, flecks: true),
+        "redstone_block": gemBlock([(0, 0x6A0806), (0.5, 0xB01810), (1, 0xF05040)], cells: 6),
+        "coal_block": gemBlock([(0, 0x101012), (0.5, 0x222226), (1, 0x3E3E44)], cells: 7),
         "red_mushroom_block": mushroomCap([(0, 0x8A1410), (0.5, 0xB82420), (1, 0xD43A30)], spots: 7),
         "brown_mushroom_block": mushroomCap([(0, 0x6A4A32), (0.5, 0x8A6448), (1, 0xA27C5C)], spots: 0),
         "mushroom_stem": mushroomStem,
