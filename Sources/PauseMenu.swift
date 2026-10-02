@@ -44,7 +44,7 @@ final class PauseMenu: Menu {
     static let valueIDs: Set<String> = ["sens", "invert", "autojump", "fov", "lookx", "looky", "accel", "dead", "aim", "rumble", "southpaw",
                                         "sneaktoggle", "autosprint", "glyphs", "rd", "fullscreen", "launchfs", "vsync", "fps", "rscale", "wscale", "graphics",
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
-                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap", "graphics", "wscale"]
+                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap"]
 
     static func isValue(_ id: String) -> Bool { valueIDs.contains(id) || id.hasPrefix("vol:") || id == "audio_subs" }
 
@@ -86,7 +86,6 @@ final class PauseMenu: Menu {
         "graphics": "Fancy: sky gradient, water reflections, shadows and more effects. Fast: the plain renderer.",
         "wscale": "Fancy graphics only: draws the world at fewer pixels and scales it up; menus and the HUD stay sharp.",
         "rscale": "Renders fewer pixels and scales up. 75% helps a lot on a 4K TV.",
-        "wscale": "Fancy graphics only: draws the world at fewer pixels and scales it up; menus and the HUD stay sharp.",
         "gui": "Size of menus and the HUD. Auto picks the largest that fits.",
         "couch": "Bigger HUD and menus for playing from the sofa.",
         "safe": "Keeps the HUD away from the screen edges on TVs that crop them.",

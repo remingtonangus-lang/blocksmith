@@ -997,6 +997,33 @@ enum HDTex {
         }
     }
 
+    // Lumpy masses (wart blocks, glowstone, shroomlight, sculk): packed rounded lumps, each a Voronoi cell shaded as
+    // a bulge, with its own tone.
+    static func lumps(_ pal: [(Float, UInt32)], cells: Int = 10, gloss: Float = 0) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            var img = Img(n)
+            let v = voronoi(n, cells, s, jitter: 0.95)
+            let fine = vnoise(n, max(1, n / 64), s &+ 2)
+            let size: Float = fn / Float(cells)
+            var hh = [Float](repeating: 0, count: n * n)
+            for i in 0..<(n * n) {
+                let bulge: Float = cl(1 - v.f1[i] / (size * 0.75))
+                let seam: Float = cl((v.f2[i] - v.f1[i]) / (fn / 48))
+                let t0: Float = 0.12 + 0.55 * bulge * seam + (v.id[i] - 0.5) * 0.25
+                let t: Float = t0 + (fine[i] - 0.5) * 0.08 + gloss * (bulge > 0.75 ? 0.2 : 0)
+                let c = ramp(t, pal)
+                img.px[i] = V4(c.x, c.y, c.z, 1)
+                hh[i] = bulge * seam
+            }
+            shade(&img, hh, 0.9)
+            return img
+        }
+    }
+    static let netherrackGen: Gen = stone([(0, 0x3E1414), (0.35, 0x642424), (0.7, 0x8A3838), (1, 0xAC5656)], veins: 0.9, strata: 0)
+    static let crimsonNylium: Gen = soil([(0, 0x5A0E10), (0.5, 0x8A1A1C), (1, 0xB0302A)], pebble: 0xC04A3A, pebbles: 14, clods: 10)
+    static let warpedNylium: Gen = soil([(0, 0x0E4A44), (0.5, 0x16706A), (1, 0x2A9A8A)], pebble: 0x40C0A8, pebbles: 14, clods: 10)
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -1026,9 +1053,9 @@ enum HDTex {
 
     // A soil face under a band of another material along the top edge (podzol, mycelium, path sides), with a
     // wavy lower edge and a soft shadow under it.
-    static func topped(_ top: @escaping Gen, depth: Float = 0.16) -> Gen {
+    static func topped(_ top: @escaping Gen, depth: Float = 0.16, over base: Gen? = nil) -> Gen {
         { n, s in
-            var img = dirtGen(n, s)
+            var img = (base ?? dirtGen)(n, s)
             let t = top(n, s &+ 3)
             let d = fringe(n, s &+ 5, depth: depth, spikes: n / 8, spikeH: 0.06, width: 0.03)
             let fn = Float(n)
@@ -1598,7 +1625,22 @@ enum HDTex {
         "packed_mud": soil([(0, 0x7A5A42), (0.5, 0x8E6A4E), (1, 0xA27C5C)], pebble: 0x6A4E3A, pebbles: 5, clods: 9),
         "mud": soil([(0, 0x2E2628), (0.5, 0x3C3236), (1, 0x4E4246)], pebble: 0x5A4E50, pebbles: 3, clods: 6),
         // Emberdeep and the Hollow.
-        "netherrack": stone([(0, 0x3E1414), (0.35, 0x642424), (0.7, 0x8A3838), (1, 0xAC5656)], veins: 0.9, strata: 0),
+        "netherrack": netherrackGen,
+        "nether_gold_ore": ore(netherrackGen, 0xD8A824, 0xFCE878, clusters: 9),
+        "nether_quartz_ore": ore(netherrackGen, 0xCFC6B8, 0xFFFFFF, clusters: 8),
+        "crimson_nylium": crimsonNylium,
+        "crimson_nylium_side": topped(crimsonNylium, depth: 0.2, over: netherrackGen),
+        "warped_nylium": warpedNylium,
+        "warped_nylium_side": topped(warpedNylium, depth: 0.2, over: netherrackGen),
+        "nether_wart_block": lumps([(0, 0x4A0608), (0.5, 0x7E0E10), (1, 0xA82A22)]),
+        "warped_wart_block": lumps([(0, 0x0A4A48), (0.5, 0x127068), (1, 0x2A988A)]),
+        "glowstone": lumps([(0, 0x7A4A18), (0.35, 0xB88430), (0.7, 0xF0C860), (1, 0xFFF4C0)], cells: 8, gloss: 1),
+        "shroomlight": lumps([(0, 0xA04A10), (0.5, 0xF09030), (1, 0xFFD890)], cells: 7, gloss: 1),
+        "sculk": lumps([(0, 0x041820), (0.5, 0x0A2C34), (1, 0x16505A)], cells: 12),
+        "ancient_debris_side": stone([(0, 0x3A2A26), (0.5, 0x5E443A), (1, 0x7E6050)], veins: 0.4, strata: 0.14),
+        "ancient_debris_top": stone([(0, 0x3A2A26), (0.5, 0x5E443A), (1, 0x7E6050)], veins: 0.6, strata: 0),
+        "basalt_top": stone([(0, 0x3A3A3E), (0.5, 0x505056), (1, 0x68686E)], veins: 0, strata: 0),
+        "smooth_basalt": polished(stone([(0, 0x34343A), (0.5, 0x48484E), (1, 0x5E5E64)], veins: 0, strata: 0)),
         "blackstone": stone([(0, 0x1E1A20), (0.5, 0x2E2830), (1, 0x443C46)], veins: 0.3, strata: 0.05),
         "basalt_side": stone([(0, 0x3A3A3E), (0.5, 0x4E4E54), (1, 0x66666C)], veins: 0, strata: 0, streak: 0.8),
         "end_stone": stone([(0, 0xC8C88E), (0.5, 0xDCDCA2), (1, 0xEEEEBC)], veins: 0, strata: 0),
