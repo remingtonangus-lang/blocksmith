@@ -2248,6 +2248,8 @@ final class Renderer: NSObject, MTKViewDelegate {
         func depth(_ b: Box) -> Int { Int(b.x0) + Int(b.x1) + Int(b.y0) + Int(b.y1) + Int(b.z0) + Int(b.z1) }
         let order = boxes.sorted { depth($0) < depth($1) }
         let leftC: V4 = full * V4(0.78, 0.78, 0.78, 1), rightC: V4 = full * V4(0.6, 0.6, 0.6, 1)
+        let leafy = Blocks.key(Blocks.groupBase[Int(id)]).hasSuffix("leaves")
+        let backC: V4 = full * V4(0.38, 0.38, 0.38, 1)
         for b in order {
             let lo: V3 = b.minV, hi: V3 = b.maxV
             let tl: Float = 1 - hi.y, bl: Float = 1 - lo.y          // v at the top and bottom of a side face
@@ -2256,6 +2258,13 @@ final class Renderer: NSObject, MTKViewDelegate {
             // +Z face (left): u = x, v = 1 - y.
             let lp: [V2] = [P(lo.x, hi.y, hi.z), P(hi.x, hi.y, hi.z), P(hi.x, lo.y, hi.z), P(lo.x, lo.y, hi.z)]
             let lu: [V2] = [V2(lo.x, tl), V2(hi.x, tl), V2(hi.x, bl), V2(lo.x, bl)]
+            let rp0: [V2] = [P(hi.x, hi.y, hi.z), P(hi.x, hi.y, lo.z), P(hi.x, lo.y, lo.z), P(hi.x, lo.y, hi.z)]
+            let tp0: [V2] = [P(lo.x, hi.y, lo.z), P(hi.x, hi.y, lo.z), P(hi.x, hi.y, hi.z), P(lo.x, hi.y, hi.z)]
+            if leafy {
+                // Leaves are cutout: a dark foliage backing so the icon reads as a solid bush, not a sieve.
+                let zero = [V2](repeating: .zero, count: 4)
+                quad(lp, zero, backC * V4(0.78, 0.78, 0.78, 1), -1); quad(rp0, zero, backC * V4(0.6, 0.6, 0.6, 1), -1); quad(tp0, zero, backC, -1)
+            }
             quad(lp, lu, leftC, layer(4))
             // +X face (right): u = 1 - z, v = 1 - y.
             let rp: [V2] = [P(hi.x, hi.y, hi.z), P(hi.x, hi.y, lo.z), P(hi.x, lo.y, lo.z), P(hi.x, lo.y, hi.z)]
