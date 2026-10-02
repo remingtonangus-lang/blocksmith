@@ -318,6 +318,16 @@ enum Capital {
             }
             hb.fill(-11, 11, 7, 7, zc - 1, zc + 1, iron)                // axle beam
         }
+        // Details: hubs on the wheels, headlights on the glacis, exhaust stacks and an antenna aft.
+        for zc in [18, 41, 64] { for sx in [-1, 1] {
+            for y in 4...10 { for z in (zc - 3)...(zc + 3) {
+                let dy = Float(y) - 7, dz = Float(z - zc)
+                if dy * dy + dz * dz <= 6.5 { hb.set(sx * 16, y, z, iron) }
+            } }
+        } }
+        for x in [-8, -7, 7, 8] { hb.set(x, 13, 11, light) }
+        for sx in [-1, 1] { for y in 21...27 { hb.set(sx * 9, y, 68, iron) }; hb.set(sx * 9, 28, 68, id("blackstone", hull)) }
+        for y in 29...35 { hb.set(5, y, 60, id("iron_bars", iron)) }
         // Spinal rail cannon over the bow.
         for z in 0...46 { for y in 26...34 { for x in -4...4 {
             let r: Float = sqrtf(Float(x * x + (y - 30) * (y - 30)))
