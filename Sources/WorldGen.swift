@@ -346,8 +346,13 @@ final class WorldGen: TerrainGenerator {
             climates[lx + lz * CS] = climate(bx + lx, bz + lz)
             // Surface and plants use a per-column dithered climate, so borders fray into a mixed band of
             // both biomes' ground cover rather than a crisp line.
-            let dT = (hashf(bx + lx, 5, bz + lz, s32 ^ 0xD17) - 0.5) * 0.07
-            let dW = (hashf(bx + lx, 6, bz + lz, s32 ^ 0xD18) - 0.5) * 0.09
+            // Mostly a 5-block noise with a little per-column jitter: pure per-column noise speckled borders like
+            // salt and pepper (run 362 snowy village: single white snow squares scattered through the grass).
+            let wxf = Float(bx + lx), wzf = Float(bz + lz)
+            let nT: Float = flora.noise2(wxf / 5 + 311, wzf / 5 - 173), nW: Float = flora.noise2(wxf / 5 - 529, wzf / 5 + 97)
+            let jT: Float = hashf(bx + lx, 5, bz + lz, s32 ^ 0xD17) - 0.5, jW: Float = hashf(bx + lx, 6, bz + lz, s32 ^ 0xD18) - 0.5
+            let dT: Float = (nT * 0.75 + jT * 0.35) * 0.07
+            let dW: Float = (nW * 0.75 + jW * 0.35) * 0.09
             biomes[lx + lz * CS] = terrain.biome(k, k.h, dT: dT, dW: dW)
             maxTop = max(maxTop, YOFF + Int(k.h) + 40)
         } }
@@ -570,8 +575,11 @@ final class WorldGen: TerrainGenerator {
             let biome = biomes[lx + lz * CS]
             var y = CH - 2
             while y > 1 && b[Chunk.index(lx, y, lz)] == AIR { y -= 1 }
-            // Per-column dither: the snowline frays over a band instead of ending in a sharp edge.
-            let t = terrain.temperature(cols[lx + lz * CS], Float(y + 1 - YOFF)) + (hashf(bx + lx, y, bz + lz, s32 ^ 0x5110) - 0.5) * 0.12
+            // Dither: the snowline frays over a band instead of ending in a sharp edge, in clumps a few blocks wide (a
+            // per-column hash scattered single snow squares through the grass: run 362 snowy village).
+            let clump: Float = flora.noise2(Float(bx + lx) / 4 + 731, Float(bz + lz) / 4 + 419)
+            let jit: Float = hashf(bx + lx, y, bz + lz, s32 ^ 0x5110) - 0.5
+            let t = terrain.temperature(cols[lx + lz * CS], Float(y + 1 - YOFF)) + (clump * 0.8 + jit * 0.3) * 0.12
             let cold = t < -0.25 || (biome.snows(at: y + 1) && t < -0.15)
             guard cold else { continue }
             // Steep rock faces shed their snow.
