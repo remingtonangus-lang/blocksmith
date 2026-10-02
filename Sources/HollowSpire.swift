@@ -172,7 +172,9 @@ enum HollowSpire {
         for a in -4...4 { for b in -1...1 { put(a, -1, b, AIR); put(a, -2, b, AIR) } }
         for a in -4...4 { for b in -2...2 where abs(b) == 2 { put(a, -1, b, purpur); put(a, -2, b, purpur) } }
         for a in -4...4 { for b in -2...2 { put(a, -3, b, purpur) }; put(a, -4, 0, OBSIDIAN) }
-        put(1, 0, 0, AIR); put(2, 0, 0, AIR)                           // hatch
+        // Hatch three long: stepping off the second step onto the hold floor, the head passes under the third
+        // (two long, the deck met it: structcheck, the hold's chests unreachable on every ship, run 358).
+        put(1, 0, 0, AIR); put(2, 0, 0, AIR); put(3, 0, 0, AIR)          // hatch
         put(1, -1, 0, purpur); put(2, -2, 0, purpur)                   // steps
         let chestAt: (Int, Int) -> IVec3 = { a, b in alongX ? IVec3(cx + a, y - 2, cz + b) : IVec3(cx + b, y - 2, cz + a) }
         let c1 = chestAt(-3, 0), c2 = chestAt(4, 0), c3 = chestAt(-1, 1)
