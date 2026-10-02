@@ -46,7 +46,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--ref', default='origin/ci-snaps-claude-blocksmith-playtest')
     ap.add_argument('--shots')
-    ap.add_argument('--model', default=os.environ.get('GEMINI_CRITIC_MODEL', 'gemini-flash-latest'))
+    ap.add_argument('--model', default=os.environ.get('GEMINI_CRITIC_MODEL', 'gemini-flash-latest,gemini-flash-lite-latest,gemini-2.5-flash'))
     ap.add_argument('--out', default=os.path.join(ROOT, 'docs/qa/critic_gemini.md'))
     a = ap.parse_args()
     spec = open(os.path.join(ROOT, 'docs/qa/REFERENCE_SPEC.md')).read()
@@ -66,7 +66,17 @@ def main():
                   "the image as left/centre/right and top/middle/bottom, how bad); and finally 'Biggest gap:' as one "
                   "testable instruction. Do not praise. Do not guess about things not visible.")
         try:
-            txt = call(a.model, [{"text": prompt}, {"inline_data": {"mime_type": "image/png", "data": base64.b64encode(png).decode()}}], key)
+            parts = [{"text": prompt}, {"inline_data": {"mime_type": "image/png", "data": base64.b64encode(png).decode()}}]
+            txt = None
+            # --model takes a comma list: a model whose quota is spent (HTTP 429 after the retries) hands over to the
+            # next (the free tier's per-model daily quota ran out after one shot in a session).
+            models = a.model.split(',')
+            for mi, m in enumerate(models):
+                try:
+                    txt = call(m, parts, key); break
+                except RuntimeError as e:
+                    if '429' not in str(e) or mi == len(models) - 1: raise
+                    print(f"{shot}: {m} quota spent, trying {models[mi + 1]}", file=sys.stderr)
         except Exception as e:  # noqa: BLE001
             txt = f"(critic failed: {e})"
         out += [f"## {shot}", "", txt.strip(), ""]
