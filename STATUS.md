@@ -226,6 +226,10 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   (cinder rods: 10-minute spawner cap with a 50% drop; Blight arrows shot after regen lifted it above half health), both
   fixed in the harness. behaviorsim stuck 206, spinning 46, bed 14/42, meet 26/50, work 19/25; structcheck stronghold
   49 -> 32, end city still 33/33 (inside up to the house floor). Pushed ef1d1ee (run 351, 29 commits); PR #9 updated.
+- 2026-10-02 05:05 UTC: run 351 (ef1d1ee) superseded: type-check gate failed (new HD code; splits pushed) and the smoke test
+  ran long (the menu tour left the game unpaused with the pause menu open, so the scripted resume paused it again: fixed).
+  Pushed b299d49 (run 352) with those fixes, HD torches/doors/trapdoors/ladder/crafting table/furnace/water/crops,
+  shared detail-noise fields (start-up cost) and the villager local-stroll fix.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
