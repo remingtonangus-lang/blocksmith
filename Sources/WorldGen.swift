@@ -127,8 +127,16 @@ final class WorldGen: TerrainGenerator {
         return 0
     }
 
-    func bankWater(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ tops: inout [Int], _ wls: [Int]) {
+    func bankWater(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ tops: inout [Int], _ wls: [Int], _ nodes: [Terrain.Node]) {
         let tops0 = tops
+        // A column just across the border, blended from this chunk's own node grid (it spans 8 blocks past each
+        // edge): bit-identical to terrain.column there, without its four fresh node evaluations per call (those made
+        // generation 2.5x slower near lakes: bench gen.chunk_ms 2.08 -> 5.11, run 363).
+        func across(_ lx: Int, _ lz: Int) -> Terrain.Column {
+            let gx = (lx + 8) >> 2, gz = (lz + 8) >> 2
+            let fx = Float((lx + 8) & 3) / 4, fz = Float((lz + 8) & 3) / 4
+            return Terrain.blend(nodes[gx * 9 + gz], nodes[(gx + 1) * 9 + gz], nodes[gx * 9 + gz + 1], nodes[(gx + 1) * 9 + gz + 1], fx, fz)
+        }
         for lz in 0..<CS { for lx in 0..<CS {
             let k = lx + lz * CS
             let myTop = tops0[k], myWl = wls[k]
@@ -143,7 +151,7 @@ final class WorldGen: TerrainGenerator {
                 for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
                     let nx = lx + dx, nz = lz + dz
                     guard nx < 0 || nx >= CS || nz < 0 || nz >= CS else { continue }
-                    let nc = terrain.column(bx + nx, bz + nz)
+                    let nc = across(nx, nz)
                     let nTop = YOFF + Int(nc.h), nWl = YOFF + Int(floorf(nc.wl))
                     if nWl <= nTop && nTop < myWl { spill = true }
                     if nWl > nTop && nWl < myWl { lowerWater = true }
@@ -166,12 +174,9 @@ final class WorldGen: TerrainGenerator {
                 if nx >= 0 && nx < CS && nz >= 0 && nz < CS {
                     nTop = tops0[nx + nz * CS]; nWl = wls[nx + nz * CS]
                 } else {
-                    // Across the chunk border only near inland water, from the 2D column alone (groundY scans the 3D
-                    // density from 40 blocks up). Asking every border column cost 2.7x the generation time per chunk
-                    // (run 356 benchmarks: the neighbour's terrain nodes aren't built yet), so a dry column at sea level
-                    // beside a lake one block up on the other side of a border keeps its leak (gencheck, a few dozen).
-                    guard myWl > SEA && myWl >= myTop - 4 else { continue }
-                    let nc = terrain.column(bx + nx, bz + nz)
+                    // Across the chunk border from the 2D column blended from this chunk's node grid (cheap, so every
+                    // border column asks: a dry column at sea level now sees a lake one block up across the border).
+                    let nc = across(nx, nz)
                     nTop = YOFF + Int(nc.h)
                     nWl = YOFF + Int(floorf(nc.wl))
                 }
@@ -337,7 +342,8 @@ final class WorldGen: TerrainGenerator {
         let bx = cx * CS, bz = cz * CS
         let (lat, _) = lattice(bx, bz)
         // Per-column terrain fields and biome.
-        let cols = chunkColumns(chunkNodes(bx, bz))
+        let nodes = chunkNodes(bx, bz)
+        let cols = chunkColumns(nodes)
         var biomes = [Biome](repeating: .plains, count: CSQ)
         var climates = [Climate](repeating: Climate(t: 0, h: 0, c: 0, e: 0, w: 0), count: CSQ)
         var maxTop = 0
@@ -419,7 +425,7 @@ final class WorldGen: TerrainGenerator {
         // River steps and lake edges: water filled per column to its own level stood as a one-block wall beside a
         // lower neighbour (gencheck "leak", ~1 per chunk). From the lower side: a column with water just below gets a
         // shallow flowing lip (or a falling cascade for a bigger drop), a dry one a bank up to the water.
-        bankWater(&b, bx, bz, &tops, wls)
+        bankWater(&b, bx, bz, &tops, wls, nodes)
 
         // 3. Caves, aquifers, lava.
         let caves = caveLattice(bx, bz, maxY: maxTop)
