@@ -243,6 +243,16 @@ final class Playthrough {
         simSeconds += 0.1
     }
 
+    // Where the player's body fits closest to an item (an item lying in a low cavity or wedged against a block put
+    // the player inside the rock, and the tick pushed them away before the pickup: runs 361 and 367).
+    func standNear(_ p: V3) -> V3 {
+        for dy: Float in [0, -0.5, 0.5, -1, -1.5, -2] {          // pickup reaches 2.3 up from the feet but only 0.8 down
+            let q = p + V3(0, dy, 0)
+            if !world.collides(V3(q.x - 0.3, q.y + 0.01, q.z - 0.3), V3(q.x + 0.3, q.y + 1.79, q.z + 0.3)) { return q }
+        }
+        return p
+    }
+
     // Walks (teleports) over every dropped item within `r` blocks so it gets picked up. The player follows each item
     // tick by tick: a drop still falling into a cave below was chased at a stale position and left there (run 358).
     func collect(near c: V3, _ r: Float = 12) {
@@ -253,9 +263,10 @@ final class Playthrough {
             if items.isEmpty { break }
             for e in items {
                 for _ in 0..<30 where !e.stack.isEmpty {
-                    game.player.pos = e.pos
+                    let at = standNear(e.pos)
+                    game.player.pos = at
                     game.player.vel = .zero
-                    _ = tick(0.05, pin: e.pos)
+                    _ = tick(0.05, pin: at)
                 }
             }
         }
@@ -1244,9 +1255,10 @@ final class Playthrough {
         for _ in 0..<60 where count("nether_star") == 0 {
             guard let e = game.drops.items.first(where: { !$0.stack.isEmpty && Items.key($0.stack.item) == "nether_star" }) else { break }
             makeRoom()                  // the fight's drops filled the bag (run 358: the player stood on the star for 6 s)
-            game.player.pos = e.pos
+            let at = standNear(e.pos)
+            game.player.pos = at
             game.player.vel = .zero
-            _ = tick(0.1, pin: e.pos)
+            _ = tick(0.1, pin: at)
         }
         check(count("nether_star") == 1, "blight: the Blight Star drops and is picked up (\(count("nether_star")))")
         if count("nether_star") == 0 {
