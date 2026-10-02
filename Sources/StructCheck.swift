@@ -383,6 +383,14 @@ enum StructCheck {
                     return inX && inYZ
                 }
                 if !own { continue }
+                // A world-gen dungeon's chest inside the box (mossy cobblestone floor, a spawner beside it): not the
+                // structure's own (run 373: a Steelhold foundation closed a dungeon's cave opening).
+                if base == "chest" {
+                    var mossy = false, spawner = false
+                    for dz in -1...1 { for dx in -1...1 where Blocks.key(w.block(x + dx, y - 1, z + dz)) == "mossy_cobblestone" { mossy = true } }
+                    for dz in -4...4 { for dx in -4...4 where Blocks.key(w.block(x + dx, y, z + dz)) == "spawner" { spawner = true } }
+                    if mossy && spawner { continue }
+                }
                 pois += 1
                 // The desert pyramid's treasure room is reached by digging through the floor pattern, by design.
                 if kind == "desert_pyramid" && base == "chest" { continue }
