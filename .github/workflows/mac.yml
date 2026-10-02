@@ -74,12 +74,12 @@ jobs:
           # The crashed scene is the one after the last scene that finished.
           SCENE=$(grep -o 'bench: [a-z0-9]* took' bench.log | tail -1 | awk '{print $2}')
           case "$SCENE" in flight8) NEXT=flight16;; flight16) NEXT=flight24;; fluids) NEXT=flight8;; *) NEXT=flight8;; esac
-          bash ./build.sh debug > debugbuild.log 2>&1 || { echo "debug build failed:"; grep -E "error|ld:|Undefined|duplicate|symbol" debugbuild.log | head -60; tail -20 debugbuild.log; }
+          # The debug app goes to its own bundle (rebuilding release over it afterwards cost the later steps their binary).
+          BLOCKSMITH_APP=build/debug/Blocksmith.app bash ./build.sh debug > debugbuild.log 2>&1 || { echo "debug build failed:"; grep -E "error|ld:|Undefined|duplicate|symbol" debugbuild.log | head -60; tail -20 debugbuild.log; }
           echo "rerun (debug build) of bench scene $NEXT" > benchdebug.log
-          lldb --batch -o run -o 'bt 40' -o 'thread backtrace all' -- build/Blocksmith.app/Contents/MacOS/Blocksmith \
+          lldb --batch -o run -o 'bt 40' -o 'thread backtrace all' -- build/debug/Blocksmith.app/Contents/MacOS/Blocksmith \
             --bench snaps/bench_debug.json --scenes "$NEXT" >> benchdebug.log 2>&1 || true
           grep -v '^bench flight' benchdebug.log | tail -150
-          bash ./build.sh 2>&1 | tail -1
 
       - name: Profile (sample)
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
@@ -119,8 +119,8 @@ jobs:
         timeout-minutes: 10
         run: |
           L=$(grep -o 'snap.sh: line [0-9]*' snap.log | tail -1 | grep -o '[0-9]*$' || true)
-          bash ./build.sh debug > debugbuild.log 2>&1 || { echo "debug build failed:"; grep -E "error|ld:|Undefined|duplicate|symbol" debugbuild.log | head -60; tail -20 debugbuild.log; }
-          BIN=build/Blocksmith.app/Contents/MacOS/Blocksmith
+          BLOCKSMITH_APP=build/debug/Blocksmith.app bash ./build.sh debug > debugbuild.log 2>&1 || { echo "debug build failed:"; grep -E "error|ld:|Undefined|duplicate|symbol" debugbuild.log | head -60; tail -20 debugbuild.log; }
+          BIN=build/debug/Blocksmith.app/Contents/MacOS/Blocksmith
           mkdir -p snaps
           CMD=$(sed -n "${L:-10}p" snap.sh)
           echo "rerun (debug build): $CMD" > debug.log

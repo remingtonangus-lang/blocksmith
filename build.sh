@@ -2,10 +2,13 @@
 # Builds build/Blocksmith.app with the Command Line Tools (no Xcode needed).
 #   ./build.sh            optimized build
 #   ./build.sh debug      debug build (faster compile, asserts on)
+#   BLOCKSMITH_APP=build/debug/Blocksmith.app ./build.sh debug   somewhere else (CI's debug reruns: rebuilding the
+#   release app over the debug one afterwards ran out of the smoke step's time, and the benchmarks then measured the
+#   debug binary: run 371)
 set -euo pipefail
 cd "$(dirname "$0")"
 MODE="${1:-release}"
-APP=build/Blocksmith.app
+APP="${BLOCKSMITH_APP:-build/Blocksmith.app}"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 # Debug: line tables only and one module object (-wmo), so the link stays small on CI runners (full -g over ~250
 # files failed to link there); enough for lldb backtraces with file:line.
