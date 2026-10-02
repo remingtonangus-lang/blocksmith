@@ -175,6 +175,13 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   spawner, 7 kills in 671 s) -> the test now counts arrow damage only and fetches only rods from afar. Bench gate:
   edit break/place p50 1.45 ms (LOD 0 path, untouched by the change) with gen/world-init also slow on that runner;
   watching the next run.
+- 2026-10-02 02:24 UTC: new session (session_01NHX6PtLsjxpnUha9wMm2wN) took over after the HANDOFF commit; hourly
+  keep-alive trig_01SFg2Xku8uvwrvaty2iknvj (fires at :24, bound to this session); Stop hook already present.
+- 2026-10-02 02:35 UTC: Gemini check: the proxy-injected key answers (model list 200; vision models work: usable as a
+  second blind critic), but **image generation is quota 0 on the free tier** (every image model: HTTP 429
+  `generate_content_free_tier_requests, limit: 0`). Remington notified: enable billing on the key's Google project
+  to generate textures. tools/gemini_textures.py now works without GEMINI_API_KEY in the env (proxy header) and
+  fails fast on a zero quota. Textures continue procedurally (the HANDOFF's chosen path) until then.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 

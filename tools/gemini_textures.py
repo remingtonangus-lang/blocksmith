@@ -53,7 +53,10 @@ def generate(key, model, text, ref_png):
             parts.append({"inline_data": {"mime_type": "image/png", "data": base64.b64encode(f.read()).decode()}})
     body = json.dumps({"contents": [{"parts": parts}],
                        "generationConfig": {"responseModalities": ["IMAGE", "TEXT"]}}).encode()
-    req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json", "x-goog-api-key": key})
+    headers = {"Content-Type": "application/json"}
+    if key:  # cloud sessions: the egress proxy injects x-goog-api-key, so no key lives in the environment
+        headers["x-goog-api-key"] = key
+    req = urllib.request.Request(url, data=body, headers=headers)
     for attempt in range(4):
         try:
             with urllib.request.urlopen(req, timeout=180) as r:
@@ -65,7 +68,10 @@ def generate(key, model, text, ref_png):
                         return base64.b64decode(d["data"])
             raise RuntimeError("no image in response: " + json.dumps(js)[:300])
         except urllib.error.HTTPError as e:
-            msg = e.read().decode(errors='replace')[:300]
+            msg = e.read().decode(errors='replace')[:2000]
+            if e.code == 429 and "limit: 0" in msg:
+                raise RuntimeError("HTTP 429 with quota limit 0: this key is on the free tier, which allows no image "
+                                   "generation; enable billing on its Google Cloud project")
             if e.code in (429, 500, 502, 503) and attempt < 3:
                 time.sleep(2 ** (attempt + 2)); continue
             raise RuntimeError(f"HTTP {e.code}: {msg}")
@@ -73,6 +79,15 @@ def generate(key, model, text, ref_png):
             if attempt < 3:
                 time.sleep(2 ** (attempt + 2)); continue
             raise
+
+
+def proxy_injects_key():
+    """True when the API answers without a key of ours (the cloud egress proxy adds the header)."""
+    try:
+        with urllib.request.urlopen("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1", timeout=30) as r:
+            return r.status == 200
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def sheet(rows, out):
@@ -104,8 +119,8 @@ def main():
     ap.add_argument('--baselines', help='dir with <name>.png baselines (procedural previews / CC0 imports)')
     a = ap.parse_args()
     key = os.environ.get('GEMINI_API_KEY')
-    if not key:
-        print("GEMINI_API_KEY is not set: nothing generated (the import pipeline works on any PNG: tools/teximport.py)")
+    if not key and not proxy_injects_key():
+        print("GEMINI_API_KEY is not set and no proxy injects one: nothing generated (tools/teximport.py works on any PNG)")
         return 2
     prompts = json.load(open(os.path.join(ROOT, 'tools/texture_prompts.json')))
     if a.only:
