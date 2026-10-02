@@ -127,12 +127,16 @@ enum Stronghold {
         case .corridor:
             shell(&w, cx - 2, y, cz - 2, cx + 2, y + 4, cz + 2)
             openings(2, 3)
-            if rng.chance(0.3) { w.set(cx + 1, y + 3, cz + 1, Blocks.id("torch")) }
+            // Torches hang on a wall (they stood in mid-air): the east wall unless a doorway opens it, else the south.
+            if rng.chance(0.3) {
+                if !n.links[0] { w.set(cx + 1, y + 3, cz + 1, Blocks.id("torch") + 3) }
+                else if !n.links[2] { w.set(cx + 1, y + 3, cz + 1, Blocks.id("torch") + 1) }
+            }
         case .chest:
             shell(&w, cx - 3, y, cz - 3, cx + 3, y + 5, cz + 3)
             openings(3, 3)
             w.chest(cx + 2, y + 1, cz + 2, loot: "stronghold_corridor", seed: rng.next(), facing: 2)
-            w.set(cx - 2, y + 3, cz - 2, Blocks.id("torch"))
+            w.set(cx - 2, y + 3, cz - 2, Blocks.id("torch") + 4)                // on the west wall
         case .start, .crossing:
             shell(&w, cx - 5, y, cz - 5, cx + 5, y + 8, cz + 5)
             openings(5, 3)
@@ -151,7 +155,8 @@ enum Stronghold {
                 // Crossing: a pillar in the middle with torches, sometimes a fountain.
                 if rng.chance(0.5) {
                     w.fill(cx - 1, y + 1, cz - 1, cx + 1, y + 7, cz + 1, Blocks.id("stone_bricks"))
-                    for (tx, tz) in [(-2, 0), (2, 0), (0, -2), (0, 2)] { w.set(cx + tx, y + 4, cz + tz, Blocks.id("torch")) }
+                    // On the pillar's four faces (wall torch state = 1 + the way it faces).
+                    for (tx, tz, st) in [(-2, 0, 3), (2, 0, 4), (0, -2, 1), (0, 2, 2)] { w.set(cx + tx, y + 4, cz + tz, Blocks.id("torch") + BlockID(st)) }
                 } else {
                     w.fill(cx - 2, y + 1, cz - 2, cx + 2, y + 1, cz + 2, Blocks.id("stone_brick_slab"))
                     w.fill(cx - 1, y + 1, cz - 1, cx + 1, y + 1, cz + 1, WATER)
@@ -209,7 +214,7 @@ enum Stronghold {
             let st = Blocks.id("stone_brick_stairs")
             for (i, yy) in [(0, 1), (1, 2), (2, 3)] { w.fill(cx - 1, y + yy, pz - 6 + i, cx + 1, y + yy, pz - 6 + i, st + 1) }
             w.spawner(cx, y + 4, pz - 3, mob: "silverfish")
-            for (tx, tz) in [(-4, -5), (4, -5), (-4, 5), (4, 5)] { w.set(cx + tx, y + 3, cz + tz, Blocks.id("torch")) }
+            for (tx, tz) in [(-4, -5), (4, -5), (-4, 5), (4, 5)] { w.set(cx + tx, y + 3, cz + tz, Blocks.id("torch") + BlockID(tx < 0 ? 4 : 3)) }
             // Iron-bar windows along the sides.
             for z in stride(from: cz - 4, through: cz + 4, by: 2) {
                 w.fill(cx - 5, y + 5, z, cx - 5, y + 6, z, Blocks.id("iron_bars"))
