@@ -213,10 +213,10 @@ done
 "$BIN" --snapshot snaps/ruined_portal.png --seed 12345 --structure ruined_portal --land --frame 1 --time 0.25
 "$BIN" --snapshot snaps/shipwreck.png --seed 12345 --structure shipwreck --frame 1 --time 0.25
 # Small structures with no shot before (eyes-on coverage for the "everything similar" rework).
-"$BIN" --snapshot snaps/desert_well.png --seed 12345 --structure desert_well --frame 1.6 --time 0.25 || true
+"$BIN" --snapshot snaps/desert_well.png --seed 12345 --structure desert_well --frame 0.7 --time 0.25 || true
 "$BIN" --snapshot snaps/ocean_ruin.png --seed 12345 --structure ocean_ruin --frame 1 --time 0.25 || true
 "$BIN" --snapshot snaps/trail_ruins.png --seed 12345 --structure trail_ruins --frame 1 --time 0.25 || true
-"$BIN" --snapshot snaps/fossil.png --seed 12345 --structure fossil --frame 1 --time 0.25 --nightvision || true
+"$BIN" --snapshot snaps/fossil.png --seed 12345 --structure fossil --offset 0,0,-6 --yaw 0 --pitch -10 --time 0.25 --nightvision --unblock || true
 "$BIN" --snapshot snaps/mineshaft.png --seed 12345 --structure mineshaft --frame 0.4 --time 0.25 --nightvision
 "$BIN" --snapshot snaps/stronghold.png --seed 12345 --structure stronghold --yaw 180 --pitch 5 --up 0.5 --rd 4
 "$BIN" --snapshot snaps/end.png --seed 12345 --dim end --x 70 --z 35 --yaw 63 --pitch 2 --up 16 --dragon
