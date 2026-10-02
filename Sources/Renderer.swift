@@ -1168,8 +1168,10 @@ final class Renderer: NSObject, MTKViewDelegate {
             if game.player.headInWater {
                 // Under water the arm and held item take on the water's colour like everything else (they stayed in
                 // full daylight colours: critic, underwater.png).
+                // About a fifth of the way to the water colour at arm's length (at a third and more the held block
+                // read as a textureless navy box in deep water: blind critic, run 373 seabed_deep).
                 let f = game.underwaterFog
-                uh.fogColor = V4(f.x, f.y, f.z, -1); uh.params.x = 3
+                uh.fogColor = V4(f.x, f.y, f.z, -1); uh.params.x = 6
             }
             let ey = Int(floor(eye.y)) + (Blocks.opaque[Int(game.world.block(Int(floor(eye.x)), Int(floor(eye.y)), Int(floor(eye.z))))] ? 1 : 0)
             let l = game.world.lightAt(Int(floor(eye.x)), ey, Int(floor(eye.z)))

@@ -67,7 +67,24 @@ enum Snapshot {
             let hgt = world.gen.column(Int(floor(x)), Int(floor(z))).height
             pos = V3(x, Float(max(hgt, SEA) + 1), z)
         }
-        if let want = arg("--find"), let p = findBiome(world.gen, want, interior: true) { pos = p }
+        var faceYaw: Float? = nil
+        if let want = arg("--find"), let p = findBiome(world.gen, want, interior: true) {
+            pos = p
+            // --yaw biome: face the way the biome runs furthest (the swamp shot looked out to sea from a coastal swamp
+            // column: blind critic, run 373). 16 headings, matches counted at 12..72 blocks out.
+            if arg("--yaw") == "biome" {
+                var best = -1
+                for i in 0..<16 {
+                    let a = Float(i) / 16 * 2 * Float.pi
+                    var n = 0
+                    for d in stride(from: 12, through: 72, by: 12) {
+                        let x = Int(p.x + cosf(a) * Float(d)), z = Int(p.z + sinf(a) * Float(d))
+                        if world.gen.column(x, z).biome.name == want { n += 1 }
+                    }
+                    if n > best { best = n; faceYaw = atan2f(-cosf(a), -sinf(a)) }
+                }
+            }
+        }
         // --feature lake|delta: the nearest lake or big river mouth from the river graph.
         if let f = arg("--feature"), let wg = world.gen as? WorldGen {
             if let (fx, fz) = wg.terrain.nearestFeature(f, x: Int(pos.x), z: Int(pos.z)) {
@@ -127,7 +144,7 @@ enum Snapshot {
         }
         pos.y += Float(arg("--up") ?? "") ?? 0
         game.player.pos = pos
-        game.player.yaw = frame?.yaw ?? (Float(arg("--yaw") ?? "") ?? 30) * .pi / 180
+        game.player.yaw = frame?.yaw ?? faceYaw ?? (Float(arg("--yaw") ?? "") ?? 30) * .pi / 180
         game.player.pitch = frame?.pitch ?? (Float(arg("--pitch") ?? "") ?? -15) * .pi / 180
         game.player.flying = true
         game.time = (Double(arg("--time") ?? "") ?? 0.2) * DAY_LENGTH
