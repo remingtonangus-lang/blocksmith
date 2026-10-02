@@ -1115,7 +1115,7 @@ enum HDTex {
         "red_sandstone": sandstoneSide(redSandstonePal),
         "red_sandstone_top": stone(redSandstonePal, veins: 0, strata: 0),
         "calcite": stone([(0, 0xC8C8C2), (0.5, 0xDEDED8), (1, 0xF2F2EC)], veins: 0.3, strata: 0),
-        "dripstone_block": stone([(0, 0x6A5444), (0.5, 0x86705C), (1, 0xA48C76)], veins: 0.2, strata: 0.06, streak: 0.4),
+        "dripstone_block": stone([(0, 0x6A5444), (0.5, 0x86705C), (1, 0xA48C76)], veins: 0.2, strata: 0.04, streak: 0.18),
         "clay": stone([(0, 0x8C929E), (0.5, 0xA0A6B2), (1, 0xB4BAC4)], veins: 0, strata: 0.01),
         "packed_mud": soil([(0, 0x7A5A42), (0.5, 0x8E6A4E), (1, 0xA27C5C)], pebble: 0x6A4E3A, pebbles: 5, clods: 9),
         "mud": soil([(0, 0x2E2628), (0.5, 0x3C3236), (1, 0x4E4246)], pebble: 0x5A4E50, pebbles: 3, clods: 6),
