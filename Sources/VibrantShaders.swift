@@ -234,7 +234,11 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
     // Fancy against 22 % in Fast).
     float notUp = 1.0 - saturate(n.y);
     float3 bounce = u.sunColor.rgb * saturate(u.lightDir.y) * sunVis * 0.3 * notUp * mix(0.6, 1.0, in.ao);
-    float3 skyPart = amb + direct + bounce;
+    // Leaves pass light: shaded leaf faces inside a crown still get some sun through the leaves above (through the
+    // cutout holes they showed as black pinholes: blind critic, run 373 acacias).
+    bool foliage = (m.z > 0.15 && m.z < 0.35) || in.face > 5.5;
+    float3 leafFill = foliage ? u.sunColor.rgb * sunVis * 0.22 * (1.0 - shadow) * mix(0.6, 1.0, in.ao) : float3(0.0);
+    float3 skyPart = amb + direct + bounce + leafFill;
     float blk0 = blkL / (4.0 - 3.0 * blkL);
     float inv = 1.0 - blk0;
     float blk = min(1.0, mix(blk0, 1.0 - inv * inv * inv * inv, 0.6) * 1.05);
