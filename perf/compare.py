@@ -18,8 +18,10 @@ GATES = {
     "mesh_lod1.chunk_ms_mean": 1.6,
     "save.chunk_ms": 2.0,
     "save.load_chunk_ms": 3.0,        # sub-millisecond file reads: noisy on the shared runners
-    "edit.break_ms_mean": 2.0,
-    "edit.place_ms_mean": 2.0,
+    # Edits are gated on the median: the mean of 48 synchronous remeshes swings 1.6-2.5x run to run on a few
+    # multi-millisecond outliers (runs 346-349) while the median moves 1.2-1.4x.
+    "edit.break_ms_p50": 2.0,
+    "edit.place_ms_p50": 2.0,
     "flight16.coverage_min": 1.6,
     "flight16.resident_peak_mb": 1.4,
     "flight24.resident_peak_mb": 1.4,
