@@ -272,6 +272,9 @@ final class Vibrant {
         let dl = simd_clamp((game.daylight - 0.1) / 0.9, 0, 1)
         let dayAmb = V3(0.48, 0.51, 0.57), nightAmb = V3(0.17, 0.2, 0.33)
         f.ambient = simd_mix(nightAmb, dayAmb, V3(repeating: dl))
+        // Overcast: the cloud deck scatters the dimmed sunlight all round, so the sky ambient carries part of it (shaded
+        // spruce trunks in snowfall were near black, 8 % of the lit snow: blind critic, run 364).
+        f.ambient *= 1 + 0.3 * rain * up
         // Thunderstorms: heavy cloud cover, a steely ambient and almost no direct sun.
         let storm = min(1, game.weather.thunder)
         f.ambient *= V3(1 - 0.35 * storm, 1 - 0.33 * storm, 1 - 0.25 * storm)
