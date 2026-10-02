@@ -364,6 +364,8 @@ enum StructCheck {
                     if base.hasSuffix("_head") { continue }
                 }
                 pois += 1
+                // The desert pyramid's treasure room is reached by digging through the floor pattern, by design.
+                if kind == "desert_pyramid" && base == "chest" { continue }
                 var ok = false
                 for dz in -1...1 { for dx in -1...1 where !ok && (dx != 0 || dz != 0) {
                     for dy in [-1, 0, 1] where !ok {

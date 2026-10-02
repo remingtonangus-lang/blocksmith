@@ -98,7 +98,18 @@ enum OverworldStructures {
         // Stair down to the lower chamber with the chests.
         w.fill(cx - 5, y - 4, cz + 2, cx + 5, y - 1, cz + 6, cob)
         w.fill(cx - 4, y - 3, cz + 3, cx + 4, y - 2, cz + 5, AIR)
-        w.fill(cx + 3, y - 3, cz - 1, cx + 3, y, cz + 2, AIR)
+        // Steps down to the chamber, one block each (a 4-block pit with no way back: structcheck, the chamber chest).
+        for k in 0..<4 {
+            let z = cz - 1 + k
+            w.fill(cx + 3, y - k, z, cx + 3, y + 1, z, AIR)
+            w.set(cx + 3, y - k - 1, z, mat(cx + 3, y - k - 1, z))
+        }
+        // Steps up to the second tier (its floor sealed it off: the upper chest was unreachable).
+        for k in 0..<4 {
+            let z = cz - 4 + k
+            for yy in (y + 1)...(y + 1 + k) { w.set(cx - 3, yy, z, mat(cx - 3, yy, z)) }
+            if k < 3 { w.fill(cx - 3, y + 2 + k, z, cx - 3, y + 5, z, AIR) }
+        }
         w.chest(cx - 4, y - 3, cz + 4, loot: "jungle_temple", seed: rng.next(), facing: 3)
         w.chest(cx + 1, y + 5, cz + 5, loot: "jungle_temple", seed: rng.next(), facing: 0)
         w.set(cx - 3, y + 1, cz + 5, Blocks.id("vine"))
