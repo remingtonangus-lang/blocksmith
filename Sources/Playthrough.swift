@@ -927,8 +927,11 @@ final class Playthrough {
                 e = ne
                 // Torch trick: the egg must rest on something breakable with room for a torch under it.
                 let under = e + IVec3(0, -1, 0), below2 = e + IVec3(0, -2, 0)
-                guard carvable(under), Blocks.collide[Int(world.block(under.x, under.y, under.z))], carvable(below2),
-                      Blocks.collide[Int(world.block(below2.x, below2.y - 1, below2.z))] else { continue }
+                guard carvable(under), Blocks.collide[Int(world.block(under.x, under.y, under.z))], carvable(below2) else { continue }
+                // A player digs out the cell two below and gives the torch a floor if it has none (placing a block).
+                if !Blocks.collide[Int(world.block(below2.x, below2.y - 1, below2.z))] {
+                    world.setBlock(below2.x, below2.y - 1, below2.z, Blocks.id("end_stone"))
+                }
                 world.setBlock(below2.x, below2.y, below2.z, Blocks.id("torch"))
                 _ = hold("diamond_pickaxe")
                 if mine(under, maxSeconds: 10) { tick(2); collect(near: center(under), 8) }

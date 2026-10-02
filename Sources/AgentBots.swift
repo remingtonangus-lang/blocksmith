@@ -103,13 +103,23 @@ final class ExplorerBot: AgentBot {
         var best: V3?
         for k in 0..<10 {
             let ang: Float = rng.float() * 2 * .pi
-            let d: Float = 20 + rng.float() * 20
+            // Within the pathfinder's range (48 blocks Manhattan).
+            let d: Float = 16 + rng.float() * 14
             let x = Int(floor(s.pos.x + sinf(ang) * d)), z = Int(floor(s.pos.z + cosf(ang) * d))
             let y = a.world.topY(x, z) + 1
             let c = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
             let ck = floorDiv(x, CS) &* 1_000_003 &+ floorDiv(z, CS)
             best = c
             if !a.visitedChunks.contains(ck) || k == 9 { break }
+        }
+        // Until it has swum: head for visible water within 30 blocks now and then.
+        if !swam && chosen % 3 == 2 {
+            search: for r in stride(from: 4, through: 30, by: 2) { for k in 0..<12 {
+                let ang: Float = Float(k) / 12 * 2 * .pi
+                let x = Int(floor(s.pos.x + sinf(ang) * Float(r))), z = Int(floor(s.pos.z + cosf(ang) * Float(r)))
+                let ty = a.world.topY(x, z)
+                if Blocks.fluidKind[Int(a.world.block(x, ty, z))] == 1 { best = V3(Float(x) + 0.5, Float(ty), Float(z) + 0.5); break search }
+            } }
         }
         target = best
         chosen += 1
@@ -198,13 +208,15 @@ final class VillageBot: AgentBot {
             let st = Int(b - Blocks.groupBase[Int(b)])
             if st & 8 != 0 { continue }
             let (ax, az) = (st & 3) < 2 ? (0, 1) : (1, 0)
-            // Inside: the side with a roof above it.
+            // Inside: the side with more roof over it (any blocks 2-10 above: roofs are stairs and slabs).
+            var best = 0, bestSide = 0
             for sgn in [-1, 1] {
                 let cx = x + ax * sgn, cz = z + az * sgn
-                var roofed = false
-                for dy in 2...7 where w.block(cx, y + dy, cz) != AIR && Blocks.fullCollide[Int(w.block(cx, y + dy, cz))] { roofed = true; break }
-                if roofed { doors.append(Door(door: IVec3(x, y, z), inside: IVec3(cx, y, cz))); break }
+                var cover = 0
+                for dy in 2...10 where w.block(cx, y + dy, cz) != AIR { cover += 1 }
+                if cover > best { best = cover; bestSide = sgn }
             }
+            if best > 0 { doors.append(Door(door: IVec3(x, y, z), inside: IVec3(x + ax * bestSide, y, z + az * bestSide))) }
         } } }
         PathFinder.doors = false
     }

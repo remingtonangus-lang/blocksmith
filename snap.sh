@@ -43,8 +43,13 @@ cp -r build/sounds/scapes snaps/sounds/scapes
 "$BIN" --agent village --seeds 12345,777,424242 --ticks 4800 --out snaps
 "$BIN" --agent explorer --seeds 12345,777 --ticks 3600 --out snaps
 "$BIN" --agent monkey --seeds 12345,424242 --ticks 3600 --minimize --out snaps
+# Replay determinism: the same recording played in two separate processes must end in the same state.
 R=$(ls snaps/replay_*.jsonl 2>/dev/null | grep -v replay_min | head -1 || true)
-if [ -n "$R" ]; then "$BIN" --agent replay "$R" --verify; fi
+if [ -n "$R" ]; then
+  H1=$("$BIN" --agent replay "$R" | grep -o "end-state hash [0-9]*" || true)
+  H2=$("$BIN" --agent replay "$R" | grep -o "end-state hash [0-9]*" || true)
+  if [ -n "$H1" ] && [ "$H1" = "$H2" ]; then echo "replay determinism: same ($H1, $R)"; else echo "replay determinism: DIFFERENT ($H1 vs $H2, $R)"; fi
+fi
 # Far-ocean kelp streaks in tour_777_aerial: the same view in Fast graphics and at render distance 8 (no far LOD).
 "$BIN" --snapshot snaps/tour_777_aerial_fast.png --seed 777 --x 600 --z 300 --onland --yaw 200 --pitch -28 --time 0.23 --up 55 --rd 16 --fast
 "$BIN" --snapshot snaps/tour_777_aerial_nocull.png --seed 777 --x 600 --z 300 --onland --yaw 200 --pitch -28 --time 0.23 --up 55 --rd 16 --nocull

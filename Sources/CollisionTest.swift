@@ -76,14 +76,22 @@ enum CollisionTest {
             vy = 0
             var onGround = true
             var through = false
+            var maxY: Float = pos.y
             for _ in 0..<60 {
                 vy -= 32 / 60
                 let hit = world.moveBody(&pos, halfW: 0.3, height: 1.8, V3(3.0 / 60, vy / 60, 0), step: 0.6, onGround: onGround)
                 if hit.y { if vy < 0 { onGround = true }; vy = 0 } else { onGround = false }
+                maxY = max(maxY, pos.y)
                 if world.collides(V3(pos.x - 0.29, pos.y + 0.01, pos.z - 0.29), V3(pos.x + 0.29, pos.y + 1.79, pos.z + 0.29)) { through = true }
             }
             if lane > 0 && lane <= 0.6 && pos.x < 8.5 { flag("no_step_up", String(format: "%@: top +%.2f but the walker stopped at x %.2f", key, lane, pos.x - 8)) }
-            if lane > 0.65 && pos.x > 8.5 && !boxes.isEmpty { flag("walk_through", String(format: "%@: top +%.2f but the walker got past (x %.2f)", key, lane, pos.x - 8)) }
+            // Through: the body ended entirely past the block's boxes in its lane (thin panels stop it short of x 8.5).
+            var laneMaxX: Float = 0
+            for (lo, hi) in boxes where lo.z < 8.8 && hi.z > 8.2 { laneMaxX = max(laneMaxX, hi.x) }
+            if lane > 0.65 && pos.x - 0.3 >= laneMaxX - 0.001 && laneMaxX > 0 {
+                let bs: String = boxes.map { b -> String in String(format: "[%.2f %.2f %.2f - %.2f %.2f %.2f]", b.0.x - 8, b.0.y - Float(by), b.0.z - 8, b.1.x - 8, b.1.y - Float(by), b.1.z - 8) }.joined(separator: " ")
+                flag("walk_through", String(format: "%@: top +%.2f, walker ended at x %.2f y %.2f (max y %.2f); boxes ", key, lane, pos.x - 8, pos.y - Float(by), maxY - Float(by)) + bs)
+            }
             if through { flag("penetration", "\(key): the walking body overlapped the block") }
             _ = world.setBlockAsync(P.x, P.y, P.z, AIR)
         }

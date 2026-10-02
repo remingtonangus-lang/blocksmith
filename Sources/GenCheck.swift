@@ -20,7 +20,8 @@ enum GenCheck {
     static let hanging: Set<String> = ["vine", "cave_vines", "cave_vines_plant", "weeping_vines", "weeping_vines_plant", "twisting_vines",
                                        "twisting_vines_plant", "hanging_roots", "spore_blossom", "glow_lichen", "sculk_vein", "pale_hanging_moss",
                                        "pointed_dripstone", "chorus_flower", "chorus_plant", "resin_clump", "cobweb", "lily_pad", "kelp", "seagrass",
-                                       "tall_seagrass", "sea_pickle", "nether_portal", "end_portal", "light"]
+                                       "tall_seagrass", "sea_pickle", "nether_portal", "end_portal", "light", "amethyst_cluster",
+                                       "large_amethyst_bud", "medium_amethyst_bud", "small_amethyst_bud", "cocoa", "bell"]
     static let dirtLike: Set<String> = ["grass_block", "dirt", "coarse_dirt", "podzol", "rooted_dirt", "moss_block", "mud", "muddy_mangrove_roots",
                                         "farmland", "farmland_moist", "snowy_grass_block", "pale_moss_block", "mycelium", "dirt_path"]
 
@@ -104,8 +105,12 @@ enum GenCheck {
                                     add("leak", p, "\(Blocks.fluidKind[bi] == 1 ? "water" : "lava") source beside air"); break
                                 }
                             } else if logIDs.contains(b) && below == AIR {
-                                let b2 = world.block(wx, y - 2, wz)
-                                if b2 == AIR && !isLeaves(world.block(wx, y + 1, wz)) { add("trunk_floating", p, "\(k) over open air") }
+                                // Branches (acacia, fancy oak, mangrove) rest on a log diagonally below or beside.
+                                var held = false
+                                for dz in -1...1 { for dx in -1...1 where !(dx == 0 && dz == 0) {
+                                    if logIDs.contains(world.block(wx + dx, y - 1, wz + dz)) || logIDs.contains(world.block(wx + dx, y, wz + dz)) { held = true }
+                                } }
+                                if !held && world.block(wx, y - 2, wz) == AIR { add("trunk_floating", p, "\(k) over open air, no log beside or below") }
                             } else if Blocks.fullCollide[bi] && !isLeaves(b) {
                                 var solidN = 0, airN = 0
                                 for (dx, dy, dz) in [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)] {
