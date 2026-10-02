@@ -1,0 +1,102 @@
+name: qa-nightly
+# The long find-fix QA pass (.claude/skills/blocksmith-qa): many seeds of the structure checker, bots (village,
+# explorer, monkey with replay minimising), the behaviour sim, tours with visual oracles, and a summary report
+# (QA_REPORT.md) published to the orphan branch `ci-qa-nightly` and uploaded as an artifact.
+# Scheduled runs only fire from the default branch's copy of this file; on other branches run it with
+# workflow_dispatch (Actions tab, or the API) choosing the branch.
+on:
+  schedule:
+    - cron: '17 7 * * *'          # daily 07:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: qa-nightly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  qa:
+    runs-on: macos-14
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'claude/blocksmith-playtest' || github.ref }}
+
+      - name: Build
+        run: |
+          X=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1 || true)
+          if [ -n "$X" ]; then sudo xcode-select -s "$X/Contents/Developer"; fi
+          set -o pipefail
+          bash ./build.sh 2>&1 | tail -5
+
+      - name: Find (checkers, bots, sims, tours)
+        continue-on-error: true
+        run: |
+          BIN=build/Blocksmith.app/Contents/MacOS/Blocksmith
+          mkdir -p snaps
+          rm -f snaps/imagecheck.log
+          set +e
+          $BIN --structcheck --seeds 12345,777,424242,1,98765,31337 --per 5 --out snaps/structcheck.md 2>&1 | tee qa.log
+          $BIN --behaviorsim --seeds 12345,777,424242,98765 --minutes 20 --out snaps/behaviorsim.md 2>&1 | tee -a qa.log
+          $BIN --agent village --seeds 12345,777,424242,1,98765,31337 --ticks 7200 --out snaps 2>&1 | tee -a qa.log
+          $BIN --agent explorer --seeds 12345,777,424242,1 --runs 2 --ticks 10800 --out snaps 2>&1 | tee -a qa.log
+          $BIN --agent monkey --seeds 12345,777,424242,1,98765 --runs 3 --ticks 7200 --minimize --out snaps 2>&1 | tee -a qa.log
+          for R in $(ls snaps/replay_*.jsonl 2>/dev/null | grep -v replay_min | head -3); do $BIN --agent replay "$R" --verify 2>&1 | tee -a qa.log; done
+          # Tours: every biome at noon and at night, villages, interiors, caves, underwater, the other dimensions.
+          for b in plains forest birch_forest dark_forest taiga snowy_plains desert savanna badlands jungle swamp mangrove_swamp \
+                   cherry_grove meadow beach ocean warm_ocean deep_ocean river lush_caves dripstone_caves deep_dark pale_garden; do
+            $BIN --snapshot snaps/tour_$b.png --seed 12345 --find $b --yaw 30 --pitch -15 --time 0.25 --up 3 >> qa.log 2>&1
+            $BIN --snapshot snaps/tour_${b}_night.png --seed 12345 --find $b --yaw 30 --pitch -15 --time 0.78 --up 3 >> qa.log 2>&1
+          done
+          for s in village temple pillager_outpost mansion military_base ruined_portal shipwreck mineshaft stronghold trial_chambers ancient_city; do
+            $BIN --snapshot snaps/struct_$s.png --seed 12345 --structure $s --frame 0.8 --time 0.3 --flicker >> qa.log 2>&1
+          done
+          $BIN --snapshot snaps/nether_tour.png --seed 12345 --dim nether --yaw 30 --pitch -10 --up 2 >> qa.log 2>&1
+          $BIN --snapshot snaps/end_tour.png --seed 12345 --dim end --yaw 30 --pitch -10 --up 2 >> qa.log 2>&1
+          python3 tools/imagecheck.py snaps/imagecheck.log 2>&1 | tee -a qa.log
+          true
+
+      - name: Report
+        if: always()
+        run: |
+          {
+            echo "# Blocksmith nightly QA"
+            echo
+            echo "Commit \`$(git rev-parse HEAD)\`, run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+            echo "## Summary lines"
+            echo '```'
+            grep -E "^(structcheck:|behaviorsim:|agent [a-z]+:|agent [a-z]+ seed|replay|imagecheck:)" qa.log || true
+            echo '```'
+            for f in snaps/structcheck.md snaps/behaviorsim.md snaps/agent_village.md snaps/agent_explorer.md snaps/agent_monkey.md snaps/imagecheck.md; do
+              [ -f "$f" ] && { echo; cat "$f"; }
+            done
+          } > QA_REPORT.md
+          tail -40 QA_REPORT.md
+
+      - name: Publish to ci-qa-nightly
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PUB="$RUNNER_TEMP/pub"; rm -rf "$PUB"; mkdir -p "$PUB"
+          cp QA_REPORT.md qa.log "$PUB/"; cp snaps/*.png snaps/*.md snaps/*.jsonl snaps/imagecheck.log "$PUB/" 2>/dev/null || true
+          cd "$PUB"
+          git init -q; git checkout -q --orphan ci-qa-nightly; git add -A
+          git -c user.name="blocksmith-ci" -c user.email="ci@users.noreply.github.com" commit -qm "Nightly QA for ${GITHUB_SHA}"
+          git push -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ci-qa-nightly
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-report
+          path: |
+            QA_REPORT.md
+            qa.log
+            snaps/*.md
+            snaps/*.jsonl
+          if-no-files-found: ignore
