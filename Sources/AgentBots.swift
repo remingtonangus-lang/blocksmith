@@ -112,6 +112,9 @@ final class ExplorerBot: AgentBot {
             let d: Float = 16 + rng.float() * 14
             let x = Int(floor(s.pos.x + sinf(ang) * d)), z = Int(floor(s.pos.z + cosf(ang) * d))
             let y = a.world.topY(x, z) + 1
+            // Ground, not tree tops: a target on a canopy had the bot climbing trees and stranding itself up there.
+            let tk = Blocks.key(Blocks.groupBase[Int(a.world.block(x, y - 1, z))])
+            if tk.hasSuffix("leaves") || tk.hasSuffix("_log") || tk.hasSuffix("_wood") { continue }
             let c = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
             let ck = floorDiv(x, CS) &* 1_000_003 &+ floorDiv(z, CS)
             best = c
