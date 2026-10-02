@@ -2299,6 +2299,53 @@ enum HDTex {
         }
     }
 
+    // Translucent jelly (slime, honey): a firm rim, a denser inner cube, soft swirls and a few bubbles; alpha follows
+    // the small painters (rim 0.95, core 0.85, jelly 0.6-0.7).
+    static func jellyHD(_ c: UInt32, core coreOn: Bool, jelly: Float) -> Gen {
+        { n, s in
+            let fn = Float(n), u = n / 16
+            var img = Img(n)
+            let swirl = fbm(n, n / 4, 3, s)
+            let base = col(c)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let edge = x < u || y < u || x >= n - u || y >= n - u
+                let core = coreOn && x >= 4 * u && x < 12 * u && y >= 4 * u && y < 12 * u
+                var k: Float = 0.92 + (swirl[i] - 0.5) * 0.25
+                var a: Float = jelly
+                if edge { k = 1.05; a = 0.95 }
+                else if core { k *= 0.85; a = 0.85 }
+                let bub = h2(x / max(1, n / 32), y / max(1, n / 32), s &+ 4) > 0.985
+                if bub && !edge { k = 1.25 }
+                let rel: Float = Float(x + y) / (2 * fn)
+                k *= 1.05 - 0.1 * rel
+                let cc: V3 = base * k
+                img.px[i] = V4(min(1, cc.x), min(1, cc.y), min(1, cc.z), a)
+            } }
+            return img
+        }
+    }
+    // Sponge: a porous yellow mass, holes of several sizes, darker inside (wet: duller and darker).
+    static func spongeHD(wet: Bool) -> Gen {
+        { n, s in
+            var img = Img(n)
+            let v = voronoi(n, 9, s, jitter: 1)
+            let fine = vnoise(n, max(1, n / 48), s &+ 2)
+            let c0 = col(wet ? 0xA8A83A : 0xC8C84A), hole = col(wet ? 0x5A5A12 : 0x8A8A22)
+            var hh = [Float](repeating: 0, count: n * n)
+            for i in 0..<(n * n) {
+                let poreR: Float = Float(n) / 26 * (0.6 + v.id[i])
+                let pore: Bool = v.f1[i] < poreR || fine[i] > 0.86
+                let k: Float = 0.9 + 0.15 * fine[i]
+                let c: V3 = pore ? hole * k : c0 * k
+                hh[i] = pore ? -0.4 : 0
+                img.px[i] = V4(c.x, c.y, c.z, 1)
+            }
+            shade(&img, hh, 1.2)
+            return img
+        }
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -2863,6 +2910,10 @@ enum HDTex {
         "activator_rail": railHD(tie: 0x7A2A1A, rail: 0xA8A8A8, mid: 0x5A1410),
         "activator_rail_on": railHD(tie: 0x7A2A1A, rail: 0xA8A8A8, mid: 0xF8301A),
         "ladder": ladderHD,
+        "slime_block": jellyHD(0x73CC66, core: true, jelly: 0.6),
+        "honey_block": jellyHD(0xF2A626, core: false, jelly: 0.7),
+        "sponge": spongeHD(wet: false),
+        "wet_sponge": spongeHD(wet: true),
         "tnt_side": tntHD(0),
         "tnt_top": tntHD(1),
         "tnt_bottom": tntHD(2),
