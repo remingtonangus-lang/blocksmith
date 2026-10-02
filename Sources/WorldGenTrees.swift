@@ -589,7 +589,12 @@ extension WorldGen {
                         let e = Float(dx * dx + dz * dz) / (r * r) + Float(dy * dy) / (r * r * 0.7)
                         if e > 1 + (hashf(bx + lx, yy, bz + lz, s32 ^ 0xB01D) - 0.5) * 0.6 { continue }
                         let i = Chunk.index(lx, yy, lz)
-                        if b[i] == AIR || Blocks.replaceable[Int(b[i])] || dy <= 0 { b[i] = mats[Int(hashf(bx + lx, yy, bz + lz, s32 ^ 0xB01E) * 4) % 4] }
+                        if b[i] == AIR || Blocks.replaceable[Int(b[i])] || dy <= 0 {
+                            b[i] = mats[Int(hashf(bx + lx, yy, bz + lz, s32 ^ 0xB01E) * 4) % 4]
+                            // No grass or flowers left standing on the boulder's rim (gencheck plant_soil).
+                            let up = Chunk.index(lx, yy + 1, lz)
+                            if StructWriter.soilPlant[Int(b[up])] { b[up] = AIR }
+                        }
                     } } }
                 }
             }
