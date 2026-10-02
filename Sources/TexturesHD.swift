@@ -375,6 +375,32 @@ enum HDTex {
         }
     }
 
+    // Polished face: the base material calmed toward its mean (contrast * `calm`) with a fine sheen, inside a
+    // bevelled rim (lit top/left, shaded bottom/right) about a sixteenth of the face wide.
+    static func polished(_ base: @escaping Gen, calm: Float = 0.45, rim: Float = 1 / 16) -> Gen {
+        { n, s in
+            var img = base(n, s)
+            var mean = V3(0, 0, 0)
+            for p in img.px { mean += V3(p.x, p.y, p.z) }
+            mean /= Float(n * n)
+            let sheen = fbm(n, n / 4, 3, s &+ 80)
+            let w: Float = max(1, Float(n) * rim)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let p = img.px[i]
+                let c0 = V3(p.x, p.y, p.z)
+                var c: V3 = mean + (c0 - mean) * calm
+                c *= 0.96 + sheen[i] * 0.08
+                let fx = Float(x), fy = Float(y), fe = Float(n - 1)
+                if fx < w || fy < w { c *= 1.12 }
+                else if fe - fx < w || fe - fy < w { c *= 0.8 }
+                else if fx < w + 1 || fy < w + 1 { c *= 0.92 }
+                img.px[i] = V4(min(1, c.x), min(1, c.y), min(1, c.z), p.w)
+            } }
+            return img
+        }
+    }
+
     // Cracks across a base material: a few long wandering dark lines with a lit lower lip.
     static func cracked(_ base: @escaping Gen) -> Gen {
         { n, s in
@@ -775,6 +801,7 @@ enum HDTex {
     static let oakBark: [(Float, UInt32)] = [(0, 0x3C2C1C), (0.5, 0x60482C), (1, 0x80623E)]
     static let stoneBricks: Gen = masonry(rows: 2, perRow: 1, offset: 0.5, mortarW: 1 / 22, [(0, 0x5E5E60), (0.5, 0x7E7E80), (1, 0x9C9C9C)], mortar: 0x48484A)
     static let sandstonePal: [(Float, UInt32)] = [(0, 0xB8A878), (0.5, 0xD9CE9E), (1, 0xEEE4BC)]
+    static let redSandstonePal: [(Float, UInt32)] = [(0, 0x9A4E1E), (0.5, 0xB8662C), (1, 0xCE8040)]
 
     // Families without a hand-made entry get an HD material coloured from their 16 px painter: every wood's planks,
     // bark and log ends, leaves, wool, concrete, concrete powder and terracotta.
@@ -817,6 +844,37 @@ enum HDTex {
 
     static let table: [String: Gen] = [
         "stone": stone(stoneGrey),
+        // Polished and smooth stones (bevelled rim, calmed grain).
+        "polished_andesite": polished(stone([(0, 0x6E6E6E), (0.5, 0x8A8A8A), (1, 0xA6A6A4)], veins: 0)),
+        "polished_diorite": polished(stone([(0, 0x9E9E9C), (0.5, 0xC6C6C4), (1, 0xE8E8E6)], veins: 0)),
+        "polished_granite": polished(stone([(0, 0x7A4E40), (0.5, 0x9A6A58), (1, 0xB88A74)], veins: 0)),
+        "polished_tuff": polished(stone([(0, 0x55564E), (0.5, 0x6C6D64), (1, 0x86877C)], veins: 0)),
+        "polished_deepslate": polished(stone(deepslate, veins: 0, strata: 0, streak: 0.2), calm: 0.55),
+        "polished_blackstone": polished(stone([(0, 0x221E24), (0.5, 0x342E36), (1, 0x4A424C)], veins: 0, strata: 0), calm: 0.6),
+        "smooth_stone": polished(stone([(0, 0x8E8E8E), (0.5, 0xA2A2A2), (1, 0xB4B4B4)], veins: 0, strata: 0), calm: 0.35, rim: 1 / 20),
+        "smooth_sandstone": polished(stone(sandstonePal, veins: 0, strata: 0), calm: 0.5, rim: 1 / 32),
+        "smooth_red_sandstone": polished(stone(redSandstonePal, veins: 0, strata: 0), calm: 0.5, rim: 1 / 32),
+        "cut_sandstone": masonry(rows: 2, perRow: 1, offset: 0, mortarW: 1 / 40, sandstonePal, mortar: 0xA89868, chips: 0.4, tone: 0.06),
+        "cut_red_sandstone": masonry(rows: 2, perRow: 1, offset: 0, mortarW: 1 / 40, redSandstonePal, mortar: 0x8A4A20, chips: 0.4, tone: 0.06),
+        "red_sandstone": sandstoneSide(redSandstonePal),
+        "red_sandstone_top": stone(redSandstonePal, veins: 0, strata: 0),
+        "calcite": stone([(0, 0xC8C8C2), (0.5, 0xDEDED8), (1, 0xF2F2EC)], veins: 0.3, strata: 0),
+        "dripstone_block": stone([(0, 0x6A5444), (0.5, 0x86705C), (1, 0xA48C76)], veins: 0.2, strata: 0.06, streak: 0.4),
+        "clay": stone([(0, 0x8C929E), (0.5, 0xA0A6B2), (1, 0xB4BAC4)], veins: 0, strata: 0.01),
+        "packed_mud": soil([(0, 0x7A5A42), (0.5, 0x8E6A4E), (1, 0xA27C5C)], pebble: 0x6A4E3A, pebbles: 5, clods: 9),
+        "mud": soil([(0, 0x2E2628), (0.5, 0x3C3236), (1, 0x4E4246)], pebble: 0x5A4E50, pebbles: 3, clods: 6),
+        // Emberdeep and the Hollow.
+        "netherrack": stone([(0, 0x5A2222), (0.45, 0x723030), (0.8, 0x8A4040), (1, 0x9E5050)], veins: 0.6, strata: 0),
+        "blackstone": stone([(0, 0x1E1A20), (0.5, 0x2E2830), (1, 0x443C46)], veins: 0.3, strata: 0.05),
+        "basalt_side": stone([(0, 0x3A3A3E), (0.5, 0x4E4E54), (1, 0x66666C)], veins: 0, strata: 0, streak: 0.8),
+        "end_stone": stone([(0, 0xC8C88E), (0.5, 0xDCDCA2), (1, 0xEEEEBC)], veins: 0, strata: 0),
+        "end_stone_bricks": masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 22, [(0, 0xC8C890), (0.5, 0xDADAA6), (1, 0xEAEABC)], mortar: 0xA6A676, chips: 0.8),
+        "purpur_block": masonry(rows: 4, perRow: 4, offset: 0, mortarW: 1 / 30, [(0, 0x8A5E8A), (0.5, 0xA678A6), (1, 0xC096C0)], mortar: 0x6C486C, chips: 0.5, tone: 0.1),
+        "obsidian": stone([(0, 0x0E0A16), (0.5, 0x1C1428), (0.85, 0x2E2240), (1, 0x4A3A64)], veins: 0.8, strata: 0),
+        "red_nether_bricks": masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 20, [(0, 0x480A0C), (0.5, 0x5E1214), (1, 0x7A1C1E)], mortar: 0x260406, clay: true, chips: 1.2),
+        "polished_blackstone_bricks": masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 24, [(0, 0x262228), (0.5, 0x363038), (1, 0x4A424C)], mortar: 0x141216, chips: 1.4),
+        "tuff_bricks": masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 24, [(0, 0x55564E), (0.5, 0x6C6D64), (1, 0x86877C)], mortar: 0x3E3F38, chips: 1),
+        "prismarine_bricks": masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 24, [(0, 0x4E9A88), (0.5, 0x66B4A0), (1, 0x86CCB8)], mortar: 0x3A6E64, chips: 0.6),
         "andesite": stone([(0, 0x6E6E6E), (0.5, 0x8A8A8A), (1, 0xA6A6A4)], veins: 0.3),
         "diorite": stone([(0, 0x9E9E9C), (0.5, 0xC6C6C4), (1, 0xE8E8E6)], veins: 0.2),
         "granite": stone([(0, 0x7A4E40), (0.5, 0x9A6A58), (1, 0xB88A74)], veins: 0.4),
