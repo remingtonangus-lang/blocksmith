@@ -83,6 +83,8 @@ done
 "$BIN" --snapshot snaps/tour_peaks.png --seed 12345 --find jagged_peaks --yaw 60 --pitch -22 --time 0.23 --up 25 --rd 16 || true
 "$BIN" --snapshot snaps/tour_forest_floor.png --seed 12345 --find forest --yaw 30 --pitch 0 --time 0.22 --ground --up 0.2 --rd 8 || true
 "$BIN" --snapshot snaps/tour_desert.png --seed 12345 --find desert --yaw biome --pitch -15 --time 0.24 --up 20 --rd 12 --lodcheck || true
+"$BIN" --snapshot snaps/cactus_mid.png --seed 12345 --find desert --yaw biome --pitch -4 --time 0.25 --up 2 --rd 8 --cactusprobe || true
+"$BIN" --snapshot snaps/cactus_mid_fast.png --seed 12345 --find desert --yaw biome --pitch -4 --time 0.25 --up 2 --rd 8 --cactusprobe --fast || true
 "$BIN" --snapshot snaps/cactus_far.png --seed 12345 --x -560 --z 1060 --yaw 0 --pitch -8 --time 0.25 --up 14 --rd 16 || true
 "$BIN" --snapshot snaps/cactus_far_nolod.png --seed 12345 --x -560 --z 1060 --yaw 0 --pitch -8 --time 0.25 --up 14 --rd 16 --nolod || true
 "$BIN" --snapshot snaps/tour_jungle.png --seed 424242 --find jungle --yaw 80 --pitch -10 --time 0.24 --up 12 --rd 12 || true

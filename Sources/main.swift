@@ -1173,6 +1173,28 @@ enum Snapshot {
             }
             if n == 0 { print("lodcheck: no cactus loaded") }
         }
+        if CommandLine.arguments.contains("--cactusprobe") {
+            // Cacti at mid range vanish in play (Remington: seen near and far, not between): a pixel probe on the middle
+            // of every cactus column 8-120 blocks off in front of the camera, nearest first, with its distance.
+            let e = game.player.eye
+            var found: [(Float, V3)] = []
+            let r = 120
+            let ex = Int(floor(e.x)), ez = Int(floor(e.z))
+            for z in stride(from: ez - r, through: ez + r, by: 1) { for x in stride(from: ex - r, through: ex + r, by: 1) {
+                guard world.isLoaded(x, z) else { continue }
+                let top = world.topY(x, z)
+                guard top > 0, world.block(x, top, z) == CACTUS else { continue }
+                let c = V3(Float(x) + 0.5, Float(top) - 0.5, Float(z) + 0.5)          // middle of a 2-3 high column
+                let d = simd_length(c - e)
+                guard d > 8, d < Float(r), simd_dot(simd_normalize(c - e), game.player.look) > 0.8 else { continue }
+                found.append((d, c))
+            } }
+            found.sort { $0.0 < $1.0 }
+            // Spread over the distance range: every k-th one, at most 24.
+            let step = max(1, found.count / 24)
+            for (i, f) in found.enumerated() where i % step == 0 { renderer.probes.append((String(format: "cactus %.0f", f.0), f.1)) }
+            print("cactusprobe: \(found.count) cacti in view 8-\(r) blocks off")
+        }
         if CommandLine.arguments.contains("--listframes") {
             // Item frames within 16 blocks: block state and what they hold (the armory's gun racks drew empty: critic run 385).
             let e = game.player.eye
