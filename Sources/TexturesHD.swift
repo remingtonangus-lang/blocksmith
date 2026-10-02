@@ -5704,6 +5704,8 @@ enum HDTex {
         "loom_top": planks(pal(col(0xB08A5A), lo: 0.75, hi: 1.18)),
         "fletching_table_top": planks(pal(col(0xC8B88A), lo: 0.78, hi: 1.15)),
         "anvil": metal(0x444448, shine: 0.1),
+        "chipped_anvil": cracked(metal(0x444448, shine: 0.1)),
+        "damaged_anvil": cracked(cracked(metal(0x404044, shine: 0.08))),
         "bell": metal(0xE8C040, shine: 0.22),
         "cauldron": metal(0x3A3A3E, shine: 0.08),
         "smithing_table_top": metal(0x3A3A44, tiles: 2, shine: 0.1),
