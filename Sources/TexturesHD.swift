@@ -1435,6 +1435,37 @@ enum HDTex {
         }
     }
 
+    // Ladder (cutout): two grained rails (16ths 2-4 and 12-14) and a rung every quarter, each rung lit on top with a
+    // nail where it meets a rail.
+    static func ladderHD(_ n: Int, _ s: Int) -> Img {
+        var img = Img(n, V4(0, 0, 0, 0))
+        let u = n / 16
+        let grain = vnoise(n, max(1, n / 64), s)
+        let rail = col(0x7A5A30), rung = col(0x8A6A3A)
+        for y in 0..<n { for x in 0..<n {
+            let i = y * n + x
+            let inRail = (x >= 2 * u && x < 4 * u) || (x >= 12 * u && x < 14 * u)
+            let ry = y % (4 * u)
+            let inRung = x >= 4 * u && x < 12 * u && ry >= u && ry < 2 * u
+            guard inRail || inRung else { continue }
+            var c: V3
+            if inRail {
+                let rx = x < 8 * u ? x - 2 * u : x - 12 * u
+                let across: Float = (Float(rx) + 0.5) / Float(2 * u)
+                let g: Float = 0.85 + 0.25 * grain[(y / 8) * n + x]
+                c = rail * ((1.1 - 0.3 * across) * g)
+            } else {
+                let down: Float = (Float(ry - u) + 0.5) / Float(u)
+                let g: Float = 0.85 + 0.25 * grain[y * n + x / 8]
+                c = rung * ((1.15 - 0.4 * down) * g)
+                let nail = (x < 4 * u + u / 2 || x >= 12 * u - u / 2) && ry >= u + u / 4 && ry < 2 * u - u / 4
+                if nail { c = V3(0.45, 0.45, 0.48) }
+            }
+            img.px[i] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
+        } }
+        return img
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -1977,6 +2008,7 @@ enum HDTex {
         "seagrass": blades(salt: 105, count: 12, len: 0.55, 1.0, lean: 1.6, colour: 0x3A8A2A),
         "kelp": kelpHD,
         "dead_bush": deadBushHD,
+        "ladder": ladderHD,
         "torch": torchHD(core: 0xFFF6C8, flame: 0xFFC43A, x0: 7, x1: 9, coreRow: 6, stickTo: 16),
         "torch_wall": torchHD(core: 0xFFF6C8, flame: 0xFFC43A, x0: 0, x1: 16, coreRow: 3, stickTo: 13),
         "soul_torch": torchHD(core: 0xD8FFFF, flame: 0x3AD8E8, x0: 7, x1: 9, coreRow: 6, stickTo: 16),
