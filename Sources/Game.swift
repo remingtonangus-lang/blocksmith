@@ -835,6 +835,7 @@ final class Game {
                         let n = t.normal
                         let face = n.x > 0 ? 0 : (n.x < 0 ? 1 : (n.y > 0 ? 2 : (n.y < 0 ? 3 : (n.z > 0 ? 4 : 5))))
                         world.chip(t.hit, level: level, face: face)
+                        swing = 1                                     // a full strike as each piece comes away
                         let c = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5 + V3(Float(n.x), Float(n.y), Float(n.z)) * 0.45
                         particles.dust(b, at: c, count: 5, spread: 0.3)
                         sfx(.hit(soundMat(b)), 0.7, at: c)

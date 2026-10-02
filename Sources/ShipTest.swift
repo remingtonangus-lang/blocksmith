@@ -744,6 +744,23 @@ extension ShipTest {
         check(abs(wheels - (cg + 1)) < 4, String(format: "the crawler rides on the ground (wheels %.1f, ground %.0f)", wheels, cg))
         check(!(frigate.pos.x.isNaN || crawler.pos.x.isNaN), "no NaN poses")
         check(avg < 6, String(format: "ship update average %.2f ms per frame (budget 6)", avg))
+        // Boarding: the player stands on the hangar deck while the frigate flies, and is carried with it.
+        if !frigate.wrecked {
+            let deck = frigate.toWorld(V3(56.5, 27.05, 250.5))
+            g.player.flying = false
+            g.player.pos = deck
+            g.player.vel = .zero
+            let start = deck
+            for _ in 0..<180 {
+                g.health = 20
+                g.shipPlayerUpdate(1.0 / 60, MoveInput())
+                w.ships.update(1.0 / 60, game: g)
+            }
+            let on = w.ships.standing(on: g.player.pos)?.root === frigate
+            let moved = simd_length(V2(g.player.pos.x - start.x, g.player.pos.z - start.z))
+            check(on, String(format: "boarded: the player stays on the frigate's hangar deck in flight (moved %.1f blocks with it)", moved))
+            g.player.flying = true
+        }
         // The shot: from the camera toward the crawler.
         let to = crawler.pos - (cam + V3(0, g.player.eyeHeight, 0))
         g.player.pos = cam
