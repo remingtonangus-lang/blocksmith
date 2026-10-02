@@ -11,11 +11,12 @@ enum Bastion {
         let variant = rng.int(4)
         let ox = cx * CS + 8, oz = cz * CS + 8, y = YOFF + 33
         let s = rng.next()
+        let anchorUp = [1, 13, 1, 11]                 // feet over the floor: courtyard, treasure platform, yard, bridge deck
         let half = variant == 3 ? 42 : 22          // the bridge reaches 14 more west for its stair
         let piece = Piece(min: IVec3(ox - half, y - 40, oz - half), max: IVec3(ox + half, y + 34, oz + half)) { w in
             build(&w, variant: variant, ox: ox, oz: oz, y: y, seed: s)
         }
-        return StructureStart(kind: "bastion", pieces: [piece], anchor: IVec3(ox, y + (variant == 1 ? 12 : 1), oz + (variant == 3 ? 0 : -6)))
+        return StructureStart(kind: "bastion", pieces: [piece], anchor: IVec3(ox, y + anchorUp[variant], oz + (variant == 3 ? 0 : -6)))
     }
 
     static func mat(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
