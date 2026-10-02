@@ -1,5 +1,31 @@
 # Status
 
+## Current session (2026-10-02 from 02:24 UTC, session_01NHX6PtLsjxpnUha9wMm2wN)
+
+State: run 345 (HANDOFF commit d7fcb40) fully green: BC3 textures work (64 px: 8.7 MB with mips, 60-90 ms upload),
+playthrough 0 failed (the 3 run-344 failures were RNG-sensitive; their real causes are fixed anyway), aquifer leak
+18,692 -> 336, fill-under cleared floating in ancient city / trial chambers / trail ruins (military base 9 -> 5).
+Gemini: the key answers through the proxy, but image generation is quota 0 on its free tier (Remington notified);
+vision works and is used as a second blind critic (`tools/gemini_critic.py` -> docs/qa/critic_gemini.md).
+
+Pushed (8aadc7e, run 346) and committed after it, all untested on CI until the next run publishes:
+- Mobs dead earlier in a tick no longer act or heal (Blight revived by regen -> lost Blight Star); playthrough
+  collects pearls where the voidwalker died; wyrm XP check counts points.
+- Navigation give-up memory (partial path / 4 s stall -> skip that goal 15 s); villagers really walk to bed at night.
+- Reference collision shapes for dragon egg, brewing stand, hanging lanterns, bell, stonecutter (collisiontest).
+- Fancy-oak branches connected; structure blocks remove plants above them (gencheck trunk_floating, plant_soil).
+- Inventory icons draw model blocks' real boxes; the inventory player preview is drawn (was empty).
+- Texture mips: colour bleed + alpha-coverage preservation for cutouts (distant leaves were black speckles).
+- 128 px textures by default, built/compressed/uploaded in batches of 256 layers; ~60 new HD materials (polished
+  stones, sandstones, Emberdeep/Hollow stones, soils, ices, prismarine, amethyst, lava, magma).
+- Under water the hand takes the water colour; seagrass grows in meadows (was 40 % of every seabed column).
+- Diagnostics: village bot prints door cross-sections for unmet doors; explorer prints why no path leaves a spot;
+  structcheck prints start cells for inside-entered kinds; behaviour sim lists given-up targets; magenta oracle
+  ignores crying obsidian's violet glow.
+Next: read run 346/347 (behaviorsim stuck/bed numbers, collisiontest 0 walk_through, gencheck trunk_floating 0,
+textures line at 128 px + bench resident_peak gate, inventory/creative icons, tour_777_aerial leaves), then the
+door cross-sections, the explorer seed-777 spawn, stronghold POI reachability, more HD families.
+
 ## HANDOFF (2026-10-02 ~02:25 UTC, outgoing session -> new session with the Gemini key)
 
 The outgoing session stopped on request (Remington added GEMINI_API_KEY as an environment credential: header
