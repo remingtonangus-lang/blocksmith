@@ -1986,6 +1986,49 @@ enum HDTex {
         return img
     }
 
+    // Sweet berry bush (cutout): a mound of small oval leaves growing with the stage, red berries from stage 2.
+    static func berryBushHD(stage: Int) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            var img = Img(n, V4(0, 0, 0, 0))
+            let leaf = col(0x3A6A2A), berry = col(0xC01E3A)
+            let h: Float = fn * Float(6 + stage * 2) / 16
+            func dot(_ cx: Float, _ cy: Float, _ rx: Float, _ ry: Float, _ ang: Float, _ c: V3) {
+                let ca = cosf(ang), sa = sinf(ang)
+                let r = Int(max(rx, ry)) + 1
+                for y in (Int(cy) - r)...(Int(cy) + r) { for x in (Int(cx) - r)...(Int(cx) + r) {
+                    guard x >= 0 && x < n && y >= 0 && y < n else { continue }
+                    let dx: Float = Float(x) + 0.5 - cx, dy: Float = Float(y) + 0.5 - cy
+                    let u: Float = (dx * ca + dy * sa) / rx, v: Float = (-dx * sa + dy * ca) / ry
+                    let d: Float = u * u + v * v
+                    guard d <= 1 else { continue }
+                    let k: Float = 0.8 + 0.3 * (1 - d) - 0.1 * v
+                    let cc: V3 = c * k
+                    img.px[y * n + x] = V4(min(1, cc.x), min(1, cc.y), min(1, cc.z), 1)
+                } }
+            }
+            let leaves = 30 + stage * 18
+            for i in 0..<leaves {
+                // Denser toward the middle and bottom: a mound.
+                let u: Float = h2(i, 1, s) * 2 - 1
+                let x: Float = fn / 2 + u * fn * 0.46
+                let top: Float = fn - h * (1 - u * u * 0.5)
+                let y: Float = top + h2(i, 2, s) * (fn - top)
+                let tone: Float = 0.8 + 0.35 * h2(i, 3, s)
+                dot(x, y, fn / 22, fn / 40, h2(i, 4, s) * .pi, leaf * tone)
+            }
+            if stage >= 2 {
+                for i in 0..<(stage == 3 ? 12 : 6) {
+                    let x: Float = fn * (0.15 + 0.7 * h2(i, 7, s))
+                    let y: Float = fn - h * (0.2 + 0.7 * h2(i, 8, s))
+                    let r: Float = fn / 36 + 1
+                    dot(x, y, r, r, 0, berry)
+                }
+            }
+            return img
+        }
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -2463,6 +2506,7 @@ enum HDTex {
     // Crop stages (generated names, so not in the literal table).
     static func crop(_ name: String) -> Gen? {
         func stage(_ prefix: String) -> Int? { name.hasPrefix(prefix) ? Int(name.dropFirst(prefix.count)) : nil }
+        if let st = stage("sweet_berry_bush_stage") { return berryBushHD(stage: st) }
         if let st = stage("wheat_stage") { return cropHD(stage: st, max: 7, young: 0x3F9A2C, ripe: 0xB8A340, head: 0xDCBC52, wheat: true, salt: 122) }
         if let st = stage("carrots_stage") { return cropHD(stage: st, max: 3, young: 0x3F9A2C, ripe: 0x48A832, head: 0xF08A1A, wheat: false, salt: 125) }
         if let st = stage("potatoes_stage") { return cropHD(stage: st, max: 3, young: 0x3F9A2C, ripe: 0x4AA034, head: 0xD8B060, wheat: false, salt: 128) }
