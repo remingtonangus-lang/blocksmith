@@ -1,5 +1,80 @@
 # Status
 
+## HANDOFF (2026-10-02 ~02:25 UTC, outgoing session -> new session with the Gemini key)
+
+The outgoing session stopped on request (Remington added GEMINI_API_KEY as an environment credential: header
+x-goog-api-key, host generativelanguage.googleapis.com; only new sessions see it). Everything is pushed to
+claude/blocksmith-playtest. The hourly keep-alive routine (trig_019e6C9f3St5eDiGSBQish95) was deleted.
+
+### CI state
+- Last published run: **344 on 29690ae**: build, type-check gate, smoke (rd 8/16/24/24-Fast), benchmarks and snapshots
+  are green; replay determinism now gives the **same** end-state hash across two processes.
+  **The playthrough FAILS 3 checks, which are new since 343:** `voidwalkers: 11 void pearls from 80 kills`,
+  `wyrm: 12000 XP (level 20 -> 69)` and `blight: the Blight Star drops and is picked up (0)`.
+  Not investigated yet. Suspect 29690ae (Mob.wander now walks to pathfinder stroll goals, and World.freeSpawn moves
+  structure mobs out of blocks) changing mob positions/drops in the scripted fights. Read snaps/playthrough.log on
+  ci-snaps-claude-blocksmith-playtest. Root-cause and fix this FIRST (CI must stay green).
+- Pushed in the HANDOFF push and NOT yet tested on CI (no Swift compiler in the container; tools/precheck.py passes):
+  b0646b9 HD materials stage 2, 4e68553 structcheck trapdoor/caged + igloo cell, 5e6c309 texture import pipeline,
+  8fdbd7b stripped logs, the imagecheck variants + crack framing commit, the untextured-blocks log, the BC3 texture
+  compression, mossy/cracked bricks, 350b821 the aquifer leak fix, and the structure fill-under commit.
+  Riskiest for the build/visuals: **TexCompress.swift + the Renderer upload (BC3)**. If the snapshots look garbled,
+  set BLOCKSMITH_TEXCOMPRESS=0 to confirm, then fix the encoder (block layout: 8 bytes BC4 alpha, then 8 bytes colour;
+  colour always in 4-colour mode for BC3). Startup now prints "textures: N layers at S px, BC3|RGBA8, X MB".
+  Then the **aquifer change** (WorldGen.carveCaves + aquiferWet) changes the terrain: check the terrain/gen benchmarks
+  and the gencheck leak count (it was 18,692 -> it should be near 0) and the **fill-under** (Structures.swift
+  StructWriter.fillUnder, StructureCache.fillDepth) via structcheck floating counts.
+
+### What I was doing (playtest feedback queue, see "Playtest feedback" below)
+1. Bug-hunting loop. Latest numbers (run 344, before the untested commits above):
+   - behaviorsim (2 seeds, 20 min): stuck 199, spinning 102, fell 98, in_wall 2; villager goals bed 15/42, meet 28/47,
+     work 15/25. The wander fix (29690ae) did NOT improve these much: spinning went up (stroll goal re-picked / face
+     toggling?). Next: look at per-mob rows in behaviorsim.md, check that wanderGoal survives between AI ticks for
+     villagers (VillageLife may override yaw/moving every tick), and check villagers' schedule-goal pathing
+     (bed/work/meet use face() + steerAlongPath; goal_missed_bed 27 suggests beds unreachable or doors not opened).
+   - structcheck: mob_in_block 0 (was 17), village door_step/door_blocked 0, only "floating 3" in villages; floating in
+     ancient_city 9, military_base 9, stronghold 7, trial_chambers 6, end_centre 3 (fill-under commit targets these;
+     end_centre is the exit portal island, probably fine to exempt); poi_unreachable is noisy for vaults/chests.
+   - agent village: 2 unmet "enter the building" goals (seed 12345 door 959 69 266; door 211 80 153: the bot stops at
+     y+5, i.e. it climbs onto something; one stuck_open). Explorer: 3 unmet goals; monkey: clean.
+   - gencheck: leak 18,692 (fixed in 350b821, untested), trunk_floating 29, unsupported gravel 605 (also in the
+     reference), floating_block 18, ore_in_air 5.
+   - collisiontest: walk_through 17 (instrumented with boxes + trajectory in collisiontest.md: next to fix).
+   - imagecheck: black frames for credits/fortress/stars (expected); gallery_hollow has a magenta "missing" texture:
+     the new log line "blocks without textures: ..." in snap.log names the block(s); give them textures.
+2. Textures (TextureGen.size default still 64; BLOCKSMITH_TEXRES / textureRes 16-128):
+   - Procedural HD materials in Sources/TexturesHD.swift (stone families, soils, grass top/side, snow, bricks/masonry
+     family, sandstone, log ends, birch, ores, cobble, gravel, sand, leaves) + HDTex.derived(): every wood's planks/
+     bark/log ends, leaves, wool, concrete, powder and terracotta get an HD material coloured from the 16 px painter.
+     Design them in Python first: `python3 tools/hdpreview.py OUT.png [names]` (numpy port of HDTex, same hash;
+     materials in tools/hdmaterials.py), `--dir DIR` writes 128 px baselines.
+   - Import pipeline (built for Gemini, works on any PNG): tools/teximport.py (square crop, 2x2-repeat crop,
+     luminance flattening, colour lock, wrap-aware downsample to 128, seam check + cross-fade, modes plain/tint/
+     overlay/cutout/cutout_tint) -> Resources/Textures/<name>.png (bundled by build.sh; replaces that layer's
+     procedural material via Sources/TextureImport.swift). `--texdir DIR` / BLOCKSMITH_TEXDIR load a trial set first,
+     `--procedural` disables imports. CC0 trial set: docs/textures/trials/cc0 (snap.sh renders texsrc_procedural_* vs
+     texsrc_cc0_* at 128 px).
+   - Gemini: `python3 tools/gemini_textures.py [--only stone,dirt] [--samples 2] [--baselines build/texgen/baseline]`
+     (model gemini-2.5-flash-image by default, GEMINI_IMAGE_MODEL overrides; key from GEMINI_API_KEY). Note the
+     credential may be injected by the proxy as a header rather than as an env var: if GEMINI_API_KEY is unset but
+     the host answers, adjust generate() to send no key (the proxy adds x-goog-api-key). Prompts:
+     tools/texture_prompts.json; locked style + rules: docs/textures/STYLE_GUIDE.md (block-scale features, uniform
+     density, one reference image docs/textures/style_reference.png in every prompt once one is approved). Output:
+     build/texgen/raw, build/texgen/out, sheet docs/textures/gemini_trial.png. Approve = copy to Resources/Textures,
+     then compare in-game with the texsrc shots (add a gemini set to the snap.sh loop).
+   - Next texture steps: verify BC3 on CI, then make 128 px the default (watch the startup time and the "textures:"
+     memory line; the Vibrant emissive mask is R8 at full size, which could go to half size), then 3D isometric
+     icons at TV scale, then more HD families (polished/smooth stones, nether, end, terracotta variants).
+3. Then continuous fly-around-and-fix polish (QA skill: .claude/skills/blocksmith-qa/SKILL.md; BUGS.md is the class
+   log).
+
+### Rules carried over
+Work on claude/blocksmith-playtest only (never main or claude/eloquent-lovelace-bsc5v1, never merge PRs); keep draft
+PR #9's what's-new list current (its "PLAYTEST READY 05e83c4" line is stale: many gameplay commits since, the next
+fully green run should replace it and the what's-new list needs a "quality pass" section: villager strolling, house
+floors at the sill, structure mob spawns, cave water, HD textures, BC3); CI cancels in-progress runs on push, so
+batch commits; run tools/precheck.py before every push.
+
 Goal (from Remington, 2026-09-30): make Blocksmith play like the reference game as closely as practical —
 every block, sparkstone, Emberdeep, End, terrain/caves/structures/villages with the same rarities, raids, the
 Blight, and a completable game. Assets stay original/procedural (no copied textures, sounds or decompiled
