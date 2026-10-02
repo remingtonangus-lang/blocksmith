@@ -25,3 +25,11 @@ Status: open (oracle finds instances), fixed (oracle at 0 on CI, check made stri
 | Held block / arm in daylight colours under water | Gemini critic (underwater.png) | every underwater view | first-person pass fogs toward the water colour | fix pushed |
 | Seabed covered by a uniform field of seagrass (40 % of columns) | eyes-on underwater.png | every ocean | seagrass meadows from low-frequency noise | fix pushed |
 | Inventory player-preview box empty | Gemini critic (inventory.png) | always | player model projected into the HUD box | fix pushed |
+| Torch-lit stone turned tan/sepia (block light tint 1/0.76/0.46) | blind critic (stronghold, trial chambers: stone saturation ~0.4) | every torch-lit interior | lighter warm cast (Fast 1/0.86/0.66, Fancy 1/0.82/0.6) | fix pushed |
+| Unlit cave walls pure black | blind critic (cave_torches: 30 % of pixels below 8/255) | every cave | light floor 0.035 -> 0.055 (Fancy 0.03 -> 0.045) | fix pushed |
+| Pink/magenta underwater caustics | blind critic (underwater.png) | Fancy, under water | caustics in cool near-white light | fix pushed |
+| Terrace step sides as near-black dashes from the air | blind critic (tour_*_low/aerial) | plains everywhere | HD dirt ~15 % lighter | watching (terrain makes many 1-block steps) |
+| Leaf litter as saturated orange 16 px noise | blind critic (spawn.png) | forests | HD fallen-leaf decal | fix pushed |
+| Distant cutout leaves, block icons aliasing | critics | - | coverage-preserving mips; HUD block icons sample mips | fix pushed |
+| Strongholds: portal room sealed when linked along z; library balcony unreachable | `--structcheck` start-cell reach (2 of 9 reached only the portal room) | 2 of 9 | doorway cut at the z wall too; balcony ladder | fix pushed |
+| Explorer bot stranded on tree canopies; village bot stuck in an empty composter | agent oracles (no path / stuck_open, now naming the blocker) | seeds 777, 424242 | ground-only targets; hop when pressing without moving | fix pushed (harness) |
