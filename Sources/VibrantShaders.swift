@@ -245,7 +245,9 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
     }
     if (u.params.w > 0.5 && n.y > 0.5) {
         // Seen from under water: caustics dance on sunlit surfaces.
-        col += albedo * caustic((in.rel + u.eye.xyz).xz, u.params.z) * u.sunColor.rgb * skyC * 0.5;
+        // Cool, near-white light whatever the sun's tint (warm sun x sand albedo under blue water read as pink).
+        float sl = dot(u.sunColor.rgb, float3(0.3, 0.59, 0.11));
+        col += (albedo * 0.5 + 0.12) * caustic((in.rel + u.eye.xyz).xz, u.params.z) * sl * float3(0.72, 0.95, 1.0) * skyC * 0.5;
     }
     if (wet > 0.05 && in.face == 2.0) {
         // Rain puddles: patches of standing water mirror the sky.
