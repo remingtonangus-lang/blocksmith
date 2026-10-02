@@ -377,7 +377,7 @@ enum HDTex {
 
     // Polished face: the base material calmed toward its mean (contrast * `calm`) with a fine sheen, inside a
     // bevelled rim (lit top/left, shaded bottom/right) about a sixteenth of the face wide.
-    static func polished(_ base: @escaping Gen, calm: Float = 0.45, rim: Float = 1 / 16) -> Gen {
+    static func polished(_ base: @escaping Gen, calm: Float = 0.62, rim: Float = 1 / 16) -> Gen {
         { n, s in
             var img = base(n, s)
             var mean = V3(0, 0, 0)
