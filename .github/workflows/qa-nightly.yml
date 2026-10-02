@@ -40,6 +40,7 @@ jobs:
           rm -f snaps/imagecheck.log
           set +e
           $BIN --structcheck --seeds 12345,777,424242,1,98765,31337 --per 5 --out snaps/structcheck.md 2>&1 | tee qa.log
+          $BIN --gencheck --seeds 12345,777,424242,1,98765,31337 --areas 10 --out snaps/gencheck.md 2>&1 | tee -a qa.log
           $BIN --behaviorsim --seeds 12345,777,424242,98765 --minutes 20 --out snaps/behaviorsim.md 2>&1 | tee -a qa.log
           $BIN --agent village --seeds 12345,777,424242,1,98765,31337 --ticks 7200 --out snaps 2>&1 | tee -a qa.log
           $BIN --agent explorer --seeds 12345,777,424242,1 --runs 2 --ticks 10800 --out snaps 2>&1 | tee -a qa.log
@@ -69,9 +70,9 @@ jobs:
             echo
             echo "## Summary lines"
             echo '```'
-            grep -E "^(structcheck:|behaviorsim:|agent [a-z]+:|agent [a-z]+ seed|replay|imagecheck:)" qa.log || true
+            grep -E "^(structcheck:|gencheck:|behaviorsim:|agent [a-z]+:|agent [a-z]+ seed|replay|imagecheck:)" qa.log || true
             echo '```'
-            for f in snaps/structcheck.md snaps/behaviorsim.md snaps/agent_village.md snaps/agent_explorer.md snaps/agent_monkey.md snaps/imagecheck.md; do
+            for f in snaps/structcheck.md snaps/gencheck.md snaps/behaviorsim.md snaps/agent_village.md snaps/agent_explorer.md snaps/agent_monkey.md snaps/imagecheck.md; do
               [ -f "$f" ] && { echo; cat "$f"; }
             done
           } > QA_REPORT.md
