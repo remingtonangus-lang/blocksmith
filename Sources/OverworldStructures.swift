@@ -348,10 +348,16 @@ enum OverworldStructures {
             w.fill(ox - 3, oy - 1, oz - 3, ox + 3, oy - 1, oz + 3, DIRT)
             w.fill(ox - 3, oy, oz - 3, ox + 3, oy + 4, oz + 3, AIR)
         })
-        for (i, s) in segs.enumerated() {
+        // Two passes: every corridor is carved before any support, rail or chest goes in (a support built with its
+        // own corridor stood in the middle of a crossing corridor carved earlier, or a later corridor's carving left
+        // half a support: structcheck, mineshaft chests behind fence posts). Pieces run in order in each chunk.
+        func box(_ s: Seg) -> (IVec3, IVec3) {
             let ex = s.x + s.dx * s.len, ez = s.z + s.dz * s.len
-            pieces.append(piece(min(s.x, ex) - 2, min(s.y, s.from) - 1, min(s.z, ez) - 2, max(s.x, ex) + 2, max(s.y, s.from) + 4, max(s.z, ez) + 2) { w in
-                var r = SRng(seed &+ UInt64(i) &* 977)
+            return (IVec3(min(s.x, ex) - 2, min(s.y, s.from) - 1, min(s.z, ez) - 2), IVec3(max(s.x, ex) + 2, max(s.y, s.from) + 4, max(s.z, ez) + 2))
+        }
+        for s in segs {
+            let (lo, hi) = box(s)
+            pieces.append(piece(lo.x, lo.y, lo.z, hi.x, hi.y, hi.z) { w in
                 for k in 0...s.len {
                     let x = s.x + s.dx * k, z = s.z + s.dz * k
                     let fy = s.floor(k)
@@ -360,9 +366,23 @@ enum OverworldStructures {
                         for h in 0...2 where !Blocks.isLiquid(w.get(bx, fy + h, bz)) { w.set(bx, fy + h, bz, AIR) }
                         if w.get(bx, fy - 1, bz) == AIR || Blocks.isLiquid(w.get(bx, fy - 1, bz)) { w.set(bx, fy - 1, bz, wood) }
                     }
-                    if k % 5 == 2 {
+                }
+            })
+        }
+        for (i, s) in segs.enumerated() {
+            let (lo, hi) = box(s)
+            pieces.append(piece(lo.x, lo.y, lo.z, hi.x, hi.y, hi.z) { w in
+                var r = SRng(seed &+ UInt64(i) &* 977)
+                // A wall cell (outside this chunk counts as wall: it can't be checked here).
+                func wall(_ x: Int, _ y: Int, _ z: Int) -> Bool { !w.inside(x, y, z) || Blocks.collide[Int(w.get(x, y, z))] }
+                for k in 0...s.len {
+                    let x = s.x + s.dx * k, z = s.z + s.dz * k
+                    let fy = s.floor(k)
+                    let (ax, az) = (s.dz != 0 ? 1 : 0, s.dx != 0 ? 1 : 0)
+                    // Supports only between two walls (where another corridor crosses, a post would block it).
+                    let walled = wall(x - 2 * ax, fy + 1, z - 2 * az) && wall(x + 2 * ax, fy + 1, z + 2 * az)
+                    if k % 5 == 2 && walled {
                         // Supports: two fence posts and a plank beam.
-                        let (ax, az) = (s.dz != 0 ? 1 : 0, s.dx != 0 ? 1 : 0)
                         w.set(x - ax, fy, z - az, fence); w.set(x - ax, fy + 1, z - az, fence)
                         w.set(x + ax, fy, z + az, fence); w.set(x + ax, fy + 1, z + az, fence)
                         for side in -1...1 { w.set(x + ax * side, fy + 2, z + az * side, wood) }
@@ -370,8 +390,8 @@ enum OverworldStructures {
                         if r.chance(0.3) { w.set(x, fy + 1, z, TORCH + BlockID(ax != 0 ? 4 : 2)) }
                     }
                     if r.chance(0.7) && k % 5 != 2 { w.set(x, fy, z, Blocks.id("rail") + (s.dx != 0 ? 1 : 0)) }
-                    if r.chance(0.06) { w.set(x + (s.dz != 0 ? 1 : 0), fy + 2, z + (s.dx != 0 ? 1 : 0), Blocks.id("cobweb")) }
-                    if r.chance(0.012) { w.chest(x + (s.dz != 0 ? -1 : 0), fy, z + (s.dx != 0 ? -1 : 0), loot: "mineshaft", seed: r.next(), facing: 0) }
+                    if r.chance(0.06) { w.set(x + ax, fy + 2, z + az, Blocks.id("cobweb")) }
+                    if r.chance(0.012) && walled { w.chest(x - ax, fy, z - az, loot: "mineshaft", seed: r.next(), facing: 0) }
                     if r.chance(0.004) && !mesa { w.spawner(x, fy, z, mob: "cave_spider") }
                 }
             })
