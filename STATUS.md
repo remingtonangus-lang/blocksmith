@@ -14,6 +14,13 @@ Committed after 4e591b6, to push when run 350 publishes:
 - HD detail transfer for every texture without a hand-made 128 px material (furnace, crafting table, barrel... were
   flat 8x8 squares next to HD blocks).
 - Mobs: stall watchdog also in the last 1.5 blocks to a target (they pushed forever against steps / beds / job blocks).
+- Wandering mobs rest 8-15 s after three failed strolls in a row; composters collide as a full block (bot trapped).
+- Hand-made 128 px materials: grass / tall grass / ferns / seagrass as drawn blades, flowers (rings, tulip cups,
+  allium, lily bells), kelp, sugar cane, vines, lily pads, ice, pumpkin, melon, cactus, mushroom blocks, Emberdeep
+  set (nylium, wart, glowstone, shroomlight, sculk, nether ores, ancient debris, basalt), storage blocks, crying
+  obsidian, violite pillar, bedrock, chests, barrels.
+- precheck fails on repeated keys in dictionary literals (Settings help had "wscale" twice); smoke test tours every
+  pause-menu page and opens 20 block screens through Game.openBlock; explorer bot really wades into water.
 Next: run 350/351 results (behaviorsim stuck causes, structcheck end city, village bot doors 959/222, hdatlas look at
 the detail-transfer blocks, texture build time), then hand-made HD materials for the most visible functional blocks.
 
