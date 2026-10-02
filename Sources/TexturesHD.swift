@@ -2239,7 +2239,8 @@ enum HDTex {
                 // Round warts placed on the dome (hashed texel blocks made squares, a checkerboard on the warped cap).
                 for (su, sv) in mushroomSpots {
                     let du: Float = (dx - su) / 0.14, dv: Float = (up + sv) / 0.2
-                    if du * du + dv * dv < 1 && d < 0.9 {
+                    let r2: Float = du * du + dv * dv
+                    if r2 < 1 && d < 0.9 {
                         let wk: Float = 0.9 + 0.2 * (1 - d)
                         c = wc * wk
                     }
@@ -2740,7 +2741,9 @@ enum HDTex {
                         for xi in Int(cx - w - 1)...Int(cx + w + 1) {
                             let uu: Float = (Float(xi) + 0.5 - cx) / w
                             guard abs(uu) <= 1 else { continue }
-                            let k: Float = (1.05 - 0.4 * abs(uu + 0.3)) * (0.85 + 0.25 * fine[y * n + ((xi % n) + n) % n])
+                            let ka: Float = 1.05 - 0.4 * abs(uu + 0.3)
+                            let fi: Int = y * n + ((xi % n) + n) % n
+                            let k: Float = ka * (0.85 + 0.25 * fine[fi])
                             img[xi, y] = V4(min(1, 0.29 * k), min(1, 0.23 * k), min(1, 0.16 * k), 1)
                         }
                     }
@@ -3103,7 +3106,8 @@ enum HDTex {
                 }
                 // Cap: the upper half of an ellipse.
                 let u: Float = fx / capR, v: Float = (fy - capY) / capH
-                if v <= 0.25 && u * u + v * v <= 1 {
+                let uv2: Float = u * u + v * v
+                if v <= 0.25 && uv2 <= 1 {
                     let light: Float = 0.8 + 0.25 * (-v) - 0.12 * u
                     let rim: Float = v > 0 ? 0.7 : 1
                     let grainK: Float = 0.95 + 0.1 * fine[y * n + x]
@@ -3113,7 +3117,8 @@ enum HDTex {
                         // the rim where the cap curves away.
                         for (su, sv) in mushroomSpots {
                             let du: Float = (u - su) / (0.16 * (1 - 0.4 * abs(su))), dv: Float = (v - sv) / 0.2
-                            if du * du + dv * dv < 1 { cc = V3(0.94, 0.93, 0.9) * light }
+                            let r2: Float = du * du + dv * dv
+                            if r2 < 1 { cc = V3(0.94, 0.93, 0.9) * light }
                         }
                     }
                     c = cc
@@ -3878,7 +3883,8 @@ enum HDTex {
                 let bx = (x + off) % (n / 2)
                 let seam = bx < max(1, n / 64) || (y % bh) < max(1, n / 64)
                 let boardTone: Float = h2(board &* 7 &+ (x + off) / (n / 2), 1, s) * 0.16
-                let gy: Float = Float(y) + (grainW[i] - 0.5) * Float(bh) * 0.9
+                let gw: Float = grainW[i] - 0.5
+                let gy: Float = Float(y) + gw * Float(bh) * 0.9
                 let grain: Float = 0.5 + 0.5 * sinf(gy / Float(n) * 2 * Float.pi * 18)
                 // A knot now and then.
                 let kx = Float(Int(h2(board, 2, s) * Float(n))), ky = Float(board * bh + bh / 2)
