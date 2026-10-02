@@ -246,11 +246,28 @@ extension Game {
             if !survival {
                 if breakNow || ships.breakCooldown <= 0 { done = true; ships.breakCooldown = 0.3 }
             } else {
-                if ships.mineCell == nil || ships.mineCell!.0 !== s || ships.mineCell!.1 != cell { ships.mineCell = (s, cell); ships.mineProgress = 0 }
+                if ships.mineCell == nil || ships.mineCell!.0 !== s || ships.mineCell!.1 != cell {
+                    ships.mineCell = (s, cell)
+                    ships.mineProgress = Float(Int(s.damage[cell] ?? 0) & 31) / 8      // a chipped plate picks up where it was left
+                }
                 let secs = Mining.breakSeconds(b, held, onGround: player.onGround || player.flying, inWater: player.headInWater)
                 if secs.isFinite {
+                    let before = Int(ships.mineProgress * 8)
                     ships.mineProgress += secs <= 0 ? 1 : dt / secs
                     swing = max(swing, 0.5)
+                    // Capital hulls chip like the world's blocks: an eighth of the struck face at a time.
+                    let level = Int(ships.mineProgress * 8)
+                    if s.kinematic && Settings.shared.chipping && level > before && level >= 1 && level < 8
+                        && Blocks.render[Int(b)] == RenderType.cube.rawValue {
+                        let n = normal
+                        let face = n.x > 0 ? 0 : (n.x < 0 ? 1 : (n.y > 0 ? 2 : (n.y < 0 ? 3 : (n.z > 0 ? 4 : 5))))
+                        let f = s.damage[cell].map { Int($0 >> 5) } ?? face
+                        s.damage[cell] = UInt8(f << 5 | level)
+                        s.mesh.rebuildAround(s, cell, device: world.device, queue: ships.meshQueue)
+                        swing = 1
+                        particles.dust(b, at: centre + s.rot.act(V3(Float(n.x), Float(n.y), Float(n.z))) * 0.45, count: 5, spread: 0.3)
+                        sfx(.hit(soundMat(b)), 0.7, at: centre)
+                    }
                     if ships.mineProgress >= 1 && ships.breakCooldown <= 0 { done = true; ships.breakCooldown = 0.25; ships.mineProgress = 0 }
                 }
             }
