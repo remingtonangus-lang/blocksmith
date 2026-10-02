@@ -180,7 +180,9 @@ enum BehaviorSim {
             let d: Float = simd_length(V2(p.x - t.window[0].x, p.z - t.window[0].z))
             // Swimmers and fliers wheel about in their pool or air pocket by design (fish and squid made 32 of the 56
             // spinning windows in run 354): walkers only.
-            if t.yawSum > 4 * Float.pi && d < 1.5 && !m.spec.aquatic && !m.spec.flying {
+            // Walking for most of the window: an animal standing and looking about turns freely (run 363 trace: a pig
+            // standing still the whole window, flagged for its idle head turns).
+            if t.yawSum > 4 * Float.pi && d < 1.5 && t.movingSamples >= 6 && !m.spec.aquatic && !m.spec.flying {
                 t.flags["spinning", default: 0] += 1
                 let goal = m.wanderGoal != nil ? "stroll" : (m.faceGoal != nil ? "target" : "heading")
                 let mv = m.moving ? "moving" : "standing"

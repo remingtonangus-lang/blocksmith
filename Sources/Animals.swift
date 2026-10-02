@@ -143,9 +143,19 @@ extension Mob {
                 return spec.speed * 1.3
             }
             if kind == .wolf || kind == .fox || kind == .ocelot || kind == .cat {
+                // A committed chase: now and then (about every 10 s with prey in range) pick one and run it down for
+                // up to 15 s. A coin flip every tick between chasing and strolling swapped the walk goal and path each
+                // tick (behaviour sim: wolves spinning 1100 degrees in 10 s, speed flickering between walk and run).
                 let prey: Set<MobKind> = kind == .wolf ? [.sheep, .rabbit, .fox, .skeleton, .stray] : (kind == .fox ? [.chicken, .rabbit, .cod, .salmon] : [.chicken])
-                if let p = g.mobs.mobs.first(where: { prey.contains($0.kind) && !$0.baby && $0.health > 0 && simd_length($0.pos - pos) < 12 }), Rand.float(in: 0..<1) < 0.5 {
+                if let t = target, (t.health <= 0 || huntTime <= 0 || simd_length(t.pos - pos) > 20) { target = nil }
+                if target == nil && Rand.float(in: 0..<1) < dt * 0.1,
+                   let p = g.mobs.mobs.first(where: { prey.contains($0.kind) && !$0.baby && $0.health > 0 && simd_length($0.pos - pos) < 12 }) {
+                    target = p; huntTime = 15
+                }
+                if let p = target {
+                    huntTime -= dt
                     face(p.pos)
+                    moving = true
                     if simd_length(p.pos - pos) < halfW + p.halfW + 0.8 && attackCooldown <= 0 { attackCooldown = 1; p.hit(from: pos, damage: max(2, spec.attack), knockback: 0.4) }
                     return spec.speed * 1.2
                 }

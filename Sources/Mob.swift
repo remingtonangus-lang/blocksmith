@@ -261,6 +261,7 @@ final class Mob {
     var unreachable: V3?            // a walk target the pathfinder couldn't reach (giveUp)
     var unreachableTimer: Float = 0
     var strollFails = 0             // strolls given up in a row (a mob in a pit or a pen rests instead of retrying)
+    var huntTime: Float = 0         // a wild predator's committed chase of its prey (Animals.swift)
     var bedWalk: V3?                // villager: heading to its bed tonight (villagerNight -> villagerDay)
     static weak var world: World?   // the world mobs are updating in (stroll targets)
     var path = PathState()          // ground navigation (Pathfinding.swift)
