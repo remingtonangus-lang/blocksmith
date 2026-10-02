@@ -25,25 +25,25 @@ extension Mob {
     // (leather, gold, chain, iron, diamond); boots always, each further piece stops with 25% (10% on hard).
     func rollEquipment(difficulty: Int, regional: Float) {
         guard ArmorLook.fits(kind), kind != .armorStand, difficulty > 0 else { return }
-        guard Float.random(in: 0..<1) < 0.15 * regional else { return }
-        var tier = Int.random(in: 0...1)
-        for _ in 0..<3 where Float.random(in: 0..<1) < 0.095 { tier += 1 }
+        guard Rand.float(in: 0..<1) < 0.15 * regional else { return }
+        var tier = Rand.int(in: 0...1)
+        for _ in 0..<3 where Rand.float(in: 0..<1) < 0.095 { tier += 1 }
         let mat = ["leather", "golden", "chainmail", "iron", "diamond"][tier]
         let stop: Float = difficulty == 3 ? 0.1 : 0.25
         var eq = [ItemStack](repeating: .empty, count: 5)
         for slot in [3, 2, 1, 0] {
-            if slot != 3 && Float.random(in: 0..<1) < stop { break }
+            if slot != 3 && Rand.float(in: 0..<1) < stop { break }
             let piece = ["helmet", "chestplate", "leggings", "boots"][slot]
             let n = "\(mat)_\(piece)"
             if Items.has(n) {
                 let d = Items.def(Items.id(n)).durability
                 eq[slot] = ItemStack(Items.id(n), 1)
-                if d > 1 { eq[slot].damage = Int.random(in: 0..<max(1, d - 1)) }
+                if d > 1 { eq[slot].damage = Rand.int(in: 0..<max(1, d - 1)) }
             }
         }
         // Zombies: 1% (5% hard) carry an iron sword (1/3) or shovel.
-        if [.zombie, .husk, .drowned].contains(kind) && Float.random(in: 0..<1) < (difficulty == 3 ? 0.05 : 0.01) {
-            let n = Int.random(in: 0..<3) == 0 ? "iron_sword" : "iron_shovel"
+        if [.zombie, .husk, .drowned].contains(kind) && Rand.float(in: 0..<1) < (difficulty == 3 ? 0.05 : 0.01) {
+            let n = Rand.int(in: 0..<3) == 0 ? "iron_sword" : "iron_shovel"
             if Items.has(n) { eq[4] = ItemStack(Items.id(n), 1) }
         }
         if eq.contains(where: { !$0.isEmpty }) { equip = eq }
@@ -64,7 +64,7 @@ extension Mob {
         let f = min(20, max(a / 5, a - d / (2 + t / 4))) / 25
         let r = d * (1 - f)
         let whole = floor(r)
-        return Int(whole) + (Float.random(in: 0..<1) < r - whole ? 1 : 0)
+        return Int(whole) + (Rand.float(in: 0..<1) < r - whole ? 1 : 0)
     }
 
     // A held weapon adds its attack damage to melee hits.

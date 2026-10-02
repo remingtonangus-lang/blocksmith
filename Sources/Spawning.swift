@@ -86,7 +86,7 @@ enum Spawns {
     static func pick(_ list: [SpawnEntry]) -> SpawnEntry? {
         let total = list.reduce(0) { $0 + $1.weight }
         guard total > 0 else { return nil }
-        var r = Int.random(in: 0..<total)
+        var r = Rand.int(in: 0..<total)
         for e in list { r -= e.weight; if r < 0 { return e } }
         return nil
     }
@@ -148,7 +148,7 @@ extension MobManager {
         if m.patrolling { return false }                  // patrols only vanish beyond 128 blocks (reference)
         if d > 32 {
             m.farTime += dt
-            return m.farTime > 30 && Float.random(in: 0..<1) < dt * 20 / 800
+            return m.farTime > 30 && Rand.float(in: 0..<1) < dt * 20 / 800
         }
         m.farTime = 0
         return false
@@ -173,7 +173,7 @@ extension MobManager {
                     let top = w.topY(x, z)
                     for y in max(1, top - 12)...max(1, top) where Blocks.groupBase[Int(w.block(x, y, z))] == nest {
                         let h = IVec3(x, y, z)
-                        if hives[h] == nil { hives[h] = (0..<Int.random(in: 2...3)).map { _ in (nectar: false, time: 0) } }
+                        if hives[h] == nil { hives[h] = (0..<Rand.int(in: 2...3)).map { _ in (nectar: false, time: 0) } }
                     }
                 } }
             }
@@ -181,7 +181,7 @@ extension MobManager {
             guard rng.float() < 0.1 else { continue }
             let x = c.cx * CS + rng.int(16), z = c.cz * CS + rng.int(16)
             guard case let (kind, lo, hi)? = MobManager.pickAnimal(w.gen.column(x, z).biome) else { continue }
-            spawnAnimalPack(w, kind, x, z, Int.random(in: lo...hi), chunk: k)
+            spawnAnimalPack(w, kind, x, z, Rand.int(in: lo...hi), chunk: k)
         }
     }
 
@@ -189,16 +189,16 @@ extension MobManager {
         let biome = w.gen.column(x, z).biome
         var placed = 0
         for _ in 0..<(n * 4) where placed < n {
-            var sx = x + Int.random(in: -4...4), sz = z + Int.random(in: -4...4)
+            var sx = x + Rand.int(in: -4...4), sz = z + Rand.int(in: -4...4)
             if let k = chunk { sx = k.x * CS + mod(sx, CS); sz = k.z * CS + mod(sz, CS) }
             guard let y = animalSurface(w, sx, sz, kind), w.lightAt(sx, y, sz).sky > 8 || w.lightAt(sx, y, sz).block > 8 else { continue }
             let m = Mob(kind, at: V3(Float(sx) + 0.5, Float(y), Float(sz) + 0.5))
             if m.collides(m.pos, w) { continue }
             if kind == .fox && [.snowyTaiga, .grove, .snowySlopes].contains(biome) { m.variant = 1 }
             if kind == .wolf { m.variant = Mob.wolfVariant(biome) }
-            if kind == .mooshroom && Int.random(in: 0..<10) == 0 { m.variant = 1 }
+            if kind == .mooshroom && Rand.int(in: 0..<10) == 0 { m.variant = 1 }
             // Reference group data: after the first, 5% of a pack are young.
-            if placed > 0 && Float.random(in: 0..<1) < 0.05 { m.baby = true; m.scale = 0.5 }
+            if placed > 0 && Rand.float(in: 0..<1) < 0.05 { m.baby = true; m.scale = 0.5 }
             mobs.append(m)
             placed += 1
         }
@@ -209,12 +209,12 @@ extension MobManager {
         let rd = min(w.renderDistance, 8)
         guard rd >= 3 else { return }
         let pcx = floorDiv(Int(floor(game.player.pos.x)), CS), pcz = floorDiv(Int(floor(game.player.pos.z)), CS)
-        let dx = Int.random(in: -rd...rd), dz = Int.random(in: -rd...rd)
+        let dx = Rand.int(in: -rd...rd), dz = Rand.int(in: -rd...rd)
         if max(abs(dx), abs(dz)) < 2 { return }
         guard let c = w.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] else { return }
-        let x = c.cx * CS + Int.random(in: 0..<CS), z = c.cz * CS + Int.random(in: 0..<CS)
+        let x = c.cx * CS + Rand.int(in: 0..<CS), z = c.cz * CS + Rand.int(in: 0..<CS)
         guard case let (kind, lo, hi)? = MobManager.pickAnimal(w.gen.column(x, z).biome) else { return }
-        spawnAnimalPack(w, kind, x, z, Int.random(in: lo...hi), chunk: ChunkKey(x: c.cx, z: c.cz))
+        spawnAnimalPack(w, kind, x, z, Rand.int(in: lo...hi), chunk: ChunkKey(x: c.cx, z: c.cz))
     }
 
     // MARK: Monsters
@@ -233,12 +233,12 @@ extension MobManager {
     // Reference isDarkEnoughToSpawn for the overworld.
     func darkEnough(_ w: World, _ x: Int, _ y: Int, _ z: Int, _ game: Game) -> Bool {
         let l = w.lightAt(x, y, z)
-        if l.sky > Int.random(in: 0..<32) { return false }
+        if l.sky > Rand.int(in: 0..<32) { return false }
         if l.block > 0 { return false }
         // Sky darkening: 0 at noon ... 11 at midnight (reference skyDarken), subtracted from sky light.
         let darken = max(0, min(11, Int(((1 - (game.daylight - 0.12) / 0.88) * 11).rounded())))
         let raw = max(l.block, l.sky - darken)
-        return raw <= Int.random(in: 0...7)
+        return raw <= Rand.int(in: 0...7)
     }
 
     func trySpawnHostile(_ game: Game) {
@@ -249,14 +249,14 @@ extension MobManager {
         guard count(.monster, near: pp) < SpawnCategory.monster.cap else { return }
         let rd = min(w.renderDistance, 8)
         let pcx = floorDiv(Int(floor(pp.x)), CS), pcz = floorDiv(Int(floor(pp.z)), CS)
-        let x0 = (pcx + Int.random(in: -rd...rd)) * CS + Int.random(in: 0..<CS)
-        let z0 = (pcz + Int.random(in: -rd...rd)) * CS + Int.random(in: 0..<CS)
+        let x0 = (pcx + Rand.int(in: -rd...rd)) * CS + Rand.int(in: 0..<CS)
+        let z0 = (pcz + Rand.int(in: -rd...rd)) * CS + Rand.int(in: 0..<CS)
         guard w.isLoaded(x0, z0) else { return }
         let top = w.topY(x0, z0)
         guard top > 2 else { return }
         // Structure spawns (reference overrides): marauders at watchtowers in any light, spikefish around sea temples.
         if let sc = w.gen.structures, trySpawnInStructure(sc, game, x0, z0, top) { return }
-        guard let y = floorBelow(w, x0, Int.random(in: 2...(top + 1)), z0, minY: 1) else { return }
+        guard let y = floorBelow(w, x0, Rand.int(in: 2...(top + 1)), z0, minY: 1) else { return }
         if w.block(x0, y - 1, z0) == BEDROCK { return }
         var spawned = 0
         for _ in 0..<3 {
@@ -264,8 +264,8 @@ extension MobManager {
             var entry: SpawnEntry?
             var groupSize = 4
             for _ in 0..<4 {
-                x += Int.random(in: 0..<6) - Int.random(in: 0..<6)
-                z += Int.random(in: 0..<6) - Int.random(in: 0..<6)
+                x += Rand.int(in: 0..<6) - Rand.int(in: 0..<6)
+                z += Rand.int(in: 0..<6) - Rand.int(in: 0..<6)
                 guard w.isLoaded(x, z) else { continue }
                 let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
                 let d = simd_length(at - pp)
@@ -274,7 +274,7 @@ extension MobManager {
                 if entry == nil {
                     guard let e = Spawns.pick(Spawns.monsters(b)) else { break }
                     entry = e
-                    groupSize = Int.random(in: e.min...e.max)
+                    groupSize = Rand.int(in: e.min...e.max)
                 }
                 guard let e = entry, canSpawnMonster(e.kind, w, x, y, z, b, game) else { continue }
                 let m = Mob(e.kind, at: at)
@@ -303,13 +303,13 @@ extension MobManager {
             mobs.append(m)
             return true
         }
-        let y = Int.random(in: max(1, SEA - 50)...SEA)
+        let y = Rand.int(in: max(1, SEA - 50)...SEA)
         if Blocks.fluidKind[Int(w.block(x, y, z))] == 1, sc.structure(at: x, y, z, kind: "monument") != nil {
             let at = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
-            guard simd_length(at - pp) >= 24, Int.random(in: 0..<20) == 0 || w.lightAt(x, y, z).sky == 0,
+            guard simd_length(at - pp) >= 24, Rand.int(in: 0..<20) == 0 || w.lightAt(x, y, z).sky == 0,
                   mobs.filter({ $0.kind == .guardian && simd_length($0.pos - at) < 64 }).count < 12 else { return true }
-            for _ in 0..<Int.random(in: 2...4) {
-                let q = at + V3(Float.random(in: -2...2), Float.random(in: -1...1), Float.random(in: -2...2))
+            for _ in 0..<Rand.int(in: 2...4) {
+                let q = at + V3(Rand.float(in: -2...2), Rand.float(in: -1...1), Rand.float(in: -2...2))
                 if Blocks.fluidKind[Int(w.block(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))))] == 1 { mobs.append(Mob(.guardian, at: q)) }
             }
             return true
@@ -318,8 +318,8 @@ extension MobManager {
     }
 
     private func slimeSize(_ game: Game) -> Int {
-        var i = Int.random(in: 0..<3)
-        if i < 2 && Float.random(in: 0..<1) < 0.5 * game.regionalDifficulty { i += 1 }
+        var i = Rand.int(in: 0..<3)
+        if i < 2 && Rand.float(in: 0..<1) < 0.5 * game.regionalDifficulty { i += 1 }
         return 1 << i
     }
 
@@ -336,15 +336,15 @@ extension MobManager {
         case .drowned:
             // In water only: rivers 1/15, elsewhere 1/40, at least 5 below sea level; dark enough.
             guard wet, Blocks.fluidKind[Int(w.block(x, y - 1, z))] == 1 || Blocks.opaque[Int(w.block(x, y - 1, z))] else { return false }
-            guard Int.random(in: 0..<(b.isRiver ? 15 : 40)) == 0, y < SEA - 5 else { return false }
+            guard Rand.int(in: 0..<(b.isRiver ? 15 : 40)) == 0, y < SEA - 5 else { return false }
             return darkEnough(w, x, y, z, game)
         case .slime:
             if wet { return false }
-            if (b == .swamp || b == .mangroveSwamp) && y - YOFF > 50 && y - YOFF < 70 && Float.random(in: 0..<1) < 0.5
-                && Float.random(in: 0..<1) < Spawns.moon(game) && w.lightAt(x, y, z).block <= Int.random(in: 0..<8) {
+            if (b == .swamp || b == .mangroveSwamp) && y - YOFF > 50 && y - YOFF < 70 && Rand.float(in: 0..<1) < 0.5
+                && Rand.float(in: 0..<1) < Spawns.moon(game) && w.lightAt(x, y, z).block <= Rand.int(in: 0..<8) {
                 return true
             }
-            return Spawns.slimeChunk(x, z) && y - YOFF < 40 && Int.random(in: 0..<10) == 0
+            return Spawns.slimeChunk(x, z) && y - YOFF < 40 && Rand.int(in: 0..<10) == 0
         default:
             if wet || Blocks.isLiquid(feet) { return false }
             if !darkEnough(w, x, y, z, game) { return false }
@@ -357,19 +357,19 @@ extension MobManager {
     func finishMonster(_ m: Mob, _ game: Game) {
         let w = game.world
         m.rollEquipment(difficulty: game.difficulty, regional: game.regionalDifficulty)
-        m.canPickUp = ArmorLook.fits(m.kind) && Float.random(in: 0..<1) < 0.55 * game.regionalDifficulty
+        m.canPickUp = ArmorLook.fits(m.kind) && Rand.float(in: 0..<1) < 0.55 * game.regionalDifficulty
         // Sunken: 10% hold something - 10 in 16 a trident, else a fishing rod; 3% a nautilus shell.
-        if m.kind == .drowned && Float.random(in: 0..<1) > 0.9 {
-            let n = Int.random(in: 0..<16) < 10 ? "trident" : "fishing_rod"
+        if m.kind == .drowned && Rand.float(in: 0..<1) > 0.9 {
+            let n = Rand.int(in: 0..<16) < 10 ? "trident" : "fishing_rod"
             if Items.has(n) { var eq = m.equip ?? [ItemStack](repeating: .empty, count: 5); eq[4] = ItemStack(Items.id(n), 1); m.equip = eq }
         }
         if m.isZombie {
-            if Float.random(in: 0..<1) < 0.05 { m.baby = true; m.scale = 0.5 }
-            m.breaksDoors = m.kind != .drowned && Float.random(in: 0..<1) < game.regionalDifficulty * 0.1
+            if Rand.float(in: 0..<1) < 0.05 { m.baby = true; m.scale = 0.5 }
+            m.breaksDoors = m.kind != .drowned && Rand.float(in: 0..<1) < game.regionalDifficulty * 0.1
         }
         mobs.append(m)
         // Chicken jockey: 5% of baby zombies ride a chicken.
-        if m.baby && m.isZombie && Float.random(in: 0..<1) < 0.05 {
+        if m.baby && m.isZombie && Rand.float(in: 0..<1) < 0.05 {
             let c: Mob
             if let near = mobs.first(where: { $0.kind == .chicken && !$0.baby && simd_length($0.pos - m.pos) < 5 }) { c = near }
             else { c = Mob(.chicken, at: m.pos); mobs.append(c) }
@@ -385,14 +385,14 @@ extension MobManager {
                 mobs.append(r)
             }
         }
-        if m.kind == .drowned && Float.random(in: 0..<1) < 0.05 && w.gen.column(Int(floor(m.pos.x)), Int(floor(m.pos.z))).biome.isOcean {
+        if m.kind == .drowned && Rand.float(in: 0..<1) < 0.05 && w.gen.column(Int(floor(m.pos.x)), Int(floor(m.pos.z))).biome.isOcean {
             let n = Mob(.zombieNautilus, at: m.pos)
             mobs.append(n)
             m.mount = n
             m.jockey = true
         }
         // Spider jockey: 1% of spiders carry a skeleton.
-        if m.kind == .spider && Int.random(in: 0..<100) == 0 {
+        if m.kind == .spider && Rand.int(in: 0..<100) == 0 {
             let s = Mob(.skeleton, at: m.pos + V3(0, m.height, 0))
             s.mount = m
             s.jockey = true
@@ -405,13 +405,13 @@ extension MobManager {
     func trySpawnEnd(_ game: Game) {
         let w = game.world
         let pp = game.player.pos
-        let a = Float.random(in: 0..<(2 * .pi)), r = Float.random(in: 24...96)
+        let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 24...96)
         let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
         guard w.isLoaded(x, z) else { return }
         let top = w.topY(x, z)
         guard top > 0, Blocks.key(w.block(x, top, z)) == "end_stone" else { return }
-        for _ in 0..<Int.random(in: 1...4) {
-            let sx = x + Int.random(in: -2...2), sz = z + Int.random(in: -2...2)
+        for _ in 0..<Rand.int(in: 1...4) {
+            let sx = x + Rand.int(in: -2...2), sz = z + Rand.int(in: -2...2)
             let ty = w.topY(sx, sz)
             guard ty > 0, Blocks.key(w.block(sx, ty, sz)) == "end_stone" else { continue }
             let m = Mob(.enderman, at: V3(Float(sx) + 0.5, Float(ty + 1), Float(sz) + 0.5))
@@ -426,12 +426,12 @@ extension MobManager {
         let w = game.world
         guard w.dim == .overworld else { return }
         let pp = game.player.pos
-        let a = Float.random(in: 0..<(2 * .pi)), r = Float.random(in: 24...96)
+        let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 24...96)
         let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
         guard w.isLoaded(x, z) else { return }
         let top = w.topY(x, z)
         guard top > 2 else { return }
-        let y = Int.random(in: 1...(top + 1))
+        let y = Rand.int(in: 1...(top + 1))
         let id = w.block(x, y, z)
         let water = Blocks.fluidKind[Int(id)] == 1 && Blocks.fluidKind[Int(w.block(x, y + 1, z))] == 1
         if water {
@@ -441,12 +441,12 @@ extension MobManager {
                 guard let e = Spawns.pick(Spawns.water(b)) else { return }
                 let cat = e.kind.category
                 guard count(cat, near: pp) < cat.cap else { return }
-                spawnSwimmers(w, e.kind, x, y, z, Int.random(in: e.min...e.max))
+                spawnSwimmers(w, e.kind, x, y, z, Rand.int(in: e.min...e.max))
             } else if y <= SEA - 33 && w.lightAt(x, y, z).sky == 0 && w.lightAt(x, y, z).block == 0 {
                 if b == .lushCaves && Blocks.key(w.block(x, y - 1, z)) == "clay" && count(.axolotls, near: pp) < SpawnCategory.axolotls.cap {
-                    spawnSwimmers(w, .axolotl, x, y, z, Int.random(in: 4...6))
+                    spawnSwimmers(w, .axolotl, x, y, z, Rand.int(in: 4...6))
                 } else if count(.undergroundWater, near: pp) < SpawnCategory.undergroundWater.cap {
-                    spawnSwimmers(w, .glowSquid, x, y, z, Int.random(in: 2...4))
+                    spawnSwimmers(w, .glowSquid, x, y, z, Rand.int(in: 2...4))
                 }
             } else if b == .lushCaves && count(.waterAmbient, near: pp) < SpawnCategory.waterAmbient.cap {
                 spawnSwimmers(w, .tropicalFish, x, y, z, 8)
@@ -454,30 +454,30 @@ extension MobManager {
             return
         }
         // Bats: below sea level, a coin flip, then light <= random 0...3 (reference Halloween rule not modelled).
-        if id == AIR && y < SEA && Bool.random() && count(.ambient, near: pp) < SpawnCategory.ambient.cap {
+        if id == AIR && y < SEA && Rand.bool() && count(.ambient, near: pp) < SpawnCategory.ambient.cap {
             let l = w.lightAt(x, y, z)
-            if max(l.block, l.sky) <= Int.random(in: 0..<4) && !Blocks.collide[Int(w.block(x, y + 1, z))] {
+            if max(l.block, l.sky) <= Rand.int(in: 0..<4) && !Blocks.collide[Int(w.block(x, y + 1, z))] {
                 let bat = Mob(.bat, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5))
                 if !bat.collides(bat.pos, w) { mobs.append(bat) }
             }
         }
         // Nightwings: at night, over a player who hasn't slept for 3+ days (reference insomnia odds).
-        if game.survival && game.daylight < 0.3 && game.timeSinceRest > 3600 && Float.random(in: 0..<1) < Float(game.timeSinceRest - 3600) / 3600 * 0.02,
+        if game.survival && game.daylight < 0.3 && game.timeSinceRest > 3600 && Rand.float(in: 0..<1) < Float(game.timeSinceRest - 3600) / 3600 * 0.02,
            mobs.filter({ $0.kind == .phantom }).count < 4, game.skyExposed(Int(floor(pp.x)), Int(floor(pp.y + 1)), Int(floor(pp.z))), pp.y > Float(SEA) {
-            let n = 1 + Int.random(in: 0...(game.difficulty + 1))
+            let n = 1 + Rand.int(in: 0...(game.difficulty + 1))
             for _ in 0..<n {
-                mobs.append(Mob(.phantom, at: pp + V3(Float.random(in: -10...10), 20 + Float.random(in: 0...14), Float.random(in: -10...10))))
+                mobs.append(Mob(.phantom, at: pp + V3(Rand.float(in: -10...10), 20 + Rand.float(in: 0...14), Rand.float(in: -10...10))))
             }
         }
     }
 
     private func spawnSwimmers(_ w: World, _ kind: MobKind, _ x: Int, _ y: Int, _ z: Int, _ n: Int) {
         for _ in 0..<n {
-            let sx = x + Int.random(in: -2...2), sy = y + Int.random(in: -1...1), sz = z + Int.random(in: -2...2)
+            let sx = x + Rand.int(in: -2...2), sy = y + Rand.int(in: -1...1), sz = z + Rand.int(in: -2...2)
             guard Blocks.fluidKind[Int(w.block(sx, sy, sz))] == 1 else { continue }
             let m = Mob(kind, at: V3(Float(sx) + 0.5, Float(sy) + 0.1, Float(sz) + 0.5))
-            if kind == .tropicalFish || kind == .axolotl { m.variant = Int.random(in: 0..<(kind == .axolotl ? 4 : 8)) }
-            if kind == .axolotl && Int.random(in: 0..<1200) == 0 { m.variant = 4 }       // the rare blue one
+            if kind == .tropicalFish || kind == .axolotl { m.variant = Rand.int(in: 0..<(kind == .axolotl ? 4 : 8)) }
+            if kind == .axolotl && Rand.int(in: 0..<1200) == 0 { m.variant = 4 }       // the rare blue one
             if m.collides(m.pos, w) { continue }
             mobs.append(m)
         }

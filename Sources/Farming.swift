@@ -65,7 +65,7 @@ extension Game {
     func queueLeafDecay(around p: IVec3) {
         for dy in -4...4 { for dz in -4...4 { for dx in -4...4 {
             let q = IVec3(p.x + dx, p.y + dy, p.z + dz)
-            if Blocks.key(world.block(q.x, q.y, q.z)).hasSuffix("leaves") { leafQueue.insert(q, at: Int.random(in: 0...leafQueue.count)) }
+            if Blocks.key(world.block(q.x, q.y, q.z)).hasSuffix("leaves") { leafQueue.insert(q, at: Rand.int(in: 0...leafQueue.count)) }
         } } }
     }
 
@@ -82,34 +82,34 @@ extension Game {
             guard max(l.sky, l.block) >= 9 else { return }
             let below = Blocks.key(world.block(p.x, p.y - 1, p.z))
             let f: Float = below == "farmland_moist" ? 4 : 2
-            if Float.random(in: 0..<1) < 1 / (floorf(25 / f) + 1) {
+            if Rand.float(in: 0..<1) < 1 / (floorf(25 / f) + 1) {
                 world.setBlock(p.x, p.y, p.z, b + 1)
             }
         case "closed_eyeblossom", "open_eyeblossom": nightbloomTick(p, key)
         case "nether_wart":
-            if stage < 3 && Int.random(in: 0..<10) == 0 { world.setBlock(p.x, p.y, p.z, b + 1) }
+            if stage < 3 && Rand.int(in: 0..<10) == 0 { world.setBlock(p.x, p.y, p.z, b + 1) }
         case "sugar_cane":
             // Grows to 3 tall, one block per ~16 random ticks.
-            guard world.block(p.x, p.y + 1, p.z) == AIR, Int.random(in: 0..<16) == 0 else { return }
+            guard world.block(p.x, p.y + 1, p.z) == AIR, Rand.int(in: 0..<16) == 0 else { return }
             var h = 1
             while h < 3 && world.block(p.x, p.y - h, p.z) == b { h += 1 }
             if h < 3 { world.setBlock(p.x, p.y + 1, p.z, b) }
         case _ where key.hasSuffix("_sapling") || key == "mangrove_propagule":
             let l = world.lightAt(p.x, p.y + 1, p.z)
-            if max(l.sky, l.block) >= 9 && Int.random(in: 0..<7) == 0 { growTree(p, key) }
+            if max(l.sky, l.block) >= 9 && Rand.int(in: 0..<7) == 0 { growTree(p, key) }
         case "farmland":
             let wet = waterNear(p)
             let isWet = Blocks.key(b) == "farmland_moist"
             if wet && !isWet { world.setBlock(p.x, p.y, p.z, Blocks.id("farmland_moist")) }
             else if !wet && isWet { world.setBlock(p.x, p.y, p.z, Blocks.id("farmland")) }
             else if !wet && !Blocks.isPlant(world.block(p.x, p.y + 1, p.z)) && Blocks.render[Int(world.block(p.x, p.y + 1, p.z))] != RenderType.model.rawValue {
-                if Int.random(in: 0..<4) == 0 { world.setBlock(p.x, p.y, p.z, DIRT) }
+                if Rand.int(in: 0..<4) == 0 { world.setBlock(p.x, p.y, p.z, DIRT) }
             }
         case "grass_block":
             // Dies under opaque blocks; spreads to nearby lit dirt.
             if Blocks.opaque[Int(world.block(p.x, p.y + 1, p.z))] { world.setBlock(p.x, p.y, p.z, DIRT); return }
             for _ in 0..<4 {
-                let q = IVec3(p.x + Int.random(in: -1...1), p.y + Int.random(in: -3...1), p.z + Int.random(in: -1...1))
+                let q = IVec3(p.x + Rand.int(in: -1...1), p.y + Rand.int(in: -3...1), p.z + Rand.int(in: -1...1))
                 if world.block(q.x, q.y, q.z) == DIRT && !Blocks.opaque[Int(world.block(q.x, q.y + 1, q.z))] && !Blocks.isLiquid(world.block(q.x, q.y + 1, q.z)) {
                     let l = world.lightAt(q.x, q.y + 1, q.z)
                     if max(l.sky, l.block) >= 9 { world.setBlockAsync(q.x, q.y, q.z, GRASS) }
@@ -136,7 +136,7 @@ extension Game {
         }
         let kind: TreeKind?
         switch sapling {
-        case "oak_sapling": kind = Int.random(in: 0..<10) == 0 ? .fancyOak : .oak
+        case "oak_sapling": kind = Rand.int(in: 0..<10) == 0 ? .fancyOak : .oak
         case "birch_sapling": kind = .birch
         case "spruce_sapling": kind = square != nil ? .megaSpruce : .spruce
         case "jungle_sapling": kind = square != nil ? .megaJungle : .jungle
@@ -291,17 +291,17 @@ extension Game {
                 let maxStage = bkey == "beetroots" ? 3 : 7
                 let st = Int(b - Blocks.groupBase[Int(b)])
                 if st < maxStage {
-                    world.setBlock(t.hit.x, t.hit.y, t.hit.z, Blocks.groupBase[Int(b)] + BlockID(min(maxStage, st + Int.random(in: 2...5))))
+                    world.setBlock(t.hit.x, t.hit.y, t.hit.z, Blocks.groupBase[Int(b)] + BlockID(min(maxStage, st + Rand.int(in: 2...5))))
                     used = true
                 }
             } else if bkey.hasSuffix("_sapling") {
-                if Float.random(in: 0..<1) < 0.45 { growTree(t.hit, bkey) }
+                if Rand.float(in: 0..<1) < 0.45 { growTree(t.hit, bkey) }
                 used = true
             } else if b == GRASS {
                 for _ in 0..<24 {
-                    let q = IVec3(t.hit.x + Int.random(in: -3...3), t.hit.y, t.hit.z + Int.random(in: -3...3))
+                    let q = IVec3(t.hit.x + Rand.int(in: -3...3), t.hit.y, t.hit.z + Rand.int(in: -3...3))
                     if world.block(q.x, q.y, q.z) == GRASS && world.block(q.x, q.y + 1, q.z) == AIR {
-                        world.setBlockAsync(q.x, q.y + 1, q.z, Float.random(in: 0..<1) < 0.85 ? TALL_GRASS : [RED_FLOWER, YELLOW_FLOWER][Int.random(in: 0...1)])
+                        world.setBlockAsync(q.x, q.y + 1, q.z, Rand.float(in: 0..<1) < 0.85 ? TALL_GRASS : [RED_FLOWER, YELLOW_FLOWER][Rand.int(in: 0...1)])
                     }
                 }
                 used = true
@@ -372,7 +372,7 @@ extension Game {
         if m.kind == .sheep && key == "shears" && !m.sheared && !m.baby {
             m.sheared = true
             let wool = "\(m.woolColor)_wool"
-            if Items.has(wool) { drops.spawn(ItemStack(Items.id(wool), Int.random(in: 1...3)), at: m.pos + V3(0, 1, 0)) }
+            if Items.has(wool) { drops.spawn(ItemStack(Items.id(wool), Rand.int(in: 1...3)), at: m.pos + V3(0, 1, 0)) }
             damageHeld(1)
             sfx(.shearsSnip, 1, at: m.pos)
             return true
@@ -482,12 +482,12 @@ extension Game {
             ("iron_nugget", 10, 36, 10),
         ].filter { Items.has($0.0) }
         let total = table.reduce(0) { $0 + $1.3 }
-        var r = Int.random(in: 0..<max(1, total))
+        var r = Rand.int(in: 0..<max(1, total))
         for e in table {
             r -= e.3
             if r < 0 {
                 let dir = simd_normalize(player.pos - m.pos + V3(0, 0.001, 0))
-                drops.spawn(ItemStack(Items.id(e.0), Int.random(in: e.1...e.2)), at: m.eye, vel: dir * 3 + V3(0, 2, 0))
+                drops.spawn(ItemStack(Items.id(e.0), Rand.int(in: e.1...e.2)), at: m.eye, vel: dir * 3 + V3(0, 2, 0))
                 break
             }
         }

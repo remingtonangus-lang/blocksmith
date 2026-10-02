@@ -101,7 +101,7 @@ extension Mob {
                 return spec.speed * 1.2
             }
             target = nil
-            if dist > 12 { pos = player + V3(Float.random(in: -1...1), 0, Float.random(in: -1...1)); vel = .zero; return 0 }
+            if dist > 12 { pos = player + V3(Rand.float(in: -1...1), 0, Rand.float(in: -1...1)); vel = .zero; return 0 }
             if dist > 3 { face(player); return spec.speed }
             wander(); return moving ? spec.speed * 0.3 : 0
         }
@@ -144,14 +144,14 @@ extension Mob {
             }
             if kind == .wolf || kind == .fox || kind == .ocelot || kind == .cat {
                 let prey: Set<MobKind> = kind == .wolf ? [.sheep, .rabbit, .fox, .skeleton, .stray] : (kind == .fox ? [.chicken, .rabbit, .cod, .salmon] : [.chicken])
-                if let p = g.mobs.mobs.first(where: { prey.contains($0.kind) && !$0.baby && $0.health > 0 && simd_length($0.pos - pos) < 12 }), Float.random(in: 0..<1) < 0.5 {
+                if let p = g.mobs.mobs.first(where: { prey.contains($0.kind) && !$0.baby && $0.health > 0 && simd_length($0.pos - pos) < 12 }), Rand.float(in: 0..<1) < 0.5 {
                     face(p.pos)
                     if simd_length(p.pos - pos) < halfW + p.halfW + 0.8 && attackCooldown <= 0 { attackCooldown = 1; p.hit(from: pos, damage: max(2, spec.attack), knockback: 0.4) }
                     return spec.speed * 1.2
                 }
             }
             // Goats ram at a random time.
-            if kind == .goat && canTarget && dist < 10 && Float.random(in: 0..<1) < dt / 30 { aggro = true }
+            if kind == .goat && canTarget && dist < 10 && Rand.float(in: 0..<1) < dt / 30 { aggro = true }
         }
         // Follow a player holding the right food; fall in love when fed (handled in useItemOnMob).
         if let food = MobKind.animalFood[kind], dist < 8, food.contains(Items.key(g.held.item)), !baby {
@@ -177,13 +177,13 @@ extension Mob {
                     if Items.has(light) { g.drops.spawn(ItemStack(Items.id(light), 1), at: s.pos) }
                 }
             }
-            if onGround && moving && Float.random(in: 0..<1) < dt * 1.5 { vel.y = 6 }
+            if onGround && moving && Rand.float(in: 0..<1) < dt * 1.5 { vel.y = 6 }
         case .armadillo:
             let danger = g.mobs.mobs.contains { $0.kind.hostile && simd_length($0.pos - pos) < 7 } || (g.player.sprinting && dist < 7) || panic > 0
             sitting = danger              // rolled up
             if danger { return 0 }
             scuteTimer -= dt
-            if scuteTimer <= 0 { scuteTimer = Float.random(in: 300...600); if Items.has("armadillo_scute") { g.drops.spawn(ItemStack(Items.id("armadillo_scute"), 1), at: pos) } }
+            if scuteTimer <= 0 { scuteTimer = Rand.float(in: 300...600); if Items.has("armadillo_scute") { g.drops.spawn(ItemStack(Items.id("armadillo_scute"), 1), at: pos) } }
         case .turtle:
             // Babies drop a scute when they grow up (handled in growUp); adults head home to lay eggs.
             break
@@ -191,16 +191,16 @@ extension Mob {
             // Digs up ancient seeds on grass / dirt / moss.
             scuteTimer -= dt
             if scuteTimer <= 0 && onGround {
-                scuteTimer = Float.random(in: 120...240)
+                scuteTimer = Rand.float(in: 120...240)
                 let under = Blocks.key(w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.5)), Int(floor(pos.z))))
                 if ["grass_block", "dirt", "podzol", "coarse_dirt", "rooted_dirt", "moss_block", "mud", "muddy_mangrove_roots"].contains(under) {
-                    let seed = Bool.random() ? "torchflower_seeds" : "pitcher_pod"
+                    let seed = Rand.bool() ? "torchflower_seeds" : "pitcher_pod"
                     if Items.has(seed) { g.drops.spawn(ItemStack(Items.id(seed), 1), at: pos + forward * 1.2) }
                 }
             }
         case .bat:
             // Erratic flight; hangs from ceilings by day.
-            if aiTimer <= 0 || flyTarget == nil { aiTimer = Float.random(in: 0.5...2); flyTarget = pos + V3(Float.random(in: -5...5), Float.random(in: -2...3), Float.random(in: -5...5)) }
+            if aiTimer <= 0 || flyTarget == nil { aiTimer = Rand.float(in: 0.5...2); flyTarget = pos + V3(Rand.float(in: -5...5), Rand.float(in: -2...3), Rand.float(in: -5...5)) }
             if let f = flyTarget { let d = f - pos; vel += (d * 0.8 - vel) * min(1, dt * 3) }
             return 0
         case .parrot where g.jukeboxes.contains(where: { simd_length(V3(Float($0.pos.x) + 0.5, Float($0.pos.y), Float($0.pos.z) + 0.5) - pos) < 3.5 }):
@@ -211,13 +211,13 @@ extension Mob {
         case .parrot:
             sitting = false
             // Now and then a parrot imitates a monster within 20 blocks (reference: 1 in ~1000 per tick).
-            if Float.random(in: 0..<1) < dt / 50, let o = g.mobs.mobs.first(where: { $0.kind.hostile && simd_length($0.pos - pos) < 20 }) {
+            if Rand.float(in: 0..<1) < dt / 50, let o = g.mobs.mobs.first(where: { $0.kind.hostile && simd_length($0.pos - pos) < 20 }) {
                 g.sfx(o.kind.call, 0.7, at: pos)
             }
             if aiTimer <= 0 || flyTarget == nil {
-                aiTimer = Float.random(in: 2...5)
+                aiTimer = Rand.float(in: 2...5)
                 let base = tamed ? player : pos
-                flyTarget = base + V3(Float.random(in: -4...4), Float.random(in: 0...3), Float.random(in: -4...4))
+                flyTarget = base + V3(Rand.float(in: -4...4), Rand.float(in: 0...3), Rand.float(in: -4...4))
             }
             if let f = flyTarget { let d = f - pos; vel += (d * 0.6 - vel) * min(1, dt * 2); vel.y -= 2 * dt }
             return 0
@@ -253,7 +253,7 @@ extension Mob {
                     vel += (d * 0.5 - vel) * min(1, dt * 2)
                 }
             } else {
-                if aiTimer <= 0 || flyTarget == nil { aiTimer = 3; flyTarget = pos + V3(Float.random(in: -4...4), Float.random(in: -1...2), Float.random(in: -4...4)) }
+                if aiTimer <= 0 || flyTarget == nil { aiTimer = 3; flyTarget = pos + V3(Rand.float(in: -4...4), Rand.float(in: -1...2), Rand.float(in: -4...4)) }
                 if let f = flyTarget { let d = f - pos; vel += (d * 0.4 - vel) * min(1, dt * 2) }
             }
             return 0
@@ -303,17 +303,17 @@ extension Mob {
             airTime += dt
             if airTime > (kind == .dolphin ? 120 : 15) { fireTick += dt; if fireTick > 1 { fireTick = 0; health -= 1; hurt = 0.2 } }
             vel.y -= 28 * dt
-            if onGround && Float.random(in: 0..<1) < dt * 3 { vel = V3(Float.random(in: -2...2), 5, Float.random(in: -2...2)) }
+            if onGround && Rand.float(in: 0..<1) < dt * 3 { vel = V3(Rand.float(in: -2...2), 5, Rand.float(in: -2...2)) }
         } else {
             airTime = 0
             // Swim target inside water.
             if aiTimer <= 0 || flyTarget == nil {
-                aiTimer = Float.random(in: 1...4)
-                var t = pos + V3(Float.random(in: -6...6), Float.random(in: -2...2), Float.random(in: -6...6))
+                aiTimer = Rand.float(in: 1...4)
+                var t = pos + V3(Rand.float(in: -6...6), Rand.float(in: -2...2), Rand.float(in: -6...6))
                 // Schooling fish follow a nearby member of their kind.
                 if kind == .cod || kind == .salmon || kind == .tropicalFish,
                    let leader = g.mobs.mobs.first(where: { $0 !== self && $0.kind == kind && simd_length($0.pos - pos) < 8 }) {
-                    t = leader.pos + V3(Float.random(in: -1.5...1.5), Float.random(in: -1...1), Float.random(in: -1.5...1.5))
+                    t = leader.pos + V3(Rand.float(in: -1.5...1.5), Rand.float(in: -1...1), Rand.float(in: -1.5...1.5))
                 }
                 if Blocks.fluidKind[Int(w.block(Int(floor(t.x)), Int(floor(t.y)), Int(floor(t.z))))] == 1 { flyTarget = t }
             }
@@ -329,7 +329,7 @@ extension Mob {
                 }
                 flyTarget = pos
             } else { beam = 0 }
-            if kind == .elderGuardian && dist < 50 && g.survival && Float.random(in: 0..<1) < dt / 60 {
+            if kind == .elderGuardian && dist < 50 && g.survival && Rand.float(in: 0..<1) < dt / 60 {
                 g.applyEffect(.miningFatigue, amp: 2, seconds: 300)
                 g.sfx(.elderCurse, 1)
             }
@@ -340,13 +340,13 @@ extension Mob {
                 var t = h - pos
                 t.y = min(0, max(-2, t.y))
                 if simd_length(t) > 1 { flyTarget = pos + simd_normalize(t) * 6 }
-            } else if kind == .dolphin && dist < 8 && g.player.inWater { flyTarget = player + V3(Float.random(in: -2...2), 0, Float.random(in: -2...2)); g.applyEffect(.dolphinsGrace, amp: 0, seconds: 5) }
+            } else if kind == .dolphin && dist < 8 && g.player.inWater { flyTarget = player + V3(Rand.float(in: -2...2), 0, Rand.float(in: -2...2)); g.applyEffect(.dolphinsGrace, amp: 0, seconds: 5) }
             if kind == .pufferfish {
                 sitting = dist < 3
                 if sitting && dist < 1.2 && attackCooldown <= 0 && g.survival { attackCooldown = 1; g.hurtPlayer(2, from: pos, cause: "was stung to death", knockback: 0.2); g.applyEffect(.poison, amp: 0, seconds: 6) }
             }
             // Axolotls play dead for 10 s when hurt (1 in 3), regenerating; nothing hunts them meanwhile.
-            if kind == .axolotl && wasHit && health > 0 && Int.random(in: 0..<3) == 0 {
+            if kind == .axolotl && wasHit && health > 0 && Rand.int(in: 0..<3) == 0 {
                 sitting = true; phaseTime = 10
                 applyEffect(.regeneration, amp: 0, seconds: 10, game: g)
             }
@@ -405,7 +405,7 @@ extension Mob {
                 if phase == 0 {
                     let c = player + V3(cosf(circleAngle) * 10, 14 + sinf(circleAngle * 2) * 2, sinf(circleAngle) * 10)
                     vel += (simd_normalize(c - pos) * spec.speed - vel) * min(1, dt * 2)
-                    if Float.random(in: 0..<1) < dt / 6 { phase = 1 }
+                    if Rand.float(in: 0..<1) < dt / 6 { phase = 1 }
                 } else {
                     let d = g.player.eye - pos
                     vel += (simd_normalize(d) * spec.speed * 1.4 - vel) * min(1, dt * 3)
@@ -435,7 +435,7 @@ extension Mob {
             wander(); return moving ? spec.speed * 0.5 : 0
         case .warden where emergeTime > 0:
             emergeTime -= dt                                  // still digging out of the ground
-            if Float.random(in: 0..<1) < dt * 8 { g.particles.smoke(at: pos + V3(Float.random(in: -0.6...0.6), 0.1, Float.random(in: -0.6...0.6))) }
+            if Rand.float(in: 0..<1) < dt * 8 { g.particles.smoke(at: pos + V3(Rand.float(in: -0.6...0.6), 0.1, Rand.float(in: -0.6...0.6))) }
             return 0
         case .warden:
             // Blind: tracks the player by vibrations (moving, not sneaking) and anger; melee 30, sonic boom 10 at range.
@@ -443,9 +443,9 @@ extension Mob {
             if noisy { anger = min(150, anger + dt * 35) } else { anger = max(0, anger - dt * 2) }
             // Heartbeat speeds up with anger; sniffing while it listens.
             let beatRate: Float = 0.5 + anger / 80
-            if dist < 32 && Float.random(in: 0..<1) < dt * beatRate { g.sfx(.wardenHeartbeat, 1.2, at: pos + V3(0, 2, 0)) }
-            if dist < 24 && anger > 10 && anger < 80 && Float.random(in: 0..<1) < dt / 7 { g.sfx(.wardenSniff, 1, at: pos + V3(0, 2.5, 0)) }
-            if dist < 20 && g.survival && Float.random(in: 0..<1) < dt / 6 { g.applyEffect(.darkness, amp: 0, seconds: 12) }
+            if dist < 32 && Rand.float(in: 0..<1) < dt * beatRate { g.sfx(.wardenHeartbeat, 1.2, at: pos + V3(0, 2, 0)) }
+            if dist < 24 && anger > 10 && anger < 80 && Rand.float(in: 0..<1) < dt / 7 { g.sfx(.wardenSniff, 1, at: pos + V3(0, 2.5, 0)) }
+            if dist < 20 && g.survival && Rand.float(in: 0..<1) < dt / 6 { g.applyEffect(.darkness, amp: 0, seconds: 12) }
             if anger >= 80 && canTarget {
                 face(player)
                 attackCooldown -= 0
@@ -467,7 +467,7 @@ extension Mob {
             // Hops around and fires wind charges (1 damage + big knockback).
             if canTarget && dist < 16 {
                 face(player)
-                if onGround && Float.random(in: 0..<1) < dt * 0.8 { vel = simd_normalize(V3(Float.random(in: -1...1), 0, Float.random(in: -1...1))) * 4 + V3(0, 9, 0) }
+                if onGround && Rand.float(in: 0..<1) < dt * 0.8 { vel = simd_normalize(V3(Rand.float(in: -1...1), 0, Rand.float(in: -1...1))) * 4 + V3(0, 9, 0) }
                 attackCooldown -= 0
                 if attackCooldown <= 0 {
                     attackCooldown = 2.5

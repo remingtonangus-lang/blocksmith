@@ -99,7 +99,7 @@ extension Game {
             sound?.disc?.play(score, fadeIn: 0.5)
         }
         sound?.setDisc(at: b.center, occlusion: audioOcclusion(player.eye, b.center))
-        if Float.random(in: 0..<1) < dt * 2 { particles.hearts(at: b.center + V3(0, 0.8, 0)) }
+        if Rand.float(in: 0..<1) < dt * 2 { particles.hearts(at: b.center + V3(0, 0.8, 0)) }
     }
 }
 

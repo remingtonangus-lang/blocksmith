@@ -94,8 +94,8 @@ extension Mob {
         // Ageing: about one stage per half hour of loaded time; an oxidized golem may turn to a statue.
         if !waxed {
             if st < 3 {
-                if Float.random(in: 0..<1) < dt / 1800 { variant = st + 1 }
-            } else if Float.random(in: 0..<1) < dt / 1200 {
+                if Rand.float(in: 0..<1) < dt / 1800 { variant = st + 1 }
+            } else if Rand.float(in: 0..<1) < dt / 1200 {
                 g.petrifyCopperGolem(self)
                 return 0
             }

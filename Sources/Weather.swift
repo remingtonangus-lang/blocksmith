@@ -8,8 +8,8 @@ import simd
 struct Weather: Codable {
     var raining = false
     var thundering = false
-    var rainTime: Float = Float.random(in: 600...9000)      // seconds until the rain state flips
-    var thunderTime: Float = Float.random(in: 600...9000)
+    var rainTime: Float = Rand.float(in: 600...9000)      // seconds until the rain state flips
+    var thunderTime: Float = Rand.float(in: 600...9000)
     var rain: Float = 0                                       // 0...1 fade
     var thunder: Float = 0
 }
@@ -43,12 +43,12 @@ extension Game {
         w.rainTime -= dt
         if w.rainTime <= 0 {
             w.raining.toggle()
-            w.rainTime = w.raining ? Float.random(in: 600...1200) : Float.random(in: 600...9000)
+            w.rainTime = w.raining ? Rand.float(in: 600...1200) : Rand.float(in: 600...9000)
         }
         w.thunderTime -= dt
         if w.thunderTime <= 0 {
             w.thundering.toggle()
-            w.thunderTime = w.thundering ? Float.random(in: 180...780) : Float.random(in: 600...9000)
+            w.thunderTime = w.thundering ? Rand.float(in: 180...780) : Rand.float(in: 600...9000)
         }
         w.rain += ((w.raining ? 1 : 0) - w.rain) * min(1, dt * 0.2)
         w.thunder += ((w.raining && w.thundering ? 1 : 0) - w.thunder) * min(1, dt * 0.2)
@@ -60,12 +60,12 @@ extension Game {
         // Splashes where rain lands around the player.
         if w.rain > 0.2 {
             for _ in 0..<Int(w.rain * 6) {
-                let x = Int(floor(player.pos.x)) + Int.random(in: -8...8), z = Int(floor(player.pos.z)) + Int.random(in: -8...8)
+                let x = Int(floor(player.pos.x)) + Rand.int(in: -8...8), z = Int(floor(player.pos.z)) + Rand.int(in: -8...8)
                 guard let c = world.chunks[ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))] else { continue }
                 let top = Int(c.height[mod(x, CS) + mod(z, CS) * CS])
                 guard precipitation(x, top + 1, z) == 1 else { continue }
-                let p = V3(Float(x) + Float.random(in: 0...1), Float(top + 1) + 0.02, Float(z) + Float.random(in: 0...1))
-                particles.add(Particle(pos: p, vel: V3(Float.random(in: -0.4...0.4), Float.random(in: 0.8...1.6), Float.random(in: -0.4...0.4)),
+                let p = V3(Float(x) + Rand.float(in: 0...1), Float(top + 1) + 0.02, Float(z) + Rand.float(in: 0...1))
+                particles.add(Particle(pos: p, vel: V3(Rand.float(in: -0.4...0.4), Rand.float(in: 0.8...1.6), Rand.float(in: -0.4...0.4)),
                                        life: 0.25, maxLife: 0.25, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1, size: 0.04,
                                        gravity: 10, color: V3(0.75, 0.82, 1), collide: false))
             }
@@ -80,8 +80,8 @@ extension Game {
         if w.thunder > 0.5 {
             lightningTimer -= dt
             if lightningTimer <= 0 {
-                lightningTimer = Float.random(in: 5...20)
-                let a = Float.random(in: 0..<(2 * .pi)), d = Float.random(in: 0...96)
+                lightningTimer = Rand.float(in: 5...20)
+                let a = Rand.float(in: 0..<(2 * .pi)), d = Rand.float(in: 0...96)
                 var x = Int(floor(player.pos.x + cosf(a) * d)), z = Int(floor(player.pos.z + sinf(a) * d))
                 // Lightning rods within 128 blocks attract it (reference: strikes the rod instead).
                 if let rod = lightningRods.first(where: { abs($0.x - x) < 64 && abs($0.z - z) < 64 }) { x = rod.x; z = rod.z }
@@ -96,7 +96,7 @@ extension Game {
     // A lightning strike: 5 damage + fire within 3 blocks; hisser -> charged, pig -> zombified
     // boarling, villager -> witch, mushroom cow colour swap; sets fire to the struck block.
     func strike(_ at: V3) {
-        bolts.append(Bolt(pos: at, life: 0.35, seed: UInt64.random(in: 1...UInt64.max)))
+        bolts.append(Bolt(pos: at, life: 0.35, seed: Rand.u64(in: 1...UInt64.max)))
         scrapeCopperByLightning(IVec3(Int(floor(at.x)), Int(floor(at.y)) - 1, Int(floor(at.z))))
         lightningFlash = 1
         addFlash(at: at + V3(0, 6, 0), color: V3(5, 5.5, 7), radius: 40, life: 0.35)
@@ -135,9 +135,9 @@ extension Game {
         let r = min(6, world.renderDistance)
         let snowId: BlockID? = Blocks.has("snow") ? Blocks.id("snow") : nil
         let iceId: BlockID? = Blocks.has("ice") ? Blocks.id("ice") : nil
-        for dz in -r...r { for dx in -r...r where Int.random(in: 0..<16) == 0 {
+        for dz in -r...r { for dx in -r...r where Rand.int(in: 0..<16) == 0 {
             guard let c = world.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] else { continue }
-            let lx = Int.random(in: 0..<16), lz = Int.random(in: 0..<16)
+            let lx = Rand.int(in: 0..<16), lz = Rand.int(in: 0..<16)
             let x = c.cx * CS + lx, z = c.cz * CS + lz
             let y = Int(c.height[lx + lz * CS])
             guard y > 0 && y < CH - 1 else { continue }
@@ -145,7 +145,7 @@ extension Game {
             let biome = world.gen.column(x, z).biome
             guard biome.snows(at: y) else {
                 // Rain fills cauldrons (1 in 20).
-                if weather.rain > 0.5 && Blocks.key(Blocks.groupBase[Int(top)]) == "cauldron" && Int.random(in: 0..<20) == 0 {
+                if weather.rain > 0.5 && Blocks.key(Blocks.groupBase[Int(top)]) == "cauldron" && Rand.int(in: 0..<20) == 0 {
                     world.setBlockAsync(x, y, z, Blocks.id("water_cauldron"))
                 }
                 continue

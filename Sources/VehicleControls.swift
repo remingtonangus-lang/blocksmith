@@ -156,7 +156,7 @@ final class Turrets {
                          shooter: ObjectIdentifier(m), by: "Player", life: 6, gravity: 20)
             s.power = 1.8
             g.arms.spawn(s)
-            for _ in 0..<6 { g.particles.smoke(at: muzzle + fwd * Float.random(in: 0...1), dark: false) }
+            for _ in 0..<6 { g.particles.smoke(at: muzzle + fwd * Rand.float(in: 0...1), dark: false) }
         }
         g.sfx(.gun(9), 2, at: pivot)
         PadManager.shared.rumble(0.9, 0.3, sharpness: 0.2)

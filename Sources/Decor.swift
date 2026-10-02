@@ -177,7 +177,7 @@ extension Game {
             if ok { fits.append(i) }
         }
         guard let best = fits.map({ Paintings.motives[$0].1 * Paintings.motives[$0].2 }).max() else { return }
-        let pick = fits.filter { Paintings.motives[$0].1 * Paintings.motives[$0].2 == best }.randomElement()!
+        let pick = fits.filter { Paintings.motives[$0].1 * Paintings.motives[$0].2 == best }.pick()!
         world.setBlock(p.x, p.y, p.z, Blocks.id("painting") + BlockID(f))
         let be = BlockEntity(.painting)
         be.mob = Paintings.motives[pick].0

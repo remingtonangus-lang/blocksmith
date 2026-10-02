@@ -137,7 +137,7 @@ extension Game {
         guard let be = world.blockEntities[p] else { sfx(.click, 0.4); return }
         let c = be.container
         let filled = (0..<c.count).filter { !c[$0].isEmpty }
-        guard let slot = filled.randomElement() else { sfx(.click, 0.4, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5); return }
+        guard let slot = filled.pick() else { sfx(.click, 0.4, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5); return }
         let dv = BlockRegistry.dir6[dir]
         let front = p + dv
         let fd = V3(Float(dv.x), Float(dv.y), Float(dv.z))
@@ -172,8 +172,8 @@ extension Game {
             if ["wheat", "carrots", "potatoes", "beetroots"].contains(bk) {
                 let maxStage = bk == "beetroots" ? 3 : 7
                 let st = Int(fb - Blocks.groupBase[Int(fb)])
-                if st < maxStage { world.setBlock(front.x, front.y, front.z, Blocks.groupBase[Int(fb)] + BlockID(min(maxStage, st + Int.random(in: 2...5)))); take() }
-            } else if bk.hasSuffix("_sapling") { if Float.random(in: 0..<1) < 0.45 { growTree(front, bk) }; take() }
+                if st < maxStage { world.setBlock(front.x, front.y, front.z, Blocks.groupBase[Int(fb)] + BlockID(min(maxStage, st + Rand.int(in: 2...5)))); take() }
+            } else if bk.hasSuffix("_sapling") { if Rand.float(in: 0..<1) < 0.45 { growTree(front, bk) }; take() }
         default:
             if stack.def.armorSlot != nil, simd_length(player.pos + V3(0, 0.9, 0) - (V3(Float(front.x), Float(front.y), Float(front.z)) + 0.5)) < 1.5,
                let sl = stack.def.armorSlot, inventory.armor[sl.rawValue].isEmpty {

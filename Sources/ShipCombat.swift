@@ -136,7 +136,7 @@ extension ShipManager {
             for i in 0..<16 { for j in 0..<16 { for k in 0..<16 {
                 if !(i == 0 || i == 15 || j == 0 || j == 15 || k == 0 || k == 15) { continue }
                 let d = simd_normalize(V3(Float(i) / 15 * 2 - 1, Float(j) / 15 * 2 - 1, Float(k) / 15 * 2 - 1))
-                var intensity = power * (0.7 + Float.random(in: 0..<0.6))
+                var intensity = power * (0.7 + Rand.float(in: 0..<0.6))
                 var p = lc
                 while intensity > 0 {
                     let cell = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
@@ -154,7 +154,7 @@ extension ShipManager {
                 let b = g.get(cell.x, cell.y, cell.z)
                 let at = s.toWorld(V3(Float(cell.x), Float(cell.y), Float(cell.z)) + 0.5)
                 if let game {
-                    if Float.random(in: 0..<1) < 1 / max(1, power) {
+                    if Rand.float(in: 0..<1) < 1 / max(1, power) {
                         for st in Mining.drops(b, ItemStack(Items.id("netherite_pickaxe"), 1)) { game.drops.spawn(st, at: at) }
                     }
                     if let be = s.blockEntities[cell] { for st in be.container.slots where !st.isEmpty { game.drops.spawn(st, at: at) } }

@@ -73,7 +73,7 @@ extension Mob {
         var best: IVec3?
         var bd = Int.max
         for _ in 0..<40 {
-            let q = IVec3(c.x + Int.random(in: -radius...radius), c.y + Int.random(in: -4...4), c.z + Int.random(in: -radius...radius))
+            let q = IVec3(c.x + Rand.int(in: -radius...radius), c.y + Rand.int(in: -4...4), c.z + Rand.int(in: -radius...radius))
             guard ok(q) else { continue }
             let d = (q.x - c.x) * (q.x - c.x) + (q.y - c.y) * (q.y - c.y) + (q.z - c.z) * (q.z - c.z)
             if d < bd { bd = d; best = q }
@@ -124,7 +124,7 @@ extension Mob {
             }
         }
         // Carrying nectar: grow a crop below now and then (reference: up to 10 per trip).
-        if nectar && Float.random(in: 0..<1) < dt * 0.5 {
+        if nectar && Rand.float(in: 0..<1) < dt * 0.5 {
             let q = IVec3(Int(floor(pos.x)), Int(floor(pos.y)) - 1, Int(floor(pos.z)))
             let b = w.block(q.x, q.y, q.z)
             let base = Blocks.groupBase[Int(b)]
@@ -132,8 +132,8 @@ extension Mob {
         }
         if goal == nil {
             if aiTimer <= 0 || flyTarget == nil {
-                aiTimer = Float.random(in: 3...8)
-                flyTarget = pos + V3(Float.random(in: -6...6), Float.random(in: -1...2), Float.random(in: -6...6))
+                aiTimer = Rand.float(in: 3...8)
+                flyTarget = pos + V3(Rand.float(in: -6...6), Rand.float(in: -1...2), Rand.float(in: -6...6))
             }
             goal = flyTarget
         }

@@ -193,7 +193,7 @@ extension ShipManager {
             } else {
                 s.soundTimer = 0.5
             }
-            if s.submerged > 0 && speed > 2.5 && Float.random(in: 0..<1) < 0.35 {
+            if s.submerged > 0 && speed > 2.5 && Rand.float(in: 0..<1) < 0.35 {
                 let bow = s.toWorld(s.com + s.fwd * ((s.localMax - s.localMin).z * 0.5))
                 g.sfx(.splash, min(0.6, speed * 0.06), at: bow)
             }

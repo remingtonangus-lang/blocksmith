@@ -209,15 +209,15 @@ extension Mob {
         }
         let ticks = dt * 20
         if carriedBlock == 0 {
-            guard Float.random(in: 0..<1) < ticks / 20 else { return }
-            let q = IVec3(c.x + Int.random(in: -2...2), c.y + Int.random(in: 0...2), c.z + Int.random(in: -2...2))
+            guard Rand.float(in: 0..<1) < ticks / 20 else { return }
+            let q = IVec3(c.x + Rand.int(in: -2...2), c.y + Rand.int(in: 0...2), c.z + Rand.int(in: -2...2))
             let b = w.block(q.x, q.y, q.z)
             guard b != AIR, Mob.voidwalkerHoldable.contains(Blocks.key(Blocks.groupBase[Int(b)])) else { return }
             carriedBlock = Blocks.groupBase[Int(b)]
             w.setBlock(q.x, q.y, q.z, AIR)
         } else {
-            guard Float.random(in: 0..<1) < ticks / 2000 else { return }
-            let q = IVec3(c.x + Int.random(in: -1...1), c.y + Int.random(in: 0...2), c.z + Int.random(in: -1...1))
+            guard Rand.float(in: 0..<1) < ticks / 2000 else { return }
+            let q = IVec3(c.x + Rand.int(in: -1...1), c.y + Rand.int(in: 0...2), c.z + Rand.int(in: -1...1))
             guard w.block(q.x, q.y, q.z) == AIR, Blocks.opaque[Int(w.block(q.x, q.y - 1, q.z))] else { return }
             w.setBlock(q.x, q.y, q.z, carriedBlock)
             carriedBlock = 0
@@ -227,7 +227,7 @@ extension Mob {
     // Reference eat-grass goal: 1/1000 per tick (1/50 for lambs) a sheep eats the grass at its feet or
     // turns the grass block below to dirt; that regrows its wool and speeds a lamb up by a minute.
     func sheepGraze(_ dt: Float, _ g: Game) {
-        guard onGround, panic <= 0, Float.random(in: 0..<1) < dt * 20 / (baby ? 50 : 1000) else { return }
+        guard onGround, panic <= 0, Rand.float(in: 0..<1) < dt * 20 / (baby ? 50 : 1000) else { return }
         let w = g.world
         let x = Int(floor(pos.x)), y = Int(floor(pos.y)), z = Int(floor(pos.z))
         if w.block(x, y, z) == TALL_GRASS {
@@ -262,17 +262,17 @@ extension Mob {
     func inheritFrom(_ a: Mob, _ b: Mob) {
         if horseLike && kind != .llama && kind != .traderLlama && kind != .camel {
             func bits(_ v: Int, _ s: Int) -> Int { (v >> s) & 15 }
-            let sp = (bits(a.variant, 4) + bits(b.variant, 4) + Int.random(in: 0...15)) / 3
-            let jp = (bits(a.variant, 8) + bits(b.variant, 8) + Int.random(in: 0...15)) / 3
-            let colour = (Bool.random() ? a.variant : b.variant) & 15
+            let sp = (bits(a.variant, 4) + bits(b.variant, 4) + Rand.int(in: 0...15)) / 3
+            let jp = (bits(a.variant, 8) + bits(b.variant, 8) + Rand.int(in: 0...15)) / 3
+            let colour = (Rand.bool() ? a.variant : b.variant) & 15
             variant = colour | (sp << 4) | (jp << 8)
-            health = (a.health + b.health + Int.random(in: 15...30)) / 3
+            health = (a.health + b.health + Rand.int(in: 15...30)) / 3
         } else if kind == .panda {
             // One gene from each parent, with a 1 in 32 mutation.
-            func pick(_ v: Int) -> Int { Int.random(in: 0..<32) == 0 ? Mob.pandaGene() : (Bool.random() ? v & 7 : (v >> 3) & 7) }
+            func pick(_ v: Int) -> Int { Rand.int(in: 0..<32) == 0 ? Mob.pandaGene() : (Rand.bool() ? v & 7 : (v >> 3) & 7) }
             variant = pick(a.variant) | (pick(b.variant) << 3)
         } else if a.kind == b.kind {
-            variant = Bool.random() ? a.variant : b.variant
+            variant = Rand.bool() ? a.variant : b.variant
         }
         if a.tamed || b.tamed, [.wolf, .cat, .parrot].contains(kind) { owner = true; persistent = true }
         if kind == .fox { owner = false }                       // trusts the player who bred it
@@ -291,7 +291,7 @@ extension Mob {
             if (below == "sand" || below == "red_sand") && w.block(c.x, c.y, c.z) == AIR && Blocks.has("turtle_egg") {
                 w.setBlock(c.x, c.y, c.z, Blocks.id("turtle_egg"))
                 hasEgg = false
-            } else if Float.random(in: 0..<1) < 0.02 { hasEgg = false }
+            } else if Rand.float(in: 0..<1) < 0.02 { hasEgg = false }
             return true
         case .frog:
             func surface(_ q: IVec3) -> Bool { Blocks.fluidKind[Int(w.block(q.x, q.y - 1, q.z))] == 1 && w.block(q.x, q.y, q.z) == AIR }
@@ -314,13 +314,13 @@ extension Mob {
     // Panda genes (reference): 0 normal, 1 lazy, 2 worried, 3 playful, 4 brown, 5 weak, 6 aggressive.
     // Brown and weak are recessive: they only show when both genes match.
     static func pandaGene() -> Int {
-        let r = Int.random(in: 0..<15)
+        let r = Rand.int(in: 0..<15)
         if r == 0 { return 1 }
         if r == 1 { return 2 }
         if r == 2 { return 3 }
         if r == 3 { return 5 }
         if r == 4 { return 6 }
-        return Int.random(in: 0..<50) == 0 ? 4 : 0
+        return Rand.int(in: 0..<50) == 0 ? 4 : 0
     }
     var pandaPersonality: Int {
         let main = variant & 7, hidden = (variant >> 3) & 7
@@ -334,12 +334,12 @@ extension Mob {
         if p == 2 && g.weather.thunder > 0.5 { sitting = true; return 0 }       // worried: hides from storms
         sitting = false
         // Babies sneeze now and then (weak ones far more), dropping a slime ball and startling the others.
-        if baby && Float.random(in: 0..<1) < dt * 20 / (p == 5 ? 500 : 6000) {
+        if baby && Rand.float(in: 0..<1) < dt * 20 / (p == 5 ? 500 : 6000) {
             if Items.has("slime_ball") { g.drops.spawn(ItemStack(Items.id("slime_ball"), 1), at: pos + V3(0, 0.4, 0)) }
             for o in g.mobs.of(.panda) where o !== self && simd_length(o.pos - pos) < 10 { o.vel.y = 5 }
             g.sfx(.mobPig, 0.7, at: pos)
         }
-        if p == 3 && onGround && Float.random(in: 0..<1) < dt / 8 { vel += forward * 3 + V3(0, 4, 0) }   // playful roll
+        if p == 3 && onGround && Rand.float(in: 0..<1) < dt / 8 { vel += forward * 3 + V3(0, 4, 0) }   // playful roll
         if p == 1 { wander(); return moving ? spec.speed * 0.3 : 0 }                                    // lazy
         return nil
     }
@@ -389,13 +389,13 @@ extension Game {
     // Morning gifts: a tamed cat near the sleeping player leaves one 70% of the time (reference morning
     // gift table: rabbit hide / rabbit foot / raw chicken / feather / rotten flesh / string, rarely a membrane).
     func catGifts() {
-        for c in mobs.of(.cat) where c.tamed && simd_length(c.pos - player.pos) < 16 && Float.random(in: 0..<1) < 0.7 {
+        for c in mobs.of(.cat) where c.tamed && simd_length(c.pos - player.pos) < 16 && Rand.float(in: 0..<1) < 0.7 {
             let table: [(String, Float)] = [("rabbit_hide", 0.1613), ("rabbit_foot", 0.3226), ("chicken", 0.4839), ("feather", 0.6452),
                                              ("rotten_flesh", 0.8065), ("string", 0.9677), ("phantom_membrane", 1)]
-            let r = Float.random(in: 0..<1)
+            let r = Rand.float(in: 0..<1)
             let name = table.first { r < $0.1 }?.0 ?? "string"
             if Items.has(name) { drops.spawn(ItemStack(Items.id(name), 1), at: player.pos + V3(0, 0.5, 0)) }
-            c.pos = player.pos + V3(Float.random(in: -1...1), 0, Float.random(in: -1...1))
+            c.pos = player.pos + V3(Rand.float(in: -1...1), 0, Rand.float(in: -1...1))
         }
     }
 

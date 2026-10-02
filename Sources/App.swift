@@ -117,7 +117,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         save = SaveManager(name: name)
         UserDefaults.standard.set(name, forKey: "lastWorld")
         let meta = save.loadMeta()
-        let s = meta?.seed ?? seed ?? UInt64.random(in: 1...UInt64(Int64.max))
+        let s = meta?.seed ?? seed ?? Rand.u64(in: 1...UInt64(Int64.max))
         let world = World(seed: s, device: device, save: save)
         game = Game(world: world, save: save, persistent: true)
         let rd = UserDefaults.standard.integer(forKey: "renderDistance")
@@ -276,7 +276,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             case "quit": self.saveQuit()
             case "worlds": self.showWorlds()
             case _ where id.hasPrefix("play:"): self.switchWorld(name: String(id.dropFirst(5)), seed: nil, survival: nil, difficulty: nil)
-            case "newworld": self.switchWorld(name: "World\(Int.random(in: 100...999))", seed: nil, survival: self.game.survival, difficulty: self.game.difficulty)
+            case "newworld": self.switchWorld(name: "World\(Rand.int(in: 100...999))", seed: nil, survival: self.game.survival, difficulty: self.game.difficulty)
             case _ where id.hasPrefix("create:"):
                 // create:<survival 0/1>:<difficulty>:<name>:<seed text>
                 let parts = id.split(separator: ":", maxSplits: 4, omittingEmptySubsequences: false).map(String.init)
@@ -452,7 +452,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard let panel = worldsPanel else { return }
         func find<T: NSView>(_ id: String) -> T? { panel.subviews.flatMap { ($0 as? NSStackView)?.views ?? [] }.first { $0.identifier?.rawValue == id } as? T }
         let fieldName = (find("newName") as NSTextField?)?.stringValue.trimmingCharacters(in: .whitespaces) ?? ""
-        let name = fieldName.isEmpty ? "World\(Int.random(in: 100...999))" : fieldName.replacingOccurrences(of: "/", with: "-")
+        let name = fieldName.isEmpty ? "World\(Rand.int(in: 100...999))" : fieldName.replacingOccurrences(of: "/", with: "-")
         let seed = AppDelegate.seedValue((find("newSeed") as NSTextField?)?.stringValue ?? "")
         let survival = (find("newMode") as NSPopUpButton?)?.indexOfSelectedItem != 1
         let diff = (find("newDifficulty") as NSPopUpButton?)?.indexOfSelectedItem ?? 2

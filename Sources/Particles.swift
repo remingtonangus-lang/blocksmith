@@ -35,8 +35,8 @@ final class ParticleManager {
             let o = V3(Float(i) + 0.5, Float(j) + 0.5, Float(k) + 0.5) / 3
             let pos = V3(Float(p.x), Float(p.y), Float(p.z)) + o
             let v = (o - V3(0.5, 0.5, 0.5)) * 4 + V3(0, 1.5, 0)
-            add(Particle(pos: pos, vel: v, life: Float.random(in: 0.4...1.0), maxLife: 1, layer: layer,
-                         uv0: V2(Float.random(in: 0..<0.75), Float.random(in: 0..<0.75)), uvSize: 0.25, size: 0.08,
+            add(Particle(pos: pos, vel: v, life: Rand.float(in: 0.4...1.0), maxLife: 1, layer: layer,
+                         uv0: V2(Rand.float(in: 0..<0.75), Rand.float(in: 0..<0.75)), uvSize: 0.25, size: 0.08,
                          gravity: 16, color: tint, collide: true))
         } } }
     }
@@ -46,9 +46,9 @@ final class ParticleManager {
         let layer = Int(Blocks.tex[Int(b) * 6 + 2])
         let tint: V3 = Blocks.tint[Int(b)] == 2 ? V3(0.47, 0.67, 0.18) : (Blocks.tint[Int(b)] != 0 ? V3(0.57, 0.74, 0.35) : V3(1, 1, 1))
         for _ in 0..<count {
-            let d = V3(Float.random(in: -1...1), 0, Float.random(in: -1...1)) * spread
-            add(Particle(pos: c + d + V3(0, 0.05, 0), vel: V3(d.x * 3, Float.random(in: 1...2.5), d.z * 3), life: Float.random(in: 0.3...0.7), maxLife: 0.7,
-                         layer: layer, uv0: V2(Float.random(in: 0..<0.75), Float.random(in: 0..<0.75)), uvSize: 0.25, size: 0.06,
+            let d = V3(Rand.float(in: -1...1), 0, Rand.float(in: -1...1)) * spread
+            add(Particle(pos: c + d + V3(0, 0.05, 0), vel: V3(d.x * 3, Rand.float(in: 1...2.5), d.z * 3), life: Rand.float(in: 0.3...0.7), maxLife: 0.7,
+                         layer: layer, uv0: V2(Rand.float(in: 0..<0.75), Rand.float(in: 0..<0.75)), uvSize: 0.25, size: 0.06,
                          gravity: 14, color: tint, collide: true))
         }
     }
@@ -57,38 +57,38 @@ final class ParticleManager {
         let smoke = Int(Tex.id("smoke"))
         // Fireball: short-lived glowing orange puffs at the core (bloom in Fancy).
         for _ in 0..<Int(power * 6) {
-            let d = simd_normalize(V3(Float.random(in: -1...1), Float.random(in: -0.3...1), Float.random(in: -1...1)))
-            add(Particle(pos: c + d * Float.random(in: 0...power * 0.35), vel: d * Float.random(in: 1.5...3.5) + V3(0, 1.2, 0),
-                         life: Float.random(in: 0.2...0.45), maxLife: 0.45, layer: smoke, uv0: V2(0, 0), uvSize: 1,
-                         size: Float.random(in: 0.35...0.8), gravity: -2, color: V3(1.0, Float.random(in: 0.45...0.75), 0.18),
+            let d = simd_normalize(V3(Rand.float(in: -1...1), Rand.float(in: -0.3...1), Rand.float(in: -1...1)))
+            add(Particle(pos: c + d * Rand.float(in: 0...power * 0.35), vel: d * Rand.float(in: 1.5...3.5) + V3(0, 1.2, 0),
+                         life: Rand.float(in: 0.2...0.45), maxLife: 0.45, layer: smoke, uv0: V2(0, 0), uvSize: 1,
+                         size: Rand.float(in: 0.35...0.8), gravity: -2, color: V3(1.0, Rand.float(in: 0.45...0.75), 0.18),
                          collide: false, glow: true))
         }
         for _ in 0..<Int(power * 12) {
-            let d = simd_normalize(V3(Float.random(in: -1...1), Float.random(in: -1...1), Float.random(in: -1...1)))
-            let g = Float.random(in: 0.5...1)
-            add(Particle(pos: c + d * Float.random(in: 0...power * 0.6), vel: d * Float.random(in: 1...4) + V3(0, 1, 0),
-                         life: Float.random(in: 0.6...1.6), maxLife: 1.6, layer: smoke, uv0: V2(0, 0), uvSize: 1,
-                         size: Float.random(in: 0.3...0.8), gravity: -1, color: V3(g, g, g), collide: false))
+            let d = simd_normalize(V3(Rand.float(in: -1...1), Rand.float(in: -1...1), Rand.float(in: -1...1)))
+            let g = Rand.float(in: 0.5...1)
+            add(Particle(pos: c + d * Rand.float(in: 0...power * 0.6), vel: d * Rand.float(in: 1...4) + V3(0, 1, 0),
+                         life: Rand.float(in: 0.6...1.6), maxLife: 1.6, layer: smoke, uv0: V2(0, 0), uvSize: 1,
+                         size: Rand.float(in: 0.3...0.8), gravity: -1, color: V3(g, g, g), collide: false))
         }
     }
 
     func smoke(at c: V3, dark: Bool = true) {
-        let g: Float = dark ? Float.random(in: 0.15...0.3) : Float.random(in: 0.6...0.8)
-        add(Particle(pos: c, vel: V3(Float.random(in: -0.2...0.2), Float.random(in: 0.5...1.2), Float.random(in: -0.2...0.2)),
-                     life: Float.random(in: 0.5...1.2), maxLife: 1.2, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
-                     size: Float.random(in: 0.08...0.18), gravity: -0.5, color: V3(g, g, g), collide: false))
+        let g: Float = dark ? Rand.float(in: 0.15...0.3) : Rand.float(in: 0.6...0.8)
+        add(Particle(pos: c, vel: V3(Rand.float(in: -0.2...0.2), Rand.float(in: 0.5...1.2), Rand.float(in: -0.2...0.2)),
+                     life: Rand.float(in: 0.5...1.2), maxLife: 1.2, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
+                     size: Rand.float(in: 0.08...0.18), gravity: -0.5, color: V3(g, g, g), collide: false))
     }
 
     func flame(at c: V3) {
-        add(Particle(pos: c, vel: V3(Float.random(in: -0.1...0.1), Float.random(in: 0.1...0.4), Float.random(in: -0.1...0.1)),
-                     life: Float.random(in: 0.3...0.6), maxLife: 0.6, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
-                     size: Float.random(in: 0.06...0.12), gravity: -0.3, color: V3(1, 0.62, 0.2), collide: false, glow: true))
+        add(Particle(pos: c, vel: V3(Rand.float(in: -0.1...0.1), Rand.float(in: 0.1...0.4), Rand.float(in: -0.1...0.1)),
+                     life: Rand.float(in: 0.3...0.6), maxLife: 0.6, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
+                     size: Rand.float(in: 0.06...0.12), gravity: -0.3, color: V3(1, 0.62, 0.2), collide: false, glow: true))
     }
 
     func hearts(at c: V3) {
         let heart = Int(Tex.id("heart"))
         for _ in 0..<5 {
-            add(Particle(pos: c + V3(Float.random(in: -0.4...0.4), Float.random(in: 0...0.4), Float.random(in: -0.4...0.4)),
+            add(Particle(pos: c + V3(Rand.float(in: -0.4...0.4), Rand.float(in: 0...0.4), Rand.float(in: -0.4...0.4)),
                          vel: V3(0, 1, 0), life: 1.2, maxLife: 1.2, layer: heart, uv0: V2(0, 0), uvSize: 1, size: 0.15,
                          gravity: 0, color: V3(1, 1, 1), collide: false))
         }
@@ -97,7 +97,7 @@ final class ParticleManager {
     func crit(at c: V3) {
         let smoke = Int(Tex.id("smoke"))
         for _ in 0..<10 {
-            let d = simd_normalize(V3(Float.random(in: -1...1), Float.random(in: 0...1), Float.random(in: -1...1)))
+            let d = simd_normalize(V3(Rand.float(in: -1...1), Rand.float(in: 0...1), Rand.float(in: -1...1)))
             add(Particle(pos: c, vel: d * 4, life: 0.5, maxLife: 0.5, layer: smoke, uv0: V2(0, 0), uvSize: 1, size: 0.08,
                          gravity: 8, color: V3(0.9, 0.9, 0.6), collide: false))
         }

@@ -77,7 +77,7 @@ extension Game {
             be.used = true
             consumeHeld()
             let tmp = ItemContainer(9)
-            var rng = SRng(UInt64.random(in: 1...UInt64.max))
+            var rng = SRng(Rand.u64(in: 1...UInt64.max))
             Loot.fill(tmp, table: "trial_vault", rng: &rng)
             for s in tmp.slots where !s.isEmpty { drops.spawn(s, at: c + V3(0, 0.7, 0), vel: V3(0, 3, 0)) }
             sfx(.vaultOpen, 0.8, at: c)
@@ -162,7 +162,7 @@ extension Game {
                     if warningLevel >= 4 {
                         warningLevel = 0
                         if !mobs.mobs.contains(where: { $0.kind == .warden }) {
-                            let a = Float.random(in: 0..<(2 * .pi))
+                            let a = Rand.float(in: 0..<(2 * .pi))
                             let x = Int(floor(pp.x + cosf(a) * 6)), z = Int(floor(pp.z + sinf(a) * 6))
                             var y = c.y + 3
                             while y > c.y - 6 && !Blocks.collide[Int(world.block(x, y - 1, z))] { y -= 1 }
@@ -190,7 +190,7 @@ extension Game {
         let sculk = Blocks.id("sculk")
         var n = min(20, xp)
         for _ in 0..<60 where n > 0 {
-            let q = IVec3(c.x + Int.random(in: -3...3), c.y - 1 + Int.random(in: -1...0), c.z + Int.random(in: -3...3))
+            let q = IVec3(c.x + Rand.int(in: -3...3), c.y - 1 + Rand.int(in: -1...0), c.z + Rand.int(in: -3...3))
             let b = world.block(q.x, q.y, q.z)
             if Blocks.opaque[Int(b)] && b != sculk && Blocks.hardness[Int(b)] >= 0 && world.block(q.x, q.y + 1, q.z) == AIR {
                 world.setBlockAsync(q.x, q.y, q.z, sculk); n -= 1
@@ -206,10 +206,10 @@ extension Game {
         case "frosted_ice":
             if st < 3 { world.setBlockAsync(p.x, p.y, p.z, b + 1) } else { world.setBlockAsync(p.x, p.y, p.z, WATER) }
         case "cocoa":
-            if st < 2 && Int.random(in: 0..<5) == 0 { world.setBlockAsync(p.x, p.y, p.z, b + 1) }
+            if st < 2 && Rand.int(in: 0..<5) == 0 { world.setBlockAsync(p.x, p.y, p.z, b + 1) }
         case "turtle_egg":
             // Hatch at night after a few cracks.
-            if daylight < 0.4 && Int.random(in: 0..<3) == 0 {
+            if daylight < 0.4 && Rand.int(in: 0..<3) == 0 {
                 world.setBlockAsync(p.x, p.y, p.z, st > 0 ? b - 1 : AIR)
                 let t = Mob(.turtle, at: V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5))
                 t.baby = true; t.scale = 0.3
@@ -217,9 +217,9 @@ extension Game {
                 mobs.mobs.append(t)
             }
         case "frogspawn":
-            if Int.random(in: 0..<4) == 0 {
+            if Rand.int(in: 0..<4) == 0 {
                 world.setBlockAsync(p.x, p.y, p.z, AIR)
-                for _ in 0..<Int.random(in: 2...5) { mobs.mobs.append(Mob(.tadpole, at: V3(Float(p.x) + 0.5, Float(p.y) - 0.5, Float(p.z) + 0.5))) }
+                for _ in 0..<Rand.int(in: 2...5) { mobs.mobs.append(Mob(.tadpole, at: V3(Float(p.x) + 0.5, Float(p.y) - 0.5, Float(p.z) + 0.5))) }
             }
         case "dried_ghast":
             // Next to water it soaks up a stage every few random ticks (about 20 minutes to hatch); dry, it shrivels back.
@@ -227,7 +227,7 @@ extension Game {
             for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)] where !wet {
                 wet = Blocks.fluidKind[Int(world.block(p.x + d.x, p.y + d.y, p.z + d.z))] == 1
             }
-            if wet && Int.random(in: 0..<4) == 0 {
+            if wet && Rand.int(in: 0..<4) == 0 {
                 if st < 3 { world.setBlockAsync(p.x, p.y, p.z, b + 1) }
                 else {
                     world.setBlockAsync(p.x, p.y, p.z, AIR)
@@ -236,11 +236,11 @@ extension Game {
                     mobs.mobs.append(w)
                     sfx(.mob(.happyGhast, .ambient), 0.8, at: w.pos)
                 }
-            } else if !wet && st > 0 && Int.random(in: 0..<6) == 0 {
+            } else if !wet && st > 0 && Rand.int(in: 0..<6) == 0 {
                 world.setBlockAsync(p.x, p.y, p.z, b - 1)
             }
         case "sniffer_egg":
-            if Int.random(in: 0..<20) == 0 {
+            if Rand.int(in: 0..<20) == 0 {
                 world.setBlockAsync(p.x, p.y, p.z, AIR)
                 let s = Mob(.sniffer, at: V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5)); s.baby = true; s.scale = 0.5
                 mobs.mobs.append(s)

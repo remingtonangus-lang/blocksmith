@@ -13,7 +13,7 @@ enum Explosion {
             if !(i == 0 || i == 15 || j == 0 || j == 15 || k == 0 || k == 15) { continue }
             var d = V3(Float(i) / 15 * 2 - 1, Float(j) / 15 * 2 - 1, Float(k) / 15 * 2 - 1)
             d = simd_normalize(d)
-            var intensity = power * (0.7 + Float.random(in: 0..<0.6))
+            var intensity = power * (0.7 + Rand.float(in: 0..<0.6))
             var p = c
             while intensity > 0 {
                 let b = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
@@ -33,7 +33,7 @@ enum Explosion {
         for b in destroyed {
             let id = w.block(b.x, b.y, b.z)
             if id == tntID { tnt.append(b); w.setBlockAsync(b.x, b.y, b.z, AIR); continue }
-            if Float.random(in: 0..<1) < 1 / power {
+            if Rand.float(in: 0..<1) < 1 / power {
                 for s in Mining.drops(id, ItemStack(Items.id("netherite_pickaxe"), 1)) {
                     g.drops.spawn(s, at: V3(Float(b.x) + 0.5, Float(b.y) + 0.5, Float(b.z) + 0.5))
                 }
@@ -44,7 +44,7 @@ enum Explosion {
             w.setBlockAsync(b.x, b.y, b.z, AIR)
         }
         for b in destroyed { w.scheduleFluid(around: b) }
-        for b in tnt { g.tnts.prime(at: b, fuse: Float.random(in: 0.5...1.5)) }
+        for b in tnt { g.tnts.prime(at: b, fuse: Rand.float(in: 0.5...1.5)) }
 
         // Entities.
         let radius = power * 2
@@ -75,7 +75,7 @@ enum Explosion {
             if let im = impact(it.pos, 0.25), im.0 > 0 {
                 let (k, dir) = im
                 // The Blight Star survives blasts (the Blight's own skulls keep landing around its drop).
-                if it.stack.item != star && Float.random(in: 0..<1) < k * 0.5 { it.stack = .empty } else { it.vel += dir * k * 10 }
+                if it.stack.item != star && Rand.float(in: 0..<1) < k * 0.5 { it.stack = .empty } else { it.vel += dir * k * 10 }
             }
         }
         // Grenade-sized blasts crack, TNT-sized ones boom, big ones (charged hissers, shells, beds) shake the ground.
@@ -100,7 +100,7 @@ final class TNTManager {
 
     func prime(at b: IVec3, fuse: Float = 4) {
         let t = PrimedTNT(V3(Float(b.x) + 0.5, Float(b.y), Float(b.z) + 0.5), fuse: fuse)
-        t.vel = V3(Float.random(in: -0.4...0.4), 4, Float.random(in: -0.4...0.4))
+        t.vel = V3(Rand.float(in: -0.4...0.4), 4, Rand.float(in: -0.4...0.4))
         list.append(t)
     }
 

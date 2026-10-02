@@ -185,13 +185,20 @@ enum TerrainTools {
                         while top < CH - 1 && b[Chunk.index(lx, top, lz)] != AIR { top += 1 }
                         var surf = CH - 2
                         while surf > 1 && b[Chunk.index(lx, surf, lz)] != WATER { surf -= 1 }
-                        samples.append("\(Blocks.key(id)) at \(cx * CS + lx) \(y - YOFF) \(cz * CS + lz): above \(Blocks.key(up)), column top y \(top - 1 - YOFF), highest water y \(surf - YOFF), biome \(g.column(cx * CS + lx, cz * CS + lz).biome)")
+                        let wx: Int = cx * CS + lx, wz: Int = cz * CS + lz
+                        let ty: Int = top - 1 - YOFF, sy: Int = surf - YOFF, py: Int = y - YOFF
+                        let biome = g.column(wx, wz).biome
+                        let a: String = "\(Blocks.key(id)) at \(wx) \(py) \(wz): above \(Blocks.key(up)), "
+                        samples.append(a + "column top y \(ty), highest water y \(sy), biome \(biome)")
                     }
                 }
             } }
         } }
         for s in samples { print("kelpcheck   " + s) }
-        print("kelpcheck seed \(seed) around \(x) \(z) (\((2 * r + 1) * (2 * r + 1)) chunks): \(plantBlocks) water-plant blocks, \(exposed) not under water, \(aboveSea) at or above sea level")
+        let side: Int = 2 * r + 1
+        let area: Int = side * side
+        let head: String = "kelpcheck seed \(seed) around \(x) \(z) (\(area) chunks): "
+        print(head + "\(plantBlocks) water-plant blocks, \(exposed) not under water, \(aboveSea) at or above sea level")
         return CommandLine.arguments.contains("--strict") && exposed > 0 ? 2 : 0
     }
 

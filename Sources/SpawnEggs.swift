@@ -150,7 +150,7 @@ extension Game {
         let y = Float(solid ? p.y : t.hit.y)
         let m = Mob(kind, at: V3(Float(p.x) + 0.5, y, Float(p.z) + 0.5))
         m.persistent = kind.category != .creature
-        if kind == .slime || kind == .magmaCube { m.makeSlime(size: [1, 2, 4][Int.random(in: 0...2)]) }
+        if kind == .slime || kind == .magmaCube { m.makeSlime(size: [1, 2, 4][Rand.int(in: 0...2)]) }
         if kind == .enderDragon { m.phase = 0 }
         mobs.mobs.append(m)
         if survival { consumeHeld() }

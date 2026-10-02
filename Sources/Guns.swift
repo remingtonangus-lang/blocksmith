@@ -108,7 +108,7 @@ enum Guns {
         guard spread > 0 else { return d }
         let ref = abs(d.y) < 0.95 ? V3(0, 1, 0) : V3(1, 0, 0)
         let a = simd_normalize(simd_cross(d, ref)), b = simd_cross(d, a)
-        let r = spread * sqrtf(Float.random(in: 0..<1)), t = Float.random(in: 0..<(2 * .pi))
+        let r = spread * sqrtf(Rand.float(in: 0..<1)), t = Rand.float(in: 0..<(2 * .pi))
         return simd_normalize(d + a * (cosf(t) * r) + b * (sinf(t) * r))
     }
 

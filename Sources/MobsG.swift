@@ -93,8 +93,8 @@ extension Game {
         case .egg:
             if let m = mob { m.hit(from: f.pos, damage: 0, knockback: 0.3) }
             // 1/8 chance of a chick, and 1/32 of those four.
-            if Int.random(in: 0..<8) == 0 {
-                let n = Int.random(in: 0..<32) == 0 ? 4 : 1
+            if Rand.int(in: 0..<8) == 0 {
+                let n = Rand.int(in: 0..<32) == 0 ? 4 : 1
                 for _ in 0..<n {
                     let c = Mob(.chicken, at: at + V3(0, 0.1, 0))
                     c.baby = true; c.scale = 0.5
@@ -118,7 +118,7 @@ extension Game {
                 player.airPeak = t.y
                 damage(5, "fell from a high place", bypassArmor: true, type: .fall)
                 sfx(.teleport, 0.8)
-                if Int.random(in: 0..<20) == 0 { mobs.mobs.append(Mob(.endermite, at: t)) }
+                if Rand.int(in: 0..<20) == 0 { mobs.mobs.append(Mob(.endermite, at: t)) }
             }
         case .witherSkull, .blueSkull:
             if hitP {
@@ -223,15 +223,15 @@ extension Mob {
             attackCooldown -= dt
             if attackCooldown <= 0 && simd_length(t - pos) < 20 {
                 attackCooldown = 2
-                shootSkull(at: t, g, blue: Float.random(in: 0..<1) < 0.001)
+                shootSkull(at: t, g, blue: Rand.float(in: 0..<1) < 0.001)
             }
             for i in 0..<2 {
                 sideHeads[i] -= dt
                 guard sideHeads[i] <= 0 else { continue }
-                sideHeads[i] = Float.random(in: 2...3)
+                sideHeads[i] = Rand.float(in: 2...3)
                 var aimAt: V3?
                 if g.survival && g.alive && simd_length(g.player.pos - pos) < 20 { aimAt = g.player.eye - V3(0, 0.4, 0) }
-                if i == 1 || aimAt == nil, let other = g.mobs.mobs.filter({ !$0.undead && $0.kind != .wither && $0.health > 0 && $0.kind.spec.behavior != .vehicle && simd_length($0.pos - pos) < 20 }).randomElement() {
+                if i == 1 || aimAt == nil, let other = g.mobs.mobs.filter({ !$0.undead && $0.kind != .wither && $0.health > 0 && $0.kind.spec.behavior != .vehicle && simd_length($0.pos - pos) < 20 }).pick() {
                     aimAt = other.pos + V3(0, other.height / 2, 0)
                 }
                 if let a = aimAt { shootSkull(at: a, g, blue: false, side: true, left: i == 0) }
@@ -268,7 +268,7 @@ extension Mob {
         if hit.z { vel.z = 0; breakTimer = max(breakTimer, 0.01) }
         if hit.y { vel.y = 0 }
         walkPhase += dt * 2
-        if Float.random(in: 0..<1) < dt * 8 { g.particles.smoke(at: pos + V3(Float.random(in: -0.6...0.6), Float.random(in: 1...3.5), Float.random(in: -0.6...0.6))) }
+        if Rand.float(in: 0..<1) < dt * 8 { g.particles.smoke(at: pos + V3(Rand.float(in: -0.6...0.6), Rand.float(in: 1...3.5), Rand.float(in: -0.6...0.6))) }
     }
 
     func shootSkull(at t: V3, _ g: Game, blue: Bool, side: Bool = false, left: Bool = false) {
@@ -306,7 +306,7 @@ extension Mob {
             let k: Float = min(1, dt * 3)
             vel += (want - vel) * k
         } else {
-            if aiTimer <= 0 { aiTimer = 2; flyTarget = pos + V3(Float.random(in: -6...6), Float.random(in: -2...3), Float.random(in: -6...6)) }
+            if aiTimer <= 0 { aiTimer = 2; flyTarget = pos + V3(Rand.float(in: -6...6), Rand.float(in: -2...3), Rand.float(in: -6...6)) }
             aiTimer -= dt
             if let f = flyTarget { let d = f - pos; vel += (d * 0.5 - vel) * min(1, dt * 2) }
         }
@@ -336,8 +336,8 @@ extension Mob {
                 vexCooldown = 17
                 spellTimer = 5
                 for _ in 0..<3 {
-                    let v = Mob(.vex, at: pos + V3(Float.random(in: -1...1), 1, Float.random(in: -1...1)))
-                    v.lifeSpan = Float.random(in: 30...119)
+                    let v = Mob(.vex, at: pos + V3(Rand.float(in: -1...1), 1, Rand.float(in: -1...1)))
+                    v.lifeSpan = Rand.float(in: 30...119)
                     v.owner = true
                     v.raider = raider
                     g.mobs.mobs.append(v)

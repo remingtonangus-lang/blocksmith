@@ -108,7 +108,7 @@ final class Game {
     var dragonSpawnTimer: Float = 3
     let effects = EffectSet()      // active status effects on the player
     var absorption: Float = 0      // golden hearts (half-hearts)
-    var enchantSeed = UInt64.random(in: 1...UInt64.max)   // enchanting-table offers; changes after each enchant
+    var enchantSeed = Rand.u64(in: 1...UInt64.max)   // enchanting-table offers; changes after each enchant
     var eyes: [SeekerEye] = []
     var elytraWear: Float = 0
     var bullets: [SentryBolt] = []
@@ -757,7 +757,7 @@ final class Game {
                 let fa = Enchant.level(.fireAspect, held)
                 if fa > 0 && !m.spec.fireImmune { m.fire = max(m.fire, Float(4 * fa)) }
                 if m.arthropod && Enchant.level(.baneOfArthropods, held) > 0 {
-                    m.applyEffect(.slowness, amp: 3, seconds: Float.random(in: 1...(1 + 0.5 * Float(Enchant.level(.baneOfArthropods, held)))), game: self)
+                    m.applyEffect(.slowness, amp: 3, seconds: Rand.float(in: 1...(1 + 0.5 * Float(Enchant.level(.baneOfArthropods, held)))), game: self)
                 }
                 // Sweep attack: a full-charge sword swing on the ground (not sprinting, no crit) hits mobs beside the target.
                 if held.def.tool == .sword && charge > 0.9 && player.onGround && !player.sprinting && !crit {
@@ -847,7 +847,7 @@ final class Game {
                 let biome = world.gen.column(t.hit.x, t.hit.z).biome
                 let table = biome == .desert ? "archaeology_desert" : (biome.isOcean ? "archaeology_ocean" : "archaeology_trail")
                 let tmp = ItemContainer(3)
-                var rng = SRng(UInt64.random(in: 1...UInt64.max))
+                var rng = SRng(Rand.u64(in: 1...UInt64.max))
                 Loot.fill(tmp, table: table, rng: &rng)
                 let at = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5 + V3(Float(t.normal.x), Float(t.normal.y), Float(t.normal.z)) * 0.6
                 for s in tmp.slots where !s.isEmpty { drops.spawn(s, at: at) }
@@ -1263,7 +1263,7 @@ final class Game {
                                                      "emerald_ore": 3...7, "lapis_ore": 2...5, "deepslate_lapis_ore": 2...5,
                                                      "redstone_ore": 1...5, "deepslate_redstone_ore": 1...5,
                                                      "nether_quartz_ore": 2...5, "nether_gold_ore": 0...1, "spawner": 15...43]
-            if let r = ores[bk], Mining.canHarvest(b, held), Enchant.level(.silkTouch, held) == 0 { addXP(Int.random(in: r)) }
+            if let r = ores[bk], Mining.canHarvest(b, held), Enchant.level(.silkTouch, held) == 0 { addXP(Rand.int(in: r)) }
         }
         let center = V3(Float(p.x) + 0.5, Float(p.y) + 0.3, Float(p.z) + 0.5)
         if bk.hasPrefix("infested_") && survival { mobs.mobs.append(Mob(.silverfish, at: center)) }
@@ -1318,7 +1318,7 @@ final class Game {
             for s in be.container.slots where !s.isEmpty { drops.spawn(s, at: center) }
         }
         if drop {
-            for s in Mining.enchantedDrops(b, held) { drops.spawn(s, at: center, vel: V3(Float.random(in: -1...1), 2, Float.random(in: -1...1)), delay: 0.5) }
+            for s in Mining.enchantedDrops(b, held) { drops.spawn(s, at: center, vel: V3(Rand.float(in: -1...1), 2, Rand.float(in: -1...1)), delay: 0.5) }
             exhaustion += 0.005
         }
         // Plants can't float: pop the one standing on the broken block.
@@ -1379,19 +1379,19 @@ final class Game {
         if !m.baby {
             let looting = m.killedByPlayer ? m.lootingLevel : 0
             for (n, lo, hi) in m.spec.drops where Items.has(n) && !(m.kind == .minecart && m.variant > 0) {
-                let c = Int.random(in: lo...(hi + looting))
+                let c = Rand.int(in: lo...(hi + looting))
                 var item = Items.id(n)
                 if m.fire > 0, let cooked = Recipes.smelt(item), Items.def(item).food != nil { item = cooked }
                 if c > 0 { drops.spawn(ItemStack(item, c), at: at) }
             }
             if m.kind == .sheep && !m.sheared, Items.has("\(m.woolColor)_wool") { drops.spawn(ItemStack(Items.id("\(m.woolColor)_wool"), 1), at: at) }
-            if m.kind == .zombie && Float.random(in: 0..<1) < 0.025 {
-                drops.spawn(ItemStack(Items.id(["iron_ingot", "carrot", "potato"][Int.random(in: 0...2)]), 1), at: at)
+            if m.kind == .zombie && Rand.float(in: 0..<1) < 0.025 {
+                drops.spawn(ItemStack(Items.id(["iron_ingot", "carrot", "potato"][Rand.int(in: 0...2)]), 1), at: at)
             }
-            let r = Float.random(in: 0..<1)
+            let r = Rand.float(in: 0..<1)
             if m.kind == .blaze && m.killedByPlayer {
                 // Cinder rods: 0-1, +0-1 per Looting level, only from player kills (reference loot table).
-                let n = Int.random(in: 0...1) + (looting > 0 ? Int.random(in: 0...looting) : 0)
+                let n = Rand.int(in: 0...1) + (looting > 0 ? Rand.int(in: 0...looting) : 0)
                 if n > 0 { drops.spawn(ItemStack(Items.id("blaze_rod"), n), at: at) }
             }
             if m.kind == .magmaCube && m.slimeSize > 1 && r < 0.25 { drops.spawn(ItemStack(Items.id("magma_cream"), 1), at: at) }
@@ -1399,7 +1399,7 @@ final class Game {
             if m.isZombie && m.baby && m.mount?.kind == .chicken && m.killedByPlayer && Items.has("music_disc_lava_chicken") {
                 drops.spawn(ItemStack(Items.id("music_disc_lava_chicken"), 1), at: at)
             }
-            if m.kind == .creeper && m.lastHitBySkeleton, let d = MusicDiscs.creeperDrops.randomElement(), Items.has("music_disc_\(d)") {
+            if m.kind == .creeper && m.lastHitBySkeleton, let d = MusicDiscs.creeperDrops.pick(), Items.has("music_disc_\(d)") {
                 drops.spawn(ItemStack(Items.id("music_disc_\(d)"), 1), at: at)
             }
             if m.kind == .zombifiedPiglin && m.killedByPlayer && r < 0.025 { drops.spawn(ItemStack(Items.id("gold_ingot"), 1), at: at) }
@@ -1415,7 +1415,7 @@ final class Game {
         if let c = m.cargo { for s in c.slots where !s.isEmpty { drops.spawn(s, at: at) }; m.cargo = nil }
         if let e = m.equip {
             // Worn gear drops 8.5% (+1% per looting level) from mobs, always from armor stands.
-            for s in e where !s.isEmpty && (m.kind == .armorStand || Float.random(in: 0..<1) < 0.085 + 0.01 * Float(m.killedByPlayer ? m.lootingLevel : 0)) { drops.spawn(s, at: at) }
+            for s in e where !s.isEmpty && (m.kind == .armorStand || Rand.float(in: 0..<1) < 0.085 + 0.01 * Float(m.killedByPlayer ? m.lootingLevel : 0)) { drops.spawn(s, at: at) }
             m.equip = nil
         }
         if m.leashed { drops.spawn(ItemStack(Items.id("lead"), 1), at: at) }
@@ -1425,7 +1425,7 @@ final class Game {
         soldierDied(m)
         sculkBloom(at: m.pos, xp: m.spec.xp)
         let xp = m.sized ? m.slimeSize : m.spec.xp
-        if m.killedByPlayer && !m.baby { addXP(xp + (m.kind.hostile ? 0 : Int.random(in: 0...1))) }
+        if m.killedByPlayer && !m.baby { addXP(xp + (m.kind.hostile ? 0 : Rand.int(in: 0...1))) }
         particles.explosion(at: m.pos + V3(0, m.height / 2, 0), power: 0.5)
         audioMobDied(m)
     }
@@ -1447,7 +1447,7 @@ final class Game {
                 be.delay -= dt
                 if be.spawned < 6 && alive < 2 && be.delay <= 0 {
                     be.delay = 2
-                    let sp = c + V3(Float.random(in: -3...3), 0, Float.random(in: -3...3))
+                    let sp = c + V3(Rand.float(in: -3...3), 0, Rand.float(in: -3...3))
                     let m = Mob(kind, at: V3(floor(sp.x) + 0.5, Float(p.y), floor(sp.z) + 0.5))
                     if m.sized { m.makeSlime(size: 2) }
                     if !m.collides(m.pos, world) { mobs.mobs.append(m); be.spawned += 1; particles.flame(at: m.pos + V3(0, 0.5, 0)) }
@@ -1455,20 +1455,20 @@ final class Game {
                     be.spawned = 0
                     be.cooldown = 1800
                     let tmp = ItemContainer(3)
-                    var rng = SRng(UInt64.random(in: 1...UInt64.max))
+                    var rng = SRng(Rand.u64(in: 1...UInt64.max))
                     Loot.fill(tmp, table: "trial_spawner", rng: &rng)
                     for s in tmp.slots where !s.isEmpty { drops.spawn(s, at: c + V3(0, 0.8, 0), vel: V3(0, 3, 0)) }
                     sfx(.vaultEject, 0.8, at: c)
                 }
                 continue
             }
-            if Float.random(in: 0..<1) < 0.3 { particles.flame(at: c + V3(Float.random(in: -0.5...0.5), Float.random(in: -0.5...0.5), Float.random(in: -0.5...0.5))) }
+            if Rand.float(in: 0..<1) < 0.3 { particles.flame(at: c + V3(Rand.float(in: -0.5...0.5), Rand.float(in: -0.5...0.5), Rand.float(in: -0.5...0.5))) }
             be.delay -= dt
             guard be.delay <= 0 else { continue }
-            be.delay = Float.random(in: 10...40)
+            be.delay = Rand.float(in: 10...40)
             var near = mobs.mobs.filter { $0.kind == kind && abs($0.pos.x - c.x) < 4.5 && abs($0.pos.y - c.y) < 2.5 && abs($0.pos.z - c.z) < 4.5 }.count
             for _ in 0..<4 where near < 6 {
-                let sp = V3(c.x + Float.random(in: -4...4), Float(p.y + Int.random(in: -1...1)), c.z + Float.random(in: -4...4))
+                let sp = V3(c.x + Rand.float(in: -4...4), Float(p.y + Rand.int(in: -1...1)), c.z + Rand.float(in: -4...4))
                 let bx = Int(floor(sp.x)), by = Int(floor(sp.y)), bz = Int(floor(sp.z))
                 guard Blocks.collide[Int(world.block(bx, by - 1, bz))] else { continue }
                 // Hostile mobs from spawners need block light ≤ 11 (cinderwisps and silverfish ignore it in practice).
@@ -1496,7 +1496,7 @@ final class Game {
             let s = c[idx]
             if !s.isEmpty && s.damage > 0 && Enchant.level(.mending, s) > 0 { menders.append((c, idx)) }
         }
-        if case let (c, idx)? = menders.randomElement() {
+        if case let (c, idx)? = menders.pick() {
             var s = c[idx]
             let fix = min(s.damage, n * 2)
             s.damage -= fix
@@ -1554,7 +1554,7 @@ final class Game {
     func chorusTeleport() {
         let p = player.pos
         for _ in 0..<16 {
-            let x = Int(floor(p.x)) + Int.random(in: -8...8), z = Int(floor(p.z)) + Int.random(in: -8...8)
+            let x = Int(floor(p.x)) + Rand.int(in: -8...8), z = Int(floor(p.z)) + Rand.int(in: -8...8)
             var y = min(CH - 3, Int(floor(p.y)) + 8)
             while y > max(1, Int(floor(p.y)) - 8) && !Blocks.collide[Int(world.block(x, y - 1, z))] { y -= 1 }
             let t = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
@@ -1613,8 +1613,8 @@ final class Game {
             // Thorns: 15% per level to hit back for 1-4.
             for s in inventory.armor.slots where !s.isEmpty {
                 let t = Enchant.level(.thorns, s)
-                if t > 0 && Float.random(in: 0..<1) < 0.15 * Float(t) {
-                    m.hit(from: player.pos, damage: Int.random(in: 1...4), knockback: 0.3)
+                if t > 0 && Rand.float(in: 0..<1) < 0.15 * Float(t) {
+                    m.hit(from: player.pos, damage: Rand.int(in: 1...4), knockback: 0.3)
                 }
             }
         }
@@ -1658,7 +1658,7 @@ final class Game {
         for c in [inventory.main, inventory.armor, inventory.offhand] {
             for i in 0..<c.count where !c[i].isEmpty {
                 if Enchant.level(.vanishingCurse, c[i]) > 0 { c[i] = .empty; continue }
-                drops.spawn(c[i], at: at, vel: V3(Float.random(in: -2...2), Float.random(in: 1...4), Float.random(in: -2...2)), delay: 1)
+                drops.spawn(c[i], at: at, vel: V3(Rand.float(in: -2...2), Rand.float(in: 1...4), Rand.float(in: -2...2)), delay: 1)
                 c[i] = .empty
             }
         }
@@ -1718,7 +1718,7 @@ final class Game {
             // Landing kicks up bits of the block underneath (more for bigger falls).
             if under != AIR { particles.dust(under, at: p.pos, count: min(24, Int(p.pendingFall * 3)), spread: 0.5) }
         }
-        if p.sprinting && p.onGround && !p.inWater && Float.random(in: 0..<1) < 0.5 {
+        if p.sprinting && p.onGround && !p.inWater && Rand.float(in: 0..<1) < 0.5 {
             let under = world.block(Int(floor(p.pos.x)), Int(floor(p.pos.y - 0.2)), Int(floor(p.pos.z)))
             if under != AIR { particles.dust(under, at: p.pos, count: 1, spread: 0.25) }
         }
@@ -1812,7 +1812,7 @@ final class Game {
                 catGifts()
                 onToast?("Good morning")
                 weather.raining = false; weather.thundering = false; weather.rain = 0; weather.thunder = 0
-                weather.rainTime = Float.random(in: 600...9000); weather.thunderTime = Float.random(in: 600...9000)
+                weather.rainTime = Rand.float(in: 600...9000); weather.thunderTime = Rand.float(in: 600...9000)
             }
         }
         fluidTimer += dt
@@ -1820,7 +1820,7 @@ final class Game {
         lavaTimer += dt
         if lavaTimer >= (dim.dim == .nether ? 0.5 : 1.5) { lavaTimer = 0; world.fluidTick(lava: true) }
         fireTimer += dt
-        if fireTimer >= Double.random(in: 1.2...1.8) { fireTimer = 0; world.fireTick() }
+        if fireTimer >= Rand.double(in: 1.2...1.8) { fireTimer = 0; world.fireTick() }
         portalTick(Float(dt))
         endPortalTick()
         updateEyes(Float(dt))

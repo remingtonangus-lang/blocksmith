@@ -72,6 +72,7 @@ enum StructCheck {
     }
 
     @inline(__always) static func key(_ x: Int, _ y: Int, _ z: Int) -> Int { PathFinder.key(IVec3(x, y, z)) }
+    @inline(__always) static func colKey(_ x: Int, _ z: Int) -> Int { (x & 0xFFFFF) | ((z & 0xFFFFF) << 20) }
 
     // Reachable cells from the seeds inside a box: (walking only, walking or jumping).
     static func reach(_ w: World, seeds: [IVec3], lo: IVec3, hi: IVec3) -> (walk: Set<Int>, any: Set<Int>) {
@@ -194,7 +195,9 @@ enum StructCheck {
             shown[k, default: 0] += 1
             if shown[k]! > 6 { continue }
             let snap = "--snapshot snaps/issue.png --seed \(i.seed) --x \(i.pos.x) --z \(i.pos.z) --up 3 --pitch -30"
-            lines.append("- **\(i.cls)** \(i.kind) seed \(i.seed) at \(i.pos.x) \(i.pos.y - YOFF) \(i.pos.z): \(i.detail)  `\(snap)`")
+            let shownY: Int = i.pos.y - YOFF
+            let where_: String = "seed \(i.seed) at \(i.pos.x) \(shownY) \(i.pos.z)"
+            lines.append("- **\(i.cls)** \(i.kind) " + where_ + ": \(i.detail)  `\(snap)`")
         }
         let report = lines.joined(separator: "\n") + "\n"
         if let out = arg("--out") { try? report.write(toFile: out, atomically: true, encoding: .utf8) }
@@ -232,9 +235,9 @@ enum StructCheck {
                     let b = w.block(wx, y, wz)
                     if b == raw[Chunk.index(x, y, z)] { continue }
                     written.insert(key(wx, y, wz))
-                    if Blocks.fullCollide[Int(b)] { writtenSolid[wx &* 73856093 ^ wz &* 19349663, default: []].append(y) }
+                    if Blocks.fullCollide[Int(b)] { writtenSolid[colKey(wx, wz), default: []].append(y) }
                 }
-            }
+            } }
         } }
         let walk = !noWalk.contains(typeName) && !noWalk.contains(kind)
         // Seeds: the start's anchor, plus (surface kinds) a ring of ground cells around the structure.
@@ -343,7 +346,7 @@ enum StructCheck {
         // Floating: columns with at least three written solid blocks whose lowest one hangs over air.
         var floating: [IVec3] = []
         for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
-            guard let ys = writtenSolid[x &* 73856093 ^ z &* 19349663], ys.count >= 3, let y0 = ys.min() else { continue }
+            guard let ys = writtenSolid[colKey(x, z)], ys.count >= 3, let y0 = ys.min() else { continue }
             let below = w.block(x, y0 - 1, z)
             if top(w, x, y0 - 1, z) < 0.4 && Blocks.fluidKind[Int(below)] == 0 && !(y0 - 1 <= 0) {
                 // Air under it: count the gap (ignore one-block overhangs over open terrain under 2 blocks).

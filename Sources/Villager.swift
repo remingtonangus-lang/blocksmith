@@ -207,22 +207,22 @@ enum Villagers {
         var buyN = t.buyN
         switch suffix {
         case "ench":
-            let lv = Int.random(in: 5...19)
+            let lv = Rand.int(in: 5...19)
             sell = Enchant.withLevels(sell.item, lv)
             buyN = min(64, t.buyN + lv)
         case "book":
             // Random tradeable enchantment at a random level; treasure costs double.
             let opts = Ench.allCases.filter { ![.soulSpeed, .swiftSneak, .windBurst].contains($0) }
-            let e = opts.randomElement()!
+            let e = opts.pick()!
             let d = Enchant.def(e)
-            let l = Int.random(in: 1...d.max)
+            let l = Rand.int(in: 1...d.max)
             sell.ench = Enchant.pack([(e, l)])
-            var cost = 2 + Int.random(in: 0..<(5 + l * 10)) + 3 * l
+            var cost = 2 + Rand.int(in: 0..<(5 + l * 10)) + 3 * l
             if d.treasure { cost *= 2 }
             buyN = min(64, cost)
         case "tipped":
             let opts = Potions.types.filter { !$0.effects.isEmpty && !$0.key.hasPrefix("strong_turtle") }
-            if let p = opts.randomElement(), let it = Potions.item(3, p.key) { sell = ItemStack(it, t.sellN) }
+            if let p = opts.pick(), let it = Potions.item(3, p.key) { sell = ItemStack(it, t.sellN) }
         default: break
         }
         let a = ItemStack(Items.id(t.buy), buyN)
@@ -236,7 +236,7 @@ enum Villagers {
         var pool = pools[level - 1].filter { has($0.buy) && has($0.sell) }
         var picks = 0
         while picks < 2 && !pool.isEmpty {
-            let i = Int.random(in: 0..<pool.count)
+            let i = Rand.int(in: 0..<pool.count)
             if let o = make(pool[i]) { v.offers.append(o); picks += 1 }
             pool.remove(at: i)
         }
@@ -420,7 +420,7 @@ final class MerchantMenu: Menu {
         v.xp += o.xp
         v.locked = true
         // Trades give the player XP too (3-6, more when the villager levels up).
-        game.addXP(Int.random(in: 3...6))
+        game.addXP(Rand.int(in: 3...6))
         if v.level < 5 && v.xp >= Villagers.levelXP[v.level] {
             v.level += 1
             Villagers.addOffers(&v, level: v.level)

@@ -179,7 +179,7 @@ extension Game {
             // Creaks: more often when rolling, turning or driving through water.
             st.creak -= dt * (0.3 + simd_length(s.angVel) * 3 + (s.submerged > 0 ? speed / 8 : 0))
             if st.creak <= 0 {
-                st.creak = Float.random(in: 3...8)
+                st.creak = Rand.float(in: 3...8)
                 if s.blockCount > 6 && (s.submerged > 0 || s.balloons > 0 || powered) { sfx(.hullCreak, 0.6, at: s.pos) }
             }
             // Turrets turning on their rings.

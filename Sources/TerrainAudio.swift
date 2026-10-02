@@ -90,14 +90,14 @@ extension Game {
             ask("mountainwind", .mountainWindLoop, min(0.9, 0.25 + max(0, height - 30) / 120) * open, nil)
             a.rockTimer -= dt
             if a.rockTimer <= 0 {
-                a.rockTimer = Float.random(in: 40...120)
-                let ang = Float.random(in: 0..<(2 * .pi))
-                sfx(.rockfall, 0.8, at: player.eye + V3(cosf(ang) * 30, Float.random(in: -6...14), sinf(ang) * 30))
+                a.rockTimer = Rand.float(in: 40...120)
+                let ang = Rand.float(in: 0..<(2 * .pi))
+                sfx(.rockfall, 0.8, at: player.eye + V3(cosf(ang) * 30, Rand.float(in: -6...14), sinf(ang) * 30))
             }
         }
         if tundra.contains(b) {
             ask("tundrawind", .tundraWindLoop, 0.45 * open, nil)
-            if Float.random(in: 0..<1) < dt / 25 { sfx(.iceCreak, 0.5, at: player.eye + V3(Float.random(in: -10...10), -1, Float.random(in: -10...10))) }
+            if Rand.float(in: 0..<1) < dt / 25 { sfx(.iceCreak, 0.5, at: player.eye + V3(Rand.float(in: -10...10), -1, Rand.float(in: -10...10))) }
         }
         if b == .swamp || b == .mangroveSwamp { ask("swampbugs", .swampInsectsLoop, 0.3 * open, nil) }
     }

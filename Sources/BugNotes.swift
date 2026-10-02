@@ -341,7 +341,7 @@ final class BugNotes {
                 guard let b = AVAudioPCMBuffer(pcmFormat: fmt, frameCapacity: AVAudioFrameCount(n)), let d = b.floatChannelData else { return }
                 for i in 0..<n {
                     let x = Double(t + i) / rate
-                    var v = Float.random(in: -0.002...0.002)
+                    var v = Rand.float(in: -0.002...0.002)
                     if voice {
                         let w: Double = 2 * Double.pi * x
                         let env: Double = 0.55 + 0.45 * sin(w * 4)               // syllables

@@ -279,13 +279,13 @@ enum Enchant {
     // Random enchantment for loot ("enchant_randomly": any applicable level, treasure included).
     static func randomly(_ item: ItemID, treasure: Bool = true) -> [(Ench, Int)] {
         let opts = Ench.allCases.filter { (treasure || !def($0).treasure) && applies($0, item, table: false) }
-        guard let e = opts.randomElement() else { return [] }
-        return [(e, Int.random(in: 1...def(e).max))]
+        guard let e = opts.pick() else { return [] }
+        return [(e, Rand.int(in: 1...def(e).max))]
     }
 
     // "enchant_with_levels" for loot tables and mob gear.
     static func withLevels(_ item: ItemID, _ levels: Int, treasure: Bool = false) -> ItemStack {
-        var rng = SRng(UInt64.random(in: 0...UInt64.max))
+        var rng = SRng(Rand.u64(in: 0...UInt64.max))
         let isBook = Items.key(item) == "book"
         let l = select(item: isBook ? Items.id("book") : item, level: levels, rng: &rng, treasure: treasure)
         var s = ItemStack(isBook && !l.isEmpty ? Items.id("enchanted_book") : item, 1)
@@ -407,8 +407,8 @@ enum Enchant {
     static func wearSkipped(_ s: ItemStack) -> Bool {
         let u = level(.unbreaking, s)
         guard u > 0 else { return false }
-        if s.def.armorSlot != nil { return Float.random(in: 0..<1) >= 0.6 + 0.4 / Float(u + 1) }
-        return Int.random(in: 0...u) > 0
+        if s.def.armorSlot != nil { return Rand.float(in: 0..<1) >= 0.6 + 0.4 / Float(u + 1) }
+        return Rand.int(in: 0...u) > 0
     }
 }
 

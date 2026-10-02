@@ -39,7 +39,7 @@ final class AudioState {
 }
 
 final class MusicDirector {
-    var wait: Float = Float.random(in: 60...150)
+    var wait: Float = Rand.float(in: 60...150)
     var mood: MusicMood? = nil              // mood of the piece being played
     var pieces = 0
     var silence: Float = 0                  // seconds of forced silence after a fade-out
@@ -164,17 +164,17 @@ extension Game {
         let isNight = dayFraction > 0.52 && dayFraction < 0.98
         if isNight { emitter("fireflies", .fireflyLoop, base: 0.3, per: 0.05, cap: 0.6) }
         emitter("hive", .hiveLoop, base: 0.35, per: 0.1, cap: 0.6)
-        if let e = a.emitters["drygrass"], !isNight, Float.random(in: 0..<1) < dt * min(0.3, 0.05 + 0.01 * Float(e.count)) {
-            sfx(.dryGrassRustle, 0.5, at: e.pos + V3(Float.random(in: -2...2), 0.3, Float.random(in: -2...2)))
+        if let e = a.emitters["drygrass"], !isNight, Rand.float(in: 0..<1) < dt * min(0.3, 0.05 + 0.01 * Float(e.count)) {
+            sfx(.dryGrassRustle, 0.5, at: e.pos + V3(Rand.float(in: -2...2), 0.3, Rand.float(in: -2...2)))
         }
-        if let e = a.emitters["heart"], Float.random(in: 0..<1) < dt / 6 { sfx(.heartCreak, 0.8, at: e.pos) }
+        if let e = a.emitters["heart"], Rand.float(in: 0..<1) < dt / 6 { sfx(.heartCreak, 0.8, at: e.pos) }
         // Lava pops now and then; drips near driprock.
-        if let e = a.emitters["lava"], simd_length(e.pos - eye) < 12, Float.random(in: 0..<1) < dt * min(1.5, 0.3 + 0.05 * Float(e.count)) {
-            let j = V3(Float.random(in: -2...2), 0.4, Float.random(in: -2...2))
+        if let e = a.emitters["lava"], simd_length(e.pos - eye) < 12, Rand.float(in: 0..<1) < dt * min(1.5, 0.3 + 0.05 * Float(e.count)) {
+            let j = V3(Rand.float(in: -2...2), 0.4, Rand.float(in: -2...2))
             sfx(.lavaPop, 0.7, at: e.pos + j)
         }
-        if a.caveBiome == 3 && Float.random(in: 0..<1) < dt * 0.25 {
-            let j = V3(Float.random(in: -6...6), Float.random(in: 0...3), Float.random(in: -6...6))
+        if a.caveBiome == 3 && Rand.float(in: 0..<1) < dt * 0.25 {
+            let j = V3(Rand.float(in: -6...6), Rand.float(in: 0...3), Rand.float(in: -6...6))
             sfx(.caveDrip, 0.4, at: eye + j)
         }
 
@@ -254,20 +254,20 @@ extension Game {
         // Stings: cave noises in the dark, nether moods, underwater moans.
         a.caveTimer -= dt
         if a.caveTimer <= 0 {
-            a.caveTimer = Float.random(in: 18...55)
-            let ang = Float.random(in: 0..<(2 * .pi))
-            let off = V3(cosf(ang), Float.random(in: -0.3...0.3), sinf(ang)) * Float.random(in: 5...9)
+            a.caveTimer = Rand.float(in: 18...55)
+            let ang = Rand.float(in: 0..<(2 * .pi))
+            let off = V3(cosf(ang), Rand.float(in: -0.3...0.3), sinf(ang)) * Rand.float(in: 5...9)
             if player.headInWater {
-                if Float.random(in: 0..<1) < 0.5 { sfx(.underwaterMood, 0.5, at: eye + off) }
+                if Rand.float(in: 0..<1) < 0.5 { sfx(.underwaterMood, 0.5, at: eye + off) }
             } else if dim.dim == .nether {
-                if Float.random(in: 0..<1) < 0.4 { sfx(.netherMood, 0.5, at: eye + off) }
+                if Rand.float(in: 0..<1) < 0.4 { sfx(.netherMood, 0.5, at: eye + off) }
             } else if dim.dim == .overworld && a.cave > 0.75 {
                 let l = world.lightAt(Int(floor(eye.x)), Int(floor(eye.y)), Int(floor(eye.z)))
-                if l.block < 6 && Float.random(in: 0..<1) < 0.6 {
-                    let s: Snd = [.caveAmbience, .caveAmbience, .caveDrip, .caveWind].randomElement()!
+                if l.block < 6 && Rand.float(in: 0..<1) < 0.6 {
+                    let s: Snd = [.caveAmbience, .caveAmbience, .caveDrip, .caveWind].pick()!
                     sfx(s, s == .caveDrip ? 0.5 : 0.7, at: eye + off)
                 }
-            } else if dim.dim == .overworld && eye.y > Float(SEA + 60) && Float.random(in: 0..<1) < 0.5 {
+            } else if dim.dim == .overworld && eye.y > Float(SEA + 60) && Rand.float(in: 0..<1) < 0.5 {
                 sfx(.windGust, 0.5, at: eye + off)      // high peaks
             }
         }
@@ -326,13 +326,13 @@ extension Game {
         // Stings: birdsong by day in wooded land, an owl at night in forests.
         if wooded.contains(b) || jungle.contains(b) {
             let rate: Float = (jungle.contains(b) ? 0.5 : 0.25) * day * wet * open
-            if Float.random(in: 0..<1) < dt * rate {
-                let ang = Float.random(in: 0..<(2 * .pi))
-                let at = player.eye + V3(cosf(ang) * Float.random(in: 5...14), Float.random(in: 2...7), sinf(ang) * Float.random(in: 5...14))
+            if Rand.float(in: 0..<1) < dt * rate {
+                let ang = Rand.float(in: 0..<(2 * .pi))
+                let at = player.eye + V3(cosf(ang) * Rand.float(in: 5...14), Rand.float(in: 2...7), sinf(ang) * Rand.float(in: 5...14))
                 sfx(.birdCall, 0.6, at: at)
             }
-            if night > 0 && Float.random(in: 0..<1) < dt * 0.02 * wet * open {
-                let ang = Float.random(in: 0..<(2 * .pi))
+            if night > 0 && Rand.float(in: 0..<1) < dt * 0.02 * wet * open {
+                let ang = Rand.float(in: 0..<(2 * .pi))
                 sfx(.owlHoot, 0.7, at: player.eye + V3(cosf(ang) * 12, 4, sinf(ang) * 12))
             }
         }
@@ -498,25 +498,25 @@ extension Game {
             if cur != want && (curHard || wantHard) && !(cur == .title && want == .creative) {
                 stream.stop(fade: want == .combat ? 0.8 : 2.5)
                 m.mood = nil
-                m.silence = want == .title ? 1 : (want == .combat ? 0.3 : Float.random(in: 4...10))
+                m.silence = want == .title ? 1 : (want == .combat ? 0.3 : Rand.float(in: 4...10))
                 // Entering a dimension or a boss fight scores at once; leaving the title screen gives the world a quiet minute.
-                m.wait = hard.contains(want) ? 0 : Float.random(in: 30...90)
+                m.wait = hard.contains(want) ? 0 : Rand.float(in: 30...90)
             }
             return
         }
         if m.mood != nil && !stream.isPlaying {
             // The piece ended by itself.
             m.mood = nil
-            m.wait = want == .title ? Float.random(in: 8...20) : (want == .combat || want == .tension ? Float.random(in: 1...4) : Float.random(in: 360...900))
+            m.wait = want == .title ? Rand.float(in: 8...20) : (want == .combat || want == .tension ? Rand.float(in: 1...4) : Rand.float(in: 360...900))
         }
         if want == .title && m.wait > 2 { m.wait = 2 }
         // Arriving in the Emberdeep or the Hollow (or a boss appearing) with nothing playing: score it soon.
-        if want != m.lastWant && hard.contains(want) && m.wait > 6 { m.wait = Float.random(in: 3...6) }
+        if want != m.lastWant && hard.contains(want) && m.wait > 6 { m.wait = Rand.float(in: 3...6) }
         m.lastWant = want
         if m.silence > 0 { m.silence -= dt; return }
         m.wait -= dt
         if m.wait <= 0 && AudioSettings.volume(.music) > 0 {
-            let seed = UInt64.random(in: 0...UInt64(Int32.max))
+            let seed = Rand.u64(in: 0...UInt64(Int32.max))
             let score = Composer.compose(want, seed: seed)
             stream.play(score, fadeIn: want == .boss || want == .combat ? 0.5 : 3)
             m.mood = want

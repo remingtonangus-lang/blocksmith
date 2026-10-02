@@ -91,7 +91,7 @@ final class EnchantMenu: Menu {
         if Items.key(s.item) == "book" {
             s = ItemStack(Items.id("enchanted_book"), 1)
             // Books drop one random enchantment when they would get several (reference rule).
-            if l.count > 1 { l.remove(at: Int.random(in: 0..<l.count)) }
+            if l.count > 1 { l.remove(at: Rand.int(in: 0..<l.count)) }
         }
         s.ench = Enchant.pack(l)
         box[0] = s
@@ -99,7 +99,7 @@ final class EnchantMenu: Menu {
             game.xpLevel = max(0, game.xpLevel - (i + 1))
             var lap = box[1]; lap.count -= i + 1; box[1] = lap
         }
-        game.enchantSeed = UInt64.random(in: 1...UInt64.max)
+        game.enchantSeed = Rand.u64(in: 1...UInt64.max)
         game.sfx(.enchant, 0.7)
         changed()
     }
@@ -183,7 +183,7 @@ final class AnvilMenu: Menu {
         editing = false
         game.sfx(.anvil, 0.6, at: V3(Float(pos.x), Float(pos.y), Float(pos.z)) + 0.5)
         // 12% chance to wear the anvil a stage (chipped -> damaged -> gone).
-        if game.survival && Float.random(in: 0..<1) < 0.12 {
+        if game.survival && Rand.float(in: 0..<1) < 0.12 {
             let k = Blocks.key(game.world.block(pos.x, pos.y, pos.z))
             let next = k == "anvil" ? "chipped_anvil" : (k == "chipped_anvil" ? "damaged_anvil" : "")
             if next.isEmpty { game.world.setBlock(pos.x, pos.y, pos.z, AIR) }

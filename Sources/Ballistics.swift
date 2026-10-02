@@ -153,8 +153,8 @@ final class Armory {
             s.pos += step
             s.traveled += len
             if s.kind == .rocket || s.kind == .shell {
-                if Float.random(in: 0..<1) < dt * 40 { g.particles.smoke(at: s.pos - dir * 0.4, dark: s.kind == .shell) }
-                if s.kind == .rocket && Float.random(in: 0..<1) < dt * 30 { g.particles.flame(at: s.pos - dir * 0.3) }
+                if Rand.float(in: 0..<1) < dt * 40 { g.particles.smoke(at: s.pos - dir * 0.4, dark: s.kind == .shell) }
+                if s.kind == .rocket && Rand.float(in: 0..<1) < dt * 30 { g.particles.flame(at: s.pos - dir * 0.3) }
             }
             if s.pos.y < -80 { s.dead = true }
             slugs[i] = s
@@ -180,7 +180,7 @@ final class Armory {
         g.particles.add(Particle(pos: at, vel: V3(Float(n.x), Float(n.y) + 1, Float(n.z)) * 2, life: 0.12, maxLife: 0.12, layer: Int(Tex.id("smoke")),
                                  uv0: V2(0, 0), uvSize: 1, size: 0.06, gravity: 0, color: V3(1.4, 1.1, 0.5), collide: false, glow: true))
         g.sfx(.bulletImpact(soundMat(id)), 0.55, at: at)
-        if Float.random(in: 0..<1) < 0.2 { g.sfx(.gun(8), 0.35, at: at) }
+        if Rand.float(in: 0..<1) < 0.2 { g.sfx(.gun(8), 0.35, at: at) }
     }
 
     private func impactMob(_ s: Slug, _ m: Mob, at: V3, dir: V3, _ g: Game) {
@@ -193,16 +193,16 @@ final class Armory {
         // Bosses shrug off most of a gun round (keeps the wyrm, the Blight and the deep stalker real fights).
         if m.kind == .enderDragon || m.kind == .wither || m.kind == .warden || m.kind == .elderGuardian { dmg *= 0.35 }
         let whole = floorf(dmg)
-        let n = Int(whole) + (Float.random(in: 0..<1) < dmg - whole ? 1 : 0)
+        let n = Int(whole) + (Rand.float(in: 0..<1) < dmg - whole ? 1 : 0)
         m.hit(from: at - dir * 2, damage: max(1, n), knockback: s.kind == .bullet ? 0.25 : 0.5)
         if m.kind == .soldierIronclad || m.kind == .deckGun || m.kind == .ironGolem {
             // Rounds spark off heavy plate.
             for _ in 0..<4 {
-                g.particles.add(Particle(pos: at, vel: (-dir + V3(Float.random(in: -1...1), Float.random(in: 0...1.5), Float.random(in: -1...1))) * 3,
+                g.particles.add(Particle(pos: at, vel: (-dir + V3(Rand.float(in: -1...1), Rand.float(in: 0...1.5), Rand.float(in: -1...1))) * 3,
                                          life: 0.18, maxLife: 0.18, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1, size: 0.04, gravity: 10,
                                          color: V3(2.2, 1.6, 0.6), collide: false, glow: true))
             }
-            if Float.random(in: 0..<1) < 0.4 { g.sfx(.gun(8), 0.5, at: at) }
+            if Rand.float(in: 0..<1) < 0.4 { g.sfx(.gun(8), 0.5, at: at) }
         } else {
             g.sfx(.bulletFlesh, 0.6, at: at)
             g.particles.add(Particle(pos: at, vel: -dir * 1.5 + V3(0, 1, 0), life: 0.25, maxLife: 0.25, layer: Int(Tex.id("smoke")),
@@ -222,7 +222,7 @@ final class Armory {
     private func impactPlayer(_ s: Slug, at: V3, dir: V3, _ g: Game) {
         if s.kind == .rocket || s.kind == .shell { detonate(s, at: at - dir * 0.3, g); return }
         let whole = floorf(s.damage)
-        let n = Int(whole) + (Float.random(in: 0..<1) < s.damage - whole ? 1 : 0)
+        let n = Int(whole) + (Rand.float(in: 0..<1) < s.damage - whole ? 1 : 0)
         g.bulletHit = true
         g.sfx(.bulletFlesh, 0.8)
         g.hurtPlayer(max(1, n), from: at - dir * 3, cause: "was shot by \(s.by)", knockback: 0.25, type: .projectile)
@@ -257,7 +257,7 @@ final class Armory {
             if g.survival { g.onFire = max(g.onFire, 2) }
         }
         for _ in 0..<5 {
-            g.particles.add(Particle(pos: hit, vel: V3(Float.random(in: -2...2), Float.random(in: 0...3), Float.random(in: -2...2)), life: 0.3, maxLife: 0.3,
+            g.particles.add(Particle(pos: hit, vel: V3(Rand.float(in: -2...2), Rand.float(in: 0...3), Rand.float(in: -2...2)), life: 0.3, maxLife: 0.3,
                                      layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1, size: 0.05, gravity: 4, color: V3(0.7, 1.8, 2.2), collide: false, glow: true))
         }
     }
@@ -437,7 +437,7 @@ extension Game {
         damageHeld(1)
         let k = gs.recoil * (1 - 0.45 * a.aim)
         player.pitch = min(1.55, player.pitch + k)
-        player.yaw += Float.random(in: -0.4...0.4) * k
+        player.yaw += Rand.float(in: -0.4...0.4) * k
         a.recoilDebt += k * 0.65
         a.kick = 1
         a.bloom = min(gs.spread * 0.8, a.bloom + gs.spread * 0.18)

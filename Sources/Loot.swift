@@ -57,23 +57,23 @@ enum Mining {
         guard f > 0 else { return out }
         if fortuneOres.contains(key) {
             if key.contains("redstone") || key.contains("lapis") || key.contains("copper") {
-                for i in out.indices { out[i].count += Int.random(in: 0...f) }       // uniform bonus
+                for i in out.indices { out[i].count += Rand.int(in: 0...f) }       // uniform bonus
             } else {
-                let mult = max(1, Int.random(in: 0..<(f + 2)))                    // ore bonus: x1..x(f+1)
+                let mult = max(1, Rand.int(in: 0..<(f + 2)))                    // ore bonus: x1..x(f+1)
                 for i in out.indices { out[i].count *= mult }
             }
         } else if key == "glowstone" {
-            for i in out.indices { out[i].count = min(4, out[i].count + Int.random(in: 0...f)) }
+            for i in out.indices { out[i].count = min(4, out[i].count + Rand.int(in: 0...f)) }
         } else if key == "melon" {
-            for i in out.indices { out[i].count = min(9, out[i].count + Int.random(in: 0...f)) }
+            for i in out.indices { out[i].count = min(9, out[i].count + Rand.int(in: 0...f)) }
         } else if key == "gravel" && !out.isEmpty && Items.key(out[0].item) == "gravel" {
-            if Float.random(in: 0..<1) < [0.1, 0.14285715, 0.25, 1.0][min(3, f)] - 0.1 { out = [ItemStack(item("flint"), 1)] }
+            if Rand.float(in: 0..<1) < [0.1, 0.14285715, 0.25, 1.0][min(3, f)] - 0.1 { out = [ItemStack(item("flint"), 1)] }
         } else if ["wheat", "beetroots"].contains(key) || ["carrots", "potatoes"].contains(key) {
             let seed = key == "wheat" ? "wheat_seeds" : (key == "beetroots" ? "beetroot_seeds" : (key == "carrots" ? "carrot" : "potato"))
             let stage = Int(b - Blocks.groupBase[Int(b)])
             if stage == (key == "beetroots" ? 3 : 7) {
                 for i in out.indices where Items.key(out[i].item) == seed {
-                    for _ in 0..<f where Float.random(in: 0..<1) < 0.5714 { out[i].count += 1 }
+                    for _ in 0..<f where Rand.float(in: 0..<1) < 0.5714 { out[i].count += 1 }
                 }
             }
         }
@@ -85,18 +85,18 @@ enum Mining {
         let key = Blocks.key(b)
         let shears = !tool.isEmpty && tool.def.tool == .shears
         func one(_ n: String, _ c: Int = 1) -> [ItemStack] { [ItemStack(item(n), c)] }
-        func rnd(_ a: Int, _ b: Int) -> Int { Int.random(in: a...b) }
+        func rnd(_ a: Int, _ b: Int) -> Int { Rand.int(in: a...b) }
         // Crops: drops by growth stage (seeds roll binomially at full growth, as in the reference game).
         let base = Blocks.groupBase[Int(b)]
         let gkey = Blocks.key(base), stage = Int(b - base)
-        func binom(_ n: Int, _ p: Float) -> Int { (0..<n).reduce(0) { a, _ in a + (Float.random(in: 0..<1) < p ? 1 : 0) } }
+        func binom(_ n: Int, _ p: Float) -> Int { (0..<n).reduce(0) { a, _ in a + (Rand.float(in: 0..<1) < p ? 1 : 0) } }
         switch gkey {
         case "wheat":
             return stage == 7 ? one("wheat") + one("wheat_seeds", 1 + binom(3, 0.5714)) : one("wheat_seeds")
         case "carrots": return one("carrot", stage == 7 ? 1 + binom(3, 0.5714) : 1)
         case "potatoes":
             var out = one("potato", stage == 7 ? 1 + binom(3, 0.5714) : 1)
-            if stage == 7 && Items.has("poisonous_potato") && Float.random(in: 0..<1) < 0.02 { out += one("poisonous_potato") }
+            if stage == 7 && Items.has("poisonous_potato") && Rand.float(in: 0..<1) < 0.02 { out += one("poisonous_potato") }
             return out
         case "beetroots":
             return stage == 3 ? one("beetroot") + one("beetroot_seeds", 1 + binom(3, 0.5714)) : one("beetroot_seeds")
@@ -123,7 +123,7 @@ enum Mining {
         case "glass", "spawner", "glass_pane": return []
         case "fern":
             if shears { return one(key) }
-            return Float.random(in: 0..<1) < 0.125 ? one("wheat_seeds") : []
+            return Rand.float(in: 0..<1) < 0.125 ? one("wheat_seeds") : []
         case "tall_grass", "large_fern", "dead_bush", "seagrass", "vine":
             return shears ? one(Blocks.key(Blocks.groupBase[Int(b)])) : (key == "dead_bush" ? one("stick", rnd(0, 2)) : [])
         case "melon": return one("melon_slice", rnd(3, 7))
@@ -134,24 +134,24 @@ enum Mining {
         case "amethyst_cluster": return one("amethyst_shard", 4)
         case "ice", "packed_ice", "blue_ice", "kelp", "bubble_coral", "tube_coral", "brain_coral", "fire_coral", "horn_coral": return key == "kelp" ? one("kelp") : []
         case "snow": return one("snowball", 1)
-        case "brown_mushroom_block": return Float.random(in: 0..<1) < 0.15 ? one("brown_mushroom", rnd(1, 2)) : []
-        case "red_mushroom_block": return Float.random(in: 0..<1) < 0.15 ? one("red_mushroom", rnd(1, 2)) : []
+        case "brown_mushroom_block": return Rand.float(in: 0..<1) < 0.15 ? one("brown_mushroom", rnd(1, 2)) : []
+        case "red_mushroom_block": return Rand.float(in: 0..<1) < 0.15 ? one("red_mushroom", rnd(1, 2)) : []
         case _ where key.hasPrefix("redstone_wire"): return one("redstone")
         case _ where key.hasPrefix("piston_head"): return []
-        case "chorus_plant": return Float.random(in: 0..<1) < 0.5 ? one("chorus_fruit") : []
-        case "gilded_blackstone": return Float.random(in: 0..<1) < 0.1 ? one("gold_nugget", rnd(2, 5)) : one("gilded_blackstone")
-        case "gravel": return Float.random(in: 0..<1) < 0.1 ? one("flint") : one("gravel")
+        case "chorus_plant": return Rand.float(in: 0..<1) < 0.5 ? one("chorus_fruit") : []
+        case "gilded_blackstone": return Rand.float(in: 0..<1) < 0.1 ? one("gold_nugget", rnd(2, 5)) : one("gilded_blackstone")
+        case "gravel": return Rand.float(in: 0..<1) < 0.1 ? one("flint") : one("gravel")
         case "short_grass":
             if shears { return one("short_grass") }
-            return Float.random(in: 0..<1) < 0.125 ? one("wheat_seeds") : []
+            return Rand.float(in: 0..<1) < 0.125 ? one("wheat_seeds") : []
         case _ where key.hasSuffix("_leaves") && !key.hasPrefix("crimson") && !key.hasPrefix("warped"):
             if shears { return one(key) }
             var out: [ItemStack] = []
             let sap = key == "mangrove_leaves" ? "" : key.replacingOccurrences(of: "leaves", with: "sapling")
             let sapChance: Float = key == "jungle_leaves" ? 0.025 : 0.05
-            if !sap.isEmpty && Items.has(sap) && Float.random(in: 0..<1) < sapChance { out += one(sap) }
-            if Float.random(in: 0..<1) < 0.02 { out += one("stick", rnd(1, 2)) }
-            if (key == "oak_leaves" || key == "dark_oak_leaves") && Float.random(in: 0..<1) < 0.005 { out += one("apple") }
+            if !sap.isEmpty && Items.has(sap) && Rand.float(in: 0..<1) < sapChance { out += one(sap) }
+            if Rand.float(in: 0..<1) < 0.02 { out += one("stick", rnd(1, 2)) }
+            if (key == "oak_leaves" || key == "dark_oak_leaves") && Rand.float(in: 0..<1) < 0.005 { out += one("apple") }
             return out
         default:
             if let i = Items.item(forBlock: b) { return [ItemStack(i, 1)] }

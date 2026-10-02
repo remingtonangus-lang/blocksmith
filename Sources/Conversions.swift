@@ -47,7 +47,7 @@ extension Mob {
         case .piglin, .piglinBrute, .hoglin: needed = 15
         default: needed = 45
         }
-        if convertTime >= needed - 15 && kind != .tadpole && Float.random(in: 0..<1) < dt * 3 {
+        if convertTime >= needed - 15 && kind != .tadpole && Rand.float(in: 0..<1) < dt * 3 {
             g.particles.smoke(at: pos + V3(0, height * 0.6, 0))
         }
         guard convertTime >= needed else { return false }
@@ -71,10 +71,10 @@ extension Mob {
 
     // Hard: a hurt zombie may call another zombie 7-40 blocks away (reference reinforcements).
     func callReinforcement(_ g: Game) {
-        guard isZombie, kind != .zombieVillager, g.difficulty == 3, g.survival, Float.random(in: 0..<1) < reinforceChance else { return }
+        guard isZombie, kind != .zombieVillager, g.difficulty == 3, g.survival, Rand.float(in: 0..<1) < reinforceChance else { return }
         let w = g.world
         for _ in 0..<50 {
-            let d = Float.random(in: 7...40) * (Bool.random() ? 1 : -1), e = Float.random(in: 7...40) * (Bool.random() ? 1 : -1)
+            let d = Rand.float(in: 7...40) * (Rand.bool() ? 1 : -1), e = Rand.float(in: 7...40) * (Rand.bool() ? 1 : -1)
             let x = Int(floor(pos.x + d)), z = Int(floor(pos.z + e))
             guard w.isLoaded(x, z) else { continue }
             var y = Int(floor(pos.y)) + 6
@@ -101,7 +101,7 @@ extension Mob {
         g.sfx(.thunder, 1.4, at: pos)
         var horses: [Mob] = [self]
         for _ in 0..<3 {
-            let h = Mob(.skeletonHorse, at: pos + V3(Float.random(in: -1.5...1.5), 0, Float.random(in: -1.5...1.5)))
+            let h = Mob(.skeletonHorse, at: pos + V3(Rand.float(in: -1.5...1.5), 0, Rand.float(in: -1.5...1.5)))
             horses.append(h)
             g.mobs.mobs.append(h)
         }
@@ -113,8 +113,8 @@ extension Mob {
             s.jockey = true
             s.lockTime = 10
             var eq = [ItemStack](repeating: .empty, count: 5)
-            if Items.has("iron_helmet") { eq[0] = ItemStack(Items.id("iron_helmet"), 1); eq[0].ench = Enchant.pack([(.protection, Int.random(in: 1...3))]) }
-            if Items.has("bow") { eq[4] = ItemStack(Items.id("bow"), 1); eq[4].ench = Enchant.pack([(.power, Int.random(in: 1...3))]) }
+            if Items.has("iron_helmet") { eq[0] = ItemStack(Items.id("iron_helmet"), 1); eq[0].ench = Enchant.pack([(.protection, Rand.int(in: 1...3))]) }
+            if Items.has("bow") { eq[4] = ItemStack(Items.id("bow"), 1); eq[4].ench = Enchant.pack([(.power, Rand.int(in: 1...3))]) }
             s.equip = eq
             g.mobs.mobs.append(s)
         }
@@ -140,7 +140,7 @@ extension Game {
                 SpecialSpawners.traderDelay = 1200
                 let chance = SpecialSpawners.traderChance
                 SpecialSpawners.traderChance = min(75, max(25, chance + 25))
-                if Int.random(in: 0..<100) <= chance && Int.random(in: 0..<10) == 0 && spawnWanderingTrader() { SpecialSpawners.traderChance = 25 }
+                if Rand.int(in: 0..<100) <= chance && Rand.int(in: 0..<10) == 0 && spawnWanderingTrader() { SpecialSpawners.traderChance = 25 }
             }
         }
         SpecialSpawners.catTimer -= dt
@@ -164,14 +164,14 @@ extension Game {
         guard !mobs.mobs.contains(where: { $0.kind == .wanderingTrader }) else { return false }
         let center = nearVillage(player.pos) ?? player.pos
         for _ in 0..<10 {
-            let x = Int(floor(center.x)) + Int.random(in: -48...48), z = Int(floor(center.z)) + Int.random(in: -48...48)
+            let x = Int(floor(center.x)) + Rand.int(in: -48...48), z = Int(floor(center.z)) + Rand.int(in: -48...48)
             guard let at = groundSpot(x, z), simd_length(at - player.pos) < 64 else { continue }
             let t = Mob(.wanderingTrader, at: at)
             t.villager = WanderingTrader.data()
             t.persistent = true
             mobs.mobs.append(t)
             for _ in 0..<2 {
-                guard let lp = groundSpot(x + Int.random(in: -4...4), z + Int.random(in: -4...4)) else { continue }
+                guard let lp = groundSpot(x + Rand.int(in: -4...4), z + Rand.int(in: -4...4)) else { continue }
                 let l = Mob(.traderLlama, at: lp)
                 l.target = t
                 l.persistent = true
@@ -183,8 +183,8 @@ extension Game {
     }
 
     func spawnVillageCat() {
-        let x = Int(floor(player.pos.x)) + Int.random(in: 8...32) * (Bool.random() ? 1 : -1)
-        let z = Int(floor(player.pos.z)) + Int.random(in: 8...32) * (Bool.random() ? 1 : -1)
+        let x = Int(floor(player.pos.x)) + Rand.int(in: 8...32) * (Rand.bool() ? 1 : -1)
+        let z = Int(floor(player.pos.z)) + Rand.int(in: 8...32) * (Rand.bool() ? 1 : -1)
         guard let at = groundSpot(x, z) else { return }
         let beds = mobs.mobs.filter { $0.kind == .villager && $0.villager?.bed != nil && simd_length($0.pos - at) < 48 }.count
         guard beds > 4, mobs.mobs.filter({ $0.kind == .cat && simd_length($0.pos - at) < 48 }).count < 5 else { return }
@@ -193,7 +193,7 @@ extension Game {
 
     // From a natural lightning strike during a thunderstorm.
     func lightningTrap(_ at: V3) {
-        guard weather.thunder > 0.5, difficulty > 0, Double.random(in: 0..<1) < Double(effectiveDifficulty) * 0.01 else { return }
+        guard weather.thunder > 0.5, difficulty > 0, Rand.double(in: 0..<1) < Double(effectiveDifficulty) * 0.01 else { return }
         let h = Mob(.skeletonHorse, at: at)
         h.trap = true
         h.persistent = true

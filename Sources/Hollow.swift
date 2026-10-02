@@ -69,10 +69,10 @@ extension Game {
             } else {
                 e.pos.y += sinf(e.age * 8) * 0.2 * dt
             }
-            if Float.random(in: 0..<1) < dt * 20 { particles.flame(at: e.pos) }
+            if Rand.float(in: 0..<1) < dt * 20 { particles.flame(at: e.pos) }
             if e.age > 2.6 {
                 e.dead = true
-                if Float.random(in: 0..<1) < 0.8 { drops.spawn(ItemStack(Items.id("ender_eye"), 1), at: e.pos, vel: V3(0, 0, 0), delay: 0.2) }
+                if Rand.float(in: 0..<1) < 0.8 { drops.spawn(ItemStack(Items.id("ender_eye"), 1), at: e.pos, vel: V3(0, 0, 0), delay: 0.2) }
                 else { sfx(.breakBlock(.glass), 0.8, at: e.pos); particles.explosion(at: e.pos, power: 0.3) }
             }
         }
@@ -210,7 +210,7 @@ extension Game {
         let egg = world.block(p.x, p.y, p.z)
         guard Blocks.key(egg) == "dragon_egg" else { return false }
         for _ in 0..<1000 {
-            let q = IVec3(p.x + Int.random(in: -15...15), p.y + Int.random(in: -7...7), p.z + Int.random(in: -15...15))
+            let q = IVec3(p.x + Rand.int(in: -15...15), p.y + Rand.int(in: -7...7), p.z + Rand.int(in: -15...15))
             guard q.y > 0, q.y < CH - 1, world.isLoaded(q.x, q.z), world.block(q.x, q.y, q.z) == AIR else { continue }
             world.setBlock(p.x, p.y, p.z, AIR)
             world.setBlock(q.x, q.y, q.z, egg)
@@ -250,7 +250,7 @@ extension Game {
                 b.vel += (want - b.vel) * k
             }
             b.pos += b.vel * dt
-            if Float.random(in: 0..<1) < dt * 20 { particles.smoke(at: b.pos, dark: false) }
+            if Rand.float(in: 0..<1) < dt * 20 { particles.smoke(at: b.pos, dark: false) }
             if d < 0.7 {
                 b.dead = true
                 hurtPlayer(4, from: b.pos, cause: "was shot by Shellsentry", knockback: 0.3)
@@ -346,7 +346,7 @@ extension Mob {
         phaseTime += dt
         // Wing beats every ~1.3 s while flying; an occasional growl.
         if phase != 4 && phase != 6 && Int(phaseTime / 1.3) != Int((phaseTime - dt) / 1.3) { g.sfx(.dragonFlap, 2.5, at: pos) }
-        if phase != 6 && Float.random(in: 0..<1) < dt / 9 { g.sfx(.dragonGrowl, 3, at: pos) }
+        if phase != 6 && Rand.float(in: 0..<1) < dt / 9 { g.sfx(.dragonGrowl, 3, at: pos) }
         let player = g.player.pos
         let toPlayer = player - pos
         let dist = simd_length(toPlayer)
@@ -363,10 +363,10 @@ extension Mob {
         case 0:
             circleAngle += dt * 0.25
             goal = V3(cosf(circleAngle) * 55, fy + 22 + sinf(circleAngle * 2.3) * 8, sinf(circleAngle) * 55)
-            if phaseTime > Float.random(in: 8...14) {
+            if phaseTime > Rand.float(in: 8...14) {
                 phaseTime = 0
                 let crystals = g.mobs.mobs.filter { $0.kind == .endCrystal && $0.health > 0 }.count
-                let r = Int.random(in: 0..<(3 + crystals))
+                let r = Rand.int(in: 0..<(3 + crystals))
                 let canFight = g.survival && g.alive && dist < 150
                 if r == 0 { phase = 3 }
                 else if canFight && r < 3 { phase = 1 }
@@ -420,8 +420,8 @@ extension Mob {
             // Dying: rise slowly while bursting, then vanish.
             vel = V3(0, 1, 0)
             pos += vel * dt
-            if Float.random(in: 0..<1) < dt * 10 {
-                g.particles.explosion(at: pos + V3(Float.random(in: -4...4), Float.random(in: 0...4), Float.random(in: -4...4)), power: 0.8)
+            if Rand.float(in: 0..<1) < dt * 10 {
+                g.particles.explosion(at: pos + V3(Rand.float(in: -4...4), Rand.float(in: 0...4), Rand.float(in: -4...4)), power: 0.8)
             }
             if phaseTime > 10 {
                 health = -1000
@@ -475,7 +475,7 @@ extension Mob {
         walkPhase += dt
         face(target)
         if active && attackCooldown <= 0 {
-            attackCooldown = Float.random(in: 1...5.5)
+            attackCooldown = Rand.float(in: 1...5.5)
             let from = pos + V3(0, 1.3, 0)
             g.bullets.append(SentryBolt(from, simd_normalize(target - from) * 4))
             g.sfx(.shulkerOpen, 0.5, at: from)

@@ -77,7 +77,7 @@ extension Game {
                 let there = world.block(at.x, at.y, at.z)
                 if there == AIR || Blocks.replaceable[Int(there)] || Blocks.isLiquid(there) {
                     var place = f.block
-                    if key.hasSuffix("anvil") && Float.random(in: 0..<1) < 0.05 * fell {
+                    if key.hasSuffix("anvil") && Rand.float(in: 0..<1) < 0.05 * fell {
                         place = key == "anvil" ? Blocks.id("chipped_anvil") : (key == "chipped_anvil" ? Blocks.id("damaged_anvil") : AIR)
                     }
                     world.setBlock(at.x, at.y, at.z, place)

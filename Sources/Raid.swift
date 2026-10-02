@@ -92,7 +92,7 @@ enum RaidTable {
     // One wave: raiders in the reference order (brigands, conjurers, marauders, witches, siegebeasts);
     // the first raider able to lead becomes the captain. `wave` counts from 1 (the bonus wave is groups + 1).
     static func composition(wave: Int, groups: Int, difficulty: Int, bonusWave: Bool,
-                            roll: (Int) -> Int = { Int.random(in: 0..<max(1, $0)) }) -> [Member] {
+                            roll: (Int) -> Int = { Rand.int(in: 0..<max(1, $0)) }) -> [Member] {
         var out: [Member] = []
         var leader = false
         var ravagers = 0
@@ -219,7 +219,7 @@ extension Game {
         // Spawn point on the ground 20-32 blocks from the centre.
         var at = r.center
         for _ in 0..<20 {
-            let a = Float.random(in: 0..<(2 * .pi)), d = Float.random(in: 20...32)
+            let a = Rand.float(in: 0..<(2 * .pi)), d = Rand.float(in: 20...32)
             let x = Int(floor(r.center.x + cosf(a) * d)), z = Int(floor(r.center.z + sinf(a) * d))
             guard world.isLoaded(x, z) else { continue }
             let y = world.topY(x, z)
@@ -237,7 +237,7 @@ extension Game {
             return m
         }
         for member in RaidTable.composition(wave: r.wave, groups: r.groups, difficulty: r.difficulty, bonusWave: bonus) {
-            let m = raider(member.kind, at + V3(Float.random(in: -2...2), 0, Float.random(in: -2...2)))
+            let m = raider(member.kind, at + V3(Rand.float(in: -2...2), 0, Rand.float(in: -2...2)))
             m.captain = member.captain
             spawned.append(m)
             if let rk = member.rider {
@@ -265,18 +265,18 @@ extension Game {
         guard survival, difficulty > 0, dim.dim == .overworld, time / DAY_LENGTH >= 5 else { return }
         patrolTimer -= dt
         guard patrolTimer <= 0 else { return }
-        patrolTimer = Float.random(in: 600...660)
-        guard daylight > 0.5, Int.random(in: 0..<5) == 0 else { return }
-        let x = Int(floor(player.pos.x)) + Int.random(in: 24...47) * (Bool.random() ? -1 : 1)
-        let z = Int(floor(player.pos.z)) + Int.random(in: 24...47) * (Bool.random() ? -1 : 1)
+        patrolTimer = Rand.float(in: 600...660)
+        guard daylight > 0.5, Rand.int(in: 0..<5) == 0 else { return }
+        let x = Int(floor(player.pos.x)) + Rand.int(in: 24...47) * (Rand.bool() ? -1 : 1)
+        let z = Int(floor(player.pos.z)) + Rand.int(in: 24...47) * (Rand.bool() ? -1 : 1)
         guard world.isLoaded(x, z) else { return }
         let biome = world.gen.column(x, z).biome
         if biome == .mushroomFields || nearVillage(V3(Float(x), player.pos.y, Float(z))) != nil { return }
         let n = Int(ceilf(effectiveDifficulty)) + 1
         var leader: Mob?
         for i in 0..<n {
-            let px = x + (i == 0 ? 0 : Int.random(in: 0..<5) - Int.random(in: 0..<5))
-            let pz = z + (i == 0 ? 0 : Int.random(in: 0..<5) - Int.random(in: 0..<5))
+            let px = x + (i == 0 ? 0 : Rand.int(in: 0..<5) - Rand.int(in: 0..<5))
+            let pz = z + (i == 0 ? 0 : Rand.int(in: 0..<5) - Rand.int(in: 0..<5))
             guard world.isLoaded(px, pz) else { continue }
             let y = world.topY(px, pz)
             let b = world.block(px, y, pz)
@@ -295,7 +295,7 @@ extension Game {
     func captainDied(_ m: Mob) {
         villagerDied(m)
         guard m.captain, !m.raider, m.killedByPlayer, Items.has("ominous_bottle") else { return }
-        drops.spawn(ItemStack(Items.id("ominous_bottle"), 1, damage: Int.random(in: 0...4)), at: m.pos + V3(0, 0.5, 0))
+        drops.spawn(ItemStack(Items.id("ominous_bottle"), 1, damage: Rand.int(in: 0...4)), at: m.pos + V3(0, 0.5, 0))
     }
 
     // Zombie kills a villager (Normal: 50%): it becomes a zombie villager keeping its trades.
@@ -311,7 +311,7 @@ extension Game {
     // Zombie villager with Weakness + golden apple: cures in 3-5 minutes into a discounted villager.
     func startCure(_ m: Mob) -> Bool {
         guard m.kind == .zombieVillager, Items.key(held.item) == "golden_apple", m.effects?.has(.weakness) ?? false, m.cureTimer <= 0 else { return false }
-        m.cureTimer = Float.random(in: 180...300)
+        m.cureTimer = Rand.float(in: 180...300)
         m.persistent = true
         consumeHeld()
         sfx(.zombieCure, 1, at: m.pos)
@@ -323,7 +323,7 @@ extension Mob {
     // Reference raid gear: marauders carry a crossbow, brigands an iron axe; with the omen level's odds
     // they're enchanted (Quick Charge / Sharpness I past the Easy wave count, II past the Normal one).
     func applyRaidBuffs(wave: Int, level: Int) {
-        let enchant = Float.random(in: 0..<1) < RaidTable.enchantOdds(level)
+        let enchant = Rand.float(in: 0..<1) < RaidTable.enchantOdds(level)
         let lv = wave > RaidTable.groupCount(2) ? 2 : (wave > RaidTable.groupCount(1) ? 1 : 0)
         let key: String, ench: Ench
         switch kind {
@@ -350,7 +350,7 @@ extension Mob {
     // Reference shot cycles: bows draw 1 s then wait the attack interval (2 s, 1 s on Hard);
     // crossbows charge 1.25 s (-0.25 s per Quick Charge) then pause 1-2 s.
     var crossbowReload: Float {
-        if kind == .pillager { return 1.25 - 0.25 * Float(heldEnchant(.quickCharge)) + Float.random(in: 1...2) }
+        if kind == .pillager { return 1.25 - 0.25 * Float(heldEnchant(.quickCharge)) + Rand.float(in: 1...2) }
         return Mob.hardMode ? 2 : 3
     }
     static var hardMode = false
@@ -363,7 +363,7 @@ extension Mob {
             if let p = patrolGoal, simd_length(V2(p.x - pos.x, p.z - pos.z)) > 4 {
                 face(p)
             } else {
-                let a = Float.random(in: 0..<(2 * .pi))
+                let a = Rand.float(in: 0..<(2 * .pi))
                 patrolGoal = pos + V3(cosf(a) * 80, 0, sinf(a) * 80)
                 face(patrolGoal ?? pos)
             }
@@ -410,7 +410,7 @@ extension Mob {
     func cureTick(_ dt: Float, _ g: Game) -> Bool {
         guard kind == .zombieVillager, cureTimer > 0 else { return false }
         cureTimer -= dt
-        if Float.random(in: 0..<1) < dt * 4 { g.particles.hearts(at: pos + V3(0, 2, 0)) }
+        if Rand.float(in: 0..<1) < dt * 4 { g.particles.hearts(at: pos + V3(0, 2, 0)) }
         guard cureTimer <= 0 else { return false }
         let v = Mob(.villager, at: pos)
         var d = villager ?? VillagerData()

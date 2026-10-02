@@ -82,8 +82,8 @@ extension Mob {
             goal = h                                               // harnessed ones stay where they were left
         } else {
             if aiTimer <= 0 || flyTarget == nil {
-                aiTimer = Float.random(in: 4...9)
-                var t = pos + V3(Float.random(in: -12...12), Float.random(in: -3...3), Float.random(in: -12...12))
+                aiTimer = Rand.float(in: 4...9)
+                var t = pos + V3(Rand.float(in: -12...12), Rand.float(in: -3...3), Rand.float(in: -12...12))
                 // Keep to 4-12 blocks above the ground.
                 let ground = Float(g.world.topY(Int(floor(t.x)), Int(floor(t.z))) + 1)
                 t.y = max(ground + 4, min(ground + 12, t.y))

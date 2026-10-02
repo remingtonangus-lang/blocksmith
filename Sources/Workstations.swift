@@ -191,7 +191,7 @@ final class GrindstoneMenu: Menu {
         guard case let (o, xp)? = compute() else { return nil }
         box[0] = .empty; box[1] = .empty
         // XP back: between half and all of the (minimum) enchantment cost.
-        if xp > 0 { game.addXP(Int.random(in: (xp + 1) / 2...max((xp + 1) / 2, xp))) }
+        if xp > 0 { game.addXP(Rand.int(in: (xp + 1) / 2...max((xp + 1) / 2, xp))) }
         game.sfx(.grindstone, 0.7)
         changed()
         return o

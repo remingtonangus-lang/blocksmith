@@ -40,14 +40,14 @@ extension Game {
         if survival { consumeHeld() }
         swing = 1
         // The first item into an empty composter always counts.
-        if lvl == 0 || Float.random(in: 0..<1) < ch {
+        if lvl == 0 || Rand.float(in: 0..<1) < ch {
             world.setBlock(p.x, p.y, p.z, base + BlockID(lvl + 1))
             if lvl + 1 == 7 { composterReady[p] = clock + 1 }
             sfx(.composterFill, 0.8, at: c)
         } else {
             sfx(.composterFill, 0.5, at: c)
         }
-        for _ in 0..<4 { particles.smoke(at: c + V3(Float.random(in: -0.3...0.3), 0, Float.random(in: -0.3...0.3)), dark: false) }
+        for _ in 0..<4 { particles.smoke(at: c + V3(Rand.float(in: -0.3...0.3), 0, Rand.float(in: -0.3...0.3)), dark: false) }
     }
 
     func composterTick() {

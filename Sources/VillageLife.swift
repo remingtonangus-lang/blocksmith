@@ -57,7 +57,7 @@ extension Mob {
         // Farmers harvest ripe crops around their farm and replant.
         if v.profession == "farmer" && g.dayFraction < 0.45 {
             for _ in 0..<12 {
-                let q = IVec3(c.x + Int.random(in: -6...6), c.y + Int.random(in: -1...1), c.z + Int.random(in: -6...6))
+                let q = IVec3(c.x + Rand.int(in: -6...6), c.y + Rand.int(in: -1...1), c.z + Rand.int(in: -6...6))
                 let b = w.block(q.x, q.y, q.z)
                 let base = Blocks.groupBase[Int(b)]
                 guard let (ripe, item) = VillageLife.crops[Blocks.key(base)], Int(b - base) >= ripe else { continue }
@@ -66,7 +66,7 @@ extension Mob {
                     break
                 }
                 w.setBlock(q.x, q.y, q.z, base)          // replanted at stage 0
-                v.food = (v.food ?? 0) + (item == "wheat" ? 2 : 1) * Int.random(in: 1...3)
+                v.food = (v.food ?? 0) + (item == "wheat" ? 2 : 1) * Rand.int(in: 1...3)
                 g.sfx(.breakBlock(.plant), 0.5, at: V3(Float(q.x) + 0.5, Float(q.y), Float(q.z) + 0.5))
                 break
             }
@@ -106,9 +106,9 @@ extension Mob {
     func heroGift(_ g: Game) {
         giftTimer -= 5
         guard giftTimer <= 0, g.effects.has(.heroOfTheVillage), g.alive, !sitting, simd_length(g.player.pos - pos) < 5 else { return }
-        giftTimer = Float.random(in: 30...330)
+        giftTimer = Rand.float(in: 30...330)
         let prof = baby ? "baby" : (villager?.profession ?? "none")
-        guard let pool = VillageLife.heroGifts[prof] ?? VillageLife.heroGifts["none"], let name = pool.randomElement(), Items.has(name) else { return }
+        guard let pool = VillageLife.heroGifts[prof] ?? VillageLife.heroGifts["none"], let name = pool.pick(), Items.has(name) else { return }
         face(g.player.pos)
         let dir = simd_normalize(g.player.eye - eye)
         g.drops.spawn(ItemStack(Items.id(name), 1), at: eye + dir * 0.4, vel: dir * 4 + V3(0, 2, 0))
@@ -225,7 +225,7 @@ extension Mob {
         let w = g.world
         let c = IVec3(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z)))
         for _ in 0..<10 {
-            let x = c.x + Int.random(in: -8...8), z = c.z + Int.random(in: -8...8)
+            let x = c.x + Rand.int(in: -8...8), z = c.z + Rand.int(in: -8...8)
             var y = c.y + 6
             while y > c.y - 6 && !(Blocks.opaque[Int(w.block(x, y - 1, z))] && !Blocks.collide[Int(w.block(x, y, z))]) { y -= 1 }
             guard y > c.y - 6, !Blocks.isLiquid(w.block(x, y, z)) else { continue }
@@ -303,14 +303,14 @@ extension Game {
         if !m.baby {
             let at = m.pos + V3(0, 0.4, 0)
             let looting = Float(m.killedByPlayer ? m.lootingLevel : 0)
-            if [.cod, .salmon, .tropicalFish, .pufferfish].contains(m.kind) && Float.random(in: 0..<1) < 0.05 && Items.has("bone_meal") {
+            if [.cod, .salmon, .tropicalFish, .pufferfish].contains(m.kind) && Rand.float(in: 0..<1) < 0.05 && Items.has("bone_meal") {
                 drops.spawn(ItemStack(Items.id("bone_meal"), 1), at: at)
             }
-            if m.kind == .rabbit && m.killedByPlayer && Float.random(in: 0..<1) < 0.1 + 0.03 * looting && Items.has("rabbit_foot") {
+            if m.kind == .rabbit && m.killedByPlayer && Rand.float(in: 0..<1) < 0.1 + 0.03 * looting && Items.has("rabbit_foot") {
                 drops.spawn(ItemStack(Items.id("rabbit_foot"), 1), at: at)
             }
             if (m.kind == .spider || m.kind == .caveSpider) && m.killedByPlayer && Items.has("spider_eye") {
-                let n = Int.random(in: -1...1) + Int.random(in: 0...Int(looting))
+                let n = Rand.int(in: -1...1) + Rand.int(in: 0...Int(looting))
                 if n > 0 { drops.spawn(ItemStack(Items.id("spider_eye"), n), at: at) }
             }
         }
@@ -343,13 +343,13 @@ extension Game {
         let day = Int(time / DAY_LENGTH)
         guard lastSiegeDay != day else { return }
         lastSiegeDay = day
-        guard Float.random(in: 0..<1) < 0.1 else { return }
+        guard Rand.float(in: 0..<1) < 0.1 else { return }
         let villagers = mobs.mobs.filter { $0.kind == .villager && simd_length($0.pos - player.pos) < 32 }
         guard villagers.count >= 5 else { return }
-        let a = Float.random(in: 0..<(2 * .pi))
+        let a = Rand.float(in: 0..<(2 * .pi))
         let cx = player.pos.x + cosf(a) * 28, cz = player.pos.z + sinf(a) * 28
         for _ in 0..<20 {
-            let x = Int(floor(cx)) + Int.random(in: -4...4), z = Int(floor(cz)) + Int.random(in: -4...4)
+            let x = Int(floor(cx)) + Rand.int(in: -4...4), z = Int(floor(cz)) + Rand.int(in: -4...4)
             guard world.isLoaded(x, z) else { continue }
             let y = world.topY(x, z) + 1
             mobs.mobs.append(Mob(.zombie, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)))

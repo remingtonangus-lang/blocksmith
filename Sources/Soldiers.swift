@@ -24,7 +24,7 @@ final class SoldierBrain {
     var seenAgo: Float = 99
     var sees = false
     var losTimer: Float = 0
-    var grenadeCD: Float = Float.random(in: 4...10)
+    var grenadeCD: Float = Rand.float(in: 4...10)
     var retreat: Float = 0
     var retreatCD: Float = 0
     var pitch: Float = 0            // deck gun barrel elevation / soldier aim elevation
@@ -33,7 +33,7 @@ final class SoldierBrain {
     var cover: V3?                  // a spot out of the player's sight to reload in
     var coverSearch: Float = 0
     var flank: V3?                  // where a flanking trooper / relocating marksman is heading
-    var flankTimer: Float = Float.random(in: 2...5)
+    var flankTimer: Float = Rand.float(in: 2...5)
     init(gun: Int) { self.gun = gun; mag = gun >= 0 ? Guns.all[gun].mag : 0 }
 }
 
@@ -69,7 +69,7 @@ enum Soldier {
 
     // Which gun a new soldier carries.
     static func pickGun(_ k: MobKind) -> Int {
-        let r = Float.random(in: 0..<1)
+        let r = Rand.float(in: 0..<1)
         switch k {
         case .soldierRecruit: return r < 0.6 ? Guns.rifle : Guns.smg
         case .soldierTrooper: return r < 0.5 ? Guns.shotgun : Guns.rifle
@@ -167,7 +167,7 @@ extension Mob {
         let target = g.player.eye - V3(0, 0.3, 0)
         b.losTimer -= dt
         if b.losTimer <= 0 {
-            b.losTimer = 0.2 + Float.random(in: 0..<0.1)
+            b.losTimer = 0.2 + Rand.float(in: 0..<0.1)
             b.sees = canTarget && dist < rank.sight && w.canSee(eye, g.player.eye)
         }
         let sees = b.sees && canTarget
@@ -178,7 +178,7 @@ extension Mob {
                 aggro = true
                 b.react = rank.react
                 g.sfx(.soldier(r, .alert), 1.1, at: eye)
-                if Float.random(in: 0..<1) < 0.5 { g.sfx(.gun(11), 0.6, at: eye) }
+                if Rand.float(in: 0..<1) < 0.5 { g.sfx(.gun(11), 0.6, at: eye) }
                 alertGarrison(g, g.player.pos)
             }
             if aggro {
@@ -192,7 +192,7 @@ extension Mob {
             b.aimTime = 0
             // Garrison duty: stroll near the post; marksmen keep watch.
             if r == 2 {
-                if aiTimer <= 0 { aiTimer = Float.random(in: 2...5); yaw += Float.random(in: -1.2...1.2) }
+                if aiTimer <= 0 { aiTimer = Rand.float(in: 2...5); yaw += Rand.float(in: -1.2...1.2) }
                 return 0
             }
             if let h = home, simd_length(V2(h.x - pos.x, h.z - pos.z)) > 10 { face(h); return spec.speed * 0.5 }
@@ -205,7 +205,7 @@ extension Mob {
         if b.mag <= 0 && b.reload <= 0 {
             b.reload = gs.reload * (r == 3 ? 1.3 : 1)
             g.sfx(.gunReload(gs.sound), 0.6, at: eye)
-            if Float.random(in: 0..<1) < 0.5 { g.sfx(.soldier(r, .reload), 0.9, at: eye) }
+            if Rand.float(in: 0..<1) < 0.5 { g.sfx(.soldier(r, .reload), 0.9, at: eye) }
         }
         if b.reload <= 0 { b.cover = nil }
         let (near, far) = Soldier.band(r, b.gun)
@@ -247,27 +247,27 @@ extension Mob {
             } else if dist < near {
                 speed = -spec.speed * 0.8
             } else if rank.strafe > 0 {
-                if b.strafeTimer <= 0 { b.strafeTimer = Float.random(in: 0.8...2.2); b.strafeDir = Float.random(in: 0..<1) < 0.5 ? -1 : 1 }
+                if b.strafeTimer <= 0 { b.strafeTimer = Rand.float(in: 0.8...2.2); b.strafeDir = Rand.float(in: 0..<1) < 0.5 ? -1 : 1 }
                 strafe = b.strafeDir * spec.speed * 0.75 * rank.strafe
             }
             if b.gun == Guns.shotgun && dist > near { speed = spec.speed * 1.25 }   // shotgunners rush in
             if r == 3 && health < spec.health / 2 { speed = max(speed, spec.speed * 0.6) }
             // Rifle troopers swing round the target's side every few seconds.
             if r == 1 && b.gun != Guns.shotgun && b.flankTimer <= 0 && b.reload <= 0 {
-                b.flankTimer = Float.random(in: 4...7)
+                b.flankTimer = Rand.float(in: 4...7)
                 let toMe = simd_normalize(V3(pos.x - g.player.pos.x, 0, pos.z - g.player.pos.z) + V3(1e-4, 0, 0))
-                let side = V3(-toMe.z, 0, toMe.x) * (Float.random(in: 0..<1) < 0.5 ? -1 : 1)
+                let side = V3(-toMe.z, 0, toMe.x) * (Rand.float(in: 0..<1) < 0.5 ? -1 : 1)
                 b.flank = g.player.pos + simd_normalize(toMe + side * 1.4) * min(dist, (near + far) / 2)
-                if Float.random(in: 0..<1) < 0.5 { g.sfx(.soldier(r, .attack), 0.9, at: eye) }      // "flanking!"
+                if Rand.float(in: 0..<1) < 0.5 { g.sfx(.soldier(r, .attack), 0.9, at: eye) }      // "flanking!"
             }
             let shotsBefore = b.mag
             soldierFire(dt, g, b, gs, rank: r, dist: dist, target: target)
             // Marksmen move to a new spot after a shot now and then.
-            if r == 2 && b.mag < shotsBefore && Float.random(in: 0..<1) < 0.5 {
+            if r == 2 && b.mag < shotsBefore && Rand.float(in: 0..<1) < 0.5 {
                 let right = V3(cosf(yaw), 0, -sinf(yaw))
-                b.flank = pos + right * (Float.random(in: 0..<1) < 0.5 ? -5 : 5)
+                b.flank = pos + right * (Rand.float(in: 0..<1) < 0.5 ? -5 : 5)
                 b.flankTimer = 2.5
-                if Float.random(in: 0..<1) < 0.3 { g.sfx(.soldier(r, .retreat), 0.8, at: eye) }     // "moving!"
+                if Rand.float(in: 0..<1) < 0.3 { g.sfx(.soldier(r, .retreat), 0.8, at: eye) }     // "moving!"
             }
         } else {
             b.aimTime = 0
@@ -281,7 +281,7 @@ extension Mob {
                 let d = simd_length(ls - pos)
                 if r == 1 && b.grenadeCD <= 0 && b.seenAgo < 5 && d > 5 && d < 22 {
                     throwGrenade(g, at: ls)
-                    b.grenadeCD = Float.random(in: 9...14)
+                    b.grenadeCD = Rand.float(in: 9...14)
                 }
                 face(ls)
                 speed = d > 2 ? spec.speed : 0
@@ -299,7 +299,7 @@ extension Mob {
         if b.mag <= 0 {
             b.reload = gs.reload * (r == 3 ? 1.3 : 1)
             g.sfx(.gunReload(gs.sound), 0.6, at: eye)
-            if Float.random(in: 0..<1) < 0.4 { g.sfx(.soldier(r, .reload), 0.9, at: eye) }
+            if Rand.float(in: 0..<1) < 0.4 { g.sfx(.soldier(r, .reload), 0.9, at: eye) }
             return
         }
         guard b.shotTimer <= 0 else { return }
@@ -339,10 +339,10 @@ extension Mob {
                                  uvSize: 1, size: 0.14, gravity: 0, color: gs.shot == .beam ? V3(0.8, 2, 2.4) : V3(2.4, 1.7, 0.6), collide: false, glow: true))
         g.addFlash(at: muzzle + dir * 0.3, color: gs.shot == .beam ? V3(1.2, 2.6, 3.2) : V3(4, 3, 1.6), radius: 6, life: 0.06)   // lights the terrain (Fancy)
         b.mag -= 1
-        if b.burst <= 0 { b.burst = Int.random(in: rank.burst) }
+        if b.burst <= 0 { b.burst = Rand.int(in: rank.burst) }
         b.burst -= 1
         let rate: Float = enraged ? 0.6 : 1
-        b.shotTimer = b.burst > 0 ? gs.interval * 1.4 * rate : Float.random(in: rank.gap) * rate
+        b.shotTimer = b.burst > 0 ? gs.interval * 1.4 * rate : Rand.float(in: rank.gap) * rate
     }
 
     // A short burst into the player's last position (wider spread; it pins them behind cover).
@@ -377,7 +377,7 @@ extension Mob {
         let y = Int(floor(pos.y + 0.1))
         for i in 0..<14 {
             let a = Float(i) / 14 * 2 * .pi
-            let rr = Float.random(in: 2...6)
+            let rr = Rand.float(in: 2...6)
             let x = Int(floor(pos.x + cosf(a) * rr)), z = Int(floor(pos.z + sinf(a) * rr))
             for dy in [0, 1, -1] {
                 let fy = y + dy
@@ -470,7 +470,7 @@ extension Mob {
                                  shooter: ObjectIdentifier(self), by: spec.name, life: 6, gravity: grav)
                     s.power = 1.8
                     g.arms.spawn(s)
-                    for _ in 0..<6 { g.particles.smoke(at: muzzle + fwd * Float.random(in: 0...1), dark: false) }
+                    for _ in 0..<6 { g.particles.smoke(at: muzzle + fwd * Rand.float(in: 0...1), dark: false) }
                     g.particles.add(Particle(pos: muzzle, vel: fwd, life: 0.08, maxLife: 0.08, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
                                              size: 0.5, gravity: 0, color: V3(2.6, 1.8, 0.7), collide: false, glow: true))
                     g.addFlash(at: muzzle + fwd * 0.5, color: V3(6, 4, 2), radius: 10, life: 0.1)
@@ -498,10 +498,10 @@ extension Game {
         guard b.gun >= 0, b.gun < Guns.all.count else { return }
         let gs = Guns.all[b.gun]
         let looting = m.killedByPlayer ? Float(m.lootingLevel) : 0
-        if Items.has(gs.ammo) { drops.spawn(ItemStack(Items.id(gs.ammo), Int.random(in: gs.mag <= 6 ? 1...3 : 4...12)), at: at) }
-        if m.killedByPlayer && Float.random(in: 0..<1) < 0.25 + 0.05 * looting && Items.has(gs.key) {
+        if Items.has(gs.ammo) { drops.spawn(ItemStack(Items.id(gs.ammo), Rand.int(in: gs.mag <= 6 ? 1...3 : 4...12)), at: at) }
+        if m.killedByPlayer && Rand.float(in: 0..<1) < 0.25 + 0.05 * looting && Items.has(gs.key) {
             var s = ItemStack(Items.id(gs.key), 1)
-            s.damage = Int.random(in: gs.durability / 4...gs.durability * 3 / 4)
+            s.damage = Rand.int(in: gs.durability / 4...gs.durability * 3 / 4)
             s.tag = max(0, b.mag)
             drops.spawn(s, at: at)
         }

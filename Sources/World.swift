@@ -859,7 +859,7 @@ final class World {
             let below = block(p.x, p.y - 1, p.z)
             let eternal = below == NETHERRACK || Blocks.key(below) == "magma_block"
             if rainLevel > 0.5 && !eternal, let c = chunks[ChunkKey(x: floorDiv(p.x, CS), z: floorDiv(p.z, CS))],
-               p.y >= Int(c.height[mod(p.x, CS) + mod(p.z, CS) * CS]), Int.random(in: 0..<3) == 0 {
+               p.y >= Int(c.height[mod(p.x, CS) + mod(p.z, CS) * CS]), Rand.int(in: 0..<3) == 0 {
                 let b = gen.column(p.x, p.z).biome
                 if !(b == .desert || b.isBadlands || b == .savanna || b == .savannaPlateau) {
                     setBlockAsync(p.x, p.y, p.z, AIR); fires.removeValue(forKey: p); continue
@@ -871,20 +871,20 @@ final class World {
                 let nb = block(q.x, q.y, q.z)
                 guard fl[Int(nb)] else { continue }
                 anyFlammable = true
-                if Int.random(in: 0..<5) == 0 {
+                if Rand.int(in: 0..<5) == 0 {
                     onIgnite?(q, nb)
-                    if Int.random(in: 0..<2) == 0 { setBlockAsync(q.x, q.y, q.z, FIRE); fires[q] = 0 } else { setBlockAsync(q.x, q.y, q.z, AIR) }
+                    if Rand.int(in: 0..<2) == 0 { setBlockAsync(q.x, q.y, q.z, FIRE); fires[q] = 0 } else { setBlockAsync(q.x, q.y, q.z, AIR) }
                 }
             }
             // Spread to air next to flammable blocks nearby.
-            if anyFlammable && Int.random(in: 0..<3) == 0 {
-                let q = IVec3(p.x + Int.random(in: -1...1), p.y + Int.random(in: -1...2), p.z + Int.random(in: -1...1))
+            if anyFlammable && Rand.int(in: 0..<3) == 0 {
+                let q = IVec3(p.x + Rand.int(in: -1...1), p.y + Rand.int(in: -1...2), p.z + Rand.int(in: -1...1))
                 if block(q.x, q.y, q.z) == AIR && World.allDirs.contains(where: { fl[Int(block(q.x + $0.x, q.y + $0.y, q.z + $0.z))] }) {
                     setBlockAsync(q.x, q.y, q.z, FIRE); fires[q] = 0
                 }
             }
             let supported = Blocks.opaque[Int(below)] || anyFlammable
-            if !eternal && (!supported || (age > 6 && Int.random(in: 0..<4) == 0 && !anyFlammable) || age > 30) {
+            if !eternal && (!supported || (age > 6 && Rand.int(in: 0..<4) == 0 && !anyFlammable) || age > 30) {
                 setBlockAsync(p.x, p.y, p.z, AIR)
                 fires.removeValue(forKey: p)
             } else {

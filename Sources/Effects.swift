@@ -303,14 +303,14 @@ extension Game {
             applyEffect(.absorption, amp: 3, seconds: 120)
             applyEffect(.resistance, amp: 0, seconds: 300)
             applyEffect(.fireResistance, amp: 0, seconds: 300)
-        case "rotten_flesh": if Float.random(in: 0..<1) < 0.8 { applyEffect(.hunger, amp: 0, seconds: 30) }
-        case "chicken": if Float.random(in: 0..<1) < 0.3 { applyEffect(.hunger, amp: 0, seconds: 30) }
+        case "rotten_flesh": if Rand.float(in: 0..<1) < 0.8 { applyEffect(.hunger, amp: 0, seconds: 30) }
+        case "chicken": if Rand.float(in: 0..<1) < 0.3 { applyEffect(.hunger, amp: 0, seconds: 30) }
         case "spider_eye": applyEffect(.poison, amp: 0, seconds: 5)
         case "pufferfish":
             applyEffect(.hunger, amp: 2, seconds: 15)
             applyEffect(.nausea, amp: 0, seconds: 15)
             applyEffect(.poison, amp: 1, seconds: 60)
-        case "poisonous_potato": if Float.random(in: 0..<1) < 0.6 { applyEffect(.poison, amp: 0, seconds: 5) }
+        case "poisonous_potato": if Rand.float(in: 0..<1) < 0.6 { applyEffect(.poison, amp: 0, seconds: 5) }
         case "honey_bottle": effects.remove(.poison)
         case "milk_bucket":
             effects.clear(); absorption = 0; health = min(health, maxHealth)

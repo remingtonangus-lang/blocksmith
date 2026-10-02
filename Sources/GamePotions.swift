@@ -36,15 +36,15 @@ extension Game {
     func potionImpact(_ item: ItemID, at: V3, direct: Mob?, hitPlayer: Bool) {
         sfx(.glassBreak, 0.8, at: at)
         if Items.key(item) == "experience_bottle" {
-            addXPOrbs(3 + Int.random(in: 0...4) + Int.random(in: 0...4), at: at)
+            addXPOrbs(3 + Rand.int(in: 0...4) + Rand.int(in: 0...4), at: at)
             particles.explosion(at: at, power: 0.3)
             return
         }
         guard case let (form, t)? = Potions.potion(of: item) else { return }
         let col = TextureGen.hex(t.color)
         for _ in 0..<24 {
-            let d = simd_normalize(V3(Float.random(in: -1...1), Float.random(in: 0.2...1), Float.random(in: -1...1)))
-            particles.add(Particle(pos: at, vel: d * Float.random(in: 1...3), life: 0.8, maxLife: 0.8, layer: Int(Tex.id("smoke")),
+            let d = simd_normalize(V3(Rand.float(in: -1...1), Rand.float(in: 0.2...1), Rand.float(in: -1...1)))
+            particles.add(Particle(pos: at, vel: d * Rand.float(in: 1...3), life: 0.8, maxLife: 0.8, layer: Int(Tex.id("smoke")),
                                    uv0: V2(0, 0), uvSize: 1, size: 0.1, gravity: 2, color: V3(col.x, col.y, col.z), collide: false, glow: true))
         }
         if form == 2 {
@@ -95,8 +95,8 @@ extension Game {
                 // Wyrm fireball clouds spread out (3 -> 7) as they age.
                 clouds[i].radius = 3 + 4 * (1 - max(0, c.time) / c.maxTime)
             }
-            if Float.random(in: 0..<1) < dt * 30 {
-                let a = Float.random(in: 0..<(2 * .pi)), r = Float.random(in: 0..<c.radius)
+            if Rand.float(in: 0..<1) < dt * 30 {
+                let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 0..<c.radius)
                 particles.add(Particle(pos: c.pos + V3(cosf(a) * r, 0.1, sinf(a) * r), vel: V3(0, 0.4, 0), life: 1, maxLife: 1,
                                        layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1, size: 0.12, gravity: -0.2,
                                        color: color, collide: false, glow: true))

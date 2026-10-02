@@ -283,7 +283,7 @@ extension Mob {
             PathFinder.budget -= 1
             let t0 = Date.timeIntervalSinceReferenceDate
             defer { PathFinder.spent += Date.timeIntervalSinceReferenceDate - t0 }
-            path.timer = Float.random(in: 0.7...1.3)
+            path.timer = Rand.float(in: 0.7...1.3)
             path.goal = target
             let pr = pathProfile(g)
             path.span = pr.span

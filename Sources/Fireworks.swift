@@ -145,9 +145,9 @@ final class Rocket {
     init(at p: V3, dir: V3, flight: Int, stars: [ItemStack], crossbow: Bool = false) {
         pos = p
         shotBy = crossbow
-        vel = crossbow ? dir * 16 : V3(Float.random(in: -0.1...0.1), 1, Float.random(in: -0.1...0.1)) * 4
+        vel = crossbow ? dir * 16 : V3(Rand.float(in: -0.1...0.1), 1, Rand.float(in: -0.1...0.1)) * 4
         // Reference lifetime: 10 x (flight + 1) + rand(6) + rand(7) ticks.
-        let ticks: Int = 10 * (max(1, flight) + 1) + Int.random(in: 0...5) + Int.random(in: 0...6)
+        let ticks: Int = 10 * (max(1, flight) + 1) + Rand.int(in: 0...5) + Rand.int(in: 0...6)
         life = Float(ticks) / 20
         self.stars = stars
     }
@@ -216,7 +216,7 @@ extension ParticleManager {
         var dirs: [V3] = []
         switch shape {
         case 1:                                      // large ball
-            for _ in 0..<160 { dirs.append(simd_normalize(V3(Float.random(in: -1...1), Float.random(in: -1...1), Float.random(in: -1...1))) * 1.9) }
+            for _ in 0..<160 { dirs.append(simd_normalize(V3(Rand.float(in: -1...1), Rand.float(in: -1...1), Rand.float(in: -1...1))) * 1.9) }
         case 2:                                      // star: five points
             for i in 0..<5 {
                 let a0 = Float(i) * 2 * .pi / 5 - .pi / 2, a1 = a0 + .pi / 5
@@ -230,20 +230,20 @@ extension ParticleManager {
         case 3:                                      // hisser face
             let face = ["#..#", "#..#", ".##.", "####", "#..#"]
             for (y, row) in face.enumerated() { for (x, ch) in row.enumerated() where ch == "#" {
-                for _ in 0..<3 { dirs.append(V3((Float(x) - 1.5) * 0.35 + Float.random(in: -0.05...0.05), (2 - Float(y)) * 0.35, 0)) }
+                for _ in 0..<3 { dirs.append(V3((Float(x) - 1.5) * 0.35 + Rand.float(in: -0.05...0.05), (2 - Float(y)) * 0.35, 0)) }
             } }
         case 4:                                      // burst: upward fountain
-            for _ in 0..<70 { dirs.append(V3(Float.random(in: -0.4...0.4), Float.random(in: 0.2...1.2), Float.random(in: -0.4...0.4))) }
+            for _ in 0..<70 { dirs.append(V3(Rand.float(in: -0.4...0.4), Rand.float(in: 0.2...1.2), Rand.float(in: -0.4...0.4))) }
         default:
-            for _ in 0..<70 { dirs.append(simd_normalize(V3(Float.random(in: -1...1), Float.random(in: -1...1), Float.random(in: -1...1)))) }
+            for _ in 0..<70 { dirs.append(simd_normalize(V3(Rand.float(in: -1...1), Rand.float(in: -1...1), Rand.float(in: -1...1)))) }
         }
         for d in dirs {
-            let col = Banners.tint(cols.randomElement() ?? 15) * 1.3
-            let life = Float.random(in: 1.2...1.8) * (trail ? 1.3 : 1)
+            let col = Banners.tint(cols.pick() ?? 15) * 1.3
+            let life = Rand.float(in: 1.2...1.8) * (trail ? 1.3 : 1)
             // Fade colours: a second, longer-lived shell of sparks in the fade colour.
-            let fadeCol: V3? = fades.isEmpty ? nil : Banners.tint(fades.randomElement()!) * 1.3
+            let fadeCol: V3? = fades.isEmpty ? nil : Banners.tint(fades.pick()!) * 1.3
             add(Particle(pos: c, vel: d * 7 + V3(0, 0.5, 0), life: life, maxLife: life, layer: spark, uv0: V2(0, 0), uvSize: 1,
-                         size: twinkle ? Float.random(in: 0.05...0.14) : 0.1, gravity: 1.2, color: col, collide: false, glow: true))
+                         size: twinkle ? Rand.float(in: 0.05...0.14) : 0.1, gravity: 1.2, color: col, collide: false, glow: true))
             if let fc = fadeCol {
                 add(Particle(pos: c, vel: d * 6, life: life * 1.4, maxLife: life * 1.4, layer: spark, uv0: V2(0, 0), uvSize: 1,
                              size: 0.08, gravity: 1.0, color: fc, collide: false, glow: true))

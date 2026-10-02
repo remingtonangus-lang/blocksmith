@@ -10,7 +10,7 @@ extension Game {
         // Taming with a chance per item (reference: 1 in 3).
         func tameTry(_ odds: Int = 3) {
             consumeHeld()
-            if Int.random(in: 0..<odds) == 0 {
+            if Rand.int(in: 0..<odds) == 0 {
                 m.owner = true; m.persistent = true; m.aggro = false
                 if m.kind == .wolf { m.health = 40 }
                 particles.hearts(at: pos)
@@ -22,7 +22,7 @@ extension Game {
         case .cat where !m.tamed && (key == "cod" || key == "salmon"): tameTry(); return true
         case .ocelot where !m.tamed && (key == "cod" || key == "salmon"):
             consumeHeld()
-            if Int.random(in: 0..<3) == 0 { m.owner = false; m.persistent = true; particles.hearts(at: pos) }        // trusting
+            if Rand.int(in: 0..<3) == 0 { m.owner = false; m.persistent = true; particles.hearts(at: pos) }        // trusting
             return true
         case .parrot where !m.tamed && key.hasSuffix("_seeds"): tameTry(10); return true          // reference: 1 in 10
         case .parrot where key == "cookie": consumeHeld(); m.health = 0; return true          // poisonous to parrots
@@ -208,7 +208,7 @@ extension Mob {
                 jumpCharge += dt
                 if jumpCharge > 1 {
                     jumpCharge = 0
-                    if Int.random(in: 0..<100) < temper { owner = true; g.particles.hearts(at: pos + V3(0, height, 0)) }
+                    if Rand.int(in: 0..<100) < temper { owner = true; g.particles.hearts(at: pos + V3(0, height, 0)) }
                     else { temper += 5; g.dismount(); vel.y = 4; g.sfx(.mob(kind, .hurt), 1, at: pos); return }
                 }
             }
@@ -272,10 +272,10 @@ enum WanderingTrader {
         ].filter { Items.has($0.0) }
         let rare: [(String, Int, Int)] = [("tropical_fish_bucket", 5, 1), ("pufferfish_bucket", 5, 1), ("packed_ice", 3, 1), ("blue_ice", 6, 1),
                                           ("gunpowder", 1, 1), ("podzol", 3, 3)].filter { Items.has($0.0) }
-        for e in common.shuffled().prefix(5) {
+        for e in common.shuffledRand().prefix(5) {
             v.offers.append(TradeOffer(buyA: ItemStack(Items.id("emerald"), e.1), buyB: .empty, sell: ItemStack(Items.id(e.0), e.2), maxUses: 12, xp: 1, priceMult: 0.05))
         }
-        if let e = rare.randomElement() {
+        if let e = rare.pick() {
             v.offers.append(TradeOffer(buyA: ItemStack(Items.id("emerald"), e.1), buyB: .empty, sell: ItemStack(Items.id(e.0), e.2), maxUses: 6, xp: 1, priceMult: 0.05))
         }
         return v
@@ -287,17 +287,17 @@ extension Mob {
     func randomizeVariant() {
         switch kind {
         case .horse:
-            variant = Int.random(in: 0..<5) | (Int.random(in: 0..<16) << 4) | (Int.random(in: 0..<16) << 8)
-            health = Int.random(in: 15...30)
+            variant = Rand.int(in: 0..<5) | (Rand.int(in: 0..<16) << 4) | (Rand.int(in: 0..<16) << 8)
+            health = Rand.int(in: 15...30)
         case .donkey, .mule, .llama, .traderLlama:
-            variant = Int.random(in: 0..<4) | (Int.random(in: 0..<16) << 4) | (Int.random(in: 0..<16) << 8)
-            health = Int.random(in: 15...30)
+            variant = Rand.int(in: 0..<4) | (Rand.int(in: 0..<16) << 4) | (Rand.int(in: 0..<16) << 8)
+            health = Rand.int(in: 15...30)
         case .skeletonHorse, .zombieHorse: variant = (8 << 4) | (8 << 8)
-        case .rabbit, .cat, .tropicalFish: variant = Int.random(in: 0..<4)
-        case .parrot: variant = Int.random(in: 0..<5)
-        case .axolotl: variant = Int.random(in: 0..<1200) == 0 ? 4 : Int.random(in: 0..<4)       // blue is 1 in 1200
-        case .goat: variant = Int.random(in: 0..<50) == 0 ? 1 : 0                                     // screaming goats: 2%
-        case .frog: variant = Int.random(in: 0..<3)
+        case .rabbit, .cat, .tropicalFish: variant = Rand.int(in: 0..<4)
+        case .parrot: variant = Rand.int(in: 0..<5)
+        case .axolotl: variant = Rand.int(in: 0..<1200) == 0 ? 4 : Rand.int(in: 0..<4)       // blue is 1 in 1200
+        case .goat: variant = Rand.int(in: 0..<50) == 0 ? 1 : 0                                     // screaming goats: 2%
+        case .frog: variant = Rand.int(in: 0..<3)
         case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad: variant = Soldier.pickGun(kind)
         case .panda: variant = Mob.pandaGene() | (Mob.pandaGene() << 3)
         default: break

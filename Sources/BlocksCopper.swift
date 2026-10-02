@@ -242,7 +242,7 @@ extension Game {
         guard Copper.index[Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))])] != nil else { return }
         clean(p) { _ in 0 }
         for _ in 0..<5 {
-            let q = IVec3(p.x + Int.random(in: -3...3), p.y + Int.random(in: -3...1), p.z + Int.random(in: -3...3))
+            let q = IVec3(p.x + Rand.int(in: -3...3), p.y + Rand.int(in: -3...1), p.z + Rand.int(in: -3...3))
             clean(q) { $0 - 1 }
         }
     }
@@ -250,7 +250,7 @@ extension Game {
     // Random-tick oxidation (roughly one stage per hour of loaded time, like the reference average).
     func copperAge(_ p: IVec3, _ b: BlockID) {
         guard case let (_, stage, waxed)? = Copper.index[Blocks.key(Blocks.groupBase[Int(b)])], !waxed, stage < 3 else { return }
-        guard Float.random(in: 0..<1) < 0.02 else { return }
+        guard Rand.float(in: 0..<1) < 0.02 else { return }
         if let t = Copper.convert(b, stage: stage + 1, waxed: false) { world.setBlock(p.x, p.y, p.z, t) }
     }
 }

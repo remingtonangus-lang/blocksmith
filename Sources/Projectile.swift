@@ -134,7 +134,7 @@ final class ProjectileManager {
                 continue
             }
             f.pos += step
-            if (f.kind == .fire || f.kind == .witherSkull || f.kind == .blueSkull) && Float.random(in: 0..<1) < dt * 30 { g.particles.smoke(at: f.pos) }
+            if (f.kind == .fire || f.kind == .witherSkull || f.kind == .blueSkull) && Rand.float(in: 0..<1) < dt * 30 { g.particles.smoke(at: f.pos) }
         }
         fireballs.removeAll { $0.dead }
     }
@@ -142,7 +142,7 @@ final class ProjectileManager {
     @discardableResult
     func shoot(from p: V3, dir: V3, speed: Float, fromPlayer: Bool, damage: Float) -> Arrow {
         let spread: Float = fromPlayer ? 0.0075 : 0.03
-        let d = simd_normalize(dir + V3(Float.random(in: -1...1), Float.random(in: -1...1), Float.random(in: -1...1)) * spread)
+        let d = simd_normalize(dir + V3(Rand.float(in: -1...1), Rand.float(in: -1...1), Rand.float(in: -1...1)) * spread)
         let a = Arrow(p, d * speed, fromPlayer: fromPlayer, damage: damage)
         arrows.append(a)
         return a
@@ -225,7 +225,7 @@ final class ProjectileManager {
             if hitT < blockT {
                 let speedPerTick = simd_length(a.vel) / 20
                 var dmg = Int(ceilf(speedPerTick * a.damage))
-                if a.fromPlayer && Float.random(in: 0..<1) < 0.25 { dmg += Int.random(in: 0...(dmg / 2 + 1)) }
+                if a.fromPlayer && Rand.float(in: 0..<1) < 0.25 { dmg += Rand.int(in: 0...(dmg / 2 + 1)) }
                 if let m = hitMob, m.kind == .enderman, a.trident == nil {
                     m.teleport(w)                                  // voidwalkers dodge arrows
                 } else if let m = hitMob {
