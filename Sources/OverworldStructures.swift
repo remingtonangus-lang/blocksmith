@@ -336,7 +336,10 @@ enum OverworldStructures {
         // block per step (a branch 2-4 blocks higher or lower joined with a wall or a pit: structcheck poi_unreachable).
         struct Seg {
             let x: Int; let y: Int; let z: Int; let dx: Int; let dz: Int; let len: Int; let from: Int
-            func floor(_ k: Int) -> Int { y == from ? y : from + (y > from ? 1 : -1) * min(k + 1, abs(y - from)) }
+            // k = 0 is the parent's end cell itself: level with the parent there (with k + 1 an upward branch's floor
+            // stood one up in the shared cell, where the parent's floor still holds the feet, so the next step was
+            // two blocks: structcheck mineshaft poi_unreachable, issue gallery run 362).
+            func floor(_ k: Int) -> Int { y == from ? y : from + (y > from ? 1 : -1) * min(k, abs(y - from)) }
         }
         var segs: [Seg] = []
         var frontier: [(Int, Int, Int, Int, Int, Int)] = []
