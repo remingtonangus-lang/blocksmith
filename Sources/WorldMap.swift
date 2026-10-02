@@ -264,12 +264,17 @@ enum MapDraw {
         // The player: a dot with a facing tick.
         if let p = at(g.player.pos.x, g.player.pos.z) {
             let f = V2(-sinf(g.player.yaw), -cosf(g.player.yaw))
-            out.append(HudLine(text: "", x: p.x - 3 * s, y: p.y - 3 * s, scale: s, bg: V4(0, 0, 0, 0.9), box: V2(6 * s, 6 * s)))
-            out.append(HudLine(text: "", x: p.x - 2 * s, y: p.y - 2 * s, scale: s, bg: V4(1, 1, 1, 1), box: V2(4 * s, 4 * s)))
-            for k in 1...3 {
-                let q = p + f * Float(k + 2) * s
+            // Bigger, with a longer outlined facing tick (a 6 px square read as just another mark: blind UI critic, map).
+            for k in 1...5 {
+                let q = p + f * Float(k + 3) * s
+                out.append(HudLine(text: "", x: q.x - 2 * s, y: q.y - 2 * s, scale: s, bg: V4(0, 0, 0, 0.85), box: V2(4 * s, 4 * s)))
+            }
+            for k in 1...5 {
+                let q = p + f * Float(k + 3) * s
                 out.append(HudLine(text: "", x: q.x - s, y: q.y - s, scale: s, bg: V4(1, 0.9, 0.3, 1), box: V2(2 * s, 2 * s)))
             }
+            out.append(HudLine(text: "", x: p.x - 5 * s, y: p.y - 5 * s, scale: s, bg: V4(0, 0, 0, 0.9), box: V2(10 * s, 10 * s)))
+            out.append(HudLine(text: "", x: p.x - 4 * s, y: p.y - 4 * s, scale: s, bg: V4(1, 1, 1, 1), box: V2(8 * s, 8 * s)))
         }
     }
 }
