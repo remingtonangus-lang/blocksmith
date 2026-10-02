@@ -1059,7 +1059,9 @@ extension ShipManager {
         st.phaseT += dt
         let keel = st.groundOffset
         let gx = Int(floor(s.pos.x)), gz = Int(floor(s.pos.z))
-        let ground = Float(max(world.gen.column(gx, gz).height, SEA))
+        // Over loaded ground, the real top block (tree crowns too: hovering at terrain height put it in the canopy).
+        let top: Int = world.isLoaded(gx, gz) ? world.topY(gx, gz) : world.gen.column(gx, gz).height
+        let ground = Float(max(top, SEA))
         let keelY = s.pos.y - keel
         if !s.wrecked && s.initialBlocks > 0 && s.blockCount * 10 < s.initialBlocks * 6 {
             s.wrecked = true
