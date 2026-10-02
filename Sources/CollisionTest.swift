@@ -18,8 +18,8 @@ enum CollisionTest {
         let P = IVec3(8, by, 8)
         // Floor and clear space.
         for z in 2...14 { for x in 2...14 {
-            world.setBlockAsync(x, by - 1, z, STONE)
-            for y in by...(by + 6) { world.setBlockAsync(x, y, z, AIR) }
+            _ = world.setBlockAsync(x, by - 1, z, STONE)
+            for y in by...(by + 6) { _ = world.setBlockAsync(x, y, z, AIR) }
         } }
         var seen = Set<String>()
         var counts: [String: Int] = [:]
@@ -37,7 +37,7 @@ enum CollisionTest {
             let sig: String = Blocks.fullCollide[i] ? "full" : Blocks.boxes[i].map { "\($0.minV)\($0.maxV)" }.joined() + "c\(Blocks.connectKind[i])"
             if !seen.insert(sig).inserted { continue }
             tested += 1
-            world.setBlockAsync(P.x, P.y, P.z, b)
+            _ = world.setBlockAsync(P.x, P.y, P.z, b)
             var boxes: [(V3, V3)] = []
             world.collisionBoxes(P.x, P.y, P.z, &boxes)
             // Box sanity.
@@ -85,7 +85,7 @@ enum CollisionTest {
             if lane > 0 && lane <= 0.6 && pos.x < 8.5 { flag("no_step_up", String(format: "%@: top +%.2f but the walker stopped at x %.2f", key, lane, pos.x - 8)) }
             if lane > 0.65 && pos.x > 8.5 && !boxes.isEmpty { flag("walk_through", String(format: "%@: top +%.2f but the walker got past (x %.2f)", key, lane, pos.x - 8)) }
             if through { flag("penetration", "\(key): the walking body overlapped the block") }
-            world.setBlockAsync(P.x, P.y, P.z, AIR)
+            _ = world.setBlockAsync(P.x, P.y, P.z, AIR)
         }
         let cs = counts.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
         let summary = "collisiontest: \(tested) shapes; \(cs.isEmpty ? "no issues" : cs)"
