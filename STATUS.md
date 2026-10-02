@@ -113,20 +113,24 @@ code); mechanics, names and numbers follow the reference game.
 
 ## Playtest 2 (Remington, 2026-10-02 evening)
 - [x] "No render distance setting": it was on Options page 3; now on the pause menu itself and Options opens on Video.
-- [~] Cacti vanish far away and pop in close: --lodcheck in tour_desert prints near/far quads of cactus sections (cause
-      not found by reading: model blocks mesh at LOD 1); fix pending the numbers.
+- [~] Cacti vanish far away and pop in close: not reproduced. Far meshes keep cacti (--lodcheck: every cactus
+      section has far quads), cactus_far vs cactus_far_nolod (rd 16) and tour_desert (rd 12) show cacti to the
+      horizon. Needs the in-game setting (Fast or Fancy, render distance) or a voice note with position.
 - [x] Falling water seen from afar showed a bright blue sheet: Fancy water side faces are tumbling water, not a sky mirror.
 - [x] All kinds of rabbits in the desert: coats by biome (desert gold, snowy white / black-and-white, else brown, salt
       and pepper, black).
 - [x] Desert temple rework (walled hall, stepped roof open inside, towers with ladders, forecourt, treasure chamber);
-      jungle temple reworked; igloo crown fixed. More structures to follow (swamp hut, outposts).
+      jungle temple reworked; igloo crown fixed; swamp hut porch; pillager outpost rebuilt (birch-on-dark-oak
+      watchtower, lookout, roof, camp with golem cage, tents, log pile, targets); shipwrecks rebuilt as sailing
+      ships; end cities gain trim bands, tower wings and a lantern spire; village houses vary per lot.
 - [~] Bases not seen yet: Steelhold fortresses are rare by design (one per 64x64-chunk region at most); a finder is TODO.
 - [~] Capital ships, true to size, very hostile, rare, three warring factions (CapitalShips.swift): Stormwarden Frigate
       (480 blocks, 16 naval-gun turrets, spinal rail cannon, missiles, hangar, bridge), Ironback Crawler (77-block
       six-wheeler), Steelhold. Kinematic capital-ship engine (no rigid-body solve, incremental damage, regional
       remesh, per-section culling, worker-thread build). Boardable (hangar, ramp, ladders), crews in faction colours,
-      breakaway hull pieces, critical systems (helm, drive engines). --capitaltest + 3 shots. Next: eyes on the
-      shots, tune ranges/damage, LOD/impostor so a frigate shows beyond the render distance.
+      breakaway hull pieces, critical systems (helm, drive engines), troop drops (crawler ramp, frigate drop
+      troops), frigate silhouette (wedge prow, nacelles, spine). --capitaltest (boarding check passes) + 3 shots.
+      Next: tune ranges/damage, LOD/impostor so a frigate shows beyond the render distance.
 - [x] Progressive block damage: mining and blasts chip 4x4x4 sub-cubes off a block until it breaks (Options > Video >
       Block Chipping). Next: collision shrinks with the damage, ships' blocks too, finer mining animation.
 
