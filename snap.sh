@@ -14,6 +14,10 @@ if [ $# -gt 0 ]; then n="$1"; shift; "$BIN" --snapshot "snaps/$n.png" "$@"; exit
 set +e
 FAILED=()
 trap 'rc=$?; FAILED+=("$LINENO"); echo "snap.sh: line $LINENO: failed (exit $rc)"' ERR
+# Shards (CI heavy lane runs them as parallel jobs): SNAP_SHARD=checks | tours | shots; unset runs all three.
+SHARD="${SNAP_SHARD:-all}"
+on() { [ "$SHARD" = all ] || [ "$SHARD" = "$1" ]; }
+if on checks; then
 # Audio (first, so the sound and music checks always run): every sound is rendered and checked into build/sounds (not published); a sampler, the soundscapes
 # and 10 s of every music mood go to snaps/sounds for listening on ci-snaps.
 rm -rf build/sounds snaps/sounds; mkdir -p snaps/sounds
@@ -66,6 +70,8 @@ if [ -n "$R" ]; then
   H2=$("$BIN" --agent replay "$R" | grep -o "end-state hash [0-9]*" || true)
   if [ -n "$H1" ] && [ "$H1" = "$H2" ]; then echo "replay determinism: same ($H1, $R)"; else echo "replay determinism: DIFFERENT ($H1 vs $H2, $R)"; fi
 fi
+fi
+if on tours; then
 # Far-ocean kelp streaks in tour_777_aerial: the same view in Fast graphics and at render distance 8 (no far LOD).
 "$BIN" --snapshot snaps/tour_777_aerial_fast.png --seed 777 --x 600 --z 300 --onland --yaw 200 --pitch -28 --time 0.23 --up 55 --rd 16 --fast
 "$BIN" --snapshot snaps/tour_777_aerial_nocull.png --seed 777 --x 600 --z 300 --onland --yaw 200 --pitch -28 --time 0.23 --up 55 --rd 16 --nocull
@@ -161,6 +167,8 @@ done
 "$BIN" --snapshot snaps/sim.png --seed 12345 --sim 12 --yaw 30 --pitch -10 --time 0.25
 "$BIN" --atlas snaps/atlas
 BLOCKSMITH_TEXRES=128 "$BIN" --hdatlas snaps/hdatlas.png
+fi
+if on shots; then
 # Texture sources side by side (docs/textures): procedural vs the imported CC0 trial set at 128 px, same views.
 for SRC in procedural cc0; do
   if [ "$SRC" = procedural ]; then F="--procedural"; else F="--texdir docs/textures/trials/$SRC"; fi
@@ -297,8 +305,9 @@ done
 "$BIN" --snapshot snaps/flicker_village.png --seed 12345 --structure village --frame 0.8 --time 0.3 --flicker
 "$BIN" --snapshot snaps/flicker_forest.png --seed 12345 --find forest --yaw 30 --pitch -28 --time 0.22 --up 22 --flicker
 "$BIN" --snapshot snaps/flicker_build.png --seed 12345 --find plains --yaw 0 --pitch 0 --time 0.28 --up 6 --flicker --gallery oak_door,oak_trapdoor,glass_pane,lantern,oak_stairs,oak_slab,cobblestone_wall,oak_fence,iron_bars,ladder,rail,white_carpet,snow_block,chest,red_bed,lectern
+fi
 # Visual oracles over every frame of this run (missing textures, black / blank / duplicate frames, z-fighting).
-python3 tools/imagecheck.py snaps/imagecheck.log
+[ -f snaps/imagecheck.log ] && python3 tools/imagecheck.py snaps/imagecheck.log
 trap - ERR
 if [ ${#FAILED[@]} -gt 0 ]; then
   echo "snap.sh: ${#FAILED[@]} failing line(s): ${FAILED[*]}"

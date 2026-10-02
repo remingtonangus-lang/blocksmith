@@ -324,6 +324,10 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   green again with the release app kept). Run 373 (3a9e428) fully green -> PLAYTEST READY 3a9e428 on PR #9: shadow
   passes in their own command buffer on the virtual GPU + up to two retries, mineshaft chests all reachable (supports
   away from joins), gencheck unsupported 100 -> 0, leak 123 -> 100, villagers bed/meet 47/47.
+- 2026-10-02 19:30 UTC: CI restructured (Remington, throughput fix): fast lane every push (unoptimized parallel build,
+  type-check warnings only, one 16 px snapshot -> ci-fast-<branch>); heavy lane every 5th run / [full] / dispatch /
+  nightly, release build artifact + 5 parallel jobs -> ci-snaps-<branch>. Gemini textures: chat-Claude uploads
+  assets/gemini/<name>.png per docs/texture_requests.md (66 names, 4 tiers); tools/gemini_import.sh imports them.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
