@@ -2251,6 +2251,54 @@ enum HDTex {
         }
     }
 
+    // TNT (same layout as the small painters). Side: four red paper tubes, each rounded with its own shading, under a
+    // white label band with the black marks of the small design. Top / bottom: the tube ends as paper rings, a fuse in
+    // the middle of the top.
+    static func tntHD(_ part: Int) -> Gen {                      // 0 side, 1 top, 2 bottom
+        { n, s in
+            let fn = Float(n), u = n / 16
+            var img = Img(n)
+            let fine = vnoise(n, max(1, n / 64), s)
+            let red = col(0xC23A28), paper = col(0xB8B0A0), white = col(0xEAEAEA), ink = col(0x2A2A2A)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let grain: Float = 0.93 + 0.12 * fine[i]
+                var c: V3
+                if part == 0 {
+                    let tube: Float = (Float(x % (4 * u)) + 0.5) / Float(4 * u)       // 0...1 across a tube
+                    let round: Float = 0.72 + 0.4 * sinf(.pi * tube) - 0.1 * tube
+                    c = red * (round * grain)
+                    let ly = y / u, lx = x / u
+                    if ly >= 5 && ly <= 10 {
+                        let lit: Float = 0.9 + 0.12 * sinf(.pi * tube)
+                        c = white * (grain * lit)
+                        let glyph: Bool = lx % 4 == 1 || (ly == 6 && lx % 4 != 0)
+                        let mark: Bool = ly >= 6 && ly <= 9 && glyph
+                        if mark { c = ink * grain }
+                    }
+                } else {
+                    // Tube ends: a 2x2 grid of paper rings (each tube end), a fuse on top.
+                    let cell = n / 2
+                    let half: Float = Float(cell) / 2
+                    let cx: Float = Float(x % cell) + 0.5 - half
+                    let cy: Float = Float(y % cell) + 0.5 - half
+                    let d: Float = (cx * cx + cy * cy).squareRoot() / half
+                    let rings: Float = 0.85 + 0.15 * cosf(d * 18)
+                    let ring: Float = d < 0.9 ? rings : 0.55
+                    c = paper * (ring * grain)
+                    if part == 1 {
+                        let fx: Float = Float(x) + 0.5 - fn / 2
+                        let fy: Float = Float(y) + 0.5 - fn / 2
+                        let fuseR2: Float = Float(u * u) * 4
+                        if fx * fx + fy * fy < fuseR2 { c = ink * grain }
+                    }
+                }
+                img.px[i] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
+            } }
+            return img
+        }
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -2815,6 +2863,9 @@ enum HDTex {
         "activator_rail": railHD(tie: 0x7A2A1A, rail: 0xA8A8A8, mid: 0x5A1410),
         "activator_rail_on": railHD(tie: 0x7A2A1A, rail: 0xA8A8A8, mid: 0xF8301A),
         "ladder": ladderHD,
+        "tnt_side": tntHD(0),
+        "tnt_top": tntHD(1),
+        "tnt_bottom": tntHD(2),
         "end_portal_frame_side": gateFrame(0),
         "end_portal_frame_top": gateFrame(1),
         "end_portal_frame_eye": gateFrame(2),
