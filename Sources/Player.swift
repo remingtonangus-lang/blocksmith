@@ -23,6 +23,7 @@ final class Player {
     var sneaking = false
     var sprinting = false
     var airPeak: Float = 0         // highest feet y since last touching ground/water (fall damage)
+    var lastUpdatePos = V3(0, 0, 0)  // where the last update left the body (a jump of 6+ blocks is a teleport)
     var pendingFall: Float = 0     // fall distance of the last landing; Game consumes and clears it
     var jumped = false             // a ground jump started this frame
     var gliding = false            // glider wings flight
@@ -96,6 +97,10 @@ final class Player {
         let inFluid = inWater || inLava
 
         if flying || inFluid { airPeak = pos.y }
+        // Moved 6+ blocks since the last update: a teleport (portal, command, harness), not a fall. Terminal speed is
+        // under 4 blocks a tick. (The playthrough died of "fall" damage after being placed at the Emberdeep portal
+        // below where it had last stood: run 375.)
+        if simd_length(pos - lastUpdatePos) > 6 { airPeak = pos.y }
         jumped = false
         if gliding && (onGround || inFluid || flying) { gliding = false }
         if gliding { glide(dt, w); return }
@@ -202,6 +207,7 @@ final class Player {
             airPeak = max(airPeak, pos.y)
         }
         if pos.y < -64 { pos.y = Float(CH); vel = .zero }
+        lastUpdatePos = pos
     }
 
     // Glider Wings flight, stepped at 20 Hz in blocks/tick like the reference game: pitch trades height for
