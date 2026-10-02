@@ -110,21 +110,23 @@ code); mechanics, names and numbers follow the reference game.
 Bug discovery is fully automated (Remington is not the bug finder). Keep CI green throughout. Queue, in order:
 1. Bug-hunting infrastructure and the find-fix loop (log every bug class in BUGS.md: class, oracle, fix):
    - [x] --structcheck: structure walkability (doors, steps, POIs, mob spawns, floating) over every kind/dimension.
-   - [ ] Agent API + --agent mode: bots play the real Game.tick (move/look/jump/sneak/use/attack/inventory/craft/
+   - [x] Agent API + --agent mode: bots play the real Game.tick (move/look/jump/sneak/use/attack/inventory/craft/
          trade/sleep), deterministic seed + input log.
-   - [ ] Per-tick oracles (inside solid, stuck, fell out, unexpected damage, NaN, entity explosion, frame spikes, UI
+   - [x] Per-tick oracles (inside solid, stuck, fell out, unexpected damage, NaN, entity explosion, frame spikes, UI
          dead ends, crashes) recording replays; monkey fuzzing across seeds; replay minimiser.
-   - [ ] Explorer bots (walk, never fly): curiosity + goals (enter every village building, climb stairs, swim a lake,
+   - [x] Explorer bots (walk, never fly): curiosity + goals (enter every village building, climb stairs, swim a lake,
          cave down and back, trade, sleep, survive a night). An unmet goal a human would expect to meet is a bug.
-   - [ ] Mob/villager behaviour sim: stuck, spinning, jittering, wall-walking, falling, never-reaching-target stats.
-   - [ ] World-gen sanity (floating blocks, leaks, trees in walls, plants on wrong blocks, ores in air) and a
+   - [x] Mob/villager behaviour sim: stuck, spinning, jittering, wall-walking, falling, never-reaching-target stats.
+   - [x] World-gen sanity (floating blocks, leaks, trees in walls, plants on wrong blocks, ores in air) and a
          collision test for every block shape.
-   - [ ] Fly-through tours: hundreds of shots (seeds, biomes, structures, interiors, night, underwater, caves) with
+   - [x] Fly-through tours: hundreds of shots (seeds, biomes, structures, interiors, night, underwater, caves) with
          visual oracles (missing textures, sky holes below terrain, black frames, flicker) + eyes on a sample each
          cycle + a blind critic pass against a written reference-quality spec.
-   - [ ] LLM playthroughs through a text state summary (Voyager-style tasks) now and then.
-   - [ ] .claude/skills/blocksmith-qa/SKILL.md (the loop), nightly scheduled CI with a summary artifact.
-   - [ ] Fix the villager AI and the house floor/entrance problem properly (house floors sit a block above the door
+   - [ ] LLM playthroughs through a text state summary (Voyager-style tasks) now and then. (Blind visual critic done:
+         tools/gemini_critic.py; LLM play needs the model reachable from the CI runner, which has no key.)
+   - [x] .claude/skills/blocksmith-qa/SKILL.md (the loop), nightly scheduled CI with a summary artifact.
+   - [~] Fix the villager AI and the house floor/entrance problem properly (floors fixed; AI: give-up memory,
+         stroll areas, bed walking, idle fallback, 1500-node paths; behaviour-sim numbers still high, iterating) (house floors sit a block above the door
          sill: every house needs a jump to enter and furniture/villager spawns are set into the floor).
 2. Texture source trial (2026-10-02, docs/qa/texture_trial_*.png; tools/texlab.py, tools/matlab.py):
    - Pollinations: not usable (one image came back as an isometric scene, not a texture; then HTTP 402 Payment
