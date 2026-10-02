@@ -599,6 +599,23 @@ final class World {
         return (t1 - t0, t2 - t1)
     }
 
+    // Generates and installs every chunk of a rectangle (chunk coordinates, inclusive) without meshing: the
+    // structure, world-gen and bot checkers only need blocks.
+    func loadBlocks(cx0: Int, cz0: Int, cx1: Int, cz1: Int) {
+        var keys: [ChunkKey] = []
+        for cz in cz0...cz1 { for cx in cx0...cx1 {
+            let k = ChunkKey(x: cx, z: cz)
+            if chunks[k] == nil { keys.append(k) }
+        } }
+        guard !keys.isEmpty else { return }
+        let res = UnsafeMutablePointer<Produced>.allocate(capacity: keys.count)
+        defer { res.deallocate() }
+        DispatchQueue.concurrentPerform(iterations: keys.count) { i in
+            (res + i).initialize(to: produce(keys[i]))
+        }
+        for (i, k) in keys.enumerated() { install(k, (res + i).move()) }
+    }
+
     // Drops every chunk (after saving) — used when leaving a dimension.
     func unloadAll() {
         chunks.removeAll()

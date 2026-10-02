@@ -1253,6 +1253,10 @@ if let out = arg("--bench") {
 if let dir = arg("--terrainmap") { exit(TerrainTools.maps(dir)) }
 if CommandLine.arguments.contains("--genbench") { exit(TerrainTools.genBench()) }
 if CommandLine.arguments.contains("--kelpcheck") { exit(TerrainTools.kelpCheck()) }
+if CommandLine.arguments.contains("--structcheck") {
+    guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); exit(1) }
+    exit(StructCheck.run(device: device))
+}
 
 if let out = arg("--atlas") {
     exit(dumpAtlas(out))
