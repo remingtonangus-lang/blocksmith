@@ -35,7 +35,22 @@ struct StructWriter {
         inside(x, y, z) ? blocks[Chunk.index(x - bx, y, z - bz)] : AIR
     }
     func set(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
-        if inside(x, y, z) { blocks[Chunk.index(x - bx, y, z - bz)] = b; note(x, y, z, b) }
+        if inside(x, y, z) { blocks[Chunk.index(x - bx, y, z - bz)] = b; note(x, y, z, b); unplant(x, y, z, b) }
+    }
+
+    // Grass, flowers and saplings need soil: a structure block written under one (paths, foundations, wells)
+    // removes it (gencheck plant_soil: grass and bushes standing on village cobblestone).
+    static let soilPlant: [Bool] = (0..<Blocks.count).map { i in
+        GenCheck.soils(Blocks.key(Blocks.groupBase[i])) == GenCheck.dirtLike
+    }
+    static let soil: [Bool] = (0..<Blocks.count).map { i in GenCheck.dirtLike.contains(Blocks.key(Blocks.groupBase[i])) }
+    @inline(__always) func unplant(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
+        guard b != AIR, !StructWriter.soil[Int(b)], Blocks.collide[Int(b)] else { return }
+        var yy = y + 1
+        while yy < CH, StructWriter.soilPlant[Int(blocks[Chunk.index(x - bx, yy, z - bz)])] {
+            blocks[Chunk.index(x - bx, yy, z - bz)] = AIR
+            yy += 1
+        }
     }
     func fill(_ x0: Int, _ y0: Int, _ z0: Int, _ x1: Int, _ y1: Int, _ z1: Int, _ b: BlockID) {
         let xa = max(x0, bx), xb = min(x1, bx + CS - 1)
@@ -43,7 +58,7 @@ struct StructWriter {
         let ya = max(0, y0), yb = min(CH - 1, y1)
         guard xa <= xb, za <= zb, ya <= yb else { return }
         for y in ya...yb { for z in za...zb { for x in xa...xb { blocks[Chunk.index(x - bx, y, z - bz)] = b } } }
-        for z in za...zb { for x in xa...xb { note(x, ya, z, b) } }
+        for z in za...zb { for x in xa...xb { note(x, ya, z, b); unplant(x, yb, z, b) } }
     }
 
     // Fills open air / cave water under the lowest block each column of the structure wrote, down to the ground
