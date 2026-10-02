@@ -468,6 +468,18 @@ final class Playthrough {
             let near = game.drops.items.filter { simd_length($0.pos - center(st)) < 24 }
                 .map { e in String(format: "%@ at %.1f %.1f %.1f", Items.key(e.stack.item), e.pos.x, e.pos.y - Float(YOFF), e.pos.z) }
             info("stone at \(st.x) \(st.y - YOFF) \(st.z), now \(key(st)); around (up down +x -x +z -z): \(around); drops within 24: \(near.isEmpty ? "none" : near.joined(separator: ", "))")
+            // A leftover cobblestone close up (runs 367 and 370: pickups failed although the player stood on them).
+            if let e = game.drops.items.first(where: { Items.key($0.stack.item) == "cobblestone" && simd_length($0.pos - center(st)) < 24 }) {
+                let at = standNear(e.pos)
+                game.player.pos = at; game.player.vel = .zero
+                let before = count("cobblestone")
+                game.tick(0.05)
+                let q: V3 = game.player.pos - e.pos
+                let free = (0..<36).filter { inv[$0].isEmpty }.count
+                info(String(format: "cobblestone close up: delay %.2f age %.1f ground %@; stood at %.2f above it, after a tick the player is %.2f %.2f %.2f from it; alive %@, %ld free slots, picked %@, menu %@",
+                            e.pickupDelay, e.age, e.onGround ? "yes" : "no", at.y - e.pos.y, q.x, q.y, q.z, game.alive ? "yes" : "no", free,
+                            count("cobblestone") > before ? "yes" : "no", game.menu.map { "\(type(of: $0))" } ?? "none"))
+            }
         }
         if count("cobblestone") < 11 { give("cobblestone", 11 - count("cobblestone"), bulk: "more stone") }
         craft(["CCC", " S ", " S "], ["C": "cobblestone", "S": "stick"], "stone_pickaxe")
