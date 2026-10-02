@@ -43,7 +43,7 @@ final class CapitalState {
     var engaged = false
     var sight: Float = 250
     var crew: [V3] = []                // crew posts (ship space); soldiers of the ship's faction appear there once
-    var crewSpawned = false
+    var crewDone = Set<Int>()          // posts whose soldier has appeared
 }
 
 struct CapTarget {
@@ -588,12 +588,15 @@ extension ShipManager {
                 g.onToast?(s.role == "warfrigate" ? "A Stormwarden Frigate looms on the horizon" : "The ground shakes: an Ironback Crawler is near")
             }
             if s.asleep { continue }
-            if !st.crewSpawned && pd < 200 {
+            if st.crewDone.count < st.crew.count && pd < 96 {
                 // Defenders aboard: soldiers of the ship's faction at its posts (they ride the hull, fight boarders).
-                st.crewSpawned = true
+                // Only over loaded ground (mobs there don't update, so they'd be left hanging as the hull moved on).
                 let ranks: [MobKind] = [.soldierTrooper, .soldierTrooper, .soldierRecruit, .soldierMarksman, .soldierIronclad]
-                for (i, post) in st.crew.enumerated() {
-                    let m = Mob(ranks[i % ranks.count], at: s.toWorld(post + V3(0, 0.05, 0)))
+                for (i, post) in st.crew.enumerated() where !st.crewDone.contains(i) {
+                    let at = s.toWorld(post + V3(0, 0.05, 0))
+                    guard world.isLoaded(Int(floor(at.x)), Int(floor(at.z))), simd_length(at - g.player.pos) < 120 else { continue }
+                    st.crewDone.insert(i)
+                    let m = Mob(ranks[i % ranks.count], at: at)
                     m.faction = s.faction
                     m.persistent = true
                     if m.kind == .soldierIronclad { m.variant = Guns.arc }        // no rockets bursting inside their own hull
