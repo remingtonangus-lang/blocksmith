@@ -1205,8 +1205,10 @@ enum Snapshot {
                 renderer.probes.append(("control apple", V3(Float(q.x) + 0.5, Float(q.y) + 0.5, Float(q.z) + 0.5) - V3(0, 0, 0.42)))
             }
             // Mip alpha of the sprites involved (frames empty past ~6 blocks): centre alpha and coverage per level.
-            for it in ["apple", "gun_rifle"] where Items.has(it) {
-                guard let l = Items.texLayer(Items.id(it)) else { continue }
+            for it in ["apple", "gun_rifle", "#cactus_side", "#oak_leaves"] {
+                let l: Int
+                if it.hasPrefix("#") { l = Int(Tex.id(String(it.dropFirst()))) }
+                else { guard Items.has(it), let k = Items.texLayer(Items.id(it)) else { continue }; l = k }
                 let lv = TextureGen.mipChain(layers: l..<(l + 1))
                 var line = "mips \(it) (layer \(l), \(Tex.names[l])):"
                 var sz = TextureGen.size
