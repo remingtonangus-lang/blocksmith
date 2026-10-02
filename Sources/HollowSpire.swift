@@ -56,10 +56,17 @@ enum HollowSpire {
         // Foundation down into the island, then the house.
         for z in (oz - 5)...(oz + 5) { for x in (ox - 5)...(ox + 5) { w.pillarDown(x, y0 - 1, z, purpur, minY: y0 - 6) } }
         box(&w, ox - 5, y0, oz - 5, ox + 5, y0 + 6, oz + 5, floor: purpur, wall: purpur)
-        w.fill(ox - 1, y0 + 1, oz - 5, ox + 1, y0 + 3, oz - 5, AIR)                       // doorway
-        // A slab step up to the doorway sill (the floor sits a block above the island).
-        w.fill(ox - 1, y0, oz - 6, ox + 1, y0, oz - 6, Blocks.id("purpur_slab"))
-        w.fill(ox - 1, y0 + 1, oz - 7, ox + 1, y0 + 3, oz - 6, AIR)
+        // A doorway on every side, each with a slab step up to the sill (the floor sits a block above the island): one
+        // door facing north often looked out over the island's edge, so no walk reached it (structcheck 33/33).
+        let slab = Blocks.id("purpur_slab")
+        w.fill(ox - 1, y0 + 1, oz - 5, ox + 1, y0 + 3, oz - 5, AIR)
+        w.fill(ox - 1, y0 + 1, oz + 5, ox + 1, y0 + 3, oz + 5, AIR)
+        w.fill(ox - 5, y0 + 1, oz - 1, ox - 5, y0 + 3, oz + 1, AIR)
+        w.fill(ox + 5, y0 + 1, oz - 1, ox + 5, y0 + 3, oz + 1, AIR)
+        w.fill(ox - 1, y0, oz - 6, ox + 1, y0, oz - 6, slab); w.fill(ox - 1, y0 + 1, oz - 7, ox + 1, y0 + 3, oz - 6, AIR)
+        w.fill(ox - 1, y0, oz + 6, ox + 1, y0, oz + 6, slab); w.fill(ox - 1, y0 + 1, oz + 6, ox + 1, y0 + 3, oz + 7, AIR)
+        w.fill(ox - 6, y0, oz - 1, ox - 6, y0, oz + 1, slab); w.fill(ox - 7, y0 + 1, oz - 1, ox - 6, y0 + 3, oz + 1, AIR)
+        w.fill(ox + 6, y0, oz - 1, ox + 6, y0, oz + 1, slab); w.fill(ox + 6, y0 + 1, oz - 1, ox + 7, y0 + 3, oz + 1, AIR)
         for (tx, tz) in [(-4, -4), (4, -4), (-4, 4), (4, 4)] { w.set(ox + tx, y0 + 1, oz + tz, Blocks.id("end_rod")) }
         // Tower floors, each with a spiral stair segment and an opening in the floor above.
         var y = y0 + 6
