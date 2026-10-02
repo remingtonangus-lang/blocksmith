@@ -231,12 +231,16 @@ enum Capital {
         for z in stride(from: 146, through: 354, by: 16) { for x in [-20, 0, 20] { hb.set(x, 71, z, light) } }
         for z in 214...292 { for y in 27...42 { hb.set(-30, y, z, AIR); hb.set(30, y, z, AIR); hb.set(-29, y, z, AIR); hb.set(29, y, z, AIR) } }
         for x in [-30, 30] { for z in [213, 293] { for y in 27...42 { hb.set(x, y, z, stripe) } } }
-        // Two parked dropships in the hangar.
+        // Two parked dropships in the hangar, the same craft it launches (its hull blocks copied in; the turret ring
+        // stays empty: the parked ones carry no gun).
+        let ds = dropship()
+        let ring = Blocks.id("ship_turret_ring")
         for (cx, cz) in [(-12, 230), (12, 270)] {
-            hb.fill(cx - 3, cx + 3, 27, 29, cz - 7, cz + 7, panel)
-            hb.fill(cx - 2, cx + 2, 30, 30, cz - 5, cz + 3, hull)
-            hb.fill(cx - 6, cx + 6, 28, 28, cz, cz + 2, hull)
-            hb.fill(cx - 1, cx + 1, 29, 29, cz - 7, cz - 7, glass)
+            for y in 0..<ds.sy { for z in 0..<ds.sz { for gx in 0..<ds.sx {
+                let b = ds.blocks[gx + z * ds.sx + y * ds.sx * ds.sz]
+                if b == AIR || b == ring { continue }
+                hb.set(cx + gx - ds.ox, 26 + y, cz - 10 + z, b)
+            } } }
         }
         for (i, z) in [180, 200, 300, 320].enumerated() {
             hb.set(26, 27, z, Blocks.id("chest") + 3)
