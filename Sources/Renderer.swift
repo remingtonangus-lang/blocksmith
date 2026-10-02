@@ -1383,13 +1383,31 @@ final class Renderer: NSObject, MTKViewDelegate {
             rect(x + w - b, y, b, h, c)
         }
         // A pixel-art arrow pointing right (crafting result): a shaft and a stepped head, `len` long, centred on cy.
-        func arrowRight(_ x: Float, _ cy: Float, _ len: Float, _ s: Float, _ c: V4) {
+        // `upTo` (0...1) draws only that much of it from the left (progress fills).
+        func arrowRight(_ x: Float, _ cy: Float, _ len: Float, _ s: Float, _ c: V4, upTo: Float = 1) {
             let head: Float = 5 * s
-            rect(x, cy - 1.5 * s, len - head, 3 * s, c)
+            let end: Float = x + len * max(0, min(1, upTo))
+            let shaftEnd: Float = min(end, x + len - head)
+            if shaftEnd > x { rect(x, cy - 1.5 * s, shaftEnd - x, 3 * s, c) }
             for i in 0..<5 {
                 let fi = Float(i)
+                let cx0: Float = x + len - head + fi * s
+                guard cx0 < end else { break }
                 let hh: Float = (9 - 2 * fi) * s
-                rect(x + len - head + fi * s, cy - hh / 2, s, hh, c)
+                rect(cx0, cy - hh / 2, s, hh, c)
+            }
+        }
+        // A pixel-art flame 13 x 13 (furnace fuel): `level` 0...1 burns down from the top.
+        func flame(_ x: Float, _ y: Float, _ s: Float, level: Float) {
+            let rows: [(Int, Int)] = [(6, 7), (5, 8), (5, 8), (4, 9), (3, 9), (3, 10), (2, 10), (2, 11), (2, 11), (2, 11), (3, 10), (3, 10), (4, 9)]
+            let cut: Int = Int((1 - max(0, min(1, level))) * 13)
+            for (r, span) in rows.enumerated() {
+                let fy: Float = y + Float(r) * s
+                rect(x + Float(span.0) * s, fy, Float(span.1 - span.0) * s, s, V4(0.42, 0.42, 0.42, 1))
+                guard r >= cut else { continue }
+                let hot: Float = Float(r) / 12
+                let col = V4(1, 0.35 + 0.45 * hot, 0.08 + 0.2 * hot, 1)
+                rect(x + Float(span.0) * s, fy, Float(span.1 - span.0) * s, s, col)
             }
         }
         let slot = L.slot
@@ -1524,15 +1542,15 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
             if let f = m as? FurnaceMenu {
                 // Flame (fuel left) and arrow (cook progress).
+                // A flame that burns down and an arrow that fills (a bar and an orange square didn't read as
+                // progress: blind UI critic, furnace).
                 let fx = o.x + 57 * s, fy = o.y + 37 * s
-                rect(fx, fy, 13 * s, 13 * s, V4(0.55, 0.55, 0.55, 1))
-                if f.be.burn > 0 && f.be.burnMax > 0 {
-                    let k = Float(f.be.burn) / Float(f.be.burnMax)
-                    rect(fx, fy + 13 * s * (1 - k), 13 * s, 13 * s * k, V4(1, 0.55, 0.1, 1))
-                }
+                var k: Float = 0
+                if f.be.burn > 0 && f.be.burnMax > 0 { k = Float(f.be.burn) / Float(f.be.burnMax) }
+                flame(fx, fy, s, level: k)
                 let ax = o.x + 79 * s, ay = o.y + 34 * s
-                rect(ax, ay + 5 * s, 22 * s, 6 * s, V4(0.55, 0.55, 0.55, 1))
-                rect(ax, ay + 5 * s, 22 * s * Float(f.be.cook) / 200, 6 * s, V4(1, 1, 1, 1))
+                arrowRight(ax, ay + 8 * s, 24 * s, s, V4(0.5, 0.5, 0.5, 1))
+                arrowRight(ax, ay + 8 * s, 24 * s, s, V4(1, 1, 1, 1), upTo: Float(f.be.cook) / 200)
             }
             if m is InventoryMenu && game.effects.any {
                 var y = o.y
