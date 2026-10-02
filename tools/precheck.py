@@ -62,21 +62,28 @@ for f in sorted(os.listdir(root)):
             # Long interpolated print lines and long chained vector math have timed out the type checker.
             if l.count('\\(') >= 5 and ('*' in l or '+' in l.split('"')[0]):
                 warns.append(f'{f}:{k}: {l.count(chr(92) + "(")} interpolations with arithmetic (type-check risk)')
-# Dictionary literals with a repeated key trap at launch (HDTex.table, the item/texture registries).
+# Dictionary literals with a repeated key trap when first read (Settings help had "wscale" twice after a merge).
+# Every multi-line literal opened after `=`, `return` or `??` whose lines start with "key": or .case: is checked.
 import collections
 for f in sorted(os.listdir(root)):
     if not f.endswith('.swift'):
         continue
     src = open(os.path.join(root, f)).read()
-    for m in re.finditer(r'static let \w+: \[String: [^\]]+\] = \[\n', src):
-        body = src[m.end():]
-        end = re.search(r'^\s*\]\s*$', body, re.M)
-        body = body[:end.start()] if end else body
-        keys = re.findall(r'^\s*"([^"]+)"\s*:', body, re.M)
-        for k, c in collections.Counter(keys).items():
+    for m in re.finditer(r'(?:=|return|\?\?)\s*\[\s*\n', src):
+        j = src.rfind('[', 0, m.end())
+        depth, k = 0, j
+        while k < len(src):
+            if src[k] == '[':
+                depth += 1
+            elif src[k] == ']':
+                depth -= 1
+                if depth == 0:
+                    break
+            k += 1
+        keys = re.findall(r'^\s*("[^"\n]+"|\.[a-zA-Z_]\w*)\s*:', src[j + 1:k], re.M)
+        for key, c in collections.Counter(keys).items():
             if c > 1:
-                line = src[:m.start()].count('\n') + 1
-                errors.append(f'{f}:{line}: dictionary literal repeats key "{k}" ({c}x): traps at launch')
+                errors.append(f'{f}:{src[:j].count(chr(10)) + 1}: dictionary literal repeats key {key} ({c}x): traps when first read')
 for e in errors: print('ERROR', e)
 for w in warns: print('warn ', w)
 print(f'precheck: {len(errors)} errors, {len(warns)} warnings')
