@@ -62,7 +62,8 @@ for f in sorted(os.listdir(root)):
             # Long interpolated print lines and long chained vector math have timed out the type checker.
             if l.count('\\(') >= 5 and ('*' in l or '+' in l.split('"')[0]):
                 warns.append(f'{f}:{k}: {l.count(chr(92) + "(")} interpolations with arithmetic (type-check risk)')
-# Dictionary literals with a repeated key trap when first read (Settings help had "wscale" twice after a merge).
+# Dictionary literals with a repeated key: a merge leftover where one entry silently wins (or a trap when first read;
+# Settings help had "wscale" twice after a merge).
 # Every multi-line literal opened after `=`, `return` or `??` whose lines start with "key": or .case: is checked.
 import collections
 for f in sorted(os.listdir(root)):
@@ -83,7 +84,7 @@ for f in sorted(os.listdir(root)):
         keys = re.findall(r'^\s*("[^"\n]+"|\.[a-zA-Z_]\w*)\s*:', src[j + 1:k], re.M)
         for key, c in collections.Counter(keys).items():
             if c > 1:
-                errors.append(f'{f}:{src[:j].count(chr(10)) + 1}: dictionary literal repeats key {key} ({c}x): traps when first read')
+                errors.append(f'{f}:{src[:j].count(chr(10)) + 1}: dictionary literal repeats key {key} ({c}x)')
 for e in errors: print('ERROR', e)
 for w in warns: print('warn ', w)
 print(f'precheck: {len(errors)} errors, {len(warns)} warnings')

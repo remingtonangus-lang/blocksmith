@@ -101,7 +101,33 @@ enum Smoke {
                 }
                 pm.page = .main; pm.stack = []; pm.scroll = 0; pm.build()
                 game.menuHover = nil
-                print("smoke rd \(rd): menu tour: \(pagesSeen) screens, \(rowsSeen) rows hovered")
+                // Every workstation / container screen through the real right-click dispatch (Game.openBlock), drawn
+                // with each slot hovered, then closed; back to the pause menu afterwards.
+                let stations = ["crafting_table", "furnace", "smoker", "blast_furnace", "barrel", "chest", "brewing_stand",
+                                "enchanting_table", "smithing_table", "stonecutter", "grindstone", "ender_chest", "cartography_table",
+                                "loom", "anvil", "beacon", "crafter", "white_shulker_box", "oak_sign", "lectern"]
+                game.closeMenu()
+                let bp = IVec3(Int(floor(game.player.pos.x)) + 2, Int(floor(game.player.pos.y)) + 2, Int(floor(game.player.pos.z)))
+                let before = world.block(bp.x, bp.y, bp.z)
+                var opened: [String] = [], unopened: [String] = []
+                for k in stations where Blocks.has(k) {
+                    world.setBlock(bp.x, bp.y, bp.z, Blocks.id(k))
+                    game.openBlock(bp)
+                    guard let m = game.menu else { unopened.append(k); continue }
+                    for slot in m.slots { game.menuHover = slot }
+                    guard let mc = r.queue.makeCommandBuffer() else { print("smoke: no command buffer"); return 2 }
+                    let mf = MeshArena.frameSubmitted()
+                    mc.addCompletedHandler { _ in MeshArena.frameCompleted(mf) }
+                    r.renderFrame(mc, final: target.rpd, width: W, height: H)
+                    mc.commit()
+                    mc.waitUntilCompleted()
+                    game.menuHover = nil
+                    game.closeMenu()
+                    opened.append(k)
+                }
+                world.setBlock(bp.x, bp.y, bp.z, before)
+                if game.menu == nil { game.openMenu(PauseMenu(game: game)) }
+                print("smoke rd \(rd): menu tour: \(pagesSeen) screens, \(rowsSeen) rows hovered; \(opened.count) block screens opened\(unopened.isEmpty ? "" : ", none for " + unopened.joined(separator: " "))")
             }
             if i == flyAt { game.player.flying = true; game.player.vel.y = 0 }
             if i > flyAt && i < flyAt + 60 { p.a = true }      // climb above the terrain
