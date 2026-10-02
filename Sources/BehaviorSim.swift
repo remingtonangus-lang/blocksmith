@@ -203,7 +203,9 @@ enum BehaviorSim {
         }
         // A fall: landing more than 4.5 blocks below where it last stood (swimmers and fliers don't fall).
         let wet = Blocks.isLiquid(w.block(Int(floor(p.x)), Int(floor(p.y + 0.2)), Int(floor(p.z))))
-        if wet || m.spec.flying { t.groundY = nil } else if m.onGround {
+        // Cats and ocelots take no fall damage and hop down ledges by design (run 354: the only fallers were cats).
+        let fearless = m.kind == .cat || m.kind == .ocelot
+        if wet || m.spec.flying || fearless { t.groundY = nil } else if m.onGround {
             if let g = t.groundY, g - p.y > 4.5 { t.flags["fell", default: 0] += 1 }
             t.groundY = p.y
         }
