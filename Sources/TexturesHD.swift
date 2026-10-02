@@ -5,8 +5,9 @@ import simd
 //   an HD material generator (this file): procedural materials designed at full resolution (warped fractal noise,
 //   Voronoi cells, palette ramps, relief lighting), so stone, dirt, wood, sand, gravel, leaves, ores... have real
 //   detail instead of scaled-up pixels; or
-//   the 16 px painter upscaled edge-preservingly with a little micro-detail and relief (everything without an
-//   HD material yet), or nearest-neighbour for glyphs and HUD art that must stay crisp.
+//   the 16 px painter upscaled edge-preservingly, then 128 px material detail laid over each texel by its class
+//   (stone / wood / other: `detailed`), for everything without an HD material; or nearest-neighbour for glyphs and
+//   HUD art that must stay crisp.
 // All generators are tileable (noise wraps at the texture size) and deterministic. Prototypes: tools/matlab.py.
 enum HDTex {
     // A float image n x n (RGBA, 0...1), row-major.
@@ -2278,6 +2279,18 @@ enum HDTex {
     // same density as the HD blocks (critics: furnace, crafting table, barrel... looked pixelated next to them).
     // Classes: grey (stone, metal: mottling and grain), brown (wood: streaks along the dominant grain direction of the
     // wood texels), other (soft fine mottling). Alpha comes from the upscale untouched.
+    struct DetailFields { let grain, blot, rows, soft, mott: [Float] }
+    private static var detailCache: [Int: DetailFields] = [:]
+    private static let detailLock = NSLock()
+    static func detailFields(_ n: Int) -> DetailFields {
+        detailLock.lock(); defer { detailLock.unlock() }
+        if let f = detailCache[n] { return f }
+        let f = DetailFields(grain: vnoise(n, 2, 3), blot: fbm(n, n / 4, 5, 11), rows: vnoise(n, 2, 5),
+                             soft: fbm(n, n / 8, 3, 6), mott: fbm(n, n / 8, 4, 8))
+        detailCache[n] = f
+        return f
+    }
+
     static func detailed(_ src: [V4], salt: Int, n: Int) -> Img {
         let S = TextureGen.S
         var img = upscale(src, detail: 0, salt: salt, n: n)
@@ -2309,23 +2322,24 @@ enum HDTex {
             }
         } }
         let alongX = gy >= gx * 0.8
-        let grain = vnoise(n, 2, salt &+ 3)
-        let blot = fbm(n, n / 4, 5, salt)
-        let rows = vnoise(n, 2, salt &+ 5)
-        let soft = fbm(n, n / 8, 3, salt &+ 6)
-        let mott = fbm(n, n / 8, 4, salt &+ 8)
+        // Noise fields shared by every layer (built once per size), each layer reading them at its own wrapped offset:
+        // five fields per layer for ~1100 layers cost seconds at start-up.
+        let f = detailFields(n)
+        let ox = Int(h2(salt, 1, 0x5EED) * Float(n)), oy = Int(h2(salt, 2, 0x5EED) * Float(n))
         var hh = [Float](repeating: 0, count: n * n)
         for y in 0..<n { for x in 0..<n {
             let i = y * n + x
+            let j = ((y + oy) % n) * n + (x + ox) % n
             let k = cls[(y * S / n) * S + x * S / n]
             var d: Float
             if k == 0 {
-                d = 1 + (blot[i] - 0.5) * 0.34 + (grain[i] - 0.5) * 0.14
+                d = 1 + (f.blot[j] - 0.5) * 0.34 + (f.grain[j] - 0.5) * 0.14
             } else if k == 1 {
-                let st: Float = alongX ? rows[y * n + x / 8] : rows[(y / 8) * n + x]
-                d = 1 + (st - 0.5) * 0.30 + (soft[i] - 0.5) * 0.12
+                let yy = (y + oy) % n, xx = (x + ox) % n
+                let st: Float = alongX ? f.rows[yy * n + xx / 8] : f.rows[(yy / 8) * n + xx]
+                d = 1 + (st - 0.5) * 0.30 + (f.soft[j] - 0.5) * 0.12
             } else {
-                d = 1 + (mott[i] - 0.5) * 0.18 + (grain[i] - 0.5) * 0.08
+                d = 1 + (f.mott[j] - 0.5) * 0.18 + (f.grain[j] - 0.5) * 0.08
             }
             let c = img.px[i]
             let o = V4(c.x * d, c.y * d, c.z * d, c.w)
