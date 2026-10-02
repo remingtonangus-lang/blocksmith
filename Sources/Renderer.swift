@@ -1591,12 +1591,16 @@ final class Renderer: NSObject, MTKViewDelegate {
                     guard e.costs[i] > 0 else { continue }
                     // Lapis pips.
                     for k in 0...i { rect(bx + Float(2 + k * 5) * s, by + 3 * s, 4 * s, 4 * s, V4(0.16, 0.36, 0.78, 1)) }
+                    // Cost on a dark badge, padded from the row border (lime on lavender was 2.6:1 and touched the
+                    // border: blind UI critic, enchant).
                     let ct = "\(e.costs[i])"
-                    text(ct, bx + 106 * s - textWidth(ct, s), by + 10 * s, s, ok ? Settings.shared.goodColor : Settings.shared.badColor * V4(0.6, 0.6, 0.6, 1))
+                    let cw: Float = textWidth(ct, s)
+                    rect(bx + 102 * s - cw, by + 8 * s, cw + 3 * s, 9 * s, V4(0.12, 0.1, 0.16, 0.9))
+                    text(ct, bx + 103.5 * s - cw, by + 9 * s, s, ok ? Settings.shared.goodColor : Settings.shared.badColor * V4(0.6, 0.6, 0.6, 1))
                     if let c = e.clues[i] {
-                        var clue = Enchant.displayLine(c.0, c.1) + " . . . ?"
+                        var clue = Enchant.displayLine(c.0, c.1) + "?"
                         while textWidth(clue, s) > 84 * s && clue.count > 4 { clue.removeLast() }
-                        text(clue, bx + 18 * s, by + 3 * s, s, ok ? V4(0.2, 0.15, 0.3, 1) : V4(0.3, 0.3, 0.3, 1), shadow: false)
+                        text(clue, bx + 18 * s, by + 3 * s, s, ok ? V4(0.12, 0.08, 0.2, 1) : V4(0.22, 0.22, 0.22, 1), shadow: false)
                     }
                 }
             }
@@ -1609,11 +1613,16 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let caret = a.editing && Int(game.clock * 2) % 2 == 0 ? "_" : ""
                 text(nm + caret, o.x + 63 * s, o.y + 23 * s, s, V4(0.95, 0.95, 0.95, 1))
                 text("+", o.x + 56 * s, o.y + 51 * s, s, titleC, shadow: false)
-                rect(o.x + 101 * s, o.y + 52 * s, 22 * s, 6 * s, V4(0.55, 0.55, 0.55, 1))
+                arrowRight(o.x + 100 * s, o.y + 55 * s, 24 * s, s, V4(0.5, 0.5, 0.5, 1))
                 if a.cost > 0 {
-                    let t = a.tooExpensive ? "Too Expensive!" : "Enchantment Cost: \(a.cost)"
+                    // On a dark plate under the output, clear of the "Inventory" label (lime on the grey panel was 1.3:1
+                    // and ran into the label: blind UI critic, anvil).
+                    let t = a.tooExpensive ? "Too Expensive!" : "Cost: \(a.cost) levels"
                     let ok = !a.tooExpensive && (!game.survival || game.xpLevel >= a.cost)
-                    text(t, o.x + 168 * s - textWidth(t, s), o.y + 69 * s, s, ok ? Settings.shared.goodColor : Settings.shared.badColor)
+                    let tw: Float = textWidth(t, s)
+                    let tx: Float = o.x + 168 * s - tw
+                    rect(tx - 3 * s, o.y + 67 * s, tw + 6 * s, 11 * s, V4(0.12, 0.12, 0.14, 0.9))
+                    text(t, tx, o.y + 69 * s, s, ok ? Settings.shared.goodColor : Settings.shared.badColor)
                 }
             }
             if let sm = m as? SignMenu {
