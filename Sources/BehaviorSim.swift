@@ -144,7 +144,12 @@ enum BehaviorSim {
         if t.window.count > 10 { t.window.removeFirst() }
         if t.window.count == 10 {
             let d: Float = simd_length(V2(p.x - t.window[0].x, p.z - t.window[0].z))
-            if t.yawSum > 4 * .pi && d < 1.5 { t.flags["spinning", default: 0] += 1 }
+            if t.yawSum > 4 * .pi && d < 1.5 {
+                t.flags["spinning", default: 0] += 1
+                let goal = m.wanderGoal != nil ? "stroll" : (m.faceGoal != nil ? "target" : "heading")
+                let mv = m.moving ? "moving" : "standing"
+                t.stuckWhy["spin:\(phase)/\(goal)/\(mv)\(m.path.nodes.isEmpty ? "/nopath" : "")", default: 0] += 1
+            }
             if t.reversals > 12 { t.flags["jitter", default: 0] += 1 }
             if m.moving && d < 0.5 && !m.sitting {
                 var far = true
