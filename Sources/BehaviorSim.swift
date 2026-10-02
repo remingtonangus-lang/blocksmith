@@ -173,7 +173,9 @@ enum BehaviorSim {
         if t.window.count > 10 { t.window.removeFirst() }
         if t.window.count == 10 {
             let d: Float = simd_length(V2(p.x - t.window[0].x, p.z - t.window[0].z))
-            if t.yawSum > 4 * .pi && d < 1.5 {
+            // Swimmers and fliers wheel about in their pool or air pocket by design (fish and squid made 32 of the 56
+            // spinning windows in run 354): walkers only.
+            if t.yawSum > 4 * Float.pi && d < 1.5 && !m.spec.aquatic && !m.spec.flying {
                 t.flags["spinning", default: 0] += 1
                 let goal = m.wanderGoal != nil ? "stroll" : (m.faceGoal != nil ? "target" : "heading")
                 let mv = m.moving ? "moving" : "standing"
