@@ -16,6 +16,7 @@ import simd
 //   mob_trapped       a villager spawns where no route leads out to the village
 //   bed_broken        a bed half without its other half
 //   floating          structure columns (walls, foundations) hanging over air
+//   torch_unsupported a standing torch with nothing under it, or a wall torch with nothing behind it
 // Walk model: a two-block-tall body; steps up to 0.6 are walking, up to 1.25 need a jump, drops up to 3;
 // doors and gates count as open, ladders and vines climb. Prints a summary per kind, writes a report
 // (--out FILE, markdown) with every issue's position and a snapshot command to look at it.
@@ -366,6 +367,27 @@ enum StructCheck {
                 }
             } } }
         }
+        // Torches the structure placed: a standing one needs a top to stand on, a wall one a block behind it.
+        var torchIssues = 0
+        for y in max(1, s.min.y)...min(CH - 3, s.max.y) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
+            guard written.contains(key(x, y, z)) else { continue }
+            let b = w.block(x, y, z)
+            guard Blocks.shape[Int(b)] == "torch" else { continue }
+            let st = Int(b - Blocks.groupBase[Int(b)])
+            let ok: Bool
+            if st == 0 {
+                ok = top(w, x, y - 1, z) > 0.4
+            } else {
+                // Facing f (0 north -Z, 1 south +Z, 2 west -X, 3 east +X): the wall is on the opposite side.
+                let back: [(Int, Int)] = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+                let (bx, bz) = back[min(3, st - 1)]
+                ok = Blocks.collide[Int(w.block(x + bx, y, z + bz))]
+            }
+            if !ok && torchIssues < 3 {
+                torchIssues += 1
+                add("torch_unsupported", IVec3(x, y, z), st == 0 ? "standing torch over \(Blocks.key(w.block(x, y - 1, z)))" : "wall torch with nothing behind it")
+            }
+        } } }
         // Structure mobs.
         var mobs = 0
         for (name, pos) in w.pendingMobs where s.contains(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z))) {
