@@ -2125,6 +2125,49 @@ enum HDTex {
         return img
     }
 
+    // Cobweb (cutout): radial threads from an off-centre hub and sagging rings between them, thin and pale.
+    static func cobwebHD(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n)
+        var img = Img(n, V4(0, 0, 0, 0))
+        let hx: Float = fn * 0.47, hy: Float = fn * 0.44
+        func put(_ x: Int, _ y: Int, _ k: Float) {
+            guard x >= 0 && x < n && y >= 0 && y < n else { return }
+            img.px[y * n + x] = V4(0.9 * k, 0.9 * k, 0.92 * k, 1)
+        }
+        let spokes = 9
+        var angs: [Float] = []
+        for i in 0..<spokes { angs.append((Float(i) + 0.3 * h2(i, 1, s)) / Float(spokes) * 2 * .pi) }
+        // Spokes out to the tile edge.
+        for a in angs {
+            let len: Float = fn * 0.75
+            let steps = Int(len * 1.5)
+            for j in 0..<steps {
+                let t: Float = Float(j) / Float(steps) * len
+                put(Int(hx + cosf(a) * t), Int(hy + sinf(a) * t), 0.85 + 0.15 * h2(j, 2, s))
+            }
+        }
+        // Rings: straight-ish strands between neighbouring spokes, sagging a little.
+        for r in 1...6 {
+            let rr: Float = fn * 0.075 * Float(r)
+            for i in 0..<spokes {
+                let wrap: Float = i + 1 == spokes ? 2 * Float.pi : 0
+                let a0: Float = angs[i]
+                let a1: Float = angs[(i + 1) % spokes] + wrap
+                let x0: Float = hx + cosf(a0) * rr, y0: Float = hy + sinf(a0) * rr
+                let x1: Float = hx + cosf(a1) * rr, y1: Float = hy + sinf(a1) * rr
+                let steps = Int(rr * (a1 - a0) * 1.5) + 2
+                for j in 0...steps {
+                    let t: Float = Float(j) / Float(steps)
+                    let sag: Float = sinf(t * .pi) * rr * 0.08
+                    let x: Float = x0 + (x1 - x0) * t
+                    let y: Float = y0 + (y1 - y0) * t + sag
+                    put(Int(x), Int(y), 0.8)
+                }
+            }
+        }
+        return img
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -2689,6 +2732,7 @@ enum HDTex {
         "activator_rail": railHD(tie: 0x7A2A1A, rail: 0xA8A8A8, mid: 0x5A1410),
         "activator_rail_on": railHD(tie: 0x7A2A1A, rail: 0xA8A8A8, mid: 0xF8301A),
         "ladder": ladderHD,
+        "cobweb": cobwebHD,
         "spawner": spawnerHD,
         "lantern": lanternHD(glow: 0xF8C85A, core: 0xFFF4C8),
         "soul_lantern": lanternHD(glow: 0x6AE0F0, core: 0xE0FFFF),
