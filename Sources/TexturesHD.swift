@@ -1303,10 +1303,22 @@ enum HDTex {
                 let seam: Bool = kind != 0 && y >= n * 7 / 16 && y < n * 9 / 16
                 let frame = rimX || rimTop || seam
                 guard frame else { continue }
-                var k: Float = 0.9 + (fine[i] - 0.5) * 0.2
-                // Bevel: lit along the band's top / left pixels.
-                let lx = x % b, ly = y % b
-                if lx == 0 || ly == 0 { k *= 1.25 } else if lx == b - 1 || ly == b - 1 { k *= 0.7 }
+                // Grain along the band, and a bevel only at the band's own edges (x % b, y % b drew a grid of small
+                // squares over the whole frame).
+                let alongX: Bool = !rimX
+                let g: Float = alongX ? fine[y * n + (x / 6) % n] : fine[((y / 6) % n) * n + x]
+                var k: Float = 0.88 + (g - 0.5) * 0.24
+                let topEnd: Int = kind == 0 ? b : n * 3 / 16, botStart: Int = kind == 0 ? n - b : n - n / 16
+                let litOuter: Bool = x == 0 || y == 0
+                let litInner: Bool = x == n - b || y == botStart
+                let seamTop: Bool = seam && y == n * 7 / 16
+                let lit: Bool = litOuter || litInner || seamTop
+                let darkOuter: Bool = x == n - 1 || y == n - 1
+                let darkLeft: Bool = x == b - 1 && !rimTop
+                let darkTop: Bool = y == topEnd - 1 && !rimX
+                let seamBottom: Bool = seam && y == n * 9 / 16 - 1
+                let dark: Bool = darkOuter || darkLeft || darkTop || seamBottom
+                if lit { k *= 1.25 } else if dark { k *= 0.65 }
                 img.px[i] = V4(trim.x * k, trim.y * k, trim.z * k, 1)
             } }
             // Rivets in the frame corners.
