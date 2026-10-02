@@ -247,7 +247,8 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
         blkPart *= 1.0 + (sin(tt * 9.0 + ph) * 0.5 + sin(tt * 23.0 + ph * 2.0) * 0.3) * 0.06;
     }
     float3 lit = max(skyPart, blkPart) + min(skyPart, blkPart) * 0.3;
-    lit = mix(max(lit, float3(0.045)), u.dimTint.rgb, u.sunDir.w);
+    // Floor a little higher and cooler: unlit cave walls averaged 4/255 (blind critic, run 362 dripstone caves).
+    lit = mix(max(lit, float3(0.056, 0.06, 0.07)), u.dimTint.rgb, u.sunDir.w);
     lit += flashLight(in.rel, n, fl);
     float3 col = albedo * lit;
     if (spec > 0.004 && sunVis > 0.0) {
@@ -357,7 +358,7 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
     if (in.water < 0.5) {
         float4 c = tex.sample(texSampler, in.uv, uint(in.layer));
         float3 lit = u.ambColor.rgb * skyC * faceShade[uint(in.face)] + u.sunColor.rgb * sunVis * 0.6 + blkL * float3(1.0, 0.82, 0.6);
-        lit = mix(max(lit, float3(0.04)), u.dimTint.rgb, u.sunDir.w);
+        lit = mix(max(lit, float3(0.05, 0.054, 0.063)), u.dimTint.rgb, u.sunDir.w);
         float3 rgb = c.rgb * in.tint * lit;
         float3 n = normalize(in.nrm);
         float3 h = normalize(u.lightDir.xyz - v);
