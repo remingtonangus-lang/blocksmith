@@ -405,7 +405,10 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
         // Looking up at the surface from below: the bright world above, tinted.
         // Beyond the critical angle the surface mirrors the water below (total internal reflection).
         float3 rd = refract(v, -n, 1.33);
-        float3 col = length(rd) < 0.01 ? deep * 1.4 : mix(skyAlong(rd, u) * 0.85, deep, 0.3);
+        // Beyond the critical angle the surface mirrors the lit water below: the underwater haze colour, not the dark
+        // deep tint (the surface overhead was 7x darker than the seabed: blind critic, underwater).
+        float3 tir = u.fogColor.rgb * 1.15 + deep * 0.3;
+        float3 col = length(rd) < 0.01 ? tir : mix(skyAlong(rd, u) * 0.85, tir, 0.3);
         col += u.sunColor.rgb * pow(saturate(dot(rd, u.lightDir.xyz)), 220.0) * 2.0 * sunVis;
         return float4(applyFog(col, dist, u), 1.0);
     }
