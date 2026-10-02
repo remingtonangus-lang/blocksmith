@@ -361,9 +361,16 @@ extension Mob {
         if let d = path.door {
             let dx = Float(d.x) + 0.5 - pos.x, dz = Float(d.z) + 0.5 - pos.z
             if dx * dx + dz * dz > 2.6 {
-                let b = w.block(d.x, d.y, d.z)
-                if PathFinder.isWoodDoor(b) && Int(b - Blocks.groupBase[Int(b)]) & 4 != 0 { g.toggleOpenable(d) }
-                path.door = nil
+                // Not on someone standing in the doorway (a shut door boxed them in: behaviour sim in_wall, and the
+                // village bot pressed against a door a villager closed on it).
+                let c = V3(Float(d.x) + 0.5, Float(d.y), Float(d.z) + 0.5)
+                func inDoorway(_ p: V3) -> Bool { abs(p.x - c.x) < 0.9 && abs(p.z - c.z) < 0.9 && p.y > c.y - 2 && p.y < c.y + 1.5 }
+                let blocked = inDoorway(g.player.pos) || g.mobs.mobs.contains { $0 !== self && inDoorway($0.pos) }
+                if !blocked {
+                    let b = w.block(d.x, d.y, d.z)
+                    if PathFinder.isWoodDoor(b) && Int(b - Blocks.groupBase[Int(b)]) & 4 != 0 { g.toggleOpenable(d) }
+                    path.door = nil
+                }
             }
         }
         guard path.door == nil, path.index < path.nodes.count else { path.breakTime = 0; return }
