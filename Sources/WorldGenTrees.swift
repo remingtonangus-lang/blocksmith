@@ -234,8 +234,14 @@ enum TreePlacer {
             while by > y + 4 {
                 let a = rng.float() * 2 * .pi
                 let ex = x + Int((cosf(a) * 4).rounded()), ez = z + Int((sinf(a) * 4).rounded())
-                w.log(x + (ex - x) / 2, by, z + (ez - z) / 2, log)
-                w.log(ex, by + 1, ez, log)
+                // A connected limb from the (2x2) trunk out to the tip, rising one at the tip (the half-way log and
+                // the tip log left gaps: gencheck trunk_floating).
+                let steps = max(1, max(abs(ex - x), abs(ez - z)))
+                for i in 1...steps {
+                    let t = Float(i) / Float(steps)
+                    let lx = x + Int((Float(ex - x) * t).rounded()), lz = z + Int((Float(ez - z) * t).rounded())
+                    w.log(lx, by + (i == steps ? 1 : 0), lz, log)
+                }
                 blob(w, ex, by + 2, ez, rx: 2.5, ry: 1.2, leaf, &rng)
                 by -= rng.range(3, 5)
             }
