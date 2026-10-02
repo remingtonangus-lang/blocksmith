@@ -428,6 +428,16 @@ enum OverworldStructures {
                         let under = ck(bx, fy - 1, bz)
                         let open: Bool = w.get(bx, fy - 1, bz) == AIR || Blocks.isLiquid(w.get(bx, fy - 1, bz))
                         if open && !corridorCells.contains(under) { w.set(bx, fy - 1, bz, wood) }
+                        // Water against the corridor (an aquifer or a lake above) boarded off: it stood as a wall of
+                        // source blocks beside the open lane (gencheck leak, seed 777 run 371).
+                        let up = ck(bx, fy + 3, bz)
+                        if Blocks.isLiquid(w.get(bx, fy + 3, bz)) && !corridorCells.contains(up) { w.set(bx, fy + 3, bz, wood) }
+                        if side != 0 {
+                            let ox = bx + (s.dz != 0 ? side : 0), oz = bz + (s.dx != 0 ? side : 0)
+                            for h in 0...2 where Blocks.isLiquid(w.get(ox, fy + h, oz)) && !corridorCells.contains(ck(ox, fy + h, oz)) {
+                                w.set(ox, fy + h, oz, wood)
+                            }
+                        }
                     }
                 }
             })
