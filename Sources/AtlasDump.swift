@@ -98,5 +98,7 @@ func dumpHDAtlas(_ path: String) -> Int32 {
     CGImageDestinationAddImage(dest, img, nil)
     CGImageDestinationFinalize(dest)
     print("hdatlas: \(want.count) layers at \(n) px -> \(path)")
+    let todo = TextureGen.undetailedNames()
+    print("hdatlas: \(todo.count) layers without an HD material: \(todo.joined(separator: " "))")
     return 0
 }

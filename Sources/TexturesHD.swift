@@ -4043,6 +4043,485 @@ enum HDTex {
     // bark and log ends, leaves, wool, concrete, concrete powder and terracotta.
     /// The HD generator for a texture name, if any (sequential lookups: a chain of ?? over these took the
     /// type checker past the 600 ms gate in run 354).
+    // MARK: Furnishings (2026-10-02 batch): the enchanting table, ender chest, cake, the Murk (sculk) sensor,
+    // catalyst and veins, sea pickles, scaffolding, chains, campfire logs, the rebirth anchor, the jukebox and the
+    // crafter. Their 16 px art came out as flat squares under the generic 128 px detail.
+    static let obsidianGen: Gen = stone([(0, 0x0E0A16), (0.5, 0x1C1428), (0.85, 0x2E2240), (1, 0x4A3A64)], veins: 0.8, strata: 0)
+    static let sculkPal: [(Float, UInt32)] = [(0, 0x041820), (0.5, 0x0A2C34), (1, 0x16505A)]
+    static let sculkGen: Gen = lumps(sculkPal, cells: 12)
+    static let bonePal: [(Float, UInt32)] = [(0, 0x9E9684), (0.5, 0xCEC6B2), (1, 0xEAE4D2)]
+
+    @inline(__always) static func scaled(_ p: V4, _ k: Float) -> V4 { V4(min(1, p.x * k), min(1, p.y * k), min(1, p.z * k), p.w) }
+    @inline(__always) static func solid(_ c: V3) -> V4 { V4(min(1, c.x), min(1, c.y), min(1, c.z), 1) }
+
+    // A raised frame: lit on its outer top/left edge and inner bottom/right edge, shadowed on the others (the frame
+    // and the panel it holds read as two depths).
+    static func bevelFrame(_ img: inout Img, inFrame: (Int, Int) -> Bool) {
+        let n = img.n
+        let w = max(1, n / 64)
+        var out = img.px
+        for y in 0..<n { for x in 0..<n where inFrame(x, y) {
+            let up: Bool = !inFrame(x, y - w) || y < w
+            let left: Bool = !inFrame(x - w, y) || x < w
+            let down: Bool = !inFrame(x, y + w) || y >= n - w
+            let right: Bool = !inFrame(x + w, y) || x >= n - w
+            var k: Float = 1
+            if up || left { k = 1.22 } else if down || right { k = 0.66 }
+            out[y * n + x] = scaled(img.px[y * n + x], k)
+        } }
+        img.px = out
+    }
+
+    // Enchanting table: red cloth with a gold-thread hem and a woven diamond on top; on the sides the cloth hangs over
+    // obsidian set with cyan gems. Part 0 top, 1 side, 2 bottom.
+    static func enchantTable(_ part: Int) -> Gen {
+        { n, s in
+            let fn = Float(n), u = n / 16
+            var img = obsidianGen(n, s)
+            if part == 2 { return img }
+            let cloth = wool(col(0xA82A2A))(n, s &+ 1)
+            let fine = vnoise(n, max(1, n / 64), s &+ 2)
+            let wob = fbm(n, n / 8, 2, s &+ 3)
+            let gold = col(0xD8A83A)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let g: Float = 0.85 + 0.3 * fine[i]
+                if part == 0 {
+                    let edge: Int = min(min(x, y), min(n - 1 - x, n - 1 - y))
+                    if edge < u { continue }
+                    let dx: Float = abs(Float(x) + 0.5 - fn / 2) / (fn / 2)
+                    let dy: Float = abs(Float(y) + 0.5 - fn / 2) / (fn / 2)
+                    let dd: Float = dx + dy
+                    let band: Float = (dd * 5).truncatingRemainder(dividingBy: 1)
+                    if edge < u + u / 2 + 1 { img.px[i] = solid(gold * g) }
+                    else if dd < 0.7 && band < 0.16 { img.px[i] = solid(col(0x2A1420) * g) }
+                    else { img.px[i] = cloth.px[i] }
+                } else {
+                    let hem: Float = fn * 0.25 + (wob[x] - 0.5) * Float(u) * 1.2
+                    let fy = Float(y)
+                    if fy < hem - Float(u) * 0.6 { img.px[i] = cloth.px[i] }
+                    else if fy < hem { img.px[i] = solid(gold * g) }
+                    else if fy < hem + Float(u) * 1.2 { img.px[i] = scaled(img.px[i], 0.55) }
+                }
+            } }
+            if part == 1 {
+                // Gems: small cut diamonds in two staggered rows.
+                let r: Float = Float(u) * 1.1
+                for row in 0..<2 {
+                    let cy: Float = fn * (row == 0 ? 0.55 : 0.8)
+                    for k in 0..<4 {
+                        let cx: Float = fn * (Float(k) + (row == 0 ? 0.25 : 0.75)) / 4
+                        for y in Int(cy - r)...Int(cy + r) { for x in Int(cx - r)...Int(cx + r) {
+                            let ox: Float = Float(x) + 0.5 - cx, oy: Float = Float(y) + 0.5 - cy
+                            let d: Float = (abs(ox) + abs(oy)) / r
+                            guard d < 1 else { continue }
+                            var k2: Float = 1.0 - 0.25 * d
+                            if ox + oy < 0 { k2 *= 1.25 }
+                            if d > 0.8 { k2 *= 0.7 }
+                            img[x, y] = solid(col(0x3ADCCB) * k2)
+                        } }
+                    }
+                }
+            }
+            return img
+        }
+    }
+
+    // Ender chest: dark teal-green stone with a bevelled frame, a glowing lid seam and an eye on the latch.
+    // Part 0 top, 1 side, 2 front.
+    static func enderChest(_ part: Int) -> Gen {
+        { n, s in
+            let fn = Float(n), u = n / 16
+            var img = stone([(0, 0x081214), (0.5, 0x142428), (0.85, 0x203A3E), (1, 0x2E5054)], veins: 0.6, strata: 0)(n, s)
+            let b = n / 8
+            bevelFrame(&img) { x, y in
+                let xx = ((x % n) + n) % n, yy = ((y % n) + n) % n
+                return xx < b || xx >= n - b || yy < b || yy >= n - b
+            }
+            guard part != 0 else { return img }
+            let fine = vnoise(n, max(1, n / 64), s &+ 2)
+            for y in (6 * u)..<(8 * u) { for x in 0..<n {
+                let i = y * n + x
+                let mid: Bool = y == 7 * u - 1 || y == 7 * u
+                let c: V3 = mid ? col(0x5AF0D0) * (0.9 + 0.2 * fine[i]) : col(0x16403E) * (0.85 + 0.25 * fine[i])
+                img.px[i] = solid(c)
+            } }
+            guard part == 2 else { return img }
+            let x0 = 13 * u / 2, x1 = 19 * u / 2, y0 = 4 * u, y1 = 10 * u
+            for y in y0..<y1 { for x in x0..<x1 {
+                var k: Float = 0.5 + 0.12 * fine[y * n + x]
+                if x == x0 || y == y0 { k = 0.75 } else if x == x1 - 1 || y == y1 - 1 { k = 0.3 }
+                img[x, y] = solid(col(0x2A4448) * k)
+            } }
+            let cx: Float = fn / 2, cy: Float = fn * 7 / 16
+            let rx: Float = Float(u) * 1.15, ry: Float = Float(u) * 1.9
+            for y in y0..<y1 { for x in x0..<x1 {
+                let ox: Float = (Float(x) + 0.5 - cx) / rx, oy: Float = (Float(y) + 0.5 - cy) / ry
+                let d: Float = (ox * ox + oy * oy).squareRoot()
+                guard d < 1 else { continue }
+                var c: V3 = col(0x3AE8C8) * (1.15 - 0.4 * d)
+                let pr: Float = (ox * ox * 4 + oy * oy * 1.2).squareRoot()
+                if pr < 0.45 { c = col(0x0A2A20) }
+                if abs(ox + 0.35) < 0.15 && abs(oy + 0.35) < 0.12 { c = col(0xE8FFF8) }
+                img[x, y] = solid(c)
+            } }
+            return img
+        }
+    }
+
+    // Cake: piped frosting with berries on top; on the sides a frosting band with drips over a porous sponge (the cut
+    // face shows a jam layer). Part 0 top, 1 side, 2 inner, 3 bottom.
+    static func cakeFace(_ part: Int) -> Gen {
+        { n, s in
+            let fn = Float(n), u = n / 16, fu = Float(n) / 16
+            var img = Img(n, V4(0, 0, 0, 0))
+            let swirl = fbm(n, n / 4, 3, s)
+            let fine = vnoise(n, max(1, n / 64), s &+ 2)
+            let pores = voronoi(n, 14, s &+ 5, jitter: 0.9)
+            let frost = col(0xF6F0EA)
+            func sponge(_ i: Int, _ c: UInt32) -> V3 {
+                let pore: Float = cl(1 - pores.f1[i] / (fn / 14 * 0.45))
+                let k: Float = 0.92 + 0.14 * fine[i] - 0.35 * pore * pore
+                return col(c) * k
+            }
+            switch part {
+            case 0:
+                var hh = [Float](repeating: 0, count: n * n)
+                for i in 0..<(n * n) {
+                    let x = i % n, y = i / n
+                    let edge: Int = min(min(x, y), min(n - 1 - x, n - 1 - y))
+                    let rim: Float = edge < u ? -0.06 : 0
+                    let k: Float = 0.94 + 0.08 * swirl[i] + rim
+                    img.px[i] = solid(frost * k)
+                    hh[i] = swirl[i] * 0.5
+                }
+                shade(&img, hh, 0.8)
+                for b in 0..<7 {
+                    let cx: Float = fu * 2.5 + h2(b, 1, s) * fu * 11
+                    let cy: Float = fu * 2.5 + h2(b, 2, s) * fu * 11
+                    let r: Float = fu * 0.75
+                    for y in Int(cy - r - 1)...Int(cy + r + 1) { for x in Int(cx - r - 1)...Int(cx + r + 1) {
+                        let ox: Float = Float(x) + 0.5 - cx, oy: Float = Float(y) + 0.5 - cy
+                        let d: Float = (ox * ox + oy * oy).squareRoot() / r
+                        guard d < 1.25 else { continue }
+                        if d >= 1 { img[x, y] = scaled(img[x, y], 0.8); continue }
+                        var k: Float = 1.05 - 0.35 * d
+                        if ox + oy < -r * 0.6 && d < 0.55 { k = 1.6 }
+                        img[x, y] = solid(col(0xC81E2A) * k)
+                    } }
+                }
+                return img
+            case 3:
+                for i in 0..<(n * n) { img.px[i] = solid(sponge(i, 0x9A5E30) * (0.9 + 0.12 * swirl[i])) }
+                return img
+            default:
+                let inner = part == 2
+                for y in (8 * u)..<n { for x in 0..<n {
+                    let i = y * n + x
+                    let fx: Float = Float(x) / fn * 2 * Float.pi
+                    let dripA: Float = max(0, sinf(fx * 5 + 0.7)) * 1.4
+                    let dripB: Float = max(0, sinf(fx * 3 + 2.1)) * 0.8
+                    let drip0: Float = dripA + dripB
+                    let drip: Float = drip0 * fu + (swirl[i] - 0.5) * fu * 0.5
+                    let fy = Float(y)
+                    let frostEnd: Float = fu * 10 + (inner ? 0 : drip)
+                    if fy < frostEnd {
+                        var k: Float = 0.95 + 0.06 * swirl[i]
+                        if fy > frostEnd - fu * 0.4 { k *= 0.86 }
+                        img.px[i] = solid(frost * k)
+                    } else if inner && fy >= fu * 12.5 && fy < fu * 13.3 {
+                        img.px[i] = solid(col(0xA8202A) * (0.85 + 0.25 * fine[i]))
+                    } else {
+                        var c: V3 = sponge(i, inner ? 0xD09A62 : 0xB07040)
+                        if fy < frostEnd + fu * 0.5 { c = c * 0.7 }
+                        if fy >= fn - fu { c = c * 0.8 }
+                        img.px[i] = solid(c)
+                    }
+                } }
+                return img
+            }
+        }
+    }
+
+    // The Murk family. Veins: branching strands with a few blotches (transparent between); sensor: Murk lumps with
+    // glowing pores on top; catalyst: bone under a dripping Murk drape, and a soul core in a bone ring on top.
+    static func murkFace(_ kind: String) -> Gen {
+        { n, s in
+            let fn = Float(n), fu = Float(n) / 16
+            let base = sculkGen(n, s)
+            let fine = vnoise(n, max(1, n / 64), s &+ 2)
+            switch kind {
+            case "sculk_vein":
+                var img = Img(n, V4(0, 0, 0, 0))
+                let f = fbm(n, n / 4, 4, s &+ 3)
+                let g = fbm(n, n / 8, 3, s &+ 4)
+                for i in 0..<(n * n) {
+                    let ridge: Float = abs(f[i] - 0.5)
+                    let w: Float = 0.022 + 0.02 * g[i]
+                    let blot: Bool = g[i] > 0.66
+                    guard ridge < w || blot else { continue }
+                    var p = base.px[i]
+                    if fine[i] > 0.93 { p = solid(col(0x3AD8D8)) }
+                    img.px[i] = p
+                }
+                return img
+            case "sculk_sensor_side":
+                var img = Img(n, V4(0, 0, 0, 0))
+                for y in (n / 2)..<n { for x in 0..<n {
+                    let i = y * n + x
+                    img.px[i] = y < n / 2 + max(1, n / 64) ? scaled(base.px[i], 1.4) : base.px[i]
+                } }
+                return img
+            case "sculk_sensor_top":
+                var img = base
+                let v = voronoi(n, 6, s &+ 6, jitter: 0.8)
+                for i in 0..<(n * n) {
+                    let r: Float = v.f1[i] / (fu * 1.2)
+                    guard r < 1 else { continue }
+                    let c: V3 = col(0x3AD8D8) * (1.35 - 0.6 * r)
+                    img.px[i] = solid(c)
+                }
+                return img
+            case "sculk_catalyst_side":
+                var img = stone(bonePal, veins: 0.3, strata: 0.12)(n, s &+ 7)
+                let wob = fbm(n, n / 8, 2, s &+ 8)
+                for y in 0..<n { for x in 0..<n {
+                    let i = y * n + x
+                    let fx: Float = Float(x) / fn * 2 * Float.pi
+                    let fingerA: Float = max(0, sinf(fx * 4 + 1.1)) * 2.2
+                    let fingerB: Float = max(0, sinf(fx * 7 + 0.3)) * 1.1
+                    let finger: Float = fingerA + fingerB
+                    let edge: Float = fu * 4.5 + finger * fu + (wob[x] - 0.5) * fu
+                    let fy = Float(y)
+                    if fy < edge { img.px[i] = base.px[i] }
+                    else if fy < edge + fu * 0.8 { img.px[i] = scaled(img.px[i], 0.6) }
+                } }
+                return img
+            default:  // sculk_catalyst_top
+                var img = base
+                let cx: Float = fn / 2, cy: Float = fn / 2
+                let bone = stone(bonePal, veins: 0.3, strata: 0)(n, s &+ 7)
+                for y in 0..<n { for x in 0..<n {
+                    let i = y * n + x
+                    let ox: Float = Float(x) + 0.5 - cx, oy: Float = Float(y) + 0.5 - cy
+                    let r: Float = (ox * ox + oy * oy).squareRoot() / fu
+                    if r < 3.2 {
+                        let t: Float = r / 3.2
+                        let c: V3 = col(0xE0FFFF) * (1 - t) + col(0x3AD8D8) * t
+                        img.px[i] = solid(c * (0.95 + 0.1 * fine[i]))
+                    } else if r < 4.4 {
+                        let k: Float = r < 3.5 ? 0.7 : (r > 4.1 ? 0.75 : 1)
+                        img.px[i] = scaled(bone.px[i], k)
+                    }
+                } }
+                return img
+            }
+        }
+    }
+
+    // Scaffolding: bamboo poles (rounded, with nodes) and rope lashings at the corners of the top frame.
+    static func scaffoldFace(top: Bool) -> Gen {
+        { n, s in
+            let u = n / 16, fu = Float(n) / 16
+            var img = Img(n, V4(0, 0, 0, 0))
+            let fine = vnoise(n, max(1, n / 32), s)
+            let cane = col(0xD8B060)
+            func pole(_ across: Float, _ along: Float, _ i: Int) -> V3 {
+                let round: Float = 1.12 - 0.4 * abs(across * 2 - 1)
+                let node: Float = abs(along - 5 * floorf(along / 5 + 0.5))
+                var c: V3 = cane * (round * (0.9 + 0.15 * fine[i]))
+                if node < 0.25 { c = col(0xA8803A) * round }
+                return c
+            }
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let fx: Float = Float(x) / fu, fy: Float = Float(y) / fu
+                if !top {
+                    let across: Float = fx.truncatingRemainder(dividingBy: 2) / 2
+                    img.px[i] = solid(pole(across, fy, i))
+                    continue
+                }
+                if y < 2 * u || y >= n - 2 * u {
+                    let across: Float = (y < 2 * u ? fy : fy - 14) / 2
+                    img.px[i] = solid(pole(across, fx, i))
+                } else if x < 2 * u || x >= n - 2 * u {
+                    let across: Float = (x < 2 * u ? fx : fx - 14) / 2
+                    img.px[i] = solid(pole(across, fy, i))
+                } else {
+                    let d1: Float = abs(fx - fy), d2: Float = abs(fx - (16 - fy))
+                    let d: Float = min(d1, d2)
+                    guard d < 0.75 else { continue }
+                    img.px[i] = solid(cane * ((1.1 - 0.5 * d) * (0.9 + 0.15 * fine[i])))
+                }
+            } }
+            guard top else { return img }
+            // Lashings: three dark rope turns across each corner.
+            for (cx, cy) in [(1, 1), (15, 1), (1, 15), (15, 15)] as [(Int, Int)] {
+                for y in (cy * u - 2 * u)..<(cy * u + 2 * u) { for x in (cx * u - 2 * u)..<(cx * u + 2 * u) {
+                    let t: Float = (Float(x + y) / fu).truncatingRemainder(dividingBy: 1)
+                    let inside: Bool = abs(x - cx * u) < u + u / 2 && abs(y - cy * u) < u + u / 2
+                    guard inside && t < 0.4 else { continue }
+                    let fx2 = ((x % n) + n) % n, fy2 = ((y % n) + n) % n
+                    guard img[fx2, fy2].w > 0 else { continue }
+                    img[fx2, fy2] = solid(col(0x8A6A3A) * (0.85 + 0.3 * t))
+                } }
+            }
+            return img
+        }
+    }
+
+    // Chain: face-on oval links alternating with edge-on bars, dark iron lit from the left (within the 2/16 wide
+    // strip the chain model shows).
+    static func chainHD(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n), fu = Float(n) / 16
+        var img = Img(n, V4(0, 0, 0, 0))
+        let iron = col(0x4A505E)
+        for y in 0..<n { for x in 0..<n {
+            let ox: Float = Float(x) + 0.5 - fn / 2
+            let fy: Float = Float(y) + 0.5
+            let ph: Float = fy.truncatingRemainder(dividingBy: fu * 8)
+            // Face-on link centred at 2u, edge-on bar centred at 6u.
+            let oy: Float = ph - fu * 2
+            let ex: Float = ox / (fu * 0.85), ey: Float = oy / (fu * 2.1)
+            let ring: Float = (ex * ex + ey * ey).squareRoot()
+            let wire: Float = 0.3
+            var k: Float = -1
+            if abs(ring - 0.78) < wire {
+                let across: Float = (ring - 0.78) / wire
+                let litL: Float = ox < 0 ? 0.25 : 0
+                k = 1.0 - 0.35 * abs(across) + litL
+            }
+            let by: Float = ph - fu * 6
+            if abs(ox) < fu * 0.35 && abs(by) < fu * 2.6 {
+                let across: Float = ox / (fu * 0.35)
+                let litB: Float = ox < 0 ? 0.2 : 0
+                k = max(k, 1.05 - 0.45 * abs(across) + litB)
+            }
+            guard k > 0 else { continue }
+            img.px[y * n + x] = solid(iron * k)
+        } }
+        return img
+    }
+
+    // Rebirth anchor: crying obsidian between dark frame bands; on top a frame round a glowing pool (or an empty
+    // socket when uncharged). Part 0 side, 1 top lit, 2 top dark, 3 bottom.
+    static func anchorFace(_ part: Int) -> Gen {
+        { n, s in
+            let fn = Float(n), u = n / 16
+            if part == 3 { return obsidianGen(n, s) }
+            if part == 0 {
+                var img = cryingObsidian(n, s)
+                let frame = obsidianGen(n, s &+ 1)
+                for y in 0..<n { for x in 0..<n where x < 2 * u || x >= n - 2 * u {
+                    let i = y * n + x
+                    img.px[i] = scaled(frame.px[i], 1.15)
+                } }
+                bevelFrame(&img) { x, _ in
+                    let xx = ((x % n) + n) % n
+                    return xx < 2 * u || xx >= n - 2 * u
+                }
+                return img
+            }
+            var img = obsidianGen(n, s)
+            let swirl = warp(fbm(n, n / 4, 4, s &+ 2), n, fbm(n, n / 4, 2, s &+ 3), fbm(n, n / 4, 2, s &+ 4), fn * 0.12)
+            let lit = part == 1
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let ax: Int = abs(2 * x + 1 - n), ay: Int = abs(2 * y + 1 - n)
+                let m: Int = max(ax, ay)
+                guard m < 10 * u else { continue }
+                var c: V3
+                if lit {
+                    c = ramp(swirl[i] * 1.2 - 0.1, [(0, 0x4A1A8A), (0.5, 0xA050E8), (0.85, 0xD8A0FF), (1, 0xF8E0FF)])
+                } else {
+                    c = col(0x1A1028) * (0.8 + 0.4 * swirl[i])
+                }
+                // The socket's lip: shadow under the top and left rims, light on the far ones.
+                let fromTop: Int = y - (n / 2 - 5 * u), fromLeft: Int = x - (n / 2 - 5 * u)
+                let lip: Float = lit ? 0.75 : 0.5
+                if fromTop < u / 2 + 1 || fromLeft < u / 2 + 1 { c = c * lip }
+                img.px[i] = solid(c)
+            } }
+            return img
+        }
+    }
+
+    // Jukebox: a bevelled dark frame round a grained panel; the top has the record slot.
+    static func jukeboxFace(top: Bool) -> Gen {
+        { n, s in
+            let u = n / 16
+            var img = planks(pal(col(0x7A5230), lo: 0.78, hi: 1.15))(n, s)
+            let fine = vnoise(n, max(1, n / 64), s &+ 2)
+            func isFrame(_ x: Int, _ y: Int) -> Bool {
+                let xx = ((x % n) + n) % n, yy = ((y % n) + n) % n
+                return xx < 2 * u || xx >= n - 2 * u || yy < 2 * u || yy >= n - 2 * u
+            }
+            for y in 0..<n { for x in 0..<n where isFrame(x, y) {
+                let i = y * n + x
+                img.px[i] = solid(col(0x5A3A22) * (0.85 + 0.25 * fine[(y / 6) * n + x]))
+            } }
+            bevelFrame(&img, inFrame: isFrame)
+            guard top else { return img }
+            let x0 = 3 * u, x1 = 13 * u, y0 = 13 * u / 2, y1 = 19 * u / 2
+            for y in y0..<y1 { for x in x0..<x1 {
+                var k: Float = 0.1 + 0.05 * fine[y * n + x]
+                if y < y0 + u / 2 { k = 0.05 }
+                if y >= y1 - max(1, u / 4) || x >= x1 - max(1, u / 4) { k = 0.45 }
+                img[x, y] = V4(k, k * 0.92, k * 0.85, 1)
+            } }
+            return img
+        }
+    }
+
+    // Crafter: a grained wooden body in a bevelled stone frame. Top: a 3x3 lattice; front: the dark mouth.
+    // Part 0 side, 1 top, 2 front, 3 bottom.
+    static func crafterFace(_ part: Int) -> Gen {
+        { n, s in
+            let u = n / 16
+            if part == 3 { return machineStone(n, s) }
+            var img = planks(pal(col(0x9A7A4A), lo: 0.8, hi: 1.12))(n, s)
+            let stoneImg = machineStone(n, s &+ 1)
+            func isFrame(_ x: Int, _ y: Int) -> Bool {
+                let xx = ((x % n) + n) % n, yy = ((y % n) + n) % n
+                switch part {
+                case 0: return xx < 2 * u || xx >= n - 2 * u || yy < 3 * u
+                case 1: return (xx % (5 * u)) < u || (yy % (5 * u)) < u || xx >= n - u || yy >= n - u
+                default: return xx < 2 * u || xx >= n - 2 * u || yy < 2 * u || yy >= n - 2 * u
+                }
+            }
+            for i in 0..<(n * n) where isFrame(i % n, i / n) { img.px[i] = stoneImg.px[i] }
+            bevelFrame(&img, inFrame: isFrame)
+            guard part == 2 else { return img }
+            for y in (6 * u)..<(10 * u) { for x in (6 * u)..<(10 * u) {
+                let dy: Int = y - 6 * u, dx: Int = x - 6 * u
+                let k: Float = (dy < u / 2 || dx < u / 2) ? 0.06 : 0.14
+                img[x, y] = V4(k, k, k * 1.05, 1)
+            } }
+            return img
+        }
+    }
+
+    // Campfire logs lie on their side: oak bark with the fissures running along the log, charred toward the top.
+    static func campfireLog(_ n: Int, _ s: Int) -> Img {
+        let bark = barkSide(oakBark)(n, s)
+        var img = Img(n)
+        for y in 0..<n { for x in 0..<n {
+            let char: Float = 0.55 + 0.45 * Float(y) / Float(n)
+            img.px[y * n + x] = scaled(bark.px[x * n + y], char)
+        } }
+        return img
+    }
+    // Trapped chest: the chest front with a red trip latch.
+    static func trappedChestFront(_ n: Int, _ s: Int) -> Img {
+        var img = chestFace(2)(n, s)
+        let x0 = n * 7 / 16 - n / 32, x1 = n * 9 / 16 + n / 32, y0 = n * 6 / 16, y1 = n * 10 / 16
+        for y in y0..<y1 { for x in x0..<x1 {
+            let p = img[x, y]
+            img[x, y] = V4(min(1, p.x * 1.25), p.y * 0.3, p.z * 0.28, 1)
+        } }
+        return img
+    }
+
     static func generator(_ name: String, _ src: [V4]) -> Gen? {
         if let g = table[name] { return g }
         if let g = crop(name) { return g }
@@ -4104,7 +4583,7 @@ enum HDTex {
     // past the 600 ms gate).
     static let table: [String: Gen] = {
         var t: [String: Gen] = [:]
-        for part in [tablePart0, tablePart1, tablePart2, tablePart3, tablePart4, tablePart5, tablePart6] { t.merge(part) { a, _ in a } }
+        for part in [tablePart0, tablePart1, tablePart2, tablePart3, tablePart4, tablePart5, tablePart6, tablePart7] { t.merge(part) { a, _ in a } }
         return t
     }()
     static let tablePart0: [String: Gen] = [
@@ -4393,7 +4872,7 @@ enum HDTex {
         "warped_wart_block": lumps([(0, 0x0A4A48), (0.5, 0x127068), (1, 0x2A988A)]),
         "glowstone": lumps([(0, 0x7A4A18), (0.35, 0xB88430), (0.7, 0xF0C860), (1, 0xFFF4C0)], cells: 8, gloss: 1),
         "shroomlight": lumps([(0, 0xA04A10), (0.5, 0xF09030), (1, 0xFFD890)], cells: 7, gloss: 1),
-        "sculk": lumps([(0, 0x041820), (0.5, 0x0A2C34), (1, 0x16505A)], cells: 12),
+        "sculk": sculkGen,
         "ancient_debris_side": ancientDebris(top: false),
         "ancient_debris_top": ancientDebris(top: true)
     ]
@@ -4409,7 +4888,7 @@ enum HDTex {
         "purpur_pillar": pillarSide([(0, 0x7A507A), (0.5, 0xA678A6), (1, 0xC69CC6)]),
         "purpur_pillar_top": pillarTop([(0, 0x7A507A), (0.5, 0xA678A6), (1, 0xC69CC6)]),
         "bedrock": stone([(0, 0x141416), (0.3, 0x2E2E32), (0.6, 0x55555A), (1, 0x8A8A90)], veins: 1.4, strata: 0),
-        "obsidian": stone([(0, 0x0E0A16), (0.5, 0x1C1428), (0.85, 0x2E2240), (1, 0x4A3A64)], veins: 0.8, strata: 0),
+        "obsidian": obsidianGen,
         "red_nether_bricks": masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 20, [(0, 0x480A0C), (0.5, 0x5E1214), (1, 0x7A1C1E)], mortar: 0x260406, clay: true, chips: 1.2),
         "polished_blackstone_bricks": masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 24, [(0, 0x262228), (0.5, 0x363038), (1, 0x4A424C)], mortar: 0x141216, chips: 1.4),
         "tuff_bricks": masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 24, [(0, 0x55564E), (0.5, 0x6C6D64), (1, 0x86877C)], mortar: 0x3E3F38, chips: 1),
@@ -4471,6 +4950,41 @@ enum HDTex {
         "deepslate_lapis_ore": ore(stone(deepslate), 0x18348C, 0x446EDC),
         "deepslate_emerald_ore": ore(stone(deepslate), 0x0E9042, 0x6CE498),
         "deepslate_copper_ore": ore(stone(deepslate), 0xA85E36, 0x60BA96)
+    ]
+    static let tablePart7: [String: Gen] = [
+        "enchanting_table_top": enchantTable(0),
+        "enchanting_table_side": enchantTable(1),
+        "enchanting_table_bottom": enchantTable(2),
+        "ender_chest_top": enderChest(0),
+        "ender_chest_side": enderChest(1),
+        "ender_chest_front": enderChest(2),
+        "trapped_chest_front": trappedChestFront,
+        "cake_top": cakeFace(0),
+        "cake_side": cakeFace(1),
+        "cake_inner": cakeFace(2),
+        "cake_bottom": cakeFace(3),
+        "sculk_vein": murkFace("sculk_vein"),
+        "sculk_sensor_side": murkFace("sculk_sensor_side"),
+        "sculk_sensor_top": murkFace("sculk_sensor_top"),
+        "sculk_catalyst_side": murkFace("sculk_catalyst_side"),
+        "sculk_catalyst_top": murkFace("sculk_catalyst_top"),
+        "sea_pickle": lumps([(0, 0x3E5A20), (0.5, 0x6A8A3A), (1, 0x9AB85A)], cells: 6, gloss: 0.5),
+        "scaffolding_top": scaffoldFace(top: true),
+        "scaffolding_side": scaffoldFace(top: false),
+        "chain": chainHD,
+        "campfire_log": campfireLog,
+        "campfire_fire": fireHD(core: 0xFFF2A0, mid: 0xFFA020, tip: 0xE04010),
+        "soul_campfire_fire": fireHD(core: 0xC8FFFF, mid: 0x40E0E8, tip: 0x2090A0),
+        "respawn_anchor_side": anchorFace(0),
+        "respawn_anchor_top": anchorFace(1),
+        "respawn_anchor_top_off": anchorFace(2),
+        "respawn_anchor_bottom": anchorFace(3),
+        "jukebox_side": jukeboxFace(top: false),
+        "jukebox_top": jukeboxFace(top: true),
+        "crafter_side": crafterFace(0),
+        "crafter_top": crafterFace(1),
+        "crafter_front": crafterFace(2),
+        "crafter_bottom": crafterFace(3)
     ]
 
     // MARK: Upscale for textures without an HD material

@@ -1010,6 +1010,22 @@ enum TextureGen {
         return p
     }
 
+    // Layers that get no HD material (the generic detail pass upscales their 16 px art): the to-do list for
+    // TexturesHD, printed by --hdatlas.
+    static func undetailedNames() -> [String] {
+        registerAll()
+        let table = painters()
+        let crisp = Set(hudNames + Font.names)
+        var out: [String] = []
+        for name in Tex.names {
+            guard let f = table[name], !crisp.contains(name), !name.hasPrefix("item_"), !name.hasPrefix("effect_") else { continue }
+            var src = [V4](repeating: V4(0, 0, 0, 0), count: S * S)
+            for y in 0..<S { for x in 0..<S { src[y * S + x] = simd_clamp(f(x, y), V4(repeating: 0), V4(repeating: 1)) } }
+            if HDTex.generator(name, src) == nil { out.append(name) }
+        }
+        return out
+    }
+
     // Every layer at `size` x `size` (RGBA8): the 16 px painters run first (serially: some build shared state),
     // then HD materials / upscales are produced in parallel per layer.
     // Full-size RGBA for the layers in `range` (all layers by default), layer-major from range.lowerBound. The
