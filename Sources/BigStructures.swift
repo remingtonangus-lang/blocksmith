@@ -224,15 +224,23 @@ enum BigStructures {
                 for (dx, dz) in [(-r, off), (r, off), (off, -r), (off, r)] { w.set(x + dx, y + 4, z + dz, bulb) }
             }
         }
-        room(cx, cz, 9, 12)
-        w.fill(cx - 3, y + 10, cz - 3, cx + 3, y + 10, cz + 3, grate)
+        // Corridor shells first, then the rooms, then the corridors are cut 3 wide through the room walls: the shells
+        // used to be filled through the finished atrium (walling it into quadrants) and the second pair re-blocked
+        // the first at the central crossing (structcheck: every trial chamber POI unreachable).
         let spots = [(cx + 20, cz), (cx - 20, cz), (cx, cz + 20), (cx, cz - 20)]
+        func span(_ s: (Int, Int)) -> (Int, Int, Int, Int) { (min(cx, s.0), max(cx, s.0), min(cz, s.1), max(cz, s.1)) }
+        for s in spots {
+            let (x0, x1, z0, z1) = span(s)
+            w.fill(x0 - 2, y - 1, z0 - 2, x1 + 2, y + 3, z1 + 2, tb)
+        }
+        room(cx, cz, 9, 12)
+        for s in spots { room(s.0, s.1, 6, 7) }
+        for s in spots {
+            let (x0, x1, z0, z1) = span(s)
+            w.fill(x0 - (z0 == z1 ? 0 : 1), y, z0 - (x0 == x1 ? 0 : 1), x1 + (z0 == z1 ? 0 : 1), y + 2, z1 + (x0 == x1 ? 0 : 1), AIR)
+        }
+        w.fill(cx - 3, y + 10, cz - 3, cx + 3, y + 10, cz + 3, grate)
         for (i, s) in spots.enumerated() {
-            room(s.0, s.1, 6, 7)
-            // Corridor to the atrium.
-            let (x0, x1) = (min(cx, s.0), max(cx, s.0)), (z0, z1) = (min(cz, s.1), max(cz, s.1))
-            w.fill(x0 - 1, y - 1, z0 - 1, x1 + 1, y + 3, z1 + 1, tb)
-            w.fill(x0, y, z0, x1, y + 2, z1, AIR)
             // Trial spawners and a vault in each chamber.
             for k in 0..<2 {
                 let sx = s.0 + (k == 0 ? -3 : 3), sz = s.1 + 2
