@@ -290,6 +290,14 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   (AppleParavirtCommandBuffer endCurrentChunk, as in run 354; the lldb rerun passed): runner, not code. Fixed from the
   run 362 data: end-city ship bridges (all 15 end_city issues), lake leaks across chunk borders (lip on the lake side),
   HD sparkstone dust and cocoa; spin windows now trace the mob per tick.
+- 2026-10-02 11:45 UTC: run 363 (a147f8d): smoke passed (362's failure was the runner), playthrough 0 failed, end_city
+  issues 15 -> 0, leaks 228 -> 216; the bench failed for real: gen.chunk_ms 2.08 -> 5.11 at normal runner speed, from
+  lake edges calling terrain.column (four fresh node evaluations) across chunk borders. Fixed in 9a19be2 (run 364): the
+  across-border column is blended from the chunk's own node grid (bit-identical), so every border column can ask.
+  Spin traces found the wolf cause (a coin flip every tick between hunting and strolling: hunts now commit) and the
+  passive water probe looking along the straight line to the stroll goal. Blind critic over 12 shots: mansion ring
+  roof, softer shoreline foam, less neon jungle leaves, a higher unlit floor, a brighter Hollow; eyes on UI shots:
+  keycap padding, effect list beside the recipe toggle, held-item name above the bubble row.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
