@@ -370,20 +370,6 @@ enum OverworldStructures {
             let ex = s.x + s.dx * s.len, ez = s.z + s.dz * s.len
             return (IVec3(min(s.x, ex) - 2, min(s.y, s.from) - 1, min(s.z, ez) - 2), IVec3(max(s.x, ex) + 2, max(s.y, s.from) + 4, max(s.z, ez) + 2))
         }
-        for s in segs {
-            let (lo, hi) = box(s)
-            pieces.append(piece(lo.x, lo.y, lo.z, hi.x, hi.y, hi.z) { w in
-                for k in 0...s.len {
-                    let x = s.x + s.dx * k, z = s.z + s.dz * k
-                    let fy = s.floor(k)
-                    for side in -1...1 {
-                        let bx = x + (s.dz != 0 ? side : 0), bz = z + (s.dx != 0 ? side : 0)
-                        for h in 0...2 where !Blocks.isLiquid(w.get(bx, fy + h, bz)) { w.set(bx, fy + h, bz, AIR) }
-                        if w.get(bx, fy - 1, bz) == AIR || Blocks.isLiquid(w.get(bx, fy - 1, bz)) { w.set(bx, fy - 1, bz, wood) }
-                    }
-                }
-            })
-        }
         // Every carved corridor cell, from the layout itself (reading blocks missed corridors in the next chunk, so a
         // support still stood across a crossing at chunk borders: structcheck, run 357).
         var carved = Set<IVec3>()
@@ -397,6 +383,25 @@ enum OverworldStructures {
             }
         }
         let corridorCells = carved
+        for s in segs {
+            let (lo, hi) = box(s)
+            pieces.append(piece(lo.x, lo.y, lo.z, hi.x, hi.y, hi.z) { w in
+                for k in 0...s.len {
+                    let x = s.x + s.dx * k, z = s.z + s.dz * k
+                    let fy = s.floor(k)
+                    for side in -1...1 {
+                        let bx = x + (s.dz != 0 ? side : 0), bz = z + (s.dx != 0 ? side : 0)
+                        for h in 0...2 where !Blocks.isLiquid(w.get(bx, fy + h, bz)) { w.set(bx, fy + h, bz, AIR) }
+                        // No plank floor inside another corridor's open space: where corridors cross at different
+                        // heights the upper one's floor hung across the lower one and blocked it (structcheck issue
+                        // gallery, run 360: plank slabs filling a lane in front of a chest).
+                        let under = IVec3(bx, fy - 1, bz)
+                        let open: Bool = w.get(bx, fy - 1, bz) == AIR || Blocks.isLiquid(w.get(bx, fy - 1, bz))
+                        if open && !corridorCells.contains(under) { w.set(bx, fy - 1, bz, wood) }
+                    }
+                }
+            })
+        }
         for (i, s) in segs.enumerated() {
             let (lo, hi) = box(s)
             pieces.append(piece(lo.x, lo.y, lo.z, hi.x, hi.y, hi.z) { w in
