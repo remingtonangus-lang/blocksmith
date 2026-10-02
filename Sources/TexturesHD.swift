@@ -750,7 +750,7 @@ enum HDTex {
             guard rc > 0, mc > 0 else { return nil }
             return ringsTop(bark: pal(rim / rc, lo: 0.7, hi: 1.25), wood: pal(mid / mc, lo: 0.8, hi: 1.12))
         }
-        if name.hasSuffix("_log") || name == "crimson_stem" || name == "warped_stem" { return barkSide(pal(avg, lo: 0.62, hi: 1.25)) }
+        if (name.hasSuffix("_log") && !name.hasPrefix("stripped_")) || name == "crimson_stem" || name == "warped_stem" { return barkSide(pal(avg, lo: 0.62, hi: 1.25)) }
         if name.hasSuffix("_leaves") {
             return { n, s in
                 var img = leaves(n, s)
