@@ -527,13 +527,26 @@ final class WorldGen: TerrainGenerator {
                 // Never open the sea floor: keep a shell under water.
                 if y + 1 < CH && Blocks.isLiquid(b[i + CSQ]) { continue }
                 if y <= lavaLevel { b[i] = LAVA; continue }
-                // Aquifers: some 16-block cells below sea level hold water up to a local level.
-                let ax = floorDiv(wx, 16), ay = y >> 4, az = floorDiv(wz, 16)
-                let ah = hash3(ax, ay, az, s32 ^ 0xA0F1)
-                if y < SEA - 8 && ah % 100 < 22 && y <= ay * 16 + Int(ah >> 8) % 12 { b[i] = WATER; continue }
+                // Aquifers: some 16-block cells below sea level hold water up to a local level. Where a flooded
+                // cell meets a dry one the dry side keeps a rock barrier, and water never sits over open cave air
+                // (gencheck "leak": cave water stood as vertical walls at cell edges, about 65 per chunk).
+                if aquiferWet(wx, y, wz) {
+                    if b[i - CSQ] == AIR { continue }
+                    b[i] = WATER; continue
+                }
+                let ex = wx & 15, ez = wz & 15
+                if (ex == 0 && aquiferWet(wx - 1, y, wz)) || (ex == 15 && aquiferWet(wx + 1, y, wz)) { continue }
+                if (ez == 0 && aquiferWet(wx, y, wz - 1)) || (ez == 15 && aquiferWet(wx, y, wz + 1)) { continue }
                 b[i] = AIR
             }
         } }
+    }
+
+    @inline(__always) func aquiferWet(_ wx: Int, _ y: Int, _ wz: Int) -> Bool {
+        guard y < SEA - 8 else { return false }
+        let ax = floorDiv(wx, 16), ay = y >> 4, az = floorDiv(wz, 16)
+        let ah = hash3(ax, ay, az, s32 ^ 0xA0F1)
+        return ah % 100 < 22 && y <= ay * 16 + Int(ah >> 8) % 12
     }
 
     // Ravines: long, narrow, tall cracks (about one per 150 chunks), wandering slowly in heading and depth.
