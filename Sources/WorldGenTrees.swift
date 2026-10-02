@@ -412,7 +412,14 @@ extension WorldGen {
                     if kelpPatch && h < 0.12 && depth > 3 && biome != .warmOcean && !biome.isRiver {
                         let len = min(depth - 2, 1 + Int(h2 * h2 * Float(depth)))
                         for k in 1...len { b[Chunk.index(lx, fy + k, lz)] = g("kelp") }
-                    } else if h < 0.4 { b[Chunk.index(lx, fy + 1, lz)] = g("seagrass") }
+                    } else {
+                        // Seagrass grows in meadows (dense where a low-frequency noise is high, a few strands elsewhere)
+                        // instead of 40 % of every seabed column (underwater.png: a uniform field of sticks).
+                        let meadow = flora.noise2(Float(wx) / 22 + 410, Float(wz) / 22 + 410)
+                        let t: Float = max(0, min(1, (meadow + 0.05) / 0.35))
+                        let chance: Float = 0.04 + 0.5 * t * t
+                        if h2 < chance { b[Chunk.index(lx, fy + 1, lz)] = g("seagrass") }
+                    }
                 } else if biome == .swamp || biome == .mangroveSwamp {
                     if depth <= 2 && h < 0.08 && ground == WATER { b[Chunk.index(lx, y + 1, lz)] = g("lily_pad") }
                     else if h > 0.8 { b[Chunk.index(lx, fy + 1, lz)] = g("seagrass") }

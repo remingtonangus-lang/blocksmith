@@ -1153,6 +1153,12 @@ final class Renderer: NSObject, MTKViewDelegate {
             var uh = u
             uh.viewProj = perspectiveRH(fovy: 70 * .pi / 180, aspect: W / max(H, 1), near: 0.01, far: 8)
             uh.fogColor.w = 100; uh.params.x = 200
+            if game.player.headInWater {
+                // Under water the arm and held item take on the water's colour like everything else (they stayed in
+                // full daylight colours: critic, underwater.png).
+                let f = game.underwaterFog
+                uh.fogColor = V4(f.x, f.y, f.z, -1); uh.params.x = 3
+            }
             let ey = Int(floor(eye.y)) + (Blocks.opaque[Int(game.world.block(Int(floor(eye.x)), Int(floor(eye.y)), Int(floor(eye.z))))] ? 1 : 0)
             let l = game.world.lightAt(Int(floor(eye.x)), ey, Int(floor(eye.z)))
             let light = max(0.12, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15), game.nightVision * 0.9)
