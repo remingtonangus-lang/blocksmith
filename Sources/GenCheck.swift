@@ -115,8 +115,8 @@ enum GenCheck {
                                     let fluid = Blocks.fluidKind[bi] == 1 ? "water" : "lava"
                                     // Underground water open to a cave inside the chunk is scheduled to flow when the chunk
                                     // loads (World.springs): a waterfall to be, counted apart.
-                                    if b == WATER && !border && y < world.topY(wx, wz) - 4 {
-                                        add("spring", p, "water source open to a cave (\(side), flows on load)"); break
+                                    if (b == WATER || b == LAVA) && !border && y < world.topY(wx, wz) - 4 {
+                                        add("spring", p, "\(fluid) source open to a cave (\(side), flows on load)"); break
                                     }
                                     let under: String = y < world.topY(wx, wz) - 4 ? "underground" : "surface"
                                     let bs: String = border ? "border" : "in-chunk"

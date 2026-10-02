@@ -527,7 +527,7 @@ final class World {
             guard top > 2 else { continue }
             for y in 2..<top {
                 let i = c + y * CSQ
-                guard b[i] == WATER else { continue }
+                guard b[i] == WATER || b[i] == LAVA else { continue }    // lava pools spill into caves as lavafalls too
                 let open = b[i - CSQ] == AIR || (lx > 0 && b[i - 1] == AIR) || (lx < 15 && b[i + 1] == AIR)
                     || (lz > 0 && b[i - CS] == AIR) || (lz < 15 && b[i + CS] == AIR)
                 if open { out.append(IVec3(k.x * CS + lx, y, k.z * CS + lz)); if out.count >= 64 { return out } }
