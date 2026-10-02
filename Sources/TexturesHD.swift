@@ -2305,6 +2305,41 @@ enum HDTex {
     // Chorus plant and flower (fleshy lumps under a dark rind; the flower's pale bud), the end rod's glowing rod, the
     // dragon egg's dark shell with violet glints, mangrove roots (tangled strands that tile), azalea (a leafy top and
     // a side of leaves over a woody stem) and cave vines.
+    // Sculk shrieker: a bone-white jaw ring round a dark throat on top; the side a sculk base under a pale bony rim.
+    static func shriekerFace(top: Bool) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            var img = lumps([(0, 0x041820), (0.5, 0x0A2C34), (1, 0x16505A)], cells: 12)(n, s)
+            let fine = vnoise(n, max(1, n / 64), s &+ 2)
+            let bone: [(Float, UInt32)] = [(0, 0x8A8468), (0.5, 0xC8C09A), (1, 0xE8E2C4)]
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                if top {
+                    let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
+                    let d: Float = max(abs(dx), abs(dy)) / (fn / 2)
+                    guard d < 0.5 else { continue }
+                    if d < 0.3 {
+                        let tk: Float = 0.3 + 0.5 * (d / 0.3)
+                        plot(&img, x, y, V3(0.02, 0.06, 0.08) * (tk * 4))
+                    } else {
+                        let tooth: Float = 0.5 + 0.5 * sinf(atan2f(dy, dx) * 8)
+                        let crest: Float = 1 - abs(d - 0.4) / 0.1
+                        let t: Float = 0.25 + 0.5 * crest + 0.15 * tooth + 0.1 * fine[i]
+                        let c = ramp(t, bone)
+                        img.px[i] = V4(c.x, c.y, c.z, 1)
+                    }
+                } else {
+                    guard y < n / 2 else { continue }
+                    let rib: Float = 0.5 + 0.5 * sinf(Float(x) / fn * 2 * .pi * 4)
+                    var t: Float = 0.3 + 0.4 * rib + 0.15 * fine[i]
+                    if y > n * 7 / 16 { t -= 0.25 }
+                    let c = ramp(t, bone)
+                    img.px[i] = V4(c.x, c.y, c.z, 1)
+                }
+            } }
+            return img
+        }
+    }
     static func oddFace(_ kind: String) -> Gen {
         { n, s in
             let fn = Float(n), u = n / 16
@@ -3782,6 +3817,8 @@ enum HDTex {
         "smithing_table_side": smithingSide,
         "grindstone": stone([(0, 0x6E6E6E), (0.5, 0x8E8E8E), (1, 0xA8A8A8)], veins: 0, strata: 0.06),
         "stonecutter_side": furnaceStone,
+        "sculk_shrieker_top": shriekerFace(top: true),
+        "sculk_shrieker_side": shriekerFace(top: false),
         "repeater": diodeFace("repeater"),
         "repeater_on": diodeFace("repeater_on"),
         "comparator": diodeFace("comparator"),
