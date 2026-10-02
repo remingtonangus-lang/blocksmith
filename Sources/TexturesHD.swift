@@ -1554,6 +1554,75 @@ enum HDTex {
         }
     }
 
+    // Crafting table (same layout as the small painters). Top: a worktop of light planks in a dark frame, split into
+    // four by grooves, with a few scratches. Sides: the tabletop's dark edge band over planks with two legs; the
+    // front hangs a saw (toothed blade, wooden grip) and a hammer.
+    static func craftingTable(_ face: Int) -> Gen {            // 0 top, 1 side, 2 front
+        { n, s in
+            let u = n / 16
+            let fn = Float(n)
+            var img = planks([(0, 0x8A6838), (0.5, 0xB08850), (1, 0xC8A468)])(n, s)
+            let fine = vnoise(n, max(1, n / 64), s &+ 3)
+            func put(_ x: Int, _ y: Int, _ c: V3) { img[x, y] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1) }
+            let dark = col(0x5A4020), groove = col(0x6B4F2C), leg = col(0x3E2C16)
+            if face == 0 {
+                for y in 0..<n { for x in 0..<n {
+                    let edge = min(min(x, y), min(n - 1 - x, n - 1 - y))
+                    let k: Float = 0.9 + 0.2 * fine[y * n + x]
+                    let rim: Float = edge == 0 ? 0.8 : 1.05
+                    if edge < u { put(x, y, dark * (k * rim)) }
+                    else if (x >= 7 * u && x < 8 * u) || (y >= 7 * u && y < 8 * u) {
+                        let lip: Bool = x == 7 * u || y == 7 * u
+                        put(x, y, groove * (k * (lip ? 0.75 : 1)))
+                    }
+                } }
+                for k in 0..<5 {                                                   // scratches
+                    let x0: Float = h2(k, 1, s) * fn, y0: Float = h2(k, 2, s) * fn
+                    let ang: Float = h2(k, 3, s) * .pi
+                    for t in 0..<(n / 6) {
+                        let x = Int(x0 + cosf(ang) * Float(t)), y = Int(y0 + sinf(ang) * Float(t))
+                        let c = img[x, y]
+                        img[x, y] = V4(c.x * 0.85, c.y * 0.85, c.z * 0.85, 1)
+                    }
+                }
+                return img
+            }
+            for y in 0..<n { for x in 0..<n {
+                let k: Float = 0.9 + 0.2 * fine[y * n + x]
+                let under: Float = y >= 3 * u - u / 2 ? 0.75 : 1
+                if y < 3 * u { put(x, y, dark * (k * under)) }
+                else if (x >= 2 * u && x < 3 * u) || (x >= 13 * u && x < 14 * u) { put(x, y, leg * k) }
+            } }
+            guard face == 2 else { return img }
+            // Saw: a triangular blade (teeth along its lower edge) on a wooden grip.
+            for y in (5 * u)..<(13 * u) { for x in (3 * u)..<(7 * u) {
+                let fx: Float = Float(x - 3 * u) / Float(u), fy: Float = Float(13 * u - y) / Float(u)
+                guard fx + fy <= 6.2 else { continue }
+                let tooth: Bool = fy < 0.6 && Int(fx * 2) % 2 == 0
+                let fade: Float = 0.25 * (1 - fx / 4)
+                let shine: Float = 0.85 + fade + 0.1 * fine[y * n + x]
+                let blade: V3 = V3(0.72, 0.72, 0.74) * shine
+                put(x, y, tooth ? V3(0.5, 0.5, 0.52) : blade)
+            } }
+            let grip = col(0x7A4A22)
+            for y in (11 * u)..<(14 * u) { for x in (2 * u)..<(4 * u) {
+                let gk: Float = 0.9 + 0.2 * fine[y * n + x]
+                put(x, y, grip * gk)
+            } }
+            // Hammer: a steel head across the top of a handle.
+            for y in (5 * u)..<(6 * u + u / 2) { for x in (9 * u)..<(14 * u) {
+                let top: Bool = y < 5 * u + u / 3
+                let hk: Float = top ? 1.2 : 0.95
+                put(x, y, V3(0.5, 0.5, 0.53) * hk)
+            } }
+            for y in (6 * u + u / 2)..<(13 * u) { for x in (11 * u)..<(12 * u) {
+                let lit: Float = x < 11 * u + u / 2 ? 1.1 : 0.85
+                put(x, y, col(0x6B4F2C) * lit)
+            } }
+            return img
+        }
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -2144,6 +2213,9 @@ enum HDTex {
         "pumpkin_side": ribbedSide([(0, 0x9A520A), (0.5, 0xD8801A), (1, 0xF0A030)], ribs: 4),
         "pumpkin_top": radialTop([(0, 0x9A520A), (0.5, 0xD8801A), (1, 0xF0A030)], lobes: 8, stem: 0x5A6A1A),
         "melon_side": melonSide,
+        "crafting_table_top": craftingTable(0),
+        "crafting_table_side": craftingTable(1),
+        "crafting_table_front": craftingTable(2),
         "chest_top": chestFace(0),
         "chest_side": chestFace(1),
         "chest_front": chestFace(2),
