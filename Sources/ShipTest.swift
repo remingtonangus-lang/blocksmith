@@ -732,6 +732,8 @@ extension ShipTest {
         }
         let avg = total / Double(frames - 31)
         print(String(format: "capital: %ld shells fired in 40 s; ship update avg %.2f ms, worst %.1f ms", fired, avg, worst))
+        let troops = (w.ships.capState[frigate.id]?.troops.count ?? 0) + (w.ships.capState[crawler.id]?.troops.count ?? 0)
+        print("capital: \(troops) troops deployed during the battle (info)")
         check(sawFoe, "the frigate targets the crawler (enemy faction)")
         check(fired > 20, "they open fire (\(fired) shells)")
         check(frigate.blockCount < fe0 || crawler.blockCount < ce0 || crawler.wrecked,

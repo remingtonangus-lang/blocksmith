@@ -45,6 +45,9 @@ final class CapitalState {
     var sight: Float = 250
     var crew: [V3] = []                // crew posts (ship space); soldiers of the ship's faction appear there once
     var crewDone = Set<Int>()          // posts whose soldier has appeared
+    var troopCD: Float = 12            // seconds until the next troop drop
+    var troops: [Mob] = []             // soldiers it has deployed (alive ones count toward its limit)
+    var ramp = V3(0, 0, 0)             // crawler: the rear ramp's foot (ship space)
 }
 
 struct CapTarget {
@@ -490,6 +493,7 @@ extension ShipManager {
             st.mainGunDir = hb.mainGun.1
             st.pods = hb.pods
             st.crew = hb.crew
+            st.ramp = V3(Float(hb.ox) + 0.5, 1, Float(hb.sz) + 3)
             st.sight = frigate ? 300 : 210
             st.orbitDir = (home.x + home.z) % 2 == 0 ? 1 : -1
             st.groundOffset = s.com.y - s.localMin.y
@@ -642,6 +646,7 @@ extension ShipManager {
             }
             if s.role == "warfrigate" { flyFrigate(s, st, dt, g) } else { driveCrawler(s, st, dt, g) }
             capitalGuns(s, st, dt, g)
+            deployTroops(s, st, dt, g)
         }
     }
 
@@ -913,6 +918,52 @@ extension ShipManager {
                 if k % 2 == 0 { g.sfx(.fireworkLaunch, 0.9, at: at) }
             }
         }
+    }
+
+    // Troops: a crawler lowers its ramp and sends soldiers out when an enemy is within 70 blocks; a frigate lands
+    // drop troops round a target on the ground within 220 (pods hit with a blast of smoke). At most six of its
+    // soldiers alive at a time.
+    private func deployTroops(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
+        st.troopCD -= dt
+        st.troops.removeAll { t in t.health <= 0 || !g.mobs.mobs.contains(where: { $0 === t }) }
+        guard st.troopCD <= 0, let t = st.target, st.troops.count < 6 else { return }
+        let frigate = s.role == "warfrigate"
+        let reach: Float = frigate ? 220 : 70
+        guard boundsDistance(s, t.point) < reach else { return }
+        st.troopCD = frigate ? 35 : 25
+        let ranks: [MobKind] = [.soldierTrooper, .soldierRecruit, .soldierTrooper, .soldierIronclad]
+        var spots: [V3] = []
+        if frigate {
+            for k in 0..<3 {
+                let a = Float(k) * 2.1 + Rand.float(in: 0..<1)
+                let x = t.point.x + cosf(a) * 9, z = t.point.z + sinf(a) * 9
+                let ix = Int(floor(x)), iz = Int(floor(z))
+                guard world.isLoaded(ix, iz) else { continue }
+                spots.append(V3(x, Float(world.topY(ix, iz) + 1), z))
+            }
+        } else {
+            let foot = s.toWorld(st.ramp)
+            let ix = Int(floor(foot.x)), iz = Int(floor(foot.z))
+            if world.isLoaded(ix, iz) {
+                for k in 0..<2 { spots.append(V3(foot.x + Float(k) * 1.5 - 0.75, Float(world.topY(ix, iz) + 1), foot.z)) }
+            }
+        }
+        if spots.isEmpty { return }
+        let first = st.troops.isEmpty
+        for (i, p) in spots.enumerated() {
+            let m = Mob(ranks[(i + st.troops.count) % ranks.count], at: p)
+            m.faction = s.faction
+            m.aggro = true
+            if m.kind == .soldierIronclad { m.variant = Guns.arc }
+            g.mobs.mobs.append(m)
+            st.troops.append(m)
+            if frigate {
+                g.particles.explosion(at: p, power: 1.5)
+                g.particles.smoke(at: p + V3(0, 1, 0))
+                g.sfx(.explodeSmall, 0.9, at: p)
+            }
+        }
+        if t.player && first { g.onToast?(frigate ? "Stormwarden drop troops are landing!" : "The Ironback Crawler drops its ramp: troops!") }
     }
 
     // A crippled capital ship: a frigate sinks out of the sky with fires breaking out and comes down with a series
