@@ -527,6 +527,47 @@ enum HDTex {
         return img
     }
 
+    // Hay bale side: vertical straw fibres (noise stretched 12x along y) in golden tones, two dark binding bands with a
+    // lit upper edge. Top: chopped straw ends as short random strokes.
+    static func haySide(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n)
+        let fib = vnoise(n, max(1, n / 64), s &+ 1)
+        let blot = fbm(n, n / 4, 3, s &+ 2)
+        let pal: [(Float, UInt32)] = [(0, 0x8A6A1C), (0.45, 0xB8962E), (0.8, 0xD8B848), (1, 0xEED870)]
+        var img = Img(n)
+        for y in 0..<n { for x in 0..<n {
+            let i = y * n + x
+            let f: Float = fib[(y / 12) * n + x]
+            var t: Float = 0.25 + f * 0.6 + (blot[i] - 0.5) * 0.25
+            let fy = Float(y)
+            for b in [fn * 0.22, fn * 0.72] {
+                let d: Float = fy - b
+                if d >= 0 && d < fn * 0.07 { t = 0.08 + f * 0.12 + (d < 1.5 ? 0.15 : 0) }
+            }
+            let c = ramp(t, pal)
+            img.px[i] = V4(c.x, c.y, c.z, 1)
+        } }
+        return img
+    }
+    static func hayTop(_ n: Int, _ s: Int) -> Img {
+        let pal: [(Float, UInt32)] = [(0, 0x7A5C18), (0.5, 0xB09030), (1, 0xE4C860)]
+        let base = fbm(n, n / 4, 4, s &+ 1)
+        var img = Img(n)
+        for i in 0..<(n * n) { let c = ramp(0.3 + base[i] * 0.4, pal); img.px[i] = V4(c.x, c.y, c.z, 1) }
+        var rng = SRng(UInt64(truncatingIfNeeded: s) &* 31 &+ 7)
+        for _ in 0..<(n * 3) {
+            let x0 = rng.int(n), y0 = rng.int(n), len = 2 + rng.int(max(2, n / 16))
+            let a: Float = rng.float() * .pi
+            let k: Float = 0.6 + rng.float() * 0.5
+            let c = ramp(k, pal)
+            for j in 0..<len {
+                let fx = Float(x0) + cosf(a) * Float(j), fy = Float(y0) + sinf(a) * Float(j)
+                img[Int(fx), Int(fy)] = V4(c.x, c.y, c.z, 1)
+            }
+        }
+        return img
+    }
+
     // A soil face under a band of another material along the top edge (podzol, mycelium, path sides), with a
     // wavy lower edge and a soft shadow under it.
     static func topped(_ top: @escaping Gen, depth: Float = 0.16) -> Gen {
@@ -995,6 +1036,8 @@ enum HDTex {
     static let table: [String: Gen] = [
         "stone": stone(stoneGrey),
         "lava": lava,
+        "hay_block_side": haySide,
+        "hay_block_top": hayTop,
         "glass": glass,
         // Metals: copper through its oxidation stages (plain and cut), iron and gold.
         "copper_block": metal(0xC06B4F, shine: 0.16),
