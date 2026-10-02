@@ -207,7 +207,9 @@ final class Renderer: NSObject, MTKViewDelegate {
         depthNone = ds(.always, false)
 
         // Texture array with a CPU-built mip chain, built, compressed and uploaded in batches of layers (128 px RGBA
-        // for every layer at once would hold ~145 MB on the CPU side during start-up).
+        // for every layer at once would hold ~145 MB on the CPU side during start-up). Every texture name is
+        // registered first: the layer count must be final before the array and the emissive mask are sized.
+        TextureGen.registerAll()
         let layers = Tex.count
         // BC3-compressed where the GPU samples BC formats (TexCompress), RGBA8 otherwise.
         let bc = TexCompress.enabled && device.supportsBCTextureCompression
