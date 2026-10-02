@@ -398,49 +398,36 @@ static float hash31(float3 p) {
 }
 
 static float3 mobPattern(MobOut in) {
-    float3 cell = floor(in.local + 0.001);
+    // Detail at the blocks' 128 px scale (1/64 block) on top of the 1/16 cells, and smooth (not stair-stepped) patch
+    // edges, so mobs don't read as 16 px pixel art next to the HD blocks.
+    float3 p = in.local;
+    float3 cell = floor(p + 0.001);
     float h = hash31(cell);
+    float hf = hash31(floor(p * 4.0 + 0.001));
     float3 c = in.color;
     if (in.pattern > 0.5 && in.pattern < 1.5) {
-        float n = vnoise(cell.xz * 0.28 + cell.y * 0.21 + 3.0) * 0.7 + vnoise(cell.zy * 0.33 + 7.0) * 0.3;
-        if (n > 0.58) { c = float3(0.92, 0.9, 0.86); }
-        c *= 0.9 + 0.1 * h;
+        // cow: big white patches with soft edges
+        float n = vnoise(p.xz * 0.28 + p.y * 0.21 + 3.0) * 0.7 + vnoise(p.zy * 0.33 + 7.0) * 0.3;
+        c = mix(c, float3(0.92, 0.9, 0.86), smoothstep(0.565, 0.595, n));
+        c *= 0.94 + 0.06 * h + 0.06 * (hf - 0.5);
     } else if (in.pattern > 1.5 && in.pattern < 2.5) {
-        c *= 0.8 + 0.2 * h;
+        c *= 0.84 + 0.1 * h + 0.12 * hf;                         // wool: fuzz
     } else if (in.pattern > 2.5 && in.pattern < 3.5) {
-        c *= 0.88 + 0.12 * step(0.5, h);
+        float row = fract(p.y * 0.5 + 0.25 * hash31(float3(cell.x, 0.0, cell.z)));
+        c *= 0.86 + 0.1 * smoothstep(0.0, 0.6, row) + 0.05 * hf;  // feathers: overlapping rows
     } else if (in.pattern > 3.5 && in.pattern < 4.5) {
-        float h2 = hash31(floor(in.local * 0.5 + 0.001));
-        c *= 0.72 + 0.28 * h2 + 0.12 * h;
+        float n = vnoise(p.xz * 0.5 + p.y * 0.37) * 0.6 + vnoise(p.zy * 1.3 + 5.0) * 0.4;
+        c *= 0.74 + 0.3 * n + 0.06 * hf;                          // mottled skin
     } else if (in.pattern > 4.5) {
-        c *= 0.9 + 0.1 * h;
+        c *= 0.9 + 0.06 * h + 0.05 * hf;                          // bone
     } else {
-        c *= 0.93 + 0.07 * h;
+        c *= 0.95 + 0.04 * h + 0.04 * (hf - 0.5);
     }
     return c;
 }
 
 fragment float4 mobFS(MobOut in [[stage_in]], constant Uniforms& u [[buffer(1)]]) {
-    float3 cell = floor(in.local + 0.001);
-    float h = hash31(cell);
-    float3 c = in.color;
-    if (in.pattern > 0.5 && in.pattern < 1.5) {
-        // cow: big white patches
-        float n = vnoise(cell.xz * 0.28 + cell.y * 0.21 + 3.0) * 0.7 + vnoise(cell.zy * 0.33 + 7.0) * 0.3;
-        if (n > 0.58) { c = float3(0.92, 0.9, 0.86); }
-        c *= 0.9 + 0.1 * h;
-    } else if (in.pattern > 1.5 && in.pattern < 2.5) {
-        c *= 0.8 + 0.2 * h;           // wool
-    } else if (in.pattern > 2.5 && in.pattern < 3.5) {
-        c *= 0.88 + 0.12 * step(0.5, h); // feathers
-    } else if (in.pattern > 3.5 && in.pattern < 4.5) {
-        float h2 = hash31(floor(in.local * 0.5 + 0.001));
-        c *= 0.72 + 0.28 * h2 + 0.12 * h;  // mottled skin
-    } else if (in.pattern > 4.5) {
-        c *= 0.9 + 0.1 * h;              // bone
-    } else {
-        c *= 0.93 + 0.07 * h;
-    }
+    float3 c = mobPattern(in);
     return float4(applyFog(c * in.shade, in.dist, u), 1.0);
 }
 
