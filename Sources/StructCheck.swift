@@ -284,6 +284,7 @@ enum StructCheck {
         }
         // Doors.
         var doors = 0, pois = 0
+        var explained = false
         if walk {
             for y in max(1, s.min.y)...min(CH - 3, s.max.y) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
                 let b = w.block(x, y, z)
@@ -342,7 +343,26 @@ enum StructCheck {
                         if ra.contains(key(x + dx, y + dy, z + dz)) { ok = true }
                     }
                 } }
-                if !ok && !ra.isEmpty { add("poi_unreachable", IVec3(x, y, z), "\(base): no reachable cell next to it") }
+                if !ok && !ra.isEmpty {
+                    var detail = "\(base): no reachable cell next to it"
+                    if !explained {
+                        // The first one per structure: the closest cell the walk did reach, and what stands at and
+                        // above the cell next to it toward the POI (the wall, step or gap in the way).
+                        explained = true
+                        var best = IVec3(0, 0, 0), bd = Int.max
+                        for k in ra {
+                            func sx(_ v: Int) -> Int { v >= 0x80000 ? v - 0x100000 : v }
+                            let cx = sx(k & 0xFFFFF), cz = sx((k >> 20) & 0xFFFFF), cy = (k >> 40) & 0x3FF
+                            let d = abs(cx - x) + abs(cz - z) + 2 * abs(cy - y)
+                            if d < bd { bd = d; best = IVec3(cx, cy, cz) }
+                        }
+                        let sx = best.x + (x > best.x ? 1 : (x < best.x ? -1 : 0)), sz = best.z + (z > best.z ? 1 : (z < best.z ? -1 : 0))
+                        let col = (-1...2).map { Blocks.key(w.block(sx, best.y + $0, sz)) }.joined(separator: "/")
+                        let by: Int = best.y - YOFF
+                        detail += "; closest reached \(best.x) \(by) \(best.z), next toward it \(sx) \(sz) from y-1 up: \(col)"
+                    }
+                    add("poi_unreachable", IVec3(x, y, z), detail)
+                }
             } } }
         }
         // Structure mobs.
