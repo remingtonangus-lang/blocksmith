@@ -1672,6 +1672,22 @@ enum HDTex {
         }
     }
 
+    // Water (greyscale for the biome tint, translucent like the small painter): soft ripple bands from a warped field,
+    // brighter crests, no hard texels.
+    static func waterHD(_ n: Int, _ s: Int) -> Img {
+        var img = Img(n)
+        let base = fbm(n, n / 2, 4, s)
+        let wx = fbm(n, n / 4, 3, s &+ 3), wy = fbm(n, n / 4, 3, s &+ 4)
+        let f = warp(base, n, wx, wy, Float(n) * 0.12)
+        for i in 0..<(n * n) {
+            let band: Float = 0.5 + 0.5 * sinf(f[i] * 18)
+            let crest: Float = band > 0.9 ? (band - 0.9) * 1.5 : 0
+            let v: Float = 0.8 + 0.12 * band + crest
+            img.px[i] = V4(v, v, v, 0.72)
+        }
+        return img
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -2196,6 +2212,7 @@ enum HDTex {
     static let table: [String: Gen] = [
         "stone": stone(stoneGrey),
         "lava": lava,
+        "water": waterHD,
         "leaf_litter": leafLitter,
         // Flowers.
         "poppy": flowerHD(0xDB2420, 0x331F0D, .ring, top: 5, size: 2.8, salt: 40),
