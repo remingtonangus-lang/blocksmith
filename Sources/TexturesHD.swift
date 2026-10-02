@@ -2021,16 +2021,20 @@ enum HDTex {
                 let blot = fbm(n, n / 8, 3, s &+ 5)
                 for y in 0..<n { for x in 0..<n {
                     let i = y * n + x
-                    let fx: Int = (x * 16 / n) % 5, fy: Int = (y * 16 / n) % 5
+                    // Three panes a side in a frame one sixteenth wide, centred on the cell edges so the tile seam
+                    // shows one bar, not two (16 / 5 cells left a double bar there).
+                    let gx: Float = (Float(x) + 0.5) / fn * 3, gy: Float = (Float(y) + 0.5) / fn * 3
+                    let ex: Float = abs(gx - floorf(gx + 0.5)), ey: Float = abs(gy - floorf(gy + 0.5))
+                    let bar: Float = 3.0 / 32
                     var c: V3
-                    if fx == 0 || fy == 0 {
-                        let bevel: Float = (x % u == 0 || y % u == 0) ? 1.15 : 0.95
+                    if ex < bar || ey < bar {
+                        let across: Float = min(ex, ey) / bar
+                        let bevel: Float = 1.15 - 0.3 * across
                         let frame: V3 = on ? col(0x8A5A2A) : col(0x4A2A1A)
                         let fk: Float = bevel * (0.9 + 0.15 * fine[i])
                         c = frame * fk
                     } else {
-                        let cx: Float = (Float(x * 16) / fn).truncatingRemainder(dividingBy: 5) - 2.5
-                        let cy: Float = (Float(y * 16) / fn).truncatingRemainder(dividingBy: 5) - 2.5
+                        let cx: Float = (gx - floorf(gx) - 0.5) * 5, cy: Float = (gy - floorf(gy) - 0.5) * 5
                         let centre: Float = cl(1 - (cx * cx + cy * cy) / 8)
                         if on {
                             let gk: Float = 0.8 + 0.25 * centre + 0.1 * blot[i]
