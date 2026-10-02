@@ -2505,6 +2505,77 @@ enum HDTex {
             return img
         }
     }
+    // Lush caves: the big dripleaf's round leaf (veins fanning from the stem, a scalloped lighter rim), the small
+    // dripleaf, hanging roots (thin wavy strands tapering down from the ceiling; the 16 px bars read as orange planks
+    // on cave walls: blind critic, lush_caves) and glow lichen (soft speckled patches).
+    static func lushFace(_ kind: String) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            var img = Img(n, V4(0, 0, 0, 0))
+            let fine = vnoise(n, max(1, n / 64), s &+ 2)
+            switch kind {
+            case "big_dripleaf_top", "small_dripleaf":
+                let small = kind == "small_dripleaf"
+                let cx: Float = fn / 2
+                var cy: Float = fn / 2, rx: Float = fn * 0.49, ry: Float = fn * 0.49
+                if small { cy = fn * 0.3; rx = fn * 0.32; ry = fn * 0.22 }
+                if small {
+                    for y in Int(cy)..<n { for x in (n / 2 - n / 32)...(n / 2 + n / 32) {
+                        plot(&img, x, y, col(0x4E7E26) * (0.9 + 0.15 * fine[y * n + x]))
+                    } }
+                }
+                for y in 0..<n { for x in 0..<n {
+                    let dx: Float = (Float(x) + 0.5 - cx) / rx, dy: Float = (Float(y) + 0.5 - cy) / ry
+                    let a: Float = atan2f(dy, dx)
+                    let scallop: Float = 0.94 + 0.06 * cosf(a * 9)
+                    let d: Float = (dx * dx + dy * dy).squareRoot() / scallop
+                    guard d < 1 else { continue }
+                    // Veins: thin lighter rays every 30 degrees, and the midrib.
+                    let ray: Float = abs(sinf(a * 6))
+                    let rayVein: Bool = ray < 0.06 * (1.2 - d)
+                    let midrib: Bool = abs(dx) < 0.025 && !small
+                    let vein: Bool = rayVein || midrib
+                    var k: Float = 0.82 + 0.16 * d + 0.06 * fine[y * n + x]
+                    if vein { k *= 1.12 }
+                    if d > 0.9 { k *= 1.08 }
+                    let c: V3 = col(0x5A9A30) * k
+                    plot(&img, x, y, c)
+                } }
+                return img
+            case "hanging_roots":
+                for r in 0..<9 {
+                    let jitter: Float = (h2(r, 1, s) - 0.5) * 0.6
+                    let x0: Float = (Float(r) + 0.5 + jitter) / 9 * fn
+                    let len: Float = fn * (0.45 + 0.5 * h2(r, 2, s))
+                    let w0: Float = fn / 40 + 0.8
+                    let ph: Float = h2(r, 3, s) * 6.28
+                    for y in 0..<Int(len) {
+                        let t: Float = Float(y) / len
+                        let cxr: Float = x0 + sinf(Float(y) / fn * 7 + ph) * fn / 48
+                        let w: Float = w0 * (1 - 0.7 * t)
+                        let x0i: Int = Int(cxr - w - 1), x1i: Int = Int(cxr + w + 1)
+                        for x in x0i...x1i {
+                            let u: Float = (Float(x) + 0.5 - cxr) / max(0.5, w)
+                            guard abs(u) <= 1 else { continue }
+                            let fx: Int = ((x % n) + n) % n
+                            let round: Float = 1.05 - 0.35 * abs(u + 0.3)
+                            let k: Float = round * (0.85 + 0.2 * fine[y * n + fx])
+                            plot(&img, x, y, col(0x7A5A3E) * k)
+                        }
+                    }
+                }
+                return img
+            default:  // glow_lichen
+                let blot = fbm(n, n / 4, 3, s &+ 5)
+                for i in 0..<(n * n) where blot[i] > 0.52 {
+                    let k: Float = 0.8 + 0.3 * fine[i] + (blot[i] - 0.52) * 0.8
+                    let c: V3 = col(0x7ACAAA) * k
+                    img.px[i] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
+                }
+                return img
+            }
+        }
+    }
     static func oddFace(_ kind: String) -> Gen {
         { n, s in
             let fn = Float(n), u = n / 16
@@ -4026,7 +4097,7 @@ enum HDTex {
         "dirt_path_top": pathTop,
         "dirt_path_side": topped(pathTop, depth: 0.1),
         "rooted_dirt": soil([(0, 0x5E4230), (0.5, 0x7E5C40), (1, 0x9A7A58)], pebble: 0xB49A78, pebbles: 16, clods: 9),
-        "moss_block": soil([(0, 0x3A5220), (0.5, 0x56762E), (1, 0x729842)], pebble: 0x48662A, pebbles: 6, clods: 10),
+        "moss_block": soil([(0, 0x3C5026), (0.5, 0x587234), (1, 0x728E48)], pebble: 0x4A6430, pebbles: 6, clods: 10),     // less saturated (critic: twice the stone)
         "farmland": farmlandHD(moist: false),
         "farmland_moist": farmlandHD(moist: true),
         "soul_sand": soil([(0, 0x3A2A20), (0.5, 0x52402E), (1, 0x6A5440)], pebble: 0x2A1E16, pebbles: 10, clods: 8),
@@ -4058,6 +4129,10 @@ enum HDTex {
         "smithing_table_side": smithingSide,
         "grindstone": stone([(0, 0x6E6E6E), (0.5, 0x8E8E8E), (1, 0xA8A8A8)], veins: 0, strata: 0.06),
         "stonecutter_side": furnaceStone,
+        "big_dripleaf_top": lushFace("big_dripleaf_top"),
+        "small_dripleaf": lushFace("small_dripleaf"),
+        "hanging_roots": lushFace("hanging_roots"),
+        "glow_lichen": lushFace("glow_lichen"),
         "composter_top": composterTop,
         "lever": planks(pal(col(0x7A5A30), lo: 0.75, hi: 1.18)),
         "fire": fireHD(core: 0xFFF2A0, mid: 0xFFA020, tip: 0xE04010),
