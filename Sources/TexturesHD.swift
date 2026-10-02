@@ -1742,8 +1742,9 @@ enum HDTex {
     static func workFurnace(blast: Bool) -> Gen {
         { n, s in
             let u = n / 16
-            let stoneG = stone(blast ? [(0, 0x55555B), (0.5, 0x6C6C72), (1, 0x86868C)] : [(0, 0x3E3E40), (0.5, 0x545456), (1, 0x6C6C6E)],
-                               veins: 0.2, strata: 0)
+            let blastPal: [(Float, UInt32)] = [(0, 0x55555B), (0.5, 0x6C6C72), (1, 0x86868C)]
+            let smokerPal: [(Float, UInt32)] = [(0, 0x3E3E40), (0.5, 0x545456), (1, 0x6C6C6E)]
+            let stoneG = stone(blast ? blastPal : smokerPal, veins: 0.2, strata: 0)
             var img = blast ? stoneG(n, s) : barkSide([(0, 0x3A2A1C), (0.5, 0x5A4430), (1, 0x76603E)])(n, s)
             let band = stoneG(n, s &+ 3)
             let fine = vnoise(n, max(1, n / 64), s &+ 2)
@@ -2432,7 +2433,9 @@ enum HDTex {
             switch kind {
             case "chorus_plant", "chorus_flower":
                 let flower = kind == "chorus_flower"
-                let pal: [(Float, UInt32)] = flower ? [(0, 0x6A4A7A), (0.5, 0x9A7AAA), (1, 0xC0A0CC)] : [(0, 0x5A3A6A), (0.5, 0x8A6A9A), (1, 0xA88AB6)]
+                let flowerPal: [(Float, UInt32)] = [(0, 0x6A4A7A), (0.5, 0x9A7AAA), (1, 0xC0A0CC)]
+                let plantPal: [(Float, UInt32)] = [(0, 0x5A3A6A), (0.5, 0x8A6A9A), (1, 0xA88AB6)]
+                let pal = flower ? flowerPal : plantPal
                 var img = lumps(pal, cells: 9, gloss: 0.2)(n, s)
                 for y in 0..<n { for x in 0..<n {
                     let edge: Int = min(min(x, y), min(n - 1 - x, n - 1 - y))
@@ -2484,7 +2487,8 @@ enum HDTex {
                 }
                 return img
             case "azalea_top", "azalea_side":
-                var img = kind == "azalea_top" ? Img(n, V4(0.26, 0.36, 0.11, 1)) : Img(n, V4(0, 0, 0, 0))
+                let fill: V4 = kind == "azalea_top" ? V4(0.26, 0.36, 0.11, 1) : V4(0, 0, 0, 0)
+                var img = Img(n, fill)
                 let leafRows: Int = kind == "azalea_top" ? n : n / 2
                 if kind == "azalea_side" {
                     for y in (n / 2)..<n { for x in (7 * u)..<(9 * u) {
