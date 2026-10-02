@@ -1024,6 +1024,60 @@ enum HDTex {
     static let crimsonNylium: Gen = soil([(0, 0x5A0E10), (0.5, 0x8A1A1C), (1, 0xB0302A)], pebble: 0xC04A3A, pebbles: 14, clods: 10)
     static let warpedNylium: Gen = soil([(0, 0x0E4A44), (0.5, 0x16706A), (1, 0x2A9A8A)], pebble: 0x40C0A8, pebbles: 14, clods: 10)
 
+    // Huge mushroom blocks: a cap with soft round spots (red) or a mottled velvet (brown), a fibrous stem, and the
+    // pale porous inside.
+    static func mushroomCap(_ pal: [(Float, UInt32)], spots: Int) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            var img = Img(n)
+            let blot = fbm(n, n / 4, 5, s)
+            let fine = vnoise(n, max(1, n / 64), s &+ 1)
+            var cs: [(Float, Float, Float)] = []
+            for k in 0..<spots { cs.append((h2(k, 1, s) * fn, h2(k, 2, s) * fn, fn * (0.07 + 0.06 * h2(k, 3, s)))) }
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let t: Float = 0.3 + blot[i] * 0.5 + (fine[i] - 0.5) * 0.08
+                var c = ramp(t, pal)
+                for (sx, sy, r) in cs {
+                    var dx: Float = abs(Float(x) - sx), dy: Float = abs(Float(y) - sy)
+                    dx = min(dx, fn - dx); dy = min(dy, fn - dy)
+                    let d: Float = (dx * dx + dy * dy).squareRoot() + (blot[i] - 0.5) * r * 0.5
+                    if d < r {
+                        let k: Float = 0.86 + 0.14 * (1 - d / r) + (fine[i] - 0.5) * 0.06
+                        c = V3(0.93, 0.9, 0.86) * k
+                    }
+                }
+                img.px[i] = V4(c.x, c.y, c.z, 1)
+            } }
+            return img
+        }
+    }
+    static func mushroomStem(_ n: Int, _ s: Int) -> Img {
+        var img = Img(n)
+        let fib = vnoise(n, max(1, n / 32), s)
+        let blot = fbm(n, n / 4, 4, s &+ 1)
+        for y in 0..<n { for x in 0..<n {
+            let i = y * n + x
+            let f: Float = fib[(y / 10) * n + x]
+            let k: Float = 0.84 + (f - 0.5) * 0.16 + (blot[i] - 0.5) * 0.1
+            let c = col(0xD8D0BC) * k
+            img.px[i] = V4(c.x, c.y, c.z, 1)
+        } }
+        return img
+    }
+    static func mushroomInside(_ n: Int, _ s: Int) -> Img {
+        var img = Img(n)
+        let blot = fbm(n, n / 4, 4, s)
+        let pores = vnoise(n, max(1, n / 48), s &+ 3)
+        for i in 0..<(n * n) {
+            var k: Float = 0.88 + (blot[i] - 0.5) * 0.14
+            if pores[i] > 0.72 { k *= 0.86 }
+            let c = col(0xD8B898) * k
+            img.px[i] = V4(c.x, c.y, c.z, 1)
+        }
+        return img
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -1596,6 +1650,10 @@ enum HDTex {
         "pumpkin_side": ribbedSide([(0, 0x9A520A), (0.5, 0xD8801A), (1, 0xF0A030)], ribs: 4),
         "pumpkin_top": radialTop([(0, 0x9A520A), (0.5, 0xD8801A), (1, 0xF0A030)], lobes: 8, stem: 0x5A6A1A),
         "melon_side": melonSide,
+        "red_mushroom_block": mushroomCap([(0, 0x8A1410), (0.5, 0xB82420), (1, 0xD43A30)], spots: 7),
+        "brown_mushroom_block": mushroomCap([(0, 0x6A4A32), (0.5, 0x8A6448), (1, 0xA27C5C)], spots: 0),
+        "mushroom_stem": mushroomStem,
+        "mushroom_block_inside": mushroomInside,
         "melon_top": radialTop([(0, 0x52801A), (0.5, 0x7EA82A), (1, 0x9AC23A)], lobes: 8, stem: 0x6A7A2A, stripes: true),
         "cactus_side": cactusSide,
         "cactus_top": cactusEnd(true),
