@@ -963,7 +963,11 @@ final class Mob {
             wanderGoal = nil
             if moving {
                 if !spec.flying, let w = Mob.world, let goal = strollGoal(w, within: strollArea) { wanderGoal = goal; aiTimer = Rand.float(in: 5...9) }
-                else { yaw += Rand.float(in: -2...2); aiTimer = Rand.float(in: 1.5...4) }
+                else if !spec.flying && Mob.world != nil && kind == .villager {
+                    // Nowhere to stroll to (a closed room, a ledge): stand a while instead of walking into the walls
+                    // (behaviour sim: villagers stuck in 100+ of 120 windows).
+                    moving = false; aiTimer = Rand.float(in: 2...5)
+                } else { yaw += Rand.float(in: -2...2); aiTimer = Rand.float(in: 1.5...4) }
             } else { aiTimer = Rand.float(in: 2...7) }
         }
         if moving, let goal = wanderGoal {

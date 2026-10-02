@@ -290,7 +290,9 @@ extension Mob {
             path.goal = target
             let pr = pathProfile(g)
             path.span = pr.span
-            path.nodes = PathFinder.find(w, from: pos, to: target, profile: pr) ?? []
+            // Villagers route around houses and through doors to job sites, beds and the bell 20+ blocks away: 400
+            // expanded cells ran out there (they gave up on job sites inside houses over and over).
+            path.nodes = PathFinder.find(w, from: pos, to: target, profile: pr, maxNodes: kind == .villager ? 1500 : 400) ?? []
             path.index = 0
             // Partial: the closest reachable cell isn't next to the goal (beds and job sites themselves aren't
             // standable, so a neighbouring cell counts as arriving).
