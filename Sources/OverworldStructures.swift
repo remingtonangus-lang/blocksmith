@@ -151,8 +151,10 @@ enum OverworldStructures {
             w.fill(cx - 2, by, cz - 2, cx + 2, by + 3, cz + 2, AIR)
             w.set(cx, by + 3, cz - 2, Blocks.id("ladder") + 1)
             w.chest(cx + 2, by, cz + 2, loot: "igloo_chest", seed: rng.next(), facing: 0)
-            w.set(cx - 2, by, cz + 2, Blocks.id("cauldron"))
+            w.set(cx + 2, by, cz, Blocks.id("cauldron"))
+            // The villager's cell: the west column behind iron bars.
             w.fill(cx - 2, by, cz - 1, cx - 2, by + 2, cz - 1, Blocks.id("iron_bars"))
+            w.fill(cx - 1, by, cz, cx - 1, by + 2, cz + 2, Blocks.id("iron_bars"))
             w.mob("villager", V3(Float(cx) - 1.5, Float(by), Float(cz) + 1.5))
         }
     }

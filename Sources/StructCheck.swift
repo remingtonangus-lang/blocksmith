@@ -94,6 +94,12 @@ enum StructCheck {
                         }
                     }
                 }
+                // A trapdoor over a ladder shaft opens: down through it from the floor, up through it from the ladder.
+                if Blocks.shape[Int(w.block(x, y - 1, z))] == "trapdoor" && PathFinder.climbable(w.block(x, y - 2, z)),
+                   seen.insert(key(x, y - 2, z)).inserted { queue.append((x, y - 2, z, Float(y - 2))) }
+                if PathFinder.climbable(here) && Blocks.shape[Int(w.block(x, y + 1, z))] == "trapdoor"
+                    && top(w, x, y + 2, z) <= 0.01 && top(w, x, y + 3, z) <= 0.01,
+                   seen.insert(key(x, y + 2, z)).inserted { queue.append((x, y + 2, z, feet(w, x, y + 2, z) ?? Float(y + 2))) }
                 for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
                     let nx = x + dx, nz = z + dz
                     if nx < lo.x || nx > hi.x || nz < lo.z || nz > hi.z { continue }
@@ -339,7 +345,10 @@ enum StructCheck {
             }
             if flying.contains(name) { continue }
             if standNear(w, c.x, c.y, c.z, up: 0, down: 2) == nil { add("mob_no_floor", c, "\(name) has nothing to stand on"); continue }
-            if walk && name == "villager" && !ra.isEmpty, let (sy, _) = standNear(w, c.x, c.y, c.z, up: 0, down: 2), !ra.contains(key(c.x, sy, c.z)) {
+            // A villager behind iron bars is a deliberate cell (igloo basement), not a trapped spawn.
+            var caged = false
+            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where Blocks.key(w.block(c.x + dx, c.y, c.z + dz)) == "iron_bars" { caged = true }
+            if walk && name == "villager" && !caged && !ra.isEmpty, let (sy, _) = standNear(w, c.x, c.y, c.z, up: 0, down: 2), !ra.contains(key(c.x, sy, c.z)) {
                 add("mob_trapped", c, "villager spawn not connected to the village")
             }
         }
