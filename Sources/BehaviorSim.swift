@@ -132,6 +132,7 @@ enum BehaviorSim {
     // Physics trace of the first stuck villagers (2 s of Mob.trace lines, with the path ahead and the blocks there).
     static var traced = 0
     static var traceTicks = 0
+    static var spinTraced = 0
     static func startTrace(_ m: Mob, _ w: World, _ why: String) {
         guard traced < 2, Mob.trace == nil, m.kind == .villager else { return }
         traced += 1
@@ -180,6 +181,22 @@ enum BehaviorSim {
                 let goal = m.wanderGoal != nil ? "stroll" : (m.faceGoal != nil ? "target" : "heading")
                 let mv = m.moving ? "moving" : "standing"
                 t.stuckWhy["spin:\(phase)/\(goal)/\(mv)\(m.path.nodes.isEmpty ? "/nopath" : "")", default: 0] += 1
+                if t.flags["spinning", default: 0] == 1 && spinTraced < 6 {
+                    // One line of context per mob (which goal, how far, path state), to tell orbiting from flipping.
+                    spinTraced += 1
+                    var gs = "none"
+                    if let gq = m.wanderGoal ?? m.faceGoal {
+                        let gy: Float = gq.y - Float(YOFF)
+                        let away: Float = simd_length(V2(gq.x - p.x, gq.z - p.z))
+                        gs = String(format: "%.1f %.1f %.1f (%.2f away)", gq.x, gy, gq.z, away)
+                    }
+                    let shownY: Float = p.y - Float(YOFF)
+                    let turned: Float = t.yawSum * 180 / Float.pi
+                    let state: String = "\(phase)/\(goal)/\(mv)"
+                    let head: String = String(format: "behaviorsim spin: %@ at %.1f %.1f %.1f, ", m.kind.key, p.x, shownY, p.z)
+                    let tail: String = String(format: "goal %@, path %ld/%ld, turned %.0f deg in 10 s, moved %.2f", gs, m.path.index, m.path.nodes.count, turned, d)
+                    print(head + state + ", " + tail)
+                }
             }
             if t.reversals > 12 { t.flags["jitter", default: 0] += 1 }
             // Stuck: meant to walk the whole window (9 of 10 samples) and got nowhere. Moving only at the last sample
