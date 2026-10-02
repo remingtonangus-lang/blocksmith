@@ -11,7 +11,7 @@ enum Bastion {
         let variant = rng.int(4)
         let ox = cx * CS + 8, oz = cz * CS + 8, y = YOFF + 33
         let s = rng.next()
-        let half = variant == 3 ? 30 : 22
+        let half = variant == 3 ? 42 : 22          // the bridge reaches 14 more west for its stair
         let piece = Piece(min: IVec3(ox - half, y - 40, oz - half), max: IVec3(ox + half, y + 34, oz + half)) { w in
             build(&w, variant: variant, ox: ox, oz: oz, y: y, seed: s)
         }
@@ -133,7 +133,9 @@ enum Bastion {
                 w.fill(x, y + 1, z, x, y + 5, z, Blocks.id("basalt"))
             } }
             w.fill(ox - 19, y + 7, oz - 19, ox + 19, y + 7, oz - 15, Blocks.id("polished_blackstone"))
-            stairsUp(&w, x: ox - 13, z: oz + 2, from: y, to: y + 6, dirZ: -1)
+            // Against the side rampart (at ox - 13 the top step left a 1-block gap to it, so the rampart walk and both
+            // chests were out of reach: structcheck bastion poi_unreachable).
+            stairsUp(&w, x: ox - 14, z: oz + 2, from: y, to: y + 6, dirZ: -1)
             w.chest(ox - 16, y + 8, oz - 17, loot: "bastion", seed: rng.next(), facing: 1)
             w.chest(ox + 16, y + 8, oz - 17, loot: "bastion", seed: rng.next(), facing: 1)
             for k in 0..<4 { w.mob("hoglin", V3(Float(ox - 6 + k * 4) + 0.5, Float(y + 1), Float(oz + 4) + 0.5)) }
@@ -147,6 +149,17 @@ enum Bastion {
                 w.fill(x, y + 10 - (4 - arch) / 2, oz - 2, x, y + 10, oz + 2, mat(x, y + 10, oz))
                 if hashf(x, 0, oz, 11) > 0.15 { w.set(x, y + 11, oz - 2, mat(x, y + 11, oz - 2)); w.set(x, y + 11, oz + 2, mat(x, y + 11, oz + 2)) }
                 w.fill(x, y + 11, oz - 1, x, y + 14, oz + 1, AIR)
+            }
+            // A stair from the west end of the deck down to the ground (the deck was 10 blocks up with no way on).
+            let bst = Blocks.id("polished_blackstone_brick_stairs") + 3
+            for i in 1...14 {
+                let sx = ox - len - i, sy = y + 11 - i
+                if Blocks.collide[Int(w.get(sx, sy, oz))] && Blocks.collide[Int(w.get(sx, sy, oz - 1))] { break }
+                for dz in -1...1 {
+                    w.set(sx, sy, oz + dz, bst)
+                    w.fill(sx, sy + 1, oz + dz, sx, sy + 3, oz + dz, AIR)
+                    w.pillarDown(sx, sy - 1, oz + dz, mat(sx, sy - 1, oz + dz), minY: YOFF + 1)
+                }
             }
             room(&w, ox + len - 4, y + 10, oz - 6, ox + len + 4, y + 20, oz + 6)
             w.fill(ox + len - 4, y + 11, oz - 1, ox + len - 4, y + 13, oz + 1, AIR)
