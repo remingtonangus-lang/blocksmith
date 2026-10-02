@@ -434,7 +434,9 @@ enum HDTex {
         let grain = fbm(n, max(1, n / 16), 3, s &+ 90)
         var rng = SRng(UInt64(truncatingIfNeeded: s) &* 7919 &+ 3)
         for row in 0..<2 {
-            let y0 = Int(band + Float(row) * (fn / 2 - band / 2)), y1 = Int(fn / 2 - band / 2 + Float(row) * (fn / 2 - band / 2))
+            let rowH: Float = fn / 2 - band / 2
+            let y0f: Float = band + Float(row) * rowH
+            let y0 = Int(y0f), y1 = Int(y0f + rowH - band)
             for y in y0..<y1 { for x in 0..<n { img[x, y] = V4(0.07, 0.05, 0.04, 1) } }
             var x = 0
             while x < n {
@@ -449,7 +451,9 @@ enum HDTex {
                         let k: Float = shadeK * (0.92 + grain[y * n + xx] * 0.16)
                         let bandMark = (y - top) == (y1 - top) / 4 || (y - top) == (y1 - top) * 3 / 4
                         let m: Float = bandMark ? 1.25 : 1
-                        img[xx, y] = V4(min(1, c.x * k * m), min(1, c.y * k * m), min(1, c.z * k * m), 1)
+                        let km: Float = k * m
+                        let cc: V3 = simd_min(c * km, V3(repeating: 1))
+                        img[xx, y] = V4(cc.x, cc.y, cc.z, 1)
                     }
                 }
                 x += w + gap
