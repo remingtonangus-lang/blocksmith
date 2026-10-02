@@ -631,6 +631,95 @@ enum HDTex {
         }
     }
 
+    // Flower sprites (cutout): a slightly swaying stem, two lance leaves at the base and a head by kind: ring (petals
+    // radiating around a disc: poppy, dandelion, daisy, cornflower...), cup (three upright petals: tulips), ball (a
+    // sphere of florets: allium), bells (small bells hanging from an arched stalk: lily of the valley). `top` and
+    // `size` are in 16 px units like the small painters (head centre height from the top, head radius).
+    enum FlowerKind { case ring, cup, ball, bells }
+    static func flowerHD(_ petal: UInt32, _ centre: UInt32, _ kind: FlowerKind, top: Float, size: Float, salt: Int) -> Gen {
+        { n, _ in
+            let fn = Float(n)
+            var img = Img(n, V4(0, 0, 0, 0))
+            func plot(_ x: Int, _ y: Int, _ c: V3) {
+                guard x >= 0 && x < n && y >= 0 && y < n else { return }
+                img.px[y * n + x] = V4(c.x, c.y, c.z, 1)
+            }
+            func ellipse(_ cx: Float, _ cy: Float, _ rx: Float, _ ry: Float, _ ang: Float, _ colour: (Float, Float, Float) -> V3) {
+                let ca = cosf(ang), sa = sinf(ang)
+                let r = Int(max(rx, ry)) + 2
+                for y in (Int(cy) - r)...(Int(cy) + r) { for x in (Int(cx) - r)...(Int(cx) + r) {
+                    let dx: Float = Float(x) + 0.5 - cx, dy: Float = Float(y) + 0.5 - cy
+                    let u: Float = (dx * ca + dy * sa) / rx, v: Float = (-dx * sa + dy * ca) / ry
+                    let d: Float = u * u + v * v
+                    if d <= 1 { plot(x, y, colour(u, v, d)) }
+                } }
+            }
+            let hx: Float = fn / 2, hy: Float = top / 16 * fn, rr: Float = size / 16 * fn
+            let g0 = col(0x2E5E1E), g1 = col(0x5A9A3A)
+            let sway: Float = Float(salt % 7)
+            // Stem.
+            for y in Int(hy)..<n {
+                let t: Float = (Float(y) - hy) / (fn - hy)
+                let x: Float = hx + sinf(t * 2.2 + sway) * fn / 40
+                let w: Float = fn / 48 + 0.8
+                for xx in Int(x - w)...Int(x + w) {
+                    let u: Float = (Float(xx) + 0.5 - x) / w
+                    let k: Float = 0.6 - 0.4 * u
+                    plot(xx, y, g0 + (g1 - g0) * k)
+                }
+            }
+            // Leaves.
+            for side: Float in [-1, 1] {
+                let len: Float = fn * 0.32
+                let ang: Float = -.pi / 2 + side * 0.75
+                let cx: Float = hx + cosf(ang) * len / 2, cy: Float = fn * 0.93 + sinf(ang) * len / 2
+                ellipse(cx, cy, len / 2, fn / 26, ang) { u, v, _ in
+                    let k: Float = 0.5 - 0.4 * v
+                    return (g0 + (g1 - g0) * k) * (0.85 + 0.15 * (1 - abs(u)))
+                }
+            }
+            let pc = col(petal), cc = col(centre)
+            switch kind {
+            case .ring:
+                let k = size > 2.5 ? 8 : 6
+                for i in 0..<k {
+                    let a: Float = Float(i) / Float(k) * 2 * .pi + sway
+                    ellipse(hx + cosf(a) * rr * 0.55, hy + sinf(a) * rr * 0.55, rr * 0.55, rr * 0.26, a) { u, _, d in
+                        pc * ((0.78 + 0.15 * (u + 1)) * (1 - 0.12 * d))
+                    }
+                }
+                ellipse(hx, hy, rr * 0.32, rr * 0.32, 0) { u, v, d in cc * ((1.05 - 0.15 * (u + v)) * (0.85 + 0.15 * (1 - d))) }
+            case .cup:
+                for (dx, k) in [(Float(-0.45), Float(0.85)), (0.45, 0.85), (0, 1)] {
+                    ellipse(hx + dx * rr, hy, rr * 0.5, rr * 0.95, dx * 0.35) { _, v, d in pc * (k * (0.8 - 0.25 * v) * (1 - 0.1 * d)) }
+                }
+            case .ball:
+                for i in 0..<60 {
+                    let a: Float = h2(i, 1, salt) * 2 * .pi
+                    let r: Float = rr * h2(i, 2, salt).squareRoot()
+                    let x: Float = hx + cosf(a) * r, y: Float = hy + sinf(a) * r
+                    let sh: Float = 0.75 + 0.35 * (1 - (y - hy + rr) / (2 * rr))
+                    ellipse(x, y, fn / 40 + 1, fn / 40 + 1, 0) { _, _, d in pc * (sh * (1.1 - 0.3 * d)) }
+                }
+            case .bells:
+                // An arched stalk from the stem top out to the right, bells hanging under it.
+                for i in 0..<24 {
+                    let t: Float = Float(i) / 23
+                    let x: Float = hx + t * rr * 3
+                    let y: Float = hy - sinf(t * .pi * 0.8) * rr * 0.9
+                    ellipse(x, y, fn / 90 + 0.7, fn / 90 + 0.7, 0) { _, _, _ in g1 }
+                }
+                for i in 0..<4 {
+                    let t: Float = 0.2 + Float(i) * 0.25
+                    let x: Float = hx + t * rr * 3
+                    let y: Float = hy - sinf(t * .pi * 0.8) * rr * 0.9 + rr * 0.55
+                    ellipse(x, y, rr * 0.36, rr * 0.42, 0) { u, v, _ in pc * (0.82 - 0.2 * v + 0.05 * u) }
+                }
+            }
+            return img
+        }
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -1146,6 +1235,19 @@ enum HDTex {
         "stone": stone(stoneGrey),
         "lava": lava,
         "leaf_litter": leafLitter,
+        // Flowers.
+        "poppy": flowerHD(0xDB2420, 0x331F0D, .ring, top: 5, size: 2.8, salt: 40),
+        "dandelion": flowerHD(0xFAD733, 0xE68C1A, .ring, top: 5, size: 2.8, salt: 42),
+        "cornflower": flowerHD(0x5A80F2, 0xF2E680, .ring, top: 5, size: 2.8, salt: 44),
+        "allium": flowerHD(0xB070E0, 0x9A50C8, .ball, top: 4, size: 3.2, salt: 430),
+        "azure_bluet": flowerHD(0xF2F2F2, 0xE8D040, .ring, top: 7, size: 2.4, salt: 432),
+        "red_tulip": flowerHD(0xD83A2A, 0xB82A1A, .cup, top: 5, size: 2.2, salt: 434),
+        "orange_tulip": flowerHD(0xF0842A, 0xD06A1A, .cup, top: 5, size: 2.2, salt: 436),
+        "white_tulip": flowerHD(0xF0F0F0, 0xD8D8D8, .cup, top: 5, size: 2.2, salt: 438),
+        "pink_tulip": flowerHD(0xF0A8C8, 0xE088B0, .cup, top: 5, size: 2.2, salt: 440),
+        "oxeye_daisy": flowerHD(0xF4F4F4, 0xE8C83A, .ring, top: 5, size: 3, salt: 442),
+        "lily_of_the_valley": flowerHD(0xF8F8F8, 0xE8F0E0, .bells, top: 6, size: 1.8, salt: 444),
+        "blue_orchid": flowerHD(0x2AA8F0, 0x1A78C8, .ring, top: 5, size: 2.8, salt: 446),
         "short_grass": blades(salt: 101, count: 26, len: 0.3, 0.9),
         "tall_grass_bottom": blades(salt: 102, count: 14, len: 1.3, 1.9),
         "tall_grass_top": blades(salt: 102, count: 14, len: 1.3, 1.9, from: 1),
