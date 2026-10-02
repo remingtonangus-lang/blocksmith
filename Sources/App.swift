@@ -123,7 +123,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let rd = UserDefaults.standard.integer(forKey: "renderDistance")
         if rd >= 2 { world.renderDistance = rd }
         if let m = meta { game.apply(m) } else {
-            game.player.pos = game.findSpawn()
+            game.player.pos = game.spawnPoint
             if let sv = survival { game.survival = sv }
             if let d = difficulty { game.difficulty = d }
         }

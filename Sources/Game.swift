@@ -199,7 +199,7 @@ final class Game {
     private var regenTimer: Double = 0
     private var starveTimer: Double = 0
     private var drownTimer: Double = 0
-    lazy var spawnPoint: V3 = findSpawn()
+    lazy var spawnPoint: V3 = settleSpawn(findSpawn())
     var onModeChanged: ((Bool) -> Void)?
 
     // Mining / using
@@ -282,6 +282,34 @@ final class Game {
             x += dx; z += dz
         }
         return V3(0.5, Float(CH - 20), 0.5)
+    }
+
+    // findSpawn uses the terrain height before trees and structures: move the spawn to a cell where a player fits
+    // (two clear blocks over solid ground that isn't leaves or a log), searching outward from it (agent explorer,
+    // seed 777: spawned with leaves at head height and unable to take a step).
+    func settleSpawn(_ p: V3) -> V3 {
+        _ = world.loadSync(center: p, radius: 1)
+        func ok(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+            let below = world.block(x, y - 1, z)
+            let bk = Blocks.key(Blocks.groupBase[Int(below)])
+            guard Blocks.fullCollide[Int(below)], Blocks.fluidKind[Int(below)] == 0, !bk.hasSuffix("leaves"),
+                  !bk.hasSuffix("_log"), !bk.hasSuffix("_wood") else { return false }
+            for k in 0...1 {
+                let b = world.block(x, y + k, z)
+                if Blocks.collide[Int(b)] || Blocks.fluidKind[Int(b)] != 0 { return false }
+            }
+            return true
+        }
+        let x0 = Int(floor(p.x)), z0 = Int(floor(p.z))
+        for r in 0...8 { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
+            let x = x0 + dx, z = z0 + dz
+            let top = world.topY(x, z)
+            guard top > 0 else { continue }
+            for y in stride(from: top + 1, through: max(1, top - 12), by: -1) where ok(x, y, z) {
+                return V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
+            }
+        } } }
+        return p
     }
 
     func apply(_ m: WorldMeta) {

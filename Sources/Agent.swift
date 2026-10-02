@@ -136,7 +136,7 @@ final class Agent {
         let world = World(seed: seed, device: device, save: nil)
         world.renderDistance = rd
         let game = Game(world: world, save: nil, persistent: false)
-        var p = at ?? game.findSpawn()
+        var p = at ?? game.spawnPoint
         if at != nil {
             let x = Int(floor(p.x)), z = Int(floor(p.z))
             _ = world.loadSync(center: p, radius: 2)
