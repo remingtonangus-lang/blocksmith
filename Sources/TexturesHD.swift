@@ -2059,6 +2059,39 @@ enum HDTex {
         return img
     }
 
+    // Lantern (same layout as the small painter: a dark iron frame round a glowing pane): a bevelled frame with
+    // rivets, glass glowing brightest in the middle with a flame-shaped core.
+    static func lanternHD(glow: UInt32, core: UInt32) -> Gen {
+        { n, s in
+            let fn = Float(n), u = n / 16
+            var img = Img(n)
+            let fine = vnoise(n, max(1, n / 64), s)
+            let gc = col(glow), cc = col(core)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let frame = y < 3 * u || y >= 14 * u || x < 3 * u || x >= 13 * u
+                let c: V3
+                if frame {
+                    let edge: Bool = (x % u == 0) || (y % u == 0)
+                    let k: Float = (edge ? 1.2 : 0.95) * (0.9 + 0.2 * fine[i])
+                    c = V3(0.23, 0.23, 0.25) * k
+                } else {
+                    let fu = Float(u)
+                    let dx: Float = (Float(x) + 0.5 - fn / 2) / (5 * fu)
+                    let dy: Float = (Float(y) + 0.5 - fn * 0.55) / (5.5 * fu)
+                    let r: Float = (dx * dx + dy * dy).squareRoot()
+                    let up: Float = max(0, -dy) * 1.2, down: Float = max(0, dy) * 2.5
+                    let flame: Float = max(0, 1 - (dx * dx * 5 + up + down))
+                    let k: Float = 0.75 + 0.3 * (1 - min(1, r))
+                    let base: V3 = gc * k
+                    c = base + (cc - base) * flame
+                }
+                img.px[i] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
+            } }
+            return img
+        }
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -2623,6 +2656,7 @@ enum HDTex {
         "activator_rail": railHD(tie: 0x7A2A1A, rail: 0xA8A8A8, mid: 0x5A1410),
         "activator_rail_on": railHD(tie: 0x7A2A1A, rail: 0xA8A8A8, mid: 0xF8301A),
         "ladder": ladderHD,
+        "lantern": lanternHD(glow: 0xF8C85A, core: 0xFFF4C8),
         "iron_bars": ironBarsHD,
         "torch": torchHD(core: 0xFFF6C8, flame: 0xFFC43A, x0: 7, x1: 9, coreRow: 6, stickTo: 16),
         "torch_wall": torchHD(core: 0xFFF6C8, flame: 0xFFC43A, x0: 0, x1: 16, coreRow: 3, stickTo: 13),
