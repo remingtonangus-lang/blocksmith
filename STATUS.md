@@ -331,6 +331,11 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
 - 2026-10-02 19:20 UTC: first heavy lanes: run 377 (75e72af) 21.5 min wall, run 380 (f0d1d2f) all green (gen 2.08
   ms/chunk, playthrough 0 failed). Fast lane 1.9-2.6 min. Since: wide-mob spawns, mineshaft ends boarded, lava springs,
   mansion furniture + interior shot, snow clumps, village terraces, two type-check batches; run 385 is the next heavy.
+- 2026-10-02 20:45 UTC: run 385 (758126c) green after one perf re-run (bench noise 3.56 -> 1.94 ms) -> PLAYTEST READY
+  758126c on PR #9. Two more blind critics (scenes; ships/Steelhold) -> mansion interior, terracotta, block light,
+  trial chambers, porch/chimneys, house base course, swamp water, demo car light, battle meshes, airship envelope, deck
+  gun, soldier grip, ADS, imagecheck false positives. Run 390 heavy: all green but shots (imagecheck false positives,
+  fixed). Heavy lane now 6 jobs (tours and shots split).
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
