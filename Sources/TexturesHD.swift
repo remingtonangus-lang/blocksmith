@@ -3560,7 +3560,10 @@ enum HDTex {
     // Leaves (cutout, greyscale for biome tint): leaves grouped into a dozen clumps that share a brightness and are
     // lit from the top-left (darker toward each clump's lower right), larger and fewer than before; ~400 tiny leaves
     // with random brightness read as photographic speckle next to the stylised ground (both critics).
-    static func leaves(_ n: Int, _ s: Int) -> Img {
+    static func leaves(_ n: Int, _ s: Int) -> Img { leafCanopy(n, s, needles: false) }
+    // Needles (spruce): thin blades, longer and denser, in the same lit clumps (broad leaves read as an oak).
+    static func needleLeaves(_ n: Int, _ s: Int) -> Img { leafCanopy(n, s, needles: true) }
+    static func leafCanopy(_ n: Int, _ s: Int, needles: Bool) -> Img {
         var img = Img(n, V4(0.5, 0.5, 0.5, 0))
         var rng = SRng(UInt64(truncatingIfNeeded: s) &* 104729 &+ 3)
         let fn = Float(n)
@@ -3569,7 +3572,7 @@ enum HDTex {
         var clumps: [(Float, Float, Float)] = []
         for _ in 0..<12 { clumps.append((rng.float() * fn, rng.float() * fn, 0.55 + rng.float() * 0.35)) }
         let clumpR: Float = fn * 0.2
-        let count = n * n / 70
+        let count = needles ? n * n / 18 : n * n / 70
         for _ in 0..<count {
             let cx: Float = rng.float() * fn, cy: Float = rng.float() * fn
             // Nearest clump (wrap-aware).
@@ -3584,8 +3587,10 @@ enum HDTex {
             let side: Float = max(-1, min(1, (ox + oy) / (clumpR * 1.4)))   // -1 top-left (lit) ... 1 bottom-right
             let v: Float = base * (1 - 0.22 * side) * (0.92 + rng.float() * 0.12)
             let ang: Float = rng.float() * .pi
-            let L: Float = (7 + rng.float() * 5) * scale
-            let W: Float = L * 0.48
+            let r0: Float = rng.float()
+            var L: Float = (7 + r0 * 5) * scale
+            var W: Float = L * 0.48
+            if needles { L = (6 + r0 * 4) * scale; W = L * 0.14 }
             let r = Int(L) + 1
             let ca = cosf(ang), sa = sinf(ang)
             for dy in -r...r { for dx in -r...r {
@@ -3852,8 +3857,9 @@ enum HDTex {
         }
         if (name.hasSuffix("_log") && !name.hasPrefix("stripped_")) || name == "crimson_stem" || name == "warped_stem" { return barkSide(pal(avg, lo: 0.62, hi: 1.25)) }
         if name.hasSuffix("_leaves") {
+            let needles = name == "spruce_leaves"
             return { n, s in
-                var img = leaves(n, s)
+                var img = needles ? needleLeaves(n, s) : leaves(n, s)
                 let k: V3 = avg / 0.72
                 for i in 0..<(n * n) { let p = img.px[i]; img.px[i] = V4(p.x * k.x, p.y * k.y, p.z * k.z, p.w) }
                 return img
