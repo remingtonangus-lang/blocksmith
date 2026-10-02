@@ -706,8 +706,13 @@ final class Mob {
                     g.hurtPlayer(Rand.int(in: 7...21), from: pos, cause: "was slain by Iron Golem", knockback: 2)
                 }
             } else {
-                wander()
-                if let h = home, simd_length(V2(h.x - pos.x, h.z - pos.z)) > 12 { face(h) }
+                // Too far from home: walk back (wander() faced the stroll goal and this faced home, every tick: the
+                // golem flipped between the two on the spot, behaviour sim spinning 20 windows).
+                if let h = home, simd_length(V2(h.x - pos.x, h.z - pos.z)) > 12 && !gaveUp(h) {
+                    wanderGoal = nil; face(h); moving = true
+                } else {
+                    wander()
+                }
                 speed = moving ? spec.speed * 0.4 : 0
             }
         case .melee, .spider:
