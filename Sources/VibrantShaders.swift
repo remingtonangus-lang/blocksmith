@@ -204,6 +204,11 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
                        const device uchar4* mats, constant Uniforms& u, constant float4* fl) {
     float3 t = (in.overlay > 0.5 && c.a > 0.95) ? float3(1.0) : in.tint;
     float3 albedo = c.rgb * t;
+    // Macro variation: a gentle world-space brightness drift over ~10 blocks, so a 128 px texture repeated across a
+    // canopy or a field doesn't read as a grid (blind critic: leaf tiling repetition, spawn).
+    float3 wq3 = in.rel + u.eye.xyz;
+    float mv = vnoise(wq3.xz * 0.11 + wq3.y * 0.07) * 0.7 + vnoise(wq3.xz * 0.37 - wq3.y * 0.13) * 0.3;
+    albedo *= 0.93 + 0.14 * mv;
     uint layer = uint(in.layer);
     float4 m = float4(mats[layer]) / 255.0;          // x spec, y shininess/255, z metal, w can get wet
     float3 n = normalize(in.nrm);
