@@ -243,17 +243,20 @@ final class Playthrough {
         simSeconds += 0.1
     }
 
-    // Walks (teleports) over every dropped item within `r` blocks so it gets picked up.
+    // Walks (teleports) over every dropped item within `r` blocks so it gets picked up. The player follows each item
+    // tick by tick: a drop still falling into a cave below was chased at a stale position and left there (run 358).
     func collect(near c: V3, _ r: Float = 12) {
         makeRoom(6)
         _ = tick(0.6)
         for _ in 0..<3 {
-            let items = game.drops.items.filter { simd_length($0.pos - c) < r }
+            let items = game.drops.items.filter { simd_length($0.pos - c) < r && !$0.stack.isEmpty }
             if items.isEmpty { break }
             for e in items {
-                game.player.pos = e.pos
-                game.player.vel = .zero
-                _ = tick(0.1, pin: e.pos)
+                for _ in 0..<30 where !e.stack.isEmpty {
+                    game.player.pos = e.pos
+                    game.player.vel = .zero
+                    _ = tick(0.05, pin: e.pos)
+                }
             }
         }
     }
@@ -1238,6 +1241,7 @@ final class Playthrough {
         // a player walks over to it once it has landed.
         for _ in 0..<60 where count("nether_star") == 0 {
             guard let e = game.drops.items.first(where: { !$0.stack.isEmpty && Items.key($0.stack.item) == "nether_star" }) else { break }
+            makeRoom()                  // the fight's drops filled the bag (run 358: the player stood on the star for 6 s)
             game.player.pos = e.pos
             game.player.vel = .zero
             _ = tick(0.1, pin: e.pos)
