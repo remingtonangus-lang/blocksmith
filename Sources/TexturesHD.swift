@@ -1936,6 +1936,49 @@ enum HDTex {
                 return img
             case "piston_bottom":
                 return cobbleGen(n, s)
+            case "observer_front", "observer_back", "observer_back_on", "observer_side", "observer_top":
+                var img = polished(machineStone, calm: 0.45, rim: 1 / 20)(n, s)
+                for y in 0..<n { for x in 0..<n {
+                    let i = y * n + x
+                    let lx = x / u, ly = y / u
+                    let fk: Float = 0.9 + 0.2 * fine[i]
+                    switch kind {
+                    case "observer_front":
+                        // The face: a recessed slot frame with two dark eye slits.
+                        let rows: Bool = (ly == 5 || ly == 10) && lx > 1 && lx < 14
+                        let cols: Bool = (lx == 3 || lx == 12) && ly > 4 && ly < 11
+                        let frame: Bool = rows || cols
+                        let eyeX: Bool = (lx >= 5 && lx <= 6) || (lx >= 9 && lx <= 10)
+                        let eye: Bool = ly >= 7 && ly <= 8 && eyeX
+                        if frame { put(&img, x, y, V3(0.13, 0.13, 0.14) * fk) }
+                        if eye { put(&img, x, y, V3(0.05, 0.05, 0.06) * fk) }
+                    case "observer_back", "observer_back_on":
+                        let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
+                        let d: Float = (dx * dx + dy * dy).squareRoot() / Float(u)
+                        if d < 2.2 {
+                            let on: Bool = kind.hasSuffix("on")
+                            let core: Float = cl(1 - d / 2.2)
+                            let lit: V3 = col(0xF82A1A) + (col(0xFFC0A0) - col(0xF82A1A)) * (core * core)
+                            let ok: Float = 0.8 + 0.3 * core
+                            let c: V3 = on ? lit : col(0x3A1A18) * ok
+                            put(&img, x, y, c)
+                        } else if d < 2.8 { put(&img, x, y, V3(0.16, 0.16, 0.17) * fk) }
+                    case "observer_side":
+                        if ly == 7 || ly == 8 {
+                            var top: Float = 1
+                            if ly == 7 && y % u == 0 { top = 1.25 } else if ly == 8 && y % u == u - 1 { top = 0.7 }
+                            put(&img, x, y, col(0x7A7A7A) * (top * fk))
+                        }
+                    default:
+                        // Top: a red arrow pointing toward the face.
+                        let shaft: Bool = (lx == 7 || lx == 8) && ly > 5
+                        let off: Float = abs(Float(x) + 0.5 - fn / 2)
+                        let halfW: Float = Float(ly - 2) * Float(u) * 1.2
+                        let head: Bool = ly >= 3 && ly <= 5 && off < halfW
+                        if shaft || head { put(&img, x, y, col(0x9A2A1A) * fk) }
+                    }
+                } }
+                return img
             case "dispenser_front", "dispenser_front_vertical", "dropper_front", "dropper_front_vertical":
                 var img = cobbleGen(n, s)
                 let fu = Float(u)
@@ -3383,6 +3426,11 @@ enum HDTex {
         "piston_side": sparkFace("piston_side"),
         "piston_inner": sparkFace("piston_inner"),
         "piston_bottom": sparkFace("piston_bottom"),
+        "observer_front": sparkFace("observer_front"),
+        "observer_back": sparkFace("observer_back"),
+        "observer_back_on": sparkFace("observer_back_on"),
+        "observer_side": sparkFace("observer_side"),
+        "observer_top": sparkFace("observer_top"),
         "dispenser_front": sparkFace("dispenser_front"),
         "dispenser_front_vertical": sparkFace("dispenser_front_vertical"),
         "dropper_front": sparkFace("dropper_front"),
