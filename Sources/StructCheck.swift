@@ -370,8 +370,10 @@ enum StructCheck {
                 }
                 // Only the structure's own: a mineshaft or dungeon chest that happens to lie in the bounding box differs
                 // from bare terrain too (run 359: a chest 21 blocks under a stronghold's floor counted as its own).
-                let own = s.pieces.contains { pc in
-                    x >= pc.min.x && x <= pc.max.x && y >= pc.min.y && y <= pc.max.y && z >= pc.min.z && z <= pc.max.z
+                let own = s.pieces.contains { (pc: Piece) -> Bool in
+                    let inX: Bool = x >= pc.min.x && x <= pc.max.x
+                    let inYZ: Bool = y >= pc.min.y && y <= pc.max.y && z >= pc.min.z && z <= pc.max.z
+                    return inX && inYZ
                 }
                 if !own { continue }
                 pois += 1
