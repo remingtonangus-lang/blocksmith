@@ -175,7 +175,7 @@ enum HDTex {
             for y in 0..<n { for x in 0..<n {
                 let i = y * n + x
                 let yy: Float = Float(y) + (wx[i] - 0.5) * fn * 0.4
-                let band: Float = sinf(yy / fn * 2 * .pi * 3) * strata
+                let band: Float = sinf(yy / fn * 2 * Float.pi * 3) * strata
                 let ridge: Float = 1 - abs(2 * rf[i] - 1)
                 let r0: Float = cl((ridge - 0.9) / 0.1)
                 let v: Float = r0 * r0 * cl((mask[i] - 0.55) * 5) * veins
@@ -447,7 +447,7 @@ enum HDTex {
                 let c = col(colours[rng.int(colours.count)]) * (0.85 + rng.float() * 0.3)
                 for xx in x..<min(n, x + w) {
                     let u: Float = Float(xx - x) / Float(w)
-                    let shadeK: Float = 0.75 + 0.35 * sinf(u * .pi)                      // round spine
+                    let shadeK: Float = 0.75 + 0.35 * sinf(u * Float.pi)                      // round spine
                     for y in top..<y1 {
                         let k: Float = shadeK * (0.92 + grain[y * n + xx] * 0.16)
                         let bandMark = (y - top) == (y1 - top) / 4 || (y - top) == (y1 - top) * 3 / 4
@@ -546,7 +546,7 @@ enum HDTex {
             let ry: Float = Float(y) / (fn / 16)                  // 16 rows a tile, wrapping, so the face tiles down
             let r0 = Int(ry) % 16, r1 = (Int(ry) + 1) % 16
             let fr: Float = ry - floorf(ry)
-            let sx = (x + Int(sinf(Float(y) / fn * 2 * .pi) * 2) + n) % n
+            let sx = (x + Int(sinf(Float(y) / fn * 2 * Float.pi) * 2) + n) % n
             let f0: Float = fib[r0 * n + sx], f1: Float = fib[r1 * n + sx]
             let strand: Float = thin[((y / 4) % n) * n + sx]
             let f: Float = (f0 + (f1 - f0) * fr) * 0.75 + strand * 0.25
@@ -569,7 +569,7 @@ enum HDTex {
         var rng = SRng(UInt64(truncatingIfNeeded: s) &* 31 &+ 7)
         for _ in 0..<(n * 3) {
             let x0 = rng.int(n), y0 = rng.int(n), len = 2 + rng.int(max(2, n / 16))
-            let a: Float = rng.float() * .pi
+            let a: Float = rng.float() * Float.pi
             let k: Float = 0.6 + rng.float() * 0.5
             let c = ramp(k, pal)
             for j in 0..<len {
@@ -657,12 +657,12 @@ enum HDTex {
         let fn = Float(n)
         var img = Img(n, V4(0, 0, 0, 0))
         let dark = col(0x3A6418), light = col(0x6E9E30)
-        func cx(_ y: Float) -> Float { fn / 2 + sinf(y / fn * 2 * .pi) * fn / 24 }
+        func cx(_ y: Float) -> Float { fn / 2 + sinf(y / fn * 2 * Float.pi) * fn / 24 }
         for i in 0..<3 {
             let side: Float = i % 2 == 0 ? 1 : -1
             let by: Float = (Float(i) + 0.5) * fn / 3
             let len: Float = fn * 0.34, wid: Float = fn * 0.09
-            let ang: Float = -.pi / 2 + side * 0.9
+            let ang: Float = -Float.pi / 2 + side * 0.9
             let ox: Float = cx(by) + cosf(ang) * len * 0.5, oy: Float = by + sinf(ang) * len * 0.5
             let ca = cosf(ang), sa = sinf(ang)
             for y in Int(oy - len)...Int(oy + len) { for x in Int(ox - len)...Int(ox + len) {
@@ -754,7 +754,7 @@ enum HDTex {
             // Leaves.
             for side: Float in [-1, 1] {
                 let len: Float = fn * 0.32
-                let ang: Float = -.pi / 2 + side * 0.75
+                let ang: Float = -Float.pi / 2 + side * 0.75
                 let cx: Float = hx + cosf(ang) * len / 2, cy: Float = fn * 0.93 + sinf(ang) * len / 2
                 ellipse(cx, cy, len / 2, fn / 26, ang) { (u: Float, v: Float, _: Float) -> V3 in
                     let k: Float = 0.5 - 0.4 * v
@@ -768,7 +768,7 @@ enum HDTex {
             case .ring:
                 let k = size > 2.5 ? 8 : 6
                 for i in 0..<k {
-                    let a: Float = Float(i) / Float(k) * 2 * .pi + sway
+                    let a: Float = Float(i) / Float(k) * 2 * Float.pi + sway
                     let px: Float = hx + cosf(a) * rr * 0.55, py: Float = hy + sinf(a) * rr * 0.55
                     ellipse(px, py, rr * 0.55, rr * 0.26, a) { (u: Float, _: Float, d: Float) -> V3 in
                         let along: Float = 0.78 + 0.15 * (u + 1)
@@ -811,14 +811,14 @@ enum HDTex {
                 for i in 0..<24 {
                     let t: Float = Float(i) / 23
                     let x: Float = hx + t * rr * 3
-                    let y: Float = hy - sinf(t * .pi * 0.8) * rr * 0.9
+                    let y: Float = hy - sinf(t * Float.pi * 0.8) * rr * 0.9
                     let sr: Float = fn / 90 + 0.7
                     ellipse(x, y, sr, sr, 0) { (_: Float, _: Float, _: Float) -> V3 in g1 }
                 }
                 for i in 0..<4 {
                     let t: Float = 0.2 + Float(i) * 0.25
                     let x: Float = hx + t * rr * 3
-                    let y: Float = hy - sinf(t * .pi * 0.8) * rr * 0.9 + rr * 0.55
+                    let y: Float = hy - sinf(t * Float.pi * 0.8) * rr * 0.9 + rr * 0.55
                     ellipse(x, y, rr * 0.36, rr * 0.42, 0) { (u: Float, v: Float, _: Float) -> V3 in
                         let k: Float = 0.82 - 0.2 * v + 0.05 * u
                         return pc * k
@@ -836,9 +836,9 @@ enum HDTex {
         var img = Img(n, V4(0, 0, 0, 0))
         for st in 0..<4 {
             let bx: Float = (Float(st) + h2(st, 1, 91)) / 4 * fn
-            let ph: Float = h2(st, 2, 91) * 2 * .pi
+            let ph: Float = h2(st, 2, 91) * 2 * Float.pi
             let amp: Float = fn / 18
-            func cx(_ y: Float) -> Float { bx + sinf(y / fn * 2 * .pi + ph) * amp }
+            func cx(_ y: Float) -> Float { bx + sinf(y / fn * 2 * Float.pi + ph) * amp }
             for y in 0..<n {
                 let c0 = cx(Float(y))
                 for x in Int(c0 - 1.2)...Int(c0 + 1.2) { img[x, y] = V4(0.48, 0.48, 0.48, 1) }
@@ -847,7 +847,7 @@ enum HDTex {
                 let side: Float = (i + st) % 2 == 0 ? 1 : -1
                 let ly: Float = (Float(i) + h2(st, 10 + i, 91) * 0.5) * fn / 8
                 let len: Float = fn / 9 * (0.8 + 0.4 * h2(st, 20 + i, 91)), wid: Float = fn / 22
-                let ang: Float = side > 0 ? -0.5 : .pi + 0.5
+                let ang: Float = side > 0 ? -0.5 : Float.pi + 0.5
                 let ox: Float = cx(ly) + cosf(ang) * len * 0.5, oy: Float = ly + sinf(ang) * len * 0.5
                 let ca = cosf(ang), sa = sinf(ang)
                 for y in Int(oy - len)...Int(oy + len) { for x in Int(ox - len)...Int(ox + len) {
@@ -931,9 +931,9 @@ enum HDTex {
             var hh = [Float](repeating: 0, count: n * n)
             for y in 0..<n { for x in 0..<n {
                 let i = y * n + x
-                let w: Float = Float(x) + sinf(Float(y) / fn * 2 * .pi) * fn / 64
+                let w: Float = Float(x) + sinf(Float(y) / fn * 2 * Float.pi) * fn / 64
                 let u: Float = (w / fn * Float(ribs)).truncatingRemainder(dividingBy: 1)
-                let prof: Float = sinf(.pi * (u < 0 ? u + 1 : u))
+                let prof: Float = sinf(Float.pi * (u < 0 ? u + 1 : u))
                 let st: Float = streak[(y / 8) * n + x]
                 let lobe: Float = 0.62 * powf(max(0, prof), 0.6)        // sin(pi) is a hair below 0: NaN
                 let t: Float = 0.2 + lobe + (st - 0.5) * 0.12 + (blot[i] - 0.5) * 0.12
@@ -958,8 +958,8 @@ enum HDTex {
                 let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
                 let d: Float = (dx * dx + dy * dy).squareRoot()
                 let a: Float = atan2f(dy, dx) + (wob[i] - 0.5) * 0.5
-                let f: Float = (a / (2 * .pi) * Float(lobes) + 8).truncatingRemainder(dividingBy: 1)
-                let prof: Float = stripes ? (f < 0.35 ? 0 : 1) : sinf(.pi * f)
+                let f: Float = (a / (2 * Float.pi) * Float(lobes) + 8).truncatingRemainder(dividingBy: 1)
+                let prof: Float = stripes ? (f < 0.35 ? 0 : 1) : sinf(Float.pi * f)
                 var t: Float = 0.25 + 0.55 * prof + (blot[i] - 0.5) * 0.15
                 t *= 0.8 + 0.2 * min(1, d / (fn * 0.25))
                 var c = ramp(t, pal)
@@ -1005,7 +1005,7 @@ enum HDTex {
         for y in 0..<n { for x in edge..<(n - edge) {
             let i = y * n + x
             let u: Float = ((Float(x - edge) + 0.5) / inner * 4).truncatingRemainder(dividingBy: 1)
-            let prof: Float = sinf(.pi * u)
+            let prof: Float = sinf(Float.pi * u)
             let t: Float = 0.15 + 0.7 * prof + (blot[i] - 0.5) * 0.15
             let c = ramp(t, pal)
             img.px[i] = V4(c.x, c.y, c.z, 1)
@@ -1214,7 +1214,7 @@ enum HDTex {
             for y in 0..<n { for x in 0..<n {
                 let i = y * n + x
                 let u: Float = (Float(x) / fn * 4).truncatingRemainder(dividingBy: 1)
-                let flute: Float = sinf(.pi * u)
+                let flute: Float = sinf(Float.pi * u)
                 let cap: Bool = y < n / 16 || y >= n - n / 16
                 let t: Float = cap ? 0.75 : 0.3 + 0.4 * flute + (blot[i] - 0.5) * 0.12
                 let c = ramp(t, pal)
@@ -1236,7 +1236,7 @@ enum HDTex {
                 let i = y * n + x
                 let ax: Float = abs(Float(x) + 0.5 - fn / 2), ay: Float = abs(Float(y) + 0.5 - fn / 2)
                 let d: Float = max(ax, ay) / (fn / 2)
-                let ring: Float = 0.5 + 0.5 * cosf(d * .pi * 4)
+                let ring: Float = 0.5 + 0.5 * cosf(d * Float.pi * 4)
                 let t: Float = 0.3 + 0.4 * ring + (blot[i] - 0.5) * 0.12
                 let c = ramp(t, pal)
                 img.px[i] = V4(c.x, c.y, c.z, 1)
@@ -1438,7 +1438,7 @@ enum HDTex {
                     let t: Float = up / h
                     let cx: Float = bx + lean * t * t * h * 0.5
                     let inHead = headLen > 0 && up > h - headLen
-                    var w: Float = wheat ? w0 : w0 * sinf(.pi * min(1, t * 1.15 + 0.05))
+                    var w: Float = wheat ? w0 : w0 * sinf(Float.pi * min(1, t * 1.15 + 0.05))
                     if inHead { w = fn / 30 + 1 }
                     for x in Int(cx - w - 1)...Int(cx + w + 1) {
                         let u: Float = (Float(x) + 0.5 - cx) / max(0.5, w)
@@ -1656,7 +1656,7 @@ enum HDTex {
                 } }
                 for k in 0..<5 {                                                   // scratches
                     let x0: Float = h2(k, 1, s) * fn, y0: Float = h2(k, 2, s) * fn
-                    let ang: Float = h2(k, 3, s) * .pi
+                    let ang: Float = h2(k, 3, s) * Float.pi
                     for t in 0..<(n / 6) {
                         let x = Int(x0 + cosf(ang) * Float(t)), y = Int(y0 + sinf(ang) * Float(t))
                         let c = img[x, y]
@@ -2131,7 +2131,7 @@ enum HDTex {
             let along: Float = (dx * ca + dy * sa) / len, across: Float = (-dx * sa + dy * ca) / (len * 0.42)
             let t: Float = along * 0.5 + 0.5
             guard t >= 0 && t <= 1 else { continue }
-            let w: Float = sinf(t * .pi)
+            let w: Float = sinf(t * Float.pi)
             guard abs(across) <= w else { continue }
             let rib: Float = abs(across) < 0.12 ? 1.12 : 1
             let k: Float = (0.82 + 0.25 * t - 0.12 * across) * rib
@@ -2167,7 +2167,7 @@ enum HDTex {
                             let f: Float = (Float(k) + 0.5 * Float(row) + 0.25) / Float(count) * 2 - 1
                             let x0: Float = fn / 2 + f * half
                             let droop: Float = 0.35 + 0.3 * abs(f)
-                            let ang: Float = f > 0 ? droop : .pi - droop
+                            let ang: Float = f > 0 ? droop : Float.pi - droop
                             let tone: Float = 0.78 + 0.3 * h2(k, tier * 2 + row, s) - 0.08 * Float(row)
                             leafBlob(&img, x0, ry + abs(f) * fn * 0.05, fn / 16, ang, lc * tone)
                         }
@@ -2184,7 +2184,7 @@ enum HDTex {
                 }
             }
             for k in 0..<22 {
-                let a: Float = h2(k, 1, s) * 2 * .pi
+                let a: Float = h2(k, 1, s) * 2 * Float.pi
                 let r: Float = fn * 0.26 * h2(k, 2, s).squareRoot()
                 let cx: Float = fn / 2 + cosf(a) * r, cy: Float = fn * 0.36 + sinf(a) * r * 0.85
                 let tone: Float = 0.8 + 0.3 * h2(k, 3, s)
@@ -2229,7 +2229,7 @@ enum HDTex {
                 let ox: Float = fn * (strand == 0 ? 0.42 : 0.6)
                 let ph: Float = Float(strand) * 2.1 + h2(strand, 1, salt) * 3
                 for y in 0..<n {
-                    let cx: Float = ox + sinf(Float(y) / fn * 2 * .pi + ph) * fn * 0.06
+                    let cx: Float = ox + sinf(Float(y) / fn * 2 * Float.pi + ph) * fn * 0.06
                     let w: Float = fn / 36 + 0.6
                     for x in Int(cx - w)...Int(cx + w) {
                         let u: Float = (Float(x) + 0.5 - cx) / w
@@ -2240,7 +2240,7 @@ enum HDTex {
                         let side: Float = (y / (n / 8) + strand) % 2 == 0 ? 1 : -1
                         var nc: V3 = c * 1.1
                         if let nb = nubs { nc = col(nb) }
-                        leafBlob(&img, cx + side * fn / 18, Float(y), fn / 14, side > 0 ? -0.5 : .pi + 0.5, nc)
+                        leafBlob(&img, cx + side * fn / 18, Float(y), fn / 14, side > 0 ? -0.5 : Float.pi + 0.5, nc)
                     }
                 }
             }
@@ -2334,7 +2334,7 @@ enum HDTex {
                 for y in 0..<n {
                     let t: Float = Float(y) / fn
                     let w: Float = fn * 0.2 * (1 - t) + fn / 64
-                    let ridge: Float = 0.9 + 0.12 * sinf(Float(y) / fn * 2 * .pi * 6)
+                    let ridge: Float = 0.9 + 0.12 * sinf(Float(y) / fn * 2 * Float.pi * 6)
                     for x in Int(fn / 2 - w)...Int(fn / 2 + w) where x >= 0 && x < n {
                         let uu: Float = (Float(x) + 0.5 - fn / 2) / w
                         let k: Float = ridge * (1.08 - 0.35 * abs(uu + 0.3)) * (0.88 + 0.2 * fine[y * n + x])
@@ -2375,7 +2375,7 @@ enum HDTex {
                     }
                 } else {
                     guard y < n / 2 else { continue }
-                    let rib: Float = 0.5 + 0.5 * sinf(Float(x) / fn * 2 * .pi * 4)
+                    let rib: Float = 0.5 + 0.5 * sinf(Float(x) / fn * 2 * Float.pi * 4)
                     var t: Float = 0.3 + 0.4 * rib + 0.15 * fine[i]
                     if y > n * 7 / 16 { t -= 0.25 }
                     let c = ramp(t, bone)
@@ -2397,7 +2397,7 @@ enum HDTex {
                 let i = y * n + x
                 let up: Float = (fn - Float(y)) / fn                     // 0 at the bottom, 1 at the top
                 // Tongue heights: a few smooth peaks across the tile (periodic in x), bent by the wobble field.
-                let fx: Float = Float(x) / fn * 2 * .pi
+                let fx: Float = Float(x) / fn * 2 * Float.pi
                 let peaks: Float = 0.55 + 0.25 * sinf(fx * 3 + 1.3) + 0.15 * sinf(fx * 5 + 0.4)
                 let h: Float = peaks + (wob[i] - 0.5) * 0.45 + (lick[i] - 0.5) * 0.2
                 guard up < h else { continue }
@@ -2463,7 +2463,7 @@ enum HDTex {
             var hh = [Float](repeating: 0, count: n * n)
             for y in 0..<n { for x in 0..<n {
                 let i = y * n + x
-                let ph: Float = (Float(y) / fn * 4 + (wob[i] - 0.5) * 0.35) * 2 * .pi
+                let ph: Float = (Float(y) / fn * 4 + (wob[i] - 0.5) * 0.35) * 2 * Float.pi
                 let ridge: Float = 0.5 + 0.5 * cosf(ph)
                 let k: Float = 0.78 + 0.3 * ridge
                 let p = img.px[i]
@@ -2524,7 +2524,7 @@ enum HDTex {
                     let w: Float = fn / 28 + fn / 40 * h2(r, 5, s)
                     for y in 0..<n {
                         let t: Float = Float(y) / fn
-                        let cx: Float = x0 + slant * t * fn + sinf(t * 2 * .pi + ph) * amp
+                        let cx: Float = x0 + slant * t * fn + sinf(t * 2 * Float.pi + ph) * amp
                         for xi in Int(cx - w - 1)...Int(cx + w + 1) {
                             let uu: Float = (Float(xi) + 0.5 - cx) / w
                             guard abs(uu) <= 1 else { continue }
@@ -2676,7 +2676,7 @@ enum HDTex {
             var c: V3? = nil
             // Three ties per quarter as straight bars one texel-block wide (angular wedges fanned out like spokes), from
             // 2u to 14u like the straight rail's.
-            let step: Float = .pi / 6
+            let step: Float = Float.pi / 6
             let k: Float = floorf(ang / step)
             let off: Float = ang - (k + 0.5) * step
             let across: Float = d * sinf(off)
@@ -2805,7 +2805,7 @@ enum HDTex {
                     let ly: Float = fn * (0.88 - 0.3 * Float(i))
                     for side: Float in [-1, 1] {
                         let len: Float = fn * (0.3 - 0.05 * Float(i))
-                        let ang: Float = -.pi / 2 + side * (0.85 + 0.1 * Float(i))
+                        let ang: Float = -Float.pi / 2 + side * (0.85 + 0.1 * Float(i))
                         let lx: Float = fn / 2 + cosf(ang) * len / 2, lyc: Float = ly + sinf(ang) * len / 2
                         blob(lx, lyc, len / 2, fn / 28, ang, sc)
                     }
@@ -2816,7 +2816,7 @@ enum HDTex {
             case .sunflower:
                 let rr: Float = fn * 6 / 16
                 for i in 0..<16 {
-                    let a: Float = Float(i) / 16 * 2 * .pi
+                    let a: Float = Float(i) / 16 * 2 * Float.pi
                     let px: Float = fn / 2 + cosf(a) * rr * 0.62, py: Float = headY + sinf(a) * rr * 0.62
                     blob(px, py, rr * 0.42, rr * 0.17, a, bc)
                 }
@@ -2844,7 +2844,7 @@ enum HDTex {
                 for i in 0..<14 {
                     let x: Float = fn / 2 + (h2(i, 1, salt) - 0.5) * fn * 0.6
                     let y: Float = headY + (h2(i, 2, salt) - 0.3) * fn * 0.5
-                    blob(x, y, fn / 14, fn / 24, h2(i, 3, salt) * .pi, sc * 0.9)
+                    blob(x, y, fn / 14, fn / 24, h2(i, 3, salt) * Float.pi, sc * 0.9)
                 }
                 for i in 0..<6 {
                     let x: Float = fn / 2 + (h2(i, 5, salt) - 0.5) * fn * 0.55
@@ -2858,7 +2858,7 @@ enum HDTex {
                     let r: Float = rr * (1 - Float(layer) * 0.28)
                     let k: Float = 0.85 + 0.1 * Float(layer)
                     for i in 0..<9 {
-                        let a: Float = Float(i) / 9 * 2 * .pi + Float(layer) * 0.4
+                        let a: Float = Float(i) / 9 * 2 * Float.pi + Float(layer) * 0.4
                         let px: Float = fn / 2 + cosf(a) * r * 0.45, py: Float = headY + sinf(a) * r * 0.45
                         blob(px, py, r * 0.5, r * 0.32, a, bc * k)
                     }
@@ -2918,7 +2918,7 @@ enum HDTex {
             let cx: Float = (0.1 + 0.8 * h2(i, 1, s)) * fn, cy: Float = fn * (0.8 + 0.18 * h2(i, 2, s))
             let r: Float = fn / 20
             for k in 0..<5 {
-                let a: Float = Float(k) / 5 * 2 * .pi + h2(i, 3, s)
+                let a: Float = Float(k) / 5 * 2 * Float.pi + h2(i, 3, s)
                 let px: Float = cx + cosf(a) * r, py: Float = cy + sinf(a) * r * 0.5
                 for dy in -2...2 { for dx in -3...3 {
                     let x = Int(px) + dx, y = Int(py) + dy
@@ -2963,7 +2963,7 @@ enum HDTex {
                 let top: Float = fn - h * (1 - u * u * 0.5)
                 let y: Float = top + h2(i, 2, s) * (fn - top)
                 let tone: Float = 0.8 + 0.35 * h2(i, 3, s)
-                dot(x, y, fn / 22, fn / 40, h2(i, 4, s) * .pi, leaf * tone)
+                dot(x, y, fn / 22, fn / 40, h2(i, 4, s) * Float.pi, leaf * tone)
             }
             if stage >= 2 {
                 for i in 0..<(stage == 3 ? 12 : 6) {
@@ -3089,7 +3089,7 @@ enum HDTex {
         }
         let spokes = 9
         var angs: [Float] = []
-        for i in 0..<spokes { angs.append((Float(i) + 0.3 * h2(i, 1, s)) / Float(spokes) * 2 * .pi) }
+        for i in 0..<spokes { angs.append((Float(i) + 0.3 * h2(i, 1, s)) / Float(spokes) * 2 * Float.pi) }
         // Spokes out to the tile edge.
         for a in angs {
             let len: Float = fn * 0.75
@@ -3111,7 +3111,7 @@ enum HDTex {
                 let steps = Int(rr * (a1 - a0) * 1.5) + 2
                 for j in 0...steps {
                     let t: Float = Float(j) / Float(steps)
-                    let sag: Float = sinf(t * .pi) * rr * 0.08
+                    let sag: Float = sinf(t * Float.pi) * rr * 0.08
                     let x: Float = x0 + (x1 - x0) * t
                     let y: Float = y0 + (y1 - y0) * t + sag
                     put(Int(x), Int(y), 0.8)
@@ -3132,7 +3132,8 @@ enum HDTex {
                 let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
                 let r: Float = (dx * dx + dy * dy).squareRoot() / (fn / 2)
                 let edge: Float = Float(min(min(x, y), min(n - 1 - x, n - 1 - y))) / fn
-                var h: Float = edge < 0.06 ? -0.4 : 0
+                var h: Float = 0
+                if edge < 0.06 { h = -0.4 }
                 // Carved ring with its depth ramped over about a texel (a hard step aliased in the relief shading).
                 let ring: Float = cl((0.05 - abs(r - 0.57)) / (2 / fn))
                 if ring > 0 { h = min(h, -0.5 * ring) }
@@ -3222,11 +3223,11 @@ enum HDTex {
                 var c: V3
                 if part == 0 {
                     let tube: Float = (Float(x % (4 * u)) + 0.5) / Float(4 * u)       // 0...1 across a tube
-                    let round: Float = 0.72 + 0.4 * sinf(.pi * tube) - 0.1 * tube
+                    let round: Float = 0.72 + 0.4 * sinf(Float.pi * tube) - 0.1 * tube
                     c = red * (round * grain)
                     let ly = y / u, lx = x / u
                     if ly >= 5 && ly <= 10 {
-                        let lit: Float = 0.9 + 0.12 * sinf(.pi * tube)
+                        let lit: Float = 0.9 + 0.12 * sinf(Float.pi * tube)
                         c = white * (grain * lit)
                         let glyph: Bool = lx % 4 == 1 || (ly == 6 && lx % 4 != 0)
                         let mark: Bool = ly >= 6 && ly <= 9 && glyph
@@ -3310,7 +3311,7 @@ enum HDTex {
         for _ in 0..<(n / 3) {
             let cx = rng.float() * fn, cy = rng.float() * fn
             let len: Float = fn * (0.05 + rng.float() * 0.04), wid: Float = len * 0.45
-            let a: Float = rng.float() * .pi
+            let a: Float = rng.float() * Float.pi
             let ca = cosf(a), sa = sinf(a)
             let c = col(cols[rng.int(cols.count)]) * (0.85 + rng.float() * 0.25)
             let r = Int(len) + 1
@@ -3386,8 +3387,8 @@ enum HDTex {
             for y in 0..<n { for x in 0..<n {
                 let i = y * n + x
                 let yy: Float = Float(y) + (w[i] - 0.5) * fn * 0.06
-                let l1: Float = sinf(yy / fn * 2 * .pi * 5) * 0.06
-                let layers: Float = l1 + sinf(yy / fn * 2 * .pi * 13) * 0.03
+                let l1: Float = sinf(yy / fn * 2 * Float.pi * 5) * 0.06
+                let layers: Float = l1 + sinf(yy / fn * 2 * Float.pi * 13) * 0.03
                 let band: Float = abs(yy - fn * 0.25) < fn * 0.035 ? -0.12 : 0
                 let low: Float = Float(y) > fn * 0.84 ? -0.06 : 0
                 let t: Float = 0.55 + layers + band + low + (fine[i] - 0.5) * 0.16
@@ -3408,7 +3409,7 @@ enum HDTex {
             let rv = vnoise(n, max(1, n / 8), s &+ 6)
             let fine = vnoise(n, max(1, n / 64), s &+ 1)
             let rimN = vnoise(n, max(1, n / 16), s &+ 3)
-            let a0: Float = h2(1, 2, s) * 2 * .pi
+            let a0: Float = h2(1, 2, s) * 2 * Float.pi
             var hh = [Float](repeating: 0, count: n * n)
             var img = Img(n)
             for y in 0..<n { for x in 0..<n {
@@ -3421,11 +3422,14 @@ enum HDTex {
                 let fr: Float = ph - floorf(ph)
                 let ring: Float = 1 - cl((fr - 0.72) / 0.12) * cl((1 - fr) / 0.08)
                 var t: Float = 0.62 + (ring - 0.5) * 0.4 - d / fn * 0.3 + (fine[i] - 0.5) * 0.08
-                let a: Float = ang - a0 + (w[i] - 0.5) * 0.3 + .pi
-                let da: Float = abs(a - 2 * .pi * floorf(a / (2 * .pi)) - .pi)
-                let crack = da * d < fn * 0.002 + d * 0.02 && d < fn * 0.3 && d > fn * 0.06
+                let a: Float = ang - a0 + (w[i] - 0.5) * 0.3 + Float.pi
+                let da: Float = abs(a - 2 * Float.pi * floorf(a / (2 * Float.pi)) - Float.pi)
+                let crackW: Float = fn * 0.002 + d * 0.02
+                let inBand: Bool = d < fn * 0.3 && d > fn * 0.06
+                let crack: Bool = da * d < crackW && inBand
                 if crack { t -= 0.45 }
-                let edge = Float(min(min(x, n - 1 - x), min(y, n - 1 - y)))
+                let edgeI: Int = min(min(x, n - 1 - x), min(y, n - 1 - y))
+                let edge: Float = Float(edgeI)
                 let rimw: Float = fn * 0.07 + (rimN[i] - 0.5) * fn * 0.04
                 let c: V3
                 if edge < rimw {
@@ -3551,7 +3555,7 @@ enum HDTex {
         let len = max(2, n / 24)
         for _ in 0..<blades {
             let cx = rng.int(n), cy = rng.int(n)
-            let ang: Float = rng.float() * .pi
+            let ang: Float = rng.float() * Float.pi
             let v: Float = 0.6 + rng.float() * 0.4
             let L = rng.range(len, len * 2)
             for t in 0..<L {
@@ -3595,7 +3599,7 @@ enum HDTex {
             }
             let side: Float = max(-1, min(1, (ox + oy) / (clumpR * 1.4)))   // -1 top-left (lit) ... 1 bottom-right
             let v: Float = base * (1 - 0.22 * side) * (0.92 + rng.float() * 0.12)
-            let ang: Float = rng.float() * .pi
+            let ang: Float = rng.float() * Float.pi
             let r0: Float = rng.float()
             var L: Float = (7 + r0 * 5) * scale
             var W: Float = L * 0.48
@@ -3629,7 +3633,7 @@ enum HDTex {
                 let i = y * n + x
                 let wv: Float = (w[i] - 0.5) * Float(n) * 0.18
                 let xs: Float = Float(x) + wv
-                let stripe: Float = abs(sinf(xs / Float(n) * 2 * .pi * 7))
+                let stripe: Float = abs(sinf(xs / Float(n) * 2 * Float.pi * 7))
                 let fissure: Float = stripe < 0.18 ? (0.18 - stripe) / 0.18 : 0
                 let pv: Float = plates[(y / max(1, n / 8)) * n + x]
                 let t0: Float = 0.55 + (pv - 0.5) * 0.25
@@ -3661,7 +3665,7 @@ enum HDTex {
                 let seam = bx < max(1, n / 64) || (y % bh) < max(1, n / 64)
                 let boardTone: Float = h2(board &* 7 &+ (x + off) / (n / 2), 1, s) * 0.16
                 let gy: Float = Float(y) + (grainW[i] - 0.5) * Float(bh) * 0.9
-                let grain: Float = 0.5 + 0.5 * sinf(gy / Float(n) * 2 * .pi * 18)
+                let grain: Float = 0.5 + 0.5 * sinf(gy / Float(n) * 2 * Float.pi * 18)
                 // A knot now and then.
                 let kx = Float(Int(h2(board, 2, s) * Float(n))), ky = Float(board * bh + bh / 2)
                 let kdx: Float = Float(x) - kx, kdy: Float = Float(y) - ky
@@ -3720,7 +3724,7 @@ enum HDTex {
             for y in 0..<n { for x in 0..<n {
                 let i = y * n + x
                 let wy: Float = Float(y) + (w[i] - 0.5) * Float(n) * 0.25
-                let rip: Float = 0.5 + 0.5 * sinf(wy / Float(n) * 2 * .pi * 6)
+                let rip: Float = 0.5 + 0.5 * sinf(wy / Float(n) * 2 * Float.pi * 6)
                 let t0: Float = 0.55 + (grain[i] - 0.5) * 0.24
                 var t: Float = t0 + (rip - 0.5) * 0.10 + (blot[i] - 0.5) * 0.15
                 if grain[i] > 0.93 { t -= 0.25 }               // dark grains
@@ -3804,7 +3808,7 @@ enum HDTex {
         let tones: [UInt32] = [0x7A4A22, 0x9A6230, 0xB07A3A, 0x6A4A2A]
         for k in 0..<(n * 2) {
             let x0: Float = h2(k, 1, s) * fn, y0: Float = h2(k, 2, s) * fn
-            let a: Float = h2(k, 3, s) * .pi
+            let a: Float = h2(k, 3, s) * Float.pi
             let len: Float = fn / 14 * (0.6 + 0.8 * h2(k, 4, s))
             let c: V3 = col(tones[k % 4]) * (0.85 + 0.3 * h2(k, 5, s))
             let steps = Int(len) + 1
@@ -3883,7 +3887,14 @@ enum HDTex {
         return nil
     }
 
-    static let table: [String: Gen] = [
+    // The HD materials by texture name, in parts of about 50 (one literal of ~300 entries took the type checker
+    // past the 600 ms gate).
+    static let table: [String: Gen] = {
+        var t: [String: Gen] = [:]
+        for part in [tablePart0, tablePart1, tablePart2, tablePart3, tablePart4, tablePart5, tablePart6] { t.merge(part) { a, _ in a } }
+        return t
+    }()
+    static let tablePart0: [String: Gen] = [
         "stone": stone(stoneGrey),
         "lava": lava,
         "water": waterHD,
@@ -3934,7 +3945,9 @@ enum HDTex {
         "tnt_bottom": tntHD(2),
         "end_portal_frame_side": gateFrame(0),
         "end_portal_frame_top": gateFrame(1),
-        "end_portal_frame_eye": gateFrame(2),
+        "end_portal_frame_eye": gateFrame(2)
+    ]
+    static let tablePart1: [String: Gen] = [
         "cobweb": cobwebHD,
         "spawner": spawnerHD,
         "lantern": lanternHD(glow: 0xF8C85A, core: 0xFFF4C8),
@@ -3986,7 +3999,9 @@ enum HDTex {
         "soul_sand": soil([(0, 0x3A2A20), (0.5, 0x52402E), (1, 0x6A5440)], pebble: 0x2A1E16, pebbles: 10, clods: 8),
         "soul_soil": soil([(0, 0x3E3024), (0.5, 0x54442F), (1, 0x6A5840)], pebble: 0x4A3A2A, pebbles: 4, clods: 7),
         "ice": iceHD,
-        "pumpkin_side": ribbedSide([(0, 0x9A520A), (0.5, 0xD8801A), (1, 0xF0A030)], ribs: 4),
+        "pumpkin_side": ribbedSide([(0, 0x9A520A), (0.5, 0xD8801A), (1, 0xF0A030)], ribs: 4)
+    ]
+    static let tablePart2: [String: Gen] = [
         "pumpkin_top": radialTop([(0, 0x9A520A), (0.5, 0xD8801A), (1, 0xF0A030)], lobes: 8, stem: 0x5A6A1A),
         "melon_side": melonSide,
         "crafting_table_top": craftingTable(0),
@@ -4037,7 +4052,9 @@ enum HDTex {
         "reinforced_deepslate": mineralFace("reinforced_deepslate"),
         "budding_amethyst": mineralFace("budding_amethyst"),
         "amethyst_cluster": mineralFace("amethyst_cluster"),
-        "pointed_dripstone": mineralFace("pointed_dripstone"),
+        "pointed_dripstone": mineralFace("pointed_dripstone")
+    ]
+    static let tablePart3: [String: Gen] = [
         "cracked_polished_blackstone_bricks": cracked(masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 24, [(0, 0x262228), (0.5, 0x363038), (1, 0x4A424C)], mortar: 0x141216, chips: 1.4)),
         "oak_sapling": saplingHD(leaf: 0x4A8A2A, trunk: 0x6B4F2C, conifer: false),
         "birch_sapling": saplingHD(leaf: 0x7AA850, trunk: 0xD8D4C8, conifer: false),
@@ -4087,7 +4104,9 @@ enum HDTex {
         "chest_front": chestFace(2),
         "barrel_side": barrelSide,
         "barrel_top": barrelTop,
-        "barrel_bottom": barrelTop,
+        "barrel_bottom": barrelTop
+    ]
+    static let tablePart4: [String: Gen] = [
         "diamond_block": gemBlock([(0, 0x2A9A9A), (0.5, 0x6ADCD8), (1, 0xD0FFFA)]),
         "emerald_block": gemBlock([(0, 0x0E6A30), (0.5, 0x2AB85A), (1, 0x9AF0B8)]),
         "lapis_block": gemBlock([(0, 0x142A78), (0.5, 0x2A4EB0), (1, 0x6A8AE0)], cells: 7, flecks: true),
@@ -4139,7 +4158,9 @@ enum HDTex {
         "shroomlight": lumps([(0, 0xA04A10), (0.5, 0xF09030), (1, 0xFFD890)], cells: 7, gloss: 1),
         "sculk": lumps([(0, 0x041820), (0.5, 0x0A2C34), (1, 0x16505A)], cells: 12),
         "ancient_debris_side": ancientDebris(top: false),
-        "ancient_debris_top": ancientDebris(top: true),
+        "ancient_debris_top": ancientDebris(top: true)
+    ]
+    static let tablePart5: [String: Gen] = [
         "basalt_top": stone([(0, 0x3A3A3E), (0.5, 0x505056), (1, 0x68686E)], veins: 0, strata: 0),
         "smooth_basalt": polished(stone([(0, 0x34343A), (0.5, 0x48484E), (1, 0x5E5E64)], veins: 0, strata: 0)),
         "blackstone": stone([(0, 0x1E1A20), (0.5, 0x2E2830), (1, 0x443C46)], veins: 0.3, strata: 0.05),
@@ -4189,7 +4210,9 @@ enum HDTex {
         "oak_leaves": leaves,
         "oak_log": barkSide(oakBark),
         "oak_planks": planks(oakPlank),
-        "spruce_planks": planks([(0, 0x523A22), (0.5, 0x6E5034), (1, 0x8A6844)]),
+        "spruce_planks": planks([(0, 0x523A22), (0.5, 0x6E5034), (1, 0x8A6844)])
+    ]
+    static let tablePart6: [String: Gen] = [
         "birch_planks": planks([(0, 0xA89664), (0.5, 0xC4B07C), (1, 0xDCCA98)]),
         "cobblestone": cobble([(0, 0x585A5C), (0.5, 0x808082), (1, 0xA2A09E)], mortar: 0x3A3838),
         "sand": sandLike([(0, 0xC4B280), (0.5, 0xDCCC96), (1, 0xF0E4B4)]),
@@ -4210,7 +4233,7 @@ enum HDTex {
         "deepslate_redstone_ore": ore(stone(deepslate), 0x8C0C0C, 0xF03232),
         "deepslate_lapis_ore": ore(stone(deepslate), 0x18348C, 0x446EDC),
         "deepslate_emerald_ore": ore(stone(deepslate), 0x0E9042, 0x6CE498),
-        "deepslate_copper_ore": ore(stone(deepslate), 0xA85E36, 0x60BA96),
+        "deepslate_copper_ore": ore(stone(deepslate), 0xA85E36, 0x60BA96)
     ]
 
     // MARK: Upscale for textures without an HD material
