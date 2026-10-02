@@ -34,6 +34,10 @@ enum OverworldStructures {
                 return StructureStart(kind: "swamp_hut", pieces: [piece(x - 4, y - 8, z - 5, x + 4, y + 9, z + 5) { w in swampHut(&w, x, max(y, SEA) + 2, z, s) }],
                                       anchor: IVec3(x, max(y, SEA) + 3, z - 8))
             case .snowyPlains, .snowyTaiga, .snowySlopes:
+                // Level ground only: on a mountainside the dome sank into the slope (eyes-on temple.png, run 370).
+                var lo = y, hi = y
+                for (dx, dz) in [(-4, 0), (4, 0), (0, -4), (0, 4)] { let g = gen.groundY(x + dx, z + dz); lo = min(lo, g); hi = max(hi, g) }
+                guard hi - lo <= 2 else { return nil }
                 return StructureStart(kind: "igloo", pieces: [piece(x - 4, y - 14, z - 6, x + 4, y + 6, z + 4) { w in igloo(&w, x, y + 1, z, s) }],
                                       anchor: IVec3(x, y + 2, z - 7))
             default: return nil
