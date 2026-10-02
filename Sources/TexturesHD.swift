@@ -1294,6 +1294,73 @@ enum HDTex {
         return img
     }
 
+    // Crops (cutout, untinted). Wheat: thin stalks growing with the stage, turning gold near the end, the last stage
+    // with grain heads (kernels and awns). Root crops: broad leafy tufts; ripe, the root's top shows at the soil.
+    static func cropHD(stage: Int, max maxStage: Int, young: UInt32, ripe: UInt32, head: UInt32?, wheat: Bool, salt: Int) -> Gen {
+        { n, _ in
+            let fn = Float(n)
+            var img = Img(n, V4(0, 0, 0, 0))
+            let k: Float = Float(stage) / Float(maxStage)
+            let cy = col(young), cr = col(ripe)
+            let ripeK: Float = cl((k - 0.55) / 0.45)
+            let base: V3 = cy + (cr - cy) * ripeK
+            let count = wheat ? 9 : 6
+            let height: Float = (0.19 + 0.75 * k) * fn
+            func plot(_ x: Int, _ y: Int, _ c: V3) {
+                guard x >= 0 && x < n && y >= 0 && y < n else { return }
+                img.px[y * n + x] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
+            }
+            for i in 0..<count {
+                let bx: Float = (Float(i) + 0.5 + (h2(i, 1, salt) - 0.5) * 0.6) / Float(count) * fn
+                let h: Float = height * (0.8 + 0.2 * h2(i, 2, salt))
+                let lean: Float = (h2(i, 3, salt) - 0.5) * (wheat ? 0.25 : 0.9)
+                let w0: Float = wheat ? fn / 44 + 0.6 : fn / 16 * (0.7 + 0.5 * k)
+                let headLen: Float = wheat && stage == maxStage ? h * 0.26 : 0
+                for yy in 0..<n {
+                    let up: Float = Float(n - 1 - yy) + 0.5
+                    guard up < h else { continue }
+                    let t: Float = up / h
+                    let cx: Float = bx + lean * t * t * h * 0.5
+                    let inHead = headLen > 0 && up > h - headLen
+                    var w: Float = wheat ? w0 : w0 * sinf(.pi * min(1, t * 1.15 + 0.05))
+                    if inHead { w = fn / 30 + 1 }
+                    for x in Int(cx - w - 1)...Int(cx + w + 1) {
+                        let u: Float = (Float(x) + 0.5 - cx) / max(0.5, w)
+                        guard abs(u) <= 1 else { continue }
+                        var c: V3 = base * (0.7 + 0.35 * t) * (0.92 - 0.12 * u)
+                        if inHead, let hc = head {
+                            let kern: Float = 0.82 + 0.25 * abs(sinf(up / fn * 70 + (u > 0 ? 1.2 : 0)))
+                            let side: Float = 0.95 - 0.1 * u
+                            c = col(hc) * (kern * side)
+                        }
+                        plot(x, yy, c)
+                    }
+                    // Awns: thin bristles off the grain head.
+                    if inHead, let hc = head, Int(up) % max(2, n / 32) == 0 {
+                        for a in 1...max(2, n / 28) {
+                            for side in [-1, 1] { plot(Int(cx) + side * (Int(w) + a), yy - a, col(hc) * 1.05) }
+                        }
+                    }
+                }
+            }
+            // Ripe root crops: the top of the root at the soil line.
+            if !wheat, stage == maxStage, let hc = head {
+                for i in 0..<3 {
+                    let rx: Float = (Float(i) + 0.5) / 3 * fn + (h2(i, 9, salt) - 0.5) * fn * 0.1
+                    let rr: Float = fn / 13
+                    for y in Int(fn - rr * 1.2)..<n { for x in Int(rx - rr)...Int(rx + rr) {
+                        let dx: Float = (Float(x) + 0.5 - rx) / rr, dy: Float = (Float(y) + 0.5 - (fn - rr * 0.3)) / rr
+                        let d: Float = dx * dx + dy * dy
+                        guard d < 1 else { continue }
+                        let shadeK: Float = 0.75 + 0.35 * (1 - d) - 0.1 * dx
+                        plot(x, y, col(hc) * shadeK)
+                    } }
+                }
+            }
+            return img
+        }
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -1768,6 +1835,16 @@ enum HDTex {
 
     // Families without a hand-made entry get an HD material coloured from their 16 px painter: every wood's planks,
     // bark and log ends, leaves, wool, concrete, concrete powder and terracotta.
+    // Crop stages (generated names, so not in the literal table).
+    static func crop(_ name: String) -> Gen? {
+        func stage(_ prefix: String) -> Int? { name.hasPrefix(prefix) ? Int(name.dropFirst(prefix.count)) : nil }
+        if let st = stage("wheat_stage") { return cropHD(stage: st, max: 7, young: 0x3F9A2C, ripe: 0xB8A340, head: 0xDCBC52, wheat: true, salt: 122) }
+        if let st = stage("carrots_stage") { return cropHD(stage: st, max: 3, young: 0x3F9A2C, ripe: 0x48A832, head: 0xF08A1A, wheat: false, salt: 125) }
+        if let st = stage("potatoes_stage") { return cropHD(stage: st, max: 3, young: 0x3F9A2C, ripe: 0x4AA034, head: 0xD8B060, wheat: false, salt: 128) }
+        if let st = stage("beetroots_stage") { return cropHD(stage: st, max: 3, young: 0x3F9A2C, ripe: 0x3A8A30, head: 0xA02838, wheat: false, salt: 131) }
+        return nil
+    }
+
     static func derived(_ name: String, _ src: [V4]) -> Gen? {
         let S = TextureGen.S
         var sum = V3(0, 0, 0), rim = V3(0, 0, 0), mid = V3(0, 0, 0)
