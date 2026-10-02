@@ -32,17 +32,23 @@ struct Steer {
         let hv: Float = (s.vel.x * s.vel.x + s.vel.z * s.vel.z).squareRoot()
         if act.forward > 0.5 && s.onGround && hv < 0.3 && flat > 1 && s.tick % 30 < 2 { act.jump = true }
         // A closed wooden door straight ahead: look at it and use it.
+        // Its own cell first: standing in a doorway when the door shut (a villager closes doors behind it), the panel is
+        // at this cell's edge and the cell ahead holds no door (run 357: 45 s pressing against it).
         let f = V3(-sinf(s.yaw), 0, -cosf(s.yaw))
-        let ahead: V3 = s.pos + f * 0.9
-        let bx = Int(floor(ahead.x)), by = Int(floor(s.pos.y + 0.1)), bz = Int(floor(ahead.z))
-        let b = a.world.block(bx, by, bz)
-        if Blocks.shape[Int(b)] == "door" && PathFinder.isWoodDoor(b) {
+        let by = Int(floor(s.pos.y + 0.1))
+        for reach in [Float(0), 0.9] {
+            let ahead: V3 = s.pos + f * reach
+            let bx = Int(floor(ahead.x)), bz = Int(floor(ahead.z))
+            let b = a.world.block(bx, by, bz)
+            guard Blocks.shape[Int(b)] == "door" && PathFinder.isWoodDoor(b) else { continue }
+            if reach == 0 && hv >= 0.3 { break }               // walking out of the doorway: the panel isn't in the way
             let st = Int(b - Blocks.groupBase[Int(b)])
             if st & 4 == 0 {                                   // closed
                 act.forward = 0
                 act.pitch = max(-0.2, min(0.2, -0.25 - s.pitch))
                 if let t = s.target, t.x == bx && t.z == bz { act.use = (s.tick % 6) < 3 }
             }
+            break
         }
         return act
     }
