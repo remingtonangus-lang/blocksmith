@@ -508,7 +508,9 @@ final class LifeBot: AgentBot {
 // blocks under the surface that a path reaches (dark: no sky light), walked to on foot, then back to the start.
 final class CaveBot: AgentBot {
     let name = "cave"
-    var phase = 0                        // 0 pick, 1 down, 2 back, 3 done
+    var phase = 0                        // 0 pick, 1 down, 2 back, 3 done, 4 roam further to search again
+    var roams = 0
+    var roamTo = V3(0, 0, 0)
     var down = false, back = false
     var downDetail = "no cave floor within 64 blocks with a walkable way down and back", backDetail = "never got down"
     var start = V3(0, 0, 0)
@@ -530,6 +532,19 @@ final class CaveBot: AgentBot {
         phaseTicks += 1
         deepest = min(deepest, s.pos.y)
         switch phase {
+        case 4:
+            // Walking on to search from further away (a human looking for a cave keeps walking).
+            let flat: Float = simd_length(V2(roamTo.x - s.pos.x, roamTo.z - s.pos.z))
+            if flat < 2 || phaseTicks > 60 * 40 { phase = 0; phaseTicks = 0; path = []; return AgentAction() }
+            if idx >= path.count || since > 180 { plan(s, a, to: roamTo) }
+            since += 1
+            guard idx < path.count else { return Steer.toward(s, a, roamTo) }
+            let wp = path[idx]
+            let c = V3(Float(wp.x) + 0.5, Float(wp.y), Float(wp.z) + 0.5)
+            if simd_length(V2(c.x - s.pos.x, c.z - s.pos.z)) < 0.4 && abs(c.y - s.pos.y) < 1.3 { idx += 1; since = 0 }
+            var act = Steer.toward(s, a, c)
+            if since > 60 && s.onGround { act.jump = true }
+            return act
         case 0:
             start = s.pos
             // Cave floors 10+ blocks under the start that a walk from the start actually reaches (breadth-first over the
@@ -561,6 +576,16 @@ final class CaveBot: AgentBot {
                     downDetail = "walking to the cave floor at \(c.x) \(c.y - YOFF) \(c.z)"
                     return AgentAction()
                 }
+            }
+            // None here: walk on to the farthest surface cell the walk reached (about level with the start) and look
+            // again, twice at most (seed 777 had no walkable cave within 64 blocks of spawn: run 359).
+            if roams < 2, let far = order.last(where: { abs($0.y - sc.y) <= 6 }),
+               abs(far.x - sc.x) + abs(far.z - sc.z) > 24 {
+                roams += 1
+                roamTo = V3(Float(far.x) + 0.5, Float(far.y), Float(far.z) + 0.5)
+                downDetail = "no cave floor within 64 blocks; walking on to \(far.x) \(far.z) to look again (\(roams))"
+                phase = 4; phaseTicks = 0; plan(s, a, to: roamTo)
+                return AgentAction()
             }
             path = []
             phase = 3
