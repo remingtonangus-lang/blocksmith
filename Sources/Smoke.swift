@@ -75,6 +75,7 @@ enum Smoke {
                 for pg in pages {
                     let cats: [PauseMenu.Cat] = pg == .options ? PauseMenu.Cat.allCases : [pm.cat]
                     for c in cats {
+                        progress.set(i, "menu tour: \(pg) / \(c.name)")
                         pm.page = pg; pm.cat = c
                         var top = 0
                         repeat {
@@ -111,6 +112,7 @@ enum Smoke {
                 let before = world.block(bp.x, bp.y, bp.z)
                 var opened: [String] = [], unopened: [String] = []
                 for k in stations where Blocks.has(k) {
+                    progress.set(i, "menu tour: \(k) screen")
                     world.setBlock(bp.x, bp.y, bp.z, Blocks.id(k))
                     game.openBlock(bp)
                     guard let m = game.menu else { unopened.append(k); continue }
