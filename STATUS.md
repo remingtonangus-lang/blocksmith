@@ -256,6 +256,14 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   added). Pushed 05290fe (run 355, 45 commits): smoke, benchmarks and playthrough all green; the type-check gate failed
   on `-.pi / 2 + ...` (2 s) and the grown HD table literal (Float.pi everywhere in TexturesHD, table in 7 parts; precheck
   warns on -.pi). PR #9 updated.
+- 2026-10-02 07:50 UTC: run 356 failed the type-check gate (lectern 697 ms, chiseled 571 ms: split) and the bench
+  (gen.chunk_ms 2.08 -> 5.65: every lake border column queried its neighbour; the cheap prefilter is back). Run 357
+  (58b159e) fully green -> PLAYTEST READY on PR #9 (behaviour sim: 1 stuck window, beds 41/42). The gate now posts a
+  warning annotation for every expression >= 300 ms, readable while the run continues. Pushed 1e3ffb2 (run 358:
+  end-city stair head room, mineshaft carved-cell walls, structcheck diving, bot door in its own cell).
+- 2026-10-02 08:03 UTC: run 358 passed the build and the type-check gate (no expression >= 300 ms). Committed locally
+  meanwhile: two 128 px batches (furnishings; Steelhold, resin, tuff, pale grove, archaeology, bamboo ends, shulker
+  boxes, candles) and an --hdatlas list of the layers still without an HD material.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
