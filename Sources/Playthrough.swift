@@ -1210,6 +1210,14 @@ final class Playthrough {
         collect(near: b.pos, 24)
         _ = tick(1)
         collect(near: game.player.pos, 24)
+        // The star falls from where the Blight died (often 10+ blocks up; run 346 found it on the ground 9 below):
+        // a player walks over to it once it has landed.
+        for _ in 0..<60 where count("nether_star") == 0 {
+            guard let e = game.drops.items.first(where: { !$0.stack.isEmpty && Items.key($0.stack.item) == "nether_star" }) else { break }
+            game.player.pos = e.pos
+            game.player.vel = .zero
+            _ = tick(0.1, pin: e.pos)
+        }
         check(count("nether_star") == 1, "blight: the Blight Star drops and is picked up (\(count("nether_star")))")
         if count("nether_star") == 0 {
             let stars = game.drops.items.filter { Items.key($0.stack.item) == "nether_star" }.map { String(format: "%.0f %.0f %.0f", $0.pos.x, $0.pos.y, $0.pos.z) }
