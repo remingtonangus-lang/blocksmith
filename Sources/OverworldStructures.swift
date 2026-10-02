@@ -419,7 +419,9 @@ enum OverworldStructures {
                     }
                     if r.chance(0.7) && k % 5 != 2 { w.set(x, fy, z, Blocks.id("rail") + (s.dx != 0 ? 1 : 0)) }
                     if r.chance(0.06) { w.set(x + ax, fy + 2, z + az, Blocks.id("cobweb")) }
-                    if r.chance(0.012) && walled { w.chest(x - ax, fy, z - az, loot: "mineshaft", seed: r.next(), facing: 0) }
+                    // Not on a support's slice: the chest replaced the lower fence post (structcheck run 358: a chest under
+                    // a post blocking the lane).
+                    if r.chance(0.012) && walled && k % 5 != 2 { w.chest(x - ax, fy, z - az, loot: "mineshaft", seed: r.next(), facing: 0) }
                     if r.chance(0.004) && !mesa { w.spawner(x, fy, z, mob: "cave_spider") }
                 }
             })
