@@ -314,6 +314,12 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
 - 2026-10-02 15:10 UTC: run 369 (5ec779d) fully green -> PLAYTEST READY 5ec779d on PR #9 (gen 1.95 ms/chunk). Pushed
   6ee2864 (run 370): igloo basement ladders laid after the lab (its ceiling cut the shaft), cave-bot roams within the
   path finder's reach. Structure critic round running on run 369's shots.
+- 2026-10-02 16:05 UTC: run 370 failed the bench (one-section mesh outlier) and the playthrough (cobblestone pickup);
+  run 371 (163af85): playthrough green, structcheck down to mineshaft 2 + military 1, but a virtual-GPU assertion in
+  rd 24 Fancy smoke, whose debug rerun overwrote the release app (benchmarks timed out on the debug binary) and a
+  random-ray cover search failed a mobtest. Pushed aebbb29 (run 372): separate debug app + one retry for that driver
+  assertion, deterministic cover, villages seal cave pockets beside houses, mansion facade/roof, igloos on level ground,
+  block light whitening near its source, snapshot scene fixes, structcheck POI maps.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
