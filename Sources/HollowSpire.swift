@@ -27,7 +27,10 @@ enum HollowSpire {
                 let bx = ox + dx * 6, bz = oz + dz * 6
                 let sx = ox + dx * 30, sz = oz + dz * 30, sy = topY + 6
                 pieces.append(Piece(min: IVec3(min(bx, sx) - 12, topY - 1, min(bz, sz) - 12), max: IVec3(max(bx, sx) + 12, sy + 14, max(bz, sz) + 12)) { w in
-                    bridge(&w, from: IVec3(bx, topY, bz), dx: dx, dz: dz, length: 13)
+                    // Bridge 7 + 7 steps: the top step sits right before the ship's tip (deck at a = -10, 20 out),
+                    // level with the deck. 13 long put the steps under the hull, the head hit the keel three steps up
+                    // (structcheck: every ship's three hold chests unreachable, run 361).
+                    bridge(&w, from: IVec3(bx, topY, bz), dx: dx, dz: dz, length: 7)
                     buildShip(&w, cx: sx, y: sy, cz: sz, alongX: dx != 0, seed: s &+ 99)
                 })
             }
