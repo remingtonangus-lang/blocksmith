@@ -690,6 +690,9 @@ final class WorldGen: TerrainGenerator {
             guard lx >= 0 && lx < CS && lz >= 0 && lz < CS && ly > 0 && ly < CH else { continue }
             let i = Chunk.index(lx, ly, lz)
             let host = b[i]
+            // Gravel blobs keep off cave ceilings: placed after the caves are carved, a blob over a cave hung there and
+            // fell at the first block update (gencheck run 357: 623 gravel-over-air blocks in 288 chunks).
+            if ore == GRAVEL && ly > 1 && b[Chunk.index(lx, ly - 1, lz)] == AIR { continue }
             if host == STONE || host == GRANITE_ID || host == DIORITE_ID || host == ANDESITE_ID { b[i] = ore }
             else if host == DEEPSLATE || host == TUFF_ID { b[i] = deepOre }
         }
