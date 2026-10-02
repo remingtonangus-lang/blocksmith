@@ -69,7 +69,9 @@ func dumpHDAtlas(_ path: String) -> Int32 {
                            "red_bed_top_head", "red_bed_side", "lectern_side",
                            "white_glazed_terracotta", "orange_glazed_terracotta", "blue_stained_glass", "red_candle",
                            "purple_shulker_box_side", "exposed_copper_door_top", "weathered_copper_bulb_lit",
-                           "oxidized_copper_grate", "copper_chest_front", "copper_bars", "brain_coral_block"]
+                           "oxidized_copper_grate", "copper_chest_front", "copper_bars", "brain_coral_block",
+                           "stripped_oak_log", "stripped_cherry_log", "oak_log@r", "birch_log@r", "tube_coral", "frosted_ice_0",
+                           "nether_wart_stage2", "pitcher_crop3"]
     let all: [String] = HDTex.table.keys.sorted() + extra
     var want: [String] = arg("--names").map { $0.split(separator: ",").map(String.init) } ?? all
     want = want.filter { names.contains($0) }
