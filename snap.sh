@@ -41,7 +41,7 @@ k=0
 grep -o 'view: `[^`]*`' snaps/structcheck.md 2>/dev/null | sed 's/^view: `//; s/`$//' | head -10 | while read -r v; do
   k=$((k + 1))
   # shellcheck disable=SC2086
-  "$BIN" --snapshot "snaps/issue_$k.png" $v --rd 4 || true
+  "$BIN" --snapshot "snaps/issue_$k.png" $v --rd 4 --nightvision || true      # underground views were black
 done
 # Bots playing the real Game.tick (Agent.swift): oracles every tick, replays for every finding (snaps/agent_*.md).
 "$BIN" --behaviorsim --seeds 12345,777 --minutes 20 --out snaps/behaviorsim.md
