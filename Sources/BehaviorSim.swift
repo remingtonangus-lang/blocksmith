@@ -195,7 +195,7 @@ enum BehaviorSim {
                     let path = m.path.nodes.isEmpty ? "nopath" : (m.path.index >= m.path.nodes.count ? "pathend" : "onpath")
                     let why = "\(phase)/\(goal)/\(path)\(m.path.partial ? "/partial" : "")\(m.unreachableTimer > 0 ? "/gaveup" : "")"
                     t.stuckWhy[why, default: 0] += 1
-                    if t.flags["stuck", default: 0] == 3 { startTrace(m, w, why) }
+                    if t.flags["stuck", default: 0] == 1 { startTrace(m, w, why) }       // at 3 the few stuck villagers left were never traced
                 }
             }
             t.yawSum = 0; t.reversals = 0; t.movingSamples = 0
