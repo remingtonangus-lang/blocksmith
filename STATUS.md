@@ -136,7 +136,8 @@ Bug discovery is fully automated (Remington is not the bug finder). Keep CI gree
          stroll areas, bed walking, idle fallback, 1500-node paths; 2026-10-02: the behaviour-sim Mob.trace showed every
          walking mob bouncing at 1-block steps (hop peaked 0.8 up; now 8.6 like the player) with the stall watchdog
          reset by the bobbing (now horizontal); oracle fixed (stuck needs 9/10 moving samples; spinning walkers only;
-         cats exempt from falls): stuck 213 -> 70 windows before the hop fix, spinning 69 -> 12). Bed goals still ~40 %.
+         cats exempt from falls): stuck 213 -> 70 windows before the hop fix, spinning 69 -> 12). Run 357: stuck 1, beds
+         41/42, meet 48/50, work 25/25; iron golems circled stroll goals (2-wide footprint centre, fixed).
 2. Texture source trial (2026-10-02, docs/qa/texture_trial_*.png; tools/texlab.py, tools/matlab.py):
    - Pollinations: not usable (one image came back as an isometric scene, not a texture; then HTTP 402 Payment
      Required). Generated images in general: not needed, procedural beats them for coherence.
