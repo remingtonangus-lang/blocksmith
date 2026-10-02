@@ -739,8 +739,15 @@ enum Snapshot {
         if CommandLine.arguments.contains("--torches") {
             // Light test: a ring of torches plus a lamp around the camera, then remesh what changed.
             // Torches stand on the first floor below the camera (surface or cave), never in water.
+            // Around the block the camera looks at (a ring round the camera stayed out of frame when it looked down at
+            // a cave floor: blind critic, cave_torches showed no torch).
+            var ringC = pos
+            let eye = pos + V3(0, 1.62, 0)
+            if let h = world.raycast(eye, game.player.look, maxDist: 32) {
+                ringC = V3(Float(h.hit.x) + 0.5, Float(h.hit.y) + 1, Float(h.hit.z) + 0.5)
+            }
             func floorBelow(_ x: Int, _ z: Int) -> Int? {
-                var y = min(Int(floor(pos.y)) + 2, world.topY(x, z) + 1)
+                var y = min(Int(floor(ringC.y)) + 2, world.topY(x, z) + 1)
                 let stop = y - 40
                 while y > stop {
                     let here = world.block(x, y, z), below = world.block(x, y - 1, z)
@@ -750,11 +757,11 @@ enum Snapshot {
                 return nil
             }
             for k in 0..<10 {
-                let a = Float(k) / 10 * 2 * .pi
-                let x = Int(floor(pos.x + cosf(a) * 7)), z = Int(floor(pos.z + sinf(a) * 7))
+                let a = Float(k) / 10 * 2 * Float.pi
+                let x = Int(floor(ringC.x + cosf(a) * 5)), z = Int(floor(ringC.z + sinf(a) * 5))
                 if let y = floorBelow(x, z) { world.setBlock(x, y, z, TORCH) }
             }
-            let lx = Int(floor(pos.x)) + 3, lz = Int(floor(pos.z))
+            let lx = Int(floor(ringC.x)) + 3, lz = Int(floor(ringC.z))
             if let y = floorBelow(lx, lz) { world.setBlock(lx, y, lz, LAMP) }
             let t2 = world.loadSync(center: pos, radius: rd)
             t.mesh += t2.mesh
