@@ -152,8 +152,13 @@ extension Mob {
 
     // Walks toward `anchor` when farther than `r`, else strolls; returns the speed.
     func stroll(around anchor: V3, _ r: Float, _ pace: Float) -> Float {
-        if simd_length(V2(anchor.x - pos.x, anchor.z - pos.z)) > r && !gaveUp(anchor) { face(anchor); moving = true; return spec.speed * pace }
+        let d: Float = simd_length(V2(anchor.x - pos.x, anchor.z - pos.z))
+        // Walk back toward the anchor when outside the circle, with 2 blocks of slack while finishing a stroll.
+        let slack: Float = wanderGoal != nil && moving ? 2 : 0
+        if d > r + slack && !gaveUp(anchor) { wanderGoal = nil; face(anchor); moving = true; return spec.speed * pace }
+        strollArea = (anchor, r)
         wander()
+        strollArea = nil
         return moving ? spec.speed * pace * 0.8 : 0
     }
 

@@ -257,6 +257,7 @@ final class Mob {
     var walkAmount: Float = 0
     var moving = false
     var wanderGoal: V3?             // current stroll target (wander)
+    var strollArea: (V3, Float)?    // keep stroll targets within this circle (villager schedules), set per update
     var unreachable: V3?            // a walk target the pathfinder couldn't reach (giveUp)
     var unreachableTimer: Float = 0
     var bedWalk: V3?                // villager: heading to its bed tonight (villagerNight -> villagerDay)
@@ -961,7 +962,7 @@ final class Mob {
             moving.toggle()
             wanderGoal = nil
             if moving {
-                if !spec.flying, let w = Mob.world, let goal = strollGoal(w) { wanderGoal = goal; aiTimer = Rand.float(in: 5...9) }
+                if !spec.flying, let w = Mob.world, let goal = strollGoal(w, within: strollArea) { wanderGoal = goal; aiTimer = Rand.float(in: 5...9) }
                 else { yaw += Rand.float(in: -2...2); aiTimer = Rand.float(in: 1.5...4) }
             } else { aiTimer = Rand.float(in: 2...7) }
         }
@@ -971,7 +972,7 @@ final class Mob {
         }
     }
 
-    func strollGoal(_ w: World) -> V3? {
+    func strollGoal(_ w: World, within area: (V3, Float)? = nil) -> V3? {
         var pr = PathProfile()
         pr.tall = max(1, min(3, Int(ceilf(height - 0.05))))
         pr.span = halfW > 0.5 ? 2 : 1
@@ -980,7 +981,13 @@ final class Mob {
         for _ in 0..<6 {
             let ang: Float = Rand.float(in: 0..<(2 * .pi))
             let d: Float = Rand.float(in: 3...9)
-            let x = Int(floor(pos.x + sinf(ang) * d)), z = Int(floor(pos.z + cosf(ang) * d))
+            var x = Int(floor(pos.x + sinf(ang) * d)), z = Int(floor(pos.z + cosf(ang) * d))
+            if let a = area {
+                // Inside the area the schedule keeps the mob in (else it turns back at the edge every tick: spinning).
+                let c = a.0
+                let rr: Float = a.1 * 0.8 * Rand.float(in: 0.2...1)
+                x = Int(floor(c.x + sinf(ang) * rr)); z = Int(floor(c.z + cosf(ang) * rr))
+            }
             for dy in [0, 1, -1, 2, -2] {
                 if let c = PathFinder.standCost(w, x, y0 + dy, z, pr), c < 5 {
                     return V3(Float(x) + 0.5, Float(y0 + dy), Float(z) + 0.5)
