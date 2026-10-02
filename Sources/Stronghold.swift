@@ -187,7 +187,10 @@ enum Stronghold {
             w.chest(cx - 3, y + 1, cz + 3, loot: "stronghold_library", seed: rng.next(), facing: 0)
         case .portal:
             shell(&w, cx - 5, y, cz - 6, cx + 5, y + 9, cz + 6)
+            // The room is 13 long in z: its z walls sit at +-6, so cut there too (a portal room linked along z stayed
+            // sealed: structcheck, 2 of 9 strongholds reached only the portal room).
             openings(5, 3)
+            openings(6, 3)
             let frame = Blocks.id("end_portal_frame")
             let pz = cz + 2
             // Raised platform, lava pool under the portal, stairs up from the entrance side.
