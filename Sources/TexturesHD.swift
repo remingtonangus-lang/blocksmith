@@ -1715,6 +1715,53 @@ enum HDTex {
         }
     }
 
+    // Smoker: a log body under a band of rough stone; blast furnace: smooth stone banded with riveted iron straps. Both
+    // with an iron-framed dark mouth and a grate (the same face is used on every side, like the small painters).
+    static func workFurnace(blast: Bool) -> Gen {
+        { n, s in
+            let u = n / 16
+            let stoneG = stone(blast ? [(0, 0x55555B), (0.5, 0x6C6C72), (1, 0x86868C)] : [(0, 0x3E3E40), (0.5, 0x545456), (1, 0x6C6C6E)],
+                               veins: 0.2, strata: 0)
+            var img = blast ? stoneG(n, s) : barkSide([(0, 0x3A2A1C), (0.5, 0x5A4430), (1, 0x76603E)])(n, s)
+            let band = stoneG(n, s &+ 3)
+            let fine = vnoise(n, max(1, n / 64), s &+ 2)
+            let iron = col(0x34343A)
+            func put(_ x: Int, _ y: Int, _ c: V3) { img[x, y] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1) }
+            if !blast {
+                for y in 0..<(4 * u) { for x in 0..<n {
+                    var c = band[x, y]
+                    if y >= 4 * u - u / 2 { c = V4(c.x * 0.62, c.y * 0.62, c.z * 0.62, 1) }
+                    img[x, y] = c
+                } }
+            } else {
+                // Iron straps at the edges and a third of the way in, rivets every 4.
+                for y in 0..<n { for x in 0..<n where (x / u) % 5 == 0 {
+                    let rx = x % u, ry = y % (4 * u)
+                    let rivet: Bool = rx >= u / 4 && rx < u - u / 4 && ry >= u + u / 4 && ry < 2 * u - u / 4
+                    let edge: Float = rx == 0 ? 1.2 : (rx == u - 1 ? 0.7 : 1)
+                    let k: Float = (rivet ? 1.45 : 1) * edge * (0.9 + 0.2 * fine[y * n + x])
+                    put(x, y, iron * k)
+                } }
+            }
+            // Iron frame and the mouth.
+            for y in (6 * u)..<(14 * u) { for x in (3 * u)..<(13 * u) {
+                let inMouth = x >= 4 * u && x < 12 * u && y >= 7 * u && y < 13 * u
+                let i = y * n + x
+                if !inMouth {
+                    let top: Float = y < 6 * u + u / 3 ? 1.25 : 0.95
+                    put(x, y, iron * (top * (0.9 + 0.2 * fine[i])))
+                    continue
+                }
+                let depth: Float = Float(y - 7 * u) / Float(6 * u)
+                var c: V3 = V3(0.07, 0.07, 0.075) * (0.8 + 0.4 * fine[i] + depth * 0.2)
+                let bar: Bool = blast ? (x / u) % 2 == 0 && y < 12 * u : y >= 12 * u && (x / u) % 2 == 0
+                if bar { c = iron * (0.75 + 0.15 * fine[i]) }
+                put(x, y, c)
+            } }
+            return img
+        }
+    }
+
     // Water (greyscale for the biome tint, translucent like the small painter): soft ripple bands from a warped field,
     // brighter crests, no hard texels.
     static func waterHD(_ n: Int, _ s: Int) -> Img {
@@ -3060,6 +3107,8 @@ enum HDTex {
         "smithing_table_side": smithingSide,
         "grindstone": stone([(0, 0x6E6E6E), (0.5, 0x8E8E8E), (1, 0xA8A8A8)], veins: 0, strata: 0.06),
         "stonecutter_side": furnaceStone,
+        "smoker_front": workFurnace(blast: false),
+        "blast_furnace_front": workFurnace(blast: true),
         "smoker_top": stone([(0, 0x464648), (0.5, 0x5A5A5C), (1, 0x707072)], veins: 0.4, strata: 0),
         "blast_furnace_top": stone([(0, 0x525258), (0.5, 0x6A6A70), (1, 0x828288)], veins: 0.4, strata: 0),
         "flower_pot": stone([(0, 0x5E2C18), (0.5, 0x7A3A22), (1, 0x944A2E)], veins: 0, strata: 0.03),
