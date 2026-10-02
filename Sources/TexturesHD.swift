@@ -4826,10 +4826,10 @@ enum HDTex {
     }
 
     // Shulker box: a ridged purple shell with a dark lid seam (side) and a bevelled lid (top).
-    static func shulkerFace(top: Bool) -> Gen {
+    static func shulkerFace(top: Bool, _ shell: [(Float, UInt32)] = [(0, 0x6A4A6A), (0.5, 0x9A6A9A), (1, 0xB88AB8)]) -> Gen {
         { n, s in
             let u = n / 16
-            var img = lumps([(0, 0x6A4A6A), (0.5, 0x9A6A9A), (1, 0xB88AB8)], cells: 6)(n, s)
+            var img = lumps(shell, cells: 6)(n, s)
             if top {
                 bevelFrame(&img) { x, y in
                     let xx = ((x % n) + n) % n, yy = ((y % n) + n) % n
@@ -5337,6 +5337,144 @@ enum HDTex {
         return nil
     }
 
+    // Families drawn per colour or oxidation stage (names generated in loops): a material by name pattern, tinted
+    // to the 16 px art's average colour.
+    static func tinted(_ base: @escaping Gen, from: V3, to: V3) -> Gen {
+        { n, s in
+            var img = base(n, s)
+            let k: V3 = to / simd_max(V3(repeating: 0.02), from)
+            for i in 0..<(n * n) {
+                let p = img.px[i]
+                img.px[i] = V4(min(1, p.x * k.x), min(1, p.y * k.y), min(1, p.z * k.z), p.w)
+            }
+            return img
+        }
+    }
+    static func stainedGlass(_ c: V3) -> Gen {
+        { n, s in
+            let fn = Float(n), u = n / 16
+            var img = Img(n, V4(c.x, c.y, c.z, 0.45))
+            let fine = vnoise(n, max(1, n / 32), s &+ 1)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let edge: Int = min(min(x, y), min(n - 1 - x, n - 1 - y))
+                if edge < u {
+                    let lit: Bool = x < u || y < u
+                    let side: Float = lit ? 1.12 : 0.78
+                    let k: Float = side * (0.92 + 0.12 * fine[i])
+                    img.px[i] = V4(min(1, c.x * k), min(1, c.y * k), min(1, c.z * k), 0.88)
+                    continue
+                }
+                let d: Float = abs(Float(x) - Float(y))
+                let glint: Bool = d < fn * 0.03 && Float(x) > fn * 0.16 && Float(x) < fn * 0.48
+                if glint { img.px[i] = V4(min(1, c.x * 0.4 + 0.6), min(1, c.y * 0.4 + 0.6), min(1, c.z * 0.4 + 0.6), 0.6) }
+                else { img.px[i] = V4(c.x, c.y, c.z, 0.42 + 0.06 * fine[i]) }
+            } }
+            return img
+        }
+    }
+    // Copper chest: riveted plates in a bevelled frame, a dark band at the lid seam and a pale latch on the front.
+    static func copperChest(_ c: UInt32, _ kind: Int) -> Gen {            // 0 top, 1 side, 2 front
+        { n, s in
+            let u = n / 16, fu = Float(n) / 16
+            var img = metal(c, tiles: 2, shine: 0.12)(n, s)
+            func frame(_ x: Int, _ y: Int) -> Bool {
+                let xx = ((x % n) + n) % n, yy = ((y % n) + n) % n
+                let rim: Bool = xx < 2 * u || xx >= n - 2 * u || yy < 2 * u || yy >= n - u
+                let seam: Bool = kind != 0 && yy >= 7 * u && yy < 9 * u
+                return rim || seam
+            }
+            for i in 0..<(n * n) where frame(i % n, i / n) { img.px[i] = scaled(img.px[i], 0.7) }
+            bevelFrame(&img, inFrame: frame)
+            if kind == 2 {
+                for y in (5 * u)..<(11 * u) { for x in (6 * u)..<(10 * u) {
+                    let hole: Bool = x >= 7 * u && x < 9 * u && y >= 7 * u && y < 9 * u
+                    var k: Float = 0.9
+                    if x == 6 * u || y == 5 * u { k = 1.15 } else if x == 10 * u - 1 || y == 11 * u - 1 { k = 0.6 }
+                    img[x, y] = solid(col(0xD8B070) * k)
+                    if hole { img[x, y] = V4(0.16, 0.16, 0.16, 1) }
+                } }
+            } else if kind == 0 {
+                for (rx, ry) in [(3.5, 3.5), (12.5, 3.5), (3.5, 12.5), (12.5, 12.5)] as [(Float, Float)] {
+                    let cx: Float = rx * fu, cy: Float = ry * fu
+                    for y in Int(cy - fu)...Int(cy + fu) { for x in Int(cx - fu)...Int(cx + fu) {
+                        let ox: Float = Float(x) + 0.5 - cx, oy: Float = Float(y) + 0.5 - cy
+                        let d: Float = (ox * ox + oy * oy).squareRoot() / (fu * 0.6)
+                        guard d < 1 else { continue }
+                        img[x, y] = scaled(img[x, y], 1.25 - 0.3 * d)
+                    } }
+                }
+            }
+            return img
+        }
+    }
+    // Copper bulb: a thick bevelled metal frame round a round lamp (glowing when lit).
+    static func copperBulb(_ c: UInt32, lit: Bool) -> Gen {
+        { n, s in
+            let fn = Float(n), u = n / 16, fu = Float(n) / 16
+            var img = metal(c, shine: 0.12)(n, s)
+            bevelFrame(&img) { x, y in
+                let xx = ((x % n) + n) % n, yy = ((y % n) + n) % n
+                return xx < 2 * u || yy < 2 * u || xx >= n - 2 * u || yy >= n - 2 * u
+            }
+            for y in (2 * u)..<(14 * u) { for x in (2 * u)..<(14 * u) {
+                let ox: Float = Float(x) + 0.5 - fn / 2, oy: Float = Float(y) + 0.5 - fn / 2
+                let r: Float = (ox * ox + oy * oy).squareRoot() / fu
+                if r < 3.5 {
+                    let t: Float = r / 3.5
+                    var cc: V3 = col(0x6A5A40) * (1.05 - 0.3 * t)
+                    if lit { cc = col(0xFFF4C8) * (1 - t) + col(0xF8C060) * t }
+                    img[x, y] = solid(cc)
+                } else {
+                    img[x, y] = scaled(img[x, y], r < 4 ? 0.45 : 0.62)
+                }
+            } }
+            return img
+        }
+    }
+    static func copperGrate(_ c: UInt32) -> Gen {
+        { n, s in
+            let u = n / 16
+            var img = metal(c, shine: 0.12)(n, s)
+            for y in 0..<n { for x in 0..<n {
+                let lx: Int = (x / u) % 4, ly: Int = (y / u) % 4
+                let hole: Bool = (lx == 1 || lx == 2) && (ly == 1 || ly == 2)
+                if hole { img[x, y] = V4(0, 0, 0, 0); continue }
+                let midY: Bool = ly == 1 || ly == 2, midX: Bool = lx == 1 || lx == 2
+                let shadeX: Bool = lx == 0 && midY && x % u >= u / 2
+                let shadeY: Bool = ly == 0 && midX && y % u >= u / 2
+                if shadeX || shadeY { img[x, y] = scaled(img[x, y], 0.75) }
+            } }
+            return img
+        }
+    }
+    static func copperFamily(_ name: String) -> Gen? {
+        guard name.contains("copper") else { return nil }
+        var stageHex: UInt32 = 0xC06B4F
+        var rest = name
+        for st in Copper.stages where !st.prefix.isEmpty && name.hasPrefix(st.prefix) {
+            stageHex = st.hex
+            rest = String(name.dropFirst(st.prefix.count))
+        }
+        let c = col(stageHex)
+        switch rest {
+        case "chiseled_copper": return chiseled(metal(stageHex, shine: 0.14))
+        case "copper_grate": return copperGrate(stageHex)
+        case "copper_bars": return tinted(ironBarsHD, from: V3(0.62, 0.62, 0.64), to: c * 1.05)
+        case "copper_chain": return tinted(chainHD, from: col(0x4A505E), to: c * 0.85)
+        case "copper_door_top": return doorHD(stageHex, top: true, iron: true)
+        case "copper_door_bottom": return doorHD(stageHex, top: false, iron: true)
+        case "copper_trapdoor": return trapdoorHD(stageHex, iron: true)
+        case "copper_chest_top": return copperChest(stageHex, 0)
+        case "copper_chest_side": return copperChest(stageHex, 1)
+        case "copper_chest_front": return copperChest(stageHex, 2)
+        case "copper_bulb": return copperBulb(stageHex, lit: false)
+        case "copper_bulb_lit": return copperBulb(stageHex, lit: true)
+        case "copper_lantern": return lanternHD(glow: 0x9CF07A, core: 0xE0FFC8)
+        default: return nil
+        }
+    }
+
     static func derived(_ name: String, _ src: [V4]) -> Gen? {
         let S = TextureGen.S
         var sum = V3(0, 0, 0), rim = V3(0, 0, 0), mid = V3(0, 0, 0)
@@ -5367,6 +5505,12 @@ enum HDTex {
             }
         }
         if name.hasSuffix("_wool") { return wool(avg / 0.9) }
+        if let g = copperFamily(name) { return g }
+        if name.hasSuffix("_stained_glass") { return stainedGlass(avg) }
+        if name.hasSuffix("_candle") { return tinted(candleHD, from: col(0xE8D8B0), to: avg) }
+        if name.hasSuffix("_shulker_box_side") || name.hasSuffix("_shulker_box_top") {
+            return shulkerFace(top: name.hasSuffix("_top"), pal(avg, lo: 0.7, hi: 1.18))
+        }
         if name.hasSuffix("_concrete_powder") { return sandLike(pal(avg, lo: 0.85, hi: 1.12)) }
         if name.hasSuffix("_concrete") { return concrete(avg) }
         if (name.hasSuffix("_terracotta") && !name.contains("glazed")) || name == "terracotta" {
