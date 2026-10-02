@@ -121,6 +121,10 @@ enum Smoke {
                     progress.set(i, "menu tour: \(k) screen")
                     world.blockEntities[bp] = nil                                  // as breaking the last one would
                     world.setBlock(bp.x, bp.y, bp.z, Blocks.id(k))
+                    if k == "lectern", Items.has("written_book") {
+                        // An empty lectern only takes a book (no screen): lay one on it so the book screen is drawn.
+                        world.entity(bp, .lectern).container[0] = ItemStack(Items.id("written_book"), 1)
+                    }
                     game.openBlock(bp)
                     guard let m = game.menu else { unopened.append(k); continue }
                     for slot in m.slots { game.menuHover = slot }
