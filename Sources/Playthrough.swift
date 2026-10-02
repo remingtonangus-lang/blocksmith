@@ -657,7 +657,11 @@ final class Playthrough {
             }
             collect(near: feet, 20)
             // Rods that fell off the bridge: go down for those only (other drops would keep the player from the spawner).
-            let fallen = game.drops.items.filter { Items.key($0.stack.item) == "blaze_rod" && simd_length($0.pos - feet) < 48 }
+            var fallen: [ItemEntity] = []
+            for e in game.drops.items where !e.stack.isEmpty && Items.key(e.stack.item) == "blaze_rod" {
+                let d: Float = simd_length(e.pos - feet)
+                if d < 48 { fallen.append(e) }
+            }
             for e in fallen {
                 game.player.pos = e.pos
                 game.player.vel = .zero

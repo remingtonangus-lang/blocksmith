@@ -148,7 +148,12 @@ enum StructCheck {
                 }
                 let fixedKinds = Set(cache.fixed.map { $0.kind })
                 for k in fixedKinds where only == nil || only!.contains(k) {
-                    let fs = cache.fixed.filter { $0.kind == k }.sorted { abs($0.anchor.x) + abs($0.anchor.z) < abs($1.anchor.x) + abs($1.anchor.z) }
+                    var fs: [StructureStart] = cache.fixed.filter { (f: StructureStart) -> Bool in f.kind == k }
+                    fs.sort { (a: StructureStart, b: StructureStart) -> Bool in
+                        let da: Int = abs(a.anchor.x) + abs(a.anchor.z)
+                        let db: Int = abs(b.anchor.x) + abs(b.anchor.z)
+                        return da < db
+                    }
                     kinds.append((k, Array(fs.prefix(per))))
                 }
                 for (name, starts) in kinds {
@@ -284,8 +289,12 @@ enum StructCheck {
                 }
                 if sideOK == 0 || iron { continue }
                 let kd = key(x, y, z)
-                let reachAny = ra.contains(kd) || sides.contains { ra.contains(key($0.x, $0.y, $0.z)) }
-                let reachWalk = rw.contains(kd) || sides.contains { rw.contains(key($0.x, $0.y, $0.z)) }
+                var reachAny = ra.contains(kd), reachWalk = rw.contains(kd)
+                for c in sides {
+                    let kc = key(c.x, c.y, c.z)
+                    if ra.contains(kc) { reachAny = true }
+                    if rw.contains(kc) { reachWalk = true }
+                }
                 if !reachAny { add("door_unreachable", p, "no walking route from \(surface ? "outside" : "the start piece")") }
                 else if !reachWalk && kind == "village" { add("door_needs_jump", p, "reachable only with 1-block jumps") }
             } } }
