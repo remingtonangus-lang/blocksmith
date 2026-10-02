@@ -47,6 +47,13 @@ enum StructCheck {
     static func feet(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Float? {
         guard y > 0 && y < CH - 3 else { return nil }
         let id0 = w.block(x, y, z)
+        if Blocks.fluidKind[Int(id0)] == 1 {
+            // Swimming: a water cell with water or open air above it (a player swims to a chest across a pool; run 354:
+            // three ruined-portal chests counted unreachable behind water).
+            let up = w.block(x, y + 1, z)
+            if Blocks.fluidKind[Int(up)] == 1 || top(w, x, y + 1, z) <= 0.01 { return Float(y) + 0.5 }
+            return nil
+        }
         if PathFinder.danger(id0) || Blocks.fluidKind[Int(id0)] != 0 { return nil }
         let t0 = top(w, x, y, z)
         if t0 > 0.6 { return nil }
