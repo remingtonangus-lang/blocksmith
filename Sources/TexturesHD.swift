@@ -612,7 +612,8 @@ enum HDTex {
                     if t < 0 || t > 1 { continue }
                     let cx: Float = bx + lean * t * t * len * 0.5
                     let w: Float = w0 * powf(1 - t, 0.7) + 0.6
-                    for x in Int(cx - w / 2 - 1)...Int(cx + w / 2 + 2) {
+                    let x0: Int = Int(cx - w / 2 - 1), x1: Int = Int(cx + w / 2 + 2)
+                    for x in x0...x1 {
                         let u: Float = (Float(x) + 0.5 - cx) / (w / 2)
                         let cov: Float = cl((1 - abs(u)) * w / 2 + 0.5)
                         let v: Float = (0.5 + 0.42 * t + tone) * (0.9 - 0.1 * u)
@@ -1891,12 +1892,12 @@ enum HDTex {
                 var img = planks(pal(col(0x9A7A4A), lo: 0.75, hi: 1.18))(n, s)
                 for y in (4 * u)..<(12 * u) { for x in (3 * u)..<(13 * u) {
                     let i = y * n + x
-                    let mid: Float = abs(Float(x) + 0.5 - fn / 2) / (fn * 5 / 16)
+                    let off: Float = abs(Float(x) + 0.5 - fn / 2)
+                    let mid: Float = off / (fn * 5 / 16)
                     let pk: Float = 0.8 + 0.2 * mid + 0.06 * fine[i]
                     var c: V3 = col(0xEDE4CC) * pk
-                    let offMid: Float = abs(Float(x) + 0.5 - fn / 2)
                     let onRow: Bool = (y - 5 * u) % u == u / 2 && y < 11 * u
-                    let inPage: Bool = offMid > Float(u) && x > 4 * u && x < 12 * u
+                    let inPage: Bool = off > Float(u) && x > 4 * u && x < 12 * u
                     let line: Bool = onRow && inPage
                     if line && fine[i] > 0.3 { c = ink * 1.6 }
                     if x == n / 2 || x == n / 2 - 1 { c = col(0x8A7A5A) }
@@ -3143,7 +3144,8 @@ enum HDTex {
             for y in 0..<n { for x in 0..<n {
                 let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
                 let r: Float = (dx * dx + dy * dy).squareRoot() / (fn / 2)
-                let edge: Float = Float(min(min(x, y), min(n - 1 - x, n - 1 - y))) / fn
+                let edgeI: Int = min(min(x, y), min(n - 1 - x, n - 1 - y))
+                let edge: Float = Float(edgeI) / fn
                 var h: Float = 0
                 if edge < 0.06 { h = -0.4 }
                 // Carved ring with its depth ramped over about a texel (a hard step aliased in the relief shading).
