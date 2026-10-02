@@ -171,7 +171,9 @@ enum Village {
                     guard let lo = ys.min(), let hi = ys.max(), hi - lo <= 4, lo >= SEA else { continue }
                     let street = gen.groundY(px + nx, pz + nz)
                     guard abs(street - hi) <= 4 && abs(street - lo) <= 4 else { continue }
-                    claim(ax - nx, az - nz, fx + nx, fz + nz)
+                    // Two blocks spare on each side along the street too: neighbours stood wall to wall and their roof
+                    // eaves ran into each other (blind critic, run 364 cherry-grove village).
+                    claim(ax - nx - 2 * ux, az - nz - 2 * uz, fx + nx + 2 * ux, fz + nz + 2 * uz)
                     if [.smithy, .library, .temple, .pen].contains(kind) { haveSpecial.insert("\(kind)") }
                     // Walking level = street + 1: houses, farms and pens have their floor/ground block at y - 1; the
                     // smithy's stone floor is its own bottom layer, so it sits one lower.
