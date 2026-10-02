@@ -1749,7 +1749,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 for (i, sl) in km.slots.enumerated() where i < km.keys.count {
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
                     let hot = game.menuHover === sl
-                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.42, 0.55, 0.85, 1) : V4(0.45, 0.45, 0.5, 1))
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.2, 0.32, 0.68, 1) : V4(0.45, 0.45, 0.5, 1))
                     let label = km.keys[i]
                     text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
                 }
@@ -1775,7 +1775,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     guard case .button(let i) = sl.kind, i < CommandMenu.buttons.count else { continue }
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
                     let hot = game.menuHover === sl
-                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.42, 0.55, 0.85, 1) : V4(0.42, 0.42, 0.46, 1))
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.2, 0.32, 0.68, 1) : V4(0.42, 0.42, 0.46, 1))
                     let label = CommandMenu.buttons[i]
                     text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
                 }
@@ -1788,7 +1788,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 for (i, sl) in dm.slots.enumerated() {
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
                     let hot = game.menuHover === sl
-                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.42, 0.55, 0.85, 1) : V4(0.42, 0.42, 0.46, 1))
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.2, 0.32, 0.68, 1) : V4(0.42, 0.42, 0.46, 1))
                     let label = i == 0 ? "Respawn" : "Title Screen"
                     text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
                 }
@@ -1817,7 +1817,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
                     let hot = game.menuHover === sl
                     let info = r.1 == "noop"
-                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, info ? V4(0.3, 0.3, 0.33, 1) : (hot ? V4(0.42, 0.55, 0.85, 1) : V4(0.42, 0.42, 0.46, 1)))
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, info ? V4(0.3, 0.3, 0.33, 1) : (hot ? V4(0.2, 0.32, 0.68, 1) : V4(0.42, 0.42, 0.46, 1)))
                     frame(x, y, Float(sl.w) * s, Float(sl.h) * s, s, hot ? V4(1, 1, 1, 1) : V4(0.2, 0.2, 0.22, 1))
                     let label = r.0
                     // Long labels (remapped buttons, long values) shrink to fit between the value arrows.
