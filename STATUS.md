@@ -21,6 +21,13 @@ Committed after 4e591b6, to push when run 350 publishes:
   obsidian, violite pillar, bedrock, chests, barrels.
 - precheck fails on repeated keys in dictionary literals (Settings help had "wscale" twice); smoke test tours every
   pause-menu page and opens 20 block screens through Game.openBlock; explorer bot really wades into water.
+- More hand-made 128 px materials: torches, doors and trapdoors (every wood), ladder, rails, crafting table, furnace,
+  chests, barrels, beds (every colour), crops, tall flowers, mushrooms, pink petals, water, workstation parts.
+- Mobs shaded at 1/64-block detail (were 16 px pixel art next to HD blocks).
+- Bots: life (trade, sleep, the night passes), cave (down 10+ blocks and back); monkey fuzzing 6x longer.
+- Structures: stronghold portal-room platform no longer seals a south doorway; Steelhold corner-tower guard rooms
+  get doorways (they were sealed; a vault chest sat in one); world gen banks / cascades river steps and lake edges.
+- CI: steps use !cancelled() so a superseding push really stops the old run.
 Next: run 350/351 results (behaviorsim stuck causes, structcheck end city, village bot doors 959/222, hdatlas look at
 the detail-transfer blocks, texture build time), then hand-made HD materials for the most visible functional blocks.
 
