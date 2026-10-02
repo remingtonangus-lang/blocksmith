@@ -42,6 +42,7 @@ cp -r build/sounds/scapes snaps/sounds/scapes
 "$BIN" --collisiontest --out snaps/collisiontest.md
 "$BIN" --agent village --seeds 12345,777,424242 --ticks 4800 --out snaps
 "$BIN" --agent explorer --seeds 12345,777 --ticks 3600 --out snaps
+"$BIN" --agent life --seeds 12345,777 --ticks 6600 --out snaps
 "$BIN" --agent monkey --seeds 12345,424242 --ticks 3600 --minimize --out snaps
 # Replay determinism: the same recording played in two separate processes must end in the same state.
 R=$(ls snaps/replay_*.jsonl 2>/dev/null | grep -v replay_min | head -1 || true)

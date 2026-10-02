@@ -349,3 +349,139 @@ final class VillageBot: AgentBot {
         return results
     }
 }
+
+// Village life: open a villager's trade screen, then at nightfall sleep in a village bed and wake in the morning
+// (Remington's explorer goals "trade", "sleep", "survive a night"). Starts at the village plaza shortly before
+// sunset (a disclosed fixture: header time). The game's toasts ("You can only sleep at night", "monsters nearby")
+// are kept as the reason when a goal fails.
+final class LifeBot: AgentBot {
+    let name = "life"
+    static let startTime: Double = 0.47          // day fraction: a little before sunset
+    let village: StructureStart
+    var phase = 0                       // 0 trade, 1 bed, 2 asleep / waiting for morning, 3 done
+    var traded = false, slept = false, morning = false
+    var tradeDetail = "no villager with a trade nearby", sleepDetail = "no bed reached", morningDetail = "never slept"
+    var lastToast = ""
+    var hooked = false
+    var path: [IVec3] = []
+    var idx = 0, since = 0, phaseTicks = 0, uses = 0
+    weak var trader: Mob?
+    var tried: [ObjectIdentifier] = []
+    var bed: IVec3?
+    init(village v: StructureStart) { village = v }
+
+    func aim(_ s: AgentState, _ p: V3, into act: inout AgentAction) -> Bool {
+        let eye = s.pos + V3(0, 1.62, 0)
+        let d = p - eye
+        let flat: Float = (d.x * d.x + d.z * d.z).squareRoot()
+        let turn: Float = wrapAngle(atan2f(-d.x, -d.z) - s.yaw)
+        let wantPitch: Float = atan2f(d.y, max(0.01, flat))
+        act.yaw = max(-0.3, min(0.3, turn))
+        act.pitch = max(-0.2, min(0.2, wantPitch - s.pitch))
+        return abs(turn) < 0.06 && abs(wantPitch - s.pitch) < 0.06
+    }
+
+    func walk(_ s: AgentState, _ a: Agent, to goal: V3) -> AgentAction {
+        if idx >= path.count || since > 90 {
+            var pr = PathProfile()
+            pr.doors = true
+            path = PathFinder.find(a.world, from: s.pos, to: goal, profile: pr, maxNodes: 4000) ?? []
+            idx = 0; since = 0
+        }
+        since += 1
+        if idx < path.count {
+            let wp = path[idx]
+            let c = V3(Float(wp.x) + 0.5, Float(wp.y), Float(wp.z) + 0.5)
+            if simd_length(V2(c.x - s.pos.x, c.z - s.pos.z)) < 0.4 && abs(c.y - s.pos.y) < 1.3 { idx += 1; since = 0 }
+            return Steer.toward(s, a, c)
+        }
+        return Steer.toward(s, a, goal)
+    }
+
+    func act(_ s: AgentState, _ a: Agent) -> AgentAction {
+        if !hooked {
+            hooked = true
+            let prev = a.game.onToast
+            a.game.onToast = { [weak self] t in self?.lastToast = t; prev?(t) }
+        }
+        phaseTicks += 1
+        var act = AgentAction()
+        switch phase {
+        case 0:
+            if let m = s.menu {
+                if m.contains("Merchant") { traded = true; tradeDetail = "trade screen opened after \(phaseTicks / 60) s" }
+                act.key = Key.esc
+                if traded { phase = 1; phaseTicks = 0; path = [] }
+                return act
+            }
+            if phaseTicks > 60 * 50 { tradeDetail += "; gave up after 50 s"; phase = 1; phaseTicks = 0; path = []; return act }
+            if trader == nil || trader!.health <= 0 || uses > 40 {
+                if let t = trader { tried.append(ObjectIdentifier(t)) }
+                trader = nil; uses = 0; path = []
+                var best: Float = 64
+                for m in a.game.mobs.of(.villager) where m.health > 0 && !m.baby && !tried.contains(ObjectIdentifier(m)) {
+                    let prof = m.villager?.profession ?? "none"
+                    if prof == "none" || prof == "nitwit" { continue }
+                    let d = simd_length(m.pos - s.pos)
+                    if d < best { best = d; trader = m }
+                }
+                guard trader != nil else { return act }
+                tradeDetail = "walked to a villager but no trade screen opened"
+            }
+            guard let t = trader else { return act }
+            let d: Float = simd_length(V2(t.pos.x - s.pos.x, t.pos.z - s.pos.z))
+            if d > 2.2 {
+                if phaseTicks % 60 == 0 { path = [] }                        // it moves: re-plan each second
+                return walk(s, a, to: t.pos)
+            }
+            if aim(s, t.pos + V3(0, t.height * 0.75, 0), into: &act) {
+                uses += 1
+                act.use = uses % 4 < 2
+            }
+            return act
+        case 1:
+            if s.menu != nil { act.key = Key.esc; return act }
+            if bed == nil {
+                // The nearest bed in the village (foot half), searched once.
+                var best = Int.max
+                for y in max(1, village.min.y)...min(CH - 3, village.max.y) { for z in village.min.z...village.max.z { for x in village.min.x...village.max.x {
+                    let k = Blocks.key(Blocks.groupBase[Int(a.world.block(x, y, z))])
+                    guard k.hasSuffix("_bed") else { continue }
+                    let d = abs(x - Int(s.pos.x)) + abs(z - Int(s.pos.z)) + abs(y - Int(s.pos.y))
+                    if d < best { best = d; bed = IVec3(x, y, z) }
+                } } }
+                guard bed != nil else { sleepDetail = "no bed in the village"; phase = 3; return act }
+            }
+            guard let b = bed else { return act }
+            if s.sleeping { slept = true; sleepDetail = String(format: "asleep at day time %.2f", s.timeOfDay); phase = 2; phaseTicks = 0; return act }
+            if phaseTicks > 60 * 70 {
+                sleepDetail = "couldn't sleep in the bed at \(b.x) \(b.y - YOFF) \(b.z)" + (lastToast.isEmpty ? "" : " (\"\(lastToast)\")")
+                phase = 3; return act
+            }
+            let c = V3(Float(b.x) + 0.5, Float(b.y), Float(b.z) + 0.5)
+            let d: Float = simd_length(V2(c.x - s.pos.x, c.z - s.pos.z))
+            if d > 2.0 { sleepDetail = "walking to the bed"; return walk(s, a, to: c) }
+            // At the bed: wait for night, then use it.
+            if aim(s, c + V3(0, 0.3, 0), into: &act) && s.timeOfDay > 0.53 && s.timeOfDay < 0.95 {
+                uses += 1
+                act.use = uses % 20 < 2
+            }
+            return act
+        case 2:
+            if !s.sleeping && (s.timeOfDay < 0.1 || s.timeOfDay > 0.97) {
+                morning = true; morningDetail = String(format: "woke at day time %.2f after %d s", s.timeOfDay, phaseTicks / 60); phase = 3
+            } else if phaseTicks > 60 * 40 {
+                morningDetail = String(format: "still %@ at day time %.2f after 40 s", s.sleeping ? "asleep" : "awake", s.timeOfDay); phase = 3
+            }
+            return act
+        default:
+            return act
+        }
+    }
+
+    func goals() -> [(String, Bool, String)] {
+        [("open a villager's trade screen", traded, tradeDetail),
+         ("sleep in a village bed at night", slept, sleepDetail),
+         ("the night passes while asleep", morning, morningDetail)]
+    }
+}

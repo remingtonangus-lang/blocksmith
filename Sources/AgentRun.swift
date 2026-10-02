@@ -3,7 +3,8 @@ import Metal
 import simd
 
 // `Blocksmith --agent <bot> [--seeds a,b] [--runs N] [--ticks N] [--botseed K] [--out DIR] [--minimize] [--strict]`
-//   bots: monkey (random input), explorer (curiosity walking), village (walk into every building)
+//   bots: monkey (random input), explorer (curiosity walking), village (walk into every building),
+//         life (trade with a villager, sleep in a village bed through the night)
 // `Blocksmith --agent replay FILE [--verify]` plays a recorded run back with the oracles (--verify: twice, and
 //   checks both runs end in the same state).
 // Every run with an oracle violation or an unmet goal writes DIR/replay_<bot>_<seed>_<botseed>.jsonl; with
@@ -33,12 +34,13 @@ enum AgentRun {
         for seed in seeds {
             for r in 0..<runs {
                 let bs = base &+ UInt64(r)
-                let fixture = botName == "village"
+                let fixture = botName == "village" || botName == "life"
                 guard let (agent, bot, start) = make(device: device, bot: botName, seed: seed, botSeed: bs) else {
                     md.append("- seed \(seed): \(botName) has no start here (e.g. no village nearby)"); continue
                 }
                 let pos: String = "[\(start.x),\(start.y),\(start.z)]"
-                let header = "{\"bot\":\"\(botName)\",\"seed\":\(seed),\"botSeed\":\(bs),\"start\":" + pos + ",\"fixture\":\(fixture),\"ticks\":\(ticks)}"
+                let timeField: String = botName == "life" ? ",\"time\":\(LifeBot.startTime)" : ""
+                let header = "{\"bot\":\"\(botName)\",\"seed\":\(seed),\"botSeed\":\(bs),\"start\":" + pos + ",\"fixture\":\(fixture),\"ticks\":\(ticks)" + timeField + "}"
                 let res = agent.run(bot, ticks: ticks, header: header)
                 let missed = res.goals.filter { !$0.1 }
                 total += res.violations.count
@@ -77,7 +79,7 @@ enum AgentRun {
     static func make(device: MTLDevice, bot: String, seed: UInt64, botSeed: UInt64, at fixed: V3? = nil) -> (Agent, AgentBot, V3)? {
         var at = fixed
         var village: StructureStart?
-        if bot == "village" && at == nil {
+        if (bot == "village" || bot == "life") && at == nil {
             let probe = World(seed: seed, device: device, save: nil)
             guard let s = probe.gen.structures?.nearest("village", x: 0, z: 0, maxRegions: 8) else { return nil }
             village = s
@@ -94,6 +96,13 @@ enum AgentRun {
             let c = V3(Float(v.min.x + v.max.x) / 2, game.player.pos.y, Float(v.min.z + v.max.z) / 2)
             _ = world.loadSync(center: c, radius: 6)
             b = VillageBot(world: world, village: v)
+        case "life":
+            if village == nil { village = world.gen.structures?.nearest("village", x: Int(game.player.pos.x), z: Int(game.player.pos.z), maxRegions: 8) }
+            guard let v = village else { return nil }
+            let c = V3(Float(v.min.x + v.max.x) / 2, game.player.pos.y, Float(v.min.z + v.max.z) / 2)
+            _ = world.loadSync(center: c, radius: 6)
+            game.time = LifeBot.startTime * DAY_LENGTH
+            b = LifeBot(village: v)
         default: b = ExplorerBot(seed: botSeed)
         }
         return (agent, b, game.player.pos)
@@ -116,6 +125,7 @@ enum AgentRun {
         // The same start as the recorded run: the seed's spawn, or the disclosed fixture position.
         let fixture = (h["fixture"] as? Bool) ?? false
         let (world, game) = Agent.makeWorld(device: device, seed: seedN.uint64Value, botSeed: bsN.uint64Value, at: fixture ? start : nil)
+        if let t = h["time"] as? NSNumber { game.time = t.doubleValue * DAY_LENGTH }
         let agent = Agent(game: game, world: world)
         return agent.run(ReplayBot(actions), ticks: actions.count, header: "")
     }
