@@ -1174,6 +1174,14 @@ enum Snapshot {
                 print("frame at \(p.x) \(p.y - YOFF) \(p.z): \(Blocks.key(b)), item \(it.isEmpty ? "none" : Items.key(it.item)) layer \(layer)")
                 // --framesword: swap the held item for a sword (is it the gun items, or these frames?).
                 if CommandLine.arguments.contains("--framesword") { be.container[0] = ItemStack(Items.id("diamond_sword"), 1) }
+                print("  frame delay \(be.delay), light \(world.lightAt(p.x, p.y, p.z))")
+            }
+            // A control frame placed like the decor scene's, beside the first listed one (do frames here draw at all?).
+            if let first = world.blockEntities.first(where: { $0.value.kind == .frame && simd_length(V3(Float($0.key.x), Float($0.key.y), Float($0.key.z)) - e) < 16 }) {
+                let q = IVec3(first.key.x + 1, first.key.y + 1, first.key.z)
+                world.setBlock(q.x, q.y, q.z, world.block(first.key.x, first.key.y, first.key.z))
+                let fb = BlockEntity(.frame); fb.container[0] = ItemStack(Items.id("apple"), 1); world.blockEntities[q] = fb
+                print("control frame at \(q.x) \(q.y - YOFF) \(q.z) holding an apple")
             }
             print("frames listed: \(n) (block entities \(world.blockEntities.count))")
         }

@@ -180,11 +180,18 @@ enum Capital {
                 let edge: Bool = !frigateInside(x + 1, y, z) || !frigateInside(x - 1, y, z) || !frigateInside(x, y + 1, z)
                     || !frigateInside(x, y - 1, z) || !frigateInside(x, y, z + 1) || !frigateInside(x, y, z - 1)
                 if !edge { continue }
-                // Panelling: bands of a lighter plate, a dark stripe along the upper flank.
-                let (_, _, yt) = frigateSection(z)
+                // Plating: fine seams (a lighter plate line every 10 rows and every 24 along the hull, the odd plate
+                // a shade lighter), a trim stripe along the upper flank, and rows of small lit windows on the flanks at
+                // the deck levels, which give the hull its scale (a coarse checkerboard read as a toy: run 402).
+                let (hw, _, yt) = frigateSection(z)
                 var b = hull
-                if ((z / 16) + (y / 12)) % 3 == 0 { b = panel }
+                if y % 10 == 0 || z % 24 == 0 { b = panel }
+                else if hashf(z / 8, y / 5, x / 8, 0x5A1) < 0.12 { b = panel }
                 if y == Int(yt) - 6 || y == 41 { b = stripe }
+                let flank: Bool = Float(abs(x)) >= hw - 0.5
+                if flank && (y == 30 || y == 34 || y == 50 || y == 54 || y == 66) && z % 4 == 1 && z > 20 && z < 470 && !(y < 43 && z >= 213 && z <= 293) {
+                    b = light
+                }
                 hb.set(x, y, z, b)
             } }
         }
@@ -250,7 +257,7 @@ enum Capital {
             var top = Int(yt)
             while top > 0 && !frigateInside(0, top, z) { top -= 1 }
             hb.set(0, top, z, Blocks.id("ship_turret_ring"))
-            hb.turrets.append((hb.grid(0, top, z), navalTurret(hang: false), naval))
+            hb.turrets.append((hb.grid(0, top, z), navalTurret(hang: false, size: 4), naval))
         }
         for z in [40, 80, 150, 350, 410, 450] {
             var bot = 0

@@ -87,8 +87,11 @@ enum OverworldStructures {
                 for k in -(h + 1)...(h + 1) { B(k, dy, -(h + 1), slab); B(k, dy, h + 1, slab); B(-(h + 1), dy, k, slab); B(h + 1, dy, k, slab) }
             }
         }
-        F(-1, 13, -1, 1, 13, 1, cut)
-        B(0, 14, 0, chis)
+        // An oculus through the peak: daylight falls onto the floor pattern (the hall was pitch dark inside: run 402),
+        // framed by a cut-sandstone curb.
+        for (dx, dz) in [(-2, -2), (-2, 2), (2, -2), (2, 2), (0, -2), (0, 2), (-2, 0), (2, 0), (-1, -2), (1, -2), (-1, 2), (1, 2),
+                         (-2, -1), (-2, 1), (2, -1), (2, 1)] { B(dx, 13, dz, cut) }
+        F(-1, 11, -1, 1, 13, 1, AIR)
 
         // Inner hall (half-size 4) inside a ring corridor: cut-sandstone walls with a doorway on each side.
         for dy in 1...5 {

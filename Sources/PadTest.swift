@@ -91,7 +91,7 @@ enum PadTest {
         check(pm.page == .options && pm.cat == .controller, "A on Options opens the Controller page")
         check(Prompt.menuLegend(pm, g).contains(Glyph.a.s), "legend shows the A glyph")
         tap(g, "rb")
-        check(pm.cat == .video, "RB switches to the Video page")
+        check(pm.cat == .audio, "RB switches to the next page (Audio)")
         tap(g, "lb*2")
         check(pm.cat == .controls, "LB twice reaches Keyboard & Mouse")
         let inv = g.invertY
@@ -147,7 +147,7 @@ enum PadTest {
         try? fm.createDirectory(at: tmp.appendingPathComponent("Beta"), withIntermediateDirectories: true)
         try? fm.createDirectory(at: tmp.appendingPathComponent("Alpha"), withIntermediateDirectories: true)
         try? fm.setAttributes([.modificationDate: Date(timeIntervalSinceNow: -3600)], ofItemAtPath: tmp.appendingPathComponent("Beta").path)
-        tap(g, "down*7 a")
+        tap(g, "down*8 a")                         // (Render Distance sits on the pause menu since playtest 2)
         check(pm.page == .worlds, "Worlds... opens the worlds list")
         check(pm.rows.count == 5 && pm.rows[2].1 == "world:Alpha", "worlds list is newest first")
         tap(g, "a")

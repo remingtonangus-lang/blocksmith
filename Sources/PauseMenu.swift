@@ -352,7 +352,10 @@ final class PauseMenu: Menu {
         case _ where id.hasPrefix("vol:") || id == "audio_test" || id == "audio_subs": audioAct(id, back: back)
         case "resume":
             if page == .title { g.paused = false } else { g.closeMenu() }
-        case "options": go(.options); resetCursor = true
+        case "options":
+            // Controller players land on the Controller page, everyone else on Video (render distance first).
+            cat = PadManager.shared.usingPad ? .controller : .video
+            go(.options); resetCursor = true
         case "controls": go(.controls); resetCursor = true
         case "keys": go(.keys); binding = nil; resetCursor = true
         case "padmap": go(.padmap); padBinding = nil; resetCursor = true
