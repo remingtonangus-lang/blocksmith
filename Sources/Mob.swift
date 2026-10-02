@@ -860,19 +860,23 @@ final class Mob {
             }
             mount = nil
         }
-        // Passive mobs avoid drops and water while calmly wandering.
-        if spec.behavior == .passive && speed > 0 && onGround && panic <= 0 {
+        // Walking towards something: follow a path around obstacles instead of straight at it.
+        var onPath = false
+        if speed > 0, let t = faceGoal, !spec.flying, spec.behavior != .slime {
+            steerAlongPath(t, dt, g, repath: onGround || inWater)
+            onPath = path.index < path.nodes.count
+        } else {
+            path.stallPos = pos; path.stallTime = 0          // standing still on purpose is not a stall
+        }
+        // Passive mobs avoid drops and water while calmly wandering. Not while following a path (the path finder
+        // already weighs water and drops), and after steering so the probe looks along the waypoint: probing along
+        // the straight line to a stroll goal behind a pond turned the mob half round every second or two
+        // (behaviour sim: pigs, wolves, rabbits, chickens spinning 800-1100 degrees in 10 s on strolls).
+        if spec.behavior == .passive && speed > 0 && onGround && panic <= 0 && !onPath {
             let a = pos + forward * (halfW + 0.45)
             let wet = Blocks.isLiquid(w.block(Int(floor(a.x)), Int(floor(pos.y - 0.5)), Int(floor(a.z))))
             let drop = !solid(a.x, pos.y - 0.5, a.z, w) && !solid(a.x, pos.y - 1.5, a.z, w) && !solid(a.x, pos.y - 2.5, a.z, w)
             if wet || drop { yaw += .pi * Rand.float(in: 0.6...1.4); speed = 0; moving = false; aiTimer = Rand.float(in: 1...3) }
-        }
-
-        // Walking towards something: follow a path around obstacles instead of straight at it.
-        if speed > 0, let t = faceGoal, !spec.flying, spec.behavior != .slime {
-            steerAlongPath(t, dt, g, repath: onGround || inWater)
-        } else {
-            path.stallPos = pos; path.stallTime = 0          // standing still on purpose is not a stall
         }
         if spec.flying {
             if kind == .blaze && speed != 0 {
