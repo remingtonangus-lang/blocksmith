@@ -61,13 +61,19 @@ enum Smoke {
             let t = Double(i) * dt
             p.ly = 1
             p.rx = 0.25
-            if i % 120 < 6 && i < flyAt { p.a = true }
+            // Jumps (A), but not around the pause press: in the pause menu A chose "Resume" at once (run 353).
+            if i % 120 < 6 && i < flyAt && !(1190...1240).contains(i) { p.a = true }
             if i == 600 { p.y = true }                         // inventory open
             if i == 630 { p.b = true }                         // ... and closed
             if i == 1200 || i == 1230 { p.menu = true }        // pause / resume
             if i == 1215 {
                 // Menu tour: every pause-menu page and options category, each row hovered (help line, legend) and
                 // each page drawn (Settings crashed on first read of its help table: a repeated key).
+                // Self-contained: whatever the scripted pause press left open, the tour opens the pause menu itself and
+                // restores the state afterwards (run 353: the pad press at 1200 had not opened it).
+                let wasPaused = game.paused && game.menu is PauseMenu
+                print("smoke rd \(rd): menu tour starts with \(game.menu.map { String(describing: type(of: $0)) } ?? "no menu"), paused \(game.paused)")
+                if !(game.menu is PauseMenu) { game.closeMenu(); game.paused = false; game.paused = true }
                 guard let pm = game.menu as? PauseMenu else { print("smoke rd \(rd): FAIL the pause menu did not open"); return 1 }
                 progress.set(i, "menu tour")
                 var rowsSeen = 0, pagesSeen = 0
@@ -133,7 +139,7 @@ enum Smoke {
                 // Back to the paused state the script expects (closing the pause menu unpaused the game; the resume
                 // press at 1230 would otherwise pause it again and leave the menu open).
                 game.closeMenu()
-                game.paused = true
+                if wasPaused { game.paused = true } else { game.paused = false; game.closeMenu() }
                 print("smoke rd \(rd): menu tour: \(pagesSeen) screens, \(rowsSeen) rows hovered; \(opened.count) block screens opened\(unopened.isEmpty ? "" : ", none for " + unopened.joined(separator: " "))")
             }
             if i == flyAt { game.player.flying = true; game.player.vel.y = 0 }
