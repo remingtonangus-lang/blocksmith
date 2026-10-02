@@ -1290,7 +1290,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     if code == Glyphs.capOpen {
                         var w = 0, j = idx
                         while j < us.endIndex && Int(us[j].value) != Glyphs.capClose { w += Font.advance(Int(us[j].value)); j = us.index(after: j) }
-                        Glyphs.cap(cx, y, Float(w + 3) * scale, scale, baseColor.w, rect: rect)
+                        Glyphs.cap(cx, y, Float(w + 5) * scale, scale, baseColor.w, rect: rect)      // 3 in, label, 2 out (Glyphs.advance)
                         color = V4(Glyphs.capInk.x, Glyphs.capInk.y, Glyphs.capInk.z, baseColor.w); shadow = false
                     } else if code == Glyphs.capClose {
                         color = baseColor; shadow = baseShadow

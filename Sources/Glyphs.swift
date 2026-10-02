@@ -30,8 +30,9 @@ enum Glyphs {
 
     // Advance in font pixels (drawn width + 1 spacing), matching Font.advance for normal glyphs.
     static func advance(_ code: Int) -> Int {
-        if code == capOpen { return 2 }
-        if code == capClose { return 3 }       // two pixels after the cap (one left "Shift" touching the mouse glyph)
+        // A pixel more inside the cap on each side (labels touched the cap edges: blind UI critic, keycaps).
+        if code == capOpen { return 3 }
+        if code == capClose { return 4 }       // inner padding + two pixels after the cap (one left "Shift" touching the mouse glyph)
         guard let g = Glyph(rawValue: UInt32(code)) else { return 6 }
         if let l = pillLabel(g) { return Font.width(l) + 5 }
         switch g {
