@@ -311,6 +311,9 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   the item (the Blight Star and a cobblestone sat in low cavities). Blind UI critic (14 menus): book/tab button
   contrast, pause shows ten rows, lantern icons fill their slot, advancement markers and descriptions, enchant clue
   wording: pushed as 5ec779d (run 369).
+- 2026-10-02 15:10 UTC: run 369 (5ec779d) fully green -> PLAYTEST READY 5ec779d on PR #9 (gen 1.95 ms/chunk). Pushed
+  6ee2864 (run 370): igloo basement ladders laid after the lab (its ceiling cut the shaft), cave-bot roams within the
+  path finder's reach. Structure critic round running on run 369's shots.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
