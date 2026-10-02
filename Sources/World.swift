@@ -236,7 +236,14 @@ final class World {
         let b = Int(block(x, y, z))
         if !Blocks.collide[b] { return }
         let o = V3(Float(x), Float(y), Float(z))
-        if Blocks.fullCollide[b] { out.append((o, o + 1)); return }
+        if Blocks.fullCollide[b] {
+            // A chipped block gives up the whole layers it has lost (you sink into a block chipped from the top).
+            if !damage.isEmpty, let dv = damage[IVec3(x, y, z)] {
+                let (mn, mx) = Mesher.chipBox(face: Int(dv >> 5), level: Int(dv & 31), x: x, y: y, z: z)
+                out.append((o + mn, o + mx)); return
+            }
+            out.append((o, o + 1)); return
+        }
         for bx in shapeBoxes(x, y, z, BlockID(b), collision: true) { out.append((o + bx.minV, o + bx.maxV)) }
     }
 

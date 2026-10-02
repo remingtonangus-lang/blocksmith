@@ -80,6 +80,44 @@ enum Mesher {
         } }
         return t
     }()
+    // Whole 4x4 layers a chip mask has cleared from its face (0...3): what collision can safely give up.
+    static let chipLayers: [UInt8] = {
+        var t = [UInt8](repeating: 0, count: 6 * 8 * 4)
+        for f in 0..<6 { for lv in 0..<8 { for v in 0..<4 {
+            let m = chipTable[(f * 8 + lv) * 4 + v]
+            var k = 0
+            while k < 3 {
+                var clear = true
+                for c in 0..<64 {
+                    let a = c & 3, b = (c >> 2) & 3, y = c >> 4
+                    let depth = [3 - a, a, 3 - y, y, 3 - b, b][f]
+                    if depth == k && m & (UInt64(1) << UInt64(c)) != 0 { clear = false; break }
+                }
+                if !clear { break }
+                k += 1
+            }
+            t[(f * 8 + lv) * 4 + v] = UInt8(k)
+        } } }
+        return t
+    }()
+    // The collision box left of a chipped full block at world cell x, y, z (unit cube, cleared layers cut from the
+    // struck face). The variant hash takes the same section-local coordinates the mesher passes to chipMask.
+    static func chipBox(face: Int, level: Int, x: Int, y: Int, z: Int) -> (V3, V3) {
+        let f = max(0, min(5, face)), lv = max(0, min(7, level))
+        let v = Int(hash3((x & 15) + 16, (y & 15) + 16, (z & 15) + 16, 0xD4A6) & 3)
+        let k = Float(chipLayers[(f * 8 + lv) * 4 + v]) / 4
+        var mn = V3(0, 0, 0), mx = V3(1, 1, 1)
+        switch f {
+        case 0: mx.x = 1 - k
+        case 1: mn.x = k
+        case 2: mx.y = 1 - k
+        case 3: mn.y = k
+        case 4: mx.z = 1 - k
+        default: mn.z = k
+        }
+        return (mn, mx)
+    }
+
     @inline(__always) static func chipMask(face: Int, level: Int, x: Int, y: Int, z: Int) -> UInt64 {
         let f = max(0, min(5, face)), lv = max(0, min(7, level))
         return chipTable[(f * 8 + lv) * 4 + Int(hash3(x, y, z, 0xD4A6) & 3)]
