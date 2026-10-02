@@ -510,7 +510,7 @@ final class CaveBot: AgentBot {
     let name = "cave"
     var phase = 0                        // 0 pick, 1 down, 2 back, 3 done
     var down = false, back = false
-    var downDetail = "no cave floor within 48 blocks with a walkable way down and back", backDetail = "never got down"
+    var downDetail = "no cave floor within 64 blocks with a walkable way down and back", backDetail = "never got down"
     var start = V3(0, 0, 0)
     var goal = V3(0, 0, 0)
     var path: [IVec3] = []
@@ -532,22 +532,20 @@ final class CaveBot: AgentBot {
         switch phase {
         case 0:
             start = s.pos
-            // Cave floors under the surface, nearest first; the first one a path reaches is the goal.
+            // Cave floors 10+ blocks under the start that a walk from the start actually reaches (breadth-first over the
+            // walk model, nearest by steps first). Picking the nearest dark floors by distance tried enclosed pockets
+            // with no way in: seeds 12345 and 777 found no cave in 48 blocks (runs 356, 357).
+            let sc = IVec3(Int(floor(s.pos.x)), Int(floor(s.pos.y)), Int(floor(s.pos.z)))
+            let lo = IVec3(sc.x - 64, max(2, sc.y - 60), sc.z - 64), hi = IVec3(sc.x + 64, sc.y + 16, sc.z + 64)
+            let order = StructCheck.walkOrder(a.world, seeds: [sc], lo: lo, hi: hi, jump: true, limit: 250_000).cells
             var cands: [(Float, IVec3)] = []
-            let fx = Int(floor(s.pos.x)), fz = Int(floor(s.pos.z))
-            var pr = PathProfile()
-            pr.doors = true
-            for dz in stride(from: -48, through: 48, by: 3) { for dx in stride(from: -48, through: 48, by: 3) {
-                let x = fx + dx, z = fz + dz
-                let top = a.world.topY(x, z)
-                for y in stride(from: top - 10, to: max(2, top - 40), by: -1) {
-                    guard PathFinder.standCost(a.world, x, y, z, pr) != nil, a.world.lightAt(x, y, z).sky == 0 else { continue }
-                    cands.append((Float(dx * dx + dz * dz), IVec3(x, y, z)))
-                    break
-                }
-            } }
-            cands.sort { $0.0 < $1.0 }
-            for (_, c) in cands.prefix(25) {                 // 10 found none with a way back on two seeds (run 356)
+            for c in order where c.y <= sc.y - 10 && a.world.lightAt(c.x, c.y, c.z).sky == 0 {
+                let near = cands.contains { (e: (Float, IVec3)) -> Bool in abs(e.1.x - c.x) + abs(e.1.z - c.z) < 6 }
+                if near { continue }
+                cands.append((Float(cands.count), c))
+                if cands.count >= 25 { break }
+            }
+            for (_, c) in cands {
                 let t = V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5)
                 plan(s, a, to: t)
                 guard let last = path.last, abs(last.x - c.x) <= 1 && abs(last.z - c.z) <= 1 && abs(last.y - c.y) <= 1 else { continue }

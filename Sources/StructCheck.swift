@@ -84,12 +84,19 @@ enum StructCheck {
 
     // Reachable cells from the seeds inside a box: (walking only, walking or jumping).
     static func reach(_ w: World, seeds: [IVec3], lo: IVec3, hi: IVec3) -> (walk: Set<Int>, any: Set<Int>) {
-        func bfs(_ jump: Bool) -> Set<Int> {
+        func bfs(_ jump: Bool) -> Set<Int> { walkOrder(w, seeds: seeds, lo: lo, hi: hi, jump: jump).seen }
+        return (bfs(false), bfs(true))
+    }
+
+    // The cells a walker reaches from the seeds inside a box, in breadth-first order (nearest by steps first), and
+    // their keys. The cave bot uses the order to pick the nearest cave floor actually connected to the surface.
+    static func walkOrder(_ w: World, seeds: [IVec3], lo: IVec3, hi: IVec3, jump: Bool, limit: Int = 400_000)
+        -> (cells: [IVec3], seen: Set<Int>) {
             var seen = Set<Int>()
             var queue: [(Int, Int, Int, Float)] = []
             for s in seeds { if let f = feet(w, s.x, s.y, s.z), seen.insert(key(s.x, s.y, s.z)).inserted { queue.append((s.x, s.y, s.z, f)) } }
             var head = 0
-            while head < queue.count && seen.count < 400_000 {
+            while head < queue.count && seen.count < limit {
                 let (x, y, z, f) = queue[head]
                 head += 1
                 let here = w.block(x, y, z)
@@ -137,9 +144,7 @@ enum StructCheck {
                     if seen.insert(key(nx, cy, nz)).inserted { queue.append((nx, cy, nz, cf)) }
                 }
             }
-            return seen
-        }
-        return (bfs(false), bfs(true))
+            return (queue.map { IVec3($0.0, $0.1, $0.2) }, seen)
     }
 
     // MARK: Run
