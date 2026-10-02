@@ -89,7 +89,11 @@ enum BehaviorSim {
                         s.1 += 1
                         // Reached: asleep at the bed (2), working at the site (3), at the meeting (villagers mill within 6).
                         let need: Float = ph == "meet" ? 6 : (ph == "work" ? 3 : 2)
-                        if b <= need { s.0 += 1 } else { counts["goal_missed_\(ph)", default: 0] += 1 }
+                        if b <= need { s.0 += 1 } else {
+                            counts["goal_missed_\(ph)", default: 0] += 1
+                            // Why: a fresh path from where it ended up, and what stands round the goal at foot level.
+                            if let goal = goalPoint(t.mob, ph) { print(missedDetail(t.mob, goal, ph, game, world)) }
+                        }
                         goalStats[ph] = s
                     }
                 }
@@ -251,6 +255,22 @@ enum BehaviorSim {
             }
         }
         t.last = p
+    }
+
+    static func missedDetail(_ m: Mob, _ goal: V3, _ ph: String, _ g: Game, _ w: World) -> String {
+        let pr = m.pathProfile(g)
+        let nodes = PathFinder.find(w, from: m.pos, to: goal, profile: pr, maxNodes: 4000) ?? []
+        let c = IVec3(Int(floor(goal.x)), Int(floor(goal.y)), Int(floor(goal.z)))
+        var ring: [String] = []
+        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+            let a = Blocks.key(w.block(c.x + dx, c.y, c.z + dz)), b = Blocks.key(w.block(c.x + dx, c.y + 1, c.z + dz))
+            let fl = Blocks.key(w.block(c.x + dx, c.y - 1, c.z + dz))
+            ring.append("\(dx),\(dz): \(fl)/\(a)/\(b)")
+        }
+        let last = nodes.last.map { "\($0.x) \($0.y - YOFF) \($0.z)" } ?? "none"
+        let gy: Int = c.y - YOFF
+        return "behaviorsim missed \(ph): \(m.kind.key) goal \(c.x) \(gy) \(c.z) (\(Blocks.key(w.block(c.x, c.y, c.z)))), path of 4000 nodes: " +
+            "\(nodes.count) nodes ending \(last); around the goal (floor/feet/head): \(ring.joined(separator: "; "))"
     }
 
     static func goalPoint(_ m: Mob, _ phase: String) -> V3? {
