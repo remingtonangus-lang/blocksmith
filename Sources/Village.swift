@@ -320,7 +320,8 @@ enum Village {
             guard edgeU || edgeV else { continue }
             for dy in 0..<wallH {
                 let corner = edgeU && edgeV
-                var blk = corner ? m.log : m.wall
+                // A stone base course under plank walls (houses read as one brown blob: blind critic, run 385).
+                var blk = corner ? m.log : (dy == 0 && wallH >= 4 ? m.foundation : m.wall)
                 let window = dy == 1 && !corner && ((edgeV && u % 2 == 0) || (edgeU && v % 2 == 0))
                 if window { blk = Blocks.id("glass_pane") }
                 b.set(&w, u, dy, v, blk)
