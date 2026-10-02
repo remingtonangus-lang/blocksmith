@@ -110,6 +110,10 @@ enum Stronghold {
                 let a = dz > 0 ? cz : cz - half, b = dz > 0 ? cz + half : cz
                 shell(&w, cx - 2, y, a, cx + 2, y + 4, b)
             }
+            // Open the corridor's end at the cell edge: both neighbours' corridor shells put an end wall on the same
+            // plane, which sealed every room off from the next (structcheck: all 80 stronghold POIs unreachable).
+            let ex = cx + dx * half, ez = cz + dz * half
+            w.fill(ex - (dz != 0 ? 1 : 0), y + 1, ez - (dx != 0 ? 1 : 0), ex + (dz != 0 ? 1 : 0), y + 3, ez + (dx != 0 ? 1 : 0), AIR)
         }
         func openings(_ r: Int, _ top: Int) {
             for d in 0..<4 where n.links[d] {
