@@ -234,7 +234,12 @@ enum Bench {
                 for sy in 0..<NSEC {
                     let a = now
                     let m = Mesher.buildSection(n9, h9, sy: sy, lod: lod)
-                    let el = now - a
+                    let el1 = now - a
+                    // Timed twice, the faster kept: one 42 ms stall of the runner in a single section put the 9-chunk
+                    // mean at 2.9x (run 370, mesh_lod1) with the mesher unchanged.
+                    let b = now
+                    _ = Mesher.buildSection(n9, h9, sy: sy, lod: lod)
+                    let el = min(el1, now - b)
                     total += el
                     secUs.append(el * 1e6)
                     let q = (m.opaque.count + m.trans.count) / 8
