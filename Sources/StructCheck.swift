@@ -378,7 +378,7 @@ enum StructCheck {
                 if gap >= 2 { floating.append(IVec3(x, y0, z)) }
             }
         } }
-        if floating.count >= 3 && !["end_city", "fortress", "bastion", "ruined_portal"].contains(typeName) {
+        if floating.count >= 3 && !["end_city", "fortress", "bastion", "ruined_portal", "end_centre"].contains(typeName) && kind != "end_centre" {   // the Hollow's exit-portal island floats by design
             add("floating", floating[0], "\(floating.count) wall/foundation columns over air (first shown)")
         }
         return (out, doors, pois, mobs)
