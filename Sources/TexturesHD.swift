@@ -1466,6 +1466,59 @@ enum HDTex {
         return img
     }
 
+    // Doors (same layout as the small painters): a frame, a centre stile and a lock rail; bevelled panels with grain
+    // below, a window (clear; iron doors a grille) above.
+    static let doorWoods: [String: UInt32] = ["oak": 0xA2824E, "spruce": 0x735531, "birch": 0xC5B57A, "jungle": 0xA07351,
+                                              "acacia": 0xAD5D32, "dark_oak": 0x4F3218, "mangrove": 0x773631, "cherry": 0xE2B2AC,
+                                              "crimson": 0x6A344B, "warped": 0x2B6963, "iron": 0xD4D4D4, "pale_oak": 0xE4DAD3]
+    static func door(_ name: String) -> Gen? {
+        for suffix in ["_door_bottom", "_door_top"] where name.hasSuffix(suffix) {
+            let wood = String(name.dropLast(suffix.count))
+            guard let c = doorWoods[wood] else { return nil }
+            return doorHD(c, top: suffix == "_door_top", iron: wood == "iron")
+        }
+        return nil
+    }
+    static func doorHD(_ base: UInt32, top: Bool, iron: Bool) -> Gen {
+        { n, s in
+            var img = Img(n, V4(0, 0, 0, 0))
+            let u = n / 16
+            let c0 = col(base)
+            let grain = vnoise(n, max(1, n / 64), s)
+            let blot = fbm(n, n / 4, 3, s &+ 1)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let frameX = x < 2 * u || x >= 14 * u
+                let frameY = top ? y < 2 * u : y >= 14 * u
+                let stile = x >= 7 * u && x < 9 * u
+                let rail = top ? (y >= 9 * u && y < 10 * u) : (y >= 6 * u && y < 8 * u)
+                let window = top && y < 9 * u && !frameX && !frameY && !stile
+                var k: Float
+                if frameX || frameY { k = 0.75 } else if stile || rail { k = 0.7 } else { k = iron ? 0.95 : 0.92 }
+                if window {
+                    if !iron { continue }
+                    // Iron door window: a grille of bars over a dark opening.
+                    let bar = (x / u) % 2 == 0
+                    k = bar ? 0.8 : 0.35
+                }
+                // Panel bevels: lit top/left edges, shaded bottom/right, inside each panel.
+                if !(frameX || frameY || stile || rail || window) {
+                    let px = x < 8 * u ? x - 2 * u : x - 9 * u
+                    let pyTop = top ? 10 * u : (y < 6 * u ? 0 : 8 * u)
+                    let pyBot = top ? 14 * u : (y < 6 * u ? 6 * u : 14 * u)
+                    let py = y - pyTop
+                    if px < u / 2 || py < u / 2 { k *= 1.15 } else if px >= 5 * u - u / 2 || y >= pyBot - u / 2 { k *= 0.8 }
+                }
+                let metalG: Float = 0.96 + 0.06 * blot[i]
+                let woodG: Float = 0.86 + 0.2 * grain[(y / 8) * n + x] + (blot[i] - 0.5) * 0.08
+                let g: Float = iron ? metalG : woodG
+                let cc: V3 = c0 * (k * g)
+                img.px[i] = V4(min(1, cc.x), min(1, cc.y), min(1, cc.z), 1)
+            } }
+            return img
+        }
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
