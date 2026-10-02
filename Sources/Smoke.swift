@@ -65,6 +65,44 @@ enum Smoke {
             if i == 600 { p.y = true }                         // inventory open
             if i == 630 { p.b = true }                         // ... and closed
             if i == 1200 || i == 1230 { p.menu = true }        // pause / resume
+            if i == 1215 {
+                // Menu tour: every pause-menu page and options category, each row hovered (help line, legend) and
+                // each page drawn (Settings crashed on first read of its help table: a repeated key).
+                guard let pm = game.menu as? PauseMenu else { print("smoke rd \(rd): FAIL the pause menu did not open"); return 1 }
+                progress.set(i, "menu tour")
+                var rowsSeen = 0, pagesSeen = 0
+                let pages: [PauseMenu.Page] = [.main, .options, .controls, .keys, .padmap, .worlds, .create]
+                for pg in pages {
+                    let cats: [PauseMenu.Cat] = pg == .options ? PauseMenu.Cat.allCases : [pm.cat]
+                    for c in cats {
+                        pm.page = pg; pm.cat = c
+                        var top = 0
+                        repeat {
+                            pm.scroll = top
+                            pm.build()
+                            for slot in pm.slots {
+                                game.menuHover = slot
+                                if pm.helpText.isEmpty && pm.hoveredID.map({ PauseMenu.isValue($0) }) == true {
+                                    print("smoke rd \(rd): menu tour: no help line for \(pm.hoveredID ?? "?")")
+                                }
+                                _ = pm.legend
+                                rowsSeen += 1
+                            }
+                            guard let mc = r.queue.makeCommandBuffer() else { print("smoke: no command buffer"); return 2 }
+                            let mf = MeshArena.frameSubmitted()
+                            mc.addCompletedHandler { _ in MeshArena.frameCompleted(mf) }
+                            r.renderFrame(mc, final: target.rpd, width: W, height: H)
+                            mc.commit()
+                            mc.waitUntilCompleted()
+                            pagesSeen += 1
+                            top += PauseMenu.visible
+                        } while top < pm.rows.count
+                    }
+                }
+                pm.page = .main; pm.stack = []; pm.scroll = 0; pm.build()
+                game.menuHover = nil
+                print("smoke rd \(rd): menu tour: \(pagesSeen) screens, \(rowsSeen) rows hovered")
+            }
             if i == flyAt { game.player.flying = true; game.player.vel.y = 0 }
             if i > flyAt && i < flyAt + 60 { p.a = true }      // climb above the terrain
             if i > flyAt { p.rx = 0.05 }
