@@ -13,14 +13,21 @@ APP="${BLOCKSMITH_APP:-build/Blocksmith.app}"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 # Debug: line tables only and one module object (-wmo), so the link stays small on CI runners (full -g over ~250
 # files failed to link there); enough for lldb backtraces with file:line.
-# Fast: the CI fast lane (unoptimized, no debug info, files compiled in parallel batches instead of one module job).
-if [ "$MODE" = "debug" ]; then OPT="-Onone -gline-tables-only -wmo"
-elif [ "$MODE" = "fast" ]; then OPT="-Onone -gnone -enable-batch-mode -j$(sysctl -n hw.ncpu 2>/dev/null || echo 4)"
-else OPT="-Ounchecked -wmo"; fi
-# EXTRA_SWIFTC_FLAGS: CI adds a slow type-check warning (-warn-long-expression-type-checking) gated in mac.yml.
-xcrun swiftc $OPT ${EXTRA_SWIFTC_FLAGS:-} -swift-version 5 -target arm64-apple-macos13.0 -module-name Blocksmith \
-  -framework Metal -framework MetalKit -framework AppKit -framework GameController -framework AVFoundation \
-  Sources/*.swift -o "$APP/Contents/MacOS/Blocksmith"
+# EXTRA_SWIFTC_FLAGS: CI adds a slow type-check warning (-warn-long-expression-type-checking), reported as warnings.
+FRAMEWORKS="-framework Metal -framework MetalKit -framework AppKit -framework GameController -framework AVFoundation"
+if [ "$MODE" = "fast" ]; then
+  # Fast: the CI fast lane. Unoptimized, no debug info, files compiled in parallel batches into build/obj, then linked
+  # (a one-step batch build lost its temporary objects before the link on the runner).
+  OBJ=build/obj; rm -rf "$OBJ"; mkdir -p "$OBJ"
+  SRC=$(pwd)/Sources
+  (cd "$OBJ" && xcrun swiftc -c -Onone -gnone -enable-batch-mode -j"$(sysctl -n hw.ncpu 2>/dev/null || echo 4)" ${EXTRA_SWIFTC_FLAGS:-} \
+    -swift-version 5 -target arm64-apple-macos13.0 -module-name Blocksmith "$SRC"/*.swift)
+  xcrun swiftc -target arm64-apple-macos13.0 $FRAMEWORKS "$OBJ"/*.o -o "$APP/Contents/MacOS/Blocksmith"
+else
+  if [ "$MODE" = "debug" ]; then OPT="-Onone -gline-tables-only -wmo"; else OPT="-Ounchecked -wmo"; fi
+  xcrun swiftc $OPT ${EXTRA_SWIFTC_FLAGS:-} -swift-version 5 -target arm64-apple-macos13.0 -module-name Blocksmith \
+    $FRAMEWORKS Sources/*.swift -o "$APP/Contents/MacOS/Blocksmith"
+fi
 cp Info.plist "$APP/Contents/Info.plist"
 # Imported block textures (tools/teximport.py); each replaces that texture's procedural material.
 rm -rf "$APP/Contents/Resources/Textures"
