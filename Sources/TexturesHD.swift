@@ -568,6 +568,35 @@ enum HDTex {
         return img
     }
 
+    // Leaf litter (cutout overlay on the ground): scattered small fallen leaves, pointed ellipses in muted browns and
+    // ochres with a darker midrib, overlapping; clear between them (the 16 px version was saturated orange noise).
+    static func leafLitter(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n)
+        var img = Img(n, V4(0.45, 0.32, 0.18, 0))
+        let cols: [UInt32] = [0x7A5426, 0x8C6430, 0x6A4A22, 0x9A7438, 0x5E4A26]
+        var rng = SRng(UInt64(truncatingIfNeeded: s) &* 977 &+ 13)
+        for _ in 0..<(n / 3) {
+            let cx = rng.float() * fn, cy = rng.float() * fn
+            let len: Float = fn * (0.05 + rng.float() * 0.04), wid: Float = len * 0.45
+            let a: Float = rng.float() * .pi
+            let ca = cosf(a), sa = sinf(a)
+            let c = col(cols[rng.int(cols.count)]) * (0.85 + rng.float() * 0.25)
+            let r = Int(len) + 1
+            for dy in -r...r { for dx in -r...r {
+                let u: Float = Float(dx) * ca + Float(dy) * sa, v: Float = -Float(dx) * sa + Float(dy) * ca
+                let taper: Float = 1 - min(0.9, abs(u) / len)          // pointed tips
+                let eu: Float = (u * u) / (len * len)
+                let ev: Float = (v * v) / (wid * wid * taper)
+                let e: Float = eu + ev
+                if e > 1 { continue }
+                let rib: Float = abs(v) < 0.8 ? 0.75 : 1
+                let k: Float = rib * (0.9 + 0.1 * (1 - e))
+                img[Int(cx) + dx, Int(cy) + dy] = V4(c.x * k, c.y * k, c.z * k, 1)
+            } }
+        }
+        return img
+    }
+
     // A soil face under a band of another material along the top edge (podzol, mycelium, path sides), with a
     // wavy lower edge and a soft shadow under it.
     static func topped(_ top: @escaping Gen, depth: Float = 0.16) -> Gen {
@@ -1036,6 +1065,7 @@ enum HDTex {
     static let table: [String: Gen] = [
         "stone": stone(stoneGrey),
         "lava": lava,
+        "leaf_litter": leafLitter,
         "hay_block_side": haySide,
         "hay_block_top": hayTop,
         "glass": glass,
