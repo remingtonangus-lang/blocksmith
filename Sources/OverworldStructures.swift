@@ -270,6 +270,14 @@ enum OverworldStructures {
             let k = abs(x - cx)
             w.set(x, y + 4 + (3 - k) / 2, z, k == 0 ? pl : st + BlockID(x < cx ? 3 : 2))
         } }
+        // The floor's overhang is a porch: stilts at its corners, a fence rail round it (open at the door), windows.
+        // (The bare overhang read as a tray: blind critic, run 395 temple2.)
+        let fence = Blocks.id("oak_fence")
+        for (dx, dz) in [(-3, -3), (3, -3), (-3, 4), (3, 4)] { w.pillarDown(cx + dx, y - 1, cz + dz, log, minY: y - 10) }
+        for x in (cx - 3)...(cx + 3) where abs(x - cx) > 1 { w.set(x, y + 1, cz - 3, fence) }
+        for z in (cz - 3)...(cz + 4) { w.set(cx - 3, y + 1, z, fence); w.set(cx + 3, y + 1, z, fence) }
+        for x in (cx - 3)...(cx + 3) { w.set(x, y + 1, cz + 4, fence) }
+        for z in [cz, cz + 1] { w.set(cx - 2, y + 2, z, fence); w.set(cx + 2, y + 2, z, fence) }
         w.set(cx - 1, y + 1, cz + 2, Blocks.id("cauldron"))
         w.set(cx + 1, y + 1, cz + 2, Blocks.id("crafting_table"))
         w.set(cx + 1, y + 2, cz - 1, Blocks.id("flower_pot"))
