@@ -113,6 +113,7 @@ enum Smoke {
                 var opened: [String] = [], unopened: [String] = []
                 for k in stations where Blocks.has(k) {
                     progress.set(i, "menu tour: \(k) screen")
+                    world.blockEntities[bp] = nil                                  // as breaking the last one would
                     world.setBlock(bp.x, bp.y, bp.z, Blocks.id(k))
                     game.openBlock(bp)
                     guard let m = game.menu else { unopened.append(k); continue }
@@ -127,6 +128,7 @@ enum Smoke {
                     game.closeMenu()
                     opened.append(k)
                 }
+                world.blockEntities[bp] = nil
                 world.setBlock(bp.x, bp.y, bp.z, before)
                 // Back to the paused state the script expects (closing the pause menu unpaused the game; the resume
                 // press at 1230 would otherwise pause it again and leave the menu open).

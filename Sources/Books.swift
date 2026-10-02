@@ -145,7 +145,7 @@ extension Game {
 
     // Lecterns: put a book on (right-click with it), read it (right-click), take it back from the reading screen.
     func useLectern(_ p: IVec3) {
-        let be = world.blockEntities[p] ?? BlockEntity(.lectern)
+        let be = world.entity(p, .lectern)
         world.blockEntities[p] = be
         if be.container[0].isEmpty {
             let k = Items.key(held.item)

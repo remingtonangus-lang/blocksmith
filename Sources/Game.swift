@@ -1172,18 +1172,18 @@ final class Game {
         switch k {
         case "crafting_table": openMenu(CraftingTableMenu(game: self))
         case "furnace", "lit_furnace":
-            let be = world.blockEntities[p] ?? BlockEntity(.furnace)
+            let be = world.entity(p, .furnace)
             world.blockEntities[p] = be
             openMenu(FurnaceMenu(game: self, entity: be))
         case "smoker", "blast_furnace":
-            let be = world.blockEntities[p] ?? BlockEntity(.furnace)
+            let be = world.entity(p, .furnace)
             be.mob = k
             world.blockEntities[p] = be
             let m = FurnaceMenu(game: self, entity: be)
             m.title = k == "smoker" ? "Smoker" : "Blast Furnace"
             openMenu(m)
         case "barrel":
-            let be = world.blockEntities[p] ?? BlockEntity(.chest)
+            let be = world.entity(p, .chest)
             world.blockEntities[p] = be
             openMenu(ChestMenu(game: self, container: be.container, title: "Barrel"))
         case "bell":
@@ -1194,20 +1194,20 @@ final class Game {
         case "chiseled_bookshelf": useShelf(p)
         case _ where k.hasSuffix("_shelf"): useDisplayShelf(p)
         case "crafter":
-            let be = world.blockEntities[p] ?? BlockEntity(.crafter)
+            let be = world.entity(p, .crafter)
             world.blockEntities[p] = be
             openMenu(CrafterMenu(game: self, entity: be))
         case "decorated_pot": usePot(p)
         case "chest":
             boarlingsGuard(p, block: world.block(p.x, p.y, p.z))
-            let be = world.blockEntities[p] ?? BlockEntity(.chest)
+            let be = world.entity(p, .chest)
             world.blockEntities[p] = be
             // A neighbouring chest with the same facing along the chest's width makes a large chest.
             let b = world.block(p.x, p.y, p.z)
             let facing = Int(b - Blocks.groupBase[Int(b)])
             let side = facing < 2 ? [IVec3(1, 0, 0), IVec3(-1, 0, 0)] : [IVec3(0, 0, 1), IVec3(0, 0, -1)]
             if let q = side.map({ p + $0 }).first(where: { world.block($0.x, $0.y, $0.z) == b }) {
-                let other = world.blockEntities[q] ?? BlockEntity(.chest)
+                let other = world.entity(q, .chest)
                 world.blockEntities[q] = other
                 let first = (q.x + q.z) < (p.x + p.z) ? other : be, second = first === be ? other : be
                 openMenu(DoubleChestMenu(game: self, a: first.container, b: second.container))
@@ -1215,7 +1215,7 @@ final class Game {
             }
             openMenu(ChestMenu(game: self, entity: be))
         case "brewing_stand":
-            let be = world.blockEntities[p] ?? BlockEntity(.brewing)
+            let be = world.entity(p, .brewing)
             world.blockEntities[p] = be
             openMenu(BrewingMenu(game: self, entity: be))
         case "enchanting_table": openMenu(EnchantMenu(game: self, at: p))
@@ -1224,13 +1224,13 @@ final class Game {
         case "grindstone": openMenu(GrindstoneMenu(game: self))
         case "ender_chest": openMenu(ChestMenu(game: self, container: enderChest, title: "Void Chest"))
         case _ where k.hasSuffix("copper_chest"):
-            let be = world.blockEntities[p] ?? BlockEntity(.chest)
+            let be = world.entity(p, .chest)
             world.blockEntities[p] = be
             let m = ChestMenu(game: self, entity: be)
             m.title = "Copper Chest"
             openMenu(m)
         case "trapped_chest":
-            let be = world.blockEntities[p] ?? BlockEntity(.chest)
+            let be = world.entity(p, .chest)
             world.blockEntities[p] = be
             let m = ChestMenu(game: self, entity: be)
             m.title = "Trapped Chest"
@@ -1238,7 +1238,7 @@ final class Game {
             m.closed = { [weak self] in self?.world.redstone.setTrapped(p, 0) }
             openMenu(m)
         case _ where k.hasSuffix("shulker_box"):
-            let be = world.blockEntities[p] ?? BlockEntity(.shulker)
+            let be = world.entity(p, .shulker)
             world.blockEntities[p] = be
             openMenu(ShellBoxMenu(game: self, entity: be))
         case "item_frame", "glow_item_frame": _ = useItemFrame(p)
@@ -1258,7 +1258,7 @@ final class Game {
             let st = Int(b - Blocks.groupBase[Int(b)])
             if st >= 4 { world.setBlock(p.x, p.y, p.z, b - 4); blockSound(.candleOut, at: p, 0.6) }
         case "beacon":
-            let be = world.blockEntities[p] ?? BlockEntity(.beacon)
+            let be = world.entity(p, .beacon)
             world.blockEntities[p] = be
             openMenu(BeaconMenu(game: self, at: p, entity: be))
         case "anvil", "chipped_anvil", "damaged_anvil": openMenu(AnvilMenu(game: self, at: p))

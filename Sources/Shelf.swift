@@ -55,7 +55,7 @@ extension Game {
         let f = Int(b - Blocks.groupBase[Int(b)])
         let front = [IVec3(0, 0, -1), IVec3(0, 0, 1), IVec3(-1, 0, 0), IVec3(1, 0, 0)][f]
         guard t.normal == front else { return }
-        let be = world.blockEntities[p] ?? BlockEntity(.shelf)
+        let be = world.entity(p, .shelf)
         world.blockEntities[p] = be
         let hp = hitPoint(t) - V3(Float(p.x), Float(p.y), Float(p.z))
         let u: Float = [1 - hp.x, hp.x, hp.z, 1 - hp.z][f]
@@ -97,7 +97,7 @@ extension Game {
             while row.count < 3 && sameShelf(q) { row.append(q); q = q - leftV }
             var k = 0
             for sp in row {
-                let sbe = world.blockEntities[sp] ?? BlockEntity(.display)
+                let sbe = world.entity(sp, .display)
                 world.blockEntities[sp] = sbe
                 for slot in 0..<3 {
                     let tmp = sbe.container[slot]
@@ -110,7 +110,7 @@ extension Game {
             swing = 1
             return
         }
-        let be = world.blockEntities[p] ?? BlockEntity(.display)
+        let be = world.entity(p, .display)
         world.blockEntities[p] = be
         let hp = hitPoint(t) - V3(Float(p.x), Float(p.y), Float(p.z))
         let u: Float = [1 - hp.x, hp.x, hp.z, 1 - hp.z][f]
@@ -126,7 +126,7 @@ extension Game {
 
     // Decorated pots take one item per click, up to a stack of one kind.
     func usePot(_ p: IVec3) {
-        let be = world.blockEntities[p] ?? BlockEntity(.pot)
+        let be = world.entity(p, .pot)
         world.blockEntities[p] = be
         let h = held
         let c = V3(Float(p.x) + 0.5, Float(p.y) + 0.8, Float(p.z) + 0.5)

@@ -77,11 +77,11 @@ extension Game {
         case .daylight:
             world.setBlock(p.x, p.y, p.z, base + BlockID((s & 15) + (s >= 16 ? 0 : 16)))
         case .dispenser, .dropper:
-            let be = world.blockEntities[p] ?? BlockEntity(.dispenser)
+            let be = world.entity(p, .dispenser)
             world.blockEntities[p] = be
             openMenu(DispenserMenu(game: self, entity: be, title: Circuit.kind(b) == .dropper ? "Dropper" : "Dispenser"))
         case .hopper:
-            let be = world.blockEntities[p] ?? BlockEntity(.hopper)
+            let be = world.entity(p, .hopper)
             world.blockEntities[p] = be
             openMenu(HopperMenu(game: self, entity: be))
         default: return false

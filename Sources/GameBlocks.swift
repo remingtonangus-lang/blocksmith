@@ -20,7 +20,7 @@ extension Game {
             if lit && key.hasSuffix("_shovel") { world.setBlock(p.x, p.y, p.z, base + 1); sfx(.fireExtinguish, 0.7, at: c); damageHeld(1); return true }
             // Put raw food on it (up to four items, 30 s each).
             if lit, Recipes.smelt(held.item) != nil, held.def.food != nil {
-                let be = world.blockEntities[p] ?? BlockEntity(.campfire)
+                let be = world.entity(p, .campfire)
                 world.blockEntities[p] = be
                 if let i = (0..<4).first(where: { be.container[$0].isEmpty }) {
                     be.container[i] = ItemStack(held.item, 1)
@@ -71,7 +71,7 @@ extension Game {
             return useJukebox(p)
         case "vault":
             // A proving key opens a vault once.
-            let be = world.blockEntities[p] ?? BlockEntity(.chest)
+            let be = world.entity(p, .chest)
             world.blockEntities[p] = be
             guard key == "trial_key" && !be.used else { sfx(.vaultReject, 0.6, at: c); return true }
             be.used = true

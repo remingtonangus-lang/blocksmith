@@ -141,14 +141,14 @@ extension Game {
     }
 
     func openSignEditor(_ p: IVec3) {
-        let be = world.blockEntities[p] ?? BlockEntity(.sign)
+        let be = world.entity(p, .sign)
         world.blockEntities[p] = be
         openMenu(SignMenu(game: self, entity: be))
     }
 
     // Item frames: right-click puts the held item in (or rotates it); punching takes it out.
     func useItemFrame(_ p: IVec3) -> Bool {
-        let be = world.blockEntities[p] ?? BlockEntity(.frame)
+        let be = world.entity(p, .frame)
         world.blockEntities[p] = be
         if be.container[0].isEmpty {
             guard !held.isEmpty else { return true }

@@ -130,3 +130,15 @@ extension BlockEntity {
 struct BlockEntitySave: Codable {
     var entries: [String: BlockEntity]
 }
+
+extension World {
+    // The block entity at p if it is of this kind, else a fresh one stored there. A stale entity of another kind (left
+    // when a container was replaced without being broken: setBlock keeps entities) would open a 27-slot screen on a
+    // 3-slot furnace container and crash (smoke-test menu tour).
+    func entity(_ p: IVec3, _ kind: BlockEntity.Kind) -> BlockEntity {
+        if let e = blockEntities[p], e.kind == kind { return e }
+        let e = BlockEntity(kind)
+        blockEntities[p] = e
+        return e
+    }
+}
