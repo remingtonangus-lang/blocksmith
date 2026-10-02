@@ -364,19 +364,47 @@ enum BigStructures {
             let warm = b == .warmOcean || b == .lukewarmOcean || b == .deepLukewarmOcean
             let y = gen.groundY(x, z)
             guard y < SEA - 3 else { return nil }
-            return StructureStart(kind: "ocean_ruin", pieces: [piece(x - 8, y - 2, z - 8, x + 8, y + 8, z + 8) { w in
+            return StructureStart(kind: "ocean_ruin", pieces: [piece(x - 8, y - 6, z - 8, x + 8, y + 10, z + 8) { w in
+                // A drowned building: a paved floor on the seabed, walls worn down unevenly (tallest at the corners), a
+                // doorway, inner piers and a fallen roof slab on the big ones (a box riddled with random holes read as
+                // noise, not a ruin: eyes on the new shot).
                 var rng = SRng(seed)
                 let big = rng.chance(0.3)
                 let mat = warm ? [g("sandstone"), g("cut_sandstone"), g("chiseled_sandstone")] : [g("stone_bricks"), g("mossy_stone_bricks"), g("cracked_stone_bricks")]
-                let r = big ? 7 : 4
-                for yy in y...(y + (big ? 6 : 4)) { for zz in (z - r)...(z + r) { for xx in (x - r)...(x + r) {
-                    let edge = abs(xx - x) == r || abs(zz - z) == r || yy == y
-                    let h = hashf(xx, yy, zz, 0x0CEA)
-                    if edge && h < 0.7 { w.set(xx, yy, zz, mat[Int(h * 30) % 3]) }
-                } } }
-                w.chest(x, y + 1, z, loot: big ? "ocean_ruin_big" : "ocean_ruin_small", seed: rng.next(), facing: 0)
-                if warm { w.set(x + 2, y + 1, z + 2, g("suspicious_sand")) } else { w.set(x + 2, y + 1, z + 2, g("suspicious_gravel")) }
-                w.mob("drowned", V3(Float(x) + 2.5, Float(y + 1), Float(z) - 1.5))
+                let floorMat = warm ? g("smooth_sandstone") : g("mossy_cobblestone")
+                let r = big ? 6 : 4, top = big ? 7 : 5
+                func pick(_ xx: Int, _ yy: Int, _ zz: Int) -> BlockID { mat[Int(hashf(xx, yy, zz, 0x0CEB) * 3) % 3] }
+                for zz in (z - r)...(z + r) { for xx in (x - r)...(x + r) {
+                    w.pillarDown(xx, y - 1, zz, warm ? SANDSTONE : STONE, minY: y - 5)
+                    w.set(xx, y, zz, hashf(xx, y, zz, 0x0CEC) < 0.15 ? (warm ? SAND : GRAVEL) : floorMat)
+                    let edge = abs(xx - x) == r || abs(zz - z) == r
+                    let corner = abs(xx - x) == r && abs(zz - z) == r
+                    let door = zz == z - r && abs(xx - x) <= 1
+                    // Wall height: corners stand tallest, the middle of each wall is worn lower.
+                    let ax = abs(xx - x), az = abs(zz - z)
+                    let alongI: Int = max(ax, az) == r ? min(ax, az) : 0
+                    let along: Float = Float(alongI) / Float(r)
+                    let wear: Float = hashf(xx, 0, zz, 0x0CED)
+                    let keep: Float = (1 - along * 0.6) * (0.55 + wear * 0.45)
+                    let h: Int = corner ? top : max(1, Int(Float(top) * keep))
+                    for yy in (y + 1)...(y + top + 1) {
+                        if edge && !door && yy <= y + h { w.set(xx, yy, zz, pick(xx, yy, zz)) }
+                        else if yy <= SEA { w.set(xx, yy, zz, WATER) }
+                    }
+                } }
+                if big {
+                    for (dx, dz) in [(-2, -2), (2, -2), (-2, 2), (2, 2)] {
+                        let ph = 3 + Int(hashf(x + dx, y, z + dz, 0x0CEE) * 4)
+                        for yy in (y + 1)...(y + ph) { w.set(x + dx, yy, z + dz, pick(x + dx, yy, z + dz)) }
+                    }
+                    // A roof slab fallen in across one side.
+                    for zz in (z - r + 1)...(z - 1) { for xx in (x - r + 1)...(x + r - 1) where hashf(xx, y, zz, 0x0CEF) < 0.6 {
+                        w.set(xx, y + top + 1 - (z - zz) / 3, zz, pick(xx, y + top, zz))
+                    } }
+                }
+                w.chest(x + 1, y + 1, z + 1, loot: big ? "ocean_ruin_big" : "ocean_ruin_small", seed: rng.next(), facing: 0)
+                if warm { w.set(x - 1, y + 1, z + 1, g("suspicious_sand")) } else { w.set(x - 1, y + 1, z + 1, g("suspicious_gravel")) }
+                w.mob("drowned", V3(Float(x) + 0.5, Float(y + 1), Float(z) - 1.5))
             }], anchor: IVec3(x, y + 1, z - 10))
         }
     }
@@ -389,17 +417,41 @@ enum BigStructures {
             let b = gen.column(x, z).biome
             guard [.taiga, .snowyTaiga, .oldGrowthPineTaiga, .oldGrowthSpruceTaiga, .oldGrowthBirchForest, .jungle].contains(b) else { return nil }
             let y = gen.groundY(x, z) - 8
-            return StructureStart(kind: "trail_ruins", pieces: [piece(x - 10, y - 2, z - 10, x + 10, y + 8, z + 10) { w in
+            let towerTop = gen.groundY(x + 6, z + 6) + 2
+            return StructureStart(kind: "trail_ruins", pieces: [piece(x - 10, y - 2, z - 10, x + 10, max(y + 10, towerTop + 1), z + 10) { w in
+                // A buried compound: rooms walled in terracotta and mud brick, packed with gravel (some suspicious, to
+                // brush), and a corner tower whose top pokes out of the ground to give the site away (a flat slab with
+                // posts read as nothing at all).
                 let colors = ["brown", "red", "yellow", "orange", "light_gray", "white", "blue"].map { g("\($0)_terracotta") }
-                let mud = g("mud_bricks"), grav = g("suspicious_gravel")
-                for zz in (z - 9)...(z + 9) { for xx in (x - 9)...(x + 9) {
-                    let h = hashf(xx, y, zz, 0x7A11)
-                    w.set(xx, y, zz, h < 0.3 ? mud : colors[Int(h * 70) % colors.count])
-                    if (xx - x) % 6 == 0 || (zz - z) % 6 == 0 { w.fill(xx, y + 1, zz, xx, y + 1 + Int(h * 4), zz, h < 0.5 ? mud : colors[Int(h * 30) % colors.count]) }
-                    if h > 0.93 { w.set(xx, y + 1, zz, grav) }
-                } }
+                let mud = g("mud_bricks"), grav = g("suspicious_gravel"), tile = g("packed_mud")
+                func wallMat(_ xx: Int, _ yy: Int, _ zz: Int) -> BlockID {
+                    let h = hashf(xx, yy / 2, zz, 0x7A12)
+                    return h < 0.45 ? mud : colors[Int(h * 70) % colors.count]
+                }
+                // Three rooms: west hall, east hall, north court.
+                let rooms: [(Int, Int, Int, Int, Int)] = [(-9, -1, -9, 1, 5), (1, 9, -9, 1, 4), (-6, 6, 1, 9, 3)]
+                for (x0, x1, z0, z1, hgt) in rooms {
+                    for zz in (z + z0)...(z + z1) { for xx in (x + x0)...(x + x1) {
+                        let edge = xx == x + x0 || xx == x + x1 || zz == z + z0 || zz == z + z1
+                        w.set(xx, y, zz, (xx + zz) % 2 == 0 ? tile : mud)
+                        for yy in (y + 1)...(y + hgt) {
+                            let wornTop = yy == y + hgt && hashf(xx, yy, zz, 0x7A13) < 0.4
+                            if edge { w.set(xx, yy, zz, wornTop ? GRAVEL : wallMat(xx, yy, zz)) }
+                            else { w.set(xx, yy, zz, hashf(xx, yy, zz, 0x7A14) < 0.06 ? grav : GRAVEL) }
+                        }
+                    } }
+                    // Doorways between rooms, gravel-choked like the rest.
+                    w.fill(x + (x0 + x1) / 2, y + 1, z + z1, x + (x0 + x1) / 2, y + 2, z + z1, GRAVEL)
+                }
+                // The tower: a hollow 3x3 shaft from the floor to two blocks over the ground, ringed with a coloured band.
+                let tx = x + 6, tz = z + 6
+                for yy in (y + 1)...towerTop { for dz in -1...1 { for dx in -1...1 {
+                    let edge = abs(dx) == 1 || abs(dz) == 1
+                    if edge { w.set(tx + dx, yy, tz + dz, (yy - y) % 4 == 0 ? colors[(yy / 4) % colors.count] : mud) }
+                    else { w.set(tx, yy, tz, yy > towerTop - 3 ? AIR : (hashf(tx, yy, tz, 0x7A15) < 0.1 ? grav : GRAVEL)) }
+                } } }
                 _ = seed
-            }], anchor: IVec3(x, y + 8, z))
+            }], anchor: IVec3(x + 6, towerTop + 4, z - 6))
         }
     }
 
