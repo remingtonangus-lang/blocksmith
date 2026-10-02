@@ -118,7 +118,19 @@ final class BlockRegistry {
     // bell's rim, the stonecutter blade).
     static func collisionShape(_ d: BlockDef) -> [Box]? {
         if d.shape == "lantern" && d.name.hasSuffix("[hanging]") { return Array(d.boxes.prefix(2)) }
-        switch d.group ?? d.name {
+        let g = d.group ?? String(d.name.split(separator: "[").first ?? "")
+        // Statues and ship fittings: one box around the whole model.
+        if (g.hasSuffix("copper_golem_statue") || g == "ship_helm" || g == "ship_cannon"), let f = d.boxes.first {
+            var b = Box(Int(f.x0), Int(f.y0), Int(f.z0), Int(f.x1), Int(f.y1), Int(f.z1))
+            for x in d.boxes {
+                b.x0 = min(b.x0, x.x0); b.y0 = min(b.y0, x.y0); b.z0 = min(b.z0, x.z0)
+                b.x1 = max(b.x1, x.x1); b.y1 = max(b.y1, x.y1); b.z1 = max(b.z1, x.z1)
+            }
+            return [b]
+        }
+        switch g {
+        case "sculk_sensor", "calibrated_sculk_sensor": return [Box(0, 0, 0, 16, 8, 16)]
+        case "campfire", "soul_campfire": return [Box(0, 0, 0, 16, 7, 16)]
         case "dragon_egg": return [Box(1, 0, 1, 15, 16, 15)]
         case "brewing_stand": return [Box(1, 0, 1, 15, 2, 15), Box(7, 0, 7, 9, 14, 9)]
         case "stonecutter": return [Box(0, 0, 0, 16, 9, 16)]
