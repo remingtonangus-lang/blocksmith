@@ -2784,7 +2784,7 @@ enum HDTex {
     static let slabStone: Gen = polished(stone([(0, 0x8E8E8E), (0.5, 0xA2A2A2), (1, 0xB4B4B4)], veins: 0, strata: 0), calm: 0.35, rim: 1 / 20)
     static func diodeFace(_ kind: String) -> Gen {
         { n, s in
-            let fn = Float(n), u = n / 16
+            let u = n / 16
             let fine = vnoise(n, max(1, n / 64), s &+ 2)
             switch kind {
             case "repeater", "repeater_on", "comparator", "comparator_on":

@@ -588,7 +588,7 @@ final class ShipManager {
     var accum: Float = 0                  // unstepped time (ShipPhysics)
     // Capital ships (CapitalShips.swift): built on a worker thread, handed over here; per-ship AI state.
     let capitalLock = NSLock()
-    var capitalReady: [[Ship]] = []
+    var capitalReady: [([Ship], CapitalState)] = []
     var capitalPending = Set<String>()
     var capState: [Int: CapitalState] = [:]
 
