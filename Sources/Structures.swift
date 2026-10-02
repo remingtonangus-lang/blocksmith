@@ -74,7 +74,10 @@ struct StructWriter {
             while y > max(0, y0 - depth) {
                 let i = Chunk.index(x - bx, y, z - bz)
                 let cur = blocks[i]
-                guard cur == AIR || (intoWater && cur == WATER) else { break }
+                // Through grass and flowers too (a Steelhold fill stopped on tall grass, leaving its base over air:
+                // structcheck floating, run 364).
+                let plant: Bool = Blocks.replaceable[Int(cur)] && Blocks.fluidKind[Int(cur)] == 0
+                guard cur == AIR || plant || (intoWater && cur == WATER) else { break }
                 blocks[i] = y < YOFF ? DEEPSLATE : (y < SEA - 12 ? STONE : surface)
                 y -= 1
             }
@@ -190,7 +193,7 @@ final class StructureCache {
 
     // Kinds whose footprint is filled underneath (and how deep): buried ones over caves, hillside ones over slopes.
     static let fillDepth: [String: Int] = ["ancient_city": 12, "trial_chambers": 10, "stronghold": 10, "mansion": 8,
-                                           "military_base": 8, "trail_ruins": 4]
+                                           "military_base": 24, "trail_ruins": 4]     // Steelhold: hillside bases hung 8+ over slopes
     // Not villages: filling under each column's lowest block also filled under the roof eaves overhanging the
     // doorways, building cobblestone pillars in front of doors (structcheck door_needs_jump, run 349).
 

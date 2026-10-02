@@ -258,6 +258,7 @@ enum StructCheck {
         // Blocks the structure wrote: compare with the bare terrain.
         var written = Set<Int>()
         var writtenSolid: [Int: [Int]] = [:]           // column key -> written solid y values
+        var lowestOnGround: [Int: Bool] = [:]
         for cz in cz0...cz1 { for cx in cx0...cx1 {
             let raw = w.gen.generate(cx: cx, cz: cz)
             for z in 0..<CS { for x in 0..<CS {
@@ -267,7 +268,13 @@ enum StructCheck {
                     let b = w.block(wx, y, wz)
                     if b == raw[Chunk.index(x, y, z)] { continue }
                     written.insert(key(wx, y, wz))
-                    if Blocks.fullCollide[Int(b)] { writtenSolid[colKey(wx, wz), default: []].append(y) }
+                    if Blocks.fullCollide[Int(b)] {
+                        let ck = colKey(wx, wz)
+                        // The column's lowest written block (y ascends) replaced solid ground: it rests on the terrain's
+                        // own crust, even with a cave under it (run 364: village floors on a 1-block crust over caves).
+                        if writtenSolid[ck] == nil { lowestOnGround[ck] = Blocks.fullCollide[Int(raw[Chunk.index(x, y, z)])] }
+                        writtenSolid[ck, default: []].append(y)
+                    }
                 }
             } }
         } }
@@ -458,6 +465,7 @@ enum StructCheck {
         var floating: [IVec3] = []
         for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
             guard let ys = writtenSolid[colKey(x, z)], ys.count >= 3, let y0 = ys.min() else { continue }
+            if lowestOnGround[colKey(x, z)] == true { continue }
             let below = w.block(x, y0 - 1, z)
             if top(w, x, y0 - 1, z) < 0.4 && Blocks.fluidKind[Int(below)] == 0 && !(y0 - 1 <= 0) {
                 // Air under it: count the gap (ignore one-block overhangs over open terrain under 2 blocks).
