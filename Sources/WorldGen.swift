@@ -434,7 +434,7 @@ final class WorldGen: TerrainGenerator {
             let biome = biomes[lx + lz * CS]
             guard biome == .swamp || biome == .mangroveSwamp else { continue }
             let top = tops[lx + lz * CS]
-            guard top >= wls[lx + lz * CS], flora.noise2(Float(bx + lx) / 11, Float(bz + lz) / 11) > 0.18 else { continue }
+            guard top >= wls[lx + lz * CS], flora.noise2(Float(bx + lx) / 11, Float(bz + lz) / 11) > 0.02 else { continue }   // more standing water (a swamp shot read as dry grass: critic, run 385)
             let held = [(1, 0), (-1, 0), (0, 1), (0, -1)].allSatisfy { d in tops0[lx + d.0 + (lz + d.1) * CS] >= top }
             if held { b[Chunk.index(lx, top, lz)] = WATER; tops[lx + lz * CS] = top - 1 }
         } }
