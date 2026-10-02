@@ -5475,6 +5475,43 @@ enum HDTex {
         }
     }
 
+    // Glazed terracotta: the 16 px pattern kept crisp (anti-aliased edges between its texels, no material noise
+    // over the motif), under a glossy glaze: a soft sheen, fine crackle and a bevelled tile edge.
+    static func glazed(_ src: [V4]) -> Gen {
+        { n, s in
+            let S = TextureGen.S
+            let fn = Float(n)
+            var img = Img(n)
+            let sheen = fbm(n, n / 2, 3, s)
+            let crack = voronoi(n, 9, s &+ 4, jitter: 0.9)
+            func at(_ x: Int, _ y: Int) -> V3 {
+                let p = src[(((y % S) + S) % S) * S + (((x % S) + S) % S)]
+                return V3(p.x, p.y, p.z)
+            }
+            // Bilinear weights pushed toward 0/1: crisp texels with a texel-wide soft edge at 128 px.
+            func sharp(_ t: Float) -> Float { let k: Float = cl((t - 0.5) * 6 + 0.5); return k * k * (3 - 2 * k) }
+            let bw = max(1, n / 64)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let u: Float = (Float(x) + 0.5) / fn * Float(S) - 0.5, v: Float = (Float(y) + 0.5) / fn * Float(S) - 0.5
+                let x0 = Int(floorf(u)), y0 = Int(floorf(v))
+                let tx: Float = sharp(u - Float(x0)), ty: Float = sharp(v - Float(y0))
+                let top: V3 = at(x0, y0) * (1 - tx) + at(x0 + 1, y0) * tx
+                let bot: V3 = at(x0, y0 + 1) * (1 - tx) + at(x0 + 1, y0 + 1) * tx
+                var c: V3 = top * (1 - ty) + bot * ty
+                c *= 0.95 + 0.1 * sheen[i]
+                if crack.f2[i] - crack.f1[i] < fn / 160 { c *= 0.93 }
+                if x < bw || y < bw { c *= 1.12 } else if x >= n - bw || y >= n - bw { c *= 0.82 }
+                // A soft highlight across the upper left (the glaze catching the light).
+                let d: Float = (Float(x) + Float(y)) / (2 * fn)
+                let glint: Float = cl(1 - abs(d - 0.28) / 0.06) * 0.12
+                c += V3(repeating: glint)
+                img.px[i] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
+            } }
+            return img
+        }
+    }
+
     static func derived(_ name: String, _ src: [V4]) -> Gen? {
         let S = TextureGen.S
         var sum = V3(0, 0, 0), rim = V3(0, 0, 0), mid = V3(0, 0, 0)
@@ -5506,6 +5543,7 @@ enum HDTex {
         }
         if name.hasSuffix("_wool") { return wool(avg / 0.9) }
         if let g = copperFamily(name) { return g }
+        if name.hasSuffix("_glazed_terracotta") { return glazed(src) }
         if name.hasSuffix("_coral_block") { return lumps(pal(avg, lo: 0.68, hi: 1.2), cells: 9, gloss: 0.15) }
         if name.hasSuffix("_stained_glass") { return stainedGlass(avg) }
         if name.hasSuffix("_candle") { return tinted(candleHD, from: col(0xE8D8B0), to: avg) }
