@@ -1839,13 +1839,17 @@ final class Renderer: NSObject, MTKViewDelegate {
                         text(">", x + Float(sl.w) * s - 8 * s, y + (Float(sl.h) - 7) / 2 * s, s, V4(1, 1, 0.6, 1))
                     }
                 }
-                if pm.rows.count > pm.slots.count {
-                    // Scroll position: dots under the list.
+                if pm.rows.count > pm.slots.count, let first = pm.slots.first, let last = pm.slots.last {
+                    // Scroll position: a thin scrollbar beside the list (dots under it read as pages next to "Page 2 of 6":
+                    // blind UI critic, options).
                     let n = pm.rows.count - pm.slots.count + 1
-                    let dotY = o.y + Float(pm.slots.last.map { $0.y + $0.h + 2 } ?? 0) * s
-                    let dw = min(10 * s, 200 * s / Float(n))
-                    let x0 = o.x + (pw - dw * Float(n)) / 2
-                    for k in 0..<n { rect(x0 + Float(k) * dw + s, dotY, dw - 2 * s, 2 * s, k == pm.scroll ? V4(0.2, 0.3, 0.6, 1) : V4(0.5, 0.5, 0.52, 1)) }
+                    let top: Float = o.y + Float(first.y) * s, bottom: Float = o.y + Float(last.y + last.h) * s
+                    let bx: Float = o.x + Float(first.x + first.w + 3) * s
+                    let trackH: Float = bottom - top
+                    let thumbH: Float = max(6 * s, trackH * Float(pm.slots.count) / Float(pm.rows.count))
+                    let thumbY: Float = top + (trackH - thumbH) * Float(pm.scroll) / Float(max(1, n - 1))
+                    rect(bx, top, 3 * s, trackH, V4(0.5, 0.5, 0.52, 1))
+                    rect(bx, thumbY, 3 * s, thumbH, V4(0.2, 0.32, 0.68, 1))
                 }
                 // Help line: full size if it fits, else a little smaller, else two lines at word breaks (it was cut
                 // letter by letter at the panel edge: "...return to the title scree", blind UI critic).
