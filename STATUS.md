@@ -298,6 +298,13 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   passive water probe looking along the straight line to the stroll goal. Blind critic over 12 shots: mansion ring
   roof, softer shoreline foam, less neon jungle leaves, a higher unlit floor, a brighter Hollow; eyes on UI shots:
   keycap padding, effect list beside the recipe toggle, held-item name above the bubble row.
+- 2026-10-02 13:00 UTC: runs 364 and 365 green except the gen bench (3.47 and 3.50 ms against a 3.33 gate). The new
+  per-phase breakdown (bench gen phases) put 1.85 of 3.5 ms in tree placement (crowns of margin trees hashed every
+  voxel outside the chunk) and 0.8 in caves (a column-constant noise per block); both fixed without changing output,
+  pushed as bbaa8eb (run 366). 365: beds 42/42, spinning 4, stuck 1, underground springs now flow on load (gencheck
+  leak 216 -> 123 + 93 springs). Second blind critic (12 shots): river terraces at estuaries (rivers at sea level for
+  their last 3 blocks), village roofs merging (2-block side margin), puddle film on grass, lavender evening mist,
+  black shade in snowfall, flat sand, doubled seabed: all addressed in run 366.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
