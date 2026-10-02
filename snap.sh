@@ -247,7 +247,7 @@ done
 "$BIN" --snapshot snaps/monument.png --seed 12345 --structure monument --frame 1 --time 0.25
 "$BIN" --snapshot snaps/mansion.png --seed 12345 --structure mansion --frame 1.7 --time 0.25
 # Inside: through the front door into the ground-floor hall (anchor is 6 blocks before the door).
-"$BIN" --snapshot snaps/mansion_inside.png --seed 12345 --structure mansion --offset 0,-1,9 --yaw 180 --pitch -8 --time 0.3
+"$BIN" --snapshot snaps/mansion_inside.png --seed 12345 --structure mansion --offset 0,0,9 --yaw 180 --pitch -8 --time 0.3
 "$BIN" --snapshot snaps/ancient_city.png --seed 12345 --structure ancient_city --yaw 30 --pitch -12 --up 3 --rd 5 --nightvision
 "$BIN" --snapshot snaps/trial_chambers.png --seed 12345 --structure trial_chambers --yaw 45 --pitch -25 --up 6 --rd 5
 "$BIN" --snapshot snaps/copper.png --seed 12345 --find plains --yaw 30 --pitch -25 --time 0.3 --up 1 --place copper_block,exposed_copper,weathered_copper,oxidized_copper,cut_copper,copper_grate,copper_bulb:1,campfire,bee_nest:5,scaffolding --ambient
