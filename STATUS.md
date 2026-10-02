@@ -123,7 +123,8 @@ code); mechanics, names and numbers follow the reference game.
       jungle temple reworked; igloo crown fixed; swamp hut porch; pillager outpost rebuilt (birch-on-dark-oak
       watchtower, lookout, roof, camp with golem cage, tents, log pile, targets); shipwrecks rebuilt as sailing
       ships; end cities gain trim bands, tower wings and a lantern spire; village houses vary per lot.
-- [~] Bases not seen yet: Steelhold fortresses are rare by design (one per 64x64-chunk region at most); a finder is TODO.
+- [x] Bases not seen yet: one candidate per 40x40-chunk region now (was 64), a 30-block lit radio mast to spot them,
+      and /locate military_base (also warfrigate, crawler, frigate, carriage).
 - [~] Capital ships, true to size, very hostile, rare, three warring factions (CapitalShips.swift): Stormwarden Frigate
       (480 blocks, 16 naval-gun turrets, spinal rail cannon, missiles, hangar, bridge), Ironback Crawler (77-block
       six-wheeler), Steelhold. Kinematic capital-ship engine (no rigid-body solve, incremental damage, regional
