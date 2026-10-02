@@ -1,6 +1,7 @@
 import simd
 
-// Original 5x7 pixel font (ASCII 32...126). Each entry: [width, row0...row6], bit 0 = leftmost column.
+// Original 5x7 pixel font (ASCII 32...126). Each entry: [width, row0...row6], bit 0 = leftmost column; g j p q y carry
+// an eighth row below the baseline (a descender: they sat a row high inside 7 rows, so g read as 9 and p as P).
 // Glyphs live in the texture array ("glyph_<code>"), drawn by the HUD at any integer scale.
 enum Font {
     static let glyphs: [[Int]] = [
@@ -75,17 +76,17 @@ enum Font {
         [5, 16, 16, 22, 25, 17, 17, 30],
         [5, 0, 0, 14, 17, 31, 1, 14],
         [4, 12, 2, 15, 2, 2, 2, 2],
-        [5, 0, 30, 17, 17, 30, 16, 15],
+        [5, 0, 0, 30, 17, 17, 30, 16, 15],
         [5, 1, 1, 13, 19, 17, 17, 17],
         [1, 1, 0, 1, 1, 1, 1, 1],
-        [4, 8, 0, 8, 8, 9, 9, 6],
+        [4, 8, 0, 12, 8, 8, 8, 9, 6],
         [4, 1, 1, 9, 5, 3, 5, 9],
         [2, 1, 1, 1, 1, 1, 1, 2],
         [5, 0, 0, 11, 21, 21, 17, 17],
         [5, 0, 0, 15, 17, 17, 17, 17],
         [5, 0, 0, 14, 17, 17, 17, 14],
-        [5, 0, 13, 19, 17, 15, 1, 1],
-        [5, 0, 22, 25, 17, 30, 16, 16],
+        [5, 0, 0, 15, 17, 17, 15, 1, 1],
+        [5, 0, 0, 30, 17, 17, 30, 16, 16],
         [5, 0, 0, 13, 19, 1, 1, 1],
         [5, 0, 0, 30, 1, 14, 16, 15],
         [4, 2, 2, 15, 2, 2, 2, 12],
@@ -93,7 +94,7 @@ enum Font {
         [5, 0, 0, 17, 17, 17, 10, 4],
         [5, 0, 0, 17, 17, 21, 21, 30],
         [5, 0, 0, 17, 10, 4, 10, 17],
-        [5, 0, 17, 17, 17, 30, 16, 15],
+        [5, 0, 0, 17, 17, 17, 30, 16, 15],
         [5, 0, 0, 31, 8, 4, 2, 31],
         [4, 12, 2, 2, 1, 2, 2, 12],
         [1, 1, 1, 1, 1, 1, 1, 1],
@@ -102,6 +103,8 @@ enum Font {
     ]
 
     static func texName(_ code: Int) -> String { "glyph_\(code)" }
+    /// Rows a glyph draws (7, or 8 with a descender).
+    static func rows(_ code: Int) -> Int { code > 32 && code < 127 ? glyphs[code - 32].count - 1 : 7 }
     static var names: [String] { (32..<127).map { texName($0) } }
 
     static func painters() -> [String: TextureGen.Painter] {
@@ -109,7 +112,7 @@ enum Font {
         for code in 32..<127 {
             let g = glyphs[code - 32]
             p[texName(code)] = { x, y in
-                guard x < g[0] && y < 7 else { return TextureGen.clear }
+                guard x < g[0] && y < g.count - 1 else { return TextureGen.clear }
                 return (g[1 + y] >> x) & 1 == 1 ? V4(1, 1, 1, 1) : TextureGen.clear
             }
         }

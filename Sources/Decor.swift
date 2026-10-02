@@ -223,9 +223,11 @@ extension Game {
                         let adv = Float(Font.advance(code))
                         if code > 32 && code < 127 {
                             let gw = Float(Font.glyphs[code - 32][0])
-                            let o = center - eye + right * (x * s) + V3(0, (y - 7) * s, 0)
-                            let a = o, bb = o + right * (gw * s), cc = bb + V3(0, 7 * s, 0), d = a + V3(0, 7 * s, 0)
-                            wr.quad([a, bb, cc, d], [V2(0, 7 / 16), V2(gw / 16, 7 / 16), V2(gw / 16, 0), V2(0, 0)], Font.layerBase + code - 32,
+                            let rows = Float(Font.rows(code))         // 8: a descender below the baseline
+                            let o = center - eye + right * (x * s) + V3(0, (y - rows) * s, 0)
+                            let a = o, bb = o + right * (gw * s), cc = bb + V3(0, rows * s, 0), d = a + V3(0, rows * s, 0)
+                            let vb: Float = rows / 16
+                            wr.quad([a, bb, cc, d], [V2(0, vb), V2(gw / 16, vb), V2(gw / 16, 0), V2(0, 0)], Font.layerBase + code - 32,
                                     textColor)
                         }
                         x += adv

@@ -1300,11 +1300,12 @@ final class Renderer: NSObject, MTKViewDelegate {
                 }
                 if code > 32 && code < 127 {
                     let w = Float(Font.glyphs[code - 32][0])
+                    let rows = Float(Font.rows(code))                 // 8 for g j p q y (a row below the baseline)
                     let layer = Float(Font.layerBase + code - 32)
-                    let uv = [V2(0, 0), V2(w / 16, 0), V2(w / 16, 7 / 16), V2(0, 7 / 16)]
+                    let uv = [V2(0, 0), V2(w / 16, 0), V2(w / 16, rows / 16), V2(0, rows / 16)]
                     func g(_ ox: Float, _ oy: Float, _ c: V4) {
                         let a = V2(cx + ox, y + oy)
-                        quad([a, a + V2(w * scale, 0), a + V2(w * scale, 7 * scale), a + V2(0, 7 * scale)], uv, c, layer)
+                        quad([a, a + V2(w * scale, 0), a + V2(w * scale, rows * scale), a + V2(0, rows * scale)], uv, c, layer)
                     }
                     if shadow { g(scale, scale, V4(color.x * 0.25, color.y * 0.25, color.z * 0.25, color.w)) }
                     g(0, 0, color)
