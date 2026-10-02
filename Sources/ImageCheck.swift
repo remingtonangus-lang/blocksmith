@@ -20,7 +20,8 @@ enum ImageCheck {
         var i = 0
         while i < n {
             let b = Int(px[i * 4]), g = Int(px[i * 4 + 1]), r = Int(px[i * 4 + 2])
-            if r > 180 && b > 180 && g < 70 { mag += 1 }
+            // The missing texture is magenta (red = blue); crying obsidian's glowing violet tears run bluer.
+            if r > 180 && b > 180 && g < 70 && abs(r - b) < 16 { mag += 1 }
             let y = (r * 54 + g * 183 + b * 19) >> 8
             if y < 6 { blk += 1 }
             if y > 250 { wht += 1 }
