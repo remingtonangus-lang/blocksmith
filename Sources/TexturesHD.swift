@@ -2721,6 +2721,7 @@ enum HDTex {
         "loom_top": planks(pal(col(0xB08A5A), lo: 0.75, hi: 1.18)),
         "fletching_table_top": planks(pal(col(0xC8B88A), lo: 0.78, hi: 1.15)),
         "anvil": metal(0x444448, shine: 0.1),
+        "bell": metal(0xE8C040, shine: 0.22),
         "cauldron": metal(0x3A3A3E, shine: 0.08),
         "smithing_table_top": metal(0x3A3A44, tiles: 2, shine: 0.1),
         "grindstone": stone([(0, 0x6E6E6E), (0.5, 0x8E8E8E), (1, 0xA8A8A8)], veins: 0, strata: 0.06),
