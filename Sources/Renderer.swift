@@ -2241,7 +2241,16 @@ final class Renderer: NSObject, MTKViewDelegate {
             // Torches fill only a 2-texel strip of their texture: drawn larger, or the hotbar showed just the flame's dot
             // (blind critic, tv_hud).
             var h: Float = sz * 0.55
-            if Blocks.shape[Int(id)] == "torch" { h = sz * 0.8 }
+            if Blocks.shape[Int(id)] == "torch" {
+                // Only the middle strip of the texture (5 of 16 texels), drawn at full height: the stick was 2 px wide
+                // and the flame a dot even at 0.8 (run 358 spawn hotbar).
+                h = sz * 0.8
+                let u0: Float = 5.5 / 16, u1: Float = 10.5 / 16
+                let hw: Float = h * (u1 - u0)
+                let tuv: [V2] = [V2(u0, 0), V2(u1, 0), V2(u1, 1), V2(u0, 1)]
+                quad([V2(c.x - hw, c.y - h), V2(c.x + hw, c.y - h), V2(c.x + hw, c.y + h), V2(c.x - hw, c.y + h)], tuv, full, Float(tex[Int(id) * 6]))
+                return
+            }
             quad([V2(c.x - h, c.y - h), V2(c.x + h, c.y - h), V2(c.x + h, c.y + h), V2(c.x - h, c.y + h)], uv, full, Float(tex[Int(id) * 6]))
             return
         }
