@@ -167,8 +167,10 @@ enum Bench {
         for k in 0..<WorldGen.phaseMs.count { WorldGen.phaseMs[k] = 0 }
         StructureCache.startMs = [:]
         var placeMs: Double = 0
+        var perChunk: [(Double, Int, Int, [Double], Double, Double)] = []     // ms, cx, cz, phase ms, starts ms, place ms
         for i in 0..<24 {
             let cx = i * 7 - 80, cz = (i * 13) % 50 - 25
+            let ph0 = WorldGen.phaseMs, st0 = StructureCache.startMs.values.reduce(0, +)
             let a = now
             var b = g.generate(cx: cx, cz: cz)
             let ps = now
@@ -177,7 +179,15 @@ enum Bench {
             _ = g.tints(cx: cx, cz: cz)
             _ = Chunk.computeHeights(b)
             times.append((now - a) * 1000)
+            let ph1 = WorldGen.phaseMs
+            perChunk.append(((now - a) * 1000, cx, cz, (0..<ph1.count).map { ph1[$0] - ph0[$0] },
+                             StructureCache.startMs.values.reduce(0, +) - st0, (now - ps) * 1000))
             for v in b { hash = (hash ^ UInt64(v)) &* 0x100000001b3 }
+        }
+        // The slowest chunks and where their time went (a gen regression from one structure shows up here).
+        for (ms, cx, cz, ph, stMs, plMs) in perChunk.sorted(by: { $0.0 > $1.0 }).prefix(3) {
+            let top = ph.enumerated().sorted { $0.1 > $1.1 }.prefix(3).map { String(format: "%@ %.1f", WorldGen.phaseNames[$0.0], $0.1) }
+            print(String(format: "bench gen slow chunk %ld,%ld: %.1f ms (%@; starts %.1f, place %.1f)", cx, cz, ms, top.joined(separator: ", "), stMs, plMs))
         }
         WorldGen.timing = false
         // Where a chunk's time goes (ms per chunk): which pass grew when gen.chunk_ms regresses.
