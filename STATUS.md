@@ -114,6 +114,8 @@ Bug discovery is fully automated (Remington is not the bug finder). Keep CI gree
          dead ends, crashes) recording replays; monkey fuzzing across seeds; replay minimiser.
    - [x] Explorer bots (walk, never fly): curiosity + goals (enter every village building, climb stairs, swim a lake,
          cave down and back, trade, sleep, survive a night). An unmet goal a human would expect to meet is a bug.
+         Bots: village (every door), explorer (targets, swimming), life (trade, sleep, the night passes), cave
+         (down 10+ blocks and back), monkey (random input + minimiser).
    - [x] Mob/villager behaviour sim: stuck, spinning, jittering, wall-walking, falling, never-reaching-target stats.
    - [x] World-gen sanity (floating blocks, leaks, trees in walls, plants on wrong blocks, ores in air) and a
          collision test for every block shape.
