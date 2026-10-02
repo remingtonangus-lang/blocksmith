@@ -4,7 +4,7 @@ import simd
 
 // `Blocksmith --agent <bot> [--seeds a,b] [--runs N] [--ticks N] [--botseed K] [--out DIR] [--minimize] [--strict]`
 //   bots: monkey (random input), explorer (curiosity walking), village (walk into every building),
-//         life (trade with a villager, sleep in a village bed through the night)
+//         life (trade with a villager, sleep in a village bed through the night), cave (down into a cave and back)
 // `Blocksmith --agent replay FILE [--verify]` plays a recorded run back with the oracles (--verify: twice, and
 //   checks both runs end in the same state).
 // Every run with an oracle violation or an unmet goal writes DIR/replay_<bot>_<seed>_<botseed>.jsonl; with
@@ -103,6 +103,7 @@ enum AgentRun {
             _ = world.loadSync(center: c, radius: 6)
             game.time = LifeBot.startTime * DAY_LENGTH
             b = LifeBot(village: v)
+        case "cave": b = CaveBot()
         default: b = ExplorerBot(seed: botSeed)
         }
         return (agent, b, game.player.pos)

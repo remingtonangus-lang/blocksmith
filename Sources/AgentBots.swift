@@ -485,3 +485,100 @@ final class LifeBot: AgentBot {
          ("the night passes while asleep", morning, morningDetail)]
     }
 }
+
+// Down into a cave and back up (Remington's explorer goal "cave down and back"): the nearest cave floor at least 10
+// blocks under the surface that a path reaches (dark: no sky light), walked to on foot, then back to the start.
+final class CaveBot: AgentBot {
+    let name = "cave"
+    var phase = 0                        // 0 pick, 1 down, 2 back, 3 done
+    var down = false, back = false
+    var downDetail = "no reachable cave floor within 48 blocks", backDetail = "never got down"
+    var start = V3(0, 0, 0)
+    var goal = V3(0, 0, 0)
+    var path: [IVec3] = []
+    var idx = 0, since = 0, phaseTicks = 0, stalls = 0
+    var deepest: Float = 999
+
+    func plan(_ s: AgentState, _ a: Agent, to t: V3) {
+        var pr = PathProfile()
+        pr.doors = true
+        pr.waterCost = 3
+        path = PathFinder.find(a.world, from: s.pos, to: t, profile: pr, maxNodes: 8000) ?? []
+        idx = 0; since = 0
+    }
+
+    func act(_ s: AgentState, _ a: Agent) -> AgentAction {
+        if s.menu != nil { var k = AgentAction(); k.key = Key.esc; return k }
+        phaseTicks += 1
+        deepest = min(deepest, s.pos.y)
+        switch phase {
+        case 0:
+            start = s.pos
+            // Cave floors under the surface, nearest first; the first one a path reaches is the goal.
+            var cands: [(Float, IVec3)] = []
+            let fx = Int(floor(s.pos.x)), fz = Int(floor(s.pos.z))
+            var pr = PathProfile()
+            pr.doors = true
+            for dz in stride(from: -48, through: 48, by: 3) { for dx in stride(from: -48, through: 48, by: 3) {
+                let x = fx + dx, z = fz + dz
+                let top = a.world.topY(x, z)
+                for y in stride(from: top - 10, to: max(2, top - 40), by: -1) {
+                    guard PathFinder.standCost(a.world, x, y, z, pr) != nil, a.world.lightAt(x, y, z).sky == 0 else { continue }
+                    cands.append((Float(dx * dx + dz * dz), IVec3(x, y, z)))
+                    break
+                }
+            } }
+            cands.sort { $0.0 < $1.0 }
+            for (_, c) in cands.prefix(10) {
+                let t = V3(Float(c.x) + 0.5, Float(c.y), Float(c.z) + 0.5)
+                plan(s, a, to: t)
+                if let last = path.last, abs(last.x - c.x) <= 1 && abs(last.z - c.z) <= 1 && abs(last.y - c.y) <= 1 {
+                    goal = t; phase = 1; phaseTicks = 0
+                    downDetail = "walking to the cave floor at \(c.x) \(c.y - YOFF) \(c.z)"
+                    return AgentAction()
+                }
+            }
+            path = []
+            phase = 3
+            return AgentAction()
+        case 1, 2:
+            let t = phase == 1 ? goal : start
+            let flat: Float = simd_length(V2(t.x - s.pos.x, t.z - s.pos.z))
+            if flat < 1.5 && abs(t.y - s.pos.y) < 1.5 {
+                if phase == 1 {
+                    down = true; downDetail = "reached the cave floor \(Int(start.y - s.pos.y)) blocks down in \(phaseTicks / 60) s"
+                    phase = 2; phaseTicks = 0; backDetail = "walking back up"; plan(s, a, to: start)
+                } else {
+                    back = true; backDetail = "back at the start in \(phaseTicks / 60) s"; phase = 3
+                }
+                return AgentAction()
+            }
+            if phaseTicks > 60 * 60 {
+                let at = String(format: "%.0f %.0f %.0f", s.pos.x, s.pos.y - Float(YOFF), s.pos.z)
+                if phase == 1 { downDetail = "didn't reach the cave floor in 60 s (stopped at \(at))" } else { backDetail = "didn't get back up in 60 s (stopped at \(at))" }
+                a.flag("goal_failed", phase == 1 ? "couldn't walk down to the cave floor" : "couldn't walk back up out of the cave")
+                phase = 3
+                return AgentAction()
+            }
+            if idx >= path.count || since > 180 {
+                if since > 180 { stalls += 1 }
+                plan(s, a, to: t)
+            }
+            since += 1
+            guard idx < path.count else { return Steer.toward(s, a, t) }
+            let wp = path[idx]
+            let c = V3(Float(wp.x) + 0.5, Float(wp.y), Float(wp.z) + 0.5)
+            if simd_length(V2(c.x - s.pos.x, c.z - s.pos.z)) < 0.4 && abs(c.y - s.pos.y) < 1.3 { idx += 1; since = 0 }
+            var act = Steer.toward(s, a, c)
+            if since > 60 && s.onGround { act.jump = true }
+            return act
+        default:
+            return AgentAction()
+        }
+    }
+
+    func goals() -> [(String, Bool, String)] {
+        [("walk down into a cave (10+ blocks under the surface)", down, downDetail),
+         ("walk back up out of it", back, backDetail)]
+    }
+}
