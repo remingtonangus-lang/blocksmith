@@ -2191,26 +2191,49 @@ final class Renderer: NSObject, MTKViewDelegate {
         ]
     }
 
-    // Isometric block icon from three textured faces (grass/leaves tinted with default biome colours).
+    // Isometric block icon (grass/leaves tinted with default biome colours). Model and connecting blocks (stairs,
+    // slabs, fences, walls, lanterns, anvils...) draw their real boxes: each box's three visible faces (+Y, +Z on
+    // the left, +X on the right) projected with that face's texture sub-rect, back to front.
     func icon(_ id: BlockID, center c: V2, size sz: Float, _ quad: ([V2], [V2], V4, Float) -> Void) {
         let tex = Blocks.tex
         let uv = [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)]
         let tintMode = Blocks.tint[Int(id)]
         let grassC = V4(0.57, 0.74, 0.35, 1), leafC = V4(0.47, 0.67, 0.18, 1)
         let full: V4 = tintMode == 1 ? grassC : (tintMode == 2 ? leafC : V4(1, 1, 1, 1))
-        if Blocks.flatIcon(id) {
+        let ck = Blocks.connectKind[Int(id)]
+        if Blocks.flatIcon(id) || ck == 2 {
             let h = sz * 0.55
             quad([V2(c.x - h, c.y - h), V2(c.x + h, c.y - h), V2(c.x + h, c.y + h), V2(c.x - h, c.y + h)], uv, full, Float(tex[Int(id) * 6]))
             return
         }
-        let top = Float(tex[Int(id) * 6 + 2]), left = Float(tex[Int(id) * 6 + 4]), right = Float(tex[Int(id) * 6 + 0])
         let hx = sz * 0.5, hy = sz * 0.25, vh = sz * 0.55
-        let t = V2(c.x, c.y - hy - vh / 2 + hy)
-        let n = V2(c.x, t.y - hy), e = V2(c.x + hx, t.y), s = V2(c.x, t.y + hy), w = V2(c.x - hx, t.y)
         let topC = tintMode == 3 ? grassC : full
-        quad([n, e, s, w], uv, topC, top)
-        quad([w, s, s + V2(0, vh), w + V2(0, vh)], uv, full * V4(0.78, 0.78, 0.78, 1), left)
-        quad([s, e, e + V2(0, vh), s + V2(0, vh)], uv, full * V4(0.6, 0.6, 0.6, 1), right)
+        let r = Blocks.render[Int(id)]
+        var boxes: [Box] = []
+        if r == RenderType.model.rawValue { boxes = Blocks.boxes[Int(id)] }
+        else if r == RenderType.connect.rawValue { boxes = BlockRegistry.connectBoxes(ck, n: false, s: false, w: true, e: true, collision: false) }
+        if boxes.isEmpty { boxes = [Box(0, 0, 0, 16, 16, 16)] }
+        // Block-local point (0...1 per axis) to the screen: +X goes right-down, +Z left-down, +Y up.
+        let oy: Float = c.y + (vh - 2 * hy) / 2
+        func P(_ x: Float, _ y: Float, _ z: Float) -> V2 { V2(c.x + (x - z) * hx, oy + (x + z) * hy - y * vh) }
+        let order = boxes.sorted { a, b in
+            let da: Float = Float(Int(a.x0) + Int(a.x1) + Int(a.y0) + Int(a.y1) + Int(a.z0) + Int(a.z1))
+            let db: Float = Float(Int(b.x0) + Int(b.x1) + Int(b.y0) + Int(b.y1) + Int(b.z0) + Int(b.z1))
+            return da < db
+        }
+        for b in order {
+            let lo = b.minV, hi = b.maxV
+            func layer(_ f: Int) -> Float { b.tex.count == 6 ? Float(b.tex[f]) : Float(tex[Int(id) * 6 + f]) }
+            // +Z face (left): u = x, v = 1 - y.
+            quad([P(lo.x, hi.y, hi.z), P(hi.x, hi.y, hi.z), P(hi.x, lo.y, hi.z), P(lo.x, lo.y, hi.z)],
+                 [V2(lo.x, 1 - hi.y), V2(hi.x, 1 - hi.y), V2(hi.x, 1 - lo.y), V2(lo.x, 1 - lo.y)], full * V4(0.78, 0.78, 0.78, 1), layer(4))
+            // +X face (right): u = 1 - z, v = 1 - y.
+            quad([P(hi.x, hi.y, hi.z), P(hi.x, hi.y, lo.z), P(hi.x, lo.y, lo.z), P(hi.x, lo.y, hi.z)],
+                 [V2(1 - hi.z, 1 - hi.y), V2(1 - lo.z, 1 - hi.y), V2(1 - lo.z, 1 - lo.y), V2(1 - hi.z, 1 - lo.y)], full * V4(0.6, 0.6, 0.6, 1), layer(0))
+            // +Y face (top): u = x, v = z.
+            quad([P(lo.x, hi.y, lo.z), P(hi.x, hi.y, lo.z), P(hi.x, hi.y, hi.z), P(lo.x, hi.y, hi.z)],
+                 [V2(lo.x, lo.z), V2(hi.x, lo.z), V2(hi.x, hi.z), V2(lo.x, hi.z)], topC, layer(2))
+        }
     }
 
     // MARK: Headless snapshot
