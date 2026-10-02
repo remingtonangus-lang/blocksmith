@@ -738,6 +738,23 @@ enum Snapshot {
             print("piston debug: power \(world.redstone.received(pp)) block west \(Blocks.key(world.block(pp.x - 1, pp.y, pp.z))) front \(Blocks.key(world.block(pp.x + 1, pp.y, pp.z))) kind \(Circuit.kind(world.block(pp.x, pp.y, pp.z)))")
             print("redstone bench: lamp A \(Blocks.key(world.block(bx + 9, gy + 1, bz))), piston \(Blocks.key(world.block(bx + 1, gy + 1, bz + 3))), lamp C \(Blocks.key(world.block(bx + 5, gy + 1, bz + 6))) / \(Blocks.key(world.block(bx + 11, gy + 1, bz + 6))), wire E \(Blocks.key(world.block(bx + 11, gy + 1, bz + 10)))")
         }
+        if CommandLine.arguments.contains("--openview") {
+            // Turn to the most open direction at this pitch (the cave light shot stood against a pillar: blind critic,
+            // cave_torches showed a blurred wall and no torch).
+            let eye = game.player.pos + V3(0, 1.62, 0)
+            var best: Float = -1, bestYaw = game.player.yaw
+            for k in 0..<24 {
+                let yw: Float = Float(k) / 24 * 2 * Float.pi
+                let dir = V3(-sinf(yw) * cosf(game.player.pitch), sinf(game.player.pitch), -cosf(yw) * cosf(game.player.pitch))
+                var d: Float = 32
+                if let h = world.raycast(eye, dir, maxDist: 32) {
+                    d = simd_length(V3(Float(h.hit.x) + 0.5, Float(h.hit.y) + 0.5, Float(h.hit.z) + 0.5) - eye)
+                }
+                if d > best { best = d; bestYaw = yw }
+            }
+            game.player.yaw = bestYaw
+            print(String(format: "openview: yaw %.0f, %.1f blocks clear", bestYaw * 180 / Float.pi, best))
+        }
         if CommandLine.arguments.contains("--torches") {
             // Light test: a ring of torches plus a lamp around the camera, then remesh what changed.
             // Torches stand on the first floor below the camera (surface or cave), never in water.

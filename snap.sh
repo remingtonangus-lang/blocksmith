@@ -266,7 +266,7 @@ done
 "$BIN" --snapshot snaps/seabed_warm.png --seed 12345 --find warm_ocean --seabed 5 --pitch -20 --time 0.3
 "$BIN" --snapshot snaps/seabed_deep.png --seed 12345 --find deep_ocean --seabed 5 --pitch -20 --time 0.3
 "$BIN" --snapshot snaps/seabed_deep_far.png --seed 12345 --find deep_ocean --seabed 14 --pitch -30 --time 0.3
-"$BIN" --snapshot snaps/cave_torches.png --seed 12345 --find dripstone_caves --yaw 60 --pitch -50 --time 0.3 --torches
+"$BIN" --snapshot snaps/cave_torches.png --seed 12345 --find dripstone_caves --yaw 60 --pitch -25 --time 0.3 --openview --torches
 "$BIN" --snapshot snaps/in_lava.png --seed 12345 --find plains --yaw 30 --pitch -10 --time 0.3 --up 1 --inlava
 "$BIN" --snapshot snaps/spawn_portal_check.png --seed 12345 --rd 16 --up 2 --yaw 45 --pitch 20
 "$BIN" --snapshot snaps/gallery_stone.png --seed 12345 --find plains --yaw 0 --pitch 0 --time 0.28 --up 6 --gallery stone,cobblestone,mossy_cobblestone,stone_bricks,mossy_stone_bricks,cracked_stone_bricks,smooth_stone,bricks,andesite,polished_andesite,diorite,polished_diorite,granite,polished_granite,tuff,calcite,deepslate,cobbled_deepslate,deepslate_bricks,deepslate_tiles,polished_deepslate,blackstone,basalt,obsidian
