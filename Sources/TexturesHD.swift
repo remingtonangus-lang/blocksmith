@@ -2038,8 +2038,13 @@ enum HDTex {
                 if kind.hasPrefix("dropper") {
                     hole(&img) { dx, dy in abs(dx) < 2.6 * fu && abs(dy) < 2.6 * fu }
                 } else {
-                    hole(&img) { dx, dy in dx * dx + dy * dy < 12.5 * fu * fu }
-                    if !kind.hasSuffix("vertical") { hole(&img) { dx, dy in abs(dy) < 0.6 * fu && abs(dx) < 5.2 * fu } }
+                    // One shape (round mouth plus the side slot): drawn as two holes, the slot's lit rim crossed the mouth.
+                    let slot = !kind.hasSuffix("vertical")
+                    hole(&img) { dx, dy in
+                        let round: Bool = dx * dx + dy * dy < 12.5 * fu * fu
+                        let bar: Bool = slot && abs(dy) < 0.6 * fu && abs(dx) < 5.2 * fu
+                        return round || bar
+                    }
                 }
                 return img
             case "hopper_outside":
