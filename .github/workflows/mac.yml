@@ -41,6 +41,9 @@ jobs:
           # Report every expression over 150 ms; fail on any over 600 ms (the Mac hit the hard limit on
           # one of these; the CI VM type-checks about twice as slowly as an M1, so 600 ms here is ~300 ms there).
           grep -E "warning: expression took [0-9]+ms to type-check" build.log | sort -u | tee typecheck.log || true
+          # Annotations (readable through the API while the run goes on, unlike the job log): every expression over 300 ms.
+          sed -nE 's#^.*(Sources/[^:]+):([0-9]+):[0-9]+: warning: expression took ([0-9]+)ms.*#\3 \1 \2#p' typecheck.log | sort -u \
+            | awk '$1 >= 300 { printf "::warning file=%s,line=%s::type-check %s ms\n", $2, $3, $1 }' || true
           slow=$(grep -oE "expression took [0-9]+ms" typecheck.log | grep -oE "[0-9]+" | awk '$1 >= 600' | wc -l | tr -d ' ')
           echo "type-check: $(wc -l < typecheck.log | tr -d ' ') expressions over 150 ms, $slow over 600 ms"
           [ "$slow" -eq 0 ]
