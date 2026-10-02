@@ -706,9 +706,11 @@ final class Terrain {
         if w > 0.3 && high < 5 && k.slope < 0.25 { return .mangroveSwamp }
         if w < -0.32 {
             let rough = k.r + (w < -0.4 ? 0.4 : 0) + k.slope
-            if high > 8 && rough > 0.3 {                                // mesas: more of the hot dry country
+            // Mesas: hilly dry country, and whole regions where the variety noise is high (badlands were 8 % of the hot
+            // dry country in scattered patches, so no view showed a mesa landscape: blind critic, run 373 tour_mesa).
+            if (high > 8 && rough > 0.3) || (high > 3 && v > 0.25) {
                 if high > 38 && w > -0.5 { return .woodedBadlands }
-                return v > 0.35 ? .erodedBadlands : .badlands
+                return v > 0.6 ? .erodedBadlands : .badlands
             }
             return .desert
         }
