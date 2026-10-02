@@ -127,6 +127,47 @@ final class WorldGen: TerrainGenerator {
         return 0
     }
 
+    func bankWater(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ tops: inout [Int], _ wls: [Int]) {
+        let tops0 = tops
+        for lz in 0..<CS { for lx in 0..<CS {
+            let k = lx + lz * CS
+            let myTop = tops0[k], myWl = wls[k]
+            let level = max(myTop, myWl)
+            var want = level
+            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                let nx = lx + dx, nz = lz + dz
+                var nTop: Int, nWl: Int
+                if nx >= 0 && nx < CS && nz >= 0 && nz < CS {
+                    nTop = tops0[nx + nz * CS]; nWl = wls[nx + nz * CS]
+                } else {
+                    // Across the chunk border only near inland water (terrain queries cost).
+                    guard myWl > SEA else { continue }
+                    nTop = groundY(bx + nx, bz + nz)
+                    nWl = YOFF + Int(floorf(terrain.column(bx + nx, bz + nz).wl))
+                }
+                guard nWl > nTop, nWl > SEA, nWl > level else { continue }
+                want = max(want, nWl)
+            }
+            guard want > level, want < CH - 2 else { continue }
+            if myWl > myTop {
+                // Water here, lower: a lip one level down, or a cascade down to this surface.
+                if want == myWl + 1 { b[Chunk.index(lx, want, lz)] = WATER_FLOW[2] }
+                else { for y in (myWl + 1)...want where b[Chunk.index(lx, y, lz)] == AIR { b[Chunk.index(lx, y, lz)] = WATER_FALL } }
+            } else if want - myTop > 2 {
+                // Dry and well below (a lake over a slope): the water spills down as a cascade, not a pillar of bank.
+                for y in (myTop + 1)...want where b[Chunk.index(lx, y, lz)] == AIR { b[Chunk.index(lx, y, lz)] = WATER_FALL }
+            } else {
+                // Dry and just below: raise a bank to the water's level in the column's own top material.
+                let topB = b[Chunk.index(lx, myTop, lz)]
+                guard topB != AIR && !Blocks.isLiquid(topB) else { continue }
+                let fill: BlockID = topB == GRASS ? DIRT : topB
+                b[Chunk.index(lx, myTop, lz)] = fill
+                for y in (myTop + 1)...want { b[Chunk.index(lx, y, lz)] = y == want ? topB : fill }
+                tops[k] = want
+            }
+        } }
+    }
+
     // Lattice of density corners around a chunk (x/z step 4 from bx-8 to bx+24, y step 8).
     private struct Lattice {
         static let nx = 9, ny = CH / 8 + 1
@@ -339,6 +380,11 @@ final class WorldGen: TerrainGenerator {
             let held = [(1, 0), (-1, 0), (0, 1), (0, -1)].allSatisfy { d in tops0[lx + d.0 + (lz + d.1) * CS] >= top }
             if held { b[Chunk.index(lx, top, lz)] = WATER; tops[lx + lz * CS] = top - 1 }
         } }
+
+        // River steps and lake edges: water filled per column to its own level stood as a one-block wall beside a
+        // lower neighbour (gencheck "leak", ~1 per chunk). From the lower side: a column with water just below gets a
+        // shallow flowing lip (or a falling cascade for a bigger drop), a dry one a bank up to the water.
+        bankWater(&b, bx, bz, &tops, wls)
 
         // 3. Caves, aquifers, lava.
         let caves = caveLattice(bx, bz, maxY: maxTop)
