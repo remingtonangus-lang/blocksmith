@@ -3716,6 +3716,8 @@ enum HDTex {
         "torch_wall": torchHD(core: 0xFFF6C8, flame: 0xFFC43A, x0: 0, x1: 16, coreRow: 3, stickTo: 13),
         "soul_torch": torchHD(core: 0xD8FFFF, flame: 0x3AD8E8, x0: 7, x1: 9, coreRow: 6, stickTo: 16),
         "soul_torch_wall": torchHD(core: 0xD8FFFF, flame: 0x3AD8E8, x0: 0, x1: 16, coreRow: 3, stickTo: 13),
+        "redstone_torch": torchHD(core: 0xFF6A5A, flame: 0xE8201A, x0: 7, x1: 9, coreRow: 6, stickTo: 16),
+        "redstone_torch_off": torchHD(core: 0x6A2018, flame: 0x4A1410, x0: 7, x1: 9, coreRow: 6, stickTo: 16),
         "copper_torch": torchHD(core: 0xE0FFC8, flame: 0x6CE04A, x0: 7, x1: 9, coreRow: 6, stickTo: 16),
         "copper_torch_wall": torchHD(core: 0xE0FFC8, flame: 0x6CE04A, x0: 0, x1: 16, coreRow: 3, stickTo: 13),
         "vine": vineHD,
