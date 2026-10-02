@@ -2375,9 +2375,18 @@ final class Renderer: NSObject, MTKViewDelegate {
         if r == RenderType.model.rawValue { boxes = Blocks.boxes[Int(id)] }
         else if r == RenderType.connect.rawValue { boxes = BlockRegistry.connectBoxes(ck, n: false, s: false, w: true, e: true, collision: false) }
         if boxes.isEmpty { boxes = [Box(0, 0, 0, 16, 16, 16)] }
+        // Small models (lanterns, candles, pots, buttons...) are scaled up round their own centre to fill the slot: drawn
+        // at true size the lantern was a 10 px speck in a 28 px trade slot (blind UI critic, trade).
+        var bmin = V3(1, 1, 1), bmax = V3(0, 0, 0)
+        for b in boxes { bmin = simd_min(bmin, b.minV); bmax = simd_max(bmax, b.maxV) }
+        let ext: V3 = bmax - bmin
+        let big: Float = max(ext.x, max(ext.y, ext.z))
+        let fit: Float = big > 0.01 && big < 0.7 ? min(2.2, 0.8 / big) : 1
+        let mid: V3 = fit == 1 ? V3(0.5, 0.5, 0.5) : (bmin + bmax) * 0.5
         // Block-local point (0...1 per axis) to the screen: +X goes right-down, +Z left-down, +Y up.
         let oy: Float = c.y + (vh - 2 * hy) / 2
-        func P(_ x: Float, _ y: Float, _ z: Float) -> V2 {
+        func P(_ x0: Float, _ y0: Float, _ z0: Float) -> V2 {
+            let x: Float = 0.5 + (x0 - mid.x) * fit, y: Float = 0.5 + (y0 - mid.y) * fit, z: Float = 0.5 + (z0 - mid.z) * fit
             let sx: Float = c.x + (x - z) * hx
             let sy: Float = oy + (x + z) * hy - y * vh
             return V2(sx, sy)
