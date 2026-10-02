@@ -4323,7 +4323,7 @@ enum HDTex {
     static let tablePart6: [String: Gen] = [
         "birch_planks": planks([(0, 0xA89664), (0.5, 0xC4B07C), (1, 0xDCCA98)]),
         "cobblestone": cobble([(0, 0x585A5C), (0.5, 0x808082), (1, 0xA2A09E)], mortar: 0x3A3838),
-        "sand": sandLike([(0, 0xB4A276), (0.5, 0xCAB98A), (1, 0xE0D2A4)]),     // ~10 % darker: beaches clipped to white in Fancy daylight (Gemini critic; 69 % of sand pixels at 0.97+)
+        "sand": sandLike([(0, 0xAC9A70), (0.5, 0xC2B184), (1, 0xD8CA9C)]),     // ~15 % darker: beaches clipped to white in Fancy daylight (Gemini critic; 69 % of sand pixels at 0.97+)
         "red_sand": sandLike([(0, 0x9E5222), (0.5, 0xB8662C), (1, 0xD0803C)]),
         "gravel": gravel([(0, 0x5C5654), (0.4, 0x7C7672), (0.7, 0x968C80), (1, 0xB0A8A0)]),
         "coal_ore": ore(stone(stoneGrey), 0x1E1E20, 0x46464A),
