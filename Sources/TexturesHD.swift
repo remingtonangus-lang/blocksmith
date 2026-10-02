@@ -1623,6 +1623,55 @@ enum HDTex {
         }
     }
 
+    // Furnace (same layout as the small painters): a bevelled smooth-stone casing; the front with a vent slot and a
+    // fire mouth framed in dark iron with a grate; lit, the mouth glows with flames over embers.
+    static let furnaceStone: Gen = polished(stone([(0, 0x6A6A6C), (0.5, 0x7E7E80), (1, 0x949494)], veins: 0.3, strata: 0), calm: 0.45, rim: 1 / 16)
+    static func furnaceHD(front: Bool, lit: Bool) -> Gen {
+        { n, s in
+            let u = n / 16
+            var img = furnaceStone(n, s)
+            let fine = vnoise(n, max(1, n / 64), s &+ 2)
+            let flick = fbm(n, max(1, n / 16), 3, s &+ 5)
+            func put(_ x: Int, _ y: Int, _ c: V3) { img[x, y] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1) }
+            guard front else { return img }
+            let iron = col(0x3A3A3A)
+            // Vent slot.
+            for y in (3 * u)..<(6 * u) { for x in (4 * u)..<(12 * u) {
+                let lip: Float = y < 3 * u + u / 2 ? 0.6 : 1
+                let vk: Float = lip * (0.9 + 0.2 * fine[y * n + x])
+                put(x, y, col(0x4A4A4A) * vk)
+            } }
+            // Iron frame around the mouth.
+            for y in (8 * u)..<(15 * u) { for x in (3 * u)..<(13 * u) {
+                let inMouth = x >= 4 * u && x < 12 * u && y >= 9 * u && y < 14 * u
+                if inMouth { continue }
+                let lit2: Float = y < 8 * u + u / 3 ? 1.25 : 0.95
+                let fk: Float = lit2 * (0.9 + 0.2 * fine[y * n + x])
+                put(x, y, iron * fk)
+            } }
+            // The mouth: dark (or burning), with grate bars along the bottom.
+            for y in (9 * u)..<(14 * u) { for x in (4 * u)..<(12 * u) {
+                let i = y * n + x
+                var c: V3
+                if lit {
+                    let depth: Float = Float(y - 9 * u) / Float(5 * u)
+                    let heat: Float = cl(depth * 1.2 + (flick[i] - 0.5) * 0.9)
+                    let ember = col(0x3A1A0A), flame = col(0xFF8A1A), hot = col(0xFFE070)
+                    let low: V3 = ember + (flame - ember) * (heat * 2)
+                    let high: V3 = flame + (hot - flame) * ((heat - 0.5) * 2)
+                    c = heat < 0.5 ? low : high
+                } else {
+                    let dk: Float = 0.8 + 0.4 * fine[i]
+                    c = V3(0.08, 0.08, 0.08) * dk
+                }
+                let bar = y >= 13 * u && (x / u) % 2 == 0
+                if bar { c = iron * 0.8 }
+                put(x, y, c)
+            } }
+            return img
+        }
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -2216,6 +2265,10 @@ enum HDTex {
         "crafting_table_top": craftingTable(0),
         "crafting_table_side": craftingTable(1),
         "crafting_table_front": craftingTable(2),
+        "furnace_side": furnaceHD(front: false, lit: false),
+        "furnace_front": furnaceHD(front: true, lit: false),
+        "furnace_front_on": furnaceHD(front: true, lit: true),
+        "furnace_top": cobble([(0, 0x585A5C), (0.5, 0x808082), (1, 0xA2A09E)], mortar: 0x3A3838),
         "chest_top": chestFace(0),
         "chest_side": chestFace(1),
         "chest_front": chestFace(2),
