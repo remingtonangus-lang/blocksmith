@@ -636,6 +636,9 @@ final class WorldGen: TerrainGenerator {
             let wx = bx + lx, wz = bz + lz
             let maxY = min(CH - 2, wetColumn ? top - 5 : top + 1)
             guard maxY > 6 else { continue }
+            // Spaghetti tunnel width: a column constant (it was evaluated for every block of the column, ~38k noise
+            // calls per chunk: the biggest share of generate's time in the CI profile).
+            let spagT: Float = 0.05 + 0.025 * spagMod.noise2(Float(wx) / 40, Float(wz) / 40)
             for y in 6...maxY {
                 let i = Chunk.index(lx, y, lz)
                 let cur = b[i]
@@ -646,8 +649,7 @@ final class WorldGen: TerrainGenerator {
                 let cheese = cl.sample(0, lx, y, lz) + (yd < 30 ? 0 : -Float(yd - 30) / 90)
                 if cheese > 0.3 { carve = true }
                 if !carve {
-                    let t: Float = 0.05 + 0.025 * spagMod.noise2(Float(wx) / 40, Float(wz) / 40)
-                    if abs(cl.sample(1, lx, y, lz)) < t && abs(cl.sample(2, lx, y, lz)) < t { carve = true }
+                    if abs(cl.sample(1, lx, y, lz)) < spagT && abs(cl.sample(2, lx, y, lz)) < spagT { carve = true }
                 }
                 if !carve && yd < 40 {
                     if abs(cl.sample(3, lx, y, lz)) < 0.022 && abs(cl.sample(4, lx, y, lz)) < 0.022 { carve = true }
