@@ -469,15 +469,20 @@ enum BigStructures {
                 let bone = g("bone_block"), coal = g("coal_ore")
                 var r = SRng(seed &+ 1)
                 let spine = 5 + r.int(4)
+                // Spine with a tapering tail, arched ribs (out, up and back in), and a skull with eye sockets.
                 for k in -spine...spine { w.set(x + k, y, z, bone) }
-                for k in stride(from: -spine + 1, through: spine - 1, by: 2) {
-                    let ribH = 2 + r.int(3)
+                for k in 1...5 { w.set(x - spine - k, y - k / 3, z + (k > 3 ? 1 : 0), r.chance(0.85) ? bone : coal) }
+                for k in stride(from: -spine + 2, through: spine - 2, by: 2) {
+                    let ribH = 3 + r.int(3)
                     for d in 1...ribH {
-                        w.set(x + k, y + d, z - 1 - d / 2, r.chance(0.9) ? bone : coal)
-                        w.set(x + k, y + d, z + 1 + d / 2, r.chance(0.9) ? bone : coal)
+                        let out = d <= ribH / 2 ? 1 + d : 1 + ribH - d          // widest half-way up
+                        w.set(x + k, y + d, z - out, r.chance(0.9) ? bone : coal)
+                        w.set(x + k, y + d, z + out, r.chance(0.9) ? bone : coal)
                     }
                 }
-                w.fill(x + spine, y, z - 1, x + spine + 2, y + 2, z + 1, bone)
+                w.fill(x + spine + 1, y, z - 1, x + spine + 3, y + 2, z + 1, bone)
+                w.set(x + spine + 3, y + 1, z - 1, AIR); w.set(x + spine + 3, y + 1, z + 1, AIR)       // eye sockets
+                w.fill(x + spine + 4, y, z - 1, x + spine + 5, y, z + 1, bone)                          // jaw
             }], anchor: IVec3(x, y + 1, z))
         }
     }
