@@ -515,7 +515,8 @@ enum HDTex {
             let edge = min(min(x, y), min(n - 1 - x, n - 1 - y))
             if edge < w {
                 let k: Float = 0.82 + fine[i] * 0.16
-                img.px[i] = edge == 0 ? V4(0.62 * k, 0.74 * k, 0.8 * k, 1) : V4(0.78 * k, 0.88 * k, 0.94 * k, 1)
+                // Toned down: the frame was the brightest thing in a sunlit street (critic 355).
+                img.px[i] = edge == 0 ? V4(0.52 * k, 0.62 * k, 0.68 * k, 1) : V4(0.68 * k, 0.77 * k, 0.83 * k, 1)
                 continue
             }
             let fx = Float(x), fy = Float(y)
@@ -4009,7 +4010,7 @@ enum HDTex {
     static let deepslate: [(Float, UInt32)] = [(0, 0x2E2E34), (0.5, 0x48484E), (1, 0x64646A)]
     static let dirtPal: [(Float, UInt32)] = [(0, 0x58402C), (0.5, 0x7E5A3C), (1, 0x9C7450)]   // lighter: terrace step sides read as near-black dashes from above
     static let oakPlank: [(Float, UInt32)] = [(0, 0x7E5C34), (0.5, 0xA67E4C), (1, 0xC49C62)]
-    static let oakBark: [(Float, UInt32)] = [(0, 0x3C2C1C), (0.5, 0x60482C), (1, 0x80623E)]
+    static let oakBark: [(Float, UInt32)] = [(0, 0x463422), (0.5, 0x6A5032), (1, 0x8C6E46)]      // lighter: village log pillars read near-black (critic 355)
     static let stoneBricks: Gen = masonry(rows: 2, perRow: 1, offset: 0.5, mortarW: 1 / 22, [(0, 0x5E5E60), (0.5, 0x7E7E80), (1, 0x9C9C9C)], mortar: 0x48484A)
     static let sandstonePal: [(Float, UInt32)] = [(0, 0xB8A878), (0.5, 0xD9CE9E), (1, 0xEEE4BC)]
     // Podzol: the soil under a litter of fallen needles (it was plain soil): short thin strokes in browns and
