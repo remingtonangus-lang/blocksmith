@@ -566,7 +566,10 @@ final class World {
         // Generated chests/spawners; a regenerated chunk keeps any existing (already looted) entity.
         for (pos, be) in p.entities where blockEntities[pos] == nil { blockEntities[pos] = be }
         // Structure mobs (bastion boarlings...) appear once: the chunk is saved so it never regenerates.
-        if !p.mobs.isEmpty { c.modified = true; pendingMobs += p.mobs }
+        if !p.mobs.isEmpty {
+            c.modified = true
+            for (name, at) in p.mobs { pendingMobs.append((name, freeSpawn(at))) }
+        }
     }
 
     // Blocking load of everything around a point (used by --snapshot and first spawn).
@@ -608,6 +611,30 @@ final class World {
         }
         let t2 = CFAbsoluteTimeGetCurrent()
         return (t1 - t0, t2 - t1)
+    }
+
+    // A structure mob placed inside a wall, floor or furniture (structcheck mob_in_block) moves to the nearest
+    // cell where a two-block body fits: straight up first, then one and two blocks around.
+    func freeSpawn(_ p: V3) -> V3 {
+        func clear(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+            for k in 0...1 {
+                let b = Int(block(x, y + k, z))
+                if Blocks.collide[b] && (Blocks.fullCollide[b] || !Blocks.boxes[b].isEmpty) {
+                    var top: Float = 0
+                    for bx in Blocks.boxes[b] { top = max(top, bx.maxV.y) }
+                    if Blocks.fullCollide[b] || top > (k == 0 ? 0.2 : 0.01) { return false }
+                }
+            }
+            return true
+        }
+        let x = Int(floor(p.x)), y = Int(floor(p.y + 0.01)), z = Int(floor(p.z))
+        if clear(x, y, z) { return p }
+        for dy in 1...4 where clear(x, y + dy, z) { return V3(p.x, Float(y + dy), p.z) }
+        for r in 1...2 { for dy in -1...2 { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
+            let fx = x + dx, fy = y + dy, fz = z + dz
+            if clear(fx, fy, fz) && Blocks.collide[Int(block(fx, fy - 1, fz))] { return V3(Float(fx) + 0.5, Float(fy), Float(fz) + 0.5) }
+        } } } }
+        return p
     }
 
     // Generates and installs every chunk of a rectangle (chunk coordinates, inclusive) without meshing: the

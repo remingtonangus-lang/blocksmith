@@ -256,6 +256,8 @@ final class Mob {
     var walkPhase: Float = 0
     var walkAmount: Float = 0
     var moving = false
+    var wanderGoal: V3?             // current stroll target (wander)
+    static weak var world: World?   // the world mobs are updating in (stroll targets)
     var path = PathState()          // ground navigation (Pathfinding.swift)
     var faceGoal: V3?               // what face() last aimed at during this update
     var aiTimer: Float
@@ -940,15 +942,45 @@ final class Mob {
         g.survival && g.alive && dist < range
     }
 
+    // Strolling: walk to a random standable spot 3-9 blocks away along a path (reference random stroll), instead
+    // of a random heading straight into walls, fences and off ledges (behaviour sim: villagers spent most of the
+    // day pushing against house walls and hopping). Falls back to a random heading when no spot is found.
     func wander() {
         if panic > 0 {
             moving = true
+            wanderGoal = nil
             if aiTimer <= 0 { yaw += Rand.float(in: -1.2...1.2); aiTimer = 0.6 }
         } else if aiTimer <= 0 {
             moving.toggle()
-            if moving { yaw += Rand.float(in: -2...2); aiTimer = Rand.float(in: 1.5...4) }
-            else { aiTimer = Rand.float(in: 2...7) }
+            wanderGoal = nil
+            if moving {
+                if !spec.flying, let w = Mob.world, let goal = strollGoal(w) { wanderGoal = goal; aiTimer = Rand.float(in: 5...9) }
+                else { yaw += Rand.float(in: -2...2); aiTimer = Rand.float(in: 1.5...4) }
+            } else { aiTimer = Rand.float(in: 2...7) }
         }
+        if moving, let goal = wanderGoal {
+            let d: Float = simd_length(V2(goal.x - pos.x, goal.z - pos.z))
+            if d < 0.7 { moving = false; wanderGoal = nil; aiTimer = Rand.float(in: 2...6) } else { face(goal) }
+        }
+    }
+
+    func strollGoal(_ w: World) -> V3? {
+        var pr = PathProfile()
+        pr.tall = max(1, min(3, Int(ceilf(height - 0.05))))
+        pr.span = halfW > 0.5 ? 2 : 1
+        pr.doors = opensDoors
+        let y0 = Int(floor(pos.y + 0.01))
+        for _ in 0..<6 {
+            let ang: Float = Rand.float(in: 0..<(2 * .pi))
+            let d: Float = Rand.float(in: 3...9)
+            let x = Int(floor(pos.x + sinf(ang) * d)), z = Int(floor(pos.z + cosf(ang) * d))
+            for dy in [0, 1, -1, 2, -2] {
+                if let c = PathFinder.standCost(w, x, y0 + dy, z, pr), c < 5 {
+                    return V3(Float(x) + 0.5, Float(y0 + dy), Float(z) + 0.5)
+                }
+            }
+        }
+        return nil
     }
 
     func teleport(_ w: World) {
@@ -1497,6 +1529,7 @@ final class MobManager {
     ]
 
     func update(_ dt: Float, game: Game) {
+        Mob.world = game.world
         PathFinder.budget = 4
         PathFinder.spent = 0
         let w = game.world

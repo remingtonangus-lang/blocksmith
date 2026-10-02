@@ -81,7 +81,9 @@ enum BehaviorSim {
                         let b = t.best[ph] ?? 999
                         var s = goalStats[ph] ?? (0, 0)
                         s.1 += 1
-                        if b <= 2 { s.0 += 1 } else { counts["goal_missed_\(ph)", default: 0] += 1 }
+                        // Reached: asleep at the bed (2), working at the site (3), at the meeting (villagers mill within 6).
+                        let need: Float = ph == "meet" ? 6 : (ph == "work" ? 3 : 2)
+                        if b <= need { s.0 += 1 } else { counts["goal_missed_\(ph)", default: 0] += 1 }
                         goalStats[ph] = s
                     }
                 }

@@ -289,6 +289,7 @@ enum Village {
         b.set(&w, du, 0, 0, m.door + BlockID(dir(l, 1)))
         b.set(&w, du, 1, 0, m.door + BlockID(dir(l, 1) + 8))
         b.set(&w, du, -1, -1, m.foundation)
+        for dy in 0...3 { b.set(&w, du, dy, -1, AIR) }          // nothing in front of the door (road lamp posts)
         // Roof.
         if !roof { return }
         if m.roofFlat {
