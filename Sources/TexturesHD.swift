@@ -3940,9 +3940,11 @@ enum HDTex {
                 let wy: Float = Float(y) + (w[i] - 0.5) * Float(n) * 0.25
                 let rip: Float = 0.5 + 0.5 * sinf(wy / Float(n) * 2 * Float.pi * 6)
                 let t0: Float = 0.55 + (grain[i] - 0.5) * 0.24
-                var t: Float = t0 + (rip - 0.5) * 0.10 + (blot[i] - 0.5) * 0.15
+                // Stronger ripples and blotches: the fine grain averages away in the mips, so beaches read as a flat
+                // beige slab beside the grass (std 2.6 against 21: blind critic, run 364 shore).
+                var t: Float = t0 + (rip - 0.5) * 0.16 + (blot[i] - 0.5) * 0.30 + (w[i] - 0.5) * 0.14
                 if grain[i] > 0.93 { t -= 0.25 }               // dark grains
-                hh[i] = rip * 0.06
+                hh[i] = rip * 0.09
                 let c = ramp(t, pal)
                 img.px[i] = V4(c.x, c.y, c.z, 1)
             } }
