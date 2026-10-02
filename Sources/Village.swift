@@ -296,6 +296,19 @@ enum Village {
             w.pillarDown(x, l.y - 1, z, m.foundation, minY: l.y - 40)      // over deeper caves too (structcheck floating; 24 left 6-8 columns, run 357)
             for dy in 0...clear where w.inside(x, l.y + dy, z) && w.get(x, l.y + dy, z) != AIR { w.set(x, l.y + dy, z, AIR) }
         } }
+        // A ring two blocks wide round the lot cut back to a one-block step: the hillside left standing at the lot's
+        // edge made one-block trenches under grass overhangs beside houses, and villagers who wandered in had no path
+        // out (behaviour sim, run 380). Natural ground only, so a neighbour's walls or the street stay.
+        let natural: Set<BlockID> = [GRASS, DIRT, STONE, SAND, GRAVEL, SNOW, SNOWY_GRASS, Blocks.id("coarse_dirt"), Blocks.id("podzol"),
+                                     Blocks.id("snow"), Blocks.id("andesite"), Blocks.id("diorite"), Blocks.id("granite"), Blocks.id("clay")]
+        for v in -2...(l.d + 1) { for u in -2...(l.w + 1) where u < 0 || v < 0 || u >= l.w || v >= l.d {
+            let (x, z) = world(l, u, v)
+            let ring = max(u < 0 ? -u : (u >= l.w ? u - l.w + 1 : 0), v < 0 ? -v : (v >= l.d ? v - l.d + 1 : 0))
+            for dy in ring...clear where w.inside(x, l.y + dy, z) {
+                let b = w.get(x, l.y + dy, z)
+                if natural.contains(b) || (Blocks.replaceable[Int(b)] && !Blocks.isLiquid(b) && b != AIR) { w.set(x, l.y + dy, z, AIR) }
+            }
+        } }
     }
 
     // A walled room with log corners, windows, a door on the street side and a gable (or flat) roof.
