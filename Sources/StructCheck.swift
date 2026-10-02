@@ -273,7 +273,14 @@ enum StructCheck {
             // Entered from inside: where the walk starts and how far it gets (stronghold POIs were all unreachable).
             let ay = s.anchor.y - YOFF, cy = c.y - YOFF, y0 = s.min.y - YOFF, y1 = s.max.y - YOFF
             let under = Blocks.key(w.block(c.x, c.y - 1, c.z))
-            print("structcheck: \(kind) at \(s.anchor.x) \(ay) \(s.anchor.z): start cell \(c.x) \(cy) \(c.z) (\(under) under), reaches \(ra.count) cells (\(rw.count) without jumps), box \(y0)...\(y1)")
+            // How much of the structure itself the walk got into, and how high.
+            var inside = 0, topY = Int.min
+            for k in ra {
+                func sx(_ v: Int) -> Int { v >= 0x80000 ? v - 0x100000 : v }
+                let x = sx(k & 0xFFFFF), z = sx((k >> 20) & 0xFFFFF), yy = (k >> 40) & 0x3FF
+                if s.contains(x, yy, z) { inside += 1; topY = max(topY, yy - YOFF) }
+            }
+            print("structcheck: \(kind) at \(s.anchor.x) \(ay) \(s.anchor.z): start cell \(c.x) \(cy) \(c.z) (\(under) under), reaches \(ra.count) cells (\(rw.count) without jumps), \(inside) inside the structure up to y \(topY), box \(y0)...\(y1)")
         }
         // Doors.
         var doors = 0, pois = 0
