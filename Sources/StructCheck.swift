@@ -468,7 +468,17 @@ enum StructCheck {
             }
         } }
         if floating.count >= 3 && !["end_city", "fortress", "bastion", "ruined_portal", "end_centre"].contains(typeName) && kind != "end_centre" {   // the Hollow's exit-portal island floats by design
-            add("floating", floating[0], "\(floating.count) wall/foundation columns over air (first shown)")
+            // The first column top-down beside the bare terrain there (block now / generated without structures),
+            // to tell a foundation that stopped early from terrain carved away under it.
+            let fc = floating[0]
+            let raw = w.gen.generate(cx: floorDiv(fc.x, CS), cz: floorDiv(fc.z, CS))
+            let lx = fc.x - floorDiv(fc.x, CS) * CS, lz = fc.z - floorDiv(fc.z, CS) * CS
+            var stack: [String] = []
+            for y in stride(from: fc.y + 2, through: max(1, fc.y - 5), by: -1) {
+                let now = Blocks.key(w.block(fc.x, y, fc.z)), was = Blocks.key(raw[Chunk.index(lx, y, lz)])
+                stack.append("\(y - YOFF) \(now)" + (now == was ? "" : " (was \(was))"))
+            }
+            add("floating", floating[0], "\(floating.count) wall/foundation columns over air (first shown; column: \(stack.joined(separator: ", ")))")
             // A view from six blocks east, a little below the hanging block, looking west at its underside.
             let f0 = floating[0]
             let dimArg = w.dim == .overworld ? "" : " --dim \(w.dim.rawValue)"
