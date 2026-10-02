@@ -9,6 +9,7 @@ enum Explosion {
         let w = g.world
         w.ships.blast(at: c, power: power, game: g)          // ship blocks (ShipCombat.swift)
         var destroyed = Set<IVec3>()
+        var shaken: [IVec3: Float] = [:]                    // blocks that stopped a ray: share of their cost it carried
         for i in 0..<16 { for j in 0..<16 { for k in 0..<16 {
             if !(i == 0 || i == 15 || j == 0 || j == 15 || k == 0 || k == 15) { continue }
             var d = V3(Float(i) / 15 * 2 - 1, Float(j) / 15 * 2 - 1, Float(k) / 15 * 2 - 1)
@@ -21,7 +22,11 @@ enum Explosion {
                 if id != AIR {
                     let fluid = Blocks.isLiquid(id)
                     let res = fluid ? 100 : Blocks.resistance[Int(id)]
-                    intensity -= (res + 0.3) * 0.3
+                    let cost: Float = (res + 0.3) * 0.3
+                    if intensity <= cost && !fluid && breakBlocks && intensity > 0 {
+                        shaken[b] = max(shaken[b] ?? 0, intensity / cost)
+                    }
+                    intensity -= cost
                     if intensity > 0 && !fluid && b.y >= 0 && b.y < CH && breakBlocks { destroyed.insert(b) }
                 }
                 p += d * 0.3
@@ -44,6 +49,17 @@ enum Explosion {
             w.setBlockAsync(b.x, b.y, b.z, AIR)
         }
         for b in destroyed { w.scheduleFluid(around: b) }
+        // Progressive block damage: blocks the blast couldn't break lose pieces on the side facing it.
+        if Settings.shared.chipping {
+            for (b, share) in shaken where !destroyed.contains(b) && share > 0.15 {
+                let id = w.block(b.x, b.y, b.z)
+                guard Blocks.render[Int(id)] == RenderType.cube.rawValue, Blocks.hardness[Int(id)] >= 0 else { continue }
+                let d = c - (V3(Float(b.x), Float(b.y), Float(b.z)) + 0.5)
+                let ad = simd_abs(d)
+                let face = ad.x >= ad.y && ad.x >= ad.z ? (d.x > 0 ? 0 : 1) : (ad.y >= ad.z ? (d.y > 0 ? 2 : 3) : (d.z > 0 ? 4 : 5))
+                w.chipAsync(b, level: max(1, min(6, Int(share * 7))), face: face)
+            }
+        }
         for b in tnt { g.tnts.prime(at: b, fuse: Rand.float(in: 0.5...1.5)) }
 
         // Entities.

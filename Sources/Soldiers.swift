@@ -172,7 +172,7 @@ extension Mob {
         }
         let sees = b.sees && canTarget
         // No player in sight: fire on an enemy faction's vessel or crawler in range (frigates, crawlers: CapitalShips.swift).
-        if !sees, let foe = w.ships.nearestFoe(of: .steelhold, near: pos, range: rank.sight * 1.5, game: g), foe.ship != nil {
+        if !sees, let foe = w.ships.nearestFoe(of: factionValue, near: pos, range: rank.sight * 1.5, game: g), foe.ship != nil || foe.mob != nil {
             aggro = true
             b.react -= dt
             face(foe.point)
@@ -446,7 +446,7 @@ extension Mob {
         } else {
             b.seenAgo += dt
             // An enemy faction's vessel in range instead (CapitalShips.swift).
-            if let foe = g.world.ships.nearestFoe(of: .steelhold, near: pivot, range: 120, game: g), foe.ship != nil {
+            if let foe = g.world.ships.nearestFoe(of: factionValue, near: pivot, range: 120, game: g), foe.ship != nil || foe.mob != nil {
                 b.lastSeen = foe.point
                 b.seenAgo = 0
             }
@@ -543,12 +543,18 @@ func soldierParts(_ m: Mob, swing: Float) -> [Part] {
     let armX: Float = aiming ? -1.45 - aimPitch : -0.9
     let gunTilt: Float = aiming ? aimPitch : -0.5
     let big: Float = r == 3 ? 1.12 : 1
-    let cloth: V3, plate: V3, trim: V3
+    var cloth: V3, plate: V3, trim: V3
     switch r {
     case 0: cloth = V3(0.46, 0.5, 0.55); plate = V3(0.32, 0.35, 0.38); trim = V3(0.9, 0.55, 0.15)
     case 1: cloth = V3(0.3, 0.34, 0.22); plate = V3(0.36, 0.41, 0.26); trim = V3(0.15, 0.17, 0.12)
     case 2: cloth = V3(0.24, 0.27, 0.2); plate = V3(0.2, 0.22, 0.17); trim = V3(0.4, 0.36, 0.26)
     default: cloth = V3(0.17, 0.18, 0.2); plate = V3(0.24, 0.25, 0.28); trim = V3(0.88, 0.7, 0.12)
+    }
+    // Capital ship crews wear their faction's colours: Stormwarden navy with white trim, Ironback rust with black.
+    if m.faction == Faction.stormwarden.rawValue {
+        cloth = V3(0.16, 0.22, 0.36); plate = V3(0.3, 0.36, 0.46); trim = V3(0.92, 0.92, 0.95)
+    } else if m.faction == Faction.ironback.rawValue {
+        cloth = V3(0.42, 0.25, 0.14); plate = V3(0.3, 0.27, 0.24); trim = V3(0.1, 0.1, 0.1)
     }
     let camo: Float = r == 2 ? 4 : 0
     func s(_ p: Part) -> Part {

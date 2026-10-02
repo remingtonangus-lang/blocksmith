@@ -298,6 +298,7 @@ final class Mob {
     var flyTarget: V3?              // wailer / cinderwisp hover target
     var volley = 0                  // cinderwisp: fireballs left in the current burst
     var persistent = false          // structure mobs never despawn at random
+    var faction = 0                 // soldiers crewing a capital ship: its faction (CapitalShips.swift); 0 Steelhold
     var phase = 0                   // hollow wyrm phase (see updateDragon)
     var phaseTime: Float = 0
     var circleAngle: Float = 0

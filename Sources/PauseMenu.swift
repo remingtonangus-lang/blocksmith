@@ -44,7 +44,7 @@ final class PauseMenu: Menu {
     var currentWorld: String { game.save?.dir.lastPathComponent ?? "" }
 
     static let valueIDs: Set<String> = ["sens", "invert", "autojump", "fov", "lookx", "looky", "accel", "dead", "aim", "rumble", "southpaw",
-                                        "sneaktoggle", "autosprint", "glyphs", "rd", "fullscreen", "launchfs", "vsync", "fps", "rscale", "wscale", "graphics",
+                                        "sneaktoggle", "autosprint", "glyphs", "rd", "chipping", "fullscreen", "launchfs", "vsync", "fps", "rscale", "wscale", "graphics",
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
                                         "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap"]
 
@@ -85,6 +85,7 @@ final class PauseMenu: Menu {
         "launchfs": "Open Blocksmith straight into full screen, ready for the TV.",
         "vsync": "Sync frames to the display. Off can lower input lag but may tear.",
         "fps": "Frame rate cap. 30 or 60 keeps a laptop cooler.",
+        "chipping": "On: mining and blasts break pieces off a block until it gives way. Off: the classic cracks.",
         "graphics": "Fancy: sky gradient, water reflections, shadows and more effects. Fast: the plain renderer.",
         "wscale": "Fancy graphics only: draws the world at fewer pixels and scales it up; menus and the HUD stay sharp.",
         "rscale": "Renders fewer pixels and scales up. 75% helps a lot on a 4K TV.",
@@ -178,7 +179,8 @@ final class PauseMenu: Menu {
                         ("Start in Fullscreen: \(on(st.launchFullscreen))", "launchfs"), ("VSync: \(on(st.vsync))", "vsync"),
                         ("Max Frame Rate: \(st.fpsCap == 0 ? "Display" : "\(st.fpsCap)")", "fps"),
                         ("Resolution: \(pct(st.renderScale))", "rscale"), ("World Scale (Fancy): \(pct(g.renderScale))", "wscale"),
-                        ("Field of View: \(Int(g.fovSetting))", "fov"), ("GUI Scale: \(gui)", "gui")]
+                        ("Field of View: \(Int(g.fovSetting))", "fov"), ("GUI Scale: \(gui)", "gui"),
+                        ("Block Chipping: \(on(st.chipping))", "chipping")]
             case .audio:
                 // One slider per sound category, subtitles and a test sound (AudioMenu.swift); its own Done row is ours.
                 rows = audioRows().filter { $0.1 != "audio_back" }
@@ -449,6 +451,7 @@ final class PauseMenu: Menu {
         case "fullscreen": g.appAction?("fullscreen")
         case "launchfs": st.launchFullscreen.toggle()
         case "graphics": g.fancyGraphics.toggle()
+        case "chipping": st.chipping.toggle()
         case "wscale": g.renderScale = step([1, 0.85, 0.7], g.renderScale)
         case "display":
             let list = VideoState.displays

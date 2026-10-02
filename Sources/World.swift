@@ -6,6 +6,7 @@ import simd
 // queue; results are applied on the main thread in update(). Chunk block arrays are Swift
 // copy-on-write values, so handing snapshots to worker threads is safe.
 final class World {
+    var damage: [IVec3: UInt8] = [:]      // progressive block damage (chip, damageList)
     let gen: TerrainGenerator
     let dim: Dim
     let seed: UInt64
@@ -169,6 +170,7 @@ final class World {
     // AO), everything its light could reach in the background.
     func setBlock(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) {
         guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return }
+        if !damage.isEmpty { damage.removeValue(forKey: IVec3(x, y, z)) }
         let lx = mod(x, CS), lz = mod(z, CS)
         let oldH = Int(c.height[lx + lz * CS])
         let old = c.blocks[Chunk.index(lx, y, lz)]
@@ -210,6 +212,7 @@ final class World {
     @discardableResult
     func setBlockAsync(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) -> Bool {
         guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return false }
+        if !damage.isEmpty { damage.removeValue(forKey: IVec3(x, y, z)) }
         let lx = mod(x, CS), lz = mod(z, CS)
         let old = c.blocks[Chunk.index(lx, y, lz)]
         c.blocks[Chunk.index(lx, y, lz)] = id
@@ -368,7 +371,52 @@ final class World {
 
     private func remeshSync(_ c: Chunk, _ sy: Int) {
         guard let nb = neighbourhood(c) else { return }
-        apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod), to: c, sy: sy, version: c.sections[sy].version)
+        apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod, damage: damageList(c)), to: c, sy: sy, version: c.sections[sy].version)
+    }
+
+    // MARK: Progressive block damage
+
+    // Chipped blocks: world cell -> face << 5 | level (1...7 of 8 chipped away). Cleared when the block changes;
+    // not saved (a chipped block comes back whole after the chunk reloads).
+    func damageLevel(_ p: IVec3) -> Int { Int((damage[p] ?? 0) & 31) }
+
+    // The damaged blocks a chunk's sections need (its own and one chunk round), relative to its corner.
+    func damageList(_ c: Chunk) -> [(Int, Int, Int, UInt8)] {
+        if damage.isEmpty { return [] }
+        let bx = c.cx * CS, bz = c.cz * CS
+        var out: [(Int, Int, Int, UInt8)] = []
+        for (p, v) in damage {
+            let dx = p.x - bx, dz = p.z - bz
+            if dx >= -16 && dx < 32 && dz >= -16 && dz < 32 { out.append((dx, p.y, dz, v)) }
+        }
+        return out
+    }
+
+    // The same without the immediate remesh (explosions chip dozens at once): the sections remesh in the background.
+    func chipAsync(_ p: IVec3, level: Int, face: Int) {
+        let cur = damage[p]
+        let lv = max(level, Int((cur ?? 0) & 31))
+        guard lv > 0 && lv < 8, p.y >= 0 && p.y < CH else { return }
+        if damage.count > 4096 && cur == nil { return }
+        let f = cur.map { Int($0 >> 5) } ?? face
+        damage[p] = UInt8((f & 7) << 5 | min(7, lv))
+        for dz in -1...1 { for dx in -1...1 {
+            guard let n = chunkAt(p.x + dx * 16, p.z + dz * 16) else { continue }
+            for sy in max(0, (p.y - 16) >> 4)...min(NSEC - 1, (p.y + 16) >> 4) { n.sections[sy].version += 1 }
+        } }
+    }
+
+    // Chips a block to `level` (keeps the face of the first hit); remeshes around it now.
+    func chip(_ p: IVec3, level: Int, face: Int) {
+        let cur = damage[p]
+        let lv = max(level, Int((cur ?? 0) & 31))
+        guard lv > 0 && lv < 8 else { return }
+        if damage.count > 4096 && cur == nil { return }
+        let f = cur.map { Int($0 >> 5) } ?? face
+        let v = UInt8((f & 7) << 5 | min(7, lv))
+        if cur == v { return }
+        damage[p] = v
+        remeshArea(x0: p.x - 1, z0: p.z - 1, x1: p.x + 1, z1: p.z + 1, y0: p.y - 1, y1: p.y + 1)
     }
 
     private func makeBuffer(_ words: [UInt32]) -> MeshSlice? {
@@ -487,6 +535,7 @@ final class World {
                     let (n9, h9) = nb
                     let todo = dirtySections(c)
                     let lod = c.lod
+                    let dl = damageList(c)
                     c.meshInFlight = true
                     jobs += 1
                     // Weak: a finished operation can linger in a worker's autorelease pool and would keep the World alive.
@@ -494,7 +543,7 @@ final class World {
                         guard let self else { return }
                         let t0 = CFAbsoluteTimeGetCurrent()
                         var out: [(Int, Int, SectionMesh)] = []
-                        for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod))) }
+                        for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl))) }
                         let el = CFAbsoluteTimeGetCurrent() - t0
                         lock.lock()
                         meshResults.append((k, out))
@@ -642,11 +691,12 @@ final class World {
                 for (sy, v) in dirtySections(c) { toMesh.append((c, sy, v, nb.0, nb.1)) }
             }
         } }
+        let dls = toMesh.map { damageList($0.0) }
         let meshes = UnsafeMutablePointer<SectionMesh>.allocate(capacity: max(1, toMesh.count))
         defer { meshes.deallocate() }
         DispatchQueue.concurrentPerform(iterations: toMesh.count) { i in
             let t = toMesh[i]
-            (meshes + i).initialize(to: Mesher.buildSection(t.3, t.4, sy: t.1, lod: t.0.lod))
+            (meshes + i).initialize(to: Mesher.buildSection(t.3, t.4, sy: t.1, lod: t.0.lod, damage: dls[i]))
         }
         for (i, t) in toMesh.enumerated() {
             apply((meshes + i).move(), to: t.0, sy: t.1, version: t.2)

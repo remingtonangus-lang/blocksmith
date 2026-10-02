@@ -818,15 +818,27 @@ final class Game {
                     breakCooldown = 0.3
                 }
             } else {
-                if mining != t.hit { mining = t.hit; mineProgress = 0 }
+                // A block chipped earlier picks up where it was left (progressive block damage).
+                if mining != t.hit { mining = t.hit; mineProgress = Float(world.damageLevel(t.hit)) / 8 }
                 let aqua = Enchant.level(.aquaAffinity, inventory.armor[0]) > 0
                 var secs = Mining.breakSeconds(b, held, onGround: player.onGround || player.flying, inWater: player.headInWater && !aqua)
                 if secs > 0 && secs.isFinite { secs /= miningSpeedMul }
                 if secs.isInfinite {
                     mineProgress = 0
                 } else {
+                    let before = Int(mineProgress * 8)
                     mineProgress += secs <= 0 ? 1 : fdt / secs
                     swing = max(swing, 0.5)
+                    // Pieces break off the struck face, an eighth at a time, until the block gives way.
+                    let level = Int(mineProgress * 8)
+                    if Settings.shared.chipping && level > before && level >= 1 && level < 8 && Blocks.render[Int(b)] == RenderType.cube.rawValue {
+                        let n = t.normal
+                        let face = n.x > 0 ? 0 : (n.x < 0 ? 1 : (n.y > 0 ? 2 : (n.y < 0 ? 3 : (n.z > 0 ? 4 : 5))))
+                        world.chip(t.hit, level: level, face: face)
+                        let c = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5 + V3(Float(n.x), Float(n.y), Float(n.z)) * 0.45
+                        particles.dust(b, at: c, count: 5, spread: 0.3)
+                        sfx(.hit(soundMat(b)), 0.7, at: c)
+                    }
                     mineSoundTimer -= fdt
                     if mineSoundTimer <= 0 { mineSoundTimer = 0.25; sfx(.hit(soundMat(b)), 0.5, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5) }
                     if mineProgress >= 1 && breakCooldown <= 0 {

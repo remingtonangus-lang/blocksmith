@@ -217,6 +217,7 @@ extension ShipManager {
                 // A 7-million-cell grid can't be rebuilt or flood-filled per blast: count, remesh the touched sections.
                 s.blockCount -= destroyed.count
                 s.mesh.rebuildAround(s, Array(destroyed), device: world.device, queue: meshQueue)
+                detachLoose(s, around: Array(destroyed))
                 continue
             }
             // Push: an impulse away from the blast, applied at the blast point.

@@ -258,6 +258,7 @@ done
 "$BIN" --snapshot snaps/trial_chambers.png --seed 12345 --structure trial_chambers --yaw 45 --pitch -25 --up 6 --rd 5
 "$BIN" --snapshot snaps/copper.png --seed 12345 --find plains --yaw 30 --pitch -25 --time 0.3 --up 1 --place copper_block,exposed_copper,weathered_copper,oxidized_copper,cut_copper,copper_grate,copper_bulb:1,campfire,bee_nest:5,scaffolding --ambient
 "$BIN" --snapshot snaps/decor.png --seed 12345 --find plains --yaw 30 --pitch -10 --time 0.3 --up 1 --decor
+"$BIN" --snapshot snaps/chips.png --seed 12345 --find plains --yaw 30 --pitch -12 --time 0.3 --up 1 --chips
 "$BIN" --snapshot snaps/map.png --seed 12345 --yaw 30 --pitch -10 --time 0.3 --up 20 --map
 "$BIN" --snapshot snaps/third_back.png --seed 12345 --find plains --yaw 30 --pitch -15 --time 0.3 --up 1 --camera 1
 "$BIN" --snapshot snaps/third_swim.png --seed 12345 --find ocean --yaw 30 --pitch -20 --time 0.3 --camera 1 --swim

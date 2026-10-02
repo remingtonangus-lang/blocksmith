@@ -42,6 +42,8 @@ final class CapitalState {
     var announced = false
     var engaged = false
     var sight: Float = 250
+    var crew: [V3] = []                // crew posts (ship space); soldiers of the ship's faction appear there once
+    var crewSpawned = false
 }
 
 struct CapTarget {
@@ -60,6 +62,7 @@ final class HullBuilder {
     var chests: [(IVec3, String)] = []
     var pods: [(V3, V3)] = []
     var mainGun: (V3, V3) = (V3(0, 0, 0), V3(0, 0, -1))
+    var crew: [V3] = []                  // crew posts, grid coordinates (feet)
     init(sx: Int, sy: Int, sz: Int, ox: Int) {
         self.sx = sx; self.sy = sy; self.sz = sz; self.ox = ox
         blocks = [BlockID](repeating: AIR, count: sx * sy * sz)
@@ -236,6 +239,11 @@ enum Capital {
                 else if r < 11.5 { for z in 474...479 { hb.set(x, y, z, iron) } }
             } }
         } }
+        // Crew posts: hangar, upper deck, bridge, engine room.
+        for (x, y, z) in [(-10, 27, 200), (10, 27, 250), (0, 27, 310), (-15, 47, 180), (15, 47, 260), (0, 47, 340),
+                          (-4, 77, 320), (4, 77, 314), (-20, 21, 420), (20, 21, 455)] {
+            hb.crew.append(V3(Float(x + W) + 0.5, Float(y), Float(z) + 0.5))
+        }
         // Turrets: six dorsal, six ventral, four on the flank skirts.
         for z in [34, 72, 170, 215, 262, 405] {
             let (_, _, yt) = frigateSection(z)
@@ -324,6 +332,7 @@ enum Capital {
         hb.set(9, 10, 50, Blocks.id("chest") + 2); hb.chests.append((hb.grid(9, 10, 50), "steelhold_supply"))
         let ladder = Blocks.id("ladder")
         for y in 10...21 { hb.set(-8, y, 58, panel); hb.set(-7, y, 58, ladder + 3) }
+        for (x, y, z) in [(-5, 10, 40), (5, 10, 55), (0, 22, 34), (-3, 22, 50)] { hb.crew.append(V3(Float(x + W) + 0.5, Float(y), Float(z) + 0.5)) }
         // Turrets: two heavy twins on the superstructure, four autocannon sponsons at the chassis corners.
         for z in [54, 63] {
             var top = 28
@@ -437,7 +446,10 @@ extension Ship {
 }
 
 extension Mob {
-    var factionValue: Faction { (Soldier.rank(kind) != nil || kind == .deckGun) ? .steelhold : .none }
+    var factionValue: Faction {
+        guard Soldier.rank(kind) != nil || kind == .deckGun else { return .none }
+        return faction != 0 ? (Faction(rawValue: faction) ?? .steelhold) : .steelhold
+    }
 }
 
 extension ShipManager {
@@ -459,6 +471,7 @@ extension ShipManager {
             st.mainGunMuzzle = hb.mainGun.0
             st.mainGunDir = hb.mainGun.1
             st.pods = hb.pods
+            st.crew = hb.crew
             st.sight = frigate ? 300 : 210
             st.orbitDir = (home.x + home.z) % 2 == 0 ? 1 : -1
             st.groundOffset = s.com.y - s.localMin.y
@@ -542,8 +555,8 @@ extension ShipManager {
                 best = CapTarget(point: aim, vel: o.vel, ship: o, mob: nil, player: false)
             }
         }
-        if faction != .steelhold {
-            for m in g.mobs.mobs where m.health > 0 && m.factionValue == .steelhold {
+        do {
+            for m in g.mobs.mobs where m.health > 0 && m.factionValue != .none && m.factionValue != faction {
                 let d = simd_length(m.pos - p)
                 if d < bd { bd = d; best = CapTarget(point: m.pos + V3(0, m.height * 0.5, 0), vel: m.vel, ship: nil, mob: m, player: false) }
             }
@@ -575,6 +588,18 @@ extension ShipManager {
                 g.onToast?(s.role == "warfrigate" ? "A Stormwarden Frigate looms on the horizon" : "The ground shakes: an Ironback Crawler is near")
             }
             if s.asleep { continue }
+            if !st.crewSpawned && pd < 200 {
+                // Defenders aboard: soldiers of the ship's faction at its posts (they ride the hull, fight boarders).
+                st.crewSpawned = true
+                let ranks: [MobKind] = [.soldierTrooper, .soldierTrooper, .soldierRecruit, .soldierMarksman, .soldierIronclad]
+                for (i, post) in st.crew.enumerated() {
+                    let m = Mob(ranks[i % ranks.count], at: s.toWorld(post + V3(0, 0.05, 0)))
+                    m.faction = s.faction
+                    m.persistent = true
+                    if m.kind == .soldierIronclad { m.variant = Guns.arc }        // no rockets bursting inside their own hull
+                    g.mobs.mobs.append(m)
+                }
+            }
             // Critical systems: the bridge helm, and 40 % of the drive engines.
             if !s.wrecked && (s.helm == nil || (st.engines0 > 0 && s.engines * 10 < st.engines0 * 4)) {
                 s.wrecked = true
@@ -896,5 +921,88 @@ extension ShipManager {
             s.angVel = .zero
             if simd_length(s.vel) < 0.05 { st.settled = true; Explosion.explode(at: s.toWorld((lo + hi) * 0.5), power: 5, game: g) }
         }
+    }
+}
+
+// MARK: Breakaway pieces (block-based damage on capital hulls)
+
+extension ShipManager {
+    // After a blast on a capital hull: flood out from the cells next to the hole, each search capped at `limit`
+    // cells. A search that runs dry before the cap found a piece no longer joined to the hull: it breaks away as a
+    // ship of its own (ordinary physics: it falls, tumbles, and can be walked on). A search that reaches the cap is
+    // still part of the main hull (the full-grid flood fill that small ships use would scan 5 million cells per hit).
+    func detachLoose(_ s: Ship, around holes: [IVec3], limit: Int = 4000) {
+        let g = s.grid
+        var seen = Set<IVec3>()
+        var pieces: [[IVec3]] = []
+        let dirs = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
+        var starts: [IVec3] = []
+        for h in holes { for d in dirs {
+            let c = h + d
+            if g.inside(c.x, c.y, c.z) && g.get(c.x, c.y, c.z) != AIR && !seen.contains(c) { starts.append(c) }
+        } }
+        if starts.count > 400 { starts = Array(starts.prefix(400)) }
+        for st in starts where !seen.contains(st) {
+            var comp: [IVec3] = [st]
+            var local = Set<IVec3>([st])
+            var head = 0
+            var open = true
+            while head < comp.count {
+                let c = comp[head]; head += 1
+                for d in dirs {
+                    let n = c + d
+                    if local.contains(n) || !g.inside(n.x, n.y, n.z) { continue }
+                    let b = g.get(n.x, n.y, n.z)
+                    if b == AIR { continue }
+                    local.insert(n)
+                    comp.append(n)
+                }
+                if comp.count > limit { open = false; break }
+            }
+            seen.formUnion(local)
+            if open && comp.count >= 1 { pieces.append(comp) }
+        }
+        guard !pieces.isEmpty else { return }
+        let kinds = ShipParts.kinds
+        var changed: [IVec3] = []
+        for cells in pieces {
+            var lo = IVec3(Int.max, Int.max, Int.max), hi = IVec3(Int.min, Int.min, Int.min)
+            for c in cells { lo = IVec3(min(lo.x, c.x), min(lo.y, c.y), min(lo.z, c.z)); hi = IVec3(max(hi.x, c.x), max(hi.y, c.y), max(hi.z, c.z)) }
+            let ng = ShipGrid(sx: hi.x - lo.x + 1, sy: hi.y - lo.y + 1, sz: hi.z - lo.z + 1)
+            let part = Ship(id: newId(), grid: ng)
+            for c in cells {
+                let b = g.get(c.x, c.y, c.z)
+                ng.set(c.x - lo.x, c.y - lo.y, c.z - lo.z, b)
+                if kinds[Int(b)] == .engine { s.engines -= 1 }
+                if s.helm == c { s.helm = nil }
+                if let be = s.blockEntities.removeValue(forKey: c) { part.blockEntities[ivSub(c, lo)] = be }
+                g.set(c.x, c.y, c.z, AIR)
+                changed.append(c)
+            }
+            s.blockCount -= cells.count
+            let off = V3(Float(lo.x), Float(lo.y), Float(lo.z))
+            part.name = s.name + " wreckage"
+            part.rebuild()
+            part.rot = s.rot
+            part.pos = s.toWorld(off + part.com)
+            part.prevPos = part.pos; part.prevRot = part.rot
+            // Flung outward a little from the hull.
+            let out = part.pos - s.pos
+            part.vel = s.velocity(at: part.pos) + simd_normalize(out + V3(0, 1e-3, 0)) * 3
+            part.angVel = V3(Rand.float(in: -0.6...0.6), Rand.float(in: -0.3...0.3), Rand.float(in: -0.6...0.6))
+            part.updateBounds()
+            // Turrets whose ring went with the piece ride on it.
+            for t in turrets(of: s) {
+                let ring = t.mountLocal - V3(0.5, 1, 0.5)
+                let rc = IVec3(Int(floor(ring.x + 0.01)), Int(floor(ring.y + 0.01)), Int(floor(ring.z + 0.01)))
+                if rc.x >= lo.x && rc.x <= hi.x && rc.y >= lo.y && rc.y <= hi.y && rc.z >= lo.z && rc.z <= hi.z && ng.get(rc.x - lo.x, rc.y - lo.y, rc.z - lo.z) != AIR {
+                    t.parent = part; t.parentId = part.id
+                    t.mountLocal -= off
+                }
+            }
+            add(part)
+            part.mesh.rebuildAll(part, device: world.device, queue: meshQueue)
+        }
+        s.mesh.rebuildAround(s, changed, device: world.device, queue: meshQueue)
     }
 }

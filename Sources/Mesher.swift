@@ -48,6 +48,43 @@ enum Mesher {
     static let cornerV: [Int] = [16, 16, 0, 0]
 
     // Texture coordinates for a point (1/16 units inside the block) on face f.
+    // Progressive block damage: which of a block's 64 sub-cubes (bit a | b << 2 | c << 4 for x a, z b, y c) are
+    // still there at damage `level` (1...7 of 8) chipped in from `face` (0 +x, 1 -x, 2 +y, 3 -y, 4 +z, 5 -z). Sub-cubes
+    // nearest that face go first, in a ragged order that differs per block (4 variants by position).
+    static let chipTable: [UInt64] = {
+        var t = [UInt64](repeating: ~0, count: 6 * 8 * 4)
+        for f in 0..<6 { for variant in 0..<4 {
+            var order: [(Float, Int)] = []
+            for c in 0..<64 {
+                let a = c & 3, b = (c >> 2) & 3, y = c >> 4
+                let depth: Int
+                switch f {
+                case 0: depth = 3 - a
+                case 1: depth = a
+                case 2: depth = 3 - y
+                case 3: depth = y
+                case 4: depth = 3 - b
+                default: depth = b
+                }
+                // Ragged: noise across the face, and edge sub-cubes a little earlier (corners crumble first).
+                let edge: Float = (a == 0 || a == 3 ? 0.35 : 0) + (b == 0 || b == 3 ? 0.35 : 0) + (y == 0 || y == 3 ? 0.35 : 0)
+                let n: Float = hashf(c, f, variant, 0xC41B) * 1.6
+                order.append((Float(depth) + n - edge, c))
+            }
+            order.sort { $0.0 < $1.0 }
+            for level in 1..<8 {
+                var m: UInt64 = ~0
+                for k in 0..<(level * 8) { m &= ~(UInt64(1) << UInt64(order[k].1)) }
+                t[(f * 8 + level) * 4 + variant] = m
+            }
+        } }
+        return t
+    }()
+    @inline(__always) static func chipMask(face: Int, level: Int, x: Int, y: Int, z: Int) -> UInt64 {
+        let f = max(0, min(5, face)), lv = max(0, min(7, level))
+        return chipTable[(f * 8 + lv) * 4 + Int(hash3(x, y, z, 0xD4A6) & 3)]
+    }
+
     @inline(__always) static func faceUV(_ f: Int, _ x: Int, _ y: Int, _ z: Int) -> (Int, Int) {
         switch f {
         case 0: return (16 - z, 16 - y)
@@ -139,7 +176,9 @@ enum Mesher {
 
     // MARK: Build
 
-    static func buildSection(_ n9: [BlockStore], _ h9: [[Int16]], sy: Int, lod: Int = 0) -> SectionMesh {
+    // `damage`: chipped blocks around this section (World.damage): x and z relative to the centre chunk's corner
+    // (-16...31), world y, and the packed damage (face << 5 | level). They mesh as their remaining sub-cubes.
+    static func buildSection(_ n9: [BlockStore], _ h9: [[Int16]], sy: Int, lod: Int = 0, damage: [(Int, Int, Int, UInt8)] = []) -> SectionMesh {
         let renderT = Blocks.render, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
         let cullSameT = Blocks.cullSame, texT = Blocks.tex, tintT = Blocks.tint, levelT = Blocks.fluidLevel, fkT = Blocks.fluidKind
         let layerT = Blocks.layer, boxesT = Blocks.boxes
@@ -297,6 +336,14 @@ enum Mesher {
         // key = 1 + (layer | tint<<11 | overlay<<13 | ao<<14 | light<<16 | trans<<24)
         let mask = sc.mask
         mask.initialize(repeating: 0, count: 6 * 16 * 256)
+        // Chipped blocks in the region (progressive block damage): region index -> packed damage.
+        var dmg: [Int: UInt8] = [:]
+        for (dx, wy, dz, v) in damage {
+            let rx = dx + C0, rz = dz + C0, ry = wy - y0
+            if rx < 0 || rz < 0 || ry < 0 || rx >= RW || rz >= RW || ry >= RH { continue }
+            dmg[rx + rz * RW + ry * RL] = v
+        }
+        let anyDmg = !dmg.isEmpty
         for ly in 0..<16 {
             let y = ly + C0
             for z in C0..<(C0 + 16) {
@@ -314,6 +361,40 @@ enum Mesher {
                     let isTrans = layerT[bi] == translucent
                     curCut = !(rt == rCube && layerT[bi] == solidLayer)
 
+                    if anyDmg, let dv = dmg[i], rt == rCube {
+                        // A chipped block: its remaining 4x4x4 sub-cubes, faces between them and against undamaged
+                        // opaque neighbours left out, lit by its brightest open neighbour.
+                        let keep = Mesher.chipMask(face: Int(dv >> 5), level: Int(dv & 31), x: x, y: y, z: z)
+                        var l = 0
+                        for f in 0..<6 {
+                            let lv = light(x + NT[f * 3], y + NT[f * 3 + 1], z + NT[f * 3 + 2])
+                            if lv >= 0 && (lv & 15) + ((lv >> 4) & 15) > (l & 15) + ((l >> 4) & 15) { l = lv }
+                        }
+                        curCut = true
+                        for c in 0..<64 where keep & (UInt64(1) << UInt64(c)) != 0 {
+                            let a = c & 3, bb = (c >> 2) & 3, cc = c >> 4          // x, z, y sub-cube
+                            for f in 0..<6 {
+                                let na = a + NT[f * 3], nc = cc + NT[f * 3 + 1], nb2 = bb + NT[f * 3 + 2]
+                                if na >= 0 && na < 4 && nb2 >= 0 && nb2 < 4 && nc >= 0 && nc < 4 {
+                                    if keep & (UInt64(1) << UInt64(na | (nb2 << 2) | (nc << 4))) != 0 { continue }
+                                } else {
+                                    let j = i + offs[f]
+                                    if opaqueT[Int(R[j])] && dmg[j] == nil { continue }
+                                }
+                                let mn = [a * 4, cc * 4, bb * 4], mx = [a * 4 + 4, cc * 4 + 4, bb * 4 + 4]
+                                let layer = Int(texT[bi * 6 + f])
+                                for k in 0..<4 {
+                                    let ci = (f * 4 + k) * 3
+                                    let px = CT[ci] == 1 ? mx[0] : mn[0]
+                                    let py = CT[ci + 1] == 1 ? mx[1] : mn[1]
+                                    let pz = CT[ci + 2] == 1 ? mx[2] : mn[2]
+                                    let (u, v) = faceUV(f, px, py, pz)
+                                    vert(false, bx16 + px, by16 + py, bz16 + pz, f, tintV, u, v, layer, 3, l, false)
+                                }
+                            }
+                        }
+                        continue
+                    }
                     if lod > 0 && (rt == rCross || rt == rRail || rt == rWire) { continue }     // far: no small decorations
                     if rt == rCross {
                         let l = Int(skyL[i]) | (Int(blkL[i]) << 4)
@@ -419,7 +500,7 @@ enum Mesher {
                                 if mx[a1] == mn[a1] || mx[a2] == mn[a2] { continue }   // zero-area face (thin planes)
                                 let onBoundary = positive ? mx[axis] == 16 : mn[axis] == 0
                                 let nb = R[i + offs[f]]
-                                if onBoundary && opaqueT[Int(nb)] { continue }
+                                if onBoundary && opaqueT[Int(nb)] && !(anyDmg && dmg[i + offs[f]] != nil) { continue }
                                 let l: Int
                                 if onBoundary {
                                     l = max(0, light(x + NT[f * 3], y + NT[f * 3 + 1], z + NT[f * 3 + 2]))
@@ -445,7 +526,7 @@ enum Mesher {
                     let liquidTop = isLiquid && fkT[Int(at(x, y + 1, z))] != fk
                     for f in 0..<6 {
                         let nb = R[i + offs[f]]
-                        if opaqueT[Int(nb)] { continue }
+                        if opaqueT[Int(nb)] && !(anyDmg && dmg[i + offs[f]] != nil) { continue }
                         if isLiquid {
                             if fkT[Int(nb)] == fk { continue }
                         } else if cullSameT[bi] && nb == b {

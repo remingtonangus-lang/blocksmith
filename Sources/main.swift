@@ -688,6 +688,25 @@ enum Snapshot {
             }
             game.placePainting(at: front(1, 1), facing: facing)
         }
+        if CommandLine.arguments.contains("--chips") {
+            // Progressive block damage: blocks 4 ahead chipped to levels 1...7 from the side facing the camera, in
+            // three materials, on a floor.
+            let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
+            let c = pos + f * 5
+            let bx = Int(floor(c.x)), bz = Int(floor(c.z))
+            let gy = world.topY(bx, bz) + 1
+            let xAxis = abs(f.z) > abs(f.x)
+            let face = xAxis ? (f.z > 0 ? 5 : 4) : (f.x > 0 ? 1 : 0)
+            for (row, name) in ["stone", "oak_planks", "bricks"].enumerated() {
+                for k in 0..<8 {
+                    let off = k - 4
+                    let p = IVec3(bx + (xAxis ? off : 0), gy + row, bz + (xAxis ? 0 : off))
+                    world.setBlock(p.x, p.y, p.z, Blocks.has(name) ? Blocks.id(name) : STONE)
+                    if k > 0 { world.chip(p, level: k, face: face) }
+                }
+            }
+            print("chips: \(world.damage.count) chipped blocks")
+        }
         if CommandLine.arguments.contains("--stage") {
             // A flat grass stage in front of the camera (17 deep, 25 wide, open sky) so mob and item shots aren't hidden by
             // the realistic terrain's slopes, ravines and bushes.
