@@ -1175,7 +1175,9 @@ enum Snapshot {
                 print("frame at \(p.x) \(p.y - YOFF) \(p.z): \(Blocks.key(b)), item \(it.isEmpty ? "none" : Items.key(it.item)) layer \(layer)")
                 // --framesword: swap the held item for a sword (is it the gun items, or these frames?).
                 if CommandLine.arguments.contains("--framesword") { be.container[0] = ItemStack(Items.id("diamond_sword"), 1) }
-                print("  frame delay \(be.delay), light \(world.lightAt(p.x, p.y, p.z))")
+                let st = Int(b - Blocks.groupBase[Int(b)])
+                let fn = [IVec3(0, 0, -1), IVec3(0, 0, 1), IVec3(-1, 0, 0), IVec3(1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0)][min(st, 5)]
+                print("  frame delay \(be.delay), light \(world.lightAt(p.x, p.y, p.z)); in front: \(Blocks.key(world.block(p.x + fn.x, p.y + fn.y, p.z + fn.z))), behind: \(Blocks.key(world.block(p.x - fn.x, p.y - fn.y, p.z - fn.z)))")
             }
             // A control frame placed like the decor scene's, beside the first listed one (do frames here draw at all?).
             if let first = world.blockEntities.first(where: { $0.value.kind == .frame && simd_length(V3(Float($0.key.x), Float($0.key.y), Float($0.key.z)) - e) < 16 }) {
