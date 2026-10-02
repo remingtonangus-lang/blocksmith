@@ -369,6 +369,8 @@ extension WorldGen {
     func placeVegetation(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ biomes: [Biome], _ rng: inout SRng, cols: [Terrain.Column]? = nil) {
         let g = Blocks.id
         let grassy: Set<BlockID> = [GRASS, SNOWY_GRASS, DIRT, g("podzol"), g("coarse_dirt"), g("moss_block")]
+        // Looked up once: these ran per column (several string dictionary lookups each).
+        let iceID = g("ice"), snowLayerID = g("snow"), clayID = g("clay"), mudID = g("mud"), seagrassID = g("seagrass"), redSandID = g("red_sand")
         func flowerFor(_ biome: Biome, _ h: Float, _ wx: Int, _ wz: Int) -> BlockID {
             let pick = Int(h * 997) % 100
             switch biome {
@@ -399,12 +401,12 @@ extension WorldGen {
             let h2 = hashf(wx, 9, wz, s32 ^ 0x3C3D)
             guard y + 3 < CH else { continue }
             // Water columns: plants on the floor, lily pads on the surface.
-            if ground == WATER || ground == Blocks.id("ice") {
+            if ground == WATER || ground == iceID {
                 var fy = y
                 while fy > 1 && (b[Chunk.index(lx, fy, lz)] == WATER) { fy -= 1 }
                 let depth = y - fy
                 let floor = b[Chunk.index(lx, fy, lz)]
-                guard floor == SAND || floor == GRAVEL || floor == DIRT || floor == g("clay") || floor == g("mud") else { continue }
+                guard floor == SAND || floor == GRAVEL || floor == DIRT || floor == clayID || floor == mudID else { continue }
                 if biome == .warmOcean && depth > 2 {
                     if h < 0.25 {
                         let c = ["tube", "brain", "bubble", "fire", "horn"][Int(h2 * 5) % 5]
@@ -412,7 +414,7 @@ extension WorldGen {
                         for k in 1...min(reefH, depth - 2) { b[Chunk.index(lx, fy + k, lz)] = g("\(c)_coral_block") }
                         b[Chunk.index(lx, fy + min(reefH, depth - 2) + 1, lz)] = g("\(c)_coral")
                     } else if h < 0.4 { b[Chunk.index(lx, fy + 1, lz)] = g(["tube", "brain", "bubble", "fire", "horn"][Int(h2 * 5) % 5] + "_coral") }
-                    else if h < 0.6 { b[Chunk.index(lx, fy + 1, lz)] = g("seagrass") }
+                    else if h < 0.6 { b[Chunk.index(lx, fy + 1, lz)] = seagrassID }
                 } else if (biome.isOcean || biome.isRiver) && biome != .frozenOcean && biome != .deepFrozenOcean {
                     let kelpPatch = flora.noise2(Float(wx) / 18 + 700, Float(wz) / 18 + 700) > 0.2
                     if kelpPatch && h < 0.12 && depth > 3 && biome != .warmOcean && !biome.isRiver {
@@ -424,17 +426,17 @@ extension WorldGen {
                         let meadow = flora.noise2(Float(wx) / 22 + 410, Float(wz) / 22 + 410)
                         let t: Float = max(0, min(1, (meadow + 0.05) / 0.35))
                         let chance: Float = 0.04 + 0.5 * t * t
-                        if h2 < chance { b[Chunk.index(lx, fy + 1, lz)] = g("seagrass") }
+                        if h2 < chance { b[Chunk.index(lx, fy + 1, lz)] = seagrassID }
                     }
                 } else if biome == .swamp || biome == .mangroveSwamp {
                     if depth <= 2 && h < 0.08 && ground == WATER { b[Chunk.index(lx, y + 1, lz)] = g("lily_pad") }
-                    else if h > 0.8 { b[Chunk.index(lx, fy + 1, lz)] = g("seagrass") }
+                    else if h > 0.8 { b[Chunk.index(lx, fy + 1, lz)] = seagrassID }
                 }
                 continue
             }
             let above = Chunk.index(lx, y + 1, lz)
-            guard b[above] == AIR || b[above] == g("snow") else { continue }
-            if b[above] == g("snow") { continue }
+            guard b[above] == AIR || b[above] == snowLayerID else { continue }
+            if b[above] == snowLayerID { continue }
             // Sugar cane beside water.
             if (ground == GRASS || ground == SAND || ground == DIRT) && h < 0.12 {
                 let nearWater = [(1, 0), (-1, 0), (0, 1), (0, -1)].contains { d in
@@ -448,7 +450,7 @@ extension WorldGen {
             }
             switch biome {
             case .desert, .badlands, .erodedBadlands, .woodedBadlands:
-                if ground == SAND || ground == g("red_sand") {
+                if ground == SAND || ground == redSandID {
                     if h < (biome == .desert ? 0.008 : 0.004) {
                         let clear = [(1, 0), (-1, 0), (0, 1), (0, -1)].allSatisfy { d in
                             let nx = lx + d.0, nz = lz + d.1
