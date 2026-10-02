@@ -140,10 +140,11 @@ final class WorldGen: TerrainGenerator {
                 if nx >= 0 && nx < CS && nz >= 0 && nz < CS {
                     nTop = tops0[nx + nz * CS]; nWl = wls[nx + nz * CS]
                 } else {
-                    // Across the chunk border from the 2D column alone (cached nodes and a blend): groundY scans the 3D
-                    // density from 40 blocks up, too slow for 64 border columns a chunk. Every border column is asked,
-                    // since a dry column at sea level can sit beside a lake one block up (gencheck leaks on chunk
-                    // borders, run 354).
+                    // Across the chunk border only near inland water, from the 2D column alone (groundY scans the 3D
+                    // density from 40 blocks up). Asking every border column cost 2.7x the generation time per chunk
+                    // (run 356 benchmarks: the neighbour's terrain nodes aren't built yet), so a dry column at sea level
+                    // beside a lake one block up on the other side of a border keeps its leak (gencheck, a few dozen).
+                    guard myWl > SEA && myWl >= myTop - 4 else { continue }
                     let nc = terrain.column(bx + nx, bz + nz)
                     nTop = YOFF + Int(nc.h)
                     nWl = YOFF + Int(floorf(nc.wl))
