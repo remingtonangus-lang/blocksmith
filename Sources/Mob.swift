@@ -978,10 +978,12 @@ final class Mob {
         }
         if moving, let goal = wanderGoal {
             let d: Float = simd_length(V2(goal.x - pos.x, goal.z - pos.z))
-            if d < 0.7 || gaveUp(goal) {
+            // Arrived within a block: at 0.7 a mob sliding round a corner or post next to the goal could circle it
+            // (behaviour sim: pigs and sheep spinning on strolls).
+            if d < 1.0 || gaveUp(goal) {
                 // Three strolls in a row that couldn't be walked: rest longer (behaviour sim: a cow in a pit gave up
                 // 81 strolls in 120 s, pressing against the pit wall for 4 s each).
-                strollFails = d < 0.7 ? 0 : strollFails + 1
+                strollFails = d < 1.0 ? 0 : strollFails + 1
                 moving = false; wanderGoal = nil
                 if strollFails >= 3 { strollFails = 0; aiTimer = Rand.float(in: 8...15) } else { aiTimer = Rand.float(in: 2...6) }
             } else { face(goal) }
