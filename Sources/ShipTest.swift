@@ -187,6 +187,9 @@ enum ShipTest {
             g.player.pitch = atan2f(to.y, horiz(to))
             print(String(format: "ship battle: %.1f s until shells were in the air (%ld in flight), frigate %.0f blocks away",
                          t, w.ships.shells.count, simd_length(to)))
+            // Its meshes before the shot (without this the frigate was still unbuilt: only its crew showed against the
+            // sky, blind critic run 385 ship_battle).
+            settle(g, rd: rd)
             return g.player.pos
         }
         if kind == "frigate" || kind == "carriage" {
