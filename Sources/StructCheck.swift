@@ -368,6 +368,12 @@ enum StructCheck {
                     if !pair { add("bed_broken", IVec3(x, y, z), "\(base) without its other half") }
                     if base.hasSuffix("_head") { continue }
                 }
+                // Only the structure's own: a mineshaft or dungeon chest that happens to lie in the bounding box differs
+                // from bare terrain too (run 359: a chest 21 blocks under a stronghold's floor counted as its own).
+                let own = s.pieces.contains { pc in
+                    x >= pc.min.x && x <= pc.max.x && y >= pc.min.y && y <= pc.max.y && z >= pc.min.z && z <= pc.max.z
+                }
+                if !own { continue }
                 pois += 1
                 // The desert pyramid's treasure room is reached by digging through the floor pattern, by design.
                 if kind == "desert_pyramid" && base == "chest" { continue }
