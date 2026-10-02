@@ -390,6 +390,20 @@ enum StructCheck {
                     for dz in -1...1 { for dx in -1...1 where Blocks.key(w.block(x + dx, y - 1, z + dz)) == "mossy_cobblestone" { mossy = true } }
                     for dz in -4...4 { for dx in -4...4 where Blocks.key(w.block(x + dx, y, z + dz)) == "spawner" { spawner = true } }
                     if mossy && spawner { continue }
+                    // ...or a cobblestone room the structure didn't build (walls on three sides it never wrote: run 375,
+                    // a dungeon whose spawner is gone, inside a Steelhold's box).
+                    var foreign = 0
+                    for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                        for d in 1...6 {
+                            let qx = x + dx * d, qz = z + dz * d
+                            let b = w.block(qx, y, qz)
+                            guard Blocks.collide[Int(b)] else { continue }
+                            let k = Blocks.key(b)
+                            if (k == "cobblestone" || k == "mossy_cobblestone") && !written.contains(key(qx, y, qz)) { foreign += 1 }
+                            break
+                        }
+                    }
+                    if foreign >= 3 { continue }
                 }
                 pois += 1
                 // The desert pyramid's treasure room is reached by digging through the floor pattern, by design.
