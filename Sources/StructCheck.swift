@@ -448,7 +448,13 @@ enum StructCheck {
                             }
                         }
                         let ax = s.anchor.x, az = s.anchor.z
-                        print("  closed by: \(walls.joined(separator: "; ")) (structure anchor \(ax) \(az))")
+                        let floorKey = Blocks.key(w.block(x, y - 1, z)), ceilKey = Blocks.key(w.block(x, y + 2, z))
+                        var near: [String] = []
+                        for dy in -2...3 { for dz in -5...5 { for dx in -5...5 {
+                            let k = Blocks.key(Blocks.groupBase[Int(w.block(x + dx, y + dy, z + dz))])
+                            if k == "spawner" || k == "mossy_cobblestone" || k.hasSuffix("chest") { near.append("\(k)@\(dx),\(dy),\(dz)") }
+                        } } }
+                        print("  closed by: \(walls.joined(separator: "; ")) (structure anchor \(ax) \(az)); floor \(floorKey), ceiling \(ceilKey); near: \(near.prefix(10).joined(separator: " "))")
                         let ddx = Float(x - best.x), ddz = Float(z - best.z)
                         let yawD: Float = atan2f(-ddx, -ddz) * 180 / Float.pi
                         let dimArg = w.dim == .overworld ? "" : " --dim \(w.dim.rawValue)"
