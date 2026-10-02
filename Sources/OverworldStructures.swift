@@ -351,7 +351,9 @@ enum OverworldStructures {
             let camp: [(Int, Int, Int)] = [(0, 11, -6), (1, -11, 6), (2, 9, 9), (3, -9, -8)]
             for (kind, dx, dz) in camp {
                 let fx = x + dx, fz = z + dz
-                let fy = gen.groundY(fx, fz)
+                // The 2D column height (groundY samples 3D density down the column: four of them per outpost start
+                // doubled the bench's first-chunk start time, run 412-415).
+                let fy = gen.column(fx, fz).height
                 guard fy >= SEA && abs(fy - y) <= 4 else { continue }
                 let fs = rng.next()
                 pieces.append(piece(fx - 3, fy - 5, fz - 4, fx + 3, fy + 5, fz + 4) { w in outpostCamp(&w, kind, fx, fy + 1, fz, fs) })

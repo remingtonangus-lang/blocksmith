@@ -126,7 +126,7 @@ enum MilitaryBase {
             guard y > SEA + 1 else { return nil }
             let R = MilitaryBase.R
             for (dx, dz) in [(-R, -R), (R, -R), (-R, R), (R, R), (0, -R), (0, R), (-R, 0), (R, 0)] {
-                let gy = gen.groundY(x + dx, z + dz)
+                let gy = gen.column(x + dx, z + dz).height          // 2D height: cheap enough for a 40-chunk grid
                 if abs(gy - y) > 12 || gy <= SEA { return nil }
                 if gen.column(x + dx, z + dz).biome.isOcean { return nil }
             }

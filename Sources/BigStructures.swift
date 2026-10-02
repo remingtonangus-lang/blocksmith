@@ -417,7 +417,7 @@ enum BigStructures {
             let b = gen.column(x, z).biome
             guard [.taiga, .snowyTaiga, .oldGrowthPineTaiga, .oldGrowthSpruceTaiga, .oldGrowthBirchForest, .jungle].contains(b) else { return nil }
             let y = gen.groundY(x, z) - 8
-            let towerTop = gen.groundY(x + 6, z + 6) + 2
+            let towerTop = gen.column(x + 6, z + 6).height + 2
             return StructureStart(kind: "trail_ruins", pieces: [piece(x - 10, y - 2, z - 10, x + 10, max(y + 10, towerTop + 1), z + 10) { w in
                 // A buried compound: rooms walled in terracotta and mud brick, packed with gravel (some suspicious, to
                 // brush), and a corner tower whose top pokes out of the ground to give the site away (a flat slab with
