@@ -779,12 +779,16 @@ enum HDTex {
                     }
                 }
             case .ball:
-                for i in 0..<60 {
-                    let a: Float = h2(i, 1, salt) * 2 * .pi
-                    let r: Float = rr * h2(i, 2, salt).squareRoot()
+                // Florets on a golden-angle spiral (hashed positions clumped and left holes in the ball), the rim
+                // drawn first so the middle sits in front, shaded darker toward the rim and the bottom.
+                for j in 0..<70 {
+                    let i = 69 - j
+                    let a: Float = Float(i) * 2.39996 + (h2(i, 1, salt) - 0.5) * 0.5
+                    let rf: Float = ((Float(i) + 0.5) / 70).squareRoot()
+                    let r: Float = rr * rf
                     let x: Float = hx + cosf(a) * r, y: Float = hy + sinf(a) * r
                     let rel: Float = (y - hy + rr) / (2 * rr)
-                    let sh: Float = 0.75 + 0.35 * (1 - rel)
+                    let sh: Float = 0.8 + 0.3 * (1 - rel) - 0.18 * rf * rf
                     let fr: Float = fn / 40 + 1
                     ellipse(x, y, fr, fr, 0) { (_: Float, _: Float, d: Float) -> V3 in
                         let dome: Float = 1.1 - 0.3 * d
