@@ -173,6 +173,7 @@ final class Ship {
     let id: Int
     var grid: ShipGrid
     var blockEntities: [IVec3: BlockEntity] = [:]     // ship space
+    var damage: [IVec3: UInt8] = [:]                // chipped blocks (capital hulls), grid space: face << 5 | level
     var name = "Ship"
 
     // Pose and motion.
@@ -847,6 +848,7 @@ final class ShipManager {
             if kinds[Int(b)] == .engine { s.engines += 1 }
             if s.helm == c && kinds[Int(b)] != .helm { s.helm = nil }
             if old == AIR { s.blockCount += 1 } else if b == AIR { s.blockCount -= 1 }
+            s.damage.removeValue(forKey: c)
             s.grid.set(c.x, c.y, c.z, b)
             if b == AIR { s.blockEntities.removeValue(forKey: c) }
             s.mesh.rebuildAround(s, c, device: world.device, queue: meshQueue)

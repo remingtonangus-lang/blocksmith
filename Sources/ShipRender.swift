@@ -89,9 +89,11 @@ final class ShipMesh {
                 }
                 let ox = x0 / 16, oz = z0 / 16
                 let local = Set(only.map { ShipMesh.key(($0 & 0xFFF) - ox, ($0 >> 12) & 0xFF, (($0 >> 20) & 0xFFF) - oz) })
+                var dmg: [IVec3: UInt8] = [:]
+                for (p, v) in s.damage where p.x >= x0 && p.x < x1 && p.z >= z0 && p.z < z1 { dmg[IVec3(p.x - x0, p.y, p.z - z0)] = v }
                 lock.lock(); building += 1; lock.unlock()
                 queue.async { [weak self] in
-                    let built = ShipMesh.build(sx: w, sy: sy, sz: d, blocks: sub, only: local)
+                    let built = ShipMesh.build(sx: w, sy: sy, sz: d, blocks: sub, only: local, damage: dmg)
                     let secs = built.map { (k, m, o) in
                         (ShipMesh.key((k & 0xFFF) + ox, (k >> 12) & 0xFF, ((k >> 20) & 0xFFF) + oz), m, o + V3(Float(x0), 0, Float(z0)))
                     }
@@ -104,10 +106,10 @@ final class ShipMesh {
                 return
             }
         }
-        let blocks = s.grid.blocks
+        let blocks = s.grid.blocks, dmg = s.damage
         lock.lock(); building += 1; lock.unlock()
         queue.async { [weak self] in
-            let secs = ShipMesh.build(sx: sx, sy: sy, sz: sz, blocks: blocks, only: only)
+            let secs = ShipMesh.build(sx: sx, sy: sy, sz: sz, blocks: blocks, only: only, damage: dmg)
             guard let self else { return }
             self.lock.lock()
             self.results.append((gen, full, secs))
@@ -140,7 +142,8 @@ final class ShipMesh {
     }
 
     // Builds section meshes for a grid snapshot (any thread).
-    static func build(sx: Int, sy: Int, sz: Int, blocks: [BlockID], only: Set<Int>?, spinning: Bool = true) -> [(Int, SectionMesh, V3)] {
+    static func build(sx: Int, sy: Int, sz: Int, blocks: [BlockID], only: Set<Int>?, spinning: Bool = true,
+                      damage: [IVec3: UInt8] = [:]) -> [(Int, SectionMesh, V3)] {
         let ncx = (sx + 15) / 16, ncz = (sz + 15) / 16
         let vh = sy + 16
         let nsec = min(NSEC - 1, (vh + 15) / 16)
@@ -175,6 +178,16 @@ final class ShipMesh {
             stores[k] = s
             return s
         }
+        // Chipped hull blocks round one column, in the mesher's chunk space (grid y + 16).
+        func chips(_ cx: Int, _ cz: Int) -> [(Int, Int, Int, UInt8)] {
+            if damage.isEmpty { return [] }
+            var out: [(Int, Int, Int, UInt8)] = []
+            for (p, v) in damage {
+                let dx = p.x - cx * 16, dz = p.z - cz * 16
+                if dx >= -16 && dx < 32 && dz >= -16 && dz < 32 { out.append((dx, p.y + 16, dz, v)) }
+            }
+            return out
+        }
         var out: [(Int, SectionMesh, V3)] = []
         for cz in 0..<ncz {
             for cx in 0..<ncx {
@@ -185,7 +198,7 @@ final class ShipMesh {
                 for s in 1..<max(2, nsec) {
                     let k = key(cx, s, cz)
                     if let only, !only.contains(k) { continue }
-                    let m = Mesher.buildSection(n9, h9, sy: s, lod: 0)
+                    let m = Mesher.buildSection(n9, h9, sy: s, lod: 0, damage: chips(cx, cz))
                     out.append((k, m, V3(Float(cx * 16), Float(s * 16 - 16), Float(cz * 16))))
                 }
             }

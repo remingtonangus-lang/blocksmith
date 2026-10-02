@@ -177,6 +177,7 @@ extension ShipManager {
             let lc = s.toLocal(c)
             let g = s.grid
             var destroyed = Set<IVec3>()
+            var shaken: [IVec3: Float] = [:]                // cells that stopped a ray: share of their cost it carried
             for i in 0..<16 { for j in 0..<16 { for k in 0..<16 {
                 if !(i == 0 || i == 15 || j == 0 || j == 15 || k == 0 || k == 15) { continue }
                 let d = simd_normalize(V3(Float(i) / 15 * 2 - 1, Float(j) / 15 * 2 - 1, Float(k) / 15 * 2 - 1))
@@ -186,14 +187,37 @@ extension ShipManager {
                     let cell = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
                     let b = g.get(cell.x, cell.y, cell.z)
                     if b != AIR {
-                        intensity -= (Blocks.resistance[Int(b)] + 0.3) * 0.3
+                        let cost: Float = (Blocks.resistance[Int(b)] + 0.3) * 0.3
+                        if intensity <= cost && intensity > 0 { shaken[cell] = max(shaken[cell] ?? 0, intensity / cost) }
+                        intensity -= cost
                         if intensity > 0 && Blocks.hardness[Int(b)] >= 0 { destroyed.insert(cell) }
                     }
                     p += d * 0.3
                     intensity -= 0.225
                 }
             } } }
-            if destroyed.isEmpty { continue }
+            // Progressive damage on capital hulls: plates the blast couldn't break lose pieces on the side facing it
+            // (their grid never re-crops, so the chip map stays valid in grid space).
+            var chipped: [IVec3] = []
+            if s.kinematic && Settings.shared.chipping {
+                for (cell, share) in shaken where !destroyed.contains(cell) && share > 0.15 {
+                    let b = g.get(cell.x, cell.y, cell.z)
+                    guard b != AIR, Blocks.render[Int(b)] == RenderType.cube.rawValue, Blocks.hardness[Int(b)] >= 0 else { continue }
+                    let d = lc - (V3(Float(cell.x), Float(cell.y), Float(cell.z)) + 0.5)
+                    let ad = simd_abs(d)
+                    let face = ad.x >= ad.y && ad.x >= ad.z ? (d.x > 0 ? 0 : 1) : (ad.y >= ad.z ? (d.y > 0 ? 2 : 3) : (d.z > 0 ? 4 : 5))
+                    let cur = s.damage[cell]
+                    let lv = min(7, max(Int((cur ?? 0) & 31), 1 + Int(share * 6)))
+                    let f = cur.map { Int($0 >> 5) } ?? face
+                    if cur == nil && s.damage.count > 6000 { continue }
+                    s.damage[cell] = UInt8(f << 5 | lv)
+                    chipped.append(cell)
+                }
+            }
+            if destroyed.isEmpty {
+                if !chipped.isEmpty { s.mesh.rebuildAround(s, chipped, device: world.device, queue: meshQueue) }
+                continue
+            }
             let kinds = ShipParts.kinds
             for cell in destroyed {
                 let b = g.get(cell.x, cell.y, cell.z)
@@ -210,13 +234,14 @@ extension ShipManager {
                     if let be = s.blockEntities[cell] { for st in be.container.slots where !st.isEmpty { game.drops.spawn(st, at: at) } }
                 }
                 s.blockEntities.removeValue(forKey: cell)
+                s.damage.removeValue(forKey: cell)
                 g.set(cell.x, cell.y, cell.z, AIR)
             }
             if pilot === s, let h = s.helm, destroyed.contains(h) { pilot = nil; s.piloted = false }
             if s.kinematic {
                 // A 7-million-cell grid can't be rebuilt or flood-filled per blast: count, remesh the touched sections.
                 s.blockCount -= destroyed.count
-                s.mesh.rebuildAround(s, Array(destroyed), device: world.device, queue: meshQueue)
+                s.mesh.rebuildAround(s, Array(destroyed) + chipped, device: world.device, queue: meshQueue)
                 detachLoose(s, around: Array(destroyed))
                 continue
             }
