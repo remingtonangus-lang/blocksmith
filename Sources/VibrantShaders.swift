@@ -447,11 +447,13 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
     if (in.face == 2.0) {
         // Shoreline foam: where the water is shallow over the bed (or meets a wall), a broken white
         // band that drifts with the waves.
-        float shore = 1.0 - smoothstep(0.0, 1.1, thick0);
+        // Kept thin and broken: against a pool's walls it read as a solid glowing white rim (blind critic, run 362:
+        // swamp pool, village channel, mansion ponds).
+        float shore = 1.0 - smoothstep(0.0, 0.8, thick0);
         float fn = vnoise(wp.xz * 2.6 + float2(t * 0.4, -t * 0.3)) * 0.6 + vnoise(wp.xz * 6.0 - t * 0.5) * 0.4;
-        float foam = shore * smoothstep(0.35, 0.75, fn + shore * 0.35);
-        float3 foamLit = u.ambColor.rgb * skyC + u.sunColor.rgb * sunVis * 0.9 + blkL * float3(1.0, 0.82, 0.6) * 0.6;
-        col = mix(col, foamLit * 0.95, foam * 0.85);
+        float foam = shore * shore * smoothstep(0.5, 0.85, fn + shore * 0.15);
+        float3 foamLit = u.ambColor.rgb * skyC + u.sunColor.rgb * sunVis * 0.75 + blkL * float3(1.0, 0.82, 0.6) * 0.5;
+        col = mix(col, foamLit * 0.85, foam * 0.5);
     }
     float3 h = normalize(u.lightDir.xyz - v);
     float sp = pow(saturate(dot(n, h)), 500.0) * 7.0 + pow(saturate(dot(n, h)), 70.0) * 0.18;
