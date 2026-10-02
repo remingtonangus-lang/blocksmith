@@ -2193,6 +2193,20 @@ enum HDTex {
         }
     }
 
+    // Smithing table side (same layout as the small painter): a dark iron top band over grained dark-oak planks.
+    static func smithingSide(_ n: Int, _ s: Int) -> Img {
+        var img = planks([(0, 0x4E3420), (0.5, 0x6A4A30), (1, 0x84603E)])(n, s)
+        let u = n / 16
+        let fine = vnoise(n, max(1, n / 64), s &+ 3)
+        for y in 0..<(4 * u) { for x in 0..<n {
+            var edge: Float = 1
+            if y == 4 * u - 1 { edge = 0.6 } else if y == 0 { edge = 1.3 }
+            let k: Float = edge * (0.9 + 0.2 * fine[y * n + x])
+            img.px[y * n + x] = V4(0.17 * k, 0.17 * k, 0.19 * k, 1)
+        } }
+        return img
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -2827,6 +2841,7 @@ enum HDTex {
         "bell": metal(0xE8C040, shine: 0.22),
         "cauldron": metal(0x3A3A3E, shine: 0.08),
         "smithing_table_top": metal(0x3A3A44, tiles: 2, shine: 0.1),
+        "smithing_table_side": smithingSide,
         "grindstone": stone([(0, 0x6E6E6E), (0.5, 0x8E8E8E), (1, 0xA8A8A8)], veins: 0, strata: 0.06),
         "stonecutter_side": furnaceStone,
         "smoker_top": stone([(0, 0x464648), (0.5, 0x5A5A5C), (1, 0x707072)], veins: 0.4, strata: 0),
