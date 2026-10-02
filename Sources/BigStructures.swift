@@ -131,6 +131,15 @@ enum BigStructures {
             // Stairs up the middle.
             if f < 2 { for k in 0..<6 { w.set(cx + 2, fy + 1 + k, cz - 3 + k, stairs + 1); w.fill(cx + 2, fy + 2 + k, cz - 3 + k, cx + 2, fy + 5, cz - 3 + k, AIR) } }
         }
+        // Stairwells re-cut after every floor is laid: the next floor's solid floor covered each stair's top, so the
+        // upper floors were unreachable on foot (structcheck: 24 of 36 mansion POIs unreachable).
+        for f in 0..<2 {
+            let fy = y + f * 6
+            for k in 0..<6 {
+                w.fill(cx + 2, fy + 2 + k, cz - 3 + k, cx + 2, fy + 4 + k, cz - 3 + k, AIR)
+                w.set(cx + 2, fy + 1 + k, cz - 3 + k, stairs + 1)
+            }
+        }
         // Fetchling cell and the roof.
         w.fill(cx - 3, y + 1, cz + 16, cx - 1, y + 3, cz + 18, g("iron_bars"))
         w.fill(cx - 2, y + 1, cz + 17, cx - 2, y + 2, cz + 17, AIR)
