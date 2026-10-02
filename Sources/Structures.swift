@@ -420,3 +420,18 @@ enum Loot {
         }
     }
 }
+
+// A value computed on first use and kept, thread-safe (structure layouts share parts their pieces need only when built).
+final class LazyValue<T> {
+    private var v: T?
+    private let make: () -> T
+    private let lock = NSLock()
+    init(_ make: @escaping () -> T) { self.make = make }
+    var value: T {
+        lock.lock(); defer { lock.unlock() }
+        if let v = v { return v }
+        let x = make()
+        v = x
+        return x
+    }
+}

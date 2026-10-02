@@ -377,29 +377,36 @@ enum OverworldStructures {
         // support still stood across a crossing at chunk borders: structcheck, run 357).
         // Cells as packed integers: cheaper to hash than three-Int structs, and a layout is made for every 16-chunk region.
         @inline(__always) func ck(_ x: Int, _ y: Int, _ z: Int) -> Int { (x & 0xFFFFF) | ((z & 0xFFFFF) << 20) | ((y & 0x3FF) << 40) }
-        var carved = Set<Int>()
-        carved.reserveCapacity(4096)
-        // Cells two or more corridors carve (crossings, also at different heights): no support post, beam or chest
-        // there (structcheck issue gallery, run 362: a post of one corridor standing in another's lane before a chest).
-        var owner: [Int: Int] = [:], sharedCells = Set<Int>()
-        owner.reserveCapacity(4096)
-        for (si, s) in segs.enumerated() {
-            for k in 0...s.len {
-                let x = s.x + s.dx * k, z = s.z + s.dz * k, fy = s.floor(k)
-                for side in -1...1 {
-                    let bx = x + (s.dz != 0 ? side : 0), bz = z + (s.dx != 0 ? side : 0)
-                    for h in 0...2 {
-                        let c = ck(bx, fy + h, bz)
-                        carved.insert(c)
-                        if let o = owner[c] { if o != si { sharedCells.insert(c) } } else { owner[c] = si }
+        // Built on first use by a piece, not with the layout: a layout is made for every 16-chunk region that a chunk
+        // nearby asks about, mostly without any piece of it ever being built (bench gen: mineshaft starts were 42 ms of
+        // 24 chunks, run 367). Locked: chunks generate on several threads.
+        let cells = LazyValue { () -> (carved: Set<Int>, shared: Set<Int>) in
+            var carved = Set<Int>()
+            carved.reserveCapacity(4096)
+            // Cells two or more corridors carve (crossings, also at different heights): no support post, beam or chest
+            // there (structcheck issue gallery, run 362: a post of one corridor standing in another's lane before a chest).
+            var owner: [Int: Int] = [:], sharedCells = Set<Int>()
+            owner.reserveCapacity(4096)
+            for (si, s) in segs.enumerated() {
+                for k in 0...s.len {
+                    let x = s.x + s.dx * k, z = s.z + s.dz * k, fy = s.floor(k)
+                    for side in -1...1 {
+                        let bx = x + (s.dz != 0 ? side : 0), bz = z + (s.dx != 0 ? side : 0)
+                        for h in 0...2 {
+                            let c = ck(bx, fy + h, bz)
+                            carved.insert(c)
+                            if let o = owner[c] { if o != si { sharedCells.insert(c) } } else { owner[c] = si }
+                        }
                     }
                 }
             }
+            return (carved, sharedCells)
         }
-        let corridorCells = carved, shared = sharedCells
+        let rail = Blocks.id("rail"), cobweb = Blocks.id("cobweb")
         for s in segs {
             let (lo, hi) = box(s)
             pieces.append(piece(lo.x, lo.y, lo.z, hi.x, hi.y, hi.z) { w in
+                let corridorCells = cells.value.carved
                 for k in 0...s.len {
                     let x = s.x + s.dx * k, z = s.z + s.dz * k
                     let fy = s.floor(k)
@@ -420,6 +427,7 @@ enum OverworldStructures {
             let (lo, hi) = box(s)
             pieces.append(piece(lo.x, lo.y, lo.z, hi.x, hi.y, hi.z) { w in
                 var r = SRng(seed &+ UInt64(i) &* 977)
+                let (corridorCells, shared) = cells.value
                 // A wall cell: not inside any corridor of this mineshaft.
                 func wall(_ x: Int, _ y: Int, _ z: Int) -> Bool { !corridorCells.contains(ck(x, y, z)) }
                 for k in 0...s.len {
@@ -438,8 +446,8 @@ enum OverworldStructures {
                         // A torch hung on the near post (it stood in mid-tunnel under the beam).
                         if r.chance(0.3) { w.set(x, fy + 1, z, TORCH + BlockID(ax != 0 ? 4 : 2)) }
                     }
-                    if r.chance(0.7) && k % 5 != 2 { w.set(x, fy, z, Blocks.id("rail") + (s.dx != 0 ? 1 : 0)) }
-                    if r.chance(0.06) { w.set(x + ax, fy + 2, z + az, Blocks.id("cobweb")) }
+                    if r.chance(0.7) && k % 5 != 2 { w.set(x, fy, z, rail + (s.dx != 0 ? 1 : 0)) }
+                    if r.chance(0.06) { w.set(x + ax, fy + 2, z + az, cobweb) }
                     // Not on a support's slice: the chest replaced the lower fence post (structcheck run 358: a chest under
                     // a post blocking the lane).
                     if r.chance(0.012) && walled && !crossed && k % 5 != 2 { w.chest(x - ax, fy, z - az, loot: "mineshaft", seed: r.next(), facing: 0) }

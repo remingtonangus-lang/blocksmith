@@ -1260,6 +1260,14 @@ final class Playthrough {
                 let state: String = "ground \(e.onGround), menu \(menuName), paused \(game.paused), credits \(game.credits != nil)"
                 let nums: String = String(format: "delay %.2f age %.1f offset %.2f %.2f %.2f", e.pickupDelay, e.age, d.x, d.y, d.z)
                 info("star lost: star " + nums + "; " + state)
+                // Where one unpinned tick leaves the player (pushed out of a block before pickup?) and what is there.
+                let c = IVec3(Int(floor(e.pos.x)), Int(floor(e.pos.y)), Int(floor(e.pos.z)))
+                let at = Blocks.key(world.block(c.x, c.y, c.z)), below = Blocks.key(world.block(c.x, c.y - 1, c.z))
+                game.player.pos = e.pos; game.player.vel = .zero
+                game.tick(0.05)
+                let q: V3 = game.player.pos - e.pos
+                info(String(format: "star lost: after one free tick the player is %.2f %.2f %.2f from it; star cell %@ over %@, loaded %@, star moved to %.2f %.2f %.2f",
+                            q.x, q.y, q.z, at, below, world.isLoaded(c.x, c.z) ? "yes" : "no", e.pos.x, e.pos.y, e.pos.z))
             }
             info(String(format: "star lost: player at %.1f %.1f %.1f, alive %@, %ld free slots", game.player.pos.x, game.player.pos.y, game.player.pos.z,
                         game.alive ? "yes" : "no", free))
