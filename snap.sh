@@ -82,7 +82,7 @@ for s in 12345 777 424242 1 98765; do
 done
 "$BIN" --snapshot snaps/tour_peaks.png --seed 12345 --find jagged_peaks --yaw 60 --pitch -12 --time 0.23 --up 25 --rd 16 || true
 "$BIN" --snapshot snaps/tour_forest_floor.png --seed 12345 --find forest --yaw 30 --pitch 0 --time 0.22 --ground --up 0.2 --rd 8 || true
-"$BIN" --snapshot snaps/tour_desert.png --seed 12345 --find desert --yaw 80 --pitch -15 --time 0.24 --up 20 --rd 12 || true
+"$BIN" --snapshot snaps/tour_desert.png --seed 12345 --find desert --yaw biome --pitch -15 --time 0.24 --up 20 --rd 12 || true
 "$BIN" --snapshot snaps/tour_jungle.png --seed 424242 --find jungle --yaw 80 --pitch -10 --time 0.24 --up 12 --rd 12 || true
 "$BIN" --snapshot snaps/tour_river.png --seed 12345 --find river --yaw 30 --pitch -35 --time 0.23 --up 30 --rd 12 || true
 "$BIN" --snapshot snaps/tour_river_777.png --seed 777 --find river --yaw 30 --pitch -35 --time 0.23 --up 30 --rd 12 || true
@@ -90,7 +90,7 @@ done
 "$BIN" --snapshot snaps/tour_lake_424242.png --seed 424242 --feature lake --yaw 30 --pitch -35 --time 0.23 --up 40 --rd 12 || true
 "$BIN" --snapshot snaps/tour_delta.png --seed 12345 --feature delta --yaw 0 --pitch -45 --time 0.23 --up 50 --rd 12 || true
 "$BIN" --snapshot snaps/tour_delta_777.png --seed 777 --feature delta --yaw 0 --pitch -45 --time 0.23 --up 50 --rd 12 || true
-"$BIN" --snapshot snaps/tour_mesa.png --seed 12345 --find badlands --yaw 45 --pitch -25 --time 0.23 --up 35 --rd 12 || true
+"$BIN" --snapshot snaps/tour_mesa.png --seed 12345 --find badlands --yaw biome --pitch -25 --time 0.23 --up 35 --rd 12 || true
 "$BIN" --snapshot snaps/tour_coast.png --seed 12345 --find beach --yaw 0 --pitch -25 --time 0.23 --up 30 --rd 12 || true
 "$BIN" --snapshot snaps/tour_snowline.png --seed 424242 --find snowy_slopes --yaw 180 --pitch -25 --time 0.23 --up 2 --rd 16 || true
 "$BIN" --snapshot snaps/spawn.png   --seed 12345 --yaw 30  --pitch -12 --time 0.2
