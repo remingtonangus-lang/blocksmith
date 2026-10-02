@@ -2827,6 +2827,16 @@ enum HDTex {
     // Families without a hand-made entry get an HD material coloured from their 16 px painter: every wood's planks,
     // bark and log ends, leaves, wool, concrete, concrete powder and terracotta.
     // Crop stages (generated names, so not in the literal table).
+    /// The HD generator for a texture name, if any (sequential lookups: a chain of ?? over these took the
+    /// type checker past the 600 ms gate in run 354).
+    static func generator(_ name: String, _ src: [V4]) -> Gen? {
+        if let g = table[name] { return g }
+        if let g = crop(name) { return g }
+        if let g = door(name) { return g }
+        if let g = bed(name) { return g }
+        return derived(name, src)
+    }
+
     static func crop(_ name: String) -> Gen? {
         func stage(_ prefix: String) -> Int? { name.hasPrefix(prefix) ? Int(name.dropFirst(prefix.count)) : nil }
         if let st = stage("sweet_berry_bush_stage") { return berryBushHD(stage: st) }
