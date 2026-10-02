@@ -2870,6 +2870,7 @@ enum HDTex {
 
     // Small mushrooms (cutout): a pale stem under a domed cap (brown: flat and velvety; red: rounder with pale
     // spots), lit from the top-left, with a shaded rim. Pink petals: scattered five-petal blossoms low on the ground.
+    static let mushroomSpots: [(Float, Float)] = [(-0.55, -0.3), (-0.12, -0.72), (0.38, -0.55), (0.7, -0.12), (0.05, -0.25), (-0.78, 0.0)]
     static func mushroomHD(red: Bool) -> Gen {
         { n, s in
             let fn = Float(n)
@@ -2895,8 +2896,12 @@ enum HDTex {
                     let grainK: Float = 0.95 + 0.1 * fine[y * n + x]
                     var cc: V3 = cap * (light * rim * grainK)
                     if red {
-                        let spot: Bool = h2(x / max(1, n / 20), y / max(1, n / 20), s &+ 3) > 0.8 && v < 0
-                        if spot { cc = V3(0.94, 0.93, 0.9) * light }
+                        // Round spots placed on the dome (hashed texel blocks came out as squares), narrower toward
+                        // the rim where the cap curves away.
+                        for (su, sv) in mushroomSpots {
+                            let du: Float = (u - su) / (0.16 * (1 - 0.4 * abs(su))), dv: Float = (v - sv) / 0.2
+                            if du * du + dv * dv < 1 { cc = V3(0.94, 0.93, 0.9) * light }
+                        }
                     }
                     c = cc
                 }
@@ -4089,7 +4094,7 @@ enum HDTex {
         "redstone_block": gemBlock([(0, 0x6A0806), (0.5, 0xB01810), (1, 0xF05040)], cells: 6),
         "coal_block": gemBlock([(0, 0x101012), (0.5, 0x222226), (1, 0x3E3E44)], cells: 7),
         "red_mushroom_block": mushroomCap([(0, 0x8A1410), (0.5, 0xB82420), (1, 0xD43A30)], spots: 7),
-        "brown_mushroom_block": mushroomCap([(0, 0x6A4A32), (0.5, 0x8A6448), (1, 0xA27C5C)], spots: 0),
+        "brown_mushroom_block": lumps([(0, 0x6A4A32), (0.5, 0x8A6448), (1, 0xA27C5C)], cells: 14),
         "mushroom_stem": mushroomStem,
         "mushroom_block_inside": mushroomInside,
         "melon_top": radialTop([(0, 0x52801A), (0.5, 0x7EA82A), (1, 0x9AC23A)], lobes: 8, stem: 0x6A7A2A, stripes: true),
