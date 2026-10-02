@@ -660,7 +660,9 @@ final class Renderer: NSObject, MTKViewDelegate {
         let hasSky = game.dim.dim.hasSky
         // Under water: clear daytime water sees ~56 blocks, night and murky depths much less.
         let uwSee: Float = 18 + 38 * game.daylight * caveScale
-        var fogEnd: Float = underwater ? uwSee : (game.dim.dim == .nether ? min(rd * 16 - 6, 96) : rd * 16 - 6)
+        // 12 short of the render distance: at 6 the loaded world's edge (and half-fogged trees on it) showed as an arc
+        // in aerial views (blind critic, tour_777_aerial; tour_mesa).
+        var fogEnd: Float = underwater ? uwSee : (game.dim.dim == .nether ? min(rd * 16 - 12, 96) : rd * 16 - 12)
         var fogStart: Float = underwater ? 1 : fogEnd * 0.62
         var fogColor = underwater ? game.underwaterFog : sky
         if p.headInLava {
