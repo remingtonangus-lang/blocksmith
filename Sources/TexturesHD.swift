@@ -5319,6 +5319,20 @@ enum HDTex {
     }
 
     static func generator(_ name: String, _ src: [V4]) -> Gen? {
+        if name.hasSuffix("@r") {
+            // Rotated variants (sideways logs, pillars...): the base's material turned a quarter (they fell back to the
+            // generic detail, so a horizontal log didn't match the upright ones). Painter: rot(x, y) = base(y, 15 - x).
+            let S = TextureGen.S
+            var bsrc = src
+            for b in 0..<S { for a in 0..<S { bsrc[b * S + a] = src[a * S + (S - 1 - b)] } }
+            guard let g = generator(String(name.dropLast(2)), bsrc) else { return nil }
+            return { n, s in
+                let o = g(n, s)
+                var img = Img(n)
+                for y in 0..<n { for x in 0..<n { img.px[y * n + x] = o.px[(n - 1 - x) * n + y] } }
+                return img
+            }
+        }
         if let g = table[name] { return g }
         if let g = crop(name) { return g }
         if let g = door(name) { return g }
