@@ -250,11 +250,12 @@ enum StructCheck {
         var seedCells: [IVec3] = []
         if let (ay, _) = standNear(w, s.anchor.x, s.anchor.y, s.anchor.z, up: 2, down: 4) { seedCells.append(IVec3(s.anchor.x, ay, s.anchor.z)) }
         else {
-            outer: for dz in -3...3 { for dx in -3...3 {
-                if let (ay, _) = standNear(w, s.anchor.x + dx, s.anchor.y, s.anchor.z + dz, up: 2, down: 4) {
+            // Rings outward to 10 blocks (bastion and ruined-portal anchors sit in solid blocks: no_start).
+            outer: for r in 1...10 { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
+                if let (ay, _) = standNear(w, s.anchor.x + dx, s.anchor.y, s.anchor.z + dz, up: 4, down: 6) {
                     seedCells.append(IVec3(s.anchor.x + dx, ay, s.anchor.z + dz)); break outer
                 }
-            } }
+            } } }
         }
         let surface = !fromInside.contains(typeName) && !fromInside.contains(kind)
         if surface {
