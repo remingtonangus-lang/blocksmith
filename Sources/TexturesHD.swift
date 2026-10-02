@@ -1688,6 +1688,75 @@ enum HDTex {
         return img
     }
 
+    // Rails (cutout, same layout as the small painters): grained wooden ties every quarter with bolt heads, steel (or
+    // gold) rails lit along one edge, and powered rails' centre stripe. Corner: the rails as quarter circles around the
+    // south-east corner with radial ties.
+    static func railHD(tie: UInt32, rail: UInt32, mid: UInt32?) -> Gen {
+        { n, s in
+            var img = Img(n, V4(0, 0, 0, 0))
+            let u = n / 16
+            let grain = vnoise(n, max(1, n / 64), s)
+            let tc = col(tie), rc = col(rail)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let lx = x / u, ly = y / u
+                var c: V3? = nil
+                if ly % 4 == 1 && lx > 1 && lx < 14 {
+                    let g: Float = 0.82 + 0.25 * grain[y * n + x / 8]
+                    let ry = y % u
+                    var edge: Float = 1
+                    if ry == 0 { edge = 1.15 } else if ry == u - 1 { edge = 0.7 }
+                    c = tc * (g * edge)
+                    let boltCol: Bool = lx == 2 || lx == 4 || lx == 11 || lx == 13
+                    let midY: Bool = ry >= u / 3 && ry < u - u / 3
+                    let rx = x % u
+                    let midX: Bool = rx >= u / 3 && rx < u - u / 3
+                    let bolt = boltCol && midY && midX
+                    if bolt { c = V3(0.35, 0.35, 0.37) }
+                }
+                if let m = mid, lx == 7 || lx == 8 {
+                    let mk: Float = 0.9 + 0.15 * grain[i]
+                    c = col(m) * mk
+                }
+                if lx == 3 || lx == 12 {
+                    let across: Float = (Float(x % u) + 0.5) / Float(u)
+                    let k: Float = 1.25 - 0.55 * across
+                    c = rc * k
+                }
+                if let cc = c { img.px[i] = V4(min(1, cc.x), min(1, cc.y), min(1, cc.z), 1) }
+            } }
+            return img
+        }
+    }
+    static func railCornerHD(_ n: Int, _ s: Int) -> Img {
+        var img = Img(n, V4(0, 0, 0, 0))
+        let fn = Float(n), u = Float(n) / 16
+        let grain = vnoise(n, max(1, n / 64), s)
+        let tc = col(0x6A4A2A), rc = col(0xA8A8A8)
+        for y in 0..<n { for x in 0..<n {
+            let i = y * n + x
+            let dx: Float = fn - Float(x) - 0.5, dy: Float = fn - Float(y) - 0.5
+            let d: Float = (dx * dx + dy * dy).squareRoot()
+            let ang: Float = atan2f(dy, dx)
+            var c: V3? = nil
+            let tieT: Float = (ang / (.pi / 2) * 4).truncatingRemainder(dividingBy: 1)
+            if d > 2 * u && d < 15 * u && abs(tieT - 0.5) < 0.16 {
+                let g: Float = 0.82 + 0.25 * grain[i]
+                c = tc * g
+            }
+            for r in [Float(4.5), 13.5] {
+                let off: Float = d - r * u
+                if abs(off) < u / 2 {
+                    let rel: Float = off / u + 0.5
+                    let k: Float = 1.25 - 0.55 * rel
+                    c = rc * k
+                }
+            }
+            if let cc = c { img.px[i] = V4(min(1, cc.x), min(1, cc.y), min(1, cc.z), 1) }
+        } }
+        return img
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -2231,6 +2300,14 @@ enum HDTex {
         "seagrass": blades(salt: 105, count: 12, len: 0.55, 1.0, lean: 1.6, colour: 0x3A8A2A),
         "kelp": kelpHD,
         "dead_bush": deadBushHD,
+        "rail": railHD(tie: 0x6A4A2A, rail: 0xA8A8A8, mid: nil),
+        "rail_corner": railCornerHD,
+        "powered_rail": railHD(tie: 0x6A4A2A, rail: 0xE8C040, mid: 0x5A1410),
+        "powered_rail_on": railHD(tie: 0x6A4A2A, rail: 0xE8C040, mid: 0xF8301A),
+        "detector_rail": railHD(tie: 0x6A4A2A, rail: 0xA8A8A8, mid: 0x5A1410),
+        "detector_rail_on": railHD(tie: 0x6A4A2A, rail: 0xA8A8A8, mid: 0xF8301A),
+        "activator_rail": railHD(tie: 0x7A2A1A, rail: 0xA8A8A8, mid: 0x5A1410),
+        "activator_rail_on": railHD(tie: 0x7A2A1A, rail: 0xA8A8A8, mid: 0xF8301A),
         "ladder": ladderHD,
         "torch": torchHD(core: 0xFFF6C8, flame: 0xFFC43A, x0: 7, x1: 9, coreRow: 6, stickTo: 16),
         "torch_wall": torchHD(core: 0xFFF6C8, flame: 0xFFC43A, x0: 0, x1: 16, coreRow: 3, stickTo: 13),
