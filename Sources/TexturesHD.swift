@@ -2340,6 +2340,60 @@ enum HDTex {
             return img
         }
     }
+    // Fire: licking tongues rising from a hot base (cutout), tip colour fading out; the nether portal a warped violet
+    // swirl (translucent like the small painter); the Hollow gate a deep void with soft star points.
+    static func fireHD(core: UInt32, mid: UInt32, tip: UInt32) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            var img = Img(n, V4(0, 0, 0, 0))
+            let wob = fbm(n, n / 4, 3, s &+ 3)
+            let lick = vnoise(n, max(1, n / 8), s &+ 5)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let up: Float = (fn - Float(y)) / fn                     // 0 at the bottom, 1 at the top
+                // Tongue heights: a few smooth peaks across the tile (periodic in x), bent by the wobble field.
+                let fx: Float = Float(x) / fn * 2 * .pi
+                let peaks: Float = 0.55 + 0.25 * sinf(fx * 3 + 1.3) + 0.15 * sinf(fx * 5 + 0.4)
+                let h: Float = peaks + (wob[i] - 0.5) * 0.45 + (lick[i] - 0.5) * 0.2
+                guard up < h else { continue }
+                let t: Float = up / max(0.05, h)                         // 0 base, 1 tip
+                let c0 = col(core), c1 = col(mid), c2 = col(tip)
+                let lo: V3 = c0 + (c1 - c0) * min(1, t * 1.8)
+                let tt: Float = (t - 0.55) / 0.45
+                let hi: V3 = c1 + (c2 - c1) * tt
+                let c: V3 = t < 0.55 ? lo : hi
+                img.px[i] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
+            } }
+            return img
+        }
+    }
+    static func portalHD(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n)
+        var img = Img(n)
+        let base = fbm(n, n / 2, 4, s)
+        let wx = fbm(n, n / 4, 3, s &+ 3), wy = fbm(n, n / 4, 3, s &+ 4)
+        let f = warp(base, n, wx, wy, fn * 0.25)
+        for i in 0..<(n * n) {
+            let band: Float = 0.5 + 0.5 * sinf(f[i] * 22)
+            let r: Float = 0.38 + 0.3 * band
+            let b: Float = 0.78 + 0.18 * band
+            img.px[i] = V4(r, 0.08 + 0.12 * band * band, b, 0.75)
+        }
+        return img
+    }
+    static func voidHD(_ n: Int, _ s: Int) -> Img {
+        var img = Img(n)
+        let neb = fbm(n, n / 2, 4, s)
+        let stars: [UInt32] = [0x2A8A7A, 0x5AB0A0, 0x9AD0E0, 0x3A5AA0]
+        for i in 0..<(n * n) {
+            let k: Float = 0.6 + 0.8 * neb[i]
+            var c: V3 = col(0x060A10) * k
+            let st: Float = h2(i % n, i / n, s)
+            if st > 0.9965 { c = col(stars[Int(st * 10000) % 4]) * 1.2 }
+            img.px[i] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
+        }
+        return img
+    }
     static func oddFace(_ kind: String) -> Gen {
         { n, s in
             let fn = Float(n), u = n / 16
@@ -3817,6 +3871,10 @@ enum HDTex {
         "smithing_table_side": smithingSide,
         "grindstone": stone([(0, 0x6E6E6E), (0.5, 0x8E8E8E), (1, 0xA8A8A8)], veins: 0, strata: 0.06),
         "stonecutter_side": furnaceStone,
+        "fire": fireHD(core: 0xFFF2A0, mid: 0xFFA020, tip: 0xE04010),
+        "soul_fire": fireHD(core: 0xC8FFFF, mid: 0x40E0E8, tip: 0x2090A0),
+        "nether_portal": portalHD,
+        "end_portal": voidHD,
         "sculk_shrieker_top": shriekerFace(top: true),
         "sculk_shrieker_side": shriekerFace(top: false),
         "repeater": diodeFace("repeater"),
