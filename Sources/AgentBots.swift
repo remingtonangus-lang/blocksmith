@@ -221,6 +221,36 @@ final class VillageBot: AgentBot {
         PathFinder.doors = false
     }
 
+    // Two vertical slices through a door (front-to-back through the doorway, and along the wall), 9 wide,
+    // from 3 below to 8 above the sill: # full block, D door, s stairs, _ slab, o other partial, ~ liquid,
+    // . air, B the bot's feet. Rows top-down; the door column is the middle one.
+    static func section(_ w: World, _ d: Door, bot: IVec3) -> [String] {
+        let fx = d.inside.x - d.door.x, fz = d.inside.z - d.door.z          // inward
+        var out: [String] = []
+        for (name, ax, az) in [("through the door (left: outside, right: inside)", fx, fz), ("along the wall", fz, fx)] {
+            out.append(name)
+            for dy in stride(from: 8, through: -3, by: -1) {
+                var row = String(format: "%+3d ", dy)
+                for k in -4...4 {
+                    let x = d.door.x + ax * k, y = d.door.y + dy, z = d.door.z + az * k
+                    let b = w.block(x, y, z)
+                    var c: Character = "o"
+                    if x == bot.x && y == bot.y && z == bot.z { c = "B" }
+                    else if b == AIR { c = "." }
+                    else if Blocks.isLiquid(b) { c = "~" }
+                    else if !Blocks.collide[Int(b)] { c = "," }
+                    else if Blocks.shape[Int(b)] == "door" { c = "D" }
+                    else if Blocks.shape[Int(b)] == "stairs" { c = "s" }
+                    else if Blocks.shape[Int(b)] == "slab" { c = "_" }
+                    else if Blocks.fullCollide[Int(b)] { c = "#" }
+                    row.append(c)
+                }
+                out.append(row)
+            }
+        }
+        return out
+    }
+
     func act(_ s: AgentState, _ a: Agent) -> AgentAction {
         var act = AgentAction()
         if s.menu != nil { act.key = Key.esc; return act }
@@ -240,6 +270,8 @@ final class VillageBot: AgentBot {
             results.append(("enter the building with the door at \(d.door.x) \(d.door.y - YOFF) \(d.door.z)", false,
                             String(format: "came within %.1f blocks in 45 s; stopped at %d %d %d", best, feet.x, feet.y - YOFF, feet.z)))
             a.flag("goal_failed", "couldn't walk into the building at door \(d.door.x) \(d.door.y - YOFF) \(d.door.z)")
+            print("agent village: unmet door \(d.door.x) \(d.door.y - YOFF) \(d.door.z), inside \(d.inside.x) \(d.inside.z), bot \(feet.x) \(feet.y - YOFF) \(feet.z)")
+            for line in VillageBot.section(a.world, d, bot: feet) { print("  " + line) }
             next(s); return act
         }
         if idx >= path.count || since > 150 {
