@@ -141,7 +141,7 @@ jobs:
           cp snaps/*.png "$PUB/" 2>/dev/null || true
           if [ -d snaps/sounds ]; then cp -r snaps/sounds "$PUB/sounds"; fi
           cp build.log typecheck.log debugbuild.log smoke.log snap.log debug.log benchdebug.log bench.log profile.log playthrough.log terrain.log snaps/bench.json snaps/bench.md snaps/profile_*.txt "$PUB/" 2>/dev/null || true
-          cp snaps/structcheck.md snaps/behaviorsim.md snaps/agent_*.md snaps/replay_*.jsonl "$PUB/" 2>/dev/null || true
+          cp snaps/structcheck.md snaps/behaviorsim.md snaps/imagecheck.md snaps/imagecheck.log snaps/agent_*.md snaps/replay_*.jsonl "$PUB/" 2>/dev/null || true
           cd "$PUB"
           {
             echo "# Blocksmith CI snapshots"

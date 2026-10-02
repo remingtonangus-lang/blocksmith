@@ -2248,6 +2248,26 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         var bytes = [UInt8](repeating: 0, count: width * height * 4)
         color.getBytes(&bytes, bytesPerRow: width * 4, from: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0)
+        if ImageCheck.enabled {
+            var fl: Double?
+            if ImageCheck.flicker {
+                // The same view nudged by a thousandth of a block: only z-fighting changes much.
+                let keep = game.player.pos
+                game.player.pos += V3(0.001, 0.0007, 0.0013)
+                let cmd2 = queue.makeCommandBuffer()!
+                renderFrame(cmd2, final: rpd, width: width, height: height)
+                let blit2 = cmd2.makeBlitCommandEncoder()!
+                blit2.synchronize(resource: color)
+                blit2.endEncoding()
+                cmd2.commit()
+                cmd2.waitUntilCompleted()
+                var b2 = [UInt8](repeating: 0, count: width * height * 4)
+                color.getBytes(&b2, bytesPerRow: width * 4, from: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0)
+                fl = ImageCheck.flickerShare(bytes, b2)
+                game.player.pos = keep
+            }
+            ImageCheck.log(path: path, ImageCheck.stats(bytes, width, height), flicker: fl)
+        }
         let cs = CGColorSpaceCreateDeviceRGB()
         let info = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)
         guard let provider = CGDataProvider(data: Data(bytes) as CFData),

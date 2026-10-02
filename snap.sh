@@ -8,6 +8,7 @@ cd "$(dirname "$0")"
 trap 'echo "snap.sh: line $LINENO: exit $?" >&2' ERR
 BIN=build/Blocksmith.app/Contents/MacOS/Blocksmith
 mkdir -p snaps
+if [ $# -eq 0 ]; then rm -f snaps/imagecheck.log; fi
 if [ $# -gt 0 ]; then n="$1"; shift; "$BIN" --snapshot "snaps/$n.png" "$@"; exit; fi
 # Full run: a failing shot or test is recorded and the rest still run; the script fails at the end.
 set +e
@@ -260,6 +261,12 @@ done
 "$BIN" --snapshot snaps/copper_golems.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --facecam --spawn copper_golem:0,copper_golem:1:carry,copper_golem:2,copper_golem:3,zombie:copper --stage
 "$BIN" --snapshot snaps/gallery_hollow.png --seed 12345 --find plains --yaw 0 --pitch 0 --time 0.28 --up 6 --gallery end_stone,end_stone_bricks,purpur_block,purpur_pillar,obsidian,crying_obsidian,amethyst_block,budding_amethyst,sculk,sculk_catalyst,copper_block,exposed_copper,weathered_copper,oxidized_copper,cut_copper,copper_grate,prismarine,prismarine_bricks,dark_prismarine,sea_lantern,sponge,wet_sponge,honey_block,slime_block
 "$BIN" --snapshot snaps/selftest.png --seed 12345 --find plains --yaw 30 --pitch 10 --time 0.3 --up 1 --selftest
+# Z-fighting probes: each view rendered twice with the camera nudged 1/1000 block (ImageCheck.swift).
+"$BIN" --snapshot snaps/flicker_village.png --seed 12345 --structure village --frame 0.8 --time 0.3 --flicker
+"$BIN" --snapshot snaps/flicker_forest.png --seed 12345 --find forest --yaw 30 --pitch -28 --time 0.22 --up 22 --flicker
+"$BIN" --snapshot snaps/flicker_build.png --seed 12345 --find plains --yaw 0 --pitch 0 --time 0.28 --up 6 --flicker --gallery oak_door,oak_trapdoor,glass_pane,lantern,oak_stairs,oak_slab,cobblestone_wall,oak_fence,iron_bars,ladder,rail,white_carpet,snow_block,chest,red_bed,lectern
+# Visual oracles over every frame of this run (missing textures, black / blank / duplicate frames, z-fighting).
+python3 tools/imagecheck.py snaps/imagecheck.log
 trap - ERR
 if [ ${#FAILED[@]} -gt 0 ]; then
   echo "snap.sh: ${#FAILED[@]} failing line(s): ${FAILED[*]}"
