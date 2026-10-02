@@ -46,6 +46,13 @@ done
 # Bots playing the real Game.tick (Agent.swift): oracles every tick, replays for every finding (snaps/agent_*.md).
 "$BIN" --behaviorsim --seeds 12345,777 --minutes 20 --out snaps/behaviorsim.md
 "$BIN" --gencheck --seeds 12345,777,424242 --areas 6 --out snaps/gencheck.md
+# Leak gallery: the first two gencheck leaks, seen from a little above (gencheck_leak_N.png).
+k=0
+grep '\*\*leak\*\*' snaps/gencheck.md 2>/dev/null | grep -o '`--snapshot [^`]*`' | sed 's/^`--snapshot [^ ]* //; s/`$//' | head -2 | while read -r v; do
+  k=$((k + 1))
+  # shellcheck disable=SC2086
+  "$BIN" --snapshot "snaps/gencheck_leak_$k.png" $v --rd 4 || true
+done
 "$BIN" --collisiontest --out snaps/collisiontest.md
 "$BIN" --agent village --seeds 12345,777,424242 --ticks 4800 --out snaps
 "$BIN" --agent explorer --seeds 12345,777 --ticks 3600 --out snaps
