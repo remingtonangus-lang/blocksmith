@@ -2238,24 +2238,31 @@ final class Renderer: NSObject, MTKViewDelegate {
         if boxes.isEmpty { boxes = [Box(0, 0, 0, 16, 16, 16)] }
         // Block-local point (0...1 per axis) to the screen: +X goes right-down, +Z left-down, +Y up.
         let oy: Float = c.y + (vh - 2 * hy) / 2
-        func P(_ x: Float, _ y: Float, _ z: Float) -> V2 { V2(c.x + (x - z) * hx, oy + (x + z) * hy - y * vh) }
-        let order = boxes.sorted { a, b in
-            let da: Float = Float(Int(a.x0) + Int(a.x1) + Int(a.y0) + Int(a.y1) + Int(a.z0) + Int(a.z1))
-            let db: Float = Float(Int(b.x0) + Int(b.x1) + Int(b.y0) + Int(b.y1) + Int(b.z0) + Int(b.z1))
-            return da < db
+        func P(_ x: Float, _ y: Float, _ z: Float) -> V2 {
+            let sx: Float = c.x + (x - z) * hx
+            let sy: Float = oy + (x + z) * hy - y * vh
+            return V2(sx, sy)
         }
+        func depth(_ b: Box) -> Int { Int(b.x0) + Int(b.x1) + Int(b.y0) + Int(b.y1) + Int(b.z0) + Int(b.z1) }
+        let order = boxes.sorted { depth($0) < depth($1) }
+        let leftC: V4 = full * V4(0.78, 0.78, 0.78, 1), rightC: V4 = full * V4(0.6, 0.6, 0.6, 1)
         for b in order {
-            let lo = b.minV, hi = b.maxV
+            let lo: V3 = b.minV, hi: V3 = b.maxV
+            let tl: Float = 1 - hi.y, bl: Float = 1 - lo.y          // v at the top and bottom of a side face
+            let un: Float = 1 - hi.z, uf: Float = 1 - lo.z          // u at the front and back of the +X face
             func layer(_ f: Int) -> Float { b.tex.count == 6 ? Float(b.tex[f]) : Float(tex[Int(id) * 6 + f]) }
             // +Z face (left): u = x, v = 1 - y.
-            quad([P(lo.x, hi.y, hi.z), P(hi.x, hi.y, hi.z), P(hi.x, lo.y, hi.z), P(lo.x, lo.y, hi.z)],
-                 [V2(lo.x, 1 - hi.y), V2(hi.x, 1 - hi.y), V2(hi.x, 1 - lo.y), V2(lo.x, 1 - lo.y)], full * V4(0.78, 0.78, 0.78, 1), layer(4))
+            let lp: [V2] = [P(lo.x, hi.y, hi.z), P(hi.x, hi.y, hi.z), P(hi.x, lo.y, hi.z), P(lo.x, lo.y, hi.z)]
+            let lu: [V2] = [V2(lo.x, tl), V2(hi.x, tl), V2(hi.x, bl), V2(lo.x, bl)]
+            quad(lp, lu, leftC, layer(4))
             // +X face (right): u = 1 - z, v = 1 - y.
-            quad([P(hi.x, hi.y, hi.z), P(hi.x, hi.y, lo.z), P(hi.x, lo.y, lo.z), P(hi.x, lo.y, hi.z)],
-                 [V2(1 - hi.z, 1 - hi.y), V2(1 - lo.z, 1 - hi.y), V2(1 - lo.z, 1 - lo.y), V2(1 - hi.z, 1 - lo.y)], full * V4(0.6, 0.6, 0.6, 1), layer(0))
+            let rp: [V2] = [P(hi.x, hi.y, hi.z), P(hi.x, hi.y, lo.z), P(hi.x, lo.y, lo.z), P(hi.x, lo.y, hi.z)]
+            let ru: [V2] = [V2(un, tl), V2(uf, tl), V2(uf, bl), V2(un, bl)]
+            quad(rp, ru, rightC, layer(0))
             // +Y face (top): u = x, v = z.
-            quad([P(lo.x, hi.y, lo.z), P(hi.x, hi.y, lo.z), P(hi.x, hi.y, hi.z), P(lo.x, hi.y, hi.z)],
-                 [V2(lo.x, lo.z), V2(hi.x, lo.z), V2(hi.x, hi.z), V2(lo.x, hi.z)], topC, layer(2))
+            let tp: [V2] = [P(lo.x, hi.y, lo.z), P(hi.x, hi.y, lo.z), P(hi.x, hi.y, hi.z), P(lo.x, hi.y, hi.z)]
+            let tu: [V2] = [V2(lo.x, lo.z), V2(hi.x, lo.z), V2(hi.x, hi.z), V2(lo.x, hi.z)]
+            quad(tp, tu, topC, layer(2))
         }
     }
 
@@ -2267,8 +2274,11 @@ final class Renderer: NSObject, MTKViewDelegate {
         let mx = game.input.mouseX, my = game.input.mouseY
         var yaw: Float = 0.45, pitch: Float = 0
         if mx > 0 || my > 0 {
-            yaw = max(-1.1, min(1.1, atanf((mx - cx) / (w * 0.8))))
-            pitch = max(-0.6, min(0.6, -atanf((my - (y + h * 0.25)) / (h * 0.8))))
+            let dx: Float = (mx - cx) / (w * 0.8)
+            let eyeY: Float = y + h * 0.25
+            let dy: Float = (my - eyeY) / (h * 0.8)
+            yaw = max(-1.1, min(1.1, atanf(dx)))
+            pitch = max(-0.6, min(0.6, -atanf(dy)))
         }
         let parts = playerParts(game, pitch: pitch, walk: 0, hit: 0)
         let k: Float = h * 0.86 / 32.5
@@ -2294,12 +2304,13 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let lp: V3 = part.mn + size * V3(Float(CT[ci]), Float(CT[ci + 1]), Float(CT[ci + 2]))
                     let r = place(lp)
                     fc += r * 0.25
-                    pts.append(V2(cx - r.x * k, feetY - r.y * k))
+                    let px: Float = cx - r.x * k, py: Float = feetY - r.y * k
+                    pts.append(V2(px, py))
                 }
                 // The camera looks along +Z from the front (the model faces -Z): keep faces turned toward it.
                 if fc.z - mid.z > -0.001 { continue }
-                let c = part.color * shade[f]
-                faces.append((fc.z, pts, V4(c.x, c.y, c.z, 1)))
+                let c: V3 = part.color * shade[f]
+                faces.append((depth: fc.z, pts: pts, color: V4(c.x, c.y, c.z, 1)))
             }
         }
         faces.sort { $0.depth > $1.depth }

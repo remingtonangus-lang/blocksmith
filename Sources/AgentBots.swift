@@ -147,8 +147,10 @@ final class ExplorerBot: AgentBot {
                 let c = [-1, 0, 1].map { dy -> String in PathFinder.standCost(a.world, f.x + dx, f.y + dy, f.z + dz, pr).map { String(format: "%.0f", $0) } ?? "-" }
                 ns.append("\(dx),\(dz): \(k(f.x + dx, f.y, f.z + dz))/\(k(f.x + dx, f.y + 1, f.z + dz)) cost \(c.joined(separator: " "))")
             }
-            print(String(format: "agent explorer: no path from %.2f %.2f %.2f to %.0f %.0f %.0f", s.pos.x, s.pos.y - Float(YOFF), s.pos.z, t.x, t.y - Float(YOFF), t.z)
-                  + "; feet \(k(f.x, f.y, f.z)), head \(k(f.x, f.y + 1, f.z)), under \(k(f.x, f.y - 1, f.z)); " + ns.joined(separator: "; "))
+            let head: String = String(format: "agent explorer: no path from %.2f %.2f %.2f to %.0f %.0f %.0f", s.pos.x, s.pos.y - Float(YOFF), s.pos.z, t.x, t.y - Float(YOFF), t.z)
+            let fk = k(f.x, f.y, f.z), hk = k(f.x, f.y + 1, f.z), uk = k(f.x, f.y - 1, f.z)
+            let around = ns.joined(separator: "; ")
+            print("\(head); feet \(fk), head \(hk), under \(uk); \(around)")
         }
     }
 
