@@ -320,6 +320,10 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   random-ray cover search failed a mobtest. Pushed aebbb29 (run 372): separate debug app + one retry for that driver
   assertion, deterministic cover, villages seal cave pockets beside houses, mansion facade/roof, igloos on level ground,
   block light whitening near its source, snapshot scene fixes, structcheck POI maps.
+- 2026-10-02 17:45 UTC: run 372 green except smoke (the virtual-GPU assertion twice in a row at rd 24 Fancy; benchmarks
+  green again with the release app kept). Run 373 (3a9e428) fully green -> PLAYTEST READY 3a9e428 on PR #9: shadow
+  passes in their own command buffer on the virtual GPU + up to two retries, mineshaft chests all reachable (supports
+  away from joins), gencheck unsupported 100 -> 0, leak 123 -> 100, villagers bed/meet 47/47.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
