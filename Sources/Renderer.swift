@@ -209,9 +209,11 @@ final class Renderer: NSObject, MTKViewDelegate {
         // Texture array with CPU-built mip chain
         let levels = TextureGen.mipChain()
         let layers = Tex.count
+        // BC3-compressed where the GPU samples BC formats (TexCompress), RGBA8 otherwise.
+        let bc = TexCompress.enabled && device.supportsBCTextureCompression
         let td = MTLTextureDescriptor()
         td.textureType = .type2DArray
-        td.pixelFormat = .rgba8Unorm
+        td.pixelFormat = bc ? .bc3_rgba : .rgba8Unorm
         td.width = TextureGen.size
         td.height = TextureGen.size
         td.arrayLength = layers
@@ -219,17 +221,45 @@ final class Renderer: NSObject, MTKViewDelegate {
         td.usage = .shaderRead
         let tex = device.makeTexture(descriptor: td)!
         var size = TextureGen.size
+        let tc0 = CFAbsoluteTimeGetCurrent()
+        var texBytes = 0
         for (lvl, data) in levels.enumerated() {
             let bytesPerImage = size * size * 4
-            data.withUnsafeBytes { raw in
-                for layer in 0..<layers {
-                    tex.replace(region: MTLRegionMake2D(0, 0, size, size), mipmapLevel: lvl, slice: layer,
-                                    withBytes: raw.baseAddress! + layer * bytesPerImage,
-                                    bytesPerRow: size * 4, bytesPerImage: bytesPerImage)
+            if bc {
+                let bw = max(1, (size + 3) / 4)
+                let blockBytes = bw * bw * 16
+                var packed = [UInt8](repeating: 0, count: blockBytes * layers)
+                let sz = size
+                data.withUnsafeBytes { raw in
+                    packed.withUnsafeMutableBufferPointer { dst in
+                        let base = dst.baseAddress!
+                        DispatchQueue.concurrentPerform(iterations: layers) { layer in
+                            TexCompress.encode(raw.baseAddress! + layer * bytesPerImage, size: sz, into: base + layer * blockBytes)
+                        }
+                    }
                 }
+                packed.withUnsafeBytes { raw in
+                    for layer in 0..<layers {
+                        tex.replace(region: MTLRegionMake2D(0, 0, size, size), mipmapLevel: lvl, slice: layer,
+                                    withBytes: raw.baseAddress! + layer * blockBytes, bytesPerRow: bw * 16, bytesPerImage: blockBytes)
+                    }
+                }
+                texBytes += blockBytes * layers
+            } else {
+                data.withUnsafeBytes { raw in
+                    for layer in 0..<layers {
+                        tex.replace(region: MTLRegionMake2D(0, 0, size, size), mipmapLevel: lvl, slice: layer,
+                                        withBytes: raw.baseAddress! + layer * bytesPerImage,
+                                        bytesPerRow: size * 4, bytesPerImage: bytesPerImage)
+                    }
+                }
+                texBytes += bytesPerImage * layers
             }
             size = max(1, size / 2)
         }
+        let tcMs: Double = (CFAbsoluteTimeGetCurrent() - tc0) * 1000
+        print(String(format: "textures: %d layers at %d px, %@, %.1f MB with mips (upload %.0f ms)", layers, TextureGen.size,
+                     bc ? "BC3" : "RGBA8", Double(texBytes) / 1_048_576, tcMs))
         texture = tex
         do {
             let vlib = try device.makeLibrary(source: shaderSource + vibrantShaderSource, options: nil)
