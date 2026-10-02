@@ -34,7 +34,7 @@ final class CreativeMenu: Menu {
         }
         // Tab strip (buttons, so the controller cursor can reach them too).
         for t in Tab.allCases {
-            let b = MenuSlot(4 + t.rawValue * 21, 14, nil, 0, .button(CreativeMenu.tabButton + t.rawValue))
+            let b = MenuSlot(4 + t.rawValue * 21, 15, nil, 0, .button(CreativeMenu.tabButton + t.rawValue))      // 14 touched the title
             b.w = 20; b.h = 16
             slots.append(b)
         }
