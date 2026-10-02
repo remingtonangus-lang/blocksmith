@@ -32,6 +32,22 @@ Bug discovery is fully automated (Remington is not the bug finder). Keep CI gree
 Tooling to adopt: never-stop Stop hook + SessionStart priorities (.claude/hooks), sosumi Apple-docs MCP (.mcp.json),
 obra/superpowers methods, Metalcraft / binary greedy meshing (perf), CC0 assets (Poly Haven, ambientCG, Kenney,
 Freesound CC0), a Pollinations trial for 3 blocks; four QA skill repos evaluated (verdicts below).
+- QA skill repos evaluated (reference only; cloned to /tmp, not vendored):
+  - oh-ashen-one/claude-code-game-builder: ADOPTED (partly). Blind critic per round (fresh subagent, no builder
+    notes), numeric SPEC with ranges + a checker per line, progress pairs, "measure, don't estimate", orchestrator
+    spot-checks critic claims -> docs/qa/REFERENCE_SPEC.md + the critic step in blocksmith-qa. Not adopted: reference
+    footage A/B packs (no other game's images in a public repo), multi-model GPU tooling, Unreal notes.
+  - fagemx/gstack-game: PARTLY. Severity/category classification, "absence of bugs is a measurement", evidence
+    standards, HUD visual thresholds (text >= 14 px at 1080p), feedback-chain lens. Not adopted: the
+    AskUserQuestion-driven human-in-the-loop flow, telemetry preamble, mobile/monetization lenses.
+  - Lagunaswift/GameDevelopmentAudit: PARTLY. game-feel-audit repo workflow (feedback channels per core verb, shake
+    and flash accessibility toggles); playtest-protocol testability checks (boot into a scenario, session logging,
+    iteration friction) which we already have. Design lenses (emotion, reward ethics) don't fit a parity game.
+  - jamescockburn47/game-development-skills: PARTLY. Evidence honesty (teleport proves destination not route,
+    granted items prove a transaction not acquisition, disclose fixtures, one discriminating rerun for harness vs
+    product), evidence record shape. Not adopted: user-authorship questionnaire and HTML approval gate.
+  - obra/superpowers (MIT): VENDORED systematic-debugging, verification-before-completion, test-driven-development,
+    subagent-driven-development into .claude/skills (credit in .claude/skills/VENDORED.md).
 - Network (cloud container): the egress policy denies sosumi.ai, api.polyhaven.com / dl.polyhaven.org /
   cdn.polyhaven.com, ambientcg.com, kenney.nl, freesound.org and image.pollinations.ai (github.com and
   raw.githubusercontent.com work). Workaround: the CI runner (open internet) fetches them in a "fetch assets" job and
