@@ -1397,6 +1397,20 @@ final class Renderer: NSObject, MTKViewDelegate {
                 rect(cx0, cy - hh / 2, s, hh, c)
             }
         }
+        // The same arrow pointing down (brewing), centred on cx, filling from the top.
+        func arrowDown(_ cx: Float, _ y: Float, _ len: Float, _ s: Float, _ c: V4, upTo: Float = 1) {
+            let head: Float = 5 * s
+            let end: Float = y + len * max(0, min(1, upTo))
+            let shaftEnd: Float = min(end, y + len - head)
+            if shaftEnd > y { rect(cx - 1.5 * s, y, 3 * s, shaftEnd - y, c) }
+            for i in 0..<5 {
+                let fi = Float(i)
+                let ry: Float = y + len - head + fi * s
+                guard ry < end else { break }
+                let ww: Float = (9 - 2 * fi) * s
+                rect(cx - ww / 2, ry, ww, s, c)
+            }
+        }
         // A pixel-art flame 13 x 13 (furnace fuel): `level` 0...1 burns down from the top.
         func flame(_ x: Float, _ y: Float, _ s: Float, level: Float) {
             let rows: [(Int, Int)] = [(6, 7), (5, 8), (5, 8), (4, 9), (3, 9), (3, 10), (2, 10), (2, 11), (2, 11), (2, 11), (3, 10), (3, 10), (4, 9)]
@@ -1584,10 +1598,12 @@ final class Renderer: NSObject, MTKViewDelegate {
                 // Cinderwisp fuel bar, brew progress (downward arrow) and bubbles.
                 rect(o.x + 60 * s, o.y + 44 * s, 18 * s, 4 * s, V4(0.3, 0.3, 0.3, 1))
                 rect(o.x + 60 * s, o.y + 44 * s, 18 * s * Float(b.be.fuel) / 20, 4 * s, V4(1, 0.6, 0.1, 1))
-                rect(o.x + 97 * s, o.y + 16 * s, 9 * s, 28 * s, V4(0.55, 0.55, 0.55, 1))
+                // A down arrow that fills as it brews (a white bar flush against the slot read as a glitch: blind UI
+                // critic, brewing).
+                arrowDown(o.x + 101.5 * s, o.y + 16 * s, 26 * s, s, V4(0.5, 0.5, 0.5, 1))
                 if b.be.brewTime > 0 {
                     let k = 1 - Float(b.be.brewTime) / 400
-                    rect(o.x + 97 * s, o.y + 16 * s, 9 * s, 28 * s * k, V4(1, 1, 1, 1))
+                    arrowDown(o.x + 101.5 * s, o.y + 16 * s, 26 * s, s, V4(1, 1, 1, 1), upTo: k)
                     let bub = Float(Int(game.clock * 6) % 7) * 4 * s
                     rect(o.x + 65 * s, o.y + 42 * s - bub, 3 * s, 3 * s, V4(0.9, 0.9, 1, 0.8))
                 }
