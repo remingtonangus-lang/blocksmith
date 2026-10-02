@@ -2076,6 +2076,150 @@ enum HDTex {
         }
     }
 
+    // Small plants drawn at 128 px: saplings (a curved trunk with twigs under a crown of pointed leaves, or tiers of
+    // needles for the conifer), Emberdeep fungi (a warty dome on a pale stem), hanging and climbing vine strands that
+    // tile vertically, and bamboo (a ribbed stalk with nodes).
+    static func plot(_ img: inout Img, _ x: Int, _ y: Int, _ c: V3) {
+        guard x >= 0 && x < img.n && y >= 0 && y < img.n else { return }
+        img.px[y * img.n + x] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
+    }
+    static func leafBlob(_ img: inout Img, _ cx: Float, _ cy: Float, _ len: Float, _ ang: Float, _ c: V3) {
+        let ca = cosf(ang), sa = sinf(ang)
+        let r = Int(len) + 2
+        for y in (Int(cy) - r)...(Int(cy) + r) { for x in (Int(cx) - r)...(Int(cx) + r) {
+            let dx: Float = Float(x) + 0.5 - cx, dy: Float = Float(y) + 0.5 - cy
+            let along: Float = (dx * ca + dy * sa) / len, across: Float = (-dx * sa + dy * ca) / (len * 0.42)
+            let t: Float = along * 0.5 + 0.5
+            guard t >= 0 && t <= 1 else { continue }
+            let w: Float = sinf(t * .pi)
+            guard abs(across) <= w else { continue }
+            let rib: Float = abs(across) < 0.12 ? 1.12 : 1
+            let k: Float = (0.82 + 0.25 * t - 0.12 * across) * rib
+            plot(&img, x, y, c * k)
+        } }
+    }
+    static func saplingHD(leaf: UInt32, trunk: UInt32, conifer: Bool) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            var img = Img(n, V4(0, 0, 0, 0))
+            let lc = col(leaf), tc = col(trunk)
+            let top: Float = fn * (conifer ? 0.12 : 0.42)
+            // Trunk: bottom centre up to the crown, a slight curve, shaded round.
+            for y in Int(top)..<n {
+                let t: Float = (fn - Float(y)) / (fn - top)
+                let cx: Float = fn / 2 + sinf(t * 2.2) * fn * 0.03
+                let w: Float = fn / 22 * (1.2 - 0.5 * t)
+                for x in Int(cx - w)...Int(cx + w) {
+                    let u: Float = (Float(x) + 0.5 - cx) / w
+                    plot(&img, x, y, tc * (1.05 - 0.35 * abs(u + 0.3)))
+                }
+            }
+            if conifer {
+                // Tiers of needles, wider toward the bottom.
+                for tier in 0..<5 {
+                    let ty: Float = fn * (0.18 + Float(tier) * 0.13)
+                    let half: Float = fn * (0.1 + Float(tier) * 0.045)
+                    let count = 6 + tier * 3
+                    for k in 0..<count {
+                        let f: Float = (Float(k) + 0.5) / Float(count) * 2 - 1
+                        let x0: Float = fn / 2 + f * half
+                        let ang: Float = f > 0 ? 0.5 + f * 0.4 : .pi - 0.5 + f * 0.4
+                        let tone: Float = 0.85 + 0.25 * h2(k, tier, s)
+                        leafBlob(&img, x0, ty + abs(f) * fn * 0.04, fn / 18, ang, lc * tone)
+                    }
+                }
+                return img
+            }
+            // Twigs and a crown of pointed leaves.
+            for side in [Float(-1), 1] {
+                for j in 0..<Int(fn * 0.16) {
+                    let x: Float = fn / 2 + side * Float(j) * 0.8, y: Float = fn * 0.62 - Float(j) * 0.7
+                    plot(&img, Int(x), Int(y), tc * 0.9)
+                    plot(&img, Int(x), Int(y) + 1, tc * 0.75)
+                }
+            }
+            for k in 0..<22 {
+                let a: Float = h2(k, 1, s) * 2 * .pi
+                let r: Float = fn * 0.26 * h2(k, 2, s).squareRoot()
+                let cx: Float = fn / 2 + cosf(a) * r, cy: Float = fn * 0.36 + sinf(a) * r * 0.85
+                let tone: Float = 0.8 + 0.3 * h2(k, 3, s)
+                leafBlob(&img, cx, cy, fn / 11, a + (h2(k, 4, s) - 0.5) * 1.2, lc * tone)
+            }
+            return img
+        }
+    }
+    static func fungusHD(cap: UInt32, wart: UInt32) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            var img = Img(n, V4(0, 0, 0, 0))
+            let cc = col(cap), wc = col(wart), stem = col(0xD8C8A8)
+            let capY: Float = fn * 0.5, capR: Float = fn * 0.3, capH: Float = fn * 0.24
+            for y in Int(capY)..<n {
+                let w: Float = fn / 30 + Float(y - Int(capY)) * 0.03
+                for x in Int(fn / 2 - w)...Int(fn / 2 + w) {
+                    let u: Float = (Float(x) + 0.5 - fn / 2) / w
+                    plot(&img, x, y, stem * (1.0 - 0.3 * abs(u + 0.3)))
+                }
+            }
+            for y in Int(capY - capH)...Int(capY + fn / 40) { for x in Int(fn / 2 - capR)...Int(fn / 2 + capR) {
+                let dx: Float = (Float(x) + 0.5 - fn / 2) / capR, dy: Float = (capY - Float(y) - 0.5) / capH
+                let up: Float = max(0, dy)
+                let d: Float = dx * dx + up * up
+                guard d <= 1 else { continue }
+                let ck: Float = 0.75 + 0.35 * (1 - d) + 0.1 * up - 0.1 * dx
+                var c: V3 = cc * ck
+                let wx: Int = Int((dx + 1) * 5), wy: Int = Int(up * 4)
+                if h2(wx, wy, s) > 0.72 && d < 0.85 { c = wc * (0.9 + 0.2 * (1 - d)) }
+                plot(&img, x, y, c)
+            } }
+            return img
+        }
+    }
+    static func strandHD(_ colour: UInt32, nubs: UInt32? = nil, salt: Int) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            var img = Img(n, V4(0, 0, 0, 0))
+            let c = col(colour)
+            for strand in 0..<2 {
+                let ox: Float = fn * (strand == 0 ? 0.42 : 0.6)
+                let ph: Float = Float(strand) * 2.1 + h2(strand, 1, salt) * 3
+                for y in 0..<n {
+                    let cx: Float = ox + sinf(Float(y) / fn * 2 * .pi + ph) * fn * 0.06
+                    let w: Float = fn / 36 + 0.6
+                    for x in Int(cx - w)...Int(cx + w) {
+                        let u: Float = (Float(x) + 0.5 - cx) / w
+                        plot(&img, x, y, c * (1.05 - 0.35 * abs(u + 0.3)))
+                    }
+                    // Leaf nubs every eighth of the tile, alternating sides (periodic so the strand tiles).
+                    if y % (n / 8) == n / 16 {
+                        let side: Float = (y / (n / 8) + strand) % 2 == 0 ? 1 : -1
+                        var nc: V3 = c * 1.1
+                        if let nb = nubs { nc = col(nb) }
+                        leafBlob(&img, cx + side * fn / 18, Float(y), fn / 14, side > 0 ? -0.5 : .pi + 0.5, nc)
+                    }
+                }
+            }
+            return img
+        }
+    }
+    static func bambooHD(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n)
+        var img = Img(n)
+        let fib = vnoise(n, max(1, n / 32), s)
+        for y in 0..<n { for x in 0..<n {
+            let i = y * n + x
+            let fy: Float = Float(y) / fn * 16
+            let node: Float = abs(fy - 6 * floorf(fy / 6 + 0.5))
+            let u: Float = (Float(x) + 0.5) / fn
+            let round: Float = 1.1 - 0.35 * abs(u * 2 - 1.2)
+            var c: V3 = col(0x7AAA2A) * (round * (0.9 + 0.15 * fib[(y / 6) * n + x]))
+            if node < 0.5 { c = col(0x5A8A1A) * round }
+            else if node < 0.9 { c = col(0x9ACA4A) * round }
+            img.px[i] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
+        } }
+        return img
+    }
+
     // Water (greyscale for the biome tint, translucent like the small painter): soft ripple bands from a warped field,
     // brighter crests, no hard texels.
     static func waterHD(_ n: Int, _ s: Int) -> Img {
@@ -3421,6 +3565,16 @@ enum HDTex {
         "smithing_table_side": smithingSide,
         "grindstone": stone([(0, 0x6E6E6E), (0.5, 0x8E8E8E), (1, 0xA8A8A8)], veins: 0, strata: 0.06),
         "stonecutter_side": furnaceStone,
+        "oak_sapling": saplingHD(leaf: 0x4A8A2A, trunk: 0x6B4F2C, conifer: false),
+        "birch_sapling": saplingHD(leaf: 0x7AA850, trunk: 0xD8D4C8, conifer: false),
+        "spruce_sapling": saplingHD(leaf: 0x3A6A3A, trunk: 0x4A3420, conifer: true),
+        "crimson_fungus": fungusHD(cap: 0xB02A2A, wart: 0xE8C080),
+        "warped_fungus": fungusHD(cap: 0x1E8A7A, wart: 0xE89060),
+        "crimson_roots": blades(salt: 131, count: 9, len: 0.4, 0.85, lean: 1.6, colour: 0x9A1E30),
+        "warped_roots": blades(salt: 133, count: 9, len: 0.4, 0.85, lean: 1.6, colour: 0x148A7A),
+        "weeping_vines": strandHD(0x8E1E2E, salt: 205),
+        "twisting_vines": strandHD(0x16A08A, salt: 207),
+        "bamboo_stalk": bambooHD,
         "piston_top": sparkFace("piston_top"),
         "piston_top_sticky": sparkFace("piston_top_sticky"),
         "piston_side": sparkFace("piston_side"),
