@@ -5347,6 +5347,9 @@ enum HDTex {
         if let st = stage("wheat_stage") { return cropHD(stage: st, max: 7, young: 0x3F9A2C, ripe: 0xB8A340, head: 0xDCBC52, wheat: true, salt: 122) }
         if let st = stage("carrots_stage") { return cropHD(stage: st, max: 3, young: 0x3F9A2C, ripe: 0x48A832, head: 0xF08A1A, wheat: false, salt: 125) }
         if let st = stage("potatoes_stage") { return cropHD(stage: st, max: 3, young: 0x3F9A2C, ripe: 0x4AA034, head: 0xD8B060, wheat: false, salt: 128) }
+        if let st = stage("nether_wart_stage") { return cropHD(stage: st, max: 2, young: 0x7A1A1C, ripe: 0x8A2024, head: 0xB0302C, wheat: false, salt: 134) }
+        if let st = stage("torchflower_crop") { return cropHD(stage: st, max: 1, young: 0x4A8A2A, ripe: 0x4A8A2A, head: 0xF08A2A, wheat: false, salt: 137) }
+        if let st = stage("pitcher_crop") { return cropHD(stage: st, max: 3, young: 0x3A7A6A, ripe: 0x3A7A6A, head: 0x5A7AC8, wheat: false, salt: 140) }
         if let st = stage("beetroots_stage") { return cropHD(stage: st, max: 3, young: 0x3F9A2C, ripe: 0x3A8A30, head: 0xA02838, wheat: false, salt: 131) }
         return nil
     }
