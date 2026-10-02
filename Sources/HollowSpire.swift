@@ -40,13 +40,16 @@ enum HollowSpire {
 
     static var purpur: BlockID { Blocks.id("purpur_block") }
     static var pillar: BlockID { Blocks.id("purpur_pillar") }
+    static var trim: BlockID { Blocks.has("end_stone_bricks") ? Blocks.id("end_stone_bricks") : Blocks.id("purpur_pillar") }
 
     static func box(_ w: inout StructWriter, _ x0: Int, _ y0: Int, _ z0: Int, _ x1: Int, _ y1: Int, _ z1: Int, floor: BlockID, wall: BlockID) {
         for y in y0...y1 { for z in z0...z1 { for x in x0...x1 where w.inside(x, y, z) {
             let edge = x == x0 || x == x1 || z == z0 || z == z1
             let corner = (x == x0 || x == x1) && (z == z0 || z == z1)
-            if y == y0 { w.set(x, y, z, floor) }
-            else if y == y1 { w.set(x, y, z, wall) }
+            // End-stone-brick bands round the floor and the eaves of every block (plain violite boxes read as one
+            // flat tiled mass: blind critic, end_city).
+            if y == y0 { w.set(x, y, z, edge ? trim : floor) }
+            else if y == y1 { w.set(x, y, z, edge ? trim : wall) }
             else if corner { w.set(x, y, z, pillar) }
             else if edge {
                 let window = (y - y0) % 5 == 2 && (x + z) % 3 == 0
@@ -113,6 +116,24 @@ enum HollowSpire {
                     w.fill(ox + sx, y + 2 + i, oz + sz, ox + sx, y + 4 + i, oz + sz, AIR)
                 }
                 w.set(ox + 2, y + 3, oz + 2, Blocks.id("end_rod"))
+                // A wing off the tower, alternating sides floor by floor (east, then north): a small room with a
+                // doorway from the tower, a lamp and a stair-rimmed roof, so the tower branches like the reference.
+                let east = f % 2 == 0
+                if east {
+                    box(&w, ox + 3, y, oz - 2, ox + 7, y + 4, oz + 2, floor: purpur, wall: purpur)
+                    w.fill(ox + 3, y + 1, oz - 1, ox + 3, y + 2, oz + 1, AIR)
+                    w.set(ox + 6, y + 1, oz + 1, Blocks.id("end_rod"))
+                    for z in (oz - 2)...(oz + 2) { w.set(ox + 8, y + 4, z, st + 2) }
+                    for x in (ox + 4)...(ox + 7) { w.set(x, y + 4, oz - 3, st + 1); w.set(x, y + 4, oz + 3, st) }
+                    w.set(ox + 7, y + 5, oz - 2, Blocks.id("end_rod")); w.set(ox + 7, y + 5, oz + 2, Blocks.id("end_rod"))
+                } else {
+                    box(&w, ox - 2, y, oz - 7, ox + 2, y + 4, oz - 3, floor: purpur, wall: purpur)
+                    w.fill(ox - 1, y + 1, oz - 3, ox + 1, y + 2, oz - 3, AIR)
+                    w.set(ox + 1, y + 1, oz - 6, Blocks.id("end_rod"))
+                    for x in (ox - 2)...(ox + 2) { w.set(x, y + 4, oz - 8, st + 1) }
+                    for z in (oz - 7)...(oz - 4) { w.set(ox - 3, y + 4, z, st + 3); w.set(ox + 3, y + 4, z, st + 2) }
+                    w.set(ox - 2, y + 5, oz - 7, Blocks.id("end_rod")); w.set(ox + 2, y + 5, oz - 7, Blocks.id("end_rod"))
+                }
                 y += 5
             } else {
                 // Treasure room.
@@ -133,6 +154,16 @@ enum HollowSpire {
                         w.set(x, ry, z, purpur)
                     }
                 } }
+                // A lantern spire on the roof: a stepped violite cap rising to a pillar crowned with lamps.
+                for k in 0..<3 {
+                    let r = 3 - k
+                    for z in (oz - r)...(oz + r) { for x in (ox - r)...(ox + r) {
+                        w.set(x, ry + k, z, k == 0 && (abs(x - ox) == r || abs(z - oz) == r) ? trim : purpur)
+                    } }
+                }
+                for h in 3...6 { w.set(ox, ry + h, oz, pillar) }
+                w.set(ox, ry + 7, oz, Blocks.id("end_rod"))
+                for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] { w.set(ox + dx, ry + 5, oz + dz, Blocks.id("end_rod")) }
             }
         }
         // Stairs from the house up through its ceiling into the first tower floor (the house had no way up, so the
