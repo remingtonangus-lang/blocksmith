@@ -690,7 +690,9 @@ enum HDTex {
                 for x in Int(xc * fn - w)...Int(xc * fn + w) {
                     let u: Float = (Float(x) + 0.5 - xc * fn) / w
                     guard abs(u) <= 1 else { continue }
-                    let v: Float = k * (0.92 - 0.18 * u) * (0.97 + 0.06 * h2(x, y / 6, 78))
+                    let side: Float = 0.92 - 0.18 * u
+                    let grain: Float = 0.97 + 0.06 * h2(x, y / 6, 78)
+                    let v: Float = k * side * grain
                     img[x, y] = V4(v, v, v, 1)
                 }
             }
@@ -740,9 +742,11 @@ enum HDTex {
                 let len: Float = fn * 0.32
                 let ang: Float = -.pi / 2 + side * 0.75
                 let cx: Float = hx + cosf(ang) * len / 2, cy: Float = fn * 0.93 + sinf(ang) * len / 2
-                ellipse(cx, cy, len / 2, fn / 26, ang) { u, v, _ in
+                ellipse(cx, cy, len / 2, fn / 26, ang) { (u: Float, v: Float, _: Float) -> V3 in
                     let k: Float = 0.5 - 0.4 * v
-                    return (g0 + (g1 - g0) * k) * (0.85 + 0.15 * (1 - abs(u)))
+                    let mid: V3 = g0 + (g1 - g0) * k
+                    let edge: Float = 0.85 + 0.15 * (1 - abs(u))
+                    return mid * edge
                 }
             }
             let pc = col(petal), cc = col(centre)
@@ -751,14 +755,25 @@ enum HDTex {
                 let k = size > 2.5 ? 8 : 6
                 for i in 0..<k {
                     let a: Float = Float(i) / Float(k) * 2 * .pi + sway
-                    ellipse(hx + cosf(a) * rr * 0.55, hy + sinf(a) * rr * 0.55, rr * 0.55, rr * 0.26, a) { u, _, d in
-                        pc * ((0.78 + 0.15 * (u + 1)) * (1 - 0.12 * d))
+                    let px: Float = hx + cosf(a) * rr * 0.55, py: Float = hy + sinf(a) * rr * 0.55
+                    ellipse(px, py, rr * 0.55, rr * 0.26, a) { (u: Float, _: Float, d: Float) -> V3 in
+                        let along: Float = 0.78 + 0.15 * (u + 1)
+                        let fall: Float = 1 - 0.12 * d
+                        return pc * (along * fall)
                     }
                 }
-                ellipse(hx, hy, rr * 0.32, rr * 0.32, 0) { u, v, d in cc * ((1.05 - 0.15 * (u + v)) * (0.85 + 0.15 * (1 - d))) }
+                ellipse(hx, hy, rr * 0.32, rr * 0.32, 0) { (u: Float, v: Float, d: Float) -> V3 in
+                    let lit: Float = 1.05 - 0.15 * (u + v)
+                    let dome: Float = 0.85 + 0.15 * (1 - d)
+                    return cc * (lit * dome)
+                }
             case .cup:
                 for (dx, k) in [(Float(-0.45), Float(0.85)), (0.45, 0.85), (0, 1)] {
-                    ellipse(hx + dx * rr, hy, rr * 0.5, rr * 0.95, dx * 0.35) { _, v, d in pc * (k * (0.8 - 0.25 * v) * (1 - 0.1 * d)) }
+                    ellipse(hx + dx * rr, hy, rr * 0.5, rr * 0.95, dx * 0.35) { (_: Float, v: Float, d: Float) -> V3 in
+                        let up: Float = 0.8 - 0.25 * v
+                        let fall: Float = 1 - 0.1 * d
+                        return pc * (k * up * fall)
+                    }
                 }
             case .ball:
                 for i in 0..<60 {
@@ -766,7 +781,11 @@ enum HDTex {
                     let r: Float = rr * h2(i, 2, salt).squareRoot()
                     let x: Float = hx + cosf(a) * r, y: Float = hy + sinf(a) * r
                     let sh: Float = 0.75 + 0.35 * (1 - (y - hy + rr) / (2 * rr))
-                    ellipse(x, y, fn / 40 + 1, fn / 40 + 1, 0) { _, _, d in pc * (sh * (1.1 - 0.3 * d)) }
+                    let fr: Float = fn / 40 + 1
+                    ellipse(x, y, fr, fr, 0) { (_: Float, _: Float, d: Float) -> V3 in
+                        let dome: Float = 1.1 - 0.3 * d
+                        return pc * (sh * dome)
+                    }
                 }
             case .bells:
                 // An arched stalk from the stem top out to the right, bells hanging under it.
@@ -774,13 +793,17 @@ enum HDTex {
                     let t: Float = Float(i) / 23
                     let x: Float = hx + t * rr * 3
                     let y: Float = hy - sinf(t * .pi * 0.8) * rr * 0.9
-                    ellipse(x, y, fn / 90 + 0.7, fn / 90 + 0.7, 0) { _, _, _ in g1 }
+                    let sr: Float = fn / 90 + 0.7
+                    ellipse(x, y, sr, sr, 0) { (_: Float, _: Float, _: Float) -> V3 in g1 }
                 }
                 for i in 0..<4 {
                     let t: Float = 0.2 + Float(i) * 0.25
                     let x: Float = hx + t * rr * 3
                     let y: Float = hy - sinf(t * .pi * 0.8) * rr * 0.9 + rr * 0.55
-                    ellipse(x, y, rr * 0.36, rr * 0.42, 0) { u, v, _ in pc * (0.82 - 0.2 * v + 0.05 * u) }
+                    ellipse(x, y, rr * 0.36, rr * 0.42, 0) { (u: Float, v: Float, _: Float) -> V3 in
+                        let k: Float = 0.82 - 0.2 * v + 0.05 * u
+                        return pc * k
+                    }
                 }
             }
             return img
@@ -813,7 +836,9 @@ enum HDTex {
                     let u: Float = (dx * ca + dy * sa) / (len * 0.5), v: Float = (-dx * sa + dy * ca) / wid
                     let e: Float = 1 - u * u
                     guard e > 0, abs(v) < e else { continue }
-                    let k: Float = (v * side < 0 ? 0.78 : 0.62) + 0.1 * (1 - abs(u)) + 0.08 * h2(st, 30 + i, 91)
+                    let lit: Float = v * side < 0 ? 0.78 : 0.62
+                    let mid: Float = 0.1 * (1 - abs(u))
+                    let k: Float = lit + mid + 0.08 * h2(st, 30 + i, 91)
                     img[x, y] = V4(k, k, k, 1)
                 } }
             }
@@ -839,7 +864,9 @@ enum HDTex {
             let onVein = abs(sinf(a * 7)) < veinW && d > fn * 0.04
             let vein: Float = onVein ? 0.82 : 1
             let rim: Float = d > rr * wob - fn / 40 ? 1.12 : 1
-            let k: Float = (0.55 + 0.22 * (d / rr) + (fine[y * n + x] - 0.5) * 0.12) * vein * rim
+            let mott: Float = (fine[y * n + x] - 0.5) * 0.12
+            let base: Float = 0.55 + 0.22 * (d / rr) + mott
+            let k: Float = base * vein * rim
             img.px[y * n + x] = V4(k, k, k, 1)
         } }
         return img
@@ -857,10 +884,13 @@ enum HDTex {
             let i = y * n + x
             let edge: Float = cl(1 - (cells.f2[i] - cells.f1[i]) / (fn / 90))
             let fr: Float = cl((frost[i] - 0.45) * 2.5)
-            var c = V3(0.62, 0.78, 1.0) * (0.94 + fine[i] * 0.08)
-            c += (V3(0.9, 0.95, 1.0) - c) * max(fr * 0.5, edge * 0.8)
+            let tone: Float = 0.94 + fine[i] * 0.08
+            var c: V3 = V3(0.62, 0.78, 1.0) * tone
+            let pale: Float = max(fr * 0.5, edge * 0.8)
+            c += (V3(0.9, 0.95, 1.0) - c) * pale
             let bubble = h2(x / max(1, n / 32), y / max(1, n / 32), s &+ 9) > 0.985
-            let a: Float = 0.58 + fr * 0.14 + edge * 0.3 + (bubble ? 0.2 : 0)
+            let bub: Float = bubble ? 0.2 : 0
+            let a: Float = 0.58 + fr * 0.14 + edge * 0.3 + bub
             img.px[i] = V4(min(1, c.x), min(1, c.y), min(1, c.z), min(1, a))
         } }
         return img
@@ -1327,7 +1357,9 @@ enum HDTex {
                     for x in Int(cx - w - 1)...Int(cx + w + 1) {
                         let u: Float = (Float(x) + 0.5 - cx) / max(0.5, w)
                         guard abs(u) <= 1 else { continue }
-                        var c: V3 = base * (0.7 + 0.35 * t) * (0.92 - 0.12 * u)
+                        let upK: Float = 0.7 + 0.35 * t
+                        let sideK: Float = 0.92 - 0.12 * u
+                        var c: V3 = base * (upK * sideK)
                         if inHead, let hc = head {
                             let kern: Float = 0.82 + 0.25 * abs(sinf(up / fn * 70 + (u > 0 ? 1.2 : 0)))
                             let side: Float = 0.95 - 0.1 * u
