@@ -1259,6 +1259,41 @@ enum HDTex {
         return img
     }
 
+    // Dead bush (cutout): dry twigs forking up and out from one root, thinning toward the tips.
+    static func deadBushHD(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n)
+        var img = Img(n, V4(0, 0, 0, 0))
+        let dark = col(0x5A3E1C), light = col(0x9A7442)
+        var seq = 0
+        func branch(_ x: Float, _ y: Float, _ ang: Float, _ len: Float, _ w: Float, _ depth: Int) {
+            let steps = Int(len) + 1
+            var px = x, py = y
+            for i in 0..<steps {
+                let t: Float = Float(i) / Float(steps)
+                px = x + sinf(ang) * len * t
+                py = y - cosf(ang) * len * t
+                let ww: Float = max(0.6, w * (1 - t * 0.5))
+                for dy in Int(-ww)...Int(ww) { for dx in Int(-ww)...Int(ww) {
+                    let fx = Float(dx), fy = Float(dy)
+                    guard fx * fx + fy * fy <= ww * ww + 0.3 else { continue }
+                    let xx = Int(px) + dx, yy = Int(py) + dy
+                    guard xx >= 0 && xx < n && yy >= 0 && yy < n else { continue }
+                    let c: V3 = dark + (light - dark) * (dx < 0 ? 0.75 : 0.35)
+                    img.px[yy * n + xx] = V4(c.x, c.y, c.z, 1)
+                } }
+            }
+            guard depth > 0 else { return }
+            for side: Float in [-1, 1] {
+                seq += 1
+                let spread: Float = 0.35 + 0.35 * h2(seq, 1, s)
+                let k: Float = 0.55 + 0.25 * h2(seq, 2, s)
+                branch(px, py, ang + side * spread, len * k, w * 0.65, depth - 1)
+            }
+        }
+        branch(fn / 2, fn - 1, 0, fn * 0.3, fn / 40 + 0.8, 4)
+        return img
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -1790,6 +1825,7 @@ enum HDTex {
         "short_grass": blades(salt: 101, count: 26, len: 0.3, 0.9),
         "seagrass": blades(salt: 105, count: 12, len: 0.55, 1.0, lean: 1.6, colour: 0x3A8A2A),
         "kelp": kelpHD,
+        "dead_bush": deadBushHD,
         "vine": vineHD,
         "lily_pad": lilyPadHD,
         "sugar_cane": caneHD,
