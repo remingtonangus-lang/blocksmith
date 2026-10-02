@@ -278,6 +278,12 @@ extension Mob {
         path.timer -= dt
         path.climbUp = false
         let dx = target.x - pos.x, dz = target.z - pos.z
+        // Stall watchdog (also in the last 1.5 blocks, where the mob walks straight at the target: a step, a corner or
+        // the bed / job block itself kept it pushing there forever). Not while a zombie hammers at a door.
+        if simd_length(pos - path.stallPos) > 0.75 || path.breakTime > 0 { path.stallPos = pos; path.stallTime = 0 } else {
+            path.stallTime += dt
+            if path.stallTime > 4 { path.stallTime = 0; path.nodes.removeAll(keepingCapacity: true); path.timer = 0; giveUp(target); return }
+        }
         if dx * dx + dz * dz < 2.25 && abs(target.y - pos.y) < 1.2 { path.nodes.removeAll(keepingCapacity: true); return }
         let moved = simd_length(target - path.goal) > 1.5
         let done = path.index >= path.nodes.count
@@ -324,10 +330,6 @@ extension Mob {
         // behaviour sim: villagers stood stuck against house walls most of the day).
         let sameGoal = simd_length(target - path.goal) < 1.5
         if sameGoal && path.partial && path.index >= path.nodes.count { giveUp(target); return }
-        if simd_length(pos - path.stallPos) > 0.75 { path.stallPos = pos; path.stallTime = 0 } else {
-            path.stallTime += dt
-            if path.stallTime > 4 { path.stallTime = 0; path.nodes.removeAll(keepingCapacity: true); path.timer = 0; giveUp(target); return }
-        }
         guard path.index < path.nodes.count else { return }
         let n = path.nodes[path.index]
         let cx = Float(n.x) + off - pos.x, cz = Float(n.z) + off - pos.z
