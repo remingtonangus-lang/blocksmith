@@ -738,7 +738,9 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let tod = Float(game.dayFraction)
                 let morning = max(0, 1 - abs(tod - 0.03) / 0.09), evening = max(0, 1 - abs(tod - 0.5) / 0.08)
                 let rain = min(1, game.weather.rain)
-                let dens: Float = (0.004 + 0.022 * max(morning, evening * 0.6) + 0.012 * rain) * caveScale
+                // Thinner than before: at sea level the evening mist veiled everything in lavender and burnt to white
+                // toward the sun (blind critic, run 364 lake_glint: 7 % of the frame clipped).
+                let dens: Float = (0.003 + 0.016 * max(morning, evening * 0.35) + 0.012 * rain) * caveScale
                 pp.mist = V4(fogColor * 0.95 + lf.color * 0.25, dens)
                 pp.mistH = V4(Float(SEA) - eye.y + 2, 9, 0, 0)
             }

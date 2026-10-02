@@ -629,7 +629,7 @@ fragment float4 compositeFS(FsOut in [[stage_in]],
         float base = p.mist.w * exp(-max(h0, -8.0) * k);
         float od = abs(dy) > 1e-3 ? base * dist * (1.0 - exp(-dy)) / dy : base * dist;
         float m = 1.0 - exp(-od);
-        float phase = 1.0 + pow(saturate(dot(dir, u.lightDir.xyz)), 6.0) * 1.5;
+        float phase = 1.0 + pow(saturate(dot(dir, u.lightDir.xyz)), 6.0) * 0.7;
         c = mix(c, p.mist.rgb * phase, saturate(m));
     }
     c *= p.grade.x;
