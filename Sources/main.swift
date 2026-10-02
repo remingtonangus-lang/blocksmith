@@ -1192,6 +1192,21 @@ enum Snapshot {
                 print("control frame at \(q.x) \(q.y - YOFF) \(q.z) holding an apple")
                 renderer.probes.append(("control apple", V3(Float(q.x) + 0.5, Float(q.y) + 0.5, Float(q.z) + 0.5) - V3(0, 0, 0.42)))
             }
+            // Mip alpha of the sprites involved (frames empty past ~6 blocks): centre alpha and coverage per level.
+            for it in ["apple", "gun_rifle"] where Items.has(it) {
+                guard let l = Items.texLayer(Items.id(it)) else { continue }
+                let lv = TextureGen.mipChain(layers: l..<(l + 1))
+                var line = "mips \(it) (layer \(l), \(Tex.names[l])):"
+                var sz = TextureGen.size
+                for (k, d) in lv.enumerated() where k < 6 {
+                    let cA = d[((sz / 2) * sz + sz / 2) * 4 + 3]
+                    var pass = 0
+                    for i in 0..<(sz * sz) where d[i * 4 + 3] >= 128 { pass += 1 }
+                    line += " L\(k) \(sz)px centre \(cA) pass \(pass * 100 / max(1, sz * sz))%"
+                    sz = max(1, sz / 2)
+                }
+                print(line)
+            }
             // A dropped apple two blocks ahead: does anything in the entity pass reach the image here?
             let side = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))          // beside the crosshair, not under it
             let dropAt = e + game.player.look * 3 + side * 0.8 - V3(0, 0.25, 0)
