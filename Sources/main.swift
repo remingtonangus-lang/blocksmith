@@ -1254,6 +1254,7 @@ if let dir = arg("--terrainmap") { exit(TerrainTools.maps(dir)) }
 if CommandLine.arguments.contains("--genbench") { exit(TerrainTools.genBench()) }
 if CommandLine.arguments.contains("--kelpcheck") { exit(TerrainTools.kelpCheck()) }
 if arg("--agent") != nil { exit(AgentRun.run()) }
+if CommandLine.arguments.contains("--behaviorsim") { exit(BehaviorSim.run()) }
 if CommandLine.arguments.contains("--structcheck") {
     guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); exit(1) }
     exit(StructCheck.run(device: device))

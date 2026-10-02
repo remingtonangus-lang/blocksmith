@@ -164,12 +164,19 @@ enum Village {
                     let ax = px + nx * 2 - ux * (w / 2), az = pz + nz * 2 - uz * (w / 2)
                     let fx = ax + ux * (w - 1) + nx * (d - 1), fz = az + uz * (w - 1) + nz * (d - 1)
                     guard free(ax, az, fx, fz) else { continue }
-                    // Ground under the corners: skip steep lots, floor on the highest corner.
+                    // Ground under the corners: skip steep lots. The floor sits level with the street in front of the
+                    // door (the road's edge column), so a walker steps straight in; the foundation fills or the
+                    // clearing cuts the rest of the footprint to that level.
                     let ys = [gen.groundY(ax, az), gen.groundY(fx, fz), gen.groundY(ax + ux * (w - 1), az + uz * (w - 1)), gen.groundY(ax + nx * (d - 1), az + nz * (d - 1))]
                     guard let lo = ys.min(), let hi = ys.max(), hi - lo <= 4, lo >= SEA else { continue }
+                    let street = gen.groundY(px + nx, pz + nz)
+                    guard abs(street - hi) <= 4 && abs(street - lo) <= 4 else { continue }
                     claim(ax - nx, az - nz, fx + nx, fz + nz)
                     if [.smithy, .library, .temple, .pen].contains(kind) { haveSpecial.insert("\(kind)") }
-                    lots.append(Lot(kind: kind, ax: ax, az: az, face: face, w: w, d: d, y: hi + 1, seed: rng.next(), job: jobs[rng.int(jobs.count)]))
+                    // Walking level = street + 1: houses, farms and pens have their floor/ground block at y - 1; the
+                    // smithy's stone floor is its own bottom layer, so it sits one lower.
+                    let floorY = kind == .smithy ? street : street + 1
+                    lots.append(Lot(kind: kind, ax: ax, az: az, face: face, w: w, d: d, y: floorY, seed: rng.next(), job: jobs[rng.int(jobs.count)]))
                 }
                 s += rng.range(7, 10)
             }
@@ -263,8 +270,9 @@ enum Village {
     static func house(_ w: inout StructWriter, _ b: LB, _ m: Mats, wallH: Int, roof: Bool = true) {
         let l = b.l
         foundation(&w, b, m)
+        // Floor level with the door sill (the walls stand on the foundation ring around it).
         b.fill(&w, 0, -1, 0, l.w - 1, -1, l.d - 1, m.foundation)
-        b.fill(&w, 1, 0, 1, l.w - 2, 0, l.d - 2, m.floor)
+        b.fill(&w, 1, -1, 1, l.w - 2, -1, l.d - 2, m.floor)
         for v in 0..<l.d { for u in 0..<l.w {
             let edgeU = u == 0 || u == l.w - 1, edgeV = v == 0 || v == l.d - 1
             guard edgeU || edgeV else { continue }
