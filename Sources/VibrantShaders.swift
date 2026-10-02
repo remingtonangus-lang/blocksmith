@@ -225,7 +225,7 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
     float blk0 = blkL / (4.0 - 3.0 * blkL);
     float inv = 1.0 - blk0;
     float blk = min(1.0, mix(blk0, 1.0 - inv * inv * inv * inv, 0.6) * 1.05);
-    float3 blkPart = blk * float3(1.0, 0.7, 0.4) * 1.1 * mix(0.75, 1.0, in.ao);
+    float3 blkPart = blk * float3(1.0, 0.82, 0.6) * 1.1 * mix(0.75, 1.0, in.ao);
     if (blk > 0.01) {
         // Fire-lit areas flicker gently (slow per-area phase so neighbouring blocks move together).
         float3 cellp = floor((in.rel + u.eye.xyz) / 6.0);
@@ -340,7 +340,7 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
     float dist = length(in.rel);
     if (in.water < 0.5) {
         float4 c = tex.sample(texSampler, in.uv, uint(in.layer));
-        float3 lit = u.ambColor.rgb * skyC * faceShade[uint(in.face)] + u.sunColor.rgb * sunVis * 0.6 + blkL * float3(1.0, 0.7, 0.4);
+        float3 lit = u.ambColor.rgb * skyC * faceShade[uint(in.face)] + u.sunColor.rgb * sunVis * 0.6 + blkL * float3(1.0, 0.82, 0.6);
         lit = mix(max(lit, float3(0.04)), u.dimTint.rgb, u.sunDir.w);
         float3 rgb = c.rgb * in.tint * lit;
         float3 n = normalize(in.nrm);
@@ -429,7 +429,7 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
         float shore = 1.0 - smoothstep(0.0, 1.1, thick0);
         float fn = vnoise(wp.xz * 2.6 + float2(t * 0.4, -t * 0.3)) * 0.6 + vnoise(wp.xz * 6.0 - t * 0.5) * 0.4;
         float foam = shore * smoothstep(0.35, 0.75, fn + shore * 0.35);
-        float3 foamLit = u.ambColor.rgb * skyC + u.sunColor.rgb * sunVis * 0.9 + blkL * float3(1.0, 0.7, 0.4) * 0.6;
+        float3 foamLit = u.ambColor.rgb * skyC + u.sunColor.rgb * sunVis * 0.9 + blkL * float3(1.0, 0.82, 0.6) * 0.6;
         col = mix(col, foamLit * 0.95, foam * 0.85);
     }
     float3 h = normalize(u.lightDir.xyz - v);

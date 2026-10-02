@@ -97,7 +97,8 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     }
     o.overlay = float((w1 >> 30) & 1u);
     o.anim = face == 7u ? 1.0 : 0.0;
-    // Skylight scales with daylight; block light (torches) is warm and constant.
+    // Skylight scales with daylight; block light (torches) is warm and constant (a light warm cast: the old
+    // (1, 0.76, 0.46) turned grey stone tan in torch-lit interiors).
     float sky = skyL * (0.35 + 0.65 * skyL) * u.params.y;
     // Moonlight: what little skylight is left at night is cool blue rather than grey.
     float3 skyTint = mix(float3(0.6, 0.7, 1.0), float3(1.0), smoothstep(0.1, 0.55, u.params.y));
@@ -106,7 +107,7 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     float blk0 = blkL / (4.0 - 3.0 * blkL);
     float inv = 1.0 - blk0;
     float blk = min(1.0, mix(blk0, 1.0 - inv * inv * inv * inv, 0.6) * 1.05);
-    float3 lit = max(sky * skyTint, blk * float3(1.0, 0.76, 0.46));
+    float3 lit = max(sky * skyTint, blk * float3(1.0, 0.86, 0.66));
     // Dimension ambient lifts the whole light curve (the Emberdeep/End are never pitch black).
     lit = mix(max(lit, float3(0.035)), float3(1.0), u.sunDir.w);
     o.shade = lit * (faceShade[face] * aoCurve[ao]);
