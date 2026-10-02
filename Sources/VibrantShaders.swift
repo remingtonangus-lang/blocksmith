@@ -395,7 +395,8 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
     float d0 = sdepth.sample(ls, suv);
     float behind0 = d0 >= 1.0 ? dist + 64.0 : length(relAt(suv, d0, u));
     float thick0 = max(0.0, behind0 - dist);
-    float2 ruv = suv + n.xz * 0.06 * saturate(thick0 * 0.3) * (1.0 / max(1.0, dist * 0.05));
+    // Up to 2 % of the screen (6 % shifted the seabed by ~80 px: coral read as doubled copies, blind critic run 364).
+    float2 ruv = suv + n.xz * 0.02 * saturate(thick0 * 0.3) * (1.0 / max(1.0, dist * 0.05));
     float d1 = sdepth.sample(ls, ruv);
     float behind1 = d1 >= 1.0 ? dist + 64.0 : length(relAt(ruv, d1, u));
     if (behind1 < dist) { ruv = suv; d1 = d0; behind1 = behind0; }
