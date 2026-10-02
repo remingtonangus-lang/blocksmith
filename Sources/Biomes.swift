@@ -106,6 +106,10 @@ enum Biome: Int, CaseIterable {
     var isRiver: Bool { self == .river || self == .frozenRiver }
     var isBeach: Bool { self == .beach || self == .snowyBeach || self == .stonyShore }
     var isBadlands: Bool { self == .badlands || self == .erodedBadlands || self == .woodedBadlands }
+    // Dry ground (sand or terracotta): the per-column dither never moves a column across this line, so deserts and
+    // mesas stay bare inside and keep a clean edge (their marginal climate had grass and savanna trees through ~40 %
+    // of a desert: blind critic, run 373 biome_desert / tour_desert).
+    var isDry: Bool { self == .desert || isBadlands }
     var isPeak: Bool { self == .frozenPeaks || self == .jaggedPeaks || self == .stonyPeaks || self == .snowySlopes }
     // Snow falls here at the given internal y (temperature drops 0.05 per 30 blocks above y 80).
     func snows(at y: Int) -> Bool {

@@ -96,7 +96,9 @@ enum TreePlacer {
                     let k = gen.terrain.column(tx, tz)
                     let dT = (hashf(tx, 2, tz, gen.s32 ^ 0x7EE8) - 0.5) * 0.16
                     let dW = (hashf(tx, 3, tz, gen.s32 ^ 0x7EE9) - 0.5) * 0.18
-                    let biome = gen.terrain.biome(k, k.h, dT: dT, dW: dW)
+                    let dith = gen.terrain.biome(k, k.h, dT: dT, dW: dW)
+                    let base = gen.terrain.biome(k, k.h)
+                    let biome = dith.isDry == base.isDry ? dith : base
                     let glade = gen.flora.noise2(Float(tx) / 70 + 300, Float(tz) / 70)
                     let r2 = roll / max(0.3, 0.8 + 0.9 * glade)
                     let pick = hashf(tx, 1, tz, gen.s32 ^ 0x7EE6)

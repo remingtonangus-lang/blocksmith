@@ -372,7 +372,9 @@ final class WorldGen: TerrainGenerator {
             let jT: Float = hashf(bx + lx, 5, bz + lz, s32 ^ 0xD17) - 0.5, jW: Float = hashf(bx + lx, 6, bz + lz, s32 ^ 0xD18) - 0.5
             let dT: Float = (nT * 0.75 + jT * 0.35) * 0.07
             let dW: Float = (nW * 0.75 + jW * 0.35) * 0.09
-            biomes[lx + lz * CS] = terrain.biome(k, k.h, dT: dT, dW: dW)
+            let dith = terrain.biome(k, k.h, dT: dT, dW: dW)
+            let base = terrain.biome(k, k.h)
+            biomes[lx + lz * CS] = dith.isDry == base.isDry ? dith : base
             maxTop = max(maxTop, YOFF + Int(k.h) + 40)
         } }
         maxTop = min(CH - 1, maxTop)
