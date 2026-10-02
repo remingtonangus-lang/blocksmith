@@ -228,12 +228,9 @@ enum Village {
         for z in z0...z1 { for x in x0...x1 where w.inside(x, top, z) {
             var y = top
             while y > depth && !Blocks.opaque[Int(w.get(x, y, z))] { y -= 1 }
-            guard y > depth else {
-                // A shaft or ravine mouth right beside the house: a two-block lid at the floor line (two blocks: never a
-                // hanging wall).
-                if w.get(x, floor - 1, z) == AIR && w.get(x, floor - 2, z) == AIR { w.set(x, floor - 1, z, DIRT); w.set(x, floor - 2, z, DIRT) }
-                continue
-            }
+            // (No lid over deeper shafts: a neighbour house's foundation stopped on it and hung over the ravine below,
+            // structcheck floating 26-34 columns, run 385.)
+            guard y > depth else { continue }
             // Each run of air filled only when it rests on a solid block within the depth (a run that goes deeper is
             // left alone: dirt hung over a deeper cave).
             var yy = min(y, floor) - 1
