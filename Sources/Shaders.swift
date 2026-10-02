@@ -109,7 +109,7 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     float blk = min(1.0, mix(blk0, 1.0 - inv * inv * inv * inv, 0.6) * 1.05);
     float3 lit = max(sky * skyTint, blk * float3(1.0, 0.86, 0.66));
     // Dimension ambient lifts the whole light curve (the Emberdeep/End are never pitch black).
-    lit = mix(max(lit, float3(0.035)), float3(1.0), u.sunDir.w);
+    lit = mix(max(lit, float3(0.055)), float3(1.0), u.sunDir.w);    // floor 0.055 (was 0.035): unlit cave walls stay faintly readable
     o.shade = lit * (faceShade[face] * aoCurve[ao]);
     o.dist = length(rel);
     o.rel = rel;

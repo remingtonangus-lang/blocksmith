@@ -234,7 +234,7 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
         blkPart *= 1.0 + (sin(tt * 9.0 + ph) * 0.5 + sin(tt * 23.0 + ph * 2.0) * 0.3) * 0.06;
     }
     float3 lit = max(skyPart, blkPart) + min(skyPart, blkPart) * 0.3;
-    lit = mix(max(lit, float3(0.03)), u.dimTint.rgb, u.sunDir.w);
+    lit = mix(max(lit, float3(0.045)), u.dimTint.rgb, u.sunDir.w);
     lit += flashLight(in.rel, n, fl);
     float3 col = albedo * lit;
     if (spec > 0.004 && sunVis > 0.0) {
