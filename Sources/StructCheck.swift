@@ -469,6 +469,12 @@ enum StructCheck {
         } }
         if floating.count >= 3 && !["end_city", "fortress", "bastion", "ruined_portal", "end_centre"].contains(typeName) && kind != "end_centre" {   // the Hollow's exit-portal island floats by design
             add("floating", floating[0], "\(floating.count) wall/foundation columns over air (first shown)")
+            // A view from six blocks east, a little below the hanging block, looking west at its underside.
+            let f0 = floating[0]
+            let dimArg = w.dim == .overworld ? "" : " --dim \(w.dim.rawValue)"
+            let fy: Int = f0.y - YOFF - 3
+            out[out.count - 1].view = String(format: "--seed %llu%@ --x %.1f --z %.1f --feet %ld --yaw 90 --pitch 15", seed, dimArg,
+                                             Float(f0.x) + 6.5, Float(f0.z) + 0.5, fy)
         }
         return (out, doors, pois, mobs)
     }
