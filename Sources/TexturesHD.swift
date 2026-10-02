@@ -888,11 +888,16 @@ enum HDTex {
         let frost = fbm(n, n / 4, 4, s)
         let cells = voronoi(n, 5, s &+ 3)
         let fine = vnoise(n, max(1, n / 64), s &+ 5)
+        // Cracks only where a broad mask allows (every cell edge cracked read as a grid of tiles), and a slow depth
+        // variation in the blue.
+        let mask = fbm(n, n / 2, 3, s &+ 7)
+        let depth = fbm(n, n / 2, 2, s &+ 11)
         for y in 0..<n { for x in 0..<n {
             let i = y * n + x
-            let edge: Float = cl(1 - (cells.f2[i] - cells.f1[i]) / (fn / 90))
+            let crackK: Float = cl((mask[i] - 0.48) * 5)
+            let edge: Float = cl(1 - (cells.f2[i] - cells.f1[i]) / (fn / 90)) * crackK
             let fr: Float = cl((frost[i] - 0.45) * 2.5)
-            let tone: Float = 0.94 + fine[i] * 0.08
+            let tone: Float = 0.9 + fine[i] * 0.06 + (depth[i] - 0.5) * 0.16
             var c: V3 = V3(0.62, 0.78, 1.0) * tone
             let pale: Float = max(fr * 0.5, edge * 0.8)
             c += (V3(0.9, 0.95, 1.0) - c) * pale
