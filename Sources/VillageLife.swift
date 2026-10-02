@@ -62,7 +62,9 @@ extension Mob {
                 let base = Blocks.groupBase[Int(b)]
                 guard let (ripe, item) = VillageLife.crops[Blocks.key(base)], Int(b - base) >= ripe else { continue }
                 if simd_length(V3(Float(q.x) + 0.5, Float(q.y), Float(q.z) + 0.5) - pos) > 2 {
-                    face(V3(Float(q.x) + 0.5, Float(q.y), Float(q.z) + 0.5)); moving = true; aiTimer = 2
+                    // Walk to it as a stroll goal (facing it here was overridden by the day schedule the same update,
+                    // so farmers only harvested what they happened to stand next to).
+                    wanderGoal = V3(Float(q.x) + 0.5, Float(q.y), Float(q.z) + 0.5); moving = true; aiTimer = 4
                     break
                 }
                 w.setBlock(q.x, q.y, q.z, base)          // replanted at stage 0
