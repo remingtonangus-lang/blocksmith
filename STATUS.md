@@ -34,6 +34,16 @@ Bug discovery is fully automated (Remington is not the bug finder). Keep CI gree
    - Procedural 128 px material generators (warped fbm, Voronoi cells, palette ramps, relief lighting): clearly the
      best and coherent; first pass shown in texture_trial_procedural_v1.png. Chosen: port to Swift and extend to
      every block family, with BC3 compression where supported (1665 layers at 128 px RGBA = ~145 MB uncompressed).
+   - Gemini (chat-Claude test, 2 samples, 2026-10-02): 1024-2048 px, no hard seams tiled 3x3, high quality, but at
+     128 px features were too small (~150 cobbles), big dark patches repeated as a grid, style drifted between
+     images, and some came back as a 2x2 internal repeat. Remington is adding GEMINI_API_KEY here. Built meanwhile:
+     tools/teximport.py (square crop, 2x2-repeat crop, large-scale luminance flattening, colour lock, wrap-aware
+     downsample to 128, seam check + cross-fade, tint/overlay/cutout modes), tools/gemini_textures.py (locked style
+     guide docs/textures/STYLE_GUIDE.md + one reference image in every prompt, block-scale prompts in
+     tools/texture_prompts.json, comparison sheet), Sources/TextureImport.swift (Resources/Textures/<name>.png
+     replaces the procedural layer; --texdir DIR / --procedural for side-by-side shots; mips + array as usual).
+     Baselines: procedural (tools/hdpreview.py --dir) and the CC0 trial set docs/textures/trials/cc0 (snap.sh renders
+     texsrc_procedural_* vs texsrc_cc0_*). Next: run gemini_textures.py when the key appears, compare, approve.
 2. 128x128 textures (8x): richer procedural art (and/or stylised CC0 sources, trials below), mipmaps + anisotropic
    filtering, cheap normal/roughness hints, real 3D isometric inventory icons crisp at TV scale; 60 fps rd 8 on M1,
    watch texture memory.

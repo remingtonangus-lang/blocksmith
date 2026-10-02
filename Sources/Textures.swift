@@ -1037,6 +1037,8 @@ enum TextureGen {
                 var px: [V4]
                 if n == S {
                     px = src
+                } else if let imp = TextureImport.image(name, size: n) {
+                    px = imp
                 } else if let g = HDTex.table[name] ?? HDTex.derived(name, src) {
                     px = g(n, Int(hash3(layer, 7, 3, 0x7E57) & 0xFFFF)).px
                 } else if crisp.contains(name) || name.hasPrefix("item_") || name.hasPrefix("effect_") || table[name] == nil {

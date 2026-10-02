@@ -126,6 +126,14 @@ def sheet(names, out, n=128, scale=1, tile=2):
 if __name__ == '__main__':
     import hdpreview
     import hdmaterials  # noqa: F401  (registers materials in hdpreview.GEN)
+    if len(sys.argv) > 2 and sys.argv[1] == '--dir':
+        # One 128 px PNG per material (baselines for tools/gemini_textures.py --baselines).
+        import os
+        os.makedirs(sys.argv[2], exist_ok=True)
+        for k, name in enumerate(sys.argv[3:] or list(hdpreview.GEN)):
+            img = np.clip(hdpreview.GEN[name](128, 1234 + k * 7), 0, 1)
+            Image.fromarray((img * 255).astype(np.uint8), 'RGBA').save(os.path.join(sys.argv[2], name + '.png'))
+        sys.exit(0)
     out = sys.argv[1] if len(sys.argv) > 1 else 'hdpreview.png'
     names = sys.argv[2:] or list(hdpreview.GEN)
     hdpreview.sheet(names, out)
