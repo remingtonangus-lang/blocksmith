@@ -5588,6 +5588,8 @@ enum HDTex {
         }
         if name.hasPrefix("stripped_") && (name.hasSuffix("_log") || name.hasSuffix("_stem")) { return strippedSide(pal(avg, lo: 0.78, hi: 1.16)) }
         if name.hasPrefix("frosted_ice_") { return iceHD }
+        if name.hasPrefix("cocoa_stage") { return cocoaPod(avg) }
+        if name.hasPrefix("redstone_dust_"), let lv = Int(name.dropFirst("redstone_dust_".count)) { return sparkDust(lv) }
         if name.hasSuffix("_wool") { return wool(avg / 0.9) }
         if let g = copperFamily(name) { return g }
         if name.hasSuffix("_glazed_terracotta") { return glazed(src) }
@@ -6109,6 +6111,44 @@ enum HDTex {
         "closed_eyeblossom": flowerHD(0x8A8490, 0x6A6470, .cup, top: 4, size: 2.4, salt: 456),
         "sculk_tendril": stemHD(0x3AB8C8)
     ]
+
+    // Cocoa pod skin: rounded ribs (every 3 texels, as the 16 px art) with a fine bumpy grain, in the stage's colour.
+    static func cocoaPod(_ avg: V3) -> Gen {
+        { n, s in
+            var img = Img(n)
+            let fu = Float(n) / 16
+            let bump = fbm(n, max(1, n / 16), 3, s &+ 21)
+            for y in 0..<n { for x in 0..<n {
+                let t: Float = (Float(y) + 0.5) / (3 * fu)
+                let ph: Float = t - floorf(t)
+                let rib: Float = 0.78 + 0.32 * sinf(ph * Float.pi)
+                let g: Float = 0.9 + 0.2 * bump[y * n + x]
+                img[x, y] = solid(avg * (rib * g))
+            }}
+            return img
+        }
+    }
+
+    // Sparkstone dust: a scatter of fine red grains (brighter and denser along the clumps) with glints on the lit
+    // levels; the 16 px dust was a flat speckled sheet (hdatlas: still upscaled).
+    static func sparkDust(_ level: Int) -> Gen {
+        { n, s in
+            let k: Float = Float(level) / 15
+            var img = Img(n, V4(0, 0, 0, 0))
+            let clump = fbm(n, n / 4, 3, s &+ 7)
+            let grain = vnoise(n, 2, s &+ 9)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let dens: Float = 0.35 + 0.5 * clump[i]
+                guard h2(x, y, s &+ 11) < dens else { continue }
+                let v: Float = (0.28 + 0.62 * k) * (0.75 + 0.45 * grain[i])
+                var c = V3(v, v * 0.07 + 0.015, 0.02)
+                if level > 0 && h2(x, y, s &+ 13) < 0.02 * k { c = V3(1, 0.55 + 0.3 * k, 0.45) }    // glints
+                img.px[i] = V4(min(1, c.x), c.y, c.z, 1)
+            }}
+            return img
+        }
+    }
 
     // MARK: Upscale for textures without an HD material
 
