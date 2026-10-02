@@ -347,6 +347,15 @@ final class World {
         return (n9, h9)
     }
 
+    // Harness edits made with setBlockAsync over an area: remesh it now so its meshes and stored light are current
+    // (a demo car built in a freshly dug pit was lit as if the pit were still rock: blind critic, run 385 ship_car).
+    func remeshArea(x0: Int, z0: Int, x1: Int, z1: Int, y0: Int, y1: Int) {
+        for cz in floorDiv(z0, CS)...floorDiv(z1, CS) { for cx in floorDiv(x0, CS)...floorDiv(x1, CS) {
+            guard let c = chunks[ChunkKey(x: cx, z: cz)] else { continue }
+            for sy in max(0, y0 >> 4)...min(NSEC - 1, y1 >> 4) { remeshSync(c, sy) }
+        } }
+    }
+
     private func remeshSync(_ c: Chunk, _ sy: Int) {
         guard let nb = neighbourhood(c) else { return }
         apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod), to: c, sy: sy, version: c.sections[sy].version)

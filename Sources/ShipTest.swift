@@ -113,6 +113,7 @@ enum ShipTest {
                 w.setBlockAsync(x + dx, y - 1, z + dz, GRASS)
                 if !Blocks.collide[Int(w.rawBlock(x + dx, y - 2, z + dz))] { w.setBlockAsync(x + dx, y - 2, z + dz, DIRT) }
             } }
+            w.remeshArea(x0: x - 3 - 16, z0: z - 48 - 16, x1: x + 8 + 16, z1: z + 10 + 16, y0: y - 18, y1: y + 22)
             return build(w, kind, at: IVec3(x, y, z))
         default:
             let top = waterTop(w, x + 2, z + 5) ?? (groundTop(w, x + 2, z + 5))
