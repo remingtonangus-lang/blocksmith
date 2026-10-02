@@ -436,6 +436,7 @@ final class Mob {
         // A mob killed earlier this tick (player hit, projectile) is removed by the death sweep after this loop: it
         // must not act or heal in between (the Blight's 1 HP/s regeneration revived it and lost the Blight Star).
         if health <= 0 && kind != .enderDragon { return }
+        if kind == .rabbit && variant < 16 { variant = 16 | FarmVariant.rabbitCoat(w, pos) }
         faceGoal = nil
         strafe = 0
         path.climbUp = false

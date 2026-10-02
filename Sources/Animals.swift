@@ -522,8 +522,11 @@ func animalParts(_ m: Mob, swing: Float) -> [Part] {
     }
     switch m.kind {
     case .rabbit:
-        let c = [V3(0.55, 0.42, 0.3), V3(0.9, 0.9, 0.88), V3(0.2, 0.18, 0.16), V3(0.8, 0.7, 0.5)][m.variant % 4]
-        return [box(-2.5, 1, -3, 5, 5, 7, c, 4), box(-2, 4, -6, 4, 4, 4, c, 4), box(-1.5, 8, -4.5, 1, 4, 1, c), box(0.5, 8, -4.5, 1, 4, 1, c),
+        let coats = [V3(0.55, 0.42, 0.3), V3(0.9, 0.9, 0.88), V3(0.2, 0.18, 0.16), V3(0.8, 0.7, 0.5), V3(0.45, 0.41, 0.37), V3(0.88, 0.88, 0.86)]
+        let coat = (m.variant & 15) % coats.count
+        let c = coats[coat]
+        let head = coat == 5 ? V3(0.2, 0.18, 0.16) : c                       // black and white: a dark head and ears
+        return [box(-2.5, 1, -3, 5, 5, 7, c, 4), box(-2, 4, -6, 4, 4, 4, head, 4), box(-1.5, 8, -4.5, 1, 4, 1, head), box(0.5, 8, -4.5, 1, 4, 1, head),
                 leg(-1.5, 3, 1.5, 2, 1, c), leg(1.5, 3, 1.5, 2, -1, c), box(-0.5, 3, 3.5, 1, 1, 1, V3(0.95, 0.95, 0.95))] + eyes(6, -6, 0.8, 0.8)
     case .fox:
         let c = m.variant == 1 ? V3(0.95, 0.95, 0.95) : V3(0.9, 0.5, 0.2)

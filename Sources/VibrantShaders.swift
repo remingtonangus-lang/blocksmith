@@ -457,6 +457,17 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
     float cosT = saturate(dot(-v, n));
     float fres = 0.02 + 0.98 * pow(1.0 - cosT, 5.0);
     float3 col = mix(under, refl, saturate(fres * 1.1));
+    if (in.face != 2.0 && in.face != 3.0) {
+        // Side faces (water spilling down a step, falls): tumbling water, not a mirror. Seen from afar the full sky
+        // reflection on these vertical sheets read as a bright blue panel at every one-block drop (Remington,
+        // playtest 2). Mostly the water body, a weak reflection and white streaks running down.
+        float across = abs(n.x) > 0.5 ? wp.z : wp.x;
+        float fall = vnoise(float2(across * 5.0, wp.y * 1.6 + t * 3.2)) * 0.65 + vnoise(float2(across * 11.0, wp.y * 3.0 + t * 4.5)) * 0.35;
+        float3 body = in.tint * (u.ambColor.rgb * skyC * 0.9 + u.sunColor.rgb * sunVis * 0.35) + blkL * float3(0.3, 0.26, 0.2);
+        col = mix(mix(under, body, 0.55), refl, saturate(fres * 0.3));
+        float3 foamLit = u.ambColor.rgb * skyC + u.sunColor.rgb * sunVis * 0.6;
+        col = mix(col, foamLit * 0.9, smoothstep(0.55, 0.9, fall) * 0.45);
+    }
     if (in.face == 2.0) {
         // Shoreline foam: where the water is shallow over the bed (or meets a wall), a broken white
         // band that drifts with the waves.

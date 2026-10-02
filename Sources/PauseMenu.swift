@@ -7,11 +7,13 @@ import Foundation
 final class PauseMenu: Menu {
     enum Page { case title, main, options, controls, keys, padmap, worlds, world, confirm, create, rename }
     enum Cat: Int, CaseIterable {
-        case controls, controller, video, audio, interface, accessibility
-        var name: String { ["Keyboard & Mouse", "Controller", "Video", "Audio", "Interface", "Accessibility"][rawValue] }
+        // Video first: render distance and graphics are what players look for (Remington, playtest 2: "no render
+        // distance setting" - it sat on page 3 behind the input pages).
+        case video, controls, controller, audio, interface, accessibility
+        var name: String { ["Video", "Keyboard & Mouse", "Controller", "Audio", "Interface", "Accessibility"][rawValue] }
     }
     var page: Page = .main
-    var cat: Cat = .controller
+    var cat: Cat = .video
     var stack: [Page] = []
     // (label, action id); settings show their current value in the label.
     var rows: [(String, String)] = []
@@ -141,13 +143,14 @@ final class PauseMenu: Menu {
             } else if !currentWorld.isEmpty {
                 subtitle = "\(currentWorld) - day \(Int(g.time / DAY_LENGTH) + 1)"
             }
-            rows = [("Back to Game", "resume"), ("Options...", "options"), ("World Map", "worldmap"), ("Advancements", "advancements"), ("Commands...", "commands"),
+            rows = [("Back to Game", "resume"), ("Options...", "options"), ("Render Distance: \(g.world.renderDistance)", "rd"), ("World Map", "worldmap"), ("Advancements", "advancements"), ("Commands...", "commands"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Game.difficultyNames[g.difficulty])", "difficulty"),
                     ("Worlds...", "worlds"), ("Save and Quit to Title", "totitle"), ("Save and Quit Game", "quit")]
         case .options:
             title = "Options: \(cat.name)"
-            subtitle = "Page \(cat.rawValue + 1) of \(Cat.allCases.count)"
+            let next = Cat(rawValue: (cat.rawValue + 1) % Cat.allCases.count) ?? .video
+            subtitle = "Page \(cat.rawValue + 1) of \(Cat.allCases.count) - next page: \(next.name)"
             let gui = HudLayout.userScale == 0 ? "Auto" : "\(HudLayout.userScale)"
             switch cat {
             case .controls:

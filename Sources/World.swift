@@ -356,6 +356,16 @@ final class World {
         } }
     }
 
+    // Harness: a section meshed at full detail and at far detail, (opaque quads, cutout quads) each.
+    func lodQuads(_ c: Chunk, _ sy: Int) -> [(Int, Int)] {
+        guard let nb = neighbourhood(c) else { return [] }
+        return [0, 1].map { lod in
+            let m = Mesher.buildSection(nb.0, nb.1, sy: sy, lod: lod)
+            let q = m.opaque.count / 8
+            return (m.solidQuads, q - m.solidQuads)
+        }
+    }
+
     private func remeshSync(_ c: Chunk, _ sy: Int) {
         guard let nb = neighbourhood(c) else { return }
         apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod), to: c, sy: sy, version: c.sections[sy].version)

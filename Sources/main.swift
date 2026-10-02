@@ -678,8 +678,9 @@ enum Snapshot {
             let sp = front(-3, 1)
             world.setBlock(sp.x, sp.y, sp.z, Blocks.id("oak_sign") + BlockID(4 + facing))
             let sb = BlockEntity(.sign); sb.lines = ["Welcome to", "Blocksmith", "", "-- 2026 --"]; world.blockEntities[sp] = sb
-            for (i, it) in ["diamond_sword", "apple"].enumerated() {
-                let fp = front(-1 + i, 2)
+            // A rifle too: the armory's gun racks drew empty frames (run 395); sword and apple draw.
+            for (i, it) in ["diamond_sword", "apple", "gun_rifle"].enumerated() where Items.has(it) {
+                let fp = i == 2 ? front(-2, 2) : front(-1 + i, 2)
                 world.setBlock(fp.x, fp.y, fp.z, Blocks.id("item_frame") + BlockID(facing))
                 let fb = BlockEntity(.frame); fb.container[0] = ItemStack(Items.id(it), 1); world.blockEntities[fp] = fb
             }
@@ -1120,6 +1121,23 @@ enum Snapshot {
             let le = world.lightAt(ex, ey, ez), lf = world.lightAt(ex, fy, ez)
             print("light probe: eye sky \(le.sky) block \(le.block) in \(Blocks.key(world.block(ex, ey, ez))); floor+1 (y \(fy - YOFF)) sky \(lf.sky) block \(lf.block) in \(Blocks.key(world.block(ex, fy, ez))), daylight \(game.daylight)")
         }
+        if CommandLine.arguments.contains("--lodcheck") {
+            // Cacti seen far away vanished and popped in close (Remington, playtest 2): the cactus sections' quads at
+            // full and far detail, plus the live section's state.
+            var n = 0
+            for (k, c) in world.chunks where n < 6 {
+                var found: Int?
+                for i in 0..<(CS * CS * CH) where c.blocks[i] == CACTUS { found = i >> 8; break }
+                guard let y = found else { continue }
+                n += 1
+                let sy = y >> 4
+                let q = world.lodQuads(c, sy)
+                let sec = c.sections[sy]
+                let s0 = q.first.map { "\($0.0)+\($0.1)" } ?? "-", s1 = q.last.map { "\($0.0)+\($0.1)" } ?? "-"
+                print("lodcheck: chunk \(k.x) \(k.z) cactus at y \(y - YOFF) (section \(sy)): quads near \(s0), far \(s1); live lod \(c.lod) quads \(sec.opaqueQuads) empty \(sec.empty) top \(c.topSec)")
+            }
+            if n == 0 { print("lodcheck: no cactus loaded") }
+        }
         if CommandLine.arguments.contains("--listframes") {
             // Item frames within 16 blocks: block state and what they hold (the armory's gun racks drew empty: critic run 385).
             let e = game.player.eye
@@ -1132,6 +1150,8 @@ enum Snapshot {
                 let it = be.container[0]
                 let layer = it.isEmpty ? -1 : (Items.texLayer(it.item) ?? -2)
                 print("frame at \(p.x) \(p.y - YOFF) \(p.z): \(Blocks.key(b)), item \(it.isEmpty ? "none" : Items.key(it.item)) layer \(layer)")
+                // --framesword: swap the held item for a sword (is it the gun items, or these frames?).
+                if CommandLine.arguments.contains("--framesword") { be.container[0] = ItemStack(Items.id("diamond_sword"), 1) }
             }
             print("frames listed: \(n) (block entities \(world.blockEntities.count))")
         }
