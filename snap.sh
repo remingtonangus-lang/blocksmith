@@ -35,6 +35,12 @@ cp -r build/sounds/scapes snaps/sounds/scapes
 "$BIN" --kelpcheck --seed 777 --x 600 --z 300 --radius 18
 # Structure walkability: every structure kind in every dimension, 3 seeds x 3 instances (report: snaps/structcheck.md).
 "$BIN" --structcheck --seeds 12345,777,424242 --per 3 --out snaps/structcheck.md
+# Bots playing the real Game.tick (Agent.swift): oracles every tick, replays for every finding (snaps/agent_*.md).
+"$BIN" --agent village --seeds 12345,777,424242 --ticks 4800 --out snaps
+"$BIN" --agent explorer --seeds 12345,777 --ticks 3600 --out snaps
+"$BIN" --agent monkey --seeds 12345,424242 --ticks 3600 --minimize --out snaps
+R=$(ls snaps/replay_*.jsonl 2>/dev/null | grep -v replay_min | head -1 || true)
+if [ -n "$R" ]; then "$BIN" --agent replay "$R" --verify; fi
 # Far-ocean kelp streaks in tour_777_aerial: the same view in Fast graphics and at render distance 8 (no far LOD).
 "$BIN" --snapshot snaps/tour_777_aerial_fast.png --seed 777 --x 600 --z 300 --onland --yaw 200 --pitch -28 --time 0.23 --up 55 --rd 16 --fast
 "$BIN" --snapshot snaps/tour_777_aerial_nocull.png --seed 777 --x 600 --z 300 --onland --yaw 200 --pitch -28 --time 0.23 --up 55 --rd 16 --nocull

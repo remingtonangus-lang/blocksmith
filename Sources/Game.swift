@@ -1570,8 +1570,11 @@ final class Game {
 
     // Damage in half-hearts: armor (reference formula), resistance, enchantment protection,
     // absorption hearts, then the totem of rebirth.
+    static var onDamage: ((Int, String) -> Void)?       // agent oracles: every damage call with its cause
+
     func damage(_ amount0: Int, _ cause: String, bypassArmor: Bool = false, type: DamageType = .generic, attacker: Mob? = nil) {
         guard survival, alive, amount0 > 0 else { return }
+        Game.onDamage?(amount0, cause)
         if type == .fire && effects.has(.fireResistance) { return }
         // Hurt cooldown: within half a second of a hit, only the part of a bigger hit that exceeds it lands
         // (a blight skull and its blast, a creeper after an arrow...). The void and gun rounds skip it.

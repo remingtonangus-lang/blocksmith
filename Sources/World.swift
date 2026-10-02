@@ -382,27 +382,38 @@ final class World {
 
     // MARK: Streaming (call once per frame)
 
+    // Agent runs / replays: wait for last frame's jobs and apply every result in chunk order, so streaming (and
+    // the light that meshing computes) never depends on timing.
+    static var deterministic = false
+
     func update(center pos: V3) {
         let tUpdate = CFAbsoluteTimeGetCurrent()
         defer { lastUpdateSeconds = CFAbsoluteTimeGetCurrent() - tUpdate }
         let center = ChunkKey(x: floorDiv(Int(floor(pos.x)), CS), z: floorDiv(Int(floor(pos.z)), CS))
 
+        if World.deterministic { workQueue.waitUntilAllOperationsAreFinished() }
         lock.lock()
-        let gr = genResults; genResults.removeAll(keepingCapacity: true)
-        let mr = meshResults; meshResults.removeAll(keepingCapacity: true)
+        var gr = genResults; genResults.removeAll(keepingCapacity: true)
+        var mr = meshResults; meshResults.removeAll(keepingCapacity: true)
         lock.unlock()
+        if World.deterministic {
+            gr.sort { (a: (ChunkKey, Produced), b: (ChunkKey, Produced)) -> Bool in a.0.x != b.0.x ? a.0.x < b.0.x : a.0.z < b.0.z }
+            mr.sort { (a: (ChunkKey, [(Int, Int, SectionMesh)]), b: (ChunkKey, [(Int, Int, SectionMesh)])) -> Bool in
+                a.0.x != b.0.x ? a.0.x < b.0.x : a.0.z < b.0.z
+            }
+        }
 
         // Results are applied within a per-frame budget; the rest wait for the next frame.
         let budget = 0.004
         var gi = 0, mi = 0
-        while gi < gr.count && (gi == 0 || CFAbsoluteTimeGetCurrent() - tUpdate < budget) {
+        while gi < gr.count && (gi == 0 || World.deterministic || CFAbsoluteTimeGetCurrent() - tUpdate < budget) {
             let (k, p) = gr[gi]; gi += 1
             genInFlight.remove(k)
             jobs -= 1
             if chunks[k] != nil { continue }
             install(k, p)
         }
-        while mi < mr.count && (mi == 0 || CFAbsoluteTimeGetCurrent() - tUpdate < budget) {
+        while mi < mr.count && (mi == 0 || World.deterministic || CFAbsoluteTimeGetCurrent() - tUpdate < budget) {
             let (k, list) = mr[mi]; mi += 1
             jobs -= 1
             guard let c = chunks[k] else { continue }

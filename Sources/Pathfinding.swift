@@ -279,7 +279,7 @@ extension Mob {
         let moved = simd_length(target - path.goal) > 1.5
         let done = path.index >= path.nodes.count
         let climbing = PathFinder.climbable(w.block(Int(floor(pos.x)), Int(floor(pos.y)), Int(floor(pos.z))))
-        if (repath || climbing) && path.timer <= 0 && (moved || done || path.timer < -3) && PathFinder.budget > 0 && PathFinder.spent < 0.0015 {
+        if (repath || climbing) && path.timer <= 0 && (moved || done || path.timer < -3) && PathFinder.budget > 0 && (Rand.deterministic || PathFinder.spent < 0.0015) {
             PathFinder.budget -= 1
             let t0 = Date.timeIntervalSinceReferenceDate
             defer { PathFinder.spent += Date.timeIntervalSinceReferenceDate - t0 }
