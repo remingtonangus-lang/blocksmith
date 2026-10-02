@@ -195,8 +195,10 @@ enum Stronghold {
             openings(6, 3)
             let frame = Blocks.id("end_portal_frame")
             let pz = cz + 2
-            // Raised platform, lava pool under the portal, stairs up from the entrance side.
-            w.fill(cx - 3, y + 1, pz - 3, cx + 3, y + 3, pz + 3, Blocks.id("stone_bricks"))
+            // Raised platform, lava pool under the portal, stairs up from the entrance side. It ends a row short of
+            // the +z wall: reaching it, it walled off a doorway on that side (a room linked south was sealed: 1 of 9
+            // strongholds reached only the portal room, 93 cells).
+            w.fill(cx - 3, y + 1, pz - 3, cx + 3, y + 3, pz + 2, Blocks.id("stone_bricks"))
             w.fill(cx - 1, y + 3, pz - 1, cx + 1, y + 3, pz + 1, LAVA)
             for i in -1...1 {
                 w.set(cx + i, y + 4, pz - 2, frame + (rng.chance(0.1) ? 1 : 0))
