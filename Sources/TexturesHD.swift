@@ -1762,6 +1762,116 @@ enum HDTex {
         }
     }
 
+    // Village job-site faces: the cartography table's map top and pinned-map side, the fletching table's feathers, the
+    // loom's warp threads, the lectern's open book and the stonecutter's blade (all were 16 px designs under detail).
+    static func jobFace(_ kind: String) -> Gen {
+        { n, s in
+            let fn = Float(n), u = n / 16
+            let fine = vnoise(n, max(1, n / 64), s &+ 2)
+            let blot = fbm(n, n / 4, 4, s &+ 4)
+            func put(_ img: inout Img, _ x: Int, _ y: Int, _ c: V3) { img[x, y] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1) }
+            func band(_ img: inout Img, _ y0: Int, _ y1: Int, _ c: V3) {
+                for y in y0..<y1 { for x in 0..<n {
+                    let edge: Float = y == y0 ? 1.18 : (y == y1 - 1 ? 0.7 : 1)
+                    put(&img, x, y, c * (edge * (0.88 + 0.24 * fine[y * n + x])))
+                } }
+            }
+            let parchment = col(0xE4DAB8), ink = col(0x4A3A2A)
+            switch kind {
+            case "cartography_table_top":
+                var img = planks(pal(col(0x4F3218), lo: 0.75, hi: 1.15))(n, s)
+                let land = fbm(n, n / 3, 4, s &+ 9)
+                for y in u..<(n - u) { for x in u..<(n - u) {
+                    let i = y * n + x
+                    let l: Float = land[i]
+                    var c: V3 = parchment
+                    if l < 0.47 {
+                        let wk: Float = 0.9 + 0.2 * l
+                        c = col(0x6A9AC8) * wk
+                    } else if l >= 0.62 { c = col(0xA8B878) }
+                    if abs(l - 0.47) < 0.012 { c = ink }
+                    let grid: Bool = (x - u) % (4 * u) == 0 || (y - u) % (4 * u) == 0
+                    if grid { c = c * 0.86 }
+                    put(&img, x, y, c * (0.92 + 0.12 * fine[i]))
+                } }
+                return img
+            case "cartography_table_side":
+                var img = planks(pal(col(0xC8B890), lo: 0.78, hi: 1.12))(n, s)
+                band(&img, 0, 3 * u, col(0x4F3218))
+                for y in (5 * u)..<(13 * u) { for x in (4 * u)..<(12 * u) {
+                    let i = y * n + x
+                    let ck: Float = 0.9 + 0.12 * blot[i]
+                    var c: V3 = parchment * ck
+                    if blot[i] < 0.42 { c = col(0x7AA0C0) }
+                    if (y - 5 * u) % (2 * u) == u && x % 3 != 0 && blot[i] > 0.5 { c = ink * 1.3 }
+                    put(&img, x, y, c)
+                } }
+                return img
+            case "fletching_table_side":
+                var img = planks(pal(col(0xB0A070), lo: 0.8, hi: 1.12))(n, s)
+                band(&img, 0, 3 * u, col(0xC5B57A))
+                // Two feathers laid across the face.
+                for (fx, ang) in [(Float(5.5), Float(0.35)), (10.5, -0.3)] {
+                    let cx: Float = fx / 16 * fn, cy: Float = fn * 0.6
+                    let ca = cosf(ang), sa = sinf(ang)
+                    for y in (3 * u)..<n { for x in 0..<n {
+                        let dx: Float = Float(x) + 0.5 - cx, dy: Float = Float(y) + 0.5 - cy
+                        let along: Float = dx * sa + dy * ca, across: Float = dx * ca - dy * sa
+                        let len: Float = fn * 0.3
+                        guard abs(along) < len else { continue }
+                        let w: Float = fn * 0.08 * (1 - (along / len) * (along / len)).squareRoot()
+                        if abs(across) < fn / 128 + 0.5 { put(&img, x, y, col(0xC8C0B0)); continue }
+                        if abs(across) < w {
+                            let barb: Float = 0.5 + 0.5 * sinf((along + abs(across) * 0.8) * 1.6)
+                            put(&img, x, y, V3(0.95, 0.94, 0.92) * (0.84 + 0.14 * barb))
+                        }
+                    } }
+                }
+                return img
+            case "loom_side":
+                var img = planks(pal(col(0xB08A5A), lo: 0.78, hi: 1.15))(n, s)
+                band(&img, 12 * u, n, col(0x9A7A4A))
+                band(&img, 2 * u, 3 * u, col(0x7A5A34))
+                for y in (3 * u)..<(12 * u) { for x in 0..<n where (x / u) % 3 == 0 {
+                    let across: Float = (Float(x % u) + 0.5) / Float(u)
+                    let k: Float = 1.05 - 0.3 * abs(across - 0.4)
+                    put(&img, x, y, V3(0.92, 0.91, 0.88) * (k * (0.92 + 0.1 * fine[y * n + x])))
+                } }
+                return img
+            case "lectern_top":
+                var img = planks(pal(col(0x9A7A4A), lo: 0.75, hi: 1.18))(n, s)
+                for y in (4 * u)..<(12 * u) { for x in (3 * u)..<(13 * u) {
+                    let i = y * n + x
+                    let mid: Float = abs(Float(x) + 0.5 - fn / 2) / (fn * 5 / 16)
+                    let pk: Float = 0.8 + 0.2 * mid + 0.06 * fine[i]
+                    var c: V3 = col(0xEDE4CC) * pk
+                    let offMid: Float = abs(Float(x) + 0.5 - fn / 2)
+                    let onRow: Bool = (y - 5 * u) % u == u / 2 && y < 11 * u
+                    let inPage: Bool = offMid > Float(u) && x > 4 * u && x < 12 * u
+                    let line: Bool = onRow && inPage
+                    if line && fine[i] > 0.3 { c = ink * 1.6 }
+                    if x == n / 2 || x == n / 2 - 1 { c = col(0x8A7A5A) }
+                    put(&img, x, y, c)
+                } }
+                return img
+            default:  // stonecutter_top
+                var img = furnaceStone(n, s)
+                for y in (6 * u)..<(10 * u) { for x in (u)..<(n - u) {
+                    let i = y * n + x
+                    let rel: Float = Float(y - 6 * u) / Float(4 * u)
+                    let groove: Bool = y < 7 * u || y >= 9 * u
+                    let bk: Float = 1.1 - 0.3 * rel + 0.1 * fine[i]
+                    var c: V3 = V3(0.78, 0.8, 0.84) * bk
+                    if groove { c = V3(0.16, 0.16, 0.17) }
+                    let tooth: Bool = !groove && (x / (u / 2 + 1)) % 2 == 0 && (y == 7 * u || y == 9 * u - 1)
+                    if tooth { c = V3(0.95, 0.96, 0.98) }
+                    put(&img, x, y, c)
+                } }
+                return img
+            }
+        }
+    }
+
     // Water (greyscale for the biome tint, translucent like the small painter): soft ripple bands from a warped field,
     // brighter crests, no hard texels.
     static func waterHD(_ n: Int, _ s: Int) -> Img {
@@ -3107,6 +3217,12 @@ enum HDTex {
         "smithing_table_side": smithingSide,
         "grindstone": stone([(0, 0x6E6E6E), (0.5, 0x8E8E8E), (1, 0xA8A8A8)], veins: 0, strata: 0.06),
         "stonecutter_side": furnaceStone,
+        "cartography_table_top": jobFace("cartography_table_top"),
+        "cartography_table_side": jobFace("cartography_table_side"),
+        "fletching_table_side": jobFace("fletching_table_side"),
+        "loom_side": jobFace("loom_side"),
+        "lectern_top": jobFace("lectern_top"),
+        "stonecutter_top": jobFace("stonecutter_top"),
         "smoker_front": workFurnace(blast: false),
         "blast_furnace_front": workFurnace(blast: true),
         "smoker_top": stone([(0, 0x464648), (0.5, 0x5A5A5C), (1, 0x707072)], veins: 0.4, strata: 0),
