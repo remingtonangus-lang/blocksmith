@@ -1673,8 +1673,9 @@ final class Renderer: NSObject, MTKViewDelegate {
             }
             if let bm = m as? BookMenu {
                 // Parchment page with wrapped text, page counter and buttons.
-                rect(o.x + 24 * s, o.y + 4 * s, 144 * s, 172 * s, V4(0.93, 0.89, 0.78, 1))
-                rect(o.x + 24 * s, o.y + 4 * s, 144 * s, 3 * s, V4(0.55, 0.38, 0.22, 1))
+                // The page starts under the panel title (it covered all but "Boo": blind UI critic, book).
+                rect(o.x + 24 * s, o.y + 16 * s, 144 * s, 160 * s, V4(0.93, 0.89, 0.78, 1))
+                rect(o.x + 24 * s, o.y + 16 * s, 144 * s, 3 * s, V4(0.55, 0.38, 0.22, 1))
                 let ink = V4(0.1, 0.08, 0.06, 1)
                 if bm.signing {
                     text("Enter Book Title:", o.x + 44 * s, o.y + 30 * s, s, ink, shadow: false)
@@ -1685,11 +1686,11 @@ final class Renderer: NSObject, MTKViewDelegate {
                     text("read-only.", o.x + 36 * s, o.y + 100 * s, s, ink, shadow: false)
                 } else {
                     let pg = "Page \(bm.page + 1) of \(bm.pages.count)"
-                    text(pg, o.x + 160 * s - textWidth(pg, s), o.y + 12 * s, s, V4(0.35, 0.3, 0.25, 1), shadow: false)
+                    text(pg, o.x + 160 * s - textWidth(pg, s), o.y + 22 * s, s, V4(0.35, 0.3, 0.25, 1), shadow: false)
                     var lines = Books.wrap(bm.pages[bm.page])
                     if bm.editable && Int(game.clock * 2) % 2 == 0 { if lines.isEmpty { lines = ["_"] } else { lines[lines.count - 1] += "_" } }
                     for (i, l) in lines.prefix(Books.linesPerPage).enumerated() {
-                        text(l, o.x + 36 * s, o.y + Float(26 + i * 9) * s, s, ink, shadow: false)
+                        text(l, o.x + 36 * s, o.y + Float(33 + i * 9) * s, s, ink, shadow: false)
                     }
                 }
                 for sl in bm.slots where sl.isButton {
