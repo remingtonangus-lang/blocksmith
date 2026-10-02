@@ -587,7 +587,9 @@ enum HDTex {
             }
             for b in 0..<count {
                 func r(_ k: Int) -> Float { h2(b, k, salt) }
-                let bx: Float = fern ? fn / 2 + (r(0) - 0.5) * fn * 0.3 : (Float(b) + r(0)) / Float(count) * fn
+                let fernX: Float = fn / 2 + (r(0) - 0.5) * fn * 0.3
+                let rowX: Float = (Float(b) + r(0)) / Float(count) * fn
+                let bx: Float = fern ? fernX : rowX
                 let len: Float = (lmin + (lmax - lmin) * r(1)) * fn
                 let lean: Float = (r(2) - 0.5) * (fern ? 3.6 : leanAmt)
                 let w0: Float = fern ? fn / 64 : fn / 26 * (0.7 + 0.6 * r(3))
@@ -780,7 +782,8 @@ enum HDTex {
                     let a: Float = h2(i, 1, salt) * 2 * .pi
                     let r: Float = rr * h2(i, 2, salt).squareRoot()
                     let x: Float = hx + cosf(a) * r, y: Float = hy + sinf(a) * r
-                    let sh: Float = 0.75 + 0.35 * (1 - (y - hy + rr) / (2 * rr))
+                    let rel: Float = (y - hy + rr) / (2 * rr)
+                    let sh: Float = 0.75 + 0.35 * (1 - rel)
                     let fr: Float = fn / 40 + 1
                     ellipse(x, y, fr, fr, 0) { (_: Float, _: Float, d: Float) -> V3 in
                         let dome: Float = 1.1 - 0.3 * d
@@ -911,7 +914,8 @@ enum HDTex {
                 let u: Float = (w / fn * Float(ribs)).truncatingRemainder(dividingBy: 1)
                 let prof: Float = sinf(.pi * (u < 0 ? u + 1 : u))
                 let st: Float = streak[(y / 8) * n + x]
-                let t: Float = 0.2 + 0.62 * powf(prof, 0.6) + (st - 0.5) * 0.12 + (blot[i] - 0.5) * 0.12
+                let lobe: Float = 0.62 * powf(prof, 0.6)
+                let t: Float = 0.2 + lobe + (st - 0.5) * 0.12 + (blot[i] - 0.5) * 0.12
                 let c = ramp(t, pal)
                 img.px[i] = V4(c.x, c.y, c.z, 1)
                 hh[i] = prof * 0.6
@@ -1193,7 +1197,8 @@ enum HDTex {
             var hh = [Float](repeating: 0, count: n * n)
             for y in 0..<n { for x in 0..<n {
                 let i = y * n + x
-                let d: Float = max(abs(Float(x) + 0.5 - fn / 2), abs(Float(y) + 0.5 - fn / 2)) / (fn / 2)
+                let ax: Float = abs(Float(x) + 0.5 - fn / 2), ay: Float = abs(Float(y) + 0.5 - fn / 2)
+                let d: Float = max(ax, ay) / (fn / 2)
                 let ring: Float = 0.5 + 0.5 * cosf(d * .pi * 4)
                 let t: Float = 0.3 + 0.4 * ring + (blot[i] - 0.5) * 0.12
                 let c = ramp(t, pal)
@@ -1229,7 +1234,9 @@ enum HDTex {
             } }
             // Rivets in the frame corners.
             let rv = max(1, n / 48)
-            for (cx, cy) in [(b / 2, b / 2), (n - b / 2, b / 2), (b / 2, n - b / 2), (n - b / 2, n - b / 2)] {
+            let lo = b / 2, hi = n - b / 2
+            let corners: [(Int, Int)] = [(lo, lo), (hi, lo), (lo, hi), (hi, hi)]
+            for (cx, cy) in corners {
                 for dy in -rv...rv { for dx in -rv...rv where dx * dx + dy * dy <= rv * rv {
                     let k: Float = dx + dy < 0 ? 0.85 : 0.6
                     img[cx + dx, cy + dy] = V4(k, k * 0.95, k * 0.85, 1)
@@ -1243,7 +1250,9 @@ enum HDTex {
                     let low = x == x1 - 1 || y == y1 - 1
                     var k: Float = 0.72 + 0.1 * fine[y * n + x]
                     if edge { k = 0.95 } else if low { k = 0.45 }
-                    let hole = abs(x - n / 2) < max(1, n / 64) && y > y0 + (y1 - y0) / 3 && y < y1 - (y1 - y0) / 4
+                    let third = (y1 - y0) / 3, quarter = (y1 - y0) / 4
+                    let inSlot: Bool = abs(x - n / 2) < max(1, n / 64)
+                    let hole = inSlot && y > y0 + third && y < y1 - quarter
                     if hole { k = 0.12 }
                     img[x, y] = V4(k, k, k * 1.02, 1)
                 } }
@@ -1381,7 +1390,8 @@ enum HDTex {
                     let rx: Float = (Float(i) + 0.5) / 3 * fn + (h2(i, 9, salt) - 0.5) * fn * 0.1
                     let rr: Float = fn / 13
                     for y in Int(fn - rr * 1.2)..<n { for x in Int(rx - rr)...Int(rx + rr) {
-                        let dx: Float = (Float(x) + 0.5 - rx) / rr, dy: Float = (Float(y) + 0.5 - (fn - rr * 0.3)) / rr
+                        let topY: Float = fn - rr * 0.3
+                        let dx: Float = (Float(x) + 0.5 - rx) / rr, dy: Float = (Float(y) + 0.5 - topY) / rr
                         let d: Float = dx * dx + dy * dy
                         guard d < 1 else { continue }
                         let shadeK: Float = 0.75 + 0.35 * (1 - d) - 0.1 * dx
