@@ -163,16 +163,32 @@ enum Bench {
         _ = g.generate(cx: 0, cz: 0)                       // lazy tables
         var times: [Double] = []
         var hash: UInt64 = 0xcbf29ce484222325           // FNV-1a over every generated block: flags terrain changes
+        WorldGen.timing = true
+        for k in 0..<WorldGen.phaseMs.count { WorldGen.phaseMs[k] = 0 }
+        var placeMs: Double = 0
         for i in 0..<24 {
             let cx = i * 7 - 80, cz = (i * 13) % 50 - 25
             let a = now
             var b = g.generate(cx: cx, cz: cz)
+            let ps = now
             if let st = g.structures { _ = st.place(into: &b, cx: cx, cz: cz) }
+            placeMs += (now - ps) * 1000
             _ = g.tints(cx: cx, cz: cz)
             _ = Chunk.computeHeights(b)
             times.append((now - a) * 1000)
             for v in b { hash = (hash ^ UInt64(v)) &* 0x100000001b3 }
         }
+        WorldGen.timing = false
+        // Where a chunk's time goes (ms per chunk): which pass grew when gen.chunk_ms regresses.
+        var parts: [String] = []
+        for (k, name) in WorldGen.phaseNames.enumerated() {
+            let ms: Double = WorldGen.phaseMs[k] / 24
+            put("genphase.\(name)_ms", ms)
+            parts.append(String(format: "%@ %.2f", name, ms))
+        }
+        put("genphase.structures_ms", placeMs / 24)
+        parts.append(String(format: "structures %.2f", placeMs / 24))
+        print("bench gen phases (ms/chunk): " + parts.joined(separator: ", "))
         put("gen.terrain_hash", Double(hash >> 12))       // 52 bits: exact in a Double
         if let wg = g as? WorldGen {
             var bad = 0

@@ -337,7 +337,20 @@ final class WorldGen: TerrainGenerator {
         return cols
     }
 
+    // Per-phase generation time (bench gen only, single-threaded): columns, stone, surface+water, caves, ores and
+    // cave decoration, trees, vegetation and freeze.
+    static var timing = false
+    static var phaseMs = [Double](repeating: 0, count: 7)
+    static let phaseNames = ["columns", "stone", "surface", "caves", "ores", "trees", "plants"]
+
     func generate(cx: Int, cz: Int) -> [BlockID] {
+        var tp: Double = WorldGen.timing ? CFAbsoluteTimeGetCurrent() : 0
+        func mark(_ k: Int) {
+            guard WorldGen.timing else { return }
+            let n = CFAbsoluteTimeGetCurrent()
+            WorldGen.phaseMs[k] += (n - tp) * 1000
+            tp = n
+        }
         var b = [BlockID](repeating: AIR, count: CSQ * CH)
         let bx = cx * CS, bz = cz * CS
         let (lat, _) = lattice(bx, bz)
@@ -364,6 +377,7 @@ final class WorldGen: TerrainGenerator {
         } }
         maxTop = min(CH - 1, maxTop)
 
+        mark(0)
         // 1. Stone / deeprock from density, bedrock floor.
         let deep = DEEPSLATE
         // Per column, the lattice is first interpolated along x at every lattice layer (two z rows), then
@@ -398,6 +412,7 @@ final class WorldGen: TerrainGenerator {
             }
         } }
 
+        mark(1)
         // 2. Surface rules on the topmost solid block, water up to the local water level (sea, river, lake).
         var tops = [Int](repeating: 0, count: CSQ)
         var wls = [Int](repeating: SEA, count: CSQ)
@@ -427,11 +442,13 @@ final class WorldGen: TerrainGenerator {
         // shallow flowing lip (or a falling cascade for a bigger drop), a dry one a bank up to the water.
         bankWater(&b, bx, bz, &tops, wls, nodes)
 
+        mark(2)
         // 3. Caves, aquifers, lava.
         let caves = caveLattice(bx, bz, maxY: maxTop)
         carveCaves(&b, caves, bx, bz, tops, wls, cols)
         carveRavines(&b, bx, bz, tops, wls)
 
+        mark(3)
         // 4. Ores, blobs, dungeons, geodes, cave biome decoration.
         let chunkSeed = UInt64(bitPattern: Int64(cx &* 341873128712 &+ cz &* 132897987541)) ^ seed
         var rng = SRng(chunkSeed)
@@ -442,10 +459,13 @@ final class WorldGen: TerrainGenerator {
         decorateCaves(&b, bx, bz, &rng, climates)
         clearIsolated(&b, tops)
 
+        mark(4)
         // 5. Trees and vegetation.
         placeTrees(&b, cx, cz, lat)
+        mark(5)
         placeVegetation(&b, bx, bz, biomes, &rng, cols: cols)
         freeze(&b, bx, bz, biomes, cols, tops)
+        mark(6)
         return b
     }
 
