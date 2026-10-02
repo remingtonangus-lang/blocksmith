@@ -51,6 +51,7 @@ enum Explosion {
         for b in destroyed { w.scheduleFluid(around: b) }
         // Progressive block damage: blocks the blast couldn't break lose pieces on the side facing it.
         if Settings.shared.chipping {
+            var bits = 0
             for (b, share) in shaken where !destroyed.contains(b) && share > 0.15 {
                 let id = w.block(b.x, b.y, b.z)
                 guard Blocks.render[Int(id)] == RenderType.cube.rawValue, Blocks.hardness[Int(id)] >= 0 else { continue }
@@ -58,6 +59,11 @@ enum Explosion {
                 let ad = simd_abs(d)
                 let face = ad.x >= ad.y && ad.x >= ad.z ? (d.x > 0 ? 0 : 1) : (ad.y >= ad.z ? (d.y > 0 ? 2 : 3) : (d.z > 0 ? 4 : 5))
                 w.chipAsync(b, level: max(1, min(6, Int(share * 7))), face: face)
+                bits += 1
+                if bits <= 30 {
+                    let nrm = [V3(1, 0, 0), V3(-1, 0, 0), V3(0, 1, 0), V3(0, -1, 0), V3(0, 0, 1), V3(0, 0, -1)][face]
+                    g.particles.chipBits(id, at: V3(Float(b.x), Float(b.y), Float(b.z)) + 0.5 + nrm * 0.5, normal: nrm, face: face, count: 2)
+                }
             }
         }
         for b in tnt { g.tnts.prime(at: b, fuse: Rand.float(in: 0.5...1.5)) }

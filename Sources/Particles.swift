@@ -53,6 +53,21 @@ final class ParticleManager {
         }
     }
 
+    // Pieces breaking off a struck face (progressive block damage): chunky fragments of that face's texture thrown
+    // out along its normal, tumbling down; face 0 +x, 1 -x, 2 +y, 3 -y, 4 +z, 5 -z.
+    func chipBits(_ b: BlockID, at c: V3, normal n: V3, face: Int, count: Int) {
+        let layer = Int(Blocks.tex[Int(b) * 6 + max(0, min(5, face))])
+        let tint: V3 = Blocks.tint[Int(b)] == 2 ? V3(0.47, 0.67, 0.18) : (Blocks.tint[Int(b)] != 0 ? V3(0.57, 0.74, 0.35) : V3(1, 1, 1))
+        for _ in 0..<count {
+            let side = V3(Rand.float(in: -1...1), Rand.float(in: -1...1), Rand.float(in: -1...1)) * 0.35
+            let jitter: V3 = side - n * simd_dot(side, n)
+            let v: V3 = n * Rand.float(in: 1.5...3.5) + jitter * 4 + V3(0, Rand.float(in: 1...2.5), 0)
+            add(Particle(pos: c + jitter, vel: v, life: Rand.float(in: 0.6...1.4), maxLife: 1.4, layer: layer,
+                         uv0: V2(Rand.float(in: 0..<0.7), Rand.float(in: 0..<0.7)), uvSize: 0.3, size: Rand.float(in: 0.08...0.14),
+                         gravity: 18, color: tint, collide: true))
+        }
+    }
+
     func explosion(at c: V3, power: Float) {
         let smoke = Int(Tex.id("smoke"))
         // Fireball: short-lived glowing orange puffs at the core (bloom in Fancy).

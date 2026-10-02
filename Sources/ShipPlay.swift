@@ -265,7 +265,8 @@ extension Game {
                         s.damage[cell] = UInt8(f << 5 | level)
                         s.mesh.rebuildAround(s, cell, device: world.device, queue: ships.meshQueue)
                         swing = 1
-                        particles.dust(b, at: centre + s.rot.act(V3(Float(n.x), Float(n.y), Float(n.z))) * 0.45, count: 5, spread: 0.3)
+                        let nw = s.rot.act(V3(Float(n.x), Float(n.y), Float(n.z)))
+                        particles.chipBits(b, at: centre + nw * 0.45, normal: nw, face: face, count: 6)
                         sfx(.hit(soundMat(b)), 0.7, at: centre)
                     }
                     if ships.mineProgress >= 1 && ships.breakCooldown <= 0 { done = true; ships.breakCooldown = 0.25; ships.mineProgress = 0 }
