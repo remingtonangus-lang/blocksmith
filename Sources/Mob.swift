@@ -262,6 +262,8 @@ final class Mob {
     var unreachableTimer: Float = 0
     var strollFails = 0             // strolls given up in a row (a mob in a pit or a pen rests instead of retrying)
     var huntTime: Float = 0         // a wild predator's committed chase of its prey (Animals.swift)
+    var fleeGoal: V3?               // where it runs from a threat, kept about a second (not re-aimed every tick)
+    var fleeTime: Float = 0
     var bedWalk: V3?                // villager: heading to its bed tonight (villagerNight -> villagerDay)
     static weak var world: World?   // the world mobs are updating in (stroll targets)
     var path = PathState()          // ground navigation (Pathfinding.swift)
@@ -518,8 +520,16 @@ final class Mob {
 
         switch spec.behavior {
         case _ where fleeFrom != nil:
-            // Avoid-entity goal: walk away from the threat (and never attack while fleeing).
-            face(pos * 2 - fleeFrom!)
+            // Avoid-entity goal: run to a spot 8 blocks away from the threat, re-aimed about once a second (a point
+            // re-aimed every tick moved with the mob and replanned its path each time: behaviour sim, fleeing rabbits).
+            fleeTime -= dt
+            if fleeGoal == nil || fleeTime <= 0 || simd_length(V2(fleeGoal!.x - pos.x, fleeGoal!.z - pos.z)) < 1.5 {
+                var away = V3(pos.x - fleeFrom!.x, 0, pos.z - fleeFrom!.z)
+                if simd_length(away) < 0.01 { away = V3(1, 0, 0) }
+                fleeGoal = pos + simd_normalize(away) * 8
+                fleeTime = Rand.float(in: 0.8...1.4)
+            }
+            face(fleeGoal!)
             moving = true
             speed = spec.speed * 1.25
             fuse = max(0, fuse - dt)
