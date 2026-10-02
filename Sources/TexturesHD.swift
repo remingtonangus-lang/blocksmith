@@ -1615,8 +1615,10 @@ enum HDTex {
                 // Panel bevels: lit top/left edges, shaded bottom/right, inside each panel.
                 if !(frameX || frameY || stile || rail || window) {
                     let px = x < 8 * u ? x - 2 * u : x - 9 * u
-                    let pyTop = top ? 10 * u : (y < 6 * u ? 0 : 8 * u)
-                    let pyBot = top ? 14 * u : (y < 6 * u ? 6 * u : 14 * u)
+                    // The top half's lower panels run on into the bottom half's upper ones (one tall panel across the
+                    // two blocks): no bevel where they meet (each half drew one there, a stray lit/shaded line mid-panel).
+                    let pyTop = top ? 10 * u : (y < 6 * u ? -6 * u : 8 * u)
+                    let pyBot = top ? 22 * u : (y < 6 * u ? 6 * u : 14 * u)
                     let py = y - pyTop
                     if px < u / 2 || py < u / 2 { k *= 1.15 } else if px >= 5 * u - u / 2 || y >= pyBot - u / 2 { k *= 0.8 }
                 }
@@ -3126,7 +3128,9 @@ enum HDTex {
                 let r: Float = (dx * dx + dy * dy).squareRoot() / (fn / 2)
                 let edge: Float = Float(min(min(x, y), min(n - 1 - x, n - 1 - y))) / fn
                 var h: Float = edge < 0.06 ? -0.4 : 0
-                if r > 0.52 && r < 0.62 { h = -0.5 }                                    // carved ring
+                // Carved ring with its depth ramped over about a texel (a hard step aliased in the relief shading).
+                let ring: Float = cl((0.05 - abs(r - 0.57)) / (2 / fn))
+                if ring > 0 { h = min(h, -0.5 * ring) }
                 else if r < 0.3 { h = 0.35 * (1 - r / 0.3) }                            // raised boss
                 hh[y * n + x] = h
             } }
