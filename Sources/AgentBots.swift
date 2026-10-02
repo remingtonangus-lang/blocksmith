@@ -314,6 +314,9 @@ final class VillageBot: AgentBot {
         if idx >= path.count || since > 150 {
             var pr = PathProfile()
             pr.doors = true
+            // A player drops off a roof (a 6-block fall costs 3 hearts); with 3 the bot stayed stranded on an eave it
+            // had walked onto from a hillside (run 355 seed 777: every replan from the roof found no path).
+            pr.maxDrop = 6
             path = PathFinder.find(a.world, from: s.pos, to: goal, profile: pr, maxNodes: 4000) ?? []
             plans.append(path.count)
             idx = 0; since = 0
@@ -391,6 +394,9 @@ final class LifeBot: AgentBot {
         if idx >= path.count || since > 90 {
             var pr = PathProfile()
             pr.doors = true
+            // A player drops off a roof (a 6-block fall costs 3 hearts); with 3 the bot stayed stranded on an eave it
+            // had walked onto from a hillside (run 355 seed 777: every replan from the roof found no path).
+            pr.maxDrop = 6
             path = PathFinder.find(a.world, from: s.pos, to: goal, profile: pr, maxNodes: 4000) ?? []
             idx = 0; since = 0
         }
