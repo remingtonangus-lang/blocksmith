@@ -97,6 +97,7 @@ final class ExplorerBot: AgentBot {
     var swam = false, wentDown = false, cameBack = false
     var startY: Float = 0
     var lowest: Float = 999
+    var reportedNoPath = false
     init(seed: UInt64) { rng = SRng(seed) }
 
     func pick(_ s: AgentState, _ a: Agent) {
@@ -136,6 +137,19 @@ final class ExplorerBot: AgentBot {
         path = PathFinder.find(a.world, from: s.pos, to: t, profile: pr, maxNodes: 3000) ?? []
         idx = 0
         since = 0
+        if path.isEmpty && !reportedNoPath {
+            // Why the pathfinder can't leave this spot: the blocks around the feet and each neighbour's stand cost.
+            reportedNoPath = true
+            let f = PathFinder.anchor(s.pos, span: 1)
+            func k(_ x: Int, _ y: Int, _ z: Int) -> String { Blocks.key(a.world.block(x, y, z)) }
+            var ns: [String] = []
+            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                let c = [-1, 0, 1].map { dy -> String in PathFinder.standCost(a.world, f.x + dx, f.y + dy, f.z + dz, pr).map { String(format: "%.0f", $0) } ?? "-" }
+                ns.append("\(dx),\(dz): \(k(f.x + dx, f.y, f.z + dz))/\(k(f.x + dx, f.y + 1, f.z + dz)) cost \(c.joined(separator: " "))")
+            }
+            print(String(format: "agent explorer: no path from %.2f %.2f %.2f to %.0f %.0f %.0f", s.pos.x, s.pos.y - Float(YOFF), s.pos.z, t.x, t.y - Float(YOFF), t.z)
+                  + "; feet \(k(f.x, f.y, f.z)), head \(k(f.x, f.y + 1, f.z)), under \(k(f.x, f.y - 1, f.z)); " + ns.joined(separator: "; "))
+        }
     }
 
     func act(_ s: AgentState, _ a: Agent) -> AgentAction {
