@@ -1795,9 +1795,38 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let x0 = o.x + (pw - dw * Float(n)) / 2
                     for k in 0..<n { rect(x0 + Float(k) * dw + s, dotY, dw - 2 * s, 2 * s, k == pm.scroll ? V4(0.2, 0.3, 0.6, 1) : V4(0.5, 0.5, 0.52, 1)) }
                 }
-                var help = pm.helpText
-                while !help.isEmpty && textWidth(help, s) > pw - 12 * s { help.removeLast() }
-                if !help.isEmpty { text(help, o.x + (pw - textWidth(help, s)) / 2, o.y + ph - 12 * s, s, V4(0.22, 0.22, 0.25, 1), shadow: false) }
+                // Help line: full size if it fits, else a little smaller, else two lines at word breaks (it was cut
+                // letter by letter at the panel edge: "...return to the title scree", blind UI critic).
+                let help = pm.helpText
+                let room: Float = pw - 12 * s
+                let helpC = V4(0.22, 0.22, 0.25, 1)
+                if !help.isEmpty {
+                    if textWidth(help, s) <= room {
+                        text(help, o.x + (pw - textWidth(help, s)) / 2, o.y + ph - 12 * s, s, helpC, shadow: false)
+                    } else {
+                        let hs: Float = s * 0.85
+                        if textWidth(help, hs) <= room {
+                            text(help, o.x + (pw - textWidth(help, hs)) / 2, o.y + ph - 11 * s, hs, helpC, shadow: false)
+                        } else {
+                            var l1 = "", rest = ""
+                            for sub in help.split(separator: " ") {
+                                let wd = String(sub)
+                                let tryL: String = l1.isEmpty ? wd : l1 + " " + wd
+                                if rest.isEmpty && textWidth(tryL, hs) <= room { l1 = tryL; continue }
+                                if !rest.isEmpty { rest += " " }
+                                rest += wd
+                            }
+                            let full = rest.count
+                            while !rest.isEmpty && textWidth(rest, hs) > room { rest.removeLast() }
+                            if rest.count < full {
+                                while !rest.isEmpty && textWidth(rest + "...", hs) > room { rest.removeLast() }
+                                rest += "..."
+                            }
+                            text(l1, o.x + (pw - textWidth(l1, hs)) / 2, o.y + ph - 20 * s, hs, helpC, shadow: false)
+                            text(rest, o.x + (pw - textWidth(rest, hs)) / 2, o.y + ph - 11 * s, hs, helpC, shadow: false)
+                        }
+                    }
+                }
             }
             if let am = m as? AdvancementMenu {
                 // Tabs, then the checklist: done ones in gold (challenges purple), open ones grey.
