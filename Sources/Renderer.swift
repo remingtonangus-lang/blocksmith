@@ -1644,8 +1644,15 @@ final class Renderer: NSObject, MTKViewDelegate {
                     rect(bx + 102 * s - cw, by + 8 * s, cw + 3 * s, 9 * s, V4(0.12, 0.1, 0.16, 0.9))
                     text(ct, bx + 103.5 * s - cw, by + 9 * s, s, ok ? Settings.shared.goodColor : Settings.shared.badColor * V4(0.6, 0.6, 0.6, 1))
                     if let c = e.clues[i] {
-                        var clue = Enchant.displayLine(c.0, c.1) + "?"
-                        while textWidth(clue, s) > 84 * s && clue.count > 4 { clue.removeLast() }
+                        // The clue is one enchantment the offer holds, maybe with more: "Unbreaking II +?" (a bare "?" read
+                        // as a placeholder), cut to stay clear of the cost badge.
+                        let line = Enchant.displayLine(c.0, c.1)
+                        var clue = line + " +?"
+                        if textWidth(clue, s) > 80 * s {
+                            var cut = line
+                            while textWidth(cut + "..+?", s) > 80 * s && cut.count > 3 { cut.removeLast() }
+                            clue = cut + "..+?"
+                        }
                         text(clue, bx + 18 * s, by + 3 * s, s, ok ? V4(0.12, 0.08, 0.2, 1) : V4(0.22, 0.22, 0.22, 1), shadow: false)
                     }
                 }
