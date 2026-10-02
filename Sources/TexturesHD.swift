@@ -2388,6 +2388,53 @@ enum HDTex {
         }
     }
 
+    // Repeater and comparator tops (smooth stone slab with a carved sparkstone trace, glowing when on), daylight
+    // detector tops (glass cells in a wooden cross frame) and its plank sides, and the lever's cobble base.
+    static let slabStone: Gen = polished(stone([(0, 0x8E8E8E), (0.5, 0xA2A2A2), (1, 0xB4B4B4)], veins: 0, strata: 0), calm: 0.35, rim: 1 / 20)
+    static func diodeFace(_ kind: String) -> Gen {
+        { n, s in
+            let fn = Float(n), u = n / 16
+            let fine = vnoise(n, max(1, n / 64), s &+ 2)
+            switch kind {
+            case "repeater", "repeater_on", "comparator", "comparator_on":
+                var img = slabStone(n, s)
+                let on = kind.hasSuffix("_on"), comp = kind.hasPrefix("comparator")
+                let lit: V3 = on ? col(0xF0281A) : col(0x5A1410)
+                for y in 0..<n { for x in 0..<n {
+                    let lx = x / u, ly = y / u
+                    let mid: Bool = lx == 7 || lx == 8
+                    let bar: Bool = comp && (ly == 4 || ly == 11) && lx > 2 && lx < 13
+                    guard mid || bar else { continue }
+                    // A carved channel: dark lip on the upper edge, the trace inside.
+                    let rx: Int = mid ? x - 7 * u : y - ly * u
+                    let span: Int = mid ? 2 * u : u
+                    let lip: Bool = rx < u / 4 || rx >= span - u / 4
+                    var glow: Float = 0.85 + 0.2 * fine[y * n + x]
+                    if on { glow += 0.15 }
+                    var c: V3 = lit * glow
+                    if lip { c = V3(0.38, 0.38, 0.4) }
+                    plot(&img, x, y, c)
+                } }
+                return img
+            case "daylight_detector_top", "daylight_detector_inverted_top":
+                var img = planks(pal(col(0x9A7A4A), lo: 0.78, hi: 1.15))(n, s)
+                let glass: V3 = kind == "daylight_detector_top" ? col(0xC8C8D8) : col(0x3A4A6A)
+                for y in 0..<n { for x in 0..<n {
+                    let lx = x / u, ly = y / u
+                    let frame: Bool = lx == 0 || ly == 0 || lx == 15 || ly == 15 || lx == 7 || ly == 7
+                    guard !frame else { continue }
+                    let cx: Float = Float(x % (7 * u)) / Float(7 * u), cy: Float = Float(y % (7 * u)) / Float(7 * u)
+                    let sheen: Float = cl(1 - abs(cx - cy - 0.1) * 6) * 0.25
+                    let gk: Float = 0.85 + 0.15 * fine[y * n + x] + sheen
+                    plot(&img, x, y, glass * gk)
+                } }
+                return img
+            default:  // daylight_detector_side
+                return planks(pal(col(0x9A7A4A), lo: 0.78, hi: 1.15))(n, s)
+            }
+        }
+    }
+
     // Water (greyscale for the biome tint, translucent like the small painter): soft ripple bands from a warped field,
     // brighter crests, no hard texels.
     static func waterHD(_ n: Int, _ s: Int) -> Img {
@@ -3733,6 +3780,13 @@ enum HDTex {
         "smithing_table_side": smithingSide,
         "grindstone": stone([(0, 0x6E6E6E), (0.5, 0x8E8E8E), (1, 0xA8A8A8)], veins: 0, strata: 0.06),
         "stonecutter_side": furnaceStone,
+        "repeater": diodeFace("repeater"),
+        "repeater_on": diodeFace("repeater_on"),
+        "comparator": diodeFace("comparator"),
+        "comparator_on": diodeFace("comparator_on"),
+        "daylight_detector_top": diodeFace("daylight_detector_top"),
+        "daylight_detector_inverted_top": diodeFace("daylight_detector_inverted_top"),
+        "daylight_detector_side": diodeFace("daylight_detector_side"),
         "chorus_plant": oddFace("chorus_plant"),
         "chorus_flower": oddFace("chorus_flower"),
         "end_rod": oddFace("end_rod"),
