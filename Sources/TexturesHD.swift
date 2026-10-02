@@ -1811,7 +1811,8 @@ enum HDTex {
                 var img = planks(pal(col(0xB0A070), lo: 0.8, hi: 1.12))(n, s)
                 band(&img, 0, 3 * u, col(0xC5B57A))
                 // Two feathers laid across the face.
-                for (fx, ang) in [(Float(5.5), Float(0.35)), (10.5, -0.3)] {
+                let feathers: [(Float, Float)] = [(5.5, 0.35), (10.5, -0.3)]
+                for (fx, ang) in feathers {
                     let cx: Float = fx / 16 * fn, cy: Float = fn * 0.6
                     let ca = cosf(ang), sa = sinf(ang)
                     for y in (3 * u)..<n { for x in 0..<n {
