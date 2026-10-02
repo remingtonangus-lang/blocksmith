@@ -260,6 +260,7 @@ final class Mob {
     var strollArea: (V3, Float)?    // keep stroll targets within this circle (villager schedules), set per update
     var unreachable: V3?            // a walk target the pathfinder couldn't reach (giveUp)
     var unreachableTimer: Float = 0
+    var strollFails = 0             // strolls given up in a row (a mob in a pit or a pen rests instead of retrying)
     var bedWalk: V3?                // villager: heading to its bed tonight (villagerNight -> villagerDay)
     static weak var world: World?   // the world mobs are updating in (stroll targets)
     var path = PathState()          // ground navigation (Pathfinding.swift)
@@ -974,7 +975,13 @@ final class Mob {
         }
         if moving, let goal = wanderGoal {
             let d: Float = simd_length(V2(goal.x - pos.x, goal.z - pos.z))
-            if d < 0.7 || gaveUp(goal) { moving = false; wanderGoal = nil; aiTimer = Rand.float(in: 2...6) } else { face(goal) }
+            if d < 0.7 || gaveUp(goal) {
+                // Three strolls in a row that couldn't be walked: rest longer (behaviour sim: a cow in a pit gave up
+                // 81 strolls in 120 s, pressing against the pit wall for 4 s each).
+                strollFails = d < 0.7 ? 0 : strollFails + 1
+                moving = false; wanderGoal = nil
+                if strollFails >= 3 { strollFails = 0; aiTimer = Rand.float(in: 8...15) } else { aiTimer = Rand.float(in: 2...6) }
+            } else { face(goal) }
         }
     }
 
@@ -995,7 +1002,7 @@ final class Mob {
                 x = Int(floor(c.x + sinf(ang) * rr)); z = Int(floor(c.z + cosf(ang) * rr))
             }
             for dy in [0, 1, -1, 2, -2] {
-                if let c = PathFinder.standCost(w, x, y0 + dy, z, pr), c < 5 {
+                if let c = PathFinder.standCost(w, x, y0 + dy, z, pr), c < 5, !gaveUp(V3(Float(x) + 0.5, Float(y0 + dy), Float(z) + 0.5)) {
                     return V3(Float(x) + 0.5, Float(y0 + dy), Float(z) + 0.5)
                 }
             }
