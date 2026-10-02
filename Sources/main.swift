@@ -329,20 +329,32 @@ enum Snapshot {
         var t = world.loadSync(center: pos, radius: rd)
         let caveFind = ["lush_caves", "dripstone_caves", "deep_dark"].contains(arg("--find") ?? "")
         if caveFind {
-            // Down the column to the first open cave pocket with a floor (deep dark: below y 0).
-            let x = Int(floor(pos.x)), z = Int(floor(pos.z))
-            var y = arg("--find") == "deep_dark" ? YOFF - 2 : SEA - 12
+            // Down the column to the first open cave pocket with a floor (deep dark: below y 0); when the column has
+            // none, the nearest column that does (the deep dark shot found no pocket in its column, stopped at the
+            // search floor inside rock, and the solid-camera fallback moved it into a lush cave: run 370).
+            let x0 = Int(floor(pos.x)), z0 = Int(floor(pos.z))
+            let deep = arg("--find") == "deep_dark"
+            let top = deep ? YOFF - 2 : SEA - 12
             // A dry pocket: two air blocks on a solid floor and no water or lava within 2 blocks of the floor or the
             // eye (lava next to the pocket flows in and the camera ended up inside it).
-            func dryPocket(_ y: Int) -> Bool {
+            func dryPocket(_ x: Int, _ y: Int, _ z: Int) -> Bool {
                 guard world.block(x, y, z) == AIR && world.block(x, y + 1, z) == AIR && Blocks.collide[Int(world.block(x, y - 1, z))] else { return false }
                 for dy in -1...3 { for dz in -2...2 { for dx in -2...2 where Blocks.fluidKind[Int(world.block(x + dx, y + dy, z + dz))] != 0 { return false } } }
                 return true
             }
-            while y > 8 && !dryPocket(y) { y -= 1 }
-            pos.y = Float(y) + (Float(arg("--up") ?? "") ?? 0)
-            game.player.pos = pos
-            print("cave pocket at y \(y - YOFF)")
+            var found: IVec3?
+            search: for r in 0...40 { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r && (dx + dz) % 2 == 0 {
+                let x = x0 + dx, z = z0 + dz
+                if deep, let wg = world.gen as? WorldGen, wg.climate(x, z).e >= -0.6 { continue }
+                var y = top
+                while y > 8 && !dryPocket(x, y, z) { y -= 1 }
+                if y > 8 { found = IVec3(x, y, z); break search }
+            } } }
+            if let f = found {
+                pos = V3(Float(f.x) + 0.5, Float(f.y) + (Float(arg("--up") ?? "") ?? 0), Float(f.z) + 0.5)
+                game.player.pos = pos
+                print("cave pocket at \(f.x) \(f.y - YOFF) \(f.z)")
+            } else { print("cave pocket: none within 40 blocks") }
         } else if snapDim == .overworld && arg("--structure") == nil && arg("--find") == nil && arg("--x") == nil {
             // Default spawn view: step off tree canopies onto open ground so the camera isn't in leaves.
             let bx = Int(floor(pos.x)), bz = Int(floor(pos.z))
