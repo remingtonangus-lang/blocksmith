@@ -1889,11 +1889,16 @@ final class Renderer: NSObject, MTKViewDelegate {
                 for (row, a) in list.dropFirst(am.scroll).prefix(AdvancementMenu.rows).enumerated() {
                     let y = o.y + Float(48 + row * 15) * s
                     let got = game.advancements.contains(a.id)
-                    rect(o.x + 6 * s, y - 2 * s, 226 * s, 14 * s, got ? (a.challenge ? V4(0.45, 0.25, 0.55, 1) : V4(0.55, 0.45, 0.15, 1)) : V4(0.3, 0.3, 0.33, 1))
-                    text((got ? "+ " : "- ") + a.title, o.x + 9 * s, y + s, s, got ? V4(1, 1, 0.8, 1) : V4(0.75, 0.75, 0.75, 1))
+                    // Darker done-row fills (cream on mustard was 3.2:1), descriptions at 0.85x where they fit (0.75x
+                    // was under the 14 px floor at 1080p) and 5 px in from the row's right edge (blind UI critic).
+                    let doneC: V4 = a.challenge ? V4(0.32, 0.16, 0.4, 1) : V4(0.36, 0.28, 0.06, 1)
+                    rect(o.x + 6 * s, y - 2 * s, 226 * s, 14 * s, got ? doneC : V4(0.26, 0.26, 0.29, 1))
+                    text((got ? "+ " : "- ") + a.title, o.x + 9 * s, y + s, s, got ? V4(1, 1, 0.8, 1) : V4(0.8, 0.8, 0.8, 1))
                     let d = a.desc
-                    let maxW = 226 * s - textWidth("+ " + a.title, s) - 16 * s
-                    if textWidth(d, s * 0.75) <= maxW { text(d, o.x + 232 * s - textWidth(d, s * 0.75), y + 2 * s, s * 0.75, V4(0.85, 0.85, 0.85, 1)) }
+                    let maxW = 226 * s - textWidth("+ " + a.title, s) - 18 * s
+                    var ds: Float = s * 0.85
+                    if textWidth(d, ds) > maxW { ds = s * 0.75 }
+                    if textWidth(d, ds) <= maxW { text(d, o.x + 227 * s - textWidth(d, ds), y + 2 * s, ds, V4(0.9, 0.9, 0.88, 1)) }
                 }
             }
             if let lm = m as? LoomMenu {
