@@ -69,6 +69,41 @@ final class ShipMesh {
     private func submit(_ s: Ship, only: Set<Int>?, full: Bool, queue: DispatchQueue) {
         let gen = layoutGen
         let sx = s.grid.sx, sy = s.grid.sy, sz = s.grid.sz
+        // Partial remesh of a big hull (a capital ship hit by a shell): copy only the columns around the wanted
+        // sections (handing the job the whole 15 MB grid made every blast copy it once the next one changed it).
+        if let only, sx * sy * sz > 1_000_000 {
+            var cx0 = Int.max, cx1 = Int.min, cz0 = Int.max, cz1 = Int.min
+            for k in only { let cx = k & 0xFFF, cz = (k >> 20) & 0xFFF; cx0 = min(cx0, cx); cx1 = max(cx1, cx); cz0 = min(cz0, cz); cz1 = max(cz1, cz) }
+            let x0 = max(0, (cx0 - 1) * 16), x1 = min(sx, (cx1 + 2) * 16)
+            let z0 = max(0, (cz0 - 1) * 16), z1 = min(sz, (cz1 + 2) * 16)
+            if x1 > x0 && z1 > z0 {
+                let w = x1 - x0, d = z1 - z0
+                var sub = [BlockID](repeating: AIR, count: w * d * sy)
+                s.grid.blocks.withUnsafeBufferPointer { src in
+                    sub.withUnsafeMutableBufferPointer { dst in
+                        for y in 0..<sy { for z in z0..<z1 {
+                            let si = x0 + z * sx + y * sx * sz, di = (z - z0) * w + y * w * d
+                            for x in 0..<w { dst[di + x] = src[si + x] }
+                        } }
+                    }
+                }
+                let ox = x0 / 16, oz = z0 / 16
+                let local = Set(only.map { ShipMesh.key(($0 & 0xFFF) - ox, ($0 >> 12) & 0xFF, (($0 >> 20) & 0xFFF) - oz) })
+                lock.lock(); building += 1; lock.unlock()
+                queue.async { [weak self] in
+                    let built = ShipMesh.build(sx: w, sy: sy, sz: d, blocks: sub, only: local)
+                    let secs = built.map { (k, m, o) in
+                        (ShipMesh.key((k & 0xFFF) + ox, (k >> 12) & 0xFF, ((k >> 20) & 0xFFF) + oz), m, o + V3(Float(x0), 0, Float(z0)))
+                    }
+                    guard let self else { return }
+                    self.lock.lock()
+                    self.results.append((gen, full, secs))
+                    self.building -= 1
+                    self.lock.unlock()
+                }
+                return
+            }
+        }
         let blocks = s.grid.blocks
         lock.lock(); building += 1; lock.unlock()
         queue.async { [weak self] in
@@ -411,8 +446,11 @@ final class ShipRenderer {
         func draw(_ s: Ship, _ pass: Int) {
             if s.mesh.released || !frustum.visible(min: s.worldMin, max: s.worldMax) { return }
             let m = model(s, eye: eye)
+            // Big hulls (capital ships: over a thousand sections) are culled per section.
+            let perSection = s.mesh.sections.count > 48
             for sec in s.mesh.sections.values {
                 guard let buf = sec.opaque, sec.opaqueQuads > 0 else { continue }
+                if perSection && !ShipRenderer.sectionVisible(s, sec, frustum) { continue }
                 let total = min(sec.opaqueQuads, Renderer.maxQuads), solid = min(sec.solidQuads, total)
                 let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
                 if count <= 0 { continue }
@@ -553,13 +591,22 @@ final class ShipRenderer {
     }
 
     // Translucent faces (stained glass, water on deck), after the world's water.
+    // A ship section's world bounds (its centre turned with the ship, a sphere-sized box) against the view frustum.
+    static func sectionVisible(_ s: Ship, _ sec: ShipMesh.Sec, _ frustum: Frustum) -> Bool {
+        let c = s.toWorld(sec.origin + V3(8, 8, 8))
+        let r = V3(repeating: 14)
+        return frustum.visible(min: c - r, max: c + r)
+    }
+
     func drawTranslucent(_ enc: MTLRenderCommandEncoder, ships: ShipManager, eye: V3, u: inout Uniforms, frustum: Frustum, quads: MTLBuffer) {
         if !enabled || ships.isEmpty { return }
         var any = false
         for s in ships.list where frustum.visible(min: s.worldMin, max: s.worldMax) {
             let m = model(s, eye: eye)
+            let perSection = s.mesh.sections.count > 48
             for sec in s.mesh.sections.values {
                 guard let buf = sec.trans, sec.transQuads > 0 else { continue }
+                if perSection && !ShipRenderer.sectionVisible(s, sec, frustum) { continue }
                 if !any {
                     any = true
                     enc.setRenderPipelineState(transPipe)

@@ -198,6 +198,33 @@ enum ShipTest {
             settle(g, rd: rd)
             return g.player.pos
         }
+        if kind == "warfrigate" || kind == "crawler" || kind == "capitalbattle" {
+            // Capital ships (CapitalShips.swift): built synchronously here, then a few seconds of their AI.
+            let x = Int(floor(p.x)), z = Int(floor(p.z)) - (kind == "crawler" ? 70 : 260)
+            let t0 = CFAbsoluteTimeGetCurrent()
+            if kind != "crawler" { w.ships.spawnCapital("warfrigate", home: IVec3(x, 0, z), yaw: 1.2, region: nil, sync: true) }
+            if kind != "warfrigate" { w.ships.spawnCapital("crawler", home: IVec3(x + (kind == "capitalbattle" ? 150 : 0), 0, z + (kind == "capitalbattle" ? 120 : 0)), yaw: 2.4, region: nil, sync: true) }
+            let buildMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+            if kind == "capitalbattle" { g.difficulty = 0 }          // the two factions fight; the camera isn't a target
+            let cam = g.player.pos
+            for _ in 0..<(kind == "capitalbattle" ? 600 : 240) {
+                g.player.pos = cam; g.player.vel = .zero; g.health = 20
+                run(g, seconds: 1.0 / 60)
+            }
+            for c in w.ships.capitals {
+                let st = w.ships.capState[c.id]
+                print(String(format: "ship %@: %ld blocks, grid %ldx%ldx%ld, %ld turrets, engines %ld/%ld, pos %.0f %.0f %.0f, built in %.0f ms, physics %.2f ms/frame, target %@",
+                             c.role ?? "?", c.blockCount, c.grid.sx, c.grid.sy, c.grid.sz, w.ships.turrets(of: c).count, c.engines, st?.engines0 ?? 0,
+                             c.pos.x, c.pos.y, c.pos.z, buildMs, w.ships.stepMs, st?.target == nil ? "none" : (st?.target?.player == true ? "player" : "foe")))
+            }
+            print("ship \(kind): \(w.ships.shells.count) shells in flight")
+            if let f = w.ships.capitals.first {
+                let big = f.role == "warfrigate"
+                chase(g, f, dist: big ? 230 : 60, height: big ? 70 : 22, side: big ? 0.9 : 0.8)
+            }
+            settle(g, rd: rd)
+            return g.player.pos
+        }
         if kind == "frigate" || kind == "carriage" {
             let x = Int(floor(p.x)), z = Int(floor(p.z)) - 30
             if kind == "carriage" { levelPad(w, x, z, half: 40) }
@@ -653,3 +680,78 @@ enum ShipTest {
         return fails
     }
 }
+
+// --capitaltest: a Stormwarden Frigate and an Ironback Crawler 260 blocks apart on Peaceful (the player is no target):
+// both build, carry their turrets, find each other as foes, fire, land hits, and keep the frame budget.
+extension ShipTest {
+    static func capitalTest(game g: Game, rd: Int) -> Int {
+        let w = g.world
+        w.ships.encounters = false
+        var fails = 0
+        func check(_ ok: Bool, _ what: String) { print("\(ok ? "PASS" : "FAIL") capital: \(what)"); if !ok { fails += 1 } }
+        let p = g.player.pos
+        let x = Int(floor(p.x)), z = Int(floor(p.z))
+        var land = (x, z)
+        // Dry ground for the crawler within a few hundred blocks.
+        search: for r in stride(from: 0, through: 600, by: 40) { for a in 0..<12 {
+            let ax = x + Int(Float(r) * cosf(Float(a) * 0.52)), az = z + Int(Float(r) * sinf(Float(a) * 0.52))
+            if w.gen.column(ax, az).height > SEA + 2 { land = (ax, az); break search }
+        } }
+        let t0 = CFAbsoluteTimeGetCurrent()
+        w.ships.spawnCapital("crawler", home: IVec3(land.0, 0, land.1), yaw: 0.8, region: nil, sync: true)
+        let t1 = CFAbsoluteTimeGetCurrent()
+        w.ships.spawnCapital("warfrigate", home: IVec3(land.0 + 200, 0, land.1 - 150), yaw: 2.2, region: nil, sync: true)
+        let t2 = CFAbsoluteTimeGetCurrent()
+        let caps = w.ships.capitals
+        guard let crawler = caps.first(where: { $0.role == "crawler" }), let frigate = caps.first(where: { $0.role == "warfrigate" }) else {
+            check(false, "both capital ships spawned"); return fails + 1
+        }
+        print(String(format: "capital: crawler %ld blocks built in %.0f ms; frigate %ld blocks (grid %ldx%ldx%ld) built in %.0f ms",
+                     crawler.blockCount, (t1 - t0) * 1000, frigate.blockCount, frigate.grid.sx, frigate.grid.sy, frigate.grid.sz, (t2 - t1) * 1000))
+        check(frigate.blockCount > 60_000, "the frigate is full size (\(frigate.blockCount) blocks, \(frigate.grid.sz) long)")
+        check(w.ships.turrets(of: frigate).count == 16, "the frigate carries 16 turrets (\(w.ships.turrets(of: frigate).count))")
+        check(w.ships.turrets(of: crawler).count == 6, "the crawler carries 6 turrets (\(w.ships.turrets(of: crawler).count))")
+        check(frigate.helm != nil && crawler.helm != nil, "both have a helm")
+        check(frigate.engines > 100 && crawler.engines > 100, "drive engines aboard (frigate \(frigate.engines), crawler \(crawler.engines))")
+        g.difficulty = 0
+        g.player.flying = true
+        let cam = V3(Float(land.0) + 100, Float(w.gen.column(land.0 + 100, land.1 - 60).height + 60), Float(land.1) - 60)
+        let fe0 = frigate.blockCount, ce0 = crawler.blockCount
+        var fired = 0, worst: Double = 0, total: Double = 0
+        var sawFoe = false
+        let frames = 60 * 40
+        for i in 0..<frames {
+            g.player.pos = cam; g.player.vel = .zero; g.health = 20
+            let s0 = w.ships.shells.count
+            let a = CFAbsoluteTimeGetCurrent()
+            g.world.ships.update(1.0 / 60, game: g)
+            let ms = (CFAbsoluteTimeGetCurrent() - a) * 1000
+            if i > 30 { worst = max(worst, ms); total += ms }
+            fired += max(0, w.ships.shells.count - s0)
+            if let st = w.ships.capState[frigate.id], st.target?.ship === crawler { sawFoe = true }
+        }
+        let avg = total / Double(frames - 31)
+        print(String(format: "capital: %ld shells fired in 40 s; ship update avg %.2f ms, worst %.1f ms", fired, avg, worst))
+        check(sawFoe, "the frigate targets the crawler (enemy faction)")
+        check(fired > 20, "they open fire (\(fired) shells)")
+        check(frigate.blockCount < fe0 || crawler.blockCount < ce0 || crawler.wrecked,
+              "hits land (frigate \(fe0 - frigate.blockCount), crawler \(ce0 - crawler.blockCount) blocks lost)")
+        let keel = frigate.pos.y - (frigate.com.y - frigate.localMin.y)
+        let gnd = Float(w.gen.column(Int(frigate.pos.x), Int(frigate.pos.z)).height)
+        check(frigate.wrecked || keel > gnd + 10, String(format: "the frigate flies clear of the ground (keel %.0f, ground %.0f)", keel, gnd))
+        let wheels = crawler.pos.y - (crawler.com.y - crawler.localMin.y)
+        let cg = Float(w.gen.column(Int(crawler.pos.x), Int(crawler.pos.z)).height)
+        check(abs(wheels - (cg + 1)) < 4, String(format: "the crawler rides on the ground (wheels %.1f, ground %.0f)", wheels, cg))
+        check(!(frigate.pos.x.isNaN || crawler.pos.x.isNaN), "no NaN poses")
+        check(avg < 6, String(format: "ship update average %.2f ms per frame (budget 6)", avg))
+        // The shot: from the camera toward the crawler.
+        let to = crawler.pos - (cam + V3(0, g.player.eyeHeight, 0))
+        g.player.pos = cam
+        g.player.yaw = atan2f(-to.x, -to.z)
+        g.player.pitch = atan2f(to.y, horiz(to))
+        settle(g, rd: rd)
+        print("capitaltest: \(fails == 0 ? "PASS" : "\(fails) FAILED")")
+        return fails
+    }
+}
+

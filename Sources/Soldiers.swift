@@ -171,6 +171,16 @@ extension Mob {
             b.sees = canTarget && dist < rank.sight && w.canSee(eye, g.player.eye)
         }
         let sees = b.sees && canTarget
+        // No player in sight: fire on an enemy faction's vessel or crawler in range (frigates, crawlers: CapitalShips.swift).
+        if !sees, let foe = w.ships.nearestFoe(of: .steelhold, near: pos, range: rank.sight * 1.5, game: g), foe.ship != nil {
+            aggro = true
+            b.react -= dt
+            face(foe.point)
+            let tp = foe.point - eye
+            b.pitch += (max(-0.9, min(1.2, atan2f(tp.y, simd_length(V2(tp.x, tp.z))))) - b.pitch) * min(1, dt * 8)
+            soldierFire(dt, g, b, gs, rank: r, dist: min(simd_length(tp), rank.sight - 1), target: foe.point)
+            return 0
+        }
         if sees {
             // Noticed up close, in front, or once alerted.
             let toP = simd_normalize(V3(g.player.pos.x - pos.x, 0, g.player.pos.z - pos.z) + V3(1e-4, 0, 0))
@@ -435,6 +445,11 @@ extension Mob {
             b.seenAgo = 0
         } else {
             b.seenAgo += dt
+            // An enemy faction's vessel in range instead (CapitalShips.swift).
+            if let foe = g.world.ships.nearestFoe(of: .steelhold, near: pivot, range: 120, game: g), foe.ship != nil {
+                b.lastSeen = foe.point
+                b.seenAgo = 0
+            }
         }
         guard let tgt = b.lastSeen, b.seenAgo < 3 else { b.charge = 0; return }
         // Ballistic solution (low arc) for shells at 55 b/s under 20 b/s^2, half-leading the target.

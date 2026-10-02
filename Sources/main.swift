@@ -1068,6 +1068,7 @@ enum Snapshot {
             pos = game.player.pos
         }
         if CommandLine.arguments.contains("--physicstest") { shipFails = ShipTest.physicsTest(game: game, rd: rd); pos = game.player.pos }
+        if CommandLine.arguments.contains("--capitaltest") { shipFails += ShipTest.capitalTest(game: game, rd: rd); pos = game.player.pos }
 
         // Mesh benchmark: re-mesh the section at the camera a few times on one thread.
         let key = ChunkKey(x: floorDiv(Int(pos.x), CS), z: floorDiv(Int(pos.z), CS))

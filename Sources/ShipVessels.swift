@@ -189,18 +189,23 @@ enum Vessels {
     // The encounter of a region (deterministic from the seed): kind and home point, or nil (most regions).
     static func encounter(seed: UInt64, rx: Int, rz: Int, gen: TerrainGenerator) -> (String, IVec3)? {
         let h = hashf(rx, rz, 4111, UInt32(truncatingIfNeeded: seed))
-        if h > 0.16 { return nil }
+        if h > 0.235 { return nil }
         let x = rx * region + 256 + Int(hashf(rx, rz, 4112, UInt32(truncatingIfNeeded: seed)) * Float(region - 512))
         let z = rz * region + 256 + Int(hashf(rx, rz, 4113, UInt32(truncatingIfNeeded: seed)) * Float(region - 512))
         let col = gen.column(x, z)
         if h < 0.08 { return ("frigate", IVec3(x, max(col.height, SEA) + 45, z)) }
+        // Capital ships (CapitalShips.swift): 3 % of regions a Stormwarden Frigate, 3 % an Ironback Crawler on land,
+        // 1.5 % the two of them already fighting.
+        if h >= 0.16 && h < 0.19 { return ("warfrigate", IVec3(x, max(col.height, SEA), z)) }
         if col.biome.isOcean || col.height < SEA { return nil }
+        if h >= 0.22 { return ("battle", IVec3(x, col.height + 1, z)) }
+        if h >= 0.19 { return ("crawler", IVec3(x, col.height + 1, z)) }
         return ("carriage", IVec3(x, col.height + 1, z))
     }
 }
 
 extension Ship {
-    var isVessel: Bool { role == "frigate" || role == "carriage" }
+    var isVessel: Bool { role == "frigate" || role == "carriage" || role == "warfrigate" || role == "crawler" }
 }
 
 extension ShipManager {
@@ -214,10 +219,25 @@ extension ShipManager {
             let rx = floorDiv(Int(p.x), Vessels.region), rz = floorDiv(Int(p.z), Vessels.region)
             for dz in -1...1 { for dx in -1...1 {
                 let key = "\(rx + dx),\(rz + dz)"
-                if spawnedRegions.contains(key) { continue }
+                if spawnedRegions.contains(key) || capitalPending.contains(key) { continue }
                 guard let e = Vessels.encounter(seed: world.seed, rx: rx + dx, rz: rz + dz, gen: world.gen) else { continue }
                 let (kind, home) = e
                 let d = V2(Float(home.x) - p.x, Float(home.z) - p.z)
+                // Capital ships are built while the player is still far off (they are seen from far away).
+                let capital = kind == "warfrigate" || kind == "crawler" || kind == "battle"
+                if capital {
+                    if simd_length(d) > (kind == "crawler" ? 320 : 520) { continue }
+                    spawnedRegions.insert(key)
+                    let yaw = Float(abs(home.x * 7 + home.z * 3) % 628) / 100
+                    if kind == "battle" {
+                        spawnCapital("warfrigate", home: home, yaw: yaw, region: key)
+                        let ch = world.gen.column(home.x + 260, home.z)
+                        if ch.height > SEA { spawnCapital("crawler", home: IVec3(home.x + 260, ch.height + 1, home.z), yaw: yaw + 1.6, region: key) }
+                    } else {
+                        spawnCapital(kind, home: home, yaw: yaw, region: key)
+                    }
+                    continue
+                }
                 if simd_length(d) > 150 || !world.isLoaded(home.x, home.z) { continue }
                 spawnedRegions.insert(key)
                 spawnVessel(kind, home: home, game: g)
@@ -273,7 +293,7 @@ extension ShipManager {
 
     // Vessel crews: patrol around home, turrets track a nearby player and fire.
     func crewTick(_ dt: Float, game g: Game) {
-        for s in list where s.isVessel && s !== pilot && s.parent == nil {
+        for s in list where s.isVessel && !s.kinematic && s !== pilot && s.parent == nil {
             // A vessel the player has taken (steered) keeps no crew orders.
             if s.captured { s.autopilot = nil; continue }
             // Lose the helm or most of the hull and the vessel founders: the crew gives up, guns fall silent.
@@ -315,9 +335,13 @@ extension ShipManager {
             }
             let steer = max(-1, min(1, cross * 2))
             s.autopilot = V3(s.role == "frigate" ? 0.7 : 0.5, steer, 0)
-            // Guns.
-            let pp = g.player.pos + V3(0, 1, 0)
-            let seen = gunsEngage(s, g)
+            // Guns: the player, or else an enemy faction's vessel or crawler in range (CapitalShips.swift).
+            var pp = g.player.pos + V3(0, 1, 0)
+            var seen = gunsEngage(s, g)
+            if !seen, let foe = nearestFoe(of: s.factionValue, near: s.pos, range: s.role == "frigate" ? 90 : 110, game: g), foe.ship != nil {
+                pp = foe.point
+                seen = true
+            }
             for t in turrets(of: s) {
                 t.aimAt = seen ? pp : nil
                 if !seen { t.aimYaw = 0; t.gunPitch *= max(0, 1 - dt) }

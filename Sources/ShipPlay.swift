@@ -100,9 +100,13 @@ extension Game {
     // Boss-style bars for crewed vessels near the player: name and how much of the hull is left.
     func shipBars() -> [(String, Float)] {
         var out: [(String, Float)] = []
-        for s in world.ships.list where s.isVessel && s.parent == nil && !s.captured && !s.wrecked && s.initialBlocks > 0
-            && simd_length(s.pos - player.pos) < 96 {
-            out.append((s.name, Float(s.blockCount) / Float(s.initialBlocks)))
+        for s in world.ships.list where s.isVessel && s.parent == nil && !s.captured && !s.wrecked && s.initialBlocks > 0 {
+            if s.kinematic {
+                // Capital ships: the drive engines and the helm decide (ShipManager.capitalIntegrity).
+                if world.ships.boundsDistance(s, player.pos) < 300 { out.append((s.name, world.ships.capitalIntegrity(s))) }
+            } else if simd_length(s.pos - player.pos) < 96 {
+                out.append((s.name, Float(s.blockCount) / Float(s.initialBlocks)))
+            }
         }
         return out
     }
@@ -277,6 +281,11 @@ extension Game {
             return true
         }
         if ShipParts.kinds[Int(b)] == .helm && s.helm == cell {
+            // Capital ships can't be steered or taken apart: break the helm to cripple one (CapitalShips.swift).
+            if s.root.kinematic {
+                onToast?("The \(s.root.name)'s helm is locked. Destroy it to cripple the ship.")
+                return true
+            }
             if sneak {
                 let msg = ships.disassemble(s, game: self)
                 onToast?(msg)

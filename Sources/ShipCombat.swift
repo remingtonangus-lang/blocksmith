@@ -14,6 +14,14 @@ final class Shell {
     var age: Float = 0
     let owner: Int                   // firing ship (its turrets and parent are ignored)
     let power: Float
+    var gravity: Float = 20
+    var kind = 0                     // 0 cannon shell, 1 rail slug (capital main guns), 2 missile
+    var life: Float = 10
+    // Missiles steer toward their target (a ship, a mob or the player) and burst near it.
+    weak var seekShip: Ship?
+    weak var seekMob: Mob?
+    var seekPlayer = false
+    var seekPoint: V3?
     init(pos: V3, vel: V3, owner: Int, power: Float) { self.pos = pos; self.vel = vel; self.owner = owner; self.power = power }
 }
 
@@ -54,29 +62,44 @@ extension ShipManager {
     func fire(_ s: Ship, pitch: Float, game: Game?) -> Int {
         var fired = 0
         for t in [s] + turrets(of: s) where t.reload <= 0 && !t.cannons.isEmpty {
-            let elev = max(-0.2, min(0.6, pitch))
+            let elev = max(t.pitchMin, min(t.pitchMax, pitch))
             for (c, d) in t.cannons {
                 let muzzle = t.toWorld(c + d * 0.9)
                 var dir = t.dirToWorld(d)
                 let horiz = simd_normalize(V3(dir.x, 0, dir.z) + V3(1e-5, 0, 0))
                 dir = simd_normalize(horiz * cosf(elev) + V3(0, sinf(elev), 0))
-                shells.append(Shell(pos: muzzle, vel: dir * 45 + t.velocity(at: muzzle), owner: t.root.id, power: 2.5))
+                if t.gunScatter > 0 { dir = Guns.scatter(dir, t.gunScatter) }
+                let sh = Shell(pos: muzzle, vel: dir * t.gunSpeed + t.velocity(at: muzzle), owner: t.root.id, power: t.gunPower)
+                sh.gravity = t.gunGravity
+                shells.append(sh)
                 fired += 1
                 if let g = game {
-                    g.sfx(.shipCannon, 1, at: muzzle)
+                    // Naval guns (fast, heavy shells) boom louder and further.
+                    g.sfx(.shipCannon, t.gunPower > 3 ? 1.6 : 1, at: muzzle)
                     g.particles.smoke(at: muzzle)
                 }
             }
-            t.reload = 2
+            t.reload = t.reloadTime
         }
         return fired
     }
 
-    // Shells as small dark cubes.
+    // Shells as small dark cubes; rail slugs as glowing bolts, missiles as pale darts.
     func writeShells(_ wr: inout EntityWriter, eye: V3) {
         if shells.isEmpty { return }
         let b = Blocks.has("coal_block") ? Blocks.id("coal_block") : STONE
-        for sh in shells { wr.cube(center: sh.pos - eye, half: 0.18, yaw: sh.age * 9, block: b, light: 1) }
+        let slug = Blocks.has("magma_block") ? Blocks.id("magma_block") : b
+        let dart = Blocks.has("iron_block") ? Blocks.id("iron_block") : b
+        for sh in shells {
+            switch sh.kind {
+            case 1:
+                // A streak: a few cubes back along the flight path.
+                let d = simd_length(sh.vel) > 0.01 ? simd_normalize(sh.vel) : V3(0, 0, -1)
+                for k in 0..<4 { wr.cube(center: sh.pos - d * Float(k) * 0.9 - eye, half: 0.45 - Float(k) * 0.08, yaw: sh.age * 9, block: slug, light: 1) }
+            case 2: wr.cube(center: sh.pos - eye, half: 0.16, yaw: sh.age * 14, block: dart, light: 1)
+            default: wr.cube(center: sh.pos - eye, half: sh.power > 3 ? 0.26 : 0.18, yaw: sh.age * 9, block: b, light: 1)
+            }
+        }
     }
 
     // Moves shells and detonates them (call once per frame).
@@ -89,7 +112,27 @@ extension ShipManager {
         for sh in shells {
             sh.age += dt
             let start = sh.pos
-            sh.vel.y -= 20 * dt
+            // Missiles: track the target and turn toward it (2.5 rad/s), smoking; a proximity fuse.
+            var near = false
+            if sh.kind == 2 {
+                var aim: V3? = sh.seekPoint
+                if let t = sh.seekShip { aim = t.pos }
+                if let m = sh.seekMob { aim = m.health > 0 ? m.pos + V3(0, m.height * 0.5, 0) : aim }
+                if sh.seekPlayer, let g = game { aim = g.player.pos + V3(0, 1, 0) }
+                if let a = aim {
+                    sh.seekPoint = a
+                    let speed = max(1, simd_length(sh.vel))
+                    let want = simd_normalize(a - start + V3(1e-4, 0, 0))
+                    let cur = sh.vel / speed
+                    let ang = acosf(max(-1, min(1, simd_dot(cur, want))))
+                    let k = ang > 1e-3 ? min(1, 2.5 * dt / ang) : 1
+                    sh.vel = simd_normalize(cur + (want - cur) * k + V3(1e-5, 0, 0)) * speed
+                    // Near the target: burst (missiles chasing a 480-block hull aim at its centre, so a hull hit fuses first).
+                    if simd_length(a - start) < 2.5 { near = true }
+                }
+                if let g = game, Int(sh.age * 30) % 3 == 0 { g.particles.smoke(at: start, dark: false) }
+            }
+            sh.vel.y -= sh.gravity * dt
             let end = start + sh.vel * dt
             let len = simd_length(end - start)
             let n = max(1, Int(ceil(len / 0.4)))
@@ -104,9 +147,10 @@ extension ShipManager {
                     if simd_length(pr - p) < 0.8 && g.world.ships.pilot?.root.id != sh.owner { hit = p; break }
                 }
             }
+            if near && hit == nil { hit = start }
             if let p = hit { blasts.append((p, sh.power)); continue }
             sh.pos = end
-            if sh.age < 10 && sh.pos.y > -64 { keep.append(sh) }
+            if sh.age < sh.life && sh.pos.y > -64 { keep.append(sh) }
         }
         shells = keep
         for (p, power) in blasts {
@@ -150,8 +194,14 @@ extension ShipManager {
                 }
             } } }
             if destroyed.isEmpty { continue }
+            let kinds = ShipParts.kinds
             for cell in destroyed {
                 let b = g.get(cell.x, cell.y, cell.z)
+                // Capital hulls keep their counts up to date here (no full-grid rebuild per blast).
+                if s.kinematic {
+                    if kinds[Int(b)] == .engine { s.engines -= 1 }
+                    if s.helm == cell { s.helm = nil }
+                }
                 let at = s.toWorld(V3(Float(cell.x), Float(cell.y), Float(cell.z)) + 0.5)
                 if let game {
                     if Rand.float(in: 0..<1) < 1 / max(1, power) {
@@ -163,6 +213,12 @@ extension ShipManager {
                 g.set(cell.x, cell.y, cell.z, AIR)
             }
             if pilot === s, let h = s.helm, destroyed.contains(h) { pilot = nil; s.piloted = false }
+            if s.kinematic {
+                // A 7-million-cell grid can't be rebuilt or flood-filled per blast: count, remesh the touched sections.
+                s.blockCount -= destroyed.count
+                s.mesh.rebuildAround(s, Array(destroyed), device: world.device, queue: meshQueue)
+                continue
+            }
             // Push: an impulse away from the blast, applied at the blast point.
             let away = s.pos - c
             let dist = max(1, simd_length(away))

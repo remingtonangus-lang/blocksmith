@@ -104,6 +104,10 @@ done
 "$BIN" --snapshot snaps/ship_carriage.png --seed 12345 --find plains --time 0.3 --ship carriage
 "$BIN" --snapshot snaps/ship_battle.png --seed 12345 --find plains --time 0.3 --rd 10 --ship battle
 "$BIN" --snapshot snaps/physicstest.png --seed 12345 --time 0.3 --physicstest
+"$BIN" --snapshot snaps/ship_warfrigate.png --seed 12345 --find plains --time 0.3 --rd 20 --ship warfrigate
+"$BIN" --snapshot snaps/ship_crawler.png --seed 12345 --find plains --time 0.3 --rd 10 --ship crawler
+"$BIN" --snapshot snaps/ship_capitalbattle.png --seed 12345 --find plains --time 0.3 --rd 16 --ship capitalbattle
+"$BIN" --snapshot snaps/capitaltest.png --seed 12345 --find plains --time 0.3 --rd 12 --capitaltest || echo "::error::capitaltest failed (new: reported, not gating yet)"
 "$BIN" --snapshot snaps/aerial.png  --seed 12345 --yaw 200 --pitch -35 --time 0.25 --up 45 --rd 12
 "$BIN" --snapshot snaps/aerial16.png --seed 12345 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16
 "$BIN" --snapshot snaps/aerial16_fast.png --seed 12345 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16 --fast

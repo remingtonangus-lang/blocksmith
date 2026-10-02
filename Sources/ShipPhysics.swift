@@ -80,6 +80,7 @@ extension ShipManager {
             wind = V3(cosf(a), 0, sinf(a)) * strength
         }
         if encounters, let game { encounterTick(dt, game: game) }
+        if let game { capitalTick(dt, game: game) }
         if list.isEmpty { return }
         let t0 = CFAbsoluteTimeGetCurrent()
         // Riders: mobs and items resting on a ship before it moves.
@@ -101,8 +102,15 @@ extension ShipManager {
         let keep = Float((world.renderDistance + 2) * CS)
         for s in list {
             let r = s.root
-            let d = game.map { simd_length(V2(r.pos.x - $0.player.pos.x, r.pos.z - $0.player.pos.z)) } ?? 0
-            s.asleep = s !== pilot && (d > 384 || !rdr.loaded(Int(floor(r.pos.x)), Int(floor(r.pos.z))))
+            // Distance to the hull's bounds, not its centre: a 480-block frigate's bow can be beside the player while
+            // its centre of mass is 250 blocks away.
+            let d: Float = game.map { g -> Float in
+                let px = g.player.pos.x, pz = g.player.pos.z
+                let dx = max(r.worldMin.x - px, 0, px - r.worldMax.x), dz = max(r.worldMin.z - pz, 0, pz - r.worldMax.z)
+                return simd_length(V2(dx, dz))
+            } ?? 0
+            // Kinematic (AI-moved) ships don't need the ground under them loaded: they never touch it physically.
+            s.asleep = s !== pilot && (d > 384 || (!r.kinematic && !rdr.loaded(Int(floor(r.pos.x)), Int(floor(r.pos.z)))))
             if !s.asleep && dt > 0 {
                 // Sky light the world has around the ship (top and middle of its bounds): ships darken under cover.
                 let cx = Int(floor((s.worldMin.x + s.worldMax.x) * 0.5)), cz = Int(floor((s.worldMin.z + s.worldMax.z) * 0.5))
@@ -236,13 +244,15 @@ extension ShipManager {
         for s in list where s.parent == nil {
             // Frozen while asleep (far from the player, or the ground under it isn't loaded).
             if s.asleep { s.vel = .zero; s.angVel = .zero; continue }
+            if s.kinematic { continue }                // velocity and turn rate come from its AI
             integrateForces(s, h, &reader)
         }
-        // Contacts: terrain and ship-ship (a sleeping ship can still be run into).
-        for s in list where s.parent == nil {
+        // Contacts: terrain and ship-ship (a sleeping ship can still be run into). Kinematic ships take none, and other
+        // ships don't push against them (their AI holds them on course).
+        for s in list where s.parent == nil && !s.kinematic {
             contactScratch.removeAll(keepingCapacity: true)
             if !s.asleep { terrainContacts(s, &reader, &contactScratch) }
-            for o in list where o !== s && o.id < s.id && o.parent == nil && !(s.asleep && o.asleep) {
+            for o in list where o !== s && o.id < s.id && o.parent == nil && !o.kinematic && !(s.asleep && o.asleep) {
                 if o.worldMax.x < s.worldMin.x - 1 || o.worldMin.x > s.worldMax.x + 1 || o.worldMax.y < s.worldMin.y - 1
                     || o.worldMin.y > s.worldMax.y + 1 || o.worldMax.z < s.worldMin.z - 1 || o.worldMin.z > s.worldMax.z + 1 { continue }
                 shipContacts(s, o, &contactScratch)

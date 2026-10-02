@@ -253,6 +253,18 @@ final class Ship {
     var initialBlocks = 0            // block count when it appeared (hull bar)
     var soundTimer: Float = 0
 
+    // Capital ships and factions (CapitalShips.swift).
+    var kinematic = false            // moved by its AI (velocity and turn rate set directly): no rigid-body forces or contacts
+    var faction = 0                  // Faction raw value (0 none)
+    // Guns of this ship (or turret): shell muzzle speed, gravity, blast power, reload, barrel elevation limits, scatter.
+    var gunSpeed: Float = 45
+    var gunGravity: Float = 20
+    var gunPower: Float = 2.5
+    var reloadTime: Float = 2
+    var pitchMin: Float = -0.2
+    var pitchMax: Float = 0.6
+    var gunScatter: Float = 0
+
     // Diagnostics (harness).
     var submerged: Float = 0         // submerged volume last step
     var contacts = 0
@@ -574,6 +586,11 @@ final class ShipManager {
     let meshQueue = DispatchQueue(label: "blocksmith.shipmesh", qos: .userInitiated)
     var stepMs: Double = 0           // physics time last frame (harness / debug)
     var accum: Float = 0                  // unstepped time (ShipPhysics)
+    // Capital ships (CapitalShips.swift): built on a worker thread, handed over here; per-ship AI state.
+    let capitalLock = NSLock()
+    var capitalReady: [[Ship]] = []
+    var capitalPending = Set<String>()
+    var capState: [Int: CapitalState] = [:]
 
     init(world: World) {
         self.world = world
@@ -820,6 +837,21 @@ final class ShipManager {
     // Sets a block on a ship (growing its grid when needed) and refreshes physics and mesh.
     func setBlock(_ s: Ship, _ c: IVec3, _ b: BlockID) {
         var cell = c
+        // Capital hulls: counts kept up to date in place (no grid growth, rebuild or split on a 5-million-cell grid).
+        if s.kinematic {
+            guard s.grid.inside(c.x, c.y, c.z) else { return }
+            let old = s.grid.get(c.x, c.y, c.z)
+            if old == b { return }
+            let kinds = ShipParts.kinds
+            if kinds[Int(old)] == .engine { s.engines -= 1 }
+            if kinds[Int(b)] == .engine { s.engines += 1 }
+            if s.helm == c && kinds[Int(b)] != .helm { s.helm = nil }
+            if old == AIR { s.blockCount += 1 } else if b == AIR { s.blockCount -= 1 }
+            s.grid.set(c.x, c.y, c.z, b)
+            if b == AIR { s.blockEntities.removeValue(forKey: c) }
+            s.mesh.rebuildAround(s, c, device: world.device, queue: meshQueue)
+            return
+        }
         if !s.grid.inside(c.x, c.y, c.z) {
             if b == AIR { return }
             let shift = s.grid.grow(toInclude: c)
@@ -873,7 +905,12 @@ final class ShipManager {
 
     func save() {
         guard let url else { return }
-        if let r = world.save?.dir.appendingPathComponent("shipregions.json"), let d = try? JSONEncoder().encode(Array(spawnedRegions).sorted()) {
+        // Regions whose capital ship is still afloat are left out, so it returns after a reload (wrecks stay gone).
+        let afloat = Set(capState.compactMap { (id, st) -> String? in
+            guard let r = st.region, let s = list.first(where: { $0.id == id }), !s.wrecked else { return nil }
+            return r
+        })
+        if let r = world.save?.dir.appendingPathComponent("shipregions.json"), let d = try? JSONEncoder().encode(Array(spawnedRegions.subtracting(afloat)).sorted()) {
             try? d.write(to: r, options: .atomic)
         }
         guard let d = encode() else {
@@ -893,7 +930,8 @@ final class ShipManager {
     // All ships as JSON (nil when there are none).
     func encode() -> Data? {
         var out: [Saved] = []
-        for s in list {
+        // Capital ships aren't saved (a 5-million-cell grid per save): their region brings them back.
+        for s in list where !s.root.kinematic {
             var map: [BlockID: UInt16] = [:]
             var names: [String] = []
             var idx = [UInt16](repeating: 0, count: s.grid.blocks.count)
