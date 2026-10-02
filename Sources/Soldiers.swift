@@ -581,7 +581,8 @@ func soldierParts(_ m: Mob, swing: Float) -> [Part] {
     // The gun, held two-handed in front (lowered while at ease).
     let gun = m.brain?.gun ?? m.variant
     let shoulder = V3(0, 22, 0) * big
-    let o = V3(1.5, 20, -9) * big
+    // Grip level with the hands (at y 20 the gun hung two pixels below them, at ease and aiming: blind critic, run 385).
+    let o = V3(1.5, 22, -10) * big
     for var q in Guns.heldParts(max(0, min(Guns.all.count - 1, gun)), at: o, scale: 0.75 * big) {
         q.pivot = shoulder
         q.rotX = gunTilt
