@@ -915,7 +915,7 @@ enum HDTex {
                 let u: Float = (w / fn * Float(ribs)).truncatingRemainder(dividingBy: 1)
                 let prof: Float = sinf(.pi * (u < 0 ? u + 1 : u))
                 let st: Float = streak[(y / 8) * n + x]
-                let lobe: Float = 0.62 * powf(prof, 0.6)
+                let lobe: Float = 0.62 * powf(max(0, prof), 0.6)        // sin(pi) is a hair below 0: NaN
                 let t: Float = 0.2 + lobe + (st - 0.5) * 0.12 + (blot[i] - 0.5) * 0.12
                 let c = ramp(t, pal)
                 img.px[i] = V4(c.x, c.y, c.z, 1)
