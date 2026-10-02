@@ -424,6 +424,40 @@ enum HDTex {
         return img
     } }
 
+    // Bookshelf: oak plank bands top, middle and bottom, two rows of book spines between them (varied widths, heights
+    // and leather colours, a few leaning), dark gaps behind, a lit bevel along each spine.
+    static func bookshelf(_ n: Int, _ s: Int) -> Img {
+        var img = planks(oakPlank)(n, s)
+        let fn = Float(n)
+        let band: Float = fn / 8
+        let colours: [UInt32] = [0x7A2620, 0x2E4A7A, 0x3E6A34, 0x6A4A2A, 0x5A2A5A, 0x8A6A24, 0x2A2A2E, 0x9A3A2A, 0x3A5A6A]
+        let grain = fbm(n, max(1, n / 16), 3, s &+ 90)
+        var rng = SRng(UInt64(truncatingIfNeeded: s) &* 7919 &+ 3)
+        for row in 0..<2 {
+            let y0 = Int(band + Float(row) * (fn / 2 - band / 2)), y1 = Int(fn / 2 - band / 2 + Float(row) * (fn / 2 - band / 2))
+            for y in y0..<y1 { for x in 0..<n { img[x, y] = V4(0.07, 0.05, 0.04, 1) } }
+            var x = 0
+            while x < n {
+                let w = max(2, Int(fn / 22 + rng.float() * fn / 18))
+                let gap = rng.float() < 0.15 ? max(1, n / 48) : 0
+                let top = y0 + Int(rng.float() * Float(y1 - y0) * 0.22)
+                let c = col(colours[rng.int(colours.count)]) * (0.85 + rng.float() * 0.3)
+                for xx in x..<min(n, x + w) {
+                    let u: Float = Float(xx - x) / Float(w)
+                    let shadeK: Float = 0.75 + 0.35 * sinf(u * .pi)                      // round spine
+                    for y in top..<y1 {
+                        let k: Float = shadeK * (0.92 + grain[y * n + xx] * 0.16)
+                        let bandMark = (y - top) == (y1 - top) / 4 || (y - top) == (y1 - top) * 3 / 4
+                        let m: Float = bandMark ? 1.25 : 1
+                        img[xx, y] = V4(min(1, c.x * k * m), min(1, c.y * k * m), min(1, c.z * k * m), 1)
+                    }
+                }
+                x += w + gap
+            }
+        }
+        return img
+    }
+
     // A soil face under a band of another material along the top edge (podzol, mycelium, path sides), with a
     // wavy lower edge and a soft shadow under it.
     static func topped(_ top: @escaping Gen, depth: Float = 0.16) -> Gen {
@@ -892,6 +926,7 @@ enum HDTex {
     static let table: [String: Gen] = [
         "stone": stone(stoneGrey),
         "lava": lava,
+        "bookshelf": bookshelf,
         "magma": lavaLike([(0, 0x2E0E06), (0.4, 0x4E1A0C), (0.62, 0x8A3414), (0.85, 0xE8742A), (1, 0xFFB050)], cells: 4, seamW: 18),
         // Soils and ground covers.
         "podzol_top": podzolTop,
