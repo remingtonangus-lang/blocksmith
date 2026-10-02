@@ -440,6 +440,17 @@ enum OverworldStructures {
                         }
                     }
                 }
+                // ...and past both ends of the corridor (water stood against the lane's end over the rails: gencheck leak
+                // kinds, run 377).
+                for (k, fy) in [(-1, s.floor(0)), (s.len + 1, s.floor(s.len))] {
+                    let x = s.x + s.dx * k, z = s.z + s.dz * k
+                    for side in -1...1 {
+                        let bx = x + (s.dz != 0 ? side : 0), bz = z + (s.dx != 0 ? side : 0)
+                        for h in 0...2 where Blocks.isLiquid(w.get(bx, fy + h, bz)) && !corridorCells.contains(ck(bx, fy + h, bz)) {
+                            w.set(bx, fy + h, bz, wood)
+                        }
+                    }
+                }
             })
         }
         for (i, s) in segs.enumerated() {
