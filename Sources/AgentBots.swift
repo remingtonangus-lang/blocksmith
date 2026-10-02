@@ -584,7 +584,10 @@ final class CaveBot: AgentBot {
             // second roam back toward spawn: seed 777, run 362), up to four times.
             if roams == 0 { origin = s.pos }
             let fromOrigin: (IVec3) -> Float = { c in simd_length(V2(Float(c.x) - self.origin.x, Float(c.z) - self.origin.z)) }
-            if roams < 4, let far = order.filter({ abs($0.y - sc.y) <= 6 }).max(by: { fromOrigin($0) < fromOrigin($1) }),
+            // Within the path finder's 48-block reach of where it stands (farther targets got no path, and the bot
+            // walked straight at them into the first cliff or lake: seed 777 visited 5 chunks in 4 roams, run 368).
+            let inReach: (IVec3) -> Bool = { c in abs(c.y - sc.y) <= 6 && abs(c.x - sc.x) + abs(c.z - sc.z) <= 46 }
+            if roams < 4, let far = order.filter(inReach).max(by: { fromOrigin($0) < fromOrigin($1) }),
                abs(far.x - sc.x) + abs(far.z - sc.z) > 24 {
                 roams += 1
                 roamTo = V3(Float(far.x) + 0.5, Float(far.y), Float(far.z) + 0.5)
