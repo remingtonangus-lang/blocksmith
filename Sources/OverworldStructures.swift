@@ -375,17 +375,21 @@ enum OverworldStructures {
         }
         // Every carved corridor cell, from the layout itself (reading blocks missed corridors in the next chunk, so a
         // support still stood across a crossing at chunk borders: structcheck, run 357).
-        var carved = Set<IVec3>()
+        // Cells as packed integers: cheaper to hash than three-Int structs, and a layout is made for every 16-chunk region.
+        @inline(__always) func ck(_ x: Int, _ y: Int, _ z: Int) -> Int { (x & 0xFFFFF) | ((z & 0xFFFFF) << 20) | ((y & 0x3FF) << 40) }
+        var carved = Set<Int>()
+        carved.reserveCapacity(4096)
         // Cells two or more corridors carve (crossings, also at different heights): no support post, beam or chest
         // there (structcheck issue gallery, run 362: a post of one corridor standing in another's lane before a chest).
-        var owner: [IVec3: Int] = [:], sharedCells = Set<IVec3>()
+        var owner: [Int: Int] = [:], sharedCells = Set<Int>()
+        owner.reserveCapacity(4096)
         for (si, s) in segs.enumerated() {
             for k in 0...s.len {
                 let x = s.x + s.dx * k, z = s.z + s.dz * k, fy = s.floor(k)
                 for side in -1...1 {
                     let bx = x + (s.dz != 0 ? side : 0), bz = z + (s.dx != 0 ? side : 0)
                     for h in 0...2 {
-                        let c = IVec3(bx, fy + h, bz)
+                        let c = ck(bx, fy + h, bz)
                         carved.insert(c)
                         if let o = owner[c] { if o != si { sharedCells.insert(c) } } else { owner[c] = si }
                     }
@@ -405,7 +409,7 @@ enum OverworldStructures {
                         // No plank floor inside another corridor's open space: where corridors cross at different
                         // heights the upper one's floor hung across the lower one and blocked it (structcheck issue
                         // gallery, run 360: plank slabs filling a lane in front of a chest).
-                        let under = IVec3(bx, fy - 1, bz)
+                        let under = ck(bx, fy - 1, bz)
                         let open: Bool = w.get(bx, fy - 1, bz) == AIR || Blocks.isLiquid(w.get(bx, fy - 1, bz))
                         if open && !corridorCells.contains(under) { w.set(bx, fy - 1, bz, wood) }
                     }
@@ -417,7 +421,7 @@ enum OverworldStructures {
             pieces.append(piece(lo.x, lo.y, lo.z, hi.x, hi.y, hi.z) { w in
                 var r = SRng(seed &+ UInt64(i) &* 977)
                 // A wall cell: not inside any corridor of this mineshaft.
-                func wall(_ x: Int, _ y: Int, _ z: Int) -> Bool { !corridorCells.contains(IVec3(x, y, z)) }
+                func wall(_ x: Int, _ y: Int, _ z: Int) -> Bool { !corridorCells.contains(ck(x, y, z)) }
                 for k in 0...s.len {
                     let x = s.x + s.dx * k, z = s.z + s.dz * k
                     let fy = s.floor(k)
@@ -425,7 +429,7 @@ enum OverworldStructures {
                     // Supports only between two walls (where another corridor crosses, a post would block it).
                     let walled = wall(x - 2 * ax, fy + 1, z - 2 * az) && wall(x + 2 * ax, fy + 1, z + 2 * az)
                     var crossed = false
-                    for side in -1...1 { for h in 0...2 where shared.contains(IVec3(x + ax * side, fy + h, z + az * side)) { crossed = true } }
+                    for side in -1...1 { for h in 0...2 where shared.contains(ck(x + ax * side, fy + h, z + az * side)) { crossed = true } }
                     if k % 5 == 2 && walled && !crossed {
                         // Supports: two fence posts and a plank beam.
                         w.set(x - ax, fy, z - az, fence); w.set(x - ax, fy + 1, z - az, fence)
