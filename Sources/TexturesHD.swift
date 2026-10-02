@@ -2092,6 +2092,39 @@ enum HDTex {
         }
     }
 
+    // Spawner cage (cutout, same layout as the small painter: a frame and a bar every quarter): dark iron bars with a
+    // lit top-left edge, round rivets where bars cross, clear between them.
+    static func spawnerHD(_ n: Int, _ s: Int) -> Img {
+        var img = Img(n, V4(0, 0, 0, 0))
+        let u = n / 16
+        let fine = vnoise(n, max(1, n / 64), s)
+        for y in 0..<n { for x in 0..<n {
+            let lx = x / u, ly = y / u
+            let edge = lx == 0 || ly == 0 || lx == 15 || ly == 15
+            let barX = lx % 4 == 0, barY = ly % 4 == 0
+            guard edge || barX || barY else { continue }
+            let fx = x % u, fy = y % u
+            func bevel(_ f: Int) -> Float {
+                if f == 0 { return 1.45 }
+                return f == u - 1 ? 0.7 : 1
+            }
+            var k: Float = edge ? 0.2 : 0.15
+            if barX && !barY { k *= bevel(fx) }
+            if barY && !barX { k *= bevel(fy) }
+            if barX && barY {
+                let half: Float = Float(u) / 2
+                let cx: Float = Float(fx) + 0.5 - half
+                let cy: Float = Float(fy) + 0.5 - half
+                let d: Float = (cx * cx + cy * cy).squareRoot() / half
+                let lit: Float = 0.04 * (cx + cy) / Float(u)
+                k = 0.3 * (1.2 - 0.6 * d) - lit
+            }
+            k *= 0.9 + 0.2 * fine[y * n + x]
+            img.px[y * n + x] = V4(k, k, k * 1.08, 1)
+        } }
+        return img
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -2656,6 +2689,7 @@ enum HDTex {
         "activator_rail": railHD(tie: 0x7A2A1A, rail: 0xA8A8A8, mid: 0x5A1410),
         "activator_rail_on": railHD(tie: 0x7A2A1A, rail: 0xA8A8A8, mid: 0xF8301A),
         "ladder": ladderHD,
+        "spawner": spawnerHD,
         "lantern": lanternHD(glow: 0xF8C85A, core: 0xFFF4C8),
         "soul_lantern": lanternHD(glow: 0x6AE0F0, core: 0xE0FFFF),
         "iron_bars": ironBarsHD,
