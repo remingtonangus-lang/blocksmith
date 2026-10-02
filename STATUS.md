@@ -305,6 +305,12 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   leak 216 -> 123 + 93 springs). Second blind critic (12 shots): river terraces at estuaries (rivers at sea level for
   their last 3 blocks), village roofs merging (2-block side margin), puddle film on grass, lavender evening mist,
   black shade in snowfall, flat sand, doubled seabed: all addressed in run 366.
+- 2026-10-02 14:15 UTC: run 368 (6a62df1) fully green -> PLAYTEST READY 6a62df1 on PR #9. Gen 2.04 ms/chunk again:
+  run 367's per-kind start timing showed mineshaft layouts at 42 ms over the 24 bench chunks (their corridor cell
+  sets, now built lazily by the first piece that needs them). Playthrough pickups stand where the body fits next to
+  the item (the Blight Star and a cobblestone sat in low cavities). Blind UI critic (14 menus): book/tab button
+  contrast, pause shows ten rows, lantern icons fill their slot, advancement markers and descriptions, enchant clue
+  wording: pushed as 5ec779d (run 369).
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
