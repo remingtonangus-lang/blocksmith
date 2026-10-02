@@ -28,8 +28,8 @@ enum OverworldStructures {
                 return StructureStart(kind: "desert_pyramid", pieces: [piece(x - 11, y - 16, z - 15, x + 11, y + 16, z + 11) { w in desertPyramid(&w, x, y, z, s) }],
                                       anchor: IVec3(x, y + 1, z - 17))
             case .jungle, .bambooJungle, .sparseJungle:
-                return StructureStart(kind: "jungle_temple", pieces: [piece(x - 7, y - 6, z - 8, x + 7, y + 14, z + 8) { w in jungleTemple(&w, x, y, z, s) }],
-                                      anchor: IVec3(x, y + 2, z - 12))
+                return StructureStart(kind: "jungle_temple", pieces: [piece(x - 8, y - 6, z - 12, x + 8, y + 15, z + 9) { w in jungleTemple(&w, x, y, z, s) }],
+                                      anchor: IVec3(x, y + 2, z - 13))
             case .swamp, .mangroveSwamp:
                 return StructureStart(kind: "swamp_hut", pieces: [piece(x - 4, y - 8, z - 5, x + 4, y + 9, z + 5) { w in swampHut(&w, x, max(y, SEA) + 2, z, s) }],
                                       anchor: IVec3(x, max(y, SEA) + 3, z - 8))
@@ -172,25 +172,55 @@ enum OverworldStructures {
         w.set(cx, fy, cz, Blocks.has("stone_pressure_plate") ? Blocks.id("stone_pressure_plate") : AIR)
     }
 
+    // Jungle temple: three stepped tiers of mossy stonework with carved bands, corner pillars, a paved approach and
+    // a crowned shrine on top; a pillared hall inside with stairs down to the lower chamber and up to the gallery,
+    // windows, and vines over everything. (Reworked with the desert temple, Remington's playtest 2.)
     static func jungleTemple(_ w: inout StructWriter, _ cx: Int, _ gy: Int, _ cz: Int, _ seed: UInt64) {
         var rng = SRng(seed)
         let cob = COBBLE, mossy = Blocks.id("mossy_cobblestone"), chis = Blocks.id("chiseled_stone_bricks")
-        func mat(_ x: Int, _ y: Int, _ z: Int) -> BlockID { hashf(x, y, z, 0x7E3) < 0.45 ? mossy : cob }
+        let mbr = Blocks.has("mossy_stone_bricks") ? Blocks.id("mossy_stone_bricks") : mossy
+        let cbr = Blocks.has("cracked_stone_bricks") ? Blocks.id("cracked_stone_bricks") : cob
+        let vine = Blocks.id("vine")
+        func mat(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
+            let h = hashf(x, y, z, 0x7E3)
+            return h < 0.4 ? mossy : (h < 0.75 ? cob : (h < 0.9 ? mbr : cbr))
+        }
         let y = gy
-        for z in (cz - 7)...(cz + 7) { for x in (cx - 6)...(cx + 6) { w.pillarDown(x, y - 1, z, cob, minY: y - 20) } }      // 6 left a jungle slope under 3 columns (run 357)
-        // Three tiers, each smaller.
+        for z in (cz - 11)...(cz + 7) { for x in (cx - 6)...(cx + 6) { w.pillarDown(x, y - 1, z, cob, minY: y - 20) } }      // 6 left a jungle slope under 3 columns (run 357)
+        // Three tiers, each smaller, with a carved band near the top of each and chiseled corner pillars.
         for (tier, (rx, rz, h)) in [(6, 7, 4), (5, 6, 4), (3, 4, 4)].enumerated() {
             let by = y + tier * 4
             for yy in by...(by + h) { for z in (cz - rz)...(cz + rz) { for x in (cx - rx)...(cx + rx) {
                 let edge = abs(x - cx) == rx || abs(z - cz) == rz || yy == by || yy == by + h
-                w.set(x, yy, z, edge ? mat(x, yy, z) : AIR)
+                var b = edge ? mat(x, yy, z) : AIR
+                let wall: Bool = abs(x - cx) == rx || abs(z - cz) == rz
+                if wall && yy == by + h - 1 && (x + z) % 2 == 0 { b = chis }
+                if abs(x - cx) == rx && abs(z - cz) == rz && yy > by && yy < by + h { b = yy == by + 2 ? chis : mbr }
+                w.set(x, yy, z, b)
             } } }
         }
+        // Paved approach between two low pillars.
+        for z in (cz - 11)...(cz - 8) { for x in (cx - 2)...(cx + 2) { w.set(x, y, z, mat(x, y, z)); for yy in (y + 1)...(y + 4) { w.set(x, yy, z, AIR) } } }
+        for px in [cx - 3, cx + 3] {
+            for yy in (y + 1)...(y + 2) { w.set(px, yy, cz - 11, mbr) }
+            w.set(px, y + 3, cz - 11, chis)
+        }
+        // Entrance: a framed 3x3 doorway.
         w.fill(cx - 1, y + 1, cz - 7, cx + 1, y + 3, cz - 7, AIR)
-        for x in stride(from: cx - 4, through: cx + 4, by: 2) { w.set(x, y + 3, cz - 7, chis) }
+        for yy in (y + 1)...(y + 3) { w.set(cx - 2, yy, cz - 7, chis); w.set(cx + 2, yy, cz - 7, chis) }
+        for x in stride(from: cx - 4, through: cx + 4, by: 2) where abs(x - cx) > 2 { w.set(x, y + 3, cz - 7, chis) }
+        // Shrine crown on the top tier.
+        for (dx, dz) in [(-3, -4), (3, -4), (-3, 4), (3, 4)] { w.set(cx + dx, y + 13, cz + dz, chis) }
+        w.fill(cx - 1, y + 13, cz - 1, cx + 1, y + 13, cz + 1, mbr)
+        w.set(cx, y + 14, cz, chis)
+        // Windows in the gallery (second tier).
+        for dz in [-2, 2] { w.set(cx - 5, y + 6, cz + dz, AIR); w.set(cx + 5, y + 6, cz + dz, AIR) }
+        // Hall pillars.
+        for (dx, dz) in [(-5, 5), (5, 5), (5, -5), (-5, -5)] { for yy in (y + 1)...(y + 3) { w.set(cx + dx, yy, cz + dz, yy == y + 2 ? chis : mbr) } }
         // Stair down to the lower chamber with the chests.
         w.fill(cx - 5, y - 4, cz + 2, cx + 5, y - 1, cz + 6, cob)
         w.fill(cx - 4, y - 3, cz + 3, cx + 4, y - 2, cz + 5, AIR)
+        for x in stride(from: cx - 3, through: cx + 3, by: 2) { w.set(x, y - 3, cz + 6, chis) }
         // Steps down to the chamber, one block each (a 4-block pit with no way back: structcheck, the chamber chest).
         for k in 0..<4 {
             let z = cz - 1 + k
@@ -205,7 +235,24 @@ enum OverworldStructures {
         }
         w.chest(cx - 4, y - 3, cz + 4, loot: "jungle_temple", seed: rng.next(), facing: 3)
         w.chest(cx + 1, y + 5, cz + 5, loot: "jungle_temple", seed: rng.next(), facing: 0)
-        w.set(cx - 3, y + 1, cz + 5, Blocks.id("vine"))
+        // Vines: down the outside of every tier and in the hall.
+        for (tier, (rx, rz)) in [(6, 7), (5, 6), (3, 4)].enumerated() {
+            let top = y + tier * 4 + 3
+            for k in -rx...rx {
+                for (vx, vz) in [(cx + k, cz - rz - 1), (cx + k, cz + rz + 1)] where hashf(vx, top, vz, 0x71E) < 0.3 && abs(vx - cx) > 1 {
+                    let len = 1 + Int(hashf(vx, top, vz, 0x71F) * 3)
+                    for d in 0..<len { w.set(vx, top - d, vz, vine) }
+                }
+            }
+            for k in -rz...rz {
+                for (vx, vz) in [(cx - rx - 1, cz + k), (cx + rx + 1, cz + k)] where hashf(vx, top, vz, 0x720) < 0.3 {
+                    let len = 1 + Int(hashf(vx, top, vz, 0x721) * 3)
+                    for d in 0..<len { w.set(vx, top - d, vz, vine) }
+                }
+            }
+        }
+        w.set(cx - 3, y + 1, cz + 5, vine)
+        w.set(cx + 4, y + 3, cz - 4, vine)
     }
 
     static func swampHut(_ w: inout StructWriter, _ cx: Int, _ y: Int, _ cz: Int, _ seed: UInt64) {
