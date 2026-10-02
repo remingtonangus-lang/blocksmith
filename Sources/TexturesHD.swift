@@ -1211,6 +1211,45 @@ enum HDTex {
         }
     }
 
+    // Ancient debris: a compressed, scorched mass. Side: six wavy layers with dark seams between them, each layer its
+    // own shade with fibrous horizontal streaks and a few metallic flecks. Top: swirled growth rings round a pale core.
+    static let debrisPal: [(Float, UInt32)] = [(0, 0x2E211E), (0.45, 0x5A443B), (0.8, 0x7A5E50), (1, 0x9A8070)]
+    static func ancientDebris(top: Bool) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            var img = Img(n)
+            let wx = fbm(n, n / 4, 3, s), wy = fbm(n, n / 4, 3, s &+ 3)
+            let lump = fbm(n, n / 8, 4, s &+ 5)
+            let fine = vnoise(n, max(1, n / 64), s &+ 7)
+            let fib = vnoise(n, max(1, n / 32), s &+ 9)
+            var hh = [Float](repeating: 0, count: n * n)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                var ph: Float
+                if top {
+                    let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
+                    let d: Float = (dx * dx + dy * dy).squareRoot() / (fn / 2)
+                    ph = d * 4.5 + (wx[i] - 0.5) * 1.1
+                } else {
+                    ph = Float(y) / fn * 6 + (wx[i] - 0.5) * 0.9
+                }
+                let layer = Int(floorf(ph))
+                let f: Float = ph - floorf(ph)
+                let seam: Float = cl(1 - min(f, 1 - f) / 0.12)
+                let fibre: Float = fib[(y * n + (x / 3 + layer * 7) % n) % (n * n)]
+                let tone: Float = 0.36 + 0.34 * h2(layer, 3, s) + (lump[i] - 0.5) * 0.35 + (fibre - 0.5) * 0.18
+                var t: Float = tone + (fine[i] - 0.5) * 0.1 - seam * 0.38
+                if top && ph < 0.9 { t += 0.18 * (1 - ph / 0.9) }
+                if fine[i] > 0.975 && seam < 0.2 && wy[i] > 0.45 { t = 0.97 }
+                let c = ramp(cl(t), debrisPal)
+                img.px[i] = V4(c.x, c.y, c.z, 1)
+                hh[i] = lump[i] * 0.5 - seam * 0.45
+            } }
+            shade(&img, hh, 0.8)
+            return img
+        }
+    }
+
     // Wooden storage. Chests: planks inside a dark banded frame (rivets at the corners), a lid seam band on the sides,
     // a metal latch on the front. Barrels: vertical staves with two riveted iron hoops; the top a planked lid with a bung.
     static let chestPlank: [(Float, UInt32)] = [(0, 0x7A5222), (0.5, 0xA2702F), (1, 0xC08A44)]
@@ -3068,8 +3107,8 @@ enum HDTex {
         "glowstone": lumps([(0, 0x7A4A18), (0.35, 0xB88430), (0.7, 0xF0C860), (1, 0xFFF4C0)], cells: 8, gloss: 1),
         "shroomlight": lumps([(0, 0xA04A10), (0.5, 0xF09030), (1, 0xFFD890)], cells: 7, gloss: 1),
         "sculk": lumps([(0, 0x041820), (0.5, 0x0A2C34), (1, 0x16505A)], cells: 12),
-        "ancient_debris_side": stone([(0, 0x3A2A26), (0.5, 0x5E443A), (1, 0x7E6050)], veins: 0.4, strata: 0.14),
-        "ancient_debris_top": stone([(0, 0x3A2A26), (0.5, 0x5E443A), (1, 0x7E6050)], veins: 0.6, strata: 0),
+        "ancient_debris_side": ancientDebris(top: false),
+        "ancient_debris_top": ancientDebris(top: true),
         "basalt_top": stone([(0, 0x3A3A3E), (0.5, 0x505056), (1, 0x68686E)], veins: 0, strata: 0),
         "smooth_basalt": polished(stone([(0, 0x34343A), (0.5, 0x48484E), (1, 0x5E5E64)], veins: 0, strata: 0)),
         "blackstone": stone([(0, 0x1E1A20), (0.5, 0x2E2830), (1, 0x443C46)], veins: 0.3, strata: 0.05),
