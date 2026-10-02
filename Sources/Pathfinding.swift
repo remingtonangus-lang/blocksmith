@@ -197,6 +197,14 @@ enum PathFinder {
         }
         var best = 0, bestH = h(start)
         var expanded = 0
+        // A goal one can't stand in (a job site, a bed, a bell): arrive beside it, never on top (behaviour-sim trace,
+        // run 361: a fletcher's path ended standing on its fletching table, so it climbed onto it every morning).
+        let blocked = pr.span == 1 && standCost(w, goal.x, goal.y, goal.z, pr) == nil
+            && !open(w, goal.x, goal.z, goal.y, goal.y + 1, span: 1)
+        func arrived(_ p: IVec3) -> Bool {
+            if blocked { return abs(p.x - goal.x) + abs(p.z - goal.z) == 1 && abs(p.y - goal.y) <= 1 }
+            return p.x == goal.x && p.z == goal.z && abs(p.y - goal.y) <= 1
+        }
         let dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)]
         let diags = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
         var drops: [Int] = [0, 1]
@@ -208,12 +216,13 @@ enum PathFinder {
             let p = pts[i]
             let hp = h(p)
             if hp < bestH { bestH = hp; best = i }
-            if p.x == goal.x && p.z == goal.z && abs(p.y - goal.y) <= 1 { best = i; break }
+            if arrived(p) { best = i; break }
             expanded += 1
             if expanded > maxNodes { break }
             var flat = [Bool](repeating: false, count: 4)          // orthogonal neighbour reachable on the same level
             for (di, (dx, dz)) in dirs.enumerated() {
                 let qx = p.x + dx, qz = p.z + dz
+                if blocked && qx == goal.x && qz == goal.z { continue }        // not over the goal block
                 for dy in drops {
                     let q = IVec3(qx, p.y + dy, qz)
                     if dy == 1 && !open(w, p.x, p.z, p.y + pr.tall, p.y + pr.tall + 1, span: pr.span) { continue }      // headroom to jump
