@@ -1615,6 +1615,14 @@ final class Renderer: NSObject, MTKViewDelegate {
                 rect(o.x + 12 * s, o.y + 14 * s, 36 * s, 26 * s, V4(0.45, 0.22, 0.1, 1))
                 rect(o.x + 14 * s, o.y + 16 * s, 15 * s, 22 * s, V4(0.93, 0.9, 0.8, 1))
                 rect(o.x + 31 * s, o.y + 16 * s, 15 * s, 22 * s, V4(0.93, 0.9, 0.8, 1))
+                // Faint lines of writing on both pages and a spine shadow (blank pages read as an empty box: blind UI critic).
+                rect(o.x + 29 * s, o.y + 16 * s, 2 * s, 22 * s, V4(0.62, 0.55, 0.45, 1))
+                for ln in 0..<6 {
+                    let ly: Float = o.y + Float(19 + ln * 3) * s
+                    let lw1: Float = Float(9 + (ln * 5) % 4) * s, lw2: Float = Float(8 + (ln * 7) % 5) * s
+                    rect(o.x + 16 * s, ly, lw1, s, V4(0.55, 0.5, 0.62, 1))
+                    rect(o.x + 33 * s, ly, lw2, s, V4(0.55, 0.5, 0.62, 1))
+                }
                 for i in 0..<3 {
                     let bx = o.x + 60 * s, by = o.y + Float(14 + 19 * i) * s
                     let ok = e.available(i)
