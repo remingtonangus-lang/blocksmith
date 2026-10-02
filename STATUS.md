@@ -5,6 +5,38 @@ every block, sparkstone, Emberdeep, End, terrain/caves/structures/villages with 
 Blight, and a completable game. Assets stay original/procedural (no copied textures, sounds or decompiled
 code); mechanics, names and numbers follow the reference game.
 
+## Playtest feedback (Remington, 2026-10-02): quality and fidelity over new features
+Bug discovery is fully automated (Remington is not the bug finder). Keep CI green throughout. Queue, in order:
+1. Bug-hunting infrastructure and the find-fix loop (log every bug class in BUGS.md: class, oracle, fix):
+   - [x] --structcheck: structure walkability (doors, steps, POIs, mob spawns, floating) over every kind/dimension.
+   - [ ] Agent API + --agent mode: bots play the real Game.tick (move/look/jump/sneak/use/attack/inventory/craft/
+         trade/sleep), deterministic seed + input log.
+   - [ ] Per-tick oracles (inside solid, stuck, fell out, unexpected damage, NaN, entity explosion, frame spikes, UI
+         dead ends, crashes) recording replays; monkey fuzzing across seeds; replay minimiser.
+   - [ ] Explorer bots (walk, never fly): curiosity + goals (enter every village building, climb stairs, swim a lake,
+         cave down and back, trade, sleep, survive a night). An unmet goal a human would expect to meet is a bug.
+   - [ ] Mob/villager behaviour sim: stuck, spinning, jittering, wall-walking, falling, never-reaching-target stats.
+   - [ ] World-gen sanity (floating blocks, leaks, trees in walls, plants on wrong blocks, ores in air) and a
+         collision test for every block shape.
+   - [ ] Fly-through tours: hundreds of shots (seeds, biomes, structures, interiors, night, underwater, caves) with
+         visual oracles (missing textures, sky holes below terrain, black frames, flicker) + eyes on a sample each
+         cycle + a blind critic pass against a written reference-quality spec.
+   - [ ] LLM playthroughs through a text state summary (Voyager-style tasks) now and then.
+   - [ ] .claude/skills/blocksmith-qa/SKILL.md (the loop), nightly scheduled CI with a summary artifact.
+   - [ ] Fix the villager AI and the house floor/entrance problem properly (house floors sit a block above the door
+         sill: every house needs a jump to enter and furniture/villager spawns are set into the floor).
+2. 128x128 textures (8x): richer procedural art (and/or stylised CC0 sources, trials below), mipmaps + anisotropic
+   filtering, cheap normal/roughness hints, real 3D isometric inventory icons crisp at TV scale; 60 fps rd 8 on M1,
+   watch texture memory.
+3. Continuous fly-around-and-fix polish.
+Tooling to adopt: never-stop Stop hook + SessionStart priorities (.claude/hooks), sosumi Apple-docs MCP (.mcp.json),
+obra/superpowers methods, Metalcraft / binary greedy meshing (perf), CC0 assets (Poly Haven, ambientCG, Kenney,
+Freesound CC0), a Pollinations trial for 3 blocks; four QA skill repos evaluated (verdicts below).
+- Network (cloud container): the egress policy denies sosumi.ai, api.polyhaven.com / dl.polyhaven.org /
+  cdn.polyhaven.com, ambientcg.com, kenney.nl, freesound.org and image.pollinations.ai (github.com and
+  raw.githubusercontent.com work). Workaround: the CI runner (open internet) fetches them in a "fetch assets" job and
+  publishes to the ci-assets branch. To use sosumi here, add sosumi.ai to the environment's allowed domains.
+
 ## Playtest branch (claude/blocksmith-playtest, PR #9; integration + core session)
 Every PR branch (#1-#8 and new ones) plus the integration branch merged with real merges and re-merged as they move;
 PR #9's description keeps the player-facing what's-new list, the tested commit and known issues.
