@@ -2227,7 +2227,9 @@ final class Renderer: NSObject, MTKViewDelegate {
         let full: V4 = tintMode == 1 ? grassC : (tintMode == 2 ? leafC : V4(1, 1, 1, 1))
         let ck = Blocks.connectKind[Int(id)]
         if Blocks.flatIcon(id) || ck == 2 {
-            let h = sz * 0.55
+            // Torches fill only a 2-texel strip of their texture: drawn larger, or the hotbar showed just the flame's dot
+            // (blind critic, tv_hud).
+            let h = Blocks.shape[Int(id)] == "torch" ? sz * 0.8 : sz * 0.55
             quad([V2(c.x - h, c.y - h), V2(c.x + h, c.y - h), V2(c.x + h, c.y + h), V2(c.x - h, c.y + h)], uv, full, Float(tex[Int(id) * 6]))
             return
         }
