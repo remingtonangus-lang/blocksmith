@@ -259,6 +259,9 @@ fragment float4 skyFS(SkyOut in [[stage_in]], constant SkyParams& s [[buffer(1)]
         float cl = vnoise(q.xy + q.z * 0.7) * 0.6 + vnoise(q.yz * 2.3 + 5.0) * 0.4;
         col += float3(0.32, 0.3, 0.42) * band * smoothstep(0.3, 0.8, cl) * night * 0.22 * saturate(d.y * 4.0 + 0.2);
     }
+    // Interleaved-gradient dither of one 8-bit step: the smooth gradient showed bands (critic, sky shots).
+    float ign = fract(52.9829189 * fract(dot(in.pos.xy, float2(0.06711056, 0.00583715))));
+    col += (ign - 0.5) / 255.0;
     return float4(col, 1.0);
 }
 

@@ -615,6 +615,9 @@ fragment float4 compositeFS(FsOut in [[stage_in]],
     c += float3(0.012, 0.005, -0.008) * smoothstep(0.5, 1.0, l) + float3(-0.006, 0.0, 0.012) * (1.0 - smoothstep(0.0, 0.35, l));
     float2 vq = (in.uv - 0.5) * float2(1.1, 1.0);
     c *= 1.0 - p.grade.w * pow(saturate(length(vq) * 1.3), 2.4);
+    // One 8-bit step of interleaved-gradient dither after tone mapping: smooth skies and fog showed bands.
+    float ign = fract(52.9829189 * fract(dot(in.pos.xy, float2(0.06711056, 0.00583715))));
+    c += (ign - 0.5) / 255.0;
     return float4(saturate(c), 1.0);
 }
 """
