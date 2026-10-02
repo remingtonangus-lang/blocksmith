@@ -18,7 +18,8 @@ enum HollowSpire {
             let s = rng.next()
             let topY = y0 + 1 + 6 + floors * 5
             var pieces: [Piece] = []
-            pieces.append(Piece(min: IVec3(ox - 6, y0 - 2, oz - 6), max: IVec3(ox + 6, topY + 10, oz + 6)) { w in
+            // The box covers the doorway steps out to 11 blocks (writes land only in chunks the box overlaps).
+            pieces.append(Piece(min: IVec3(ox - 12, y0 - 10, oz - 12), max: IVec3(ox + 12, topY + 10, oz + 12)) { w in
                 buildCity(&w, ox: ox, oz: oz, y0: y0 + 1, floors: floors, seed: s)
             })
             if ship {
@@ -58,7 +59,7 @@ enum HollowSpire {
         box(&w, ox - 5, y0, oz - 5, ox + 5, y0 + 6, oz + 5, floor: purpur, wall: purpur)
         // A doorway on every side, each with a slab step up to the sill (the floor sits a block above the island): one
         // door facing north often looked out over the island's edge, so no walk reached it (structcheck 33/33).
-        let slab = Blocks.id("purpur_slab")
+        let slab = Blocks.id("purpur_slab"), st = Blocks.id("purpur_stairs")
         w.fill(ox - 1, y0 + 1, oz - 5, ox + 1, y0 + 3, oz - 5, AIR)
         w.fill(ox - 1, y0 + 1, oz + 5, ox + 1, y0 + 3, oz + 5, AIR)
         w.fill(ox - 5, y0 + 1, oz - 1, ox - 5, y0 + 3, oz + 1, AIR)
@@ -67,10 +68,26 @@ enum HollowSpire {
         w.fill(ox - 1, y0, oz + 6, ox + 1, y0, oz + 6, slab); w.fill(ox - 1, y0 + 1, oz + 6, ox + 1, y0 + 3, oz + 7, AIR)
         w.fill(ox - 6, y0, oz - 1, ox - 6, y0, oz + 1, slab); w.fill(ox - 7, y0 + 1, oz - 1, ox - 6, y0 + 3, oz + 1, AIR)
         w.fill(ox + 6, y0, oz - 1, ox + 6, y0, oz + 1, slab); w.fill(ox + 6, y0 + 1, oz - 1, ox + 7, y0 + 3, oz + 1, AIR)
+        // Where the island drops away below the sill, stairs (high side toward the house) step down from each slab to
+        // the ground, pillared (a slab over air was a step no one could climb onto; structcheck: every end city
+        // reached only the island beside its walls, run 355).
+        let outward: [(Int, Int, Int)] = [(0, -1, 1), (0, 1, 0), (-1, 0, 3), (1, 0, 2)]
+        for (dx, dz, facing) in outward {
+            for k in 1...5 {
+                let d = 6 + k, yy = y0 - k
+                let cx = ox + dx * d, cz = oz + dz * d
+                if Blocks.collide[Int(w.get(cx, yy, cz))] && Blocks.collide[Int(w.get(cx, yy - 1, cz))] { break }
+                for a in -1...1 {
+                    let x = cx + (dz != 0 ? a : 0), z = cz + (dx != 0 ? a : 0)
+                    w.set(x, yy, z, st + BlockID(facing))
+                    w.fill(x, yy + 1, z, x, yy + 3, z, AIR)
+                    w.pillarDown(x, yy - 1, z, purpur, minY: yy - 8)
+                }
+            }
+        }
         for (tx, tz) in [(-4, -4), (4, -4), (-4, 4), (4, 4)] { w.set(ox + tx, y0 + 1, oz + tz, Blocks.id("end_rod")) }
         // Tower floors, each with a spiral stair segment and an opening in the floor above.
         var y = y0 + 6
-        let st = Blocks.id("purpur_stairs")
         for f in 0...floors {
             let top = f == floors
             let r = top ? 6 : 3
