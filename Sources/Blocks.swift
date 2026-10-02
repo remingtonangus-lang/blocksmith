@@ -135,6 +135,9 @@ final class BlockRegistry {
         case "brewing_stand": return [Box(1, 0, 1, 15, 2, 15), Box(7, 0, 7, 9, 14, 9)]
         case "stonecutter": return [Box(0, 0, 0, 16, 9, 16)]
         case "bell": return [Box(4, 3, 4, 12, 13, 12), Box(7, 13, 7, 9, 16, 9)]
+        // Solid for walking: the hollow tub trapped anything that stepped in (village bot, seed 424242; farmers work at
+        // composters) and path finding already treated it as a full block.
+        case "composter": return [Box(0, 0, 0, 16, 16, 16)]
         default: return nil
         }
     }
