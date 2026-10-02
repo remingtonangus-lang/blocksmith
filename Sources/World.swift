@@ -114,7 +114,7 @@ final class World {
     }
 
     // Chunks farther than 8 chunks are meshed at LOD 1.
-    static let lodNear = 8
+    static var lodNear = 8                      // harness --nolod raises it (far detail off)
     @inline(__always) func lodFor(_ dx: Int, _ dz: Int) -> Int { max(abs(dx), abs(dz)) > World.lodNear ? 1 : 0 }
     // With one chunk of hysteresis: walking back and forth across the boundary doesn't re-mesh the ring each time.
     @inline(__always) func lodFor(_ dx: Int, _ dz: Int, current: Int) -> Int {
