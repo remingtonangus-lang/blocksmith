@@ -267,10 +267,20 @@ enum BehaviorSim {
             let fl = Blocks.key(w.block(c.x + dx, c.y - 1, c.z + dz))
             ring.append("\(dx),\(dz): \(fl)/\(a)/\(b)")
         }
+        // And round the mob itself (a trapped villager: pit, hole or closed room?), feet and head level, 3x3.
+        let me = IVec3(Int(floor(m.pos.x)), Int(floor(m.pos.y)), Int(floor(m.pos.z)))
+        var mine: [String] = []
+        for dz in -1...1 { for dx in -1...1 where !(dx == 0 && dz == 0) {
+            let a = Blocks.key(w.block(me.x + dx, me.y, me.z + dz)), b = Blocks.key(w.block(me.x + dx, me.y + 1, me.z + dz))
+            let up = Blocks.key(w.block(me.x + dx, me.y + 2, me.z + dz))
+            mine.append("\(dx),\(dz): \(a)/\(b)/\(up)")
+        } }
+        let meY: Int = me.y - YOFF
+        let mineLine = "; round the mob at \(me.x) \(meY) \(me.z) on \(Blocks.key(w.block(me.x, me.y - 1, me.z))) (feet/head/above): " + mine.joined(separator: "; ")
         let last = nodes.last.map { "\($0.x) \($0.y - YOFF) \($0.z)" } ?? "none"
         let gy: Int = c.y - YOFF
         return "behaviorsim missed \(ph): \(m.kind.key) goal \(c.x) \(gy) \(c.z) (\(Blocks.key(w.block(c.x, c.y, c.z)))), path of 4000 nodes: " +
-            "\(nodes.count) nodes ending \(last); around the goal (floor/feet/head): \(ring.joined(separator: "; "))"
+            "\(nodes.count) nodes ending \(last); around the goal (floor/feet/head): \(ring.joined(separator: "; "))" + mineLine
     }
 
     static func goalPoint(_ m: Mob, _ phase: String) -> V3? {
