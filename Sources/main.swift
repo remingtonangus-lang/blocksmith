@@ -1171,6 +1171,10 @@ enum Snapshot {
         print(String(format: "mesh slabs %.0f MB, chunks %ld (block+light arrays %.0f MB), Metal allocated %.0f MB", Double(MeshArena.shared.slabBytes) / 1_048_576,
                      world.chunks.count, Double(chunkBytes) / 1_048_576, Double(device.currentAllocatedSize) / 1_048_576))
         print(String(format: "memory: resident %.0f MB  (section meshes %.0f MB)", residentMB(), Double(meshBytes) / 1_048_576))
+        if CommandLine.arguments.contains("--listframes") {
+            let st = renderer.entityStats
+            print("entity pass: room \(st.cap) vertices, \(st.beforeDecor) before the decor, \(st.afterDecor) after")
+        }
         print("wrote \(out)")
         return shipFails > 0 ? 1 : 0
     }

@@ -746,8 +746,18 @@ final class Playthrough {
         game.player.flying = false
         _ = world.loadSync(center: arrival, radius: 2)
         game.player.pos = arrival
+        let before = (0..<3).map { Blocks.key(world.block(ap.x, ap.y + $0, ap.z)) }
         let home = tick(10) { self.game.dim.dim == .overworld }
         check(home, "portal: back to the Surface through the arrival portal")
+        if !home {
+            // What stopped it: the portal blocks (before/after), where the player ended up, the cooldown.
+            let p = game.player.pos
+            let after = (0..<3).map { Blocks.key(world.block(ap.x, ap.y + $0, ap.z)) }
+            info("portal diag: cell \(ap.x) \(ap.y) \(ap.z) before \(before) after \(after); below \(Blocks.key(world.block(ap.x, ap.y - 1, ap.z)))")
+            info(String(format: "portal diag: player %.2f %.2f %.2f (arrival %.2f %.2f %.2f), inPortal %@, cooldown %.1f, portalTime %.1f, flying %@, loaded %@",
+                        p.x, p.y, p.z, arrival.x, arrival.y, arrival.z, game.isInPortal() ? "yes" : "no", game.portalCooldown, game.portalTime,
+                        game.player.flying ? "yes" : "no", world.isLoaded(ap.x, ap.z) ? "yes" : "no"))
+        }
         if let op = overworldPortal, home {
             let d = simd_length(V2(game.player.pos.x - Float(op.x), game.player.pos.z - Float(op.z)))
             check(d < 4, "portal: returned to the portal we built (\(Int(d)) blocks off)")

@@ -469,6 +469,11 @@ enum StructCheck {
                             if k == "spawner" || k == "mossy_cobblestone" || k.hasSuffix("chest") { near.append("\(k)@\(dx),\(dy),\(dz)") }
                         } } }
                         print("  closed by: \(walls.joined(separator: "; ")) (structure anchor \(ax) \(az)); floor \(floorKey), ceiling \(ceilKey); near: \(near.prefix(10).joined(separator: " "))")
+                        // Whose it is: the bare terrain's block here and the chest's first items (run 395: a cobblestone room
+                        // with a chest under a Steelhold, no spawner and no mossy floor).
+                        let rawHere = w.gen.generate(cx: floorDiv(x, CS), cz: floorDiv(z, CS))[Chunk.index(mod(x, CS), y, mod(z, CS))]
+                        let items = (w.blockEntities[IVec3(x, y, z)]?.container.slots ?? []).filter { !$0.isEmpty }.prefix(4).map { Items.key($0.item) }
+                        print("  terrain here: \(Blocks.key(rawHere)); box y \(s.min.y - YOFF)...\(s.max.y - YOFF), anchor y \(s.anchor.y - YOFF); holds \(items.joined(separator: ", "))")
                         let ddx = Float(x - best.x), ddz = Float(z - best.z)
                         let yawD: Float = atan2f(-ddx, -ddz) * 180 / Float.pi
                         let dimArg = w.dim == .overworld ? "" : " --dim \(w.dim.rawValue)"

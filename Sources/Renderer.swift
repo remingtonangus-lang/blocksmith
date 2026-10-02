@@ -67,6 +67,8 @@ final class Renderer: NSObject, MTKViewDelegate {
     // resolve to the HDR variants (Vibrant.swift); Fast always uses the L (drawable-format) ones.
     var vib: Vibrant?
     var hdrActive = false
+    // Entity pass of the last frame: ring room, vertices before and after the decor (signs, frames, paintings).
+    var entityStats = (cap: -1, beforeDecor: 0, afterDecor: 0)
     var lightFrame = Vibrant.LightFrame()
     var chunkPipe: MTLRenderPipelineState { hdrActive ? vib!.chunk : chunkPipeL }
     var chunkSolidPipe: MTLRenderPipelineState { hdrActive ? vib!.chunkSolid : chunkSolidPipeL }
@@ -1008,6 +1010,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             let entOff = (scratchOff + 255) & ~255
             let stride = MemoryLayout<EntityVert>.stride
             let entCap = max(0, ringSize - ringTailReserve - entOff) / stride
+            entityStats = (entCap, 0, 0)
             if entCap > 64 {
                 let ptr = (scratch.contents() + entOff).bindMemory(to: EntityVert.self, capacity: entCap)
                 var wr = EntityWriter(out: ptr, capacity: entCap)
@@ -1021,7 +1024,9 @@ final class Renderer: NSObject, MTKViewDelegate {
                 game.writeBeams(&wr, eye: eye)
                 game.writeFalling(&wr, eye: eye)
                 game.world.ships.writeShells(&wr, eye: eye)
+                let preDecor = wr.n
                 game.writeDecor(&wr, eye: eye)
+                entityStats = (entCap, preDecor, wr.n)
                 game.writeBobber(&wr, eye: eye, right: right, up: -up)
                 game.writeLeads(&wr, eye: eye)
                 game.writeBanners(&wr, eye: eye)
