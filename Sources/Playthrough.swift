@@ -1251,6 +1251,9 @@ final class Playthrough {
             let stars = game.drops.items.filter { Items.key($0.stack.item) == "nether_star" }.map { String(format: "%.0f %.0f %.0f", $0.pos.x, $0.pos.y, $0.pos.z) }
             info(String(format: "star lost: Blight health %ld at %.0f %.0f %.0f, still listed %@, stars on the ground %@", b.health, b.pos.x, b.pos.y, b.pos.z,
                         game.mobs.mobs.contains { $0 === b } ? "yes" : "no", "\(stars)"))
+            let free = (0..<36).filter { inv[$0].isEmpty }.count
+            info(String(format: "star lost: player at %.1f %.1f %.1f, alive %@, %ld free slots", game.player.pos.x, game.player.pos.y, game.player.pos.z,
+                        game.alive ? "yes" : "no", free))
         }
         if count("nether_star") == 0 { give("nether_star", 1, bulk: "star lost") }
         give("glass", 5, bulk: "sand + furnace"); give("obsidian", 3, bulk: "obsidian")
