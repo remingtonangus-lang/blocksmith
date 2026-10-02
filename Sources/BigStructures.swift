@@ -188,17 +188,26 @@ enum BigStructures {
         w.fill(cx + 8, y + 4, cz - 1, cx + 10, y + 18, cz + 1, rein)
         w.fill(cx - 10, y + 16, cz - 1, cx + 10, y + 18, cz + 1, rein)
         w.fill(cx - 7, y + 4, cz, cx + 7, y + 15, cz, AIR)
-        // Streets and buildings around: towers, halls, murk-covered ruins.
+        // Streets and buildings around: towers, halls, murk-covered ruins. Built in passes (every shell, then every
+        // interior and door, then the furniture): one building at a time let a later shell wall over an earlier
+        // room or doorway (structcheck: ancient city chests sealed in 3 of 9 cities).
+        struct Hall { let x: Int; let z: Int; let wdt: Int; let hgt: Int; let mat: BlockID }
+        var halls: [Hall] = []
         for i in 0..<14 {
             let a = Float(i) / 14 * 2 * .pi + rng.float() * 0.3
             let d = 20 + rng.float() * 18
             let bx = cx + Int(cosf(a) * d), bz = cz + Int(sinf(a) * d)
             let wdt = 3 + rng.int(4), hgt = 4 + rng.int(9)
-            let mat = rng.chance(0.5) ? dsb : cdsl
-            w.fill(bx - wdt, y, bz - wdt, bx + wdt, y + hgt, bz + wdt, mat)
-            w.fill(bx - wdt + 1, y, bz - wdt + 1, bx + wdt - 1, y + hgt - 1, bz + wdt - 1, AIR)
-            w.fill(bx - 1, y, bz - wdt, bx + 1, y + 2, bz - wdt, AIR)
-            w.set(bx, y + hgt, bz, basalt)
+            halls.append(Hall(x: bx, z: bz, wdt: wdt, hgt: hgt, mat: rng.chance(0.5) ? dsb : cdsl))
+        }
+        for h in halls { w.fill(h.x - h.wdt, y, h.z - h.wdt, h.x + h.wdt, y + h.hgt, h.z + h.wdt, h.mat) }
+        for h in halls {
+            w.fill(h.x - h.wdt + 1, y, h.z - h.wdt + 1, h.x + h.wdt - 1, y + h.hgt - 1, h.z + h.wdt - 1, AIR)
+            w.fill(h.x - 1, y, h.z - h.wdt - 3, h.x + 1, y + 2, h.z - h.wdt, AIR)
+        }
+        for h in halls {
+            let bx = h.x, bz = h.z, wdt = h.wdt
+            w.set(bx, y + h.hgt, bz, basalt)
             w.set(bx - wdt + 1, y, bz + wdt - 1, candle + 4)
             w.set(bx + wdt - 1, y + 2, bz - wdt + 1, lamp)
             if rng.chance(0.6) { w.chest(bx, y, bz + wdt - 1, loot: "ancient_city", seed: rng.next(), facing: 0) }
