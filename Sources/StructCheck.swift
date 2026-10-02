@@ -409,6 +409,26 @@ enum StructCheck {
                         let col = (-1...2).map { Blocks.key(w.block(sx, best.y + $0, sz)) }.joined(separator: "/")
                         let by: Int = best.y - YOFF
                         detail += "; closest reached \(best.x) \(by) \(best.z), next toward it \(sx) \(sz) from y-1 up: \(col)"
+                        // Top-down map around the POI at its height (rows -z to +z): P the POI, R a reached cell (y-1..y+1),
+                        // # solid at feet or head, f fence/wall, _ open over a floor, ~ fluid, space open over a drop.
+                        var rows: [String] = []
+                        for mz in (z - 5)...(z + 5) {
+                            var row = ""
+                            for mx in (x - 7)...(x + 7) {
+                                if mx == x && mz == z { row += "P"; continue }
+                                if ra.contains(key(mx, y, mz)) || ra.contains(key(mx, y - 1, mz)) || ra.contains(key(mx, y + 1, mz)) { row += "R"; continue }
+                                let fb = w.block(mx, y, mz), hb = w.block(mx, y + 1, mz)
+                                let fk = Blocks.key(Blocks.groupBase[Int(fb)])
+                                if fk.hasSuffix("_fence") || fk.hasSuffix("_wall") { row += "f" }
+                                else if Blocks.fluidKind[Int(fb)] != 0 { row += "~" }
+                                else if Blocks.collide[Int(fb)] || Blocks.collide[Int(hb)] { row += "#" }
+                                else { row += Blocks.collide[Int(w.block(mx, y - 1, mz))] ? "_" : " " }
+                            }
+                            rows.append(row)
+                        }
+                        let py: Int = y - YOFF, x0: Int = x - 7, z0: Int = z - 5
+                        print("structcheck map \(kind) \(x) \(py) \(z) (columns from x \(x0), rows from z \(z0)):")
+                        for r in rows { print("  |\(r)|") }
                         let ddx = Float(x - best.x), ddz = Float(z - best.z)
                         let yawD: Float = atan2f(-ddx, -ddz) * 180 / Float.pi
                         let dimArg = w.dim == .overworld ? "" : " --dim \(w.dim.rawValue)"
