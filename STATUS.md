@@ -117,7 +117,8 @@ code); mechanics, names and numbers follow the reference game.
       mip builder scaled crisp 0/255 alpha to 127 at mips 1-3 (under the 0.5 cutoff), so the cactus side texture
       vanished at those distances (near: mip 0; far: the far mesh draws cacti opaque). Same bug hid framed and dropped
       items past ~6 blocks (armory racks). Found with --listframes pixel probes + a per-mip alpha dump; fixed in
-      Textures.keepCoverage (only ever boost alpha, round). cactus_mid shots probe every cactus 8-120 blocks off.
+      Textures.keepCoverage (only ever boost alpha, round). Verified in run 415: cactus_mid probes cactus-green at 13-104
+      blocks in Fancy and Fast; the armory racks show their guns.
 - [x] Falling water seen from afar showed a bright blue sheet: Fancy water side faces are tumbling water, not a sky mirror.
 - [x] All kinds of rabbits in the desert: coats by biome (desert gold, snowy white / black-and-white, else brown, salt
       and pepper, black).
