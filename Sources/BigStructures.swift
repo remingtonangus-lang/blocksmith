@@ -210,6 +210,15 @@ enum BigStructures {
         w.set(cx, y + 27, cz, slab)
         // Front door.
         w.fill(cx - 1, y + 1, cz - 20, cx + 1, y + 3, cz - 20, AIR)
+        // A porch before it (log posts at the corners, a slab roof, a cobblestone apron) and two chimneys through the
+        // roof: the house read as one plain box (blind critic, run 385 mansion).
+        w.fill(cx - 3, y, cz - 23, cx + 3, y, cz - 21, cob)
+        for (px, pz) in [(-3, -23), (3, -23), (-3, -21), (3, -21)] { w.fill(cx + px, y + 1, cz + pz, cx + px, y + 4, cz + pz, log) }
+        w.fill(cx - 3, y + 5, cz - 23, cx + 3, y + 5, cz - 21, slab)
+        for sx in [-9, 9] {
+            w.fill(cx + sx, y, cz + 6, cx + sx + 1, y + 28 - abs(sx) / 2, cz + 7, cob)        // from the ground floor up
+            w.fill(cx + sx, y + 29 - abs(sx) / 2, cz + 6, cx + sx + 1, y + 29 - abs(sx) / 2, cz + 7, g("cobblestone_wall"))
+        }
     }
 
     // MARK: Ancient city
