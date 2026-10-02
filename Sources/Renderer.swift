@@ -2229,7 +2229,8 @@ final class Renderer: NSObject, MTKViewDelegate {
         if Blocks.flatIcon(id) || ck == 2 {
             // Torches fill only a 2-texel strip of their texture: drawn larger, or the hotbar showed just the flame's dot
             // (blind critic, tv_hud).
-            let h = Blocks.shape[Int(id)] == "torch" ? sz * 0.8 : sz * 0.55
+            var h: Float = sz * 0.55
+            if Blocks.shape[Int(id)] == "torch" { h = sz * 0.8 }
             quad([V2(c.x - h, c.y - h), V2(c.x + h, c.y - h), V2(c.x + h, c.y + h), V2(c.x - h, c.y + h)], uv, full, Float(tex[Int(id) * 6]))
             return
         }
