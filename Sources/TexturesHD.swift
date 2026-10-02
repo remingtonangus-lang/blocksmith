@@ -1472,12 +1472,46 @@ enum HDTex {
                                               "acacia": 0xAD5D32, "dark_oak": 0x4F3218, "mangrove": 0x773631, "cherry": 0xE2B2AC,
                                               "crimson": 0x6A344B, "warped": 0x2B6963, "iron": 0xD4D4D4, "pale_oak": 0xE4DAD3]
     static func door(_ name: String) -> Gen? {
+        if name.hasSuffix("_trapdoor"), let c = doorWoods[String(name.dropLast(9))] {
+            return trapdoorHD(c, iron: name == "iron_trapdoor")
+        }
         for suffix in ["_door_bottom", "_door_top"] where name.hasSuffix(suffix) {
             let wood = String(name.dropLast(suffix.count))
             guard let c = doorWoods[wood] else { return nil }
             return doorHD(c, top: suffix == "_door_top", iron: wood == "iron")
         }
         return nil
+    }
+    // Trapdoor: a bevelled frame around boards with a cross batten; wooden ones have four small square vents
+    // (clear), iron ones rivets.
+    static func trapdoorHD(_ base: UInt32, iron: Bool) -> Gen {
+        { n, s in
+            var img = Img(n, V4(0, 0, 0, 0))
+            let u = n / 16
+            let c0 = col(base)
+            let grain = vnoise(n, max(1, n / 64), s)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let edge = min(min(x, y), min(n - 1 - x, n - 1 - y))
+                let frame = edge < 2 * u
+                let batten = (x >= 7 * u && x < 9 * u) || (y >= 7 * u && y < 9 * u)
+                let qx = (x / (n / 2)) * (n / 2) + n / 4, qy = (y / (n / 2)) * (n / 2) + n / 4
+                let vent = !iron && abs(x - qx) < u && abs(y - qy) < u
+                if vent { continue }
+                var k: Float = frame ? 0.78 : (batten ? 0.74 : 0.92)
+                if frame {
+                    let lit: Bool = x < 2 * u || y < 2 * u
+                    if edge == 0 || edge == 2 * u - 1 { k *= lit ? 1.15 : 0.75 }
+                } else if !batten && (y % (4 * u)) == 0 { k *= 0.72 }                    // board seams
+                let rivet = iron && frame && (x % (4 * u)) == u && (y % (4 * u)) == u
+                if rivet { k = 1.2 }
+                let woodG: Float = 0.86 + 0.2 * grain[(y / 8) * n + x]
+                let g: Float = iron ? 0.97 : woodG
+                let cc: V3 = c0 * (k * g)
+                img.px[i] = V4(min(1, cc.x), min(1, cc.y), min(1, cc.z), 1)
+            } }
+            return img
+        }
     }
     static func doorHD(_ base: UInt32, top: Bool, iron: Bool) -> Gen {
         { n, s in
