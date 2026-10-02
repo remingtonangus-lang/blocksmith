@@ -2302,6 +2302,92 @@ enum HDTex {
         }
     }
 
+    // Chorus plant and flower (fleshy lumps under a dark rind; the flower's pale bud), the end rod's glowing rod, the
+    // dragon egg's dark shell with violet glints, mangrove roots (tangled strands that tile), azalea (a leafy top and
+    // a side of leaves over a woody stem) and cave vines.
+    static func oddFace(_ kind: String) -> Gen {
+        { n, s in
+            let fn = Float(n), u = n / 16
+            let fine = vnoise(n, max(1, n / 64), s &+ 2)
+            switch kind {
+            case "chorus_plant", "chorus_flower":
+                let flower = kind == "chorus_flower"
+                let pal: [(Float, UInt32)] = flower ? [(0, 0x6A4A7A), (0.5, 0x9A7AAA), (1, 0xC0A0CC)] : [(0, 0x5A3A6A), (0.5, 0x8A6A9A), (1, 0xA88AB6)]
+                var img = lumps(pal, cells: 9, gloss: 0.2)(n, s)
+                for y in 0..<n { for x in 0..<n {
+                    let edge: Int = min(min(x, y), min(n - 1 - x, n - 1 - y))
+                    let dx: Float = abs(Float(x) + 0.5 - fn / 2), dy: Float = abs(Float(y) + 0.5 - fn / 2)
+                    if flower && max(dx, dy) < 3 * Float(u) {
+                        let bk: Float = 0.9 + 0.2 * fine[y * n + x] + 0.1 * (1 - max(dx, dy) / (3 * Float(u)))
+                        plot(&img, x, y, col(0xE0CCE8) * bk)
+                    } else if !flower && edge < u {
+                        let rk: Float = 0.8 + 0.25 * fine[y * n + x]
+                        plot(&img, x, y, col(0x4A2E5A) * rk)
+                    }
+                } }
+                return img
+            case "end_rod":
+                var img = Img(n)
+                for y in 0..<n { for x in 0..<n {
+                    let across: Float = (Float(x) + 0.5) / fn
+                    let k: Float = 1.08 - 0.3 * abs(across - 0.35) + 0.04 * fine[y * n + x]
+                    plot(&img, x, y, col(0xF4EEE0) * k)
+                } }
+                return img
+            case "dragon_egg":
+                var img = stone([(0, 0x08060C), (0.5, 0x120E1A), (1, 0x22182E)], veins: 0.5, strata: 0)(n, s)
+                let glint = vnoise(n, max(1, n / 32), s &+ 7)
+                for i in 0..<(n * n) where glint[i] > 0.86 {
+                    let g: Float = (glint[i] - 0.86) / 0.14
+                    let c: V3 = col(0x3A1446) + (col(0xB060D8) - col(0x3A1446)) * (g * g)
+                    img.px[i] = V4(c.x, c.y, c.z, 1)
+                }
+                return img
+            case "mangrove_roots":
+                var img = Img(n, V4(0, 0, 0, 0))
+                for r in 0..<7 {
+                    let x0: Float = (Float(r) + h2(r, 1, s)) / 7 * fn
+                    let amp: Float = fn * (0.08 + 0.1 * h2(r, 2, s))
+                    let ph: Float = h2(r, 3, s) * 6.28
+                    let slant: Float = Float(Int(h2(r, 4, s) * 3) - 1)   // whole tiles of drift so the strand wraps
+                    let w: Float = fn / 28 + fn / 40 * h2(r, 5, s)
+                    for y in 0..<n {
+                        let t: Float = Float(y) / fn
+                        let cx: Float = x0 + slant * t * fn + sinf(t * 2 * .pi + ph) * amp
+                        for xi in Int(cx - w - 1)...Int(cx + w + 1) {
+                            let uu: Float = (Float(xi) + 0.5 - cx) / w
+                            guard abs(uu) <= 1 else { continue }
+                            let k: Float = (1.05 - 0.4 * abs(uu + 0.3)) * (0.85 + 0.25 * fine[y * n + ((xi % n) + n) % n])
+                            img[xi, y] = V4(min(1, 0.29 * k), min(1, 0.23 * k), min(1, 0.16 * k), 1)
+                        }
+                    }
+                }
+                return img
+            case "azalea_top", "azalea_side":
+                var img = kind == "azalea_top" ? Img(n, V4(0.26, 0.36, 0.11, 1)) : Img(n, V4(0, 0, 0, 0))
+                let leafRows: Int = kind == "azalea_top" ? n : n / 2
+                if kind == "azalea_side" {
+                    for y in (n / 2)..<n { for x in (7 * u)..<(9 * u) {
+                        let across: Float = (Float(x - 7 * u) + 0.5) / Float(2 * u)
+                        plot(&img, x, y, col(0x6A5030) * (1.1 - 0.4 * abs(across - 0.35)))
+                    } }
+                }
+                for k in 0..<(leafRows * 34 / n) {
+                    let cx: Float = h2(k, 1, s) * fn, cy: Float = h2(k, 2, s) * Float(leafRows)
+                    let tone: Float = 0.78 + 0.32 * h2(k, 3, s)
+                    let ang: Float = h2(k, 4, s) * 6.28
+                    let lc: V3 = col(0x6A8A2A) * tone
+                    // The top is opaque and tiles: each leaf also drawn one tile over where it crosses an edge.
+                    let wraps: [Float] = kind == "azalea_top" ? [-fn, 0, fn] : [0]
+                    for oy in wraps { for ox in wraps { leafBlob(&img, cx + ox, cy + oy, fn / 9, ang, lc) } }
+                }
+                return img
+            default:  // cave_vines
+                return strandHD(0x4A7A2A, nubs: 0x5A8A30, salt: 471)(n, s)
+            }
+        }
+    }
+
     // Water (greyscale for the biome tint, translucent like the small painter): soft ripple bands from a warped field,
     // brighter crests, no hard texels.
     static func waterHD(_ n: Int, _ s: Int) -> Img {
@@ -3647,6 +3733,14 @@ enum HDTex {
         "smithing_table_side": smithingSide,
         "grindstone": stone([(0, 0x6E6E6E), (0.5, 0x8E8E8E), (1, 0xA8A8A8)], veins: 0, strata: 0.06),
         "stonecutter_side": furnaceStone,
+        "chorus_plant": oddFace("chorus_plant"),
+        "chorus_flower": oddFace("chorus_flower"),
+        "end_rod": oddFace("end_rod"),
+        "dragon_egg": oddFace("dragon_egg"),
+        "mangrove_roots": oddFace("mangrove_roots"),
+        "azalea_top": oddFace("azalea_top"),
+        "azalea_side": oddFace("azalea_side"),
+        "cave_vines": oddFace("cave_vines"),
         "gilded_blackstone": mineralFace("gilded_blackstone"),
         "reinforced_deepslate": mineralFace("reinforced_deepslate"),
         "budding_amethyst": mineralFace("budding_amethyst"),
