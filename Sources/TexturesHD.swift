@@ -1873,6 +1873,166 @@ enum HDTex {
         }
     }
 
+    // Sparkstone machines and a few lit blocks: piston faces (planks head in a stone rim, the sticky pad, the rod), the
+    // observer's face / sensor / arrow, dispenser and dropper mouths, the hopper's iron, the note block's note, the
+    // sparkstone lamp's lattice, the target's straw rings and the sea lantern's glowing panes.
+    static let cobbleGen: Gen = cobble([(0, 0x585A5C), (0.5, 0x808082), (1, 0xA2A09E)], mortar: 0x3A3838)
+    static let machineStone: Gen = stone([(0, 0x46464A), (0.5, 0x5C5C60), (1, 0x727276)], veins: 0.1, strata: 0)
+    static func sparkFace(_ kind: String) -> Gen {
+        { n, s in
+            let fn = Float(n), u = n / 16
+            let fine = vnoise(n, max(1, n / 64), s &+ 2)
+            func put(_ img: inout Img, _ x: Int, _ y: Int, _ c: V3) { img[x, y] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1) }
+            func rod(_ img: inout Img, _ x0: Int, _ x1: Int, _ y0: Int, _ y1: Int) {
+                for y in y0..<y1 { for x in x0..<x1 {
+                    let across: Float = (Float(x - x0) + 0.5) / Float(x1 - x0)
+                    let k: Float = 1.2 - 0.6 * abs(across - 0.35)
+                    put(&img, x, y, V3(0.72, 0.72, 0.74) * (k * (0.94 + 0.08 * fine[y * n + x])))
+                } }
+            }
+            func hole(_ img: inout Img, _ inside: (Float, Float) -> Bool) {
+                for y in 0..<n { for x in 0..<n {
+                    let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
+                    guard inside(dx, dy) else { continue }
+                    let rim: Bool = inside(dx + Float(u) * 0.6, dy + Float(u) * 0.6) == false
+                    let k: Float = rim ? 0.32 : 0.12
+                    put(&img, x, y, V3(k, k, k * 1.05) * (0.85 + 0.3 * fine[y * n + x]))
+                } }
+            }
+            switch kind {
+            case "piston_top", "piston_top_sticky":
+                var img = planks(oakPlank)(n, s)
+                let rimImg = polished(machineStone, calm: 0.5, rim: 0)(n, s &+ 1)
+                for y in 0..<n { for x in 0..<n {
+                    let edge: Int = min(min(x, y), min(n - 1 - x, n - 1 - y))
+                    if edge < 2 * u {
+                        var c = rimImg[x, y]
+                        if edge == 2 * u - 1 { c = V4(c.x * 0.6, c.y * 0.6, c.z * 0.6, 1) }
+                        img[x, y] = c
+                    }
+                    if kind == "piston_top_sticky" && edge >= 4 * u {
+                        let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
+                        let gx: Float = dx + fn * 0.12, gy: Float = dy + fn * 0.12
+                        let gr: Float = (gx * gx + gy * gy) / (fn * fn * 0.02)
+                        let gl: Float = cl(1 - gr)
+                        let sk: Float = 0.8 + 0.15 * fine[y * n + x] + 0.35 * gl
+                        put(&img, x, y, col(0x5AAE4A) * sk)
+                    }
+                } }
+                return img
+            case "piston_side":
+                var img = cobbleGen(n, s)
+                let head = planks(oakPlank)(n, s &+ 3)
+                for y in 0..<(4 * u) { for x in 0..<n {
+                    var c = head[x, y]
+                    if y >= 4 * u - u / 2 { c = V4(c.x * 0.6, c.y * 0.6, c.z * 0.6, 1) }
+                    img[x, y] = c
+                } }
+                rod(&img, 7 * u, 9 * u, 4 * u, 12 * u)
+                return img
+            case "piston_inner":
+                var img = cobbleGen(n, s)
+                rod(&img, 5 * u, 11 * u, 5 * u, 11 * u)
+                return img
+            case "piston_bottom":
+                return cobbleGen(n, s)
+            case "dispenser_front", "dispenser_front_vertical", "dropper_front", "dropper_front_vertical":
+                var img = cobbleGen(n, s)
+                let fu = Float(u)
+                if kind.hasPrefix("dropper") {
+                    hole(&img) { dx, dy in abs(dx) < 2.6 * fu && abs(dy) < 2.6 * fu }
+                } else {
+                    hole(&img) { dx, dy in dx * dx + dy * dy < 12.5 * fu * fu }
+                    if !kind.hasSuffix("vertical") { hole(&img) { dx, dy in abs(dy) < 0.6 * fu && abs(dx) < 5.2 * fu } }
+                }
+                return img
+            case "hopper_outside":
+                return metal(0x3A3A3E, tiles: 1, shine: 0.1)(n, s)
+            case "hopper_top":
+                var img = metal(0x4A4A4E, tiles: 1, shine: 0.1)(n, s)
+                for y in (2 * u)..<(14 * u) { for x in (2 * u)..<(14 * u) {
+                    let edge: Int = min(min(x - 2 * u, y - 2 * u), min(14 * u - 1 - x, 14 * u - 1 - y))
+                    let depth: Float = Float(min(edge, 3 * u)) / Float(3 * u)
+                    var k: Float = 0.12 + 0.03 * depth
+                    if edge < u / 2 { k = 0.07 }
+                    put(&img, x, y, V3(k, k, k * 1.08) * (0.9 + 0.2 * fine[y * n + x]))
+                } }
+                return img
+            case "note_block":
+                var img = planks([(0, 0x4A3220), (0.5, 0x6A4A2E), (1, 0x86603C)])(n, s)
+                for y in 0..<n { for x in 0..<n {
+                    let lx = x / u, ly = y / u
+                    let bar: Bool = lx > 4 && lx < 11 && (ly == 4 || ly == 5)
+                    let stem: Bool = (lx == 10 || lx == 5) && ly > 4 && ly < 12
+                    let hx: Float = Float(x) + 0.5 - fn * 4.5 / 16, hy: Float = Float(y) + 0.5 - fn * 12 / 16
+                    let hx2: Float = hx - fn * 5 / 16
+                    let headA: Bool = hx * hx * 0.6 + hy * hy < fn * fn * 0.004
+                    let headB: Bool = hx2 * hx2 * 0.6 + hy * hy < fn * fn * 0.004
+                    if bar || stem || headA || headB { put(&img, x, y, col(0x22160C) * (0.9 + 0.2 * fine[y * n + x])) }
+                } }
+                return img
+            case "redstone_lamp", "redstone_lamp_on":
+                let on = kind.hasSuffix("on")
+                var img = Img(n)
+                let blot = fbm(n, n / 8, 3, s &+ 5)
+                for y in 0..<n { for x in 0..<n {
+                    let i = y * n + x
+                    let fx: Int = (x * 16 / n) % 5, fy: Int = (y * 16 / n) % 5
+                    var c: V3
+                    if fx == 0 || fy == 0 {
+                        let bevel: Float = (x % u == 0 || y % u == 0) ? 1.15 : 0.95
+                        let frame: V3 = on ? col(0x8A5A2A) : col(0x4A2A1A)
+                        let fk: Float = bevel * (0.9 + 0.15 * fine[i])
+                        c = frame * fk
+                    } else {
+                        let cx: Float = (Float(x * 16) / fn).truncatingRemainder(dividingBy: 5) - 2.5
+                        let cy: Float = (Float(y * 16) / fn).truncatingRemainder(dividingBy: 5) - 2.5
+                        let centre: Float = cl(1 - (cx * cx + cy * cy) / 8)
+                        if on {
+                            let gk: Float = 0.8 + 0.25 * centre + 0.1 * blot[i]
+                            c = col(0xF8D080) * gk
+                        } else {
+                            let dk: Float = 0.75 + 0.2 * blot[i] + 0.1 * centre
+                            c = col(0x6A3A22) * dk
+                        }
+                    }
+                    put(&img, x, y, c)
+                } }
+                return img
+            case "target_top", "target_side":
+                var img = Img(n)
+                let straw = vnoise(n, max(1, n / 32), s &+ 7)
+                for y in 0..<n { for x in 0..<n {
+                    let i = y * n + x
+                    let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
+                    let d: Float = (dx * dx + dy * dy).squareRoot() / (fn / 16)
+                    let ring: Int = Int(d) % 4
+                    let red: Bool = ring >= 2 || d < 1.6
+                    let fibre: Float = straw[(y * n + x / 3) % (n * n)]
+                    let base: V3 = red ? col(0xC82A1E) : col(0xE8E0C8)
+                    let k: Float = 0.82 + 0.22 * fibre + 0.06 * fine[i]
+                    put(&img, x, y, base * k)
+                } }
+                return img
+            default:  // sea_lantern
+                var img = Img(n)
+                let blot = fbm(n, n / 4, 3, s &+ 5)
+                for y in 0..<n { for x in 0..<n {
+                    let i = y * n + x
+                    let a: Float = (Float(x + y) / fn * 4).truncatingRemainder(dividingBy: 1)
+                    let b: Float = (Float(x - y + n) / fn * 4).truncatingRemainder(dividingBy: 1)
+                    let ea: Float = min(a, 1 - a), eb: Float = min(b, 1 - b)
+                    let seam: Float = cl(1 - min(ea, eb) / 0.06)
+                    let glow: Float = 0.85 + 0.2 * blot[i] + 0.1 * min(ea, eb)
+                    let pane: V3 = col(0xB8DCD2) * glow
+                    let c: V3 = pane + (col(0xF4FCF6) - pane) * seam
+                    put(&img, x, y, c)
+                } }
+                return img
+            }
+        }
+    }
+
     // Water (greyscale for the biome tint, translucent like the small painter): soft ripple bands from a warped field,
     // brighter crests, no hard texels.
     static func waterHD(_ n: Int, _ s: Int) -> Img {
@@ -3218,6 +3378,23 @@ enum HDTex {
         "smithing_table_side": smithingSide,
         "grindstone": stone([(0, 0x6E6E6E), (0.5, 0x8E8E8E), (1, 0xA8A8A8)], veins: 0, strata: 0.06),
         "stonecutter_side": furnaceStone,
+        "piston_top": sparkFace("piston_top"),
+        "piston_top_sticky": sparkFace("piston_top_sticky"),
+        "piston_side": sparkFace("piston_side"),
+        "piston_inner": sparkFace("piston_inner"),
+        "piston_bottom": sparkFace("piston_bottom"),
+        "dispenser_front": sparkFace("dispenser_front"),
+        "dispenser_front_vertical": sparkFace("dispenser_front_vertical"),
+        "dropper_front": sparkFace("dropper_front"),
+        "dropper_front_vertical": sparkFace("dropper_front_vertical"),
+        "hopper_outside": sparkFace("hopper_outside"),
+        "hopper_top": sparkFace("hopper_top"),
+        "note_block": sparkFace("note_block"),
+        "redstone_lamp": sparkFace("redstone_lamp"),
+        "redstone_lamp_on": sparkFace("redstone_lamp_on"),
+        "target_top": sparkFace("target_top"),
+        "target_side": sparkFace("target_side"),
+        "sea_lantern": sparkFace("sea_lantern"),
         "cartography_table_top": jobFace("cartography_table_top"),
         "cartography_table_side": jobFace("cartography_table_side"),
         "fletching_table_side": jobFace("fletching_table_side"),
