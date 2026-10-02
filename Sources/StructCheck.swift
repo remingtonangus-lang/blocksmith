@@ -92,8 +92,16 @@ enum StructCheck {
             while head < queue.count && seen.count < 400_000 {
                 let (x, y, z, f) = queue[head]
                 head += 1
-                // Ladders and vines: straight up and down.
                 let here = w.block(x, y, z)
+                // Diving and surfacing: straight up and down through water (the neighbour search below takes the
+                // highest cell, so a swimmer never left the surface; run 356: three ruined portals 30 blocks down).
+                if Blocks.fluidKind[Int(here)] == 1 {
+                    for dy in [1, -1] {
+                        let ny = y + dy
+                        if let nf = feet(w, x, ny, z), seen.insert(key(x, ny, z)).inserted { queue.append((x, ny, z, nf)) }
+                    }
+                }
+                // Ladders and vines: straight up and down.
                 if PathFinder.climbable(here) || PathFinder.climbable(w.block(x, y + 1, z)) {
                     for dy in [1, -1] {
                         let ny = y + dy
