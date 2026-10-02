@@ -354,7 +354,7 @@ enum OverworldStructures {
                 let fy = gen.groundY(fx, fz)
                 guard fy >= SEA && abs(fy - y) <= 4 else { continue }
                 let fs = rng.next()
-                pieces.append(piece(fx - 3, fy - 4, fz - 3, fx + 3, fy + 5, fz + 3) { w in outpostCamp(&w, kind, fx, fy + 1, fz, fs) })
+                pieces.append(piece(fx - 3, fy - 5, fz - 4, fx + 3, fy + 5, fz + 4) { w in outpostCamp(&w, kind, fx, fy + 1, fz, fs) })
             }
             return StructureStart(kind: "pillager_outpost", pieces: pieces, anchor: IVec3(x, y + 4, z - 16))
         }
@@ -447,8 +447,12 @@ enum OverworldStructures {
                 w.set(cx - 1, y + 1, z, wool); w.set(cx + 1, y + 1, z, wool)
                 w.set(cx, y + 2, z, wool)
             }
-            w.set(cx, y, cz + 2, Blocks.id("crafting_table"))
-            w.set(cx + 1, y, cz + 1, Blocks.id("hay_block"))
+            // A dark ridge pole on end posts (the bare wool A-frame read as white steps: run 408 outpost).
+            let ridge = Blocks.has("dark_oak_log[z]") ? Blocks.id("dark_oak_log[z]") : log
+            for z in (cz - 3)...(cz + 3) { w.set(cx, y + 3, z, ridge) }
+            for z in [cz - 3, cz + 3] { w.pillarDown(cx, y - 1, z, DIRT, minY: y - 5); for yy in y...(y + 2) { w.set(cx, yy, z, fence) } }
+            w.set(cx, y, cz + 1, Blocks.id("crafting_table"))
+            w.set(cx + 1, y, cz - 1, Blocks.id("hay_block"))
         case 2:
             for z in (cz - 1)...(cz + 1) { for x in (cx - 2)...(cx + 2) { w.pillarDown(x, y - 1, z, DIRT, minY: y - 5) } }
             let along = Blocks.has("dark_oak_log[x]") ? Blocks.id("dark_oak_log[x]") : log
