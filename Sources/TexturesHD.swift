@@ -1107,6 +1107,74 @@ enum HDTex {
         }
     }
 
+    // Crying obsidian: obsidian with glowing violet tears running down from a few seeps (the tears are what the
+    // emissive mask picks up).
+    static func cryingObsidian(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n)
+        var img = stone([(0, 0x0E0A16), (0.5, 0x1C1428), (0.85, 0x2E2240), (1, 0x4A3A64)], veins: 0.8, strata: 0)(n, s)
+        let glow = col(0x9A3AF0), core = col(0xE8A0FF)
+        for k in 0..<9 {
+            let x0: Float = h2(k, 1, s) * fn, y0: Float = h2(k, 2, s) * fn
+            let len: Float = fn * (0.12 + 0.3 * h2(k, 3, s))
+            let w: Float = fn / 48 + 1
+            var y: Float = 0
+            while y < len {
+                let t: Float = y / len
+                let x: Float = x0 + sinf(y / fn * 9 + Float(k)) * fn / 90
+                let ww: Float = w * (t > 0.85 ? 1.6 : 1)                     // a drop at the end
+                for dx in Int(-ww - 1)...Int(ww + 1) {
+                    let u: Float = abs(Float(dx)) / ww
+                    guard u <= 1 else { continue }
+                    let c: V3 = core + (glow - core) * u
+                    img[Int(x) + dx, Int(y0 + y)] = V4(c.x, c.y, c.z, 1)
+                }
+                y += 1
+            }
+        }
+        return img
+    }
+    // Pillar side (violite pillar): vertical fluting between a lit and a shaded edge, capped top and bottom.
+    static func pillarSide(_ pal: [(Float, UInt32)]) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            var img = Img(n)
+            let blot = fbm(n, n / 4, 4, s)
+            var hh = [Float](repeating: 0, count: n * n)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let u: Float = (Float(x) / fn * 4).truncatingRemainder(dividingBy: 1)
+                let flute: Float = sinf(.pi * u)
+                let cap: Bool = y < n / 16 || y >= n - n / 16
+                let t: Float = cap ? 0.75 : 0.3 + 0.4 * flute + (blot[i] - 0.5) * 0.12
+                let c = ramp(t, pal)
+                img.px[i] = V4(c.x, c.y, c.z, 1)
+                hh[i] = cap ? 0.6 : flute * 0.5
+            } }
+            shade(&img, hh, 0.7)
+            return img
+        }
+    }
+    // Pillar end: concentric rings around a square boss.
+    static func pillarTop(_ pal: [(Float, UInt32)]) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            var img = Img(n)
+            let blot = fbm(n, n / 4, 4, s)
+            var hh = [Float](repeating: 0, count: n * n)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let d: Float = max(abs(Float(x) + 0.5 - fn / 2), abs(Float(y) + 0.5 - fn / 2)) / (fn / 2)
+                let ring: Float = 0.5 + 0.5 * cosf(d * .pi * 4)
+                let t: Float = 0.3 + 0.4 * ring + (blot[i] - 0.5) * 0.12
+                let c = ramp(t, pal)
+                img.px[i] = V4(c.x, c.y, c.z, 1)
+                hh[i] = ring * 0.4
+            } }
+            shade(&img, hh, 0.7)
+            return img
+        }
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -1738,6 +1806,10 @@ enum HDTex {
         "end_stone": stone([(0, 0xC8C88E), (0.5, 0xDCDCA2), (1, 0xEEEEBC)], veins: 0, strata: 0),
         "end_stone_bricks": masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 22, [(0, 0xC8C890), (0.5, 0xDADAA6), (1, 0xEAEABC)], mortar: 0xA6A676, chips: 0.8),
         "purpur_block": masonry(rows: 4, perRow: 4, offset: 0, mortarW: 1 / 30, [(0, 0x8A5E8A), (0.5, 0xA678A6), (1, 0xC096C0)], mortar: 0x6C486C, chips: 0.5, tone: 0.1),
+        "crying_obsidian": cryingObsidian,
+        "purpur_pillar": pillarSide([(0, 0x7A507A), (0.5, 0xA678A6), (1, 0xC69CC6)]),
+        "purpur_pillar_top": pillarTop([(0, 0x7A507A), (0.5, 0xA678A6), (1, 0xC69CC6)]),
+        "bedrock": stone([(0, 0x141416), (0.3, 0x2E2E32), (0.6, 0x55555A), (1, 0x8A8A90)], veins: 1.4, strata: 0),
         "obsidian": stone([(0, 0x0E0A16), (0.5, 0x1C1428), (0.85, 0x2E2240), (1, 0x4A3A64)], veins: 0.8, strata: 0),
         "red_nether_bricks": masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 20, [(0, 0x480A0C), (0.5, 0x5E1214), (1, 0x7A1C1E)], mortar: 0x260406, clay: true, chips: 1.2),
         "polished_blackstone_bricks": masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 24, [(0, 0x262228), (0.5, 0x363038), (1, 0x4A424C)], mortar: 0x141216, chips: 1.4),
