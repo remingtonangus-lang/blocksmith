@@ -1566,11 +1566,13 @@ final class Renderer: NSObject, MTKViewDelegate {
                 arrowRight(ax, ay + 8 * s, 24 * s, s, V4(0.5, 0.5, 0.5, 1))
                 arrowRight(ax, ay + 8 * s, 24 * s, s, V4(1, 1, 1, 1), upTo: Float(f.be.cook) / 200)
             }
-            if m is InventoryMenu && game.effects.any {
+            if let im = m as? InventoryMenu, game.effects.any {
                 var y = o.y
+                // Left of the recipe-book toggle (the list ran under it: run 362 inventory shot), and of the open book.
+                let right: Float = im.book.open ? o.x - 126 * s : o.x - 26 * s
                 for (e, a) in game.effects.active {
                     let bw = 120 * s
-                    let bx = o.x - bw - 4 * s
+                    let bx = right - bw
                     guard bx > 0 else { break }
                     rect(bx, y, bw, 32 * s, V4(0.776, 0.776, 0.776, 1))
                     frame(bx, y, bw, 32 * s, s, V4(0.2, 0.2, 0.2, 1))
