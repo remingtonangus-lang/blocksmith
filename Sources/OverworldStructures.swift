@@ -457,7 +457,20 @@ enum OverworldStructures {
                     let walled = wall(x - 2 * ax, fy + 1, z - 2 * az) && wall(x + 2 * ax, fy + 1, z + 2 * az)
                     var crossed = false
                     for side in -1...1 { for h in 0...2 where shared.contains(ck(x + ax * side, fy + h, z + az * side)) { crossed = true } }
-                    if k % 5 == 2 && walled && !crossed {
+                    // A support also keeps a slice away from a crossing and from a change of floor height: its beam
+                    // took the headroom of anyone stepping down into it, and a post beside a crossing at another
+                    // height closed the step (structcheck maps: both remaining mineshaft chests, run 372).
+                    var nearJoin = false
+                    if k % 5 == 2 {
+                        for j in [-1, 1] {
+                            let kk = k + j
+                            if kk < 0 || kk > s.len || s.floor(kk) != fy { nearJoin = true; continue }
+                            let nx = x + s.dx * j, nz = z + s.dz * j
+                            for side in -1...1 { for h in 0...2 where shared.contains(ck(nx + ax * side, fy + h, nz + az * side)) { nearJoin = true } }
+                            if !wall(nx - 2 * ax, fy + 1, nz - 2 * az) || !wall(nx + 2 * ax, fy + 1, nz + 2 * az) { nearJoin = true }
+                        }
+                    }
+                    if k % 5 == 2 && walled && !crossed && !nearJoin {
                         // Supports: two fence posts and a plank beam.
                         w.set(x - ax, fy, z - az, fence); w.set(x - ax, fy + 1, z - az, fence)
                         w.set(x + ax, fy, z + az, fence); w.set(x + ax, fy + 1, z + az, fence)
