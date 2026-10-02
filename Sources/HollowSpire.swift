@@ -19,7 +19,7 @@ enum HollowSpire {
             let topY = y0 + 1 + 6 + floors * 5
             var pieces: [Piece] = []
             // The box covers the doorway steps out to 11 blocks (writes land only in chunks the box overlaps).
-            pieces.append(Piece(min: IVec3(ox - 12, y0 - 10, oz - 12), max: IVec3(ox + 12, topY + 10, oz + 12)) { w in
+            pieces.append(Piece(min: IVec3(ox - 12, y0 - 10, oz - 12), max: IVec3(ox + 12, topY + 12, oz + 12)) { w in
                 buildCity(&w, ox: ox, oz: oz, y0: y0 + 1, floors: floors, seed: s)
             })
             if ship {
@@ -122,6 +122,17 @@ enum HollowSpire {
                 w.mob("shulker", V3(Float(ox + 5) + 0.5, Float(y + 1), Float(oz - 5) + 0.5))
                 w.mob("shulker", V3(Float(ox - 5) + 0.5, Float(y + 1), Float(oz - 5) + 0.5))
                 w.mob("shulker", V3(Float(ox) + 0.5, Float(y + 7), Float(oz + 4) + 0.5))
+                // A crenellated parapet with corner posts and lamps on the roof (a bare 13x13 slab read as unfinished:
+                // blind critic, run 369 end_city).
+                let ry = y + 9
+                for z in (oz - 6)...(oz + 6) { for x in (ox - 6)...(ox + 6) where abs(x - ox) == 6 || abs(z - oz) == 6 {
+                    let corner = abs(x - ox) == 6 && abs(z - oz) == 6
+                    if corner {
+                        w.set(x, ry, z, pillar); w.set(x, ry + 1, z, pillar); w.set(x, ry + 2, z, Blocks.id("end_rod"))
+                    } else if (x + z) % 2 == 0 {
+                        w.set(x, ry, z, purpur)
+                    }
+                } }
             }
         }
         // Stairs from the house up through its ceiling into the first tower floor (the house had no way up, so the
@@ -185,7 +196,8 @@ enum HollowSpire {
         w.chest(c2.x, c2.y, c2.z, loot: "end_city_treasure", seed: rng.next(), facing: 0)
         w.chest(c3.x, c3.y, c3.z, loot: "end_ship_elytra", seed: rng.next(), facing: 0)
         // Mast and sails.
-        let wool = Blocks.has("black_wool") ? Blocks.id("black_wool") : OBSIDIAN
+        // Purple sails (black ones read as a hole in the dark void: blind critic, run 369).
+        let wool = Blocks.has("purple_wool") ? Blocks.id("purple_wool") : OBSIDIAN
         for h in 1...10 { put(-1, h, 0, pillar) }
         for h in 4...9 { for b in -3...3 where abs(b) > 0 { put(-2, h, b, wool) } }
         // Bow and stern tips open where the bridge steps arrive; the lamps sit on the gunwale instead.
