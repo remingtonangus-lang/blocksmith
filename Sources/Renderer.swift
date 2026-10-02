@@ -118,6 +118,10 @@ final class Renderer: NSObject, MTKViewDelegate {
     lazy var baseVertexOK: Bool = (device.supportsFamily(.apple3) || device.supportsFamily(.mac2))
         && !device.name.contains("Paravirtual") && !CommandLine.arguments.contains("--no-base-vertex") && !CommandLine.arguments.contains("--nobase")
         && !device.name.contains("Paravirtual") && !CommandLine.arguments.contains("--no-base-vertex")
+    // Apple's paravirtual GPU driver (CI runners) aborts now and then on its own command-storage assertion in Fancy at
+    // render distance 24 (runs 354, 362, 371, 372; never on a Mac): there the shadow passes go in a command buffer of
+    // their own, so no single buffer carries the whole frame.
+    lazy var paravirtual: Bool = device.name.contains("Paravirtual")
     var caveCulling = true
     // Smoothed skylight at the player's eye (0...1, -1 = not sampled yet). Fog and sky colour fade toward
     // near-black when it is low, so distant cave walls no longer fog into bright sky blue underground.
@@ -460,9 +464,10 @@ final class Renderer: NSObject, MTKViewDelegate {
         let turned = simd_dot(lf.dir, lastShadow.dir) < 0.99995
         let moved = simd_length(lf.center - lastShadow.center) > 1.0
         var terrainShadow = false
+        let shadowCmd: MTLCommandBuffer = paravirtual ? (cmd.commandQueue.makeCommandBuffer() ?? cmd) : cmd
         if turned || moved || shadowAge >= 8 || lf.shadowStrength != lastShadow.shadowStrength || shadowFresh == false {
             lightFrame = lf
-            shadowPass(cmd, v)
+            shadowPass(shadowCmd, v)
             lastShadow = lf
             shadowAge = 0
             shadowFresh = true
@@ -473,7 +478,8 @@ final class Renderer: NSObject, MTKViewDelegate {
             keep.center = lastShadow.center
             lightFrame = keep
         }
-        mobShadowPass(cmd, v, terrainChanged: terrainShadow)
+        mobShadowPass(shadowCmd, v, terrainChanged: terrainShadow)
+        if shadowCmd !== cmd { shadowCmd.commit() }
         defer { mobPre = nil }
         let a = MTLRenderPassDescriptor()
         a.colorAttachments[0].texture = v.hdr

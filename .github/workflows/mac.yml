@@ -51,7 +51,7 @@ jobs:
       - name: Smoke test (play 60 s at render distance 8, 16, 24, and 24 in Fast)
         id: smoke
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        timeout-minutes: 15
+        timeout-minutes: 22
         run: |
           set -o pipefail
           bash ./smoke.sh 60 2>&1 | tee smoke.log

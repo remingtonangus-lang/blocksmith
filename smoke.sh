@@ -20,12 +20,13 @@ for rd in $RDS; do
   rc=${PIPESTATUS[0]}
   # The CI runners' virtual GPU driver (AppleParavirtCommandBuffer) sometimes aborts on its own command storage
   # assertion at rd 24 Fancy (runs 354, 362, 371; the lldb rerun of the same scene passed each time). It does not
-  # exist on a real Mac: that one signature gets a single retry; anything else, or a second abort, fails.
-  if [ $rc -ne 0 ] && grep -q "AppleParavirtCommandBuffer" snaps/smoke_run.log; then
-    echo "smoke rd $rd: exit $rc on the virtual GPU driver's command-storage assertion; one retry"
-    play "$rd"
-    rc=$?
-  fi
+  # exist on a real Mac: that one signature gets up to two retries; anything else, or a third abort, fails.
+  for retry in 1 2; do
+    [ $rc -ne 0 ] && grep -q "AppleParavirtCommandBuffer" snaps/smoke_run.log || break
+    echo "smoke rd $rd: exit $rc on the virtual GPU driver's command-storage assertion; retry $retry"
+    play "$rd" 2>&1 | tee snaps/smoke_run.log
+    rc=${PIPESTATUS[0]}
+  done
   if [ $rc -ne 0 ]; then
     echo "smoke rd $rd: exit $rc"
     FAILED+=("$rd")
