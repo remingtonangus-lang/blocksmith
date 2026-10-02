@@ -97,7 +97,7 @@ enum BehaviorSim {
                     let p = String(format: "%.1f %.1f %.1f", t.mob.pos.x, t.mob.pos.y - Float(YOFF), t.mob.pos.z)
                     let gu0 = t.gaveUp > 0 ? "; gave up \(t.gaveUp)x (\(t.gaveUpAt.joined(separator: "; ")))" : ""
                     let top = t.stuckWhy.sorted { $0.value > $1.value }.prefix(3).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
-                    let gu = gu0 + (top.isEmpty ? "" : "; stuck as \(top)")
+                    let gu = gu0 + (top.isEmpty ? "" : "; doing when stuck or spinning: \(top)")
                     rows.append("- \(t.mob.kind.key) at \(p): \(fl.isEmpty ? "ok" : fl)\(goals.isEmpty ? "" : "; closest to goals: " + goals)\(gu)")
                 }
             }
