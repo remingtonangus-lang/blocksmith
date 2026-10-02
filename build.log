@@ -1,0 +1,256 @@
+Sources/AudioAmbience.swift:443:14: warning: case is already handled by previous patterns; consider removing it
+441 |         case .ocean, .deepOcean, .warmOcean, .lukewarmOcean, .deepLukewarmOcean, .coldOcean, .deepColdOcean, .frozenOcean, .deepFrozenOcean, .beach: return .ocean
+442 |         case .cherryGrove, .meadow, .flowerForest, .sunflowerPlains: return .grove
+443 |         case .jaggedPeaks, .stonyPeaks, .windsweptHills, .windsweptGravellyHills, .windsweptForest: return .mountain
+    |              `- warning: case is already handled by previous patterns; consider removing it
+444 |         case .swamp, .mangroveSwamp: return .swamp
+445 |         case .jungle, .sparseJungle, .bambooJungle: return .jungle
+
+Sources/Ballistics.swift:464:70: warning: expression took 222ms to type-check (limit: 150ms)
+462 |                                size: gs.shot == .beam ? 0.12 : 0.16, gravity: 0, color: gs.shot == .beam ? V3(0.8, 2, 2.4) : V3(2.4, 1.7, 0.6),
+463 |                                collide: false, glow: true))
+464 |         if gs.shot == .rocket { for _ in 0..<6 { particles.smoke(at: player.eye - look * 0.6 + right * 0.2, dark: false) } }
+    |                                                                      `- warning: expression took 222ms to type-check (limit: 150ms)
+465 |     }
+466 | 
+
+Sources/Banners.swift:215:24: warning: expression took 170ms to type-check (limit: 150ms)
+213 |             let o = a + halfDown * Float(half)
+214 |             let pts = [o + halfDown, o + right + halfDown, o + right, o]
+215 |             let back = [o + right + halfDown, o + halfDown, o, o + right]
+    |                        `- warning: expression took 170ms to type-check (limit: 150ms)
+216 |             let uv = [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)]
+217 |             let uvBack = [V2(1, 1), V2(0, 1), V2(0, 0), V2(1, 0)]
+
+Sources/Gadgets.swift:132:24: warning: expression took 169ms to type-check (limit: 150ms)
+130 |         if len > 10 { breakLeash(g); return }
+131 |         if len > 6 {
+132 |             let pull = d / len * (len - 6) * 6
+    |                        `- warning: expression took 169ms to type-check (limit: 150ms)
+133 |             vel.x += pull.x * dt * 4
+134 |             vel.z += pull.z * dt * 4
+
+Sources/Gadgets.swift:132:24: warning: expression took 164ms to type-check (limit: 150ms)
+130 |         if len > 10 { breakLeash(g); return }
+131 |         if len > 6 {
+132 |             let pull = d / len * (len - 6) * 6
+    |                        `- warning: expression took 164ms to type-check (limit: 150ms)
+133 |             vel.x += pull.x * dt * 4
+134 |             vel.z += pull.z * dt * 4
+
+Sources/GameCircuit.swift:178:44: warning: expression took 237ms to type-check (limit: 150ms)
+176 |             } else if bk.hasSuffix("_sapling") { if Rand.float(in: 0..<1) < 0.45 { growTree(front, bk) }; take() }
+177 |         default:
+178 |             if stack.def.armorSlot != nil, simd_length(player.pos + V3(0, 0.9, 0) - (V3(Float(front.x), Float(front.y), Float(front.z)) + 0.5)) < 1.5,
+    |                                            `- warning: expression took 237ms to type-check (limit: 150ms)
+179 |                let sl = stack.def.armorSlot, inventory.armor[sl.rawValue].isEmpty {
+180 |                 inventory.armor[sl.rawValue] = ItemStack(stack.item, 1); take()
+
+Sources/GameCircuit.swift:178:44: warning: expression took 211ms to type-check (limit: 150ms)
+176 |             } else if bk.hasSuffix("_sapling") { if Rand.float(in: 0..<1) < 0.45 { growTree(front, bk) }; take() }
+177 |         default:
+178 |             if stack.def.armorSlot != nil, simd_length(player.pos + V3(0, 0.9, 0) - (V3(Float(front.x), Float(front.y), Float(front.z)) + 0.5)) < 1.5,
+    |                                            `- warning: expression took 211ms to type-check (limit: 150ms)
+179 |                let sl = stack.def.armorSlot, inventory.armor[sl.rawValue].isEmpty {
+180 |                 inventory.armor[sl.rawValue] = ItemStack(stack.item, 1); take()
+
+Sources/GameCircuit.swift:178:44: warning: expression took 225ms to type-check (limit: 150ms)
+176 |             } else if bk.hasSuffix("_sapling") { if Rand.float(in: 0..<1) < 0.45 { growTree(front, bk) }; take() }
+177 |         default:
+178 |             if stack.def.armorSlot != nil, simd_length(player.pos + V3(0, 0.9, 0) - (V3(Float(front.x), Float(front.y), Float(front.z)) + 0.5)) < 1.5,
+    |                                            `- warning: expression took 225ms to type-check (limit: 150ms)
+179 |                let sl = stack.def.armorSlot, inventory.armor[sl.rawValue].isEmpty {
+180 |                 inventory.armor[sl.rawValue] = ItemStack(stack.item, 1); take()
+
+Sources/Hollow.swift:330:40: warning: expression took 244ms to type-check (limit: 150ms)
+328 |             let a = c.pos + V3(0, 1.25, 0) - eye, b = d.pos + V3(0, 2.5, 0) - eye
+329 |             let dir = simd_normalize(b - a)
+330 |             var side = simd_cross(dir, simd_normalize(-(a + b) * 0.5))
+    |                                        `- warning: expression took 244ms to type-check (limit: 150ms)
+331 |             if simd_length(side) < 1e-3 { side = V3(1, 0, 0) }
+332 |             side = simd_normalize(side) * 0.12
+
+Sources/Music.swift:262:9: warning: expression took 293ms to type-check (limit: 150ms)
+260 |         sr = sampleRate
+261 |         let lens = [1557, 1617, 1491, 1422, 1277, 1356]
+262 |         combs = lens.map { [Float](repeating: 0, count: Int(Float($0) * sampleRate / 44100)) }
+    |         `- warning: expression took 293ms to type-check (limit: 150ms)
+263 |         combIdx = [Int](repeating: 0, count: lens.count)
+264 |         combLP = [Float](repeating: 0, count: lens.count)
+
+Sources/PadTest.swift:631:44: warning: expression took 166ms to type-check (limit: 150ms)
+629 |             let r = V3(cosf(g.player.yaw), 0, -sinf(g.player.yaw)), f = V3(-sinf(g.player.yaw), 0, -cosf(g.player.yaw))
+630 |             CombatHUD.shared.hurt(g, from: g.player.pos + r * 4, amount: 4)
+631 |             CombatHUD.shared.hurt(g, from: g.player.pos - f * 4 - r * 2, amount: 2)
+    |                                            `- warning: expression took 166ms to type-check (limit: 150ms)
+632 |             if name == "combat" {
+633 |                 for (i, n) in ["gun_rifle", "gun_shotgun", "gun_smg", "gun_sniper", "gun_launcher"].enumerated() where Items.has(n) {
+
+Sources/Player.swift:122:44: warning: expression took 150ms to type-check (limit: 150ms)
+120 |             speed = inLava && !inWater ? 1.0 : (sprinting ? 3.0 : 2.2)
+121 |             // Depth magmastrider closes the gap to land speed; dolphin's grace is much faster.
+122 |             if depthStrider > 0 { speed += (4.317 - speed) * Float(min(3, depthStrider)) / 3 }
+    |                                            `- warning: expression took 150ms to type-check (limit: 150ms)
+123 |             if dolphinsGrace { speed *= 2.2 }
+124 |         }
+
+Sources/Player.swift:246:17: warning: expression took 155ms to type-check (limit: 150ms)
+244 |                 boost -= 0.05
+245 |                 let push: V3 = l * 0.1
+246 |                 v += push + (l * 1.5 - v) * 0.5
+    |                 `- warning: expression took 155ms to type-check (limit: 150ms)
+247 |             }
+248 |             v *= V3(0.99, 0.98, 0.99)
+
+Sources/Player.swift:246:17: warning: expression took 161ms to type-check (limit: 150ms)
+244 |                 boost -= 0.05
+245 |                 let push: V3 = l * 0.1
+246 |                 v += push + (l * 1.5 - v) * 0.5
+    |                 `- warning: expression took 161ms to type-check (limit: 150ms)
+247 |             }
+248 |             v *= V3(0.99, 0.98, 0.99)
+
+Sources/ShipRender.swift:397:15: warning: result of call to 'withUnsafeBytes' is unused
+395 |         guard off + n <= ShipRenderer.ringSize else { return nil }
+396 |         let b = ring[ringIndex]
+397 |         verts.withUnsafeBytes { memcpy(b.contents() + off, $0.baseAddress!, n) }
+    |               `- warning: result of call to 'withUnsafeBytes' is unused
+398 |         ringOff = off + n
+399 |         return (b, off)
+
+Sources/Ships.swift:108:21: warning: expression took 190ms to type-check (limit: 150ms)
+106 |                 var v: Float = 0
+107 |                 for bx in Blocks.boxes[i] {
+108 |                     v += Float(Int(bx.x1) - Int(bx.x0)) * Float(Int(bx.y1) - Int(bx.y0)) * Float(Int(bx.z1) - Int(bx.z0)) / 4096
+    |                     `- warning: expression took 190ms to type-check (limit: 150ms)
+109 |                 }
+110 |                 d *= max(0.1, min(1, v > 0 ? v : 0.5))
+
+Sources/TerrainTools.swift:81:26: warning: expression took 195ms to type-check (limit: 150ms)
+ 79 |             for col in 0..<n {
+ 80 |                 let i = row * n + col
+ 81 |                 let hx = (hs[row * n + min(n - 1, col + 1)] - hs[row * n + max(0, col - 1)]) / Float(2 * step)
+    |                          `- warning: expression took 195ms to type-check (limit: 150ms)
+ 82 |                 let hz = (hs[min(n - 1, row + 1) * n + col] - hs[max(0, row - 1) * n + col]) / Float(2 * step)
+ 83 |                 let nl = (hx * hx + hz * hz + 1).squareRoot()
+
+Sources/TerrainTools.swift:82:26: warning: expression took 200ms to type-check (limit: 150ms)
+ 80 |                 let i = row * n + col
+ 81 |                 let hx = (hs[row * n + min(n - 1, col + 1)] - hs[row * n + max(0, col - 1)]) / Float(2 * step)
+ 82 |                 let hz = (hs[min(n - 1, row + 1) * n + col] - hs[max(0, row - 1) * n + col]) / Float(2 * step)
+    |                          `- warning: expression took 200ms to type-check (limit: 150ms)
+ 83 |                 let nl = (hx * hx + hz * hz + 1).squareRoot()
+ 84 |                 let dot = (-hx * lx - hz * ly + lz) / (nl * ll)
+
+Sources/Textures.swift:635:13: warning: expression took 182ms to type-check (limit: 150ms)
+ 633 |         p["ancient_debris_top"] = { x, y in
+ 634 |             let dx = Float(x) - 7.5, dy = Float(y) - 7.5
+ 635 |             return hex((dx * dx + dy * dy) < 20 ? 0x6E5650 : 0x4E3E3A, 0.85 + 0.2 * r(x, y, 176))
+     |             `- warning: expression took 182ms to type-check (limit: 150ms)
+ 636 |         }
+ 637 |         p["soul_sand"] = { x, y in
+
+Sources/TexturesHD.swift:2190:44: warning: expression took 203ms to type-check (limit: 150ms)
+2188 |                         let ry: Float = ty + Float(row) * fn * 0.045
+2189 |                         for k in 0..<count {
+2190 |                             let f: Float = (Float(k) + 0.5 * Float(row) + 0.25) / Float(count) * 2 - 1
+     |                                            `- warning: expression took 203ms to type-check (limit: 150ms)
+2191 |                             let x0: Float = fn / 2 + f * half
+2192 |                             let droop: Float = 0.35 + 0.3 * abs(f)
+
+Sources/TexturesHD.swift:2242:24: warning: expression took 396ms to type-check (limit: 150ms)
+2240 |                 for (su, sv) in mushroomSpots {
+2241 |                     let du: Float = (dx - su) / 0.14, dv: Float = (up + sv) / 0.2
+2242 |                     if du * du + dv * dv < 1 && d < 0.9 {
+     |                        `- warning: expression took 396ms to type-check (limit: 150ms)
+2243 |                         let wk: Float = 0.9 + 0.2 * (1 - d)
+2244 |                         c = wc * wk
+
+Sources/TexturesHD.swift:2704:41: warning: expression took 231ms to type-check (limit: 150ms)
+2702 |                     let dx: Float = abs(Float(x) + 0.5 - fn / 2), dy: Float = abs(Float(y) + 0.5 - fn / 2)
+2703 |                     if flower && max(dx, dy) < 3 * Float(u) {
+2704 |                         let bk: Float = 0.9 + 0.2 * fine[y * n + x] + 0.1 * (1 - max(dx, dy) / (3 * Float(u)))
+     |                                         `- warning: expression took 231ms to type-check (limit: 150ms)
+2705 |                         plot(&img, x, y, col(0xE0CCE8) * bk)
+2706 |                     } else if !flower && edge < u {
+
+Sources/TexturesHD.swift:2743:44: warning: expression took 286ms to type-check (limit: 150ms)
+2741 |                             let uu: Float = (Float(xi) + 0.5 - cx) / w
+2742 |                             guard abs(uu) <= 1 else { continue }
+2743 |                             let k: Float = (1.05 - 0.4 * abs(uu + 0.3)) * (0.85 + 0.25 * fine[y * n + ((xi % n) + n) % n])
+     |                                            `- warning: expression took 286ms to type-check (limit: 150ms)
+2744 |                             img[xi, y] = V4(min(1, 0.29 * k), min(1, 0.23 * k), min(1, 0.16 * k), 1)
+2745 |                         }
+
+Sources/TexturesHD.swift:2781:17: warning: immutable value 'fn' was never used; consider replacing with '_' or removing it
+2779 |     static func diodeFace(_ kind: String) -> Gen {
+2780 |         { n, s in
+2781 |             let fn = Float(n), u = n / 16
+     |                 `- warning: immutable value 'fn' was never used; consider replacing with '_' or removing it
+2782 |             let fine = vnoise(n, max(1, n / 64), s &+ 2)
+2783 |             switch kind {
+
+Sources/TexturesHD.swift:3106:20: warning: expression took 227ms to type-check (limit: 150ms)
+3104 |                 // Cap: the upper half of an ellipse.
+3105 |                 let u: Float = fx / capR, v: Float = (fy - capY) / capH
+3106 |                 if v <= 0.25 && u * u + v * v <= 1 {
+     |                    `- warning: expression took 227ms to type-check (limit: 150ms)
+3107 |                     let light: Float = 0.8 + 0.25 * (-v) - 0.12 * u
+3108 |                     let rim: Float = v > 0 ? 0.7 : 1
+
+Sources/TexturesHD.swift:3116:32: warning: expression took 392ms to type-check (limit: 150ms)
+3114 |                         for (su, sv) in mushroomSpots {
+3115 |                             let du: Float = (u - su) / (0.16 * (1 - 0.4 * abs(su))), dv: Float = (v - sv) / 0.2
+3116 |                             if du * du + dv * dv < 1 { cc = V3(0.94, 0.93, 0.9) * light }
+     |                                `- warning: expression took 392ms to type-check (limit: 150ms)
+3117 |                         }
+3118 |                     }
+
+Sources/TexturesHD.swift:3881:33: warning: expression took 234ms to type-check (limit: 150ms)
+3879 |                 let seam = bx < max(1, n / 64) || (y % bh) < max(1, n / 64)
+3880 |                 let boardTone: Float = h2(board &* 7 &+ (x + off) / (n / 2), 1, s) * 0.16
+3881 |                 let gy: Float = Float(y) + (grainW[i] - 0.5) * Float(bh) * 0.9
+     |                                 `- warning: expression took 234ms to type-check (limit: 150ms)
+3882 |                 let grain: Float = 0.5 + 0.5 * sinf(gy / Float(n) * 2 * Float.pi * 18)
+3883 |                 // A knot now and then.
+
+Sources/TexturesHD.swift:3940:33: warning: expression took 227ms to type-check (limit: 150ms)
+3938 |             for y in 0..<n { for x in 0..<n {
+3939 |                 let i = y * n + x
+3940 |                 let wy: Float = Float(y) + (w[i] - 0.5) * Float(n) * 0.25
+     |                                 `- warning: expression took 227ms to type-check (limit: 150ms)
+3941 |                 let rip: Float = 0.5 + 0.5 * sinf(wy / Float(n) * 2 * Float.pi * 6)
+3942 |                 let t0: Float = 0.55 + (grain[i] - 0.5) * 0.24
+
+Sources/TexturesOverworld.swift:109:26: warning: expression took 205ms to type-check (limit: 150ms)
+107 |             { x, y in
+108 |                 var k: Float = 0.94 + (blot(x, y, salt, 4) - 0.5) * 0.14 + (r(x, y, salt + 1) - 0.5) * 0.05
+109 |                 let f1 = abs(Float(x) - Float(y) * 0.6 - 4 + sinf(Float(y) * 0.8) * 1.2) < 0.55
+    |                          `- warning: expression took 205ms to type-check (limit: 150ms)
+110 |                 let f2 = abs(Float(y) - Float(x) * 0.35 - 9) < 0.5 && x > 4
+111 |                 if f1 || f2 { k += 0.16 }
+
+Sources/TexturesOverworld.swift:110:26: warning: expression took 185ms to type-check (limit: 150ms)
+108 |                 var k: Float = 0.94 + (blot(x, y, salt, 4) - 0.5) * 0.14 + (r(x, y, salt + 1) - 0.5) * 0.05
+109 |                 let f1 = abs(Float(x) - Float(y) * 0.6 - 4 + sinf(Float(y) * 0.8) * 1.2) < 0.55
+110 |                 let f2 = abs(Float(y) - Float(x) * 0.35 - 9) < 0.5 && x > 4
+    |                          `- warning: expression took 185ms to type-check (limit: 150ms)
+111 |                 if f1 || f2 { k += 0.16 }
+112 |                 if r(x, y, salt + 2) > 0.985 { k += 0.25 }
+
+Sources/WorldGen.swift:503:57: warning: expression took 253ms to type-check (limit: 150ms)
+ 501 |         let n = surfN.noise2(Float(wx) / 12, Float(wz) / 12)
+ 502 |         let rise: Int = {
+ 503 |             let a = tops[max(0, lx - 1) + lz * CS], c = tops[min(CS - 1, lx + 1) + lz * CS]
+     |                                                         `- warning: expression took 253ms to type-check (limit: 150ms)
+ 504 |             let d = tops[lx + max(0, lz - 1) * CS], e = tops[lx + min(CS - 1, lz + 1) * CS]
+ 505 |             return max(abs(a - c), abs(d - e))
+
+Sources/WorldGen.swift:504:57: warning: expression took 285ms to type-check (limit: 150ms)
+ 502 |         let rise: Int = {
+ 503 |             let a = tops[max(0, lx - 1) + lz * CS], c = tops[min(CS - 1, lx + 1) + lz * CS]
+ 504 |             let d = tops[lx + max(0, lz - 1) * CS], e = tops[lx + min(CS - 1, lz + 1) * CS]
+     |                                                         `- warning: expression took 285ms to type-check (limit: 150ms)
+ 505 |             return max(abs(a - c), abs(d - e))
+ 506 |         }()
+Built build/Blocksmith.app (release)

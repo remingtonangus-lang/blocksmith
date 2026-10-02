@@ -1,0 +1,703 @@
+  Blocks: 198 sounds
+  Hostile Mobs: 197 sounds
+  Friendly Mobs: 179 sounds
+  Players: 129 sounds
+  Ambient: 42 sounds
+  Weather: 8 sounds
+  Interface: 5 sounds
+  wrote 37 soundscapes to build/sounds/scapes
+  slowest renders: frigateDroneLoop 52 ms, carriageTreadLoop 38 ms, endLoop 26 ms, crimsonLoop 25 ms, beaconActivate 20 ms, warpedLoop 19 ms
+synthesized 758 sounds (685.1 s of audio) in 4977 ms, 0 failed
+title  356 notes    136 s  peak 0.23 rms 0.064  "Quiet Forge (Title)"
+day  434 notes    152 s  peak 0.21 rms 0.053  "Quiet Forge (Overworld Day)"
+night  169 notes    138 s  peak 0.18 rms 0.050  "Quiet Forge (Overworld Night)"
+underground  138 notes    146 s  peak 0.18 rms 0.051  "Quiet Forge (Underground)"
+underwater  145 notes    136 s  peak 0.22 rms 0.060  "Quiet Forge (Underwater)"
+ember  204 notes    121 s  peak 0.21 rms 0.058  "Quiet Forge (Emberdeep)"
+hollow  171 notes    141 s  peak 0.20 rms 0.046  "Quiet Forge (The Hollow)"
+creative  615 notes    145 s  peak 0.19 rms 0.046  "Quiet Forge (Creative)"
+boss 1404 notes    125 s  peak 0.47 rms 0.094  "Quiet Forge (Boss)"
+rain  158 notes    130 s  peak 0.20 rms 0.054  "Quiet Forge (Rain)"
+snow  219 notes    136 s  peak 0.17 rms 0.041  "Quiet Forge (Snowfields)"
+desert  209 notes    122 s  peak 0.16 rms 0.045  "Quiet Forge (Dunes)"
+ocean  239 notes    134 s  peak 0.24 rms 0.065  "Quiet Forge (Open Water)"
+grove  260 notes    114 s  peak 0.17 rms 0.045  "Quiet Forge (Blossom)"
+mountain  169 notes    132 s  peak 0.24 rms 0.070  "Quiet Forge (High Passes)"
+swamp  204 notes    124 s  peak 0.17 rms 0.046  "Quiet Forge (Mire)"
+jungle  287 notes     94 s  peak 0.16 rms 0.044  "Quiet Forge (Canopy)"
+tension  197 notes    104 s  peak 0.16 rms 0.048  "Quiet Forge (Steelhold)"
+combat  933 notes     91 s  peak 0.42 rms 0.101  "Quiet Forge (Firefight)"
+rendered 19 pieces in 1466 ms, 0 failed
+audiotest PASS: car: engine heard while driving (speed 8.2, loop:ship1eng0 loop:ship1eng1 loop:ship1wheel)
+audiotest PASS: car: wheels rumble while rolling (speed 8.2, loop:ship1eng0 loop:ship1eng1 loop:ship1wheel)
+audiotest PASS: car: the engine starts once (1 starts)
+audiotest PASS: plane: propellers and wing rush in flight (speed 22.1, loop:ship2eng0 loop:ship2eng1 loop:ship2prop1 loop:ship2rush loop:wind)
+audiotest PASS: frigate: engine drone heard from 120 blocks (loop:mountainwind loop:vessel3)
+audiotest PASS: frigate nearby: tension (level 1)
+audiotest PASS: frigate in gun range: combat music (level 2)
+audiotest PASS: mountain wind on the peaks (loop:mountainwind)
+audiotest PASS: jagged_peaks: the landform wind replaces the plain wind (loop:mountainwind)
+audiotest PASS: tundra wind on the snowy plains (loop:mountainwind loop:tundrawind)
+audiotest PASS: snowy_plains: the landform wind replaces the plain wind (loop:mountainwind loop:tundrawind)
+audiotest PASS: insects over the swamp (loop:swamp loop:swampbugs loop:water)
+audiotest PASS: snow wind while it snows (loop:mountainwind loop:snowwind loop:tundrawind)
+audiotest PASS: no rain patter while it snows (loop:mountainwind loop:snowwind loop:tundrawind)
+audiotest PASS: rain heard in the open on the plains (loop:rain loop:rainleaves)
+audiotest PASS: a waterfall is heard beside it (loop:waterfall)
+audiotest PASS: flowing water is heard as a stream (loop:river loop:waterfall)
+audiotest: 0 failed (0.6 s)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 1209 ms, upload 385 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 67) sky 15 block 0 in air, daylight 1.0
+imagecheck audiotest.png magenta=0.00000 black=0.0001 white=0.0024 std=40.3 hash=be82316a5e289c06
+imagecheck audiotest.png magenta=0.00000 black=0.0001 white=0.0024 std=40.3 hash=be82316a5e289c06
+seed 12345  pos 8.5 133.0 56.5  rd 6  chunks 423  (drawn 47)
+gen 226 ms  mesh(all, parallel) 185 ms  mesh(1 section) 0.37 ms  quads 595255 opaque / 7062 water
+frame (encode+GPU, offscreen, median of 30) 4.71 ms  biome plains
+mesh slabs 44 MB, chunks 423 (block+light arrays 45 MB), Metal allocated 214 MB
+memory: resident 274 MB  (section meshes 38 MB)
+wrote snaps/audiotest.png
+terrainmap seed 12345: 8192 x 8192 blocks every 16 (0.4 s), land 67%, max height 277
+  biomes: plains 9.1%, snowy_taiga 8.0%, forest 7.1%, warm_ocean 6.1%, lukewarm_ocean 6.1%, ocean 5.9%, taiga 5.6%, snowy_plains 5.6%, deep_lukewarm_ocean 5.2%, cold_ocean 4.8%, jungle 4.0%, sparse_jungle 3.0%, beach 2.7%, snowy_slopes 2.7%, savanna 2.4%, meadow 2.3%, desert 2.1%, frozen_ocean 2.0%, old_growth_spruce_taiga 1.7%, grove 1.4%, deep_cold_ocean 1.2%, dark_forest 1.2%, deep_ocean 1.1%, old_growth_pine_taiga 1.0%, frozen_peaks 1.0%, jagged_peaks 0.8%, deep_frozen_ocean 0.7%, mangrove_swamp 0.7%, birch_forest 0.6%, snowy_beach 0.5%, river 0.5%, flower_forest 0.4%, swamp 0.4%, pale_garden 0.3%, savanna_plateau 0.3%, badlands 0.2%, bamboo_jungle 0.2%, cherry_grove 0.2%, old_growth_birch_forest 0.2%, windswept_forest 0.2%, sunflower_plains 0.1%, windswept_gravelly_hills 0.1%, windswept_hills 0.1%, stony_peaks 0.1%, ice_spikes 0.1%, frozen_river 0.0%, eroded_badlands 0.0%, mushroom_fields 0.0%, windswept_savanna 0.0%, wooded_badlands 0.0%, stony_shore 0.0%
+  rivers: 313 segments, 0 flowing uphill, 30 lakes
+terraincheck seed 12345: 0 problems (implausible neighbour pairs + uphill rivers)
+terrainmap seed 777: 8192 x 8192 blocks every 16 (0.4 s), land 55%, max height 262
+  biomes: deep_lukewarm_ocean 12.8%, warm_ocean 9.1%, taiga 8.1%, snowy_plains 7.5%, plains 6.6%, cold_ocean 6.5%, frozen_ocean 5.1%, forest 5.0%, lukewarm_ocean 4.1%, sparse_jungle 3.8%, jungle 3.4%, snowy_taiga 3.3%, ocean 3.2%, desert 2.7%, beach 2.5%, savanna 2.5%, deep_frozen_ocean 1.7%, dark_forest 1.6%, deep_ocean 1.2%, deep_cold_ocean 1.1%, old_growth_spruce_taiga 0.7%, badlands 0.7%, grove 0.6%, meadow 0.6%, mangrove_swamp 0.5%, snowy_slopes 0.5%, frozen_peaks 0.5%, snowy_beach 0.5%, birch_forest 0.4%, river 0.4%, pale_garden 0.4%, swamp 0.4%, bamboo_jungle 0.4%, old_growth_pine_taiga 0.4%, sunflower_plains 0.4%, old_growth_birch_forest 0.3%, jagged_peaks 0.3%, flower_forest 0.3%, savanna_plateau 0.1%, ice_spikes 0.1%, windswept_hills 0.1%, cherry_grove 0.1%, eroded_badlands 0.1%, wooded_badlands 0.0%, windswept_savanna 0.0%, windswept_forest 0.0%, mushroom_fields 0.0%, frozen_river 0.0%, windswept_gravelly_hills 0.0%, stony_peaks 0.0%
+  not in this area: stony_shore
+  rivers: 263 segments, 0 flowing uphill, 18 lakes
+terraincheck seed 777: 0 problems (implausible neighbour pairs + uphill rivers)
+terrainmap seed 424242: 8192 x 8192 blocks every 16 (0.4 s), land 62%, max height 278
+  biomes: taiga 8.0%, plains 8.0%, jungle 7.4%, cold_ocean 7.2%, forest 6.3%, sparse_jungle 5.3%, lukewarm_ocean 5.3%, ocean 4.9%, deep_cold_ocean 4.6%, savanna 4.1%, warm_ocean 4.1%, deep_ocean 3.7%, snowy_plains 3.2%, frozen_ocean 3.1%, deep_frozen_ocean 2.9%, beach 2.5%, desert 2.5%, meadow 2.4%, snowy_taiga 2.3%, deep_lukewarm_ocean 2.1%, dark_forest 1.1%, snowy_slopes 0.9%, grove 0.8%, jagged_peaks 0.7%, mangrove_swamp 0.7%, bamboo_jungle 0.6%, frozen_peaks 0.6%, river 0.6%, badlands 0.6%, cherry_grove 0.5%, snowy_beach 0.5%, flower_forest 0.5%, old_growth_spruce_taiga 0.4%, old_growth_pine_taiga 0.4%, savanna_plateau 0.3%, sunflower_plains 0.2%, pale_garden 0.2%, birch_forest 0.2%, windswept_hills 0.1%, swamp 0.1%, windswept_gravelly_hills 0.1%, stony_peaks 0.0%, ice_spikes 0.0%, old_growth_birch_forest 0.0%, windswept_forest 0.0%, eroded_badlands 0.0%, windswept_savanna 0.0%, mushroom_fields 0.0%, frozen_river 0.0%, stony_shore 0.0%
+  not in this area: wooded_badlands
+  rivers: 365 segments, 0 flowing uphill, 30 lakes
+terraincheck seed 424242: 0 problems (implausible neighbour pairs + uphill rivers)
+terrainmap seed 1: 8192 x 8192 blocks every 16 (0.4 s), land 65%, max height 240
+  biomes: taiga 7.6%, plains 7.5%, jungle 7.0%, sparse_jungle 6.6%, snowy_plains 6.0%, forest 5.9%, warm_ocean 5.5%, ocean 4.9%, deep_cold_ocean 4.5%, snowy_taiga 4.4%, deep_frozen_ocean 4.3%, savanna 4.3%, cold_ocean 4.2%, lukewarm_ocean 4.2%, deep_lukewarm_ocean 3.1%, beach 3.0%, deep_ocean 2.7%, desert 2.6%, dark_forest 1.4%, frozen_ocean 1.3%, meadow 1.3%, bamboo_jungle 1.0%, grove 1.0%, badlands 0.9%, mangrove_swamp 0.7%, river 0.5%, old_growth_pine_taiga 0.4%, old_growth_spruce_taiga 0.4%, snowy_slopes 0.3%, savanna_plateau 0.3%, cherry_grove 0.3%, snowy_beach 0.3%, birch_forest 0.3%, old_growth_birch_forest 0.2%, pale_garden 0.2%, flower_forest 0.2%, jagged_peaks 0.2%, frozen_peaks 0.1%, swamp 0.1%, eroded_badlands 0.1%, sunflower_plains 0.1%, ice_spikes 0.0%, windswept_hills 0.0%, frozen_river 0.0%, windswept_savanna 0.0%, windswept_forest 0.0%, stony_peaks 0.0%, wooded_badlands 0.0%, mushroom_fields 0.0%, stony_shore 0.0%, windswept_gravelly_hills 0.0%
+  rivers: 282 segments, 0 flowing uphill, 37 lakes
+terraincheck seed 1: 0 problems (implausible neighbour pairs + uphill rivers)
+terrainmap seed 98765: 8192 x 8192 blocks every 16 (0.4 s), land 66%, max height 263
+  biomes: taiga 7.7%, jungle 7.2%, plains 6.9%, deep_lukewarm_ocean 6.7%, lukewarm_ocean 6.6%, forest 6.0%, snowy_plains 5.7%, warm_ocean 5.6%, sparse_jungle 5.2%, cold_ocean 5.2%, ocean 4.2%, snowy_taiga 4.1%, beach 2.9%, dark_forest 2.1%, savanna 2.0%, meadow 2.0%, old_growth_spruce_taiga 2.0%, desert 1.9%, deep_ocean 1.9%, frozen_ocean 1.9%, old_growth_pine_taiga 1.5%, deep_frozen_ocean 1.2%, mangrove_swamp 1.0%, deep_cold_ocean 1.0%, snowy_slopes 0.9%, bamboo_jungle 0.7%, frozen_peaks 0.6%, jagged_peaks 0.6%, river 0.6%, grove 0.6%, birch_forest 0.5%, cherry_grove 0.5%, pale_garden 0.4%, old_growth_birch_forest 0.4%, snowy_beach 0.2%, flower_forest 0.2%, swamp 0.2%, ice_spikes 0.2%, sunflower_plains 0.2%, savanna_plateau 0.1%, windswept_hills 0.1%, badlands 0.1%, windswept_forest 0.1%, stony_peaks 0.1%, windswept_gravelly_hills 0.0%, frozen_river 0.0%, mushroom_fields 0.0%, eroded_badlands 0.0%, wooded_badlands 0.0%, windswept_savanna 0.0%, stony_shore 0.0%
+  rivers: 399 segments, 0 flowing uphill, 31 lakes
+terraincheck seed 98765: 0 problems (implausible neighbour pairs + uphill rivers)
+terraincheck total: 0 problems over 5 seeds
+genbench breakdown per chunk: terrain fields 0.18 ms (cold), blocks 2.73 ms, tints 0.06 ms
+genbench seed 12345: 2.71 ms/chunk mean (p95 4.33, max 7.92) single-thread cold, 1.66 ms warm, 1396 chunks/s parallel
+genbench water: 4818 water blocks above y 22, 0 beside open air at the same level
+kelpcheck   seagrass at 304 62 129: above air, column top y 62, highest water y 42, biome lukewarmOcean
+kelpcheck   seagrass at 306 62 130: above air, column top y 62, highest water y 42, biome lukewarmOcean
+kelpcheck   seagrass at 308 62 131: above air, column top y 62, highest water y 42, biome lukewarmOcean
+kelpcheck   seagrass at 328 62 143: above air, column top y 62, highest water y 35, biome lukewarmOcean
+kelpcheck   seagrass at 331 62 146: above air, column top y 62, highest water y -63, biome lukewarmOcean
+kelpcheck   seagrass at 338 62 149: above air, column top y 62, highest water y -63, biome lukewarmOcean
+kelpcheck   seagrass at 349 62 155: above air, column top y 62, highest water y 19, biome lukewarmOcean
+kelpcheck   seagrass at 350 62 155: above air, column top y 62, highest water y 19, biome lukewarmOcean
+kelpcheck   seagrass at 352 62 156: above air, column top y 62, highest water y -48, biome lukewarmOcean
+kelpcheck   seagrass at 355 62 157: above air, column top y 62, highest water y -63, biome lukewarmOcean
+kelpcheck   seagrass at 356 62 157: above air, column top y 62, highest water y -63, biome lukewarmOcean
+kelpcheck   seagrass at 355 62 158: above air, column top y 62, highest water y -63, biome lukewarmOcean
+kelpcheck seed 777 around 600 300 (1369 chunks): 56227 water-plant blocks, 303 not under water, 301 at or above sea level
+structcheck: mineshaft at 88 23 136: start cell 88 23 136 (dirt under), reaches 1216 cells (1202 without jumps), 1216 inside the structure up to y 24, box 19...28
+structcheck: mineshaft at -232 3 -232: start cell -232 3 -232 (dirt under), reaches 1641 cells (1466 without jumps), 1376 inside the structure up to y 10, box 2...10
+structcheck: mineshaft at 24 29 -168: start cell 24 29 -168 (dirt under), reaches 2630 cells (1466 without jumps), 2174 inside the structure up to y 34, box 28...34
+structcheck: ancient_city at 904 -50 -268: start cell 904 -51 -268 (deepslate_tiles under), reaches 7436 cells (7412 without jumps), 7396 inside the structure up to y -49, box -55...-27
+structcheck: ancient_city at -136 -50 836: start cell -136 -51 836 (deepslate_tiles under), reaches 7376 cells (7358 without jumps), 7376 inside the structure up to y -50, box -55...-27
+structcheck: ancient_city at -1064 -50 484: start cell -1064 -51 484 (sculk under), reaches 7742 cells (7664 without jumps), 7425 inside the structure up to y -49, box -55...-27
+structcheck: trial_chambers at 184 -29 184: start cell 184 -29 184 (trial_spawner under), reaches 825 cells (803 without jumps), 825 inside the structure up to y -29, box -32...-14
+structcheck: trial_chambers at -232 -22 -312: start cell -232 -22 -312 (trial_spawner under), reaches 825 cells (803 without jumps), 825 inside the structure up to y -22, box -25...-7
+structcheck: trial_chambers at 344 -21 -200: start cell 344 -21 -200 (trial_spawner under), reaches 825 cells (805 without jumps), 825 inside the structure up to y -21, box -24...-6
+structcheck: stronghold at 604 2 1619: start cell 604 2 1619 (infested_stone_bricks under), reaches 1175 cells (1081 without jumps), 1175 inside the structure up to y 7, box -10...41
+structcheck: stronghold at -2304 8 -381: start cell -2304 8 -381 (stone_bricks under), reaches 1488 cells (1424 without jumps), 1488 inside the structure up to y 13, box -4...47
+structcheck: stronghold at 1428 23 -1597: start cell 1428 23 -1597 (stone_bricks under), reaches 1378 cells (1285 without jumps), 1378 inside the structure up to y 28, box 11...62
+structcheck: fortress at 136 62 24: start cell 136 62 24 (nether_bricks under), reaches 8137 cells (7020 without jumps), 6452 inside the structure up to y 67, box 1...69
+structcheck: fortress at -104 69 -264: start cell -104 69 -264 (nether_bricks under), reaches 6020 cells (4286 without jumps), 4858 inside the structure up to y 76, box 8...76
+structcheck: fortress at 568 58 -120: start cell 568 58 -120 (nether_bricks under), reaches 1350 cells (1168 without jumps), 1350 inside the structure up to y 60, box -3...65
+structcheck: bastion at 200 34 -334: start cell 200 34 -334 (polished_blackstone under), reaches 1553 cells (1075 without jumps), 1553 inside the structure up to y 42, box -7...67
+structcheck: bastion at 520 44 104: start cell 520 44 104 (blackstone under), reaches 296 cells (266 without jumps), 296 inside the structure up to y 46, box -7...67
+structcheck: bastion at -88 34 722: start cell -88 34 722 (polished_blackstone under), reaches 3387 cells (1380 without jumps), 2474 inside the structure up to y 55, box -7...67
+structcheck: end_city at 400 67 -1216: start cell 400 65 -1216 (end_stone under), reaches 2104 cells (1163 without jumps), 1467 inside the structure up to y 90, box 55...102
+structcheck: end_city at -1136 63 1088: start cell -1136 59 1088 (end_stone under), reaches 1293 cells (197 without jumps), 779 inside the structure up to y 85, box 51...95
+structcheck: end_city at 992 65 1360: start cell 992 62 1360 (end_stone under), reaches 2790 cells (255 without jumps), 1692 inside the structure up to y 88, box 53...100
+structcheck: mineshaft at 168 -38 56: start cell 168 -38 56 (dirt under), reaches 2356 cells (1262 without jumps), 1981 inside the structure up to y -30, box -39...-30
+structcheck: mineshaft at -232 29 -120: start cell -232 29 -120 (dirt under), reaches 1799 cells (1493 without jumps), 1498 inside the structure up to y 35, box 28...35
+structcheck: mineshaft at 216 -6 -248: start cell 216 -6 -248 (dirt under), reaches 6362 cells (1230 without jumps), 2581 inside the structure up to y 1, box -10...1
+structcheck: ancient_city at 1016 -50 -396: start cell 1016 -51 -396 (deepslate_tiles under), reaches 7508 cells (7383 without jumps), 7379 inside the structure up to y -50, box -55...-27
+structcheck: ancient_city at 472 -50 820: start cell 472 -51 820 (deepslate_tiles under), reaches 7490 cells (7404 without jumps), 7396 inside the structure up to y -49, box -55...-27
+structcheck: ancient_city at -984 -50 -988: start cell -984 -51 -988 (deepslate_tiles under), reaches 7423 cells (7365 without jumps), 7376 inside the structure up to y -49, box -55...-27
+structcheck: trial_chambers at 216 -21 72: start cell 216 -21 72 (trial_spawner under), reaches 825 cells (803 without jumps), 825 inside the structure up to y -21, box -24...-6
+structcheck: trial_chambers at -504 -19 -328: start cell -504 -19 -328 (trial_spawner under), reaches 825 cells (801 without jumps), 825 inside the structure up to y -19, box -22...-4
+structcheck: trial_chambers at 72 -33 -328: start cell 72 -33 -328 (trial_spawner under), reaches 825 cells (803 without jumps), 825 inside the structure up to y -33, box -36...-18
+structcheck: stronghold at -712 1 1499: start cell -712 1 1499 (stone_bricks under), reaches 1180 cells (1101 without jumps), 1180 inside the structure up to y 6, box -11...40
+structcheck: stronghold at -960 8 -1521: start cell -960 8 -1521 (mossy_stone_bricks under), reaches 1261 cells (1166 without jumps), 1261 inside the structure up to y 13, box -4...47
+structcheck: stronghold at 2496 9 -113: start cell 2496 9 -113 (stone_bricks under), reaches 1606 cells (1466 without jumps), 1606 inside the structure up to y 14, box -3...48
+structcheck: fortress at 696 65 -408: start cell 696 65 -408 (nether_bricks under), reaches 2054 cells (1542 without jumps), 2054 inside the structure up to y 67, box 4...72
+structcheck: fortress at -88 70 88: start cell -88 70 88 (nether_bricks under), reaches 1112 cells (1025 without jumps), 1112 inside the structure up to y 72, box 9...77
+structcheck: fortress at 360 54 648: start cell 360 54 648 (nether_bricks under), reaches 1226 cells (946 without jumps), 1064 inside the structure up to y 61, box -7...61
+structcheck: bastion at 184 34 162: start cell 184 34 162 (polished_blackstone under), reaches 1610 cells (1081 without jumps), 1574 inside the structure up to y 42, box -7...67
+structcheck: bastion at -424 34 -318: start cell -424 34 -318 (polished_blackstone under), reaches 1553 cells (1075 without jumps), 1553 inside the structure up to y 42, box -7...67
+structcheck: bastion at 232 44 -328: start cell 232 44 -328 (blackstone under), reaches 5771 cells (223 without jumps), 4651 inside the structure up to y 67, box -7...67
+structcheck: end_city at 976 66 464: start cell 976 65 464 (end_stone under), reaches 1251 cells (1033 without jumps), 759 inside the structure up to y 83, box 54...93
+structcheck: end_city at -1152 65 128: start cell -1152 63 128 (end_stone under), reaches 1502 cells (415 without jumps), 768 inside the structure up to y 82, box 53...92
+structcheck: end_city at -1200 62 -1520: start cell -1200 59 -1520 (end_stone under), reaches 1981 cells (732 without jumps), 1358 inside the structure up to y 95, box 50...107
+structcheck: mineshaft at 88 -15 232: start cell 88 -15 232 (dirt under), reaches 1333 cells (1058 without jumps), 1116 inside the structure up to y -9, box -16...-9
+structcheck: mineshaft at -152 -19 -184: start cell -152 -19 -184 (dirt under), reaches 1086 cells (959 without jumps), 1086 inside the structure up to y -16, box -23...-14
+structcheck: mineshaft at 88 22 -120: start cell 88 22 -120 (dirt under), reaches 3305 cells (1248 without jumps), 2450 inside the structure up to y 27, box 18...27
+structcheck: ancient_city at -376 -50 -556: start cell -376 -51 -556 (sculk under), reaches 7547 cells (7475 without jumps), 7324 inside the structure up to y -49, box -55...-27
+structcheck: ancient_city at 904 -50 468: start cell 904 -51 468 (deepslate_tiles under), reaches 7343 cells (7326 without jumps), 7341 inside the structure up to y -50, box -55...-27
+structcheck: ancient_city at -760 -50 916: start cell -760 -51 916 (sculk under), reaches 7700 cells (7412 without jumps), 7340 inside the structure up to y -50, box -55...-27
+structcheck: trial_chambers at 104 -33 88: start cell 104 -33 88 (trial_spawner under), reaches 825 cells (801 without jumps), 825 inside the structure up to y -33, box -36...-18
+structcheck: trial_chambers at -280 -27 -296: start cell -280 -27 -296 (trial_spawner under), reaches 825 cells (803 without jumps), 825 inside the structure up to y -27, box -30...-12
+structcheck: trial_chambers at 40 -35 -392: start cell 40 -35 -392 (trial_spawner under), reaches 825 cells (804 without jumps), 825 inside the structure up to y -35, box -38...-20
+structcheck map military_base 1380 83 1244 (columns from x 1373, rows from z 1239):
+  |#############RR|
+  |#############RR|
+  |#############RR|
+  |#############RR|
+  |#######_____#RR|
+  |#######P____#RR|
+  |#######_____#RR|
+  |#############RR|
+  |#############RR|
+  |#############RR|
+  |#############RR|
+  closed by: +x at 5: steel_plating/steel_plating; -x at 1: cobblestone/cobblestone; +z at 2: cobblestone/cobblestone; -z at 2: cobblestone/cobblestone (structure anchor 1416 1293); floor cobblestone, ceiling cobblestone; near: chest@0,0,0 mossy_cobblestone@-2,3,-5 mossy_cobblestone@-1,3,-5 mossy_cobblestone@0,3,-5 mossy_cobblestone@2,3,-5 mossy_cobblestone@3,3,-5 mossy_cobblestone@4,3,-5 mossy_cobblestone@2,3,-4 mossy_cobblestone@-2,3,-3 mossy_cobblestone@-1,3,-3
+structcheck: stronghold at -2200 -8 -485: start cell -2200 -8 -485 (cracked_stone_bricks under), reaches 898 cells (836 without jumps), 898 inside the structure up to y -3, box -20...31
+structcheck: stronghold at 768 1 2287: start cell 768 1 2287 (stone_bricks under), reaches 1402 cells (1277 without jumps), 1402 inside the structure up to y 6, box -11...40
+structcheck: stronghold at 1648 13 -1721: start cell 1648 13 -1721 (stone_bricks under), reaches 1653 cells (1560 without jumps), 1653 inside the structure up to y 18, box 1...52
+structcheck: fortress at 632 53 248: start cell 632 53 248 (nether_bricks under), reaches 6557 cells (2550 without jumps), 4571 inside the structure up to y 60, box -8...60
+structcheck: fortress at 664 50 504: start cell 664 50 504 (nether_bricks under), reaches 3720 cells (1465 without jumps), 2555 inside the structure up to y 57, box -11...57
+structcheck: fortress at 56 62 -648: start cell 56 62 -648 (nether_bricks under), reaches 5222 cells (4626 without jumps), 4256 inside the structure up to y 64, box 1...69
+structcheck: bastion at 72 46 306: start cell 72 46 306 (polished_blackstone_bricks under), reaches 1807 cells (360 without jumps), 1001 inside the structure up to y 56, box -7...67
+structcheck: bastion at -120 44 -72: start cell -120 44 -72 (blackstone under), reaches 356 cells (237 without jumps), 356 inside the structure up to y 46, box -7...67
+structcheck: bastion at 360 44 -408: start cell 360 44 -408 (polished_blackstone_bricks under), reaches 281 cells (266 without jumps), 281 inside the structure up to y 45, box -7...67
+structcheck: end_city at 784 64 -816: start cell 784 64 -816 (end_stone under), reaches 1843 cells (1458 without jumps), 1298 inside the structure up to y 92, box 52...104
+structcheck: end_city at 1088 62 96: start cell 1088 64 96 (end_stone under), reaches 2132 cells (1542 without jumps), 1478 inside the structure up to y 90, box 50...102
+structcheck: end_city at 1344 65 -1232: start cell 1344 64 -1232 (end_stone under), reaches 1497 cells (1320 without jumps), 765 inside the structure up to y 82, box 53...92
+structcheck # Structure check
+structcheck 
+structcheck Seeds 12345, 777, 424242, up to 3 per kind. Walk model: steps <= 0.6 walk, <= 1.25 jump, drops <= 3.
+structcheck 
+structcheck | kind | checked | doors | POIs | mobs | issues |
+structcheck |---|---|---|---|---|---|
+structcheck | ancient_city | 9 | 0 | 74 | 0 | - |
+structcheck | bastion | 9 | 0 | 16 | 34 | - |
+structcheck | desert_well | 4 | 0 | 0 | 0 | - |
+structcheck | end_centre | 3 | 0 | 0 | 30 | - |
+structcheck | end_city | 9 | 0 | 33 | 46 | - |
+structcheck | fortress | 9 | 0 | 16 | 0 | - |
+structcheck | fossil | 2 | 0 | 0 | 0 | - |
+structcheck | mansion | 4 | 0 | 36 | 44 | - |
+structcheck | military_base | 9 | 0 | 523 | 324 | poi_unreachable 1 |
+structcheck | mineshaft | 9 | 0 | 28 | 0 | - |
+structcheck | monument | 9 | 0 | 0 | 81 | - |
+structcheck | ocean_ruin | 9 | 0 | 0 | 9 | - |
+structcheck | pillager_outpost | 7 | 0 | 7 | 42 | - |
+structcheck | ruined_portal | 9 | 0 | 9 | 0 | - |
+structcheck | shipwreck | 9 | 0 | 0 | 0 | - |
+structcheck | stronghold | 9 | 0 | 80 | 0 | - |
+structcheck | temple | 9 | 0 | 31 | 1 | - |
+structcheck | trail_ruins | 9 | 0 | 0 | 0 | - |
+structcheck | trial_chambers | 9 | 0 | 19 | 0 | - |
+structcheck | village | 9 | 125 | 333 | 207 | floating 2 |
+structcheck: 155 instances, 3 issues (floating 2, poi_unreachable 1) in 18.0 s
+camera in solid at 963 64 261: moved to 960 63 264
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 822 ms, upload 266 ms)
+light probe: eye sky 10 block 0 in air; floor+1 (y 61) sky 7 block 0 in air, daylight 1.0
+imagecheck issue_1.png magenta=0.00000 black=0.0000 white=0.0010 std=31.0 hash=9c54c8913631caab
+imagecheck issue_1.png magenta=0.00000 black=0.0000 white=0.0010 std=31.0 hash=9c54c8913631caab
+seed 777  pos 960.5 127.0 264.5  rd 4  chunks 109  (drawn 22)
+gen 175 ms  mesh(all, parallel) 68 ms  mesh(1 section) 1.77 ms  quads 242005 opaque / 4905 water
+frame (encode+GPU, offscreen, median of 30) 5.69 ms  biome plains
+mesh slabs 12 MB, chunks 109 (block+light arrays 9 MB), Metal allocated 194 MB
+memory: resident 231 MB  (section meshes 8 MB)
+wrote snaps/issue_1.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 800 ms, upload 271 ms)
+light probe: eye sky 6 block 0 in air; floor+1 (y 67) sky 0 block 0 in air, daylight 1.0
+imagecheck issue_2.png magenta=0.00000 black=0.0000 white=0.0016 std=59.8 hash=7aa9f654229062e2
+imagecheck issue_2.png magenta=0.00000 black=0.0000 white=0.0016 std=59.8 hash=7aa9f654229062e2
+seed 424242  pos -284.5 136.0 341.5  rd 4  chunks 109  (drawn 24)
+gen 97 ms  mesh(all, parallel) 114 ms  mesh(1 section) 0.47 ms  quads 296974 opaque / 1379 water
+frame (encode+GPU, offscreen, median of 30) 5.08 ms  biome desert
+mesh slabs 12 MB, chunks 109 (block+light arrays 11 MB), Metal allocated 194 MB
+memory: resident 232 MB  (section meshes 9 MB)
+wrote snaps/issue_2.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 862 ms, upload 286 ms)
+light probe: eye sky 0 block 0 in air; floor+1 (y 82) sky 0 block 0 in air, daylight 1.0
+imagecheck issue_3.png magenta=0.00000 black=0.0000 white=0.0010 std=19.4 hash=df3985c1852889d4
+imagecheck issue_3.png magenta=0.00000 black=0.0000 white=0.0010 std=19.4 hash=df3985c1852889d4
+seed 424242  pos 1386.5 146.0 1244.5  rd 4  chunks 109  (drawn 27)
+gen 96 ms  mesh(all, parallel) 143 ms  mesh(1 section) 1.62 ms  quads 415972 opaque / 4858 water
+frame (encode+GPU, offscreen, median of 30) 5.37 ms  biome sparseJungle
+mesh slabs 16 MB, chunks 109 (block+light arrays 11 MB), Metal allocated 198 MB
+memory: resident 239 MB  (section meshes 13 MB)
+wrote snaps/issue_3.png
+behaviorsim in_wall: iron_golem at 4.50 129.00 -331.50 (half width 0.70, free) overlaps spruce_planks 3 129 -333, spruce_planks 4 129 -333, spruce_planks 5 129 -333, dirt 3 129 -332, dirt 3 129 -331, spruce_planks 3 130 -333
+behaviorsim spin: chicken at 1.5 125.0 -415.4, work/stroll/moving, goal 3.5 125.0 -410.5 (5.33 away), path 0/4, turned 765 deg in 10 s, moved 1.06
+behaviorsim trace: chicken at 1.50 125.00 -415.44 (spin work/stroll/moving), feet in fern on grass_block, yaw -0
+  path ahead: 1,125,-417 (short_grass on grass_block); 1,125,-418 (air on grass_block); 1,125,-419 (air on grass_block); 1,125,-420 (air on grass_block)
+  around feet (feet/head): 1,0: large_fern/large_fern[upper]; -1,0: large_fern/large_fern[upper]; 0,1: air/air; 0,-1: short_grass/air
+      pre 1.500,189.000,-415.436 vel 0.00,-1.40,-0.99 -> 1.500,189.000,-415.485 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/4 at 1,125,-417, stall 0.7 s, moving yes, ai 3.2
+      pre 1.500,189.000,-415.485 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-415.535 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/4 at 1,125,-417, stall 0.8 s, moving yes, ai 3.1
+      pre 1.500,189.000,-415.535 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-415.585 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/4 at 1,125,-417, stall 0.8 s, moving yes, ai 3.1
+      pre 1.500,189.000,-415.585 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-415.635 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/4 at 1,125,-417, stall 0.9 s, moving yes, ai 3.0
+      pre 1.500,189.000,-415.635 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-415.685 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/4 at 1,125,-417, stall 0.9 s, moving yes, ai 3.0
+      pre 1.500,189.000,-415.685 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-415.735 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/4 at 1,125,-417, stall 1.0 s, moving yes, ai 2.9
+      pre 1.500,189.000,-415.735 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-415.785 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/4 at 1,125,-417, stall 1.0 s, moving yes, ai 2.9
+      pre 1.500,189.000,-415.785 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-415.835 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/4 at 1,125,-417, stall 1.1 s, moving yes, ai 2.8
+      pre 1.500,189.000,-415.835 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-415.885 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/4 at 1,125,-417, stall 1.1 s, moving yes, ai 2.8
+      pre 1.500,189.000,-415.885 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-415.935 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/4 at 1,125,-417, stall 1.1 s, moving yes, ai 2.7
+      pre 1.500,189.000,-415.935 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-415.985 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/4 at 1,125,-417, stall 1.2 s, moving yes, ai 2.7
+      pre 1.500,189.000,-415.985 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-416.035 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/4 at 1,125,-417, stall 1.2 s, moving yes, ai 2.6
+      pre 1.500,189.000,-416.035 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-416.085 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/4 at 1,125,-417, stall 1.3 s, moving yes, ai 2.6
+      pre 1.500,189.000,-416.085 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-416.135 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/4 at 1,125,-417, stall 1.3 s, moving yes, ai 2.5
+      pre 1.500,189.000,-416.135 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-416.185 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/4 at 1,125,-417, stall 1.4 s, moving yes, ai 2.5
+      pre 1.500,189.000,-416.185 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-416.235 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/4 at 1,125,-417, stall 1.4 s, moving yes, ai 2.4
+      pre 1.500,189.000,-416.235 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-416.285 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/4 at 1,125,-417, stall 0.0 s, moving yes, ai 2.4
+      pre 1.500,189.000,-416.285 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-416.335 hit -y- ground 1 speed 1.00 yaw -0
+        node 1/4 at 1,125,-418, stall 0.1 s, moving yes, ai 2.3
+      pre 1.500,189.000,-416.335 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-416.385 hit -y- ground 1 speed 1.00 yaw -0
+        node 1/4 at 1,125,-418, stall 0.1 s, moving yes, ai 2.3
+      pre 1.500,189.000,-416.385 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-416.435 hit -y- ground 1 speed 1.00 yaw -0
+        node 1/4 at 1,125,-418, stall 0.2 s, moving yes, ai 2.2
+      pre 1.500,189.000,-416.435 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-416.484 hit -y- ground 1 speed 1.00 yaw -0
+        node 1/4 at 1,125,-418, stall 0.2 s, moving yes, ai 2.2
+      pre 1.500,189.000,-416.484 vel 0.00,-1.40,-0.10 -> 1.500,189.000,-416.489 hit -y- ground 1 speed 1.00 yaw -180
+        node 0/6 at 1,125,-416, stall 0.2 s, moving yes, ai 2.1
+      pre 1.500,189.000,-416.489 vel 0.00,-1.40,0.40 -> 1.500,189.000,-416.470 hit -y- ground 1 speed 1.00 yaw -180
+        node 0/6 at 1,125,-416, stall 0.3 s, moving yes, ai 2.1
+      pre 1.500,189.000,-416.470 vel 0.00,-1.40,0.67 -> 1.500,189.000,-416.436 hit -y- ground 1 speed 1.00 yaw -180
+        node 0/6 at 1,125,-416, stall 0.4 s, moving yes, ai 2.0
+      pre 1.500,189.000,-416.436 vel 0.00,-1.40,0.82 -> 1.500,189.000,-416.395 hit -y- ground 1 speed 1.00 yaw -180
+        node 0/6 at 1,125,-416, stall 0.4 s, moving yes, ai 2.0
+      pre 1.500,189.000,-416.395 vel 0.00,-1.40,0.90 -> 1.500,189.000,-416.350 hit -y- ground 1 speed 1.00 yaw -180
+        node 0/6 at 1,125,-416, stall 0.5 s, moving yes, ai 1.9
+      pre 1.500,189.000,-416.350 vel 0.00,-1.40,0.95 -> 1.500,189.000,-416.303 hit -y- ground 1 speed 1.00 yaw -180
+        node 0/6 at 1,125,-416, stall 0.5 s, moving yes, ai 1.9
+      pre 1.500,189.000,-416.303 vel 0.00,-1.40,0.97 -> 1.500,189.000,-416.254 hit -y- ground 1 speed 1.00 yaw -180
+        node 0/6 at 1,125,-416, stall 0.6 s, moving yes, ai 1.8
+      pre 1.500,189.000,-416.254 vel 0.00,-1.40,0.98 -> 1.500,189.000,-416.205 hit -y- ground 1 speed 1.00 yaw -180
+        node 0/6 at 1,125,-416, stall 0.6 s, moving yes, ai 1.8
+      pre 1.500,189.000,-416.205 vel 0.00,-1.40,0.99 -> 1.500,189.000,-416.156 hit -y- ground 1 speed 1.00 yaw -180
+        node 0/6 at 1,125,-416, stall 0.7 s, moving yes, ai 1.7
+      pre 1.500,189.000,-416.156 vel 0.00,-1.40,1.00 -> 1.500,189.000,-416.106 hit -y- ground 1 speed 1.00 yaw -180
+        node 0/6 at 1,125,-416, stall 0.7 s, moving yes, ai 1.7
+      pre 1.500,189.000,-416.106 vel 0.00,-1.40,1.00 -> 1.500,189.000,-416.056 hit -y- ground 1 speed 1.00 yaw -180
+        node 0/6 at 1,125,-416, stall 0.8 s, moving yes, ai 1.6
+      pre 1.500,189.000,-416.056 vel 0.00,-1.40,1.00 -> 1.500,189.000,-416.006 hit -y- ground 1 speed 1.00 yaw -180
+        node 0/6 at 1,125,-416, stall 0.8 s, moving yes, ai 1.6
+      pre 1.500,189.000,-416.006 vel 0.00,-1.40,1.00 -> 1.500,189.000,-415.956 hit -y- ground 1 speed 1.00 yaw -180
+        node 0/6 at 1,125,-416, stall 0.9 s, moving yes, ai 1.5
+      pre 1.500,189.000,-415.956 vel 0.00,-1.40,1.00 -> 1.500,189.000,-415.906 hit -y- ground 1 speed 1.00 yaw -180
+        node 0/6 at 1,125,-416, stall 0.9 s, moving yes, ai 1.5
+      pre 1.500,189.000,-415.906 vel 0.00,-1.40,1.00 -> 1.500,189.000,-415.856 hit -y- ground 1 speed 1.00 yaw -180
+        node 0/6 at 1,125,-416, stall 1.0 s, moving yes, ai 1.4
+      pre 1.500,189.000,-415.856 vel 0.00,-1.40,1.00 -> 1.500,189.000,-415.806 hit -y- ground 1 speed 1.00 yaw -180
+        node 0/6 at 1,125,-416, stall 1.0 s, moving yes, ai 1.4
+      pre 1.500,189.000,-415.806 vel 0.00,-1.40,1.00 -> 1.500,189.000,-415.756 hit -y- ground 1 speed 1.00 yaw -180
+        node 0/6 at 1,125,-416, stall 1.1 s, moving yes, ai 1.3
+      pre 1.500,189.000,-415.756 vel 0.00,-1.40,1.00 -> 1.500,189.000,-415.706 hit -y- ground 1 speed 1.00 yaw -180
+        node 0/6 at 1,125,-416, stall 1.1 s, moving yes, ai 1.3
+      pre 1.500,189.000,-415.706 vel 0.00,-1.40,1.00 -> 1.500,189.000,-415.656 hit -y- ground 1 speed 1.00 yaw -180
+        node 1/6 at 1,125,-415, stall 1.1 s, moving yes, ai 1.2
+      pre 1.500,189.000,-415.656 vel 0.00,-1.40,1.00 -> 1.500,189.000,-415.606 hit -y- ground 1 speed 1.00 yaw -180
+        node 1/6 at 1,125,-415, stall 1.2 s, moving yes, ai 1.2
+      pre 1.500,189.000,-415.606 vel 0.00,-1.40,0.10 -> 1.500,189.000,-415.601 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/3 at 1,125,-417, stall 1.2 s, moving yes, ai 1.1
+      pre 1.500,189.000,-415.601 vel 0.00,-1.40,-0.40 -> 1.500,189.000,-415.621 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/3 at 1,125,-417, stall 1.3 s, moving yes, ai 1.1
+      pre 1.500,189.000,-415.621 vel 0.00,-1.40,-0.67 -> 1.500,189.000,-415.655 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/3 at 1,125,-417, stall 1.3 s, moving yes, ai 1.0
+      pre 1.500,189.000,-415.655 vel 0.00,-1.40,-0.82 -> 1.500,189.000,-415.696 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/3 at 1,125,-417, stall 1.4 s, moving yes, ai 1.0
+      pre 1.500,189.000,-415.696 vel 0.00,-1.40,-0.90 -> 1.500,189.000,-415.741 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/3 at 1,125,-417, stall 1.4 s, moving yes, ai 0.9
+      pre 1.500,189.000,-415.741 vel 0.00,-1.40,-0.95 -> 1.500,189.000,-415.788 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/3 at 1,125,-417, stall 1.5 s, moving yes, ai 0.9
+      pre 1.500,189.000,-415.788 vel 0.00,-1.40,-0.97 -> 1.500,189.000,-415.836 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/3 at 1,125,-417, stall 1.5 s, moving yes, ai 0.8
+      pre 1.500,189.000,-415.836 vel 0.00,-1.40,-0.98 -> 1.500,189.000,-415.886 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/3 at 1,125,-417, stall 1.6 s, moving yes, ai 0.8
+      pre 1.500,189.000,-415.886 vel 0.00,-1.40,-0.99 -> 1.500,189.000,-415.935 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/3 at 1,125,-417, stall 1.6 s, moving yes, ai 0.7
+      pre 1.500,189.000,-415.935 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-415.985 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/3 at 1,125,-417, stall 1.7 s, moving yes, ai 0.7
+      pre 1.500,189.000,-415.985 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-416.035 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/3 at 1,125,-417, stall 1.7 s, moving yes, ai 0.6
+      pre 1.500,189.000,-416.035 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-416.085 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/3 at 1,125,-417, stall 1.8 s, moving yes, ai 0.6
+      pre 1.500,189.000,-416.085 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-416.135 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/3 at 1,125,-417, stall 1.8 s, moving yes, ai 0.5
+      pre 1.500,189.000,-416.135 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-416.185 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/3 at 1,125,-417, stall 1.9 s, moving yes, ai 0.5
+      pre 1.500,189.000,-416.185 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-416.235 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/3 at 1,125,-417, stall 1.9 s, moving yes, ai 0.4
+      pre 1.500,189.000,-416.235 vel 0.00,-1.40,-1.00 -> 1.500,189.000,-416.285 hit -y- ground 1 speed 1.00 yaw -0
+        node 0/3 at 1,125,-417, stall 2.0 s, moving yes, ai 0.4
+      pre 1.500,189.000,-416.285 vel 0.29,-1.40,-0.90 -> 1.514,189.000,-416.329 hit -y- ground 1 speed 1.00 yaw -39
+        node 1/3 at 2,125,-418, stall 2.0 s, moving yes, ai 0.3
+      pre 1.514,189.000,-416.329 vel 0.15,-1.40,-0.04 -> 1.522,189.000,-416.331 hit -y- ground 1 speed 1.00 yaw 179
+        node 0/6 at 1,125,-416, stall 2.1 s, moving yes, ai 0.3
+behaviorsim spin: rabbit at 44.3 123.0 -377.7, work/stroll/moving, goal 39.5 124.0 -382.5 (6.77 away), path 0/6, turned 878 deg in 10 s, moved 1.37
+behaviorsim trace: rabbit at 44.29 123.00 -377.71 (spin work/stroll/moving), feet in short_grass on grass_block, yaw -136
+  path ahead: 44,123,-378 (short_grass on grass_block); 45,122,-378 (air on grass_block); 46,122,-377 (air on grass_block); 46,122,-376 (air on grass_block)
+  around feet (feet/head): 1,0: air/air; -1,0: air/air; 0,1: air/air; 0,-1: air/air
+      pre 44.291,187.000,-377.712 vel 1.24,3.60,1.26 -> 44.353,187.180,-377.649 hit --- ground 1 speed 1.80 yaw -135
+        node 0/6 at 44,123,-378, stall 0.4 s, moving yes, ai 4.8
+      pre 44.353,187.180,-377.649 vel 1.31,2.20,1.12 -> 44.419,187.290,-377.593 hit --- ground 0 speed 1.80 yaw -97
+        node 1/6 at 45,122,-378, stall 0.5 s, moving yes, ai 4.8
+      pre 44.419,187.290,-377.593 vel 1.38,0.80,0.99 -> 44.488,187.330,-377.543 hit --- ground 0 speed 1.80 yaw -95
+        node 1/6 at 45,122,-378, stall 0.5 s, moving yes, ai 4.7
+      pre 44.488,187.330,-377.543 vel 1.44,-0.60,0.86 -> 44.560,187.300,-377.500 hit --- ground 0 speed 1.80 yaw -92
+        node 1/6 at 45,122,-378, stall 0.6 s, moving yes, ai 4.7
+      pre 44.560,187.300,-377.500 vel 1.49,-2.00,0.74 -> 44.634,187.200,-377.463 hit --- ground 0 speed 1.80 yaw -90
+        node 1/6 at 45,122,-378, stall 0.6 s, moving yes, ai 4.6
+      pre 44.634,187.200,-377.463 vel 1.53,-3.40,0.63 -> 44.711,187.030,-377.432 hit --- ground 0 speed 1.80 yaw -88
+        node 1/6 at 45,122,-378, stall 0.7 s, moving yes, ai 4.6
+      pre 44.711,187.030,-377.432 vel 1.65,-4.80,0.27 -> 44.793,187.000,-377.418 hit -y- ground 1 speed 1.80 yaw -85
+        node 1/6 at 45,122,-378, stall 0.7 s, moving yes, ai 4.5
+      pre 44.793,187.000,-377.418 vel 1.71,-1.40,0.06 -> 44.879,187.000,-377.416 hit -y- ground 1 speed 1.80 yaw -83
+        node 1/6 at 45,122,-378, stall 0.0 s, moving yes, ai 4.5
+      pre 44.879,187.000,-377.416 vel 1.74,-1.40,-0.08 -> 44.966,187.000,-377.419 hit -y- ground 1 speed 1.80 yaw -82
+        node 1/6 at 45,122,-378, stall 0.1 s, moving yes, ai 4.4
+      pre 44.966,187.000,-377.419 vel 1.76,-1.40,-0.16 -> 45.054,187.000,-377.428 hit -y- ground 1 speed 1.80 yaw -81
+        node 1/6 at 45,122,-378, stall 0.1 s, moving yes, ai 4.4
+      pre 45.054,187.000,-377.428 vel 1.77,-1.40,-0.22 -> 45.143,187.000,-377.439 hit -y- ground 1 speed 1.80 yaw -81
+        node 1/6 at 45,122,-378, stall 0.2 s, moving yes, ai 4.3
+      pre 45.143,187.000,-377.439 vel 1.77,-1.40,-0.26 -> 45.231,187.000,-377.452 hit -y- ground 1 speed 1.80 yaw -80
+        node 1/6 at 45,122,-378, stall 0.2 s, moving yes, ai 4.3
+      pre 45.231,187.000,-377.452 vel 0.51,3.60,-0.81 -> 45.257,187.180,-377.492 hit --- ground 1 speed 1.80 yaw 35
+        node 0/6 at 44,123,-379, stall 0.2 s, moving yes, ai 4.2
+      pre 45.257,187.180,-377.492 vel 0.29,2.20,-0.90 -> 45.271,187.290,-377.537 hit --- ground 0 speed 1.80 yaw 37
+        node 0/6 at 44,123,-379, stall 0.3 s, moving yes, ai 4.2
+      pre 45.271,187.290,-377.537 vel 0.09,0.80,-0.97 -> 45.275,187.330,-377.585 hit --- ground 0 speed 1.80 yaw 39
+        node 0/6 at 44,123,-379, stall 0.4 s, moving yes, ai 4.1
+      pre 45.275,187.330,-377.585 vel -0.09,-0.60,-1.02 -> 45.271,187.300,-377.636 hit --- ground 0 speed 1.80 yaw 40
+        node 0/6 at 44,123,-379, stall 0.4 s, moving yes, ai 4.1
+      pre 45.271,187.300,-377.636 vel -0.24,-2.00,-1.07 -> 45.259,187.200,-377.690 hit --- ground 0 speed 1.80 yaw 42
+        node 0/6 at 44,123,-379, stall 0.5 s, moving yes, ai 4.0
+      pre 45.259,187.200,-377.690 vel -0.38,-3.40,-1.10 -> 45.240,187.030,-377.745 hit --- ground 0 speed 1.80 yaw 43
+        node 0/6 at 44,123,-379, stall 0.5 s, moving yes, ai 4.0
+      pre 45.240,187.030,-377.745 vel -0.50,-4.80,-1.13 -> 45.215,186.790,-377.800 hit --z ground 0 speed 1.80 yaw 44
+        node 0/6 at 44,123,-379, stall 0.6 s, moving yes, ai 3.9
+      pre 45.215,186.790,-377.800 vel -0.61,-6.20,-0.18 -> 45.200,186.480,-377.800 hit x-z ground 0 speed 1.80 yaw 46
+        node 0/6 at 44,123,-379, stall 0.6 s, moving yes, ai 3.9
+      pre 45.200,186.480,-377.800 vel -0.18,-7.60,-0.18 -> 45.200,186.100,-377.800 hit x-z ground 0 speed 1.80 yaw 45
+        node 0/6 at 44,123,-379, stall 0.7 s, moving yes, ai 3.8
+      pre 45.200,186.100,-377.800 vel -0.18,-9.00,-0.18 -> 45.200,186.000,-377.800 hit xyz ground 0 speed 1.80 yaw 45
+        node 0/6 at 44,123,-379, stall 0.7 s, moving yes, ai 3.8
+      pre 45.200,186.000,-377.800 vel -0.57,7.20,-0.57 -> 45.200,186.360,-377.800 hit x-z ground 1 speed 1.80 yaw 45
+        node 0/6 at 44,123,-379, stall 0.8 s, moving yes, ai 3.7
+      pre 45.200,186.360,-377.800 vel -0.18,5.80,-0.18 -> 45.200,186.650,-377.800 hit x-z ground 0 speed 1.80 yaw 45
+        node 0/6 at 44,123,-379, stall 0.8 s, moving yes, ai 3.7
+      pre 45.200,186.650,-377.800 vel -0.18,4.40,-0.18 -> 45.200,186.870,-377.800 hit x-z ground 0 speed 1.80 yaw 45
+        node 0/6 at 44,123,-379, stall 0.9 s, moving yes, ai 3.6
+      pre 45.200,186.870,-377.800 vel -0.18,3.00,-0.18 -> 45.191,187.020,-377.809 hit --- ground 0 speed 1.80 yaw 45
+        node 0/6 at 44,123,-379, stall 0.9 s, moving yes, ai 3.6
+      pre 45.191,187.020,-377.809 vel -0.33,1.60,-0.33 -> 45.175,187.100,-377.825 hit --- ground 0 speed 1.80 yaw 45
+        node 0/6 at 44,123,-379, stall 1.0 s, moving yes, ai 3.5
+      pre 45.175,187.100,-377.825 vel -0.46,0.20,-0.46 -> 45.152,187.110,-377.848 hit --- ground 0 speed 1.80 yaw 45
+        node 0/6 at 44,123,-379, stall 1.0 s, moving yes, ai 3.5
+      pre 45.152,187.110,-377.848 vel -0.57,-1.20,-0.57 -> 45.123,187.050,-377.877 hit --- ground 0 speed 1.80 yaw 45
+        node 0/6 at 44,123,-379, stall 1.1 s, moving yes, ai 3.4
+      pre 45.123,187.050,-377.877 vel -0.89,-2.60,-0.89 -> 45.078,187.000,-377.922 hit -y- ground 1 speed 1.80 yaw 45
+        node 0/6 at 44,123,-379, stall 1.1 s, moving yes, ai 3.4
+      pre 45.078,187.000,-377.922 vel -1.06,-1.40,-1.06 -> 45.025,187.000,-377.975 hit -y- ground 1 speed 1.80 yaw 45
+        node 0/6 at 44,123,-379, stall 1.1 s, moving yes, ai 3.3
+      pre 45.025,187.000,-377.975 vel -1.16,-1.40,-1.16 -> 44.967,187.000,-378.033 hit -y- ground 1 speed 1.80 yaw 45
+        node 0/6 at 44,123,-379, stall 1.2 s, moving yes, ai 3.3
+      pre 44.967,187.000,-378.033 vel -1.21,-1.40,-1.21 -> 44.907,187.000,-378.093 hit -y- ground 1 speed 1.80 yaw 45
+        node 0/6 at 44,123,-379, stall 1.2 s, moving yes, ai 3.2
+      pre 44.907,187.000,-378.093 vel -1.24,-1.40,-1.24 -> 44.845,187.000,-378.155 hit -y- ground 1 speed 1.80 yaw 45
+        node 0/6 at 44,123,-379, stall 1.3 s, moving yes, ai 3.2
+      pre 44.845,187.000,-378.155 vel -1.25,-1.40,-1.25 -> 44.782,187.000,-378.218 hit -y- ground 1 speed 1.80 yaw 45
+        node 0/6 at 44,123,-379, stall 1.3 s, moving yes, ai 3.1
+      pre 44.782,187.000,-378.218 vel -1.31,-1.40,0.89 -> 44.717,187.000,-378.173 hit -y- ground 1 speed 3.75 yaw 159
+        node 0/7 at 44,123,-378, stall 0.0 s, moving yes, ai 3.1
+      pre 44.717,187.000,-378.173 vel -1.24,-1.40,2.10 -> 44.655,187.000,-378.068 hit -y- ground 1 speed 3.75 yaw 162
+        node 0/7 at 44,123,-378, stall 0.1 s, moving yes, ai 3.0
+      pre 44.655,187.000,-378.068 vel -0.89,-1.40,1.93 -> 44.611,187.000,-377.972 hit -y- ground 1 speed 1.80 yaw 165
+        node 0/7 at 44,123,-378, stall 0.1 s, moving yes, ai 3.0
+      pre 44.611,187.000,-377.972 vel -0.68,-1.40,1.85 -> 44.577,187.000,-377.879 hit -y- ground 1 speed 1.80 yaw 167
+        node 0/7 at 44,123,-378, stall 0.2 s, moving yes, ai 2.9
+      pre 44.577,187.000,-377.879 vel -0.53,-1.40,1.81 -> 44.550,187.000,-377.788 hit -y- ground 1 speed 1.80 yaw 169
+        node 0/7 at 44,123,-378, stall 0.2 s, moving yes, ai 2.9
+      pre 44.550,187.000,-377.788 vel -0.43,-1.40,1.79 -> 44.529,187.000,-377.699 hit -y- ground 1 speed 1.80 yaw 170
+        node 0/7 at 44,123,-378, stall 0.2 s, moving yes, ai 2.8
+      pre 44.529,187.000,-377.699 vel -0.26,-1.40,1.80 -> 44.516,187.000,-377.609 hit -y- ground 1 speed 1.80 yaw 179
+        node 1/7 at 44,123,-377, stall 0.3 s, moving yes, ai 2.8
+      pre 44.516,187.000,-377.609 vel -0.15,-1.40,1.80 -> 44.508,187.000,-377.519 hit -y- ground 1 speed 1.80 yaw 179
+        node 1/7 at 44,123,-377, stall 0.4 s, moving yes, ai 2.7
+      pre 44.508,187.000,-377.519 vel -0.09,-1.40,1.80 -> 44.504,187.000,-377.429 hit -y- ground 1 speed 1.80 yaw 180
+        node 1/7 at 44,123,-377, stall 0.0 s, moving yes, ai 2.7
+      pre 44.504,187.000,-377.429 vel -0.05,-1.40,1.80 -> 44.501,187.000,-377.339 hit -y- ground 1 speed 1.80 yaw 180
+        node 1/7 at 44,123,-377, stall 0.1 s, moving yes, ai 2.6
+      pre 44.501,187.000,-377.339 vel -0.03,-1.40,1.80 -> 44.500,187.000,-377.249 hit -y- ground 1 speed 1.80 yaw 180
+        node 1/7 at 44,123,-377, stall 0.1 s, moving yes, ai 2.6
+      pre 44.500,187.000,-377.249 vel -0.02,-1.40,1.80 -> 44.499,187.000,-377.159 hit -y- ground 1 speed 1.80 yaw -180
+        node 1/7 at 44,123,-377, stall 0.2 s, moving yes, ai 2.5
+      pre 44.499,187.000,-377.159 vel -0.01,-1.40,1.80 -> 44.498,187.000,-377.069 hit -y- ground 1 speed 1.80 yaw -180
+        node 1/7 at 44,123,-377, stall 0.2 s, moving yes, ai 2.5
+      pre 44.498,187.000,-377.069 vel -0.00,3.60,1.80 -> 44.498,187.180,-376.979 hit --- ground 1 speed 1.80 yaw -180
+        node 2/7 at 44,123,-376, stall 0.2 s, moving yes, ai 2.4
+      pre 44.498,187.180,-376.979 vel -0.00,2.20,1.80 -> 44.498,187.290,-376.889 hit --- ground 0 speed 1.80 yaw -180
+        node 2/7 at 44,123,-376, stall 0.3 s, moving yes, ai 2.4
+      pre 44.498,187.290,-376.889 vel -0.00,0.80,1.80 -> 44.498,187.330,-376.799 hit --- ground 0 speed 1.80 yaw -180
+        node 2/7 at 44,123,-376, stall 0.4 s, moving yes, ai 2.3
+      pre 44.498,187.330,-376.799 vel -0.00,-0.60,1.80 -> 44.498,187.300,-376.709 hit --- ground 0 speed 1.80 yaw -180
+        node 2/7 at 44,123,-376, stall 0.4 s, moving yes, ai 2.3
+      pre 44.498,187.300,-376.709 vel -0.00,-2.00,1.80 -> 44.498,187.200,-376.619 hit --- ground 0 speed 1.80 yaw -180
+        node 2/7 at 44,123,-376, stall 0.0 s, moving yes, ai 2.2
+      pre 44.498,187.200,-376.619 vel -0.00,-3.40,1.80 -> 44.498,187.030,-376.529 hit --- ground 0 speed 1.80 yaw -180
+        node 2/7 at 44,123,-376, stall 0.1 s, moving yes, ai 2.2
+      pre 44.498,187.030,-376.529 vel 0.00,-4.80,1.80 -> 44.498,187.000,-376.439 hit -y- ground 1 speed 1.80 yaw -180
+        node 2/7 at 44,123,-376, stall 0.1 s, moving yes, ai 2.1
+      pre 44.498,187.000,-376.439 vel 0.00,-1.40,1.80 -> 44.498,187.000,-376.349 hit -y- ground 1 speed 1.80 yaw -180
+        node 2/7 at 44,123,-376, stall 0.2 s, moving yes, ai 2.1
+      pre 44.498,187.000,-376.349 vel 0.00,-1.40,1.80 -> 44.498,187.000,-376.259 hit -y- ground 1 speed 1.80 yaw -180
+        node 2/7 at 44,123,-376, stall 0.2 s, moving yes, ai 2.0
+      pre 44.498,187.000,-376.259 vel 0.00,-1.40,1.80 -> 44.499,187.000,-376.169 hit -y- ground 1 speed 1.80 yaw -180
+        node 2/7 at 44,123,-376, stall 0.2 s, moving yes, ai 2.0
+      pre 44.499,187.000,-376.169 vel 0.00,-1.40,1.80 -> 44.499,187.000,-376.079 hit -y- ground 1 speed 1.80 yaw -180
+        node 2/7 at 44,123,-376, stall 0.3 s, moving yes, ai 1.9
+behaviorsim trace: villager at 1.70 129.63 -334.30 (free/heading/pathend/partial/gaveup), feet in air on dirt, yaw -111
+  path ahead: 
+  around feet (feet/head): 1,0: spruce_planks/glass_pane; -1,0: air/air; 0,1: dirt/grass_block; 0,-1: air/grass_block
+      pre 1.700,193.630,-334.300 vel 0.10,-5.60,0.04 -> 1.700,193.350,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 3.6
+      pre 1.700,193.350,-334.300 vel 0.10,-7.00,0.04 -> 1.700,193.000,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 3.5
+      pre 1.700,193.000,-334.300 vel 0.32,7.20,0.13 -> 1.700,193.360,-334.300 hit x-z ground 1 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 3.5
+      pre 1.700,193.360,-334.300 vel 0.10,5.80,0.04 -> 1.700,193.650,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 3.4
+      pre 1.700,193.650,-334.300 vel 0.10,4.40,0.04 -> 1.700,193.870,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 3.4
+      pre 1.700,193.870,-334.300 vel 0.10,3.00,0.04 -> 1.700,194.020,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 3.3
+      pre 1.700,194.020,-334.300 vel 0.10,1.60,0.04 -> 1.700,194.050,-334.300 hit xyz ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 3.3
+      pre 1.700,194.050,-334.300 vel 0.10,-1.40,0.04 -> 1.700,193.980,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 3.2
+      pre 1.700,193.980,-334.300 vel 0.10,-2.80,0.04 -> 1.700,193.840,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 3.2
+      pre 1.700,193.840,-334.300 vel 0.10,-4.20,0.04 -> 1.700,193.630,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 3.1
+      pre 1.700,193.630,-334.300 vel 0.10,-5.60,0.04 -> 1.700,193.350,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 3.1
+      pre 1.700,193.350,-334.300 vel 0.10,-7.00,0.04 -> 1.700,193.000,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 3.0
+      pre 1.700,193.000,-334.300 vel 0.32,7.20,0.13 -> 1.700,193.360,-334.300 hit x-z ground 1 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 3.0
+      pre 1.700,193.360,-334.300 vel 0.10,5.80,0.04 -> 1.700,193.650,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 2.9
+      pre 1.700,193.650,-334.300 vel 0.10,4.40,0.04 -> 1.700,193.870,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 2.9
+      pre 1.700,193.870,-334.300 vel 0.10,3.00,0.04 -> 1.700,194.020,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 2.8
+      pre 1.700,194.020,-334.300 vel 0.10,1.60,0.04 -> 1.700,194.050,-334.300 hit xyz ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 2.8
+      pre 1.700,194.050,-334.300 vel 0.10,-1.40,0.04 -> 1.700,193.980,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 2.7
+      pre 1.700,193.980,-334.300 vel 0.10,-2.80,0.04 -> 1.700,193.840,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 2.7
+      pre 1.700,193.840,-334.300 vel 0.10,-4.20,0.04 -> 1.700,193.630,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 2.6
+      pre 1.700,193.630,-334.300 vel 0.10,-5.60,0.04 -> 1.700,193.350,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 2.6
+      pre 1.700,193.350,-334.300 vel 0.10,-7.00,0.04 -> 1.700,193.000,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 2.5
+      pre 1.700,193.000,-334.300 vel 0.32,7.20,0.13 -> 1.700,193.360,-334.300 hit x-z ground 1 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 2.5
+      pre 1.700,193.360,-334.300 vel 0.10,5.80,0.04 -> 1.700,193.650,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 2.4
+      pre 1.700,193.650,-334.300 vel 0.10,4.40,0.04 -> 1.700,193.870,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 2.4
+      pre 1.700,193.870,-334.300 vel 0.10,3.00,0.04 -> 1.700,194.020,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 2.3
+      pre 1.700,194.020,-334.300 vel 0.10,1.60,0.04 -> 1.700,194.050,-334.300 hit xyz ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 2.3
+      pre 1.700,194.050,-334.300 vel 0.10,-1.40,0.04 -> 1.700,193.980,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 2.2
+      pre 1.700,193.980,-334.300 vel 0.10,-2.80,0.04 -> 1.700,193.840,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 2.2
+      pre 1.700,193.840,-334.300 vel 0.10,-4.20,0.04 -> 1.700,193.630,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 2.1
+      pre 1.700,193.630,-334.300 vel 0.10,-5.60,0.04 -> 1.700,193.350,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 2.1
+      pre 1.700,193.350,-334.300 vel 0.10,-7.00,0.04 -> 1.700,193.000,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 2.0
+      pre 1.700,193.000,-334.300 vel 0.32,7.20,0.13 -> 1.700,193.360,-334.300 hit x-z ground 1 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 2.0
+      pre 1.700,193.360,-334.300 vel 0.10,5.80,0.04 -> 1.700,193.650,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 1.9
+      pre 1.700,193.650,-334.300 vel 0.10,4.40,0.04 -> 1.700,193.870,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 1.9
+      pre 1.700,193.870,-334.300 vel 0.10,3.00,0.04 -> 1.700,194.020,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 1.8
+      pre 1.700,194.020,-334.300 vel 0.10,1.60,0.04 -> 1.700,194.050,-334.300 hit xyz ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 1.8
+      pre 1.700,194.050,-334.300 vel 0.10,-1.40,0.04 -> 1.700,193.980,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 1.7
+      pre 1.700,193.980,-334.300 vel 0.10,-2.80,0.04 -> 1.700,193.840,-334.300 hit x-z ground 0 speed 0.77 yaw -111
+        no node (1), stall 0.0 s, moving yes, ai 1.7
+behaviorsim spin: fox at 40.5 124.0 -388.9, free/heading/standing, goal none, path 2/5, turned 1095 deg in 10 s, moved 0.73
+behaviorsim missed bed: villager goal -12 135 -323 (brown_bed_head), path of 4000 nodes: 5 nodes ending -4 128 -334; around the goal (floor/feet/head): 1,0: cobblestone/spruce_planks/spruce_planks; -1,0: spruce_planks/air/air; 0,1: spruce_planks/air/air; 0,-1: spruce_planks/brown_bed/air; round the mob at 1 129 -335 on dirt (feet/head/above): -1,-1: air/dirt/grass_block; 0,-1: air/grass_block/air; 1,-1: spruce_planks/spruce_planks/spruce_planks; -1,0: air/air/grass_block; 1,0: spruce_planks/glass_pane/spruce_planks; -1,1: air/air/air; 0,1: dirt/grass_block/air; 1,1: spruce_planks/spruce_planks/spruce_planks
+behaviorsim missed meet: villager goal 11 129 -331 (bell), path of 4000 nodes: 0 nodes ending none; around the goal (floor/feet/head): 1,0: dirt_path/air/air; -1,0: dirt_path/air/air; 0,1: dirt_path/air/air; 0,-1: dirt_path/air/air; round the mob at 1 129 -335 on dirt (feet/head/above): -1,-1: air/dirt/grass_block; 0,-1: air/grass_block/air; 1,-1: spruce_planks/spruce_planks/spruce_planks; -1,0: air/air/grass_block; 1,0: spruce_planks/glass_pane/spruce_planks; -1,1: air/air/air; 0,1: dirt/grass_block/air; 1,1: spruce_planks/spruce_planks/spruce_planks
+behaviorsim seed 12345: 199 mobs; fell 1, goal_missed_bed 1, goal_missed_meet 1, in_wall 1, spinning 3, stuck 1
+behaviorsim spin: sheep at 1014.3 74.0 209.3, free/stroll/moving, goal 1012.5 75.0 201.5 (8.01 away), path 0/8, turned 759 deg in 10 s, moved 1.23
+behaviorsim trace: villager at 959.63 69.00 265.92 (work/target/onpath), feet in air on cobblestone, yaw 177
+  path ahead: 959,69,266 (oak_door[4] on cobblestone); 959,69,267 (air on oak_planks); 960,69,268 (air on oak_planks)
+  around feet (feet/head): 1,0: air/air; -1,0: air/air; 0,1: oak_door[4]/oak_door[12]; 0,-1: air/air
+      pre 959.627,133.000,265.922 vel -0.06,-1.40,0.96 -> 959.624,133.000,265.970 hit -y- ground 1 speed 0.96 yaw 177
+        node 0/3 at 959,69,266, stall 1.0 s, moving yes, ai 1.8
+      pre 959.624,133.000,265.970 vel -0.06,-1.40,0.96 -> 959.621,133.000,266.018 hit -y- ground 1 speed 0.96 yaw 177
+        node 0/3 at 959,69,266, stall 1.0 s, moving yes, ai 1.8
+      pre 959.621,133.000,266.018 vel -0.06,-1.40,0.96 -> 959.619,133.000,266.066 hit -y- ground 1 speed 0.96 yaw 177
+        node 0/3 at 959,69,266, stall 1.1 s, moving yes, ai 1.7
+      pre 959.619,133.000,266.066 vel -0.06,-1.40,0.96 -> 959.616,133.000,266.114 hit -y- ground 1 speed 0.96 yaw 177
+        node 0/3 at 959,69,266, stall 0.0 s, moving yes, ai 1.7
+      pre 959.616,133.000,266.114 vel -0.05,-1.40,0.96 -> 959.613,133.000,266.161 hit -y- ground 1 speed 0.96 yaw 177
+        node 0/3 at 959,69,266, stall 0.1 s, moving yes, ai 1.6
+      pre 959.613,133.000,266.161 vel -0.05,-1.40,0.96 -> 959.610,133.000,266.209 hit -y- ground 1 speed 0.96 yaw 177
+        node 0/3 at 959,69,266, stall 0.1 s, moving yes, ai 1.6
+      pre 959.610,133.000,266.209 vel -0.05,-1.40,0.96 -> 959.608,133.000,266.257 hit -y- ground 1 speed 0.96 yaw 177
+        node 0/3 at 959,69,266, stall 0.2 s, moving yes, ai 1.5
+      pre 959.608,133.000,266.257 vel -0.07,-1.40,0.96 -> 959.604,133.000,266.305 hit -y- ground 1 speed 0.96 yaw 175
+        node 1/3 at 959,69,267, stall 0.2 s, moving yes, ai 1.5
+      pre 959.604,133.000,266.305 vel -0.07,-1.40,0.96 -> 959.600,133.000,266.353 hit -y- ground 1 speed 0.96 yaw 175
+        node 1/3 at 959,69,267, stall 0.2 s, moving yes, ai 1.4
+      pre 959.600,133.000,266.353 vel -0.08,-1.40,0.96 -> 959.597,133.000,266.401 hit -y- ground 1 speed 0.96 yaw 175
+        node 1/3 at 959,69,267, stall 0.3 s, moving yes, ai 1.4
+      pre 959.597,133.000,266.401 vel -0.08,-1.40,0.96 -> 959.593,133.000,266.449 hit -y- ground 1 speed 0.96 yaw 175
+        node 1/3 at 959,69,267, stall 0.4 s, moving yes, ai 1.3
+      pre 959.593,133.000,266.449 vel -0.08,-1.40,0.96 -> 959.588,133.000,266.496 hit -y- ground 1 speed 0.96 yaw 175
+        node 1/3 at 959,69,267, stall 0.4 s, moving yes, ai 1.3
+      pre 959.588,133.000,266.496 vel -0.08,-1.40,0.96 -> 959.584,133.000,266.544 hit -y- ground 1 speed 0.96 yaw 175
+        node 1/3 at 959,69,267, stall 0.5 s, moving yes, ai 1.2
+      pre 959.584,133.000,266.544 vel -0.08,-1.40,0.96 -> 959.580,133.000,266.592 hit -y- ground 1 speed 0.96 yaw 175
+        node 1/3 at 959,69,267, stall 0.5 s, moving yes, ai 1.2
+      pre 959.580,133.000,266.592 vel -0.08,-1.40,0.96 -> 959.576,133.000,266.640 hit -y- ground 1 speed 0.96 yaw 175
+        node 1/3 at 959,69,267, stall 0.6 s, moving yes, ai 1.1
+      pre 959.576,133.000,266.640 vel -0.08,-1.40,0.96 -> 959.572,133.000,266.688 hit -y- ground 1 speed 0.96 yaw 175
+        node 1/3 at 959,69,267, stall 0.6 s, moving yes, ai 1.1
+      pre 959.572,133.000,266.688 vel -0.08,-1.40,0.96 -> 959.567,133.000,266.736 hit -y- ground 1 speed 0.96 yaw 175
+        node 1/3 at 959,69,267, stall 0.7 s, moving yes, ai 1.0
+      pre 959.567,133.000,266.736 vel -0.08,-1.40,0.96 -> 959.563,133.000,266.783 hit -y- ground 1 speed 0.96 yaw 175
+        node 1/3 at 959,69,267, stall 0.7 s, moving yes, ai 1.0
+      pre 959.563,133.000,266.783 vel -0.08,-1.40,0.96 -> 959.559,133.000,266.831 hit -y- ground 1 speed 0.96 yaw 175
+        node 1/3 at 959,69,267, stall 0.8 s, moving yes, ai 0.9
+      pre 959.559,133.000,266.831 vel -0.08,-1.40,0.96 -> 959.555,133.000,266.879 hit -y- ground 1 speed 0.96 yaw 175
+        node 1/3 at 959,69,267, stall 0.0 s, moving yes, ai 0.9
+      pre 959.555,133.000,266.879 vel -0.08,-1.40,0.96 -> 959.551,133.000,266.927 hit -y- ground 1 speed 0.96 yaw 175
+        node 1/3 at 959,69,267, stall 0.1 s, moving yes, ai 0.8
+      pre 959.551,133.000,266.927 vel -0.08,-1.40,0.96 -> 959.546,133.000,266.975 hit -y- ground 1 speed 0.96 yaw 175
+        node 1/3 at 959,69,267, stall 0.1 s, moving yes, ai 0.8
+      pre 959.546,133.000,266.975 vel -0.08,-1.40,0.96 -> 959.542,133.000,267.023 hit -y- ground 1 speed 0.96 yaw 175
+        node 1/3 at 959,69,267, stall 0.2 s, moving yes, ai 0.7
+      pre 959.542,133.000,267.023 vel -0.08,-1.40,0.96 -> 959.538,133.000,267.070 hit -y- ground 1 speed 0.96 yaw 175
+        node 1/3 at 959,69,267, stall 0.2 s, moving yes, ai 0.7
+      pre 959.538,133.000,267.070 vel -0.08,-1.40,0.96 -> 959.534,133.000,267.118 hit -y- ground 1 speed 0.96 yaw 175
+        node 1/3 at 959,69,267, stall 0.2 s, moving yes, ai 0.6
+      pre 959.534,133.000,267.118 vel -0.08,-1.40,0.96 -> 959.529,133.000,267.166 hit -y- ground 1 speed 0.96 yaw 175
+        node 1/3 at 959,69,267, stall 0.3 s, moving yes, ai 0.6
+      pre 959.529,133.000,267.166 vel -0.08,-1.40,0.96 -> 959.525,133.000,267.214 hit -y- ground 1 speed 0.96 yaw 175
+        node 1/3 at 959,69,267, stall 0.4 s, moving yes, ai 0.5
+      pre 959.525,133.000,267.214 vel -0.08,-1.40,0.87 -> 959.521,133.000,267.257 hit -y- ground 1 speed 0.77 yaw 175
+        node 1/3 at 959,69,267, stall 0.0 s, moving yes, ai 0.5
+      pre 959.521,133.000,267.257 vel -0.07,-1.40,0.82 -> 959.518,133.000,267.298 hit -y- ground 1 speed 0.77 yaw 175
+        node 1/3 at 959,69,267, stall 0.0 s, moving yes, ai 0.4
+      pre 959.518,133.000,267.298 vel -0.07,-1.40,0.80 -> 959.514,133.000,267.338 hit -y- ground 1 speed 0.77 yaw 175
+        node 1/3 at 959,69,267, stall 0.0 s, moving yes, ai 0.4
+      pre 959.514,133.000,267.338 vel -0.07,-1.40,0.78 -> 959.511,133.000,267.377 hit -y- ground 1 speed 0.77 yaw 175
+        node 1/3 at 959,69,267, stall 0.0 s, moving yes, ai 0.3
+      pre 959.511,133.000,267.377 vel -0.07,-1.40,0.77 -> 959.507,133.000,267.416 hit -y- ground 1 speed 0.77 yaw 175
+        node 1/3 at 959,69,267, stall 0.0 s, moving yes, ai 0.3
+      pre 959.507,133.000,267.416 vel -0.07,-1.40,0.77 -> 959.504,133.000,267.455 hit -y- ground 1 speed 0.77 yaw 175
+        node 1/3 at 959,69,267, stall 0.0 s, moving yes, ai 0.2
+      pre 959.504,133.000,267.455 vel -0.07,-1.40,0.77 -> 959.501,133.000,267.493 hit -y- ground 1 speed 0.77 yaw 175
+        node 1/3 at 959,69,267, stall 0.0 s, moving yes, ai 0.2
+      pre 959.501,133.000,267.493 vel -0.07,-1.40,0.77 -> 959.497,133.000,267.531 hit -y- ground 1 speed 0.77 yaw 175
+        node 1/3 at 959,69,267, stall 0.0 s, moving yes, ai 0.1
+      pre 959.497,133.000,267.531 vel -0.07,-1.40,0.77 -> 959.494,133.000,267.570 hit -y- ground 1 speed 0.77 yaw 175
+        node 1/3 at 959,69,267, stall 0.0 s, moving yes, ai 0.1
+      pre 959.494,133.000,267.570 vel -0.07,-1.40,0.77 -> 959.490,133.000,267.608 hit -y- ground 1 speed 0.77 yaw 175
+        node 1/3 at 959,69,267, stall 0.0 s, moving yes, ai 0.0
+      pre 959.490,133.000,267.608 vel -0.04,-1.40,0.42 -> 959.489,133.000,267.629 hit -y- ground 1 speed 0.00 yaw 175
+        node 1/3 at 959,69,267, stall 0.0 s, moving no, ai 4.5
+      pre 959.489,133.000,267.629 vel -0.02,-1.40,0.23 -> 959.488,133.000,267.640 hit -y- ground 1 speed 0.00 yaw 175
+        node 1/3 at 959,69,267, stall 0.0 s, moving no, ai 4.5
+behaviorsim seed 777: 221 mobs; spinning 1, stuck 2
+behaviorsim: fell 1, goal_missed_bed 1, goal_missed_meet 1, in_wall 1, spinning 4, stuck 3; villager goals reached: bed 46/47, meet 46/47, work 18/18 (40 s)
+gencheck leak kinds: water underground border onto rail 35; lava underground in-chunk onto deepslate 30; water underground border onto oak_planks 20; water underground border onto deepslate 8; water underground border onto deepslate_gold_ore 3; water underground border onto stone 2; lava underground border onto deepslate 2
+gencheck: 288 chunks over 3 seeds: floating_block 3, leak 100, leaves_orphan 1, ore_in_air 4, plant_floating 1, spring 87 (3.8 s)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 937 ms, upload 290 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 90) sky 15 block 0 in air, daylight 1.0
+imagecheck gencheck_leak_1.png magenta=0.00000 black=0.0031 white=0.0008 std=35.1 hash=8aa101eca02a4030
+imagecheck gencheck_leak_1.png magenta=0.00000 black=0.0031 white=0.0008 std=35.1 hash=8aa101eca02a4030
+seed 777  pos 544.0 156.0 -755.0  rd 4  chunks 109  (drawn 26)
+gen 119 ms  mesh(all, parallel) 116 ms  mesh(1 section) 0.90 ms  quads 453110 opaque / 3577 water
+frame (encode+GPU, offscreen, median of 30) 4.82 ms  biome darkForest
+mesh slabs 16 MB, chunks 109 (block+light arrays 10 MB), Metal allocated 186 MB
+memory: resident 223 MB  (section meshes 14 MB)
+wrote snaps/gencheck_leak_1.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 804 ms, upload 275 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 90) sky 15 block 0 in air, daylight 1.0
+imagecheck gencheck_leak_2.png magenta=0.00000 black=0.0031 white=0.0008 std=35.1 hash=8aa101eca02a4030
+imagecheck gencheck_leak_2.png magenta=0.00000 black=0.0031 white=0.0008 std=35.1 hash=8aa101eca02a4030
+seed 777  pos 544.0 156.0 -755.0  rd 4  chunks 109  (drawn 26)
+gen 100 ms  mesh(all, parallel) 95 ms  mesh(1 section) 0.91 ms  quads 453110 opaque / 3577 water
+frame (encode+GPU, offscreen, median of 30) 4.23 ms  biome darkForest
+mesh slabs 16 MB, chunks 109 (block+light arrays 10 MB), Metal allocated 186 MB
+memory: resident 222 MB  (section meshes 14 MB)
+wrote snaps/gencheck_leak_2.png
+collisiontest: 168 shapes; no issues
+agent village seed 12345/1: 0 violations, 0 unmet goals of 12; 
+agent village seed 777/1: 0 violations, 0 unmet goals of 12; 
+agent village seed 424242/1: 0 violations, 0 unmet goals of 9; 
+agent village: 0 oracle violations, 0 unmet goals over 3 seeds x 1 runs in 11 s
+agent explorer seed 12345/1: 0 violations, 0 unmet goals of 2; 
+agent explorer seed 777/1: 0 violations, 0 unmet goals of 2; 
+agent explorer: 0 oracle violations, 0 unmet goals over 2 seeds x 1 runs in 5 s
+agent life seed 12345/1: 0 violations, 0 unmet goals of 3; 
+agent life seed 777/1: 0 violations, 2 unmet goals of 3; 
+agent life: 0 oracle violations, 2 unmet goals over 2 seeds x 1 runs in 11 s
+agent cave seed 12345/1: 0 violations, 0 unmet goals of 2; 
+agent cave seed 777/1: 0 violations, 0 unmet goals of 2; 
+agent cave seed 424242/1: 0 violations, 0 unmet goals of 2; 
+agent cave: 0 oracle violations, 0 unmet goals over 3 seeds x 1 runs in 23 s
+agent monkey seed 12345/1: 0 violations, 0 unmet goals of 0; 
+agent monkey seed 12345/2: 0 violations, 0 unmet goals of 0; 
+agent monkey seed 12345/3: 0 violations, 0 unmet goals of 0; 
+agent monkey seed 424242/1: 0 violations, 0 unmet goals of 0; 
+agent monkey seed 424242/2: 0 violations, 0 unmet goals of 0; 
+agent monkey seed 424242/3: 0 violations, 0 unmet goals of 0; 
+agent monkey seed 777/1: 0 violations, 0 unmet goals of 0; tick_spikes 1
+agent monkey seed 777/2: 0 violations, 0 unmet goals of 0; 
+agent monkey seed 777/3: 0 violations, 0 unmet goals of 0; 
+agent monkey seed 31337/1: 0 violations, 0 unmet goals of 0; 
+agent monkey seed 31337/2: 0 violations, 0 unmet goals of 0; 
+agent monkey seed 31337/3: 0 violations, 0 unmet goals of 0; 
+agent monkey: 0 oracle violations, 0 unmet goals over 4 seeds x 3 runs in 50 s
+replay determinism: DIFFERENT (end-state hash 2889490607251574153 vs end-state hash 465629590756780274, snaps/replay_life_777_1.jsonl)
+imagecheck: 6 frames, duplicate_frame 1

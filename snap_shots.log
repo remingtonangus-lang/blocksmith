@@ -1,0 +1,1694 @@
+camera in solid at -136 82 -40: moved to -131 82 -35
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 732 ms, upload 245 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 82) sky 15 block 0 in air, daylight 1.0
+imagecheck texsrc_procedural_forest.png magenta=0.00000 black=0.0027 white=0.0008 std=36.3 hash=e76c6bbd2c204073
+imagecheck texsrc_procedural_forest.png magenta=0.00000 black=0.0027 white=0.0008 std=36.3 hash=e76c6bbd2c204073
+seed 12345  pos -130.5 146.0 -34.5  rd 8  chunks 297  (drawn 77)
+gen 250 ms  mesh(all, parallel) 270 ms  mesh(1 section) 0.95 ms  quads 1123696 opaque / 9408 water
+frame (encode+GPU, offscreen, median of 30) 4.61 ms  biome forest
+mesh slabs 40 MB, chunks 297 (block+light arrays 29 MB), Metal allocated 210 MB
+memory: resident 268 MB  (section meshes 35 MB)
+wrote snaps/texsrc_procedural_forest.png
+biome stony_shore not found
+camera in solid at 8 87 8: moved to 6 89 9
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 795 ms, upload 267 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 86) sky 15 block 0 in air, daylight 1.0
+imagecheck texsrc_procedural_cliff.png magenta=0.00000 black=0.0009 white=0.0008 std=35.1 hash=cc31431624aac416
+imagecheck texsrc_procedural_cliff.png magenta=0.00000 black=0.0009 white=0.0008 std=35.1 hash=cc31431624aac416
+seed 12345  pos 6.5 153.0 9.5  rd 8  chunks 297  (drawn 71)
+gen 252 ms  mesh(all, parallel) 252 ms  mesh(1 section) 0.66 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 3.90 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 274 MB  (section meshes 30 MB)
+wrote snaps/texsrc_procedural_cliff.png
+camera in solid at -136 82 -40: moved to -131 82 -35
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 925 ms, upload 288 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 82) sky 15 block 0 in air, daylight 1.0
+imagecheck texsrc_cc0_forest.png magenta=0.00000 black=0.0021 white=0.0008 std=37.4 hash=c673b8176f6f225f
+imagecheck texsrc_cc0_forest.png magenta=0.00000 black=0.0021 white=0.0008 std=37.4 hash=c673b8176f6f225f
+seed 12345  pos -130.5 146.0 -34.5  rd 8  chunks 297  (drawn 77)
+gen 237 ms  mesh(all, parallel) 276 ms  mesh(1 section) 1.76 ms  quads 1123696 opaque / 9408 water
+frame (encode+GPU, offscreen, median of 30) 5.26 ms  biome forest
+mesh slabs 40 MB, chunks 297 (block+light arrays 29 MB), Metal allocated 210 MB
+memory: resident 278 MB  (section meshes 35 MB)
+wrote snaps/texsrc_cc0_forest.png
+biome stony_shore not found
+camera in solid at 8 87 8: moved to 6 89 9
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 794 ms, upload 274 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 86) sky 15 block 0 in air, daylight 1.0
+imagecheck texsrc_cc0_cliff.png magenta=0.00000 black=0.0001 white=0.0008 std=36.0 hash=339a3ce9be294362
+imagecheck texsrc_cc0_cliff.png magenta=0.00000 black=0.0001 white=0.0008 std=36.0 hash=339a3ce9be294362
+seed 12345  pos 6.5 153.0 9.5  rd 8  chunks 297  (drawn 71)
+gen 252 ms  mesh(all, parallel) 260 ms  mesh(1 section) 0.70 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 4.07 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 274 MB  (section meshes 30 MB)
+wrote snaps/texsrc_cc0_cliff.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 725 ms, upload 266 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck mobs.png magenta=0.00000 black=0.0073 white=0.0008 std=34.3 hash=faace07ff3630168
+imagecheck mobs.png magenta=0.00000 black=0.0073 white=0.0008 std=34.3 hash=faace07ff3630168
+seed 12345  pos 31.5 137.0 29.5  rd 8  chunks 297  (drawn 78)
+gen 251 ms  mesh(all, parallel) 239 ms  mesh(1 section) 0.63 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 4.80 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 218 MB
+memory: resident 279 MB  (section meshes 30 MB)
+wrote snaps/mobs.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 727 ms, upload 269 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck mob_shadows.png magenta=0.00000 black=0.0044 white=0.0008 std=33.0 hash=230c51c61c9fd088
+imagecheck mob_shadows.png magenta=0.00000 black=0.0044 white=0.0008 std=33.0 hash=230c51c61c9fd088
+seed 12345  pos 31.5 137.0 29.5  rd 8  chunks 297  (drawn 78)
+gen 239 ms  mesh(all, parallel) 239 ms  mesh(1 section) 0.79 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 4.85 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 218 MB
+memory: resident 285 MB  (section meshes 30 MB)
+wrote snaps/mob_shadows.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 772 ms, upload 263 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck hostile.png magenta=0.00000 black=0.0071 white=0.0008 std=32.7 hash=afa19f8d7766580f
+imagecheck hostile.png magenta=0.00000 black=0.0071 white=0.0008 std=32.7 hash=afa19f8d7766580f
+seed 12345  pos 31.5 137.0 29.5  rd 8  chunks 297  (drawn 78)
+gen 294 ms  mesh(all, parallel) 260 ms  mesh(1 section) 0.68 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 4.91 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 218 MB
+memory: resident 284 MB  (section meshes 30 MB)
+wrote snaps/hostile.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 673 ms, upload 252 ms)
+light probe: eye sky 0 block 0 in air; floor+1 (y 74) sky 0 block 0 in air, daylight 1.0
+imagecheck nether.png magenta=0.00000 black=0.0311 white=0.0009 std=28.3 hash=9a27c2a8521ed814
+imagecheck nether.png magenta=0.00000 black=0.0311 white=0.0009 std=28.3 hash=9a27c2a8521ed814
+seed 12345  pos 0.5 140.0 0.5  rd 8  chunks 297  (drawn 61)
+gen 108 ms  mesh(all, parallel) 236 ms  mesh(1 section) 0.25 ms  quads 377376 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 3.59 ms  biome netherWastes
+mesh slabs 16 MB, chunks 297 (block+light arrays 32 MB), Metal allocated 186 MB
+memory: resident 233 MB  (section meshes 12 MB)
+wrote snaps/nether.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 792 ms, upload 251 ms)
+light probe: eye sky 0 block 7 in air; floor+1 (y 40) sky 0 block 4 in air, daylight 1.0
+imagecheck ember_crimson.png magenta=0.00000 black=0.0272 white=0.0009 std=25.2 hash=c7914a9fa35e8dfb
+imagecheck ember_crimson.png magenta=0.00000 black=0.0272 white=0.0009 std=25.2 hash=c7914a9fa35e8dfb
+seed 12345  pos -135.5 106.0 248.5  rd 8  chunks 297  (drawn 51)
+gen 121 ms  mesh(all, parallel) 252 ms  mesh(1 section) 0.25 ms  quads 365740 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 3.11 ms  biome crimsonForest
+mesh slabs 16 MB, chunks 297 (block+light arrays 32 MB), Metal allocated 186 MB
+memory: resident 241 MB  (section meshes 11 MB)
+wrote snaps/ember_crimson.png
+camera in solid at -88 69 104: moved to -90 70 105
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 803 ms, upload 278 ms)
+light probe: eye sky 0 block 0 in warped_wart_block; floor+1 (y 70) sky 0 block 9 in air, daylight 1.0
+imagecheck ember_warped.png magenta=0.00000 black=0.0387 white=0.0125 std=56.0 hash=57e1509926e8f430
+imagecheck ember_warped.png magenta=0.00000 black=0.0387 white=0.0125 std=56.0 hash=57e1509926e8f430
+seed 12345  pos -89.5 140.0 105.5  rd 8  chunks 297  (drawn 75)
+gen 125 ms  mesh(all, parallel) 248 ms  mesh(1 section) 0.35 ms  quads 378377 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 4.09 ms  biome warpedForest
+mesh slabs 16 MB, chunks 297 (block+light arrays 33 MB), Metal allocated 186 MB
+memory: resident 246 MB  (section meshes 12 MB)
+wrote snaps/ember_warped.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 732 ms, upload 262 ms)
+light probe: eye sky 0 block 0 in air; floor+1 (y 62) sky 0 block 0 in air, daylight 1.0
+imagecheck ember_soul.png magenta=0.00000 black=0.0342 white=0.0008 std=19.0 hash=4a2268be62fcd982
+imagecheck ember_soul.png magenta=0.00000 black=0.0342 white=0.0008 std=19.0 hash=4a2268be62fcd982
+seed 12345  pos -135.5 128.0 -183.5  rd 8  chunks 297  (drawn 59)
+gen 102 ms  mesh(all, parallel) 178 ms  mesh(1 section) 0.39 ms  quads 393923 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 3.98 ms  biome soulSandValley
+mesh slabs 16 MB, chunks 297 (block+light arrays 32 MB), Metal allocated 186 MB
+memory: resident 242 MB  (section meshes 12 MB)
+wrote snaps/ember_soul.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 656 ms, upload 232 ms)
+light probe: eye sky 0 block 10 in air; floor+1 (y 31) sky 0 block 15 in lava, daylight 1.0
+imagecheck ember_basalt.png magenta=0.00000 black=0.0013 white=0.0008 std=64.8 hash=e076bde6609b8f15
+imagecheck ember_basalt.png magenta=0.00000 black=0.0013 white=0.0008 std=64.8 hash=e076bde6609b8f15
+seed 12345  pos -327.5 99.0 104.5  rd 8  chunks 297  (drawn 72)
+gen 113 ms  mesh(all, parallel) 183 ms  mesh(1 section) 0.22 ms  quads 357914 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 3.96 ms  biome basaltDeltas
+mesh slabs 16 MB, chunks 297 (block+light arrays 33 MB), Metal allocated 186 MB
+memory: resident 241 MB  (section meshes 11 MB)
+wrote snaps/ember_basalt.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 764 ms, upload 251 ms)
+light probe: eye sky 0 block 0 in air; floor+1 (y 42) sky 0 block 0 in air, daylight 1.0
+imagecheck nether_wide.png magenta=0.00000 black=0.0311 white=0.0008 std=36.2 hash=47af144d5516c743
+imagecheck nether_wide.png magenta=0.00000 black=0.0311 white=0.0008 std=36.2 hash=47af144d5516c743
+seed 12345  pos 300.0 112.0 -200.0  rd 8  chunks 297  (drawn 47)
+gen 163 ms  mesh(all, parallel) 218 ms  mesh(1 section) 0.23 ms  quads 326715 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 3.27 ms  biome netherWastes
+mesh slabs 12 MB, chunks 297 (block+light arrays 32 MB), Metal allocated 182 MB
+memory: resident 227 MB  (section meshes 10 MB)
+wrote snaps/nether_wide.png
+structure fortress at 136 62 24 (25 pieces)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 757 ms, upload 255 ms)
+light probe: eye sky 0 block 0 in air; floor+1 (y 62) sky 0 block 0 in air, daylight 1.0
+imagecheck fortress.png magenta=0.00000 black=0.2921 white=0.0008 std=13.0 hash=f84dad62f2462869
+imagecheck fortress.png magenta=0.00000 black=0.2921 white=0.0008 std=13.0 hash=f84dad62f2462869
+seed 12345  pos 136.5 127.0 24.5  rd 6  chunks 193  (drawn 45)
+gen 80 ms  mesh(all, parallel) 142 ms  mesh(1 section) 0.23 ms  quads 226410 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 3.86 ms  biome crimsonForest
+mesh slabs 8 MB, chunks 193 (block+light arrays 21 MB), Metal allocated 178 MB
+memory: resident 218 MB  (section meshes 7 MB)
+wrote snaps/fortress.png
+structure fortress at 136 62 24 (25 pieces)
+camera in solid at 136 71 24: moved to 134 69 22
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 673 ms, upload 251 ms)
+light probe: eye sky 0 block 0 in netherrack; floor+1 (y 64) sky 0 block 0 in air, daylight 1.0
+imagecheck fortress_far.png magenta=0.00000 black=0.2339 white=0.0008 std=15.8 hash=09b44d95c9e3cfce
+imagecheck fortress_far.png magenta=0.00000 black=0.2339 white=0.0008 std=15.8 hash=09b44d95c9e3cfce
+seed 12345  pos 134.5 137.0 22.5  rd 8  chunks 297  (drawn 81)
+gen 125 ms  mesh(all, parallel) 212 ms  mesh(1 section) 0.24 ms  quads 335468 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 3.40 ms  biome crimsonForest
+mesh slabs 12 MB, chunks 297 (block+light arrays 32 MB), Metal allocated 182 MB
+memory: resident 239 MB  (section meshes 10 MB)
+wrote snaps/fortress_far.png
+structure fortress at 136 62 24 (25 pieces)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 791 ms, upload 266 ms)
+light probe: eye sky 0 block 0 in air; floor+1 (y 62) sky 0 block 0 in air, daylight 1.0
+imagecheck nether_mobs.png magenta=0.00000 black=0.2566 white=0.0008 std=16.0 hash=be5bbeb4e512d67b
+imagecheck nether_mobs.png magenta=0.00000 black=0.2566 white=0.0008 std=16.0 hash=be5bbeb4e512d67b
+seed 12345  pos 136.5 127.0 24.5  rd 6  chunks 193  (drawn 41)
+gen 82 ms  mesh(all, parallel) 141 ms  mesh(1 section) 0.26 ms  quads 226384 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 2.99 ms  biome crimsonForest
+mesh slabs 8 MB, chunks 193 (block+light arrays 21 MB), Metal allocated 190 MB
+memory: resident 230 MB  (section meshes 7 MB)
+wrote snaps/nether_mobs.png
+structure bastion at 200 34 -334 (1 pieces)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 701 ms, upload 247 ms)
+light probe: eye sky 0 block 0 in air; floor+1 (y 34) sky 0 block 0 in air, daylight 1.0
+imagecheck bastion.png magenta=0.00000 black=0.0635 white=0.0008 std=14.0 hash=30a33f5d99132a7c
+imagecheck bastion.png magenta=0.00000 black=0.0635 white=0.0008 std=14.0 hash=30a33f5d99132a7c
+seed 12345  pos 200.5 99.0 -333.5  rd 6  chunks 193  (drawn 5)
+gen 66 ms  mesh(all, parallel) 108 ms  mesh(1 section) 0.16 ms  quads 226123 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 2.14 ms  biome soulSandValley
+mesh slabs 8 MB, chunks 193 (block+light arrays 21 MB), Metal allocated 190 MB
+memory: resident 232 MB  (section meshes 7 MB)
+wrote snaps/bastion.png
+structure bastion at 200 34 -334 (1 pieces)
+camera in solid at 200 48 -334: moved to 195 43 -339
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 879 ms, upload 294 ms)
+light probe: eye sky 0 block 0 in netherrack; floor+1 (y 49) sky 0 block 0 in netherrack, daylight 1.0
+imagecheck bastion_far.png magenta=0.00000 black=0.0311 white=0.0008 std=19.9 hash=96c11fa590c96396
+imagecheck bastion_far.png magenta=0.00000 black=0.0311 white=0.0008 std=19.9 hash=96c11fa590c96396
+seed 12345  pos 195.5 112.0 -338.5  rd 8  chunks 297  (drawn 39)
+gen 144 ms  mesh(all, parallel) 274 ms  mesh(1 section) 0.28 ms  quads 362907 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 3.21 ms  biome soulSandValley
+mesh slabs 16 MB, chunks 297 (block+light arrays 32 MB), Metal allocated 198 MB
+memory: resident 247 MB  (section meshes 11 MB)
+wrote snaps/bastion_far.png
+structure village at 14 129 -322 (38 pieces)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 723 ms, upload 245 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 132) sky 15 block 7 in air, daylight 1.0
+imagecheck village.png magenta=0.00000 black=0.0000 white=0.0009 std=46.9 hash=cc1eac4000f44ce7
+imagecheck village.png magenta=0.00000 black=0.0000 white=0.0009 std=46.9 hash=cc1eac4000f44ce7
+seed 12345  pos 14.5 207.0 -321.5  rd 8  chunks 297  (drawn 84)
+gen 253 ms  mesh(all, parallel) 416 ms  mesh(1 section) 0.66 ms  quads 1567677 opaque / 12590 water
+frame (encode+GPU, offscreen, median of 30) 5.50 ms  biome taiga
+mesh slabs 56 MB, chunks 297 (block+light arrays 38 MB), Metal allocated 238 MB
+memory: resident 310 MB  (section meshes 48 MB)
+wrote snaps/village.png
+structure village at 14 129 -322 (38 pieces)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 759 ms, upload 260 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 160) sky 15 block 0 in air, daylight 1.0
+imagecheck village_top.png magenta=0.00000 black=0.0000 white=0.0010 std=32.3 hash=76bb50d6d3a78bc1
+imagecheck village_top.png magenta=0.00000 black=0.0000 white=0.0010 std=32.3 hash=76bb50d6d3a78bc1
+seed 12345  pos 14.5 263.0 -321.5  rd 8  chunks 297  (drawn 115)
+gen 249 ms  mesh(all, parallel) 415 ms  mesh(1 section) 0.68 ms  quads 1567677 opaque / 12590 water
+frame (encode+GPU, offscreen, median of 30) 5.14 ms  biome taiga
+mesh slabs 56 MB, chunks 297 (block+light arrays 38 MB), Metal allocated 238 MB
+memory: resident 308 MB  (section meshes 48 MB)
+wrote snaps/village_top.png
+structure village at 1214 74 -1506 (44 pieces)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 757 ms, upload 271 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 81) sky 15 block 7 in air, daylight 1.0
+imagecheck village2.png magenta=0.00000 black=0.0000 white=0.0359 std=56.4 hash=cbac59a41974d61a
+imagecheck village2.png magenta=0.00000 black=0.0000 white=0.0359 std=56.4 hash=cbac59a41974d61a
+seed 12345  pos 1214.5 154.0 -1505.5  rd 8  chunks 297  (drawn 83)
+gen 201 ms  mesh(all, parallel) 197 ms  mesh(1 section) 0.70 ms  quads 972335 opaque / 9027 water
+frame (encode+GPU, offscreen, median of 30) 5.64 ms  biome taiga
+mesh slabs 36 MB, chunks 297 (block+light arrays 27 MB), Metal allocated 218 MB
+memory: resident 284 MB  (section meshes 30 MB)
+wrote snaps/village2.png
+structure village at -466 79 -226 (23 pieces)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 737 ms, upload 260 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 79) sky 15 block 0 in air, daylight 1.0
+imagecheck village3.png magenta=0.00000 black=0.0000 white=0.0008 std=47.2 hash=59f00cc5275d34a5
+imagecheck village3.png magenta=0.00000 black=0.0000 white=0.0008 std=47.2 hash=59f00cc5275d34a5
+seed 12345  pos -465.5 159.0 -225.5  rd 8  chunks 297  (drawn 83)
+gen 220 ms  mesh(all, parallel) 280 ms  mesh(1 section) 0.48 ms  quads 1285445 opaque / 11695 water
+frame (encode+GPU, offscreen, median of 30) 5.98 ms  biome taiga
+mesh slabs 44 MB, chunks 297 (block+light arrays 29 MB), Metal allocated 226 MB
+memory: resident 279 MB  (section meshes 40 MB)
+wrote snaps/village3.png
+structure village at 14 129 -322 (38 pieces)
+camera in solid at 14 130 -322: moved to 12 131 -320
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 697 ms, upload 235 ms)
+light probe: eye sky 15 block 7 in air; floor+1 (y 127) sky 15 block 6 in air, daylight 1.0
+imagecheck village_street.png magenta=0.00000 black=0.0035 white=0.0018 std=36.8 hash=90da34f4a49c6437
+imagecheck village_street.png magenta=0.00000 black=0.0035 white=0.0018 std=36.8 hash=90da34f4a49c6437
+seed 12345  pos 12.5 195.0 -319.5  rd 6  chunks 193  (drawn 46)
+gen 160 ms  mesh(all, parallel) 221 ms  mesh(1 section) 0.62 ms  quads 919270 opaque / 7260 water
+frame (encode+GPU, offscreen, median of 30) 4.70 ms  biome taiga
+mesh slabs 32 MB, chunks 193 (block+light arrays 25 MB), Metal allocated 214 MB
+memory: resident 276 MB  (section meshes 28 MB)
+wrote snaps/village_street.png
+structure temple at -888 97 -703 (1 pieces, framed)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 658 ms, upload 237 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 104) sky 15 block 0 in snow, daylight 1.0
+imagecheck temple.png magenta=0.00000 black=0.0020 white=0.1507 std=88.3 hash=c77973d4dc13a84b
+imagecheck temple.png magenta=0.00000 black=0.0020 white=0.1507 std=88.3 hash=c77973d4dc13a84b
+seed 12345  pos -897.8 168.7 -706.8  rd 8  chunks 297  (drawn 72)
+gen 212 ms  mesh(all, parallel) 317 ms  mesh(1 section) 0.70 ms  quads 1523933 opaque / 13195 water
+frame (encode+GPU, offscreen, median of 30) 5.21 ms  biome snowyTaiga
+mesh slabs 52 MB, chunks 297 (block+light arrays 33 MB), Metal allocated 222 MB
+memory: resident 298 MB  (section meshes 47 MB)
+wrote snaps/temple.png
+structure temple at 3112 68 2800 (1 pieces, framed)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 725 ms, upload 240 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 74) sky 15 block 0 in air, daylight 1.0
+imagecheck temple2.png magenta=0.00000 black=0.0000 white=0.0008 std=46.9 hash=7a55a567ce098462
+imagecheck temple2.png magenta=0.00000 black=0.0000 white=0.0008 std=46.9 hash=7a55a567ce098462
+seed 12345  pos 3102.2 139.7 2798.2  rd 8  chunks 297  (drawn 66)
+gen 202 ms  mesh(all, parallel) 188 ms  mesh(1 section) 0.89 ms  quads 954003 opaque / 21073 water
+frame (encode+GPU, offscreen, median of 30) 4.86 ms  biome mangroveSwamp
+mesh slabs 36 MB, chunks 297 (block+light arrays 25 MB), Metal allocated 218 MB
+memory: resident 276 MB  (section meshes 30 MB)
+wrote snaps/temple2.png
+structure pillager_outpost at -504 70 844 (1 pieces, framed)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 692 ms, upload 241 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in short_grass, daylight 1.0
+imagecheck outpost.png magenta=0.00000 black=0.0000 white=0.0008 std=60.4 hash=dcd4c8d94fd5690f
+imagecheck outpost.png magenta=0.00000 black=0.0000 white=0.0008 std=60.4 hash=dcd4c8d94fd5690f
+seed 12345  pos -515.8 143.2 844.2  rd 8  chunks 297  (drawn 69)
+gen 214 ms  mesh(all, parallel) 149 ms  mesh(1 section) 0.25 ms  quads 602298 opaque / 22345 water
+frame (encode+GPU, offscreen, median of 30) 4.33 ms  biome savanna
+mesh slabs 24 MB, chunks 297 (block+light arrays 24 MB), Metal allocated 206 MB
+memory: resident 271 MB  (section meshes 19 MB)
+wrote snaps/outpost.png
+structure pillager_outpost at -504 70 844 (1 pieces, framed)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 764 ms, upload 290 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 69) sky 15 block 0 in air, daylight 1.0
+imagecheck outpost_close.png magenta=0.00000 black=0.0096 white=0.0008 std=60.3 hash=45907c9e08bc582e
+imagecheck outpost_close.png magenta=0.00000 black=0.0096 white=0.0008 std=60.3 hash=45907c9e08bc582e
+seed 12345  pos -508.9 137.9 851.1  rd 8  chunks 297  (drawn 84)
+gen 203 ms  mesh(all, parallel) 145 ms  mesh(1 section) 0.30 ms  quads 600483 opaque / 21745 water
+frame (encode+GPU, offscreen, median of 30) 4.45 ms  biome savanna
+mesh slabs 24 MB, chunks 297 (block+light arrays 24 MB), Metal allocated 206 MB
+memory: resident 272 MB  (section meshes 19 MB)
+wrote snaps/outpost_close.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 689 ms, upload 233 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 201) sky 15 block 0 in air, daylight 1.0
+imagecheck snowslope.png magenta=0.00000 black=0.0000 white=0.1864 std=55.7 hash=a01cf5e4faae8a68
+imagecheck snowslope.png magenta=0.00000 black=0.0000 white=0.1864 std=55.7 hash=a01cf5e4faae8a68
+seed 12345  pos 632.5 277.0 200.5  rd 8  chunks 297  (drawn 81)
+gen 375 ms  mesh(all, parallel) 355 ms  mesh(1 section) 0.20 ms  quads 876567 opaque / 7737 water
+frame (encode+GPU, offscreen, median of 30) 4.14 ms  biome snowySlopes
+mesh slabs 32 MB, chunks 297 (block+light arrays 44 MB), Metal allocated 202 MB
+memory: resident 266 MB  (section meshes 27 MB)
+wrote snaps/snowslope.png
+structure ruined_portal at -424 89 -448 (1 pieces, framed)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 679 ms, upload 233 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 95) sky 15 block 0 in air, daylight 1.0
+imagecheck ruined_portal.png magenta=0.00000 black=0.0032 white=0.0008 std=46.5 hash=68a568c27836b42f
+imagecheck ruined_portal.png magenta=0.00000 black=0.0032 white=0.0008 std=46.5 hash=68a568c27836b42f
+seed 12345  pos -433.8 160.7 -449.8  rd 8  chunks 297  (drawn 65)
+gen 216 ms  mesh(all, parallel) 293 ms  mesh(1 section) 0.77 ms  quads 1492093 opaque / 10830 water
+frame (encode+GPU, offscreen, median of 30) 5.67 ms  biome oldGrowthSpruceTaiga
+mesh slabs 52 MB, chunks 297 (block+light arrays 31 MB), Metal allocated 222 MB
+memory: resident 285 MB  (section meshes 46 MB)
+wrote snaps/ruined_portal.png
+structure shipwreck at 8 64 238 (1 pieces, framed)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 687 ms, upload 244 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 59) sky 11 block 0 in water, daylight 1.0
+imagecheck shipwreck.png magenta=0.00000 black=0.0000 white=0.0020 std=52.8 hash=d72cbb8ae6fc22ab
+imagecheck shipwreck.png magenta=0.00000 black=0.0000 white=0.0020 std=52.8 hash=d72cbb8ae6fc22ab
+seed 12345  pos -3.6 137.1 236.4  rd 8  chunks 297  (drawn 67)
+gen 203 ms  mesh(all, parallel) 173 ms  mesh(1 section) 0.35 ms  quads 591129 opaque / 57585 water
+frame (encode+GPU, offscreen, median of 30) 6.14 ms  biome ocean
+mesh slabs 24 MB, chunks 297 (block+light arrays 24 MB), Metal allocated 194 MB
+memory: resident 260 MB  (section meshes 20 MB)
+wrote snaps/shipwreck.png
+structure mineshaft at 88 23 136 (53 pieces, framed)
+camera in solid at 69 40 122: moved to 67 38 122
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 670 ms, upload 239 ms)
+light probe: eye sky 0 block 0 in air; floor+1 (y 27) sky 0 block 7 in air, daylight 1.0
+imagecheck mineshaft.png magenta=0.00000 black=0.0000 white=0.0010 std=23.7 hash=8c23f196b60c216d
+imagecheck mineshaft.png magenta=0.00000 black=0.0000 white=0.0010 std=23.7 hash=8c23f196b60c216d
+seed 12345  pos 67.5 102.0 122.5  rd 8  chunks 297  (drawn 27)
+gen 205 ms  mesh(all, parallel) 176 ms  mesh(1 section) 0.37 ms  quads 669264 opaque / 45618 water
+frame (encode+GPU, offscreen, median of 30) 3.12 ms  biome ocean
+mesh slabs 24 MB, chunks 297 (block+light arrays 24 MB), Metal allocated 206 MB
+memory: resident 268 MB  (section meshes 22 MB)
+wrote snaps/mineshaft.png
+structure stronghold at 604 2 1619 (19 pieces)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 781 ms, upload 265 ms)
+light probe: eye sky 0 block 10 in air; floor+1 (y 2) sky 0 block 8 in air, daylight 1.0
+imagecheck stronghold.png magenta=0.00000 black=0.0000 white=0.0008 std=27.5 hash=f62f89a6cf1a40b0
+imagecheck stronghold.png magenta=0.00000 black=0.0000 white=0.0008 std=27.5 hash=f62f89a6cf1a40b0
+seed 12345  pos 604.5 66.5 1619.5  rd 4  chunks 109  (drawn 28)
+gen 74 ms  mesh(all, parallel) 56 ms  mesh(1 section) 0.56 ms  quads 172144 opaque / 22030 water
+frame (encode+GPU, offscreen, median of 30) 2.69 ms  biome ocean
+mesh slabs 8 MB, chunks 109 (block+light arrays 8 MB), Metal allocated 178 MB
+memory: resident 213 MB  (section meshes 6 MB)
+wrote snaps/stronghold.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 699 ms, upload 249 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 58) sky 15 block 0 in air, daylight 0.75
+imagecheck end.png magenta=0.00000 black=0.1587 white=0.0013 std=27.5 hash=c4e4f95ea17d0686
+imagecheck end.png magenta=0.00000 black=0.1587 white=0.0013 std=27.5 hash=c4e4f95ea17d0686
+seed 12345  pos 70.0 150.0 35.0  rd 8  chunks 297  (drawn 60)
+gen 72 ms  mesh(all, parallel) 17 ms  mesh(1 section) 0.33 ms  quads 50777 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 3.07 ms  biome theEnd
+mesh slabs 4 MB, chunks 297 (block+light arrays 9 MB), Metal allocated 186 MB
+memory: resident 205 MB  (section meshes 2 MB)
+wrote snaps/end.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 693 ms, upload 246 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 81) sky 15 block 0 in air, daylight 0.75
+imagecheck end_top.png magenta=0.00000 black=0.1266 white=0.0008 std=32.3 hash=9a6b2d2650bdf29d
+imagecheck end_top.png magenta=0.00000 black=0.1266 white=0.0008 std=32.3 hash=9a6b2d2650bdf29d
+seed 12345  pos 0.0 184.0 60.0  rd 8  chunks 297  (drawn 96)
+gen 90 ms  mesh(all, parallel) 24 ms  mesh(1 section) 0.26 ms  quads 58155 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 3.24 ms  biome theEnd
+mesh slabs 4 MB, chunks 297 (block+light arrays 10 MB), Metal allocated 186 MB
+memory: resident 203 MB  (section meshes 2 MB)
+wrote snaps/end_top.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 706 ms, upload 245 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 41) sky 15 block 0 in air, daylight 0.75
+imagecheck end_outer.png magenta=0.00000 black=0.0031 white=0.0008 std=16.6 hash=173d12f6018d826f
+imagecheck end_outer.png magenta=0.00000 black=0.0031 white=0.0008 std=16.6 hash=173d12f6018d826f
+seed 12345  pos 1250.0 144.0 40.0  rd 8  chunks 297  (drawn 18)
+gen 83 ms  mesh(all, parallel) 38 ms  mesh(1 section) 0.00 ms  quads 63403 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 3.18 ms  biome theEnd
+mesh slabs 4 MB, chunks 297 (block+light arrays 11 MB), Metal allocated 174 MB
+memory: resident 191 MB  (section meshes 2 MB)
+wrote snaps/end_outer.png
+structure end_city at 400 67 -1216 (2 pieces)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 727 ms, upload 247 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 65) sky 15 block 0 in air, daylight 0.75
+imagecheck end_city.png magenta=0.00000 black=0.0003 white=0.0045 std=33.2 hash=e256bb74e49b66b8
+imagecheck end_city.png magenta=0.00000 black=0.0003 white=0.0045 std=33.2 hash=e256bb74e49b66b8
+seed 12345  pos 400.5 159.0 -1215.5  rd 8  chunks 297  (drawn 11)
+gen 95 ms  mesh(all, parallel) 30 ms  mesh(1 section) 0.44 ms  quads 37935 opaque / 0 water
+frame (encode+GPU, offscreen, median of 30) 3.01 ms  biome theEnd
+mesh slabs 4 MB, chunks 297 (block+light arrays 7 MB), Metal allocated 186 MB
+memory: resident 196 MB  (section meshes 1 MB)
+wrote snaps/end_city.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 695 ms, upload 254 ms)
+light probe: eye sky 15 block 8 in air; floor+1 (y 72) sky 15 block 8 in air, daylight 1.0
+imagecheck portal.png magenta=0.00161 black=0.0094 white=0.0008 std=26.2 hash=296ac450274a99dc
+imagecheck portal.png magenta=0.00161 black=0.0094 white=0.0008 std=26.2 hash=296ac450274a99dc
+seed 12345  pos 31.5 137.0 29.5  rd 8  chunks 326  (drawn 77)
+gen 222 ms  mesh(all, parallel) 280 ms  mesh(1 section) 0.70 ms  quads 1049733 opaque / 25492 water
+frame (encode+GPU, offscreen, median of 30) 4.89 ms  biome forest
+mesh slabs 40 MB, chunks 326 (block+light arrays 30 MB), Metal allocated 210 MB
+memory: resident 275 MB  (section meshes 33 MB)
+wrote snaps/portal.png
+piston debug: power 15 block west redstone_block front piston_head[11] kind stickyPiston
+redstone bench: lamp A redstone_lamp[lit], piston sticky_piston[11], lamp C redstone_lamp / redstone_lamp[lit], wire E redstone_wire
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 719 ms, upload 242 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck redstone.png magenta=0.00000 black=0.0000 white=0.0018 std=52.0 hash=937b4ca518434dc9
+imagecheck redstone.png magenta=0.00000 black=0.0000 white=0.0018 std=52.0 hash=937b4ca518434dc9
+seed 12345  pos 29.0 145.0 39.0  rd 8  chunks 340  (drawn 73)
+gen 275 ms  mesh(all, parallel) 299 ms  mesh(1 section) 0.70 ms  quads 1076783 opaque / 27934 water
+frame (encode+GPU, offscreen, median of 30) 4.13 ms  biome forest
+mesh slabs 40 MB, chunks 340 (block+light arrays 31 MB), Metal allocated 222 MB
+memory: resident 269 MB  (section meshes 34 MB)
+wrote snaps/redstone.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 662 ms, upload 238 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck brewing.png magenta=0.00000 black=0.0159 white=0.0103 std=52.2 hash=943c8bf3488ed06f
+imagecheck brewing.png magenta=0.00000 black=0.0159 white=0.0103 std=52.2 hash=943c8bf3488ed06f
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 78)
+gen 227 ms  mesh(all, parallel) 226 ms  mesh(1 section) 0.62 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 4.09 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 271 MB  (section meshes 30 MB)
+wrote snaps/brewing.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 651 ms, upload 233 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck enchant.png magenta=0.00000 black=0.0158 white=0.0084 std=48.0 hash=1f0c21bde8fe25e3
+imagecheck enchant.png magenta=0.00000 black=0.0158 white=0.0084 std=48.0 hash=1f0c21bde8fe25e3
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 78)
+gen 244 ms  mesh(all, parallel) 249 ms  mesh(1 section) 0.58 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 4.94 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 268 MB  (section meshes 30 MB)
+wrote snaps/enchant.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 753 ms, upload 272 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck anvil.png magenta=0.00000 black=0.0171 white=0.0095 std=50.4 hash=3d628e05abae8640
+imagecheck anvil.png magenta=0.00000 black=0.0171 white=0.0095 std=50.4 hash=3d628e05abae8640
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 78)
+gen 210 ms  mesh(all, parallel) 214 ms  mesh(1 section) 1.41 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 4.86 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 271 MB  (section meshes 30 MB)
+wrote snaps/anvil.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 795 ms, upload 285 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 0.12
+imagecheck effects.png magenta=0.00000 black=0.0016 white=0.0027 std=34.9 hash=22af9ee05d0d22db
+imagecheck effects.png magenta=0.00000 black=0.0016 white=0.0027 std=34.9 hash=22af9ee05d0d22db
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 78)
+gen 211 ms  mesh(all, parallel) 223 ms  mesh(1 section) 0.68 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 4.53 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 271 MB  (section meshes 30 MB)
+wrote snaps/effects.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 675 ms, upload 235 ms)
+light probe: eye sky 15 block 8 in air; floor+1 (y 70) sky 15 block 9 in air, daylight 1.0
+imagecheck magic_blocks.png magenta=0.00000 black=0.0000 white=0.0166 std=54.4 hash=ea2d4b1eb1014cee
+imagecheck magic_blocks.png magenta=0.00000 black=0.0000 white=0.0166 std=54.4 hash=ea2d4b1eb1014cee
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 76)
+gen 206 ms  mesh(all, parallel) 159 ms  mesh(1 section) 0.30 ms  quads 793590 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.78 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 264 MB  (section meshes 25 MB)
+wrote snaps/magic_blocks.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 656 ms, upload 252 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck trade.png magenta=0.00000 black=0.0166 white=0.0112 std=58.8 hash=eb1f7575f780f41f
+imagecheck trade.png magenta=0.00000 black=0.0166 white=0.0112 std=58.8 hash=eb1f7575f780f41f
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 78)
+gen 219 ms  mesh(all, parallel) 218 ms  mesh(1 section) 0.68 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 4.60 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 218 MB
+memory: resident 285 MB  (section meshes 30 MB)
+wrote snaps/trade.png
+structure village at 14 129 -322 (38 pieces, framed)
+after 12.0 s: 146 mobs, villagers butcher 1, farmer 1, fletcher 2, leatherworker 1, librarian 1, nitwit 4, none 13, toolsmith 1
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 662 ms, upload 236 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 136) sky 15 block 0 in air, daylight 1.0
+imagecheck villagers.png magenta=0.00000 black=0.0000 white=0.0008 std=51.4 hash=011866f01e7a1ee6
+imagecheck villagers.png magenta=0.00000 black=0.0000 white=0.0008 std=51.4 hash=011866f01e7a1ee6
+seed 12345  pos -20.8 215.2 -351.8  rd 8  chunks 297  (drawn 90)
+gen 268 ms  mesh(all, parallel) 372 ms  mesh(1 section) 0.53 ms  quads 1579711 opaque / 12028 water
+frame (encode+GPU, offscreen, median of 30) 5.53 ms  biome taiga
+mesh slabs 56 MB, chunks 297 (block+light arrays 37 MB), Metal allocated 238 MB
+memory: resident 332 MB  (section meshes 49 MB)
+wrote snaps/villagers.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 821 ms, upload 311 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck mobs_g.png magenta=0.00000 black=0.0000 white=0.0011 std=48.3 hash=9cce66fbb51bf655
+imagecheck mobs_g.png magenta=0.00000 black=0.0000 white=0.0011 std=48.3 hash=9cce66fbb51bf655
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 74)
+gen 202 ms  mesh(all, parallel) 221 ms  mesh(1 section) 0.20 ms  quads 792974 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.74 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 210 MB
+memory: resident 274 MB  (section meshes 25 MB)
+wrote snaps/mobs_g.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 666 ms, upload 230 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck villager_jobs.png magenta=0.00000 black=0.0000 white=0.0008 std=47.2 hash=f82b083baac7679f
+imagecheck villager_jobs.png magenta=0.00000 black=0.0000 white=0.0008 std=47.2 hash=f82b083baac7679f
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 74)
+gen 236 ms  mesh(all, parallel) 195 ms  mesh(1 section) 0.53 ms  quads 792974 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.49 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 210 MB
+memory: resident 272 MB  (section meshes 25 MB)
+wrote snaps/villager_jobs.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 661 ms, upload 236 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck hisser.png magenta=0.00000 black=0.0000 white=0.0008 std=45.3 hash=f21baa3f1d665e4c
+imagecheck hisser.png magenta=0.00000 black=0.0000 white=0.0008 std=45.3 hash=f21baa3f1d665e4c
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 73)
+gen 200 ms  mesh(all, parallel) 171 ms  mesh(1 section) 0.20 ms  quads 792974 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.19 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 210 MB
+memory: resident 271 MB  (section meshes 25 MB)
+wrote snaps/hisser.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 702 ms, upload 239 ms)
+light probe: eye sky 15 block 5 in air; floor+1 (y 70) sky 15 block 5 in air, daylight 1.0
+imagecheck heads.png magenta=0.00000 black=0.0003 white=0.0008 std=47.7 hash=06a8f9a1a9893a16
+imagecheck heads.png magenta=0.00000 black=0.0003 white=0.0008 std=47.7 hash=06a8f9a1a9893a16
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 76)
+gen 201 ms  mesh(all, parallel) 197 ms  mesh(1 section) 0.42 ms  quads 793335 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.85 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 263 MB  (section meshes 25 MB)
+wrote snaps/heads.png
+beacon level 4, player speed 2
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 657 ms, upload 233 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 0.12
+imagecheck beacon.png magenta=0.00000 black=0.3315 white=0.0071 std=40.5 hash=756dc59c15797d89
+imagecheck beacon.png magenta=0.00000 black=0.3315 white=0.0071 std=40.5 hash=756dc59c15797d89
+seed 12345  pos -87.5 137.0 104.5  rd 8  chunks 297  (drawn 74)
+gen 208 ms  mesh(all, parallel) 180 ms  mesh(1 section) 0.39 ms  quads 793304 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.22 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 255 MB  (section meshes 25 MB)
+wrote snaps/beacon.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 659 ms, upload 245 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 0.7
+imagecheck rain.png magenta=0.00000 black=0.0000 white=0.0008 std=23.6 hash=2ed1d1c4aab641b7
+imagecheck rain.png magenta=0.00000 black=0.0000 white=0.0008 std=23.6 hash=2ed1d1c4aab641b7
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 73)
+gen 203 ms  mesh(all, parallel) 169 ms  mesh(1 section) 0.21 ms  quads 793167 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 5.14 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 265 MB  (section meshes 25 MB)
+wrote snaps/rain.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 677 ms, upload 227 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 0.63
+imagecheck thunder.png magenta=0.00000 black=0.0000 white=0.0193 std=56.4 hash=5850619e4586af7f
+imagecheck thunder.png magenta=0.00000 black=0.0000 white=0.0193 std=56.4 hash=5850619e4586af7f
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 74)
+gen 238 ms  mesh(all, parallel) 211 ms  mesh(1 section) 0.30 ms  quads 793374 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.70 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 260 MB  (section meshes 25 MB)
+wrote snaps/thunder.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 646 ms, upload 237 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 121) sky 15 block 0 in snow, daylight 0.7
+imagecheck snowfall.png magenta=0.00000 black=0.0025 white=0.0008 std=48.5 hash=eb413ea097a2900f
+imagecheck snowfall.png magenta=0.00000 black=0.0025 white=0.0008 std=48.5 hash=eb413ea097a2900f
+seed 12345  pos 152.5 186.0 -1575.5  rd 8  chunks 297  (drawn 74)
+gen 222 ms  mesh(all, parallel) 191 ms  mesh(1 section) 0.34 ms  quads 1009172 opaque / 11182 water
+frame (encode+GPU, offscreen, median of 30) 4.76 ms  biome snowyPlains
+mesh slabs 36 MB, chunks 297 (block+light arrays 30 MB), Metal allocated 218 MB
+memory: resident 287 MB  (section meshes 31 MB)
+wrote snaps/snowfall.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 749 ms, upload 273 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck animals1.png magenta=0.00000 black=0.0000 white=0.0008 std=46.4 hash=0880d9984051ae28
+imagecheck animals1.png magenta=0.00000 black=0.0000 white=0.0008 std=46.4 hash=0880d9984051ae28
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 74)
+gen 199 ms  mesh(all, parallel) 168 ms  mesh(1 section) 0.53 ms  quads 792974 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.93 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 210 MB
+memory: resident 274 MB  (section meshes 25 MB)
+wrote snaps/animals1.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 651 ms, upload 242 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck animals2.png magenta=0.00000 black=0.0000 white=0.0008 std=46.6 hash=43dc9db20f678ad6
+imagecheck animals2.png magenta=0.00000 black=0.0000 white=0.0008 std=46.6 hash=43dc9db20f678ad6
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 74)
+gen 204 ms  mesh(all, parallel) 170 ms  mesh(1 section) 0.22 ms  quads 792974 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 3.81 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 210 MB
+memory: resident 268 MB  (section meshes 25 MB)
+wrote snaps/animals2.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 641 ms, upload 231 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck animals3.png magenta=0.00000 black=0.0000 white=0.0008 std=44.9 hash=5e7c16378d86fd4c
+imagecheck animals3.png magenta=0.00000 black=0.0000 white=0.0008 std=44.9 hash=5e7c16378d86fd4c
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 73)
+gen 211 ms  mesh(all, parallel) 171 ms  mesh(1 section) 0.22 ms  quads 792974 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 5.03 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 210 MB
+memory: resident 264 MB  (section meshes 25 MB)
+wrote snaps/animals3.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 687 ms, upload 243 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 56) sky 8 block 0 in water, daylight 1.0
+imagecheck aquatic.png magenta=0.00000 black=0.0000 white=0.0008 std=51.4 hash=e0690a9318bf2409
+imagecheck aquatic.png magenta=0.00000 black=0.0000 white=0.0008 std=51.4 hash=e0690a9318bf2409
+seed 12345  pos -951.5 128.0 728.5  rd 8  chunks 297  (drawn 74)
+gen 201 ms  mesh(all, parallel) 314 ms  mesh(1 section) 0.62 ms  quads 1009486 opaque / 65274 water
+frame (encode+GPU, offscreen, median of 30) 6.04 ms  biome warmOcean
+mesh slabs 36 MB, chunks 297 (block+light arrays 25 MB), Metal allocated 218 MB
+memory: resident 287 MB  (section meshes 33 MB)
+wrote snaps/aquatic.png
+after 3.0 s: 30 mobs, villagers 
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 701 ms, upload 253 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 49) sky 1 block 0 in water, daylight 1.0
+imagecheck boats.png magenta=0.00000 black=0.0000 white=0.0008 std=54.0 hash=7a7a7c52a1e93f35
+imagecheck boats.png magenta=0.00000 black=0.0000 white=0.0008 std=54.0 hash=7a7a7c52a1e93f35
+seed 12345  pos 104.5 128.0 200.5  rd 8  chunks 297  (drawn 80)
+gen 234 ms  mesh(all, parallel) 188 ms  mesh(1 section) 0.59 ms  quads 555057 opaque / 59777 water
+frame (encode+GPU, offscreen, median of 30) 4.70 ms  biome ocean
+mesh slabs 24 MB, chunks 297 (block+light arrays 23 MB), Metal allocated 206 MB
+memory: resident 262 MB  (section meshes 19 MB)
+wrote snaps/boats.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 758 ms, upload 250 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck armor.png magenta=0.00000 black=0.0000 white=0.0008 std=46.4 hash=3a04f53150d62866
+imagecheck armor.png magenta=0.00000 black=0.0000 white=0.0008 std=46.4 hash=3a04f53150d62866
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 74)
+gen 332 ms  mesh(all, parallel) 263 ms  mesh(1 section) 0.21 ms  quads 792974 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 3.40 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 210 MB
+memory: resident 262 MB  (section meshes 25 MB)
+wrote snaps/armor.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 633 ms, upload 232 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck banners.png magenta=0.00000 black=0.0000 white=0.0008 std=46.5 hash=064a9113e62b369d
+imagecheck banners.png magenta=0.00000 black=0.0000 white=0.0008 std=46.5 hash=064a9113e62b369d
+seed 12345  pos -87.5 137.0 104.5  rd 8  chunks 297  (drawn 75)
+gen 200 ms  mesh(all, parallel) 173 ms  mesh(1 section) 0.21 ms  quads 793189 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.75 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 259 MB  (section meshes 25 MB)
+wrote snaps/banners.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 696 ms, upload 246 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck loom.png magenta=0.00000 black=0.0151 white=0.0090 std=49.6 hash=fdca4c9fbfc15786
+imagecheck loom.png magenta=0.00000 black=0.0151 white=0.0090 std=49.6 hash=fdca4c9fbfc15786
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 73)
+gen 205 ms  mesh(all, parallel) 210 ms  mesh(1 section) 0.59 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 4.18 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 271 MB  (section meshes 30 MB)
+wrote snaps/loom.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 605 ms, upload 219 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck book.png magenta=0.00000 black=0.0154 white=0.0040 std=66.2 hash=db642f68b0b16fa5
+imagecheck book.png magenta=0.00000 black=0.0154 white=0.0040 std=66.2 hash=db642f68b0b16fa5
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 73)
+gen 192 ms  mesh(all, parallel) 200 ms  mesh(1 section) 0.71 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 3.93 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 268 MB  (section meshes 30 MB)
+wrote snaps/book.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 618 ms, upload 257 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck advancements.png magenta=0.00000 black=0.0160 white=0.0083 std=52.2 hash=c356d144ff794bee
+imagecheck advancements.png magenta=0.00000 black=0.0160 white=0.0083 std=52.2 hash=c356d144ff794bee
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 73)
+gen 207 ms  mesh(all, parallel) 219 ms  mesh(1 section) 0.62 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 4.21 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 262 MB  (section meshes 30 MB)
+wrote snaps/advancements.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 608 ms, upload 223 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck credits.png magenta=0.00000 black=0.9814 white=0.0000 std=23.3 hash=685a14e5bf8a47f5
+imagecheck credits.png magenta=0.00000 black=0.9814 white=0.0000 std=23.3 hash=685a14e5bf8a47f5
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 73)
+gen 189 ms  mesh(all, parallel) 193 ms  mesh(1 section) 0.61 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 4.00 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 269 MB  (section meshes 30 MB)
+wrote snaps/credits.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 595 ms, upload 217 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck pause.png magenta=0.00000 black=0.0161 white=0.0118 std=55.4 hash=a19aa1416ab94cb9
+imagecheck pause.png magenta=0.00000 black=0.0161 white=0.0118 std=55.4 hash=a19aa1416ab94cb9
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 73)
+gen 194 ms  mesh(all, parallel) 205 ms  mesh(1 section) 0.63 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 3.89 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 271 MB  (section meshes 30 MB)
+wrote snaps/pause.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 623 ms, upload 218 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck options.png magenta=0.00000 black=0.0161 white=0.0142 std=57.8 hash=ad2f3861740b6adb
+imagecheck options.png magenta=0.00000 black=0.0161 white=0.0142 std=57.8 hash=ad2f3861740b6adb
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 73)
+gen 209 ms  mesh(all, parallel) 221 ms  mesh(1 section) 0.58 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 4.17 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 252 MB  (section meshes 30 MB)
+wrote snaps/options.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 600 ms, upload 215 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck death.png magenta=0.00000 black=0.0025 white=0.0037 std=43.4 hash=7928382980d4c701
+imagecheck death.png magenta=0.00000 black=0.0025 white=0.0037 std=43.4 hash=7928382980d4c701
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 73)
+gen 239 ms  mesh(all, parallel) 216 ms  mesh(1 section) 0.72 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 4.29 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 257 MB  (section meshes 30 MB)
+wrote snaps/death.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 654 ms, upload 227 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck title.png magenta=0.00000 black=0.0153 white=0.0065 std=50.7 hash=e3e1e8f84c19d0a3
+imagecheck title.png magenta=0.00000 black=0.0153 white=0.0065 std=50.7 hash=e3e1e8f84c19d0a3
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 73)
+gen 196 ms  mesh(all, parallel) 204 ms  mesh(1 section) 0.60 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 4.06 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 271 MB  (section meshes 30 MB)
+wrote snaps/title.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 600 ms, upload 221 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck create.png magenta=0.00000 black=0.0156 white=0.0091 std=51.3 hash=4518ded5ba8540f4
+imagecheck create.png magenta=0.00000 black=0.0156 white=0.0091 std=51.3 hash=4518ded5ba8540f4
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 73)
+gen 217 ms  mesh(all, parallel) 231 ms  mesh(1 section) 0.63 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 3.82 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 251 MB  (section meshes 30 MB)
+wrote snaps/create.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 590 ms, upload 216 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck recipes.png magenta=0.00000 black=0.0131 white=0.0116 std=59.2 hash=0ab097c2ff47201e
+imagecheck recipes.png magenta=0.00000 black=0.0131 white=0.0116 std=59.2 hash=0ab097c2ff47201e
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 73)
+gen 192 ms  mesh(all, parallel) 196 ms  mesh(1 section) 0.61 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 4.12 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 266 MB  (section meshes 30 MB)
+wrote snaps/recipes.png
+console: /help
+console:   Commands: help time weather gamemode difficulty tp give summon kill clear effect xp locate seed spawnpoint setblock vessel
+console:   Tab completes names; arrow keys recall earlier commands.
+console: /time set noon
+console:   Set the time to 6000
+console: /give diamond 5
+console:   Gave 5 [Diamond] to Player
+console: /give hisser_head
+console:   Gave 1 [Hisser Head] to Player
+console: /locate sea_temple
+console:   The nearest Sea Temple is at [296, ~, 736] (782 blocks away)
+console: /summon hisser
+console:   Summoned new Hisser
+console: <Player> hello
+console: /tp ~ ~2 ~
+console:   Teleported Player to 8.5, 88.0, 8.5
+console: /xp 5L
+console:   Gave 5 experience levels to Player
+console: /bogus
+console:   Unknown command: bogus. Type /help for a list
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 587 ms, upload 216 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck commands.png magenta=0.00000 black=0.0177 white=0.0068 std=44.8 hash=177891970f159fca
+imagecheck commands.png magenta=0.00000 black=0.0177 white=0.0068 std=44.8 hash=177891970f159fca
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 73)
+gen 192 ms  mesh(all, parallel) 198 ms  mesh(1 section) 0.58 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 3.28 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 218 MB
+memory: resident 285 MB  (section meshes 30 MB)
+wrote snaps/commands.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 676 ms, upload 257 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 0.12
+imagecheck boom_night.png magenta=0.00000 black=0.1753 white=0.0202 std=82.6 hash=ebe2cd394efaf6ee
+imagecheck boom_night.png magenta=0.00000 black=0.1753 white=0.0202 std=82.6 hash=ebe2cd394efaf6ee
+seed 12345  pos -87.5 136.0 104.5  rd 8  chunks 297  (drawn 74)
+gen 185 ms  mesh(all, parallel) 197 ms  mesh(1 section) 0.21 ms  quads 793167 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.50 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 263 MB  (section meshes 25 MB)
+wrote snaps/boom_night.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 591 ms, upload 216 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 0.12
+imagecheck fireworks.png magenta=0.00000 black=0.5007 white=0.0038 std=29.8 hash=8902df729f41bae8
+imagecheck fireworks.png magenta=0.00000 black=0.5007 white=0.0038 std=29.8 hash=8902df729f41bae8
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 75)
+gen 186 ms  mesh(all, parallel) 152 ms  mesh(1 section) 0.20 ms  quads 793167 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 5.00 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 263 MB  (section meshes 25 MB)
+wrote snaps/fireworks.png
+structure monument at 296 48 736 (1 pieces, framed)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 590 ms, upload 220 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 33) sky 0 block 0 in water, daylight 1.0
+imagecheck monument.png magenta=0.00000 black=0.0000 white=0.0008 std=51.3 hash=853a7bfa5ccbfb99
+imagecheck monument.png magenta=0.00000 black=0.0000 white=0.0008 std=51.3 hash=853a7bfa5ccbfb99
+seed 12345  pos 265.5 135.9 713.5  rd 8  chunks 297  (drawn 84)
+gen 173 ms  mesh(all, parallel) 174 ms  mesh(1 section) 0.63 ms  quads 495175 opaque / 65367 water
+frame (encode+GPU, offscreen, median of 30) 4.24 ms  biome deepOcean
+mesh slabs 20 MB, chunks 297 (block+light arrays 22 MB), Metal allocated 202 MB
+memory: resident 270 MB  (section meshes 17 MB)
+wrote snaps/monument.png
+structure mansion at 6872 71 1422 (1 pieces, framed)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 593 ms, upload 218 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 68) sky 15 block 2 in firefly_bush, daylight 1.0
+imagecheck mansion.png magenta=0.00000 black=0.0000 white=0.0008 std=57.3 hash=2323ba3369260a4e
+imagecheck mansion.png magenta=0.00000 black=0.0000 white=0.0008 std=57.3 hash=2323ba3369260a4e
+seed 12345  pos 6830.9 167.3 1406.9  rd 8  chunks 297  (drawn 74)
+gen 182 ms  mesh(all, parallel) 205 ms  mesh(1 section) 0.62 ms  quads 1100542 opaque / 11584 water
+frame (encode+GPU, offscreen, median of 30) 3.84 ms  biome swamp
+mesh slabs 40 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 222 MB
+memory: resident 286 MB  (section meshes 34 MB)
+wrote snaps/mansion.png
+structure ancient_city at -136 -50 836 (1 pieces)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 614 ms, upload 224 ms)
+light probe: eye sky 0 block 0 in air; floor+1 (y -51) sky 0 block 0 in air, daylight 1.0
+imagecheck ancient_city.png magenta=0.00000 black=0.0003 white=0.0010 std=36.0 hash=df40292c8979bc97
+imagecheck ancient_city.png magenta=0.00000 black=0.0003 white=0.0010 std=36.0 hash=df40292c8979bc97
+seed 12345  pos -135.5 17.0 836.5  rd 5  chunks 145  (drawn 30)
+gen 93 ms  mesh(all, parallel) 77 ms  mesh(1 section) 0.56 ms  quads 245090 opaque / 30507 water
+frame (encode+GPU, offscreen, median of 30) 2.68 ms  biome lukewarmOcean
+mesh slabs 12 MB, chunks 145 (block+light arrays 11 MB), Metal allocated 182 MB
+memory: resident 226 MB  (section meshes 8 MB)
+wrote snaps/ancient_city.png
+structure trial_chambers at 184 -29 184 (1 pieces)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 587 ms, upload 215 ms)
+light probe: eye sky 0 block 12 in air; floor+1 (y -29) sky 0 block 5 in air, daylight 1.0
+imagecheck trial_chambers.png magenta=0.00000 black=0.0001 white=0.0018 std=27.4 hash=e0a007dbf83c9482
+imagecheck trial_chambers.png magenta=0.00000 black=0.0001 white=0.0018 std=27.4 hash=e0a007dbf83c9482
+seed 12345  pos 184.5 41.0 184.5  rd 5  chunks 145  (drawn 6)
+gen 91 ms  mesh(all, parallel) 66 ms  mesh(1 section) 0.38 ms  quads 231949 opaque / 21181 water
+frame (encode+GPU, offscreen, median of 30) 2.77 ms  biome lukewarmOcean
+mesh slabs 12 MB, chunks 145 (block+light arrays 11 MB), Metal allocated 194 MB
+memory: resident 235 MB  (section meshes 8 MB)
+wrote snaps/trial_chambers.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 665 ms, upload 238 ms)
+light probe: eye sky 15 block 9 in air; floor+1 (y 70) sky 15 block 9 in air, daylight 1.0
+imagecheck copper.png magenta=0.00000 black=0.0000 white=0.0027 std=48.8 hash=a15d7e0cf8720e00
+imagecheck copper.png magenta=0.00000 black=0.0000 white=0.0027 std=48.8 hash=a15d7e0cf8720e00
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 76)
+gen 213 ms  mesh(all, parallel) 190 ms  mesh(1 section) 0.26 ms  quads 793406 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.42 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 261 MB  (section meshes 25 MB)
+wrote snaps/copper.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 595 ms, upload 220 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck decor.png magenta=0.00000 black=0.0000 white=0.0008 std=46.1 hash=177abcdfc4c7b155
+imagecheck decor.png magenta=0.00000 black=0.0000 white=0.0008 std=46.1 hash=177abcdfc4c7b155
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 74)
+gen 184 ms  mesh(all, parallel) 154 ms  mesh(1 section) 0.19 ms  quads 793219 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 3.97 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 267 MB  (section meshes 25 MB)
+wrote snaps/decor.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 599 ms, upload 220 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck map.png magenta=0.00000 black=0.0000 white=0.0008 std=51.5 hash=05266d89679b3768
+imagecheck map.png magenta=0.00000 black=0.0000 white=0.0008 std=51.5 hash=05266d89679b3768
+seed 12345  pos 31.5 156.0 29.5  rd 8  chunks 297  (drawn 78)
+gen 196 ms  mesh(all, parallel) 201 ms  mesh(1 section) 0.63 ms  quads 969508 opaque / 20135 water
+frame (encode+GPU, offscreen, median of 30) 6.12 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 274 MB  (section meshes 30 MB)
+wrote snaps/map.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 590 ms, upload 219 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck third_back.png magenta=0.00000 black=0.0000 white=0.0007 std=45.4 hash=a70bd62f820e2e04
+imagecheck third_back.png magenta=0.00000 black=0.0000 white=0.0007 std=45.4 hash=a70bd62f820e2e04
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 78)
+gen 187 ms  mesh(all, parallel) 155 ms  mesh(1 section) 0.19 ms  quads 793167 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.02 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 210 MB
+memory: resident 270 MB  (section meshes 25 MB)
+wrote snaps/third_back.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 593 ms, upload 219 ms)
+light probe: eye sky 14 block 0 in water; floor+1 (y 49) sky 1 block 0 in water, daylight 1.0
+swim pose: prone true eye 0.40000153
+imagecheck third_swim.png magenta=0.00000 black=0.0000 white=0.0007 std=10.4 hash=ec7be373ff73496d
+imagecheck third_swim.png magenta=0.00000 black=0.0000 white=0.0007 std=10.4 hash=ec7be373ff73496d
+seed 12345  pos 104.5 127.0 200.5  rd 8  chunks 297  (drawn 80)
+gen 183 ms  mesh(all, parallel) 157 ms  mesh(1 section) 0.54 ms  quads 555057 opaque / 59777 water
+frame (encode+GPU, offscreen, median of 30) 3.40 ms  biome ocean
+mesh slabs 24 MB, chunks 297 (block+light arrays 23 MB), Metal allocated 206 MB
+memory: resident 267 MB  (section meshes 19 MB)
+wrote snaps/third_swim.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 589 ms, upload 220 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck third_front.png magenta=0.00000 black=0.0000 white=0.0007 std=35.2 hash=c3cb70b809970ea4
+imagecheck third_front.png magenta=0.00000 black=0.0000 white=0.0007 std=35.2 hash=c3cb70b809970ea4
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 74)
+gen 184 ms  mesh(all, parallel) 154 ms  mesh(1 section) 0.21 ms  quads 793167 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 3.20 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 210 MB
+memory: resident 275 MB  (section meshes 25 MB)
+wrote snaps/third_front.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 592 ms, upload 218 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck mobs_new.png magenta=0.00000 black=0.0000 white=0.0008 std=40.2 hash=38f0db66b97919b7
+imagecheck mobs_new.png magenta=0.00000 black=0.0000 white=0.0008 std=40.2 hash=38f0db66b97919b7
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 74)
+gen 213 ms  mesh(all, parallel) 163 ms  mesh(1 section) 0.21 ms  quads 792974 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.77 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 210 MB
+memory: resident 268 MB  (section meshes 25 MB)
+wrote snaps/mobs_new.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 593 ms, upload 222 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck soldiers.png magenta=0.00000 black=0.0000 white=0.0008 std=48.7 hash=118a6a2b60040db7
+imagecheck soldiers.png magenta=0.00000 black=0.0000 white=0.0008 std=48.7 hash=118a6a2b60040db7
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 74)
+gen 195 ms  mesh(all, parallel) 160 ms  mesh(1 section) 0.20 ms  quads 792974 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.09 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 210 MB
+memory: resident 273 MB  (section meshes 25 MB)
+wrote snaps/soldiers.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 671 ms, upload 259 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck captains.png magenta=0.00000 black=0.0002 white=0.0008 std=47.5 hash=9478ec7915a7d554
+imagecheck captains.png magenta=0.00000 black=0.0002 white=0.0008 std=47.5 hash=9478ec7915a7d554
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 74)
+gen 184 ms  mesh(all, parallel) 152 ms  mesh(1 section) 0.19 ms  quads 792974 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.50 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 210 MB
+memory: resident 269 MB  (section meshes 25 MB)
+wrote snaps/captains.png
+fired 14 shots, 5 hits, 0 rounds in flight
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 592 ms, upload 221 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck firefight.png magenta=0.00000 black=0.0001 white=0.0013 std=40.9 hash=c75275f3a261dee6
+imagecheck firefight.png magenta=0.00000 black=0.0001 white=0.0013 std=40.9 hash=c75275f3a261dee6
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 78)
+gen 213 ms  mesh(all, parallel) 194 ms  mesh(1 section) 0.19 ms  quads 792974 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.74 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 210 MB
+memory: resident 258 MB  (section meshes 25 MB)
+wrote snaps/firefight.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 586 ms, upload 216 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck deck_gun.png magenta=0.00000 black=0.0000 white=0.0008 std=43.2 hash=ff2390f0725203bc
+imagecheck deck_gun.png magenta=0.00000 black=0.0000 white=0.0008 std=43.2 hash=ff2390f0725203bc
+seed 12345  pos -87.5 139.0 104.5  rd 8  chunks 297  (drawn 79)
+gen 186 ms  mesh(all, parallel) 194 ms  mesh(1 section) 0.19 ms  quads 792974 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 3.22 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 210 MB
+memory: resident 274 MB  (section meshes 25 MB)
+wrote snaps/deck_gun.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 688 ms, upload 236 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck spear_hold.png magenta=0.00000 black=0.0044 white=0.0007 std=45.6 hash=bb25ce1a59a69497
+imagecheck spear_hold.png magenta=0.00000 black=0.0044 white=0.0007 std=45.6 hash=bb25ce1a59a69497
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 73)
+gen 186 ms  mesh(all, parallel) 196 ms  mesh(1 section) 0.21 ms  quads 793167 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.04 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 264 MB  (section meshes 25 MB)
+wrote snaps/spear_hold.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 607 ms, upload 220 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck gun_hip.png magenta=0.00000 black=0.0000 white=0.0013 std=45.1 hash=1aa735112d0a5232
+imagecheck gun_hip.png magenta=0.00000 black=0.0000 white=0.0013 std=45.1 hash=1aa735112d0a5232
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 73)
+gen 187 ms  mesh(all, parallel) 155 ms  mesh(1 section) 0.21 ms  quads 793167 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.16 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 254 MB  (section meshes 25 MB)
+wrote snaps/gun_hip.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 605 ms, upload 224 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck gun_aim.png magenta=0.00000 black=0.0000 white=0.0011 std=44.8 hash=a1f32fb39fde2031
+imagecheck gun_aim.png magenta=0.00000 black=0.0000 white=0.0011 std=44.8 hash=a1f32fb39fde2031
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 73)
+gen 188 ms  mesh(all, parallel) 152 ms  mesh(1 section) 0.21 ms  quads 793167 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.06 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 261 MB  (section meshes 25 MB)
+wrote snaps/gun_aim.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 590 ms, upload 217 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck gun_scope.png magenta=0.00000 black=0.2289 white=0.0004 std=63.9 hash=b8846ca3acbfdc23
+imagecheck gun_scope.png magenta=0.00000 black=0.2289 white=0.0004 std=63.9 hash=b8846ca3acbfdc23
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 73)
+gen 184 ms  mesh(all, parallel) 158 ms  mesh(1 section) 0.20 ms  quads 793167 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.10 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 264 MB  (section meshes 25 MB)
+wrote snaps/gun_scope.png
+structure military_base at -968 72 157 (1 pieces, framed)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 591 ms, upload 216 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 78) sky 15 block 0 in air, daylight 1.0
+imagecheck steelhold.png magenta=0.00000 black=0.0000 white=0.0049 std=50.3 hash=e81ec64cf6c11982
+imagecheck steelhold.png magenta=0.00000 black=0.0000 white=0.0049 std=50.3 hash=e81ec64cf6c11982
+seed 12345  pos -1011.0 169.8 76.9  rd 8  chunks 297  (drawn 80)
+gen 186 ms  mesh(all, parallel) 206 ms  mesh(1 section) 0.67 ms  quads 1000746 opaque / 12816 water
+frame (encode+GPU, offscreen, median of 30) 4.28 ms  biome birchForest
+mesh slabs 36 MB, chunks 297 (block+light arrays 27 MB), Metal allocated 218 MB
+memory: resident 277 MB  (section meshes 31 MB)
+wrote snaps/steelhold.png
+structure military_base at -968 72 157 (1 pieces)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 596 ms, upload 217 ms)
+light probe: eye sky 15 block 6 in air; floor+1 (y 72) sky 15 block 4 in air, daylight 1.0
+imagecheck steelhold_gate.png magenta=0.00000 black=0.0000 white=0.0267 std=60.3 hash=ff2a0487a743a355
+imagecheck steelhold_gate.png magenta=0.00000 black=0.0000 white=0.0267 std=60.3 hash=ff2a0487a743a355
+seed 12345  pos -967.5 137.0 157.5  rd 8  chunks 297  (drawn 75)
+gen 207 ms  mesh(all, parallel) 203 ms  mesh(1 section) 0.81 ms  quads 998846 opaque / 14364 water
+frame (encode+GPU, offscreen, median of 30) 4.66 ms  biome birchForest
+mesh slabs 36 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 218 MB
+memory: resident 285 MB  (section meshes 31 MB)
+wrote snaps/steelhold_gate.png
+structure military_base at -968 72 157 (1 pieces)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 618 ms, upload 219 ms)
+light probe: eye sky 4 block 9 in air; floor+1 (y 72) sky 3 block 10 in air, daylight 1.0
+imagecheck steelhold_armory.png magenta=0.00000 black=0.0018 white=0.0008 std=23.8 hash=46603910fd1fd031
+imagecheck steelhold_armory.png magenta=0.00000 black=0.0018 white=0.0008 std=23.8 hash=46603910fd1fd031
+seed 12345  pos -953.5 136.0 97.5  rd 8  chunks 297  (drawn 67)
+gen 326 ms  mesh(all, parallel) 237 ms  mesh(1 section) 1.44 ms  quads 986853 opaque / 11289 water
+frame (encode+GPU, offscreen, median of 30) 3.60 ms  biome birchForest
+mesh slabs 36 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 218 MB
+memory: resident 276 MB  (section meshes 30 MB)
+wrote snaps/steelhold_armory.png
+structure military_base at -968 72 157 (1 pieces)
+fortresstest: 24 soldiers within 48, 8 aggro, 21 moved, 0 stuck in blocks, player took 325 damage, cover no (20 s)
+fortresstest: PASS
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 600 ms, upload 222 ms)
+light probe: eye sky 4 block 9 in air; floor+1 (y 72) sky 3 block 10 in air, daylight 1.0
+imagecheck steelhold_fight.png magenta=0.00000 black=0.0000 white=0.0008 std=19.9 hash=1b8e81e8c158c51f
+imagecheck steelhold_fight.png magenta=0.00000 black=0.0000 white=0.0008 std=19.9 hash=1b8e81e8c158c51f
+seed 12345  pos -953.5 136.0 97.5  rd 8  chunks 297  (drawn 67)
+gen 189 ms  mesh(all, parallel) 194 ms  mesh(1 section) 1.06 ms  quads 986853 opaque / 11289 water
+frame (encode+GPU, offscreen, median of 30) 4.59 ms  biome birchForest
+mesh slabs 36 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 218 MB
+memory: resident 306 MB  (section meshes 31 MB)
+wrote snaps/steelhold_fight.png
+structure military_base at -968 72 157 (1 pieces)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 618 ms, upload 223 ms)
+light probe: eye sky 9 block 8 in air; floor+1 (y 78) sky 8 block 9 in air, daylight 1.0
+imagecheck steelhold_command.png magenta=0.00000 black=0.0115 white=0.0008 std=25.5 hash=f092f5074ce75b1d
+imagecheck steelhold_command.png magenta=0.00000 black=0.0115 white=0.0008 std=25.5 hash=f092f5074ce75b1d
+seed 12345  pos -967.5 142.0 124.5  rd 8  chunks 297  (drawn 73)
+gen 186 ms  mesh(all, parallel) 194 ms  mesh(1 section) 1.14 ms  quads 983254 opaque / 12917 water
+frame (encode+GPU, offscreen, median of 30) 3.56 ms  biome birchForest
+mesh slabs 36 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 218 MB
+memory: resident 276 MB  (section meshes 30 MB)
+wrote snaps/steelhold_command.png
+mobtest ok   raid wave counts 3/5/7
+mobtest ok   raid normal wave sizes: [4, 5, 4, 8, 11]
+mobtest ok   raid wave 1 captain: 4 pillager
+mobtest ok   raid wave 2 captain: 3 pillager, 2 vindicator
+mobtest ok   raid wave 3 captain: 3 pillager, 1 ravager
+mobtest ok   raid wave 4 captain: 4 pillager, 1 vindicator, 3 witch
+mobtest ok   raid wave 5 captain: 1 evoker, 4 pillager, 1 pillager rider, 1 ravager, 4 vindicator
+mobtest ok   raid normal wave 5 siegebeast rider: 1 evoker, 4 pillager, 1 pillager rider, 1 ravager, 4 vindicator
+mobtest ok   raid wave 3 siegebeast unridden: 3 pillager, 1 ravager
+mobtest ok   raid hard wave 7 riders: 2 evoker, 1 evoker rider, 4 pillager, 2 ravager, 7 vindicator, 1 vindicator rider, 2 witch
+mobtest ok   raid hard wave 7 extras: 2 evoker, 1 evoker rider, 4 pillager, 2 ravager, 7 vindicator, 1 vindicator rider, 2 witch
+mobtest ok   raid easy has no witches
+mobtest ok   raid normal bonus wave: 1 evoker, 5 pillager, 2 ravager, 5 vindicator, 1 witch
+mobtest ok   raid enchant odds
+mobtest ok   raid ill omen -> siege omen
+mobtest ok   raid omen II has a bonus wave: total 6
+mobtest ok   raid waves spawned: 6: 3 pillager 1 pillager* | 4 pillager 2 vindicator 1 vindicator* | 2 pillager 1 pillager* 1 ravager | 4 pillager 1 vindicator 1 vindicator* 3 witch | 1 evoker 5 pillager 1 ravager 4 vindicator 1 vindicator* 1 witch | 1 evoker 5 pillager 2 ravager 4 vindicator 1 vindicator* 1 witch
+mobtest ok   raid every wave has a captain: 3 pillager 1 pillager* | 4 pillager 2 vindicator 1 vindicator* | 2 pillager 1 pillager* 1 ravager | 4 pillager 1 vindicator 1 vindicator* 3 witch | 1 evoker 5 pillager 1 ravager 4 vindicator 1 vindicator* 1 witch | 1 evoker 5 pillager 2 ravager 4 vindicator 1 vindicator* 1 witch
+mobtest ok   raid victory: state 2 after 131 s
+mobtest ok   raid village hero II: level 2
+mobtest ok   path wall detour: 14 nodes 1,0,-4 2,0,-4 3,0,-3 4,0,-2 5,0,-1 6,0,-1 6,0,0 6,0,1 5,0,2 4,0,3 3,0,4 2,0,4 1,0,5 0,0,5
+mobtest ok   path diagonal: 10 nodes -4,0,-4 -3,0,-3 -2,0,-2 -1,0,-1 0,0,0 1,0,1 2,0,2 3,0,3 4,0,4 5,0,5
+mobtest ok   path lava bridge: 14 nodes 1,0,-4 2,0,-4 3,0,-3 4,0,-2 5,0,-2 6,0,-1 7,0,0 6,0,1 5,0,2 4,0,3 3,0,4 2,0,4 1,0,5 0,0,5
+mobtest ok   path cliff uses stairs: max drop 3: 19 nodes 1,0,-4 2,0,-3 3,0,-2 4,0,-1 5,0,0 6,0,0 7,0,0 8,0,0 8,-1,1 8,-2,2 8,-3,3 7,-6,3 6,-6,3 5,-6,3 4,-6,3 3,-6,4 2,-6,4 1,-6,5 0,-6,5
+mobtest ok   path cliff drop when allowed: 10 nodes 0,0,-4 0,0,-3 0,0,-2 0,0,-1 0,0,0 0,-6,1 0,-6,2 0,-6,3 0,-6,4 0,-6,5
+mobtest ok   path ladder climb: 3 rungs: 13 nodes 0,0,-4 0,0,-3 0,0,-2 0,0,-1 0,0,0 0,1,0 0,2,0 0,3,0 0,4,1 0,4,2 0,4,3 0,4,4 0,4,5
+mobtest ok   path wooden door: opener 10 nodes 0,0,-4 0,0,-3 0,0,-2 0,0,-1 0,0,0 0,0,1 0,0,2 0,0,3 0,0,4 0,0,5 | other 6 nodes 0,0,-4 0,0,-3 0,0,-2 0,0,-1 0,0,0 0,0,1
+mobtest ok   path iron door blocks
+mobtest ok   path land mob avoids water: 16 nodes 1,0,-4 2,0,-4 3,0,-3 4,0,-2 5,0,-2 6,0,-2 6,0,-1 6,0,0 6,0,1 6,0,2 5,0,3 4,0,3 3,0,4 2,0,4 1,0,5 0,0,5
+mobtest ok   path swimmer crosses water: 10 nodes 0,0,-4 0,0,-3 0,0,-2 0,-1,-1 0,-1,0 0,-1,1 0,0,2 0,0,3 0,0,4 0,0,5
+mobtest ok   path wide mob uses wide gap: 15 nodes 1,0,-4 2,0,-4 3,0,-3 4,0,-2 5,0,-2 6,0,-2 6,0,-1 6,0,0 6,0,1 5,0,2 4,0,3 3,0,4 2,0,4 1,0,5 0,0,5
+mobtest ok   path narrow mob uses narrow gap: 10 nodes 0,0,-4 0,0,-3 0,0,-2 0,0,-1 0,0,0 0,0,1 0,0,2 0,0,3 0,0,4 0,0,5
+mobtest ok   path one-block step: 10 nodes 0,0,-4 0,0,-3 0,0,-2 0,0,-1 0,0,0 0,1,1 0,1,2 0,1,3 0,1,4 0,1,5
+mobtest ok   path two-block step blocked: 5 nodes 0,0,-4 0,0,-3 0,0,-2 0,0,-1 0,0,0
+mobtest ok   live zombie climbs ladder: after 6.1 s
+mobtest ok   live brigand opens door: after 3.4 s
+mobtest ok   spawn no monsters in mushroom fields / deep dark
+mobtest ok   spawn desert husks 80
+mobtest ok   spawn snowy strays 80
+mobtest ok   spawn river drowned 100
+mobtest ok   spawn categories
+mobtest ok   spawn caps 70/10/15/20
+mobtest ok   spawn night monsters placed legally: 70: 19 creeper 1 enderman 21 skeleton 1 slime 8 spider 1 witch 19 zombie
+mobtest ok   spawn monster cap: 70
+mobtest ok   spawn monsters come in packs: biggest 5
+mobtest ok   spawn none in daylight: 0 of 70 in sky light > 7
+mobtest ok   spawn chunk animal packs: 87 animals in 266 chunks
+mobtest ok   spawn animals on natural ground
+mobtest ok   spawn chunk population runs once
+mobtest ok   despawn beyond 128
+mobtest ok   despawn spares animals and named mobs
+mobtest ok   despawn after 30 s far away: gone after 60.8 s
+mobtest ok   villager schedule idle/work/meet/idle
+mobtest ok   villager nitwits don't work
+mobtest ok   villager children play
+mobtest ok   gossip trading cap: 25
+mobtest ok   gossip four hits = -100: -100
+mobtest ok   gossip cured = +125: 125
+mobtest ok   gossip cured discount: cost 4
+mobtest ok   gossip decays 20/day (minor negative): -60
+mobtest ok   gossip transfer minus 20: [0, 40, 0, 0, 0]
+mobtest ok   golems calm above -100
+mobtest ok   golems hostile at reputation -100
+mobtest ok   golem not summoned by four
+mobtest ok   golem summoned by five sleepers
+mobtest ok   golem summon waits after one appears
+mobtest ok   golem needs villagers that slept
+mobtest ok   convert zombie -> sunken after 45 s under water: drowned
+mobtest ok   convert dust zombie -> zombie under water
+mobtest ok   convert no change out of water
+mobtest ok   convert boarling out of the Emberdeep
+mobtest ok   convert tusker -> rot tusker
+mobtest ok   convert tadpole grows into a frog
+mobtest ok   skeleton trap: four horsemen: 4 riders
+mobtest ok   bee enters hive with nectar (+1 honey): inside 1, honey 1
+mobtest ok   bee leaves the hive by day
+mobtest ok   breed horse + donkey = mule
+mobtest ok   breed turtles carry an egg
+mobtest ok   breed tame wolves have tame pups
+mobtest ok   wandering trader arrives with llamas: 1 trader, 2 llamas
+mobtest ok   sheep graze regrows wool
+mobtest ok   voidwalker picks up a block: after 8 ticks
+mobtest ok   panda recessive brown gene
+mobtest ok   pets leave hissers alone
+mobtest ok   pets attack what hurts the owner
+mobtest ok   zombie picks up a helmet
+mobtest ok   fox sleeps by day
+mobtest ok   wolf variants by biome
+mobtest ok   guns and ammo registered: 6 guns, 5 ammo
+mobtest ok   gun lookup by item
+mobtest ok   rifle reloads from inventory: tag 30, left 34
+mobtest ok   rifle kills a zombie at 12 blocks: 4 shots, hp 0, 26 left
+mobtest ok   recoil kicks the view up: 0.0095 rad
+mobtest ok   recoil settles back: debt 0.005 -> 0.000
+mobtest ok   shotgun fires 9 pellets: 9
+mobtest ok   rocket explodes on a wall: 9 blocks blown out
+mobtest ok   arc lance beam burns: hp -4
+mobtest ok   soldier rank armour: 4 / 14
+mobtest ok   ironclad armour and knockback resistance: 64 of 120, push 0.83
+mobtest ok   troopers carry shotguns or rifles: [0, 2]
+mobtest ok   soldiers alert each other
+mobtest ok   recruit shoots the player after a reaction delay: first hit at 1.20 s
+mobtest ok   firefight audio: gunfire, hits or whizzes, alert barks: 21 shots, 66 near, 1 barks
+mobtest ok   combat music while soldiers hunt the player: level 2
+mobtest ok   trooper takes cover to reload: 1.7 s, cover 2.5,-12.5
+mobtest ok   marksman aims a laser, then fires: laser true, shot true
+mobtest ok   deck gun turns and fires a salvo: 2 shells after 4.7 s, facing 1.000
+mobtest ok   shells land: 1.0 s
+mobtest ok   soldier drops ammo and sometimes its gun: 40 ammo, 10 guns of 40
+mobtest ok   fortresses are rare: 37 in 144 regions of 64x64 chunks
+mobtest ok   fortress built from steel: 14470 steel_grating, 14713 steel_plating, 149 light_panel, 276 steel_plating_slab, 394 armored_glass, 61 command_console, 78 steel_plating_stairs
+mobtest ok   fortress garrison, deck guns and loot: [14, 11, 5, 2] soldiers, 4 deck guns, 17 chests
+mobtest ok   zombies trample turtle eggs: 1.6 s
+mobtest ok   soldiers path up steel stairs: 12 nodes, ends at y 6
+mobtest ok   steelhold explorer map marks the nearest fortress: marker [-968, 120, 14725152]
+mobtest ok   raid state round-trips through the save: wave 4, level 3, 8 waves
+mobtest ok   saved raiders rejoin the raid: 1 raiders, state 1
+mobtest ok   a spear for every tool tier
+mobtest ok   spear jabs further, weaker and slower than a sword
+mobtest ok   spears are crafted
+mobtest ok   spears take melee enchantments and Lunge
+mobtest ok   a spear charge at 8 blocks/s strikes: 20 -> 14
+mobtest ok   a slow charge does no harm: 20 -> 20
+mobtest ok   a tired charge only shoves: 20 -> 20
+mobtest ok   faster charges hit harder
+mobtest ok   the copper set is craftable
+mobtest ok   wooden shelves are crafted from stripped logs and stems
+mobtest ok   copper blocks have every oxidation stage and a waxed form
+mobtest ok   carved pumpkin on exposed copper builds an exposed copper golem
+mobtest ok   a copper golem carries a copper chest's items to the chest that holds them: 21 moved, 0 left, 12.5 s
+mobtest ok   an oxidized golem becomes a statue
+mobtest ok   an axe scrapes a statue back into a weathered golem
+mobtest ok   dye, glow ink and ink sac on a sign
+mobtest ok   warm and cold chickens lay brown and blue eggs
+mobtest ok   thrown eggs hatch their own kind
+mobtest ok   savanna is warm, snowy plains cold
+mobtest ok   calves take their parents' climate look
+mobtests: 0 failed (1.9 s)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 766 ms, upload 249 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.6
+imagecheck mobtests.png magenta=0.00000 black=0.0000 white=0.0001 std=34.8 hash=2fbca8fc715bf2ba
+imagecheck mobtests.png magenta=0.00000 black=0.0000 white=0.0001 std=34.8 hash=2fbca8fc715bf2ba
+seed 12345  pos -87.5 137.0 104.5  rd 8  chunks 266  (drawn 74)
+gen 187 ms  mesh(all, parallel) 152 ms  mesh(1 section) 0.45 ms  quads 793167 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 6.64 ms  biome plains
+mesh slabs 32 MB, chunks 266 (block+light arrays 24 MB), Metal allocated 202 MB
+memory: resident 276 MB  (section meshes 25 MB)
+wrote snaps/mobtests.png
+path: 16 nodes, ends 0,0,5
+pathtest: zombie start 10.0 from player, end 0.0, reached after 7.7 s
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 688 ms, upload 243 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 81) sky 15 block 0 in air, daylight 0.12
+imagecheck pathtest.png magenta=0.00000 black=0.0000 white=0.0008 std=19.8 hash=31b221a70a3fbc72
+imagecheck pathtest.png magenta=0.00000 black=0.0000 white=0.0008 std=19.8 hash=31b221a70a3fbc72
+seed 12345  pos -87.5 148.0 104.5  rd 8  chunks 297  (drawn 74)
+gen 313 ms  mesh(all, parallel) 269 ms  mesh(1 section) 0.25 ms  quads 793167 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 5.10 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 210 MB
+memory: resident 264 MB  (section meshes 25 MB)
+wrote snaps/pathtest.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 705 ms, upload 248 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 79) sky 15 block 0 in air, daylight 1.0
+treecheck: 200 trunks, 31 in the wrong biome: dark_oak_log@2211,-412=forest dark_oak_log@2085,-438=swamp dark_oak_log@2240,-535=oldGrowthSpruceTaiga pale_oak_log@2169,-398=birchForest dark_oak_log@2116,-457=swamp dark_oak_log@2196,-385=birchForest dark_oak_log@2130,-413=birchForest dark_oak_log@2250,-515=oldGrowthSpruceTaiga dark_oak_log@2184,-392=birchForest dark_oak_log@2260,-554=oldGrowthSpruceTaiga dark_oak_log@2263,-544=oldGrowthSpruceTaiga dark_oak_log@2242,-550=oldGrowthSpruceTaiga
+imagecheck ashen_grove.png magenta=0.00000 black=0.0008 white=0.0008 std=57.4 hash=8b0438b58f63ddeb
+imagecheck ashen_grove.png magenta=0.00000 black=0.0008 white=0.0008 std=57.4 hash=8b0438b58f63ddeb
+seed 12345  pos 2168.5 147.0 -471.5  rd 8  chunks 297  (drawn 72)
+gen 241 ms  mesh(all, parallel) 284 ms  mesh(1 section) 0.74 ms  quads 995910 opaque / 26080 water
+frame (encode+GPU, offscreen, median of 30) 5.27 ms  biome paleGarden
+mesh slabs 36 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 218 MB
+memory: resident 274 MB  (section meshes 31 MB)
+wrote snaps/ashen_grove.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 682 ms, upload 238 ms)
+light probe: eye sky 14 block 0 in air; floor+1 (y 70) sky 14 block 0 in air, daylight 1.0
+imagecheck ashen_inside.png magenta=0.00000 black=0.0164 white=0.0010 std=38.6 hash=86c325e56faa8725
+imagecheck ashen_inside.png magenta=0.00000 black=0.0164 white=0.0010 std=38.6 hash=86c325e56faa8725
+seed 12345  pos 2168.5 134.0 -471.5  rd 8  chunks 297  (drawn 71)
+gen 223 ms  mesh(all, parallel) 219 ms  mesh(1 section) 0.80 ms  quads 995910 opaque / 26080 water
+frame (encode+GPU, offscreen, median of 30) 4.23 ms  biome paleGarden
+mesh slabs 36 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 218 MB
+memory: resident 285 MB  (section meshes 31 MB)
+wrote snaps/ashen_inside.png
+after 4.0 s: 41 mobs, villagers 
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 915 ms, upload 296 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 79) sky 15 block 0 in air, daylight 0.12
+imagecheck ashen_night.png magenta=0.00000 black=0.4766 white=0.0008 std=25.1 hash=9a25bd3e011ec7cb
+imagecheck ashen_night.png magenta=0.00000 black=0.4766 white=0.0008 std=25.1 hash=9a25bd3e011ec7cb
+seed 12345  pos 2168.5 145.0 -471.5  rd 8  chunks 297  (drawn 79)
+gen 210 ms  mesh(all, parallel) 213 ms  mesh(1 section) 0.72 ms  quads 995935 opaque / 26080 water
+frame (encode+GPU, offscreen, median of 30) 5.13 ms  biome paleGarden
+mesh slabs 36 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 218 MB
+memory: resident 287 MB  (section meshes 31 MB)
+wrote snaps/ashen_night.png
+cave pocket at 104 -39 -88
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 848 ms, upload 275 ms)
+light probe: eye sky 0 block 5 in air; floor+1 (y -39) sky 0 block 4 in air, daylight 1.0
+imagecheck lush_caves.png magenta=0.00000 black=0.0143 white=0.0008 std=38.3 hash=f757ad6471db3e63
+imagecheck lush_caves.png magenta=0.00000 black=0.0143 white=0.0008 std=38.3 hash=f757ad6471db3e63
+seed 12345  pos 104.5 25.0 -87.5  rd 8  chunks 297  (drawn 38)
+gen 265 ms  mesh(all, parallel) 399 ms  mesh(1 section) 0.91 ms  quads 1255061 opaque / 16457 water
+frame (encode+GPU, offscreen, median of 30) 4.04 ms  biome flowerForest
+cave biome around the eye: lush_caves (moss 207, dripstone 0, sculk 0)
+mesh slabs 44 MB, chunks 297 (block+light arrays 32 MB), Metal allocated 214 MB
+memory: resident 290 MB  (section meshes 39 MB)
+wrote snaps/lush_caves.png
+cave pocket at 8 37 248
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 701 ms, upload 248 ms)
+light probe: eye sky 0 block 0 in air; floor+1 (y 37) sky 0 block 0 in air, daylight 1.0
+imagecheck dripstone_caves.png magenta=0.00000 black=0.0000 white=0.0010 std=26.0 hash=a91aec5233e6e785
+imagecheck dripstone_caves.png magenta=0.00000 black=0.0000 white=0.0010 std=26.0 hash=a91aec5233e6e785
+seed 12345  pos 8.5 101.0 248.5  rd 8  chunks 297  (drawn 5)
+gen 262 ms  mesh(all, parallel) 205 ms  mesh(1 section) 0.61 ms  quads 579939 opaque / 62007 water
+frame (encode+GPU, offscreen, median of 30) 4.24 ms  biome ocean
+cave biome around the eye: dripstone_caves (moss 0, dripstone 43, sculk 0)
+mesh slabs 24 MB, chunks 297 (block+light arrays 24 MB), Metal allocated 206 MB
+memory: resident 264 MB  (section meshes 20 MB)
+wrote snaps/dripstone_caves.png
+structure mineshaft at 88 23 136 (53 pieces, framed)
+camera in solid at 69 40 122: moved to 67 38 122
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 813 ms, upload 254 ms)
+light probe: eye sky 0 block 0 in air; floor+1 (y 27) sky 0 block 7 in air, daylight 1.0
+imagecheck mineshaft_torches.png magenta=0.00000 black=0.0929 white=0.0013 std=45.6 hash=be3bce1397b57c0b
+imagecheck mineshaft_torches.png magenta=0.00000 black=0.0929 white=0.0013 std=45.6 hash=be3bce1397b57c0b
+seed 12345  pos 67.5 102.0 122.5  rd 8  chunks 297  (drawn 27)
+gen 222 ms  mesh(all, parallel) 200 ms  mesh(1 section) 0.46 ms  quads 669331 opaque / 45618 water
+frame (encode+GPU, offscreen, median of 30) 5.36 ms  biome ocean
+mesh slabs 28 MB, chunks 297 (block+light arrays 24 MB), Metal allocated 210 MB
+memory: resident 260 MB  (section meshes 22 MB)
+wrote snaps/mineshaft_torches.png
+cave pocket at 337 -53 -527
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 822 ms, upload 261 ms)
+light probe: eye sky 0 block 7 in air; floor+1 (y -53) sky 0 block 8 in air, daylight 1.0
+imagecheck deep_dark.png magenta=0.00000 black=0.0123 white=0.0010 std=31.6 hash=a1d683e2185be2c0
+imagecheck deep_dark.png magenta=0.00000 black=0.0123 white=0.0010 std=31.6 hash=a1d683e2185be2c0
+seed 12345  pos 337.5 11.0 -526.5  rd 8  chunks 297  (drawn 27)
+gen 325 ms  mesh(all, parallel) 278 ms  mesh(1 section) 0.67 ms  quads 1049888 opaque / 8964 water
+frame (encode+GPU, offscreen, median of 30) 2.80 ms  biome snowySlopes
+cave biome around the eye: deep_dark (moss 0, dripstone 0, sculk 93)
+mesh slabs 36 MB, chunks 297 (block+light arrays 46 MB), Metal allocated 206 MB
+memory: resident 296 MB  (section meshes 32 MB)
+wrote snaps/deep_dark.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 709 ms, upload 249 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 80) sky 15 block 0 in air, daylight 1.0
+treecheck: 200 trunks, 35 in the wrong biome: dark_oak_log@-270,-133=forest dark_oak_log@-316,-117=forest dark_oak_log@-216,-96=forest dark_oak_log@-161,-114=forest dark_oak_log@-220,-88=forest dark_oak_log@-138,-111=forest dark_oak_log@-262,-105=forest dark_oak_log@-264,-119=forest dark_oak_log@-166,-90=forest dark_oak_log@-170,-120=forest dark_oak_log@-257,-145=forest dark_oak_log@-137,-106=forest
+imagecheck dark_forest.png magenta=0.00000 black=0.0199 white=0.0008 std=30.0 hash=aa15f2b50bbfcc57
+imagecheck dark_forest.png magenta=0.00000 black=0.0199 white=0.0008 std=30.0 hash=aa15f2b50bbfcc57
+seed 12345  pos -231.5 148.0 -183.5  rd 8  chunks 297  (drawn 74)
+gen 217 ms  mesh(all, parallel) 269 ms  mesh(1 section) 0.48 ms  quads 1293633 opaque / 13796 water
+frame (encode+GPU, offscreen, median of 30) 5.10 ms  biome darkForest
+mesh slabs 44 MB, chunks 297 (block+light arrays 29 MB), Metal allocated 214 MB
+memory: resident 278 MB  (section meshes 40 MB)
+wrote snaps/dark_forest.png
+seabed at y 55, camera 5.0 above
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 766 ms, upload 278 ms)
+light probe: eye sky 14 block 0 in water; floor+1 (y 56) sky 8 block 0 in water, daylight 1.0
+imagecheck seabed_warm.png magenta=0.00000 black=0.0000 white=0.0008 std=24.4 hash=f2cc374db63d6f98
+imagecheck seabed_warm.png magenta=0.00000 black=0.0000 white=0.0008 std=24.4 hash=f2cc374db63d6f98
+seed 12345  pos -951.5 125.0 728.5  rd 8  chunks 297  (drawn 74)
+gen 212 ms  mesh(all, parallel) 319 ms  mesh(1 section) 0.60 ms  quads 1009486 opaque / 65274 water
+frame (encode+GPU, offscreen, median of 30) 4.38 ms  biome warmOcean
+mesh slabs 36 MB, chunks 297 (block+light arrays 25 MB), Metal allocated 218 MB
+memory: resident 284 MB  (section meshes 33 MB)
+wrote snaps/seabed_warm.png
+seabed at y 32, camera 5.0 above
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 643 ms, upload 230 ms)
+light probe: eye sky 0 block 0 in water; floor+1 (y 33) sky 0 block 0 in water, daylight 1.0
+imagecheck seabed_deep.png magenta=0.00000 black=0.0000 white=0.0008 std=13.3 hash=6491c50c54452830
+imagecheck seabed_deep.png magenta=0.00000 black=0.0000 white=0.0008 std=13.3 hash=6491c50c54452830
+seed 12345  pos 296.5 102.0 584.5  rd 8  chunks 297  (drawn 72)
+gen 185 ms  mesh(all, parallel) 184 ms  mesh(1 section) 0.57 ms  quads 504921 opaque / 65049 water
+frame (encode+GPU, offscreen, median of 30) 3.38 ms  biome deepOcean
+mesh slabs 20 MB, chunks 297 (block+light arrays 21 MB), Metal allocated 202 MB
+memory: resident 263 MB  (section meshes 17 MB)
+wrote snaps/seabed_deep.png
+seabed at y 32, camera 14.0 above
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 722 ms, upload 255 ms)
+light probe: eye sky 0 block 0 in water; floor+1 (y 33) sky 0 block 0 in water, daylight 1.0
+imagecheck seabed_deep_far.png magenta=0.00000 black=0.0000 white=0.0008 std=11.6 hash=955e1f37316d834d
+imagecheck seabed_deep_far.png magenta=0.00000 black=0.0000 white=0.0008 std=11.6 hash=955e1f37316d834d
+seed 12345  pos 296.5 111.0 584.5  rd 8  chunks 297  (drawn 73)
+gen 174 ms  mesh(all, parallel) 171 ms  mesh(1 section) 0.56 ms  quads 504921 opaque / 65049 water
+frame (encode+GPU, offscreen, median of 30) 4.16 ms  biome deepOcean
+mesh slabs 20 MB, chunks 297 (block+light arrays 21 MB), Metal allocated 202 MB
+memory: resident 268 MB  (section meshes 17 MB)
+wrote snaps/seabed_deep_far.png
+cave pocket at 8 37 248
+openview: yaw 45, 13.1 blocks clear
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 992 ms, upload 311 ms)
+light probe: eye sky 0 block 0 in air; floor+1 (y 37) sky 0 block 0 in air, daylight 1.0
+imagecheck cave_torches.png magenta=0.00000 black=0.5409 white=0.0008 std=11.6 hash=2ede898e386d432d
+imagecheck cave_torches.png magenta=0.00000 black=0.5409 white=0.0008 std=11.6 hash=2ede898e386d432d
+seed 12345  pos 8.5 101.0 248.5  rd 8  chunks 297  (drawn 5)
+gen 214 ms  mesh(all, parallel) 222 ms  mesh(1 section) 0.43 ms  quads 580007 opaque / 62007 water
+frame (encode+GPU, offscreen, median of 30) 3.94 ms  biome ocean
+cave biome around the eye: dripstone_caves (moss 0, dripstone 43, sculk 0)
+mesh slabs 24 MB, chunks 297 (block+light arrays 24 MB), Metal allocated 206 MB
+memory: resident 272 MB  (section meshes 20 MB)
+wrote snaps/cave_torches.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 677 ms, upload 235 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck in_lava.png magenta=0.00000 black=0.0000 white=0.0008 std=20.7 hash=a33cd234f9770606
+imagecheck in_lava.png magenta=0.00000 black=0.0000 white=0.0008 std=20.7 hash=a33cd234f9770606
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 74)
+gen 208 ms  mesh(all, parallel) 158 ms  mesh(1 section) 0.21 ms  quads 793167 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 5.57 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 267 MB  (section meshes 25 MB)
+wrote snaps/in_lava.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 855 ms, upload 283 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck spawn_portal_check.png magenta=0.00000 black=0.0001 white=0.0172 std=44.9 hash=1ab72009c8b72a19
+imagecheck spawn_portal_check.png magenta=0.00000 black=0.0001 white=0.0172 std=44.9 hash=1ab72009c8b72a19
+seed 12345  pos 31.5 138.0 29.5  rd 16  chunks 997  (drawn 262)
+gen 668 ms  mesh(all, parallel) 899 ms  mesh(1 section) 0.58 ms  quads 2052952 opaque / 85033 water
+frame (encode+GPU, offscreen, median of 30) 6.84 ms  biome forest
+mesh slabs 72 MB, chunks 997 (block+light arrays 98 MB), Metal allocated 254 MB
+memory: resident 412 MB  (section meshes 65 MB)
+wrote snaps/spawn_portal_check.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 751 ms, upload 254 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck gallery_stone.png magenta=0.00000 black=0.0000 white=0.0008 std=43.7 hash=22aff2cdd6bc81b4
+imagecheck gallery_stone.png magenta=0.00000 black=0.0000 white=0.0008 std=43.7 hash=22aff2cdd6bc81b4
+seed 12345  pos -87.5 140.0 104.5  rd 8  chunks 297  (drawn 75)
+gen 238 ms  mesh(all, parallel) 201 ms  mesh(1 section) 0.19 ms  quads 793231 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.44 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 263 MB  (section meshes 25 MB)
+wrote snaps/gallery_stone.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 876 ms, upload 331 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck gallery_wood.png magenta=0.00000 black=0.0000 white=0.0008 std=45.0 hash=94e9605fc3417ee7
+imagecheck gallery_wood.png magenta=0.00000 black=0.0000 white=0.0008 std=45.0 hash=94e9605fc3417ee7
+seed 12345  pos -87.5 140.0 104.5  rd 8  chunks 297  (drawn 75)
+gen 211 ms  mesh(all, parallel) 238 ms  mesh(1 section) 0.20 ms  quads 793237 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.34 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 264 MB  (section meshes 25 MB)
+wrote snaps/gallery_wood.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 722 ms, upload 260 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck gallery_ores.png magenta=0.00000 black=0.0000 white=0.0008 std=42.0 hash=4125693d4acda804
+imagecheck gallery_ores.png magenta=0.00000 black=0.0000 white=0.0008 std=42.0 hash=4125693d4acda804
+seed 12345  pos -87.5 140.0 104.5  rd 8  chunks 297  (drawn 75)
+gen 238 ms  mesh(all, parallel) 171 ms  mesh(1 section) 0.21 ms  quads 793235 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.87 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 263 MB  (section meshes 25 MB)
+wrote snaps/gallery_ores.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 785 ms, upload 265 ms)
+light probe: eye sky 15 block 4 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck gallery_earth.png magenta=0.00000 black=0.0000 white=0.0013 std=44.5 hash=2fa9ba9c40eefc4f
+imagecheck gallery_earth.png magenta=0.00000 black=0.0000 white=0.0013 std=44.5 hash=2fa9ba9c40eefc4f
+seed 12345  pos -87.5 140.0 104.5  rd 8  chunks 297  (drawn 75)
+gen 215 ms  mesh(all, parallel) 155 ms  mesh(1 section) 0.27 ms  quads 793313 opaque / 16524 water
+frame (encode+GPU, offscreen, median of 30) 4.83 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 265 MB  (section meshes 25 MB)
+wrote snaps/gallery_earth.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 769 ms, upload 256 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck gallery_color.png magenta=0.00051 black=0.0000 white=0.0008 std=41.6 hash=18a0653882d330bb
+imagecheck gallery_color.png magenta=0.00051 black=0.0000 white=0.0008 std=41.6 hash=18a0653882d330bb
+seed 12345  pos -87.5 140.0 104.5  rd 8  chunks 297  (drawn 75)
+gen 243 ms  mesh(all, parallel) 194 ms  mesh(1 section) 0.57 ms  quads 793233 opaque / 16537 water
+frame (encode+GPU, offscreen, median of 30) 4.39 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 263 MB  (section meshes 25 MB)
+wrote snaps/gallery_color.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 596 ms, upload 213 ms)
+light probe: eye sky 15 block 4 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck gallery_build.png magenta=0.00000 black=0.0000 white=0.0016 std=42.6 hash=a87f8e63521e668b
+imagecheck gallery_build.png magenta=0.00000 black=0.0000 white=0.0016 std=42.6 hash=a87f8e63521e668b
+seed 12345  pos -87.5 140.0 104.5  rd 8  chunks 297  (drawn 75)
+gen 188 ms  mesh(all, parallel) 150 ms  mesh(1 section) 0.29 ms  quads 793394 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.45 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 263 MB  (section meshes 25 MB)
+wrote snaps/gallery_build.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 686 ms, upload 245 ms)
+light probe: eye sky 15 block 4 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 0.12
+imagecheck gallery_build_night.png magenta=0.00000 black=0.3509 white=0.0034 std=46.2 hash=a3a757c916301cfd
+imagecheck gallery_build_night.png magenta=0.00000 black=0.3509 white=0.0034 std=46.2 hash=a3a757c916301cfd
+seed 12345  pos -87.5 140.0 104.5  rd 8  chunks 297  (drawn 75)
+gen 235 ms  mesh(all, parallel) 190 ms  mesh(1 section) 0.36 ms  quads 793394 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.33 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 264 MB  (section meshes 25 MB)
+wrote snaps/gallery_build_night.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 689 ms, upload 244 ms)
+light probe: eye sky 15 block 7 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck gallery_ember.png magenta=0.00000 black=0.0000 white=0.0015 std=46.9 hash=f8ebabf30b09c436
+imagecheck gallery_ember.png magenta=0.00000 black=0.0000 white=0.0015 std=46.9 hash=f8ebabf30b09c436
+seed 12345  pos -87.5 140.0 104.5  rd 8  chunks 297  (drawn 75)
+gen 199 ms  mesh(all, parallel) 156 ms  mesh(1 section) 0.29 ms  quads 793306 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.86 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 264 MB  (section meshes 25 MB)
+wrote snaps/gallery_ember.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 845 ms, upload 290 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck gallery_plants.png magenta=0.00000 black=0.0000 white=0.0008 std=41.9 hash=cbf906cfd944a107
+imagecheck gallery_plants.png magenta=0.00000 black=0.0000 white=0.0008 std=41.9 hash=cbf906cfd944a107
+seed 12345  pos -87.5 140.0 104.5  rd 8  chunks 297  (drawn 75)
+gen 266 ms  mesh(all, parallel) 227 ms  mesh(1 section) 0.26 ms  quads 793271 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.85 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 258 MB  (section meshes 25 MB)
+wrote snaps/gallery_plants.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 904 ms, upload 295 ms)
+light probe: eye sky 15 block 5 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck gallery_copper.png magenta=0.00000 black=0.0000 white=0.0023 std=41.8 hash=4da8351ac23854f1
+imagecheck gallery_copper.png magenta=0.00000 black=0.0000 white=0.0023 std=41.8 hash=4da8351ac23854f1
+seed 12345  pos -87.5 140.0 104.5  rd 8  chunks 297  (drawn 75)
+gen 287 ms  mesh(all, parallel) 222 ms  mesh(1 section) 0.29 ms  quads 793572 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.67 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 263 MB  (section meshes 25 MB)
+wrote snaps/gallery_copper.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 1064 ms, upload 336 ms)
+light probe: eye sky 15 block 5 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 0.12
+imagecheck gallery_copper_night.png magenta=0.00000 black=0.3523 white=0.0057 std=47.6 hash=5dd6b56757d1a873
+imagecheck gallery_copper_night.png magenta=0.00000 black=0.3523 white=0.0057 std=47.6 hash=5dd6b56757d1a873
+seed 12345  pos -87.5 140.0 104.5  rd 8  chunks 297  (drawn 75)
+gen 254 ms  mesh(all, parallel) 199 ms  mesh(1 section) 0.77 ms  quads 793572 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 6.32 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 265 MB  (section meshes 25 MB)
+wrote snaps/gallery_copper_night.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 897 ms, upload 298 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck farm_variants.png magenta=0.00000 black=0.0001 white=0.0008 std=46.9 hash=e8509e9662fb95ee
+imagecheck farm_variants.png magenta=0.00000 black=0.0001 white=0.0008 std=46.9 hash=e8509e9662fb95ee
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 74)
+gen 266 ms  mesh(all, parallel) 225 ms  mesh(1 section) 0.46 ms  quads 792974 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 5.16 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 210 MB
+memory: resident 273 MB  (section meshes 25 MB)
+wrote snaps/farm_variants.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 914 ms, upload 309 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck copper_golems.png magenta=0.00000 black=0.0001 white=0.0008 std=45.6 hash=d1b824a20a58862e
+imagecheck copper_golems.png magenta=0.00000 black=0.0001 white=0.0008 std=45.6 hash=d1b824a20a58862e
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 74)
+gen 293 ms  mesh(all, parallel) 215 ms  mesh(1 section) 0.48 ms  quads 792974 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.86 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 210 MB
+memory: resident 266 MB  (section meshes 25 MB)
+wrote snaps/copper_golems.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 871 ms, upload 289 ms)
+light probe: eye sky 15 block 8 in air; floor+1 (y 70) sky 15 block 1 in air, daylight 1.0
+imagecheck gallery_hollow.png magenta=0.00000 black=0.0000 white=0.0091 std=46.8 hash=d4469151f63839b5
+imagecheck gallery_hollow.png magenta=0.00000 black=0.0000 white=0.0091 std=46.8 hash=d4469151f63839b5
+seed 12345  pos -87.5 140.0 104.5  rd 8  chunks 297  (drawn 75)
+gen 259 ms  mesh(all, parallel) 220 ms  mesh(1 section) 0.34 ms  quads 793308 opaque / 16532 water
+frame (encode+GPU, offscreen, median of 30) 4.45 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 266 MB  (section meshes 25 MB)
+wrote snaps/gallery_hollow.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 1115 ms, upload 371 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 64) sky 15 block 0 in air, daylight 1.0
+imagecheck leak_12345.png magenta=0.00000 black=0.0000 white=0.0013 std=54.4 hash=bff9e7b2a7f084df
+imagecheck leak_12345.png magenta=0.00000 black=0.0000 white=0.0013 std=54.4 hash=bff9e7b2a7f084df
+seed 12345  pos 36.0 134.0 56.0  rd 8  chunks 297  (drawn 80)
+gen 271 ms  mesh(all, parallel) 251 ms  mesh(1 section) 0.36 ms  quads 810252 opaque / 29591 water
+frame (encode+GPU, offscreen, median of 30) 5.40 ms  biome beach
+mesh slabs 32 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 202 MB
+memory: resident 254 MB  (section meshes 26 MB)
+wrote snaps/leak_12345.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 760 ms, upload 286 ms)
+light probe: eye sky 15 block 6 in air; floor+1 (y 69) sky 15 block 8 in bush, daylight 1.0
+imagecheck agent_door_777.png magenta=0.00000 black=0.0000 white=0.0008 std=48.8 hash=ce0b3dcbd9631eee
+imagecheck agent_door_777.png magenta=0.00000 black=0.0000 white=0.0008 std=48.8 hash=ce0b3dcbd9631eee
+seed 777  pos 959.5 138.0 272.5  rd 8  chunks 297  (drawn 82)
+gen 257 ms  mesh(all, parallel) 230 ms  mesh(1 section) 0.78 ms  quads 765073 opaque / 11714 water
+frame (encode+GPU, offscreen, median of 30) 4.49 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 210 MB
+memory: resident 266 MB  (section meshes 24 MB)
+wrote snaps/agent_door_777.png
+naming audit: 5898 names, 0 flagged
+selftest: 982 blocks, 97 mob kinds, 4/4 special recipes, bundle fill 32/64, 83 advancements
+selftest ok: 188 mobs after 3 s
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 988 ms, upload 324 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck selftest.png magenta=0.00000 black=0.0002 white=0.0090 std=51.6 hash=fbcb5eea2c38246c
+imagecheck selftest.png magenta=0.00000 black=0.0002 white=0.0090 std=51.6 hash=fbcb5eea2c38246c
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 78)
+gen 256 ms  mesh(all, parallel) 211 ms  mesh(1 section) 0.31 ms  quads 793167 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 5.52 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 210 MB
+memory: resident 261 MB  (section meshes 25 MB)
+wrote snaps/selftest.png
+structure village at 14 129 -322 (38 pieces, framed)
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 932 ms, upload 286 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 136) sky 15 block 0 in air, daylight 1.0
+imagecheck flicker_village.png magenta=0.00000 black=0.0000 white=0.0008 std=51.9 hash=c35a08f292608e7d flicker=0.00087
+imagecheck flicker_village.png magenta=0.00000 black=0.0000 white=0.0008 std=51.9 hash=c35a08f292608e7d flicker=0.00087
+seed 12345  pos -24.8 218.4 -355.8  rd 8  chunks 297  (drawn 80)
+gen 220 ms  mesh(all, parallel) 455 ms  mesh(1 section) 1.10 ms  quads 1583161 opaque / 12820 water
+frame (encode+GPU, offscreen, median of 30) 5.35 ms  biome taiga
+mesh slabs 56 MB, chunks 297 (block+light arrays 37 MB), Metal allocated 238 MB
+memory: resident 319 MB  (section meshes 49 MB)
+wrote snaps/flicker_village.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 873 ms, upload 310 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 87) sky 15 block 0 in air, daylight 1.0
+imagecheck flicker_forest.png magenta=0.00000 black=0.0000 white=0.0008 std=52.9 hash=f138fea781c509df flicker=0.00038
+imagecheck flicker_forest.png magenta=0.00000 black=0.0000 white=0.0008 std=52.9 hash=f138fea781c509df flicker=0.00038
+seed 12345  pos -135.5 173.0 -39.5  rd 8  chunks 297  (drawn 79)
+gen 228 ms  mesh(all, parallel) 385 ms  mesh(1 section) 1.26 ms  quads 1123696 opaque / 9408 water
+frame (encode+GPU, offscreen, median of 30) 5.30 ms  biome forest
+mesh slabs 40 MB, chunks 297 (block+light arrays 29 MB), Metal allocated 210 MB
+memory: resident 278 MB  (section meshes 35 MB)
+wrote snaps/flicker_forest.png
+textures without a painter: missing
+textures: 1665 layers at 128 px, BC3, 34.7 MB with mips (build 691 ms, upload 238 ms)
+light probe: eye sky 15 block 6 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck flicker_build.png magenta=0.00000 black=0.0000 white=0.0015 std=43.0 hash=c2a236da3c96aa85 flicker=0.00099
+imagecheck flicker_build.png magenta=0.00000 black=0.0000 white=0.0015 std=43.0 hash=c2a236da3c96aa85 flicker=0.00099
+seed 12345  pos -87.5 140.0 104.5  rd 8  chunks 297  (drawn 75)
+gen 214 ms  mesh(all, parallel) 179 ms  mesh(1 section) 0.29 ms  quads 793380 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.43 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 257 MB  (section meshes 25 MB)
+wrote snaps/flicker_build.png
+imagecheck: 133 frames, black_frame 1, missing_texture 2
