@@ -308,9 +308,41 @@ enum Village {
         } }
     }
 
+    // Per-house variety in plains and taiga villages: wall and roof materials picked per lot, the roof always darker
+    // than the walls (every house was the same orange oak, roofs blending into walls: blind critic, run 395).
+    static func varied(_ m: Mats, _ l: Lot) -> Mats {
+        let g = Blocks.id
+        let (ox, oz) = world(l, 0, 0)
+        let k = Int(hashf(ox, l.y, oz, 0x40F5) * 4)
+        func with(wall: String, roof: String, planks: String? = nil) -> Mats {
+            guard Blocks.has(wall), Blocks.has(roof + "_stairs") else { return m }
+            let roofPlanks = planks ?? (roof + "_planks")
+            return Mats(planks: Blocks.has(roofPlanks) ? g(roofPlanks) : m.planks, log: m.log, wall: g(wall), floor: m.floor,
+                        foundation: m.foundation, stairs: g(roof + "_stairs"), slab: m.slab, fence: m.fence, door: m.door, path: m.path,
+                        roofFlat: m.roofFlat, bed: m.bed)
+        }
+        if m.planks == g("oak_planks") {
+            switch k {
+            case 0: return with(wall: "oak_planks", roof: "spruce")
+            case 1: return with(wall: "white_terracotta", roof: "dark_oak")
+            case 2: return with(wall: "birch_planks", roof: "spruce")
+            default: return with(wall: "oak_planks", roof: "dark_oak")
+            }
+        }
+        if m.planks == g("spruce_planks") && m.wall == g("spruce_planks") {
+            switch k {
+            case 0: return with(wall: "spruce_planks", roof: "dark_oak")
+            case 1: return with(wall: "stripped_spruce_log", roof: "dark_oak")
+            default: return m
+            }
+        }
+        return m
+    }
+
     // A walled room with log corners, windows, a door on the street side and a gable (or flat) roof.
-    static func house(_ w: inout StructWriter, _ b: LB, _ m: Mats, wallH: Int, roof: Bool = true) {
+    static func house(_ w: inout StructWriter, _ b: LB, _ m0: Mats, wallH: Int, roof: Bool = true) {
         let l = b.l
+        let m = varied(m0, l)
         foundation(&w, b, m)
         // Floor level with the door sill (the walls stand on the foundation ring around it).
         b.fill(&w, 0, -1, 0, l.w - 1, -1, l.d - 1, m.foundation)
