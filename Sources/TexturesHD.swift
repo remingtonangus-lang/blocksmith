@@ -462,6 +462,44 @@ enum HDTex {
         return img
     }
 
+    // Metal sheet: fine horizontal brushing, sparse pits, `tiles` x `tiles` plates split by thin seams with a lit
+    // top-left bevel, and verdigris patches (`patina` 0...1 of the face) for weathering copper.
+    static func metal(_ base: UInt32, patina: Float = 0, tiles: Int = 1, shine: Float = 0.12) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            let brush = vnoise(n, max(1, n / 64), s &+ 1)
+            let blot = fbm(n, n / 4, 4, s &+ 2)
+            let fine = vnoise(n, max(1, n / 128), s &+ 3)
+            let c0 = col(base)
+            let green = col(0x4FA48A)
+            let tw: Float = fn / Float(tiles)
+            var img = Img(n)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                // Brushing: the noise stretched 8x along x.
+                let b: Float = brush[y * n + (x / 8)]
+                var k: Float = 0.9 + (b - 0.5) * shine + (blot[i] - 0.5) * 0.08
+                if fine[i] > 0.97 { k *= 0.82 }
+                let lx: Float = Float(x).truncatingRemainder(dividingBy: tw), ly: Float = Float(y).truncatingRemainder(dividingBy: tw)
+                let seam: Float = max(1, fn / 64)
+                if tiles > 1 && (lx < seam || ly < seam) { k *= 0.55 }
+                else if tiles > 1 && (lx < seam * 2 || ly < seam * 2) { k *= 1.15 }
+                else if lx > tw - seam * 2 || ly > tw - seam * 2 { k *= 0.85 }
+                var c: V3 = c0 * k
+                if patina > 0 {
+                    let m: Float = blot[i] + (fine[i] - 0.5) * 0.15
+                    let th: Float = 1 - patina
+                    let e: Float = cl((m - th) / 0.07)
+                    let gk: Float = 0.85 + fine[i] * 0.3
+                    let target: V3 = green * gk
+                    c += (target - c) * e
+                }
+                img.px[i] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
+            } }
+            return img
+        }
+    }
+
     // A soil face under a band of another material along the top edge (podzol, mycelium, path sides), with a
     // wavy lower edge and a soft shadow under it.
     static func topped(_ top: @escaping Gen, depth: Float = 0.16) -> Gen {
@@ -930,6 +968,17 @@ enum HDTex {
     static let table: [String: Gen] = [
         "stone": stone(stoneGrey),
         "lava": lava,
+        // Metals: copper through its oxidation stages (plain and cut), iron and gold.
+        "copper_block": metal(0xC06B4F, shine: 0.16),
+        "exposed_copper": metal(0xA87A62, patina: 0.12),
+        "weathered_copper": metal(0x8A8A6A, patina: 0.55),
+        "oxidized_copper": metal(0x52A284, patina: 0.95, shine: 0.06),
+        "cut_copper": metal(0xC06B4F, tiles: 2, shine: 0.16),
+        "exposed_cut_copper": metal(0xA87A62, patina: 0.12, tiles: 2),
+        "weathered_cut_copper": metal(0x8A8A6A, patina: 0.55, tiles: 2),
+        "oxidized_cut_copper": metal(0x52A284, patina: 0.95, tiles: 2, shine: 0.06),
+        "iron_block": metal(0xD8D8D8, tiles: 2, shine: 0.1),
+        "gold_block": metal(0xF2CC3A, tiles: 2, shine: 0.18),
         "bookshelf": bookshelf,
         "magma": lavaLike([(0, 0x2E0E06), (0.4, 0x4E1A0C), (0.62, 0x8A3414), (0.85, 0xE8742A), (1, 0xFFB050)], cells: 4, seamW: 18),
         // Soils and ground covers.
