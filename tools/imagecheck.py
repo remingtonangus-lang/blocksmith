@@ -21,8 +21,16 @@ for name, kv in sorted(rows.items()):
     if std < 4: flags.append(('blank_frame', name, f'luma spread {std:.1f}'))
     elif blk > 0.6 and not dark_ok.search(name): flags.append(('black_frame', name, f'{blk*100:.0f}% near-black pixels'))
     if 'flicker' in kv and float(kv['flicker']) > 0.002: flags.append(('z_fighting', name, f'{float(kv["flicker"])*100:.2f}% pixels flip on a 1/1000-block nudge'))
+# Diagnostic variants of a view are meant to match it (culling / base-pass / flicker probes); the bug-notes self-test
+# renders the spawn view unchanged.
+def view(n):
+    n = n[:-4] if n.endswith('.png') else n
+    n = n[8:] if n.startswith('flicker_') else n
+    for suf in ('_nocull', '_nobase', '_verify'):
+        if n.endswith(suf): n = n[:-len(suf)]
+    return {'bugnotes': 'spawn'}.get(n, n)
 for h, names in by_hash.items():
-    if len(names) > 1:
+    if len(names) > 1 and len({view(n) for n in names}) > 1:
         flags.append(('duplicate_frame', ', '.join(names[:4]), f'{len(names)} views render the same image'))
 out = ['# Image check', '', f'{len(rows)} frames checked, {len(flags)} flagged.', '', '| class | frame | detail |', '|---|---|---|']
 out += [f'| {c} | {n} | {d} |' for c, n, d in flags]
