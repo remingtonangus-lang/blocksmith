@@ -214,6 +214,15 @@ enum MilitaryBase {
             for (floorY, top) in [(yB, y0 - 1), (y0, yU - 1), (yU, yR - 1)] {
                 w.fill(tx - T + 1, floorY + 1, tz - T + 1, tx + T - 1, top, tz + T - 1, AIR)
             }
+            // Doorways from each guard room through the tower's two walls that stand inside the building (they were
+            // sealed boxes: structcheck poi_unreachable / soldiers shut in). Centred two in from the outer wall line.
+            let ix = tx - sx * T, iz = tz - sz * T                     // the tower walls inside the building
+            let zA = min(tz - sz, tz - sz * 3), zB = max(tz - sz, tz - sz * 3)
+            let xA = min(tx - sx, tx - sx * 3), xB = max(tx - sx, tx - sx * 3)
+            for floorY in [yB, y0, yU] {
+                w.fill(ix, floorY + 1, zA, ix, floorY + 3, zB, AIR)
+                w.fill(xA, floorY + 1, iz, xB, floorY + 3, iz, AIR)
+            }
             for y in [y0 + 3, yU + 3] {
                 w.fill(tx + sx * T, y, tz - 1, tx + sx * T, y + 1, tz + 1, Gl)
                 w.fill(tx - 1, y, tz + sz * T, tx + 1, y + 1, tz + sz * T, Gl)
