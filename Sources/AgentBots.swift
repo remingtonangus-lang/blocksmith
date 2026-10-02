@@ -511,6 +511,7 @@ final class CaveBot: AgentBot {
     var phase = 0                        // 0 pick, 1 down, 2 back, 3 done, 4 roam further to search again
     var roams = 0
     var roamTo = V3(0, 0, 0)
+    var origin = V3(0, 0, 0)
     var down = false, back = false
     var downDetail = "no cave floor within 64 blocks with a walkable way down and back", backDetail = "never got down"
     var start = V3(0, 0, 0)
@@ -578,8 +579,12 @@ final class CaveBot: AgentBot {
                 }
             }
             // None here: walk on to the farthest surface cell the walk reached (about level with the start) and look
-            // again, twice at most (seed 777 had no walkable cave within 64 blocks of spawn: run 359).
-            if roams < 2, let far = order.last(where: { abs($0.y - sc.y) <= 6 }),
+            // again (seed 777 had no walkable cave within 64 blocks of spawn: run 359).
+            // The farthest from where the bot first stood (BFS order's last cell is farthest by steps, which led the
+            // second roam back toward spawn: seed 777, run 362), up to four times.
+            if roams == 0 { origin = s.pos }
+            let fromOrigin: (IVec3) -> Float = { c in simd_length(V2(Float(c.x) - self.origin.x, Float(c.z) - self.origin.z)) }
+            if roams < 4, let far = order.filter({ abs($0.y - sc.y) <= 6 }).max(by: { fromOrigin($0) < fromOrigin($1) }),
                abs(far.x - sc.x) + abs(far.z - sc.z) > 24 {
                 roams += 1
                 roamTo = V3(Float(far.x) + 0.5, Float(far.y), Float(far.z) + 0.5)
