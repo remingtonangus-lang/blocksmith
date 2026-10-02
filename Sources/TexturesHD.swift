@@ -403,23 +403,46 @@ enum HDTex {
 
     // Lava: darker cooling plates (warped Voronoi cells) split by bright molten seams, with hot swirls inside.
     static func lava(_ n: Int, _ s: Int) -> Img {
+        lavaLike([(0, 0x8A2A0C), (0.35, 0xC4501A), (0.6, 0xEC8A22), (0.82, 0xFFC44A), (1, 0xFFF0A8)], cells: 5)(n, s)
+    }
+    static func lavaLike(_ pal: [(Float, UInt32)], cells nc: Int, seamW: Float = 14) -> Gen { { n, s in
         let fn = Float(n)
         let wx = fbm(n, n / 4, 3, s &+ 1), wy = fbm(n, n / 4, 3, s &+ 2)
-        let cells = voronoi(n, 5, s &+ 3, jitter: 1)
+        let cells = voronoi(n, nc, s &+ 3, jitter: 1)
         let swirl = warp(fbm(n, n / 4, 5, s &+ 4), n, wx, wy, fn * 0.25)
         var gap = [Float](repeating: 0, count: n * n)
         for i in 0..<(n * n) { gap[i] = cells.f2[i] - cells.f1[i] }
         let edgeW = warp(gap, n, wx, wy, fn * 0.06)
-        let pal: [(Float, UInt32)] = [(0, 0x8A2A0C), (0.35, 0xC4501A), (0.6, 0xEC8A22), (0.82, 0xFFC44A), (1, 0xFFF0A8)]
         var img = Img(n)
         for i in 0..<(n * n) {
-            let seam: Float = 1 - cl(edgeW[i] / (fn / 14))
+            let seam: Float = 1 - cl(edgeW[i] / (fn / seamW))
             let plate: Float = (cells.id[i] - 0.5) * 0.12
             let t: Float = 0.3 + (swirl[i] - 0.5) * 0.5 + plate + seam * seam * 0.65
             let c = ramp(t, pal)
             img.px[i] = V4(c.x, c.y, c.z, 1)
         }
         return img
+    } }
+
+    // A soil face under a band of another material along the top edge (podzol, mycelium, path sides), with a
+    // wavy lower edge and a soft shadow under it.
+    static func topped(_ top: @escaping Gen, depth: Float = 0.16) -> Gen {
+        { n, s in
+            var img = dirtGen(n, s)
+            let t = top(n, s &+ 3)
+            let d = fringe(n, s &+ 5, depth: depth, spikes: n / 8, spikeH: 0.06, width: 0.03)
+            let fn = Float(n)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let fy = Float(y)
+                if fy < d[x] { img.px[i] = t.px[i] } else {
+                    let k: Float = 1 - 0.3 * cl(1 - (fy - d[x]) / (fn * 0.03))
+                    let c = img.px[i]
+                    img.px[i] = V4(c.x * k, c.y * k, c.z * k, 1)
+                }
+            } }
+            return img
+        }
     }
 
     // Cracks across a base material: a few long wandering dark lines with a lit lower lip.
@@ -822,6 +845,9 @@ enum HDTex {
     static let oakBark: [(Float, UInt32)] = [(0, 0x3C2C1C), (0.5, 0x60482C), (1, 0x80623E)]
     static let stoneBricks: Gen = masonry(rows: 2, perRow: 1, offset: 0.5, mortarW: 1 / 22, [(0, 0x5E5E60), (0.5, 0x7E7E80), (1, 0x9C9C9C)], mortar: 0x48484A)
     static let sandstonePal: [(Float, UInt32)] = [(0, 0xB8A878), (0.5, 0xD9CE9E), (1, 0xEEE4BC)]
+    static let podzolTop: Gen = soil([(0, 0x4A3218), (0.5, 0x6A4A26), (1, 0x8A6A3A)], pebble: 0x7A5A30, pebbles: 6, clods: 9)
+    static let myceliumTop: Gen = soil([(0, 0x5E5262), (0.5, 0x786A7C), (1, 0x948698)], pebble: 0xB4A4B4, pebbles: 12, clods: 8)
+    static let pathTop: Gen = soil([(0, 0x7A5E36), (0.5, 0x947446), (1, 0xAE8E5A)], pebble: 0x9A8A70, pebbles: 12, clods: 6)
     static let redSandstonePal: [(Float, UInt32)] = [(0, 0x9A4E1E), (0.5, 0xB8662C), (1, 0xCE8040)]
 
     // Families without a hand-made entry get an HD material coloured from their 16 px painter: every wood's planks,
@@ -866,6 +892,25 @@ enum HDTex {
     static let table: [String: Gen] = [
         "stone": stone(stoneGrey),
         "lava": lava,
+        "magma": lavaLike([(0, 0x2E0E06), (0.4, 0x4E1A0C), (0.62, 0x8A3414), (0.85, 0xE8742A), (1, 0xFFB050)], cells: 4, seamW: 18),
+        // Soils and ground covers.
+        "podzol_top": podzolTop,
+        "podzol_side": topped(podzolTop),
+        "mycelium_top": myceliumTop,
+        "mycelium_side": topped(myceliumTop),
+        "dirt_path_top": pathTop,
+        "dirt_path_side": topped(pathTop, depth: 0.1),
+        "rooted_dirt": soil([(0, 0x5E4230), (0.5, 0x7E5C40), (1, 0x9A7A58)], pebble: 0xB49A78, pebbles: 16, clods: 9),
+        "moss_block": soil([(0, 0x3A5220), (0.5, 0x56762E), (1, 0x729842)], pebble: 0x48662A, pebbles: 6, clods: 10),
+        "farmland": soil([(0, 0x4A3220), (0.5, 0x624430), (1, 0x7C5A40)], pebble: 0x6A5440, pebbles: 5, clods: 12),
+        "farmland_moist": soil([(0, 0x2E1E12), (0.5, 0x3E2A1C), (1, 0x52382A)], pebble: 0x48362A, pebbles: 5, clods: 12),
+        "soul_sand": soil([(0, 0x3A2A20), (0.5, 0x52402E), (1, 0x6A5440)], pebble: 0x2A1E16, pebbles: 10, clods: 8),
+        "soul_soil": soil([(0, 0x3E3024), (0.5, 0x54442F), (1, 0x6A5840)], pebble: 0x4A3A2A, pebbles: 4, clods: 7),
+        "packed_ice": stone([(0, 0x7C9ED8), (0.5, 0x94B2E6), (1, 0xB0C8F2)], veins: 0.5, strata: 0),
+        "blue_ice": stone([(0, 0x5A86D8), (0.5, 0x74A0EC), (1, 0x96BCF8)], veins: 0.5, strata: 0),
+        "prismarine": stone([(0, 0x4A8A80), (0.5, 0x62A898), (1, 0x86C4B0)], veins: 0.7, strata: 0),
+        "dark_prismarine": masonry(rows: 2, perRow: 2, offset: 0, mortarW: 1 / 30, [(0, 0x24443A), (0.5, 0x335A4C), (1, 0x467060)], mortar: 0x16302A, chips: 0.6),
+        "amethyst_block": cobble([(0, 0x6A4AA0), (0.5, 0x8A66C4), (1, 0xB08EE4)], mortar: 0x4A3274, cells: 6),
         // Polished and smooth stones (bevelled rim, calmed grain).
         "polished_andesite": polished(stone([(0, 0x6E6E6E), (0.5, 0x8A8A8A), (1, 0xA6A6A4)], veins: 0)),
         "polished_diorite": polished(stone([(0, 0x9E9E9C), (0.5, 0xC6C6C4), (1, 0xE8E8E6)], veins: 0)),
