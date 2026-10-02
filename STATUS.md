@@ -111,6 +111,25 @@ every block, sparkstone, Emberdeep, End, terrain/caves/structures/villages with 
 Blight, and a completable game. Assets stay original/procedural (no copied textures, sounds or decompiled
 code); mechanics, names and numbers follow the reference game.
 
+## Playtest 2 (Remington, 2026-10-02 evening)
+- [x] "No render distance setting": it was on Options page 3; now on the pause menu itself and Options opens on Video.
+- [~] Cacti vanish far away and pop in close: --lodcheck in tour_desert prints near/far quads of cactus sections (cause
+      not found by reading: model blocks mesh at LOD 1); fix pending the numbers.
+- [x] Falling water seen from afar showed a bright blue sheet: Fancy water side faces are tumbling water, not a sky mirror.
+- [x] All kinds of rabbits in the desert: coats by biome (desert gold, snowy white / black-and-white, else brown, salt
+      and pepper, black).
+- [x] Desert temple rework (walled hall, stepped roof open inside, towers with ladders, forecourt, treasure chamber);
+      jungle temple reworked; igloo crown fixed. More structures to follow (swamp hut, outposts).
+- [~] Bases not seen yet: Steelhold fortresses are rare by design (one per 64x64-chunk region at most); a finder is TODO.
+- [~] Capital ships, true to size, very hostile, rare, three warring factions (CapitalShips.swift): Stormwarden Frigate
+      (480 blocks, 16 naval-gun turrets, spinal rail cannon, missiles, hangar, bridge), Ironback Crawler (77-block
+      six-wheeler), Steelhold. Kinematic capital-ship engine (no rigid-body solve, incremental damage, regional
+      remesh, per-section culling, worker-thread build). Boardable (hangar, ramp, ladders), crews in faction colours,
+      breakaway hull pieces, critical systems (helm, drive engines). --capitaltest + 3 shots. Next: eyes on the
+      shots, tune ranges/damage, LOD/impostor so a frigate shows beyond the render distance.
+- [x] Progressive block damage: mining and blasts chip 4x4x4 sub-cubes off a block until it breaks (Options > Video >
+      Block Chipping). Next: collision shrinks with the damage, ships' blocks too, finer mining animation.
+
 ## Playtest feedback (Remington, 2026-10-02): quality and fidelity over new features
 Bug discovery is fully automated (Remington is not the bug finder). Keep CI green throughout. Queue, in order:
 1. Bug-hunting infrastructure and the find-fix loop (log every bug class in BUGS.md: class, oracle, fix):
