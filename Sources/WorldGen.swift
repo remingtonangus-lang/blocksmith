@@ -937,6 +937,24 @@ final class WorldGen: TerrainGenerator {
     // Cave biomes: lush caves (moss, azalea, cave vines), driprock caves, murk depths (murk).
     private func decorateCaves(_ b: inout [BlockID], _ bx: Int, _ bz: Int, _ rng: inout SRng, _ climates: [Climate]) {
         let g = Blocks.id
+        // Ids looked up once (string dictionary lookups ran per cave cell).
+        let id_azalea = g("azalea")
+        let id_big_dripleaf = g("big_dripleaf")
+        let id_cave_vines = g("cave_vines")
+        let id_clay = g("clay")
+        let id_dripstone_block = g("dripstone_block")
+        let id_glow_lichen = g("glow_lichen")
+        let id_hanging_roots = g("hanging_roots")
+        let id_moss_block = g("moss_block")
+        let id_moss_carpet = g("moss_carpet")
+        let id_pointed_dripstone = g("pointed_dripstone")
+        let id_sculk = g("sculk")
+        let id_sculk_catalyst = g("sculk_catalyst")
+        let id_sculk_sensor = g("sculk_sensor")
+        let id_sculk_shrieker = g("sculk_shrieker")
+        let id_sculk_vein = g("sculk_vein")
+        let id_small_dripleaf = g("small_dripleaf")
+        let id_spore_blossom = g("spore_blossom")
         for lz in 0..<CS { for lx in 0..<CS {
             let k = climates[lx + lz * CS]
             let lush = k.h > 0.55, drip = k.c > 0.75, dark = k.e < -0.6
@@ -947,33 +965,33 @@ final class WorldGen: TerrainGenerator {
                 let below = b[i - CSQ], above = b[i + CSQ]
                 let h = hashf(bx + lx, y, bz + lz, s32 ^ 0xCA7)
                 if dark && y < YOFF {
-                    if Blocks.opaque[Int(below)] && h < 0.6 { b[i - CSQ] = g("sculk") }
+                    if Blocks.opaque[Int(below)] && h < 0.6 { b[i - CSQ] = id_sculk }
                     if Blocks.opaque[Int(below)] {
-                        if h > 0.997 { b[i] = g("sculk_shrieker") }
-                        else if h > 0.993 { b[i] = g("sculk_sensor") }
-                        else if h > 0.9925 { b[i] = g("sculk_catalyst") }
-                        else if h > 0.75 && h < 0.85 { b[i] = g("sculk_vein") }
+                        if h > 0.997 { b[i] = id_sculk_shrieker }
+                        else if h > 0.993 { b[i] = id_sculk_sensor }
+                        else if h > 0.9925 { b[i] = id_sculk_catalyst }
+                        else if h > 0.75 && h < 0.85 { b[i] = id_sculk_vein }
                     }
                 } else if lush {
                     if Blocks.opaque[Int(below)] && below != BEDROCK {
-                        b[i - CSQ] = g("moss_block")
-                        if h < 0.08 { b[i] = g("azalea") } else if h < 0.3 { b[i] = g("moss_carpet") } else if h < 0.4 { b[i] = TALL_GRASS }
-                        else if h < 0.43 { b[i] = g("small_dripleaf") } else if h < 0.45 { b[i] = g("big_dripleaf") }
-                        else if h > 0.97 { b[i - CSQ] = g("clay") }
+                        b[i - CSQ] = id_moss_block
+                        if h < 0.08 { b[i] = id_azalea } else if h < 0.3 { b[i] = id_moss_carpet } else if h < 0.4 { b[i] = TALL_GRASS }
+                        else if h < 0.43 { b[i] = id_small_dripleaf } else if h < 0.45 { b[i] = id_big_dripleaf }
+                        else if h > 0.97 { b[i - CSQ] = id_clay }
                     } else if Blocks.opaque[Int(above)] && h > 0.985 {
-                        b[i] = g("spore_blossom")
+                        b[i] = id_spore_blossom
                     } else if Blocks.opaque[Int(above)] && h > 0.9 {
-                        b[i] = g("hanging_roots")
+                        b[i] = id_hanging_roots
                     } else if Blocks.opaque[Int(above)] && h < 0.12 {
                         var yy = y
                         let len = 1 + Int(h * 60)
-                        while yy > y - len && b[Chunk.index(lx, yy, lz)] == AIR { b[Chunk.index(lx, yy, lz)] = g("cave_vines"); yy -= 1 }
+                        while yy > y - len && b[Chunk.index(lx, yy, lz)] == AIR { b[Chunk.index(lx, yy, lz)] = id_cave_vines; yy -= 1 }
                     }
                 } else if !dark && y < SEA - 20 && (Blocks.opaque[Int(below)] || Blocks.opaque[Int(above)]) && h > 0.996 {
-                    b[i] = g("glow_lichen")
+                    b[i] = id_glow_lichen
                 } else if drip {
-                    if Blocks.opaque[Int(below)] && h < 0.25 { b[i - CSQ] = g("dripstone_block"); if h < 0.06 { b[i] = g("pointed_dripstone") } }
-                    if Blocks.opaque[Int(above)] && h > 0.8 { b[i + CSQ] = g("dripstone_block"); if h > 0.93 { b[i] = g("pointed_dripstone") } }
+                    if Blocks.opaque[Int(below)] && h < 0.25 { b[i - CSQ] = id_dripstone_block; if h < 0.06 { b[i] = id_pointed_dripstone } }
+                    if Blocks.opaque[Int(above)] && h > 0.8 { b[i + CSQ] = id_dripstone_block; if h > 0.93 { b[i] = id_pointed_dripstone } }
                 }
             }
         } }
