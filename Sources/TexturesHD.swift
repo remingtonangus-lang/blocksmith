@@ -2657,6 +2657,7 @@ enum HDTex {
         "activator_rail_on": railHD(tie: 0x7A2A1A, rail: 0xA8A8A8, mid: 0xF8301A),
         "ladder": ladderHD,
         "lantern": lanternHD(glow: 0xF8C85A, core: 0xFFF4C8),
+        "soul_lantern": lanternHD(glow: 0x6AE0F0, core: 0xE0FFFF),
         "iron_bars": ironBarsHD,
         "torch": torchHD(core: 0xFFF6C8, flame: 0xFFC43A, x0: 7, x1: 9, coreRow: 6, stickTo: 16),
         "torch_wall": torchHD(core: 0xFFF6C8, flame: 0xFFC43A, x0: 0, x1: 16, coreRow: 3, stickTo: 13),
