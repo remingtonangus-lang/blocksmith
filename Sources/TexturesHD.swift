@@ -136,57 +136,365 @@ enum HDTex {
 
     typealias Gen = (Int, Int) -> Img          // (size, seed) -> image
 
-    static func stone(_ pal: [(Float, UInt32)], crackAmt: Float = 1) -> Gen {
+    @inline(__always) static func cl(_ v: Float) -> Float { max(0, min(1, v)) }
+    @inline(__always) static func col(_ h: UInt32) -> V3 { V3(Float((h >> 16) & 255), Float((h >> 8) & 255), Float(h & 255)) / 255 }
+    static func hexOf(_ c: V3) -> UInt32 {
+        let r = UInt32(cl(c.x) * 255), g = UInt32(cl(c.y) * 255), b = UInt32(cl(c.z) * 255)
+        return (r << 16) | (g << 8) | b
+    }
+    // A three-stop palette around a colour (derived materials).
+    static func pal(_ c: V3, lo: Float = 0.72, hi: Float = 1.2) -> [(Float, UInt32)] {
+        [(0, hexOf(c * lo)), (0.5, hexOf(c)), (1, hexOf(c * hi))]
+    }
+    static func shade(_ img: inout Img, _ hh: [Float], _ k: Float) {
+        let lt = light(hh, img.n, k * Float(img.n) / 128)
+        for i in 0..<(img.n * img.n) { let c = img.px[i]; img.px[i] = V4(c.x * lt[i], c.y * lt[i], c.z * lt[i], c.w) }
+    }
+
+    // Stone: warped fbm with soft mottling, faint strata, patchy cells, granular speckle and a few soft veins (wandering
+    // ridges of a warped fbm, colour only: carved cracks read as scratches). `streak` adds deepslate's vertical grain.
+    static func stone(_ pal: [(Float, UInt32)], veins: Float = 1, strata: Float = 0.04, streak: Float = 0) -> Gen {
         { n, s in
+            let fn = Float(n)
             let base = fbm(n, n / 2, 6, s)
             let wx = fbm(n, n / 4, 3, s &+ 9), wy = fbm(n, n / 4, 3, s &+ 7)
-            let h = warp(base, n, wx, wy, Float(n) * 0.18)
+            let h = warp(base, n, wx, wy, fn * 0.18)
             let mottle = fbm(n, n / 8, 3, s &+ 11)
             let grain = vnoise(n, max(1, n / 64), s &+ 5)
-            let v = voronoi(n, 4, s &+ 3)
-            let crackMask = fbm(n, n / 8, 2, s &+ 4)
+            let fine2 = vnoise(n, max(1, n / 32), s &+ 51)
+            let rf = warp(fbm(n, n / 4, 4, s &+ 20), n, wy, wx, fn * 0.1)
+            let mask = fbm(n, n / 4, 2, s &+ 4)
+            let cells = voronoi(n, 6, s &+ 50, jitter: 1)
+            let row = vnoise(n, max(1, n / 32), s &+ 30)
+            var stripes = [Float](repeating: 0, count: n * n)
+            for y in 0..<n { for x in 0..<n { stripes[y * n + x] = row[x] } }
+            let st = warp(stripes, n, wx, wy, fn * 0.08)
             var hh = [Float](repeating: 0, count: n * n)
             var img = Img(n)
-            for i in 0..<(n * n) {
-                // Thin, broken cracks only where the mask is high (not a regular network).
-                let edge: Float = v.f2[i] - v.f1[i]
-                let crack: Float = (crackMask[i] > 0.6 ? max(0, 1 - edge / (Float(n) / 90)) : 0) * crackAmt
-                let t0: Float = h[i] * 0.75 + (mottle[i] - 0.5) * 0.35
-                let t1: Float = (grain[i] - 0.5) * 0.12 + 0.12 - crack * 0.25
-                let t: Float = t0 + t1
-                let hm: Float = h[i] * 0.5 + mottle[i] * 0.2
-                hh[i] = hm - crack * 0.4
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let yy: Float = Float(y) + (wx[i] - 0.5) * fn * 0.4
+                let band: Float = sinf(yy / fn * 2 * .pi * 3) * strata
+                let ridge: Float = 1 - abs(2 * rf[i] - 1)
+                let r0: Float = cl((ridge - 0.9) / 0.1)
+                let v: Float = r0 * r0 * cl((mask[i] - 0.55) * 5) * veins
+                let edge: Float = cl((cells.f2[i] - cells.f1[i]) / (fn / 24))
+                let patch: Float = (cells.id[i] - 0.5) * 0.1 * edge
+                let t0: Float = h[i] * 0.7 + (mottle[i] - 0.5) * 0.3 + (grain[i] - 0.5) * 0.14
+                let t1: Float = (fine2[i] - 0.5) * 0.16 + 0.14 + band - v * 0.1
+                var t: Float = t0 + t1 + (st[i] - 0.5) * streak + patch
+                if grain[i] > 0.97 { t += 0.07 }
+                let h0: Float = h[i] * 0.5 + mottle[i] * 0.2 + st[i] * streak * 0.6
+                hh[i] = h0 + fine2[i] * 0.15 + patch
                 let c = ramp(t, pal)
                 img.px[i] = V4(c.x, c.y, c.z, 1)
-            }
-            let lt = light(hh, n, 1.6 * Float(n) / 128)
-            for i in 0..<(n * n) { img.px[i] = V4(img.px[i].x * lt[i], img.px[i].y * lt[i], img.px[i].z * lt[i], 1) }
+            } }
+            shade(&img, hh, 1.4)
             return img
         }
     }
 
-    static func soil(_ pal: [(Float, UInt32)], pebble: UInt32, pebbles: Int = 18) -> Gen {
+    // Soil: fbm earth in soft clods with dark specks and a few small irregular pebbles (not raised studs).
+    static func soil(_ pal: [(Float, UInt32)], pebble: UInt32, pebbles: Int = 9, clods: Int = 7) -> Gen {
         { n, s in
             let h = fbm(n, n / 4, 5, s)
             let fine = vnoise(n, max(1, n / 64), s &+ 1)
+            let cd = voronoi(n, clods, s &+ 7, jitter: 1)
             let v = voronoi(n, pebbles, s &+ 3, jitter: 1)
             var hh = [Float](repeating: 0, count: n * n)
             var img = Img(n)
             let pr: Float = Float(n) / 64
-            func c(_ hx: UInt32) -> V3 { V3(Float((hx >> 16) & 255), Float((hx >> 8) & 255), Float(hx & 255)) / 255 }
+            let pc = col(pebble)
             for i in 0..<(n * n) {
-                let isPebble = v.id[i] > 0.72 && v.f1[i] < pr * (1 + v.id[i] * 1.6)
-                var col = ramp(h[i] + (fine[i] - 0.5) * 0.22, pal)
-                hh[i] = h[i] * 0.4 + fine[i] * 0.15
+                let rad: Float = pr * (1 + v.id[i] * 1.2)
+                let isPebble = v.id[i] > 0.8 && v.f1[i] < rad * (0.6 + 0.7 * fine[i])
+                var t: Float = h[i] + (fine[i] - 0.5) * 0.18 + (cd.id[i] - 0.5) * 0.1
+                if fine[i] < 0.04 { t -= 0.18 }
+                var c = ramp(t, pal)
+                let clodEdge: Float = cl(1 - (cd.f2[i] - cd.f1[i]) / (Float(n) / 40))
+                hh[i] = h[i] * 0.4 + fine[i] * 0.12 - clodEdge * 0.03
                 if isPebble {
-                    let k: Float = 0.75 + v.id[i] * 0.35
-                    col = c(pebble) * k
-                    hh[i] += (pr * (1 + v.id[i] * 1.6) - v.f1[i]) / (pr * 3)
+                    let k: Float = (0.82 + v.id[i] * 0.18) * (0.92 + fine[i] * 0.1)
+                    c = pc * k
+                    hh[i] += 0.12
                 }
-                img.px[i] = V4(col.x, col.y, col.z, 1)
+                img.px[i] = V4(c.x, c.y, c.z, 1)
             }
-            let lt = light(hh, n, 1.2 * Float(n) / 128)
-            for i in 0..<(n * n) { img.px[i] = V4(img.px[i].x * lt[i], img.px[i].y * lt[i], img.px[i].z * lt[i], 1) }
+            shade(&img, hh, 1.0)
+            return img
+        }
+    }
+
+    // Per-column depth of a hanging fringe (grass blades, snow lips): a wavy edge with tapered spikes.
+    static func fringe(_ n: Int, _ s: Int, depth: Float, spikes: Int, spikeH: Float, width: Float) -> [Float] {
+        let fn = Float(n)
+        let wav = vnoise(n, max(1, n / 8), s)
+        var d = [Float](repeating: 0, count: n)
+        for x in 0..<n { d[x] = depth * fn + (wav[x] - 0.5) * fn * 0.05 }
+        var rng = SRng(UInt64(truncatingIfNeeded: s) &* 6151 &+ 11)
+        for _ in 0..<spikes {
+            let c = rng.int(n)
+            let w: Float = width * fn * (0.5 + rng.float())
+            let hgt: Float = spikeH * fn * (0.3 + rng.float() * 0.7)
+            for x in 0..<n {
+                let a = abs(x - c)
+                let dx = Float(min(a, n - a))
+                let f: Float = max(0, 1 - dx / max(w, 0.5))
+                d[x] = max(d[x], depth * fn + hgt * f * f.squareRoot())
+            }
+        }
+        return d
+    }
+
+    static let dirtGen: Gen = soil(dirtPal, pebble: 0x8A7662)
+
+    // Grass side: dirt with a hanging fringe of grey (biome-tinted, alpha 0.9 = overlay) blades and a soft shadow.
+    static func grassSide(_ n: Int, _ s: Int) -> Img {
+        var img = dirtGen(n, s)
+        let top = grassTop(n, s &+ 3)
+        let d = fringe(n, s &+ 5, depth: 0.14, spikes: n / 2, spikeH: 0.18, width: 0.012)
+        let fn = Float(n)
+        for y in 0..<n { for x in 0..<n {
+            let i = y * n + x
+            let fy = Float(y)
+            if fy < d[x] {
+                let g: Float = top.px[i].x * (1 - 0.25 * min(1, fy / max(d[x], 1)))
+                img.px[i] = V4(g, g, g, 0.9)
+            } else {
+                let k: Float = 1 - 0.35 * cl(1 - (fy - d[x]) / (fn * 0.04))
+                let c = img.px[i]
+                img.px[i] = V4(c.x * k, c.y * k, c.z * k, 1)
+            }
+        } }
+        return img
+    }
+
+    // Snow: soft blue-shaded drifts with sparkles.
+    static func snow(_ n: Int, _ s: Int) -> Img {
+        let sh = fbm(n, n / 2, 5, s)
+        let fine = vnoise(n, max(1, n / 64), s &+ 1)
+        let sp = vnoise(n, 1, s &+ 2)
+        let a = col(0xC9D6EA), b = col(0xF6F9FF)
+        var img = Img(n)
+        var hh = [Float](repeating: 0, count: n * n)
+        for i in 0..<(n * n) {
+            let t: Float = cl((sh[i] - 0.3) * 1.4)
+            let c: V3 = a * (1 - t) + b * t
+            hh[i] = sh[i] * 0.6 + fine[i] * 0.08
+            img.px[i] = V4(c.x, c.y, c.z, 1)
+        }
+        shade(&img, hh, 0.9)
+        for i in 0..<(n * n) where sp[i] > 0.995 { img.px[i] = V4(1, 1, 1, 1) }
+        return img
+    }
+
+    static func grassSnow(_ n: Int, _ s: Int) -> Img {
+        var img = dirtGen(n, s)
+        let sn = snow(n, s &+ 1)
+        let d = fringe(n, s &+ 5, depth: 0.2, spikes: n / 10, spikeH: 0.12, width: 0.05)
+        let fn = Float(n)
+        for y in 0..<n { for x in 0..<n {
+            let i = y * n + x
+            let fy = Float(y)
+            if fy < d[x] {
+                let k: Float = 1 - 0.18 * cl(1 - (d[x] - fy) / (fn * 0.03))
+                let c = sn.px[i]
+                img.px[i] = V4(c.x * k, c.y * k, c.z * k, 1)
+            } else {
+                let k: Float = 1 - 0.35 * cl(1 - (fy - d[x]) / (fn * 0.04))
+                let c = img.px[i]
+                img.px[i] = V4(c.x * k, c.y * k, c.z * k, 1)
+            }
+        } }
+        return img
+    }
+
+    // Masonry: blocks in courses (rows x perRow, odd rows shifted by `offset` of the width) with per-block tone, a
+    // rounded bevel, eroded corners and grainy mortar. clay: mottled fired brick with sandy specks; else stone.
+    static func masonry(rows: Int, perRow: Int, offset: Float, mortarW: Float, _ pal: [(Float, UInt32)], mortar: UInt32,
+                        clay: Bool = false, chips: Float = 1, bevel: Float = 0.03, tone: Float = 0.18) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            let wob = fbm(n, max(1, n / 16), 3, s &+ 40)
+            let ero = fbm(n, max(1, n / 8), 3, s &+ 41)
+            let inner = clay ? fbm(n, n / 8, 4, s &+ 2) : fbm(n, n / 4, 5, s &+ 2)
+            let fine = clay ? vnoise(n, max(1, n / 128), s &+ 3) : vnoise(n, max(1, n / 64), s &+ 3)
+            let mf = vnoise(n, max(1, n / 64), s &+ 9)
+            let rh: Float = fn / Float(rows), bw: Float = fn / Float(perRow)
+            let mc = col(mortar)
+            var hh = [Float](repeating: 0, count: n * n)
+            var img = Img(n)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let row = Int(Float(y) / rh)
+                let xo: Float = (Float(x) + Float(row % 2) * offset * fn).truncatingRemainder(dividingBy: fn)
+                let c0 = Int(xo / bw)
+                let lx: Float = xo - Float(c0) * bw, ly: Float = Float(y) - Float(row) * rh
+                let mw: Float = mortarW * fn * (0.9 + (wob[i] - 0.5) * 0.4)
+                let ex: Float = min(lx, bw - 1 - lx), ey: Float = min(ly, rh - 1 - ly)
+                var de: Float = min(ex, ey) - mw / 2
+                let er: Float = (ero[i] - 0.5) * fn * 0.018 * chips
+                de += er * cl(1 - de / (fn * 0.05))
+                if de < 0 {
+                    let k: Float = 0.85 + mf[i] * 0.3
+                    img.px[i] = V4(mc.x * k, mc.y * k, mc.z * k, 1)
+                    hh[i] = -0.3
+                    continue
+                }
+                let bid = h2(c0 &+ row &* 31, row, s)
+                var t: Float = 0.5 + (bid - 0.5) * tone + (fine[i] - 0.5) * (clay ? 0.15 : 0.12)
+                t += (inner[i] - 0.5) * (clay ? 0.35 : 0.45)
+                if clay && fine[i] > 0.93 { t += 0.15 }
+                hh[i] = cl(de / (bevel * fn)) * 0.5 + inner[i] * 0.1
+                let c = ramp(t, pal)
+                img.px[i] = V4(c.x, c.y, c.z, 1)
+            } }
+            shade(&img, hh, 0.8)
+            return img
+        }
+    }
+
+    // Sandstone side: wavy sediment layers, a darker band and a weathered lower edge.
+    static func sandstoneSide(_ pal: [(Float, UInt32)]) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            let w = fbm(n, n / 4, 3, s)
+            let fine = vnoise(n, max(1, n / 128), s &+ 1)
+            var hh = [Float](repeating: 0, count: n * n)
+            var img = Img(n)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let yy: Float = Float(y) + (w[i] - 0.5) * fn * 0.06
+                let l1: Float = sinf(yy / fn * 2 * .pi * 5) * 0.06
+                let layers: Float = l1 + sinf(yy / fn * 2 * .pi * 13) * 0.03
+                let band: Float = abs(yy - fn * 0.25) < fn * 0.035 ? -0.12 : 0
+                let low: Float = Float(y) > fn * 0.84 ? -0.06 : 0
+                let t: Float = 0.55 + layers + band + low + (fine[i] - 0.5) * 0.16
+                hh[i] = layers * 2 + band
+                let c = ramp(t, pal)
+                img.px[i] = V4(c.x, c.y, c.z, 1)
+            } }
+            shade(&img, hh, 1)
+            return img
+        }
+    }
+
+    // Log end: irregular growth rings (thin late-wood lines), one drying crack, a wavy bark rim.
+    static func ringsTop(bark: [(Float, UInt32)], wood: [(Float, UInt32)]) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            let w = fbm(n, n / 4, 3, s)
+            let rv = vnoise(n, max(1, n / 8), s &+ 6)
+            let fine = vnoise(n, max(1, n / 64), s &+ 1)
+            let rimN = vnoise(n, max(1, n / 16), s &+ 3)
+            let a0: Float = h2(1, 2, s) * 2 * .pi
+            var hh = [Float](repeating: 0, count: n * n)
+            var img = Img(n)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let dx: Float = Float(x) - fn / 2 + 0.5, dy: Float = Float(y) - fn / 2 + 0.5
+                let ang: Float = atan2f(dy, dx)
+                let r: Float = (dx * dx + dy * dy).squareRoot()
+                let d: Float = r + (w[i] - 0.5) * fn * 0.03 + sinf(ang * 3 + 1.3) * fn * 0.008
+                let ph: Float = d / fn * 13 + (rv[i] - 0.5) * 0.5
+                let fr: Float = ph - floorf(ph)
+                let ring: Float = 1 - cl((fr - 0.72) / 0.12) * cl((1 - fr) / 0.08)
+                var t: Float = 0.62 + (ring - 0.5) * 0.4 - d / fn * 0.3 + (fine[i] - 0.5) * 0.08
+                let a: Float = ang - a0 + (w[i] - 0.5) * 0.3 + .pi
+                let da: Float = abs(a - 2 * .pi * floorf(a / (2 * .pi)) - .pi)
+                let crack = da * d < fn * 0.002 + d * 0.02 && d < fn * 0.3 && d > fn * 0.06
+                if crack { t -= 0.45 }
+                let edge = Float(min(min(x, n - 1 - x), min(y, n - 1 - y)))
+                let rimw: Float = fn * 0.07 + (rimN[i] - 0.5) * fn * 0.04
+                let c: V3
+                if edge < rimw {
+                    c = ramp(0.4 + (fine[i] - 0.5) * 0.4 + (w[i] - 0.5) * 0.3, bark)
+                    hh[i] = 0.3 + fine[i] * 0.2
+                } else {
+                    c = ramp(t, wood)
+                    hh[i] = ring * 0.12
+                }
+                if crack { hh[i] -= 0.15 }
+                img.px[i] = V4(c.x, c.y, c.z, 1)
+            } }
+            shade(&img, hh, 1.1)
+            return img
+        }
+    }
+
+    // Birch bark: chalky white with soft blotches and short dark horizontal lenticels.
+    static func birchLog(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n)
+        let w = fbm(n, n / 4, 3, s)
+        let fine = vnoise(n, max(1, n / 64), s &+ 1)
+        let blot = fbm(n, n / 8, 3, s &+ 2)
+        let pal: [(Float, UInt32)] = [(0, 0xBEB8AA), (0.5, 0xDCD8CC), (1, 0xF0EEE6)]
+        var img = Img(n)
+        var hh = [Float](repeating: 0, count: n * n)
+        for i in 0..<(n * n) {
+            let c = ramp(0.7 + (blot[i] - 0.5) * 0.25 + (fine[i] - 0.5) * 0.08, pal)
+            img.px[i] = V4(c.x, c.y, c.z, 1)
+        }
+        var rng = SRng(UInt64(truncatingIfNeeded: s) &* 7741 &+ 5)
+        let dk = col(0x2E2B26)
+        for _ in 0..<(n / 6) {
+            let cx = rng.int(n), cy = rng.int(n)
+            let L: Float = fn * (0.03 + rng.float() * 0.1)
+            let hgt = max(1, Int(fn * (0.012 + rng.float() * 0.02)))
+            let li = Int(L) + 1
+            for dy in -2...(hgt + 2) { for dx in -li...li {
+                let x = ((cx + dx) % n + n) % n, y = ((cy + dy) % n + n) % n
+                let i = y * n + x
+                let wv = Int((w[i] - 0.5) * fn * 0.02)
+                let yy = dy + wv
+                if Float(abs(dx)) < L * (0.6 + 0.4 * fine[i]) && yy >= 0 && yy < hgt {
+                    let k: Float = 0.8 + fine[i] * 0.4
+                    img.px[i] = V4(dk.x * k, dk.y * k, dk.z * k, 1)
+                    hh[i] = -0.2
+                }
+            } }
+        }
+        shade(&img, hh, 1)
+        return img
+    }
+
+    // Wool: knitted loops under fuzzy fibres.
+    static func wool(_ c: V3) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            let k: Float = fn / 16
+            let f1 = vnoise(n, 1, s), f2 = vnoise(n, 2, s &+ 1)
+            let blot = fbm(n, n / 4, 3, s &+ 2)
+            var hh = [Float](repeating: 0, count: n * n)
+            var img = Img(n)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let shift: Float = floorf(Float(y) / k).truncatingRemainder(dividingBy: 2) * k * 0.5
+                let u: Float = (Float(x) + shift) / k, v: Float = Float(y) / k
+                let fu: Float = u - floorf(u) - 0.5, fv: Float = v - floorf(v) - 0.5
+                let e: Float = (fu / 0.38) * (fu / 0.38) + (fv / 0.6) * (fv / 0.6)
+                let loop: Float = expf(-e)
+                let fuzz: Float = f1[i] * 0.5 + f2[i] * 0.5
+                let t: Float = 0.5 + loop * 0.14 + (fuzz - 0.5) * 0.3 + (blot[i] - 0.5) * 0.12
+                hh[i] = loop * 0.25 + fuzz * 0.25
+                let m: Float = 0.62 + t * 0.55
+                img.px[i] = V4(c.x * m, c.y * m, c.z * m, 1)
+            } }
+            shade(&img, hh, 0.8)
+            return img
+        }
+    }
+
+    // Concrete: smooth with faint trowel blotches.
+    static func concrete(_ c: V3) -> Gen {
+        { n, s in
+            let b = fbm(n, n / 2, 4, s)
+            let fine = vnoise(n, max(1, n / 128), s &+ 1)
+            var img = Img(n)
+            for i in 0..<(n * n) {
+                let m: Float = 0.97 + (b[i] - 0.5) * 0.08 + (fine[i] - 0.5) * 0.03
+                img.px[i] = V4(c.x * m, c.y * m, c.z * m, 1)
+            }
             return img
         }
     }
@@ -419,17 +727,73 @@ enum HDTex {
     static let dirtPal: [(Float, UInt32)] = [(0, 0x4A3222), (0.5, 0x6E4E34), (1, 0x8C6646)]
     static let oakPlank: [(Float, UInt32)] = [(0, 0x7E5C34), (0.5, 0xA67E4C), (1, 0xC49C62)]
     static let oakBark: [(Float, UInt32)] = [(0, 0x3C2C1C), (0.5, 0x60482C), (1, 0x80623E)]
+    static let sandstonePal: [(Float, UInt32)] = [(0, 0xB8A878), (0.5, 0xD9CE9E), (1, 0xEEE4BC)]
+
+    // Families without a hand-made entry get an HD material coloured from their 16 px painter: every wood's planks,
+    // bark and log ends, leaves, wool, concrete, concrete powder and terracotta.
+    static func derived(_ name: String, _ src: [V4]) -> Gen? {
+        let S = TextureGen.S
+        var sum = V3(0, 0, 0), rim = V3(0, 0, 0), mid = V3(0, 0, 0)
+        var cnt: Float = 0, rc: Float = 0, mc: Float = 0
+        for y in 0..<S { for x in 0..<S {
+            let p = src[y * S + x]
+            if p.w < 0.5 { continue }
+            let c = V3(p.x, p.y, p.z)
+            sum += c; cnt += 1
+            if x == 0 || y == 0 || x == S - 1 || y == S - 1 { rim += c; rc += 1 }
+            if x >= S / 4 && x < S * 3 / 4 && y >= S / 4 && y < S * 3 / 4 { mid += c; mc += 1 }
+        } }
+        guard cnt > 0 else { return nil }
+        let avg = sum / cnt
+        if name.hasSuffix("_planks") { return planks(pal(avg, lo: 0.75, hi: 1.18)) }
+        if name.hasSuffix("_log_top") || name.hasSuffix("_stem_top") {
+            guard rc > 0, mc > 0 else { return nil }
+            return ringsTop(bark: pal(rim / rc, lo: 0.7, hi: 1.25), wood: pal(mid / mc, lo: 0.8, hi: 1.12))
+        }
+        if name.hasSuffix("_log") || name == "crimson_stem" || name == "warped_stem" { return barkSide(pal(avg, lo: 0.62, hi: 1.25)) }
+        if name.hasSuffix("_leaves") {
+            return { n, s in
+                var img = leaves(n, s)
+                let k: V3 = avg / 0.72
+                for i in 0..<(n * n) { let p = img.px[i]; img.px[i] = V4(p.x * k.x, p.y * k.y, p.z * k.z, p.w) }
+                return img
+            }
+        }
+        if name.hasSuffix("_wool") { return wool(avg / 0.9) }
+        if name.hasSuffix("_concrete_powder") { return sandLike(pal(avg, lo: 0.85, hi: 1.12)) }
+        if name.hasSuffix("_concrete") { return concrete(avg) }
+        if (name.hasSuffix("_terracotta") && !name.contains("glazed")) || name == "terracotta" {
+            return stone(pal(avg, lo: 0.84, hi: 1.12), veins: 0, strata: 0.02)
+        }
+        return nil
+    }
 
     static let table: [String: Gen] = [
         "stone": stone(stoneGrey),
-        "andesite": stone([(0, 0x6E6E6E), (0.5, 0x8A8A8A), (1, 0xA6A6A4)], crackAmt: 0.3),
-        "diorite": stone([(0, 0x9E9E9C), (0.5, 0xC6C6C4), (1, 0xE8E8E6)], crackAmt: 0.2),
-        "granite": stone([(0, 0x7A4E40), (0.5, 0x9A6A58), (1, 0xB88A74)], crackAmt: 0.4),
-        "tuff": stone([(0, 0x55564E), (0.5, 0x6C6D64), (1, 0x86877C)], crackAmt: 0.5),
-        "deepslate": stone(deepslate, crackAmt: 0.8),
-        "dirt": soil(dirtPal, pebble: 0x84786A),
-        "coarse_dirt": soil([(0, 0x4C3626), (0.5, 0x6C5038), (1, 0x8A6A4C)], pebble: 0x7C7468, pebbles: 26),
+        "andesite": stone([(0, 0x6E6E6E), (0.5, 0x8A8A8A), (1, 0xA6A6A4)], veins: 0.3),
+        "diorite": stone([(0, 0x9E9E9C), (0.5, 0xC6C6C4), (1, 0xE8E8E6)], veins: 0.2),
+        "granite": stone([(0, 0x7A4E40), (0.5, 0x9A6A58), (1, 0xB88A74)], veins: 0.4),
+        "tuff": stone([(0, 0x55564E), (0.5, 0x6C6D64), (1, 0x86877C)], veins: 0.5),
+        "deepslate": stone(deepslate, veins: 0.4, strata: 0.03, streak: 0.35),
+        "dirt": dirtGen,
+        "coarse_dirt": soil([(0, 0x4C3626), (0.5, 0x6C5038), (1, 0x8A6A4C)], pebble: 0x7C7468, pebbles: 16),
         "grass_block_top": grassTop,
+        "grass_block_side": grassSide,
+        "grass_block_snow": grassSnow,
+        "snow": snow,
+        "snow_block": snow,
+        "stone_bricks": masonry(rows: 2, perRow: 1, offset: 0.5, mortarW: 1 / 22, [(0, 0x5E5E60), (0.5, 0x7E7E80), (1, 0x9C9C9C)], mortar: 0x48484A),
+        "bricks": masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 18, [(0, 0x7A3A2C), (0.5, 0x985040), (1, 0xB4705A)], mortar: 0xB0AAA0, clay: true, chips: 1.4),
+        "deepslate_bricks": masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 26, [(0, 0x343436), (0.5, 0x4A4A4C), (1, 0x626264)], mortar: 0x202022, chips: 1.2),
+        "deepslate_tiles": masonry(rows: 4, perRow: 4, offset: 0, mortarW: 1 / 26, [(0, 0x262628), (0.5, 0x363638), (1, 0x4C4C4E)], mortar: 0x161618, chips: 0.8),
+        "nether_bricks": masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 20, [(0, 0x2A1014), (0.5, 0x3E181C), (1, 0x5A2428)], mortar: 0x1A0A0C, clay: true, chips: 1.2),
+        "mud_bricks": masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 18, [(0, 0x6E5240), (0.5, 0x89684F), (1, 0xA48262)], mortar: 0x5A4234, clay: true, chips: 0.8),
+        "cobbled_deepslate": cobble([(0, 0x2E2E34), (0.5, 0x48484E), (1, 0x5E5E64)], mortar: 0x18181C),
+        "sandstone": sandstoneSide(sandstonePal),
+        "sandstone_top": stone(sandstonePal, veins: 0, strata: 0),
+        "sandstone_bottom": stone(sandstonePal, veins: 0, strata: 0.02),
+        "oak_log_top": ringsTop(bark: oakBark, wood: [(0, 0x8A6C40), (0.5, 0xB0915B), (1, 0xC8AA72)]),
+        "birch_log": birchLog,
         "oak_leaves": leaves,
         "oak_log": barkSide(oakBark),
         "oak_planks": planks(oakPlank),

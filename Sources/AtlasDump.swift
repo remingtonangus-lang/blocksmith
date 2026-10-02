@@ -61,8 +61,10 @@ func dumpHDAtlas(_ path: String) -> Int32 {
     let data = TextureGen.base(size: n)
     let names = Tex.names
     var want: [String] = arg("--names").map { $0.split(separator: ",").map(String.init) }
-        ?? (HDTex.table.keys.sorted() + ["grass_block_side", "snow", "bricks", "stone_bricks", "oak_log_top", "sandstone", "terracotta",
-                                         "white_wool", "glass", "water", "lava", "netherrack", "end_stone", "furnace_front"])
+        ?? (HDTex.table.keys.sorted() + ["spruce_log", "spruce_log_top", "birch_log_top", "jungle_planks", "acacia_planks", "dark_oak_log",
+                                         "birch_leaves", "spruce_leaves", "terracotta", "white_wool", "red_wool", "blue_concrete",
+                                         "lime_concrete_powder", "orange_terracotta", "crimson_stem", "warped_planks",
+                                         "glass", "water", "lava", "netherrack", "end_stone", "furnace_front"])
     want = want.filter { names.contains($0) }
     let cols = 8, gap = 4
     let rows = (want.count + cols - 1) / cols
