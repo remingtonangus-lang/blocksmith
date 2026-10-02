@@ -1061,34 +1061,73 @@ enum TextureGen {
         return data
     }
 
-    // Alpha-weighted box-filter mip chain (keeps leaves/glass from darkening at distance).
+    // Alpha-weighted box-filter mip chain (keeps leaves/glass from darkening at distance). Cutout layers (leaves,
+    // plants, sprites: alpha almost only 0 or 1) also get (a) colour bled into their fully transparent texels, so
+    // linear and anisotropic filtering at the cutout edge doesn't blend in black (distant crowns turned into black
+    // speckles), and (b) alpha coverage preserved per level: the share of texels passing the shaders' 0.5 cutoff
+    // stays what it is at full size, instead of thinning out with distance (Castano's coverage-preserving mips).
     static func mipChain(size n: Int = TextureGen.size) -> [[UInt8]] {
         var levels = [base(size: n)]
         let count = Tex.count
+        var cutout = [Bool](repeating: false, count: count)
+        var coverage = [Float](repeating: 0, count: count)
+        levels[0].withUnsafeMutableBufferPointer { buf in
+            let px = buf.baseAddress!
+            var flags = [Bool](repeating: false, count: count)
+            var covs = [Float](repeating: 0, count: count)
+            flags.withUnsafeMutableBufferPointer { fb in covs.withUnsafeMutableBufferPointer { cb in
+                let fp = fb.baseAddress!, cp = cb.baseAddress!
+                DispatchQueue.concurrentPerform(iterations: count) { l in
+                    let o = l * n * n * 4
+                    var zero = 0, full = 0, pass = 0
+                    for i in 0..<(n * n) {
+                        let a = px[o + i * 4 + 3]
+                        if a == 0 { zero += 1 } else if a == 255 { full += 1 }
+                        if a >= 128 { pass += 1 }
+                    }
+                    let isCut = zero > 0 && pass > 0 && zero + full >= n * n * 9 / 10
+                    fp[l] = isCut
+                    cp[l] = Float(pass) / Float(n * n)
+                    if isCut { bleed(px + o, n) }
+                }
+            } }
+            cutout = flags
+            coverage = covs
+        }
         var size = n
         let taps = [(0, 0), (1, 0), (0, 1), (1, 1)]
         while size > 1 {
             let prev = levels[levels.count - 1]
             let ns = size / 2
             var next = [UInt8](repeating: 0, count: ns * ns * 4 * count)
-            for l in 0..<count {
-                for y in 0..<ns {
-                    for x in 0..<ns {
-                        var acc = V3(repeating: 0)
-                        var aSum: Float = 0
-                        for (dx, dy) in taps {
-                            let i = ((l * size + y * 2 + dy) * size + x * 2 + dx) * 4
-                            let a = Float(prev[i + 3]) / 255
-                            acc += V3(Float(prev[i]), Float(prev[i + 1]), Float(prev[i + 2])) * a
-                            aSum += a
+            let sz = size
+            next.withUnsafeMutableBufferPointer { nb in
+                let out = nb.baseAddress!
+                prev.withUnsafeBufferPointer { pb in
+                    let src = pb.baseAddress!
+                    DispatchQueue.concurrentPerform(iterations: count) { l in
+                        for y in 0..<ns {
+                            for x in 0..<ns {
+                                var acc = V3(repeating: 0), plain = V3(repeating: 0)
+                                var aSum: Float = 0
+                                for (dx, dy) in taps {
+                                    let i = ((l * sz + y * 2 + dy) * sz + x * 2 + dx) * 4
+                                    let a = Float(src[i + 3]) / 255
+                                    let c = V3(Float(src[i]), Float(src[i + 1]), Float(src[i + 2]))
+                                    acc += c * a
+                                    plain += c
+                                    aSum += a
+                                }
+                                let o = ((l * ns + y) * ns + x) * 4
+                                // Fully transparent: keep the (bled) colour so filtering never pulls in black.
+                                let rgb: V3 = aSum > 0 ? acc / aSum : plain / 4
+                                out[o] = UInt8(min(255, rgb.x))
+                                out[o + 1] = UInt8(min(255, rgb.y))
+                                out[o + 2] = UInt8(min(255, rgb.z))
+                                out[o + 3] = UInt8(min(255, aSum / 4 * 255))
+                            }
                         }
-                        let o = ((l * ns + y) * ns + x) * 4
-                        if aSum > 0 {
-                            next[o] = UInt8(min(255, acc.x / aSum))
-                            next[o + 1] = UInt8(min(255, acc.y / aSum))
-                            next[o + 2] = UInt8(min(255, acc.z / aSum))
-                        }
-                        next[o + 3] = UInt8(min(255, aSum / 4 * 255))
+                        if cutout[l] { keepCoverage(out + l * ns * ns * 4, ns, coverage[l]) }
                     }
                 }
             }
@@ -1096,5 +1135,59 @@ enum TextureGen {
             size = ns
         }
         return levels
+    }
+
+    // Spreads colour into fully transparent texels from their nearest coloured neighbours (wrapping), a few rings
+    // deep, then fills whatever is left with the layer's mean colour. Alpha stays 0.
+    static func bleed(_ px: UnsafeMutablePointer<UInt8>, _ n: Int) {
+        var known = [Bool](repeating: false, count: n * n)
+        var mean = V3(repeating: 0)
+        var cnt: Float = 0
+        for i in 0..<(n * n) where px[i * 4 + 3] > 0 {
+            known[i] = true
+            mean += V3(Float(px[i * 4]), Float(px[i * 4 + 1]), Float(px[i * 4 + 2]))
+            cnt += 1
+        }
+        guard cnt > 0 else { return }
+        mean /= cnt
+        for _ in 0..<4 {
+            var add: [(Int, V3)] = []
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                if known[i] { continue }
+                var c = V3(repeating: 0)
+                var k: Float = 0
+                for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                    let j = ((y + dy + n) % n) * n + (x + dx + n) % n
+                    if known[j] { c += V3(Float(px[j * 4]), Float(px[j * 4 + 1]), Float(px[j * 4 + 2])); k += 1 }
+                }
+                if k > 0 { add.append((i, c / k)) }
+            } }
+            if add.isEmpty { break }
+            for (i, c) in add {
+                px[i * 4] = UInt8(min(255, c.x)); px[i * 4 + 1] = UInt8(min(255, c.y)); px[i * 4 + 2] = UInt8(min(255, c.z))
+                known[i] = true
+            }
+        }
+        for i in 0..<(n * n) where !known[i] {
+            px[i * 4] = UInt8(min(255, mean.x)); px[i * 4 + 1] = UInt8(min(255, mean.y)); px[i * 4 + 2] = UInt8(min(255, mean.z))
+        }
+    }
+
+    // Scales one mip level's alpha so the share of texels at or above the 0.5 cutoff matches `target`.
+    static func keepCoverage(_ px: UnsafeMutablePointer<UInt8>, _ n: Int, _ target: Float) {
+        let total = Float(n * n)
+        func cov(_ k: Float) -> Float {
+            var c = 0
+            for i in 0..<(n * n) where Float(px[i * 4 + 3]) * k >= 127.5 { c += 1 }
+            return Float(c) / total
+        }
+        var lo: Float = 0.25, hi: Float = 8
+        for _ in 0..<12 {
+            let mid: Float = (lo + hi) / 2
+            if cov(mid) < target { lo = mid } else { hi = mid }
+        }
+        let k: Float = (lo + hi) / 2
+        for i in 0..<(n * n) { px[i * 4 + 3] = UInt8(min(255, Float(px[i * 4 + 3]) * k)) }
     }
 }
