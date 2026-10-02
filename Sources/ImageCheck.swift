@@ -21,7 +21,20 @@ enum ImageCheck {
         while i < n {
             let b = Int(px[i * 4]), g = Int(px[i * 4 + 1]), r = Int(px[i * 4 + 2])
             // The missing texture is magenta (red = blue); crying obsidian's glowing violet tears run bluer.
-            if r > 180 && b > 180 && g < 70 && abs(r - b) < 16 { mag += 1 }
+            // ...with the checker's black squares beside it (magenta wool and the portal's purple glow have none:
+            // false flags in run 390).
+            if r > 180 && b > 180 && g < 70 && abs(r - b) < 16 {
+                let x = i % w, yy = i / w
+                var dark = false
+                for (dx, dy) in [(-3, 0), (3, 0), (0, -3), (0, 3)] {
+                    let qx = x + dx, qy = yy + dy
+                    guard qx >= 0 && qx < w && qy >= 0 && qy < h else { continue }
+                    let o = (qy * w + qx) * 4
+                    let ql = (Int(px[o + 2]) * 54 + Int(px[o + 1]) * 183 + Int(px[o]) * 19) >> 8
+                    if ql < 24 { dark = true }
+                }
+                if dark { mag += 1 }
+            }
             let y = (r * 54 + g * 183 + b * 19) >> 8
             if y < 6 { blk += 1 }
             if y > 250 { wht += 1 }

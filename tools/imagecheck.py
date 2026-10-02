@@ -11,7 +11,7 @@ for line in open(path, errors='replace'):
     if not m: continue
     kv = dict(p.split('=') for p in m.group(2).split())
     rows[m.group(1)] = kv          # the last render of a name wins
-dark_ok = re.compile(r'night|cave|dark|deep|under|seabed|end|hollow|menu|inventory|death|lava|blind|ancient|torch|nether|ember|stronghold|mineshaft|tunnel|lit|mob_shadows')
+dark_ok = re.compile(r'night|cave|dark|deep|under|seabed|end|hollow|menu|inventory|death|lava|blind|ancient|torch|nether|ember|stronghold|mineshaft|tunnel|lit|mob_shadows|credits')
 flags = []
 by_hash = collections.defaultdict(list)
 for name, kv in sorted(rows.items()):
