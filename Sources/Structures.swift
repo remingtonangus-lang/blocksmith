@@ -21,6 +21,12 @@ struct StructWriter {
     var blocks: UnsafeMutablePointer<BlockID>
     var entities: [(IVec3, BlockEntity)] = []
     var mobs: [(String, V3)] = []
+    // Lowest solid block written per column of this chunk (for filling under a structure: StructureCache.place).
+    final class Low { var y = [Int](repeating: Int.max, count: CS * CS) }
+    let low = Low()
+    @inline(__always) func note(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
+        if Blocks.collide[Int(b)] { let k = (z - bz) * CS + (x - bx); if y < low.y[k] { low.y[k] = y } }
+    }
 
     @inline(__always) func inside(_ x: Int, _ y: Int, _ z: Int) -> Bool {
         x >= bx && x < bx + CS && z >= bz && z < bz + CS && y >= 0 && y < CH
@@ -29,7 +35,7 @@ struct StructWriter {
         inside(x, y, z) ? blocks[Chunk.index(x - bx, y, z - bz)] : AIR
     }
     func set(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
-        if inside(x, y, z) { blocks[Chunk.index(x - bx, y, z - bz)] = b }
+        if inside(x, y, z) { blocks[Chunk.index(x - bx, y, z - bz)] = b; note(x, y, z, b) }
     }
     func fill(_ x0: Int, _ y0: Int, _ z0: Int, _ x1: Int, _ y1: Int, _ z1: Int, _ b: BlockID) {
         let xa = max(x0, bx), xb = min(x1, bx + CS - 1)
@@ -37,7 +43,29 @@ struct StructWriter {
         let ya = max(0, y0), yb = min(CH - 1, y1)
         guard xa <= xb, za <= zb, ya <= yb else { return }
         for y in ya...yb { for z in za...zb { for x in xa...xb { blocks[Chunk.index(x - bx, y, z - bz)] = b } } }
+        for z in za...zb { for x in xa...xb { note(x, ya, z, b) } }
     }
+
+    // Fills open air / cave water under the lowest block each column of the structure wrote, down to the ground
+    // (at most `depth`), so it doesn't hang over caves or slopes (structcheck "floating"; reference terrain
+    // adaptation "beard"). Resets the per-column record for the next structure.
+    func fillUnder(depth: Int, surface: BlockID) {
+        for k in 0..<(CS * CS) {
+            let y0 = low.y[k]
+            low.y[k] = Int.max
+            guard y0 != Int.max && y0 > 1 else { continue }
+            let x = bx + k % CS, z = bz + k / CS
+            var y = y0 - 1
+            while y > max(0, y0 - depth) {
+                let i = Chunk.index(x - bx, y, z - bz)
+                let cur = blocks[i]
+                guard cur == AIR || cur == WATER else { break }
+                blocks[i] = y < YOFF ? DEEPSLATE : (y < SEA - 12 ? STONE : surface)
+                y -= 1
+            }
+        }
+    }
+
     // Pillar from y down until a solid block (inside this chunk only).
     func pillarDown(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID, minY: Int) {
         guard inside(x, y, z) else { return }
@@ -145,6 +173,10 @@ final class StructureCache {
         return out
     }
 
+    // Kinds whose footprint is filled underneath (and how deep): buried ones over caves, hillside ones over slopes.
+    static let fillDepth: [String: Int] = ["ancient_city": 12, "trial_chambers": 10, "stronghold": 10, "mansion": 8,
+                                           "military_base": 8, "trail_ruins": 4]
+
     // Builds every structure piece overlapping this chunk into `blocks`; returns block entities.
     func place(into blocks: inout [BlockID], cx: Int, cz: Int) -> (entities: [(IVec3, BlockEntity)], mobs: [(String, V3)]) {
         var ents: [(IVec3, BlockEntity)] = []
@@ -154,6 +186,8 @@ final class StructureCache {
             for t in types {
                 for s in startsNear(cx: cx, cz: cz, t) {
                     for p in s.pieces where p.overlaps(cx * CS, cz * CS) { p.build(&w) }
+                    if let d = StructureCache.fillDepth[s.kind] { w.fillUnder(depth: d, surface: COBBLE) }
+                    else { for k in 0..<(CS * CS) { w.low.y[k] = Int.max } }
                 }
             }
             let bx = cx * CS, bz = cz * CS
