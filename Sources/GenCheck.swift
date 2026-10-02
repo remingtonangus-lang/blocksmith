@@ -102,7 +102,16 @@ enum GenCheck {
                                 add("unsupported", p, "\(k) over \(bk)")
                             } else if Blocks.fluidKind[bi] != 0 && Blocks.fluidLevel[bi] == 0 {
                                 for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where world.block(wx + dx, y, wz + dz) == AIR {
-                                    add("leak", p, "\(Blocks.fluidKind[bi] == 1 ? "water" : "lava") source beside air"); break
+                                    // Which side, and what the open column is (a cave mouth, a lower bank, a chunk border).
+                                    let nx = wx + dx, nz = wz + dz
+                                    var fy = y - 1
+                                    while fy > 1 && world.block(nx, fy, nz) == AIR { fy -= 1 }
+                                    let floorK = Blocks.key(Blocks.groupBase[Int(world.block(nx, fy, nz))])
+                                    let border: Bool = floorDiv(nx, CS) != floorDiv(wx, CS) || floorDiv(nz, CS) != floorDiv(wz, CS)
+                                    let side = dx == 1 ? "+x" : (dx == -1 ? "-x" : (dz == 1 ? "+z" : "-z"))
+                                    let drop: Int = y - fy
+                                    let fluid = Blocks.fluidKind[bi] == 1 ? "water" : "lava"
+                                    add("leak", p, "\(fluid) source beside air (\(side): open \(drop - 1) down to \(floorK), top \(world.topY(nx, nz) - YOFF)\(border ? ", across a chunk border" : ""))"); break
                                 }
                             } else if logIDs.contains(b) && below == AIR {
                                 // Branches (acacia, fancy oak, mangrove) rest on a log diagonally below or beside.
