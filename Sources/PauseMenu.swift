@@ -16,7 +16,7 @@ final class PauseMenu: Menu {
     // (label, action id); settings show their current value in the label.
     var rows: [(String, String)] = []
     var scroll = 0
-    static let visible = 9
+    static let visible = 10          // the main page has ten rows (at 9 "Save and Quit Game" hid below a scrollbar: blind UI critic)
     var subtitle = ""                // small line under the title (page hint, confirmation text)
     var cameFromTitle: Bool { stack.first == .title || page == .title }
     // Create World page (controller-friendly: the text fields use the on-screen keyboard).

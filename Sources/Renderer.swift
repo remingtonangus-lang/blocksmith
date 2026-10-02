@@ -1680,7 +1680,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     text(t, o.x + 88 * s - textWidth(line, s) / 2, o.y + Float(26 + i * 12) * s, s, V4(0.08, 0.06, 0.04, 1), shadow: false)
                 }
                 let b = sm.slots[0]
-                rect(o.x + Float(b.x) * s, o.y + Float(b.y) * s, 50 * s, 16 * s, game.menuHover === b ? V4(0.7, 0.7, 0.8, 1) : V4(0.5, 0.5, 0.55, 1))
+                rect(o.x + Float(b.x) * s, o.y + Float(b.y) * s, 50 * s, 16 * s, game.menuHover === b ? V4(0.2, 0.32, 0.68, 1) : V4(0.36, 0.36, 0.4, 1))
                 text("Done", o.x + Float(b.x + 13) * s, o.y + Float(b.y + 4) * s, s)
             }
             if let bm = m as? BookMenu {
@@ -1710,7 +1710,8 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
                     let label = [0: "<", 1: ">", 2: bm.signing ? "Sign" : "Done", 3: "Sign", 6: "Take"][i] ?? ""
                     if i == 3 && bm.signing { continue }
-                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, game.menuHover === sl ? V4(0.7, 0.7, 0.8, 1) : V4(0.5, 0.5, 0.55, 1))
+                    // Darker grey and the focus blue under white text (the hover grey measured 2.1:1: blind UI critic, book).
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, game.menuHover === sl ? V4(0.2, 0.32, 0.68, 1) : V4(0.36, 0.36, 0.4, 1))
                     text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + (Float(sl.h) - 7) / 2 * s, s)
                 }
             }
@@ -1744,7 +1745,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                             text(name, x, y - 10 * s, s)
                         }
                     } else {
-                        rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.7, 0.7, 0.8, 1) : V4(0.5, 0.5, 0.55, 1))
+                        rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.2, 0.32, 0.68, 1) : V4(0.36, 0.36, 0.4, 1))
                         let label = id == 491 ? "<" : (id == 492 ? ">" : (book.craftableOnly ? "Can" : "All"))
                         text(label, x + (Float(sl.w) * s - textWidth(label, s)) / 2, y + 3 * s, s)
                     }
@@ -1895,7 +1896,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let x = o.x + Float(sl.x) * s, y = o.y + Float(sl.y) * s
                     let label = i < 100 ? Advancements.tabs[i] : (i == 100 ? "^" : "v")
                     let sel = i == am.tab
-                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, sel ? V4(0.35, 0.55, 0.35, 1) : (game.menuHover === sl ? V4(0.7, 0.7, 0.8, 1) : V4(0.5, 0.5, 0.55, 1)))
+                    rect(x, y, Float(sl.w) * s, Float(sl.h) * s, sel ? V4(0.35, 0.55, 0.35, 1) : (game.menuHover === sl ? V4(0.2, 0.32, 0.68, 1) : V4(0.36, 0.36, 0.4, 1)))
                     let ts = min(s, (Float(sl.w) - 4) * s / max(1, textWidth(label, 1)))
                     text(label, x + (Float(sl.w) * s - textWidth(label, ts)) / 2, y + (Float(sl.h) * s - 7 * ts) / 2, ts)
                 }

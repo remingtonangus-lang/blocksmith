@@ -298,7 +298,7 @@ enum Prompt {
                 items = game.carried.isEmpty ? [(.select, "Pick up"), (.quick, "Clear slot")] : [(.select, "Place"), (.alt, "Place one")]
             }
             if let c = m as? CreativeMenu, c.tab == .search, pad { items.insert((.keyboard, "Type"), at: 0) }
-            items.append((.tabs, "Tab"))
+            items.append((.tabs, "Next tab"))          // "[Tab] Tab" said nothing (blind UI critic, creative)
             items.append((.scroll, "Scroll"))
             items.append((.back, "Close"))
             return line(items)
