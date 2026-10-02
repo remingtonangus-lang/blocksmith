@@ -1307,9 +1307,11 @@ enum HDTex {
                 // Grain along the band, and a bevel only at the band's own edges (x % b, y % b drew a grid of small
                 // squares over the whole frame).
                 let alongX: Bool = !rimX
-                let g: Float = alongX ? fine[y * n + (x / 6) % n] : fine[((y / 6) % n) * n + x]
+                let gi: Int = alongX ? y * n + (x / 6) % n : ((y / 6) % n) * n + x
+                let g: Float = fine[gi]
                 var k: Float = 0.88 + (g - 0.5) * 0.24
-                let topEnd: Int = kind == 0 ? b : n * 3 / 16, botStart: Int = kind == 0 ? n - b : n - n / 16
+                var topEnd: Int = n * 3 / 16, botStart: Int = n - n / 16
+                if kind == 0 { topEnd = b; botStart = n - b }
                 let litOuter: Bool = x == 0 || y == 0
                 let litInner: Bool = x == n - b || y == botStart
                 let seamTop: Bool = seam && y == n * 7 / 16
@@ -1451,7 +1453,9 @@ enum HDTex {
                     let t: Float = up / h
                     let cx: Float = bx + lean * t * t * h * 0.5
                     let inHead = headLen > 0 && up > h - headLen
-                    var w: Float = wheat ? w0 : w0 * sinf(Float.pi * min(1, t * 1.15 + 0.05))
+                    let swell: Float = sinf(Float.pi * min(1, t * 1.15 + 0.05))
+                    var w: Float = w0 * swell
+                    if wheat { w = w0 }
                     if inHead { w = fn / 30 + 1 }
                     for x in Int(cx - w - 1)...Int(cx + w + 1) {
                         let u: Float = (Float(x) + 0.5 - cx) / max(0.5, w)
@@ -1630,8 +1634,8 @@ enum HDTex {
                     let px = x < 8 * u ? x - 2 * u : x - 9 * u
                     // The top half's lower panels run on into the bottom half's upper ones (one tall panel across the
                     // two blocks): no bevel where they meet (each half drew one there, a stray lit/shaded line mid-panel).
-                    let pyTop = top ? 10 * u : (y < 6 * u ? -6 * u : 8 * u)
-                    let pyBot = top ? 22 * u : (y < 6 * u ? 6 * u : 14 * u)
+                    var pyTop: Int = 8 * u, pyBot: Int = 14 * u
+                    if top { pyTop = 10 * u; pyBot = 22 * u } else if y < 6 * u { pyTop = -6 * u; pyBot = 6 * u }
                     let py = y - pyTop
                     if px < u / 2 || py < u / 2 { k *= 1.15 } else if px >= 5 * u - u / 2 || y >= pyBot - u / 2 { k *= 0.8 }
                 }
@@ -2253,7 +2257,10 @@ enum HDTex {
                         let side: Float = (y / (n / 8) + strand) % 2 == 0 ? 1 : -1
                         var nc: V3 = c * 1.1
                         if let nb = nubs { nc = col(nb) }
-                        leafBlob(&img, cx + side * fn / 18, Float(y), fn / 14, side > 0 ? -0.5 : Float.pi + 0.5, nc)
+                        var leafAng: Float = Float.pi + 0.5
+                        if side > 0 { leafAng = -0.5 }
+                        let leafX: Float = cx + side * fn / 18
+                        leafBlob(&img, leafX, Float(y), fn / 14, leafAng, nc)
                     }
                 }
             }
