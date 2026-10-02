@@ -246,9 +246,13 @@ final class Playthrough {
     // Where the player's body fits closest to an item (an item lying in a low cavity or wedged against a block put
     // the player inside the rock, and the tick pushed them away before the pickup: runs 361 and 367).
     func standNear(_ p: V3) -> V3 {
-        for dy: Float in [0, -0.5, 0.5, -1, -1.5, -2] {          // pickup reaches 2.3 up from the feet but only 0.8 down
-            let q = p + V3(0, dy, 0)
-            if !world.collides(V3(q.x - 0.3, q.y + 0.01, q.z - 0.3), V3(q.x + 0.3, q.y + 1.79, q.z + 0.3)) { return q }
+        // Beside it too (pickup reaches 1.3 sideways): a star in a one-high gap had no free spot straight above or below,
+        // the body was pushed 3 blocks up out of the rock and out of reach (run 376).
+        for (ox, oz): (Float, Float) in [(0, 0), (0.9, 0), (-0.9, 0), (0, 0.9), (0, -0.9)] {
+            for dy: Float in [0, -0.5, 0.5, -1, -1.5, -2] {          // pickup reaches 2.3 up from the feet but only 0.8 down
+                let q = p + V3(ox, dy, oz)
+                if !world.collides(V3(q.x - 0.3, q.y + 0.01, q.z - 0.3), V3(q.x + 0.3, q.y + 1.79, q.z + 0.3)) { return q }
+            }
         }
         return p
     }
