@@ -160,6 +160,11 @@ Bug discovery is fully automated (Remington is not the bug finder). Keep CI gree
 2. 128x128 textures (8x): richer procedural art (and/or stylised CC0 sources, trials below), mipmaps + anisotropic
    filtering, cheap normal/roughness hints, real 3D isometric inventory icons crisp at TV scale; 60 fps rd 8 on M1,
    watch texture memory.
+   Progress (2026-10-02): every block family has a 128 px material (TexturesHD: hand-made generators, plus families by
+   name: planks, logs, leaves, wool, concrete, terracotta, stained glass, candles, shulker boxes, copper forms, coral,
+   glazed terracotta, rotated "@r" faces). `--hdatlas` prints the layers still on the generic detail pass (run 359: 247,
+   then about 60 more covered): paintings, banner patterns, mob heads, redstone dust, coral plants, torch model parts.
+   34.7 MB with mips (BC3), textures build in ~0.7 s on CI.
 3. Continuous fly-around-and-fix polish.
 Tooling to adopt: never-stop Stop hook + SessionStart priorities (.claude/hooks), sosumi Apple-docs MCP (.mcp.json),
 obra/superpowers methods, Metalcraft / binary greedy meshing (perf), CC0 assets (Poly Haven, ambientCG, Kenney,
