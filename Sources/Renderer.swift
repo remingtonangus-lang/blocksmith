@@ -1910,12 +1910,21 @@ final class Renderer: NSObject, MTKViewDelegate {
                     // was under the 14 px floor at 1080p) and 5 px in from the row's right edge (blind UI critic).
                     let doneC: V4 = a.challenge ? V4(0.32, 0.16, 0.4, 1) : V4(0.36, 0.28, 0.06, 1)
                     rect(o.x + 6 * s, y - 2 * s, 226 * s, 14 * s, got ? doneC : V4(0.26, 0.26, 0.29, 1))
-                    text((got ? "+ " : "- ") + a.title, o.x + 9 * s, y + s, s, got ? V4(1, 1, 0.8, 1) : V4(0.8, 0.8, 0.8, 1))
-                    let d = a.desc
-                    let maxW = 226 * s - textWidth("+ " + a.title, s) - 18 * s
-                    var ds: Float = s * 0.85
-                    if textWidth(d, ds) > maxW { ds = s * 0.75 }
-                    if textWidth(d, ds) <= maxW { text(d, o.x + 227 * s - textWidth(d, ds), y + 2 * s, ds, V4(0.9, 0.9, 0.88, 1)) }
+                    // A filled box for done, an empty one for not yet ("+ / -" read as expand and collapse), the title,
+                    // then the description at 0.85x, cut with "..." where it doesn't fit (it was shrunk under the 14 px
+                    // floor or dropped: blind UI critic, run 366).
+                    let mark: V4 = got ? V4(1, 0.85, 0.3, 1) : V4(0.7, 0.7, 0.72, 1)
+                    rect(o.x + 9 * s, y + s, 6 * s, 6 * s, mark)
+                    if !got { rect(o.x + 10 * s, y + 2 * s, 4 * s, 4 * s, V4(0.26, 0.26, 0.29, 1)) }
+                    text(a.title, o.x + 18 * s, y + s, s, got ? V4(1, 1, 0.8, 1) : V4(0.8, 0.8, 0.8, 1))
+                    let ds: Float = s * 0.85
+                    let maxW: Float = 226 * s - textWidth(a.title, s) - 24 * s
+                    var d = a.desc
+                    if textWidth(d, ds) > maxW {
+                        while !d.isEmpty && textWidth(d + "...", ds) > maxW { d.removeLast() }
+                        d = d.trimmingCharacters(in: .whitespaces) + "..."
+                    }
+                    if d.count > 3 { text(d, o.x + 227 * s - textWidth(d, ds), y + 2 * s, ds, V4(0.9, 0.9, 0.88, 1)) }
                 }
             }
             if let lm = m as? LoomMenu {
