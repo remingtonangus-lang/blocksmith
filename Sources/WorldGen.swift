@@ -499,11 +499,9 @@ final class WorldGen: TerrainGenerator {
         let top = tops[lx + lz * CS]
         guard top > 4 else { return }
         let n = surfN.noise2(Float(wx) / 12, Float(wz) / 12)
-        let rise: Int = {
-            let a = tops[max(0, lx - 1) + lz * CS], c = tops[min(CS - 1, lx + 1) + lz * CS]
-            let d = tops[lx + max(0, lz - 1) * CS], e = tops[lx + min(CS - 1, lz + 1) * CS]
-            return max(abs(a - c), abs(d - e))
-        }()
+        let xa: Int = max(0, lx - 1) + lz * CS, xc: Int = min(CS - 1, lx + 1) + lz * CS
+        let zd: Int = lx + max(0, lz - 1) * CS, ze: Int = lx + min(CS - 1, lz + 1) * CS
+        let rise: Int = max(abs(tops[xa] - tops[xc]), abs(tops[zd] - tops[ze]))
         let steep = rise >= 4
         var topBlock = GRASS, filler = DIRT, depth = 3 + Int(hash3(wx, 0, wz, s32 ^ 0x51) % 2)
         var under: BlockID? = nil, underDepth = 0
