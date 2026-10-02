@@ -5506,6 +5506,7 @@ enum HDTex {
         }
         if name.hasSuffix("_wool") { return wool(avg / 0.9) }
         if let g = copperFamily(name) { return g }
+        if name.hasSuffix("_coral_block") { return lumps(pal(avg, lo: 0.68, hi: 1.2), cells: 9, gloss: 0.15) }
         if name.hasSuffix("_stained_glass") { return stainedGlass(avg) }
         if name.hasSuffix("_candle") { return tinted(candleHD, from: col(0xE8D8B0), to: avg) }
         if name.hasSuffix("_shulker_box_side") || name.hasSuffix("_shulker_box_top") {
