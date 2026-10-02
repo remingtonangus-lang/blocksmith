@@ -1519,9 +1519,13 @@ final class Renderer: NSObject, MTKViewDelegate {
                     frame(bx, y, bw, 32 * s, s, V4(0.2, 0.2, 0.2, 1))
                     quad([V2(bx + 6 * s, y + 7 * s), V2(bx + 24 * s, y + 7 * s), V2(bx + 24 * s, y + 25 * s), V2(bx + 6 * s, y + 25 * s)],
                          [V2(0, 0), V2(1, 0), V2(1, 1), V2(0, 1)], V4(1, 1, 1, 1), Float(Tex.id("effect_" + e.key)))
-                    text(e.name + (a.amp > 0 ? " " + Effect.roman(a.amp + 1) : ""), bx + 28 * s, y + 7 * s, s)
+                    // Dark text on the light panel like the menu titles (white and mid-grey read poorly: blind critic,
+                    // inventory).
+                    let label: String = e.name + (a.amp > 0 ? " " + Effect.roman(a.amp + 1) : "")
+                    text(label, bx + 28 * s, y + 7 * s, s, V4(0.18, 0.18, 0.2, 1), shadow: false)
                     let secs = Int(a.time)
-                    text(a.time > 1e6 ? "Infinite" : String(format: "%d:%02d", secs / 60, secs % 60), bx + 28 * s, y + 18 * s, s, V4(0.5, 0.5, 0.5, 1))
+                    let left: String = a.time > 1e6 ? "Infinite" : String(format: "%d:%02d", secs / 60, secs % 60)
+                    text(left, bx + 28 * s, y + 18 * s, s, V4(0.3, 0.3, 0.33, 1), shadow: false)
                     y += 33 * s
                 }
             }
