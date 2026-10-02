@@ -10,6 +10,7 @@ import simd
 //   plant_soil        a plant on a block it can't grow on (flowers on stone, cacti off sand, crops off farmland...)
 //   plant_floating    a plant with air under it
 //   leak              a water or lava source next to air at its own level with no wall (spills when touched)
+//   spring            underground water open to a cave in its chunk: scheduled to flow on load (World.springs), informational
 //   trunk_floating    a log with air directly under it and no log/leaves/ground below within 2 (cut trees)
 //   ore_in_air        an ore block with air on five or more sides
 //   leaves_orphan     leaves with no log within 6 blocks (they decay in play)
@@ -111,6 +112,11 @@ enum GenCheck {
                                     let side = dx == 1 ? "+x" : (dx == -1 ? "-x" : (dz == 1 ? "+z" : "-z"))
                                     let drop: Int = y - fy
                                     let fluid = Blocks.fluidKind[bi] == 1 ? "water" : "lava"
+                                    // Underground water open to a cave inside the chunk is scheduled to flow when the chunk
+                                    // loads (World.springs): a waterfall to be, counted apart.
+                                    if b == WATER && !border && y < world.topY(wx, wz) - 4 {
+                                        add("spring", p, "water source open to a cave (\(side), flows on load)"); break
+                                    }
                                     add("leak", p, "\(fluid) source beside air (\(side): open \(drop - 1) down to \(floorK), top \(world.topY(nx, nz) - YOFF)\(border ? ", across a chunk border" : ""))"); break
                                 }
                             } else if logIDs.contains(b) && below == AIR {

@@ -512,6 +512,28 @@ final class World {
         var mobs: [(String, V3)]
         var tracked: [IVec3] = []            // circuit components needing periodic work (found off the main thread)
         var emitMask: UInt32 = ~0            // sections holding light emitters (BlockStore.emitMask)
+        var springs: [IVec3] = []            // underground water sources open to cave air (flow once loaded)
+    }
+
+    // Underground water sources beside or over cave air, at least 5 below the column's top: scheduled for a fluid
+    // update on install so they spill into the cave as a waterfall (reference: aquifer fluid ticks on generation),
+    // instead of standing as a wall of water until something touches them (gencheck leak, about 200 per 288 chunks).
+    // Chunk interior only; at most 64 per chunk.
+    static func springs(_ b: [BlockID], _ k: ChunkKey, _ h: [Int16]) -> [IVec3] {
+        var out: [IVec3] = []
+        for c in 0..<CSQ {
+            let lx = c & 15, lz = c >> 4
+            let top = Int(h[c]) - 4
+            guard top > 2 else { continue }
+            for y in 2..<top {
+                let i = c + y * CSQ
+                guard b[i] == WATER else { continue }
+                let open = b[i - CSQ] == AIR || (lx > 0 && b[i - 1] == AIR) || (lx < 15 && b[i + 1] == AIR)
+                    || (lz > 0 && b[i - CS] == AIR) || (lz < 15 && b[i + CS] == AIR)
+                if open { out.append(IVec3(k.x * CS + lx, y, k.z * CS + lz)); if out.count >= 64 { return out } }
+            }
+        }
+        return out
     }
 
     private func produce(_ k: ChunkKey) -> Produced {
@@ -525,9 +547,10 @@ final class World {
             if let st = gen.structures { (ents, mobs) = st.place(into: &blocks, cx: k.x, cz: k.z) }
             ents += World.orphanEntities(blocks, k, have: ents)
         }
-        return Produced(blocks: blocks, height: Chunk.computeHeights(blocks), tint: gen.tints(cx: k.x, cz: k.z),
+        let heights = Chunk.computeHeights(blocks)
+        return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
                         fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: Circuit.trackedCells(blocks, cx: k.x, cz: k.z),
-                        emitMask: BlockStore.emitMask(of: blocks))
+                        emitMask: BlockStore.emitMask(of: blocks), springs: fromDisk ? [] : World.springs(blocks, k, heights))
     }
 
     // Generated spawners/chests without a block entity (dungeons): mob and loot come from the position.
@@ -563,6 +586,7 @@ final class World {
         if p.fromDisk { c.savedBlocks = c.blocks }
         chunks[k] = c
         for t in p.tracked { redstone.tracked.insert(t) }
+        for q in p.springs { fluidPending.insert(q) }
         // Generated chests/spawners; a regenerated chunk keeps any existing (already looted) entity.
         for (pos, be) in p.entities where blockEntities[pos] == nil { blockEntities[pos] = be }
         // Structure mobs (bastion boarlings...) appear once: the chunk is saved so it never regenerates.
