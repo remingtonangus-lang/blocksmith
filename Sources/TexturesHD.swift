@@ -1925,6 +1925,67 @@ enum HDTex {
         }
     }
 
+    // Small mushrooms (cutout): a pale stem under a domed cap (brown: flat and velvety; red: rounder with pale
+    // spots), lit from the top-left, with a shaded rim. Pink petals: scattered five-petal blossoms low on the ground.
+    static func mushroomHD(red: Bool) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            var img = Img(n, V4(0, 0, 0, 0))
+            let stem = col(red ? 0xE0D8C8 : 0xD8D0C0), cap = col(red ? 0xC82A1E : 0x9A6A4A)
+            let capY: Float = fn * (red ? 6.8 : 7.2) / 16, capR: Float = fn * (red ? 4.3 : 5.0) / 16
+            let capH: Float = fn * (red ? 3.4 : 2.2) / 16
+            let fine = vnoise(n, max(1, n / 32), s)
+            for y in 0..<n { for x in 0..<n {
+                let fx: Float = Float(x) + 0.5 - fn / 2, fy: Float = Float(y) + 0.5
+                var c: V3? = nil
+                // Stem from the ground up under the cap.
+                let sw: Float = fn / 14
+                if fy > capY && abs(fx) < sw {
+                    let k: Float = 0.95 - 0.2 * (fx / sw)
+                    c = stem * k
+                }
+                // Cap: the upper half of an ellipse.
+                let u: Float = fx / capR, v: Float = (fy - capY) / capH
+                if v <= 0.25 && u * u + v * v <= 1 {
+                    let light: Float = 0.8 + 0.25 * (-v) - 0.12 * u
+                    let rim: Float = v > 0 ? 0.7 : 1
+                    let grainK: Float = 0.95 + 0.1 * fine[y * n + x]
+                    var cc: V3 = cap * (light * rim * grainK)
+                    if red {
+                        let spot: Bool = h2(x / max(1, n / 20), y / max(1, n / 20), s &+ 3) > 0.8 && v < 0
+                        if spot { cc = V3(0.94, 0.93, 0.9) * light }
+                    }
+                    c = cc
+                }
+                if let cc = c { img.px[y * n + x] = V4(min(1, cc.x), min(1, cc.y), min(1, cc.z), 1) }
+            } }
+            return img
+        }
+    }
+    static func pinkPetalsHD(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n)
+        var img = Img(n, V4(0, 0, 0, 0))
+        let petal = col(0xF0A0C8), leaf = col(0x4A8A30)
+        for i in 0..<9 {
+            let cx: Float = (0.1 + 0.8 * h2(i, 1, s)) * fn, cy: Float = fn * (0.8 + 0.18 * h2(i, 2, s))
+            let r: Float = fn / 20
+            for k in 0..<5 {
+                let a: Float = Float(k) / 5 * 2 * .pi + h2(i, 3, s)
+                let px: Float = cx + cosf(a) * r, py: Float = cy + sinf(a) * r * 0.5
+                for dy in -2...2 { for dx in -3...3 {
+                    let x = Int(px) + dx, y = Int(py) + dy
+                    guard x >= 0 && x < n && y >= 0 && y < n else { continue }
+                    let tone: Float = 0.85 + 0.2 * h2(x, y, s &+ 4)
+                    let c: V3 = petal * tone
+                    img.px[y * n + x] = V4(c.x, c.y, c.z, 1)
+                } }
+            }
+            let stemTop = min(n, Int(cy) + 2)
+            for y in stemTop..<n { for x in (Int(cx) - 1)...(Int(cx) + 1) where x >= 0 && x < n { img.px[y * n + x] = V4(leaf.x, leaf.y, leaf.z, 1) } }
+        }
+        return img
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -2476,6 +2537,9 @@ enum HDTex {
         "seagrass": blades(salt: 105, count: 12, len: 0.55, 1.0, lean: 1.6, colour: 0x3A8A2A),
         "kelp": kelpHD,
         "dead_bush": deadBushHD,
+        "brown_mushroom": mushroomHD(red: false),
+        "red_mushroom": mushroomHD(red: true),
+        "pink_petals": pinkPetalsHD,
         "rail": railHD(tie: 0x6A4A2A, rail: 0xA8A8A8, mid: nil),
         "rail_corner": railCornerHD,
         "powered_rail": railHD(tie: 0x6A4A2A, rail: 0xE8C040, mid: 0x5A1410),
