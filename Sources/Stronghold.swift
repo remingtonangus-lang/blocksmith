@@ -180,7 +180,10 @@ enum Stronghold {
             let shelf = Blocks.id("bookshelf"), web = Blocks.id("cobweb")
             for z in (cz - 4)...(cz + 4) { for x in (cx - 4)...(cx + 4) {
                 let wallRow = abs(x - cx) == 4 || abs(z - cz) == 4
-                let shelfRow = (z - cz) % 3 == 0 && abs(x - cx) <= 2
+                // An aisle at cx + 1 through every shelf row (cx keeps its shelf for the ladder): a room linked only north
+                // or south was a dead-end pocket between the doorway and the first row (structcheck: library chests
+                // unreachable in 4 of 9 strongholds).
+                let shelfRow = (z - cz) % 3 == 0 && abs(x - cx) <= 2 && x != cx + 1
                 if (wallRow && !(abs(x - cx) <= 1 || abs(z - cz) <= 1)) || shelfRow {
                     w.fill(x, y + 1, z, x, y + (wallRow ? 7 : 3), z, shelf)
                 }
