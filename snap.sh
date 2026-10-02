@@ -50,7 +50,7 @@ done
 "$BIN" --agent village --seeds 12345,777,424242 --ticks 4800 --out snaps
 "$BIN" --agent explorer --seeds 12345,777 --ticks 3600 --out snaps
 "$BIN" --agent life --seeds 12345,777 --ticks 6600 --out snaps
-"$BIN" --agent cave --seeds 12345,777,424242 --ticks 7800 --out snaps
+"$BIN" --agent cave --seeds 12345,777,424242 --ticks 14400 --out snaps      # 4 min: room to walk on and search again
 "$BIN" --agent monkey --seeds 12345,424242,777,31337 --runs 3 --ticks 7200 --minimize --out snaps
 # Replay determinism: the same recording played in two separate processes must end in the same state.
 R=$(ls snaps/replay_*.jsonl 2>/dev/null | grep -v replay_min | head -1 || true)
