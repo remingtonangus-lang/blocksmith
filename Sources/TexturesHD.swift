@@ -1157,20 +1157,36 @@ enum HDTex {
         let fn = Float(n)
         var img = stone([(0, 0x0E0A16), (0.5, 0x1C1428), (0.85, 0x2E2240), (1, 0x4A3A64)], veins: 0.8, strata: 0)(n, s)
         let glow = col(0x9A3AF0), core = col(0xE8A0FF)
+        // Tears: tapered streaks blended by sub-texel coverage with a round drop at the end and a soft violet halo
+        // (whole-texel rows and a width jump at the drop read as stair-stepped bars).
+        func blend(_ x: Int, _ y: Int, _ c: V3, _ a: Float) {
+            guard a > 0 else { return }
+            let o = img[x, y]
+            let k: Float = min(1, a)
+            img[x, y] = V4(o.x + (c.x - o.x) * k, o.y + (c.y - o.y) * k, o.z + (c.z - o.z) * k, 1)
+        }
         for k in 0..<9 {
             let x0: Float = h2(k, 1, s) * fn, y0: Float = h2(k, 2, s) * fn
             let len: Float = fn * (0.12 + 0.3 * h2(k, 3, s))
-            let w: Float = fn / 48 + 1
+            let w: Float = fn / 64 + 0.6
+            let dropR: Float = w * 1.9
             var y: Float = 0
-            while y < len {
-                let t: Float = y / len
+            while y < len + dropR {
+                let t: Float = min(1, y / len)
                 let x: Float = x0 + sinf(y / fn * 9 + Float(k)) * fn / 90
-                let ww: Float = w * (t > 0.85 ? 1.6 : 1)                     // a drop at the end
-                for dx in Int(-ww - 1)...Int(ww + 1) {
-                    let u: Float = abs(Float(dx)) / ww
-                    guard u <= 1 else { continue }
+                let dy: Float = y - len
+                var ww: Float = w * (0.45 + 0.55 * t)
+                if dy > -dropR { ww = max(ww, (max(0, dropR * dropR - dy * dy)).squareRoot()) }
+                let reach = Int(ww + 3)
+                for dx in -reach...reach {
+                    let px: Float = Float(Int(x) + dx) + 0.5
+                    let d: Float = abs(px - x)
+                    let cov: Float = cl(ww + 0.5 - d)
+                    let halo: Float = cl(1 - (d - ww) / 2.5) * 0.35
+                    let u: Float = cl(d / max(0.5, ww))
                     let c: V3 = core + (glow - core) * u
-                    img[Int(x) + dx, Int(y0 + y)] = V4(c.x, c.y, c.z, 1)
+                    blend(Int(x) + dx, Int(y0 + y), glow, halo)
+                    blend(Int(x) + dx, Int(y0 + y), c, cov)
                 }
                 y += 1
             }
