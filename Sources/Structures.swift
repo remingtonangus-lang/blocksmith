@@ -64,7 +64,7 @@ struct StructWriter {
     // Fills open air / cave water under the lowest block each column of the structure wrote, down to the ground
     // (at most `depth`), so it doesn't hang over caves or slopes (structcheck "floating"; reference terrain
     // adaptation "beard"). Resets the per-column record for the next structure.
-    func fillUnder(depth: Int, surface: BlockID) {
+    func fillUnder(depth: Int, surface: BlockID, intoWater: Bool = true) {
         for k in 0..<(CS * CS) {
             let y0 = low.y[k]
             low.y[k] = Int.max
@@ -74,7 +74,7 @@ struct StructWriter {
             while y > max(0, y0 - depth) {
                 let i = Chunk.index(x - bx, y, z - bz)
                 let cur = blocks[i]
-                guard cur == AIR || cur == WATER else { break }
+                guard cur == AIR || (intoWater && cur == WATER) else { break }
                 blocks[i] = y < YOFF ? DEEPSLATE : (y < SEA - 12 ? STONE : surface)
                 y -= 1
             }
@@ -190,7 +190,7 @@ final class StructureCache {
 
     // Kinds whose footprint is filled underneath (and how deep): buried ones over caves, hillside ones over slopes.
     static let fillDepth: [String: Int] = ["ancient_city": 12, "trial_chambers": 10, "stronghold": 10, "mansion": 8,
-                                           "military_base": 8, "trail_ruins": 4]
+                                           "military_base": 8, "trail_ruins": 4, "village": 6]
 
     // Builds every structure piece overlapping this chunk into `blocks`; returns block entities.
     func place(into blocks: inout [BlockID], cx: Int, cz: Int) -> (entities: [(IVec3, BlockEntity)], mobs: [(String, V3)]) {
@@ -201,7 +201,8 @@ final class StructureCache {
             for t in types {
                 for s in startsNear(cx: cx, cz: cz, t) {
                     for p in s.pieces where p.overlaps(cx * CS, cz * CS) { p.build(&w) }
-                    if let d = StructureCache.fillDepth[s.kind] { w.fillUnder(depth: d, surface: COBBLE) }
+                    // Village houses on slopes get foundations; their paths and bridges never dam rivers.
+                    if let d = StructureCache.fillDepth[s.kind] { w.fillUnder(depth: d, surface: COBBLE, intoWater: s.kind != "village") }
                     else { for k in 0..<(CS * CS) { w.low.y[k] = Int.max } }
                 }
             }
