@@ -127,7 +127,7 @@ extension Game {
         audioWarm("vehicles", SoundBank.vehicleSounds)
         let eye = player.eye
         // Vessels (the flying frigate, the siege carriage) are heard from far off while they run.
-        for s in list where s.isVessel && s.parent == nil {
+        for s in list where (s.isVessel || s.role == "dropship") && s.parent == nil {
             let d = simd_length(s.pos - eye)
             // Capital ships: heard from much further, from the nearest point of the hull (a 480-block frigate's
             // centre can be far off while its bow passes overhead).
@@ -136,6 +136,7 @@ extension Game {
                 let dc = simd_length(c - eye)
                 if s.role == "warfrigate" && dc < 400 { ask("vessel\(s.id)", .frigateDroneLoop, 1.0, c) }
                 if s.role == "crawler" && dc < 220 { ask("vessel\(s.id)", .carriageTreadLoop, 1.0, c) }
+                if s.role == "dropship" && dc < 140 { ask("vessel\(s.id)", .frigateDroneLoop, 0.55, c) }
                 continue
             }
             if s.role == "frigate" && d < 180 && !s.grounded {

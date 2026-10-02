@@ -719,6 +719,7 @@ extension ShipTest {
         let fe0 = frigate.blockCount, ce0 = crawler.blockCount
         var fired = 0, worst: Double = 0, total: Double = 0
         var sawFoe = false
+        var drops = 0
         let frames = 60 * 40
         for i in 0..<frames {
             g.player.pos = cam; g.player.vel = .zero; g.health = 20
@@ -729,11 +730,12 @@ extension ShipTest {
             if i > 30 { worst = max(worst, ms); total += ms }
             fired += max(0, w.ships.shells.count - s0)
             if let st = w.ships.capState[frigate.id], st.target?.ship === crawler { sawFoe = true }
+            drops = max(drops, w.ships.list.filter { $0.role == "dropship" }.count)
         }
         let avg = total / Double(frames - 31)
         print(String(format: "capital: %ld shells fired in 40 s; ship update avg %.2f ms, worst %.1f ms", fired, avg, worst))
         let troops = (w.ships.capState[frigate.id]?.troops.count ?? 0) + (w.ships.capState[crawler.id]?.troops.count ?? 0)
-        print("capital: \(troops) troops deployed during the battle (info)")
+        print("capital: \(troops) troops deployed during the battle, at most \(drops) dropships out (info)")
         check(frigate.damage.count + crawler.damage.count > 0, "hits chip the plates they don't break (frigate \(frigate.damage.count), crawler \(crawler.damage.count) chipped)")
         check(sawFoe, "the frigate targets the crawler (enemy faction)")
         check(fired > 20, "they open fire (\(fired) shells)")

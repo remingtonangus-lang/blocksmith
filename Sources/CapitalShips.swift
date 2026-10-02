@@ -48,6 +48,13 @@ final class CapitalState {
     var troopCD: Float = 12            // seconds until the next troop drop
     var troops: [Mob] = []             // soldiers it has deployed (alive ones count toward its limit)
     var ramp = V3(0, 0, 0)             // crawler: the rear ramp's foot (ship space)
+    var dropships: [Ship] = []         // frigate: dropships it has launched (at most two out at once)
+    // Dropships: 0 launch, 1 transit, 2 descend, 3 unload, 4 support, 5 leave; where to land; time in the phase.
+    var phase = 0
+    var dropPoint = V3(0, 0, 0)
+    var launchDir = V3(1, 0, 0)
+    var phaseT: Float = 0
+    var troopsLeft = 0
 }
 
 struct CapTarget {
@@ -82,7 +89,7 @@ final class HullBuilder {
         return blocks[gx + z * sx + y * sx * sz]
     }
     func fill(_ x0: Int, _ x1: Int, _ y0: Int, _ y1: Int, _ z0: Int, _ z1: Int, _ b: BlockID) {
-        for y in y0...y1 { for z in z0...z1 { for x in x0...x1 { set(x, y, z, b) } } }
+        for y in min(y0, y1)...max(y0, y1) { for z in min(z0, z1)...max(z0, z1) { for x in min(x0, x1)...max(x0, x1) { set(x, y, z, b) } } }
     }
     func grid(_ x: Int, _ y: Int, _ z: Int) -> IVec3 { IVec3(x + ox, y, z) }
 }
@@ -387,6 +394,36 @@ enum Capital {
 
     // MARK: Ships from a builder (any thread)
 
+    // MARK: Stormwarden dropship (bow toward -Z)
+
+    // A 19-block troop carrier: a boxy fuselage with an open troop bay and rear ramp, a glazed cockpit nose, stub
+    // wings with engine pods glowing aft, a tail fin and an autocannon on its back.
+    static func dropship() -> HullBuilder {
+        let W = 6
+        let hb = HullBuilder(sx: 2 * W + 1, sy: 8, sz: 20, ox: W)
+        let hull = id("warship_hull"), panel = id("warship_panel"), stripe = id("warship_stripe")
+        let glass = id("armored_glass", GLASS), engine = id("ship_engine"), light = id("light_panel"), deck = id("steel_grating")
+        hb.fill(-2, 2, 1, 4, 4, 17, hull)
+        hb.fill(-1, 1, 2, 3, 6, 17, AIR)                         // troop bay, open at the rear ramp
+        hb.fill(-1, 1, 1, 1, 6, 17, deck)
+        hb.fill(-2, 2, 4, 4, 8, 15, panel)
+        for z in 4...17 { hb.set(-2, 3, z, stripe); hb.set(2, 3, z, stripe) }
+        hb.fill(-1, 1, 1, 2, 1, 3, hull)                         // nose
+        hb.fill(-1, 1, 3, 4, 1, 3, glass)                        // cockpit glazing
+        hb.set(0, 3, 0, glass)
+        for sx in [-1, 1] {
+            hb.fill(min(sx * 3, sx * 4), max(sx * 3, sx * 4), 3, 3, 9, 13, panel)     // stub wings
+            hb.fill(sx * 5, sx * 5, 2, 3, 8, 14, hull)           // engine pods
+            hb.set(sx * 5, 2, 14, engine); hb.set(sx * 5, 3, 14, engine)
+            hb.set(sx * 5, 2, 15, light); hb.set(sx * 5, 3, 15, light)
+        }
+        hb.fill(0, 0, 5, 6, 13, 17, panel)                       // tail fin
+        hb.set(0, 2, 7, light); hb.set(0, 2, 15, light)
+        hb.set(0, 4, 10, Blocks.id("ship_turret_ring"))
+        hb.turrets.append((hb.grid(0, 4, 10), autocannon(), auto))
+        return hb
+    }
+
     static func makeShips(_ hb: HullBuilder, ids: [Int], name: String, role: String, faction: Faction) -> [Ship] {
         let s = Ship(id: ids[0], grid: ShipGrid(sx: hb.sx, sy: hb.sy, sz: hb.sz, blocks: hb.blocks))
         s.name = name
@@ -616,6 +653,7 @@ extension ShipManager {
                 capState.removeValue(forKey: s.id)
                 continue
             }
+            if s.role == "dropship" { dropshipTick(s, st, dt, g); continue }
             if !st.announced && pd < 420 {
                 st.announced = true
                 g.onToast?(s.role == "warfrigate" ? "A Stormwarden Frigate looms on the horizon" : "The ground shakes: an Ironback Crawler is near")
@@ -942,6 +980,11 @@ extension ShipManager {
         let reach: Float = frigate ? 220 : 70
         guard boundsDistance(s, t.point) < reach else { return }
         st.troopCD = frigate ? 35 : 25
+        if frigate {
+            // Drop troops ride down in a dropship launched from the hangar flank facing the target.
+            st.dropships.removeAll { d in !list.contains { $0 === d } }
+            if st.dropships.count < 2 && launchDropship(s, st, toward: t.point, g) { return }
+        }
         let ranks: [MobKind] = [.soldierTrooper, .soldierRecruit, .soldierTrooper, .soldierIronclad]
         var spots: [V3] = []
         if frigate {
@@ -975,6 +1018,137 @@ extension ShipManager {
             }
         }
         if t.player && first { g.onToast?(frigate ? "Stormwarden drop troops are landing!" : "The Ironback Crawler drops its ramp: troops!") }
+    }
+
+    // Launches a dropship from the frigate's hangar opening on the side facing `p` (built in place: 600 blocks).
+    private func launchDropship(_ s: Ship, _ st: CapitalState, toward p: V3, _ g: Game) -> Bool {
+        let hb = Capital.dropship()
+        let ids = (0..<2).map { _ in newId() }
+        let ships = Capital.makeShips(hb, ids: ids, name: "Stormwarden Dropship", role: "dropship", faction: .stormwarden)
+        let d = ships[0]
+        let right = s.dirToWorld(V3(1, 0, 0))
+        let side: Float = simd_dot(p - s.pos, right) >= 0 ? 1 : -1
+        let gridX = Float(56) + side * 38
+        let at = s.toWorld(V3(gridX, 32, 253))
+        guard world.isLoaded(Int(floor(at.x)), Int(floor(at.z))) || simd_length(at - g.player.pos) < 400 else { return false }
+        d.pos = at
+        d.rot = s.rot
+        d.prevPos = d.pos; d.prevRot = d.rot
+        d.home = d.pos
+        d.initialBlocks = d.blockCount
+        d.updateBounds()
+        for t in ships.dropFirst() { t.followParent(0); t.prevPos = t.pos; t.prevRot = t.rot }
+        let ds = CapitalState()
+        ds.mainGunCD = .greatestFiniteMagnitude                 // no spinal gun
+        ds.missileCD = .greatestFiniteMagnitude
+        ds.sight = 140
+        ds.dropPoint = p
+        ds.launchDir = right * side
+        ds.troopsLeft = 4
+        ds.ramp = V3(Float(hb.ox) + 0.5, 2, 18.5)
+        ds.groundOffset = d.com.y - d.localMin.y
+        installCapital((ships, ds))
+        st.dropships.append(d)
+        g.sfx(.engineStart, 1, at: at)
+        return true
+    }
+
+    // Dropship flight: out of the hangar, across to the drop point, down to a hover, the ramp troops out one by one,
+    // then it circles the fight with its autocannon and finally climbs away. Shot to pieces it falls and blows up.
+    private func dropshipTick(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
+        st.phaseT += dt
+        let keel = st.groundOffset
+        let gx = Int(floor(s.pos.x)), gz = Int(floor(s.pos.z))
+        let ground = Float(max(world.gen.column(gx, gz).height, SEA))
+        let keelY = s.pos.y - keel
+        if !s.wrecked && s.initialBlocks > 0 && s.blockCount * 10 < s.initialBlocks * 6 {
+            s.wrecked = true
+            g.sfx(.explode, 1, at: s.pos)
+            for t in turrets(of: s) { t.aimAt = nil }
+        }
+        if s.wrecked {
+            s.vel.y = max(-30, s.vel.y - 12 * dt)
+            s.angVel = V3(0.4, 1.2, 0.2)
+            if Int(st.phaseT * 6) % 2 == 0 { g.particles.smoke(at: s.pos) }
+            if keelY <= ground + 1 || st.phaseT > 30 {
+                Explosion.explode(at: s.pos, power: 4, game: g)
+                remove(s)
+                capState.removeValue(forKey: s.id)
+            }
+            return
+        }
+        st.retarget -= dt
+        if st.retarget <= 0 || (st.target.map { !targetValid($0, g) } ?? false) {
+            st.retarget = 1
+            st.target = pickTarget(s, st, g)
+        } else if var t = st.target {
+            refresh(&t, g)
+            st.target = t
+        }
+        var want = V3(0, 0, 0)                                  // wanted velocity
+        let drop2 = V2(st.dropPoint.x, st.dropPoint.z), here = V2(s.pos.x, s.pos.z)
+        let toDrop = drop2 - here
+        let dd = simd_length(toDrop)
+        switch st.phase {
+        case 0:
+            want = st.launchDir * 14 + V3(0, -1, 0)
+            if st.phaseT > 3 { st.phase = 1; st.phaseT = 0 }
+        case 1:
+            let dir = toDrop / max(1, dd)
+            let cruise = ground + 22 + keel
+            want = V3(dir.x, 0, dir.y) * min(24, max(6, dd * 0.6)) + V3(0, max(-6, min(6, (cruise - s.pos.y) * 0.8)), 0)
+            if dd < 10 || st.phaseT > 60 { st.phase = 2; st.phaseT = 0 }
+        case 2:
+            let dir = toDrop / max(1, dd)
+            want = V3(dir.x, 0, dir.y) * min(6, dd) + V3(0, max(-5, min(3, (ground + 4 + keel - s.pos.y) * 0.9)), 0)
+            if keelY < ground + 5.5 || st.phaseT > 15 { st.phase = 3; st.phaseT = 0 }
+        case 3:
+            want = V3(0, (ground + 4 + keel - s.pos.y) * 0.9, 0)
+            if st.phaseT > 0.7 && st.troopsLeft > 0 {
+                st.phaseT = 0
+                let foot = s.toWorld(st.ramp)
+                let ix = Int(floor(foot.x)), iz = Int(floor(foot.z))
+                if world.isLoaded(ix, iz) {
+                    let ranks: [MobKind] = [.soldierTrooper, .soldierRecruit, .soldierTrooper, .soldierIronclad]
+                    let m = Mob(ranks[st.troopsLeft % ranks.count], at: V3(foot.x, Float(world.topY(ix, iz) + 1), foot.z))
+                    m.faction = s.faction
+                    m.aggro = true
+                    if m.kind == .soldierIronclad { m.variant = Guns.arc }
+                    g.mobs.mobs.append(m)
+                    st.troops.append(m)
+                    if simd_length(m.pos - g.player.pos) < 120 && st.troopsLeft == 4 { g.onToast?("A Stormwarden dropship is landing troops!") }
+                }
+                st.troopsLeft -= 1
+            }
+            if st.troopsLeft <= 0 && st.phaseT > 1 { st.phase = 4; st.phaseT = 0 }
+        case 4:
+            let c = st.target.map { V2($0.point.x, $0.point.z) } ?? drop2
+            let to = c - here
+            let d = max(1, simd_length(to))
+            let tangent = V2(-to.y, to.x) / d
+            let h = simd_normalize(tangent + to / d * ((d - 30) / 20))
+            want = V3(h.x, 0, h.y) * 10 + V3(0, max(-4, min(4, (ground + 16 + keel - s.pos.y) * 0.6)), 0)
+            if st.phaseT > 45 { st.phase = 5; st.phaseT = 0 }
+        default:
+            let away = simd_normalize(here - V2(g.player.pos.x, g.player.pos.z) + V2(1e-3, 0))
+            want = V3(away.x, 0, away.y) * 20 + V3(0, 8, 0)
+            if st.phaseT > 20 || s.pos.y > Float(CH - 12) { remove(s); capState.removeValue(forKey: s.id); return }
+        }
+        s.vel += (want - s.vel) * min(1, dt * 1.5)
+        // Face the way it flies (hovering: toward the target).
+        var face = V2(s.vel.x, s.vel.z)
+        if simd_length(face) < 2, let t = st.target { face = V2(t.point.x - s.pos.x, t.point.z - s.pos.z) }
+        var yawRate: Float = 0
+        if simd_length(face) > 0.5 {
+            let wantYaw = atan2f(-face.x, -face.y)
+            var dy = wantYaw - s.yaw
+            while dy > .pi { dy -= 2 * .pi }
+            while dy < -Float.pi { dy += 2 * Float.pi }
+            yawRate = max(-1.2, min(1.2, dy * 1.5))
+        }
+        s.angVel = V3(0, s.angVel.y + (yawRate - s.angVel.y) * min(1, dt * 3), 0)
+        levelUp(s, dt)
+        if st.phase >= 1 { capitalGuns(s, st, dt, g) }
     }
 
     // A crippled capital ship: a frigate sinks out of the sky with fires breaking out and comes down with a series
