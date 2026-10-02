@@ -1456,8 +1456,14 @@ final class Renderer: NSObject, MTKViewDelegate {
                 rect(bx, by, bw * f, size / 16, Settings.shared.colorblind ? V4(1 - f * 0.8, 0.5 + 0.2 * f, 0.1 + 0.9 * f, 1) : V4(1 - f, f, 0, 1))
             }
             if counts && st.count > 1 {
+                // At TV scales a slightly smaller count covers less of the icon and stays above 14 px at 1080p (the
+                // counts hid half of each hotbar icon: blind critic, tv_hud).
+                var cs: Float = s
+                if s >= 3 { cs = s * 0.8 }
                 let t = "\(st.count)"
-                text(t, x + size - textWidth(t, s) - s * 0.5 + s, y + size - 7 * s + s, s)
+                let tx: Float = x + size - textWidth(t, cs) - cs * 0.5 + s
+                let ty: Float = y + size - 7 * cs + s
+                text(t, tx, ty, cs)
             }
         }
 
