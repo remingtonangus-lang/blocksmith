@@ -214,7 +214,9 @@ static float4 vibShade(VibOut in, float4 c, depth2d<float> sm, texture2d_array<f
     float3 n = normalize(in.nrm);
     float3 v = normalize(in.rel);
     float skyL = in.light.x, blkL = in.light.y;
-    float skyC = skyL * (0.35 + 0.65 * skyL);
+    // Flatter than the 0.35 + 0.65 curve: under a canopy (sky light ~10/15) that halved the ambient and shaded grass
+    // sat at 16 % of sunlit (spec 25-45 %: blind critic, spawn). Open sky (1) and caves (0) are unchanged.
+    float skyC = skyL * (0.85 + 0.15 * skyL);
     float sunVis = smoothstep(0.55, 0.95, skyL);
     float shadow = sunVis > 0.0 ? vibShadow(sm, in.rel, n, u) : 1.0;
     float spec = m.x, shin = max(4.0, m.y * 255.0);
