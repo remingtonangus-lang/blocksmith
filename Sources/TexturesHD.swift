@@ -471,6 +471,7 @@ enum HDTex {
             let brush = vnoise(n, max(1, n / 64), s &+ 1)
             let blot = fbm(n, n / 4, 4, s &+ 2)
             let fine = vnoise(n, max(1, n / 128), s &+ 3)
+            let mott = fbm(n, n / 16, 3, s &+ 4)
             let c0 = col(base)
             let green = col(0x4FA48A)
             let tw: Float = fn / Float(tiles)
@@ -480,7 +481,7 @@ enum HDTex {
                 // Brushing: the noise stretched 8x along x.
                 let b: Float = brush[y * n + (x / 8)]
                 var k: Float = 0.9 + (b - 0.5) * shine + (blot[i] - 0.5) * 0.08
-                if fine[i] > 0.97 { k *= 0.82 }
+                if fine[i] > 0.988 { k *= 0.88 }
                 let lx: Float = Float(x).truncatingRemainder(dividingBy: tw), ly: Float = Float(y).truncatingRemainder(dividingBy: tw)
                 let seam: Float = max(1, fn / 64)
                 if tiles > 1 && (lx < seam || ly < seam) { k *= 0.55 }
@@ -491,7 +492,8 @@ enum HDTex {
                     let m: Float = blot[i] + (fine[i] - 0.5) * 0.15
                     let th: Float = 1 - patina
                     let e: Float = cl((m - th) / 0.07)
-                    let gk: Float = 0.85 + fine[i] * 0.3
+                    // Mottled, not per-texel (white noise here read as static on oxidized copper).
+                    let gk: Float = 0.88 + (mott[i] - 0.5) * 0.32 + (fine[i] - 0.5) * 0.05
                     let target: V3 = green * gk
                     c += (target - c) * e
                 }
@@ -2439,6 +2441,28 @@ enum HDTex {
         } }
         return img
     }
+    // Farmland: tilled soil in ridged furrows across the block (it was plain soil), darker when moist.
+    static func farmlandHD(moist: Bool) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            let dry: [(Float, UInt32)] = [(0, 0x4A3220), (0.5, 0x624430), (1, 0x7C5A40)]
+            let wet: [(Float, UInt32)] = [(0, 0x2E1E12), (0.5, 0x3E2A1C), (1, 0x52382A)]
+            var img = soil(moist ? wet : dry, pebble: moist ? 0x48362A : 0x6A5440, pebbles: 4, clods: 10)(n, s)
+            let wob = fbm(n, n / 4, 2, s &+ 7)
+            var hh = [Float](repeating: 0, count: n * n)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let ph: Float = (Float(y) / fn * 4 + (wob[i] - 0.5) * 0.35) * 2 * .pi
+                let ridge: Float = 0.5 + 0.5 * cosf(ph)
+                let k: Float = 0.78 + 0.3 * ridge
+                let p = img.px[i]
+                img.px[i] = V4(p.x * k, p.y * k, p.z * k, 1)
+                hh[i] = ridge * 0.6
+            } }
+            shade(&img, hh, 0.6)
+            return img
+        }
+    }
     static func oddFace(_ kind: String) -> Gen {
         { n, s in
             let fn = Float(n), u = n / 16
@@ -3727,14 +3751,35 @@ enum HDTex {
     static let oakBark: [(Float, UInt32)] = [(0, 0x3C2C1C), (0.5, 0x60482C), (1, 0x80623E)]
     static let stoneBricks: Gen = masonry(rows: 2, perRow: 1, offset: 0.5, mortarW: 1 / 22, [(0, 0x5E5E60), (0.5, 0x7E7E80), (1, 0x9C9C9C)], mortar: 0x48484A)
     static let sandstonePal: [(Float, UInt32)] = [(0, 0xB8A878), (0.5, 0xD9CE9E), (1, 0xEEE4BC)]
-    static let podzolTop: Gen = soil([(0, 0x4A3218), (0.5, 0x6A4A26), (1, 0x8A6A3A)], pebble: 0x7A5A30, pebbles: 6, clods: 9)
+    // Podzol: the soil under a litter of fallen needles (it was plain soil): short thin strokes in browns and
+    // rust, each with a shadow texel under it, wrapping at the edges.
+    static let podzolSoil: Gen = soil([(0, 0x4A3218), (0.5, 0x6A4A26), (1, 0x8A6A3A)], pebble: 0x7A5A30, pebbles: 6, clods: 9)
+    static func podzolTop(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n)
+        var img = podzolSoil(n, s)
+        let tones: [UInt32] = [0x7A4A22, 0x9A6230, 0xB07A3A, 0x6A4A2A]
+        for k in 0..<(n * 2) {
+            let x0: Float = h2(k, 1, s) * fn, y0: Float = h2(k, 2, s) * fn
+            let a: Float = h2(k, 3, s) * .pi
+            let len: Float = fn / 14 * (0.6 + 0.8 * h2(k, 4, s))
+            let c: V3 = col(tones[k % 4]) * (0.85 + 0.3 * h2(k, 5, s))
+            let steps = Int(len) + 1
+            for j in 0...steps {
+                let t: Float = Float(j) / Float(steps) * len
+                let x = Int(floorf(x0 + cosf(a) * t)), y = Int(floorf(y0 + sinf(a) * t))
+                let sh = img[x, y + 1]
+                img[x, y + 1] = V4(sh.x * 0.7, sh.y * 0.7, sh.z * 0.7, 1)
+                img[x, y] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
+            }
+        }
+        return img
+    }
     static let myceliumTop: Gen = soil([(0, 0x5E5262), (0.5, 0x786A7C), (1, 0x948698)], pebble: 0xB4A4B4, pebbles: 12, clods: 8)
     static let pathTop: Gen = soil([(0, 0x7A5E36), (0.5, 0x947446), (1, 0xAE8E5A)], pebble: 0x9A8A70, pebbles: 12, clods: 6)
     static let redSandstonePal: [(Float, UInt32)] = [(0, 0x9A4E1E), (0.5, 0xB8662C), (1, 0xCE8040)]
 
     // Families without a hand-made entry get an HD material coloured from their 16 px painter: every wood's planks,
     // bark and log ends, leaves, wool, concrete, concrete powder and terracotta.
-    // Crop stages (generated names, so not in the literal table).
     /// The HD generator for a texture name, if any (sequential lookups: a chain of ?? over these took the
     /// type checker past the 600 ms gate in run 354).
     static func generator(_ name: String, _ src: [V4]) -> Gen? {
@@ -3745,6 +3790,7 @@ enum HDTex {
         return derived(name, src)
     }
 
+    // Crop stages (generated names, so not in the literal table).
     static func crop(_ name: String) -> Gen? {
         func stage(_ prefix: String) -> Int? { name.hasPrefix(prefix) ? Int(name.dropFirst(prefix.count)) : nil }
         if let st = stage("sweet_berry_bush_stage") { return berryBushHD(stage: st) }
@@ -3890,8 +3936,8 @@ enum HDTex {
         "dirt_path_side": topped(pathTop, depth: 0.1),
         "rooted_dirt": soil([(0, 0x5E4230), (0.5, 0x7E5C40), (1, 0x9A7A58)], pebble: 0xB49A78, pebbles: 16, clods: 9),
         "moss_block": soil([(0, 0x3A5220), (0.5, 0x56762E), (1, 0x729842)], pebble: 0x48662A, pebbles: 6, clods: 10),
-        "farmland": soil([(0, 0x4A3220), (0.5, 0x624430), (1, 0x7C5A40)], pebble: 0x6A5440, pebbles: 5, clods: 12),
-        "farmland_moist": soil([(0, 0x2E1E12), (0.5, 0x3E2A1C), (1, 0x52382A)], pebble: 0x48362A, pebbles: 5, clods: 12),
+        "farmland": farmlandHD(moist: false),
+        "farmland_moist": farmlandHD(moist: true),
         "soul_sand": soil([(0, 0x3A2A20), (0.5, 0x52402E), (1, 0x6A5440)], pebble: 0x2A1E16, pebbles: 10, clods: 8),
         "soul_soil": soil([(0, 0x3E3024), (0.5, 0x54442F), (1, 0x6A5840)], pebble: 0x4A3A2A, pebbles: 4, clods: 7),
         "ice": iceHD,
