@@ -1178,6 +1178,11 @@ enum Snapshot {
                 let st = Int(b - Blocks.groupBase[Int(b)])
                 let fn = [IVec3(0, 0, -1), IVec3(0, 0, 1), IVec3(-1, 0, 0), IVec3(1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0)][min(st, 5)]
                 print("  frame delay \(be.delay), light \(world.lightAt(p.x, p.y, p.z)); in front: \(Blocks.key(world.block(p.x + fn.x, p.y + fn.y, p.z + fn.z))), behind: \(Blocks.key(world.block(p.x - fn.x, p.y - fn.y, p.z - fn.z)))")
+                // Pixel probes: the item's centre and the frame board's rim beside it (does the item reach the image?).
+                let c = V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5), nv = V3(Float(fn.x), Float(fn.y), Float(fn.z))
+                let side = st < 4 ? V3(-nv.z, 0, nv.x) : V3(1, 0, 0)
+                renderer.probes.append(("item \(p.x),\(p.z)", c - nv * 0.42))
+                renderer.probes.append(("rim \(p.x),\(p.z)", c - nv * 0.44 + side * 0.33))
             }
             // A control frame placed like the decor scene's, beside the first listed one (do frames here draw at all?).
             if let first = world.blockEntities.first(where: { $0.value.kind == .frame && simd_length(V3(Float($0.key.x), Float($0.key.y), Float($0.key.z)) - e) < 16 }) {
@@ -1185,6 +1190,7 @@ enum Snapshot {
                 world.setBlock(q.x, q.y, q.z, world.block(first.key.x, first.key.y, first.key.z))
                 let fb = BlockEntity(.frame); fb.container[0] = ItemStack(Items.id("apple"), 1); world.blockEntities[q] = fb
                 print("control frame at \(q.x) \(q.y - YOFF) \(q.z) holding an apple")
+                renderer.probes.append(("control apple", V3(Float(q.x) + 0.5, Float(q.y) + 0.5, Float(q.z) + 0.5) - V3(0, 0, 0.42)))
             }
             print("frames listed: \(n) (block entities \(world.blockEntities.count))")
         }

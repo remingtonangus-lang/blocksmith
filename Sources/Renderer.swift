@@ -402,6 +402,8 @@ final class Renderer: NSObject, MTKViewDelegate {
 
     enum Split { case afterOpaque, beforeHUD }
     private(set) var lastUniforms: Uniforms?
+    // Harness pixel probes: world points whose on-screen colour renderToPNG prints after the readback.
+    var probes: [(String, V3)] = []
     var postParams = PostParams()
     private var shadowList: [(Chunk, Int)] = []
     private var flashScratch: [V4] = []
@@ -2583,6 +2585,18 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         var bytes = [UInt8](repeating: 0, count: width * height * 4)
         color.getBytes(&bytes, bytesPerRow: width * 4, from: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0)
+        if !probes.isEmpty, let u = lastUniforms {
+            let e = cameraEye().eye
+            for (name, p) in probes {
+                let r = p - e
+                let clip = u.viewProj * V4(r.x, r.y, r.z, 1)
+                guard clip.w > 0.01 else { print("probe \(name): behind the camera"); continue }
+                let px = Int((clip.x / clip.w * 0.5 + 0.5) * Float(width)), py = Int((0.5 - clip.y / clip.w * 0.5) * Float(height))
+                guard px >= 0 && px < width && py >= 0 && py < height else { print("probe \(name): off screen"); continue }
+                let i = (py * width + px) * 4
+                print(String(format: "probe %@: pixel %ld,%ld rgb %d %d %d (depth %.3f)", name, px, py, Int(bytes[i + 2]), Int(bytes[i + 1]), Int(bytes[i]), clip.z / clip.w))
+            }
+        }
         if ImageCheck.enabled {
             var fl: Double?
             if ImageCheck.flicker {
