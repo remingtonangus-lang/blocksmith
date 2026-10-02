@@ -95,6 +95,9 @@ enum HollowSpire {
             if f > 0 {
                 // Top step of the stair below pokes through this floor next to the opening; the floor above the
                 // two steps before it stays open too (this floor was laid over their headroom: a head bump).
+                // ...and over the second step (climbing from it, a head met this floor: structcheck, every end city's
+                // walk ended on that step, run 357).
+                w.set(ox - 2, y, oz + 1, AIR)
                 w.set(ox - 2, y, oz, AIR)
                 w.set(ox - 2, y, oz - 1, AIR)
                 w.set(ox - 2, y, oz - 2, st)
