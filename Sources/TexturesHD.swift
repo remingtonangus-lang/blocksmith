@@ -1240,7 +1240,8 @@ enum HDTex {
                 let layer = Int(floorf(ph))
                 let f: Float = ph - floorf(ph)
                 let seam: Float = cl(1 - min(f, 1 - f) / 0.12)
-                let fibre: Float = fib[(y * n + (x / 3 + layer * 7) % n) % (n * n)]
+                let fx: Int = ((x / 3 + layer * 7) % n + n) % n           // layer is negative near the edge: wrap
+                let fibre: Float = fib[y * n + fx]
                 let tone: Float = 0.36 + 0.34 * h2(layer, 3, s) + (lump[i] - 0.5) * 0.35 + (fibre - 0.5) * 0.18
                 var t: Float = tone + (fine[i] - 0.5) * 0.1 - seam * 0.38
                 if top && ph < 0.9 { t += 0.18 * (1 - ph / 0.9) }
