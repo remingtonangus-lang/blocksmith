@@ -1175,6 +1175,90 @@ enum HDTex {
         }
     }
 
+    // Wooden storage. Chests: planks inside a dark banded frame (rivets at the corners), a lid seam band on the sides,
+    // a metal latch on the front. Barrels: vertical staves with two riveted iron hoops; the top a planked lid with a bung.
+    static let chestPlank: [(Float, UInt32)] = [(0, 0x7A5222), (0.5, 0xA2702F), (1, 0xC08A44)]
+    static func chestFace(_ kind: Int) -> Gen {          // 0 top, 1 side, 2 front
+        { n, s in
+            var img = planks(chestPlank)(n, s)
+            let trim = col(0x4E3414)
+            let fine = vnoise(n, max(1, n / 64), s &+ 4)
+            let b = n / 8
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let rimX: Bool = x < b || x >= n - b
+                let rimTop: Bool = kind == 0 ? (y < b || y >= n - b) : (y < n * 3 / 16 || y >= n - n / 16)
+                let seam: Bool = kind != 0 && y >= n * 7 / 16 && y < n * 9 / 16
+                let frame = rimX || rimTop || seam
+                guard frame else { continue }
+                var k: Float = 0.9 + (fine[i] - 0.5) * 0.2
+                // Bevel: lit along the band's top / left pixels.
+                let lx = x % b, ly = y % b
+                if lx == 0 || ly == 0 { k *= 1.25 } else if lx == b - 1 || ly == b - 1 { k *= 0.7 }
+                img.px[i] = V4(trim.x * k, trim.y * k, trim.z * k, 1)
+            } }
+            // Rivets in the frame corners.
+            let rv = max(1, n / 48)
+            for (cx, cy) in [(b / 2, b / 2), (n - b / 2, b / 2), (b / 2, n - b / 2), (n - b / 2, n - b / 2)] {
+                for dy in -rv...rv { for dx in -rv...rv where dx * dx + dy * dy <= rv * rv {
+                    let k: Float = dx + dy < 0 ? 0.85 : 0.6
+                    img[cx + dx, cy + dy] = V4(k, k * 0.95, k * 0.85, 1)
+                } }
+            }
+            if kind == 2 {
+                // Latch: a small steel plate with a dark keyhole.
+                let x0 = n * 7 / 16 - n / 32, x1 = n * 9 / 16 + n / 32, y0 = n * 6 / 16, y1 = n * 10 / 16
+                for y in y0..<y1 { for x in x0..<x1 {
+                    let edge = x == x0 || y == y0
+                    let low = x == x1 - 1 || y == y1 - 1
+                    var k: Float = 0.72 + 0.1 * fine[y * n + x]
+                    if edge { k = 0.95 } else if low { k = 0.45 }
+                    let hole = abs(x - n / 2) < max(1, n / 64) && y > y0 + (y1 - y0) / 3 && y < y1 - (y1 - y0) / 4
+                    if hole { k = 0.12 }
+                    img[x, y] = V4(k, k, k * 1.02, 1)
+                } }
+            }
+            return img
+        }
+    }
+    static func barrelSide(_ n: Int, _ s: Int) -> Img {
+        let src = planks([(0, 0x5A4022), (0.5, 0x7A5A30), (1, 0x9A7444)])(n, s)
+        var img = Img(n)
+        for y in 0..<n { for x in 0..<n { img.px[y * n + x] = src.px[x * n + y] } }     // vertical staves
+        let iron = col(0x3A3A3C)
+        let fine = vnoise(n, max(1, n / 64), s &+ 5)
+        for band in [n / 8, n * 13 / 16] {
+            let h = max(2, n / 14)
+            for y in band..<min(n, band + h) { for x in 0..<n {
+                var k: Float = 0.9 + (fine[y * n + x] - 0.5) * 0.25
+                if y == band { k *= 1.3 } else if y == band + h - 1 { k *= 0.6 }
+                if x % (n / 4) == n / 8 && y > band && y < band + h - 1 { k *= 1.5 }    // rivet
+                img.px[y * n + x] = V4(iron.x * k, iron.y * k, iron.z * k, 1)
+            } }
+        }
+        return img
+    }
+    static func barrelTop(_ n: Int, _ s: Int) -> Img {
+        var img = planks([(0, 0x6A4A26), (0.5, 0x8A6A3A), (1, 0xA6844E)])(n, s)
+        let fn = Float(n)
+        let rim = n / 12
+        for y in 0..<n { for x in 0..<n {
+            let i = y * n + x
+            let edge = min(min(x, y), min(n - 1 - x, n - 1 - y))
+            let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
+            let bung = max(abs(dx), abs(dy)) < fn * 0.14
+            if edge < rim {
+                let k: Float = edge == 0 ? 0.55 : (edge == rim - 1 ? 0.8 : 0.68)
+                img.px[i] = V4(0.24 * k / 0.68, 0.24 * k / 0.68, 0.25 * k / 0.68, 1)
+            } else if bung {
+                let k: Float = max(abs(dx), abs(dy)) > fn * 0.12 ? 0.6 : 0.85
+                let c = col(0x4A3A20) * k
+                img.px[i] = V4(c.x, c.y, c.z, 1)
+            }
+        } }
+        return img
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -1747,6 +1831,12 @@ enum HDTex {
         "pumpkin_side": ribbedSide([(0, 0x9A520A), (0.5, 0xD8801A), (1, 0xF0A030)], ribs: 4),
         "pumpkin_top": radialTop([(0, 0x9A520A), (0.5, 0xD8801A), (1, 0xF0A030)], lobes: 8, stem: 0x5A6A1A),
         "melon_side": melonSide,
+        "chest_top": chestFace(0),
+        "chest_side": chestFace(1),
+        "chest_front": chestFace(2),
+        "barrel_side": barrelSide,
+        "barrel_top": barrelTop,
+        "barrel_bottom": barrelTop,
         "diamond_block": gemBlock([(0, 0x2A9A9A), (0.5, 0x6ADCD8), (1, 0xD0FFFA)]),
         "emerald_block": gemBlock([(0, 0x0E6A30), (0.5, 0x2AB85A), (1, 0x9AF0B8)]),
         "lapis_block": gemBlock([(0, 0x142A78), (0.5, 0x2A4EB0), (1, 0x6A8AE0)], cells: 7, flecks: true),
