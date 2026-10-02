@@ -222,6 +222,10 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   1.2-1.4x) -> edit gates moved to the median. Regression found and reverted: village fill-under filled under roof
   eaves over doorways (door_needs_jump 4; villager spinning 31 -> 57). Gemini free-tier vision quota ran out after 2
   shots (critic runs: budget ~10/day); the blind Claude subagent critic is the main critic. Pushed 4e591b6 (run 350).
+- 2026-10-02 04:55 UTC: run 350 (4e591b6): build/smoke/bench/snapshots green; playthrough 2 checks failed on harness timing
+  (cinder rods: 10-minute spawner cap with a 50% drop; Blight arrows shot after regen lifted it above half health), both
+  fixed in the harness. behaviorsim stuck 206, spinning 46, bed 14/42, meet 26/50, work 19/25; structcheck stronghold
+  49 -> 32, end city still 33/33 (inside up to the house floor). Pushed ef1d1ee (run 351, 29 commits); PR #9 updated.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
