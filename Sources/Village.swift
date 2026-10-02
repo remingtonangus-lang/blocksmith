@@ -213,11 +213,38 @@ enum Village {
         }
         for lot in lots {
             let (x0, z0, x1, z1) = bounds(lot)
-            pieces.append(Piece(min: IVec3(x0 - 1, lot.y - 12, z0 - 1), max: IVec3(x1 + 1, lot.y + 14, z1 + 1)) { w in
+            pieces.append(Piece(min: IVec3(x0 - 3, lot.y - 12, z0 - 3), max: IVec3(x1 + 3, lot.y + 14, z1 + 3)) { w in
+                sealCaves(&w, x0 - 3, z0 - 3, x1 + 3, z1 + 3, top: lot.y + 6, floor: lot.y, depth: lot.y - 7)
                 buildLot(&w, lot, m, styleV)
             })
         }
         return StructureStart(kind: "village", pieces: pieces, anchor: IVec3(ox + 6, plaza + 1, oz + 6))
+    }
+
+    // Cave pockets just under the ground round a house, filled with dirt (two villagers spent the whole behaviour sim
+    // in a cave under the dirt beside a house with no way out: run 371). Below each column's surface only, never
+    // water, never above the ground or the house floor (a neighbouring house in the margin keeps its rooms).
+    static func sealCaves(_ w: inout StructWriter, _ x0: Int, _ z0: Int, _ x1: Int, _ z1: Int, top: Int, floor: Int, depth: Int) {
+        for z in z0...z1 { for x in x0...x1 where w.inside(x, top, z) {
+            var y = top
+            while y > depth && !Blocks.opaque[Int(w.get(x, y, z))] { y -= 1 }
+            guard y > depth else {
+                // A shaft or ravine mouth right beside the house: a two-block lid at the floor line (two blocks: never a
+                // hanging wall).
+                if w.get(x, floor - 1, z) == AIR && w.get(x, floor - 2, z) == AIR { w.set(x, floor - 1, z, DIRT); w.set(x, floor - 2, z, DIRT) }
+                continue
+            }
+            // Each run of air filled only when it rests on a solid block within the depth (a run that goes deeper is
+            // left alone: dirt hung over a deeper cave).
+            var yy = min(y, floor) - 1
+            while yy > depth {
+                guard w.get(x, yy, z) == AIR else { yy -= 1; continue }
+                var b = yy
+                while b > depth && w.get(x, b, z) == AIR { b -= 1 }
+                if b > depth && Blocks.collide[Int(w.get(x, b, z))] { for f in (b + 1)...yy { w.set(x, f, z, DIRT) } }
+                yy = b - 1
+            }
+        } }
     }
 
     static func bounds(_ l: Lot) -> (Int, Int, Int, Int) {
