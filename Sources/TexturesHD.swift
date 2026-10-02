@@ -2104,29 +2104,34 @@ enum HDTex {
             let fn = Float(n)
             var img = Img(n, V4(0, 0, 0, 0))
             let lc = col(leaf), tc = col(trunk)
-            let top: Float = fn * (conifer ? 0.12 : 0.42)
+            let top: Float = fn * (conifer ? 0.2 : 0.42)
             // Trunk: bottom centre up to the crown, a slight curve, shaded round.
             for y in Int(top)..<n {
                 let t: Float = (fn - Float(y)) / (fn - top)
                 let cx: Float = fn / 2 + sinf(t * 2.2) * fn * 0.03
-                let w: Float = fn / 22 * (1.2 - 0.5 * t)
+                let w: Float = fn / 30 * (1.2 - 0.5 * t)
                 for x in Int(cx - w)...Int(cx + w) {
                     let u: Float = (Float(x) + 0.5 - cx) / w
                     plot(&img, x, y, tc * (1.05 - 0.35 * abs(u + 0.3)))
                 }
             }
             if conifer {
-                // Tiers of needles, wider toward the bottom.
+                // Tiers of drooping needle sprays, two rows each, wider toward the bottom (one thin row per tier read
+                // as a fishbone with the trunk showing between).
                 for tier in 0..<5 {
-                    let ty: Float = fn * (0.18 + Float(tier) * 0.13)
-                    let half: Float = fn * (0.1 + Float(tier) * 0.045)
-                    let count = 6 + tier * 3
-                    for k in 0..<count {
-                        let f: Float = (Float(k) + 0.5) / Float(count) * 2 - 1
-                        let x0: Float = fn / 2 + f * half
-                        let ang: Float = f > 0 ? 0.5 + f * 0.4 : .pi - 0.5 + f * 0.4
-                        let tone: Float = 0.85 + 0.25 * h2(k, tier, s)
-                        leafBlob(&img, x0, ty + abs(f) * fn * 0.04, fn / 18, ang, lc * tone)
+                    let ty: Float = fn * (0.2 + Float(tier) * 0.12)
+                    let half: Float = fn * (0.09 + Float(tier) * 0.05)
+                    let count = 9 + tier * 4
+                    for row in 0..<2 {
+                        let ry: Float = ty + Float(row) * fn * 0.045
+                        for k in 0..<count {
+                            let f: Float = (Float(k) + 0.5 * Float(row) + 0.25) / Float(count) * 2 - 1
+                            let x0: Float = fn / 2 + f * half
+                            let droop: Float = 0.35 + 0.3 * abs(f)
+                            let ang: Float = f > 0 ? droop : .pi - droop
+                            let tone: Float = 0.78 + 0.3 * h2(k, tier * 2 + row, s) - 0.08 * Float(row)
+                            leafBlob(&img, x0, ry + abs(f) * fn * 0.05, fn / 16, ang, lc * tone)
+                        }
                     }
                 }
                 return img
