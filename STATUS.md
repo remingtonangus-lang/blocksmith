@@ -284,6 +284,12 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   added to find which column is open) and structure floating columns (same 9 with 40-48 block foundations, so they
   aren't foundations; floating views added to the issue gallery). Two blind critics (scene and menus) found 15 issues,
   all addressed in 395917e (run 361). Gemini critic falls back to flash-lite when the flash quota is spent.
+- 2026-10-02 11:05 UTC: run 361 (395917e) failed bench (gen 2.1 -> 4.4 ms, runner) and the playthrough's Blight Star
+  pickup; run 362 (db2dc6f): playthrough passed (0 failed), harness green, but the runner was ~80x slow (bench gen
+  160 ms/chunk, calibration 164 ms) and the rd 24 Fancy smoke hit the paravirtual-GPU driver assertion again
+  (AppleParavirtCommandBuffer endCurrentChunk, as in run 354; the lldb rerun passed): runner, not code. Fixed from the
+  run 362 data: end-city ship bridges (all 15 end_city issues), lake leaks across chunk borders (lip on the lake side),
+  HD sparkstone dust and cocoa; spin windows now trace the mob per tick.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 

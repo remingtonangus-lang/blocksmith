@@ -931,6 +931,13 @@ final class Mob {
         if self === Mob.trace {
             print(String(format: "      pre %.3f,%.3f,%.3f vel %.2f,%.2f,%.2f -> %.3f,%.3f,%.3f hit %@%@%@ ground %@ speed %.2f yaw %.0f", before.x, before.y, before.z,
                          vel.x, vel.y, vel.z, pos.x, pos.y, pos.z, hit.x ? "x" : "-", hit.y ? "y" : "-", hit.z ? "z" : "-", onGround ? "1" : "0", speed, yaw * 180 / .pi))
+            if path.index < path.nodes.count {
+                let n = path.nodes[path.index]
+                let ny: Int = n.y - YOFF
+                print(String(format: "        node %ld/%ld at %ld,%ld,%ld, stall %.1f s, moving %@, ai %.1f", path.index, path.nodes.count, n.x, ny, n.z, path.stallTime, moving ? "yes" : "no", aiTimer))
+            } else {
+                print(String(format: "        no node (%ld), stall %.1f s, moving %@, ai %.1f", path.nodes.count, path.stallTime, moving ? "yes" : "no", aiTimer))
+            }
         }
         var landed = false, bumped = false
         if hit.y { if vel.y < 0 { landed = true }; vel.y = 0 }

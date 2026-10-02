@@ -133,10 +133,14 @@ enum BehaviorSim {
     static var traced = 0
     static var traceTicks = 0
     static var spinTraced = 0
-    static func startTrace(_ m: Mob, _ w: World, _ why: String) {
-        guard traced < 2, Mob.trace == nil, m.kind == .villager else { return }
-        traced += 1
-        traceTicks = 40
+    static var spinTraces = 0
+    static func startTrace(_ m: Mob, _ w: World, _ why: String, spin: Bool = false) {
+        guard Mob.trace == nil else { return }
+        if spin { guard spinTraces < 2 else { return }; spinTraces += 1 } else {
+            guard traced < 2, m.kind == .villager else { return }
+            traced += 1
+        }
+        traceTicks = spin ? 60 : 40
         Mob.trace = m
         let p = m.pos
         let ahead = m.path.nodes.dropFirst(m.path.index).prefix(4).map { n -> String in
@@ -150,7 +154,7 @@ enum BehaviorSim {
             around.append("\(dx),\(dz): \(a)/\(b)")
         }
         let py: Float = p.y - Float(YOFF)
-        print(String(format: "behaviorsim trace: villager at %.2f %.2f %.2f (%@), feet in %@ on %@, yaw %.0f", p.x, py, p.z, why,
+        print(String(format: "behaviorsim trace: %@ at %.2f %.2f %.2f (%@), feet in %@ on %@, yaw %.0f", m.kind.key, p.x, py, p.z, why,
                      Blocks.key(w.block(feet.x, feet.y, feet.z)), Blocks.key(w.block(feet.x, feet.y - 1, feet.z)), m.yaw * 180 / .pi))
         print("  path ahead: \(ahead.joined(separator: "; "))")
         print("  around feet (feet/head): \(around.joined(separator: "; "))")
@@ -196,6 +200,9 @@ enum BehaviorSim {
                     let head: String = String(format: "behaviorsim spin: %@ at %.1f %.1f %.1f, ", m.kind.key, p.x, shownY, p.z)
                     let tail: String = String(format: "goal %@, path %ld/%ld, turned %.0f deg in 10 s, moved %.2f", gs, m.path.index, m.path.nodes.count, turned, d)
                     print(head + state + ", " + tail)
+                    // 3 s of per-tick physics with the waypoint it steers at (orbiting a cell centre it can't reach,
+                    // flipping between two nodes, or turned by something else).
+                    startTrace(m, w, "spin " + state, spin: true)
                 }
             }
             if t.reversals > 12 { t.flags["jitter", default: 0] += 1 }
