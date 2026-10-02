@@ -1053,7 +1053,7 @@ enum TextureGen {
                     px = [V4](repeating: V4(0, 0, 0, 0), count: n * n)
                     for y in 0..<n { for x in 0..<n { px[y * n + x] = src[(y * S / n) * S + x * S / n] } }
                 } else {
-                    px = HDTex.upscale(src, detail: 0.10, salt: layer, n: n).px
+                    px = HDTex.detailed(src, salt: layer, n: n).px
                 }
                 let base = li * n * n * 4
                 for i in 0..<(n * n) {

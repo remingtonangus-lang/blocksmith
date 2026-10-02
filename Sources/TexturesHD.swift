@@ -1206,6 +1206,70 @@ enum HDTex {
 
     // MARK: Upscale for textures without an HD material
 
+    // Detail transfer (every texture without an HD material): the edge-preserving upscale keeps the 16 px design, then
+    // each source texel's material class lays 128 px detail over it, so its flat 8x8 squares read as material at the
+    // same density as the HD blocks (critics: furnace, crafting table, barrel... looked pixelated next to them).
+    // Classes: grey (stone, metal: mottling and grain), brown (wood: streaks along the dominant grain direction of the
+    // wood texels), other (soft fine mottling). Alpha comes from the upscale untouched.
+    static func detailed(_ src: [V4], salt: Int, n: Int) -> Img {
+        let S = TextureGen.S
+        var img = upscale(src, detail: 0, salt: salt, n: n)
+        var cls = [Int](repeating: 2, count: S * S)
+        for i in 0..<(S * S) {
+            let c = src[i]
+            let mx: Float = max(c.x, max(c.y, c.z)), mn: Float = min(c.x, min(c.y, c.z))
+            let sat: Float = mx > 0.001 ? (mx - mn) / mx : 0
+            var hue: Float = 0
+            if mx - mn > 0.001 {
+                if mx == c.x { hue = (c.y - c.z) / (mx - mn) / 6 }
+                else if mx == c.y { hue = (2 + (c.z - c.x) / (mx - mn)) / 6 }
+                else { hue = (4 + (c.x - c.y) / (mx - mn)) / 6 }
+                if hue < 0 { hue += 1 }
+            }
+            if sat < 0.16 { cls[i] = 0 } else if hue > 0.03 && hue < 0.14 && sat < 0.8 && mx < 0.9 { cls[i] = 1 }
+        }
+        // Grain direction: luminance steps between neighbouring wood texels, across x vs across y.
+        var gx: Float = 0, gy: Float = 0
+        for y in 0..<S { for x in 0..<S where cls[y * S + x] == 1 {
+            let l: Float = (src[y * S + x].x + src[y * S + x].y + src[y * S + x].z) / 3
+            if x + 1 < S && cls[y * S + x + 1] == 1 {
+                let r = src[y * S + x + 1]
+                gx += abs((r.x + r.y + r.z) / 3 - l)
+            }
+            if y + 1 < S && cls[(y + 1) * S + x] == 1 {
+                let d = src[(y + 1) * S + x]
+                gy += abs((d.x + d.y + d.z) / 3 - l)
+            }
+        } }
+        let alongX = gy >= gx * 0.8
+        let grain = vnoise(n, 2, salt &+ 3)
+        let blot = fbm(n, n / 4, 5, salt)
+        let rows = vnoise(n, 2, salt &+ 5)
+        let soft = fbm(n, n / 8, 3, salt &+ 6)
+        let mott = fbm(n, n / 8, 4, salt &+ 8)
+        var hh = [Float](repeating: 0, count: n * n)
+        for y in 0..<n { for x in 0..<n {
+            let i = y * n + x
+            let k = cls[(y * S / n) * S + x * S / n]
+            var d: Float
+            if k == 0 {
+                d = 1 + (blot[i] - 0.5) * 0.34 + (grain[i] - 0.5) * 0.14
+            } else if k == 1 {
+                let st: Float = alongX ? rows[y * n + x / 8] : rows[(y / 8) * n + x]
+                d = 1 + (st - 0.5) * 0.30 + (soft[i] - 0.5) * 0.12
+            } else {
+                d = 1 + (mott[i] - 0.5) * 0.18 + (grain[i] - 0.5) * 0.08
+            }
+            let c = img.px[i]
+            let o = V4(c.x * d, c.y * d, c.z * d, c.w)
+            img.px[i] = o
+            hh[i] = (o.x + o.y + o.z) / 3
+        } }
+        shade(&img, hh, 0.5)
+        return img
+    }
+
+
     // Edge-preserving 16 -> n upscale: each output pixel blends the four nearest source texels weighted by colour
     // similarity to its own texel (hard edges between colours, soft gradients inside a colour), then a little
     // micro-detail and relief so big flat texels don't read as smeared squares.
