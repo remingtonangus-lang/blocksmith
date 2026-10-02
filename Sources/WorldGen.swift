@@ -134,6 +134,27 @@ final class WorldGen: TerrainGenerator {
             let myTop = tops0[k], myWl = wls[k]
             let level = max(myTop, myWl)
             var want = level
+            // Lake water on the chunk's edge beside a lower dry column in the next chunk: that column can't see the
+            // lake cheaply (above), so this column becomes the bank instead (gencheck run 357: 246 water-beside-air
+            // leaks, every one on a chunk border).
+            let edge = lx == 0 || lx == CS - 1 || lz == 0 || lz == CS - 1
+            if edge && myWl > myTop && myWl > SEA {
+                var spill = false
+                for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                    let nx = lx + dx, nz = lz + dz
+                    guard nx < 0 || nx >= CS || nz < 0 || nz >= CS else { continue }
+                    let nc = terrain.column(bx + nx, bz + nz)
+                    let nTop = YOFF + Int(nc.h), nWl = YOFF + Int(floorf(nc.wl))
+                    if nWl <= nTop && nTop < myWl { spill = true }
+                }
+                if spill {
+                    let floorB = b[Chunk.index(lx, myTop, lz)]
+                    let fill: BlockID = (floorB == AIR || Blocks.isLiquid(floorB)) ? DIRT : (floorB == GRASS ? DIRT : floorB)
+                    for y in (myTop + 1)...myWl { b[Chunk.index(lx, y, lz)] = fill }
+                    tops[k] = myWl
+                    continue
+                }
+            }
             for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
                 let nx = lx + dx, nz = lz + dz
                 var nTop: Int, nWl: Int
