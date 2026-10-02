@@ -295,6 +295,18 @@ enum BigStructures {
             w.fill(x - r + 1, y - 1, z - r + 1, x + r - 1, y - 1, z + r - 1, pt)
             for (dx, dz) in [(-1, -1), (1, -1), (-1, 1), (1, 1)] { w.fill(x + dx * (r - 1), y, z + dz * (r - 1), x + dx * (r - 1), y + h - 1, z + dz * (r - 1), cu) }
             w.set(x, y + h - 1, z, bulb)
+            // Detail (the rooms were bare brick boxes: blind critic, run 385): a chiseled tuff border and a checker of
+            // polished and cut tuff on the floor, a polished band and a copper grate frieze round the walls.
+            for dz in -(r - 1)...(r - 1) { for dx in -(r - 1)...(r - 1) {
+                let edge = max(abs(dx), abs(dz)) == r - 1
+                w.set(x + dx, y - 1, z + dz, edge ? ct : ((dx + dz) & 1 == 0 ? pt : g("tuff")))
+            } }
+            for k in -r...r {
+                for (bx, bz) in [(x + k, z - r), (x + k, z + r), (x - r, z + k), (x + r, z + k)] {
+                    w.set(bx, y + 3, bz, pt)
+                    if h > 7 { w.set(bx, y + h - 2, bz, grate) }
+                }
+            }
             // Wall bulbs above corridor height (corridors are cut up to y+3 later).
             for off in [-(r / 2), r / 2] {
                 for (dx, dz) in [(-r, off), (r, off), (off, -r), (off, r)] { w.set(x + dx, y + 4, z + dz, bulb) }
