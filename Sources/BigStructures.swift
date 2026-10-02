@@ -128,6 +128,22 @@ enum BigStructures {
                     w.fill(cx + k, fy + 1, cz + q, cx + k, fy + 2, cz + q, AIR)
                 }
             }
+            // Furnishing: every room gets a wall torch and shelves flanking the south doorway (the rooms were bare dark
+            // plank boxes); not in the stair room or the fetchling cell's room.
+            let shelf = g("bookshelf")
+            for rz in stride(from: -r + 4, through: r - 4, by: 8) { for rx in stride(from: -r + 4, through: r - 4, by: 8) {
+                let stairRoom: Bool = f < 2 && abs(rx - 2) <= 3 && abs(rz) <= 6
+                let cellRoom: Bool = f == 0 && abs(rx + 2) <= 3 && abs(rz - 17) <= 3
+                if stairRoom || cellRoom { continue }
+                let x0 = cx + rx, z0 = cz + rz
+                w.set(x0 - 2, fy + 3, z0 - 3, TORCH + 2)                         // on the north wall, facing south
+                let style = Int(hash3(x0, fy, z0, 0x3A75) % 3)
+                for dx in [-3, -2, 2, 3] {
+                    if style == 0 { w.fill(x0 + dx, fy + 1, z0 + 3, x0 + dx, fy + 2, z0 + 3, shelf) }
+                    else if style == 1 && abs(dx) == 3 { w.set(x0 + dx, fy + 1, z0 + 3, g("barrel")) }
+                }
+                if style == 2 { w.set(x0 - 3, fy + 1, z0 + 3, g("crafting_table")); w.set(x0 + 3, fy + 1, z0 + 3, g("lectern")) }
+            } }
             // Loot and residents.
             for _ in 0..<3 {
                 let lx = cx + Int(rng.float() * Float(2 * r - 4)) - r + 2, lz = cz + Int(rng.float() * Float(2 * r - 4)) - r + 2
