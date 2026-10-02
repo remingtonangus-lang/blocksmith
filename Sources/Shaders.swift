@@ -283,18 +283,31 @@ fragment float4 simpleFS(SimpleOut in [[stage_in]]) { return in.color; }
 // Stars: static unit-sphere quads rotated with the sun (buffer 2), faded in at night via tint.
 struct StarParams { float4x4 rot; float4 tint; };
 
-vertex SimpleOut starVS(uint vid [[vertex_id]],
-                        const device SimpleVert* verts [[buffer(0)]],
-                        constant Uniforms& u [[buffer(1)]],
-                        constant StarParams& sp [[buffer(2)]]) {
-    SimpleOut o;
+struct StarOut { float4 pos [[position]]; float4 color; float2 uv; };
+
+vertex StarOut starVS(uint vid [[vertex_id]],
+                      const device SimpleVert* verts [[buffer(0)]],
+                      constant Uniforms& u [[buffer(1)]],
+                      constant StarParams& sp [[buffer(2)]]) {
+    StarOut o;
     o.pos = u.viewProj * (sp.rot * float4(verts[vid].pos.xyz, 1.0));
     o.color = verts[vid].color * sp.tint;
     // Gentle twinkle: each star (6 vertices) gets its own phase and speed.
     float star = float(vid / 6u);
     float ph = fract(sin(star * 12.9898) * 43758.5453);
     o.color.rgb *= 0.78 + 0.22 * sin(u.params.z * (1.5 + 2.5 * ph) + ph * 40.0);
+    // Quad corner (vertices 0 1 2 0 2 3 of corners (0,0) (1,0) (1,1) (0,1)) for a round falloff.
+    const uint corner[6] = {0u, 1u, 2u, 0u, 2u, 3u};
+    uint c = corner[vid % 6u];
+    o.uv = float2(c == 1u || c == 2u ? 1.0 : 0.0, c >= 2u ? 1.0 : 0.0);
     return o;
+}
+
+// Round, soft-edged stars (solid quads aliased into 1-3 px blobs: blind critic, night).
+fragment float4 starFS(StarOut in [[stage_in]]) {
+    float r = length(in.uv * 2.0 - 1.0);
+    float a = 1.0 - smoothstep(0.35, 1.0, r);
+    return float4(in.color.rgb * 1.5, in.color.a * a);
 }
 
 // Clouds: one big camera-relative quad; the fragment shader decides per 12x12-block cell

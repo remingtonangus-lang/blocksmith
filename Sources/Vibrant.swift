@@ -66,7 +66,7 @@ final class Vibrant {
         chunkSolid = try pipe("chunkVibVS", "chunkVibSolidFS", color: hdrF)
         water = try pipe("chunkVibVS", "waterVibFS", color: hdrF, blend: 1)
         simple = try pipe("simpleVS", "simpleFS", color: hdrF, blend: 1)
-        star = try pipe("starVS", "simpleFS", color: hdrF, blend: 1)
+        star = try pipe("starVS", "starFS", color: hdrF, blend: 1)
         cloud = try pipe("cloudVS", "cloudFS", color: hdrF, blend: 1)
         cloudBox = try pipe("cloudBoxVS", "cloudBoxFS", color: hdrF, blend: 1)
         mob = try pipe("mobVS", "mobVibFS", color: hdrF)

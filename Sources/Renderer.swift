@@ -164,7 +164,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         waterPipeL = try pipe("chunkVS", "waterFS", blend: true)
         simplePipeL = try pipe("simpleVS", "simpleFS", blend: true)
         hudPipe = try pipe("hudVS", "hudFS", blend: true)
-        starPipeL = try pipe("starVS", "simpleFS", blend: true)
+        starPipeL = try pipe("starVS", "starFS", blend: true)
         cloudPipeL = try pipe("cloudVS", "cloudFS", blend: true)
         mobPipeL = try pipe("mobVS", "mobFS", blend: false)
         entityPipeL = try pipe("entityVS", "entityFS", blend: false)
@@ -181,7 +181,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             let u1 = hashf(i, 1, 0, 4242) * 2 - 1, u2 = hashf(i, 2, 0, 4242) * 2 * .pi
             let rr = (1 - u1 * u1).squareRoot()
             let dir = V3(rr * cosf(u2), u1, rr * sinf(u2))
-            let size: Float = 0.1 + 0.16 * hashf(i, 3, 0, 4242) * hashf(i, 4, 0, 4242)
+            let size: Float = (0.1 + 0.16 * hashf(i, 3, 0, 4242) * hashf(i, 4, 0, 4242)) * 1.6     // room for the soft edge (starFS)
             let b: Float = 0.45 + 0.55 * hashf(i, 5, 0, 4242)
             let warm = hashf(i, 6, 0, 4242)
             let col = V4(b * (0.85 + 0.15 * warm), b * 0.9, b * (1 - 0.15 * warm), 1)
