@@ -500,6 +500,33 @@ enum HDTex {
         }
     }
 
+    // Glass (cutout): a thin pale frame with a lit inner edge, two soft diagonal glints in the upper left and a
+    // corner sparkle; everything else fully clear.
+    static func glass(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n)
+        var img = Img(n, V4(0.8, 0.9, 0.95, 0))
+        let w = max(1, n / 16)
+        let fine = vnoise(n, max(1, n / 32), s &+ 1)
+        for y in 0..<n { for x in 0..<n {
+            let i = y * n + x
+            let edge = min(min(x, y), min(n - 1 - x, n - 1 - y))
+            if edge < w {
+                let k: Float = 0.82 + fine[i] * 0.16
+                img.px[i] = edge == 0 ? V4(0.62 * k, 0.74 * k, 0.8 * k, 1) : V4(0.78 * k, 0.88 * k, 0.94 * k, 1)
+                continue
+            }
+            let fx = Float(x), fy = Float(y)
+            let d1: Float = abs(fx - fy)                         // the main glint along the diagonal
+            let d2: Float = abs(fx - fy - fn * 0.18)
+            let inGlint1: Bool = d1 < fn * 0.035 && fx > fn * 0.16 && fx < fn * 0.5
+            let inGlint2: Bool = d2 < fn * 0.02 && fx > fn * 0.36 && fx < fn * 0.56
+            if inGlint1 || inGlint2 { img.px[i] = V4(0.93, 0.97, 1, 1) }
+        } }
+        let sx = Int(fn * 0.82), sy = Int(fn * 0.14), r = max(1, n / 64)
+        for y in (sy - r)...(sy + r) { for x in (sx - r)...(sx + r) { img[x, y] = V4(1, 1, 1, 1) } }
+        return img
+    }
+
     // A soil face under a band of another material along the top edge (podzol, mycelium, path sides), with a
     // wavy lower edge and a soft shadow under it.
     static func topped(_ top: @escaping Gen, depth: Float = 0.16) -> Gen {
@@ -968,6 +995,7 @@ enum HDTex {
     static let table: [String: Gen] = [
         "stone": stone(stoneGrey),
         "lava": lava,
+        "glass": glass,
         // Metals: copper through its oxidation stages (plain and cut), iron and gold.
         "copper_block": metal(0xC06B4F, shine: 0.16),
         "exposed_copper": metal(0xA87A62, patina: 0.12),
