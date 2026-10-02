@@ -1757,6 +1757,69 @@ enum HDTex {
         return img
     }
 
+    // Beds (same layout as the small painters): a quilted blanket in the bed's colour (stitch lines every quarter, soft
+    // folds), a puffy pillow at the head, and on the sides the blanket's hem over a grained wooden frame with legs.
+    static func bed(_ name: String) -> Gen? {
+        for (suffix, part) in [("_bed_side", 0), ("_bed_top_foot", 1), ("_bed_top_head", 2)] where name.hasSuffix(suffix) {
+            let colour = String(name.dropLast(suffix.count))
+            guard let h = BlockRegistry.colorHex[colour] else { return nil }
+            return bedHD(col(h) / 0.9, part: part)
+        }
+        return nil
+    }
+    static func bedHD(_ c: V3, part: Int) -> Gen {
+        { n, s in
+            let u = n / 16
+            var img = wool(c)(n, s)
+            let folds = fbm(n, n / 4, 3, s &+ 7)
+            let grain = vnoise(n, max(1, n / 64), s &+ 8)
+            let wood = col(0xA2824E), leg = col(0x6B4F2C)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let p = img.px[i]
+                if part == 0 {
+                    if y >= 10 * u {
+                        let isLeg = y >= 13 * u && (x < 3 * u || x >= 13 * u)
+                        if isLeg {
+                            let lk: Float = 0.85 + 0.25 * grain[(y / 6) * n + x]
+                            let lc: V3 = leg * lk
+                            img.px[i] = V4(lc.x, lc.y, lc.z, 1)
+                        } else { img.px[i] = V4(0, 0, 0, 0) }
+                    } else if y >= 7 * u {
+                        var edge: Float = 1
+                        if y == 7 * u { edge = 1.15 } else if y == 10 * u - 1 { edge = 0.7 }
+                        let wk: Float = (0.85 + 0.25 * grain[y * n + x / 8]) * edge
+                        let wc: V3 = wood * wk
+                        img.px[i] = V4(wc.x, wc.y, wc.z, 1)
+                    } else {
+                        let hem: Float = y >= 6 * u ? 0.78 : 1
+                        img.px[i] = V4(p.x * hem, p.y * hem, p.z * hem, 1)
+                    }
+                    continue
+                }
+                // Top: quilting stitches, soft folds, darker side edges.
+                var k: Float = 0.9 + (folds[i] - 0.5) * 0.25
+                if (x % (4 * u)) == 0 || (y % (4 * u)) == 0 { k *= 0.82 }
+                if x < u || x >= n - u { k *= 0.8 }
+                if part == 2 && y < 7 * u && x >= 2 * u && x < 14 * u {
+                    // Pillow: white, domed, a seam around it.
+                    let fu = Float(u)
+                    let px: Float = (Float(x) - 8 * fu) / (6 * fu)
+                    let py: Float = (Float(y) - 3.5 * fu) / (3.5 * fu)
+                    let dome: Float = max(0, 1 - px * px * 0.6 - py * py * 0.8)
+                    let seam: Bool = x == 2 * u || x == 14 * u - 1 || y == 7 * u - 1 || y == 0
+                    let seamK: Float = seam ? 0.85 : 1
+                    let soft: Float = 0.97 + 0.06 * folds[i]
+                    let pk: Float = (0.8 + 0.2 * dome) * seamK * soft
+                    img.px[i] = V4(0.95 * pk, 0.95 * pk, 0.95 * pk, 1)
+                    continue
+                }
+                img.px[i] = V4(p.x * k, p.y * k, p.z * k, 1)
+            } }
+            return img
+        }
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
