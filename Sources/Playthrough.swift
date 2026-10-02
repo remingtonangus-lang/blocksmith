@@ -447,6 +447,14 @@ final class Playthrough {
             cur = findBlock(near: cur, radius: 3, yRange: (cur.y - 2)...(cur.y + 1), { $0 == "stone" }) ?? cur
         }
         check(count("cobblestone") >= 2, "mine: \(count("cobblestone")) cobblestone with a wooden pickaxe (\(mined) mined; bare hand would take \(handTime) s and drop nothing)")
+        if count("cobblestone") < 2 {
+            // Why (run 354): where the stone was, what is around it now, and which drops lie near it.
+            let around = [IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
+                .map { key(st + $0) }.joined(separator: " ")
+            let near = game.drops.items.filter { simd_length($0.pos - center(st)) < 24 }
+                .map { e in String(format: "%@ at %.1f %.1f %.1f", Items.key(e.stack.item), e.pos.x, e.pos.y - Float(YOFF), e.pos.z) }
+            info("stone at \(st.x) \(st.y - YOFF) \(st.z), now \(key(st)); around (up down +x -x +z -z): \(around); drops within 24: \(near.isEmpty ? "none" : near.joined(separator: ", "))")
+        }
         if count("cobblestone") < 11 { give("cobblestone", 11 - count("cobblestone"), bulk: "more stone") }
         craft(["CCC", " S ", " S "], ["C": "cobblestone", "S": "stick"], "stone_pickaxe")
         craft(["CCC", "C C", "CCC"], ["C": "cobblestone"], "furnace")
@@ -923,6 +931,7 @@ final class Playthrough {
         if var e = eggPos {
             game.portalCooldown = 60
             var hopped = 0
+            var why = "no attempt"
             for _ in 0..<20 where count("dragon_egg") == 0 {
                 holdNothing()
                 standBeside(e)
@@ -931,23 +940,29 @@ final class Playthrough {
                 tick(0.05, pin: game.player.pos)
                 game.input.leftDown = false
                 tick(3)
-                guard let ne = findBlock(near: e, radius: 20, yRange: max(1, e.y - 30)...min(CH - 2, e.y + 10), { $0 == "dragon_egg" }) else { break }
+                guard let ne = findBlock(near: e, radius: 20, yRange: max(1, e.y - 30)...min(CH - 2, e.y + 10), { $0 == "dragon_egg" }) else {
+                    why = "no egg within 20 blocks of \(e.x) \(e.y - YOFF) \(e.z) after the hit"; break
+                }
                 if ne != e { hopped += 1 }
                 e = ne
                 // Torch trick: the egg must rest on something breakable with room for a torch under it.
                 let under = e + IVec3(0, -1, 0), below2 = e + IVec3(0, -2, 0)
-                guard carvable(under), Blocks.collide[Int(world.block(under.x, under.y, under.z))], carvable(below2) else { continue }
+                guard carvable(under), Blocks.collide[Int(world.block(under.x, under.y, under.z))], carvable(below2) else {
+                    why = "egg at \(e.x) \(e.y - YOFF) \(e.z) on \(key(under)) over \(key(below2)): no torch spot"; continue
+                }
                 // A player digs out the cell two below and gives the torch a floor if it has none (placing a block).
                 if !Blocks.collide[Int(world.block(below2.x, below2.y - 1, below2.z))] {
                     world.setBlock(below2.x, below2.y - 1, below2.z, Blocks.id("end_stone"))
                 }
                 world.setBlock(below2.x, below2.y, below2.z, Blocks.id("torch"))
                 _ = hold("diamond_pickaxe")
-                if mine(under, maxSeconds: 10) { tick(2); collect(near: center(under), 8) }
+                if mine(under, maxSeconds: 10) { tick(2); collect(near: center(under), 8); why = "mined under the egg at \(e.x) \(e.y - YOFF) \(e.z); torch cell now \(key(below2))" }
+                else { why = "couldn't mine \(key(under)) under the egg" }
             }
             game.portalCooldown = 0
             check(hopped > 0, "egg: hitting the egg makes it teleport (\(hopped) hops)")
             check(count("dragon_egg") == 1, "egg: collected by dropping it onto a torch (\(count("dragon_egg")))")
+            if count("dragon_egg") == 0 { info("egg: last attempt: \(why)") }
             if count("dragon_egg") == 0 { give("dragon_egg", 1, bulk: "egg") }
         }
 

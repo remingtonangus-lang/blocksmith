@@ -56,6 +56,9 @@ enum Bench {
 
     static func run(_ out: String) -> Int32 {
         let t0 = now
+        // Line-buffered: bench.sh kills a process after 240 s, and block-buffered output into the pipe was lost with it
+        // (run 354: a timeout with no line saying which scene hung).
+        setvbuf(stdout, nil, _IOLBF, 0)
         guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); return 1 }
         let seed = UInt64(arg("--seed") ?? "") ?? 12345
         let quick = CommandLine.arguments.contains("--quick")
@@ -65,6 +68,7 @@ enum Bench {
         if !scenes.allSatisfy({ $0.hasPrefix("flight") }) { calibrate() }
         for s in scenes {
             let ts = now
+            print("bench: \(s) starts")
             switch s {
             case "gen": gen(device, seed)
             case "mesh": mesh(device, seed)
