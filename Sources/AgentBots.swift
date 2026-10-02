@@ -236,12 +236,18 @@ final class VillageBot: AgentBot {
             let st = Int(b - Blocks.groupBase[Int(b)])
             if st & 8 != 0 { continue }
             let (ax, az) = (st & 3) < 2 ? (0, 1) : (1, 0)
-            // Inside: the side with more roof over it (any blocks 2-10 above: roofs are stairs and slabs).
+            // Inside: the side roofed over further in (any block 2-10 above each of the 3 cells in from the door; roofs
+            // are stairs and slabs). One cell scored the eave over a street between two facing houses as much as the
+            // room (run 353, seed 777: the bot was sent into the street and climbed onto the eave).
             var best = 0, bestSide = 0
             for sgn in [-1, 1] {
-                let cx = x + ax * sgn, cz = z + az * sgn
                 var cover = 0
-                for dy in 2...10 where w.block(cx, y + dy, cz) != AIR { cover += 1 }
+                for depth in 1...3 {
+                    let cx = x + ax * sgn * depth, cz = z + az * sgn * depth
+                    var roofed = false
+                    for dy in 2...10 where w.block(cx, y + dy, cz) != AIR { roofed = true; break }
+                    if roofed { cover += 1 }
+                }
                 if cover > best { best = cover; bestSide = sgn }
             }
             if best > 0 { doors.append(Door(door: IVec3(x, y, z), inside: IVec3(x + ax * bestSide, y, z + az * bestSide))) }
