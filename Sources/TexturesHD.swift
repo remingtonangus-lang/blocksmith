@@ -1403,6 +1403,38 @@ enum HDTex {
         }
     }
 
+    // Torches (same layout as the small painters, which the torch models map into): in 16ths, the flame core row,
+    // the flame row and the stick rows, over columns x0..<x1. The stick: wood grain, lit on the left, charred under
+    // the flame; the flame: a vertical gradient from the colour into the pale core.
+    static func torchHD(core: UInt32, flame: UInt32, x0: Int, x1: Int, coreRow: Int, stickTo: Int) -> Gen {
+        { n, s in
+            var img = Img(n, V4(0, 0, 0, 0))
+            let u = n / 16
+            let grain = vnoise(n, max(1, n / 64), s)
+            let wood = col(0x6B4F2C), cc = col(core), fc = col(flame)
+            let left = x0 * u, right = x1 * u
+            for y in (coreRow * u)..<(stickTo * u) { for x in left..<right {
+                let i = y * n + x
+                let across: Float = (Float(x - left) + 0.5) / Float(right - left)
+                let lit: Float = 1.12 - 0.3 * across
+                let c: V3
+                if y < (coreRow + 2) * u {
+                    // Flame: core at the top fading into the flame colour, brightest in the middle.
+                    let t: Float = Float(y - coreRow * u) / Float(2 * u)
+                    let mid: Float = 1 - abs(across - 0.5) * 0.4
+                    c = (cc + (fc - cc) * t) * mid
+                } else {
+                    let below: Float = Float(y - (coreRow + 2) * u) / Float(u)
+                    let charred: Float = below < 1 ? 0.45 + 0.55 * below : 1
+                    let g: Float = 0.85 + 0.25 * grain[(y / 6) * n + x]
+                    c = wood * (lit * charred * g)
+                }
+                img.px[i] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
+            } }
+            return img
+        }
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -1945,6 +1977,12 @@ enum HDTex {
         "seagrass": blades(salt: 105, count: 12, len: 0.55, 1.0, lean: 1.6, colour: 0x3A8A2A),
         "kelp": kelpHD,
         "dead_bush": deadBushHD,
+        "torch": torchHD(core: 0xFFF6C8, flame: 0xFFC43A, x0: 7, x1: 9, coreRow: 6, stickTo: 16),
+        "torch_wall": torchHD(core: 0xFFF6C8, flame: 0xFFC43A, x0: 0, x1: 16, coreRow: 3, stickTo: 13),
+        "soul_torch": torchHD(core: 0xD8FFFF, flame: 0x3AD8E8, x0: 7, x1: 9, coreRow: 6, stickTo: 16),
+        "soul_torch_wall": torchHD(core: 0xD8FFFF, flame: 0x3AD8E8, x0: 0, x1: 16, coreRow: 3, stickTo: 13),
+        "copper_torch": torchHD(core: 0xE0FFC8, flame: 0x6CE04A, x0: 7, x1: 9, coreRow: 6, stickTo: 16),
+        "copper_torch_wall": torchHD(core: 0xE0FFC8, flame: 0x6CE04A, x0: 0, x1: 16, coreRow: 3, stickTo: 13),
         "vine": vineHD,
         "lily_pad": lilyPadHD,
         "sugar_cane": caneHD,
