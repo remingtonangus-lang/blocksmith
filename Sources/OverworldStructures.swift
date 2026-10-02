@@ -28,7 +28,7 @@ enum OverworldStructures {
                 return StructureStart(kind: "desert_pyramid", pieces: [piece(x - 11, y - 16, z - 11, x + 11, y + 12, z + 11) { w in desertPyramid(&w, x, y, z, s) }],
                                       anchor: IVec3(x, y + 1, z - 14))
             case .jungle, .bambooJungle, .sparseJungle:
-                return StructureStart(kind: "jungle_temple", pieces: [piece(x - 7, y - 6, z - 8, x + 7, y + 14, z + 8) { w in jungleTemple(&w, x, y, z, s) }],
+                return StructureStart(kind: "jungle_temple", pieces: [piece(x - 7, y - 20, z - 8, x + 7, y + 14, z + 8) { w in jungleTemple(&w, x, y, z, s) }],
                                       anchor: IVec3(x, y + 2, z - 12))
             case .swamp, .mangroveSwamp:
                 return StructureStart(kind: "swamp_hut", pieces: [piece(x - 4, y - 8, z - 5, x + 4, y + 9, z + 5) { w in swampHut(&w, x, max(y, SEA) + 2, z, s) }],
@@ -84,7 +84,7 @@ enum OverworldStructures {
         let cob = COBBLE, mossy = Blocks.id("mossy_cobblestone"), chis = Blocks.id("chiseled_stone_bricks")
         func mat(_ x: Int, _ y: Int, _ z: Int) -> BlockID { hashf(x, y, z, 0x7E3) < 0.45 ? mossy : cob }
         let y = gy
-        for z in (cz - 7)...(cz + 7) { for x in (cx - 6)...(cx + 6) { w.pillarDown(x, y - 1, z, cob, minY: y - 6) } }
+        for z in (cz - 7)...(cz + 7) { for x in (cx - 6)...(cx + 6) { w.pillarDown(x, y - 1, z, cob, minY: y - 20) } }      // 6 left a jungle slope under 3 columns (run 357)
         // Three tiers, each smaller.
         for (tier, (rx, rz, h)) in [(6, 7, 4), (5, 6, 4), (3, 4, 4)].enumerated() {
             let by = y + tier * 4
