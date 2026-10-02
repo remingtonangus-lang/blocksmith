@@ -34,7 +34,7 @@ enum OverworldStructures {
                 return StructureStart(kind: "swamp_hut", pieces: [piece(x - 4, y - 8, z - 5, x + 4, y + 9, z + 5) { w in swampHut(&w, x, max(y, SEA) + 2, z, s) }],
                                       anchor: IVec3(x, max(y, SEA) + 3, z - 8))
             case .snowyPlains, .snowyTaiga, .snowySlopes:
-                return StructureStart(kind: "igloo", pieces: [piece(x - 4, y - 14, z - 4, x + 4, y + 6, z + 4) { w in igloo(&w, x, y + 1, z, s) }],
+                return StructureStart(kind: "igloo", pieces: [piece(x - 4, y - 14, z - 6, x + 4, y + 6, z + 4) { w in igloo(&w, x, y + 1, z, s) }],
                                       anchor: IVec3(x, y + 2, z - 7))
             default: return nil
             }
@@ -147,6 +147,10 @@ enum OverworldStructures {
         w.fill(cx - 2, y - 1, cz - 2, cx + 2, y - 1, cz + 2, snow)
         w.set(cx - 3, y + 1, cz, ice); w.set(cx + 3, y + 1, cz, ice)
         w.fill(cx, y, cz - 4, cx, y + 1, cz - 3, AIR)
+        // The entrance tunnel and a step in front of it stand on snow down to the ground (on a slope the tunnel had no
+        // floor, so the walk never got in: structcheck, both basement chests unreachable, run 358).
+        for dz in -5...(-3) { w.pillarDown(cx, y - 1, cz + dz, snow, minY: y - 12) }
+        w.fill(cx, y, cz - 5, cx, y + 1, cz - 5, AIR)
         w.fill(cx - 1, y, cz - 4, cx - 1, y + 2, cz - 4, snow); w.fill(cx + 1, y, cz - 4, cx + 1, y + 2, cz - 4, snow)
         w.set(cx, y + 2, cz - 4, snow)
         w.set(cx - 1, y, cz + 1, Blocks.id("white_bed") + 1); w.set(cx - 1, y, cz, Blocks.id("white_bed_head") + 1)
