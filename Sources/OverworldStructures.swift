@@ -293,10 +293,14 @@ enum OverworldStructures {
             guard half >= 0 else { continue }
             for b in -half...half {
                 w.set(cx + a, y, cz + b, pl)
-                if abs(b) == half { for h in 1...2 where !(broken && rng.chance(0.3)) { w.set(cx + a, y + h, cz + b, pl) } }
+                if abs(b) == half { for h in 1...3 where !(broken && rng.chance(0.3)) { w.set(cx + a, y + h, cz + b, pl) } }
                 else { for h in 1...3 { w.set(cx + a, y + h, cz + b, WATER_IF_BELOW_SEA(y + h)) } }
             }
-            if abs(a) <= 6 { w.set(cx + a, y + 3, cz, pl) }
+            // A deck over the hold at the rail's height, with hatches down to it (a lone plank line along the middle
+            // read as a beam hanging over the open hull: blind critic, run 369 shipwreck). Broken wrecks lose planks.
+            if abs(a) <= 6 && half > 0 && abs(a) % 6 != 0 && a != 0 {
+                for b in (-half + 1)...(half - 1) where !(broken && rng.chance(0.25)) { w.set(cx + a, y + 3, cz + b, pl) }
+            }
         }
         if !broken { for h in 1...8 { w.set(cx - 1, y + h, cz, log) } }
         w.chest(cx - 7, y + 1, cz, loot: "shipwreck_supply", seed: rng.next(), facing: 2)
