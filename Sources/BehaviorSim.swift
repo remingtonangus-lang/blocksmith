@@ -22,6 +22,7 @@ enum BehaviorSim {
         var lastYaw: Float
         var lastVel = V3(0, 0, 0)
         var reversals = 0
+        var movingSamples = 0      // samples in the window where the mob meant to walk
         var wallSeconds = 0
         var startY: Float
         var groundY: Float?                   // feet height when last standing (falls are ground-to-ground drops)
@@ -168,6 +169,7 @@ enum BehaviorSim {
         if simd_length(hv) > 0.3 && simd_length(t.lastVel) > 0.3 && simd_dot(hv, t.lastVel) < 0 { t.reversals += 1 }
         t.lastVel = hv
         t.window.append(p)
+        if m.moving { t.movingSamples += 1 }
         if t.window.count > 10 { t.window.removeFirst() }
         if t.window.count == 10 {
             let d: Float = simd_length(V2(p.x - t.window[0].x, p.z - t.window[0].z))
@@ -178,7 +180,10 @@ enum BehaviorSim {
                 t.stuckWhy["spin:\(phase)/\(goal)/\(mv)\(m.path.nodes.isEmpty ? "/nopath" : "")", default: 0] += 1
             }
             if t.reversals > 12 { t.flags["jitter", default: 0] += 1 }
-            if m.moving && d < 0.5 && !m.sitting {
+            // Stuck: meant to walk the whole window (9 of 10 samples) and got nowhere. Moving only at the last sample
+            // was a mob setting off after a rest, which counted as stuck (most "stroll/onpath" windows in run 353:
+            // no give-up ever fired in them, so the 4 s stall watchdog never saw a stall).
+            if m.moving && t.movingSamples >= 9 && d < 0.5 && !m.sitting {
                 var far = true
                 if let goal = goalPoint(m, phase), simd_length(goal - p) < 3 { far = false }
                 if far {
@@ -191,7 +196,7 @@ enum BehaviorSim {
                     if t.flags["stuck", default: 0] == 3 { startTrace(m, w, why) }
                 }
             }
-            t.yawSum = 0; t.reversals = 0
+            t.yawSum = 0; t.reversals = 0; t.movingSamples = 0
             t.window.removeAll(keepingCapacity: true)
         }
         // A fall: landing more than 4.5 blocks below where it last stood (swimmers and fliers don't fall).
