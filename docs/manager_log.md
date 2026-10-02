@@ -1,2 +1,3 @@
 # Manager log
 2026-10-02 18:40Z | 31 min since last commit (builder active) | avg CI 32 min (22-49) | 5/6 failed (playthrough step; build+snapshots pass) | builder landed the fast/heavy CI split itself (75e72af), I made no CI change; textures: 'Blocksmith Textures' folder exists in Drive but nothing importable yet (no sheets listed)
+2026-10-02 19:37Z | 23 min since last commit (builder active) | avg CI ~3 min on completed fast-lane runs (2.6-3.2; one outlier 29 min on run 380, 2 cancelled by concurrency, 1 in progress) | 0/6 failed | no action needed, no game code edited; textures: Drive folder still empty, nothing to import
