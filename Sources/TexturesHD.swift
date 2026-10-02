@@ -2235,8 +2235,14 @@ enum HDTex {
                 guard d <= 1 else { continue }
                 let ck: Float = 0.75 + 0.35 * (1 - d) + 0.1 * up - 0.1 * dx
                 var c: V3 = cc * ck
-                let wx: Int = Int((dx + 1) * 5), wy: Int = Int(up * 4)
-                if h2(wx, wy, s) > 0.72 && d < 0.85 { c = wc * (0.9 + 0.2 * (1 - d)) }
+                // Round warts placed on the dome (hashed texel blocks made squares, a checkerboard on the warped cap).
+                for (su, sv) in mushroomSpots {
+                    let du: Float = (dx - su) / 0.14, dv: Float = (up + sv) / 0.2
+                    if du * du + dv * dv < 1 && d < 0.9 {
+                        let wk: Float = 0.9 + 0.2 * (1 - d)
+                        c = wc * wk
+                    }
+                }
                 plot(&img, x, y, c)
             } }
             return img
@@ -2569,7 +2575,8 @@ enum HDTex {
                         plot(&img, x, y, col(0x6A5030) * (1.1 - 0.4 * abs(across - 0.35)))
                     } }
                 }
-                for k in 0..<(leafRows * 34 / n) {
+                let leafCount: Int = kind == "azalea_top" ? 34 : 30          // the side's leafy half was sparse at 17
+                for k in 0..<leafCount {
                     let cx: Float = h2(k, 1, s) * fn, cy: Float = h2(k, 2, s) * Float(leafRows)
                     let tone: Float = 0.78 + 0.32 * h2(k, 3, s)
                     let ang: Float = h2(k, 4, s) * 6.28
