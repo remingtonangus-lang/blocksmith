@@ -609,9 +609,11 @@ final class WorldGen: TerrainGenerator {
             while y > 1 && b[Chunk.index(lx, y, lz)] == AIR { y -= 1 }
             // Dither: the snowline frays over a band instead of ending in a sharp edge, in clumps a few blocks wide (a
             // per-column hash scattered single snow squares through the grass: run 362 snowy village).
-            let clump: Float = flora.noise2(Float(bx + lx) / 4 + 731, Float(bz + lz) / 4 + 419)
+            // Patches about 7 blocks across with only a trace of per-column jitter (at 4 blocks and 0.3 jitter a snowy
+            // village edge was still a scatter of single white squares: eyes-on village2, run 377).
+            let clump: Float = flora.noise2(Float(bx + lx) / 7 + 731, Float(bz + lz) / 7 + 419)
             let jit: Float = hashf(bx + lx, y, bz + lz, s32 ^ 0x5110) - 0.5
-            let t = terrain.temperature(cols[lx + lz * CS], Float(y + 1 - YOFF)) + (clump * 0.8 + jit * 0.3) * 0.12
+            let t = terrain.temperature(cols[lx + lz * CS], Float(y + 1 - YOFF)) + (clump * 0.9 + jit * 0.08) * 0.12
             let cold = t < -0.25 || (biome.snows(at: y + 1) && t < -0.15)
             guard cold else { continue }
             // Steep rock faces shed their snow.
