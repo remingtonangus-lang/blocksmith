@@ -2715,6 +2715,9 @@ enum HDTex {
         "furnace_top": cobble([(0, 0x585A5C), (0.5, 0x808082), (1, 0xA2A09E)], mortar: 0x3A3838),
         // Workstation parts painted as one flat material in the small set.
         "lectern_side": planks(pal(col(0x9A7A4A), lo: 0.75, hi: 1.18)),
+        "composter_side": planks(pal(col(0x8A6A3A), lo: 0.75, hi: 1.18)),
+        "composter_compost": soil([(0, 0x3A2E14), (0.5, 0x5A4A22), (1, 0x76622E)], pebble: 0x6A5A2A, pebbles: 4, clods: 10),
+        "composter_ready": soil([(0, 0x3A2E14), (0.5, 0x5A4A22), (1, 0x76622E)], pebble: 0xE8E4D0, pebbles: 40, clods: 8),
         "loom_top": planks(pal(col(0xB08A5A), lo: 0.75, hi: 1.18)),
         "fletching_table_top": planks(pal(col(0xC8B88A), lo: 0.78, hi: 1.15)),
         "anvil": metal(0x444448, shine: 0.1),
