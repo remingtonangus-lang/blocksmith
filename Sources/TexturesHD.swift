@@ -2072,8 +2072,13 @@ enum HDTex {
                 let frame = y < 3 * u || y >= 14 * u || x < 3 * u || x >= 13 * u
                 let c: V3
                 if frame {
-                    let edge: Bool = (x % u == 0) || (y % u == 0)
-                    let k: Float = (edge ? 1.2 : 0.95) * (0.9 + 0.2 * fine[i])
+                    // Solid iron: a lit outer edge, a shadowed lip round the glass.
+                    let outer: Bool = x == 0 || y == 0
+                    let lipX: Bool = (x == 3 * u - 1 || x == 13 * u) && y >= 3 * u - 1 && y <= 14 * u
+                    let lipY: Bool = (y == 3 * u - 1 || y == 14 * u) && x >= 3 * u - 1 && x <= 13 * u
+                    var edgeK: Float = 0.95
+                    if outer { edgeK = 1.25 } else if lipX || lipY { edgeK = 0.6 }
+                    let k: Float = edgeK * (0.9 + 0.2 * fine[i])
                     c = V3(0.23, 0.23, 0.25) * k
                 } else {
                     let fu = Float(u)
