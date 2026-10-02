@@ -128,7 +128,7 @@ extension Game {
             } else if let m = mob, m.kind != .wither {
                 m.hit(from: f.pos, damage: 8, knockback: 0.3)
                 m.applyEffect(.wither, amp: 1, seconds: 10, game: self)
-                if m.health <= 0, let w = f.shooter, w.kind == .wither { w.health = min(w.spec.health, w.health + 5) }
+                if m.health <= 0, let w = f.shooter, w.kind == .wither, w.health > 0 { w.health = min(w.spec.health, w.health + 5) }
             }
             Explosion.explode(at: at, power: 1, game: self, except: f.shooter)
         case .fire:
@@ -199,7 +199,7 @@ extension Mob {
         }
         // Regenerates 1 HP a second.
         fireTick += dt
-        if fireTick >= 1 { fireTick = 0; health = min(300, health + 1) }
+        if fireTick >= 1 { fireTick = 0; if health > 0 { health = min(300, health + 1) } }
         // Target: the player, else any living non-undead mob.
         var target: V3?
         let player = g.player.pos

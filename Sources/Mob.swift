@@ -425,6 +425,9 @@ final class Mob {
     func update(_ dt: Float, game g: Game) {
         let w = g.world
         guard w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) else { return }
+        // A mob killed earlier this tick (player hit, projectile) is removed by the death sweep after this loop: it
+        // must not act or heal in between (the Blight's 1 HP/s regeneration revived it and lost the Blight Star).
+        if health <= 0 && kind != .enderDragon { return }
         faceGoal = nil
         strafe = 0
         path.climbUp = false

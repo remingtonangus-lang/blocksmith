@@ -689,8 +689,9 @@ final class Playthrough {
                 n += 1
             }
             if m.health <= 0 { vw += 1 }
+            let died = m.pos                            // strolls and hit teleports move it away from where it appeared
             game.mobs.mobs.removeAll { $0 === m && $0.health > 0 }
-            collect(near: at, 8)
+            collect(near: died, 8)
             pearls = count("ender_pearl")
         }
         check(pearls >= 12, "voidwalkers: \(pearls) void pearls from \(vw) kills")
@@ -885,11 +886,13 @@ final class Playthrough {
                                                          fightTime, perches, swings, arrows, arrowDamage, d.health))
         info("wyrm fight: player took \(damageTaken - dmgStart) damage (half-hearts, healed by the test)")
         // Death animation (10 s), then the exit portal, egg and first rift.
-        let xp0 = game.xpLevel
+        // XP as total points: the level gain from 12000 points depends on the starting level (20 -> 69).
+        func totalXP() -> Int { (0..<game.xpLevel).reduce(game.xpPoints) { $0 + Game.xpToNext($1) } }
+        let xp0 = game.xpLevel, pts0 = totalXP()
         _ = tick(14) { self.game.dragonKilled }
         _ = tick(1)
         check(game.dragonKilled, "wyrm: death sequence finishes")
-        check(game.xpLevel > xp0 + 50, "wyrm: 12000 XP (level \(xp0) -> \(game.xpLevel))")
+        check(totalXP() - pts0 >= 11400, "wyrm: 12000 XP (\(totalXP() - pts0) points, level \(xp0) -> \(game.xpLevel))")
         check(!game.mobs.mobs.contains { $0.kind == .enderDragon }, "wyrm: gone after dying")
         var portal = 0
         for z in -2...2 { for x in -2...2 where key(IVec3(x, fy, z)) == "end_portal" { portal += 1 } }
@@ -1208,6 +1211,11 @@ final class Playthrough {
         _ = tick(1)
         collect(near: game.player.pos, 24)
         check(count("nether_star") == 1, "blight: the Blight Star drops and is picked up (\(count("nether_star")))")
+        if count("nether_star") == 0 {
+            let stars = game.drops.items.filter { Items.key($0.stack.item) == "nether_star" }.map { String(format: "%.0f %.0f %.0f", $0.pos.x, $0.pos.y, $0.pos.z) }
+            info(String(format: "star lost: Blight health %ld at %.0f %.0f %.0f, still listed %@, stars on the ground %@", b.health, b.pos.x, b.pos.y, b.pos.z,
+                        game.mobs.mobs.contains { $0 === b } ? "yes" : "no", "\(stars)"))
+        }
         if count("nether_star") == 0 { give("nether_star", 1, bulk: "star lost") }
         give("glass", 5, bulk: "sand + furnace"); give("obsidian", 3, bulk: "obsidian")
         craft(["GGG", "GSG", "OOO"], ["G": "glass", "S": "nether_star", "O": "obsidian"], "beacon")
