@@ -447,6 +447,7 @@ final class WorldGen: TerrainGenerator {
         let caves = caveLattice(bx, bz, maxY: maxTop)
         carveCaves(&b, caves, bx, bz, tops, wls, cols)
         carveRavines(&b, bx, bz, tops, wls)
+        supportFalling(&b, tops)
 
         mark(3)
         // 4. Ores, blobs, dungeons, geodes, cave biome decoration.
@@ -935,6 +936,24 @@ final class WorldGen: TerrainGenerator {
             }
             return
         }
+    }
+
+    // Sand and gravel left as a cave or ravine ceiling turn to their stone (gencheck unsupported: beach sand over a
+    // cave fell at the first block update, 100 in 288 chunks, run 371). Only near the surface, where they're laid.
+    private func supportFalling(_ b: inout [BlockID], _ tops: [Int]) {
+        let redSand = Blocks.id("red_sand"), redStone = Blocks.id("red_sandstone")
+        for lz in 0..<CS { for lx in 0..<CS {
+            let top = tops[lx + lz * CS]
+            var y = min(CH - 2, top + 1)
+            while y > max(1, top - 10) {
+                let i = Chunk.index(lx, y, lz)
+                let v = b[i]
+                if (v == SAND || v == redSand || v == GRAVEL) && b[i - CSQ] == AIR {
+                    b[i] = v == SAND ? SANDSTONE : (v == redSand ? redStone : STONE)
+                }
+                y -= 1
+            }
+        } }
     }
 
     // Cave biomes: lush caves (moss, azalea, cave vines), driprock caves, murk depths (murk).
