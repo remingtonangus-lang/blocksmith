@@ -496,7 +496,12 @@ vertex HudOut hudVS(uint vid [[vertex_id]],
 
 fragment float4 hudFS(HudOut in [[stage_in]], texture2d_array<float> tex [[texture(0)]]) {
     if (in.layer < 0.0) { return in.color; }
-    float4 c = tex.sample(texSampler, in.uv, uint(in.layer), level(0.0));
+    // Glyphs and sprites sample the full-size level (crisp pixel art); block-face icons (layer + 4096) use the mip
+    // chain, so a 128 px face shrunk to a ~35 px icon doesn't alias.
+    float L = in.layer;
+    float4 c;
+    if (L >= 4096.0) { c = tex.sample(texSampler, in.uv, uint(L - 4096.0)); }
+    else { c = tex.sample(texSampler, in.uv, uint(L), level(0.0)); }
     if (c.a < 0.1) { discard_fragment(); }
     return float4(c.rgb * in.color.rgb, c.a * in.color.a);
 }

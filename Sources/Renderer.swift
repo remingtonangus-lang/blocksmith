@@ -2254,7 +2254,8 @@ final class Renderer: NSObject, MTKViewDelegate {
             let lo: V3 = b.minV, hi: V3 = b.maxV
             let tl: Float = 1 - hi.y, bl: Float = 1 - lo.y          // v at the top and bottom of a side face
             let un: Float = 1 - hi.z, uf: Float = 1 - lo.z          // u at the front and back of the +X face
-            func layer(_ f: Int) -> Float { b.tex.count == 6 ? Float(b.tex[f]) : Float(tex[Int(id) * 6 + f]) }
+            // + 4096: the HUD shader samples these with mipmaps (see hudFS).
+            func layer(_ f: Int) -> Float { (b.tex.count == 6 ? Float(b.tex[f]) : Float(tex[Int(id) * 6 + f])) + 4096 }
             // +Z face (left): u = x, v = 1 - y.
             let lp: [V2] = [P(lo.x, hi.y, hi.z), P(hi.x, hi.y, hi.z), P(hi.x, lo.y, hi.z), P(lo.x, lo.y, hi.z)]
             let lu: [V2] = [V2(lo.x, tl), V2(hi.x, tl), V2(hi.x, bl), V2(lo.x, bl)]
