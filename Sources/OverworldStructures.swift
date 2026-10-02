@@ -360,7 +360,8 @@ enum OverworldStructures {
                         w.set(x - ax, s.y, z - az, fence); w.set(x - ax, s.y + 1, z - az, fence)
                         w.set(x + ax, s.y, z + az, fence); w.set(x + ax, s.y + 1, z + az, fence)
                         for side in -1...1 { w.set(x + ax * side, s.y + 2, z + az * side, wood) }
-                        if r.chance(0.3) { w.set(x, s.y + 1, z, TORCH) }
+                        // A torch hung on the near post (it stood in mid-tunnel under the beam).
+                        if r.chance(0.3) { w.set(x, s.y + 1, z, TORCH + BlockID(ax != 0 ? 4 : 2)) }
                     }
                     if r.chance(0.7) && k % 5 != 2 { w.set(x, s.y, z, Blocks.id("rail") + (s.dx != 0 ? 1 : 0)) }
                     if r.chance(0.06) { w.set(x + (s.dz != 0 ? 1 : 0), s.y + 2, z + (s.dx != 0 ? 1 : 0), Blocks.id("cobweb")) }
