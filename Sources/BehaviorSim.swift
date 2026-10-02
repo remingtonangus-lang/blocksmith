@@ -61,6 +61,7 @@ enum BehaviorSim {
             let steps = Int(minutes * 60 / dt)
             var sec = 0.0
             for i in 0..<steps {
+                if traceTicks > 0 { traceTicks -= 1; if traceTicks == 0 { Mob.trace = nil } }
                 game.player.vel = .zero
                 game.player.pos = mid + V3(0, 40, 0)
                 game.tick(dt)
@@ -127,6 +128,32 @@ enum BehaviorSim {
         return "free"
     }
 
+    // Physics trace of the first stuck villagers (2 s of Mob.trace lines, with the path ahead and the blocks there).
+    static var traced = 0
+    static var traceTicks = 0
+    static func startTrace(_ m: Mob, _ w: World, _ why: String) {
+        guard traced < 2, Mob.trace == nil, m.kind == .villager else { return }
+        traced += 1
+        traceTicks = 40
+        Mob.trace = m
+        let p = m.pos
+        let ahead = m.path.nodes.dropFirst(m.path.index).prefix(4).map { n -> String in
+            let at = Blocks.key(w.block(n.x, n.y, n.z)), under = Blocks.key(w.block(n.x, n.y - 1, n.z))
+            return "\(n.x),\(n.y - YOFF),\(n.z) (\(at) on \(under))"
+        }
+        let feet = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
+        var around: [String] = []
+        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+            let a = Blocks.key(w.block(feet.x + dx, feet.y, feet.z + dz)), b = Blocks.key(w.block(feet.x + dx, feet.y + 1, feet.z + dz))
+            around.append("\(dx),\(dz): \(a)/\(b)")
+        }
+        let py: Float = p.y - Float(YOFF)
+        print(String(format: "behaviorsim trace: villager at %.2f %.2f %.2f (%@), feet in %@ on %@, yaw %.0f", p.x, py, p.z, why,
+                     Blocks.key(w.block(feet.x, feet.y, feet.z)), Blocks.key(w.block(feet.x, feet.y - 1, feet.z)), m.yaw * 180 / .pi))
+        print("  path ahead: \(ahead.joined(separator: "; "))")
+        print("  around feet (feet/head): \(around.joined(separator: "; "))")
+    }
+
     static func sample(_ t: Track, _ g: Game, _ w: World, phase: String, second: Int) {
         let m = t.mob
         let p = m.pos
@@ -161,6 +188,7 @@ enum BehaviorSim {
                     let path = m.path.nodes.isEmpty ? "nopath" : (m.path.index >= m.path.nodes.count ? "pathend" : "onpath")
                     let why = "\(phase)/\(goal)/\(path)\(m.path.partial ? "/partial" : "")\(m.unreachableTimer > 0 ? "/gaveup" : "")"
                     t.stuckWhy[why, default: 0] += 1
+                    if t.flags["stuck", default: 0] == 3 { startTrace(m, w, why) }
                 }
             }
             t.yawSum = 0; t.reversals = 0
