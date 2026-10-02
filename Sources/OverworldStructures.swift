@@ -200,6 +200,13 @@ enum OverworldStructures {
         w.fill(cx - 4, top, cz - 4, cx + 4, top, cz + 4, pl)
         for x in (cx - 4)...(cx + 4) { w.set(x, top + 1, cz - 4, fence); w.set(x, top + 1, cz + 4, fence) }
         for z in (cz - 4)...(cz + 4) { w.set(cx - 4, top + 1, z, fence); w.set(cx + 4, top + 1, z, fence) }
+        // A way in and up: a doorway with a slab step on the ground floor, and the ladder continued through the roof
+        // platform (the tower was sealed and the platform covered the shaft: structcheck, every outpost chest
+        // unreachable).
+        w.fill(cx, y + 1, cz - 3, cx, y + 2, cz - 3, AIR)
+        let slab = Blocks.has("dark_oak_slab") ? Blocks.id("dark_oak_slab") : (Blocks.has("cobblestone_slab") ? Blocks.id("cobblestone_slab") : cob)
+        w.set(cx, y, cz - 4, slab)
+        w.set(cx + 2, top, cz + 2, Blocks.id("ladder") + 2)
         w.chest(cx - 2, top + 1, cz - 2, loot: "pillager_outpost", seed: rng.next(), facing: 1)
         w.mob("pillager", V3(Float(cx) + 0.5, Float(top + 1), Float(cz) + 0.5))
         w.mob("pillager", V3(Float(cx) + 2.5, Float(top + 1), Float(cz) - 1.5))
