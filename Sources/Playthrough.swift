@@ -642,7 +642,9 @@ final class Playthrough {
         var kills = 0, rods = count("blaze_rod")
         var spawned = false
         let startT = simSeconds
-        while rods < 7 && simSeconds - startT < 600 {
+        // Up to 20 minutes: the spawner brings ~14 cinderwisps per 10 minutes and a 50% drop left 6 rods from 14
+        // kills 40% of the time (run 350 failed on that, not on a bug).
+        while rods < 7 && simSeconds - startT < 1200 {
             _ = tick(1, pin: feet)
             let blazes = game.mobs.mobs.filter { $0.kind == .blaze && $0.health > 0 && simd_length($0.pos - feet) < 20 }
             if !blazes.isEmpty { spawned = true }
@@ -673,6 +675,10 @@ final class Playthrough {
         check(spawned, "fortress: the spawner makes cinderwisps")
         check(rods >= 7, "fortress: \(rods) cinder rods from \(kills) cinderwisps in \(Int(simSeconds - startT)) s")
         if kills > 0 { info(String(format: "cinder rod rate %.2f per kill (reference 0.5 without looting)", Float(rods) / Float(kills))) }
+        if kills >= 10 {
+            let rate: Float = Float(rods) / Float(kills)
+            check(rate > 0.15 && rate < 0.9, String(format: "fortress: cinder rod rate %.2f per kill is plausible (reference 0.5)", rate))
+        }
         if rods < 7 { give("blaze_rod", 7 - rods, bulk: "missing rods") }
 
         // Void pearls from voidwalkers (warped forests / night surface); melee kills.
@@ -1177,6 +1183,9 @@ final class Playthrough {
                 // Arrows bounce off the armour below half health (only arrow damage counts: thorns, fire and the
                 // like can still hurt it in the same moment).
                 if armoredArrows == 0 { _ = tick(1.5) }                 // let arrows already in flight land first
+                // It regenerates 1 HP/s: back above half health it is unarmoured again (run 350 counted arrows that
+                // hit it at 151-152 HP as bouncing failures). Shoot only while it really wears the armour.
+                if b.health > 150 { continue }
                 let a0 = b.arrowDamage
                 let here = game.player.pos
                 shoot(at: b, from: here)
