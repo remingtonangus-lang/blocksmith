@@ -541,6 +541,10 @@ final class Terrain {
                 continue
             }
             var L = max(SEA_D, min(lv, e - 1))
+            // The last few blocks above the sea run at sea level: a wide lowland river stepped down one block wherever
+            // its level crossed a whole number, a stack of long straight water walls across the estuary (blind critic,
+            // run 364 lake shot).
+            if L < SEA_D + 3 { L = SEA_D }
             var slope = 0.22 + 0.75 * Terrain.smooth(8, 90, max(0, raw - L))
             var depth = s.depth
             var hwv = hw
