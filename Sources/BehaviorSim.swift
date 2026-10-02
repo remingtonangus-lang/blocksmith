@@ -30,6 +30,7 @@ enum BehaviorSim {
         var seen: Set<String> = []            // phases it was alive for (with a goal)
         var gaveUp = 0                        // walk targets the pathfinder couldn't reach (Mob.giveUp)
         var gaveUpAt: [String] = []           // the first few of them: target cell and block there
+        var stuckWhy: [String: Int] = [:]     // what a stuck window looked like (phase, stroll goal, path state)
         init(_ m: Mob) { mob = m; last = m.pos; lastYaw = m.yaw; startY = m.pos.y }
     }
 
@@ -94,7 +95,9 @@ enum BehaviorSim {
                 let goals = t.seen.sorted().map { ph -> String in String(format: "%@ %.1f", ph, t.best[ph] ?? 999) }.joined(separator: ", ")
                 if !fl.isEmpty || goals.contains("999") || rows.count < 4 {
                     let p = String(format: "%.1f %.1f %.1f", t.mob.pos.x, t.mob.pos.y - Float(YOFF), t.mob.pos.z)
-                    let gu = t.gaveUp > 0 ? "; gave up \(t.gaveUp)x (\(t.gaveUpAt.joined(separator: "; ")))" : ""
+                    let gu0 = t.gaveUp > 0 ? "; gave up \(t.gaveUp)x (\(t.gaveUpAt.joined(separator: "; ")))" : ""
+                    let top = t.stuckWhy.sorted { $0.value > $1.value }.prefix(3).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+                    let gu = gu0 + (top.isEmpty ? "" : "; stuck as \(top)")
                     rows.append("- \(t.mob.kind.key) at \(p): \(fl.isEmpty ? "ok" : fl)\(goals.isEmpty ? "" : "; closest to goals: " + goals)\(gu)")
                 }
             }
@@ -146,7 +149,14 @@ enum BehaviorSim {
             if m.moving && d < 0.5 && !m.sitting {
                 var far = true
                 if let goal = goalPoint(m, phase), simd_length(goal - p) < 3 { far = false }
-                if far { t.flags["stuck", default: 0] += 1 }
+                if far {
+                    t.flags["stuck", default: 0] += 1
+                    // Why: the schedule phase, whether it strolls to a goal or faces a target, the path it follows.
+                    let goal = m.wanderGoal != nil ? "stroll" : (m.faceGoal != nil ? "target" : "heading")
+                    let path = m.path.nodes.isEmpty ? "nopath" : (m.path.index >= m.path.nodes.count ? "pathend" : "onpath")
+                    let why = "\(phase)/\(goal)/\(path)\(m.path.partial ? "/partial" : "")\(m.unreachableTimer > 0 ? "/gaveup" : "")"
+                    t.stuckWhy[why, default: 0] += 1
+                }
             }
             t.yawSum = 0; t.reversals = 0
             t.window.removeAll(keepingCapacity: true)
