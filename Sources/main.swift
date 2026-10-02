@@ -390,6 +390,8 @@ enum Snapshot {
             pos.y = Float(y + 1) + (Float(arg("--up") ?? "") ?? 0)
             game.player.pos = pos
         }
+        // --feet Y: the camera's feet at displayed height Y (structcheck issue views from inside a structure).
+        if let fy = Float(arg("--feet") ?? "") { pos.y = fy + Float(YOFF); game.player.pos = pos }
         // Never render from inside solid blocks: move to the nearest two-high air pocket.
         func solidAt(_ p: V3) -> Bool { Blocks.collide[Int(world.block(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z))))] }
         if solidAt(game.player.eye) || solidAt(game.player.pos + V3(0, 0.1, 0)) {

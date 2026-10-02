@@ -22,7 +22,10 @@ import simd
 // doors and gates count as open, ladders and vines climb. Prints a summary per kind, writes a report
 // (--out FILE, markdown) with every issue's position and a snapshot command to look at it.
 enum StructCheck {
-    struct Issue { let cls: String; let kind: String; let seed: UInt64; let pos: IVec3; let detail: String }
+    struct Issue {
+        let cls: String; let kind: String; let seed: UInt64; let pos: IVec3; let detail: String
+        var view = ""                 // snapshot args looking from the walk's closest cell toward the issue
+    }
 
     // Underwater / buried kinds: no walking checks (they are reached by swimming or digging).
     static let noWalk: Set<String> = ["monument", "ocean_ruin", "shipwreck", "buried_treasure", "fossil", "trail_ruins"]
@@ -226,6 +229,7 @@ enum StructCheck {
             let shownY: Int = i.pos.y - YOFF
             let where_: String = "seed \(i.seed) at \(i.pos.x) \(shownY) \(i.pos.z)"
             lines.append("- **\(i.cls)** \(i.kind) " + where_ + ": \(i.detail)  `\(snap)`")
+            if !i.view.isEmpty { lines.append("  - view: `\(i.view)`") }
         }
         let report = lines.joined(separator: "\n") + "\n"
         if let out = arg("--out") { try? report.write(toFile: out, atomically: true, encoding: .utf8) }
@@ -308,6 +312,7 @@ enum StructCheck {
         // Doors.
         var doors = 0, pois = 0
         var explained = false
+        var viewArgs = ""
         if walk {
             for y in max(1, s.min.y)...min(CH - 3, s.max.y) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
                 let b = w.block(x, y, z)
@@ -389,8 +394,14 @@ enum StructCheck {
                         let col = (-1...2).map { Blocks.key(w.block(sx, best.y + $0, sz)) }.joined(separator: "/")
                         let by: Int = best.y - YOFF
                         detail += "; closest reached \(best.x) \(by) \(best.z), next toward it \(sx) \(sz) from y-1 up: \(col)"
+                        let ddx = Float(x - best.x), ddz = Float(z - best.z)
+                        let yawD: Float = atan2f(-ddx, -ddz) * 180 / Float.pi
+                        let dimArg = w.dim == .overworld ? "" : " --dim \(w.dim.rawValue)"
+                        viewArgs = String(format: "--seed %llu%@ --x %.1f --z %.1f --feet %ld --yaw %.0f --pitch -15", seed, dimArg,
+                                          Float(best.x) + 0.5, Float(best.z) + 0.5, by, yawD)
                     }
                     add("poi_unreachable", IVec3(x, y, z), detail)
+                    if !viewArgs.isEmpty { out[out.count - 1].view = viewArgs; viewArgs = "" }
                 }
             } } }
         }

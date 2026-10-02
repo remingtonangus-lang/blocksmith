@@ -36,6 +36,13 @@ cp -r build/sounds/scapes snaps/sounds/scapes
 "$BIN" --kelpcheck --seed 777 --x 600 --z 300 --radius 18
 # Structure walkability: every structure kind in every dimension, 3 seeds x 3 instances (report: snaps/structcheck.md).
 "$BIN" --structcheck --seeds 12345,777,424242 --per 3 --out snaps/structcheck.md
+# Issue gallery: the first six structcheck views, from the walk's closest cell toward an unreachable chest or bed.
+k=0
+grep -o 'view: `[^`]*`' snaps/structcheck.md 2>/dev/null | sed 's/^view: `//; s/`$//' | head -6 | while read -r v; do
+  k=$((k + 1))
+  # shellcheck disable=SC2086
+  "$BIN" --snapshot "snaps/issue_$k.png" $v --rd 4 || true
+done
 # Bots playing the real Game.tick (Agent.swift): oracles every tick, replays for every finding (snaps/agent_*.md).
 "$BIN" --behaviorsim --seeds 12345,777 --minutes 20 --out snaps/behaviorsim.md
 "$BIN" --gencheck --seeds 12345,777,424242 --areas 6 --out snaps/gencheck.md
