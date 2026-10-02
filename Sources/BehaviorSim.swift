@@ -170,7 +170,21 @@ enum BehaviorSim {
         // In a wall.
         let lo = V3(p.x - m.halfW + 0.05, p.y + 0.05, p.z - m.halfW + 0.05)
         let hi = V3(p.x + m.halfW - 0.05, p.y + m.height - 0.1, p.z + m.halfW - 0.05)
-        if w.collides(lo, hi) { t.wallSeconds += 1; if t.wallSeconds == 2 { t.flags["in_wall", default: 0] += 1 } } else { t.wallSeconds = 0 }
+        if w.collides(lo, hi) {
+            t.wallSeconds += 1
+            if t.wallSeconds == 2 {
+                t.flags["in_wall", default: 0] += 1
+                // Which blocks the body overlaps, and what the mob is doing (iron golems, runs 372-373).
+                var hits: [String] = []
+                for y in Int(floor(lo.y))...Int(floor(hi.y)) { for z in Int(floor(lo.z))...Int(floor(hi.z)) { for x in Int(floor(lo.x))...Int(floor(hi.x)) {
+                    let b = w.block(x, y, z)
+                    if Blocks.collide[Int(b)] { hits.append("\(Blocks.key(b)) \(x) \(y - YOFF) \(z)") }
+                } } }
+                let py: Float = p.y - Float(YOFF)
+                print(String(format: "behaviorsim in_wall: %@ at %.2f %.2f %.2f (half width %.2f, %@) overlaps %@", m.kind.key, p.x, py, p.z, m.halfW,
+                             phase, hits.prefix(6).joined(separator: ", ")))
+            }
+        } else { t.wallSeconds = 0 }
         // Turning and reversals.
         t.yawSum += abs(wrapAngle(m.yaw - t.lastYaw))
         t.lastYaw = m.yaw
