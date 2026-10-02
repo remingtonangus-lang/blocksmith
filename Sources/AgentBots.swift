@@ -225,6 +225,8 @@ final class VillageBot: AgentBot {
     var since = 0
     var best: Float = 999
     var started = false
+    var trace: [IVec3] = []          // where the bot was each second on the current door (printed when it fails)
+    var plans: [Int] = []            // node counts of the paths planned for the current door (0: no path)
 
     init(world w: World, village s: StructureStart) {
         PathFinder.doors = true
@@ -287,6 +289,7 @@ final class VillageBot: AgentBot {
         let flat: Float = simd_length(V2(goal.x - s.pos.x, goal.z - s.pos.z))
         best = min(best, flat)
         ticks += 1
+        if ticks % 60 == 1 { trace.append(IVec3(Int(floor(s.pos.x)), Int(floor(s.pos.y)) - YOFF, Int(floor(s.pos.z)))) }
         if flat < 0.6 && abs(goal.y - s.pos.y) < 1.1 {
             results.append(("enter the building with the door at \(d.door.x) \(d.door.y - YOFF) \(d.door.z)", true, "in after \(ticks / 60) s"))
             next(s); return act
@@ -298,12 +301,15 @@ final class VillageBot: AgentBot {
             a.flag("goal_failed", "couldn't walk into the building at door \(d.door.x) \(d.door.y - YOFF) \(d.door.z)")
             print("agent village: unmet door \(d.door.x) \(d.door.y - YOFF) \(d.door.z), inside \(d.inside.x) \(d.inside.z), bot \(feet.x) \(feet.y - YOFF) \(feet.z)")
             for line in VillageBot.section(a.world, d, bot: feet) { print("  " + line) }
+            print("  paths planned (nodes, 0 = none): \(plans.prefix(24).map(String.init).joined(separator: " "))")
+            print("  trace (1/s): \(trace.map { "\($0.x),\($0.y),\($0.z)" }.joined(separator: " "))")
             next(s); return act
         }
         if idx >= path.count || since > 150 {
             var pr = PathProfile()
             pr.doors = true
             path = PathFinder.find(a.world, from: s.pos, to: goal, profile: pr, maxNodes: 4000) ?? []
+            plans.append(path.count)
             idx = 0; since = 0
         }
         since += 1
@@ -336,7 +342,7 @@ final class VillageBot: AgentBot {
         doors = out
     }
 
-    func next(_ s: AgentState) { cur += 1; ticks = 0; path = []; idx = 0; since = 0; best = 999 }
+    func next(_ s: AgentState) { cur += 1; ticks = 0; path = []; idx = 0; since = 0; best = 999; trace = []; plans = [] }
 
     func goals() -> [(String, Bool, String)] {
         if doors.isEmpty { return [("find doors in the village", false, "no doors found")] }
