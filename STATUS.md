@@ -278,6 +278,12 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   deeper foundations, jungle-temple steps, water ripple fade. Run 359: build, type-check gate (no expression >= 300 ms),
   smoke, bench and playthrough green. Gemini critic hit the free-tier quota after one shot; a Claude subagent critic
   covers the rest.
+- 2026-10-02 09:40 UTC: run 359 (fedf316) and run 360 (a0cc166) fully green -> PLAYTEST READY a0cc166 on PR #9.
+  Run 360: villager beds 42/42, meet 49/49, work 25/25; floating blocks in caves 18 -> 3; gravel over caves 623 -> 100;
+  structcheck 32 issues. Not fixed by what was tried: lake leaks at chunk borders (225; leak gallery and side details
+  added to find which column is open) and structure floating columns (same 9 with 40-48 block foundations, so they
+  aren't foundations; floating views added to the issue gallery). Two blind critics (scene and menus) found 15 issues,
+  all addressed in 395917e (run 361). Gemini critic falls back to flash-lite when the flash quota is spent.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
