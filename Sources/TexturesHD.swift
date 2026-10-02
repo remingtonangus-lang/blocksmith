@@ -1778,12 +1778,20 @@ enum HDTex {
             let d: Float = (dx * dx + dy * dy).squareRoot()
             let ang: Float = atan2f(dy, dx)
             var c: V3? = nil
-            let tieT: Float = (ang / (.pi / 2) * 4).truncatingRemainder(dividingBy: 1)
-            if d > 2 * u && d < 15 * u && abs(tieT - 0.5) < 0.16 {
+            // Three ties per quarter as straight bars one texel-block wide (angular wedges fanned out like spokes), from
+            // 2u to 14u like the straight rail's.
+            let step: Float = .pi / 6
+            let k: Float = floorf(ang / step)
+            let off: Float = ang - (k + 0.5) * step
+            let across: Float = d * sinf(off)
+            if d > 2 * u && d < 14 * u && abs(across) < u * 0.55 {
                 let g: Float = 0.82 + 0.25 * grain[i]
-                c = tc * g
+                var edge: Float = 1
+                if across < -u * 0.35 { edge = 1.15 } else if across > u * 0.35 { edge = 0.72 }
+                c = tc * (g * edge)
             }
-            for r in [Float(4.5), 13.5] {
+            // Rails on the straight rail's gauge (its rails sit 3.5u and 12.5u in from the edge).
+            for r in [Float(3.5), 12.5] {
                 let off: Float = d - r * u
                 if abs(off) < u / 2 {
                     let rel: Float = off / u + 0.5
