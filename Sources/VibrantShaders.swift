@@ -153,11 +153,12 @@ static float vibShadow(depth2d<float> sm, float3 rel, float3 n, constant Uniform
         // Far away a single filtered tap is indistinguishable from the 6-tap kernel.
         return mix(1.0, mix(sm.sample_compare(cmp, uv, z), 1.0, edge), u.sunColor.w);
     }
+    // Taps 2 texels out: a softer penumbra (hard shadow edges stepped across grass terraces: Gemini critic, spawn).
     float s = sm.sample_compare(cmp, uv, z) * 2.0;
-    s += sm.sample_compare(cmp, uv + float2(ts, ts) * 1.2, z);
-    s += sm.sample_compare(cmp, uv + float2(-ts, ts) * 1.2, z);
-    s += sm.sample_compare(cmp, uv + float2(ts, -ts) * 1.2, z);
-    s += sm.sample_compare(cmp, uv + float2(-ts, -ts) * 1.2, z);
+    s += sm.sample_compare(cmp, uv + float2(ts, ts) * 2.0, z);
+    s += sm.sample_compare(cmp, uv + float2(-ts, ts) * 2.0, z);
+    s += sm.sample_compare(cmp, uv + float2(ts, -ts) * 2.0, z);
+    s += sm.sample_compare(cmp, uv + float2(-ts, -ts) * 2.0, z);
     s /= 6.0;
     return mix(1.0, mix(s, 1.0, edge), u.sunColor.w);
 }
