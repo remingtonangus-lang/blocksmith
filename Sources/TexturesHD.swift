@@ -4864,6 +4864,170 @@ enum HDTex {
         return img
     }
 
+    // MARK: Ship fittings (helm, propellers, engines, lift balloons, airfoils, wheels): their 16 px art upscaled.
+
+    // Canvas: a fine over-under weave with seams every half block (stitched), for balloons and wing skins.
+    static func canvas(_ c: UInt32, seams: Bool) -> Gen {
+        { n, s in
+            let u = n / 16
+            let fine = vnoise(n, max(1, n / 128), s)
+            let blot = fbm(n, n / 4, 3, s &+ 1)
+            var img = Img(n)
+            let base = col(c)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let wx: Int = (x / max(1, n / 64)) % 2, wy: Int = (y / max(1, n / 64)) % 2
+                let weave: Float = wx == wy ? 1.03 : 0.96
+                var k: Float = weave * (0.9 + 0.08 * fine[i] + (blot[i] - 0.5) * 0.08)
+                if seams {
+                    let sx: Int = x % (8 * u), sy: Int = y % (8 * u)
+                    if sx < u / 2 || sy < u / 2 { k *= 0.78 }
+                    let stitchX: Bool = sx == u && (y / max(1, u / 2)) % 2 == 0
+                    let stitchY: Bool = sy == u && (x / max(1, u / 2)) % 2 == 0
+                    if stitchX || stitchY { k *= 0.85 }
+                }
+                img.px[i] = solid(base * k)
+            } }
+            return img
+        }
+    }
+
+    static func shipFace(_ kind: String) -> Gen {
+        { n, s in
+            let u = n / 16, fu = Float(n) / 16
+            let fine = vnoise(n, max(1, n / 64), s &+ 9)
+            switch kind {
+            case "ship_metal":
+                var img = metal(0x6E767E, tiles: 2, shine: 0.12)(n, s)
+                for t in 0..<4 {
+                    let cx: Float = fu * (2.5 + 8 * Float(t % 2)), cy: Float = fu * (2.5 + 8 * Float(t / 2))
+                    let rr: Float = fu * 0.6
+                    for y in Int(cy - rr - 1)...Int(cy + rr + 1) { for x in Int(cx - rr - 1)...Int(cx + rr + 1) {
+                        let ox: Float = Float(x) + 0.5 - cx, oy: Float = Float(y) + 0.5 - cy
+                        let d: Float = (ox * ox + oy * oy).squareRoot() / rr
+                        guard d < 1 else { continue }
+                        let lit: Float = -(ox + oy) / (rr * 1.4)
+                        img[x, y] = solid(col(0xB8BEC4) * (1 + 0.35 * lit))
+                    } }
+                }
+                return img
+            case "ship_engine_side":
+                var img = metal(0x737B83, shine: 0.1)(n, s)
+                for y in 0..<n { for x in 0..<n {
+                    let i = y * n + x
+                    if y < 2 * u || y >= 14 * u { img.px[i] = solid(col(0x3E4348) * (0.9 + 0.15 * fine[i])); continue }
+                    let fx: Float = (Float(x) / (fu * 4)).truncatingRemainder(dividingBy: 1)
+                    let fin: Float = 0.5 + 0.5 * cosf(fx * 2 * Float.pi)
+                    img.px[i] = scaled(img.px[i], 0.7 + 0.4 * fin)
+                } }
+                return img
+            case "ship_engine_top", "ship_ring_top":
+                let engine = kind == "ship_engine_top"
+                var img = metal(0x6E767E, shine: 0.1)(n, s)
+                for y in 0..<n { for x in 0..<n {
+                    let ox: Float = Float(x) + 0.5 - Float(n) / 2, oy: Float = Float(y) + 0.5 - Float(n) / 2
+                    let d: Float = (ox * ox + oy * oy).squareRoot() / fu
+                    let i = y * n + x
+                    if engine {
+                        if d < 3.2 {
+                            let soot: Float = d / 3.2
+                            img.px[i] = solid(col(0x1A1A1A) * (0.6 + 0.6 * soot * soot))
+                        } else if d < 4.5 {
+                            var edge: Float = 1.05
+                            if d < 3.5 { edge = 0.7 } else if d > 4.2 { edge = 0.75 }
+                            img.px[i] = solid(col(0xC9A23A) * (edge * (0.9 + 0.15 * fine[i])))
+                        }
+                    } else {
+                        if d > 5.5 && d < 7.5 {
+                            let race: Float = 0.75 + 0.35 * sinf((d - 5.5) / 2 * Float.pi)
+                            img.px[i] = solid(col(0xC9A23A) * (race * (0.9 + 0.15 * fine[i])))
+                        } else if d < 2 { img.px[i] = solid(col(0x2E3236) * (0.8 + 0.1 * d)) }
+                    }
+                } }
+                return img
+            case "ship_engine_front":
+                var img = metal(0x3E4348, shine: 0.08)(n, s)
+                let glow = fbm(n, n / 4, 3, s &+ 4)
+                for y in (2 * u)..<(14 * u) { for x in (2 * u)..<(14 * u) {
+                    let i = y * n + x
+                    let slat: Int = (y - 2 * u) % (3 * u)
+                    if slat < u {
+                        let k: Float = slat == 0 ? 0.55 : 0.3
+                        img.px[i] = solid(col(0x3A3E44) * (k + 0.1 * fine[i]))
+                    } else {
+                        let depth: Float = Float(slat - u) / Float(2 * u)
+                        let heat: Float = 0.55 + 0.55 * glow[i]
+                        img.px[i] = solid(col(0xE0752A) * (heat * (0.6 + 0.5 * depth)))
+                    }
+                } }
+                bevelFrame(&img) { x, y in
+                    let xx = ((x % n) + n) % n, yy = ((y % n) + n) % n
+                    return xx < 2 * u || yy < 2 * u || xx >= n - 2 * u || yy >= n - 2 * u
+                }
+                return img
+            case "ship_ring_side", "ship_barrel":
+                let ring = kind == "ship_ring_side"
+                let tone: UInt32 = ring ? 0x6E767E : 0x55595E
+                var img = metal(tone, shine: 0.1)(n, s)
+                for y in 0..<n { for x in 0..<n {
+                    let i = y * n + x
+                    if ring {
+                        if y < 3 * u || y >= 13 * u {
+                            let lip: Float = (y == 3 * u - 1 || y == 13 * u) ? 0.6 : 0.8
+                            img.px[i] = scaled(img.px[i], lip)
+                            continue
+                        }
+                        let rx: Float = (Float(x) / (fu * 2)).truncatingRemainder(dividingBy: 1)
+                        let roller: Float = sinf(rx * Float.pi)
+                        img.px[i] = solid(col(0xC9A23A) * (0.55 + 0.6 * roller))
+                    } else {
+                        let by: Int = y % (8 * u)
+                        if by < 2 * u {
+                            var k: Float = 0.62
+                            if by == 0 { k = 0.8 } else if by == 2 * u - 1 { k = 0.45 }
+                            img.px[i] = solid(col(0x3A3E42) * (k + 0.2 * fine[i]))
+                        }
+                    }
+                } }
+                return img
+            case "ship_tyre":
+                var img = Img(n)
+                for y in 0..<n { for x in 0..<n {
+                    let i = y * n + x
+                    let t: Float = (Float(x + y) / (fu * 4)).truncatingRemainder(dividingBy: 1)
+                    let groove: Bool = t < 0.22
+                    var k: Float = 0.95 + 0.1 * fine[i]
+                    if groove { k = 0.55 } else if t < 0.3 { k = 1.15 }
+                    img.px[i] = solid(col(0x2B2B2D) * k)
+                } }
+                return img
+            case "ship_wing":
+                var img = canvas(0xD8CDB0, seams: false)(n, s)
+                let rib = planks(pal(col(0x6E5434), lo: 0.8, hi: 1.15))(n, s &+ 2)
+                for y in 0..<n { for x in 0..<n {
+                    let ry: Int = y % (8 * u)
+                    guard ry < u + u / 2 else { continue }
+                    let i = y * n + x
+                    var k: Float = 1
+                    if ry == 0 { k = 1.2 } else if ry == u + u / 2 - 1 { k = 0.6 }
+                    img.px[i] = scaled(rib.px[i], k)
+                } }
+                return img
+            default:
+                return shipPlain(kind)(n, s)
+            }
+        }
+    }
+    static func shipPlain(_ kind: String) -> Gen {
+        switch kind {
+        case "ship_wood": return planks(pal(col(0x9C6B3C), lo: 0.75, hi: 1.15))
+        case "ship_wood_dark": return planks(pal(col(0x5A3A1E), lo: 0.75, hi: 1.2))
+        case "ship_brass": return metal(0xC9A23A, shine: 0.2)
+        case "ship_blade": return metal(0xD9DDE0, shine: 0.16)
+        default: return canvas(0xEDE3C8, seams: true)          // ship_balloon
+        }
+    }
+
     static func generator(_ name: String, _ src: [V4]) -> Gen? {
         if let g = table[name] { return g }
         if let g = crop(name) { return g }
@@ -5356,7 +5520,21 @@ enum HDTex {
         "bamboo_mosaic": masonry(rows: 4, perRow: 2, offset: 0.5, mortarW: 1 / 28, [(0, 0xA8923E), (0.5, 0xC8B25A), (1, 0xDCC874)], mortar: 0x8A7430, chips: 0.2, tone: 0.1),
         "shulker_box_side": shulkerFace(top: false),
         "shulker_box_top": shulkerFace(top: true),
-        "candle": candleHD
+        "candle": candleHD,
+        "ship_wood": shipFace("ship_wood"),
+        "ship_wood_dark": shipFace("ship_wood_dark"),
+        "ship_brass": shipFace("ship_brass"),
+        "ship_metal": shipFace("ship_metal"),
+        "ship_blade": shipFace("ship_blade"),
+        "ship_engine_side": shipFace("ship_engine_side"),
+        "ship_engine_top": shipFace("ship_engine_top"),
+        "ship_engine_front": shipFace("ship_engine_front"),
+        "ship_balloon": shipFace("ship_balloon"),
+        "ship_wing": shipFace("ship_wing"),
+        "ship_ring_top": shipFace("ship_ring_top"),
+        "ship_ring_side": shipFace("ship_ring_side"),
+        "ship_barrel": shipFace("ship_barrel"),
+        "ship_tyre": shipFace("ship_tyre")
     ]
 
     // MARK: Upscale for textures without an HD material
