@@ -126,7 +126,10 @@ enum Smoke {
                     opened.append(k)
                 }
                 world.setBlock(bp.x, bp.y, bp.z, before)
-                if game.menu == nil { game.openMenu(PauseMenu(game: game)) }
+                // Back to the paused state the script expects (closing the pause menu unpaused the game; the resume
+                // press at 1230 would otherwise pause it again and leave the menu open).
+                game.closeMenu()
+                game.paused = true
                 print("smoke rd \(rd): menu tour: \(pagesSeen) screens, \(rowsSeen) rows hovered; \(opened.count) block screens opened\(unopened.isEmpty ? "" : ", none for " + unopened.joined(separator: " "))")
             }
             if i == flyAt { game.player.flying = true; game.player.vel.y = 0 }
