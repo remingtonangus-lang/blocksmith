@@ -161,10 +161,11 @@ enum OverworldStructures {
         if rng.chance(0.5) {
             let by = y - 11
             w.set(cx, y - 1, cz - 2, Blocks.id("oak_trapdoor") + 8)
-            for yy in (by + 1)...(y - 2) { w.set(cx, yy, cz - 2, Blocks.id("ladder") + 1) }
             w.fill(cx - 3, by - 1, cz - 3, cx + 3, by + 4, cz + 3, Blocks.id("stone_bricks"))
             w.fill(cx - 2, by, cz - 2, cx + 2, by + 3, cz + 2, AIR)
-            w.set(cx, by + 3, cz - 2, Blocks.id("ladder") + 1)
+            // The ladder after the room: laid first, the lab's ceiling covered the shaft (structcheck, run 368: both
+            // basements' chest and cauldron unreachable).
+            for yy in (by + 1)...(y - 2) { w.set(cx, yy, cz - 2, Blocks.id("ladder") + 1) }
             w.chest(cx + 2, by, cz + 2, loot: "igloo_chest", seed: rng.next(), facing: 0)
             w.set(cx + 2, by, cz, Blocks.id("cauldron"))
             // The villager's cell: the west column behind iron bars.
