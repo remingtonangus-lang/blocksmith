@@ -1820,6 +1820,111 @@ enum HDTex {
         }
     }
 
+    // Two-block flowers (cutout). Bottom: a stem with three pairs of lance leaves. Top: the stem up to the bloom:
+    // sunflower (petal ring around a seed disc), lilac (a cone of florets), rose bush (roses among leaves), peony (a
+    // layered round bloom).
+    enum TallKind { case sunflower, lilac, rose, peony }
+    static func tallFlowerHD(bottom: Bool, stem: UInt32, bloom: UInt32, kind: TallKind, salt: Int) -> Gen {
+        { n, _ in
+            let fn = Float(n)
+            var img = Img(n, V4(0, 0, 0, 0))
+            func plot(_ x: Int, _ y: Int, _ c: V3) {
+                guard x >= 0 && x < n && y >= 0 && y < n else { return }
+                img.px[y * n + x] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
+            }
+            func blob(_ cx: Float, _ cy: Float, _ rx: Float, _ ry: Float, _ ang: Float, _ c: V3, lit: Bool = true) {
+                let ca = cosf(ang), sa = sinf(ang)
+                let r = Int(max(rx, ry)) + 1
+                for y in (Int(cy) - r)...(Int(cy) + r) { for x in (Int(cx) - r)...(Int(cx) + r) {
+                    let dx: Float = Float(x) + 0.5 - cx, dy: Float = Float(y) + 0.5 - cy
+                    let u: Float = (dx * ca + dy * sa) / rx, v: Float = (-dx * sa + dy * ca) / ry
+                    let d: Float = u * u + v * v
+                    guard d <= 1 else { continue }
+                    let shaded: Float = 0.8 + 0.3 * (1 - d) - 0.08 * v
+                    let k: Float = lit ? shaded : 1
+                    plot(x, y, c * k)
+                } }
+            }
+            let sc = col(stem), bc = col(bloom)
+            let headY: Float = bottom ? -fn : fn * 7 / 16
+            // Stem.
+            for y in 0..<n where Float(y) > headY {
+                let x: Float = fn / 2 + sinf(Float(y) / fn * 3 + Float(salt % 5)) * fn / 60
+                let w: Float = fn / 40 + 1
+                for xx in Int(x - w)...Int(x + w) {
+                    let u: Float = (Float(xx) + 0.5 - x) / w
+                    let k: Float = 0.95 - 0.25 * u
+                    plot(xx, y, sc * k)
+                }
+            }
+            if bottom {
+                for i in 0..<3 {
+                    let ly: Float = fn * (0.88 - 0.3 * Float(i))
+                    for side: Float in [-1, 1] {
+                        let len: Float = fn * (0.3 - 0.05 * Float(i))
+                        let ang: Float = -.pi / 2 + side * (0.85 + 0.1 * Float(i))
+                        let lx: Float = fn / 2 + cosf(ang) * len / 2, lyc: Float = ly + sinf(ang) * len / 2
+                        blob(lx, lyc, len / 2, fn / 28, ang, sc)
+                    }
+                }
+                return img
+            }
+            switch kind {
+            case .sunflower:
+                let rr: Float = fn * 6 / 16
+                for i in 0..<16 {
+                    let a: Float = Float(i) / 16 * 2 * .pi
+                    let px: Float = fn / 2 + cosf(a) * rr * 0.62, py: Float = headY + sinf(a) * rr * 0.62
+                    blob(px, py, rr * 0.42, rr * 0.17, a, bc)
+                }
+                let disc: Float = fn * 2.6 / 16
+                for y in Int(headY - disc)...Int(headY + disc) { for x in Int(fn / 2 - disc)...Int(fn / 2 + disc) {
+                    let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - headY
+                    let d: Float = (dx * dx + dy * dy).squareRoot()
+                    guard d < disc else { continue }
+                    let seed: Bool = h2(x / max(1, n / 48), y / max(1, n / 48), salt) > 0.5
+                    let seedK: Float = seed ? 0.75 : 1
+                    let rim: Float = 0.85 + 0.15 * (1 - d / disc)
+                    let k: Float = seedK * rim
+                    plot(x, y, col(0x5A3A12) * k)
+                } }
+            case .lilac:
+                for i in 0..<70 {
+                    let t: Float = h2(i, 1, salt)
+                    let ry: Float = fn * 5.5 / 16, rx: Float = fn * 3.5 / 16 * (1 - t * 0.7)
+                    let x: Float = fn / 2 + (h2(i, 2, salt) - 0.5) * 2 * rx
+                    let y: Float = headY + ry * 0.6 - t * ry * 1.4
+                    let tone: Float = 0.85 + 0.3 * h2(i, 3, salt)
+                    blob(x, y, fn / 34 + 1, fn / 34 + 1, 0, bc * tone)
+                }
+            case .rose:
+                for i in 0..<14 {
+                    let x: Float = fn / 2 + (h2(i, 1, salt) - 0.5) * fn * 0.6
+                    let y: Float = headY + (h2(i, 2, salt) - 0.3) * fn * 0.5
+                    blob(x, y, fn / 14, fn / 24, h2(i, 3, salt) * .pi, sc * 0.9)
+                }
+                for i in 0..<6 {
+                    let x: Float = fn / 2 + (h2(i, 5, salt) - 0.5) * fn * 0.55
+                    let y: Float = headY + (h2(i, 6, salt) - 0.4) * fn * 0.45
+                    blob(x, y, fn / 18, fn / 18, 0, bc)
+                    blob(x - fn / 90, y - fn / 90, fn / 40, fn / 40, 0, bc * 0.7, lit: false)        // the rose's centre
+                }
+            case .peony:
+                let rr: Float = fn * 4.2 / 16
+                for layer in 0..<3 {
+                    let r: Float = rr * (1 - Float(layer) * 0.28)
+                    let k: Float = 0.85 + 0.1 * Float(layer)
+                    for i in 0..<9 {
+                        let a: Float = Float(i) / 9 * 2 * .pi + Float(layer) * 0.4
+                        let px: Float = fn / 2 + cosf(a) * r * 0.45, py: Float = headY + sinf(a) * r * 0.45
+                        blob(px, py, r * 0.5, r * 0.32, a, bc * k)
+                    }
+                }
+            }
+            return img
+        }
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -2347,6 +2452,14 @@ enum HDTex {
         "water": waterHD,
         "leaf_litter": leafLitter,
         // Flowers.
+        "sunflower_bottom": tallFlowerHD(bottom: true, stem: 0x4A8A30, bloom: 0, kind: .sunflower, salt: 420),
+        "sunflower_top": tallFlowerHD(bottom: false, stem: 0x4A8A30, bloom: 0xF5C52A, kind: .sunflower, salt: 421),
+        "lilac_bottom": tallFlowerHD(bottom: true, stem: 0x4A7A30, bloom: 0, kind: .lilac, salt: 422),
+        "lilac_top": tallFlowerHD(bottom: false, stem: 0x4A7A30, bloom: 0xC89AD8, kind: .lilac, salt: 423),
+        "rose_bush_bottom": tallFlowerHD(bottom: true, stem: 0x2E6A22, bloom: 0, kind: .rose, salt: 424),
+        "rose_bush_top": tallFlowerHD(bottom: false, stem: 0x2E6A22, bloom: 0xC81E1E, kind: .rose, salt: 425),
+        "peony_bottom": tallFlowerHD(bottom: true, stem: 0x4A7A30, bloom: 0, kind: .peony, salt: 426),
+        "peony_top": tallFlowerHD(bottom: false, stem: 0x4A7A30, bloom: 0xE8B0D8, kind: .peony, salt: 427),
         "poppy": flowerHD(0xDB2420, 0x331F0D, .ring, top: 5, size: 2.8, salt: 40),
         "dandelion": flowerHD(0xFAD733, 0xE68C1A, .ring, top: 5, size: 2.8, salt: 42),
         "cornflower": flowerHD(0x5A80F2, 0xF2E680, .ring, top: 5, size: 2.8, salt: 44),
