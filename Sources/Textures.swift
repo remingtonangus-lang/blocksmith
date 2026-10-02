@@ -863,10 +863,12 @@ enum TextureGen {
         p["heart_empty"] = { heart($0, $1, 0) }
         // Rain streak: fills the (thin) quad; brighter core, slight breaks along its length.
         p["rain_drop"] = { x, y in (y % 7 == 6) ? clear : V4(0.72 + (x == 7 || x == 8 ? 0.15 : 0), 0.8 + (x == 7 || x == 8 ? 0.12 : 0), 1, 0.9) }
+        // Snowflake: a soft round flake (the star read as stray sparkles in falling snow: blind critic, run 364).
         p["snow_flake"] = { x, y in
-            let dx = abs(x * 2 - 15), dy = abs(y * 2 - 15)
-            if dx + dy < 14 && (dx < 3 || dy < 3 || abs(dx - dy) < 3) { return V4(1, 1, 1, 0.95) }
-            return clear
+            let dx = Float(x) - 7.5, dy = Float(y) - 7.5
+            let d = (dx * dx + dy * dy).squareRoot() / 7.5
+            if d > 1 { return clear }
+            return V4(1, 1, 1, 0.95 * (1 - d * d))
         }
         // Recoloured hearts: absorption (gold), poison (green), blight (black).
         for (name, tint) in [("gold", V3(1.0, 0.8, 0.15)), ("poison", V3(0.55, 0.72, 0.2)), ("wither", V3(0.28, 0.24, 0.22))] {

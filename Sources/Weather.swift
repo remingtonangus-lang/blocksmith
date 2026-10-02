@@ -179,7 +179,7 @@ extension Game {
                 let h = hashf(x, 0, z, 91)
                 let snow = kind == 2
                 let speed: Float = snow ? 2 : 14
-                for k in 0..<(snow ? 2 : 3 + Int(weather.rain * 4)) {
+                for k in 0..<(snow ? 5 : 3 + Int(weather.rain * 4)) {
                     let span = yHi - yLo
                     let off = (t * speed + h * 97 + Float(k) * 7.3).truncatingRemainder(dividingBy: 22)
                     let y = yHi - off
@@ -189,7 +189,9 @@ extension Game {
                     if simd_length(c3) < 1.5 { continue }
                     if snow {
                         c3.x += sinf(t * 1.3 + h * 10 + Float(k)) * 0.3
-                        let s: Float = 0.06
+                        // Bigger with distance so far flakes stay a pixel or two instead of vanishing (snowfall read as
+                        // about thirty stray sparkles: blind critic, run 364).
+                        let s: Float = max(0.07, simd_length(c3) * 0.005)
                         let up = V3(0, s, 0), r = right * s
                         wr.quad([c3 - r - up, c3 + r - up, c3 + r + up, c3 - r + up], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], flake, V4(1, 1, 1, a + 0.2))
                     } else {
