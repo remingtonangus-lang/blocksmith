@@ -787,6 +787,62 @@ enum HDTex {
         }
     }
 
+    // Vines (cutout, greyscale for the tint, tiles both ways): four meandering stems with pointed leaves on
+    // alternating sides, each leaf lit along one half.
+    static func vineHD(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n)
+        var img = Img(n, V4(0, 0, 0, 0))
+        for st in 0..<4 {
+            let bx: Float = (Float(st) + h2(st, 1, 91)) / 4 * fn
+            let ph: Float = h2(st, 2, 91) * 2 * .pi
+            let amp: Float = fn / 18
+            func cx(_ y: Float) -> Float { bx + sinf(y / fn * 2 * .pi + ph) * amp }
+            for y in 0..<n {
+                let c0 = cx(Float(y))
+                for x in Int(c0 - 1.2)...Int(c0 + 1.2) { img[x, y] = V4(0.48, 0.48, 0.48, 1) }
+            }
+            for i in 0..<8 {
+                let side: Float = (i + st) % 2 == 0 ? 1 : -1
+                let ly: Float = (Float(i) + h2(st, 10 + i, 91) * 0.5) * fn / 8
+                let len: Float = fn / 9 * (0.8 + 0.4 * h2(st, 20 + i, 91)), wid: Float = fn / 22
+                let ang: Float = side > 0 ? -0.5 : .pi + 0.5
+                let ox: Float = cx(ly) + cosf(ang) * len * 0.5, oy: Float = ly + sinf(ang) * len * 0.5
+                let ca = cosf(ang), sa = sinf(ang)
+                for y in Int(oy - len)...Int(oy + len) { for x in Int(ox - len)...Int(ox + len) {
+                    let dx: Float = Float(x) + 0.5 - ox, dy: Float = Float(y) + 0.5 - oy
+                    let u: Float = (dx * ca + dy * sa) / (len * 0.5), v: Float = (-dx * sa + dy * ca) / wid
+                    let e: Float = 1 - u * u
+                    guard e > 0, abs(v) < e else { continue }
+                    let k: Float = (v * side < 0 ? 0.78 : 0.62) + 0.1 * (1 - abs(u)) + 0.08 * h2(st, 30 + i, 91)
+                    img[x, y] = V4(k, k, k, 1)
+                } }
+            }
+        }
+        return img
+    }
+
+    // Lily pad (cutout, greyscale for the tint, seen from above): a round pad with a notch, veins from the centre and
+    // a lighter rim.
+    static func lilyPadHD(_ n: Int, _ s: Int) -> Img {
+        let fn = Float(n)
+        var img = Img(n, V4(0, 0, 0, 0))
+        let rr: Float = fn * 0.44
+        let fine = fbm(n, n / 8, 3, s)
+        for y in 0..<n { for x in 0..<n {
+            let dx: Float = Float(x) + 0.5 - fn / 2, dy: Float = Float(y) + 0.5 - fn / 2
+            let d: Float = (dx * dx + dy * dy).squareRoot()
+            let wob: Float = 1 + sinf(atan2f(dy, dx) * 5) * 0.02
+            guard d < rr * wob else { continue }
+            let a: Float = atan2f(dy, dx)
+            if abs(a) < 0.16 && dx > 0 { continue }                                     // the notch
+            let vein: Float = abs(sinf(a * 7)) < 0.09 * (1 + d / rr) && d > fn * 0.04 ? 0.82 : 1
+            let rim: Float = d > rr * wob - fn / 40 ? 1.12 : 1
+            let k: Float = (0.55 + 0.22 * (d / rr) + (fine[y * n + x] - 0.5) * 0.12) * vein * rim
+            img.px[y * n + x] = V4(k, k, k, 1)
+        } }
+        return img
+    }
+
     static func leafLitter(_ n: Int, _ s: Int) -> Img {
         let fn = Float(n)
         var img = Img(n, V4(0.45, 0.32, 0.18, 0))
@@ -1318,6 +1374,8 @@ enum HDTex {
         "short_grass": blades(salt: 101, count: 26, len: 0.3, 0.9),
         "seagrass": blades(salt: 105, count: 12, len: 0.55, 1.0, lean: 1.6, colour: 0x3A8A2A),
         "kelp": kelpHD,
+        "vine": vineHD,
+        "lily_pad": lilyPadHD,
         "sugar_cane": caneHD,
         "tall_grass_bottom": blades(salt: 102, count: 14, len: 1.3, 1.9),
         "tall_grass_top": blades(salt: 102, count: 14, len: 1.3, 1.9, from: 1),
