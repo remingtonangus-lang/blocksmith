@@ -1380,6 +1380,16 @@ final class Renderer: NSObject, MTKViewDelegate {
             rect(x, y, b, h, c)
             rect(x + w - b, y, b, h, c)
         }
+        // A pixel-art arrow pointing right (crafting result): a shaft and a stepped head, `len` long, centred on cy.
+        func arrowRight(_ x: Float, _ cy: Float, _ len: Float, _ s: Float, _ c: V4) {
+            let head: Float = 5 * s
+            rect(x, cy - 1.5 * s, len - head, 3 * s, c)
+            for i in 0..<5 {
+                let fi = Float(i)
+                let hh: Float = (9 - 2 * fi) * s
+                rect(x + len - head + fi * s, cy - hh / 2, s, hh, c)
+            }
+        }
         let slot = L.slot
 
         // Banner cloth: base colour (-1 = none) and pattern layers in a w x h rect.
@@ -1541,9 +1551,9 @@ final class Renderer: NSObject, MTKViewDelegate {
                 rect(o.x + 27 * s, o.y + 9 * s, 48 * s, 68 * s, V4(0.35, 0.35, 0.38, 1))
                 playerPreview(x: o.x + 27 * s, y: o.y + 9 * s, w: 48 * s, h: 68 * s, quad)
                 text("Crafting", o.x + 97 * s, o.y + 7 * s, s, titleC, shadow: false)
-                rect(o.x + 136 * s, o.y + 33 * s, 12 * s, 3 * s, V4(0.55, 0.55, 0.55, 1))
+                arrowRight(o.x + 134 * s, o.y + 34.5 * s, 16 * s, s, V4(0.5, 0.5, 0.5, 1))
             }
-            if m is CraftingTableMenu { rect(o.x + 90 * s, o.y + 33 * s, 22 * s, 6 * s, V4(0.55, 0.55, 0.55, 1)) }
+            if m is CraftingTableMenu { arrowRight(o.x + 89 * s, o.y + 36 * s, 24 * s, s, V4(0.5, 0.5, 0.5, 1)) }
             if let b = m as? BrewingMenu {
                 // Cinderwisp fuel bar, brew progress (downward arrow) and bubbles.
                 rect(o.x + 60 * s, o.y + 44 * s, 18 * s, 4 * s, V4(0.3, 0.3, 0.3, 1))
