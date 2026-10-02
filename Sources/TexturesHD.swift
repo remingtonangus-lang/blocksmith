@@ -538,9 +538,18 @@ enum HDTex {
         let blot = fbm(n, n / 4, 3, s &+ 2)
         let pal: [(Float, UInt32)] = [(0, 0x8A6A1C), (0.45, 0xB8962E), (0.8, 0xD8B848), (1, 0xEED870)]
         var img = Img(n)
+        let thin = vnoise(n, max(1, n / 128), s &+ 3)
         for y in 0..<n { for x in 0..<n {
             let i = y * n + x
-            let f: Float = fib[(y / 12) * n + x]
+            // Straws: the fibre noise stretched 12x down the face, interpolated between its rows (sampling one row per
+            // 12 texels left 12-tall blocks), swaying a little, with a finer strand layer over it.
+            let ry: Float = Float(y) / 12
+            let r0 = Int(ry) % n, r1 = (Int(ry) + 1) % n
+            let fr: Float = ry - floorf(ry)
+            let sx = (x + Int(sinf(Float(y) / fn * 2 * .pi) * 2) + n) % n
+            let f0: Float = fib[r0 * n + sx], f1: Float = fib[r1 * n + sx]
+            let strand: Float = thin[((y / 4) % n) * n + sx]
+            let f: Float = (f0 + (f1 - f0) * fr) * 0.75 + strand * 0.25
             var t: Float = 0.25 + f * 0.6 + (blot[i] - 0.5) * 0.25
             let fy = Float(y)
             for b in [fn * 0.22, fn * 0.72] {
