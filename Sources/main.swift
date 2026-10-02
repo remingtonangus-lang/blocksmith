@@ -8,7 +8,7 @@ import simd
 // --x/--z pick a world position (default: spawn); --up raises the camera above the terrain;
 // --find <biome> (forest, desert, snowy, ...) spirals out from spawn to the middle of that biome.
 enum Snapshot {
-    static func findBiome(_ gen: TerrainGenerator, _ want: String) -> V3? {
+    static func findBiome(_ gen: TerrainGenerator, _ want: String, interior: Bool = false) -> V3? {
         var x = 0, z = 0, dx = 0, dz = -1
         // Cave biomes live underground: match their climate rule (WorldGen.decorateCaves) instead.
         let cave: ((WorldGen.Climate) -> Bool)? = {
@@ -22,25 +22,31 @@ enum Snapshot {
         let wg = gen as? WorldGen
         // Biomes follow climate belts thousands of blocks wide: spiral out in 48-block steps (~6 km across).
         let stepB = 48
-        for _ in 0..<40000 {
+        // Two passes: first well inside the biome (centre and all eight points 40 blocks out: the desert shot stood on
+        // a desert column at the coast and showed a grass hillside, run 370), then the frayed-edge rule.
+        for strict in interior ? [true, false] : [false] {
+        x = 0; z = 0; dx = 0; dz = -1
+        for _ in 0..<(strict ? 12000 : 40000) {
             let wx = x * stepB + 8, wz = z * stepB + 8
             // Narrow biomes (rivers, shores) only need the centre column; others the centre and at least two
             // of four points 24 blocks out (biome edges are frayed).
             let narrow = ["river", "frozen_river", "beach", "snowy_beach", "stony_shore"].contains(want)
-            let probes: [(Int, Int)] = narrow ? [(0, 0)] : [(0, 0), (24, 0), (-24, 0), (0, 24), (0, -24)]
+            let far: [(Int, Int)] = [(0, 0), (40, 0), (-40, 0), (0, 40), (0, -40), (40, 40), (-40, 40), (40, -40), (-40, -40)]
+            let probes: [(Int, Int)] = narrow ? [(0, 0)] : (strict ? far : [(0, 0), (24, 0), (-24, 0), (0, 24), (0, -24)])
             var hits = 0
             for (k, p) in probes.enumerated() {
                 let hit: Bool
                 if let c = cave, let wg { hit = c(wg.climate(wx + p.0, wz + p.1)) } else { hit = gen.column(wx + p.0, wz + p.1).biome.name == want }
-                if hit { hits += 1 } else if k == 0 { break }
+                if hit { hits += 1 } else if k == 0 || strict { break }
             }
-            let ok = hits >= (narrow ? 1 : 3) && hits > 0
+            let ok = hits >= (narrow ? 1 : (strict ? probes.count : 3)) && hits > 0
             if ok {
                 let h = gen.column(wx, wz).height
                 return V3(Float(wx) + 0.5, Float(max(h, SEA) + 1), Float(wz) + 0.5)
             }
             if x == z || (x < 0 && x == -z) || (x > 0 && x == 1 - z) { (dx, dz) = (-dz, dx) }
             x += dx; z += dz
+        }
         }
         print("biome \(want) not found")
         return nil
@@ -61,7 +67,7 @@ enum Snapshot {
             let hgt = world.gen.column(Int(floor(x)), Int(floor(z))).height
             pos = V3(x, Float(max(hgt, SEA) + 1), z)
         }
-        if let want = arg("--find"), let p = findBiome(world.gen, want) { pos = p }
+        if let want = arg("--find"), let p = findBiome(world.gen, want, interior: true) { pos = p }
         // --feature lake|delta: the nearest lake or big river mouth from the river graph.
         if let f = arg("--feature"), let wg = world.gen as? WorldGen {
             if let (fx, fz) = wg.terrain.nearestFeature(f, x: Int(pos.x), z: Int(pos.z)) {
