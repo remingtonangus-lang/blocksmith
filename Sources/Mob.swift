@@ -935,7 +935,10 @@ final class Mob {
         if bumped && speed != 0 {
             if kind == .spider || kind == .caveSpider { vel.y = 3.5 }     // climbs walls
             else if onLadder { vel.y = 2.35 }
-            else if onGround && spec.behavior != .slime { vel.y = 7.4 }  // hop up one block
+            // Hop up one block: gravity acts before the first move, so 7.4 left the ground at 6.0 and peaked 0.8 up,
+            // short of a full block (behaviour-sim trace, run 355: villagers bounced at every 1-block step for
+            // minutes). The player's 8.6 peaks at 1.1.
+            else if onGround && spec.behavior != .slime { vel.y = 8.6 }
         }
         if pos.y < -10 { health = 0 }
 
