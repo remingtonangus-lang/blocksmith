@@ -139,14 +139,19 @@ final class WorldGen: TerrainGenerator {
             // leaks, every one on a chunk border).
             let edge = lx == 0 || lx == CS - 1 || lz == 0 || lz == CS - 1
             if edge && myWl > myTop && myWl > SEA {
-                var spill = false
+                var spill = false, lowerWater = false
                 for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
                     let nx = lx + dx, nz = lz + dz
                     guard nx < 0 || nx >= CS || nz < 0 || nz >= CS else { continue }
                     let nc = terrain.column(bx + nx, bz + nz)
                     let nTop = YOFF + Int(nc.h), nWl = YOFF + Int(floorf(nc.wl))
                     if nWl <= nTop && nTop < myWl { spill = true }
+                    if nWl > nTop && nWl < myWl { lowerWater = true }
                 }
+                // Lake water a level above the sea (or a lower lake) across the border: the lower side can't see it
+                // (its own water is at sea level, so it never asks across), so the lake's edge column becomes the
+                // shallow flowing lip itself (gencheck run 362: all 228 leaks were "+x/+z: open 0 down to water").
+                if lowerWater && !spill { b[Chunk.index(lx, myWl, lz)] = WATER_FLOW[2] }
                 if spill {
                     let floorB = b[Chunk.index(lx, myTop, lz)]
                     let fill: BlockID = (floorB == AIR || Blocks.isLiquid(floorB)) ? DIRT : (floorB == GRASS ? DIRT : floorB)
