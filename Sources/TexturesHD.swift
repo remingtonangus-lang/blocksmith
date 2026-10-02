@@ -2576,6 +2576,74 @@ enum HDTex {
             }
         }
     }
+    // Ground plants world generation scatters everywhere: the bush (a grey leaf mound for the grass tint), the firefly
+    // bush (a dark mound with glowing specks), the cactus flower (a pink cupped bloom) and wildflowers (a ground decal
+    // of small four-petal flowers among leaves). Dry grass uses blades.
+    static func groundPlant(_ kind: String) -> Gen {
+        { n, s in
+            let fn = Float(n)
+            var img = Img(n, V4(0, 0, 0, 0))
+            switch kind {
+            case "bush", "firefly_bush":
+                let firefly = kind == "firefly_bush"
+                if firefly {
+                    for sx in [Float(0.35), 0.65] {
+                        for y in Int(fn * 0.6)..<n { for x in Int(sx * fn - 1)...Int(sx * fn + 1) { plot(&img, x, y, col(0x4A3A22)) } }
+                    }
+                }
+                let base: V3 = firefly ? col(0x34522A) : V3(0.72, 0.72, 0.72)
+                for k in 0..<46 {
+                    let u: Float = h2(k, 1, s) * 2 - 1
+                    let x: Float = fn / 2 + u * fn * 0.44
+                    let top: Float = fn * (0.35 + 0.25 * u * u)
+                    let y: Float = top + h2(k, 2, s) * (fn * 0.92 - top)
+                    let tone: Float = 0.78 + 0.32 * h2(k, 3, s) - 0.15 * (y / fn - 0.5)
+                    leafBlob(&img, x, y, fn / 12, h2(k, 4, s) * 6.28, base * tone)
+                }
+                if firefly {
+                    for k in 0..<7 {
+                        let x: Float = fn * (0.2 + 0.6 * h2(k, 7, s)), y: Float = fn * (0.15 + 0.4 * h2(k, 8, s))
+                        for dy in -2...2 { for dx in -2...2 {
+                            let d2: Float = Float(dx * dx + dy * dy)
+                            guard d2 <= 4 else { continue }
+                            let k2: Float = 1.25 - 0.1 * d2
+                            plot(&img, Int(x) + dx, Int(y) + dy, col(0xFFF27A) * k2)
+                        } }
+                    }
+                }
+                return img
+            case "cactus_flower":
+                let cx: Float = fn / 2, cy: Float = fn * 0.72
+                for k in 0..<9 {
+                    let a: Float = -Float.pi * (0.1 + 0.8 * Float(k) / 8)
+                    let len: Float = fn * 0.16
+                    let px: Float = cx + cosf(a) * len * 0.6, py: Float = cy + sinf(a) * len * 0.6
+                    let tone: Float = 0.85 + 0.25 * h2(k, 1, s)
+                    leafBlob(&img, px, py, len * 0.55, a, col(0xF06AA0) * tone)
+                }
+                for y in Int(cy - fn / 24)...Int(cy + fn / 24) { for x in Int(cx - fn / 24)...Int(cx + fn / 24) {
+                    plot(&img, x, y, col(0xF5E070) * (0.9 + 0.2 * h2(x, y, s)))
+                } }
+                return img
+            default:  // wildflowers: a decal seen from above
+                for k in 0..<18 {
+                    let x: Float = h2(k, 1, s) * fn, y: Float = h2(k, 2, s) * fn
+                    leafBlob(&img, x, y, fn / 18, h2(k, 3, s) * 6.28, col(0x4E8A30) * (0.8 + 0.3 * h2(k, 4, s)))
+                }
+                for k in 0..<12 {
+                    let x: Float = h2(k, 5, s) * fn, y: Float = h2(k, 6, s) * fn
+                    let r: Float = fn / 40
+                    let petal: V3 = k % 3 == 0 ? col(0xFFE04A) : col(0xF4F0E0)
+                    for q in 0..<4 {
+                        let a: Float = Float(q) * Float.pi / 2 + h2(k, 7, s)
+                        leafBlob(&img, x + cosf(a) * r, y + sinf(a) * r, r * 1.2, a, petal * (0.9 + 0.15 * Float(q % 2)))
+                    }
+                    for dy in -1...1 { for dx in -1...1 { plot(&img, Int(x) + dx, Int(y) + dy, col(0xF0B020)) } }
+                }
+                return img
+            }
+        }
+    }
     static func oddFace(_ kind: String) -> Gen {
         { n, s in
             let fn = Float(n), u = n / 16
@@ -4129,6 +4197,12 @@ enum HDTex {
         "smithing_table_side": smithingSide,
         "grindstone": stone([(0, 0x6E6E6E), (0.5, 0x8E8E8E), (1, 0xA8A8A8)], veins: 0, strata: 0.06),
         "stonecutter_side": furnaceStone,
+        "bush": groundPlant("bush"),
+        "firefly_bush": groundPlant("firefly_bush"),
+        "cactus_flower": groundPlant("cactus_flower"),
+        "wildflowers": groundPlant("wildflowers"),
+        "short_dry_grass": blades(salt: 141, count: 14, len: 0.25, 0.6, colour: 0xB8995A),
+        "tall_dry_grass": blades(salt: 143, count: 14, len: 0.55, 1.0, colour: 0xB8995A),
         "big_dripleaf_top": lushFace("big_dripleaf_top"),
         "small_dripleaf": lushFace("small_dripleaf"),
         "hanging_roots": lushFace("hanging_roots"),
