@@ -465,7 +465,7 @@ enum BigStructures {
             var rng = SRng(seed)
             guard rng.chance(0.125) else { return nil }        // ~1 in 64 chunks overall
             let y = gen.groundY(x, z) - 15 - rng.int(10)
-            return StructureStart(kind: "fossil", pieces: [piece(x - 6, y - 4, z - 6, x + 6, y + 6, z + 6) { w in
+            return StructureStart(kind: "fossil", pieces: [piece(x - 16, y - 4, z - 6, x + 16, y + 8, z + 6) { w in
                 let bone = g("bone_block"), coal = g("coal_ore")
                 var r = SRng(seed &+ 1)
                 let spine = 5 + r.int(4)
