@@ -79,6 +79,7 @@ let Tex = TextureRegistry()
 final class BlockRegistry {
     private(set) var defs: [BlockDef] = []
     private var byName: [String: BlockID] = [:]
+    var untextured: [String] = []   // visible blocks registered without textures (drawn with "missing")
     // Per-state tables
     var render: [UInt8] = []
     var layer: [UInt8] = []
@@ -121,7 +122,10 @@ final class BlockRegistry {
         let g = d.group ?? d.name
         if let first = byName["#group:" + g] { groupBase.append(first) } else { byName["#group:" + g] = id; groupBase.append(id) }
         if d.tex.count == 1 { d.tex = Array(repeating: d.tex[0], count: 6) }
-        if d.tex.isEmpty { d.tex = Array(repeating: "missing", count: 6) }
+        if d.tex.isEmpty {
+            d.tex = Array(repeating: "missing", count: 6)
+            if d.render != .none { untextured.append(d.name) }
+        }
         defs.append(d)
         render.append(d.render.rawValue)
         layer.append(d.layer.rawValue)

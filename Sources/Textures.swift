@@ -1018,6 +1018,7 @@ enum TextureGen {
         let table = painters()
         let missing = Tex.names.filter { table[$0] == nil }
         if !missing.isEmpty { print("textures without a painter: \(missing.joined(separator: ", "))") }
+        if !Blocks.untextured.isEmpty { print("blocks without textures: \(Blocks.untextured.prefix(20).joined(separator: ", "))") }
         if count > 2048 { print("warning: \(count) texture layers exceed the 11-bit layer index") }
         let names = Tex.names
         var small = [V4](repeating: V4(0, 0, 0, 0), count: S * S * count)
