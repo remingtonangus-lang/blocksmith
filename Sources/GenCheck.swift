@@ -67,6 +67,7 @@ enum GenCheck {
             return s
         }()
         func isLeaves(_ b: BlockID) -> Bool { Blocks.key(Blocks.groupBase[Int(b)]).hasSuffix("_leaves") }
+        var leakKinds: [String: Int] = [:]
         for seed in seeds {
             let world = World(seed: seed, device: device, save: nil)
             var rng = SRng(seed ^ 0x6E6C)
@@ -117,6 +118,9 @@ enum GenCheck {
                                     if b == WATER && !border && y < world.topY(wx, wz) - 4 {
                                         add("spring", p, "water source open to a cave (\(side), flows on load)"); break
                                     }
+                                    let under: String = y < world.topY(wx, wz) - 4 ? "underground" : "surface"
+                                    let bs: String = border ? "border" : "in-chunk"
+                                    leakKinds["\(fluid) \(under) \(bs) onto \(floorK)", default: 0] += 1
                                     add("leak", p, "\(fluid) source beside air (\(side): open \(drop - 1) down to \(floorK), top \(world.topY(nx, nz) - YOFF)\(border ? ", across a chunk border" : ""))"); break
                                 }
                             } else if logIDs.contains(b) && below == AIR {
@@ -156,6 +160,12 @@ enum GenCheck {
         let cs = counts.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
         let summary = String(format: "gencheck: %ld chunks over %ld seeds: %@ (%.1f s)", scanned, seeds.count, cs.isEmpty ? "no issues" : cs, CFAbsoluteTimeGetCurrent() - t0)
         md.append(summary); md.append("")
+        // Leaks by kind (fluid, depth, chunk border, what the open side drops onto): which fix pays off.
+        if !leakKinds.isEmpty {
+            let lk = leakKinds.sorted { $0.value > $1.value }.prefix(12).map { "\($0.key) \($0.value)" }.joined(separator: "; ")
+            md.append("leak kinds: " + lk); md.append("")
+            print("gencheck leak kinds: " + lk)
+        }
         for h in hits {
             let y = h.p.y - YOFF
             let snap: String = "`--snapshot snaps/g.png --seed \(h.seed) --x \(h.p.x) --z \(h.p.z) --up 2 --pitch -40`"
