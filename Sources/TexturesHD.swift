@@ -2644,6 +2644,47 @@ enum HDTex {
             }
         }
     }
+    // Carved pumpkin and jack o'lantern faces on the HD pumpkin side: triangle eyes and a toothed mouth cut in smooth
+    // outlines with a shaded rim, dark inside, or glowing brighter toward the middle when lit.
+    static func pumpkinFace(lit: Bool) -> Gen {
+        { n, s in
+            var img = ribbedSide([(0, 0x9A520A), (0.5, 0xD8801A), (1, 0xF0A030)], ribs: 4)(n, s)
+            let fn = Float(n)
+            func cut(_ fx: Float, _ fy: Float) -> Bool {
+                // Eyes: down-pointing triangles; mouth: a band with two teeth on top and rounded lower corners.
+                for ex in [Float(4.5), 11.5] {
+                    let half: Float = 1.7 * (7.2 - fy) / 3.2
+                    if fy >= 4 && fy <= 7.2 && abs(fx - ex) <= half { return true }
+                }
+                let inMouth: Bool = fy >= 9 && fy <= 12 && fx >= 3 && fx <= 13
+                let toothL: Bool = fx >= 6 && fx < 7.2
+                let toothR: Bool = fx >= 8.8 && fx < 10
+                let tooth: Bool = fy < 10.2 && (toothL || toothR)
+                let corner: Bool = fy > 11.2 && (fx < 4.2 || fx > 11.8)
+                return inMouth && !tooth && !corner
+            }
+            let rim: Float = 16 / fn * 1.5
+            for y in 0..<n { for x in 0..<n {
+                let fx: Float = (Float(x) + 0.5) / fn * 16, fy: Float = (Float(y) + 0.5) / fn * 16
+                guard cut(fx, fy) else { continue }
+                let edgeX: Bool = !cut(fx - rim, fy) || !cut(fx + rim, fy)
+                let edgeY: Bool = !cut(fx, fy - rim) || !cut(fx, fy + rim)
+                let edge: Bool = edgeX || edgeY
+                var c: V3
+                if lit {
+                    let dx: Float = (fx - 8) / 8, dy: Float = (fy - 8) / 8
+                    let glow: Float = 1.15 - 0.35 * (dx * dx + dy * dy)
+                    c = col(0xF8D040) * glow
+                    if edge { c = col(0xD08A20) }
+                } else {
+                    c = col(0x2E1C06)
+                    if edge { c = col(0x6A3A0C) }
+                }
+                img[x, y] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
+            } }
+            return img
+        }
+    }
     static func oddFace(_ kind: String) -> Gen {
         { n, s in
             let fn = Float(n), u = n / 16
@@ -4197,6 +4238,20 @@ enum HDTex {
         "smithing_table_side": smithingSide,
         "grindstone": stone([(0, 0x6E6E6E), (0.5, 0x8E8E8E), (1, 0xA8A8A8)], veins: 0, strata: 0.06),
         "stonecutter_side": furnaceStone,
+        "carved_pumpkin_face": pumpkinFace(lit: false),
+        "jack_o_lantern_face": pumpkinFace(lit: true),
+        "quartz_pillar": pillarSide([(0, 0xC8C0B4), (0.5, 0xE4DED4), (1, 0xF6F2EA)]),
+        "quartz_pillar_top": pillarTop([(0, 0xC8C0B4), (0.5, 0xE4DED4), (1, 0xF6F2EA)]),
+        "bone_block_side": pillarSide([(0, 0xB4AE92), (0.5, 0xD2CCB0), (1, 0xE6E2CA)]),
+        "bone_block_top": pillarTop([(0, 0xB4AE92), (0.5, 0xD2CCB0), (1, 0xE6E2CA)]),
+        "netherite_block": metal(0x443C40, tiles: 2, shine: 0.1),
+        "honeycomb_block": lumps([(0, 0xA8680E), (0.5, 0xE09A22), (1, 0xF6C24A)], cells: 12, gloss: 0.3),
+        "bamboo_block": ribbedSide([(0, 0x6A8A1E), (0.5, 0x8AAA2E), (1, 0xA6C442)], ribs: 4),
+        "stripped_bamboo_block": ribbedSide([(0, 0xA4943A), (0.5, 0xC4B24E), (1, 0xDAC866)], ribs: 4),
+        "dried_kelp_side": lumps([(0, 0x1E2A14), (0.5, 0x2E3E1E), (1, 0x42562A)], cells: 10),
+        "dried_kelp_top": lumps([(0, 0x1E2A14), (0.5, 0x2E3E1E), (1, 0x42562A)], cells: 8),
+        "lodestone_side": chiseled(stone([(0, 0x6A6A6E), (0.5, 0x86868A), (1, 0x9E9EA2)], veins: 0.2, strata: 0)),
+        "lodestone_top": chiseled(stone([(0, 0x5A5A5E), (0.5, 0x76767A), (1, 0x8E8E92)], veins: 0.2, strata: 0)),
         "bush": groundPlant("bush"),
         "firefly_bush": groundPlant("firefly_bush"),
         "cactus_flower": groundPlant("cactus_flower"),
