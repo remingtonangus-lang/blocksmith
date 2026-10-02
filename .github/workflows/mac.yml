@@ -36,7 +36,7 @@ jobs:
           EXTRA_SWIFTC_FLAGS="-Xfrontend -warn-long-expression-type-checking=150" bash ./build.sh 2>&1 | tee build.log
 
       - name: Type-check time gate (expressions that could time out on an M1 with a newer Swift)
-        if: always() && steps.build.outcome == 'success'
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
           # Report every expression over 150 ms; fail on any over 600 ms (the Mac hit the hard limit on
           # one of these; the CI VM type-checks about twice as slowly as an M1, so 600 ms here is ~300 ms there).
@@ -47,7 +47,7 @@ jobs:
 
       - name: Smoke test (play 60 s at render distance 8, 16, 24, and 24 in Fast)
         id: smoke
-        if: always() && steps.build.outcome == 'success'
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         timeout-minutes: 15
         run: |
           set -o pipefail
@@ -55,14 +55,14 @@ jobs:
 
       - name: Benchmarks
         id: bench
-        if: always() && steps.build.outcome == 'success'
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         timeout-minutes: 12
         run: |
           set -o pipefail
           bash ./bench.sh 2>&1 | tee bench.log
 
       - name: Debug rerun of a crashed benchmark scene
-        if: always() && steps.bench.outcome == 'failure'
+        if: ${{ !cancelled() && steps.bench.outcome == 'failure' }}
         continue-on-error: true
         timeout-minutes: 12
         run: |
@@ -79,7 +79,7 @@ jobs:
           bash ./build.sh 2>&1 | tail -1
 
       - name: Profile (sample)
-        if: always() && steps.build.outcome == 'success'
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         continue-on-error: true
         timeout-minutes: 8
         run: |
@@ -89,7 +89,7 @@ jobs:
 
       - name: Playthrough (progression tests)
         id: play
-        if: always() && steps.build.outcome == 'success'
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         timeout-minutes: 20
         run: |
           set -o pipefail
@@ -97,7 +97,7 @@ jobs:
 
       - name: Snapshots
         id: snap
-        if: always() && steps.build.outcome == 'success'
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         timeout-minutes: 25
         run: |
           set -o pipefail
@@ -105,7 +105,7 @@ jobs:
 
       - name: Terrain check
         id: terrain
-        if: always() && steps.build.outcome == 'success'
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         timeout-minutes: 5
         run: |
           set -o pipefail
@@ -126,7 +126,7 @@ jobs:
           tail -80 debug.log
 
       - name: Publish to ci-snaps
-        if: always()
+        if: ${{ !cancelled() }}
         continue-on-error: true     # parallel branches race for the shared ci-snaps ref
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
