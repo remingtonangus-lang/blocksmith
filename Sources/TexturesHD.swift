@@ -354,6 +354,52 @@ enum HDTex {
         }
     }
 
+    // Moss creeping over a base material: clumps where a low-frequency mask is high, fuzzy edges, darker near the
+    // clump border.
+    static func mossy(_ base: @escaping Gen, amount: Float = 0.5) -> Gen {
+        { n, s in
+            var img = base(n, s)
+            let m = fbm(n, n / 4, 4, s &+ 60)
+            let fine = vnoise(n, max(1, n / 64), s &+ 61)
+            let pal: [(Float, UInt32)] = [(0, 0x3A4A22), (0.5, 0x5A7032), (1, 0x7C9446)]
+            let th: Float = 1 - amount
+            for i in 0..<(n * n) {
+                let k: Float = m[i] + (fine[i] - 0.5) * 0.12
+                if k < th { continue }
+                let e: Float = cl((k - th) / 0.08)
+                let c = ramp(0.4 + (fine[i] - 0.5) * 0.6 + e * 0.2, pal)
+                let p = img.px[i]
+                img.px[i] = V4(p.x + (c.x - p.x) * e, p.y + (c.y - p.y) * e, p.z + (c.z - p.z) * e, 1)
+            }
+            return img
+        }
+    }
+
+    // Cracks across a base material: a few long wandering dark lines with a lit lower lip.
+    static func cracked(_ base: @escaping Gen) -> Gen {
+        { n, s in
+            var img = base(n, s)
+            let fn = Float(n)
+            let wx = fbm(n, n / 4, 3, s &+ 70), wy = fbm(n, n / 4, 3, s &+ 71)
+            let rf = warp(fbm(n, n / 2, 4, s &+ 72), n, wx, wy, fn * 0.15)
+            for y in 0..<n { for x in 0..<n {
+                let i = y * n + x
+                let ridge: Float = 1 - abs(2 * rf[i] - 1)
+                if ridge > 0.965 {
+                    let p = img.px[i]
+                    img.px[i] = V4(p.x * 0.35, p.y * 0.35, p.z * 0.35, 1)
+                } else if ridge > 0.94 {
+                    let j = ((y + 1) % n) * n + x
+                    let r2: Float = 1 - abs(2 * rf[j] - 1)
+                    let k: Float = r2 > 0.965 ? 1.12 : 0.85
+                    let p = img.px[i]
+                    img.px[i] = V4(min(1, p.x * k), min(1, p.y * k), min(1, p.z * k), 1)
+                }
+            } }
+            return img
+        }
+    }
+
     // Sandstone side: wavy sediment layers, a darker band and a weathered lower edge.
     static func sandstoneSide(_ pal: [(Float, UInt32)]) -> Gen {
         { n, s in
@@ -727,6 +773,7 @@ enum HDTex {
     static let dirtPal: [(Float, UInt32)] = [(0, 0x4A3222), (0.5, 0x6E4E34), (1, 0x8C6646)]
     static let oakPlank: [(Float, UInt32)] = [(0, 0x7E5C34), (0.5, 0xA67E4C), (1, 0xC49C62)]
     static let oakBark: [(Float, UInt32)] = [(0, 0x3C2C1C), (0.5, 0x60482C), (1, 0x80623E)]
+    static let stoneBricks: Gen = masonry(rows: 2, perRow: 1, offset: 0.5, mortarW: 1 / 22, [(0, 0x5E5E60), (0.5, 0x7E7E80), (1, 0x9C9C9C)], mortar: 0x48484A)
     static let sandstonePal: [(Float, UInt32)] = [(0, 0xB8A878), (0.5, 0xD9CE9E), (1, 0xEEE4BC)]
 
     // Families without a hand-made entry get an HD material coloured from their 16 px painter: every wood's planks,
@@ -782,7 +829,10 @@ enum HDTex {
         "grass_block_snow": grassSnow,
         "snow": snow,
         "snow_block": snow,
-        "stone_bricks": masonry(rows: 2, perRow: 1, offset: 0.5, mortarW: 1 / 22, [(0, 0x5E5E60), (0.5, 0x7E7E80), (1, 0x9C9C9C)], mortar: 0x48484A),
+        "stone_bricks": stoneBricks,
+        "mossy_stone_bricks": mossy(stoneBricks, amount: 0.45),
+        "cracked_stone_bricks": cracked(stoneBricks),
+        "mossy_cobblestone": mossy(cobble([(0, 0x585A5C), (0.5, 0x808082), (1, 0xA2A09E)], mortar: 0x3A3838), amount: 0.5),
         "bricks": masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 18, [(0, 0x7A3A2C), (0.5, 0x985040), (1, 0xB4705A)], mortar: 0xB0AAA0, clay: true, chips: 1.4),
         "deepslate_bricks": masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 26, [(0, 0x343436), (0.5, 0x4A4A4C), (1, 0x626264)], mortar: 0x202022, chips: 1.2),
         "deepslate_tiles": masonry(rows: 4, perRow: 4, offset: 0, mortarW: 1 / 26, [(0, 0x262628), (0.5, 0x363638), (1, 0x4C4C4E)], mortar: 0x161618, chips: 0.8),
@@ -800,7 +850,6 @@ enum HDTex {
         "spruce_planks": planks([(0, 0x523A22), (0.5, 0x6E5034), (1, 0x8A6844)]),
         "birch_planks": planks([(0, 0xA89664), (0.5, 0xC4B07C), (1, 0xDCCA98)]),
         "cobblestone": cobble([(0, 0x585A5C), (0.5, 0x808082), (1, 0xA2A09E)], mortar: 0x3A3838),
-        "mossy_cobblestone": cobble([(0, 0x4C5A40), (0.5, 0x6E7A58), (1, 0x8C9474)], mortar: 0x2E3A26),
         "sand": sandLike([(0, 0xC4B280), (0.5, 0xDCCC96), (1, 0xF0E4B4)]),
         "red_sand": sandLike([(0, 0x9E5222), (0.5, 0xB8662C), (1, 0xD0803C)]),
         "gravel": gravel([(0, 0x5C5654), (0.4, 0x7C7672), (0.7, 0x968C80), (1, 0xB0A8A0)]),
