@@ -271,7 +271,9 @@ enum StructCheck {
         if walk && seedCells.isEmpty { add("no_start", s.anchor, "no standable cell at the start piece or around the structure") }
         if walk && !surface, let c = seedCells.first {
             // Entered from inside: where the walk starts and how far it gets (stronghold POIs were all unreachable).
-            print("structcheck: \(kind) at \(s.anchor.x) \(s.anchor.y - YOFF) \(s.anchor.z): start cell \(c.x) \(c.y - YOFF) \(c.z) (\(Blocks.key(w.block(c.x, c.y - 1, c.z))) under), reaches \(ra.count) cells (\(rw.count) without jumps), box \(s.min.y - YOFF)...\(s.max.y - YOFF)")
+            let ay = s.anchor.y - YOFF, cy = c.y - YOFF, y0 = s.min.y - YOFF, y1 = s.max.y - YOFF
+            let under = Blocks.key(w.block(c.x, c.y - 1, c.z))
+            print("structcheck: \(kind) at \(s.anchor.x) \(ay) \(s.anchor.z): start cell \(c.x) \(cy) \(c.z) (\(under) under), reaches \(ra.count) cells (\(rw.count) without jumps), box \(y0)...\(y1)")
         }
         // Doors.
         var doors = 0, pois = 0

@@ -246,7 +246,8 @@ enum BigStructures {
         for s in spots { room(s.0, s.1, 6, 7) }
         for s in spots {
             let (x0, x1, z0, z1) = span(s)
-            w.fill(x0 - (z0 == z1 ? 0 : 1), y, z0 - (x0 == x1 ? 0 : 1), x1 + (z0 == z1 ? 0 : 1), y + 2, z1 + (x0 == x1 ? 0 : 1), AIR)
+            let wx: Int = z0 == z1 ? 0 : 1, wz: Int = x0 == x1 ? 0 : 1          // widen across the corridor only
+            w.fill(x0 - wx, y, z0 - wz, x1 + wx, y + 2, z1 + wz, AIR)
         }
         w.fill(cx - 3, y + 10, cz - 3, cx + 3, y + 10, cz + 3, grate)
         for (i, s) in spots.enumerated() {
