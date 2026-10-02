@@ -6048,7 +6048,10 @@ enum HDTex {
         "verdant_froglight_side": froglight(0xD8F0B0, top: false),
         "verdant_froglight_top": froglight(0xD8F0B0, top: true),
         "pearlescent_froglight_side": froglight(0xF0D8F0, top: false),
-        "pearlescent_froglight_top": froglight(0xF0D8F0, top: true)
+        "pearlescent_froglight_top": froglight(0xF0D8F0, top: true),
+        "open_eyeblossom": flowerHD(0xD8D2C8, 0xFF8C1A, .ring, top: 4, size: 3, salt: 454),
+        "closed_eyeblossom": flowerHD(0x8A8490, 0x6A6470, .cup, top: 4, size: 2.4, salt: 456),
+        "sculk_tendril": stemHD(0x3AB8C8)
     ]
 
     // MARK: Upscale for textures without an HD material
