@@ -156,7 +156,9 @@ extension Mob {
         // Walk back toward the anchor when outside the circle, with 2 blocks of slack while finishing a stroll.
         let slack: Float = wanderGoal != nil && moving ? 2 : 0
         if d > r + slack && !gaveUp(anchor) { wanderGoal = nil; face(anchor); moving = true; return spec.speed * pace }
-        strollArea = (anchor, r)
+        // Outside the area with the anchor given up (unreachable for now): stroll where it is, not toward spots
+        // around the anchor that fail the same way one after another.
+        strollArea = d > r + slack ? nil : (anchor, r)
         wander()
         strollArea = nil
         return moving ? spec.speed * pace * 0.8 : 0
