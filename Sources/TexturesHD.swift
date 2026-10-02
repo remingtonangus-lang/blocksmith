@@ -835,7 +835,9 @@ enum HDTex {
             guard d < rr * wob else { continue }
             let a: Float = atan2f(dy, dx)
             if abs(a) < 0.16 && dx > 0 { continue }                                     // the notch
-            let vein: Float = abs(sinf(a * 7)) < 0.09 * (1 + d / rr) && d > fn * 0.04 ? 0.82 : 1
+            let veinW: Float = 0.09 * (1 + d / rr)
+            let onVein = abs(sinf(a * 7)) < veinW && d > fn * 0.04
+            let vein: Float = onVein ? 0.82 : 1
             let rim: Float = d > rr * wob - fn / 40 ? 1.12 : 1
             let k: Float = (0.55 + 0.22 * (d / rr) + (fine[y * n + x] - 0.5) * 0.12) * vein * rim
             img.px[y * n + x] = V4(k, k, k, 1)
