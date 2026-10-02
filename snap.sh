@@ -276,7 +276,7 @@ done
 "$BIN" --snapshot snaps/ashen_inside.png --seed 12345 --find pale_garden --yaw 120 --pitch 8 --time 0.3 --ground
 "$BIN" --snapshot snaps/ashen_night.png --seed 12345 --find pale_garden --yaw 30 --pitch -10 --time 0.7 --up 2 --ticks 4 --place pale_oak_log,creaking_heart:1,pale_oak_planks,pale_moss_block,pale_moss_carpet,open_eyeblossom,closed_eyeblossom,pale_hanging_moss
 "$BIN" --snapshot snaps/lush_caves.png --seed 12345 --find lush_caves --yaw 30 --pitch -10 --time 0.3
-"$BIN" --snapshot snaps/dripstone_caves.png --seed 12345 --find dripstone_caves --yaw 30 --pitch -10 --time 0.3 --nightvision
+"$BIN" --snapshot snaps/dripstone_caves.png --seed 12345 --find dripstone_caves --yaw 30 --pitch -10 --time 0.3 --torches
 "$BIN" --snapshot snaps/mineshaft_torches.png --seed 12345 --structure mineshaft --frame 0.4 --time 0.3 --torches --ambient
 "$BIN" --snapshot snaps/deep_dark.png --seed 12345 --find deep_dark --yaw 30 --pitch -10 --time 0.3 --nightvision
 "$BIN" --snapshot snaps/dark_forest.png --seed 12345 --find dark_forest --yaw 30 --pitch -15 --time 0.3 --up 4 --treecheck

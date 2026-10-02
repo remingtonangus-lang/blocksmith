@@ -5613,7 +5613,9 @@ enum HDTex {
         if name.hasSuffix("_concrete_powder") { return sandLike(pal(avg, lo: 0.85, hi: 1.12)) }
         if name.hasSuffix("_concrete") { return concrete(avg) }
         if (name.hasSuffix("_terracotta") && !name.contains("glazed")) || name == "terracotta" {
-            return stone(pal(avg, lo: 0.84, hi: 1.12), veins: 0, strata: 0.02)
+            // Wider palette and faint strata (the badlands faces read as flat colour: texel deviation 5.7/255 against
+            // 42.6 for grass beside them, blind critic run 385).
+            return stone(pal(avg, lo: 0.7, hi: 1.2), veins: 0, strata: 0.1)
         }
         return nil
     }
