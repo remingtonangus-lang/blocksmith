@@ -370,27 +370,27 @@ extension Mob {
     }
 
     // A nearby standing spot the player can't see (sampled in a ring of 2-6 blocks).
+    // The nearest standable cell within 6 blocks that the threat can't see (14 random rays at random radii missed
+    // the few cells behind a 3-wide wall often enough to fail the reload-in-cover check: run 371).
     private func findCover(_ g: Game, from threat: V3) -> V3? {
         let w = g.world
-        var best: V3?
-        var bd = Float.greatestFiniteMagnitude
         let y = Int(floor(pos.y + 0.1))
-        for i in 0..<14 {
-            let a = Float(i) / 14 * 2 * .pi
-            let rr = Rand.float(in: 2...6)
-            let x = Int(floor(pos.x + cosf(a) * rr)), z = Int(floor(pos.z + sinf(a) * rr))
+        let bx = Int(floor(pos.x)), bz = Int(floor(pos.z))
+        var spots: [(Float, V3)] = []
+        for dz in -6...6 { for dx in -6...6 where dx * dx + dz * dz <= 36 && (dx != 0 || dz != 0) {
+            let x = bx + dx, z = bz + dz
             for dy in [0, 1, -1] {
                 let fy = y + dy
                 guard Blocks.collide[Int(w.block(x, fy - 1, z))], !Blocks.collide[Int(w.block(x, fy, z))], !Blocks.collide[Int(w.block(x, fy + 1, z))] else { continue }
                 let spot = V3(Float(x) + 0.5, Float(fy), Float(z) + 0.5)
-                if !w.canSee(spot + V3(0, 1.5, 0), threat) {
-                    let d = simd_length(spot - pos)
-                    if d < bd { bd = d; best = spot }
-                }
+                spots.append((simd_length(spot - pos), spot))
                 break
             }
-        }
-        return best
+        } }
+        spots.sort { $0.0 < $1.0 }
+        // Sight checks nearest first (short rays; a search runs at most once a second per reloading soldier).
+        for (_, spot) in spots.prefix(120) where !w.canSee(spot + V3(0, 1.5, 0), threat) { return spot }
+        return nil
     }
 
     private func throwGrenade(_ g: Game, at t: V3) {
