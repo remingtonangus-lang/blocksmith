@@ -562,8 +562,10 @@ enum OverworldStructures {
                     let end = a == -12 || hw == 0
                     let shell = h <= 1 || abs(b) == hh || end
                     if shell {
-                        let hole = broken && h >= 2 && rng.chance(0.12)
-                        at(a, h, b, h == 0 ? logA : (hole ? wet(h) : pl))
+                        // Holes only above the sea (as air): a hole at sea level was a lone water block in the gunwale
+                        // under the rail, drawn as a bright blue tile (blind critic, run 417 shipwreck).
+                        let hole = broken && h >= 2 && y + h > SEA && rng.chance(0.12)
+                        at(a, h, b, h == 0 ? logA : (hole ? AIR : pl))
                     } else {
                         at(a, h, b, wet(h))
                     }
