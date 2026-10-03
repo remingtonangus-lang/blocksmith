@@ -118,6 +118,7 @@ enum Snapshot {
         // --structure <kind>: stand above the start piece of the nearest structure of that kind.
         var frame: (yaw: Float, pitch: Float)?
         var insideFrame: IVec3?
+        var structBox: (IVec3, IVec3)?                   // --slice: the framed structure's box
         // --land: skip starts whose centre column is below sea level (ruined portals also generate under water).
         let landOnly = CommandLine.arguments.contains("--land")
         // --subkind <kind>: one variant of a type (temple -> desert_pyramid, jungle_temple, swamp_hut, igloo).
@@ -126,6 +127,7 @@ enum Snapshot {
             (subkind == nil || s.kind == subkind) && (!landOnly || world.gen.column((s.min.x + s.max.x) / 2, (s.min.z + s.max.z) / 2).height > SEA)
         }
         if let kind = arg("--structure"), let s = world.gen.structures?.nearest(kind, x: Int(pos.x), z: Int(pos.z), maxRegions: landOnly || subkind != nil ? 16 : 6, accept: onLand) {
+            structBox = (s.min, s.max)
             if arg("--frame") != nil {
                 // Overview: from outside the footprint, aimed at its centre.
                 let c = V3(Float(s.min.x + s.max.x) / 2, Float(s.anchor.y), Float(s.min.z + s.max.z) / 2)
@@ -1172,6 +1174,28 @@ enum Snapshot {
                 print("lodcheck: chunk \(k.x) \(k.z) cactus at y \(y - YOFF) (section \(sy)): quads near \(s0), far \(s1); live lod \(c.lod) quads \(sec.opaqueQuads) empty \(sec.empty) top \(c.topSec)")
             }
             if n == 0 { print("lodcheck: no cactus loaded") }
+        }
+        func sliceChar(_ b: BlockID) -> String {
+            if b == AIR { return "." }
+            if Blocks.isLiquid(b) { return "~" }
+            let k = Blocks.key(b)
+            if k.contains("fence") { return "f" }
+            if k.contains("log") { return "|" }
+            return Blocks.opaque[Int(b)] ? "#" : "+"
+        }
+        if CommandLine.arguments.contains("--slice"), let (mn, mx) = structBox {
+            // Block maps of the structure at the sea surface and one above (what a flat tile in a shot really is):
+            // ~ water, # planks/stone, f fence, | log, . air, + other.
+            for y in [SEA - 1, SEA, SEA + 1] {
+                print("slice y \(y - YOFF) x \(mn.x)...\(mx.x) z \(mn.z)...\(mx.z):")
+                for z in mn.z...mx.z {
+                    var row = ""
+                    for x in mn.x...mx.x {
+                        row += sliceChar(world.block(x, y, z))
+                    }
+                    print("  " + row)
+                }
+            }
         }
         if CommandLine.arguments.contains("--cactusprobe") {
             // Cacti at mid range vanish in play (Remington: seen near and far, not between): a pixel probe on the middle

@@ -211,7 +211,7 @@ done
 "$BIN" --snapshot snaps/outpost_close.png --seed 12345 --structure pillager_outpost --frame 0.5 --time 0.25
 "$BIN" --snapshot snaps/snowslope.png --seed 12345 --find snowy_slopes --yaw 45 --pitch -35 --time 0.25 --up 6
 "$BIN" --snapshot snaps/ruined_portal.png --seed 12345 --structure ruined_portal --land --frame 1 --time 0.25
-"$BIN" --snapshot snaps/shipwreck.png --seed 12345 --structure shipwreck --frame 1 --time 0.25
+"$BIN" --snapshot snaps/shipwreck.png --seed 12345 --structure shipwreck --frame 1 --time 0.25 --slice
 # Small structures with no shot before (eyes-on coverage for the "everything similar" rework).
 "$BIN" --snapshot snaps/desert_well.png --seed 12345 --structure desert_well --frame 0.7 --time 0.25 || true
 "$BIN" --snapshot snaps/ocean_ruin.png --seed 12345 --structure ocean_ruin --frame 1 --time 0.25 || true
