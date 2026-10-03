@@ -381,6 +381,10 @@ fragment float4 cloudBoxFS(CloudOut in [[stage_in]],
         col = u.ambColor.rgb * (0.9 + 0.5 * in.rel.y) + u.sunColor.rgb * (0.35 + 1.1 * lit);
         // At night clouds are dim grey shapes against the stars, not lit blue blobs.
         col *= mix(0.22, 1.0, smoothstep(0.12, 0.7, day));
+        // Shape: sides and undersides deeper, and a soft brightness drift per 4-block cell, so a cloud reads as a
+        // mass rather than a flat white slab (blind critic, run 417: luma spread 1.2 over a whole cloud).
+        float cell = fract(sin(dot(floor(in.rel.xz * 0.25), float2(12.9898, 78.233))) * 43758.5453);
+        col *= mix(0.72, 1.0, in.rel.y) * (0.9 + 0.12 * cell);
         col = mix(col, u.fogColor.rgb, 0.15);
     }
     return float4(col, 0.82 * fade);
