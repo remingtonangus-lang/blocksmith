@@ -5934,7 +5934,7 @@ enum HDTex {
         "basalt_side": stone([(0, 0x3A3A3E), (0.5, 0x4E4E54), (1, 0x66666C)], veins: 0, strata: 0, streak: 0.8),
         "end_stone": stone([(0, 0xC8C88E), (0.5, 0xDCDCA2), (1, 0xEEEEBC)], veins: 0, strata: 0),
         "end_stone_bricks": masonry(rows: 4, perRow: 2, offset: 0.25, mortarW: 1 / 22, [(0, 0xC8C890), (0.5, 0xDADAA6), (1, 0xEAEABC)], mortar: 0xA6A676, chips: 0.8),
-        "purpur_block": masonry(rows: 4, perRow: 4, offset: 0, mortarW: 1 / 30, [(0, 0x8A5E8A), (0.5, 0xA678A6), (1, 0xC096C0)], mortar: 0x6C486C, chips: 0.5, tone: 0.1),
+        "purpur_block": masonry(rows: 4, perRow: 4, offset: 0, mortarW: 1 / 30, [(0, 0x8A5E8A), (0.5, 0xA678A6), (1, 0xC096C0)], mortar: 0x7E5A7E, chips: 0.5, tone: 0.1),
         "crying_obsidian": cryingObsidian,
         "purpur_pillar": pillarSide([(0, 0x7A507A), (0.5, 0xA678A6), (1, 0xC69CC6)]),
         "purpur_pillar_top": pillarTop([(0, 0x7A507A), (0.5, 0xA678A6), (1, 0xC69CC6)]),
