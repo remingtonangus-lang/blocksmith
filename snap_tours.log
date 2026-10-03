@@ -1,0 +1,3845 @@
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 983 ms, upload 367 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 85) sky 15 block 0 in air, daylight 1.0
+imagecheck tour_777_aerial_fast.png magenta=0.00000 black=0.0000 white=0.0008 std=42.3 hash=d46fcf2d77bf6d6a
+imagecheck tour_777_aerial_fast.png magenta=0.00000 black=0.0000 white=0.0008 std=42.3 hash=d46fcf2d77bf6d6a
+seed 777  pos 696.5 188.0 236.5  rd 16  chunks 997  (drawn 280)
+gen 1189 ms  mesh(all, parallel) 1318 ms  mesh(1 section) 0.24 ms  quads 1618910 opaque / 119855 water
+frame (encode+GPU, offscreen, median of 30) 5.74 ms  biome plains
+mesh slabs 60 MB, chunks 997 (block+light arrays 87 MB), Metal allocated 202 MB
+memory: resident 325 MB  (section meshes 53 MB)
+wrote snaps/tour_777_aerial_fast.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 947 ms, upload 337 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 85) sky 15 block 0 in air, daylight 1.0
+imagecheck tour_777_aerial_nocull.png magenta=0.00000 black=0.0000 white=0.0009 std=47.7 hash=3bdb0cb1e1187e92
+imagecheck tour_777_aerial_nocull.png magenta=0.00000 black=0.0000 white=0.0009 std=47.7 hash=3bdb0cb1e1187e92
+seed 777  pos 696.5 188.0 236.5  rd 16  chunks 997  (drawn 313)
+gen 983 ms  mesh(all, parallel) 1070 ms  mesh(1 section) 0.61 ms  quads 1618910 opaque / 119855 water
+frame (encode+GPU, offscreen, median of 30) 13.48 ms  biome plains
+mesh slabs 60 MB, chunks 997 (block+light arrays 87 MB), Metal allocated 242 MB
+memory: resident 399 MB  (section meshes 53 MB)
+wrote snaps/tour_777_aerial_nocull.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 915 ms, upload 323 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 238) sky 15 block 0 in air, daylight 1.0
+imagecheck tour_12345_aerial.png magenta=0.00000 black=0.0000 white=0.0153 std=36.7 hash=ee15b7ed7552bdc7
+imagecheck tour_12345_aerial.png magenta=0.00000 black=0.0000 white=0.0153 std=36.7 hash=ee15b7ed7552bdc7
+seed 12345  pos 600.5 341.0 300.5  rd 16  chunks 997  (drawn 270)
+gen 1066 ms  mesh(all, parallel) 1021 ms  mesh(1 section) 0.41 ms  quads 1609306 opaque / 60351 water
+frame (encode+GPU, offscreen, median of 30) 7.28 ms  biome snowySlopes
+mesh slabs 56 MB, chunks 997 (block+light arrays 127 MB), Metal allocated 238 MB
+memory: resident 372 MB  (section meshes 51 MB)
+wrote snaps/tour_12345_aerial.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 937 ms, upload 333 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck tour_12345_low.png magenta=0.00000 black=0.0000 white=0.0008 std=53.5 hash=ae71669b52f81827
+imagecheck tour_12345_low.png magenta=0.00000 black=0.0000 white=0.0008 std=53.5 hash=ae71669b52f81827
+seed 12345  pos 31.5 150.0 29.5  rd 12  chunks 593  (drawn 151)
+gen 620 ms  mesh(all, parallel) 648 ms  mesh(1 section) 1.98 ms  quads 1544710 opaque / 49386 water
+frame (encode+GPU, offscreen, median of 30) 5.92 ms  biome forest
+mesh slabs 56 MB, chunks 593 (block+light arrays 57 MB), Metal allocated 226 MB
+memory: resident 347 MB  (section meshes 49 MB)
+wrote snaps/tour_12345_low.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 988 ms, upload 313 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 85) sky 15 block 0 in air, daylight 1.0
+imagecheck tour_777_aerial.png magenta=0.00000 black=0.0000 white=0.0009 std=47.7 hash=3bdb0cb1e1187e92
+imagecheck tour_777_aerial.png magenta=0.00000 black=0.0000 white=0.0009 std=47.7 hash=3bdb0cb1e1187e92
+seed 777  pos 696.5 188.0 236.5  rd 16  chunks 997  (drawn 280)
+gen 850 ms  mesh(all, parallel) 975 ms  mesh(1 section) 0.55 ms  quads 1618910 opaque / 119855 water
+frame (encode+GPU, offscreen, median of 30) 7.73 ms  biome plains
+mesh slabs 60 MB, chunks 997 (block+light arrays 87 MB), Metal allocated 242 MB
+memory: resident 394 MB  (section meshes 53 MB)
+wrote snaps/tour_777_aerial.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 936 ms, upload 300 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 90) sky 15 block 0 in air, daylight 1.0
+imagecheck tour_777_low.png magenta=0.00000 black=0.0000 white=0.0008 std=48.3 hash=fae4a04d6d0c2e05
+imagecheck tour_777_low.png magenta=0.00000 black=0.0000 white=0.0008 std=48.3 hash=fae4a04d6d0c2e05
+seed 777  pos 8.5 168.0 8.5  rd 12  chunks 593  (drawn 151)
+gen 531 ms  mesh(all, parallel) 531 ms  mesh(1 section) 0.83 ms  quads 1289220 opaque / 69261 water
+frame (encode+GPU, offscreen, median of 30) 6.49 ms  biome forest
+mesh slabs 48 MB, chunks 593 (block+light arrays 55 MB), Metal allocated 218 MB
+memory: resident 322 MB  (section meshes 41 MB)
+wrote snaps/tour_777_low.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 812 ms, upload 292 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 87) sky 15 block 0 in air, daylight 1.0
+imagecheck tour_424242_aerial.png magenta=0.00000 black=0.0000 white=0.0008 std=49.5 hash=277e2b694e48d2b1
+imagecheck tour_424242_aerial.png magenta=0.00000 black=0.0000 white=0.0008 std=49.5 hash=277e2b694e48d2b1
+seed 424242  pos 600.5 190.0 300.5  rd 16  chunks 997  (drawn 269)
+gen 919 ms  mesh(all, parallel) 745 ms  mesh(1 section) 0.71 ms  quads 1368172 opaque / 42133 water
+frame (encode+GPU, offscreen, median of 30) 8.24 ms  biome savanna
+mesh slabs 48 MB, chunks 997 (block+light arrays 87 MB), Metal allocated 230 MB
+memory: resident 370 MB  (section meshes 43 MB)
+wrote snaps/tour_424242_aerial.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 954 ms, upload 323 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 99) sky 15 block 0 in air, daylight 1.0
+imagecheck tour_424242_low.png magenta=0.00000 black=0.0000 white=0.0025 std=56.3 hash=407dbc40c45400a5
+imagecheck tour_424242_low.png magenta=0.00000 black=0.0000 white=0.0025 std=56.3 hash=407dbc40c45400a5
+seed 424242  pos -3.5 177.0 17.5  rd 12  chunks 593  (drawn 131)
+gen 715 ms  mesh(all, parallel) 590 ms  mesh(1 section) 0.97 ms  quads 1385803 opaque / 57104 water
+frame (encode+GPU, offscreen, median of 30) 4.85 ms  biome forest
+mesh slabs 52 MB, chunks 593 (block+light arrays 55 MB), Metal allocated 222 MB
+memory: resident 329 MB  (section meshes 44 MB)
+wrote snaps/tour_424242_low.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 818 ms, upload 280 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 113) sky 15 block 0 in air, daylight 1.0
+imagecheck tour_1_aerial.png magenta=0.00000 black=0.0000 white=0.0008 std=45.7 hash=607ff4a9df975385
+imagecheck tour_1_aerial.png magenta=0.00000 black=0.0000 white=0.0008 std=45.7 hash=607ff4a9df975385
+seed 1  pos 600.5 216.0 300.5  rd 16  chunks 997  (drawn 287)
+gen 842 ms  mesh(all, parallel) 933 ms  mesh(1 section) 0.25 ms  quads 1763672 opaque / 56931 water
+frame (encode+GPU, offscreen, median of 30) 8.78 ms  biome sparseJungle
+mesh slabs 64 MB, chunks 997 (block+light arrays 97 MB), Metal allocated 246 MB
+memory: resident 377 MB  (section meshes 56 MB)
+wrote snaps/tour_1_aerial.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 877 ms, upload 291 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 102) sky 15 block 0 in air, daylight 1.0
+imagecheck tour_1_low.png magenta=0.00000 black=0.0000 white=0.0059 std=60.4 hash=4c0a0a25d9895bcc
+imagecheck tour_1_low.png magenta=0.00000 black=0.0000 white=0.0059 std=60.4 hash=4c0a0a25d9895bcc
+seed 1  pos -3.5 180.0 16.5  rd 12  chunks 593  (drawn 130)
+gen 523 ms  mesh(all, parallel) 610 ms  mesh(1 section) 1.75 ms  quads 1324615 opaque / 60543 water
+frame (encode+GPU, offscreen, median of 30) 7.21 ms  biome forest
+mesh slabs 48 MB, chunks 593 (block+light arrays 55 MB), Metal allocated 218 MB
+memory: resident 315 MB  (section meshes 42 MB)
+wrote snaps/tour_1_low.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 973 ms, upload 336 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 85) sky 15 block 0 in air, daylight 1.0
+imagecheck tour_98765_aerial.png magenta=0.00000 black=0.0000 white=0.0011 std=55.6 hash=9c812c6fef9739f6
+imagecheck tour_98765_aerial.png magenta=0.00000 black=0.0000 white=0.0011 std=55.6 hash=9c812c6fef9739f6
+seed 98765  pos 88.5 188.0 428.5  rd 16  chunks 997  (drawn 289)
+gen 870 ms  mesh(all, parallel) 902 ms  mesh(1 section) 0.20 ms  quads 1055587 opaque / 158706 water
+frame (encode+GPU, offscreen, median of 30) 8.72 ms  biome desert
+mesh slabs 44 MB, chunks 997 (block+light arrays 85 MB), Metal allocated 226 MB
+memory: resident 370 MB  (section meshes 37 MB)
+wrote snaps/tour_98765_aerial.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 810 ms, upload 276 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 91) sky 15 block 0 in air, daylight 1.0
+imagecheck tour_98765_low.png magenta=0.00000 black=0.0000 white=0.0008 std=51.4 hash=19dc1f7a828ae901
+imagecheck tour_98765_low.png magenta=0.00000 black=0.0000 white=0.0008 std=51.4 hash=19dc1f7a828ae901
+seed 98765  pos 8.5 169.0 8.5  rd 12  chunks 593  (drawn 149)
+gen 532 ms  mesh(all, parallel) 455 ms  mesh(1 section) 0.75 ms  quads 1276593 opaque / 69860 water
+frame (encode+GPU, offscreen, median of 30) 6.33 ms  biome forest
+mesh slabs 48 MB, chunks 593 (block+light arrays 54 MB), Metal allocated 218 MB
+memory: resident 313 MB  (section meshes 41 MB)
+wrote snaps/tour_98765_low.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 868 ms, upload 295 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 265) sky 15 block 0 in air, daylight 1.0
+imagecheck tour_peaks.png magenta=0.00000 black=0.0000 white=0.0021 std=42.8 hash=93f9a9f6fcce0c4a
+imagecheck tour_peaks.png magenta=0.00000 black=0.0000 white=0.0021 std=42.8 hash=93f9a9f6fcce0c4a
+seed 12345  pos 248.5 357.0 -615.5  rd 16  chunks 997  (drawn 295)
+gen 1184 ms  mesh(all, parallel) 1244 ms  mesh(1 section) 0.72 ms  quads 2096420 opaque / 39077 water
+frame (encode+GPU, offscreen, median of 30) 6.74 ms  biome jaggedPeaks
+mesh slabs 72 MB, chunks 997 (block+light arrays 149 MB), Metal allocated 242 MB
+memory: resident 411 MB  (section meshes 65 MB)
+wrote snaps/tour_peaks.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 861 ms, upload 310 ms)
+light probe: eye sky 11 block 0 in air; floor+1 (y 81) sky 10 block 0 in air, daylight 1.0
+imagecheck tour_forest_floor.png magenta=0.00000 black=0.0226 white=0.0008 std=17.5 hash=e32b0016bd804285
+imagecheck tour_forest_floor.png magenta=0.00000 black=0.0226 white=0.0008 std=17.5 hash=e32b0016bd804285
+seed 12345  pos -135.5 145.2 -39.5  rd 8  chunks 297  (drawn 73)
+gen 342 ms  mesh(all, parallel) 338 ms  mesh(1 section) 1.24 ms  quads 1136052 opaque / 9408 water
+frame (encode+GPU, offscreen, median of 30) 5.26 ms  biome forest
+mesh slabs 40 MB, chunks 297 (block+light arrays 29 MB), Metal allocated 210 MB
+memory: resident 262 MB  (section meshes 35 MB)
+wrote snaps/tour_forest_floor.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 905 ms, upload 305 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 71) sky 15 block 0 in air, daylight 1.0
+lodcheck: chunk -37 49 cactus at y 69 (section 8): quads near 141+156, far 78+16; live lod 0 quads 297 empty false top 8
+lodcheck: chunk -36 54 cactus at y 72 (section 8): quads near 181+453, far 68+42; live lod 0 quads 634 empty false top 9
+lodcheck: chunk -34 56 cactus at y 73 (section 8): quads near 436+80, far 296+16; live lod 0 quads 516 empty false top 8
+lodcheck: chunk -40 55 cactus at y 68 (section 8): quads near 77+58, far 31+21; live lod 0 quads 135 empty false top 8
+lodcheck: chunk -41 56 cactus at y 66 (section 8): quads near 119+239, far 63+11; live lod 0 quads 358 empty false top 8
+lodcheck: chunk -39 55 cactus at y 69 (section 8): quads near 201+293, far 88+64; live lod 0 quads 494 empty false top 8
+imagecheck tour_desert.png magenta=0.00000 black=0.0000 white=0.0008 std=54.0 hash=0b971e5cc283e7c5
+imagecheck tour_desert.png magenta=0.00000 black=0.0000 white=0.0008 std=54.0 hash=0b971e5cc283e7c5
+seed 12345  pos -567.5 155.0 920.5  rd 12  chunks 593  (drawn 152)
+gen 500 ms  mesh(all, parallel) 460 ms  mesh(1 section) 0.19 ms  quads 1017191 opaque / 40968 water
+frame (encode+GPU, offscreen, median of 30) 6.10 ms  biome desert
+mesh slabs 36 MB, chunks 593 (block+light arrays 50 MB), Metal allocated 218 MB
+memory: resident 313 MB  (section meshes 32 MB)
+wrote snaps/tour_desert.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 868 ms, upload 291 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 71) sky 15 block 0 in air, daylight 1.0
+cactusprobe: 27 cacti in view 8-120 blocks off
+probe cactus 13: pixel 404,460 rgb 24 86 31 (depth 0.996)
+probe cactus 30: pixel 914,404 rgb 138 135 26 (depth 0.998)
+probe cactus 31: pixel 621,399 rgb 35 86 34 (depth 0.999)
+probe cactus 32: pixel 550,397 rgb 30 88 35 (depth 0.999)
+probe cactus 35: pixel 390,380 rgb 27 80 33 (depth 0.999)
+probe cactus 42: pixel 612,375 rgb 33 88 39 (depth 0.999)
+probe cactus 43: pixel 963,408 rgb 155 163 70 (depth 0.999)
+probe cactus 47: pixel 764,374 rgb 49 107 51 (depth 0.999)
+probe cactus 47: pixel 579,385 rgb 134 126 99 (depth 0.999)
+probe cactus 52: pixel 990,387 rgb 38 93 44 (depth 0.999)
+probe cactus 52: pixel 1038,374 rgb 51 106 53 (depth 0.999)
+probe cactus 53: pixel 434,384 rgb 250 244 202 (depth 0.999)
+probe cactus 55: pixel 735,371 rgb 49 105 53 (depth 0.999)
+probe cactus 57: pixel 424,372 rgb 53 101 48 (depth 0.999)
+probe cactus 62: pixel 915,391 rgb 33 88 38 (depth 0.999)
+probe cactus 63: pixel 811,370 rgb 44 101 50 (depth 0.999)
+probe cactus 63: pixel 658,361 rgb 42 96 47 (depth 0.999)
+probe cactus 67: pixel 870,361 rgb 40 97 47 (depth 0.999)
+probe cactus 70: pixel 899,361 rgb 41 99 48 (depth 0.999)
+probe cactus 71: pixel 721,369 rgb 52 109 56 (depth 1.000)
+probe cactus 75: pixel 869,361 rgb 52 110 56 (depth 1.000)
+probe cactus 78: pixel 751,353 rgb 54 113 66 (depth 1.000)
+probe cactus 79: pixel 856,368 rgb 51 107 66 (depth 1.000)
+probe cactus 79: pixel 676,360 rgb 58 116 71 (depth 1.000)
+probe cactus 104: pixel 381,366 rgb 35 90 38 (depth 1.000)
+probe cactus 104: pixel 319,373 rgb 106 136 169 (depth 1.000)
+probe cactus 106: pixel 357,378 rgb 236 207 112 (depth 1.000)
+imagecheck cactus_mid.png magenta=0.00000 black=0.0000 white=0.0008 std=52.6 hash=32c9a83981c0e2ca
+probe cactus 13: pixel 404,460 rgb 24 86 31 (depth 0.996)
+probe cactus 30: pixel 914,404 rgb 138 135 26 (depth 0.998)
+probe cactus 31: pixel 621,399 rgb 35 86 34 (depth 0.999)
+probe cactus 32: pixel 550,397 rgb 30 88 35 (depth 0.999)
+probe cactus 35: pixel 390,380 rgb 27 80 33 (depth 0.999)
+probe cactus 42: pixel 612,375 rgb 33 88 39 (depth 0.999)
+probe cactus 43: pixel 963,408 rgb 155 163 70 (depth 0.999)
+probe cactus 47: pixel 764,374 rgb 49 107 51 (depth 0.999)
+probe cactus 47: pixel 579,385 rgb 134 126 99 (depth 0.999)
+probe cactus 52: pixel 990,387 rgb 38 93 44 (depth 0.999)
+probe cactus 52: pixel 1038,374 rgb 51 106 53 (depth 0.999)
+probe cactus 53: pixel 434,384 rgb 250 244 202 (depth 0.999)
+probe cactus 55: pixel 735,371 rgb 49 105 53 (depth 0.999)
+probe cactus 57: pixel 424,372 rgb 53 101 48 (depth 0.999)
+probe cactus 62: pixel 915,391 rgb 33 88 38 (depth 0.999)
+probe cactus 63: pixel 811,370 rgb 44 101 50 (depth 0.999)
+probe cactus 63: pixel 658,361 rgb 42 96 47 (depth 0.999)
+probe cactus 67: pixel 870,361 rgb 40 97 47 (depth 0.999)
+probe cactus 70: pixel 899,361 rgb 41 99 48 (depth 0.999)
+probe cactus 71: pixel 721,369 rgb 52 109 56 (depth 1.000)
+probe cactus 75: pixel 869,361 rgb 52 110 56 (depth 1.000)
+probe cactus 78: pixel 751,353 rgb 54 113 66 (depth 1.000)
+probe cactus 79: pixel 856,368 rgb 51 107 66 (depth 1.000)
+probe cactus 79: pixel 676,360 rgb 58 116 71 (depth 1.000)
+probe cactus 104: pixel 381,366 rgb 35 90 38 (depth 1.000)
+probe cactus 104: pixel 319,373 rgb 106 136 169 (depth 1.000)
+probe cactus 106: pixel 357,378 rgb 236 207 112 (depth 1.000)
+imagecheck cactus_mid.png magenta=0.00000 black=0.0000 white=0.0008 std=52.6 hash=32c9a83981c0e2ca
+seed 12345  pos -567.5 137.0 920.5  rd 8  chunks 297  (drawn 75)
+gen 256 ms  mesh(all, parallel) 221 ms  mesh(1 section) 0.26 ms  quads 668301 opaque / 12680 water
+frame (encode+GPU, offscreen, median of 30) 4.92 ms  biome desert
+mesh slabs 24 MB, chunks 297 (block+light arrays 25 MB), Metal allocated 206 MB
+memory: resident 272 MB  (section meshes 21 MB)
+wrote snaps/cactus_mid.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 833 ms, upload 275 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 71) sky 15 block 0 in air, daylight 1.0
+cactusprobe: 27 cacti in view 8-120 blocks off
+probe cactus 13: pixel 404,460 rgb 35 95 38 (depth 0.996)
+probe cactus 30: pixel 914,404 rgb 98 96 25 (depth 0.998)
+probe cactus 31: pixel 621,399 rgb 30 85 32 (depth 0.999)
+probe cactus 32: pixel 550,397 rgb 32 87 33 (depth 0.999)
+probe cactus 35: pixel 390,380 rgb 30 83 31 (depth 0.999)
+probe cactus 42: pixel 612,375 rgb 35 89 35 (depth 0.999)
+probe cactus 43: pixel 963,408 rgb 100 106 49 (depth 0.999)
+probe cactus 47: pixel 764,374 rgb 50 104 46 (depth 0.999)
+probe cactus 47: pixel 579,385 rgb 143 132 100 (depth 0.999)
+probe cactus 52: pixel 990,387 rgb 38 93 38 (depth 0.999)
+probe cactus 52: pixel 1038,374 rgb 55 109 50 (depth 0.999)
+probe cactus 53: pixel 434,384 rgb 214 205 156 (depth 0.999)
+probe cactus 55: pixel 735,371 rgb 50 105 47 (depth 0.999)
+probe cactus 57: pixel 424,372 rgb 35 89 35 (depth 0.999)
+probe cactus 62: pixel 915,391 rgb 39 93 38 (depth 0.999)
+probe cactus 63: pixel 811,370 rgb 43 97 41 (depth 0.999)
+probe cactus 63: pixel 658,361 rgb 42 95 40 (depth 0.999)
+probe cactus 67: pixel 870,361 rgb 38 91 36 (depth 0.999)
+probe cactus 70: pixel 899,361 rgb 37 90 35 (depth 0.999)
+probe cactus 71: pixel 721,369 rgb 50 104 45 (depth 1.000)
+probe cactus 75: pixel 869,361 rgb 52 106 47 (depth 1.000)
+probe cactus 78: pixel 751,353 rgb 51 105 53 (depth 1.000)
+probe cactus 79: pixel 856,368 rgb 46 99 51 (depth 1.000)
+probe cactus 79: pixel 676,360 rgb 54 107 57 (depth 1.000)
+probe cactus 104: pixel 381,366 rgb 40 96 38 (depth 1.000)
+probe cactus 104: pixel 319,373 rgb 91 117 147 (depth 1.000)
+probe cactus 106: pixel 357,378 rgb 157 131 77 (depth 1.000)
+imagecheck cactus_mid_fast.png magenta=0.00000 black=0.0000 white=0.0008 std=43.8 hash=6844841865b0479e
+probe cactus 13: pixel 404,460 rgb 35 95 38 (depth 0.996)
+probe cactus 30: pixel 914,404 rgb 98 96 25 (depth 0.998)
+probe cactus 31: pixel 621,399 rgb 30 85 32 (depth 0.999)
+probe cactus 32: pixel 550,397 rgb 32 87 33 (depth 0.999)
+probe cactus 35: pixel 390,380 rgb 30 83 31 (depth 0.999)
+probe cactus 42: pixel 612,375 rgb 35 89 35 (depth 0.999)
+probe cactus 43: pixel 963,408 rgb 100 106 49 (depth 0.999)
+probe cactus 47: pixel 764,374 rgb 50 104 46 (depth 0.999)
+probe cactus 47: pixel 579,385 rgb 143 132 100 (depth 0.999)
+probe cactus 52: pixel 990,387 rgb 38 93 38 (depth 0.999)
+probe cactus 52: pixel 1038,374 rgb 55 109 50 (depth 0.999)
+probe cactus 53: pixel 434,384 rgb 214 205 156 (depth 0.999)
+probe cactus 55: pixel 735,371 rgb 50 105 47 (depth 0.999)
+probe cactus 57: pixel 424,372 rgb 35 89 35 (depth 0.999)
+probe cactus 62: pixel 915,391 rgb 39 93 38 (depth 0.999)
+probe cactus 63: pixel 811,370 rgb 43 97 41 (depth 0.999)
+probe cactus 63: pixel 658,361 rgb 42 95 40 (depth 0.999)
+probe cactus 67: pixel 870,361 rgb 38 91 36 (depth 0.999)
+probe cactus 70: pixel 899,361 rgb 37 90 35 (depth 0.999)
+probe cactus 71: pixel 721,369 rgb 50 104 45 (depth 1.000)
+probe cactus 75: pixel 869,361 rgb 52 106 47 (depth 1.000)
+probe cactus 78: pixel 751,353 rgb 51 105 53 (depth 1.000)
+probe cactus 79: pixel 856,368 rgb 46 99 51 (depth 1.000)
+probe cactus 79: pixel 676,360 rgb 54 107 57 (depth 1.000)
+probe cactus 104: pixel 381,366 rgb 40 96 38 (depth 1.000)
+probe cactus 104: pixel 319,373 rgb 91 117 147 (depth 1.000)
+probe cactus 106: pixel 357,378 rgb 157 131 77 (depth 1.000)
+imagecheck cactus_mid_fast.png magenta=0.00000 black=0.0000 white=0.0008 std=43.8 hash=6844841865b0479e
+seed 12345  pos -567.5 137.0 920.5  rd 8  chunks 297  (drawn 75)
+gen 262 ms  mesh(all, parallel) 194 ms  mesh(1 section) 0.19 ms  quads 668301 opaque / 12680 water
+frame (encode+GPU, offscreen, median of 30) 2.26 ms  biome desert
+mesh slabs 24 MB, chunks 297 (block+light arrays 25 MB), Metal allocated 166 MB
+memory: resident 188 MB  (section meshes 21 MB)
+wrote snaps/cactus_mid_fast.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 879 ms, upload 333 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 71) sky 15 block 0 in air, daylight 1.0
+imagecheck cactus_far.png magenta=0.00000 black=0.0000 white=0.0008 std=46.7 hash=4a3e05cc703dc772
+imagecheck cactus_far.png magenta=0.00000 black=0.0000 white=0.0008 std=46.7 hash=4a3e05cc703dc772
+seed 12345  pos -560.0 150.0 1060.0  rd 16  chunks 997  (drawn 252)
+gen 860 ms  mesh(all, parallel) 884 ms  mesh(1 section) 0.39 ms  quads 1477633 opaque / 62094 water
+frame (encode+GPU, offscreen, median of 30) 9.63 ms  biome savanna
+mesh slabs 52 MB, chunks 997 (block+light arrays 87 MB), Metal allocated 234 MB
+memory: resident 392 MB  (section meshes 47 MB)
+wrote snaps/cactus_far.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 901 ms, upload 291 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 71) sky 15 block 0 in air, daylight 1.0
+imagecheck cactus_far_nolod.png magenta=0.00000 black=0.0000 white=0.0008 std=46.6 hash=d3788081de89bfed
+imagecheck cactus_far_nolod.png magenta=0.00000 black=0.0000 white=0.0008 std=46.6 hash=d3788081de89bfed
+seed 12345  pos -560.0 150.0 1060.0  rd 16  chunks 997  (drawn 252)
+gen 874 ms  mesh(all, parallel) 879 ms  mesh(1 section) 0.60 ms  quads 2945598 opaque / 62094 water
+frame (encode+GPU, offscreen, median of 30) 8.06 ms  biome savanna
+mesh slabs 104 MB, chunks 997 (block+light arrays 87 MB), Metal allocated 286 MB
+memory: resident 467 MB  (section meshes 92 MB)
+wrote snaps/cactus_far_nolod.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1003 ms, upload 345 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 76) sky 15 block 0 in air, daylight 1.0
+imagecheck tour_jungle.png magenta=0.00000 black=0.0000 white=0.0008 std=49.6 hash=ccdc756ca1fe23ae
+imagecheck tour_jungle.png magenta=0.00000 black=0.0000 white=0.0008 std=49.6 hash=ccdc756ca1fe23ae
+seed 424242  pos -39.5 152.0 1160.5  rd 12  chunks 593  (drawn 155)
+gen 517 ms  mesh(all, parallel) 702 ms  mesh(1 section) 1.65 ms  quads 2115933 opaque / 25370 water
+frame (encode+GPU, offscreen, median of 30) 5.98 ms  biome jungle
+mesh slabs 72 MB, chunks 593 (block+light arrays 58 MB), Metal allocated 242 MB
+memory: resident 366 MB  (section meshes 65 MB)
+wrote snaps/tour_jungle.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 809 ms, upload 307 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 68) sky 9 block 0 in water, daylight 1.0
+imagecheck tour_river.png magenta=0.00000 black=0.0000 white=0.0008 std=42.1 hash=b22a54e17dc14fce
+imagecheck tour_river.png magenta=0.00000 black=0.0000 white=0.0008 std=42.1 hash=b22a54e17dc14fce
+seed 12345  pos 152.5 168.0 -87.5  rd 12  chunks 593  (drawn 150)
+gen 546 ms  mesh(all, parallel) 758 ms  mesh(1 section) 0.54 ms  quads 1936411 opaque / 37415 water
+frame (encode+GPU, offscreen, median of 30) 7.60 ms  biome river
+mesh slabs 68 MB, chunks 593 (block+light arrays 65 MB), Metal allocated 238 MB
+memory: resident 352 MB  (section meshes 60 MB)
+wrote snaps/tour_river.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 799 ms, upload 284 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 13 block 0 in seagrass, daylight 1.0
+imagecheck tour_river_777.png magenta=0.00000 black=0.0000 white=0.0008 std=44.2 hash=45b024cd2903fee1
+imagecheck tour_river_777.png magenta=0.00000 black=0.0000 white=0.0008 std=44.2 hash=45b024cd2903fee1
+seed 777  pos 296.5 168.0 -135.5  rd 12  chunks 593  (drawn 172)
+gen 502 ms  mesh(all, parallel) 595 ms  mesh(1 section) 0.44 ms  quads 1555642 opaque / 29745 water
+frame (encode+GPU, offscreen, median of 30) 7.21 ms  biome river
+mesh slabs 56 MB, chunks 593 (block+light arrays 58 MB), Metal allocated 238 MB
+memory: resident 354 MB  (section meshes 48 MB)
+wrote snaps/tour_river_777.png
+feature lake at -311 -233
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 904 ms, upload 333 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 76) sky 15 block 0 in air, daylight 1.0
+imagecheck tour_lake.png magenta=0.00000 black=0.0000 white=0.0008 std=41.7 hash=757bf6b7291cf116
+imagecheck tour_lake.png magenta=0.00000 black=0.0000 white=0.0008 std=41.7 hash=757bf6b7291cf116
+seed 12345  pos -284.5 179.0 -175.5  rd 12  chunks 593  (drawn 154)
+gen 577 ms  mesh(all, parallel) 648 ms  mesh(1 section) 0.75 ms  quads 1975060 opaque / 26721 water
+frame (encode+GPU, offscreen, median of 30) 10.39 ms  biome darkForest
+mesh slabs 68 MB, chunks 593 (block+light arrays 59 MB), Metal allocated 250 MB
+memory: resident 356 MB  (section meshes 61 MB)
+wrote snaps/tour_lake.png
+feature lake at -203 856
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 774 ms, upload 285 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 69) sky 15 block 0 in air, daylight 1.0
+imagecheck tour_lake_424242.png magenta=0.00000 black=0.0000 white=0.0008 std=47.0 hash=e54a3b65a9e0c8e8
+imagecheck tour_lake_424242.png magenta=0.00000 black=0.0000 white=0.0008 std=47.0 hash=e54a3b65a9e0c8e8
+seed 424242  pos -173.9 172.0 906.0  rd 12  chunks 593  (drawn 163)
+gen 500 ms  mesh(all, parallel) 490 ms  mesh(1 section) 0.55 ms  quads 1258458 opaque / 19045 water
+frame (encode+GPU, offscreen, median of 30) 9.48 ms  biome sparseJungle
+mesh slabs 44 MB, chunks 593 (block+light arrays 55 MB), Metal allocated 226 MB
+memory: resident 342 MB  (section meshes 39 MB)
+wrote snaps/tour_lake_424242.png
+feature delta at 134 -5
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 896 ms, upload 351 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 79) sky 15 block 0 in air, daylight 1.0
+imagecheck tour_delta.png magenta=0.00000 black=0.0000 white=0.0008 std=45.3 hash=95941a068026eff5
+imagecheck tour_delta.png magenta=0.00000 black=0.0000 white=0.0008 std=45.3 hash=95941a068026eff5
+seed 12345  pos 148.5 182.0 31.5  rd 12  chunks 593  (drawn 152)
+gen 592 ms  mesh(all, parallel) 716 ms  mesh(1 section) 0.39 ms  quads 1366310 opaque / 58690 water
+frame (encode+GPU, offscreen, median of 30) 9.09 ms  biome forest
+mesh slabs 48 MB, chunks 593 (block+light arrays 57 MB), Metal allocated 230 MB
+memory: resident 310 MB  (section meshes 43 MB)
+wrote snaps/tour_delta.png
+feature delta at 1530 -1101
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1008 ms, upload 328 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 77) sky 15 block 0 in air, daylight 1.0
+imagecheck tour_delta_777.png magenta=0.00000 black=0.0000 white=0.0008 std=59.9 hash=3819f303843e4a48
+imagecheck tour_delta_777.png magenta=0.00000 black=0.0000 white=0.0008 std=59.9 hash=3819f303843e4a48
+seed 777  pos 1534.5 180.0 -1047.5  rd 12  chunks 593  (drawn 188)
+gen 484 ms  mesh(all, parallel) 941 ms  mesh(1 section) 0.99 ms  quads 2100998 opaque / 62368 water
+frame (encode+GPU, offscreen, median of 30) 8.55 ms  biome forest
+mesh slabs 76 MB, chunks 593 (block+light arrays 58 MB), Metal allocated 258 MB
+memory: resident 367 MB  (section meshes 66 MB)
+wrote snaps/tour_delta_777.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 996 ms, upload 306 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 75) sky 15 block 0 in air, daylight 1.0
+imagecheck tour_mesa.png magenta=0.00000 black=0.0000 white=0.0008 std=57.5 hash=6eba9ffb4acac968
+imagecheck tour_mesa.png magenta=0.00000 black=0.0000 white=0.0008 std=57.5 hash=6eba9ffb4acac968
+seed 12345  pos -2871.5 174.0 3272.5  rd 12  chunks 593  (drawn 153)
+gen 808 ms  mesh(all, parallel) 1009 ms  mesh(1 section) 0.19 ms  quads 1765407 opaque / 35331 water
+frame (encode+GPU, offscreen, median of 30) 5.62 ms  biome badlands
+mesh slabs 64 MB, chunks 593 (block+light arrays 63 MB), Metal allocated 246 MB
+memory: resident 344 MB  (section meshes 55 MB)
+wrote snaps/tour_mesa.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 893 ms, upload 314 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 65) sky 15 block 0 in air, daylight 1.0
+imagecheck tour_coast.png magenta=0.00000 black=0.0000 white=0.0008 std=47.6 hash=55e009957c59e718
+imagecheck tour_coast.png magenta=0.00000 black=0.0000 white=0.0008 std=47.6 hash=55e009957c59e718
+seed 12345  pos 8.5 159.0 104.5  rd 12  chunks 593  (drawn 167)
+gen 528 ms  mesh(all, parallel) 479 ms  mesh(1 section) 0.36 ms  quads 1122936 opaque / 71960 water
+frame (encode+GPU, offscreen, median of 30) 7.90 ms  biome beach
+mesh slabs 44 MB, chunks 593 (block+light arrays 52 MB), Metal allocated 226 MB
+memory: resident 320 MB  (section meshes 36 MB)
+wrote snaps/tour_coast.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 884 ms, upload 274 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 185) sky 0 block 0 in powder_snow, daylight 1.0
+imagecheck tour_snowline.png magenta=0.00000 black=0.0000 white=0.0742 std=55.2 hash=76987fbbced2171e
+imagecheck tour_snowline.png magenta=0.00000 black=0.0000 white=0.0742 std=55.2 hash=76987fbbced2171e
+seed 424242  pos -1431.5 256.0 -183.5  rd 16  chunks 997  (drawn 276)
+gen 1174 ms  mesh(all, parallel) 943 ms  mesh(1 section) 0.21 ms  quads 1682289 opaque / 39881 water
+frame (encode+GPU, offscreen, median of 30) 6.56 ms  biome snowySlopes
+mesh slabs 60 MB, chunks 997 (block+light arrays 125 MB), Metal allocated 230 MB
+memory: resident 409 MB  (section meshes 53 MB)
+wrote snaps/tour_snowline.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 852 ms, upload 308 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck spawn.png magenta=0.00000 black=0.0053 white=0.0008 std=39.4 hash=e5e8dd256c57e939
+imagecheck spawn.png magenta=0.00000 black=0.0053 white=0.0008 std=39.4 hash=e5e8dd256c57e939
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 78)
+gen 227 ms  mesh(all, parallel) 286 ms  mesh(1 section) 1.41 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 8.11 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 273 MB  (section meshes 30 MB)
+wrote snaps/spawn.png
+ship boat: Assembled 126 blocks (68.0 t)
+ship boat: 126 blocks 68.0 t  pos 106.4 127.0 178.2  speed 4.65 b/s  submerged 68.3  contacts 0  physics 0.01 ms/frame
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 886 ms, upload 295 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 50) sky 2 block 0 in water, daylight 1.0
+imagecheck ship_boat.png magenta=0.00000 black=0.0000 white=0.0023 std=53.6 hash=cb8a16ed33be4c7f
+imagecheck ship_boat.png magenta=0.00000 black=0.0000 white=0.0023 std=53.6 hash=cb8a16ed33be4c7f
+seed 12345  pos 101.8 131.4 194.6  rd 8  chunks 297  (drawn 73)
+gen 259 ms  mesh(all, parallel) 250 ms  mesh(1 section) 0.90 ms  quads 556601 opaque / 59716 water
+frame (encode+GPU, offscreen, median of 30) 8.77 ms  biome ocean
+mesh slabs 24 MB, chunks 297 (block+light arrays 23 MB), Metal allocated 206 MB
+memory: resident 265 MB  (section meshes 19 MB)
+wrote snaps/ship_boat.png
+ship deck: Assembled 126 blocks (68.0 t)
+ship deck: 126 blocks 68.0 t  pos 104.5 127.0 191.3  speed 4.07 b/s  submerged 68.5  contacts 0  physics 0.01 ms/frame
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1082 ms, upload 397 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 50) sky 2 block 0 in water, daylight 1.0
+imagecheck ship_deck.png magenta=0.00000 black=0.0000 white=0.0025 std=51.1 hash=3172c02fd52989cd
+imagecheck ship_deck.png magenta=0.00000 black=0.0000 white=0.0025 std=51.1 hash=3172c02fd52989cd
+seed 12345  pos 104.5 126.7 194.2  rd 8  chunks 297  (drawn 72)
+gen 256 ms  mesh(all, parallel) 199 ms  mesh(1 section) 0.70 ms  quads 556601 opaque / 59716 water
+frame (encode+GPU, offscreen, median of 30) 5.15 ms  biome ocean
+mesh slabs 24 MB, chunks 297 (block+light arrays 23 MB), Metal allocated 206 MB
+memory: resident 276 MB  (section meshes 19 MB)
+wrote snaps/ship_deck.png
+ship airship: Assembled 359 blocks (52.7 t)
+ship airship: 359 blocks 52.7 t  pos -66.1 161.5 62.0  speed 16.75 b/s  submerged 0.0  contacts 0  physics 0.00 ms/frame
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 860 ms, upload 296 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 82) sky 15 block 0 in air, daylight 1.0
+imagecheck ship_airship.png magenta=0.00000 black=0.0000 white=0.0023 std=47.3 hash=9104f08ed1cf3aaf
+imagecheck ship_airship.png magenta=0.00000 black=0.0000 white=0.0023 std=47.3 hash=9104f08ed1cf3aaf
+seed 12345  pos -80.0 165.9 80.7  rd 8  chunks 326  (drawn 76)
+gen 246 ms  mesh(all, parallel) 202 ms  mesh(1 section) 0.23 ms  quads 794813 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 6.33 ms  biome plains
+mesh slabs 32 MB, chunks 326 (block+light arrays 28 MB), Metal allocated 202 MB
+memory: resident 268 MB  (section meshes 28 MB)
+wrote snaps/ship_airship.png
+ship car: Assembled 48 blocks (28.5 t)
+ship car: 48 blocks 28.5 t  pos -85.5 135.8 66.1  speed 3.84 b/s  submerged 0.0  contacts 2  physics 0.01 ms/frame
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 935 ms, upload 310 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 71) sky 15 block 0 in air, daylight 1.0
+imagecheck ship_car.png magenta=0.00000 black=0.0000 white=0.0019 std=41.2 hash=f184bf29b8fbdb3b
+imagecheck ship_car.png magenta=0.00000 black=0.0000 white=0.0019 std=41.2 hash=f184bf29b8fbdb3b
+seed 12345  pos -87.2 139.2 80.8  rd 8  chunks 316  (drawn 70)
+gen 273 ms  mesh(all, parallel) 226 ms  mesh(1 section) 0.37 ms  quads 794813 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.99 ms  biome plains
+mesh slabs 32 MB, chunks 316 (block+light arrays 27 MB), Metal allocated 202 MB
+memory: resident 257 MB  (section meshes 27 MB)
+wrote snaps/ship_car.png
+ship plane: Assembled 78 blocks (25.7 t)
+ship plane: 78 blocks 25.7 t  pos -86.3 170.5 6.6  speed 25.97 b/s  submerged 0.0  contacts 0  physics 0.00 ms/frame
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 963 ms, upload 349 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 89) sky 15 block 0 in air, daylight 1.0
+imagecheck ship_plane.png magenta=0.00000 black=0.0000 white=0.0024 std=51.1 hash=92c6ca055e4a2bb5
+imagecheck ship_plane.png magenta=0.00000 black=0.0000 white=0.0024 std=51.1 hash=92c6ca055e4a2bb5
+seed 12345  pos -87.4 173.9 25.6  rd 8  chunks 392  (drawn 76)
+gen 301 ms  mesh(all, parallel) 245 ms  mesh(1 section) 0.67 ms  quads 794813 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 6.42 ms  biome forest
+mesh slabs 44 MB, chunks 392 (block+light arrays 35 MB), Metal allocated 214 MB
+memory: resident 285 MB  (section meshes 38 MB)
+wrote snaps/ship_plane.png
+ship gunboat: Assembled 135 blocks (94.1 t, 1 turret)
+ship gunboat: 129 blocks 71.3 t  pos 113.8 127.0 168.7  speed 4.71 b/s  submerged 74.7  contacts 0  physics 0.02 ms/frame
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 870 ms, upload 299 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 51) sky 3 block 0 in water, daylight 1.0
+imagecheck ship_gunboat.png magenta=0.00000 black=0.0000 white=0.0022 std=54.6 hash=6a22c57ff4f33f63
+imagecheck ship_gunboat.png magenta=0.00000 black=0.0000 white=0.0022 std=54.6 hash=6a22c57ff4f33f63
+seed 12345  pos 108.6 131.4 184.8  rd 8  chunks 316  (drawn 73)
+gen 268 ms  mesh(all, parallel) 219 ms  mesh(1 section) 0.62 ms  quads 556601 opaque / 59716 water
+frame (encode+GPU, offscreen, median of 30) 6.62 ms  biome ocean
+mesh slabs 24 MB, chunks 316 (block+light arrays 25 MB), Metal allocated 206 MB
+memory: resident 265 MB  (section meshes 20 MB)
+wrote snaps/ship_gunboat.png
+ship frigate: 3151 blocks 826 t  pos -87.5 183.0 74.5  speed 0.01 b/s  turrets 2  crew 4  physics 0.01 ms/frame
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 911 ms, upload 329 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 98) sky 15 block 0 in air, daylight 1.0
+imagecheck ship_frigate.png magenta=0.00000 black=0.0000 white=0.0015 std=37.6 hash=b6759c66ecf33522
+imagecheck ship_frigate.png magenta=0.00000 black=0.0000 white=0.0015 std=37.6 hash=b6759c66ecf33522
+seed 12345  pos -65.6 195.4 8.0  rd 10  chunks 578  (drawn 113)
+gen 385 ms  mesh(all, parallel) 356 ms  mesh(1 section) 0.89 ms  quads 1046817 opaque / 33885 water
+frame (encode+GPU, offscreen, median of 30) 5.42 ms  biome forest
+mesh slabs 56 MB, chunks 578 (block+light arrays 53 MB), Metal allocated 238 MB
+memory: resident 328 MB  (section meshes 49 MB)
+wrote snaps/ship_frigate.png
+ship carriage: 1037 blocks 1925 t  pos -87.5 143.3 74.5  speed 0.00 b/s  turrets 1  crew 2  physics 0.08 ms/frame
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 874 ms, upload 302 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 71) sky 15 block 0 in air, daylight 1.0
+imagecheck ship_carriage.png magenta=0.00000 black=0.0000 white=0.0019 std=38.2 hash=0494f4ee173b2ae0
+imagecheck ship_carriage.png magenta=0.00000 black=0.0000 white=0.0019 std=38.2 hash=0494f4ee173b2ae0
+seed 12345  pos -128.8 153.7 70.3  rd 8  chunks 368  (drawn 75)
+gen 310 ms  mesh(all, parallel) 296 ms  mesh(1 section) 0.57 ms  quads 794813 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 6.19 ms  biome plains
+mesh slabs 40 MB, chunks 368 (block+light arrays 32 MB), Metal allocated 222 MB
+memory: resident 278 MB  (section meshes 33 MB)
+wrote snaps/ship_carriage.png
+ship battle: 3.8 s until shells were in the air (4 in flight), frigate 58 blocks away
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1043 ms, upload 376 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck ship_battle.png magenta=0.00000 black=0.0000 white=0.0603 std=60.3 hash=7a99e36473ca5e32
+imagecheck ship_battle.png magenta=0.00000 black=0.0000 white=0.0603 std=60.3 hash=7a99e36473ca5e32
+seed 12345  pos -42.0 136.0 86.0  rd 10  chunks 512  (drawn 109)
+gen 429 ms  mesh(all, parallel) 466 ms  mesh(1 section) 0.60 ms  quads 1046817 opaque / 33885 water
+frame (encode+GPU, offscreen, median of 30) 9.06 ms  biome plains
+mesh slabs 44 MB, chunks 512 (block+light arrays 45 MB), Metal allocated 226 MB
+memory: resident 304 MB  (section meshes 38 MB)
+wrote snaps/ship_battle.png
+physicstest boat: Assembled 126 blocks (68.0 t)
+physicstest PASS: boat has helm, propeller and engine
+physicstest boat: mass 68.0 t, submerged 68.0, draft 1.23, vy 0.000, up 1.000
+physicstest PASS: boat floats upright at rest
+physicstest boat: 10 s at full throttle: 40.9 blocks, speed 4.81 b/s, rider at 2.50 1.00 5.70 (deck 2.5 1.0 5.5)
+physicstest PASS: boat sails under propeller power
+physicstest PASS: player stays on the moving deck
+physicstest boat: turned -88 degrees in 5 s
+physicstest PASS: boat turns right under helm
+physicstest boat: 6 sails, wind 5.0 b/s: drifted 10.6 blocks in 8 s
+physicstest PASS: sails carry the boat with the wind
+physicstest PASS: ship saves and loads (610 bytes)
+physicstest gunboat: Assembled 135 blocks (94.1 t, 1 turret)
+physicstest PASS: turret carries its cannons
+physicstest gunboat: turret yaw 1.57 (wanted 1.57), bearing gap 0.000
+physicstest PASS: turret turns on its ring and stays mounted
+physicstest PASS: turret link saves and loads
+physicstest gunboat: fired 3 shells, 20 of 20 wall blocks destroyed, 0 in flight
+physicstest PASS: cannon shells fly and explode on impact
+physicstest gunboat: blast removed 11 hull blocks
+physicstest PASS: explosions break ship blocks
+physicstest gunboat: sawn through 4 blocks: 1 new ship(s), 70 + 44 blocks
+physicstest PASS: a hull cut in two becomes two ships
+physicstest ramming: struck boat moved 8.1 blocks, closest centres 11.9 (hull length 12)
+physicstest PASS: ships collide with each other
+physicstest airship: Assembled 359 blocks (52.7 t)
+physicstest airship: mass 52.7 t, 274 balloons, lift 0.10, drift -0.00 in 4 s
+physicstest PASS: airship hovers
+physicstest airship: climbed 11.7 in 3 s
+physicstest PASS: airship climbs
+physicstest airship: flew 63.7 blocks in 6 s, altitude change 0.28
+physicstest PASS: airship flies level under propellers
+physicstest plane: Assembled 78 blocks (25.7 t)
+physicstest plane: mass 25.7 t, 38 airfoils, 6 s: 149.7 blocks, altitude change -4.9, speed 27.5, up 1.00
+physicstest PASS: aircraft flies under power
+physicstest plane: climb input 2 s: altitude change 11.2
+physicstest PASS: aircraft climbs when pulled up
+physicstest takeoff: Assembled 81 blocks (27.5 t)
+physicstest takeoff: rolled 49.7 blocks in 4 s (12.0 b/s), then 3 s pulled up: climbed 11.2, up 0.72
+physicstest PASS: aircraft takes off from a runway
+physicstest car: Assembled 48 blocks (28.5 t)
+physicstest car: mass 28.5 t, grounded yes, up 1.000, vy -0.000
+physicstest PASS: car rests on its wheels
+physicstest car: drove 41.1 blocks in 6 s, speed 8.42, up 1.000
+physicstest PASS: car drives
+physicstest car: docked 48 of 48 blocks back into the world
+physicstest PASS: car docks back into the world
+physicstest frigate: 3151 blocks 826 t, 1716 balloons, lift 0.24, 10 s patrol: 23.9 blocks, altitude change -0.00, up 1.000
+physicstest PASS: frigate patrols at its altitude
+physicstest frigate: turret aim error 0.000 rad
+physicstest PASS: frigate turret tracks a target
+physicstest frigate: guns engage a player 40 blocks off: true, one on the deck: false
+physicstest PASS: vessel guns engage outsiders, not boarders
+physicstest frigate: captain's chest holds 3 stacks, 0 of 4 crew aboard
+physicstest PASS: frigate carries loot
+physicstest PASS: Steelhold soldiers crew the frigate (4 of 4)
+physicstest frigate: captured yes, piloted 3 s: 18.9 blocks
+physicstest PASS: a vessel can be captured and steered
+physicstest PASS: capturing a vessel earns Prize Crew
+physicstest frigate: throttle held at 1.00 after letting go, 0.00 after S for 1.5 s, 0.00 after 0.3 s more
+physicstest PASS: ship throttle holds and stops at zero
+physicstest carriage: 1037 blocks 1925 t, grounded yes, up 1.000, 6 s: 22.3 blocks
+physicstest PASS: siege carriage rolls on six wheels
+physicstest PASS: siege carriage's giant gun fires
+physicstest encounters: 34 frigates, 46 siege carriages in 441 regions of 2048 blocks
+physicstest PASS: vessel encounters are rare
+physicstest encounters: nearest frigate home at 592, 909: 1 appeared
+physicstest PASS: a vessel appears when the player nears its home
+physicstest sleep: 600 blocks away asleep+released true, back near awake true meshed true
+physicstest PASS: far ships sleep and wake
+physicstest wreck: helm gone -> wrecked yes, sank 5.4 blocks in 4 s, autopilot off
+physicstest PASS: a vessel without its helm founders and sinks
+physicstest: 0 checks failed, 3.3 s, ships 18
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 872 ms, upload 338 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 60) sky 9 block 0 in water, daylight 1.0
+imagecheck physicstest.png magenta=0.00000 black=0.0000 white=0.0022 std=38.9 hash=ff8a44eac3da588b
+imagecheck physicstest.png magenta=0.00000 black=0.0000 white=0.0022 std=38.9 hash=ff8a44eac3da588b
+seed 12345  pos 124.5 134.5 51.6  rd 8  chunks 1354  (drawn 67)
+gen 290 ms  mesh(all, parallel) 283 ms  mesh(1 section) 0.34 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 7.70 ms  biome river
+mesh slabs 112 MB, chunks 1354 (block+light arrays 119 MB), Metal allocated 294 MB
+memory: resident 432 MB  (section meshes 97 MB)
+wrote snaps/physicstest.png
+ship warfrigate: 177786 blocks, grid 113x92x480, 16 turrets, engines 908/908, pos -111 260 -163, built in 191 ms, physics 0.12 ms/frame, target foe
+ship warfrigate: 25 shells in flight
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1048 ms, upload 336 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 226) sky 15 block 0 in air, daylight 1.0
+imagecheck ship_warfrigate.png magenta=0.00000 black=0.0000 white=0.0038 std=50.1 hash=dc8b3bdd0f0601b1
+imagecheck ship_warfrigate.png magenta=0.00000 black=0.0000 white=0.0038 std=50.1 hash=dc8b3bdd0f0601b1
+seed 12345  pos 151.1 328.8 -327.4  rd 20  chunks 2698  (drawn 332)
+gen 1620 ms  mesh(all, parallel) 1485 ms  mesh(1 section) 1.47 ms  quads 2113489 opaque / 163900 water
+frame (encode+GPU, offscreen, median of 30) 14.59 ms  biome cherryGrove
+mesh slabs 208 MB, chunks 2698 (block+light arrays 297 MB), Metal allocated 390 MB
+memory: resident 759 MB  (section meshes 181 MB)
+wrote snaps/ship_warfrigate.png
+ship crawler: 14140 blocks, grid 35x36x77, 6 turrets, engines 585/585, pos -88 161 34, built in 6 ms, physics 0.01 ms/frame, target player
+ship crawler: 2 shells in flight
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1024 ms, upload 361 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 87) sky 15 block 0 in air, daylight 1.0
+imagecheck ship_crawler.png magenta=0.00000 black=0.0000 white=0.0080 std=58.1 hash=753a939c57f00ebf
+imagecheck ship_crawler.png magenta=0.00000 black=0.0000 white=0.0080 std=58.1 hash=753a939c57f00ebf
+seed 12345  pos -126.6 181.3 -31.7  rd 10  chunks 627  (drawn 126)
+gen 426 ms  mesh(all, parallel) 377 ms  mesh(1 section) 1.57 ms  quads 1046817 opaque / 33885 water
+frame (encode+GPU, offscreen, median of 30) 7.23 ms  biome forest
+mesh slabs 68 MB, chunks 627 (block+light arrays 58 MB), Metal allocated 250 MB
+memory: resident 336 MB  (section meshes 55 MB)
+wrote snaps/ship_crawler.png
+ship warfrigate: 177778 blocks, grid 113x92x480, 16 turrets, engines 908/908, pos -134 264 -163, built in 212 ms, physics 0.27 ms/frame, target foe
+ship crawler: 14093 blocks, grid 35x36x77, 6 turrets, engines 585/585, pos 16 179 -35, built in 212 ms, physics 0.27 ms/frame, target foe
+ship capitalbattle: 38 shells in flight
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1330 ms, upload 487 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 229) sky 15 block 0 in air, daylight 1.0
+imagecheck ship_capitalbattle.png magenta=0.00000 black=0.0000 white=0.0043 std=49.5 hash=21154cab0e42f62e
+imagecheck ship_capitalbattle.png magenta=0.00000 black=0.0000 white=0.0043 std=49.5 hash=21154cab0e42f62e
+seed 12345  pos 39.5 332.2 -418.9  rd 16  chunks 1984  (drawn 204)
+gen 873 ms  mesh(all, parallel) 877 ms  mesh(1 section) 0.34 ms  quads 1570883 opaque / 103865 water
+frame (encode+GPU, offscreen, median of 30) 12.79 ms  biome taiga
+mesh slabs 176 MB, chunks 1984 (block+light arrays 219 MB), Metal allocated 358 MB
+memory: resident 648 MB  (section meshes 148 MB)
+wrote snaps/ship_capitalbattle.png
+capital: crawler 14140 blocks built in 8 ms; frigate 177786 blocks (grid 113x92x480) built in 220 ms
+PASS capital: the frigate is full size (177786 blocks, 480 long)
+PASS capital: the frigate carries 16 turrets (16)
+PASS capital: the crawler carries 6 turrets (6)
+PASS capital: both have a helm
+PASS capital: drive engines aboard (frigate 908, crawler 585)
+capital: 333 shells fired in 40 s; ship update avg 0.78 ms, worst 17.4 ms
+capital: 4 troops deployed during the battle, at most 1 dropships out (info)
+PASS capital: hits chip the plates they don't break (frigate 87, crawler 456 chipped)
+PASS capital: the frigate targets the crawler (enemy faction)
+PASS capital: they open fire (333 shells)
+PASS capital: hits land (frigate 26, crawler 508 blocks lost)
+PASS capital: the frigate flies clear of the ground (keel 191, ground 144)
+PASS capital: the crawler rides on the ground (wheels 150.2, ground 150)
+PASS capital: no NaN poses
+PASS capital: ship update average 0.78 ms per frame (budget 6)
+PASS capital: boarded: the player stays on the frigate's hangar deck in flight (moved 14.4 blocks with it)
+capitaltest: PASS
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 897 ms, upload 315 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 89) sky 15 block 0 in air, daylight 1.0
+imagecheck capitaltest.png magenta=0.00001 black=0.0000 white=0.0339 std=65.9 hash=08b3d13cbd8cb064
+imagecheck capitaltest.png magenta=0.00001 black=0.0000 white=0.0339 std=65.9 hash=08b3d13cbd8cb064
+seed 12345  pos 12.0 192.0 44.0  rd 12  chunks 789  (drawn 181)
+gen 592 ms  mesh(all, parallel) 548 ms  mesh(1 section) 0.80 ms  quads 1199239 opaque / 54210 water
+frame (encode+GPU, offscreen, median of 30) 14.97 ms  biome plains
+mesh slabs 76 MB, chunks 789 (block+light arrays 72 MB), Metal allocated 258 MB
+memory: resident 397 MB  (section meshes 53 MB)
+wrote snaps/capitaltest.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 911 ms, upload 302 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 78) sky 15 block 0 in air, daylight 1.0
+imagecheck aerial.png magenta=0.00000 black=0.0000 white=0.0023 std=53.7 hash=a8a86aa07c0020a2
+imagecheck aerial.png magenta=0.00000 black=0.0000 white=0.0023 std=53.7 hash=a8a86aa07c0020a2
+seed 12345  pos 31.5 181.0 29.5  rd 12  chunks 593  (drawn 138)
+gen 575 ms  mesh(all, parallel) 617 ms  mesh(1 section) 0.75 ms  quads 1544710 opaque / 49386 water
+frame (encode+GPU, offscreen, median of 30) 8.07 ms  biome forest
+mesh slabs 56 MB, chunks 593 (block+light arrays 57 MB), Metal allocated 226 MB
+memory: resident 334 MB  (section meshes 49 MB)
+wrote snaps/aerial.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 953 ms, upload 308 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck aerial16.png magenta=0.00000 black=0.0000 white=0.0008 std=47.3 hash=656bf3410b374a28
+imagecheck aerial16.png magenta=0.00000 black=0.0000 white=0.0008 std=47.3 hash=656bf3410b374a28
+seed 12345  pos 31.5 166.0 29.5  rd 16  chunks 997  (drawn 216)
+gen 949 ms  mesh(all, parallel) 1123 ms  mesh(1 section) 1.79 ms  quads 2070725 opaque / 84971 water
+frame (encode+GPU, offscreen, median of 30) 7.24 ms  biome forest
+mesh slabs 76 MB, chunks 997 (block+light arrays 98 MB), Metal allocated 258 MB
+memory: resident 411 MB  (section meshes 66 MB)
+wrote snaps/aerial16.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 945 ms, upload 304 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck aerial16_fast.png magenta=0.00000 black=0.0000 white=0.0008 std=38.0 hash=24ef22bdcb2ea347
+imagecheck aerial16_fast.png magenta=0.00000 black=0.0000 white=0.0008 std=38.0 hash=24ef22bdcb2ea347
+seed 12345  pos 31.5 166.0 29.5  rd 16  chunks 997  (drawn 216)
+gen 974 ms  mesh(all, parallel) 1346 ms  mesh(1 section) 0.64 ms  quads 2070725 opaque / 84971 water
+frame (encode+GPU, offscreen, median of 30) 3.73 ms  biome forest
+mesh slabs 76 MB, chunks 997 (block+light arrays 98 MB), Metal allocated 218 MB
+memory: resident 356 MB  (section meshes 66 MB)
+wrote snaps/aerial16_fast.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 955 ms, upload 323 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck ground16.png magenta=0.00000 black=0.0000 white=0.0013 std=58.1 hash=43f471edad06b468
+imagecheck ground16.png magenta=0.00000 black=0.0000 white=0.0013 std=58.1 hash=43f471edad06b468
+seed 12345  pos 31.5 137.0 29.5  rd 16  chunks 997  (drawn 211)
+gen 1025 ms  mesh(all, parallel) 1129 ms  mesh(1 section) 1.14 ms  quads 2070725 opaque / 84971 water
+frame (encode+GPU, offscreen, median of 30) 8.94 ms  biome forest
+mesh slabs 76 MB, chunks 997 (block+light arrays 98 MB), Metal allocated 266 MB
+memory: resident 421 MB  (section meshes 66 MB)
+wrote snaps/ground16.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1014 ms, upload 364 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck ground16_fast.png magenta=0.00000 black=0.0000 white=0.0013 std=57.4 hash=25cbb84b6cbbb60f
+imagecheck ground16_fast.png magenta=0.00000 black=0.0000 white=0.0013 std=57.4 hash=25cbb84b6cbbb60f
+seed 12345  pos 31.5 137.0 29.5  rd 16  chunks 997  (drawn 211)
+gen 976 ms  mesh(all, parallel) 1162 ms  mesh(1 section) 0.99 ms  quads 2070725 opaque / 84971 water
+frame (encode+GPU, offscreen, median of 30) 3.77 ms  biome forest
+mesh slabs 76 MB, chunks 997 (block+light arrays 98 MB), Metal allocated 218 MB
+memory: resident 342 MB  (section meshes 66 MB)
+wrote snaps/ground16_fast.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 923 ms, upload 295 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 90) sky 15 block 0 in air, daylight 1.0
+imagecheck aerial16_777.png magenta=0.00000 black=0.0000 white=0.0008 std=46.0 hash=5253438c4c598408
+imagecheck aerial16_777.png magenta=0.00000 black=0.0000 white=0.0008 std=46.0 hash=5253438c4c598408
+seed 777  pos 8.5 184.0 8.5  rd 16  chunks 997  (drawn 260)
+gen 997 ms  mesh(all, parallel) 885 ms  mesh(1 section) 1.31 ms  quads 1599247 opaque / 134473 water
+frame (encode+GPU, offscreen, median of 30) 12.53 ms  biome forest
+mesh slabs 60 MB, chunks 997 (block+light arrays 92 MB), Metal allocated 242 MB
+memory: resident 406 MB  (section meshes 53 MB)
+wrote snaps/aerial16_777.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 923 ms, upload 303 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 90) sky 15 block 0 in air, daylight 0.12
+imagecheck ocean_night_777.png magenta=0.00000 black=0.5717 white=0.0008 std=18.9 hash=9827512d2dc2ac84
+imagecheck ocean_night_777.png magenta=0.00000 black=0.5717 white=0.0008 std=18.9 hash=9827512d2dc2ac84
+seed 777  pos 8.5 184.0 8.5  rd 16  chunks 997  (drawn 266)
+gen 988 ms  mesh(all, parallel) 912 ms  mesh(1 section) 0.79 ms  quads 1599247 opaque / 134473 water
+frame (encode+GPU, offscreen, median of 30) 11.12 ms  biome forest
+mesh slabs 60 MB, chunks 997 (block+light arrays 92 MB), Metal allocated 242 MB
+memory: resident 392 MB  (section meshes 53 MB)
+wrote snaps/ocean_night_777.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 917 ms, upload 301 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 90) sky 15 block 0 in air, daylight 0.12
+imagecheck ocean_night_777_fast.png magenta=0.00000 black=0.6190 white=0.0008 std=12.4 hash=029c834b6db42098
+imagecheck ocean_night_777_fast.png magenta=0.00000 black=0.6190 white=0.0008 std=12.4 hash=029c834b6db42098
+seed 777  pos 8.5 184.0 8.5  rd 16  chunks 997  (drawn 266)
+gen 1196 ms  mesh(all, parallel) 912 ms  mesh(1 section) 0.47 ms  quads 1599247 opaque / 134473 water
+frame (encode+GPU, offscreen, median of 30) 5.88 ms  biome forest
+mesh slabs 60 MB, chunks 997 (block+light arrays 92 MB), Metal allocated 202 MB
+memory: resident 303 MB  (section meshes 53 MB)
+wrote snaps/ocean_night_777_fast.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 943 ms, upload 342 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 99) sky 15 block 0 in air, daylight 1.0
+imagecheck aerial16_424242.png magenta=0.00000 black=0.0000 white=0.0016 std=40.7 hash=a73a32f929e89c49
+imagecheck aerial16_424242.png magenta=0.00000 black=0.0000 white=0.0016 std=40.7 hash=a73a32f929e89c49
+seed 424242  pos -3.5 193.0 17.5  rd 16  chunks 997  (drawn 252)
+gen 894 ms  mesh(all, parallel) 1148 ms  mesh(1 section) 0.98 ms  quads 1837551 opaque / 107159 water
+frame (encode+GPU, offscreen, median of 30) 9.10 ms  biome forest
+mesh slabs 68 MB, chunks 997 (block+light arrays 92 MB), Metal allocated 250 MB
+memory: resident 406 MB  (section meshes 59 MB)
+wrote snaps/aerial16_424242.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 937 ms, upload 304 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 99) sky 15 block 0 in air, daylight 1.0
+imagecheck aerial24.png magenta=0.00000 black=0.0000 white=0.0076 std=46.3 hash=4071e5de46801966
+imagecheck aerial24.png magenta=0.00000 black=0.0000 white=0.0076 std=46.3 hash=4071e5de46801966
+seed 424242  pos -3.5 193.0 17.5  rd 24  chunks 2085  (drawn 544)
+gen 1754 ms  mesh(all, parallel) 2622 ms  mesh(1 section) 1.14 ms  quads 3028472 opaque / 258530 water
+frame (encode+GPU, offscreen, median of 30) 11.30 ms  biome forest
+mesh slabs 112 MB, chunks 2085 (block+light arrays 191 MB), Metal allocated 294 MB
+memory: resident 595 MB  (section meshes 100 MB)
+wrote snaps/aerial24.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1012 ms, upload 342 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 0.85465163
+imagecheck sunset.png magenta=0.00000 black=0.0000 white=0.0008 std=47.8 hash=9e7b52e5d6244d47
+imagecheck sunset.png magenta=0.00000 black=0.0000 white=0.0008 std=47.8 hash=9e7b52e5d6244d47
+seed 12345  pos 31.5 146.0 29.5  rd 8  chunks 297  (drawn 53)
+gen 314 ms  mesh(all, parallel) 342 ms  mesh(1 section) 0.76 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 7.56 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 271 MB  (section meshes 30 MB)
+wrote snaps/sunset.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1009 ms, upload 322 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 0.85465163
+imagecheck sunset_fast.png magenta=0.00000 black=0.0000 white=0.0008 std=44.3 hash=ce43ad10357d8271
+imagecheck sunset_fast.png magenta=0.00000 black=0.0000 white=0.0008 std=44.3 hash=ce43ad10357d8271
+seed 12345  pos 31.5 146.0 29.5  rd 8  chunks 297  (drawn 53)
+gen 312 ms  mesh(all, parallel) 310 ms  mesh(1 section) 1.08 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 2.79 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 178 MB
+memory: resident 209 MB  (section meshes 30 MB)
+wrote snaps/sunset_fast.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 999 ms, upload 333 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 0.49182066
+imagecheck sunset_sun.png magenta=0.00000 black=0.0001 white=0.0107 std=71.9 hash=44f1b173ce838304
+imagecheck sunset_sun.png magenta=0.00000 black=0.0001 white=0.0107 std=71.9 hash=44f1b173ce838304
+seed 12345  pos 31.5 146.0 29.5  rd 8  chunks 297  (drawn 79)
+gen 514 ms  mesh(all, parallel) 361 ms  mesh(1 section) 0.60 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 14.09 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 273 MB  (section meshes 30 MB)
+wrote snaps/sunset_sun.png
+unblock: moved 9.1 blocks for a 12.2-block view
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 964 ms, upload 319 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in leaf_litter, daylight 0.12
+imagecheck night.png magenta=0.00000 black=0.1886 white=0.0008 std=15.5 hash=029bc571155d9421
+imagecheck night.png magenta=0.00000 black=0.1886 white=0.0008 std=15.5 hash=029bc571155d9421
+seed 12345  pos 40.5 142.0 29.5  rd 8  chunks 297  (drawn 72)
+gen 377 ms  mesh(all, parallel) 340 ms  mesh(1 section) 1.23 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 8.31 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 272 MB  (section meshes 30 MB)
+wrote snaps/night.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1082 ms, upload 349 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 49) sky 1 block 0 in water, daylight 1.0
+imagecheck lake.png magenta=0.00000 black=0.0000 white=0.0008 std=48.7 hash=cb0bc333e4b0d032
+imagecheck lake.png magenta=0.00000 black=0.0000 white=0.0008 std=48.7 hash=cb0bc333e4b0d032
+seed 12345  pos 104.5 129.0 200.5  rd 8  chunks 297  (drawn 74)
+gen 295 ms  mesh(all, parallel) 260 ms  mesh(1 section) 0.83 ms  quads 556601 opaque / 59716 water
+frame (encode+GPU, offscreen, median of 30) 8.42 ms  biome ocean
+mesh slabs 24 MB, chunks 297 (block+light arrays 23 MB), Metal allocated 206 MB
+memory: resident 264 MB  (section meshes 19 MB)
+wrote snaps/lake.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 955 ms, upload 310 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 49) sky 1 block 0 in water, daylight 0.6848348
+imagecheck lake_glint.png magenta=0.00000 black=0.0000 white=0.0367 std=60.8 hash=6cf3bd91e28d3c83
+imagecheck lake_glint.png magenta=0.00000 black=0.0000 white=0.0367 std=60.8 hash=6cf3bd91e28d3c83
+seed 12345  pos 104.5 129.0 200.5  rd 8  chunks 297  (drawn 75)
+gen 345 ms  mesh(all, parallel) 298 ms  mesh(1 section) 0.66 ms  quads 556601 opaque / 59716 water
+frame (encode+GPU, offscreen, median of 30) 9.00 ms  biome ocean
+mesh slabs 24 MB, chunks 297 (block+light arrays 23 MB), Metal allocated 206 MB
+memory: resident 254 MB  (section meshes 19 MB)
+wrote snaps/lake_glint.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 888 ms, upload 297 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 65) sky 15 block 0 in air, daylight 1.0
+imagecheck shore.png magenta=0.00000 black=0.0000 white=0.0008 std=45.2 hash=47fbe9d7d679fb20
+imagecheck shore.png magenta=0.00000 black=0.0000 white=0.0008 std=45.2 hash=47fbe9d7d679fb20
+seed 12345  pos 8.5 133.0 104.5  rd 8  chunks 297  (drawn 63)
+gen 247 ms  mesh(all, parallel) 204 ms  mesh(1 section) 0.19 ms  quads 735953 opaque / 34242 water
+frame (encode+GPU, offscreen, median of 30) 8.13 ms  biome beach
+mesh slabs 28 MB, chunks 297 (block+light arrays 25 MB), Metal allocated 198 MB
+memory: resident 262 MB  (section meshes 24 MB)
+wrote snaps/shore.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 947 ms, upload 338 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 49) sky 1 block 0 in water, daylight 1.0
+imagecheck underwater_up.png magenta=0.00000 black=0.0000 white=0.0008 std=21.6 hash=71dcd6fd969d5044
+imagecheck underwater_up.png magenta=0.00000 black=0.0000 white=0.0008 std=21.6 hash=71dcd6fd969d5044
+seed 12345  pos 104.5 127.0 200.5  rd 8  chunks 297  (drawn 19)
+gen 236 ms  mesh(all, parallel) 231 ms  mesh(1 section) 0.82 ms  quads 556601 opaque / 59716 water
+frame (encode+GPU, offscreen, median of 30) 5.19 ms  biome ocean
+mesh slabs 24 MB, chunks 297 (block+light arrays 23 MB), Metal allocated 206 MB
+memory: resident 263 MB  (section meshes 19 MB)
+wrote snaps/underwater_up.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 922 ms, upload 344 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 49) sky 1 block 0 in water, daylight 1.0
+imagecheck underwater.png magenta=0.00000 black=0.0000 white=0.0008 std=11.0 hash=d6efe39037f4a77c
+imagecheck underwater.png magenta=0.00000 black=0.0000 white=0.0008 std=11.0 hash=d6efe39037f4a77c
+seed 12345  pos 104.5 127.0 200.5  rd 8  chunks 297  (drawn 74)
+gen 253 ms  mesh(all, parallel) 218 ms  mesh(1 section) 0.62 ms  quads 556601 opaque / 59716 water
+frame (encode+GPU, offscreen, median of 30) 7.70 ms  biome ocean
+mesh slabs 24 MB, chunks 297 (block+light arrays 23 MB), Metal allocated 206 MB
+memory: resident 264 MB  (section meshes 19 MB)
+wrote snaps/underwater.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 953 ms, upload 319 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck down.png magenta=0.00000 black=0.0000 white=0.0008 std=53.0 hash=461f484e8ab18a57
+imagecheck down.png magenta=0.00000 black=0.0000 white=0.0008 std=53.0 hash=461f484e8ab18a57
+seed 12345  pos 31.5 139.0 29.5  rd 8  chunks 297  (drawn 10)
+gen 285 ms  mesh(all, parallel) 274 ms  mesh(1 section) 0.88 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 8.01 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 273 MB  (section meshes 30 MB)
+wrote snaps/down.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 983 ms, upload 343 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 87) sky 15 block 0 in air, daylight 1.0
+imagecheck forest.png magenta=0.00000 black=0.0000 white=0.0008 std=50.9 hash=1de47a58863ff706
+imagecheck forest.png magenta=0.00000 black=0.0000 white=0.0008 std=50.9 hash=1de47a58863ff706
+seed 12345  pos -135.5 173.0 -39.5  rd 8  chunks 297  (drawn 79)
+gen 298 ms  mesh(all, parallel) 339 ms  mesh(1 section) 2.30 ms  quads 1136052 opaque / 9408 water
+frame (encode+GPU, offscreen, median of 30) 7.78 ms  biome forest
+mesh slabs 40 MB, chunks 297 (block+light arrays 29 MB), Metal allocated 210 MB
+memory: resident 282 MB  (section meshes 35 MB)
+wrote snaps/forest.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1024 ms, upload 334 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 87) sky 15 block 0 in air, daylight 1.0
+imagecheck forest_fast.png magenta=0.00000 black=0.0000 white=0.0008 std=51.6 hash=4355edf8db92e029
+imagecheck forest_fast.png magenta=0.00000 black=0.0000 white=0.0008 std=51.6 hash=4355edf8db92e029
+seed 12345  pos -135.5 173.0 -39.5  rd 8  chunks 297  (drawn 79)
+gen 322 ms  mesh(all, parallel) 332 ms  mesh(1 section) 0.95 ms  quads 1136052 opaque / 9408 water
+frame (encode+GPU, offscreen, median of 30) 3.74 ms  biome forest
+mesh slabs 40 MB, chunks 297 (block+light arrays 29 MB), Metal allocated 182 MB
+memory: resident 194 MB  (section meshes 35 MB)
+wrote snaps/forest_fast.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1062 ms, upload 355 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 87) sky 15 block 0 in air, daylight 1.0
+imagecheck forest_nocull.png magenta=0.00000 black=0.0000 white=0.0008 std=50.9 hash=1de47a58863ff706
+imagecheck forest_nocull.png magenta=0.00000 black=0.0000 white=0.0008 std=50.9 hash=1de47a58863ff706
+seed 12345  pos -135.5 173.0 -39.5  rd 8  chunks 297  (drawn 91)
+gen 360 ms  mesh(all, parallel) 482 ms  mesh(1 section) 1.64 ms  quads 1136052 opaque / 9408 water
+frame (encode+GPU, offscreen, median of 30) 8.99 ms  biome forest
+mesh slabs 40 MB, chunks 297 (block+light arrays 29 MB), Metal allocated 210 MB
+memory: resident 274 MB  (section meshes 35 MB)
+wrote snaps/forest_nocull.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 962 ms, upload 354 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 87) sky 15 block 0 in air, daylight 1.0
+imagecheck forest_nobase.png magenta=0.00000 black=0.0000 white=0.0008 std=50.9 hash=1de47a58863ff706
+imagecheck forest_nobase.png magenta=0.00000 black=0.0000 white=0.0008 std=50.9 hash=1de47a58863ff706
+seed 12345  pos -135.5 173.0 -39.5  rd 8  chunks 297  (drawn 79)
+gen 293 ms  mesh(all, parallel) 310 ms  mesh(1 section) 1.33 ms  quads 1136052 opaque / 9408 water
+frame (encode+GPU, offscreen, median of 30) 6.48 ms  biome forest
+mesh slabs 40 MB, chunks 297 (block+light arrays 29 MB), Metal allocated 210 MB
+memory: resident 281 MB  (section meshes 35 MB)
+wrote snaps/forest_nobase.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 923 ms, upload 320 ms)
+verifyworld: 297 chunks, 0 differ from a fresh generation, 0 with a stale heightmap
+light probe: eye sky 15 block 0 in air; floor+1 (y 87) sky 15 block 0 in air, daylight 1.0
+imagecheck forest_verify.png magenta=0.00000 black=0.0000 white=0.0008 std=50.9 hash=1de47a58863ff706
+imagecheck forest_verify.png magenta=0.00000 black=0.0000 white=0.0008 std=50.9 hash=1de47a58863ff706
+seed 12345  pos -135.5 173.0 -39.5  rd 8  chunks 297  (drawn 79)
+gen 306 ms  mesh(all, parallel) 297 ms  mesh(1 section) 0.89 ms  quads 1136052 opaque / 9408 water
+frame (encode+GPU, offscreen, median of 30) 8.81 ms  biome forest
+mesh slabs 40 MB, chunks 297 (block+light arrays 29 MB), Metal allocated 210 MB
+memory: resident 277 MB  (section meshes 35 MB)
+wrote snaps/forest_verify.png
+camera in solid at -136 82 -40: moved to -131 82 -35
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1025 ms, upload 388 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 82) sky 15 block 0 in air, daylight 1.0
+imagecheck forest_in.png magenta=0.00000 black=0.0001 white=0.0008 std=36.9 hash=a13e48c9edc70c6c
+imagecheck forest_in.png magenta=0.00000 black=0.0001 white=0.0008 std=36.9 hash=a13e48c9edc70c6c
+seed 12345  pos -130.5 146.0 -34.5  rd 8  chunks 297  (drawn 73)
+gen 291 ms  mesh(all, parallel) 300 ms  mesh(1 section) 1.83 ms  quads 1136052 opaque / 9408 water
+frame (encode+GPU, offscreen, median of 30) 8.30 ms  biome forest
+mesh slabs 40 MB, chunks 297 (block+light arrays 29 MB), Metal allocated 210 MB
+memory: resident 278 MB  (section meshes 35 MB)
+wrote snaps/forest_in.png
+camera in solid at -136 82 -40: moved to -131 82 -35
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 940 ms, upload 321 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 82) sky 15 block 0 in air, daylight 1.0
+imagecheck crack.png magenta=0.00000 black=0.0003 white=0.0008 std=56.8 hash=898f0efb13249d35
+imagecheck crack.png magenta=0.00000 black=0.0003 white=0.0008 std=56.8 hash=898f0efb13249d35
+seed 12345  pos -130.5 146.0 -34.5  rd 8  chunks 297  (drawn 60)
+gen 281 ms  mesh(all, parallel) 312 ms  mesh(1 section) 1.71 ms  quads 1136052 opaque / 9408 water
+frame (encode+GPU, offscreen, median of 30) 5.82 ms  biome forest
+mesh slabs 40 MB, chunks 297 (block+light arrays 29 MB), Metal allocated 210 MB
+memory: resident 275 MB  (section meshes 35 MB)
+wrote snaps/crack.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 995 ms, upload 327 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 77) sky 15 block 0 in snow, daylight 1.0
+imagecheck snowy.png magenta=0.00000 black=0.0000 white=0.0008 std=64.1 hash=ebb14fa923b15aa3
+imagecheck snowy.png magenta=0.00000 black=0.0000 white=0.0008 std=64.1 hash=ebb14fa923b15aa3
+seed 12345  pos -1047.5 161.0 -855.5  rd 8  chunks 297  (drawn 78)
+gen 303 ms  mesh(all, parallel) 535 ms  mesh(1 section) 1.09 ms  quads 1712302 opaque / 11477 water
+frame (encode+GPU, offscreen, median of 30) 8.49 ms  biome snowyTaiga
+mesh slabs 60 MB, chunks 297 (block+light arrays 32 MB), Metal allocated 230 MB
+memory: resident 296 MB  (section meshes 53 MB)
+wrote snaps/snowy.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1062 ms, upload 357 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 71) sky 15 block 0 in air, daylight 1.0
+imagecheck biome_desert.png magenta=0.00000 black=0.0000 white=0.0008 std=52.5 hash=ff90cb61322680a4
+imagecheck biome_desert.png magenta=0.00000 black=0.0000 white=0.0008 std=52.5 hash=ff90cb61322680a4
+seed 12345  pos -567.5 153.0 920.5  rd 8  chunks 297  (drawn 80)
+gen 266 ms  mesh(all, parallel) 242 ms  mesh(1 section) 0.40 ms  quads 668301 opaque / 12680 water
+frame (encode+GPU, offscreen, median of 30) 8.18 ms  biome desert
+mesh slabs 24 MB, chunks 297 (block+light arrays 25 MB), Metal allocated 206 MB
+memory: resident 263 MB  (section meshes 21 MB)
+wrote snaps/biome_desert.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1069 ms, upload 345 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 79) sky 15 block 0 in air, daylight 1.0
+imagecheck biome_jungle.png magenta=0.00000 black=0.0002 white=0.0008 std=44.3 hash=a7b953930311ccc8
+imagecheck biome_jungle.png magenta=0.00000 black=0.0002 white=0.0008 std=44.3 hash=a7b953930311ccc8
+seed 12345  pos -1479.5 161.0 1544.5  rd 8  chunks 297  (drawn 76)
+gen 327 ms  mesh(all, parallel) 391 ms  mesh(1 section) 2.03 ms  quads 1306600 opaque / 10728 water
+frame (encode+GPU, offscreen, median of 30) 6.40 ms  biome jungle
+mesh slabs 48 MB, chunks 297 (block+light arrays 29 MB), Metal allocated 218 MB
+memory: resident 280 MB  (section meshes 40 MB)
+wrote snaps/biome_jungle.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1069 ms, upload 334 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 75) sky 15 block 0 in air, daylight 1.0
+imagecheck biome_badlands.png magenta=0.00000 black=0.0000 white=0.0008 std=56.5 hash=497be2bd28db836a
+imagecheck biome_badlands.png magenta=0.00000 black=0.0000 white=0.0008 std=56.5 hash=497be2bd28db836a
+seed 12345  pos -2871.5 157.0 3272.5  rd 8  chunks 297  (drawn 75)
+gen 340 ms  mesh(all, parallel) 480 ms  mesh(1 section) 0.19 ms  quads 1072250 opaque / 11266 water
+frame (encode+GPU, offscreen, median of 30) 5.13 ms  biome badlands
+mesh slabs 40 MB, chunks 297 (block+light arrays 31 MB), Metal allocated 222 MB
+memory: resident 294 MB  (section meshes 33 MB)
+wrote snaps/biome_badlands.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1125 ms, upload 384 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 80) sky 15 block 0 in air, daylight 1.0
+imagecheck biome_dark_forest.png magenta=0.00000 black=0.0004 white=0.0008 std=44.2 hash=755a53d95681cd29
+imagecheck biome_dark_forest.png magenta=0.00000 black=0.0004 white=0.0008 std=44.2 hash=755a53d95681cd29
+seed 12345  pos -231.5 162.0 -183.5  rd 8  chunks 297  (drawn 78)
+gen 328 ms  mesh(all, parallel) 352 ms  mesh(1 section) 0.48 ms  quads 1303899 opaque / 13794 water
+frame (encode+GPU, offscreen, median of 30) 7.27 ms  biome darkForest
+mesh slabs 48 MB, chunks 297 (block+light arrays 29 MB), Metal allocated 218 MB
+memory: resident 281 MB  (section meshes 40 MB)
+wrote snaps/biome_dark_forest.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1033 ms, upload 334 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 192) sky 15 block 0 in air, daylight 1.0
+imagecheck biome_cherry_grove.png magenta=0.00000 black=0.0000 white=0.0074 std=46.7 hash=91dc9c9c79a432a6
+imagecheck biome_cherry_grove.png magenta=0.00000 black=0.0000 white=0.0074 std=46.7 hash=91dc9c9c79a432a6
+seed 12345  pos 1688.5 274.0 1448.5  rd 8  chunks 297  (drawn 81)
+gen 397 ms  mesh(all, parallel) 364 ms  mesh(1 section) 0.77 ms  quads 1140929 opaque / 9719 water
+frame (encode+GPU, offscreen, median of 30) 6.17 ms  biome cherryGrove
+mesh slabs 40 MB, chunks 297 (block+light arrays 41 MB), Metal allocated 210 MB
+memory: resident 284 MB  (section meshes 35 MB)
+wrote snaps/biome_cherry_grove.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1159 ms, upload 389 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 265) sky 15 block 0 in air, daylight 1.0
+imagecheck biome_jagged_peaks.png magenta=0.00000 black=0.0000 white=0.0182 std=43.8 hash=8f37c0e26d8d4d03
+imagecheck biome_jagged_peaks.png magenta=0.00000 black=0.0000 white=0.0182 std=43.8 hash=8f37c0e26d8d4d03
+seed 12345  pos 248.5 350.0 -615.5  rd 8  chunks 297  (drawn 79)
+gen 407 ms  mesh(all, parallel) 382 ms  mesh(1 section) 0.22 ms  quads 1016952 opaque / 10059 water
+frame (encode+GPU, offscreen, median of 30) 5.33 ms  biome jaggedPeaks
+mesh slabs 36 MB, chunks 297 (block+light arrays 49 MB), Metal allocated 206 MB
+memory: resident 298 MB  (section meshes 31 MB)
+wrote snaps/biome_jagged_peaks.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 997 ms, upload 322 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 76) sky 15 block 0 in air, daylight 1.0
+imagecheck biome_savanna.png magenta=0.00000 black=0.0000 white=0.0008 std=47.4 hash=50f1af34c770cc6d
+imagecheck biome_savanna.png magenta=0.00000 black=0.0000 white=0.0008 std=47.4 hash=50f1af34c770cc6d
+seed 12345  pos -471.5 158.0 1016.5  rd 8  chunks 297  (drawn 74)
+gen 287 ms  mesh(all, parallel) 235 ms  mesh(1 section) 0.73 ms  quads 718217 opaque / 8783 water
+frame (encode+GPU, offscreen, median of 30) 6.97 ms  biome savanna
+mesh slabs 28 MB, chunks 297 (block+light arrays 25 MB), Metal allocated 198 MB
+memory: resident 261 MB  (section meshes 22 MB)
+wrote snaps/biome_savanna.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 984 ms, upload 321 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 66) sky 15 block 0 in air, daylight 1.0
+imagecheck biome_swamp.png magenta=0.00000 black=0.0000 white=0.0010 std=53.4 hash=5e2b146bd9e6b9e3
+imagecheck biome_swamp.png magenta=0.00000 black=0.0000 white=0.0010 std=53.4 hash=5e2b146bd9e6b9e3
+seed 12345  pos 968.5 148.0 1784.5  rd 8  chunks 297  (drawn 77)
+gen 274 ms  mesh(all, parallel) 483 ms  mesh(1 section) 0.70 ms  quads 1150951 opaque / 33245 water
+frame (encode+GPU, offscreen, median of 30) 6.18 ms  biome swamp
+mesh slabs 40 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 210 MB
+memory: resident 275 MB  (section meshes 36 MB)
+wrote snaps/biome_swamp.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 983 ms, upload 328 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 83) sky 15 block 0 in air, daylight 1.0
+imagecheck biome_taiga.png magenta=0.00000 black=0.0005 white=0.0008 std=45.6 hash=768f03efc7083141
+imagecheck biome_taiga.png magenta=0.00000 black=0.0005 white=0.0008 std=45.6 hash=768f03efc7083141
+seed 12345  pos -519.5 165.0 -279.5  rd 8  chunks 297  (drawn 82)
+gen 309 ms  mesh(all, parallel) 364 ms  mesh(1 section) 0.44 ms  quads 1313042 opaque / 11537 water
+frame (encode+GPU, offscreen, median of 30) 7.10 ms  biome taiga
+mesh slabs 48 MB, chunks 297 (block+light arrays 29 MB), Metal allocated 230 MB
+memory: resident 290 MB  (section meshes 40 MB)
+wrote snaps/biome_taiga.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 987 ms, upload 338 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 56) sky 8 block 0 in water, daylight 1.0
+imagecheck biome_warm_ocean.png magenta=0.00000 black=0.0000 white=0.0009 std=54.1 hash=d22fa999e7365a7d
+imagecheck biome_warm_ocean.png magenta=0.00000 black=0.0000 white=0.0009 std=54.1 hash=d22fa999e7365a7d
+seed 12345  pos -951.5 145.0 728.5  rd 8  chunks 297  (drawn 79)
+gen 295 ms  mesh(all, parallel) 394 ms  mesh(1 section) 0.70 ms  quads 1011095 opaque / 65236 water
+frame (encode+GPU, offscreen, median of 30) 7.96 ms  biome warmOcean
+mesh slabs 36 MB, chunks 297 (block+light arrays 25 MB), Metal allocated 218 MB
+memory: resident 289 MB  (section meshes 33 MB)
+wrote snaps/biome_warm_ocean.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 918 ms, upload 316 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 75) sky 15 block 0 in air, daylight 1.0
+imagecheck biome_birch_forest.png magenta=0.00000 black=0.0000 white=0.0008 std=49.3 hash=344fc81a2fa7cc0b
+imagecheck biome_birch_forest.png magenta=0.00000 black=0.0000 white=0.0008 std=49.3 hash=344fc81a2fa7cc0b
+seed 12345  pos -615.5 157.0 104.5  rd 8  chunks 297  (drawn 80)
+gen 260 ms  mesh(all, parallel) 259 ms  mesh(1 section) 0.54 ms  quads 1008362 opaque / 10874 water
+frame (encode+GPU, offscreen, median of 30) 6.40 ms  biome birchForest
+mesh slabs 36 MB, chunks 297 (block+light arrays 25 MB), Metal allocated 206 MB
+memory: resident 268 MB  (section meshes 31 MB)
+wrote snaps/biome_birch_forest.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 932 ms, upload 294 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 68) sky 15 block 0 in air, daylight 1.0
+imagecheck biome_mangrove_swamp.png magenta=0.00000 black=0.0000 white=0.0008 std=64.3 hash=4bd2e40472e248fd
+imagecheck biome_mangrove_swamp.png magenta=0.00000 black=0.0000 white=0.0008 std=64.3 hash=4bd2e40472e248fd
+seed 12345  pos -183.5 149.0 1448.5  rd 8  chunks 297  (drawn 82)
+gen 286 ms  mesh(all, parallel) 227 ms  mesh(1 section) 0.54 ms  quads 779020 opaque / 28225 water
+frame (encode+GPU, offscreen, median of 30) 6.75 ms  biome mangroveSwamp
+mesh slabs 28 MB, chunks 297 (block+light arrays 24 MB), Metal allocated 198 MB
+memory: resident 263 MB  (section meshes 25 MB)
+wrote snaps/biome_mangrove_swamp.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 953 ms, upload 325 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 70) sky 15 block 0 in air, daylight 1.0
+imagecheck meadow.png magenta=0.00000 black=0.0000 white=0.0008 std=40.9 hash=0107e2025f7a1ae1
+imagecheck meadow.png magenta=0.00000 black=0.0000 white=0.0008 std=40.9 hash=0107e2025f7a1ae1
+seed 12345  pos -87.5 135.0 104.5  rd 8  chunks 297  (drawn 77)
+gen 313 ms  mesh(all, parallel) 278 ms  mesh(1 section) 0.58 ms  quads 794813 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 5.22 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 253 MB  (section meshes 25 MB)
+wrote snaps/meadow.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1108 ms, upload 371 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 0.12
+imagecheck stars.png magenta=0.00000 black=0.5767 white=0.0008 std=16.3 hash=76bf63265ce68b8f
+imagecheck stars.png magenta=0.00000 black=0.5767 white=0.0008 std=16.3 hash=76bf63265ce68b8f
+seed 12345  pos 31.5 141.0 29.5  rd 8  chunks 297  (drawn 80)
+gen 289 ms  mesh(all, parallel) 291 ms  mesh(1 section) 0.67 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 5.87 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 274 MB  (section meshes 30 MB)
+wrote snaps/stars.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 933 ms, upload 380 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck clouds.png magenta=0.00000 black=0.0000 white=0.0685 std=51.7 hash=02bc9a87c5550f2b
+imagecheck clouds.png magenta=0.00000 black=0.0000 white=0.0685 std=51.7 hash=02bc9a87c5550f2b
+seed 12345  pos 31.5 141.0 29.5  rd 8  chunks 297  (drawn 53)
+gen 457 ms  mesh(all, parallel) 361 ms  mesh(1 section) 1.58 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 5.80 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 260 MB  (section meshes 30 MB)
+wrote snaps/clouds.png
+torches: 8 placed round -88 74 99
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 941 ms, upload 306 ms)
+light probe: eye sky 15 block 6 in air; floor+1 (y 70) sky 15 block 12 in air, daylight 0.12
+imagecheck torches.png magenta=0.00000 black=0.0024 white=0.0040 std=57.0 hash=46b123adaf3aac92
+imagecheck torches.png magenta=0.00000 black=0.0024 white=0.0040 std=57.0 hash=46b123adaf3aac92
+seed 12345  pos -87.5 140.0 104.5  rd 8  chunks 297  (drawn 74)
+gen 307 ms  mesh(all, parallel) 239 ms  mesh(1 section) 0.74 ms  quads 795398 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 5.86 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 259 MB  (section meshes 25 MB)
+wrote snaps/torches.png
+torches: 8 placed round -88 71 102
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 871 ms, upload 293 ms)
+light probe: eye sky 15 block 8 in air; floor+1 (y 70) sky 15 block 11 in air, daylight 0.12
+imagecheck torches_near.png magenta=0.00000 black=0.0000 white=0.0122 std=46.6 hash=cf3e6420b1238ac7
+imagecheck torches_near.png magenta=0.00000 black=0.0000 white=0.0122 std=46.6 hash=cf3e6420b1238ac7
+seed 12345  pos -87.5 137.0 104.5  rd 8  chunks 297  (drawn 79)
+gen 259 ms  mesh(all, parallel) 236 ms  mesh(1 section) 0.32 ms  quads 795422 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.51 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 255 MB  (section meshes 25 MB)
+wrote snaps/torches_near.png
+torches: 8 placed round -88 71 102
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 858 ms, upload 295 ms)
+light probe: eye sky 15 block 8 in air; floor+1 (y 70) sky 15 block 11 in air, daylight 1.0
+imagecheck torches_day.png magenta=0.00000 black=0.0000 white=0.0035 std=43.3 hash=0756b0efd39f0a36
+imagecheck torches_day.png magenta=0.00000 black=0.0000 white=0.0035 std=43.3 hash=0756b0efd39f0a36
+seed 12345  pos -87.5 137.0 104.5  rd 8  chunks 297  (drawn 79)
+gen 283 ms  mesh(all, parallel) 229 ms  mesh(1 section) 0.71 ms  quads 795422 opaque / 16522 water
+frame (encode+GPU, offscreen, median of 30) 4.92 ms  biome plains
+mesh slabs 28 MB, chunks 297 (block+light arrays 26 MB), Metal allocated 198 MB
+memory: resident 260 MB  (section meshes 25 MB)
+wrote snaps/torches_day.png
+fluid cells pending after 60 ticks: 0
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 861 ms, upload 307 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 14 block 0 in water_3, daylight 1.0
+imagecheck water_flow.png magenta=0.00000 black=0.0000 white=0.0008 std=31.3 hash=5ef6ba72b05c9ea6
+imagecheck water_flow.png magenta=0.00000 black=0.0000 white=0.0008 std=31.3 hash=5ef6ba72b05c9ea6
+seed 12345  pos 31.5 143.0 29.5  rd 8  chunks 326  (drawn 35)
+gen 278 ms  mesh(all, parallel) 330 ms  mesh(1 section) 0.60 ms  quads 1056096 opaque / 28545 water
+frame (encode+GPU, offscreen, median of 30) 5.02 ms  biome forest
+mesh slabs 40 MB, chunks 326 (block+light arrays 30 MB), Metal allocated 210 MB
+memory: resident 280 MB  (section meshes 33 MB)
+wrote snaps/water_flow.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1021 ms, upload 338 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck inventory.png magenta=0.00000 black=0.0132 white=0.0115 std=55.7 hash=322feece6b011cf7
+imagecheck inventory.png magenta=0.00000 black=0.0132 white=0.0115 std=55.7 hash=322feece6b011cf7
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 78)
+gen 507 ms  mesh(all, parallel) 357 ms  mesh(1 section) 0.93 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 6.05 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 273 MB  (section meshes 30 MB)
+wrote snaps/inventory.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1103 ms, upload 371 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck creative.png magenta=0.00000 black=0.0135 white=0.0122 std=47.1 hash=f8d9f9b865cc9eed
+imagecheck creative.png magenta=0.00000 black=0.0135 white=0.0122 std=47.1 hash=f8d9f9b865cc9eed
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 78)
+gen 282 ms  mesh(all, parallel) 352 ms  mesh(1 section) 0.60 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 8.51 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 267 MB  (section meshes 30 MB)
+wrote snaps/creative.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 923 ms, upload 309 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck crafting.png magenta=0.00000 black=0.0134 white=0.0109 std=50.7 hash=61085a965b32d839
+imagecheck crafting.png magenta=0.00000 black=0.0134 white=0.0109 std=50.7 hash=61085a965b32d839
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 78)
+gen 298 ms  mesh(all, parallel) 279 ms  mesh(1 section) 0.60 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 8.22 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 263 MB  (section meshes 30 MB)
+wrote snaps/crafting.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 959 ms, upload 315 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck note-2026-10-03_21.52.26.png magenta=0.00000 black=0.0027 white=0.0011 std=38.5 hash=f4d1a6fa3e09d39e
+padtest PASS bug notes: one spoken note -> one entry (got 1)
+padtest PASS bug notes: transcript in the entry
+padtest PASS bug notes: entry has Build
+padtest PASS bug notes: entry has World
+padtest PASS bug notes: entry has Dimension
+padtest PASS bug notes: entry has Position
+padtest PASS bug notes: entry has Biome
+padtest PASS bug notes: entry has Looking at
+padtest PASS bug notes: entry has Mode
+padtest PASS bug notes: entry has Time / weather
+padtest PASS bug notes: entry has Frame time
+padtest PASS bug notes: entry has Repro
+padtest PASS bug notes: entry has Screenshot
+padtest PASS bug notes: entry has Audio
+padtest PASS bug notes: audio saved as .m4a (88127 bytes)
+padtest PASS bug notes: screenshot saved
+bug notes entry:
+# Blocksmith bug notes
+
+Spoken while playing (Options > Interface > Bug Notes). Newest at the bottom.
+Each entry: transcript, game state, screenshot and audio. Set Status to fixed (with the commit) once handled;
+see BUGNOTES.md in the repo.
+
+## 2026-10-03 21:52:26 - the zombie walked through the fence (33 buffers)
+
+- **Transcript:** the zombie walked through the fence (33 buffers)
+- **Status:** open
+- **Build:** 18d7838
+- **World:** (test world) (seed 12345)
+- **Dimension:** overworld
+- **Position:** x 31.5, y 72.0, z 29.5 (block 31 72 29), facing north-west (yaw 330°, pitch -12°)
+- **Biome:** Forest
+- **Looking at:** Grass Block at 29 72 26
+- **Mode:** Creative, Normal, flying
+- **Time / weather:** day 1, 10:48, clear
+- **Frame time:** n/a
+- **Repro:** `./snap.sh note --seed 12345 --x 31.5 --z 29.5 --yaw 30 --pitch -12 --time 0.200`
+- **Input:** keyboard/mouse
+- **Screenshot:** ![screenshot](note-2026-10-03_21.52.26.png)
+- **Audio:** [note-2026-10-03_21.52.26.m4a](note-2026-10-03_21.52.26.m4a)
+
+imagecheck bugnotes.png magenta=0.00000 black=0.0053 white=0.0013 std=39.5 hash=e5e8dd256c57e939
+imagecheck bugnotes.png magenta=0.00000 black=0.0053 white=0.0013 std=39.5 hash=e5e8dd256c57e939
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 78)
+gen 307 ms  mesh(all, parallel) 431 ms  mesh(1 section) 0.63 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 4.65 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 264 MB  (section meshes 30 MB)
+wrote snaps/bugnotes.png
+padtest PASS Menu button pauses the game
+padtest PASS Menu button resumes
+padtest PASS pad input switches prompts to controller glyphs
+padtest PASS cursor starts on Back to Game
+padtest PASS A on Options opens the Controller page
+padtest PASS legend shows the A glyph
+padtest PASS RB switches to the next page (Audio)
+padtest PASS LB twice reaches Keyboard & Mouse
+padtest PASS D-pad right toggles Invert Y
+padtest PASS D-pad left toggles it back
+padtest PASS A steps Mouse Sensitivity up
+padtest PASS X steps it back down
+padtest PASS Look Speed X steps up on the Controller page
+padtest PASS holding D-pad down repeats (7 rows)
+padtest PASS long Controller page scrolls with the cursor
+padtest PASS B returns to the pause menu
+padtest PASS A on Walk Forward waits for a key
+padtest PASS the next key press becomes the binding (H)
+padtest PASS keyboard prompts follow the new binding
+padtest PASS B leaves Key Bindings
+padtest PASS A on Jump / Select waits for a button
+padtest PASS pressing X swaps Jump onto X (Pick Block onto A)
+padtest PASS X now jumps and prompts show X
+padtest PASS B leaves Button Mapping
+padtest PASS Worlds... opens the worlds list
+padtest PASS worlds list is newest first
+padtest PASS Create New World... opens the create page
+padtest PASS A on Name opens the on-screen keyboard
+padtest PASS typed "hi" with the keyboard (got "hi")
+padtest PASS B twice leaves the create page
+padtest PASS A on a world opens its actions
+padtest PASS Copy makes "Alpha Copy"
+padtest PASS Delete asks for confirmation with Cancel selected
+padtest PASS Cancel keeps the world
+padtest PASS confirmed Delete removes the world
+padtest PASS Rename... opens the rename page
+padtest PASS Save renames the world
+padtest PASS world names are made file-system safe
+padtest PASS new world names never collide
+padtest PASS Y opens the inventory
+padtest PASS A picks up the hovered stack
+padtest PASS X places one item
+padtest PASS A places the rest
+padtest PASS legend describes the hovered slot
+padtest PASS B closes the inventory
+padtest PASS RT pages the creative palette
+padtest PASS LT pages back
+padtest PASS RB opens the Building tab (525 items)
+padtest PASS LB wraps around to Search
+padtest PASS search filters by name (8 hits)
+padtest PASS Y in Search opens the on-screen keyboard
+padtest: creative tab sizes All 1636, Build 525, Nature 169, Use 175, Spark 79, Tools 139, Food 192, Misc 357, Find 1636
+padtest PASS LT takes everything from a chest
+padtest PASS LT on an inventory stack stores every stack of it
+padtest PASS RB selects the next hotbar slot
+padtest PASS D-pad right swaps to the off hand
+padtest PASS D-pad down drops one item
+padtest PASS D-pad left opens the command console
+padtest PASS right stick turns the view
+padtest PASS RT is the throttle on a land vehicle
+padtest PASS piloting shows vehicle prompts
+padtest PASS vehicle gauges show speed
+padtest PASS LT reverses
+padtest PASS W throttles and A steers a land vehicle (1.0, -1.0)
+padtest PASS a hull hit on the vehicle rumbles
+padtest PASS B leaves the helm
+padtest PASS airship reads as Airship
+padtest PASS airship: RT opens the throttle and it holds (0.79999954 -> 0.79999954)
+padtest PASS airship: piloting prompts show
+padtest PASS airship: stick up climbs (1.0)
+padtest PASS airship: RB climbs
+padtest PASS airship: B leaves the helm
+padtest PASS plane reads as Aircraft
+padtest PASS plane: RT opens the throttle and it holds (0.79999954 -> 0.79999954)
+padtest PASS plane: piloting prompts show
+padtest PASS plane: pulling the stick back climbs (1.0)
+padtest PASS plane: with Flight Stick flipped, pulling back dives (-1.0)
+padtest PASS plane: RB climbs
+padtest PASS plane: B leaves the helm
+padtest PASS LT mans a deck gun
+padtest PASS deck gun prompts
+padtest PASS RT fires the deck gun (2 shells)
+padtest PASS B steps off the gun
+padtest PASS holding RB opens the weapon wheel
+padtest PASS pointing down and letting go equips the shotgun
+padtest PASS a quick RB tap still steps the hotbar
+padtest PASS X reloads a gun
+padtest PASS the reload fills the magazine (6)
+padtest PASS gun prompts list reload
+padtest PASS aiming down sights snaps toward the enemy (0.120 -> 0.011 rad)
+padtest PASS M opens the world map
+padtest PASS RT zooms the map in
+padtest PASS LT zooms out
+padtest PASS the left stick pans the map
+padtest PASS A recentres on the player
+padtest PASS X drops a waypoint at the map centre
+padtest PASS X on a waypoint removes it
+padtest PASS the map draws terrain runs and markers (441)
+padtest PASS map legend
+padtest PASS B closes the map
+padtest PASS holding View opens the map
+padtest PASS a quick View tap still cycles the camera
+padtest PASS a nearby base is marked on the map
+padtest PASS the same base isn't marked twice
+padtest PASS biomes get distinct map colours
+padtest PASS vessel patrols are marked with their own letter
+padtest PASS a hit from the right marks the right side
+padtest PASS taking damage rumbles
+padtest PASS a shotgun blast rumbles hard
+padtest PASS chatter gun shots are light ticks
+padtest PASS seating a magazine ticks
+padtest PASS a far explosion doesn't rumble
+padtest PASS a close explosion rumbles
+padtest PASS aiming at a block targets it
+padtest PASS the highlight holds just past the block edge
+padtest PASS moving well onto the neighbour switches to it
+padtest PASS narrator speaks glyphs as button names
+padtest PASS subtitles caption a zombie on the right with a right arrow
+padtest PASS Audio menu turns subtitles on for both settings
+padtest PASS Accessibility menu turns them off again
+padtest PASS contextual prompts build (0 shown)
+padtest PASS options panel fits a 1080p TV (scale 4)
+padtest: audit warning: 54 item names shared, e.g. Music Disc, Suspicious Stew, Potion of Night Vision, Potion of Invisibility, Potion of Leaping, Potion of Fire Resistance
+padtest PASS audit: settings keys, bindings, button mapping, option rows, mob keys (0 problems)
+padtest: 122 passed, 0 failed (1168 ms)
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1049 ms, upload 378 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck padtest.png magenta=0.00000 black=0.0040 white=0.0143 std=53.7 hash=b36dcc2e8ed7c8d3
+imagecheck padtest.png magenta=0.00000 black=0.0040 white=0.0143 std=53.7 hash=b36dcc2e8ed7c8d3
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 329  (drawn 61)
+gen 252 ms  mesh(all, parallel) 319 ms  mesh(1 section) 0.58 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 6.66 ms  biome forest
+mesh slabs 40 MB, chunks 329 (block+light arrays 31 MB), Metal allocated 222 MB
+memory: resident 293 MB  (section meshes 34 MB)
+wrote snaps/padtest.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 955 ms, upload 343 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck inventory_pad.png magenta=0.00000 black=0.0132 white=0.0116 std=55.4 hash=b6433accbda4a218
+imagecheck inventory_pad.png magenta=0.00000 black=0.0132 white=0.0116 std=55.4 hash=b6433accbda4a218
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 78)
+gen 366 ms  mesh(all, parallel) 315 ms  mesh(1 section) 0.68 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 6.19 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 267 MB  (section meshes 30 MB)
+wrote snaps/inventory_pad.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 901 ms, upload 319 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck tv_options.png magenta=0.00000 black=0.0153 white=0.0156 std=58.8 hash=b00011e75c098d61
+imagecheck tv_options.png magenta=0.00000 black=0.0153 white=0.0156 std=58.8 hash=b00011e75c098d61
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 80)
+gen 305 ms  mesh(all, parallel) 304 ms  mesh(1 section) 1.48 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 7.82 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 235 MB
+memory: resident 302 MB  (section meshes 30 MB)
+wrote snaps/tv_options.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1011 ms, upload 350 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck tv_keyboard.png magenta=0.00000 black=0.0224 white=0.0220 std=63.2 hash=de8abd5ba84cdfa0
+imagecheck tv_keyboard.png magenta=0.00000 black=0.0224 white=0.0220 std=63.2 hash=de8abd5ba84cdfa0
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 80)
+gen 309 ms  mesh(all, parallel) 279 ms  mesh(1 section) 0.66 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 7.29 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 235 MB
+memory: resident 300 MB  (section meshes 30 MB)
+wrote snaps/tv_keyboard.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 1028 ms, upload 348 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck tv_worlds.png magenta=0.00000 black=0.0164 white=0.0203 std=63.8 hash=ca95d4b0cf27cd98
+imagecheck tv_worlds.png magenta=0.00000 black=0.0164 white=0.0203 std=63.8 hash=ca95d4b0cf27cd98
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 80)
+gen 375 ms  mesh(all, parallel) 457 ms  mesh(1 section) 0.61 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 7.63 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 235 MB
+memory: resident 283 MB  (section meshes 30 MB)
+wrote snaps/tv_worlds.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 891 ms, upload 344 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck tv_confirm.png magenta=0.00000 black=0.0176 white=0.0175 std=67.4 hash=0011135c626d7ae1
+imagecheck tv_confirm.png magenta=0.00000 black=0.0176 white=0.0175 std=67.4 hash=0011135c626d7ae1
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 80)
+gen 273 ms  mesh(all, parallel) 279 ms  mesh(1 section) 0.85 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 7.55 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 235 MB
+memory: resident 297 MB  (section meshes 30 MB)
+wrote snaps/tv_confirm.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 905 ms, upload 338 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck tv_title.png magenta=0.00000 black=0.0160 white=0.0131 std=62.8 hash=c679f6ed1f970ce6
+imagecheck tv_title.png magenta=0.00000 black=0.0160 white=0.0131 std=62.8 hash=c679f6ed1f970ce6
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 80)
+gen 266 ms  mesh(all, parallel) 282 ms  mesh(1 section) 0.86 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 7.95 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 235 MB
+memory: resident 293 MB  (section meshes 30 MB)
+wrote snaps/tv_title.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 954 ms, upload 341 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck padmap.png magenta=0.00000 black=0.0142 white=0.0145 std=57.3 hash=441962136e3c9aa4
+imagecheck padmap.png magenta=0.00000 black=0.0142 white=0.0145 std=57.3 hash=441962136e3c9aa4
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 78)
+gen 301 ms  mesh(all, parallel) 286 ms  mesh(1 section) 1.08 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 5.66 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 265 MB  (section meshes 30 MB)
+wrote snaps/padmap.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 908 ms, upload 310 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck tv_combat.png magenta=0.00000 black=0.0074 white=0.0037 std=48.1 hash=9b84be0c956ad445
+imagecheck tv_combat.png magenta=0.00000 black=0.0074 white=0.0037 std=48.1 hash=9b84be0c956ad445
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 80)
+gen 284 ms  mesh(all, parallel) 288 ms  mesh(1 section) 0.76 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 8.07 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 235 MB
+memory: resident 302 MB  (section meshes 30 MB)
+wrote snaps/tv_combat.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 956 ms, upload 332 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck vehicle_hud.png magenta=0.00000 black=0.0022 white=0.0035 std=55.2 hash=fd47d04388edb234
+imagecheck vehicle_hud.png magenta=0.00000 black=0.0030 white=0.0035 std=50.2 hash=77e6767786d6f487
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 78)
+gen 283 ms  mesh(all, parallel) 305 ms  mesh(1 section) 0.68 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 6.22 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 276 MB  (section meshes 30 MB)
+wrote snaps/vehicle_hud.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 889 ms, upload 316 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck tv_map.png magenta=0.00000 black=0.0156 white=0.0123 std=59.4 hash=565cfd8b7299468b
+imagecheck tv_map.png magenta=0.00000 black=0.0153 white=0.0307 std=78.6 hash=bd74e18ee1a2e4fa
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 80)
+gen 276 ms  mesh(all, parallel) 283 ms  mesh(1 section) 1.14 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 11.43 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 235 MB
+memory: resident 298 MB  (section meshes 30 MB)
+wrote snaps/tv_map.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 896 ms, upload 308 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck controls_ref.png magenta=0.00000 black=0.0142 white=0.0113 std=54.3 hash=d318f0142b249631
+imagecheck controls_ref.png magenta=0.00000 black=0.0142 white=0.0113 std=54.3 hash=d318f0142b249631
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 78)
+gen 277 ms  mesh(all, parallel) 264 ms  mesh(1 section) 1.47 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 5.95 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 264 MB  (section meshes 30 MB)
+wrote snaps/controls_ref.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 846 ms, upload 291 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck tv_hud.png magenta=0.00000 black=0.0062 white=0.0040 std=45.5 hash=1acd95de035b2c04
+imagecheck tv_hud.png magenta=0.00000 black=0.0062 white=0.0040 std=45.5 hash=1acd95de035b2c04
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 80)
+gen 283 ms  mesh(all, parallel) 306 ms  mesh(1 section) 0.87 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 7.44 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 235 MB
+memory: resident 293 MB  (section meshes 30 MB)
+wrote snaps/tv_hud.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 890 ms, upload 297 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck furnace.png magenta=0.00000 black=0.0132 white=0.0088 std=51.1 hash=dffd01f798482571
+imagecheck furnace.png magenta=0.00000 black=0.0132 white=0.0088 std=51.1 hash=dffd01f798482571
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 78)
+gen 285 ms  mesh(all, parallel) 283 ms  mesh(1 section) 1.08 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 6.73 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 274 MB  (section meshes 30 MB)
+wrote snaps/furnace.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 848 ms, upload 290 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck drops.png magenta=0.00000 black=0.0042 white=0.0008 std=42.8 hash=9b29deea60691b0d
+imagecheck drops.png magenta=0.00000 black=0.0042 white=0.0008 std=42.8 hash=9b29deea60691b0d
+seed 12345  pos 31.5 137.0 29.5  rd 8  chunks 297  (drawn 27)
+gen 278 ms  mesh(all, parallel) 271 ms  mesh(1 section) 1.39 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 6.38 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 260 MB  (section meshes 30 MB)
+wrote snaps/drops.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 805 ms, upload 274 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck subtitles.png magenta=0.00000 black=0.0053 white=0.0029 std=38.9 hash=fdf2a920c39dc8de
+imagecheck subtitles.png magenta=0.00000 black=0.0053 white=0.0029 std=38.9 hash=fdf2a920c39dc8de
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 78)
+gen 266 ms  mesh(all, parallel) 274 ms  mesh(1 section) 0.71 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 5.78 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 274 MB  (section meshes 30 MB)
+wrote snaps/subtitles.png
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 945 ms, upload 371 ms)
+light probe: eye sky 15 block 0 in air; floor+1 (y 72) sky 15 block 0 in air, daylight 1.0
+imagecheck survival.png magenta=0.00000 black=0.0057 white=0.0013 std=45.0 hash=d5a0c04037ccc175
+imagecheck survival.png magenta=0.00000 black=0.0057 white=0.0013 std=45.0 hash=d5a0c04037ccc175
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 297  (drawn 78)
+gen 283 ms  mesh(all, parallel) 287 ms  mesh(1 section) 0.75 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 6.28 ms  biome forest
+mesh slabs 36 MB, chunks 297 (block+light arrays 28 MB), Metal allocated 206 MB
+memory: resident 272 MB  (section meshes 30 MB)
+wrote snaps/survival.png
+sim 12.0 s: tick avg 0.66 ms, worst 28.03 ms | pos 28.3 136.9 27.7 | health 20 hunger 20 | mobs 112 | fluid pending 0 | items held 569, dropped 0
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 857 ms, upload 297 ms)
+light probe: eye sky 12 block 0 in air; floor+1 (y 72) sky 11 block 0 in air, daylight 1.0
+imagecheck sim.png magenta=0.00000 black=0.0440 white=0.0008 std=17.5 hash=0065cd74949a1678
+imagecheck sim.png magenta=0.00000 black=0.0440 white=0.0008 std=17.5 hash=0065cd74949a1678
+seed 12345  pos 31.5 136.0 29.5  rd 8  chunks 326  (drawn 72)
+gen 270 ms  mesh(all, parallel) 307 ms  mesh(1 section) 0.67 ms  quads 976883 opaque / 20142 water
+frame (encode+GPU, offscreen, median of 30) 7.52 ms  biome forest
+mesh slabs 40 MB, chunks 326 (block+light arrays 30 MB), Metal allocated 222 MB
+memory: resident 283 MB  (section meshes 33 MB)
+wrote snaps/sim.png
+textures without a painter: missing
+atlas 0 r0 c0 missing
+atlas 0 r0 c1 stone
+atlas 0 r0 c2 grass_block_side
+atlas 0 r0 c3 grass_block_top
+atlas 0 r0 c4 dirt
+atlas 0 r0 c5 cobblestone
+atlas 0 r0 c6 oak_planks
+atlas 0 r0 c7 bedrock
+atlas 0 r0 c8 sand
+atlas 0 r0 c9 gravel
+atlas 0 r0 c10 oak_log
+atlas 0 r0 c11 oak_log_top
+atlas 0 r0 c12 oak_log@r
+atlas 0 r0 c13 oak_leaves
+atlas 0 r0 c14 glass
+atlas 0 r0 c15 water
+atlas 0 r0 c16 coal_ore
+atlas 0 r0 c17 iron_ore
+atlas 0 r0 c18 gold_ore
+atlas 0 r0 c19 diamond_ore
+atlas 0 r0 c20 bricks
+atlas 0 r0 c21 grass_block_snow
+atlas 0 r0 c22 snow
+atlas 0 r0 c23 cactus_side
+atlas 0 r1 c0 cactus_top
+atlas 0 r1 c1 cactus_bottom
+atlas 0 r1 c2 stone_bricks
+atlas 0 r1 c3 sandstone
+atlas 0 r1 c4 sandstone_top
+atlas 0 r1 c5 sandstone_bottom
+atlas 0 r1 c6 birch_log
+atlas 0 r1 c7 birch_log_top
+atlas 0 r1 c8 birch_log@r
+atlas 0 r1 c9 birch_leaves
+atlas 0 r1 c10 spruce_log
+atlas 0 r1 c11 spruce_log_top
+atlas 0 r1 c12 spruce_log@r
+atlas 0 r1 c13 spruce_leaves
+atlas 0 r1 c14 short_grass
+atlas 0 r1 c15 poppy
+atlas 0 r1 c16 dandelion
+atlas 0 r1 c17 cornflower
+atlas 0 r1 c18 torch_top
+atlas 0 r1 c19 torch
+atlas 0 r1 c20 torch_bottom
+atlas 0 r1 c21 torch_wall
+atlas 0 r1 c22 torch_top_full
+atlas 0 r1 c23 soul_torch
+atlas 0 r2 c0 soul_torch_wall
+atlas 0 r2 c1 soul_torch_top_full
+atlas 0 r2 c2 copper_torch_top
+atlas 0 r2 c3 copper_torch
+atlas 0 r2 c4 copper_torch_wall
+atlas 0 r2 c5 copper_torch_top_full
+atlas 0 r2 c6 glowstone
+atlas 0 r2 c7 oak_sapling
+atlas 0 r2 c8 birch_sapling
+atlas 0 r2 c9 spruce_sapling
+atlas 0 r2 c10 deepslate
+atlas 0 r2 c11 lava
+atlas 0 r2 c12 fire
+atlas 0 r2 c13 soul_fire
+atlas 0 r2 c14 nether_portal
+atlas 0 r2 c15 netherrack
+atlas 0 r2 c16 nether_quartz_ore
+atlas 0 r2 c17 nether_gold_ore
+atlas 0 r2 c18 ancient_debris_side
+atlas 0 r2 c19 ancient_debris_top
+atlas 0 r2 c20 soul_sand
+atlas 0 r2 c21 soul_soil
+atlas 0 r2 c22 basalt_side
+atlas 0 r2 c23 basalt_top
+atlas 0 r3 c0 basalt_side@r
+atlas 0 r3 c1 blackstone
+atlas 0 r3 c2 polished_blackstone
+atlas 0 r3 c3 polished_blackstone_bricks
+atlas 0 r3 c4 cracked_polished_blackstone_bricks
+atlas 0 r3 c5 chiseled_polished_blackstone
+atlas 0 r3 c6 gilded_blackstone
+atlas 0 r3 c7 magma
+atlas 0 r3 c8 nether_bricks
+atlas 0 r3 c9 red_nether_bricks
+atlas 0 r3 c10 crimson_nylium_side
+atlas 0 r3 c11 crimson_nylium
+atlas 0 r3 c12 warped_nylium_side
+atlas 0 r3 c13 warped_nylium
+atlas 0 r3 c14 crimson_stem
+atlas 0 r3 c15 crimson_stem_top
+atlas 0 r3 c16 crimson_stem@r
+atlas 0 r3 c17 warped_stem
+atlas 0 r3 c18 warped_stem_top
+atlas 0 r3 c19 warped_stem@r
+atlas 0 r3 c20 nether_wart_block
+atlas 0 r3 c21 warped_wart_block
+atlas 0 r3 c22 shroomlight
+atlas 0 r3 c23 crimson_fungus
+atlas 0 r4 c0 warped_fungus
+atlas 0 r4 c1 crimson_roots
+atlas 0 r4 c2 warped_roots
+atlas 0 r4 c3 weeping_vines
+atlas 0 r4 c4 twisting_vines
+atlas 0 r4 c5 crimson_planks
+atlas 0 r4 c6 warped_planks
+atlas 0 r4 c7 crying_obsidian
+atlas 0 r4 c8 nether_wart_stage0
+atlas 0 r4 c9 nether_wart_stage1
+atlas 0 r4 c10 nether_wart_stage2
+atlas 0 r4 c11 end_stone
+atlas 0 r4 c12 end_stone_bricks
+atlas 0 r4 c13 purpur_block
+atlas 0 r4 c14 purpur_pillar
+atlas 0 r4 c15 purpur_pillar_top
+atlas 0 r4 c16 purpur_pillar@r
+atlas 0 r4 c17 mossy_stone_bricks
+atlas 0 r4 c18 cracked_stone_bricks
+atlas 0 r4 c19 chiseled_stone_bricks
+atlas 0 r4 c20 bookshelf
+atlas 0 r4 c21 cobweb
+atlas 0 r4 c22 sugar_cane
+atlas 0 r4 c23 end_portal_frame_side
+atlas 0 r5 c0 end_portal_frame_top
+atlas 0 r5 c1 end_portal_frame_eye
+atlas 0 r5 c2 end_portal
+atlas 0 r5 c3 dragon_egg
+atlas 0 r5 c4 chorus_plant
+atlas 0 r5 c5 chorus_flower
+atlas 0 r5 c6 end_rod
+atlas 0 r5 c7 coal_block
+atlas 0 r5 c8 iron_block
+atlas 0 r5 c9 gold_block
+atlas 0 r5 c10 diamond_block
+atlas 0 r5 c11 emerald_block
+atlas 0 r5 c12 lapis_block
+atlas 0 r5 c13 redstone_block
+atlas 0 r5 c14 copper_block
+atlas 0 r5 c15 farmland
+atlas 0 r5 c16 farmland_moist
+atlas 0 r5 c17 wheat_stage0
+atlas 0 r5 c18 wheat_stage1
+atlas 0 r5 c19 wheat_stage2
+atlas 0 r5 c20 wheat_stage3
+atlas 0 r5 c21 wheat_stage4
+atlas 0 r5 c22 wheat_stage5
+atlas 0 r5 c23 wheat_stage6
+atlas 0 r6 c0 wheat_stage7
+atlas 0 r6 c1 carrots_stage0
+atlas 0 r6 c2 carrots_stage1
+atlas 0 r6 c3 carrots_stage2
+atlas 0 r6 c4 carrots_stage3
+atlas 0 r6 c5 potatoes_stage0
+atlas 0 r6 c6 potatoes_stage1
+atlas 0 r6 c7 potatoes_stage2
+atlas 0 r6 c8 potatoes_stage3
+atlas 0 r6 c9 beetroots_stage0
+atlas 0 r6 c10 beetroots_stage1
+atlas 0 r6 c11 beetroots_stage2
+atlas 0 r6 c12 beetroots_stage3
+atlas 0 r6 c13 white_wool
+atlas 0 r6 c14 orange_wool
+atlas 0 r6 c15 magenta_wool
+atlas 0 r6 c16 light_blue_wool
+atlas 0 r6 c17 yellow_wool
+atlas 0 r6 c18 lime_wool
+atlas 0 r6 c19 pink_wool
+atlas 0 r6 c20 gray_wool
+atlas 0 r6 c21 light_gray_wool
+atlas 0 r6 c22 cyan_wool
+atlas 0 r6 c23 purple_wool
+atlas 0 r7 c0 blue_wool
+atlas 0 r7 c1 brown_wool
+atlas 0 r7 c2 green_wool
+atlas 0 r7 c3 red_wool
+atlas 0 r7 c4 black_wool
+atlas 0 r7 c5 tnt_side
+atlas 0 r7 c6 tnt_top
+atlas 0 r7 c7 tnt_bottom
+atlas 0 r7 c8 white_bed_side
+atlas 0 r7 c9 white_bed_top_foot
+atlas 0 r7 c10 white_bed_top_head
+atlas 0 r7 c11 orange_bed_side
+atlas 0 r7 c12 orange_bed_top_foot
+atlas 0 r7 c13 orange_bed_top_head
+atlas 0 r7 c14 magenta_bed_side
+atlas 0 r7 c15 magenta_bed_top_foot
+atlas 0 r7 c16 magenta_bed_top_head
+atlas 0 r7 c17 light_blue_bed_side
+atlas 0 r7 c18 light_blue_bed_top_foot
+atlas 0 r7 c19 light_blue_bed_top_head
+atlas 0 r7 c20 yellow_bed_side
+atlas 0 r7 c21 yellow_bed_top_foot
+atlas 0 r7 c22 yellow_bed_top_head
+atlas 0 r7 c23 lime_bed_side
+atlas 0 r8 c0 lime_bed_top_foot
+atlas 0 r8 c1 lime_bed_top_head
+atlas 0 r8 c2 pink_bed_side
+atlas 0 r8 c3 pink_bed_top_foot
+atlas 0 r8 c4 pink_bed_top_head
+atlas 0 r8 c5 gray_bed_side
+atlas 0 r8 c6 gray_bed_top_foot
+atlas 0 r8 c7 gray_bed_top_head
+atlas 0 r8 c8 light_gray_bed_side
+atlas 0 r8 c9 light_gray_bed_top_foot
+atlas 0 r8 c10 light_gray_bed_top_head
+atlas 0 r8 c11 cyan_bed_side
+atlas 0 r8 c12 cyan_bed_top_foot
+atlas 0 r8 c13 cyan_bed_top_head
+atlas 0 r8 c14 purple_bed_side
+atlas 0 r8 c15 purple_bed_top_foot
+atlas 0 r8 c16 purple_bed_top_head
+atlas 0 r8 c17 blue_bed_side
+atlas 0 r8 c18 blue_bed_top_foot
+atlas 0 r8 c19 blue_bed_top_head
+atlas 0 r8 c20 brown_bed_side
+atlas 0 r8 c21 brown_bed_top_foot
+atlas 0 r8 c22 brown_bed_top_head
+atlas 0 r8 c23 green_bed_side
+atlas 0 r9 c0 green_bed_top_foot
+atlas 0 r9 c1 green_bed_top_head
+atlas 0 r9 c2 red_bed_side
+atlas 0 r9 c3 red_bed_top_foot
+atlas 0 r9 c4 red_bed_top_head
+atlas 0 r9 c5 black_bed_side
+atlas 0 r9 c6 black_bed_top_foot
+atlas 0 r9 c7 black_bed_top_head
+atlas 0 r9 c8 crafting_table_front
+atlas 0 r9 c9 crafting_table_side
+atlas 0 r9 c10 crafting_table_top
+atlas 0 r9 c11 furnace_side
+atlas 0 r9 c12 furnace_top
+atlas 0 r9 c13 furnace_front
+atlas 0 r9 c14 furnace_front_on
+atlas 0 r9 c15 chest_side
+atlas 0 r9 c16 chest_top
+atlas 0 r9 c17 chest_front
+atlas 0 r9 c18 cobbled_deepslate
+atlas 0 r9 c19 andesite
+atlas 0 r9 c20 diorite
+atlas 0 r9 c21 granite
+atlas 0 r9 c22 tuff
+atlas 0 r9 c23 clay
+atlas 0 r10 c0 obsidian
+atlas 0 r10 c1 red_sand
+atlas 0 r10 c2 terracotta
+atlas 0 r10 c3 lapis_ore
+atlas 0 r10 c4 redstone_ore
+atlas 0 r10 c5 emerald_ore
+atlas 0 r10 c6 copper_ore
+atlas 0 r10 c7 deepslate_coal_ore
+atlas 0 r10 c8 deepslate_iron_ore
+atlas 0 r10 c9 deepslate_gold_ore
+atlas 0 r10 c10 deepslate_diamond_ore
+atlas 0 r10 c11 deepslate_lapis_ore
+atlas 0 r10 c12 deepslate_redstone_ore
+atlas 0 r10 c13 deepslate_copper_ore
+atlas 0 r10 c14 mossy_cobblestone
+atlas 0 r10 c15 smooth_stone
+atlas 0 r10 c16 birch_planks
+atlas 0 r10 c17 spruce_planks
+atlas 0 r10 c18 acacia_log
+atlas 0 r10 c19 acacia_log_top
+atlas 0 r10 c20 acacia_log@r
+atlas 0 r10 c21 acacia_leaves
+atlas 0 r10 c22 acacia_planks
+atlas 0 r10 c23 acacia_sapling
+atlas 0 r11 c0 dark_oak_log
+atlas 0 r11 c1 dark_oak_log_top
+atlas 0 r11 c2 dark_oak_log@r
+atlas 0 r11 c3 dark_oak_leaves
+atlas 0 r11 c4 dark_oak_planks
+atlas 0 r11 c5 dark_oak_sapling
+atlas 0 r11 c6 jungle_log
+atlas 0 r11 c7 jungle_log_top
+atlas 0 r11 c8 jungle_log@r
+atlas 0 r11 c9 jungle_leaves
+atlas 0 r11 c10 jungle_planks
+atlas 0 r11 c11 jungle_sapling
+atlas 0 r11 c12 mangrove_log
+atlas 0 r11 c13 mangrove_log_top
+atlas 0 r11 c14 mangrove_log@r
+atlas 0 r11 c15 mangrove_leaves
+atlas 0 r11 c16 mangrove_planks
+atlas 0 r11 c17 mangrove_propagule
+atlas 0 r11 c18 cherry_log
+atlas 0 r11 c19 cherry_log_top
+atlas 0 r11 c20 cherry_log@r
+atlas 0 r11 c21 cherry_leaves
+atlas 0 r11 c22 cherry_planks
+atlas 0 r11 c23 cherry_sapling
+atlas 0 r12 c0 pale_oak_log
+atlas 0 r12 c1 pale_oak_log_top
+atlas 0 r12 c2 pale_oak_log@r
+atlas 0 r12 c3 pale_oak_leaves
+atlas 0 r12 c4 pale_oak_planks
+atlas 0 r12 c5 pale_oak_sapling
+atlas 0 r12 c6 mangrove_roots
+atlas 0 r12 c7 podzol_side
+atlas 0 r12 c8 podzol_top
+atlas 0 r12 c9 coarse_dirt
+atlas 0 r12 c10 rooted_dirt
+atlas 0 r12 c11 mycelium_side
+atlas 0 r12 c12 mycelium_top
+atlas 0 r12 c13 mud
+atlas 0 r12 c14 packed_mud
+atlas 0 r12 c15 mud_bricks
+atlas 0 r12 c16 ice
+atlas 0 r12 c17 packed_ice
+atlas 0 r12 c18 blue_ice
+atlas 0 r12 c19 snow_block
+atlas 0 r12 c20 calcite
+atlas 0 r12 c21 dripstone_block
+atlas 0 r12 c22 pointed_dripstone
+atlas 0 r12 c23 moss_block
+atlas 0 r13 c0 red_sandstone
+atlas 0 r13 c1 red_sandstone_top
+atlas 0 r13 c2 white_terracotta
+atlas 0 r13 c3 orange_terracotta
+atlas 0 r13 c4 yellow_terracotta
+atlas 0 r13 c5 brown_terracotta
+atlas 0 r13 c6 red_terracotta
+atlas 0 r13 c7 light_gray_terracotta
+atlas 0 r13 c8 smooth_basalt
+atlas 0 r13 c9 amethyst_block
+atlas 0 r13 c10 budding_amethyst
+atlas 0 r13 c11 amethyst_cluster
+atlas 0 r13 c12 sculk
+atlas 0 r13 c13 sculk_shrieker_side
+atlas 0 r13 c14 sculk_shrieker_top
+atlas 0 r13 c15 reinforced_deepslate
+atlas 0 r13 c16 polished_deepslate
+atlas 0 r13 c17 deepslate_bricks
+atlas 0 r13 c18 deepslate_tiles
+atlas 0 r13 c19 fern
+atlas 0 r13 c20 tall_grass_bottom
+atlas 0 r13 c21 tall_grass_top
+atlas 0 r13 c22 large_fern_bottom
+atlas 0 r13 c23 large_fern_top
+atlas 0 r14 c0 sunflower_bottom
+atlas 0 r14 c1 sunflower_top
+atlas 0 r14 c2 lilac_bottom
+atlas 0 r14 c3 lilac_top
+atlas 0 r14 c4 rose_bush_bottom
+atlas 0 r14 c5 rose_bush_top
+atlas 0 r14 c6 peony_bottom
+atlas 0 r14 c7 peony_top
+atlas 0 r14 c8 allium
+atlas 0 r14 c9 azure_bluet
+atlas 0 r14 c10 red_tulip
+atlas 0 r14 c11 orange_tulip
+atlas 0 r14 c12 white_tulip
+atlas 0 r14 c13 pink_tulip
+atlas 0 r14 c14 oxeye_daisy
+atlas 0 r14 c15 lily_of_the_valley
+atlas 0 r14 c16 blue_orchid
+atlas 0 r14 c17 dead_bush
+atlas 0 r14 c18 brown_mushroom
+atlas 0 r14 c19 red_mushroom
+atlas 0 r14 c20 pink_petals
+atlas 0 r14 c21 sweet_berry_bush_stage0
+atlas 0 r14 c22 sweet_berry_bush_stage1
+atlas 0 r14 c23 sweet_berry_bush_stage2
+atlas 0 r15 c0 sweet_berry_bush_stage3
+atlas 0 r15 c1 mushroom_stem
+atlas 0 r15 c2 mushroom_block_inside
+atlas 0 r15 c3 brown_mushroom_block
+atlas 0 r15 c4 red_mushroom_block
+atlas 0 r15 c5 lily_pad
+atlas 0 r15 c6 vine
+atlas 0 r15 c7 bamboo_stalk
+atlas 0 r15 c8 melon_side
+atlas 0 r15 c9 melon_top
+atlas 0 r15 c10 pumpkin_side
+atlas 0 r15 c11 pumpkin_top
+atlas 0 r15 c12 azalea_side
+atlas 0 r15 c13 azalea_top
+atlas 0 r15 c14 cave_vines
+atlas 0 r15 c15 seagrass
+atlas 0 r15 c16 kelp
+atlas 0 r15 c17 tube_coral_block
+atlas 0 r15 c18 tube_coral
+atlas 0 r15 c19 brain_coral_block
+atlas 0 r15 c20 brain_coral
+atlas 0 r15 c21 bubble_coral_block
+atlas 0 r15 c22 bubble_coral
+atlas 0 r15 c23 fire_coral_block
+atlas 0 r16 c0 fire_coral
+atlas 0 r16 c1 horn_coral_block
+atlas 0 r16 c2 horn_coral
+atlas 0 r16 c3 sea_lantern
+atlas 0 r16 c4 prismarine
+atlas 0 r16 c5 prismarine_bricks
+atlas 0 r16 c6 dark_prismarine
+atlas 0 r16 c7 wet_sponge
+atlas 0 r16 c8 sponge
+atlas 0 r16 c9 dirt_path_side
+atlas 0 r16 c10 dirt_path_top
+atlas 0 r16 c11 oak_door_bottom
+atlas 0 r16 c12 oak_door_top
+atlas 0 r16 c13 oak_trapdoor
+atlas 0 r16 c14 spruce_door_bottom
+atlas 0 r16 c15 spruce_door_top
+atlas 0 r16 c16 spruce_trapdoor
+atlas 0 r16 c17 birch_door_bottom
+atlas 0 r16 c18 birch_door_top
+atlas 0 r16 c19 birch_trapdoor
+atlas 0 r16 c20 jungle_door_bottom
+atlas 0 r16 c21 jungle_door_top
+atlas 0 r16 c22 jungle_trapdoor
+atlas 0 r16 c23 acacia_door_bottom
+atlas 0 r17 c0 acacia_door_top
+atlas 0 r17 c1 acacia_trapdoor
+atlas 0 r17 c2 dark_oak_door_bottom
+atlas 0 r17 c3 dark_oak_door_top
+atlas 0 r17 c4 dark_oak_trapdoor
+atlas 0 r17 c5 mangrove_door_bottom
+atlas 0 r17 c6 mangrove_door_top
+atlas 0 r17 c7 mangrove_trapdoor
+atlas 0 r17 c8 cherry_door_bottom
+atlas 0 r17 c9 cherry_door_top
+atlas 0 r17 c10 cherry_trapdoor
+atlas 0 r17 c11 crimson_door_bottom
+atlas 0 r17 c12 crimson_door_top
+atlas 0 r17 c13 crimson_trapdoor
+atlas 0 r17 c14 warped_door_bottom
+atlas 0 r17 c15 warped_door_top
+atlas 0 r17 c16 warped_trapdoor
+atlas 0 r17 c17 pale_oak_door_bottom
+atlas 0 r17 c18 pale_oak_door_top
+atlas 0 r17 c19 pale_oak_trapdoor
+atlas 0 r17 c20 iron_door_bottom
+atlas 0 r17 c21 iron_door_top
+atlas 0 r17 c22 iron_trapdoor
+atlas 0 r17 c23 ladder
+atlas 0 r18 c0 lantern
+atlas 0 r18 c1 soul_lantern
+atlas 0 r18 c2 bell
+atlas 0 r18 c3 hay_block_side
+atlas 0 r18 c4 hay_block_top
+atlas 0 r18 c5 hay_block_side@r
+atlas 0 r18 c6 composter_side
+atlas 0 r18 c7 composter_top
+atlas 0 r18 c8 composter_compost
+atlas 0 r18 c9 composter_ready
+atlas 0 r18 c10 barrel_side
+atlas 0 r18 c11 barrel_top
+atlas 0 r18 c12 barrel_bottom
+atlas 0 r18 c13 smoker_front
+atlas 0 r18 c14 smoker_top
+atlas 0 r18 c15 blast_furnace_front
+atlas 0 r18 c16 blast_furnace_top
+atlas 0 r18 c17 cartography_table_side
+atlas 0 r18 c18 cartography_table_top
+atlas 0 r18 c19 fletching_table_side
+atlas 0 r18 c20 fletching_table_top
+atlas 0 r18 c21 smithing_table_side
+atlas 0 r18 c22 smithing_table_top
+atlas 0 r18 c23 loom_side
+atlas 0 r19 c0 loom_top
+atlas 0 r19 c1 stonecutter_side
+atlas 0 r19 c2 stonecutter_top
+atlas 0 r19 c3 grindstone
+atlas 0 r19 c4 lectern_side
+atlas 0 r19 c5 lectern_top
+atlas 0 r19 c6 anvil
+atlas 0 r19 c7 cauldron
+atlas 0 r19 c8 flower_pot
+atlas 0 r19 c9 cut_sandstone
+atlas 0 r19 c10 chiseled_sandstone
+atlas 0 r19 c11 cut_red_sandstone
+atlas 0 r19 c12 white_concrete
+atlas 0 r19 c13 blue_terracotta
+atlas 0 r19 c14 redstone_dust_0
+atlas 0 r19 c15 redstone_dust_1
+atlas 0 r19 c16 redstone_dust_2
+atlas 0 r19 c17 redstone_dust_3
+atlas 0 r19 c18 redstone_dust_4
+atlas 0 r19 c19 redstone_dust_5
+atlas 0 r19 c20 redstone_dust_6
+atlas 0 r19 c21 redstone_dust_7
+atlas 0 r19 c22 redstone_dust_8
+atlas 0 r19 c23 redstone_dust_9
+atlas 1 r0 c0 redstone_dust_10
+atlas 1 r0 c1 redstone_dust_11
+atlas 1 r0 c2 redstone_dust_12
+atlas 1 r0 c3 redstone_dust_13
+atlas 1 r0 c4 redstone_dust_14
+atlas 1 r0 c5 redstone_dust_15
+atlas 1 r0 c6 redstone_torch
+atlas 1 r0 c7 redstone_torch_off
+atlas 1 r0 c8 redstone_lamp
+atlas 1 r0 c9 redstone_lamp_on
+atlas 1 r0 c10 lever
+atlas 1 r0 c11 repeater
+atlas 1 r0 c12 repeater_on
+atlas 1 r0 c13 comparator
+atlas 1 r0 c14 comparator_on
+atlas 1 r0 c15 observer_side
+atlas 1 r0 c16 observer_back
+atlas 1 r0 c17 observer_front
+atlas 1 r0 c18 observer_top
+atlas 1 r0 c19 observer_back_on
+atlas 1 r0 c20 piston_side
+atlas 1 r0 c21 piston_bottom
+atlas 1 r0 c22 piston_top
+atlas 1 r0 c23 piston_inner
+atlas 1 r1 c0 piston_top_sticky
+atlas 1 r1 c1 slime_block
+atlas 1 r1 c2 honey_block
+atlas 1 r1 c3 dispenser_front_vertical
+atlas 1 r1 c4 dispenser_front
+atlas 1 r1 c5 dropper_front_vertical
+atlas 1 r1 c6 dropper_front
+atlas 1 r1 c7 hopper_outside
+atlas 1 r1 c8 hopper_top
+atlas 1 r1 c9 note_block
+atlas 1 r1 c10 daylight_detector_side
+atlas 1 r1 c11 daylight_detector_top
+atlas 1 r1 c12 daylight_detector_inverted_top
+atlas 1 r1 c13 rail
+atlas 1 r1 c14 rail_corner
+atlas 1 r1 c15 powered_rail
+atlas 1 r1 c16 powered_rail_on
+atlas 1 r1 c17 detector_rail
+atlas 1 r1 c18 detector_rail_on
+atlas 1 r1 c19 activator_rail
+atlas 1 r1 c20 activator_rail_on
+atlas 1 r1 c21 target_side
+atlas 1 r1 c22 target_top
+atlas 1 r1 c23 brewing_stand_base
+atlas 1 r2 c0 brewing_stand_rod
+atlas 1 r2 c1 brewing_bottle
+atlas 1 r2 c2 enchanting_table_side
+atlas 1 r2 c3 enchanting_table_top
+atlas 1 r2 c4 enchanting_table_bottom
+atlas 1 r2 c5 beacon_core
+atlas 1 r2 c6 beacon_glass
+atlas 1 r2 c7 chipped_anvil
+atlas 1 r2 c8 damaged_anvil
+atlas 1 r2 c9 skull_skeleton_side
+atlas 1 r2 c10 skull_skeleton_face
+atlas 1 r2 c11 skull_skeleton_top
+atlas 1 r2 c12 skull_wither_side
+atlas 1 r2 c13 skull_wither_face
+atlas 1 r2 c14 skull_wither_top
+atlas 1 r2 c15 head_zombie_side
+atlas 1 r2 c16 head_zombie_face
+atlas 1 r2 c17 head_zombie_top
+atlas 1 r2 c18 head_creeper_side
+atlas 1 r2 c19 head_creeper_face
+atlas 1 r2 c20 head_creeper_top
+atlas 1 r2 c21 head_piglin_side
+atlas 1 r2 c22 head_piglin_face
+atlas 1 r2 c23 head_piglin_top
+atlas 1 r3 c0 head_dragon_side
+atlas 1 r3 c1 head_dragon_face
+atlas 1 r3 c2 head_dragon_top
+atlas 1 r3 c3 head_player_side
+atlas 1 r3 c4 head_player_face
+atlas 1 r3 c5 head_player_top
+atlas 1 r3 c6 netherite_block
+atlas 1 r3 c7 carved_pumpkin_face
+atlas 1 r3 c8 jack_o_lantern_face
+atlas 1 r3 c9 cauldron_water
+atlas 1 r3 c10 white_concrete_powder
+atlas 1 r3 c11 white_stained_glass
+atlas 1 r3 c12 white_glazed_terracotta
+atlas 1 r3 c13 white_candle
+atlas 1 r3 c14 white_shulker_box_side
+atlas 1 r3 c15 white_shulker_box_top
+atlas 1 r3 c16 orange_concrete
+atlas 1 r3 c17 orange_concrete_powder
+atlas 1 r3 c18 orange_stained_glass
+atlas 1 r3 c19 orange_glazed_terracotta
+atlas 1 r3 c20 orange_candle
+atlas 1 r3 c21 orange_shulker_box_side
+atlas 1 r3 c22 orange_shulker_box_top
+atlas 1 r3 c23 magenta_terracotta
+atlas 1 r4 c0 magenta_concrete
+atlas 1 r4 c1 magenta_concrete_powder
+atlas 1 r4 c2 magenta_stained_glass
+atlas 1 r4 c3 magenta_glazed_terracotta
+atlas 1 r4 c4 magenta_candle
+atlas 1 r4 c5 magenta_shulker_box_side
+atlas 1 r4 c6 magenta_shulker_box_top
+atlas 1 r4 c7 light_blue_terracotta
+atlas 1 r4 c8 light_blue_concrete
+atlas 1 r4 c9 light_blue_concrete_powder
+atlas 1 r4 c10 light_blue_stained_glass
+atlas 1 r4 c11 light_blue_glazed_terracotta
+atlas 1 r4 c12 light_blue_candle
+atlas 1 r4 c13 light_blue_shulker_box_side
+atlas 1 r4 c14 light_blue_shulker_box_top
+atlas 1 r4 c15 yellow_concrete
+atlas 1 r4 c16 yellow_concrete_powder
+atlas 1 r4 c17 yellow_stained_glass
+atlas 1 r4 c18 yellow_glazed_terracotta
+atlas 1 r4 c19 yellow_candle
+atlas 1 r4 c20 yellow_shulker_box_side
+atlas 1 r4 c21 yellow_shulker_box_top
+atlas 1 r4 c22 lime_terracotta
+atlas 1 r4 c23 lime_concrete
+atlas 1 r5 c0 lime_concrete_powder
+atlas 1 r5 c1 lime_stained_glass
+atlas 1 r5 c2 lime_glazed_terracotta
+atlas 1 r5 c3 lime_candle
+atlas 1 r5 c4 lime_shulker_box_side
+atlas 1 r5 c5 lime_shulker_box_top
+atlas 1 r5 c6 pink_terracotta
+atlas 1 r5 c7 pink_concrete
+atlas 1 r5 c8 pink_concrete_powder
+atlas 1 r5 c9 pink_stained_glass
+atlas 1 r5 c10 pink_glazed_terracotta
+atlas 1 r5 c11 pink_candle
+atlas 1 r5 c12 pink_shulker_box_side
+atlas 1 r5 c13 pink_shulker_box_top
+atlas 1 r5 c14 gray_terracotta
+atlas 1 r5 c15 gray_concrete
+atlas 1 r5 c16 gray_concrete_powder
+atlas 1 r5 c17 gray_stained_glass
+atlas 1 r5 c18 gray_glazed_terracotta
+atlas 1 r5 c19 gray_candle
+atlas 1 r5 c20 gray_shulker_box_side
+atlas 1 r5 c21 gray_shulker_box_top
+atlas 1 r5 c22 light_gray_concrete
+atlas 1 r5 c23 light_gray_concrete_powder
+atlas 1 r6 c0 light_gray_stained_glass
+atlas 1 r6 c1 light_gray_glazed_terracotta
+atlas 1 r6 c2 light_gray_candle
+atlas 1 r6 c3 light_gray_shulker_box_side
+atlas 1 r6 c4 light_gray_shulker_box_top
+atlas 1 r6 c5 cyan_terracotta
+atlas 1 r6 c6 cyan_concrete
+atlas 1 r6 c7 cyan_concrete_powder
+atlas 1 r6 c8 cyan_stained_glass
+atlas 1 r6 c9 cyan_glazed_terracotta
+atlas 1 r6 c10 cyan_candle
+atlas 1 r6 c11 cyan_shulker_box_side
+atlas 1 r6 c12 cyan_shulker_box_top
+atlas 1 r6 c13 purple_terracotta
+atlas 1 r6 c14 purple_concrete
+atlas 1 r6 c15 purple_concrete_powder
+atlas 1 r6 c16 purple_stained_glass
+atlas 1 r6 c17 purple_glazed_terracotta
+atlas 1 r6 c18 purple_candle
+atlas 1 r6 c19 purple_shulker_box_side
+atlas 1 r6 c20 purple_shulker_box_top
+atlas 1 r6 c21 blue_concrete
+atlas 1 r6 c22 blue_concrete_powder
+atlas 1 r6 c23 blue_stained_glass
+atlas 1 r7 c0 blue_glazed_terracotta
+atlas 1 r7 c1 blue_candle
+atlas 1 r7 c2 blue_shulker_box_side
+atlas 1 r7 c3 blue_shulker_box_top
+atlas 1 r7 c4 brown_concrete
+atlas 1 r7 c5 brown_concrete_powder
+atlas 1 r7 c6 brown_stained_glass
+atlas 1 r7 c7 brown_glazed_terracotta
+atlas 1 r7 c8 brown_candle
+atlas 1 r7 c9 brown_shulker_box_side
+atlas 1 r7 c10 brown_shulker_box_top
+atlas 1 r7 c11 green_terracotta
+atlas 1 r7 c12 green_concrete
+atlas 1 r7 c13 green_concrete_powder
+atlas 1 r7 c14 green_stained_glass
+atlas 1 r7 c15 green_glazed_terracotta
+atlas 1 r7 c16 green_candle
+atlas 1 r7 c17 green_shulker_box_side
+atlas 1 r7 c18 green_shulker_box_top
+atlas 1 r7 c19 red_concrete
+atlas 1 r7 c20 red_concrete_powder
+atlas 1 r7 c21 red_stained_glass
+atlas 1 r7 c22 red_glazed_terracotta
+atlas 1 r7 c23 red_candle
+atlas 1 r8 c0 red_shulker_box_side
+atlas 1 r8 c1 red_shulker_box_top
+atlas 1 r8 c2 black_terracotta
+atlas 1 r8 c3 black_concrete
+atlas 1 r8 c4 black_concrete_powder
+atlas 1 r8 c5 black_stained_glass
+atlas 1 r8 c6 black_glazed_terracotta
+atlas 1 r8 c7 black_candle
+atlas 1 r8 c8 black_shulker_box_side
+atlas 1 r8 c9 black_shulker_box_top
+atlas 1 r8 c10 shulker_box_side
+atlas 1 r8 c11 shulker_box_top
+atlas 1 r8 c12 candle
+atlas 1 r8 c13 ender_chest_side
+atlas 1 r8 c14 ender_chest_top
+atlas 1 r8 c15 ender_chest_front
+atlas 1 r8 c16 trapped_chest_front
+atlas 1 r8 c17 cake_side
+atlas 1 r8 c18 cake_top
+atlas 1 r8 c19 cake_bottom
+atlas 1 r8 c20 cake_inner
+atlas 1 r8 c21 cut_copper
+atlas 1 r8 c22 chiseled_copper
+atlas 1 r8 c23 copper_grate
+atlas 1 r9 c0 copper_bulb
+atlas 1 r9 c1 copper_bulb_lit
+atlas 1 r9 c2 copper_chest_side
+atlas 1 r9 c3 copper_chest_top
+atlas 1 r9 c4 copper_chest_front
+atlas 1 r9 c5 copper_lantern
+atlas 1 r9 c6 copper_bars
+atlas 1 r9 c7 copper_chain
+atlas 1 r9 c8 copper_door_bottom
+atlas 1 r9 c9 copper_door_top
+atlas 1 r9 c10 copper_trapdoor
+atlas 1 r9 c11 exposed_copper
+atlas 1 r9 c12 exposed_cut_copper
+atlas 1 r9 c13 exposed_chiseled_copper
+atlas 1 r9 c14 exposed_copper_grate
+atlas 1 r9 c15 exposed_copper_bulb
+atlas 1 r9 c16 exposed_copper_bulb_lit
+atlas 1 r9 c17 exposed_copper_chest_side
+atlas 1 r9 c18 exposed_copper_chest_top
+atlas 1 r9 c19 exposed_copper_chest_front
+atlas 1 r9 c20 exposed_copper_lantern
+atlas 1 r9 c21 exposed_copper_bars
+atlas 1 r9 c22 exposed_copper_chain
+atlas 1 r9 c23 exposed_copper_door_bottom
+atlas 1 r10 c0 exposed_copper_door_top
+atlas 1 r10 c1 exposed_copper_trapdoor
+atlas 1 r10 c2 weathered_copper
+atlas 1 r10 c3 weathered_cut_copper
+atlas 1 r10 c4 weathered_chiseled_copper
+atlas 1 r10 c5 weathered_copper_grate
+atlas 1 r10 c6 weathered_copper_bulb
+atlas 1 r10 c7 weathered_copper_bulb_lit
+atlas 1 r10 c8 weathered_copper_chest_side
+atlas 1 r10 c9 weathered_copper_chest_top
+atlas 1 r10 c10 weathered_copper_chest_front
+atlas 1 r10 c11 weathered_copper_lantern
+atlas 1 r10 c12 weathered_copper_bars
+atlas 1 r10 c13 weathered_copper_chain
+atlas 1 r10 c14 weathered_copper_door_bottom
+atlas 1 r10 c15 weathered_copper_door_top
+atlas 1 r10 c16 weathered_copper_trapdoor
+atlas 1 r10 c17 oxidized_copper
+atlas 1 r10 c18 oxidized_cut_copper
+atlas 1 r10 c19 oxidized_chiseled_copper
+atlas 1 r10 c20 oxidized_copper_grate
+atlas 1 r10 c21 oxidized_copper_bulb
+atlas 1 r10 c22 oxidized_copper_bulb_lit
+atlas 1 r10 c23 oxidized_copper_chest_side
+atlas 1 r11 c0 oxidized_copper_chest_top
+atlas 1 r11 c1 oxidized_copper_chest_front
+atlas 1 r11 c2 oxidized_copper_lantern
+atlas 1 r11 c3 oxidized_copper_bars
+atlas 1 r11 c4 oxidized_copper_chain
+atlas 1 r11 c5 oxidized_copper_door_bottom
+atlas 1 r11 c6 oxidized_copper_door_top
+atlas 1 r11 c7 oxidized_copper_trapdoor
+atlas 1 r11 c8 big_dripleaf_stem
+atlas 1 r11 c9 big_dripleaf_top
+atlas 1 r11 c10 small_dripleaf
+atlas 1 r11 c11 spore_blossom
+atlas 1 r11 c12 hanging_roots
+atlas 1 r11 c13 glow_lichen
+atlas 1 r11 c14 sculk_vein
+atlas 1 r11 c15 sculk_tendril
+atlas 1 r11 c16 sculk_sensor_side
+atlas 1 r11 c17 sculk_sensor_top
+atlas 1 r11 c18 sculk_catalyst_side
+atlas 1 r11 c19 sculk_catalyst_top
+atlas 1 r11 c20 polished_tuff
+atlas 1 r11 c21 tuff_bricks
+atlas 1 r11 c22 chiseled_tuff
+atlas 1 r11 c23 chiseled_tuff_bricks
+atlas 1 r12 c0 sea_pickle
+atlas 1 r12 c1 conduit
+atlas 1 r12 c2 scaffolding_side
+atlas 1 r12 c3 scaffolding_top
+atlas 1 r12 c4 chain
+atlas 1 r12 c5 campfire_log
+atlas 1 r12 c6 campfire_fire
+atlas 1 r12 c7 soul_campfire_fire
+atlas 1 r12 c8 bee_nest_side
+atlas 1 r12 c9 bee_nest_top
+atlas 1 r12 c10 bee_nest_front
+atlas 1 r12 c11 bee_nest_front_honey
+atlas 1 r12 c12 beehive_side
+atlas 1 r12 c13 beehive_top
+atlas 1 r12 c14 beehive_front
+atlas 1 r12 c15 beehive_front_honey
+atlas 1 r12 c16 honeycomb_block
+atlas 1 r12 c17 bone_block_side
+atlas 1 r12 c18 bone_block_top
+atlas 1 r12 c19 bone_block_side@r
+atlas 1 r12 c20 dried_kelp_side
+atlas 1 r12 c21 dried_kelp_top
+atlas 1 r12 c22 lodestone_side
+atlas 1 r12 c23 lodestone_top
+atlas 1 r13 c0 respawn_anchor_side
+atlas 1 r13 c1 respawn_anchor_top_off
+atlas 1 r13 c2 respawn_anchor_bottom
+atlas 1 r13 c3 respawn_anchor_top
+atlas 1 r13 c4 jukebox_side
+atlas 1 r13 c5 jukebox_top
+atlas 1 r13 c6 ochre_froglight_side
+atlas 1 r13 c7 ochre_froglight_top
+atlas 1 r13 c8 verdant_froglight_side
+atlas 1 r13 c9 verdant_froglight_top
+atlas 1 r13 c10 pearlescent_froglight_side
+atlas 1 r13 c11 pearlescent_froglight_top
+atlas 1 r13 c12 cocoa_stage0
+atlas 1 r13 c13 cocoa_stage1
+atlas 1 r13 c14 cocoa_stage2
+atlas 1 r13 c15 turtle_egg
+atlas 1 r13 c16 sniffer_egg
+atlas 1 r13 c17 dried_ghast_0
+atlas 1 r13 c18 dried_ghast_top_0
+atlas 1 r13 c19 dried_ghast_1
+atlas 1 r13 c20 dried_ghast_top_1
+atlas 1 r13 c21 dried_ghast_2
+atlas 1 r13 c22 dried_ghast_top_2
+atlas 1 r13 c23 dried_ghast_3
+atlas 1 r14 c0 dried_ghast_top_3
+atlas 1 r14 c1 frogspawn
+atlas 1 r14 c2 frosted_ice_0
+atlas 1 r14 c3 frosted_ice_1
+atlas 1 r14 c4 frosted_ice_2
+atlas 1 r14 c5 frosted_ice_3
+atlas 1 r14 c6 tripwire_hook
+atlas 1 r14 c7 tripwire
+atlas 1 r14 c8 torchflower
+atlas 1 r14 c9 torchflower_crop0
+atlas 1 r14 c10 torchflower_crop1
+atlas 1 r14 c11 pitcher_plant
+atlas 1 r14 c12 pitcher_crop0
+atlas 1 r14 c13 pitcher_crop1
+atlas 1 r14 c14 pitcher_crop2
+atlas 1 r14 c15 pitcher_crop3
+atlas 1 r14 c16 suspicious_sand
+atlas 1 r14 c17 suspicious_gravel
+atlas 1 r14 c18 decorated_pot
+atlas 1 r14 c19 trial_spawner_side
+atlas 1 r14 c20 trial_spawner_top
+atlas 1 r14 c21 vault_side
+atlas 1 r14 c22 vault_top
+atlas 1 r14 c23 crafter_side
+atlas 1 r15 c0 crafter_top
+atlas 1 r15 c1 crafter_bottom
+atlas 1 r15 c2 crafter_front
+atlas 1 r15 c3 heavy_core
+atlas 1 r15 c4 item_frame
+atlas 1 r15 c5 glow_item_frame
+atlas 1 r15 c6 painting_back
+atlas 1 r15 c7 painting_kebab
+atlas 1 r15 c8 painting_aztec
+atlas 1 r15 c9 painting_alban
+atlas 1 r15 c10 painting_aztec2
+atlas 1 r15 c11 painting_bomb
+atlas 1 r15 c12 painting_plant
+atlas 1 r15 c13 painting_wasteland
+atlas 1 r15 c14 painting_meditative
+atlas 1 r15 c15 painting_pool
+atlas 1 r15 c16 painting_courbet
+atlas 1 r15 c17 painting_sea
+atlas 1 r15 c18 painting_sunset
+atlas 1 r15 c19 painting_creebet
+atlas 1 r15 c20 painting_wanderer
+atlas 1 r15 c21 painting_graham
+atlas 1 r15 c22 painting_prairie_ride
+atlas 1 r15 c23 painting_match
+atlas 1 r16 c0 painting_bust
+atlas 1 r16 c1 painting_stage
+atlas 1 r16 c2 painting_void
+atlas 1 r16 c3 painting_skull_and_roses
+atlas 1 r16 c4 painting_wither
+atlas 1 r16 c5 painting_earth
+atlas 1 r16 c6 painting_wind
+atlas 1 r16 c7 painting_water
+atlas 1 r16 c8 painting_fire
+atlas 1 r16 c9 painting_baroque
+atlas 1 r16 c10 painting_humble
+atlas 1 r16 c11 painting_fighters
+atlas 1 r16 c12 painting_changing
+atlas 1 r16 c13 painting_finding
+atlas 1 r16 c14 painting_lowmist
+atlas 1 r16 c15 painting_passage
+atlas 1 r16 c16 painting_skeleton
+atlas 1 r16 c17 painting_donkey_kong
+atlas 1 r16 c18 painting_pointer
+atlas 1 r16 c19 painting_pigscene
+atlas 1 r16 c20 painting_burning_skull
+atlas 1 r16 c21 painting_orb
+atlas 1 r16 c22 painting_unpacked
+atlas 1 r16 c23 banner_pat_stripe_bottom_t
+atlas 1 r17 c0 banner_pat_stripe_bottom_b
+atlas 1 r17 c1 banner_pat_stripe_top_t
+atlas 1 r17 c2 banner_pat_stripe_top_b
+atlas 1 r17 c3 banner_pat_stripe_left_t
+atlas 1 r17 c4 banner_pat_stripe_left_b
+atlas 1 r17 c5 banner_pat_stripe_right_t
+atlas 1 r17 c6 banner_pat_stripe_right_b
+atlas 1 r17 c7 banner_pat_stripe_center_t
+atlas 1 r17 c8 banner_pat_stripe_center_b
+atlas 1 r17 c9 banner_pat_stripe_middle_t
+atlas 1 r17 c10 banner_pat_stripe_middle_b
+atlas 1 r17 c11 banner_pat_stripe_downright_t
+atlas 1 r17 c12 banner_pat_stripe_downright_b
+atlas 1 r17 c13 banner_pat_stripe_downleft_t
+atlas 1 r17 c14 banner_pat_stripe_downleft_b
+atlas 1 r17 c15 banner_pat_small_stripes_t
+atlas 1 r17 c16 banner_pat_small_stripes_b
+atlas 1 r17 c17 banner_pat_cross_t
+atlas 1 r17 c18 banner_pat_cross_b
+atlas 1 r17 c19 banner_pat_straight_cross_t
+atlas 1 r17 c20 banner_pat_straight_cross_b
+atlas 1 r17 c21 banner_pat_diagonal_left_t
+atlas 1 r17 c22 banner_pat_diagonal_left_b
+atlas 1 r17 c23 banner_pat_diagonal_right_t
+atlas 1 r18 c0 banner_pat_diagonal_right_b
+atlas 1 r18 c1 banner_pat_diagonal_up_left_t
+atlas 1 r18 c2 banner_pat_diagonal_up_left_b
+atlas 1 r18 c3 banner_pat_diagonal_up_right_t
+atlas 1 r18 c4 banner_pat_diagonal_up_right_b
+atlas 1 r18 c5 banner_pat_half_vertical_t
+atlas 1 r18 c6 banner_pat_half_vertical_b
+atlas 1 r18 c7 banner_pat_half_vertical_right_t
+atlas 1 r18 c8 banner_pat_half_vertical_right_b
+atlas 1 r18 c9 banner_pat_half_horizontal_t
+atlas 1 r18 c10 banner_pat_half_horizontal_b
+atlas 1 r18 c11 banner_pat_half_horizontal_bottom_t
+atlas 1 r18 c12 banner_pat_half_horizontal_bottom_b
+atlas 1 r18 c13 banner_pat_square_bottom_left_t
+atlas 1 r18 c14 banner_pat_square_bottom_left_b
+atlas 1 r18 c15 banner_pat_square_bottom_right_t
+atlas 1 r18 c16 banner_pat_square_bottom_right_b
+atlas 1 r18 c17 banner_pat_square_top_left_t
+atlas 1 r18 c18 banner_pat_square_top_left_b
+atlas 1 r18 c19 banner_pat_square_top_right_t
+atlas 1 r18 c20 banner_pat_square_top_right_b
+atlas 1 r18 c21 banner_pat_triangle_bottom_t
+atlas 1 r18 c22 banner_pat_triangle_bottom_b
+atlas 1 r18 c23 banner_pat_triangle_top_t
+atlas 1 r19 c0 banner_pat_triangle_top_b
+atlas 1 r19 c1 banner_pat_triangles_bottom_t
+atlas 1 r19 c2 banner_pat_triangles_bottom_b
+atlas 1 r19 c3 banner_pat_triangles_top_t
+atlas 1 r19 c4 banner_pat_triangles_top_b
+atlas 1 r19 c5 banner_pat_circle_t
+atlas 1 r19 c6 banner_pat_circle_b
+atlas 1 r19 c7 banner_pat_rhombus_t
+atlas 1 r19 c8 banner_pat_rhombus_b
+atlas 1 r19 c9 banner_pat_border_t
+atlas 1 r19 c10 banner_pat_border_b
+atlas 1 r19 c11 banner_pat_gradient_t
+atlas 1 r19 c12 banner_pat_gradient_b
+atlas 1 r19 c13 banner_pat_gradient_up_t
+atlas 1 r19 c14 banner_pat_gradient_up_b
+atlas 1 r19 c15 banner_pat_curly_border_t
+atlas 1 r19 c16 banner_pat_curly_border_b
+atlas 1 r19 c17 banner_pat_bricks_t
+atlas 1 r19 c18 banner_pat_bricks_b
+atlas 1 r19 c19 banner_pat_creeper_t
+atlas 1 r19 c20 banner_pat_creeper_b
+atlas 1 r19 c21 banner_pat_skull_t
+atlas 1 r19 c22 banner_pat_skull_b
+atlas 1 r19 c23 banner_pat_flower_t
+atlas 2 r0 c0 banner_pat_flower_b
+atlas 2 r0 c1 banner_pat_thing_t
+atlas 2 r0 c2 banner_pat_thing_b
+atlas 2 r0 c3 banner_pat_globe_t
+atlas 2 r0 c4 banner_pat_globe_b
+atlas 2 r0 c5 banner_pat_piglin_t
+atlas 2 r0 c6 banner_pat_piglin_b
+atlas 2 r0 c7 banner_pat_flow_t
+atlas 2 r0 c8 banner_pat_flow_b
+atlas 2 r0 c9 banner_pat_guster_t
+atlas 2 r0 c10 banner_pat_guster_b
+atlas 2 r0 c11 banner_cloth_t
+atlas 2 r0 c12 banner_cloth_b
+atlas 2 r0 c13 stripped_oak_log
+atlas 2 r0 c14 stripped_oak_log_top
+atlas 2 r0 c15 stripped_oak_log@r
+atlas 2 r0 c16 stripped_spruce_log
+atlas 2 r0 c17 stripped_spruce_log_top
+atlas 2 r0 c18 stripped_spruce_log@r
+atlas 2 r0 c19 stripped_birch_log
+atlas 2 r0 c20 stripped_birch_log_top
+atlas 2 r0 c21 stripped_birch_log@r
+atlas 2 r0 c22 stripped_jungle_log
+atlas 2 r0 c23 stripped_jungle_log_top
+atlas 2 r1 c0 stripped_jungle_log@r
+atlas 2 r1 c1 stripped_acacia_log
+atlas 2 r1 c2 stripped_acacia_log_top
+atlas 2 r1 c3 stripped_acacia_log@r
+atlas 2 r1 c4 stripped_dark_oak_log
+atlas 2 r1 c5 stripped_dark_oak_log_top
+atlas 2 r1 c6 stripped_dark_oak_log@r
+atlas 2 r1 c7 stripped_mangrove_log
+atlas 2 r1 c8 stripped_mangrove_log_top
+atlas 2 r1 c9 stripped_mangrove_log@r
+atlas 2 r1 c10 stripped_cherry_log
+atlas 2 r1 c11 stripped_cherry_log_top
+atlas 2 r1 c12 stripped_cherry_log@r
+atlas 2 r1 c13 stripped_pale_oak_log
+atlas 2 r1 c14 stripped_pale_oak_log_top
+atlas 2 r1 c15 stripped_pale_oak_log@r
+atlas 2 r1 c16 stripped_crimson_log
+atlas 2 r1 c17 stripped_crimson_log_top
+atlas 2 r1 c18 stripped_crimson_log@r
+atlas 2 r1 c19 stripped_warped_log
+atlas 2 r1 c20 stripped_warped_log_top
+atlas 2 r1 c21 stripped_warped_log@r
+atlas 2 r1 c22 bamboo_block
+atlas 2 r1 c23 bamboo_block_top
+atlas 2 r2 c0 bamboo_block@r
+atlas 2 r2 c1 stripped_bamboo_block
+atlas 2 r2 c2 stripped_bamboo_block_top
+atlas 2 r2 c3 stripped_bamboo_block@r
+atlas 2 r2 c4 quartz_pillar
+atlas 2 r2 c5 quartz_pillar_top
+atlas 2 r2 c6 quartz_pillar@r
+atlas 2 r2 c7 chiseled_bookshelf_side
+atlas 2 r2 c8 chiseled_bookshelf_top
+atlas 2 r2 c9 chiseled_bookshelf_empty
+atlas 2 r2 c10 pale_moss_block
+atlas 2 r2 c11 pale_hanging_moss
+atlas 2 r2 c12 creaking_heart
+atlas 2 r2 c13 creaking_heart_top
+atlas 2 r2 c14 creaking_heart_active
+atlas 2 r2 c15 closed_eyeblossom
+atlas 2 r2 c16 open_eyeblossom
+atlas 2 r2 c17 resin_block
+atlas 2 r2 c18 resin_bricks
+atlas 2 r2 c19 chiseled_resin_bricks
+atlas 2 r2 c20 bamboo_planks
+atlas 2 r2 c21 bamboo_mosaic
+atlas 2 r2 c22 firefly_bush
+atlas 2 r2 c23 bush
+atlas 2 r3 c0 short_dry_grass
+atlas 2 r3 c1 tall_dry_grass
+atlas 2 r3 c2 cactus_flower
+atlas 2 r3 c3 leaf_litter
+atlas 2 r3 c4 wildflowers
+atlas 2 r3 c5 ship_wood
+atlas 2 r3 c6 ship_wood_dark
+atlas 2 r3 c7 ship_brass
+atlas 2 r3 c8 ship_metal
+atlas 2 r3 c9 ship_blade
+atlas 2 r3 c10 ship_engine_side
+atlas 2 r3 c11 ship_engine_top
+atlas 2 r3 c12 ship_engine_front
+atlas 2 r3 c13 ship_balloon
+atlas 2 r3 c14 ship_wing
+atlas 2 r3 c15 ship_ring_side
+atlas 2 r3 c16 ship_ring_top
+atlas 2 r3 c17 ship_barrel
+atlas 2 r3 c18 ship_tyre
+atlas 2 r3 c19 steel_plating
+atlas 2 r3 c20 steel_grating
+atlas 2 r3 c21 hazard_plating
+atlas 2 r3 c22 light_panel
+atlas 2 r3 c23 command_console_side
+atlas 2 r4 c0 command_console_top
+atlas 2 r4 c1 ammo_crate_side
+atlas 2 r4 c2 ammo_crate_top
+atlas 2 r4 c3 armored_glass
+atlas 2 r4 c4 warship_hull
+atlas 2 r4 c5 warship_panel
+atlas 2 r4 c6 warship_stripe
+atlas 2 r4 c7 iron_bars
+atlas 2 r4 c8 spawner
+atlas 2 r4 c9 item_white_banner
+atlas 2 r4 c10 item_orange_banner
+atlas 2 r4 c11 item_magenta_banner
+atlas 2 r4 c12 item_light_blue_banner
+atlas 2 r4 c13 item_yellow_banner
+atlas 2 r4 c14 item_lime_banner
+atlas 2 r4 c15 item_pink_banner
+atlas 2 r4 c16 item_gray_banner
+atlas 2 r4 c17 item_light_gray_banner
+atlas 2 r4 c18 item_cyan_banner
+atlas 2 r4 c19 item_purple_banner
+atlas 2 r4 c20 item_blue_banner
+atlas 2 r4 c21 item_brown_banner
+atlas 2 r4 c22 item_green_banner
+atlas 2 r4 c23 item_red_banner
+atlas 2 r5 c0 item_black_banner
+atlas 2 r5 c1 item_stick
+atlas 2 r5 c2 item_coal
+atlas 2 r5 c3 item_charcoal
+atlas 2 r5 c4 item_raw_iron
+atlas 2 r5 c5 item_raw_gold
+atlas 2 r5 c6 item_raw_copper
+atlas 2 r5 c7 item_iron_ingot
+atlas 2 r5 c8 item_gold_ingot
+atlas 2 r5 c9 item_copper_ingot
+atlas 2 r5 c10 item_netherite_ingot
+atlas 2 r5 c11 item_netherite_scrap
+atlas 2 r5 c12 item_iron_nugget
+atlas 2 r5 c13 item_copper_nugget
+atlas 2 r5 c14 item_gold_nugget
+atlas 2 r5 c15 item_diamond
+atlas 2 r5 c16 item_emerald
+atlas 2 r5 c17 item_lapis_lazuli
+atlas 2 r5 c18 item_amethyst_shard
+atlas 2 r5 c19 item_quartz
+atlas 2 r5 c20 item_redstone
+atlas 2 r5 c21 item_glowstone_dust
+atlas 2 r5 c22 item_gunpowder
+atlas 2 r5 c23 item_sugar
+atlas 2 r6 c0 item_bone_meal
+atlas 2 r6 c1 item_blaze_powder
+atlas 2 r6 c2 item_flint
+atlas 2 r6 c3 item_string
+atlas 2 r6 c4 item_feather
+atlas 2 r6 c5 item_bone
+atlas 2 r6 c6 item_leather
+atlas 2 r6 c7 item_paper
+atlas 2 r6 c8 item_book
+atlas 2 r6 c9 item_slime_ball
+atlas 2 r6 c10 item_snowball
+atlas 2 r6 c11 item_clay_ball
+atlas 2 r6 c12 item_brick
+atlas 2 r6 c13 item_nether_brick
+atlas 2 r6 c14 item_ender_pearl
+atlas 2 r6 c15 item_ender_eye
+atlas 2 r6 c16 item_blaze_rod
+atlas 2 r6 c17 item_ghast_tear
+atlas 2 r6 c18 item_wheat
+atlas 2 r6 c19 item_wheat_seeds
+atlas 2 r6 c20 item_nether_wart
+atlas 2 r6 c21 item_saddle
+atlas 2 r6 c22 item_name_tag
+atlas 2 r6 c23 item_magma_cream
+atlas 2 r7 c0 item_fire_charge
+atlas 2 r7 c1 item_prismarine_shard
+atlas 2 r7 c2 item_prismarine_crystals
+atlas 2 r7 c3 item_heart_of_the_sea
+atlas 2 r7 c4 item_nautilus_shell
+atlas 2 r7 c5 item_minecart
+atlas 2 r7 c6 item_chest_minecart
+atlas 2 r7 c7 item_hopper_minecart
+atlas 2 r7 c8 item_tnt_minecart
+atlas 2 r7 c9 item_furnace_minecart
+atlas 2 r7 c10 item_oak_boat
+atlas 2 r7 c11 item_oak_chest_boat
+atlas 2 r7 c12 item_spruce_boat
+atlas 2 r7 c13 item_spruce_chest_boat
+atlas 2 r7 c14 item_birch_boat
+atlas 2 r7 c15 item_birch_chest_boat
+atlas 2 r7 c16 item_jungle_boat
+atlas 2 r7 c17 item_jungle_chest_boat
+atlas 2 r7 c18 item_acacia_boat
+atlas 2 r7 c19 item_acacia_chest_boat
+atlas 2 r7 c20 item_dark_oak_boat
+atlas 2 r7 c21 item_dark_oak_chest_boat
+atlas 2 r7 c22 item_mangrove_boat
+atlas 2 r7 c23 item_mangrove_chest_boat
+atlas 2 r8 c0 item_cherry_boat
+atlas 2 r8 c1 item_cherry_chest_boat
+atlas 2 r8 c2 item_bamboo_raft
+atlas 2 r8 c3 item_bamboo_chest_raft
+atlas 2 r8 c4 item_pale_oak_boat
+atlas 2 r8 c5 item_pale_oak_chest_boat
+atlas 2 r8 c6 item_shulker_shell
+atlas 2 r8 c7 item_dragon_breath
+atlas 2 r8 c8 item_firework_rocket
+atlas 2 r8 c9 item_firework_star
+atlas 2 r8 c10 item_bundle
+atlas 2 r8 c11 item_white_bundle
+atlas 2 r8 c12 item_orange_bundle
+atlas 2 r8 c13 item_magenta_bundle
+atlas 2 r8 c14 item_light_blue_bundle
+atlas 2 r8 c15 item_yellow_bundle
+atlas 2 r8 c16 item_lime_bundle
+atlas 2 r8 c17 item_pink_bundle
+atlas 2 r8 c18 item_gray_bundle
+atlas 2 r8 c19 item_light_gray_bundle
+atlas 2 r8 c20 item_cyan_bundle
+atlas 2 r8 c21 item_purple_bundle
+atlas 2 r8 c22 item_blue_bundle
+atlas 2 r8 c23 item_brown_bundle
+atlas 2 r9 c0 item_green_bundle
+atlas 2 r9 c1 item_red_bundle
+atlas 2 r9 c2 item_black_bundle
+atlas 2 r9 c3 item_writable_book
+atlas 2 r9 c4 item_written_book
+atlas 2 r9 c5 item_popped_chorus_fruit
+atlas 2 r9 c6 item_melon_seeds
+atlas 2 r9 c7 item_pumpkin_seeds
+atlas 2 r9 c8 item_beetroot_seeds
+atlas 2 r9 c9 item_egg
+atlas 2 r9 c10 item_brown_egg
+atlas 2 r9 c11 item_blue_egg
+atlas 2 r9 c12 item_arrow
+atlas 2 r9 c13 item_bowl
+atlas 2 r9 c14 item_flint_and_steel
+atlas 2 r9 c15 item_bucket
+atlas 2 r9 c16 item_water_bucket
+atlas 2 r9 c17 item_lava_bucket
+atlas 2 r9 c18 item_milk_bucket
+atlas 2 r9 c19 item_compass
+atlas 2 r9 c20 item_clock
+atlas 2 r9 c21 item_bow
+atlas 2 r9 c22 item_shears
+atlas 2 r9 c23 item_shield
+atlas 2 r10 c0 item_crossbow
+atlas 2 r10 c1 item_trident
+atlas 2 r10 c2 item_fishing_rod
+atlas 2 r10 c3 item_carrot_on_a_stick
+atlas 2 r10 c4 item_glass_bottle
+atlas 2 r10 c5 item_fermented_spider_eye
+atlas 2 r10 c6 item_glistering_melon_slice
+atlas 2 r10 c7 item_rabbit_foot
+atlas 2 r10 c8 item_rabbit_hide
+atlas 2 r10 c9 item_phantom_membrane
+atlas 2 r10 c10 item_breeze_rod
+atlas 2 r10 c11 item_experience_bottle
+atlas 2 r10 c12 item_enchanted_book
+atlas 2 r10 c13 item_nether_star
+atlas 2 r10 c14 item_totem_of_undying
+atlas 2 r10 c15 item_turtle_scute
+atlas 2 r10 c16 item_ink_sac
+atlas 2 r10 c17 item_glow_ink_sac
+atlas 2 r10 c18 item_honeycomb
+atlas 2 r10 c19 item_resin_clump
+atlas 2 r10 c20 item_resin_brick
+atlas 2 r10 c21 item_goat_horn
+atlas 2 r10 c22 item_armadillo_scute
+atlas 2 r10 c23 item_wolf_armor
+atlas 2 r11 c0 item_end_crystal
+atlas 2 r11 c1 item_ominous_bottle
+atlas 2 r11 c2 item_cod_bucket
+atlas 2 r11 c3 item_salmon_bucket
+atlas 2 r11 c4 item_tropical_fish_bucket
+atlas 2 r11 c5 item_pufferfish_bucket
+atlas 2 r11 c6 item_axolotl_bucket
+atlas 2 r11 c7 item_tadpole_bucket
+atlas 2 r11 c8 item_warped_fungus_on_a_stick
+atlas 2 r11 c9 item_white_dye
+atlas 2 r11 c10 item_orange_dye
+atlas 2 r11 c11 item_magenta_dye
+atlas 2 r11 c12 item_light_blue_dye
+atlas 2 r11 c13 item_yellow_dye
+atlas 2 r11 c14 item_lime_dye
+atlas 2 r11 c15 item_pink_dye
+atlas 2 r11 c16 item_gray_dye
+atlas 2 r11 c17 item_light_gray_dye
+atlas 2 r11 c18 item_cyan_dye
+atlas 2 r11 c19 item_purple_dye
+atlas 2 r11 c20 item_blue_dye
+atlas 2 r11 c21 item_brown_dye
+atlas 2 r11 c22 item_green_dye
+atlas 2 r11 c23 item_red_dye
+atlas 2 r12 c0 item_black_dye
+atlas 2 r12 c1 item_leather_horse_armor
+atlas 2 r12 c2 item_iron_horse_armor
+atlas 2 r12 c3 item_golden_horse_armor
+atlas 2 r12 c4 item_diamond_horse_armor
+atlas 2 r12 c5 item_copper_horse_armor
+atlas 2 r12 c6 item_netherite_horse_armor
+atlas 2 r12 c7 item_lead
+atlas 2 r12 c8 item_spyglass
+atlas 2 r12 c9 item_bordure_indented_banner_pattern
+atlas 2 r12 c10 item_field_masoned_banner_pattern
+atlas 2 r12 c11 item_creeper_banner_pattern
+atlas 2 r12 c12 item_skull_banner_pattern
+atlas 2 r12 c13 item_flower_banner_pattern
+atlas 2 r12 c14 item_thing_banner_pattern
+atlas 2 r12 c15 item_globe_banner_pattern
+atlas 2 r12 c16 item_piglin_banner_pattern
+atlas 2 r12 c17 item_flow_banner_pattern
+atlas 2 r12 c18 item_guster_banner_pattern
+atlas 2 r12 c19 item_armor_stand
+atlas 2 r12 c20 item_cocoa_beans
+atlas 2 r12 c21 item_torchflower_seeds
+atlas 2 r12 c22 item_pitcher_pod
+atlas 2 r12 c23 item_brush
+atlas 2 r13 c0 item_echo_shard
+atlas 2 r13 c1 item_recovery_compass
+atlas 2 r13 c2 item_disc_fragment_5
+atlas 2 r13 c3 item_mace
+atlas 2 r13 c4 item_wind_charge
+atlas 2 r13 c5 item_powder_snow_bucket
+atlas 2 r13 c6 item_trial_key
+atlas 2 r13 c7 item_map
+atlas 2 r13 c8 item_filled_map
+atlas 2 r13 c9 item_angler_pottery_sherd
+atlas 2 r13 c10 item_archer_pottery_sherd
+atlas 2 r13 c11 item_arms_up_pottery_sherd
+atlas 2 r13 c12 item_blade_pottery_sherd
+atlas 2 r13 c13 item_brewer_pottery_sherd
+atlas 2 r13 c14 item_burn_pottery_sherd
+atlas 2 r13 c15 item_danger_pottery_sherd
+atlas 2 r13 c16 item_explorer_pottery_sherd
+atlas 2 r13 c17 item_flow_pottery_sherd
+atlas 2 r13 c18 item_friend_pottery_sherd
+atlas 2 r13 c19 item_guster_pottery_sherd
+atlas 2 r13 c20 item_heart_pottery_sherd
+atlas 2 r13 c21 item_heartbreak_pottery_sherd
+atlas 2 r13 c22 item_howl_pottery_sherd
+atlas 2 r13 c23 item_miner_pottery_sherd
+atlas 2 r14 c0 item_mourner_pottery_sherd
+atlas 2 r14 c1 item_plenty_pottery_sherd
+atlas 2 r14 c2 item_prize_pottery_sherd
+atlas 2 r14 c3 item_scrape_pottery_sherd
+atlas 2 r14 c4 item_sheaf_pottery_sherd
+atlas 2 r14 c5 item_shelter_pottery_sherd
+atlas 2 r14 c6 item_skull_pottery_sherd
+atlas 2 r14 c7 item_snort_pottery_sherd
+atlas 2 r14 c8 item_music_disc_13
+atlas 2 r14 c9 item_music_disc_cat
+atlas 2 r14 c10 item_music_disc_blocks
+atlas 2 r14 c11 item_music_disc_chirp
+atlas 2 r14 c12 item_music_disc_far
+atlas 2 r14 c13 item_music_disc_mall
+atlas 2 r14 c14 item_music_disc_mellohi
+atlas 2 r14 c15 item_music_disc_stal
+atlas 2 r14 c16 item_music_disc_strad
+atlas 2 r14 c17 item_music_disc_ward
+atlas 2 r14 c18 item_music_disc_11
+atlas 2 r14 c19 item_music_disc_wait
+atlas 2 r14 c20 item_music_disc_pigstep
+atlas 2 r14 c21 item_music_disc_otherside
+atlas 2 r14 c22 item_music_disc_5
+atlas 2 r14 c23 item_music_disc_relic
+atlas 2 r15 c0 item_music_disc_creator
+atlas 2 r15 c1 item_music_disc_creator_music_box
+atlas 2 r15 c2 item_music_disc_precipice
+atlas 2 r15 c3 item_music_disc_tears
+atlas 2 r15 c4 item_music_disc_lava_chicken
+atlas 2 r15 c5 item_ominous_trial_key
+atlas 2 r15 c6 item_netherite_upgrade_smithing_template
+atlas 2 r15 c7 item_sentry_armor_trim_smithing_template
+atlas 2 r15 c8 item_dune_armor_trim_smithing_template
+atlas 2 r15 c9 item_coast_armor_trim_smithing_template
+atlas 2 r15 c10 item_wild_armor_trim_smithing_template
+atlas 2 r15 c11 item_ward_armor_trim_smithing_template
+atlas 2 r15 c12 item_eye_armor_trim_smithing_template
+atlas 2 r15 c13 item_vex_armor_trim_smithing_template
+atlas 2 r15 c14 item_tide_armor_trim_smithing_template
+atlas 2 r15 c15 item_snout_armor_trim_smithing_template
+atlas 2 r15 c16 item_rib_armor_trim_smithing_template
+atlas 2 r15 c17 item_spire_armor_trim_smithing_template
+atlas 2 r15 c18 item_wayfinder_armor_trim_smithing_template
+atlas 2 r15 c19 item_shaper_armor_trim_smithing_template
+atlas 2 r15 c20 item_silence_armor_trim_smithing_template
+atlas 2 r15 c21 item_raiser_armor_trim_smithing_template
+atlas 2 r15 c22 item_host_armor_trim_smithing_template
+atlas 2 r15 c23 item_flow_armor_trim_smithing_template
+atlas 2 r16 c0 item_bolt_armor_trim_smithing_template
+atlas 2 r16 c1 item_apple
+atlas 2 r16 c2 item_golden_apple
+atlas 2 r16 c3 item_bread
+atlas 2 r16 c4 item_beef
+atlas 2 r16 c5 item_cooked_beef
+atlas 2 r16 c6 item_porkchop
+atlas 2 r16 c7 item_cooked_porkchop
+atlas 2 r16 c8 item_chicken
+atlas 2 r16 c9 item_cooked_chicken
+atlas 2 r16 c10 item_mutton
+atlas 2 r16 c11 item_cooked_mutton
+atlas 2 r16 c12 item_rabbit
+atlas 2 r16 c13 item_cooked_rabbit
+atlas 2 r16 c14 item_cod
+atlas 2 r16 c15 item_cooked_cod
+atlas 2 r16 c16 item_salmon
+atlas 2 r16 c17 item_cooked_salmon
+atlas 2 r16 c18 item_rotten_flesh
+atlas 2 r16 c19 item_potato
+atlas 2 r16 c20 item_baked_potato
+atlas 2 r16 c21 item_carrot
+atlas 2 r16 c22 item_golden_carrot
+atlas 2 r16 c23 item_beetroot
+atlas 2 r17 c0 item_cookie
+atlas 2 r17 c1 item_melon_slice
+atlas 2 r17 c2 item_sweet_berries
+atlas 2 r17 c3 item_pumpkin_pie
+atlas 2 r17 c4 item_mushroom_stew
+atlas 2 r17 c5 item_beetroot_soup
+atlas 2 r17 c6 item_dried_kelp
+atlas 2 r17 c7 item_glow_berries
+atlas 2 r17 c8 item_chorus_fruit
+atlas 2 r17 c9 item_spider_eye
+atlas 2 r17 c10 item_enchanted_golden_apple
+atlas 2 r17 c11 item_pufferfish
+atlas 2 r17 c12 item_tropical_fish
+atlas 2 r17 c13 item_poisonous_potato
+atlas 2 r17 c14 item_honey_bottle
+atlas 2 r17 c15 item_rabbit_stew
+atlas 2 r17 c16 item_suspicious_stew_allium
+atlas 2 r17 c17 item_suspicious_stew_azure_bluet
+atlas 2 r17 c18 item_suspicious_stew_blue_orchid
+atlas 2 r17 c19 item_suspicious_stew_dandelion
+atlas 2 r17 c20 item_suspicious_stew_cornflower
+atlas 2 r17 c21 item_suspicious_stew_lily_of_the_valley
+atlas 2 r17 c22 item_suspicious_stew_oxeye_daisy
+atlas 2 r17 c23 item_suspicious_stew_poppy
+atlas 2 r18 c0 item_suspicious_stew_red_tulip
+atlas 2 r18 c1 item_suspicious_stew_orange_tulip
+atlas 2 r18 c2 item_suspicious_stew_white_tulip
+atlas 2 r18 c3 item_suspicious_stew_pink_tulip
+atlas 2 r18 c4 item_suspicious_stew_wither_rose
+atlas 2 r18 c5 item_suspicious_stew_torchflower
+atlas 2 r18 c6 item_suspicious_stew_open_eyeblossom
+atlas 2 r18 c7 item_suspicious_stew_closed_eyeblossom
+atlas 2 r18 c8 item_wooden_sword
+atlas 2 r18 c9 item_wooden_shovel
+atlas 2 r18 c10 item_wooden_pickaxe
+atlas 2 r18 c11 item_wooden_axe
+atlas 2 r18 c12 item_wooden_hoe
+atlas 2 r18 c13 item_wooden_spear
+atlas 2 r18 c14 item_stone_sword
+atlas 2 r18 c15 item_stone_shovel
+atlas 2 r18 c16 item_stone_pickaxe
+atlas 2 r18 c17 item_stone_axe
+atlas 2 r18 c18 item_stone_hoe
+atlas 2 r18 c19 item_stone_spear
+atlas 2 r18 c20 item_iron_sword
+atlas 2 r18 c21 item_iron_shovel
+atlas 2 r18 c22 item_iron_pickaxe
+atlas 2 r18 c23 item_iron_axe
+atlas 2 r19 c0 item_iron_hoe
+atlas 2 r19 c1 item_iron_spear
+atlas 2 r19 c2 item_golden_sword
+atlas 2 r19 c3 item_golden_shovel
+atlas 2 r19 c4 item_golden_pickaxe
+atlas 2 r19 c5 item_golden_axe
+atlas 2 r19 c6 item_golden_hoe
+atlas 2 r19 c7 item_golden_spear
+atlas 2 r19 c8 item_diamond_sword
+atlas 2 r19 c9 item_diamond_shovel
+atlas 2 r19 c10 item_diamond_pickaxe
+atlas 2 r19 c11 item_diamond_axe
+atlas 2 r19 c12 item_diamond_hoe
+atlas 2 r19 c13 item_diamond_spear
+atlas 2 r19 c14 item_netherite_sword
+atlas 2 r19 c15 item_netherite_shovel
+atlas 2 r19 c16 item_netherite_pickaxe
+atlas 2 r19 c17 item_netherite_axe
+atlas 2 r19 c18 item_netherite_hoe
+atlas 2 r19 c19 item_netherite_spear
+atlas 2 r19 c20 item_copper_sword
+atlas 2 r19 c21 item_copper_shovel
+atlas 2 r19 c22 item_copper_pickaxe
+atlas 2 r19 c23 item_copper_axe
+atlas 3 r0 c0 item_copper_hoe
+atlas 3 r0 c1 item_copper_spear
+atlas 3 r0 c2 item_leather_helmet
+atlas 3 r0 c3 item_leather_chestplate
+atlas 3 r0 c4 item_leather_leggings
+atlas 3 r0 c5 item_leather_boots
+atlas 3 r0 c6 item_chainmail_helmet
+atlas 3 r0 c7 item_chainmail_chestplate
+atlas 3 r0 c8 item_chainmail_leggings
+atlas 3 r0 c9 item_chainmail_boots
+atlas 3 r0 c10 item_iron_helmet
+atlas 3 r0 c11 item_iron_chestplate
+atlas 3 r0 c12 item_iron_leggings
+atlas 3 r0 c13 item_iron_boots
+atlas 3 r0 c14 item_golden_helmet
+atlas 3 r0 c15 item_golden_chestplate
+atlas 3 r0 c16 item_golden_leggings
+atlas 3 r0 c17 item_golden_boots
+atlas 3 r0 c18 item_diamond_helmet
+atlas 3 r0 c19 item_diamond_chestplate
+atlas 3 r0 c20 item_diamond_leggings
+atlas 3 r0 c21 item_diamond_boots
+atlas 3 r0 c22 item_netherite_helmet
+atlas 3 r0 c23 item_netherite_chestplate
+atlas 3 r1 c0 item_netherite_leggings
+atlas 3 r1 c1 item_netherite_boots
+atlas 3 r1 c2 item_copper_helmet
+atlas 3 r1 c3 item_copper_chestplate
+atlas 3 r1 c4 item_copper_leggings
+atlas 3 r1 c5 item_copper_boots
+atlas 3 r1 c6 item_turtle_helmet
+atlas 3 r1 c7 item_elytra
+atlas 3 r1 c8 item_potion_bottle
+atlas 3 r1 c9 item_potion_liquid
+atlas 3 r1 c10 item_splash_bottle
+atlas 3 r1 c11 item_lingering_bottle
+atlas 3 r1 c12 item_tipped_arrow
+atlas 3 r1 c13 item_tipped_arrow_head
+atlas 3 r1 c14 item_harness
+atlas 3 r1 c15 item_harness_band
+atlas 3 r1 c16 item_spawn_egg
+atlas 3 r1 c17 item_spawn_egg_shell
+atlas 3 r1 c18 item_rifle_rounds
+atlas 3 r1 c19 item_shotgun_shells
+atlas 3 r1 c20 item_heavy_rounds
+atlas 3 r1 c21 item_rocket_ammo
+atlas 3 r1 c22 item_arc_cell
+atlas 3 r1 c23 item_gun_rifle
+atlas 3 r2 c0 item_gun_smg
+atlas 3 r2 c1 item_gun_shotgun
+atlas 3 r2 c2 item_gun_sniper
+atlas 3 r2 c3 item_gun_launcher
+atlas 3 r2 c4 item_gun_arc
+atlas 3 r2 c5 item_explorer_mark
+atlas 3 r2 c6 heart
+atlas 3 r2 c7 heart_half
+atlas 3 r2 c8 heart_empty
+atlas 3 r2 c9 heart_gold
+atlas 3 r2 c10 heart_gold_half
+atlas 3 r2 c11 heart_poison
+atlas 3 r2 c12 heart_poison_half
+atlas 3 r2 c13 heart_wither
+atlas 3 r2 c14 heart_wither_half
+atlas 3 r2 c15 rain_drop
+atlas 3 r2 c16 snow_flake
+atlas 3 r2 c17 food
+atlas 3 r2 c18 food_half
+atlas 3 r2 c19 food_empty
+atlas 3 r2 c20 bubble
+atlas 3 r2 c21 destroy_0
+atlas 3 r2 c22 destroy_1
+atlas 3 r2 c23 destroy_2
+atlas 3 r3 c0 destroy_3
+atlas 3 r3 c1 destroy_4
+atlas 3 r3 c2 destroy_5
+atlas 3 r3 c3 destroy_6
+atlas 3 r3 c4 destroy_7
+atlas 3 r3 c5 destroy_8
+atlas 3 r3 c6 destroy_9
+atlas 3 r3 c7 armor
+atlas 3 r3 c8 armor_half
+atlas 3 r3 c9 armor_empty
+atlas 3 r3 c10 xp_bar
+atlas 3 r3 c11 smoke
+atlas 3 r3 c12 sun
+atlas 3 r3 c13 shadow
+atlas 3 r3 c14 moon_0
+atlas 3 r3 c15 moon_1
+atlas 3 r3 c16 moon_2
+atlas 3 r3 c17 moon_3
+atlas 3 r3 c18 moon_4
+atlas 3 r3 c19 moon_5
+atlas 3 r3 c20 moon_6
+atlas 3 r3 c21 moon_7
+atlas 3 r3 c22 glyph_32
+atlas 3 r3 c23 glyph_33
+atlas 3 r4 c0 glyph_34
+atlas 3 r4 c1 glyph_35
+atlas 3 r4 c2 glyph_36
+atlas 3 r4 c3 glyph_37
+atlas 3 r4 c4 glyph_38
+atlas 3 r4 c5 glyph_39
+atlas 3 r4 c6 glyph_40
+atlas 3 r4 c7 glyph_41
+atlas 3 r4 c8 glyph_42
+atlas 3 r4 c9 glyph_43
+atlas 3 r4 c10 glyph_44
+atlas 3 r4 c11 glyph_45
+atlas 3 r4 c12 glyph_46
+atlas 3 r4 c13 glyph_47
+atlas 3 r4 c14 glyph_48
+atlas 3 r4 c15 glyph_49
+atlas 3 r4 c16 glyph_50
+atlas 3 r4 c17 glyph_51
+atlas 3 r4 c18 glyph_52
+atlas 3 r4 c19 glyph_53
+atlas 3 r4 c20 glyph_54
+atlas 3 r4 c21 glyph_55
+atlas 3 r4 c22 glyph_56
+atlas 3 r4 c23 glyph_57
+atlas 3 r5 c0 glyph_58
+atlas 3 r5 c1 glyph_59
+atlas 3 r5 c2 glyph_60
+atlas 3 r5 c3 glyph_61
+atlas 3 r5 c4 glyph_62
+atlas 3 r5 c5 glyph_63
+atlas 3 r5 c6 glyph_64
+atlas 3 r5 c7 glyph_65
+atlas 3 r5 c8 glyph_66
+atlas 3 r5 c9 glyph_67
+atlas 3 r5 c10 glyph_68
+atlas 3 r5 c11 glyph_69
+atlas 3 r5 c12 glyph_70
+atlas 3 r5 c13 glyph_71
+atlas 3 r5 c14 glyph_72
+atlas 3 r5 c15 glyph_73
+atlas 3 r5 c16 glyph_74
+atlas 3 r5 c17 glyph_75
+atlas 3 r5 c18 glyph_76
+atlas 3 r5 c19 glyph_77
+atlas 3 r5 c20 glyph_78
+atlas 3 r5 c21 glyph_79
+atlas 3 r5 c22 glyph_80
+atlas 3 r5 c23 glyph_81
+atlas 3 r6 c0 glyph_82
+atlas 3 r6 c1 glyph_83
+atlas 3 r6 c2 glyph_84
+atlas 3 r6 c3 glyph_85
+atlas 3 r6 c4 glyph_86
+atlas 3 r6 c5 glyph_87
+atlas 3 r6 c6 glyph_88
+atlas 3 r6 c7 glyph_89
+atlas 3 r6 c8 glyph_90
+atlas 3 r6 c9 glyph_91
+atlas 3 r6 c10 glyph_92
+atlas 3 r6 c11 glyph_93
+atlas 3 r6 c12 glyph_94
+atlas 3 r6 c13 glyph_95
+atlas 3 r6 c14 glyph_96
+atlas 3 r6 c15 glyph_97
+atlas 3 r6 c16 glyph_98
+atlas 3 r6 c17 glyph_99
+atlas 3 r6 c18 glyph_100
+atlas 3 r6 c19 glyph_101
+atlas 3 r6 c20 glyph_102
+atlas 3 r6 c21 glyph_103
+atlas 3 r6 c22 glyph_104
+atlas 3 r6 c23 glyph_105
+atlas 3 r7 c0 glyph_106
+atlas 3 r7 c1 glyph_107
+atlas 3 r7 c2 glyph_108
+atlas 3 r7 c3 glyph_109
+atlas 3 r7 c4 glyph_110
+atlas 3 r7 c5 glyph_111
+atlas 3 r7 c6 glyph_112
+atlas 3 r7 c7 glyph_113
+atlas 3 r7 c8 glyph_114
+atlas 3 r7 c9 glyph_115
+atlas 3 r7 c10 glyph_116
+atlas 3 r7 c11 glyph_117
+atlas 3 r7 c12 glyph_118
+atlas 3 r7 c13 glyph_119
+atlas 3 r7 c14 glyph_120
+atlas 3 r7 c15 glyph_121
+atlas 3 r7 c16 glyph_122
+atlas 3 r7 c17 glyph_123
+atlas 3 r7 c18 glyph_124
+atlas 3 r7 c19 glyph_125
+atlas 3 r7 c20 glyph_126
+atlas 3 r7 c21 effect_speed
+atlas 3 r7 c22 effect_slowness
+atlas 3 r7 c23 effect_haste
+atlas 3 r8 c0 effect_mining_fatigue
+atlas 3 r8 c1 effect_strength
+atlas 3 r8 c2 effect_instant_health
+atlas 3 r8 c3 effect_instant_damage
+atlas 3 r8 c4 effect_jump_boost
+atlas 3 r8 c5 effect_nausea
+atlas 3 r8 c6 effect_regeneration
+atlas 3 r8 c7 effect_resistance
+atlas 3 r8 c8 effect_fire_resistance
+atlas 3 r8 c9 effect_water_breathing
+atlas 3 r8 c10 effect_invisibility
+atlas 3 r8 c11 effect_blindness
+atlas 3 r8 c12 effect_night_vision
+atlas 3 r8 c13 effect_hunger
+atlas 3 r8 c14 effect_weakness
+atlas 3 r8 c15 effect_poison
+atlas 3 r8 c16 effect_blight
+atlas 3 r8 c17 effect_health_boost
+atlas 3 r8 c18 effect_absorption
+atlas 3 r8 c19 effect_saturation
+atlas 3 r8 c20 effect_glowing
+atlas 3 r8 c21 effect_levitation
+atlas 3 r8 c22 effect_luck
+atlas 3 r8 c23 effect_bad_luck
+atlas 3 r9 c0 effect_slow_falling
+atlas 3 r9 c1 effect_conduit_power
+atlas 3 r9 c2 effect_dolphins_grace
+atlas 3 r9 c3 effect_ill_omen
+atlas 3 r9 c4 effect_village_hero
+atlas 3 r9 c5 effect_darkness
+atlas 3 r9 c6 effect_proving_omen
+atlas 3 r9 c7 effect_siege_omen
+atlas 3 r9 c8 effect_wind_charged
+atlas 3 r9 c9 effect_weaving
+atlas 3 r9 c10 effect_oozing
+atlas 3 r9 c11 effect_infested
+atlas: 1668 layers on 4 pages
+textures without a painter: missing
+hdatlas r0 c0 acacia_sapling
+hdatlas r0 c1 activator_rail
+hdatlas r0 c2 activator_rail_on
+hdatlas r0 c3 allium
+hdatlas r0 c4 amethyst_block
+hdatlas r0 c5 amethyst_cluster
+hdatlas r0 c6 ammo_crate_side
+hdatlas r0 c7 ammo_crate_top
+hdatlas r1 c0 ancient_debris_side
+hdatlas r1 c1 ancient_debris_top
+hdatlas r1 c2 andesite
+hdatlas r1 c3 anvil
+hdatlas r1 c4 armored_glass
+hdatlas r1 c5 azalea_side
+hdatlas r1 c6 azalea_top
+hdatlas r1 c7 azure_bluet
+hdatlas r2 c0 bamboo_block
+hdatlas r2 c1 bamboo_block_top
+hdatlas r2 c2 bamboo_mosaic
+hdatlas r2 c3 bamboo_stalk
+hdatlas r2 c4 barrel_bottom
+hdatlas r2 c5 barrel_side
+hdatlas r2 c6 barrel_top
+hdatlas r2 c7 basalt_side
+hdatlas r3 c0 basalt_top
+hdatlas r3 c1 beacon_core
+hdatlas r3 c2 beacon_glass
+hdatlas r3 c3 bedrock
+hdatlas r3 c4 bee_nest_front
+hdatlas r3 c5 bee_nest_front_honey
+hdatlas r3 c6 bee_nest_side
+hdatlas r3 c7 bee_nest_top
+hdatlas r4 c0 beehive_front
+hdatlas r4 c1 beehive_front_honey
+hdatlas r4 c2 beehive_side
+hdatlas r4 c3 beehive_top
+hdatlas r4 c4 bell
+hdatlas r4 c5 big_dripleaf_stem
+hdatlas r4 c6 big_dripleaf_top
+hdatlas r4 c7 birch_log
+hdatlas r5 c0 birch_planks
+hdatlas r5 c1 birch_sapling
+hdatlas r5 c2 blackstone
+hdatlas r5 c3 blast_furnace_front
+hdatlas r5 c4 blast_furnace_top
+hdatlas r5 c5 blue_ice
+hdatlas r5 c6 blue_orchid
+hdatlas r5 c7 bone_block_side
+hdatlas r6 c0 bone_block_top
+hdatlas r6 c1 bookshelf
+hdatlas r6 c2 brewing_stand_base
+hdatlas r6 c3 brewing_stand_rod
+hdatlas r6 c4 bricks
+hdatlas r6 c5 brown_mushroom
+hdatlas r6 c6 brown_mushroom_block
+hdatlas r6 c7 budding_amethyst
+hdatlas r7 c0 bush
+hdatlas r7 c1 cactus_bottom
+hdatlas r7 c2 cactus_flower
+hdatlas r7 c3 cactus_side
+hdatlas r7 c4 cactus_top
+hdatlas r7 c5 cake_bottom
+hdatlas r7 c6 cake_inner
+hdatlas r7 c7 cake_side
+hdatlas r8 c0 cake_top
+hdatlas r8 c1 calcite
+hdatlas r8 c2 campfire_fire
+hdatlas r8 c3 campfire_log
+hdatlas r8 c4 candle
+hdatlas r8 c5 cartography_table_side
+hdatlas r8 c6 cartography_table_top
+hdatlas r8 c7 carved_pumpkin_face
+hdatlas r9 c0 cauldron
+hdatlas r9 c1 cauldron_water
+hdatlas r9 c2 cave_vines
+hdatlas r9 c3 chain
+hdatlas r9 c4 cherry_sapling
+hdatlas r9 c5 chest_front
+hdatlas r9 c6 chest_side
+hdatlas r9 c7 chest_top
+hdatlas r10 c0 chipped_anvil
+hdatlas r10 c1 chiseled_bookshelf_empty
+hdatlas r10 c2 chiseled_bookshelf_side
+hdatlas r10 c3 chiseled_bookshelf_top
+hdatlas r10 c4 chiseled_polished_blackstone
+hdatlas r10 c5 chiseled_resin_bricks
+hdatlas r10 c6 chiseled_sandstone
+hdatlas r10 c7 chiseled_stone_bricks
+hdatlas r11 c0 chiseled_tuff
+hdatlas r11 c1 chiseled_tuff_bricks
+hdatlas r11 c2 chorus_flower
+hdatlas r11 c3 chorus_plant
+hdatlas r11 c4 clay
+hdatlas r11 c5 closed_eyeblossom
+hdatlas r11 c6 coal_block
+hdatlas r11 c7 coal_ore
+hdatlas r12 c0 coarse_dirt
+hdatlas r12 c1 cobbled_deepslate
+hdatlas r12 c2 cobblestone
+hdatlas r12 c3 cobweb
+hdatlas r12 c4 command_console_side
+hdatlas r12 c5 command_console_top
+hdatlas r12 c6 comparator
+hdatlas r12 c7 comparator_on
+hdatlas r13 c0 composter_compost
+hdatlas r13 c1 composter_ready
+hdatlas r13 c2 composter_side
+hdatlas r13 c3 composter_top
+hdatlas r13 c4 conduit
+hdatlas r13 c5 copper_block
+hdatlas r13 c6 copper_ore
+hdatlas r13 c7 copper_torch
+hdatlas r14 c0 copper_torch_wall
+hdatlas r14 c1 cornflower
+hdatlas r14 c2 cracked_polished_blackstone_bricks
+hdatlas r14 c3 cracked_stone_bricks
+hdatlas r14 c4 crafter_bottom
+hdatlas r14 c5 crafter_front
+hdatlas r14 c6 crafter_side
+hdatlas r14 c7 crafter_top
+hdatlas r15 c0 crafting_table_front
+hdatlas r15 c1 crafting_table_side
+hdatlas r15 c2 crafting_table_top
+hdatlas r15 c3 creaking_heart
+hdatlas r15 c4 creaking_heart_active
+hdatlas r15 c5 creaking_heart_top
+hdatlas r15 c6 crimson_fungus
+hdatlas r15 c7 crimson_nylium
+hdatlas r16 c0 crimson_nylium_side
+hdatlas r16 c1 crimson_roots
+hdatlas r16 c2 crying_obsidian
+hdatlas r16 c3 cut_copper
+hdatlas r16 c4 cut_red_sandstone
+hdatlas r16 c5 cut_sandstone
+hdatlas r16 c6 damaged_anvil
+hdatlas r16 c7 dandelion
+hdatlas r17 c0 dark_oak_sapling
+hdatlas r17 c1 dark_prismarine
+hdatlas r17 c2 daylight_detector_inverted_top
+hdatlas r17 c3 daylight_detector_side
+hdatlas r17 c4 daylight_detector_top
+hdatlas r17 c5 dead_bush
+hdatlas r17 c6 decorated_pot
+hdatlas r17 c7 deepslate
+hdatlas r18 c0 deepslate_bricks
+hdatlas r18 c1 deepslate_coal_ore
+hdatlas r18 c2 deepslate_copper_ore
+hdatlas r18 c3 deepslate_diamond_ore
+hdatlas r18 c4 deepslate_gold_ore
+hdatlas r18 c5 deepslate_iron_ore
+hdatlas r18 c6 deepslate_lapis_ore
+hdatlas r18 c7 deepslate_redstone_ore
+hdatlas r19 c0 deepslate_tiles
+hdatlas r19 c1 detector_rail
+hdatlas r19 c2 detector_rail_on
+hdatlas r19 c3 diamond_block
+hdatlas r19 c4 diamond_ore
+hdatlas r19 c5 diorite
+hdatlas r19 c6 dirt
+hdatlas r19 c7 dirt_path_side
+hdatlas r20 c0 dirt_path_top
+hdatlas r20 c1 dispenser_front
+hdatlas r20 c2 dispenser_front_vertical
+hdatlas r20 c3 dragon_egg
+hdatlas r20 c4 dried_kelp_side
+hdatlas r20 c5 dried_kelp_top
+hdatlas r20 c6 dripstone_block
+hdatlas r20 c7 dropper_front
+hdatlas r21 c0 dropper_front_vertical
+hdatlas r21 c1 emerald_block
+hdatlas r21 c2 emerald_ore
+hdatlas r21 c3 enchanting_table_bottom
+hdatlas r21 c4 enchanting_table_side
+hdatlas r21 c5 enchanting_table_top
+hdatlas r21 c6 end_portal
+hdatlas r21 c7 end_portal_frame_eye
+hdatlas r22 c0 end_portal_frame_side
+hdatlas r22 c1 end_portal_frame_top
+hdatlas r22 c2 end_rod
+hdatlas r22 c3 end_stone
+hdatlas r22 c4 end_stone_bricks
+hdatlas r22 c5 ender_chest_front
+hdatlas r22 c6 ender_chest_side
+hdatlas r22 c7 ender_chest_top
+hdatlas r23 c0 exposed_copper
+hdatlas r23 c1 exposed_cut_copper
+hdatlas r23 c2 farmland
+hdatlas r23 c3 farmland_moist
+hdatlas r23 c4 fern
+hdatlas r23 c5 fire
+hdatlas r23 c6 firefly_bush
+hdatlas r23 c7 fletching_table_side
+hdatlas r24 c0 fletching_table_top
+hdatlas r24 c1 flower_pot
+hdatlas r24 c2 frogspawn
+hdatlas r24 c3 furnace_front
+hdatlas r24 c4 furnace_front_on
+hdatlas r24 c5 furnace_side
+hdatlas r24 c6 furnace_top
+hdatlas r24 c7 gilded_blackstone
+hdatlas r25 c0 glass
+hdatlas r25 c1 glow_item_frame
+hdatlas r25 c2 glow_lichen
+hdatlas r25 c3 glowstone
+hdatlas r25 c4 gold_block
+hdatlas r25 c5 gold_ore
+hdatlas r25 c6 granite
+hdatlas r25 c7 grass_block_side
+hdatlas r26 c0 grass_block_snow
+hdatlas r26 c1 grass_block_top
+hdatlas r26 c2 gravel
+hdatlas r26 c3 grindstone
+hdatlas r26 c4 hanging_roots
+hdatlas r26 c5 hay_block_side
+hdatlas r26 c6 hay_block_top
+hdatlas r26 c7 hazard_plating
+hdatlas r27 c0 heavy_core
+hdatlas r27 c1 honey_block
+hdatlas r27 c2 honeycomb_block
+hdatlas r27 c3 hopper_outside
+hdatlas r27 c4 hopper_top
+hdatlas r27 c5 ice
+hdatlas r27 c6 iron_bars
+hdatlas r27 c7 iron_block
+hdatlas r28 c0 iron_ore
+hdatlas r28 c1 jack_o_lantern_face
+hdatlas r28 c2 jukebox_side
+hdatlas r28 c3 jukebox_top
+hdatlas r28 c4 jungle_sapling
+hdatlas r28 c5 kelp
+hdatlas r28 c6 ladder
+hdatlas r28 c7 lantern
+hdatlas r29 c0 lapis_block
+hdatlas r29 c1 lapis_ore
+hdatlas r29 c2 large_fern_bottom
+hdatlas r29 c3 large_fern_top
+hdatlas r29 c4 lava
+hdatlas r29 c5 leaf_litter
+hdatlas r29 c6 lectern_side
+hdatlas r29 c7 lectern_top
+hdatlas r30 c0 lever
+hdatlas r30 c1 light_panel
+hdatlas r30 c2 lilac_bottom
+hdatlas r30 c3 lilac_top
+hdatlas r30 c4 lily_of_the_valley
+hdatlas r30 c5 lily_pad
+hdatlas r30 c6 lodestone_side
+hdatlas r30 c7 lodestone_top
+hdatlas r31 c0 loom_side
+hdatlas r31 c1 loom_top
+hdatlas r31 c2 magma
+hdatlas r31 c3 mangrove_propagule
+hdatlas r31 c4 mangrove_roots
+hdatlas r31 c5 melon_side
+hdatlas r31 c6 melon_top
+hdatlas r31 c7 moss_block
+hdatlas r32 c0 mossy_cobblestone
+hdatlas r32 c1 mossy_stone_bricks
+hdatlas r32 c2 mud
+hdatlas r32 c3 mud_bricks
+hdatlas r32 c4 mushroom_block_inside
+hdatlas r32 c5 mushroom_stem
+hdatlas r32 c6 mycelium_side
+hdatlas r32 c7 mycelium_top
+hdatlas r33 c0 nether_bricks
+hdatlas r33 c1 nether_gold_ore
+hdatlas r33 c2 nether_portal
+hdatlas r33 c3 nether_quartz_ore
+hdatlas r33 c4 nether_wart_block
+hdatlas r33 c5 netherite_block
+hdatlas r33 c6 netherrack
+hdatlas r33 c7 note_block
+hdatlas r34 c0 oak_leaves
+hdatlas r34 c1 oak_log
+hdatlas r34 c2 oak_log_top
+hdatlas r34 c3 oak_planks
+hdatlas r34 c4 oak_sapling
+hdatlas r34 c5 observer_back
+hdatlas r34 c6 observer_back_on
+hdatlas r34 c7 observer_front
+hdatlas r35 c0 observer_side
+hdatlas r35 c1 observer_top
+hdatlas r35 c2 obsidian
+hdatlas r35 c3 ochre_froglight_side
+hdatlas r35 c4 ochre_froglight_top
+hdatlas r35 c5 open_eyeblossom
+hdatlas r35 c6 orange_tulip
+hdatlas r35 c7 oxeye_daisy
+hdatlas r36 c0 oxidized_copper
+hdatlas r36 c1 oxidized_cut_copper
+hdatlas r36 c2 packed_ice
+hdatlas r36 c3 packed_mud
+hdatlas r36 c4 painting_back
+hdatlas r36 c5 pale_hanging_moss
+hdatlas r36 c6 pale_moss_block
+hdatlas r36 c7 pale_oak_sapling
+hdatlas r37 c0 pearlescent_froglight_side
+hdatlas r37 c1 pearlescent_froglight_top
+hdatlas r37 c2 peony_bottom
+hdatlas r37 c3 peony_top
+hdatlas r37 c4 pink_petals
+hdatlas r37 c5 pink_tulip
+hdatlas r37 c6 piston_bottom
+hdatlas r37 c7 piston_inner
+hdatlas r38 c0 piston_side
+hdatlas r38 c1 piston_top
+hdatlas r38 c2 piston_top_sticky
+hdatlas r38 c3 pitcher_plant
+hdatlas r38 c4 podzol_side
+hdatlas r38 c5 podzol_top
+hdatlas r38 c6 pointed_dripstone
+hdatlas r38 c7 polished_blackstone
+hdatlas r39 c0 polished_blackstone_bricks
+hdatlas r39 c1 polished_deepslate
+hdatlas r39 c2 polished_tuff
+hdatlas r39 c3 poppy
+hdatlas r39 c4 powered_rail
+hdatlas r39 c5 powered_rail_on
+hdatlas r39 c6 prismarine
+hdatlas r39 c7 prismarine_bricks
+hdatlas r40 c0 pumpkin_side
+hdatlas r40 c1 pumpkin_top
+hdatlas r40 c2 purpur_block
+hdatlas r40 c3 purpur_pillar
+hdatlas r40 c4 purpur_pillar_top
+hdatlas r40 c5 quartz_pillar
+hdatlas r40 c6 quartz_pillar_top
+hdatlas r40 c7 rail
+hdatlas r41 c0 rail_corner
+hdatlas r41 c1 red_mushroom
+hdatlas r41 c2 red_mushroom_block
+hdatlas r41 c3 red_nether_bricks
+hdatlas r41 c4 red_sand
+hdatlas r41 c5 red_sandstone
+hdatlas r41 c6 red_sandstone_top
+hdatlas r41 c7 red_tulip
+hdatlas r42 c0 redstone_block
+hdatlas r42 c1 redstone_lamp
+hdatlas r42 c2 redstone_lamp_on
+hdatlas r42 c3 redstone_ore
+hdatlas r42 c4 redstone_torch
+hdatlas r42 c5 redstone_torch_off
+hdatlas r42 c6 reinforced_deepslate
+hdatlas r42 c7 repeater
+hdatlas r43 c0 repeater_on
+hdatlas r43 c1 resin_block
+hdatlas r43 c2 resin_bricks
+hdatlas r43 c3 respawn_anchor_bottom
+hdatlas r43 c4 respawn_anchor_side
+hdatlas r43 c5 respawn_anchor_top
+hdatlas r43 c6 respawn_anchor_top_off
+hdatlas r43 c7 rooted_dirt
+hdatlas r44 c0 rose_bush_bottom
+hdatlas r44 c1 rose_bush_top
+hdatlas r44 c2 sand
+hdatlas r44 c3 sandstone
+hdatlas r44 c4 sandstone_bottom
+hdatlas r44 c5 sandstone_top
+hdatlas r44 c6 scaffolding_side
+hdatlas r44 c7 scaffolding_top
+hdatlas r45 c0 sculk
+hdatlas r45 c1 sculk_catalyst_side
+hdatlas r45 c2 sculk_catalyst_top
+hdatlas r45 c3 sculk_sensor_side
+hdatlas r45 c4 sculk_sensor_top
+hdatlas r45 c5 sculk_shrieker_side
+hdatlas r45 c6 sculk_shrieker_top
+hdatlas r45 c7 sculk_tendril
+hdatlas r46 c0 sculk_vein
+hdatlas r46 c1 sea_lantern
+hdatlas r46 c2 sea_pickle
+hdatlas r46 c3 seagrass
+hdatlas r46 c4 ship_balloon
+hdatlas r46 c5 ship_barrel
+hdatlas r46 c6 ship_blade
+hdatlas r46 c7 ship_brass
+hdatlas r47 c0 ship_engine_front
+hdatlas r47 c1 ship_engine_side
+hdatlas r47 c2 ship_engine_top
+hdatlas r47 c3 ship_metal
+hdatlas r47 c4 ship_ring_side
+hdatlas r47 c5 ship_ring_top
+hdatlas r47 c6 ship_tyre
+hdatlas r47 c7 ship_wing
+hdatlas r48 c0 ship_wood
+hdatlas r48 c1 ship_wood_dark
+hdatlas r48 c2 short_dry_grass
+hdatlas r48 c3 short_grass
+hdatlas r48 c4 shroomlight
+hdatlas r48 c5 shulker_box_side
+hdatlas r48 c6 shulker_box_top
+hdatlas r48 c7 slime_block
+hdatlas r49 c0 small_dripleaf
+hdatlas r49 c1 smithing_table_side
+hdatlas r49 c2 smithing_table_top
+hdatlas r49 c3 smoker_front
+hdatlas r49 c4 smoker_top
+hdatlas r49 c5 smooth_basalt
+hdatlas r49 c6 smooth_stone
+hdatlas r49 c7 sniffer_egg
+hdatlas r50 c0 snow
+hdatlas r50 c1 snow_block
+hdatlas r50 c2 soul_campfire_fire
+hdatlas r50 c3 soul_fire
+hdatlas r50 c4 soul_lantern
+hdatlas r50 c5 soul_sand
+hdatlas r50 c6 soul_soil
+hdatlas r50 c7 soul_torch
+hdatlas r51 c0 soul_torch_wall
+hdatlas r51 c1 spawner
+hdatlas r51 c2 sponge
+hdatlas r51 c3 spore_blossom
+hdatlas r51 c4 spruce_planks
+hdatlas r51 c5 spruce_sapling
+hdatlas r51 c6 steel_grating
+hdatlas r51 c7 steel_plating
+hdatlas r52 c0 stone
+hdatlas r52 c1 stone_bricks
+hdatlas r52 c2 stonecutter_side
+hdatlas r52 c3 stonecutter_top
+hdatlas r52 c4 stripped_bamboo_block
+hdatlas r52 c5 stripped_bamboo_block_top
+hdatlas r52 c6 sugar_cane
+hdatlas r52 c7 sunflower_bottom
+hdatlas r53 c0 sunflower_top
+hdatlas r53 c1 suspicious_gravel
+hdatlas r53 c2 suspicious_sand
+hdatlas r53 c3 tall_dry_grass
+hdatlas r53 c4 tall_grass_bottom
+hdatlas r53 c5 tall_grass_top
+hdatlas r53 c6 target_side
+hdatlas r53 c7 target_top
+hdatlas r54 c0 tnt_bottom
+hdatlas r54 c1 tnt_side
+hdatlas r54 c2 tnt_top
+hdatlas r54 c3 torch
+hdatlas r54 c4 torch_wall
+hdatlas r54 c5 torchflower
+hdatlas r54 c6 trapped_chest_front
+hdatlas r54 c7 trial_spawner_side
+hdatlas r55 c0 trial_spawner_top
+hdatlas r55 c1 tripwire
+hdatlas r55 c2 tripwire_hook
+hdatlas r55 c3 tuff
+hdatlas r55 c4 tuff_bricks
+hdatlas r55 c5 turtle_egg
+hdatlas r55 c6 twisting_vines
+hdatlas r55 c7 vault_side
+hdatlas r56 c0 vault_top
+hdatlas r56 c1 verdant_froglight_side
+hdatlas r56 c2 verdant_froglight_top
+hdatlas r56 c3 vine
+hdatlas r56 c4 warped_fungus
+hdatlas r56 c5 warped_nylium
+hdatlas r56 c6 warped_nylium_side
+hdatlas r56 c7 warped_roots
+hdatlas r57 c0 warped_wart_block
+hdatlas r57 c1 water
+hdatlas r57 c2 weathered_copper
+hdatlas r57 c3 weathered_cut_copper
+hdatlas r57 c4 weeping_vines
+hdatlas r57 c5 wet_sponge
+hdatlas r57 c6 white_tulip
+hdatlas r57 c7 wildflowers
+hdatlas r58 c0 spruce_log
+hdatlas r58 c1 spruce_log_top
+hdatlas r58 c2 birch_log_top
+hdatlas r58 c3 jungle_planks
+hdatlas r58 c4 acacia_planks
+hdatlas r58 c5 dark_oak_log
+hdatlas r58 c6 birch_leaves
+hdatlas r58 c7 spruce_leaves
+hdatlas r59 c0 terracotta
+hdatlas r59 c1 white_wool
+hdatlas r59 c2 red_wool
+hdatlas r59 c3 blue_concrete
+hdatlas r59 c4 lime_concrete_powder
+hdatlas r59 c5 orange_terracotta
+hdatlas r59 c6 crimson_stem
+hdatlas r59 c7 warped_planks
+hdatlas r60 c0 glass
+hdatlas r60 c1 water
+hdatlas r60 c2 lava
+hdatlas r60 c3 netherrack
+hdatlas r60 c4 end_stone
+hdatlas r60 c5 furnace_front
+hdatlas r60 c6 crafting_table_front
+hdatlas r60 c7 crafting_table_top
+hdatlas r61 c0 smoker_front
+hdatlas r61 c1 oak_door_bottom
+hdatlas r61 c2 wheat_stage3
+hdatlas r61 c3 wheat_stage7
+hdatlas r61 c4 carrots_stage3
+hdatlas r61 c5 beetroots_stage3
+hdatlas r61 c6 tnt_side
+hdatlas r61 c7 oak_door_top
+hdatlas r62 c0 oak_trapdoor
+hdatlas r62 c1 red_bed_top_head
+hdatlas r62 c2 red_bed_side
+hdatlas r62 c3 lectern_side
+hdatlas r62 c4 white_glazed_terracotta
+hdatlas r62 c5 orange_glazed_terracotta
+hdatlas r62 c6 blue_stained_glass
+hdatlas r62 c7 red_candle
+hdatlas r63 c0 purple_shulker_box_side
+hdatlas r63 c1 exposed_copper_door_top
+hdatlas r63 c2 weathered_copper_bulb_lit
+hdatlas r63 c3 oxidized_copper_grate
+hdatlas r63 c4 copper_chest_front
+hdatlas r63 c5 copper_bars
+hdatlas r63 c6 brain_coral_block
+hdatlas r63 c7 stripped_oak_log
+hdatlas r64 c0 stripped_cherry_log
+hdatlas r64 c1 oak_log@r
+hdatlas r64 c2 birch_log@r
+hdatlas r64 c3 tube_coral
+hdatlas r64 c4 frosted_ice_0
+hdatlas r64 c5 nether_wart_stage2
+hdatlas r64 c6 pitcher_crop3
+hdatlas: 519 layers at 128 px -> snaps/hdatlas.png
+hdatlas: 165 layers without an HD material: torch_top torch_bottom torch_top_full soul_torch_top_full copper_torch_top copper_torch_top_full brewing_bottle skull_skeleton_side skull_skeleton_face skull_skeleton_top skull_wither_side skull_wither_face skull_wither_top head_zombie_side head_zombie_face head_zombie_top head_creeper_side head_creeper_face head_creeper_top head_piglin_side head_piglin_face head_piglin_top head_dragon_side head_dragon_face head_dragon_top head_player_side head_player_face head_player_top dried_ghast_0 dried_ghast_top_0 dried_ghast_1 dried_ghast_top_1 dried_ghast_2 dried_ghast_top_2 dried_ghast_3 dried_ghast_top_3 painting_kebab painting_aztec painting_alban painting_aztec2 painting_bomb painting_plant painting_wasteland painting_meditative painting_pool painting_courbet painting_sea painting_sunset painting_creebet painting_wanderer painting_graham painting_prairie_ride painting_match painting_bust painting_stage painting_void painting_skull_and_roses painting_wither painting_earth painting_wind painting_water painting_fire painting_baroque painting_humble painting_fighters painting_changing painting_finding painting_lowmist painting_passage painting_skeleton painting_donkey_kong painting_pointer painting_pigscene painting_burning_skull painting_orb painting_unpacked banner_pat_stripe_bottom_t banner_pat_stripe_bottom_b banner_pat_stripe_top_t banner_pat_stripe_top_b banner_pat_stripe_left_t banner_pat_stripe_left_b banner_pat_stripe_right_t banner_pat_stripe_right_b banner_pat_stripe_center_t banner_pat_stripe_center_b banner_pat_stripe_middle_t banner_pat_stripe_middle_b banner_pat_stripe_downright_t banner_pat_stripe_downright_b banner_pat_stripe_downleft_t banner_pat_stripe_downleft_b banner_pat_small_stripes_t banner_pat_small_stripes_b banner_pat_cross_t banner_pat_cross_b banner_pat_straight_cross_t banner_pat_straight_cross_b banner_pat_diagonal_left_t banner_pat_diagonal_left_b banner_pat_diagonal_right_t banner_pat_diagonal_right_b banner_pat_diagonal_up_left_t banner_pat_diagonal_up_left_b banner_pat_diagonal_up_right_t banner_pat_diagonal_up_right_b banner_pat_half_vertical_t banner_pat_half_vertical_b banner_pat_half_vertical_right_t banner_pat_half_vertical_right_b banner_pat_half_horizontal_t banner_pat_half_horizontal_b banner_pat_half_horizontal_bottom_t banner_pat_half_horizontal_bottom_b banner_pat_square_bottom_left_t banner_pat_square_bottom_left_b banner_pat_square_bottom_right_t banner_pat_square_bottom_right_b banner_pat_square_top_left_t banner_pat_square_top_left_b banner_pat_square_top_right_t banner_pat_square_top_right_b banner_pat_triangle_bottom_t banner_pat_triangle_bottom_b banner_pat_triangle_top_t banner_pat_triangle_top_b banner_pat_triangles_bottom_t banner_pat_triangles_bottom_b banner_pat_triangles_top_t banner_pat_triangles_top_b banner_pat_circle_t banner_pat_circle_b banner_pat_rhombus_t banner_pat_rhombus_b banner_pat_border_t banner_pat_border_b banner_pat_gradient_t banner_pat_gradient_b banner_pat_gradient_up_t banner_pat_gradient_up_b banner_pat_curly_border_t banner_pat_curly_border_b banner_pat_bricks_t banner_pat_bricks_b banner_pat_creeper_t banner_pat_creeper_b banner_pat_skull_t banner_pat_skull_b banner_pat_flower_t banner_pat_flower_b banner_pat_thing_t banner_pat_thing_b banner_pat_globe_t banner_pat_globe_b banner_pat_piglin_t banner_pat_piglin_b banner_pat_flow_t banner_pat_flow_b banner_pat_guster_t banner_pat_guster_b banner_cloth_t banner_cloth_b warship_hull warship_panel warship_stripe
+imagecheck: 114 frames, no flags

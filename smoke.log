@@ -1,0 +1,117 @@
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 647 ms, upload 253 ms)
+smoke rd 8 Fancy: 10 s, frame 4.8 ms, resident 280 MB, Metal 227 MB, mobs 68, coverage 100%
+smoke rd 8 Fancy: 20 s, frame 8.8 ms, resident 284 MB, Metal 227 MB, mobs 77, coverage 100%
+smoke rd 8: menu tour starts with PauseMenu, paused true
+smoke rd 8: menu tour: no help line for vol:0
+smoke rd 8: menu tour: no help line for vol:1
+smoke rd 8: menu tour: no help line for vol:2
+smoke rd 8: menu tour: no help line for vol:3
+smoke rd 8: menu tour: no help line for vol:4
+smoke rd 8: menu tour: no help line for vol:5
+smoke rd 8: menu tour: no help line for vol:6
+smoke rd 8: menu tour: no help line for vol:7
+smoke rd 8: menu tour: no help line for vol:8
+smoke rd 8: menu tour: no help line for vol:2
+smoke rd 8: menu tour: no help line for vol:3
+smoke rd 8: menu tour: no help line for vol:4
+smoke rd 8: menu tour: no help line for vol:5
+smoke rd 8: menu tour: no help line for vol:6
+smoke rd 8: menu tour: no help line for vol:7
+smoke rd 8: menu tour: no help line for vol:8
+smoke rd 8: menu tour: 21 screens, 197 rows hovered; 20 block screens opened
+smoke rd 8 Fancy: 30 s, frame 8.7 ms, resident 285 MB, Metal 227 MB, mobs 79, coverage 100%
+smoke rd 8 Fancy: 40 s, frame 8.5 ms, resident 393 MB, Metal 259 MB, mobs 49, coverage 90%
+smoke rd 8 Fancy: 50 s, frame 6.0 ms, resident 488 MB, Metal 271 MB, mobs 54, coverage 96%
+smoke rd 8 Fancy: 60 s, frame 4.9 ms, resident 564 MB, Metal 275 MB, mobs 71, coverage 100%
+smoke rd 8: 3600 frames in 60.0 s wall, frame p50 6.43 p95 13.79 p99 17.78 max 518.12 ms, coverage min 91%, mobs max 87, travelled 1230 blocks, resident peak 561 MB, menu closed
+imagecheck smoke_rd8.png magenta=0.00000 black=0.0000 white=0.0510 std=48.2 hash=0fd6c640d7c01f5e
+smoke rd 8: PASS
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 573 ms, upload 225 ms)
+smoke rd 16 Fancy: 10 s, frame 10.5 ms, resident 421 MB, Metal 271 MB, mobs 250, coverage 100%
+smoke rd 16 Fancy: 20 s, frame 10.1 ms, resident 430 MB, Metal 271 MB, mobs 258, coverage 100%
+smoke rd 16: menu tour starts with PauseMenu, paused true
+smoke rd 16: menu tour: no help line for vol:0
+smoke rd 16: menu tour: no help line for vol:1
+smoke rd 16: menu tour: no help line for vol:2
+smoke rd 16: menu tour: no help line for vol:3
+smoke rd 16: menu tour: no help line for vol:4
+smoke rd 16: menu tour: no help line for vol:5
+smoke rd 16: menu tour: no help line for vol:6
+smoke rd 16: menu tour: no help line for vol:7
+smoke rd 16: menu tour: no help line for vol:8
+smoke rd 16: menu tour: no help line for vol:2
+smoke rd 16: menu tour: no help line for vol:3
+smoke rd 16: menu tour: no help line for vol:4
+smoke rd 16: menu tour: no help line for vol:5
+smoke rd 16: menu tour: no help line for vol:6
+smoke rd 16: menu tour: no help line for vol:7
+smoke rd 16: menu tour: no help line for vol:8
+smoke rd 16: menu tour: 21 screens, 197 rows hovered; 20 block screens opened
+smoke rd 16 Fancy: 30 s, frame 11.0 ms, resident 434 MB, Metal 271 MB, mobs 257, coverage 100%
+smoke rd 16 Fancy: 40 s, frame 12.1 ms, resident 642 MB, Metal 311 MB, mobs 247, coverage 95%
+smoke rd 16 Fancy: 50 s, frame 13.2 ms, resident 865 MB, Metal 323 MB, mobs 230, coverage 97%
+smoke rd 16 Fancy: 60 s, frame 16.4 ms, resident 1039 MB, Metal 359 MB, mobs 282, coverage 95%
+smoke rd 16: 3600 frames in 60.0 s wall, frame p50 10.51 p95 18.27 p99 24.23 max 393.20 ms, coverage min 73%, mobs max 318, travelled 1230 blocks, resident peak 1032 MB, menu closed
+imagecheck smoke_rd16.png magenta=0.00000 black=0.0000 white=0.0658 std=56.2 hash=2e6bf59eeb5863b3
+smoke rd 16: PASS
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 842 ms, upload 333 ms)
+smoke rd 24 Fancy: 10 s, frame 12.6 ms, resident 639 MB, Metal 319 MB, mobs 246, coverage 100%
+smoke rd 24 Fancy: 20 s, frame 17.0 ms, resident 744 MB, Metal 323 MB, mobs 541, coverage 100%
+smoke rd 24: menu tour starts with PauseMenu, paused true
+smoke rd 24: menu tour: no help line for vol:0
+smoke rd 24: menu tour: no help line for vol:1
+smoke rd 24: menu tour: no help line for vol:2
+smoke rd 24: menu tour: no help line for vol:3
+smoke rd 24: menu tour: no help line for vol:4
+smoke rd 24: menu tour: no help line for vol:5
+smoke rd 24: menu tour: no help line for vol:6
+smoke rd 24: menu tour: no help line for vol:7
+smoke rd 24: menu tour: no help line for vol:8
+smoke rd 24: menu tour: no help line for vol:2
+smoke rd 24: menu tour: no help line for vol:3
+smoke rd 24: menu tour: no help line for vol:4
+smoke rd 24: menu tour: no help line for vol:5
+smoke rd 24: menu tour: no help line for vol:6
+smoke rd 24: menu tour: no help line for vol:7
+smoke rd 24: menu tour: no help line for vol:8
+smoke rd 24: menu tour: 21 screens, 197 rows hovered; 20 block screens opened
+smoke rd 24 Fancy: 30 s, frame 16.6 ms, resident 799 MB, Metal 323 MB, mobs 577, coverage 100%
+smoke rd 24 Fancy: 40 s, frame 13.6 ms, resident 1040 MB, Metal 375 MB, mobs 556, coverage 96%
+smoke rd 24 Fancy: 50 s, frame 15.7 ms, resident 1292 MB, Metal 403 MB, mobs 424, coverage 98%
+smoke rd 24 Fancy: 60 s, frame 31.7 ms, resident 1595 MB, Metal 467 MB, mobs 392, coverage 96%
+smoke rd 24: 3600 frames in 64.0 s wall, frame p50 14.88 p95 25.03 p99 33.56 max 513.63 ms, coverage min 32%, mobs max 645, travelled 1230 blocks, resident peak 1578 MB, menu closed
+imagecheck smoke_rd24.png magenta=0.00000 black=0.0000 white=0.0732 std=60.2 hash=440fff4ad6c0e5dd
+smoke rd 24: PASS
+textures without a painter: missing
+textures: 1668 layers at 128 px, BC3, 34.8 MB with mips (build 693 ms, upload 271 ms)
+smoke rd 24 Fast: 10 s, frame 12.2 ms, resident 541 MB, Metal 277 MB, mobs 280, coverage 95%
+smoke rd 24 Fast: 20 s, frame 15.3 ms, resident 669 MB, Metal 285 MB, mobs 589, coverage 100%
+smoke rd 24: menu tour starts with PauseMenu, paused true
+smoke rd 24: menu tour: no help line for vol:0
+smoke rd 24: menu tour: no help line for vol:1
+smoke rd 24: menu tour: no help line for vol:2
+smoke rd 24: menu tour: no help line for vol:3
+smoke rd 24: menu tour: no help line for vol:4
+smoke rd 24: menu tour: no help line for vol:5
+smoke rd 24: menu tour: no help line for vol:6
+smoke rd 24: menu tour: no help line for vol:7
+smoke rd 24: menu tour: no help line for vol:8
+smoke rd 24: menu tour: no help line for vol:2
+smoke rd 24: menu tour: no help line for vol:3
+smoke rd 24: menu tour: no help line for vol:4
+smoke rd 24: menu tour: no help line for vol:5
+smoke rd 24: menu tour: no help line for vol:6
+smoke rd 24: menu tour: no help line for vol:7
+smoke rd 24: menu tour: no help line for vol:8
+smoke rd 24: menu tour: 21 screens, 197 rows hovered; 20 block screens opened
+smoke rd 24 Fast: 30 s, frame 20.4 ms, resident 725 MB, Metal 285 MB, mobs 603, coverage 100%
+smoke rd 24 Fast: 40 s, frame 16.1 ms, resident 964 MB, Metal 337 MB, mobs 618, coverage 96%
+smoke rd 24 Fast: 50 s, frame 20.1 ms, resident 1213 MB, Metal 369 MB, mobs 491, coverage 98%
+smoke rd 24 Fast: 60 s, frame 22.1 ms, resident 1483 MB, Metal 429 MB, mobs 401, coverage 96%
+smoke rd 24: 3600 frames in 63.2 s wall, frame p50 15.08 p95 23.54 p99 28.69 max 350.77 ms, coverage min 28%, mobs max 662, travelled 1230 blocks, resident peak 1470 MB, menu closed
+imagecheck smoke_rd24.png magenta=0.00000 black=0.0000 white=0.0061 std=55.3 hash=aef1472ca897bc9a
+smoke rd 24 Fast: PASS
+smoke: PASS at render distance 8 16 24 24f
