@@ -379,6 +379,10 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   from 3D groundY in new starts: 2D column heights now); run 417 (8a78b1d) fully green -> PLAYTEST READY, PR #9
   updated. Blind critic round on 17 shots -> shipwreck tiles (--slice), crawler/tree clip, ship undersides, jungle
   saturation, held item at night, temple footprint, purpur moire, flat clouds; behaviour sim -> sentry spin.
+- 2026-10-03 11:50 UTC: keep-alive (three queued hourly pings) picked up after an idle stretch. Runs 420/424 green
+  (424 after one perf re-run: ship numbers 2-4x on a noisy runner) -> PLAYTEST READY 745768b. Nightly heavy on e900092:
+  keel now lit (sky floor 0.8/0.6), gen gate tripped again on cold structure starts (the 24 bench chunks each in a
+  fresh region): starts now warmed and timed separately as gen.starts_cold_ms.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 

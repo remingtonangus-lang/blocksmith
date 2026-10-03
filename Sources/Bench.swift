@@ -168,6 +168,20 @@ enum Bench {
         StructureCache.startMs = [:]
         var placeMs: Double = 0
         var perChunk: [(Double, Int, Int, [Double], Double, Double)] = []     // ms, cx, cz, phase ms, starts ms, place ms
+        // Structure starts first, timed on their own: the 24 sample chunks each sit in a fresh region, so every one
+        // paid its region's cold starts (8-9 ms on the slowest), which streaming spreads over the hundreds of chunks
+        // of a region. gen.chunk_ms is then the per-chunk cost; gen.starts_cold_ms keeps the starts honest
+        // (runs 412-424: the gate tripped on start cost and runner variance, never on chunk work).
+        if let st = g.structures {
+            let s0 = now
+            for i in 0..<24 {
+                let cx = i * 7 - 80, cz = (i * 13) % 50 - 25
+                for t in st.types { _ = st.startsNear(cx: cx, cz: cz, t) }
+            }
+            let ms: Double = (now - s0) * 1000 / 24
+            put("gen.starts_cold_ms", ms)
+            print(String(format: "bench gen: structure starts for the sample (cold) %.2f ms/chunk", ms))
+        }
         for i in 0..<24 {
             let cx = i * 7 - 80, cz = (i * 13) % 50 - 25
             let ph0 = WorldGen.phaseMs, st0 = StructureCache.startMs.values.reduce(0, +)
