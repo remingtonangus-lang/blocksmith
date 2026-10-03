@@ -219,7 +219,7 @@ enum Mesher {
     static func buildSection(_ n9: [BlockStore], _ h9: [[Int16]], sy: Int, lod: Int = 0, damage: [(Int, Int, Int, UInt8)] = []) -> SectionMesh {
         let renderT = Blocks.render, opaqueT = Blocks.opaque, aoT = Blocks.aoOcc, loT = Blocks.lightOpaque
         let cullSameT = Blocks.cullSame, texT = Blocks.tex, tintT = Blocks.tint, levelT = Blocks.fluidLevel, fkT = Blocks.fluidKind
-        let layerT = Blocks.layer, boxesT = Blocks.boxes
+        let layerT = Blocks.layer, boxesT = Blocks.boxes, collideT = Blocks.collide
         let CT = cornerTable, NT = normalTable, PTab = plantTable
         let rCube = RenderType.cube.rawValue, rCross = RenderType.cross.rawValue
         let rLiquid = RenderType.liquid.rawValue, rModel = RenderType.model.rawValue, rNone = RenderType.none.rawValue
@@ -567,6 +567,10 @@ enum Mesher {
                         if opaqueT[Int(nb)] && !(anyDmg && dmg[i + offs[f]] != nil) { continue }
                         if isLiquid {
                             if fkT[Int(nb)] == fk { continue }
+                            // Water round a solid-but-not-full block (fence, slab, stair, wall) behaves as if that block were
+                            // waterlogged: no inner faces. Seen through the surface, the faces over a shipwreck's sunken
+                            // rail fences were bright blue tiles (blind critic, run 417; --slice, run 420).
+                            if collideT[Int(nb)] && layerT[Int(nb)] != translucent && fkT[Int(nb)] == 0 { continue }
                         } else if cullSameT[bi] && nb == b {
                             continue
                         } else if leafT[bi] && leafT[Int(nb)] {
