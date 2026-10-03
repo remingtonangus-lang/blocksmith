@@ -25,6 +25,8 @@ enum OverworldStructures {
             let s = rng.next()
             switch biome {
             case .desert:
+                // The whole footprint in the desert (one stood half on grassland at a biome edge: blind critic, run 417).
+                for (dx, dz) in [(-11, -15), (11, -15), (-11, 11), (11, 11)] where gen.column(x + dx, z + dz).biome != .desert { return nil }
                 return StructureStart(kind: "desert_pyramid", pieces: [piece(x - 11, y - 16, z - 15, x + 11, y + 16, z + 11) { w in desertPyramid(&w, x, y, z, s) }],
                                       anchor: IVec3(x, y + 1, z - 17))
             case .jungle, .bambooJungle, .sparseJungle:
