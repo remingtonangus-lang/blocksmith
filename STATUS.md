@@ -930,3 +930,5 @@ Known failing tests: none (snap.sh and --selftest pass on CI at d92f9b0).
 
 
 - (manager 23:40Z) assets/gemini/ now also holds sand, oak_log_top, cobblestone, gravel, deepslate, oak_planks, spruce_log, spruce_log_top, spruce_leaves (raw 1024 px). Trial import via tools/gemini_import.sh passes seam checks; not yet adopted into Resources/Textures. gravel has a diagonal internal repeat (kept whole), a re-roll would be better.
+
+- (manager 03:40Z) assets/gemini/ now also holds granite, stone_bricks, bricks (raw 1024 px, not yet run through tools/teximport.py, not adopted into Resources/Textures).
