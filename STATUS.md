@@ -1,5 +1,12 @@
 # Status
 
+> **Manager note (2026-10-03 05:50Z):** the "Current session" block below is from run 350; the builder's last real commit is
+> aa02b22 (run 425, green, 00:55Z): sky floor 0.8 under / 0.6 sides for ship keels, FXAA-style edge smoothing, water vs
+> submerged fences/slabs, cloud and purpur polish. Unverified: whether the keel is still a dark band (check `out-shots` /
+> `out-tours` of run 425 or a fresh `./snap.sh` ship shot). Builder stalled since; the manager container has no Swift
+> compiler, so only docs/assets were touched (assets/gemini/processed holds 128 px imports, not adopted; brick/plank
+> sheets need a re-roll). Resume from the HANDOFF, BUGS.md and the Playtest feedback queue.
+
 ## Current session (2026-10-02 from 02:24 UTC, session_01NHX6PtLsjxpnUha9wMm2wN)
 
 State (04:35 UTC): run 348 fully green (PLAYTEST READY on PR #9); run 349 green except the noisy bench edit mean (gate
