@@ -134,7 +134,7 @@ vertex VibOut shipVibVS(uint vid [[vertex_id]],
     o.light = float2(float((w1 >> 22) & 15u), float((w1 >> 26) & 15u)) / 15.0;
     // Downward faces get a sky floor: the virtual chunks light a hull like terrain, so a flying ship's whole underside
     // sat at sky 0, near-black against the daylight sky (blind critic, run 417 frigate: 8-25 vs 245).
-    if (face == 3u) { o.light.x = max(o.light.x, 0.6); }
+    o.light.x = max(o.light.x, face == 3u ? 0.6 : 0.35);     // sides under the hull too (the keel was a black band: run 420)
     o.light.x *= d.origin.w;                     // the world's sky light around the ship (Ship.skyLight): dark under cover
     o.rel = rel;
     o.nrm = normalize((d.model * float4(vibNormal(float(face)), 0.0)).xyz);
