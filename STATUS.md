@@ -933,3 +933,4 @@ Known failing tests: none (snap.sh and --selftest pass on CI at d92f9b0).
 
 - (manager 03:40Z) assets/gemini/ now also holds granite, stone_bricks, bricks (raw 1024 px, not yet run through tools/teximport.py, not adopted into Resources/Textures).
 - (manager 03:50Z) teximport trial (numpy now installable via pip): granite OK (seam 1.06, cropped one quadrant); stone_bricks seam ratio 5.7 and bricks 2.7 after cross-fade, so the brick sheets need a re-roll (brick courses cut by the tile edge) before adoption. Not adopted into Resources/Textures.
+- 2026-10-03 04:50 UTC (manager): teximport (128 px, plain; leaves as cutout) run on all 26 sources in assets/gemini/ -> assets/gemini/processed/. Not adopted into Resources/Textures. Seams still visible after cross-fade (ratio > 2): birch_planks 5.3, spruce_planks 2.8, bricks 2.7, stone_bricks 5.7 (mortar lines; regenerate or crop by hand); gravel has a diagonal repeat (prefer another source).
