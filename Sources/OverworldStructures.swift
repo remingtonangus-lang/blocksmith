@@ -449,6 +449,12 @@ enum OverworldStructures {
                 w.set(cx - 1, y + 1, z, wool); w.set(cx + 1, y + 1, z, wool)
                 w.set(cx, y + 2, z, wool)
             }
+            // Level aprons at both open ends (on a slope the ground outside stood a block over the tent floor:
+            // structcheck, run 417).
+            for z in [cz - 3, cz + 3] { for x in (cx - 1)...(cx + 1) {
+                w.pillarDown(x, y - 1, z, DIRT, minY: y - 5)
+                for yy in y...(y + 2) { w.set(x, yy, z, AIR) }
+            } }
             // A dark ridge pole along the peak (the bare wool A-frame read as white steps: run 408 outpost). No end
             // posts: they stood in the one-block entrances (structcheck: every tent's table unreachable, run 410).
             let ridge = Blocks.has("dark_oak_log[z]") ? Blocks.id("dark_oak_log[z]") : log
