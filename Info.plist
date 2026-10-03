@@ -12,6 +12,8 @@
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>LSApplicationCategoryType</key><string>public.app-category.games</string>
     <key>NSHighResolutionCapable</key><true/>
+    <key>NSMicrophoneUsageDescription</key><string>Bug Notes: say a bug out loud while playing and Blocksmith saves it as a note (only when Bug Notes is on in Options).</string>
+    <key>NSSpeechRecognitionUsageDescription</key><string>Bug Notes are transcribed on this Mac so spoken bug reports become text. Nothing is sent over the network.</string>
     <key>GCSupportsControllerUserInteraction</key><true/>
     <key>GCSupportedGameControllers</key>
     <array><dict><key>ProfileName</key><string>ExtendedGamepad</string></dict></array>

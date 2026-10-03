@@ -40,6 +40,8 @@ struct VillagerData: Codable {
     var levelUpTimer: Float = 0
     var bed: [Int]? = nil                // claimed bed head
     var food: Int? = nil                 // food points (breeding needs 12)
+    var gossip: [Int]? = nil             // what it has heard about the player: see Gossip (VillageLife.swift)
+    var gossipDay: Int? = nil            // last day gossip decayed
 }
 
 enum Villagers {
@@ -120,10 +122,10 @@ enum Villagers {
         ],
         "cartographer": [
             [emeraldFor("paper", 24, 16, 2), forEmeralds("map", 7, 1, 12, 1)],
-            [emeraldFor("glass_pane", 11, 16, 10), forEmeralds("map", 13, 1, 12, 5)],
-            [emeraldFor("compass", 1, 12, 20), forEmeralds("map", 14, 1, 12, 10)],
+            [emeraldFor("glass_pane", 11, 16, 10), swap("compass", 1, 13, "sea_temple_explorer_map", 1, 12, 5)],
+            [emeraldFor("compass", 1, 12, 20), swap("compass", 1, 14, "manor_explorer_map", 1, 12, 10)],
             [forEmeralds("item_frame", 7, 1, 12, 15)] + BlockRegistry.colors.map { forEmeralds("\($0.0)_banner", 3, 1, 12, 15) },
-            [forEmeralds("globe_banner_pattern", 8, 1, 12, 30)],
+            [forEmeralds("globe_banner_pattern", 8, 1, 12, 30), swap("compass", 1, 24, "steelhold_explorer_map", 1, 6, 30)],
         ],
         "cleric": [
             [emeraldFor("rotten_flesh", 32, 16, 2), forEmeralds("redstone", 1, 2, 12, 1)],
@@ -205,22 +207,22 @@ enum Villagers {
         var buyN = t.buyN
         switch suffix {
         case "ench":
-            let lv = Int.random(in: 5...19)
+            let lv = Rand.int(in: 5...19)
             sell = Enchant.withLevels(sell.item, lv)
             buyN = min(64, t.buyN + lv)
         case "book":
             // Random tradeable enchantment at a random level; treasure costs double.
             let opts = Ench.allCases.filter { ![.soulSpeed, .swiftSneak, .windBurst].contains($0) }
-            let e = opts.randomElement()!
+            let e = opts.pick()!
             let d = Enchant.def(e)
-            let l = Int.random(in: 1...d.max)
+            let l = Rand.int(in: 1...d.max)
             sell.ench = Enchant.pack([(e, l)])
-            var cost = 2 + Int.random(in: 0..<(5 + l * 10)) + 3 * l
+            var cost = 2 + Rand.int(in: 0..<(5 + l * 10)) + 3 * l
             if d.treasure { cost *= 2 }
             buyN = min(64, cost)
         case "tipped":
             let opts = Potions.types.filter { !$0.effects.isEmpty && !$0.key.hasPrefix("strong_turtle") }
-            if let p = opts.randomElement(), let it = Potions.item(3, p.key) { sell = ItemStack(it, t.sellN) }
+            if let p = opts.pick(), let it = Potions.item(3, p.key) { sell = ItemStack(it, t.sellN) }
         default: break
         }
         let a = ItemStack(Items.id(t.buy), buyN)
@@ -234,7 +236,7 @@ enum Villagers {
         var pool = pools[level - 1].filter { has($0.buy) && has($0.sell) }
         var picks = 0
         while picks < 2 && !pool.isEmpty {
-            let i = Int.random(in: 0..<pool.count)
+            let i = Rand.int(in: 0..<pool.count)
             if let o = make(pool[i]) { v.offers.append(o); picks += 1 }
             pool.remove(at: i)
         }
@@ -300,6 +302,7 @@ extension Mob {
         }
         v.restocksToday += 1
         villager = v
+        if let w = MobVoice.workIndex(v.profession) { g.sfx(.villagerWork(w), 0.8, at: site + V3(0, 0.8, 0)) }
     }
 }
 
@@ -311,7 +314,7 @@ extension Game {
         guard m.kind == .villager, !m.baby else { return false }
         var v = m.vdata
         if v.profession == "none" || v.profession == "nitwit" {
-            sfx(.mobVillager, 0.7, at: m.pos + V3(0, 1.6, 0))       // shakes head
+            sfx(.villagerNo, 0.8, at: m.pos + V3(0, 1.6, 0))       // shakes head
             return true
         }
         if v.offers.isEmpty { Villagers.addOffers(&v, level: 1); m.villager = v }
@@ -360,7 +363,9 @@ final class MerchantMenu: Menu {
 
     func price(_ o: TradeOffer) -> ItemStack {
         var o2 = o
-        o2.special += game.heroDiscount(o) + ((mob?.villager?.cured ?? false) ? -max(1, o.buyA.count * 3 / 4) : 0)
+        // Reference special price: -floor(reputation x price multiplier), then the Village Hero discount.
+        let rep = mob?.villager?.reputation ?? 0
+        o2.special += game.heroDiscount(o) - Int(floor(Float(rep) * o.priceMult))
         return o2.costA
     }
 
@@ -411,19 +416,20 @@ final class MerchantMenu: Menu {
             }
         }
         v.offers[selected].uses += 1
+        v.addGossip(.trading, 2)
         v.xp += o.xp
         v.locked = true
         // Trades give the player XP too (3-6, more when the villager levels up).
-        game.addXP(Int.random(in: 3...6))
+        game.addXP(Rand.int(in: 3...6))
         if v.level < 5 && v.xp >= Villagers.levelXP[v.level] {
             v.level += 1
             Villagers.addOffers(&v, level: v.level)
             game.addXP(5)
             game.particles.hearts(at: m.pos + V3(0, 2.2, 0))
-            game.sfx(.levelUp, 0.5, at: m.pos)
+            game.sfx(.villagerCelebrate, 0.8, at: m.pos + V3(0, 1.6, 0))
         }
         m.villager = v
-        game.sfx(.mobVillager, 0.6, at: m.pos + V3(0, 1.6, 0))
+        game.sfx(.villagerTrade, 0.7, at: m.pos + V3(0, 1.6, 0))
         let out = o.sell
         changed()
         return out

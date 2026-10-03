@@ -346,6 +346,9 @@ final class HollowGen: TerrainGenerator {
             for y in (fy + 1)...(fy + 4) where r2 > 0 { set(x, y, z, AIR) }
         } }
         for y in (fy + 1)...(fy + 3) { set(0, y, 0, BEDROCK) }
-        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] { set(dx, fy + 2, dz, Blocks.id("torch")) }
+        // Wall torches on the column, pointing away from it (standing torches there hung over the portal: structcheck
+        // torch_unsupported). Wall torch state = 1 + facing (0 -Z, 1 +Z, 2 -X, 3 +X).
+        let sides: [(Int, Int, Int)] = [(1, 0, 3), (-1, 0, 2), (0, 1, 1), (0, -1, 0)]
+        for (dx, dz, f) in sides { set(dx, fy + 2, dz, Blocks.id("torch") + BlockID(1 + f)) }
     }
 }

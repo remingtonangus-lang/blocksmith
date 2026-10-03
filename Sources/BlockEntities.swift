@@ -2,7 +2,9 @@ import Foundation
 
 // Per-block state that doesn't fit in a block ID: chest and furnace inventories, furnace progress.
 final class BlockEntity: Codable {
-    enum Kind: String, Codable { case chest, furnace, spawner, hopper, dispenser, brewing, beacon, shulker, campfire, sign, frame, painting, banner, lectern, shelf, pot, crafter }
+    enum Kind: String, Codable { case chest, furnace, spawner, hopper, dispenser, brewing, beacon, shulker, campfire, sign, frame, painting, banner, lectern, shelf, pot, crafter
+        case display    // wooden shelf: three items shown on its front (Shelf.swift)
+    }
     let kind: Kind
     var items: [ItemStack]
     var mob: String = ""      // spawner: mob kind name
@@ -31,6 +33,9 @@ final class BlockEntity: Codable {
     init(_ k: Kind) {
         kind = k
         items = Array(repeating: .empty, count: k == .chest || k == .shulker ? 27 : k == .shelf ? 6 : (k == .furnace ? 3 : (k == .hopper || k == .brewing ? 5 : k == .campfire ? 4 : k == .frame || k == .lectern || k == .pot ? 1 : (k == .dispenser || k == .crafter ? 9 : 0))))
+        // Item frames keep their rotation (45 degree steps) in `delay`: they start upright (the spawner default of 10
+        // turned every framed item a quarter turn).
+        if k == .frame { delay = 0 }
     }
 
     enum CodingKeys: String, CodingKey { case kind, items, burn, burnMax, cook, mob, fuel, brewTime, secondary, trial, used, lines, delay, pat }
@@ -127,4 +132,16 @@ extension BlockEntity {
 
 struct BlockEntitySave: Codable {
     var entries: [String: BlockEntity]
+}
+
+extension World {
+    // The block entity at p if it is of this kind, else a fresh one stored there. A stale entity of another kind (left
+    // when a container was replaced without being broken: setBlock keeps entities) would open a 27-slot screen on a
+    // 3-slot furnace container and crash (smoke-test menu tour).
+    func entity(_ p: IVec3, _ kind: BlockEntity.Kind) -> BlockEntity {
+        if let e = blockEntities[p], e.kind == kind { return e }
+        let e = BlockEntity(kind)
+        blockEntities[p] = e
+        return e
+    }
 }

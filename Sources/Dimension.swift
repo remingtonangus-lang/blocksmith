@@ -9,7 +9,11 @@ enum Dim: String, Codable, CaseIterable {
     case overworld, nether, end
 
     var hasSky: Bool { self == .overworld }        // sun, moon, stars, clouds, daylight cycle
-    var ambient: Float { self == .nether ? 0.3 : (self == .end ? 0.3 : 0) }
+    // The Hollow a little brighter than the Emberdeep: its pale stone read grey-brown and the violite pillars as
+    // black cut-outs (blind critic, run 362 end_top).
+    // The Emberdeep 0.3 -> 0.4: away from lava its dark brick fortresses and blackstone bastions averaged 3-5 % of
+    // full brightness and couldn't be read (blind critic, run 369).
+    var ambient: Float { self == .nether ? 0.4 : (self == .end ? 0.42 : 0) }
     var fogColor: V3 { self == .nether ? V3(0.2, 0.03, 0.03) : V3(0.08, 0.05, 0.12) }
     var folder: String? { self == .overworld ? nil : (self == .nether ? "DIM-1" : "DIM1") }
     var displayName: String { self == .overworld ? "Surface" : (self == .nether ? "The Emberdeep" : "The Hollow") }

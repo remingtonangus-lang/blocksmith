@@ -79,6 +79,7 @@ let Tex = TextureRegistry()
 final class BlockRegistry {
     private(set) var defs: [BlockDef] = []
     private var byName: [String: BlockID] = [:]
+    var untextured: [String] = []   // visible blocks registered without textures (drawn with "missing")
     // Per-state tables
     var render: [UInt8] = []
     var layer: [UInt8] = []
@@ -108,8 +109,38 @@ final class BlockRegistry {
     var groupBase: [BlockID] = []   // first state of this state's group
     var tex: [UInt16] = []          // state*6 + face
     var boxes: [[Box]] = []
+    var collBoxes: [[Box]] = []      // collision shape per state (render boxes unless collisionShape overrides)
 
     var count: Int { defs.count }
+
+    // Reference collision shapes where the model's decorative parts would otherwise form a staircase the 0.6
+    // step-up climbs (collisiontest walk_through: dragon egg layers, brewing stand bottles, lantern chains, the
+    // bell's rim, the stonecutter blade).
+    static func collisionShape(_ d: BlockDef) -> [Box]? {
+        if d.shape == "lantern" && d.name.hasSuffix("[hanging]") { return Array(d.boxes.prefix(2)) }
+        let g = d.group ?? String(d.name.split(separator: "[").first ?? "")
+        // Statues and ship fittings: one box around the whole model.
+        if (g.hasSuffix("copper_golem_statue") || g == "ship_helm" || g == "ship_cannon"), let f = d.boxes.first {
+            var b = Box(Int(f.x0), Int(f.y0), Int(f.z0), Int(f.x1), Int(f.y1), Int(f.z1))
+            for x in d.boxes {
+                b.x0 = min(b.x0, x.x0); b.y0 = min(b.y0, x.y0); b.z0 = min(b.z0, x.z0)
+                b.x1 = max(b.x1, x.x1); b.y1 = max(b.y1, x.y1); b.z1 = max(b.z1, x.z1)
+            }
+            return [b]
+        }
+        switch g {
+        case "sculk_sensor", "calibrated_sculk_sensor": return [Box(0, 0, 0, 16, 8, 16)]
+        case "campfire", "soul_campfire": return [Box(0, 0, 0, 16, 7, 16)]
+        case "dragon_egg": return [Box(1, 0, 1, 15, 16, 15)]
+        case "brewing_stand": return [Box(1, 0, 1, 15, 2, 15), Box(7, 0, 7, 9, 14, 9)]
+        case "stonecutter": return [Box(0, 0, 0, 16, 9, 16)]
+        case "bell": return [Box(4, 3, 4, 12, 13, 12), Box(7, 13, 7, 9, 16, 9)]
+        // Solid for walking: the hollow tub trapped anything that stepped in (village bot, seed 424242; farmers work at
+        // composters) and path finding already treated it as a full block.
+        case "composter": return [Box(0, 0, 0, 16, 16, 16)]
+        default: return nil
+        }
+    }
 
     @discardableResult
     func add(_ d0: BlockDef) -> BlockID {
@@ -121,7 +152,10 @@ final class BlockRegistry {
         let g = d.group ?? d.name
         if let first = byName["#group:" + g] { groupBase.append(first) } else { byName["#group:" + g] = id; groupBase.append(id) }
         if d.tex.count == 1 { d.tex = Array(repeating: d.tex[0], count: 6) }
-        if d.tex.isEmpty { d.tex = Array(repeating: "missing", count: 6) }
+        if d.tex.isEmpty {
+            d.tex = Array(repeating: "missing", count: 6)
+            if d.render != .none { untextured.append(d.name) }
+        }
         defs.append(d)
         render.append(d.render.rawValue)
         layer.append(d.layer.rawValue)
@@ -156,6 +190,7 @@ final class BlockRegistry {
         var bx = d.boxes
         for i in 0..<bx.count where bx[i].tex.isEmpty { bx[i].tex = (0..<6).map { tex[Int(id) * 6 + $0] } }
         boxes.append(bx)
+        collBoxes.append(BlockRegistry.collisionShape(d) ?? d.boxes)
         return id
     }
 
@@ -303,17 +338,19 @@ final class BlockRegistry {
         plant("dandelion", "Dandelion", "dandelion")
         plant("cornflower", "Cornflower", "cornflower")
         // Torches: standing (0) and on walls (1+f, f = the side the torch faces), soul torches the same.
-        for soul in [false, true] {
-            let n = soul ? "soul_torch" : "torch"
+        for kind in 0..<3 {
+            let soul = kind == 1, copper = kind == 2                          // torch, ghost torch, copper torch (green flame)
+            let n = ["torch", "soul_torch", "copper_torch"][kind]
             for st in 0..<5 {
-                var torch = BlockDef(st == 0 ? n : "\(n)[\(st)]", soul ? "Ghost Torch" : "Torch")
+                var torch = BlockDef(st == 0 ? n : "\(n)[\(st)]", ["Torch", "Ghost Torch", "Copper Torch"][kind])
                 torch.group = n; torch.hidden = st != 0; torch.shape = "torch"
                 torch.tex = [n]; torch.render = .model; torch.layer = .cutout; torch.opaque = false; torch.collide = false
                 torch.emit = soul ? 10 : 14; torch.hardness = 0; torch.sound = .wood; torch.skyStop = false
                 if st == 0 {
-                    torch.boxes = [Box(7, 0, 7, 9, 10, 9, tex: [Tex.id(n), Tex.id(n), Tex.id("torch_top"), Tex.id("torch_bottom"), Tex.id(n), Tex.id(n)])]
+                    let topTex = Tex.id(copper ? "copper_torch_top" : "torch_top")
+                    torch.boxes = [Box(7, 0, 7, 9, 10, 9, tex: [Tex.id(n), Tex.id(n), topTex, Tex.id("torch_bottom"), Tex.id(n), Tex.id(n)])]
                 } else {
-                    let w = Tex.id(n + "_wall"), top = Tex.id(soul ? "soul_torch_top_full" : "torch_top_full"), bot = Tex.id("torch_bottom")
+                    let w = Tex.id(n + "_wall"), top = Tex.id(n + "_top_full"), bot = Tex.id("torch_bottom")
                     // Leaning against the wall: the foot sits against it, the head steps out 1 px per third
                     // (boxes are whole 1/16 units, so the tilt is stepped).
                     let base = [Box(7, 3, 12, 9, 13, 14), Box(7, 3, 2, 9, 13, 4), Box(12, 3, 7, 14, 13, 9), Box(2, 3, 7, 4, 13, 9)][st - 1]
@@ -580,6 +617,9 @@ final class BlockRegistry {
         registerShelf()
         registerAshenGrove()
         registerSpringBlocks()
+        registerShipBlocks()
+        registerMilitaryBlocks()
+        registerCapitalBlocks()
         // Building families: stairs, slabs, fences, walls for each material.
         let woods: [(String, String)] = [("oak", "Oak"), ("birch", "Birch"), ("spruce", "Spruce"), ("crimson", "Rustcap"), ("warped", "Tealcap")]
             + BlockRegistry.extraWoods

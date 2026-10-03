@@ -6,6 +6,7 @@ import simd
 // queue; results are applied on the main thread in update(). Chunk block arrays are Swift
 // copy-on-write values, so handing snapshots to worker threads is safe.
 final class World {
+    var damage: [IVec3: UInt8] = [:]      // progressive block damage (chip, damageList)
     let gen: TerrainGenerator
     let dim: Dim
     let seed: UInt64
@@ -27,9 +28,20 @@ final class World {
     }()          // structure mobs waiting for the game to spawn them
     lazy var redstone = Circuit(world: self)
     var portals = Set<IVec3>()
+    lazy var ships = ShipManager(world: self)       // free-moving block structures (Ships.swift)
+    var frame: Ship?                                // while set, block and collision queries are in this ship's space
     var renderDistance: Int = 8 { didSet { lastCenter = nil; rebuildOffsets() } }
 
-    private let workQueue = DispatchQueue(label: "blocksmith.world", qos: .userInitiated, attributes: .concurrent)
+    // Workers: maxJobs run at once; up to maxQueued jobs are handed over per frame so workers never sit
+    // idle between frames (handing over only maxJobs capped streaming at ~maxJobs x 60 jobs per second;
+    // 8 per worker covers a 16 ms frame of ~2 ms jobs).
+    private let workQueue: OperationQueue = {
+        let q = OperationQueue()
+        q.name = "blocksmith.world"
+        q.qualityOfService = .userInitiated
+        return q
+    }()
+    private var maxQueued: Int { maxJobs * 8 }
     private let lock = NSLock()
     private var genResults: [(ChunkKey, Produced)] = []
     private var meshResults: [(ChunkKey, [(Int, Int, SectionMesh)])] = []
@@ -42,7 +54,28 @@ final class World {
     private(set) var meshedCount = 0
     var pendingJobs: Int { jobs }
 
+    // Perf counters (--bench, F3). Worker totals are updated under `lock`; updateSeconds is the last
+    // update() call on the main thread.
+    struct PerfStats {
+        var genChunks = 0, genSeconds = 0.0
+        var meshJobs = 0, meshSections = 0, meshSeconds = 0.0
+        var updateSeconds = 0.0
+    }
+    private var perfShared = PerfStats()
+    private var lastUpdateSeconds = 0.0
+    var perf: PerfStats {
+        lock.lock(); var p = perfShared; lock.unlock()
+        p.updateSeconds = lastUpdateSeconds
+        return p
+    }
+
+    static var alive = 0            // live World objects (leak check in --bench)
+    static let registry = NSHashTable<World>.weakObjects()
+    deinit { World.alive -= 1 }
+    var debugState: String { "jobs \(jobs), queue ops \(workQueue.operationCount), gen in flight \(genInFlight.count), results \(genResults.count)/\(meshResults.count), chunks \(chunks.count)" }
+
     init(seed: UInt64, device: MTLDevice, save: SaveManager?, dim: Dim = .overworld) {
+        World.alive += 1
         self.seed = seed
         self.dim = dim
         switch dim {
@@ -53,22 +86,41 @@ final class World {
         self.device = device
         self.save = save
         maxJobs = max(2, ProcessInfo.processInfo.activeProcessorCount - 2)
+        workQueue.maxConcurrentOperationCount = maxJobs
         rebuildOffsets()
         blockEntities = save?.loadBlockEntities() ?? [:]
         portals = Set(save?.loadPortals() ?? [])
+        World.registry.add(self)
     }
 
+    // Chunks to load: the meshed disc grown by one chunk (every meshed chunk needs its 8 neighbours).
+    // A disc instead of the old square skips ~20% of the chunks (the corners were never drawn).
+    private var scanCenter: ChunkKey?
+    private var scanEpoch = -1
+
     private func rebuildOffsets() {
+        scanEpoch = -1
         let r = renderDistance + 1
         var o: [(Int, Int, Int)] = []
-        for dz in -r...r { for dx in -r...r { o.append((dx, dz, dx * dx + dz * dz)) } }
+        for dz in -r...r { for dx in -r...r where World.inDisc(dx, dz, renderDistance, grow: 1) { o.append((dx, dz, dx * dx + dz * dz)) } }
         o.sort { $0.2 < $1.2 }
         offsets = o
     }
 
+    // Whether (dx, dz) lies within `grow` chunks (Chebyshev) of the mesh disc of radius r.
+    @inline(__always) static func inDisc(_ dx: Int, _ dz: Int, _ r: Int, grow: Int) -> Bool {
+        let ax = max(0, abs(dx) - grow), az = max(0, abs(dz) - grow)
+        return ax * ax + az * az <= r * r + r
+    }
+
     // Chunks farther than 8 chunks are meshed at LOD 1.
-    static let lodNear = 8
+    static var lodNear = 8                      // harness --nolod raises it (far detail off)
     @inline(__always) func lodFor(_ dx: Int, _ dz: Int) -> Int { max(abs(dx), abs(dz)) > World.lodNear ? 1 : 0 }
+    // With one chunk of hysteresis: walking back and forth across the boundary doesn't re-mesh the ring each time.
+    @inline(__always) func lodFor(_ dx: Int, _ dz: Int, current: Int) -> Int {
+        let d = max(abs(dx), abs(dz))
+        return current == 0 ? (d > World.lodNear + 1 ? 1 : 0) : (d > World.lodNear ? 1 : 0)
+    }
 
     @inline(__always) func inMeshRadius(_ dx: Int, _ dz: Int) -> Bool {
         dx * dx + dz * dz <= renderDistance * renderDistance + renderDistance
@@ -81,13 +133,19 @@ final class World {
     }
 
     func block(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
+        if let s = frame { return s.frameBlock(x, y, z, self) }
+        return rawBlock(x, y, z)
+    }
+
+    // The world's own block, ignoring any ship frame.
+    @inline(__always) func rawBlock(_ x: Int, _ y: Int, _ z: Int) -> BlockID {
         if y < 0 { return BEDROCK }
         if y >= CH { return AIR }
         guard let c = chunkAt(x, z) else { return AIR }
         return c.blocks[Chunk.index(mod(x, CS), y, mod(z, CS))]
     }
 
-    func isLoaded(_ x: Int, _ z: Int) -> Bool { chunkAt(x, z) != nil }
+    func isLoaded(_ x: Int, _ z: Int) -> Bool { frame != nil || chunkAt(x, z) != nil }
 
     // Light at a block: (sky 0-15, block 0-15). Uses the mesher's stored light when available,
     // otherwise approximates from the heightmap.
@@ -96,8 +154,8 @@ final class World {
         if y < 0 { return (0, 0) }
         guard let c = chunkAt(x, z) else { return (15, 0) }
         let lx = mod(x, CS), lz = mod(z, CS)
-        if c.lightValid[y >> 4] {
-            let l = c.light[Chunk.index(lx, y, lz)]
+        if let sl = c.light[y >> 4] {
+            let l = sl[lx + lz * CS + (y & 15) * CSQ]
             return (Int(l >> 4), Int(l & 15))
         }
         return (y > Int(c.height[lx + lz * CS]) ? 15 : 0, 0)
@@ -112,6 +170,7 @@ final class World {
     // AO), everything its light could reach in the background.
     func setBlock(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) {
         guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return }
+        if !damage.isEmpty { damage.removeValue(forKey: IVec3(x, y, z)) }
         let lx = mod(x, CS), lz = mod(z, CS)
         let oldH = Int(c.height[lx + lz * CS])
         let old = c.blocks[Chunk.index(lx, y, lz)]
@@ -153,6 +212,7 @@ final class World {
     @discardableResult
     func setBlockAsync(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) -> Bool {
         guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return false }
+        if !damage.isEmpty { damage.removeValue(forKey: IVec3(x, y, z)) }
         let lx = mod(x, CS), lz = mod(z, CS)
         let old = c.blocks[Chunk.index(lx, y, lz)]
         c.blocks[Chunk.index(lx, y, lz)] = id
@@ -176,14 +236,21 @@ final class World {
         let b = Int(block(x, y, z))
         if !Blocks.collide[b] { return }
         let o = V3(Float(x), Float(y), Float(z))
-        if Blocks.fullCollide[b] { out.append((o, o + 1)); return }
+        if Blocks.fullCollide[b] {
+            // A chipped block gives up the whole layers it has lost (you sink into a block chipped from the top).
+            if !damage.isEmpty, let dv = damage[IVec3(x, y, z)] {
+                let (mn, mx) = Mesher.chipBox(face: Int(dv >> 5), level: Int(dv & 31), x: x, y: y, z: z)
+                out.append((o + mn, o + mx)); return
+            }
+            out.append((o, o + 1)); return
+        }
         for bx in shapeBoxes(x, y, z, BlockID(b), collision: true) { out.append((o + bx.minV, o + bx.maxV)) }
     }
 
     // Model boxes of a block, resolving connecting blocks (fences, panes, walls) from their neighbours.
     func shapeBoxes(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID, collision: Bool) -> [Box] {
         let ck = Blocks.connectKind[Int(b)]
-        if ck == 0 { return Blocks.boxes[Int(b)] }
+        if ck == 0 { return collision ? Blocks.collBoxes[Int(b)] : Blocks.boxes[Int(b)] }
         return BlockRegistry.connectBoxes(ck, n: Blocks.connects(ck, block(x, y, z - 1)), s: Blocks.connects(ck, block(x, y, z + 1)),
                                           w: Blocks.connects(ck, block(x - 1, y, z)), e: Blocks.connects(ck, block(x + 1, y, z)), collision: collision)
     }
@@ -202,6 +269,7 @@ final class World {
                 }
             }
         }
+        if frame == nil && !ships.isEmpty && ships.overlaps(mn, mx) { return true }
         return false
     }
 
@@ -219,6 +287,7 @@ final class World {
                 }
             }
         }
+        if frame == nil && !ships.isEmpty { ships.boxes(lo, hi, &boxes) }
         var dd = d
         let b1 = (a + 1) % 3, b2 = (a + 2) % 3
         for (bmn, bmx) in boxes {
@@ -272,8 +341,8 @@ final class World {
 
     // MARK: Meshing
 
-    private func neighbourhood(_ c: Chunk) -> ([[BlockID]], [[Int16]])? {
-        var n9: [[BlockID]] = []
+    private func neighbourhood(_ c: Chunk) -> ([BlockStore], [[Int16]])? {
+        var n9: [BlockStore] = []
         var h9: [[Int16]] = []
         n9.reserveCapacity(9)
         h9.reserveCapacity(9)
@@ -288,9 +357,73 @@ final class World {
         return (n9, h9)
     }
 
+    // Harness edits made with setBlockAsync over an area: remesh it now so its meshes and stored light are current
+    // (a demo car built in a freshly dug pit was lit as if the pit were still rock: blind critic, run 385 ship_car).
+    func remeshArea(x0: Int, z0: Int, x1: Int, z1: Int, y0: Int, y1: Int) {
+        for cz in floorDiv(z0, CS)...floorDiv(z1, CS) { for cx in floorDiv(x0, CS)...floorDiv(x1, CS) {
+            guard let c = chunks[ChunkKey(x: cx, z: cz)] else { continue }
+            for sy in max(0, y0 >> 4)...min(NSEC - 1, y1 >> 4) { remeshSync(c, sy) }
+        } }
+    }
+
+    // Harness: a section meshed at full detail and at far detail, (opaque quads, cutout quads) each.
+    func lodQuads(_ c: Chunk, _ sy: Int) -> [(Int, Int)] {
+        guard let nb = neighbourhood(c) else { return [] }
+        return [0, 1].map { lod in
+            let m = Mesher.buildSection(nb.0, nb.1, sy: sy, lod: lod)
+            let q = m.opaque.count / 8
+            return (m.solidQuads, q - m.solidQuads)
+        }
+    }
+
     private func remeshSync(_ c: Chunk, _ sy: Int) {
         guard let nb = neighbourhood(c) else { return }
-        apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod), to: c, sy: sy, version: c.sections[sy].version)
+        apply(Mesher.buildSection(nb.0, nb.1, sy: sy, lod: c.lod, damage: damageList(c)), to: c, sy: sy, version: c.sections[sy].version)
+    }
+
+    // MARK: Progressive block damage
+
+    // Chipped blocks: world cell -> face << 5 | level (1...7 of 8 chipped away). Cleared when the block changes;
+    // not saved (a chipped block comes back whole after the chunk reloads).
+    func damageLevel(_ p: IVec3) -> Int { Int((damage[p] ?? 0) & 31) }
+
+    // The damaged blocks a chunk's sections need (its own and one chunk round), relative to its corner.
+    func damageList(_ c: Chunk) -> [(Int, Int, Int, UInt8)] {
+        if damage.isEmpty { return [] }
+        let bx = c.cx * CS, bz = c.cz * CS
+        var out: [(Int, Int, Int, UInt8)] = []
+        for (p, v) in damage {
+            let dx = p.x - bx, dz = p.z - bz
+            if dx >= -16 && dx < 32 && dz >= -16 && dz < 32 { out.append((dx, p.y, dz, v)) }
+        }
+        return out
+    }
+
+    // The same without the immediate remesh (explosions chip dozens at once): the sections remesh in the background.
+    func chipAsync(_ p: IVec3, level: Int, face: Int) {
+        let cur = damage[p]
+        let lv = max(level, Int((cur ?? 0) & 31))
+        guard lv > 0 && lv < 8, p.y >= 0 && p.y < CH else { return }
+        if damage.count > 4096 && cur == nil { return }
+        let f = cur.map { Int($0 >> 5) } ?? face
+        damage[p] = UInt8((f & 7) << 5 | min(7, lv))
+        for dz in -1...1 { for dx in -1...1 {
+            guard let n = chunkAt(p.x + dx * 16, p.z + dz * 16) else { continue }
+            for sy in max(0, (p.y - 16) >> 4)...min(NSEC - 1, (p.y + 16) >> 4) { n.sections[sy].version += 1 }
+        } }
+    }
+
+    // Chips a block to `level` (keeps the face of the first hit); remeshes around it now.
+    func chip(_ p: IVec3, level: Int, face: Int) {
+        let cur = damage[p]
+        let lv = max(level, Int((cur ?? 0) & 31))
+        guard lv > 0 && lv < 8 else { return }
+        if damage.count > 4096 && cur == nil { return }
+        let f = cur.map { Int($0 >> 5) } ?? face
+        let v = UInt8((f & 7) << 5 | min(7, lv))
+        if cur == v { return }
+        damage[p] = v
+        remeshArea(x0: p.x - 1, z0: p.z - 1, x1: p.x + 1, z1: p.z + 1, y0: p.y - 1, y1: p.y + 1)
     }
 
     private func makeBuffer(_ words: [UInt32]) -> MeshSlice? {
@@ -300,11 +433,7 @@ final class World {
 
     private func apply(_ m: SectionMesh, to c: Chunk, sy: Int, version: Int) {
         let s = c.sections[sy]
-        if let l = m.light {
-            let base = sy * 4096
-            for i in 0..<4096 { c.light[base + i] = l[i] }
-            c.lightValid[sy] = true
-        }
+        if let l = m.light { c.light[sy] = l }
         guard version == s.version else { return }
         s.opaqueBuf = makeBuffer(m.opaque)
         s.opaqueQuads = m.opaque.count / 8
@@ -313,8 +442,9 @@ final class World {
         s.transQuads = m.trans.count / 8
         s.meshedVersion = version
         s.vis = m.vis
+        if sy >= c.topSec { c.updateTopSec() }            // a mesh below the top section cannot move it
         if c.tintBuf == nil {
-            c.tintBuf = c.tint.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, length: $0.count, options: .storageModeShared) }
+            c.tintBuf = c.tint.withUnsafeBytes { MeshArena.tints.alloc(device, $0) }
         }
     }
 
@@ -326,40 +456,64 @@ final class World {
 
     // MARK: Streaming (call once per frame)
 
+    // Agent runs / replays: wait for last frame's jobs and apply every result in chunk order, so streaming (and
+    // the light that meshing computes) never depends on timing.
+    static var deterministic = false
+
     func update(center pos: V3) {
+        let tUpdate = CFAbsoluteTimeGetCurrent()
+        defer { lastUpdateSeconds = CFAbsoluteTimeGetCurrent() - tUpdate }
         let center = ChunkKey(x: floorDiv(Int(floor(pos.x)), CS), z: floorDiv(Int(floor(pos.z)), CS))
 
+        if World.deterministic { workQueue.waitUntilAllOperationsAreFinished() }
         lock.lock()
-        let gr = genResults; genResults.removeAll(keepingCapacity: true)
-        let mr = meshResults; meshResults.removeAll(keepingCapacity: true)
+        var gr = genResults; genResults.removeAll(keepingCapacity: true)
+        var mr = meshResults; meshResults.removeAll(keepingCapacity: true)
         lock.unlock()
+        if World.deterministic {
+            gr.sort { (a: (ChunkKey, Produced), b: (ChunkKey, Produced)) -> Bool in a.0.x != b.0.x ? a.0.x < b.0.x : a.0.z < b.0.z }
+            mr.sort { (a: (ChunkKey, [(Int, Int, SectionMesh)]), b: (ChunkKey, [(Int, Int, SectionMesh)])) -> Bool in
+                a.0.x != b.0.x ? a.0.x < b.0.x : a.0.z < b.0.z
+            }
+        }
 
-        for (k, p) in gr {
+        // Results are applied within a per-frame budget; the rest wait for the next frame.
+        let budget = 0.004
+        var gi = 0, mi = 0
+        while gi < gr.count && (gi == 0 || World.deterministic || CFAbsoluteTimeGetCurrent() - tUpdate < budget) {
+            let (k, p) = gr[gi]; gi += 1
             genInFlight.remove(k)
             jobs -= 1
             if chunks[k] != nil { continue }
             install(k, p)
         }
-        for (k, list) in mr {
+        while mi < mr.count && (mi == 0 || World.deterministic || CFAbsoluteTimeGetCurrent() - tUpdate < budget) {
+            let (k, list) = mr[mi]; mi += 1
             jobs -= 1
             guard let c = chunks[k] else { continue }
             c.meshInFlight = false
             c.meshedOnce = true
             for (sy, version, mesh) in list { apply(mesh, to: c, sy: sy, version: version) }
         }
+        if gi < gr.count || mi < mr.count {
+            lock.lock()
+            genResults.insert(contentsOf: gr[gi...], at: 0)
+            meshResults.insert(contentsOf: mr[mi...], at: 0)
+            lock.unlock()
+        }
 
         if center != lastCenter {
             lastCenter = center
-            let limit = renderDistance + 2
+            // Unload outside the load disc grown by one more chunk (hysteresis when walking back and forth).
             var gone: [ChunkKey] = []
-            for (k, c) in chunks where abs(k.x - center.x) > limit || abs(k.z - center.z) > limit {
-                if c.modified { save?.saveChunk(k, c.blocks) }
+            for (k, c) in chunks where !World.inDisc(k.x - center.x, k.z - center.z, renderDistance, grow: 2) {
+                if c.needsSave { save?.saveChunkAsync(k, c.blocks) }
                 gone.append(k)
             }
             for k in gone { chunks.removeValue(forKey: k) }
             // Chunks crossing the LOD boundary get remeshed at their new detail level.
             for (k, c) in chunks {
-                let want = lodFor(k.x - center.x, k.z - center.z)
+                let want = lodFor(k.x - center.x, k.z - center.z, current: c.lod)
                 if want != c.lod {
                     c.lod = want
                     for s in c.sections where !(s.meshedVersion == -1) { s.version += 1 }
@@ -367,40 +521,60 @@ final class World {
             }
         }
 
+        // Nothing new since the last scan (same centre, no results, no invalidated sections): the scan
+        // would schedule nothing, so skip it (it walks ~1000-2000 chunks at rd 16-24).
+        if gr.isEmpty && mr.isEmpty && center == scanCenter && MeshEpoch.value == scanEpoch { return }
+        scanCenter = center
+
         // Nearest-first scheduling: generate missing chunks, mesh chunks whose 8 neighbours exist.
         var meshed = 0
         for (dx, dz, _) in offsets {
             let k = ChunkKey(x: center.x + dx, z: center.z + dz)
             if let c = chunks[k] {
                 if c.meshedOnce { meshed += 1 }
-                let wantLod = lodFor(dx, dz)
+                let wantLod = lodFor(dx, dz, current: c.lod)
                 if wantLod != c.lod && !c.meshInFlight {
                     c.lod = wantLod
                     for s in c.sections where s.meshedVersion != -1 { s.version += 1 }
                 }
-                if jobs >= maxJobs { continue }
+                if jobs >= maxQueued { continue }
                 if !c.meshInFlight && inMeshRadius(dx, dz) && c.needsMesh, let nb = neighbourhood(c) {
                     let (n9, h9) = nb
                     let todo = dirtySections(c)
                     let lod = c.lod
+                    let dl = damageList(c)
                     c.meshInFlight = true
                     jobs += 1
-                    workQueue.async { [self] in
+                    // Weak: a finished operation can linger in a worker's autorelease pool and would keep the World alive.
+                    workQueue.addOperation { [weak self] in
+                        guard let self else { return }
+                        let t0 = CFAbsoluteTimeGetCurrent()
                         var out: [(Int, Int, SectionMesh)] = []
-                        for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod))) }
-                        lock.lock(); meshResults.append((k, out)); lock.unlock()
+                        for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl))) }
+                        let el = CFAbsoluteTimeGetCurrent() - t0
+                        lock.lock()
+                        meshResults.append((k, out))
+                        perfShared.meshJobs += 1; perfShared.meshSections += todo.count; perfShared.meshSeconds += el
+                        lock.unlock()
                     }
                 }
-            } else if jobs < maxJobs && !genInFlight.contains(k) {
+            } else if jobs < maxQueued && !genInFlight.contains(k) {
                 genInFlight.insert(k)
                 jobs += 1
-                workQueue.async { [self] in
-                    let r = produce(k)
-                    lock.lock(); genResults.append((k, r)); lock.unlock()
+                workQueue.addOperation { [weak self] in
+                    guard let self else { return }
+                    let t0 = CFAbsoluteTimeGetCurrent()
+                    let r = self.produce(k)
+                    let el = CFAbsoluteTimeGetCurrent() - t0
+                    lock.lock()
+                    genResults.append((k, r))
+                    perfShared.genChunks += 1; perfShared.genSeconds += el
+                    lock.unlock()
                 }
             }
         }
         meshedCount = meshed
+        scanEpoch = MeshEpoch.value         // after the loop: its own LOD re-mesh bumps are already scheduled
     }
 
     // Loads a chunk from disk or generates it (thread-safe).
@@ -411,6 +585,30 @@ final class World {
         var fromDisk: Bool
         var entities: [(IVec3, BlockEntity)]
         var mobs: [(String, V3)]
+        var tracked: [IVec3] = []            // circuit components needing periodic work (found off the main thread)
+        var emitMask: UInt32 = ~0            // sections holding light emitters (BlockStore.emitMask)
+        var springs: [IVec3] = []            // underground water sources open to cave air (flow once loaded)
+    }
+
+    // Underground water sources beside or over cave air, at least 5 below the column's top: scheduled for a fluid
+    // update on install so they spill into the cave as a waterfall (reference: aquifer fluid ticks on generation),
+    // instead of standing as a wall of water until something touches them (gencheck leak, about 200 per 288 chunks).
+    // Chunk interior only; at most 64 per chunk.
+    static func springs(_ b: [BlockID], _ k: ChunkKey, _ h: [Int16]) -> [IVec3] {
+        var out: [IVec3] = []
+        for c in 0..<CSQ {
+            let lx = c & 15, lz = c >> 4
+            let top = Int(h[c]) - 4
+            guard top > 2 else { continue }
+            for y in 2..<top {
+                let i = c + y * CSQ
+                guard b[i] == WATER || b[i] == LAVA else { continue }    // lava pools spill into caves as lavafalls too
+                let open = b[i - CSQ] == AIR || (lx > 0 && b[i - 1] == AIR) || (lx < 15 && b[i + 1] == AIR)
+                    || (lz > 0 && b[i - CS] == AIR) || (lz < 15 && b[i + CS] == AIR)
+                if open { out.append(IVec3(k.x * CS + lx, y, k.z * CS + lz)); if out.count >= 64 { return out } }
+            }
+        }
+        return out
     }
 
     private func produce(_ k: ChunkKey) -> Produced {
@@ -424,8 +622,10 @@ final class World {
             if let st = gen.structures { (ents, mobs) = st.place(into: &blocks, cx: k.x, cz: k.z) }
             ents += World.orphanEntities(blocks, k, have: ents)
         }
-        return Produced(blocks: blocks, height: Chunk.computeHeights(blocks), tint: gen.tints(cx: k.x, cz: k.z),
-                        fromDisk: fromDisk, entities: ents, mobs: mobs)
+        let heights = Chunk.computeHeights(blocks)
+        return Produced(blocks: blocks, height: heights, tint: gen.tints(cx: k.x, cz: k.z),
+                        fromDisk: fromDisk, entities: ents, mobs: mobs, tracked: Circuit.trackedCells(blocks, cx: k.x, cz: k.z),
+                        emitMask: BlockStore.emitMask(of: blocks), springs: fromDisk ? [] : World.springs(blocks, k, heights))
     }
 
     // Generated spawners/chests without a block entity (dungeons): mob and loot come from the position.
@@ -456,13 +656,19 @@ final class World {
 
     private func install(_ k: ChunkKey, _ p: Produced) {
         let c = Chunk(cx: k.x, cz: k.z, blocks: p.blocks, height: p.height, tint: p.tint)
+        c.blocks.emitMask = p.emitMask
         c.modified = p.fromDisk
+        if p.fromDisk { c.savedBlocks = c.blocks }
         chunks[k] = c
-        redstone.chunkLoaded(c)
+        for t in p.tracked { redstone.tracked.insert(t) }
+        for q in p.springs { fluidPending.insert(q) }
         // Generated chests/spawners; a regenerated chunk keeps any existing (already looted) entity.
         for (pos, be) in p.entities where blockEntities[pos] == nil { blockEntities[pos] = be }
         // Structure mobs (bastion boarlings...) appear once: the chunk is saved so it never regenerates.
-        if !p.mobs.isEmpty { c.modified = true; pendingMobs += p.mobs }
+        if !p.mobs.isEmpty {
+            c.modified = true
+            for (name, at) in p.mobs { pendingMobs.append((name, freeSpawn(at, wide: name == "iron_golem" || name == "ravager"))) }
+        }
     }
 
     // Blocking load of everything around a point (used by --snapshot and first spawn).
@@ -470,7 +676,7 @@ final class World {
         let cx = floorDiv(Int(floor(pos.x)), CS), cz = floorDiv(Int(floor(pos.z)), CS)
         let r = radius + 1
         var keys: [ChunkKey] = []
-        for dz in -r...r { for dx in -r...r {
+        for dz in -r...r { for dx in -r...r where World.inDisc(dx, dz, radius, grow: 1) {
             let k = ChunkKey(x: cx + dx, z: cz + dz)
             if chunks[k] == nil { keys.append(k) }
         } }
@@ -485,18 +691,19 @@ final class World {
         }
         let t1 = CFAbsoluteTimeGetCurrent()
 
-        var toMesh: [(Chunk, Int, Int, [[BlockID]], [[Int16]])] = []
-        for dz in -radius...radius { for dx in -radius...radius where inMeshRadius(dx, dz) {
+        var toMesh: [(Chunk, Int, Int, [BlockStore], [[Int16]])] = []
+        for dz in -radius...radius { for dx in -radius...radius where World.inDisc(dx, dz, radius, grow: 0) && inMeshRadius(dx, dz) {
             if let c = chunks[ChunkKey(x: cx + dx, z: cz + dz)], c.needsMesh, let nb = neighbourhood(c) {
                 c.lod = lodFor(dx, dz)
                 for (sy, v) in dirtySections(c) { toMesh.append((c, sy, v, nb.0, nb.1)) }
             }
         } }
+        let dls = toMesh.map { damageList($0.0) }
         let meshes = UnsafeMutablePointer<SectionMesh>.allocate(capacity: max(1, toMesh.count))
         defer { meshes.deallocate() }
         DispatchQueue.concurrentPerform(iterations: toMesh.count) { i in
             let t = toMesh[i]
-            (meshes + i).initialize(to: Mesher.buildSection(t.3, t.4, sy: t.1, lod: t.0.lod))
+            (meshes + i).initialize(to: Mesher.buildSection(t.3, t.4, sy: t.1, lod: t.0.lod, damage: dls[i]))
         }
         for (i, t) in toMesh.enumerated() {
             apply((meshes + i).move(), to: t.0, sy: t.1, version: t.2)
@@ -504,6 +711,60 @@ final class World {
         }
         let t2 = CFAbsoluteTimeGetCurrent()
         return (t1 - t0, t2 - t1)
+    }
+
+    // A structure mob placed inside a wall, floor or furniture (structcheck mob_in_block) moves to the nearest
+    // cell where a two-block body fits: straight up first, then one and two blocks around.
+    // wide: a body over a block across (iron golems, siegebeasts) stands on a cell corner with all four cells round it
+    // clear (a golem placed in a one-block gap between a house and the bank stood in both walls: behaviour sim, run 377).
+    func freeSpawn(_ p: V3, wide: Bool = false) -> V3 {
+        func clear(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+            for k in 0...1 {
+                let b = Int(block(x, y + k, z))
+                if Blocks.collide[b] && (Blocks.fullCollide[b] || !Blocks.boxes[b].isEmpty) {
+                    var top: Float = 0
+                    for bx in Blocks.boxes[b] { top = max(top, bx.maxV.y) }
+                    if Blocks.fullCollide[b] || top > (k == 0 ? 0.2 : 0.01) { return false }
+                }
+            }
+            return true
+        }
+        let x = Int(floor(p.x)), y = Int(floor(p.y + 0.01)), z = Int(floor(p.z))
+        if wide {
+            func clear4(_ cx: Int, _ cy: Int, _ cz: Int) -> Bool {
+                clear(cx - 1, cy, cz - 1) && clear(cx, cy, cz - 1) && clear(cx - 1, cy, cz) && clear(cx, cy, cz)
+                    && Blocks.collide[Int(block(cx - 1, cy - 1, cz - 1))] && Blocks.collide[Int(block(cx, cy - 1, cz))]
+            }
+            let rx = Int((p.x).rounded()), rz = Int((p.z).rounded())
+            for r in 0...3 { for dy in [0, 1, -1, 2] { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
+                if clear4(rx + dx, y + dy, rz + dz) { return V3(Float(rx + dx), Float(y + dy), Float(rz + dz)) }
+            } } } }
+            return p
+        }
+        if clear(x, y, z) { return p }
+        for dy in 1...4 where clear(x, y + dy, z) { return V3(p.x, Float(y + dy), p.z) }
+        for r in 1...2 { for dy in -1...2 { for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
+            let fx = x + dx, fy = y + dy, fz = z + dz
+            if clear(fx, fy, fz) && Blocks.collide[Int(block(fx, fy - 1, fz))] { return V3(Float(fx) + 0.5, Float(fy), Float(fz) + 0.5) }
+        } } } }
+        return p
+    }
+
+    // Generates and installs every chunk of a rectangle (chunk coordinates, inclusive) without meshing: the
+    // structure, world-gen and bot checkers only need blocks.
+    func loadBlocks(cx0: Int, cz0: Int, cx1: Int, cz1: Int) {
+        var keys: [ChunkKey] = []
+        for cz in cz0...cz1 { for cx in cx0...cx1 {
+            let k = ChunkKey(x: cx, z: cz)
+            if chunks[k] == nil { keys.append(k) }
+        } }
+        guard !keys.isEmpty else { return }
+        let res = UnsafeMutablePointer<Produced>.allocate(capacity: keys.count)
+        defer { res.deallocate() }
+        DispatchQueue.concurrentPerform(iterations: keys.count) { i in
+            (res + i).initialize(to: produce(keys[i]))
+        }
+        for (i, k) in keys.enumerated() { install(k, (res + i).move()) }
     }
 
     // Drops every chunk (after saving) — used when leaving a dimension.
@@ -514,9 +775,14 @@ final class World {
     }
 
     func saveAll() {
-        for (k, c) in chunks where c.modified { save?.saveChunk(k, c.blocks) }
+        // Only chunks changed since their last save, written on the background save queue.
+        for (k, c) in chunks where c.needsSave {
+            save?.saveChunkAsync(k, c.blocks)
+            c.savedBlocks = c.blocks
+        }
         save?.saveBlockEntities(blockEntities)
         save?.savePortals(Array(portals))
+        ships.save()
     }
 
     // MARK: Raycast (voxel DDA + per-box tests for partial blocks)
@@ -744,7 +1010,7 @@ final class World {
             let below = block(p.x, p.y - 1, p.z)
             let eternal = below == NETHERRACK || Blocks.key(below) == "magma_block"
             if rainLevel > 0.5 && !eternal, let c = chunks[ChunkKey(x: floorDiv(p.x, CS), z: floorDiv(p.z, CS))],
-               p.y >= Int(c.height[mod(p.x, CS) + mod(p.z, CS) * CS]), Int.random(in: 0..<3) == 0 {
+               p.y >= Int(c.height[mod(p.x, CS) + mod(p.z, CS) * CS]), Rand.int(in: 0..<3) == 0 {
                 let b = gen.column(p.x, p.z).biome
                 if !(b == .desert || b.isBadlands || b == .savanna || b == .savannaPlateau) {
                     setBlockAsync(p.x, p.y, p.z, AIR); fires.removeValue(forKey: p); continue
@@ -756,20 +1022,20 @@ final class World {
                 let nb = block(q.x, q.y, q.z)
                 guard fl[Int(nb)] else { continue }
                 anyFlammable = true
-                if Int.random(in: 0..<5) == 0 {
+                if Rand.int(in: 0..<5) == 0 {
                     onIgnite?(q, nb)
-                    if Int.random(in: 0..<2) == 0 { setBlockAsync(q.x, q.y, q.z, FIRE); fires[q] = 0 } else { setBlockAsync(q.x, q.y, q.z, AIR) }
+                    if Rand.int(in: 0..<2) == 0 { setBlockAsync(q.x, q.y, q.z, FIRE); fires[q] = 0 } else { setBlockAsync(q.x, q.y, q.z, AIR) }
                 }
             }
             // Spread to air next to flammable blocks nearby.
-            if anyFlammable && Int.random(in: 0..<3) == 0 {
-                let q = IVec3(p.x + Int.random(in: -1...1), p.y + Int.random(in: -1...2), p.z + Int.random(in: -1...1))
+            if anyFlammable && Rand.int(in: 0..<3) == 0 {
+                let q = IVec3(p.x + Rand.int(in: -1...1), p.y + Rand.int(in: -1...2), p.z + Rand.int(in: -1...1))
                 if block(q.x, q.y, q.z) == AIR && World.allDirs.contains(where: { fl[Int(block(q.x + $0.x, q.y + $0.y, q.z + $0.z))] }) {
                     setBlockAsync(q.x, q.y, q.z, FIRE); fires[q] = 0
                 }
             }
             let supported = Blocks.opaque[Int(below)] || anyFlammable
-            if !eternal && (!supported || (age > 6 && Int.random(in: 0..<4) == 0 && !anyFlammable) || age > 30) {
+            if !eternal && (!supported || (age > 6 && Rand.int(in: 0..<4) == 0 && !anyFlammable) || age > 30) {
                 setBlockAsync(p.x, p.y, p.z, AIR)
                 fires.removeValue(forKey: p)
             } else {

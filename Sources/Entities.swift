@@ -52,7 +52,7 @@ final class ItemEntity {
     var age: Float = 0
     var pickupDelay: Float
     var onGround = false
-    let spin = Float.random(in: 0..<(2 * .pi))
+    let spin = Rand.float(in: 0..<(2 * .pi))
 
     init(_ s: ItemStack, at p: V3, vel v: V3, delay: Float = 0.5) {
         stack = s
@@ -88,7 +88,7 @@ final class ItemEntityManager {
 
     func spawn(_ s: ItemStack, at p: V3, vel: V3? = nil, delay: Float = 0.5) {
         if s.isEmpty { return }
-        let v = vel ?? V3(Float.random(in: -1...1), Float.random(in: 2...3.5), Float.random(in: -1...1))
+        let v = vel ?? V3(Rand.float(in: -1...1), Rand.float(in: 2...3.5), Rand.float(in: -1...1))
         items.append(ItemEntity(s, at: p, vel: v, delay: delay))
     }
 

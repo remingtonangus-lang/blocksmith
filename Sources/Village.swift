@@ -164,12 +164,21 @@ enum Village {
                     let ax = px + nx * 2 - ux * (w / 2), az = pz + nz * 2 - uz * (w / 2)
                     let fx = ax + ux * (w - 1) + nx * (d - 1), fz = az + uz * (w - 1) + nz * (d - 1)
                     guard free(ax, az, fx, fz) else { continue }
-                    // Ground under the corners: skip steep lots, floor on the highest corner.
+                    // Ground under the corners: skip steep lots. The floor sits level with the street in front of the
+                    // door (the road's edge column), so a walker steps straight in; the foundation fills or the
+                    // clearing cuts the rest of the footprint to that level.
                     let ys = [gen.groundY(ax, az), gen.groundY(fx, fz), gen.groundY(ax + ux * (w - 1), az + uz * (w - 1)), gen.groundY(ax + nx * (d - 1), az + nz * (d - 1))]
                     guard let lo = ys.min(), let hi = ys.max(), hi - lo <= 4, lo >= SEA else { continue }
-                    claim(ax - nx, az - nz, fx + nx, fz + nz)
+                    let street = gen.groundY(px + nx, pz + nz)
+                    guard abs(street - hi) <= 4 && abs(street - lo) <= 4 else { continue }
+                    // Two blocks spare on each side along the street too: neighbours stood wall to wall and their roof
+                    // eaves ran into each other (blind critic, run 364 cherry-grove village).
+                    claim(ax - nx - 2 * ux, az - nz - 2 * uz, fx + nx + 2 * ux, fz + nz + 2 * uz)
                     if [.smithy, .library, .temple, .pen].contains(kind) { haveSpecial.insert("\(kind)") }
-                    lots.append(Lot(kind: kind, ax: ax, az: az, face: face, w: w, d: d, y: hi + 1, seed: rng.next(), job: jobs[rng.int(jobs.count)]))
+                    // Walking level = street + 1: houses, farms and pens have their floor/ground block at y - 1; the
+                    // smithy's stone floor is its own bottom layer, so it sits one lower.
+                    let floorY = kind == .smithy ? street : street + 1
+                    lots.append(Lot(kind: kind, ax: ax, az: az, face: face, w: w, d: d, y: floorY, seed: rng.next(), job: jobs[rng.int(jobs.count)]))
                 }
                 s += rng.range(7, 10)
             }
@@ -204,11 +213,35 @@ enum Village {
         }
         for lot in lots {
             let (x0, z0, x1, z1) = bounds(lot)
-            pieces.append(Piece(min: IVec3(x0 - 1, lot.y - 12, z0 - 1), max: IVec3(x1 + 1, lot.y + 14, z1 + 1)) { w in
+            pieces.append(Piece(min: IVec3(x0 - 3, lot.y - 12, z0 - 3), max: IVec3(x1 + 3, lot.y + 14, z1 + 3)) { w in
+                sealCaves(&w, x0 - 3, z0 - 3, x1 + 3, z1 + 3, top: lot.y + 6, floor: lot.y, depth: lot.y - 7)
                 buildLot(&w, lot, m, styleV)
             })
         }
         return StructureStart(kind: "village", pieces: pieces, anchor: IVec3(ox + 6, plaza + 1, oz + 6))
+    }
+
+    // Cave pockets just under the ground round a house, filled with dirt (two villagers spent the whole behaviour sim
+    // in a cave under the dirt beside a house with no way out: run 371). Below each column's surface only, never
+    // water, never above the ground or the house floor (a neighbouring house in the margin keeps its rooms).
+    static func sealCaves(_ w: inout StructWriter, _ x0: Int, _ z0: Int, _ x1: Int, _ z1: Int, top: Int, floor: Int, depth: Int) {
+        for z in z0...z1 { for x in x0...x1 where w.inside(x, top, z) {
+            var y = top
+            while y > depth && !Blocks.opaque[Int(w.get(x, y, z))] { y -= 1 }
+            // (No lid over deeper shafts: a neighbour house's foundation stopped on it and hung over the ravine below,
+            // structcheck floating 26-34 columns, run 385.)
+            guard y > depth else { continue }
+            // Each run of air filled only when it rests on a solid block within the depth (a run that goes deeper is
+            // left alone: dirt hung over a deeper cave).
+            var yy = min(y, floor) - 1
+            while yy > depth {
+                guard w.get(x, yy, z) == AIR else { yy -= 1; continue }
+                var b = yy
+                while b > depth && w.get(x, b, z) == AIR { b -= 1 }
+                if b > depth && Blocks.collide[Int(w.get(x, b, z))] { for f in (b + 1)...yy { w.set(x, f, z, DIRT) } }
+                yy = b - 1
+            }
+        } }
     }
 
     static func bounds(_ l: Lot) -> (Int, Int, Int, Int) {
@@ -243,6 +276,9 @@ enum Village {
         func fill(_ w: inout StructWriter, _ u0: Int, _ y0: Int, _ v0: Int, _ u1: Int, _ y1: Int, _ v1: Int, _ b: BlockID) {
             for dy in y0...y1 { for v in v0...v1 { for u in u0...u1 { set(&w, u, dy, v, b) } } }
         }
+        // A torch on the wall behind it, facing the local direction (wall torch state = 1 + world facing): the house
+        // torches stood in mid-air or on top of chests and job blocks.
+        func wallTorch(facing local: Int) -> BlockID { TORCH + BlockID(1 + Village.dir(l, local)) }
         // Stairs whose high side points toward a local direction (world stairs state = facing index).
         func stair(_ base: BlockID, high local: Int, top: Bool = false) -> BlockID {
             base + BlockID(Village.dir(l, local) + (top ? 4 : 0))
@@ -254,23 +290,70 @@ enum Village {
         let clear = [Kind.farm, .pen].contains(l.kind) ? 3 : (l.kind == .temple ? 14 : (l.kind == .bigHouse ? 13 : 9))
         for v in 0..<l.d { for u in 0..<l.w {
             let (x, z) = world(l, u, v)
-            w.pillarDown(x, l.y - 1, z, m.foundation, minY: l.y - 12)
+            w.pillarDown(x, l.y - 1, z, m.foundation, minY: l.y - 40)      // over deeper caves too (structcheck floating; 24 left 6-8 columns, run 357)
             for dy in 0...clear where w.inside(x, l.y + dy, z) && w.get(x, l.y + dy, z) != AIR { w.set(x, l.y + dy, z, AIR) }
+        } }
+        // A ring two blocks wide round the lot cut back to a one-block step: the hillside left standing at the lot's
+        // edge made one-block trenches under grass overhangs beside houses, and villagers who wandered in had no path
+        // out (behaviour sim, run 380). Natural ground only, so a neighbour's walls or the street stay.
+        let natural: Set<BlockID> = [GRASS, DIRT, STONE, SAND, GRAVEL, SNOW, SNOWY_GRASS, Blocks.id("coarse_dirt"), Blocks.id("podzol"),
+                                     Blocks.id("snow"), Blocks.id("andesite"), Blocks.id("diorite"), Blocks.id("granite"), Blocks.id("clay")]
+        for v in -2...(l.d + 1) { for u in -2...(l.w + 1) where u < 0 || v < 0 || u >= l.w || v >= l.d {
+            let (x, z) = world(l, u, v)
+            let ring = max(u < 0 ? -u : (u >= l.w ? u - l.w + 1 : 0), v < 0 ? -v : (v >= l.d ? v - l.d + 1 : 0))
+            for dy in ring...clear where w.inside(x, l.y + dy, z) {
+                let b = w.get(x, l.y + dy, z)
+                if natural.contains(b) || (Blocks.replaceable[Int(b)] && !Blocks.isLiquid(b) && b != AIR) { w.set(x, l.y + dy, z, AIR) }
+            }
         } }
     }
 
+    // Per-house variety in plains and taiga villages: wall and roof materials picked per lot, the roof always darker
+    // than the walls (every house was the same orange oak, roofs blending into walls: blind critic, run 395).
+    static func varied(_ m: Mats, _ l: Lot) -> Mats {
+        let g = Blocks.id
+        let (ox, oz) = world(l, 0, 0)
+        let k = Int(hashf(ox, l.y, oz, 0x40F5) * 4)
+        func with(wall: String, roof: String, planks: String? = nil) -> Mats {
+            guard Blocks.has(wall), Blocks.has(roof + "_stairs") else { return m }
+            let roofPlanks = planks ?? (roof + "_planks")
+            return Mats(planks: Blocks.has(roofPlanks) ? g(roofPlanks) : m.planks, log: m.log, wall: g(wall), floor: m.floor,
+                        foundation: m.foundation, stairs: g(roof + "_stairs"), slab: m.slab, fence: m.fence, door: m.door, path: m.path,
+                        roofFlat: m.roofFlat, bed: m.bed)
+        }
+        if m.planks == g("oak_planks") {
+            switch k {
+            case 0: return with(wall: "oak_planks", roof: "spruce")
+            case 1: return with(wall: "white_terracotta", roof: "dark_oak")
+            case 2: return with(wall: "birch_planks", roof: "spruce")
+            default: return with(wall: "oak_planks", roof: "dark_oak")
+            }
+        }
+        if m.planks == g("spruce_planks") && m.wall == g("spruce_planks") {
+            switch k {
+            case 0: return with(wall: "spruce_planks", roof: "dark_oak")
+            case 1: return with(wall: "stripped_spruce_log", roof: "dark_oak")
+            default: return m
+            }
+        }
+        return m
+    }
+
     // A walled room with log corners, windows, a door on the street side and a gable (or flat) roof.
-    static func house(_ w: inout StructWriter, _ b: LB, _ m: Mats, wallH: Int, roof: Bool = true) {
+    static func house(_ w: inout StructWriter, _ b: LB, _ m0: Mats, wallH: Int, roof: Bool = true) {
         let l = b.l
+        let m = varied(m0, l)
         foundation(&w, b, m)
+        // Floor level with the door sill (the walls stand on the foundation ring around it).
         b.fill(&w, 0, -1, 0, l.w - 1, -1, l.d - 1, m.foundation)
-        b.fill(&w, 1, 0, 1, l.w - 2, 0, l.d - 2, m.floor)
+        b.fill(&w, 1, -1, 1, l.w - 2, -1, l.d - 2, m.floor)
         for v in 0..<l.d { for u in 0..<l.w {
             let edgeU = u == 0 || u == l.w - 1, edgeV = v == 0 || v == l.d - 1
             guard edgeU || edgeV else { continue }
             for dy in 0..<wallH {
                 let corner = edgeU && edgeV
-                var blk = corner ? m.log : m.wall
+                // A stone base course under plank walls (houses read as one brown blob: blind critic, run 385).
+                var blk = corner ? m.log : (dy == 0 && wallH >= 4 ? m.foundation : m.wall)
                 let window = dy == 1 && !corner && ((edgeV && u % 2 == 0) || (edgeU && v % 2 == 0))
                 if window { blk = Blocks.id("glass_pane") }
                 b.set(&w, u, dy, v, blk)
@@ -281,6 +364,7 @@ enum Village {
         b.set(&w, du, 0, 0, m.door + BlockID(dir(l, 1)))
         b.set(&w, du, 1, 0, m.door + BlockID(dir(l, 1) + 8))
         b.set(&w, du, -1, -1, m.foundation)
+        for dy in 0...3 { b.set(&w, du, dy, -1, AIR) }          // nothing in front of the door (road lamp posts)
         // Roof.
         if !roof { return }
         if m.roofFlat {
@@ -324,7 +408,7 @@ enum Village {
         case .smallHouse, .jobHut:
             house(&w, b, m, wallH: 4)
             bed(&w, b, m, u: 1, v: 2)
-            b.set(&w, l.w - 2, 1, l.d - 2, TORCH)
+            b.set(&w, l.w - 2, 2, l.d - 2, b.wallTorch(facing: 1))                 // on the back wall (was on the chest)
             villager(&w, b, u: l.w - 2, v: 2)
             if l.kind == .jobHut {
                 let job = ["butcher": "smoker", "cartographer": "cartography_table", "fletcher": "fletching_table", "shepherd": "loom",
@@ -341,7 +425,7 @@ enum Village {
             let c = world(l, 2, l.d - 2)
             w.chest(c.0, l.y, c.1, loot: "village_house", seed: rng.next(), facing: dir(l, 1))
             b.set(&w, 4, 0, l.d - 2, g("flower_pot"))
-            b.set(&w, 1, 2, 1, TORCH)
+            b.set(&w, 1, 2, 1, b.wallTorch(facing: 2))                            // on the side wall (was in mid-air)
             villager(&w, b, u: 3, v: 2); villager(&w, b, u: 3, v: 3)
         case .bigHouse:
             house(&w, b, m, wallH: 8)
@@ -351,7 +435,7 @@ enum Village {
             b.set(&w, 5, 0, l.d - 2, g("crafting_table"))
             let c = world(l, 1, l.d - 2)
             w.chest(c.0, l.y, c.1, loot: "village_house", seed: rng.next(), facing: dir(l, 1))
-            b.set(&w, 4, 2, 1, TORCH); b.set(&w, 4, 6, l.d - 2, TORCH)
+            b.set(&w, 4, 2, 1, b.wallTorch(facing: 0)); b.set(&w, 4, 6, l.d - 2, b.wallTorch(facing: 1))
             villager(&w, b, u: 4, v: 3); villager(&w, b, u: 2, v: 4, dy: 5); villager(&w, b, u: 5, v: 3)
         case .farm:
             foundation(&w, b, m)
@@ -401,7 +485,7 @@ enum Village {
             for u in 1..<(l.w - 1) where u != l.w / 2 { b.fill(&w, u, 0, l.d - 2, u, 2, l.d - 2, g("bookshelf")) }
             b.fill(&w, 1, 0, 2, 1, 2, l.d - 3, g("bookshelf"))
             b.set(&w, l.w / 2, 0, l.d - 3, g("lectern"))
-            b.set(&w, l.w - 2, 3, 1, TORCH)
+            b.set(&w, l.w - 2, 3, 1, b.wallTorch(facing: 0))
             villager(&w, b, u: l.w / 2, v: 2)
         case .temple:
             house(&w, b, m, wallH: 11, roof: false)
@@ -410,7 +494,7 @@ enum Village {
             b.fill(&w, 1, 4, 3, l.w - 2, 4, l.d - 2, m.floor)
             for dy in 0...4 { b.set(&w, 1, dy, 2, g("ladder") + BlockID(dir(l, 2))) }
             b.set(&w, l.w / 2, 0, l.d - 2, g("cauldron"))
-            b.set(&w, l.w / 2, 5, l.d - 2, TORCH)
+            b.set(&w, l.w / 2, 5, l.d - 2, b.wallTorch(facing: 1))
             villager(&w, b, u: 2, v: 3)
         }
     }
@@ -418,7 +502,7 @@ enum Village {
     static func meetingPoint(_ w: inout StructWriter, _ ox: Int, _ y: Int, _ oz: Int, _ m: Mats, _ style: Style) {
         // Plaza of path blocks with a well in the middle and a bell beside it.
         for dz in -4...4 { for dx in -4...4 {
-            w.pillarDown(ox + dx, y - 1, oz + dz, m.foundation, minY: y - 6)
+            w.pillarDown(ox + dx, y - 1, oz + dz, m.foundation, minY: y - 24)
             w.set(ox + dx, y, oz + dz, m.path)
             for k in 1...6 where w.get(ox + dx, y + k, oz + dz) != AIR { w.set(ox + dx, y + k, oz + dz, AIR) }
         } }
@@ -436,5 +520,8 @@ enum Village {
         w.set(ox + 3, y + 1, oz - 3, Blocks.id("bell"))
         w.mob("villager", V3(Float(ox) + 3.5, Float(y + 1), Float(oz) + 3.5))
         w.mob("iron_golem", V3(Float(ox) - 3.5, Float(y + 1), Float(oz) - 3.5))
+        // Village animals (reference): a stray cat on the plaza; desert villages keep a camel.
+        w.mob("cat", V3(Float(ox) - 3.5, Float(y + 1), Float(oz) + 3.5))
+        if style == .desert { w.mob("camel", V3(Float(ox) + 3.5, Float(y + 1), Float(oz) - 1.5)) }
     }
 }

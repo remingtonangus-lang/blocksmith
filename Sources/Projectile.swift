@@ -35,6 +35,7 @@ final class Fireball {
     var dragon = false             // hollow wyrm fireball: leaves a cloud of acid instead of exploding
     var potion: ItemID = 0         // thrown splash / lingering potion or bottle o' enchanting (item)
     var kind: Thrown = .fire
+    var egg: ItemID = 0            // thrown egg: which one (the chick's climate variant)
     weak var shooter: Mob?
     init(_ p: V3, _ v: V3, big: Bool, byPlayer: Bool) { pos = p; vel = v; self.big = big; self.byPlayer = byPlayer }
 }
@@ -107,16 +108,24 @@ final class ProjectileManager {
                     g.thrownImpact(f, at: at, mob: hitMob, player: hitPlayer, block: blockHit)
                     continue
                 }
-                if hitPlayer {
+                if f.dragon {
+                    // Wyrm fireballs only burst into a lingering breath cloud (below).
+                } else if hitPlayer {
                     g.hurtPlayer(f.big ? 6 : 5, from: f.pos, cause: f.big ? "was fireballed by Wailer" : "was fireballed by Cinderwisp", type: .projectile)
                     if !f.big { g.onFire = max(g.onFire, 5) }
                 } else if let m = hitMob {
                     m.hit(from: f.pos, damage: f.big && f.byPlayer && m.kind == .ghast ? 1000 : (f.big ? 6 : 5), knockback: 0.5)
                     if f.byPlayer { m.killedByPlayer = true }
+                    // A wailer brought down by its own fireball sent back: the "Sent Back" advancement and its disc.
+                    if f.big && f.byPlayer && m.kind == .ghast {
+                        g.achieve("ghast_fireball")
+                        if Items.has("music_disc_tears") { g.drops.spawn(ItemStack(Items.id("music_disc_tears"), 1), at: m.pos + V3(0, 1, 0)) }
+                    }
                     if !f.big && !m.spec.fireImmune { m.fire = max(m.fire, 5) }
                 }
                 if f.dragon {
-                    g.clouds.append(AcidCloud(pos: at, radius: 3, time: 8))
+                    // Reference: a breath cloud lasting 30 s that spreads from radius 3 to 7.
+                    g.clouds.append(AcidCloud(pos: at, radius: 3, time: 30, maxTime: 30))
                 } else if f.big {
                     Explosion.explode(at: at, power: 1, game: g, fire: true)
                 } else if let b = blockHit {
@@ -125,7 +134,7 @@ final class ProjectileManager {
                 continue
             }
             f.pos += step
-            if (f.kind == .fire || f.kind == .witherSkull || f.kind == .blueSkull) && Float.random(in: 0..<1) < dt * 30 { g.particles.smoke(at: f.pos) }
+            if (f.kind == .fire || f.kind == .witherSkull || f.kind == .blueSkull) && Rand.float(in: 0..<1) < dt * 30 { g.particles.smoke(at: f.pos) }
         }
         fireballs.removeAll { $0.dead }
     }
@@ -133,7 +142,7 @@ final class ProjectileManager {
     @discardableResult
     func shoot(from p: V3, dir: V3, speed: Float, fromPlayer: Bool, damage: Float) -> Arrow {
         let spread: Float = fromPlayer ? 0.0075 : 0.03
-        let d = simd_normalize(dir + V3(Float.random(in: -1...1), Float.random(in: -1...1), Float.random(in: -1...1)) * spread)
+        let d = simd_normalize(dir + V3(Rand.float(in: -1...1), Rand.float(in: -1...1), Rand.float(in: -1...1)) * spread)
         let a = Arrow(p, d * speed, fromPlayer: fromPlayer, damage: damage)
         arrows.append(a)
         return a
@@ -204,15 +213,29 @@ final class ProjectileManager {
                 }
                 if blockT == .greatestFiniteMagnitude { blockT = len }
             }
+            if hitT < blockT, let m = hitMob, a.trident == nil,
+               (m.kind == .enderDragon && m.phase == 4) || (m.kind == .wither && m.phase == 0 && m.health <= m.spec.health / 2) {
+                // A perched wyrm and an armoured Blight (below half health) shrug arrows off: they bounce away.
+                a.pos += dir * max(0, hitT - 0.05)
+                a.vel = V3(-a.vel.x * 0.1, 1.5, -a.vel.z * 0.1)
+                a.hitMobs.append(ObjectIdentifier(m))
+                g.sfx(.arrowHit, 0.5, at: a.pos)
+                continue
+            }
             if hitT < blockT {
                 let speedPerTick = simd_length(a.vel) / 20
                 var dmg = Int(ceilf(speedPerTick * a.damage))
-                if a.fromPlayer && Float.random(in: 0..<1) < 0.25 { dmg += Int.random(in: 0...(dmg / 2 + 1)) }
-                if let m = hitMob {
+                if a.fromPlayer && Rand.float(in: 0..<1) < 0.25 { dmg += Rand.int(in: 0...(dmg / 2 + 1)) }
+                if let m = hitMob, m.kind == .enderman, a.trident == nil {
+                    m.teleport(w)                                  // voidwalkers dodge arrows
+                } else if let m = hitMob {
                     if let t = a.trident { dmg = 8 + Int(Enchant.damageBonus(t, against: m)) }
+                    let h0 = m.health
                     m.hit(from: a.pos, damage: dmg, knockback: 0.6 + 0.6 * Float(a.punch))
+                    m.arrowDamage += max(0, h0 - m.health)
                     if a.trident != nil { g.tridentHit(a, mob: m) }
-                    if a.fromPlayer { m.killedByPlayer = true; m.provoke(g) } else { m.lastHitBySkeleton = true }
+                    if a.fromPlayer { m.killedByPlayer = true; m.provoke(g); g.achieve(a.trident != nil ? "trident_hit" : "arrow_hit") }
+                    else { m.lastHitBySkeleton = true }
                     if a.flame && !m.spec.fireImmune { m.fire = max(m.fire, 5) }
                     if a.tip != 0 { g.arrowEffects(a.tip, onPlayer: false, mob: m) }
                     g.sfx(.arrowHit, 0.7, at: a.pos)
@@ -256,7 +279,7 @@ final class ProjectileManager {
                 let layer: Int
                 switch f.kind {
                 case .snowball: layer = Items.texLayer(Items.id("snowball")) ?? fl
-                case .egg: layer = Items.texLayer(Items.id("egg")) ?? fl
+                case .egg: layer = Items.texLayer(f.egg != 0 ? f.egg : Items.id("egg")) ?? fl
                 case .pearl: layer = Items.texLayer(Items.id("ender_pearl")) ?? fl
                 default: layer = Int(Tex.id(f.kind == .blueSkull ? "skull_skeleton_face" : "skull_wither_face"))
                 }

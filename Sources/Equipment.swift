@@ -8,7 +8,7 @@ enum ArmorLook {
         let k = Items.key(item)
         let mats: [(String, V3)] = [("leather_", V3(0.55, 0.35, 0.2)), ("chainmail_", V3(0.55, 0.55, 0.58)), ("iron_", V3(0.86, 0.86, 0.86)),
                                     ("golden_", V3(0.95, 0.82, 0.25)), ("diamond_", V3(0.3, 0.88, 0.84)), ("netherite_", V3(0.3, 0.27, 0.28)),
-                                    ("turtle_", V3(0.3, 0.6, 0.25))]
+                                    ("turtle_", V3(0.3, 0.6, 0.25)), ("copper_", V3(0.78, 0.48, 0.33))]
         for (p, c) in mats where k.hasPrefix(p) { return c }
         if k == "carved_pumpkin" { return V3(0.9, 0.55, 0.1) }
         if k.hasSuffix("_head") || k.hasSuffix("_skull") { return V3(0.8, 0.8, 0.75) }
@@ -25,33 +25,33 @@ extension Mob {
     // (leather, gold, chain, iron, diamond); boots always, each further piece stops with 25% (10% on hard).
     func rollEquipment(difficulty: Int, regional: Float) {
         guard ArmorLook.fits(kind), kind != .armorStand, difficulty > 0 else { return }
-        guard Float.random(in: 0..<1) < 0.15 * regional else { return }
-        var tier = Int.random(in: 0...1)
-        for _ in 0..<3 where Float.random(in: 0..<1) < 0.095 { tier += 1 }
+        guard Rand.float(in: 0..<1) < 0.15 * regional else { return }
+        var tier = Rand.int(in: 0...1)
+        for _ in 0..<3 where Rand.float(in: 0..<1) < 0.095 { tier += 1 }
         let mat = ["leather", "golden", "chainmail", "iron", "diamond"][tier]
         let stop: Float = difficulty == 3 ? 0.1 : 0.25
         var eq = [ItemStack](repeating: .empty, count: 5)
         for slot in [3, 2, 1, 0] {
-            if slot != 3 && Float.random(in: 0..<1) < stop { break }
+            if slot != 3 && Rand.float(in: 0..<1) < stop { break }
             let piece = ["helmet", "chestplate", "leggings", "boots"][slot]
             let n = "\(mat)_\(piece)"
             if Items.has(n) {
                 let d = Items.def(Items.id(n)).durability
                 eq[slot] = ItemStack(Items.id(n), 1)
-                if d > 1 { eq[slot].damage = Int.random(in: 0..<max(1, d - 1)) }
+                if d > 1 { eq[slot].damage = Rand.int(in: 0..<max(1, d - 1)) }
             }
         }
         // Zombies: 1% (5% hard) carry an iron sword (1/3) or shovel.
-        if [.zombie, .husk, .drowned].contains(kind) && Float.random(in: 0..<1) < (difficulty == 3 ? 0.05 : 0.01) {
-            let n = Int.random(in: 0..<3) == 0 ? "iron_sword" : "iron_shovel"
+        if [.zombie, .husk, .drowned].contains(kind) && Rand.float(in: 0..<1) < (difficulty == 3 ? 0.05 : 0.01) {
+            let n = Rand.int(in: 0..<3) == 0 ? "iron_sword" : "iron_shovel"
             if Items.has(n) { eq[4] = ItemStack(Items.id(n), 1) }
         }
         if eq.contains(where: { !$0.isEmpty }) { equip = eq }
     }
 
     var armorPoints: (Int, Float) {
-        guard let e = equip else { return (0, 0) }
-        var pts = 0, tough: Float = 0
+        var (pts, tough) = steelholdArmor
+        guard let e = equip else { return (pts, tough) }
         for s in e.prefix(4) where !s.isEmpty { pts += s.def.armor; tough += s.def.toughness }
         return (pts, tough)
     }
@@ -64,7 +64,7 @@ extension Mob {
         let f = min(20, max(a / 5, a - d / (2 + t / 4))) / 25
         let r = d * (1 - f)
         let whole = floor(r)
-        return Int(whole) + (Float.random(in: 0..<1) < r - whole ? 1 : 0)
+        return Int(whole) + (Rand.float(in: 0..<1) < r - whole ? 1 : 0)
     }
 
     // A held weapon adds its attack damage to melee hits.
@@ -192,7 +192,7 @@ extension Game {
             inventory.held = old
         }
         m.equip = eq.contains(where: { !$0.isEmpty }) ? eq : nil
-        sfx(.place(.wood), 0.5, at: m.pos)
+        sfx(.armorEquip(2), 0.7, at: m.pos)
         return true
     }
 }
@@ -212,7 +212,13 @@ extension Game {
     // Reference clamped regional difficulty (0...1): grows with world age and time spent in the area
     // (world time stands in for chunk inhabited time); halved on easy, always 0 early on normal.
     var regionalDifficulty: Float {
-        let ticks = Float(time * 20 / DAY_LENGTH * 24000)
+        let r = effectiveDifficulty
+        return r < 2 ? 0 : (r > 4 ? 1 : (r - 2) / 2)
+    }
+
+    // Unclamped regional difficulty (0 peaceful ... 6.75 on hard): patrol sizes, spawn buffs.
+    var effectiveDifficulty: Float {
+        let ticks = Float(time * 20)
         var f: Float = 0.75
         let h = max(0, min(1, (ticks - 72000) / 1_440_000)) * 0.25
         f += h
@@ -220,7 +226,6 @@ extension Game {
         i += min(0.125, h)
         if difficulty == 1 { i *= 0.5 }
         f += i
-        let r = Float(difficulty) * f
-        return r < 2 ? 0 : (r > 4 ? 1 : (r - 2) / 2)
+        return Float(difficulty) * f
     }
 }

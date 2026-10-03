@@ -210,6 +210,11 @@ extension Game {
 
     // One step of every active effect on the player (runs every frame).
     func effectTick(_ dt: Float) {
+        // Levitation carrying the player 50 blocks up ("Lifted").
+        if player.levitate > 0 {
+            if levitateFromY == nil { levitateFromY = player.pos.y }
+            if let y0 = levitateFromY, player.pos.y - y0 >= 50 { achieve("levitate50") }
+        } else { levitateFromY = nil }
         guard effects.any else { applyMovementEffects(); return }
         var anyLeft = false
         for i in effects.slots.indices {
@@ -298,14 +303,14 @@ extension Game {
             applyEffect(.absorption, amp: 3, seconds: 120)
             applyEffect(.resistance, amp: 0, seconds: 300)
             applyEffect(.fireResistance, amp: 0, seconds: 300)
-        case "rotten_flesh": if Float.random(in: 0..<1) < 0.8 { applyEffect(.hunger, amp: 0, seconds: 30) }
-        case "chicken": if Float.random(in: 0..<1) < 0.3 { applyEffect(.hunger, amp: 0, seconds: 30) }
+        case "rotten_flesh": if Rand.float(in: 0..<1) < 0.8 { applyEffect(.hunger, amp: 0, seconds: 30) }
+        case "chicken": if Rand.float(in: 0..<1) < 0.3 { applyEffect(.hunger, amp: 0, seconds: 30) }
         case "spider_eye": applyEffect(.poison, amp: 0, seconds: 5)
         case "pufferfish":
             applyEffect(.hunger, amp: 2, seconds: 15)
             applyEffect(.nausea, amp: 0, seconds: 15)
             applyEffect(.poison, amp: 1, seconds: 60)
-        case "poisonous_potato": if Float.random(in: 0..<1) < 0.6 { applyEffect(.poison, amp: 0, seconds: 5) }
+        case "poisonous_potato": if Rand.float(in: 0..<1) < 0.6 { applyEffect(.poison, amp: 0, seconds: 5) }
         case "honey_bottle": effects.remove(.poison)
         case "milk_bucket":
             effects.clear(); absorption = 0; health = min(health, maxHealth)
@@ -342,6 +347,8 @@ extension Mob {
 
     // Applies an effect to a mob (undead swap instant health and damage and ignore poison/regeneration).
     func applyEffect(_ e: Effect, amp: Int, seconds: Float, game g: Game) {
+        // The wyrm (and its crystals) ignore every effect; the Blight ignores blight.
+        if kind == .enderDragon || kind == .endCrystal || (kind == .wither && e == .wither) { return }
         var e = e
         if undead && e == .instantHealth { e = .instantDamage } else if undead && e == .instantDamage { e = .instantHealth }
         switch e {
@@ -397,6 +404,7 @@ extension Game {
         saveAdvancements(&d)
         d["eaten"] = eatenFoods.sorted().joined(separator: "|")
         if let e = try? JSONEncoder().encode(enderChest.slots), let str = String(data: e, encoding: .utf8) { d["ender"] = str }
+        if let r = raid?.record, let e = try? JSONEncoder().encode(r), let str = String(data: e, encoding: .utf8) { d["raid"] = str }
         return d
     }
     func loadExtra(_ d: [String: String]) {
@@ -409,5 +417,6 @@ extension Game {
         if let str = d["ender"], let data = str.data(using: .utf8), let slots = try? JSONDecoder().decode([ItemStack].self, from: data) {
             for (i, st) in slots.prefix(27).enumerated() { enderChest[i] = st }
         }
+        if let str = d["raid"], let data = str.data(using: .utf8), let rec = try? JSONDecoder().decode(RaidRecord.self, from: data) { raid = Raid(rec) }
     }
 }

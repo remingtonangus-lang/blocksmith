@@ -12,17 +12,23 @@ extension Game {
 
     // Burst: knocks back everything within 2.5 blocks (the thrower included, which launches them).
     func windBurst(at c: V3) {
-        sfx(.fireball, 0.8, at: c)
+        sfx(.windCharge, 1, at: c)
         particles.explosion(at: c, power: 0.4)
         for m in mobs.mobs where m.health > 0 {
             let d = m.pos + V3(0, m.height / 2, 0) - c
             let l = simd_length(d)
-            if l < 2.5 { m.vel += (l > 0.01 ? d / l : V3(0, 1, 0)) * (2.5 - l) * 6 + V3(0, 4, 0) }
+            if l < 2.5 {
+                let dir: V3 = l > 0.01 ? d / l : V3(0, 1, 0)
+                let s: Float = (2.5 - l) * 6
+                m.vel += dir * s + V3(0, 4, 0)
+            }
         }
         let d = player.pos + V3(0, 0.9, 0) - c
         let l = simd_length(d)
         if l < 2.5 {
-            player.vel += (l > 0.01 ? d / l : V3(0, 1, 0)) * (2.5 - l) * 7 + V3(0, 6, 0)
+            let dir: V3 = l > 0.01 ? d / l : V3(0, 1, 0)
+            let s: Float = (2.5 - l) * 7
+            player.vel += dir * s + V3(0, 6, 0)
             player.airPeak = player.pos.y                   // no fall damage from the launch height
         }
         // Flips doors, trapdoors, gates, levers and buttons it touches.
@@ -57,7 +63,7 @@ extension Game {
         }
         if soaked > 0 {
             world.setBlock(p.x, p.y, p.z, Blocks.id("wet_sponge"))
-            sfx(.splash, 0.6, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
+            sfx(.bucketFill, 0.6, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
         }
     }
 

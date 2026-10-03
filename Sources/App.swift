@@ -1,5 +1,6 @@
 import AppKit
 import MetalKit
+import QuartzCore
 import GameController
 
 func arg(_ name: String) -> String? {
@@ -37,9 +38,11 @@ final class GameView: MTKView {
     }
     private func track(_ e: NSEvent) {
         let p = convert(e.locationInWindow, from: nil)
-        let sc = window?.backingScaleFactor ?? 2
-        input.mouseX = Float(p.x * sc)
-        input.mouseY = Float((bounds.height - p.y) * sc)
+        // Drawable pixels per point (backing scale x the renderer's dynamic resolution scale).
+        let sx = bounds.width > 0 ? drawableSize.width / bounds.width : (window?.backingScaleFactor ?? 2)
+        let sy = bounds.height > 0 ? drawableSize.height / bounds.height : sx
+        input.mouseX = Float(p.x * sx)
+        input.mouseY = Float((bounds.height - p.y) * sy)
         input.mouseMoved = true
     }
     override func mouseMoved(with e: NSEvent) { track(e); look(e) }
@@ -114,13 +117,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         save = SaveManager(name: name)
         UserDefaults.standard.set(name, forKey: "lastWorld")
         let meta = save.loadMeta()
-        let s = meta?.seed ?? seed ?? UInt64.random(in: 1...UInt64(Int64.max))
+        let s = meta?.seed ?? seed ?? Rand.u64(in: 1...UInt64(Int64.max))
         let world = World(seed: s, device: device, save: save)
         game = Game(world: world, save: save, persistent: true)
         let rd = UserDefaults.standard.integer(forKey: "renderDistance")
         if rd >= 2 { world.renderDistance = rd }
         if let m = meta { game.apply(m) } else {
-            game.player.pos = game.findSpawn()
+            game.player.pos = game.spawnPoint
             if let sv = survival { game.survival = sv }
             if let d = difficulty { game.difficulty = d }
         }
@@ -131,6 +134,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     // Switches to another world in place (saving the current one).
     func switchWorld(name: String, seed: UInt64?, survival: Bool?, difficulty: Int?) {
+        // One synchronous frame of the loading screen before the (blocking) save + load.
+        HudExtras.loading = "Loading \(name)..."
+        view.draw()
+        defer { HudExtras.loading = nil }
         game.saveNow()
         makeGame(name: name, seed: seed, survival: survival, difficulty: difficulty)
         view.input = game.input
@@ -141,8 +148,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         worldsPanel = nil
         overlay.removeFromSuperview()
         buildOverlay()
-        pauseChanged(true)
         window.title = "Blocksmith — \(name)"
+        // Straight into the world (console style) rather than back to a pause menu.
+        game.paused = false
+        pauseChanged(false)
     }
 
     func buildWindow() {
@@ -172,11 +181,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         buildOverlay()
         hookGame()
 
-        GCController.shouldMonitorBackgroundEvents = true
-        NotificationCenter.default.addObserver(forName: .GCControllerDidConnect, object: nil, queue: .main) { [weak self] n in
-            let name = (n.object as? GCController)?.vendorName ?? "Controller"
-            self?.toast("\(name) connected")
+        // Controller hotplugging: toast on connect; losing the pad mid-game pauses (like a console).
+        let pads = PadManager.shared
+        pads.onConnect = { [weak self] name in self?.toast("\(name) connected") }
+        pads.onDisconnect = { [weak self] name, wasUsing in
+            guard let self, let g = self.game else { return }
+            self.toast("\(name) disconnected")
+            if wasUsing && g.menu == nil && !g.paused { g.paused = true }
         }
+        pads.clock = { [weak self] in self?.game?.clock ?? 0 }
+        pads.start()
         NotificationCenter.default.addObserver(forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main) { [weak self] _ in
             guard let self else { return }
             self.view.isPaused = !self.window.occlusionState.contains(.visible)
@@ -186,6 +200,63 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.makeFirstResponder(view)
         NSApp.activate(ignoringOtherApps: true)
         pauseChanged(true)
+        applyVideo()
+        // Couch play: open on the chosen display, straight into full screen (Options > Video; --windowed skips it).
+        refreshDisplays()
+        placeOnChosenDisplay()
+        if Settings.shared.launchFullscreen && !CommandLine.arguments.contains("--windowed") { window.toggleFullScreen(nil) }
+        NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.refreshDisplays()
+        }
+    }
+
+    // Display choice (Options > Video > Display).
+    var pendingDisplayMove = false
+    func refreshDisplays() {
+        VideoState.displays = NSScreen.screens.map { $0.localizedName }
+        VideoState.current = window.screen?.localizedName ?? NSScreen.main?.localizedName ?? ""
+        if let pm = game?.menu as? PauseMenu { pm.build() }
+    }
+    func placeOnChosenDisplay() {
+        let name = Settings.shared.display
+        guard !name.isEmpty, let scr = NSScreen.screens.first(where: { $0.localizedName == name }), window.screen != scr else { return }
+        let f = scr.visibleFrame
+        let w = min(1280, f.width), h = min(800, f.height)
+        window.setFrame(NSRect(x: f.midX - w / 2, y: f.midY - h / 2, width: w, height: h), display: true)
+        refreshDisplays()
+    }
+    func moveToChosenDisplay() {
+        if VideoState.fullscreen { pendingDisplayMove = true; window.toggleFullScreen(nil); return }   // leave, move, return
+        placeOnChosenDisplay()
+    }
+    func windowDidChangeScreen(_ notification: Notification) { refreshDisplays() }
+
+    // VSync, frame-rate cap and resolution scale (Options > Video).
+    func applyVideo() {
+        let st = Settings.shared
+        (view.layer as? CAMetalLayer)?.displaySyncEnabled = st.vsync
+        view.preferredFramesPerSecond = targetFPS(paused: game.paused)
+        updateDrawableSize()
+    }
+    func targetFPS(paused: Bool) -> Int {
+        let display = NSScreen.main?.maximumFramesPerSecond ?? 60
+        let cap = Settings.shared.fpsCap
+        let fps = cap > 0 ? min(cap, display) : display
+        return paused ? min(30, fps) : fps
+    }
+    // The renderer sizes the drawable every frame (dynamic resolution x Options > Video > Resolution).
+    func updateDrawableSize() {}
+
+    func windowDidResize(_ notification: Notification) { updateDrawableSize() }
+    func windowDidExitFullScreen(_ notification: Notification) {
+        VideoState.fullscreen = false
+        updateDrawableSize()
+        if pendingDisplayMove {
+            pendingDisplayMove = false
+            placeOnChosenDisplay()
+            window.toggleFullScreen(nil)
+        }
+        if let pm = game.menu as? PauseMenu { pm.build() }
     }
 
     func hookGame() {
@@ -200,10 +271,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             guard let self else { return }
             switch id {
             case "fullscreen": self.toggleFS()
+            case "video": self.applyVideo()
+            case "display": self.moveToChosenDisplay()
             case "quit": self.saveQuit()
             case "worlds": self.showWorlds()
             case _ where id.hasPrefix("play:"): self.switchWorld(name: String(id.dropFirst(5)), seed: nil, survival: nil, difficulty: nil)
-            case "newworld": self.switchWorld(name: "World\(Int.random(in: 100...999))", seed: nil, survival: self.game.survival, difficulty: self.game.difficulty)
+            case "newworld": self.switchWorld(name: "World\(Rand.int(in: 100...999))", seed: nil, survival: self.game.survival, difficulty: self.game.difficulty)
             case _ where id.hasPrefix("create:"):
                 // create:<survival 0/1>:<difficulty>:<name>:<seed text>
                 let parts = id.split(separator: ":", maxSplits: 4, omittingEmptySubsequences: false).map(String.init)
@@ -379,7 +452,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard let panel = worldsPanel else { return }
         func find<T: NSView>(_ id: String) -> T? { panel.subviews.flatMap { ($0 as? NSStackView)?.views ?? [] }.first { $0.identifier?.rawValue == id } as? T }
         let fieldName = (find("newName") as NSTextField?)?.stringValue.trimmingCharacters(in: .whitespaces) ?? ""
-        let name = fieldName.isEmpty ? "World\(Int.random(in: 100...999))" : fieldName.replacingOccurrences(of: "/", with: "-")
+        let name = fieldName.isEmpty ? "World\(Rand.int(in: 100...999))" : fieldName.replacingOccurrences(of: "/", with: "-")
         let seed = AppDelegate.seedValue((find("newSeed") as NSTextField?)?.stringValue ?? "")
         let survival = (find("newMode") as NSPopUpButton?)?.indexOfSelectedItem != 1
         let diff = (find("newDifficulty") as NSPopUpButton?)?.indexOfSelectedItem ?? 2
@@ -395,7 +468,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         for b in t.utf8 { h = (h ^ UInt64(b)) &* 0x100000001b3 }
         return h
     }
-    @objc func saveQuit() { game.saveNow(); NSApp.terminate(nil) }
+    @objc func saveQuit() { game.saveNow(); SaveIO.flush(); NSApp.terminate(nil) }
 
     func pauseChanged(_ paused: Bool) {
         // The pause screen is drawn in-game (PauseMenu); the AppKit overlay only hosts the Worlds panel.
@@ -406,7 +479,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             game.openMenu(pm)
         }
         setCapture(!paused && !game.inventoryOpen)
-        view.preferredFramesPerSecond = paused ? 30 : (NSScreen.main?.maximumFramesPerSecond ?? 60)
+        view.preferredFramesPerSecond = targetFPS(paused: paused)
         if paused { game.input.releaseAll() }
         window.makeFirstResponder(view)
     }
@@ -430,7 +503,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func toast(_ s: String) { game.onToast?(s) }
 
-    func frameTick(_ dt: Double) {}
+    // Hide the mouse pointer over menus while the controller is in use (it comes back when the mouse moves).
+    var padHidCursor = false
+    func frameTick(_ dt: Double) {
+        let pad = PadManager.shared.usingPad
+        if pad && !padHidCursor && !game.input.captured { NSCursor.setHiddenUntilMouseMoves(true) }
+        padHidCursor = pad
+    }
 
     func buildMenu() {
         let main = NSMenu()
@@ -454,11 +533,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     func windowDidResignKey(_ notification: Notification) {
         if game != nil && !game.paused { game.paused = true }
     }
-    func windowDidEnterFullScreen(_ notification: Notification) { window.makeFirstResponder(view) }
+    func windowDidEnterFullScreen(_ notification: Notification) {
+        window.makeFirstResponder(view)
+        VideoState.fullscreen = true
+        updateDrawableSize()
+        if let pm = game.menu as? PauseMenu { pm.build() }
+    }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
     func applicationWillTerminate(_ notification: Notification) {
         setCapture(false)
         game?.saveNow()
+        SaveIO.flush()      // chunk writes run on a background queue
     }
 }
 

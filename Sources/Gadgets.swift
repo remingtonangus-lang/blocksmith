@@ -17,6 +17,7 @@ extension Game {
             target = (speed + 1) / 2
             if player.flying { target *= 1.1 }
             if bowCharge > 0 { let c = min(1, bowCharge); target *= 1 - 0.15 * c * c }
+            target *= gunFovScale
         }
         fovScale += (target - fovScale) * min(1, dt * (scoping ? 30 : 10))
         scoping = false
@@ -47,7 +48,7 @@ extension Game {
         m.leashed = true
         m.knot = nil
         if survival { consumeHeld() }
-        sfx(.place(.plant), 0.6, at: m.pos)
+        sfx(.armorEquip(0), 0.5, at: m.pos)
         return true
     }
 
@@ -128,7 +129,8 @@ extension Mob {
         let len = simd_length(d)
         if len > 10 { breakLeash(g); return }
         if len > 6 {
-            let pull = d / len * (len - 6) * 6
+            let k: Float = (len - 6) * 6 / len
+            let pull = d * k
             vel.x += pull.x * dt * 4
             vel.z += pull.z * dt * 4
             if spec.flying || spec.aquatic { vel.y += pull.y * dt * 4 }

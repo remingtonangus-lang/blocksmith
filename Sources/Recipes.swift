@@ -17,6 +17,7 @@ enum Recipes {
         "logs": ["oak_log", "birch_log", "spruce_log", "oak_wood", "acacia_log", "dark_oak_log", "jungle_log", "mangrove_log", "cherry_log", "pale_oak_log"],
         "stone_tool": ["cobblestone", "cobbled_deepslate"],
         "coals": ["coal", "charcoal"],
+        "eggs": ["egg", "brown_egg", "blue_egg"],
         "wooden_slabs": ["oak_slab"],
     ]
     private static var tagSets: [String: Set<ItemID>] = {
@@ -194,7 +195,7 @@ enum Recipes {
         r.append(shaped(["##", "##"], ["#": "glowstone_dust"], "glowstone"))
         // Tools and weapons
         let mats: [(String, String)] = [("#planks", "wooden"), ("#stone_tool", "stone"), ("iron_ingot", "iron"),
-                                        ("gold_ingot", "golden"), ("diamond", "diamond")]
+                                        ("gold_ingot", "golden"), ("diamond", "diamond"), ("copper_ingot", "copper")]
         for (m, t) in mats {
             let k: [Character: String] = ["X": m, "#": "stick"]
             r.append(shaped(["XXX", " # ", " # "], k, "\(t)_pickaxe"))
@@ -202,9 +203,10 @@ enum Recipes {
             r.append(shaped(["X", "#", "#"], k, "\(t)_shovel"))
             r.append(shaped(["XX", " #", " #"], k, "\(t)_hoe"))
             r.append(shaped(["X", "X", "#"], k, "\(t)_sword"))
+            r.append(shaped(["  X", " # ", "#  "], k, "\(t)_spear"))
         }
         // Armor
-        for (m, a) in [("leather", "leather"), ("iron_ingot", "iron"), ("gold_ingot", "golden"), ("diamond", "diamond")] {
+        for (m, a) in [("leather", "leather"), ("iron_ingot", "iron"), ("gold_ingot", "golden"), ("diamond", "diamond"), ("copper_ingot", "copper")] {
             let k: [Character: String] = ["X": m]
             r.append(shaped(["XXX", "X X"], k, a == "leather" ? "leather_helmet" : "\(a)_helmet"))
             r.append(shaped(["X X", "XXX", "XXX"], k, "\(a)_chestplate"))
@@ -220,6 +222,20 @@ enum Recipes {
         }
         r.append(shaped(["XXX", "XXX", "XXX"], ["X": "iron_nugget"], "iron_ingot"))
         r.append(shapeless(["iron_ingot"], "iron_nugget", 9))
+        r.append(shaped(["XXX", "XXX", "XXX"], ["X": "copper_nugget"], "copper_ingot"))
+        r.append(shapeless(["copper_ingot"], "copper_nugget", 9))
+        r.append(shaped(["N", "C", "S"], ["N": "copper_nugget", "C": "#coals", "S": "stick"], "copper_torch", 4))
+        r.append(shaped(["NNN", "NTN", "NNN"], ["N": "copper_nugget", "T": "copper_torch"], "copper_lantern", 1))
+        r.append(shaped(["III", "III"], ["I": "copper_ingot"], "copper_bars", 16))
+        r.append(shaped(["N", "I", "N"], ["N": "copper_nugget", "I": "copper_ingot"], "copper_chain"))
+        r.append(shaped(["##", "##", "##"], ["#": "copper_ingot"], "copper_door", 3))
+        r.append(shaped(["##", "##"], ["#": "copper_ingot"], "copper_trapdoor", 1))
+        r.append(shaped(["TTT", "TST", "TTT"], ["T": "ghast_tear", "S": "soul_sand"], "dried_ghast"))            // hatches a Wailerling
+        // Wooden shelves (Shelf.swift): six stripped logs (or stems), top and bottom rows.
+        for w in BlockRegistry.doorWoods {
+            let log = Items.has("stripped_\(w)_log") ? "stripped_\(w)_log" : "stripped_\(w)_stem"
+            if Items.has(log) && Items.has("\(w)_shelf") { r.append(shaped(["SSS", "   ", "SSS"], ["S": log], "\(w)_shelf", 6)) }
+        }
         r.append(shaped(["XXX", "XXX", "XXX"], ["X": "gold_nugget"], "gold_ingot"))
         r.append(shapeless(["gold_ingot"], "gold_nugget", 9))
         // Misc
@@ -324,6 +340,7 @@ enum Recipes {
         r.append(shaped(["#T#", "S$S", " # "], ["#": "stick", "T": "tripwire_hook", "S": "string", "$": "iron_ingot"], "crossbow"))
         r.append(shaped(["SS ", "SB ", "  S"], ["S": "string", "B": "slime_ball"], "lead", 2))
         r.append(shaped(["L L", "LLL", "L L"], ["L": "leather"], "leather_horse_armor"))
+        r.append(shaped(["C C", "CCC", "C C"], ["C": "copper_ingot"], "copper_horse_armor"))
         r.append(shaped(["D#D", "DND", "DDD"], ["D": "diamond", "#": "netherite_upgrade_smithing_template", "N": "netherrack"], "netherite_upgrade_smithing_template", 2))
         for t in Smithing.trims {
             let tpl = "\(t)_armor_trim_smithing_template"
@@ -340,7 +357,8 @@ enum Recipes {
         r.append(shaped(["S", "#", "S"], ["S": "shulker_shell", "#": "chest"], "shulker_box"))
         r.append(shaped(["###", "#E#", "###"], ["#": "obsidian", "E": "ender_eye"], "ender_chest"))
         r.append(shapeless(["chest", "tripwire_hook"], "trapped_chest"))
-        r.append(shaped(["MMM", "SES", "WWW"], ["M": "milk_bucket", "S": "sugar", "E": "egg", "W": "wheat"], "cake"))
+        r.append(shaped(["CCC", "C#C", "CCC"], ["C": "copper_ingot", "#": "chest"], "copper_chest"))   // CopperGolem.swift
+        r.append(shaped(["MMM", "SES", "WWW"], ["M": "milk_bucket", "S": "sugar", "E": "#eggs", "W": "wheat"], "cake"))
         for (i, st) in Copper.stages.enumerated() {
             for waxed in [false, true] {
                 let blk = Copper.name("block", stage: i, waxed: waxed)
@@ -431,7 +449,10 @@ enum Recipes {
         for t in Potions.types where !t.effects.isEmpty {
             r.append(shaped(["AAA", "APA", "AAA"], ["A": "arrow", "P": Potions.itemName("lingering_potion", t.key)], Potions.itemName("tipped_arrow", t.key), 8))
         }
+        r += Guns.recipes()
         r += springRecipes()
+        r += Cloudwailer.recipes()
+        r += shipRecipes()
         return r.compactMap { $0 }
     }
 
@@ -502,6 +523,12 @@ enum Recipes {
                                    "acacia_log": "charcoal", "dark_oak_log": "charcoal", "jungle_log": "charcoal", "mangrove_log": "charcoal",
                                    "cherry_log": "charcoal", "pale_oak_log": "charcoal", "iron_sword": "iron_nugget", "golden_sword": "gold_nugget", "resin_clump": "resin_brick"]
         for (c, _) in BlockRegistry.colors { m["\(c)_terracotta"] = "\(c)_glazed_terracotta" }
+        // Iron, gold and copper tools and armour melt down to nuggets.
+        for (mat, nug) in [("iron", "iron_nugget"), ("golden", "gold_nugget"), ("copper", "copper_nugget")] {
+            for t in ["sword", "pickaxe", "axe", "shovel", "hoe", "spear", "helmet", "chestplate", "leggings", "boots"] where m["\(mat)_\(t)"] == nil {
+                m["\(mat)_\(t)"] = nug
+            }
+        }
         return m
     }()
 

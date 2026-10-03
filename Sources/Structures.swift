@@ -21,6 +21,12 @@ struct StructWriter {
     var blocks: UnsafeMutablePointer<BlockID>
     var entities: [(IVec3, BlockEntity)] = []
     var mobs: [(String, V3)] = []
+    // Lowest solid block written per column of this chunk (for filling under a structure: StructureCache.place).
+    final class Low { var y = [Int](repeating: Int.max, count: CS * CS) }
+    let low = Low()
+    @inline(__always) func note(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
+        if Blocks.collide[Int(b)] { let k = (z - bz) * CS + (x - bx); if y < low.y[k] { low.y[k] = y } }
+    }
 
     @inline(__always) func inside(_ x: Int, _ y: Int, _ z: Int) -> Bool {
         x >= bx && x < bx + CS && z >= bz && z < bz + CS && y >= 0 && y < CH
@@ -29,7 +35,22 @@ struct StructWriter {
         inside(x, y, z) ? blocks[Chunk.index(x - bx, y, z - bz)] : AIR
     }
     func set(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
-        if inside(x, y, z) { blocks[Chunk.index(x - bx, y, z - bz)] = b }
+        if inside(x, y, z) { blocks[Chunk.index(x - bx, y, z - bz)] = b; note(x, y, z, b); unplant(x, y, z, b) }
+    }
+
+    // Grass, flowers and saplings need soil: a structure block written under one (paths, foundations, wells)
+    // removes it (gencheck plant_soil: grass and bushes standing on village cobblestone).
+    static let soilPlant: [Bool] = (0..<Blocks.count).map { i in
+        GenCheck.soils(Blocks.key(Blocks.groupBase[i])) == GenCheck.dirtLike
+    }
+    static let soil: [Bool] = (0..<Blocks.count).map { i in GenCheck.dirtLike.contains(Blocks.key(Blocks.groupBase[i])) }
+    @inline(__always) func unplant(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID) {
+        guard b != AIR, !StructWriter.soil[Int(b)], Blocks.collide[Int(b)] else { return }
+        var yy = y + 1
+        while yy < CH, StructWriter.soilPlant[Int(blocks[Chunk.index(x - bx, yy, z - bz)])] {
+            blocks[Chunk.index(x - bx, yy, z - bz)] = AIR
+            yy += 1
+        }
     }
     func fill(_ x0: Int, _ y0: Int, _ z0: Int, _ x1: Int, _ y1: Int, _ z1: Int, _ b: BlockID) {
         let xa = max(x0, bx), xb = min(x1, bx + CS - 1)
@@ -37,7 +58,32 @@ struct StructWriter {
         let ya = max(0, y0), yb = min(CH - 1, y1)
         guard xa <= xb, za <= zb, ya <= yb else { return }
         for y in ya...yb { for z in za...zb { for x in xa...xb { blocks[Chunk.index(x - bx, y, z - bz)] = b } } }
+        for z in za...zb { for x in xa...xb { note(x, ya, z, b); unplant(x, yb, z, b) } }
     }
+
+    // Fills open air / cave water under the lowest block each column of the structure wrote, down to the ground
+    // (at most `depth`), so it doesn't hang over caves or slopes (structcheck "floating"; reference terrain
+    // adaptation "beard"). Resets the per-column record for the next structure.
+    func fillUnder(depth: Int, surface: BlockID, intoWater: Bool = true) {
+        for k in 0..<(CS * CS) {
+            let y0 = low.y[k]
+            low.y[k] = Int.max
+            guard y0 != Int.max && y0 > 1 else { continue }
+            let x = bx + k % CS, z = bz + k / CS
+            var y = y0 - 1
+            while y > max(0, y0 - depth) {
+                let i = Chunk.index(x - bx, y, z - bz)
+                let cur = blocks[i]
+                // Through grass and flowers too (a Steelhold fill stopped on tall grass, leaving its base over air:
+                // structcheck floating, run 364).
+                let plant: Bool = Blocks.replaceable[Int(cur)] && Blocks.fluidKind[Int(cur)] == 0
+                guard cur == AIR || plant || (intoWater && cur == WATER) else { break }
+                blocks[i] = y < YOFF ? DEEPSLATE : (y < SEA - 12 ? STONE : surface)
+                y -= 1
+            }
+        }
+    }
+
     // Pillar from y down until a solid block (inside this chunk only).
     func pillarDown(_ x: Int, _ y: Int, _ z: Int, _ b: BlockID, minY: Int) {
         guard inside(x, y, z) else { return }
@@ -110,7 +156,10 @@ struct StructureType {
 }
 
 final class StructureCache {
-    private var cache: [String: StructureStart?] = [:]
+    private struct StartKey: Hashable { let name: String; let rx: Int; let rz: Int }
+    private var cache: [StartKey: StructureStart?] = [:]
+    // Bench gen: time spent computing structure starts, per kind (ms).
+    static var startMs: [String: Double] = [:]
     private let lock = NSLock()
     let seed: UInt64
     let types: [StructureType]
@@ -121,10 +170,11 @@ final class StructureCache {
 
     // The structure start in the region containing chunk (rx, rz) for a type, if any.
     func start(_ t: StructureType, regionX rx: Int, regionZ rz: Int) -> StructureStart? {
-        let key = "\(t.name):\(rx):\(rz)"
+        let key = StartKey(name: t.name, rx: rx, rz: rz)          // no string built per lookup (several hundred per chunk)
         lock.lock()
         if let c = cache[key] { lock.unlock(); return c }
         lock.unlock()
+        let t0: Double = WorldGen.timing ? CFAbsoluteTimeGetCurrent() : 0
         var rng = SRng(seed &+ UInt64(bitPattern: Int64(rx)) &* 341873128712 &+ UInt64(bitPattern: Int64(rz)) &* 132897987541 &+ t.salt)
         let span = t.spacing - t.separation
         let cx = rx * t.spacing + rng.int(span), cz = rz * t.spacing + rng.int(span)
@@ -132,6 +182,7 @@ final class StructureCache {
         lock.lock()
         cache[key] = s
         if cache.count > 4096 { cache.removeAll() }
+        if WorldGen.timing { StructureCache.startMs[t.name, default: 0] += (CFAbsoluteTimeGetCurrent() - t0) * 1000 }
         lock.unlock()
         return s
     }
@@ -145,6 +196,12 @@ final class StructureCache {
         return out
     }
 
+    // Kinds whose footprint is filled underneath (and how deep): buried ones over caves, hillside ones over slopes.
+    static let fillDepth: [String: Int] = ["ancient_city": 12, "trial_chambers": 10, "stronghold": 10, "mansion": 8,
+                                           "military_base": 24, "trail_ruins": 4]     // Steelhold: hillside bases hung 8+ over slopes
+    // Not villages: filling under each column's lowest block also filled under the roof eaves overhanging the
+    // doorways, building cobblestone pillars in front of doors (structcheck door_needs_jump, run 349).
+
     // Builds every structure piece overlapping this chunk into `blocks`; returns block entities.
     func place(into blocks: inout [BlockID], cx: Int, cz: Int) -> (entities: [(IVec3, BlockEntity)], mobs: [(String, V3)]) {
         var ents: [(IVec3, BlockEntity)] = []
@@ -154,6 +211,9 @@ final class StructureCache {
             for t in types {
                 for s in startsNear(cx: cx, cz: cz, t) {
                     for p in s.pieces where p.overlaps(cx * CS, cz * CS) { p.build(&w) }
+                    // Village houses on slopes get foundations; their paths and bridges never dam rivers.
+                    if let d = StructureCache.fillDepth[s.kind] { w.fillUnder(depth: d, surface: COBBLE, intoWater: s.kind != "village") }
+                    else { for k in 0..<(CS * CS) { w.low.y[k] = Int.max } }
                 }
             }
             let bx = cx * CS, bz = cz * CS
@@ -167,8 +227,8 @@ final class StructureCache {
     }
 
     // Nearest structure start of a kind (searching regions outward), for locating / the snapshot harness.
-    func nearest(_ kind: String, x: Int, z: Int, maxRegions: Int = 6) -> StructureStart? {
-        let fx = fixed.filter { $0.kind == kind }
+    func nearest(_ kind: String, x: Int, z: Int, maxRegions: Int = 6, accept: (StructureStart) -> Bool = { _ in true }) -> StructureStart? {
+        let fx = fixed.filter { $0.kind == kind && accept($0) }
         if !fx.isEmpty {
             return fx.min { a, b in
                 let da = (a.anchor.x - x) * (a.anchor.x - x) + (a.anchor.z - z) * (a.anchor.z - z)
@@ -181,7 +241,7 @@ final class StructureCache {
         var best: StructureStart?, bd = Int.max
         for r in 0...maxRegions {
             for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
-                guard let s = start(t, regionX: rx + dx, regionZ: rz + dz) else { continue }
+                guard let s = start(t, regionX: rx + dx, regionZ: rz + dz), accept(s) else { continue }
                 let cx = (s.min.x + s.max.x) / 2 - x, cz = (s.min.z + s.max.z) / 2 - z
                 if cx * cx + cz * cz < bd { bd = cx * cx + cz * cz; best = s }
             } }
@@ -303,6 +363,20 @@ enum Loot {
                             ("diamond_sword@20-39", 1, 1, 3), ("diamond_chestplate@20-39", 1, 1, 3), ("diamond_helmet@20-39", 1, 1, 3),
                             ("diamond_boots@20-39", 1, 1, 3), ("enchanted_golden_apple", 1, 1, 2),
                             ("netherite_upgrade_smithing_template", 1, 1, 6), ("snout_armor_trim_smithing_template", 1, 1, 2)]),
+        // Steelhold fortresses (MilitaryBase.swift): guns, ammunition and supplies.
+        "steelhold_armory": (3...6, [("gun_rifle", 1, 1, 8), ("gun_smg", 1, 1, 8), ("gun_shotgun", 1, 1, 6), ("gun_sniper", 1, 1, 3),
+                                     ("rifle_rounds", 16, 48, 20), ("shotgun_shells", 6, 18, 12), ("heavy_rounds", 4, 12, 8), ("rocket_ammo", 1, 3, 4),
+                                     ("arc_cell", 2, 8, 4), ("iron_chestplate", 1, 1, 4), ("iron_helmet", 1, 1, 4), ("shield", 1, 1, 3)]),
+        "steelhold_supply": (4...8, [("bread", 2, 6, 15), ("cooked_beef", 2, 5, 10), ("baked_potato", 2, 6, 10), ("iron_ingot", 2, 6, 10),
+                                     ("copper_ingot", 4, 12, 8), ("gunpowder", 2, 8, 10), ("rifle_rounds", 8, 32, 12), ("redstone", 4, 12, 6),
+                                     ("tnt", 1, 3, 3), ("golden_apple", 1, 1, 2), ("compass", 1, 1, 2), ("map", 1, 1, 2)]),
+        "steelhold_command": (4...7, [("diamond", 2, 6, 8), ("emerald", 3, 8, 6), ("gun_sniper", 1, 1, 6), ("gun_launcher", 1, 1, 5),
+                                      ("gun_arc", 1, 1, 5), ("heavy_rounds", 6, 15, 8), ("rocket_ammo", 2, 6, 6), ("arc_cell", 4, 12, 6),
+                                      ("diamond_chestplate@20-30", 1, 1, 3), ("golden_apple", 1, 2, 5), ("enchanted_golden_apple", 1, 1, 1),
+                                      ("experience_bottle", 3, 8, 6)]),
+        "steelhold_vault": (5...9, [("diamond", 3, 8, 10), ("gold_ingot", 6, 16, 10), ("emerald", 4, 12, 8), ("gun_launcher", 1, 1, 6),
+                                    ("gun_arc", 1, 1, 6), ("rocket_ammo", 4, 8, 8), ("arc_cell", 8, 16, 8), ("netherite_scrap", 1, 2, 3),
+                                    ("diamond_sword@25-35", 1, 1, 3), ("enchanted_golden_apple", 1, 1, 2)]),
     ]
 
     // "name@a-b": enchant with a-b levels (treasure allowed); "name@0": enchant randomly (50%);
@@ -344,5 +418,20 @@ enum Loot {
                 }
             }
         }
+    }
+}
+
+// A value computed on first use and kept, thread-safe (structure layouts share parts their pieces need only when built).
+final class LazyValue<T> {
+    private var v: T?
+    private let make: () -> T
+    private let lock = NSLock()
+    init(_ make: @escaping () -> T) { self.make = make }
+    var value: T {
+        lock.lock(); defer { lock.unlock() }
+        if let v = v { return v }
+        let x = make()
+        v = x
+        return x
     }
 }

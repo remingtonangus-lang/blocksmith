@@ -22,6 +22,11 @@ enum MobKind: Int, CaseIterable {
     case wanderingTrader, skeletonHorse, phantom, guardian, elderGuardian, endermite, warden, breeze, bogged, zoglin
     case boat, armorStand
     case creaking
+    case zombieHorse, illusioner
+    case happyGhast
+    case parched, camelHusk, nautilus, zombieNautilus
+    case soldierRecruit, soldierTrooper, soldierMarksman, soldierIronclad, deckGun
+    case copperGolem
 
     struct Spec {
         var name: String
@@ -57,7 +62,7 @@ enum MobKind: Int, CaseIterable {
         case .creeper: return Spec(name: "Hisser", halfW: 0.3, height: 1.7, health: 20, speed: 2.5, behavior: .creeper,
                                    drops: [("gunpowder", 0, 2)], xp: 5, call: .creeperHiss)
         case .spider: return Spec(name: "Spider", halfW: 0.7, height: 0.9, health: 16, speed: 3.0, behavior: .spider, attack: 2,
-                                  drops: [("string", 0, 2), ("spider_eye", 0, 1)], xp: 5, call: .mobSpider)
+                                  drops: [("string", 0, 2)], xp: 5, call: .mobSpider)
         case .enderman: return Spec(name: "Voidwalker", halfW: 0.3, height: 2.9, health: 40, speed: 3.0, behavior: .enderman, attack: 7,
                                     drops: [("ender_pearl", 0, 1)], xp: 5, call: .mobVoidwalker)
         case .slime: return Spec(name: "Slime", halfW: 0.26, height: 0.52, health: 1, speed: 2.0, behavior: .slime, attack: 0,
@@ -101,7 +106,7 @@ enum MobKind: Int, CaseIterable {
         case .drowned: return Spec(name: "Sunken", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .melee, attack: 3,
                                    burnsInSun: true, drops: [("rotten_flesh", 0, 2), ("copper_ingot", 0, 1)], xp: 5, call: .mobZombie)
         case .caveSpider: return Spec(name: "Cave Spider", halfW: 0.35, height: 0.5, health: 12, speed: 3.0, behavior: .spider, attack: 2,
-                                      drops: [("string", 0, 2), ("spider_eye", 0, 1)], xp: 5, call: .mobSpider)
+                                      drops: [("string", 0, 2)], xp: 5, call: .mobSpider)
         case .witch: return Spec(name: "Witch", halfW: 0.3, height: 1.95, health: 26, speed: 2.3, behavior: .witch,
                                  drops: [("glass_bottle", 0, 2), ("glowstone_dust", 0, 2), ("gunpowder", 0, 2), ("redstone", 0, 2),
                                          ("spider_eye", 0, 2), ("sugar", 0, 2), ("stick", 0, 2)], xp: 5, call: .mobVillager)
@@ -125,8 +130,11 @@ enum MobKind: Int, CaseIterable {
                                           burnsInSun: true, drops: [("rotten_flesh", 0, 2)], xp: 5, call: .mobZombie)
         case .rabbit, .fox, .wolf, .cat, .ocelot, .horse, .donkey, .mule, .llama, .traderLlama, .camel, .goat, .panda, .polarBear, .turtle, .frog, .tadpole,
              .armadillo, .sniffer, .mooshroom, .bee, .parrot, .bat, .allay, .axolotl, .squid, .glowSquid, .dolphin, .cod, .salmon, .tropicalFish, .pufferfish,
-             .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking:
+             .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking,
+             .zombieHorse, .illusioner, .happyGhast, .parched, .camelHusk, .nautilus, .zombieNautilus, .copperGolem:
             return animalSpec
+        case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad, .deckGun:
+            return militarySpec
         case .witherSkeleton: return Spec(name: "Blight Skeleton", halfW: 0.35, height: 2.4, health: 20, speed: 2.5, behavior: .melee, attack: 8,
                                           drops: [("coal", 0, 1), ("bone", 0, 2)], xp: 5, call: .mobSkeleton, fireImmune: true)
         }
@@ -218,7 +226,17 @@ enum MobKind: Int, CaseIterable {
         .zoglin: "zoglin",
         .boat: "boat",
         .armorStand: "armor_stand",
-        .creaking: "creaking"
+        .creaking: "creaking",
+        .zombieHorse: "zombie_horse",
+        .illusioner: "illusioner",
+        .happyGhast: "happy_ghast",
+        .parched: "parched",
+        .camelHusk: "camel_husk",
+        .nautilus: "nautilus",
+        .zombieNautilus: "zombie_nautilus",
+        .soldierRecruit: "soldier_recruit", .soldierTrooper: "soldier_trooper", .soldierMarksman: "soldier_marksman",
+        .soldierIronclad: "soldier_ironclad", .deckGun: "deck_gun",
+        .copperGolem: "copper_golem",
     ]
     static func named(_ n: String) -> MobKind? { allCases.first { $0.key == n } }
     var call: Snd { spec.call }
@@ -238,11 +256,25 @@ final class Mob {
     var walkPhase: Float = 0
     var walkAmount: Float = 0
     var moving = false
+    var wanderGoal: V3?             // current stroll target (wander)
+    var strollArea: (V3, Float)?    // keep stroll targets within this circle (villager schedules), set per update
+    var unreachable: V3?            // a walk target the pathfinder couldn't reach (giveUp)
+    var unreachableTimer: Float = 0
+    var strollFails = 0             // strolls given up in a row (a mob in a pit or a pen rests instead of retrying)
+    var huntTime: Float = 0         // a wild predator's committed chase of its prey (Animals.swift)
+    var fleeGoal: V3?               // where it runs from a threat, kept about a second (not re-aimed every tick)
+    var fleeTime: Float = 0
+    var bedWalk: V3?                // villager: heading to its bed tonight (villagerNight -> villagerDay)
+    static weak var world: World?   // the world mobs are updating in (stroll targets)
     var path = PathState()          // ground navigation (Pathfinding.swift)
     var faceGoal: V3?               // what face() last aimed at during this update
     var aiTimer: Float
     var panic: Float = 0
     var hurt: Float = 0
+    var arrowDamage = 0               // harness: health lost to arrow hits (not saved)
+    var hurtSound = false           // set by hit(); MobManager plays the hurt call once
+    var teleportSound = false       // set by teleport(); MobManager plays it at both ends
+    var stepAcc: Float = 0          // distance walked since the last footstep sound
     var callTimer: Float
     var attackCooldown: Float = 0
     var fuse: Float = 0             // hisser
@@ -255,7 +287,7 @@ final class Mob {
     var baby = false
     var sheared = false
     var woolColor = "white"
-    var eggTimer = Float.random(in: 300...600)
+    var eggTimer = Rand.float(in: 300...600)
     var killedByPlayer = false
     var slimeSize = 1
 
@@ -266,10 +298,13 @@ final class Mob {
     var flyTarget: V3?              // wailer / cinderwisp hover target
     var volley = 0                  // cinderwisp: fireballs left in the current burst
     var persistent = false          // structure mobs never despawn at random
+    var faction = 0                 // soldiers crewing a capital ship: its faction (CapitalShips.swift); 0 Steelhold
     var phase = 0                   // hollow wyrm phase (see updateDragon)
     var phaseTime: Float = 0
     var circleAngle: Float = 0
     weak var healTarget: Mob?       // hollow crystal currently healing the dragon
+    var sitDamage = 0               // damage the wyrm has taken during this perch
+    var sideHeads: [Float] = [1, 1.5]   // Blight side heads: seconds until each fires again
     var peek: Float = 0             // shellsentry lid opening 0...1
     var home: V3?                   // villager / golem: where it was placed (it stays near)
     weak var target: Mob?           // golem: the monster it is chasing
@@ -300,7 +335,7 @@ final class Mob {
     var cureTimer: Float = 0        // zombie villager being cured
     var charged = false             // hisser struck by lightning (bigger blast)
     var lastHitBySkeleton = false   // hissers killed by skeleton arrows drop a music disc
-    var scuteTimer: Float = Float.random(in: 300...600)   // armadillo scutes / snuffler digging
+    var scuteTimer: Float = Rand.float(in: 300...600)   // armadillo scutes / snuffler digging
     var heldItem: ItemID = 0        // fetchling: item it collects
     var carried = 0                 // fetchling: collected count
     var airTime: Float = 0          // aquatic mobs out of water
@@ -310,19 +345,52 @@ final class Mob {
     var temper = 0                  // horse taming progress
     weak var mount: Mob?            // rider (raid siegebeast riders)
     var captain = false             // raid / patrol captain (banner)
-    var jobTimer: Float = Float.random(in: 0...5)
+    var jobTimer: Float = Rand.float(in: 0...5)
+    var giftTimer: Float = 0        // villager: seconds until it may throw the Village Hero another gift
+    var breaksDoors = false         // zombie able to break wooden doors on Hard (reference: 10% x regional difficulty)
+    var farTime: Float = 0          // seconds spent more than 32 blocks from the player (despawn timer)
+    var jockey = false              // spawned riding another mob (chicken / spider jockeys)
+    var driven: Float = 0           // mount steered by its rider this long
+    var driveSpeed: Float = 0
+    var driveYaw: Float = 0
+    var lockTime: Float = 0         // remembers the player this long after last seeing them (MobAI.swift)
+    var sightTimer: Float = Rand.float(in: 0...0.5)
+    var wasHit = false              // hit since the last update (pack rally)
+    var convertTime: Float = 0      // drowning zombie / freezing skeleton / boarling out of the Emberdeep / tadpole (Conversions.swift)
+    var reinforceChance = Rand.float(in: 0..<0.1)
+    var trap = false                // skeleton trap horse
+    var carriedBlock: BlockID = 0   // voidwalker: block it picked up
+    var canPickUp = false           // zombie / skeleton that picks up gear (55% x regional difficulty)
+    var emergeTime: Float = 0       // deep stalker digging out of the ground (invulnerable meanwhile)
+    var patrolling = false          // marauder patrol member (Raid.swift patrolTick)
+    weak var patrolLeader: Mob?
+    var patrolGoal: V3?
+    var hasEgg = false              // turtle / frog / snuffler carrying an egg after breeding
+    var hive: IVec3?                // bee: its nest / hive (Bees.swift)
+    var golemGoal: IVec3?           // copper golem: the chest it is walking to (CopperGolem.swift)
+    var golemVisited: [IVec3] = []  // copper golem: chests tried on this trip
+    var golemTimer: Float = 0       // copper golem: search / give-up timer
+    var nectar = false
+    var flower: IVec3?
+    var sleptAt: Double = -1e9      // villager: game time it last slept (golem summoning needs sleep within a day)
+    var golemSeenAt: Double = -1e9  // villager: last saw an iron golem
+    var gossipCooldown: Float = 0
+    var meetPoint: IVec3?           // villager: the bell it meets at
+    var meetSearch: Float = 0
+    var brain: SoldierBrain?        // Steelhold soldiers and deck guns (Soldiers.swift)
+    var strafe: Float = 0           // sideways walk speed this update (right is positive)
 
     init(_ kind: MobKind, at p: V3) {
         self.kind = kind
         spec = kind.spec
         pos = p
-        yaw = Float.random(in: 0..<(2 * .pi))
+        yaw = Rand.float(in: 0..<(2 * .pi))
         health = kind.spec.health
-        aiTimer = Float.random(in: 0.5...3)
-        callTimer = Float.random(in: 6...20)
+        aiTimer = Rand.float(in: 0.5...3)
+        callTimer = Rand.float(in: 6...20)
         randomizeVariant()
         if kind == .sheep {
-            let r = Float.random(in: 0..<1)
+            let r = Rand.float(in: 0..<1)
             woolColor = r < 0.81836 ? "white" : (r < 0.86836 ? "black" : (r < 0.91836 ? "gray" : (r < 0.96836 ? "light_gray" : (r < 0.99836 ? "brown" : "pink"))))
         }
     }
@@ -335,6 +403,8 @@ final class Mob {
     // Anger this mob and every undead boarling nearby at the player.
     func provoke(_ g: Game) {
         aggro = true
+        g.petsAttack(self)
+        if kind == .villager, var v = villager { v.addGossip(.minorNeg, 25); villager = v }
         if kind == .zombifiedPiglin {
             for o in g.mobs.mobs where o.kind == .zombifiedPiglin && simd_length(o.pos - pos) < 20 { o.aggro = true }
         }
@@ -364,15 +434,30 @@ final class Mob {
     func update(_ dt: Float, game g: Game) {
         let w = g.world
         guard w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) else { return }
+        // A mob killed earlier this tick (player hit, projectile) is removed by the death sweep after this loop: it
+        // must not act or heal in between (the Blight's 1 HP/s regeneration revived it and lost the Blight Star).
+        if health <= 0 && kind != .enderDragon { return }
+        if kind == .rabbit && variant < 16 { variant = 16 | FarmVariant.rabbitCoat(w, pos) }
         faceGoal = nil
+        strafe = 0
+        path.climbUp = false
         hurt = max(0, hurt - dt)
         panic = max(0, panic - dt)
         callTimer -= dt
         aiTimer -= dt
+        unreachableTimer -= dt
         attackCooldown -= dt
         inLove = max(0, inLove - dt)
         breedCooldown = max(0, breedCooldown - dt)
-        if baby { age += dt; if age >= 1200 { baby = false; scale = 1 } }
+        // Young animals and villagers grow up in 20 minutes; baby monsters (zombies, boarlings) never do.
+        if baby && (!kind.hostile || kind == .hoglin) {
+            age += dt
+            if age >= 1200 {
+                baby = false; scale = 1
+                // A baby turtle growing up sheds a scute (reference).
+                if kind == .turtle && Items.has("turtle_scute") { g.drops.spawn(ItemStack(Items.id("turtle_scute"), 1), at: pos + V3(0, 0.3, 0)) }
+            }
+        }
         if leashed { leashTick(dt, g) }
         if kind == .boat { updateBoat(dt, g); return }
         if kind == .armorStand { updateArmorStand(dt, g); return }
@@ -381,18 +466,31 @@ final class Mob {
         if kind == .enderDragon { updateDragon(dt, g); return }
         if kind == .endCrystal { updateCrystal(dt, g); return }
         if kind == .shulker { updateSentry(dt, g); return }
+        if kind == .deckGun { updateDeckGun(dt, g); return }
         if kind == .minecart { updateMinecart(dt, g); cartExtras(dt, g); return }
         if kind == .wither { updateBlight(dt, g); return }
         if cureTick(dt, g) { return }
         if kind == .vex { updateVex(dt, g); return }
 
         let feetBlock = w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.2)), Int(floor(pos.z)))
-        let inWater = Blocks.isLiquid(feetBlock)
+        let inWater = Blocks.isLiquid(feetBlock) && !w.ships.dry(at: pos + V3(0, 0.2, 0))     // not inside a hull
 
         // Undead burn in daylight under open sky.
         if spec.burnsInSun && !inWater && g.dim.dim.hasSky && g.daylight > 0.6 && !g.isRainingAt(pos) {
             let l = w.lightAt(Int(floor(pos.x)), Int(floor(pos.y + height)), Int(floor(pos.z)))
-            if l.sky >= 15 { fire = max(fire, 8) }
+            if l.sky >= 15 {
+                // A helmet shields the head from the sun and wears down instead (reference).
+                if var eq = equip, !eq[0].isEmpty {
+                    if Rand.float(in: 0..<1) < dt * 0.5 {
+                        eq[0].damage += 1
+                        let dur = eq[0].def.durability
+                        if dur > 0 && eq[0].damage >= dur { eq[0] = .empty; g.sfx(.breakBlock(.stone), 0.6, at: pos) }
+                        equip = eq
+                    }
+                } else {
+                    fire = max(fire, 8)
+                }
+            }
         }
         if inWater && Blocks.fluidKind[Int(feetBlock)] == 1 { fire = 0 }
         if spec.fireImmune { fire = 0 }
@@ -408,16 +506,35 @@ final class Mob {
             if effects?.has(.fireResistance) ?? false { fire = 0 }
         }
         effectTick(dt, g)
+        if canPickUp { pickUpLoot(g) }
+        if conversionTick(dt, g) { return }
+        if trap { trapTick(g) }
         if spec.aquatic { updateAquatic(dt, g, inWater: inWater); return }
 
         let player = g.player.pos
         let toPlayer = player - pos
         let dist = simd_length(toPlayer)
         // Invisible players are only noticed up close.
-        let canTarget = g.survival && g.alive && dist < (g.effects.has(.invisibility) ? 7 : 24)
+        let canTarget = senseTarget(g, dist: dist, dt)
         var speed: Float = 0
+        if wasHit { wasHit = false; rallyPack(g) }
+        let fleeFrom = panic > 0 ? nil : threat(g)
 
         switch spec.behavior {
+        case _ where fleeFrom != nil:
+            // Avoid-entity goal: run to a spot 8 blocks away from the threat, re-aimed about once a second (a point
+            // re-aimed every tick moved with the mob and replanned its path each time: behaviour sim, fleeing rabbits).
+            fleeTime -= dt
+            if fleeGoal == nil || fleeTime <= 0 || simd_length(V2(fleeGoal!.x - pos.x, fleeGoal!.z - pos.z)) < 1.5 {
+                var away = V3(pos.x - fleeFrom!.x, 0, pos.z - fleeFrom!.z)
+                if simd_length(away) < 0.01 { away = V3(1, 0, 0) }
+                fleeGoal = pos + simd_normalize(away) * 8
+                fleeTime = Rand.float(in: 0.8...1.4)
+            }
+            face(fleeGoal!)
+            moving = true
+            speed = spec.speed * 1.25
+            fuse = max(0, fuse - dt)
         case .passive:
             // Follow a player holding breeding food; seek a mate when in love.
             if let food = MobManager.breedFood[kind], dist < 8, food.contains(Items.key(g.held.item)), !baby {
@@ -425,22 +542,39 @@ final class Mob {
             } else if inLove > 0, let mate = g.mobs.mobs.first(where: { $0 !== self && $0.kind == kind && $0.inLove > 0 && simd_length($0.pos - pos) < 8 }) {
                 face(mate.pos)
                 speed = simd_length(mate.pos - pos) > 1.2 ? spec.speed : 0
+            } else if panic <= 0 && followParent(g) {
+                speed = spec.speed
             } else {
                 wander()
                 speed = moving ? (panic > 0 ? (kind == .chicken ? 2.4 : 2.8) : spec.speed) : 0
             }
+            if kind == .sheep { sheepGraze(dt, g) }
+            if variant == 0 && (kind == .cow || kind == .pig || kind == .chicken) { variant = FarmVariant.forBiome(g.world, pos) }
             if kind == .chicken && !baby {
                 eggTimer -= dt
-                if eggTimer <= 0 { eggTimer = Float.random(in: 300...600); g.drops.spawn(ItemStack(Items.id("egg"), 1), at: pos + V3(0, 0.3, 0)) }
+                if eggTimer <= 0 { eggTimer = Rand.float(in: 300...600); g.drops.spawn(ItemStack(Items.id(FarmVariant.eggKey(variant)), 1), at: pos + V3(0, 0.3, 0)) }
             }
         case .neutral, .piglin:
             // Zombified boarlings only fight back; boarlings attack players not wearing gold armor.
             let goldWorn = g.inventory.armor.slots.contains { !$0.isEmpty && Items.key($0.item).hasPrefix("golden_") }
             let angry = aggro || (spec.behavior == .piglin && !goldWorn && dist < 12 && admire <= 0)
+            var gold: ItemEntity?
+            if kind == .piglin && !baby && admire <= 0 && !angry {
+                gold = g.drops.items.first { !$0.stack.isEmpty && $0.pickupDelay <= 0 && Items.key($0.stack.item) == "gold_ingot" && simd_length($0.pos - pos) < 8 }
+            }
             if admire > 0 {
                 admire -= dt
                 speed = 0
                 if admire <= 0 { g.barter(self) }
+            } else if let e = gold {
+                // Boarlings walk over to gold ingots lying around and pick one up to barter with.
+                face(e.pos)
+                speed = spec.speed
+                if simd_length(e.pos - pos) < 1.3 {
+                    var st = e.stack; st.count -= 1; e.stack = st.count > 0 ? st : .empty
+                    admire = 6
+                    g.sfx(.mobBoarling, 0.8, at: pos)
+                }
             } else if canTarget && angry {
                 face(player)
                 speed = spec.speed * 1.2
@@ -452,8 +586,8 @@ final class Mob {
         case .ghast:
             // Drifts around; shoots an explosive fireball at a visible player within 64 blocks every 3 s.
             if flyTarget == nil || aiTimer <= 0 || simd_length(flyTarget! - pos) < 2 {
-                aiTimer = Float.random(in: 3...7)
-                flyTarget = pos + V3(Float.random(in: -16...16), Float.random(in: -8...8), Float.random(in: -16...16))
+                aiTimer = Rand.float(in: 3...7)
+                flyTarget = pos + V3(Rand.float(in: -16...16), Rand.float(in: -8...8), Rand.float(in: -16...16))
             }
             if canTargetFar(g, dist, 64) && w.canSee(eye, g.player.eye) {
                 face(player)
@@ -471,10 +605,14 @@ final class Mob {
             speed = 0
             let d = flyTarget! - pos
             let l = simd_length(d)
-            if l > 0.1 { vel += (d / l * spec.speed - vel) * min(1, dt * 1.5) }
+            if l > 0.1 {
+                let want: V3 = d * (spec.speed / l)
+                let k: Float = min(1, dt * 1.5)
+                vel += (want - vel) * k
+            }
         case .blaze:
             // Hovers a little above the player; bursts of three small fireballs.
-            let hover = canTargetFar(g, dist, 48) ? player.y + 2.5 : pos.y + Float.random(in: -1...1)
+            let hover = canTargetFar(g, dist, 48) ? player.y + 2.5 : pos.y + Rand.float(in: -1...1)
             vel.y += ((hover - pos.y) * 1.5 - vel.y) * min(1, dt * 2)
             if canTargetFar(g, dist, 48) && w.canSee(eye, g.player.eye) {
                 face(player)
@@ -487,14 +625,14 @@ final class Mob {
                     let from = eye + forward * 0.5
                     var dir = simd_normalize(g.player.eye - V3(0, 0.4, 0) - from)
                     let spread = sqrtf(dist) * 0.02
-                    dir = simd_normalize(dir + V3(Float.random(in: -spread...spread), 0, Float.random(in: -spread...spread)))
+                    dir = simd_normalize(dir + V3(Rand.float(in: -spread...spread), 0, Rand.float(in: -spread...spread)))
                     g.projectiles.fireball(from: from, dir: dir, big: false, byPlayer: false)
                     g.sfx(.fireball, 0.6, at: from)
                     volley -= 1
                     attackCooldown = volley > 0 ? 0.3 : 3
                 }
             } else { wander(); speed = moving ? spec.speed * 0.5 : 0; volley = 0 }
-            if Float.random(in: 0..<1) < dt * 6 { g.particles.smoke(at: pos + V3(Float.random(in: -0.4...0.4), Float.random(in: 0.2...1.4), Float.random(in: -0.4...0.4))) }
+            if Rand.float(in: 0..<1) < dt * 6 { g.particles.smoke(at: pos + V3(Rand.float(in: -0.4...0.4), Rand.float(in: 0.2...1.4), Rand.float(in: -0.4...0.4))) }
         case .dragon, .crystal, .shulker, .vehicle, .wither, .vex:
             break
         case .evoker: speed = aiEvoker(dt, g, dist: dist, canTarget: canTarget)
@@ -507,10 +645,10 @@ final class Mob {
             // throws slowness (far), poison (healthy target), weakness (close, 25%) or harming.
             if attackCooldown <= 0 {
                 var drink: String?
-                if inWater && !(effects?.has(.waterBreathing) ?? false) && Float.random(in: 0..<1) < 0.15 { drink = "water_breathing" }
-                else if fire > 0 && !(effects?.has(.fireResistance) ?? false) && Float.random(in: 0..<1) < 0.15 { drink = "fire_resistance" }
-                else if health < spec.health && Float.random(in: 0..<1) < 0.05 { drink = "healing" }
-                else if canTarget && dist > 11 && !(effects?.has(.speed) ?? false) && Float.random(in: 0..<1) < 0.5 { drink = "swiftness" }
+                if inWater && !(effects?.has(.waterBreathing) ?? false) && Rand.float(in: 0..<1) < 0.15 { drink = "water_breathing" }
+                else if fire > 0 && !(effects?.has(.fireResistance) ?? false) && Rand.float(in: 0..<1) < 0.15 { drink = "fire_resistance" }
+                else if health < spec.health && Rand.float(in: 0..<1) < 0.05 { drink = "healing" }
+                else if canTarget && dist > 11 && !(effects?.has(.speed) ?? false) && Rand.float(in: 0..<1) < 0.5 { drink = "swiftness" }
                 if let d = drink, let t = Potions.types.first(where: { $0.key == d }) {
                     attackCooldown = 1.6
                     for e in t.effects { applyEffect(e.0, amp: e.2, seconds: e.1, game: g) }
@@ -527,7 +665,7 @@ final class Mob {
                     var type = "harming"
                     if dist >= 8 && !g.effects.has(.slowness) { type = "slowness" }
                     else if g.health >= 8 && !g.effects.has(.poison) { type = "poison" }
-                    else if dist <= 3 && !g.effects.has(.weakness) && Float.random(in: 0..<1) < 0.25 { type = "weakness" }
+                    else if dist <= 3 && !g.effects.has(.weakness) && Rand.float(in: 0..<1) < 0.25 { type = "weakness" }
                     g.projectiles.fireball(from: eye + forward * 0.4, dir: simd_normalize(d), big: false, byPlayer: false, potion: Potions.item(1, type) ?? 0)
                     g.sfx(.bow, 0.5, at: pos)
                 }
@@ -543,7 +681,7 @@ final class Mob {
                     let b = g.world.gen.column(Int(floor(pos.x)), Int(floor(pos.z))).biome
                     v.type = Villagers.type(for: b)
                     // One in ~8 village villagers is a nitwit (reference spawn odds for unemployed variants).
-                    if !baby && Float.random(in: 0..<1) < 0.12 { v.profession = "nitwit" }
+                    if !baby && Rand.float(in: 0..<1) < 0.12 { v.profession = "nitwit" }
                     villager = v
                 }
                 findJob(g)
@@ -551,20 +689,15 @@ final class Mob {
                 villageTick(g)
             }
             if villagerNight(g) { speed = 0; break }
-            if let js = villager?.jobSite, g.dayFraction > 0.05 && g.dayFraction < 0.45, aiTimer <= 0, Float.random(in: 0..<1) < 0.3 {
-                let site = V3(Float(js[0]) + 0.5, Float(js[1]), Float(js[2]) + 0.5)
-                if simd_length(site - pos) > 2.5 { face(site); moving = true; aiTimer = 2 }
-            }
-            if let z = g.mobs.mobs.first(where: { ($0.isZombie || $0.raider || $0.kind == .vex || $0.kind == .ravager || $0.kind == .evoker
-                                                   || $0.kind == .vindicator || $0.kind == .pillager) && simd_length($0.pos - pos) < 8 }) {
-                face(pos * 2 - z.pos); speed = 2.2; moving = true
-            } else {
-                wander()
-                if let h = home, simd_length(V2(h.x - pos.x, h.z - pos.z)) > 16 { face(h) }
-                speed = moving ? spec.speed * 0.6 : 0
-            }
+            speed = villagerDay(dt, g)
         case .golem:
             if home == nil { home = pos }
+            // Village-made golems defend villagers from a player they think badly of (reputation <= -100).
+            jobTimer -= dt
+            if jobTimer <= 0 {
+                jobTimer = 1
+                if !playerBuilt && g.villagersHatePlayer(near: pos) { aggro = true; lockTime = max(lockTime, 5) }
+            }
             if target == nil || target!.health <= 0 || simd_length(target!.pos - pos) > 20 {
                 target = g.mobs.mobs.first { $0.kind.hostile && $0.kind != .creeper && $0.health > 0 && simd_length($0.pos - pos) < 16 }
             }
@@ -574,7 +707,7 @@ final class Mob {
                 speed = d > halfW + t.halfW + 0.8 ? spec.speed * 1.4 : 0
                 if d < halfW + t.halfW + 1.2 && attackCooldown <= 0 {
                     attackCooldown = 1.25
-                    t.hit(from: pos, damage: Int.random(in: 7...21), knockback: 1)
+                    t.hit(from: pos, damage: Rand.int(in: 7...21), knockback: 1)
                     t.vel.y += 8
                     g.sfx(.attack, 0.9, at: t.pos)
                 }
@@ -583,11 +716,16 @@ final class Mob {
                 speed = spec.speed * 1.4
                 if dist < 2.2 && attackCooldown <= 0 {
                     attackCooldown = 1.25
-                    g.hurtPlayer(Int.random(in: 7...21), from: pos, cause: "was slain by Iron Golem", knockback: 2)
+                    g.hurtPlayer(Rand.int(in: 7...21), from: pos, cause: "was slain by Iron Golem", knockback: 2)
                 }
             } else {
-                wander()
-                if let h = home, simd_length(V2(h.x - pos.x, h.z - pos.z)) > 12 { face(h) }
+                // Too far from home: walk back (wander() faced the stroll goal and this faced home, every tick: the
+                // golem flipped between the two on the spot, behaviour sim spinning 20 windows).
+                if let h = home, simd_length(V2(h.x - pos.x, h.z - pos.z)) > 12 && !gaveUp(h) {
+                    wanderGoal = nil; face(h); moving = true
+                } else {
+                    wander()
+                }
                 speed = moving ? spec.speed * 0.4 : 0
             }
         case .melee, .spider:
@@ -599,51 +737,67 @@ final class Mob {
                 speed = spec.speed * (baby ? 1.5 : 1)
                 if simd_length(v.pos - pos) < halfW + v.halfW + 1 && attackCooldown <= 0 {
                     attackCooldown = 1
-                    v.hit(from: pos, damage: spec.attack, knockback: 0.6)
-                    if v.health <= 0 && v.kind == .villager && isZombie && Bool.random() { v.health = -2000; g.zombify(v) }
+                    v.hit(from: pos, damage: meleeDamage, knockback: 0.6)
+                    if v.health <= 0 && v.kind == .villager && isZombie && Rand.float(in: 0..<1) < ([0, 0, 0.5, 1] as [Float])[max(0, min(3, g.difficulty))] { v.health = -2000; g.zombify(v) }
                 }
             } else if canTarget && hostileNow {
                 face(player)
                 speed = spec.speed * (baby ? 1.5 : 1)
+                if drownedThrow(g, dist: dist) { speed = 0 }
+                // Spiders leap at a target 2-4 blocks away (reference leap goal).
+                if (kind == .spider || kind == .caveSpider) && onGround && dist > 2 && dist < 4 && Rand.float(in: 0..<1) < dt * 4 {
+                    vel += forward * 4 + V3(0, 5, 0)
+                }
                 let reach = halfW + 1.1
                 if dist < reach + 0.2 && abs(toPlayer.y) < 2 && attackCooldown <= 0 {
                     attackCooldown = 1
-                    g.hurtPlayer(spec.attack, from: pos, cause: "was slain by \(spec.name)", attacker: self)
+                    g.hurtPlayer(meleeDamage, from: pos, cause: "was slain by \(spec.name)", attacker: self)
                     if kind == .witherSkeleton { g.applyEffect(.wither, amp: 0, seconds: 10) }
                     if kind == .caveSpider { g.applyEffect(.poison, amp: 0, seconds: 7) }
                     if kind == .husk { g.applyEffect(.hunger, amp: 0, seconds: 7) }
                 }
-            } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
+            } else if let ps = patrolStep(g) { speed = ps } else if let es = trampleEggs(dt, g) { speed = es } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .ranged:
+            if kind == .illusioner && canTarget { illusionerSpells(dt, g) }
             if let v = villagerTarget(g), !(canTarget && dist <= simd_length(v.pos - pos)), w.canSee(eye, v.pos + V3(0, v.height * 0.6, 0)) {
                 face(v.pos)
                 let dv = simd_length(v.pos - pos)
                 speed = dv > 10 ? spec.speed : (dv < 5 ? -spec.speed * 0.6 : 0)
                 if attackCooldown <= 0 && dv < 16 {
-                    attackCooldown = Float.random(in: 1.5...2.5)
+                    attackCooldown = crossbowReload
                     var d = v.pos + V3(0, v.height * 0.6, 0) - eye
                     d.y += simd_length(V2(d.x, d.z)) * 0.2
-                    g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 50 : 32, fromPlayer: false, damage: 2)
+                    tipArrow(g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 40 : 32, fromPlayer: false, damage: 2))
                     g.sfx(.bow, 0.7, at: pos)
                 }
             } else if canTarget && w.canSee(eye, g.player.eye) {
                 face(player)
                 speed = dist > 10 ? spec.speed : (dist < 5 ? -spec.speed * 0.6 : 0)
+                // Bow skeletons circle-strafe in range, switching side now and then (reference ranged bow goal).
+                if kind != .pillager && kind != .illusioner && dist <= 12 {
+                    phaseTime -= dt
+                    if phaseTime <= 0 {
+                        phaseTime = 1
+                        if circleAngle == 0 || Rand.float(in: 0..<1) < 0.3 { circleAngle = circleAngle > 0 ? -1 : 1 }
+                    }
+                    strafe = circleAngle * spec.speed * 0.5
+                }
                 if attackCooldown <= 0 && dist < 16 {
-                    attackCooldown = Float.random(in: 1.5...2.5)
+                    attackCooldown = crossbowReload
                     let target = g.player.eye - V3(0, 0.3, 0)
                     var d = target - eye
                     let horiz = simd_length(V2(d.x, d.z))
                     d.y += horiz * 0.2
                     // Marauders fire crossbow bolts (faster, flatter).
-                    g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 50 : 32 + Float.random(in: -3...3), fromPlayer: false, damage: 2)
+                    tipArrow(g.projectiles.shoot(from: eye + forward * 0.3, dir: simd_normalize(d), speed: kind == .pillager ? 40 : 32 + Rand.float(in: -3...3), fromPlayer: false, damage: 2))
                     g.sfx(.bow, 0.7, at: pos)
                 }
-            } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
+            } else if let ps = patrolStep(g) { speed = ps } else { wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .creeper:
             if canTarget {
                 face(player)
-                if dist < 3 {
+                // Reference swell goal: starts within 3 blocks, keeps swelling until the target is 7+ away.
+                if dist < 3 || (fuse > 0 && dist < 7) {
                     if fuse == 0 { g.sfx(.creeperHiss, 1, at: pos) }
                     fuse += dt
                     speed = 0
@@ -659,15 +813,27 @@ final class Mob {
             } else { fuse = max(0, fuse - dt); wander(); speed = moving ? spec.speed * 0.5 : 0 }
         case .enderman:
             // Provoked by being looked at (in the face) or hit; teleports away from water.
-            if !aggro && canTarget && dist < 64 {
+            if !aggro && canTarget && dist < 64 && Items.key(g.inventory.armor[0].item) != "carved_pumpkin" {
                 let head = pos + V3(0, height - 0.3, 0)
                 let toHead = simd_normalize(head - g.player.eye)
-                if simd_dot(g.player.look, toHead) > 0.99 && w.canSee(g.player.eye, head) { aggro = true; g.sfx(.mobVoidwalker, 1, at: pos) }
+                if simd_dot(g.player.look, toHead) > 0.99 && w.canSee(g.player.eye, head) { aggro = true; g.sfx(.mob(.enderman, .hurt), 1.2, at: pos) }
             }
             if inWater { teleport(w) }
+            voidwalkerTick(dt, g)
             if aggro && canTarget {
                 face(player)
                 speed = spec.speed * 2
+                // Far from its target, an angry voidwalker blinks closer (reference teleport-towards).
+                if dist > 16 && Rand.float(in: 0..<1) < dt * 0.5 {
+                    let back = simd_normalize(V3(pos.x - player.x, 0, pos.z - player.z))
+                    let to = player + back * Rand.float(in: 3...8)
+                    let x = Int(floor(to.x)), z = Int(floor(to.z))
+                    let top = w.topY(x, z)
+                    if top > 0 && abs(Float(top + 1) - player.y) < 8 && !Blocks.isLiquid(w.block(x, top, z)) {
+                        pos = V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5)
+                        vel = .zero
+                    }
+                }
                 if dist < 1.6 && attackCooldown <= 0 {
                     attackCooldown = 1
                     g.hurtPlayer(spec.attack, from: pos, cause: "was slain by Voidwalker", attacker: self)
@@ -675,12 +841,12 @@ final class Mob {
             } else { wander(); speed = moving ? spec.speed * 0.4 : 0 }
         case .slime:
             if onGround && aiTimer <= 0 {
-                aiTimer = Float.random(in: 1...2)
-                if canTarget { face(player) } else { yaw += Float.random(in: -1.5...1.5) }
+                aiTimer = Rand.float(in: 1...2)
+                if canTarget { face(player) } else { yaw += Rand.float(in: -1.5...1.5) }
                 vel.y = kind == .magmaCube ? 7 + Float(slimeSize) * 0.8 : 7
                 vel.x = forward.x * spec.speed * 1.5
                 vel.z = forward.z * spec.speed * 1.5
-                g.sfx(.mobSlime, 0.5, at: pos)
+                g.sfx(kind == .magmaCube ? .mob(.magmaCube, .ambient) : .place(.slime), slimeSize > 1 ? 0.6 : 0.35, at: pos)
             }
             if canTarget && (slimeSize > 1 || kind == .magmaCube) && dist < halfW + 0.9 && attackCooldown <= 0 {
                 attackCooldown = 1
@@ -689,9 +855,17 @@ final class Mob {
             }
         }
 
+        // A passive mount carrying a jockey goes where the rider wants.
+        if driven > 0 {
+            driven -= dt
+            yaw = driveYaw
+            speed = driveSpeed
+            faceGoal = nil
+        }
         // Riders sit on their mount (and attack from there).
         if let mt = mount {
             if mt.health > 0 {
+                if speed != 0 && !mt.kind.hostile { mt.driven = 0.3; mt.driveSpeed = abs(speed); mt.driveYaw = speed < 0 ? yaw + .pi : yaw }
                 pos = mt.pos + V3(0, mt.height * 0.8, 0)
                 vel = .zero
                 onGround = true
@@ -699,17 +873,23 @@ final class Mob {
             }
             mount = nil
         }
-        // Passive mobs avoid drops and water while calmly wandering.
-        if spec.behavior == .passive && speed > 0 && onGround && panic <= 0 {
+        // Walking towards something: follow a path around obstacles instead of straight at it.
+        var onPath = false
+        if speed > 0, let t = faceGoal, !spec.flying, spec.behavior != .slime {
+            steerAlongPath(t, dt, g, repath: onGround || inWater)
+            onPath = path.index < path.nodes.count
+        } else {
+            path.stallPos = pos; path.stallTime = 0          // standing still on purpose is not a stall
+        }
+        // Passive mobs avoid drops and water while calmly wandering. Not while following a path (the path finder
+        // already weighs water and drops), and after steering so the probe looks along the waypoint: probing along
+        // the straight line to a stroll goal behind a pond turned the mob half round every second or two
+        // (behaviour sim: pigs, wolves, rabbits, chickens spinning 800-1100 degrees in 10 s on strolls).
+        if spec.behavior == .passive && speed > 0 && onGround && panic <= 0 && !onPath {
             let a = pos + forward * (halfW + 0.45)
             let wet = Blocks.isLiquid(w.block(Int(floor(a.x)), Int(floor(pos.y - 0.5)), Int(floor(a.z))))
             let drop = !solid(a.x, pos.y - 0.5, a.z, w) && !solid(a.x, pos.y - 1.5, a.z, w) && !solid(a.x, pos.y - 2.5, a.z, w)
-            if wet || drop { yaw += .pi * Float.random(in: 0.6...1.4); speed = 0; moving = false; aiTimer = Float.random(in: 1...3) }
-        }
-
-        // Walking towards something: follow a path around obstacles instead of straight at it.
-        if speed > 0, let t = faceGoal, !spec.flying, spec.behavior != .slime {
-            steerAlongPath(t, dt, g, repath: onGround || inWater)
+            if wet || drop { yaw += .pi * Rand.float(in: 0.6...1.4); speed = 0; moving = false; aiTimer = Rand.float(in: 1...3) }
         }
         if spec.flying {
             if kind == .blaze && speed != 0 {
@@ -727,7 +907,11 @@ final class Mob {
             return
         }
         if spec.behavior != .slime || onGround {
-            let target = forward * speed * effectSpeed
+            // Magmastriders out of lava are cold: half speed (reference).
+            let cold: Float = kind == .strider && Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y - 0.2)), Int(floor(pos.z))))] != 2
+                && Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))] != 2 ? 0.5 : 1
+            let side = V3(cosf(yaw), 0, -sinf(yaw)) * strafe
+            let target = (forward * speed + side) * effectSpeed * cold
             let k = 1 - expf(-(onGround ? 12 : 3) * dt)
             vel.x += (target.x - vel.x) * k
             vel.z += (target.z - vel.z) * k
@@ -746,11 +930,31 @@ final class Mob {
             vel.y = max(vel.y, -40)
         }
 
+        // Ladders and vines: climb when the path leads up (centred on the rung), slow slide otherwise.
+        let lx = Int(floor(pos.x)), lz = Int(floor(pos.z))
+        let onLadder = !spec.flying && (PathFinder.climbable(w.block(lx, Int(floor(pos.y)), lz)) || PathFinder.climbable(w.block(lx, Int(floor(pos.y + 1)), lz)))
+        if onLadder {
+            if path.climbUp {
+                vel.y = 2.35
+                vel.x = (Float(lx) + 0.5 - pos.x) * 4
+                vel.z = (Float(lz) + 0.5 - pos.z) * 4
+            } else {
+                vel.y = max(vel.y, -3)
+            }
+        }
+
         let before = pos
         let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: 0.6, onGround: onGround)
         if self === Mob.trace {
             print(String(format: "      pre %.3f,%.3f,%.3f vel %.2f,%.2f,%.2f -> %.3f,%.3f,%.3f hit %@%@%@ ground %@ speed %.2f yaw %.0f", before.x, before.y, before.z,
                          vel.x, vel.y, vel.z, pos.x, pos.y, pos.z, hit.x ? "x" : "-", hit.y ? "y" : "-", hit.z ? "z" : "-", onGround ? "1" : "0", speed, yaw * 180 / .pi))
+            if path.index < path.nodes.count {
+                let n = path.nodes[path.index]
+                let ny: Int = n.y - YOFF
+                print(String(format: "        node %ld/%ld at %ld,%ld,%ld, stall %.1f s, moving %@, ai %.1f", path.index, path.nodes.count, n.x, ny, n.z, path.stallTime, moving ? "yes" : "no", aiTimer))
+            } else {
+                print(String(format: "        no node (%ld), stall %.1f s, moving %@, ai %.1f", path.nodes.count, path.stallTime, moving ? "yes" : "no", aiTimer))
+            }
         }
         var landed = false, bumped = false
         if hit.y { if vel.y < 0 { landed = true }; vel.y = 0 }
@@ -758,8 +962,12 @@ final class Mob {
         if hit.z { vel.z = 0; bumped = true }
         onGround = landed || (vel.y <= 0 && collides(pos - V3(0, 0.06, 0), w))
         if bumped && speed != 0 {
-            if kind == .spider { vel.y = 3.5 }                            // climbs walls
-            else if onGround && spec.behavior != .slime { vel.y = 7.4 }  // hop up one block
+            if kind == .spider || kind == .caveSpider { vel.y = 3.5 }     // climbs walls
+            else if onLadder { vel.y = 2.35 }
+            // Hop up one block: gravity acts before the first move, so 7.4 left the ground at 6.0 and peaked 0.8 up,
+            // short of a full block (behaviour-sim trace, run 355: villagers bounced at every 1-block step for
+            // minutes). The player's 8.6 peaks at 1.1.
+            else if onGround && spec.behavior != .slime { vel.y = 8.6 }
         }
         if pos.y < -10 { health = 0 }
 
@@ -777,23 +985,76 @@ final class Mob {
         g.survival && g.alive && dist < range
     }
 
+    // Strolling: walk to a random standable spot 3-9 blocks away along a path (reference random stroll), instead
+    // of a random heading straight into walls, fences and off ledges (behaviour sim: villagers spent most of the
+    // day pushing against house walls and hopping). Falls back to a random heading when no spot is found.
     func wander() {
         if panic > 0 {
             moving = true
-            if aiTimer <= 0 { yaw += Float.random(in: -1.2...1.2); aiTimer = 0.6 }
+            wanderGoal = nil
+            if aiTimer <= 0 { yaw += Rand.float(in: -1.2...1.2); aiTimer = 0.6 }
         } else if aiTimer <= 0 {
             moving.toggle()
-            if moving { yaw += Float.random(in: -2...2); aiTimer = Float.random(in: 1.5...4) }
-            else { aiTimer = Float.random(in: 2...7) }
+            wanderGoal = nil
+            if moving {
+                if !spec.flying, let w = Mob.world, let goal = strollGoal(w, within: strollArea) { wanderGoal = goal; aiTimer = Rand.float(in: 5...9) }
+                else if !spec.flying && Mob.world != nil && (kind == .villager || kind.steelhold) {
+                    // Nowhere to stroll to (a closed room, a ledge): stand a while instead of walking into the walls
+                    // (behaviour sim: villagers stuck in 100+ of 120 windows; Steelhold sentries on a railed roof or deck
+                    // walked into the rails turning up to 115 degrees at a time: 14 spinning windows, run 417).
+                    moving = false; aiTimer = Rand.float(in: 2...5)
+                } else { yaw += Rand.float(in: -2...2); aiTimer = Rand.float(in: 1.5...4) }
+            } else { aiTimer = Rand.float(in: 2...7) }
         }
+        if moving, let goal = wanderGoal {
+            let d: Float = simd_length(V2(goal.x - pos.x, goal.z - pos.z))
+            // Arrived within a block: at 0.7 a mob sliding round a corner or post next to the goal could circle it
+            // (behaviour sim: pigs and sheep spinning on strolls).
+            if d < 1.0 || gaveUp(goal) {
+                // Three strolls in a row that couldn't be walked: rest longer (behaviour sim: a cow in a pit gave up
+                // 81 strolls in 120 s, pressing against the pit wall for 4 s each).
+                strollFails = d < 1.0 ? 0 : strollFails + 1
+                moving = false; wanderGoal = nil
+                if strollFails >= 3 { strollFails = 0; aiTimer = Rand.float(in: 8...15) } else { aiTimer = Rand.float(in: 2...6) }
+            } else { face(goal) }
+        }
+    }
+
+    func strollGoal(_ w: World, within area: (V3, Float)? = nil) -> V3? {
+        var pr = PathProfile()
+        pr.tall = max(1, min(3, Int(ceilf(height - 0.05))))
+        pr.span = halfW > 0.5 ? 2 : 1
+        pr.doors = opensDoors
+        let y0 = Int(floor(pos.y + 0.01))
+        for _ in 0..<6 {
+            let ang: Float = Rand.float(in: 0..<(2 * .pi))
+            let d: Float = Rand.float(in: 3...9)
+            var x = Int(floor(pos.x + sinf(ang) * d)), z = Int(floor(pos.z + cosf(ang) * d))
+            if let a = area {
+                // Inside the area the schedule keeps the mob in (else it turns back at the edge every tick: spinning).
+                let c = a.0
+                let rr: Float = a.1 * 0.8 * Rand.float(in: 0.2...1)
+                x = Int(floor(c.x + sinf(ang) * rr)); z = Int(floor(c.z + cosf(ang) * rr))
+            }
+            // The footprint's centre: a 2-wide mob (iron golem) stands centred on the corner of its 2x2 cells, so a
+            // cell-centre goal sat 0.71 from where it could ever stand, outside the 0.7 arrival radius; it circled
+            // the goal (behaviour sim: golems spinning 15 and 8 windows, every one on a stroll).
+            let off: Float = pr.span == 2 ? 1 : 0.5
+            for dy in [0, 1, -1, 2, -2] {
+                let g = V3(Float(x) + off, Float(y0 + dy), Float(z) + off)
+                if let c = PathFinder.standCost(w, x, y0 + dy, z, pr), c < 5, !gaveUp(g) { return g }
+            }
+        }
+        return nil
     }
 
     func teleport(_ w: World) {
         for _ in 0..<16 {
-            let x = Int(floor(pos.x)) + Int.random(in: -16...16), z = Int(floor(pos.z)) + Int.random(in: -16...16)
+            let x = Int(floor(pos.x)) + Rand.int(in: -16...16), z = Int(floor(pos.z)) + Rand.int(in: -16...16)
             let top = w.topY(x, z)
             if top < 1 { continue }
             if Blocks.isLiquid(w.block(x, top, z)) { continue }
+            teleportSound = true
             pos = V3(Float(x) + 0.5, Float(top + 1), Float(z) + 0.5)
             vel = .zero
             return
@@ -801,14 +1062,23 @@ final class Mob {
     }
 
     func hit(from src: V3, damage: Int, knockback: Float = 1) {
+        if kind == .warden && emergeTime > 0 { return }
+        hurtSound = true
         if kind == .creaking { hurt = 0.25; return }            // only breaking its heart ends a Barkwraith
         if kind == .enderDragon {
-            // Hits land at a quarter (+1) unless the dragon is perched; it never dies instantly.
+            // Head hits land in full; hits anywhere else (body, wings, tail) at a quarter + 1, like the reference
+            // game's multi-part wyrm. A perched wyrm takes off once it has lost a quarter of its health up there.
             if phase == 6 { return }
-            health -= phase == 4 ? damage : damage / 4 + 1
+            let head = pos + forward * 5 + V3(0, 2, 0)
+            let onHead = simd_length(src - head) < simd_length(src - (pos + V3(0, 2, 0)))
+            let dealt = onHead ? damage : damage / 4 + min(damage, 1)
+            health -= dealt
             hurt = 0.4
             if health <= 0 { health = 1; phase = 6; phaseTime = 0 }
-            else if phase == 4 && Float.random(in: 0..<1) < 0.2 { phase = 5; phaseTime = 0 }
+            else if phase == 4 {
+                sitDamage += dealt
+                if sitDamage > spec.health / 4 { sitDamage = 0; phase = 5; phaseTime = 0 }
+            }
             return
         }
         if kind == .wither {
@@ -827,8 +1097,8 @@ final class Mob {
             if armorHP <= 0 { armorTier = 0 }
         }
         if kind == .horse && armorTier > 0 {
-            let table: [Float] = [0, 3, 5, 7, 11]
-            let pts: Float = table[min(4, armorTier)]
+            let table: [Float] = [0, 3, 5, 7, 11, 0, 4, 19]              // ... 6 copper, 7 duskium
+            let pts: Float = table[min(7, armorTier)]
             let d: Float = Float(damage)
             let cut: Float = min(20, max(pts / 5, pts - d / 2)) / 25
             damage = Int((d * (1 - cut)).rounded())
@@ -836,18 +1106,21 @@ final class Mob {
         health -= kind == .shulker && peek < 0.2 ? damage / 5 : damage
         hurt = 0.4
         if kind == .shulker { aggro = true; return }
-        if kind == .boat { spin += Float.random(in: -8...8); return }
+        if kind == .boat { spin += Rand.float(in: -8...8); return }
         if kind == .armorStand { return }
         if spec.behavior == .passive { panic = 5; aiTimer = 0 }
         aggro = true
+        lockTime = max(lockTime, 10)
+        wasHit = true
         admire = 0
         if spec.flying { vel += V3(0, 1, 0); return }
-        if kind == .enderman && Float.random(in: 0..<1) < 0.5 { return }
+        if kind == .enderman && Rand.float(in: 0..<1) < 0.5 { return }
         var away = pos - src
         away.y = 0
         let l = simd_length(away)
         away = l > 0.01 ? away / l : forward
-        vel += away * 5.5 * knockback + V3(0, 5, 0) * min(1, knockback)
+        let kb = knockback * knockbackTaken
+        vel += away * 5.5 * kb + V3(0, 5, 0) * min(1, kb)
     }
 
     // Ray vs AABB; returns the entry distance.
@@ -886,8 +1159,12 @@ private func parts(_ m: Mob) -> [Part] {
     }
     switch m.kind {
     case .cow:
-        let hide = V3(0.36, 0.24, 0.16)
-        return [
+        let hide = [V3(0.36, 0.24, 0.16), V3(0.36, 0.24, 0.16), V3(0.6, 0.3, 0.17), V3(0.3, 0.22, 0.17)][min(3, m.variant)]
+        let fv = FarmVariant.climate(m.variant)
+        var extra: [Part] = []
+        if fv == 2 { extra = [box(-6, 21, -13, 2, 1.5, 1.5, V3(0.9, 0.85, 0.7)), box(4, 21, -13, 2, 1.5, 1.5, V3(0.9, 0.85, 0.7))] }   // long horns
+        if fv == 3 { extra = [box(-6.5, 11, -9.5, 13, 3, 19, hide * 0.85, 2), box(-4.5, 22, -14, 9, 2, 5, hide * 0.85, 2)] }          // shaggy coat
+        return extra + [
             Part(mn: V3(-6, 12, -9), mx: V3(6, 22, 9), color: hide, pattern: 1),
             Part(mn: V3(-4, 15, -15), mx: V3(4, 23, -9), pivot: V3(0, 19, -9), color: hide, pattern: 1),
             Part(mn: V3(-2.5, 15.5, -15.6), mx: V3(2.5, 18.5, -15), color: V3(0.82, 0.6, 0.55)),
@@ -907,7 +1184,8 @@ private func parts(_ m: Mob) -> [Part] {
         else { p.append(box(-6, 11, -8, 12, 11, 16, wool, 2)); p.append(box(-3.5, 19.5, -12.5, 7, 2.5, 5.5, wool, 2)) }
         return p
     case .chicken:
-        let white = V3(0.95, 0.94, 0.9), orange = V3(0.95, 0.6, 0.15)
+        let white = [V3(0.95, 0.94, 0.9), V3(0.95, 0.94, 0.9), V3(0.75, 0.45, 0.24), V3(0.72, 0.76, 0.82)][min(3, m.variant)]
+        let orange = V3(0.95, 0.6, 0.15)
         let flap: Float = m.onGround ? 0 : sinf(m.walkPhase * 6 + m.hurt * 30) * 0.9
         return [
             box(-3, 5, -4, 6, 6, 8, white, 3),
@@ -919,8 +1197,10 @@ private func parts(_ m: Mob) -> [Part] {
             leg(-1.5, 0.5, 1, 5, 1, orange), leg(1.5, 0.5, 1, 5, -1, orange),
         ] + eyes(13, -7, 1.2, 1)
     case .pig:
-        let pink = V3(0.94, 0.62, 0.6)
-        return [
+        let pink = [V3(0.94, 0.62, 0.6), V3(0.94, 0.62, 0.6), V3(0.56, 0.37, 0.27), V3(0.88, 0.66, 0.6)][min(3, m.variant)]
+        var fluff: [Part] = []
+        if FarmVariant.climate(m.variant) == 3 { fluff = [box(-5.5, 11, -8.5, 11, 3.5, 17, V3(0.95, 0.92, 0.88), 2)] }         // woolly back
+        return fluff + [
             box(-5, 6, -8, 10, 8, 16, pink, 4),
             Part(mn: V3(-4, 8, -15), mx: V3(4, 16, -7), pivot: V3(0, 12, -7), color: pink, pattern: 4),
             box(-2, 9, -16, 4, 3, 1, V3(0.98, 0.72, 0.7)),
@@ -931,10 +1211,16 @@ private func parts(_ m: Mob) -> [Part] {
         return extraParts(m, swing: swing)
     case .rabbit, .fox, .wolf, .cat, .ocelot, .horse, .donkey, .mule, .llama, .traderLlama, .camel, .goat, .panda, .polarBear, .turtle, .frog, .tadpole,
          .armadillo, .sniffer, .mooshroom, .bee, .parrot, .bat, .allay, .axolotl, .squid, .glowSquid, .dolphin, .cod, .salmon, .tropicalFish, .pufferfish,
-         .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking:
+         .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking, .zombieHorse, .happyGhast, .camelHusk, .nautilus, .zombieNautilus:
         return animalParts(m, swing: swing)
-    case .zombie, .skeleton, .enderman, .husk, .stray, .drowned, .pillager, .vindicator, .witch:
-        let sk = m.kind == .skeleton || m.kind == .stray, en = m.kind == .enderman
+    case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad:
+        return soldierParts(m, swing: swing)
+    case .deckGun:
+        return deckGunParts(m)
+    case .copperGolem:
+        return copperGolemParts(m, swing: swing)
+    case .zombie, .skeleton, .enderman, .husk, .stray, .drowned, .pillager, .vindicator, .witch, .illusioner, .parched:
+        let sk = m.kind == .skeleton || m.kind == .stray || m.kind == .parched, en = m.kind == .enderman
         let illager = m.kind == .pillager || m.kind == .vindicator || m.kind == .witch
         var skin = sk ? V3(0.78, 0.78, 0.76) : (en ? V3(0.08, 0.06, 0.1) : V3(0.36, 0.55, 0.3))
         var shirt = sk || en ? skin : V3(0.15, 0.55, 0.58)
@@ -942,10 +1228,12 @@ private func parts(_ m: Mob) -> [Part] {
         switch m.kind {
         case .husk: skin = V3(0.62, 0.55, 0.38); shirt = V3(0.55, 0.45, 0.3); pants = V3(0.42, 0.36, 0.25)
         case .stray: skin = V3(0.7, 0.76, 0.78); shirt = V3(0.45, 0.52, 0.55); pants = shirt
+        case .parched: skin = V3(0.86, 0.78, 0.6); shirt = V3(0.72, 0.6, 0.42); pants = shirt
         case .drowned: skin = V3(0.3, 0.55, 0.55); shirt = V3(0.25, 0.45, 0.4); pants = V3(0.3, 0.35, 0.45)
         case .pillager: skin = V3(0.55, 0.57, 0.58); shirt = V3(0.25, 0.25, 0.3); pants = V3(0.3, 0.3, 0.32)
         case .vindicator: skin = V3(0.55, 0.57, 0.58); shirt = V3(0.2, 0.22, 0.28); pants = V3(0.15, 0.15, 0.2)
         case .witch: skin = V3(0.6, 0.55, 0.45); shirt = V3(0.3, 0.2, 0.35); pants = shirt
+        case .illusioner: skin = V3(0.55, 0.57, 0.58); shirt = V3(0.2, 0.32, 0.62); pants = V3(0.16, 0.2, 0.4)
         default: break
         }
         _ = illager
@@ -969,6 +1257,7 @@ private func parts(_ m: Mob) -> [Part] {
         let hy = bodyY + 12
         if en {
             p += [box(-3, hy + 3.5, -4.2, 2.2, 1, 0.3, V3(0.85, 0.3, 0.95)), box(0.8, hy + 3.5, -4.2, 2.2, 1, 0.3, V3(0.85, 0.3, 0.95))]
+            if m.carriedBlock != 0 { p.append(box(-5, bodyY + 4, -12, 10, 10, 10, Mob.carryColor(m.carriedBlock), 4)) }
         } else {
             p += eyes(hy + 3.5, -4, 1, 1.5, sk ? V3(0.15, 0.15, 0.15) : (m.kind == .drowned ? V3(0.3, 0.9, 0.9) : black))
             if sk { p.append(box(-2, hy + 1, -4.1, 4, 1, 0.2, V3(0.2, 0.2, 0.2))) }
@@ -988,8 +1277,12 @@ private func parts(_ m: Mob) -> [Part] {
         return [
             box(-4 * s, 6, -2 * s, 8 * s, 12, 4 * s, c, 4),
             box(-4 * s, 18, -4 * s, 8 * s, 8, 8 * s, c, 4),
-            box(-2.5, 22, -4.2 * s, 2, 2, 0.3, black), box(0.5, 22, -4.2 * s, 2, 2, 0.3, black),
-            box(-1, 19, -4.2 * s, 2, 3, 0.3, black), box(-2, 19, -4.2 * s, 1, 2, 0.3, black), box(1, 19, -4.2 * s, 1, 2, 0.3, black),
+            // Hisser face (original): wide-set glowing slit eyes, zigzag hissing mouth.
+            box(-4 * s, 22, -4.2 * s, 1, 1, 0.3, black), box(-3 * s, 22, -4.2 * s, 1, 1, 0.3, V3(0.95, 0.9, 0.3)),
+            box(2 * s, 22, -4.2 * s, 1, 1, 0.3, V3(0.95, 0.9, 0.3)), box(3 * s, 22, -4.2 * s, 1, 1, 0.3, black),
+            box(-4 * s, 20, -4.2 * s, 1, 1, 0.3, black), box(-2 * s, 20, -4.2 * s, 1, 1, 0.3, black),
+            box(1 * s, 20, -4.2 * s, 1, 1, 0.3, black), box(3 * s, 20, -4.2 * s, 1, 1, 0.3, black),
+            box(-3 * s, 19, -4.2 * s, 1, 1, 0.3, black), box(-1 * s, 19, -4.2 * s, 2, 1, 0.3, black), box(2 * s, 19, -4.2 * s, 1, 1, 0.3, black),
             leg(-2, -4, 4, 6, 1, c, 4), leg(2, -4, 4, 6, -1, c, 4), leg(-2, 4, 4, 6, -1, c, 4), leg(2, 4, 4, 6, 1, c, 4),
         ]
     case .spider, .caveSpider:
@@ -1281,49 +1574,104 @@ final class MobManager {
     var mobs: [Mob] = []
     var stored: [ChunkKey: [MobRecord]] = [:]     // mobs outside the loaded area (see MobSave.swift)
     private var restoreTimer: Float = 0
-    static let passiveCap = 16
-    static let hostileCap = 35
-    private var passiveTimer: Float = 2
-    private var hostileTimer: Float = 1
+    static let passiveCap = 10
+    static let hostileCap = 70
+    var passiveTimer: Float = 2
+    var hostileTimer: Float = 1
+    var populateTimer: Float = 0.5
+    var hives: [IVec3: [(nectar: Bool, time: Float)]] = [:]   // bees inside nests / hives (Bees.swift)
+    var populated = Set<ChunkKey>()               // chunks that already had their generation-time animals (Spawning.swift)
+    // Live mobs by kind, rebuilt at the start of every update (reused storage: no per-tick allocation).
+    private(set) var kindIndex: [[Mob]] = Array(repeating: [], count: MobKind.allCases.count)
+    func of(_ k: MobKind) -> [Mob] { kindIndex[k.rawValue] }
+    func rebuildIndex() {
+        for i in kindIndex.indices { kindIndex[i].removeAll(keepingCapacity: true) }
+        for m in mobs where m.health > 0 { kindIndex[m.kind.rawValue].append(m) }
+    }
     static let breedFood: [MobKind: [String]] = [
         .cow: ["wheat"], .sheep: ["wheat"], .pig: ["carrot", "potato", "beetroot"], .chicken: ["wheat_seeds", "beetroot_seeds"],
         .hoglin: ["crimson_fungus"], .strider: ["warped_fungus"],
     ]
 
     func update(_ dt: Float, game: Game) {
+        Mob.world = game.world
         PathFinder.budget = 4
         PathFinder.spent = 0
         let w = game.world
         let p = game.player.pos
+        rebuildIndex()
+        Mob.hardMode = game.difficulty == 3
+        hiveTick(dt, game)
         for m in mobs {
+            let before = m.pos
             m.update(dt, game: game)
+            // Footsteps for walking mobs near the listener (size sets the stride and loudness).
+            let dxm = m.pos.x - before.x, dzm = m.pos.z - before.z
+            if game.sound != nil && m.onGround && dxm * dxm + dzm * dzm > 1e-6 && simd_length_squared(m.pos - p) < 256 {
+                let sp = MobVoice.stepInfo[m.kind.rawValue]
+                let moved: Float = sqrtf(dxm * dxm + dzm * dzm)
+                if moved < 1 && sp.walks { m.stepAcc += moved }
+                let stride: Float = sp.stride
+                if m.stepAcc > stride {
+                    m.stepAcc = 0
+                    do {
+                        let under = w.block(Int(floor(m.pos.x)), Int(floor(m.pos.y - 0.2)), Int(floor(m.pos.z)))
+                        if under != AIR {
+                            let vol: Float = sp.volume * (m.baby ? 0.5 : 1)
+                            if let r = Soldier.rank(m.kind) { game.sfx(.soldierStep(r), vol + 0.15, at: m.pos) }
+                            else { game.sfx(.step(soundMat(under)), vol, at: m.pos) }
+                        }
+                    }
+                }
+            }
+            if m.teleportSound {
+                m.teleportSound = false
+                game.sfx(.teleport, 0.9, at: before + V3(0, 1, 0))
+                game.sfx(.teleport, 0.9, at: m.pos + V3(0, 1, 0))
+            }
+            if m.hurtSound {
+                m.hurtSound = false
+                if MobVoice.profile(m.kind).family != .silent { game.sfx(m.baby ? .babyMob(m.kind, .hurt) : .mob(m.kind, .hurt), 0.8, at: m.pos + V3(0, m.height * 0.8, 0)) }
+            }
             if m.callTimer <= 0 {
-                m.callTimer = Float.random(in: 8...24)
-                if m.kind != .creeper && m.kind != .magmaCube { game.sfx(m.kind.call, 0.6, at: m.pos + V3(0, m.height * 0.8, 0)) }
+                m.callTimer = Rand.float(in: 8...24)
+                if let r = Soldier.rank(m.kind) {
+                    // Soldiers chatter at ease and shout orders in a fight (more often while fighting).
+                    if m.aggro { m.callTimer = Rand.float(in: 4...9) }
+                    game.sfx(.soldier(r, m.aggro ? (Rand.float(in: 0..<1) < 0.25 ? .retreat : .attack) : .idle), m.aggro ? 1 : 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
+                } else if m.kind != .creeper && m.kind != .magmaCube && MobVoice.profile(m.kind).family != .silent {
+                    game.sfx(m.baby ? .babyMob(m.kind, .ambient) : .mob(m.kind, .ambient), m.baby ? 0.45 : 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
+                }
             }
         }
         // Breeding: two mobs of a kind in love next to each other make a baby.
         var babies: [Mob] = []
         for a in mobs where a.inLove > 0 {
-            if let b = mobs.first(where: { $0 !== a && $0.kind == a.kind && $0.inLove > 0 && simd_length($0.pos - a.pos) < 1.5 }) {
+            if let b = mobs.first(where: { $0 !== a && a.breedsWith($0) && $0.inLove > 0 && simd_length($0.pos - a.pos) < 1.5 }) {
                 a.inLove = 0; b.inLove = 0
                 a.breedCooldown = 300; b.breedCooldown = 300
-                let baby = Mob(a.kind, at: (a.pos + b.pos) * 0.5)
+                game.achieve("breed")
+                game.addXP(Rand.int(in: 1...7))
+                game.particles.hearts(at: (a.pos + b.pos) * 0.5 + V3(0, 0.8, 0))
+                // Egg layers (reference): turtles lay on their home beach, frogs lay spawn on water, snufflers an egg.
+                if a.kind == .turtle || a.kind == .frog || a.kind == .sniffer { a.hasEgg = true; continue }
+                let baby = Mob(a.kind != b.kind ? .mule : a.kind, at: (a.pos + b.pos) * 0.5)
                 baby.baby = true
                 baby.scale = 0.5
-                game.achieve("breed")
+                baby.inheritFrom(a, b)
                 babies.append(baby)
-                game.addXP(Int.random(in: 1...7))
-                game.particles.hearts(at: baby.pos + V3(0, 0.8, 0))
             }
         }
         mobs += babies
+        // The wyrm never just vanishes: however its health ran out (potions, /kill, explosions) it plays its death
+        // sequence, which opens the exit portal (Hollow.swift).
+        for m in mobs where m.kind == .enderDragon && m.health <= 0 && m.health > -1000 { m.health = 1; m.phase = 6; m.phaseTime = 0 }
         // Deaths: loot + XP, slime splitting.
         var spawned: [Mob] = []
         for m in mobs where m.health <= 0 {
             if m.sized && m.slimeSize > 1 {
-                for _ in 0..<Int.random(in: 2...4) {
-                    let s = Mob(m.kind, at: m.pos + V3(Float.random(in: -0.4...0.4), 0.2, Float.random(in: -0.4...0.4)))
+                for _ in 0..<Rand.int(in: 2...4) {
+                    let s = Mob(m.kind, at: m.pos + V3(Rand.float(in: -0.4...0.4), 0.2, Rand.float(in: -0.4...0.4)))
                     s.makeSlime(size: m.slimeSize / 2)
                     spawned.append(s)
                 }
@@ -1338,27 +1686,12 @@ final class MobManager {
                 if m.keepOnUnload { stash(m) }
                 return true
             }
-            if m.kind.hostile && d > 128 { return true }
-            if m.kind.hostile && !m.persistent && d > 32 && Float.random(in: 0..<1) < dt / 40 { return true }
-            return false
+            return shouldDespawn(m, d, dt, game)
         }
         mobs += spawned
         restoreTimer -= dt
         if restoreTimer <= 0 { restoreTimer = 1; restore(w, center: p, limit: limit) }
-        passiveTimer -= dt
-        if passiveTimer <= 0 {
-            passiveTimer = 2
-            if mobs.filter({ !$0.kind.hostile }).count < MobManager.passiveCap { trySpawnPassive(game) }
-        }
-        hostileTimer -= dt
-        if hostileTimer <= 0 {
-            hostileTimer = 0.5
-            if game.difficulty == 0 { mobs.removeAll { $0.kind.hostile && !$0.persistent } }
-            if game.survival && game.difficulty > 0 && mobs.filter({ $0.kind.hostile }).count < MobManager.hostileCap {
-                for _ in 0..<3 { trySpawnHostile(game) }
-            }
-            trySpawnWaterAndAmbient(game)
-        }
+        spawnTick(dt, game)
     }
 
     // Surface y (feet) at a column if it's grass with two free blocks above, else nil.
@@ -1369,27 +1702,6 @@ final class MobManager {
         let a = w.block(x, y + 1, z), b = w.block(x, y + 2, z)
         guard !Blocks.collide[Int(a)] && !Blocks.collide[Int(b)] && !Blocks.isLiquid(a) else { return nil }
         return y + 1
-    }
-
-    func trySpawnPassive(_ game: Game) {
-        let w = game.world
-        let rd = min(w.renderDistance, 6)
-        guard rd >= 3, w.dim == .overworld else { return }
-        let pcx = floorDiv(Int(floor(game.player.pos.x)), CS), pcz = floorDiv(Int(floor(game.player.pos.z)), CS)
-        let dx = Int.random(in: -rd...rd), dz = Int.random(in: -rd...rd)
-        if max(abs(dx), abs(dz)) < 2 { return }
-        guard let c = w.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)], c.meshedOnce else { return }
-        let x = c.cx * CS + Int.random(in: 2..<(CS - 2)), z = c.cz * CS + Int.random(in: 2..<(CS - 2))
-        let biome = w.gen.column(x, z).biome
-        guard case let (kind, lo, hi)? = MobManager.pickAnimal(biome) else { return }
-        for _ in 0..<Int.random(in: lo...hi) {
-            let sx = x + Int.random(in: -2...2), sz = z + Int.random(in: -2...2)
-            guard let y = animalSurface(w, sx, sz, kind) else { continue }
-            let m = Mob(kind, at: V3(Float(sx) + 0.5, Float(y), Float(sz) + 0.5))
-            if kind == .fox && [.snowyTaiga, .grove, .snowySlopes].contains(biome) { m.variant = 1 }
-            if kind == .mooshroom && Int.random(in: 0..<10) == 0 { m.variant = 1 }
-            mobs.append(m)
-        }
     }
 
     // Reference spawn weights per biome (creature category).
@@ -1403,24 +1715,24 @@ final class MobManager {
         case .snowyTaiga: t = [(.wolf, 8, 4, 4), (.rabbit, 4, 2, 3), (.fox, 8, 2, 4)]
         case .snowyPlains, .iceSpikes: t = [(.rabbit, 10, 2, 3), (.polarBear, 1, 1, 2)]
         case .snowySlopes, .jaggedPeaks, .frozenPeaks: t = [(.goat, 5, 1, 3)]
-        case .grove: t = [(.wolf, 8, 4, 4), (.rabbit, 4, 2, 3), (.fox, 8, 2, 4)]
+        case .grove: t = [(.wolf, 1, 1, 1), (.rabbit, 8, 2, 3), (.fox, 4, 2, 4)]
         case .meadow: t = [(.donkey, 1, 1, 2), (.rabbit, 2, 2, 6), (.sheep, 2, 2, 4)]
         case .cherryGrove: t = [(.pig, 1, 1, 2), (.rabbit, 2, 2, 6), (.sheep, 2, 2, 4)]
         case .desert: t = [(.rabbit, 4, 2, 3)]
-        case .savanna, .savannaPlateau: t = std + [(.horse, 1, 2, 6), (.donkey, 1, 1, 1), (.armadillo, 10, 2, 3)] + (b == .savannaPlateau ? [(.llama, 8, 4, 4)] : [])
+        case .savanna, .savannaPlateau: t = std + [(.horse, 1, 2, 6), (.donkey, 1, 1, 1), (.armadillo, 10, 2, 3)] + (b == .savannaPlateau ? [(.llama, 8, 4, 4), (.wolf, 8, 4, 8)] : [])
         case .windsweptSavanna: t = std + [(.horse, 1, 2, 6), (.donkey, 1, 1, 1), (.armadillo, 10, 2, 3)]
         case .windsweptHills, .windsweptGravellyHills, .windsweptForest: t = std + [(.llama, 5, 4, 6)]
-        case .jungle, .sparseJungle: t = std + [(.parrot, 40, 1, 2), (.ocelot, 2, 1, 3)] + (b == .jungle ? [(.panda, 1, 1, 2)] : [])
+        case .jungle, .sparseJungle: t = std + [(.parrot, 40, 1, 2), (.ocelot, 2, 1, 3)] + (b == .jungle ? [(.panda, 1, 1, 2)] : [(.wolf, 8, 2, 4)])
         case .bambooJungle: t = std + [(.parrot, 40, 1, 2), (.panda, 80, 1, 2), (.ocelot, 2, 1, 1)]
         case .swamp: t = std + [(.frog, 10, 2, 5)]
         case .mangroveSwamp: t = [(.frog, 10, 2, 5)]
         case .mushroomFields: t = [(.mooshroom, 8, 4, 8)]
         case .beach: t = [(.turtle, 5, 2, 5)]
-        case .badlands, .woodedBadlands, .erodedBadlands: t = [(.armadillo, 6, 1, 2)]
+        case .badlands, .woodedBadlands, .erodedBadlands: t = [(.armadillo, 6, 1, 2)] + (b == .woodedBadlands ? [(.wolf, 2, 4, 8)] : [])
         default: return nil
         }
         let total = t.reduce(0) { $0 + $1.1 }
-        var r = Int.random(in: 0..<max(1, total))
+        var r = Rand.int(in: 0..<max(1, total))
         for e in t { r -= e.1; if r < 0 { return (e.0, e.2, e.3) } }
         return nil
     }
@@ -1445,143 +1757,34 @@ final class MobManager {
         return y + 1
     }
 
-    // Water creatures and ambient bats (called with the monster spawner).
-    func trySpawnWaterAndAmbient(_ game: Game) {
-        let w = game.world
-        guard w.dim == .overworld else { return }
-        let pp = game.player.pos
-        let a = Float.random(in: 0..<(2 * .pi)), r = Float.random(in: 24...56)
-        let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
-        guard w.isLoaded(x, z) else { return }
-        let biome = w.gen.column(x, z).biome
-        let aquatic = mobs.filter { $0.spec.aquatic }.count
-        if aquatic < 14 {
-            let y = Int.random(in: max(1, YOFF - 50)...(YOFF + 62))
-            if Blocks.fluidKind[Int(w.block(x, y, z))] == 1 && Blocks.fluidKind[Int(w.block(x, y + 1, z))] == 1 {
-                var kind: MobKind?
-                var n = 1
-                let dark = w.lightAt(x, y, z).sky == 0
-                if dark && y < YOFF + 30 { kind = Int.random(in: 0..<2) == 0 ? .glowSquid : nil; n = Int.random(in: 2...4) }
-                else if biome.isOcean || biome.isRiver {
-                    let warm = biome == .warmOcean || biome == .lukewarmOcean || biome == .deepLukewarmOcean
-                    let cold = biome == .coldOcean || biome == .deepColdOcean || biome == .frozenOcean || biome == .deepFrozenOcean || biome == .frozenRiver
-                    let roll = Int.random(in: 0..<100)
-                    if warm { kind = roll < 50 ? .tropicalFish : (roll < 65 ? .pufferfish : (roll < 80 ? .dolphin : .squid)); n = kind == .tropicalFish ? 8 : (kind == .dolphin ? 2 : Int.random(in: 1...3)) }
-                    else if cold { kind = roll < 50 ? .salmon : (roll < 80 ? .cod : .squid); n = Int.random(in: 1...5) }
-                    else if biome.isRiver { kind = roll < 60 ? .salmon : .squid; n = Int.random(in: 1...4) }
-                    else { kind = roll < 55 ? .cod : (roll < 80 ? .squid : .dolphin); n = kind == .dolphin ? Int.random(in: 1...2) : Int.random(in: 3...6) }
-                } else if biome == .lushCaves { kind = .axolotl; n = Int.random(in: 1...2) }
-                if let k = kind {
-                    for _ in 0..<n {
-                        let q = V3(Float(x) + Float.random(in: 0...1), Float(y), Float(z) + Float.random(in: 0...1))
-                        mobs.append(Mob(k, at: q))
-                    }
-                }
-            }
-        }
-        // Bats: dark caves below sea level.
-        if mobs.filter({ $0.kind == .bat }).count < 5 {
-            let y = Int.random(in: max(1, YOFF - 60)...(YOFF + 60))
-            if w.block(x, y, z) == AIR && w.lightAt(x, y, z).sky == 0 && w.lightAt(x, y, z).block < 4 && Int.random(in: 0..<4) == 0 {
-                mobs.append(Mob(.bat, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)))
-            }
-        }
-        // Nightwings: at night, over a player who hasn't slept for 3+ days.
-        if game.survival && game.daylight < 0.3 && game.timeSinceRest > 3600 && Float.random(in: 0..<1) < Float(game.timeSinceRest - 3600) / 3600 * 0.02,
-           mobs.filter({ $0.kind == .phantom }).count < 4, game.skyExposed(Int(floor(pp.x)), Int(floor(pp.y + 1)), Int(floor(pp.z))), pp.y > Float(YOFF + SEA) {
-            for _ in 0..<Int.random(in: 1...3) {
-                mobs.append(Mob(.phantom, at: pp + V3(Float.random(in: -10...10), 20 + Float.random(in: 0...14), Float.random(in: -10...10))))
-            }
-        }
-    }
-
-    // Monster spawning: block light 0, combined light <= random(0...7), solid floor with 2 free
-    // blocks, 24-64 blocks from the player.
-    func trySpawnHostile(_ game: Game) {
-        let w = game.world
-        if w.dim == .nether { trySpawnEmberdeep(game); return }
-        if w.dim == .end {
-            // Voidwalkers (groups of up to 4) on hollow stone anywhere 24-64 blocks out.
-            let pp = game.player.pos
-            let a = Float.random(in: 0..<(2 * .pi)), r = Float.random(in: 24...64)
-            let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
-            guard w.isLoaded(x, z), mobs.filter({ $0.kind == .enderman }).count < 30 else { return }
-            let top = w.topY(x, z)
-            guard top > 0, Blocks.key(w.block(x, top, z)) == "end_stone" else { return }
-            for _ in 0..<Int.random(in: 1...4) {
-                let sx = x + Int.random(in: -2...2), sz = z + Int.random(in: -2...2)
-                let ty = w.topY(sx, sz)
-                guard ty > 0, Blocks.key(w.block(sx, ty, sz)) == "end_stone" else { continue }
-                mobs.append(Mob(.enderman, at: V3(Float(sx) + 0.5, Float(ty + 1), Float(sz) + 0.5)))
-            }
-            return
-        }
-        let pp = game.player.pos
-        let a = Float.random(in: 0..<(2 * .pi)), r = Float.random(in: 24...64)
-        let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
-        guard w.isLoaded(x, z) else { return }
-        let top = w.topY(x, z)
-        guard top > 2 else { return }
-        var y = Int.random(in: 2...(top + 1))
-        while y > 1 && !(Blocks.opaque[Int(w.block(x, y - 1, z))] && !Blocks.collide[Int(w.block(x, y, z))] && !Blocks.collide[Int(w.block(x, y + 1, z))]) { y -= 1 }
-        if y <= 1 { return }
-        if w.block(x, y - 1, z) == BEDROCK { return }
-        if Blocks.isLiquid(w.block(x, y, z)) {
-            let bb = w.gen.column(x, z).biome
-            if (bb.isOcean || bb.isRiver) && w.lightAt(x, y, z).block == 0 && Float.random(in: 0..<1) < (bb.isRiver ? 0.3 : 0.1)
-                && simd_length(V3(Float(x), Float(y), Float(z)) - pp) > 24 {
-                mobs.append(Mob(.drowned, at: V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)))
-            }
-            return
-        }
-        let l = w.lightAt(x, y, z)
-        if l.block > 0 { return }
-        if l.sky > Int.random(in: 0..<32) { return }
-        let darken = Int((1 - (game.daylight - 0.12) / 0.88) * 11)
-        let raw = max(l.block, l.sky - (11 - darken))
-        if raw > Int.random(in: 0...7) { return }
-        let spawnPos = V3(Float(x) + 0.5, Float(y), Float(z) + 0.5)
-        if simd_length(spawnPos - pp) < 24 { return }
-        // Slime chunks (10% of chunks) spawn slimes below y=40.
-        let slimeChunk = hash3(floorDiv(x, 16), 0, floorDiv(z, 16), 0x51113) % 10 == 0
-        if slimeChunk && y - YOFF < 40 && Float.random(in: 0..<1) < 0.3 {
-            let s = Mob(.slime, at: spawnPos)
-            s.makeSlime(size: [1, 2, 4][Int.random(in: 0...2)])
-            if !s.collides(spawnPos, w) { mobs.append(s) }
-            return
-        }
-        let roll = Int.random(in: 0..<420)
-        var kind: MobKind = roll < 95 ? .zombie : (roll < 195 ? .skeleton : (roll < 295 ? .creeper : (roll < 395 ? .spider : (roll < 405 ? .enderman : .witch))))
-        let b = w.gen.column(x, z).biome
-        if kind == .zombie && (b == .desert) && Float.random(in: 0..<1) < 0.8 && l.sky > 0 { kind = .husk }
-        if kind == .zombie && Float.random(in: 0..<1) < 0.05 { kind = .zombieVillager }
-        if kind == .skeleton && (b == .swamp || b == .mangroveSwamp) && Float.random(in: 0..<1) < 0.3 { kind = .bogged }
-        if kind == .skeleton && [.snowyPlains, .iceSpikes, .frozenRiver, .snowySlopes, .frozenPeaks, .jaggedPeaks].contains(b) && Float.random(in: 0..<1) < 0.8 && l.sky > 0 { kind = .stray }
-        if Blocks.isLiquid(w.block(x, y, z)) { return }
-        let m = Mob(kind, at: spawnPos)
-        if kind == .zombie && Float.random(in: 0..<1) < 0.05 { m.baby = true; m.scale = 0.5 }
-        m.rollEquipment(difficulty: game.difficulty, regional: game.regionalDifficulty)
-        if m.collides(spawnPos, w) { return }
-        mobs.append(m)
-    }
-
     // Emberdeep spawning (no light requirement): per-biome weighted lists, overridden inside fortresses.
     func trySpawnEmberdeep(_ game: Game) {
         let w = game.world
         let pp = game.player.pos
-        let a = Float.random(in: 0..<(2 * .pi)), r = Float.random(in: 24...64)
+        let a = Rand.float(in: 0..<(2 * .pi)), r = Rand.float(in: 24...64)
         let x = Int(floor(pp.x + cosf(a) * r)), z = Int(floor(pp.z + sinf(a) * r))
         guard w.isLoaded(x, z) else { return }
         // Magmastriders: groups on the lava sea surface.
         let lavaY = YOFF + EmberGen.lavaLevel
-        if Float.random(in: 0..<1) < 0.1 {
+        if Rand.float(in: 0..<1) < 0.1 {
             if Blocks.fluidKind[Int(w.block(x, lavaY, z))] == 2 && w.block(x, lavaY + 1, z) == AIR && w.block(x, lavaY + 2, z) == AIR
                 && mobs.filter({ $0.kind == .strider }).count < 8 {
-                for i in 0..<Int.random(in: 1...2) { mobs.append(Mob(.strider, at: V3(Float(x + i) + 0.5, Float(lavaY + 1), Float(z) + 0.5))) }
+                for i in 0..<Rand.int(in: 1...2) {
+                    let st = Mob(.strider, at: V3(Float(x + i) + 0.5, Float(lavaY + 1), Float(z) + 0.5))
+                    mobs.append(st)
+                    // Reference jockeys: 1 in 30 carry an undead boarling, otherwise 1 in 10 a young magmastrider.
+                    let riderKind: MobKind? = Rand.int(in: 0..<30) == 0 ? .zombifiedPiglin : (Rand.int(in: 0..<10) == 0 ? .strider : nil)
+                    if let rk = riderKind {
+                        let r = Mob(rk, at: st.pos + V3(0, st.height, 0))
+                        if rk == .strider { r.baby = true; r.scale = 0.5 }
+                        r.mount = st; r.jockey = true
+                        mobs.append(r)
+                    }
+                }
             }
             return
         }
-        var y = YOFF + Int.random(in: 1...126)
+        var y = YOFF + Rand.int(in: 1...126)
         // Walk down to a floor with two free blocks above it.
         while y > YOFF + 1 && !(Blocks.opaque[Int(w.block(x, y - 1, z))] && !Blocks.collide[Int(w.block(x, y, z))]
                                  && !Blocks.collide[Int(w.block(x, y + 1, z))]) { y -= 1 }
@@ -1602,20 +1805,24 @@ final class MobManager {
             }
         }
         let total = list.reduce(0) { $0 + $1.1 }
-        var roll = Int.random(in: 0..<total)
+        var roll = Rand.int(in: 0..<total)
         var pick = list[0]
         for e in list { roll -= e.1; if roll < 0 { pick = e; break } }
         // Wailers are rare per attempt (they need a big open space) — the reference game's spawn
         // attempts fail for them most of the time.
-        if pick.0 == .ghast && Float.random(in: 0..<1) < 0.8 { return }
-        let n = Int.random(in: pick.2...pick.3)
+        if pick.0 == .ghast && Rand.float(in: 0..<1) < 0.8 { return }
+        let n = Rand.int(in: pick.2...pick.3)
         for _ in 0..<n {
-            let sx = x + Int.random(in: -3...3), sz = z + Int.random(in: -3...3)
+            let sx = x + Rand.int(in: -3...3), sz = z + Rand.int(in: -3...3)
             var sy = y + 2
             while sy > y - 4 && !Blocks.opaque[Int(w.block(sx, sy - 1, sz))] { sy -= 1 }
             let p = V3(Float(sx) + 0.5, Float(sy), Float(sz) + 0.5)
             let m = Mob(pick.0, at: pick.0 == .ghast ? p + V3(0, 3, 0) : p)
-            if m.sized { m.makeSlime(size: [1, 2, 4][Int.random(in: 0...2)]) }
+            if m.sized { m.makeSlime(size: [1, 2, 4][Rand.int(in: 0...2)]) }
+            // Young boarlings: 20%; young undead boarlings: 5% (reference).
+            if (pick.0 == .piglin && Rand.float(in: 0..<1) < 0.2) || (pick.0 == .zombifiedPiglin && Rand.float(in: 0..<1) < 0.05) {
+                m.baby = true; m.scale = 0.5
+            }
             if m.collides(m.pos, w) { continue }
             mobs.append(m)
             if mobs.count >= MobManager.hostileCap + 10 { return }

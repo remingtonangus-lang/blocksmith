@@ -125,7 +125,7 @@ extension Game {
             guard simd_length(player.pos - hv) < 40 else { continue }
             // One Barkwraith per heart, on open ground within 8 blocks.
             for _ in 0..<6 {
-                let x = h.x + Int.random(in: -8...8), z = h.z + Int.random(in: -8...8)
+                let x = h.x + Rand.int(in: -8...8), z = h.z + Rand.int(in: -8...8)
                 let top = world.topY(x, z)
                 guard top > 0, abs(top - h.y) < 12 else { continue }
                 var y = top + 1

@@ -16,11 +16,14 @@ final class Player {
     var pitch: Float = 0
     var flying = false
     var onGround = false
-    var inWater = false
+    var inWater = false             // water only (lava is inLava; QA: lava used to count as water)
+    var inLava = false
+    var headInLava = false
     var headInWater = false
     var sneaking = false
     var sprinting = false
     var airPeak: Float = 0         // highest feet y since last touching ground/water (fall damage)
+    var lastUpdatePos = V3(0, 0, 0)  // where the last update left the body (a jump of 6+ blocks is a teleport)
     var pendingFall: Float = 0     // fall distance of the last landing; Game consumes and clears it
     var jumped = false             // a ground jump started this frame
     var gliding = false            // glider wings flight
@@ -70,7 +73,7 @@ final class Player {
         guard w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) else { return }
 
         // Pose: sprint-swim in water; crawl when there is no room to stand or sneak.
-        let wet = Blocks.isLiquid(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))
+        let wet = Blocks.fluidKind[Int(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.3)), Int(floor(pos.z))))] == 1
         if swimming {
             if !(wet && input.sprint && input.forward > 0) || flying { swimming = false }
         } else if !flying && input.sprint && input.forward > 0 && headInWater { swimming = true }
@@ -84,13 +87,22 @@ final class Player {
 
         let feet = w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.1)), Int(floor(pos.z)))
         let body = w.block(Int(floor(pos.x)), Int(floor(pos.y + (prone ? 0.3 : 0.9))), Int(floor(pos.z)))
-        inWater = Blocks.isLiquid(feet) || Blocks.isLiquid(body)
+        inWater = Blocks.fluidKind[Int(feet)] == 1 || Blocks.fluidKind[Int(body)] == 1
+        inLava = Blocks.fluidKind[Int(feet)] == 2 || Blocks.fluidKind[Int(body)] == 2
         let e = eye
-        headInWater = Blocks.isLiquid(w.block(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))))
+        let headKind = Blocks.fluidKind[Int(w.block(Int(floor(e.x)), Int(floor(e.y)), Int(floor(e.z))))]
+        headInWater = headKind == 1
+        headInLava = headKind == 2
+        // Movement treats both fluids alike (lava is slower and heavier below); views, air and swimming are water only.
+        let inFluid = inWater || inLava
 
-        if flying || inWater { airPeak = pos.y }
+        if flying || inFluid { airPeak = pos.y }
+        // Moved 6+ blocks since the last update: a teleport (portal, command, harness), not a fall. Terminal speed is
+        // under 4 blocks a tick. (The playthrough died of "fall" damage after being placed at the Emberdeep portal
+        // below where it had last stood: run 375.)
+        if simd_length(pos - lastUpdatePos) > 6 { airPeak = pos.y }
         jumped = false
-        if gliding && (onGround || inWater || flying) { gliding = false }
+        if gliding && (onGround || inFluid || flying) { gliding = false }
         if gliding { glide(dt, w); return }
 
         sneaking = (input.sneak || forcedCrouch) && !flying && !prone
@@ -104,8 +116,8 @@ final class Player {
 
         var speed: Float
         if flying { speed = sprinting ? 21.6 : 10.9 }
-        else if inWater {
-            speed = sprinting ? 3.0 : 2.2
+        else if inFluid {
+            speed = inLava && !inWater ? 1.0 : (sprinting ? 3.0 : 2.2)
             // Depth magmastrider closes the gap to land speed; dolphin's grace is much faster.
             if depthStrider > 0 { speed += (4.317 - speed) * Float(min(3, depthStrider)) / 3 }
             if dolphinsGrace { speed *= 2.2 }
@@ -119,7 +131,7 @@ final class Player {
         }
 
         let target = wish * speed
-        let accel: Float = flying ? 10 : (onGround ? 20 : (inWater ? 8 : 5))
+        let accel: Float = flying ? 10 : (onGround ? 20 : (inFluid ? 8 : 5))
         let k = 1 - expf(-accel * dt)
         vel.x += (target.x - vel.x) * k
         vel.z += (target.z - vel.z) * k
@@ -138,11 +150,12 @@ final class Player {
             let t = look * sp
             let ks = 1 - expf(-5 * dt)
             vel += (t - vel) * ks
-        } else if inWater {
+        } else if inFluid {
+            let lava = inLava && !inWater
             vel.y -= 9 * dt
-            vel.y *= expf(-2.5 * dt)
-            if input.jump { vel.y = min(vel.y + 22 * dt, 3.2) }
-            vel.y = max(vel.y, -4)
+            vel.y *= expf((lava ? -5 : -2.5) * dt)
+            if input.jump { vel.y = min(vel.y + (lava ? 16 : 22) * dt, lava ? 2.0 : 3.2) }
+            vel.y = max(vel.y, lava ? -2 : -4)
         } else if levitate > 0 {
             levitate -= dt
             vel.y += (0.9 * Float(levitateAmp + 1) - vel.y) * (1 - expf(-4 * dt))
@@ -194,6 +207,7 @@ final class Player {
             airPeak = max(airPeak, pos.y)
         }
         if pos.y < -64 { pos.y = Float(CH); vel = .zero }
+        lastUpdatePos = pos
     }
 
     // Glider Wings flight, stepped at 20 Hz in blocks/tick like the reference game: pitch trades height for
@@ -228,7 +242,8 @@ final class Player {
             }
             if boost > 0 {
                 boost -= 0.05
-                v += l * 0.1 + (l * 1.5 - v) * 0.5
+                let push: V3 = l * 0.1
+                v += push + (l * 1.5 - v) * 0.5
             }
             v *= V3(0.99, 0.98, 0.99)
         }

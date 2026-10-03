@@ -65,6 +65,7 @@ final class SmithingMenu: Menu {
     }
     override func takeResult(_ slot: MenuSlot) -> ItemStack? {
         guard let r = Smithing.result(template: box[0], base: box[1], addition: box[2]) else { return nil }
+        if Items.key(box[0].item).hasSuffix("_armor_trim_smithing_template") { game.achieve("trim") }
         for i in 0..<3 { var s = box[i]; s.count -= 1; box[i] = s.count > 0 ? s : .empty }
         game.sfx(.anvil, 0.5)
         changed()
@@ -140,7 +141,7 @@ final class StonecutterMenu: Menu {
         guard !out[0].isEmpty else { return nil }
         let r = out[0]
         var s = input[0]; s.count -= 1; input[0] = s.count > 0 ? s : .empty
-        game.sfx(.dig, 0.5)
+        game.sfx(.smithing, 0.6)
         changed()
         return r
     }
@@ -190,8 +191,8 @@ final class GrindstoneMenu: Menu {
         guard case let (o, xp)? = compute() else { return nil }
         box[0] = .empty; box[1] = .empty
         // XP back: between half and all of the (minimum) enchantment cost.
-        if xp > 0 { game.addXP(Int.random(in: (xp + 1) / 2...max((xp + 1) / 2, xp))) }
-        game.sfx(.dig, 0.6)
+        if xp > 0 { game.addXP(Rand.int(in: (xp + 1) / 2...max((xp + 1) / 2, xp))) }
+        game.sfx(.grindstone, 0.7)
         changed()
         return o
     }

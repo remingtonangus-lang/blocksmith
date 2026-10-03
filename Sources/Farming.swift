@@ -18,7 +18,9 @@ extension Game {
                 for h in c.height where Int(h) > hmax { hmax = Int(h) }
                 for sy in 0...min(NSEC - 1, (hmax + 1) >> 4) {
                     for _ in 0..<3 {
-                        let lx = Int.random(in: 0..<16), ly = Int.random(in: 0..<16), lz = Int.random(in: 0..<16)
+                        // One fast PRNG draw per tick position (the system generator was the main-thread hot spot).
+                        let r = Int(truncatingIfNeeded: RandomTickRng.state.next() >> 20)
+                        let lx = r & 15, ly = (r >> 4) & 15, lz = (r >> 8) & 15
                         let y = sy * 16 + ly
                         let b = c.blocks[Chunk.index(lx, y, lz)]
                         if rt[Int(b)] { randomTick(IVec3(c.cx * CS + lx, y, c.cz * CS + lz), b) }
@@ -63,14 +65,14 @@ extension Game {
     func queueLeafDecay(around p: IVec3) {
         for dy in -4...4 { for dz in -4...4 { for dx in -4...4 {
             let q = IVec3(p.x + dx, p.y + dy, p.z + dz)
-            if Blocks.key(world.block(q.x, q.y, q.z)).hasSuffix("leaves") { leafQueue.insert(q, at: Int.random(in: 0...leafQueue.count)) }
+            if Blocks.key(world.block(q.x, q.y, q.z)).hasSuffix("leaves") { leafQueue.insert(q, at: Rand.int(in: 0...leafQueue.count)) }
         } } }
     }
 
     func randomTick(_ p: IVec3, _ b: BlockID) {
         let key = Blocks.key(Blocks.groupBase[Int(b)])
         if Copper.index[key] != nil { copperAge(p, b); return }
-        if ["frosted_ice", "cocoa", "turtle_egg", "frogspawn", "sniffer_egg", "bee_nest", "beehive", "torchflower_crop", "pitcher_crop"].contains(key) { newBlockRandomTick(p, b, key); return }
+        if ["frosted_ice", "cocoa", "turtle_egg", "frogspawn", "sniffer_egg", "bee_nest", "beehive", "torchflower_crop", "pitcher_crop", "dried_ghast"].contains(key) { newBlockRandomTick(p, b, key); return }
         let stage = Int(b - Blocks.groupBase[Int(b)])
         switch key {
         case "wheat", "carrots", "potatoes", "beetroots":
@@ -80,34 +82,34 @@ extension Game {
             guard max(l.sky, l.block) >= 9 else { return }
             let below = Blocks.key(world.block(p.x, p.y - 1, p.z))
             let f: Float = below == "farmland_moist" ? 4 : 2
-            if Float.random(in: 0..<1) < 1 / (floorf(25 / f) + 1) {
+            if Rand.float(in: 0..<1) < 1 / (floorf(25 / f) + 1) {
                 world.setBlock(p.x, p.y, p.z, b + 1)
             }
         case "closed_eyeblossom", "open_eyeblossom": nightbloomTick(p, key)
         case "nether_wart":
-            if stage < 3 && Int.random(in: 0..<10) == 0 { world.setBlock(p.x, p.y, p.z, b + 1) }
+            if stage < 3 && Rand.int(in: 0..<10) == 0 { world.setBlock(p.x, p.y, p.z, b + 1) }
         case "sugar_cane":
             // Grows to 3 tall, one block per ~16 random ticks.
-            guard world.block(p.x, p.y + 1, p.z) == AIR, Int.random(in: 0..<16) == 0 else { return }
+            guard world.block(p.x, p.y + 1, p.z) == AIR, Rand.int(in: 0..<16) == 0 else { return }
             var h = 1
             while h < 3 && world.block(p.x, p.y - h, p.z) == b { h += 1 }
             if h < 3 { world.setBlock(p.x, p.y + 1, p.z, b) }
         case _ where key.hasSuffix("_sapling") || key == "mangrove_propagule":
             let l = world.lightAt(p.x, p.y + 1, p.z)
-            if max(l.sky, l.block) >= 9 && Int.random(in: 0..<7) == 0 { growTree(p, key) }
+            if max(l.sky, l.block) >= 9 && Rand.int(in: 0..<7) == 0 { growTree(p, key) }
         case "farmland":
             let wet = waterNear(p)
             let isWet = Blocks.key(b) == "farmland_moist"
             if wet && !isWet { world.setBlock(p.x, p.y, p.z, Blocks.id("farmland_moist")) }
             else if !wet && isWet { world.setBlock(p.x, p.y, p.z, Blocks.id("farmland")) }
             else if !wet && !Blocks.isPlant(world.block(p.x, p.y + 1, p.z)) && Blocks.render[Int(world.block(p.x, p.y + 1, p.z))] != RenderType.model.rawValue {
-                if Int.random(in: 0..<4) == 0 { world.setBlock(p.x, p.y, p.z, DIRT) }
+                if Rand.int(in: 0..<4) == 0 { world.setBlock(p.x, p.y, p.z, DIRT) }
             }
         case "grass_block":
             // Dies under opaque blocks; spreads to nearby lit dirt.
             if Blocks.opaque[Int(world.block(p.x, p.y + 1, p.z))] { world.setBlock(p.x, p.y, p.z, DIRT); return }
             for _ in 0..<4 {
-                let q = IVec3(p.x + Int.random(in: -1...1), p.y + Int.random(in: -3...1), p.z + Int.random(in: -1...1))
+                let q = IVec3(p.x + Rand.int(in: -1...1), p.y + Rand.int(in: -3...1), p.z + Rand.int(in: -1...1))
                 if world.block(q.x, q.y, q.z) == DIRT && !Blocks.opaque[Int(world.block(q.x, q.y + 1, q.z))] && !Blocks.isLiquid(world.block(q.x, q.y + 1, q.z)) {
                     let l = world.lightAt(q.x, q.y + 1, q.z)
                     if max(l.sky, l.block) >= 9 { world.setBlockAsync(q.x, q.y, q.z, GRASS) }
@@ -134,7 +136,7 @@ extension Game {
         }
         let kind: TreeKind?
         switch sapling {
-        case "oak_sapling": kind = Int.random(in: 0..<10) == 0 ? .fancyOak : .oak
+        case "oak_sapling": kind = Rand.int(in: 0..<10) == 0 ? .fancyOak : .oak
         case "birch_sapling": kind = .birch
         case "spruce_sapling": kind = square != nil ? .megaSpruce : .spruce
         case "jungle_sapling": kind = square != nil ? .megaJungle : .jungle
@@ -158,12 +160,13 @@ extension Game {
             world.setBlockAsync(p.x, p.y, p.z, AIR)
         }
         // Build into copies of the 3x3 chunks around, then apply the differences.
-        let seed = UInt64(bitPattern: Int64(p.x &* 73856093 ^ p.y &* 19349663 ^ p.z &* 83492791)) | 1
+        let hx: Int = p.x &* 73856093, hy: Int = p.y &* 19349663, hz: Int = p.z &* 83492791
+        let seed: UInt64 = UInt64(bitPattern: Int64(hx ^ hy ^ hz)) | 1
         let ccx = floorDiv(p.x, CS), ccz = floorDiv(p.z, CS)
         var changes: [(IVec3, BlockID)] = []
         for dz in -1...1 { for dx in -1...1 {
             guard let c = world.chunks[ChunkKey(x: ccx + dx, z: ccz + dz)] else { continue }
-            var buf = c.blocks
+            var buf = c.blocks.full()
             buf.withUnsafeMutableBufferPointer { bp in
                 let w = TreeWriter(b: bp.baseAddress!, bx: c.cx * CS, bz: c.cz * CS)
                 var rng = SRng(seed)
@@ -208,6 +211,7 @@ extension Game {
             swing = 1
             return true
         }
+        if key.hasSuffix("_axe") && reviveCopperStatue(t.hit) { return true }
         if (key == "honeycomb" || key.hasSuffix("_axe")) && copperInteract(t.hit, key: key) { return true }
         if placeArmorStand(t) { return true }
         if placeEndCrystal(t) { return true }
@@ -215,14 +219,14 @@ extension Game {
         if key == "bucket" && bkey == "powder_snow" {
             world.setBlock(t.hit.x, t.hit.y, t.hit.z, AIR)
             giveOrReplaceHeld(ItemStack(Items.id("powder_snow_bucket"), 1))
-            sfx(.step(.snow), 0.8); swing = 1; return true
+            sfx(.bucketFill, 0.8); swing = 1; return true
         }
         if key == "powder_snow_bucket" {
             let at = t.hit + t.normal
             if Blocks.replaceable[Int(world.block(at.x, at.y, at.z))] {
                 world.setBlock(at.x, at.y, at.z, Blocks.id("powder_snow"))
                 if survival { inventory.held = ItemStack(Items.id("bucket"), 1) }
-                sfx(.place(.snow), 0.8); swing = 1; return true
+                sfx(.bucketEmpty, 0.8); swing = 1; return true
             }
         }
         if stripLog(t) { return true }
@@ -240,7 +244,7 @@ extension Game {
             if (key == "flint_and_steel" || key == "fire_charge") && st < 4 {
                 world.setBlock(t.hit.x, t.hit.y, t.hit.z, b + 4)
                 if key == "fire_charge" { consumeHeld() } else { damageHeld(1) }
-                sfx(.fireball, 0.3); swing = 1
+                sfx(.ignite, 0.8); swing = 1
                 return true
             }
         }
@@ -250,7 +254,7 @@ extension Game {
             world.setBlock(t.hit.x, t.hit.y, t.hit.z, Blocks.id("carved_pumpkin") + BlockID(f))
             drops.spawn(ItemStack(Items.id("pumpkin_seeds"), 4), at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5 + V3(Float(t.normal.x), 0, Float(t.normal.z)) * 0.6)
             damageHeld(1)
-            sfx(.step(.plant), 1)
+            sfx(.shearsSnip, 1)
             swing = 1
             return true
         }
@@ -287,17 +291,17 @@ extension Game {
                 let maxStage = bkey == "beetroots" ? 3 : 7
                 let st = Int(b - Blocks.groupBase[Int(b)])
                 if st < maxStage {
-                    world.setBlock(t.hit.x, t.hit.y, t.hit.z, Blocks.groupBase[Int(b)] + BlockID(min(maxStage, st + Int.random(in: 2...5))))
+                    world.setBlock(t.hit.x, t.hit.y, t.hit.z, Blocks.groupBase[Int(b)] + BlockID(min(maxStage, st + Rand.int(in: 2...5))))
                     used = true
                 }
             } else if bkey.hasSuffix("_sapling") {
-                if Float.random(in: 0..<1) < 0.45 { growTree(t.hit, bkey) }
+                if Rand.float(in: 0..<1) < 0.45 { growTree(t.hit, bkey) }
                 used = true
             } else if b == GRASS {
                 for _ in 0..<24 {
-                    let q = IVec3(t.hit.x + Int.random(in: -3...3), t.hit.y, t.hit.z + Int.random(in: -3...3))
+                    let q = IVec3(t.hit.x + Rand.int(in: -3...3), t.hit.y, t.hit.z + Rand.int(in: -3...3))
                     if world.block(q.x, q.y, q.z) == GRASS && world.block(q.x, q.y + 1, q.z) == AIR {
-                        world.setBlockAsync(q.x, q.y + 1, q.z, Float.random(in: 0..<1) < 0.85 ? TALL_GRASS : [RED_FLOWER, YELLOW_FLOWER][Int.random(in: 0...1)])
+                        world.setBlockAsync(q.x, q.y + 1, q.z, Rand.float(in: 0..<1) < 0.85 ? TALL_GRASS : [RED_FLOWER, YELLOW_FLOWER][Rand.int(in: 0...1)])
                     }
                 }
                 used = true
@@ -318,7 +322,7 @@ extension Game {
                 let at = t.hit + t.normal
                 if !tryLightPortal(at: at) { world.placeFire(at) }
             }
-            sfx(.fizz, 1, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
+            sfx(.ignite, 1, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5)
             damageHeld(1)
             swing = 1
             return true
@@ -334,13 +338,14 @@ extension Game {
     // Right-click on a mob with the held item.
     func useItemOnMob(_ m: Mob) -> Bool {
         let key = Items.key(held.item)
+        if copperGolemUse(m) { return true }
         if useBoat(m) || openPack(m) || useArmorStand(m) || useLead(m) { return true }
         if useCart(m) { return true }
         if m.kind == .minecart {
             if riding === m { return false }
             riding = m
             player.pos = m.pos + V3(0, 0.35, 0)
-            sfx(.click, 0.5, at: m.pos)
+            sfx(.armorEquip(0), 0.5, at: m.pos)
             return true
         }
         if animalInteract(m) { return true }
@@ -351,9 +356,10 @@ extension Game {
         }
         if m.kind == .piglin && key == "gold_ingot" && m.admire <= 0 && !m.baby {
             m.admire = 6
+            achieve("barter")
             m.aggro = false
             consumeHeld()
-            sfx(.mobBoarling, 1, at: m.pos + V3(0, 1.6, 0))
+            sfx(.mob(.piglin, .ambient), 1, at: m.pos + V3(0, 1.6, 0))
             return true
         }
         if let food = MobManager.breedFood[m.kind], food.contains(key) {
@@ -366,9 +372,9 @@ extension Game {
         if m.kind == .sheep && key == "shears" && !m.sheared && !m.baby {
             m.sheared = true
             let wool = "\(m.woolColor)_wool"
-            if Items.has(wool) { drops.spawn(ItemStack(Items.id(wool), Int.random(in: 1...3)), at: m.pos + V3(0, 1, 0)) }
+            if Items.has(wool) { drops.spawn(ItemStack(Items.id(wool), Rand.int(in: 1...3)), at: m.pos + V3(0, 1, 0)) }
             damageHeld(1)
-            sfx(.step(.plant), 1, at: m.pos)
+            sfx(.shearsSnip, 1, at: m.pos)
             return true
         }
         if key == "name_tag", let l = held.label, !l.isEmpty {
@@ -476,19 +482,24 @@ extension Game {
             ("iron_nugget", 10, 36, 10),
         ].filter { Items.has($0.0) }
         let total = table.reduce(0) { $0 + $1.3 }
-        var r = Int.random(in: 0..<max(1, total))
+        var r = Rand.int(in: 0..<max(1, total))
         for e in table {
             r -= e.3
             if r < 0 {
                 let dir = simd_normalize(player.pos - m.pos + V3(0, 0.001, 0))
-                drops.spawn(ItemStack(Items.id(e.0), Int.random(in: e.1...e.2)), at: m.eye, vel: dir * 3 + V3(0, 2, 0))
+                drops.spawn(ItemStack(Items.id(e.0), Rand.int(in: e.1...e.2)), at: m.eye, vel: dir * 3 + V3(0, 2, 0))
                 break
             }
         }
-        sfx(.mobBoarling, 0.8, at: m.pos + V3(0, 1.6, 0))
+        sfx(.mob(.piglin, .ambient), 0.8, at: m.pos + V3(0, 1.6, 0))
     }
 }
 
 extension IVec3 {
     static func - (a: IVec3, b: IVec3) -> IVec3 { IVec3(a.x - b.x, a.y - b.y, a.z - b.z) }
+}
+
+// Random-tick positions (main thread only): xorshift instead of the system CSPRNG behind Int.random.
+enum RandomTickRng {
+    static var state = SRng(0x5EED_71C4)
 }
