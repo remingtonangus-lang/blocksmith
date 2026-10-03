@@ -629,6 +629,27 @@ fragment float4 compositeFS(FsOut in [[stage_in]],
                             constant Uniforms& u [[buffer(1)]]) {
     constexpr sampler ls(filter::linear, address::clamp_to_edge);
     float3 c = hdr.sample(ls, in.uv).rgb;
+    {
+        // Edge smoothing (FXAA-style, light): where the tone-mapped luma of the four neighbours spans a high
+        // contrast, blend across the edge with half-texel taps. There was no anti-aliasing at all (stair-stepped
+        // dripstone and bark up close: blind critic, run 417).
+        float2 tx = 1.0 / float2(hdr.get_width(), hdr.get_height());
+        float3 cN = hdr.sample(ls, in.uv + float2(0.0, -tx.y)).rgb, cS = hdr.sample(ls, in.uv + float2(0.0, tx.y)).rgb;
+        float3 cE = hdr.sample(ls, in.uv + float2(tx.x, 0.0)).rgb, cW = hdr.sample(ls, in.uv + float2(-tx.x, 0.0)).rgb;
+        float3 lw = float3(0.299, 0.587, 0.114);
+        float lM = dot(c, lw), lN = dot(cN, lw), lS = dot(cS, lw), lE = dot(cE, lw), lW = dot(cW, lw);
+        lM /= 1.0 + lM; lN /= 1.0 + lN; lS /= 1.0 + lS; lE /= 1.0 + lE; lW /= 1.0 + lW;
+        float lMin = min(lM, min(min(lN, lS), min(lE, lW)));
+        float lMax = max(lM, max(max(lN, lS), max(lE, lW)));
+        float range = lMax - lMin;
+        if (range > max(0.0833, lMax * 0.166)) {          // FXAA's default edge thresholds
+            float hor = abs(lN + lS - 2.0 * lM), ver = abs(lE + lW - 2.0 * lM);
+            float2 dir = hor >= ver ? float2(0.0, tx.y) : float2(tx.x, 0.0);
+            float3 a = hdr.sample(ls, in.uv + dir * 0.5).rgb, b = hdr.sample(ls, in.uv - dir * 0.5).rgb;
+            float blend = saturate(range / max(lMax, 1e-3)) * 0.5;
+            c = mix(c, (a + b) * 0.5, blend);
+        }
+    }
     // One depth reconstruction shared by the shafts, haze and mist below.
     float d = dep.sample(ls, in.uv);
     float3 rel = relAt(in.uv, d, u);
