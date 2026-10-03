@@ -7,6 +7,38 @@
 > compiler, so only docs/assets were touched (assets/gemini/processed holds 128 px imports, not adopted; brick/plank
 > sheets need a re-roll). Resume from the HANDOFF, BUGS.md and the Playtest feedback queue.
 
+## HANDOFF (2026-10-03 ~12:00 UTC, builder session parked by Remington; supersedes the notes below)
+
+**State.** Branch `claude/blocksmith-playtest`. PLAYTEST READY on PR #9: `745768b` (run 424, fully green after one perf
+re-run). Pushed after it: `aa02b22` ship keel sky floor 0.8/0.6 (verified lit in the nightly on e900092), `c386828`
+bench gen warms structure starts before timing (new metric gen.starts_cold_ms; run 438 was compiling it at park time,
+fast lane), `ed8ba5b` snap.sh texture-source A/B adds the Gemini set (assets/gemini/processed) and a village view
+(shots only, no code). The nightly heavy on e900092 was green except perf: gen.chunk_ms_mean 1.71x (cold structure
+starts in the 24 bench chunks; c386828 addresses it). No uncommitted work.
+
+**Done this stretch (details in the Playtest 2 section, BUGS.md, PR #9 body):** capital ships (frigate 480 blocks,
+crawler, factions, dropships, troop drops, boarding, block damage, hull chipping), progressive block chipping with
+collision, structure rework (desert/jungle temples, outposts + camps, shipwrecks, end cities, ocean/trail ruins,
+fossils, villages vary), the mid-range cutout bug (cacti, framed/dropped items: coverage mips), FXAA-lite, cloud and
+ship-underside lighting, blind critic round 417 fixes, denser Steelhold bases with radio masts.
+
+**Next steps, in order.**
+1. Confirm run 438 compiled and the next heavy run is green with perf under the gate (gen.chunk_ms_mean should drop
+   now that starts are timed separately; if not, read the "bench gen slow chunk" lines).
+2. Look at texsrc_gemini_{forest,cliff,village}.png vs procedural/cc0 (next heavy run, shots shard); adopt into
+   Resources/Textures only the sheets that tile cleanly (manager: birch/spruce planks, bricks, stone_bricks seam
+   ratios too high; gravel repeats diagonally). Get Remington's call before adopting.
+3. Next blind critic round on the latest shots (frigate keel, jungle temple without bamboo, clouds, FXAA, shipwreck).
+4. Playtest feedback queue in this file (villager AI item [~], LLM playthroughs blocked on a key in CI).
+
+**Open bugs / watching (BUGS.md):** cacti/frames fix verified; watching: cave water edge leaks (gencheck ~336), Blight
+Star survives blasts, terrace step darkness, type-check timeouts. Unverified in play: dropship flight over real terrain,
+crawler footprint clear at all four corners, sentries standing watch, outpost tent aprons (structcheck should show 0).
+Gun damage balance needs real play.
+
+**Routines.** The hourly keep-alive routine is disabled (Remington: stop; no routine is enabled). The Stop hook is released by
+`.claude/ALLOW_STOP` (delete that file to re-arm continuous work).
+
 ## Current session (2026-10-02 from 02:24 UTC, session_01NHX6PtLsjxpnUha9wMm2wN)
 
 State (04:35 UTC): run 348 fully green (PLAYTEST READY on PR #9); run 349 green except the noisy bench edit mean (gate
