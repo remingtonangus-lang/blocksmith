@@ -220,7 +220,7 @@ extension TextureGen {
             let v: Float = 0.5 + 0.4 * r(x, y, 463)
             return strand ? V4(v, v, v, 1) : clear
         }
-        p["bamboo_stalk"] = { x, y in y % 6 == 0 ? hex(0x5A8A1A) : hex(0x7AAA2A, 0.9 + 0.15 * r(x, y, 464)) }
+        p["bamboo_stalk"] = { x, y in y % 6 == 0 ? hex(0x5E843A) : hex(0x7FA240, 0.9 + 0.15 * r(x, y, 464)) }
         p["melon_side"] = { x, y in hex(x % 4 < 2 ? 0x6A9A1E : 0x8AB82E, 0.9 + 0.15 * r(x, y, 465)) }
         p["melon_top"] = { x, y in
             let d = abs(Float(x) - 7.5) + abs(Float(y) - 7.5)

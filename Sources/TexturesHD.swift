@@ -2293,9 +2293,9 @@ enum HDTex {
             let node: Float = abs(fy - 6 * floorf(fy / 6 + 0.5))
             let u: Float = (Float(x) + 0.5) / fn
             let round: Float = 1.1 - 0.35 * abs(u * 2 - 1.2)
-            var c: V3 = col(0x7AAA2A) * (round * (0.9 + 0.15 * fib[(y / 6) * n + x]))
-            if node < 0.5 { c = col(0x5A8A1A) * round }
-            else if node < 0.9 { c = col(0x9ACA4A) * round }
+            var c: V3 = col(0x7FA240) * (round * (0.9 + 0.15 * fib[(y / 6) * n + x]))
+            if node < 0.5 { c = col(0x5E843A) * round }
+            else if node < 0.9 { c = col(0x9EC05E) * round }
             img.px[i] = V4(min(1, c.x), min(1, c.y), min(1, c.z), 1)
         } }
         return img
