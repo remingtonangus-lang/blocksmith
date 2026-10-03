@@ -367,6 +367,11 @@ PR #9's description keeps the player-facing what's-new list, the tested commit a
   PLAYTEST READY d78c438, PR #9 body updated (outposts, shipwrecks, end cities, troop drops, frigate shape). Run 410
   (e45b488) fully green: dropships launch, hull chips (500 plates), boarding holds. Armory frames: items vanish
   between 4.5 and 7.5 blocks (pixel probes); entity sprites now capped at mip 1, mip alpha dump in run 412.
+- 2026-10-03 00:15 UTC: mid-range cutout bug found (per-mip alpha dump, run 412) and fixed in keepCoverage; run 415
+  confirmed it (cactus_mid probes green, armory guns drawn). Perf gate tripped twice on gen (first-chunk start cost
+  from 3D groundY in new starts: 2D column heights now); run 417 (8a78b1d) fully green -> PLAYTEST READY, PR #9
+  updated. Blind critic round on 17 shots -> shipwreck tiles (--slice), crawler/tree clip, ship undersides, jungle
+  saturation, held item at night, temple footprint, purpur moire, flat clouds; behaviour sim -> sentry spin.
 - Standing rule (Remington): sole Blocksmith session, work continuously; never idle on CI (work locally while a run is
   queued, push when it frees); cancel and re-trigger runs stuck over 30 minutes; log routine actions here.
 
