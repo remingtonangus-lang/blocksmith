@@ -871,13 +871,22 @@ extension ShipManager {
         let hardness = Blocks.hardness
         // On arrival the whole footprint is cleared once (it spawned among trees that hid its wheels: run 404),
         // afterwards only the front rows it drives into.
-        let full = !st.crushedAll && world.isLoaded(Int(floor(s.pos.x)), Int(floor(s.pos.z)))
-        if full { st.crushedAll = true }
+        // The full pass waits until every corner of the footprint is loaded and repeats until one pass finishes under
+        // the cap (done when only the centre had loaded, the rest of the trees stayed in the hull: blind critic, run 417
+        // ship_crawler, an oak through a wheel arch).
+        var cornersLoaded = true
+        for (cx, cz) in [(lo.x, lo.z), (hi.x, lo.z), (lo.x, hi.z), (hi.x, hi.z)] {
+            let c = s.toWorld(V3(cx, lo.y, cz))
+            if !world.isLoaded(Int(floor(c.x)), Int(floor(c.z))) { cornersLoaded = false }
+        }
+        let full = !st.crushedAll && cornersLoaded
         let zEnd: Float = full ? hi.z : lo.z + 6
         let cap = full ? 4000 : 80
+        defer { if full && n < cap { st.crushedAll = true } }
         for lz in stride(from: lo.z - 1, through: zEnd, by: 1) {
             for lx in stride(from: lo.x, through: hi.x, by: 1) {
-                for ly in stride(from: lo.y + 2, through: hi.y, by: 1) {
+                // From the bottom row (trunks stood through the wheel arches); soft blocks only, so ground is never dug.
+                for ly in stride(from: lo.y, through: hi.y, by: 1) {
                     let w = s.toWorld(V3(lx, ly, lz))
                     let x = Int(floor(w.x)), y = Int(floor(w.y)), z = Int(floor(w.z))
                     guard world.isLoaded(x, z) else { continue }

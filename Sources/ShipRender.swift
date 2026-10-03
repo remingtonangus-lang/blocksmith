@@ -258,7 +258,9 @@ vertex ShipOut shipVS(uint vid [[vertex_id]],
     }
     uint layer = ((w1 >> 10) & 1023u) | ((w1 >> 31) << 10);
     uint ao = (w1 >> 20) & 3u;
-    float skyL = float((w1 >> 22) & 15u) / 15.0 * d.origin.w;     // origin.w: the world's sky light around the ship
+    float skyRaw = float((w1 >> 22) & 15u) / 15.0;
+    if (face == 3u) { skyRaw = max(skyRaw, 0.6); }                 // undersides: open air below a flying hull
+    float skyL = skyRaw * d.origin.w;     // origin.w: the world's sky light around the ship
     float blkL = float((w1 >> 26) & 15u) / 15.0;
     float3 rel = (d.model * float4(p + d.origin.xyz, 1.0)).xyz;
     ShipOut o;
