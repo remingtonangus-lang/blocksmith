@@ -72,59 +72,56 @@ the detail-transfer blocks, texture build time), then hand-made HD materials for
 
 ## Future ideas (ranked, not started)
 
-Remington's idea backlog (2026-10-03), ranked by impact against cost on the 8 GB M1 with the 60 fps budget in mind.
-Nothing here is started; Blocksmith is paused. "Have" notes what existing systems each idea can build on.
+Remington's idea backlog (2026-10-03, revised the same day: 8 ideas dropped, The Capital added on top), ranked by impact
+against cost on the 8 GB M1 with the 60 fps budget in mind. Nothing here is started; Blocksmith is paused. "Have" notes
+what existing systems each idea can build on.
+Dropped by Remington (do not build): build-your-own ships and vehicles, dynamic world events, living ecosystems, trains,
+underground biomes, night lighting, TV navigation / minimap polish, seasons.
 
-1. **Night lighting** (base searchlights, lit towns, lighthouses, convoy headlights). Big look-and-feel win at night for
-   little work. Have: block light, emissive layers, Fancy flash lights. Cost: low. Cap the dynamic cone lights (about 8,
-   like the flash buffer) so the frame budget holds.
-2. **TV-friendly navigation** (atlas map, waypoints, compass, optional minimap). Mostly built already (WorldMap.swift:
-   map, minimap, waypoints). What remains is pad and TV polish (an atlas zoom level, a compass strip). Cost: low;
-   frame cost about nil.
-3. **Reactive military bases** (hear gunfire and explosions, send patrols, call dropships, rebuild over time). Have:
-   alertGarrison, soldier AI, dropships, capital AI. Cost: medium (sound events to bases, a patrol state, a slow rebuild
+1. **The Capital** (working name for the faction that owns the futuristic military bases). Remington's art
+   direction, to be realised as an original look (no names, logos, uniforms or assets copied from any film or game):
+   an opulent, authoritarian, sleek white civilisation. People: white dress uniforms with grey trim, polished and
+   ceremonial rather than camo. Architecture: clean white and light-grey towers with soft rounded and chamfered edges,
+   tall glass, skyways bridging towers, landing pads cantilevered off the upper floors, and planted trees, hedges and
+   terraced gardens woven through every level, so the city reads as green as well as white. Their bases (today the
+   Steelhold fortresses in MilitaryBase.swift) get rebuilt in this style, and they get their own ships: frigate-class
+   like the existing frigate (CapitalShips.swift, true to size, kinematic) but sleek, white and opulent, with their
+   own hull builder palette and silhouette. Have: MilitaryBase structure + loot tables, Soldiers.swift ranks and deck
+   guns, CapitalShips.swift (Faction, HullBuilder, dropships, crew), steel block family. Cost: medium to high, mostly
+   content (a white/grey/glass/greenery block palette and textures, a new base layout with skyways and pads, a new
+   hull, soldier uniforms, a Faction case and how it fights the others). Frame cost: like today's bases and frigate;
+   watch the glass (translucent sort) and foliage counts on the big towers, and the far-LOD silhouette of the towers.
+   Decide with Remington: replace Steelhold (keep its save keys) or sit beside it.
+2. **Reactive military bases** (The Capital's bases first; hear gunfire and explosions, send patrols, call
+   dropships, rebuild over time). Have: alertGarrison, soldier AI, dropships, capital AI.
+   Cost: medium (sound events to bases, a patrol state, a slow rebuild
    that is a block diff applied over time). Frame cost: low, since AI only runs in loaded chunks.
-4. **Dynamic world events** (meteor showers leaving craters with rare ore, airship convoys, a rare boss-crawler
-   rampage). Have: explosions, capital ships, encounter regions, the crawler. Cost: medium. Frame cost: bounded
-   (one event at a time, a craters-per-hour cap).
-5. **Persistent wrecks** (downed dropships and crawlers stay in the world, can be salvaged, mobs move in, they overgrow
+3. **Persistent wrecks** (downed dropships and crawlers stay in the world, can be salvaged, mobs move in, they overgrow
    over weeks). Have: founder/settle, ship save. Capitals are not saved yet; on settling, a wreck could be baked into
    world blocks. Overgrowth would use random ticks. Cost: medium. Frame cost: none once baked.
-6. **Material-aware damage** (progressive stone cracks, wood scorching and burning to charcoal, glass shattering, metal
+4. **Material-aware damage** (progressive stone cracks, wood scorching and burning to charcoal, glass shattering, metal
    dents, wind-driven fire spread). Have: block chipping (damage map + mesher), fire, explosions. Cost: medium (per-material
    damage tables, scorch overlay, a charcoal block, a wind vector in fire spread). Frame cost: watch the fire-spread tick
    cost and cap the burning cells.
-7. **Photo / cinematic camera** (camera paths, depth of field, hidden HUD). Have: free flight, the Fancy post chain,
+5. **Photo / cinematic camera** (camera paths, depth of field, hidden HUD). Have: free flight, the Fancy post chain,
    harness camera control. Cost: low to medium (a spline path recorder, a DOF pass using the depth copy). Frame cost:
    DOF only while it is on.
-8. **Weather with teeth** (storms rock ships, rain floods lowlands and swells rivers, lightning starts fires, snow
+6. **Weather with teeth** (storms rock ships, rain floods lowlands and swells rivers, lightning starts fires, snow
    accumulates). Have: Weather.swift, ship physics, fluids, fire. Storms, lightning fires and snow layers are cheap.
    Flooding is the expensive part: the fluid sim at landscape scale needs a coarse river-level model rather than
    per-block flow. Cost: medium (high for floods).
-9. **Underground biomes** (giant glowing caves, underground lakes, echoing cave audio). Have: cave lattice, lush and
-   dripstone caves, AVAudioEngine reverb. Cost: medium (world gen plus a reverb send keyed to enclosed space). Frame
-   cost: low. Watch gen time (bench gate).
-10. **Destruction physics** (per-block strength and mass, unsupported spans sag and collapse, explosions cut loose
-    chunks that tumble as rigid bodies and settle back into blocks, a frigate breaks in half). The flagship idea.
-    Have: free-moving structures (ShipPhysics), breakaway hull pieces on capitals, detachLoose flood fills. Cost: high.
-    Support analysis must stay bounded (local flood fills with a cell cap, as capitals do) and debris bodies capped (a
-    few dozen live, merged back into blocks when asleep). Memory: each debris body is a small grid plus a mesh, which
-    is fine within caps.
-11. **Pilotable aircraft and helicopters with a real flight model.** Have: planes, airships, ship physics, vehicle
-    controls. Cost: medium (lift, drag and torque model; helicopter collective and cyclic on a pad). Frame cost: low.
-12. **Build-your-own ships and vehicles that fly, sail or drive.** Largely exists (helm assembly, engines, propellers,
-    wheels, buoyancy). What remains is a builder UX, flight surfaces and balancing. Cost: medium.
-13. **Living ecosystems** (predator and prey, herd migrations, whales and sea monsters in the deep ocean). Have: mob AI,
-    animals, pathfinding. Cost: medium to high (herd AI, new large models). Frame cost: mob tick is the risk (bench
-    mobs: 1 ms with 150). Needs mob LOD (far herds simulated coarsely).
-14. **Seasons** (foliage, snow cover, animal behaviour). Have: biome tints, snow, weather. Cost: medium. Tint changes
-    need a remesh of loaded sections, spread over frames; snow cover through random ticks. Memory: none.
-15. **Trains and rails with momentum and long tracks.** Have: minecarts and variants. Cost: medium to high. Long-distance
-    travel needs chunk streaming ahead of a fast train, which is the gen and mesh budget on 8 GB at speed.
-16. **Big landmarks** (volcanoes with flowing lava, deep canyons, huge rare ruins seen from far away). Have: climate
-    terrain, structures, LOD meshes. Cost: high. Seeing them from far away needs impostors or a landmark LOD past the
-    render distance, and flowing lava needs bounded fluid updates. Gen-time risk.
-17. **Split-screen couch co-op with a second controller.** Highest cost and the biggest frame risk: two views halve
+7. **Destruction physics** (per-block strength and mass, unsupported spans sag and collapse, explosions cut loose
+   chunks that tumble as rigid bodies and settle back into blocks, a frigate breaks in half). The flagship idea.
+   Have: free-moving structures (ShipPhysics), breakaway hull pieces on capitals, detachLoose flood fills. Cost: high.
+   Support analysis must stay bounded (local flood fills with a cell cap, as capitals do) and debris bodies capped (a
+   few dozen live, merged back into blocks when asleep). Memory: each debris body is a small grid plus a mesh, which
+   is fine within caps.
+8. **Pilotable aircraft and helicopters with a real flight model.** Have: planes, airships, ship physics, vehicle
+   controls. Cost: medium (lift, drag and torque model; helicopter collective and cyclic on a pad). Frame cost: low.
+9. **Big landmarks** (volcanoes with flowing lava, deep canyons, huge rare ruins seen from far away). Have: climate
+   terrain, structures, LOD meshes. Cost: high. Seeing them from far away needs impostors or a landmark LOD past the
+   render distance, and flowing lava needs bounded fluid updates. Gen-time risk.
+10. **Split-screen couch co-op with a second controller.** Highest cost and the biggest frame risk: two views halve
     the GPU budget per view and double the visible-section work, plus a second player entity, input routing and a
     split UI. Only worth it after a performance pass (aim for 60 fps at render distance 8 per view).
 
