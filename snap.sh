@@ -178,10 +178,12 @@ BLOCKSMITH_TEXRES=128 "$BIN" --hdatlas snaps/hdatlas.png
 fi
 if on shots; then
 # Texture sources side by side (docs/textures): procedural vs the imported CC0 trial set at 128 px, same views.
-for SRC in procedural cc0; do
-  if [ "$SRC" = procedural ]; then F="--procedural"; else F="--texdir docs/textures/trials/$SRC"; fi
+# gemini: Remington's generated sheets run through tools/teximport.py (assets/gemini/processed, not adopted yet).
+for SRC in procedural cc0 gemini; do
+  if [ "$SRC" = procedural ]; then F="--procedural"; elif [ "$SRC" = gemini ]; then F="--texdir assets/gemini/processed"; else F="--texdir docs/textures/trials/$SRC"; fi
   BLOCKSMITH_TEXRES=128 "$BIN" --snapshot snaps/texsrc_${SRC}_forest.png --seed 12345 --find forest --yaw 30 --pitch -12 --time 0.22 --ground --up 1.6 --rd 8 $F || true
   BLOCKSMITH_TEXRES=128 "$BIN" --snapshot snaps/texsrc_${SRC}_cliff.png --seed 12345 --find stony_shore --yaw 120 --pitch -10 --time 0.22 --ground --up 1.6 --rd 8 $F || true
+  BLOCKSMITH_TEXRES=128 "$BIN" --snapshot snaps/texsrc_${SRC}_village.png --seed 12345 --structure village --frame 0.6 --time 0.25 --rd 8 $F || true
 done
 "$BIN" --snapshot snaps/mobs.png --seed 12345 --yaw 30 --pitch -14 --time 0.22 --up 1 --mobs
 "$BIN" --snapshot snaps/mob_shadows.png --seed 12345 --yaw 30 --pitch -14 --time 0.07 --up 1 --mobs
