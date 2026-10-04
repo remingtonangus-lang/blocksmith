@@ -160,21 +160,23 @@ final class FloodModel {
         let step = timer
         timer = 0
         let rain = forcedRain ?? (g.weather.rain > 0.2 ? g.weather.rain * (1 + 0.5 * g.weather.thunder) : 0)
-        // A dry day with no water about (the usual case): nothing at all, not even sampling (a flight re-centres the
-        // window every few seconds, and 200 column scans a step cost 1-3 ms for nothing).
-        if rain <= 0 && placed.isEmpty && !h.contains(where: { $0 > 0 }) && !wet.contains(where: { $0 > 0 }) { lastMs = 0; return }
+        // A dry day with no water about (the usual case): only a trickle of sampling (16 new cells a step), enough to
+        // find flood water standing in a save made mid-flood, which wakes the model (a flight re-centres the window
+        // every few seconds, and 200 column scans a step cost 1-3 ms for nothing).
+        let idle = rain <= 0 && placed.isEmpty && !h.contains(where: { $0 > 0 }) && !wet.contains(where: { $0 > 0 })
         let t0 = CFAbsoluteTimeGetCurrent()
         recentre(g)
         // New cells: up to 200 samples a step until the window is known (cells over unloaded chunks wait). Known
         // cells: a slow refresh, 24 a step, so dams and channels dug by the player count (it starved while any
         // cell sat over an unloaded chunk: code review).
-        var budget = 200, tries = 0
+        var budget = idle ? 16 : 200, tries = 0
         while budget > 0 && tries < N * N {
             let k = sampleCursor
             sampleCursor = (sampleCursor + 1) % (N * N)
             tries += 1
             if !known[k] && sample(g, k) { budget -= 1 }
         }
+        if idle { lastMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000; return }
         var refresh = 24
         tries = 0
         while refresh > 0 && tries < N * N {
