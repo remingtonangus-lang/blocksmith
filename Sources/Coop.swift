@@ -93,6 +93,27 @@ struct SeatState {
     var combatHUD = CombatHUD()
     var gun = GunSeat()
     var ship = ShipSeat()
+    var pad = PadSeat()
+}
+
+// Controller state kept in statics (toggle sneak, auto-sprint, drop hold, sticky aim, the map's View hold).
+struct PadSeat {
+    var sneakLatched = false, forwardTime: Float = 0, dropPressedAt: Double = -1, dropStackDone = false
+    var aimLast: (hit: IVec3, normal: IVec3)?
+    var snapTarget: Mob?
+    var snapTime: Float = 0
+    var mapPrevPad = PadSnapshot()
+    var viewDown: Double = -1, mapOpened = false
+
+    mutating func exchange() {
+        swap(&sneakLatched, &PadActions.sneakLatched); swap(&forwardTime, &PadActions.forwardTime)
+        swap(&dropPressedAt, &PadActions.dropPressedAt); swap(&dropStackDone, &PadActions.dropStackDone)
+        let l = aimLast; aimLast = AimAssist.last; AimAssist.last = l
+        let t = snapTarget; snapTarget = AimAssist.snapTarget; AimAssist.snapTarget = t
+        swap(&snapTime, &AimAssist.snapTime)
+        swap(&mapPrevPad, &MapMenu.prevPad)
+        swap(&viewDown, &MapInput.viewDown); swap(&mapOpened, &MapInput.opened)
+    }
 }
 
 // The player's own gun handling (Armory holds the rounds in flight too, which stay shared).
@@ -385,6 +406,7 @@ extension Game {
         swap(&Turrets.shared, &s.turrets)
         swap(&CombatHUD.shared, &s.combatHUD)
         s.gun.exchange(arms)
+        s.pad.exchange()
         s.ship.exchange(world.ships)
     }
 }
