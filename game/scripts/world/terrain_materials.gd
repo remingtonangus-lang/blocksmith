@@ -5,7 +5,7 @@ class_name TerrainMaterials
 
 const RES := 512
 const LAYERS := 8
-const VERSION := 3
+const VERSION := 4
 
 
 static func build(seed: int) -> Array:
@@ -123,12 +123,13 @@ static func _paint(layer: int, seed: int) -> Array:
 					rgb = rgb.lerp(Vector3(0.42, 0.44, 0.45), joint)
 					rough = 0.55 + f * 0.15 + joint * 0.3
 					h = 1.0 - joint * 0.8 - f * 0.05
-				7:  # road: asphalt with aggregate
-					rgb = Vector3(0.085, 0.088, 0.094) * (0.8 + f * 0.4 + (b - 0.5) * 0.3)
-					if G.hash2(x, y, s + 3) > 0.985:
-						rgb = Vector3(0.3, 0.3, 0.3)
-					rough = 0.88
-					h = f * 0.5
+				7:  # road shoulder: compacted gravel with scattered stones
+					rgb = Vector3(0.3, 0.28, 0.25) * (0.8 + f * 0.35 + (b - 0.5) * 0.3)
+					var st := G.hash2(x / 3, y / 3, s + 3)
+					if st > 0.9:
+						rgb = Vector3(0.42, 0.41, 0.39) * (0.8 + f * 0.3)
+					rough = 0.9
+					h = f * 0.4 + float(st > 0.9) * 0.4
 			var o := i * 4
 			col[o] = clampi(int(rgb.x * 255.0), 0, 255)
 			col[o + 1] = clampi(int(rgb.y * 255.0), 0, 255)

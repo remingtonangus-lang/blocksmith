@@ -44,7 +44,7 @@ vec3 scatter(vec3 rd, vec3 ld, float intensity, float h0) {
 	vec2 t = ray_sphere(ro, rd, R_A);
 	float t1 = t.y;
 	vec2 g = ray_sphere(ro, rd, R_E);
-	if (g.x > 0.0) t1 = g.x;
+	if (g.y > g.x && g.x > 0.0) t1 = g.x;     // only a real hit (a miss returns x > y)
 	const int STEPS = 12;
 	const int LSTEPS = 4;
 	float ds = t1 / float(STEPS);
@@ -186,7 +186,8 @@ void sky() {
 		if (rd.y < 0.0) {
 			// Below the horizon (only seen past the ocean's far edge): the horizon colour, slightly darker.
 			vec3 hz = normalize(vec3(rd.x, 0.0, rd.z));
-			col = scatter(hz, sun_dir, sun_intensity, h0) * 0.85 + scatter(hz, moon_dir, sun_intensity * moon_intensity, h0) * 0.85;
+			vec3 hc = scatter(hz, sun_dir, sun_intensity, h0) + scatter(hz, moon_dir, sun_intensity * moon_intensity, h0);
+			col = mix(vec3(dot(hc, vec3(0.333))), hc, 0.35) * 0.7;
 		}
 		if (rd.y > -0.01) {
 			vec3 st = sun_transmittance(sun_dir) * smoothstep(-0.12, 0.05, sun_dir.y);

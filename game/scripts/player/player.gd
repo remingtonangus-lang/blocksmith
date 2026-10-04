@@ -27,6 +27,8 @@ var col_shape: CollisionShape3D
 var health := 100.0
 var weapons: Node = null
 var _step_t := 0.0
+var focus_interactable: Dictionary = {}
+var _use_hold := 0.0
 
 
 func _ready() -> void:
@@ -80,6 +82,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	_interactions(delta)
 	if vehicle:
 		return
 	zoomed = Input.is_action_pressed("aim")
@@ -100,6 +103,47 @@ func _process(delta: float) -> void:
 	var bob := sin(bob_t) * 0.035 * clampf(hv / SPRINT, 0.0, 1.0)
 	head.position.y = _eye + bob
 	head.position.x = cos(bob_t * 0.5) * 0.02 * clampf(hv / SPRINT, 0.0, 1.0)
+
+
+## The nearest "use" spot in front of the player; hold interact (0.25 s) to use it. In a vehicle, interact
+## leaves it.
+func _interactions(delta: float) -> void:
+	if vehicle:
+		focus_interactable = {}
+		if Input.is_action_just_pressed("interact") and vehicle.has_method("exit"):
+			vehicle.exit(self)
+		return
+	var best: Dictionary = {}
+	var bd := 1e9
+	var eye := camera.global_position
+	var fwd := -camera.global_transform.basis.z
+	var keep := []
+	for it in G.interactables:
+		var n: Node3D = it["node"]
+		if not is_instance_valid(n):
+			continue
+		keep.append(it)
+		var p: Vector3 = n.global_transform * (it["offset"] as Vector3)
+		var d := p.distance_to(eye)
+		if d > it["radius"]:
+			continue
+		var facing := fwd.dot((p - eye).normalized())
+		var score := d - facing * 2.0
+		if facing > -0.2 and score < bd:
+			bd = score
+			best = it
+	G.interactables = keep
+	focus_interactable = best
+	if best.is_empty():
+		_use_hold = 0.0
+		return
+	if Input.is_action_pressed("interact"):
+		_use_hold += delta
+		if _use_hold >= 0.25:
+			_use_hold = -10.0
+			(best["action"] as Callable).call(self)
+	else:
+		_use_hold = 0.0
 
 
 func _physics_process(delta: float) -> void:

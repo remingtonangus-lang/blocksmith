@@ -15,9 +15,15 @@ static var combat: Node
 static var battle: Battle
 static var vehicles: Node3D
 static var cities: Node3D
+static var interactables: Array = []   # {node, offset, radius, prompt, action}
 static var paused := false
 static var frame := 0
 static var seed := 1337
+
+## Registers a "use" spot on a node (vehicle seats, consoles, turrets): prompt text and a Callable(player).
+static func add_interactable(node: Node3D, offset: Vector3, radius: float, prompt: String, action: Callable) -> void:
+	interactables.append({"node": node, "offset": offset, "radius": radius, "prompt": prompt, "action": action})
+
 
 ## ~/Library/Logs/CapitalGame on macOS, user://logs elsewhere.
 static func log_dir() -> String:

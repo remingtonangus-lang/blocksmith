@@ -217,9 +217,15 @@ func _call_barrage(side: int) -> void:
 	var now := Time.get_ticks_msec() / 1000.0
 	var shells := 6 if side == 0 else 4
 	var power := 1.4 if side == 0 else 0.8
+	var guns: ArtilleryBattery = G.vehicles.batteries.get(side) if G.vehicles else null
+	var targets := []
 	for k in shells:
 		var p := best + Vector3(rng.randf_range(-35, 35), 0, rng.randf_range(-35, 35))
-		_barrages.append([now + 3.0 + k * rng.randf_range(0.4, 1.1), _ground(p), power])
+		targets.append(_ground(p))
+		if guns == null:
+			_barrages.append([now + 3.0 + k * rng.randf_range(0.4, 1.1), _ground(p), power])
+	if guns:
+		guns.fire_at(targets)
 	if side == 0 and Sfx.has_method("distant_guns"):
 		Sfx.distant_guns(G.gen.sites["artillery"])
 

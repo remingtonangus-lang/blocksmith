@@ -12,6 +12,7 @@ var weather: Node
 var cities: Node3D
 var city_list: Array = []
 var bases: Bases
+var roads: Roads
 var _focus := Vector3.ZERO
 
 
@@ -51,10 +52,25 @@ func setup(g: WorldGen) -> void:
 	bases.name = "Bases"
 	add_child(bases)
 	bases.build(gen, capital.mat)
+	roads = Roads.new()
+	roads.name = "Roads"
+	add_child(roads)
+	roads.setup(gen)
 	var battle := Battle.new()
 	battle.name = "Battle"
 	add_child(battle)
 	battle.setup()
+	var combat := Combat.new()
+	combat.name = "Combat"
+	add_child(combat)
+	combat.setup()
+	var veh := Vehicles.new()
+	veh.name = "Vehicles"
+	add_child(veh)
+	veh.setup(capital.mat)
+	var hud := Hud.new()
+	hud.name = "Hud"
+	add_child(hud)
 	if vegetation:
 		for k in bases.sites:
 			var s: Dictionary = bases.sites[k]
@@ -136,6 +152,17 @@ func benchmark_segments() -> Array:
 	]
 
 
+func _park_frigate(at: Vector3) -> void:
+	if G.vehicles and G.vehicles.frigates.size() > 0:
+		var f: Frigate = G.vehicles.frigates[0]
+		f.global_position = at
+		f.yaw = 0.3
+		f.rotation = Vector3(0, 0.3, 0)
+		f.route = []
+		f.speed = 0.0
+		print("frigate parked at %s, children %d, visible %s, in tree %s" % [f.global_position, f.get_child_count(), f.is_visible_in_tree(), f.is_inside_tree()])
+
+
 func _battle_warm(seconds: float) -> void:
 	if G.battle:
 		G.battle.bench_battle()
@@ -172,6 +199,13 @@ func shot_list() -> Array:
 		{"name": "battle_ground", "pos": above(fr.x + 260, fr.z + 20, 1.7), "look": above(fr.x - 200, fr.z - 40, 2.0), "hour": 16.0, "weather": "overcast", "setup": func(): _battle_warm(25.0)},
 		{"name": "battle_wide", "pos": above(fr.x + 420, fr.z + 380, 70), "look": fr + Vector3(0, 10, 0), "hour": 16.5, "weather": "cloudy", "setup": func(): _battle_warm(25.0)},
 		{"name": "troops_lineup", "fov": 32.0, "pos": above(fr.x + 607, fr.z - 400, 1.3), "look": above(fr.x + 595, fr.z - 400, 0.9), "hour": 11.0, "weather": "clear", "setup": func(): G.battle.lineup(above(fr.x + 595, fr.z - 400, 0.0), above(fr.x + 601, fr.z - 400, 0.0))},
+		{"name": "road_bridge", "pos": Vector3(1690, 46, 880), "look": Vector3(1632, 24, 774), "hour": 13.0, "weather": "clear"},
+		{"name": "pass_road", "pos": above(640, -1820, 16), "look": above(575, -1890, 1), "hour": 10.0, "weather": "clear"},
+		{"name": "vehicles_spawn", "pos": sp + Vector3(-6, 3.5, 30), "look": sp + Vector3(22, 1.5, 2), "hour": 10.0, "weather": "clear"},
+		{"name": "frigate", "pos": ct + Vector3(-160, 300, 470), "look": ct + Vector3(0, 262, 300), "hour": 15.0, "weather": "cloudy", "setup": func(): _park_frigate(ct + Vector3(0, 262, 300))},
+		{"name": "frigate_deck", "pos": ct + Vector3(-6, 272, 360), "look": ct + Vector3(0, 280, 300), "hour": 15.5, "weather": "clear", "setup": func(): _park_frigate(ct + Vector3(0, 262, 300))},
+		{"name": "gunship_pad", "pos": ct + Vector3(-50, 16, 20), "look": ct + Vector3(-80, 8, -10), "hour": 11.0, "weather": "clear"},
+		{"name": "horizon_test", "pos": Vector3(7000, 400, 3000), "look": Vector3(20000, 400, 3000), "hour": 12.0, "weather": "clear", "setup": func(): water.ocean.visible = false},
 		{"name": "capital_top", "pos": c + Vector3(500, 420, 1), "look": c + Vector3(500, 0, 0), "hour": 12.0, "weather": "clear"},
 		{"name": "capital_dusk", "pos": above(c.x - 1300, c.z + 1200, 90), "look": c + Vector3(0, 70, 0), "hour": 19.6, "weather": "clear"},
 		{"name": "capital_night", "pos": above(c.x - 1200, c.z + 800, 110), "look": c + Vector3(0, 40, 0), "hour": 23.0, "weather": "clear"},

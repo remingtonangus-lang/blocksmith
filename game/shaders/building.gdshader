@@ -33,6 +33,8 @@ float line(float x, float w) {
 
 void fragment() {
 	int style = int(v_style * 11.0 + 0.001);
+	// Roofs, decks and terraces are never glass or ribbon windows: they read as white stone.
+	if ((style == 0 || style == 1 || style == 7) && v_wnorm.y > 0.7) style = 2;
 	vec2 uv = UV;
 	float fl = v_floor;
 	float row = floor(uv.y / fl);

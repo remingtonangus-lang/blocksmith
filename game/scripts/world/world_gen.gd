@@ -6,7 +6,7 @@ extends RefCounted
 ## float grid (8 m texels) that the GPU samples with the same bilinear filter as height_at(), plus a tileable
 ## 0.25 m detail layer. Everything is deterministic for a seed and cached in user://.
 
-const GEN_VERSION := 9
+const GEN_VERSION := 10
 const SIZE := 16384.0
 const HALF := 8192.0
 const N := 2048
@@ -130,6 +130,10 @@ func generate(use_cache: bool = true) -> void:
 	print("world: rivers %d ms" % (Time.get_ticks_msec() - t0))
 	stage = "planting forests"
 	_paint_mask()
+	progress = 0.88
+	stage = "laying roads"
+	_build_roads()
+	print("world: roads %d ms" % (Time.get_ticks_msec() - t0))
 	progress = 0.95
 	_save_cache()
 	_finish_sites()
@@ -427,6 +431,182 @@ func _load_cache() -> bool:
 	rivers = extra["rivers"]
 	roads = extra["roads"]
 	return true
+
+
+# ------------------------------------------------------------------------------------------------- roads
+
+# Road network: [from site, to site, name, faction]. Capital roads are paved; Cinder tracks are gravel.
+const ROADS := [
+	["capital", "harbor", "Coast Road", "capital"], ["capital", "citadel", "Citadel Way", "capital"],
+	["citadel", "airfield", "Airfield Road", "capital"], ["citadel", "radar", "Pass Road", "capital"],
+	["capital", "fort_lumen", "Western Highway", "capital"], ["fort_lumen", "artillery", "Battery Lane", "capital"],
+	["fort_lumen", "front", "Front Track", "capital"], ["cinder_camp", "cinder_outpost", "Ash Track", "cinder"],
+	["cinder_outpost", "front", "Red Track", "cinder"],
+]
+const ROAD_CELL := 64.0
+const ROAD_HALF := 5.0
+
+
+func _build_roads() -> void:
+	roads.clear()
+	var gn := int(SIZE / ROAD_CELL)
+	var astar := AStarGrid2D.new()
+	astar.region = Rect2i(0, 0, gn, gn)
+	astar.cell_size = Vector2(ROAD_CELL, ROAD_CELL)
+	astar.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
+	astar.default_compute_heuristic = AStarGrid2D.HEURISTIC_EUCLIDEAN
+	astar.update()
+	for gz in gn:
+		for gx in gn:
+			var wx := -HALF + (gx + 0.5) * ROAD_CELL
+			var wz := -HALF + (gz + 0.5) * ROAD_CELL
+			var h := _raw(wx, wz)
+			if h < 1.0:
+				astar.set_point_solid(Vector2i(gx, gz), true)
+				continue
+			var sl := slope_at(wx, wz)
+			var cost := 1.0 + sl * sl * 140.0 + maxf(0.0, h - 900.0) * 0.004
+			# Water anywhere in the cell makes it a bridge (expensive: cross rivers rarely and straight); cells
+			# next to water cost extra so roads keep to the valley sides instead of the river banks.
+			var wet := 0
+			for sz in 3:
+				for sx in 3:
+					if water[_tx(wz + (sz - 1) * 26.0) * N + _tx(wx + (sx - 1) * 26.0)] > -100.0:
+						wet += 1
+			if wet > 0:
+				cost += 120.0
+			elif water[_tx(wz + 64.0) * N + _tx(wx)] > -100.0 or water[_tx(wz - 64.0) * N + _tx(wx)] > -100.0 or water[_tx(wz) * N + _tx(wx + 64.0)] > -100.0 or water[_tx(wz) * N + _tx(wx - 64.0)] > -100.0:
+				cost += 4.0
+			astar.set_point_weight_scale(Vector2i(gx, gz), cost)
+	for r in ROADS:
+		var a: Vector2 = SITE_XZ[r[0]]
+		var b: Vector2 = SITE_XZ[r[1]]
+		var ia := Vector2i(clampi(int((a.x + HALF) / ROAD_CELL), 0, gn - 1), clampi(int((a.y + HALF) / ROAD_CELL), 0, gn - 1))
+		var ib := Vector2i(clampi(int((b.x + HALF) / ROAD_CELL), 0, gn - 1), clampi(int((b.y + HALF) / ROAD_CELL), 0, gn - 1))
+		astar.set_point_solid(ia, false)
+		astar.set_point_solid(ib, false)
+		var cells := astar.get_id_path(ia, ib)
+		if cells.size() < 2:
+			continue
+		var pts := PackedVector2Array()
+		pts.append(a)
+		for c in cells:
+			pts.append(Vector2(-HALF + (c.x + 0.5) * ROAD_CELL, -HALF + (c.y + 0.5) * ROAD_CELL))
+		pts.append(b)
+		for k in 3:
+			pts = _chaikin(pts)
+		pts = _resample(pts, 10.0)
+		roads.append(_road_profile(pts, r[2], r[3]))
+	for road in roads:
+		_carve_road(road)
+		var pts: PackedVector3Array = road["pts"]
+		var nb := 0
+		var first_bridge := Vector3.ZERO
+		for k in pts.size():
+			if road["bridge"][k] == 1:
+				if nb == 0:
+					first_bridge = pts[k]
+				nb += 1
+		print("road %s: %.1f km, %d bridge points %s, mid %s" % [road["name"], pts.size() * 0.01, nb, first_bridge, pts[pts.size() / 2]])
+
+
+func _chaikin(p: PackedVector2Array) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	out.append(p[0])
+	for i in p.size() - 1:
+		out.append(p[i].lerp(p[i + 1], 0.25))
+		out.append(p[i].lerp(p[i + 1], 0.75))
+	out.append(p[p.size() - 1])
+	return out
+
+
+func _resample(p: PackedVector2Array, step: float) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	out.append(p[0])
+	var carry := 0.0
+	for i in p.size() - 1:
+		var a := p[i]
+		var b := p[i + 1]
+		var l := a.distance_to(b)
+		var t := step - carry
+		while t <= l:
+			out.append(a.lerp(b, t / l))
+			t += step
+		carry = l - (t - step)
+	out.append(p[p.size() - 1])
+	return out
+
+
+## Heights along the road: smoothed terrain, grades limited to 9 %, bridges held above rivers.
+func _road_profile(pts: PackedVector2Array, name: String, faction: String) -> Dictionary:
+	var n := pts.size()
+	var h := PackedFloat32Array()
+	h.resize(n)
+	var bridge := PackedByteArray()
+	bridge.resize(n)
+	for i in n:
+		h[i] = _raw(pts[i].x, pts[i].y)
+		var w := water[_tx(pts[i].y) * N + _tx(pts[i].x)]
+		if w > -100.0:
+			bridge[i] = 1
+	# Widen bridge spans a little so the deck reaches the banks.
+	var br := bridge.duplicate()
+	for i in n:
+		if bridge[i] == 1:
+			for k in range(maxi(0, i - 3), mini(n, i + 4)):
+				br[k] = 1
+	bridge = br
+	for pass_i in 4:
+		var sm := h.duplicate()
+		for i in range(2, n - 2):
+			sm[i] = (h[i - 2] + h[i - 1] * 2.0 + h[i] * 2.0 + h[i + 1] * 2.0 + h[i + 2]) / 8.0
+		h = sm
+	for i in n:
+		if bridge[i] == 1:
+			var w := maxf(water[_tx(pts[i].y) * N + _tx(pts[i].x)], 0.0)
+			h[i] = maxf(h[i], w + 7.0)
+	var grade := 0.09 * 10.0
+	for i in range(1, n):
+		h[i] = clampf(h[i], h[i - 1] - grade, h[i - 1] + grade)
+	for i in range(n - 2, -1, -1):
+		h[i] = clampf(h[i], h[i + 1] - grade, h[i + 1] + grade)
+	var out := PackedVector3Array()
+	for i in n:
+		out.append(Vector3(pts[i].x, h[i], pts[i].y))
+	return {"pts": out, "bridge": bridge, "name": name, "faction": faction}
+
+
+## Cuts and fills the terrain to the road profile (except under bridges) and paints the road mask.
+func _carve_road(road: Dictionary) -> void:
+	var pts: PackedVector3Array = road["pts"]
+	var bridge: PackedByteArray = road["bridge"]
+	var shoulder := 14.0
+	for i in pts.size() - 1:
+		var a := Vector2(pts[i].x, pts[i].z)
+		var b := Vector2(pts[i + 1].x, pts[i + 1].z)
+		var ab := b - a
+		var len2 := maxf(ab.length_squared(), 0.001)
+		var reach := ROAD_HALF + shoulder
+		var x0 := _tx(minf(a.x, b.x) - reach); var x1 := _tx(maxf(a.x, b.x) + reach)
+		var z0 := _tx(minf(a.y, b.y) - reach); var z1 := _tx(maxf(a.y, b.y) + reach)
+		for tz in range(z0, z1 + 1):
+			var wz := -HALF + (tz + 0.5) * CELL
+			for tx in range(x0, x1 + 1):
+				var wx := -HALF + (tx + 0.5) * CELL
+				var p := Vector2(wx, wz)
+				var t := clampf((p - a).dot(ab) / len2, 0.0, 1.0)
+				var d := p.distance_to(a + ab * t)
+				if d > reach:
+					continue
+				var idx := tz * N + tx
+				var on_bridge := bridge[i] == 1 or bridge[i + 1] == 1
+				if not on_bridge:
+					var y := lerpf(pts[i].y, pts[i + 1].y, t) - 0.15
+					var k := 1.0 - _smooth01(ROAD_HALF + 2.0, reach, d)
+					heights[idx] = lerpf(heights[idx], y, k)
+				var m := 1.0 - _smooth01(ROAD_HALF, ROAD_HALF + 8.0, d)
+				mask[idx * 4] = maxi(mask[idx * 4], int(m * 200.0))
+				mask[idx * 4 + 3] = int(mask[idx * 4 + 3] * (1.0 - minf(1.0, m * 1.5)))
 
 
 # ----------------------------------------------------------------------------------------------- queries
