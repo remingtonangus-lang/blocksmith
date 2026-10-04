@@ -44,6 +44,8 @@ enum CraftCategory: Int, CaseIterable {
 
 // Crafting straight from the inventory (no grid): shared by the crafting book and the inventory's recipe panel.
 enum CraftBook {
+    static var flashItem: ItemID = 0           // the last crafted result and when (its tile flashes)
+    static var flashAt: Double = -10
     static func needs(_ r: Recipe) -> [String] { RecipeBook.needs(r) }
 
     static func pool(_ g: Game) -> [ItemID: Int] {
@@ -109,7 +111,13 @@ enum CraftBook {
             for b in returns { let left = g.inventory.add(b); if !left.isEmpty { g.dropItem(left) } }
             made += 1
         }
-        if made > 0 { g.sfx(.pickup, 0.6) }
+        if made > 0 {
+            // Feedback on three channels: the pickup sound, a flash on the tile, a light tap on the controller.
+            g.sfx(.pickup, 0.6)
+            flashItem = r.result.item
+            flashAt = g.clock
+            PadManager.shared.rumble(min(0.35, 0.12 + 0.02 * Float(made)), 0.05)
+        }
         return made
     }
 
@@ -348,6 +356,8 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             box(sl.x, sl.y, sl.w, sl.h, ok ? V4(0.86, 0.9, 0.86, 1) : V4(0.6, 0.6, 0.62, 1))
             icon(r.result, sl.x + 2, sl.y + 2)
             if !ok { box(sl.x, sl.y, sl.w, sl.h, V4(0.35, 0.35, 0.38, 0.55)) }
+            let since = Float(game.clock - CraftBook.flashAt)
+            if r.result.item == CraftBook.flashItem && since < 0.3 { box(sl.x, sl.y, sl.w, sl.h, V4(1, 1, 0.82, 0.65 * (1 - since / 0.3))) }
         }
         if list.isEmpty {
             label(tab == .craftable ? "Nothing craftable yet: gather materials" : "No recipes here", 14, 100, ink, maxW: 170)
