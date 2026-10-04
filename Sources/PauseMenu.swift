@@ -50,7 +50,7 @@ final class PauseMenu: Menu {
     static let valueIDs: Set<String> = ["sens", "invert", "autojump", "fov", "lookx", "looky", "accel", "dead", "aim", "rumble", "southpaw",
                                         "sneaktoggle", "autosprint", "glyphs", "rd", "chipping", "fullscreen", "launchfs", "vsync", "fps", "rscale", "wscale", "graphics",
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
-                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap"]
+                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap", "splitlayout"]
 
     static func isValue(_ id: String) -> Bool { valueIDs.contains(id) || id.hasPrefix("vol:") || id == "audio_subs" }
 
@@ -71,6 +71,7 @@ final class PauseMenu: Menu {
         "rumble": "Controller vibration when you are hit, mine, attack or something explodes.",
         "southpaw": "Southpaw swaps the sticks: look with the left, move with the right.",
         "sneaktoggle": "Toggle: press B / right stick once to crouch, again to stand.",
+        "splitlayout": "How the screen divides for two players: top and bottom (wide views) or side by side (menus stay bigger on a TV).",
         "minimap": "A small biome map in the corner with nearby bases and villages. M or hold View for the full map.",
         "fov": "How wide the view is. Wider shows more at the sides; narrower looks closer.",
         "invert": "Moving the mouse or stick up looks down.",
@@ -210,6 +211,7 @@ final class PauseMenu: Menu {
                         ("Text Background: \(st.textBackground == 0 ? "Off" : pct(st.textBackground))", "textbg"),
                         ("Crosshair: \(["Classic", "Bold", "Dot"][max(0, min(2, st.crosshair))])", "crosshair"),
                         ("Minimap: \(on(st.minimap))", "minimap"),
+                        ("Split Screen: \(st.splitSideBySide ? "Side by Side" : "Top / Bottom")", "splitlayout"),
                         ("Hide HUD: \(on(g.hideHUD))", "hidehud"), ("Debug Info: \(on(g.showDebug))", "debug"),
                         ("Bug Notes: " + (BugNotes.denied ? "No mic access" : BugNotes.names[max(0, min(2, st.bugNotes))]), "bugnotes"),
                         ("Reset Options...", "resetask")]
@@ -451,6 +453,7 @@ final class PauseMenu: Menu {
             else if g.coop.secondPadAvailable { g.closeMenu(); g.paused = false; g.coop.join(g, controller: nil) }
             else { g.onToast?("Connect a second controller, then press its Menu button") }
         case "minimap": st.minimap.toggle()
+        case "splitlayout": st.splitSideBySide.toggle()
         case "commands": g.closeMenu(); g.openMenu(CommandMenu(game: g))
         case "mode": g.toggleMode(); g.onModeChanged?(g.survival)
         case "difficulty": g.difficulty = step([0, 1, 2, 3], g.difficulty)

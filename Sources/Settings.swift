@@ -50,6 +50,7 @@ final class Settings {
     @Pref("minimap") var minimap = true             // biome minimap in the top-right corner
     @Pref("chipping") var chipping = true           // mining chips pieces off a block until it breaks (World.chip)
     @Pref("crosshair") var crosshair = 0             // 0 classic, 1 bold (high contrast), 2 dot
+    @Pref("splitSideBySide") var splitSideBySide = false   // split screen (Coop.swift): left / right instead of top / bottom
 
     // Accessibility
     // One subtitles setting for the whole game; stored here (key kept from the audio workstream). AudioSettings.subtitles
@@ -66,7 +67,7 @@ final class Settings {
     func resetAll(_ g: Game) {
         lookX = 3; lookY = 3; lookAccel = 3; lookDead = 0.08; lookOuter = 0.05; moveOuter = 0.05; aimAssist = true; rumble = 0.7; southpaw = false; sneakToggle = false; autoSprint = true; lookCurve = 0; flightInverted = true
         launchFullscreen = true; vsync = true; fpsCap = 0; renderScale = 1
-        safeArea = 0; buttonHints = true; glyphStyle = 0; textBackground = 0; crosshair = 0; minimap = true
+        safeArea = 0; buttonHints = true; glyphStyle = 0; textBackground = 0; crosshair = 0; minimap = true; splitSideBySide = false
         subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true; narrator = false
         g.fovSetting = 70; g.sensitivity = 1; g.invertY = false; g.autoJump = false; g.deadZone = 0.08
         g.volumeSetting = 0.8; g.musicVolume = 1

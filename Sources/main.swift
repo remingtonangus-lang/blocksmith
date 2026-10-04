@@ -1394,6 +1394,7 @@ enum Snapshot {
             // Split screen: player 2 joins (a neutral simulated pad) a few blocks ahead, turned back to face player 1.
             game.coop.simulated[1] = PadSnapshot()
             game.coop.join(game, controller: nil)
+            if CommandLine.arguments.contains("--splitside") { Settings.shared.splitSideBySide = true }   // with --couch (prefs sandboxed)
             if CommandLine.arguments.contains("--cooptest") { shipFails += CoopTest.run(game) }
             let p1 = game.player
             let fwd = V3(-sinf(p1.yaw), 0, -cosf(p1.yaw)), right = V3(cosf(p1.yaw), 0, -sinf(p1.yaw))

@@ -460,6 +460,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     // grading) into `final`, then the HUD.
     func renderFrame(_ cmd: MTLCommandBuffer, final: MTLRenderPassDescriptor, width: Int, height: Int) {
         HudLayout.splitFullH = game.coop.active ? Float(height) : 0
+        HudLayout.splitFullW = game.coop.active ? Float(width) : 0
         if game.coop.active { renderSplit(cmd, final: final, width: width, height: height); return }
         renderView(cmd, final: final, width: width, height: height)
     }
@@ -470,17 +471,20 @@ final class Renderer: NSObject, MTKViewDelegate {
         guard let out = final.colorAttachments[0].texture else { return }
         let n = game.coop.seatCount
         let gap = height >= 900 ? 4 : 2
-        let h = max(16, (height - gap * (n - 1)) / n)
+        // Top / bottom (wide views), or side by side (Options > Interface > Split Screen: taller views, menus stay bigger).
+        let side = Settings.shared.splitSideBySide
+        let w = side ? max(16, (width - gap * (n - 1)) / n) : width
+        let h = side ? height : max(16, (height - gap * (n - 1)) / n)
         // Two views a frame: twice the per-frame scratch buffers (each view takes the next one).
         while ring.count < 6 { ring.append(device.makeBuffer(length: ringSize, options: .storageModeShared)!) }
         shipRenderer.ensureRing(6)
-        if splitColor?.width != width || splitColor?.height != h || splitColor?.pixelFormat != out.pixelFormat {
-            let cd = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: out.pixelFormat, width: width, height: h, mipmapped: false)
+        if splitColor?.width != w || splitColor?.height != h || splitColor?.pixelFormat != out.pixelFormat {
+            let cd = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: out.pixelFormat, width: w, height: h, mipmapped: false)
             cd.usage = [.renderTarget, .shaderRead]
             cd.storageMode = .private
             splitColor = device.makeTexture(descriptor: cd)
             let df = final.depthAttachment.texture?.pixelFormat ?? .depth32Float
-            let dd = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: df, width: width, height: h, mipmapped: false)
+            let dd = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: df, width: w, height: h, mipmapped: false)
             dd.usage = .renderTarget
             dd.storageMode = .private
             splitDepth = device.makeTexture(descriptor: dd)
@@ -502,10 +506,11 @@ final class Renderer: NSObject, MTKViewDelegate {
             rpd.depthAttachment.loadAction = .clear
             rpd.depthAttachment.storeAction = .dontCare
             rpd.depthAttachment.clearDepth = 1
-            renderView(cmd, final: rpd, width: width, height: h)
+            renderView(cmd, final: rpd, width: w, height: h)
             let b = cmd.makeBlitCommandEncoder()!
-            b.copy(from: sc, sourceSlice: 0, sourceLevel: 0, sourceOrigin: MTLOrigin(x: 0, y: 0, z: 0), sourceSize: MTLSize(width: width, height: h, depth: 1),
-                   to: out, destinationSlice: 0, destinationLevel: 0, destinationOrigin: MTLOrigin(x: 0, y: i * (h + gap), z: 0))
+            let ox = side ? i * (w + gap) : 0, oy = side ? 0 : i * (h + gap)
+            b.copy(from: sc, sourceSlice: 0, sourceLevel: 0, sourceOrigin: MTLOrigin(x: 0, y: 0, z: 0), sourceSize: MTLSize(width: w, height: h, depth: 1),
+                   to: out, destinationSlice: 0, destinationLevel: 0, destinationOrigin: MTLOrigin(x: ox, y: oy, z: 0))
             b.endEncoding()
         }
         game.coop.switchTo(me, game)
