@@ -1,11 +1,15 @@
 import Foundation
+#if canImport(AVFoundation)
 import AVFoundation
+#endif
 
 // Accessibility > Narrator: reads the highlighted menu row or slot, screen titles and toasts aloud with the
 // system voice. Button glyphs are spoken as their names ("A", "LB"...). Off in the test harness.
 final class Narrator {
     static let shared = Narrator()
+    #if canImport(AVFoundation)
     private var synth: AVSpeechSynthesizer?
+    #endif
     private var last = ""
     private var lastAt: Double = 0
     var lastDesc = ""
@@ -43,12 +47,14 @@ final class Narrator {
         guard !t.isEmpty, t != last || clock - lastAt > 2 else { return }
         last = t
         lastAt = clock
+        #if canImport(AVFoundation)      // the Quest port has no system voice yet
         if synth == nil { synth = AVSpeechSynthesizer() }
         guard let s = synth else { return }
         if interrupt && s.isSpeaking { s.stopSpeaking(at: .immediate) }
         let u = AVSpeechUtterance(string: t)
         u.rate = 0.5
         s.speak(u)
+        #endif
     }
 
     // What the highlighted element is, in words.

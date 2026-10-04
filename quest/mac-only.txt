@@ -1,0 +1,17 @@
+# Shared Sources/ files the Quest build leaves out (Mac platform code); quest/src provides what the rest needs.
+App.swift
+main.swift
+USBGamepad.swift
+Renderer.swift
+Vibrant.swift
+Clouds.swift
+TextureImport.swift
+AtlasDump.swift
+TerrainTools.swift
+BugNotes.swift
+AudioTests.swift
+Bench.swift
+PadTest.swift
+ShipBench.swift
+ShipTest.swift
+Smoke.swift

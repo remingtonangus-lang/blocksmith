@@ -207,6 +207,7 @@ final class ShipMesh {
     }
 }
 
+#if canImport(MetalKit)      // Metal drawing; the Quest port draws ShipMesh sections itself (quest/src)
 // Per-draw record for shipVS (buffer 2).
 struct ShipDrawRec {
     var model: float4x4            // ship space -> camera-relative world
@@ -656,3 +657,4 @@ final class ShipRenderer {
         }
     }
 }
+#endif

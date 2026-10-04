@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(AVFoundation)
 import AVFoundation
+#endif
 
 // Procedural background music. A Composer writes a MusicScore (notes with instrument, pitch, length,
 // velocity, pan) for a mood; MusicRenderer turns it into stereo audio block by block; MusicStream feeds
@@ -355,6 +357,8 @@ final class MusicRenderer {
 
 // MARK: - Stream (AVAudioPlayerNode fed from a background queue)
 
+#if canImport(AVFoundation)      // the Quest port streams MusicRenderer through its own mixer (quest/src)
+
 final class MusicStream {
     let node = AVAudioPlayerNode()
     let format: AVAudioFormat
@@ -453,6 +457,7 @@ final class MusicStream {
         }
     }
 }
+#endif
 
 // MARK: - Composer
 

@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(AVFoundation)
 import AVFoundation
+#endif
 import simd
 
 // Volume sliders (persisted in UserDefaults). Master and music keep the original keys so old settings carry over.
@@ -21,6 +23,7 @@ enum AudioSettings {
     static func gain(_ s: Snd) -> Float { volume(.master) * volume(s.category) }
 }
 
+#if canImport(AVFoundation)      // the Quest port has its own SoundEngine (quest/src)
 // AVAudioEngine front end: 3D sources through an environment node (distance rolloff, panning, obstruction,
 // cave reverb), flat sources for the player's own sounds, an interface bus that is never muffled, looping
 // emitters, an underwater low-pass, and the streaming music player.
@@ -349,3 +352,4 @@ final class SoundEngine {
         music?.stop(fade: 0.5)
     }
 }
+#endif

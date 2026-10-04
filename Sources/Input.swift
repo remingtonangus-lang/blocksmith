@@ -1,5 +1,9 @@
+#if canImport(AppKit)
 import AppKit
 import GameController
+#else
+import Foundation          // Quest port (quest/): no AppKit; quest/src provides PadManager
+#endif
 import simd
 
 enum Key {

@@ -1,8 +1,11 @@
 import Foundation
+#if canImport(GameController)
 import GameController
 import CoreHaptics
+#endif
 import simd
 
+#if canImport(GameController)      // the Quest port's PadManager reads the Touch controllers (quest/src)
 // Game controller hub: hotplugging (connect / disconnect toasts, pausing when the pad drops out mid-game),
 // which device the player used last (so prompts show pad glyphs or key caps), rumble, and a simulated pad
 // that the test harness drives.
@@ -184,6 +187,7 @@ final class PadManager {
         }
     }
 }
+#endif
 
 // Right-stick look with separate X/Y speeds, a response curve, edge acceleration and aim friction.
 final class PadLook {
