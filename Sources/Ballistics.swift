@@ -179,13 +179,15 @@ final class Armory {
         if s.kind == .rocket || s.kind == .shell { detonate(s, at: at, g); return }
         let w = g.world
         let id = w.block(b.x, b.y, b.z)
-        // Player rounds shatter glass; everything kicks up a little dust and a spark.
-        let key = Blocks.key(Blocks.groupBase[Int(id)])
-        if s.fromPlayer && (key.hasSuffix("glass") || key.hasSuffix("glass_pane")) && !key.hasPrefix("tinted") && !key.hasPrefix("armored") {
-            w.setBlock(b.x, b.y, b.z, AIR)
-            g.sfx(.glassBreak, 0.8, at: at)
-            g.particles.blockBreak(id, at: b)
+        // Rounds by material (Wear.swift): player rounds shatter glass (others crack it first); every round has a chance
+        // by its damage to add a stage: stone cracks then chips, metal dents, wood splinters. Armoured glass only cracks.
+        if Wear.kind[Int(id)] == .glass {
+            if s.fromPlayer || w.damageLevel(b) >= 2 { g.shatterGlass(b, from: simd_length(s.vel) > 0.01 ? simd_normalize(s.vel) : V3(0, -1, 0)) }
+            else { g.wearHit(b, level: w.damageLevel(b) + 1, normal: n, async: true) }
             return
+        }
+        if Settings.shared.chipping && Blocks.render[Int(id)] == RenderType.cube.rawValue && Rand.float(in: 0..<1) < min(1, s.damage / 6) {
+            g.wearHit(b, level: w.damageLevel(b) + 1, normal: n, async: true, quiet: true)
         }
         g.particles.dust(id, at: at + V3(Float(n.x), Float(n.y), Float(n.z)) * 0.05, count: 3, spread: 0.05)
         g.particles.add(Particle(pos: at, vel: V3(Float(n.x), Float(n.y) + 1, Float(n.z)) * 2, life: 0.12, maxLife: 0.12, layer: Int(Tex.id("smoke")),

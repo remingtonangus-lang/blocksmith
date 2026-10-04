@@ -31,6 +31,7 @@ enum TextureGen {
         for n in hudNames { _ = Tex.id(n) }
         for n in Font.names { _ = Tex.id(n) }
         for e in Effect.allCases { _ = Tex.id("effect_" + e.key) }
+        for n in WearArt.names { _ = Tex.id(n) }       // damage decals and weather particles (WearArt.swift)
     }
 
     static func r(_ x: Int, _ y: Int, _ salt: Int) -> Float { hashf(x, y, salt, 777) }
@@ -1009,6 +1010,7 @@ enum TextureGen {
         militaryPainters(&p)
         capitalPainters(&p)
         capitalArchitecturePainters(&p)
+        WearArt.painters(&p)
         for (k, v) in ItemTextures.painters() { p[k] = v }
         for (k, v) in Font.painters() { p[k] = v }
         rotatedPainters(&p)

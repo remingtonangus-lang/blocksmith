@@ -5345,6 +5345,7 @@ enum HDTex {
             }
         }
         if let g = table[name] { return g }
+        if let g = WearArt.hd(name) { return g }
         if let g = crop(name) { return g }
         if let g = door(name) { return g }
         if let g = bed(name) { return g }

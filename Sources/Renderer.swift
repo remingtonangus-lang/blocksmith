@@ -1180,6 +1180,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 // Blended pass: entity shadows, rain / snow / lightning glow, then the crack overlay.
                 game.writeShadows(&wr, eye: eye)
                 game.writeWeather(&wr, eye: eye)
+                game.writeWear(&wr, eye: eye)
                 // (A chipped block shows its missing pieces instead of the crack overlay.)
                 if let m = game.mining, game.mineProgress > 0, game.world.damageLevel(m) == 0 {
                     let layer = HudTex.destroy(Int(game.mineProgress * 10))

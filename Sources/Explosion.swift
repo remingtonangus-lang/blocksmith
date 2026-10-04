@@ -39,6 +39,7 @@ enum Explosion {
         } } }
         var tnt: [IVec3] = []
         let tntID = Blocks.id("tnt")
+        var shardBursts = 0
         for b in destroyed {
             let id = w.block(b.x, b.y, b.z)
             if id == tntID { tnt.append(b); w.setBlockAsync(b.x, b.y, b.z, AIR); continue }
@@ -47,6 +48,14 @@ enum Explosion {
                     g.drops.spawn(s, at: V3(Float(b.x) + 0.5, Float(b.y) + 0.5, Float(b.z) + 0.5))
                 }
             }
+            if Wear.kind[Int(id)] == .glass && shardBursts < 24 {
+                // Glass in the blast bursts into shards rather than vanishing.
+                shardBursts += 1
+                let bc = V3(Float(b.x), Float(b.y), Float(b.z)) + 0.5
+                let away = simd_length(bc - c) > 0.01 ? simd_normalize(bc - c) : V3(0, 1, 0)
+                g.particles.shards(at: bc, normal: away, count: 6, tint: Wear.glassTint(id), burst: true)
+                if shardBursts <= 3 { g.sfx(.glassBreak, 0.7, at: bc) }
+            }
             if let be = w.blockEntities.removeValue(forKey: b) {
                 for s in be.container.slots where !s.isEmpty { g.drops.spawn(s, at: V3(Float(b.x) + 0.5, Float(b.y) + 0.5, Float(b.z) + 0.5)) }
                 be.container.slots = Array(repeating: .empty, count: be.container.slots.count)   // an open screen shares it
@@ -54,23 +63,15 @@ enum Explosion {
             w.setBlockAsync(b.x, b.y, b.z, AIR)
         }
         for b in destroyed { w.scheduleFluid(around: b) }
-        // Progressive block damage: blocks the blast couldn't break lose pieces on the side facing it.
-        if Settings.shared.chipping {
-            var bits = 0
-            for (b, share) in shaken where !destroyed.contains(b) && share > 0.15 {
-                let id = w.block(b.x, b.y, b.z)
-                guard Blocks.render[Int(id)] == RenderType.cube.rawValue, Blocks.hardness[Int(id)] >= 0 else { continue }
-                let d = c - (V3(Float(b.x), Float(b.y), Float(b.z)) + 0.5)
-                let ad = simd_abs(d)
-                let face = ad.x >= ad.y && ad.x >= ad.z ? (d.x > 0 ? 0 : 1) : (ad.y >= ad.z ? (d.y > 0 ? 2 : 3) : (d.z > 0 ? 4 : 5))
-                w.chipAsync(b, level: max(1, min(6, Int(share * 7))), face: face)
-                bits += 1
-                if bits <= 30 {
-                    let nrm = [V3(1, 0, 0), V3(-1, 0, 0), V3(0, 1, 0), V3(0, -1, 0), V3(0, 0, 1), V3(0, 0, -1)][face]
-                    g.particles.chipBits(id, at: V3(Float(b.x), Float(b.y), Float(b.z)) + 0.5 + nrm * 0.5, normal: nrm, face: face, count: 2)
-                }
+        if fire {
+            // Incendiary blasts (fireballs, beds in the wrong dimension): a third of the cleared cells over solid ground burn.
+            for b in destroyed where Rand.int(in: 0..<3) == 0 && w.block(b.x, b.y, b.z) == AIR && Blocks.opaque[Int(w.block(b.x, b.y - 1, b.z))] {
+                w.setBlockAsync(b.x, b.y, b.z, FIRE); w.fires[b] = 0
             }
         }
+        // Progressive block damage by material (Wear.swift): glass shatters, metal dents, stone cracks then chips,
+        // wood chips; soot round the crater.
+        if Settings.shared.chipping { g.blastWear(center: c, power: power, shaken: shaken, destroyed: destroyed) }
         for b in tnt { g.tnts.prime(at: b, fuse: Rand.float(in: 0.5...1.5)) }
 
         // Entities.

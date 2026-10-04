@@ -1,7 +1,7 @@
 # Status
 
-Per-stream handoffs (2026-10-04, parallel sessions): [integration](docs/status/integration.md) - the other streams
-add docs/status/<stream>.md and a link here.
+Per-stream handoffs (2026-10-04, parallel sessions): [integration](docs/status/integration.md),
+[world fx: material damage and weather](docs/status/world-fx.md) - the other streams add docs/status/<stream>.md and a link here.
 
 > **Manager note (2026-10-03 05:50Z):** the "Current session" block below is from run 350; the builder's last real commit is
 > aa02b22 (run 425, green, 00:55Z): sky floor 0.8 under / 0.6 sides for ship keels, FXAA-style edge smoothing, water vs

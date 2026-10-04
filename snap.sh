@@ -61,6 +61,9 @@ grep '\*\*leak\*\*' snaps/gencheck.md 2>/dev/null | grep -o '`--snapshot [^`]*`'
   "$BIN" --snapshot "snaps/gencheck_leak_$k.png" $v --rd 4 || true
 done
 "$BIN" --collisiontest --out snaps/collisiontest.md --strict      # gating: 170 shapes, no issues on 076df09 (guards World.sweep)
+# Material damage and weather (WorldFXTest.swift): staged cracks, a burning house in a wind, a flood rising and
+# receding, snow piling up and melting, a ship rolling in a storm; shots fx_*.png, report snaps/fxtest.md.
+"$BIN" --snapshot snaps/fx_end.png --seed 12345 --time 0.3 --rd 8 --fxtest cracks,fire,flood,snow,storm --out snaps
 "$BIN" --agent village --seeds 12345,777,424242 --ticks 4800 --out snaps --strict      # gating: every door entered (0 unmet on the 076df09 run)
 "$BIN" --agent explorer --seeds 12345,777 --ticks 3600 --out snaps
 "$BIN" --agent life --seeds 12345,777 --ticks 6600 --out snaps --strict      # gating: trade, sleep, the night passes (0 unmet on 076df09)

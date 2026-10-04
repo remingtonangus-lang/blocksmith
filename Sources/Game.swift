@@ -188,6 +188,7 @@ final class Game {
     var spearHitAt: [ObjectIdentifier: Float] = [:]
     var bobber: Bobber?
     var weather = Weather()
+    let fx = WorldFX()                     // material damage, wind, storms, floods, snow (Wear / Fire / Storms / Flood.swift)
     let emberAtmosphere = EmberAtmosphere()
     var flashes: [LightFlash] = []
     var bolts: [Bolt] = []
@@ -889,14 +890,9 @@ final class Game {
                     // Pieces break off the struck face, an eighth at a time, until the block gives way.
                     let level = Int(mineProgress * 8)
                     if Settings.shared.chipping && level > before && level >= 1 && level < 8 && Blocks.render[Int(b)] == RenderType.cube.rawValue {
-                        let n = t.normal
-                        let face = n.x > 0 ? 0 : (n.x < 0 ? 1 : (n.y > 0 ? 2 : (n.y < 0 ? 3 : (n.z > 0 ? 4 : 5))))
-                        world.chip(t.hit, level: level, face: face)
+                        // By material (Wear.swift): stone cracks then chips, metal dents, glass cracks, wood chips.
+                        wearHit(t.hit, level: level, normal: t.normal, shatter: false)
                         swing = 1                                     // a full strike as each piece comes away
-                        let c = V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5 + V3(Float(n.x), Float(n.y), Float(n.z)) * 0.45
-                        particles.chipBits(b, at: c, normal: V3(Float(n.x), Float(n.y), Float(n.z)), face: face, count: 6)
-                        particles.dust(b, at: c, count: 3, spread: 0.3)
-                        sfx(.hit(soundMat(b)), 0.7, at: c)
                     }
                     mineSoundTimer -= fdt
                     if mineSoundTimer <= 0 { mineSoundTimer = 0.25; sfx(.hit(soundMat(b)), 0.5, at: V3(Float(t.hit.x), Float(t.hit.y), Float(t.hit.z)) + 0.5) }
@@ -2060,6 +2056,7 @@ final class Game {
     private func gameTick() {
         randomTicks()
         precipitationTicks()
+        snowTick(0.05)
         blockEntityTicks()
         gravityTick()
         beaconTicks += 1

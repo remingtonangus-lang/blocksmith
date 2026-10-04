@@ -1420,6 +1420,12 @@ enum Snapshot {
                 game.selected = 3
             }
         }
+        var fxFails = 0
+        if let scenes = arg("--fxtest") {
+            // Material damage and weather checks with shots (WorldFXTest.swift).
+            let dir = arg("--out") ?? (out as NSString).deletingLastPathComponent
+            fxFails = WorldFXTest.run(scenes, game: game, renderer: renderer, w: w, h: h, out: dir.isEmpty ? "." : dir)
+        }
         _ = renderer.renderToPNG(path: out, width: w, height: h) // warm-up (pipeline + residency)
         _ = renderer.renderToPNG(path: out, width: w, height: h)
         let gpu = renderer.medianFrame(30, width: w, height: h)
@@ -1481,7 +1487,7 @@ enum Snapshot {
             print("entity pass: room \(st.cap) vertices, \(st.beforeDecor) before the decor, \(st.afterDecor) after")
         }
         print("wrote \(out)")
-        return shipFails > 0 ? 1 : 0
+        return shipFails > 0 || fxFails > 0 ? 1 : 0
     }
 }
 

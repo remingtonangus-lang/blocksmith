@@ -7,6 +7,15 @@ import simd
 // copy-on-write values, so handing snapshots to worker threads is safe.
 final class World {
     var damage: [IVec3: UInt8] = [:]      // progressive block damage (chip, damageList)
+    // Material-aware damage and fire (Wear.swift, Fire.swift): scorch stages, a counter the decal cache watches,
+    // smouldering charcoal, fire tick timings and the wind fire spreads with (set by the game from the weather).
+    var scorch: [IVec3: UInt8] = [:]
+    var wearVersion = 0
+    var embers: [IVec3: Int] = [:]
+    var fireStats = FireStats()
+    var wind = V3(4, 0, 2)
+    var fires: [IVec3: Int] = [:]                 // burning cells -> age in fire ticks (Fire.swift)
+    var onIgnite: ((IVec3, BlockID) -> Void)?   // flammable block destroyed (TNT gets primed by the game)
     let gen: TerrainGenerator
     let dim: Dim
     let seed: UInt64
@@ -180,7 +189,7 @@ final class World {
     // AO), everything its light could reach in the background.
     func setBlock(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) {
         guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return }
-        if !damage.isEmpty { damage.removeValue(forKey: IVec3(x, y, z)) }
+        if !damage.isEmpty || !scorch.isEmpty { clearWear(IVec3(x, y, z)) }
         let lx = mod(x, CS), lz = mod(z, CS)
         let oldH = Int(c.height[lx + lz * CS])
         let old = c.blocks[Chunk.index(lx, y, lz)]
@@ -232,7 +241,7 @@ final class World {
     @discardableResult
     func setBlockAsync(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) -> Bool {
         guard y >= 0 && y < CH, let c = chunkAt(x, z) else { return false }
-        if !damage.isEmpty { damage.removeValue(forKey: IVec3(x, y, z)) }
+        if !damage.isEmpty || !scorch.isEmpty { clearWear(IVec3(x, y, z)) }
         let lx = mod(x, CS), lz = mod(z, CS)
         let old = c.blocks[Chunk.index(lx, y, lz)]
         c.blocks[Chunk.index(lx, y, lz)] = id
@@ -258,7 +267,7 @@ final class World {
         let o = V3(Float(x), Float(y), Float(z))
         if Blocks.fullCollide[b] {
             // A chipped block gives up the whole layers it has lost (you sink into a block chipped from the top).
-            if !damage.isEmpty, let dv = damage[IVec3(x, y, z)] {
+            if !damage.isEmpty, let dv = visualDamage(IVec3(x, y, z)) {
                 let (mn, mx) = Mesher.chipBox(face: Int(dv >> 5), level: Int(dv & 31), x: x, y: y, z: z)
                 out.append((o + mn, o + mx)); return
             }
@@ -441,7 +450,10 @@ final class World {
         var out: [(Int, Int, Int, UInt8)] = []
         for (p, v) in damage {
             let dx = p.x - bx, dz = p.z - bz
-            if dx >= -16 && dx < 32 && dz >= -16 && dz < 32 { out.append((dx, p.y, dz, v)) }
+            guard dx >= -16 && dx < 32 && dz >= -16 && dz < 32 else { continue }
+            // Decal-only stages (stone cracks, metal dents, glass cracks) mesh whole; the rest by material.
+            let vis = Wear.chipVisual(v, block(p.x, p.y, p.z))
+            if vis & 31 != 0 { out.append((dx, p.y, dz, vis)) }
         }
         return out
     }
@@ -453,7 +465,12 @@ final class World {
         guard lv > 0 && lv < 8, p.y >= 0 && p.y < CH else { return }
         if damage.count > 4096 && cur == nil { return }
         let f = cur.map { Int($0 >> 5) } ?? face
-        damage[p] = UInt8((f & 7) << 5 | min(7, lv))
+        let v = UInt8((f & 7) << 5 | min(7, lv))
+        if cur == v { return }
+        damage[p] = v
+        wearVersion &+= 1
+        let id = block(p.x, p.y, p.z)
+        if Wear.chipVisual(v, id) == Wear.chipVisual(cur ?? 0, id) { return }     // a decal stage: no remesh
         for dz in -1...1 { for dx in -1...1 {
             guard let n = chunkAt(p.x + dx * 16, p.z + dz * 16) else { continue }
             for sy in max(0, (p.y - 16) >> 4)...min(NSEC - 1, (p.y + 16) >> 4) { n.sections[sy].version += 1 }
@@ -471,6 +488,9 @@ final class World {
         let v = UInt8((f & 7) << 5 | min(7, lv))
         if cur == v { return }
         damage[p] = v
+        wearVersion &+= 1
+        let id = block(p.x, p.y, p.z)
+        if Wear.chipVisual(v, id) == Wear.chipVisual(cur ?? 0, id) { return }     // a decal stage: no remesh
         remeshArea(x0: p.x - 1, z0: p.z - 1, x1: p.x + 1, z1: p.z + 1, y0: p.y - 1, y1: p.y + 1)
     }
 
@@ -1098,64 +1118,6 @@ final class World {
             for d in World.sideDirs {
                 let q = IVec3(p.x + d.x, p.y, p.z + d.z)
                 if fluidCanEnter(block(q.x, q.y, q.z), level: next, kind: kind) { setFluid(q, flow[next]) }
-            }
-        }
-    }
-
-    // MARK: Fire
-    // Scheduled (not random) ticks: fire ages and burns out, destroys flammable neighbours and spreads.
-
-    private(set) var fires: [IVec3: Int] = [:]
-    var onIgnite: ((IVec3, BlockID) -> Void)?   // flammable block destroyed (TNT gets primed by the game)
-
-    func placeFire(_ p: IVec3) {
-        guard Blocks.replaceable[Int(block(p.x, p.y, p.z))], !Blocks.isLiquid(block(p.x, p.y, p.z)) else { return }
-        setBlock(p.x, p.y, p.z, FIRE)
-        fires[p] = 0
-    }
-
-    func fireTick() {
-        if fires.isEmpty { return }
-        let fl = Blocks.flammable
-        for (p, age) in fires {
-            let b = block(p.x, p.y, p.z)
-            if b != FIRE { fires.removeValue(forKey: p); continue }
-            if !isLoaded(p.x, p.z) { continue }
-            let below = block(p.x, p.y - 1, p.z)
-            let eternal = below == NETHERRACK || Blocks.key(below) == "magma_block"
-            if rainLevel > 0.5 && !eternal, let c = chunks[ChunkKey(x: floorDiv(p.x, CS), z: floorDiv(p.z, CS))],
-               p.y >= Int(c.height[mod(p.x, CS) + mod(p.z, CS) * CS]), Rand.int(in: 0..<3) == 0 {
-                let b = gen.column(p.x, p.z).biome
-                if !(b == .desert || b.isBadlands || b == .savanna || b == .savannaPlateau) {
-                    setBlockAsync(p.x, p.y, p.z, AIR); fires.removeValue(forKey: p); continue
-                }
-            }
-            var anyFlammable = false
-            for d in World.allDirs {
-                let q = p + d
-                let nb = block(q.x, q.y, q.z)
-                // Blocks holding items (barrels, chiseled bookshelves, lecterns) don't burn away: their contents were
-                // left behind with no block to open.
-                guard fl[Int(nb)], blockEntities[q] == nil else { continue }
-                anyFlammable = true
-                if Rand.int(in: 0..<5) == 0 {
-                    onIgnite?(q, nb)
-                    if Rand.int(in: 0..<2) == 0 { setBlockAsync(q.x, q.y, q.z, FIRE); fires[q] = 0 } else { setBlockAsync(q.x, q.y, q.z, AIR) }
-                }
-            }
-            // Spread to air next to flammable blocks nearby.
-            if anyFlammable && Rand.int(in: 0..<3) == 0 {
-                let q = IVec3(p.x + Rand.int(in: -1...1), p.y + Rand.int(in: -1...2), p.z + Rand.int(in: -1...1))
-                if block(q.x, q.y, q.z) == AIR && World.allDirs.contains(where: { fl[Int(block(q.x + $0.x, q.y + $0.y, q.z + $0.z))] }) {
-                    setBlockAsync(q.x, q.y, q.z, FIRE); fires[q] = 0
-                }
-            }
-            let supported = Blocks.opaque[Int(below)] || anyFlammable
-            if !eternal && (!supported || (age > 6 && Rand.int(in: 0..<4) == 0 && !anyFlammable) || age > 30) {
-                setBlockAsync(p.x, p.y, p.z, AIR)
-                fires.removeValue(forKey: p)
-            } else {
-                fires[p] = age + 1
             }
         }
     }
