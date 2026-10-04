@@ -45,5 +45,5 @@ jobs:
           gh release view frontier-assets >/dev/null 2>&1 || \
             gh release create frontier-assets --prerelease --target "$GITHUB_SHA" --title "Frontier assets (CC0)" \
               --notes "Processed CC0 assets for the Frontier game (claude/frontier-game). Licences in ext.zip/ext/LICENSES.json."
-          for f in catalog.zip ext.zip fetch.log; do [ -f "$f" ] && gh release upload frontier-assets "$f" --clobber; done
+          for f in catalog.zip ext.zip fetch.log; do [ -s "$f" ] && gh release upload frontier-assets "$f" --clobber; done
           echo "published"

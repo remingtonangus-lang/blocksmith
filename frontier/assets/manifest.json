@@ -1,4 +1,657 @@
 {
-  "note": "CC0 assets fetched by frontier/tools/assets_ci.py on CI. dest = folder under frontier/assets/ext/.",
-  "assets": []
+ "note": "CC0 assets fetched by frontier/tools/assets_ci.py on CI. dest = folder under frontier/assets/ext/.",
+ "assets": [
+  {
+   "polyhaven": "leafy_grass",
+   "dest": "terrain/grass_lush"
+  },
+  {
+   "polyhaven": "withered_grass",
+   "dest": "terrain/grass_dry"
+  },
+  {
+   "polyhaven": "dirt_floor",
+   "dest": "terrain/dirt"
+  },
+  {
+   "polyhaven": "cliff_side",
+   "dest": "terrain/rock"
+  },
+  {
+   "polyhaven": "gravelly_sand",
+   "dest": "terrain/desert"
+  },
+  {
+   "polyhaven": "dry_mud_field_001",
+   "dest": "terrain/road"
+  },
+  {
+   "polyhaven": "brown_mud_03",
+   "dest": "terrain/mud"
+  },
+  {
+   "polyhaven": "snow_02",
+   "dest": "terrain/snow"
+  },
+  {
+   "polyhaven": "forrest_ground_03",
+   "dest": "terrain/forest_floor"
+  },
+  {
+   "ambientcg": "Rock029",
+   "dest": "terrain/red_rock"
+  },
+  {
+   "polyhaven": "sparse_grass",
+   "dest": "terrain/grass_sparse"
+  },
+  {
+   "polyhaven": "dry_river_pebbles",
+   "dest": "terrain/pebbles"
+  },
+  {
+   "polyhaven": "red_sand",
+   "dest": "terrain/red_sand"
+  },
+  {
+   "polyhaven": "weathered_plank_siding",
+   "dest": "build/siding"
+  },
+  {
+   "polyhaven": "weathered_planks",
+   "dest": "build/planks"
+  },
+  {
+   "polyhaven": "dark_planks",
+   "dest": "build/dark_planks"
+  },
+  {
+   "polyhaven": "brown_planks_03",
+   "dest": "build/planks_raw"
+  },
+  {
+   "polyhaven": "weathered_brown_planks",
+   "dest": "build/planks_brown"
+  },
+  {
+   "polyhaven": "beam_wall_01",
+   "dest": "build/log_wall"
+  },
+  {
+   "polyhaven": "red_brick",
+   "dest": "build/brick"
+  },
+  {
+   "polyhaven": "plastered_wall_02",
+   "dest": "build/plaster"
+  },
+  {
+   "polyhaven": "red_sandstone_wall",
+   "dest": "build/adobe_stone"
+  },
+  {
+   "polyhaven": "dark_wooden_planks",
+   "dest": "build/floor"
+  },
+  {
+   "polyhaven": "decrepit_wallpaper",
+   "dest": "build/wallpaper"
+  },
+  {
+   "polyhaven": "thatch_roof_angled",
+   "dest": "build/thatch"
+  },
+  {
+   "polyhaven": "green_rough_planks",
+   "dest": "build/painted_planks_green"
+  },
+  {
+   "polyhaven": "blue_painted_planks",
+   "dest": "build/painted_planks_blue"
+  },
+  {
+   "polyhaven": "distressed_painted_planks",
+   "dest": "build/painted_planks_white"
+  },
+  {
+   "polyhaven": "weathered_peeling_timber",
+   "dest": "build/timber"
+  },
+  {
+   "polyhaven": "bark_brown_02",
+   "dest": "nature/bark_pine"
+  },
+  {
+   "polyhaven": "bark_willow",
+   "dest": "nature/bark_cottonwood"
+  },
+  {
+   "polyhaven": "excavated_soil_wall",
+   "dest": "build/adobe"
+  },
+  {
+   "polyhaven": "fine_grained_wood",
+   "dest": "build/fine_wood"
+  },
+  {
+   "polyhaven": "dirty_carpet",
+   "dest": "build/carpet"
+  },
+  {
+   "polyhaven": "rusty_metal_02",
+   "dest": "build/rusty_metal"
+  },
+  {
+   "ambientcg": "WoodSiding013",
+   "dest": "build/roof_shingles"
+  },
+  {
+   "polyhaven": "corrugated_iron_02",
+   "dest": "build/corrugated"
+  },
+  {
+   "polyhaven": "hessian_230",
+   "dest": "cloth/canvas"
+  },
+  {
+   "polyhaven": "brown_leather",
+   "dest": "cloth/leather"
+  },
+  {
+   "polyhaven": "Barrel_01",
+   "dest": "props/Barrel_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "barrel_03",
+   "dest": "props/barrel_03",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "wooden_barrels_01",
+   "dest": "props/wooden_barrels_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "wine_barrel_01",
+   "dest": "props/wine_barrel_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "wooden_crate_01",
+   "dest": "props/wooden_crate_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "wooden_crate_02",
+   "dest": "props/wooden_crate_02",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "Lantern_01",
+   "dest": "props/Lantern_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "wooden_lantern_01",
+   "dest": "props/wooden_lantern_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "vintage_oil_lamp",
+   "dest": "props/vintage_oil_lamp",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "WoodenChair_01",
+   "dest": "props/WoodenChair_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "WoodenTable_01",
+   "dest": "props/WoodenTable_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "WoodenTable_02",
+   "dest": "props/WoodenTable_02",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "WoodenTable_03",
+   "dest": "props/WoodenTable_03",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "round_wooden_table_01",
+   "dest": "props/round_wooden_table_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "Rockingchair_01",
+   "dest": "props/Rockingchair_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "wooden_stool_01",
+   "dest": "props/wooden_stool_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "wooden_stool_02",
+   "dest": "props/wooden_stool_02",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "CashRegister_01",
+   "dest": "props/CashRegister_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "wooden_bucket_01",
+   "dest": "props/wooden_bucket_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "wooden_bucket_02",
+   "dest": "props/wooden_bucket_02",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "wooden_ladder",
+   "dest": "props/wooden_ladder",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "hatchet",
+   "dest": "props/hatchet",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "wooden_axe",
+   "dest": "props/wooden_axe",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "rusted_spade_01",
+   "dest": "props/rusted_spade_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "wicker_basket_01",
+   "dest": "props/wicker_basket_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "old_bed_frame",
+   "dest": "props/old_bed_frame",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "vintage_cabinet_01",
+   "dest": "props/vintage_cabinet_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "wooden_bookshelf_worn",
+   "dest": "props/wooden_bookshelf_worn",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "mantel_clock_01",
+   "dest": "props/mantel_clock_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "vintage_grandfather_clock_01",
+   "dest": "props/vintage_grandfather_clock_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "pot_enamel_01",
+   "dest": "props/pot_enamel_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "jug_01",
+   "dest": "props/jug_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "wooden_bowl_01",
+   "dest": "props/wooden_bowl_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "stone_fire_pit",
+   "dest": "props/stone_fire_pit",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "spinning_wheel_01",
+   "dest": "props/spinning_wheel_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "wooden_picnic_table",
+   "dest": "props/wooden_picnic_table",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "vintage_suitcase",
+   "dest": "props/vintage_suitcase",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "pocket_watch",
+   "dest": "props/pocket_watch",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "treasure_chest",
+   "dest": "props/treasure_chest",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "wine_bottles_01",
+   "dest": "props/wine_bottles_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "wooden_candlestick",
+   "dest": "props/wooden_candlestick",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "brass_candleholders",
+   "dest": "props/brass_candleholders",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "ClassicNightstand_01",
+   "dest": "props/ClassicNightstand_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "painted_wooden_chair_01",
+   "dest": "props/painted_wooden_chair_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "painted_wooden_table",
+   "dest": "props/painted_wooden_table",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "painted_wooden_cabinet",
+   "dest": "props/painted_wooden_cabinet",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "wooden_military_crate",
+   "dest": "props/wooden_military_crate",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "wooden_display_shelves_01",
+   "dest": "props/wooden_display_shelves_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "BarberShopChair_01",
+   "dest": "props/BarberShopChair_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "Chandelier_02",
+   "dest": "props/Chandelier_02",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "lantern_chandelier_01",
+   "dest": "props/lantern_chandelier_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "bull_head",
+   "dest": "props/bull_head",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "hanging_picture_frame_01",
+   "dest": "props/hanging_picture_frame_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "vintage_binocular",
+   "dest": "props/vintage_binocular",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "folding_wooden_stool",
+   "dest": "props/folding_wooden_stool",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "wooden_handle_saber",
+   "dest": "props/wooden_handle_saber",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "gate_latch_01",
+   "dest": "props/gate_latch_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "ladder_sectioned_01",
+   "dest": "props/ladder_sectioned_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "fir_tree_01",
+   "dest": "nature/fir_tree_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "pine_tree_01",
+   "dest": "nature/pine_tree_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "fir_sapling",
+   "dest": "nature/fir_sapling",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "fir_sapling_medium",
+   "dest": "nature/fir_sapling_medium",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "pine_sapling_medium",
+   "dest": "nature/pine_sapling_medium",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "shrub_01",
+   "dest": "nature/shrub_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "shrub_02",
+   "dest": "nature/shrub_02",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "shrub_03",
+   "dest": "nature/shrub_03",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "shrub_04",
+   "dest": "nature/shrub_04",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "boulder_01",
+   "dest": "nature/boulder_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "namaqualand_boulder_02",
+   "dest": "nature/namaqualand_boulder_02",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "namaqualand_boulder_03",
+   "dest": "nature/namaqualand_boulder_03",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "namaqualand_boulder_05",
+   "dest": "nature/namaqualand_boulder_05",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "rock_07",
+   "dest": "nature/rock_07",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "rock_09",
+   "dest": "nature/rock_09",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "rock_face_01",
+   "dest": "nature/rock_face_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "rock_face_02",
+   "dest": "nature/rock_face_02",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "rock_moss_set_01",
+   "dest": "nature/rock_moss_set_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "grass_medium_01",
+   "dest": "nature/grass_medium_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "grass_medium_02",
+   "dest": "nature/grass_medium_02",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "dry_branches_medium_01",
+   "dest": "nature/dry_branches_medium_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "tree_stump_01",
+   "dest": "nature/tree_stump_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "tree_stump_02",
+   "dest": "nature/tree_stump_02",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "dead_tree_trunk",
+   "dest": "nature/dead_tree_trunk",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "dead_tree_trunk_02",
+   "dest": "nature/dead_tree_trunk_02",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "wild_rooibos_bush",
+   "dest": "nature/wild_rooibos_bush",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "searsia_lucida",
+   "dest": "nature/searsia_lucida",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "root_cluster_01",
+   "dest": "nature/root_cluster_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "celandine_01",
+   "dest": "nature/celandine_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "dandelion_01",
+   "dest": "nature/dandelion_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "nettle_plant",
+   "dest": "nature/nettle_plant",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "fern_02",
+   "dest": "nature/fern_02",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "moss_01",
+   "dest": "nature/moss_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "sand_rocks_small_01",
+   "dest": "nature/sand_rocks_small_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "namaqualand_rocks_01",
+   "dest": "nature/namaqualand_rocks_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "pine_roots",
+   "dest": "nature/pine_roots",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "bark_debris_01",
+   "dest": "nature/bark_debris_01",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "tree_small_02",
+   "dest": "nature/tree_small_02",
+   "res": "1k"
+  },
+  {
+   "polyhaven": "roof_planks",
+   "dest": "build/roof_planks"
+  },
+  {
+   "polyhaven": "denim_fabric",
+   "dest": "cloth/denim"
+  },
+  {
+   "polyhaven": "rough_linen",
+   "dest": "cloth/linen"
+  },
+  {
+   "polyhaven": "poly_wool_herringbone",
+   "dest": "cloth/wool"
+  }
+ ]
 }
