@@ -1190,7 +1190,7 @@ final class Game {
         let k = Blocks.key(Blocks.groupBase[Int(world.block(p.x, p.y, p.z))])
         if ["door", "trapdoor", "gate"].contains(Blocks.shape[Int(world.block(p.x, p.y, p.z))]) { toggleOpenable(p); return }
         switch k {
-        case "crafting_table": openMenu(CraftingTableMenu(game: self))
+        case "crafting_table": openMenu(CraftingBookMenu(game: self))      // the recipe book first; the grid is a button away
         case "furnace", "lit_furnace":
             let be = world.entity(p, .furnace)
             world.blockEntities[p] = be

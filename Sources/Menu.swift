@@ -46,6 +46,7 @@ class Menu {
     unowned let game: Game
     var showInventoryLabel = true
     var inventoryLabelY = 73
+    var lastClickButton = 0, lastClickShift = false    // how the last button was pressed (recipe tiles: 1 / max / stack)
 
     init(_ title: String, game: Game) {
         self.title = title
@@ -115,6 +116,7 @@ class Menu {
         defer { game.carried = carried; changed() }
         switch slot.kind {
         case .button(let i):
+            lastClickButton = button; lastClickShift = shift
             buttonPressed(i)
             return
         case .armor:
@@ -307,6 +309,9 @@ final class InventoryMenu: Menu, HasRecipeBook {
         slots.append(MenuSlot(154, 28, craft.result, 0, .result))
         addPlayerInventory()
         showInventoryLabel = false
+        // The recipe panel is open from the start; its tiles craft straight into the inventory.
+        book.open = true
+        book.refresh(game, grid: craft.grid)
         slots += book.slots()
     }
     override func changed() { craft.update() }
@@ -335,7 +340,11 @@ final class CraftingTableMenu: Menu, HasRecipeBook {
     let craft = CraftingGrid(3)
     let book = RecipeBook(size: 3)
     var craftGrid: ItemContainer { craft.grid }
-    override func buttonPressed(_ i: Int) { _ = recipeBookButton(i, book, grid: craft.grid) { rebuildBook() } }
+    override func buttonPressed(_ i: Int) {
+        // The book button goes back to the crafting book (CraftingBook.swift).
+        if i == 490 { game.switchMenu(to: CraftingBookMenu(game: game)); return }
+        _ = recipeBookButton(i, book, grid: craft.grid) { rebuildBook() }
+    }
     init(game: Game) {
         super.init("Crafting", game: game)
         for r in 0..<3 { for c in 0..<3 { slots.append(MenuSlot(30 + c * 18, 17 + r * 18, craft.grid, c + r * 3)) } }

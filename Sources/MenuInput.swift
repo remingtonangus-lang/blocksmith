@@ -93,6 +93,13 @@ extension Game {
             if scroll != 0 { pm.scrollList(scroll) }
         }
         if let bm = m as? BookMenu, tab != 0, !bm.signing { bm.buttonPressed(tab > 0 ? 1 : 0); sfx(.click, 0.4) }
+        if let cb = m as? CraftingBookMenu {
+            if tab != 0 { cb.switchTab(tab) }
+            let page = (p.rt > 0.5 && q.rt <= 0.5 ? 1 : 0) - (p.lt > 0.5 && q.lt <= 0.5 ? 1 : 0)
+            if page != 0 { cb.flip(page) }
+            if scroll != 0 { cb.flip(scroll) }
+            cb.padHold(p.a, dt)
+        }
         if let hb = m as? HasRecipeBook, hb.book.open, tab != 0 {
             _ = hb.recipeBookButton(tab > 0 ? 492 : 491, hb.book, grid: hb.craftGrid) { hb.rebuildBook() }
         }
@@ -124,11 +131,6 @@ extension Game {
             if p.a && !q.a {
                 let wasText = m.capturesText
                 m.click(s, button: 0, shift: false)
-                // Picking a recipe with the pad jumps the cursor to the crafting result, ready for A / Y.
-                if m is HasRecipeBook, case .button(let id) = s.kind, id >= RecipeBook.base, id < RecipeBook.base + RecipeBook.perPage,
-                   let r = m.slots.firstIndex(where: { if case .result = $0.kind { return true } else { return false } }), !m.slots[r].stack.isEmpty {
-                    menuCursor = r
-                }
                 // A pad user who just activated a text field (anvil name, creative search) gets the keyboard at once.
                 // (Not the pause menu: it opens the keyboard itself for its text rows, and key capture isn't typing.)
                 if keyboard == nil && !wasText && m.capturesText && menu === m && Prompt.pad && !(m is PauseMenu) {
@@ -156,7 +158,7 @@ extension Game {
         }
         // LT in a container screen: take everything from the container (hovering it), or store every stack of the
         // hovered item (hovering the inventory). Console-style "Take all / Store all".
-        if p.lt > 0.5 && q.lt <= 0.5 && creative == nil && keyboard == nil && !(m is PauseMenu) && !(m is InventoryMenu), let h = menuHover,
+        if p.lt > 0.5 && q.lt <= 0.5 && creative == nil && keyboard == nil && !(m is PauseMenu) && !(m is InventoryMenu) && !(m is CraftingBookMenu), let h = menuHover,
            !h.isButton, case .normal = h.kind, h.container != nil, m.slots.contains(where: { !$0.isPlayerInv && $0.container != nil && !$0.isButton }) {
             let fromPlayer = h.isPlayerInv
             let want = h.stack.item
@@ -170,7 +172,7 @@ extension Game {
             if moved { m.changed(); sfx(.pickup, 0.4) }
         }
         // RT drops the held stack (or one item from the hovered slot), like dropping outside the panel.
-        if p.rt > 0.5 && q.rt <= 0.5 && !(m is PauseMenu) && !(m is KeyboardMenu) && creative == nil {
+        if p.rt > 0.5 && q.rt <= 0.5 && !(m is PauseMenu) && !(m is KeyboardMenu) && creative == nil && !(m is CraftingBookMenu) {
             if !carried.isEmpty { dropItem(carried); carried = .empty }
             else if let s = menuHover, !s.isButton, !s.stack.isEmpty {
                 if case .palette = s.kind {} else if case .result = s.kind {} else {

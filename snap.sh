@@ -159,6 +159,9 @@ done
 "$BIN" --snapshot snaps/inventory.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu inventory --slot 3
 "$BIN" --snapshot snaps/creative.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu creative
 "$BIN" --snapshot snaps/crafting.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu crafting
+"$BIN" --snapshot snaps/craftbook.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu craftbook
+"$BIN" --snapshot snaps/tv_craftbook.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --w 1920 --h 1080 --couch --safe 5 --pad --menu craftbook
+"$BIN" --snapshot snaps/tv_craftbook_all.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --w 1920 --h 1080 --couch --safe 5 --pad --menu craftbook_all
 "$BIN" --snapshot snaps/bugnotes.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --bugnotetest
 "$BIN" --snapshot snaps/padtest.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --padtest
 "$BIN" --snapshot snaps/inventory_pad.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu inventory --slot 3 --pad
