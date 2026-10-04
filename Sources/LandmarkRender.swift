@@ -141,6 +141,11 @@ extension Renderer {
                 let lit: Float = 0.32 + 0.68 * max(0, simd_dot(n, sun)) * day + 0.08
                 let c = V4(grey * lit * hdrK * (1 - haze) + fog * haze, 1)
                 tri(p(b0), p(b1), p(t1), c, &out); tri(p(b0), p(t1), p(t0), c, &out)
+                // A fog-coloured skirt under the foot: past the loaded terrain the shaft hung over the horizon haze
+                // (spire_horizon, run 482).
+                let f4 = V4(fog, 1)
+                let d0 = b0 - V3(0, 70, 0), d1 = b1 - V3(0, 70, 0)
+                tri(p(d0), p(d1), p(b1), f4, &out); tri(p(d0), p(b1), p(b0), f4, &out)
             }
         }
         smokeStart = out.count
