@@ -333,6 +333,9 @@ enum RideCheck {
             }
         }
         let minLaps = max(1, seconds / 60)
+        let oc = sc.agent.counts.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+        r.note("agent oracles: \(oc.isEmpty ? "none" : oc)")
+        r.check(sc.agent.counts["inside_solid"] == nil, "the general bot oracle sees no inside-solid either (\(sc.agent.counts["inside_solid"] ?? 0))")
         r.note(String(format: "drove %.0f blocks, turned %.0f degrees; bot walked %ld laps (%ld legs)", odo.dist, odo.turned * 180 / .pi, laps, legs))
         r.check(odo.dist > Float(seconds) * 2.5 && odo.turned > 1, String(format: "the vehicle drives and turns (%.0f blocks, %.1f rad)", odo.dist, odo.turned))
         r.check(mon.offTicks == 0 && mon.belowTicks == 0, "the bot never leaves the deck (\(mon.offTicks) ticks off, \(mon.belowTicks) below)\(mon.firstOff.isEmpty ? "" : ", first at " + mon.firstOff)")

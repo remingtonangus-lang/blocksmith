@@ -248,7 +248,18 @@ final class Agent {
         // Inside a solid block (two ticks in a row, not while the game itself is pushing the player out).
         let lo = V3(pos.x - p.halfW + 0.05, pos.y + 0.05, pos.z - p.halfW + 0.05)
         let hi = V3(pos.x + p.halfW - 0.05, pos.y + p.height - 0.1, pos.z + p.halfW - 0.05)
-        if game.alive && world.collides(lo, hi) {
+        // Aboard a ship the exact test is in its frame (in world space a turned hull's blocks are only rough boxes,
+        // which overlap a rider standing by a wall: false hits on every ride).
+        var inside = false
+        if let s = world.ships.aboard {
+            let l = s.toLocal(pos)
+            world.frame = s
+            inside = world.collides(V3(l.x - p.halfW + 0.05, l.y + 0.05, l.z - p.halfW + 0.05), V3(l.x + p.halfW - 0.05, l.y + p.height - 0.1, l.z + p.halfW - 0.05))
+            world.frame = nil
+        } else {
+            inside = world.collides(lo, hi)
+        }
+        if game.alive && inside {
             insideTicks += 1
             if insideTicks == 2 {
                 let b = world.block(Int(floor(pos.x)), Int(floor(pos.y + 1)), Int(floor(pos.z)))
