@@ -581,7 +581,16 @@ final class WorldGen: TerrainGenerator {
         // Volcano cones (Landmarks.swift): basalt and tuff flanks streaked with blackstone, scoria near the crater.
         if k.vol > 0.35 && !underwater {
             let hot = k.lava > 0 || k.flow > 0.3
-            topBlock = hot ? (n > 0.1 ? g("magma_block") : g("blackstone")) : (n > 0.3 ? g("tuff") : (n < -0.35 ? g("blackstone") : g("basalt")))
+            // Old flows run down the fall line: dark streaks radiating from the crater, wobbling with the surface noise
+            // (plain noise patches read as camouflage blotches on the cone: blind critic, volcano_far).
+            var streak: Float = n
+            if let v = terrain.nearestVolcano(Float(wx), Float(wz), cells: 1) {
+                let dx = Float(wx) - v.x, dz = Float(wz) - v.z
+                let ang: Float = atan2f(dz, dx)
+                let wob: Float = n * 0.9 + (dx * dx + dz * dz).squareRoot() / 41
+                streak = sinf(ang * 26 + wob) * 0.7 + n * 0.45
+            }
+            topBlock = hot ? (n > 0.1 ? g("magma_block") : g("blackstone")) : (streak > 0.6 ? g("blackstone") : (streak < -0.62 ? g("tuff") : g("basalt")))
             filler = n > 0 ? g("tuff") : g("basalt"); depth = 4; under = nil
         } else if k.vol > 0.1 && !underwater && n > 0.15 {
             topBlock = g("tuff")                                       // ash scattered over the foot

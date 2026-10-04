@@ -60,6 +60,18 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
   frame. --cooptest (not gating until it passes once), shots coop and tv_coop (their frame time is the rd 8 two-view
   perf number; the per-view budget is 8.3 ms GPU for 60 fps with both views).
 
+## Batch after run 482 (2026-10-04 evening)
+- Run 482 on 983ea14: smoke, perf, tours (padtest incl. the crafting book), checks, play all green.
+- Split screen (Coop.swift) + smoke variant 8c (reported, not gating) + --cooptest (reported, not gating).
+- Profile-driven CPU savings from profile_flight16: minimap terrain rows cached per seat (11% of encode), bee-nest
+  population on the chunk's own arrays (largest Game.tick share), mobs out of view and over 64 blocks culled before
+  their vertices are written (27% of encode), HUD vertex storage reused and no per-quad arrays, World.update re-checks
+  only dirty chunks after edits (update_ms_p50 had grown 15x).
+- Blind critic round on the Capital and volcano shots (gemini, run 470 images): hall doorways get transoms (pier stubs
+  hung over the door), the frigate gets a drive glow from its nozzles, citadel_turret reframed (camera was in a
+  birch), the bridge-deck ladder head fixed (stream B's ridecheck). A sky-coloured streak across the volcano: either
+  the LOD 0 / LOD 1 seam or the cloud layer cutting the cone; volcano_far_nolod decides.
+
 ## Next
 - Shots looked right in run 450 (frigate bow/side/top; citadel far/gate/top). Check the new citadel_turret,
   citadel_plaza and ship_frigate_deck angles and the flight-deck markings.
