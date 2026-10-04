@@ -617,6 +617,10 @@ enum Snapshot {
         }
         if let wx = arg("--weather") {
             game.weather.raining = true; game.weather.rain = 1
+            // The storm's wind and sea (Storms.swift) as they stand once it has blown a while.
+            game.fx.storm = wx == "thunder" ? 1 : 0.4
+            if wx == "thunder" { game.weather.thundering = true; game.weather.thunder = 1 }
+            game.stormTick(0)
             if wx == "thunder" {
                 game.weather.thundering = true; game.weather.thunder = 1
                 let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
