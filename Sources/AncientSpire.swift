@@ -14,7 +14,8 @@ enum AncientSpire {
 
     static func type(_ gen: WorldGen) -> StructureType {
         StructureType(name: "great_ruin", spacing: 64, separation: 24, salt: 51870337, reach: 2) { [unowned gen] seed, cx, cz in
-            guard hashf(cx, 77, cz, UInt32(truncatingIfNeeded: seed)) < 0.6 else { return nil }
+            // One region in four (at 0.6 about twenty stood within sight range: tour shots full of pillars, run 482).
+            guard hashf(cx, 77, cz, UInt32(truncatingIfNeeded: seed)) < 0.25 else { return nil }
             let x = cx * CS + 8, z = cz * CS + 8
             let col = gen.column(x, z)
             guard !col.biome.isOcean && !col.biome.isRiver && col.height > SEA + 2 else { return nil }

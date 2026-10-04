@@ -8,6 +8,7 @@ import simd
 // wherever the real landmark has been generated, and the impostor fills in where it hasn't.
 extension Renderer {
     static let landmarkRange: Float = 2600
+    static let spireRange: Float = 1800               // a 170-block shaft is a sliver beyond this
     static var spireList: [V4] = []                // x, base y, z, height (refreshed every 2 s)
     static var spireAt: Double = -10
 
@@ -20,7 +21,7 @@ extension Renderer {
         let span = t.spacing * CS
         let p = game.player.pos
         let rx0 = floorDiv(Int(p.x), span), rz0 = floorDiv(Int(p.z), span)
-        let n = Int(Renderer.landmarkRange) / span + 1
+        let n = Int(Renderer.spireRange) / span + 1
         for rz in (rz0 - n)...(rz0 + n) { for rx in (rx0 - n)...(rx0 + n) {
             guard let s = sc.start(t, regionX: rx, regionZ: rz) else { continue }
             let y0 = Float(s.min.y + 8), h = Float(s.max.y - 4 - (s.min.y + 8))
@@ -127,9 +128,9 @@ extension Renderer {
         let grey = V3(0.43, 0.43, 0.44)
         for sp in spireCache(game) {
             let dist = simd_length(V2(sp.x - eye.x, sp.z - eye.z))
-            guard dist > loaded * 0.8, dist < Renderer.landmarkRange else { continue }
+            guard dist > loaded * 0.8, dist < Renderer.spireRange else { continue }
             let k = place / max(place, dist)
-            let haze: Float = 0.3 + 0.5 * Terrain.smooth(loaded, Renderer.landmarkRange, dist)
+            let haze: Float = 0.35 + 0.55 * Terrain.smooth(loaded, Renderer.spireRange, dist)
             func p(_ w: V3) -> V4 { V4((w - eye) * k, 1) }
             let r: Float = 13
             for i in 0..<8 {
