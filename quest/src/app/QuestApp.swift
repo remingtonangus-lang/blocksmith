@@ -35,9 +35,12 @@ final class QuestApp {
         sharedSystemDevice = device
         xr.resolutionScale = QuestSettings.resolutionScale
         try xr.createSwapchain()
-        scene = try SceneRenderer(ctx: xr.vk, device: device, views: 2, colorFormat: xr.colorFormat)
+        scene = try SceneRenderer(ctx: xr.vk, device: device, views: 2, colorFormat: xr.colorFormat, foveated: xr.foveated)
         scene.linearOutput = SceneRenderer.isSRGB(xr.colorFormat)
-        for img in xr.swapImages { targets.append(try scene.makeTarget(image: img, width: xr.width, height: xr.height)) }
+        for (i, img) in xr.swapImages.enumerated() {
+            let dm = xr.foveated && i < xr.densityMaps.count ? xr.densityMaps[i] : nil
+            targets.append(try scene.makeTarget(image: img, width: xr.width, height: xr.height, densityMap: dm))
+        }
         xr.onRecenter = { [weak self] in self?.rig.needsRecenter = true }
         startLoading()
     }

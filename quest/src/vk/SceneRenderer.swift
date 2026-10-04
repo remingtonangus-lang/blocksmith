@@ -39,9 +39,11 @@ final class RenderTarget {
         self.ctx = ctx; self.image = image; self.view = view; self.depth = depth; self.framebuffer = framebuffer
         self.width = width; self.height = height
     }
+    var fdmView: VkImageView?
     deinit {
         vkDestroyFramebuffer(ctx.device, framebuffer, nil)
         vkDestroyImageView(ctx.device, view, nil)
+        if let f = fdmView { vkDestroyImageView(ctx.device, f, nil) }
     }
 }
 
@@ -97,11 +99,15 @@ final class SceneRenderer {
     var linearOutput = false
     static func isSRGB(_ f: VkFormat) -> Bool { f == VK_FORMAT_R8G8B8A8_SRGB || f == VK_FORMAT_B8G8R8A8_SRGB }
 
-    init(ctx: VkContext, device: QuestDevice, views: Int, colorFormat: VkFormat) throws {
+    // Fixed foveated rendering: the render pass takes the runtime's fragment density map as a third attachment.
+    let foveated: Bool
+
+    init(ctx: VkContext, device: QuestDevice, views: Int, colorFormat: VkFormat, foveated: Bool = false) throws {
         self.ctx = ctx
         self.device = device
         self.views = views
         self.colorFormat = colorFormat
+        self.foveated = foveated
         depthFormat = SceneRenderer.pickDepth(ctx)
         try makeLayouts()
         try makeRenderPass()
@@ -241,10 +247,19 @@ final class SceneRenderer {
             VkSubpassDependency(srcSubpass: 0, dstSubpass: VK_SUBPASS_EXTERNAL, srcStageMask: colorOut, dstStageMask: VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT.rawValue | VK_PIPELINE_STAGE_TRANSFER_BIT.rawValue,
                                 srcAccessMask: VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT.rawValue, dstAccessMask: VK_ACCESS_TRANSFER_READ_BIT.rawValue, dependencyFlags: 0),
         ]
+        var fdmAtt = VkAttachmentDescription()
+        fdmAtt.format = VK_FORMAT_R8G8_UNORM
+        fdmAtt.samples = VK_SAMPLE_COUNT_1_BIT
+        fdmAtt.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE
+        fdmAtt.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE
+        fdmAtt.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE
+        fdmAtt.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE
+        fdmAtt.initialLayout = VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT
+        fdmAtt.finalLayout = VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT
         var ci = VkRenderPassCreateInfo()
         ci.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO
-        ci.attachmentCount = 2
-        ci.pAttachments = a.array([color, depth])
+        ci.attachmentCount = foveated ? 3 : 2
+        ci.pAttachments = a.array(foveated ? [color, depth, fdmAtt] : [color, depth])
         ci.subpassCount = 1
         ci.pSubpasses = a.ptr(sub)
         ci.dependencyCount = UInt32(deps.count)
@@ -256,6 +271,12 @@ final class SceneRenderer {
         mv.pViewMasks = a.ptr(UInt32((1 << views) - 1))
         mv.correlationMaskCount = 1
         mv.pCorrelationMasks = a.ptr(UInt32((1 << views) - 1))
+        if foveated {
+            var fd = VkRenderPassFragmentDensityMapCreateInfoEXT()
+            fd.sType = VK_STRUCTURE_TYPE_RENDER_PASS_FRAGMENT_DENSITY_MAP_CREATE_INFO_EXT
+            fd.fragmentDensityMapAttachment = VkAttachmentReference(attachment: 2, layout: VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT)
+            mv.pNext = UnsafeRawPointer(a.ptr(fd))
+        }
         ci.pNext = UnsafeRawPointer(a.ptr(mv))
         var rp: VkRenderPass?
         try vkCheck(vkCreateRenderPass(ctx.device, &ci, nil, &rp), "vkCreateRenderPass")
@@ -579,8 +600,12 @@ final class SceneRenderer {
     // MARK: Targets
 
     // Framebuffer for an image with `views` layers (an OpenXR swapchain image or an offscreen test image).
-    func makeTarget(image: VkImage, width: Int, height: Int) throws -> RenderTarget {
+    func makeTarget(image: VkImage, width: Int, height: Int, densityMap: VkImage? = nil) throws -> RenderTarget {
         let view = try VkImg.makeView(ctx, image, format: colorFormat, aspect: VK_IMAGE_ASPECT_COLOR_BIT.rawValue, layers: views, levels: 1, array: true)
+        var fdmView: VkImageView?
+        if foveated, let dm = densityMap {
+            fdmView = try VkImg.makeView(ctx, dm, format: VK_FORMAT_R8G8_UNORM, aspect: VK_IMAGE_ASPECT_COLOR_BIT.rawValue, layers: views, levels: 1, array: true)
+        }
         let depth = try VkImg(ctx, width: width, height: height, layers: views, format: depthFormat,
                               usage: VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT.rawValue,
                               aspect: VK_IMAGE_ASPECT_DEPTH_BIT.rawValue, transient: ProcessInfo.processInfo.environment["QUEST_NO_TRANSIENT"] == nil)
@@ -588,14 +613,18 @@ final class SceneRenderer {
         var ci = VkFramebufferCreateInfo()
         ci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO
         ci.renderPass = renderPass
-        ci.attachmentCount = 2
-        ci.pAttachments = a.array([Optional(view), Optional(depth.view)])
+        let atts: [VkImageView?] = fdmView != nil ? [view, depth.view, fdmView] : [view, depth.view]
+        guard !foveated || fdmView != nil else { throw VkError(what: "foveated target without a density map", code: -1) }
+        ci.attachmentCount = UInt32(atts.count)
+        ci.pAttachments = a.array(atts)
         ci.width = UInt32(width)
         ci.height = UInt32(height)
         ci.layers = 1                       // multiview: the layer count comes from the view mask
         var fb: VkFramebuffer?
         try vkCheck(vkCreateFramebuffer(ctx.device, &ci, nil, &fb), "vkCreateFramebuffer")
-        return RenderTarget(ctx: ctx, image: image, view: view, depth: depth, framebuffer: fb!, width: width, height: height)
+        let t = RenderTarget(ctx: ctx, image: image, view: view, depth: depth, framebuffer: fb!, width: width, height: height)
+        t.fdmView = fdmView
+        return t
     }
 
     // MARK: Frame

@@ -70,7 +70,10 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
     let activity = app.pointee.activity!
     let dataPath = activity.pointee.internalDataPath.map { String(cString: $0) } ?? "/data/local/tmp/blocksmith"
     QuestPaths.setDataRoot(dataPath)
-    print("Blocksmith Quest \(QuestBuild.commit) starting; data in \(dataPath)")
+    print("Blocksmith Quest \(QuestBuild.commit) (\(QuestBuild.milestone)) starting; data in \(dataPath)")
+    if let ext = activity.pointee.externalDataPath.map({ String(cString: $0) }) {
+        QuestSettings.loadOverrides(ext + "/quest-settings.txt")
+    }
     app.pointee.onAppCmd = { a, cmd in handleCmd(a, cmd) }
 
     var xr: XRSession?

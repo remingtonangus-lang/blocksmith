@@ -21,6 +21,28 @@ enum QuestSettings {
     // Seated: the game's eye height (1.62 blocks) whatever the real head height.
     static var seated: Bool { get { bool("quest.seated", false) } set { d.set(newValue, forKey: "quest.seated") } }
     static var leftHanded: Bool { get { bool("quest.leftHanded", false) } set { d.set(newValue, forKey: "quest.leftHanded") } }
-    static var foveation: Int { get { int("quest.foveation", 2) } set { d.set(newValue, forKey: "quest.foveation") } }
+    static var foveation: Int { get { int("quest.foveation", 0) } set { d.set(newValue, forKey: "quest.foveation") } }
     static var textureRes: Int { get { int("quest.textureRes", 64) } set { d.set(newValue, forKey: "quest.textureRes") } }
+}
+
+extension QuestSettings {
+    // Overrides from a text file (one `key = value` per line, keys as above without "quest.", e.g. `refreshRate = 90`),
+    // read at start-up from the app's external files folder so options can be changed over adb without a rebuild:
+    //   adb push quest-settings.txt /sdcard/Android/data/com.blocksmith.quest/files/
+    static func loadOverrides(_ path: String) {
+        guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { return }
+        var applied: [String] = []
+        for raw in text.split(whereSeparator: \.isNewline) {
+            let line = raw.split(separator: "#", maxSplits: 1).first.map(String.init) ?? ""
+            let kv = line.split(separator: "=", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+            guard kv.count == 2, !kv[0].isEmpty else { continue }
+            let key = "quest." + kv[0], v = kv[1]
+            if let b = ["true": true, "false": false, "on": true, "off": false][v.lowercased()] { d.set(b, forKey: key) }
+            else if let i = Int(v) { d.set(i, forKey: key) }
+            else if let f = Float(v) { d.set(f, forKey: key) }
+            else { d.set(v, forKey: key) }
+            applied.append("\(kv[0])=\(v)")
+        }
+        if !applied.isEmpty { print("settings: overrides from \(path): \(applied.joined(separator: ", "))") }
+    }
 }

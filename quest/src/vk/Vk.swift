@@ -115,6 +115,7 @@ final class VkContext {
 
     // The VkDeviceCreateInfo (one graphics queue, multiview, anisotropy); its pointers live in `arena`.
     static func deviceCreateInfo(_ pd: VkPhysicalDevice, family: UInt32, extensions: [String], arena: PtrArena) -> VkDeviceCreateInfo {
+        let fdm = extensions.contains("VK_EXT_fragment_density_map")
         var qci = VkDeviceQueueCreateInfo()
         qci.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO
         qci.queueFamilyIndex = family
@@ -129,6 +130,13 @@ final class VkContext {
         feats.samplerAnisotropy = have.samplerAnisotropy
         var ci = VkDeviceCreateInfo()
         ci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO
+        if fdm {
+            // Fixed foveated rendering (XR_FB_foveation_vulkan): the runtime's density maps steer the shading rate.
+            var fd = VkPhysicalDeviceFragmentDensityMapFeaturesEXT()
+            fd.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_DENSITY_MAP_FEATURES_EXT
+            fd.fragmentDensityMap = 1
+            mv.pNext = UnsafeMutableRawPointer(arena.mutablePtr(fd))
+        }
         ci.pNext = UnsafeRawPointer(arena.ptr(mv))
         ci.queueCreateInfoCount = 1
         ci.pQueueCreateInfos = arena.ptr(qci)

@@ -58,6 +58,9 @@ final class XRSession {
     private(set) var vk: VkContext!
     private(set) var swapchain: XrSwapchain?
     private(set) var swapImages: [VkImage] = []
+    private(set) var densityMaps: [VkImage?] = []        // per swapchain image (foveated swapchains)
+    private(set) var foveated = false
+    private var foveationProfile: XrFoveationProfileFB?
     private(set) var width = 0, height = 0
     private(set) var colorFormat = VK_FORMAT_R8G8B8A8_SRGB
     private(set) var exts = Set<String>()
@@ -280,18 +283,75 @@ final class XRSession {
         sci.faceCount = 1
         sci.arraySize = 2
         sci.mipCount = 1
+        // Fixed foveated rendering: a fragment density map per image (XR_FB_foveation_vulkan), level from the options.
+        let wantFov = QuestSettings.foveation > 0 && exts.contains("XR_FB_foveation") && exts.contains("XR_FB_foveation_vulkan")
+            && exts.contains("XR_FB_swapchain_update_state") && vk.enabledExtensions.contains("VK_EXT_fragment_density_map")
+        var fci = XrSwapchainCreateInfoFoveationFB()
+        fci.type = XR_TYPE_SWAPCHAIN_CREATE_INFO_FOVEATION_FB
+        fci.flags = XrSwapchainCreateFoveationFlagsFB(XR_SWAPCHAIN_CREATE_FOVEATION_FRAGMENT_DENSITY_MAP_BIT_FB)
         var sc: XrSwapchain?
-        try xrCheck(xrCreateSwapchain(session, &sci, &sc), "xrCreateSwapchain(\(width)x\(height)x2)")
+        if wantFov {
+            try withUnsafeMutablePointer(to: &fci) { fp in
+                sci.next = UnsafeRawPointer(fp)
+                try xrCheck(xrCreateSwapchain(session, &sci, &sc), "xrCreateSwapchain(foveated \(width)x\(height)x2)")
+            }
+            sci.next = nil
+        } else {
+            try xrCheck(xrCreateSwapchain(session, &sci, &sc), "xrCreateSwapchain(\(width)x\(height)x2)")
+        }
+        foveated = wantFov
         swapchain = sc
         var ic: UInt32 = 0
         try xrCheck(xrEnumerateSwapchainImages(sc, 0, &ic, nil), "xrEnumerateSwapchainImages")
         var imgs = [XrSwapchainImageVulkanKHR](repeating: XrSwapchainImageVulkanKHR(type: XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR, next: nil, image: nil), count: Int(ic))
-        try imgs.withUnsafeMutableBufferPointer { p in
-            try xrCheck(xrEnumerateSwapchainImages(sc, ic, &ic, UnsafeMutableRawPointer(p.baseAddress!).assumingMemoryBound(to: XrSwapchainImageBaseHeader.self)),
-                        "xrEnumerateSwapchainImages")
+        var fovImgs = [XrSwapchainImageFoveationVulkanFB](repeating: XrSwapchainImageFoveationVulkanFB(), count: Int(ic))
+        try fovImgs.withUnsafeMutableBufferPointer { fp in
+            if foveated {
+                for i in 0..<Int(ic) {
+                    fp[i].type = XR_TYPE_SWAPCHAIN_IMAGE_FOVEATION_VULKAN_FB
+                    imgs[i].next = UnsafeMutableRawPointer(fp.baseAddress! + i)
+                }
+            }
+            try imgs.withUnsafeMutableBufferPointer { p in
+                try xrCheck(xrEnumerateSwapchainImages(sc, ic, &ic, UnsafeMutableRawPointer(p.baseAddress!).assumingMemoryBound(to: XrSwapchainImageBaseHeader.self)),
+                            "xrEnumerateSwapchainImages")
+            }
         }
         swapImages = imgs.compactMap { $0.image }
+        densityMaps = foveated ? fovImgs.map { $0.image } : []
+        if foveated && (densityMaps.contains { $0 == nil }) { print("xr: foveation: density maps missing, off"); foveated = false; densityMaps = [] }
+        if foveated {
+            print("xr: foveated swapchain, density maps \(fovImgs.first.map { "\($0.width)x\($0.height)" } ?? "?")")
+            applyFoveation(level: QuestSettings.foveation)
+        }
         print("xr: swapchain \(width)x\(height) x2 layers, format \(f.rawValue), \(swapImages.count) images (recommended \(cv[0].recommendedImageRectWidth)x\(cv[0].recommendedImageRectHeight))")
+    }
+
+    // Sets the fixed foveation level (1 low ... 3 high) on the swapchain.
+    func applyFoveation(level: Int) {
+        guard foveated, let create = proc("xrCreateFoveationProfileFB", PFN_xrCreateFoveationProfileFB.self),
+              let update = proc("xrUpdateSwapchainFB", PFN_xrUpdateSwapchainFB.self) else { return }
+        var lp = XrFoveationLevelProfileCreateInfoFB()
+        lp.type = XR_TYPE_FOVEATION_LEVEL_PROFILE_CREATE_INFO_FB
+        lp.level = XrFoveationLevelFB(rawValue: UInt32(max(0, min(3, level))))
+        lp.verticalOffset = 0
+        lp.dynamic = XR_FOVEATION_DYNAMIC_DISABLED_FB
+        var profile: XrFoveationProfileFB?
+        var r = XR_ERROR_RUNTIME_FAILURE
+        withUnsafeMutablePointer(to: &lp) { lpp in
+            var pci = XrFoveationProfileCreateInfoFB()
+            pci.type = XR_TYPE_FOVEATION_PROFILE_CREATE_INFO_FB
+            pci.next = UnsafeMutableRawPointer(lpp)
+            r = create(session, &pci, &profile)
+        }
+        guard r.rawValue >= 0, let prof = profile else { print("xr: foveation profile failed (\(r.rawValue))"); return }
+        var st = XrSwapchainStateFoveationFB()
+        st.type = XR_TYPE_SWAPCHAIN_STATE_FOVEATION_FB
+        st.profile = prof
+        let ur = withUnsafePointer(to: &st) { sp in update(swapchain, UnsafeRawPointer(sp).assumingMemoryBound(to: XrSwapchainStateBaseHeaderFB.self)) }
+        if let old = foveationProfile, let destroy = proc("xrDestroyFoveationProfileFB", PFN_xrDestroyFoveationProfileFB.self) { _ = destroy(old) }
+        foveationProfile = prof
+        print("xr: foveation level \(level) (\(ur.rawValue >= 0 ? "applied" : "update failed \(ur.rawValue)"))")
     }
 
     // MARK: Actions
