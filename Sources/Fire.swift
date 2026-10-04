@@ -27,6 +27,7 @@ extension World {
 
     private func burnOrSmoulder(_ q: IVec3, _ nb: BlockID) {
         onIgnite?(q, nb)
+        blockEntities.removeValue(forKey: q)            // a burnt barrel's contents burn with it
         if fires.count < World.fireCap && Rand.int(in: 0..<2) == 0 { setBlockAsync(q.x, q.y, q.z, FIRE); fires[q] = 0 }
         else { setBlockAsync(q.x, q.y, q.z, AIR) }
         fireStats.burnedAway += 1
@@ -74,6 +75,7 @@ extension World {
                     // Charred through: it smoulders into charcoal, or the flames take it.
                     if Rand.float(in: 0..<1) < 0.55 {
                         onIgnite?(q, nb)
+                        blockEntities.removeValue(forKey: q)
                         setBlockAsync(q.x, q.y, q.z, smolder)
                         embers[q] = 0
                         fireStats.charred += 1

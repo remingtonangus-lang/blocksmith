@@ -93,7 +93,7 @@ extension Game {
         let hw = V2(fx.wind.x, fx.wind.z)
         if simd_length(hw) > 0.01 { Waves.dir = simd_normalize(hw) }
         Waves.amp = fx.storm * 1.3
-        Waves.t = Float(clock.truncatingRemainder(dividingBy: 10_000))
+        Waves.t = Float(time.truncatingRemainder(dividingBy: 1000))     // the water shader's clock (params.z): ships ride the crests drawn
         Waves.world = world
         fx.flood.update(dt, game: self)
         // Gusts howl in a storm (open ground only).
