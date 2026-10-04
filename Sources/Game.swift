@@ -15,6 +15,8 @@ final class Game {
     let player = Player()
     let input = InputState()
     let particles = ParticleManager()
+    let cine = Cinematic()                       // photo mode / cinematic camera (Cinematic.swift)
+    var showsPlayerModel: Bool { (cameraMode != 0 && sleeping == 0) || cine.active }
     let arms = Armory()               // gun rounds in flight and the player's gun state (Ballistics.swift)
     var lastHurtAt: Double = -10      // hurt cooldown (reference: 10 ticks of invulnerability after a hit)
     var lastHurtAmount = 0
@@ -588,6 +590,17 @@ final class Game {
             return
         }
 
+        if cine.active && menu == nil {
+            // Photo mode: the free camera takes the controls; the player stands still and the world runs on.
+            cineTick(p, q, fdt)
+            let before = player.pos
+            shipPlayerUpdate(fdt, MoveInput())
+            survivalTick(dt, from: before)
+            target = nil
+            mining = nil
+            advance(dt)
+            return
+        }
         if menu != nil {
             tickMenu(p, q, dt)
             let before = player.pos
@@ -656,6 +669,7 @@ final class Game {
             player.impact = 0
         }
         if input.tapped(KeyBinds.key(.fly)) || (p.up && !q.up) { toggleFly() }
+        if input.tapped(KeyBinds.key(.photo)) { togglePhotoMode(); return }
         if input.tapped(KeyBinds.key(.fastFly)) {
             player.fastFlight.toggle()
             onToast?(player.fastFlight ? "Fast flight on (sprint while flying)" : "Fast flight off")

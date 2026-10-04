@@ -1024,7 +1024,14 @@ enum Snapshot {
             print("after \(secs) s: \(game.mobs.mobs.count) mobs, villagers \(jobs.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))")
         }
         if CommandLine.arguments.contains("--padtest") { PadTest.run(game) }     // scripted controller menu tests
-        if CommandLine.arguments.contains("--pad") { PadManager.shared.forcePad(true) }   // draw prompts with pad glyphs
+        if CommandLine.arguments.contains("--pad") { PadManager.shared.forcePad(true) }
+        // --photo: photo mode at the harness camera (HUD hidden); --dof F: depth of field focused at F blocks.
+        if CommandLine.arguments.contains("--photo") {
+            game.togglePhotoMode()
+            game.cine.followPlayer = true
+            if let f = Float(arg("--dof") ?? "") { game.cine.dof = true; game.cine.autoFocus = false; game.cine.focus = f; game.cine.aperture = 0.7 }
+        }
+        if CommandLine.arguments.contains("--cinetest") && Cinematic.selfTest() > 0 { return 1 }   // draw prompts with pad glyphs
         if CommandLine.arguments.contains("--couch") || arg("--safe") != nil {
             // TV layout checks without touching the saved options (restored after the shot).
             PrefsSandbox.begin()
