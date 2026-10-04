@@ -4,7 +4,7 @@ import simd
 // Ambient block particles (the reference game's "random display tick"): each frame a batch of random
 // cells around the player is sampled and emitting blocks puff smoke and flames. Torches smoke and
 // flicker, campfires send up a slow smoke column, lava spits glowing sparks, fire smokes.
-enum Emitter: UInt8 { case none = 0, torch, soulTorch, campfire, lava, fire }
+enum Emitter: UInt8 { case none = 0, torch, soulTorch, campfire, lava, fire, smolder }
 
 extension Game {
     static let emitters: [UInt8] = {
@@ -18,6 +18,7 @@ extension Game {
             case "campfire", "soul_campfire": if !k.hasSuffix("[off]") { t[id] = Emitter.campfire.rawValue }
             case "lava": t[id] = Emitter.lava.rawValue
             case "fire", "soul_fire": t[id] = Emitter.fire.rawValue
+            case "smoldering_charcoal": t[id] = Emitter.smolder.rawValue
             default: break
             }
         }
@@ -67,6 +68,15 @@ extension Game {
                 particles.smoke(at: s + V3(0, 0.1, 0), dark: true)
             case .fire:
                 if Rand.float(in: 0..<1) < 0.6 { particles.smoke(at: o + V3(Rand.float(in: 0...1), 0.9, Rand.float(in: 0...1)), dark: true) }
+                if Rand.float(in: 0..<1) < 0.35 { particles.flame(at: o + V3(Rand.float(in: 0.2...0.8), 0.5, Rand.float(in: 0.2...0.8))) }
+            case .smolder:
+                // Smouldering charcoal (Fire.swift): a thread of smoke and the odd ember lifting off.
+                if Rand.float(in: 0..<1) < 0.5 { particles.smoke(at: o + V3(Rand.float(in: 0.2...0.8), 1.05, Rand.float(in: 0.2...0.8)), dark: false) }
+                if Rand.float(in: 0..<1) < 0.3 {
+                    particles.add(Particle(pos: o + V3(Rand.float(in: 0...1), 1.02, Rand.float(in: 0...1)), vel: V3(0, Rand.float(in: 0.4...1.2), 0),
+                                           life: Rand.float(in: 0.4...0.9), maxLife: 0.9, layer: smokeL, uv0: .zero, uvSize: 1,
+                                           size: 0.03, gravity: -0.2, color: V3(1.0, 0.45, 0.12), collide: false, glow: true))
+                }
             case .none: break
             }
         }

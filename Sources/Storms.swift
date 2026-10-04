@@ -81,6 +81,7 @@ extension Game {
         let strength: Float = 5 + 4 * w.rain + 5 * w.thunder + fx.gust * 8
         fx.wind = fx.forcedWind ?? V3(cosf(a), 0, sinf(a)) * strength
         world.wind = fx.wind
+        ParticleManager.drift = fx.wind * (0.08 + 0.3 * fx.storm)
         // The sea: swells build with the storm on open water.
         let hw = V2(fx.wind.x, fx.wind.z)
         if simd_length(hw) > 0.01 { Waves.dir = simd_normalize(hw) }
@@ -201,5 +202,15 @@ extension Game {
                 fx.snowChanges += 1
             }
         } }
+    }
+}
+
+extension Game {
+    // F3 line: wind, storm, fire, flood, damage (session H's systems at a glance).
+    func worldFXDebugLine() -> String {
+        let f = world.fireStats, fl = fx.flood
+        return String(format: "Wind %.1f b/s  Storm %.2f  Swell %.2f  Fire %ld (%.2f ms)  Flood %ld blocks, %ld cells (%.2f ms)  Wear %ld/%ld",
+                      simd_length(fx.wind), fx.storm, Waves.amp, f.burning, f.lastMs, fl.placed.count, fl.floodedCells, fl.lastMs,
+                      world.damage.count, world.scorch.count)
     }
 }

@@ -62,7 +62,7 @@ enum Bench {
         guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); return 1 }
         let seed = UInt64(arg("--seed") ?? "") ?? 12345
         let quick = CommandLine.arguments.contains("--quick")
-        let all = "gen,mesh,startup,frame,edit,mobs,save,tnt,fluids,ships,flight8,flight16,flight24"
+        let all = "gen,mesh,startup,frame,edit,mobs,save,tnt,fluids,weather,ships,flight8,flight16,flight24"
         let scenes = (arg("--scenes") ?? all).split(separator: ",").map(String.init)
         print("bench: device \(device.name), \(ProcessInfo.processInfo.activeProcessorCount) cores, seed \(seed)\(quick ? ", quick" : "")")
         if !scenes.allSatisfy({ $0.hasPrefix("flight") }) { calibrate() }
@@ -79,6 +79,7 @@ enum Bench {
             case "save": save(device, seed)
             case "tnt": tnt(device, seed)
             case "fluids": fluids(device, seed)
+            case "weather": weather(device, seed)
             case "ships": ships(device, seed)
             case "meshprof": meshLoop(device, seed, seconds: Double(arg("--secs") ?? "") ?? 12)
             case "genprof": genLoop(device, seed, seconds: Double(arg("--secs") ?? "") ?? 12)
@@ -515,6 +516,42 @@ enum Bench {
         put("fluids.remeshed_sections", sections)
         put("fluids.pending", Double(world.fluidPending.count))
         print("bench fluids: tick p50 \(f(t.p50)) p95 \(f(t.p95)) max \(f(t.max)) ms, \(Int(sections)) sections re-meshed in 6 s, \(world.fluidPending.count) cells still pending")
+    }
+
+    // A thunderstorm over a burning plank field in a gale (Storms / Fire / Flood.swift): whole game ticks at 60 Hz
+    // for 8 s with the flood model, snow passes, wind-driven fire and the decal cache all running.
+    static func weather(_ device: MTLDevice, _ seed: UInt64) {
+        let (world, game, pos) = setup(device, seed, rd: 6)
+        _ = world.loadSync(center: pos, radius: 6)
+        let bx = Int(floor(pos.x)), bz = Int(floor(pos.z))
+        let gy = world.topY(bx, bz) + 1
+        for dz in -20...20 { for dx in -20...20 { world.setBlockAsync(bx + dx, gy + 3, bz + dz, PLANKS) } }
+        for dz in stride(from: -20, through: 20, by: 4) { for dx in stride(from: -20, through: 20, by: 4) { world.placeFire(IVec3(bx + dx, gy + 4, bz + dz)) } }
+        for k in 0..<400 { world.chipAsync(IVec3(bx - 20 + k % 41, gy + 3, bz - 20 + k / 41), level: 1 + k % 7, face: 2) }
+        game.weather.raining = true; game.weather.rain = 1; game.weather.thundering = true; game.weather.thunder = 1
+        game.fx.storm = 1
+        world.fireStats = FireStats()
+        let dt = 1.0 / 60
+        var ticks: [Double] = []
+        let start = now
+        for i in 0..<480 {
+            game.player.pos = pos + V3(0, 12, 0)
+            let a = now
+            game.tick(dt)
+            var wr = EntityWriterProbe()
+            _ = wr.count(game, eye: game.player.eye)
+            ticks.append((now - a) * 1000)
+            let slack = start + Double(i + 1) * dt - now
+            if slack > 0 { usleep(useconds_t(slack * 1e6)) }
+        }
+        let t = dist(ticks)
+        put("weather.tick_ms", t, "p50,p95,max")
+        put("weather.fire_tick_ms_worst", world.fireStats.worstMs)
+        put("weather.fire_burning_peak", Double(world.fireStats.peak))
+        put("weather.flood_step_ms_worst", game.fx.flood.worstMs)
+        put("weather.storm_ms_worst", game.fx.stormWorstMs)
+        put("weather.decal_quads", Double(game.fx.decals.quads.count))
+        print("bench weather: tick p50 \(f(t.p50)) p95 \(f(t.p95)) max \(f(t.max)) ms, fire tick worst \(f(world.fireStats.worstMs)) ms (peak \(world.fireStats.peak) burning), flood step worst \(f(game.fx.flood.worstMs)) ms, \(game.fx.decals.quads.count) decal quads")
     }
 
     static func save(_ device: MTLDevice, _ seed: UInt64) {

@@ -2536,6 +2536,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             "Target \(tgt)",
             "\(p.flying ? "flying" : (p.onGround ? "on ground" : "in air"))\(p.inWater ? ", in water" : "")  Time \(String(format: "%02d:00", hour))  Controller \(game.padConnected ? "yes" : "no")",
             "Mobs: " + MobDrawStats.line + "  Fluid queue \(w.fluidPending.count)",
+            game.worldFXDebugLine(),
             String(format: "GPU %.1f ms  Graphics %@  Render scale %d%%", gpuFrameMs, game.fancyGraphics ? "Fancy" : "Fast", Int((game.renderScale * 100).rounded())),
             game.audioDebugLine(),
         ]

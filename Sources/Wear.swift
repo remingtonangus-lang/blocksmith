@@ -229,6 +229,7 @@ final class WearDecals {
     var quads: [Quad] = []
     var version = -1
     var centre = V3(0, -1000, 0)
+    var builtAt = -1.0
     static let maxQuads = 3000
     static let range: Float = 64
 
@@ -278,7 +279,12 @@ extension Game {
     func writeWear(_ wr: inout EntityWriter, eye: V3) {
         let w = world
         let dec = fx.decals
-        if dec.version != w.wearVersion || simd_length(eye - dec.centre) > 16 { dec.rebuild(w, eye: eye) }
+        // Rebuilt when the damage changes (at most 10 times a second: gunfire chips every frame) or the camera moves on.
+        let moved = simd_length(eye - dec.centre) > 16
+        if moved || (dec.version != w.wearVersion && (clock - dec.builtAt > 0.1 || clock < dec.builtAt)) {
+            dec.rebuild(w, eye: eye)
+            dec.builtAt = clock
+        }
         if dec.quads.isEmpty { return }
         let uvs = [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)]
         let day = daylight

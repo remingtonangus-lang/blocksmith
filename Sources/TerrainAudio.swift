@@ -127,5 +127,10 @@ extension Game {
         } else if kind == 1 && a.leafCover > 0 {
             ask("rainleaves", .rainLeavesLoop, weather.rain * min(1, a.leafCover) * 0.7 * (1 - a.cave), nil)
         }
+        // A storm's gale (Storms.swift): louder in the gusts, muffled underground.
+        if fx.storm > 0.15 {
+            let gusting: Float = fx.gust / max(0.01, fx.storm)
+            ask("stormwind", .windLoop, fx.storm * (0.35 + 0.5 * gusting) * (1 - a.cave), nil)
+        }
     }
 }

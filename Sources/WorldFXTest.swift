@@ -64,6 +64,7 @@ enum WorldFXTest {
     @discardableResult
     static func shot(_ g: Game, _ r: Renderer, _ w: Int, _ h: Int, _ path: String, frames: Int = 0) -> Double {
         _ = g.world.loadSync(center: g.player.pos, radius: g.world.renderDistance)
+        g.fx.decals.builtAt = -1e9                  // the harness clock stands still: let the decals rebuild
         _ = r.renderToPNG(path: path, width: w, height: h)
         _ = r.renderToPNG(path: path, width: w, height: h)
         let ms = frames > 0 ? r.medianFrame(frames, width: w, height: h) * 1000 : 0
@@ -106,6 +107,7 @@ enum WorldFXTest {
         check(wd.visualDamage(IVec3(x0 - 8 + 7 * 2, y + 3, z0 - 6)) == nil, "steel plating never chips (dents)")
         check(wd.visualDamage(IVec3(x0 - 8 + 5 * 2, y + 5, z0 - 6)) != nil, "oak planks chip as before")
         g.fx.decals.version = -1
+        g.fx.decals.builtAt = -1e9
         let cam = V3(Float(x0) + 0.5, Float(y) + 2.6, Float(z0) + 5.5)
         look(g, from: cam, at: V3(Float(x0) - 1, Float(y) + 2, Float(z0) - 6))
         var wr = EntityWriterProbe()
