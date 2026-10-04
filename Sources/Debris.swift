@@ -324,5 +324,11 @@ extension ShipManager {
             hullSplits += 1
         }
         s.mesh.rebuildAround(s, changed, device: world.device, queue: meshQueue)
+        // What is left of a vessel with no helm (its bridge went with the other part) goes down too.
+        if s.helm == nil && !s.wrecked, let st = capState[s.id] {
+            s.wrecked = true
+            st.disabledWhy = "cut in two"
+            for m in st.crewMobs.values where m.deck === s && m.health > 0 { m.crewFree = true; m.home = m.pos; m.aggro = true }
+        }
     }
 }
