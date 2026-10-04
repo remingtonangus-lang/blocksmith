@@ -1,7 +1,7 @@
 // Ocean and rivers: Gerstner swell near the camera, two scrolling normal maps, refraction through the screen
 // texture with depth-based absorption, shore foam, sky reflections with Fresnel (from the engine's radiance).
 shader_type spatial;
-render_mode blend_mix, depth_draw_always, cull_disabled, specular_schlick_ggx;
+render_mode blend_mix, depth_draw_always, cull_disabled, specular_schlick_ggx, fog_disabled;
 
 #include "res://shaders/common.gdshaderinc"
 
@@ -19,6 +19,7 @@ uniform float wave_fade = 1600.0;
 global uniform vec4 wind;
 global uniform float night;
 global uniform float weather_wetness;
+global uniform vec4 horizon_fog;      // rgb horizon haze colour, a = density (the water does its own fog)
 
 varying vec3 v_world;
 varying vec3 v_normal;
@@ -99,8 +100,9 @@ void fragment() {
 	float shore = (1.0 - smoothstep(0.0, 1.6 + sea_state * 2.0, water_depth)) * step(0.001, water_depth);
 	float foam = clamp(shore * smoothstep(0.35, 0.75, foam_n + shore * 0.4) + smoothstep(0.55, 0.95, v_crest) * smoothstep(0.45, 0.7, foam_n) * sea_state, 0.0, 1.0);
 	if (is_river) foam = shore * smoothstep(0.5, 0.8, foam_n) * 0.6;
-	ALBEDO = mix(vec3(0.0), vec3(0.85, 0.88, 0.9) * (1.0 - night * 0.8), foam);
-	EMISSION = body * (1.0 - foam);
+	float haze_k = 1.0 - exp(-dist * horizon_fog.a);
+	ALBEDO = mix(vec3(0.0), vec3(0.85, 0.88, 0.9) * (1.0 - night * 0.8), foam) * (1.0 - haze_k);
+	EMISSION = mix(body * (1.0 - foam), horizon_fog.rgb, haze_k);
 	ROUGHNESS = mix(0.03 + sea_state * 0.05 + weather_wetness * 0.06, 0.8, foam);
 	METALLIC = 0.0;
 	SPECULAR = 0.5;

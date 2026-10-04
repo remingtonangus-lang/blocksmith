@@ -6,7 +6,7 @@ extends RefCounted
 ## float grid (8 m texels) that the GPU samples with the same bilinear filter as height_at(), plus a tileable
 ## 0.25 m detail layer. Everything is deterministic for a seed and cached in user://.
 
-const GEN_VERSION := 8
+const GEN_VERSION := 9
 const SIZE := 16384.0
 const HALF := 8192.0
 const N := 2048
@@ -343,7 +343,7 @@ func _paint_mask() -> void:
 		var p: Vector2 = SITE_XZ[name]
 		var r: float = FLATTEN[name][0]
 		# Cities and the battlefield paint their own ground: only clear the forest there.
-		var pave := 0.0 if name in ["front", "capital", "harbor"] else 1.0
+		var pave := 0.0          # sites build their own platforms
 		if name == "front":
 			r *= 0.5
 		var x0 := _tx(p.x - r); var x1 := _tx(p.x + r)

@@ -23,7 +23,7 @@ func setup(gen: WorldGen) -> void:
 	ocean.mesh = _radial_mesh()
 	ocean.material_override = ocean_mat
 	ocean.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	ocean.extra_cull_margin = 40000.0
+	ocean.extra_cull_margin = 150000.0
 	add_child(ocean)
 	river_mat = ShaderMaterial.new()
 	river_mat.shader = shader
@@ -65,7 +65,7 @@ func _radial_mesh() -> ArrayMesh:
 	var seg := 160
 	var radii := PackedFloat32Array([0.0])
 	var r := 2.0
-	while r < 42000.0:
+	while r < 150000.0:
 		radii.append(r)
 		r *= 1.045 if r < 2000.0 else 1.12
 	for ri in radii.size():

@@ -18,14 +18,14 @@ func start(list: Array, out_dir: String) -> void:
 		dir = ProjectSettings.globalize_path("res://").path_join(dir) if dir.begins_with("res://") else OS.get_environment("PWD").path_join(dir)
 	DirAccess.make_dir_recursive_absolute(dir)
 	cam = Camera3D.new()
-	cam.far = 40000.0
+	cam.far = 160000.0
 	cam.near = 0.1
 	cam.fov = Settings.fov
 	G.main.add_child(cam)
 	cam.make_current()
 	G.cam = cam
 	if G.sky:
-		G.sky.env.sky.process_mode = Sky.PROCESS_MODE_QUALITY
+		G.sky.env.sky.process_mode = Sky.PROCESS_MODE_REALTIME
 		G.sky.cam_attr.auto_exposure_speed = 30.0
 	_next()
 

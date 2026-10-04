@@ -65,6 +65,7 @@ var args := {}
 
 func _ready() -> void:
 	_parse_args()
+	_limit_to_gpu()
 	load_settings()
 	if args.has("preset"):
 		set_preset(String(args["preset"]).capitalize())
@@ -110,7 +111,18 @@ func set_preset(name: String) -> void:
 		return
 	preset = name
 	q = PRESETS[name].duplicate()
+	_limit_to_gpu()
 	changed.emit()
+
+
+## Virtual / low-feature GPUs (the CI runner's "Apple Paravirtual device", software rasterisers) lack the atomic
+## storage images that volumetric fog, SDFGI and SSIL need: switch those off there.
+func _limit_to_gpu() -> void:
+	var adapter := RenderingServer.get_video_adapter_name()
+	if adapter.contains("Paravirtual") or has_arg("safe-gpu"):
+		q["vol_fog"] = false
+		q["sdfgi"] = false
+		q["ssil"] = false
 
 
 func set_q(key: String, value: Variant) -> void:
@@ -129,6 +141,7 @@ func load_settings() -> void:
 	var overrides: Dictionary = cf.get_value("quality", "overrides", {})
 	for k in overrides:
 		q[k] = overrides[k]
+	_limit_to_gpu()
 	fullscreen = cf.get_value("display", "fullscreen", fullscreen)
 	vsync = cf.get_value("display", "vsync", vsync)
 	fov = cf.get_value("display", "fov", fov)

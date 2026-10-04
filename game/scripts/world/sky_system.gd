@@ -94,6 +94,7 @@ func setup() -> void:
 	env.volumetric_fog_length = 220.0
 	env.volumetric_fog_detail_spread = 2.0
 	env.volumetric_fog_gi_inject = 0.4
+	env.volumetric_fog_ambient_inject = 0.5     # lit by the sky too, or it only darkens what is behind it
 	env.volumetric_fog_anisotropy = 0.55
 	env.volumetric_fog_sky_affect = 0.0
 	env.volumetric_fog_temporal_reprojection_enabled = true
@@ -218,10 +219,14 @@ func _update(delta: float) -> void:
 	env.fog_density = 0.000045 * haze + fog_extra
 	env.fog_light_color = Color(0.62, 0.70, 0.82).lerp(Color(0.05, 0.07, 0.12), night)
 	env.fog_light_energy = lerpf(1.0, 0.25, night)
-	env.fog_height_density = 0.0008 * haze + fog_extra * 4.0
-	env.volumetric_fog_density = 0.0025 + fog_extra * 3.0
+	env.fog_height_density = 0.00025 * haze + fog_extra * 3.0
+	env.volumetric_fog_density = 0.0008 + fog_extra * 2.0
 	env.volumetric_fog_emission = Color(0.0, 0.0, 0.0)
 	env.ambient_light_energy = lerpf(0.25, 1.0, daylight)
+	var hz := Color(0.58, 0.66, 0.78).lerp(Color(0.5, 0.52, 0.55), cloud_cover * 0.7) * lerpf(0.02, 1.0, daylight) * (1.0 - cloud_dark * 0.55)
+	if sun_up > -0.1 and sun_up < 0.2:
+		hz = hz.lerp(Color(0.9, 0.6, 0.4) * hz.get_luminance() * 1.6, (1.0 - absf(sun_up - 0.05) / 0.15) * 0.5)
+	RenderingServer.global_shader_parameter_set("horizon_fog", Vector4(hz.r, hz.g, hz.b, 0.000045 * haze + fog_extra))
 	if Settings.has_arg("noambient"):
 		env.ambient_light_energy = 0.0
 		env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED

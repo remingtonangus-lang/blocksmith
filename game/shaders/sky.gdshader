@@ -198,8 +198,11 @@ void sky() {
 				// Aerial perspective over the cloud: blend toward the sky colour with distance.
 				col = col * cl.a + cl.rgb;
 			}
-			if (cloud_cover > 0.75 && steps == 0) {
-				col = mix(col, amb * 0.6, (cloud_cover - 0.75) * 3.0);
+			if (steps == 0) {
+				// No raymarched clouds (Low preset): a flat overcast layer that thickens with cover.
+				float k = smoothstep(0.35, 0.95, cloud_cover) * smoothstep(-0.02, 0.12, rd.y);
+				vec3 grey = amb * mix(0.55, 0.25, cloud_dark);
+				col = mix(col, grey, k * 0.92);
 			}
 		}
 		COLOR = col * exposure;

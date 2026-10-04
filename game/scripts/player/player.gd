@@ -51,7 +51,7 @@ func _ready() -> void:
 	camera.name = "Camera"
 	camera.fov = Settings.fov
 	camera.near = 0.05
-	camera.far = 40000.0
+	camera.far = 160000.0
 	head.add_child(camera)
 	camera.make_current()
 	G.cam = camera

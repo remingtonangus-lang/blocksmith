@@ -10,6 +10,7 @@ var vegetation: Node3D
 var weather: Node
 var cities: Node3D
 var city_list: Array = []
+var bases: Bases
 var _focus := Vector3.ZERO
 
 
@@ -45,6 +46,14 @@ func setup(g: WorldGen) -> void:
 		for c in city_list:
 			vegetation.add_trees(c.trees)
 			vegetation.exclude.append([Vector2(c.center.x, c.center.z), c.radius + 30.0])
+	bases = Bases.new()
+	bases.name = "Bases"
+	add_child(bases)
+	bases.build(gen, capital.mat)
+	if vegetation:
+		for k in bases.sites:
+			var s: Dictionary = bases.sites[k]
+			vegetation.exclude.append([Vector2(s["pos"].x, s["pos"].z), s["radius"]])
 	_add_optional("res://scripts/world/weather.gd", "Weather", "weather")
 	if weather:
 		G.weather = weather
@@ -138,9 +147,17 @@ func shot_list() -> Array:
 	var f := site("forest")
 	var h := site("harbor")
 	var fr := site("front")
+	var ct := site("citadel")
+	var fl := site("fort_lumen")
+	var cc := site("cinder_camp")
 	var shots := [
 		{"name": "overview", "pos": above(c.x - 4200, c.z + 2600, 700), "look": c + Vector3(-600, 0, -600), "hour": 10.0, "weather": "clear"},
 		{"name": "capital_noon", "pos": above(c.x - 1500, c.z + 700, 120), "look": c + Vector3(0, 60, 0), "hour": 12.5, "weather": "clear"},
+		{"name": "citadel", "pos": above(ct.x + 260, ct.z + 300, 60), "look": ct + Vector3(0, 40, 0), "hour": 15.5, "weather": "clear"},
+		{"name": "turret_close", "pos": ct + Vector3(-60, 14, 110), "look": ct + Vector3(-92, 12, 72), "hour": 10.5, "weather": "clear"},
+		{"name": "radar_night", "pos": rad + Vector3(260, 150, 330), "look": rad + Vector3(0, 10, 0), "hour": 22.5, "weather": "clear"},
+		{"name": "fort_lumen", "pos": above(fl.x + 280, fl.z + 260, 70), "look": fl, "hour": 9.5, "weather": "cloudy"},
+		{"name": "cinder_camp", "pos": above(cc.x + 220, cc.z + 200, 45), "look": cc, "hour": 17.0, "weather": "clear"},
 		{"name": "capital_top", "pos": c + Vector3(500, 420, 1), "look": c + Vector3(500, 0, 0), "hour": 12.0, "weather": "clear"},
 		{"name": "capital_dusk", "pos": above(c.x - 1300, c.z + 1200, 90), "look": c + Vector3(0, 70, 0), "hour": 19.6, "weather": "clear"},
 		{"name": "capital_night", "pos": above(c.x - 1200, c.z + 800, 110), "look": c + Vector3(0, 40, 0), "hour": 23.0, "weather": "clear"},

@@ -126,9 +126,13 @@ jobs:
         run: |
           mkdir -p ci
           A=game/build/Alabaster.app/Contents/MacOS/Alabaster
-          ($A --windowed --resolution 1280x720 -- --smoke 40 2>&1 | tail -30) | tee ci/mac_smoke.log
-          ($A --windowed --resolution 1280x720 -- --padcheck 2>&1 | tail -5) | tee ci/mac_padcheck.log
-          ($A --windowed --resolution 1280x720 -- --benchmark --preset High 2>&1 | tail -12) | tee ci/mac_benchmark.log
+          $A --windowed --resolution 1280x720 -- --smoke 40 > ci/mac_smoke.log 2>&1 || echo "smoke exit $?" >> ci/mac_smoke.log
+          tail -40 ci/mac_smoke.log
+          $A --windowed --resolution 1280x720 -- --padcheck > ci/mac_padcheck.log 2>&1 || true
+          tail -5 ci/mac_padcheck.log
+          $A --windowed --resolution 1280x720 -- --benchmark --preset High > ci/mac_benchmark.log 2>&1 || echo "benchmark exit $?" >> ci/mac_benchmark.log
+          tail -12 ci/mac_benchmark.log
+          cp ~/Library/Logs/CapitalGame/game.log ci/mac_game.log 2>/dev/null || true
           cp ~/Library/Logs/CapitalGame/benchmark.json ci/ 2>/dev/null || true
           grep -q "smoke: ok" ci/mac_smoke.log
       - name: Publish to the capital-latest pre-release

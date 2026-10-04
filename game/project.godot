@@ -108,6 +108,10 @@ wind={
 "type": "vec4",
 "value": Vector4(1, 0, 0.4, 0)
 }
+horizon_fog={
+"type": "vec4",
+"value": Vector4(0.55, 0.62, 0.72, 0.00005)
+}
 night={
 "type": "float",
 "value": 0.0

@@ -27,7 +27,7 @@ func start(segs: Array) -> void:
 		segments = segments.filter(func(s): return s["name"] == only)
 	cam = Camera3D.new()
 	cam.name = "BenchCam"
-	cam.far = 30000.0
+	cam.far = 160000.0
 	cam.near = 0.1
 	cam.fov = Settings.fov
 	G.main.add_child(cam)
