@@ -9,6 +9,7 @@ import simd
 //   tower    a hollow 5x5 tower 30 high; its base is blasted on one side: it breaks above the base and topples
 //   stands   a hollow 5x5 tower 60 high with a balcony on one side (heavier than its base bears, lopsided): one block
 //            mined at its foot and a small blast in its wall bring nothing down
+//   desert   blasts in a real desert (sand over the sandstone sheet): terrain never falls, the search stays small
 //   frigate  a Capital frigate cut through its middle by a ring of blasts: it breaks in two, both halves fall, settle
 //            and stay as wrecks
 //   dropship a dropship shot down over the plains: it falls, crashes and stays as a wreck (no vanishing fireball)
@@ -39,7 +40,7 @@ enum CollapseCheck {
         let out = arg("--out") ?? "snaps"
         try? FileManager.default.createDirectory(atPath: out, withIntermediateDirectories: true)
         let seed = UInt64(arg("--seed") ?? "") ?? 12345
-        let names = (arg("--scenes") ?? "bridge,mine,tower,stands,frigate,wreck,dropship").split(separator: ",").map(String.init)
+        let names = (arg("--scenes") ?? "bridge,mine,tower,stands,desert,frigate,wreck,dropship").split(separator: ",").map(String.init)
         let r = RideCheck.Report()
         r.md = ["# Collapse check", "", "Seed \(seed). Destruction physics and persistent wrecks through Game.tick.", ""]
         let t0 = CFAbsoluteTimeGetCurrent()
@@ -139,6 +140,16 @@ enum CollapseCheck {
             st.mine = [IVec3(o.x - 2, o.y, o.z)]
             st.blasts = [(V3(Float(o.x) + 0.5, Float(o.y + 20) + 0.5, Float(o.z + 3) + 0.2), 2)]
             st.view = (V3(Float(o.x + 4), Float(o.y + 20), Float(o.z + 60)), 0, 0.3)
+        case "desert":
+            guard let p = Snapshot.findBiome(w.gen, "desert", interior: true) else { return false }
+            let x = Int(floor(p.x)), z = Int(floor(p.z))
+            _ = w.loadSync(center: V3(Float(x), 100, Float(z)), radius: 5)
+            let top = w.topY(x, z)
+            st.origin = IVec3(x, top + 1, z)
+            st.blasts = [(V3(Float(x) + 0.5, Float(top - 2), Float(z) + 0.5), 4), (V3(Float(x + 7) + 0.5, Float(top), Float(z) + 0.5), 4),
+                         (V3(Float(x) + 0.5, Float(top - 5), Float(z + 7) + 0.5), 4)]
+            st.box = (IVec3(x - 20, top - 14, z - 20), IVec3(x + 20, top + 6, z + 20))
+            st.view = (V3(Float(x), Float(top + 1), Float(z + 30)), 0, -0.1)
         case "frigate":
             // A Capital frigate hovering low over the plains, cut through amidships by a ring of blasts.
             w.ships.spawnCapital("capfrigate", home: IVec3(o.x, 0, o.z), yaw: 0.4, region: nil, sync: true)
@@ -290,6 +301,9 @@ enum CollapseCheck {
             r.check(ms.hullSplits >= 1, "the cut hull breaks in two (\(ms.hullSplits) splits)")
             r.check(halfY0 - lowest > 20, String(format: "the severed half falls (%.0f blocks)", halfY0 - lowest))
             r.check(ms.capitals.isEmpty && ms.wrecks.count >= 2, "both halves come down and stay as wrecks (\(ms.wrecks.count) wrecks, \(ms.capitals.count) still flying)")
+        case "desert":
+            r.check(maxBodies == 0, "terrain blasts bring nothing down (\(maxBodies) debris bodies)")
+            r.check(ms.collapseMs < 8, String(format: "the support search round the craters stays small (%.1f ms)", ms.collapseMs))
         case "stands":
             r.check(built0 > 0 && left == built0, "the tower stands (\(left) of \(built0) floor blocks left)")
             r.check(maxBodies == 0, "nothing falls (\(maxBodies) debris bodies)")
