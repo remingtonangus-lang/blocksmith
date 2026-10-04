@@ -8,10 +8,10 @@ extends RefCounted
 const SPECIES := {
 	"ponderosa": {"height": [16.0, 26.0], "trunk_r": 0.32, "levels": 2, "branches": [26, 5], "start": 0.38,
 		"angle": [72.0, 45.0], "len": [0.28, 0.35], "droop": 0.25, "crown": "cone_round", "leaf": "needles",
-		"card": [0.95, 0.75], "cards_per_tip": 3, "fill": 756, "bark": "pine", "leaf_tint": Color(0.36, 0.42, 0.22), "curve": 0.04},
+		"card": [0.75, 0.6], "cards_per_tip": 3, "fill": 1100, "bark": "pine", "leaf_tint": Color(0.36, 0.42, 0.22), "curve": 0.04},
 	"fir": {"height": [12.0, 22.0], "trunk_r": 0.26, "levels": 2, "branches": [40, 4], "start": 0.12,
 		"angle": [88.0, 40.0], "len": [0.22, 0.4], "droop": 0.45, "crown": "cone", "leaf": "needles",
-		"card": [0.9, 0.65], "cards_per_tip": 3, "fill": 936, "bark": "pine", "leaf_tint": Color(0.18, 0.28, 0.17), "curve": 0.02},
+		"card": [0.7, 0.55], "cards_per_tip": 3, "fill": 1300, "bark": "pine", "leaf_tint": Color(0.18, 0.28, 0.17), "curve": 0.02},
 	"cottonwood": {"height": [13.0, 20.0], "trunk_r": 0.45, "levels": 3, "branches": [7, 5, 4], "start": 0.3,
 		"angle": [38.0, 42.0, 45.0], "len": [0.55, 0.5, 0.45], "droop": 0.08, "crown": "round", "leaf": "broad",
 		"card": [1.2, 1.0], "cards_per_tip": 2, "fill": 936, "bark": "cottonwood", "leaf_tint": Color(0.86, 0.68, 0.18), "curve": 0.18},
@@ -376,8 +376,8 @@ static func _paint_needles(img: Image, ox: int, oy: int, cell: int, r: RandomNum
 		var t := r.randf_range(0.02, 1.0)
 		var p := base.lerp(tip, t)
 		for j in 7:
-			var ang := r.randf_range(-PI, 0.0) + r.randf_range(-0.3, 0.3)
-			var ln := r.randf_range(cell * 0.18, cell * 0.36) * (1.0 - t * 0.35)
+			var ang := r.randf_range(-PI, PI)
+			var ln := r.randf_range(cell * 0.10, cell * 0.24) * (1.0 - t * 0.4)
 			var e := p + Vector2(cos(ang), sin(ang)) * ln
 			var g := r.randf_range(0.55, 0.95)
 			_line(img, p, e, 0.9, Color(g, g * 1.04, g * 0.85, 0.95), clip)

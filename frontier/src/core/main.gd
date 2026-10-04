@@ -10,6 +10,7 @@ var camera: Camera3D
 var water: Node3D
 var vegetation: Node3D
 var settlements: Node3D
+var scatter: Node3D
 
 func _ready() -> void:
 	Game.main = self
@@ -53,6 +54,10 @@ func _ready() -> void:
 	add_child(vegetation)
 	vegetation.setup(world, camera)
 	print("boot: %s %d ms" % ["vegetation", Time.get_ticks_msec() - t0])
+	scatter = load("res://src/world/scatter.gd").new()
+	scatter.name = "Scatter"
+	add_child(scatter)
+	scatter.setup(world, camera)
 	settlements = load("res://src/world/settlements.gd").new()
 	settlements.name = "Settlements"
 	add_child(settlements)

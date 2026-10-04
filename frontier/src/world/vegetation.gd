@@ -442,7 +442,7 @@ func _setup_grass() -> void:
 		var rot := r.randf() * TAU
 		var b := Basis(Vector3.UP, rot).scaled(Vector3(s, s, s))
 		base.append_array([b.x.x, b.y.x, b.z.x, x, b.x.y, b.y.y, b.z.y, 0.0, b.x.z, b.y.z, b.z.z, z, r.randf(), r.randf(), 0, 0])
-	var meshes := [_grass_clump(9, 4), _grass_clump(7, 3), _grass_clump(5, 2)]
+	var meshes := [_grass_clump(13, 3), _grass_clump(9, 3), _grass_clump(6, 2)]
 	for li in 3:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -468,12 +468,12 @@ func _grass_clump(blades: int, segs: int) -> ArrayMesh:
 	r.seed = blades * 31 + segs
 	for b in blades:
 		var ang := r.randf() * TAU
-		var off := Vector3(cos(ang), 0, sin(ang)) * r.randf_range(0.0, 0.22)
+		var off := Vector3(cos(ang), 0, sin(ang)) * r.randf_range(0.0, 0.32)
 		var facing := r.randf() * TAU
 		var dir := Vector3(cos(facing), 0, sin(facing))
 		var side := Vector3(-dir.z, 0, dir.x)
-		var h := r.randf_range(0.35, 0.75)
-		var w := r.randf_range(0.025, 0.045)
+		var h := r.randf_range(0.25, 0.7)
+		var w := r.randf_range(0.014, 0.03)
 		var lean := r.randf_range(0.1, 0.45)
 		var prev_l := Vector3.ZERO
 		var prev_r := Vector3.ZERO
@@ -497,6 +497,7 @@ func _grass_clump(blades: int, segs: int) -> ArrayMesh:
 				st.set_normal(n); st.set_color(col1); st.set_uv(Vector2(0, 1.0 - t)); st.add_vertex(l)
 			prev_l = l
 			prev_r = rr
+	st.index()
 	var m := st.commit()
 	m.custom_aabb = AABB(Vector3(-1, -2, -1), Vector3(GRASS_CELL + 2, 2000, GRASS_CELL + 2))
 	return m

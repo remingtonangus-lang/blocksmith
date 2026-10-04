@@ -67,10 +67,13 @@ func _shot(path: String, x, z, up: float, yaw: float, pitch: float, hour: float,
 	if weather != "":
 		main.sky.set_weather(SkySystem.Weather.get(weather.to_upper(), SkySystem.Weather.FAIR), true)
 	main.sky.paused = true
+	main.sky.cam_attr.auto_exposure_speed = 30.0     # converge within the few frames a shot renders
 	var t0 := Time.get_ticks_msec()
 	# let streaming (tree chunks, collision, grass) settle before counting frames
 	var veg = main.vegetation
 	await get_tree().process_frame
+	if main.scatter != null:
+		main.scatter.settle_now()
 	if veg != null and veg.has_method("settle_now"):
 		veg.settle_now()
 		var inst := 0

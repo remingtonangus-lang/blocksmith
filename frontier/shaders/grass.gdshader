@@ -65,17 +65,19 @@ void vertex() {
 	VERTEX = v;
 	VERTEX.y += (h - root.y) / max(length(MODEL_MATRIX[1].xyz), 0.01);
 	// colour: dry gold -> green with moisture; sun-bleached tips; desert tufts grey-green
-	vec3 dry = vec3(0.72, 0.60, 0.36);
-	vec3 green = vec3(0.30, 0.38, 0.14);
-	vec3 desert = vec3(0.62, 0.58, 0.44);
+	vec3 dry = vec3(0.30, 0.22, 0.085);
+	vec3 green = vec3(0.075, 0.12, 0.035);
+	vec3 desert = vec3(0.22, 0.20, 0.13);
 	vec3 col = mix(dry, green, smoothstep(0.45, 0.9, moist + (n - 0.5) * 0.3));
 	col = mix(desert, col, smoothstep(0.15, 0.4, biome));
 	col *= 0.85 + 0.3 * INSTANCE_CUSTOM.y;
-	col = mix(col * 0.55, col * 1.12 + vec3(0.06, 0.05, 0.0), t);
+	col = mix(col * 0.45, col * 1.25 + vec3(0.025, 0.02, 0.0), t);
 	v_col = col * (1.0 - wetness * 0.25);
 }
 
 void fragment() {
+	// grass is lit like the ground it covers: up-facing normals on both faces (no dark/white undersides)
+	NORMAL = normalize((VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
 	ALBEDO = v_col;
 	ROUGHNESS = 0.85 - wetness * 0.4;
 	AO = mix(0.45, 1.0, v_t);
