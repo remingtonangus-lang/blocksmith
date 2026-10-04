@@ -14,10 +14,10 @@ void main() {
         float t = u.params.z;
         float n = vnoise(q * 3.0 + vec2(t * 0.01, 0.0)) * 0.6 + vnoise(q * 9.0 - vec2(0.0, t * 0.015)) * 0.4;
         float streak = smoothstep(0.55, 0.85, vnoise(vec2(q.x * 1.5, q.y * 7.0) + 11.0));
-        outColor = vec4(u.horizon.rgb * (0.85 + 0.3 * n) + vec3(0.035, 0.015, 0.05) * streak, 1.0);
+        outColor = finalColor(vec4(u.horizon.rgb * (0.85 + 0.3 * n) + vec3(0.035, 0.015, 0.05) * streak, 1.0));
         return;
     }
-    if (u.misc.x < 0.5) { outColor = vec4(u.horizon.rgb, 1.0); return; }
+    if (u.misc.x < 0.5) { outColor = finalColor(vec4(u.horizon.rgb, 1.0)); return; }
     float h = clamp(d.y * 1.25, 0.0, 1.0);
     h = h * h * (3.0 - 2.0 * h);
     vec3 col = mix(u.horizon.rgb, u.zenith.rgb, h);
@@ -40,5 +40,5 @@ void main() {
     }
     float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
     col += (ign - 0.5) / 255.0;
-    outColor = vec4(col, 1.0);
+    outColor = finalColor(vec4(col, 1.0));
 }

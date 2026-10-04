@@ -11,7 +11,9 @@ final class WorldRenderer {
     private var caveK: Float = -1
     var extraOpaque: ((SceneRenderer.Slot, V3) -> Void)?     // hands, rays, panels (the XR layer)
     var extraOverlay: ((SceneRenderer.Slot, V3) -> Void)?    // drawn last (panels over everything)
+    var prePass: ((SceneRenderer.Slot) -> Void)?              // offscreen passes before the world pass (the HUD panel)
     private(set) var frameCPUMs = 0.0
+    private var camYaw: Float = 0, camPitch: Float = 0
 
     init(scene: SceneRenderer, game: Game) {
         self.scene = scene
@@ -58,7 +60,7 @@ final class WorldRenderer {
         u.starRot = rotationZ(Float(game.dayFraction * 2 * .pi))
         u.starTint = V4(1, 1, 1, simd_clamp((0.6 - daylight) / 0.35, 0, 1))
         let skyKind: Float = underwater || game.blindFog != nil ? 0 : (hasSky ? 1 : (game.dim.dim == .end ? 2 : 0))
-        u.misc = V4(skyKind, 1, 0, 0)
+        u.misc = V4(skyKind, 1, scene.linearOutput ? 2.2 : 1, 0)
         let clear = game.blindFog != nil ? V3(0, 0, 0) : (p.headInLava ? Game.lavaFog : (underwater ? game.underwaterFog : sky))
         return (u, clear)
     }
@@ -74,9 +76,11 @@ final class WorldRenderer {
         let frustum = Frustum(cam.cullViewProj * translationMatrix(-eye))
         scene.cull(game.world, eye: eye, frustum: frustum)
         scene.writeRecords(s, eye: eye)
+        prePass?(s)
         scene.beginPass(s, t, clear: clear)
         scene.drawOpaque(s)
         drawMobs(s, eye)
+        camYaw = cam.yaw; camPitch = cam.pitch
         drawEntities(s, eye)
         drawOutline(s, eye)
         extraOpaque?(s, eye)
@@ -126,7 +130,7 @@ final class WorldRenderer {
         let (ptr, off, cap) = scene.reserve(s, EntityVert.self)
         guard cap > 64 else { return }
         var wr = EntityWriter(out: ptr, capacity: cap)
-        let yaw = game.player.yaw, pitch = game.player.pitch
+        let yaw = camYaw, pitch = camPitch
         let look = V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch))
         let right = V3(cosf(yaw), 0, -sinf(yaw))
         let up = simd_normalize(simd_cross(right, look))

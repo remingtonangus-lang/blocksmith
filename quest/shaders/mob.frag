@@ -34,5 +34,5 @@ void main() {
     } else {
         c *= 0.95 + 0.04 * h + 0.04 * (hf - 0.5);
     }
-    outColor = vec4(applyFog(c * oShade, oDist), 1.0);
+    outColor = finalColor(vec4(applyFog(c * oShade, oDist), 1.0));
 }

@@ -75,12 +75,17 @@ final class SceneRenderer {
         var fence: VkFence!
         var submitted = 0              // MeshArena frame number
         var inUse = false
+        var queryBase: UInt32 = 0
+        var timed = false
     }
     private var slots: [Slot] = []
     private var slotIdx = 0
     static let recordCap = 1 << 16
     static let scratchSize = 8 << 20
     private var tintSets: [ObjectIdentifier: VkDescriptorSet] = [:]
+    private var queryPool: VkQueryPool?
+    private var tsPeriod: Double = 0           // ns per timestamp tick
+    private(set) var gpuMs = 0.0               // last completed frame's GPU time
 
     // Stats (last frame).
     private(set) var drawCalls = 0
@@ -88,6 +93,9 @@ final class SceneRenderer {
     private(set) var visibleCount = 0
     private(set) var cullMs = 0.0
     var caveCulling = true
+    // The swapchain is sRGB: shaders compute display (gamma) values like the Mac, so they write them back to linear.
+    var linearOutput = false
+    static func isSRGB(_ f: VkFormat) -> Bool { f == VK_FORMAT_R8G8B8A8_SRGB || f == VK_FORMAT_B8G8R8A8_SRGB }
 
     init(ctx: VkContext, device: QuestDevice, views: Int, colorFormat: VkFormat) throws {
         self.ctx = ctx
@@ -99,7 +107,25 @@ final class SceneRenderer {
         try makeRenderPass()
         try makePipelines()
         try makeStaticBuffers()
-        for _ in 0..<2 { slots.append(try makeSlot()) }
+        for i in 0..<2 { let sl = try makeSlot(); sl.queryBase = UInt32(i * 2); slots.append(sl) }
+        // A 1x1 placeholder array until the block textures are uploaded (the loading scene binds set 0 too).
+        let ph = try VkImg(ctx, width: 1, height: 1, layers: 1, format: VK_FORMAT_R8G8B8A8_UNORM,
+                           usage: VK_IMAGE_USAGE_SAMPLED_BIT.rawValue | VK_IMAGE_USAGE_TRANSFER_DST_BIT.rawValue)
+        try ctx.oneShot { cb in
+            vkBarrier(cb, ph.image, from: VK_IMAGE_LAYOUT_UNDEFINED, to: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                      srcAccess: 0, dstAccess: VK_ACCESS_SHADER_READ_BIT.rawValue,
+                      srcStage: VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT.rawValue, dstStage: VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT.rawValue)
+        }
+        texture = ph
+        for sl in slots { writeSet0(sl) }
+        if ctx.props.limits.timestampComputeAndGraphics != 0 {
+            var qi = VkQueryPoolCreateInfo()
+            qi.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO
+            qi.queryType = VK_QUERY_TYPE_TIMESTAMP
+            qi.queryCount = 4
+            var qp: VkQueryPool?
+            if vkCreateQueryPool(ctx.device, &qi, nil, &qp) == VK_SUCCESS { queryPool = qp; tsPeriod = Double(ctx.props.limits.timestampPeriod) }
+        }
     }
 
     static func pickDepth(_ ctx: VkContext) -> VkFormat {
@@ -233,7 +259,7 @@ final class SceneRenderer {
         renderPass = rp!
     }
 
-    enum Input { case none, chunk, simple, mob, entity }
+    enum Input { case none, chunk, simple, mob, entity, hud }
     struct PipeDesc {
         var vert: String, frag: String
         var input: Input = .none
@@ -280,6 +306,12 @@ final class SceneRenderer {
             bindings = [VkVertexInputBindingDescription(binding: 0, stride: 32, inputRate: vtx)]
             attrs = [VkVertexInputAttributeDescription(location: 0, binding: 0, format: f4, offset: 0),
                      VkVertexInputAttributeDescription(location: 1, binding: 0, format: f4, offset: 16)]
+        case .hud:
+            bindings = [VkVertexInputBindingDescription(binding: 0, stride: 48, inputRate: vtx)]
+            attrs = [VkVertexInputAttributeDescription(location: 0, binding: 0, format: VK_FORMAT_R32G32_SFLOAT, offset: 0),
+                     VkVertexInputAttributeDescription(location: 1, binding: 0, format: VK_FORMAT_R32G32_SFLOAT, offset: 8),
+                     VkVertexInputAttributeDescription(location: 2, binding: 0, format: f4, offset: 16),
+                     VkVertexInputAttributeDescription(location: 3, binding: 0, format: f4, offset: 32)]
         case .mob, .entity:
             bindings = [VkVertexInputBindingDescription(binding: 0, stride: 48, inputRate: vtx)]
             attrs = [VkVertexInputAttributeDescription(location: 0, binding: 0, format: f4, offset: 0),
@@ -371,6 +403,7 @@ final class SceneRenderer {
             "entity": PipeDesc(vert: "entity.vert", frag: "entity.frag", input: .entity, cull: none),
             "crack": PipeDesc(vert: "entity.vert", frag: "crack.frag", input: .entity, blend: true, depthWrite: false, compare: le, cull: none),
             "panel": PipeDesc(vert: "panel.vert", frag: "panel.frag", blend: true, depthWrite: false, compare: le, cull: none),
+            "panelVignette": PipeDesc(vert: "simple.vert", frag: "simple.frag", input: .simple, blend: true, depthTest: false, depthWrite: false, cull: none),
             "panelTop": PipeDesc(vert: "panel.vert", frag: "panel.frag", blend: true, depthTest: false, depthWrite: false, cull: none),
         ]
         for (k, d) in defs { pipes[k] = try makePipeline(d) }
@@ -425,7 +458,8 @@ final class SceneRenderer {
     }
 
     // Block texture array: every layer TextureGen paints, with the CPU-built mip chain (uploaded in batches).
-    func uploadTextures() throws {
+    // `pregenerated`: TextureGen.mipChain() for every layer, built on a loading thread (the queue stays on this one).
+    func uploadTextures(pregenerated: [[UInt8]]? = nil) throws {
         TextureGen.registerAll()
         let layers = Tex.count, size = TextureGen.size
         var levels = 1
@@ -442,8 +476,8 @@ final class SceneRenderer {
         let batch = 256
         var first = 0
         while first < layers {
-            let range = first..<min(layers, first + batch)
-            let data = TextureGen.mipChain(layers: range)
+            let range = pregenerated != nil ? 0..<layers : first..<min(layers, first + batch)
+            let data = pregenerated ?? TextureGen.mipChain(layers: range)
             var total = 0
             for (lvl, d) in data.enumerated() where lvl < levels { total += d.count }
             let staging = try VkBuf(ctx, size: total, usage: VK_BUFFER_USAGE_TRANSFER_SRC_BIT.rawValue, host: true)
@@ -471,6 +505,7 @@ final class SceneRenderer {
                       srcAccess: VK_ACCESS_TRANSFER_WRITE_BIT.rawValue, dstAccess: VK_ACCESS_SHADER_READ_BIT.rawValue,
                       srcStage: VK_PIPELINE_STAGE_TRANSFER_BIT.rawValue, dstStage: VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT.rawValue)
         }
+        waitIdle()                          // frames in flight may still sample the placeholder
         texture = img
         print(String(format: "textures: %d layers at %d px, RGBA8, %.1f MB with mips (%.0f ms)", layers, size,
                      Double(bytes) / 1_048_576, (CFAbsoluteTimeGetCurrent() - t0) * 1000))
@@ -517,7 +552,7 @@ final class SceneRenderer {
         w[1].descriptorCount = 1
         w[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
         w[1].pImageInfo = a.ptr(ii)
-        vkUpdateDescriptorSets(ctx.device, texture == nil ? 1 : 2, w, 0, nil)
+        vkUpdateDescriptorSets(ctx.device, 2, w, 0, nil)
     }
 
     // A storage-buffer set for a tint slab (cached; slabs live for the process).
@@ -571,6 +606,12 @@ final class SceneRenderer {
             vkWaitForFences(ctx.device, 1, &f, 1, UInt64.max)
             MeshArena.frameCompleted(s.submitted)
             s.inUse = false
+            if s.timed, let qp = queryPool {
+                var ts = [UInt64](repeating: 0, count: 2)
+                if vkGetQueryPoolResults(ctx.device, qp, s.queryBase, 2, 16, &ts, 8, VK_QUERY_RESULT_64_BIT.rawValue) == VK_SUCCESS, ts[1] > ts[0] {
+                    gpuMs = Double(ts[1] - ts[0]) * tsPeriod / 1e6
+                }
+            }
         }
         var f: VkFence? = s.fence
         vkResetFences(ctx.device, 1, &f)
@@ -579,6 +620,11 @@ final class SceneRenderer {
         bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
         bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT.rawValue
         vkBeginCommandBuffer(s.cmd, &bi)
+        if let qp = queryPool {
+            vkCmdResetQueryPool(s.cmd, qp, s.queryBase, 2)
+            vkCmdWriteTimestamp(s.cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, qp, s.queryBase)
+            s.timed = true
+        }
         return s
     }
 
@@ -611,6 +657,7 @@ final class SceneRenderer {
     }
 
     func submit(_ s: Slot) throws {
+        if let qp = queryPool { vkCmdWriteTimestamp(s.cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, qp, s.queryBase + 1) }
         vkEndCommandBuffer(s.cmd)
         s.submitted = MeshArena.frameSubmitted()
         var si = VkSubmitInfo()

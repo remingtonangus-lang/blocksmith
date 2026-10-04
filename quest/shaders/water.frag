@@ -31,5 +31,5 @@ void main() {
         a = mix(a, 1.0, fres * 0.55);
     }
     float f = smoothstep(u.fogColor.w, u.params.x, oDist);
-    outColor = vec4(mix(rgb, fogColorAlong(oRel), f), mix(a, 1.0, f * 0.8));
+    outColor = finalColor(vec4(mix(rgb, fogColorAlong(oRel), f), mix(a, 1.0, f * 0.8)));
 }

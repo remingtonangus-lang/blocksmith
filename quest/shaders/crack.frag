@@ -9,5 +9,5 @@ layout(location = 0) out vec4 outColor;
 void main() {
     vec4 c = textureLod(tex, vec3(oUV, oLayer), 0.0);
     if (c.a < 0.1) { discard; }
-    outColor = vec4(c.rgb * oColor.rgb, c.a * oColor.a);
+    outColor = finalColor(vec4(c.rgb * oColor.rgb, c.a * oColor.a));
 }

@@ -16,5 +16,5 @@ void main() {
     vec4 c = texture(tex, vec3(uv, oLayer));
     if (oAnim > 0.5) { c.rgb = lavaGlow(c.rgb, oRel); }
     vec3 t = (oOverlay > 0.5 && c.a > 0.95) ? vec3(1.0) : oTint;
-    outColor = vec4(applyFogDir(waterAmbient(c.rgb * t * oShade, c.rgb * t), oRel, oDist), 1.0);
+    outColor = finalColor(vec4(applyFogDir(waterAmbient(c.rgb * t * oShade, c.rgb * t), oRel, oDist), 1.0));
 }

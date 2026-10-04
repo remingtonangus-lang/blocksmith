@@ -1,0 +1,57 @@
+import Foundation
+#if os(Android)
+import CAndroidGlue
+#endif
+
+// Plays the software mixer (QuestSound.swift) through AAudio on the headset: a low-latency float stereo stream whose
+// callback pulls frames from SoundEngine.render. No-op elsewhere.
+final class QuestAudioOutput {
+    static let shared = QuestAudioOutput()
+    fileprivate var engine: SoundEngine?
+    #if os(Android)
+    private var stream: OpaquePointer?
+    #endif
+
+    func start(_ e: SoundEngine?) {
+        engine = e
+        #if os(Android)
+        guard stream == nil, e != nil else { return }
+        var builder: OpaquePointer?
+        guard AAudio_createStreamBuilder(&builder) == AAUDIO_OK, let b = builder else { print("audio: no stream builder"); return }
+        AAudioStreamBuilder_setFormat(b, aaudio_format_t(AAUDIO_FORMAT_PCM_FLOAT))
+        AAudioStreamBuilder_setChannelCount(b, 2)
+        AAudioStreamBuilder_setSampleRate(b, Int32(SoundBank.rate))
+        AAudioStreamBuilder_setPerformanceMode(b, aaudio_performance_mode_t(AAUDIO_PERFORMANCE_MODE_LOW_LATENCY))
+        AAudioStreamBuilder_setSharingMode(b, aaudio_sharing_mode_t(AAUDIO_SHARING_MODE_SHARED))
+        AAudioStreamBuilder_setDataCallback(b, { _, user, data, frames in
+            guard let user, let data else { return aaudio_data_callback_result_t(AAUDIO_CALLBACK_RESULT_CONTINUE) }
+            let out = Unmanaged<QuestAudioOutput>.fromOpaque(user).takeUnretainedValue()
+            let p = data.assumingMemoryBound(to: Float.self)
+            if let e = out.engine { e.render(p, frames: Int(frames)) } else { p.initialize(repeating: 0, count: Int(frames) * 2) }
+            return aaudio_data_callback_result_t(AAUDIO_CALLBACK_RESULT_CONTINUE)
+        }, Unmanaged.passUnretained(self).toOpaque())
+        var s: OpaquePointer?
+        let r = AAudioStreamBuilder_openStream(b, &s)
+        AAudioStreamBuilder_delete(b)
+        guard r == AAUDIO_OK, let st = s else { print("audio: openStream failed \(r)"); return }
+        stream = st
+        let sr = AAudioStream_getSampleRate(st)
+        AAudioStream_requestStart(st)
+        print("audio: AAudio stream started, \(sr) Hz, burst \(AAudioStream_getFramesPerBurst(st)) frames")
+        #endif
+    }
+
+    func pause(_ on: Bool) {
+        #if os(Android)
+        guard let st = stream else { return }
+        if on { AAudioStream_requestPause(st) } else { AAudioStream_requestStart(st) }
+        #endif
+    }
+
+    func stop() {
+        #if os(Android)
+        if let st = stream { AAudioStream_requestStop(st); AAudioStream_close(st); stream = nil }
+        #endif
+        engine = nil
+    }
+}

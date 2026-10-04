@@ -14,6 +14,24 @@ func check(_ ok: Bool, _ what: String) {
 setvbuf(stdout, nil, _IOLBF, 0)
 
 let seed: UInt64 = 12345
+// --xr SECONDS: the real Quest app loop (QuestApp) against the desktop OpenXR runtime (Monado), then exit.
+if let secs = Double(arg("--xr") ?? "") {
+    let tmpXR = FileManager.default.temporaryDirectory.appendingPathComponent("questxr-\(getpid())")
+    QuestPaths.setDataRoot(tmpXR.path)
+    do {
+        let xr = try XRSession(platform: XRPlatform())
+        let app = try QuestApp(xr: xr)
+        let start = CFAbsoluteTimeGetCurrent()
+        var frames = 0
+        while CFAbsoluteTimeGetCurrent() - start < secs {
+            if !app.frame() { break }
+            frames += 1
+        }
+        print("xr: \(frames) frames in \(String(format: "%.1f", CFAbsoluteTimeGetCurrent() - start)) s; world loaded: \(app.game != nil)")
+        app.shutdown()
+        exit(app.game != nil ? 0 : 1)
+    } catch { print("FAIL xr: \(error)"); exit(1) }
+}
 // --render OUT.png: build the world on a Vulkan device (lavapipe on Linux) and render a stereo frame through the
 // Quest renderer; otherwise meshes go to host memory.
 let renderPath = arg("--render")

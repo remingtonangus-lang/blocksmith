@@ -16,8 +16,8 @@ for m in simd os Metal; do
   swiftc -parse-as-library -swift-version 5 $OPT -module-name $m -emit-module -emit-module-path "$OUT/$m.swiftmodule" \
     -emit-library -static -o "$OUT/lib$m.a" -I "$OUT" quest/shims/$m/*.swift
 done
-SRCS="$(quest/tools/sources.sh) $(ls quest/src/common/*.swift quest/src/vk/*.swift quest/src/test/*.swift quest/src/headless/*.swift) $GEN/HudGenerated.swift $GEN/QuestSPIRV.swift"
-INC="-I $OUT -I quest/c/CZlib -I quest/c/CVulkan"
+SRCS="$(quest/tools/sources.sh) $(ls quest/src/common/*.swift quest/src/vk/*.swift quest/src/xr/*.swift quest/src/app/*.swift quest/src/test/*.swift quest/src/headless/*.swift) $GEN/HudGenerated.swift $GEN/QuestSPIRV.swift"
+INC="-I $OUT -I quest/c/CZlib -I quest/c/CVulkan -I quest/c/COpenXR -Xcc -I${OPENXR_INCLUDE:-/opt/openxr/include}"
 if [ "$MODE" = typecheck ]; then
   swiftc -typecheck -swift-version 5 -module-name Blocksmith $INC -D QUEST_HEADLESS $SRCS
 else

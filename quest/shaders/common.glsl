@@ -13,7 +13,7 @@ layout(set = 0, binding = 0, std140) uniform Frame {
     vec4 horizon;          // sky: rgb horizon (= fog), w = sun glow
     mat4 starRot;
     vec4 starTint;
-    vec4 misc;             // x = sky kind (0 none, 1 overworld dome, 2 hollow), y = panel alpha
+    vec4 misc;             // x = sky kind (0 none, 1 overworld dome, 2 hollow), y = panel alpha, z = output gamma (2.2 sRGB target)
 } u;
 
 layout(set = 0, binding = 1) uniform sampler2DArray tex;
@@ -58,3 +58,6 @@ vec3 lavaGlow(vec3 c, vec3 rel) {
     float n = vnoise(w * 0.45 + vec2(t * 0.11, t * 0.07)) * 0.65 + vnoise(w * 1.3 - vec2(t * 0.05, t * 0.13)) * 0.35;
     return c * (0.78 + 0.5 * n) + vec3(0.12, 0.05, 0.0) * smoothstep(0.62, 0.9, n);
 }
+
+// Every world shader computes display (gamma-space) colours like the Mac; an sRGB swapchain stores linear values.
+vec4 finalColor(vec4 c) { return vec4(pow(max(c.rgb, vec3(0.0)), vec3(u.misc.z)), c.a); }
