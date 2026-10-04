@@ -202,6 +202,8 @@ extension ShipManager {
     // quarter); tipped ones fall back to each block's plain state.
     @discardableResult
     func bake(_ s: Ship, game: Game?, settle: Bool = true) -> Int {
+        let t0 = CFAbsoluteTimeGetCurrent()
+        defer { worstBakeMs = max(worstBakeMs, (CFAbsoluteTimeGetCurrent() - t0) * 1000) }
         for t in list where t.parent === s { bake(t, game: game, settle: settle) }
         let w = world
         let g = s.grid
@@ -289,6 +291,8 @@ extension ShipManager {
     // A capital hull cut through (its spine shot away): every part not joined to the largest one comes away as a
     // free-moving body (the hull grid is labelled once, a while after the last blast on it).
     func splitHull(_ s: Ship, game: Game?) {
+        let t0 = CFAbsoluteTimeGetCurrent()
+        defer { worstSplitMs = max(worstSplitMs, (CFAbsoluteTimeGetCurrent() - t0) * 1000) }
         let g = s.grid
         let sx = g.sx, sy = g.sy, sz = g.sz
         let n = sx * sy * sz

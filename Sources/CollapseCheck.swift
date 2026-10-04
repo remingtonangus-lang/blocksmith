@@ -326,6 +326,7 @@ enum CollapseCheck {
         let ms = w.ships
         r.note(String(format: "blasts %.0f ms; %ld collapses, %ld hull splits, up to %ld debris bodies, %ld blocks laid back; tick mean %.2f p95 %.2f worst %.1f ms over %ld ticks; last analysis %.1f ms",
                       blastMs, ms.collapses, ms.hullSplits, maxBodies, ms.bakedBlocks, mean, p95, worst, ticks.count, ms.collapseMs))
+        r.note(String(format: "slowest laying-down %.1f ms, slowest hull split %.1f ms", ms.worstBakeMs, ms.worstSplitMs))
         let left = st.watch.filter { Collapse.built(w.rawBlock($0.x, $0.y, $0.z)) }.count
         switch name {
         case "frigate":

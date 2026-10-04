@@ -622,6 +622,8 @@ final class ShipManager {
     var collapseQueue: [([IVec3], V3?)] = []   // blast holes waiting for their support check (one check per frame)
     var collapseMs: Double = 0       // the last support analysis (harness)
     var settleQueue: [IVec3] = []    // blocks of debris just laid down, checked next frame (Debris.swift)
+    var worstBakeMs: Double = 0      // the slowest laying-down of a body (harness)
+    var worstSplitMs: Double = 0     // the slowest hull split check (harness)
     var collapses = 0                // analyses that set something falling
     var bakedBlocks = 0              // blocks laid back into the world
     var hullSplits = 0               // capital hulls cut into pieces
