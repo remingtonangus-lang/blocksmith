@@ -1903,6 +1903,7 @@ final class Game {
     private func advance(_ dt: Double) {
         if coop.current > 0 { coopAdvance(dt); return }       // a second seat: only its own share (Coop.swift)
         world.ships.update(Float(dt), game: self)
+        FlightCrew.tick(self)                                  // seated aircraft crews (Aircraft.swift)
         mobs.update(Float(dt), game: self)
         drops.update(Float(dt), game: self)
         projectiles.update(Float(dt), game: self)

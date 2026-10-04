@@ -10,9 +10,10 @@ import simd
 //                        Options > Controller > Flight Stick)
 //   any                  A climb, B leave the helm
 enum VehicleControls {
-    enum Kind { case boat, land, airship, aircraft }
+    enum Kind { case boat, land, airship, aircraft, helicopter }
 
     static func kind(_ s: Ship) -> Kind {
+        if !s.rotors.isEmpty { return .helicopter }
         if !s.wings.isEmpty && s.balloons == 0 { return .aircraft }
         if s.balloons > 0 { return .airship }
         if !s.wheels.isEmpty && s.submerged <= 0.01 { return .land }
@@ -24,6 +25,7 @@ enum VehicleControls {
         case .land: return "Land Vehicle"
         case .airship: return "Airship"
         case .aircraft: return "Aircraft"
+        case .helicopter: return "Helicopter"
         }
     }
 
@@ -53,6 +55,8 @@ enum VehicleControls {
             case .aircraft:
                 throttle = keysForward + trig
                 climb += Settings.shared.flightInverted ? -ls.y : ls.y
+            case .helicopter:
+                break                                    // collective / cyclic / pedals: FlightModel.playerInput
             }
         }
         func c(_ v: Float) -> Float { max(-1, min(1, v)) }
@@ -63,6 +67,10 @@ enum VehicleControls {
     static func prompts(_ g: Game, _ s: Ship) -> [String] {
         if !Prompt.pad {
             func n(_ a: KeyBinds.Action) -> String { KeyBinds.name(KeyBinds.key(a)) }
+            if kind(s) == .helicopter {
+                return [Glyphs.key(n(.forward) + n(.left) + n(.back) + n(.right)) + " Cyclic", Glyphs.key(n(.jump)) + Glyphs.key("Ctrl") + " Collective",
+                        "Mouse Turn", Glyphs.key("Shift") + " Leave"]
+            }
             var k = [Glyphs.key(n(.forward) + "/" + n(.back)) + " Throttle", Glyphs.key(n(.left) + "/" + n(.right)) + " Steer",
                      Glyphs.key(n(.jump)) + Glyphs.key("Ctrl") + " Climb", Glyphs.key("Shift") + " Leave"]
             if armed(g, s) { k.insert(Glyph.mouseL.s + " Fire", at: 2) }
@@ -75,6 +83,7 @@ enum VehicleControls {
         case .boat, .land: return [rt + " Throttle", lt + " Reverse", ls + " Steer", b + " Leave"]
         case .airship: return [rt + " Forward", ls + " Turn / Climb", lt + " Reverse", b + " Leave"]
         case .aircraft: return [rt + " Throttle", ls + " Bank / Pitch", lt + " Brake", b + " Leave"]
+        case .helicopter: return [rt + lt + " Collective", ls + " Cyclic", Glyph.rs.s + " Turn", b + " Leave"]
         }
     }
 }

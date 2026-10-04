@@ -168,7 +168,7 @@ final class ShipMesh {
                         let gx = cx * 16 + x
                         if gx >= sx { break }
                         let b = blocks[gx + gz * sx + y * sx * sz]
-                        if b == AIR || (spinning && (kinds[Int(b)] == .propeller || kinds[Int(b)] == .wheel || kinds[Int(b)] == .cannon)) { continue }
+                        if b == AIR || (spinning && (kinds[Int(b)] == .propeller || kinds[Int(b)] == .wheel || kinds[Int(b)] == .cannon || kinds[Int(b)] == .rotor)) { continue }
                         a[x + z * 16 + vy * CSQ] = b
                         if skyT[Int(b)] { h[x + z * 16] = Int16(vy) }
                     }
@@ -551,6 +551,34 @@ final class ShipRenderer {
                 enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quads,
                                           indexBufferOffset: first * 6 * 4)
                 drawCalls += 1
+            }
+            // Helicopter rotors (FlightModel.swift): the head turned about the mast, two blades stretched to the
+            // rotor's diameter from a render-only blade block.
+            if let fm = s.flight, fm.kind == .heli, !s.rotors.isEmpty {
+                let bladeB: BlockID = Blocks.has("ship_rotor_blade") ? Blocks.id("ship_rotor_blade") : AIR
+                let span = fm.rotorRadius(s) * 2
+                for c in s.rotors {
+                    let hubB = s.grid.get(Int(floor(c.x)), Int(floor(c.y)), Int(floor(c.z)))
+                    let turn = simd_quatf(angle: fm.spin, axis: V3(0, 1, 0))
+                    var parts: [(BlockID, float4x4)] = [(hubB, m * translationMatrix(c) * float4x4(turn) * translationMatrix(V3(-0.5, -0.5, -0.5)))]
+                    for k in 0..<2 {
+                        let r = turn * simd_quatf(angle: Float(k) * .pi / 2, axis: V3(0, 1, 0))
+                        let stretch = float4x4(diagonal: SIMD4<Float>(span, 1, 1, 1))
+                        parts.append((bladeB, m * translationMatrix(c + V3(0, 0.42, 0)) * float4x4(r) * stretch * translationMatrix(V3(-0.5, -0.5, -0.5))))
+                    }
+                    for (b, pm4) in parts where b != AIR {
+                        guard let pm = propMesh(b), let buf = pm.opaque else { continue }
+                        let total = min(pm.opaqueQuads, Renderer.maxQuads), solid = min(pm.solidQuads, total)
+                        let first = pass == 0 ? 0 : solid, count = pass == 0 ? solid : total - solid
+                        if count <= 0 { continue }
+                        var rec = ShipDrawRec(model: pm4, origin: V4(pm.origin, s.skyLight))
+                        enc.setVertexBuffer(buf.buffer, offset: buf.offset, index: 0)
+                        enc.setVertexBytes(&rec, length: MemoryLayout<ShipDrawRec>.stride, index: 2)
+                        enc.drawIndexedPrimitives(type: .triangle, indexCount: count * 6, indexType: .uint32, indexBuffer: quads,
+                                                  indexBufferOffset: first * 6 * 4)
+                        drawCalls += 1
+                    }
+                }
             }
         }
         for pass in 0..<2 {

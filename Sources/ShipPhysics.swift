@@ -382,8 +382,11 @@ extension ShipManager {
         let aircraft = s.wings.count >= 4 && s.balloons == 0
         let piloted = s.piloted
 
-        // Propellers (applied at the propeller, level with the centre of mass so they don't pitch the hull).
-        if piloted && s.throttle != 0 && power > 0 {
+        FlightModel.attach(s)
+        let heli = s.flight?.kind == .heli
+        // Propellers (applied at the propeller, level with the centre of mass so they don't pitch the hull; a
+        // helicopter's tail rotor is part of its flight model).
+        if piloted && s.throttle != 0 && power > 0 && !heli {
             for (p, d) in s.props {
                 var at = p
                 at.y = s.com.y
@@ -428,8 +431,14 @@ extension ShipManager {
             F.y += s.liftLevel * cap
         }
 
+        // Real flight model (FlightModel.swift): replaces the wing plates and the held attitude below.
+        if let fm = s.flight {
+            let hub = s.rotors.first.map { s.toWorld($0) } ?? s.pos
+            let gtop = Float(rd.columnTop(Int(floor(hub.x)), Int(floor(hub.z))) + 1)
+            fm.forces(s, h, &F, &T, power: power, ground: gtop, g: g)
+        }
         // Airfoils: a flat plate pushes back against motion through it (lift when the nose is up).
-        for p in s.wings {
+        for p in s.wings where s.flight == nil {
             let wp = s.toWorld(p)
             let v = s.velocity(at: wp)
             let vn = simd_dot(v, up)
@@ -490,7 +499,7 @@ extension ShipManager {
         // Steering: a yaw-rate controller (rudder / differential / tail surfaces).
         let I = s.inertiaDiag
         let iAvg = (I.x + I.y + I.z) / 3
-        if piloted {
+        if piloted && s.flight == nil {
             let speed = simd_length(s.vel)
             var rate: Float = 0.6
             if s.grounded { rate = 0.9 }
@@ -508,12 +517,13 @@ extension ShipManager {
         }
         var err = simd_cross(up, desiredUp)
         if aircraft { err = fwdW * simd_dot(err, fwdW) }
+        if s.flight != nil { err = .zero }                  // flown by its flight model, nothing holds it upright
         let kr: Float = s.balloons > 0 ? 8 : (aircraft ? 5 : (s.grounded ? 1.5 : (sub > 0 ? 1.2 : 2)))
         let wHoriz = s.angVel - up * simd_dot(s.angVel, up)
-        let damped: V3 = aircraft ? fwdW * simd_dot(wHoriz, fwdW) : wHoriz
+        let damped: V3 = s.flight != nil ? .zero : (aircraft ? fwdW * simd_dot(wHoriz, fwdW) : wHoriz)
         let kd: Float = iAvg * (s.balloons > 0 ? 3 : 1.2)
         T += err * (kr * iAvg) - damped * kd
-        if aircraft && piloted {
+        if aircraft && piloted && s.flight == nil {
             let right = simd_normalize(simd_cross(fwdW, up))
             // No input: hold a slight nose-up trim so level flight needs no constant correction.
             let pitch = asinf(max(-1, min(1, fwdW.y)))

@@ -114,11 +114,35 @@ extension BlockRegistry {
             Box(3, 4, 0, 13, 12, 16, tex: tyre), Box(3, 0, 4, 13, 16, 12, tex: tyre), Box(3, 2, 2, 13, 14, 14, tex: tyre),
             Box(2, 6, 6, 14, 10, 10, tex: metal),
         ])
+
+        // Rotor head (helicopters, FlightModel.swift): mast, swashplate and hub with blade roots; on a flying ship
+        // it turns and the blades are drawn to the rotor's full diameter from the render-only blade below.
+        var rotor = BlockDef("ship_rotor", "Rotor Head")
+        rotor.tex = ["ship_metal"]; rotor.render = .model; rotor.layer = .cutout; rotor.opaque = false; rotor.hardness = 3
+        rotor.tool = .pickaxe; rotor.requiresTool = true; rotor.sound = .stone; rotor.skyStop = false
+        let bladeT = t6("ship_blade"), frame = t6("capital_airframe")
+        rotor.boxes = [Box(6, 0, 6, 10, 9, 10, tex: metal), Box(4, 8, 4, 12, 10, 12, tex: brass), Box(5, 10, 5, 11, 13, 11, tex: frame),
+                       Box(0, 11, 7, 16, 12, 9, tex: bladeT), Box(7, 11, 0, 9, 12, 16, tex: bladeT)]
+        add(rotor)
+        var blade = BlockDef("ship_rotor_blade", "Rotor Blade")
+        blade.tex = ["capital_airframe"]; blade.render = .model; blade.layer = .cutout; blade.opaque = false; blade.hidden = true
+        blade.boxes = [Box(0, 7, 6, 16, 8, 10, tex: frame), Box(0, 7, 6, 1, 8, 10, tex: t6("ship_metal"))]
+        add(blade)
+        // Capital airframe: light white alloy panels for the Capital's aircraft (0.3 t a block: ShipParts.mass).
+        var airframe = BlockDef("capital_airframe", "Capital Airframe")
+        airframe.tex = ["capital_airframe"]; airframe.hardness = 2; airframe.tool = .pickaxe; airframe.sound = .stone
+        add(airframe)
     }
 }
 
 extension TextureGen {
     static func shipPainters(_ p: inout [String: Painter]) {
+        // White alloy panels with grey seams and a rivet line.
+        p["capital_airframe"] = { x, y in
+            if x == 0 || y == 0 { return hex(0xBFC5CB) }
+            if y == 8 && x % 3 == 1 { return hex(0xD3D8DC) }
+            return hex(0xEFF1F3, 0.975 + 0.02 * r(x / 4, y / 4, 2711))
+        }
         p["ship_wood"] = { x, y in
             let plank = y / 4
             let edge = y % 4 == 3 || (x + plank * 5) % 16 == 0

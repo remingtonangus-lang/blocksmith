@@ -247,6 +247,8 @@ extension Mob {
             }
         }
         if hurt > 0.35 && !aggro { aggro = true; alertGarrison(g, g.player.pos) }
+        // Pilots and passengers stay in their seats (aircraft, vehicles: FlightCrew in Aircraft.swift).
+        if b.station == .seated || b.station == .passenger { strafe = 0; return 0 }
         // Turret crews stay at their guns whatever happens round them.
         if b.orderStation == .gunner, let sp = followOrder(g) { return sp }
         guard aggro && canTarget else {

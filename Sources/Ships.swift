@@ -59,12 +59,12 @@ final class ShipGrid {
 
 // Per-block-state properties the ship code needs, as flat tables.
 enum ShipParts {
-    enum Kind: UInt8 { case none, helm, propeller, engine, balloon, wing, wheel, ring, cannon }
+    enum Kind: UInt8 { case none, helm, propeller, engine, balloon, wing, wheel, ring, cannon, rotor }
     static let kinds: [Kind] = {
         var t = [Kind](repeating: .none, count: Blocks.count)
         let names: [(String, Kind)] = [("ship_helm", .helm), ("ship_propeller", .propeller), ("ship_engine", .engine),
                                        ("ship_balloon", .balloon), ("ship_wing", .wing), ("ship_wheel", .wheel),
-                                       ("ship_turret_ring", .ring), ("ship_cannon", .cannon)]
+                                       ("ship_turret_ring", .ring), ("ship_cannon", .cannon), ("ship_rotor", .rotor)]
         for i in 0..<Blocks.count {
             let k = Blocks.key(Blocks.groupBase[i])
             for (n, kind) in names where n == k { t[i] = kind }
@@ -98,8 +98,10 @@ enum ShipParts {
             case .helm: d = 0.4
             case .ring: d = 2
             case .cannon: d = 2.5
+            case .rotor: d = 1.2
             case .none: break
             }
+            if key == "capital_airframe" || key == "capital_canopy" { d = 0.3 }          // light alloy / canopy (FlightModel)
             // Partial blocks weigh their volume.
             if !Blocks.collide[i] { d = min(d, 0.05) }
             else if !Blocks.fullCollide[i] {
@@ -203,6 +205,8 @@ final class Ship {
     var rollDist: Float = 0          // distance rolled along the heading (wheel angle = -rollDist / radius)
     var wheelBase = 0                // wheel cells in the lowest wheel row (they carry the load)
     var wings: [V3] = []
+    var rotors: [V3] = []            // rotor heads (helicopters: FlightModel.swift)
+    var flight: FlightModel?         // the real flight model (helicopters, Capital aircraft); nil: arcade
     var sails = 0                    // wool blocks (catch the wind while someone steers)
     var cannons: [(V3, V3)] = []     // cannon centre, muzzle direction (ship space)
     var balloons = 0
@@ -357,7 +361,7 @@ final class Ship {
         var m: Float = 0
         var c = V3(0, 0, 0)
         var n = 0
-        props.removeAll(); wheels.removeAll(); wings.removeAll(); cannons.removeAll(); balloons = 0; engines = 0; sails = 0
+        props.removeAll(); wheels.removeAll(); wings.removeAll(); cannons.removeAll(); rotors.removeAll(); balloons = 0; engines = 0; sails = 0
         let woolT = ShipParts.wool
         var lo = V3(Float(sx), Float(sy), Float(sz)), hi = V3(0, 0, 0)
         helm = nil
@@ -380,6 +384,7 @@ final class Ship {
             case .wing: wings.append(p)
             case .wheel: wheels.append(p)
             case .cannon: cannons.append((p, -ShipParts.facingDir[ShipParts.facing(b)]))
+            case .rotor: rotors.append(p)
             case .ring, .none: break
             }
         } } }
