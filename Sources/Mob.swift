@@ -962,6 +962,13 @@ final class Mob {
             var l = s.toLocal(pos)
             var lv = s.dirToLocal(vel)
             w.frame = s
+            if collides(l, w) {
+                // Carried into a block (the hull settling onto a rider at the ramp's foot, ground beside it): step up
+                // to the first free height within a block, as a walker would, instead of being shoved out sideways.
+                var up: Float = 0.1
+                while up <= 1.01 && collides(l + V3(0, up, 0), w) { up += 0.1 }
+                if up <= 1.01 { l.y += up; pos = s.toWorld(l) }
+            }
             if (crewPost != nil || crewFree || !crewRoute.isEmpty) && onGround && (lv.x != 0 || lv.z != 0) {
                 // Crew never step off a ledge of their vehicle: no floor within three blocks where the next step lands.
                 let h = simd_normalize(V2(lv.x, lv.z))

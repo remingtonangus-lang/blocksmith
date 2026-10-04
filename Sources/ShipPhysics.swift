@@ -98,7 +98,7 @@ extension ShipManager {
                 if let d = m.deck, list.contains(where: { $0 === d }), frameShip(for: m.pos, height: m.height, current: d) === d,
                    !(m.onGround && !holdsRider(d, d.toLocal(m.pos), halfW: m.halfW)) {
                     mobRiders.append((m, d))
-                } else if m.onGround, let s = standing(on: m.pos) {
+                } else if let s = boardShip(for: m) {
                     if m.deck !== s {
                         if let o = m.deck, list.contains(where: { $0 === o }) { m.vel += o.velocity(at: m.pos) }
                         m.vel -= s.velocity(at: m.pos)
@@ -250,6 +250,16 @@ extension ShipManager {
             if s.grid.inside(x, y, z) && Int(s.colMin[x + z * s.grid.sx]) < y { return true }
         }
         return false
+    }
+
+    // The ship a mob without a deck boards: one it stands on, or one that holds it as it holds the player (a ship block
+    // under its feet, a ladder, the hull's enclosed air), on the ground or not: a troop that lost its deck on a buried
+    // ramp foot and walked back into the bay moved in world space against the hull's rough boxes and was shoved a
+    // block up (ride check troops).
+    func boardShip(for m: Mob) -> Ship? {
+        if m.onGround, let s = standing(on: m.pos) { return s }
+        if let s = frameShip(for: m.pos, height: m.height, current: nil), canBoard(s, m.pos, halfW: m.halfW) { return s }
+        return nil
     }
 
     // The ship a body's feet rest on, if any.
