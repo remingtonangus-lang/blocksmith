@@ -71,7 +71,7 @@ enum Aircraft {
 
     // An aircraft with its crew: a Capital pilot seated at the controls (and troops in the seats for the Kestrel).
     @discardableResult
-    static func spawn(_ kind: String, at: V3, yaw: Float, game g: Game, troops: Int = 0) -> Ship {
+    static func spawn(_ kind: String, at: V3, yaw: Float, game g: Game, troops: Int = 0, crewed: Bool = true) -> Ship {
         let heli = kind != "heron"
         let bp = heli ? kestrel() : heron()
         let s = g.world.ships.spawn(bp, at: at, yaw: yaw, name: heli ? "Capital Kestrel" : "Capital Heron", role: heli ? "kestrel" : "capplane")
@@ -79,7 +79,7 @@ enum Aircraft {
         s.initialBlocks = s.blockCount
         FlightModel.attach(s)
         let seats = s.crewStations
-        for (i, seat) in seats.prefix(1 + troops).enumerated() {
+        for (i, seat) in seats.prefix(crewed ? 1 + troops : 0).enumerated() {
             let m = Mob(i == 0 ? .soldierCrew : (i % 3 == 0 ? .soldierOfficer : .soldierRecruit), at: s.toWorld(seat + V3(0, 0.05, 0)))
             m.faction = Faction.steelhold.rawValue
             m.persistent = true

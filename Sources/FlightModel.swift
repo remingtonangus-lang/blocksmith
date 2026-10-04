@@ -16,7 +16,7 @@ import simd
 // along the disk normal that the cyclic tilts, applied at the rotor hub (above the centre of mass, so the tilt
 // pitches and rolls the hull as it does a real helicopter) plus a hub moment; the rotor's reaction torque yaws the
 // hull unless a tail rotor (a sideways propeller) cancels it, and the pedals trim it. A stability augmentation
-// (rate damping, attitude hold with the stick centred) makes it flyable with a controller.
+// (rate damping, the cyclic commands an attitude, level with the stick centred) makes it flyable with a controller.
 final class FlightModel {
     enum Kind { case plane, heli }
     let kind: Kind
@@ -29,6 +29,7 @@ final class FlightModel {
     var spin: Float = 0                // rotor angle (rendering)
     var tailRotor = false
     var groundEffect: Float = 1
+    var agl: Float = 99                // heli: rotor hub height over the ground
     // Autopilot: hold a position (helicopter hover / fly to) or a heading and altitude (plane); nil = pilot inputs.
     var hold: V3?
     var holdYaw: Float?
@@ -139,6 +140,7 @@ final class FlightModel {
         // Ground effect within a rotor diameter of the ground, translational lift with forward speed.
         let radius = rotorRadius(s)
         let hAbove = max(0, hub.y - ground)
+        agl = hAbove
         groundEffect = 1 + 0.22 * max(0, 1 - hAbove / (radius * 2))
         let vh = simd_length(V2(s.vel.x, s.vel.z))
         let etl = 1 + 0.12 * min(1, vh / 12)
@@ -147,28 +149,25 @@ final class FlightModel {
         let spool: Float = rpm * rpm * groundEffect * etl
         thrust = c * FlightModel.heliTmax * weight * spool
         let cx: Float = max(-1, min(1, cyclic.x)), cy: Float = max(-1, min(1, cyclic.y))
-        let cyc = V2(cx, cy)
         let tiltF: V3 = fw * (cy * 0.14)
         let tiltR: V3 = right * (cx * 0.14)
         let n = simd_normalize(up + tiltF + tiltR)
         F += n * thrust
         T += simd_cross(hub - s.pos, n * thrust)
-        // Hub moment from the cyclic (stiff rotor), stability augmentation: rate damping and, stick centred, level.
-        let auth = rpm * max(0.3, c)
-        let hubPitch: Float = -cy * I.x * 2.2 * auth, hubRoll: Float = cx * I.z * 2.2 * auth
-        T += right * hubPitch
-        T += fw * hubRoll
+        // Hub moment (stiff rotor) under an attitude-command stability augmentation: the cyclic asks for a tilt (full
+        // stick 0.4 rad nose down / wing down), the rotor moment drives the hull to it and rate damping holds it there
+        // (stick centred: level). A rate command would keep tipping the hull while the stick is held.
+        let auth: Float = rpm * max(0.3, c)
+        let askP: Float = cy * 0.4, askR: Float = cx * 0.4
+        let nose: Float = asinf(max(-1, min(1, fw.y))), wing: Float = asinf(max(-1, min(1, right.y)))
+        let eP: Float = -askP - nose, eR: Float = wing + askR
         let w = s.angVel
         let wPitch: Float = simd_dot(w, right), wRoll: Float = simd_dot(w, fw), wYaw: Float = simd_dot(w, up)
-        let dampP: Float = wPitch * I.x * 2.6 * rpm, dampR: Float = wRoll * I.z * 2.6 * rpm
-        T -= right * dampP
-        T -= fw * dampR
-        let level = simd_cross(up, V3(0, 1, 0))
-        let centred: Float = 1 - min(1, simd_length(cyc) * 2)
-        let holdK: Float = 3.2 * centred * rpm
-        let levP: Float = simd_dot(level, right) * I.x * holdK, levR: Float = simd_dot(level, fw) * I.z * holdK
-        T += right * levP
-        T += fw * levR
+        let kP: Float = I.x * 4 * auth, kR: Float = I.z * 4 * auth
+        let pitchT: Float = eP * kP - wPitch * I.x * 2.6 * rpm
+        let rollT: Float = eR * kR - wRoll * I.z * 2.6 * rpm
+        T += right * pitchT
+        T += fw * rollT
         // Rotor reaction torque, the tail rotor's answer and the pedals, yaw damping.
         let reaction: Float = c * 0.5 * rpm
         let tail: Float = tailRotor ? reaction + pedal * 1.6 * rpm : pedal * 0.3 * rpm
@@ -222,7 +221,7 @@ final class FlightModel {
 
     // MARK: Player controls
 
-    // Helicopter: collective with Space / Ctrl, RT / LT (it stays where it was left); cyclic with WASD or the left
+    // Helicopter: collective with Space / Ctrl, RT / LT (let go in the air, it holds the height); cyclic with WASD or the left
     // stick; yaw follows the view (heading hold toward the camera's yaw, so the right stick or the mouse turns it),
     // LB / RB nudge the pedals. Plane: the usual aircraft controls (VehicleControls) feed the surfaces directly.
     func playerInput(_ g: Game, _ s: Ship, _ mi: MoveInput, _ dt: Float) {
@@ -232,7 +231,14 @@ final class FlightModel {
         var up: Float = mi.jump ? 1 : 0
         if g.input.control { up -= 1 }
         if let p { up += p.rt - p.lt }
-        collective = max(0, min(1, collective + up * 0.45 * dt))
+        if up != 0 {
+            collective = max(0, min(1, collective + up * 0.45 * dt))
+        } else if collective > 0.2 && agl > 6.5 && rpm > 0.8 {
+            // Collective released in the air: it holds the height (a controller has no friction lock).
+            let tmax: Float = FlightModel.heliTmax * s.mass * ShipTuning.g * rpm * rpm * groundEffect
+            let want: Float = s.mass * (ShipTuning.g - s.vel.y * 1.6) / tmax
+            collective += (max(0, min(1, want)) - collective) * min(1, dt * 3)
+        }
         cyclic = V2(max(-1, min(1, mi.strafe)), max(-1, min(1, mi.forward)))
         var e = g.player.yaw - s.yaw
         while e > Float.pi { e -= 2 * Float.pi }

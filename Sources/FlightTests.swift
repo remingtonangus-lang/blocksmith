@@ -1,7 +1,7 @@
 import Foundation
 import simd
 
-// --flighttest [heli|plane|all|helishot|planeshot]: the real flight model (FlightModel.swift) on the Capital's
+// --flighttest [heli|player|plane|all|helishot|planeshot]: the real flight model (FlightModel.swift) on the Capital's
 // aircraft (Aircraft.swift), flown by their autopilots through the ship physics at 60 Hz.
 //  helicopter: spins up and lifts off its pad, settles into a hover (height within 0.6, drift under 1.5 blocks), flies
 //              80 blocks forward nose-down, turns 90 degrees on the pedals, flies back and lands softly on the pad
@@ -34,22 +34,23 @@ enum FlightTests {
         func groundY(_ x: Float, _ z: Float) -> Float { Float(w.topY(Int(floor(x)), Int(floor(z))) + 1) }
         var traced: Ship?
         var tag = ""
+        var input = MoveInput()                                   // the player's keys while at a helm
         // The camera rides along above the traced aircraft and the world streams round it (a ship over unloaded
         // ground sleeps), waiting for the chunk under it when generation falls behind.
         var frames = 0
         func stream(_ s: Ship) {
-            g.player.flying = true
-            g.player.pos = s.pos + V3(0, 12, 0)
+            if w.ships.pilot !== s { g.player.flying = true; g.player.pos = s.pos + V3(0, 12, 0) }
             frames += 1
-            if frames % 20 == 0 { w.update(center: g.player.pos) }
+            if frames % 20 == 0 { w.update(center: s.pos) }
             var n = 0
-            while !w.isLoaded(Int(floor(s.pos.x)), Int(floor(s.pos.z))) && n < 3000 { w.update(center: g.player.pos); usleep(2000); n += 1 }
+            while !w.isLoaded(Int(floor(s.pos.x)), Int(floor(s.pos.z))) && n < 3000 { w.update(center: s.pos); usleep(2000); n += 1 }
         }
         func step(_ secs: Float, _ every: ((Float) -> Bool)? = nil) -> Float? {
             let dt: Float = 1.0 / 60
             var t: Float = 0
             while t < secs {
                 if let s = traced { stream(s) }
+                if let s = w.ships.pilot, !g.pilotTick(s, input, dt) { print("flighttest: the player left the helm") }
                 w.ships.update(dt, game: g)
                 FlightCrew.tick(g)
                 t += dt
@@ -162,6 +163,64 @@ enum FlightTests {
             check(upright(s) > 0.97, "upright on the ground after landing", String(format: "%.2f", upright(s)))
             let crewOK = g.mobs.mobs.filter { $0.deck === s && $0.station == .seated }.allSatisfy { simd_length($0.pos - s.toWorld(s.crewStations[0])) < 1 }
             check(crewOK, "the pilot stays in the seat")
+            look(s, from: V3(-12, 4, 12))
+        }
+
+        // The player flies a Kestrel from the helm through the real controls (pilotTick, keyboard layout): Space
+        // lifts it, let go it holds the height, W tilts it forward, the view turns it, Ctrl sets it down.
+        if name == "player" || name == "all" {
+            let gx = base.x - 20, gz = base.z + 25
+            let padY = pad(gx, gz, radius: 6)
+            let s = Aircraft.spawn("kestrel", at: V3(gx, padY + 3, gz), yaw: 0, game: g, crewed: false)
+            traced = s; tag = "player-settle"
+            _ = step(2)
+            g.startPiloting(s)
+            g.player.yaw = s.yaw
+            let rest = s.pos
+            check(VehicleControls.kind(s) == .helicopter, "the helm flies it as a helicopter")
+            input = MoveInput(); input.jump = true
+            tag = "player-climb"
+            let up = step(16) { _ in s.pos.y > rest.y + 12 }
+            check(up != nil, "Space spins it up and lifts it", String(format: "after %.1f s, %+.1f", up ?? -1, s.pos.y - rest.y))
+            input = MoveInput()
+            tag = "player-hold"
+            _ = step(3)
+            let yh = s.pos.y
+            _ = step(4)
+            check(abs(s.pos.y - yh) < 1.5 && abs(s.vel.y) < 0.6, "let go, it holds its height", String(format: "%+.1f in 4 s, %.1f b/s", s.pos.y - yh, s.vel.y))
+            let fwd = s.dirToWorld(s.fwd), p0 = s.pos
+            input.forward = 1
+            tag = "player-forward"
+            var nose: Float = 0
+            _ = step(6) { _ in nose = min(nose, s.dirToWorld(s.fwd).y); return false }
+            let along = simd_dot(s.pos - p0, fwd)
+            check(along > 15 && nose < -0.05, "W tilts it forward and it flies", String(format: "%.0f blocks, nose %.2f", along, nose))
+            input = MoveInput()
+            _ = step(4)
+            check(upright(s) > 0.95, "stick centred, it levels out", String(format: "upright %.2f", upright(s)))
+            let yaw0 = s.yaw
+            g.player.yaw = yaw0 + .pi / 2
+            tag = "player-turn"
+            let turned = step(10) { _ in
+                var e = s.yaw - (yaw0 + .pi / 2)
+                while e > Float.pi { e -= 2 * Float.pi }
+                while e < -Float.pi { e += 2 * Float.pi }
+                return abs(e) < 0.17
+            }
+            check(turned != nil, "it turns to the view", String(format: "in %.1f s", turned ?? -1))
+            input.sneak = false
+            tag = "player-land"
+            var touch: Float = 99
+            g.input.control = true
+            let down = step(40) { _ in
+                if s.flight!.agl < 6.2 && touch == 99 { touch = abs(s.vel.y) }
+                return touch != 99 && abs(s.vel.y) < 0.2
+            }
+            g.input.control = false
+            check(down != nil && touch < 6, "Ctrl sets it down", String(format: "touchdown %.1f b/s", touch))
+            _ = step(3)
+            check(upright(s) > 0.9, "upright after the player's landing", String(format: "%.2f", upright(s)))
+            g.leaveHelm()
             look(s, from: V3(-12, 4, 12))
         }
 
