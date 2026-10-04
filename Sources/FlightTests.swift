@@ -3,8 +3,9 @@ import simd
 
 // --flighttest [heli|plane|all|helishot|planeshot]: the real flight model (FlightModel.swift) on the Capital's
 // aircraft (Aircraft.swift), flown by their autopilots through the ship physics at 60 Hz.
-//  helicopter: spins up and lifts off the ground, hovers (height within 0.6, drift under 1.5 blocks), flies 80 blocks
-//              forward nose-down, turns 90 degrees on the pedals, lands softly (touchdown under 2.5 b/s), upright
+//  helicopter: spins up and lifts off its pad, settles into a hover (height within 0.6, drift under 1.5 blocks), flies
+//              80 blocks forward nose-down, turns 90 degrees on the pedals, flies back and lands softly on the pad
+//              (touchdown under 2.5 b/s, within 2.5 blocks of the centre), upright
 //  plane:      level flight under power (height within 6, flying speed), climbs when asked, banks into a turn,
 //              stalls when slowed nose-high and recovers by itself (nose drops, speed comes back)
 enum FlightTests {
@@ -33,10 +34,22 @@ enum FlightTests {
         func groundY(_ x: Float, _ z: Float) -> Float { Float(w.topY(Int(floor(x)), Int(floor(z))) + 1) }
         var traced: Ship?
         var tag = ""
+        // The camera rides along above the traced aircraft and the world streams round it (a ship over unloaded
+        // ground sleeps), waiting for the chunk under it when generation falls behind.
+        var frames = 0
+        func stream(_ s: Ship) {
+            g.player.flying = true
+            g.player.pos = s.pos + V3(0, 12, 0)
+            frames += 1
+            if frames % 20 == 0 { w.update(center: g.player.pos) }
+            var n = 0
+            while !w.isLoaded(Int(floor(s.pos.x)), Int(floor(s.pos.z))) && n < 3000 { w.update(center: g.player.pos); usleep(2000); n += 1 }
+        }
         func step(_ secs: Float, _ every: ((Float) -> Bool)? = nil) -> Float? {
             let dt: Float = 1.0 / 60
             var t: Float = 0
             while t < secs {
+                if let s = traced { stream(s) }
                 w.ships.update(dt, game: g)
                 FlightCrew.tick(g)
                 t += dt
@@ -53,13 +66,29 @@ enum FlightTests {
             g.player.yaw = atan2f(-d.x, -d.z)
             g.player.pitch = atan2f(d.y, simd_length(V2(d.x, d.z)))
         }
+        // A landing pad: a flat smooth-stone square on posts at the highest ground under it, cleared above.
+        func pad(_ x: Float, _ z: Float, radius r: Int) -> Float {
+            let cx = Int(floor(x)), cz = Int(floor(z))
+            var top = 0
+            for dz in -r...r { for dx in -r...r { top = max(top, w.topY(cx + dx, cz + dz)) } }
+            let stone = Blocks.id("smooth_stone")
+            for dz in -r...r {
+                for dx in -r...r {
+                    let ground = w.topY(cx + dx, cz + dz)
+                    guard ground >= 0 else { continue }
+                    for y in max(1, min(ground, top - 6))...top { w.setBlockAsync(cx + dx, y, cz + dz, stone) }
+                    for y in (top + 1)...(top + 16) { w.setBlockAsync(cx + dx, y, cz + dz, AIR) }
+                }
+            }
+            return Float(top + 1)
+        }
         let shotOnly = phase.hasSuffix("shot")
         let name = shotOnly ? String(phase.dropLast(4)) : phase
 
         if name == "heli" || name == "all" {
             let gx = base.x + 10, gz = base.z - 10
-            let gy = groundY(gx, gz)
-            let s = Aircraft.spawn("kestrel", at: V3(gx, gy + 3, gz), yaw: 0, game: g, troops: 2)
+            let padY = pad(gx, gz, radius: 6)
+            let s = Aircraft.spawn("kestrel", at: V3(gx, padY + 3, gz), yaw: 0, game: g, troops: 2)
             traced = s; tag = "kestrel-settle"
             _ = step(2)                                           // settle on the skids
             let rest = s.pos
@@ -75,7 +104,8 @@ enum FlightTests {
             print(String(format: "flighttest: Kestrel mass %.1f t, rotor radius %.1f", s.mass, fm.rotorRadius(s)))
             let lift = step(14) { _ in s.pos.y > rest.y + 10 }
             check(lift != nil, "it spins up and lifts off", String(format: "after %.1f s, rpm %.2f", lift ?? -1, fm.rpm))
-            _ = step(6)
+            let settled = step(30) { _ in abs(hoverAt.y - s.pos.y) < 0.4 && simd_length(s.vel) < 0.3 }
+            check(settled != nil, "it settles into the hover", String(format: "after %.1f s, %.1f off", settled ?? -1, abs(hoverAt.y - s.pos.y)))
             var lo: Float = 1e9, hi: Float = -1e9, drift: Float = 0, up: Float = 1
             let p0 = s.pos
             _ = step(5) { _ in
@@ -110,9 +140,14 @@ enum FlightTests {
                 return abs(e) < 0.17
             }
             check(turned != nil, "it turns 90 degrees in a hover", String(format: "in %.1f s", turned ?? -1))
-            // Land.
-            let pad = V3(s.pos.x, groundY(s.pos.x, s.pos.z), s.pos.z)
-            fm.hold = pad + V3(0, s.pos.y - s.worldMin.y - 0.2, 0); fm.holdYaw = nil
+            // Back to the pad, then land on it.
+            let skids = s.pos.y - s.worldMin.y
+            fm.hold = V3(gx, s.pos.y, gz); fm.holdYaw = nil; fm.holdSpeed = 12
+            tag = "kestrel-return"
+            let over = step(40) { _ in simd_length(V2(s.pos.x - gx, s.pos.z - gz)) < 1.5 && simd_length(s.vel) < 1 }
+            check(over != nil, "it flies back over its pad", String(format: "in %.1f s, %.1f blocks off", over ?? -1, simd_length(V2(s.pos.x - gx, s.pos.z - gz))))
+            let pad = V3(gx, padY, gz)
+            fm.hold = pad + V3(0, skids - 0.2, 0)
             tag = "kestrel-land"
             var touch: Float = 99
             let down = step(30) { _ in
@@ -120,6 +155,8 @@ enum FlightTests {
                 return touch != 99 && abs(s.vel.y) < 0.2
             }
             check(down != nil && touch < 2.5, "it lands softly", String(format: "touchdown %.2f b/s", touch))
+            let off = simd_length(V2(s.pos.x - gx, s.pos.z - gz))
+            check(off < 2.5, "it lands on the pad", String(format: "%.1f blocks from the centre", off))
             fm.hold = nil
             _ = step(4)
             check(upright(s) > 0.97, "upright on the ground after landing", String(format: "%.2f", upright(s)))

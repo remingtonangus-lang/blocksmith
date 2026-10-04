@@ -123,7 +123,9 @@ extension Game {
                 let post = b.posts[ObjectIdentifier(m)] ?? r.gate
                 let to = V3(post.x - m.pos.x, 0, post.z - m.pos.z)
                 let dist = simd_length(to)
-                if dist < 2.5 && abs(post.y - m.pos.y) < 3 {
+                // At the post, or near it after a while (a post on a ledge the straight walk can't climb onto: the
+                // calm soldier AI takes it from there).
+                if dist < 2.5 && abs(post.y - m.pos.y) < 3 || dist < 6 && pt.t > 45 {
                     let br = m.soldierBrain
                     br.order = nil; br.ready = false
                     m.home = post

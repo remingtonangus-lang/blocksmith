@@ -4,8 +4,10 @@ Owner: session D. Scope: soldier models (dress uniforms, ranks, gear, weapons), 
 crew-station pose hooks, and the backwards-arms bug. Not in scope (other streams): base layouts, ship hulls,
 vehicle physics, controller code.
 
-## State
-- WORK IN PROGRESS: see the log at the end.
+## State (2026-10-04, standing order: never stop; queue = soldiers -> reactive bases -> aircraft -> bug hunting)
+- Soldiers: DONE and merged into claude/blocksmith-playtest (d3a9c7c). posecheck 474 checks green.
+- Reactive bases (Future ideas #2): first pass on claude/bs-capital-soldiers, being tuned through --basetest.
+- Aircraft (Future ideas #8): first pass on claude/bs-capital-soldiers, being tuned through --flighttest traces.
 
 ## What exists (code map)
 - `Sources/SoldierRig.swift`: the jointed soldier model and all stances.
@@ -53,3 +55,44 @@ m.stationSeat = 0.5        // seat top above the mob's feet, in blocks (seated /
 Only the model changes: the caller places the mob (pos, yaw, deck) at its station and keeps it there. Seated legs
 slope down until the boots reach the floor, so any seat height works. `soldier_crew` is the natural kind for
 drivers, pilots and gunners (CapitalShips crew posts currently spawn vanguards / marksmen there).
+
+## Reactive citadels (CapitalBases.swift, CapitalBasesWork.swift, BaseTests.swift)
+- Noise bus: `Game.baseNoise(at:kind:power:hostile:)` from player guns (Ballistics.fireHeldGun), every explosion
+  (Explosion.explode), player-manned turrets (VehicleControls), ship cannon (ShipCombat.fire), other factions'
+  soldiers. The Capital's own shells/grenades are quiet (`bases.quiet` set round them in Ballistics.detonate and
+  ShipCombat shell blasts). Hearing: gunfire 96, cannon 200, blasts 64 + 24 x power blocks.
+- `BaseRecord` per citadel (key `citadel:cx,cz`, saved in world.json `extra["bases"]`): alert calm / suspicious /
+  alert / lockdown (stands down 120 / 90 / 60 s after the last hostile noise, never while a soldier is fighting),
+  patrol (target, phase), crawler patrol, blast spheres to rebuild, dropship cooldown.
+- Patrol: officer + 3 (fresh ones from the barracks if the garrison is thin) muster at the gate, march waypoint
+  by waypoint (18 blocks; the path finder reaches ~48) at low ready in a wedge, search 30 s, walk back to posts.
+  Soldiers obey `SoldierBrain.order / orderStation / orderRun / orderFace / ready` (Soldiers.swift soldierAI calm
+  branch -> Mob.followOrder). Crawler patrol for blasts/cannon over 70 blocks out: `spawnCapital("crawler",
+  faction: .steelhold)` from the motor pool (centre + 92 south), `CapitalState.goal` drives it, removed on return.
+- Lockdown: alarm, garrison aggro toward the source, 2 crewmen per 42 cm turret in the gunner stance behind the
+  barbette, up to 2 `ShipManager.callDropship(faction:from:to:)` Capital dropships landing troops in the plaza.
+- Rebuild: once calm, `BaseWatch.blueprint` regenerates the citadel's chunks on a worker thread (gen.generate +
+  structures.place) and restores only cells that are now air / liquid / fire with their original block, bottom up,
+  ~1 block/s per pilot (2 pilots at the site in the console stance); time away is caught up on return. Wrecks,
+  debris and player builds in a crater are left alone.
+- Cost: `BaseWatch.tickMs` (once-a-second update) 0.25 ms avg in the unoptimized CI build; worst 19 ms when a
+  dropship hull is built on the main thread (CapitalShips.callDropship): TODO build it off-thread like spawnCapital.
+- Checks: `--basetest patrol|crawler|lockdown|rebuild` (and `...shot` variants for pictures). The unoptimized fast
+  lane runs ~88 ms a tick with a full garrison, so only patrol/lockdown fit a fast-lane run; crawler and rebuild
+  belong to the heavy lane (snap.sh shots shard).
+
+## Aircraft (FlightModel.swift, Aircraft.swift, FlightTests.swift)
+- `Ship.flight` (FlightModel) for ships with rotor heads (helicopters) or role "capplane"; older wing builds keep
+  the arcade model. Hook in ShipPhysics.integrateForces after the airfoils; the generic steering / keep-upright /
+  aircraft pitch blocks are skipped for flight-model ships.
+- Fixed wing: per airfoil cell CL(alpha) with stall at 0.3 rad, CD0 + k CL^2, elevator = tail cells (negative
+  incidence, pushes the tail down to raise the nose), ailerons = outer cells, virtual fin (weathervane + rudder),
+  dihedral. Helicopter: thrust collective x 2.1 weights x rpm^2 (+ ground effect, translational lift) along the
+  cyclic-tilted disk over the centre of mass, hub moment, stability augmentation, rotor torque vs tail rotor + pedals.
+- Autopilots: `fm.hold` (position) / `fm.holdYaw` / `fm.holdSpeed`. Player: collective Space/Ctrl RT/LT, cyclic
+  WASD / left stick, heading follows the view, LB/RB pedals (VehicleControls kind .helicopter).
+- Blocks: `ship_rotor` (Rotor Head; blades drawn to the rotor diameter from the render-only `ship_rotor_blade`),
+  `capital_airframe` (0.3 t). Designs: Capital Kestrel (helicopter, pilot + 4 seats), Capital Heron (twin-prop,
+  wheels, role capplane). `Aircraft.spawn(kind, at:, yaw:, game:, troops:)` seats a Capital pilot (FlightCrew keeps
+  seated crews in their seats; seated soldiers don't walk).
+- Checks: `--flighttest heli|plane|all` with a `flighttrace` line per second (height, speed, attitude, controls).

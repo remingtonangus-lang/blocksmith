@@ -200,7 +200,7 @@ final class FlightModel {
             let tmax = FlightModel.heliTmax * s.mass * g * max(0.2, rpm * rpm) * groundEffect
             collective = max(0, min(1, (s.mass * (g + ay)) / tmax))
             cyclic = V2(max(-0.8, min(0.8, simd_dot(ah, rh) * 0.07)), max(-0.8, min(0.8, simd_dot(ah, fh) * 0.07)))
-            var yawWant = holdYaw ?? (dist > 6 ? atan2f(-dh.x, -dh.y) : s.yaw)
+            var yawWant = holdYaw ?? (dist > 10 ? atan2f(-dh.x, -dh.y) : s.yaw)
             if dist <= 6, let y = holdYaw { yawWant = y }
             var e = yawWant - s.yaw
             while e > Float.pi { e -= 2 * Float.pi }
