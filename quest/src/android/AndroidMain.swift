@@ -13,8 +13,17 @@ private final class AndroidState {
 }
 private let state = AndroidState()
 
-// stdout / stderr -> logcat (tag Blocksmith), line by line.
-private func redirectOutputToLogcat() {
+// stdout / stderr -> logcat (tag Blocksmith), line by line, and to `logFile` (the app's external files folder, so a
+// whole session can be pulled with adb after the fact; the previous launch's log is kept as blocksmith.prev.log).
+private func redirectOutputToLogcat(logFile: String?) {
+    var file: UnsafeMutablePointer<FILE>?
+    if let path = logFile {
+        let prev = path.replacingOccurrences(of: ".log", with: ".prev.log")
+        _ = unlink(prev); _ = rename(path, prev)
+        file = fopen(path, "w")
+    }
+    let cap = 8 << 20
+    var written = 0
     setvbuf(stdout, nil, _IOLBF, 0)
     setvbuf(stderr, nil, _IONBF, 0)
     var fds: [Int32] = [0, 0]
@@ -32,7 +41,13 @@ private func redirectOutputToLogcat() {
                 if buf[i] == 10 {
                     line.append(0)
                     line.withUnsafeBufferPointer { p in
-                        p.baseAddress!.withMemoryRebound(to: CChar.self, capacity: p.count) { _ = __android_log_write(Int32(ANDROID_LOG_INFO.rawValue), "Blocksmith", $0) }
+                        p.baseAddress!.withMemoryRebound(to: CChar.self, capacity: p.count) { c in
+                            _ = __android_log_write(Int32(ANDROID_LOG_INFO.rawValue), "Blocksmith", c)
+                            if let f = file, written < cap {
+                                written += p.count
+                                fputs(c, f); fputc(10, f); fflush(f)
+                            }
+                        }
                     }
                     line.removeAll(keepingCapacity: true)
                 } else if line.count < 4000 { line.append(buf[i]) }
@@ -66,14 +81,14 @@ private func handleCmd(_ app: UnsafeMutablePointer<android_app>?, _ cmd: Int32) 
 @_cdecl("android_main")
 public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
     guard let app else { return }
-    redirectOutputToLogcat()
     let activity = app.pointee.activity!
+    let extPath = activity.pointee.externalDataPath.map { String(cString: $0) }
+    if let e = extPath { try? FileManager.default.createDirectory(atPath: e, withIntermediateDirectories: true) }
+    redirectOutputToLogcat(logFile: extPath.map { $0 + "/blocksmith.log" })
     let dataPath = activity.pointee.internalDataPath.map { String(cString: $0) } ?? "/data/local/tmp/blocksmith"
     QuestPaths.setDataRoot(dataPath)
     print("Blocksmith Quest \(QuestBuild.commit) (\(QuestBuild.milestone)) starting; data in \(dataPath)")
-    if let ext = activity.pointee.externalDataPath.map({ String(cString: $0) }) {
-        QuestSettings.loadOverrides(ext + "/quest-settings.txt")
-    }
+    if let ext = extPath { QuestSettings.loadOverrides(ext + "/quest-settings.txt") }
     app.pointee.onAppCmd = { a, cmd in handleCmd(a, cmd) }
 
     var xr: XRSession?

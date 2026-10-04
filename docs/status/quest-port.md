@@ -24,7 +24,9 @@ once (this deletes the Quest worlds).
 
 Launch: Quest library → filter **Unknown Sources** → **Blocksmith**. Or `adb shell am start -n com.blocksmith.quest/android.app.NativeActivity`.
 
-Logs (startup, load timings, a `perf:` line every 5 s): `adb logcat -s Blocksmith`
+Logs (startup, load timings, a `perf:` line every 5 s): `adb logcat -s Blocksmith`. The same output is written to
+a file on the headset for the whole session (the previous launch's is kept too), so it can be fetched afterwards:
+`adb pull /sdcard/Android/data/com.blocksmith.quest/files/blocksmith.log` (and `blocksmith.prev.log`).
 Stop: `adb shell am force-stop com.blocksmith.quest`
 
 ## Controls (Touch controllers; right-handed default)
