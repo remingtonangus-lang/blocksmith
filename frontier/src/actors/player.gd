@@ -23,6 +23,7 @@ var cam_dist := 3.4
 var cam_side := 0.55
 var cam_shoulder := 1.0
 var mouse_sens := 0.0025
+var invert_y := false
 var pad_sens := 2.6
 var intent := {"move": Vector2.ZERO, "sprint": false, "walk": false, "jump": false, "aim": false, "fire": false,
 	"interact": false, "crouch": false}
@@ -110,6 +111,11 @@ func _setup_combat() -> void:
 		get_tree().current_scene.add_child.call_deferred(hud)
 		hud.setup.call_deferred(self)
 		Game.hud = hud
+	if not Game.headless:
+		var menus = load("res://src/ui/menus.gd").new()
+		menus.name = "Menus"
+		get_tree().current_scene.add_child.call_deferred(menus)
+		Game.set("menus", menus)
 	nerve = Nerve.new()
 	nerve.name = "Nerve"
 	add_child(nerve)
@@ -229,7 +235,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		cam_yaw -= event.relative.x * mouse_sens
-		cam_pitch = clampf(cam_pitch - event.relative.y * mouse_sens, -1.2, 0.9)
+		cam_pitch = clampf(cam_pitch - event.relative.y * mouse_sens * (-1.0 if invert_y else 1.0), -1.2, 0.9)
 	elif event.is_action_pressed("camera_side"):
 		cam_shoulder = -cam_shoulder
 	elif event.is_action_pressed("walk_toggle"):
@@ -249,7 +255,7 @@ func _read_human_intent(dt: float) -> void:
 	intent.crouch = Input.is_action_pressed("crouch")
 	var look := Input.get_vector("look_left", "look_right", "look_up", "look_down")
 	cam_yaw -= look.x * pad_sens * dt
-	cam_pitch = clampf(cam_pitch - look.y * pad_sens * dt * 0.7, -1.2, 0.9)
+	cam_pitch = clampf(cam_pitch - look.y * pad_sens * dt * 0.7 * (-1.0 if invert_y else 1.0), -1.2, 0.9)
 
 func _physics_process(dt: float) -> void:
 	if on_horse != null:

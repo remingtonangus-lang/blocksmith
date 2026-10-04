@@ -47,6 +47,15 @@ func _shot(path: String, x, z, up: float, yaw: float, pitch: float, hour: float,
 	else:
 		px = float(x)
 		pz = float(z)
+	if Game.args.has("player") and Game.player == null:
+		main._spawn_player()
+		for i in 3:
+			await get_tree().process_frame
+	if Game.player != null:
+		Game.player.global_position = Vector3(px, w.height(px, pz) + 0.2, pz)
+		Game.player.cam_yaw = deg_to_rad(-yaw)
+		Game.player.facing = deg_to_rad(-yaw)
+		Game.player.cam_pitch = deg_to_rad(pitch)
 	var cam: Camera3D = Game.camera
 	var gy := w.height(px, pz)
 	var wl := w.water_level(px, pz)
@@ -69,6 +78,13 @@ func _shot(path: String, x, z, up: float, yaw: float, pitch: float, hour: float,
 			inst += r.multimesh.instance_count
 		print("vegetation: %d regions, %d trees, %d near chunks, %d grass cells" % [veg._regions.size(), inst, veg._near.size(), veg._grass_cells.size()])
 	var frames := int(Game.args.get("frames", 24))
+	if Game.args.has("menu") and Game.get("menus") != null:
+		var mn = Game.menus
+		match str(Game.args["menu"]):
+			"pause": mn.open_pause()
+			"map": mn.open_map()
+			"journal": mn.open_journal()
+			"settings": mn.open_settings()
 	for i in frames:
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
