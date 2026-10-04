@@ -545,7 +545,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             keep.center = lastShadow.center
             lightFrame = keep
         }
-        mobShadowPass(shadowCmd, v, terrainChanged: terrainShadow)
+        mobShadowPass(shadowCmd, v, terrainChanged: terrainShadow, width: width, height: height)
         if shadowCmd !== cmd { shadowCmd.commit() }
         defer { mobPre = nil }
         let a = MTLRenderPassDescriptor()
@@ -602,7 +602,16 @@ final class Renderer: NSObject, MTKViewDelegate {
 
     // Mobs cast moving shadows: copy the terrain map and draw this frame's mob vertices on top. Skipped while
     // no mob has been in the map since the terrain map last changed (then shadowMap already holds the terrain).
-    func mobShadowPass(_ cmd: MTLCommandBuffer, _ v: Vibrant, terrainChanged: Bool) {
+    // The camera's view frustum for culling mobs before encode builds its own (same projection, a far far plane).
+    func mobCullFrustum(_ width: Int, _ height: Int) -> Frustum {
+        let (eye, camYaw, camPitch) = cameraEye()
+        let fov: Float = (game.cine.active ? game.cine.fov : game.fovSetting * game.fovScale) * .pi / 180
+        let proj = perspectiveRH(fovy: fov, aspect: Float(width) / Float(max(height, 1)), near: 0.05, far: 4000)
+        let viewRot = rotationX(-camPitch) * rotationY(-camYaw)
+        return Frustum(proj * viewRot * translationMatrix(-eye))
+    }
+
+    func mobShadowPass(_ cmd: MTLCommandBuffer, _ v: Vibrant, terrainChanged: Bool, width: Int, height: Int) {
         let lf = lightFrame
         let eye = cameraEye().eye
         var n = 0
@@ -617,7 +626,8 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let buf = mobBufs[mobBufIdx]
                 let cap = Renderer.mobBufSize / MemoryLayout<MobVert>.stride
                 let ptr = buf.contents().bindMemory(to: MobVert.self, capacity: cap)
-                n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: game.daylight, world: game.world, into: ptr, capacity: cap)
+                n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: game.daylight, world: game.world, into: ptr, capacity: cap,
+                                     cull: mobCullFrustum(width, height))
                 if game.showsPlayerModel {
                     n += writePlayerModel(game, eye: eye, daylight: game.daylight, into: ptr + n, capacity: cap - n)
                 }
@@ -1077,7 +1087,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             let cap = max(0, ringSize - ringTailReserve - off) / MemoryLayout<MobVert>.stride
             if cap > 36 {
                 let ptr = (scratch.contents() + off).bindMemory(to: MobVert.self, capacity: cap)
-                var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: daylight, world: game.world, into: ptr, capacity: cap)
+                var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: daylight, world: game.world, into: ptr, capacity: cap, cull: frustum)
                 if tp { n += writePlayerModel(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n) }
                 n += game.coop.writeOthers(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n)
                 if n > 0 {

@@ -1577,13 +1577,22 @@ private func parts(_ m: Mob) -> [Part] {
 
 // Writes the mob triangles (camera-relative) into `out`; returns the vertex count written.
 func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
-                      into out: UnsafeMutablePointer<MobVert>, capacity: Int) -> Int {
+                      into out: UnsafeMutablePointer<MobVert>, capacity: Int, cull: Frustum? = nil) -> Int {
     let CT = Mesher.cornerTable
     let faceShade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
     let order = [0, 1, 2, 0, 2, 3]
     var n = 0
     SoldierRig.eye = eye                    // soldier level of detail by distance
     for m in mobs {
+        // Out of view and over 64 blocks away (nearer ones can still throw a shadow into view): skipped. Every mob in
+        // the loaded area was rebuilt each frame (a quarter of the frame's CPU encode in the flight profile).
+        if let fr = cull {
+            let dx = m.pos.x - eye.x, dz = m.pos.z - eye.z
+            if dx * dx + dz * dz > 64 * 64 {
+                let r: Float = 3 + 2 * m.height
+                if !fr.visible(min: m.pos - V3(r, r, r), max: m.pos + V3(r, r + m.height, r)) { continue }
+            }
+        }
         let l = world.lightAt(Int(floor(m.pos.x)), Int(floor(m.pos.y + m.height * 0.5)), Int(floor(m.pos.z)))
         var bright = max(0.05, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
         bright = bright + (1 - bright) * world.dim.ambient
