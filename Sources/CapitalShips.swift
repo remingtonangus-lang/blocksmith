@@ -1403,7 +1403,6 @@ extension ShipManager {
 
     // A dropship of `faction` flying in from `from` (no mothership) to land troops at `to`: the citadels' call for
     // reinforcements (CapitalBases.swift). Same flight as a frigate's dropship from the transit phase on.
-    @discardableResult
     // The hull is built on a worker thread (about 20 ms on the main thread) and joins the world on a later frame.
     @discardableResult
     func callDropship(faction: Faction, from at: V3, to p: V3, game g: Game, sync: Bool = false) -> Bool {
