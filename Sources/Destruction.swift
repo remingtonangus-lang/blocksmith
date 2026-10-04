@@ -34,108 +34,196 @@ enum Collapse {
         var visited = 0
     }
 
+    // A cell -> index table (open addressing on packed coordinates): the support search's sets and maps (Set<IVec3>
+    // hashing cost ~13 us a cell, run of ea6ff02: a 1000-block tower took 13.6 ms).
+    struct CellTable {
+        var keys: [Int64]
+        var vals: [Int32]
+        var mask: Int
+        var count = 0
+        static let empty = Int64.min
+        init(capacity n: Int) {
+            var c = 1024
+            while c < n * 2 { c <<= 1 }
+            keys = [Int64](repeating: CellTable.empty, count: c)
+            vals = [Int32](repeating: -1, count: c)
+            mask = c - 1
+        }
+        @inline(__always) static func pack(_ c: IVec3) -> Int64 {
+            let x = Int64(c.x & 0xFFFFFF), z = Int64(c.z & 0xFFFFFF), y = Int64(c.y & 0xFFF)
+            return (x << 36) | (z << 12) | y
+        }
+        @inline(__always) func slot(_ k: Int64) -> Int {
+            let h = UInt64(bitPattern: k) &* 0x9E37_79B9_7F4A_7C15
+            return Int(truncatingIfNeeded: h >> 34) & mask
+        }
+        func get(_ c: IVec3) -> Int32? {
+            let k = CellTable.pack(c)
+            var i = slot(k)
+            while keys[i] != CellTable.empty {
+                if keys[i] == k { return vals[i] }
+                i = (i + 1) & mask
+            }
+            return nil
+        }
+        // Inserts c -> v unless present; true if it was new.
+        mutating func insert(_ c: IVec3, _ v: Int32) -> Bool {
+            if (count + 1) * 2 > keys.count { grow() }
+            let k = CellTable.pack(c)
+            var i = slot(k)
+            while keys[i] != CellTable.empty {
+                if keys[i] == k { return false }
+                i = (i + 1) & mask
+            }
+            keys[i] = k
+            vals[i] = v
+            count += 1
+            return true
+        }
+        private mutating func grow() {
+            let ok = keys, ov = vals
+            keys = [Int64](repeating: CellTable.empty, count: ok.count * 2)
+            vals = [Int32](repeating: -1, count: ok.count * 2)
+            mask = keys.count - 1
+            for i in 0..<ok.count where ok[i] != CellTable.empty {
+                var j = slot(ok[i])
+                while keys[j] != CellTable.empty { j = (j + 1) & mask }
+                keys[j] = ok[i]
+                vals[j] = ov[i]
+            }
+        }
+    }
+
     // What fails around `holes` (cells just emptied). Reads the world only.
     // `seeds`: built cells to check besides those next to the holes (a whole scene, for the harness's oracle).
     static func analyze(_ w: World, around holes: [IVec3], seeds extra: [IVec3] = [], cap: Int = Collapse.cap) -> Result {
         var res = Result()
-        var seen = Set<IVec3>()
+        // Block reads with the last chunk kept (the search reads neighbours of neighbours: mostly the same chunk).
+        var lastKey = ChunkKey(x: Int.min, z: Int.min)
+        var lastChunk: Chunk?
+        func block(_ c: IVec3) -> BlockID {
+            if c.y < 0 { return BEDROCK }
+            if c.y >= CH { return AIR }
+            let k = ChunkKey(x: floorDiv(c.x, CS), z: floorDiv(c.z, CS))
+            if k != lastKey { lastKey = k; lastChunk = w.chunks[k] }
+            guard let ch = lastChunk else { return AIR }
+            return ch.blocks[Chunk.index(mod(c.x, CS), c.y, mod(c.z, CS))]
+        }
         var seeds: [IVec3] = extra
         for h in holes {
             for d in dirs6 {
                 let c = h + d
-                if !seen.contains(c) && built(w.rawBlock(c.x, c.y, c.z)) { seeds.append(c) }
+                if built(block(c)) { seeds.append(c) }
             }
-            if seeds.count > 256 { break }
+            if seeds.count > 256 + extra.count { break }
         }
         let holeSet = Set(holes)
-        for s in seeds where !seen.contains(s) {
-            // The structure: built cells connected to s.
-            var comp: [IVec3] = [s]
-            var inComp = Set<IVec3>([s])
-            var anchored: [IVec3] = []           // cells resting on or against terrain
-            var head = 0
+        let up = IVec3(0, 1, 0)
+        // Every cell visited in this call: its index in `cells`; `compOf` says which search found it.
+        var table = CellTable(capacity: min(max(cap, 1024) + 64, 4 * cap + seeds.count))
+        var cells: [IVec3] = []
+        var compOf: [Int32] = []
+        var compId: Int32 = -1
+        for s in seeds where table.get(s) == nil {
+            compId += 1
+            // The structure: built cells connected to s (cells another, capped, search already took count as held).
+            let start = cells.count
+            _ = table.insert(s, Int32(start))
+            cells.append(s)
+            compOf.append(compId)
+            var anchoredFlag: [Bool] = [false]
+            var head = start
             var open = true
-            while head < comp.count {
-                let c = comp[head]; head += 1
+            while head < cells.count {
+                let c = cells[head]
                 var anchor = false
                 for d in dirs6 {
                     let n = c + d
-                    let b = w.rawBlock(n.x, n.y, n.z)
+                    let b = block(n)
                     if BlockMaterial.anchors(b) && d.y <= 0 { anchor = true }
-                    if built(b) && !inComp.contains(n) {
-                        inComp.insert(n)
-                        comp.append(n)
+                    guard built(b) else { continue }
+                    if let j = table.get(n) {
+                        if compOf[Int(j)] != compId { anchor = true }
+                        continue
                     }
+                    _ = table.insert(n, Int32(cells.count))
+                    cells.append(n)
+                    compOf.append(compId)
+                    anchoredFlag.append(false)
                 }
-                if anchor { anchored.append(c) }
-                if comp.count > cap { open = false; break }
+                anchoredFlag[head - start] = anchor
+                head += 1
+                if cells.count - start > cap { open = false; break }
             }
-            seen.formUnion(inComp)
-            res.visited += comp.count
+            let n = cells.count - start
+            res.visited += n
             if !open {
                 // A structure bigger than one search (a citadel): the search's edge is taken as held (whatever lies
                 // beyond it stands), so only failures near the damage are found, never the whole building's.
-                for c in comp where dirs6.contains(where: { d in
-                    let n = c + d
-                    return !inComp.contains(n) && built(w.rawBlock(n.x, n.y, n.z))
-                }) { anchored.append(c) }
+                for i in 0..<n where !anchoredFlag[i] {
+                    let c = cells[start + i]
+                    for d in dirs6 {
+                        let q = c + d
+                        if table.get(q) == nil && built(block(q)) { anchoredFlag[i] = true; break }
+                    }
+                }
             }
-            if anchored.isEmpty {
-                res.falling.append(comp)
+            if !anchoredFlag.contains(true) {
+                res.falling.append(Array(cells[start..<(start + n)]))
                 continue
             }
             // Reach to support (Dijkstra): resting on the cell below is free; a step sideways or hanging down into a cell
             // costs Collapse.unit / that cell's strength, and a cell whose cost passes one unit is beyond reach. (For one
             // material that is the plain step count against its reach; a light panel or a window set into a steel
             // deck fails only where the steel itself would, not at the panel's own short reach from the wall.)
-            let n = comp.count
-            var index: [IVec3: Int32] = [:]
-            index.reserveCapacity(n)
-            for (i, c) in comp.enumerated() { index[c] = Int32(i) }
             var step = [Int32](repeating: 0, count: n)
             for i in 0..<n {
-                let c = comp[i]
-                let r = max(0.25, BlockMaterial.strength(w.rawBlock(c.x, c.y, c.z)))
+                let r = max(0.25, BlockMaterial.strength(block(cells[start + i])))
                 step[i] = Int32((Float(Collapse.unit) / r).rounded())
             }
             var dist = [Int32](repeating: Int32.max, count: n)
             var heap = Heap()
-            for a in anchored {
-                guard let i = index[a] else { continue }
-                if dist[Int(i)] != 0 { dist[Int(i)] = 0; heap.push(0, i) }
-            }
+            for i in 0..<n where anchoredFlag[i] { dist[i] = 0; heap.push(0, Int32(i)) }
             while let top = heap.pop() {
                 let d = top.0, i = Int(top.1)
                 if d > dist[i] { continue }
-                let c = comp[i]
+                let c = cells[start + i]
                 for dd in dirs6 {
-                    guard let j32 = index[c + dd] else { continue }
-                    let j = Int(j32)
+                    guard let g = table.get(c + dd), compOf[Int(g)] == compId else { continue }
+                    let j = Int(g) - start
                     let nd = dd.y > 0 ? d : d + step[j]
-                    if nd < dist[j] { dist[j] = nd; heap.push(nd, j32) }
+                    if nd < dist[j] { dist[j] = nd; heap.push(nd, Int32(j)) }
                 }
             }
             var failed = Set<IVec3>()
-            for i in 0..<n where dist[i] > Collapse.unit { failed.insert(comp[i]) }
+            for i in 0..<n where dist[i] > Collapse.unit { failed.insert(cells[start + i]) }
             if !failed.isEmpty {
-                // What only hung on the failed cells goes with them: re-measure the rest without them.
-                let rest = comp.filter { !failed.contains($0) }
-                let restSet = Set(rest)
-                var held = Set<IVec3>(anchored.filter { restSet.contains($0) })
-                var q = Array(held)
-                while let c = q.popLast() {
-                    for d in dirs6 {
-                        let n = c + d
-                        if restSet.contains(n) && !held.contains(n) { held.insert(n); q.append(n) }
+                // What only hung on the failed cells goes with them: whatever no longer connects to a held cell.
+                var held = [Bool](repeating: false, count: n)
+                var q: [Int] = []
+                for i in 0..<n where anchoredFlag[i] && !failed.contains(cells[start + i]) { held[i] = true; q.append(i) }
+                while let i = q.popLast() {
+                    let c = cells[start + i]
+                    for dd in dirs6 {
+                        guard let g = table.get(c + dd), compOf[Int(g)] == compId else { continue }
+                        let j = Int(g) - start
+                        if !held[j] && !failed.contains(cells[start + j]) { held[j] = true; q.append(j) }
                     }
                 }
-                for c in rest where !held.contains(c) { failed.insert(c) }
+                for i in 0..<n where !held[i] { failed.insert(cells[start + i]) }
                 res.falling.append(contentsOf: pieces(Array(failed)))
                 continue
             }
-            // Necks: the narrowest built layer at the damage, against what stands above it (not in a structure bigger
-            // than the search: what stands above the neck isn't all known).
-            if open, let t = neck(w, comp: inComp, holes: holeSet) { res.tip.append(t) }
+            // Necks: a layer the damage narrowed, against what stands above it (not in a structure bigger than the
+            // search: what stands above the neck isn't all known). Only layers holding a hole under one of its cells.
+            guard open else { continue }
+            var layers = Set<Int>()
+            for h in holeSet {
+                if let g = table.get(h + up), compOf[Int(g)] == compId { layers.insert(h.y) }
+            }
+            if layers.isEmpty { continue }
+            let comp = Set(cells[start..<(start + n)])
+            if let t = neck(w, comp: comp, holes: holeSet, layers: layers.sorted()) { res.tip.append(t) }
         }
         return res
     }
@@ -194,12 +282,12 @@ enum Collapse {
 
     // A tower (or anything tall) standing on a narrowed layer at the holes: everything of comp above the layer, when it
     // outweighs what the layer bears or its centre of mass hangs past the layer's edge; the axis it tips about.
-    static func neck(_ w: World, comp: Set<IVec3>, holes: Set<IVec3>) -> (cells: [IVec3], axis: V3)? {
-        guard let y0 = holes.map({ $0.y }).min(), let y1 = holes.map({ $0.y }).max() else { return nil }
+    static func neck(_ w: World, comp: Set<IVec3>, holes: Set<IVec3>, layers: [Int]) -> (cells: [IVec3], axis: V3)? {
+        guard !holes.isEmpty else { return nil }
         var hc = V3(0, 0, 0)
         for h in holes { hc += V3(Float(h.x), Float(h.y), Float(h.z)) + 0.5 }
         hc /= Float(holes.count)
-        for y in max(0, y0 - 1)...(y1 + 1) {
+        for y in layers {
             // Cells of the layer that have built cells above them.
             let layer = comp.filter { $0.y == y }
             if layer.isEmpty { continue }
