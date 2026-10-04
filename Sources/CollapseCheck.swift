@@ -9,6 +9,8 @@ import simd
 //   tower    a hollow 5x5 tower 30 high; its base is blasted on one side: it breaks above the base and topples
 //   stands   a hollow 5x5 tower 60 high with a balcony on one side (heavier than its base bears, lopsided): one block
 //            mined at its foot and a small blast in its wall bring nothing down
+//   massive  a solid 30x12x30 brick block (bigger than one support search): a blast on it brings nothing down and the
+//            capped search stays within its time budget
 //   desert   blasts in a real desert (sand over the sandstone sheet): terrain never falls, the search stays small
 //   frigate  a Capital frigate cut through its middle by a ring of blasts: it breaks in two, both halves fall, settle
 //            and stay as wrecks
@@ -40,7 +42,7 @@ enum CollapseCheck {
         let out = arg("--out") ?? "snaps"
         try? FileManager.default.createDirectory(atPath: out, withIntermediateDirectories: true)
         let seed = UInt64(arg("--seed") ?? "") ?? 12345
-        let names = (arg("--scenes") ?? "bridge,mine,tower,stands,desert,frigate,wreck,dropship").split(separator: ",").map(String.init)
+        let names = (arg("--scenes") ?? "bridge,mine,tower,stands,massive,desert,frigate,wreck,dropship").split(separator: ",").map(String.init)
         let r = RideCheck.Report()
         r.md = ["# Collapse check", "", "Seed \(seed). Destruction physics and persistent wrecks through Game.tick.", ""]
         let t0 = CFAbsoluteTimeGetCurrent()
@@ -140,6 +142,16 @@ enum CollapseCheck {
             st.mine = [IVec3(o.x - 2, o.y, o.z)]
             st.blasts = [(V3(Float(o.x) + 0.5, Float(o.y + 20) + 0.5, Float(o.z + 3) + 0.2), 2)]
             st.view = (V3(Float(o.x + 4), Float(o.y + 20), Float(o.z + 60)), 0, 0.3)
+        case "massive":
+            for y in 0..<12 { for z in -15..<15 { for x in -15..<15 {
+                let gx = o.x + x, gz = o.z + z
+                // Down to the ground under each column (flat land, but a dip would leave the block resting on air).
+                if y == 0 { fill(w, IVec3(gx, w.topY(gx, gz) + 1, gz), IVec3(gx, o.y, gz), brick) }
+                _ = w.setBlockAsync(gx, o.y + y, gz, brick)
+            } } }
+            st.box = (IVec3(o.x - 18, o.y - 2, o.z - 18), IVec3(o.x + 18, o.y + 14, o.z + 18))
+            st.blasts = [(V3(Float(o.x) + 0.5, Float(o.y + 12), Float(o.z) + 0.5), 4), (V3(Float(o.x + 15) + 0.5, Float(o.y + 6), Float(o.z) + 0.5), 4)]
+            st.view = (V3(Float(o.x), Float(o.y), Float(o.z + 40)), 0, 0.1)
         case "desert":
             guard let p = Snapshot.findBiome(w.gen, "desert", interior: true) else { return false }
             let x = Int(floor(p.x)), z = Int(floor(p.z))
@@ -301,6 +313,9 @@ enum CollapseCheck {
             r.check(ms.hullSplits >= 1, "the cut hull breaks in two (\(ms.hullSplits) splits)")
             r.check(halfY0 - lowest > 20, String(format: "the severed half falls (%.0f blocks)", halfY0 - lowest))
             r.check(ms.capitals.isEmpty && ms.wrecks.count >= 2, "both halves come down and stay as wrecks (\(ms.wrecks.count) wrecks, \(ms.capitals.count) still flying)")
+        case "massive":
+            r.check(maxBodies == 0, "a crater in a solid block brings nothing down (\(maxBodies) debris bodies)")
+            r.check(ms.collapseMs < 15, String(format: "a search that hits its cap stays within budget (%.1f ms under 15)", ms.collapseMs))
         case "desert":
             r.check(maxBodies == 0, "terrain blasts bring nothing down (\(maxBodies) debris bodies)")
             r.check(ms.collapseMs < 8, String(format: "the support search round the craters stays small (%.1f ms)", ms.collapseMs))
