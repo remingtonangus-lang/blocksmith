@@ -125,8 +125,9 @@ enum Collapse {
                 res.falling.append(contentsOf: pieces(Array(failed)))
                 continue
             }
-            // Necks: the narrowest built layer at the damage, against what stands above it.
-            if let t = neck(w, comp: inComp, holes: holeSet) { res.tip.append(t) }
+            // Necks: the narrowest built layer at the damage, against what stands above it (not in a structure bigger
+            // than the search: what stands above the neck isn't all known).
+            if open, let t = neck(w, comp: inComp, holes: holeSet) { res.tip.append(t) }
         }
         return res
     }
@@ -177,6 +178,11 @@ enum Collapse {
             if above.count > 20000 || above.count < 8 { continue }
             // Only the layer's cells that carry it.
             let carriers = layer.filter { inAbove.contains($0 + IVec3(0, 1, 0)) }
+            // The damage must have narrowed this layer (a quarter of what carried it gone): one mined block, or a
+            // blast beside an L-shaped house, never brings down a building that leaned or was loaded that way whole.
+            var lost = 0
+            for h in holes where h.y == y && inAbove.contains(h + IVec3(0, 1, 0)) { lost += 1 }
+            let narrowed = lost * 4 >= carriers.count + lost
             var bear: Float = 0
             var lo = V2(Float.greatestFiniteMagnitude, Float.greatestFiniteMagnitude), hi = -lo
             var cen = V2(0, 0)
@@ -199,7 +205,7 @@ enum Collapse {
             // leans on the other: it goes over toward the gap).
             let reach = simd_length(hi - lo) * 0.5
             let past = c2.x < lo.x - 0.3 || c2.x > hi.x + 0.3 || c2.y < lo.y - 0.3 || c2.y > hi.y + 0.3 || simd_length(c2 - cen) > reach * 0.3
-            if weight <= bear && !past { continue }
+            if !narrowed || (weight <= bear && !past) { continue }
             // Tips toward the side the layer lost (away from what's left of it, toward the blast).
             var lean = V2(com.x, com.z) - cen
             if simd_length(lean) < 0.3 { lean = V2(hc.x, hc.z) - cen }
