@@ -179,6 +179,16 @@ extension Game {
                 }
             }
         }
+        // The crater rim: every full block left facing the hole is sooted (darker near the centre).
+        for b in destroyed where soot < 600 {
+            for d in World.allDirs {
+                let q = b + d
+                if destroyed.contains(q) { continue }
+                let dist = simd_length(c - (V3(Float(q.x), Float(q.y), Float(q.z)) + 0.5))
+                w.addScorch(q, to: dist < power * 0.6 + 1 ? 2 : 1)
+                soot += 1
+            }
+        }
     }
 }
 

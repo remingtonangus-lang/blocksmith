@@ -419,7 +419,11 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
             float p1 = along * 0.42 - t * 1.6, p2 = along * 0.7 + across * 0.33 - t * 2.3, p3 = across * 0.55 - t * 1.1 + 1.7;
             float amp = sea * 1.4;
             float2 grad = dir * (amp * 0.6 * 0.42 * cos(p1) + amp * 0.3 * 0.7 * cos(p2)) + perp * (amp * 0.3 * 0.33 * cos(p2) + amp * 0.2 * 0.55 * cos(p3));
-            g -= grad * (1.0 - 0.6 * smoothstep(48.0, 160.0, dist));
+            // Half the true slope: at full slope the faces toward the camera mirrored the white storm sky in broad
+            // regular bands (fx_storm_ship, run 473); finer chop on top breaks them up.
+            float2 chopP = wp.xz * 1.3 + dir * t * 1.6;
+            float2 chop = (float2(vnoise(chopP), vnoise(chopP + 5.1)) - 0.5) * 0.12 * sea;
+            g -= (grad * 0.45 + chop) * (1.0 - 0.6 * smoothstep(48.0, 160.0, dist));
             // Whitecaps: only the sharpest crests, torn into streaks along the wind (broad bands read as snow on the
             // first storm shot).
             float crest = smoothstep(0.9, 1.0, sin(p1) * 0.7 + sin(p2) * 0.3 + 0.05);
