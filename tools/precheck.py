@@ -66,6 +66,12 @@ for f in sorted(os.listdir(root)):
                 warns.append(f'{f}:{k}: -.pi (type-check risk in longer arithmetic: write -Float.pi)')
             elif re.search(r'[?:]\s*\.pi\b', code):
                 warns.append(f'{f}:{k}: .pi in a ternary (type-check risk: write Float.pi)')
+            # Code swallowed by a comment: a scripted edit appended a comment mid-declaration ("..., trousers   // note =
+            # V3(...), boots = V3(...)": run 505). A trailing comment holding "name = Type(" is almost always that.
+            if '//' in l and not l.lstrip().startswith('//') and '"' not in l:
+                tail = l.split('//', 1)[1]
+                if re.search(r'\b[a-z][A-Za-z0-9]*\s*=\s*[A-Z][A-Za-z0-9]*\(', tail) and re.search(r',\s*[a-z][A-Za-z0-9]*\s*$', l.split('//', 1)[0]):
+                    errors.append(f'{f}:{k}: a comment swallowed code (the declaration continues after //)')
             # Long interpolated print lines and long chained vector math have timed out the type checker.
             if l.count('\\(') >= 5 and ('*' in l or '+' in l.split('"')[0]):
                 warns.append(f'{f}:{k}: {l.count(chr(92) + "(")} interpolations with arithmetic (type-check risk)')
