@@ -26,10 +26,10 @@ def click(n, rng, fc=2500, decay=0.0015, amp=1.0):
 
 
 def crunch(n, rng, rate, dur, lo, hi, amp=1.0, grain=(0.0004, 0.003)):
-    env = np.zeros(n)
-    m = min(n, n_of(dur))
-    env[:m] = np.sin(np.linspace(0, np.pi, m)) ** 0.6 * np.exp(-np.linspace(0, 2.5, m))
-    return grains(n, rng, rate, grain, lo, hi, env=env) * amp
+    """Granular crunch: grain density AND level follow a fast-attack, smoothly decaying envelope (no hard stop)."""
+    t = np.arange(n) / SR
+    env = (1 - np.exp(-t / 0.004)) * np.exp(-t / (dur * 0.38))
+    return grains(n, rng, rate, grain, lo, hi, env=env) * env * amp * 1.6
 
 
 def swish(n, rng, dur, lo=2500, hi=9000, amp=1.0):
@@ -162,7 +162,8 @@ def hoof(surface: str, rng, force: float) -> np.ndarray:
     # weight of a 500 kg animal: a low thump into the ground
     t = t_axis(n)
     f = rng.uniform(55, 75) * (1 + 0.6 * np.exp(-t / 0.01))
-    weight = np.sin(np.cumsum(f) / SR * 2 * np.pi) * env_exp(n, 0.04 + 0.02 * force, 0.002)
+    weight = np.sin(np.cumsum(f) / SR * 2 * np.pi) * env_exp(n, 0.018 + 0.008 * force, 0.002) * 0.7
+    weight += lp(white(n, rng), 180, 2) * env_exp(n, 0.03, 0.002) * 2.0     # the ground itself, not a tone
     soft = {"grass": 0.8, "dirt": 1.0, "sand": 0.7, "mud": 0.6, "water": 0.4, "snow": 0.6}.get(surface, 0.7)
     x += weight * 0.5 * soft * force
     # the hoof wall itself: hollow "clop" (horn + iron shoe), clearest on hard ground
@@ -267,8 +268,8 @@ def bullet_dirt(rng, v):
     n = n_of(0.6)
     x = click(n, rng, 1500, 0.002, 0.8) + thud(n, rng, 700, 0.02, 1.0)
     fall = np.zeros(n)
-    env = env_points(n, [(0, 0), (0.03, 1), (0.25, 0.3), (0.55, 0)])
-    fall = grains(n, rng, 2500, (0.0005, 0.003), 1000, 6000, env=env) * 0.4
+    env = env_points(n, [(0, 0), (0.02, 1), (0.12, 0.35), (0.3, 0.1), (0.55, 0)])
+    fall = grains(n, rng, 2500, (0.0005, 0.003), 1000, 6000, env=env) * env * 0.6     # dirt spray pattering down
     return fade(x + fall, 0.0, 0.05)
 
 

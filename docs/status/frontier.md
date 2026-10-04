@@ -16,6 +16,14 @@ Local loop: Godot Linux + lavapipe (software Vulkan) under xvfb renders Forward+
   Range, Thornwood hills, Ocotillo Breaks mesas, Corrigan Plains, Lake Agnes, meandering Sable River + 2 creeks,
   4 towns + 8 POIs flattened, A*-routed graded roads, graded railroad; control map (roads, moisture, biome, sediment).
 - Asset pipeline: `frontier-assets` workflow (ubuntu) → release `frontier-assets` (catalog.zip, ext.zip).
+- Audio (`frontier/src/audio/`, `frontier/tools/audio/`, doc `frontier/design/AUDIO.md`): AudioDirector
+  (`Game.audio`, added in main.gd; `--noaudio` skips, `--audiotest` self-test) with buses, pooled 3D one-shots +
+  occlusion, gunshot model (speed of sound, close/far/distant/indoor, terrain/facade echoes), footsteps/hooves by
+  surface and gait, ambience mixer (biome/time/weather/water/towns, creature calls, thunder), adaptive stem score
+  (explore/town/tension/combat/mission/Nerve), Nerve slow-time audio, UI, voice lines with visemes, volume settings.
+  Content: ~190 synthesized SFX/ambience ids (~800 files), 16 original music tracks rendered with FluidSynth
+  (FluidR3 GM, MIT), Kokoro-82M TTS (Apache-2.0) for Ruth + NPC barks (`design/dialogue/`), CC0/PD Commons recordings
+  in CI. CI job `audio` in frontier-assets.yml publishes `audio.zip`; `tools/fetch_assets.sh audio` fetches it.
 
 ## Ranked gaps
 (Scores from blind critic rounds against QUALITY_BAR.md; gap = weight × (10 − score).)
@@ -23,3 +31,5 @@ Local loop: Godot Linux + lavapipe (software Vulkan) under xvfb renders Forward+
 
 ## Session log
 - 2026-10-04: branch created from claude/blocksmith-playtest; Blocksmith mac.yml ignores this branch.
+- 2026-10-04: audio workstream (worktree): director + generators + score + TTS + Commons pipeline; first CI audio
+  build pending (frontier.yml should also fetch audio on asset-cache hits, see AUDIO.md gaps).

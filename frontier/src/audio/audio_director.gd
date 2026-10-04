@@ -95,6 +95,14 @@ func _ready() -> void:
 	add_child(music)
 	print("audio: director ready (%d sounds, %d music tracks, %d voice lines%s)" % [sounds.size(), music_tracks.size(),
 		voice_lines.size(), "" if ok else ", NO MANIFEST: running silent"])
+	if Game.args.has("audiotest"):
+		Game.world_ready.connect(_selftest, CONNECT_ONE_SHOT)
+
+func _selftest() -> void:
+	var t: Node = load("res://src/audio/audio_selftest.gd").new()
+	t.name = "AudioSelfTest"
+	add_child(t)
+	t.call_deferred("run", self)
 
 func _exit_tree() -> void:
 	# release everything the AudioServer would otherwise keep alive past the scene (no leaks at exit)

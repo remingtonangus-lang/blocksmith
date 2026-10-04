@@ -34,12 +34,12 @@ const NIGHT := {
 	"mountain": [["wolf_howl", 0.004], ["owl_hoot", 0.006], ["elk_bugle", 0.004]],
 	"marsh": [["bullfrog", 0.04], ["owl_hoot", 0.005], ["coyote_chorus", 0.002]],
 }
-const FAR_CALLS := ["coyote_chorus", "wolf_howl", "elk_bugle", "bird_hawk"]
+const FAR_CALLS := ["coyote_chorus", "rec_coyote", "wolf_howl", "elk_bugle", "bird_hawk"]
 # preferred recordings (CI, Wikimedia Commons CC0/PD) over synthesised fallbacks
 const REC := {"dog_bark_synth": "rec_dog_bark", "cattle_moo_synth": "rec_cattle_moo", "horse_whinny_synth": "rec_horse_whinny",
 	"horse_snort": "rec_horse_snort", "horse_breath": "rec_horse_breath", "thunder_close": "rec_thunder",
 	"thunder_far": "rec_thunder_far", "crowd_saloon": "rec_crowd_indoor", "crowd_street": "rec_crowd_outdoor",
-	"rooster": "rec_rooster"}
+	"rooster": "rec_rooster", "coyote_chorus": "rec_coyote", "train_whistle": "rec_steam_whistle"}
 
 var director: Node
 var beds: Dictionary = {}            # id -> {player, cur, target, base}
@@ -335,7 +335,7 @@ func _spawn_calls(lp: Vector3, dt: float) -> void:
 				if c[0] == "coyote_chorus":
 					rate *= 1.0 + 2.0 * clampf(1.0 - absf(h - 20.0) / 1.5, 0.0, 1.0)     # they sing at dusk
 				if _rng.randf() < rate * bw * (1.0 - day) * act * dt:
-					_call(c[0], lp)
+					_call(rec_or(c[0]), lp)
 	if not town_id.is_empty() and not inside:
 		if day > 0.5 and _rng.randf() < 0.05 * dt:
 			_town_burst("anvil", lp, int(_rng.randi_range(3, 8)), 0.55)
@@ -350,7 +350,7 @@ func _spawn_calls(lp: Vector3, dt: float) -> void:
 		if _last_hour != -1 and not town_id.is_empty() and hr in [7, 12, 18]:
 			_bell(hr)
 		if _last_hour != -1 and (town_id == "bitter_spring" or town_id == "mesquite_wells") and _rng.randf() < 0.5:
-			director.play("train_whistle", lp + Vector3(_rng.randf_range(-1, 1), 0, _rng.randf_range(-1, 1)).normalized() * 900.0,
+			director.play(rec_or("train_whistle"), lp + Vector3(_rng.randf_range(-1, 1), 0, _rng.randf_range(-1, 1)).normalized() * 900.0,
 				{"delay": _rng.randf_range(5.0, 50.0), "occlude": false})
 		if _last_hour != -1 and hr >= 5 and hr <= 7 and _near_poi(lp, ["ranch", "homestead"]) and director.has_sound("rooster"):
 			_call(rec_or("rooster"), lp, 60.0, 250.0)

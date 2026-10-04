@@ -102,6 +102,7 @@ def main():
     ap.add_argument("--jobs", type=int, default=max(1, min(3, (os.cpu_count() or 2) - 1)))
     ap.add_argument("--no-music", action="store_true")
     ap.add_argument("--music-only", action="store_true")
+    ap.add_argument("--music", default=None, help="regex of music track ids to (re)build")
     ap.add_argument("--list", action="store_true")
     args = ap.parse_args()
     out = Path(args.out)
@@ -134,7 +135,7 @@ def main():
         print(f"sfx: {len(ids)} sounds in {time.time() - t0:.1f} s")
     if not args.no_music and (not args.only or args.music_only):
         import music
-        manifest["music"] = music.build(out, report)
+        manifest["music"] = music.build(out, report, manifest, args.music)
     man_path.write_text(json.dumps(manifest, indent=1, sort_keys=True))
     report_path.write_text(json.dumps(report, indent=1, sort_keys=True))
     print(f"manifest: {len(manifest['sounds'])} sounds, {len(manifest['music'])} music tracks -> {man_path}")

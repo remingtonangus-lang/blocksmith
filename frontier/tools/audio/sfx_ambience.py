@@ -41,7 +41,7 @@ def gust_env(n, rng, rate, depth, bias):
 
 
 def wind(rng, strength: float, whistle: float = 0.0, rumble: float = 0.4, rate: float = 0.12, hiss: float = 0.0,
-         seconds: float = LOOP_S) -> np.ndarray:
+         seconds: float = LOOP_S, post=None) -> np.ndarray:
     n = n_of(seconds + XF)
     out = np.zeros((n, 2))
     gust_common = gust_env(n, rng, rate, 1.4 * strength, 0.25 + 0.35 * strength)
@@ -58,6 +58,8 @@ def wind(rng, strength: float, whistle: float = 0.0, rumble: float = 0.4, rate: 
         if hiss > 0:
             x += hp(white(n, r), 3000) * g ** 2 * hiss * 0.25
         out[:, c] = x
+    if post is not None:
+        out = post(out)
     return make_loop(out, XF)
 
 
@@ -119,15 +121,16 @@ def wind_grass(rng, v):
 @sound("wind_interior", "amb_loop", loop=True, stereo=True, folder="amb", target=-34.0)
 def wind_interior(rng, v):
     """Wind heard from inside a timber building: muffled moan + occasional board rattles."""
-    x = wind(rng, 0.7, whistle=0.4, rumble=0.8, rate=0.12)
-    x = lp(x, 700, 2)
-    n = len(x)
-    for _ in range(int(rng.integers(6, 12))):
-        at = rng.integers(0, n - n_of(0.3))
-        k = n_of(0.25)
-        rat = grains(k, rng, 120, (0.002, 0.006), 300, 2500) * 2
-        x[at:at + k, int(rng.integers(0, 2))] += rat * 0.3
-    return x
+    def post(x):
+        x = lp(x, 700, 2)
+        n = len(x)
+        for _ in range(int(rng.integers(6, 12))):
+            at = int(rng.integers(n_of(1.0), n - n_of(XF + 1.0)))
+            k = n_of(0.25)
+            rat = grains(k, rng, 120, (0.002, 0.006), 300, 2500) * 2
+            x[at:at + k, int(rng.integers(0, 2))] += rat * 0.3
+        return x
+    return wind(rng, 0.7, whistle=0.4, rumble=0.8, rate=0.12, post=post)
 
 
 # ------------------------------------------------------------------------------------------------ rain and thunder
@@ -307,7 +310,7 @@ def water_lap_boat(rng, v):
 
 
 # ------------------------------------------------------------------------------------------------ fire
-def fire(rng, size: float) -> np.ndarray:
+def fire(rng, size: float, post=None) -> np.ndarray:
     n = n_of(LOOP_S + XF)
     out = np.zeros((n, 2))
     for c in range(2):
@@ -326,6 +329,8 @@ def fire(rng, size: float) -> np.ndarray:
                 mm = n_of(0.03)
                 pops[at:at + mm] += reson(r.standard_normal(mm) * np.exp(-np.linspace(0, 8, mm)), r.uniform(800, 2500), 6) * a
         out[:, c] = roar + hiss + hp(pops, 700) * 0.8
+    if post is not None:
+        out = post(out)
     return make_loop(out, XF)
 
 
@@ -336,8 +341,7 @@ def fire_camp(rng, v):
 
 @sound("fire_stove", "amb_loop", loop=True, stereo=True, folder="amb", max_dist=10, unit_size=1.0, target=-30.0)
 def fire_stove(rng, v):
-    x = fire(rng, 0.5)
-    return lp(x, 2500) + reson(x, 120, 3) * 0.3
+    return fire(rng, 0.5, post=lambda x: lp(x, 2500) + reson(x, 120, 3) * 0.3)
 
 
 # ------------------------------------------------------------------------------------------------ voices (babble)
