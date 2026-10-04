@@ -7,6 +7,7 @@
 # The Swift package is generated under build/quest-pkg: shared Sources/ (minus quest/mac-only.txt), quest/src
 # (common, vk, xr, app, android), the generated HUD builder and SPIR-V, the shim modules and the C glue.
 set -euo pipefail
+trap 'echo "build-apk.sh: failed at line $LINENO: $BASH_COMMAND"' ERR
 cd "$(dirname "$0")/../.."
 ROOT=$(pwd)
 OUT_APK="${1:-build/blocksmith-quest.apk}"
@@ -24,9 +25,9 @@ GEN=build/quest-gen
 STAGE=build/quest-apk
 rm -rf "$PKG" "$STAGE"; mkdir -p "$PKG/Sources" "$GEN" "$STAGE/lib/arm64-v8a" "$PKG/libs"
 
-PREBUILT=$(ls -d "$NDK"/toolchains/llvm/prebuilt/* | head -1)
+PREBUILT=$(ls -d "$NDK"/toolchains/llvm/prebuilt/* | sed -n 1p)
 SYSROOT="$PREBUILT/sysroot"
-export GLSLC="${GLSLC:-$(ls "$NDK"/shader-tools/*/glslc 2>/dev/null | head -1)}"
+export GLSLC="${GLSLC:-$(ls "$NDK"/shader-tools/*/glslc 2>/dev/null | sed -n 1p || true)}"
 
 echo "== generated sources"
 python3 quest/tools/extract_hud.py "$GEN/HudGenerated.swift"
@@ -92,14 +93,16 @@ echo "== swift build ($SDK, $TRIPLE)"
 (cd "$PKG" && swift build -c release --swift-sdk "$SDK" --triple "$TRIPLE" --static-swift-stdlib --product blocksmith \
   > "$ROOT/build/quest-swift-build.log" 2>&1) || { grep -E "error:" -A3 build/quest-swift-build.log | head -200; tail -40 build/quest-swift-build.log; exit 1; }
 grep -E "Compiling|Linking|Build complete" build/quest-swift-build.log | tail -5
-SO=$(find "$PKG/.build" -name libblocksmith.so -ipath "*release*" | head -1)
+# (find -print -quit, not `| head -1`: head closing the pipe fails the assignment under pipefail and exits silently)
+SO=$(find "$PKG/.build" -name libblocksmith.so -ipath "*release*" -print -quit || true)
+echo "library: $SO"
 [ -n "$SO" ] || { echo "libblocksmith.so not built"; tail -60 build/quest-swift-build.log; exit 1; }
 cp "$SO" "$STAGE/lib/arm64-v8a/"
 cp "$PKG/libs/libopenxr_loader.so" "$STAGE/lib/arm64-v8a/"
 cp "$SYSROOT/usr/lib/aarch64-linux-android/libc++_shared.so" "$STAGE/lib/arm64-v8a/"
 READELF="$PREBUILT/bin/llvm-readelf"
 # Any non-system library libblocksmith still needs (if the Swift runtime was not linked statically) comes from the SDK.
-SDKDIR=$(find "$HOME"/.swiftpm/swift-sdks "$HOME"/.config/swiftpm/swift-sdks -maxdepth 1 -name "${SDK}*" 2>/dev/null | head -1)
+SDKDIR=$(find "$HOME"/.swiftpm/swift-sdks "$HOME"/.config/swiftpm/swift-sdks -maxdepth 1 -name "${SDK}*" -print -quit 2>/dev/null || true)
 SDKDIR="${SDKDIR:-$HOME/.swiftpm/swift-sdks}"
 SYSLIBS=" libc.so libm.so libdl.so liblog.so libandroid.so libvulkan.so libaaudio.so libz.so libc++_shared.so libopenxr_loader.so libEGL.so libGLESv3.so "
 for pass in 1 2 3; do
@@ -107,7 +110,7 @@ for pass in 1 2 3; do
     for need in $("$READELF" -d "$lib" | sed -n 's/.*(NEEDED).*\[\(.*\)\]/\1/p'); do
       case "$SYSLIBS" in *" $need "*) continue ;; esac
       [ -f "$STAGE/lib/arm64-v8a/$need" ] && continue
-      src=$(find "$SDKDIR" -name "$need" -path "*aarch64*" 2>/dev/null | head -1)
+      src=$(find "$SDKDIR" -name "$need" -path "*aarch64*" -print -quit 2>/dev/null || true)
       if [ -n "$src" ]; then cp "$src" "$STAGE/lib/arm64-v8a/"; echo "bundled $need"; else echo "WARNING: $need not found"; fi
     done
   done
