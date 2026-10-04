@@ -184,7 +184,7 @@ enum RideCheck {
         let dx = w.x - s.pos.x, dz = w.z - s.pos.z
         var d = atan2f(-dx, -dz) - s.yaw
         while d > .pi { d -= 2 * .pi }
-        while d < -.pi { d += 2 * .pi }
+        while d < -Float.pi { d += 2 * Float.pi }
         a.yaw = max(-0.25, min(0.25, d))
         let dist = (dx * dx + dz * dz).squareRoot()
         if dist > 0.15 && abs(d) < 0.8 { a.forward = 1 }
@@ -196,7 +196,7 @@ enum RideCheck {
     static func wrap(_ a: Float) -> Float {
         var d = a
         while d > .pi { d -= 2 * .pi }
-        while d < -.pi { d += 2 * .pi }
+        while d < -Float.pi { d += 2 * Float.pi }
         return d
     }
 
@@ -566,7 +566,8 @@ enum RideCheck {
         }
         var out = Set<ObjectIdentifier>()
         var jumps = 0, inside = 0, rampSeen = false
-        var last: [ObjectIdentifier: V3] = [:]
+        var last: [ObjectIdentifier: (V3, Bool)] = [:]
+        var firstJump = "", firstInside = ""
         var t: Float = 0
         while t < 80 {
             for m in foes { m.health = max(m.health, 50) }        // they must outlast the crawler's guns for the test
@@ -584,12 +585,27 @@ enum RideCheck {
             if st.rampDown { rampSeen = true }
             for (k, m) in st.crewMobs where m.health > 0 && k < st.crew.count && st.crew[k].y < 15 && st.crewRoles[k] == .troop {
                 let id = ObjectIdentifier(m)
-                if let p = last[id], simd_length(m.pos - p) > 1 { jumps += 1 }
-                last[id] = m.pos
                 let l = s.toLocal(m.pos)
+                if let prev = last[id], simd_length(m.pos - prev.0) > 1 {
+                    let p = prev.0, wasAboard = prev.1
+                    jumps += 1
+                    if firstJump.isEmpty {
+                        let a = s.toLocal(p)
+                        firstJump = String(format: "t %.1f s: %.1f,%.1f,%.1f -> %.1f,%.1f,%.1f ship space, aboard %@ -> %@, route %ld left, ramp %@", t, a.x, a.y, a.z,
+                                           l.x, l.y, l.z, wasAboard ? "yes" : "no", m.deck === s ? "yes" : "no", m.crewRoute.count, st.rampDown ? "down" : "up")
+                    }
+                }
+                last[id] = (m.pos, m.deck === s)
                 if m.deck === s {
                     w.frame = s
-                    if m.collides(l + V3(0, 0.05, 0), w) { inside += 1 }
+                    if m.collides(l + V3(0, 0.05, 0), w) {
+                        inside += 1
+                        if firstInside.isEmpty {
+                            let c = IVec3(Int(floor(l.x)), Int(floor(l.y + 0.5)), Int(floor(l.z)))
+                            firstInside = String(format: "t %.1f s: %.2f,%.2f,%.2f ship space (block %@ there, %@ under), route %ld left, ramp %@", t, l.x, l.y, l.z,
+                                                 Blocks.key(s.grid.get(c.x, c.y, c.z)), Blocks.key(s.grid.get(c.x, c.y - 1, c.z)), m.crewRoute.count, st.rampDown ? "down" : "up")
+                        }
+                    }
                     w.frame = nil
                 } else if m.onGround && l.z > 76 { out.insert(id) }
             }
@@ -598,8 +614,8 @@ enum RideCheck {
         r.note(String(format: "ramp %@ before the foes came; %ld troops walked out in %.0f s; troops left %ld", rampAtStart ? "down" : "up", out.count, t, st.troops.count))
         r.check(!rampAtStart && rampSeen, "the ramp is up while it drives and comes down for the troops")
         r.check(out.count >= 2, "bay troops walk out by the ramp onto the ground (\(out.count))")
-        r.check(jumps == 0, "no troop is teleported (\(jumps) jumps over a block in a tick)")
-        r.check(inside == 0, "no troop inside a solid on the way out (\(inside) troop-ticks)")
+        r.check(jumps == 0, "no troop is teleported (\(jumps) jumps over a block in a tick)\(firstJump.isEmpty ? "" : "; first " + firstJump)")
+        r.check(inside == 0, "no troop inside a solid on the way out (\(inside) troop-ticks)\(firstInside.isEmpty ? "" : "; first " + firstInside)")
     }
 
     // Crew: soldiers ride at their posts while the vehicle drives and turns; then it is disabled and they stay aboard.
