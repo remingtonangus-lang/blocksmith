@@ -283,7 +283,7 @@ extension Game {
             r.dropshipCD = 75
             let dir = simd_normalize(V3(r.centre.x - src.x, 0, r.centre.z - src.z) + V3(0.3, 0, 0.7))
             let from = r.centre + dir * 170 + V3(0, 60, 0)
-            if world.ships.callDropship(faction: .steelhold, from: from, to: r.plaza, game: self) != nil {
+            if world.ships.callDropship(faction: .steelhold, from: from, to: r.plaza, game: self) {
                 r.dropships += 1
                 b.note("\(r.key) dropship \(r.dropships) called")
             }
