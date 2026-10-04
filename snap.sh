@@ -49,6 +49,8 @@ grep -o 'view: `[^`]*`' snaps/structcheck.md 2>/dev/null | sed 's/^view: `//; s/
 done
 # Bots playing the real Game.tick (Agent.swift): oracles every tick, replays for every finding (snaps/agent_*.md).
 "$BIN" --behaviorsim --seeds 12345,777 --minutes 20 --out snaps/behaviorsim.md
+# A Capital citadel's garrison: the same oracles, a gunshot outside every 3 minutes sends its patrols out.
+"$BIN" --behaviorsim --site citadel --seeds 12345 --minutes 8 --out snaps/behaviorsim_citadel.md
 "$BIN" --gencheck --seeds 12345,777,424242 --areas 6 --out snaps/gencheck.md
 # Leak gallery: the first two gencheck leaks, seen from a little above (gencheck_leak_N.png).
 k=0

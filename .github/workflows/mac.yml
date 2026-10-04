@@ -100,7 +100,7 @@ jobs:
           k=0
           for n in $LIST; do
             pat=$(printf '%s' "$n" | sed 's/[^a-zA-Z0-9_*]//g; s/\*/[a-zA-Z0-9_]*/g')
-            { grep -E "snaps/${pat}\.png" snap.sh || echo "fastshot: no shot matches $n" >&2; } | while IFS= read -r L; do
+            { grep -E "snaps/${pat}\.(png|md)" snap.sh || echo "fastshot: no shot matches $n" >&2; } | while IFS= read -r L; do
               echo "fastshot: $L" | tee -a snap.log
               (eval "BLOCKSMITH_TEXRES=32 $L" < /dev/null) 2>&1 | tee -a fastshots.log | tail -30 | tee -a snap.log || true
             done

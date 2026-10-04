@@ -339,8 +339,10 @@ extension Mob {
         if d > (b.orderStation == .none ? 1.6 : 0.9) {
             if b.station != .none { b.station = .none }
             face(o)
+            moving = true
             return spec.speed * (b.orderRun ? 0.95 : 0.6)
         }
+        moving = false
         if b.orderStation != .none {
             b.station = b.orderStation
             if let t = b.orderFace { face(t) }
