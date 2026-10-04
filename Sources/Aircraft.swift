@@ -26,16 +26,23 @@ enum Aircraft {
         // Door gaps on both sides behind the cockpit.
         for y in 2...3 { b.clear(-2, y, -1); b.clear(2, y, -1) }
         b.box(-2, 2, 3, 3, 4, 4, trim)                         // grey band across the back
+        // A rounded nose: the corners cut back, a glazed chin.
+        for y in 1...4 { b.clear(-2, y, -5); b.clear(2, y, -5) }
+        b.clear(-2, 4, -4); b.clear(2, 4, -4)
+        for x in -1...1 { b.set(x, 1, -5, glass) }
         // Controls and the engine (engine and rotor drive the flight model).
         b.set(0, 2, -4, "ship_helm[south]")
         b.set(0, 4, 2, "ship_engine")
         b.set(0, 5, 0, "ship_rotor")
         b.set(0, 4, 0, trim)
+        // Engine cowling behind the rotor head (under the blades).
+        b.box(-1, 1, 5, 5, 1, 3, trim)
         // Tail boom, fin, tail rotor.
         b.box(0, 0, 3, 3, 5, 13, frame)
         b.box(0, 0, 4, 5, 12, 13, frame)
         b.set(1, 4, 13, "ship_propeller[east]")
         b.box(-1, 1, 3, 3, 12, 12, trim)
+        b.box(-2, 2, 3, 3, 10, 10, frame)                      // tailplane
         // Crew: the pilot in the cockpit, four seats in the cabin.
         b.crew = [V3(0.5, 2, -2.5), V3(-0.5, 2, 1.5), V3(1.5, 2, 1.5), V3(-0.5, 2, 2.5), V3(1.5, 2, 2.5)]
         return b
