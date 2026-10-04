@@ -145,18 +145,17 @@ final class Turrets {
 
     func shoot(_ g: Game, _ m: Mob) {
         let b = m.soldierBrain
-        reload = 3
+        reload = HeavyTurret.reload * 0.6
         lastFired = g.clock
-        let pivot = m.pos + V3(0, 1.0, 0)
+        let pivot = m.pos + V3(0, HeavyTurret.trunnionY, 0)
         let fwd = V3(-sinf(m.yaw) * cosf(b.pitch), sinf(b.pitch), -cosf(m.yaw) * cosf(b.pitch))
-        let side = V3(cosf(m.yaw), 0, -sinf(m.yaw))
         for sx: Float in [-1, 1] {
-            let muzzle = pivot + fwd * 3.4 + side * (sx * 0.44)
-            var s = Slug(pos: muzzle, vel: Guns.scatter(fwd, 0.008) * 55, kind: .shell, damage: 0, fromPlayer: true,
-                         shooter: ObjectIdentifier(m), by: "Player", life: 6, gravity: 20)
-            s.power = 1.8
+            let muzzle = HeavyTurret.muzzle(m, sx)
+            var s = Slug(pos: muzzle, vel: Guns.scatter(fwd, 0.004) * HeavyTurret.speed, kind: .shell, damage: 0, fromPlayer: true,
+                         shooter: ObjectIdentifier(m), by: "Player", life: 12, gravity: HeavyTurret.gravity)
+            HeavyTurret.arm(&s)
             g.arms.spawn(s)
-            for _ in 0..<6 { g.particles.smoke(at: muzzle + fwd * Rand.float(in: 0...1), dark: false) }
+            for _ in 0..<10 { g.particles.smoke(at: muzzle + fwd * Rand.float(in: 0...3), dark: false) }
         }
         g.sfx(.gun(9), 2, at: pivot)
         PadManager.shared.rumble(0.9, 0.3, sharpness: 0.2)

@@ -111,7 +111,8 @@ extension MobKind {
             return Spec(name: "Steelhold Ironclad", halfW: 0.42, height: 2.25, health: 60, speed: 2.0, behavior: .monster,
                         drops: [("iron_ingot", 1, 4), ("rocket_ammo", 0, 2), ("arc_cell", 0, 3)], xp: 30, call: .gun(11), fireImmune: true)
         default:
-            return Spec(name: "Steelhold Deck Gun", halfW: 1.3, height: 2.0, health: 150, speed: 0, behavior: .monster,
+            // A true-scale twin 42 cm turret (HeavyTurret): 14 m wide, 5.5 m tall gunhouse on a barbette.
+            return Spec(name: "Twin 42 cm Turret", halfW: 7, height: 5.5, health: 400, speed: 0, behavior: .monster,
                         drops: [("iron_ingot", 4, 9), ("gunpowder", 2, 6), ("rocket_ammo", 1, 3)], xp: 40, call: .gun(12), fireImmune: true)
         }
     }
@@ -429,11 +430,11 @@ extension Mob {
         if fire > 0 { fire -= dt }
         b.reload -= dt
         b.kick = max(0, b.kick - dt * 1.5)
-        let pivot = pos + V3(0, 1.0, 0)
+        let pivot = pos + V3(0, HeavyTurret.trunnionY, 0)
         let player = g.player.eye - V3(0, 0.6, 0)
         let to = player - pivot
         let dist = simd_length(to)
-        let canTarget = g.survival && g.alive && dist < 80
+        let canTarget = g.survival && g.alive && dist < HeavyTurret.range
         b.losTimer -= dt
         if b.losTimer <= 0 {
             b.losTimer = 0.4
@@ -446,14 +447,14 @@ extension Mob {
         } else {
             b.seenAgo += dt
             // An enemy faction's vessel in range instead (CapitalShips.swift).
-            if let foe = g.world.ships.nearestFoe(of: factionValue, near: pivot, range: 120, game: g), foe.ship != nil || foe.mob != nil {
+            if let foe = g.world.ships.nearestFoe(of: factionValue, near: pivot, range: HeavyTurret.range * 1.5, game: g), foe.ship != nil || foe.mob != nil {
                 b.lastSeen = foe.point
                 b.seenAgo = 0
             }
         }
         guard let tgt = b.lastSeen, b.seenAgo < 3 else { b.charge = 0; return }
-        // Ballistic solution (low arc) for shells at 55 b/s under 20 b/s^2, half-leading the target.
-        let v: Float = 55, grav: Float = 20
+        // Ballistic solution (low arc) for the heavy shells, half-leading the target.
+        let v: Float = HeavyTurret.speed, grav: Float = HeavyTurret.gravity
         var aimP = tgt
         let flat0 = simd_length(V2(aimP.x - pivot.x, aimP.z - pivot.z))
         aimP += g.player.vel * (flat0 / v) * 0.5
@@ -461,29 +462,28 @@ extension Mob {
         let disc = v * v * v * v - grav * (grav * dx * dx + 2 * dy * v * v)
         var wantPitch: Float = 0.75
         if disc >= 0 && dx > 0.5 { wantPitch = atanf((v * v - sqrtf(disc)) / (grav * dx)) }
-        wantPitch = max(-0.17, min(0.9, wantPitch))
+        wantPitch = max(HeavyTurret.pitchMin, min(HeavyTurret.pitchMax, wantPitch))
         let wantYaw = atan2f(-(aimP.x - pivot.x), -(aimP.z - pivot.z))
         var dyaw = wantYaw - yaw
         while dyaw > .pi { dyaw -= 2 * .pi }
         while dyaw < -.pi { dyaw += 2 * .pi }
-        let turn: Float = 0.9 * dt
+        let turn: Float = HeavyTurret.traverse * dt               // a 1,000-tonne gunhouse traverses slowly
         yaw += max(-turn, min(turn, dyaw))
-        b.pitch += max(-0.6 * dt, min(0.6 * dt, wantPitch - b.pitch))
+        b.pitch += max(-0.15 * dt, min(0.15 * dt, wantPitch - b.pitch))
         walkPhase += abs(max(-turn, min(turn, dyaw)))
-        let aligned = abs(dyaw) < 0.05 && abs(wantPitch - b.pitch) < 0.03 && dx > 6
+        let aligned = abs(dyaw) < 0.04 && abs(wantPitch - b.pitch) < 0.03 && dx > 24
         if aligned && b.reload <= 0 {
             if b.charge == 0 { g.sfx(.gun(12), 1.2, at: pivot) }
             b.charge += dt
             if b.charge >= 1.2 {
                 b.charge = 0
-                b.reload = g.difficulty >= 3 ? 4.5 : 5.5
+                b.reload = g.difficulty >= 3 ? HeavyTurret.reload * 0.8 : HeavyTurret.reload
                 let fwd = V3(-sinf(yaw) * cosf(b.pitch), sinf(b.pitch), -cosf(yaw) * cosf(b.pitch))
-                let side = V3(cosf(yaw), 0, -sinf(yaw))
                 for sx: Float in [-1, 1] {
-                    let muzzle = pivot + fwd * 3.4 + side * (sx * 0.44)
-                    var s = Slug(pos: muzzle, vel: Guns.scatter(fwd, 0.012) * v, kind: .shell, damage: 0, fromPlayer: false,
-                                 shooter: ObjectIdentifier(self), by: spec.name, life: 6, gravity: grav)
-                    s.power = 1.8
+                    let muzzle = HeavyTurret.muzzle(self, sx)
+                    var s = Slug(pos: muzzle, vel: Guns.scatter(fwd, 0.006) * v, kind: .shell, damage: 0, fromPlayer: false,
+                                 shooter: ObjectIdentifier(self), by: spec.name, life: 12, gravity: grav)
+                    HeavyTurret.arm(&s)
                     g.arms.spawn(s)
                     for _ in 0..<6 { g.particles.smoke(at: muzzle + fwd * Rand.float(in: 0...1), dark: false) }
                     g.particles.add(Particle(pos: muzzle, vel: fwd, life: 0.08, maxLife: 0.08, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1,
@@ -612,32 +612,72 @@ func soldierParts(_ m: Mob, swing: Float) -> [Part] {
     return p
 }
 
+// The twin 42 cm heavy-gun turret, true to scale (1 block = 1 m; parts in 1/16 block). An original model after
+// WWII battleship twin turrets (the H-class 42 cm design, a scaled-up Bismarck-type turret): a long flat-roofed
+// gunhouse with an inclined face plate and chamfered front corners, a rear overhang, rangefinder hoods on both
+// flanks, roof periscope hoods, two 20 m barrels (L/48) 4.5 m apart through armoured gun ports, on a barbette
+// ring (the barbette itself is built in blocks under it). Origin: the barbette top centre; the guns face -Z.
+enum HeavyTurret {
+    static let trunnionY: Float = 3                 // gun trunnions above the barbette top (blocks)
+    static let trunnionZ: Float = -6                // ... and ahead of the turret centre
+    static let barrel: Float = 21                   // trunnion to muzzle
+    static let spacing: Float = 2.25                // half the distance between the barrels
+    static let speed: Float = 110, gravity: Float = 20
+    static let pitchMin: Float = -0.09, pitchMax: Float = 0.52     // -5 to +30 degrees
+    static let traverse: Float = 0.2                // radians per second
+    static let reload: Float = 9
+    static let range: Float = 220
+    static let power: Float = 2.4                   // TNT-like burst, about a 3-block crater
+
+    static func muzzle(_ m: Mob, _ sx: Float) -> V3 {
+        let p = m.brain?.pitch ?? 0
+        let fwd = V3(-sinf(m.yaw) * cosf(p), sinf(p), -cosf(m.yaw) * cosf(p))
+        let side = V3(cosf(m.yaw), 0, -sinf(m.yaw))
+        let flat = V3(-sinf(m.yaw), 0, -cosf(m.yaw))
+        let trunnion = m.pos + V3(0, trunnionY, 0) + flat * (-trunnionZ) + side * (sx * spacing)
+        return trunnion + fwd * barrel
+    }
+    // A heavy shell: bursts like TNT where it lands, breaking blocks and hurting everything near.
+    static func arm(_ s: inout Slug) {
+        s.power = power
+        s.breaks = true
+    }
+}
+
 func deckGunParts(_ m: Mob) -> [Part] {
-    let steel = V3(0.3, 0.32, 0.35), dark = V3(0.14, 0.15, 0.17), hazard = V3(0.85, 0.68, 0.1)
+    let grey = V3(0.56, 0.58, 0.6), dark = V3(0.2, 0.21, 0.23), mid = V3(0.42, 0.44, 0.47), deck = V3(0.32, 0.33, 0.35)
     let pitch = m.brain?.pitch ?? 0
     let charge = m.brain?.charge ?? 0
-    let kick = (m.brain?.kick ?? 0) * 7                 // barrels slide back after a salvo
-    let eyeGlow = m.aggro ? V3(1.4 + charge, 0.2, 0.15) : V3(0.3, 0.1, 0.1)
+    let kick = (m.brain?.kick ?? 0) * 19                // 1.2 m recoil after a salvo
+    let tz: Float = HeavyTurret.trunnionZ * 16, ty: Float = HeavyTurret.trunnionY * 16
     var p: [Part] = [
-        box(-20, 0, -20, 40, 5, 40, dark),
-        box(-21, 5, -21, 42, 1, 42, hazard),
-        box(-16, 6, -14, 32, 16, 28, steel),
-        box(-17, 7, -17, 34, 13, 3, steel * 0.9),
-        box(-14, 22, -10, 28, 3, 20, steel * 0.85),
-        box(-3, 18, -17.4, 6, 2, 0.4, eyeGlow),
-        box(-22, 16, -4, 5, 3, 8, dark), box(17, 16, -4, 5, 3, 8, dark),
-        box(-22.5, 16.5, -5, 1, 2, 1, V3(0.6, 0.9, 1.1)), box(21.5, 16.5, -5, 1, 2, 1, V3(0.6, 0.9, 1.1)),
+        // Barbette ring skirt and the turret's rotating base.
+        box(-100, -6, -100, 200, 8, 200, deck),
+        box(-104, 2, -96, 208, 6, 230, dark),
+        // Gunhouse: the main armoured box, roof, rear overhang.
+        box(-108, 8, -96, 216, 72, 236, grey),
+        box(-104, 80, -100, 208, 8, 236, mid),
+        box(-100, 20, 140, 200, 56, 20, grey * 0.94),
+        // The face plate leaning back in three steps, narrower than the flanks (chamfered front corners).
+        box(-92, 8, -124, 184, 32, 28, grey * 0.97), box(-96, 40, -114, 192, 24, 18, grey * 0.97), box(-100, 64, -104, 200, 16, 8, grey * 0.97),
+        // Rangefinder hoods on both flanks at the rear, and their arms.
+        box(-140, 52, 80, 32, 18, 40, mid), box(108, 52, 80, 32, 18, 40, mid),
+        box(-144, 56, 84, 6, 10, 32, dark), box(138, 56, 84, 6, 10, 32, dark),
+        // Roof periscope hoods and the commander's cupola.
+        box(-60, 88, -40, 18, 8, 22, mid), box(42, 88, -40, 18, 8, 22, mid), box(-14, 88, 60, 28, 12, 28, mid),
+        box(-12, 96, 58, 24, 2, 4, V3(0.1, 0.12, 0.14)),
     ]
-    for x: Float in [-7, 7] {
-        p.append(Part(mn: V3(x - 2.5, 11.5, -22), mx: V3(x + 2.5, 16.5, -14), pivot: V3(x, 14, -14), rotX: pitch, color: dark))
-        // Heavier barrels with a reinforcing jacket and a slotted muzzle brake (thin prongs read as a lawnmower:
-        // blind critic, run 385 deck_gun).
-        p.append(Part(mn: V3(x - 2.2, 11.8, -62 + kick), mx: V3(x + 2.2, 16.2, -22 + kick), pivot: V3(x, 14, -14), rotX: pitch, color: steel * 0.8))
-        p.append(Part(mn: V3(x - 2.9, 11.1, -36 + kick), mx: V3(x + 2.9, 16.9, -22 + kick), pivot: V3(x, 14, -14), rotX: pitch, color: steel * 0.65))
-        p.append(Part(mn: V3(x - 3.1, 10.9, -68 + kick), mx: V3(x + 3.1, 17.1, -60 + kick), pivot: V3(x, 14, -14), rotX: pitch, color: dark))
-        p.append(Part(mn: V3(x - 3.3, 13.4, -66 + kick), mx: V3(x + 3.3, 14.6, -62 + kick), pivot: V3(x, 14, -14), rotX: pitch, color: V3(0.05, 0.05, 0.06)))
+    for x: Float in [-36, 36] {
+        let pv = V3(x, ty, tz)
+        // Gun port mantlet (moves with the gun), the barrel in three tapering sections, a muzzle ring.
+        p.append(Part(mn: V3(x - 22, ty - 22, tz - 30), mx: V3(x + 22, ty + 22, tz + 4), pivot: pv, rotX: pitch, color: dark))
+        p.append(Part(mn: V3(x - 13, ty - 13, tz - 140 + kick), mx: V3(x + 13, ty + 13, tz - 30 + kick), pivot: pv, rotX: pitch, color: mid))
+        p.append(Part(mn: V3(x - 10.5, ty - 10.5, tz - 260 + kick), mx: V3(x + 10.5, ty + 10.5, tz - 140 + kick), pivot: pv, rotX: pitch, color: mid * 0.95))
+        p.append(Part(mn: V3(x - 8.5, ty - 8.5, tz - 330 + kick), mx: V3(x + 8.5, ty + 8.5, tz - 260 + kick), pivot: pv, rotX: pitch, color: mid * 0.9))
+        p.append(Part(mn: V3(x - 10, ty - 10, tz - 340 + kick), mx: V3(x + 10, ty + 10, tz - 330 + kick), pivot: pv, rotX: pitch, color: dark))
+        p.append(Part(mn: V3(x - 4, ty - 4, tz - 340.5 + kick), mx: V3(x + 4, ty + 4, tz - 339.5 + kick), pivot: pv, rotX: pitch, color: V3(0.03, 0.03, 0.04)))
         if charge > 0 {
-            p.append(Part(mn: V3(x - 1, 13, -66.3), mx: V3(x + 1, 15, -65.9), pivot: V3(x, 14, -14), rotX: pitch, color: V3(1.5 + charge, 0.8, 0.2)))
+            p.append(Part(mn: V3(x - 5, ty - 5, tz - 341), mx: V3(x + 5, ty + 5, tz - 340.6), pivot: pv, rotX: pitch, color: V3(1.5 + charge, 0.8, 0.2)))
         }
     }
     return p

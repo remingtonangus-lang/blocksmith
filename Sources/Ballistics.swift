@@ -17,6 +17,7 @@ struct Slug {
     var life: Float
     var gravity: Float
     var power: Float = 0          // explosive rounds
+    var breaks = false            // heavy shells: the burst breaks blocks (HeavyTurret)
     var traveled: Float = 0
     var dead = false
     var whizzed = false           // a near miss on the player already made its whizz
@@ -234,7 +235,7 @@ final class Armory {
             for m in g.mobs.mobs where simd_length(m.pos - at) < s.power * 2 + 1 { m.killedByPlayer = true }
         }
         let shooter = s.shooter.flatMap { id in g.mobs.mobs.first { ObjectIdentifier($0) == id } }
-        Explosion.explode(at: at, power: s.power, game: g, fire: false, except: shooter, breakBlocks: s.fromPlayer && s.kind == .rocket)
+        Explosion.explode(at: at, power: s.power, game: g, fire: false, except: shooter, breakBlocks: (s.fromPlayer && s.kind == .rocket) || s.breaks)
     }
 
     // Hitscan energy beam (arc lance): damages and ignites the first thing it meets.
