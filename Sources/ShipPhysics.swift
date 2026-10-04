@@ -165,6 +165,16 @@ extension ShipManager {
         for (m, s) in mobRiders where s.pos != s.prevPos || s.rot != s.prevRot {
             m.pos = s.toWorld(s.prevToLocal(m.pos))
             m.yaw += angleDelta(s.yaw, s.prevYaw)
+            // Carried into the ground beside the hull (a crawler easing down onto its buried ramp foot): up to a block
+            // up to free space, as Mob.update does for a rider that starts its step inside a block.
+            var l = s.toLocal(m.pos)
+            world.frame = s
+            if m.collides(l, world) {
+                var up: Float = 0.1
+                while up <= 1.01 && m.collides(l + V3(0, up, 0), world) { up += 0.1 }
+                if up <= 1.01 { l.y += up; m.pos = s.toWorld(l) }
+            }
+            world.frame = nil
         }
         for (it, s) in itemRiders where s.pos != s.prevPos || s.rot != s.prevRot {
             it.pos = s.toWorld(s.prevToLocal(it.pos))
