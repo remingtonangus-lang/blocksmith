@@ -72,8 +72,16 @@ enum BlockMaterial {
             // Trees and other growths hold themselves up (a branch is no beam to check).
             let growth = k.hasSuffix("_log") || k.hasSuffix("_wood") || k.hasSuffix("_stem") || k.hasSuffix("_hyphae")
                 || k.contains("mushroom_block") || k == "bamboo" || k == "cactus" || k.hasSuffix("_roots")
-            t[i] = ShipParts.natural[i] || Blocks.hardness[i] < 0 || growth
+            // Generated terrain the helm's natural list leaves out (it can be built with, but mostly isn't): a desert's
+            // sandstone sheet, basalt and blackstone deltas and volcano flanks, icebergs, geodes, the Emberdeep's
+            // glowstone ceilings and ore veins. (A blast in them would otherwise search a whole desert's sandstone.)
+            let terrain = terrainKeys.contains(k) || (k.hasPrefix("raw_") && k.hasSuffix("_block"))
+            t[i] = ShipParts.natural[i] || Blocks.hardness[i] < 0 || growth || terrain
         }
         return t
     }()
+
+    static let terrainKeys: Set<String> = ["sandstone", "red_sandstone", "basalt", "smooth_basalt", "blackstone", "packed_ice", "blue_ice",
+                                           "amethyst_block", "budding_amethyst", "glowstone", "ancient_debris", "shroomlight",
+                                           "nether_wart_block", "warped_wart_block"]
 }
