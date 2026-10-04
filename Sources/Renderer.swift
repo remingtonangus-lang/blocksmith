@@ -60,6 +60,8 @@ final class Renderer: NSObject, MTKViewDelegate {
     let starVerts: Int
     let depthWrite: MTLDepthStencilState
     let depthRead: MTLDepthStencilState
+    var landmarkVerts: [SimpleVert] = []       // far landmark impostors (LandmarkRender.swift), reused every frame
+    var landmarkSmoke: [SimpleVert] = []
     let depthNone: MTLDepthStencilState
     let texture: MTLTexture
     let quadIndices: MTLBuffer
@@ -976,6 +978,23 @@ final class Renderer: NSObject, MTKViewDelegate {
         shipRenderer.beginFrame()
         shipRenderer.hdr = hdrActive                 // Fancy draws into the HDR target
         shipRenderer.drawOpaque(enc, ships: game.world.ships, eye: eye, u: &u, frustum: frustum, quads: quadIndices)
+
+        // Big landmarks past the render distance (volcano impostors): opaque cone, then blended smoke.
+        if hasSky && !underwater {
+            var smokeStart = 0
+            buildLandmarks(&landmarkVerts, smokeStart: &smokeStart, game: game, eye: eye, far: far, fog: fogColor, rd: rd)
+            if !landmarkVerts.isEmpty, let off = push(landmarkVerts) {
+                enc.setRenderPipelineState(simplePipe)
+                enc.setCullMode(.none)
+                enc.setVertexBuffer(scratch, offset: off, index: 0)
+                enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+                enc.setDepthStencilState(depthWrite)
+                if smokeStart > 0 { enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: smokeStart) }
+                enc.setDepthStencilState(depthRead)
+                if landmarkVerts.count > smokeStart { enc.drawPrimitives(type: .triangle, vertexStart: smokeStart, vertexCount: landmarkVerts.count - smokeStart) }
+            }
+            landmarkVerts.removeAll(keepingCapacity: true)
+        }
 
         // Mobs (written straight into the scratch ring: no per-frame arrays); Fancy wrote them before the shadow pass.
         if let pre = mobPre, hdrActive {

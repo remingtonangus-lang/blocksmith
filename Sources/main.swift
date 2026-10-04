@@ -98,6 +98,12 @@ enum Snapshot {
                     pos.x += sinf(yawD) * back
                     pos.z += cosf(yawD) * back
                 }
+                // --back N: stand N blocks back along the view, on the ground (horizon views of a landmark).
+                if let bk = Float(arg("--back") ?? "") {
+                    pos.x += sinf(yawD) * bk
+                    pos.z += cosf(yawD) * bk
+                    pos.y = Float(max(world.gen.column(Int(pos.x), Int(pos.z)).height, SEA) + 1)
+                }
                 print("feature \(f) at \(fx) \(fz)")
             } else { print("feature \(f) not found") }
         }
