@@ -231,12 +231,43 @@ extension ShipManager {
                 bodies.append((V3(m.pos.x - m.halfW, m.pos.y, m.pos.z - m.halfW), V3(m.pos.x + m.halfW, m.pos.y + m.height, m.pos.z + m.halfW)))
             }
         }
-        var n = 0
-        for (c, b) in place {
-            if c.y < 0 || c.y >= CH || !w.isLoaded(c.x, c.z) { continue }
-            if !Blocks.replaceable[Int(w.rawBlock(c.x, c.y, c.z))] { continue }
+        func blocked(_ c: IVec3, _ b: BlockID) -> Bool {
+            if c.y < 0 || c.y >= CH || !w.isLoaded(c.x, c.z) { return true }
+            if !Blocks.replaceable[Int(w.rawBlock(c.x, c.y, c.z))] { return true }
             let mn = V3(Float(c.x), Float(c.y), Float(c.z)), mx = mn + 1
-            if Blocks.collide[Int(b)] && bodies.contains(where: { $0.0.x < mx.x && $0.1.x > mn.x && $0.0.y < mx.y && $0.1.y > mn.y && $0.0.z < mx.z && $0.1.z > mn.z }) { continue }
+            return Blocks.collide[Int(b)] && bodies.contains(where: { $0.0.x < mx.x && $0.1.x > mn.x && $0.0.y < mx.y && $0.1.y > mn.y && $0.0.z < mx.z && $0.1.z > mn.z })
+        }
+        place = place.filter { !blocked($0.key, $0.value) }
+        // Islands: a tumbled body's turned blocks can land joined only edge to edge, and a part laid down where it was
+        // can rest on nothing. A piece touching nothing solid below or beside it drops straight down onto what is under
+        // it (a few blocks at most), so no fragment is left hanging (collapse check: floating leftovers).
+        var shifted: [IVec3: BlockID] = [:]
+        for piece in Collapse.pieces(Array(place.keys)) {
+            let mine = Set(piece)
+            var held = false
+            for c in piece where !held {
+                for d in Collapse.dirs6 where d.y <= 0 {
+                    let q = c + d
+                    if mine.contains(q) { continue }
+                    if Blocks.collide[Int(w.rawBlock(q.x, q.y, q.z))] { held = true; break }
+                }
+            }
+            var drop = 0
+            if !held {
+                fall: while drop < 48 {
+                    for c in piece {
+                        let q = IVec3(c.x, c.y - drop - 1, c.z)
+                        if mine.contains(q) { continue }
+                        if q.y < 1 || Blocks.collide[Int(w.rawBlock(q.x, q.y, q.z))] || shifted[q] != nil { break fall }
+                    }
+                    drop += 1
+                }
+            }
+            for c in piece { if let b = place[c] { shifted[IVec3(c.x, c.y - drop, c.z)] = b } }
+            if drop > 0 { for c in piece { if let be = bePlace.removeValue(forKey: c) { bePlace[IVec3(c.x, c.y - drop, c.z)] = be } } }
+        }
+        var n = 0
+        for (c, b) in shifted where !blocked(c, b) {
             let nb: BlockID = upright ? ShipParts.rotate(b, turns) : Blocks.groupBase[Int(b)]
             _ = w.setBlockAsync(c.x, c.y, c.z, nb)
             if let be = bePlace[c] { w.blockEntities[c] = be }
