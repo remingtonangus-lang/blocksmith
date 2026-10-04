@@ -5,6 +5,7 @@ import simd
 // `Blocksmith --collapsecheck [--scenes bridge,tower,frigate,wreck] [--seed N] [--out DIR]`: destruction physics and
 // persistent wrecks through the real Game.tick (Destruction.swift, Debris.swift, Wrecks.swift). Scenes:
 //   bridge   a stone-brick bridge on three piers; the middle pier is blasted: the span it held falls, the rest stands
+//   mine     the same bridge with its middle pier mined out block by block (Game.breakBlock), not blasted
 //   tower    a hollow 5x5 tower 30 high; its base is blasted on one side: it breaks above the base and topples
 //   frigate  a Capital frigate cut through its middle by a ring of blasts: it breaks in two, both halves fall, settle
 //            and stay as wrecks
@@ -23,6 +24,7 @@ enum CollapseCheck {
         var ship: Ship?
         var watch: [IVec3] = []                            // cells expected to fall
         var blasts: [(V3, Float)] = []                     // set off at time 0
+        var mine: [IVec3] = []                             // blocks broken as a player mines them, at time 0
         var view = (V3(0, 0, 0), Float(0), Float(0))      // camera: position, yaw, pitch
         init(game: Game, world: World) { self.game = game; self.world = world }
     }
@@ -35,7 +37,7 @@ enum CollapseCheck {
         let out = arg("--out") ?? "snaps"
         try? FileManager.default.createDirectory(atPath: out, withIntermediateDirectories: true)
         let seed = UInt64(arg("--seed") ?? "") ?? 12345
-        let names = (arg("--scenes") ?? "bridge,tower,frigate,wreck,dropship").split(separator: ",").map(String.init)
+        let names = (arg("--scenes") ?? "bridge,mine,tower,frigate,wreck,dropship").split(separator: ",").map(String.init)
         let r = RideCheck.Report()
         r.md = ["# Collapse check", "", "Seed \(seed). Destruction physics and persistent wrecks through Game.tick.", ""]
         let t0 = CFAbsoluteTimeGetCurrent()
@@ -85,7 +87,7 @@ enum CollapseCheck {
         let w = st.world, g = st.game, o = st.origin
         let brick = Blocks.id("stone_bricks")
         switch kind {
-        case "bridge":
+        case "bridge", "mine":
             // Three 3x3 piers 10 apart, a 3-wide deck 12 up over 25 blocks: every deck block within 4 of a pier.
             let deckY = o.y + 12
             for px in [0, 10, 20] { for dz in -1...1 { for dx in -1...1 {
@@ -98,9 +100,15 @@ enum CollapseCheck {
             var span: [IVec3] = []
             for dx in 8...12 { for dz in -1...1 { span.append(IVec3(o.x + dx, deckY, o.z + dz)) } }
             st.watch = span
-            st.blasts = [(V3(Float(o.x + 10) + 0.5, Float(deckY - 2), Float(o.z) + 0.5), 4),
-                         (V3(Float(o.x + 10) + 0.5, Float(deckY - 6), Float(o.z) + 0.5), 4),
-                         (V3(Float(o.x + 10) + 0.5, Float(o.y + 2), Float(o.z) + 0.5), 4)]
+            if kind == "mine" {
+                // The middle pier's top layer under the deck, mined out: the deck over it has nothing below it there.
+                for dz in -1...1 { for dx in -1...1 { st.mine.append(IVec3(o.x + 10 + dx, deckY - 1, o.z + dz)) } }
+                for y in stride(from: deckY - 2, through: o.y, by: -1) { for dz in -1...1 { for dx in -1...1 { st.mine.append(IVec3(o.x + 10 + dx, y, o.z + dz)) } } }
+            } else {
+                st.blasts = [(V3(Float(o.x + 10) + 0.5, Float(deckY - 2), Float(o.z) + 0.5), 4),
+                             (V3(Float(o.x + 10) + 0.5, Float(deckY - 6), Float(o.z) + 0.5), 4),
+                             (V3(Float(o.x + 10) + 0.5, Float(o.y + 2), Float(o.z) + 0.5), 4)]
+            }
             st.view = (V3(Float(o.x + 10), Float(o.y + 8), Float(o.z + 34)), 0, -0.12)
         case "tower":
             // A hollow 5x5 stone-brick tower 30 high with a floor every 6; blasted at its base on the +x side.
@@ -190,6 +198,10 @@ enum CollapseCheck {
     static func trigger(_ st: Stage) {
         if let s = st.ship, s.role == "dropship" { s.wrecked = true }
         for (c, pw) in st.blasts { Explosion.explode(at: c, power: pw, game: st.game) }
+        for c in st.mine {
+            let b = st.world.rawBlock(c.x, c.y, c.z)
+            if b != AIR { st.game.breakBlock(c, b, drop: false) }
+        }
         if let s = st.ship, s.role == "crawler", let cs = st.world.ships.capState[s.id] {
             let kinds = ShipParts.kinds
             var cells: [(IVec3, BlockID)] = []
