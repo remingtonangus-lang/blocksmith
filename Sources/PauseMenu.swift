@@ -81,7 +81,7 @@ final class PauseMenu: Menu {
         "new_diff": "How much damage mobs do and whether hunger can kill.",
         "edit_name": "The name shown in the worlds list.",
         "edit_seed": "Leave empty for a random world; the same seed always makes the same world.",
-        "worldmap": "Biomes around you and the Steelhold bases and villages you have found.",
+        "worldmap": "Biomes around you and the Capital citadels and villages you have found.",
         "flight": "Aircraft pitch on the left stick: pull back to climb (like a plane) or push up to climb.",
         "autosprint": "Push the left stick fully forward for a moment to sprint.",
         "glyphs": "Which buttons prompts show. Auto follows the last device you touched.",
