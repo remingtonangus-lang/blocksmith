@@ -231,7 +231,7 @@ final class USBGamepads {
             var ifs = gipInterface(under: s)
             if ifs == nil {
                 // No driver set a configuration (vendor class): set configuration 1 so the interfaces appear.
-                do { try dev.configure(withValue: 1); log("step: configuration 1 set") }
+                do { try dev.configure(value: 1); log("step: configuration 1 set") }
                 catch { log("step: configure failed: \(error.localizedDescription)") }
                 for _ in 0..<20 where ifs == nil { usleep(50_000); ifs = gipInterface(under: s) }
             }
@@ -271,14 +271,14 @@ final class USBGamepads {
     private func send(_ bytes: [UInt8]) -> Bool {
         guard let p = pipeOut else { return false }
         let d = NSMutableData(bytes: bytes, length: bytes.count)
-        do { _ = try p.sendIORequest(with: d, completionTimeout: 1); return true } catch { return false }
+        do { _ = try p.sendIORequest(data: d, completionTimeout: 1); return true } catch { return false }
     }
 
     private func readNext() {
         guard let p = pipeIn else { return }
         let buf = NSMutableData(length: 64)!
         do {
-            try p.enqueueIORequest(with: buf, completionTimeout: 0) { [weak self] status, n in
+            try p.enqueueIORequest(data: buf, completionTimeout: 0) { [weak self] status, n in
                 guard let self else { return }
                 if status != kIOReturnSuccess {
                     if status != USBGamepads.errAborted { self.log(String(format: "read failed 0x%08x", status)) }
