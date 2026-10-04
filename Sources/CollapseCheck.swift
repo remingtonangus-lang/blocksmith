@@ -5,7 +5,7 @@ import simd
 // `Blocksmith --collapsecheck [--scenes bridge,tower,frigate,wreck] [--seed N] [--out DIR]`: destruction physics and
 // persistent wrecks through the real Game.tick (Destruction.swift, Debris.swift, Wrecks.swift). Scenes:
 //   bridge   a stone-brick bridge on three piers; the middle pier is blasted: the span it held falls, the rest stands
-//   tower    a hollow 5x5 tower 24 high; its base is blasted on one side: it breaks above the base and topples
+//   tower    a hollow 5x5 tower 30 high; its base is blasted on one side: it breaks above the base and topples
 //   frigate  a Capital frigate cut through its middle by a ring of blasts: it breaks in two, both halves fall, settle
 //            and stay as wrecks
 //   wreck    a crawler disabled on the plains settles into a wreck: world blocks, salvage crates, sheltered spots;
@@ -101,8 +101,8 @@ enum CollapseCheck {
                          (V3(Float(o.x + 10) + 0.5, Float(o.y + 2), Float(o.z) + 0.5), 4)]
             st.view = (V3(Float(o.x + 10), Float(o.y + 8), Float(o.z + 34)), 0, -0.12)
         case "tower":
-            // A hollow 5x5 stone-brick tower 24 high with a floor every 6; blasted at its base on the +x side.
-            let h = 24
+            // A hollow 5x5 stone-brick tower 30 high with a floor every 6; blasted at its base on the +x side.
+            let h = 30
             for y in 0..<h { for dz in -2...2 { for dx in -2...2 where abs(dx) == 2 || abs(dz) == 2 || y % 6 == 5 {
                 _ = w.setBlockAsync(o.x + dx, o.y + y, o.z + dz, brick)
             } } }

@@ -179,10 +179,13 @@ enum Collapse {
             let carriers = layer.filter { inAbove.contains($0 + IVec3(0, 1, 0)) }
             var bear: Float = 0
             var lo = V2(Float.greatestFiniteMagnitude, Float.greatestFiniteMagnitude), hi = -lo
+            var cen = V2(0, 0)
             for c in carriers {
                 bear += BlockMaterial.load(w.rawBlock(c.x, c.y, c.z))
                 lo = simd_min(lo, V2(Float(c.x), Float(c.z))); hi = simd_max(hi, V2(Float(c.x) + 1, Float(c.z) + 1))
+                cen += V2(Float(c.x), Float(c.z)) + 0.5
             }
+            cen /= Float(max(1, carriers.count))
             var weight: Float = 0
             var com = V3(0, 0, 0)
             for c in above {
@@ -192,12 +195,14 @@ enum Collapse {
             }
             com /= max(0.001, weight * 2.3)
             let c2 = V2(com.x, com.z)
-            let past = c2.x < lo.x - 0.3 || c2.x > hi.x + 0.3 || c2.y < lo.y - 0.3 || c2.y > hi.y + 0.3
+            // Past the edge, or far off the middle of what is left under it (a tower that lost one side of its base
+            // leans on the other: it goes over toward the gap).
+            let reach = simd_length(hi - lo) * 0.5
+            let past = c2.x < lo.x - 0.3 || c2.x > hi.x + 0.3 || c2.y < lo.y - 0.3 || c2.y > hi.y + 0.3 || simd_length(c2 - cen) > reach * 0.3
             if weight <= bear && !past { continue }
             // Tips toward the side the layer lost (away from what's left of it, toward the blast).
-            let mid = (lo + hi) * 0.5
-            var lean = V2(com.x, com.z) - mid
-            if simd_length(lean) < 0.3 { lean = V2(hc.x, hc.z) - mid }
+            var lean = V2(com.x, com.z) - cen
+            if simd_length(lean) < 0.3 { lean = V2(hc.x, hc.z) - cen }
             if simd_length(lean) < 0.01 { lean = V2(1, 0) }
             lean = simd_normalize(lean)
             // Rotating about this axis carries the top toward `lean`.
