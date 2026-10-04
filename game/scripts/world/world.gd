@@ -175,4 +175,14 @@ func shot_list() -> Array:
 	if Settings.has_arg("only"):
 		var only := String(Settings.arg("only")).split(",")
 		shots = shots.filter(func(s): return s["name"] in only)
+	if Settings.has_arg("shard"):
+		# --shard i/n: every n-th shot starting at i (CI splits the list over parallel jobs).
+		var parts := String(Settings.arg("shard")).split("/")
+		var si := int(parts[0])
+		var sn := maxi(1, int(parts[1]))
+		var picked := []
+		for j in shots.size():
+			if j % sn == si:
+				picked.append(shots[j])
+		shots = picked
 	return shots

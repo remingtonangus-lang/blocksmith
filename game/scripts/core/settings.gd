@@ -94,7 +94,7 @@ func _parse_args() -> void:
 
 func _takes_value(key: String) -> bool:
 	return key in ["preset", "seed", "time", "weather", "shots", "smoke", "spawn", "scene", "benchmark-out",
-		"only", "yaw", "pitch", "scale", "res"]
+		"only", "yaw", "pitch", "scale", "res", "shard"]
 
 
 func arg(key: String, default: Variant = null) -> Variant:

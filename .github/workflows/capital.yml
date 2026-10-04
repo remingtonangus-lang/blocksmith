@@ -20,9 +20,43 @@ env:
   GODOT_TAG: 4.7.2-stable
 
 jobs:
-  linux:
+  test:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-linux-${{ env.GODOT_TAG }}
+      - name: Download Godot
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot && cd ~/godot
+          curl -fsSL -o g.zip "https://github.com/godotengine/godot/releases/download/${GODOT_TAG}/Godot_v${GODOT_TAG}_linux.x86_64.zip"
+          unzip -q g.zip && rm g.zip && mv Godot_v* godot && chmod +x godot
+      - name: Import and test
+        run: |
+          set -o pipefail
+          mkdir -p ci
+          echo "${GITHUB_SHA::10}" > game/build_info.txt
+          ~/godot/godot --headless --path game --import 2>&1 | tail -20 || true
+          ~/godot/godot --headless --path game -s res://tests/run_tests.gd 2>&1 | tee ci/tests.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-test
+          path: ci/
+
+  shots:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
     steps:
       - uses: actions/checkout@v4
       - name: Cache Godot
@@ -41,37 +75,75 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq mesa-vulkan-drivers xvfb libvulkan1 > /dev/null
-      - name: Import
+      - name: Shots shard ${{ matrix.shard }} (Vulkan on lavapipe)
         run: |
-          echo "${GITHUB_SHA::10}" > game/build_info.txt
-          ~/godot/godot --headless --path game --import 2>&1 | tail -20 || true
-      - name: Tests
-        run: |
-          set -o pipefail
-          mkdir -p ci
-          ~/godot/godot --headless --path game -s res://tests/run_tests.gd 2>&1 | tee ci/tests.log
-      - name: Shots (Vulkan on lavapipe)
-        if: always()
-        run: |
+          ~/godot/godot --headless --path game --import > /dev/null 2>&1 || true
           mkdir -p ci/shots
           xvfb-run -a -s "-screen 0 1920x1080x24" ~/godot/godot --path game --rendering-driver vulkan \
-            --resolution 1280x720 -- --shots "$PWD/ci/shots" --preset High --scale 1 2>&1 | tee ci/shots.log || true
+            --resolution 1280x720 -- --shots "$PWD/ci/shots" --preset High --scale 1 --shard ${{ matrix.shard }}/4 2>&1 \
+            | grep -v ALSA | tee ci/shots_${{ matrix.shard }}.log || true
           ls -la ci/shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-shots-${{ matrix.shard }}
+          path: ci/
+
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-linux-${{ env.GODOT_TAG }}
+      - name: Download Godot
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot && cd ~/godot
+          curl -fsSL -o g.zip "https://github.com/godotengine/godot/releases/download/${GODOT_TAG}/Godot_v${GODOT_TAG}_linux.x86_64.zip"
+          unzip -q g.zip && rm g.zip && mv Godot_v* godot && chmod +x godot
+      - name: Install Vulkan (lavapipe) and xvfb
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq mesa-vulkan-drivers xvfb libvulkan1 > /dev/null
       - name: Smoke (60 s of play, renders)
-        if: always()
         run: |
-          xvfb-run -a -s "-screen 0 1920x1080x24" timeout 600 ~/godot/godot --path game --rendering-driver vulkan \
-            --resolution 960x540 -- --smoke 60 --preset Low 2>&1 | tail -40 | tee ci/smoke.log
+          ~/godot/godot --headless --path game --import > /dev/null 2>&1 || true
+          mkdir -p ci
+          xvfb-run -a -s "-screen 0 1920x1080x24" timeout 900 ~/godot/godot --path game --rendering-driver vulkan \
+            --resolution 960x540 -- --smoke 60 --preset Low 2>&1 | grep -v ALSA | tail -60 | tee ci/smoke.log
+          grep -q "smoke: ok" ci/smoke.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-smoke
+          path: ci/
+
+  publish:
+    runs-on: ubuntu-24.04
+    needs: [test, shots, smoke, mac]
+    if: always()
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: art
       - name: Publish shots to capital-shots
-        if: always()
         run: |
-          cd ci
+          mkdir -p out/shots
+          cp art/ci-shots-*/shots/*.png out/shots/ 2>/dev/null || true
+          cp art/ci-shots-*/*.log art/ci-test/*.log art/ci-smoke/*.log out/ 2>/dev/null || true
+          mkdir -p out/mac && cp art/mac-logs/* out/mac/ 2>/dev/null || true
+          cd out
           {
             echo "# Alabaster CI shots"
             echo
-            echo "Commit ${GITHUB_SHA::10} on ${GITHUB_REF_NAME}, $(date -u '+%Y-%m-%d %H:%M UTC'). Rendered with Mesa lavapipe (software Vulkan), Forward+, High preset at 1280x720."
+            echo "Commit ${GITHUB_SHA::10} on ${GITHUB_REF_NAME}, $(date -u '+%Y-%m-%d %H:%M UTC'). Rendered with Mesa lavapipe (software Vulkan), Forward+, High preset at 1280x720. Jobs: test ${{ needs.test.result }}, shots ${{ needs.shots.result }}, smoke ${{ needs.smoke.result }}, mac ${{ needs.mac.result }} (logs in mac/)."
             echo
-            echo '```'; tail -5 tests.log; echo '```'
+            echo '```'; tail -5 tests.log 2>/dev/null; tail -3 smoke.log 2>/dev/null; echo '```'
             for f in shots/*.png; do n=$(basename "$f" .png); echo "### $n"; echo "![$n]($f)"; echo; done
           } > README.md
           git init -q -b capital-shots
@@ -84,7 +156,7 @@ jobs:
   mac:
     runs-on: macos-15
     timeout-minutes: 45
-    needs: linux
+    needs: [test]
     steps:
       - uses: actions/checkout@v4
       - name: Cache Godot (macOS + templates)
@@ -148,13 +220,6 @@ jobs:
           fi
           gh release upload capital-latest Alabaster-macos-arm64.zip --clobber
           gh release upload capital-latest ci/benchmark.json --clobber 2>/dev/null || true
-      - name: Add the mac logs to capital-shots
-        if: always()
-        run: |
-          git clone -q --depth 1 --branch capital-shots "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" shots || exit 0
-          mkdir -p shots/mac && cp ci/* shots/mac/ 2>/dev/null || true
-          cd shots && git config user.name "capital-ci" && git config user.email "capital-ci@users.noreply.github.com"
-          git add -A && git commit -q -m "mac logs for ${GITHUB_SHA::10}" && git push -q origin capital-shots || true
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
