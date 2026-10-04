@@ -476,6 +476,11 @@ func water_at(x: float, z: float) -> float:
 	return -10000.0
 
 
+## Macro slope (rise over run) from the height grid.
+func slope_at(x: float, z: float) -> float:
+	return _slope_at(_tx(x), _tx(z))
+
+
 func forest_at(x: float, z: float) -> float:
 	return mask[(_tx(z) * N + _tx(x)) * 4 + 3] / 255.0
 

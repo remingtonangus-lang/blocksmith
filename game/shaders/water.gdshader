@@ -80,7 +80,7 @@ void fragment() {
 	vec4 ndc = vec4(SCREEN_UV * 2.0 - 1.0, raw, 1.0);
 	vec4 vpos = INV_PROJECTION_MATRIX * ndc;
 	vpos.xyz /= vpos.w;
-	float scene_depth = -vpos.z;
+	float scene_depth = raw > 1e-7 ? -vpos.z : 1e5;   // nothing behind the water (past the terrain): deep sea
 	float water_depth = max(scene_depth - (-VERTEX.z), 0.0);
 	// Refraction: offset by the normal, fall back to the unshifted sample when the offset hits something in front.
 	vec2 off = nv.xz * 0.035 * clamp(water_depth / 3.0, 0.0, 1.0);
@@ -88,7 +88,7 @@ void fragment() {
 	float raw2 = texture(depth_tex, ruv).r;
 	vec4 v2 = INV_PROJECTION_MATRIX * vec4(ruv * 2.0 - 1.0, raw2, 1.0);
 	v2.xyz /= v2.w;
-	if (-v2.z < -VERTEX.z) ruv = SCREEN_UV;
+	if (raw2 > 1e-7 && -v2.z < -VERTEX.z) ruv = SCREEN_UV;
 	vec3 refr = textureLod(screen_tex, ruv, 0.0).rgb;
 	float murk = is_river ? 0.55 : 0.16;
 	vec3 absorb = exp(-water_depth * murk * vec3(0.45, 0.12, 0.09));

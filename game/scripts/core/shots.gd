@@ -56,6 +56,11 @@ func _next() -> void:
 func _process(_delta: float) -> void:
 	if i < 0 or i >= shots.size():
 		return
+	if G.world and not G.world.is_settled() and wait > -150:
+		wait = mini(wait, 0) - 1
+		return
+	if wait < 0:
+		wait = SETTLE
 	wait -= 1
 	if wait > 0:
 		return

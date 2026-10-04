@@ -9,7 +9,7 @@ enum { SPRUCE, BROADLEAF, BIRCH, BUSH }
 const SPECIES := 4
 const ATLAS := 1024
 const TILE := 512
-const VERSION := 4
+const VERSION := 5
 
 
 # --------------------------------------------------------------------------------------------- meshes
@@ -148,21 +148,29 @@ static func _broadleaf(rng: RandomNumberGenerator, bark: SurfaceTool, leaves: Su
 		_cyl(bark, mid, tip, r0 * 0.5, r0 * 0.15, 5 if lod == 0 else 3, 0.4, 0.8, split + 3.0, a)
 		tips.append(tip)
 	_cyl(bark, trunk_top, crown_c + Vector3(0, crown_r.y * 0.7, 0), r0 * 0.7, r0 * 0.1, 5, 0.1, 0.8, split, 0.0)
-	var n := (95 if not birch else 80) if lod == 0 else (34 if not birch else 30)
+	# The crown is a cluster of lobes (one per limb tip, one on top, a few fillers) so the silhouette is lumpy.
+	var lobes: Array = []
+	for tp in tips:
+		lobes.append([tp + Vector3(0, crown_r.y * 0.15, 0), crown_r.x * rng.randf_range(0.42, 0.55)])
+	lobes.append([crown_c + Vector3(0, crown_r.y * 0.55, 0), crown_r.x * rng.randf_range(0.45, 0.6)])
+	for i in 3:
+		var a := rng.randf() * TAU
+		lobes.append([crown_c + Vector3(cos(a) * crown_r.x * 0.5, rng.randf_range(-0.2, 0.4) * crown_r.y, sin(a) * crown_r.z * 0.5), crown_r.x * rng.randf_range(0.35, 0.5)])
+	var n := (150 if not birch else 120) if lod == 0 else (50 if not birch else 40)
 	var tile := 1 if not birch else 2
-	var sz_min := 1.7 if not birch else 1.2
-	var sz_max := 2.6 if not birch else 1.8
+	var sz_min := 1.0 if not birch else 0.75
+	var sz_max := 1.6 if not birch else 1.15
 	if lod > 0:
-		sz_min *= 1.45
-		sz_max *= 1.45
+		sz_min *= 1.5
+		sz_max *= 1.5
 	for i in n:
-		# Points on a jittered ellipsoid shell, biased toward the limb tips.
-		var d := Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.7, 1), rng.randf_range(-1, 1)).normalized()
-		var r := rng.randf_range(0.6, 1.0)
-		var p := crown_c + d * crown_r * r
-		if i % 3 == 0 and tips.size() > 0:
-			p = p.lerp(tips[i % tips.size()], 0.35)
-		var radial := (p - crown_c).normalized()
+		var lobe: Array = lobes[i % lobes.size()]
+		var lc: Vector3 = lobe[0]
+		var lr: float = lobe[1]
+		var d := Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.6, 1), rng.randf_range(-1, 1)).normalized()
+		var r := rng.randf_range(0.55, 1.0)
+		var p := lc + d * lr * r * Vector3(1.0, 0.8, 1.0) * (Vector3(1.0, 1.4, 1.0) if birch else Vector3.ONE)
+		var radial := (p - crown_c).normalized().lerp(d, 0.5).normalized()
 		var s := rng.randf_range(sz_min, sz_max)
 		var right := radial.cross(Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized())
 		if right.length() < 0.1:
@@ -171,7 +179,8 @@ static func _broadleaf(rng: RandomNumberGenerator, bark: SurfaceTool, leaves: Su
 		var up := right.cross(radial).normalized() * s
 		if birch:
 			up = (up + Vector3(0, -s * 0.6, 0)).normalized() * s * 1.1
-		var ao := lerpf(0.5, 1.0, clampf((p.y - (crown_c.y - crown_r.y)) / (crown_r.y * 2.0), 0.0, 1.0)) * lerpf(0.75, 1.0, r)
+		var hgt := clampf((p.y - (crown_c.y - crown_r.y)) / (crown_r.y * 2.0), 0.0, 1.0)
+		var ao := lerpf(0.45, 1.0, hgt) * lerpf(0.65, 1.0, r)
 		_card(leaves, p, right, up, tile, radial, 0.7 + r * 0.3, rng.randf() * TAU, ao, rng.randf() < 0.5)
 
 

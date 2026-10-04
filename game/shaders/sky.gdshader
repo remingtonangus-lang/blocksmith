@@ -184,9 +184,9 @@ void sky() {
 		}
 		// Below the horizon: a dim ground colour lit by the sky (seen only over the ocean edge / from altitude).
 		if (rd.y < 0.0) {
-			float k = smoothstep(0.0, -0.06, rd.y);
-			vec3 amb = scatter(vec3(0.0, 1.0, 0.0), sun_dir, sun_intensity, h0) * 0.5;
-			col = mix(col, ground_color * (amb + vec3(0.002)), k);
+			// Below the horizon (only seen past the ocean's far edge): the horizon colour, slightly darker.
+			vec3 hz = normalize(vec3(rd.x, 0.0, rd.z));
+			col = scatter(hz, sun_dir, sun_intensity, h0) * 0.85 + scatter(hz, moon_dir, sun_intensity * moon_intensity, h0) * 0.85;
 		}
 		if (rd.y > -0.01) {
 			vec3 st = sun_transmittance(sun_dir) * smoothstep(-0.12, 0.05, sun_dir.y);

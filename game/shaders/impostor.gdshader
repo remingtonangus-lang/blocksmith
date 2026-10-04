@@ -20,10 +20,11 @@ varying float v_tint;
 void vertex() {
 	vec3 origin = MODEL_MATRIX[3].xyz;
 	float sc = length(MODEL_MATRIX[1].xyz);
+	float sx = length(MODEL_MATRIX[0].xyz);
 	vec3 to_cam = CAMERA_POSITION_WORLD - origin;
 	vec3 fwd = normalize(vec3(to_cam.x, 0.0, to_cam.z) + vec3(0.0001));
 	vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), fwd));
-	vec3 world = origin + right * VERTEX.x * sc + vec3(0.0, VERTEX.y * sc, 0.0);
+	vec3 world = origin + right * VERTEX.x * sx * 2.0 + vec3(0.0, VERTEX.y * sc, 0.0);
 	float d = length(to_cam);
 	v_fade = smoothstep(near_start, near_start + 30.0, d) * (1.0 - smoothstep(far_end * 0.85, far_end, d));
 	v_right = right;

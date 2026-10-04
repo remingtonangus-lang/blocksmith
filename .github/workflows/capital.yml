@@ -114,6 +114,9 @@ jobs:
           mkdir -p game/build
           $G --headless --path game --export-release "macOS" build/Alabaster.app 2>&1 | tail -30
           cd game/build
+          test -d Alabaster.app/Contents/MacOS || { echo "export failed"; exit 1; }
+          # The official template is universal: keep only the Apple Silicon slice.
+          for b in Alabaster.app/Contents/MacOS/*; do lipo "$b" -thin arm64 -output "$b.arm64" && mv "$b.arm64" "$b"; done
           codesign --force --deep -s - Alabaster.app
           codesign -dv Alabaster.app 2>&1 | head -5
           lipo -info Alabaster.app/Contents/MacOS/* || true

@@ -142,6 +142,9 @@ void fragment() {
 		alb += texture(albedo_array, vec3(p * sc * 0.5, 7.0)) * wb.w;
 		nn += (texture(normal_array, vec3(p * sc * 0.5, 7.0)).xyz * 2.0 - 1.0) * wb.w;
 	}
+	// Seen from afar, forests read as closed canopy (the impostors are sparse there), not as bare forest floor.
+	float canopy = wa.z * smoothstep(250.0, 900.0, dist);
+	alb.rgb = mix(alb.rgb, vec3(0.075, 0.115, 0.05) * mix(0.8, 1.2, var2), canopy);
 	// Large-scale tint variation so far fields are not one flat colour.
 	alb.rgb *= mix(0.86, 1.12, var1) * mix(0.94, 1.04, var2);
 	// Tangent-space normals on the flat layers (x -> world x, y -> world z).

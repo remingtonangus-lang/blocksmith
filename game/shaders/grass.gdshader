@@ -20,7 +20,7 @@ void vertex() {
 	vec3 origin = MODEL_MATRIX[3].xyz;
 	float seed = INSTANCE_CUSTOM.x;
 	vec2 jitter = vec2(hash12(origin.xz * 0.731 + seed), hash12(origin.xz * 1.37 - seed)) - 0.5;
-	vec2 base = origin.xz + jitter * 1.4;
+	vec2 base = origin.xz + jitter * INSTANCE_CUSTOM.y * 1.4;
 	float d = distance(base, CAMERA_POSITION_WORLD.xz);
 	vec4 m = t_mask_at(base);
 	vec3 n = t_normal(base);
@@ -50,17 +50,17 @@ void vertex() {
 	local.xz = vec2(local.x * cy - local.z * sy, local.x * sy + local.z * cy);
 	vec3 world = vec3(base.x, h, base.y) + local;
 	v_h = tip;
-	vec3 green = mix(vec3(0.16, 0.26, 0.07), vec3(0.36, 0.38, 0.15), meadow);
-	green = mix(green, vec3(0.42, 0.40, 0.2), hash12(base * 2.9) * 0.35);
+	vec3 green = mix(vec3(0.13, 0.21, 0.055), vec3(0.27, 0.30, 0.11), meadow);
+	green = mix(green, vec3(0.34, 0.33, 0.16), hash12(base * 2.9) * 0.3);
 	v_col = green;
 	VERTEX = (inverse(MODEL_MATRIX) * vec4(world, 1.0)).xyz;
 	NORMAL = (inverse(MODEL_MATRIX) * vec4(normalize(n + vec3(0.0, 0.6, 0.0)), 0.0)).xyz;
 }
 
 void fragment() {
-	ALBEDO = v_col * mix(0.45, 1.05, v_h);
+	ALBEDO = v_col * mix(0.5, 1.0, v_h);
 	ROUGHNESS = 0.8;
 	SPECULAR = 0.3;
-	BACKLIGHT = v_col * 0.5;
+	BACKLIGHT = v_col * 0.25;
 	AO = mix(0.5, 1.0, v_h);
 }

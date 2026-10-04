@@ -103,7 +103,7 @@ func setup() -> void:
 	world_env = WorldEnvironment.new()
 	world_env.environment = env
 	cam_attr = CameraAttributesPractical.new()
-	cam_attr.auto_exposure_enabled = true
+	cam_attr.auto_exposure_enabled = false     # exposure follows the sky instead (deterministic)
 	cam_attr.auto_exposure_scale = 0.38
 	cam_attr.auto_exposure_speed = 0.7
 	cam_attr.auto_exposure_min_sensitivity = 50.0
@@ -222,4 +222,7 @@ func _update(delta: float) -> void:
 	env.volumetric_fog_density = 0.0025 + fog_extra * 3.0
 	env.volumetric_fog_emission = Color(0.0, 0.0, 0.0)
 	env.ambient_light_energy = lerpf(0.25, 1.0, daylight)
-	cam_attr.auto_exposure_max_sensitivity = lerpf(900.0, 2400.0, night)
+	if Settings.has_arg("noambient"):
+		env.ambient_light_energy = 0.0
+		env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
+	env.tonemap_exposure = lerpf(1.0, 2.4, night) * lerpf(1.0, 1.25, cloud_cover)

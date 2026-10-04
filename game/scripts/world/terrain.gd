@@ -15,8 +15,15 @@ const COLLIDE_N := 257          # collision window: 256 m at 1 m spacing
 const COLLIDE_STEP := 1.0
 
 var gen: WorldGen
+const NEAR_LEVELS := 4          # levels 0-3 (nodes up to 256 m) cast shadows, with a tight AABB
 var mm: MultiMesh
 var mmi: MultiMeshInstance3D
+var mm_far: MultiMesh
+var mmi_far: MultiMeshInstance3D
+var _buf_far := PackedFloat32Array()
+var _count_far := 0
+var _lo := Vector3.ZERO
+var _hi := Vector3.ZERO
 var material: ShaderMaterial
 var ranges := PackedFloat32Array()
 var minmax: Array = []          # per level: PackedFloat32Array of (min, max) pairs for nodes of that level
@@ -65,11 +72,23 @@ func setup(g: WorldGen) -> void:
 	mmi.name = "TerrainPatches"
 	mmi.multimesh = mm
 	mmi.material_override = material
-	mmi.custom_aabb = AABB(Vector3(-ROOT, -500, -ROOT), Vector3(ROOT * 2, 3500, ROOT * 2))
 	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-	mmi.extra_cull_margin = 16384.0
 	add_child(mmi)
 	_buf.resize(2048 * 16)
+	mm_far = MultiMesh.new()
+	mm_far.transform_format = MultiMesh.TRANSFORM_3D
+	mm_far.use_custom_data = true
+	mm_far.mesh = mm.mesh
+	mm_far.instance_count = 1024
+	mm_far.visible_instance_count = 0
+	mmi_far = MultiMeshInstance3D.new()
+	mmi_far.name = "TerrainFar"
+	mmi_far.multimesh = mm_far
+	mmi_far.material_override = material
+	mmi_far.custom_aabb = AABB(Vector3(-ROOT, -500, -ROOT), Vector3(ROOT * 2, 3500, ROOT * 2))
+	mmi_far.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mmi_far)
+	_buf_far.resize(1024 * 16)
 
 	body = StaticBody3D.new()
 	body.name = "TerrainBody"
@@ -169,11 +188,19 @@ func _process(_delta: float) -> void:
 		return
 	var c := cam.global_position
 	_count = 0
+	_count_far = 0
+	_lo = Vector3(1e9, 1e9, 1e9)
+	_hi = Vector3(-1e9, -1e9, -1e9)
 	_select(0, 0, LEVELS - 1, c)
 	mm.visible_instance_count = 0
 	if _count > 0:
 		mm.buffer = _buf
+		mmi.custom_aabb = AABB(_lo, _hi - _lo)
 	mm.visible_instance_count = _count
+	mm_far.visible_instance_count = 0
+	if _count_far > 0:
+		mm_far.buffer = _buf_far
+	mm_far.visible_instance_count = _count_far
 	material.set_shader_parameter("cam_pos", c)
 	_update_collision()
 
@@ -203,22 +230,37 @@ func _select(ix: int, iz: int, level: int, c: Vector3) -> void:
 
 
 func _add(ix: int, iz: int, level: int) -> void:
-	if _count >= 2048:
-		return
 	var size := LEAF * pow(2.0, level)
-	var o := _count * 16
 	var x0 := -ROOT * 0.5 + ix * size
 	var z0 := -ROOT * 0.5 + iz * size
-	# Basis (row-major 3x4): scale x and z by the node size, origin at the node's corner.
-	_buf[o + 0] = size; _buf[o + 1] = 0.0; _buf[o + 2] = 0.0; _buf[o + 3] = x0
-	_buf[o + 4] = 0.0; _buf[o + 5] = 1.0; _buf[o + 6] = 0.0; _buf[o + 7] = 0.0
-	_buf[o + 8] = 0.0; _buf[o + 9] = 0.0; _buf[o + 10] = size; _buf[o + 11] = z0
+	var far := level >= NEAR_LEVELS
+	var o := 0
+	if not far:
+		if _count >= 2048:
+			return
+		o = _count * 16
+		_count += 1
+		var ml := MM_BASE
+		var sh := ml - level
+		var n := int(ROOT / (LEAF * pow(2.0, ml)))
+		var mmv: PackedFloat32Array = minmax[ml]
+		var j := ((iz >> sh) * n + (ix >> sh)) * 2
+		_lo = Vector3(minf(_lo.x, x0), minf(_lo.y, mmv[j] - 2.0), minf(_lo.z, z0))
+		_hi = Vector3(maxf(_hi.x, x0 + size), maxf(_hi.y, mmv[j + 1] + 2.0), maxf(_hi.z, z0 + size))
+	else:
+		if _count_far >= 1024:
+			return
+		o = _count_far * 16
+		_count_far += 1
 	var r := ranges[level] * _detail_mult
-	_buf[o + 12] = r * 0.78         # morph start
-	_buf[o + 13] = r * 0.98         # morph end
-	_buf[o + 14] = float(level)
-	_buf[o + 15] = size / PATCH
-	_count += 1
+	# Basis (row-major 3x4) scales the unit patch to the node; custom = morph start, morph end, level, step.
+	var v := [size, 0.0, 0.0, x0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, size, z0, r * 0.78, r * 0.98, float(level), size / PATCH]
+	if far:
+		for k in 16:
+			_buf_far[o + k] = v[k]
+	else:
+		for k in 16:
+			_buf[o + k] = v[k]
 
 
 # -------------------------------------------------------------------------------------------- collision

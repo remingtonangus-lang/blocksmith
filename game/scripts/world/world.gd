@@ -45,6 +45,10 @@ func _add_optional(path: String, node_name: String, field: String) -> void:
 	set(field, n)
 
 
+func is_settled() -> bool:
+	return vegetation == null or vegetation.is_settled()
+
+
 func focus(p: Vector3) -> void:
 	_focus = p
 	terrain.focus(p)
@@ -119,6 +123,7 @@ func shot_list() -> Array:
 		{"name": "mountains", "pos": above(rad.x - 900, rad.z + 1800, 260), "look": rad + Vector3(0, 400, -1800), "hour": 15.0, "weather": "clear"},
 		{"name": "snow_peaks", "pos": above(rad.x + 600, rad.z - 1800, 120), "look": rad + Vector3(-600, 900, -3600), "hour": 11.0, "weather": "snow"},
 		{"name": "forest_floor", "pos": above(f.x, f.z, 1.7), "look": above(f.x + 60, f.z + 30, 4.0), "hour": 9.0, "weather": "clear"},
+		{"name": "shadow_test", "pos": above(f.x, f.z + 30, 3.0), "look": above(f.x, f.z - 40, 0.0), "hour": 13.0, "weather": "clear"},
 		{"name": "forest_rain", "pos": above(f.x - 80, f.z - 40, 2.0), "look": above(f.x + 40, f.z + 60, 6.0), "hour": 14.0, "weather": "rain"},
 		{"name": "river_valley", "pos": above(500, -1500, 60), "look": Vector3(1100, 30, -300), "hour": 8.0, "weather": "fog"},
 		{"name": "coast", "pos": above(h.x + 800, h.z + 900, 25), "look": h + Vector3(-400, 20, -300), "hour": 17.5, "weather": "clear"},
