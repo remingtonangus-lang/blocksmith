@@ -168,10 +168,12 @@ extension MobManager {
             populated.insert(k)
             // Tree nests come with 2-3 bees inside (reference generation).
             if nest != AIR {
+                // Read the chunk's own arrays (a world lookup per block cost ~3300 dictionary finds per chunk: profile).
+                let base = Blocks.groupBase
                 for lz in 0..<CS { for lx in 0..<CS {
                     let x = c.cx * CS + lx, z = c.cz * CS + lz
-                    let top = w.topY(x, z)
-                    for y in max(1, top - 12)...max(1, top) where Blocks.groupBase[Int(w.block(x, y, z))] == nest {
+                    let top = min(CH - 1, Int(c.height[lx + lz * CS]))
+                    for y in max(1, top - 12)...max(1, top) where base[Int(c.blocks[Chunk.index(lx, y, lz)])] == nest {
                         let h = IVec3(x, y, z)
                         if hives[h] == nil { hives[h] = (0..<Rand.int(in: 2...3)).map { _ in (nectar: false, time: 0) } }
                     }
