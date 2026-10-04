@@ -319,6 +319,17 @@ enum CapitalBase {
             put(sx * 36, P1 + 37, -4, ladder + 1); put(sx * 36, P1 + 38, -4, ladder + 1); put(sx * 36, P1 + 38, -5, white)
             put(sx * 36, P1 + 39, -4, AIR)
             for k in 0..<4 { put(sx * 36 - 3 + k, P1 + 39, -3, hedge) }
+            // A smaller landing pad cantilevered off the side tower's outer face at its top floor, with braces.
+            let py = P1 + 31
+            columns(min(sx * 41, sx * 53), max(sx * 41, sx * 53), -6, 6) { dx, dz in
+                let lx = dx - sx * 47
+                let r2 = lx * lx + dz * dz
+                guard r2 <= 25 || (sx * (dx - sx * 36) >= 5 && sx * (dx - sx * 36) <= 7 && abs(dz) <= 1) else { return }
+                put(dx, py, dz, r2 >= 16 && r2 <= 25 ? grey : white)
+                if r2 >= 16 && r2 <= 25 && (dx + dz) % 3 == 0 { put(dx, py + 1, dz, L) }
+            }
+            w.fill(X(min(sx * 42, sx * 43)), py + 1, Z(-1), X(max(sx * 42, sx * 43)), py + 3, Z(1), AIR)
+            for k in 1...5 { put(sx * (48 - k), py - k, 0, grey) }          // brace from the pad's underside to the wall
             // Chests on the side towers' upper floor.
             w.chest(X(sx * 36 + 3), P1 + 32, Z(3), loot: "steelhold_armory", seed: rng.next(), facing: 0)
         }
