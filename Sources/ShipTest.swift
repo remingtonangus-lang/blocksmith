@@ -166,8 +166,11 @@ enum ShipTest {
     }
 
     // --ship <kind>: a demo vessel under way. Returns the camera position.
-    static func scene(_ kind: String, game g: Game, at p: V3, rd: Int) -> V3 {
+    static func scene(_ kindArg: String, game g: Game, at p: V3, rd: Int) -> V3 {
         let w = g.world
+        // "frigate:bow" / ":side" / ":top" / ":deck": the Capital frigate from another angle.
+        let parts = kindArg.split(separator: ":").map(String.init)
+        let kind = parts[0], view = parts.count > 1 ? parts[1] : ""
         w.ships.encounters = false
         if kind == "battle" {
             // A survival player on the ground off a frigate's beam, the moment its first shells are in the air.
@@ -221,7 +224,13 @@ enum ShipTest {
             print("ship \(kind): \(w.ships.shells.count) shells in flight")
             if let f = w.ships.capitals.first(where: { $0.role != "dropship" }) {
                 let big = f.role == "warfrigate", cap = f.role == "capfrigate"
-                chase(g, f, dist: big ? 230 : (cap ? 120 : 60), height: big ? 70 : (cap ? 30 : 22), side: big ? 0.9 : 0.8)
+                switch view {
+                case "bow": chase(g, f, dist: -95, height: 14, side: -0.45)
+                case "side": chase(g, f, dist: 4, height: 6, side: 28)
+                case "top": chase(g, f, dist: 60, height: 120, side: 0.2)
+                case "deck": chase(g, f, dist: -20, height: 26, side: 0.1)
+                default: chase(g, f, dist: big ? 230 : (cap ? 120 : 60), height: big ? 70 : (cap ? 30 : 22), side: big ? 0.9 : 0.8)
+                }
             }
             settle(g, rd: rd)
             return g.player.pos

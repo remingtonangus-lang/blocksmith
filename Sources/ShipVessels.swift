@@ -215,6 +215,7 @@ extension ShipManager {
         encounterTimer -= dt
         if encounterTimer <= 0 {
             encounterTimer = 5
+            stationFrigates(g)
             let p = g.player.pos
             let rx = floorDiv(Int(p.x), Vessels.region), rz = floorDiv(Int(p.z), Vessels.region)
             for dz in -1...1 { for dx in -1...1 {
@@ -246,6 +247,20 @@ extension ShipManager {
             } }
         }
         crewTick(dt, game: g)
+    }
+
+    // A Capital frigate is stationed over every Capital citadel (military_base): built when the player comes within
+    // 600 blocks, once per citadel (the key is saved with the vessel regions).
+    func stationFrigates(_ g: Game) {
+        guard let sc = world.gen.structures else { return }
+        let p = g.player.pos
+        guard let base = sc.nearest("military_base", x: Int(p.x), z: Int(p.z), maxRegions: 1) else { return }
+        let cx = (base.min.x + base.max.x) / 2, cz = (base.min.z + base.max.z) / 2
+        let key = "citadel:\(cx),\(cz)"
+        if spawnedRegions.contains(key) || capitalPending.contains(key) { return }
+        guard simd_length(V2(Float(cx) - p.x, Float(cz) - p.z)) < 600 else { return }
+        spawnedRegions.insert(key)
+        spawnCapital("capfrigate", home: IVec3(cx, 0, cz), yaw: Float(abs(cx * 3 + cz) % 628) / 100, region: key)
     }
 
     @discardableResult

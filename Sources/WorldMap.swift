@@ -148,7 +148,7 @@ final class MapCache {
     // Marker letter, colour and name per discovery kind.
     static func style(_ kind: String) -> (letter: String, color: V4, name: String) {
         switch kind {
-        case "military_base": return ("B", V4(0.85, 0.2, 0.15, 1), "Steelhold base")
+        case "military_base": return ("B", V4(0.85, 0.2, 0.15, 1), "Capital citadel")
         case "village": return ("V", V4(0.95, 0.8, 0.3, 1), "Village")
         case "vessel_frigate": return ("F", V4(0.6, 0.35, 0.9, 1), "Skyward Frigate patrol")
         case "vessel_carriage": return ("C", V4(0.95, 0.5, 0.15, 1), "Siege Carriage patrol")

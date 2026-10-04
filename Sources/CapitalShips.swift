@@ -16,7 +16,7 @@ import simd
 
 enum Faction: Int {
     case none = 0, steelhold, stormwarden, ironback
-    var name: String { ["", "Steelhold", "Stormwarden Fleet", "Ironback Legion"][rawValue] }
+    var name: String { ["", "The Capital", "Stormwarden Fleet", "Ironback Legion"][rawValue] }
 }
 
 // Per capital ship AI state (ShipManager.capState, keyed by the hull's id).
@@ -631,7 +631,7 @@ extension ShipManager {
                 let keel = s.com.y - s.localMin.y
                 let maxY = Float(CH - 4) - (s.localMax.y - s.com.y)
                 st.groundMax = Float(top)
-                s.pos = V3(hx, min(maxY, Float(max(top, SEA)) + 30 + keel), hz)
+                s.pos = V3(hx, min(maxY, Float(max(top, SEA)) + Capital.cruiseClearance(kind) + keel), hz)
                 s.hoverY = s.pos.y
             } else {
                 let h = gen.column(home.x, home.z).height
@@ -921,7 +921,7 @@ extension ShipManager {
         } else {
             let toHome = V2(home.x - s.pos.x, home.z - s.pos.z)
             let dist = max(1, simd_length(toHome))
-            let r: Float = 420
+            let r: Float = s.role == "capfrigate" ? 240 : 420          // the Capital frigate keeps station over its citadel
             let tangent = V2(-toHome.y, toHome.x) / dist * st.orbitDir
             want = simd_normalize(tangent + toHome * ((dist - r) / (r * dist)))
         }
@@ -939,7 +939,7 @@ extension ShipManager {
         }
         let keel = s.com.y - s.localMin.y
         let maxY = Float(CH - 4) - (s.localMax.y - s.com.y)
-        let wantY = min(maxY, st.groundMax + 30 + keel)
+        let wantY = min(maxY, st.groundMax + Capital.cruiseClearance(s.role ?? "") + keel)
         s.hoverY = wantY
         let yawRate = turnToward(s, want, maxRate: 0.07)
         let vy = max(-4, min(4, (wantY - s.pos.y) * 0.4))

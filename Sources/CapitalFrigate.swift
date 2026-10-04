@@ -69,6 +69,8 @@ extension TextureGen {
 
 extension Capital {
     static let capFrigateLength = 142
+    // Keel height over the highest ground around: the Capital frigate cruises above its citadels' towers (72 high).
+    static func cruiseClearance(_ role: String) -> Float { role == "capfrigate" ? 78 : 30 }
 
     // Hull half-width at deck level along the length: a long fine bow, parallel midbody, slight taper at the transom.
     static func cfHalf(_ z: Int) -> Float {
