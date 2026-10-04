@@ -250,6 +250,7 @@ final class Coop {
         pads[1] = nil
         simulated[1] = nil
         g.world.extraCenter = nil
+        if !g.paused && g.menu is PauseMenu { g.menu = nil }        // the shared pause ended with player 2's choice
         g.onToast?("Player 2 left")
     }
 
