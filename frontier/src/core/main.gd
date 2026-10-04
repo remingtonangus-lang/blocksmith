@@ -20,6 +20,10 @@ func _ready() -> void:
 		get_tree().quit(2)
 		return
 	Game.world = world
+	# --- audio (src/audio/audio_director.gd): registers itself as Game.audio in _ready ---
+	if not Game.args.has("noaudio"):
+		add_child(load("res://src/audio/audio_director.gd").new())
+	# --- end audio ---
 	_apply_viewport_quality()
 	camera = Camera3D.new()
 	camera.name = "MainCamera"
