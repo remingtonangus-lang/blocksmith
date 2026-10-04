@@ -115,7 +115,9 @@ extension ShipManager {
             s.hitCD -= dt
             let speed = simd_length(s.vel), spin = simd_length(s.angVel)
             if speed < 0.3 && spin < 0.2 { s.restTime += dt } else { s.restTime = 0 }
-            if s.restTime > 1.2 || s.age > 40 || (s.asleep && s.age > 1) {
+            // (Asleep over ground that isn't loaded, it waits where it is: laid down there it would hang in the air.)
+            let groundIn = world.isLoaded(Int(floor(s.pos.x)), Int(floor(s.pos.z)))
+            if (s.restTime > 1.2 && groundIn) || (s.age > 40 && groundIn) || (s.asleep && s.age > 1 && groundIn) {
                 // A big section of a capital hull stays as a wreck (salvage, overgrowth); other debris just lies there.
                 if s.blockCount > 200 && s.name.hasSuffix(" section") { makeWreck(s, kind: "section", game: game) } else { bake(s, game: game) }
                 continue

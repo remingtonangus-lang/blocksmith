@@ -68,7 +68,11 @@ enum BlockMaterial {
     static let anchor: [Bool] = {
         var t = [Bool](repeating: false, count: Blocks.count)
         for i in 0..<Blocks.count where i != Int(AIR) && Blocks.collide[i] && !Blocks.isLiquid(BlockID(i)) {
-            t[i] = ShipParts.natural[i] || Blocks.hardness[i] < 0
+            let k = Blocks.key(Blocks.groupBase[i])
+            // Trees and other growths hold themselves up (a branch is no beam to check).
+            let growth = k.hasSuffix("_log") || k.hasSuffix("_wood") || k.hasSuffix("_stem") || k.hasSuffix("_hyphae")
+                || k.contains("mushroom_block") || k == "bamboo" || k == "cactus" || k.hasSuffix("_roots")
+            t[i] = ShipParts.natural[i] || Blocks.hardness[i] < 0 || growth
         }
         return t
     }()

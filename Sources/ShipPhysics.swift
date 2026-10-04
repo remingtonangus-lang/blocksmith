@@ -83,6 +83,8 @@ extension ShipManager {
         if encounters, let game { encounterTick(dt, game: game) }
         if let game { capitalTick(dt, game: game) }
         if let game { wreckTick(dt, game: game) }
+        // (Debris after last frame's physics, and blast holes waiting for their support check: also with no ship about.)
+        debrisTick(dt, game: game)
         if list.isEmpty { return }
         let t0 = CFAbsoluteTimeGetCurrent()
         // Riders: mobs and items resting on a ship before it moves.
@@ -234,7 +236,6 @@ extension ShipManager {
             }
         }
         if let game { shipSounds(dt, game) }
-        debrisTick(dt, game: game)
         stepMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
     }
 

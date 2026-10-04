@@ -132,7 +132,7 @@ enum CollapseCheck {
             st.blasts = bl
             st.box = (IVec3(o.x - 120, o.y - 4, o.z - 120), IVec3(o.x + 120, o.y + 90, o.z + 120))
             let side = s.dirToWorld(V3(1, 0, 0))
-            let at = s.pos + side * 150 + V3(0, -10, 0)
+            let at = s.pos + side * 70 + V3(0, -10, 0)
             st.view = (at, atan2f(side.x, side.z), -0.05)
         case "wreck":
             w.ships.spawnCapital("crawler", home: IVec3(o.x, 0, o.z), yaw: 0.4, region: nil, sync: true)
@@ -236,6 +236,7 @@ enum CollapseCheck {
         let left = st.watch.filter { Collapse.built(w.rawBlock($0.x, $0.y, $0.z)) }.count
         switch name {
         case "frigate":
+            r.note("after: \(ms.capitals.count) still flying (\(ms.capitals.map { "\($0.name) engines \($0.engines), helm \($0.helm == nil ? "gone" : "kept"), wrecked \($0.wrecked)" }.joined(separator: "; "))), wrecks \(ms.wrecks.map { $0.kind }.joined(separator: ", "))")
             r.check(ms.hullSplits >= 1, "the cut hull breaks in two (\(ms.hullSplits) splits)")
             r.check(halfY0 - lowest > 20, String(format: "the severed half falls (%.0f blocks)", halfY0 - lowest))
             r.check(ms.capitals.isEmpty && ms.wrecks.count >= 2, "both halves come down and stay as wrecks (\(ms.wrecks.count) wrecks, \(ms.capitals.count) still flying)")
