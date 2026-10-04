@@ -319,17 +319,21 @@ enum WorldFXTest {
         let (gbOpt, msg) = wd.ships.assemble(at: helm, game: g)
         guard let boat = gbOpt else { check(false, "gunboat assembles", msg); return }
         func tilt(_ s: Ship) -> Float { acosf(min(1, max(-1, s.dirToWorld(V3(0, 1, 0)).y))) * 180 / .pi }
+        var tiltLow: Float = 180                 // the least tilt over the last half of a run (rolling, not just listing)
         func sail(_ seconds: Float) -> (Float, Float, Double) {
             var maxTilt: Float = 0, minY = Float.greatestFiniteMagnitude
+            tiltLow = 180
+            let steps = Int(seconds * 60)
             var worst = 0.0
             let dt: Float = 1.0 / 60
-            for _ in 0..<Int(seconds * 60) {
+            for i in 0..<steps {
                 g.time += Double(dt)                    // the swell travels with game time
                 g.stormTick(dt)
                 let t0 = CFAbsoluteTimeGetCurrent()
                 wd.ships.update(dt, game: g)
                 worst = max(worst, (CFAbsoluteTimeGetCurrent() - t0) * 1000)
                 maxTilt = max(maxTilt, tilt(boat))
+                if i > steps / 2 { tiltLow = min(tiltLow, tilt(boat)) }
                 minY = min(minY, boat.pos.y)
             }
             return (maxTilt, minY, worst)
@@ -341,6 +345,8 @@ enum WorldFXTest {
         g.fx.storm = 1
         let y0 = boat.pos.y
         let (stormTilt, minY, worst) = sail(25)
+        let swing = stormTilt - tiltLow
+        check(swing > 3, "the ship rolls back and forth (not just listing)", String(format: "tilt %.1f-%.1f deg", tiltLow, stormTilt))
         let up = boat.dirToWorld(V3(0, 1, 0)).y
         note(String(format: "gunboat: max tilt %.1f deg calm, %.1f deg in the storm (swell %.2f), lowest %.2f vs start %.2f, upright %.2f, ship step worst %.2f ms",
                     calmTilt, stormTilt, Waves.amp, minY, y0, up, worst))
