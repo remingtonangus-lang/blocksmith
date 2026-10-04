@@ -18,6 +18,7 @@ import simd
 //   bed_broken        a bed half without its other half
 //   floating          structure columns (walls, foundations) hanging over air
 //   torch_unsupported a standing torch with nothing under it, or a wall torch with nothing behind it
+//   unstable          blocks the destruction physics' support analysis finds unsupported in the intact structure
 // Walk model: a two-block-tall body; steps up to 0.6 are walking, up to 1.25 need a jump, drops up to 3;
 // doors and gates count as open, ladders and vines climb. Prints a summary per kind, writes a report
 // (--out FILE, markdown) with every issue's position and a snapshot command to look at it.
@@ -558,6 +559,25 @@ enum StructCheck {
             let fy: Int = f0.y - YOFF - 3
             out[out.count - 1].view = String(format: "--seed %llu%@ --x %.1f --z %.1f --feet %ld --yaw 90 --pitch 15", seed, dimArg,
                                              Float(f0.x) + 6.5, Float(f0.z) + 0.5, fy)
+        }
+        // Stability (destruction physics): the intact structure must stand under the support analysis, or the first
+        // blast near it would bring down parts that were never damaged (spans longer than their material reaches,
+        // pieces held by nothing).
+        if !CommandLine.arguments.contains("--nostability") {
+            var seeds: [IVec3] = []
+            for y in max(1, s.min.y)...min(CH - 2, s.max.y) { for z in s.min.z...s.max.z { for x in s.min.x...s.max.x {
+                if Collapse.built(w.rawBlock(x, y, z)) { seeds.append(IVec3(x, y, z)) }
+            } } }
+            if !seeds.isEmpty && seeds.count < 400_000 {
+                let res = Collapse.analyze(w, around: [], seeds: seeds, cap: 80000)
+                let n = res.falling.reduce(0) { $0 + $1.count } + res.tip.reduce(0) { $0 + $1.cells.count }
+                if n > 0, let p = res.falling.first?.first ?? res.tip.first?.cells.first {
+                    var kinds: [String: Int] = [:]
+                    for piece in res.falling { for c in piece { kinds[Blocks.key(Blocks.groupBase[Int(w.rawBlock(c.x, c.y, c.z))]), default: 0] += 1 } }
+                    let top = kinds.sorted { $0.value > $1.value }.prefix(4).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+                    add("unstable", p, "\(n) blocks the support analysis would bring down untouched (\(res.falling.count) pieces, \(res.tip.count) tipping; \(top))")
+                }
+            }
         }
         return (out, doors, pois, mobs)
     }
