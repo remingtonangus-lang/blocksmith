@@ -171,10 +171,13 @@ enum WorldFXTest {
         shot(g, r, w, h, out + "/fx_fire_0.png")
         var tick = 0
         func burn(_ n: Int) { for _ in 0..<n { wd.fireTick(); tick += 1 } }
+        // A few seconds of smoke plumes and ambient flames before a shot.
+        func plume() { for _ in 0..<60 { g.fireSmoke(0.05); g.ambientParticles(0.05); g.particles.update(0.05, wd) } }
         burn(25)
-        g.particles.update(0.05, wd)
+        plume()
         let ms1 = shot(g, r, w, h, out + "/fx_fire_1.png", frames: 20)
         burn(40)
+        plume()
         shot(g, r, w, h, out + "/fx_fire_2.png")
         burn(60)
         shot(g, r, w, h, out + "/fx_fire_3.png")
@@ -311,6 +314,7 @@ enum WorldFXTest {
                 g.weatherTick(dt)
                 wd.rainLevel = g.weather.rain
                 if g.bolts.count > b0 { strikes += 1 }
+                g.particles.update(dt, wd)
                 fireT += dt
                 if fireT >= 1.5 {
                     fireT = 0
