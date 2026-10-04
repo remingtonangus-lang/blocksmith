@@ -7,7 +7,7 @@ The repo is PUBLIC. Naming rule (Remington, 2026-10): user-facing names of block
 Goals: polished, efficient on M1/8 GB, extensible. Later: Xbox controller on a TV (GameController framework) — design input with that in mind from day one.
 
 ## Hard rules
-- Swift 5 mode, AppKit + MetalKit + Metal + GameController + simd (+ AVFoundation/AVAudioEngine for synthesized sound) only. No third-party packages.
+- Swift 5 mode, AppKit + MetalKit + Metal + GameController + simd (+ AVFoundation/AVAudioEngine for synthesized sound, + IOKit/IOUSBHost for the wired Xbox GIP fallback in USBGamepad.swift) only. No third-party packages.
 - Shaders live in a Swift string (Shaders.swift) and compile at runtime with `device.makeLibrary(source:options:)`.
 - Build ONLY with `./build.sh` (outputs build/Blocksmith.app). Keep it warning-free if practical.
 - CI: `.github/workflows/mac.yml` (macos-14 arm64, Xcode 16 / Swift 6.0.3) has two lanes. FAST on every push (< 6 min): `./build.sh fast` (unoptimized, parallel), type-check times as warnings only (`tools/typecheck_report.sh`), one 16 px snapshot -> orphan branch `ci-fast-<branch>`. HEAVY on every 5th run, a head commit message containing `[full]`, a manual dispatch or the nightly schedule: one release build shared as an artifact, then parallel jobs (smoke, perf, play, checks, shots; `SNAP_SHARD=checks|tours|shots ./snap.sh`) -> `ci-snaps-<branch>` (the main line also updates `ci-snaps`). Batch fixes per push; put `[full]` in the last commit of a batch that needs the heavy checks; never wait idle on a run.
