@@ -1,0 +1,131 @@
+extends Node3D
+## The world: sky and day-night, terrain, water, vegetation, weather, then the Capital (cities and bases),
+## the armies and the vehicles. Also the benchmark camera paths and the screenshot list.
+
+var gen: WorldGen
+var sky: SkySystem
+var terrain: Terrain
+var water: WaterSystem
+var vegetation: Node3D
+var weather: Node
+var _focus := Vector3.ZERO
+
+
+func setup(g: WorldGen) -> void:
+	gen = g
+	G.world = self
+	sky = SkySystem.new()
+	sky.name = "Sky"
+	add_child(sky)
+	sky.setup()
+	G.sky = sky
+	terrain = Terrain.new()
+	terrain.name = "Terrain"
+	add_child(terrain)
+	terrain.setup(gen)
+	G.terrain = terrain
+	water = WaterSystem.new()
+	water.name = "Water"
+	add_child(water)
+	water.setup(gen)
+	_add_optional("res://scripts/world/vegetation.gd", "Vegetation", "vegetation")
+	_add_optional("res://scripts/world/weather.gd", "Weather", "weather")
+	if weather:
+		G.weather = weather
+
+
+func _add_optional(path: String, node_name: String, field: String) -> void:
+	if not ResourceLoader.exists(path):
+		return
+	var n: Node = load(path).new()
+	n.name = node_name
+	add_child(n)
+	if n.has_method("setup"):
+		n.setup(gen)
+	set(field, n)
+
+
+func focus(p: Vector3) -> void:
+	_focus = p
+	terrain.focus(p)
+	if vegetation and vegetation.has_method("focus"):
+		vegetation.focus(p)
+
+
+func spawn_player() -> void:
+	var sp: Vector3 = gen.sites["spawn"]
+	terrain.collision_now(sp)
+	var player := preload("res://scripts/player/player.gd").new()
+	player.name = "Player"
+	add_child(player)
+	player.global_position = sp + Vector3(0, 2.0, 0)
+	player.rotation.y = deg_to_rad(-70.0)
+	G.player = player
+
+
+func site(name: String) -> Vector3:
+	return gen.sites.get(name, Vector3.ZERO)
+
+
+## Camera point at a height above the ground.
+func above(x: float, z: float, h: float) -> Vector3:
+	return Vector3(x, maxf(gen.height_at(x, z), 0.0) + h, z)
+
+
+## Benchmark segments: a city flyover, a battle and a forest walk (positions from the world's sites).
+func benchmark_segments() -> Array:
+	var c := site("capital")
+	var f := site("forest")
+	var b := site("front")
+	return [
+		{"name": "city", "duration": 30.0,
+			"path": [above(c.x - 1800, c.z + 900, 140), above(c.x - 900, c.z + 300, 90), above(c.x - 200, c.z - 100, 70),
+				above(c.x + 500, c.z - 600, 110), above(c.x + 1300, c.z - 400, 160)],
+			"look": [c + Vector3(0, 80, 0), c + Vector3(200, 60, 0), c + Vector3(600, 70, -300), c + Vector3(1200, 80, -600), c + Vector3(2500, 40, 200)],
+			"setup": func(): _bench_setup(10.5, "clear")},
+		{"name": "battle", "duration": 30.0,
+			"path": [above(b.x - 300, b.z - 350, 35), above(b.x - 120, b.z - 120, 22), above(b.x + 80, b.z + 60, 18), above(b.x + 260, b.z + 300, 30)],
+			"look": [b, b + Vector3(60, 0, 40), b + Vector3(200, 0, 160), b + Vector3(500, 0, 450)],
+			"setup": func(): _bench_setup(16.5, "overcast")},
+		{"name": "forest", "duration": 30.0,
+			"path": [above(f.x - 250, f.z - 200, 2.0), above(f.x - 100, f.z - 60, 2.0), above(f.x + 60, f.z + 40, 2.0), above(f.x + 220, f.z + 180, 2.0)],
+			"look": [above(f.x - 50, f.z, 1.5), above(f.x + 100, f.z + 100, 1.5), above(f.x + 250, f.z + 200, 2.0), above(f.x + 400, f.z + 350, 2.0)],
+			"setup": func(): _bench_setup(8.0, "clear")},
+	]
+
+
+func _bench_setup(hour: float, wx: String) -> void:
+	sky.set_hour(hour)
+	if weather and weather.has_method("set_weather"):
+		weather.set_weather(wx, true)
+	if G.battle and G.battle.has_method("bench_battle"):
+		G.battle.bench_battle()
+
+
+## Screenshot list for --shots: name, camera position, look target, hour, weather.
+func shot_list() -> Array:
+	var c := site("capital")
+	var sp := site("spawn")
+	var rad := site("radar")
+	var f := site("forest")
+	var h := site("harbor")
+	var fr := site("front")
+	var shots := [
+		{"name": "overview", "pos": above(c.x - 4200, c.z + 2600, 700), "look": c + Vector3(-600, 0, -600), "hour": 10.0, "weather": "clear"},
+		{"name": "capital_noon", "pos": above(c.x - 1500, c.z + 700, 120), "look": c + Vector3(0, 60, 0), "hour": 12.5, "weather": "clear"},
+		{"name": "capital_dusk", "pos": above(c.x - 1300, c.z + 1200, 90), "look": c + Vector3(0, 70, 0), "hour": 19.6, "weather": "clear"},
+		{"name": "capital_night", "pos": above(c.x - 1200, c.z + 800, 110), "look": c + Vector3(0, 40, 0), "hour": 23.0, "weather": "clear"},
+		{"name": "spawn_view", "pos": sp + Vector3(0, 2.0, 0), "look": c + Vector3(0, 30, 0), "hour": 9.0, "weather": "clear"},
+		{"name": "mountains", "pos": above(rad.x - 900, rad.z + 1800, 260), "look": rad + Vector3(0, 400, -1800), "hour": 15.0, "weather": "clear"},
+		{"name": "snow_peaks", "pos": above(rad.x + 600, rad.z - 1800, 120), "look": rad + Vector3(-600, 900, -3600), "hour": 11.0, "weather": "snow"},
+		{"name": "forest_floor", "pos": above(f.x, f.z, 1.7), "look": above(f.x + 60, f.z + 30, 4.0), "hour": 9.0, "weather": "clear"},
+		{"name": "forest_rain", "pos": above(f.x - 80, f.z - 40, 2.0), "look": above(f.x + 40, f.z + 60, 6.0), "hour": 14.0, "weather": "rain"},
+		{"name": "river_valley", "pos": above(500, -1500, 60), "look": Vector3(1100, 30, -300), "hour": 8.0, "weather": "fog"},
+		{"name": "coast", "pos": above(h.x + 800, h.z + 900, 25), "look": h + Vector3(-400, 20, -300), "hour": 17.5, "weather": "clear"},
+		{"name": "storm_sea", "pos": Vector3(h.x + 2600, 18, h.z - 400), "look": Vector3(h.x + 6000, 0, h.z - 2000), "hour": 15.0, "weather": "storm"},
+		{"name": "front_line", "pos": above(fr.x - 400, fr.z - 300, 40), "look": fr, "hour": 16.0, "weather": "overcast"},
+	]
+	if Settings.has_arg("only"):
+		var only := String(Settings.arg("only")).split(",")
+		shots = shots.filter(func(s): return s["name"] in only)
+	return shots

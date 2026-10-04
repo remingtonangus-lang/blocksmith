@@ -11,7 +11,7 @@ name: mac
 # `ci-snaps-<branch>` (runs of claude/eloquent-lovelace-bsc5v1 also update `ci-snaps`).
 on:
   push:
-    branches-ignore: ['ci-snaps', 'ci-snaps-*', 'ci-qa-*', 'ci-assets', 'ci-fast-*']
+    branches-ignore: ['ci-snaps', 'ci-snaps-*', 'ci-qa-*', 'ci-assets', 'ci-fast-*', 'capital-shots', 'claude/capital-game']
   workflow_dispatch:
     inputs:
       full:
