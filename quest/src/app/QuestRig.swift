@@ -27,10 +27,10 @@ final class QuestRig {
     func toWorldRot(_ q: simd_quatf) -> simd_quatf { yawRot * q }
 
     // The loading scene works in raw tracking space: the head's floor-relative eye height.
-    func floorEyeY(xr: XRSession) -> Float { xr.floorSpace ? max(1.0, trackingHead.y) : 0 }
+    func floorEyeY(xr: XRInput) -> Float { xr.floorSpace ? max(1.0, trackingHead.y) : 0 }
 
     // Per frame, before the game ticks: new head pose, recentre when asked, and the game's look angles follow the head.
-    func update(xr: XRSession, game: Game) {
+    func update(xr: XRInput, game: Game) {
         trackingHead = xr.headPos
         headRot = xr.headRot
         if needsRecenter {
@@ -53,7 +53,7 @@ final class QuestRig {
     }
 
     // Loading scene: raw tracking space (no player yet).
-    func updateLoading(xr: XRSession) {
+    func updateLoading(xr: XRInput) {
         trackingHead = xr.headPos
         headRot = xr.headRot
         feet = .zero; anchor = .zero; heightOffset = 0; bodyYaw = 0
@@ -69,7 +69,7 @@ final class QuestRig {
     }
 
     // Both eyes' camera-relative view-projections around the head centre.
-    func camera(xr: XRSession, far: Float) -> EyeCamera {
+    func camera(xr: XRInput, far: Float) -> EyeCamera {
         var vps: [float4x4] = []
         let center = headWorld
         var minL: Float = 0, maxR: Float = 0, maxU: Float = 0, minD: Float = 0

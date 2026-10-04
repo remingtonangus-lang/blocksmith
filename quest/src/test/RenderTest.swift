@@ -13,7 +13,9 @@ enum RenderTest {
         let wr = WorldRenderer(scene: scene, game: game)
         let img = try VkImg(ctx, width: width, height: height, layers: 2, format: VK_FORMAT_R8G8B8A8_UNORM,
                             usage: VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT.rawValue | VK_IMAGE_USAGE_TRANSFER_SRC_BIT.rawValue)
-        let target = try scene.makeTarget(image: img.image, width: width, height: height)
+        // Two framebuffers on the image, alternated like the swapchain's.
+        let targets = [try scene.makeTarget(image: img.image, width: width, height: height),
+                       try scene.makeTarget(image: img.image, width: width, height: height)]
         // Stereo rig: 64 mm apart, symmetric field of view, head at the player's eye.
         let t = tanf(fovDeg * .pi / 360)
         let proj = XRMath.projection(tanLeft: -t, tanRight: t, tanUp: t, tanDown: -t, near: 0.05, far: Float(game.world.renderDistance * 16 + 96))
@@ -28,10 +30,10 @@ enum RenderTest {
         let cam = EyeCamera(center: center, viewProj: vps, cullViewProj: proj * XRMath.inversePose(head, .zero), yaw: yaw, pitch: pitch)
         let readback = try VkBuf(ctx, size: width * height * 4 * 2, usage: VK_BUFFER_USAGE_TRANSFER_DST_BIT.rawValue, host: true)
         var ms: [Double] = []
-        for _ in 0..<3 {
+        for fi in 0..<3 {
             let s = scene.beginFrame()
             let a = CFAbsoluteTimeGetCurrent()
-            wr.record(s, target, cam)
+            wr.record(s, targets[fi % 2], cam)
             vkCmdEndRenderPass(s.cmd)
             vkBarrier(s.cmd, img.image, from: VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, to: VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, layers: 2,
                       srcAccess: VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT.rawValue, dstAccess: VK_ACCESS_TRANSFER_READ_BIT.rawValue,
@@ -56,5 +58,6 @@ enum RenderTest {
         try PNG.encode(rgba: out, width: width * 2, height: height).write(to: URL(fileURLWithPath: path))
         print("rendertest: wrote \(path)")
         scene.waitIdle()
+        withExtendedLifetime((img, targets, readback)) {}
     }
 }

@@ -456,7 +456,7 @@ final class XRSession {
     }
 
     // Vibrates a controller (hand 0 left, 1 right): amplitude 0...1, seconds.
-    func haptic(_ hand: Int, amplitude: Float, seconds: Float, frequency: Float = 0) {
+    func haptic(_ hand: Int, amplitude: Float, seconds: Float, frequency: Float) {
         guard running, focused else { return }
         var gi = XrHapticActionInfo()
         gi.type = XR_TYPE_HAPTIC_ACTION_INFO

@@ -34,7 +34,7 @@ if let secs = Double(arg("--xr") ?? "") {
 }
 // --render OUT.png: build the world on a Vulkan device (lavapipe on Linux) and render a stereo frame through the
 // Quest renderer; otherwise meshes go to host memory.
-let renderPath = arg("--render")
+let renderPath = arg("--render") ?? arg("--questsim").map { _ in "" }
 var vkctx: VkContext?
 if renderPath != nil {
     do { vkctx = try VkContext.standalone(); print("vulkan: \(vkctx!.deviceName)") } catch { print("FAIL vulkan: \(error)"); exit(1) }
@@ -60,7 +60,7 @@ var quads = 0, sections = 0
 for c in world.chunks.values { for s in c.sections where !s.empty { quads += s.opaqueQuads + s.transQuads; sections += 1 } }
 check(quads > 10_000, "terrain meshed: \(sections) sections, \(quads) quads")
 check(MeshArena.shared.slabBytes > 0, "mesh arena holds \(MeshArena.shared.slabBytes >> 20) MB of host slabs")
-if let path = renderPath, let ctx = vkctx {
+if let path = renderPath, !path.isEmpty, let ctx = vkctx {
     do {
         game.player.pitch = -0.2
         if let up = Float(arg("--up") ?? "") { game.player.pos.y += up; game.player.flying = true }
@@ -68,6 +68,10 @@ if let path = renderPath, let ctx = vkctx {
         try RenderTest.render(game: game, ctx: ctx, path: path, yaw: Float(arg("--yaw") ?? "") ?? 0.6, pitch: Float(arg("--pitch") ?? "") ?? -0.25)
     } catch { check(false, "render: \(error)") }
     if CommandLine.arguments.contains("--render-only") { exit(failures == 0 ? 0 : 1) }
+}
+if let out = arg("--questsim"), let ctx = vkctx {
+    do { try QuestSim.run(game: game, ctx: ctx, out: out, check: check) } catch { check(false, "questsim: \(error)") }
+    if CommandLine.arguments.contains("--questsim-only") { print(failures == 0 ? "questsim: all checks passed" : "questsim: \(failures) FAILED"); exit(failures == 0 ? 0 : 1) }
 }
 
 // Play: 20 s at 72 Hz through the Touch-pad path (PadManager.touch, as the XR layer feeds it).

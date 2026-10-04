@@ -92,7 +92,7 @@ jobs:
           quest/tools/linux-check.sh build 2>&1 | grep -E "error|warning: unre" | head -50 || true
           test -x build/quest-linux/questcheck
           mkdir -p build/quest-out
-          BLOCKSMITH_TEXRES=32 ./build/quest-linux/questcheck --render build/quest-out/stereo.png 2>&1 | tee build/quest-out/questcheck.log
+          BLOCKSMITH_TEXRES=32 ./build/quest-linux/questcheck --render build/quest-out/stereo.png --questsim build/quest-out/vrsim.png 2>&1 | tee build/quest-out/questcheck.log
           grep -q "all checks passed" build/quest-out/questcheck.log
 
       - name: Build APK

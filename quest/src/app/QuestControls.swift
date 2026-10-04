@@ -17,11 +17,11 @@ import CVulkan
 //  - Physically walking moves the player through collision (roomscale); snap turns and fast movement darken the
 //    edges of the view (comfort vignette).
 final class QuestControls {
-    unowned let app: QuestApp
+    unowned let app: QuestHost
     let game: Game
     let hudHost: Renderer
     private(set) var panel: HudPanel?
-    static let panelW = 1280, panelH = 800
+    static let panelW = 1024, panelH = 640
 
     private var snapArmed = true
     private var flickArmed = true
@@ -50,10 +50,12 @@ final class QuestControls {
     private var prevTrigger = false, prevGrip = false
     private var lastHoverSlot = -1
 
-    init(app: QuestApp, game: Game) {
+    init(app: QuestHost, game: Game) {
         self.app = app
         self.game = game
         hudHost = Renderer(game: game)
+        // TV-style HUD scale (bigger text) unless the player picked one: the panel is read at arm's length.
+        if UserDefaults.standard.object(forKey: "couchMode") == nil { HudLayout.couch = true }
         game.screen = V2(Float(QuestControls.panelW), Float(QuestControls.panelH))
         Renderer.questHideCrosshair = true
         do { panel = try HudPanel(scene: app.scene, width: QuestControls.panelW, height: QuestControls.panelH) }
@@ -64,7 +66,7 @@ final class QuestControls {
     // MARK: Per frame, before Game.tick
 
     func update(dt: Float) {
-        let xr = app.xr, rig = app.rig
+        let xr = app.input, rig = app.rig
         let hands = xr.hands
         let L = hands[moveHand], R = hands[aimHand]
         let inMenu = game.menu != nil || game.paused
@@ -76,11 +78,14 @@ final class QuestControls {
                 if abs(tx) > 0.15 {
                     let k = (abs(tx) - 0.15) / 0.85 * (tx > 0 ? 1 : -1)
                     rig.bodyYaw -= k * QuestSettings.smoothTurnSpeed * .pi / 180 * dt
+                    hudYaw -= k * QuestSettings.smoothTurnSpeed * .pi / 180 * dt
                     turnFlash = max(turnFlash, abs(k) * 0.8)
                 }
             } else {
                 if snapArmed && abs(tx) > 0.75 {
-                    rig.bodyYaw -= (tx > 0 ? 1 : -1) * QuestSettings.snapAngle * .pi / 180
+                    let step = (tx > 0 ? 1 : -1) * QuestSettings.snapAngle * .pi / 180
+                    rig.bodyYaw -= step
+                    hudYaw -= step                       // the HUD turns with the body
                     snapArmed = false
                     turnFlash = 1
                 } else if abs(tx) < 0.3 { snapArmed = true }
@@ -188,9 +193,15 @@ final class QuestControls {
         let reach: Float = 8
         var best: Float = 60
         if let hit = w.raycast(aimOrigin, aimDir, maxDist: reach) {
-            // Distance to the hit block's box along the ray (the cell centre is close enough for picking).
-            let c = V3(Float(hit.hit.x) + 0.5, Float(hit.hit.y) + 0.5, Float(hit.hit.z) + 0.5)
-            best = min(best, max(0.3, simd_dot(c - aimOrigin, aimDir) - 0.3))
+            // Where the ray enters the hit block's selection boxes, a hair inside, so the game's ray from the eye
+            // through that point picks the same block.
+            let c = V3(Float(hit.hit.x), Float(hit.hit.y), Float(hit.hit.z))
+            var tEnter: Float = .greatestFiniteMagnitude
+            for (mn, mx) in w.selectionBoxes(w.block(hit.hit.x, hit.hit.y, hit.hit.z)) {
+                if let t = QuestControls.rayBox(aimOrigin, aimDir, c + mn, c + mx) { tEnter = min(tEnter, t) }
+            }
+            if tEnter == .greatestFiniteMagnitude { tEnter = simd_dot(c + V3(0.5, 0.5, 0.5) - aimOrigin, aimDir) }
+            best = min(best, max(0.05, tEnter + 0.02))
         }
         if let (_, t) = game.mobs.raycast(aimOrigin, aimDir, maxDist: reach), t < best { best = t }
         let p = aimOrigin + aimDir * best
@@ -201,6 +212,22 @@ final class QuestControls {
         d = simd_normalize(d)
         game.player.yaw = atan2f(-d.x, -d.z)
         game.player.pitch = asinf(max(-0.999, min(0.999, d.y)))
+    }
+
+    // Entry distance of a ray into a box (slab test), nil if it misses.
+    static func rayBox(_ o: V3, _ d: V3, _ mn: V3, _ mx: V3) -> Float? {
+        var t0: Float = 0, t1: Float = .greatestFiniteMagnitude
+        for a in 0..<3 {
+            if abs(d[a]) < 1e-7 {
+                if o[a] < mn[a] || o[a] > mx[a] { return nil }
+                continue
+            }
+            var ta = (mn[a] - o[a]) / d[a], tb = (mx[a] - o[a]) / d[a]
+            if ta > tb { swap(&ta, &tb) }
+            t0 = max(t0, ta); t1 = min(t1, tb)
+            if t0 > t1 { return nil }
+        }
+        return t0
     }
 
     // MARK: Panels
@@ -257,11 +284,11 @@ final class QuestControls {
             let mx = uv.x * Float(QuestControls.panelW), my = uv.y * Float(QuestControls.panelH)
             if abs(mx - input.mouseX) + abs(my - input.mouseY) > 0.5 { input.mouseMoved = true }
             input.mouseX = mx; input.mouseY = my
-            if trig && !prevTrigger { input.leftClicked = true; app.xr.haptic(aimHand, amplitude: 0.3, seconds: 0.02, frequency: 300) }
-            if grip && !prevGrip { input.rightClicked = true; app.xr.haptic(aimHand, amplitude: 0.3, seconds: 0.02, frequency: 300) }
+            if trig && !prevTrigger { input.leftClicked = true; app.input.haptic(aimHand, amplitude: 0.3, seconds: 0.02, frequency: 300) }
+            if grip && !prevGrip { input.rightClicked = true; app.input.haptic(aimHand, amplitude: 0.3, seconds: 0.02, frequency: 300) }
             input.leftDown = trig
             input.rightDown = grip
-            if game.menuCursor != lastHoverSlot { lastHoverSlot = game.menuCursor; app.xr.haptic(aimHand, amplitude: 0.12, seconds: 0.01, frequency: 320) }
+            if game.menuCursor != lastHoverSlot { lastHoverSlot = game.menuCursor; app.input.haptic(aimHand, amplitude: 0.12, seconds: 0.01, frequency: 320) }
         } else {
             input.leftDown = false; input.rightDown = false
         }
@@ -273,7 +300,7 @@ final class QuestControls {
     // HUD pass (before the world pass): the game's 2D HUD / menus into the panel image.
     func recordPanel(_ s: SceneRenderer.Slot) {
         guard let panel else { return }
-        hudHost.fps = app.stats.fps
+        hudHost.fps = app.fps
         hudHost.gpuFrameMs = app.scene.gpuMs
         hudHost.drawnChunks = app.scene.visibleCount
         let verts = hudHost.buildHUD(Float(panel.width), Float(panel.height))
@@ -281,7 +308,7 @@ final class QuestControls {
     }
 
     func drawOpaque(_ s: SceneRenderer.Slot, eye: V3) {
-        let xr = app.xr, rig = app.rig
+        let xr = app.input, rig = app.rig
         var v: [SimpleVert] = []
         let CT = Mesher.cornerTable
         let shades: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]

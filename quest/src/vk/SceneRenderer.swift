@@ -118,7 +118,10 @@ final class SceneRenderer {
         }
         texture = ph
         for sl in slots { writeSet0(sl) }
-        if ctx.props.limits.timestampComputeAndGraphics != 0 {
+        // GPU timestamps (frame GPU time in the perf log). Not on llvmpipe: its timestamp queries crash the queue thread
+        // after a few frames (CI run 1; reproduced locally with alternating targets and validation clean).
+        let soft = ctx.deviceName.contains("llvmpipe")
+        if ctx.props.limits.timestampComputeAndGraphics != 0 && !soft && ProcessInfo.processInfo.environment["QUEST_NO_QUERIES"] == nil {
             var qi = VkQueryPoolCreateInfo()
             qi.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO
             qi.queryType = VK_QUERY_TYPE_TIMESTAMP
@@ -580,7 +583,7 @@ final class SceneRenderer {
         let view = try VkImg.makeView(ctx, image, format: colorFormat, aspect: VK_IMAGE_ASPECT_COLOR_BIT.rawValue, layers: views, levels: 1, array: true)
         let depth = try VkImg(ctx, width: width, height: height, layers: views, format: depthFormat,
                               usage: VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT.rawValue,
-                              aspect: VK_IMAGE_ASPECT_DEPTH_BIT.rawValue, transient: true)
+                              aspect: VK_IMAGE_ASPECT_DEPTH_BIT.rawValue, transient: ProcessInfo.processInfo.environment["QUEST_NO_TRANSIENT"] == nil)
         let a = PtrArena()
         var ci = VkFramebufferCreateInfo()
         ci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO

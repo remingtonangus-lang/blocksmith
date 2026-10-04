@@ -14,6 +14,8 @@ final class WorldRenderer {
     var prePass: ((SceneRenderer.Slot) -> Void)?              // offscreen passes before the world pass (the HUD panel)
     private(set) var frameCPUMs = 0.0
     private var camYaw: Float = 0, camPitch: Float = 0
+    // Debugging aid: QUEST_SKIP=mobs,entities,... leaves passes out.
+    static let debugSkip = Set((ProcessInfo.processInfo.environment["QUEST_SKIP"] ?? "").split(separator: ",").map(String.init))
 
     init(scene: SceneRenderer, game: Game) {
         self.scene = scene
@@ -76,17 +78,18 @@ final class WorldRenderer {
         let frustum = Frustum(cam.cullViewProj * translationMatrix(-eye))
         scene.cull(game.world, eye: eye, frustum: frustum)
         scene.writeRecords(s, eye: eye)
-        prePass?(s)
+        if !WorldRenderer.debugSkip.contains("prepass") { prePass?(s) }
         scene.beginPass(s, t, clear: clear)
-        scene.drawOpaque(s)
-        drawMobs(s, eye)
+        let skip = WorldRenderer.debugSkip
+        if !skip.contains("opaque") { scene.drawOpaque(s) }
+        if !skip.contains("mobs") { drawMobs(s, eye) }
         camYaw = cam.yaw; camPitch = cam.pitch
-        drawEntities(s, eye)
-        drawOutline(s, eye)
-        extraOpaque?(s, eye)
-        drawSkyLayer(s, eye)
-        scene.drawTranslucent(s)
-        extraOverlay?(s, eye)
+        if !skip.contains("entities") { drawEntities(s, eye) }
+        if !skip.contains("outline") { drawOutline(s, eye) }
+        if !skip.contains("extra") { extraOpaque?(s, eye) }
+        if !skip.contains("sky") { drawSkyLayer(s, eye) }
+        if !skip.contains("trans") { scene.drawTranslucent(s) }
+        if !skip.contains("overlay") { extraOverlay?(s, eye) }
         frameCPUMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
     }
 
