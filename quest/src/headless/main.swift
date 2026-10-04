@@ -14,7 +14,15 @@ func check(_ ok: Bool, _ what: String) {
 setvbuf(stdout, nil, _IOLBF, 0)
 
 let seed: UInt64 = 12345
-let device = HostDevice()
+// --render OUT.png: build the world on a Vulkan device (lavapipe on Linux) and render a stereo frame through the
+// Quest renderer; otherwise meshes go to host memory.
+let renderPath = arg("--render")
+var vkctx: VkContext?
+if renderPath != nil {
+    do { vkctx = try VkContext.standalone(); print("vulkan: \(vkctx!.deviceName)") } catch { print("FAIL vulkan: \(error)"); exit(1) }
+    sharedSystemDevice = QuestDevice(vkctx!)
+}
+let device = sharedSystemDevice
 let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("questcheck-\(getpid())")
 try? FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
 QuestPaths.setDataRoot(tmp.path)
@@ -34,6 +42,15 @@ var quads = 0, sections = 0
 for c in world.chunks.values { for s in c.sections where !s.empty { quads += s.opaqueQuads + s.transQuads; sections += 1 } }
 check(quads > 10_000, "terrain meshed: \(sections) sections, \(quads) quads")
 check(MeshArena.shared.slabBytes > 0, "mesh arena holds \(MeshArena.shared.slabBytes >> 20) MB of host slabs")
+if let path = renderPath, let ctx = vkctx {
+    do {
+        game.player.pitch = -0.2
+        if let up = Float(arg("--up") ?? "") { game.player.pos.y += up; game.player.flying = true }
+        if let t = Double(arg("--time") ?? "") { game.time = t * DAY_LENGTH }
+        try RenderTest.render(game: game, ctx: ctx, path: path, yaw: Float(arg("--yaw") ?? "") ?? 0.6, pitch: Float(arg("--pitch") ?? "") ?? -0.25)
+    } catch { check(false, "render: \(error)") }
+    if CommandLine.arguments.contains("--render-only") { exit(failures == 0 ? 0 : 1) }
+}
 
 // Play: 20 s at 72 Hz through the Touch-pad path (PadManager.touch, as the XR layer feeds it).
 let pm = PadManager.shared
