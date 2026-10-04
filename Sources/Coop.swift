@@ -157,6 +157,7 @@ final class Coop {
     var simulated: [Int: PadSnapshot] = [:]            // harness input for seats > 0
     private var joinScan: Float = 0
     private var padCheck = 0
+    private var otherPads = 0
     private var parked: SeatState?                     // player 2's state after leaving (rejoining picks it up again)
     private var savedInventoryCallback: ((Bool) -> Void)?
     var lastDim: Dim?
@@ -266,9 +267,15 @@ final class Coop {
         guard joinScan <= 0 else { return }
         joinScan = 0.25
         let first = PadManager.shared.controller ?? GCController.current
+        var others = 0
         for c in GCController.controllers() where c !== first {
-            if let gp = c.extendedGamepad, gp.buttonMenu.isPressed { join(g, controller: c); return }
+            guard let gp = c.extendedGamepad else { continue }
+            others += 1
+            if gp.buttonMenu.isPressed { join(g, controller: c); return }
         }
+        // A second controller just connected: say how to join (once per connection).
+        if others > otherPads && first != nil && g.menu == nil { g.onToast?("Second controller: press its Menu button for split screen") }
+        otherPads = others
     }
 
     // Seat i's controller this frame, with the button mapping applied (nil when it has none).
