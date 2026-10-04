@@ -1898,8 +1898,8 @@ final class Game {
         if raidTimer >= 1 { raidTick(raidTimer); patrolTick(raidTimer); blockSecondTick(); raidTimer = 0 }
         if !world.pendingMobs.isEmpty {
             for (name, p) in world.pendingMobs {
-                guard let k = MobKind.named(name) else { continue }
-                let m = Mob(k, at: p)
+                guard let k0 = MobKind.named(name) else { continue }
+                let m = Mob(Soldier.garrison(k0, at: p), at: p)
                 m.persistent = true
                 mobs.mobs.append(m)
             }

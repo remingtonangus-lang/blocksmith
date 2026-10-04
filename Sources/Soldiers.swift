@@ -110,6 +110,13 @@ enum Soldier {
         }
     }
 
+    // Garrison posts: about one vanguard post in four is held by an officer instead (stable per post). Structures
+    // can also place "soldier_officer" / "soldier_crew" directly.
+    static func garrison(_ k: MobKind, at p: V3) -> MobKind {
+        guard k == .soldierTrooper else { return k }
+        return hash3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)), 0x0FF1) % 4 == 0 ? .soldierOfficer : k
+    }
+
     // Reference-style difficulty scaling of their damage against the player.
     static let difficultyTable: [Float] = [0, 0.5, 0.75, 1]
     static func difficultyScale(_ d: Int) -> Float { difficultyTable[max(0, min(3, d))] }
