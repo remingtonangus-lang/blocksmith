@@ -39,6 +39,7 @@ var is_vr := false
 var headless := false
 var rng := RandomNumberGenerator.new()
 var log_lines: PackedStringArray = []
+var error_logger: ErrorLogger
 
 func _init() -> void:
 	_parse_args()
@@ -50,6 +51,10 @@ func _init() -> void:
 		set_quality("preview")       # software rendering in the cloud session: keep shots fast
 	elif OS.has_feature("android"):
 		set_quality("quest")
+
+func _enter_tree() -> void:
+	error_logger = ErrorLogger.new()
+	OS.add_logger(error_logger)
 
 func _parse_args() -> void:
 	var all := OS.get_cmdline_args() + OS.get_cmdline_user_args()
