@@ -13,6 +13,7 @@ OUT_APK="${1:-build/blocksmith-quest.apk}"
 SDK="${SWIFT_SDK:-swift-6.4.0-RELEASE_android}"
 TRIPLE="${QUEST_TRIPLE:-aarch64-unknown-linux-android29}"
 NDK="${ANDROID_NDK_HOME:?set ANDROID_NDK_HOME}"
+export ANDROID_NDK_ROOT="$NDK" ANDROID_NDK="$NDK"      # the Swift SDK reads these; they must match the NDK it was set up with
 AHOME="${ANDROID_HOME:?set ANDROID_HOME}"
 AAR="${OPENXR_AAR:?set OPENXR_AAR}"
 VERSION_CODE="${VERSION_CODE:-1}"

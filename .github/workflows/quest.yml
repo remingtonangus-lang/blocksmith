@@ -64,7 +64,9 @@ jobs:
           if [ ! -d "$HOME/ndk/android-ndk-r30" ]; then
             mkdir -p "$HOME/ndk"; curl -fsSL -o /tmp/ndk.zip "$NDK_URL"; unzip -q /tmp/ndk.zip -d "$HOME/ndk"; rm /tmp/ndk.zip
           fi
-          echo "ANDROID_NDK_HOME=$HOME/ndk/android-ndk-r30" >> "$GITHUB_ENV"
+          # Every NDK variable points at r30: the runner's own NDK (ANDROID_NDK_ROOT = 27.x) lacks the libc++ symbols the
+          # Swift SDK's runtime was built against (std::__hash_memory: run 5).
+          for v in ANDROID_NDK_HOME ANDROID_NDK_ROOT ANDROID_NDK ANDROID_NDK_LATEST_HOME; do echo "$v=$HOME/ndk/android-ndk-r30" >> "$GITHUB_ENV"; done
 
       - name: OpenXR loader
         run: quest/tools/fetch-openxr.sh && mkdir -p build/openxr && unzip -q -o build/openxr_loader.aar -d build/openxr
@@ -128,7 +130,9 @@ jobs:
           if [ ! -d "$HOME/ndk/android-ndk-r30" ]; then
             mkdir -p "$HOME/ndk"; curl -fsSL -o /tmp/ndk.zip "$NDK_URL"; unzip -q /tmp/ndk.zip -d "$HOME/ndk"; rm /tmp/ndk.zip
           fi
-          echo "ANDROID_NDK_HOME=$HOME/ndk/android-ndk-r30" >> "$GITHUB_ENV"
+          # Every NDK variable points at r30: the runner's own NDK (ANDROID_NDK_ROOT = 27.x) lacks the libc++ symbols the
+          # Swift SDK's runtime was built against (std::__hash_memory: run 5).
+          for v in ANDROID_NDK_HOME ANDROID_NDK_ROOT ANDROID_NDK ANDROID_NDK_LATEST_HOME; do echo "$v=$HOME/ndk/android-ndk-r30" >> "$GITHUB_ENV"; done
 
       - name: OpenXR loader
         run: quest/tools/fetch-openxr.sh && mkdir -p build/openxr && unzip -q -o build/openxr_loader.aar -d build/openxr

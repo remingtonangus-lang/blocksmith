@@ -332,6 +332,7 @@ final class QuestControls {
             }
         }
         if let off = app.scene.push(s, v) { app.scene.drawScratch(s, "simpleSolid", offset: off, count: v.count) }
+        drawHeld(s, eye: eye)
         // Laser: to the hit point (menus, a target within reach) or a short fading stub.
         let inMenu = game.menu != nil || game.paused
         if xr.hands[aimHand].aimValid {
@@ -356,6 +357,60 @@ final class QuestControls {
             }
             if let off = app.scene.push(s, lv) { app.scene.drawScratch(s, "simple", offset: off, count: lv.count) }
         }
+    }
+
+    // The held item in the aiming hand: guns as their solid models (barrel along the ray), blocks as small cubes,
+    // other items as two-layer sprites leaning forward like they're gripped.
+    private func drawHeld(_ s: SceneRenderer.Slot, eye: V3) {
+        let hd = app.input.hands[aimHand]
+        guard hd.aimValid, game.menu == nil, !game.paused, game.sleeping == 0 else { return }
+        let held = game.held
+        if held.isEmpty { return }
+        let rig = app.rig
+        let pos = rig.toWorld(hd.aimPos) - eye
+        let rot = rig.toWorldRot(hd.aimRot)
+        let pe = game.player.eye
+        let l = game.world.lightAt(Int(floor(pe.x)), Int(floor(pe.y)), Int(floor(pe.z)))
+        let skyK: Float = 0.12 + 0.88 * game.daylight
+        let light = max(0.15, max(Float(l.sky) / 15 * skyK, Float(l.block) / 15), game.nightVision * 0.9)
+        if let gi = game.heldGun {
+            let (ptr, off, cap) = app.scene.reserve(s, MobVert.self)
+            guard cap > 1024 else { return }
+            let n = Guns.writeFirstPerson(gi, aim: 1, kick: game.arms.kick, lower: 0, bob: .zero, light: light, into: ptr)
+            let ads = V3(0, -0.085, -0.44)
+            for i in 0..<n {
+                let v = ptr[i].pos
+                let local = V3(v.x, v.y, v.z) - ads + V3(0, 0.035, 0.06)      // the grip sits in the hand
+                let w = rot.act(local) + pos
+                ptr[i].pos = V4(w.x, w.y, w.z, v.w)
+            }
+            app.scene.commit(off, n, MobVert.self)
+            app.scene.drawScratch(s, "mob", offset: off, count: n)
+            return
+        }
+        let (ptr, off, cap) = app.scene.reserve(s, EntityVert.self, max: 96)
+        guard cap >= 96 else { return }
+        var wr = EntityWriter(out: ptr, capacity: cap)
+        if let b = held.def.block, !Blocks.flatIcon(b) {
+            let t = Blocks.tint[Int(b)]
+            let tint = t == 1 || t == 3 ? V3(0.57, 0.74, 0.35) : (t == 2 ? V3(0.47, 0.67, 0.18) : V3(1, 1, 1))
+            wr.cube(center: .zero, half: 0.06, yaw: 0, block: b, light: light, tint: tint)
+            for i in 0..<wr.n {
+                let v = ptr[i].pos
+                let w = rot.act(V3(v.x, v.y, v.z) + V3(0, 0.02, -0.09)) + pos
+                ptr[i].pos = V4(w.x, w.y, w.z, v.w)
+            }
+        } else {
+            let layer = Items.texLayer(held.item) ?? Int(Blocks.tex[Int(held.def.block ?? 0) * 6])
+            let r = rot.act(simd_normalize(V3(0, 0.15, -1))), up = rot.act(simd_normalize(V3(0, 1, 0.15)))
+            let side = rot.act(V3(1, 0, 0))
+            let c = pos + rot.act(V3(0, 0.07, -0.12))
+            for (i, o) in [Float(0), 0.006].enumerated() {
+                wr.sprite(center: c + side * o, half: 0.12, right: r, up: up, layer: layer, light: light * (i == 0 ? 1 : 0.7))
+            }
+        }
+        app.scene.commit(off, wr.n, EntityVert.self)
+        app.scene.drawScratch(s, "entity", offset: off, count: wr.n)
     }
 
     // Panels and the comfort vignette, over everything.
