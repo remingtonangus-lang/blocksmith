@@ -245,6 +245,14 @@ enum WorldFXTest {
         var floating = 0
         for p in fm.placed where !Blocks.collide[Int(wd.rawBlock(p.x, p.y - 1, p.z))] && Blocks.fluidKind[Int(wd.rawBlock(p.x, p.y - 1, p.z))] != 1 { floating += 1 }
         check(floating == 0, "no flood water hangs in the air", "\(floating)")
+        // Oracle: full-height flood sources standing beside open air at their own height (a water wall; the shoreline
+        // should be the half-height edge state).
+        var walls = 0
+        for p in fm.placed where wd.rawBlock(p.x, p.y, p.z) == FloodModel.flood {
+            for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where wd.rawBlock(p.x + dx, p.y, p.z + dz) == AIR { walls += 1; break }
+        }
+        let wallShare = Float(walls) / Float(max(1, fm.placed.count))
+        check(wallShare < 0.03, "flood shorelines are sloped, not walls", String(format: "%ld full sources beside air (%.1f%%)", walls, wallShare * 100))
         check(fm.worstMs < 12, "flood model step stays cheap", String(format: "worst %.2f ms", fm.worstMs))
         // The rain stops. A fresh model stands in for loading a save made mid-flood: it has to find the flood water
         // standing in the world (flood_water blocks) and drain it like its own. 30 minutes.
