@@ -51,7 +51,7 @@ enum Explosion {
         }
         for b in destroyed { w.scheduleFluid(around: b) }
         // What the blast leaves unsupported falls (Destruction.swift: a bounded support check round the holes).
-        if breakBlocks && !destroyed.isEmpty { w.ships.collapse(around: Array(destroyed), game: g, from: c) }
+        if breakBlocks && !destroyed.isEmpty { w.ships.queueCollapse(Array(destroyed), from: c) }
         // Progressive block damage: blocks the blast couldn't break lose pieces on the side facing it.
         if Settings.shared.chipping {
             var bits = 0

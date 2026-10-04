@@ -618,6 +618,7 @@ final class ShipManager {
     var capState: [Int: CapitalState] = [:]
     // Destruction (Destruction.swift, Debris.swift, Wrecks.swift).
     var smashed: [IVec3] = []        // world blocks debris broke this frame (ShipPhysics.step)
+    var collapseQueue: [([IVec3], V3?)] = []   // blast holes waiting for their support check (one check per frame)
     var collapseMs: Double = 0       // the last support analysis (harness)
     var collapses = 0                // analyses that set something falling
     var bakedBlocks = 0              // blocks laid back into the world

@@ -31,6 +31,12 @@ extension ShipManager {
         return made
     }
 
+    // Holes to check next frame: every blast of a frame is checked together, at most one check a frame (a salvo on a
+    // big building can't stack up a dozen 6000-cell searches in one frame).
+    func queueCollapse(_ holes: [IVec3], from: V3?) {
+        if collapseQueue.count < 64 { collapseQueue.append((holes, from)) }
+    }
+
     // World cells into a free-moving body (keeps their place; pieces under Collapse.minPiece blocks just break).
     @discardableResult
     func cutLoose(_ cells: [IVec3], game: Game?, push: V3 = .zero, spin: V3 = .zero) -> Ship? {
@@ -87,6 +93,19 @@ extension ShipManager {
 
     // Every frame after the physics step: rest detection and laying down, hits on bodies, the capital split checks.
     func debrisTick(_ dt: Float, game: Game?) {
+        if !collapseQueue.isEmpty {
+            // This frame's blasts together (holes of later frames wait).
+            var holes: [IVec3] = []
+            var from: V3?
+            var n = 0
+            while n < collapseQueue.count && holes.count < 4000 {
+                holes += collapseQueue[n].0
+                from = from ?? collapseQueue[n].1
+                n += 1
+            }
+            collapseQueue.removeFirst(n)
+            collapse(around: holes, game: game, from: from)
+        }
         for s in list where s.kinematic && s.parent == nil && s.splitCheck >= 0 {
             s.splitCheck -= dt
             if s.splitCheck < 0 { splitHull(s, game: game) }
