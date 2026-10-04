@@ -29,7 +29,7 @@ enum BlockMaterial {
 
     // Per kind: reach (blocks) and bearing (blocks of weight per block of section).
     static let byKind: [MaterialKind: (Float, Float)] = [
-        .none: (0, 0), .stone: (5, 40), .brick: (6, 50), .wood: (6, 25), .metal: (14, 150), .glass: (1, 4),
+        .none: (0, 0), .stone: (5, 30), .brick: (6, 40), .wood: (6, 20), .metal: (14, 150), .glass: (1, 4),
         .earth: (1, 15), .plant: (2, 2), .cloth: (1, 3), .ice: (3, 20), .other: (4, 20),
     ]
 
