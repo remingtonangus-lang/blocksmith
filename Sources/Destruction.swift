@@ -7,8 +7,8 @@ import simd
 // whole world: a flood fill through built blocks (anything that isn't terrain: BlockMaterial.anchors) from the cells next
 // to the hole, capped at Collapse.cap cells (the edge of a search that hits the cap is taken as held). A piece that no longer touches
 // the ground falls. In a piece that does, each block's reach to its support is measured (resting on a block below costs
-// nothing, every step sideways or hanging down costs one) and a block further out than its material spans
-// (BlockMaterial.strength) gives way, with whatever hangs from it. A neck the blast narrowed (a tower's base) fails when
+// nothing, every step sideways or hanging down costs 1 / the strength of the block stepped into, BlockMaterial.strength)
+// and a block whose reach passes 1 gives way, with whatever hangs from it. A neck the blast narrowed (a tower's base) fails when
 // what stands on it outweighs what it can bear (BlockMaterial.load) or its centre of mass is past the neck's edge: all
 // of it above the neck tips over as one body.
 // Falling parts become free-moving structures (Ship, debris = true: the ship physics with gravity and terrain contacts),
@@ -19,6 +19,7 @@ enum Collapse {
     static let cap = 6000               // cells one support search may visit
     static let maxDebris = 32           // free-moving debris bodies at once
     static let minPiece = 3             // smaller falling pieces break into items / dust
+    static let unit: Int32 = 840        // a block's whole reach in the support search's cost units (840 = 1..8 x 14 divide it)
 
     static let dirs6 = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
 
@@ -83,32 +84,39 @@ enum Collapse {
                 res.falling.append(comp)
                 continue
             }
-            // Reach to support (0-1 breadth-first): resting on the cell below is free, sideways or hanging costs 1.
-            var dist: [IVec3: Int] = [:]
-            dist.reserveCapacity(comp.count)
-            var dq: [IVec3] = []                  // cost-1 cells in order (a queue read from dh)
-            var dh = 0
-            var front: [IVec3] = anchored         // cost-0 cells, taken first
-            for a in anchored { dist[a] = 0 }
-            while !front.isEmpty || dh < dq.count {
-                let c: IVec3
-                if let f = front.popLast() { c = f } else { c = dq[dh]; dh += 1 }
-                let dc = dist[c] ?? 0
-                for d in dirs6 {
-                    let n = c + d
-                    guard inComp.contains(n) else { continue }
-                    let cost = d.y > 0 ? 0 : 1
-                    let nd = dc + cost
-                    if let old = dist[n], old <= nd { continue }
-                    dist[n] = nd
-                    if cost == 0 { front.append(n) } else { dq.append(n) }
+            // Reach to support (Dijkstra): resting on the cell below is free; a step sideways or hanging down into a cell
+            // costs Collapse.unit / that cell's strength, and a cell whose cost passes one unit is beyond reach. (For one
+            // material that is the plain step count against its reach; a light panel or a window set into a steel
+            // deck fails only where the steel itself would, not at the panel's own short reach from the wall.)
+            let n = comp.count
+            var index: [IVec3: Int32] = [:]
+            index.reserveCapacity(n)
+            for (i, c) in comp.enumerated() { index[c] = Int32(i) }
+            var step = [Int32](repeating: 0, count: n)
+            for i in 0..<n {
+                let c = comp[i]
+                let r = max(0.25, BlockMaterial.strength(w.rawBlock(c.x, c.y, c.z)))
+                step[i] = Int32((Float(Collapse.unit) / r).rounded())
+            }
+            var dist = [Int32](repeating: Int32.max, count: n)
+            var heap = Heap()
+            for a in anchored {
+                guard let i = index[a] else { continue }
+                if dist[Int(i)] != 0 { dist[Int(i)] = 0; heap.push(0, i) }
+            }
+            while let top = heap.pop() {
+                let d = top.0, i = Int(top.1)
+                if d > dist[i] { continue }
+                let c = comp[i]
+                for dd in dirs6 {
+                    guard let j32 = index[c + dd] else { continue }
+                    let j = Int(j32)
+                    let nd = dd.y > 0 ? d : d + step[j]
+                    if nd < dist[j] { dist[j] = nd; heap.push(nd, j32) }
                 }
             }
             var failed = Set<IVec3>()
-            for c in comp {
-                let reach = Int(BlockMaterial.strength(w.rawBlock(c.x, c.y, c.z)).rounded(.down))
-                if (dist[c] ?? Int.max) > reach { failed.insert(c) }
-            }
+            for i in 0..<n where dist[i] > Collapse.unit { failed.insert(comp[i]) }
             if !failed.isEmpty {
                 // What only hung on the failed cells goes with them: re-measure the rest without them.
                 let rest = comp.filter { !failed.contains($0) }
@@ -130,6 +138,41 @@ enum Collapse {
             if open, let t = neck(w, comp: inComp, holes: holeSet) { res.tip.append(t) }
         }
         return res
+    }
+
+    // A binary min-heap of (cost, cell index) for the support search.
+    struct Heap {
+        var cost: [Int32] = []
+        var item: [Int32] = []
+        mutating func push(_ c: Int32, _ i: Int32) {
+            cost.append(c); item.append(i)
+            var k = cost.count - 1
+            while k > 0 {
+                let p = (k - 1) / 2
+                if cost[p] <= cost[k] { break }
+                cost.swapAt(p, k); item.swapAt(p, k)
+                k = p
+            }
+        }
+        mutating func pop() -> (Int32, Int32)? {
+            guard let c0 = cost.first, let i0 = item.first else { return nil }
+            let lc = cost.removeLast(), li = item.removeLast()
+            if !cost.isEmpty {
+                cost[0] = lc; item[0] = li
+                var k = 0
+                let n = cost.count
+                while true {
+                    let l = 2 * k + 1, r = l + 1
+                    var m = k
+                    if l < n && cost[l] < cost[m] { m = l }
+                    if r < n && cost[r] < cost[m] { m = r }
+                    if m == k { break }
+                    cost.swapAt(m, k); item.swapAt(m, k)
+                    k = m
+                }
+            }
+            return (c0, i0)
+        }
     }
 
     // Splits cells into 6-connected pieces.

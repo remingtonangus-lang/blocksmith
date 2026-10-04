@@ -45,7 +45,8 @@ extension ShipManager {
             guard g.get(x, y, z) == AIR, g.get(x, y + 1, z) == AIR, Blocks.fullCollide[Int(g.get(x, y - 1, z))], s.dry(x, y, z) else { continue }
             spots.append(s.toWorld(V3(Float(x), Float(y), Float(z)) + 0.5))
         }
-        bake(s, game: game)
+        // A wreck stays as it lies (a rigid hulk: no settle check tearing it apart).
+        bake(s, game: game, settle: false)
         let w = world
         let chest = Blocks.id("chest")
         for p in spots {

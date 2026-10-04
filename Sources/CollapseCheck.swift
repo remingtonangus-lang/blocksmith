@@ -254,17 +254,37 @@ enum CollapseCheck {
     }
 
     // Built blocks left with nothing holding them in the scene's region (the support analysis seeded with all of them).
+    // Wrecks are left out: a wreck is laid down whole as a rigid hulk (Wrecks.swift), not held block by block.
+    static func inBox(_ c: IVec3, _ lo: IVec3, _ hi: IVec3) -> Bool {
+        let inX = c.x >= lo.x - 1 && c.x <= hi.x + 1
+        let inY = c.y >= lo.y - 1 && c.y <= hi.y + 1
+        let inZ = c.z >= lo.z - 1 && c.z <= hi.z + 1
+        return inX && inY && inZ
+    }
+
     static func floating(_ st: Stage) -> (Int, String) {
         let w = st.world
         var seeds: [IVec3] = []
         let (lo, hi) = st.box
+        let wrecks = w.ships.wrecks.map { (IVec3($0.lo[0], $0.lo[1], $0.lo[2]), IVec3($0.hi[0], $0.hi[1], $0.hi[2])) }
         for y in max(1, lo.y)...min(CH - 2, hi.y) { for z in lo.z...hi.z { for x in lo.x...hi.x where w.isLoaded(x, z) {
-            if Collapse.built(w.rawBlock(x, y, z)) { seeds.append(IVec3(x, y, z)) }
+            if Collapse.built(w.rawBlock(x, y, z)) && !wrecks.contains(where: { inBox(IVec3(x, y, z), $0.0, $0.1) }) {
+                seeds.append(IVec3(x, y, z))
+            }
         } } }
         let res = Collapse.analyze(w, around: [], seeds: seeds, cap: 60000)
         let n = res.falling.reduce(0) { $0 + $1.count } + res.tip.reduce(0) { $0 + $1.cells.count }
         var at = ""
-        if let p = res.falling.first?.first { at = "\(p.x),\(p.y - YOFF),\(p.z) (\(Blocks.key(w.rawBlock(p.x, p.y, p.z))))" }
+        if let p = res.falling.first?.first {
+            var kinds: [String: Int] = [:]
+            var bl = p, bh = p
+            for piece in res.falling { for c in piece {
+                kinds[Blocks.key(Blocks.groupBase[Int(w.rawBlock(c.x, c.y, c.z))]), default: 0] += 1
+                bl = IVec3(min(bl.x, c.x), min(bl.y, c.y), min(bl.z, c.z)); bh = IVec3(max(bh.x, c.x), max(bh.y, c.y), max(bh.z, c.z))
+            } }
+            let top = kinds.sorted { $0.value > $1.value }.prefix(4).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
+            at = "\(p.x),\(p.y - YOFF),\(p.z) (\(Blocks.key(w.rawBlock(p.x, p.y, p.z)))); \(res.falling.count) pieces in \(bl.x),\(bl.y - YOFF),\(bl.z) to \(bh.x),\(bh.y - YOFF),\(bh.z): \(top)"
+        }
         return (n, at)
     }
 

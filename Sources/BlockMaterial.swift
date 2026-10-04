@@ -52,7 +52,9 @@ enum BlockMaterial {
                 case .stone, .deepslate, .netherrack, .bone, .amethyst, .sculk, .slime: k = .stone
                 }
                 if key.contains("brick") || key.contains("tile") { k = .brick }
-                if key.hasPrefix("iron_") || key.hasPrefix("steel_") || key.hasPrefix("warship_") || key.hasPrefix("capital_")
+                // Steel fittings registered with a stone sound (MilitaryBase.steel) and ship parts are metal too.
+                if key.hasPrefix("iron_") || key.hasPrefix("steel_") || key.hasPrefix("warship_") || key.hasPrefix("capital_") || key.hasPrefix("ship_")
+                    || ["light_panel", "command_console", "ammo_crate", "hazard_plating", "rusted_plating"].contains(key)
                     || key.contains("copper") || key.hasSuffix("_block") && ["iron_block", "gold_block", "netherite_block"].contains(key) {
                     k = key.contains("glass") ? .glass : .metal
                 }

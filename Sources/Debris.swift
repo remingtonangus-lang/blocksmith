@@ -9,10 +9,10 @@ extension ShipManager {
     // Runs the support analysis round cells just emptied (an explosion's holes, a block a falling piece broke) and sets
     // whatever fails moving. Returns the number of bodies made.
     @discardableResult
-    func collapse(around holes: [IVec3], game: Game?, from blast: V3? = nil) -> Int {
-        guard !holes.isEmpty else { return 0 }
+    func collapse(around holes: [IVec3], game: Game?, from blast: V3? = nil, seeds: [IVec3] = []) -> Int {
+        guard !holes.isEmpty || !seeds.isEmpty else { return 0 }
         let t0 = CFAbsoluteTimeGetCurrent()
-        let r = Collapse.analyze(world, around: holes)
+        let r = Collapse.analyze(world, around: holes, seeds: seeds)
         var made = 0
         for p in r.falling {
             // A piece knocked loose by a blast gets a shove away from it.
@@ -107,6 +107,12 @@ extension ShipManager {
             }
             collapseQueue.removeFirst(n)
             collapse(around: holes, game: game, from: from)
+        } else if !settleQueue.isEmpty {
+            // Pieces just laid down: whatever of them overhangs further than it spans breaks off and falls again (a
+            // toppled tower lying across its own stump).
+            let cells = settleQueue
+            settleQueue.removeAll(keepingCapacity: true)
+            collapse(around: [], game: game, seeds: cells)
         }
         for s in list where s.kinematic && s.parent == nil && s.splitCheck >= 0 {
             s.splitCheck -= dt
@@ -195,8 +201,8 @@ extension ShipManager {
     // block that isn't replaceable, are left (crushed). Upright bodies keep their blocks' facings (turned to the nearest
     // quarter); tipped ones fall back to each block's plain state.
     @discardableResult
-    func bake(_ s: Ship, game: Game?) -> Int {
-        for t in list where t.parent === s { bake(t, game: game) }
+    func bake(_ s: Ship, game: Game?, settle: Bool = true) -> Int {
+        for t in list where t.parent === s { bake(t, game: game, settle: settle) }
         let w = world
         let g = s.grid
         var place: [IVec3: BlockID] = [:]
@@ -272,6 +278,7 @@ extension ShipManager {
             _ = w.setBlockAsync(c.x, c.y, c.z, nb)
             if let be = bePlace[c] { w.blockEntities[c] = be }
             n += 1
+            if settle && settleQueue.count < 20000 && Collapse.built(nb) { settleQueue.append(c) }
         }
         remove(s)
         ghosts.append((s, 0.6))                 // drawn where it lies until the world's new meshes are in
