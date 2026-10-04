@@ -482,7 +482,10 @@ extension Mob {
         let player = g.player.eye - V3(0, 0.6, 0)
         let to = player - pivot
         let dist = simd_length(to)
-        let canTarget = g.survival && g.alive && dist < HeavyTurret.range
+        // Unprovoked the turrets guard the citadel's grounds; provoked (hit, or the garrison alerted) they reach their full
+        // range. They shelled players 220 blocks off in a nearby village without a reason (agent bots died, run 482).
+        let engage: Float = aggro ? HeavyTurret.range : HeavyTurret.guardRange
+        let canTarget = g.survival && g.alive && dist < engage
         b.losTimer -= dt
         if b.losTimer <= 0 {
             b.losTimer = 0.4
@@ -494,6 +497,7 @@ extension Mob {
             b.seenAgo = 0
         } else {
             b.seenAgo += dt
+            if aggro && b.seenAgo > 60 { aggro = false }             // stands down a minute after losing the target
             // An enemy faction's vessel in range instead (CapitalShips.swift).
             if let foe = g.world.ships.nearestFoe(of: factionValue, near: pivot, range: HeavyTurret.range * 1.5, game: g), foe.ship != nil || foe.mob != nil {
                 b.lastSeen = foe.point
@@ -599,7 +603,8 @@ enum HeavyTurret {
     static let pitchMin: Float = -0.09, pitchMax: Float = 0.52     // -5 to +30 degrees
     static let traverse: Float = 0.2                // radians per second
     static let reload: Float = 9
-    static let range: Float = 220
+    static let range: Float = 220                   // once provoked
+    static let guardRange: Float = 72               // unprovoked: the citadel's grounds
     static let power: Float = 2.4                   // TNT-like burst, about a 3-block crater
 
     static func muzzle(_ m: Mob, _ sx: Float) -> V3 {
