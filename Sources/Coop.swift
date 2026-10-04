@@ -434,7 +434,8 @@ extension Game {
 enum CoopTest {
     static func run(_ g: Game) -> Int {
         var fails = 0
-        func check(_ ok: Bool, _ what: String) { print("\(ok ? "PASS" : "FAIL") coop: \(what)"); if !ok { fails += 1 } }
+        var failed: [String] = []
+        func check(_ ok: Bool, _ what: String) { print("\(ok ? "PASS" : "FAIL") coop: \(what)"); if !ok { fails += 1; failed.append(what) } }
         let c = g.coop
         check(c.active && c.seatCount == 2, "player 2 joined (2 seats)")
         let p1 = g.player
@@ -527,7 +528,8 @@ enum CoopTest {
         var back: Player?
         c.withSeat(1, g) { back = g.player }
         check(c.active && back === p2 && simd_length((back?.pos ?? .zero) - p1.pos) < 8, "player 2 rejoins beside player 1 with the same body")
-        print("cooptest: \(fails == 0 ? "PASS" : "\(fails) FAILED")")
+        // The failures again last (the fast lane keeps only the end of a shot's output).
+        print("cooptest: \(fails == 0 ? "PASS" : "\(fails) FAILED: " + failed.joined(separator: "; "))")
         return fails
     }
 }
