@@ -57,11 +57,17 @@ extension Game {
         guard a.count >= 2 else { return ["Usage: /vessel <frigate|carriage|locate>"] }
         let f = V3(-sinf(player.yaw), 0, -cosf(player.yaw))
         switch a[1].lowercased() {
-        case "frigate", "carriage":
-            let at = player.pos + f * (a[1].lowercased() == "frigate" ? 50 : 30)
+        case "frigate":
+            // The Capital frigate (CapitalFrigate.swift), built here and now ahead of the player.
+            let at = player.pos + f * 160
+            ships.spawnCapital("capfrigate", home: IVec3(Int(floor(at.x)), 0, Int(floor(at.z))), yaw: player.yaw, region: nil, sync: true)
+            return ["Summoned the Capital Frigate"]
+        case "skyward", "carriage":
+            let at = player.pos + f * (a[1].lowercased() == "skyward" ? 50 : 30)
             let x = Int(floor(at.x)), z = Int(floor(at.z))
             let ground = world.topY(x, z)
-            let s = ships.spawnVessel(a[1].lowercased(), home: IVec3(x, a[1].lowercased() == "frigate" ? max(ground, SEA) + 30 : ground + 1, z), game: self)
+            let sky = a[1].lowercased() == "skyward"
+            let s = ships.spawnVessel(sky ? "frigate" : "carriage", home: IVec3(x, sky ? max(ground, SEA) + 30 : ground + 1, z), game: self)
             return ["Summoned \(s.name) (\(s.blockCount) blocks)"]
         case "locate":
             let rx = floorDiv(Int(player.pos.x), Vessels.region), rz = floorDiv(Int(player.pos.z), Vessels.region)
@@ -72,7 +78,7 @@ extension Game {
                 if best == nil || d < best!.2 { best = (e.0, e.1, d) }
             } }
             guard let b = best else { return ["No vessel within \(Vessels.region * 3) blocks"] }
-            let name = b.0 == "frigate" ? "Skyward Frigate" : "Ironstride Siege Carriage"
+            let name = b.0 == "frigate" ? "Capital Frigate" : "Ironstride Siege Carriage"
             return ["The nearest \(name) patrols around [\(b.1.x), ~, \(b.1.z)] (\(Int(b.2)) blocks away)"]
         default:
             return ["Unknown vessel \(a[1])"]

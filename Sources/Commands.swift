@@ -98,7 +98,7 @@ extension Game {
         ("fortress", "Cinder Fortress"), ("bastion", "Boarling Keep"), ("end_city", "Hollow Spire"),
         ("military_base", "Steelhold Fortress"),
         // Vessel encounters (ShipVessels.swift / CapitalShips.swift), found by region rather than as structures.
-        ("warfrigate", "Stormwarden Frigate"), ("crawler", "Ironback Crawler"), ("frigate", "Skyward Frigate"), ("carriage", "Siege Carriage")]
+        ("warfrigate", "Stormwarden Frigate"), ("crawler", "Ironback Crawler"), ("frigate", "Capital Frigate"), ("carriage", "Siege Carriage")]
 
     static func snake(_ s: String) -> String {
         var out = ""

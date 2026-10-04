@@ -539,11 +539,13 @@ extension BlockRegistry {
             d.hardness = 8; d.resistance = 9; d.tool = .pickaxe; d.requiresTool = true; d.harvestLevel = 2; d.sound = .stone
             add(d)
         }
+        registerCapitalFactionBlocks()
     }
 }
 
 extension TextureGen {
     static func capitalPainters(_ p: inout [String: Painter]) {
+        capitalFactionPainters(&p)
         p["warship_hull"] = { x, y in
             if y == 0 || x == 0 { return hex(0x5C636B) }
             if y == 15 || x == 15 { return hex(0x30353B) }
@@ -571,12 +573,17 @@ extension Ship {
         let r = root
         if r.faction != 0, let f = Faction(rawValue: r.faction) { return f }
         switch r.role {
-        case "frigate", "carriage": return .steelhold
+        case "frigate", "carriage", "capfrigate": return .steelhold
         case "warfrigate": return .stormwarden
         case "crawler": return .ironback
         default: return .none
         }
     }
+}
+
+extension Ship {
+    // Frigates fly (the Stormwarden and Capital ones); the crawler drives.
+    var isFlyingCapital: Bool { role == "warfrigate" || role == "capfrigate" }
 }
 
 extension Mob {
@@ -594,10 +601,11 @@ extension ShipManager {
         let ids = (0..<24).map { _ in newId() }
         let gen = world.gen
         let work: () -> ([Ship], CapitalState) = {
-            let frigate = kind == "warfrigate"
-            let hb = frigate ? Capital.frigate() : Capital.crawler()
-            let ships = Capital.makeShips(hb, ids: ids, name: frigate ? "Stormwarden Frigate" : "Ironback Crawler", role: kind,
-                                          faction: frigate ? .stormwarden : .ironback)
+            let frigate = kind != "crawler"
+            let cap = kind == "capfrigate"
+            let hb = cap ? Capital.capitalFrigate() : (frigate ? Capital.frigate() : Capital.crawler())
+            let ships = Capital.makeShips(hb, ids: ids, name: cap ? "Capital Frigate" : (frigate ? "Stormwarden Frigate" : "Ironback Crawler"), role: kind,
+                                          faction: cap ? .steelhold : (frigate ? .stormwarden : .ironback))
             let s = ships[0]
             let st = CapitalState()
             st.region = region
@@ -609,7 +617,7 @@ extension ShipManager {
             st.crewRoles = hb.crewRoles + [CrewRole](repeating: .troop, count: max(0, hb.crew.count - hb.crewRoles.count))
             st.wheels = Capital.vehicleWheels(s)
             st.ramp = V3(Float(hb.ox) + 0.5, 1, Float(hb.sz) + 3)
-            st.sight = frigate ? 300 : 210
+            st.sight = cap ? 240 : (frigate ? 300 : 210)
             st.orbitDir = (home.x + home.z) % 2 == 0 ? 1 : -1
             st.groundOffset = s.com.y - s.localMin.y
             let hx = Float(home.x) + 0.5, hz = Float(home.z) + 0.5
@@ -774,7 +782,7 @@ extension ShipManager {
             if s.role == "dropship" { dropshipTick(s, st, dt, g); continue }
             if !st.announced && pd < 420 {
                 st.announced = true
-                g.onToast?(s.role == "warfrigate" ? "A Stormwarden Frigate looms on the horizon" : "The ground shakes: an Ironback Crawler is near")
+                g.onToast?(s.role == "crawler" ? "The ground shakes: an Ironback Crawler is near" : "A \(s.name) looms on the horizon")
             }
             if s.asleep { continue }
             if st.crewDone.count < st.crew.count && pd < 96 {
@@ -824,7 +832,7 @@ extension ShipManager {
                 refresh(&t, g)
                 st.target = t
             }
-            if s.role == "warfrigate" { flyFrigate(s, st, dt, g) } else { driveCrawler(s, st, dt, g) }
+            if s.isFlyingCapital { flyFrigate(s, st, dt, g) } else { driveCrawler(s, st, dt, g) }
             capitalGuns(s, st, dt, g)
             deployTroops(s, st, dt, g)
         }
@@ -1093,7 +1101,7 @@ extension ShipManager {
             if Int(st.mainCharge * 20) % 2 == 0 { g.particles.smoke(at: mw, dark: false) }
             if st.mainCharge >= 1.6 {
                 st.mainCharge = 0
-                let frigate = s.role == "warfrigate"
+                let frigate = s.isFlyingCapital
                 st.mainGunCD = frigate ? 24 : 16
                 var dir = simd_normalize(t.point + t.vel * (dist / 260) - mw)
                 if simd_dot(dir, md) < 0.85 { dir = simd_normalize(md + (dir - md) * 0.5) }
@@ -1111,7 +1119,7 @@ extension ShipManager {
         }
         // Missile salvo.
         if st.driverAlive && st.missileCD <= 0 && !st.pods.isEmpty && boundsDistance(s, t.point) < 320 {
-            st.missileCD = s.role == "warfrigate" ? 7 : 10
+            st.missileCD = s.isFlyingCapital ? 7 : 10
             for (k, (p, d)) in st.pods.enumerated() {
                 let at = s.toWorld(p)
                 let dir = s.dirToWorld(d)
@@ -1134,7 +1142,9 @@ extension ShipManager {
         st.troopCD -= dt
         st.troops.removeAll { t in t.health <= 0 || !g.mobs.mobs.contains(where: { $0 === t }) }
         guard st.troopCD <= 0, let t = st.target, st.troops.count < 6 else { return }
-        let frigate = s.role == "warfrigate"
+        // The Capital frigate keeps its security detail aboard (no drop troops).
+        if s.role == "capfrigate" { return }
+        let frigate = s.isFlyingCapital
         let reach: Float = frigate ? 220 : 70
         guard boundsDistance(s, t.point) < reach else { return }
         st.troopCD = frigate ? 35 : 25
@@ -1353,7 +1363,7 @@ extension ShipManager {
             g.particles.smoke(at: w)
             if simd_length(w - g.player.pos) < 160 { g.sfx(.explode, 0.7, at: w) }
         }
-        if s.role == "warfrigate" {
+        if s.isFlyingCapital {
             st.sinkSpeed = min(10, st.sinkSpeed + dt * 1.2)
             let fw = s.dirToWorld(V3(0, 0, -1))
             s.vel = V3(fw.x, 0, fw.z) * 3 + V3(0, -st.sinkSpeed, 0)

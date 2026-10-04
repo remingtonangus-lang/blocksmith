@@ -198,12 +198,13 @@ enum ShipTest {
             settle(g, rd: rd)
             return g.player.pos
         }
-        if kind == "warfrigate" || kind == "crawler" || kind == "capitalbattle" {
+        if kind == "warfrigate" || kind == "crawler" || kind == "capitalbattle" || kind == "frigate" {
             // Capital ships (CapitalShips.swift): built synchronously here, then a few seconds of their AI.
             let x = Int(floor(p.x)), z = Int(floor(p.z)) - (kind == "crawler" ? 70 : 260)
             let t0 = CFAbsoluteTimeGetCurrent()
-            if kind != "crawler" { w.ships.spawnCapital("warfrigate", home: IVec3(x, 0, z), yaw: 1.2, region: nil, sync: true) }
-            if kind != "warfrigate" { w.ships.spawnCapital("crawler", home: IVec3(x + (kind == "capitalbattle" ? 150 : 0), 0, z + (kind == "capitalbattle" ? 120 : 0)), yaw: 2.4, region: nil, sync: true) }
+            if kind == "frigate" { w.ships.spawnCapital("capfrigate", home: IVec3(x, 0, z + 140), yaw: 1.2, region: nil, sync: true) }
+            else if kind != "crawler" { w.ships.spawnCapital("warfrigate", home: IVec3(x, 0, z), yaw: 1.2, region: nil, sync: true) }
+            if kind != "warfrigate" && kind != "frigate" { w.ships.spawnCapital("crawler", home: IVec3(x + (kind == "capitalbattle" ? 150 : 0), 0, z + (kind == "capitalbattle" ? 120 : 0)), yaw: 2.4, region: nil, sync: true) }
             let buildMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
             if kind == "capitalbattle" { g.difficulty = 0 }          // the two factions fight; the camera isn't a target
             let cam = g.player.pos
@@ -219,22 +220,22 @@ enum ShipTest {
             }
             print("ship \(kind): \(w.ships.shells.count) shells in flight")
             if let f = w.ships.capitals.first(where: { $0.role != "dropship" }) {
-                let big = f.role == "warfrigate"
-                chase(g, f, dist: big ? 230 : 60, height: big ? 70 : 22, side: big ? 0.9 : 0.8)
+                let big = f.role == "warfrigate", cap = f.role == "capfrigate"
+                chase(g, f, dist: big ? 230 : (cap ? 120 : 60), height: big ? 70 : (cap ? 30 : 22), side: big ? 0.9 : 0.8)
             }
             settle(g, rd: rd)
             return g.player.pos
         }
-        if kind == "frigate" || kind == "carriage" {
+        if kind == "skyward" || kind == "carriage" {
             let x = Int(floor(p.x)), z = Int(floor(p.z)) - 30
             if kind == "carriage" { levelPad(w, x, z, half: 40) }
             let ground = groundTop(w, x, z)
-            let s = w.ships.spawnVessel(kind, home: IVec3(x, kind == "frigate" ? max(ground, SEA) + 40 : ground + 1, z), game: g)
-            run(g, seconds: kind == "frigate" ? 4 : 5)
+            let s = w.ships.spawnVessel(kind == "skyward" ? "frigate" : kind, home: IVec3(x, kind == "skyward" ? max(ground, SEA) + 40 : ground + 1, z), game: g)
+            run(g, seconds: kind == "skyward" ? 4 : 5)
             print(String(format: "ship %@: %ld blocks %.0f t  pos %.1f %.1f %.1f  speed %.2f b/s  turrets %ld  crew %ld  physics %.2f ms/frame",
                          kind, s.blockCount, s.mass, s.pos.x, s.pos.y, s.pos.z, simd_length(s.vel), w.ships.turrets(of: s).count,
                          s.crewStations.count, w.ships.stepMs))
-            if kind == "frigate" { chase(g, s, dist: 60, height: 14, side: 0.6) } else { chase(g, s, dist: 34, height: 12, side: 0.7) }
+            if kind == "skyward" { chase(g, s, dist: 60, height: 14, side: 0.6) } else { chase(g, s, dist: 34, height: 12, side: 0.7) }
             settle(g, rd: rd)
             return g.player.pos
         }

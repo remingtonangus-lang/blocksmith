@@ -231,7 +231,7 @@ final class USBGamepads {
             var ifs = gipInterface(under: s)
             if ifs == nil {
                 // No driver set a configuration (vendor class): set configuration 1 so the interfaces appear.
-                do { try dev.configure(withValue: 1, matchInterfaces: true); log("step: configuration 1 set") }
+                do { try dev.configure(withValue: 1); log("step: configuration 1 set") }
                 catch { log("step: configure failed: \(error.localizedDescription)") }
                 for _ in 0..<20 where ifs == nil { usleep(50_000); ifs = gipInterface(under: s) }
             }
@@ -271,7 +271,7 @@ final class USBGamepads {
     private func send(_ bytes: [UInt8]) -> Bool {
         guard let p = pipeOut else { return false }
         let d = NSMutableData(bytes: bytes, length: bytes.count)
-        do { try p.sendIORequest(with: d, bytesTransferred: nil, completionTimeout: 1); return true } catch { return false }
+        do { _ = try p.sendIORequest(with: d, completionTimeout: 1); return true } catch { return false }
     }
 
     private func readNext() {
@@ -316,7 +316,6 @@ final class USBGamepads {
     private func close(reason: String) {
         guard device != nil else { return }
         let name = deviceName
-        try? pipeIn?.abort()
         iface?.destroy(); device?.destroy()
         pipeIn = nil; pipeOut = nil; iface = nil; device = nil
         opened.removeAll()                           // a replug gets a new registry id; allow it again

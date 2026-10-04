@@ -205,7 +205,7 @@ enum Vessels {
 }
 
 extension Ship {
-    var isVessel: Bool { role == "frigate" || role == "carriage" || role == "warfrigate" || role == "crawler" }
+    var isVessel: Bool { role == "frigate" || role == "carriage" || role == "warfrigate" || role == "crawler" || role == "capfrigate" }
 }
 
 extension ShipManager {
@@ -224,7 +224,9 @@ extension ShipManager {
                 let (kind, home) = e
                 let d = V2(Float(home.x) - p.x, Float(home.z) - p.z)
                 // Capital ships are built while the player is still far off (they are seen from far away).
-                let capital = kind == "warfrigate" || kind == "crawler" || kind == "battle"
+                // The "frigate" encounter is now the Capital frigate (a capital ship; the Skyward Frigate airship only
+                // survives in old saves).
+                let capital = kind == "warfrigate" || kind == "crawler" || kind == "battle" || kind == "frigate"
                 if capital {
                     if simd_length(d) > (kind == "crawler" ? 320 : 520) { continue }
                     spawnedRegions.insert(key)
@@ -234,7 +236,7 @@ extension ShipManager {
                         let ch = world.gen.column(home.x + 260, home.z)
                         if ch.height > SEA { spawnCapital("crawler", home: IVec3(home.x + 260, ch.height + 1, home.z), yaw: yaw + 1.6, region: key) }
                     } else {
-                        spawnCapital(kind, home: home, yaw: yaw, region: key)
+                        spawnCapital(kind == "frigate" ? "capfrigate" : kind, home: home, yaw: yaw, region: key)
                     }
                     continue
                 }
