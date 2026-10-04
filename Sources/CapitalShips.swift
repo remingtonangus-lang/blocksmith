@@ -680,7 +680,10 @@ extension ShipManager {
         guard let st = capState[s.id] else { return s.name }
         var parts: [String] = []
         parts.append(s.helm == nil ? "helm destroyed" : (st.driverAlive ? "helm manned" : "no driver"))
-        if st.engines0 > 0 { parts.append("engines \(Int((Float(s.engines) / Float(st.engines0) * 100).rounded()))%") }
+        if st.engines0 > 0 {
+            let pct: Float = Float(s.engines) / Float(st.engines0) * 100
+            parts.append("engines \(Int(pct.rounded()))%")
+        }
         if !st.wheels.isEmpty { parts.append("wheels \(st.wheels.count - st.wheelsLost)/\(st.wheels.count)") }
         let ts = turrets(of: s)
         let manned = ts.indices.filter { st.turretManned($0) }.count
@@ -882,7 +885,9 @@ extension ShipManager {
     private func flyFrigate(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
         // Nobody at the helm (helmsman dead or the helm shot away): she holds her height and drifts to a stop.
         if !st.driverAlive || s.helm == nil {
-            s.vel += (V3(0, (s.hoverY - s.pos.y) * 0.3, 0) - s.vel) * min(1, dt * 0.25)
+            let holdY: Float = s.hoverY ?? s.pos.y
+            let want = V3(0, (holdY - s.pos.y) * 0.3, 0)
+            s.vel += (want - s.vel) * min(1, dt * 0.25)
             s.angVel = V3(0, s.angVel.y * max(0, 1 - dt), 0)
             levelUp(s, dt)
             return
