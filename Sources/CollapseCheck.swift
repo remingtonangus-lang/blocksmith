@@ -132,7 +132,7 @@ enum CollapseCheck {
             st.blasts = bl
             st.box = (IVec3(o.x - 120, o.y - 4, o.z - 120), IVec3(o.x + 120, o.y + 90, o.z + 120))
             let side = s.dirToWorld(V3(1, 0, 0))
-            let at = s.pos + side * 70 + V3(0, -10, 0)
+            let at = s.pos + side * 45 + V3(0, -10, 0)
             st.view = (at, atan2f(side.x, side.z), -0.05)
         case "wreck":
             w.ships.spawnCapital("crawler", home: IVec3(o.x, 0, o.z), yaw: 0.4, region: nil, sync: true)
