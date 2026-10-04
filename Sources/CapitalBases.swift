@@ -172,7 +172,7 @@ extension Game {
                     r.damage.append([n.pos.x, n.pos.y, n.pos.z, 1.5 + n.power * 1.25])
                     if r.damage.count > 64 { r.damage.removeFirst() }
                 }
-                if r.alert != .lockdown { b.note("\(r.key) lockdown (\(n.kind) inside)") }
+                if r.alert != .lockdown { b.note("\(r.key) lockdown (\(n.kind) inside, power \(n.power) at \(Int(n.pos.x)),\(Int(n.pos.y)),\(Int(n.pos.z)))") }
                 raise(&r, .lockdown, b)
             } else {
                 raise(&r, d < 70 || n.kind != .gunshot ? .alert : .suspicious, b)

@@ -35,6 +35,7 @@ enum BaseTests {
         for m in g.mobs.mobs where m.kind.steelhold { m.persistent = true }
         g.survival = false; g.paused = false; g.menu = nil  // the soldiers can't target the observer
         g.player.flying = true
+        w.ships.encounters = false                           // no stationed frigate firing into the scenes
         let b = g.bases
         let watchPos = centre + V3(0, 60, 0)
         func pin() { g.player.pos = watchPos; g.player.vel = .zero }

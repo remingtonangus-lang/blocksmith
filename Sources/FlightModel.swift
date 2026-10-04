@@ -58,6 +58,7 @@ final class FlightModel {
     // Adds this model's forces and torques. `power`: engine drive 0...1.
     func forces(_ s: Ship, _ h: Float, _ F: inout V3, _ T: inout V3, power: Float, ground: Float, g: Float) {
         if hold != nil { autopilot(s, g: g, ground: ground) }
+        else if !s.piloted { collective = 0; cyclic = V2(0, 0); pedal = 0 }        // nobody at the controls
         switch kind {
         case .plane: planeForces(s, &F, &T)
         case .heli: heliForces(s, h, &F, &T, power: power, ground: ground, g: g)
@@ -84,9 +85,13 @@ final class FlightModel {
             guard q > 0.04 else { continue }
             var a = atan2f(-w, max(0.1, u))
             // Controls: tail cells are the elevator, outer wing cells the ailerons (right roll: right aileron up).
-            if along < -aft * 0.6 && aft > 2 { a += climb * 0.24 }
-            else if abs(side) > span * 0.55 { a += (side > 0 ? -1 : 1) * steer * 0.16 }
-            a += 0.05                                            // wing incidence
+            // The tailplane is set at a negative incidence (it holds the tail down: pitch stability) and its elevator
+            // pushes the tail down to raise the nose.
+            if along < -aft * 0.6 && aft > 2 { a += -0.03 - climb * 0.24 }
+            else {
+                a += 0.05                                        // wing incidence
+                if abs(side) > span * 0.55 { a += (side > 0 ? -1 : 1) * steer * 0.16 }
+            }
             let aa = abs(a)
             var cl: Float = 4.6 * a
             if aa > 0.3 { cl = (a > 0 ? 1 : -1) * max(0.35, 1.38 - (aa - 0.3) * 2.6); stallN += 1 }
@@ -126,7 +131,8 @@ final class FlightModel {
         rpm += (want - rpm) * min(1, h * (want > rpm ? 0.45 : 0.15))
         spin = fmodf(spin + rpm * 28 * h, 2 * .pi)
         guard let hubL = s.rotors.first else { return }
-        let hub = s.toWorld(hubL + V3(0, 0.5, 0))
+        // The mast stands over the centre of mass (as a helicopter is built): thrust there doesn't pitch the hull.
+        let hub = s.toWorld(V3(s.com.x, hubL.y + 0.5, s.com.z))
         let up = s.dirToWorld(V3(0, 1, 0)), fw = s.dirToWorld(s.fwd)
         let right = simd_normalize(simd_cross(fw, up))
         let I = s.inertiaDiag
@@ -187,13 +193,13 @@ final class FlightModel {
             // weight plus the vertical part, the cyclic tilts for the horizontal part (in the hull's frame).
             let dh = V2(to.x, to.z)
             let dist = simd_length(dh)
-            let vw = dist > 0.1 ? dh / dist * min(holdSpeed, dist * 0.45) : V2(0, 0)
-            let ah = (vw - V2(s.vel.x, s.vel.z)) * 0.6
+            let vw = dist > 0.1 ? dh / dist * min(holdSpeed, dist * 0.3) : V2(0, 0)
+            let ah = (vw - V2(s.vel.x, s.vel.z)) * 0.5
             let vyWant = max(-3, min(4, to.y * 0.8))
             let ay = (vyWant - s.vel.y) * 1.6
             let tmax = FlightModel.heliTmax * s.mass * g * max(0.2, rpm * rpm) * groundEffect
             collective = max(0, min(1, (s.mass * (g + ay)) / tmax))
-            cyclic = V2(max(-0.8, min(0.8, simd_dot(ah, rh) * 0.09)), max(-0.8, min(0.8, simd_dot(ah, fh) * 0.09)))
+            cyclic = V2(max(-0.8, min(0.8, simd_dot(ah, rh) * 0.07)), max(-0.8, min(0.8, simd_dot(ah, fh) * 0.07)))
             var yawWant = holdYaw ?? (dist > 6 ? atan2f(-dh.x, -dh.y) : s.yaw)
             if dist <= 6, let y = holdYaw { yawWant = y }
             var e = yawWant - s.yaw

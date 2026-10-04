@@ -66,9 +66,13 @@ enum FlightTests {
             check(upright(s) > 0.97, "the Kestrel stands on its skids", String(format: "upright %.2f", upright(s)))
             guard let fm = s.flight, fm.kind == .heli else { check(false, "the Kestrel has a helicopter flight model"); return finish(t0) }
             check(fm.tailRotor, "the tail rotor is recognised")
-            let hoverAt = rest + V3(0, 12, 0)
+            // Hover 25 up, clear of the trees and hills round it.
+            var high: Float = rest.y
+            for k in 0...8 { high = max(high, groundY(rest.x + Float(k) * 0 , rest.z - Float(k) * 10) + 1) }
+            let hoverAt = V3(rest.x, max(rest.y + 25, high + 18), rest.z)
             fm.hold = hoverAt; fm.holdYaw = s.yaw
             tag = "kestrel-liftoff"
+            print(String(format: "flighttest: Kestrel mass %.1f t, rotor radius %.1f", s.mass, fm.rotorRadius(s)))
             let lift = step(14) { _ in s.pos.y > rest.y + 10 }
             check(lift != nil, "it spins up and lifts off", String(format: "after %.1f s, rpm %.2f", lift ?? -1, fm.rpm))
             _ = step(6)
@@ -82,7 +86,10 @@ enum FlightTests {
             if shotOnly { look(s, from: V3(-14, 3, 10)); return finish(t0) }
             // Forward flight.
             let fwd = s.dirToWorld(s.fwd)
-            let dest = s.pos + V3(fwd.x, 0, fwd.z) * 80
+            var dest = s.pos + V3(fwd.x, 0, fwd.z) * 80
+            var clear: Float = 0
+            for k in 0...16 { let p = s.pos + V3(fwd.x, 0, fwd.z) * Float(k * 5); clear = max(clear, groundY(p.x, p.z) + 15) }
+            dest.y = max(s.pos.y, clear)
             fm.hold = dest; fm.holdYaw = nil; fm.holdSpeed = 14
             tag = "kestrel-forward"
             var minPitch: Float = 0
@@ -127,6 +134,7 @@ enum FlightTests {
             for k in 0..<12 { top = max(top, groundY(px, pz - Float(k) * 30)) }
             let s = Aircraft.spawn("heron", at: V3(px, top + 40, pz), yaw: 0, game: g)
             guard let fm = s.flight, fm.kind == .plane else { check(false, "the Heron has a fixed-wing flight model", "wings \(s.wings.count)"); return finish(t0) }
+            print(String(format: "flighttest: Heron mass %.1f t, %d airfoil cells, weight %.0f", s.mass, s.wings.count, s.mass * ShipTuning.g))
             let fwd = s.dirToWorld(s.fwd)
             s.vel = fwd * 24
             let y0 = s.pos.y
