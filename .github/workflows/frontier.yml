@@ -99,7 +99,7 @@ jobs:
 
       - name: Bots (oracles)
         id: bots
-        if: always()
+        if: ${{ !cancelled() }}
         timeout-minutes: 15
         run: |
           set -o pipefail
@@ -109,7 +109,7 @@ jobs:
 
       - name: Benchmark (High preset, 1920x1080)
         id: bench
-        if: always()
+        if: ${{ !cancelled() }}
         timeout-minutes: 12
         run: |
           set -o pipefail
@@ -118,7 +118,7 @@ jobs:
 
       - name: Screenshot tour (High preset)
         id: tour
-        if: always()
+        if: ${{ !cancelled() }}
         timeout-minutes: 15
         run: |
           set -o pipefail
@@ -127,7 +127,7 @@ jobs:
 
       - name: Export .app (arm64, ad-hoc signed)
         id: export
-        if: always() && steps.bots.outcome != 'cancelled'
+        if: ${{ !cancelled() && steps.bots.outcome != 'cancelled' }}
         timeout-minutes: 15
         run: |
           set -o pipefail
@@ -141,7 +141,7 @@ jobs:
           ls -la frontier/build/*.zip
 
       - name: Publish release frontier-latest
-        if: always() && steps.export.outcome == 'success'
+        if: ${{ !cancelled() && steps.export.outcome == 'success' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -162,7 +162,7 @@ jobs:
           echo "$GITHUB_SHA" > BUILD_COMMIT.txt && gh release upload frontier-latest BUILD_COMMIT.txt --clobber
 
       - name: Publish shots/logs to ci-snaps-claude-frontier-game
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -179,7 +179,7 @@ jobs:
           git push -f -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ci-snaps-claude-frontier-game
 
       - name: Fail if bots failed
-        if: always()
+        if: ${{ !cancelled() }}
         run: grep -q "BOTS PASS" bots.log
 
   quest:
@@ -240,7 +240,7 @@ jobs:
           gh release view frontier-latest >/dev/null 2>&1 || gh release create frontier-latest --prerelease --title "Sable River — latest build" --notes "Rolling build"
           gh release upload frontier-latest frontier/build/quest/SableRiver-quest.apk --clobber
       - name: Upload export log
-        if: always()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: quest-export-log
