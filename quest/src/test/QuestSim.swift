@@ -32,7 +32,7 @@ enum QuestSim {
         try scene.uploadTextures()
         let host = SimHost(scene: scene)
         let sim = host.sim, rig = host.rig
-        let controls = QuestControls(app: host, game: game)
+        let controls = QuestControls(app: host, game: game, panel: try HudPanel(scene: scene, width: QuestControls.panelW, height: QuestControls.panelH))
         let wr = WorldRenderer(scene: scene, game: game)
         wr.extraOpaque = { s, eye in controls.drawOpaque(s, eye: eye) }
         wr.extraOverlay = { s, eye in controls.drawOverlay(s, eye: eye) }

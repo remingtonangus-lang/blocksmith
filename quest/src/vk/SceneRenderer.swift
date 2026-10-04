@@ -645,6 +645,7 @@ final class SceneRenderer {
             var f: VkFence? = s.fence
             vkWaitForFences(ctx.device, 1, &f, 1, UInt64.max)
             MeshArena.frameCompleted(s.submitted)
+            QuestGraveyard.frameCompleted(s.submitted)
             s.inUse = false
             if s.timed, let qp = queryPool {
                 var ts = [UInt64](repeating: 0, count: 2)
@@ -700,6 +701,7 @@ final class SceneRenderer {
         if let qp = queryPool { vkCmdWriteTimestamp(s.cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, qp, s.queryBase + 1) }
         vkEndCommandBuffer(s.cmd)
         s.submitted = MeshArena.frameSubmitted()
+        QuestGraveyard.frameSubmitted(s.submitted)
         var si = VkSubmitInfo()
         si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO
         si.commandBufferCount = 1
@@ -713,7 +715,7 @@ final class SceneRenderer {
 
     func waitIdle() {
         vkDeviceWaitIdle(ctx.device)
-        for s in slots where s.inUse { MeshArena.frameCompleted(s.submitted); s.inUse = false }
+        for s in slots where s.inUse { MeshArena.frameCompleted(s.submitted); QuestGraveyard.frameCompleted(s.submitted); s.inUse = false }
     }
 
     func setUniforms(_ s: Slot, _ u: FrameUniforms) {

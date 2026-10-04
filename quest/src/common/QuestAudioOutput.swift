@@ -24,7 +24,7 @@ final class QuestAudioOutput {
         AAudioStreamBuilder_setPerformanceMode(b, aaudio_performance_mode_t(AAUDIO_PERFORMANCE_MODE_LOW_LATENCY))
         AAudioStreamBuilder_setSharingMode(b, aaudio_sharing_mode_t(AAUDIO_SHARING_MODE_SHARED))
         AAudioStreamBuilder_setDataCallback(b, { _, user, data, frames in
-            guard let user, let data else { return aaudio_data_callback_result_t(AAUDIO_CALLBACK_RESULT_CONTINUE) }
+            guard let user else { return aaudio_data_callback_result_t(AAUDIO_CALLBACK_RESULT_CONTINUE) }
             let out = Unmanaged<QuestAudioOutput>.fromOpaque(user).takeUnretainedValue()
             let p = data.assumingMemoryBound(to: Float.self)
             if let e = out.engine { e.render(p, frames: Int(frames)) } else { p.initialize(repeating: 0, count: Int(frames) * 2) }

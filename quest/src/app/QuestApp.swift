@@ -19,6 +19,7 @@ final class QuestApp {
     let rig = QuestRig()
     var controls: QuestControls?
     private var loadThread: Thread?
+    private var hudPanel: HudPanel?
     private let loadLock = NSLock()
     private var loaded: (Game, SaveManager, [[UInt8]])?
     private var loadStatus = "Starting"
@@ -52,9 +53,12 @@ final class QuestApp {
         print("load: \(s) (\(String(format: "%.1f", CFAbsoluteTimeGetCurrent() - loadStart)) s)")
     }
 
-    private func startLoading() {
+    struct WorldRequest { var name: String?; var seed: UInt64?; var survival: Bool?; var difficulty: Int? }
+
+    private func startLoading(_ req: WorldRequest = WorldRequest()) {
         loadStart = CFAbsoluteTimeGetCurrent()
-        let t = Thread { [weak self] in self?.load() }
+        loadLock.lock(); loadProgress = 0; loadStatus = "Starting"; loadLock.unlock()
+        let t = Thread { [weak self] in self?.load(req) }
         t.stackSize = 8 << 20
         t.qualityOfService = .userInitiated
         t.name = "blocksmith.load"
@@ -62,20 +66,29 @@ final class QuestApp {
         t.start()
     }
 
-    private func load() {
-        status("Painting textures", 0.05)
-        TextureGen.registerAll()
-        let tex = TextureGen.mipChain()
+    private var texturesUploaded = false
+
+    private func load(_ req: WorldRequest) {
+        var tex: [[UInt8]] = []
+        if !texturesUploaded {
+            status("Painting textures", 0.05)
+            TextureGen.registerAll()
+            tex = TextureGen.mipChain()
+        }
         status("Opening the world", 0.4)
-        let name = UserDefaults.standard.string(forKey: "lastWorld") ?? "Quest World"
+        let name = req.name ?? UserDefaults.standard.string(forKey: "lastWorld") ?? "Quest World"
         let save = SaveManager(name: name)
         UserDefaults.standard.set(name, forKey: "lastWorld")
         let meta = save.loadMeta()
-        let seed = meta?.seed ?? Rand.u64(in: 1...UInt64(Int64.max))
+        let seed = meta?.seed ?? req.seed ?? Rand.u64(in: 1...UInt64(Int64.max))
         let world = World(seed: seed, device: device, save: save)
         world.renderDistance = QuestSettings.renderDistance
         let game = Game(world: world, save: save, persistent: true)
-        if let m = meta { game.apply(m) } else { game.player.pos = game.spawnPoint }
+        if let m = meta { game.apply(m) } else {
+            game.player.pos = game.spawnPoint
+            if let sv = req.survival { game.survival = sv }
+            if let d = req.difficulty { game.difficulty = d }
+        }
         status("Generating terrain", 0.55)
         _ = world.loadSync(center: game.player.pos, radius: min(3, world.renderDistance))
         status("Ready", 1)
@@ -86,7 +99,13 @@ final class QuestApp {
     private func adoptLoaded() {
         loadLock.lock(); let l = loaded; loaded = nil; loadLock.unlock()
         guard let (game, save, tex) = l else { return }
-        do { try scene.uploadTextures(pregenerated: tex) } catch { print("textures: \(error)") }
+        if !texturesUploaded {
+            do { try scene.uploadTextures(pregenerated: tex); texturesUploaded = true } catch { print("textures: \(error)") }
+        }
+        if hudPanel == nil {
+            do { hudPanel = try HudPanel(scene: scene, width: QuestControls.panelW, height: QuestControls.panelH) }
+            catch { print("hud panel: \(error)") }
+        }
         self.save = save
         self.game = game
         game.paused = false
@@ -96,7 +115,7 @@ final class QuestApp {
         QuestAudioOutput.shared.start(game.sound)
         let wr = WorldRenderer(scene: scene, game: game)
         worldRenderer = wr
-        let ctl = QuestControls(app: self, game: game)
+        let ctl = QuestControls(app: self, game: game, panel: hudPanel)
         controls = ctl
         wr.extraOpaque = { [weak ctl] s, eye in ctl?.drawOpaque(s, eye: eye) }
         wr.extraOverlay = { [weak ctl] s, eye in ctl?.drawOverlay(s, eye: eye) }
@@ -107,10 +126,55 @@ final class QuestApp {
             self.xr.haptic(0, amplitude: k, seconds: secs, frequency: f)
             self.xr.haptic(1, amplitude: k, seconds: secs, frequency: f)
         }
+        game.appAction = { [weak self] id in self?.appAction(id) }
         rig.needsRecenter = true
         rig.bodyYaw = game.player.yaw
         print(String(format: "load: world ready in %.1f s (seed %llu, render distance %d)", CFAbsoluteTimeGetCurrent() - loadStart,
                      game.world.seed, game.world.renderDistance))
+    }
+
+    // The pause menu's app-level actions (App.swift on the Mac).
+    private func appAction(_ id: String) {
+        switch id {
+        case "quit":
+            saveNow()
+            xr.requestExit()
+        case _ where id.hasPrefix("play:"):
+            switchWorld(WorldRequest(name: String(id.dropFirst(5))))
+        case "newworld":
+            switchWorld(WorldRequest(name: "World\(Rand.int(in: 100...999))", survival: game?.survival, difficulty: game?.difficulty))
+        case _ where id.hasPrefix("create:"):
+            let parts = id.split(separator: ":", maxSplits: 4, omittingEmptySubsequences: false).map(String.init)
+            guard parts.count == 5 else { return }
+            switchWorld(WorldRequest(name: parts[3], seed: QuestApp.seedValue(parts[4]), survival: parts[1] == "1", difficulty: Int(parts[2]) ?? 2))
+        default: break
+        }
+    }
+
+    // The seed field's text as a seed (AppDelegate.seedValue on the Mac): a number, else FNV-1a of the text.
+    static func seedValue(_ text: String) -> UInt64? {
+        let t = text.trimmingCharacters(in: .whitespaces)
+        if t.isEmpty { return nil }
+        if let v = UInt64(t) { return v }
+        if let v = Int64(t) { return UInt64(bitPattern: v) }
+        var h: UInt64 = 0xcbf29ce484222325
+        for b in t.utf8 { h = (h ^ UInt64(b)) &* 0x100000001b3 }
+        return h
+    }
+
+    // Saves and closes the current world, then loads another behind the loading scene.
+    private func switchWorld(_ req: WorldRequest) {
+        print("world: switching to \(req.name ?? "?")")
+        saveNow()
+        scene.waitIdle()
+        game?.sound?.stopAll()
+        QuestAudioOutput.shared.stop()
+        PadManager.shared.touch = nil
+        controls = nil
+        worldRenderer = nil
+        game = nil
+        save = nil
+        startLoading(req)
     }
 
     // MARK: Frame loop
@@ -120,7 +184,7 @@ final class QuestApp {
     // One display frame. Returns false when the app should exit.
     func frame() -> Bool {
         guard xr.pollEvents() else { return false }
-        guard xr.running else { usleep(20_000); return true }
+        guard xr.running else { Thread.sleep(forTimeInterval: 0.02); return true }
         if game == nil { adoptLoaded() }
         let f: XRSession.Frame
         do { f = try xr.beginFrame() } catch { print("xr frame: \(error)"); return !xr.exitRequested }

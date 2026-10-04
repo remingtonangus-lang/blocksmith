@@ -50,7 +50,7 @@ final class QuestControls {
     private var prevTrigger = false, prevGrip = false
     private var lastHoverSlot = -1
 
-    init(app: QuestHost, game: Game) {
+    init(app: QuestHost, game: Game, panel: HudPanel?) {
         self.app = app
         self.game = game
         hudHost = Renderer(game: game)
@@ -58,8 +58,7 @@ final class QuestControls {
         if UserDefaults.standard.object(forKey: "couchMode") == nil { HudLayout.couch = true }
         game.screen = V2(Float(QuestControls.panelW), Float(QuestControls.panelH))
         Renderer.questHideCrosshair = true
-        do { panel = try HudPanel(scene: app.scene, width: QuestControls.panelW, height: QuestControls.panelH) }
-        catch { print("hud panel: \(error)") }
+        self.panel = panel
         hudYaw = game.player.yaw
     }
 

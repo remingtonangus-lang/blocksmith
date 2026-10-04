@@ -9,6 +9,9 @@ final class QuestBuffer: MTLBuffer {
     let buf: VkBuf
     var label: String?
     init(_ b: VkBuf) { buf = b }
+    // Metal keeps a buffer alive while a command buffer uses it; Vulkan doesn't: a dropped buffer (a replaced section
+    // mesh with its own buffer, a closed world) waits for the frames that may still read it.
+    deinit { QuestGraveyard.retire(buf) }
     var length: Int { buf.size }
     func contents() -> UnsafeMutableRawPointer { buf.mapped! }
     var vkBuffer: VkBuffer { buf.buffer }
@@ -28,4 +31,30 @@ final class QuestDevice: MTLDevice {
         lock.lock(); allocatedBytes += length; lock.unlock()
         return QuestBuffer(b)
     }
+}
+
+// Vulkan objects released by the game while frames in flight may still use them; freed once those frames completed.
+enum QuestGraveyard {
+    private static let lock = NSLock()
+    private static var items: [(AnyObject, Int)] = []
+    private static var submitted = 0, completed = 0
+
+    static func retire(_ o: AnyObject) {
+        lock.lock()
+        if completed >= submitted { lock.unlock(); return }          // nothing in flight: free now (o dies here)
+        items.append((o, submitted))
+        lock.unlock()
+    }
+    static func frameSubmitted(_ n: Int) { lock.lock(); submitted = max(submitted, n); lock.unlock() }
+    static func frameCompleted(_ n: Int) {
+        lock.lock()
+        completed = max(completed, n)
+        var keep: [(AnyObject, Int)] = []
+        var drop: [AnyObject] = []
+        for it in items { if it.1 <= completed { drop.append(it.0) } else { keep.append(it) } }
+        items = keep
+        lock.unlock()
+        _ = drop                       // released here, outside the lock
+    }
+    static var pending: Int { lock.lock(); defer { lock.unlock() }; return items.count }
 }
