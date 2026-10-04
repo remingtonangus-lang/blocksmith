@@ -31,11 +31,13 @@ func run(m: Node) -> void:
 		return
 	var which := str(Game.args.get("bot", "road"))
 	var seconds := Game.arg_f("seconds", 90.0)
-	var bots := ["road", "explore", "gunfight", "missions", "systems"] if which == "all" or which == "true" else [which]
+	var bots := ["road", "explore", "town", "gunfight", "missions", "systems"] if which == "all" or which == "true" else [which]
 	for b in bots:
 		var res: Dictionary
 		if b == "missions":
 			res = await _run_missions()
+		elif b == "town":
+			res = await _run_town(seconds)
 		elif b == "systems":
 			res = await load("res://src/tests/systems_bot.gd").run(self)
 		elif b == "gunfight":
@@ -195,6 +197,44 @@ func _run_bot(kind: String, seconds: float) -> Dictionary:
 	res.frame_p99_ms = st.p99
 	if kind == "road" and res.waypoints_reached < mini(route.size() - 1, 8) and t < seconds:
 		_fail(res, "reached only %d/%d waypoints" % [res.waypoints_reached, route.size()])
+	return res
+
+## Behaviour sim: stand in Bitter Spring for a while and audit the townsfolk (stuck rate, falls, errors).
+func _run_town(seconds: float) -> Dictionary:
+	var res := {"bot": "town", "ok": true, "failures": [], "distance": 0.0, "stuck_events": 0, "fall_events": 0,
+		"frame_spikes": 0, "errors": [], "npcs": 0, "npc_minutes": 0.0}
+	var t := Game.world.town("bitter_spring")
+	var p := Vector3(t.x, 0, t.z)
+	p.y = Game.world.height(p.x, p.z) + 1.0
+	Game.terrain.ensure_collision_at(p)
+	player.global_position = p
+	player.intent.move = Vector2.ZERO
+	var err0: int = Game.error_logger.take().size()
+	var el := 0.0
+	var dur := minf(seconds, 90.0)
+	var stuck0 := {}
+	while el < dur:
+		await get_tree().physics_frame
+		el += get_physics_process_delta_time()
+	var npcs := get_tree().get_nodes_in_group("humans")
+	res.npcs = npcs.size()
+	for h in npcs:
+		res.stuck_events += h.stuck_events
+		var gy := Game.world.height(h.global_position.x, h.global_position.z)
+		if h.global_position.y < gy - 1.5:
+			res.fall_events += 1
+	res.npc_minutes = res.npcs * dur / 60.0
+	if res.npcs == 0:
+		_fail(res, "town is empty")
+	if res.npc_minutes > 0.0 and res.stuck_events / res.npc_minutes > 0.5:
+		_fail(res, "NPC stuck rate %.2f per NPC-minute" % (res.stuck_events / res.npc_minutes))
+	if res.fall_events > 0:
+		_fail(res, "%d NPCs fell through the world" % res.fall_events)
+	var errs: Array = Game.error_logger.take().slice(err0)
+	res.errors = errs
+	if errs.size() > 0:
+		_fail(res, "%d errors, first: %s" % [errs.size(), str(errs[0])])
+	print("  town: %d npcs, %d stuck events, %.1f npc-minutes" % [res.npcs, res.stuck_events, res.npc_minutes])
 	return res
 
 ## Mission bot: autopilot through every story mission in order; softlock/fail/error oracles.

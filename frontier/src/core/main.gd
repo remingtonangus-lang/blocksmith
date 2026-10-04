@@ -62,6 +62,9 @@ func _ready() -> void:
 	var ws := WorldState.new()
 	ws.name = "WorldState"
 	add_child(ws)
+	var pop = load("res://src/ai/population.gd").new()
+	pop.name = "Population"
+	add_child(pop)
 	var md := MissionDirector.new()
 	md.name = "Missions"
 	add_child(md)
