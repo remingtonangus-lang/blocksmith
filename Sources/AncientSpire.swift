@@ -143,6 +143,15 @@ enum AncientSpire {
         // Doorway on the south face, chiseled lintel.
         for y in (y0 + 1)...(y0 + 5) { for dx in -1...1 { for dz in (a - 2)...a { put(dx, y, dz, AIR) } } }
         for dx in -2...2 { put(dx, y0 + 6, a, chis) }
+        // Ghost lanterns on every floor the stair reaches, two each on solid brick (the interior shot was near black).
+        let lantern = g("soul_lantern", AIR)
+        if lantern != AIR {
+            var fy = y0
+            while fy <= topFloor {
+                for (dx, dz) in [(-4, 4), (4, -4)] { put(dx, fy, dz, brick); put(dx, fy + 1, dz, lantern) }
+                fy += floorStep
+            }
+        }
         // Chests: by the door, and on the highest floor the stair reaches (away from the landing).
         w.chest(cx - 4, y0 + 1, cz + a - 4, loot: "dungeon", seed: rng.next(), facing: 1)
         let (tx, tz, _) = ringCell(stairCount / 2)

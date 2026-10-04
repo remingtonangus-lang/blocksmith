@@ -16,7 +16,8 @@ final class Game {
     private(set) var input = InputState()
     let particles = ParticleManager()
     let cine = Cinematic()                       // photo mode / cinematic camera (Cinematic.swift)
-    var showsPlayerModel: Bool { (cameraMode != 0 && sleeping == 0) || cine.active }
+    // Photo mode shows the player once the free camera has moved off them (it starts at the eye: inside the head, run 482).
+    var showsPlayerModel: Bool { (cameraMode != 0 && sleeping == 0) || (cine.active && !cine.followPlayer && simd_length(cine.pos - player.eye) > 1.2) }
     let arms = Armory()               // gun rounds in flight and the player's gun state (Ballistics.swift)
     var lastHurtAt: Double = -10      // hurt cooldown (reference: 10 ticks of invulnerability after a hit)
     var lastHurtAmount = 0
