@@ -128,6 +128,23 @@ for f, src in srcs.items():
 for (sig, _), where in sigs.items():
     if len(where) > 1:
         errors.append(f'{where[1]}: {sig.split("(")[0]} defined twice ({", ".join(where)})')
+# The same attribute twice on one declaration (only comments or other attributes between): an edit leftover that
+# fails the build ("duplicate attribute", run cad609a).
+for f in sorted(os.listdir(root)):
+    if not f.endswith('.swift'):
+        continue
+    seen = {}
+    for k, l in enumerate(open(os.path.join(root, f)).read().split('\n'), 1):
+        t = l.strip()
+        if t.startswith('//') or not t:
+            continue
+        m = re.match(r'@(\w+)\s*$', t)
+        if m:
+            if m.group(1) in seen:
+                errors.append(f'{f}:{k}: duplicate attribute @{m.group(1)} (also line {seen[m.group(1)]})')
+            seen[m.group(1)] = k
+        else:
+            seen = {}
 for e in errors: print('ERROR', e)
 for w in warns: print('warn ', w)
 print(f'precheck: {len(errors)} errors, {len(warns)} warnings')
