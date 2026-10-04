@@ -420,9 +420,11 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
             float amp = sea * 1.4;
             float2 grad = dir * (amp * 0.6 * 0.42 * cos(p1) + amp * 0.3 * 0.7 * cos(p2)) + perp * (amp * 0.3 * 0.33 * cos(p2) + amp * 0.2 * 0.55 * cos(p3));
             g -= grad * (1.0 - 0.6 * smoothstep(48.0, 160.0, dist));
-            float crest = smoothstep(0.82, 0.98, sin(p1) * 0.7 + sin(p2) * 0.3 + 0.12);
-            float broken = vnoise(wp.xz * 1.7 + dir * t * 2.0);
-            swellFoam = crest * smoothstep(0.35, 0.8, broken) * smoothstep(0.25, 0.7, sea);
+            // Whitecaps: only the sharpest crests, torn into streaks along the wind (broad bands read as snow on the
+            // first storm shot).
+            float crest = smoothstep(0.9, 1.0, sin(p1) * 0.7 + sin(p2) * 0.3 + 0.05);
+            float broken = vnoise(float2(along * 0.6, across * 2.4) + float2(t * 1.2, 0.0)) * 0.6 + vnoise(wp.xz * 4.0 + dir * t) * 0.4;
+            swellFoam = crest * smoothstep(0.55, 0.85, broken) * smoothstep(0.3, 0.8, sea);
         }
         n = normalize(float3(g.x, 1.0, g.y));
     }
@@ -507,7 +509,7 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
         float foam = shore * shore * smoothstep(0.5, 0.85, fn + shore * 0.15);
         float3 foamLit = u.ambColor.rgb * skyC + u.sunColor.rgb * sunVis * 0.75 + blkL * float3(1.0, 0.82, 0.6) * 0.5;
         col = mix(col, foamLit * 0.85, foam * 0.5);
-        col = mix(col, foamLit * 0.9, swellFoam * 0.65);
+        col = mix(col, foamLit * 0.9, swellFoam * 0.5);
     }
     float3 h = normalize(u.lightDir.xyz - v);
     float sp = pow(saturate(dot(n, h)), 500.0) * 7.0 + pow(saturate(dot(n, h)), 70.0) * 0.18;

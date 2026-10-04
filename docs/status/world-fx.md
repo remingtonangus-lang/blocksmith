@@ -40,7 +40,8 @@ soldiers / reactive bases / aircraft, E Quest port, a local Mac session for the 
 ## Checks
 
 `Blocksmith --snapshot snaps/fx_end.png --seed 12345 --time 0.3 --rd 8 --fxtest cracks,fire,flood,snow,storm --out snaps`
-(snap.sh checks shard; focused runs via `[fast: ...]` in a commit message). Report: snaps/fxtest.md; shots
+(snap.sh checks shard; focused runs via a `[fast: <args>]` marker in the head commit message: the workflow takes the
+FIRST `[fast: ` in the message, so never quote the marker literally elsewhere in it - run 471 ran `Blocksmith ARGS`). Report: snaps/fxtest.md; shots
 fx_cracks, fx_shatter, fx_blast, fx_fire_0-3, fx_flood_0-3, fx_snow_0-2, fx_storm_ship.
 
 ## State / next

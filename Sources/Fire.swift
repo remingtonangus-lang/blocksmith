@@ -59,13 +59,14 @@ extension World {
             for d in World.allDirs {
                 let q = p + d
                 let nb = block(q.x, q.y, q.z)
+                if kindT[Int(nb)] == .glass && Rand.int(in: 0..<12) == 0 { onGlassHeat?(q) }    // heat cracks glass
                 guard fl[Int(nb)] else { continue }
                 anyFlammable = true
                 if nb == smolder { continue }               // already burning (Fire: embers below)
                 // Downwind neighbours catch sooner, upwind ones later; flames climb.
                 let dw = Float(d.x) * wd.x + Float(d.z) * wd.y
                 var chance: Float = d.y > 0 ? 0.3 : max(0.05, 0.2 * (1 + 1.5 * windK * dw))
-                if nb == charcoal { chance *= 0.3 }
+                if nb == charcoal { chance *= 0.06 }             // char burns slowly: a burnt-out shell is left
                 guard Rand.float(in: 0..<1) < chance else { continue }
                 if kindT[Int(nb)] == .wood && Blocks.render[Int(nb)] == cube && nb != charcoal {
                     let s = Int(scorch[q] ?? 0)

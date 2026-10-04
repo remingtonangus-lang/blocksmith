@@ -16,7 +16,7 @@ final class FloodModel {
     static let updateEvery: Float = 0.5        // seconds of game time per model step
     static let blockBudget = 320               // block writes per step
     // Rates (blocks of water per second at full rain): exaggerated so a storm floods in minutes, not days.
-    static let rainRate: Float = 0.0025
+    static let rainRate: Float = 0.0012
     static let soak: Float = 0.004             // what dry soil takes in, falling as it saturates
     static let soilCap: Float = 0.5            // blocks of water the soil holds
     static let evap: Float = 0.0015
@@ -43,6 +43,8 @@ final class FloodModel {
     var forcedRain: Float? = nil                // tests: rain intensity regardless of the weather
 
     static let flood: BlockID = Blocks.id("flood_water")
+    static let edge: BlockID = Blocks.id("flood_water_edge")
+    @inline(__always) static func isFlood(_ b: BlockID) -> Bool { b == flood || b == edge }
     // Cells a column scan passes through to find the ground: air, fluids, plants, leaves, snow layers, fire.
     static let passT: [Bool] = {
         var t = [Bool](repeating: false, count: Blocks.count)
@@ -119,7 +121,7 @@ final class FloodModel {
             var colWater = -1
             while y > 1 {
                 let b = w.rawBlock(x, y, z)
-                if b == FloodModel.flood { ourTop = max(ourTop, y + 1); y -= 1; continue }
+                if FloodModel.isFlood(b) { ourTop = max(ourTop, y + 1); y -= 1; continue }
                 if !pass[Int(b)] { break }
                 if Blocks.fluidKind[Int(b)] == 1 && colWater < 0 { colWater = y }
                 y -= 1
@@ -138,7 +140,7 @@ final class FloodModel {
         if ourTop > 0 && !known[k] {
             fillTop[k] = ourTop
             h[k] = max(h[k], Float(ourTop) - base(k))
-            for dz in 0..<cs { for dx in 0..<cs { for y in stride(from: Int(gmin), to: ourTop, by: 1) where w.rawBlock(x0 + dx, y, z0 + dz) == FloodModel.flood {
+            for dz in 0..<cs { for dx in 0..<cs { for y in stride(from: Int(gmin), to: ourTop, by: 1) where FloodModel.isFlood(w.rawBlock(x0 + dx, y, z0 + dz)) {
                 placed.insert(IVec3(x0 + dx, y, z0 + dz))
             } } }
         }
@@ -232,7 +234,9 @@ final class FloodModel {
         let level = base(k) + h[k]
         let floorY = Int(ground[k])
         if h[k] < 0.15 { return 0 }
-        let top = Int(floor(level + 0.5))         // filled below this y
+        // The first block once the water is two thirds of a block deep (a thinner sheet is left to the soil and the
+        // shader's rain rings), then each block once the level is past its middle.
+        let top = Int(floor(level + (h[k] < 1 ? 0.35 : 0.5)))         // filled below this y
         return top > floorY ? top : 0
     }
 
@@ -260,13 +264,31 @@ final class FloodModel {
                 // Only over this column's own ground (water never hangs over a drop inside the cell).
                 let below = w.rawBlock(x, y - 1, z)
                 guard !FloodModel.passT[Int(below)] || Blocks.fluidKind[Int(below)] == 1 else { continue }
-                if w.setBlockAsync(x, y, z, FloodModel.flood) { placed.insert(IVec3(x, y, z)); used += 1; writes += 1 }
+                let id = isShore(w, x, y, z, cell: k) ? FloodModel.edge : FloodModel.flood
+                if w.setBlockAsync(x, y, z, id) { placed.insert(IVec3(x, y, z)); used += 1; writes += 1 }
             } }
             fillTop[k] = y + 1
             if used >= budget { return used }
         }
         fillTop[k] = top
         return used
+    }
+
+    // A flood block is shoreline when open ground beside it (air or a plant, in another cell) won't be filled at its
+    // height: it is placed as the half-height edge state, which the mesher slopes down toward the open side.
+    private func isShore(_ w: World, _ x: Int, _ y: Int, _ z: Int, cell k: Int) -> Bool {
+        let cs = FloodModel.cellSize
+        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+            let nx = x + dx, nz = z + dz
+            let nb = w.rawBlock(nx, y, nz)
+            guard nb == AIR || (Blocks.replaceable[Int(nb)] && !Blocks.isLiquid(nb)) else { continue }
+            let ci = floorDiv(nx - ox, cs), cj = floorDiv(nz - oz, cs)
+            guard ci >= 0 && ci < N && cj >= 0 && cj < N else { return true }
+            let m = ci + cj * N
+            if m == k { continue }
+            if !known[m] || target(m) <= y { return true }
+        }
+        return false
     }
 
     // Takes the cell's flood water away from the top down to y (exclusive).
@@ -282,7 +304,7 @@ final class FloodModel {
                 let p = IVec3(x0 + dx, y, z0 + dz)
                 guard placed.contains(p) else { continue }
                 placed.remove(p)
-                if w.rawBlock(p.x, p.y, p.z) == FloodModel.flood {
+                if FloodModel.isFlood(w.rawBlock(p.x, p.y, p.z)) {
                     w.setBlockAsync(p.x, p.y, p.z, AIR)
                     used += 1; writes += 1
                 }

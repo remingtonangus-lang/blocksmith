@@ -16,6 +16,7 @@ final class World {
     var wind = V3(4, 0, 2)
     var fires: [IVec3: Int] = [:]                 // burning cells -> age in fire ticks (Fire.swift)
     var onIgnite: ((IVec3, BlockID) -> Void)?   // flammable block destroyed (TNT gets primed by the game)
+    var onGlassHeat: ((IVec3) -> Void)?          // glass beside a fire cracks (and shatters) (Wear.swift)
     let gen: TerrainGenerator
     let dim: Dim
     let seed: UInt64

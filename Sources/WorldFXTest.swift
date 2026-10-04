@@ -225,16 +225,19 @@ enum WorldFXTest {
         let cam = river + V3(-26, 34, 30)
         look(g, from: cam, at: river)
         shot(g, r, w, h, out + "/fx_flood_0.png")
-        // Heavy rain for 8 minutes of model time (the model steps every 0.5 s).
+        // Heavy rain for 10 minutes of model time (the model steps every 0.5 s).
         fm.forcedRain = 1.4
         func runModel(_ seconds: Float) { for _ in 0..<Int(seconds / FloodModel.updateEvery) { fm.update(FloodModel.updateEvery, game: g) } }
-        runModel(240)
+        runModel(300)
         let mid = fm.placed.count
-        runModel(240)
+        runModel(300)
         let peak = fm.placed.count
         let depth = fm.maxDepth
         let ms = shot(g, r, w, h, out + "/fx_flood_1.png", frames: 20)
-        note(String(format: "after 8 min of heavy rain: %ld flood blocks (%ld at 4 min), %ld cells flooded, deepest %.2f, model step worst %.2f ms, frame %.2f ms",
+        var shore = 0
+        for p in fm.placed where wd.rawBlock(p.x, p.y, p.z) == FloodModel.edge { shore += 1 }
+        note("\(shore) of the flood blocks are shoreline (half height)")
+        note(String(format: "after 10 min of heavy rain: %ld flood blocks (%ld at 5 min), %ld cells flooded, deepest %.2f, model step worst %.2f ms, frame %.2f ms",
                     peak, mid, fm.floodedCells, depth, fm.worstMs, ms))
         check(peak > 40, "heavy rain floods the low ground", "\(peak) blocks")
         check(peak >= mid, "the flood rises while it rains", "\(mid) -> \(peak)")

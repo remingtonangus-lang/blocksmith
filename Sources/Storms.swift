@@ -81,6 +81,12 @@ extension Game {
         let strength: Float = 5 + 4 * w.rain + 5 * w.thunder + fx.gust * 8
         fx.wind = fx.forcedWind ?? V3(cosf(a), 0, sinf(a)) * strength
         world.wind = fx.wind
+        if world.onGlassHeat == nil {
+            world.onGlassHeat = { [weak self] p in
+                guard let self else { return }
+                self.wearHit(p, level: self.world.damageLevel(p) + 1, normal: IVec3(0, 1, 0), async: true)
+            }
+        }
         ParticleManager.drift = fx.wind * (0.08 + 0.3 * fx.storm)
         // The sea: swells build with the storm on open water.
         let hw = V2(fx.wind.x, fx.wind.z)
@@ -170,8 +176,12 @@ extension Game {
         }
     }
 
+    static let leavesT: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]).hasSuffix("_leaves") }
+
     func snowChunk(_ c: Chunk, snowing: Bool) {
         let day = daylight
+        // Biomes per 4 x 4 columns (the climate lookup is the expensive part of a pass: 13.7 ms worst at 256 a chunk).
+        var biomes = [Biome?](repeating: nil, count: 16)
         for lz in 0..<CS { for lx in 0..<CS {
             let x = c.cx * CS + lx, z = c.cz * CS + lz
             let y = Int(c.height[lx + lz * CS])          // snow layers don't stop the sky: the block they lie on
@@ -179,12 +189,14 @@ extension Game {
             let cur = snowLayers(world.rawBlock(x, y + 1, z))
             if cur < 0 || (cur == 0 && !snowing) { continue }
             let top = world.rawBlock(x, y, z)
-            let biome = world.gen.column(x, z).biome
+            let bi = (lx >> 2) + (lz >> 2) * 4
+            let biome: Biome
+            if let b = biomes[bi] { biome = b } else { biome = world.gen.column(c.cx * CS + (lx & ~3) + 2, c.cz * CS + (lz & ~3) + 2).biome; biomes[bi] = biome }
             let snowsHere = biome.snows(at: y)
             let light = world.lightAt(x, y + 1, z).block
             // Drifts: some columns take more than others (fixed per column), leaves hold a single layer.
             let drift = hashf(x, 0, z, 0x5D0)
-            let leaves = Blocks.key(Blocks.groupBase[Int(top)]).hasSuffix("_leaves")
+            let leaves = Game.leavesT[Int(top)]
             var want = cur
             if snowing && snowsHere && light < 10 {
                 guard cur > 0 || Blocks.opaque[Int(top)] || leaves else { continue }

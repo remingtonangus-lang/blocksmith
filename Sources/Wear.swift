@@ -327,6 +327,10 @@ extension BlockRegistry {
         fw.skyStop = true; fw.replaceable = true; fw.fluid = 0; fw.hardness = -1; fw.hidden = true; fw.sound = .snow
         fw.fluidKind = 1
         add(fw)
+        // Its shoreline: a half-height flowing state where the flood surface meets lower open ground (no water walls).
+        var fe = fw
+        fe.name = "flood_water_edge"; fe.fluid = 3
+        add(fe)
         // Deep snow: layers 2...7 above the one-layer "snow" (8 layers make a snow block). Storms pile it up, sun and
         // warmth melt it back (Storms.swift). The deeper ones are solid underfoot.
         for k in 2...7 {
