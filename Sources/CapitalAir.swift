@@ -82,6 +82,13 @@ extension Game {
         guard let k = s, let fm = k.flight else { done("lost"); return }
         b.aircraft[r.key] = k
         if k.faction == 0 { k.faction = Faction.steelhold.rawValue }
+        // Taken by the player: it is theirs now, the citadel stops flying it.
+        if ships.pilot === k {
+            fm.hold = nil; fm.holdYaw = nil
+            raiseAlert(&r, b)
+            done("taken by the player")
+            return
+        }
         // The pilot: buckled in (after a reload: the Capital pilot sitting nearest the controls is buckled back in).
         if !FlightCrew.seats.contains(where: { $0.ship === k }) { FlightCrew.relink(self, k) }
         let pilot = FlightCrew.seats.first { $0.ship === k && $0.mob?.station == .seated }?.mob
