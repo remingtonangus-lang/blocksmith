@@ -184,7 +184,7 @@ func copperGolemParts(_ m: Mob, swing: Float) -> [Part] {
     let c = CopperGolem.color(CopperGolem.stage(m))
     let dark = c * 0.7
     let carrying = !(m.cargo?.slots[0].isEmpty ?? true)
-    let arm: Float = carrying ? -1.2 : swing * 0.6
+    let arm: Float = carrying ? 1.2 : swing * 0.6
     var p = [
         Part(mn: V3(-3, 0, -1.5), mx: V3(-0.5, 5, 1.5), pivot: V3(-1.75, 5, 0), rotX: swing, color: dark),
         Part(mn: V3(0.5, 0, -1.5), mx: V3(3, 5, 1.5), pivot: V3(1.75, 5, 0), rotX: -swing, color: dark),

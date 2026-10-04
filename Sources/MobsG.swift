@@ -487,7 +487,7 @@ func extraParts(_ m: Mob, swing: Float) -> [Part] {
         let ev = m.kind == .evoker
         let robe = ev ? V3(0.16, 0.16, 0.2) : V3(0.35, 0.3, 0.22), skin = ev ? V3(0.55, 0.57, 0.58) : V3(0.36, 0.55, 0.3)
         let casting = ev && m.spellTimer > 4
-        let armA: Float = casting ? -2.6 : (ev ? 0 : -1.45)
+        let armA: Float = casting ? 2.6 : (ev ? 0 : 1.45)
         var p = [
             Part(mn: V3(-4, 0, -3), mx: V3(-0.01, 12, 3), pivot: V3(-2, 12, 0), rotX: swing, color: robe, pattern: 4),
             Part(mn: V3(0.01, 0, -3), mx: V3(4, 12, 3), pivot: V3(2, 12, 0), rotX: -swing, color: robe, pattern: 4),

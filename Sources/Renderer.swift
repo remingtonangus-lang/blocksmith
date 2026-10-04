@@ -2490,11 +2490,10 @@ final class Renderer: NSObject, MTKViewDelegate {
         let shade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
         var faces: [(depth: Float, pts: [V2], color: V4)] = []
         for part in parts {
-            let ca = cosf(part.rotX), sa = sinf(part.rotX)
+            let rot = part.rotation
             let size = part.mx - part.mn
             func place(_ lp: V3) -> V3 {
-                var q = lp - part.pivot
-                q = V3(q.x, q.y * ca - q.z * sa, q.y * sa + q.z * ca) + part.pivot
+                let q = part.place(lp, rot)
                 return V3(cyw * q.x + syw * q.z, q.y, -syw * q.x + cyw * q.z)
             }
             let mid = place(part.mn + size * 0.5)

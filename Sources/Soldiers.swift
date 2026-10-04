@@ -540,7 +540,7 @@ func soldierParts(_ m: Mob, swing: Float) -> [Part] {
     let boots = V3(0.12, 0.11, 0.1)
     let aiming = m.aggro
     let aimPitch: Float = aiming ? (m.brain?.pitch ?? 0) : 0
-    let armX: Float = aiming ? -1.45 - aimPitch : -0.9
+    let armX: Float = aiming ? 1.45 + aimPitch : 0.9
     let gunTilt: Float = aiming ? aimPitch : -0.5
     let big: Float = r == 3 ? 1.12 : 1
     var cloth: V3, plate: V3, trim: V3

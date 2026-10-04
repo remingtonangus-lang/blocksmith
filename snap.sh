@@ -302,7 +302,7 @@ done
 "$BIN" --snapshot snaps/steelhold_armory_close.png --seed 12345 --structure military_base --offset 14,0,-63 --yaw 0 --pitch 0 --time 0.3 --listframes || true
 "$BIN" --snapshot snaps/steelhold_fight.png --seed 12345 --structure military_base --offset 14,4,-60 --yaw 0 --pitch 0 --time 0.3 --fortresstest 20
 "$BIN" --snapshot snaps/steelhold_command.png --seed 12345 --structure military_base --offset 0,6,-33 --yaw 0 --pitch -15 --time 0.3
-"$BIN" --snapshot snaps/mobtests.png --seed 12345 --find plains --yaw 0 --pitch -30 --time 0.3 --up 3 --mobtests
+"$BIN" --snapshot snaps/mobtests.png --seed 12345 --find plains --yaw 0 --pitch -30 --time 0.3 --up 3 --mobtests --posecheck
 "$BIN" --snapshot snaps/pathtest.png --seed 12345 --find plains --yaw 0 --pitch -40 --time 0.75 --up 14 --pathtest
 "$BIN" --snapshot snaps/ashen_grove.png --seed 12345 --find pale_garden --yaw 210 --pitch -20 --time 0.3 --up 4 --treecheck
 "$BIN" --snapshot snaps/ashen_inside.png --seed 12345 --find pale_garden --yaw 120 --pitch 8 --time 0.3 --ground

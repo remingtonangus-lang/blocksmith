@@ -7,7 +7,7 @@ func writePlayerModel(_ g: Game, eye: V3, daylight: Float, into out: UnsafeMutab
     let p = g.player
     let walk = sinf(g.walkBob) * 0.8 * g.walkAmount
     let sw = g.swing
-    let hit: Float = sw > 0 ? -sinf(sqrtf(sw) * .pi) * 1.3 : 0
+    let hit = playerHitAngle(sw)
     let parts = playerParts(g, pitch: p.prone ? p.pitch + .pi / 2 * 0.8 : p.pitch, walk: walk, hit: hit)
 
     let l = g.world.lightAt(Int(floor(p.pos.x)), Int(floor(p.pos.y + 1)), Int(floor(p.pos.z)))
@@ -26,14 +26,13 @@ func writePlayerModel(_ g: Game, eye: V3, daylight: Float, into out: UnsafeMutab
     var n = 0
     for part in parts {
         if n + 36 > capacity { return n }
-        let ca = cosf(part.rotX), sa = sinf(part.rotX)
+        let rot = part.rotation
         let size = part.mx - part.mn
         for f in 0..<6 {
             for k in order {
                 let ci = (f * 4 + k) * 3
                 let lp = part.mn + size * V3(Float(CT[ci]), Float(CT[ci + 1]), Float(CT[ci + 2]))
-                var q = lp - part.pivot
-                q = V3(q.x, q.y * ca - q.z * sa, q.y * sa + q.z * ca) + part.pivot
+                var q = part.place(lp, rot)
                 q *= 0.9375 / 16
                 if tilt != 0 {
                     let yy = q.y + lift
@@ -47,6 +46,10 @@ func writePlayerModel(_ g: Game, eye: V3, daylight: Float, into out: UnsafeMutab
     }
     return n
 }
+
+// The right arm's attack swing for swing progress `sw` (0...1): up and forward (positive rotX; it was negative
+// and the third-person arm struck backwards, the same sign bug as the soldiers' arms).
+func playerHitAngle(_ sw: Float) -> Float { sw > 0 ? sinf(sqrtf(sw) * .pi) * 1.3 : 0 }
 
 // The player's boxes (model space, 1/16 block, facing -Z): worn armour tints, head pitched about the neck, a held item.
 func playerParts(_ g: Game, pitch: Float, walk: Float, hit: Float) -> [Part] {

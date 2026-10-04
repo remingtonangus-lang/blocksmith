@@ -962,6 +962,7 @@ enum Snapshot {
             game.player.pos = pos
         }
         if CommandLine.arguments.contains("--mobtests") && !MobTests.run(game: game, world: world, pos: pos, rd: rd) { return 1 }
+        if CommandLine.arguments.contains("--posecheck") && !PoseCheck.run(game: game) { return 1 }
         if let secs = Float(arg("--fortresstest") ?? ""), !MobTests.fortressFight(game: game, world: world, seconds: secs) { return 1 }
         if let secs = Double(arg("--fire") ?? "") {
             // Hold the trigger for a while (guns in flight, muzzle flash, soldiers answering), camera held still.
