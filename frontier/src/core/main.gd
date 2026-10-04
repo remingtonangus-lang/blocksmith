@@ -59,6 +59,9 @@ func _ready() -> void:
 	settlements.setup(world)
 	print("boot: %s %d ms" % ["settlements", Time.get_ticks_msec() - t0])
 	print("boot: world built in %d ms" % (Time.get_ticks_msec() - t0))
+	var md := MissionDirector.new()
+	md.name = "Missions"
+	add_child(md)
 	if Game.args.has("time"):
 		sky.set_time(Game.arg_f("time", 9.0))
 	if Game.args.has("weather"):
@@ -75,6 +78,14 @@ func _ready() -> void:
 		bots.run(self)
 	else:
 		_spawn_player()
+		if not Game.args.has("free_roam"):
+			_start_story.call_deferred()
+
+func _start_story() -> void:
+	await get_tree().create_timer(0.5).timeout
+	var avail: Array = Game.missions.available()
+	if avail.size() > 0:
+		Game.missions.start(avail[0])
 
 func _spawn_player() -> void:
 	var town := world.town("bitter_spring")

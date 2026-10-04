@@ -31,10 +31,12 @@ func run(m: Node) -> void:
 		return
 	var which := str(Game.args.get("bot", "road"))
 	var seconds := Game.arg_f("seconds", 90.0)
-	var bots := ["road", "explore", "gunfight"] if which == "all" or which == "true" else [which]
+	var bots := ["road", "explore", "gunfight", "missions"] if which == "all" or which == "true" else [which]
 	for b in bots:
 		var res: Dictionary
-		if b == "gunfight":
+		if b == "missions":
+			res = await _run_missions()
+		elif b == "gunfight":
 			res = await load("res://src/tests/combat_bot.gd").run(self, seconds)
 			print("  gunfight: enemies %d engaged %d cover %d killed %d | player shots %d hits %d, hits taken %d, %.0f s" % [
 				res.enemies, res.engaged, res.used_cover, res.killed, res.player_shots, res.player_hits, res.player_hits_taken, res.duration])
@@ -191,6 +193,38 @@ func _run_bot(kind: String, seconds: float) -> Dictionary:
 	res.frame_p99_ms = st.p99
 	if kind == "road" and res.waypoints_reached < mini(route.size() - 1, 8) and t < seconds:
 		_fail(res, "reached only %d/%d waypoints" % [res.waypoints_reached, route.size()])
+	return res
+
+## Mission bot: autopilot through every story mission in order; softlock/fail/error oracles.
+func _run_missions() -> Dictionary:
+	var res := {"bot": "missions", "ok": true, "failures": [], "distance": 0.0, "stuck_events": 0, "fall_events": 0,
+		"frame_spikes": 0, "errors": [], "completed": []}
+	var md: MissionDirector = Game.missions
+	md.autopilot = true
+	md.step_timeout = 60.0
+	var failed := []
+	md.mission_failed.connect(func(id, why): failed.append("%s: %s" % [id, why]))
+	var err0: int = Game.error_logger.take().size()
+	for i in 20:
+		var avail: Array = md.available()
+		if avail.is_empty():
+			break
+		var m: Mission = avail[0]
+		var t0 := Time.get_ticks_msec()
+		await md.start(m)
+		print("  mission %-22s %s in %.1f s" % [m.id, "done" if md.completed.has(m.id) else "FAILED", (Time.get_ticks_msec() - t0) / 1000.0])
+		if not md.completed.has(m.id):
+			break
+	res.completed = md.completed.duplicate()
+	for f in failed:
+		_fail(res, f)
+	if md.completed.size() < MissionDirector.MISSIONS.size():
+		_fail(res, "completed %d/%d missions" % [md.completed.size(), MissionDirector.MISSIONS.size()])
+	var errs: Array = Game.error_logger.take().slice(err0)
+	res.errors = errs
+	if errs.size() > 0:
+		_fail(res, "%d errors, first: %s" % [errs.size(), str(errs[0])])
+	md.autopilot = false
 	return res
 
 func _fail(res: Dictionary, why: String) -> void:

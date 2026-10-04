@@ -38,6 +38,7 @@ var camera: Camera3D
 var main: Node
 var audio: Node               # AudioDirector (src/audio/audio_director.gd)
 var hud: Node
+var missions: Node            # MissionDirector
 var is_vr := false
 var headless := false
 var rng := RandomNumberGenerator.new()

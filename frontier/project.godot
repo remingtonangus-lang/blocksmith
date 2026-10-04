@@ -15,6 +15,10 @@ config/custom_user_dir_name="Frontier"
 [autoload]
 Game="*res://src/core/game.gd"
 
+[debug]
+
+gdscript/warnings/inference_on_variant=1
+
 [display]
 window/size/viewport_width=1920
 window/size/viewport_height=1080

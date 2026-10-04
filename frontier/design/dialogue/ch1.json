@@ -1,0 +1,42 @@
+{
+  "note": "Chapter 1 dialogue. id, speaker, line, emotion (neutral/dry/warm/angry/afraid/tired/amused/sad/tense). Original writing.",
+  "speakers": {
+    "ruth": {"name": "Ruth Caddell", "voice": "ruth"},
+    "hap": {"name": "Hap Lindqvist", "voice": "old_man_swede"},
+    "tough1": {"name": "Syndicate Man", "voice": "rough_male_a"},
+    "tough2": {"name": "Syndicate Man", "voice": "rough_male_b"},
+    "newsboy": {"name": "Newsboy", "voice": "boy"},
+    "stablehand": {"name": "Stablehand", "voice": "young_male"},
+    "mabry": {"name": "Sheriff Mabry", "voice": "tired_male"},
+    "greer": {"name": "Tobias Greer", "voice": "nasal_male"},
+    "bartender": {"name": "Bartender", "voice": "gruff_male"}
+  },
+  "lines": [
+    {"id": "c1_rider_01", "speaker": "ruth", "line": "Easy. Smell that? River. We'll have water tonight, and maybe a roof.", "emotion": "warm"},
+    {"id": "c1_rider_02", "speaker": "ruth", "line": "Eighteen months, Tom. Four names. One town at a time.", "emotion": "tired"},
+    {"id": "c1_rider_03", "speaker": "newsboy", "line": "Lantern! Port Linden Lantern! Syndicate offers four dollars the acre! Four dollars for river land!", "emotion": "neutral"},
+    {"id": "c1_rider_04", "speaker": "ruth", "line": "Four dollars. Somebody's getting robbed, and it ain't the syndicate.", "emotion": "dry"},
+    {"id": "c1_rider_05", "speaker": "stablehand", "line": "Two bits the night, ma'am, oats extra. She's a fine one. What do you call her?", "emotion": "warm"},
+    {"id": "c1_rider_06", "speaker": "ruth", "line": "Depends on her mood. Today she's Patience.", "emotion": "amused"},
+    {"id": "c1_drover_01", "speaker": "tough1", "line": "Old man's already half dead. Let's call it a whole and be home for supper.", "emotion": "neutral"},
+    {"id": "c1_drover_02", "speaker": "tough2", "line": "Mister Shale said no talkers. Swede talks. Swedes always talk.", "emotion": "neutral"},
+    {"id": "c1_drover_03", "speaker": "ruth", "line": "Evening. Did I hear the name Shale?", "emotion": "tense"},
+    {"id": "c1_drover_04", "speaker": "tough1", "line": "You heard wrong, lady. Ride on, while riding's still something you can do.", "emotion": "angry"},
+    {"id": "c1_drover_05", "speaker": "ruth", "line": "I've been riding on a long while. Think I'll stop here.", "emotion": "dry"},
+    {"id": "c1_drover_06", "speaker": "hap", "line": "You shoot like the Lord's own sister. Who in hell are you?", "emotion": "afraid"},
+    {"id": "c1_drover_07", "speaker": "ruth", "line": "Somebody with a needle and thread, if you'll hold still. Who shot you?", "emotion": "dry"},
+    {"id": "c1_drover_08", "speaker": "hap", "line": "Syndicate's range detectives. They ran off my crew and kept the cattle. Hap Lindqvist. Was a drover. Am a hole, presently.", "emotion": "tired"},
+    {"id": "c1_drover_09", "speaker": "ruth", "line": "Ruth. The man who sent them. Eben Shale?", "emotion": "tense"},
+    {"id": "c1_drover_10", "speaker": "hap", "line": "You know him? Then I'm sorry for you, Ruth. He's the kind smiles while he does it.", "emotion": "sad"},
+    {"id": "c1_drover_11", "speaker": "ruth", "line": "We'll camp here tonight. Willow Bend's as good as anywhere, and you're not going anywhere.", "emotion": "warm"},
+    {"id": "bark_greet_01", "speaker": "townsfolk", "line": "Afternoon.", "emotion": "neutral"},
+    {"id": "bark_greet_02", "speaker": "townsfolk", "line": "Ma'am.", "emotion": "neutral"},
+    {"id": "bark_greet_03", "speaker": "townsfolk", "line": "Don't believe I know you.", "emotion": "neutral"},
+    {"id": "bark_alarm_01", "speaker": "townsfolk", "line": "She's got a gun! Somebody fetch the sheriff!", "emotion": "afraid"},
+    {"id": "bark_alarm_02", "speaker": "townsfolk", "line": "Lord, they're shooting!", "emotion": "afraid"},
+    {"id": "bark_hostile_01", "speaker": "gunman", "line": "There she is! Put her down!", "emotion": "angry"},
+    {"id": "bark_hostile_02", "speaker": "gunman", "line": "Flank her, Dutch, go left!", "emotion": "angry"},
+    {"id": "bark_hostile_03", "speaker": "gunman", "line": "I'm hit! God, I'm hit!", "emotion": "afraid"},
+    {"id": "bark_surrender_01", "speaker": "gunman", "line": "All right! All right, I'm done, don't shoot!", "emotion": "afraid"}
+  ]
+}
