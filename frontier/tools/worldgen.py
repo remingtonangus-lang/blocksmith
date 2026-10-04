@@ -441,20 +441,23 @@ def smooth_path(pts, it=6):
     return p
 
 
-def grade_corridor(h, n, poly_m, half_w, blend, max_grade, cut_depth_limit=40.0, smooth_profile=40):
-    """Grade a road/rail corridor: smooth longitudinal profile, flatten cross-section, blend to terrain."""
+def grade_corridor(h, n, poly_m, half_w, blend, max_grade, cut=8.0, fill=5.0, smooth_profile=40):
+    """Grade a road/rail corridor: smooth longitudinal profile (grade-limited, then held within cut/fill of the
+    ground), flat cross-section, side slopes ~1:2 down/up to the natural terrain."""
     cell = SIZE_M / n
     pts = resample(poly_m, 4.0)
     px = m2px(pts, n)
-    prof = ndimage.map_coordinates(ndimage.gaussian_filter(h, 2), [px[:, 1], px[:, 0]], order=1)
-    prof = ndimage.gaussian_filter1d(prof, smooth_profile / 4.0, mode='nearest')
-    # enforce max grade both ways
+    ground = ndimage.map_coordinates(ndimage.gaussian_filter(h, 2), [px[:, 1], px[:, 0]], order=1)
+    prof = ndimage.gaussian_filter1d(ground, smooth_profile / 4.0, mode='nearest')
     for _ in range(2):
         for i in range(1, len(prof)):
             prof[i] = np.clip(prof[i], prof[i - 1] - max_grade * 4.0, prof[i - 1] + max_grade * 4.0)
         for i in range(len(prof) - 2, -1, -1):
             prof[i] = np.clip(prof[i], prof[i + 1] - max_grade * 4.0, prof[i + 1] + max_grade * 4.0)
-    d_px, inds = dist_to_polyline(n, px, (half_w + blend) / cell + 4)
+    prof = np.clip(prof, ground - cut, ground + fill)
+    prof = ndimage.gaussian_filter1d(prof, 3.0, mode='nearest')
+    reach = half_w + blend + max(cut, fill) * 2.0
+    d_px, inds = dist_to_polyline(n, px, reach / cell + 4)
     d = d_px * cell
     lab = np.full((n, n), -1, np.int64)
     rs = resample(px, 0.5)
@@ -464,7 +467,8 @@ def grade_corridor(h, n, poly_m, half_w, blend, max_grade, cut_depth_limit=40.0,
     lab[ry, rx] = np.round(tpar).astype(np.int64)
     near = np.clip(lab[inds[0], inds[1]], 0, len(prof) - 1)
     target = prof[near]
-    w = smoothstep(half_w + blend, half_w, d)
+    side = np.minimum(np.abs(target - h) * 2.0 + blend, reach - half_w - 1.0)   # 1:2 embankment / cutting slope
+    w = smoothstep(half_w + side, half_w, d) * (d < reach - 0.5)
     hn = h * (1 - w) + target * w
     return hn.astype(np.float32), pts, prof
 
@@ -517,11 +521,11 @@ def main():
                  lake=dict(u=LAKE['u'], v=LAKE['v'], ru=LAKE['ru'], rv=LAKE['rv'], level=LAKE_LEVEL))
     river_dist = np.full((n1, n1), 1e9, np.float32)
     h1, rf, d_m = carve_river(h1, RIVER_MAIN, 46, 4.5, 420, n1, "Sable River")
-    feats['rivers'].append(rf); river_dist = np.minimum(river_dist, d_m)
+    feats['rivers'].append(rf); river_dist = np.minimum(river_dist, np.where(d_m < d_m.max() - 1.0, d_m, 1e9))
     h1, rf, d_m = carve_river(h1, CREEKS[0], 14, 2.2, 160, n1, "Thornwood Creek", min_drop=0.0008)
-    feats['rivers'].append(rf); river_dist = np.minimum(river_dist, d_m)
+    feats['rivers'].append(rf); river_dist = np.minimum(river_dist, np.where(d_m < d_m.max() - 1.0, d_m, 1e9))
     h1, rf, d_m = carve_river(h1, CREEKS[1], 10, 1.6, 120, n1, "Dry Fork", min_drop=0.0008)
-    feats['rivers'].append(rf); river_dist = np.minimum(river_dist, d_m)
+    feats['rivers'].append(rf); river_dist = np.minimum(river_dist, np.where(d_m < d_m.max() - 1.0, d_m, 1e9))
 
     # 5. towns and POIs: flatten plots
     for t in TOWNS:
@@ -537,7 +541,7 @@ def main():
 
     # 6. rail: smooth spline, graded at <= 1.5 %
     rail_m = catmull([uv2m(*p) for p in RAIL], 24)
-    h1, rail_pts, rail_prof = grade_corridor(h1, n1, rail_m, 4.0, 22.0, 0.015, smooth_profile=120)
+    h1, rail_pts, rail_prof = grade_corridor(h1, n1, rail_m, 4.0, 6.0, 0.015, cut=9.0, fill=6.0, smooth_profile=120)
     feats['rail'] = dict(points=[[round(float(p[0]), 2), round(float(p[1]), 2), round(float(z), 2)]
                                  for p, z in zip(rail_pts, rail_prof)])
 
@@ -556,7 +560,7 @@ def main():
         path = astar_road(hc, ca, cb, SIZE_M / nr, water=wc)
         pm = smooth_path(path, 10) / nr * SIZE_M - SIZE_M / 2
         pm = catmull(list(pm[::2]) + [pm[-1]], 6)
-        h1, rpts, rprof = grade_corridor(h1, n1, pm, 3.0, 9.0, 0.09, smooth_profile=16)
+        h1, rpts, rprof = grade_corridor(h1, n1, pm, 3.0, 4.0, 0.09, cut=3.0, fill=2.0, smooth_profile=16)
         d_px, _ = dist_to_polyline(n1, m2px(rpts, n1), 20)
         road_mask = np.maximum(road_mask, smoothstep(4.5, 1.5, d_px * SIZE_M / n1))
         feats['roads'].append(dict(a=a, b=b, points=[[round(float(p[0]), 2), round(float(p[1]), 2), round(float(z), 2)]
@@ -575,11 +579,11 @@ def main():
     # 9. control map (2048)
     gy, gx = np.gradient(h1, SIZE_M / n1)
     slope = np.hypot(gx, gy)
-    moist = np.clip(1.0 - river_dist / 700.0, 0, 1) * 0.7
+    moist = np.clip(1.0 - river_dist / 450.0, 0, 1) ** 1.5 * 0.75
     moist += np.clip(1.0 - (np.abs(h1 - LAKE_LEVEL) / 25.0), 0, 1) * 0.3
-    moist += (fbm(n1, 16, 4, SEED + 50) * 0.5 + 0.5) * 0.35
+    moist += (fbm(n1, 16, 4, SEED + 50) * 0.5 + 0.5) * 0.3 - 0.05
     moist -= desert1 * 0.6
-    moist += mount1 * 0.25 + masks1['hills'] * 0.25
+    moist += mount1 * 0.3 + masks1['hills'] * 0.25
     moist = np.clip(moist, 0, 1)
     biome = 0.5 - desert1 * 0.5 + (mount1 * 0.5 + masks1['hills'] * 0.45) * smoothstep(1500, 1100, h1)
     biome = np.clip(biome + (moist - 0.4) * 0.25, 0, 1)
@@ -591,6 +595,10 @@ def main():
     h16 = np.clip(h / H_RANGE * 65535 + 0.5, 0, 65535).astype('<u2')
     h16.tofile(os.path.join(args.out, 'height.r16'))
     ctrl8.tofile(os.path.join(args.out, 'control.bin'))
+    # min/max per 64x64-sample leaf (128 m) for terrain LOD culling: float32 [64][64][2]
+    hl = h.reshape(64, 64, 64, 64)
+    mm = np.stack([hl.min(axis=(1, 3)), hl.max(axis=(1, 3))], -1).astype('<f4')
+    mm.tofile(os.path.join(args.out, 'minmax.bin'))
     stats = dict(min=float(h.min()), max=float(h.max()), mean=float(h.mean()),
                  max_slope_deg=float(np.degrees(np.arctan(slope.max()))))
     feats['stats'] = stats

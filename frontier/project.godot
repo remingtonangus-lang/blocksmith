@@ -1,0 +1,81 @@
+; Frontier (working title "Sable River") — Godot 4.7 project. Text-only; scenes are built in code.
+config_version=5
+
+[application]
+config/name="Sable River"
+config/description="An original open-world Western set in the fictional Sable River country, 1899."
+config/version="0.1.0"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.7", "Forward Plus")
+boot_splash/bg_color=Color(0.06, 0.05, 0.04, 1)
+boot_splash/show_image=false
+config/use_custom_user_dir=true
+config/custom_user_dir_name="Frontier"
+
+[autoload]
+Game="*res://src/core/game.gd"
+
+[display]
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/size/mode=0
+window/vsync/vsync_mode=1
+window/stretch/mode="disabled"
+
+[filesystem]
+import/blender/enabled=false
+import/fbx2gltf/enabled=false
+
+[input_devices]
+pointing/emulate_touch_from_mouse=false
+
+[physics]
+3d/physics_engine="Jolt Physics"
+common/physics_ticks_per_second=60
+common/max_physics_steps_per_frame=4
+
+[rendering]
+renderer/rendering_method="forward_plus"
+renderer/rendering_method.mobile="mobile"
+textures/vram_compression/import_etc2_astc=true
+textures/default_filters/anisotropic_filtering_level=3
+anti_aliasing/quality/msaa_3d=0
+anti_aliasing/quality/screen_space_aa=0
+lights_and_shadows/directional_shadow/size=4096
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3
+lights_and_shadows/positional_shadow/atlas_size=2048
+environment/defaults/default_clear_color=Color(0.4, 0.5, 0.6, 1)
+shading/overrides/force_vertex_shading.mobile=false
+occlusion_culling/use_occlusion_culling=false
+limits/global_shader_variables/buffer_size=65536
+
+[xr]
+openxr/enabled=false
+shaders/enabled=true
+
+[shader_globals]
+
+wetness={
+"type": "float",
+"value": 0.0
+}
+snow_cover={
+"type": "float",
+"value": 0.0
+}
+rain_amount={
+"type": "float",
+"value": 0.0
+}
+wind_dir={
+"type": "vec2",
+"value": Vector2(1, 0.3)
+}
+wind_strength={
+"type": "float",
+"value": 0.4
+}
+player_pos={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}

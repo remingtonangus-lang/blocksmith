@@ -448,16 +448,6 @@
    "res": "1k"
   },
   {
-   "polyhaven": "fir_tree_01",
-   "dest": "nature/fir_tree_01",
-   "res": "1k"
-  },
-  {
-   "polyhaven": "pine_tree_01",
-   "dest": "nature/pine_tree_01",
-   "res": "1k"
-  },
-  {
    "polyhaven": "fir_sapling",
    "dest": "nature/fir_sapling",
    "res": "1k"
@@ -465,11 +455,6 @@
   {
    "polyhaven": "fir_sapling_medium",
    "dest": "nature/fir_sapling_medium",
-   "res": "1k"
-  },
-  {
-   "polyhaven": "pine_sapling_medium",
-   "dest": "nature/pine_sapling_medium",
    "res": "1k"
   },
   {
@@ -630,11 +615,6 @@
   {
    "polyhaven": "bark_debris_01",
    "dest": "nature/bark_debris_01",
-   "res": "1k"
-  },
-  {
-   "polyhaven": "tree_small_02",
-   "dest": "nature/tree_small_02",
    "res": "1k"
   },
   {
