@@ -263,6 +263,7 @@ final class Ship {
     var age: Float = 0               // debris: seconds since it came loose
     var restTime: Float = 0          // debris: seconds it has been still
     var hitCD: Float = 0             // debris: seconds until it can hurt a body again
+    var lastSpeed: Float = 0         // debris: speed last frame (a sudden drop is a crash: dust and a thud)
     var splitCheck: Float = -1       // capital hulls: seconds until the full split check a blast asked for (-1 none)
     var kinematic = false            // moved by its AI (velocity and turn rate set directly): no rigid-body forces or contacts
     var faction = 0                  // Faction raw value (0 none)

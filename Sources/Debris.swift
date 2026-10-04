@@ -117,6 +117,18 @@ extension ShipManager {
             s.hitCD -= dt
             let speed = simd_length(s.vel), spin = simd_length(s.angVel)
             if speed < 0.3 && spin < 0.2 { s.restTime += dt } else { s.restTime = 0 }
+            // A crash: dust along its underside and a thud, louder the harder it hit.
+            let drop = s.lastSpeed - speed
+            s.lastSpeed = speed
+            if drop > 4, let g = game {
+                let lo = s.worldMin, hi = s.worldMax
+                let n = min(12, 2 + s.blockCount / 40)
+                for _ in 0..<n {
+                    let at = V3(Rand.float(in: lo.x...max(lo.x, hi.x)), lo.y + 0.5, Rand.float(in: lo.z...max(lo.z, hi.z)))
+                    g.particles.smoke(at: at, dark: false)
+                }
+                g.sfx(.shipCollideHard, min(2, 0.5 + drop * 0.1), at: V3((lo.x + hi.x) * 0.5, lo.y, (lo.z + hi.z) * 0.5))
+            }
             // (Asleep over ground that isn't loaded, it waits where it is: laid down there it would hang in the air.)
             let groundIn = world.isLoaded(Int(floor(s.pos.x)), Int(floor(s.pos.z)))
             if (s.restTime > 1.2 && groundIn) || (s.age > 40 && groundIn) || (s.asleep && s.age > 1 && groundIn) {
