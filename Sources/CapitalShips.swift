@@ -50,6 +50,7 @@ final class CapitalState {
     var mainCharge: Float = 0
     var missileCD: Float = 5
     var pods: [(V3, V3)] = []          // missile pod mouths and launch directions (ship space)
+    var exhausts: [V3] = []            // drive nozzle mouths (ship space)
     var retarget: Float = 0
     var target: CapTarget?
     var orbitDir: Float = 1
@@ -112,6 +113,7 @@ final class HullBuilder {
     var turrets: [(ring: IVec3, bp: Blueprint, spec: GunSpec2)] = []
     var chests: [(IVec3, String)] = []
     var pods: [(V3, V3)] = []
+    var exhausts: [V3] = []              // drive nozzle mouths (grid coordinates): glowing exhaust while the engines run
     var mainGun: (V3, V3) = (V3(0, 0, 0), V3(0, 0, -1))
     var crew: [V3] = []                  // crew posts, grid coordinates (feet)
     var crewRoles: [CrewRole] = []       // per post (missing entries are troops)
@@ -613,6 +615,7 @@ extension ShipManager {
             st.mainGunMuzzle = hb.mainGun.0
             st.mainGunDir = hb.mainGun.1
             st.pods = hb.pods
+            st.exhausts = hb.exhausts
             st.crew = hb.crew
             st.crewRoles = hb.crewRoles + [CrewRole](repeating: .troop, count: max(0, hb.crew.count - hb.crewRoles.count))
             st.wheels = Capital.vehicleWheels(s)
@@ -785,6 +788,22 @@ extension ShipManager {
                 g.onToast?(s.role == "crawler" ? "The ground shakes: an Ironback Crawler is near" : "A \(s.name) looms on the horizon")
             }
             if s.asleep { continue }
+            // Drive exhaust: a blue-white glow streaming aft from the nozzles while the engines hold (blind critic: the
+            // frigate showed no sign of what keeps it up).
+            if !st.exhausts.isEmpty && pd < 260 && st.engines0 > 0 && !s.wrecked {
+                let k = Float(s.engines) / Float(st.engines0)
+                if k > 0.4 {
+                    let aft = s.dirToWorld(V3(0, 0, 1))
+                    let layer = Int(Tex.id("smoke"))
+                    for n in st.exhausts where Rand.float(in: 0..<1) < dt * 40 * k {
+                        let jitter = V3(Rand.float(in: -1.2...1.2), Rand.float(in: -1.2...1.2), 0.8)
+                        let speed: Float = Rand.float(in: 8...14)
+                        g.particles.add(Particle(pos: s.toWorld(n + jitter), vel: s.vel + aft * speed, life: Rand.float(in: 0.4...0.8), maxLife: 0.8,
+                                                 layer: layer, uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 0.5...0.9), gravity: 0,
+                                                 color: V3(0.55, 0.8, 1.0), collide: false, glow: true))
+                    }
+                }
+            }
             if st.crewDone.count < st.crew.count && pd < 96 {
                 // The crew aboard: soldiers of the ship's faction at their posts (they ride the hull and fight as
                 // soldiers). Only over loaded ground (mobs there don't update, so they'd be left hanging as the hull
