@@ -78,6 +78,10 @@ enum AncientSpire {
             guard r < 28 else { return }
             let x = cx + dx, z = cz + dz
             w.pillarDown(x, y0 - 1, z, STONE, minY: y0 - 20)
+            // Under the tower itself: fill every cave pocket within 24 below (structcheck: the floor hung over a cave).
+            if inside(dx, dz, a + 1) {
+                for y in stride(from: y0 - 2, through: y0 - 24, by: -1) where !Blocks.opaque[Int(w.get(x, y, z))] { w.set(x, y, z, STONE) }
+            }
             let hh = Int((1 - r / 28) * 4 + hashf(x, 5, z, seedK) * 2)
             if !inside(dx, dz, a + 1) { for y in y0..<(y0 + hh) { w.set(x, y, z, (x + z + y) % 3 == 0 ? GRAVEL : rubble) } }
             if hashf(x, 6, z, seedK) < 0.025 && r > 16 {
@@ -110,9 +114,10 @@ enum AncientSpire {
                 } else if rel > 0 && rel % floorStep == 0 && y <= topFloor {
                     // Floor, broken through in places (never on the stair ring).
                     let onRing = max(abs(dx), abs(dz)) == ring && abs(dx) <= ring && abs(dz) <= ring
-                    if !onRing && hashf(x / 2, y, z / 2, seedK ^ 0x31) < 0.3 { w.set(x, y, z, AIR) } else { w.set(x, y, z, brick) }
-                } else if rel == 0 {
-                    w.set(x, y, z, brick)                                    // ground floor
+                    // The top floor stays whole (its chest must be reachable from the stair head).
+                    if !onRing && y != topFloor && hashf(x / 2, y, z / 2, seedK ^ 0x31) < 0.3 { w.set(x, y, z, AIR) } else { w.set(x, y, z, brick) }
+                } else if rel <= 0 {
+                    w.set(x, y, z, brick)                                    // ground floor and its foundation (was air below)
                 } else {
                     w.set(x, y, z, AIR)
                 }
@@ -129,6 +134,12 @@ enum AncientSpire {
         // Landing at the top: the floor round the last step is whole.
         let (lx, lz, _) = ringCell(stairCount - 1)
         for ddx in -2...2 { for ddz in -2...2 where inside(lx + ddx, lz + ddz, half(topFloor) - 2) { put(lx + ddx, topFloor, lz + ddz, brick) } }
+        // ...except over the last steps, which climb through it (the landing re-filled their headroom: structcheck,
+        // the top chest was unreachable in 9 of 9 spires).
+        for i in max(0, stairCount - 5)..<stairCount {
+            let (sx, sz, _) = ringCell(i)
+            for k in 1...3 where stairY(i) + k <= topFloor { put(sx, stairY(i) + k, sz, AIR) }
+        }
         // Doorway on the south face, chiseled lintel.
         for y in (y0 + 1)...(y0 + 5) { for dx in -1...1 { for dz in (a - 2)...a { put(dx, y, dz, AIR) } } }
         for dx in -2...2 { put(dx, y0 + 6, a, chis) }
