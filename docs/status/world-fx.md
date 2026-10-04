@@ -61,6 +61,8 @@ Bench scene `weather` (bench.sh, perf shard): 8 s of whole game ticks in a thund
 ## State / next
 
 - Rebased on playtest 983ea14; heavy lane ([full]) running on 71cfc20 before the first fast-forward into playtest.
-- Waiting on session B's BlockMaterial table: switch `Wear.kind` to it.
+- Waiting on session B's BlockMaterial table: switch `Wear.kind` to it. Coordination points for B: `World.wind` /
+  `Game.fx.storm` (a wind load for their support analysis: a storm could bring down weak spans), `World.scorch` and
+  charcoal (burnt blocks could count as weak), `Waves.height` (wrecks afloat).
 - Next: bug hunting in this area (flood edge cases: villages in valleys, caves, saves mid-flood; snow on stairs/slabs;
   fire in structures), a storm-at-sea shot of the Capital frigate (kinematic: does not roll; stream D/B own it).

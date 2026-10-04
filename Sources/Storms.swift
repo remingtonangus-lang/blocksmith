@@ -78,7 +78,8 @@ extension Game {
         let a = Float((time / 900).truncatingRemainder(dividingBy: 2 * .pi)) + Float(world.seed % 628) / 100
         let g = 0.5 + 0.5 * sinf(tt * 0.9 + 2.5 * sinf(tt * 0.23))      // 0...1, gusts every few seconds
         fx.gust = g * fx.storm
-        let strength: Float = 5 + 4 * w.rain + 5 * w.thunder + fx.gust * 8
+        // (Below the sky - the Emberdeep, the Hollow - only a steady draught: the overworld's weather doesn't reach.)
+        let strength: Float = wetWorld ? 5 + 4 * w.rain + 5 * w.thunder + fx.gust * 8 : 3
         fx.wind = fx.forcedWind ?? V3(cosf(a), 0, sinf(a)) * strength
         world.wind = fx.wind
         if world.onGlassHeat == nil {
@@ -182,6 +183,7 @@ extension Game {
         let day = daylight
         // Biomes per 4 x 4 columns (the climate lookup is the expensive part of a pass: 13.7 ms worst at 256 a chunk).
         var biomes = [Biome?](repeating: nil, count: 16)
+        var writes: [(Int, Int, Int, BlockID)] = []
         for lz in 0..<CS { for lx in 0..<CS {
             let x = c.cx * CS + lx, z = c.cz * CS + lz
             let y = Int(c.height[lx + lz * CS])          // snow layers don't stop the sky: the block they lie on
@@ -210,10 +212,11 @@ extension Game {
                 if cur > keep && Rand.float(in: 0..<1) < rate { want = cur - 1 }
             }
             if want != cur {
-                world.setBlockAsync(x, y + 1, z, Game.snowLayerIDs[want])
+                writes.append((lx, y + 1, lz, Game.snowLayerIDs[want]))
                 fx.snowChanges += 1
             }
         } }
+        world.bulkSet(c, writes)
     }
 }
 
@@ -224,5 +227,33 @@ extension Game {
         return String(format: "Wind %.1f b/s  Storm %.2f  Swell %.2f  Fire %ld (%.2f ms)  Flood %ld blocks, %ld cells (%.2f ms)  Wear %ld/%ld",
                       simd_length(fx.wind), fx.storm, Waves.amp, f.burning, f.lastMs, fl.placed.count, fl.floodedCells, fl.lastMs,
                       world.damage.count, world.scorch.count)
+    }
+}
+
+extension World {
+    // Many writes inside one chunk (a snow pass): blocks, heights and wear cleared directly, then each touched section
+    // (and the neighbours' sections next to an edge column) bumped once - no per-block redstone, gravity or remesh
+    // bookkeeping. Only for blocks that don't fall, power or light anything (snow layers).
+    func bulkSet(_ c: Chunk, _ writes: [(Int, Int, Int, BlockID)]) {
+        if writes.isEmpty { return }
+        var lo = CH, hi = 0
+        var edgeX = [false, false], edgeZ = [false, false]
+        for (lx, y, lz, id) in writes {
+            guard y >= 0 && y < CH else { continue }
+            c.blocks[Chunk.index(lx, y, lz)] = id
+            c.recomputeHeight(lx, lz)
+            if !damage.isEmpty || !scorch.isEmpty { clearWear(IVec3(c.cx * CS + lx, y, c.cz * CS + lz)) }
+            lo = min(lo, y); hi = max(hi, y)
+            if lx == 0 { edgeX[0] = true } else if lx == CS - 1 { edgeX[1] = true }
+            if lz == 0 { edgeZ[0] = true } else if lz == CS - 1 { edgeZ[1] = true }
+        }
+        guard lo <= hi else { return }
+        c.modified = true
+        let s0 = max(0, (lo - 1) >> 4), s1 = min(NSEC - 1, (hi + 1) >> 4)
+        for dz in -1...1 { for dx in -1...1 {
+            if dx == -1 && !edgeX[0] || dx == 1 && !edgeX[1] || dz == -1 && !edgeZ[0] || dz == 1 && !edgeZ[1] { continue }
+            guard let n = chunks[ChunkKey(x: c.cx + dx, z: c.cz + dz)] else { continue }
+            for sy in s0...s1 { n.sections[sy].version += 1 }
+        } }
     }
 }
