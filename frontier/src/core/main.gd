@@ -70,6 +70,9 @@ func _ready() -> void:
 	var pop = load("res://src/ai/population.gd").new()
 	pop.name = "Population"
 	add_child(pop)
+	var wl = load("res://src/ai/wildlife.gd").new()
+	wl.name = "Wildlife"
+	add_child(wl)
 	var md := MissionDirector.new()
 	md.name = "Missions"
 	add_child(md)

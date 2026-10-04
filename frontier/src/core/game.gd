@@ -41,6 +41,7 @@ var hud: Node
 var missions: Node            # MissionDirector
 var state: Node               # WorldState (standing, money, law, saves)
 var menus: Node
+var wildlife: Node
 var is_vr := false
 var headless := false
 var rng := RandomNumberGenerator.new()

@@ -17,6 +17,7 @@ var alive := true
 var last_attacker: Node = null
 var kind := "human"                      # human / horse / animal / object
 var regen_rate := 0.0                    # hp per second (player out of combat)
+var zone_mult := {}                      # per-kind overrides of Weapons.ZONES (animals: heart-lung shots kill)
 var _since_hit := 0.0
 
 func _ready() -> void:
@@ -32,7 +33,7 @@ func apply_hit(info: Dictionary) -> void:
 	if not alive:
 		return
 	var zone: String = info.get("zone", "chest")
-	var mult: float = Weapons.ZONES.get(zone, 1.0)
+	var mult: float = zone_mult.get(zone, Weapons.ZONES.get(zone, 1.0))
 	var amount: float = maxf(float(info.get("amount", 10.0)) * mult * damage_scale - armor, 0.0)
 	health -= amount
 	_since_hit = 0.0
