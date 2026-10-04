@@ -277,9 +277,9 @@ enum WorldFXTest {
         fresh.forcedRain = 0
         g.fx.flood = fresh
         func runFresh(_ seconds: Float) { for _ in 0..<Int(seconds / FloodModel.updateEvery) { fresh.update(FloodModel.updateEvery, game: g) } }
-        runFresh(30)
+        runFresh(150)                           // idle sampling (16 cells a step) until it finds flood water
         check(fresh.placed.count > peak / 2, "a reloaded flood is recognised", "\(fresh.placed.count) of \(peak) blocks adopted")
-        runFresh(870)
+        runFresh(750)
         let half = inWorld()
         shot(g, r, w, h, out + "/fx_flood_2.png")
         runFresh(900)
