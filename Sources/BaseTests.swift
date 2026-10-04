@@ -197,8 +197,10 @@ enum BaseTests {
             check(over != nil && rec().air != nil, "it flies out over the noise", String(format: "after %.0f s, phase %d", over ?? -1, rec().airPhase ?? -1))
             if shotOnly {
                 _ = sim(6) { false }
+                // From beyond the Kestrel, so the citadel's tower stands behind it.
                 let p = kestrel()?.pos ?? shot
-                look(at: p, from: p + V3(-18, 6, 22))
+                let away = simd_normalize(V3(p.x - rec().centre.x, 0, p.z - rec().centre.z) + V3(1e-3, 0, 0))
+                look(at: p, from: p + away * 26 + V3(0, 3, 0))
                 return finish(g, b, t0)
             }
             let back = sim(150) { (rec().airPhase ?? 0) >= 5 || rec().air == nil }
