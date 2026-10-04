@@ -125,6 +125,11 @@ func _make_materials(sp: String) -> Dictionary:
 			m.surface_set_material(1, leaf)
 	return {"bark": bark, "leaf": leaf}
 
+## Test helper (src/tests/veg_lineup.gd): materials for one standalone mesh.
+func _make_materials_for_test(sp: String, m: ArrayMesh) -> Dictionary:
+	_meshes[sp] = [m, m, m]
+	return _make_materials(sp)
+
 func _setup_billboards() -> void:
 	_bill_mat = ShaderMaterial.new()
 	_bill_mat.shader = load("res://shaders/billboard_tree.gdshader")

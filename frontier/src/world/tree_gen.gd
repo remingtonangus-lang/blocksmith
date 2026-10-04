@@ -8,34 +8,34 @@ extends RefCounted
 const SPECIES := {
 	"ponderosa": {"height": [16.0, 26.0], "trunk_r": 0.32, "levels": 2, "branches": [26, 5], "start": 0.38,
 		"angle": [72.0, 45.0], "len": [0.28, 0.35], "droop": 0.25, "crown": "cone_round", "leaf": "needles",
-		"card": [1.15, 0.85], "cards_per_tip": 5, "bark": "pine", "leaf_tint": Color(0.36, 0.42, 0.22), "curve": 0.04},
+		"card": [0.95, 0.75], "cards_per_tip": 3, "fill": 756, "bark": "pine", "leaf_tint": Color(0.36, 0.42, 0.22), "curve": 0.04},
 	"fir": {"height": [12.0, 22.0], "trunk_r": 0.26, "levels": 2, "branches": [40, 4], "start": 0.12,
 		"angle": [88.0, 40.0], "len": [0.22, 0.4], "droop": 0.45, "crown": "cone", "leaf": "needles",
-		"card": [1.0, 0.7], "cards_per_tip": 4, "bark": "pine", "leaf_tint": Color(0.18, 0.28, 0.17), "curve": 0.02},
+		"card": [0.9, 0.65], "cards_per_tip": 3, "fill": 936, "bark": "pine", "leaf_tint": Color(0.18, 0.28, 0.17), "curve": 0.02},
 	"cottonwood": {"height": [13.0, 20.0], "trunk_r": 0.45, "levels": 3, "branches": [7, 5, 4], "start": 0.3,
 		"angle": [38.0, 42.0, 45.0], "len": [0.55, 0.5, 0.45], "droop": 0.08, "crown": "round", "leaf": "broad",
-		"card": [1.5, 1.2], "cards_per_tip": 4, "bark": "cottonwood", "leaf_tint": Color(0.86, 0.68, 0.18), "curve": 0.18},
+		"card": [1.2, 1.0], "cards_per_tip": 2, "fill": 936, "bark": "cottonwood", "leaf_tint": Color(0.86, 0.68, 0.18), "curve": 0.18},
 	"aspen": {"height": [9.0, 15.0], "trunk_r": 0.14, "levels": 2, "branches": [14, 5], "start": 0.5,
 		"angle": [40.0, 45.0], "len": [0.25, 0.4], "droop": 0.05, "crown": "oval", "leaf": "broad",
-		"card": [1.0, 0.85], "cards_per_tip": 4, "bark": "aspen", "leaf_tint": Color(0.95, 0.74, 0.16), "curve": 0.05},
+		"card": [0.8, 0.7], "cards_per_tip": 2, "fill": 540, "bark": "aspen", "leaf_tint": Color(0.95, 0.74, 0.16), "curve": 0.05},
 	"juniper": {"height": [3.0, 6.0], "trunk_r": 0.16, "levels": 3, "branches": [5, 4, 3], "start": 0.08,
 		"angle": [42.0, 45.0, 40.0], "len": [0.65, 0.5, 0.4], "droop": 0.0, "crown": "bush", "leaf": "scale",
-		"card": [1.2, 1.0], "cards_per_tip": 5, "bark": "pine", "leaf_tint": Color(0.27, 0.33, 0.24), "curve": 0.35},
+		"card": [0.9, 0.8], "cards_per_tip": 3, "fill": 360, "bark": "pine", "leaf_tint": Color(0.27, 0.33, 0.24), "curve": 0.35},
 	"oak": {"height": [5.0, 9.0], "trunk_r": 0.22, "levels": 3, "branches": [6, 4, 3], "start": 0.25,
 		"angle": [48.0, 45.0, 45.0], "len": [0.6, 0.5, 0.4], "droop": 0.1, "crown": "round", "leaf": "broad",
-		"card": [1.2, 1.0], "cards_per_tip": 4, "bark": "cottonwood", "leaf_tint": Color(0.55, 0.42, 0.16), "curve": 0.3},
+		"card": [1.0, 0.85], "cards_per_tip": 2, "fill": 504, "bark": "cottonwood", "leaf_tint": Color(0.55, 0.42, 0.16), "curve": 0.3},
 	"mesquite": {"height": [3.0, 5.0], "trunk_r": 0.12, "levels": 3, "branches": [4, 4, 3], "start": 0.05,
 		"angle": [55.0, 50.0, 45.0], "len": [0.7, 0.55, 0.45], "droop": 0.15, "crown": "bush", "leaf": "fine",
-		"card": [1.1, 0.8], "cards_per_tip": 3, "bark": "cottonwood", "leaf_tint": Color(0.42, 0.46, 0.25), "curve": 0.45},
+		"card": [0.9, 0.7], "cards_per_tip": 2, "fill": 252, "bark": "cottonwood", "leaf_tint": Color(0.42, 0.46, 0.25), "curve": 0.45},
 	"snag": {"height": [8.0, 16.0], "trunk_r": 0.28, "levels": 2, "branches": [9, 3], "start": 0.35,
 		"angle": [70.0, 40.0], "len": [0.25, 0.3], "droop": 0.1, "crown": "cone", "leaf": "",
 		"card": [1.0, 1.0], "cards_per_tip": 0, "bark": "dead", "leaf_tint": Color(1, 1, 1), "curve": 0.08},
 	"sagebrush": {"height": [0.7, 1.3], "trunk_r": 0.04, "levels": 2, "branches": [6, 3], "start": 0.0,
 		"angle": [35.0, 40.0], "len": [0.8, 0.5], "droop": 0.0, "crown": "bush", "leaf": "sage",
-		"card": [0.55, 0.45], "cards_per_tip": 4, "bark": "dead", "leaf_tint": Color(0.52, 0.56, 0.46), "curve": 0.3},
+		"card": [0.5, 0.42], "cards_per_tip": 3, "fill": 108, "bark": "dead", "leaf_tint": Color(0.52, 0.56, 0.46), "curve": 0.3},
 	"rabbitbrush": {"height": [0.6, 1.1], "trunk_r": 0.03, "levels": 2, "branches": [7, 3], "start": 0.0,
 		"angle": [30.0, 35.0], "len": [0.8, 0.5], "droop": 0.0, "crown": "bush", "leaf": "fine",
-		"card": [0.5, 0.4], "cards_per_tip": 4, "bark": "dead", "leaf_tint": Color(0.85, 0.72, 0.22), "curve": 0.25},
+		"card": [0.45, 0.4], "cards_per_tip": 3, "fill": 90, "bark": "dead", "leaf_tint": Color(0.85, 0.72, 0.22), "curve": 0.25},
 }
 
 var rng := RandomNumberGenerator.new()
@@ -55,6 +55,8 @@ var _height := 10.0
 var _crown_center := Vector3.ZERO
 var _crown_radius := 3.0
 var _leaf_row := 0
+var _anchors: Array[Vector3] = []     # points on outer branches (crown fill attaches clusters here)
+var _anchor_dirs: Array[Vector3] = []
 
 ## Build one tree variant. detail: 0 = full, 1 = reduced (fewer sides/cards) for the mid LOD.
 func build(species: String, seed: int, detail: int = 0) -> ArrayMesh:
@@ -76,9 +78,90 @@ func build(species: String, seed: int, detail: int = 0) -> ArrayMesh:
 			_branch(Vector3.ZERO, d, _height * rng.randf_range(0.8, 1.1), float(_sp.trunk_r) * rng.randf_range(0.6, 1.0), 0, detail, rng.randf())
 	else:
 		_branch(Vector3.ZERO, trunk_dir, _height, float(_sp.trunk_r) * rng.randf_range(0.85, 1.15), 0, detail, rng.randf())
+	if int(_sp.cards_per_tip) > 0:
+		_fill_crown(detail)
 	return _commit()
 
+## Fill the crown volume with leaf clusters attached to the nearest outer-branch point, so every species reads as
+## a full canopy with the right silhouette (cone, rounded cone, round, oval, bush).
+func _fill_crown(detail: int) -> void:
+	if _anchors.is_empty():
+		return
+	var count: int = int(_sp.get("fill", 220)) / (2 if detail > 0 else 1)
+	var crown_bot: float = _height * float(_sp.start)
+	var crown_h := _height - crown_bot
+	var tries := 0
+	var placed := 0
+	while placed < count and tries < count * 6:
+		tries += 1
+		var t := rng.randf()
+		var y := crown_bot + t * crown_h
+		var rad := _crown_radius_at(t) * maxf(crown_h, _height * 0.3) * 0.5
+		var a := rng.randf() * TAU
+		var rr := rad * sqrt(rng.randf()) * (0.75 + 0.25 * rng.randf())
+		# bias outward: leaves live at the crown surface, not the core
+		rr = lerpf(rr, rad, 0.55)
+		var p := Vector3(cos(a) * rr, y, sin(a) * rr)
+		# nearest anchor
+		var best := -1
+		var bd := INF
+		for i in range(0, _anchors.size(), 2 if _anchors.size() > 400 else 1):
+			var d := _anchors[i].distance_squared_to(p)
+			if d < bd:
+				bd = d
+				best = i
+		if best < 0 or bd > pow(rad * 0.6 + 1.2, 2):
+			continue
+		var anchor := _anchors[best].lerp(p, 0.35)
+		_cluster(anchor, _anchor_dirs[best], detail)
+		placed += 1
+
+func _crown_radius_at(t: float) -> float:
+	match _sp.crown:
+		"cone": return lerpf(1.0, 0.05, pow(t, 0.9))
+		"cone_round": return 0.95 * sin(clampf(t * 1.05, 0.0, 1.0) * PI * 0.92 + 0.12) * lerpf(1.0, 0.65, t)
+		"round": return sin(clampf(t, 0.02, 0.98) * PI) * 1.05
+		"oval": return sin(clampf(t, 0.02, 0.98) * PI) * 0.8
+		_: return 1.0
+
+## Two crossed cards (one cluster) at p, oriented along the branch with a droop for conifers.
+func _cluster(p: Vector3, dir: Vector3, detail: int) -> void:
+	var card: Array = _sp.card
+	var size_scale := 1.0 if detail == 0 else 1.4
+	var w: float = card[0] * rng.randf_range(0.75, 1.15) * size_scale
+	var h: float = card[1] * rng.randf_range(0.75, 1.15) * size_scale
+	var out := (p - Vector3(0, _crown_center.y, 0))
+	out.y *= 0.5
+	out = out.normalized() if out.length() > 0.01 else Vector3.UP
+	var along := (dir * 0.6 + out * 0.4 + Vector3.DOWN * float(_sp.droop) * 0.5).normalized()
+	var side := along.cross(Vector3.UP).normalized()
+	if side.length() < 0.1:
+		side = Vector3.RIGHT
+	var up2 := side.cross(along).normalized()
+	var sway := clampf(p.y / maxf(_height, 0.5), 0.2, 1.0)
+	var phase := rng.randf()
+	var variant := rng.randi_range(0, 3)
+	for k in 2:
+		var right_v := (side if k == 0 else up2) * w * 0.5
+		var up_v := along * h
+		var bottom := p - up_v * 0.2
+		var base := _leaf.size()
+		var u0 := variant * 0.25
+		var v0 := _leaf_row * 0.25
+		var quad := [bottom - right_v, bottom + right_v, bottom + right_v + up_v, bottom - right_v + up_v]
+		var uvs := [Vector2(u0, v0 + 0.25), Vector2(u0 + 0.25, v0 + 0.25), Vector2(u0 + 0.25, v0), Vector2(u0, v0)]
+		var locs := [Vector2(-0.5, 0), Vector2(0.5, 0), Vector2(0.5, 1), Vector2(-0.5, 1)]
+		for q in 4:
+			_leaf.append(quad[q])
+			_leaf_n.append((out * 0.8 + Vector3.UP * 0.2).normalized())
+			_leaf_uv.append(uvs[q])
+			_leaf_uv2.append(locs[q])
+			_leaf_col.append(Color(sway, phase, 0.66, 1.0))
+		_leaf_idx.append_array([base, base + 1, base + 2, base, base + 2, base + 3])
+
 func _reset() -> void:
+	_anchors.clear()
+	_anchor_dirs.clear()
 	_bark = PackedVector3Array(); _bark_n = PackedVector3Array(); _bark_uv = PackedVector2Array()
 	_bark_col = PackedColorArray(); _bark_idx = PackedInt32Array()
 	_leaf = PackedVector3Array(); _leaf_n = PackedVector3Array(); _leaf_uv = PackedVector2Array()
@@ -113,6 +196,10 @@ func _branch(origin: Vector3, dir: Vector3, length: float, radius: float, level:
 		p += d * (length / segs)
 	var r_tip := radius * (0.12 if level == 0 else 0.25)
 	_tube(pts, radius, r_tip, sides, level, phase)
+	if level >= 1:
+		for i in range(1, pts.size()):
+			_anchors.append(pts[i])
+			_anchor_dirs.append((pts[i] - pts[i - 1]).normalized())
 	var max_level: int = _sp.levels
 	if level < max_level:
 		var count: int = _sp.branches[level]
@@ -285,8 +372,8 @@ static func _paint_needles(img: Image, ox: int, oy: int, cell: int, r: RandomNum
 	var base := Vector2(ox + cell * 0.5, oy + cell * 0.97)
 	var tip := Vector2(ox + cell * 0.5 + r.randf_range(-12, 12), oy + cell * 0.08)
 	_line(img, base, tip, 2.2, Color(0.32, 0.25, 0.18, 1.0), clip)
-	for k in 70:
-		var t := r.randf_range(0.05, 1.0)
+	for k in 150:
+		var t := r.randf_range(0.02, 1.0)
 		var p := base.lerp(tip, t)
 		for j in 7:
 			var ang := r.randf_range(-PI, 0.0) + r.randf_range(-0.3, 0.3)
@@ -297,8 +384,8 @@ static func _paint_needles(img: Image, ox: int, oy: int, cell: int, r: RandomNum
 
 static func _paint_broad(img: Image, ox: int, oy: int, cell: int, r: RandomNumberGenerator) -> void:
 	var clip := Rect2i(ox + 2, oy + 2, cell - 4, cell - 4)
-	for k in 26:
-		var cx := ox + r.randf_range(cell * 0.18, cell * 0.82)
+	for k in 58:
+		var cx := ox + r.randf_range(cell * 0.14, cell * 0.86)
 		var cy := oy + r.randf_range(cell * 0.12, cell * 0.85)
 		var rad := r.randf_range(cell * 0.07, cell * 0.12)
 		var rot := r.randf_range(0, TAU)
@@ -320,7 +407,7 @@ static func _paint_broad(img: Image, ox: int, oy: int, cell: int, r: RandomNumbe
 
 static func _paint_scale(img: Image, ox: int, oy: int, cell: int, r: RandomNumberGenerator) -> void:
 	var clip := Rect2i(ox + 2, oy + 2, cell - 4, cell - 4)
-	for k in 9:
+	for k in 16:
 		var base := Vector2(ox + cell * 0.5 + r.randf_range(-20, 20), oy + cell * 0.95)
 		var ang := r.randf_range(-PI * 0.85, -PI * 0.15)
 		var ln := r.randf_range(cell * 0.4, cell * 0.8)
@@ -336,7 +423,7 @@ static func _paint_scale(img: Image, ox: int, oy: int, cell: int, r: RandomNumbe
 
 static func _paint_fine(img: Image, ox: int, oy: int, cell: int, r: RandomNumberGenerator) -> void:
 	var clip := Rect2i(ox + 2, oy + 2, cell - 4, cell - 4)
-	for k in 7:
+	for k in 12:
 		var base := Vector2(ox + cell * 0.5, oy + cell * 0.97)
 		var ang := r.randf_range(-PI * 0.9, -PI * 0.1)
 		var tip := base + Vector2(cos(ang), sin(ang)) * r.randf_range(cell * 0.45, cell * 0.85)
