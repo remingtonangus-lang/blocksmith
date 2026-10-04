@@ -124,10 +124,10 @@ extension BlockRegistry {
         rotor.boxes = [Box(6, 0, 6, 10, 9, 10, tex: metal), Box(4, 8, 4, 12, 10, 12, tex: brass), Box(5, 10, 5, 11, 13, 11, tex: frame),
                        Box(0, 11, 7, 16, 12, 9, tex: bladeT), Box(7, 11, 0, 9, 12, 16, tex: bladeT)]
         add(rotor)
-        var blade = BlockDef("ship_rotor_blade", "Rotor Blade")
-        blade.tex = ["capital_airframe"]; blade.render = .model; blade.layer = .cutout; blade.opaque = false; blade.hidden = true
-        blade.boxes = [Box(0, 7, 6, 16, 8, 10, tex: frame), Box(0, 7, 6, 1, 8, 10, tex: t6("ship_metal"))]
-        add(blade)
+        var rotorBlade = BlockDef("ship_rotor_blade", "Rotor Blade")
+        rotorBlade.tex = ["capital_airframe"]; rotorBlade.render = .model; rotorBlade.layer = .cutout; rotorBlade.opaque = false; rotorBlade.hidden = true
+        rotorBlade.boxes = [Box(0, 7, 6, 16, 8, 10, tex: frame), Box(0, 7, 6, 1, 8, 10, tex: t6("ship_metal"))]
+        add(rotorBlade)
         // Capital airframe: light white alloy panels for the Capital's aircraft (0.3 t a block: ShipParts.mass).
         var airframe = BlockDef("capital_airframe", "Capital Airframe")
         airframe.tex = ["capital_airframe"]; airframe.hardness = 2; airframe.tool = .pickaxe; airframe.sound = .stone

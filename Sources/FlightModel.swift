@@ -92,9 +92,10 @@ final class FlightModel {
             if aa > 0.3 { cl = (a > 0 ? 1 : -1) * max(0.35, 1.38 - (aa - 0.3) * 2.6); stallN += 1 }
             let cd: Float = 0.035 + 0.06 * cl * cl
             let sq = sqrtf(q)
-            let vdir = (fwdL * u + upL * w) / sq
-            let ldir = (upL * u - fwdL * w) / sq
-            let fl = s.dirToWorld(ldir * (FlightModel.rho * q * cl) - vdir * (FlightModel.rho * q * cd))
+            let vdir: V3 = (fwdL * u + upL * w) / sq
+            let ldir: V3 = (upL * u - fwdL * w) / sq
+            let liftF: Float = FlightModel.rho * q * cl, dragF: Float = FlightModel.rho * q * cd
+            let fl = s.dirToWorld(ldir * liftF - vdir * dragF)
             apply(fl, at: wp)
             totalLift += FlightModel.rho * q * cl
             aSum += a
@@ -108,7 +109,9 @@ final class FlightModel {
         let rightW = s.dirToWorld(rightL)
         let sv = simd_dot(vt, rightW), sp = simd_length(vt)
         let fin = Float(s.wings.count) * 0.06
-        apply(rightW * (-FlightModel.rho * fin * sp * sv * 2 + FlightModel.rho * fin * sp * sp * steer * 0.08), at: tail)
+        let vane: Float = -FlightModel.rho * fin * sp * sv * 2
+        let rudder: Float = FlightModel.rho * fin * sp * sp * steer * 0.08
+        apply(rightW * (vane + rudder), at: tail)
         // Dihedral: wings level out by themselves with the stick centred.
         if abs(steer) < 0.1 {
             let up = s.dirToWorld(upL), fw = s.dirToWorld(fwdL)
@@ -133,25 +136,38 @@ final class FlightModel {
         groundEffect = 1 + 0.22 * max(0, 1 - hAbove / (radius * 2))
         let vh = simd_length(V2(s.vel.x, s.vel.z))
         let etl = 1 + 0.12 * min(1, vh / 12)
-        let c = max(0, min(1, collective))
-        thrust = c * FlightModel.heliTmax * s.mass * g * rpm * rpm * groundEffect * etl
-        let cyc = V2(max(-1, min(1, cyclic.x)), max(-1, min(1, cyclic.y)))
-        let n = simd_normalize(up + fw * (cyc.y * 0.14) + right * (cyc.x * 0.14))
+        let c: Float = max(0, min(1, collective))
+        let weight: Float = s.mass * g
+        let spool: Float = rpm * rpm * groundEffect * etl
+        thrust = c * FlightModel.heliTmax * weight * spool
+        let cx: Float = max(-1, min(1, cyclic.x)), cy: Float = max(-1, min(1, cyclic.y))
+        let cyc = V2(cx, cy)
+        let tiltF: V3 = fw * (cy * 0.14)
+        let tiltR: V3 = right * (cx * 0.14)
+        let n = simd_normalize(up + tiltF + tiltR)
         F += n * thrust
         T += simd_cross(hub - s.pos, n * thrust)
         // Hub moment from the cyclic (stiff rotor), stability augmentation: rate damping and, stick centred, level.
         let auth = rpm * max(0.3, c)
-        T += right * (-cyc.y * I.x * 2.2 * auth) + fw * (cyc.x * I.z * 2.2 * auth)
+        let hubPitch: Float = -cy * I.x * 2.2 * auth, hubRoll: Float = cx * I.z * 2.2 * auth
+        T += right * hubPitch
+        T += fw * hubRoll
         let w = s.angVel
-        let wPitch = simd_dot(w, right), wRoll = simd_dot(w, fw), wYaw = simd_dot(w, up)
-        T -= right * (wPitch * I.x * 2.6 * rpm) + fw * (wRoll * I.z * 2.6 * rpm)
+        let wPitch: Float = simd_dot(w, right), wRoll: Float = simd_dot(w, fw), wYaw: Float = simd_dot(w, up)
+        let dampP: Float = wPitch * I.x * 2.6 * rpm, dampR: Float = wRoll * I.z * 2.6 * rpm
+        T -= right * dampP
+        T -= fw * dampR
         let level = simd_cross(up, V3(0, 1, 0))
-        let centred = 1 - min(1, simd_length(cyc) * 2)
-        T += (right * simd_dot(level, right) * I.x + fw * simd_dot(level, fw) * I.z) * (3.2 * centred * rpm)
+        let centred: Float = 1 - min(1, simd_length(cyc) * 2)
+        let holdK: Float = 3.2 * centred * rpm
+        let levP: Float = simd_dot(level, right) * I.x * holdK, levR: Float = simd_dot(level, fw) * I.z * holdK
+        T += right * levP
+        T += fw * levR
         // Rotor reaction torque, the tail rotor's answer and the pedals, yaw damping.
         let reaction: Float = c * 0.5 * rpm
         let tail: Float = tailRotor ? reaction + pedal * 1.6 * rpm : pedal * 0.3 * rpm
-        T += up * ((tail - reaction) * I.y) - up * (wYaw * I.y * 1.8 * rpm)
+        let yawT: Float = (tail - reaction) * I.y - wYaw * I.y * 1.8 * rpm
+        T += up * yawT
     }
 
     func rotorRadius(_ s: Ship) -> Float { max(3, min(9, (s.localMax.z - s.localMin.z) * 0.42)) }

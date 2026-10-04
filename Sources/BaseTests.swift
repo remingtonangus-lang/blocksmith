@@ -10,14 +10,17 @@ import simd
 // With a phase name it stops when that phase is on show (camera on it) for a shot.
 enum BaseTests {
     static var failures: [String] = []
+    static var results: [String] = []
     static func check(_ ok: Bool, _ name: String, _ detail: @autoclosure () -> String = "") {
         let d = detail()
-        print("basetest \(ok ? "ok  " : "FAIL") \(name)\(d.isEmpty ? "" : ": " + d)")
+        let line = "basetest \(ok ? "ok  " : "FAIL") \(name)\(d.isEmpty ? "" : ": " + d)"
+        print(line)
+        results.append(line)
         if !ok { failures.append(name) }
     }
 
     static func run(game g: Game, world w: World, phase: String) -> Bool {
-        failures = []
+        failures = []; results = []
         let t0 = CFAbsoluteTimeGetCurrent()
         guard let sc = w.gen.structures,
               let s = sc.nearest("military_base", x: Int(g.player.pos.x), z: Int(g.player.pos.z), maxRegions: 2) else {
@@ -185,6 +188,7 @@ enum BaseTests {
         let avg = b.ticks > 0 ? b.tickMs / Double(b.ticks) : 0
         print(String(format: "basetest: citadel update %.3f ms avg, %.3f ms worst over %d updates", avg, b.tickWorstMs, b.ticks))
         check(avg < 1.0, "citadel update stays cheap", String(format: "%.3f ms avg", avg))
+        for r in results { print(r) }                  // again at the end, where the CI log tail shows them
         print(String(format: "basetest: %ld failed (%.1f s)%@", failures.count, CFAbsoluteTimeGetCurrent() - t0,
                      failures.isEmpty ? "" : " -> " + failures.joined(separator: ", ")))
         g.player.flying = true

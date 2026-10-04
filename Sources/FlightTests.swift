@@ -14,6 +14,14 @@ enum FlightTests {
         print("flighttest \(ok ? "ok  " : "FAIL") \(name)\(d.isEmpty ? "" : ": " + d)")
         if !ok { failures.append(name) }
     }
+    // Telemetry every second of a phase (height, speed, attitude, controls), to tune from the CI log.
+    static func trace(_ tag: String, _ s: Ship, _ t: Float) {
+        guard let f = s.flight, Int(t * 60) % 60 == 0 else { return }
+        let up = s.dirToWorld(V3(0, 1, 0)), fw = s.dirToWorld(s.fwd)
+        print(String(format: "flighttrace %@ t=%.0f y=%.1f v=%.1f vy=%.1f nose=%.2f up=%.2f yaw=%.2f rpm=%.2f col=%.2f cyc=%.2f,%.2f ped=%.2f T=%.0f L=%.0f a=%.2f%@",
+                     tag, t, s.pos.y, simd_length(s.vel), s.vel.y, fw.y, up.y, s.yaw, f.rpm, f.collective, f.cyclic.x, f.cyclic.y, f.pedal,
+                     f.thrust, f.lift, f.alpha, f.stalled ? " STALL" : ""))
+    }
 
     static func run(game g: Game, phase: String) -> Bool {
         failures = []
@@ -23,6 +31,8 @@ enum FlightTests {
         g.paused = false; g.menu = nil
         let base = g.player.pos
         func groundY(_ x: Float, _ z: Float) -> Float { Float(w.topY(Int(floor(x)), Int(floor(z))) + 1) }
+        var traced: Ship?
+        var tag = ""
         func step(_ secs: Float, _ every: ((Float) -> Bool)? = nil) -> Float? {
             let dt: Float = 1.0 / 60
             var t: Float = 0
@@ -30,6 +40,7 @@ enum FlightTests {
                 w.ships.update(dt, game: g)
                 FlightCrew.tick(g)
                 t += dt
+                if let s = traced { trace(tag, s, t) }
                 if let e = every, e(t) { return t }
             }
             return nil
@@ -49,6 +60,7 @@ enum FlightTests {
             let gx = base.x + 10, gz = base.z - 10
             let gy = groundY(gx, gz)
             let s = Aircraft.spawn("kestrel", at: V3(gx, gy + 3, gz), yaw: 0, game: g, troops: 2)
+            traced = s; tag = "kestrel-settle"
             _ = step(2)                                           // settle on the skids
             let rest = s.pos
             check(upright(s) > 0.97, "the Kestrel stands on its skids", String(format: "upright %.2f", upright(s)))
@@ -56,6 +68,7 @@ enum FlightTests {
             check(fm.tailRotor, "the tail rotor is recognised")
             let hoverAt = rest + V3(0, 12, 0)
             fm.hold = hoverAt; fm.holdYaw = s.yaw
+            tag = "kestrel-liftoff"
             let lift = step(14) { _ in s.pos.y > rest.y + 10 }
             check(lift != nil, "it spins up and lifts off", String(format: "after %.1f s, rpm %.2f", lift ?? -1, fm.rpm))
             _ = step(6)
@@ -71,6 +84,7 @@ enum FlightTests {
             let fwd = s.dirToWorld(s.fwd)
             let dest = s.pos + V3(fwd.x, 0, fwd.z) * 80
             fm.hold = dest; fm.holdYaw = nil; fm.holdSpeed = 14
+            tag = "kestrel-forward"
             var minPitch: Float = 0
             let arrived = step(30) { _ in
                 minPitch = min(minPitch, s.dirToWorld(s.fwd).y)
@@ -81,6 +95,7 @@ enum FlightTests {
             // Turn on the pedals.
             let yaw0 = s.yaw
             fm.hold = s.pos; fm.holdYaw = yaw0 + .pi / 2
+            tag = "kestrel-turn"
             let turned = step(10) { _ in
                 var e = s.yaw - (yaw0 + .pi / 2)
                 while e > Float.pi { e -= 2 * Float.pi }
@@ -91,6 +106,7 @@ enum FlightTests {
             // Land.
             let pad = V3(s.pos.x, groundY(s.pos.x, s.pos.z), s.pos.z)
             fm.hold = pad + V3(0, s.pos.y - s.worldMin.y - 0.2, 0); fm.holdYaw = nil
+            tag = "kestrel-land"
             var touch: Float = 99
             let down = step(30) { _ in
                 if s.worldMin.y < pad.y + 0.25 && touch == 99 { touch = abs(s.vel.y) }
@@ -114,6 +130,7 @@ enum FlightTests {
             let fwd = s.dirToWorld(s.fwd)
             s.vel = fwd * 24
             let y0 = s.pos.y
+            traced = s; tag = "heron-level"
             fm.hold = s.pos + V3(fwd.x, 0, fwd.z) * 2000; fm.holdSpeed = 1
             var lo: Float = 1e9, hi: Float = -1e9, up: Float = 1
             _ = step(12) { t in
@@ -126,11 +143,13 @@ enum FlightTests {
             if shotOnly { look(s, from: V3(-16, 4, 14)); return finish(t0) }
             let yc = s.pos.y
             fm.hold = s.pos + V3(fwd.x, 0, fwd.z) * 2000 + V3(0, 30, 0)
+            tag = "heron-climb"
             _ = step(12)
             check(s.pos.y - yc > 12, "it climbs when asked", String(format: "%+.1f in 12 s", s.pos.y - yc))
             // Turn: bank into it.
             let yawT = s.yaw
             fm.holdYaw = yawT + .pi / 2; fm.hold = s.pos + V3(0, 0, 0)
+            tag = "heron-turn"
             var bank: Float = 0
             let turned = step(16) { _ in
                 bank = max(bank, abs(s.dirToWorld(simd_normalize(simd_cross(s.fwd, V3(0, 1, 0)))).y))
@@ -143,6 +162,7 @@ enum FlightTests {
             // Stall: throttle off, nose held up.
             fm.hold = nil; fm.holdYaw = nil
             s.autopilot = V3(0, 0, 1)
+            tag = "heron-stall"
             var stalled = false
             _ = step(8) { _ in if fm.stalled { stalled = true }; return false }
             check(stalled, "slowed nose-high it stalls", String(format: "alpha %.2f, %.1f b/s", fm.alpha, simd_length(s.vel)))

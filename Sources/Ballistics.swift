@@ -235,7 +235,11 @@ final class Armory {
             for m in g.mobs.mobs where simd_length(m.pos - at) < s.power * 2 + 1 { m.killedByPlayer = true }
         }
         let shooter = s.shooter.flatMap { id in g.mobs.mobs.first { ObjectIdentifier($0) == id } }
+        // The Capital's own shells and grenades don't alarm its citadels (CapitalBases.swift).
+        let own = shooter.map { $0.kind.steelhold && $0.factionValue == .steelhold } ?? s.by.hasPrefix("Capital")
+        g.bases.quiet = own && !s.fromPlayer
         Explosion.explode(at: at, power: s.power, game: g, fire: false, except: shooter, breakBlocks: (s.fromPlayer && s.kind == .rocket) || s.breaks)
+        g.bases.quiet = false
     }
 
     // Hitscan energy beam (arc lance): damages and ignites the first thing it meets.

@@ -77,6 +77,7 @@ final class BaseWatch {
     var timer: Float = 0
     var tickMs: Double = 0, tickWorstMs: Double = 0, ticks = 0
     var log: [String] = []                            // harness: what happened, in order
+    var quiet = false                                 // set round the Capital's own explosions (Ballistics.detonate)
     static var calmScale: Float = 1                   // harness: stand down faster (--basetest rebuild)
 
     // One watch per Game (the harness and the app each make one game).
@@ -116,7 +117,7 @@ extension Game {
     // The noise bus: guns, cannon, turrets and explosions report here; citadels within hearing react.
     func baseNoise(at p: V3, kind: NoiseKind, power: Float = 1, hostile: Bool = true) {
         let b = bases
-        if b.noises.count < 48 { b.noises.append(BaseNoise(pos: p, kind: kind, power: power, hostile: hostile)) }
+        if b.noises.count < 48 { b.noises.append(BaseNoise(pos: p, kind: kind, power: power, hostile: hostile && !b.quiet)) }
     }
 
     // MARK: Tick
