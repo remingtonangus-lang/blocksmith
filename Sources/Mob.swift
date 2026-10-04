@@ -27,6 +27,7 @@ enum MobKind: Int, CaseIterable {
     case parched, camelHusk, nautilus, zombieNautilus
     case soldierRecruit, soldierTrooper, soldierMarksman, soldierIronclad, deckGun
     case copperGolem
+    case soldierOfficer, soldierCrew       // the Capital's officers and pilots / vehicle crews (SoldierRig.swift)
 
     struct Spec {
         var name: String
@@ -133,7 +134,7 @@ enum MobKind: Int, CaseIterable {
              .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking,
              .zombieHorse, .illusioner, .happyGhast, .parched, .camelHusk, .nautilus, .zombieNautilus, .copperGolem:
             return animalSpec
-        case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad, .deckGun:
+        case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad, .deckGun, .soldierOfficer, .soldierCrew:
             return militarySpec
         case .witherSkeleton: return Spec(name: "Blight Skeleton", halfW: 0.35, height: 2.4, health: 20, speed: 2.5, behavior: .melee, attack: 8,
                                           drops: [("coal", 0, 1), ("bone", 0, 2)], xp: 5, call: .mobSkeleton, fireImmune: true)
@@ -237,6 +238,7 @@ enum MobKind: Int, CaseIterable {
         .soldierRecruit: "soldier_recruit", .soldierTrooper: "soldier_trooper", .soldierMarksman: "soldier_marksman",
         .soldierIronclad: "soldier_ironclad", .deckGun: "deck_gun",
         .copperGolem: "copper_golem",
+        .soldierOfficer: "soldier_officer", .soldierCrew: "soldier_crew",
     ]
     static func named(_ n: String) -> MobKind? { allCases.first { $0.key == n } }
     var call: Snd { spec.call }
@@ -378,7 +380,7 @@ final class Mob {
     var gossipCooldown: Float = 0
     var meetPoint: IVec3?           // villager: the bell it meets at
     var meetSearch: Float = 0
-    var brain: SoldierBrain?        // Steelhold soldiers and deck guns (Soldiers.swift)
+    var brain: SoldierBrain?        // Capital soldiers and deck guns (Soldiers.swift, SoldierRig.swift)
     var strafe: Float = 0           // sideways walk speed this update (right is positive)
 
     init(_ kind: MobKind, at p: V3) {
@@ -1158,18 +1160,39 @@ final class Mob {
 
 // MARK: Models
 
+// A model box. Rotations about `pivot`, applied X, then Z, then Y. Sign convention (model faces -Z):
+// rotX > 0 swings a limb hanging down FORWARD (toward -Z) and tips a barrel lying along -Z UP; rotX = .pi / 2
+// holds an arm straight out in front. (Arms "raised" with negative rotX pointed backwards: BUGS.md,
+// soldier arms; --posecheck guards it.) rotY turns like the mob's yaw: > 0 swings a forward-pointing limb toward
+// -X, the model's left (+X is its right).
 struct Part {
     var mn: V3, mx: V3       // model-space box in pixels (1/16 block); model faces -Z
     var pivot: V3 = .zero
     var rotX: Float = 0
     var rotZ: Float = 0
     var color: V3
-    var pattern: Float = 0   // 0 plain, 1 cow patches, 2 wool, 3 feathers, 4 mottled, 5 bone
+    var pattern: Float = 0   // 0 plain, 1 cow patches, 2 wool, 3 feathers, 4 mottled, 5 bone, 6 dress cloth,
+                             // 7 enamel (glossy), 8 polished metal, 9 emissive, 10 polished leather, 11 smoked glass
+    var rotY: Float = 0
+
+    // The part's rotation (Ry * Rz * Rx) as a matrix: one set of trig per part instead of per vertex.
+    var rotation: simd_float3x3 {
+        let cx = cosf(rotX), sx = sinf(rotX), cz = cosf(rotZ), sz = sinf(rotZ), cy = cosf(rotY), sy = sinf(rotY)
+        let rx = simd_float3x3(V3(1, 0, 0), V3(0, cx, sx), V3(0, -sx, cx))
+        let rz = simd_float3x3(V3(cz, sz, 0), V3(-sz, cz, 0), V3(0, 0, 1))
+        let ry = simd_float3x3(V3(cy, 0, -sy), V3(0, 1, 0), V3(sy, 0, cy))
+        return ry * rz * rx
+    }
+    // A model-space point of this part's box after its rotation.
+    func place(_ lp: V3, _ r: simd_float3x3) -> V3 { r * (lp - pivot) + pivot }
 }
 
 func box(_ x: Float, _ y: Float, _ z: Float, _ w: Float, _ h: Float, _ d: Float, _ c: V3, _ pat: Float = 0) -> Part {
     Part(mn: V3(x, y, z), mx: V3(x + w, y + h, z + d), color: c, pattern: pat)
 }
+
+// Every box of a mob's model as drawn (body + worn equipment), for the pose check (PoseCheck.swift).
+func mobModelParts(_ m: Mob) -> [Part] { parts(m) + equipmentParts(m) }
 
 private func parts(_ m: Mob) -> [Part] {
     let swing = sinf(m.walkPhase) * 0.7 * m.walkAmount
@@ -1237,7 +1260,7 @@ private func parts(_ m: Mob) -> [Part] {
          .armadillo, .sniffer, .mooshroom, .bee, .parrot, .bat, .allay, .axolotl, .squid, .glowSquid, .dolphin, .cod, .salmon, .tropicalFish, .pufferfish,
          .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking, .zombieHorse, .happyGhast, .camelHusk, .nautilus, .zombieNautilus:
         return animalParts(m, swing: swing)
-    case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad:
+    case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad, .soldierOfficer, .soldierCrew:
         return soldierParts(m, swing: swing)
     case .deckGun:
         return deckGunParts(m)
@@ -1266,7 +1289,7 @@ private func parts(_ m: Mob) -> [Part] {
         let armLen: Float = en ? 30 : 12
         let bodyY = legH
         let zombieLike = m.kind == .zombie || m.kind == .husk || m.kind == .drowned
-        let armFwd: Float = zombieLike || (en && m.aggro) || (m.kind == .vindicator && m.aggro) ? -1.45 : 0
+        let armFwd: Float = zombieLike || (en && m.aggro) || (m.kind == .vindicator && m.aggro) ? 1.45 : 0
         let armAngle = armFwd + (armFwd == 0 ? swing : 0)
         let pat: Float = sk ? 5 : 4
         let armC = sk || en ? skin : shirt
@@ -1351,7 +1374,7 @@ private func parts(_ m: Mob) -> [Part] {
         let skin = V3(0.93, 0.6, 0.55), rot = V3(0.45, 0.62, 0.35)
         let tunic = zp ? V3(0.55, 0.45, 0.35) : (m.kind == .piglinBrute ? V3(0.25, 0.22, 0.24) : V3(0.5, 0.33, 0.18))
         let arm = zp ? rot : skin
-        let armFwd: Float = m.aggro || zp && m.aggro ? -1.3 : 0
+        let armFwd: Float = m.aggro ? 1.3 : 0
         var p: [Part] = [
             Part(mn: V3(-4.01, 0, -2), mx: V3(-0.01, 12, 2), pivot: V3(-2, 12, 0), rotX: swing, color: V3(0.35, 0.25, 0.15), pattern: 4),
             Part(mn: V3(0.01, 0, -2), mx: V3(4.01, 12, 2), pivot: V3(2, 12, 0), rotX: -swing, color: V3(0.35, 0.25, 0.15), pattern: 4),
@@ -1405,10 +1428,10 @@ private func parts(_ m: Mob) -> [Part] {
             Part(mn: V3(-2.4, 0, -1.2), mx: V3(0, 14.4, 1.2), pivot: V3(-1.2, 14.4, 0), rotX: swing, color: c, pattern: 5),
             Part(mn: V3(0, 0, -1.2), mx: V3(2.4, 14.4, 1.2), pivot: V3(1.2, 14.4, 0), rotX: -swing, color: c, pattern: 5),
             sb(-4, 12, -2, 8, 12, 4, c),
-            Part(mn: V3(-7.2, 14.4, -1.2), mx: V3(-4.8, 28.8, 1.2), pivot: V3(-6, 27, 0), rotX: m.aggro ? -1.4 : swing, color: c, pattern: 5),
-            Part(mn: V3(4.8, 14.4, -1.2), mx: V3(7.2, 28.8, 1.2), pivot: V3(6, 27, 0), rotX: m.aggro ? -1.4 : -swing, color: c, pattern: 5),
+            Part(mn: V3(-7.2, 14.4, -1.2), mx: V3(-4.8, 28.8, 1.2), pivot: V3(-6, 27, 0), rotX: m.aggro ? 1.4 : swing, color: c, pattern: 5),
+            Part(mn: V3(4.8, 14.4, -1.2), mx: V3(7.2, 28.8, 1.2), pivot: V3(6, 27, 0), rotX: m.aggro ? 1.4 : -swing, color: c, pattern: 5),
             // Stone sword.
-            Part(mn: V3(5.5, 13, -14), mx: V3(6.5, 14.5, 0), pivot: V3(6, 27, 0), rotX: m.aggro ? -1.4 : -swing, color: V3(0.5, 0.5, 0.5)),
+            Part(mn: V3(5.5, 13, -14), mx: V3(6.5, 14.5, 0), pivot: V3(6, 27, 0), rotX: m.aggro ? 1.4 : -swing, color: V3(0.5, 0.5, 0.5)),
             sb(-4, 24, -4, 8, 8, 8, c),
             sb(-2.5, 27.5, -4.1, 1.5, 1.5, 0.2, V3(0.02, 0.02, 0.02)), sb(1, 27.5, -4.1, 1.5, 1.5, 0.2, V3(0.02, 0.02, 0.02)),
         ]
@@ -1506,14 +1529,14 @@ private func parts(_ m: Mob) -> [Part] {
         return parts
     case .ironGolem:
         let iron = V3(0.82, 0.8, 0.76), vine = V3(0.3, 0.55, 0.2)
-        let armSwing = m.attackCooldown > 0.9 ? -1.4 : swing * 0.5
+        let armSwing = m.attackCooldown > 0.9 ? 1.4 : swing * 0.5
         return [
             Part(mn: V3(-7, 0, -3), mx: V3(-1, 16, 3), pivot: V3(-4, 16, 0), rotX: swing, color: iron, pattern: 4),
             Part(mn: V3(1, 0, -3), mx: V3(7, 16, 3), pivot: V3(4, 16, 0), rotX: -swing, color: iron, pattern: 4),
             box(-9, 16, -6, 18, 12, 11, iron, 4),
             box(-4.5, 28, -2.5, 9, 5, 5, iron, 4),
             Part(mn: V3(-13, 5, -3), mx: V3(-9, 33, 3), pivot: V3(-11, 32, 0), rotX: armSwing, color: iron, pattern: 4),
-            Part(mn: V3(9, 5, -3), mx: V3(13, 33, 3), pivot: V3(11, 32, 0), rotX: -armSwing, color: iron, pattern: 4),
+            Part(mn: V3(9, 5, -3), mx: V3(13, 33, 3), pivot: V3(11, 32, 0), rotX: m.attackCooldown > 0.9 ? armSwing : -armSwing, color: iron, pattern: 4),     // both arms up to strike
             box(-4, 33, -7.5, 8, 10, 8, iron, 4),
             box(-1, 34, -9.5, 2, 4, 2, iron),
             box(-9.2, 18, -4, 0.4, 6, 3, vine), box(5, 26, -6.2, 3, 4, 0.3, vine),
@@ -1559,6 +1582,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
     let faceShade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
     let order = [0, 1, 2, 0, 2, 3]
     var n = 0
+    SoldierRig.eye = eye                    // soldier level of detail by distance
     for m in mobs {
         let l = world.lightAt(Int(floor(m.pos.x)), Int(floor(m.pos.y + m.height * 0.5)), Int(floor(m.pos.z)))
         var bright = max(0.05, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
@@ -1571,16 +1595,13 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         let lit = glow ? max(bright, 0.85) : bright
         for p in parts(m) + equipmentParts(m) {
             if n + 36 > capacity { return n }
-            let ca = cosf(p.rotX), sa = sinf(p.rotX)
-            let cz = cosf(p.rotZ), sz = sinf(p.rotZ)
+            let rot = p.rotation
             let size = p.mx - p.mn
             for f in 0..<6 {
                 for k in order {
                     let ci = (f * 4 + k) * 3
                     let lp = p.mn + size * V3(Float(CT[ci]), Float(CT[ci + 1]), Float(CT[ci + 2]))
-                    var q = lp - p.pivot
-                    q = V3(q.x, q.y * ca - q.z * sa, q.y * sa + q.z * ca)
-                    q = V3(q.x * cz - q.y * sz, q.x * sz + q.y * cz, q.z) + p.pivot
+                    var q = p.place(lp, rot)
                     q *= scale / 16
                     let r = V3(cy * q.x + sy * q.z, q.y, -sy * q.x + cy * q.z) + base
                     out[n] = MobVert(pos: V4(r, p.pattern), color: V4(p.color * tint, faceShade[f] * lit), local: V4(lp, 0))
@@ -1642,7 +1663,7 @@ final class MobManager {
                         let under = w.block(Int(floor(m.pos.x)), Int(floor(m.pos.y - 0.2)), Int(floor(m.pos.z)))
                         if under != AIR {
                             let vol: Float = sp.volume * (m.baby ? 0.5 : 1)
-                            if let r = Soldier.rank(m.kind) { game.sfx(.soldierStep(r), vol + 0.15, at: m.pos) }
+                            if let r = Soldier.rank(m.kind) { game.sfx(.soldierStep(Soldier.voice(r)), vol + 0.15, at: m.pos) }
                             else { game.sfx(.step(soundMat(under)), vol, at: m.pos) }
                         }
                     }
@@ -1662,7 +1683,7 @@ final class MobManager {
                 if let r = Soldier.rank(m.kind) {
                     // Soldiers chatter at ease and shout orders in a fight (more often while fighting).
                     if m.aggro { m.callTimer = Rand.float(in: 4...9) }
-                    game.sfx(.soldier(r, m.aggro ? (Rand.float(in: 0..<1) < 0.25 ? .retreat : .attack) : .idle), m.aggro ? 1 : 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
+                    game.sfx(.soldier(Soldier.voice(r), m.aggro ? (Rand.float(in: 0..<1) < 0.25 ? .retreat : .attack) : .idle), m.aggro ? 1 : 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
                 } else if m.kind != .creeper && m.kind != .magmaCube && MobVoice.profile(m.kind).family != .silent {
                     game.sfx(m.baby ? .babyMob(m.kind, .ambient) : .mob(m.kind, .ambient), m.baby ? 0.45 : 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
                 }

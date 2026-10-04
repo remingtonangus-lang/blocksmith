@@ -661,7 +661,8 @@ final class World {
         if p.fromDisk { c.savedBlocks = c.blocks }
         chunks[k] = c
         for t in p.tracked { redstone.tracked.insert(t) }
-        for q in p.springs { fluidPending.insert(q) }
+        // Lava springs go to the lava queue: the water tick skips lava, so generated lavafalls never started.
+        for q in p.springs { if rawBlock(q.x, q.y, q.z) == LAVA { lavaPending.insert(q) } else { fluidPending.insert(q) } }
         // Generated chests/spawners; a regenerated chunk keeps any existing (already looted) entity.
         for (pos, be) in p.entities where blockEntities[pos] == nil { blockEntities[pos] = be }
         // Structure mobs (bastion boarlings...) appear once: the chunk is saved so it never regenerates.

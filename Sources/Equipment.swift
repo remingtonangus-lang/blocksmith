@@ -79,7 +79,7 @@ func equipmentParts(_ m: Mob) -> [Part] {
     guard let e = m.equip, ArmorLook.fits(m.kind) else { return [] }
     let swing = m.kind == .armorStand ? 0 : sinf(m.walkPhase) * 0.7 * m.walkAmount
     let zombieLike = m.kind == .zombie || m.kind == .husk || m.kind == .drowned || m.kind == .zombieVillager
-    let armFwd: Float = zombieLike ? -1.45 : 0
+    let armFwd: Float = zombieLike ? 1.45 : 0
     let armAngle = armFwd + (armFwd == 0 ? swing : 0)
     let limb: Float = [.skeleton, .stray, .bogged, .armorStand].contains(m.kind) ? 2 : 4
     var p: [Part] = []

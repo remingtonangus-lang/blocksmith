@@ -205,6 +205,67 @@ enum PadTest {
         tap(g, "b")
         check(g.menu == nil, "B closes the inventory")
 
+        // Crafting book (CraftingBook.swift): the table opens on the recipe tiles; the pad crafts 1 / a stack / max
+        // straight into the inventory, A held keeps crafting, LB/RB switch categories, LT/RT flip pages.
+        do {
+            g.survival = true
+            g.inventory.main.slots = Array(repeating: .empty, count: 36)
+            let logs = Items.id("oak_log"), planks = Items.id("oak_planks")
+            func count(_ id: ItemID) -> Int { g.inventory.main.slots.filter { $0.item == id }.reduce(0) { $0 + $1.count } }
+            g.inventory.main[9] = ItemStack(logs, 40)
+            CraftingBookMenu.lastTab = .craftable
+            let cb = CraftingBookMenu(game: g)
+            g.openMenu(cb)
+            check(g.menu is CraftingBookMenu && cb.tab == .craftable && !cb.list.isEmpty, "the crafting table opens on the recipe book (\(cb.list.count) craftable)")
+            let k = cb.list.firstIndex { Recipes.all[$0].result.item == planks } ?? -1
+            check(k >= 0 && k < CraftingBookMenu.cols, "planks are among the craftable recipes (tile \(k))")
+            g.menuCursor = CraftCategory.allCases.count                      // first tile
+            frame(g)
+            if k > 0 { tap(g, "right*\(k)") }
+            check(cb.selected.map { Recipes.all[$0].result.item } == planks, "the D-pad moves to the planks tile and the detail panel shows it")
+            tap(g, "a")
+            check(count(planks) == 4 && count(logs) == 39, "A crafts one (\(count(planks)) planks, \(count(logs)) logs)")
+            tap(g, "y")
+            check(count(planks) == 68 && count(logs) == 23, "Y crafts a stack (\(count(planks)) planks, \(count(logs)) logs)")
+            tap(g, "x")
+            check(count(planks) == 160 && count(logs) == 0, "X crafts the most (\(count(planks)) planks, \(count(logs)) logs)")
+            // Held A repeats (after the craftable list refreshed, the cursor stays on a tile).
+            g.inventory.main.slots = Array(repeating: .empty, count: 36)
+            g.inventory.main[9] = ItemStack(logs, 30)
+            cb.tab = .building; cb.page = 0; cb.refresh()
+            if let kb = cb.list.firstIndex(where: { Recipes.all[$0].result.item == planks }) {
+                cb.page = kb / CraftingBookMenu.perPage
+                g.menuCursor = CraftCategory.allCases.count + kb % CraftingBookMenu.perPage
+                frame(g)
+                for _ in 0..<90 { frame(g, pad("a")) }
+                frame(g)
+                check(count(logs) <= 22 && count(logs) >= 1, "holding A keeps crafting (\(30 - count(logs)) crafts in 1.5 s)")
+            } else { check(false, "planks are in the Building tab") }
+            // Categories and pages.
+            cb.tab = .craftable; cb.refresh()
+            tap(g, "rb")
+            check(cb.tab == .building, "RB switches to the next category (\(cb.tab.name))")
+            if cb.pages > 1 {
+                tap(g, "rt"); check(cb.page == 1, "RT flips to the next page")
+                tap(g, "lt"); check(cb.page == 0, "LT flips back")
+            }
+            tap(g, "lb")
+            check(cb.tab == .craftable, "LB goes back a category")
+            // No room: nothing is crafted (and nothing dropped).
+            g.inventory.main.slots = Array(repeating: ItemStack(Items.id("dirt"), 64), count: 36)
+            g.inventory.main[0] = ItemStack(logs, 1)
+            let r = Recipes.all.first { $0.result.item == planks }!
+            let made = CraftBook.craft(r, times: 1, game: g)
+            check(made == 0 && count(logs) == 1 && g.drops.items.isEmpty, "a full inventory stops crafting cleanly")
+            // The manual grid is one button away, and its book button comes back.
+            cb.buttonPressed(CraftingBookMenu.gridBtn)
+            check(g.menu is CraftingTableMenu, "Manual grid opens the 3x3 grid")
+            (g.menu as? CraftingTableMenu)?.buttonPressed(490)
+            check(g.menu is CraftingBookMenu, "the grid's book button returns to the crafting book")
+            g.closeMenu()
+            g.inventory.main.slots = Array(repeating: .empty, count: 36)
+        }
+
         // Creative palette paging.
         g.survival = false
         tap(g, "y")

@@ -200,9 +200,15 @@ fragment float4 mobVibFS(MobOut in [[stage_in]],
                          constant Uniforms& u [[buffer(1)]],
                          constant float4* fl [[buffer(5)]]) {
     float3 c = mobPattern(in);
+    int pt = int(in.pattern + 0.5);
+    if (pt == 9) return float4(applyFogDir(c, in.rel, in.dist, u), 1.0);    // emissive: visors, cells, lenses (bloom)
     float sh = vibShadow(sm, in.rel, float3(0, 1, 0), u);
     float k = mix(0.62, 1.0, sh);
     float3 col = c * in.shade * k + c * flashLight(in.rel, float3(0, 1, 0), fl) * 0.8;
+    if (mobGlossy(pt)) {
+        float3 n = normalize(cross(dfdx(in.rel), dfdy(in.rel)));
+        col += mobSheen(n, in.rel, pt, u.lightDir.xyz, u.sunColor.rgb) * sh * saturate(in.shade * 1.3);
+    }
     return float4(applyFogDir(col, in.rel, in.dist, u), 1.0);
 }
 
@@ -571,7 +577,13 @@ struct PostParams {
     float4 grade;    // x = exposure, y = saturation, z = contrast, w = vignette
     float4 mist;     // rgb = mist colour, w = density
     float4 mistH;    // x = base height relative to the eye, y = falloff height
+    float4 dof;      // depth of field: focus distance, aperture, max radius (px), on
 };
+
+// Circle of confusion in pixels for a surface at `dist` (photo mode depth of field).
+static float dofCoc(float dist, float4 dof) {
+    return dof.z * saturate(abs(dist - dof.x) / max(dist, 0.001) * (0.4 + 2.2 * dof.y));
+}
 
 // God rays: march from each pixel toward the sun through the depth buffer; sky texels (depth 1) shine.
 fragment float4 raysFS(FsOut in [[stage_in]], depth2d<float> dep [[texture(0)]], depth2d<float> sm [[texture(1)]],
@@ -650,6 +662,29 @@ fragment float4 compositeFS(FsOut in [[stage_in]],
             float3 a = hdr.sample(ls, in.uv + dir * 0.5).rgb, b = hdr.sample(ls, in.uv - dir * 0.5).rgb;
             float blend = saturate(range / max(lMax, 1e-3)) * 0.5;
             c = mix(c, (a + b) * 0.5, blend);
+        }
+    }
+    if (p.dof.w > 0.0) {
+        // Depth of field (photo mode): a 16-tap golden-angle gather sized by this pixel's circle of confusion; a tap
+        // nearer the focus than its distance from the centre counts less, so sharp edges don't smear outward.
+        float dc = dep.sample(ls, in.uv);
+        float dist0 = dc >= 1.0 ? 2000.0 : length(relAt(in.uv, dc, u));
+        float coc = dofCoc(dist0, p.dof);
+        if (coc > 0.5) {
+            float2 tx = 1.0 / float2(hdr.get_width(), hdr.get_height());
+            float3 acc = c;
+            float wsum = 1.0;
+            for (int i = 0; i < 16; i++) {
+                float r = sqrt((float(i) + 0.5) / 16.0) * coc;
+                float a = float(i) * 2.39996;
+                float2 o = float2(cos(a), sin(a)) * r * tx;
+                float dt = dep.sample(ls, in.uv + o);
+                float distT = dt >= 1.0 ? 2000.0 : length(relAt(in.uv + o, dt, u));
+                float w = saturate(dofCoc(distT, p.dof) / max(r, 1.0));
+                acc += hdr.sample(ls, in.uv + o).rgb * w;
+                wsum += w;
+            }
+            c = acc / wsum;
         }
     }
     // One depth reconstruction shared by the shafts, haze and mist below.

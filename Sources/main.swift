@@ -98,6 +98,12 @@ enum Snapshot {
                     pos.x += sinf(yawD) * back
                     pos.z += cosf(yawD) * back
                 }
+                // --back N: stand N blocks back along the view, on the ground (horizon views of a landmark).
+                if let bk = Float(arg("--back") ?? "") {
+                    pos.x += sinf(yawD) * bk
+                    pos.z += cosf(yawD) * bk
+                    pos.y = Float(max(world.gen.column(Int(pos.x), Int(pos.z)).height, SEA) + 1)
+                }
                 print("feature \(f) at \(fx) \(fz)")
             } else { print("feature \(f) not found") }
         }
@@ -238,6 +244,17 @@ enum Snapshot {
                 let m = CommandMenu(game: game, prefill: "/give dia")
                 m.complete()
                 game.openMenu(m)
+            case "craftbook", "craftbook_all":
+                // The crafting book (CraftingBook.swift) with a starter kit: logs, cobblestone, iron, sticks, string.
+                for (i, (n, c)) in [("oak_log", 12), ("cobblestone", 30), ("iron_ingot", 9), ("stick", 8), ("string", 3), ("coal", 6),
+                                    ("oak_planks", 20), ("redstone", 5)].enumerated() {
+                    game.inventory.main[9 + i] = ItemStack(Items.id(n), c)
+                }
+                CraftingBookMenu.lastTab = which == "craftbook" ? .craftable : .building
+                let m = CraftingBookMenu(game: game)
+                game.openMenu(m)
+                game.menuCursor = CraftCategory.allCases.count + 3           // a tile: the detail panel shows its recipe
+                m.selected = m.recipe(at: 3)
             case "recipes":
                 game.inventory.main[18] = ItemStack(Items.id("oak_log"), 8)
                 game.inventory.main[19] = ItemStack(Items.id("cobblestone"), 20)
@@ -732,10 +749,23 @@ enum Snapshot {
             for (i, n) in names.enumerated() {
                 let parts = n.split(separator: ":").map(String.init)
                 guard let k = MobKind.named(parts[0]) else { print("unknown mob \(n)"); continue }
-                let off: Float = (Float(i) - Float(names.count - 1) / 2) * 2.2
-                let p: V3 = pos + f * 6 + r * off
+                var off: Float = (Float(i) - Float(names.count - 1) / 2) * 2.2
+                var ahead: Float = 6
+                // "side=X" / "back=Y": an exact spot (blocks right of the view line / further away) for formations.
+                for t in parts where t.hasPrefix("side=") || t.hasPrefix("back=") {
+                    let v = Float(t.dropFirst(5)) ?? 0
+                    if t.hasPrefix("side=") { off = v } else { ahead = 6 + v }
+                }
+                let p: V3 = pos + f * ahead + r * off
                 let x = Int(floor(p.x)), z = Int(floor(p.z))
-                let m = Mob(k, at: V3(Float(x) + 0.5, Float(world.topY(x, z) + 1), Float(z) + 0.5))
+                let exact = parts.contains { $0.hasPrefix("side=") || $0.hasPrefix("back=") }
+                var groundY = world.topY(x, z) + 1
+                if CommandLine.arguments.contains("--spawnlevel") {
+                    // On the floor at the camera's level, not on the roof above it (courtyards, halls, decks).
+                    func solid(_ y: Int) -> Bool { Blocks.collide[Int(world.block(x, y, z))] }
+                    if let y = stride(from: Int(floor(pos.y)) + 1, through: Int(floor(pos.y)) - 16, by: -1).first(where: { solid($0 - 1) && !solid($0) && !solid($0 + 1) }) { groundY = y }
+                }
+                let m = Mob(k, at: V3(exact ? p.x : Float(x) + 0.5, Float(groundY), exact ? p.z : Float(z) + 0.5))
                 m.yaw = game.player.yaw
                 if k == .boat {
                     m.variant = parts.count > 1 ? Int(parts[1]) ?? 0 : 0
@@ -765,6 +795,7 @@ enum Snapshot {
                 if k == .wither { m.phase = 0; m.pos.y += 2 }
                 if k == .evoker { m.spellTimer = 4.5 }
                 if CommandLine.arguments.contains("--facecam") { m.yaw = game.player.yaw + .pi }
+                if Soldier.rank(k) != nil { SoldierRig.stage(m, Array(parts.dropFirst()), world: world) }    // stance tokens
                 game.mobs.mobs.append(m)
             }
         }
@@ -962,6 +993,7 @@ enum Snapshot {
             game.player.pos = pos
         }
         if CommandLine.arguments.contains("--mobtests") && !MobTests.run(game: game, world: world, pos: pos, rd: rd) { return 1 }
+        if CommandLine.arguments.contains("--posecheck") && !PoseCheck.run(game: game) { return 1 }
         if let secs = Float(arg("--fortresstest") ?? ""), !MobTests.fortressFight(game: game, world: world, seconds: secs) { return 1 }
         if let secs = Double(arg("--fire") ?? "") {
             // Hold the trigger for a while (guns in flight, muzzle flash, soldiers answering), camera held still.
@@ -992,7 +1024,14 @@ enum Snapshot {
             print("after \(secs) s: \(game.mobs.mobs.count) mobs, villagers \(jobs.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", "))")
         }
         if CommandLine.arguments.contains("--padtest") { PadTest.run(game) }     // scripted controller menu tests
-        if CommandLine.arguments.contains("--pad") { PadManager.shared.forcePad(true) }   // draw prompts with pad glyphs
+        if CommandLine.arguments.contains("--pad") { PadManager.shared.forcePad(true) }
+        // --photo: photo mode at the harness camera (HUD hidden); --dof F: depth of field focused at F blocks.
+        if CommandLine.arguments.contains("--photo") {
+            game.togglePhotoMode()
+            game.cine.followPlayer = true
+            if let f = Float(arg("--dof") ?? "") { game.cine.dof = true; game.cine.autoFocus = false; game.cine.focus = f; game.cine.aperture = 0.7 }
+        }
+        if CommandLine.arguments.contains("--cinetest") && Cinematic.selfTest() > 0 { return 1 }   // draw prompts with pad glyphs
         if CommandLine.arguments.contains("--couch") || arg("--safe") != nil {
             // TV layout checks without touching the saved options (restored after the shot).
             PrefsSandbox.begin()

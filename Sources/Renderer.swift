@@ -60,6 +60,8 @@ final class Renderer: NSObject, MTKViewDelegate {
     let starVerts: Int
     let depthWrite: MTLDepthStencilState
     let depthRead: MTLDepthStencilState
+    var landmarkVerts: [SimpleVert] = []       // far landmark impostors (LandmarkRender.swift), reused every frame
+    var landmarkSmoke: [SimpleVert] = []
     let depthNone: MTLDepthStencilState
     let texture: MTLTexture
     let quadIndices: MTLBuffer
@@ -425,6 +427,11 @@ final class Renderer: NSObject, MTKViewDelegate {
     // stopping short of blocks.
     func cameraEye() -> (eye: V3, yaw: Float, pitch: Float) {
         let p = game.player
+        // Photo mode (Cinematic.swift): the free camera.
+        if game.cine.active {
+            if game.cine.followPlayer { return (p.eye, p.yaw, p.pitch) }
+            return (game.cine.pos, game.cine.yaw, game.cine.pitch)
+        }
         let tp = game.cameraMode != 0 && game.sleeping == 0
         var camYaw = p.yaw, camPitch = p.pitch
         var eye = p.eye
@@ -543,7 +550,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         let lf = lightFrame
         let eye = cameraEye().eye
         var n = 0
-        if !game.mobs.mobs.isEmpty || (game.cameraMode != 0 && game.sleeping == 0) {
+        if !game.mobs.mobs.isEmpty || game.showsPlayerModel {
             if mobBufs.isEmpty {
                 for _ in 0..<3 { if let b = device.makeBuffer(length: Renderer.mobBufSize, options: .storageModeShared) { mobBufs.append(b) } }
             }
@@ -553,7 +560,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let cap = Renderer.mobBufSize / MemoryLayout<MobVert>.stride
                 let ptr = buf.contents().bindMemory(to: MobVert.self, capacity: cap)
                 n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: game.daylight, world: game.world, into: ptr, capacity: cap)
-                if game.cameraMode != 0 && game.sleeping == 0 {
+                if game.showsPlayerModel {
                     n += writePlayerModel(game, eye: eye, daylight: game.daylight, into: ptr + n, capacity: cap - n)
                 }
                 mobPre = (buf, n)
@@ -655,14 +662,14 @@ final class Renderer: NSObject, MTKViewDelegate {
         func push(_ items: [HudVert]) -> Int? { items.withUnsafeBytes { pushBytes($0) } }
 
         let p = game.player
-        let tp = game.cameraMode != 0 && game.sleeping == 0
+        let tp = game.showsPlayerModel
         let (eye, camYaw, camPitch) = cameraEye()
         let camLook = V3(-sinf(camYaw) * cosf(camPitch), sinf(camPitch), -cosf(camYaw) * cosf(camPitch))
         let rd = Float(game.world.renderDistance)
         let underwater = p.headInWater
         // Capital ships show far past the terrain (a 480-block frigate on the horizon): a longer far plane while one is out.
         let far = max(rd * 16 + 96, game.world.ships.list.contains { $0.kinematic } ? 1000 : 0)
-        let proj = perspectiveRH(fovy: game.fovSetting * game.fovScale * .pi / 180, aspect: W / max(H, 1), near: 0.05, far: far)
+        let proj = perspectiveRH(fovy: (game.cine.active ? game.cine.fov : game.fovSetting * game.fovScale) * .pi / 180, aspect: W / max(H, 1), near: 0.05, far: far)
         let viewRot = rotationX(-camPitch) * rotationY(-camYaw)
         let viewProj = proj * viewRot
         let frustum = Frustum(viewProj * translationMatrix(-eye))
@@ -713,6 +720,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             // Eyes adapt at night: exposure rises as daylight falls (only with open sky above).
             let night: Float = hasSky ? simd_clamp((0.55 - daylight) / 0.45, 0, 1) * caveScale : 0
             pp.grade = V4(1.0 + 0.55 * night, 1.14 - 0.12 * night, 1.06, 0.16)
+            if game.cine.active && game.cine.dof { pp.dof = V4(game.cine.focus, game.cine.aperture, max(4, H / 90), 1) }
             // Eye adaptation: exposure follows how bright the eye's surroundings are (sky and block light around it),
             // opening up slowly in the dark and closing quickly in daylight, so leaving a cave is bright for a moment.
             let ex = Int(floor(eye.x)), ey = Int(floor(eye.y)), ez = Int(floor(eye.z))
@@ -976,6 +984,23 @@ final class Renderer: NSObject, MTKViewDelegate {
         shipRenderer.beginFrame()
         shipRenderer.hdr = hdrActive                 // Fancy draws into the HDR target
         shipRenderer.drawOpaque(enc, ships: game.world.ships, eye: eye, u: &u, frustum: frustum, quads: quadIndices)
+
+        // Big landmarks past the render distance (volcano impostors): opaque cone, then blended smoke.
+        if hasSky && !underwater {
+            var smokeStart = 0
+            buildLandmarks(&landmarkVerts, smokeStart: &smokeStart, game: game, eye: eye, far: far, fog: fogColor, rd: rd)
+            if !landmarkVerts.isEmpty, let off = push(landmarkVerts) {
+                enc.setRenderPipelineState(simplePipe)
+                enc.setCullMode(.none)
+                enc.setVertexBuffer(scratch, offset: off, index: 0)
+                enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
+                enc.setDepthStencilState(depthWrite)
+                if smokeStart > 0 { enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: smokeStart) }
+                enc.setDepthStencilState(depthRead)
+                if landmarkVerts.count > smokeStart { enc.drawPrimitives(type: .triangle, vertexStart: smokeStart, vertexCount: landmarkVerts.count - smokeStart) }
+            }
+            landmarkVerts.removeAll(keepingCapacity: true)
+        }
 
         // Mobs (written straight into the scratch ring: no per-frame arrays); Fancy wrote them before the shadow pass.
         if let pre = mobPre, hdrActive {
@@ -2490,11 +2515,10 @@ final class Renderer: NSObject, MTKViewDelegate {
         let shade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
         var faces: [(depth: Float, pts: [V2], color: V4)] = []
         for part in parts {
-            let ca = cosf(part.rotX), sa = sinf(part.rotX)
+            let rot = part.rotation
             let size = part.mx - part.mn
             func place(_ lp: V3) -> V3 {
-                var q = lp - part.pivot
-                q = V3(q.x, q.y * ca - q.z * sa, q.y * sa + q.z * ca) + part.pivot
+                let q = part.place(lp, rot)
                 return V3(cyw * q.x + syw * q.z, q.y, -syw * q.x + cyw * q.z)
             }
             let mid = place(part.mn + size * 0.5)

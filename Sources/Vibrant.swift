@@ -362,4 +362,5 @@ struct PostParams {
     var grade = V4(1, 1, 1, 0)    // exposure, saturation, contrast, vignette
     var mist = V4(0, 0, 0, 0)     // rgb = mist colour, w = density (0 = off)
     var mistH = V4(0, 0, 0, 0)    // x = mist base height relative to the eye, y = falloff height
+    var dof = V4(0, 0, 0, 0)      // depth of field (photo mode): focus distance, aperture 0...1, max blur radius px, on
 }

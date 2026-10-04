@@ -222,6 +222,14 @@ extension Capital {
             let e = Int(cfHalf(z) * 0.87) - 1
             hb.set(sx * e, 14, z, light)
         } }
+        // The Capital chevron on both bow flanks: a graphite V on the white plate, just above the chine.
+        let chevron = ["X.....X", ".X...X.", "..X.X..", "...X..."]
+        for (row, line) in chevron.enumerated() { for (k, ch) in line.enumerated() where ch == "X" {
+            let y = 13 - row, z = 26 + k
+            var xe = 0
+            while cfHull(xe + 1, y, z) { xe += 1 }
+            hb.set(xe, y, z, graphite); hb.set(-xe, y, z, graphite)
+        } }
         // Flight-deck markings: edge lines, a landing circle with a cross at its centre, a hangar threshold bar.
         for z in 104...137 { let e = Int(cfHalf(z) * 0.87) - 2; hb.set(e, 14, z, panel); hb.set(-e, 14, z, panel) }
         for z in 113...129 { for x in -8...8 {

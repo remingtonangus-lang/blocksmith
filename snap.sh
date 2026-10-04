@@ -159,6 +159,9 @@ done
 "$BIN" --snapshot snaps/inventory.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu inventory --slot 3
 "$BIN" --snapshot snaps/creative.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu creative
 "$BIN" --snapshot snaps/crafting.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu crafting
+"$BIN" --snapshot snaps/craftbook.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu craftbook
+"$BIN" --snapshot snaps/tv_craftbook.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --w 1920 --h 1080 --couch --safe 5 --pad --menu craftbook
+"$BIN" --snapshot snaps/tv_craftbook_all.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --w 1920 --h 1080 --couch --safe 5 --pad --menu craftbook_all
 "$BIN" --snapshot snaps/bugnotes.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --bugnotetest
 "$BIN" --snapshot snaps/padtest.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --padtest
 "$BIN" --snapshot snaps/inventory_pad.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu inventory --slot 3 --pad
@@ -204,6 +207,20 @@ done
 "$BIN" --snapshot snaps/nether_mobs.png --seed 12345 --dim nether --structure fortress --yaw -45 --pitch -2 --up 1 --rd 6 --mobs --nethermobs
 "$BIN" --snapshot snaps/bastion.png --seed 12345 --dim nether --structure bastion --yaw 150 --pitch -10 --up 1 --rd 6
 "$BIN" --snapshot snaps/bastion_far.png --seed 12345 --dim nether --structure bastion --yaw 150 --pitch -35 --up 14 --rd 8
+# Big landmarks (Landmarks.swift): a volcano from afar, its crater lake and a lava channel.
+"$BIN" --snapshot snaps/canyon.png --seed 12345 --feature canyon --yaw 30 --pitch -28 --up 70 --time 0.3 --rd 12
+"$BIN" --snapshot snaps/canyon_floor.png --seed 12345 --feature canyon --yaw 120 --pitch 8 --up 2 --time 0.3 --rd 10
+"$BIN" --snapshot snaps/spire.png --seed 12345 --structure great_ruin --frame 1.3 --time 0.3 --rd 12
+"$BIN" --snapshot snaps/spire_inside.png --seed 12345 --structure great_ruin --offset 0,1,-8 --yaw 0 --pitch 35 --time 0.3 --rd 8
+"$BIN" --snapshot snaps/spire_horizon.png --seed 12345 --structure great_ruin --offset 0,30,700 --yaw 0 --pitch 4 --time 0.3 --rd 8
+# Photo mode (Cinematic.swift): path self-test, then the free camera with depth of field.
+"$BIN" --snapshot snaps/photo_dof.png --seed 12345 --find forest --yaw 120 --pitch -5 --time 0.22 --ground --up 1.6 --rd 8 --photo --dof 5 --cinetest
+"$BIN" --snapshot snaps/photo_dof_far.png --seed 12345 --find plains --yaw 200 --pitch -6 --time 0.3 --up 3 --rd 10 --photo --dof 60
+"$BIN" --snapshot snaps/volcano_far.png --seed 12345 --feature volcano --yaw 0 --pitch -25 --up 110 --time 0.3 --rd 16
+"$BIN" --snapshot snaps/volcano_crater.png --seed 12345 --feature volcano --yaw 30 --pitch -60 --up 230 --time 0.3 --rd 10
+"$BIN" --snapshot snaps/volcano_horizon.png --seed 12345 --feature volcano --back 900 --yaw 0 --pitch 3 --up 25 --time 0.3 --rd 8
+"$BIN" --snapshot snaps/volcano_horizon_night.png --seed 12345 --feature volcano --back 1400 --yaw 0 --pitch 3 --up 25 --time 0.8 --rd 8
+"$BIN" --snapshot snaps/volcano_dusk.png --seed 12345 --feature volcano --yaw 200 --pitch -22 --up 90 --time 0.48 --rd 16
 "$BIN" --snapshot snaps/citadel_far.png --seed 12345 --structure military_base --frame 1.1 --time 0.3 --rd 12
 "$BIN" --snapshot snaps/citadel_gate.png --seed 12345 --structure military_base --yaw 0 --pitch 12 --up 1 --time 0.3 --rd 10
 "$BIN" --snapshot snaps/citadel_top.png --seed 12345 --structure military_base --yaw 20 --pitch -45 --up 70 --time 0.3 --rd 10
@@ -286,6 +303,20 @@ done
 "$BIN" --snapshot snaps/third_front.png --seed 12345 --find plains --yaw 30 --pitch 5 --time 0.3 --up 1 --camera 2
 "$BIN" --snapshot snaps/mobs_new.png --seed 12345 --find plains --yaw 30 --pitch -8 --time 0.3 --up 1 --spawn zombie_horse,illusioner,happy_ghast,parched,camel_husk,nautilus,zombie_nautilus,skeleton --stage
 "$BIN" --snapshot snaps/soldiers.png --seed 12345 --find plains --yaw 30 --pitch -18 --time 0.3 --up 1 --facecam --spawn soldier_recruit:aggro:0,soldier_recruit,soldier_trooper:aggro:2,soldier_marksman:aggro:3,soldier_ironclad:aggro:4,soldier_ironclad:aggro:5 --stage
+# The Capital's six ranks (SoldierRig.swift): front, side and back by day and at night, stances, crew stations, a squad.
+"$BIN" --snapshot snaps/soldier_ranks_front.png --seed 12345 --structure military_base --yaw 0 --pitch -10 --time 0.3 --up 1 --rd 6 --facecam --spawnlevel --spawn soldier_recruit:0:back=0:turn=0,soldier_trooper:2:back=0:turn=0,soldier_marksman:3:back=0:turn=0,soldier_ironclad:4:back=0:turn=0,soldier_officer:6:back=0:turn=0,soldier_crew:6:back=0:turn=0
+"$BIN" --snapshot snaps/soldier_ranks_side.png --seed 12345 --structure military_base --yaw 0 --pitch -10 --time 0.3 --up 1 --rd 6 --facecam --spawnlevel --spawn soldier_recruit:0:back=0:turn=90,soldier_trooper:2:back=0:turn=90,soldier_marksman:3:back=0:turn=90,soldier_ironclad:4:back=0:turn=90,soldier_officer:6:back=0:turn=90,soldier_crew:6:back=0:turn=90
+"$BIN" --snapshot snaps/soldier_ranks_back.png --seed 12345 --structure military_base --yaw 0 --pitch -10 --time 0.3 --up 1 --rd 6 --facecam --spawnlevel --spawn soldier_recruit:0:back=0:turn=180,soldier_trooper:2:back=0:turn=180,soldier_marksman:3:back=0:turn=180,soldier_ironclad:4:back=0:turn=180,soldier_officer:6:back=0:turn=180,soldier_crew:6:back=0:turn=180
+"$BIN" --snapshot snaps/soldier_ranks_night_front.png --seed 12345 --structure military_base --yaw 0 --pitch -10 --time 0.78 --up 1 --rd 6 --facecam --spawnlevel --torches --spawn soldier_recruit:0:back=0:turn=0,soldier_trooper:2:back=0:turn=0,soldier_marksman:3:back=0:turn=0,soldier_ironclad:4:back=0:turn=0,soldier_officer:6:back=0:turn=0,soldier_crew:6:back=0:turn=0
+"$BIN" --snapshot snaps/soldier_ranks_night_side.png --seed 12345 --structure military_base --yaw 0 --pitch -10 --time 0.78 --up 1 --rd 6 --facecam --spawnlevel --torches --spawn soldier_recruit:0:back=0:turn=90,soldier_trooper:2:back=0:turn=90,soldier_marksman:3:back=0:turn=90,soldier_ironclad:4:back=0:turn=90,soldier_officer:6:back=0:turn=90,soldier_crew:6:back=0:turn=90
+"$BIN" --snapshot snaps/soldier_ranks_night_back.png --seed 12345 --structure military_base --yaw 0 --pitch -10 --time 0.78 --up 1 --rd 6 --facecam --spawnlevel --torches --spawn soldier_recruit:0:back=0:turn=180,soldier_trooper:2:back=0:turn=180,soldier_marksman:3:back=0:turn=180,soldier_ironclad:4:back=0:turn=180,soldier_officer:6:back=0:turn=180,soldier_crew:6:back=0:turn=180
+"$BIN" --snapshot snaps/soldier_ranks_aim.png --seed 12345 --structure military_base --yaw 0 --pitch -10 --time 0.3 --up 1 --rd 6 --facecam --spawnlevel --spawn soldier_recruit:0:back=0:turn=35:aim,soldier_trooper:2:back=0:turn=35:aim,soldier_marksman:3:back=0:turn=35:aim,soldier_ironclad:4:back=0:turn=35:aim,soldier_officer:6:back=0:turn=35:aim,soldier_crew:6:back=0:turn=35:aim
+"$BIN" --snapshot snaps/soldier_actions.png --seed 12345 --structure military_base --yaw 0 --pitch -8 --time 0.3 --up 1 --rd 6 --facecam --spawnlevel --spawn soldier_recruit:0:back=4:turn=55:aim,soldier_recruit:0:back=4:turn=55:fire,soldier_recruit:0:back=4:turn=55:reload=0.3,soldier_recruit:0:back=4:turn=55:reload=0.55,soldier_recruit:0:back=4:turn=55:throw=0.5,soldier_recruit:0:back=4:turn=55:march,soldier_recruit:0:back=4:turn=55:run,soldier_recruit:0:back=4:turn=55:rest
+"$BIN" --snapshot snaps/soldier_actions_heavy.png --seed 12345 --structure military_base --yaw 0 --pitch -8 --time 0.3 --up 1 --rd 6 --facecam --spawnlevel --spawn soldier_trooper:2:back=0:turn=55:aim,soldier_trooper:2:back=0:turn=55:reload=0.4,soldier_marksman:3:back=0:turn=55:aim,soldier_ironclad:4:back=0:turn=55:aim,soldier_ironclad:5:back=0:turn=55:fire,soldier_officer:6:back=0:turn=55:aim,soldier_officer:6:back=0:turn=55:point
+"$BIN" --snapshot snaps/soldier_stations.png --seed 12345 --structure military_base --yaw 0 --pitch -8 --time 0.3 --up 1 --rd 6 --facecam --spawnlevel --spawn soldier_crew:6:back=0:turn=60:seated,soldier_recruit:0:back=0:turn=60:passenger,soldier_crew:1:back=0:turn=60:gunner,soldier_crew:6:back=0:turn=60:console,soldier_recruit:0:back=0:turn=60:parade
+"$BIN" --snapshot snaps/soldier_closeup.png --seed 12345 --find plains --yaw 30 --pitch -2 --time 0.3 --up 1 --rd 4 --facecam --stage --spawn soldier_officer:6:side=-0.7:back=-3.4:turn=-15,soldier_recruit:0:side=0.7:back=-3.4:turn=15
+"$BIN" --snapshot snaps/soldier_squad.png --seed 12345 --structure military_base --yaw 0 --pitch -4 --up 1 --time 0.3 --rd 6 --facecam --spawnlevel --spawn soldier_officer:6:side=0:back=-1,soldier_recruit:0:side=-3.3:back=1.0,soldier_recruit:0:side=-1.1:back=1.0,soldier_recruit:0:side=1.1:back=1.0,soldier_recruit:0:side=3.3:back=1.0,soldier_trooper:2:side=-2.2:back=2.6,soldier_marksman:3:side=0:back=2.6,soldier_trooper:2:side=2.2:back=2.6,soldier_marksman:3:side=4.4:back=2.6,soldier_ironclad:4:side=-4.4:back=2.6,soldier_crew:6:side=5.5:back=0.2
+"$BIN" --snapshot snaps/soldier_squad_night.png --seed 12345 --structure military_base --yaw 0 --pitch -4 --up 1 --time 0.78 --rd 6 --facecam --torches --spawnlevel --spawn soldier_officer:6:side=0:back=-1,soldier_recruit:0:side=-3.3:back=1.0,soldier_recruit:0:side=-1.1:back=1.0,soldier_recruit:0:side=1.1:back=1.0,soldier_recruit:0:side=3.3:back=1.0,soldier_trooper:2:side=-2.2:back=2.6,soldier_marksman:3:side=0:back=2.6,soldier_trooper:2:side=2.2:back=2.6,soldier_marksman:3:side=4.4:back=2.6,soldier_ironclad:4:side=-4.4:back=2.6,soldier_crew:6:side=5.5:back=0.2
 "$BIN" --snapshot snaps/captains.png --seed 12345 --find plains --yaw 30 --pitch -15 --time 0.3 --up 1 --facecam --spawn pillager:captain,vindicator:captain,pillager --stage
 "$BIN" --snapshot snaps/firefight.png --seed 12345 --find plains --yaw 30 --pitch -12 --time 0.3 --up 1 --survival 20 --hold gun_smg --facecam --spawn soldier_trooper:aggro:0,soldier_recruit:aggro:1,soldier_ironclad:aggro:5 --fire 1.4 --stage
 "$BIN" --snapshot snaps/deck_gun.png --seed 12345 --find plains --yaw 30 --pitch -32 --time 0.3 --up 5 --spawn deck_gun:aggro --stage
@@ -302,7 +333,7 @@ done
 "$BIN" --snapshot snaps/steelhold_armory_close.png --seed 12345 --structure military_base --offset 14,0,-63 --yaw 0 --pitch 0 --time 0.3 --listframes || true
 "$BIN" --snapshot snaps/steelhold_fight.png --seed 12345 --structure military_base --offset 14,4,-60 --yaw 0 --pitch 0 --time 0.3 --fortresstest 20
 "$BIN" --snapshot snaps/steelhold_command.png --seed 12345 --structure military_base --offset 0,6,-33 --yaw 0 --pitch -15 --time 0.3
-"$BIN" --snapshot snaps/mobtests.png --seed 12345 --find plains --yaw 0 --pitch -30 --time 0.3 --up 3 --mobtests
+"$BIN" --snapshot snaps/mobtests.png --seed 12345 --find plains --yaw 0 --pitch -30 --time 0.3 --up 3 --mobtests --posecheck
 "$BIN" --snapshot snaps/pathtest.png --seed 12345 --find plains --yaw 0 --pitch -40 --time 0.75 --up 14 --pathtest
 "$BIN" --snapshot snaps/ashen_grove.png --seed 12345 --find pale_garden --yaw 210 --pitch -20 --time 0.3 --up 4 --treecheck
 "$BIN" --snapshot snaps/ashen_inside.png --seed 12345 --find pale_garden --yaw 120 --pitch 8 --time 0.3 --ground

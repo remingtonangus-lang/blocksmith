@@ -271,7 +271,7 @@ extension Snd {
         case .note: return "Note block plays"
         case .gun(let k):
             switch k {
-            case 0...5: return "Gunfire"
+            case 0...5, 13: return "Gunfire"
             case 6: return "Reloading"
             case 7: return "Gun clicks empty"
             case 8: return "Ricochet"

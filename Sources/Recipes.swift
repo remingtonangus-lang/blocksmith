@@ -20,7 +20,7 @@ enum Recipes {
         "eggs": ["egg", "brown_egg", "blue_egg"],
         "wooden_slabs": ["oak_slab"],
     ]
-    private static var tagSets: [String: Set<ItemID>] = {
+    static var tagSets: [String: Set<ItemID>] = {
         var out: [String: Set<ItemID>] = [:]
         for (k, v) in tags { out[k] = Set(v.filter { Items.has($0) }.map { Items.id($0) }) }
         return out

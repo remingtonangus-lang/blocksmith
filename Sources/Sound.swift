@@ -135,7 +135,7 @@ enum Snd: Hashable {
     var range: Float {
         switch self {
         case .explode, .fireworkBlastLarge, .lightning, .wardenSonicBoom, .crystalBreak, .endPortalOpen: return 64
-        case .gun(let k): return k == 9 ? 128 : (k == 10 ? 96 : (k <= 5 ? 48 : 16))
+        case .gun(let k): return k == 9 ? 128 : (k == 10 ? 96 : (k <= 5 || k == WeaponAudio.sidearmSlot ? 48 : 16))
         case .gunDistant: return 220
         case .explodeLarge: return 128
         case .explodeSmall: return 48
@@ -265,8 +265,8 @@ final class SoundBank {
             for m in MobSound.allCases { s.append(.mob(k, m)) }
         }
         for k in [MobKind.cow, .pig, .sheep, .chicken, .villager, .wolf, .cat, .horse, .fox, .goat] { s.append(.babyMob(k, .ambient)) }
-        for k in 0...12 { s.append(.gun(k)) }
-        for k in 0...5 { s.append(.gunReload(k)); s.append(.gunDistant(k)) }
+        for k in 0...13 { s.append(.gun(k)) }
+        for k in [0, 1, 2, 3, 4, 5, WeaponAudio.sidearmSlot] { s.append(.gunReload(k)); s.append(.gunDistant(k)) }
         s.append(.gunDistant(WeaponAudio.heavySlot))
         for m in SoundMat.allCases { s.append(.bulletImpact(m)) }
         s += [.bulletWhizz, .bulletFlesh, .grenadeBounce, .rocketFlightLoop, .shellFlightLoop, .explodeSmall, .explodeLarge, .debrisRain]
@@ -282,8 +282,8 @@ final class SoundBank {
     // Rendered in the background when a fight or a vehicle is near, so the first shot or engine doesn't hitch.
     static var combatSounds: [Snd] {
         var s: [Snd] = []
-        for k in 0...12 { s.append(.gun(k)) }
-        for k in 0...5 { s.append(.gunReload(k)); s.append(.gunDistant(k)) }
+        for k in 0...13 { s.append(.gun(k)) }
+        for k in [0, 1, 2, 3, 4, 5, WeaponAudio.sidearmSlot] { s.append(.gunReload(k)); s.append(.gunDistant(k)) }
         s.append(.gunDistant(WeaponAudio.heavySlot))
         for m in [SoundMat.stone, .dirt, .sand, .wood, .plant, .glass, .gravel, .metal, .deepslate] { s.append(.bulletImpact(m)) }
         s += [.bulletWhizz, .bulletFlesh, .grenadeBounce, .rocketFlightLoop, .shellFlightLoop, .explodeSmall, .explodeLarge, .debrisRain]
@@ -313,7 +313,7 @@ final class SoundBank {
         switch s {
         case .step, .hit, .breakBlock, .place, .fall, .attack, .attackSweep, .eat, .lavaPop, .caveDrip, .villagerWork: return 3
         case .birdCall: return 6
-        case .gun(let k): return k <= 5 || k == 8 ? 3 : 2
+        case .gun(let k): return k <= 5 || k == 8 || k == WeaponAudio.sidearmSlot ? 3 : 2
         case .bulletImpact, .bulletWhizz, .bulletFlesh, .soldierStep: return 3
         case .soldier(_, let b): return b == .idle ? 4 : 3
         case .mob(_, .ambient), .mob(_, .hurt), .babyMob: return 2

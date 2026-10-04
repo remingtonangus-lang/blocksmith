@@ -438,17 +438,52 @@ static float3 mobPattern(MobOut in) {
     } else if (in.pattern > 3.5 && in.pattern < 4.5) {
         float n = vnoise(p.xz * 0.5 + p.y * 0.37) * 0.6 + vnoise(p.zy * 1.3 + 5.0) * 0.4;
         c *= 0.74 + 0.3 * n + 0.06 * hf;                          // mottled skin
-    } else if (in.pattern > 4.5) {
+    } else if (in.pattern > 4.5 && in.pattern < 5.5) {
         c *= 0.9 + 0.06 * h + 0.05 * hf;                          // bone
+    } else if (in.pattern > 5.5 && in.pattern < 6.5) {
+        // dress cloth: a fine diagonal twill at 1/64 block and soft folds (white uniforms stay bright)
+        float tw = sin((p.x + p.y + p.z) * 12.566);
+        float fold = vnoise(p.xy * 0.33 + p.z * 0.21 + 11.0) * 0.6 + vnoise(p.zy * 0.4 + 3.0) * 0.4;
+        c *= 0.955 + 0.025 * tw + 0.07 * (fold - 0.5) + 0.02 * (hf - 0.5);
+    } else if (in.pattern > 6.5 && in.pattern < 7.5) {
+        c *= 0.985 + 0.02 * (hf - 0.5);                           // enamel: clean, glossy (mobSheen)
+    } else if (in.pattern > 7.5 && in.pattern < 8.5) {
+        c *= 0.9 + 0.08 * hf + 0.04 * sin(p.y * 9.0 + p.x * 3.0); // polished metal: fine brushing
+    } else if (in.pattern > 9.5 && in.pattern < 10.5) {
+        c *= 0.93 + 0.05 * hf;                                    // polished leather
+    } else if (in.pattern > 8.5) {
+        // emissive (9) and smoked glass (11): flat
     } else {
         c *= 0.95 + 0.04 * h + 0.04 * (hf - 0.5);
     }
     return c;
 }
 
+// Highlights on polished mob surfaces (Capital uniforms: 7 enamel, 8 metal, 10 leather, 11 smoked glass): a sun
+// specular and a faint rim, from the face normal `n` (screen derivatives of the camera-relative position).
+static float3 mobSheen(float3 n, float3 rel, int pt, float3 toLight, float3 lightC) {
+    float3 v = normalize(rel);
+    if (dot(n, v) > 0.0) n = -n;
+    float3 l = normalize(toLight);
+    float3 h = normalize(l - v);
+    float shin = pt == 8 ? 40.0 : (pt == 11 ? 90.0 : (pt == 10 ? 24.0 : 32.0));
+    float k = pt == 8 ? 0.5 : (pt == 11 ? 0.55 : (pt == 10 ? 0.22 : 0.28));
+    float s = pow(saturate(dot(n, h)), shin) * k * saturate(dot(n, l) * 4.0);
+    float rim = pow(1.0 - saturate(dot(n, -v)), 4.0) * (pt == 11 ? 0.12 : 0.06);
+    return lightC * (s + rim);
+}
+static bool mobGlossy(int pt) { return pt == 7 || pt == 8 || pt == 10 || pt == 11; }
+
 fragment float4 mobFS(MobOut in [[stage_in]], constant Uniforms& u [[buffer(1)]]) {
     float3 c = mobPattern(in);
-    return float4(applyFog(c * in.shade, in.dist, u), 1.0);
+    int pt = int(in.pattern + 0.5);
+    if (pt == 9) return float4(applyFog(c, in.dist, u), 1.0);        // emissive: visors, cells, lenses
+    float3 col = c * in.shade;
+    if (mobGlossy(pt)) {
+        float3 n = normalize(cross(dfdx(in.rel), dfdy(in.rel)));
+        col += mobSheen(n, in.rel, pt, u.sunDir.xyz, float3(u.params.y)) * saturate(in.shade * 1.3);
+    }
+    return float4(applyFog(col, in.dist, u), 1.0);
 }
 
 // Textured entities: dropped items (cutout) and the block-breaking crack overlay (blended).

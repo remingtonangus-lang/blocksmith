@@ -47,7 +47,7 @@ jobs:
 
   fast:
     runs-on: macos-14
-    timeout-minutes: 20
+    timeout-minutes: 26
     concurrency:
       group: fast-${{ github.ref }}
       cancel-in-progress: true
@@ -77,8 +77,29 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p snaps
-          BLOCKSMITH_TEXRES=16 build/Blocksmith.app/Contents/MacOS/Blocksmith --snapshot snaps/fast.png --seed 12345 --time 0.25 --rd 4 2>&1 | tee snap.log
+          BLOCKSMITH_TEXRES=16 build/Blocksmith.app/Contents/MacOS/Blocksmith --snapshot snaps/fast.png --seed 12345 --time 0.25 --rd 4 --posecheck 2>&1 | tee snap.log
           [ -f snaps/imagecheck.log ] && python3 tools/imagecheck.py snaps/imagecheck.log 2>&1 | tee -a snap.log || true
+
+      # A [fastshots a,b_*] tag (the last one) in the head commit message renders those snap.sh shots (by PNG name, * globs) here too,
+      # so a session can look at its shots without waiting for a heavy run. Max 16 shots.
+      - name: Shots named in the commit message
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        timeout-minutes: 14
+        env:
+          MSG: ${{ github.event.head_commit.message }}
+        run: |
+          LIST=$(printf '%s' "$MSG" | grep -o '\[fastshots [^]]*\]' | tail -1 | sed 's/^\[fastshots //; s/\]$//' | tr ',' ' ' || true)
+          [ -n "$LIST" ] || { echo "no [fastshots ...] in the commit message"; exit 0; }
+          BIN=build/Blocksmith.app/Contents/MacOS/Blocksmith
+          k=0
+          for n in $LIST; do
+            pat=$(printf '%s' "$n" | sed 's/[^a-zA-Z0-9_*]//g; s/\*/[a-zA-Z0-9_]*/g')
+            { grep -E "snaps/${pat}\.png" snap.sh || echo "fastshot: no shot matches $n" >&2; } | while IFS= read -r L; do
+              echo "fastshot: $L" | tee -a snap.log
+              (eval "BLOCKSMITH_TEXRES=32 $L" < /dev/null) 2>&1 | tail -12 | tee -a snap.log || true
+            done
+            k=$((k + 1)); [ "$k" -lt 16 ] || break
+          done
 
       - name: Publish to ci-fast
         if: ${{ !cancelled() }}
@@ -102,6 +123,9 @@ jobs:
             echo "### Type-check (warnings, slowest first)"; echo '```'; head -40 typecheck.log 2>/dev/null || true; echo '```'
             echo "### Snapshot"; echo '```'; tail -20 snap.log 2>/dev/null || true; echo '```'
             echo "![fast](fast.png)"
+            for f in *.png; do
+              if [ -e "$f" ] && [ "$f" != fast.png ]; then echo "### ${f%.png}"; echo "![${f}](${f})"; fi
+            done
           } > README.md
           git init -q; git checkout -q --orphan ci-fast; git add -A
           git -c user.name="blocksmith-ci" -c user.email="ci@users.noreply.github.com" commit -qm "Fast lane for ${GITHUB_SHA}"

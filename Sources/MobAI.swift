@@ -23,6 +23,8 @@ extension MobKind {
         case .soldierTrooper: return 32
         case .soldierMarksman: return 60
         case .soldierIronclad: return 40
+        case .soldierOfficer: return 34
+        case .soldierCrew: return 28
         case .deckGun: return 80
         default: return 16
         }
