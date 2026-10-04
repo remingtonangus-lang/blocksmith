@@ -204,6 +204,10 @@ done
 "$BIN" --snapshot snaps/nether_mobs.png --seed 12345 --dim nether --structure fortress --yaw -45 --pitch -2 --up 1 --rd 6 --mobs --nethermobs
 "$BIN" --snapshot snaps/bastion.png --seed 12345 --dim nether --structure bastion --yaw 150 --pitch -10 --up 1 --rd 6
 "$BIN" --snapshot snaps/bastion_far.png --seed 12345 --dim nether --structure bastion --yaw 150 --pitch -35 --up 14 --rd 8
+# Big landmarks (Landmarks.swift): a volcano from afar, its crater lake and a lava channel.
+"$BIN" --snapshot snaps/volcano_far.png --seed 12345 --feature volcano --yaw 0 --pitch -25 --up 110 --time 0.3 --rd 16
+"$BIN" --snapshot snaps/volcano_crater.png --seed 12345 --feature volcano --yaw 30 --pitch -60 --up 230 --time 0.3 --rd 10
+"$BIN" --snapshot snaps/volcano_dusk.png --seed 12345 --feature volcano --yaw 200 --pitch -22 --up 90 --time 0.48 --rd 16
 "$BIN" --snapshot snaps/citadel_far.png --seed 12345 --structure military_base --frame 1.1 --time 0.3 --rd 12
 "$BIN" --snapshot snaps/citadel_gate.png --seed 12345 --structure military_base --yaw 0 --pitch 12 --up 1 --time 0.3 --rd 10
 "$BIN" --snapshot snaps/citadel_top.png --seed 12345 --structure military_base --yaw 20 --pitch -45 --up 70 --time 0.3 --rd 10

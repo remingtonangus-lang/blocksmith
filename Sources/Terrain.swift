@@ -82,6 +82,9 @@ final class Terrain {
         var dry: Float = 0    // 1 on a dry lake bed (salt flat)
         var isl: Float = 0
         var delta: Float = 0  // river delta flats near a mouth
+        var vol: Float = 0    // inside a volcano's cone (0 outside, 1 on the cone proper; Landmarks.swift)
+        var lava: Float = 0   // crater lava lake surface (display height), 0 when none
+        var flow: Float = 0   // 1 on a lava channel down a volcano's flank
     }
 
     let seed: UInt64
@@ -101,6 +104,7 @@ final class Terrain {
     private let raccCache: GridCache<Float>
     private let lakeCache: GridCache<Lake>
     private let riverCells: GridCache<RiverSet>
+    let volcanoCache = GridCache<Volcano>(bits: 8, empty: Volcano.none)
 
     init(seed: UInt64) {
         self.seed = seed
@@ -328,6 +332,7 @@ final class Terrain {
         n.jt = 0.1 * jitN.fbm2(fx / 40, fz / 40, 2)
         n.jw = 0.12 * jitN.fbm2(fx / 40 + 71, fz / 40 - 13, 2)
         carveWater(&n, fx, fz, m)
+        applyVolcanoes(&n, fx, fz)
         return n
     }
 
@@ -335,6 +340,7 @@ final class Terrain {
     // and lakes flag the nodes around them, so whole channels share one level).
     struct Column {
         var h: Float, wl: Float, rv: Float, ts: Float, w: Float, c: Float, u: Float, r: Float, slope: Float, v: Float, jt: Float, jw: Float, dry: Float, isl: Float, delta: Float
+        var vol: Float = 0, lava: Float = 0, flow: Float = 0
     }
 
     static func blend(_ a: Node, _ b: Node, _ c: Node, _ d: Node, _ fx: Float, _ fz: Float) -> Column {
@@ -346,7 +352,8 @@ final class Terrain {
         return Column(h: l(a.h, b.h, c.h, d.h), wl: max(max(a.wl, b.wl), max(c.wl, d.wl)), rv: l(a.rv, b.rv, c.rv, d.rv),
                       ts: l(a.ts, b.ts, c.ts, d.ts), w: l(a.w, b.w, c.w, d.w), c: l(a.c, b.c, c.c, d.c), u: l(a.u, b.u, c.u, d.u),
                       r: l(a.r, b.r, c.r, d.r), slope: l(a.slope, b.slope, c.slope, d.slope), v: l(a.v, b.v, c.v, d.v),
-                      jt: l(a.jt, b.jt, c.jt, d.jt), jw: l(a.jw, b.jw, c.jw, d.jw), dry: l(a.dry, b.dry, c.dry, d.dry), isl: l(a.isl, b.isl, c.isl, d.isl), delta: l(a.delta, b.delta, c.delta, d.delta))
+                      jt: l(a.jt, b.jt, c.jt, d.jt), jw: l(a.jw, b.jw, c.jw, d.jw), dry: l(a.dry, b.dry, c.dry, d.dry), isl: l(a.isl, b.isl, c.isl, d.isl), delta: l(a.delta, b.delta, c.delta, d.delta),
+                      vol: l(a.vol, b.vol, c.vol, d.vol), lava: max(max(a.lava, b.lava), max(c.lava, d.lava)), flow: l(a.flow, b.flow, c.flow, d.flow))
     }
 
     func column(_ x: Int, _ z: Int) -> Column {
@@ -477,6 +484,10 @@ final class Terrain {
 
     // Harness: nearest lake (non-dry basin) or river mouth with a delta, as a world position (x, z).
     func nearestFeature(_ kind: String, x: Int, z: Int) -> (Int, Int)? {
+        if kind == "volcano" {
+            guard let v = nearestVolcano(Float(x), Float(z), cells: 8) else { return nil }
+            return (Int(v.x), Int(v.z))
+        }
         let ci = floorDiv(x, Terrain.rs), cj = floorDiv(z, Terrain.rs)
         // Deltas need a coast: search farther (continents are thousands of blocks wide) for any sizeable river mouth.
         let maxR = kind == "delta" ? 72 : 40
@@ -636,6 +647,8 @@ final class Terrain {
         if k.rv < 1 && h < k.wl - 0.5 { return t < -0.45 ? .frozenRiver : .river }
         // Remote islands out in the deep ocean.
         if k.isl > 0.12 && t > -0.2 { return .mushroomFields }
+        // A volcano's cone: bare rock (its surface is basalt and tuff, WorldGen.surface), no trees or grass.
+        if k.vol > 0.5 { return .stonyPeaks }
         let high = h - SEA_D
         // Shores.
         if k.c < 0.014 && h < SEA_D + 3 && k.u < 0.25 {

@@ -428,6 +428,21 @@ final class WorldGen: TerrainGenerator {
             surface(&b, lx, lz, bx + lx, bz + lz, tops, biomes[lx + lz * CS], cols[lx + lz * CS], wls[lx + lz * CS])
         } }
 
+        // Volcano lava: the crater lake fills to its level; channels down the flanks are one block of lava sunk
+        // into the slope (bounded: static sources until something touches them).
+        for lz in 0..<CS { for lx in 0..<CS {
+            let k = cols[lx + lz * CS]
+            guard k.vol > 0.2 else { continue }
+            let top = tops[lx + lz * CS]
+            if k.lava > 0 {
+                let lv = YOFF + Int(floorf(k.lava))
+                if top < lv { for y in (top + 1)...lv where b[Chunk.index(lx, y, lz)] == AIR { b[Chunk.index(lx, y, lz)] = LAVA } }
+            } else if k.flow > 0.5 && top > 8 {
+                b[Chunk.index(lx, top, lz)] = LAVA
+                b[Chunk.index(lx, top - 1, lz)] = Blocks.id("magma_block")
+            }
+        } }
+
         // Shallow pools in the flat ground of swamps.
         let tops0 = tops
         for lz in 1..<(CS - 1) { for lx in 1..<(CS - 1) {
@@ -563,6 +578,14 @@ final class WorldGen: TerrainGenerator {
                 filler = topBlock
             }
         }
+        // Volcano cones (Landmarks.swift): basalt and tuff flanks streaked with blackstone, scoria near the crater.
+        if k.vol > 0.35 && !underwater {
+            let hot = k.lava > 0 || k.flow > 0.3
+            topBlock = hot ? (n > 0.1 ? g("magma_block") : g("blackstone")) : (n > 0.3 ? g("tuff") : (n < -0.35 ? g("blackstone") : g("basalt")))
+            filler = n > 0 ? g("tuff") : g("basalt"); depth = 4; under = nil
+        } else if k.vol > 0.1 && !underwater && n > 0.15 {
+            topBlock = g("tuff")                                       // ash scattered over the foot
+        }
         // Badlands: terracotta bands under the surface layer.
         let isBad = biome.isBadlands
         var y = top
@@ -614,6 +637,8 @@ final class WorldGen: TerrainGenerator {
             let t = terrain.temperature(cols[lx + lz * CS], Float(y + 1 - YOFF)) + (clump * 0.9 + jit * 0.08) * 0.12
             let cold = t < -0.25 || (biome.snows(at: y + 1) && t < -0.15)
             guard cold else { continue }
+            let kc = cols[lx + lz * CS]
+            if kc.lava > 0 || kc.flow > 0.3 { continue }                // volcano heat: no snow on the crater or channels
             // Steep rock faces shed their snow.
             let xa = max(0, lx - 1) + lz * CS, xb = min(CS - 1, lx + 1) + lz * CS
             let za = lx + max(0, lz - 1) * CS, zb = lx + min(CS - 1, lz + 1) * CS
