@@ -34,6 +34,22 @@ struct EntityWriter {
     static let fullUV = (V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0))
     static let cubeShade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
 
+    // A whole-texture quad from four corners (counter-clockwise from the bottom left), without arrays: for per-frame
+    // decal batches (Wear.swift).
+    mutating func quad(_ a: V3, _ b: V3, _ c: V3, _ d: V3, _ layer: Int, _ color: V4) {
+        guard n + 6 <= capacity else { return }
+        let l = Float(layer)
+        let va = EntityVert(pos: V4(a, l), uv: V4(0, 1, 0, 0), color: color)
+        let vc = EntityVert(pos: V4(c, l), uv: V4(1, 0, 0, 0), color: color)
+        out[n] = va
+        out[n + 1] = EntityVert(pos: V4(b, l), uv: V4(1, 1, 0, 0), color: color)
+        out[n + 2] = vc
+        out[n + 3] = va
+        out[n + 4] = vc
+        out[n + 5] = EntityVert(pos: V4(d, l), uv: V4(0, 0, 0, 0), color: color)
+        n += 6
+    }
+
     // Axis-aligned textured cube (block icon in the world), faces shaded like terrain.
     mutating func cube(center c: V3, half h: Float, yaw: Float, block b: BlockID, light: Float, tint: V3 = V3(1, 1, 1)) {
         let cy = cosf(yaw), sy = sinf(yaw)

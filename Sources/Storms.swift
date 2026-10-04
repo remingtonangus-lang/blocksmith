@@ -57,12 +57,13 @@ enum Waves {
         return amp * open(x, z) * (0.6 * w1 + 0.3 * w2 + 0.2 * w3)
     }
 
-    // For the water shader: whole degrees of the swell direction plus the sea state (0...0.99) in the fraction.
+    // For the water shader: the swell direction in tenths of a degree (the quantum stormTick snaps it to) plus the
+    // sea state (0...0.99) in the fraction.
     static var shaderParam: Float {
         if amp < 0.01 { return 0 }
         var deg = atan2f(dir.y, dir.x) * 180 / .pi
         if deg < 0 { deg += 360 }
-        return floorf(deg) + min(0.99, amp / 1.4)
+        return (deg * 10).rounded() + min(0.99, amp / 1.4)
     }
 }
 
@@ -97,7 +98,13 @@ extension Game {
         ParticleManager.drift = fx.wind * (0.08 + 0.3 * fx.storm)
         // The sea: swells build with the storm on open water.
         let hw = V2(fx.wind.x, fx.wind.z)
-        if simd_length(hw) > 0.01 { Waves.dir = simd_normalize(hw) }
+        if simd_length(hw) > 0.01 {
+            // Quantized to 0.1 degree: the shader gets the same direction (dimTint.w), so hulls ride the drawn crests.
+            var deg = atan2f(hw.y, hw.x) * 180 / .pi
+            if deg < 0 { deg += 360 }
+            let q = (deg * 10).rounded() / 10 * .pi / 180
+            Waves.dir = V2(cosf(q), sinf(q))
+        }
         Waves.amp = fx.storm * 1.3
         Waves.t = Float(time.truncatingRemainder(dividingBy: 1000))     // the water shader's clock (params.z): ships ride the crests drawn
         Waves.world = world
@@ -190,6 +197,21 @@ extension Game {
         // Biomes per 4 x 4 columns (the climate lookup is the expensive part of a pass: 13.7 ms worst at 256 a chunk).
         var biomes = [Biome?](repeating: nil, count: 16)
         var writes: [(Int, Int, Int, BlockID)] = []
+        // Columns someone stands in: the snow doesn't grow into a solid height under them (layers 3+ collide; a pile
+        // growing under a standing player or mob embedded its feet: code review).
+        var occupied = Set<Int>()
+        if snowing {
+            let x0 = Float(c.cx * CS), z0 = Float(c.cz * CS)
+            func mark(_ p: V3, _ hw: Float) {
+                guard p.x > x0 - 2 && p.x < x0 + 18 && p.z > z0 - 2 && p.z < z0 + 18 else { return }
+                for x in Int(floor(p.x - hw))...Int(floor(p.x + hw)) { for z in Int(floor(p.z - hw))...Int(floor(p.z + hw)) {
+                    let lx = x - c.cx * CS, lz = z - c.cz * CS
+                    if lx >= 0 && lx < CS && lz >= 0 && lz < CS { occupied.insert(lx + lz * CS) }
+                } }
+            }
+            mark(player.pos, 0.3)
+            for m in mobs.mobs { mark(m.pos, m.spec.halfW) }
+        }
         for lz in 0..<CS { for lx in 0..<CS {
             let x = c.cx * CS + lx, z = c.cz * CS + lz
             let y = Int(c.height[lx + lz * CS])          // snow layers don't stop the sky: the block they lie on
@@ -209,7 +231,7 @@ extension Game {
             if snowing && snowsHere && light < 10 {
                 guard cur > 0 || Blocks.opaque[Int(top)] || leaves else { continue }
                 let cap = leaves ? 1 : max(1, min(7, Int(fx.snowDepth * (0.55 + 0.9 * drift))))
-                if cur < cap && Rand.float(in: 0..<1) < 0.6 { want = cur + 1 }
+                if cur < cap && Rand.float(in: 0..<1) < 0.6 && !(cur >= 2 && occupied.contains(lx + lz * CS)) { want = cur + 1 }
             } else if cur > 0 {
                 // Melting: torches and lamps melt it all; otherwise the extra layers settle back as the snowfall's depth
                 // falls (faster under the sun), down to the single layer snowy country keeps.

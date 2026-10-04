@@ -71,7 +71,8 @@ extension World {
                 guard Rand.float(in: 0..<1) < chance else { continue }
                 if kindT[Int(nb)] == .wood && Blocks.render[Int(nb)] == cube && nb != charcoal {
                     let s = Int(scorch[q] ?? 0)
-                    if s < 3 { addScorch(q, to: s + 1); continue }
+                    // (A full scorch map records nothing: then the wood burns on without its stages.)
+                    if s < 3 && addScorch(q, to: s + 1) { continue }
                     // Charred through: it smoulders into charcoal, or the flames take it.
                     if Rand.float(in: 0..<1) < 0.55 {
                         onIgnite?(q, nb)

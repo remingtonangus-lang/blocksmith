@@ -180,13 +180,15 @@ final class Armory {
         let w = g.world
         let id = w.block(b.x, b.y, b.z)
         // Rounds by material (Wear.swift): player rounds shatter glass (others crack it first); every round has a chance
-        // by its damage to add a stage: stone cracks then chips, metal dents, wood splinters. Armoured glass only cracks.
+        // by its damage to add a decal stage: stone cracks, metal dents (no chips: a firefight would re-mesh hundreds of
+        // sections a second). Armoured glass only cracks.
         if Wear.kind[Int(id)] == .glass {
             if s.fromPlayer || w.damageLevel(b) >= 2 { g.shatterGlass(b, from: simd_length(s.vel) > 0.01 ? simd_normalize(s.vel) : V3(0, -1, 0)) }
             else { g.wearHit(b, level: w.damageLevel(b) + 1, normal: n, async: true) }
             return
         }
-        if Settings.shared.chipping && Blocks.render[Int(id)] == RenderType.cube.rawValue && Rand.float(in: 0..<1) < min(1, s.damage / 6) {
+        if Settings.shared.chipping && Blocks.render[Int(id)] == RenderType.cube.rawValue && w.damageLevel(b) < Wear.decalCap(id)
+            && Rand.float(in: 0..<1) < min(1, s.damage / 6) {
             g.wearHit(b, level: w.damageLevel(b) + 1, normal: n, async: true, quiet: true)
         }
         g.particles.dust(id, at: at + V3(Float(n.x), Float(n.y), Float(n.z)) * 0.05, count: 3, spread: 0.05)

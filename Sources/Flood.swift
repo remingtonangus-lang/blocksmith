@@ -36,6 +36,7 @@ final class FloodModel {
     var placed = Set<IVec3>()
     var timer: Float = 0
     var sampleCursor = 0
+    var refreshCursor = 0
     // Stats for checks and the benchmark.
     var lastMs = 0.0, worstMs = 0.0
     var peakPlaced = 0
@@ -50,7 +51,7 @@ final class FloodModel {
         var t = [Bool](repeating: false, count: Blocks.count)
         for i in 0..<Blocks.count {
             let k = Blocks.key(Blocks.groupBase[i])
-            t[i] = i == 0 || Blocks.isLiquid(BlockID(i)) || !Blocks.collide[i] || k.hasSuffix("_leaves") || k == "snow_layers" || k == "snow"
+            t[i] = i == 0 || Blocks.isLiquid(BlockID(i)) || !Blocks.collide[i] || k.hasSuffix("_leaves") || k.hasPrefix("snow_layers") || k == "snow"
         }
         return t
     }()
@@ -160,15 +161,23 @@ final class FloodModel {
         timer = 0
         let t0 = CFAbsoluteTimeGetCurrent()
         recentre(g)
-        // Sample a few hundred cells a step (all of them once at the start, then a slow refresh for edits).
-        var budget = known.contains(false) ? 200 : 24
-        var tries = 0
+        // New cells: up to 200 samples a step until the window is known (cells over unloaded chunks wait). Known
+        // cells: a slow refresh, 24 a step, so dams and channels dug by the player count (it starved while any
+        // cell sat over an unloaded chunk: code review).
+        var budget = 200, tries = 0
         while budget > 0 && tries < N * N {
             let k = sampleCursor
             sampleCursor = (sampleCursor + 1) % (N * N)
             tries += 1
-            if known[k] && budget > 24 { continue }
-            if sample(g, k) { budget -= 1 }
+            if !known[k] && sample(g, k) { budget -= 1 }
+        }
+        var refresh = 24
+        tries = 0
+        while refresh > 0 && tries < N * N {
+            let k = refreshCursor
+            refreshCursor = (refreshCursor + 1) % (N * N)
+            tries += 1
+            if known[k] { _ = sample(g, k); refresh -= 1 }
         }
         let rain = forcedRain ?? (g.weather.rain > 0.2 ? g.weather.rain * (1 + 0.5 * g.weather.thunder) : 0)
         // Nothing to do on a dry day with no water about (the usual case): skip the model.

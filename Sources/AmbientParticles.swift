@@ -70,6 +70,7 @@ extension Game {
                 if Rand.float(in: 0..<1) < 0.6 { particles.smoke(at: o + V3(Rand.float(in: 0...1), 0.9, Rand.float(in: 0...1)), dark: true) }
                 if Rand.float(in: 0..<1) < 0.35 { particles.flame(at: o + V3(Rand.float(in: 0.2...0.8), 0.5, Rand.float(in: 0.2...0.8))) }
             case .smolder:
+                if world.embers[IVec3(x, y, z)] == nil { world.embers[IVec3(x, y, z)] = 0 }    // after a reload: cools again
                 // Smouldering charcoal (Fire.swift): a thread of smoke and the odd ember lifting off.
                 if Rand.float(in: 0..<1) < 0.5 { particles.smoke(at: o + V3(Rand.float(in: 0.2...0.8), 1.05, Rand.float(in: 0.2...0.8)), dark: false) }
                 if Rand.float(in: 0..<1) < 0.3 {

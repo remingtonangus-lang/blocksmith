@@ -54,6 +54,15 @@ enum Wear {
         }
     }
 
+    // The highest damage level that stays a decal (no chips, so no remesh): what gunfire may add.
+    static func decalCap(_ id: BlockID) -> Int {
+        switch kind[Int(id)] {
+        case .stone: return 3
+        case .metal: return 7
+        default: return 0
+        }
+    }
+
     // Decal layer for a damaged block (nil: none, or the chips show instead).
     static func decalLayer(level lv: Int, scorch: Int, id: BlockID) -> Int? {
         let k = kind[Int(id)]
@@ -82,16 +91,19 @@ extension World {
         if changed { wearVersion &+= 1 }
     }
 
-    // Raises the scorch stage of a full block (1...3); a soot mark on stone, a burn on wood.
-    func addScorch(_ p: IVec3, to stage: Int) {
+    // Raises the scorch stage of a full block (1...3); a soot mark on stone, a burn on wood. False when nothing was
+    // recorded (not a full block, already that stage, or the map is full).
+    @discardableResult
+    func addScorch(_ p: IVec3, to stage: Int) -> Bool {
         let id = block(p.x, p.y, p.z)
-        guard Blocks.render[Int(id)] == RenderType.cube.rawValue, Wear.kind[Int(id)] != .glass, id != Wear.charcoal, id != Wear.smolder else { return }
+        guard Blocks.render[Int(id)] == RenderType.cube.rawValue, Wear.kind[Int(id)] != .glass, id != Wear.charcoal, id != Wear.smolder else { return false }
         let cur = Int(scorch[p] ?? 0)
         let s = min(3, max(cur, stage))
-        if s == cur { return }
-        if scorch.count > 8192 && cur == 0 { return }
+        if s == cur { return false }
+        if scorch.count > 8192 && cur == 0 { return false }
         scorch[p] = UInt8(s)
         wearVersion &+= 1
+        return true
     }
 
     // The damage entries the mesher and collision see (decal-only stages left out, levels mapped per material).
@@ -296,7 +308,6 @@ extension Game {
             dec.builtAt = clock
         }
         if dec.quads.isEmpty { return }
-        let uvs = [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)]
         let day = daylight
         let fadeFrom = WearDecals.range * 0.75
         for q in dec.quads {
@@ -311,7 +322,7 @@ extension Game {
                 let k = max(Float(l.sky) / 15 * day, Float(l.block) / 15) * 0.9 + 0.1
                 col = V4(k, k, k, a)
             }
-            wr.quad([q.p.0 - eye, q.p.1 - eye, q.p.2 - eye, q.p.3 - eye], uvs, Int(q.layer), col)
+            wr.quad(q.p.0 - eye, q.p.1 - eye, q.p.2 - eye, q.p.3 - eye, Int(q.layer), col)
         }
     }
 }

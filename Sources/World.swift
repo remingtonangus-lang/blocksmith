@@ -1035,6 +1035,7 @@ final class World {
 
     // Fluids may replace air, plants, torches, fire and thinner flowing fluid of the same kind.
     private func fluidCanEnter(_ id: BlockID, level: Int, kind: UInt8) -> Bool {
+        if FloodModel.isFlood(id) { return false }
         let l = Int(Blocks.fluidLevel[Int(id)])
         if l >= 0 { return Blocks.fluidKind[Int(id)] == kind && l > 0 && l < 8 && l > level }
         return id == AIR || Blocks.replaceable[Int(id)] || id == TORCH
@@ -1061,7 +1062,8 @@ final class World {
         for p in batch {
             guard p.y >= 0 && p.y < CH && isLoaded(p.x, p.z) else { continue }
             let cur = block(p.x, p.y, p.z)
-            guard fkT[Int(cur)] == kind else { continue }
+            // Flood water (Flood.swift) is the flood model's: it never flows, feeds or becomes ordinary water.
+            guard fkT[Int(cur)] == kind, !FloodModel.isFlood(cur) else { continue }
             var lv = Int(lvT[Int(cur)])
             if lava {
                 // Lava touching water hardens: source -> obsidian, flowing -> cobblestone.
@@ -1085,7 +1087,7 @@ final class World {
                     var best = 99, sources = 0
                     for d in World.sideDirs {
                         let nb = block(p.x + d.x, p.y, p.z + d.z)
-                        guard fkT[Int(nb)] == kind else { continue }
+                        guard fkT[Int(nb)] == kind, !FloodModel.isFlood(nb) else { continue }
                         let n = Int(lvT[Int(nb)])
                         if n == 0 { sources += 1 }
                         best = min(best, n == 8 ? 0 : n)

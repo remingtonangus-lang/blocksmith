@@ -112,7 +112,7 @@ enum Mining {
         let gkey = Blocks.key(base), stage = Int(b - base)
         func binom(_ n: Int, _ p: Float) -> Int { (0..<n).reduce(0) { a, _ in a + (Rand.float(in: 0..<1) < p ? 1 : 0) } }
         switch gkey {
-        case "snow_layers": return one("snowball", 1 + stage / 2)
+        case "snow_layers_2": return one("snowball", 1 + stage / 2)      // the group's base state: layers 2...7
         case "charcoal_block", "smoldering_charcoal": return one("charcoal", rnd(2, 4))
         case "wheat":
             return stage == 7 ? one("wheat") + one("wheat_seeds", 1 + binom(3, 0.5714)) : one("wheat_seeds")

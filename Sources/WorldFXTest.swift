@@ -27,6 +27,8 @@ enum WorldFXTest {
         report = ["# World fx checks (material damage and weather)", ""]
         let scenes = list.split(separator: ",").map(String.init)
         let home = g.player.pos
+        PrefsSandbox.begin()                    // chipping is switched on for the checks; the saved options come back after
+        defer { PrefsSandbox.end() }
         g.paused = false
         g.player.flying = true
         g.survival = false
