@@ -1366,18 +1366,38 @@ final class Renderer: NSObject, MTKViewDelegate {
     // MARK: HUD (pixel coordinates, origin top-left)
 
     var hudScale: Float = 2
+    private var hudScratch: [HudVert] = []
 
     func buildHUD(_ W: Float, _ H: Float) -> [HudVert] {
-        var v: [HudVert] = []
+        // The vertex array keeps its storage from frame to frame (it grew from empty every frame: profile).
+        var v = hudScratch
+        hudScratch = []
+        v.removeAll(keepingCapacity: true)
+        defer { hudScratch = v }
         let L = HudLayout(W, H)
         let s = L.s
         hudScale = s
         self.game.screen = V2(W, H)
         func quad(_ p: [V2], _ uv: [V2], _ c: V4, _ layer: Float) {
-            for i in [0, 1, 2, 0, 2, 3] { v.append(HudVert(pos: p[i], uv: uv[i], color: c, extra: V4(layer, 0, 0, 0))) }
+            let ex = V4(layer, 0, 0, 0)
+            v.append(HudVert(pos: p[0], uv: uv[0], color: c, extra: ex)); v.append(HudVert(pos: p[1], uv: uv[1], color: c, extra: ex))
+            v.append(HudVert(pos: p[2], uv: uv[2], color: c, extra: ex)); v.append(HudVert(pos: p[0], uv: uv[0], color: c, extra: ex))
+            v.append(HudVert(pos: p[2], uv: uv[2], color: c, extra: ex)); v.append(HudVert(pos: p[3], uv: uv[3], color: c, extra: ex))
         }
+        // An axis-aligned textured quad (text glyphs) without building corner arrays.
+        func glyphQuad(_ x: Float, _ y: Float, _ w: Float, _ h: Float, _ u1: Float, _ v1: Float, _ c: V4, _ layer: Float) {
+            let ex = V4(layer, 0, 0, 0)
+            let a = HudVert(pos: V2(x, y), uv: V2(0, 0), color: c, extra: ex), b = HudVert(pos: V2(x + w, y), uv: V2(u1, 0), color: c, extra: ex)
+            let d = HudVert(pos: V2(x + w, y + h), uv: V2(u1, v1), color: c, extra: ex), e = HudVert(pos: V2(x, y + h), uv: V2(0, v1), color: c, extra: ex)
+            v.append(a); v.append(b); v.append(d); v.append(a); v.append(d); v.append(e)
+        }
+        // Plain rectangles (most of the HUD: panels, bars, the minimap) without building corner arrays.
         func rect(_ x: Float, _ y: Float, _ w: Float, _ h: Float, _ c: V4) {
-            quad([V2(x, y), V2(x + w, y), V2(x + w, y + h), V2(x, y + h)], [V2](repeating: .zero, count: 4), c, -1)
+            let z = V2(0, 0), ex = V4(-1, 0, 0, 0)
+            let a = V2(x, y), b = V2(x + w, y), d = V2(x + w, y + h), e = V2(x, y + h)
+            v.append(HudVert(pos: a, uv: z, color: c, extra: ex)); v.append(HudVert(pos: b, uv: z, color: c, extra: ex))
+            v.append(HudVert(pos: d, uv: z, color: c, extra: ex)); v.append(HudVert(pos: a, uv: z, color: c, extra: ex))
+            v.append(HudVert(pos: d, uv: z, color: c, extra: ex)); v.append(HudVert(pos: e, uv: z, color: c, extra: ex))
         }
         let game = self.game
         // Pixel-font text; scale = size of one font pixel in screen pixels.
@@ -1411,11 +1431,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let w = Float(Font.glyphs[code - 32][0])
                     let rows = Float(Font.rows(code))                 // 8 for g j p q y (a row below the baseline)
                     let layer = Float(Font.layerBase + code - 32)
-                    let uv = [V2(0, 0), V2(w / 16, 0), V2(w / 16, rows / 16), V2(0, rows / 16)]
-                    func g(_ ox: Float, _ oy: Float, _ c: V4) {
-                        let a = V2(cx + ox, y + oy)
-                        quad([a, a + V2(w * scale, 0), a + V2(w * scale, rows * scale), a + V2(0, rows * scale)], uv, c, layer)
-                    }
+                    func g(_ ox: Float, _ oy: Float, _ c: V4) { glyphQuad(cx + ox, y + oy, w * scale, rows * scale, w / 16, rows / 16, c, layer) }
                     if shadow { g(scale, scale, V4(color.x * 0.25, color.y * 0.25, color.z * 0.25, color.w)) }
                     g(0, 0, color)
                 }
