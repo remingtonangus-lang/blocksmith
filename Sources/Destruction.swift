@@ -119,6 +119,14 @@ enum Collapse {
         }
         let holeSet = Set(holes)
         let up = IVec3(0, 1, 0)
+        // Wrecks lie as rigid hulks (Wrecks.swift): their blocks hold up what rests on them and never fail.
+        let wrecks = w.ships.wrecks.map { (IVec3($0.lo[0], $0.lo[1], $0.lo[2]), IVec3($0.hi[0], $0.hi[1], $0.hi[2])) }
+        func inWreck(_ c: IVec3) -> Bool {
+            for (lo, hi) in wrecks where c.x >= lo.x && c.x <= hi.x && c.z >= lo.z && c.z <= hi.z {
+                if c.y >= lo.y && c.y <= hi.y { return true }
+            }
+            return false
+        }
         // Every cell visited in this call: its index in `cells`; `compOf` says which search found it.
         var table = CellTable(capacity: min(max(cap, 1024) + 64, 4 * cap + seeds.count))
         var cells: [IVec3] = []
@@ -136,7 +144,7 @@ enum Collapse {
             var open = true
             while head < cells.count {
                 let c = cells[head]
-                var anchor = false
+                var anchor = !wrecks.isEmpty && inWreck(c)
                 for d in dirs6 {
                     let n = c + d
                     let b = block(n)

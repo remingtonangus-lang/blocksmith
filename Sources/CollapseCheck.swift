@@ -262,7 +262,7 @@ enum CollapseCheck {
         return inX && inY && inZ
     }
 
-    static func floating(_ st: Stage) -> (Int, String) {
+    static func floating(_ st: Stage, besides old: Set<IVec3> = []) -> (Int, String, Set<IVec3>) {
         let w = st.world
         var seeds: [IVec3] = []
         let (lo, hi) = st.box
@@ -272,7 +272,11 @@ enum CollapseCheck {
                 seeds.append(IVec3(x, y, z))
             }
         } } }
-        let res = Collapse.analyze(w, around: [], seeds: seeds, cap: 60000)
+        var res = Collapse.analyze(w, around: [], seeds: seeds, cap: 60000)
+        var all = Set<IVec3>()
+        for piece in res.falling { for c in piece { all.insert(c) } }
+        // Only what wasn't unsupported already (a generated structure in the region: structcheck's unstable class).
+        res.falling = res.falling.map { piece in piece.filter { c in !old.contains(c) } }.filter { !$0.isEmpty }
         let n = res.falling.reduce(0) { $0 + $1.count } + res.tip.reduce(0) { $0 + $1.cells.count }
         var at = ""
         if let p = res.falling.first?.first {
@@ -285,7 +289,7 @@ enum CollapseCheck {
             let top = kinds.sorted { $0.value > $1.value }.prefix(4).map { "\($0.key) \($0.value)" }.joined(separator: ", ")
             at = "\(p.x),\(p.y - YOFF),\(p.z) (\(Blocks.key(w.rawBlock(p.x, p.y, p.z)))); \(res.falling.count) pieces in \(bl.x),\(bl.y - YOFF),\(bl.z) to \(bh.x),\(bh.y - YOFF),\(bh.z): \(top)"
         }
-        return (n, at)
+        return (n, at, all)
     }
 
     static func collapseScene(_ r: RideCheck.Report, _ st: Stage, name: String) {
@@ -294,7 +298,11 @@ enum CollapseCheck {
         let agent = Agent(game: g, world: w)
         for _ in 0..<30 { agent.step(idle) }
         let before = floating(st)
-        r.check(before.0 == 0, "the scene stands before the blast (\(before.0) unsupported\(before.1.isEmpty ? "" : " at " + before.1))")
+        if st.ship == nil {
+            r.check(before.0 == 0, "the scene stands before the blast (\(before.0) unsupported\(before.1.isEmpty ? "" : " at " + before.1))")
+        } else if before.0 > 0 {
+            r.note("already unsupported in the region before the blast (a generated structure): \(before.0) blocks at \(before.1)")
+        }
         let built0 = st.watch.filter { Collapse.built(w.rawBlock($0.x, $0.y, $0.z)) }.count
         let t0 = CFAbsoluteTimeGetCurrent()
         trigger(st)
@@ -349,7 +357,7 @@ enum CollapseCheck {
         }
         r.check(maxBodies <= Collapse.maxDebris, "debris bodies stay under the cap (\(maxBodies) of \(Collapse.maxDebris))")
         r.check(!w.ships.list.contains { $0.debris }, "every piece is laid back into the world once it rests")
-        let after = floating(st)
+        let after = floating(st, besides: before.2)
         r.check(after.0 == 0, "no floating leftovers (\(after.0) unsupported blocks\(after.1.isEmpty ? "" : ", first at " + after.1))")
         r.check(inside == 0, "nothing ends up inside the player (\(inside) ticks)")
         r.check(p95 < 16 && worst < 120, String(format: "tick time within budget during the collapse (p95 %.2f ms under 16, worst %.1f under 120)", p95, worst))
