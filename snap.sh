@@ -210,6 +210,9 @@ done
 # Big landmarks (Landmarks.swift): a volcano from afar, its crater lake and a lava channel.
 "$BIN" --snapshot snaps/canyon.png --seed 12345 --feature canyon --yaw 30 --pitch -28 --up 70 --time 0.3 --rd 12
 "$BIN" --snapshot snaps/canyon_floor.png --seed 12345 --feature canyon --yaw 120 --pitch 8 --up 2 --time 0.3 --rd 10
+"$BIN" --snapshot snaps/spire.png --seed 12345 --structure great_ruin --frame 1.3 --time 0.3 --rd 12
+"$BIN" --snapshot snaps/spire_inside.png --seed 12345 --structure great_ruin --offset 0,1,-8 --yaw 0 --pitch 35 --time 0.3 --rd 8
+"$BIN" --snapshot snaps/spire_horizon.png --seed 12345 --structure great_ruin --offset 0,30,700 --yaw 0 --pitch 4 --time 0.3 --rd 8
 "$BIN" --snapshot snaps/volcano_far.png --seed 12345 --feature volcano --yaw 0 --pitch -25 --up 110 --time 0.3 --rd 16
 "$BIN" --snapshot snaps/volcano_crater.png --seed 12345 --feature volcano --yaw 30 --pitch -60 --up 230 --time 0.3 --rd 10
 "$BIN" --snapshot snaps/volcano_horizon.png --seed 12345 --feature volcano --back 900 --yaw 0 --pitch 3 --up 25 --time 0.3 --rd 8

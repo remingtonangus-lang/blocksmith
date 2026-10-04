@@ -44,7 +44,7 @@ final class WorldGen: TerrainGenerator {
             i += 2
         }
         bands = bs
-        structures = StructureCache(seed: seed, types: OverworldStructures.types(self) + BigStructures.types(self) + [MilitaryBase.type(self)], fixed: Stronghold.starts(seed: seed))
+        structures = StructureCache(seed: seed, types: OverworldStructures.types(self) + BigStructures.types(self) + [MilitaryBase.type(self), AncientSpire.type(self)], fixed: Stronghold.starts(seed: seed))
     }
 
     // MARK: Cave climate

@@ -8,13 +8,32 @@ import simd
 // wherever the real landmark has been generated, and the impostor fills in where it hasn't.
 extension Renderer {
     static let landmarkRange: Float = 2600
+    static var spireList: [V4] = []                // x, base y, z, height (refreshed every 2 s)
+    static var spireAt: Double = -10
+
+    // Ancient Spire starts within the landmark range (structure regions are 1024 blocks).
+    func spireCache(_ game: Game) -> [V4] {
+        if game.clock - Renderer.spireAt < 2 { return Renderer.spireList }
+        Renderer.spireAt = game.clock
+        Renderer.spireList.removeAll()
+        guard let sc = (game.world.gen as? WorldGen)?.structures, let t = sc.types.first(where: { $0.name == "great_ruin" }) else { return [] }
+        let span = t.spacing * CS
+        let p = game.player.pos
+        let rx0 = floorDiv(Int(p.x), span), rz0 = floorDiv(Int(p.z), span)
+        let n = Int(Renderer.landmarkRange) / span + 1
+        for rz in (rz0 - n)...(rz0 + n) { for rx in (rx0 - n)...(rx0 + n) {
+            guard let s = sc.start(t, regionX: rx, regionZ: rz) else { continue }
+            let y0 = Float(s.min.y + 8), h = Float(s.max.y - 4 - (s.min.y + 8))
+            Renderer.spireList.append(V4(Float(s.min.x + s.max.x) / 2, y0, Float(s.min.z + s.max.z) / 2, h))
+        } }
+        return Renderer.spireList
+    }
 
     // Appends the impostor triangles: opaque ones first, then `smokeStart` marks the blended smoke.
     func buildLandmarks(_ out: inout [SimpleVert], smokeStart: inout Int, game: Game, eye: V3, far: Float, fog: V3, rd: Float) {
         smokeStart = 0
         guard game.dim.dim == .overworld, let wg = game.world.gen as? WorldGen else { return }
         let vols = wg.terrain.volcanoes(near: eye.x, eye.z, reach: Renderer.landmarkRange)
-        if vols.isEmpty { return }
         let loaded = rd * 16
         let sun = game.sunDir
         let day = game.daylight
@@ -94,6 +113,26 @@ extension Renderer {
                     let q2 = ctrS + side + V3(0, size * 0.6, 0), q3 = ctrS - side + V3(0, size * 0.6, 0)
                     tri(p(q0), p(q1), p(q2), sc, &smoke); tri(p(q0), p(q2), p(q3), sc, &smoke)
                 }
+            }
+        }
+        // Ancient Spires: an eight-sided shaft with a broken crown.
+        let grey = V3(0.43, 0.43, 0.44)
+        for sp in spireCache(game) {
+            let dist = simd_length(V2(sp.x - eye.x, sp.z - eye.z))
+            guard dist > loaded * 0.8, dist < Renderer.landmarkRange else { continue }
+            let k = place / max(place, dist)
+            let haze: Float = 0.3 + 0.5 * Terrain.smooth(loaded, Renderer.landmarkRange, dist)
+            func p(_ w: V3) -> V4 { V4((w - eye) * k, 1) }
+            let r: Float = 13
+            for i in 0..<8 {
+                let a0 = Float(i) / 8 * 2 * .pi + .pi / 8, a1 = Float(i + 1) / 8 * 2 * .pi + .pi / 8
+                let top0 = sp.y + sp.w - 22 * (0.5 + 0.5 * sinf(a0 * 3)), top1 = sp.y + sp.w - 22 * (0.5 + 0.5 * sinf(a1 * 3))
+                let b0 = V3(sp.x + cosf(a0) * r, sp.y - 2, sp.z + sinf(a0) * r), b1 = V3(sp.x + cosf(a1) * r, sp.y - 2, sp.z + sinf(a1) * r)
+                let t0 = V3(b0.x, top0, b0.z), t1 = V3(b1.x, top1, b1.z)
+                let n = simd_normalize(V3(cosf((a0 + a1) / 2), 0, sinf((a0 + a1) / 2)))
+                let lit: Float = 0.32 + 0.68 * max(0, simd_dot(n, sun)) * day + 0.08
+                let c = V4(grey * lit * hdrK * (1 - haze) + fog * haze, 1)
+                tri(p(b0), p(b1), p(t1), c, &out); tri(p(b0), p(t1), p(t0), c, &out)
             }
         }
         smokeStart = out.count
