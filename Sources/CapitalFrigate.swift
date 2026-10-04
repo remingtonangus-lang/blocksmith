@@ -222,7 +222,14 @@ extension Capital {
             let e = Int(cfHalf(z) * 0.87) - 1
             hb.set(sx * e, 14, z, light)
         } }
-        for x in -5...5 { hb.set(x, 14, 118, graphite) }
+        // Flight-deck markings: edge lines, a landing circle with a cross at its centre, a hangar threshold bar.
+        for z in 104...137 { let e = Int(cfHalf(z) * 0.87) - 2; hb.set(e, 14, z, panel); hb.set(-e, 14, z, panel) }
+        for z in 113...129 { for x in -8...8 {
+            let r2 = x * x + (z - 121) * (z - 121)
+            if r2 >= 30 && r2 <= 42 { hb.set(x, 14, z, graphite) }
+        } }
+        for k in -2...2 { hb.set(k, 14, 121, graphite); hb.set(0, 14, 121 + k, graphite) }
+        for x in -6...6 { hb.set(x, 14, 104, graphite) }
         // Drive: an engine room aft (critical systems), four nozzles in the transom, lift strips under the keel.
         for sx in [-1, 1] { hb.fill(sx * 5 - 2, sx * 5 + 2, 5, 7, 118, 132, engine) }
         for nx in [-7, 7] { for ny in [7, 11] {

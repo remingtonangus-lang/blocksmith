@@ -270,7 +270,8 @@ extension MobTests {
         mm.mobs.append(gun)
         var shells = 0
         t = 0
-        while t < 12 && shells == 0 {
+        // A true-scale 42 cm turret traverses at 0.2 rad/s: half a turn takes about 16 s.
+        while t < 25 && shells == 0 {
             gun.updateDeckGun(0.05, game)
             shells = game.arms.slugs.filter { $0.kind == .shell }.count
             game.player.pos = at(0, 0)

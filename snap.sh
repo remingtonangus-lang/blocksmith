@@ -207,7 +207,7 @@ done
 "$BIN" --snapshot snaps/citadel_far.png --seed 12345 --structure military_base --frame 1.1 --time 0.3 --rd 12
 "$BIN" --snapshot snaps/citadel_gate.png --seed 12345 --structure military_base --yaw 0 --pitch 12 --up 1 --time 0.3 --rd 10
 "$BIN" --snapshot snaps/citadel_top.png --seed 12345 --structure military_base --yaw 20 --pitch -45 --up 70 --time 0.3 --rd 10
-"$BIN" --snapshot snaps/citadel_plaza.png --seed 12345 --structure military_base --offset -18,5,-14 --yaw 40 --pitch 6 --time 0.3 --rd 10
+"$BIN" --snapshot snaps/citadel_plaza.png --seed 12345 --structure military_base --offset 3,6,-12 --yaw 10 --pitch 10 --time 0.3 --rd 10
 "$BIN" --snapshot snaps/village.png --seed 12345 --structure village --yaw 45 --pitch -28 --up 14 --time 0.25
 "$BIN" --snapshot snaps/village_top.png --seed 12345 --structure village --yaw 0 --pitch -89 --up 70 --time 0.25
 "$BIN" --snapshot snaps/village2.png --seed 12345 --structure village --x 1500 --z -900 --yaw 45 --pitch -30 --up 16 --time 0.25

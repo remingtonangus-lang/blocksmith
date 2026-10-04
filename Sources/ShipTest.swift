@@ -228,7 +228,7 @@ enum ShipTest {
                 case "bow": chase(g, f, dist: -95, height: 14, side: -0.45)
                 case "side": chase(g, f, dist: 4, height: 6, side: 28)
                 case "top": chase(g, f, dist: 60, height: 120, side: 0.2)
-                case "deck": chase(g, f, dist: -20, height: 26, side: 0.1)
+                case "deck": chase(g, f, dist: -62, height: 20, side: 0.12)
                 default: chase(g, f, dist: big ? 230 : (cap ? 120 : 60), height: big ? 70 : (cap ? 30 : 22), side: big ? 0.9 : 0.8)
                 }
             }
@@ -648,13 +648,18 @@ enum ShipTest {
             let (kind, hp) = h
             let near = V3(Float(hp.x) + 40, Float(hp.y) + 10, Float(hp.z))
             _ = w.loadSync(center: near, radius: 6)
-            let before = w.ships.list.filter { $0.role == kind }.count
+            // A "frigate" encounter is the Capital frigate now: a capital ship built on a worker thread.
+            let role = kind == "frigate" ? "capfrigate" : kind
+            let before = w.ships.list.filter { $0.role == role }.count
             g.player.flying = true
             g.player.pos = near
             w.ships.encounters = true
             for _ in 0..<7 { g.player.pos = near; w.ships.update(1, game: g) }
+            var waited = 0
+            while !w.ships.capitalPending.isEmpty && waited < 300 { usleep(50_000); waited += 1; g.player.pos = near; w.ships.update(0.05, game: g) }
+            w.ships.update(0.05, game: g)
             w.ships.encounters = false
-            let after = w.ships.list.filter { $0.role == kind }.count
+            let after = w.ships.list.filter { $0.role == role }.count
             print("physicstest encounters: nearest \(kind) home at \(hp.x), \(hp.z): \(after - before) appeared")
             check(after == before + 1, "a vessel appears when the player nears its home")
         } else { check(false, "an encounter within six regions") }
@@ -806,15 +811,16 @@ extension ShipTest {
             check(false, "the crawler spawned"); return 1
         }
         g.difficulty = 0
-        st.crewDone = Set(0..<st.crew.count)            // an empty vehicle: only the bot and the sheep aboard
+        st.crew = []; st.crewRoles = []                  // an empty vehicle (no driver post, so it drives itself)
         st.testTurn = 1
         _ = w.loadSync(center: c.pos, radius: 3)
         let W: Float = 17
         g.player.flying = false
-        g.player.pos = c.toWorld(V3(W - 2 + 0.5, 22.02, 45.5))
+        // On the command deck (floor y 21), clear of the 7 x 5 x 7 hull block at z 40-46 under the main gun.
+        g.player.pos = c.toWorld(V3(W + 3 + 0.5, 22.02, 50.5))
         g.player.vel = c.vel
         g.player.yaw = c.yaw
-        let sheep = Mob(.sheep, at: c.toWorld(V3(W + 3 + 0.5, 22.02, 40.5)))
+        let sheep = Mob(.sheep, at: c.toWorld(V3(W - 4 + 0.5, 22.02, 56.5)))
         sheep.persistent = true
         g.mobs.mobs.append(sheep)
         let dt: Float = 1.0 / 60
