@@ -82,6 +82,7 @@ final class CapitalState {
     var impact: Float = 0              // crash-landed frigate: sink speed at touchdown (b/s)
     var sag = V2(0, 0)                 // disabled crawler: pitch / roll toward its lost wheels
     var wantSpeed: Float = 0           // crawler: the speed its AI wants (before the lowered ramp holds it to a creep)
+    var goal: V3?                      // a citadel's crawler patrol (CapitalBases.swift): drive here when nothing is in sight
     var troopCD: Float = 12            // seconds until the next troop drop
     var troops: [Mob] = []             // soldiers it has deployed (alive ones count toward its limit)
     var ramp = V3(0, 0, 0)             // crawler: the rear ramp's foot (ship space)
@@ -628,7 +629,7 @@ extension Mob {
 extension ShipManager {
     // Starts building a capital ship on a worker thread (sync: here and now, for the harness). It appears with its
     // turrets when finished (capitalTick picks it up).
-    func spawnCapital(_ kind: String, home: IVec3, yaw: Float, region: String?, sync: Bool = false) {
+    func spawnCapital(_ kind: String, home: IVec3, yaw: Float, region: String?, sync: Bool = false, faction: Faction? = nil) {
         if let r = region { capitalPending.insert(r) }
         let ids = (0..<24).map { _ in newId() }
         let gen = world.gen
@@ -636,8 +637,9 @@ extension ShipManager {
             let frigate = kind != "crawler"
             let cap = kind == "capfrigate"
             let hb = cap ? Capital.capitalFrigate() : (frigate ? Capital.frigate() : Capital.crawler())
-            let ships = Capital.makeShips(hb, ids: ids, name: cap ? "Capital Frigate" : (frigate ? "Stormwarden Frigate" : "Ironback Crawler"), role: kind,
-                                          faction: cap ? .steelhold : (frigate ? .stormwarden : .ironback))
+            let own: Faction = faction ?? (cap ? .steelhold : (frigate ? .stormwarden : .ironback))
+            let name = cap ? "Capital Frigate" : (frigate ? "Stormwarden Frigate" : (own == .steelhold ? "Capital Crawler" : "Ironback Crawler"))
+            let ships = Capital.makeShips(hb, ids: ids, name: name, role: kind, faction: own)
             let s = ships[0]
             let st = CapitalState()
             st.region = region
@@ -1042,6 +1044,12 @@ extension ShipManager {
             let d = max(1, simd_length(to))
             want = to / d
             speed = d > 100 ? 6 : (st.mainGunCD <= 2 ? 1 : 0)
+        } else if let goal = st.goal {
+            // Patrol: drive to the goal and wait there.
+            let to = V2(goal.x - s.pos.x, goal.z - s.pos.z)
+            let d = max(1, simd_length(to))
+            want = d > 12 ? to / d : fh
+            speed = d > 12 ? min(5, d * 0.15 + 1) : 0
         } else {
             let toHome = V2(home.x - s.pos.x, home.z - s.pos.z)
             let dist = max(1, simd_length(toHome))

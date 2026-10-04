@@ -50,10 +50,14 @@ struct BaseRecord: Codable {
     var dropshipCD: Float = 0
     var dropships: Int = 0
     var lastTick: Double = 0
+    var crawlerGoal: [Float]? = nil         // a crawler patrol out to a distant blast or cannon fire
+    var crawlerPhase: Int = 0               // 0 to call, 1 out, 2 holding there, 3 back
+    var crawlerT: Float = 0
 
     var centre: V3 { V3(Float(cx) + 0.5, Float(y0 + 4), Float(cz) + 0.5) }
     var gate: V3 { V3(Float(cx) + 0.5, Float(y0 + 1), Float(cz + 52) + 0.5) }
     var plaza: V3 { V3(Float(cx) + 0.5, Float(y0 + 5), Float(cz + 30) + 0.5) }
+    var motorPool: V3 { V3(Float(cx) + 0.5, Float(y0), Float(cz + 92) + 0.5) }      // where the crawler comes and goes
     func inside(_ p: V3) -> Bool {
         abs(p.x - Float(cx)) < Float(CapitalBase.A) && abs(p.z - Float(cz)) < Float(CapitalBase.A) && p.y > Float(y0 - 20) && p.y < Float(y0 + 80)
     }
@@ -146,6 +150,7 @@ extension Game {
             baseAlertStep(&r, b, step)
             if r.alert == .lockdown { baseLockdown(&r, b, step) } else { baseStandDown(&r, b) }
             basePatrol(&r, b, step)
+            baseCrawler(&r, b, step)
             baseRebuild(&r, b, step, away: Float(away))
             b.records[key] = r
         }
@@ -169,6 +174,11 @@ extension Game {
                 raise(&r, .lockdown, b)
             } else {
                 raise(&r, d < 70 || n.kind != .gunshot ? .alert : .suspicious, b)
+                // Heavy noise far out: the crawler goes too.
+                if n.kind != .gunshot && d > 70 && r.crawlerGoal == nil {
+                    r.crawlerGoal = [n.pos.x, n.pos.y, n.pos.z]; r.crawlerPhase = 0; r.crawlerT = 0
+                    b.note("\(r.key) crawler out to \(Int(n.pos.x)),\(Int(n.pos.z))")
+                }
                 if r.patrol == nil {
                     r.patrol = PatrolRecord(target: [n.pos.x, n.pos.y, n.pos.z], phase: 0, t: 0, size: n.kind == .gunshot ? 4 : 6)
                     b.note("\(r.key) patrol out to \(Int(n.pos.x)),\(Int(n.pos.z)) (\(n.kind), \(Int(d)) blocks)")

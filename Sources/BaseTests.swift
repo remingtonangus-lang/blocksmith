@@ -80,6 +80,23 @@ enum BaseTests {
         let strays = home.filter { m in offPost(m) > 6 }
         check(strays.isEmpty, "patrol members back at their posts", "\(strays.count) of \(home.count) away")
 
+        // 1b. A blast far outside: the crawler drives out, holds, comes back (a foot patrol goes too).
+        let far = V3(gate.x + 8, g.standY(gate.x + 8, gate.z + 48, from: gate.y + 10), gate.z + 48)
+        Explosion.explode(at: far + V3(0, 0.5, 0), power: 2, game: g)
+        let crawler = { w.ships.capitals.first { $0.role == "crawler" && $0.faction == Faction.steelhold.rawValue } }
+        let rolled = sim(40) { crawler() != nil }
+        check(rolled != nil, "a distant blast sends the crawler", rec().crawlerGoal == nil ? "no crawler patrol" : "phase \(rec().crawlerPhase)")
+        let there = sim(260) { rec().crawlerPhase >= 2 || rec().crawlerGoal == nil }
+        check(there != nil && rec().crawlerGoal != nil, "the crawler reaches the blast", "phase \(rec().crawlerPhase), \(crawler().map { Int(simd_length(V2($0.pos.x - far.x, $0.pos.z - far.z))) } ?? -1) blocks off")
+        if phase == "crawler" {
+            let c = crawler()?.pos ?? far
+            look(at: c, from: c + V3(-30, 14, 30))
+            return finish(g, b, t0)
+        }
+        let parked = sim(420) { rec().crawlerGoal == nil }
+        check(parked != nil && crawler() == nil, "the crawler comes back in", String(format: "after %.0f s", parked ?? -1))
+        _ = sim(300) { rec().patrol == nil }
+
         // 2. A blast inside the plaza: lockdown, turret crews, dropships.
         let soldiersBefore = g.mobs.mobs.filter { $0.faction == Faction.steelhold.rawValue }.count
         Explosion.explode(at: rec().plaza + V3(9, 0.5, -6), power: 2.5, game: g)

@@ -276,3 +276,48 @@ extension Game {
         b.workers[r.key] = left.isEmpty ? nil : left
     }
 }
+
+extension Game {
+    // MARK: Crawler patrol
+
+    // The citadel's crawler (a Capital-crewed Crawler from CapitalShips) drives out to a distant blast or cannon fire,
+    // holds there a while, drives back to the motor pool south of the gate and goes back in (is removed).
+    func baseCrawler(_ r: inout BaseRecord, _ b: BaseWatch, _ dt: Float) {
+        guard let g3 = r.crawlerGoal else { return }
+        let goal = V3(g3[0], g3[1], g3[2])
+        r.crawlerT += dt
+        let pool = r.motorPool
+        let ships = world.ships
+        let mine = ships.capitals.first { $0.role == "crawler" && $0.faction == Faction.steelhold.rawValue && simd_length(V2(($0.home ?? $0.pos).x - pool.x, ($0.home ?? $0.pos).z - pool.z)) < 4 }
+        if r.crawlerPhase == 0 {
+            guard world.isLoaded(Int(pool.x), Int(pool.z)) else { return }
+            let yaw = atan2f(-(goal.x - pool.x), -(goal.z - pool.z))
+            ships.spawnCapital("crawler", home: IVec3(Int(floor(pool.x)), 0, Int(floor(pool.z))), yaw: yaw, region: nil, faction: .steelhold)
+            r.crawlerPhase = 1; r.crawlerT = 0
+            return
+        }
+        guard let s = mine, let st = ships.capState[s.id] else {
+            if r.crawlerT > 30 { b.note("\(r.key) crawler lost"); r.crawlerGoal = nil }      // never built, or destroyed
+            return
+        }
+        let d = simd_length(V2(s.pos.x - goal.x, s.pos.z - goal.z)), dh = simd_length(V2(s.pos.x - pool.x, s.pos.z - pool.z))
+        switch r.crawlerPhase {
+        case 1:
+            st.goal = goal
+            if d < 18 { r.crawlerPhase = 2; r.crawlerT = 0; b.note("\(r.key) crawler reached the noise") }
+            else if r.crawlerT > 300 { r.crawlerPhase = 3; r.crawlerT = 0; b.note("\(r.key) crawler turned back (\(Int(d)) blocks short)") }
+        case 2:
+            st.goal = goal                                        // within 12 of it: it waits there
+            if r.crawlerT > 40 { r.crawlerPhase = 3; r.crawlerT = 0; b.note("\(r.key) crawler returning") }
+        default:
+            st.goal = pool
+            if dh < 14 || r.crawlerT > 400 {
+                for m in st.crewMobs.values { mobs.mobs.removeAll { $0 === m } }
+                ships.remove(s)
+                ships.capState.removeValue(forKey: s.id)
+                b.note("\(r.key) crawler back in the motor pool (\(Int(r.crawlerT)) s)")
+                r.crawlerGoal = nil
+            }
+        }
+    }
+}
