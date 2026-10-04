@@ -40,6 +40,10 @@ var _walk_mode := false
 var _last_floor_y := 0.0
 var _air_time := 0.0
 var fall_damage_taken := 0.0
+var gun: GunHandler
+var damageable: Damageable
+var nerve: Nerve
+var hud: CanvasLayer
 
 func setup(cam: Camera3D) -> void:
 	camera = cam
@@ -57,11 +61,127 @@ func setup(cam: Camera3D) -> void:
 	floor_snap_length = 0.45
 	max_slides = 6
 	_build_visual()
+	_setup_combat()
 	cam_yaw = rotation.y
 	facing = rotation.y
 	_cam_target = global_position + Vector3(0, 1.6, 0)
 	if not Game.headless and not bot_driven and not Game.args.has("bot") and not Game.args.has("benchmark"):
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if OS.has_feature("android") or Game.args.has("vr"):
+		var vr := VR.try_start()
+		if vr != null:
+			add_child(vr)
+			vr.attach(self, get_tree().current_scene)
+
+func _setup_combat() -> void:
+	damageable = Damageable.new()
+	damageable.name = "Damageable"
+	damageable.max_health = 100.0
+	damageable.regen_rate = 4.0
+	add_child(damageable)
+	damageable.damaged.connect(func(info): health = damageable.health)
+	damageable.died.connect(_on_died)
+	# hitboxes so enemies can hit Ruth (head / chest / belly / legs)
+	var hb := Node3D.new()
+	hb.name = "Hitboxes"
+	add_child(hb)
+	var head := SphereShape3D.new(); head.radius = 0.13
+	Damageable.make_hitbox(hb, damageable, "head", head, Transform3D(Basis(), Vector3(0, 1.62, 0)))
+	var chest := BoxShape3D.new(); chest.size = Vector3(0.42, 0.42, 0.26)
+	Damageable.make_hitbox(hb, damageable, "chest", chest, Transform3D(Basis(), Vector3(0, 1.28, 0)))
+	var belly := BoxShape3D.new(); belly.size = Vector3(0.38, 0.3, 0.24)
+	Damageable.make_hitbox(hb, damageable, "belly", belly, Transform3D(Basis(), Vector3(0, 0.95, 0)))
+	var legs := BoxShape3D.new(); legs.size = Vector3(0.36, 0.8, 0.24)
+	Damageable.make_hitbox(hb, damageable, "leg", legs, Transform3D(Basis(), Vector3(0, 0.42, 0)))
+	gun = GunHandler.new()
+	gun.name = "Guns"
+	add_child(gun)
+	gun.setup(self, damageable, true)
+	gun.hit_landed.connect(func(info):
+		if hud and hud.has_method("hit_confirm"):
+			var t: Damageable = info.get("target")
+			hud.hit_confirm(t != null and not t.alive)
+		if nerve and info.get("zone", "") == "head":
+			nerve.reward(6.0))
+	if not Game.headless:
+		hud = load("res://src/ui/hud.gd").new()
+		hud.name = "HUD"
+		get_tree().current_scene.add_child.call_deferred(hud)
+		hud.setup.call_deferred(self)
+		Game.hud = hud
+	nerve = Nerve.new()
+	nerve.name = "Nerve"
+	add_child(nerve)
+	nerve.setup(gun, hud)
+
+func _on_died(_info: Dictionary) -> void:
+	Game.log_event("player_died", {})
+	Game.say("You have died.", 6.0)
+	# respawn at the nearest settlement after a beat (death/consequence system refines this)
+	await get_tree().create_timer(4.0, true, false, true).timeout
+	var near := Game.world.nearest_settlement(global_position.x, global_position.z)
+	var p := Vector3(near.x + 10.0, 0, near.z + 10.0)
+	p.y = Game.world.height(p.x, p.z) + 1.0
+	Game.terrain.ensure_collision_at(p)
+	global_position = p
+	damageable.alive = true
+	damageable.health = damageable.max_health
+	health = damageable.max_health
+
+## Combat input each frame: draw/holster, aim, fire, reload, weapon switch, Nerve.
+func _combat(dt: float) -> void:
+	if gun == null:
+		return
+	var aiming: bool = intent.aim
+	if aiming and not gun.drawn:
+		gun.drawn = true
+		gun.cooldown = 0.25
+	gun.aim_tick(aiming, dt)
+	if not bot_driven:
+		if Input.is_action_just_pressed("holster"):
+			gun.drawn = not gun.drawn
+		if Input.is_action_just_pressed("reload"):
+			gun.start_reload()
+		if Input.is_action_just_pressed("weapon_wheel"):
+			gun.select((gun.current + 1) % gun.weapons.size())
+		if Input.is_action_just_pressed("nerve") and aiming:
+			if nerve.active:
+				nerve.execute()
+			else:
+				nerve.activate()
+	if nerve.active and (not aiming):
+		nerve.execute()
+	if _fire_edge:
+		var aim := aim_ray()
+		if nerve.active:
+			nerve.mark(aim.origin, aim.dir)
+		elif gun.drawn:
+			var muzzle := global_position + Vector3(0, 1.45, 0) + Vector3(-sin(facing), 0, -cos(facing)) * 0.35
+			var dir: Vector3 = (aim.point - muzzle).normalized()
+			var hits := gun.fire(muzzle, dir, aiming)
+			if gun.cooldown > 0.0:
+				Effects.muzzle_flash(get_tree().current_scene, muzzle, dir)
+			Game.log_event("player_fire", {"hits": hits.size()})
+	# recoil kicks the camera
+	cam_pitch = clampf(cam_pitch + deg_to_rad(gun.recoil_kick.x) * dt * 6.0, -1.2, 0.9)
+	cam_yaw += deg_to_rad(gun.recoil_kick.y) * dt * 6.0
+
+var _fire_edge := false
+var _fire_was := false
+
+## Camera-centre aim: origin, direction and the first solid point (for converging muzzle shots).
+func aim_ray() -> Dictionary:
+	var o := camera.global_position if camera else global_position + Vector3(0, 1.6, 0)
+	var d := -camera.global_basis.z if camera else Vector3(-sin(facing), 0, -cos(facing))
+	var space := get_world_3d().direct_space_state
+	var q := PhysicsRayQueryParameters3D.create(o, o + d * 600.0, 1 | 4 | 8 | 16)
+	q.collide_with_areas = true
+	var ex: Array[RID] = [get_rid()]
+	for a in find_children("*", "Area3D", true, false):
+		ex.append(a.get_rid())
+	q.exclude = ex
+	var hit := space.intersect_ray(q)
+	return {"origin": o, "dir": d, "point": hit.position if not hit.is_empty() else o + d * 600.0}
 
 func _build_visual() -> void:
 	var factory = load("res://src/actors/character_factory.gd") if ResourceLoader.exists("res://src/actors/character_factory.gd") else null
@@ -135,6 +255,9 @@ func _physics_process(dt: float) -> void:
 		return
 	if not bot_driven:
 		_read_human_intent(dt)
+	_fire_edge = intent.fire and not _fire_was
+	_fire_was = intent.fire
+	_combat(dt)
 	var mv: Vector2 = intent.move
 	var want_dir := Vector3.ZERO
 	if mv.length() > 0.08:
@@ -188,8 +311,12 @@ func _physics_process(dt: float) -> void:
 			var impact := -_last_vy
 			if impact > 9.0:
 				var dmg := (impact - 9.0) * 12.0
-				health -= dmg
 				fall_damage_taken += dmg
+				if damageable:
+					damageable.apply_hit({"amount": dmg, "zone": "belly", "attacker": self})
+					health = damageable.health
+				else:
+					health -= dmg
 				Game.log_event("fall_damage", {"impact": impact, "damage": dmg})
 		_air_time = 0.0
 		velocity.y = -0.5
@@ -211,7 +338,7 @@ func _physics_process(dt: float) -> void:
 var _last_vy := 0.0
 
 func _process(dt: float) -> void:
-	if camera == null or on_horse != null:
+	if camera == null or on_horse != null or Game.is_vr:
 		return
 	_update_camera(dt)
 

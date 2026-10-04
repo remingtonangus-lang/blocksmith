@@ -605,6 +605,7 @@ def main():
     with open(os.path.join(args.out, 'features.json'), 'w') as f:
         json.dump(feats, f, separators=(',', ':'))
     write_preview(h1, ctrl, feats, os.path.join(args.out, 'preview.png'))
+    write_paper_map(h1, ctrl, feats, os.path.join(args.out, 'map.png'))
     print(f"worldgen done in {time.time()-T:.1f}s  stats={stats}", flush=True)
 
 
@@ -640,6 +641,79 @@ def write_preview(h, ctrl, feats, path, size=1024):
         rr = 6 if 'angle' in t else 3
         d.ellipse([x - rr, y - rr, x + rr, y + rr], outline=(0, 0, 0), fill=(200, 40, 30) if rr > 3 else (240, 220, 80))
         d.text((x + 8, y - 6), t['name'], fill=(0, 0, 0))
+    img.save(path)
+
+
+def write_paper_map(h, ctrl, feats, path, size=2048):
+    """In-game map: aged paper, ink hillshade + contour lines, blue-ink water, dashed trails, rail, lettering."""
+    from PIL import Image, ImageDraw, ImageFont, ImageFilter
+    fdir = os.path.join(os.path.dirname(__file__), '..', 'assets', 'fonts')
+    def font(name, sz):
+        try:
+            return ImageFont.truetype(os.path.join(fdir, name), sz)
+        except Exception:
+            return ImageFont.load_default()
+    hs = ndimage.zoom(h, size / h.shape[0], order=1)
+    c = ndimage.zoom(ctrl, (size / ctrl.shape[0], size / ctrl.shape[1], 1), order=1)
+    rng2 = np.random.default_rng(5)
+    paper = np.array([0.88, 0.80, 0.64])
+    stain = ndimage.gaussian_filter(rng2.random((size, size)), 40)
+    stain = (stain - stain.min()) / (stain.max() - stain.min())
+    fib = ndimage.gaussian_filter(rng2.random((size, size)), 1.2)
+    base = paper[None, None, :] * (0.9 + 0.12 * stain[..., None]) * (0.96 + 0.06 * fib[..., None])
+    gy, gx = np.gradient(hs, SIZE_M / size)
+    shade = np.clip(0.5 + (-gx * 0.6 - gy * 0.6) * 1.4, 0, 1)
+    ink = np.array([0.30, 0.22, 0.15])
+    hill = (1 - shade) * 0.55 * smoothstep(0.02, 0.5, np.hypot(gx, gy))
+    col = base * (1 - hill[..., None]) + ink * hill[..., None]
+    # contour lines every 50 m, heavier every 250 m
+    for step, wgt in ((50.0, 0.25), (250.0, 0.5)):
+        f = np.abs(((hs / step) + 0.5) % 1.0 - 0.5) * step
+        line = smoothstep(1.4 * step / 50.0, 0.0, f / np.maximum(np.hypot(gx, gy) * SIZE_M / size, 0.05)) * wgt
+        col = col * (1 - line[..., None]) + ink * line[..., None]
+    forest = smoothstep(0.7, 0.9, c[..., 2]) * (hs < 1150)
+    col = col * (1 - forest[..., None] * 0.12) + np.array([0.33, 0.38, 0.22]) * forest[..., None] * 0.12
+    desert = smoothstep(0.3, 0.1, c[..., 2])
+    col = col * (1 - desert[..., None] * 0.12) + np.array([0.78, 0.5, 0.32]) * desert[..., None] * 0.12
+    water = (hs < LAKE_LEVEL + 0.2)
+    col = np.where(water[..., None], base * 0.7 + np.array([0.25, 0.38, 0.48]) * 0.3, col)
+    img = Image.fromarray((np.clip(col, 0, 1) * 255).astype(np.uint8))
+    d = ImageDraw.Draw(img)
+    s = size / SIZE_M
+    blue = (48, 78, 104)
+    for r in feats['rivers']:
+        pts = [((p[0] + SIZE_M / 2) * s, (p[1] + SIZE_M / 2) * s) for p in r['points']]
+        d.line(pts, fill=blue, width=5 if r['name'] == 'Sable River' else 3, joint='curve')
+    for rd in feats['roads']:
+        pts = [((p[0] + SIZE_M / 2) * s, (p[1] + SIZE_M / 2) * s) for p in rd['points']]
+        for i in range(0, len(pts) - 1, 2):
+            d.line([pts[i], pts[i + 1]], fill=(92, 60, 36), width=3)
+    rp = [((p[0] + SIZE_M / 2) * s, (p[1] + SIZE_M / 2) * s) for p in feats['rail']['points']]
+    d.line(rp, fill=(40, 30, 24), width=4)
+    for i in range(0, len(rp) - 1, 3):
+        x0, y0 = rp[i]; x1, y1 = rp[i + 1]
+        dx, dy = y1 - y0, -(x1 - x0); n = max(np.hypot(dx, dy), 1e-3) / 6.0
+        d.line([(x0 - dx / n, y0 - dy / n), (x0 + dx / n, y0 + dy / n)], fill=(40, 30, 24), width=2)
+    big = font('Rye-Regular.ttf', 34); small = font('IMFeENrm28P.ttf', 26); tiny = font('IMFeENit28P.ttf', 22)
+    region = font('IMFeENsc28P.ttf', 46)
+    for t in feats['towns']:
+        x, y = (t['x'] + SIZE_M / 2) * s, (t['z'] + SIZE_M / 2) * s
+        d.rectangle([x - 9, y - 9, x + 9, y + 9], outline=(40, 26, 18), width=3, fill=(120, 40, 30))
+        d.text((x + 16, y - 20), t['name'], fill=(40, 26, 18), font=big)
+    for p in feats['pois']:
+        x, y = (p['x'] + SIZE_M / 2) * s, (p['z'] + SIZE_M / 2) * s
+        d.ellipse([x - 5, y - 5, x + 5, y + 5], outline=(40, 26, 18), width=2)
+        d.text((x + 10, y - 12), p['name'], fill=(52, 36, 26), font=small)
+    for name, u, v in (("KESTREL RANGE", 0.12, 0.10), ("THORNWOOD", 0.68, 0.10), ("CORRIGAN PLAINS", 0.48, 0.80),
+                       ("OCOTILLO BREAKS", 0.06, 0.92), ("LAKE AGNES", 0.835, 0.74), ("SABLE RIVER", 0.56, 0.585)):
+        d.text((u * size, v * size), name, fill=(70, 50, 36), font=region if name != "SABLE RIVER" else tiny)
+    # compass rose
+    cx, cy = size - 170, 170
+    d.ellipse([cx - 90, cy - 90, cx + 90, cy + 90], outline=(60, 40, 28), width=3)
+    d.polygon([(cx, cy - 110), (cx - 14, cy), (cx + 14, cy)], fill=(60, 40, 28))
+    d.polygon([(cx, cy + 90), (cx - 10, cy), (cx + 10, cy)], outline=(60, 40, 28))
+    d.text((cx - 10, cy - 150), "N", fill=(60, 40, 28), font=big)
+    img = img.filter(ImageFilter.SMOOTH)
     img.save(path)
 
 

@@ -35,6 +35,8 @@ var sky: Node
 var player: Node3D
 var camera: Camera3D
 var main: Node
+var audio: Node               # AudioDirector (src/audio/audio_director.gd)
+var hud: Node
 var is_vr := false
 var headless := false
 var rng := RandomNumberGenerator.new()
