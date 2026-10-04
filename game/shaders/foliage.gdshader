@@ -6,7 +6,7 @@ render_mode cull_disabled, depth_prepass_alpha;
 
 #include "res://shaders/common.gdshaderinc"
 
-uniform sampler2D albedo_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_enable;
 uniform bool is_leaf = true;
 uniform float near_end = 300.0;
 uniform vec3 tint_a : source_color = vec3(1.0);

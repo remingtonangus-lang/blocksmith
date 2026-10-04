@@ -60,14 +60,38 @@ as `/usr/local/bin/godot`. `godot --headless --path game -s res://tests/run_test
 shots on lavapipe.
 
 ## Milestones
-1. [ ] Skeleton, CI, release publishing, perf HUD, benchmark, screenshot tests
-2. [ ] Landscape, sky, atmosphere, vegetation, day-night, weather
-3. [ ] Capital cities and bases
-4. [ ] Soldiers, factions, battles
+1. [x] Skeleton, CI, release publishing, perf HUD, benchmark, screenshot tests
+2. [x] Landscape, sky, atmosphere, vegetation, day-night, weather (polish continues)
+3. [x] Capital cities and bases (Candor; citadel, radar station, Fort Lumen, airfield, harbour, Cinder camps)
+4. [x] Soldiers, factions, battles (first pass; polish continues)
 5. [ ] Vehicles (crawler, frigate, dropships, helicopters, convoys, warships, artillery) with riding and driving
 6. [ ] Weapons, destruction, FX, audio
 7. [ ] Performance and polish pass with benchmark numbers
 
+## What is in the world
+- 16 km island: northern mountains to 2100 m with snow, the Cinder Pact plateau in the west with canyons, forested
+  southern hills, the Capital's coastal plain in the east, a river from the mountains to the eastern sea plus a
+  tributary from the plateau. CDLOD terrain (one MultiMesh, geomorphing, near levels cast shadows), procedural
+  ground materials (grass, meadow, forest floor, triplanar rock, sand, snow, paving, asphalt), a 256 m physics window.
+- Sky: single-scattering atmosphere, raymarched cumulus slab (steps per preset), stars, moon; 32-minute days;
+  weather (clear, cloudy, overcast, fog, rain, storm, snow) with rain/snow particles, wet ground, fresh snow, storm
+  lightning; ocean with Gerstner swell, refraction and its own haze; rivers.
+- Forests: spruce, broadleaf, birch, bushes (procedural meshes, painted leaf atlas), impostors baked from the meshes
+  to 5 km, GPU grass in two lattices.
+- Candor, the Capital's city: 695 towers on a raised podium, the 430 m Spire, skyways, landing pads, terrace
+  gardens, 12k trees, lamps; HLOD cells. Bases: citadel with twin 42 cm turrets, radar station, Fort Lumen,
+  airfield, naval harbour, Cinder camps, artillery park; searchlights and beacons at night.
+- War: Capital and Cinder squads fight over three capture points at the front (west of Fort Lumen), with
+  reinforcements and barrages; Capital patrols in the citadel and the city plaza.
+
+## CI benchmark (GitHub macOS runner, paravirtual Apple5 GPU, 1024x656, High, vsync on; not Remington's M1)
+Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.3 (p99 28.6, 1103 draws,
+7.7 M prims), forest 49.8 (p99 24.0, 605 draws, 6.4 M prims); load 6.6 s from cache, 39 s first run; VRAM 500 MB.
+The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
+
 ## Log
+- 2026-10-04 23:05: GAME BUILD READY 1e8f6d7 (walkable world: landscape, forests, weather, Candor and the bases;
+  the battle commit e82323f follows). Fixed for the next build: Metal allows 16 samplers per stage, anisotropic
+  repeat samplers are index 17 and failed to compile (foliage, terrain): now trilinear.
 - 2026-10-04: engine switched from three.js to Godot 4 (Remington's decision via chat-Claude); the web/ scaffold was
   never pushed. Branch claude/capital-game created from claude/blocksmith-playtest.

@@ -9,8 +9,8 @@ render_mode skip_vertex_transform, depth_draw_opaque, cull_back;
 #include "res://shaders/terrain_height.gdshaderinc"
 
 uniform sampler2D maskmap_lin : filter_linear_mipmap, repeat_disable;
-uniform sampler2DArray albedo_array : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
-uniform sampler2DArray normal_array : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2DArray albedo_array : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2DArray normal_array : filter_linear_mipmap, repeat_enable;
 uniform vec3 cam_pos;
 const float world_half = T_HALF;
 const float detail_period = T_DETAIL_PERIOD;

@@ -154,6 +154,7 @@ func _write() -> void:
 		"memory": {"static_peak_mb": snappedf(peak_static / 1048576.0, 0.1),
 			"vram_peak_mb": snappedf(peak_vram / 1048576.0, 0.1),
 			"static_end_mb": snappedf(Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0, 0.1)},
+		"rss_mb": _rss_mb(),
 		"load_seconds": snappedf(G.main.load_seconds, 0.01) if G.main and "load_seconds" in G.main else 0.0,
 		"wall_seconds": snappedf((Time.get_ticks_msec() - started_ms) / 1000.0, 0.1),
 	}
@@ -162,6 +163,16 @@ func _write() -> void:
 	G.log_line("benchmark written to %s" % path)
 	print(JSON.stringify(out))
 	get_tree().quit(0)
+
+
+## Resident memory of this process (release builds do not track static memory).
+func _rss_mb() -> float:
+	var out := []
+	if OS.get_name() in ["macOS", "Linux"]:
+		OS.execute("ps", ["-o", "rss=", "-p", str(OS.get_process_id())], out)
+		if out.size() > 0:
+			return snappedf(float(String(out[0]).strip_edges()) / 1024.0, 0.1)
+	return 0.0
 
 
 func _commit() -> String:
