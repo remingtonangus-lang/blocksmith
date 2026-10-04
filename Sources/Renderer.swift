@@ -526,7 +526,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         v.ensure(max(1, Int(Float(width) * rs)), max(1, Int(Float(height) * rs)))
         // The shadow map is re-rendered only when the light turned or the snapped centre moved (or every
         // 8th frame for block edits); otherwise last frame's map and matrix are reused.
-        let lf = Vibrant.lightFrame(game: game, eye: cameraEye().eye)
+        let lf = Vibrant.lightFrame(game: game, eye: game.coop.shadowFocus(game) ?? cameraEye().eye)
         shadowAge += 1
         let turned = simd_dot(lf.dir, lastShadow.dir) < 0.99995
         let moved = simd_length(lf.center - lastShadow.center) > 1.0

@@ -360,6 +360,16 @@ final class Coop {
         parked = s
     }
 
+    // Split screen with the players close together: one shadow map centred between them serves both views (it covers
+    // 64 blocks either side), so it isn't re-rendered for each view. nil when apart (each view centres its own).
+    func shadowFocus(_ g: Game) -> V3? {
+        guard active else { return nil }
+        let a = seatPlayer(0, g).eye, b = seatPlayer(1, g).eye
+        let d = b - a
+        guard d.x * d.x + d.z * d.z < 40 * 40 && abs(d.y) < 32 else { return nil }
+        return (a + b) * 0.5
+    }
+
     // The other seats' bodies, drawn in each view.
     func writeOthers(_ g: Game, eye: V3, daylight: Float, into out: UnsafeMutablePointer<MobVert>, capacity: Int) -> Int {
         guard active else { return 0 }
