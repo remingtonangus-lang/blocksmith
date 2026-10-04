@@ -176,10 +176,19 @@ extension ShipManager {
                 let mn = V3(m.pos.x - m.halfW, m.pos.y, m.pos.z - m.halfW), mx = V3(m.pos.x + m.halfW, m.pos.y + m.height, m.pos.z + m.halfW)
                 guard let s = list.first(where: { mx.x > $0.worldMin.x && mn.x < $0.worldMax.x && mx.y > $0.worldMin.y && mn.y < $0.worldMax.y
                     && mx.z > $0.worldMin.z && mn.z < $0.worldMax.z }), overlaps(mn, mx) else { continue }
+                // Exactly, in the hull's frame (the world-space boxes of a turned hull are fat: a troop just off the
+                // crawler's ramp foot was lifted a block by them); a lift is at most a stair step, more is a shove.
+                let l = s.toLocal(m.pos)
+                world.frame = s
+                let hit = m.collides(l, world)
                 var lifted = false
-                for up in [Float(0.35), 0.7, 1.05] where !overlaps(mn + V3(0, up, 0), mx + V3(0, up, 0)) {
-                    m.pos.y += up; lifted = true; break
+                if hit {
+                    for up in [Float(0.3), 0.6] where !m.collides(l + V3(0, up, 0), world) {
+                        m.pos = s.toWorld(l + V3(0, up, 0)); lifted = true; break
+                    }
                 }
+                world.frame = nil
+                if !hit { continue }
                 if !lifted {
                     var away = V3(m.pos.x - s.pos.x, 0, m.pos.z - s.pos.z)
                     away = simd_length(away) > 0.01 ? simd_normalize(away) : V3(1, 0, 0)
