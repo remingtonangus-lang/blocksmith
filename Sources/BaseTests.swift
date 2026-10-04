@@ -30,7 +30,7 @@ enum BaseTests {
         for (name, p) in w.pendingMobs { if let k = MobKind.named(name) { g.mobs.mobs.append(Mob(Soldier.garrison(k, at: p), at: p)) } }
         w.pendingMobs.removeAll()
         for m in g.mobs.mobs where m.kind.steelhold { m.persistent = true }
-        g.survival = false                                   // the soldiers can't target the observer
+        g.survival = false; g.paused = false; g.menu = nil  // the soldiers can't target the observer
         g.player.flying = true
         let b = g.bases
         let watchPos = centre + V3(0, 60, 0)
