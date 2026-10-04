@@ -22,7 +22,23 @@ local Claude Code on Remington's Mac (USB GIP controller driver, hardware tests)
 - (6) CapitalBase.swift: citadels replace the Steelhold fortresses (key military_base, mob keys and steelhold_* loot
   tables kept). A Capital frigate is stationed over each citadel (ShipManager.stationFrigates, key citadel:x,z).
 
+## CI (heavy run 456 on cf2b180)
+- Green: build, smoke, perf, checks (structcheck: 9 citadels, 99 POIs, 333 mobs, no issues), shots (mobtests clean once
+  the stationed frigate was leashed to its citadel), tours (physicstest passes with the Capital frigate encounter).
+- play: one playthrough FAIL (back through the Emberdeep arrival portal: the idle player was pushed out of it); fixed in
+  15bc483 by holding the player in the portal. Verify on the next heavy run.
+- --ridetest (not gating) now measures the real bug for stream B: on a crawler driving S-turns at 6 b/s the bot drifts
+  154 blocks relative to the deck while standing still and falls off (5064 of 10800 frames off the deck); the sheep
+  (Mob.deck in the ship frame) stays aboard except 197 frames. Riding the player is task 3 (stream B).
+
+## Controller (usb-gip)
+Compiles on CI since 627d256 (IOUSBHost refined names: __configure(withValue:matchInterfaces:),
+__sendIORequest(with:bytesTransferred:completionTimeout:), plain enqueueIORequest(with:completionTimeout:)). Needs the
+hardware check on Remington's Mac: run the built app from Terminal with the PowerA pad plugged in and read the
+"usb-gip:" lines (found / step ... / opened / first input report). Owned by the Mac session.
+
 ## Next
-- Read the CI shots: ship_frigate*, citadel_far/gate/top/plaza; fix what looks wrong (proportions, glass, gardens).
+- Shots looked right in run 450 (frigate bow/side/top; citadel far/gate/top). Check the new citadel_turret,
+  citadel_plaza and ship_frigate_deck angles and the flight-deck markings.
 - structcheck / fortresstest on the new citadel (walkability: ladders, doors, pad, skyways; mobs not in blocks).
 - Make --ridetest gating once it passes (or hand it to stream B).
