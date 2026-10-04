@@ -1,0 +1,163 @@
+class_name HorseGaitOracle
+extends RefCounted
+## Gait oracle: records hoof ground contacts, extracts footfall onsets per leg, groups them into beats and checks
+## the beat count and order against the reference footfall table; also measures foot slide (cm of hoof travel
+## along the ground per stance). Works on the bare animation (model space, in-place cycle moving the ground back
+## at the authored speed) or on a horse moving in the world (samples from the controller).
+
+const REF := {
+	"walk": [["LH"], ["LF"], ["RH"], ["RF"]],            # 4-beat lateral sequence
+	"trot": [["LH", "RF"], ["LF", "RH"]],                # 2-beat diagonal
+	"canter": [["RH"], ["LH", "RF"], ["LF"]],            # 3-beat (left lead)
+	"canter_r": [["LH"], ["LF", "RH"], ["RF"]],
+	"gallop": [["RH"], ["LH"], ["RF"], ["LF"]],          # 4-beat transverse (left lead)
+	"gallop_r": [["LH"], ["RH"], ["LF"], ["RF"]],
+}
+const LEGS := ["LF", "RF", "LH", "RH"]
+const CONTACT_H := 0.03
+const BEAT_TOL := 0.07
+
+## Animation-only analysis: sample the gait cycle twice in model space.
+static func analyse_animation(v: HorseVisual, gait: String, steps := 240) -> Dictionary:
+	var ap := v.anim_player
+	if ap == null or not ap.has_animation(gait):
+		return {"ok": false, "why": "no animation"}
+	if v.tree:
+		v.tree.active = false
+	if v.ik:
+		v.ik.enabled = false
+	var info := v.gait_info(gait)
+	var L: float = ap.get_animation(gait).length
+	var speed: float = info.get("speed", 0.0)
+	ap.play(gait)
+	var samples := []
+	for i in steps * 2:
+		var t := L * 2.0 * float(i) / float(steps * 2)
+		ap.seek(fmod(t, L), true)
+		var s := {"t": t, "pos": {}, "ground": {}}
+		for leg in LEGS:
+			var hb := v.hoof_bone(leg)
+			var p := v.skeleton.get_bone_global_pose(hb) * v.sole_local(leg)
+			# in-place: the ground moves backward (+Z in model space) at the authored speed
+			s.pos[leg] = Vector3(p.x, p.y, p.z - speed * t)
+			s.ground[leg] = 0.0
+		samples.append(s)
+	ap.stop()
+	if v.tree:
+		v.tree.active = true
+	if v.ik:
+		v.ik.enabled = true
+	return analyse_samples(samples, gait, L)
+
+## samples: [{t, pos: {leg: Vector3 world/model}, ground: {leg: float}}]; cycle: expected period (s) or 0.
+static func analyse_samples(samples: Array, gait: String, cycle := 0.0) -> Dictionary:
+	var onsets := {}
+	var slides := []
+	var contact_frac := {}
+	for leg in LEGS:
+		onsets[leg] = []
+		var was := false
+		var start := Vector3.ZERO
+		var n_c := 0
+		var last := Vector3.ZERO
+		for s in samples:
+			var p: Vector3 = s.pos[leg]
+			var h: float = p.y - float(s.ground[leg])
+			var c := h < CONTACT_H
+			if c:
+				n_c += 1
+			if c and not was:
+				onsets[leg].append(float(s.t))
+				start = p
+			if was and not c:
+				var d := Vector2(last.x - start.x, last.z - start.z).length()
+				slides.append(d)
+			if c:
+				last = p
+			was = c
+		contact_frac[leg] = float(n_c) / maxf(samples.size(), 1)
+	# period: median interval between onsets of the same leg
+	var ints := []
+	for leg in LEGS:
+		var o: Array = onsets[leg]
+		for i in range(1, o.size()):
+			ints.append(o[i] - o[i - 1])
+	ints.sort()
+	var T := cycle
+	if ints.size() > 0:
+		T = ints[ints.size() / 2]
+	var res := {"ok": true, "gait": gait, "period": T, "failures": [], "contact": contact_frac}
+	var ref: Array = REF.get(gait, [])
+	if T <= 0.0 or ref.is_empty():
+		res.ok = false
+		res.failures.append("no periodic contacts")
+		return res
+	var lead: String = ref[0][0]
+	if (onsets[lead] as Array).is_empty():
+		res.ok = false
+		res.failures.append("lead leg %s never lands" % lead)
+		return res
+	# phase of each leg's first onset after the lead leg's first onset
+	var t0: float = onsets[lead][0]
+	var ph := {}
+	for leg in LEGS:
+		var best := INF
+		for t in onsets[leg]:
+			var d: float = fposmod(t - t0, T) / T
+			if t >= t0 - 1e-4 and d < best:
+				best = d
+		if best == INF:
+			for t in onsets[leg]:
+				best = minf(best, fposmod(t - t0, T) / T)
+		ph[leg] = best if best != INF else -1.0
+	res.phases = ph
+	var beats := group_beats(ph)
+	res.beats = beats
+	res.beat_count = beats.size()
+	var want := []
+	for b in ref:
+		var bb: Array = b.duplicate()
+		bb.sort()
+		want.append(bb)
+	if beats != want:
+		res.ok = false
+		res.failures.append("footfalls %s, expected %s" % [str(beats), str(want)])
+	slides.sort()
+	var tot := 0.0
+	for d in slides:
+		tot += d
+	res.slide_cm_avg = 100.0 * tot / maxf(slides.size(), 1)
+	res.slide_cm_max = 100.0 * (slides[slides.size() - 1] if slides.size() > 0 else 0.0)
+	res.stances = slides.size()
+	return res
+
+static func group_beats(ph: Dictionary) -> Array:
+	var items := []
+	for leg in ph:
+		if ph[leg] >= 0.0:
+			items.append([ph[leg], leg])
+	items.sort_custom(func(a, b): return a[0] < b[0])
+	var beats := []
+	var last := -10.0
+	for it in items:
+		if beats.size() > 0 and it[0] - last <= BEAT_TOL:
+			beats[beats.size() - 1].append(it[1])
+		else:
+			beats.append([it[1]])
+		last = it[0]
+	if beats.size() > 1 and (1.0 - last + items[0][0]) <= BEAT_TOL:
+		var tail: Array = beats.pop_back()
+		beats[0].append_array(tail)
+	for b in beats:
+		b.sort()
+	return beats
+
+static func format_line(gait: String, r: Dictionary) -> String:
+	if not r.has("beats"):
+		return "GAIT %s: FAIL %s" % [gait, str(r.get("failures", r.get("why", "")))]
+	var order := []
+	for b in r.beats:
+		order.append("+".join(b))
+	return "GAIT %-7s %s  beats=%d  order=%s  period=%.2fs  slide=%.1f cm/stance (max %.1f, %d stances)%s" % [gait,
+		"PASS" if r.ok else "FAIL", r.beat_count, " ".join(order), r.period, r.slide_cm_avg, r.slide_cm_max, r.stances,
+		"" if r.ok else "  " + str(r.failures)]
