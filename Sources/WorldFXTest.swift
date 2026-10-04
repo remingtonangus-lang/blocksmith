@@ -246,17 +246,25 @@ enum WorldFXTest {
         for p in fm.placed where !Blocks.collide[Int(wd.rawBlock(p.x, p.y - 1, p.z))] && Blocks.fluidKind[Int(wd.rawBlock(p.x, p.y - 1, p.z))] != 1 { floating += 1 }
         check(floating == 0, "no flood water hangs in the air", "\(floating)")
         check(fm.worstMs < 12, "flood model step stays cheap", String(format: "worst %.2f ms", fm.worstMs))
-        // The rain stops: 30 minutes for it to drain away.
-        fm.forcedRain = 0
-        runModel(900)
-        let half = fm.placed.count
+        // The rain stops. A fresh model stands in for loading a save made mid-flood: it has to find the flood water
+        // standing in the world (flood_water blocks) and drain it like its own. 30 minutes.
+        let standing = Array(fm.placed)
+        func inWorld() -> Int { standing.reduce(0) { $0 + (FloodModel.isFlood(wd.rawBlock($1.x, $1.y, $1.z)) ? 1 : 0) } }
+        let fresh = FloodModel()
+        fresh.forcedRain = 0
+        g.fx.flood = fresh
+        func runFresh(_ seconds: Float) { for _ in 0..<Int(seconds / FloodModel.updateEvery) { fresh.update(FloodModel.updateEvery, game: g) } }
+        runFresh(30)
+        check(fresh.placed.count > peak / 2, "a reloaded flood is recognised", "\(fresh.placed.count) of \(peak) blocks adopted")
+        runFresh(870)
+        let half = inWorld()
         shot(g, r, w, h, out + "/fx_flood_2.png")
-        runModel(900)
-        let after = fm.placed.count
+        runFresh(900)
+        let after = inWorld()
         shot(g, r, w, h, out + "/fx_flood_3.png")
         note("receding: \(peak) -> \(half) after 15 min -> \(after) after 30 min")
         check(after < max(1, peak / 4), "the flood recedes after the rain", "\(peak) -> \(after)")
-        fm.forcedRain = nil
+        g.fx.flood = FloodModel()
     }
 
     // MARK: snow

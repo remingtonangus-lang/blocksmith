@@ -13,7 +13,7 @@ import simd
 final class WorldFX {
     let decals = WearDecals()
     var wear = WearStats()
-    let flood = FloodModel()
+    var flood = FloodModel()
     var wind = V3(4, 0, 2)
     var storm: Float = 0                // 0 calm ... 1 full gale
     var gust: Float = 0
