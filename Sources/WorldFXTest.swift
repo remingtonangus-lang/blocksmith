@@ -255,6 +255,14 @@ enum WorldFXTest {
         for p in fm.placed where wd.rawBlock(p.x, p.y, p.z) == FloodModel.flood {
             for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where wd.rawBlock(p.x + dx, p.y, p.z + dz) == AIR { walls += 1; break }
         }
+        // Oracle: the per-block fluid sim leaves flood water alone (an edit beside a flood must not turn it into
+        // ordinary water the model can't drain).
+        let probe = Array(fm.placed.prefix(400))
+        for p in probe { wd.scheduleFluid(around: p) }
+        for _ in 0..<12 { wd.fluidTick() }
+        var converted = 0
+        for p in probe where !FloodModel.isFlood(wd.rawBlock(p.x, p.y, p.z)) { converted += 1 }
+        check(converted == 0, "the fluid sim leaves flood water alone", "\(converted) of \(probe.count) changed")
         let wallShare = Float(walls) / Float(max(1, fm.placed.count))
         check(wallShare < 0.03, "flood shorelines are sloped, not walls", String(format: "%ld full sources beside air (%.1f%%)", walls, wallShare * 100))
         check(fm.worstMs < 12, "flood model step stays cheap", String(format: "worst %.2f ms", fm.worstMs))
@@ -355,6 +363,11 @@ enum WorldFXTest {
         look(g, from: cam, at: field + V3(4, 0, -6))
         let d0 = depth()
         shot(g, r, w, h, out + "/fx_snow_0.png")
+        // A cow standing in the field: the snow must not grow into a solid height under it.
+        let cowX = cx + 3, cowZ = cz - 4
+        let cowY = wd.topY(cowX, cowZ) + 1
+        let cow = Mob(.cow, at: V3(Float(cowX) + 0.5, Float(cowY), Float(cowZ) + 0.5))
+        g.mobs.mobs.append(cow)
         g.weather.raining = true; g.weather.rain = 1
         var worst = 0.0
         var passes: [Double] = []
@@ -371,6 +384,11 @@ enum WorldFXTest {
         g.fx.snowChanges = 0
         run(240)
         let d1 = depth()
+        let under = g.snowLayers(wd.rawBlock(cowX, wd.topY(cowX, cowZ) + 1, cowZ))
+        check(under <= 2, "snow doesn't bury a standing cow's feet", "\(under) layers under it")
+        g.mobs.mobs.removeAll { $0 === cow }
+        let drops = Mining.drops(Game.snowLayerIDs[5], ItemStack.empty).reduce(0) { $0 + $1.count }
+        check(drops > 0, "deep snow drops snowballs", "\(drops) from 5 layers")
         shot(g, r, w, h, out + "/fx_snow_1.png")
         g.weather.raining = false; g.weather.rain = 0
         g.time = 0.25 * DAY_LENGTH
