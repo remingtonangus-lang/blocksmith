@@ -13,6 +13,7 @@ var _ready_to_build := false
 var _built := false
 var _smoke_t := 0.0
 var _smoke_frames := 0
+var _last_stage := ""
 
 
 func _ready() -> void:
@@ -29,6 +30,8 @@ func _ready() -> void:
 	G.log_line("Alabaster %s on %s, %s / %s, preset %s, args %s" % [ProjectSettings.get_setting("application/config/version"),
 		OS.get_name(), RenderingServer.get_current_rendering_driver_name(), RenderingServer.get_video_adapter_name(),
 		Settings.preset, str(Settings.args)])
+	if Settings.raw_cmdline != "":
+		G.log_line("command line: %s" % Settings.raw_cmdline)
 	if Settings.has_arg("padcheck"):
 		_padcheck()
 		return
@@ -90,6 +93,13 @@ func _make_loading() -> void:
 func _process(delta: float) -> void:
 	G.frame += 1
 	if not _built:
+		if _gen and _gen.stage != _last_stage:
+			_last_stage = _gen.stage
+			G.log_line("loading: %s (%.1f s)" % [_last_stage, (Time.get_ticks_msec() - _t0) / 1000.0])
+		if (Settings.has_arg("benchmark") or Settings.has_arg("smoke")) and Time.get_ticks_msec() - _t0 > 300000:
+			G.log_line("loading: TIMEOUT, the world did not finish in 300 s (stage '%s')" % (_gen.stage if _gen else "?"))
+			get_tree().quit(3)
+			return
 		if _load_label and _gen:
 			_load_label.text = "The Capital is waking: %s" % _gen.stage
 			_load_bar.size.x = 400.0 * _gen.progress
@@ -117,6 +127,7 @@ func _build() -> void:
 	add_child(hud)
 	add_child(preload("res://scripts/core/adaptive_res.gd").new())
 	if Settings.has_arg("benchmark"):
+		G.log_line("benchmark: mode on, starting the flythrough")
 		var b := preload("res://scripts/core/benchmark.gd").new()
 		add_child(b)
 		b.start(world.benchmark_segments())

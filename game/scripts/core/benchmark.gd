@@ -14,10 +14,14 @@ var gpu_sum := 0.0
 var draws_sum := 0.0
 var prims_sum := 0.0
 var results: Array = []
+var timed_out := false
 var peak_static := 0.0
 var peak_vram := 0.0
 var started_ms := 0
 const WARMUP := 3.0
+var _log_t := 0.0
+var _limit := 0.0
+var _seg_frames := 0
 
 
 func start(segs: Array) -> void:
@@ -35,6 +39,11 @@ func start(segs: Array) -> void:
 	G.cam = cam
 	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
 	started_ms = Time.get_ticks_msec()
+	# Watchdog: every segment's time plus warm-up and a generous margin for shader compiles and streaming.
+	var total := 0.0
+	for sg in segments:
+		total += float(sg["duration"]) + WARMUP
+	_limit = total + 180.0
 	G.log_line("benchmark: %d segments, preset %s, driver %s, adapter %s" % [segments.size(), Settings.preset,
 		RenderingServer.get_current_rendering_driver_name(), RenderingServer.get_video_adapter_name()])
 	_next()
@@ -48,6 +57,8 @@ func _next() -> void:
 		_write()
 		return
 	var s: Dictionary = segments[seg_i]
+	G.log_line("benchmark: segment %d/%d '%s' starting at %.1f s" % [seg_i + 1, segments.size(), s["name"], (Time.get_ticks_msec() - started_ms) / 1000.0])
+	_seg_frames = 0
 	t = 0.0
 	warm = 0.0
 	times = PackedFloat32Array()
@@ -85,6 +96,20 @@ func _catmull(a: Array, i: int, k: float) -> Vector3:
 
 func _process(delta: float) -> void:
 	if seg_i < 0 or seg_i >= segments.size():
+		return
+	var wall := (Time.get_ticks_msec() - started_ms) / 1000.0
+	_log_t += delta
+	_seg_frames += 1
+	if _log_t >= 5.0:
+		_log_t = 0.0
+		G.log_line("benchmark: '%s' %s %.1f s, %d frames this segment, %.1f fps now, wall %.0f s" % [segments[seg_i]["name"],
+			"warm-up" if warm < WARMUP else "t", warm if warm < WARMUP else t, _seg_frames, Engine.get_frames_per_second(), wall])
+	if wall > _limit:
+		G.log_line("benchmark: TIMEOUT after %.0f s in segment '%s' (t %.1f, warm %.1f): writing partial results" % [wall, segments[seg_i]["name"], t, warm])
+		_finish_segment()
+		timed_out = true
+		seg_i = segments.size()
+		_write()
 		return
 	var s: Dictionary = segments[seg_i]
 	peak_static = maxf(peak_static, Performance.get_monitor(Performance.MEMORY_STATIC))
@@ -150,6 +175,8 @@ func _write() -> void:
 		"upscaler": ["bilinear", "fsr1", "fsr2", "metalfx_spatial", "metalfx_temporal", "nearest"][vp.scaling_3d_mode],
 		"vsync": DisplayServer.window_get_vsync_mode() != DisplayServer.VSYNC_DISABLED,
 		"segments": results,
+		"timeout": timed_out,
+		"command_line": Settings.raw_cmdline,
 		"overall_avg_fps": snappedf(all_fps / maxf(1, results.size()), 0.1),
 		"memory": {"static_peak_mb": snappedf(peak_static / 1048576.0, 0.1),
 			"vram_peak_mb": snappedf(peak_vram / 1048576.0, 0.1),

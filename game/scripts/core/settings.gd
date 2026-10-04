@@ -75,9 +75,24 @@ func _ready() -> void:
 		vsync = false          # measure the headroom, not the display refresh
 
 
+var raw_cmdline := ""
+
+
 func _parse_args() -> void:
 	var all: PackedStringArray = OS.get_cmdline_args()
 	all.append_array(OS.get_cmdline_user_args())
+	# Godot consumes some of its own options before the game sees them (--benchmark, --windowed, ...). On macOS
+	# and Linux, read this process's real command line so `Alabaster --benchmark` works without `--`.
+	if OS.get_name() in ["macOS", "Linux"] and not OS.has_feature("web"):
+		var out := []
+		if OS.execute("ps", ["-o", "args=", "-p", str(OS.get_process_id())], out) == 0 and out.size() > 0:
+			raw_cmdline = String(out[0]).strip_edges()
+			for tok in raw_cmdline.split(" ", false):
+				if tok in ["--benchmark", "--windowed"] and not all.has(tok):
+					all.append(tok)
+	var env := OS.get_environment("CAPITAL_ARGS")
+	if env != "":
+		all.append_array(env.split(" ", false))
 	var i := 0
 	while i < all.size():
 		var a: String = all[i]
@@ -92,6 +107,8 @@ func _parse_args() -> void:
 				i += 1
 			args[key] = val
 		i += 1
+	if args.has("bench"):
+		args["benchmark"] = true
 
 
 func _takes_value(key: String) -> bool:

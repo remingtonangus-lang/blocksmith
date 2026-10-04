@@ -90,6 +90,13 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-04 23:50: fleet monitor reported the release c237e81 never benchmarked on the M1 (`Alabaster --benchmark`
+  logged empty args, then sat in normal play). Cause: `--benchmark` is one of Godot's own engine options
+  (main.cpp consumes it before the game sees it; `--windowed` too). Fix: the game reads its real command line
+  (`ps -o args= -p PID`) on macOS/Linux, `--bench` is an alias, `CAPITAL_ARGS` env works too; game.log now has
+  the raw command line, each loading stage, benchmark segment starts and a progress line every 5 s; a watchdog
+  writes partial results (`"timeout": true`, exit code 2) if the run overruns its segments + 180 s, and loading
+  that takes over 300 s in benchmark/smoke mode quits with code 3.
 - 2026-10-04 23:05: GAME BUILD READY 1e8f6d7 (walkable world: landscape, forests, weather, Candor and the bases;
   the battle commit e82323f follows). Fixed for the next build: Metal allows 16 samplers per stage, anisotropic
   repeat samplers are index 17 and failed to compile (foliage, terrain): now trilinear.
