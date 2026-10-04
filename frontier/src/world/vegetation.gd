@@ -299,8 +299,24 @@ func _build_near(ck: Vector2i, list: Array) -> Node3D:
 	var node := Node3D.new()
 	node.name = "TreesNear_%d_%d" % [ck.x, ck.y]
 	add_child(node)
+	# trunk colliders (cover for gunfights, obstacles for riders); shrubs stay passable
+	var sb := StaticBody3D.new()
+	sb.collision_layer = 1
+	sb.collision_mask = 0
+	node.add_child(sb)
 	var groups := {}
 	for e in list:
+		var spec: Dictionary = TreeGen.SPECIES[e[0]]
+		if spec.crown != "bush":
+			var t: Transform3D = e[2]
+			var s := t.basis.get_scale().x
+			var cs := CollisionShape3D.new()
+			var cyl := CylinderShape3D.new()
+			cyl.radius = float(spec.trunk_r) * s * 1.1
+			cyl.height = 4.0
+			cs.shape = cyl
+			cs.position = t.origin + Vector3(0, 2.0, 0)
+			sb.add_child(cs)
 		var key := "%s:%d" % [e[0], e[1]]
 		if not groups.has(key):
 			groups[key] = []
@@ -336,6 +352,8 @@ func trees_near(p: Vector3, radius: float) -> Array:
 
 ## Species for a candidate point, or "" for none. Density varies by biome, moisture, slope, altitude.
 func _choose_species(x: float, z: float, roll: float, r: RandomNumberGenerator) -> String:
+	if roll > 0.24:
+		return ""                                  # above every species' density: skip the expensive checks
 	var c := world.ctrl(x, z)
 	if c.r > 0.05:
 		return ""                                  # roads and trails stay clear

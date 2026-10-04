@@ -11,6 +11,7 @@ const HITBOX_LAYER := 16
 
 @export var max_health := 100.0
 @export var armor := 0.0                 # flat reduction per hit
+var damage_scale := 1.0                  # difficulty (the player takes less than NPCs)
 var health := 100.0
 var alive := true
 var last_attacker: Node = null
@@ -32,7 +33,7 @@ func apply_hit(info: Dictionary) -> void:
 		return
 	var zone: String = info.get("zone", "chest")
 	var mult: float = Weapons.ZONES.get(zone, 1.0)
-	var amount: float = maxf(float(info.get("amount", 10.0)) * mult - armor, 0.0)
+	var amount: float = maxf(float(info.get("amount", 10.0)) * mult * damage_scale - armor, 0.0)
 	health -= amount
 	_since_hit = 0.0
 	last_attacker = info.get("attacker")

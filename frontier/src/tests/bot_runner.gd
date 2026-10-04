@@ -31,15 +31,21 @@ func run(m: Node) -> void:
 		return
 	var which := str(Game.args.get("bot", "road"))
 	var seconds := Game.arg_f("seconds", 90.0)
-	var bots := ["road", "explore"] if which == "all" or which == "true" else [which]
+	var bots := ["road", "explore", "gunfight"] if which == "all" or which == "true" else [which]
 	for b in bots:
-		var res: Dictionary = await _run_bot(b, seconds)
+		var res: Dictionary
+		if b == "gunfight":
+			res = await load("res://src/tests/combat_bot.gd").run(self, seconds)
+			print("  gunfight: enemies %d engaged %d cover %d killed %d | player shots %d hits %d, hits taken %d, %.0f s" % [
+				res.enemies, res.engaged, res.used_cover, res.killed, res.player_shots, res.player_hits, res.player_hits_taken, res.duration])
+		else:
+			res = await _run_bot(b, seconds)
 		report.bots.append(res)
 		if not res.ok:
 			report.ok = false
 		print("BOT %s: %s  dist=%.0f m  stuck=%d  falls=%d  spikes=%d  errors=%d  avg_ms=%.1f  p99_ms=%.1f" % [
 			b, "PASS" if res.ok else "FAIL", res.distance, res.stuck_events, res.fall_events, res.frame_spikes,
-			res.errors.size(), res.frame_avg_ms, res.frame_p99_ms])
+			res.errors.size(), res.get("frame_avg_ms", 0.0), res.get("frame_p99_ms", 0.0)])
 		for f in res.failures:
 			print("  oracle: ", f)
 	var path := str(Game.args.get("report", "user://bot_report.json"))

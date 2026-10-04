@@ -4,6 +4,7 @@ extends Node
 
 signal world_ready
 signal message(text: String, seconds: float)
+signal noise(pos: Vector3, radius: float, source: Node)   # gunshots, shouts, breaking glass: AI hearing
 
 const PRESETS := {
 	"low": {"render_scale": 0.6, "ssao": false, "ssil": false, "ssr": false, "sdfgi": false, "volumetric_fog": false,

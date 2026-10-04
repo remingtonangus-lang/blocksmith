@@ -10,7 +10,7 @@ signal empty(weapon_id: String)
 signal hit_landed(info: Dictionary)
 
 const WORLD_MASK := 1
-const BODY_MASK := 2 | 4 | 8           # player, horses/animals, NPC bodies
+const BODY_MASK := 4                   # horses/animals (people are hit through their zone hitboxes only)
 const HITBOX_MASK := 16
 const GRAVITY := 9.81
 
@@ -87,6 +87,7 @@ func fire(origin: Vector3, target_dir: Vector3, aimed: bool, spread_scale := 1.0
 	recoil_kick += Vector2(d.recoil * rng.randf_range(0.8, 1.2), d.recoil * rng.randf_range(-0.3, 0.3))
 	_aim_time *= 0.4
 	fired.emit(id, origin, target_dir)
+	Game.noise.emit(origin, 260.0 if d.kind != "rifle" else 380.0, owner_actor)
 	Game.log_event("shot", {"by": str(owner_actor.name), "weapon": id, "hits": results.size()})
 	if Game.audio != null:
 		Game.audio.gunshot(d.sound, origin, is_player)

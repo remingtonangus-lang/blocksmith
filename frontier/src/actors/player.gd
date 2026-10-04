@@ -78,6 +78,7 @@ func _setup_combat() -> void:
 	damageable.name = "Damageable"
 	damageable.max_health = 100.0
 	damageable.regen_rate = 4.0
+	damageable.damage_scale = float(Game.args.get("player_damage_scale", 0.3))   # "normal" difficulty
 	add_child(damageable)
 	damageable.damaged.connect(func(info): health = damageable.health)
 	damageable.died.connect(_on_died)
@@ -174,7 +175,7 @@ func aim_ray() -> Dictionary:
 	var o := camera.global_position if camera else global_position + Vector3(0, 1.6, 0)
 	var d := -camera.global_basis.z if camera else Vector3(-sin(facing), 0, -cos(facing))
 	var space := get_world_3d().direct_space_state
-	var q := PhysicsRayQueryParameters3D.create(o, o + d * 600.0, 1 | 4 | 8 | 16)
+	var q := PhysicsRayQueryParameters3D.create(o, o + d * 600.0, 1 | 4 | 16)
 	q.collide_with_areas = true
 	var ex: Array[RID] = [get_rid()]
 	for a in find_children("*", "Area3D", true, false):
