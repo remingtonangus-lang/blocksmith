@@ -1339,7 +1339,7 @@ final class Game {
         }
         breakBedPartner(p, b)
         // A built block mined out can leave what it held unsupported (destruction physics: a bridge's last pier block).
-        if Collapse.built(b) { world.ships.queueCollapse([p], from: nil) }
+        if Collapse.built(b) && Settings.shared.collapse { world.ships.queueCollapse([p], from: nil) }
         if b == OBSIDIAN || b == PORTAL_X || b == PORTAL_Z { breakPortal(near: p) }
         placedLeaves.remove(p)
         let bk = Blocks.key(b)

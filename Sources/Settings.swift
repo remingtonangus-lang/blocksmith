@@ -55,6 +55,7 @@ final class Settings {
     @Pref("textBackground") var textBackground: Float = 0   // dark box behind HUD text (0...0.8)
     @Pref("minimap") var minimap = true             // biome minimap in the top-right corner
     @Pref("chipping") var chipping = true           // mining chips pieces off a block until it breaks (World.chip)
+    @Pref("collapse") var collapse = true           // blasts and mining bring down built blocks left unsupported (Destruction.swift)
     @Pref("crosshair") var crosshair = 0             // 0 classic, 1 bold (high contrast), 2 dot
     @Pref("splitSideBySide") var splitSideBySide = false   // split screen (Coop.swift): left / right instead of top / bottom
 
