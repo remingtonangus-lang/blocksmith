@@ -186,7 +186,7 @@ extension Game {
             dismissWorkers(r, b)
             return
         }
-        if r.alert.rawValue >= BaseAlert.alert.rawValue || (r.alert == .suspicious && r.calm < 20) { return }
+        if r.alert.rawValue >= BaseAlert.alert.rawValue || (r.alert == .suspicious && r.calm < 20 * BaseWatch.calmScale) { return }
         let fire = Blocks.has("fire") ? Blocks.id("fire") : AIR
         func open(_ id: BlockID) -> Bool { id == AIR || id == fire || Blocks.isLiquid(id) }
         guard var q = b.queue[r.key] else {

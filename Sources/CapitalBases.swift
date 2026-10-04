@@ -77,6 +77,7 @@ final class BaseWatch {
     var timer: Float = 0
     var tickMs: Double = 0, tickWorstMs: Double = 0, ticks = 0
     var log: [String] = []                            // harness: what happened, in order
+    static var calmScale: Float = 1                   // harness: stand down faster (--basetest rebuild)
 
     // One watch per Game (the harness and the app each make one game).
     private static var current: (ObjectIdentifier, BaseWatch)?
@@ -216,7 +217,7 @@ extension Game {
         r.calm += dt
         r.dropshipCD -= dt
         let limits: [Float] = [0, 120, 90, 60]
-        if r.alert != .calm && r.calm > limits[r.alert.rawValue] {
+        if r.alert != .calm && r.calm > limits[r.alert.rawValue] * BaseWatch.calmScale {
             // Not while a soldier of this citadel is still fighting someone in sight.
             let fighting = mobs.mobs.contains { $0.kind.steelhold && $0.health > 0 && $0.aggro && ($0.brain?.sees ?? false) && simd_length($0.pos - r.centre) < 90 }
             if !fighting {

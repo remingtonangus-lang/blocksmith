@@ -998,7 +998,7 @@ enum Snapshot {
         if let secs = Float(arg("--fortresstest") ?? ""), !MobTests.fortressFight(game: game, world: world, seconds: secs) { return 1 }
         if CommandLine.arguments.contains("--basetest") {
             let ph = arg("--basetest").flatMap { $0.hasPrefix("--") ? nil : $0 } ?? "all"
-            if !BaseTests.run(game: game, world: world, phase: ph) && ph == "all" { return 1 }
+            if !BaseTests.run(game: game, world: world, phase: ph) && !ph.hasSuffix("shot") { return 1 }
         }
         if let secs = Double(arg("--fire") ?? "") {
             // Hold the trigger for a while (guns in flight, muzzle flash, soldiers answering), camera held still.

@@ -344,11 +344,14 @@ done
 "$BIN" --snapshot snaps/steelhold_fight.png --seed 12345 --structure military_base --offset 14,4,-60 --yaw 0 --pitch 0 --time 0.3 --fortresstest 20
 # Reactive citadel (CapitalBases.swift): gunshot -> patrol out and back; blast inside -> lockdown, turret crews, dropships;
 # blasted wall -> rebuilt within a day (the full check), plus a shot of each phase.
-"$BIN" --snapshot snaps/basetest.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest all
-"$BIN" --snapshot snaps/base_patrol.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest patrol
-"$BIN" --snapshot snaps/base_lockdown.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest lockdown
-"$BIN" --snapshot snaps/base_rebuild.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest rebuild
-"$BIN" --snapshot snaps/base_crawler.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest crawler
+"$BIN" --snapshot snaps/basetest_patrol.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest patrol
+"$BIN" --snapshot snaps/basetest_crawler.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest crawler
+"$BIN" --snapshot snaps/basetest_lockdown.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest lockdown
+"$BIN" --snapshot snaps/basetest_rebuild.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest rebuild
+"$BIN" --snapshot snaps/base_patrol.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest patrolshot
+"$BIN" --snapshot snaps/base_crawler.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest crawlershot
+"$BIN" --snapshot snaps/base_lockdown.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest lockdownshot
+"$BIN" --snapshot snaps/base_rebuild.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest rebuildshot
 "$BIN" --snapshot snaps/steelhold_command.png --seed 12345 --structure military_base --offset 0,6,-33 --yaw 0 --pitch -15 --time 0.3
 "$BIN" --snapshot snaps/mobtests.png --seed 12345 --find plains --yaw 0 --pitch -30 --time 0.3 --up 3 --mobtests --posecheck
 "$BIN" --snapshot snaps/pathtest.png --seed 12345 --find plains --yaw 0 --pitch -40 --time 0.75 --up 14 --pathtest
