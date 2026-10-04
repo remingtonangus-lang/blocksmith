@@ -14,6 +14,9 @@ class HudRendererBase {
     var visibleSections = 0
     var gpuFrameMs: Double = 0
     static var questHideCrosshair = false       // the laser replaces it (extract_hud.py patches the crosshair)
+    // Sources/LandmarkRender.swift (far volcano / spire impostors) runs on this host too: no HDR target on the Quest.
+    let hdrActive = false
+    var landmarkSmoke: [SimpleVert] = []
     init(game: Game) { self.game = game }
 }
 

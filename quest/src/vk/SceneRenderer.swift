@@ -25,6 +25,7 @@ struct EyeCamera {
     var cullViewProj: float4x4         // a frustum enclosing every view, camera-relative
     var yaw: Float                     // head yaw/pitch (for the sun/moon billboards and listeners)
     var pitch: Float
+    var far: Float = 0                 // far plane (0: unknown, no landmark impostors)
 }
 
 // A render target: one colour image (array of `views` layers) + its framebuffer and depth.

@@ -80,7 +80,7 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
     var failed = false
     while true {
         // Block on events while paused (nothing to render); poll while the XR session needs frames.
-        let active = state.resumed || (xr?.running ?? false)
+        let active = !failed && (state.resumed || (xr?.running ?? false))
         var events: Int32 = 0
         var source: UnsafeMutableRawPointer?
         while ALooper_pollOnce(active ? 0 : 250, nil, &events, &source) >= 0 {
@@ -100,6 +100,8 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
             } catch {
                 print("FATAL: OpenXR / Vulkan setup failed: \(error)")
                 failed = true
+                xr = nil
+                ANativeActivity_finish(activity)       // back to Home instead of an empty immersive app
             }
         }
         guard let qa = state.app else { continue }

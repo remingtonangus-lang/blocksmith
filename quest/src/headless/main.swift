@@ -66,6 +66,22 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
         if let up = Float(arg("--up") ?? "") { game.player.pos.y += up; game.player.flying = true }
         if let t = Double(arg("--time") ?? "") { game.time = t * DAY_LENGTH }
         try RenderTest.render(game: game, ctx: ctx, path: path, yaw: Float(arg("--yaw") ?? "") ?? 0.6, pitch: Float(arg("--pitch") ?? "") ?? -0.25)
+        // A second view toward the nearest volcano, from 700 blocks away (past the render distance, so only its
+        // impostor from Sources/LandmarkRender.swift draws there; the camera may stand over unloaded ground).
+        if let wg = world.gen as? WorldGen {
+            let e = game.player.eye
+            let near = wg.terrain.volcanoes(near: e.x, e.z, reach: 8000)
+                .min { simd_length(V2($0.x - e.x, $0.z - e.z)) < simd_length(V2($1.x - e.x, $1.z - e.z)) }
+            if let v = near {
+                let saved = game.player.pos
+                let dir = simd_normalize(V2(e.x - v.x, e.z - v.z) + V2(1e-3, 0))
+                game.player.pos = V3(v.x + dir.x * 700, Float(YOFF) + v.base + 40, v.z + dir.y * 700)
+                let lp = path.replacingOccurrences(of: ".png", with: "_landmark.png")
+                try RenderTest.render(game: game, ctx: ctx, path: lp, yaw: atan2f(dir.x, dir.y), pitch: 0.05)
+                check(RenderTest.landmarkVerts > 0, "volcano impostor 700 blocks away drawn (\(RenderTest.landmarkVerts) vertices)")
+                game.player.pos = saved
+            } else { print("render: no volcano within 8000 blocks of spawn (impostor view skipped)") }
+        }
     } catch { check(false, "render: \(error)") }
     if CommandLine.arguments.contains("--render-only") { exit(failures == 0 ? 0 : 1) }
 }
@@ -131,6 +147,13 @@ let w3 = World(seed: seed, device: device, save: SaveManager(name: "questcheck")
 w3.renderDistance = 3
 _ = w3.loadSync(center: spawn, radius: 2)
 check(w3.block(bx, by, bz) == Blocks.id("gold_block"), "saved block survives a reload")
+
+// Texture cache round trip (the headset caches the painted textures between launches).
+let texLevels = TextureGen.mipChain(size: 16, layers: 0..<12)
+let texURL = TextureCache.url(dir: tmp.path + "/cache", size: 16, layers: 12)
+TextureCache.store(texLevels, texURL)
+let texBack = TextureCache.load(texURL)
+check(texBack == texLevels && texLevels.count == 5, "texture cache round trip (\(texLevels.count) levels, \(texLevels.map(\.count).reduce(0, +)) bytes)")
 
 try? FileManager.default.removeItem(at: tmp)
 print(failures == 0 ? "questcheck: all checks passed" : "questcheck: \(failures) FAILED")

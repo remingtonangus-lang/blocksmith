@@ -86,6 +86,6 @@ final class QuestRig {
         let back = hq.act(V3(0, 0, 0.1))
         let cullProj = XRMath.projection(tanLeft: minL * 1.05, tanRight: maxR * 1.05, tanUp: maxU * 1.05, tanDown: minD * 1.05, near: 0.05, far: far)
         let cull = cullProj * XRMath.inversePose(hq, back)
-        return EyeCamera(center: center, viewProj: vps, cullViewProj: cull, yaw: headYaw, pitch: headPitch)
+        return EyeCamera(center: center, viewProj: vps, cullViewProj: cull, yaw: headYaw, pitch: headPitch, far: far)
     }
 }

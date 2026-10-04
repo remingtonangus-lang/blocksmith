@@ -73,7 +73,7 @@ final class QuestApp {
         if !texturesUploaded {
             status("Painting textures", 0.05)
             TextureGen.registerAll()
-            tex = TextureGen.mipChain()
+            tex = TextureCache.mipChain(dir: QuestPaths.root + "/cache")
         }
         status("Opening the world", 0.4)
         let name = req.name ?? UserDefaults.standard.string(forKey: "lastWorld") ?? "Quest World"
@@ -120,6 +120,7 @@ final class QuestApp {
         wr.extraOpaque = { [weak ctl] s, eye in ctl?.drawOpaque(s, eye: eye) }
         wr.extraOverlay = { [weak ctl] s, eye in ctl?.drawOverlay(s, eye: eye) }
         wr.prePass = { [weak ctl] s in ctl?.recordPanel(s) }
+        wr.landmarkHost = ctl.hudHost
         PadManager.shared.haptic = { [weak self] k, secs, sharp in
             guard let self else { return }
             let f: Float = 80 + 240 * sharp

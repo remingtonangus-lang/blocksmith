@@ -18,6 +18,11 @@ final class WorldRenderer {
     static let debugSkip = Set((ProcessInfo.processInfo.environment["QUEST_SKIP"] ?? "").split(separator: ",").map(String.init))
 
     let ships: ShipDraw
+    // Volcano and Ancient Spire impostors past the render distance (Sources/LandmarkRender.swift on the HUD host).
+    var landmarkHost: Renderer?
+    private var landmarkVerts: [SimpleVert] = []
+    private(set) var landmarkCount = 0
+    private(set) var landmarkMs = 0.0
 
     init(scene: SceneRenderer, game: Game) {
         self.scene = scene
@@ -86,6 +91,7 @@ final class WorldRenderer {
         let skip = WorldRenderer.debugSkip
         if !skip.contains("opaque") { scene.drawOpaque(s) }
         if !skip.contains("ships") { ships.drawOpaque(s, ships: game.world.ships, eye: eye, u: u, frustum: frustum) }
+        if !skip.contains("landmarks") { drawLandmarks(s, eye, far: cam.far, fogColor: V3(u.fogColor.x, u.fogColor.y, u.fogColor.z)) }
         if !skip.contains("mobs") { drawMobs(s, eye) }
         camYaw = cam.yaw; camPitch = cam.pitch
         if !skip.contains("entities") { drawEntities(s, eye) }
@@ -97,6 +103,25 @@ final class WorldRenderer {
         if !skip.contains("ships") { ships.drawTranslucent(s, ships: game.world.ships, eye: eye, u: u, frustum: frustum) }
         if !skip.contains("overlay") { extraOverlay?(s, eye) }
         frameCPUMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+    }
+
+    // Opaque cones / spires (depth-writing, so the sky goes behind them), then their blended smoke (Renderer.encode).
+    private func drawLandmarks(_ s: SceneRenderer.Slot, _ eye: V3, far: Float, fogColor: V3) {
+        guard let host = landmarkHost, far > 0, game.dim.dim.hasSky, !game.player.headInWater else { return }
+        var smokeStart = 0
+        let t0 = CFAbsoluteTimeGetCurrent()
+        defer { landmarkMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000 }
+        host.buildLandmarks(&landmarkVerts, smokeStart: &smokeStart, game: game, eye: eye, far: far, fog: fogColor,
+                            rd: Float(game.world.renderDistance))
+        if let off = scene.push(s, landmarkVerts) {
+            let stride = MemoryLayout<SimpleVert>.stride
+            if smokeStart > 0 { scene.drawScratch(s, "simpleSolid", offset: off, count: smokeStart) }
+            if landmarkVerts.count > smokeStart {
+                scene.drawScratch(s, "simple", offset: off + smokeStart * stride, count: landmarkVerts.count - smokeStart)
+            }
+        }
+        landmarkCount = landmarkVerts.count
+        landmarkVerts.removeAll(keepingCapacity: true)
     }
 
     private func drawSkyLayer(_ s: SceneRenderer.Slot, _ eye: V3) {
