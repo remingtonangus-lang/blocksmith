@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Blocksmith for Meta Quest: a NativeActivity (no Java code) running the shared Swift game through OpenXR + Vulkan.
+     quest/tools/build-apk.sh fills in versionCode / versionName. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.blocksmith.quest"
+    android:versionCode="@VERSION_CODE@"
+    android:versionName="@VERSION_NAME@"
+    android:installLocation="auto">
+
+    <uses-feature android:name="android.hardware.vr.headtracking" android:required="true" android:version="1" />
+    <uses-feature android:name="android.hardware.vulkan.level" android:required="true" android:version="1" />
+    <uses-feature android:name="oculus.software.handtracking" android:required="false" />
+
+    <uses-permission android:name="org.khronos.openxr.permission.OPENXR" />
+    <uses-permission android:name="org.khronos.openxr.permission.OPENXR_SYSTEM" />
+
+    <queries>
+        <provider android:authorities="org.khronos.openxr.runtime_broker;org.khronos.openxr.system_runtime_broker" />
+        <intent>
+            <action android:name="org.khronos.openxr.OpenXRRuntimeService" />
+        </intent>
+        <intent>
+            <action android:name="org.khronos.openxr.OpenXRApiLayerService" />
+        </intent>
+    </queries>
+
+    <application
+        android:label="Blocksmith"
+        android:hasCode="false"
+        android:extractNativeLibs="true"
+        android:allowBackup="false">
+        <meta-data android:name="com.oculus.supportedDevices" android:value="quest3|quest3s|quest2|questpro" />
+        <meta-data android:name="com.oculus.vr.focusaware" android:value="true" />
+        <meta-data android:name="com.oculus.handtracking.frequency" android:value="HIGH" />
+
+        <activity
+            android:name="android.app.NativeActivity"
+            android:label="Blocksmith"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="landscape"
+            android:excludeFromRecents="false"
+            android:resizeableActivity="false"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+            android:configChanges="density|keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|uiMode">
+            <meta-data android:name="android.app.lib_name" android:value="blocksmith" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="com.oculus.intent.category.VR" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="org.khronos.openxr.intent.category.IMMERSIVE_HMD" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
