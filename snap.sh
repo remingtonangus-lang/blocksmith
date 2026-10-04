@@ -221,7 +221,7 @@ done
 # Photo mode (Cinematic.swift): path self-test, then the free camera with depth of field.
 "$BIN" --snapshot snaps/photo_dof.png --seed 12345 --find forest --yaw 120 --pitch -5 --time 0.22 --ground --up 1.6 --rd 8 --photo --dof 5 --cinetest
 "$BIN" --snapshot snaps/photo_dof_far.png --seed 12345 --find plains --yaw 200 --pitch -6 --time 0.3 --up 3 --rd 10 --photo --dof 60
-"$BIN" --snapshot snaps/volcano_far.png --seed 12345 --feature volcano --yaw 0 --pitch -25 --up 110 --time 0.3 --rd 16
+"$BIN" --snapshot snaps/volcano_far.png --seed 12345 --feature volcano --yaw 0 --pitch -25 --up 110 --time 0.3 --rd 16 --pick "650,456;650,462;700,458;700,464;760,460;760,466"
 # The same view without far LOD meshes: a sky-coloured seam across the cone where full-detail chunks meet LOD 1 (blind critic, run 470).
 "$BIN" --snapshot snaps/volcano_far_nolod.png --seed 12345 --feature volcano --yaw 0 --pitch -25 --up 110 --time 0.3 --rd 16 --nolod
 "$BIN" --snapshot snaps/volcano_crater.png --seed 12345 --feature volcano --yaw 30 --pitch -50 --up 70 --time 0.3 --rd 10

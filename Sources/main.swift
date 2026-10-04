@@ -1408,6 +1408,36 @@ enum Snapshot {
         _ = renderer.renderToPNG(path: out, width: w, height: h) // warm-up (pipeline + residency)
         _ = renderer.renderToPNG(path: out, width: w, height: h)
         let gpu = renderer.medianFrame(30, width: w, height: h)
+        // --pick x,y[;x,y...]: what a screen pixel shows - the first non-air block along its ray (water and lava count),
+        // for questions like "what is that streak?" (volcano_far, run 470).
+        if let picks = arg("--pick") {
+            let (eye, yaw, pitch) = renderer.cameraEye()
+            let fovY: Float = game.fovSetting * game.fovScale * .pi / 180
+            let t: Float = tanf(fovY * 0.5), aspect: Float = Float(w) / Float(h)
+            let f = V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch))
+            let r = V3(cosf(yaw), 0, -sinf(yaw))
+            let u = simd_cross(r, f)
+            for pair in picks.split(separator: ";") {
+                let xy = pair.split(separator: ",").compactMap { Float($0) }
+                guard xy.count == 2 else { continue }
+                let nx: Float = xy[0] / Float(w) * 2 - 1, ny: Float = 1 - xy[1] / Float(h) * 2
+                let side: V3 = r * (nx * t * aspect)
+                let lift: V3 = u * (ny * t)
+                let d = simd_normalize(f + side + lift)
+                var hit = "nothing within 800"
+                var s: Float = 0
+                while s < 800 {
+                    let q = eye + d * s
+                    let b = world.block(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z)))
+                    if b != AIR {
+                        hit = String(format: "%@ at %d %d %d (%.0f blocks)", Blocks.key(b), Int(floor(q.x)), Int(floor(q.y)) - YOFF, Int(floor(q.z)), s)
+                        break
+                    }
+                    s += 0.05
+                }
+                print("pick \(Int(xy[0])),\(Int(xy[1])): \(hit)")
+            }
+        }
 
         print(String(format: "seed %llu  pos %.1f %.1f %.1f  rd %ld  chunks %ld  (drawn %ld)", seed, pos.x, pos.y, pos.z, rd, world.chunks.count, renderer.drawnChunks))
         print(String(format: "gen %.0f ms  mesh(all, parallel) %.0f ms  mesh(1 section) %.2f ms  quads %ld opaque / %ld water", t.gen * 1000, t.mesh * 1000, meshMs, quads, water))
