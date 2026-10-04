@@ -111,7 +111,7 @@ extension Game {
         if d < 24 { sfx(.lightning, 1.2, at: at) }
         let b = IVec3(Int(floor(at.x)), Int(floor(at.y)), Int(floor(at.z)))
         if !lightningOnShips(at) {
-            if world.block(b.x, b.y, b.z) == AIR { world.placeFire(b) }
+            world.placeFire(b)          // air or grass and flowers (placeFire takes any replaceable, non-liquid cell)
             lightningFires(at)
         }
         // Whichever player stands under it (split screen: player 2 too).
