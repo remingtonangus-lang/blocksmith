@@ -88,7 +88,10 @@ EOF
 sed -i "s|@PKGLIBS@|$ROOT/$PKG/libs|" "$PKG/Package.swift"
 
 echo "== swift build ($SDK, $TRIPLE)"
-(cd "$PKG" && swift build -c release --swift-sdk "$SDK" --triple "$TRIPLE" --static-swift-stdlib --product blocksmith 2>&1 | tee "$ROOT/build/quest-swift-build.log" | grep -E "error|warning: unre|Compiling|Linking|Build complete" | grep -v "^.*warning: var" | head -400)
+# The full log goes to a file (a `head` on the pipe would SIGPIPE the build under pipefail); errors are shown below.
+(cd "$PKG" && swift build -c release --swift-sdk "$SDK" --triple "$TRIPLE" --static-swift-stdlib --product blocksmith \
+  > "$ROOT/build/quest-swift-build.log" 2>&1) || { grep -E "error:" -A3 build/quest-swift-build.log | head -200; tail -40 build/quest-swift-build.log; exit 1; }
+grep -E "Compiling|Linking|Build complete" build/quest-swift-build.log | tail -5
 SO=$(find "$PKG/.build" -name libblocksmith.so -ipath "*release*" | head -1)
 [ -n "$SO" ] || { echo "libblocksmith.so not built"; tail -60 build/quest-swift-build.log; exit 1; }
 cp "$SO" "$STAGE/lib/arm64-v8a/"
