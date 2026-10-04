@@ -17,9 +17,12 @@ final class WorldRenderer {
     // Debugging aid: QUEST_SKIP=mobs,entities,... leaves passes out.
     static let debugSkip = Set((ProcessInfo.processInfo.environment["QUEST_SKIP"] ?? "").split(separator: ",").map(String.init))
 
+    let ships: ShipDraw
+
     init(scene: SceneRenderer, game: Game) {
         self.scene = scene
         self.game = game
+        ships = ShipDraw(scene: scene)
     }
 
     // Skylight at the eye, smoothed (Renderer.updateCave): fog and sky darken underground.
@@ -82,13 +85,16 @@ final class WorldRenderer {
         scene.beginPass(s, t, clear: clear)
         let skip = WorldRenderer.debugSkip
         if !skip.contains("opaque") { scene.drawOpaque(s) }
+        if !skip.contains("ships") { ships.drawOpaque(s, ships: game.world.ships, eye: eye, u: u, frustum: frustum) }
         if !skip.contains("mobs") { drawMobs(s, eye) }
         camYaw = cam.yaw; camPitch = cam.pitch
         if !skip.contains("entities") { drawEntities(s, eye) }
         if !skip.contains("outline") { drawOutline(s, eye) }
         if !skip.contains("extra") { extraOpaque?(s, eye) }
+        if !skip.contains("ships") { ships.drawBeforeWater(s, ships: game.world.ships, world: game.world, eye: eye, frustum: frustum) }
         if !skip.contains("sky") { drawSkyLayer(s, eye) }
         if !skip.contains("trans") { scene.drawTranslucent(s) }
+        if !skip.contains("ships") { ships.drawTranslucent(s, ships: game.world.ships, eye: eye, u: u, frustum: frustum) }
         if !skip.contains("overlay") { extraOverlay?(s, eye) }
         frameCPUMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
     }

@@ -27,9 +27,11 @@ env:
   NDK_URL: 'https://dl.google.com/android/repository/android-ndk-r30-Linux.zip'
 
 jobs:
-  apk:
+  host:
+    # Shared code + Quest sources built for Linux: questcheck (world, meshing, Game.tick with Touch input, mixer, saves),
+    # a stereo render and the scripted VR controls test on lavapipe.
     runs-on: ubuntu-24.04
-    timeout-minutes: 75
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -63,28 +65,16 @@ jobs:
             mkdir -p "$HOME/ndk"; curl -fsSL -o /tmp/ndk.zip "$NDK_URL"; unzip -q /tmp/ndk.zip -d "$HOME/ndk"; rm /tmp/ndk.zip
           fi
           echo "ANDROID_NDK_HOME=$HOME/ndk/android-ndk-r30" >> "$GITHUB_ENV"
-          ls "$HOME/ndk"
-
-      - name: Swift SDK for Android
-        run: |
-          if ! swift sdk list | grep -q "$SWIFT_SDK"; then
-            swift sdk install "$SWIFT_SDK_URL" --checksum "$SWIFT_SDK_SHA"
-          fi
-          swift sdk list
-          # Link the NDK sysroot into the bundle (the SDK's own setup script, where it has one).
-          S=$(find "$HOME/.swiftpm/swift-sdks" "$HOME/.config/swiftpm/swift-sdks" -name 'setup-android-sdk.sh' 2>/dev/null | head -1 || true)
-          if [ -n "$S" ]; then echo "running $S"; bash "$S"; fi
-          find "$HOME/.swiftpm/swift-sdks" "$HOME/.config/swiftpm/swift-sdks" -maxdepth 3 2>/dev/null | head -30 || true
-
-      - name: Host packages (Vulkan headers, lavapipe, zlib)
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q --no-install-recommends libvulkan-dev mesa-vulkan-drivers zlib1g-dev libopenxr-dev
 
       - name: OpenXR loader
         run: quest/tools/fetch-openxr.sh && mkdir -p build/openxr && unzip -q -o build/openxr_loader.aar -d build/openxr
 
-      - name: Host checks (questcheck + stereo render on lavapipe)
+      - name: Host packages (Vulkan headers, lavapipe, zlib, OpenXR)
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends libvulkan-dev mesa-vulkan-drivers zlib1g-dev libopenxr-dev
+
+      - name: Host checks (questcheck + stereo render + VR controls sim on lavapipe)
         env:
           OPENXR_INCLUDE: ${{ github.workspace }}/build/openxr/prefab/modules/headers/include
         run: |
@@ -95,11 +85,69 @@ jobs:
           BLOCKSMITH_TEXRES=32 ./build/quest-linux/questcheck --render build/quest-out/stereo.png --questsim build/quest-out/vrsim.png 2>&1 | tee build/quest-out/questcheck.log
           grep -q "all checks passed" build/quest-out/questcheck.log
 
+      - name: Upload host results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quest-host-${{ github.run_number }}
+          path: build/quest-out/
+          if-no-files-found: warn
+
+  apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost /usr/local/lib/node_modules "$AGENT_TOOLSDIRECTORY/CodeQL" || true
+          df -h /
+
+      - name: Cache toolchains
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/swift
+            ~/.swiftpm/swift-sdks
+            ~/.config/swiftpm/swift-sdks
+            ~/ndk
+          key: quest-tools-swift6.4.0-ndk-r30-v1
+
+      - name: Swift toolchain
+        run: |
+          if [ ! -x "$HOME/swift/usr/bin/swift" ]; then
+            mkdir -p "$HOME/swift"
+            curl -fsSL "$SWIFT_URL" | tar -xz -C "$HOME/swift" --strip-components=1
+          fi
+          echo "$HOME/swift/usr/bin" >> "$GITHUB_PATH"
+          "$HOME/swift/usr/bin/swift" --version
+
+      - name: Android NDK r30
+        run: |
+          if [ ! -d "$HOME/ndk/android-ndk-r30" ]; then
+            mkdir -p "$HOME/ndk"; curl -fsSL -o /tmp/ndk.zip "$NDK_URL"; unzip -q /tmp/ndk.zip -d "$HOME/ndk"; rm /tmp/ndk.zip
+          fi
+          echo "ANDROID_NDK_HOME=$HOME/ndk/android-ndk-r30" >> "$GITHUB_ENV"
+
+      - name: OpenXR loader
+        run: quest/tools/fetch-openxr.sh && mkdir -p build/openxr && unzip -q -o build/openxr_loader.aar -d build/openxr
+
+      - name: Swift SDK for Android
+        run: |
+          if ! swift sdk list | grep -q "$SWIFT_SDK"; then
+            swift sdk install "$SWIFT_SDK_URL" --checksum "$SWIFT_SDK_SHA"
+          fi
+          swift sdk list
+          S=$(find "$HOME/.swiftpm/swift-sdks" "$HOME/.config/swiftpm/swift-sdks" -name 'setup-android-sdk.sh' 2>/dev/null | head -1 || true)
+          if [ -n "$S" ]; then echo "running $S"; bash "$S"; fi
+
       - name: Build APK
         env:
           OPENXR_AAR: build/openxr_loader.aar
         run: |
           export VERSION_CODE=${{ github.run_number }}
+          mkdir -p build/quest-out
           quest/tools/build-apk.sh build/quest-out/blocksmith-quest.apk
 
       - name: Upload APK
@@ -112,11 +160,26 @@ jobs:
             build/quest-swift-build.log
           if-no-files-found: warn
 
+  publish:
+    # The APK alone on `quest-dist` (blocksmith-quest.apk + BUILD.txt) for the Mac's adb monitor, once both jobs pass.
+    needs: [host, apk]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: quest/MILESTONE
+      - uses: actions/download-artifact@v4
+        with:
+          name: blocksmith-quest-${{ github.run_number }}
+          path: dl
       - name: Publish to quest-dist
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mkdir -p /tmp/dist && cp build/quest-out/blocksmith-quest.apk /tmp/dist/
+          APK=$(find dl -name blocksmith-quest.apk | head -1)
+          test -n "$APK"
+          mkdir -p /tmp/dist && cp "$APK" /tmp/dist/blocksmith-quest.apk
           echo "commit ${GITHUB_SHA::7} milestone $(cat quest/MILESTONE) run ${{ github.run_id }} versionCode ${{ github.run_number }} built $(date -u +%Y-%m-%dT%H:%MZ)" > /tmp/dist/BUILD.txt
           cd /tmp/dist
           git init -q; git checkout -q --orphan quest-dist; git add -A

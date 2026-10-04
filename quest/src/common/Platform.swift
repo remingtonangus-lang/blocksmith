@@ -63,3 +63,28 @@ enum QuestPaths {
         WorldStore.useTrash = false
     }
 }
+
+#if os(Android) || QUEST_FAKE_ANDROID
+// The Android overlay has no Float overloads of the generic libm names (Glibc's and Darwin's tgmath do), so the
+// shared code's floor(Float) etc. resolved to the C double functions there.
+@_transparent func floor(_ x: Float) -> Float { x.rounded(.down) }
+@_transparent func ceil(_ x: Float) -> Float { x.rounded(.up) }
+@_transparent func round(_ x: Float) -> Float { x.rounded() }
+@_transparent func trunc(_ x: Float) -> Float { x.rounded(.towardZero) }
+@_transparent func sqrt(_ x: Float) -> Float { x.squareRoot() }
+@inline(__always) func pow(_ x: Float, _ y: Float) -> Float { powf(x, y) }
+@inline(__always) func exp(_ x: Float) -> Float { expf(x) }
+@inline(__always) func exp2(_ x: Float) -> Float { exp2f(x) }
+@inline(__always) func log(_ x: Float) -> Float { logf(x) }
+@inline(__always) func log2(_ x: Float) -> Float { log2f(x) }
+@inline(__always) func log10(_ x: Float) -> Float { log10f(x) }
+@inline(__always) func sin(_ x: Float) -> Float { sinf(x) }
+@inline(__always) func cos(_ x: Float) -> Float { cosf(x) }
+@inline(__always) func tan(_ x: Float) -> Float { tanf(x) }
+@inline(__always) func asin(_ x: Float) -> Float { asinf(x) }
+@inline(__always) func acos(_ x: Float) -> Float { acosf(x) }
+@inline(__always) func atan(_ x: Float) -> Float { atanf(x) }
+@inline(__always) func atan2(_ y: Float, _ x: Float) -> Float { atan2f(y, x) }
+@inline(__always) func fmod(_ x: Float, _ y: Float) -> Float { fmodf(x, y) }
+@inline(__always) func hypot(_ x: Float, _ y: Float) -> Float { hypotf(x, y) }
+#endif

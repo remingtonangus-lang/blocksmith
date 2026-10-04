@@ -179,7 +179,7 @@ final class SceneRenderer {
         pl.setLayoutCount = 3
         pl.pSetLayouts = a.array([set0Layout, set1Layout, set2Layout])
         pl.pushConstantRangeCount = 1
-        pl.pPushConstantRanges = a.ptr(VkPushConstantRange(stageFlags: vf, offset: 0, size: 80))
+        pl.pPushConstantRanges = a.ptr(VkPushConstantRange(stageFlags: vf, offset: 0, size: 96))
         var p: VkPipelineLayout?
         try vkCheck(vkCreatePipelineLayout(d, &pl, nil, &p), "vkCreatePipelineLayout")
         pipeLayout = p!
@@ -283,7 +283,7 @@ final class SceneRenderer {
         renderPass = rp!
     }
 
-    enum Input { case none, chunk, simple, mob, entity, hud }
+    enum Input { case none, chunk, ship, simple, mob, entity, hud }
     struct PipeDesc {
         var vert: String, frag: String
         var input: Input = .none
@@ -292,6 +292,7 @@ final class SceneRenderer {
         var compare = VK_COMPARE_OP_LESS
         var cull = VK_CULL_MODE_BACK_BIT
         var topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+        var colorWrite = true
     }
 
     private var modules: [String: VkShaderModule] = [:]
@@ -326,6 +327,9 @@ final class SceneRenderer {
             attrs = [VkVertexInputAttributeDescription(location: 0, binding: 0, format: VK_FORMAT_R32G32_UINT, offset: 0),
                      VkVertexInputAttributeDescription(location: 1, binding: 1, format: VK_FORMAT_R32G32B32_SFLOAT, offset: 0),
                      VkVertexInputAttributeDescription(location: 2, binding: 1, format: VK_FORMAT_R32_UINT, offset: 12)]
+        case .ship:
+            bindings = [VkVertexInputBindingDescription(binding: 0, stride: 8, inputRate: vtx)]
+            attrs = [VkVertexInputAttributeDescription(location: 0, binding: 0, format: VK_FORMAT_R32G32_UINT, offset: 0)]
         case .simple:
             bindings = [VkVertexInputBindingDescription(binding: 0, stride: 32, inputRate: vtx)]
             attrs = [VkVertexInputAttributeDescription(location: 0, binding: 0, format: f4, offset: 0),
@@ -370,7 +374,7 @@ final class SceneRenderer {
         ds.depthWriteEnable = p.depthWrite ? 1 : 0
         ds.depthCompareOp = p.compare
         var att = VkPipelineColorBlendAttachmentState()
-        att.colorWriteMask = 0xF
+        att.colorWriteMask = p.colorWrite ? 0xF : 0
         if p.blend {
             att.blendEnable = 1
             att.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA
@@ -427,6 +431,10 @@ final class SceneRenderer {
             "entity": PipeDesc(vert: "entity.vert", frag: "entity.frag", input: .entity, cull: none),
             "crack": PipeDesc(vert: "entity.vert", frag: "crack.frag", input: .entity, blend: true, depthWrite: false, compare: le, cull: none),
             "panel": PipeDesc(vert: "panel.vert", frag: "panel.frag", blend: true, depthWrite: false, compare: le, cull: none),
+            "shipSolid": PipeDesc(vert: "ship.vert", frag: "ship_solid.frag", input: .ship),
+            "shipCut": PipeDesc(vert: "ship.vert", frag: "ship_cut.frag", input: .ship),
+            "shipTrans": PipeDesc(vert: "ship.vert", frag: "ship_trans.frag", input: .ship, blend: true, depthWrite: false, compare: le, cull: none),
+            "shipMask": PipeDesc(vert: "simple.vert", frag: "simple.frag", input: .simple, cull: none, colorWrite: false),
             "panelVignette": PipeDesc(vert: "simple.vert", frag: "simple.frag", input: .simple, blend: true, depthTest: false, depthWrite: false, cull: none),
             "panelTop": PipeDesc(vert: "panel.vert", frag: "panel.frag", blend: true, depthTest: false, depthWrite: false, cull: none),
         ]
@@ -895,6 +903,25 @@ final class SceneRenderer {
             guard sec.transQuads > 0, let buf = sec.transBuf, let tb = c.tintBuf else { continue }
             drawSection(s, i, buf, tb, first: 0, count: min(sec.transQuads, SceneRenderer.maxQuads))
         }
+    }
+
+    func pushShip(_ s: Slot, model: float4x4, origin: V4, fog: V4) {
+        var pc = (model, origin, fog)
+        withUnsafeBytes(of: &pc) { raw in
+            vkCmdPushConstants(s.cmd, pipeLayout, VK_SHADER_STAGE_VERTEX_BIT.rawValue | VK_SHADER_STAGE_FRAGMENT_BIT.rawValue, 0, 96, raw.baseAddress)
+        }
+    }
+
+    // Binds a mesh slice's buffer at vertex binding 0 and draws `count` quads from `first` (ships, props).
+    func drawQuads(_ s: Slot, _ slice: MeshSlice, first: Int, count: Int) {
+        guard count > 0, let vb = slice.buffer as? QuestBuffer else { return }
+        var b: VkBuffer? = vb.vkBuffer
+        var o = VkDeviceSize(slice.offset)
+        vkCmdBindVertexBuffers(s.cmd, 0, 1, &b, &o)
+        vkCmdBindIndexBuffer(s.cmd, quadIndex.buffer, 0, VK_INDEX_TYPE_UINT32)
+        vkCmdDrawIndexed(s.cmd, UInt32(count * 6), 1, UInt32(first * 6), 0, 0)
+        drawCalls += 1
+        boundVerts = nil
     }
 
     func pushConstants(_ s: Slot, model: float4x4, extra: V4) {
