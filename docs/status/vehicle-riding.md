@@ -1,4 +1,4 @@
-# Vehicle riding and crews (session B, branch claude/bs-vehicle-riding)
+# Vehicle riding, crews, destruction physics and wrecks (session B)
 
 Handoff notes for riding moving capital vehicles (Ironback Crawler, Capital frigate, Stormwarden frigate), their crews,
 and disabled vehicles. Status: see "State" at the bottom.
@@ -59,6 +59,52 @@ solid (exact, in the frame), standing drift, deck-relative velocity spikes and s
 (skipping the ticks round a jump or landing), laps, crew at posts, smooth stops, no despawn. Report snaps/ridecheck.md.
 In CI: snap.sh tours shard (gating). The fast lane runs any harness command given as `[fast: ARGS]` in the head commit
 message (focus.log on ci-fast-<branch>).
+
+## Destruction physics (Future ideas #7, branch claude/bs-destruction)
+
+- **Materials** (BlockMaterial.swift, public API for other sessions): `BlockMaterial.kind(id)` (stone, brick, wood, metal,
+  glass, earth, plant, cloth, ice, other, none), `.strength(id)` (longest unsupported reach in blocks: stone 5, brick 6,
+  wood 6, metal 14, glass 1, earth 1), `.mass(id)` (tonnes per block, the ship physics' table), `.load(id)` (blocks of
+  weight one block bears at a narrowed section: stone 30, brick 40, wood 20, metal 150), `.anchors(id)` (terrain, trees
+  and growths: hold up what is built on them, never fall). Tuned in `BlockMaterial.byKind`.
+- **Support analysis** (Destruction.swift, `Collapse.analyze`): after a blast (Explosion.explode queues its holes; one
+  check per frame for all of that frame's blasts) or a block a falling piece smashed: flood fill through built blocks from
+  the cells next to the holes, capped at 6000 cells (the edge of a search that hits the cap is taken as held, so a huge
+  building only fails near the damage). No ground contact: the piece falls. Reach (0-1 BFS: resting on the block below
+  is free, sideways or hanging costs 1) beyond the material's strength: those blocks and whatever only hung on them
+  fall. A narrowed layer at the damage (a tower's base) fails when the weight above outweighs its bearing or its centre
+  of mass is past the layer's edge or far off the middle of what is left: everything above tips over toward the gap.
+- **Debris** (Debris.swift): falling parts become free-moving ships (`Ship.debris`) under the ordinary ship physics
+  (gravity, terrain contacts; speed capped at 20 b/s so big pieces can't tunnel through the ground), smash weak blocks
+  they hit hard (glass, plants, wood, cloth, ice; earth when very hard), hurt bodies they run into (by relative speed),
+  and once at rest (1.2 s) are laid back into the world as ordinary blocks (`bake`: each block to the cell its centre is
+  in plus the cells whose centre falls inside a block, so turned shells stay closed; never into the player or a mob; tipped
+  bodies lose block facings). At most 32 live bodies (the oldest is laid down early); pieces under 3 blocks just break.
+  Debris over unloaded ground waits rather than being laid down mid-air. Debris isn't saved (transient: under 40 s).
+- **Capital hulls cut through** (`splitHull`): a blast on a kinematic hull asks for a full connectivity check half a second
+  later; every part not joined to the part with the helm comes away as a falling body; a part left without its helm goes
+  down (crash-lands) too. Small parts (< 20 blocks) just burst.
+
+## Persistent wrecks (Future ideas #3)
+
+- A downed crawler or frigate (8 s after it came to rest), a shot-down dropship (3 s after it hit the ground, which it
+  no longer vanishes in a fireball) and a big capital section are laid into the world as blocks (`makeWreck`): saved with
+  the chunks, salvage crates set in sheltered floor spots of the hull (loot table `wreck_salvage`: iron, copper, redstone,
+  gold nuggets, gunpowder, rounds, rusted plating, a rare diamond), its own chests kept; its dark hull is where mobs
+  settle. A record per wreck (wrecks.json beside ships.json) keeps its box and when it fell; while the player is within
+  200 blocks the overgrowth catches up with its age (3 steps a day, full at 63 steps = three weeks): exposed plates turn
+  to rusted plating, moss gathers on top, vines hang down the sides, grass grows tall round it. A wrecked capital's region
+  stays used, so it doesn't come back.
+
+## Checks: `Blocksmith --collapsecheck [--scenes bridge,tower,frigate,wreck,dropship]` (CollapseCheck.swift)
+
+Bridge on three piers with the middle pier blasted; a 30-high tower blasted at its base on one side; a Capital frigate
+cut through amidships by a ring of blasts; a crawler disabled into a wreck and aged three weeks; a dropship shot down.
+Oracles: the scene stands before; the right part falls as a moving body; debris under the cap and all laid back; no
+floating leftovers (the support analysis over the whole scene region); nothing inside the player; tick time p95 under
+16 ms; frigate halves split, fall and become wrecks; wreck blocks, salvage, shelter, rust/moss/vine counts, record round
+trip. Shots: `--collapse NAME --at SECONDS` in the snapshot harness (snap.sh tours: collapse_*.png). Benchmark scene
+`collapse` (bridge and tower together: blast ms, tick p50/p95/max, bodies, analysis ms).
 
 ## Open / for other sessions
 
