@@ -59,6 +59,9 @@ func _ready() -> void:
 	settlements.setup(world)
 	print("boot: %s %d ms" % ["settlements", Time.get_ticks_msec() - t0])
 	print("boot: world built in %d ms" % (Time.get_ticks_msec() - t0))
+	var ws := WorldState.new()
+	ws.name = "WorldState"
+	add_child(ws)
 	var md := MissionDirector.new()
 	md.name = "Missions"
 	add_child(md)

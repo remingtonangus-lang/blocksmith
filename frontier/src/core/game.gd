@@ -39,6 +39,7 @@ var main: Node
 var audio: Node               # AudioDirector (src/audio/audio_director.gd)
 var hud: Node
 var missions: Node            # MissionDirector
+var state: Node               # WorldState (standing, money, law, saves)
 var is_vr := false
 var headless := false
 var rng := RandomNumberGenerator.new()

@@ -31,11 +31,13 @@ func run(m: Node) -> void:
 		return
 	var which := str(Game.args.get("bot", "road"))
 	var seconds := Game.arg_f("seconds", 90.0)
-	var bots := ["road", "explore", "gunfight", "missions"] if which == "all" or which == "true" else [which]
+	var bots := ["road", "explore", "gunfight", "missions", "systems"] if which == "all" or which == "true" else [which]
 	for b in bots:
 		var res: Dictionary
 		if b == "missions":
 			res = await _run_missions()
+		elif b == "systems":
+			res = await load("res://src/tests/systems_bot.gd").run(self)
 		elif b == "gunfight":
 			res = await load("res://src/tests/combat_bot.gd").run(self, seconds)
 			print("  gunfight: enemies %d engaged %d cover %d killed %d | player shots %d hits %d, hits taken %d, %.0f s" % [

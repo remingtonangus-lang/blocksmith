@@ -225,6 +225,9 @@ func shoot_at(p: Vector3, accuracy_scale: float) -> bool:
 	return true
 
 func _on_damaged(info: Dictionary) -> void:
+	if Game.state and info.get("attacker") == Game.player and damageable.alive and faction in ["civilian", "law"] \
+		and not (brain.aggressive and brain.target == Game.player):
+		Game.state.crime("assault", global_position, self)
 	if brain and brain.has_method("on_damaged"):
 		brain.on_damaged(info)
 	# flinch: a small shove in the hit direction
@@ -240,10 +243,28 @@ func _on_died(info: Dictionary) -> void:
 	Game.log_event("npc_died", {"npc": str(name), "faction": faction, "by": str(info.get("attacker", null).name) if info.get("attacker") else ""})
 	if brain and brain.has_method("on_died"):
 		brain.on_died(info)
+	_judge_kill(info)
 	if visual.has_method("die"):
 		visual.die(info)
 	if Game.terrain:
 		Game.terrain.foci.erase(self)
+
+## The law and Standing judge a killing by who it was and whether they were fighting Ruth.
+func _judge_kill(info: Dictionary) -> void:
+	if Game.state == null or info.get("attacker") != Game.player:
+		return
+	var self_defense: bool = brain != null and (brain.aggressive or brain.state == brain.State.COMBAT) and brain.target == Game.player
+	if self_defense or faction in ["shale", "bandit"]:
+		Game.state.kills.outlaw += 1
+		if brain.state == brain.State.SURRENDER:
+			Game.state.change_standing(-6.0, "killed a man who surrendered")
+		return
+	if faction == "law":
+		Game.state.kills.law += 1
+		Game.state.crime("murder_lawman", global_position, self)
+	else:
+		Game.state.kills.civilian += 1
+		Game.state.crime("murder", global_position, self)
 
 func _dead_tick(dt: float) -> void:
 	# stand-in fall: topple over the first second (the character rig replaces this with ragdoll)

@@ -71,6 +71,8 @@ func start(m: Mission) -> void:
 	if ok:
 		completed.append(m.id)
 		Game.log_event("mission_complete", {"id": m.id})
+		if Game.state and not autopilot:
+			Game.state.save_game("auto")
 		mission_completed.emit(m.id)
 		if Game.hud:
 			Game.hud.notice("%s — complete" % m.title, 5.0)
