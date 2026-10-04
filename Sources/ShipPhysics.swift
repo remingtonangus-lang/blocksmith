@@ -87,8 +87,18 @@ extension ShipManager {
         mobRiders.removeAll(keepingCapacity: true)
         itemRiders.removeAll(keepingCapacity: true)
         if let game {
-            for m in game.mobs.mobs where m.onGround && game.riding !== m {
-                if let s = standing(on: m.pos) { mobRiders.append((m, s)) }
+            // A mob that has boarded keeps its deck while it walks, hops or steps about anywhere over the hull (as the
+            // player does: frameShip with a margin), not only on frames where it is standing: riders were left behind
+            // mid-hop and slid off a turning crawler.
+            for m in game.mobs.mobs where game.riding !== m && m.health > 0 {
+                if let d = m.deck, list.contains(where: { $0 === d }), frameShip(for: m.pos, height: m.height, current: d) === d {
+                    mobRiders.append((m, d))
+                } else if m.onGround, let s = standing(on: m.pos) {
+                    m.deck = s
+                    mobRiders.append((m, s))
+                } else {
+                    m.deck = nil
+                }
             }
             for it in game.drops.items where it.onGround {
                 if let s = standing(on: it.pos) { itemRiders.append((it, s)) }

@@ -613,7 +613,7 @@ enum ControlsReference {
             PadMap.glyph(.ddown).s + " / " + k(.drop) + " Drop (hold: stack)",
             PadMap.glyph(.dright).s + " / " + k(.offhand) + " Swap off hand",
             PadMap.glyph(.dleft).s + " / " + k(.chat) + " Commands",
-            PadMap.glyph(.dup).s + " / " + k(.fly) + " Fly (creative), " + k(.fastFly) + " fast flight (sprint)",
+            PadMap.glyph(.dup).s + " / " + k(.fly) + " Fly (creative), " + Glyphs.key(KeyBinds.name(KeyBinds.key(.fastFly))) + " fast flight (sprint)",
             PadMap.glyph(.view).s + " / " + k(.camera) + " Camera",
             Glyph.menu.s + " / " + Glyphs.key("Esc") + " Pause",
             Glyph.share.s + " / " + Glyphs.key("F2") + " Screenshot",

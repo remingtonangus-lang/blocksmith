@@ -344,6 +344,7 @@ final class Mob {
     var jumpCharge: Float = 0       // horse jump when ridden
     var temper = 0                  // horse taming progress
     weak var mount: Mob?            // rider (raid siegebeast riders)
+    weak var deck: Ship?            // the moving ship it rides (ShipPhysics carries it; it walks in the ship's frame)
     var captain = false             // raid / patrol captain (banner)
     var jobTimer: Float = Rand.float(in: 0...5)
     var giftTimer: Float = 0        // villager: seconds until it may throw the Village Hero another gift
@@ -944,7 +945,24 @@ final class Mob {
         }
 
         let before = pos
-        let hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: 0.6, onGround: onGround)
+        var hit: (x: Bool, y: Bool, z: Bool)
+        var deckBumped = false
+        if let s = deck {
+            // On a moving deck: walk and collide in the ship's own frame (its blocks are exact there; the
+            // world-space boxes of a turned hull are only an approximation), with velocity relative to the deck.
+            var l = s.toLocal(pos)
+            var lv = s.dirToLocal(vel)
+            w.frame = s
+            hit = w.moveBody(&l, halfW: halfW, height: height, lv * dt, step: 0.6, onGround: onGround)
+            w.frame = nil
+            if hit.x { lv.x = 0 }
+            if hit.z { lv.z = 0 }
+            pos = s.toWorld(l)
+            if hit.x || hit.z { let wv = s.dirToWorld(lv); vel.x = wv.x; vel.z = wv.z; deckBumped = true }
+            hit.x = false; hit.z = false                  // handled in the ship's axes above
+        } else {
+            hit = w.moveBody(&pos, halfW: halfW, height: height, vel * dt, step: 0.6, onGround: onGround)
+        }
         if self === Mob.trace {
             print(String(format: "      pre %.3f,%.3f,%.3f vel %.2f,%.2f,%.2f -> %.3f,%.3f,%.3f hit %@%@%@ ground %@ speed %.2f yaw %.0f", before.x, before.y, before.z,
                          vel.x, vel.y, vel.z, pos.x, pos.y, pos.z, hit.x ? "x" : "-", hit.y ? "y" : "-", hit.z ? "z" : "-", onGround ? "1" : "0", speed, yaw * 180 / .pi))
@@ -956,11 +974,17 @@ final class Mob {
                 print(String(format: "        no node (%ld), stall %.1f s, moving %@, ai %.1f", path.nodes.count, path.stallTime, moving ? "yes" : "no", aiTimer))
             }
         }
-        var landed = false, bumped = false
+        var landed = false, bumped = deckBumped
         if hit.y { if vel.y < 0 { landed = true }; vel.y = 0 }
         if hit.x { vel.x = 0; bumped = true }
         if hit.z { vel.z = 0; bumped = true }
-        onGround = landed || (vel.y <= 0 && collides(pos - V3(0, 0.06, 0), w))
+        if let s = deck {
+            w.frame = s
+            onGround = landed || (vel.y <= 0 && collides(s.toLocal(pos) - V3(0, 0.06, 0), w))
+            w.frame = nil
+        } else {
+            onGround = landed || (vel.y <= 0 && collides(pos - V3(0, 0.06, 0), w))
+        }
         if bumped && speed != 0 {
             if kind == .spider || kind == .caveSpider { vel.y = 3.5 }     // climbs walls
             else if onLadder { vel.y = 2.35 }

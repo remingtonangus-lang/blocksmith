@@ -21,6 +21,27 @@ enum Faction: Int {
 
 // Per capital ship AI state (ShipManager.capState, keyed by the hull's id).
 final class CapitalState {
+    // Crew of a role still able to serve: posts not yet manned by a spawned soldier count (the crew is aboard
+    // but not simulated yet), spawned soldiers count while alive.
+    func crewAlive(_ role: CrewRole) -> Int {
+        var n = 0
+        for (i, r) in crewRoles.enumerated() where r == role {
+            if !crewDone.contains(i) { n += 1 } else if let m = crewMobs[i], m.health > 0 { n += 1 }
+        }
+        return n
+    }
+    func hasRole(_ role: CrewRole) -> Bool { crewRoles.contains(role) }
+    var driverAlive: Bool { !hasRole(.driver) || crewAlive(.driver) > 0 }
+    // Turret i is manned while its gunner (posts shared round-robin over the turrets) lives.
+    func turretManned(_ i: Int) -> Bool {
+        let posts = crewRoles.indices.filter { crewRoles[$0] == .gunner }
+        if posts.isEmpty { return true }
+        let k = posts[i % posts.count]
+        if !crewDone.contains(k) { return true }
+        return (crewMobs[k]?.health ?? 0) > 0
+    }
+    var wheelsLost: Int { wheels.filter { $0.lost }.count }
+
     var region: String?
     var engines0 = 0
     var mainGunCD: Float = 8           // seconds until the spinal gun can fire
@@ -45,6 +66,12 @@ final class CapitalState {
     var sight: Float = 250
     var crew: [V3] = []                // crew posts (ship space); soldiers of the ship's faction appear there once
     var crewDone = Set<Int>()          // posts whose soldier has appeared
+    var crewRoles: [CrewRole] = []
+    var crewMobs: [Int: Mob] = [:]     // post -> its soldier, once it has appeared
+    var wheels: [VehicleWheel] = []    // land vehicles: wheel components (lost at half their blocks)
+    var wheelTimer: Float = 0
+    var disabledWhy = ""               // why the vehicle stopped for good ("" while it runs)
+    var testTurn: Float?               // harness (--ridetest): drive at full speed, heading offset this far (radians)
     var troopCD: Float = 12            // seconds until the next troop drop
     var troops: [Mob] = []             // soldiers it has deployed (alive ones count toward its limit)
     var ramp = V3(0, 0, 0)             // crawler: the rear ramp's foot (ship space)
@@ -55,6 +82,19 @@ final class CapitalState {
     var launchDir = V3(1, 0, 0)
     var phaseT: Float = 0
     var troopsLeft = 0
+}
+
+// Who stands at a capital vehicle's crew post. The vehicle is a machine: it drives while its driver lives and the
+// helm stands, each turret fires while its gunner lives, and troops are the soldiers it carries.
+enum CrewRole: Int { case driver = 0, gunner, troop }
+
+// A wheel of a land vehicle: its cells in the grid (box) and how many wheel blocks it started with / has left.
+struct VehicleWheel {
+    var part: Int          // index into Ship.wheelParts
+    var lo: IVec3, hi: IVec3
+    var n0: Int
+    var n: Int
+    var lost: Bool { n * 2 < n0 }
 }
 
 struct CapTarget {
@@ -74,6 +114,13 @@ final class HullBuilder {
     var pods: [(V3, V3)] = []
     var mainGun: (V3, V3) = (V3(0, 0, 0), V3(0, 0, -1))
     var crew: [V3] = []                  // crew posts, grid coordinates (feet)
+    var crewRoles: [CrewRole] = []       // per post (missing entries are troops)
+    // A crew post at builder coordinates (x relative to the centreline).
+    func post(_ x: Int, _ y: Int, _ z: Int, _ role: CrewRole) {
+        crew.append(V3(Float(x + ox) + 0.5, Float(y), Float(z) + 0.5))
+        while crewRoles.count < crew.count - 1 { crewRoles.append(.troop) }
+        crewRoles.append(role)
+    }
     init(sx: Int, sy: Int, sz: Int, ox: Int) {
         self.sx = sx; self.sy = sy; self.sz = sz; self.ox = ox
         blocks = [BlockID](repeating: AIR, count: sx * sy * sz)
@@ -101,6 +148,14 @@ struct GunSpec2 {
 
 enum Capital {
     static func id(_ n: String, _ fallback: BlockID = STONE) -> BlockID { Blocks.has(n) ? Blocks.id(n) : fallback }
+
+    // A land vehicle's wheels as components, from the ship's wheel parts (connected wheel cells).
+    static func vehicleWheels(_ s: Ship) -> [VehicleWheel] {
+        s.wheelParts.enumerated().map { (i, p) -> VehicleWheel in
+            let n = p.blocks.filter { $0 != AIR }.count
+            return VehicleWheel(part: i, lo: p.lo, hi: IVec3(p.lo.x + p.size.x - 1, p.lo.y + p.size.y - 1, p.lo.z + p.size.z - 1), n0: n, n: n)
+        }
+    }
 
     // MARK: Turrets
 
@@ -272,11 +327,11 @@ enum Capital {
                 else if r < 11.5 { for z in 474...479 { hb.set(x, y, z, iron) } }
             } }
         } }
-        // Crew posts: hangar, upper deck, bridge, engine room.
-        for (x, y, z) in [(-10, 27, 200), (10, 27, 250), (0, 27, 310), (-15, 47, 180), (15, 47, 260), (0, 47, 340),
-                          (-4, 77, 320), (4, 77, 314), (-20, 21, 420), (20, 21, 455)] {
-            hb.crew.append(V3(Float(x + W) + 0.5, Float(y), Float(z) + 0.5))
-        }
+        // Crew: the helmsman on the bridge, six gunners (hangar and upper deck, each serving every sixth turret),
+        // officers on the bridge and troops in the engine room.
+        hb.post(0, 77, 317, .driver)
+        for (x, y, z) in [(-10, 27, 200), (10, 27, 250), (0, 27, 310), (-15, 47, 180), (15, 47, 260), (0, 47, 340)] { hb.post(x, y, z, .gunner) }
+        for (x, y, z) in [(-4, 77, 320), (4, 77, 312), (-20, 21, 420), (20, 21, 455)] { hb.post(x, y, z, .troop) }
         // Turrets: six dorsal, six ventral, four on the flank skirts.
         for z in [34, 72, 170, 215, 262, 405] {
             let (_, _, yt) = frigateSection(z)
@@ -375,7 +430,13 @@ enum Capital {
         hb.set(9, 10, 50, Blocks.id("chest") + 2); hb.chests.append((hb.grid(9, 10, 50), "steelhold_supply"))
         let ladder = Blocks.id("ladder")
         for y in 10...21 { hb.set(-8, y, 58, panel); hb.set(-7, y, 58, ladder + 3) }
-        for (x, y, z) in [(-5, 10, 40), (5, 10, 55), (0, 22, 34), (-3, 22, 50)] { hb.crew.append(V3(Float(x + W) + 0.5, Float(y), Float(z) + 0.5)) }
+        // Crew: a driver at the helm, a gunner for each turret (two heavies served from the command deck, four
+        // sponsons from the chassis), and a squad of troops in the bay who go out by the rear ramp.
+        hb.post(0, 22, 29, .driver)
+        for (x, y, z) in [(2, 22, 53), (-2, 22, 61), (-9, 10, 15), (-9, 10, 68), (9, 10, 15), (9, 10, 68)] { hb.post(x, y, z, .gunner) }
+        for (x, y, z) in [(-5, 10, 40), (5, 10, 55), (-3, 10, 46), (3, 10, 34), (-5, 10, 52), (4, 10, 44), (0, 22, 36), (-3, 22, 48)] {
+            hb.post(x, y, z, .troop)
+        }
         // Turrets: two heavy twins on the superstructure, four autocannon sponsons at the chassis corners.
         for z in [54, 63] {
             var top = 28
@@ -545,6 +606,8 @@ extension ShipManager {
             st.mainGunDir = hb.mainGun.1
             st.pods = hb.pods
             st.crew = hb.crew
+            st.crewRoles = hb.crewRoles + [CrewRole](repeating: .troop, count: max(0, hb.crew.count - hb.crewRoles.count))
+            st.wheels = Capital.vehicleWheels(s)
             st.ramp = V3(Float(hb.ox) + 0.5, 1, Float(hb.sz) + 3)
             st.sight = frigate ? 300 : 210
             st.orbitDir = (home.x + home.z) % 2 == 0 ? 1 : -1
@@ -599,11 +662,59 @@ extension ShipManager {
 
     var capitals: [Ship] { list.filter { $0.kinematic && $0.parent == nil } }
 
-    // Hull integrity for the HUD bar: the drive engines left above the 40 % founder line, nothing without the helm.
+    // Mobility for the HUD bar: the drive engines left above the 40 % line, and for land vehicles the wheels left
+    // above the half-lost line, whichever is worse.
     func capitalIntegrity(_ s: Ship) -> Float {
-        guard let st = capState[s.id], st.engines0 > 0, s.helm != nil else { return 0 }
+        guard let st = capState[s.id], st.engines0 > 0 else { return 0 }
         let e = Float(s.engines) / Float(st.engines0)
-        return max(0, min(1, (e - 0.4) / 0.6))
+        var m = max(0, min(1, (e - 0.4) / 0.6))
+        if !st.wheels.isEmpty {
+            let left = Float(st.wheels.count - st.wheelsLost) / Float(st.wheels.count)
+            m = min(m, max(0, min(1, (left - 0.5) / 0.5)))
+        }
+        return m
+    }
+
+    // The HUD label: the vehicle's components (helm, engines, wheels) and crew instead of one health pool.
+    func capitalStatus(_ s: Ship) -> String {
+        guard let st = capState[s.id] else { return s.name }
+        var parts: [String] = []
+        parts.append(s.helm == nil ? "helm destroyed" : (st.driverAlive ? "helm manned" : "no driver"))
+        if st.engines0 > 0 { parts.append("engines \(Int((Float(s.engines) / Float(st.engines0) * 100).rounded()))%") }
+        if !st.wheels.isEmpty { parts.append("wheels \(st.wheels.count - st.wheelsLost)/\(st.wheels.count)") }
+        let ts = turrets(of: s)
+        let manned = ts.indices.filter { st.turretManned($0) }.count
+        if !ts.isEmpty { parts.append("guns \(manned)/\(ts.count)") }
+        return s.name + ": " + parts.joined(separator: ", ")
+    }
+
+    // Wheel components: recount each wheel's blocks twice a second; a wheel at under half is lost (it stops
+    // turning and drawing the cells that are gone).
+    func trackWheels(_ s: Ship, _ st: CapitalState, _ dt: Float) {
+        st.wheelTimer -= dt
+        guard st.wheelTimer <= 0 else { return }
+        st.wheelTimer = 0.5
+        let kinds = ShipParts.kinds
+        let g = s.grid
+        var changed = false
+        for k in st.wheels.indices {
+            let w = st.wheels[k]
+            var n = 0
+            for y in w.lo.y...w.hi.y { for z in w.lo.z...w.hi.z { for x in w.lo.x...w.hi.x where kinds[Int(g.get(x, y, z))] == .wheel { n += 1 } } }
+            guard n != w.n else { continue }
+            st.wheels[k].n = n
+            changed = true
+            if w.part < s.wheelParts.count {
+                var part = s.wheelParts[w.part]
+                for y in 0..<part.size.y { for z in 0..<part.size.z { for x in 0..<part.size.x {
+                    let c = part.lo + IVec3(x, y, z)
+                    let i = x + z * part.size.x + y * part.size.x * part.size.z
+                    if part.blocks[i] != AIR && kinds[Int(g.get(c.x, c.y, c.z))] != .wheel { part.blocks[i] = AIR }
+                } } }
+                s.wheelParts[w.part] = part
+            }
+        }
+        if changed { s.wheelGen += 1 }
     }
 
     // Horizontal distance from a point to a ship's bounds.
@@ -664,29 +775,42 @@ extension ShipManager {
             }
             if s.asleep { continue }
             if st.crewDone.count < st.crew.count && pd < 96 {
-                // Defenders aboard: soldiers of the ship's faction at its posts (they ride the hull, fight boarders).
-                // Only over loaded ground (mobs there don't update, so they'd be left hanging as the hull moved on).
-                let ranks: [MobKind] = [.soldierTrooper, .soldierTrooper, .soldierRecruit, .soldierMarksman, .soldierIronclad]
+                // The crew aboard: soldiers of the ship's faction at their posts (they ride the hull and fight as
+                // soldiers). Only over loaded ground (mobs there don't update, so they'd be left hanging as the hull
+                // moved on).
+                let troopRanks: [MobKind] = [.soldierTrooper, .soldierTrooper, .soldierRecruit, .soldierIronclad]
                 for (i, post) in st.crew.enumerated() where !st.crewDone.contains(i) {
                     let at = s.toWorld(post + V3(0, 0.05, 0))
                     guard world.isLoaded(Int(floor(at.x)), Int(floor(at.z))), simd_length(at - g.player.pos) < 120 else { continue }
                     st.crewDone.insert(i)
-                    let m = Mob(ranks[i % ranks.count], at: at)
+                    let role = i < st.crewRoles.count ? st.crewRoles[i] : .troop
+                    let kind: MobKind = role == .driver ? .soldierTrooper : (role == .gunner ? .soldierMarksman : troopRanks[i % troopRanks.count])
+                    let m = Mob(kind, at: at)
                     m.faction = s.faction
                     m.persistent = true
+                    m.deck = s
                     if m.kind == .soldierIronclad { m.variant = Guns.arc }        // no rockets bursting inside their own hull
                     g.mobs.mobs.append(m)
+                    st.crewMobs[i] = m
                 }
             }
-            // Critical systems: the bridge helm, and 40 % of the drive engines.
-            if !s.wrecked && (s.helm == nil || (st.engines0 > 0 && s.engines * 10 < st.engines0 * 4)) {
-                s.wrecked = true
-                if pd < 400 {
-                    g.onToast?("The \(s.name) is going down!")
-                    if g.survival { g.achieve("wreck_vessel") }
+            if !st.wheels.isEmpty { trackWheels(s, st, dt) }
+            // Disabled for good: a crawler with half its wheels or its drive engines gone, a frigate with its drive
+            // engines gone (it goes down and settles where it falls). The crew fights on as soldiers.
+            if !s.wrecked {
+                let enginesOut = st.engines0 > 0 && s.engines * 10 < st.engines0 * 4
+                let wheelsOut = !st.wheels.isEmpty && st.wheelsLost * 2 >= st.wheels.count
+                if enginesOut || wheelsOut {
+                    s.wrecked = true
+                    st.disabledWhy = enginesOut ? "engines destroyed" : "wheels destroyed"
+                    let frigate = s.role != "crawler"
+                    if pd < 400 {
+                        g.onToast?(frigate ? "The \(s.name)'s drive engines are out: it is going down!" : "The \(s.name) is disabled (\(st.disabledWhy))")
+                        if g.survival { g.achieve("wreck_vessel") }
+                    }
+                    g.sfx(.explode, 1, at: s.pos)
+                    for t in turrets(of: s) { t.aimAt = nil }
                 }
-                g.sfx(.explode, 1, at: s.pos)
-                for t in turrets(of: s) { t.aimAt = nil }
             }
             if s.wrecked { founder(s, st, dt, g); continue }
             st.retarget -= dt
@@ -738,7 +862,7 @@ extension ShipManager {
         }
         if let b = best, b.player, !st.engaged {
             st.engaged = true
-            g.onToast?("The \(s.name) has you in its sights!")
+            g.onToast?("The \(s.name)'s crew has spotted you!")
             g.sfx(.gun(10), 1.5, at: g.player.pos)
         }
         return best
@@ -756,6 +880,13 @@ extension ShipManager {
     // Stormwarden Frigate: patrol a wide circle round home; with a target, close to 160, then circle it broadside
     // (every gun bears), swinging its bow on for the spinal gun when that is charged.
     private func flyFrigate(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
+        // Nobody at the helm (helmsman dead or the helm shot away): she holds her height and drifts to a stop.
+        if !st.driverAlive || s.helm == nil {
+            s.vel += (V3(0, (s.hoverY - s.pos.y) * 0.3, 0) - s.vel) * min(1, dt * 0.25)
+            s.angVel = V3(0, s.angVel.y * max(0, 1 - dt), 0)
+            levelUp(s, dt)
+            return
+        }
         let home = s.home ?? s.pos
         let fw = s.dirToWorld(V3(0, 0, -1))
         let fh = simd_normalize(V2(fw.x, fw.z) + V2(1e-5, 0))
@@ -833,6 +964,13 @@ extension ShipManager {
             let tangent = V2(-toHome.y, toHome.x) / dist * st.orbitDir
             want = simd_normalize(tangent + toHome * ((dist - r) / (r * dist)))
         }
+        if let k = st.testTurn {
+            want = V2(fh.x * cosf(k) - fh.y * sinf(k), fh.x * sinf(k) + fh.y * cosf(k))
+            speed = 6
+        }
+        // Lost wheels slow it; without a driver (or helm) it rolls to a halt where it is.
+        if !st.wheels.isEmpty { speed *= 1 - Float(st.wheelsLost) / Float(st.wheels.count) }
+        if !st.driverAlive || s.helm == nil { speed = 0; want = fh }
         func ground(_ p: V2) -> Float { Float(world.gen.column(Int(floor(p.x)), Int(floor(p.y))).height) }
         let half: Float = 28, track: Float = 13
         let c2 = V2(s.pos.x, s.pos.z)
@@ -916,7 +1054,9 @@ extension ShipManager {
             st.mainCharge = 0
             return
         }
-        for tr in ts {
+        for (i, tr) in ts.enumerated() {
+            // An unmanned turret (its gunner dead) stays where it was left.
+            guard st.turretManned(i) else { tr.aimAt = nil; continue }
             let muzzle = tr.toWorld(tr.pivot)
             var aim = t.point
             let flight0 = simd_length(aim - muzzle) / tr.gunSpeed
@@ -942,7 +1082,7 @@ extension ShipManager {
         let toT = t.point - mw
         let dist = simd_length(toT)
         let cosA = simd_dot(md, toT / max(1, dist))
-        if st.mainGunCD <= 0 && cosA > 0.9 && dist < 600 && dist > 20 {
+        if st.driverAlive && st.mainGunCD <= 0 && cosA > 0.9 && dist < 600 && dist > 20 {
             if st.mainCharge == 0 { g.sfx(.gun(12), 2, at: mw) }
             st.mainCharge += dt
             if Int(st.mainCharge * 20) % 2 == 0 { g.particles.smoke(at: mw, dark: false) }
@@ -965,7 +1105,7 @@ extension ShipManager {
             st.mainCharge = 0
         }
         // Missile salvo.
-        if st.missileCD <= 0 && !st.pods.isEmpty && boundsDistance(s, t.point) < 320 {
+        if st.driverAlive && st.missileCD <= 0 && !st.pods.isEmpty && boundsDistance(s, t.point) < 320 {
             st.missileCD = s.role == "warfrigate" ? 7 : 10
             for (k, (p, d)) in st.pods.enumerated() {
                 let at = s.toWorld(p)
@@ -997,6 +1137,34 @@ extension ShipManager {
             // Drop troops ride down in a dropship launched from the hangar flank facing the target.
             st.dropships.removeAll { d in !list.contains { $0 === d } }
             if st.dropships.count < 2 && launchDropship(s, st, toward: t.point, g) { return }
+        } else {
+            // The crawler's troops are the squad it carries: two at a time walk down the rear ramp (those not yet
+            // simulated appear on it). When the bay is empty there are no more.
+            let foot = s.toWorld(st.ramp)
+            let ix = Int(floor(foot.x)), iz = Int(floor(foot.z))
+            guard world.isLoaded(ix, iz) else { return }
+            var sent = 0
+            for (i, r) in st.crewRoles.enumerated() where r == .troop && sent < 2 {
+                let at = V3(foot.x + Float(sent) * 1.5 - 0.75, Float(world.topY(ix, iz) + 1), foot.z)
+                if let m = st.crewMobs[i] {
+                    guard m.health > 0, m.deck === s, !st.troops.contains(where: { $0 === m }) else { continue }
+                    m.pos = at; m.vel = .zero; m.deck = nil
+                    m.aggro = true
+                    st.troops.append(m)
+                } else if !st.crewDone.contains(i) {
+                    st.crewDone.insert(i)
+                    let m = Mob(i % 3 == 2 ? .soldierRecruit : .soldierTrooper, at: at)
+                    m.faction = s.faction
+                    m.persistent = true
+                    m.aggro = true
+                    g.mobs.mobs.append(m)
+                    st.crewMobs[i] = m
+                    st.troops.append(m)
+                } else { continue }
+                sent += 1
+            }
+            if sent > 0 && t.player && st.troops.count <= 2 { g.onToast?("The \(s.name) drops its ramp: troops!") }
+            return
         }
         let ranks: [MobKind] = [.soldierTrooper, .soldierRecruit, .soldierTrooper, .soldierIronclad]
         var spots: [V3] = []
@@ -1198,7 +1366,8 @@ extension ShipManager {
         } else {
             s.vel *= max(0, 1 - dt * 0.8)
             s.angVel = .zero
-            if simd_length(s.vel) < 0.05 { st.settled = true; Explosion.explode(at: s.toWorld((lo + hi) * 0.5), power: 5, game: g) }
+            // A disabled crawler rolls to a stop and stays, smoking (no blast: it is a machine out of action).
+            if simd_length(s.vel) < 0.05 { st.settled = true }
         }
     }
 }
