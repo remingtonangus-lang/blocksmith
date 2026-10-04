@@ -44,6 +44,23 @@ soldiers / reactive bases / aircraft, E Quest port, a local Mac session for the 
 FIRST `[fast: ` in the message, so never quote the marker literally elsewhere in it - run 471 ran `Blocksmith ARGS`). Report: snaps/fxtest.md; shots
 fx_cracks, fx_shatter, fx_blast, fx_fire_0-3, fx_flood_0-3, fx_snow_0-2, fx_storm_ship.
 
+## Measured (fast lane, release build, macos-14 runner; runs 472-473)
+
+| Check | Result |
+|---|---|
+| decals | 130 quads on the crack wall; frame 4.0 ms (1280 x 800) |
+| burning house, wind 13 b/s | peak 186 burning, 82 charred, spreads downwind 242 / upwind 64; fire tick mean 0.02 ms, worst 0.95 ms; frame 4.3 ms |
+| fire cap (plank field lit all over) | 1500 burning (cap), tick mean 1.6 ms, worst 1.9 ms |
+| flood, 10 min heavy rain on a river valley | 9,145 flood blocks (3,955 shoreline), 740 of 4,096 cells, model step worst 2.5 ms; frame 5.3 ms; recedes to 652 after 15 min, 264 after 30 |
+| snow, 4 min snowstorm then 10 min sun | mean depth 0.98 -> 4.34 -> 0.99 layers; chunk pass worst 4.3 ms |
+| gunboat in a full storm | max tilt 11.2 deg (1.2 calm), afloat and upright; ship step worst 0.06 ms; frame 5.9 ms |
+
+Bench scene `weather` (bench.sh, perf shard): 8 s of whole game ticks in a thunderstorm over a burning plank field with
+400 damaged blocks: weather.tick_ms p50/p95/max, fire / flood / storm worst, decal quads. Not gated.
+
 ## State / next
 
-- First version pushed; waiting for CI to compile and run the checks.
+- Rebased on playtest 983ea14; heavy lane ([full]) running on 71cfc20 before the first fast-forward into playtest.
+- Waiting on session B's BlockMaterial table: switch `Wear.kind` to it.
+- Next: bug hunting in this area (flood edge cases: villages in valleys, caves, saves mid-flood; snow on stairs/slabs;
+  fire in structures), a storm-at-sea shot of the Capital frigate (kinematic: does not roll; stream D/B own it).

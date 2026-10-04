@@ -345,6 +345,11 @@ enum WorldFXTest {
                     calmTilt, stormTilt, Waves.amp, minY, y0, up, worst))
         check(stormTilt > max(3, calmTilt * 2), "a storm rolls and pitches the ship", String(format: "%.1f vs %.1f deg", stormTilt, calmTilt))
         check(up > 0.3 && minY > y0 - 4, "the ship rides it out (afloat, not capsized)", String(format: "up %.2f", up))
+        // Lightning on the ship: the strike bursts on the hull (a storm can wreck a vessel).
+        let blocksBefore = boat.blockCount
+        g.strike(V3(boat.pos.x, boat.worldMax.y + 1, boat.pos.z))
+        note("lightning on the gunboat: \(blocksBefore) -> \(boat.blockCount) hull blocks")
+        check(boat.blockCount < blocksBefore, "lightning bursts on a ship's hull", "\(blocksBefore) -> \(boat.blockCount)")
         ShipTest.chase(g, boat, dist: 16, height: 6)
         let ms = shot(g, r, w, h, out + "/fx_storm_ship.png", frames: 20)
         note(String(format: "storm frame: %.2f ms", ms))
