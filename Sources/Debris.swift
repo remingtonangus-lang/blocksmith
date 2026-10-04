@@ -256,8 +256,8 @@ extension ShipManager {
             if !held {
                 fall: while drop < 48 {
                     for c in piece {
+                        if mine.contains(IVec3(c.x, c.y - 1, c.z)) { continue }        // rests on its own piece
                         let q = IVec3(c.x, c.y - drop - 1, c.z)
-                        if mine.contains(q) { continue }
                         if q.y < 1 || Blocks.collide[Int(w.rawBlock(q.x, q.y, q.z))] || shifted[q] != nil { break fall }
                     }
                     drop += 1
