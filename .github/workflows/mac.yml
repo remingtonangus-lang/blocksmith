@@ -47,7 +47,7 @@ jobs:
 
   fast:
     runs-on: macos-14
-    timeout-minutes: 26
+    timeout-minutes: 44
     concurrency:
       group: fast-${{ github.ref }}
       cancel-in-progress: true
@@ -60,11 +60,17 @@ jobs:
           if [ -n "$X" ]; then sudo xcode-select -s "$X/Contents/Developer"; fi
           xcrun swiftc --version
 
-      - name: Build (unoptimized, parallel)
+      - name: Build (unoptimized, parallel; optimized for a focused check)
         id: build
+        env:
+          MSG: ${{ github.event.head_commit.message }}
         run: |
           set -o pipefail
-          EXTRA_SWIFTC_FLAGS="-Xfrontend -warn-long-expression-type-checking=150" bash ./build.sh fast 2>&1 | tee build.log
+          # A [fast: ARGS] check runs simulations that an -Onone build can't finish in time (the ride check: 1 min
+          # optimized, over 24 min unoptimized), so that push builds the release way (about 6 min).
+          MODE=fast
+          if printf '%s' "$MSG" | grep -qF '[fast: '; then MODE=release; fi
+          EXTRA_SWIFTC_FLAGS="-Xfrontend -warn-long-expression-type-checking=150" bash ./build.sh $MODE 2>&1 | tee build.log
 
       - name: Type-check report (warnings only)
         if: ${{ !cancelled() }}
@@ -101,6 +107,22 @@ jobs:
             k=$((k + 1)); [ "$k" -lt 16 ] || break
           done
 
+      # A focused harness run for the pushing session's loop: the head commit message's `[fast: ARGS]` runs
+      # `Blocksmith ARGS` on this (unoptimized) build; its log and any snaps/*.md land on ci-fast-<branch>.
+      - name: 'Focused check ([fast: ARGS] in the commit message)'
+        id: focus
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        timeout-minutes: 24
+        env:
+          MSG: ${{ github.event.head_commit.message }}
+        run: |
+          ARGS=$(printf '%s' "$MSG" | grep -o '\[fast: [^]]*\]' | head -1 | sed 's/^\[fast: //; s/\]$//' || true)
+          if [ -z "$ARGS" ]; then echo "no [fast: ...] marker"; exit 0; fi
+          set -o pipefail
+          mkdir -p snaps
+          echo "focused check: Blocksmith $ARGS" | tee focus.log
+          eval "build/Blocksmith.app/Contents/MacOS/Blocksmith $ARGS" 2>&1 | tee -a focus.log
+
       - name: Publish to ci-fast
         if: ${{ !cancelled() }}
         continue-on-error: true
@@ -108,9 +130,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           SNAP_OUTCOME: ${{ steps.snap.outcome }}
+          FOCUS_OUTCOME: ${{ steps.focus.outcome }}
         run: |
           PUB="$RUNNER_TEMP/pub"; rm -rf "$PUB"; mkdir -p "$PUB"
-          cp snaps/*.png build.log typecheck.log snap.log "$PUB/" 2>/dev/null || true
+          cp snaps/*.png snaps/*.md build.log typecheck.log snap.log focus.log "$PUB/" 2>/dev/null || true
           cd "$PUB"
           {
             echo "# Blocksmith fast lane"
@@ -122,6 +145,7 @@ jobs:
             echo "### Build errors"; echo '```'; grep -E "error:" build.log | head -30 || true; echo '```'
             echo "### Type-check (warnings, slowest first)"; echo '```'; head -40 typecheck.log 2>/dev/null || true; echo '```'
             echo "### Snapshot"; echo '```'; tail -20 snap.log 2>/dev/null || true; echo '```'
+            if [ -f focus.log ]; then echo "### Focused check: ${FOCUS_OUTCOME}"; echo '```'; tail -60 focus.log; echo '```'; fi
             echo "![fast](fast.png)"
             for f in *.png; do
               if [ -e "$f" ] && [ "$f" != fast.png ]; then echo "### ${f%.png}"; echo "![${f}](${f})"; fi

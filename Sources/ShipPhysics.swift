@@ -72,6 +72,7 @@ private struct Contact {
 extension ShipManager {
     // Advances every ship (call once per frame) and carries what stands on them.
     func update(_ dt: Float, game: Game?) {
+        riderStamp += 1
         if !ghosts.isEmpty { ghosts = ghosts.map { ($0.0, $0.1 - dt) }.filter { $0.1 > 0 } }
         if let game {
             // Wind turns slowly over the days; rain and thunder strengthen it.
@@ -90,13 +91,22 @@ extension ShipManager {
             // A mob that has boarded keeps its deck while it walks, hops or steps about anywhere over the hull (as the
             // player does: frameShip with a margin), not only on frames where it is standing: riders were left behind
             // mid-hop and slid off a turning crawler.
+            // A rider standing on the world's ground (stepped off the ramp's foot, walked out from under a hull) has left
+            // the deck. A mob's velocity is relative to its deck while it rides: the deck's own is added back when it
+            // leaves and taken out when it boards (troops walking off a moving crawler stopped dead).
             for m in game.mobs.mobs where game.riding !== m && m.health > 0 {
-                if let d = m.deck, list.contains(where: { $0 === d }), frameShip(for: m.pos, height: m.height, current: d) === d {
+                if let d = m.deck, list.contains(where: { $0 === d }), frameShip(for: m.pos, height: m.height, current: d) === d,
+                   !(m.onGround && !holdsRider(d, d.toLocal(m.pos), halfW: m.halfW)) {
                     mobRiders.append((m, d))
                 } else if m.onGround, let s = standing(on: m.pos) {
+                    if m.deck !== s {
+                        if let o = m.deck, list.contains(where: { $0 === o }) { m.vel += o.velocity(at: m.pos) }
+                        m.vel -= s.velocity(at: m.pos)
+                    }
                     m.deck = s
                     mobRiders.append((m, s))
                 } else {
+                    if let o = m.deck, list.contains(where: { $0 === o }) { m.vel += o.velocity(at: m.pos) }
                     m.deck = nil
                 }
             }
@@ -181,9 +191,13 @@ extension ShipManager {
         if let game {
             for s in list where (s === aboard || s === pilot) && (s.pos != s.prevPos || s.rot != s.prevRot) {
                 let p = game.player
+                let old = p.pos
                 p.pos = s.toWorld(s.prevToLocal(p.pos))
                 p.yaw += angleDelta(s.yaw, s.prevYaw)
-                p.airPeak = p.pos.y
+                // Carried, not fallen: the fall height and the teleport check move with the deck (a frigate settling
+                // to the ground carries its riders down without fall damage; falls inside the hull still count).
+                p.airPeak += p.pos.y - old.y
+                p.lastUpdatePos += p.pos - old
             }
         }
         for s in list {

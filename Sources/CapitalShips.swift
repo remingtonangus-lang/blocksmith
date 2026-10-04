@@ -31,7 +31,8 @@ final class CapitalState {
         return n
     }
     func hasRole(_ role: CrewRole) -> Bool { crewRoles.contains(role) }
-    var driverAlive: Bool { !hasRole(.driver) || crewAlive(.driver) > 0 }
+    var driverAlive: Bool { crewless || !hasRole(.driver) || crewAlive(.driver) > 0 }
+    var crewless = false               // harness (--ridecheck): an empty vehicle that still drives as if crewed
     // Turret i is manned while its gunner (posts shared round-robin over the turrets) lives.
     func turretManned(_ i: Int) -> Bool {
         let posts = crewRoles.indices.filter { crewRoles[$0] == .gunner }
@@ -72,7 +73,15 @@ final class CapitalState {
     var wheels: [VehicleWheel] = []    // land vehicles: wheel components (lost at half their blocks)
     var wheelTimer: Float = 0
     var disabledWhy = ""               // why the vehicle stopped for good ("" while it runs)
-    var testTurn: Float?               // harness (--ridetest): drive at full speed, heading offset this far (radians)
+    var testTurn: Float?               // harness (--ridecheck): drive at full speed, heading offset this far (radians)
+    var testSpeed: Float?              // harness (--ridecheck): this speed instead of the AI's (with testTurn)
+    var rampDown = true                // crawler: the rear ramp is lowered (built so)
+    var rampTimer: Float = 0           // seconds the crawler has wanted the ramp the other way
+    var ground: V3?                    // crawler: smoothed ground under it (height, pitch, roll)
+    var grind: Float = -1              // disabled crawler: forward speed while it grinds to a stop (-1 not yet)
+    var impact: Float = 0              // crash-landed frigate: sink speed at touchdown (b/s)
+    var sag = V2(0, 0)                 // disabled crawler: pitch / roll toward its lost wheels
+    var wantSpeed: Float = 0           // crawler: the speed its AI wants (before the lowered ramp holds it to a creep)
     var troopCD: Float = 12            // seconds until the next troop drop
     var troops: [Mob] = []             // soldiers it has deployed (alive ones count toward its limit)
     var ramp = V3(0, 0, 0)             // crawler: the rear ramp's foot (ship space)
@@ -368,7 +377,8 @@ enum Capital {
 
     static func crawler() -> HullBuilder {
         let W = 17
-        let hb = HullBuilder(sx: 2 * W + 1, sy: 36, sz: 77, ox: W)
+        // 84 long: the hull ends at z 76, the lowered rear ramp reaches back to z 83.
+        let hb = HullBuilder(sx: 2 * W + 1, sy: 36, sz: 84, ox: W)
         let hull = id("warship_hull"), panel = id("warship_panel"), stripe = id("warship_stripe"), deck = id("steel_grating")
         let iron = id("iron_block"), glass = id("armored_glass", GLASS), wheel = id("ship_wheel"), engine = id("ship_engine")
         let light = id("light_panel"), console = id("command_console")
@@ -432,6 +442,16 @@ enum Capital {
         hb.set(9, 10, 50, Blocks.id("chest") + 2); hb.chests.append((hb.grid(9, 10, 50), "steelhold_supply"))
         let ladder = Blocks.id("ladder")
         for y in 10...21 { hb.set(-8, y, 58, panel); hb.set(-7, y, 58, ladder + 3) }
+        // Boarding (vehicle riding): a ladder up each flank between the front and middle wheels, from the ground to the
+        // walkway on the chassis roof, a step and a hatch from there into the command deck; the rear ramp from the
+        // troop bay to the ground (built lowered; it folds up into a door while the crawler drives: crawlerRamp).
+        for sx in [-1, 1] {
+            for y in 0...7 { hb.set(sx * 11, y, 29, panel) }
+            for y in 0...20 { hb.set(sx * 12, y, 29, ladder + (sx > 0 ? 3 : 2)) }
+            for y in 22...23 { hb.set(sx * 8, y, 30, AIR) }
+            hb.set(sx * 9, 21, 30, Capital.id(sx > 0 ? "steel_plating_stairs[west]" : "steel_plating_stairs[east]", panel))
+        }
+        for (c, b) in crawlerRamp(down: true) { hb.set(c.x, c.y, c.z, b) }
         // Crew: a driver at the helm, a gunner for each turret (two heavies served from the command deck, four
         // sponsons from the chassis), and a squad of troops in the bay who go out by the rear ramp.
         hb.post(0, 22, 29, .driver)
@@ -457,6 +477,16 @@ enum Capital {
             hb.pods.append((V3(Float(sx * 9 + W) + 0.5, 26.5, Float(z) + 1), simd_normalize(V3(Float(sx) * 0.5, 1.5, -0.3))))
         } }
         return hb
+    }
+
+    // The crawler's rear ramp cells (builder coordinates): lowered, steel stairs from the bay floor (y 9) down to the
+    // ground behind the hull (y 0 at z 83); raised, a door plate closing the bay's rear opening.
+    static func crawlerRamp(down: Bool) -> [(IVec3, BlockID)] {
+        let stairs = id("steel_plating_stairs", id("stone_brick_stairs", STONE)), plate = id("warship_panel")
+        var out: [(IVec3, BlockID)] = []
+        for k in 0...9 { for x in -2...2 { out.append((IVec3(x, 9 - k, 74 + k), down ? stairs : AIR)) } }
+        for y in 9...15 { for x in -4...4 where !(down && y == 9 && abs(x) <= 2) { out.append((IVec3(x, y, 74), down ? AIR : plate)) } }
+        return out
     }
 
     // MARK: Ships from a builder (any thread)
@@ -819,6 +849,8 @@ extension ShipManager {
                     m.faction = s.faction
                     m.persistent = true
                     m.deck = s
+                    m.crewPost = post
+                    if s.wrecked { m.crewFree = true }
                     if m.kind == .soldierIronclad { m.variant = Guns.arc }        // no rockets bursting inside their own hull
                     g.mobs.mobs.append(m)
                     st.crewMobs[i] = m
@@ -840,8 +872,15 @@ extension ShipManager {
                     }
                     g.sfx(.explode, 1, at: s.pos)
                     for t in turrets(of: s) { t.aimAt = nil }
+                    // The crew stay aboard and fight on as soldiers (no longer tied to their posts, never off a ledge).
+                    for m in st.crewMobs.values where m.deck === s && m.health > 0 {
+                        m.crewFree = true
+                        m.home = m.pos
+                        m.aggro = true
+                    }
                 }
             }
+            if s.role == "crawler" { crawlerRamp(s, st, dt, g) }
             if s.wrecked { founder(s, st, dt, g); continue }
             st.retarget -= dt
             if st.retarget <= 0 || (st.target.map { !targetValid($0, g) } ?? false) {
@@ -954,6 +993,10 @@ extension ShipManager {
             let tangent = V2(-toHome.y, toHome.x) / dist * st.orbitDir
             want = simd_normalize(tangent + toHome * ((dist - r) / (r * dist)))
         }
+        if let k = st.testTurn {
+            want = V2(fh.x * cosf(k) - fh.y * sinf(k), fh.x * sinf(k) + fh.y * cosf(k))
+            speed = st.testSpeed ?? 10
+        }
         // Altitude: the keel 30 above the highest ground under and ahead of the hull, below the world's ceiling.
         st.groundTimer -= dt
         if st.groundTimer <= 0 {
@@ -1008,37 +1051,102 @@ extension ShipManager {
         }
         if let k = st.testTurn {
             want = V2(fh.x * cosf(k) - fh.y * sinf(k), fh.x * sinf(k) + fh.y * cosf(k))
-            speed = 6
+            speed = st.testSpeed ?? 6
         }
         // Lost wheels slow it; without a driver (or helm) it rolls to a halt where it is.
         if !st.wheels.isEmpty { speed *= 1 - Float(st.wheelsLost) / Float(st.wheels.count) }
         if !st.driverAlive || s.helm == nil { speed = 0; want = fh }
-        func ground(_ p: V2) -> Float { Float(world.gen.column(Int(floor(p.x)), Int(floor(p.y))).height) }
+        st.wantSpeed = speed
+        // The ramp down (troops going out, riders walking up): it creeps until it is raised.
+        if st.rampDown { speed = min(speed, 1.5) }
+        crawlerMotion(s, st, dt, want: want, speed: speed, turnRate: 0.18)
+        crush(s, st, dt)
+    }
+
+    // Blocks a vehicle rests on: terrain (not leaves, logs or plants, which it crushes or rolls over).
+    static let groundBlock: [Bool] = {
+        var t = [Bool](repeating: false, count: Blocks.count)
+        // (Water isn't ground: under a lake the bottom is, so the crawler still sees the lake as too deep and turns.)
+        for i in 0..<Blocks.count where Blocks.collide[i] && !Blocks.isLiquid(BlockID(i)) {
+            let k = Blocks.key(Blocks.groupBase[i])
+            t[i] = ShipParts.natural[i] && !k.hasSuffix("_leaves") && !k.hasSuffix("_log") && !k.contains("mushroom")
+        }
+        return t
+    }()
+
+    // The ground's top block at a column: the real world surface where it is loaded (trees and plants skipped), else
+    // the generator's height (which misses carved valleys: a crawler floated 17 blocks over one, ride check board scene).
+    func groundTop(_ x: Int, _ z: Int) -> Float {
+        guard world.isLoaded(x, z) else { return Float(world.gen.column(x, z).height) }
+        var y = world.topY(x, z)
+        var k = 0
+        let gb = ShipManager.groundBlock
+        while y > 0 && k < 48 && !gb[Int(world.rawBlock(x, y, z))] { y -= 1; k += 1 }
+        return Float(y)
+    }
+
+    // Moves a crawler at `speed` toward heading `want`, its hull following the ground (pitch and roll from the terrain
+    // under its wheels, smoothed: the four samples step a block at a time as they cross block edges, and the hull's
+    // turn rate eases in, so riders on deck feel no jolts), turning back from water and cliffs.
+    private func crawlerMotion(_ s: Ship, _ st: CapitalState, _ dt: Float, want want0: V2, speed speed0: Float, turnRate: Float) {
+        var want = want0, speed = speed0
+        let fw = s.dirToWorld(V3(0, 0, -1))
+        let fh = simd_normalize(V2(fw.x, fw.z) + V2(1e-5, 0))
+        func ground(_ p: V2) -> Float { groundTop(Int(floor(p.x)), Int(floor(p.y))) }
         let half: Float = 28, track: Float = 13
         let c2 = V2(s.pos.x, s.pos.z)
         let side = V2(-fh.y, fh.x)
         let hF = ground(c2 + fh * half), hB = ground(c2 - fh * half)
         let hL = ground(c2 - side * track), hR = ground(c2 + side * track)
         // Water or a cliff ahead: turn away.
-        let ahead = c2 + fh * (half + 14)
-        let hA = ground(ahead)
-        if hA < Float(SEA) || hA - hF > 8 {
-            want = V2(-fh.y, fh.x) * st.orbitDir
-            speed = min(speed, 1.5)
+        if turnRate > 0 {
+            let hA = ground(c2 + fh * (half + 14))
+            if hA < Float(SEA) || hA - hF > 8 {
+                want = V2(-fh.y, fh.x) * st.orbitDir
+                speed = min(speed, 1.5)
+            }
         }
-        let yawRate = turnToward(s, want, maxRate: 0.18)
+        let yawRate = turnRate > 0 ? turnToward(s, want, maxRate: turnRate) : 0
         let pitch = atan2f(hF - hB, 2 * half), roll = atan2f(hR - hL, 2 * track)
-        let groundY = (hF + hB + hL + hR) * 0.25 + 1
-        let wantRot = Quat(angle: s.yaw + yawRate * 0.4, axis: V3(0, 1, 0)) * Quat(angle: pitch, axis: V3(1, 0, 0)) * Quat(angle: roll, axis: V3(0, 0, 1))
+        let raw = V3((hF + hB + hL + hR) * 0.25 + 1, pitch + st.sag.x, roll + st.sag.y)
+        var gs = st.ground ?? raw
+        gs += (raw - gs) * min(1, dt * 4)
+        st.ground = gs
+        let wantRot = Quat(angle: s.yaw + yawRate * 0.4, axis: V3(0, 1, 0)) * Quat(angle: gs.y, axis: V3(1, 0, 0)) * Quat(angle: gs.z, axis: V3(0, 0, 1))
         var e = wantRot * s.rot.inverse
         if e.real < 0 { e = Quat(vector: -e.vector) }
         let ang = 2 * acosf(max(-1, min(1, e.real)))
         let axis = ang > 1e-4 ? simd_normalize(e.imag) : V3(0, 1, 0)
-        s.angVel = axis * min(1, ang / 0.4)
-        let vy = max(-6, min(6, (groundY + st.groundOffset - s.pos.y) * 3))
+        let av: V3 = axis * min(0.6, ang / 0.4)
+        s.angVel += (av - s.angVel) * min(1, dt * 6)
+        let vy = max(-6, min(6, (gs.x + st.groundOffset - s.pos.y) * 3))
         let target = V3(fw.x, 0, fw.z) * speed + V3(0, vy, 0)
         s.vel += (target - s.vel) * min(1, dt * 1.2)
-        crush(s, st, dt)
+    }
+
+    // The crawler's rear ramp: lowered while it stands or creeps (troops walk out, the player walks up), raised into a
+    // door once it means to drive off and nobody stands on it (after 8 s it closes anyway). A disabled crawler drops it.
+    func crawlerRamp(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
+        let troopsOut = st.crewMobs.values.contains { !$0.crewRoute.isEmpty && $0.deck === s && $0.health > 0 }
+        let want = s.wrecked || troopsOut || st.wantSpeed < 1.6
+        if want == st.rampDown { st.rampTimer = 0; return }
+        st.rampTimer += dt
+        if st.rampTimer < 0.6 { return }
+        if !want && st.rampTimer < 8 {
+            // Anyone on the ramp or in the doorway (ship space: behind the bay floor's end) holds it down.
+            let ox = Float(s.grid.sx / 2)
+            func onRamp(_ w: V3) -> Bool {
+                let l = s.toLocal(w)
+                return l.z > 72.6 && l.z < 85 && abs(l.x - ox - 0.5) < 5 && l.y > -1 && l.y < 17
+            }
+            if onRamp(g.player.pos) { return }
+            for m in g.mobs.mobs where m.health > 0 && m.deck === s && onRamp(m.pos) { return }
+        }
+        st.rampDown = want
+        st.rampTimer = 0
+        let ox = s.grid.sx / 2
+        setBlocks(s, Capital.crawlerRamp(down: want).map { (IVec3($0.0.x + ox, $0.0.y, $0.0.z), $0.1) })
+        g.sfx(want ? .pistonContract : .pistonExtend, 1.2, at: s.toWorld(V3(Float(ox) + 0.5, 9, 78)))
     }
 
     // Trees, plants, fences, glass and timber under the crawler's front give way (no drops).
@@ -1182,29 +1290,36 @@ extension ShipManager {
             st.dropships.removeAll { d in !list.contains { $0 === d } }
             if st.dropships.count < 2 && launchDropship(s, st, toward: t.point, g) { return }
         } else {
-            // The crawler's troops are the squad it carries: two at a time walk down the rear ramp (those not yet
-            // simulated appear on it). When the bay is empty there are no more.
-            let foot = s.toWorld(st.ramp)
-            let ix = Int(floor(foot.x)), iz = Int(floor(foot.z))
-            guard world.isLoaded(ix, iz) else { return }
+            // The crawler's troops are the squad it carries: two at a time leave their posts in the bay and walk out
+            // round the engine room, through the rear door and down the ramp (it lowers for them); troops not yet
+            // simulated appear at their posts first. Troops on the command deck stay aboard. When the bay is empty there
+            // are no more.
+            let ox = Float(s.grid.sx / 2)
             var sent = 0
-            for (i, r) in st.crewRoles.enumerated() where r == .troop && sent < 2 {
-                let at = V3(foot.x + Float(sent) * 1.5 - 0.75, Float(world.topY(ix, iz) + 1), foot.z)
-                if let m = st.crewMobs[i] {
-                    guard m.health > 0, m.deck === s, !st.troops.contains(where: { $0 === m }) else { continue }
-                    m.pos = at; m.vel = .zero; m.deck = nil
-                    m.aggro = true
-                    st.troops.append(m)
+            for (i, r) in st.crewRoles.enumerated() where r == .troop && sent < 2 && i < st.crew.count && st.crew[i].y < 15 {
+                let post = st.crew[i]
+                let m: Mob
+                if let have = st.crewMobs[i] {
+                    guard have.health > 0, have.deck === s, have.crewPost != nil, !st.troops.contains(where: { $0 === have }) else { continue }
+                    m = have
                 } else if !st.crewDone.contains(i) {
+                    let at = s.toWorld(post + V3(0, 0.05, 0))
+                    guard world.isLoaded(Int(floor(at.x)), Int(floor(at.z))) else { continue }
                     st.crewDone.insert(i)
-                    let m = Mob(i % 3 == 2 ? .soldierRecruit : .soldierTrooper, at: at)
+                    m = Mob(i % 3 == 2 ? .soldierRecruit : .soldierTrooper, at: at)
                     m.faction = s.faction
                     m.persistent = true
-                    m.aggro = true
+                    m.deck = s
                     g.mobs.mobs.append(m)
                     st.crewMobs[i] = m
-                    st.troops.append(m)
                 } else { continue }
+                // Lanes beside the engine room: port outboard of the bay ladder, starboard inboard of the supply chest.
+                let lane: Float = post.x < ox + 0.5 ? -9.5 : 7.5
+                m.crewPost = nil
+                m.crewRoute = [V3(ox + 0.5 + lane, 10, post.z), V3(ox + 0.5 + lane, 10, 71.5), V3(ox + 0.5, 10, 72.5),
+                               V3(ox + 0.5, 10, 74.2), V3(ox + 0.5 + Float(sent) - 0.5, 0.5, 83.5), V3(ox + 0.5 + Float(sent) * 2 - 1, 0, 88)]
+                m.aggro = true
+                st.troops.append(m)
                 sent += 1
             }
             if sent > 0 && t.player && st.troops.count <= 2 { g.onToast?("The \(s.name) drops its ramp: troops!") }
@@ -1378,8 +1493,8 @@ extension ShipManager {
         if st.phase >= 1 { capitalGuns(s, st, dt, g) }
     }
 
-    // A crippled capital ship: a frigate sinks out of the sky with fires breaking out and comes down with a series
-    // of blasts; a crawler grinds to a halt, burning.
+    // A crippled capital ship: a frigate comes down out of the sky with fires breaking out and crash-lands; a crawler
+    // grinds to a halt, burning. Neither vanishes: the wreck stays where it came to rest, its crew aboard.
     private func founder(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
         if st.settled { s.vel = .zero; s.angVel = .zero; return }
         st.wreckFx -= dt
@@ -1392,27 +1507,100 @@ extension ShipManager {
             g.particles.smoke(at: w)
             if simd_length(w - g.player.pos) < 160 { g.sfx(.explode, 0.7, at: w) }
         }
+        let fw = s.dirToWorld(V3(0, 0, -1))
+        let fh = simd_normalize(V2(fw.x, fw.z) + V2(1e-5, 0))
         if s.isFlyingCapital {
-            st.sinkSpeed = min(10, st.sinkSpeed + dt * 1.2)
-            let fw = s.dirToWorld(V3(0, 0, -1))
-            s.vel = V3(fw.x, 0, fw.z) * 3 + V3(0, -st.sinkSpeed, 0)
-            s.angVel = V3(0, 0.01, 0)
-            let keelY = s.pos.y - (s.com.y - s.localMin.y)
-            let ground = Float(world.gen.column(Int(floor(s.pos.x)), Int(floor(s.pos.z))).height)
-            if keelY <= max(ground, Float(SEA)) + 1 {
-                st.settled = true
-                s.vel = .zero; s.angVel = .zero
-                for k in 0..<6 {
-                    let p = V3((lo.x + hi.x) * 0.5, lo.y + 2, lo.z + (hi.z - lo.z) * Float(k) / 5)
-                    Explosion.explode(at: s.toWorld(p), power: 6, game: g)
-                }
-            }
-        } else {
-            s.vel *= max(0, 1 - dt * 0.8)
-            s.angVel = .zero
-            // A disabled crawler rolls to a stop and stays, smoking (no blast: it is a machine out of action).
-            if simd_length(s.vel) < 0.05 { st.settled = true }
+            crashLand(s, st, dt, g)
+            return
         }
+        // Crawler: it keeps following the ground while it grinds to a stop (about 1.4 b/s lost per second), sagging
+        // toward the wheels it lost, sparks and smoke at the wheels.
+        if st.grind < 0 {
+            st.grind = max(0, simd_dot(s.vel, fw))
+            var sag = V2(0, 0)
+            for w in st.wheels where w.lost && w.part < s.wheelParts.count {
+                let c = s.wheelParts[w.part].center
+                sag.x += c.z < s.com.z ? -0.025 : 0.025
+                sag.y += c.x > s.com.x ? -0.03 : 0.03
+            }
+            st.sag = simd_clamp(sag, V2(-0.08, -0.1), V2(0.08, 0.1))
+        }
+        let moving = st.grind > 0.05
+        st.grind = max(0, st.grind - dt * 1.4)
+        crawlerMotion(s, st, dt, want: fh, speed: st.grind, turnRate: 0)
+        if moving && !s.wheelParts.isEmpty && Rand.float(in: 0..<1) < dt * 8 {
+            let w = s.wheelParts[min(s.wheelParts.count - 1, Int(Rand.float(in: 0..<Float(s.wheelParts.count))))]
+            let at = s.toWorld(V3(w.center.x, w.center.y - w.radius + 0.5, w.center.z))
+            g.particles.smoke(at: at, dark: true)
+            if Rand.float(in: 0..<1) < 0.3 { g.sfx(.shipCollideHard, 0.5, at: at) }
+        }
+        if !moving && simd_length(s.vel) < 0.06 && simd_length(s.angVel) < 0.01 { st.settled = true }
+    }
+
+    // A frigate with its drive engines out comes down: it keeps a little way on and sinks faster and faster, then its
+    // crew flare it over the ground (the lift strips still bear some of her weight) and she settles on the terrain,
+    // pitched to it. Riders are carried down with the deck and feel the touchdown: damage only for a hard one.
+    private func crashLand(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
+        let fw = s.dirToWorld(V3(0, 0, -1))
+        let fh = simd_normalize(V2(fw.x, fw.z) + V2(1e-5, 0))
+        let side = V2(-fh.y, fh.x)
+        let keel = s.com.y - s.localMin.y
+        let half = (s.localMax.z - s.localMin.z) * 0.42
+        let beam = (s.localMax.x - s.localMin.x) * 0.35
+        // Highest ground under the bow, the middle and the stern (sampled twice a second).
+        st.groundTimer -= dt
+        if st.groundTimer <= 0 || st.ground == nil {
+            st.groundTimer = 0.5
+            let c2 = V2(s.pos.x, s.pos.z)
+            func top(_ along: Float) -> Float {
+                var t: Float = Float(SEA)
+                for j in [Float(-1), 0, 1] {
+                    let p = c2 + fh * along + side * (j * beam)
+                    t = max(t, groundTop(Int(floor(p.x)), Int(floor(p.y))) + 1)
+                }
+                return t
+            }
+            let bow = top(half), mid = top(0), stern = top(-half)
+            st.ground = V3(max(bow, mid, stern), bow, stern)
+        }
+        let gr = st.ground ?? V3(0, 0, 0)
+        let keelY = s.pos.y - keel
+        let clear = keelY - gr.x
+        if st.grind < 0 { st.grind = max(1, simd_dot(s.vel, fw)) }
+        st.grind = max(1, st.grind - dt * 0.4)
+        let wantSink: Float = clear > 24 ? 7 : 2.6 + clear * 0.18
+        st.sinkSpeed += (wantSink - st.sinkSpeed) * min(1, dt * 0.7)
+        // Level, a touch nose-down in the fall; over the ground, pitched to it (a few degrees at most).
+        let pitch: Float = clear < 30 ? max(-0.1, min(0.1, atan2f(gr.y - gr.z, 2 * half))) : -0.02
+        let wantRot = Quat(angle: s.yaw, axis: V3(0, 1, 0)) * Quat(angle: pitch, axis: V3(1, 0, 0))
+        var e = wantRot * s.rot.inverse
+        if e.real < 0 { e = Quat(vector: -e.vector) }
+        let ang = 2 * acosf(max(-1, min(1, e.real)))
+        let axis = ang > 1e-4 ? simd_normalize(e.imag) : V3(0, 1, 0)
+        let av: V3 = axis * min(0.1, ang * 0.8)
+        s.angVel += (av - s.angVel) * min(1, dt * 2)
+        s.vel = V3(fh.x, 0, fh.y) * st.grind + V3(0, -st.sinkSpeed, 0)
+        if clear > 0.05 { return }
+        // Touchdown.
+        st.settled = true
+        st.impact = st.sinkSpeed
+        s.pos.y += -clear
+        s.vel = .zero
+        s.angVel = .zero
+        s.updateBounds()
+        let lo = s.localMin, hi = s.localMax
+        for k in 0..<3 {
+            let p = V3((lo.x + hi.x) * 0.5, lo.y + 0.5, lo.z + (hi.z - lo.z) * (0.2 + 0.3 * Float(k)))
+            Explosion.explode(at: s.toWorld(p) - V3(0, 1, 0), power: 3, game: g)
+        }
+        g.sfx(.shipCollideHard, 2, at: s.pos)
+        // The jolt: riders on deck take damage for a hard touchdown (over 3.5 b/s), none for a flared one.
+        let hurt = Int(max(0, (st.impact - 3.5) * 2).rounded())
+        if hurt > 0 {
+            if aboard?.root === s { g.damage(hurt, "was thrown about in a crash landing", type: .fall) }
+            for m in g.mobs.mobs where m.deck === s && m.health > 0 { m.health -= hurt; m.hurt = 0.3 }
+        }
+        if simd_length(s.pos - g.player.pos) < 400 { g.onToast?("The \(s.name) has crash-landed") }
     }
 }
 

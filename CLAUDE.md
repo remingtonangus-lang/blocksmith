@@ -57,4 +57,7 @@ in-progress run on a new push, so batch commits and push when the previous run h
 (keep-alives, merges, CI re-runs) are logged in STATUS.md's session log.
 - Newer files: Smoke.swift (--smoke), Spear.swift, CopperGolem.swift (+ copper chests/statues in BlocksCopper.swift),
   FarmVariants.swift (cow/pig/chicken climate looks, eggs), Shelf.swift (wooden shelves), WorldMap.swift (map,
-  minimap, waypoints), VehicleControls.swift, CombatHUD.swift (weapon wheel, gauges), Vibrant*.swift (Fancy renderer).
+  minimap, waypoints), VehicleControls.swift, CombatHUD.swift (weapon wheel, gauges), Vibrant*.swift (Fancy renderer),
+  VehicleRiding.swift (who rides a ship's frame: boarding holds, leaving onto the ground), RideCheck.swift (`--ridecheck`,
+  bots riding the capital vehicles; notes in docs/status/vehicle-riding.md). CI fast lane: `[fast: ARGS]` in the head
+  commit message runs `Blocksmith ARGS` on an optimized build (focus.log on ci-fast-<branch>).

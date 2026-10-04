@@ -347,6 +347,9 @@ final class Mob {
     var temper = 0                  // horse taming progress
     weak var mount: Mob?            // rider (raid siegebeast riders)
     weak var deck: Ship?            // the moving ship it rides (ShipPhysics carries it; it walks in the ship's frame)
+    var crewPost: V3?               // capital crew: its post in the ship's frame, held while the vehicle runs
+    var crewRoute: [V3] = []        // capital crew: ship-space waypoints it walks (troops leaving by the ramp)
+    var crewFree = false            // crew of a disabled vehicle: fights where it likes aboard, never off a ledge
     var captain = false             // raid / patrol captain (banner)
     var jobTimer: Float = Rand.float(in: 0...5)
     var giftTimer: Float = 0        // villager: seconds until it may throw the Village Hero another gift
@@ -436,7 +439,8 @@ final class Mob {
 
     func update(_ dt: Float, game g: Game) {
         let w = g.world
-        guard w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) else { return }
+        // (A rider of a ship moves in the ship's frame and needs no ground loaded: crew at a long hull's far end.)
+        guard deck != nil || w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) else { return }
         // A mob killed earlier this tick (player hit, projectile) is removed by the death sweep after this loop: it
         // must not act or heal in between (the Blight's 1 HP/s regeneration revived it and lost the Blight Star).
         if health <= 0 && kind != .enderDragon { return }
@@ -858,6 +862,9 @@ final class Mob {
             }
         }
 
+        // Crew aboard a capital vehicle hold their posts in the hull's frame (they turn and fire as the soldier AI
+        // decides, but don't stroll, flank or chase off the deck); troops sent out walk their route down the ramp.
+        if let s = deck, crewPost != nil || !crewRoute.isEmpty || crewFree { speed = crewStep(s, speed) }
         // A passive mount carrying a jockey goes where the rider wants.
         if driven > 0 {
             driven -= dt
@@ -955,6 +962,12 @@ final class Mob {
             var l = s.toLocal(pos)
             var lv = s.dirToLocal(vel)
             w.frame = s
+            if (crewPost != nil || crewFree || !crewRoute.isEmpty) && onGround && (lv.x != 0 || lv.z != 0) {
+                // Crew never step off a ledge of their vehicle: no floor within three blocks where the next step lands.
+                let h = simd_normalize(V2(lv.x, lv.z))
+                let a = l + V3(h.x, 0, h.y) * (halfW + 0.35)
+                if !w.collides(V3(a.x - 0.2, a.y - 3, a.z - 0.2), V3(a.x + 0.2, a.y + 0.05, a.z + 0.2)) { lv.x = 0; lv.z = 0 }
+            }
             hit = w.moveBody(&l, halfW: halfW, height: height, lv * dt, step: 0.6, onGround: onGround)
             w.frame = nil
             if hit.x { lv.x = 0 }
@@ -1000,6 +1013,43 @@ final class Mob {
         let hs = simd_length(V2(vel.x, vel.z))
         walkPhase += hs * dt * 5.5
         walkAmount += (min(1, hs / 1.2) - walkAmount) * min(1, dt * 8)
+    }
+
+    // Capital crew aboard (see crewPost): the speed to walk this tick, setting yaw / strafe in the ship's frame.
+    func crewStep(_ s: Ship, _ want: Float) -> Float {
+        let l = s.toLocal(pos)
+        let walking = !crewRoute.isEmpty
+        var goal: V3
+        if walking {
+            goal = crewRoute[0]
+            if simd_length(V2(goal.x - l.x, goal.z - l.z)) < 0.6 {
+                crewRoute.removeFirst()
+                if crewRoute.isEmpty { faceGoal = nil; strafe = 0; return 0 }
+                goal = crewRoute[0]
+            }
+        } else if crewFree {
+            faceGoal = nil          // straight at what it wants (the path finder reads the world, not the hull)
+            return want
+        } else if let p = crewPost {
+            goal = p
+        } else {
+            return want
+        }
+        faceGoal = nil
+        let d = s.dirToWorld(V3(goal.x - l.x, 0, goal.z - l.z))
+        let dist = simd_length(d)
+        if !walking && dist < 0.3 { strafe = 0; return 0 }
+        let dir = d / max(dist, 1e-4)
+        if walking {
+            yaw = atan2f(-dir.x, -dir.z)
+            strafe = 0
+            return spec.speed
+        }
+        // Back to the post without turning from the fight: forward and sideways steps.
+        let sp = spec.speed * min(1, dist + 0.3)
+        let right = V3(cosf(yaw), 0, -sinf(yaw))
+        strafe = simd_dot(dir, right) * sp
+        return simd_dot(dir, forward) * sp
     }
 
     func collides(_ p: V3, _ w: World) -> Bool {
@@ -1737,6 +1787,9 @@ final class MobManager {
         let limit = Float((w.renderDistance + 1) * CS)
         mobs.removeAll { m in
             if m.health <= 0 { return true }
+            // Riders of a ship still in play stay with it, however far its hull reaches from the player (a frigate's bow
+            // crew were stashed with their unloaded chunk and came back hundreds of blocks behind it: ride check).
+            if let dk = m.deck, w.ships.list.contains(where: { $0 === dk }) { return false }
             let pn = game.coop.active ? game.coop.nearestPlayerPos(m.pos, game) : p
             let d = simd_length(V2(m.pos.x - pn.x, m.pos.z - pn.z))
             if abs(m.pos.x - pn.x) > limit || abs(m.pos.z - pn.z) > limit || !w.isLoaded(Int(floor(m.pos.x)), Int(floor(m.pos.z))) {

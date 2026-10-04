@@ -505,12 +505,17 @@ final class Ship {
 
     // The ship's block at a ship-space cell; around and inside the ship, the world block at that point
     // (water is kept out of the hull's enclosed air).
+    // Capital vehicles (kinematic) are their own space above their floor: the terrain and trees they drive through or
+    // settle into never show up inside the hull's columns, so riders aren't shoved, popped up or blocked by world
+    // blocks sampled at a turned hull's cells (vehicle riding).
     func frameBlock(_ x: Int, _ y: Int, _ z: Int, _ w: World) -> BlockID {
+        var hullCol = false
         if grid.inside(x, y, z) {
             let i = grid.index(x, y, z)
             let b = grid.blocks[i]
             if b != AIR { return b }
             if dryMask[i] { return AIR }
+            hullCol = kinematic && Int(colMin[x + z * grid.sx]) < y
         }
         let p = toWorld(V3(Float(x) + 0.5, Float(y) + 0.5, Float(z) + 0.5))
         // Turrets on this ship (their own grids, turned on their rings).
@@ -520,6 +525,7 @@ final class Ship {
             let tb = t.grid.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z)))
             if tb != AIR { return tb }
         }
+        if hullCol { return AIR }
         let wb = w.rawBlock(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
         // Inside the hull's columns the world's water never reaches above the ship's floor.
         if Blocks.isLiquid(wb) && grid.inside(x, y, z) && Int(colMin[x + z * grid.sx]) < y && Blocks.fluidKind[Int(wb)] == 1 { return AIR }
@@ -571,6 +577,14 @@ final class ShipManager {
     private var nextId = 1
     var pilot: Ship?                 // the ship the player steers
     var aboard: Ship?                // the ship whose frame the player moved in last frame
+    // The player's motion relative to the deck it rides (ShipPlay.shipPlayerUpdate): kept in the ship's frame from
+    // tick to tick so the deck's own acceleration and turning never leak into it (riders slid and were shoved as a
+    // crawler sped up and turned); only outside pushes (knockback, blasts) change it, seen as p.vel != riderOut.
+    weak var riderShip: Ship?
+    var riderVel = V3(0, 0, 0)       // ship space
+    var riderOut = V3(0, 0, 0)       // the world velocity handed out last tick
+    var riderStamp = 0               // ShipManager.update count; riderAt: the stamp when the rider was last moved
+    var riderAt = -9
     var target: (ship: Ship, cell: IVec3, normal: IVec3)?   // ship block under the crosshair
     var mineCell: (Ship, IVec3)?
     var mineProgress: Float = 0
@@ -640,15 +654,26 @@ final class ShipManager {
             for y in y0...y1 { for z in z0...z1 { for x in x0...x1 {
                 let b = g.blocks[g.index(x, y, z)]
                 if !Blocks.collide[Int(b)] { continue }
-                var bl: Float = 0, bh: Float = 1
+                if Player.climbable(b) { continue }          // ladders are thin: climbers board the ship's frame at them
+                let bl: Float = 0
+                var bh: Float = 1
                 if Blocks.connectKind[Int(b)] != 0 {
                     // Fences and walls (their shape depends on neighbours): a full post, 1.5 high like their collision.
                     bh = Blocks.connectKind[Int(b)] == 2 ? 1 : 1.5
                 } else if !Blocks.fullCollide[Int(b)] {
-                    // Partial blocks (slabs, stairs...): their vertical extent.
-                    bl = 1; bh = 0
-                    for bx in Blocks.boxes[Int(b)] { bl = min(bl, Float(bx.y0) / 16); bh = max(bh, Float(bx.y1) / 16) }
-                    if bh <= bl { continue }
+                    // Partial blocks (slabs, stairs...): each of their boxes, turned with the ship (a stair taken as one
+                    // full-height box was a 1-block wall: a ramp of stairs couldn't be walked up from the ground).
+                    let cell = V3(Float(x), Float(y), Float(z))
+                    for bx in Blocks.boxes[Int(b)] {
+                        let bmin = V3(Float(bx.x0), Float(bx.y0), Float(bx.z0)) / 16
+                        let bmax = V3(Float(bx.x1), Float(bx.y1), Float(bx.z1)) / 16
+                        let hl: V3 = (bmax - bmin) * 0.5
+                        let w = s.toWorld(cell + (bmin + bmax) * 0.5)
+                        let hw: V3 = ax * hl.x + ay * hl.y + az * hl.z
+                        let pmn = w - hw, pmx = w + hw
+                        if pmx.x > mn.x && pmn.x < mx.x && pmx.y > mn.y && pmn.y < mx.y && pmx.z > mn.z && pmn.z < mx.z { out.append((pmn, pmx)) }
+                    }
+                    continue
                 }
                 let cl = V3(Float(x) + 0.5, Float(y) + (bl + bh) * 0.5, Float(z) + 0.5)
                 let w = s.toWorld(cl)
