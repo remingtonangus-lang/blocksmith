@@ -22,6 +22,7 @@ final class WorldFX {
     var snowCursor = 0
     var snowChanges = 0                 // block writes by snow (checks)
     var forcedWind: V3? = nil           // tests: a fixed wind
+    var smokeTimer: Float = 0
     var stormMs = 0.0, stormWorstMs = 0.0
 }
 
@@ -109,6 +110,7 @@ extension Game {
         Waves.t = Float(time.truncatingRemainder(dividingBy: 1000))     // the water shader's clock (params.z): ships ride the crests drawn
         Waves.world = world
         fx.flood.update(dt, game: self)
+        fireSmoke(dt)
         // Gusts howl in a storm (open ground only).
         if fx.storm > 0.3 && wetWorld && Rand.float(in: 0..<1) < dt * fx.storm * 0.25,
            skyExposed(Int(floor(player.pos.x)), Int(floor(player.pos.y + 1)), Int(floor(player.pos.z))) {
@@ -118,6 +120,25 @@ extension Game {
         let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
         fx.stormMs = ms
         fx.stormWorstMs = max(fx.stormWorstMs, ms)
+    }
+
+    // Big fires send up plumes seen from afar (the ambient sampler only reaches 16 blocks): a few large dark puffs a
+    // second from random burning cells within 128 blocks, more for bigger fires, leaning with the wind.
+    func fireSmoke(_ dt: Float) {
+        let fires = world.fires
+        if fires.isEmpty || particles.list.count > ParticleManager.cap - 300 { return }
+        fx.smokeTimer -= dt
+        if fx.smokeTimer > 0 { return }
+        fx.smokeTimer = max(0.04, 0.5 / Float(min(12, 1 + fires.count / 8)))
+        guard let (p, _) = fires.randomElement() else { return }
+        let c = V3(Float(p.x) + 0.5, Float(p.y) + 1.2, Float(p.z) + 0.5)
+        let d = simd_length(c - player.pos)
+        if d > 128 || d < 6 { return }
+        let g: Float = Rand.float(in: 0.1...0.22)
+        particles.add(Particle(pos: c + V3(Rand.float(in: -0.5...0.5), 0, Rand.float(in: -0.5...0.5)),
+                               vel: V3(0, Rand.float(in: 1.5...2.5), 0), life: Rand.float(in: 4...7), maxLife: 7,
+                               layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1, size: Rand.float(in: 0.9...1.8),
+                               gravity: -0.4, color: V3(g, g, g), collide: false))
     }
 
     // A storm's lightning picks the tallest point among a few nearby columns (trees, towers, masts).
