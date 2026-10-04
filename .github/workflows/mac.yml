@@ -5,7 +5,7 @@ name: mac
 # View: https://github.com/<owner>/blocksmith/tree/ci-snaps  (README.md shows every image)
 on:
   push:
-    branches-ignore: ['ci-snaps', 'ci-snaps-*', 'ci-qa-*', 'ci-assets']
+    branches-ignore: ['ci-snaps', 'ci-snaps-*', 'ci-qa-*', 'ci-assets', 'claude/frontier-game']
   workflow_dispatch:
 
 permissions:

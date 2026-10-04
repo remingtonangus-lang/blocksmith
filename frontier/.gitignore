@@ -1,0 +1,10 @@
+.godot/
+data/world/*.r16
+data/world/*.bin
+data/world/features.json
+assets/ext/
+assets/catalog/
+build/
+export_credentials.cfg
+data/world/preview.png
+__pycache__/
