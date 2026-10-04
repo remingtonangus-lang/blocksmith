@@ -57,6 +57,7 @@ enum PadTest {
     }
 
     static func run(_ g: Game) {
+        GIP.selfTest(check)                       // USB GIP packet parser (USBGamepad.swift)
         PrefsSandbox.begin()
         let fm = FileManager.default
         let oldBase = WorldStore.base

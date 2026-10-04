@@ -24,9 +24,13 @@ final class PadManager {
     var disconnectedAt: Double?          // game clock when the active pad dropped out (pause-menu notice)
     var clock: () -> Double = { 0 }          // harness: strengths of requested rumbles (kept short)
 
-    var connected: Bool { simulated != nil || controller != nil }
+    var connected: Bool { simulated != nil || controller != nil || USBGamepads.shared.active }
+    // A pad macOS drives itself (GameController); the USB GIP fallback (USBGamepad.swift) stays out of its way.
+    // (Set on the main thread in pick(); the USB queue only reads it.)
+    private(set) var hasSystemPad = false
     var name: String {
         if simulated != nil { return "Test Pad" }
+        if controller == nil && USBGamepads.shared.active { return USBGamepads.shared.deviceName }
         return controller?.vendorName ?? "Controller"
     }
     // 0...1, nil when unknown (wired pads, older systems).
@@ -58,10 +62,25 @@ final class PadManager {
         }
         nc.addObserver(forName: .GCControllerDidBecomeCurrent, object: nil, queue: .main) { [weak self] _ in self?.pick() }
         pick()
+        // Wired Xbox One / Series pads no macOS driver claims (vendor class 0xFF, e.g. PowerA 20D6:2074).
+        let usb = USBGamepads.shared
+        usb.onConnect = { [weak self] n in
+            guard let self else { return }
+            if self.controller == nil { self.usingPad = true }
+            self.onConnect?(n)
+        }
+        usb.onDisconnect = { [weak self] n in
+            guard let self, self.controller == nil else { return }
+            let wasUsing = self.usingPad
+            self.disconnectedAt = self.clock()
+            self.onDisconnect?(n, wasUsing)
+        }
+        usb.start()
     }
 
     private func pick() {
         let pads = GCController.controllers().filter { $0.extendedGamepad != nil }
+        hasSystemPad = !pads.isEmpty
         let cur = GCController.current
         let next = (cur?.extendedGamepad != nil ? cur : nil) ?? pads.first
         if next !== controller {
@@ -93,7 +112,11 @@ final class PadManager {
     private func readRaw() -> PadSnapshot? {
         if let s = simulated { return s }
         if !started, controller == nil { controller = GCController.current ?? GCController.controllers().first }
-        guard let c = controller ?? GCController.current, let g = c.extendedGamepad else { return nil }
+        guard let c = controller ?? GCController.current, let g = c.extendedGamepad else {
+            guard var u = USBGamepads.shared.snapshot() else { return nil }
+            if Settings.shared.southpaw { (u.lx, u.rx, u.ly, u.ry) = (u.rx, u.lx, u.ry, u.ly) }
+            return u
+        }
         var p = PadSnapshot()
         p.lx = g.leftThumbstick.xAxis.value
         p.ly = g.leftThumbstick.yAxis.value
@@ -135,6 +158,7 @@ final class PadManager {
         let k = strength * Settings.shared.rumble
         guard k > 0.02 else { return }
         if simulated != nil { rumbleLog.append(k); if rumbleLog.count > 32 { rumbleLog.removeFirst() }; return }
+        if controller == nil && USBGamepads.shared.active { USBGamepads.shared.rumble(k, max(0.03, duration)); return }
         guard let c = controller, !hapticsFailed else { return }
         let now = ProcessInfo.processInfo.systemUptime
         if now - lastRumble < 0.05 && k < 0.6 { return }

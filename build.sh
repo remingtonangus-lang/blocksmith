@@ -14,7 +14,7 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 # Debug: line tables only and one module object (-wmo), so the link stays small on CI runners (full -g over ~250
 # files failed to link there); enough for lldb backtraces with file:line.
 # EXTRA_SWIFTC_FLAGS: CI adds a slow type-check warning (-warn-long-expression-type-checking), reported as warnings.
-FRAMEWORKS="-framework Metal -framework MetalKit -framework AppKit -framework GameController -framework AVFoundation"
+FRAMEWORKS="-framework Metal -framework MetalKit -framework AppKit -framework GameController -framework AVFoundation -framework IOKit -framework IOUSBHost"
 if [ "$MODE" = "fast" ]; then
   # Fast: the CI fast lane. Unoptimized, no debug info, files compiled in parallel batches into build/obj, then linked
   # (a one-step batch build lost its temporary objects before the link on the runner).
