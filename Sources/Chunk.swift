@@ -22,7 +22,8 @@ final class Section {
     var solidQuads = 0          // leading opaque quads drawn without alpha test
     var transBuf: MeshSlice?
     var transQuads = 0
-    var version = 0 { didSet { MeshEpoch.value &+= 1 } }   // bumped when the section (or light around it) changes
+    var version = 0 { didSet { MeshEpoch.value &+= 1; owner?.dirty = true } }   // bumped when the section (or light around it) changes
+    weak var owner: Chunk?      // marked dirty with each bump (World.update re-checks only dirty chunks)
     var meshedVersion = -1
     var vis: UInt64 = ~0         // face connectivity (cave culling)
     var needsMesh: Bool { meshedVersion != version }
@@ -125,6 +126,7 @@ final class Chunk {
     var meshInFlight = false
     var meshedOnce = false
     var drawnMark: UInt32 = 0
+    var dirty = false              // a section's version changed since World.update last looked at this chunk
     var lod = 0                    // 0 full detail, 1 far (flat light, merged faces, no small decorations)
 
     init(cx: Int, cz: Int, blocks: [BlockID], height: [Int16], tint: [UInt32]) {
@@ -134,6 +136,7 @@ final class Chunk {
         self.height = height
         self.tint = tint
         sections = (0..<NSEC).map { _ in Section() }
+        for s in sections { s.owner = self }
     }
 
     @inline(__always) static func index(_ x: Int, _ y: Int, _ z: Int) -> Int { x + z * CS + y * CSQ }

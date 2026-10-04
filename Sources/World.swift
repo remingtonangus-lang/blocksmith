@@ -538,7 +538,21 @@ final class World {
 
         // Nothing new since the last scan (same centre, no results, no invalidated sections): the scan
         // would schedule nothing, so skip it (it walks ~1000-2000 chunks at rd 16-24).
-        if gr.isEmpty && mr.isEmpty && center == scanCenter && extra == scanExtra && MeshEpoch.value == scanEpoch { return }
+        let quiet = gr.isEmpty && mr.isEmpty && center == scanCenter && extra == scanExtra
+        if quiet && MeshEpoch.value == scanEpoch { return }
+        if quiet {
+            // Only block or light edits since the last scan (flowing water, a placed block): re-check just the chunks
+            // they touched instead of walking the whole disc (bench: 0.26 ms a frame at rd 16 while lava settled).
+            for (k, c) in chunks where c.dirty {
+                if jobs >= maxQueued { return }               // the rest stay dirty; the epoch still differs, so next frame
+                c.dirty = false
+                guard !c.meshInFlight && c.needsMesh else { continue }
+                let near = inMeshRadius(k.x - center.x, k.z - center.z) || (extra.map { inMeshRadius(k.x - $0.x, k.z - $0.z) } ?? false)
+                if near, let nb = neighbourhood(c) { scheduleMesh(k, c, nb) }
+            }
+            scanEpoch = MeshEpoch.value
+            return
+        }
         scanCenter = center
         scanExtra = extra
 
@@ -558,24 +572,8 @@ final class World {
                 }
                 if jobs >= maxQueued { continue }
                 if !c.meshInFlight && inMeshRadius(dx, dz) && c.needsMesh, let nb = neighbourhood(c) {
-                    let (n9, h9) = nb
-                    let todo = dirtySections(c)
-                    let lod = c.lod
-                    let dl = damageList(c)
-                    c.meshInFlight = true
-                    jobs += 1
-                    // Weak: a finished operation can linger in a worker's autorelease pool and would keep the World alive.
-                    workQueue.addOperation { [weak self] in
-                        guard let self else { return }
-                        let t0 = CFAbsoluteTimeGetCurrent()
-                        var out: [(Int, Int, SectionMesh)] = []
-                        for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl))) }
-                        let el = CFAbsoluteTimeGetCurrent() - t0
-                        lock.lock()
-                        meshResults.append((k, out))
-                        perfShared.meshJobs += 1; perfShared.meshSections += todo.count; perfShared.meshSeconds += el
-                        lock.unlock()
-                    }
+                    c.dirty = false
+                    scheduleMesh(k, c, nb)
                 }
             } else if jobs < maxQueued && !genInFlight.contains(k) {
                 genInFlight.insert(k)
@@ -595,6 +593,28 @@ final class World {
         }
         meshedCount = meshed
         scanEpoch = MeshEpoch.value         // after the loop: its own LOD re-mesh bumps are already scheduled
+    }
+
+    // Hands a chunk's out-of-date sections to a mesh worker.
+    private func scheduleMesh(_ k: ChunkKey, _ c: Chunk, _ nb: ([BlockStore], [[Int16]])) {
+        let (n9, h9) = nb
+        let todo = dirtySections(c)
+        let lod = c.lod
+        let dl = damageList(c)
+        c.meshInFlight = true
+        jobs += 1
+        // Weak: a finished operation can linger in a worker's autorelease pool and would keep the World alive.
+        workQueue.addOperation { [weak self] in
+            guard let self else { return }
+            let t0 = CFAbsoluteTimeGetCurrent()
+            var out: [(Int, Int, SectionMesh)] = []
+            for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl))) }
+            let el = CFAbsoluteTimeGetCurrent() - t0
+            self.lock.lock()
+            self.meshResults.append((k, out))
+            self.perfShared.meshJobs += 1; self.perfShared.meshSections += todo.count; self.perfShared.meshSeconds += el
+            self.lock.unlock()
+        }
     }
 
     // Loads a chunk from disk or generates it (thread-safe).
