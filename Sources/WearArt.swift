@@ -72,10 +72,10 @@ enum WearArt {
         return (simd_length(p - q), side)
     }
 
-    // Fracture lines: walkers branch from a few impact points, more and longer at each stage; a dark core with a
-    // faint lit lip on one side (relief).
+    // Fracture lines: zigzag walkers holding a rough heading branch from a few impact points, more and longer at each
+    // stage, tapering toward their tips; a dark core with a faint lit lip on one side (relief) at 32 px and up.
     private static func cracks(_ n: Int, stage s: Int) -> [V4] {
-        struct Seg { var a: V2; var b: V2; var birth: Int; var order: Int }
+        struct Seg { var a: V2; var b: V2; var birth: Int; var order: Int; var total: Int }
         var rng = SRng(0xC4AC)
         var segs: [Seg] = []
         let starts: [(V2, Int)] = [(V2(0.42, 0.47), 1), (V2(0.62, 0.3), 2), (V2(0.25, 0.72), 3), (V2(0.74, 0.7), 4)]
@@ -83,20 +83,23 @@ enum WearArt {
             let arms = birth == 1 ? 3 : 2
             for k in 0..<arms {
                 var p = st
-                var ang = Float(k) / Float(arms) * 2 * .pi + rng.float() * 1.2
-                let steps = 7 + rng.int(6)
+                var heading = Float(k) / Float(arms) * 2 * .pi + rng.float() * 1.2
+                let steps = 10 + rng.int(8)
                 for i in 0..<steps {
-                    ang += (rng.float() - 0.5) * 0.9
-                    let q = p + V2(cosf(ang), sinf(ang)) * (0.045 + rng.float() * 0.03)
-                    segs.append(Seg(a: p, b: q, birth: birth, order: i))
-                    if rng.float() < 0.18 {
+                    let ang = heading + (rng.float() - 0.5) * 1.3
+                    heading += (rng.float() - 0.5) * 0.35
+                    let len: Float = 0.025 + rng.float() * 0.025
+                    let q = p + V2(cosf(ang), sinf(ang)) * len
+                    segs.append(Seg(a: p, b: q, birth: birth, order: i, total: steps))
+                    if rng.float() < 0.16 && i > 1 {
                         // A short side branch.
                         var bp = q
-                        var ba = ang + (rng.float() < 0.5 ? 1 : -1) * (0.7 + rng.float() * 0.5)
-                        for j in 0..<(2 + rng.int(3)) {
-                            ba += (rng.float() - 0.5) * 0.8
-                            let bq = bp + V2(cosf(ba), sinf(ba)) * 0.04
-                            segs.append(Seg(a: bp, b: bq, birth: birth, order: i + j + 1))
+                        let bh = heading + (rng.float() < 0.5 ? 1 : -1) * (0.6 + rng.float() * 0.6)
+                        let nb = 2 + rng.int(4)
+                        for j in 0..<nb {
+                            let ba = bh + (rng.float() - 0.5) * 1.2
+                            let bq = bp + V2(cosf(ba), sinf(ba)) * 0.025
+                            segs.append(Seg(a: bp, b: bq, birth: birth, order: i + j + 3, total: i + nb + 3))
                             bp = bq
                         }
                     }
@@ -104,26 +107,27 @@ enum WearArt {
                 }
             }
         }
-        // A stage shows walkers born by then; each grows over two stages (half its length at birth).
+        // A stage shows walkers born by then; each grows over two stages (the first eight steps at birth).
         let visible = segs.filter { seg in
             guard seg.birth <= s else { return false }
-            let grown = s - seg.birth + 1
-            return grown >= 2 || seg.order < 6
+            return s - seg.birth + 1 >= 2 || seg.order < 8
         }
-        let hw = max(0.022 + 0.004 * Float(s), 0.55 / Float(n))
-        let lip = 1.3 / Float(n)
+        let lip: Float = n >= 32 ? 1.3 / Float(n) : 0
+        let minW: Float = 0.5 / Float(n)
         var px = [V4](repeating: V4(0, 0, 0, 0), count: n * n)
         for y in 0..<n { for x in 0..<n {
             let p = V2((Float(x) + 0.5) / Float(n), (Float(y) + 0.5) / Float(n))
-            var best: Float = 9, side: Float = 0
+            var best: Float = 9, side: Float = 0, bw: Float = 1
             for seg in visible {
                 let (d, sd) = segDist(p, seg.a, seg.b)
-                if d < best { best = d; side = sd }
+                let taper: Float = 1 - 0.7 * Float(seg.order) / Float(max(1, seg.total))
+                let wdt = max(minW, (0.016 + 0.002 * Float(s)) * taper)
+                if d - wdt < best { best = d - wdt; side = sd; bw = wdt }
             }
-            if best < hw {
-                let k = 1 - max(0, (best - hw * 0.5) / (hw * 0.5))
-                px[y * n + x] = V4(0.05, 0.045, 0.04, 0.55 + 0.35 * k)
-            } else if best < hw + lip && side > 0 {
+            if best < 0 {
+                let k = min(1, -best / (bw * 0.5))
+                px[y * n + x] = V4(0.05, 0.045, 0.04, 0.5 + 0.4 * k)
+            } else if best < lip && side > 0 {
                 px[y * n + x] = V4(0.92, 0.9, 0.86, 0.22)
             }
         } }
