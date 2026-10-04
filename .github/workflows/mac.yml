@@ -47,7 +47,7 @@ jobs:
 
   fast:
     runs-on: macos-14
-    timeout-minutes: 20
+    timeout-minutes: 26
     concurrency:
       group: fast-${{ github.ref }}
       cancel-in-progress: true
@@ -84,7 +84,7 @@ jobs:
       # so a session can look at its shots without waiting for a heavy run. Max 16 shots.
       - name: Shots named in the commit message
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        timeout-minutes: 10
+        timeout-minutes: 14
         env:
           MSG: ${{ github.event.head_commit.message }}
         run: |

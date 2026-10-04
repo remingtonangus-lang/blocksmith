@@ -716,6 +716,9 @@ enum Snapshot {
             let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)), r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))
             let up = Float(arg("--up") ?? "") ?? 0
             let gb = Int(floor(pos.y - up)) - 1                      // the ground block under the camera
+            // Load the stage's chunks first: edits to chunks not loaded yet were dropped, and the stage was left
+            // studded with the hill's grass blocks (soldier_ranks_*, mobs_new: run 454).
+            _ = world.loadSync(center: pos + f * 8, radius: 2)
             for sx in 0...16 { for t in -12...12 {
                 let q: V3 = pos + f * Float(sx) + r * Float(t)
                 let x = Int(floor(q.x)), z = Int(floor(q.z))

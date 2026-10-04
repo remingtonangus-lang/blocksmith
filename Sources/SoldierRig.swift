@@ -108,7 +108,7 @@ struct SoldierRigOut {
 enum SoldierRig {
     static let hipX: Float = 2.0, thighLen: Float = 6.0, shinLen: Float = 6.0
     static let shoulderX: Float = 5.7, shoulderY: Float = 22.3
-    static let upperArm: Float = 6.2, foreArm: Float = 6.6        // shoulder -> elbow -> fist centre
+    static let upperArm: Float = 6.5, foreArm: Float = 7.0        // shoulder -> elbow -> fist centre (fist at mid thigh)
     // Camera position while mobs are drawn (level of detail); nil draws full detail (pose check, previews).
     static var eye: V3?
 
@@ -181,13 +181,22 @@ enum SoldierRig {
             let d = simd_length(m.pos - e)
             lod = d > 34 ? 2 : (d > 14 ? 1 : 0)
         }
-        let p = pose(m, b, rank: r, gm: gm, gi: gi)
+        var p = pose(m, b, rank: r, gm: gm, gi: gi)
+        fit(&p, gm)
         let lv = Livery.of(m, rank: r, seed: seed(m))
         var out = SoldierRigOut()
         out.parts.reserveCapacity(lod == 0 ? 190 : (lod == 1 ? 90 : 34))
         body(&out, m, p, lv, rank: r, lod: lod)
         weapon(&out, m, p, gm, gi: gi, lv: lv, rank: r, lod: lod)
         out.chestFront = p.t(V3(0, 18, -2)).z
+        // Plant the boots: the lowest point of a standing soldier on the ground (swinging legs dipped below it).
+        let seated = b.station == .seated || b.station == .passenger
+        let low = lowest(out.parts)
+        if !seated || low < 0 {
+            let dy = -low
+            for i in out.parts.indices { out.parts[i].mn.y += dy; out.parts[i].mx.y += dy; out.parts[i].pivot.y += dy }
+            out.handR.y += dy; out.handL.y += dy; out.muzzle.y += dy; out.gripR.y += dy; out.foreL.y += dy
+        }
         let big: Float = r == 3 ? 1.12 : 1
         if big != 1 {
             out.parts = out.parts.map { q in
@@ -198,6 +207,42 @@ enum SoldierRig {
             out.handR *= big; out.handL *= big; out.muzzle *= big; out.gripR *= big; out.foreL *= big; out.chestFront *= big
         }
         return out
+    }
+
+    // Lowest model point after rotation.
+    static func lowest(_ parts: [Part]) -> Float {
+        var lo: Float = 1e9
+        for q in parts {
+            let r = q.rotation
+            for k in 0..<8 {
+                let c = V3(k & 1 == 0 ? q.mn.x : q.mx.x, k & 2 == 0 ? q.mn.y : q.mx.y, k & 4 == 0 ? q.mn.z : q.mx.z)
+                lo = min(lo, q.place(c, r).y)
+            }
+        }
+        return lo
+    }
+
+    // A weapon held in both hands slides toward a shoulder that can't reach it (short blocky arms against a long
+    // rifle at low ready), carrying both hands with it.
+    static func fit(_ p: inout SoldierPose, _ gm: GunModel) {
+        let reach = upperArm + foreArm - 0.15
+        for _ in 0..<4 {
+            let fore = gunPoint(gm, gm.fore, p)
+            let onR = p.handR.map { simd_length($0 - p.gunAt) < 0.01 } ?? false
+            let onL = p.handL.map { simd_length($0 - fore) < 0.01 } ?? false
+            guard onR || onL else { return }
+            var move = V3(0, 0, 0)
+            for (on, h, side) in [(onR, p.handR, Float(1)), (onL, p.handL, Float(-1))] where on {
+                let s = p.t(V3(side * shoulderX, shoulderY, 0))
+                let d = h! - s
+                let l = simd_length(d)
+                if l > reach { move -= d / l * (l - reach) }
+            }
+            if simd_length(move) < 0.01 { return }
+            p.gunAt += move
+            if onR { p.handR = p.gunAt }
+            if onL { p.handL = gunPoint(gm, gm.fore, p) }
+        }
     }
 
     // MARK: Stances
@@ -276,7 +321,7 @@ enum SoldierRig {
                 p.gunYaw = low ? 0.08 : 0.02
                 let kick = b.recoil
                 var butt = low ? p.t(V3(2.1, 20.2, -2.6)) : p.t(V3(1.8, 21.6, -2.3))
-                if gi == Guns.arc { butt = p.t(V3(2.6, 19.4, -1.2)) }
+                if gi == Guns.arc { butt = p.t(V3(2.6, 19.4, -2.4)) }
                 butt.z += 1.1 * kick
                 p.gunPitch += 0.16 * kick
                 p.gunAt = gripFor(gm, anchor: gm.butt, at: butt, p)
