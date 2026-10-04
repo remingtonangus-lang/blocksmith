@@ -79,11 +79,13 @@ enum Explosion {
             let dir = d > 0.01 ? (center - c) / d : V3(0, 1, 0)
             return (k, dir)
         }
-        if let im = impact(g.player.pos, 1.8), im.0 > 0 {
-            let (k, dir) = im
-            let dmg = Int(((k * k + k) / 2 * 7 * radius + 1).rounded())
-            g.hurtPlayer(dmg, from: c, cause: "blew up", knockback: 0, type: .explosion)
-            g.player.vel += dir * k * 12
+        g.coop.eachSeat(g) {                          // every split-screen player in reach
+            if let im = impact(g.player.pos, 1.8), im.0 > 0 {
+                let (k, dir) = im
+                let dmg = Int(((k * k + k) / 2 * 7 * radius + 1).rounded())
+                g.hurtPlayer(dmg, from: c, cause: "blew up", knockback: 0, type: .explosion)
+                g.player.vel += dir * k * 12
+            }
         }
         for m in g.mobs.mobs where m !== except {
             if let im = impact(m.pos, m.height), im.0 > 0 {

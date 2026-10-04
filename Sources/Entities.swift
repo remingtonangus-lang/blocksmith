@@ -98,8 +98,9 @@ final class ItemEntityManager {
         let w = game.world
         var picked = 0
         let pp = game.player.pos
+        let pickOnly = game.coop.current > 0          // split screen: a second seat only picks up
         for e in items {
-            e.update(dt, w)
+            if !pickOnly { e.update(dt, w) }
             if e.pickupDelay <= 0 && game.alive {
                 let d = e.pos - pp
                 if abs(d.x) < 1.3 && abs(d.z) < 1.3 && d.y > -0.8 && d.y < 2.3 {
@@ -109,6 +110,7 @@ final class ItemEntityManager {
                 }
             }
         }
+        if pickOnly { if picked > 0 { game.sfx(.pickup, 0.5) }; return picked }
         items.removeAll { $0.stack.isEmpty || $0.age > 300 || $0.pos.y < -64 }
         // Merge nearby identical stacks now and then.
         mergeTimer -= dt

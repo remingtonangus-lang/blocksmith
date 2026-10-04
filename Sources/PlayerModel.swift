@@ -54,7 +54,7 @@ func playerHitAngle(_ sw: Float) -> Float { sw > 0 ? sinf(sqrtf(sw) * .pi) * 1.3
 // The player's boxes (model space, 1/16 block, facing -Z): worn armour tints, head pitched about the neck, a held item.
 func playerParts(_ g: Game, pitch: Float, walk: Float, hit: Float) -> [Part] {
     let skin = V3(0.85, 0.66, 0.5), hair = V3(0.3, 0.2, 0.12)
-    let tunic = V3(0.62, 0.26, 0.16), trousers = V3(0.22, 0.22, 0.26), boots = V3(0.35, 0.22, 0.12)
+    let tunic = g.coop.current == 1 ? V3(0.16, 0.34, 0.62) : V3(0.62, 0.26, 0.16), trousers   // player 2 (split screen) in blue = V3(0.22, 0.22, 0.26), boots = V3(0.35, 0.22, 0.12)
     let armor = g.inventory.armor
     func tone(_ slot: Int, _ c: V3) -> V3 { armor[slot].isEmpty ? c : (ArmorLook.color(armor[slot].item) ?? c) }
     let chest = tone(1, tunic), legs = tone(2, trousers), feet = tone(3, boots)

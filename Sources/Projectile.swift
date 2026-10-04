@@ -66,7 +66,7 @@ final class ProjectileManager {
 
     private func updateFireballs(_ dt: Float, game g: Game) {
         let w = g.world
-        for f in fireballs {
+        for f in fireballs where g.seatOwns(f.pos) {
             f.age += dt
             if f.age > 10 { f.dead = true; continue }
             if f.potion > 0 || f.kind == .snowball || f.kind == .egg || f.kind == .pearl { f.vel.y -= 20 * dt; f.vel *= expf(-0.2 * dt) }
@@ -151,7 +151,7 @@ final class ProjectileManager {
     func update(_ dt: Float, game g: Game) {
         let w = g.world
         updateFireballs(dt, game: g)
-        for a in arrows {
+        for a in arrows where g.seatOwns(a.pos) {
             a.age += dt
             if a.returning, let t = a.trident {
                 // Loyalty: fly back and drop into the inventory.

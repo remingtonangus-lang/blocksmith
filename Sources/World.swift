@@ -49,6 +49,10 @@ final class World {
     private var jobs = 0
     let maxJobs: Int
     private var lastCenter: ChunkKey?
+    // Split-screen co-op (Coop.swift): the second player's position, streamed around like the first (nil when alone).
+    var extraCenter: V3?
+    private var lastExtra: ChunkKey?
+    private var scanExtra: ChunkKey?
     private var offsets: [(Int, Int, Int)] = []
 
     private(set) var meshedCount = 0
@@ -502,18 +506,29 @@ final class World {
             lock.unlock()
         }
 
-        if center != lastCenter {
+        let extra: ChunkKey? = extraCenter.map { ChunkKey(x: floorDiv(Int(floor($0.x)), CS), z: floorDiv(Int(floor($0.z)), CS)) }
+        // Offset of a chunk from the nearer centre (Chebyshev), for LOD.
+        func nearOff(_ k: ChunkKey) -> (Int, Int) {
+            let a = (k.x - center.x, k.z - center.z)
+            guard let e = extra else { return a }
+            let b = (k.x - e.x, k.z - e.z)
+            return max(abs(b.0), abs(b.1)) < max(abs(a.0), abs(a.1)) ? b : a
+        }
+        if center != lastCenter || extra != lastExtra {
             lastCenter = center
+            lastExtra = extra
             // Unload outside the load disc grown by one more chunk (hysteresis when walking back and forth).
             var gone: [ChunkKey] = []
-            for (k, c) in chunks where !World.inDisc(k.x - center.x, k.z - center.z, renderDistance, grow: 2) {
+            for (k, c) in chunks where !World.inDisc(k.x - center.x, k.z - center.z, renderDistance, grow: 2)
+                && !(extra.map { World.inDisc(k.x - $0.x, k.z - $0.z, renderDistance, grow: 2) } ?? false) {
                 if c.needsSave { save?.saveChunkAsync(k, c.blocks) }
                 gone.append(k)
             }
             for k in gone { chunks.removeValue(forKey: k) }
             // Chunks crossing the LOD boundary get remeshed at their new detail level.
             for (k, c) in chunks {
-                let want = lodFor(k.x - center.x, k.z - center.z, current: c.lod)
+                let (ox, oz) = nearOff(k)
+                let want = lodFor(ox, oz, current: c.lod)
                 if want != c.lod {
                     c.lod = want
                     for s in c.sections where !(s.meshedVersion == -1) { s.version += 1 }
@@ -523,16 +538,20 @@ final class World {
 
         // Nothing new since the last scan (same centre, no results, no invalidated sections): the scan
         // would schedule nothing, so skip it (it walks ~1000-2000 chunks at rd 16-24).
-        if gr.isEmpty && mr.isEmpty && center == scanCenter && MeshEpoch.value == scanEpoch { return }
+        if gr.isEmpty && mr.isEmpty && center == scanCenter && extra == scanExtra && MeshEpoch.value == scanEpoch { return }
         scanCenter = center
+        scanExtra = extra
 
-        // Nearest-first scheduling: generate missing chunks, mesh chunks whose 8 neighbours exist.
+        // Nearest-first scheduling: generate missing chunks, mesh chunks whose 8 neighbours exist (round each centre).
         var meshed = 0
+        let centres: [ChunkKey] = extra.map { [center, $0] } ?? [center]
         for (dx, dz, _) in offsets {
-            let k = ChunkKey(x: center.x + dx, z: center.z + dz)
+        for (ci, cen) in centres.enumerated() {
+            let k = ChunkKey(x: cen.x + dx, z: cen.z + dz)
             if let c = chunks[k] {
-                if c.meshedOnce { meshed += 1 }
-                let wantLod = lodFor(dx, dz, current: c.lod)
+                if c.meshedOnce && ci == 0 { meshed += 1 }
+                let (ox, oz) = ci == 0 && extra == nil ? (dx, dz) : nearOff(k)
+                let wantLod = lodFor(ox, oz, current: c.lod)
                 if wantLod != c.lod && !c.meshInFlight {
                     c.lod = wantLod
                     for s in c.sections where s.meshedVersion != -1 { s.version += 1 }
@@ -572,6 +591,7 @@ final class World {
                     lock.unlock()
                 }
             }
+        }
         }
         meshedCount = meshed
         scanEpoch = MeshEpoch.value         // after the loop: its own LOD re-mesh bumps are already scheduled

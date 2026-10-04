@@ -85,7 +85,7 @@ enum VehicleControls {
 // the barrels, RT / left-click fires the twin shells (3 s reload), B / Shift steps off. The gun's own crew AI
 // sleeps while you man it.
 final class Turrets {
-    static let shared = Turrets()
+    static var shared = Turrets()      // var: split-screen seats swap it (Coop.swift)
     weak var manned: Mob?
     var reload: Float = 0
     var lastFired: Double = -10

@@ -1390,6 +1390,21 @@ enum Snapshot {
             game.player.pos.y = Float(SEA) - 4
             game.player.headInWater = true
         }
+        if CommandLine.arguments.contains("--coop") {
+            // Split screen: player 2 joins (a neutral simulated pad) a few blocks ahead, turned back to face player 1.
+            game.coop.simulated[1] = PadSnapshot()
+            game.coop.join(game, controller: nil)
+            if CommandLine.arguments.contains("--cooptest") { shipFails += CoopTest.run(game) }
+            let p1 = game.player
+            let fwd = V3(-sinf(p1.yaw), 0, -cosf(p1.yaw)), right = V3(cosf(p1.yaw), 0, -sinf(p1.yaw))
+            game.coop.withSeat(1, game) {
+                game.player.pos = game.settleSpawn(p1.pos + fwd * 4 + right * 1.2)
+                game.player.yaw = p1.yaw + .pi
+                game.player.pitch = -0.05
+                game.player.flying = false
+                game.selected = 3
+            }
+        }
         _ = renderer.renderToPNG(path: out, width: w, height: h) // warm-up (pipeline + residency)
         _ = renderer.renderToPNG(path: out, width: w, height: h)
         let gpu = renderer.medianFrame(30, width: w, height: h)

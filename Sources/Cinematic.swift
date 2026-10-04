@@ -89,6 +89,7 @@ final class Cinematic {
 extension Game {
     func togglePhotoMode() {
         let c = cine
+        if coop.active && !c.active { onToast?("Photo mode is for one player (end split screen first)"); return }
         if c.active {
             c.active = false
             c.playing = false

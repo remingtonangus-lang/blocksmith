@@ -117,6 +117,9 @@ done
 "$BIN" --snapshot snaps/ship_capitalbattle.png --seed 12345 --find plains --time 0.3 --rd 16 --ship capitalbattle
 "$BIN" --snapshot snaps/capitaltest.png --seed 12345 --find plains --time 0.3 --rd 12 --capitaltest || echo "::error::capitaltest failed (new: reported, not gating yet)"
 "$BIN" --snapshot snaps/ridetest.png --seed 12345 --find plains --time 0.3 --rd 8 --ridetest || echo "::error::ridetest failed (new: reported, not gating yet)"
+# Split-screen co-op (Coop.swift): seat checks, then the two views at rd 8 (the frame time is the two-view perf number).
+"$BIN" --snapshot snaps/coop.png --seed 12345 --find plains --yaw 30 --pitch -6 --time 0.3 --ground --rd 8 --coop --cooptest || echo "::error::cooptest failed (new: reported, not gating yet)"
+"$BIN" --snapshot snaps/tv_coop.png --seed 12345 --find forest --yaw 120 --pitch -4 --time 0.27 --ground --rd 8 --w 1920 --h 1080 --couch --safe 5 --pad --coop
 "$BIN" --snapshot snaps/aerial.png  --seed 12345 --yaw 200 --pitch -35 --time 0.25 --up 45 --rd 12
 "$BIN" --snapshot snaps/aerial16.png --seed 12345 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16
 "$BIN" --snapshot snaps/aerial16_fast.png --seed 12345 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16 --fast
@@ -217,7 +220,7 @@ done
 "$BIN" --snapshot snaps/photo_dof.png --seed 12345 --find forest --yaw 120 --pitch -5 --time 0.22 --ground --up 1.6 --rd 8 --photo --dof 5 --cinetest
 "$BIN" --snapshot snaps/photo_dof_far.png --seed 12345 --find plains --yaw 200 --pitch -6 --time 0.3 --up 3 --rd 10 --photo --dof 60
 "$BIN" --snapshot snaps/volcano_far.png --seed 12345 --feature volcano --yaw 0 --pitch -25 --up 110 --time 0.3 --rd 16
-"$BIN" --snapshot snaps/volcano_crater.png --seed 12345 --feature volcano --yaw 30 --pitch -60 --up 230 --time 0.3 --rd 10
+"$BIN" --snapshot snaps/volcano_crater.png --seed 12345 --feature volcano --yaw 30 --pitch -50 --up 70 --time 0.3 --rd 10
 "$BIN" --snapshot snaps/volcano_horizon.png --seed 12345 --feature volcano --back 900 --yaw 0 --pitch 3 --up 25 --time 0.3 --rd 8
 "$BIN" --snapshot snaps/volcano_horizon_night.png --seed 12345 --feature volcano --back 1400 --yaw 0 --pitch 3 --up 25 --time 0.8 --rd 8
 "$BIN" --snapshot snaps/volcano_dusk.png --seed 12345 --feature volcano --yaw 200 --pitch -22 --up 90 --time 0.48 --rd 16

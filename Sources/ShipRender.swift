@@ -431,6 +431,11 @@ final class ShipRenderer {
         translationMatrix(s.pos - eye) * float4x4(s.rot) * translationMatrix(-s.com)
     }
 
+    // Split screen draws two views a frame: each takes its own scratch buffer.
+    func ensureRing(_ n: Int) {
+        while ring.count < n { ring.append(device.makeBuffer(length: ShipRenderer.ringSize, options: .storageModeShared)!) }
+    }
+
     // Call once per frame before the other draws.
     func beginFrame() {
         ringIndex = (ringIndex + 1) % ring.count

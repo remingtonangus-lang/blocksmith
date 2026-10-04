@@ -1646,8 +1646,9 @@ final class MobManager {
         let p = game.player.pos
         rebuildIndex()
         Mob.hardMode = game.difficulty == 3
-        hiveTick(dt, game)
-        for m in mobs {
+        let second = game.coop.current > 0          // split screen: a second seat updates only the mobs nearest it
+        if !second { hiveTick(dt, game) }
+        for m in mobs where game.seatOwns(m.pos) {
             let before = m.pos
             m.update(dt, game: game)
             // Footsteps for walking mobs near the listener (size sets the stride and loudness).
@@ -1689,6 +1690,7 @@ final class MobManager {
                 }
             }
         }
+        if second { spawnTick(dt, game); return }
         // Breeding: two mobs of a kind in love next to each other make a baby.
         var babies: [Mob] = []
         for a in mobs where a.inLove > 0 {
@@ -1726,8 +1728,9 @@ final class MobManager {
         let limit = Float((w.renderDistance + 1) * CS)
         mobs.removeAll { m in
             if m.health <= 0 { return true }
-            let d = simd_length(V2(m.pos.x - p.x, m.pos.z - p.z))
-            if abs(m.pos.x - p.x) > limit || abs(m.pos.z - p.z) > limit || !w.isLoaded(Int(floor(m.pos.x)), Int(floor(m.pos.z))) {
+            let pn = game.coop.active ? game.coop.nearestPlayerPos(m.pos, game) : p
+            let d = simd_length(V2(m.pos.x - pn.x, m.pos.z - pn.z))
+            if abs(m.pos.x - pn.x) > limit || abs(m.pos.z - pn.z) > limit || !w.isLoaded(Int(floor(m.pos.x)), Int(floor(m.pos.z))) {
                 if m.keepOnUnload { stash(m) }
                 return true
             }

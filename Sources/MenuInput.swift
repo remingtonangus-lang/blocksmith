@@ -4,7 +4,7 @@ import Foundation
 // slots/buttons (held directions repeat), A/X/Y click, B goes back, LB/RB switch tabs or pages, the right
 // stick and triggers scroll long lists, RT drops the held stack.
 final class MenuNav {
-    static let shared = MenuNav()
+    static var shared = MenuNav()      // var: split-screen seats swap it (Coop.swift)
     var timer: Double = 0
     var heldDir = (0, 0)
     var scrollTimer: Double = 0

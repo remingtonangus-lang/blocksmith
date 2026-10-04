@@ -81,6 +81,7 @@ final class PauseMenu: Menu {
         "new_diff": "How much damage mobs do and whether hunger can kill.",
         "edit_name": "The name shown in the worlds list.",
         "edit_seed": "Leave empty for a random world; the same seed always makes the same world.",
+        "coop": "Split screen: a second controller joins (or press Menu on it while playing); player 2 leaves from their pause menu.",
         "photo": "A free camera with the HUD hidden: keyframe paths and depth of field (F6).",
         "worldmap": "Biomes around you and the Capital citadels and villages you have found.",
         "flight": "Aircraft pitch on the left stick: pull back to climb (like a plane) or push up to climb.",
@@ -156,7 +157,15 @@ final class PauseMenu: Menu {
             rows = [("Back to Game", "resume"), ("Options...", "options"), ("Render Distance: \(g.world.renderDistance)", "rd"), ("World Map", "worldmap"), ("Advancements", "advancements"), ("Commands...", "commands"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Game.difficultyNames[g.difficulty])", "difficulty"),
-                    ("Worlds...", "worlds"), ("Photo Mode", "photo"), ("Save and Quit to Title", "totitle"), ("Save and Quit Game", "quit")]
+                    ("Worlds...", "worlds"), ("Photo Mode", "photo"), (g.coop.active ? "End Split Screen" : "Split Screen (2 players)", "coop"),
+                    ("Save and Quit to Title", "totitle"), ("Save and Quit Game", "quit")]
+            if g.coop.current > 0 {
+                // Player 2's pause menu: their own screens, and leaving (the world itself belongs to player 1).
+                subtitle = "Player 2"
+                rows = [("Back to Game", "resume"), ("World Map", "worldmap"), ("Advancements", "advancements"), ("Leave Split Screen", "coop")]
+            } else if g.coop.active {
+                rows.removeAll { $0.1 == "photo" || $0.1 == "worlds" }
+            }
         case .options:
             title = "Options: \(cat.name)"
             let next = Cat(rawValue: (cat.rawValue + 1) % Cat.allCases.count) ?? .video
@@ -437,6 +446,10 @@ final class PauseMenu: Menu {
         case "advancements": g.closeMenu(); g.openMenu(AdvancementMenu(game: g))
         case "worldmap": g.closeMenu(); g.openMenu(MapMenu(game: g))
         case "photo": g.closeMenu(); g.paused = false; g.togglePhotoMode()
+        case "coop":
+            if g.coop.active { g.closeMenu(); g.paused = false; g.coop.leave(g) }
+            else if g.coop.secondPadAvailable { g.closeMenu(); g.paused = false; g.coop.join(g, controller: nil) }
+            else { g.onToast?("Connect a second controller, then press its Menu button") }
         case "minimap": st.minimap.toggle()
         case "commands": g.closeMenu(); g.openMenu(CommandMenu(game: g))
         case "mode": g.toggleMode(); g.onModeChanged?(g.survival)

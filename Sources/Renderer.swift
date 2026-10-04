@@ -322,6 +322,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         if fpsTime >= 0.5 { fps = Double(fpsFrames) / fpsTime; fpsFrames = 0; fpsTime = 0 }
 
         adjustResolution(view)
+        if game.coop.active && view.framebufferOnly { view.framebufferOnly = false }    // split screen copies views in
         guard let rpd = view.currentRenderPassDescriptor, let drawable = view.currentDrawable else { return }
         inflight.wait()
         if game.screenshotRequested {
@@ -408,6 +409,8 @@ final class Renderer: NSObject, MTKViewDelegate {
     var probes: [(String, V3)] = []
     var postParams = PostParams()
     private var shadowList: [(Chunk, Int)] = []
+    private var splitColor: MTLTexture?           // split screen: one view's target (Coop.swift)
+    private var splitDepth: MTLTexture?
     private var flashScratch: [V4] = []
     private let frameGPULock = NSLock()
     private var frameGPUMs: Double = 0
@@ -456,6 +459,58 @@ final class Renderer: NSObject, MTKViewDelegate {
     // map, HDR world pass, scene copy, HDR water/translucent pass, post (bloom, god rays, haze, tone map,
     // grading) into `final`, then the HUD.
     func renderFrame(_ cmd: MTLCommandBuffer, final: MTLRenderPassDescriptor, width: Int, height: Int) {
+        if game.coop.active { renderSplit(cmd, final: final, width: width, height: height); return }
+        renderView(cmd, final: final, width: width, height: height)
+    }
+
+    // Split screen (Coop.swift): each seat's view (world + its own HUD and menus) renders at full width and a share of
+    // the height into an offscreen target, copied into its band of the frame (player 1 on top) with a thin dark gap.
+    private func renderSplit(_ cmd: MTLCommandBuffer, final: MTLRenderPassDescriptor, width: Int, height: Int) {
+        guard let out = final.colorAttachments[0].texture else { return }
+        let n = game.coop.seatCount
+        let gap = height >= 900 ? 4 : 2
+        let h = max(16, (height - gap * (n - 1)) / n)
+        // Two views a frame: twice the per-frame scratch buffers (each view takes the next one).
+        while ring.count < 6 { ring.append(device.makeBuffer(length: ringSize, options: .storageModeShared)!) }
+        shipRenderer.ensureRing(6)
+        if splitColor?.width != width || splitColor?.height != h || splitColor?.pixelFormat != out.pixelFormat {
+            let cd = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: out.pixelFormat, width: width, height: h, mipmapped: false)
+            cd.usage = [.renderTarget, .shaderRead]
+            cd.storageMode = .private
+            splitColor = device.makeTexture(descriptor: cd)
+            let df = final.depthAttachment.texture?.pixelFormat ?? .depth32Float
+            let dd = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: df, width: width, height: h, mipmapped: false)
+            dd.usage = .renderTarget
+            dd.storageMode = .private
+            splitDepth = device.makeTexture(descriptor: dd)
+        }
+        guard let sc = splitColor, let sd = splitDepth else { return }
+        // Clear the whole frame (the gap stays dark).
+        final.colorAttachments[0].loadAction = .clear
+        final.colorAttachments[0].clearColor = MTLClearColor(red: 0.02, green: 0.02, blue: 0.025, alpha: 1)
+        final.colorAttachments[0].storeAction = .store
+        cmd.makeRenderCommandEncoder(descriptor: final)?.endEncoding()
+        let me = game.coop.current
+        for i in 0..<n {
+            game.coop.switchTo(i, game)
+            let rpd = MTLRenderPassDescriptor()
+            rpd.colorAttachments[0].texture = sc
+            rpd.colorAttachments[0].loadAction = .clear
+            rpd.colorAttachments[0].storeAction = .store
+            rpd.depthAttachment.texture = sd
+            rpd.depthAttachment.loadAction = .clear
+            rpd.depthAttachment.storeAction = .dontCare
+            rpd.depthAttachment.clearDepth = 1
+            renderView(cmd, final: rpd, width: width, height: h)
+            let b = cmd.makeBlitCommandEncoder()!
+            b.copy(from: sc, sourceSlice: 0, sourceLevel: 0, sourceOrigin: MTLOrigin(x: 0, y: 0, z: 0), sourceSize: MTLSize(width: width, height: h, depth: 1),
+                   to: out, destinationSlice: 0, destinationLevel: 0, destinationOrigin: MTLOrigin(x: 0, y: i * (h + gap), z: 0))
+            b.endEncoding()
+        }
+        game.coop.switchTo(me, game)
+    }
+
+    private func renderView(_ cmd: MTLCommandBuffer, final: MTLRenderPassDescriptor, width: Int, height: Int) {
         updateCave()
         let clear = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInLava ? Game.lavaFog : (game.player.headInWater ? game.underwaterFog : viewSky))
         let cc = MTLClearColor(red: Double(clear.x), green: Double(clear.y), blue: Double(clear.z), alpha: 1)
@@ -550,9 +605,11 @@ final class Renderer: NSObject, MTKViewDelegate {
         let lf = lightFrame
         let eye = cameraEye().eye
         var n = 0
-        if !game.mobs.mobs.isEmpty || game.showsPlayerModel {
-            if mobBufs.isEmpty {
-                for _ in 0..<3 { if let b = device.makeBuffer(length: Renderer.mobBufSize, options: .storageModeShared) { mobBufs.append(b) } }
+        if !game.mobs.mobs.isEmpty || game.showsPlayerModel || game.coop.active {
+            let want = game.coop.active ? 6 : 3           // split screen draws two views a frame
+            while mobBufs.count < want {
+                guard let b = device.makeBuffer(length: Renderer.mobBufSize, options: .storageModeShared) else { break }
+                mobBufs.append(b)
             }
             if !mobBufs.isEmpty {
                 mobBufIdx = (mobBufIdx + 1) % mobBufs.count
@@ -563,6 +620,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 if game.showsPlayerModel {
                     n += writePlayerModel(game, eye: eye, daylight: game.daylight, into: ptr + n, capacity: cap - n)
                 }
+                n += game.coop.writeOthers(game, eye: eye, daylight: game.daylight, into: ptr + n, capacity: cap - n)
                 mobPre = (buf, n)
             }
         }
@@ -1013,13 +1071,14 @@ final class Renderer: NSObject, MTKViewDelegate {
                 enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
                 enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: pre.count)
             }
-        } else if !game.mobs.mobs.isEmpty || tp {
+        } else if !game.mobs.mobs.isEmpty || tp || game.coop.active {
             let off = (scratchOff + 255) & ~255
             let cap = max(0, ringSize - ringTailReserve - off) / MemoryLayout<MobVert>.stride
             if cap > 36 {
                 let ptr = (scratch.contents() + off).bindMemory(to: MobVert.self, capacity: cap)
                 var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: daylight, world: game.world, into: ptr, capacity: cap)
                 if tp { n += writePlayerModel(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n) }
+                n += game.coop.writeOthers(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n)
                 if n > 0 {
                     scratchOff = off + n * MemoryLayout<MobVert>.stride
                     enc.setRenderPipelineState(mobPipe)
