@@ -45,6 +45,13 @@ final class SoldierBrain {
     var pointT: Float = 0            // officer pointing the squad at the threat
     var station = StationPose.none   // crew station pose (vehicles / ships)
     var seat: Float = 0.45           // seat top above the feet (blocks), seated stations
+    // Citadel orders (CapitalBases.swift): walk to `order` (running if orderRun), take `orderStation` there facing
+    // `orderFace`; `ready` carries the weapon at low ready (patrols, lockdown) instead of shouldered for the march.
+    var order: V3?
+    var orderStation = StationPose.none
+    var orderRun = false
+    var orderFace: V3?
+    var ready = false
     init(gun: Int) { self.gun = gun; mag = gun >= 0 ? Guns.all[gun].mag : 0 }
 }
 
@@ -240,8 +247,11 @@ extension Mob {
             }
         }
         if hurt > 0.35 && !aggro { aggro = true; alertGarrison(g, g.player.pos) }
+        // Turret crews stay at their guns whatever happens round them.
+        if b.orderStation == .gunner, let sp = followOrder(g) { return sp }
         guard aggro && canTarget else {
             b.aimTime = 0
+            if let sp = followOrder(g) { return sp }
             // Garrison duty: stroll near the post; marksmen keep watch.
             if r == 2 {
                 if aiTimer <= 0 { aiTimer = Rand.float(in: 2...5); yaw += Rand.float(in: -1.2...1.2) }
@@ -390,6 +400,7 @@ extension Mob {
             g.arms.beam(g, from: muzzle, dir: Guns.scatter(dir, rank.spread), range: gs.range, damage: gs.damage * scale, fromPlayer: false, shooter: self, by: spec.name)
         }
         g.sfx(.gun(gs.sound), 1, at: muzzle)
+        if factionValue != .steelhold { g.baseNoise(at: muzzle, kind: .gunshot) }      // other factions' fire carries to citadels
         g.particles.add(Particle(pos: muzzle + dir * 0.2, vel: dir * 0.5, life: 0.06, maxLife: 0.06, layer: Int(Tex.id("smoke")), uv0: V2(0, 0),
                                  uvSize: 1, size: 0.14, gravity: 0, color: gs.shot == .beam ? V3(0.8, 2, 2.4) : V3(2.4, 1.7, 0.6), collide: false, glow: true))
         g.addFlash(at: muzzle + dir * 0.3, color: gs.shot == .beam ? V3(1.2, 2.6, 3.2) : V3(4, 3, 1.6), radius: 6, life: 0.06)   // lights the terrain (Fancy)

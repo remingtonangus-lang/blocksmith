@@ -451,7 +451,7 @@ enum SoldierRig {
         }
 
         // 5. Alerted, not aiming: low ready, jogging.
-        if !parade && m.aggro {
+        if !parade && (m.aggro || b.ready) {
             p.lean = moving ? 0.18 : 0.08
             shoulder(pitch: 0, low: true)
             legs(0.62, knee: 0.95)

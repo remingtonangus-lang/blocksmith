@@ -1393,6 +1393,38 @@ extension ShipManager {
         return true
     }
 
+    // A dropship of `faction` flying in from `from` (no mothership) to land troops at `to`: the citadels' call for
+    // reinforcements (CapitalBases.swift). Same flight as a frigate's dropship from the transit phase on.
+    @discardableResult
+    func callDropship(faction: Faction, from at: V3, to p: V3, game g: Game) -> Ship? {
+        let hb = Capital.dropship()
+        let ids = (0..<2).map { _ in newId() }
+        let name = faction == .steelhold ? "Capital Dropship" : "Stormwarden Dropship"
+        let ships = Capital.makeShips(hb, ids: ids, name: name, role: "dropship", faction: faction)
+        let d = ships[0]
+        d.pos = at
+        let yaw = atan2f(-(p.x - at.x), -(p.z - at.z))
+        d.rot = simd_quatf(angle: yaw, axis: V3(0, 1, 0))
+        d.prevPos = d.pos; d.prevRot = d.rot
+        d.home = d.pos
+        d.initialBlocks = d.blockCount
+        d.updateBounds()
+        for t in ships.dropFirst() { t.followParent(0); t.prevPos = t.pos; t.prevRot = t.rot }
+        let ds = CapitalState()
+        ds.mainGunCD = .greatestFiniteMagnitude
+        ds.missileCD = .greatestFiniteMagnitude
+        ds.sight = 140
+        ds.dropPoint = p
+        ds.launchDir = simd_normalize(V3(p.x - at.x, 0, p.z - at.z) + V3(1e-4, 0, 0))
+        ds.troopsLeft = 4
+        ds.phase = 1                                              // already airborne: straight to the transit
+        ds.ramp = V3(Float(hb.ox) + 0.5, 2, 18.5)
+        ds.groundOffset = d.com.y - d.localMin.y
+        installCapital((ships, ds))
+        g.sfx(.engineStart, 1, at: at)
+        return d
+    }
+
     // Dropship flight: out of the hangar, across to the drop point, down to a hover, the ramp troops out one by one,
     // then it circles the fight with its autocannon and finally climbs away. Shot to pieces it falls and blows up.
     private func dropshipTick(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
@@ -1451,14 +1483,15 @@ extension ShipManager {
                 let foot = s.toWorld(st.ramp)
                 let ix = Int(floor(foot.x)), iz = Int(floor(foot.z))
                 if world.isLoaded(ix, iz) {
-                    let ranks: [MobKind] = [.soldierTrooper, .soldierRecruit, .soldierTrooper, .soldierIronclad]
+                    let ranks: [MobKind] = s.faction == Faction.steelhold.rawValue ? [.soldierRecruit, .soldierOfficer, .soldierTrooper, .soldierRecruit]
+                        : [.soldierTrooper, .soldierRecruit, .soldierTrooper, .soldierIronclad]
                     let m = Mob(ranks[st.troopsLeft % ranks.count], at: V3(foot.x, Float(world.topY(ix, iz) + 1), foot.z))
                     m.faction = s.faction
                     m.aggro = true
                     if m.kind == .soldierIronclad { m.variant = Guns.arc }
                     g.mobs.mobs.append(m)
                     st.troops.append(m)
-                    if simd_length(m.pos - g.player.pos) < 120 && st.troopsLeft == 4 { g.onToast?("A Stormwarden dropship is landing troops!") }
+                    if simd_length(m.pos - g.player.pos) < 120 && st.troopsLeft == 4 { g.onToast?("A \(s.name) is landing troops!") }
                 }
                 st.troopsLeft -= 1
             }

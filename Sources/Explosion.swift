@@ -7,6 +7,7 @@ import simd
 enum Explosion {
     static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true) {
         let w = g.world
+        g.baseNoise(at: c, kind: .explosion, power: power)  // citadels hear it (CapitalBases.swift)
         w.ships.blast(at: c, power: power, game: g)          // ship blocks (ShipCombat.swift)
         var destroyed = Set<IVec3>()
         var shaken: [IVec3: Float] = [:]                    // blocks that stopped a ray: share of their cost it carried

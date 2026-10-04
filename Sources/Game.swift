@@ -1952,6 +1952,7 @@ final class Game {
         musicTick(Float(dt))
         audioAmbientTick(Float(dt))
         siegeTick()
+        basesTick(Float(dt))                                  // reactive citadels (CapitalBases.swift), once a second
         ashenTick(Float(dt))
         advancementTick()
         weatherTick(Float(dt))

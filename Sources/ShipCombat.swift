@@ -77,6 +77,7 @@ extension ShipManager {
                     // Naval guns (fast, heavy shells) boom louder and further.
                     g.sfx(.shipCannon, t.gunPower > 3 ? 1.6 : 1, at: muzzle)
                     g.particles.smoke(at: muzzle)
+                    g.baseNoise(at: muzzle, kind: .cannon, hostile: s.factionValue != .steelhold)   // the Capital's own guns don't alarm it
                 }
             }
             t.reload = t.reloadTime

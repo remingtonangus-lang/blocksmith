@@ -1,0 +1,154 @@
+import Foundation
+import simd
+
+// --basetest [patrol|lockdown|rebuild|all]: the reactive citadel (CapitalBases.swift) through the real Game.tick.
+//  1. A gunshot 40 blocks outside the gate: a patrol forms, reaches the spot, searches and walks back to its posts.
+//  2. A blast inside the plaza: lockdown, turret crews in the gunner stance, Capital dropships land troops.
+//  3. A blasted hall wall: once calm, rebuilt from the citadel's original blocks within one in-game day; a "wreck"
+//     block dropped in the crater is left alone. Also: the bases record survives a save round trip, and the cost of
+//     the once-a-second citadel update (avg / worst ms).
+// With a phase name it stops when that phase is on show (camera on it) for a shot.
+enum BaseTests {
+    static var failures: [String] = []
+    static func check(_ ok: Bool, _ name: String, _ detail: @autoclosure () -> String = "") {
+        let d = detail()
+        print("basetest \(ok ? "ok  " : "FAIL") \(name)\(d.isEmpty ? "" : ": " + d)")
+        if !ok { failures.append(name) }
+    }
+
+    static func run(game g: Game, world w: World, phase: String) -> Bool {
+        failures = []
+        let t0 = CFAbsoluteTimeGetCurrent()
+        guard let sc = w.gen.structures,
+              let s = sc.nearest("military_base", x: Int(g.player.pos.x), z: Int(g.player.pos.z), maxRegions: 2) else {
+            check(false, "a citadel nearby"); return false
+        }
+        let cx = (s.min.x + s.max.x) / 2, cz = (s.min.z + s.max.z) / 2, y0 = s.min.y + 20
+        let centre = V3(Float(cx) + 0.5, Float(y0 + 5), Float(cz) + 0.5)
+        _ = w.loadSync(center: centre, radius: 7)
+        // The garrison as the game spawns it (persistent, officers at some vanguard posts).
+        for (name, p) in w.pendingMobs { if let k = MobKind.named(name) { g.mobs.mobs.append(Mob(Soldier.garrison(k, at: p), at: p)) } }
+        w.pendingMobs.removeAll()
+        for m in g.mobs.mobs where m.kind.steelhold { m.persistent = true }
+        g.survival = false                                   // the soldiers can't target the observer
+        g.player.flying = true
+        let b = g.bases
+        let watchPos = centre + V3(0, 60, 0)
+        func pin() { g.player.pos = watchPos; g.player.vel = .zero }
+        pin()
+        // Let the citadel be found (once-a-second tick).
+        var t: Float = 0
+        func sim(_ secs: Float, until: () -> Bool) -> Float? {
+            var e: Float = 0
+            while e < secs {
+                g.tick(0.05); pin(); e += 0.05; t += 0.05
+                if until() { return e }
+            }
+            return nil
+        }
+        _ = sim(3) { !b.records.isEmpty }
+        let key = "citadel:\(cx),\(cz)"
+        check(b.records[key] != nil, "the citadel is watched", "\(b.records.keys.sorted())")
+        guard b.records[key] != nil else { return false }
+        let rec = { b.records[key]! }
+        func look(at p: V3, from: V3) {
+            g.player.pos = from
+            let d = p - (from + V3(0, 1.62, 0))
+            g.player.yaw = atan2f(-d.x, -d.z)
+            g.player.pitch = atan2f(d.y, simd_length(V2(d.x, d.z)))
+        }
+
+        // 1. Gunshot outside: patrol out, search, back.
+        let gate = rec().gate
+        let shotX = gate.x + 6, shotZ = gate.z + 40
+        let shot = V3(shotX, g.standY(shotX, shotZ, from: gate.y + 10), shotZ)
+        g.baseNoise(at: shot, kind: .gunshot)
+        let formed = sim(4) { rec().patrol != nil && b.patrols[key] != nil }
+        check(formed != nil, "a gunshot 40 blocks out sends a patrol", "alert \(rec().alert.name)")
+        let team = b.patrols[key] ?? []
+        check(team.first?.kind == .soldierOfficer && team.count >= 3, "the patrol is an officer and soldiers", team.map { $0.kind.key }.joined(separator: " "))
+        let reach = sim(180) { (b.patrols[key] ?? []).contains { simd_length(V2($0.pos.x - shot.x, $0.pos.z - shot.z)) < 6 } }
+        check(reach != nil, "the patrol reaches the spot", String(format: "within %.0f s", reach ?? -1))
+        if phase == "patrol" {
+            let lead = (b.patrols[key] ?? team).first?.pos ?? shot
+            look(at: lead + V3(0, 1, 0), from: lead + V3(7, 4, 9))
+            return finish(g, b, t0)
+        }
+        let back = sim(300) { rec().patrol == nil }
+        check(back != nil, "the patrol returns", String(format: "after %.0f s", back ?? -1))
+        let home = team.filter { $0.health > 0 }
+        let strays = home.filter { m in offPost(m) > 6 }
+        check(strays.isEmpty, "patrol members back at their posts", "\(strays.count) of \(home.count) away")
+
+        // 2. A blast inside the plaza: lockdown, turret crews, dropships.
+        let soldiersBefore = g.mobs.mobs.filter { $0.faction == Faction.steelhold.rawValue }.count
+        Explosion.explode(at: rec().plaza + V3(9, 0.5, -6), power: 2.5, game: g)
+        let locked = sim(3) { rec().alert == .lockdown }
+        check(locked != nil, "a blast inside locks the citadel down")
+        let crewed = sim(60) { g.mobs.mobs.contains { $0.brain?.station == .gunner && $0.health > 0 } }
+        check(crewed != nil, "crews man the turrets", String(format: "after %.0f s", crewed ?? -1))
+        let flying = sim(20) { w.ships.capitals.contains { $0.role == "dropship" && $0.faction == Faction.steelhold.rawValue } }
+        check(flying != nil, "a Capital dropship is called")
+        let landed = sim(150) { g.mobs.mobs.filter { $0.faction == Faction.steelhold.rawValue && $0.health > 0 }.count >= soldiersBefore + 3 }
+        check(landed != nil, "dropship reinforcements land", String(format: "after %.0f s", landed ?? -1))
+        if phase == "lockdown" {
+            let ds = w.ships.capitals.first { $0.role == "dropship" }?.pos ?? rec().plaza
+            look(at: ds, from: rec().plaza + V3(-14, 3, 16))
+            return finish(g, b, t0)
+        }
+
+        // 3. Blast a hall wall; a wreck block in the crater; rebuilt once calm, within a day.
+        let P1 = y0 + 4
+        let stone = Blocks.has("capital_stone") ? Blocks.id("capital_stone") : STONE
+        var wallZ: Int?
+        for dz in stride(from: 10, through: 40, by: 1) where w.block(cx, P1 + 2, cz + dz) == stone && w.block(cx, P1 + 2, cz + dz + 1) == AIR {
+            wallZ = cz + dz; break
+        }
+        var wall = IVec3(cx + 6, P1 + 3, cz + 22)
+        if let z = wallZ { wall = IVec3(cx, P1 + 3, z) }
+        var before: [IVec3: BlockID] = [:]
+        for dz in -4...4 { for dy in -4...4 { for dx in -4...4 { let p = IVec3(wall.x + dx, wall.y + dy, wall.z + dz); before[p] = w.block(p.x, p.y, p.z) } } }
+        Explosion.explode(at: V3(Float(wall.x) + 0.5, Float(wall.y) + 0.5, Float(wall.z) + 1.2), power: 3, game: g)
+        let holes = before.filter { $0.value != AIR && w.block($0.key.x, $0.key.y, $0.key.z) == AIR }.map { $0.key }
+        check(holes.count >= 8, "the blast opened the wall", "\(holes.count) blocks gone")
+        // A wreck block left in the crater (another stream's wrecks): the rebuild must not overwrite it.
+        let wreck = holes.max { $0.y < $1.y } ?? wall
+        let wreckID = Blocks.has("iron_block") ? Blocks.id("iron_block") : COBBLE
+        w.setBlock(wreck.x, wreck.y, wreck.z, wreckID)
+        let dayTicks = Float(DAY_LENGTH)
+        func restored() -> Int { holes.filter { $0 != wreck && w.block($0.x, $0.y, $0.z) == before[$0] }.count }
+        if phase == "rebuild" {
+            _ = sim(dayTicks) { restored() > holes.count / 3 }
+            look(at: V3(Float(wall.x), Float(wall.y), Float(wall.z)), from: V3(Float(wall.x) + 5, Float(P1) + 1, Float(wall.z) + 12))
+            return finish(g, b, t0)
+        }
+        let done = sim(dayTicks) { restored() == holes.count - 1 }
+        check(done != nil, "the wall is rebuilt within a day", "\(restored()) of \(holes.count - 1) after \(Int(done ?? dayTicks)) s")
+        check(w.block(wreck.x, wreck.y, wreck.z) == wreckID, "the wreck block in the crater is left alone")
+        check(rec().damage.isEmpty, "no damage left on the record")
+
+        // Saved state round trip.
+        let saved = g.saveExtra()
+        let data = saved["bases"]?.data(using: .utf8)
+        let recs = data.flatMap { try? JSONDecoder().decode([BaseRecord].self, from: $0) } ?? []
+        check(recs.contains { $0.key == key }, "the citadel's state is saved", "\(recs.count) records")
+        look(at: V3(Float(wall.x), Float(wall.y), Float(wall.z)), from: V3(Float(wall.x) + 5, Float(P1) + 1, Float(wall.z) + 12))
+        return finish(g, b, t0)
+    }
+
+    static func offPost(_ m: Mob) -> Float {
+        guard let h = m.home else { return 0 }
+        return simd_length(V2(m.pos.x - h.x, m.pos.z - h.z))
+    }
+
+    static func finish(_ g: Game, _ b: BaseWatch, _ t0: Double) -> Bool {
+        for line in b.log { print("basetest log: \(line)") }
+        let avg = b.ticks > 0 ? b.tickMs / Double(b.ticks) : 0
+        print(String(format: "basetest: citadel update %.3f ms avg, %.3f ms worst over %d updates", avg, b.tickWorstMs, b.ticks))
+        check(avg < 1.0, "citadel update stays cheap", String(format: "%.3f ms avg", avg))
+        print(String(format: "basetest: %ld failed (%.1f s)%@", failures.count, CFAbsoluteTimeGetCurrent() - t0,
+                     failures.isEmpty ? "" : " -> " + failures.joined(separator: ", ")))
+        g.player.flying = true
+        return failures.isEmpty
+    }
+}

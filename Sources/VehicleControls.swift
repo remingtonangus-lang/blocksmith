@@ -158,6 +158,7 @@ final class Turrets {
             for _ in 0..<10 { g.particles.smoke(at: muzzle + fwd * Rand.float(in: 0...3), dark: false) }
         }
         g.sfx(.gun(9), 2, at: pivot)
+        g.baseNoise(at: pivot, kind: .cannon)
         PadManager.shared.rumble(0.9, 0.3, sharpness: 0.2)
         g.player.pitch += 0.03
     }
