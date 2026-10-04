@@ -5,7 +5,7 @@ import simd
 //
 // After an explosion (or a falling piece breaking what it hits) the blocks round the damage are checked, never the
 // whole world: a flood fill through built blocks (anything that isn't terrain: BlockMaterial.anchors) from the cells next
-// to the hole, capped at Collapse.cap cells (a bigger structure is taken as standing). A piece that no longer touches
+// to the hole, capped at Collapse.cap cells (the edge of a search that hits the cap is taken as held). A piece that no longer touches
 // the ground falls. In a piece that does, each block's reach to its support is measured (resting on a block below costs
 // nothing, every step sideways or hanging down costs one) and a block further out than its material spans
 // (BlockMaterial.strength) gives way, with whatever hangs from it. A neck the blast narrowed (a tower's base) fails when
@@ -71,7 +71,14 @@ enum Collapse {
             }
             seen.formUnion(inComp)
             res.visited += comp.count
-            if !open { continue }                 // too big to be loose: taken as standing
+            if !open {
+                // A structure bigger than one search (a citadel): the search's edge is taken as held (whatever lies
+                // beyond it stands), so only failures near the damage are found, never the whole building's.
+                for c in comp where dirs6.contains(where: { d in
+                    let n = c + d
+                    return !inComp.contains(n) && built(w.rawBlock(n.x, n.y, n.z))
+                }) { anchored.append(c) }
+            }
             if anchored.isEmpty {
                 res.falling.append(comp)
                 continue
