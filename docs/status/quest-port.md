@@ -53,7 +53,7 @@ as a panel in front of you. Rumble from the game (hits, explosions, block breaks
 
 | | Milestone | State |
 |---|---|---|
-| 1 | CI APK launching to an OpenXR session (test scene) | built in CI; first device run pending |
+| 1 | CI APK launching to an OpenXR session (test scene) | first APK published (run 37243571730); device run pending |
 | 2 | Real world in stereo (multiview), head tracking, 72 Hz budget | renderer verified offscreen (lavapipe); device numbers pending |
 | 3 | Touch controller play (locomotion, turning, vignette, hand rays, panels, haptics) | implemented; device test pending |
 | 4 | Game content (mobs, structures, vehicles, soldiers, saves, actions) | in progress |
@@ -61,6 +61,25 @@ as a panel in front of you. Rumble from the game (hits, explosions, block breaks
 
 ### QUEST APK READY log
 (The Mac monitor installs these; newest last.)
+
+**QUEST APK READY 37243571730** (2026-10-04, versionCode 9, commit 6f520c1, `quest-dist` BUILD.txt says run
+37243571730). First APK ever: nothing has run on a headset yet, so this is the bring-up build. What to check, in order
+(each step depends on the one before; a `adb logcat -s Blocksmith` capture from launch to the first problem is the
+most useful report):
+1. **Starts at all (M1).** logcat shows `Blocksmith Quest 6f520c1 ... starting`, `xr: runtime ...`, `xr: Vulkan device
+   ...`, `xr: LOCAL_FLOOR space` (or STAGE/LOCAL), `xr: swapchain WxH x2 layers`, `xr: refresh rates [...], using 72 Hz`,
+   `xr: session state 5` (FOCUSED). In the headset: an immersive scene opens (not a flat window). A crash here shows
+   as `FATAL:` or a native backtrace in `adb logcat` (unfiltered: `adb logcat -d | grep -A40 "Fatal signal"`).
+2. **Loading scene, then the world (M2).** While the world generates (several seconds), a sky-blue scene with eight
+   coloured cubes circling you and a progress bar 2 m ahead; then a new world appears around you at the right scale (blocks ~1 m, eyes at player
+   height), both eyes agree (no double vision), head turns and leans track with no swim. logcat `load: ...` lines
+   with timings, then a `perf:` line every 5 s (fps, missed frames, worst frame, cpu/gpu ms, sections, draws, chunks). The number to report: fps (72
+   expected) and GPU ms (< 13.8 ms needed).
+3. **Controls (M3)** per the table above: left stick walks, right stick snap-turns, A jumps, the right hand's laser
+   targets blocks (outline), right trigger breaks, right grip places, Y opens the inventory as a panel the laser
+   clicks, menu button pauses. Controllers drawn as small grey bodies with the laser; held item in the right hand.
+4. **Comfort**: edges darken during snap turns and fast moves; nothing flickers; the HUD panel stays low in view.
+5. Pause → Quit saves and closes the app (back to Home).
 
 ## Architecture
 
