@@ -44,6 +44,9 @@ jobs:
           echo "${GITHUB_SHA::10}" > game/build_info.txt
           ~/godot/godot --headless --path game --import 2>&1 | tail -20 || true
           ~/godot/godot --headless --path game -s res://tests/run_tests.gd 2>&1 | tee ci/tests.log
+          # Scripted play through the real game loop: ride, drive, fly, dropship, battle.
+          ~/godot/godot --headless --path game -- --scenario all 2>&1 | grep -E "^scenario|SCRIPT ERROR" | tee ci/scenarios.log
+          ! grep -q "FAIL\|SCRIPT ERROR" ci/scenarios.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -143,7 +146,7 @@ jobs:
             echo
             echo "Commit ${GITHUB_SHA::10} on ${GITHUB_REF_NAME}, $(date -u '+%Y-%m-%d %H:%M UTC'). Rendered with Mesa lavapipe (software Vulkan), Forward+, High preset at 1280x720. Jobs: test ${{ needs.test.result }}, shots ${{ needs.shots.result }}, smoke ${{ needs.smoke.result }}, mac ${{ needs.mac.result }} (logs in mac/)."
             echo
-            echo '```'; tail -5 tests.log 2>/dev/null; tail -3 smoke.log 2>/dev/null; echo '```'
+            echo '```'; tail -5 tests.log 2>/dev/null; cat scenarios.log 2>/dev/null; tail -3 smoke.log 2>/dev/null; echo '```'
             for f in shots/*.png; do n=$(basename "$f" .png); echo "### $n"; echo "![$n]($f)"; echo; done
           } > README.md
           git init -q -b capital-shots

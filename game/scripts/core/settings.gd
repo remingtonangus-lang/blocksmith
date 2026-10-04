@@ -69,7 +69,7 @@ func _ready() -> void:
 	load_settings()
 	if args.has("preset"):
 		set_preset(String(args["preset"]).capitalize())
-	if args.has("windowed") or args.has("benchmark") or args.has("shots") or args.has("smoke"):
+	if args.has("windowed") or args.has("benchmark") or args.has("shots") or args.has("smoke") or args.has("scenario"):
 		fullscreen = false
 	if args.has("benchmark") and not args.has("vsync"):
 		vsync = false          # measure the headroom, not the display refresh
@@ -96,7 +96,7 @@ func _parse_args() -> void:
 
 func _takes_value(key: String) -> bool:
 	return key in ["preset", "seed", "time", "weather", "shots", "smoke", "spawn", "scene", "benchmark-out",
-		"only", "yaw", "pitch", "scale", "res", "shard"]
+		"only", "yaw", "pitch", "scale", "res", "shard", "scenario"]
 
 
 func arg(key: String, default: Variant = null) -> Variant:

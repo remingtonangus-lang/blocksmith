@@ -126,6 +126,13 @@ func _build() -> void:
 		s.start(world.shot_list(), String(Settings.arg("shots")))
 	else:
 		world.spawn_player()
+		if Settings.has_arg("scenario"):
+			var sc := preload("res://scripts/core/scenarios.gd").new()
+			add_child(sc)
+			var names := String(Settings.arg("scenario")).split(",")
+			if names[0] == "all":
+				names = PackedStringArray(["ride", "drive", "fly", "dropship", "battle"])
+			sc.start(Array(names))
 	_loading.queue_free()
 
 

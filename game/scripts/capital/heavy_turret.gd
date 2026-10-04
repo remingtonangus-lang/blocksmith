@@ -90,6 +90,40 @@ func build(material: Material, f: String = "capital") -> void:
 	hb.add_child(hs)
 	house.add_child(hb)
 	yaw = rotation.y
+	G.add_interactable(self, Vector3(0, 3.0, 12.0), 6.0, "Man the twin 42 cm guns", enter)
+
+
+var cam: VehicleCam
+
+
+func enter(p: Player) -> void:
+	if manned_by:
+		return
+	manned_by = p
+	p.enter_vehicle(self)
+	cam = VehicleCam.new()
+	get_tree().root.add_child(cam)
+	var ex: Array[RID] = []
+	cam.attach(house, 34.0, 9.0, ex)
+	cam.yaw = yaw
+	if G.hud:
+		G.hud.message("42 cm turret: aim with the camera, RT / LMB fires a salvo (28 s reload)")
+
+
+func exit(p: Player) -> void:
+	if manned_by != p:
+		return
+	manned_by = null
+	has_target = false
+	p.exit_vehicle(global_transform * Vector3(0, 0.5, 16.0))
+	if cam:
+		cam.queue_free()
+		cam = null
+
+
+func hud_text() -> String:
+	return "TWIN 42 CM  BEARING %03d  ELEV %4.1f\n%s" % [int(fposmod(rad_to_deg(-yaw), 360.0)), rad_to_deg(pitch),
+		"READY" if reload_t <= 0.0 else "RELOADING %d s" % int(reload_t)]
 
 
 func _mesh(parent: Node3D, k: Kit) -> void:
@@ -133,6 +167,10 @@ func _want() -> Vector2:
 
 
 func _process(delta: float) -> void:
+	if manned_by and cam:
+		aim_at(cam.aim_point([]))
+		if (Input.is_action_pressed("fire") or Controls.trigger(true) > 0.4) and is_laid():
+			fire()
 	reload_t = maxf(0.0, reload_t - delta)
 	recoil = maxf(0.0, recoil - delta * 0.6)
 	if has_target:
@@ -152,4 +190,15 @@ func fire() -> bool:
 	reload_t = RELOAD
 	recoil = 1.0
 	fired.emit(muzzles)
+	for m in muzzles:
+		var dir := -m.global_transform.basis.z
+		if G.combat:
+			G.combat.shell(m.global_position, dir, SHELL_SPEED, 3.2, 0 if faction == "capital" else 1, [])
+		if G.fx:
+			for k in 10:
+				G.fx._emit(G.fx.smoke, m.global_position + dir * 4.0, dir * randf_range(6, 18) + Vector3(randf_range(-2, 2), randf_range(0, 3), randf_range(-2, 2)))
+	if G.fx:
+		G.fx.shake = maxf(G.fx.shake, 1.2 if manned_by else 0.4)
+	if manned_by:
+		Controls.rumble(1.0, 1.0, 0.6)
 	return true
