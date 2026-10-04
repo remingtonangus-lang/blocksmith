@@ -61,6 +61,7 @@ extension ShipManager {
             if let be = w.blockEntities.removeValue(forKey: c) { s.blockEntities[ivSub(c, lo)] = be }
         }
         for (c, _) in solid { _ = w.setBlockAsync(c.x, c.y, c.z, AIR) }
+        for (c, _) in solid { w.scheduleFluid(around: c) }          // water flows into the gap it left
         s.name = "Debris"
         s.debris = true
         s.rebuild()
@@ -85,6 +86,7 @@ extension ShipManager {
     // A block shattered by debris or too small a piece: gone, a drop now and then, a puff.
     func breakBlock(_ c: IVec3, _ b: BlockID, game: Game?) {
         _ = world.setBlockAsync(c.x, c.y, c.z, AIR)
+        world.scheduleFluid(around: c)
         guard let g = game else { return }
         let at = V3(Float(c.x), Float(c.y), Float(c.z)) + 0.5
         if Rand.float(in: 0..<1) < 0.35 { for st in Mining.drops(b, .empty) { g.drops.spawn(st, at: at) } }
