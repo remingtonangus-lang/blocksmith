@@ -66,13 +66,16 @@ message (focus.log on ci-fast-<branch>).
   glass, earth, plant, cloth, ice, other, none), `.strength(id)` (longest unsupported reach in blocks: stone 5, brick 6,
   wood 6, metal 14, glass 1, earth 1), `.mass(id)` (tonnes per block, the ship physics' table), `.load(id)` (blocks of
   weight one block bears at a narrowed section: stone 30, brick 40, wood 20, metal 150), `.anchors(id)` (terrain, trees
-  and growths: hold up what is built on them, never fall). Tuned in `BlockMaterial.byKind`.
+  and growths, and generated terrain outside the helm's natural list: desert sandstone, basalt, blackstone, icebergs,
+  geodes, glowstone ceilings, fungus crowns, raw ore veins: hold up what is built on them, never fall). Tuned in `BlockMaterial.byKind`.
 - **Support analysis** (Destruction.swift, `Collapse.analyze`): after a blast (Explosion.explode queues its holes; one
-  check per frame for all of that frame's blasts) or a block a falling piece smashed: flood fill through built blocks from
+  check per frame for all of that frame's blasts), a mined built block (Game.breakBlock) or a block a falling piece
+  smashed: flood fill through built blocks from
   the cells next to the holes, capped at 6000 cells (the edge of a search that hits the cap is taken as held, so a huge
   building only fails near the damage). No ground contact: the piece falls. Reach (0-1 BFS: resting on the block below
   is free, sideways or hanging costs 1) beyond the material's strength: those blocks and whatever only hung on them
-  fall. A narrowed layer at the damage (a tower's base) fails when the weight above outweighs its bearing or its centre
+  fall. A layer the damage narrowed by at least a quarter of what carried it (a tower's base) fails, inside a search
+  that saw the whole structure, when the weight above outweighs its bearing or its centre
   of mass is past the layer's edge or far off the middle of what is left: everything above tips over toward the gap.
 - **Debris** (Debris.swift): falling parts become free-moving ships (`Ship.debris`) under the ordinary ship physics
   (gravity, terrain contacts; speed capped at 20 b/s so big pieces can't tunnel through the ground), smash weak blocks
@@ -96,9 +99,10 @@ message (focus.log on ci-fast-<branch>).
   to rusted plating, moss gathers on top, vines hang down the sides, grass grows tall round it. A wrecked capital's region
   stays used, so it doesn't come back.
 
-## Checks: `Blocksmith --collapsecheck [--scenes bridge,tower,frigate,wreck,dropship]` (CollapseCheck.swift)
+## Checks: `Blocksmith --collapsecheck [--scenes bridge,mine,tower,stands,desert,frigate,wreck,dropship]` (CollapseCheck.swift)
 
-Bridge on three piers with the middle pier blasted; a 30-high tower blasted at its base on one side; a Capital frigate
+Bridge on three piers with the middle pier blasted (and mined out block by block); a 60-high lopsided tower that loses
+one mined block and a wall chunk and must stand; blasts in a real desert that must bring no terrain down; a 30-high tower blasted at its base on one side; a Capital frigate
 cut through amidships by a ring of blasts; a crawler disabled into a wreck and aged three weeks; a dropship shot down.
 Oracles: the scene stands before; the right part falls as a moving body; debris under the cap and all laid back; no
 floating leftovers (the support analysis over the whole scene region); nothing inside the player; tick time p95 under
