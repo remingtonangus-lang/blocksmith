@@ -165,28 +165,37 @@ final class PadManager {
 final class PadLook {
     private var edgeTime: Float = 0
 
-    // Returns (yaw delta, pitch delta) in radians for this frame.
+    // Returns (yaw delta, pitch delta) in radians for this frame. Modelled on Halo Infinite's default controller
+    // feel: look sensitivity 1-10 per axis (default 3), a power response curve, a centre dead zone and a max input
+    // threshold (outer dead zone) on the look stick, and look acceleration 0-5 (default 3) that ramps the turn rate up
+    // while the stick is held at its edge.
     func update(rx: Float, ry: Float, dead: Float, sensitivity: Float, invert: Bool, friction: Float, dt: Float) -> V2 {
         let st = Settings.shared
-        var v = stick(rx, ry, dead: dead)
-        if st.lookCurve != 0 {
-            // Linear: straight response past the dead zone. Precise: cubic, for fine aim near the centre.
-            let raw = V2(rx, ry), m0 = simd_length(raw)
-            if m0 < dead { v = .zero } else {
-                let n = min(1, (m0 - dead) / (1 - dead))
-                let k: Float = st.lookCurve == 1 ? n : n * n * n
-                v = raw / m0 * k
-            }
+        let raw = V2(rx, ry), m0 = simd_length(raw)
+        let live = max(0.05, 1 - st.lookDead - st.lookOuter)
+        guard m0 >= st.lookDead else { edgeTime = max(0, edgeTime - dt * 4); return .zero }
+        let n = min(1, (m0 - st.lookDead) / live)
+        let curved: Float
+        switch st.lookCurve {
+        case 1: curved = n                                   // linear
+        case 2: curved = n * n * n                           // precise (cubic)
+        default: curved = n * n                              // default: power curve, fine aim near the centre
         }
-        let m = simd_length(v)
-        if m > 0.92 { edgeTime += dt } else { edgeTime = max(0, edgeTime - dt * 4) }
-        let ramp = min(1, max(0, (edgeTime - 0.25) / 0.6))
-        let boost = 1 + st.lookAccel * ramp * 1.2
+        let v = raw / m0 * curved
+        // Acceleration: once the stick reaches its outer edge, the turn rate climbs after a short delay.
+        if n >= 0.99 { edgeTime += dt } else { edgeTime = max(0, edgeTime - dt * 4) }
+        let ramp = min(1, max(0, (edgeTime - 0.1) / 0.5))
+        let boost = 1 + st.lookAccel * 0.2 * ramp
         let k = sensitivity * friction
-        let yaw = -v.x * 3.4 * dt * k * st.lookX * boost
-        let pitch = v.y * 2.6 * dt * k * st.lookY * (invert ? -1 : 1) * (0.5 + 0.5 * boost)
+        let yawRate = PadLook.rate(st.lookX)               // radians per second at full deflection
+        let pitchRate = PadLook.rate(st.lookY) * 0.75
+        let yaw = -v.x * yawRate * dt * k * boost
+        let pitch = v.y * pitchRate * dt * k * (invert ? -1 : 1) * (1 + (boost - 1) * 0.3)
         return V2(yaw, pitch)
     }
+
+    // Sensitivity 1-10 to a full-deflection turn rate: 3 (the default) is about 170 degrees per second.
+    static func rate(_ sens: Float) -> Float { (50 + 40 * max(0.5, sens)) * .pi / 180 }
 }
 
 // Maps game sounds to controller rumble, so every hit, explosion and broken block is felt as well as heard.

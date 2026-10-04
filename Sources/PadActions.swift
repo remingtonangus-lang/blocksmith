@@ -10,11 +10,10 @@ enum PadActions {
     static var dropStackDone = false
 
     static func sneak(_ p: PadSnapshot, _ q: PadSnapshot, _ g: Game) -> Bool {
-        // L3 + R3 together is the Bug Notes push-to-talk chord: don't crouch for it.
-        let chord = p.l3 && p.r3 && Settings.shared.bugNotes == BugNotes.Mode.pushToTalk.rawValue
-        let held = p.b || (p.r3 && !chord)
+        // B crouches (Halo Infinite default layout: B crouch, right stick click melee).
+        let held = p.b
         guard Settings.shared.sneakToggle else { sneakLatched = false; return held }
-        if (p.b && !q.b) || (p.r3 && !q.r3 && !p.l3) { sneakLatched.toggle() }
+        if p.b && !q.b { sneakLatched.toggle() }
         if g.player.flying || g.player.inWater { sneakLatched = false; return held }   // hold to descend
         return sneakLatched
     }

@@ -49,8 +49,9 @@ final class Game {
         didSet { UserDefaults.standard.set(fancyGraphics, forKey: "fancyGraphics") }
     }
     var autoJump: Bool = UserDefaults.standard.bool(forKey: "autoJump") { didSet { UserDefaults.standard.set(autoJump, forKey: "autoJump"); player.autoJump = autoJump } }
-    var deadZone: Float = { let v = UserDefaults.standard.float(forKey: "deadZone"); return v > 0 ? v : 0.15 }() {
-        didSet { UserDefaults.standard.set(deadZone, forKey: "deadZone") }
+    // Move stick centre dead zone (Halo Infinite-like default 8 %); 0 is allowed, so absence is checked, not the value.
+    var deadZone: Float = { UserDefaults.standard.object(forKey: "moveDeadZone") != nil ? UserDefaults.standard.float(forKey: "moveDeadZone") : 0.08 }() {
+        didSet { UserDefaults.standard.set(deadZone, forKey: "moveDeadZone") }
     }
     var showDebug = false
     var hideHUD = false               // F1
@@ -608,7 +609,7 @@ final class Game {
             player.yaw -= input.mouseDX * sens
             player.pitch -= input.mouseDY * sens * (invertY ? -1 : 1)
         }
-        let look = wheelOpen ? V2(0, 0) : PadLook.shared.update(rx: p.rx, ry: p.ry, dead: deadZone, sensitivity: sensitivity * adsK, invert: invertY,
+        let look = wheelOpen ? V2(0, 0) : PadLook.shared.update(rx: p.rx, ry: p.ry, dead: Settings.shared.lookDead, sensitivity: adsK, invert: invertY,
                                                               friction: AimAssist.friction(self), dt: fdt)
         player.yaw += look.x
         player.pitch += look.y
@@ -655,6 +656,10 @@ final class Game {
             player.impact = 0
         }
         if input.tapped(KeyBinds.key(.fly)) || (p.up && !q.up) { toggleFly() }
+        if input.tapped(KeyBinds.key(.fastFly)) {
+            player.fastFlight.toggle()
+            onToast?(player.fastFlight ? "Fast flight on (sprint while flying)" : "Fast flight off")
+        }
         if input.tapped(Key.f3) { showDebug.toggle() }
         if input.tapped(Key.f1) { hideHUD.toggle() }
         if input.tapped(KeyBinds.key(.chat)) { openMenu(CommandMenu(game: self)); return }
@@ -709,7 +714,8 @@ final class Game {
         breakCooldown -= dt
         placeCooldown -= dt
         let breakHeld = input.leftDown || p.rt > 0.5
-        let breakNow = input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5)
+        // Right stick click is a quick melee swing (Halo Infinite default layout); L3 + R3 is the bug-notes chord.
+        let breakNow = input.leftClicked || (p.rt > 0.5 && q.rt <= 0.5) || (p.r3 && !q.r3 && !p.l3)
         let useHeld = input.rightDown || p.lt > 0.5
         let useNow = input.rightClicked || (p.lt > 0.5 && q.lt <= 0.5)
         // Deck guns: use one to take its controls (VehicleControls.swift).

@@ -20,16 +20,20 @@ final class Settings {
     static let shared = Settings()
 
     // Controller
-    @Pref("padLookX") var lookX: Float = 1           // right stick horizontal speed multiplier
-    @Pref("padLookY") var lookY: Float = 1           // right stick vertical speed multiplier
-    @Pref("padLookAccel") var lookAccel: Float = 0.5 // extra turn speed while the stick is held at the edge (0 = off)
+    // Look feel follows Halo Infinite's controller defaults (PadLook): sensitivity 3/3, acceleration 3, power curve.
+    @Pref("padLookSensH") var lookX: Float = 3       // right stick horizontal sensitivity, 1-10
+    @Pref("padLookSensV") var lookY: Float = 3       // right stick vertical sensitivity, 1-10
+    @Pref("padLookAccel5") var lookAccel: Float = 3  // look acceleration at the stick's edge, 0 (off) - 5
+    @Pref("padLookDead") var lookDead: Float = 0.08  // look stick centre dead zone
+    @Pref("padLookOuter") var lookOuter: Float = 0.05 // look stick max input threshold (outer dead zone)
+    @Pref("padMoveOuter") var moveOuter: Float = 0.05 // move stick max input threshold
     @Pref("padAimAssist") var aimAssist = true       // slow the view over mobs and hold the mined block
     @Pref("padRumble") var rumble: Float = 0.7       // vibration strength, 0 = off
     @Pref("padSouthpaw") var southpaw = false        // swap sticks (look left, move right)
-    @Pref("padSneakToggle") var sneakToggle = false  // B / RS click toggles sneaking instead of holding
+    @Pref("padSneakToggle") var sneakToggle = false  // B toggles sneaking instead of holding
     @Pref("padAutoSprint") var autoSprint = true     // stick fully forward for a moment starts sprinting
     @Pref("padFlightInverted") var flightInverted = true   // aircraft: pull the stick back to climb
-    @Pref("padLookCurve") var lookCurve = 0          // right stick response: 0 classic, 1 linear, 2 precise
+    @Pref("padLookCurve2") var lookCurve = 0         // right stick response: 0 default (power), 1 linear, 2 precise
 
     // Video
     @Pref("launchFullscreen") var launchFullscreen = true
@@ -60,11 +64,11 @@ final class Settings {
 
     // Options > Interface > Reset Options: everything back to the defaults (key bindings included).
     func resetAll(_ g: Game) {
-        lookX = 1; lookY = 1; lookAccel = 0.5; aimAssist = true; rumble = 0.7; southpaw = false; sneakToggle = false; autoSprint = true; lookCurve = 0; flightInverted = true
+        lookX = 3; lookY = 3; lookAccel = 3; lookDead = 0.08; lookOuter = 0.05; moveOuter = 0.05; aimAssist = true; rumble = 0.7; southpaw = false; sneakToggle = false; autoSprint = true; lookCurve = 0; flightInverted = true
         launchFullscreen = true; vsync = true; fpsCap = 0; renderScale = 1
         safeArea = 0; buttonHints = true; glyphStyle = 0; textBackground = 0; crosshair = 0; minimap = true
         subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true; narrator = false
-        g.fovSetting = 70; g.sensitivity = 1; g.invertY = false; g.autoJump = false; g.deadZone = 0.15
+        g.fovSetting = 70; g.sensitivity = 1; g.invertY = false; g.autoJump = false; g.deadZone = 0.08
         g.volumeSetting = 0.8; g.musicVolume = 1
         for c in SoundCategory.allCases { AudioSettings.set(c, c == .master ? 0.8 : 1) }
         g.fancyGraphics = true; g.renderScale = 1

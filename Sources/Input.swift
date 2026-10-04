@@ -74,11 +74,11 @@ struct PadSnapshot {
 
 func readPad() -> PadSnapshot? { PadManager.shared.read() }
 
-// Radial deadzone with a gentle response curve for fine aiming.
-func stick(_ x: Float, _ y: Float, dead: Float = 0.15) -> V2 {
+// Radial deadzone (centre dead zone + max input threshold, Options > Controller) with a gentle response curve.
+func stick(_ x: Float, _ y: Float, dead: Float = 0.15, outer: Float = Settings.shared.moveOuter) -> V2 {
     let v = V2(x, y)
     let m = simd_length(v)
     if m < dead { return .zero }
-    let n = min(1, (m - dead) / (1 - dead))
+    let n = min(1, (m - dead) / max(0.05, 1 - dead - outer))
     return v / m * (n * n * 0.6 + n * 0.4)
 }

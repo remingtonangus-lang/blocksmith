@@ -5,6 +5,10 @@ import Foundation
 // D-pad / stick to move, A to choose or step a setting forward, X (or D-pad left/right) to step it,
 // B to go back. The list scrolls when it is longer than the panel.
 final class PauseMenu: Menu {
+    // Controller option steps (Halo Infinite-style scales: sensitivity 1-10, dead zones in percent).
+    static let sens: [Float] = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8, 9, 10]
+    static let zones: [Float] = [0, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.15, 0.2, 0.25]
+    static let outers: [Float] = [0, 0.02, 0.05, 0.08, 0.1, 0.15, 0.2]
     enum Page { case title, main, options, controls, keys, padmap, worlds, world, confirm, create, rename }
     enum Cat: Int, CaseIterable {
         // Video first: render distance and graphics are what players look for (Remington, playtest 2: "no render
@@ -131,6 +135,7 @@ final class PauseMenu: Menu {
         let st = Settings.shared
         func on(_ b: Bool) -> String { b ? "On" : "Off" }
         func pct(_ f: Float) -> String { "\(Int((f * 100).rounded()))%" }
+        func num(_ f: Float) -> String { f == f.rounded() ? "\(Int(f))" : String(format: "%.1f", f) }
         subtitle = ""
         switch page {
         case .title:
@@ -162,10 +167,12 @@ final class PauseMenu: Menu {
                 let pm = PadManager.shared
                 let info = pm.connected ? pm.name + (pm.battery.map { " (\(Int($0 * 100))%)" } ?? "") : "No controller"
                 rows = [("\(info)", "padinfo"),
-                        ("Look Speed X: \(pct(st.lookX))", "lookx"), ("Look Speed Y: \(pct(st.lookY))", "looky"),
-                        ("Look Acceleration: \(st.lookAccel == 0 ? "Off" : pct(st.lookAccel))", "accel"),
-                        ("Look Response: \(["Classic", "Linear", "Precise"][max(0, min(2, st.lookCurve))])", "curve"),
-                        ("Invert Y: \(on(g.invertY))", "invert"), ("Stick Dead Zone: \(pct(g.deadZone))", "dead"),
+                        ("Look Sensitivity Horizontal: \(num(st.lookX))", "lookx"), ("Look Sensitivity Vertical: \(num(st.lookY))", "looky"),
+                        ("Look Acceleration: \(st.lookAccel == 0 ? "Off" : num(st.lookAccel))", "accel"),
+                        ("Look Response: \(["Default", "Linear", "Precise"][max(0, min(2, st.lookCurve))])", "curve"),
+                        ("Invert Y: \(on(g.invertY))", "invert"),
+                        ("Look Center Dead Zone: \(pct(st.lookDead))", "lookdead"), ("Look Max Input Threshold: \(pct(st.lookOuter))", "lookouter"),
+                        ("Move Center Dead Zone: \(pct(g.deadZone))", "dead"), ("Move Max Input Threshold: \(pct(st.moveOuter))", "moveouter"),
                         ("Aim Assist: \(on(st.aimAssist))", "aim"), ("Vibration: \(st.rumble == 0 ? "Off" : pct(st.rumble))", "rumble"),
                         ("Stick Layout: \(st.southpaw ? "Southpaw" : "Standard")", "southpaw"),
                         ("Sneak: \(st.sneakToggle ? "Toggle" : "Hold")", "sneaktoggle"), ("Auto-Sprint: \(on(st.autoSprint))", "autosprint"),
@@ -433,10 +440,13 @@ final class PauseMenu: Menu {
         case "sens": g.sensitivity = step([0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3], g.sensitivity)
         case "invert": g.invertY.toggle()
         case "autojump": g.autoJump.toggle()
-        case "dead": g.deadZone = step([0.05, 0.1, 0.15, 0.2, 0.25, 0.3], g.deadZone)
-        case "lookx": st.lookX = step([0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3], st.lookX)
-        case "looky": st.lookY = step([0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3], st.lookY)
-        case "accel": st.lookAccel = step([0, 0.25, 0.5, 0.75, 1], st.lookAccel)
+        case "dead": g.deadZone = step(PauseMenu.zones, g.deadZone)
+        case "lookdead": st.lookDead = step(PauseMenu.zones, st.lookDead)
+        case "lookouter": st.lookOuter = step(PauseMenu.outers, st.lookOuter)
+        case "moveouter": st.moveOuter = step(PauseMenu.outers, st.moveOuter)
+        case "lookx": st.lookX = step(PauseMenu.sens, st.lookX)
+        case "looky": st.lookY = step(PauseMenu.sens, st.lookY)
+        case "accel": st.lookAccel = step([0, 1, 2, 3, 4, 5], st.lookAccel)
         case "aim": st.aimAssist.toggle()
         case "curve": st.lookCurve = step([0, 1, 2], st.lookCurve)
         case "rumble": st.rumble = step([0, 0.35, 0.7, 1], st.rumble); PadManager.shared.rumble(0.8, 0.15)
@@ -593,7 +603,7 @@ enum ControlsReference {
             Glyph.ls.s + " / " + k(.move) + " Move",
             Glyph.rs.s + " / mouse Look",
             PadMap.glyph(.a).s + " / " + k(.jump) + " Jump (twice: fly)",
-            PadMap.glyph(.b).s + " " + PadMap.glyph(.r3).s + " / " + Glyphs.key("Shift") + " Sneak",
+            PadMap.glyph(.b).s + " / " + Glyphs.key("Shift") + " Sneak,  " + PadMap.glyph(.r3).s + " Melee",
             PadMap.glyph(.l3).s + " / " + Glyphs.key("Ctrl") + " Sprint",
             Glyph.rt.s + " / " + Glyph.mouseL.s + " Attack, mine",
             Glyph.lt.s + " / " + Glyph.mouseR.s + " Use, place, eat",
@@ -603,7 +613,7 @@ enum ControlsReference {
             PadMap.glyph(.ddown).s + " / " + k(.drop) + " Drop (hold: stack)",
             PadMap.glyph(.dright).s + " / " + k(.offhand) + " Swap off hand",
             PadMap.glyph(.dleft).s + " / " + k(.chat) + " Commands",
-            PadMap.glyph(.dup).s + " / " + k(.fly) + " Fly (creative)",
+            PadMap.glyph(.dup).s + " / " + k(.fly) + " Fly (creative), " + k(.fastFly) + " fast flight (sprint)",
             PadMap.glyph(.view).s + " / " + k(.camera) + " Camera",
             Glyph.menu.s + " / " + Glyphs.key("Esc") + " Pause",
             Glyph.share.s + " / " + Glyphs.key("F2") + " Screenshot",

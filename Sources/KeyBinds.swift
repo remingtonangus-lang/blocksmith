@@ -4,7 +4,7 @@ import Foundation
 // stay on the modifier keys; everything else maps an action to a macOS virtual key code, saved in UserDefaults.
 enum KeyBinds {
     enum Action: String, CaseIterable {
-        case forward, back, left, right, jump, inventory, drop, fly, offhand, chat, camera, advancements, reload, weapons, map
+        case forward, back, left, right, jump, inventory, drop, fly, fastFly, offhand, chat, camera, advancements, reload, weapons, map
         var title: String {
             switch self {
             case .forward: return "Walk Forward"
@@ -15,6 +15,7 @@ enum KeyBinds {
             case .inventory: return "Inventory"
             case .drop: return "Drop Item"
             case .fly: return "Toggle Flying"
+            case .fastFly: return "Toggle Fast Flight"
             case .offhand: return "Swap Off Hand"
             case .chat: return "Commands"
             case .camera: return "Camera View"
@@ -34,6 +35,7 @@ enum KeyBinds {
             case .inventory: return Key.e
             case .drop: return Key.q
             case .fly: return Key.f
+            case .fastFly: return 9             // V
             case .offhand: return 5             // G (R reloads guns)
             case .chat: return Key.t
             case .camera: return Key.f5
