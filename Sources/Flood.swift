@@ -159,6 +159,10 @@ final class FloodModel {
         guard timer >= FloodModel.updateEvery else { return }
         let step = timer
         timer = 0
+        let rain = forcedRain ?? (g.weather.rain > 0.2 ? g.weather.rain * (1 + 0.5 * g.weather.thunder) : 0)
+        // A dry day with no water about (the usual case): nothing at all, not even sampling (a flight re-centres the
+        // window every few seconds, and 200 column scans a step cost 1-3 ms for nothing).
+        if rain <= 0 && placed.isEmpty && !h.contains(where: { $0 > 0 }) && !wet.contains(where: { $0 > 0 }) { lastMs = 0; return }
         let t0 = CFAbsoluteTimeGetCurrent()
         recentre(g)
         // New cells: up to 200 samples a step until the window is known (cells over unloaded chunks wait). Known
@@ -179,12 +183,8 @@ final class FloodModel {
             tries += 1
             if known[k] { _ = sample(g, k); refresh -= 1 }
         }
-        let rain = forcedRain ?? (g.weather.rain > 0.2 ? g.weather.rain * (1 + 0.5 * g.weather.thunder) : 0)
-        // Nothing to do on a dry day with no water about (the usual case): skip the model.
-        if rain > 0 || !placed.isEmpty || h.contains(where: { $0 > 0 }) || wet.contains(where: { $0 > 0 }) {
-            simulate(step, rain: rain)
-            apply(g.world, budget: FloodModel.blockBudget)
-        }
+        simulate(step, rain: rain)
+        apply(g.world, budget: FloodModel.blockBudget)
         let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
         lastMs = ms
         worstMs = max(worstMs, ms)
