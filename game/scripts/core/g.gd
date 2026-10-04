@@ -2,17 +2,17 @@ class_name G
 ## Global registry: the live systems, shared helpers and the log directory.
 
 static var main: Node3D
-static var world: Node3D
-static var terrain: Node3D
-static var gen: RefCounted          # WorldGen
-static var sky: Node                # SkySystem
+static var world: GameWorld
+static var terrain: Terrain
+static var gen: WorldGen
+static var sky: SkySystem
 static var weather: Node
-static var player: Node3D
+static var player: Player
 static var cam: Camera3D
 static var hud: CanvasLayer
-static var fx: Node3D
+static var fx: Fx
 static var combat: Node
-static var battle: Node
+static var battle: Battle
 static var vehicles: Node3D
 static var cities: Node3D
 static var paused := false

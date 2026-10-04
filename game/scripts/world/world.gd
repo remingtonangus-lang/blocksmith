@@ -1,3 +1,4 @@
+class_name GameWorld
 extends Node3D
 ## The world: sky and day-night, terrain, water, vegetation, weather, then the Capital (cities and bases),
 ## the armies and the vehicles. Also the benchmark camera paths and the screenshot list.
@@ -50,6 +51,10 @@ func setup(g: WorldGen) -> void:
 	bases.name = "Bases"
 	add_child(bases)
 	bases.build(gen, capital.mat)
+	var battle := Battle.new()
+	battle.name = "Battle"
+	add_child(battle)
+	battle.setup()
 	if vegetation:
 		for k in bases.sites:
 			var s: Dictionary = bases.sites[k]
@@ -131,6 +136,12 @@ func benchmark_segments() -> Array:
 	]
 
 
+func _battle_warm(seconds: float) -> void:
+	if G.battle:
+		G.battle.bench_battle()
+		G.battle.simulate(seconds)
+
+
 func _bench_setup(hour: float, wx: String) -> void:
 	sky.set_hour(hour)
 	if weather and weather.has_method("set_weather"):
@@ -158,6 +169,9 @@ func shot_list() -> Array:
 		{"name": "radar_night", "pos": rad + Vector3(260, 150, 330), "look": rad + Vector3(0, 10, 0), "hour": 22.5, "weather": "clear"},
 		{"name": "fort_lumen", "pos": above(fl.x + 280, fl.z + 260, 70), "look": fl, "hour": 9.5, "weather": "cloudy"},
 		{"name": "cinder_camp", "pos": above(cc.x + 220, cc.z + 200, 45), "look": cc, "hour": 17.0, "weather": "clear"},
+		{"name": "battle_ground", "pos": above(fr.x + 260, fr.z + 20, 1.7), "look": above(fr.x - 200, fr.z - 40, 2.0), "hour": 16.0, "weather": "overcast", "setup": func(): _battle_warm(25.0)},
+		{"name": "battle_wide", "pos": above(fr.x + 420, fr.z + 380, 70), "look": fr + Vector3(0, 10, 0), "hour": 16.5, "weather": "cloudy", "setup": func(): _battle_warm(25.0)},
+		{"name": "troops_lineup", "fov": 32.0, "pos": above(fr.x + 607, fr.z - 400, 1.3), "look": above(fr.x + 595, fr.z - 400, 0.9), "hour": 11.0, "weather": "clear", "setup": func(): G.battle.lineup(above(fr.x + 595, fr.z - 400, 0.0), above(fr.x + 601, fr.z - 400, 0.0))},
 		{"name": "capital_top", "pos": c + Vector3(500, 420, 1), "look": c + Vector3(500, 0, 0), "hour": 12.0, "weather": "clear"},
 		{"name": "capital_dusk", "pos": above(c.x - 1300, c.z + 1200, 90), "look": c + Vector3(0, 70, 0), "hour": 19.6, "weather": "clear"},
 		{"name": "capital_night", "pos": above(c.x - 1200, c.z + 800, 110), "look": c + Vector3(0, 40, 0), "hour": 23.0, "weather": "clear"},

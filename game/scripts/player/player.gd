@@ -161,6 +161,22 @@ func _footsteps(delta: float, on_floor: bool) -> void:
 			Sfx.footstep(global_position, hv)
 
 
+func take_damage(amount: float, from: Vector3) -> void:
+	health = maxf(0.0, health - amount)
+	if G.hud and G.hud.has_method("damage"):
+		G.hud.damage(amount, from)
+	if health <= 0.0:
+		_respawn()
+
+
+func _respawn() -> void:
+	health = 100.0
+	var sp: Vector3 = G.world.site("spawn")
+	G.terrain.collision_now(sp)
+	global_position = sp + Vector3(0, 2, 0)
+	velocity = Vector3.ZERO
+
+
 func enter_vehicle(v: Node) -> void:
 	vehicle = v
 	col_shape.disabled = true

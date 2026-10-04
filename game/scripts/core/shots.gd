@@ -37,6 +37,7 @@ func _next() -> void:
 		get_tree().quit(0)
 		return
 	var s: Dictionary = shots[i]
+	cam.fov = float(s.get("fov", Settings.fov))
 	cam.global_position = s["pos"]
 	var look: Vector3 = s["look"]
 	if cam.global_position.distance_to(look) > 0.01:
