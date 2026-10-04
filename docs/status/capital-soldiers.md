@@ -89,10 +89,19 @@ drivers, pilots and gunners (CapitalShips crew posts currently spawn vanguards /
   incidence, pushes the tail down to raise the nose), ailerons = outer cells, virtual fin (weathervane + rudder),
   dihedral. Helicopter: thrust collective x 2.1 weights x rpm^2 (+ ground effect, translational lift) along the
   cyclic-tilted disk over the centre of mass, hub moment, stability augmentation, rotor torque vs tail rotor + pedals.
-- Autopilots: `fm.hold` (position) / `fm.holdYaw` / `fm.holdSpeed`. Player: collective Space/Ctrl RT/LT, cyclic
-  WASD / left stick, heading follows the view, LB/RB pedals (VehicleControls kind .helicopter).
+- Autopilots: `fm.hold` (position) / `fm.holdYaw` / `fm.holdSpeed`. Player: collective Space/Ctrl RT/LT (released in
+  the air it holds the height), cyclic WASD / left stick as an attitude command (full stick 0.4 rad), heading follows
+  the view, LB/RB pedals (VehicleControls kind .helicopter).
 - Blocks: `ship_rotor` (Rotor Head; blades drawn to the rotor diameter from the render-only `ship_rotor_blade`),
   `capital_airframe` (0.3 t). Designs: Capital Kestrel (helicopter, pilot + 4 seats), Capital Heron (twin-prop,
   wheels, role capplane). `Aircraft.spawn(kind, at:, yaw:, game:, troops:)` seats a Capital pilot (FlightCrew keeps
   seated crews in their seats; seated soldiers don't walk).
-- Checks: `--flighttest heli|plane|all` with a `flighttrace` line per second (height, speed, attitude, controls).
+- Checks: `--flighttest heli|player|plane|all` with a `flighttrace` line per second (height, speed, attitude,
+  controls). heli: lift-off from a built pad, settled hover, 80 out, pedal turn, back, lands on the pad. player:
+  the same Kestrel through startPiloting / pilotTick and the keyboard layout. plane: level, climb, banked turn,
+  stall and recovery (the camera rides along; chunks under the aircraft are loaded before each step).
+- Citadel air patrols (CapitalAir.swift): on alert over an outside noise, or on lockdown, a crewed Kestrel lifts off
+  the tower's landing pad (`BaseRecord.pad`, y0 + 42, 21 north of the tower), climbs to a route-clear cruise height,
+  circles the noise 40 s (or the citadel while locked down), flies back, settles on the pad and is stowed. Pilot
+  killed -> autopilot off, it falls, the citadel goes to alert. Saved: `air`, `airPhase`, `airT`, `airShip`,
+  `airCD`; after a reload `FlightCrew.relink` buckles the crew still at the seats back in. Check: `--basetest air`.
