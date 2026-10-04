@@ -198,9 +198,10 @@ final class FlightModel {
             let ay = (vyWant - s.vel.y) * 1.6
             let tmax = FlightModel.heliTmax * s.mass * g * max(0.2, rpm * rpm) * groundEffect
             collective = max(0, min(1, (s.mass * (g + ay)) / tmax))
-            cyclic = V2(max(-0.8, min(0.8, simd_dot(ah, rh) * 0.07)), max(-0.8, min(0.8, simd_dot(ah, fh) * 0.07)))
-            var yawWant = holdYaw ?? (dist > 10 ? atan2f(-dh.x, -dh.y) : s.yaw)
-            if dist <= 6, let y = holdYaw { yawWant = y }
+            // The cyclic asks for a tilt (full stick 0.4 rad), a tilt of a / g gives an acceleration a.
+            let perA: Float = 1 / (g * 0.4)
+            cyclic = V2(max(-0.8, min(0.8, simd_dot(ah, rh) * perA)), max(-0.8, min(0.8, simd_dot(ah, fh) * perA)))
+            let yawWant = holdYaw ?? (dist > 14 ? atan2f(-dh.x, -dh.y) : s.yaw)
             var e = yawWant - s.yaw
             while e > Float.pi { e -= 2 * Float.pi }
             while e < -Float.pi { e += 2 * Float.pi }
@@ -211,7 +212,12 @@ final class FlightModel {
             var e = yawWant - s.yaw
             while e > Float.pi { e -= 2 * Float.pi }
             while e < -Float.pi { e += 2 * Float.pi }
-            let steer = max(-1, min(1, -e * 1.2))
+            // Bank to turn: the heading error asks for a bank (at most 0.6 rad), the ailerons fly it with roll damping.
+            let rightW = s.dirToWorld(simd_normalize(simd_cross(s.fwd, V3(0, 1, 0))))
+            let bank: Float = asinf(max(-1, min(1, -rightW.y)))
+            let rollRate: Float = simd_dot(s.angVel, fw)
+            let bankWant: Float = max(-0.6, min(0.6, -e * 1.0))
+            let steer = max(-1, min(1, (bankWant - bank) * 2.5 - rollRate * 0.8))
             let climb = max(-1, min(1, to.y * 0.06 - s.vel.y * 0.08))
             s.autopilot = V3(holdSpeed > 0 ? 1 : 0, steer, climb)    // the ship manager feeds these to the propellers too
             s.throttle = s.autopilot!.x; s.steer = steer; s.climb = climb
@@ -221,7 +227,7 @@ final class FlightModel {
 
     // MARK: Player controls
 
-    // Helicopter: collective with Space / Ctrl, RT / LT (let go in the air, it holds the height); cyclic with WASD or the left
+    // Helicopter: collective with Space / Ctrl, RT / LT (in the air a climb rate; let go, it holds the height); cyclic with WASD or the left
     // stick; yaw follows the view (heading hold toward the camera's yaw, so the right stick or the mouse turns it),
     // LB / RB nudge the pedals. Plane: the usual aircraft controls (VehicleControls) feed the surfaces directly.
     func playerInput(_ g: Game, _ s: Ship, _ mi: MoveInput, _ dt: Float) {
@@ -231,13 +237,16 @@ final class FlightModel {
         var up: Float = mi.jump ? 1 : 0
         if g.input.control { up -= 1 }
         if let p { up += p.rt - p.lt }
-        if up != 0 {
-            collective = max(0, min(1, collective + up * 0.45 * dt))
-        } else if collective > 0.2 && agl > 6.5 && rpm > 0.8 {
-            // Collective released in the air: it holds the height (a controller has no friction lock).
+        if agl > 6.5 && rpm > 0.8 {
+            // In the air the collective input asks for a climb rate (Space / RT up to 6 b/s, Ctrl / LT down to 4,
+            // 1.5 within a few blocks of the ground); let go, it holds the height (a trigger has no friction lock).
+            var vyWant: Float = max(-1, min(1, up)) * (up > 0 ? 6 : 4)
+            if up < 0 && agl < 12 { vyWant = max(vyWant, -1.5) }
             let tmax: Float = FlightModel.heliTmax * s.mass * ShipTuning.g * rpm * rpm * groundEffect
-            let want: Float = s.mass * (ShipTuning.g - s.vel.y * 1.6) / tmax
-            collective += (max(0, min(1, want)) - collective) * min(1, dt * 3)
+            let want: Float = s.mass * (ShipTuning.g + (vyWant - s.vel.y) * 1.6) / tmax
+            collective += (max(0, min(1, want)) - collective) * min(1, dt * 4)
+        } else {
+            collective = max(0, min(1, collective + up * 0.45 * dt))          // on the ground: straight collective
         }
         cyclic = V2(max(-1, min(1, mi.strafe)), max(-1, min(1, mi.forward)))
         var e = g.player.yaw - s.yaw

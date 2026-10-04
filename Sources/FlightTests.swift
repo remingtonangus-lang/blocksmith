@@ -258,15 +258,17 @@ enum FlightTests {
             let yawT = s.yaw
             fm.holdYaw = yawT + .pi / 2; fm.hold = s.pos + V3(0, 0, 0)
             tag = "heron-turn"
-            var bank: Float = 0
+            var bank: Float = 0, low: Float = 1
             let turned = step(16) { _ in
                 bank = max(bank, abs(s.dirToWorld(simd_normalize(simd_cross(s.fwd, V3(0, 1, 0)))).y))
+                low = min(low, upright(s))
                 var e = s.yaw - (yawT + .pi / 2)
                 while e > Float.pi { e -= 2 * Float.pi }
                 while e < -Float.pi { e += 2 * Float.pi }
                 return abs(e) < 0.3
             }
-            check(turned != nil && bank > 0.15, "it banks into a 90 degree turn", String(format: "in %.1f s, bank %.2f", turned ?? -1, bank))
+            check(turned != nil && bank > 0.15 && bank < 0.8 && low > 0.5, "it banks into a 90 degree turn",
+                  String(format: "in %.1f s, bank %.2f, upright at least %.2f", turned ?? -1, bank, low))
             // Stall: throttle off, nose held up.
             fm.hold = nil; fm.holdYaw = nil
             s.autopilot = V3(0, 0, 1)

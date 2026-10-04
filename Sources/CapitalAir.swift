@@ -71,11 +71,13 @@ extension Game {
         if s == nil {
             guard ph == 0 else { done("lost"); return }
             guard padReady(r) else { done("grounded (the pad is blocked or gone)", cooldown: 120); return }
+            let tb = CFAbsoluteTimeGetCurrent()
             let k = Aircraft.spawn("kestrel", at: pad + V3(0, 3, 0), yaw: Float.pi, game: self, troops: 2)
+            let builtMs = (CFAbsoluteTimeGetCurrent() - tb) * 1000
             k.home = pad
             r.airShip = k.id
             ph = 1; t = 0
-            b.note("\(r.key) kestrel lifts off the pad")
+            b.note(String(format: "%@ kestrel lifts off the pad (built in %.1f ms)", r.key, builtMs))
             if simd_length(player.pos - pad) < 160 { onToast?("A Capital Kestrel lifts off") }
             s = k
         }
