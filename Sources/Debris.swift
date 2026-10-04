@@ -290,7 +290,7 @@ extension ShipManager {
                 if !small { ng.set(x - lo.x, y - lo.y, z - lo.z, b) }
                 if let be = s.blockEntities.removeValue(forKey: c), !small { part.blockEntities[ivSub(c, lo)] = be }
                 s.damage.removeValue(forKey: c)
-                g.blocks[i] = AIR
+                g.set(x, y, z, AIR)
                 changed.append(c)
             }
             s.blockCount -= cells.count

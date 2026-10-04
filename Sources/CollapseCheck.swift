@@ -93,7 +93,9 @@ enum CollapseCheck {
             fill(w, IVec3(o.x - 2, deckY, o.z - 1), IVec3(o.x + 22, deckY, o.z + 1), brick)
             for x in (o.x - 2)...(o.x + 22) { for z in [o.z - 1, o.z + 1] { _ = w.setBlockAsync(x, deckY + 1, z, Blocks.id("stone_brick_wall")) } }
             st.box = (IVec3(o.x - 4, o.y - 2, o.z - 4), IVec3(o.x + 24, deckY + 3, o.z + 4))
-            st.watch = (8...12).flatMap { dx in (-1...1).map { IVec3(o.x + dx, deckY, o.z + $0) } }
+            var span: [IVec3] = []
+            for dx in 8...12 { for dz in -1...1 { span.append(IVec3(o.x + dx, deckY, o.z + dz)) } }
+            st.watch = span
             st.blasts = [(V3(Float(o.x + 10) + 0.5, Float(deckY - 2), Float(o.z) + 0.5), 4),
                          (V3(Float(o.x + 10) + 0.5, Float(deckY - 6), Float(o.z) + 0.5), 4),
                          (V3(Float(o.x + 10) + 0.5, Float(o.y + 2), Float(o.z) + 0.5), 4)]
@@ -105,10 +107,11 @@ enum CollapseCheck {
                 _ = w.setBlockAsync(o.x + dx, o.y + y, o.z + dz, brick)
             } } }
             st.box = (IVec3(o.x - 30, o.y - 2, o.z - 30), IVec3(o.x + 30, o.y + h + 2, o.z + 30))
-            st.watch = (-2...2).flatMap { dx in (-2...2).map { IVec3(o.x + dx, o.y + h - 1, o.z + $0) } }.filter { abs($0.x - o.x) == 2 || abs($0.z - o.z) == 2 }
-            st.blasts = [(V3(Float(o.x + 3), Float(o.y + 1), Float(o.z) + 0.5), 4),
-                         (V3(Float(o.x + 3), Float(o.y + 1), Float(o.z - 2) + 0.5), 3.5),
-                         (V3(Float(o.x + 3), Float(o.y + 1), Float(o.z + 2) + 0.5), 3.5)]
+            var top: [IVec3] = []
+            for dz in -2...2 { for dx in -2...2 where abs(dx) == 2 || abs(dz) == 2 { top.append(IVec3(o.x + dx, o.y + h - 1, o.z + dz)) } }
+            st.watch = top
+            let bx = Float(o.x + 3), by = Float(o.y + 1), bz = Float(o.z) + 0.5
+            st.blasts = [(V3(bx, by, bz), 4), (V3(bx, by, bz - 2), 3.5), (V3(bx, by, bz + 2), 3.5)]
             st.view = (V3(Float(o.x + 4), Float(o.y + 14), Float(o.z + 46)), 0, -0.2)
         case "frigate":
             // A Capital frigate hovering low over the plains, cut through amidships by a ring of blasts.
