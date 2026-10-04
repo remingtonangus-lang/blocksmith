@@ -1,12 +1,13 @@
 import Foundation
 import simd
 
-// --basetest [patrol|lockdown|rebuild|all]: the reactive citadel (CapitalBases.swift) through the real Game.tick.
+// --basetest [patrol|crawler|lockdown|rebuild|air|all]: the reactive citadel (CapitalBases.swift) through the real Game.tick.
 //  1. A gunshot 40 blocks outside the gate: a patrol forms, reaches the spot, searches and walks back to its posts.
 //  2. A blast inside the plaza: lockdown, turret crews in the gunner stance, Capital dropships land troops.
 //  3. A blasted hall wall: once calm, rebuilt from the citadel's original blocks within one in-game day; a "wreck"
 //     block dropped in the crater is left alone. Also: the bases record survives a save round trip, and the cost of
 //     the once-a-second citadel update (avg / worst ms).
+//  5. A gunshot outside the east wall: the Kestrel lifts off the tower pad, circles the spot, lands back on the pad.
 // With a phase name it stops when that phase is on show (camera on it) for a shot.
 enum BaseTests {
     static var failures: [String] = []
@@ -176,6 +177,44 @@ enum BaseTests {
             check(rec().damage.isEmpty, "no damage left on the record")
             wallView()
             lap("rebuild")
+        }
+
+        // 5. A gunshot just outside the east wall: alert; the Kestrel lifts off the tower pad, flies out, circles
+        // the spot, flies back and lands on the pad, and is stowed.
+        if want("air") {
+            let ex = Float(cx + CapitalBase.A + 6), ez = Float(cz)
+            let shot = V3(ex, g.standY(ex, ez, from: Float(y0 + 30)), ez)
+            g.baseNoise(at: shot, kind: .gunshot)
+            let kestrel = { () -> Ship? in rec().airShip.flatMap { id in w.ships.list.first { $0.id == id } } }
+            let up = sim(6) { kestrel() != nil }
+            let pad = rec().pad
+            check(up != nil, "a gunshot near the walls sends the Kestrel up", "alert \(rec().alert.name), air \(rec().air != nil)")
+            if let k = kestrel() {
+                check(simd_length(V2(k.pos.x - pad.x, k.pos.z - pad.z)) < 3, "it starts on the tower's landing pad",
+                      String(format: "%.1f blocks from the pad centre", simd_length(V2(k.pos.x - pad.x, k.pos.z - pad.z))))
+            }
+            let over = sim(120) { (rec().airPhase ?? 0) >= 3 || rec().air == nil }
+            check(over != nil && rec().air != nil, "it flies out over the noise", String(format: "after %.0f s, phase %d", over ?? -1, rec().airPhase ?? -1))
+            if shotOnly {
+                _ = sim(6) { false }
+                let p = kestrel()?.pos ?? shot
+                look(at: p, from: p + V3(-18, 6, 22))
+                return finish(g, b, t0)
+            }
+            let back = sim(150) { (rec().airPhase ?? 0) >= 5 || rec().air == nil }
+            check(back != nil && rec().air != nil, "it circles and flies back over the pad", String(format: "after %.0f s, phase %d", back ?? -1, rec().airPhase ?? -1))
+            let down = sim(90) { (rec().airPhase ?? 0) >= 6 || rec().air == nil }
+            if let k = kestrel() {
+                let off = simd_length(V2(k.pos.x - pad.x, k.pos.z - pad.z)), up = k.dirToWorld(V3(0, 1, 0)).y
+                check(down != nil && off < 2.5 && up > 0.95 && k.worldMin.y > pad.y - 0.5, "it lands on the pad",
+                      String(format: "%.1f off the centre, upright %.2f, skids %+.1f", off, up, k.worldMin.y - pad.y))
+            } else {
+                check(false, "it lands on the pad", "no Kestrel (\(b.log.last ?? ""))")
+            }
+            let stowed = sim(20) { rec().air == nil }
+            check(stowed != nil && kestrel() == nil && !b.log.contains { $0.contains("kestrel lost") }, "it is stowed with its crew aboard",
+                  b.log.filter { $0.contains("kestrel") }.joined(separator: "; "))
+            lap("air")
         }
 
         // Saved state round trip.

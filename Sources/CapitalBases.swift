@@ -9,6 +9,8 @@ import simd
 //   lockdown            the citadel itself was attacked (shots or blasts inside its walls): the alarm sounds, the
 //                       garrison turns on the source, crews run to the turrets (gunner stance at the barbettes),
 //                       and Capital dropships fly in and land reinforcements in the plaza
+//   air patrol          on alert or lockdown a crewed Kestrel helicopter lifts off the tower's landing pad, flies
+//                       out and circles the noise (or the citadel), then lands back on the pad (CapitalAir.swift)
 //   rebuild             once things are calm, blast damage inside the walls is rebuilt block by block by pilots
 //                       working at the site: the original blocks come from regenerating the citadel's chunks (a
 //                       worker thread), and only cells that are now air, liquid or fire are restored, so wrecks,
@@ -53,6 +55,11 @@ struct BaseRecord: Codable {
     var crawlerGoal: [Float]? = nil         // a crawler patrol out to a distant blast or cannon fire
     var crawlerPhase: Int = 0               // 0 to call, 1 out, 2 holding there, 3 back
     var crawlerT: Float = 0
+    var air: [Float]? = nil                 // the Kestrel's goal while it is up (CapitalAir.swift)
+    var airPhase: Int? = nil
+    var airT: Float? = nil
+    var airShip: Int? = nil
+    var airCD: Float? = nil
 
     var centre: V3 { V3(Float(cx) + 0.5, Float(y0 + 4), Float(cz) + 0.5) }
     var gate: V3 { V3(Float(cx) + 0.5, Float(y0 + 1), Float(cz + 52) + 0.5) }
@@ -70,6 +77,7 @@ final class BaseWatch {
     var posts: [ObjectIdentifier: V3] = [:]          // where each patrol member / crewman goes back to
     var crews: [String: [Mob]] = [:]
     var workers: [String: [Mob]] = [:]
+    var aircraft: [String: Ship] = [:]
     var queue: [String: [(IVec3, BlockID)]] = [:]
     var pending = Set<String>()
     private let lock = NSLock()
@@ -153,6 +161,7 @@ extension Game {
             if r.alert == .lockdown { baseLockdown(&r, b, step) } else { baseStandDown(&r, b) }
             basePatrol(&r, b, step)
             baseCrawler(&r, b, step)
+            baseAir(&r, b, step)
             baseRebuild(&r, b, step, away: Float(away))
             b.records[key] = r
         }
@@ -175,7 +184,9 @@ extension Game {
                 if r.alert != .lockdown { b.note("\(r.key) lockdown (\(n.kind) inside, power \(n.power) at \(Int(n.pos.x)),\(Int(n.pos.y)),\(Int(n.pos.z)))") }
                 raise(&r, .lockdown, b)
             } else {
-                raise(&r, d < 70 || n.kind != .gunshot ? .alert : .suspicious, b)
+                let level: BaseAlert = d < 70 || n.kind != .gunshot ? .alert : .suspicious
+                raise(&r, level, b)
+                if level == .alert && r.alert != .lockdown { baseCallAir(&r, b, to: n.pos) }      // the Kestrel goes up
                 // Heavy noise far out: the crawler goes too.
                 if n.kind != .gunshot && d > 70 && r.crawlerGoal == nil {
                     r.crawlerGoal = [n.pos.x, n.pos.y, n.pos.z]; r.crawlerPhase = 0; r.crawlerT = 0
@@ -210,6 +221,7 @@ extension Game {
             r.dropshipCD = 4
             sfx(.gun(10), 1.4, at: r.centre)
             if simd_length(player.pos - r.centre) < 160 { onToast?("The citadel is on lockdown!") }
+            baseCallAir(&r, b, to: r.centre)                         // air cover over the citadel
         }
     }
 
