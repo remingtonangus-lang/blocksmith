@@ -278,7 +278,7 @@ final class USBGamepads {
         guard let p = pipeIn else { return }
         let buf = NSMutableData(length: 64)!
         do {
-            try p.__enqueueIORequest(with: buf, completionTimeout: 0) { [weak self] (status: IOReturn, n: Int) in
+            try p.enqueueIORequest(with: buf, completionTimeout: 0) { [weak self] status, n in
                 guard let self else { return }
                 if status != kIOReturnSuccess {
                     if status != USBGamepads.errAborted { self.log(String(format: "read failed 0x%08x", status)) }
