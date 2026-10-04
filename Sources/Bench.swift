@@ -62,7 +62,7 @@ enum Bench {
         guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); return 1 }
         let seed = UInt64(arg("--seed") ?? "") ?? 12345
         let quick = CommandLine.arguments.contains("--quick")
-        let all = "gen,mesh,startup,frame,edit,mobs,save,tnt,fluids,ships,flight8,flight16,flight24"
+        let all = "gen,mesh,startup,frame,edit,mobs,save,tnt,fluids,ships,collapse,flight8,flight16,flight24"
         let scenes = (arg("--scenes") ?? all).split(separator: ",").map(String.init)
         print("bench: device \(device.name), \(ProcessInfo.processInfo.activeProcessorCount) cores, seed \(seed)\(quick ? ", quick" : "")")
         if !scenes.allSatisfy({ $0.hasPrefix("flight") }) { calibrate() }
@@ -80,6 +80,7 @@ enum Bench {
             case "tnt": tnt(device, seed)
             case "fluids": fluids(device, seed)
             case "ships": ships(device, seed)
+            case "collapse": collapse(device, seed)
             case "meshprof": meshLoop(device, seed, seconds: Double(arg("--secs") ?? "") ?? 12)
             case "genprof": genLoop(device, seed, seconds: Double(arg("--secs") ?? "") ?? 12)
             case let name where name.hasPrefix("flight"):
@@ -467,6 +468,41 @@ enum Bench {
         put("tnt.tick_ms", t, "p50,p95,max")
         put("tnt.remesh_s", settle)
         print("bench tnt: blast mean \(f(b.mean)) ms max \(f(b.max)) ms (main thread) | re-mesh done in \(f(settle)) s, tick p95 \(f(t.p95)) max \(f(t.max)) ms")
+    }
+
+    // Destruction physics: the collapse check's bridge and tower blasted together, 12 s of Game.tick while their
+    // pieces fall, crash and are laid back into the world (CollapseCheck.swift).
+    static func collapse(_ device: MTLDevice, _ seed: UInt64) {
+        let (world, game, _) = setup(device, seed, rd: 6)
+        game.player.flying = false
+        var blast: [Double] = []
+        var stages: [CollapseCheck.Stage] = []
+        for (i, kind) in ["bridge", "tower"].enumerated() {
+            let st = CollapseCheck.Stage(game: game, world: world)
+            CollapseCheck.prepare(st)
+            st.origin.x += i * 60
+            st.origin.y = world.topY(st.origin.x, st.origin.z) + 1
+            _ = CollapseCheck.build(kind, st)
+            stages.append(st)
+        }
+        let a = now
+        for st in stages { CollapseCheck.trigger(st) }
+        blast.append((now - a) * 1000)
+        var ticks: [Double] = []
+        var bodies = 0
+        let s = now
+        for _ in 0..<(12 * 60) {
+            let t = now
+            game.tick(1.0 / 60)
+            ticks.append((now - t) * 1000)
+            bodies = max(bodies, world.ships.list.filter { $0.debris }.count)
+        }
+        let d = dist(ticks)
+        put("collapse.blast_ms", blast[0])
+        put("collapse.tick_ms", d, "p50,p95,max")
+        put("collapse.bodies_max", Double(bodies))
+        put("collapse.analysis_ms", world.ships.collapseMs)
+        print("bench collapse: blasts \(f(blast[0])) ms, tick p50 \(f(d.p50)) p95 \(f(d.p95)) max \(f(d.max)) ms, up to \(bodies) bodies, \(world.ships.bakedBlocks) blocks laid back in \(f(now - s, 1)) s")
     }
 
     // 16 water springs on the terrain around the player, 6 s of ticks: fluid spreading and re-mesh load.

@@ -80,6 +80,7 @@ final class CapitalState {
     var ground: V3?                    // crawler: smoothed ground under it (height, pitch, roll)
     var grind: Float = -1              // disabled crawler: forward speed while it grinds to a stop (-1 not yet)
     var impact: Float = 0              // crash-landed frigate: sink speed at touchdown (b/s)
+    var settledTime: Float = 0         // seconds at rest after it went down (then it is laid into the world: Wrecks.swift)
     var sag = V2(0, 0)                 // disabled crawler: pitch / roll toward its lost wheels
     var wantSpeed: Float = 0           // crawler: the speed its AI wants (before the lowered ramp holds it to a creep)
     var goal: V3?                      // a citadel's crawler patrol (CapitalBases.swift): drive here when nothing is in sight
@@ -573,12 +574,28 @@ extension BlockRegistry {
             add(d)
         }
         registerCapitalFactionBlocks()
+        // Wrecks rust (Wrecks.swift): any hull plate left out under the sky long enough turns to this.
+        if !has("rusted_plating") {
+            var d = BlockDef("rusted_plating", "Rusted Plating")
+            d.tex = ["rusted_plating"]
+            d.hardness = 5; d.resistance = 6; d.tool = .pickaxe; d.requiresTool = true; d.harvestLevel = 1; d.sound = .metal
+            add(d)
+        }
     }
 }
 
 extension TextureGen {
     static func capitalPainters(_ p: inout [String: Painter]) {
         capitalFactionPainters(&p)
+        // Rusted plating: the hull's grey eaten into orange-brown blooms, darker pits, a seam still showing.
+        p["rusted_plating"] = { x, y in
+            if y == 0 || x == 0 { return hex(0x6E4A32) }
+            if y == 15 || x == 15 { return hex(0x3A261A) }
+            let bloom = r(x / 3, y / 3, 2111) + 0.6 * r(x, y, 2112)
+            if bloom > 1.15 { return hex(0x2E2A28, 0.9 + 0.1 * r(x, y, 2113)) }
+            if bloom > 0.55 { return hex(0x9A5A2E, 0.85 + 0.2 * r(x, y, 2114)) }
+            return hex(0x6F6A64, 0.9 + 0.08 * r(x, y, 2115))
+        }
         p["warship_hull"] = { x, y in
             if y == 0 || x == 0 { return hex(0x5C636B) }
             if y == 15 || x == 15 { return hex(0x30353B) }
@@ -1461,13 +1478,20 @@ extension ShipManager {
             for t in turrets(of: s) { t.aimAt = nil }
         }
         if s.wrecked {
+            if st.settled {
+                s.vel = .zero; s.angVel = .zero
+                st.settledTime += dt
+                if st.settledTime > 3 { makeWreck(s, kind: "dropship", game: g); capState.removeValue(forKey: s.id) }
+                return
+            }
             s.vel.y = max(-30, s.vel.y - 12 * dt)
             s.angVel = V3(0.4, 1.2, 0.2)
             if Int(st.phaseT * 6) % 2 == 0 { g.particles.smoke(at: s.pos) }
             if keelY <= ground + 1 || st.phaseT > 30 {
-                Explosion.explode(at: s.pos, power: 4, game: g)
-                remove(s)
-                capState.removeValue(forKey: s.id)
+                // It hits the ground and stays there, broken (a persistent wreck, not a vanishing fireball).
+                Explosion.explode(at: s.pos - V3(0, keel * 0.5, 0), power: 2.5, game: g)
+                st.settled = true
+                s.vel = .zero; s.angVel = .zero
             }
             return
         }
@@ -1549,7 +1573,17 @@ extension ShipManager {
     // A crippled capital ship: a frigate comes down out of the sky with fires breaking out and crash-lands; a crawler
     // grinds to a halt, burning. Neither vanishes: the wreck stays where it came to rest, its crew aboard.
     private func founder(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
-        if st.settled { s.vel = .zero; s.angVel = .zero; return }
+        if st.settled {
+            s.vel = .zero; s.angVel = .zero
+            // A while after it came to rest the wreck becomes part of the world (persistent wrecks): its crew stay, now
+            // on ordinary blocks.
+            st.settledTime += dt
+            if st.settledTime > 8 && pilot !== s {
+                makeWreck(s, kind: s.role ?? "wreck", game: g)
+                capState.removeValue(forKey: s.id)
+            }
+            return
+        }
         st.wreckFx -= dt
         let lo = s.localMin, hi = s.localMax
         if st.wreckFx <= 0 {

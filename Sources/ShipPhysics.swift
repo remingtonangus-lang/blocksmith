@@ -82,6 +82,7 @@ extension ShipManager {
         }
         if encounters, let game { encounterTick(dt, game: game) }
         if let game { capitalTick(dt, game: game) }
+        if let game { wreckTick(dt, game: game) }
         if list.isEmpty { return }
         let t0 = CFAbsoluteTimeGetCurrent()
         // Riders: mobs and items resting on a ship before it moves.
@@ -233,6 +234,7 @@ extension ShipManager {
             }
         }
         if let game { shipSounds(dt, game) }
+        debrisTick(dt, game: game)
         stepMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
     }
 
@@ -316,12 +318,30 @@ extension ShipManager {
                 shipContacts(o, s, &contactScratch, flip: true)
             }
             s.contacts = contactScratch.count
+            // Falling debris breaks the weak blocks it slams into (glass, leaves, planks, earth...): broken after the
+            // step, with a support check round them (Debris.swift).
+            if s.debris && !contactScratch.isEmpty && smashed.count < 64 {
+                let massK: Float = min(3, sqrtf(s.mass) * 0.2)
+                for c in contactScratch where c.other == nil {
+                    let vn = -simd_dot(s.velocity(at: c.p), c.n)
+                    guard vn * massK > 5 else { continue }
+                    let q = c.p - c.n * 0.2
+                    let cell = IVec3(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z)))
+                    let b = reader.get(cell.x, cell.y, cell.z)
+                    let k = BlockMaterial.kind(b)
+                    let weak = k == .glass || k == .plant || k == .cloth || k == .wood || k == .ice || (k == .earth && vn * massK > 9)
+                    if weak && Blocks.hardness[Int(b)] >= 0 && !smashed.contains(cell) { smashed.append(cell) }
+                }
+            }
             if !contactScratch.isEmpty { solve(s, &contactScratch, h) }
         }
         for s in list where s.parent == nil {
             if s.asleep { continue }
             let sp = simd_length(s.vel)
-            if sp > 60 { s.vel *= 60 / sp }
+            // Falling debris tops out at 20 b/s (a third of a block a substep, under the contact radius: faster, a big
+            // piece dropped from a frigate's height went through the ground).
+            let vmax: Float = s.debris ? 20 : 60
+            if sp > vmax { s.vel *= vmax / sp }
             let w = simd_length(s.angVel)
             if w > 4 { s.angVel *= 4 / w }
             s.pos += s.vel * h

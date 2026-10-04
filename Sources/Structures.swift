@@ -369,6 +369,10 @@ enum Loot {
         "steelhold_armory": (3...6, [("gun_rifle", 1, 1, 8), ("gun_smg", 1, 1, 8), ("gun_shotgun", 1, 1, 6), ("gun_sniper", 1, 1, 3),
                                      ("rifle_rounds", 16, 48, 20), ("shotgun_shells", 6, 18, 12), ("heavy_rounds", 4, 12, 8), ("rocket_ammo", 1, 3, 4),
                                      ("arc_cell", 2, 8, 4), ("iron_chestplate", 1, 1, 4), ("iron_helmet", 1, 1, 4), ("shield", 1, 1, 3)]),
+        // Wrecks (Wrecks.swift): salvage torn from a downed machine.
+        "wreck_salvage": (3...7, [("iron_ingot", 2, 7, 14), ("iron_nugget", 4, 12, 12), ("copper_ingot", 2, 6, 10), ("redstone", 2, 8, 8),
+                                  ("gold_nugget", 2, 6, 6), ("gunpowder", 1, 4, 8), ("rifle_rounds", 4, 12, 6), ("heavy_rounds", 2, 6, 4),
+                                  ("diamond", 1, 1, 1), ("glass_pane", 2, 6, 5), ("tripwire_hook", 1, 2, 3), ("rusted_plating", 2, 6, 6)]),
         "steelhold_supply": (4...8, [("bread", 2, 6, 15), ("cooked_beef", 2, 5, 10), ("baked_potato", 2, 6, 10), ("iron_ingot", 2, 6, 10),
                                      ("copper_ingot", 4, 12, 8), ("gunpowder", 2, 8, 10), ("rifle_rounds", 8, 32, 12), ("redstone", 4, 12, 6),
                                      ("tnt", 1, 3, 3), ("golden_apple", 1, 1, 2), ("compass", 1, 1, 2), ("map", 1, 1, 2)]),

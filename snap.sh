@@ -128,6 +128,12 @@ done
 "$BIN" --snapshot snaps/coop.png --seed 12345 --find plains --yaw 30 --pitch -6 --time 0.3 --ground --rd 8 --coop --cooptest || echo "::error::cooptest failed (new: reported, not gating yet)"
 "$BIN" --snapshot snaps/tv_coop.png --seed 12345 --find plains --yaw 200 --pitch -4 --time 0.27 --ground --rd 8 --w 1920 --h 1080 --couch --safe 5 --pad --coop
 "$BIN" --snapshot snaps/tv_coop_side.png --seed 12345 --find plains --yaw 200 --pitch -4 --time 0.27 --ground --rd 8 --w 1920 --h 1080 --couch --safe 5 --pad --coop --splitside
+# Destruction physics and wrecks: collapses and wreck overgrowth through Game.tick (report snaps/collapsecheck.md), and shots.
+"$BIN" --collapsecheck --seed 12345 --out snaps
+for v in "bridge 0" "bridge 2.5" "bridge 12" "tower 2" "tower 12" "frigate 3" "frigate 40" "wreck 30"; do
+  set -- $v
+  "$BIN" --snapshot "snaps/collapse_${1}_${2}.png" --seed 12345 --time 0.3 --rd 8 --collapse "$1" --at "$2"
+done
 "$BIN" --snapshot snaps/aerial.png  --seed 12345 --yaw 200 --pitch -35 --time 0.25 --up 45 --rd 12
 "$BIN" --snapshot snaps/aerial16.png --seed 12345 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16
 "$BIN" --snapshot snaps/aerial16_fast.png --seed 12345 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16 --fast

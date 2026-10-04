@@ -259,6 +259,11 @@ final class Ship {
     var soundTimer: Float = 0
 
     // Capital ships and factions (CapitalShips.swift).
+    var debris = false               // a falling piece of a structure (Debris.swift): laid back into the world once at rest
+    var age: Float = 0               // debris: seconds since it came loose
+    var restTime: Float = 0          // debris: seconds it has been still
+    var hitCD: Float = 0             // debris: seconds until it can hurt a body again
+    var splitCheck: Float = -1       // capital hulls: seconds until the full split check a blast asked for (-1 none)
     var kinematic = false            // moved by its AI (velocity and turn rate set directly): no rigid-body forces or contacts
     var faction = 0                  // Faction raw value (0 none)
     // Guns of this ship (or turret): shell muzzle speed, gravity, blast power, reload, barrel elevation limits, scatter.
@@ -611,10 +616,19 @@ final class ShipManager {
     var capitalReady: [([Ship], CapitalState)] = []
     var capitalPending = Set<String>()
     var capState: [Int: CapitalState] = [:]
+    // Destruction (Destruction.swift, Debris.swift, Wrecks.swift).
+    var smashed: [IVec3] = []        // world blocks debris broke this frame (ShipPhysics.step)
+    var collapseMs: Double = 0       // the last support analysis (harness)
+    var collapses = 0                // analyses that set something falling
+    var bakedBlocks = 0              // blocks laid back into the world
+    var hullSplits = 0               // capital hulls cut into pieces
+    var wrecks: [WreckRecord] = []
+    var wreckTimer: Float = 0
 
     init(world: World) {
         self.world = world
         load()
+        loadWrecks()
     }
 
     var isEmpty: Bool { list.isEmpty }
@@ -963,7 +977,7 @@ final class ShipManager {
     func encode() -> Data? {
         var out: [Saved] = []
         // Capital ships aren't saved (a 5-million-cell grid per save): their region brings them back.
-        for s in list where !s.root.kinematic {
+        for s in list where !s.root.kinematic && !s.root.debris {        // debris is transient (laid down within ~40 s)
             var map: [BlockID: UInt16] = [:]
             var names: [String] = []
             var idx = [UInt16](repeating: 0, count: s.grid.blocks.count)
