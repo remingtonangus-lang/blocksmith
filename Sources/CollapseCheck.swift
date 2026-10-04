@@ -8,6 +8,7 @@ import simd
 //   tower    a hollow 5x5 tower 30 high; its base is blasted on one side: it breaks above the base and topples
 //   frigate  a Capital frigate cut through its middle by a ring of blasts: it breaks in two, both halves fall, settle
 //            and stay as wrecks
+//   dropship a dropship shot down over the plains: it falls, crashes and stays as a wreck (no vanishing fireball)
 //   wreck    a crawler disabled on the plains settles into a wreck: world blocks, salvage crates, sheltered spots;
 //            three weeks later it has rusted and overgrown
 // Oracles: the right part falls, no floating leftovers (the support analysis over the whole scene finds nothing
@@ -34,7 +35,7 @@ enum CollapseCheck {
         let out = arg("--out") ?? "snaps"
         try? FileManager.default.createDirectory(atPath: out, withIntermediateDirectories: true)
         let seed = UInt64(arg("--seed") ?? "") ?? 12345
-        let names = (arg("--scenes") ?? "bridge,tower,frigate,wreck").split(separator: ",").map(String.init)
+        let names = (arg("--scenes") ?? "bridge,tower,frigate,wreck,dropship").split(separator: ",").map(String.init)
         let r = RideCheck.Report()
         r.md = ["# Collapse check", "", "Seed \(seed). Destruction physics and persistent wrecks through Game.tick.", ""]
         let t0 = CFAbsoluteTimeGetCurrent()
@@ -49,6 +50,7 @@ enum CollapseCheck {
             guard build(n, st) else { r.check(false, "the \(n) scene could be built"); continue }
             switch n {
             case "wreck": wreckScene(r, st)
+            case "dropship": dropshipScene(r, st)
             default: collapseScene(r, st, name: n)
             }
             r.note(String(format: "scene took %.0f s", CFAbsoluteTimeGetCurrent() - ts))
@@ -134,6 +136,25 @@ enum CollapseCheck {
             let side = s.dirToWorld(V3(1, 0, 0))
             let at = s.pos + side * 45 + V3(0, -10, 0)
             st.view = (at, atan2f(side.x, side.z), -0.05)
+        case "dropship":
+            // Built in place 30 above the ground (as a frigate launches one), shot down at once (trigger).
+            let hb = Capital.dropship()
+            let ids = (0..<2).map { _ in w.ships.newId() }
+            let ships = Capital.makeShips(hb, ids: ids, name: "Stormwarden Dropship", role: "dropship", faction: .stormwarden)
+            let d = ships[0]
+            d.pos = V3(Float(o.x) + 0.5, Float(o.y + 30), Float(o.z) + 0.5)
+            d.prevPos = d.pos; d.prevRot = d.rot
+            d.home = d.pos
+            d.initialBlocks = d.blockCount
+            d.updateBounds()
+            for t in ships.dropFirst() { t.followParent(0); t.prevPos = t.pos; t.prevRot = t.rot }
+            let ds = CapitalState()
+            ds.groundOffset = d.com.y - d.localMin.y
+            ds.phase = 4
+            w.ships.installCapital((ships, ds))
+            st.ship = d
+            st.box = (IVec3(o.x - 40, o.y - 4, o.z - 40), IVec3(o.x + 40, o.y + 40, o.z + 40))
+            st.view = (V3(Float(o.x + 24), Float(o.y + 6), Float(o.z + 24)), atan2f(24, 24), 0.1)
         case "wreck":
             w.ships.spawnCapital("crawler", home: IVec3(o.x, 0, o.z), yaw: 0.4, region: nil, sync: true)
             guard let s = w.ships.capitals.first(where: { $0.role == "crawler" }), let cs = w.ships.capState[s.id] else { return false }
@@ -165,8 +186,9 @@ enum CollapseCheck {
         return true
     }
 
-    // Sets off the scene's blasts (and disables a crawler for the wreck scene).
+    // Sets off the scene's blasts (and disables a crawler for the wreck scene, shoots down the dropship).
     static func trigger(_ st: Stage) {
+        if let s = st.ship, s.role == "dropship" { s.wrecked = true }
         for (c, pw) in st.blasts { Explosion.explode(at: c, power: pw, game: st.game) }
         if let s = st.ship, s.role == "crawler", let cs = st.world.ships.capState[s.id] {
             let kinds = ShipParts.kinds
@@ -299,6 +321,30 @@ enum CollapseCheck {
         r.check(rust1 >= 60 && moss1 >= 40, "it has rusted and overgrown (\(rust1) rusted plates, \(moss1) moss and vines)")
         let enc = (try? JSONEncoder().encode(w.ships.wrecks)).flatMap { try? JSONDecoder().decode([WreckRecord].self, from: $0) }
         r.check(enc?.count == w.ships.wrecks.count, "wreck records survive a save round trip")
+    }
+
+    static func dropshipScene(_ r: RideCheck.Report, _ st: Stage) {
+        let w = st.world, g = st.game
+        let idle = RideCheck.Bot()
+        let agent = Agent(game: g, world: w)
+        for _ in 0..<60 { agent.step(idle) }
+        guard let d = st.ship else { r.check(false, "the dropship was built"); return }
+        let y0 = d.pos.y
+        trigger(st)
+        var t: Float = 0, lowest = y0
+        while t < 40 && w.ships.wrecks.isEmpty {
+            agent.step(idle)
+            t += 1.0 / 60
+            if w.ships.list.contains(where: { $0 === d }) { lowest = min(lowest, d.pos.y) }
+        }
+        r.note(String(format: "fell %.0f blocks, a wreck after %.1f s; %ld wrecks", y0 - lowest, t, w.ships.wrecks.count))
+        r.check(y0 - lowest > 20, String(format: "the shot-down dropship falls (%.0f blocks)", y0 - lowest))
+        r.check(!w.ships.list.contains(where: { $0 === d }) && w.ships.wrecks.count == 1, "it stays where it fell as a wreck (\(w.ships.wrecks.count) wrecks)")
+        if let rec = w.ships.wrecks.first {
+            var n = 0
+            for y in rec.lo[1]...rec.hi[1] { for z in rec.lo[2]...rec.hi[2] { for x in rec.lo[0]...rec.hi[0] where Collapse.built(w.rawBlock(x, y, z)) { n += 1 } } }
+            r.check(n > 150, "its hull is world blocks now (\(n) blocks)")
+        }
     }
 
     // Snapshot harness: stages the scene in the harness's game and runs it `at` seconds (0: before the blast).

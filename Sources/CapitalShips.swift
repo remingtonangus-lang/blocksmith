@@ -710,7 +710,7 @@ extension ShipManager {
         }
     }
 
-    private func installCapital(_ built: ([Ship], CapitalState)) {
+    func installCapital(_ built: ([Ship], CapitalState)) {
         let (ships, st) = built
         for s in ships {
             add(s)
