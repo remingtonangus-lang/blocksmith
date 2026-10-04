@@ -324,6 +324,7 @@ enum WorldFXTest {
             var worst = 0.0
             let dt: Float = 1.0 / 60
             for _ in 0..<Int(seconds * 60) {
+                g.time += Double(dt)                    // the swell travels with game time
                 g.stormTick(dt)
                 let t0 = CFAbsoluteTimeGetCurrent()
                 wd.ships.update(dt, game: g)
