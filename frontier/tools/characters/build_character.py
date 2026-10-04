@@ -42,6 +42,9 @@ class CharacterBuilder:
         self.Mhclo = C.mhenv.mpfb_module("entities.clothes.mhclo").Mhclo
         self.parts = []  # (kind, obj, mhclo, extra)
         self.report = {"id": spec["id"]}
+        self.extra_body_delete = None
+        self.hat_info = None
+        self.beard_mask = None
 
     # ------------------------------------------------------------------------------------------------------------
     def build(self):
@@ -60,6 +63,7 @@ class CharacterBuilder:
         self._add_bodyparts()
         self._add_clothes()
         self._face_shapes()
+        self._skin_masks()
         self._garments_procedural()
         self._remove_helpers_and_covered()
         self._rig_eyes()
@@ -138,10 +142,23 @@ class CharacterBuilder:
         if not procs:
             return
         import garments
+        # order: hats first (hair squash), beards, then body layers inner -> outer
+        procs.sort(key=lambda g: {"hat": 0, "beard": 1}.get(g["type"], 2))
         for g in procs:
             obj = garments.build(self, g)
-            if obj is not None:
-                self.parts.append(("garment", obj, None, g))
+            if obj is None:
+                continue
+            if g["type"] == "beard":
+                self.parts.append(("beard", obj, None, g))
+            else:
+                gg = dict(g)
+                if g["type"] == "hat":
+                    gg["slot"] = "hat"
+                self.parts.append(("garment", obj, None, gg))
+        if self.hat_info is not None:
+            for kind, obj, mh, extra in self.parts:
+                if kind == "hair":
+                    garments.squash_hair_under_hat(self, obj)
 
     def _remove_helpers_and_covered(self):
         bm = self.basemesh
@@ -256,8 +273,62 @@ class CharacterBuilder:
         return p
 
     # ------------------------------------------------------------------------------------------------------------
+    def _prepare_attributes(self):
+        """Every mesh gets UVMap + UV2 (metres) and a Col attribute (r occlusion, g wear, b beard/stubble mask)."""
+        import garments
+        bm = self.basemesh
+        oi = np.empty(len(bm.data.vertices), dtype=np.int32)
+        bm.data.attributes["orig_index"].data.foreach_get("value", oi)
+        mask = np.zeros(len(oi), dtype=np.float32)
+        if self.stubble_full is not None:
+            mask = self.stubble_full[oi].astype(np.float32)
+        objs = [bm] + [o for (k, o, mh, e) in self.parts]
+        for o in objs:
+            me = o.data
+            if len(me.uv_layers) == 0:
+                me.uv_layers.new(name="UVMap")
+            me.uv_layers[0].name = "UVMap"
+            if me.uv_layers.get("UV2") is None:
+                lay = me.uv_layers.new(name="UV2")
+                src = me.uv_layers[0].data
+                a = np.empty(len(src) * 2, dtype=np.float32)
+                src.foreach_get("uv", a)
+                lay.data.foreach_set("uv", a * 1.6)   # MakeHuman atlases: ~1.6 m per UV unit
+            if me.color_attributes.get("Col") is None:
+                col = me.color_attributes.new("Col", "FLOAT_COLOR", "POINT")
+                c = np.zeros((len(me.vertices), 4), dtype=np.float32)
+                c[:, 0] = 1.0
+                c[:, 3] = 1.0
+                if o is bm:
+                    c[:, 2] = mask
+                col.data.foreach_set("color", c.ravel())
+            me.color_attributes.active_color = me.color_attributes["Col"]
+
+    def _skin_masks(self):
+        """Stubble mask on the original basemesh indices (before helpers/covered vertices are deleted)."""
+        self.stubble_full = None
+        if self.spec.get("sex", "male") == "male":
+            import garments
+            if getattr(self, "_body_info", None) is None:
+                self._body_info = garments.BodyInfo(self)
+                self._body_info.eye_z = (self.joint_centers["joint-l-eye"].z + self.joint_centers["joint-r-eye"].z) / 2
+            info = self._body_info
+            m = garments.beard_region(info, "full") | garments.beard_region(info, "moustache")
+            # soften the edge: 1 inside, 0.5 on the first ring outside
+            soft = m.astype(np.float32)
+            e = info.edges
+            ring = np.zeros_like(m)
+            ring[e[m[e[:, 0]], 1]] = True
+            ring[e[m[e[:, 1]], 0]] = True
+            soft[ring & ~m] = 0.45
+            self.stubble_full = soft
+
     def _assemble(self):
         """Split the body into Head (blend shapes) and Body, then join parts into Body/Head/Hair/Hat objects."""
+        self._prepare_attributes()
+        for kind, obj, mh, extra in self.parts:
+            if kind == "teeth":
+                C.decimate(obj, 0.5 if self.hero else 0.22)
         bm = self.basemesh
         oi = np.empty(len(bm.data.vertices), dtype=np.int32)
         bm.data.attributes["orig_index"].data.foreach_get("value", oi)
@@ -309,6 +380,8 @@ class CharacterBuilder:
             if not any(m.type == "ARMATURE" for m in target.modifiers):
                 mod = target.modifiers.new("Armature", "ARMATURE")
                 mod.object = self.rig
+            if not self.hero and name in ("Body", "Hat"):
+                C.decimate(target, self.spec.get("body_decimate", 0.5 if name == "Body" else 0.6), keep_shapes=False)
             self._limit_weights(target)
             self.objects[name] = target
 
@@ -377,7 +450,8 @@ class CharacterBuilder:
             export_skins=True, export_morph=True, export_morph_normal=True, export_morph_tangent=False,
             export_animations=False, export_yup=True, export_texcoords=True, export_normals=True,
             export_tangents=False, export_materials="EXPORT", export_image_format="AUTO",
-            export_def_bones=False, export_extras=False, export_attributes=False)
+            export_def_bones=False, export_extras=False, export_attributes=False,
+            export_vertex_color="ACTIVE", export_active_vertex_color_when_no_material=True)
         tris = {}
         for name, o in self.objects.items():
             o.data.calc_loop_triangles()

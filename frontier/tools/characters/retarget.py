@@ -32,7 +32,7 @@ MAP = {
     "Spine": ("LowerBack", "Chest", "Spine"),
     "Chest": ("Spine", "UpperChest", "Spine1"),
     "UpperChest": ("Spine1", "Neck", "Neck"),
-    "Neck": ("Neck", "Head", "Head"),
+    "Neck": ("Neck", None, None),  # no rest swing: the cgspeed T-pose neck/head lean is not anatomical
     "Head": ("Head", None, None),
 }
 for S, s in (("Left", "Left"), ("Right", "Right")):
@@ -44,17 +44,17 @@ for S, s in (("Left", "Left"), ("Right", "Right")):
         S + "UpperLeg": (s + "UpLeg", S + "LowerLeg", s + "Leg"),
         S + "LowerLeg": (s + "Leg", S + "Foot", s + "Foot"),
         S + "Foot": (s + "Foot", S + "Toes", s + "ToeBase"),
-        S + "Toes": (s + "ToeBase", None, None),
+        S + "Toes": (s + "ToeBase", "TAIL", "END"),
     })
 
 # name, file, start s, end s, loop, kind, extra
 # kind: loco (root motion straightened, loop), idle (loop, root fixed), action (trimmed, root motion kept),
 #       reverse (played backwards, e.g. get-up -> collapse)
 CLIPS = [
-    ("idle", "140_07", 0.5, 9.5, True, "idle", {}),
-    ("idle_2", "111_28", 1.0, 13.0, True, "idle", {}),
+    ("idle", "111_28", 1.0, 13.0, True, "idle", {}),
     ("idle_shift", "139_02", 0.5, 7.0, True, "idle", {}),
     ("idle_wait", "40_10", 0.5, 6.0, True, "idle", {}),
+    ("idle_crouch", "140_07", 0.5, 9.5, True, "idle", {}),
     ("walk", "82_11", 2.4, 5.4, True, "loco", {}),
     ("walk_brisk", "104_19", 1.8, 5.2, True, "loco", {}),
     ("walk_relaxed", "91_29", 3.0, 7.5, True, "loco", {}),
@@ -205,22 +205,31 @@ class Retargeter:
         self.rest = {b.name: np.array(b.matrix_local) for b in bones}
         self.parent = {b.name: (b.parent.name if b.parent else None) for b in bones}
         self.head = {b.name: np.array(b.head_local) for b in bones}
+        self.tail = {b.name: np.array(b.tail_local) for b in bones}
         # leg length (hip joint to ankle) for hips scaling
         self.leg = (np.linalg.norm(self.head["LeftUpperLeg"] - self.head["LeftLowerLeg"]) +
                     np.linalg.norm(self.head["LeftLowerLeg"] - self.head["LeftFoot"]))
         self.hips_h = self.head["Hips"][2]
 
-    def reference(self, Rs0, Ps0, jidx):
-        """Per-bone reference world rotations: rest pose swung to the source frame-0 directions."""
+    def reference(self, Rs0, Ps0, jidx, ends0=None):
+        """Per-bone reference world rotations: rest pose swung to the source frame-0 directions.
+        ("TAIL", "END") aligns a bone's own head->tail with the BVH joint's end site (head, toes)."""
         A = {}
         Tref = {}
         for b in self.order:
             p = self.parent[b]
             acc = A[p] if p is not None else np.eye(3)
             m = MAP.get(b)
-            if m and m[1] and m[2] in jidx and m[1] in self.head:
+            ok = False
+            if m and m[1] == "TAIL" and ends0 is not None and m[0] in ends0:
+                dt = acc @ (self.tail[b] - self.head[b])
+                ds = ends0[m[0]] - Ps0[jidx[m[0]]]
+                ok = True
+            elif m and m[1] and m[2] in jidx and m[1] in self.head:
                 dt = acc @ (self.head[m[1]] - self.head[b])
                 ds = Ps0[jidx[m[2]]] - Ps0[jidx[m[0]]]
+                ok = True
+            if ok:
                 if np.linalg.norm(ds) > 1e-6 and np.linalg.norm(dt) > 1e-6:
                     acc = swing(dt, ds) @ acc
             A[b] = acc
@@ -234,7 +243,7 @@ class Retargeter:
         Rb = np.einsum("ij,fkjl,ml->fkim", AX, R, AX)
         Pb = np.einsum("ij,fkj->fki", AX, P)
         Eb = {k: np.einsum("ij,fj->fi", AX, v) for k, v in ends.items()}
-        Tref = self.reference(Rb[0], Pb[0], jidx)
+        Tref = self.reference(Rb[0], Pb[0], jidx, {k: v[0] for k, v in Eb.items()})
         # source leg length from the T-pose frame
         sl = (np.linalg.norm(Pb[0, jidx["LeftUpLeg"]] - Pb[0, jidx["LeftLeg"]]) +
               np.linalg.norm(Pb[0, jidx["LeftLeg"]] - Pb[0, jidx["LeftFoot"]]))
@@ -289,7 +298,7 @@ class Retargeter:
         # --- loop extraction
         loop_range = None
         if loop:
-            loop_range = self._find_loop(W, hips, root_xy, extra.get("cycle", (0.8, 1.8) if kind == "loco" else (2.0, 9.0)), n)
+            loop_range = self._find_loop(W, hips, root_xy, extra.get("cycle", (0.8, 1.8) if kind == "loco" else (4.0, 10.0)), n)
         return dict(W=W, hips=hips, root_xy=root_xy, root_yaw=root_yaw, n=n, loop=loop_range, kind=kind)
 
     def _find_loop(self, W, hips, root_xy, cycle, n):

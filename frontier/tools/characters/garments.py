@@ -89,6 +89,7 @@ class BodyInfo:
         crotch = self.body & (np.abs(self.co[:, 0]) < 0.02) & (self.co[:, 2] < self.hip_z + 0.05)
         self.crotch_z = self.co[crotch, 2].max() if crotch.any() else self.hip_z - 0.08
         self.navel_z = self.hip_z + 0.13 * (self.top_z / 1.75)
+        self.occ = np.zeros(self.n)          # outward thickness already used by inner garment layers (m)
         self.arm_p = np.full(self.n, -1.0)
         self.leg_p = np.full(self.n, -1.0)
         for s in ("l", "r"):
@@ -97,6 +98,21 @@ class BodyInfo:
             self.arm_p = np.where(side, a, self.arm_p)
             lp = self._chain_param([j["thigh_" + s], j["calf_" + s], j["foot_" + s]])
             self.leg_p = np.where(side, lp, self.leg_p)
+        # face landmarks: mouth line from the teeth helpers, nose tip = front-most midline vertex above it
+        ut = C.group_vertex_mask(bm, "helper-upper-teeth")
+        lt = C.group_vertex_mask(bm, "helper-lower-teeth")
+        self.mouth_z = float((self.co[ut, 2].min() + self.co[lt, 2].max()) / 2) if ut.any() and lt.any() else self.head[2]
+        self.mouth_y = float(self.co[ut, 1].min()) if ut.any() else self.head[1] - 0.08
+        mid = self.body & (np.abs(self.co[:, 0]) < 0.006) & (self.co[:, 2] > self.mouth_z + 0.01) & \
+            (self.co[:, 2] < self.mouth_z + 0.07) & (self.co[:, 1] < self.head[1])
+        if mid.any():
+            k = np.argmin(np.where(mid, self.co[:, 1], 9))
+            self.nose_tip = self.co[k].copy()
+        else:
+            self.nose_tip = np.array([0, self.mouth_y - 0.02, self.mouth_z + 0.035])
+        chin = self.body & (np.abs(self.co[:, 0]) < 0.01) & (self.co[:, 2] < self.mouth_z) & \
+            (self.co[:, 2] > self.mouth_z - 0.09) & (self.co[:, 1] < self.mouth_y + 0.03)
+        self.chin_z = float(self.co[chin, 2].min()) if chin.any() else self.mouth_z - 0.06
         me = bm.data
         e = np.empty(len(me.edges) * 2, dtype=np.int32)
         me.edges.foreach_get("vertices", e)
@@ -309,61 +325,151 @@ def _mark_covered(builder, info, vmask, rings=2):
 # ------------------------------------------------------------------------------------------------------------------
 # body-derived shells
 def _region(info, g):
+    """-> (vertex mask, cuts). Cuts describe the garment edges so boundary vertices can be snapped onto clean
+    hem lines: ("z", z0) horizontal hem, ("arm", p) sleeve end at arm parameter p, ("leg", p) trouser/boot edge,
+    ("vneck", vbot, vtop, half_top) V neckline, ("front", gap_fn) coat opening."""
     t = g["type"]
     z = info.co[:, 2]
     torso = info.dom_in(("pelvis", "spine_", "clavicle_")) & (z > info.hip_z - 0.12)
     arms = info.dom_in(("upperarm_", "lowerarm_", "clavicle_"))
-    neck = info.dom_in(("neck_",)) & (z < info.neck[2] + g.get("collar", 0.03))
+    collar_z = info.neck[2] + g.get("collar", 0.03)
+    neck = info.dom_in(("neck_",)) & (z < collar_z)
     legs = info.dom_in(("thigh_", "calf_", "pelvis"))
+    cuts = []
     if t in ("shirt", "bodice"):
         sleeve = g.get("sleeve", 1.96)
-        r = (torso & (z > info.hip_z - (0.06 if t == "shirt" else 0.0))) | (arms & (info.arm_p <= sleeve)) | neck
-        r &= z < info.neck[2] + g.get("collar", 0.03)
-        if t == "bodice":
-            r &= z > info.navel_z - 0.06
-        return r
+        bottom = info.hip_z - 0.06 if t == "shirt" else info.navel_z - 0.1
+        r = (torso & (z > bottom)) | (arms & (info.arm_p <= sleeve)) | neck
+        r &= z < collar_z
+        r &= ~info.dom_in(("hand_", "head"))
+        cuts = [("z", bottom), ("z", collar_z), ("arm", sleeve)]
+        return r, cuts
     if t == "vest":
-        r = torso & (z > info.navel_z - 0.08) & (z < info.shoulder_z + 0.05)
+        bottom = info.navel_z - 0.08
+        top = info.shoulder_z + 0.05
+        r = torso & (z > bottom) & (z < top)
         r &= ~(arms & (info.arm_p > 0.05))
         r &= ~info.dom_in(("upperarm_",))
-        # V neckline
-        front = info.co[:, 1] < info.pelvis[1] - 0.0
+        front = info.co[:, 1] < info.pelvis[1]
         vtop = info.shoulder_z - 0.02
-        vbot = info.shoulder_z - g.get("v_depth", 0.2)
-        half = np.clip((z - vbot) / max(vtop - vbot, 1e-3), 0, 1) * 0.085
+        vbot = info.shoulder_z - g.get("v_depth", 0.12)
+        half_top = g.get("v_width", 0.05)
+        half = np.clip((z - vbot) / max(vtop - vbot, 1e-3), 0, 1) * half_top
         r &= ~(front & (z > vbot) & (np.abs(info.co[:, 0]) < half))
-        return r
+        cuts = [("z", bottom), ("z", top), ("vneck", vbot, vtop, half_top)]
+        return r, cuts
     if t == "trousers":
         hem = g.get("hem", 1.97)
-        r = (legs | info.dom_in(("spine_01",))) & (z < info.navel_z) & (info.leg_p <= hem)
+        top = info.navel_z
+        r = (legs | info.dom_in(("spine_01",))) & (z < top) & (info.leg_p <= hem)
         r &= ~info.dom_in(("foot_", "ball_"))
-        return r
+        return r, [("z", top), ("leg", hem)]
     if t == "boots":
         top = g.get("top", 1.45)
         r = info.dom_in(("foot_", "ball_", "calf_")) & (info.leg_p >= top)
-        return r
+        return r, [("leg", top)]
     if t == "coat":
         hem_z = info.crotch_z - g.get("below_crotch", 0.04)
         sleeve = g.get("sleeve", 1.93)
         r = (info.dom_in(("pelvis", "spine_", "clavicle_", "thigh_")) & (z > hem_z)) | (arms & (info.arm_p <= sleeve))
         r |= info.dom_in(("neck_",)) & (z < info.neck[2] - 0.005)
         r &= z < info.neck[2] + 0.01
+        r &= ~info.dom_in(("hand_", "head"))
+        cuts = [("z", hem_z), ("arm", sleeve)]
         if g.get("open", True):
             front = info.co[:, 1] < info.pelvis[1]
             gap = np.clip((info.shoulder_z - 0.12 - z) / 0.5, 0, 1) * 0.07 + 0.012
             r &= ~(front & (np.abs(info.co[:, 0]) < gap) & (z < info.shoulder_z - 0.1))
-        return r
+            cuts.append(("front", info.shoulder_z))
+        return r, cuts
     raise ValueError(t)
 
 
+def _snap_boundary(obj, src, info, cuts, co):
+    """Move boundary vertices (body positions, before the offset) onto the nearest cut line -> clean hems."""
+    bnd = _boundary_verts(obj)
+    idx = np.nonzero(bnd)[0]
+    if not len(idx) or not cuts:
+        return co
+    p = co[idx].copy()
+    s = src[idx]
+    best = np.full(len(idx), 1e9)
+    newp = p.copy()
+    j = info.j
+    for c in cuts:
+        if c[0] == "z":
+            d = np.abs(p[:, 2] - c[1])
+            q = p.copy()
+            q[:, 2] = c[1]
+        elif c[0] in ("arm", "leg"):
+            par = info.arm_p[s] if c[0] == "arm" else info.leg_p[s]
+            q = p.copy()
+            d = np.full(len(idx), 1e9)
+            for side in ("l", "r"):
+                names = ["upperarm_", "lowerarm_", "hand_"] if c[0] == "arm" else ["thigh_", "calf_", "foot_"]
+                pts = [j[n + side] for n in names]
+                k = min(int(c[1]), 1)
+                axis = pts[k + 1] - pts[k]
+                sel = (p[:, 0] > 0) if side == "l" else (p[:, 0] <= 0)
+                dd = np.abs(par - c[1]) * np.linalg.norm(axis)
+                q[sel] = p[sel] + axis * (c[1] - par[sel])[:, None]
+                d = np.where(sel, dd, d)
+        elif c[0] == "vneck":
+            vbot, vtop, half_top = c[1], c[2], c[3]
+            half = np.clip((p[:, 2] - vbot) / max(vtop - vbot, 1e-3), 0, 1) * half_top
+            front = p[:, 1] < info.pelvis[1]
+            d = np.where(front & (p[:, 2] > vbot - 0.01) & (p[:, 2] < vtop + 0.03), np.abs(np.abs(p[:, 0]) - half), 1e9)
+            q = p.copy()
+            q[:, 0] = np.sign(p[:, 0]) * half
+        else:
+            continue
+        m = (d < best) & (d < 0.035)
+        best = np.where(m, d, best)
+        newp[m] = q[m]
+    co = co.copy()
+    co[idx] = newp
+    return co
+
+
+def _clean_islands(obj, min_faces=40):
+    b = bmesh.new()
+    b.from_mesh(obj.data)
+    b.faces.ensure_lookup_table()
+    seen = set()
+    dead = []
+    for f in b.faces:
+        if f.index in seen:
+            continue
+        stack = [f]
+        comp = []
+        seen.add(f.index)
+        while stack:
+            x = stack.pop()
+            comp.append(x)
+            for e in x.edges:
+                for y in e.link_faces:
+                    if y.index not in seen:
+                        seen.add(y.index)
+                        stack.append(y)
+        if len(comp) < min_faces:
+            dead.extend(comp)
+    if dead:
+        bmesh.ops.delete(b, geom=dead, context="FACES")
+        bmesh.ops.delete(b, geom=[v for v in b.verts if not v.link_faces], context="VERTS")
+        b.to_mesh(obj.data)
+        obj.data.update()
+    b.free()
+
+
 def body_shell(builder, info, g):
-    vmask = _region(info, g)
+    vmask, cuts = _region(info, g)
     obj = _shell_from_region(builder, info, vmask, g["id"])
+    _clean_islands(obj, g.get("min_island", 60))
     if len(obj.data.vertices) == 0:
         bpy.data.objects.remove(obj)
         return None
     src = _src_index(obj)
-    co = C.get_co(obj)
+    co = _snap_boundary(obj, src, info, cuts, C.get_co(obj))
     nrm = info.nrm[src]
     edges = _neighbors(obj)
     off = g.get("offset", 0.006)
@@ -383,10 +489,25 @@ def body_shell(builder, info, g):
     bnd = _boundary_verts(obj)
     # drape: smooth (fills creases between muscles, keeps hems in place a bit)
     co = _laplacian(co, edges, g.get("smooth", 4), 0.35)
+
     # keep outside the body: re-push along body normal if smoothing moved a vertex inward
     body_pos = info.co[src]
     inward = ((co - body_pos) * nrm).sum(axis=1)
-    co = co + nrm * np.clip(off * 0.7 - inward, 0, None)[:, None]
+    if t != "boots":
+        co = co + nrm * np.clip(off * 0.7 - inward, 0, None)[:, None]
+    if g.get("smooth_chest"):
+        # period bodice over a corset: the bust becomes one smooth shape (no anatomy showing through). Smooth after
+        # the keep-outside push and only re-push to a small clearance, so concavities stay bridged.
+        zz = info.co[src, 2]
+        chest = (zz > info.navel_z - 0.04) & (zz < info.shoulder_z + 0.0) & (info.arm_p[src] < 0.3) & \
+            (info.co[src, 1] < info.pelvis[1] + 0.02)
+        w = np.clip((zz - (info.navel_z - 0.04)) / 0.06, 0, 1) * np.clip((info.shoulder_z - zz) / 0.06, 0, 1)
+        sm = _laplacian(co, edges, 40, 0.5, fixed=~chest)
+        co = co * (1 - w[:, None] * chest[:, None]) + sm * (w[:, None] * chest[:, None])
+        inward = ((co - body_pos) * nrm).sum(axis=1)
+        co = co + nrm * np.clip(0.002 - inward, 0, None)[:, None]
+    if t == "boots":
+        co = _boot_shape(co, src, info, edges, off)
     # folds near joints and at the bottom of trousers / sleeves
     seed = g.get("seed", 0)
     fold = np.zeros(len(co))
@@ -407,6 +528,13 @@ def body_shell(builder, info, g):
     if t == "boots":
         fold += 0.002 * np.exp(-((lp - 1.95) / 0.08) ** 2) * np.sin(z * 260)
     co = co + nrm * fold[:, None]
+    # layering: stay at least `gap` outside every inner garment over the same body vertex, then record our layer
+    gap = g.get("gap", 0.003)
+    inward = ((co - body_pos) * nrm).sum(axis=1)
+    need = info.occ[src] + gap
+    co = co + nrm * np.clip(need - inward, 0, None)[:, None]
+    inward = ((co - body_pos) * nrm).sum(axis=1)
+    np.maximum.at(info.occ, src, inward + 0.0015)
     C.set_co(obj, co)
     if t == "boots":
         _boot_sole(obj, info)
@@ -425,6 +553,43 @@ def body_shell(builder, info, g):
     else:
         _mark_covered(builder, info, vmask & ~info.dom_in(("calf_",)), rings=1)
     return _finish(builder, obj, g, occl, wear, rim=g.get("rim", 0.004))
+
+
+def _boot_shape(co, src, info, edges, off):
+    """Boots: heavy smoothing (no toes), shaft made a clean tube around the calf axis."""
+    lp = info.leg_p[src]
+    body_pos = info.co[src]
+    nrm = info.nrm[src]
+    co = co + nrm * 0.006
+    for _ in range(10):   # Taubin smoothing: removes the toes without shrinking the boot
+        co = _laplacian(co, edges, 1, 0.55)
+        co = _laplacian(co, edges, 1, -0.58)
+    co = _laplacian(co, edges, 6, 0.5)
+    inward = ((co - body_pos) * nrm).sum(axis=1)
+    co = co + nrm * np.clip(0.003 - inward, 0, None)[:, None]
+    for s_, sx in (("l", 1), ("r", -1)):
+        a, b = info.j["calf_" + s_], info.j["foot_" + s_]
+        axis = b - a
+        L = np.linalg.norm(axis)
+        side = (co[:, 0] * sx > 0) & (lp < 1.88)
+        if not side.any():
+            continue
+        t = np.clip((lp[side] - 1.0), 0, 1)
+        centre = a + t[:, None] * axis
+        rel = co[side] - centre
+        rel -= (rel @ (axis / L))[:, None] * (axis / L)
+        r = np.linalg.norm(rel, axis=1)
+        bins = np.round(t * 20).astype(int)
+        rt = r.copy()
+        for bi in np.unique(bins):
+            m = bins == bi
+            rt[m] = r[m].max() + 0.003
+        # boots widen slightly toward the top (stovepipe)
+        rt += np.clip((1.75 - lp[side]) / 0.3, 0, 1) * 0.01
+        new = centre + rel / np.maximum(r, 1e-6)[:, None] * rt[:, None] + \
+            ((co[side] - centre) @ (axis / L))[:, None] * (axis / L)
+        co[side] = co[side] * 0.25 + new * 0.75
+    return co
 
 
 def _boot_sole(obj, info):
@@ -459,7 +624,7 @@ def _boot_sole(obj, info):
 def tube(builder, info, g):
     t = g["type"]
     seed = g.get("seed", 0)
-    z_top = {"skirt": info.navel_z - 0.03, "tails": info.crotch_z + 0.1, "apron": info.navel_z - 0.02}[t]
+    z_top = {"skirt": info.navel_z + 0.025, "tails": info.crotch_z + 0.1, "apron": info.navel_z + 0.02}[t]
     if t == "skirt":
         z_bot = info.ankle_z - g.get("below_ankle", 0.02) - 0.06
     elif t == "tails":
@@ -593,8 +758,8 @@ def tube(builder, info, g):
 HAT_PROFILES = {
     # (r_rel, h) pairs from the brim edge in to the crown top; r_rel: 0 = band, >0 brim (metres outside the band),
     # <0 crown narrowing (metres inside the band). h: metres above the band line.
-    "cattleman": dict(brim=0.085, crown_h=0.125, taper=0.012, curl=0.022, crease=0.025, pinch=0.012),
-    "plainsman": dict(brim=0.09, crown_h=0.135, taper=0.008, curl=0.008, crease=0.0, pinch=0.0, round_top=0.01),
+    "cattleman": dict(brim=0.08, crown_h=0.095, taper=0.016, curl=0.024, crease=0.016, pinch=0.012),
+    "plainsman": dict(brim=0.085, crown_h=0.1, taper=0.01, curl=0.008, crease=0.0, pinch=0.0, round_top=0.008),
     "bowler": dict(brim=0.045, crown_h=0.11, taper=-0.004, curl=0.018, crease=0.0, pinch=0.0, dome=True),
     "flatcap": dict(brim=0.0, crown_h=0.055, taper=-0.01, curl=0.0, crease=0.0, pinch=0.0, cap=True),
     "boater": dict(brim=0.075, crown_h=0.075, taper=0.0, curl=0.0, crease=0.0, pinch=0.0),
@@ -753,35 +918,34 @@ def squash_hair_under_hat(builder, hair_obj):
 # beards / moustaches: alpha shells over the beard region; follow the face blend shapes
 def beard_region(info, style):
     co = info.co
+    x, y, z = co[:, 0], co[:, 1], co[:, 2]
     head_m = info.body & info.dom_in(("head", "neck_"))
+    mz, my = info.mouth_z, info.mouth_y
+    nose = info.nose_tip
+    sub_z = nose[2] - 0.014          # under the nose
+    chin_z = info.chin_z
     hj = info.head
-    z = co[:, 2]
-    y = co[:, 1]
-    x = co[:, 0]
-    # face landmarks from the head joint: the mouth is ~ 0.07 m below the eyes; approximate with ratios
-    eye_z = (builder_eye_z := getattr(info, "eye_z", hj[2] + 0.09))
-    nose_z = eye_z - 0.045
-    mouth_z = eye_z - 0.075
-    chin_z = eye_z - 0.125
-    front = y < hj[1] - 0.02
+    front = y < hj[1] - 0.015
+    # lips: an ellipse around the mouth line (kept bare)
+    lips = front & (((x / 0.027) ** 2 + ((z - mz) / 0.0105) ** 2) < 1.0)
     if style == "moustache":
-        r = head_m & front & (z < nose_z - 0.003) & (z > mouth_z - 0.002) & (np.abs(x) < 0.03 + (nose_z - z) * 0.4)
-        return r
-    lips = (np.abs(x) < 0.03) & (z < mouth_z + 0.01) & (z > mouth_z - 0.015) & front
-    cheek_top = nose_z - 0.005 + np.abs(x) * 0.25
-    r = head_m & (z < cheek_top) & (z > chin_z - 0.06) & (y < hj[1] + 0.035) & ~lips
-    if style == "chin":   # goatee / chin beard
-        r &= np.abs(x) < 0.035
-    if style == "mutton":  # mutton chops: sides only, no chin
-        r &= (np.abs(x) > 0.035) & (z > mouth_z - 0.02)
-    r &= ~((z < chin_z - 0.02) & (y > hj[1] - 0.01))  # not on the neck back
+        w = 0.026 + np.clip(sub_z - z, 0, 0.03) * 0.5
+        return head_m & front & (z < sub_z) & (z > mz + 0.004) & (np.abs(x) < w) & ~lips
+    cheek_top = sub_z + 0.004 + np.abs(x) * 0.35
+    low = {"full": 0.045, "short": 0.018}.get(style, 0.03)
+    r = head_m & (z < cheek_top) & (z > chin_z - low) & (y < hj[1] + 0.03) & ~lips
+    r &= ~((z < chin_z - 0.015) & (y > hj[1] - 0.025))      # throat / neck back stays clean
+    if style == "chin":
+        r &= (np.abs(x) < 0.03) & (z < mz - 0.006)
+    if style == "mutton":
+        r &= (np.abs(x) > 0.032) & (z > mz - 0.025)
     return r
 
 
 def beard(builder, info, g):
     style = g.get("style", "full")
     regs = []
-    r = beard_region(info, "full" if style in ("full", "short") else style)
+    r = beard_region(info, style)
     if style in ("full", "short", "chin", "mutton"):
         regs.append(r)
     if g.get("moustache", True) or style == "moustache":
@@ -793,7 +957,8 @@ def beard(builder, info, g):
         return None
     length = g.get("length", 0.012)
     layers = []
-    for li, frac in enumerate((0.3, 0.65, 1.0)):
+    layer_alpha = (1.0, 0.72, 0.5)
+    for li, frac in enumerate((0.25, 0.6, 1.0)):
         obj = _shell_from_region(builder, info, vmask, "%s_%d" % (g["id"], li))
         # keep the face blend shapes: re-copy them from the basemesh (shell_from_region cleared them)
         src = _src_index(obj)
@@ -811,6 +976,10 @@ def beard(builder, info, g):
                 continue
             kco = C.get_co(builder.basemesh, kb)
             C.add_shape(obj, kb.name, kco[src] + offv)
+        col = obj.data.color_attributes.new("Col", "FLOAT_COLOR", "POINT")
+        cc = np.ones((len(obj.data.vertices), 4), dtype=np.float32)
+        cc[:, 3] = layer_alpha[li]
+        col.data.foreach_set("color", cc.ravel())
         layers.append(obj)
     bpy.ops.object.select_all(action="DESELECT")
     for o in layers:
@@ -829,28 +998,41 @@ def beard(builder, info, g):
     if "src_index" in me.attributes:
         me.attributes.remove(me.attributes["src_index"])
     me.uv_layers[0].name = "UVMap"
+    # tile the strand texture every ~4 cm (body atlas: ~1.6 m per UV unit)
+    uvl = me.uv_layers[0].data
+    a = np.empty(len(uvl) * 2, dtype=np.float32)
+    uvl.foreach_get("uv", a)
+    uvl.foreach_set("uv", a * (1.6 / 0.04))
     builder.beard_mask = vmask
     return obj
 
 
 def beard_texture(density):
-    """Procedural hair-strand alpha texture (original), cached on disk."""
-    from PIL import Image, ImageDraw
-    path = os.path.join(C.cache_dir(), "beard_strands_%d.png" % int(density * 100))
+    """Procedural hair-strand texture (original): grey-scale strands whose alpha falls off along each strand, dense
+    enough that the inner shell reads as a solid mass and the outer shells as a fuzzy edge. Cached on disk."""
+    from PIL import Image, ImageDraw, ImageFilter
+    path = os.path.join(C.cache_dir(), "beard_strands_v3_%d.png" % int(density * 100))
     if os.path.exists(path):
         return path
     rng = np.random.default_rng(1899)
     S = 512
-    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    n = int(9000 * density)
+    alpha = Image.new("L", (S, S), 0)
+    lum = Image.new("L", (S, S), 0)
+    da = ImageDraw.Draw(alpha)
+    dl = ImageDraw.Draw(lum)
+    n = int(5200 * density)
     for _ in range(n):
         x, y = rng.uniform(0, S, 2)
-        L = rng.uniform(8, 26)
-        a = rng.normal(math.pi / 2, 0.45)
-        c = int(rng.uniform(40, 110))
-        d.line([(x, y), (x + math.cos(a) * L, y + math.sin(a) * L)], fill=(c, int(c * 0.8), int(c * 0.65), 255),
-               width=1)
+        L = rng.uniform(40, 110)
+        a = rng.normal(math.pi / 2, 0.35)
+        v = int(rng.uniform(150, 255))
+        for ox in (-S, 0, S):           # wrap so the texture tiles
+            for oy in (-S, 0, S):
+                pts = [(x + ox, y + oy), (x + ox + math.cos(a) * L, y + oy + math.sin(a) * L)]
+                da.line(pts, fill=v, width=3)
+                dl.line(pts, fill=int(rng.uniform(170, 255)), width=2)
+    alpha = alpha.filter(ImageFilter.GaussianBlur(0.6))
+    img = Image.merge("RGBA", (lum, lum, lum, alpha))
     img.save(path)
     return path
 
@@ -858,7 +1040,8 @@ def beard_texture(density):
 # ------------------------------------------------------------------------------------------------------------------
 def belt(builder, info, g):
     """Leather gun belt (band slung on the hips) + holster block on the right thigh."""
-    z = info.hip_z + g.get("height", 0.02)
+    gun = g.get("style", "waist") == "gun"
+    z = (info.hip_z + 0.02) if gun else (info.navel_z + g.get("dz", -0.012))
     body = info.body & (np.abs(info.co[:, 2] - z) < 0.03) & info.dom_in(("pelvis", "spine_01", "thigh_"))
     bco = info.co[body]
     cx, cy = 0.0, bco[:, 1].mean()
@@ -870,8 +1053,8 @@ def belt(builder, info, g):
     for k, t in enumerate(th):
         sel = np.abs((ang - t + math.pi) % (2 * math.pi) - math.pi) < 0.3
         r[k] = rad[sel].max() if sel.any() else rad.mean()
-    r += g.get("offset", 0.022)
-    tilt = 0.035 * np.cos(th - math.radians(-30))  # slung lower on the gun side
+    r += g.get("offset", 0.026 if gun else 0.014)
+    tilt = (0.035 * np.cos(th - math.radians(-30))) if gun else np.zeros(K)  # gun belt slung low on the right
     h = g.get("width", 0.05)
     V = []
     for dz in (-h / 2, h / 2):

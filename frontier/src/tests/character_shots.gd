@@ -86,6 +86,7 @@ func _spawn_all() -> Array:
 	for c in chars:
 		add_child(c)
 		c.position = Vector3(x, 0, 0)
+		c.rotation_degrees.y = float(Game.args.get('turn', 0.0))
 		x += 0.9
 	return chars
 
@@ -112,26 +113,36 @@ func _lineup(chars: Array, file: String, anim: String, t: float) -> void:
 	var aspect := float(get_viewport().get_visible_rect().size.x) / get_viewport().get_visible_rect().size.y
 	var dist := maxf(2.1 / (2.0 * tan(vfov * 0.5)), (w * 0.55) / (aspect * tan(vfov * 0.5))) + 0.6
 	var yaw := deg_to_rad(float(Game.args.get("yaw", 0.0)))
-	cam.position = Vector3(sin(yaw) * dist, 1.0, cos(yaw) * dist)
-	cam.look_at(Vector3(0, 0.92, 0))
+	dist *= float(Game.args.get('zoom', 1.0))
+	var look_y := float(Game.args.get('look_y', 0.92))
+	cam.position = Vector3(sin(yaw) * dist, float(Game.args.get('cam_y', 1.0)), cos(yaw) * dist)
+	cam.look_at(Vector3(0, look_y, 0))
 	await _render(file)
 
 func _faces(chars: Array) -> void:
 	var cam := _camera()
 	cam.fov = 22.0
 	var exprs := ["", "smile", "AA", "brow_raise"]
+	for c in chars:
+		c.visible = false
 	for i in chars.size():
 		var c = chars[i]
-		_pose_all([c], "idle", 0.1)
+		c.visible = true
+		c.auto_blink = false
+		_pose_all([c], str(Game.args.get("pose", "idle")), 0.1)
+		await get_tree().process_frame
+		await get_tree().process_frame
 		var head: Vector3 = c.head_position()
 		for k in exprs.size():
 			c.clear_face()
 			if exprs[k] != "":
 				c.set_expression(exprs[k], 1.0)
 			c.look_at_point(cam.global_position if k != 3 else head + Vector3(0.6, 0.3, 1.0))
-			cam.position = head + Vector3(0.35, 0.04, 1.05)
-			cam.look_at(head + Vector3(0, -0.02, 0))
+			c.set_face_immediate()
+			cam.position = head + Vector3(0.28, 0.03, 0.95)
+			cam.look_at(head + Vector3(0, -0.035, 0))
 			await _render("face_%02d_%d.png" % [i, k])
+		c.visible = false
 
 func _camera() -> Camera3D:
 	var cam := get_viewport().get_camera_3d()

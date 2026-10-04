@@ -1,17 +1,19 @@
 name: frontier-assets
 # Frontier (claude/frontier-game): fetches CC0 assets on a GitHub-hosted Linux runner (cloud sessions can't reach the
 # asset hosts) and publishes them to the rolling release `frontier-assets`:
-#   catalog.zip  ambientCG / Poly Haven catalogues + contact sheets (for picking assets by eye)
-#   ext.zip      processed assets from frontier/assets/manifest.json (+ LICENSES.json)
+#   catalog.zip     ambientCG / Poly Haven catalogues + contact sheets (for picking assets by eye)
+#   ext.zip         processed assets from frontier/assets/manifest.json (+ LICENSES.json)
+#   characters.zip  generated humans + animation library (frontier/tools/characters, unzips to characters/)
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'catalog | fetch | both'
+        description: 'catalog | fetch | both | characters | all'
         default: 'fetch'
   push:
     branches: ['claude/frontier-game']
-    paths: ['frontier/assets/manifest.json', 'frontier/tools/assets_ci.py', '.github/workflows/frontier-assets.yml']
+    paths: ['frontier/assets/manifest.json', 'frontier/tools/assets_ci.py', '.github/workflows/frontier-assets.yml',
+            'frontier/tools/characters/**']
 
 permissions:
   contents: write
@@ -21,7 +23,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      assets: ${{ steps.c.outputs.assets }}
+      characters: ${{ steps.c.outputs.characters }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - id: c
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            m="${{ inputs.mode }}"
+            [[ "$m" =~ ^(catalog|fetch|both|all)$ ]] && echo "assets=true" >> "$GITHUB_OUTPUT" || echo "assets=false" >> "$GITHUB_OUTPUT"
+            [[ "$m" =~ ^(characters|all)$ ]] && echo "characters=true" >> "$GITHUB_OUTPUT" || echo "characters=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(git diff --name-only "${{ github.event.before }}" HEAD 2>/dev/null || git diff --name-only HEAD^ HEAD || true)
+          echo "$files"
+          echo "$files" | grep -qE '^(frontier/assets/manifest.json|frontier/tools/assets_ci.py|.github/workflows/frontier-assets.yml)$' \
+            && echo "assets=true" >> "$GITHUB_OUTPUT" || echo "assets=false" >> "$GITHUB_OUTPUT"
+          echo "$files" | grep -qE '^(frontier/tools/characters/|.github/workflows/frontier-assets.yml)' \
+            && echo "characters=true" >> "$GITHUB_OUTPUT" || echo "characters=false" >> "$GITHUB_OUTPUT"
+
   assets:
+    needs: changes
+    if: needs.changes.outputs.assets == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -29,12 +57,12 @@ jobs:
       - name: Python deps
         run: pip install -q pillow numpy
       - name: Catalog
-        if: github.event_name == 'push' || inputs.mode == 'catalog' || inputs.mode == 'both'
+        if: github.event_name == 'push' || inputs.mode == 'catalog' || inputs.mode == 'both' || inputs.mode == 'all'
         run: |
           python3 frontier/tools/assets_ci.py catalog out
           (cd out && zip -qr ../catalog.zip catalog)
       - name: Fetch
-        if: github.event_name == 'push' || inputs.mode == 'fetch' || inputs.mode == 'both'
+        if: github.event_name == 'push' || inputs.mode == 'fetch' || inputs.mode == 'both' || inputs.mode == 'all'
         run: |
           python3 frontier/tools/assets_ci.py fetch out 2>&1 | tee fetch.log
           (cd out && zip -qr ../ext.zip ext)
@@ -46,4 +74,36 @@ jobs:
             gh release create frontier-assets --prerelease --target "$GITHUB_SHA" --title "Frontier assets (CC0)" \
               --notes "Processed CC0 assets for the Frontier game (claude/frontier-game). Licences in ext.zip/ext/LICENSES.json."
           for f in catalog.zip ext.zip fetch.log; do [ -s "$f" ] && gh release upload frontier-assets "$f" --clobber; done
+          echo "published"
+
+  characters:
+    needs: changes
+    if: needs.changes.outputs.characters == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Blender as a Python module
+        run: |
+          python -m venv frontier/build/charvenv
+          frontier/build/charvenv/bin/pip install -q "bpy==5.0.1" "numpy<2" pillow
+      - name: Sources (MPFB2, MakeHuman CC0 system assets, extra targets, CMU BVH)
+        run: bash frontier/tools/characters/fetch_sources.sh
+      - name: Generate characters + animation library
+        run: |
+          frontier/build/charvenv/bin/python frontier/tools/characters/generate.py --out out/characters 2>&1 | tee characters.log
+          grep -E "^built|^clip|catalogue|FAILED" characters.log | tail -80
+          (cd out && zip -qr ../characters.zip characters)
+          ls -la characters.zip
+      - name: Publish characters.zip to release frontier-assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view frontier-assets >/dev/null 2>&1 || \
+            gh release create frontier-assets --prerelease --target "$GITHUB_SHA" --title "Frontier assets (CC0)" \
+              --notes "Processed CC0 assets for the Frontier game (claude/frontier-game)."
+          for f in characters.zip characters.log; do [ -s "$f" ] && gh release upload frontier-assets "$f" --clobber; done
           echo "published"

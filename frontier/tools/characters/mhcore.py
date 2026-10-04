@@ -58,7 +58,7 @@ FACE_SHAPES = {
 for v in ("sil", "PP", "FF", "TH", "DD", "kk", "CH", "SS", "nn", "RR", "aa", "E", "I", "O", "U"):
     FACE_SHAPES["vis_" + v] = [("viseme_" + v, 1.0)]
 
-HEAD_PARTS = ("eyebrows", "eyelashes", "teeth", "tongue", "eyes")
+HEAD_PARTS = ("eyebrows", "eyelashes", "teeth", "tongue", "eyes", "beard")
 
 
 def reset_scene():
@@ -308,3 +308,46 @@ def assign_single_material(obj, mat):
     obj.data.materials.append(mat)
     for p in obj.data.polygons:
         p.material_index = 0
+
+
+def apply_modifier(obj, mod):
+    for o in bpy.context.selected_objects:
+        o.select_set(False)
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    bpy.ops.object.modifier_apply(modifier=mod.name)
+
+
+def decimate(obj, ratio, keep_shapes=True):
+    """Collapse-decimate a mesh; shape keys survive as interpolated vector attributes and are rebuilt."""
+    if ratio >= 0.999 or len(obj.data.polygons) < 50:
+        return
+    deltas = []
+    sk = obj.data.shape_keys
+    if sk is not None and keep_shapes:
+        base = get_co(obj, sk.key_blocks[0])
+        for kb in sk.key_blocks[1:]:
+            name = "skd_%d" % len(deltas)
+            a = obj.data.attributes.new(name, "FLOAT_VECTOR", "POINT")
+            a.data.foreach_set("vector", (get_co(obj, kb) - base).ravel())
+            deltas.append((kb.name, name))
+    if sk is not None:
+        obj.shape_key_clear()
+    mod = obj.modifiers.new("Decimate", "DECIMATE")
+    mod.decimate_type = "COLLAPSE"
+    mod.ratio = ratio
+    for o in bpy.context.selected_objects:
+        o.select_set(False)
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    bpy.ops.object.modifier_move_to_index(modifier=mod.name, index=0)
+    apply_modifier(obj, mod)
+    if deltas:
+        co = get_co(obj)
+        ensure_basis(obj)
+        n = len(obj.data.vertices)
+        for kname, aname in deltas:
+            a = np.empty(n * 3, dtype=np.float32)
+            obj.data.attributes[aname].data.foreach_get("vector", a)
+            add_shape(obj, kname, co + a.reshape(n, 3))
+            obj.data.attributes.remove(obj.data.attributes[aname])
