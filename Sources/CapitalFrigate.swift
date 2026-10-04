@@ -183,7 +183,7 @@ extension Capital {
             let half = Int(10 - Float(y - 15) * 0.32)
             hb.set(half, y, z, glass); hb.set(-half, y, z, glass)
         } }
-        hb.fill(-6, 6, 21, 21, 53, 64, trim)                        // bridge deck
+        hb.fill(-6, 6, 21, 21, 53, 66, trim)                        // bridge deck (to the ladder head at z 66: stream B found it a block short)
         hb.set(0, 22, 55, Blocks.id("ship_helm[south]"))
         for x in [-4, -2, 2, 4] { hb.set(x, 22, 54, console) }
         hb.set(0, 25, 60, light); hb.set(0, 25, 64, light)
