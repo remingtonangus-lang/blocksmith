@@ -72,6 +72,13 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
   birch), the bridge-deck ladder head fixed (stream B's ridecheck). A sky-coloured streak across the volcano: either
   the LOD 0 / LOD 1 seam or the cloud layer cutting the cone; volcano_far_nolod decides.
 
+## Run 482 (983ea14): all green; read-out
+- padtest crafting-book checks pass; tv_craftbook / tv_craftbook_all look right (ingredient names were cut short: fixed).
+- cinetest PASS. photo_dof showed the inside of the player's head (photo mode drew the model at the eye): fixed.
+- structcheck: great_ruin top chest unreachable 9/9 (the landing re-filled the stair's headroom) and floating 4/9: fixed.
+- Impostors work (volcano with plume, spires); foot rings / shaft bases floated over the haze, the night plume stayed
+  grey: fixed. Spire interior near black: ghost lanterns per floor.
+
 ## Next
 - Shots looked right in run 450 (frigate bow/side/top; citadel far/gate/top). Check the new citadel_turret,
   citadel_plaza and ship_frigate_deck angles and the flight-deck markings.
