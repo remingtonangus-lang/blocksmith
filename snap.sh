@@ -130,7 +130,7 @@ done
 "$BIN" --snapshot snaps/tv_coop_side.png --seed 12345 --find plains --yaw 200 --pitch -4 --time 0.27 --ground --rd 8 --w 1920 --h 1080 --couch --safe 5 --pad --coop --splitside
 # Destruction physics and wrecks: collapses and wreck overgrowth through Game.tick (report snaps/collapsecheck.md), and shots.
 "$BIN" --collapsecheck --seed 12345 --out snaps
-for v in "bridge 0" "bridge 2.5" "bridge 12" "tower 2" "tower 12" "frigate 3" "frigate 40" "wreck 30"; do
+for v in "bridge 0" "bridge 2.5" "bridge 12" "tower 2" "tower 12" "frigate 3" "frigate 40" "wreck 30" "dropship 8"; do
   set -- $v
   "$BIN" --snapshot "snaps/collapse_${1}_${2}.png" --seed 12345 --time 0.3 --rd 8 --collapse "$1" --at "$2"
 done
