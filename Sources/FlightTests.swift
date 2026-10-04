@@ -31,7 +31,11 @@ enum FlightTests {
         w.ships.encounters = false
         g.paused = false; g.menu = nil
         let base = g.player.pos
-        func groundY(_ x: Float, _ z: Float) -> Float { Float(w.topY(Int(floor(x)), Int(floor(z))) + 1) }
+        // Ground (terrain and trees) under a point; the generator's height where it isn't loaded yet.
+        func groundY(_ x: Float, _ z: Float) -> Float {
+            let ix = Int(floor(x)), iz = Int(floor(z))
+            return Float((w.isLoaded(ix, iz) ? w.topY(ix, iz) : w.gen.column(ix, iz).height + 6) + 1)
+        }
         var traced: Ship?
         var tag = ""
         var input = MoveInput()                                   // the player's keys while at a helm
@@ -148,7 +152,7 @@ enum FlightTests {
             let over = step(40) { _ in simd_length(V2(s.pos.x - gx, s.pos.z - gz)) < 1.5 && simd_length(s.vel) < 1 }
             check(over != nil, "it flies back over its pad", String(format: "in %.1f s, %.1f blocks off", over ?? -1, simd_length(V2(s.pos.x - gx, s.pos.z - gz))))
             let pad = V3(gx, padY, gz)
-            fm.hold = pad + V3(0, skids - 0.2, 0)
+            fm.hold = pad + V3(0, skids - 1, 0)          // a little under the pad: it settles onto its skids
             tag = "kestrel-land"
             var touch: Float = 99
             let down = step(30) { _ in
@@ -227,7 +231,7 @@ enum FlightTests {
         if name == "plane" || name == "all" {
             let px = base.x - 60, pz = base.z - 30
             var top: Float = 0
-            for k in 0..<12 { top = max(top, groundY(px, pz - Float(k) * 30)) }
+            for k in 0..<50 { top = max(top, groundY(px, pz - Float(k) * 30)) }          // the whole route (about 1200 blocks)
             let s = Aircraft.spawn("heron", at: V3(px, top + 40, pz), yaw: 0, game: g)
             guard let fm = s.flight, fm.kind == .plane else { check(false, "the Heron has a fixed-wing flight model", "wings \(s.wings.count)"); return finish(t0) }
             print(String(format: "flighttest: Heron mass %.1f t, %d airfoil cells, weight %.0f", s.mass, s.wings.count, s.mass * ShipTuning.g))

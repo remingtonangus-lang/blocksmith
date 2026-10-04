@@ -118,7 +118,7 @@ extension Game {
             else if t > 150 { done("never made it back (\(Int(overPad)) blocks off)"); return }
         case 5:
             let skids = k.pos.y - k.worldMin.y
-            fm.hold = pad + V3(0, skids - 0.2, 0); fm.holdSpeed = 3
+            fm.hold = pad + V3(0, skids - 1, 0); fm.holdSpeed = 3      // under the pad: it settles on its skids
             if k.worldMin.y < pad.y + 0.3 && abs(k.vel.y) < 0.3 { ph = 6; t = 0; b.note("\(r.key) kestrel down on the pad") }
             else if t > 60 { ph = 6; t = 0; b.note("\(r.key) kestrel let down slowly") }
         default:

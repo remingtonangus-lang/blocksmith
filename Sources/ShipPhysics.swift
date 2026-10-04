@@ -369,7 +369,9 @@ extension ShipManager {
         let vlAir = s.dirToLocal(s.vel)
         let airK: Float = 0.1 + 0.03 * sp
         var airLocal: V3 = vlAir * s.area * airK
-        airLocal[fwdAxis] *= 0.6                    // bows and envelope noses are streamlined
+        // Bows and envelope noses are streamlined; a flight-model aircraft's wing drag is its own (FlightModel), the
+        // fuselage alone meets the air head-on.
+        airLocal[fwdAxis] *= s.flight?.kind == .plane ? 0.15 : 0.6
         F -= s.dirToWorld(airLocal)
         s.angVel *= expf(-(sub > 0 ? 0.4 : 0.8) * h)
 
