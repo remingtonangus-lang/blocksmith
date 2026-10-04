@@ -7,6 +7,8 @@ import simd
 //   bridge   a stone-brick bridge on three piers; the middle pier is blasted: the span it held falls, the rest stands
 //   mine     the same bridge with its middle pier mined out block by block (Game.breakBlock), not blasted
 //   tower    a hollow 5x5 tower 30 high; its base is blasted on one side: it breaks above the base and topples
+//   stands   a hollow 5x5 tower 60 high with a balcony on one side (heavier than its base bears, lopsided): one block
+//            mined at its foot and a small blast in its wall bring nothing down
 //   frigate  a Capital frigate cut through its middle by a ring of blasts: it breaks in two, both halves fall, settle
 //            and stay as wrecks
 //   dropship a dropship shot down over the plains: it falls, crashes and stays as a wreck (no vanishing fireball)
@@ -37,7 +39,7 @@ enum CollapseCheck {
         let out = arg("--out") ?? "snaps"
         try? FileManager.default.createDirectory(atPath: out, withIntermediateDirectories: true)
         let seed = UInt64(arg("--seed") ?? "") ?? 12345
-        let names = (arg("--scenes") ?? "bridge,mine,tower,frigate,wreck,dropship").split(separator: ",").map(String.init)
+        let names = (arg("--scenes") ?? "bridge,mine,tower,stands,frigate,wreck,dropship").split(separator: ",").map(String.init)
         let r = RideCheck.Report()
         r.md = ["# Collapse check", "", "Seed \(seed). Destruction physics and persistent wrecks through Game.tick.", ""]
         let t0 = CFAbsoluteTimeGetCurrent()
@@ -123,6 +125,20 @@ enum CollapseCheck {
             let bx = Float(o.x + 3), by = Float(o.y + 1), bz = Float(o.z) + 0.5
             st.blasts = [(V3(bx, by, bz), 4), (V3(bx, by, bz - 2), 3.5), (V3(bx, by, bz + 2), 3.5)]
             st.view = (V3(Float(o.x + 4), Float(o.y + 14), Float(o.z + 46)), 0, -0.2)
+        case "stands":
+            let h = 60
+            for y in 0..<h { for dz in -2...2 { for dx in -2...2 where abs(dx) == 2 || abs(dz) == 2 || y % 6 == 5 {
+                _ = w.setBlockAsync(o.x + dx, o.y + y, o.z + dz, brick)
+            } } }
+            // A balcony four out on the +x side near the top.
+            fill(w, IVec3(o.x + 3, o.y + h - 3, o.z - 1), IVec3(o.x + 6, o.y + h - 3, o.z + 1), brick)
+            st.box = (IVec3(o.x - 8, o.y - 2, o.z - 8), IVec3(o.x + 8, o.y + h + 2, o.z + 8))
+            var all: [IVec3] = []
+            for y in stride(from: 5, to: h, by: 6) { for dz in -2...2 { for dx in -2...2 { all.append(IVec3(o.x + dx, o.y + y, o.z + dz)) } } }
+            st.watch = all
+            st.mine = [IVec3(o.x - 2, o.y, o.z)]
+            st.blasts = [(V3(Float(o.x) + 0.5, Float(o.y + 20) + 0.5, Float(o.z + 3) + 0.2), 2)]
+            st.view = (V3(Float(o.x + 4), Float(o.y + 20), Float(o.z + 60)), 0, 0.3)
         case "frigate":
             // A Capital frigate hovering low over the plains, cut through amidships by a ring of blasts.
             w.ships.spawnCapital("capfrigate", home: IVec3(o.x, 0, o.z), yaw: 0.4, region: nil, sync: true)
@@ -274,6 +290,9 @@ enum CollapseCheck {
             r.check(ms.hullSplits >= 1, "the cut hull breaks in two (\(ms.hullSplits) splits)")
             r.check(halfY0 - lowest > 20, String(format: "the severed half falls (%.0f blocks)", halfY0 - lowest))
             r.check(ms.capitals.isEmpty && ms.wrecks.count >= 2, "both halves come down and stay as wrecks (\(ms.wrecks.count) wrecks, \(ms.capitals.count) still flying)")
+        case "stands":
+            r.check(built0 > 0 && left == built0, "the tower stands (\(left) of \(built0) floor blocks left)")
+            r.check(maxBodies == 0, "nothing falls (\(maxBodies) debris bodies)")
         default:
             r.check(built0 > 0 && left * 4 <= built0, "the part that lost its support falls (\(left) of \(built0) watched blocks left)")
             r.check(ms.collapses >= 1 && maxBodies >= 1, "it falls as a moving body (\(maxBodies) at once)")
