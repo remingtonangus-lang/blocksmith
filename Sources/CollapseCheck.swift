@@ -67,7 +67,7 @@ enum CollapseCheck {
         g.survival = false
         g.difficulty = 0
         w.ships.encounters = false
-        let spot = RideCheck.land(w, near: g.player.pos, rough: false)
+        let spot = RideCheck.land(w, near: g.player.pos, rough: false, verify: true)
         _ = w.loadSync(center: V3(Float(spot.0), 100, Float(spot.1)), radius: 5)
         st.origin = IVec3(spot.0, w.topY(spot.0, spot.1) + 1, spot.1)
     }
