@@ -78,8 +78,14 @@ extension Renderer {
                     let a1 = ringPoint(t1, i), b1 = ringPoint(t1, i + 1)
                     let n = simd_normalize(simd_cross(b0 - a0, a1 - a0) + V3(0, 1e-4, 0))
                     let up = n.y < 0 ? -n : n
-                    let cc = V4(shade(col, up), 1)
+                    // The foot fades into the fog, with a skirt hanging out of sight: alone past the loaded terrain the
+                    // outer ring floated as a pale disc (volcano_horizon, run 482).
+                    let cc = ri == 0 ? V4(fog, 1) : V4(shade(col, up), 1)
                     tri(p(a0), p(b0), p(a1), cc, &out); tri(p(b0), p(b1), p(a1), cc, &out)
+                    if ri == 0 {
+                        let a2 = a0 - V3(0, 60, 0), b2 = b0 - V3(0, 60, 0)
+                        tri(p(a0), p(b0), p(b2), cc, &out); tri(p(a0), p(b2), p(a2), cc, &out)
+                    }
                 }
             }
             // Crater: the inner wall down to the glowing lava lake (brighter at night).
@@ -105,7 +111,9 @@ extension Renderer {
                 let drift = V3(cosf(windA), 0, sinf(windA)) * rise * 0.45
                 let ctrS = V3(v.x, Float(YOFF) + v.rim + 6 + rise, v.z) + drift
                 let alpha: Float = 0.42 * (1 - fj / 7)
-                let grey = V3(0.42, 0.41, 0.42) * (0.4 + 0.6 * day) * hdrK
+                // By night the plume is dark, its lower puffs lit orange by the lava under them.
+                let lavaLit: Float = (1 - day) * max(0, 1 - fj / 3) * 0.55
+                let grey = (V3(0.42, 0.41, 0.42) * (0.18 + 0.82 * day) + V3(1.0, 0.38, 0.1) * lavaLit) * hdrK
                 let sc = V4(grey * (1 - haze) + fog * haze, alpha)
                 for (ux, uz) in [(Float(1), Float(0)), (Float(0), Float(1))] {
                     let side = V3(ux, 0, uz) * size
