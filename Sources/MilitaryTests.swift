@@ -270,7 +270,8 @@ extension MobTests {
         mm.mobs.append(gun)
         var shells = 0
         t = 0
-        while t < 12 && shells == 0 {
+        // A true-scale 42 cm turret traverses at 0.2 rad/s: half a turn takes about 16 s.
+        while t < 25 && shells == 0 {
             gun.updateDeckGun(0.05, game)
             shells = game.arms.slugs.filter { $0.kind == .shell }.count
             game.player.pos = at(0, 0)
@@ -304,28 +305,30 @@ extension MobTests {
             var found = 0
             for rz in -6..<6 { for rx in -6..<6 where sc.start(type, regionX: rx, regionZ: rz) != nil { found += 1 } }
             check(found >= 1 && found <= 60, "fortresses are rare", "\(found) in 144 regions of 40x40 chunks")
-            // Lay one out on a plain stone slab, chunk by chunk.
+            // Lay one out on a plain stone slab, chunk by chunk (a Capital citadel, CapitalBase.swift).
             var built: [String: Int] = [:]
             var mobs: [String: Int] = [:]
             var chests = 0
             let c = 0, y0 = 100
-            for cz in -3...2 { for cx in -3...2 {
+            for cz in -4...3 { for cx in -4...3 {
                 var blocks = [BlockID](repeating: AIR, count: CS * CS * CH)
                 for y in 0..<(y0 - 1) { for zz in 0..<CS { for xx in 0..<CS { blocks[Chunk.index(xx, y, zz)] = STONE } } }
                 blocks.withUnsafeMutableBufferPointer { buf in
                     var w = StructWriter(bx: cx * CS, bz: cz * CS, blocks: buf.baseAddress!)
-                    MilitaryBase.build(&w, c, y0, c, 12345)
+                    CapitalBase.build(&w, c, y0, c, 12345)
                     chests += w.entities.filter { $0.1.kind == .chest }.count
                     for (k, _) in w.mobs { mobs[k, default: 0] += 1 }
                 }
                 for b in blocks where b != AIR && b != STONE { built[Blocks.key(Blocks.groupBase[Int(b)]), default: 0] += 1 }
             } }
-            check((built["steel_plating"] ?? 0) > 10000 && (built["command_console"] ?? 0) > 30 && (built["armored_glass"] ?? 0) > 50 && (built["light_panel"] ?? 0) > 40,
-                  "fortress built from steel", built.filter { $0.key.hasPrefix("steel") || $0.key.hasPrefix("command") || $0.key.hasPrefix("armored") || $0.key.hasPrefix("light") }
+            let green = (built["oak_leaves"] ?? 0) + (built["birch_leaves"] ?? 0) + (built["flowering_azalea_leaves"] ?? 0)
+            check((built["capital_stone"] ?? 0) > 10000 && (built["capital_window"] ?? 0) > 200 && (built["capital_glass"] ?? 0) > 300
+                  && (built["light_panel"] ?? 0) > 40 && (built["command_console"] ?? 0) > 10 && green > 400,
+                  "citadel built of white stone, glass and gardens", built.filter { $0.key.hasPrefix("capital") || $0.key.hasSuffix("leaves") || $0.key.hasPrefix("command") || $0.key.hasPrefix("light") }
                     .map { "\($0.value) \($0.key)" }.sorted().joined(separator: ", "))
             let soldiers = ["soldier_recruit", "soldier_trooper", "soldier_marksman", "soldier_ironclad"].map { mobs[$0] ?? 0 }
-            check(soldiers.allSatisfy { $0 > 0 } && mobs["deck_gun"] == 4 && chests >= 15, "fortress garrison, deck guns and loot",
-                  "\(soldiers) soldiers, \(mobs["deck_gun"] ?? 0) deck guns, \(chests) chests")
+            check(soldiers.allSatisfy { $0 > 0 } && mobs["deck_gun"] == 2 && chests >= 12, "citadel garrison, twin 42 cm turrets and loot",
+                  "\(soldiers) soldiers, \(mobs["deck_gun"] ?? 0) turrets, \(chests) chests")
         } else {
             check(false, "fortress structure type registered")
         }

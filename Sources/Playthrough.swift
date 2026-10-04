@@ -746,8 +746,16 @@ final class Playthrough {
         game.player.flying = false
         _ = world.loadSync(center: arrival, radius: 2)
         game.player.pos = arrival
+        game.player.vel = .zero
         let before = (0..<3).map { Blocks.key(world.block(ap.x, ap.y + $0, ap.z)) }
-        let home = tick(10) { self.game.dim.dim == .overworld }
+        // Stand still in the portal until it takes us (leftover momentum from the voidwalker fight or a shove
+        // from a mob walked the player 1.2 blocks out of it: run 456).
+        let home = tick(10) {
+            if self.game.dim.dim == .overworld { return true }
+            self.game.player.pos.x = arrival.x; self.game.player.pos.z = arrival.z
+            self.game.player.vel.x = 0; self.game.player.vel.z = 0
+            return false
+        }
         check(home, "portal: back to the Surface through the arrival portal")
         if !home {
             // What stopped it: the portal blocks (before/after), where the player ended up, the cooldown.

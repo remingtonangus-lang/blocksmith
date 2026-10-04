@@ -105,6 +105,10 @@ done
 "$BIN" --snapshot snaps/ship_plane.png --seed 12345 --find plains --time 0.3 --ship plane
 "$BIN" --snapshot snaps/ship_gunboat.png --seed 12345 --find ocean --time 0.3 --ship gunboat
 "$BIN" --snapshot snaps/ship_frigate.png --seed 12345 --find plains --time 0.3 --rd 10 --ship frigate
+"$BIN" --snapshot snaps/ship_frigate_bow.png --seed 12345 --find plains --time 0.3 --rd 10 --ship frigate:bow
+"$BIN" --snapshot snaps/ship_frigate_side.png --seed 12345 --find plains --time 0.3 --rd 10 --ship frigate:side
+"$BIN" --snapshot snaps/ship_frigate_top.png --seed 12345 --find plains --time 0.3 --rd 10 --ship frigate:top
+"$BIN" --snapshot snaps/ship_frigate_deck.png --seed 12345 --find plains --time 0.3 --rd 10 --ship frigate:deck
 "$BIN" --snapshot snaps/ship_carriage.png --seed 12345 --find plains --time 0.3 --ship carriage
 "$BIN" --snapshot snaps/ship_battle.png --seed 12345 --find plains --time 0.3 --rd 10 --ship battle
 "$BIN" --snapshot snaps/physicstest.png --seed 12345 --time 0.3 --physicstest
@@ -200,6 +204,11 @@ done
 "$BIN" --snapshot snaps/nether_mobs.png --seed 12345 --dim nether --structure fortress --yaw -45 --pitch -2 --up 1 --rd 6 --mobs --nethermobs
 "$BIN" --snapshot snaps/bastion.png --seed 12345 --dim nether --structure bastion --yaw 150 --pitch -10 --up 1 --rd 6
 "$BIN" --snapshot snaps/bastion_far.png --seed 12345 --dim nether --structure bastion --yaw 150 --pitch -35 --up 14 --rd 8
+"$BIN" --snapshot snaps/citadel_far.png --seed 12345 --structure military_base --frame 1.1 --time 0.3 --rd 12
+"$BIN" --snapshot snaps/citadel_gate.png --seed 12345 --structure military_base --yaw 0 --pitch 12 --up 1 --time 0.3 --rd 10
+"$BIN" --snapshot snaps/citadel_top.png --seed 12345 --structure military_base --yaw 20 --pitch -45 --up 70 --time 0.3 --rd 10
+"$BIN" --snapshot snaps/citadel_turret.png --seed 12345 --structure military_base --offset -12,7,-6 --yaw 52 --pitch -8 --time 0.3 --rd 10
+"$BIN" --snapshot snaps/citadel_plaza.png --seed 12345 --structure military_base --offset 3,6,-12 --yaw 10 --pitch 10 --time 0.3 --rd 10
 "$BIN" --snapshot snaps/village.png --seed 12345 --structure village --yaw 45 --pitch -28 --up 14 --time 0.25
 "$BIN" --snapshot snaps/village_top.png --seed 12345 --structure village --yaw 0 --pitch -89 --up 70 --time 0.25
 "$BIN" --snapshot snaps/village2.png --seed 12345 --structure village --x 1500 --z -900 --yaw 45 --pitch -30 --up 16 --time 0.25
@@ -291,7 +300,7 @@ done
 # Frame bisection (armory items draw nowhere, the decor scene's do): Fast graphics, and 3 blocks closer.
 "$BIN" --snapshot snaps/steelhold_armory_fast.png --seed 12345 --structure military_base --offset 14,0,-60 --yaw 0 --pitch 0 --time 0.3 --listframes --fast || true
 "$BIN" --snapshot snaps/steelhold_armory_close.png --seed 12345 --structure military_base --offset 14,0,-63 --yaw 0 --pitch 0 --time 0.3 --listframes || true
-"$BIN" --snapshot snaps/steelhold_fight.png --seed 12345 --structure military_base --offset 14,0,-60 --yaw 0 --pitch 0 --time 0.3 --fortresstest 20
+"$BIN" --snapshot snaps/steelhold_fight.png --seed 12345 --structure military_base --offset 14,4,-60 --yaw 0 --pitch 0 --time 0.3 --fortresstest 20
 "$BIN" --snapshot snaps/steelhold_command.png --seed 12345 --structure military_base --offset 0,6,-33 --yaw 0 --pitch -15 --time 0.3
 "$BIN" --snapshot snaps/mobtests.png --seed 12345 --find plains --yaw 0 --pitch -30 --time 0.3 --up 3 --mobtests
 "$BIN" --snapshot snaps/pathtest.png --seed 12345 --find plains --yaw 0 --pitch -40 --time 0.75 --up 14 --pathtest

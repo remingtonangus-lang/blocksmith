@@ -92,10 +92,10 @@ enum Advancements {
         Advancement(id: "adventure/play_jukebox_in_meadows", tab: 3, title: "Hillside Tunes", desc: "Play a music disc in a Meadow", crit: .event("meadow_music")),
         Advancement(id: "adventure/proving_run", tab: 3, title: "Proving Run", desc: "Step foot in a Proving Hall", crit: .event("trial_chambers")),
         // Steelhold fortresses (original content).
-        Advancement(id: "adventure/steelhold", tab: 3, title: "Behind Steel Walls", desc: "Set foot inside a Steelhold fortress", crit: .event("steelhold")),
+        Advancement(id: "adventure/steelhold", tab: 3, title: "Behind White Walls", desc: "Set foot inside a Capital citadel", crit: .event("steelhold")),
         Advancement(id: "adventure/steelhold_gun", tab: 3, title: "Locked and Loaded", desc: "Get your hands on a Steelhold gun",
                     crit: .anyItem(["gun_rifle", "gun_smg", "gun_shotgun", "gun_sniper", "gun_launcher", "gun_arc"])),
-        Advancement(id: "adventure/steelhold_deck_gun", tab: 3, title: "Silence the Guns", desc: "Destroy a Steelhold deck gun", crit: .event("deck_gun")),
+        Advancement(id: "adventure/steelhold_deck_gun", tab: 3, title: "Silence the Guns", desc: "Destroy a Capital 42 cm turret", crit: .event("deck_gun")),
         Advancement(id: "adventure/steelhold_ironclad", tab: 3, title: "The Bigger They Are", desc: "Defeat a Steelhold Ironclad",
                     crit: .event("ironclad"), challenge: true),
         // Ships (Blocksmith's own: moving block structures).

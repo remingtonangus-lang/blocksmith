@@ -16,7 +16,7 @@ import simd
 
 enum Faction: Int {
     case none = 0, steelhold, stormwarden, ironback
-    var name: String { ["", "Steelhold", "Stormwarden Fleet", "Ironback Legion"][rawValue] }
+    var name: String { ["", "The Capital", "Stormwarden Fleet", "Ironback Legion"][rawValue] }
 }
 
 // Per capital ship AI state (ShipManager.capState, keyed by the hull's id).
@@ -617,7 +617,7 @@ extension ShipManager {
             st.crewRoles = hb.crewRoles + [CrewRole](repeating: .troop, count: max(0, hb.crew.count - hb.crewRoles.count))
             st.wheels = Capital.vehicleWheels(s)
             st.ramp = V3(Float(hb.ox) + 0.5, 1, Float(hb.sz) + 3)
-            st.sight = cap ? 240 : (frigate ? 300 : 210)
+            st.sight = cap ? 180 : (frigate ? 300 : 210)
             st.orbitDir = (home.x + home.z) % 2 == 0 ? 1 : -1
             st.groundOffset = s.com.y - s.localMin.y
             let hx = Float(home.x) + 0.5, hz = Float(home.z) + 0.5
@@ -631,7 +631,7 @@ extension ShipManager {
                 let keel = s.com.y - s.localMin.y
                 let maxY = Float(CH - 4) - (s.localMax.y - s.com.y)
                 st.groundMax = Float(top)
-                s.pos = V3(hx, min(maxY, Float(max(top, SEA)) + 30 + keel), hz)
+                s.pos = V3(hx, min(maxY, Float(max(top, SEA)) + Capital.cruiseClearance(kind) + keel), hz)
                 s.hoverY = s.pos.y
             } else {
                 let h = gen.column(home.x, home.z).height
@@ -858,13 +858,19 @@ extension ShipManager {
         var best: CapTarget?
         var bd = st.sight
         let onIt = aboard?.root === s || standing(on: g.player.pos)?.root === s
-        if g.alive && g.difficulty > 0 && !onIt {
+        // The Capital frigate guards its citadel: it only engages within its leash of home (it shelled the
+        // mobtests' village 400 blocks from a citadel, run 450).
+        let leashed: (V3) -> Bool = { p in
+            guard s.role == "capfrigate", let h = s.home else { return true }
+            return simd_length(V2(p.x - h.x, p.z - h.z)) < 260
+        }
+        if g.alive && g.difficulty > 0 && !onIt && leashed(g.player.pos) {
             let d = boundsDistance(s, g.player.pos)
             if d < bd { bd = d; best = CapTarget(point: g.player.pos + V3(0, 1, 0), vel: g.player.vel, ship: nil, mob: nil, player: true) }
         }
         if let foe = nearestFoe(of: s.factionValue, near: c, range: st.sight + simd_length(s.worldMax - s.worldMin) * 0.5, game: g) {
             let d = boundsDistance(s, foe.point)
-            if d < bd * 0.8 || best == nil { best = foe; bd = d }
+            if leashed(foe.point) && (d < bd * 0.8 || best == nil) { best = foe; bd = d }
         }
         if let cur = st.target, targetValid(cur, g), let b = best {
             let dc = boundsDistance(s, cur.point)
@@ -921,7 +927,7 @@ extension ShipManager {
         } else {
             let toHome = V2(home.x - s.pos.x, home.z - s.pos.z)
             let dist = max(1, simd_length(toHome))
-            let r: Float = 420
+            let r: Float = s.role == "capfrigate" ? 240 : 420          // the Capital frigate keeps station over its citadel
             let tangent = V2(-toHome.y, toHome.x) / dist * st.orbitDir
             want = simd_normalize(tangent + toHome * ((dist - r) / (r * dist)))
         }
@@ -939,7 +945,7 @@ extension ShipManager {
         }
         let keel = s.com.y - s.localMin.y
         let maxY = Float(CH - 4) - (s.localMax.y - s.com.y)
-        let wantY = min(maxY, st.groundMax + 30 + keel)
+        let wantY = min(maxY, st.groundMax + Capital.cruiseClearance(s.role ?? "") + keel)
         s.hoverY = wantY
         let yawRate = turnToward(s, want, maxRate: 0.07)
         let vy = max(-4, min(4, (wantY - s.pos.y) * 0.4))

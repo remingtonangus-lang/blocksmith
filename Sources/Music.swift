@@ -40,7 +40,7 @@ enum MusicMood: String, CaseIterable {
         case .mountain: return "High Passes"
         case .swamp: return "Mire"
         case .jungle: return "Canopy"
-        case .tension: return "Steelhold"
+        case .tension: return "The Capital"
         case .combat: return "Firefight"
         }
     }

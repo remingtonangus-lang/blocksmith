@@ -69,6 +69,8 @@ extension TextureGen {
 
 extension Capital {
     static let capFrigateLength = 142
+    // Keel height over the highest ground around: the Capital frigate cruises above its citadels' towers (72 high).
+    static func cruiseClearance(_ role: String) -> Float { role == "capfrigate" ? 78 : 30 }
 
     // Hull half-width at deck level along the length: a long fine bow, parallel midbody, slight taper at the transom.
     static func cfHalf(_ z: Int) -> Float {
@@ -79,26 +81,37 @@ extension Capital {
     }
     // Keel height: the forefoot rises toward the bow.
     static func cfKeel(_ z: Int) -> Float { z < 34 ? 2 + Float(34 - z) * 0.22 : 2 }
+    // Deck height: 14 amidships, with sheer rising toward the bow.
+    static func cfDeck(_ z: Int) -> Float { z < 36 ? 14 + Float(36 - z) * 0.07 : 14 }
 
-    // Inside the hull: a V below the hard chine (y 8), tumblehome above it up to the deck (y 14).
+    // Inside the hull: a V below the hard chine (y 8), tumblehome above it up to the deck, a raked stem.
     static func cfHull(_ x: Int, _ y: Int, _ z: Int) -> Bool {
-        guard z >= 0 && z < capFrigateLength && y <= 14 else { return false }
-        let k = cfKeel(z)
+        guard z >= 0 && z < capFrigateLength else { return false }
         let yf = Float(y)
+        let deck = cfDeck(z)
+        guard yf <= deck else { return false }
+        let k = cfKeel(z)
         guard yf >= k else { return false }
+        if z < 20 && Float(z) < (deck - yf) * 0.55 { return false }     // the stem rakes forward toward the deck
         let h = cfHalf(z)
         let w: Float
-        if yf <= 8 { w = h * (0.32 + 0.68 * (yf - k) / max(1, 8 - k)) } else { w = h * (1 - 0.13 * (yf - 8) / 6) }
+        if yf <= 8 { w = h * (0.32 + 0.68 * (yf - k) / max(1, 8 - k)) } else { w = h * (1 - 0.13 * (yf - 8) / max(1, deck - 8)) }
         return Float(abs(x)) <= w
     }
-    // The deckhouse: tumblehome sides, a raked front, a square aft end over the hangar.
+    // The deckhouse: tumblehome sides, a raked front, stepping down aft to the hangar (a square aft end).
     static func cfHouse(_ x: Int, _ y: Int, _ z: Int) -> Bool {
-        guard y >= 15 && y <= 26 && z <= 102 else { return false }
+        guard y >= 15 && y <= (z > 85 ? 22 : 26) && z <= 102 else { return false }
         let yf = Float(y - 15)
         let front: Float = 46 + yf * 0.7
         guard Float(z) >= front else { return false }
         let half: Float = 10 - yf * 0.32
         return Float(abs(x)) <= half
+    }
+    // The exhaust stack: a faceted, inward-leaning block abaft the mast.
+    static func cfStack(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+        guard y >= 27 && y <= 31 else { return false }
+        let t = Float(y - 27)
+        return Float(abs(x)) <= 3.5 - t * 0.3 && Float(z) >= 77 + t * 0.6 && z <= 84
     }
     // The integrated mast: a faceted pyramid rising from the deckhouse roof.
     static func cfMast(_ x: Int, _ y: Int, _ z: Int) -> Bool {
@@ -136,7 +149,7 @@ extension Capital {
         let plate = id("capital_plate", id("white_concrete")), panel = id("capital_panel", plate), trim = id("capital_trim", plate)
         let graphite = id("capital_graphite", id("warship_hull")), glass = id("capital_glass", id("armored_glass", GLASS))
         let light = id("light_panel"), engine = id("ship_engine"), console = id("command_console")
-        func solid(_ x: Int, _ y: Int, _ z: Int) -> Bool { cfHull(x, y, z) || cfHouse(x, y, z) || cfMast(x, y, z) }
+        func solid(_ x: Int, _ y: Int, _ z: Int) -> Bool { cfHull(x, y, z) || cfHouse(x, y, z) || cfMast(x, y, z) || cfStack(x, y, z) }
         // Shell: only the outer skin is built (the inside is decks and rooms), coloured by height.
         for z in 0..<L { for y in 0..<40 { for x in -W...W where solid(x, y, z) {
             let edge: Bool = !solid(x + 1, y, z) || !solid(x - 1, y, z) || !solid(x, y + 1, z) || !solid(x, y - 1, z)
@@ -145,7 +158,8 @@ extension Capital {
             var b: BlockID = ((z / 6) + (y / 5)) % 4 == 0 ? panel : plate
             if y <= 3 { b = graphite }                              // boot-top along the keel
             if y == 8 && cfHull(x, y, z) { b = trim }                // the chine line
-            if y == 14 && cfHull(x, y, z) && !cfHouse(x, 15, z) { b = trim }   // weather deck
+            if cfHull(x, y, z) && !cfHull(x, y + 1, z) && !cfHouse(x, y + 1, z) { b = trim }   // weather deck
+            if cfStack(x, y, z) && y == 31 { b = graphite }                  // exhaust grille
             hb.set(x, y, z, b)
         } } }
         // Lower deck inside the hull, and the deck under the deckhouse (inner cells, not part of the skin).
@@ -194,13 +208,28 @@ extension Capital {
             hb.turrets.append((hb.grid(0, top + 1, z), capitalCIWS(), auto))
         }
         // Hangar open aft onto the flight deck; landing markings and edge lights.
-        for y in 15...22 { for x in -6...6 { hb.set(x, y, 102, AIR) } }
+        for y in 15...21 { for x in -6...6 { hb.set(x, y, 102, AIR) } }
+        // Boat bays: recesses in both flanks under the deckhouse, graphite inside.
+        for sx in [-1, 1] { for z in 86...94 {
+            var xe = 0
+            while cfHull(xe + 1, 11, z) { xe += 1 }
+            for y in 10...12 { hb.set(sx * xe, y, z, AIR); hb.set(sx * (xe - 1), y, z, graphite) }
+            hb.set(sx * (xe - 1), 9, z, graphite); hb.set(sx * (xe - 1), 13, z, graphite)
+            if z == 86 || z == 94 { for y in 10...12 { hb.set(sx * xe, y, z, graphite) } }
+        } }
         for z in 104..<136 where z % 4 == 0 { hb.set(0, 14, z, panel) }
         for z in stride(from: 106, through: 134, by: 7) { for sx in [-1, 1] {
             let e = Int(cfHalf(z) * 0.87) - 1
             hb.set(sx * e, 14, z, light)
         } }
-        for x in -5...5 { hb.set(x, 14, 118, graphite) }
+        // Flight-deck markings: edge lines, a landing circle with a cross at its centre, a hangar threshold bar.
+        for z in 104...137 { let e = Int(cfHalf(z) * 0.87) - 2; hb.set(e, 14, z, panel); hb.set(-e, 14, z, panel) }
+        for z in 113...129 { for x in -8...8 {
+            let r2 = x * x + (z - 121) * (z - 121)
+            if r2 >= 30 && r2 <= 42 { hb.set(x, 14, z, graphite) }
+        } }
+        for k in -2...2 { hb.set(k, 14, 121, graphite); hb.set(0, 14, 121 + k, graphite) }
+        for x in -6...6 { hb.set(x, 14, 104, graphite) }
         // Drive: an engine room aft (critical systems), four nozzles in the transom, lift strips under the keel.
         for sx in [-1, 1] { hb.fill(sx * 5 - 2, sx * 5 + 2, 5, 7, 118, 132, engine) }
         for nx in [-7, 7] { for ny in [7, 11] {
