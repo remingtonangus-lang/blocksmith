@@ -395,14 +395,23 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             // What you have of each distinct ingredient.
             var rowsDone = Set<String>()
             var ly = 86
+            // Count and name on two lines when there is room (one line cut names short: "84/3 Oak Plan.", TV shot).
+            let twoLines = Set(CraftBook.needs(r)).count <= 3
             for ing in CraftBook.needs(r) where !rowsDone.contains(ing) && ly < 140 {
                 rowsDone.insert(ing)
                 let need = CraftBook.needs(r).filter { $0 == ing }.count
                 let opts = ing.hasPrefix("#") ? Array(Recipes.tagSets[String(ing.dropFirst())] ?? []) : (Items.has(ing) ? [Items.id(ing)] : [])
                 let got = opts.reduce(0) { $0 + (pool[$1] ?? 0) }
                 let nm = ing.hasPrefix("#") ? "Any " + String(ing.dropFirst()).replacingOccurrences(of: "_", with: " ") : (opts.first.map { Items.def($0).display } ?? ing)
-                label("\(got)/\(need) \(nm)", 258, ly, got >= need ? ink : V4(0.6, 0.12, 0.1, 1), maxW: 78)
-                ly += 11
+                let col = got >= need ? ink : V4(0.6, 0.12, 0.1, 1)
+                if twoLines {
+                    label("\(got) / \(need)", 258, ly, col, maxW: 78)
+                    label(nm, 258, ly + 9, col, maxW: 78)
+                    ly += 20
+                } else {
+                    label("\(got)/\(need) \(nm)", 258, ly, col, maxW: 78)
+                    ly += 11
+                }
             }
         } else {
             label("Choose a recipe", 200, 60, ink, maxW: 130)
