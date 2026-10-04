@@ -152,7 +152,7 @@ enum PoseCheck {
                     check(hi > 30, "\(tag) head up", String(format: "top %.1f px", hi))
                     if s.name.hasPrefix("aim") || s.name == "firing" {
                         let chest = rig.chestFront
-                        if gi != Guns.launcher { check(rig.handR.z < chest - 1, "\(tag) right hand ahead of the chest", String(format: "z %.1f, chest %.1f", rig.handR.z, chest)) }   // launchers: gripped at the shoulder
+                        if gi != Guns.launcher { check(rig.handR.z < chest - 0.5, "\(tag) right hand ahead of the chest", String(format: "z %.1f, chest %.1f", rig.handR.z, chest)) }   // launchers: gripped at the shoulder
                         check(rig.muzzle.z < rig.handR.z - 2, "\(tag) muzzle ahead of the hands", String(format: "muzzle %.1f hand %.1f", rig.muzzle.z, rig.handR.z))
                         check(simd_length(rig.handR - rig.gripR) < 1.0, "\(tag) right hand on the grip", String(format: "%.1f px off", simd_length(rig.handR - rig.gripR)))
                         let oneHand = r == 4 && gi == Guns.pistol

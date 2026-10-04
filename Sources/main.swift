@@ -716,9 +716,6 @@ enum Snapshot {
             let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)), r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))
             let up = Float(arg("--up") ?? "") ?? 0
             let gb = Int(floor(pos.y - up)) - 1                      // the ground block under the camera
-            // Load the stage's chunks first: edits to chunks not loaded yet were dropped, and the stage was left
-            // studded with the hill's grass blocks (soldier_ranks_*, mobs_new: run 454).
-            _ = world.loadSync(center: pos + f * 8, radius: 2)
             for sx in 0...16 { for t in -12...12 {
                 let q: V3 = pos + f * Float(sx) + r * Float(t)
                 let x = Int(floor(q.x)), z = Int(floor(q.z))
@@ -727,10 +724,6 @@ enum Snapshot {
                 for y in (gb - 3)..<gb where !Blocks.collide[Int(world.block(x, y, z))] { _ = world.setBlockAsync(x, y, z, Blocks.id("dirt")) }
             } }
             _ = world.loadSync(center: pos, radius: rd)
-            // ...and remesh it: the sections already meshed kept drawing the cleared blocks (run 457).
-            let corners: [V3] = [pos - r * 13 - f, pos + r * 13 - f, pos + f * 17 - r * 13, pos + f * 17 + r * 13]
-            let xs = corners.map { Int(floor($0.x)) }, zs = corners.map { Int(floor($0.z)) }
-            world.remeshArea(x0: xs.min()! - 1, z0: zs.min()! - 1, x1: xs.max()! + 1, z1: zs.max()! + 1, y0: gb - 4, y1: gb + 17)
         }
         if let list = arg("--spawn") {
             // Mobs in a row 6 blocks in front of the camera, facing it ("kind" or "kind:profession").
