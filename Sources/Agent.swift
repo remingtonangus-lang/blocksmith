@@ -118,6 +118,7 @@ final class Agent {
     private var insideTicks = 0
     private var stillTicks = 0, stillFrom = V3(0, 0, 0)
     private var menuTicks = 0
+    var deathSeen = false            // a death is reported once, with its message
     var tickMsWorst: Double = 0
     var visitedChunks = Set<Int>()
 
@@ -301,6 +302,11 @@ final class Agent {
         if ms > 50 && tick > 120 { counts["tick_spikes", default: 0] += 1; if ms > 250 { flag("tick_spike", String(format: "Game.tick took %.0f ms", ms)) } }
         // A screen that stays open for 20 s (bots close menus with Escape; a menu that ignores it is a dead end).
         if game.menu != nil { menuTicks += 1; if menuTicks == 1200 { flag("ui_dead_end", "\(String(describing: type(of: game.menu!))) open for 20 s") } } else { menuTicks = 0 }
+        // A walking bot dying is a finding in itself: report it at once with the death message (run 482: two village
+        // bots died at the same tick with only "DeathMenu open for 20 s" to go on).
+        if let dm = game.menu as? DeathMenu {
+            if !deathSeen { deathSeen = true; flag("died", dm.message) }
+        } else { deathSeen = false }
         let ck = floorDiv(Int(floor(pos.x)), CS) &* 1_000_003 &+ floorDiv(Int(floor(pos.z)), CS)
         visitedChunks.insert(ck)
     }
