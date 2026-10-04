@@ -225,4 +225,4 @@ func _update(delta: float) -> void:
 	if Settings.has_arg("noambient"):
 		env.ambient_light_energy = 0.0
 		env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
-	env.tonemap_exposure = lerpf(1.0, 2.4, night) * lerpf(1.0, 1.25, cloud_cover)
+	env.tonemap_exposure = lerpf(0.88, 2.4, night) * lerpf(1.0, 1.25, cloud_cover)

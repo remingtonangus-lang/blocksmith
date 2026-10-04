@@ -8,6 +8,8 @@ var terrain: Terrain
 var water: WaterSystem
 var vegetation: Node3D
 var weather: Node
+var cities: Node3D
+var city_list: Array = []
 var _focus := Vector3.ZERO
 
 
@@ -28,7 +30,21 @@ func setup(g: WorldGen) -> void:
 	water.name = "Water"
 	add_child(water)
 	water.setup(gen)
+	cities = Node3D.new()
+	cities.name = "Capital"
+	add_child(cities)
+	G.cities = cities
+	var capital := CapitalCity.new()
+	capital.name = "Candor"
+	cities.add_child(capital)
+	var cs: Vector3 = gen.sites["capital"]
+	capital.build(cs, 1500.0, G.seed * 3 + 1, "Candor")
+	city_list.append(capital)
 	_add_optional("res://scripts/world/vegetation.gd", "Vegetation", "vegetation")
+	if vegetation:
+		for c in city_list:
+			vegetation.add_trees(c.trees)
+			vegetation.exclude.append([Vector2(c.center.x, c.center.z), c.radius + 30.0])
 	_add_optional("res://scripts/world/weather.gd", "Weather", "weather")
 	if weather:
 		G.weather = weather
@@ -67,13 +83,21 @@ func spawn_player() -> void:
 	G.player = player
 
 
+## Walkable ground height (terrain, or a city podium).
+func ground_at(x: float, z: float) -> float:
+	for c in city_list:
+		if c.in_city(x, z):
+			return c.podium_y
+	return gen.height_at(x, z)
+
+
 func site(name: String) -> Vector3:
 	return gen.sites.get(name, Vector3.ZERO)
 
 
 ## Camera point at a height above the ground.
 func above(x: float, z: float, h: float) -> Vector3:
-	return Vector3(x, maxf(gen.height_at(x, z), 0.0) + h, z)
+	return Vector3(x, maxf(ground_at(x, z), 0.0) + h, z)
 
 
 ## Benchmark segments: a city flyover, a battle and a forest walk (positions from the world's sites).
@@ -117,6 +141,7 @@ func shot_list() -> Array:
 	var shots := [
 		{"name": "overview", "pos": above(c.x - 4200, c.z + 2600, 700), "look": c + Vector3(-600, 0, -600), "hour": 10.0, "weather": "clear"},
 		{"name": "capital_noon", "pos": above(c.x - 1500, c.z + 700, 120), "look": c + Vector3(0, 60, 0), "hour": 12.5, "weather": "clear"},
+		{"name": "capital_top", "pos": c + Vector3(500, 420, 1), "look": c + Vector3(500, 0, 0), "hour": 12.0, "weather": "clear"},
 		{"name": "capital_dusk", "pos": above(c.x - 1300, c.z + 1200, 90), "look": c + Vector3(0, 70, 0), "hour": 19.6, "weather": "clear"},
 		{"name": "capital_night", "pos": above(c.x - 1200, c.z + 800, 110), "look": c + Vector3(0, 40, 0), "hour": 23.0, "weather": "clear"},
 		{"name": "spawn_view", "pos": sp + Vector3(0, 2.0, 0), "look": c + Vector3(0, 30, 0), "hour": 9.0, "weather": "clear"},

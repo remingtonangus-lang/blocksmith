@@ -29,6 +29,8 @@ var _t := 0.0
 var grass_near: MultiMeshInstance3D
 var grass_mat: ShaderMaterial
 var _baked := false
+var extra := {}                   # Vector2i tree cell -> Array of placed trees (cities, gardens)
+var exclude: Array = []           # [Vector2 centre, radius]: no wild trees inside (city podiums)
 
 
 func setup(g: WorldGen) -> void:
@@ -165,8 +167,29 @@ func _dilate(img: Image) -> void:
 # ----------------------------------------------------------------------------------------- tree lists
 
 ## Trees in one 128 m cell: Array of [species, variant, Transform3D, tint, phase].
+func add_trees(list: Array) -> void:
+	for t in list:
+		var p: Vector3 = (t[2] as Transform3D).origin
+		var k := Vector2i(floori(p.x / CELL), floori(p.z / CELL))
+		if not extra.has(k):
+			extra[k] = []
+		extra[k].append(t)
+
+
+func _excluded(x: float, z: float) -> bool:
+	for e in exclude:
+		var c: Vector2 = e[0]
+		if absf(x - c.x) < e[1] and absf(z - c.y) < e[1]:
+			return true
+	return false
+
+
 func cell_trees(c: Vector2i, far: bool = false) -> Array:
 	var out := []
+	if extra.has(c):
+		out.append_array(extra[c])
+	if _excluded((c.x + 0.5) * CELL, (c.y + 0.5) * CELL):
+		return out
 	var n := int(CELL / SPACING)
 	var x0 := c.x * CELL
 	var z0 := c.y * CELL
