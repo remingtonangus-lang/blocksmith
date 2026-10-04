@@ -490,7 +490,7 @@ extension Mob {
                 return 0
             }
             wander(); return moving ? spec.speed * 0.4 : 0
-        case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad:
+        case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad, .soldierOfficer, .soldierCrew:
             let sp = soldierAI(dt, g, dist: dist, canTarget: canTarget)
             // Vessel crews hold their stations: they turn, aim and fire, but cover runs and flanks would take them overboard.
             if !g.world.ships.isEmpty, g.world.ships.standing(on: pos) != nil { strafe = 0; return 0 }

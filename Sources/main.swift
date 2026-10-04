@@ -732,10 +732,17 @@ enum Snapshot {
             for (i, n) in names.enumerated() {
                 let parts = n.split(separator: ":").map(String.init)
                 guard let k = MobKind.named(parts[0]) else { print("unknown mob \(n)"); continue }
-                let off: Float = (Float(i) - Float(names.count - 1) / 2) * 2.2
-                let p: V3 = pos + f * 6 + r * off
+                var off: Float = (Float(i) - Float(names.count - 1) / 2) * 2.2
+                var ahead: Float = 6
+                // "side=X" / "back=Y": an exact spot (blocks right of the view line / further away) for formations.
+                for t in parts where t.hasPrefix("side=") || t.hasPrefix("back=") {
+                    let v = Float(t.dropFirst(5)) ?? 0
+                    if t.hasPrefix("side=") { off = v } else { ahead = 6 + v }
+                }
+                let p: V3 = pos + f * ahead + r * off
                 let x = Int(floor(p.x)), z = Int(floor(p.z))
-                let m = Mob(k, at: V3(Float(x) + 0.5, Float(world.topY(x, z) + 1), Float(z) + 0.5))
+                let exact = parts.contains { $0.hasPrefix("side=") || $0.hasPrefix("back=") }
+                let m = Mob(k, at: V3(exact ? p.x : Float(x) + 0.5, Float(world.topY(x, z) + 1), exact ? p.z : Float(z) + 0.5))
                 m.yaw = game.player.yaw
                 if k == .boat {
                     m.variant = parts.count > 1 ? Int(parts[1]) ?? 0 : 0
@@ -765,6 +772,7 @@ enum Snapshot {
                 if k == .wither { m.phase = 0; m.pos.y += 2 }
                 if k == .evoker { m.spellTimer = 4.5 }
                 if CommandLine.arguments.contains("--facecam") { m.yaw = game.player.yaw + .pi }
+                if Soldier.rank(k) != nil { SoldierRig.stage(m, Array(parts.dropFirst()), world: world) }    // stance tokens
                 game.mobs.mobs.append(m)
             }
         }

@@ -14,7 +14,8 @@ enum Bark: Int, CaseIterable {
 enum WeaponAudio {
     static let fireSlots = 0...5
     static let heavySlot = 9
-    static func hasDistant(_ k: Int) -> Bool { fireSlots.contains(k) || k == heavySlot }
+    static let sidearmSlot = 13      // the Capital Sidearm (Guns.pistol)
+    static func hasDistant(_ k: Int) -> Bool { fireSlots.contains(k) || k == heavySlot || k == sidearmSlot }
 
     // MARK: Building blocks
 
@@ -117,6 +118,10 @@ enum WeaponAudio {
             let v = SoldierVoice.phrase(&g, f0: 125 * p, syllables: 4, urgency: 0.6)
             o = Synth.mix(o, radio(v), at: g.frames(0.05))
             o = Synth.mix(o, g.burst(0.08, lp: 6000, hp: 2000, attack: 0.001, decay: 0.03, gain: 0.6), at: o.count)
+            return o
+        case 13:  // sidearm: a sharp, light crack with a quick slide cycle
+            var o = shot(&g, p: p * 1.3, size: 0.5, bright: 1.25, tail: 0.3, mech: 0.35)
+            o = Synth.mix(o, casing(&g, p: p * 1.2, gain: 0.25), at: g.frames(0.3))
             return o
         default:  // 12 turret whine: servo traverse
             let whine = g.tone(1.0, f0: 220 * p, f1: 760 * p, wave: .saw, attack: 0.05, release: 0.15, vib: 0.02, vibRate: 18, gain: 0.25)

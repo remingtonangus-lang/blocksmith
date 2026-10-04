@@ -323,6 +323,7 @@ extension MobKind {
     // The Steelhold garrison (their rounds pass through each other).
     var steelhold: Bool {
         self == .soldierRecruit || self == .soldierTrooper || self == .soldierMarksman || self == .soldierIronclad || self == .deckGun
+            || self == .soldierOfficer || self == .soldierCrew
     }
 }
 

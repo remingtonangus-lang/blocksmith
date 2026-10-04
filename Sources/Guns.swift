@@ -1,7 +1,7 @@
 import Foundation
 import simd
 
-// Steelhold firearms: six original guns found in Steelhold fortresses and carried by their garrison.
+// Capital firearms: seven original guns found in the Capital's citadels and carried by their garrison.
 // The attack button fires (hold it for the automatic ones), use aims down the sights (tighter spread,
 // softer recoil, zoom), R or pad X reloads (also automatic when the magazine runs dry). Each gun feeds
 // on its own ammunition from the inventory; the loaded count lives in the stack's tag.
@@ -32,26 +32,30 @@ struct GunSpec {
 
 enum Guns {
     static let all: [GunSpec] = [
-        GunSpec(key: "gun_rifle", name: "Steelhold Rifle", ammo: "rifle_rounds", mag: 30, interval: 0.12, auto: true, damage: 5, pellets: 1,
+        GunSpec(key: "gun_rifle", name: "Capital Service Rifle", ammo: "rifle_rounds", mag: 30, interval: 0.12, auto: true, damage: 5, pellets: 1,
                 spread: 0.022, aimSpread: 0.005, speed: 160, recoil: 0.013, reload: 2.0, range: 110, durability: 1200, zoom: 0.78,
-                shot: .bullet, sound: 0, accent: V3(0.34, 0.39, 0.24)),
+                shot: .bullet, sound: 0, accent: V3(0.9, 0.9, 0.88)),
         GunSpec(key: "gun_smg", name: "Chatter Gun", ammo: "rifle_rounds", mag: 40, interval: 0.07, auto: true, damage: 3, pellets: 1,
                 spread: 0.045, aimSpread: 0.026, speed: 130, recoil: 0.009, reload: 1.6, range: 70, durability: 1500, zoom: 0.9,
-                shot: .bullet, sound: 1, accent: V3(0.62, 0.52, 0.34)),
+                shot: .bullet, sound: 1, accent: V3(0.9, 0.9, 0.88)),
         GunSpec(key: "gun_shotgun", name: "Breach Shotgun", ammo: "shotgun_shells", mag: 6, interval: 0.85, auto: false, damage: 3, pellets: 9,
                 spread: 0.09, aimSpread: 0.07, speed: 110, recoil: 0.07, reload: 2.6, range: 40, durability: 500, zoom: 0.9,
-                shot: .bullet, sound: 2, accent: V3(0.55, 0.16, 0.12)),
+                shot: .bullet, sound: 2, accent: V3(0.9, 0.9, 0.88)),
         GunSpec(key: "gun_sniper", name: "Farsight Rifle", ammo: "heavy_rounds", mag: 5, interval: 1.3, auto: false, damage: 24, pellets: 1,
                 spread: 0.06, aimSpread: 0.0006, speed: 320, recoil: 0.09, reload: 2.8, range: 260, durability: 400, zoom: 0.22,
-                shot: .bullet, sound: 3, accent: V3(0.2, 0.36, 0.4)),
+                shot: .bullet, sound: 3, accent: V3(0.9, 0.9, 0.88)),
         GunSpec(key: "gun_launcher", name: "Skybreaker Launcher", ammo: "rocket_ammo", mag: 1, interval: 1.0, auto: false, damage: 0, pellets: 1,
                 spread: 0.02, aimSpread: 0.008, speed: 34, recoil: 0.12, reload: 2.6, range: 160, durability: 150, zoom: 0.85,
-                shot: .rocket, sound: 4, accent: V3(0.3, 0.36, 0.22)),
+                shot: .rocket, sound: 4, accent: V3(0.9, 0.9, 0.88)),
         GunSpec(key: "gun_arc", name: "Arc Lance", ammo: "arc_cell", mag: 8, interval: 0.9, auto: false, damage: 14, pellets: 1,
                 spread: 0.01, aimSpread: 0, speed: 0, recoil: 0.05, reload: 2.4, range: 48, durability: 300, zoom: 0.75,
                 shot: .beam, sound: 5, accent: V3(0.86, 0.88, 0.92)),
+        // The Capital officers' and pilots' sidearm (CapitalArms.swift); its own sound slot (WeaponAudio 13).
+        GunSpec(key: "gun_sidearm", name: "Capital Sidearm", ammo: "rifle_rounds", mag: 12, interval: 0.22, auto: false, damage: 4, pellets: 1,
+                spread: 0.03, aimSpread: 0.009, speed: 140, recoil: 0.03, reload: 1.4, range: 60, durability: 900, zoom: 0.88,
+                shot: .bullet, sound: 13, accent: V3(0.9, 0.9, 0.88)),
     ]
-    static let rifle = 0, smg = 1, shotgun = 2, sniper = 3, launcher = 4, arc = 5
+    static let rifle = 0, smg = 1, shotgun = 2, sniper = 3, launcher = 4, arc = 5, pistol = 6
     static let ammo: [(String, String)] = [("rifle_rounds", "Rifle Rounds"), ("shotgun_shells", "Shotgun Shells"), ("heavy_rounds", "Heavy Rounds"),
                                            ("rocket_ammo", "Rocket"), ("arc_cell", "Arc Cell")]
     static let rocketPower: Float = 2.5
@@ -116,42 +120,10 @@ enum Guns {
 
     static let metal = V3(0.25, 0.26, 0.28), dark = V3(0.12, 0.12, 0.14)
 
-    static let models: [[Part]] = (0..<6).map { Guns.model($0) }
+    // The Capital finish models (CapitalArms.swift), shared with the soldiers' hands.
+    static let models: [[Part]] = CapitalArms.models.map { $0.parts }
     static let order = [0, 1, 2, 0, 2, 3]
     static let faceShade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
-
-    private static func model(_ i: Int) -> [Part] {
-        let a = all[i].accent
-        let glow = V3(0.6, 1.9, 2.3)
-        switch i {
-        case rifle:
-            return [box(-1, -1, -8, 2, 3, 12, metal), box(-0.5, 0, -17, 1, 1, 9, dark), box(-1.2, -1.5, -13, 2.4, 2.5, 5, a),
-                    box(-1, -2, 4, 2, 3, 6, a), box(-0.8, -5, -5, 1.6, 4, 2.2, dark), box(-0.8, -4, 0, 1.6, 3, 1.6, dark),
-                    box(-0.6, 2, -6, 1.2, 1, 4, dark), box(-0.3, 1, -12, 0.6, 1.4, 0.6, dark)]
-        case smg:
-            return [box(-1, -1, -6, 2, 3, 9, metal), box(-0.5, 0, -10, 1, 1, 4, dark), box(-0.7, -7, -3, 1.4, 6, 1.8, dark),
-                    box(-0.8, -4, 1, 1.6, 3, 1.6, dark), box(-0.6, -0.4, 3, 1.2, 1.2, 4, a), box(-1.05, 0.2, -5, 2.1, 0.8, 6, a),
-                    box(-0.4, 2, -4, 0.8, 0.8, 3, dark)]
-        case shotgun:
-            return [box(-1.2, -1.2, -6, 2.4, 3, 10, dark), box(-0.7, 0.3, -18, 1.4, 1.4, 12, metal), box(-1.1, -1.4, -14, 2.2, 1.8, 5, a),
-                    box(-1.1, -2.5, 4, 2.2, 3.5, 7, a), box(-0.8, -4, 0, 1.6, 3, 1.6, dark), box(-0.3, 1.7, -17.5, 0.6, 0.6, 0.6, V3(0.9, 0.8, 0.3))]
-        case sniper:
-            return [box(-1, -1, -6, 2, 3, 12, a), box(-0.45, 0.3, -26, 0.9, 0.9, 20, dark), box(-0.8, 0, -27.5, 1.6, 1.5, 2, metal),
-                    box(-0.9, 2.2, -6, 1.8, 1.8, 9, dark), box(-0.7, 2.4, -6.3, 1.4, 1.4, 0.3, glow * 0.6), box(-0.5, 2, -3, 1, 0.4, 2, metal),
-                    box(-1, -2.5, 6, 2, 3.5, 6, a), box(-0.7, -4, -3, 1.4, 3, 2, dark), box(-0.8, -4, 1, 1.6, 3, 1.6, dark),
-                    Part(mn: V3(-1.2, -6, -18), mx: V3(-0.8, -1, -17.6), pivot: V3(-1, -1, -17.8), rotX: 0.5, color: dark),
-                    Part(mn: V3(0.8, -6, -18), mx: V3(1.2, -1, -17.6), pivot: V3(1, -1, -17.8), rotX: 0.5, color: dark)]
-        case launcher:
-            return [box(-2, -1, -14, 4, 4, 26, a), box(-2.4, -1.4, -15.5, 4.8, 4.8, 1.5, dark), box(-2.4, -1.4, 10, 4.8, 4.8, 1.5, dark),
-                    box(-0.8, -5, -2, 1.6, 4, 1.6, dark), box(-0.8, -4.5, -8, 1.6, 3.5, 1.4, dark), box(-2.9, 1.5, -5, 0.9, 2.2, 3, metal),
-                    box(-1.2, 3, -9, 2.4, 0.6, 6, V3(0.75, 0.6, 0.15))]
-        default:
-            var p = [box(-1.2, -1.2, -8, 2.4, 3.2, 14, a), box(-0.4, 0.2, -20, 0.8, 0.8, 8, dark), box(-0.8, -4, -2, 1.6, 3, 3, glow * 0.7),
-                     box(-0.8, -4.5, 2, 1.6, 3.5, 1.6, dark), box(-0.9, 2, -4, 1.8, 0.8, 6, metal)]
-            for k in 0..<3 { p.append(box(-1.6, -1.6, -18 + Float(k) * 3.4, 3.2, 3.6, 1, glow)) }
-            return p
-        }
-    }
 
     // First-person gun, written straight into a mob-pipeline vertex buffer (view space).
     static func writeFirstPerson(_ gi: Int, aim: Float, kick: Float, lower: Float, bob: V3, light: Float,
@@ -177,19 +149,12 @@ enum Guns {
                     q = V3(q.x, q.y * ca - q.z * sa, q.y * sa + q.z * ca) + p.pivot
                     q = V3(q.x, q.y * cp - q.z * sp, q.y * sp + q.z * cp)
                     q = V3(q.x * cy + q.z * sy, q.y, -q.x * sy + q.z * cy)
-                    out[n] = MobVert(pos: V4(at + q * s, 0), color: V4(p.color, faceShade[f] * light), local: V4(lp * 2, 0))
+                    out[n] = MobVert(pos: V4(at + q * s, p.pattern), color: V4(p.color, faceShade[f] * light), local: V4(lp * 2, 0))
                     n += 1
                 }
             }
         }
         return n
-    }
-
-    // A gun held in front of a soldier model (model pixels, mob faces -Z).
-    static func heldParts(_ gi: Int, at o: V3, scale: Float) -> [Part] {
-        models[min(gi, models.count - 1)].map { p in
-            Part(mn: o + p.mn * scale, mx: o + p.mx * scale, pivot: o + p.pivot * scale, rotX: p.rotX, rotZ: 0, color: p.color, pattern: 0)
-        }
     }
 
     // MARK: Icons and sounds
@@ -225,6 +190,9 @@ enum Guns {
         "rocket_ammo": ["................", "..............rr", ".............rrr", "............aaar", "...........aaa..",
                         "..........aaa...", ".........aaa....", "........aaa.....", ".......aaa......", "......aaa.......",
                         ".....aaa........", "...ddaa.........", "..dddd..........", "..ddd...........", "..yd............", ".yy............."],
+        "gun_sidearm": ["................", "................", "................", "................", "................",
+                        "...11111111111..", "...1dddddddddd1.", "...1aaaaaaaaaa1.", "...1aaa1m1111...", "...1aaa1.m1.....",
+                        "..1aaa11.1......", "..1aaa1.........", "..1aaa1.........", "..11111.........", "................", "................"],
         "arc_cell": ["................", "................", "......1111......", ".....1mmmm1.....", "....1111111.....",
                      "....1gggggg1....", "....1gddddg1....", "....1gggggg1....", "....1gddddg1....", "....1gggggg1....",
                      "....1gddddg1....", "....1gggggg1....", "....11111111....", "................", "................", "................"],
@@ -252,7 +220,7 @@ enum Guns {
         }
     }
 
-    static let soundCount = 13
+    static let soundCount = 14
     static var sounds: [Snd] { (0..<soundCount).map { Snd.gun($0) } }
 }
 

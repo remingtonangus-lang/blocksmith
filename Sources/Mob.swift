@@ -27,6 +27,7 @@ enum MobKind: Int, CaseIterable {
     case parched, camelHusk, nautilus, zombieNautilus
     case soldierRecruit, soldierTrooper, soldierMarksman, soldierIronclad, deckGun
     case copperGolem
+    case soldierOfficer, soldierCrew       // the Capital's officers and pilots / vehicle crews (SoldierRig.swift)
 
     struct Spec {
         var name: String
@@ -133,7 +134,7 @@ enum MobKind: Int, CaseIterable {
              .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking,
              .zombieHorse, .illusioner, .happyGhast, .parched, .camelHusk, .nautilus, .zombieNautilus, .copperGolem:
             return animalSpec
-        case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad, .deckGun:
+        case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad, .deckGun, .soldierOfficer, .soldierCrew:
             return militarySpec
         case .witherSkeleton: return Spec(name: "Blight Skeleton", halfW: 0.35, height: 2.4, health: 20, speed: 2.5, behavior: .melee, attack: 8,
                                           drops: [("coal", 0, 1), ("bone", 0, 2)], xp: 5, call: .mobSkeleton, fireImmune: true)
@@ -237,6 +238,7 @@ enum MobKind: Int, CaseIterable {
         .soldierRecruit: "soldier_recruit", .soldierTrooper: "soldier_trooper", .soldierMarksman: "soldier_marksman",
         .soldierIronclad: "soldier_ironclad", .deckGun: "deck_gun",
         .copperGolem: "copper_golem",
+        .soldierOfficer: "soldier_officer", .soldierCrew: "soldier_crew",
     ]
     static func named(_ n: String) -> MobKind? { allCases.first { $0.key == n } }
     var call: Snd { spec.call }
@@ -378,7 +380,7 @@ final class Mob {
     var gossipCooldown: Float = 0
     var meetPoint: IVec3?           // villager: the bell it meets at
     var meetSearch: Float = 0
-    var brain: SoldierBrain?        // Steelhold soldiers and deck guns (Soldiers.swift)
+    var brain: SoldierBrain?        // Capital soldiers and deck guns (Soldiers.swift, SoldierRig.swift)
     var strafe: Float = 0           // sideways walk speed this update (right is positive)
 
     init(_ kind: MobKind, at p: V3) {
@@ -1258,7 +1260,7 @@ private func parts(_ m: Mob) -> [Part] {
          .armadillo, .sniffer, .mooshroom, .bee, .parrot, .bat, .allay, .axolotl, .squid, .glowSquid, .dolphin, .cod, .salmon, .tropicalFish, .pufferfish,
          .wanderingTrader, .skeletonHorse, .phantom, .guardian, .elderGuardian, .endermite, .warden, .breeze, .bogged, .zoglin, .creaking, .zombieHorse, .happyGhast, .camelHusk, .nautilus, .zombieNautilus:
         return animalParts(m, swing: swing)
-    case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad:
+    case .soldierRecruit, .soldierTrooper, .soldierMarksman, .soldierIronclad, .soldierOfficer, .soldierCrew:
         return soldierParts(m, swing: swing)
     case .deckGun:
         return deckGunParts(m)
@@ -1580,6 +1582,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
     let faceShade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
     let order = [0, 1, 2, 0, 2, 3]
     var n = 0
+    SoldierRig.eye = eye                    // soldier level of detail by distance
     for m in mobs {
         let l = world.lightAt(Int(floor(m.pos.x)), Int(floor(m.pos.y + m.height * 0.5)), Int(floor(m.pos.z)))
         var bright = max(0.05, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
@@ -1660,7 +1663,7 @@ final class MobManager {
                         let under = w.block(Int(floor(m.pos.x)), Int(floor(m.pos.y - 0.2)), Int(floor(m.pos.z)))
                         if under != AIR {
                             let vol: Float = sp.volume * (m.baby ? 0.5 : 1)
-                            if let r = Soldier.rank(m.kind) { game.sfx(.soldierStep(r), vol + 0.15, at: m.pos) }
+                            if let r = Soldier.rank(m.kind) { game.sfx(.soldierStep(Soldier.voice(r)), vol + 0.15, at: m.pos) }
                             else { game.sfx(.step(soundMat(under)), vol, at: m.pos) }
                         }
                     }
@@ -1680,7 +1683,7 @@ final class MobManager {
                 if let r = Soldier.rank(m.kind) {
                     // Soldiers chatter at ease and shout orders in a fight (more often while fighting).
                     if m.aggro { m.callTimer = Rand.float(in: 4...9) }
-                    game.sfx(.soldier(r, m.aggro ? (Rand.float(in: 0..<1) < 0.25 ? .retreat : .attack) : .idle), m.aggro ? 1 : 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
+                    game.sfx(.soldier(Soldier.voice(r), m.aggro ? (Rand.float(in: 0..<1) < 0.25 ? .retreat : .attack) : .idle), m.aggro ? 1 : 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
                 } else if m.kind != .creeper && m.kind != .magmaCube && MobVoice.profile(m.kind).family != .silent {
                     game.sfx(m.baby ? .babyMob(m.kind, .ambient) : .mob(m.kind, .ambient), m.baby ? 0.45 : 0.6, at: m.pos + V3(0, m.height * 0.8, 0))
                 }

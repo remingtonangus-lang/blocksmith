@@ -80,7 +80,7 @@ jobs:
           BLOCKSMITH_TEXRES=16 build/Blocksmith.app/Contents/MacOS/Blocksmith --snapshot snaps/fast.png --seed 12345 --time 0.25 --rd 4 --posecheck 2>&1 | tee snap.log
           [ -f snaps/imagecheck.log ] && python3 tools/imagecheck.py snaps/imagecheck.log 2>&1 | tee -a snap.log || true
 
-      # "[fastshots a,b_*]" in the head commit message renders those snap.sh shots (by PNG name, * globs) here too,
+      # A [fastshots a,b_*] tag (the last one) in the head commit message renders those snap.sh shots (by PNG name, * globs) here too,
       # so a session can look at its shots without waiting for a heavy run. Max 16 shots.
       - name: Shots named in the commit message
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
@@ -88,15 +88,15 @@ jobs:
         env:
           MSG: ${{ github.event.head_commit.message }}
         run: |
-          LIST=$(printf '%s' "$MSG" | grep -o '\[fastshots [^]]*\]' | head -1 | sed 's/^\[fastshots //; s/\]$//' | tr ',' ' ' || true)
+          LIST=$(printf '%s' "$MSG" | grep -o '\[fastshots [^]]*\]' | tail -1 | sed 's/^\[fastshots //; s/\]$//' | tr ',' ' ' || true)
           [ -n "$LIST" ] || { echo "no [fastshots ...] in the commit message"; exit 0; }
           BIN=build/Blocksmith.app/Contents/MacOS/Blocksmith
           k=0
           for n in $LIST; do
             pat=$(printf '%s' "$n" | sed 's/[^a-zA-Z0-9_*]//g; s/\*/[a-zA-Z0-9_]*/g')
-            grep -E "snaps/${pat}\.png" snap.sh | while IFS= read -r L; do
+            { grep -E "snaps/${pat}\.png" snap.sh || echo "fastshot: no shot matches $n" >&2; } | while IFS= read -r L; do
               echo "fastshot: $L" | tee -a snap.log
-              (eval "BLOCKSMITH_TEXRES=32 $L") 2>&1 | tail -12 | tee -a snap.log || true
+              (eval "BLOCKSMITH_TEXRES=32 $L" < /dev/null) 2>&1 | tail -12 | tee -a snap.log || true
             done
             k=$((k + 1)); [ "$k" -lt 16 ] || break
           done

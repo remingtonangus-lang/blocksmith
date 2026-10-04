@@ -200,9 +200,15 @@ fragment float4 mobVibFS(MobOut in [[stage_in]],
                          constant Uniforms& u [[buffer(1)]],
                          constant float4* fl [[buffer(5)]]) {
     float3 c = mobPattern(in);
+    int pt = int(in.pattern + 0.5);
+    if (pt == 9) return float4(applyFogDir(c, in.rel, in.dist, u), 1.0);    // emissive: visors, cells, lenses (bloom)
     float sh = vibShadow(sm, in.rel, float3(0, 1, 0), u);
     float k = mix(0.62, 1.0, sh);
     float3 col = c * in.shade * k + c * flashLight(in.rel, float3(0, 1, 0), fl) * 0.8;
+    if (mobGlossy(pt)) {
+        float3 n = normalize(cross(dfdx(in.rel), dfdy(in.rel)));
+        col += mobSheen(n, in.rel, pt, u.lightDir.xyz, u.sunColor.rgb) * sh * saturate(in.shade * 1.3);
+    }
     return float4(applyFogDir(col, in.rel, in.dist, u), 1.0);
 }
 

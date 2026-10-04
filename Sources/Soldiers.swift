@@ -1,12 +1,14 @@
 import Foundation
 import simd
 
-// The Steelhold garrison: four soldier ranks of rising difficulty, and the heavy deck guns on the
-// fortress corners.
-//  Recruit  20 HP, light kit, rifle or chatter gun; short bursts from mid range, falls back when hurt.
-//  Trooper  30 HP, plated; shotgun (rushes in) or rifle (strafes); lobs grenades at players in cover.
-//  Marksman 26 HP; farsight rifle from long range with a red aiming laser before each shot; backs away.
-//  Ironclad 60 HP, heavy armour, shrugs off knockback; skybreaker or arc lance; advances, enrages.
+// The Capital garrison (save keys from the Steelhold days): six soldier ranks, and the heavy deck guns on the
+// fortress corners. Models, stances and the crew-station pose hooks: SoldierRig.swift.
+//  Trooper  (recruit)  20 HP, rifle or chatter gun; short bursts from mid range, falls back when hurt.
+//  Vanguard (trooper)  30 HP, cuirass; shotgun (rushes in) or rifle (strafes); lobs grenades at players in cover.
+//  Marksman            26 HP; farsight rifle from long range with an aiming laser before each shot; backs away.
+//  Bulwark  (ironclad) 60 HP, full plate, shrugs off knockback; skybreaker or arc lance; advances, enrages.
+//  Officer             28 HP, sidearm; points the squad at the threat and quickens everyone's reaction.
+//  Pilot    (crew)     18 HP, sidearm or chatter gun; vehicle drivers, gunners and pilots.
 // They alert each other, chase the last place they saw the player, and reload between magazines.
 // Deck guns traverse slowly, solve a ballistic arc, glow while charging, then fire twin shells.
 
@@ -34,6 +36,15 @@ final class SoldierBrain {
     var coverSearch: Float = 0
     var flank: V3?                  // where a flanking trooper / relocating marksman is heading
     var flankTimer: Float = Rand.float(in: 2...5)
+    // Animation state (SoldierRig.swift).
+    var clock: Float = 0             // seconds alive (idle breathing, glances, parade-rest cycle)
+    var aimHold: Float = 0           // keeps the weapon shouldered this long after seeing the target / firing
+    var recoil: Float = 0            // 1 at a shot, decays fast
+    var reloadTotal: Float = 1       // length of the current reload
+    var throwT: Float = 0            // grenade throw left (0.7 s)
+    var pointT: Float = 0            // officer pointing the squad at the threat
+    var station = StationPose.none   // crew station pose (vehicles / ships)
+    var seat: Float = 0.45           // seat top above the feet (blocks), seated stations
     init(gun: Int) { self.gun = gun; mag = gun >= 0 ? Guns.all[gun].mag : 0 }
 }
 
@@ -55,7 +66,11 @@ enum Soldier {
         Rank(near: 7, far: 12, sight: 32, spread: 0.045, burst: 4...6, gap: 0.8...1.4, react: 0.7, strafe: 0.8, damage: 0.9, armor: 10, toughness: 2),
         Rank(near: 16, far: 40, sight: 60, spread: 0.012, burst: 1...1, gap: 1.6...2.4, react: 0.4, strafe: 0.2, damage: 0.75, armor: 8, toughness: 0),
         Rank(near: 8, far: 20, sight: 40, spread: 0.03, burst: 1...2, gap: 1.8...2.6, react: 0.8, strafe: 0, damage: 0.9, armor: 14, toughness: 4),
+        Rank(near: 6, far: 14, sight: 34, spread: 0.04, burst: 1...3, gap: 0.6...1.2, react: 0.5, strafe: 0.4, damage: 0.85, armor: 6, toughness: 0),
+        Rank(near: 6, far: 14, sight: 28, spread: 0.06, burst: 1...3, gap: 0.7...1.4, react: 0.8, strafe: 0.5, damage: 0.7, armor: 4, toughness: 0),
     ]
+    // Voice (SoldierVoice / footsteps) per rank: officers speak like vanguards, pilots like troopers.
+    static func voice(_ r: Int) -> Int { [0, 1, 2, 3, 1, 0][max(0, min(5, r))] }
 
     static func rank(_ k: MobKind) -> Int? {
         switch k {
@@ -63,6 +78,8 @@ enum Soldier {
         case .soldierTrooper: return 1
         case .soldierMarksman: return 2
         case .soldierIronclad: return 3
+        case .soldierOfficer: return 4
+        case .soldierCrew: return 5
         default: return nil
         }
     }
@@ -74,6 +91,8 @@ enum Soldier {
         case .soldierRecruit: return r < 0.6 ? Guns.rifle : Guns.smg
         case .soldierTrooper: return r < 0.5 ? Guns.shotgun : Guns.rifle
         case .soldierMarksman: return r < 0.8 ? Guns.sniper : Guns.rifle
+        case .soldierOfficer: return Guns.pistol
+        case .soldierCrew: return r < 0.7 ? Guns.pistol : Guns.smg
         default: return r < 0.5 ? Guns.launcher : Guns.arc
         }
     }
@@ -85,6 +104,7 @@ enum Soldier {
         case Guns.smg: return (5, 10)
         case Guns.launcher: return (10, 26)
         case Guns.arc: return (6, 18)
+        case Guns.pistol: return (4, 12)
         case Guns.rifle where rank == 2: return (12, 26)
         default: return (ranks[rank].near, ranks[rank].far)
         }
@@ -99,17 +119,23 @@ extension MobKind {
     var militarySpec: Spec {
         switch self {
         case .soldierRecruit:
-            return Spec(name: "Steelhold Recruit", halfW: 0.3, height: 1.9, health: 20, speed: 3.0, behavior: .monster,
+            return Spec(name: "Capital Trooper", halfW: 0.3, height: 1.9, health: 20, speed: 3.0, behavior: .monster,
                         drops: [("rifle_rounds", 1, 4), ("iron_nugget", 0, 3)], xp: 8, call: .gun(11))
         case .soldierTrooper:
-            return Spec(name: "Steelhold Trooper", halfW: 0.32, height: 1.95, health: 30, speed: 3.2, behavior: .monster,
+            return Spec(name: "Capital Vanguard", halfW: 0.32, height: 1.95, health: 30, speed: 3.2, behavior: .monster,
                         drops: [("rifle_rounds", 0, 4), ("shotgun_shells", 0, 3), ("bread", 0, 1)], xp: 12, call: .gun(11))
         case .soldierMarksman:
-            return Spec(name: "Steelhold Marksman", halfW: 0.3, height: 1.9, health: 26, speed: 2.8, behavior: .monster,
+            return Spec(name: "Capital Marksman", halfW: 0.3, height: 1.9, health: 26, speed: 2.8, behavior: .monster,
                         drops: [("heavy_rounds", 1, 3), ("iron_nugget", 0, 2)], xp: 14, call: .gun(11))
         case .soldierIronclad:
-            return Spec(name: "Steelhold Ironclad", halfW: 0.42, height: 2.25, health: 60, speed: 2.0, behavior: .monster,
+            return Spec(name: "Capital Bulwark", halfW: 0.42, height: 2.25, health: 60, speed: 2.0, behavior: .monster,
                         drops: [("iron_ingot", 1, 4), ("rocket_ammo", 0, 2), ("arc_cell", 0, 3)], xp: 30, call: .gun(11), fireImmune: true)
+        case .soldierOfficer:
+            return Spec(name: "Capital Officer", halfW: 0.3, height: 1.95, health: 28, speed: 3.0, behavior: .monster,
+                        drops: [("rifle_rounds", 1, 4), ("gold_nugget", 0, 3)], xp: 16, call: .gun(11))
+        case .soldierCrew:
+            return Spec(name: "Capital Pilot", halfW: 0.3, height: 1.9, health: 18, speed: 3.1, behavior: .monster,
+                        drops: [("rifle_rounds", 0, 3), ("iron_nugget", 0, 2)], xp: 8, call: .gun(11))
         default:
             // A true-scale twin 42 cm turret (HeavyTurret): 14 m wide, 5.5 m tall gunhouse on a barbette.
             return Spec(name: "Twin 42 cm Turret", halfW: 7, height: 5.5, health: 400, speed: 0, behavior: .monster,
@@ -141,6 +167,7 @@ extension Mob {
         for m in g.mobs.mobs where m.kind.steelhold && m !== self && m.health > 0 && simd_length(m.pos - pos) < r {
             let b = m.soldierBrain
             if !m.aggro { m.aggro = true; b.react = max(b.react, 0.6) }
+            if kind == .soldierOfficer { b.react = min(b.react, 0.35) }      // an officer's call: quicker to fire
             if b.seenAgo > 1 { b.lastSeen = at; b.seenAgo = min(b.seenAgo, 2) }
             m.lockTime = max(m.lockTime, 20)
         }
@@ -154,6 +181,11 @@ extension Mob {
         let gs = Guns.all[b.gun]
         let w = g.world
         if home == nil { home = pos }
+        b.clock += dt
+        b.aimHold -= dt
+        b.recoil = max(0, b.recoil - dt * 7)
+        b.throwT = max(0, b.throwT - dt)
+        b.pointT = max(0, b.pointT - dt)
         b.shotTimer -= dt
         b.grenadeCD -= dt
         b.retreat -= dt
@@ -188,11 +220,13 @@ extension Mob {
             if !aggro && (dist < 10 || simd_dot(toP, forward) > 0.2 || hurt > 0) {
                 aggro = true
                 b.react = rank.react
-                g.sfx(.soldier(r, .alert), 1.1, at: eye)
+                g.sfx(.soldier(Soldier.voice(r), .alert), 1.1, at: eye)
                 if Rand.float(in: 0..<1) < 0.5 { g.sfx(.gun(11), 0.6, at: eye) }
+                if r == 4 { b.pointT = 1.4 }
                 alertGarrison(g, g.player.pos)
             }
             if aggro {
+                b.aimHold = 1.2
                 if b.seenAgo > 3 { b.react = max(b.react, rank.react) }
                 b.lastSeen = g.player.pos
                 b.seenAgo = 0
@@ -215,8 +249,9 @@ extension Mob {
         b.flankTimer -= dt
         if b.mag <= 0 && b.reload <= 0 {
             b.reload = gs.reload * (r == 3 ? 1.3 : 1)
+            b.reloadTotal = b.reload
             g.sfx(.gunReload(gs.sound), 0.6, at: eye)
-            if Rand.float(in: 0..<1) < 0.5 { g.sfx(.soldier(r, .reload), 0.9, at: eye) }
+            if Rand.float(in: 0..<1) < 0.5 { g.sfx(.soldier(Soldier.voice(r), .reload), 0.9, at: eye) }
         }
         if b.reload <= 0 { b.cover = nil }
         let (near, far) = Soldier.band(r, b.gun)
@@ -269,7 +304,7 @@ extension Mob {
                 let toMe = simd_normalize(V3(pos.x - g.player.pos.x, 0, pos.z - g.player.pos.z) + V3(1e-4, 0, 0))
                 let side = V3(-toMe.z, 0, toMe.x) * (Rand.float(in: 0..<1) < 0.5 ? -1 : 1)
                 b.flank = g.player.pos + simd_normalize(toMe + side * 1.4) * min(dist, (near + far) / 2)
-                if Rand.float(in: 0..<1) < 0.5 { g.sfx(.soldier(r, .attack), 0.9, at: eye) }      // "flanking!"
+                if Rand.float(in: 0..<1) < 0.5 { g.sfx(.soldier(Soldier.voice(r), .attack), 0.9, at: eye) }      // "flanking!"
             }
             let shotsBefore = b.mag
             soldierFire(dt, g, b, gs, rank: r, dist: dist, target: target)
@@ -278,7 +313,7 @@ extension Mob {
                 let right = V3(cosf(yaw), 0, -sinf(yaw))
                 b.flank = pos + right * (Rand.float(in: 0..<1) < 0.5 ? -5 : 5)
                 b.flankTimer = 2.5
-                if Rand.float(in: 0..<1) < 0.3 { g.sfx(.soldier(r, .retreat), 0.8, at: eye) }     // "moving!"
+                if Rand.float(in: 0..<1) < 0.3 { g.sfx(.soldier(Soldier.voice(r), .retreat), 0.8, at: eye) }     // "moving!"
             }
         } else {
             b.aimTime = 0
@@ -309,8 +344,9 @@ extension Mob {
         guard b.reload <= 0, b.react <= 0, dist < Soldier.ranks[r].sight else { b.aimTime = 0; return }
         if b.mag <= 0 {
             b.reload = gs.reload * (r == 3 ? 1.3 : 1)
+            b.reloadTotal = b.reload
             g.sfx(.gunReload(gs.sound), 0.6, at: eye)
-            if Rand.float(in: 0..<1) < 0.4 { g.sfx(.soldier(r, .reload), 0.9, at: eye) }
+            if Rand.float(in: 0..<1) < 0.4 { g.sfx(.soldier(Soldier.voice(r), .reload), 0.9, at: eye) }
             return
         }
         guard b.shotTimer <= 0 else { return }
@@ -322,7 +358,8 @@ extension Mob {
         }
         let rank = Soldier.ranks[r]
         let enraged = r == 3 && health < spec.health / 2
-        let muzzle = eye + forward * 0.6 - V3(0, 0.15, 0)
+        b.aimHold = max(b.aimHold, 1.5)
+        let muzzle = SoldierRig.muzzleWorld(self)
         var aimAt = target
         let flight = gs.speed > 0 ? simd_length(target - muzzle) / gs.speed : 0
         aimAt += g.player.vel * flight * 0.8
@@ -350,6 +387,7 @@ extension Mob {
                                  uvSize: 1, size: 0.14, gravity: 0, color: gs.shot == .beam ? V3(0.8, 2, 2.4) : V3(2.4, 1.7, 0.6), collide: false, glow: true))
         g.addFlash(at: muzzle + dir * 0.3, color: gs.shot == .beam ? V3(1.2, 2.6, 3.2) : V3(4, 3, 1.6), radius: 6, life: 0.06)   // lights the terrain (Fancy)
         b.mag -= 1
+        b.recoil = 1
         if b.burst <= 0 { b.burst = Rand.int(in: rank.burst) }
         b.burst -= 1
         let rate: Float = enraged ? 0.6 : 1
@@ -358,7 +396,9 @@ extension Mob {
 
     // A short burst into the player's last position (wider spread; it pins them behind cover).
     private func suppress(_ g: Game, _ b: SoldierBrain, _ gs: GunSpec, at t: V3, rank: Soldier.Rank) {
-        let muzzle = eye + forward * 0.6 - V3(0, 0.15, 0)
+        b.aimHold = max(b.aimHold, 1.2)
+        b.recoil = 1
+        let muzzle = SoldierRig.muzzleWorld(self)
         let dir = simd_normalize(t - muzzle)
         let scale = Soldier.difficultyScale(g.difficulty) * rank.damage
         if gs.shot == .bullet {
@@ -417,7 +457,8 @@ extension Mob {
                      shooter: ObjectIdentifier(self), by: spec.name, life: 2.6, gravity: grav)
         s.power = 2
         g.arms.spawn(s)
-        g.sfx(.soldier(Soldier.rank(kind) ?? 1, .grenade), 1.1, at: eye)
+        g.sfx(.soldier(Soldier.voice(Soldier.rank(kind) ?? 1), .grenade), 1.1, at: eye)
+        soldierBrain.throwT = 0.7
     }
 
     // MARK: Deck gun
@@ -526,7 +567,7 @@ extension Game {
         for m in mobs.of(.soldierMarksman) {
             guard let b = m.brain, b.aimTime > 0 else { continue }
             let k = min(1, b.aimTime / 1.1)
-            let from = m.eye + m.forward * 0.6 - V3(0, 0.15, 0)
+            let from = SoldierRig.muzzleWorld(m)
             Armory.streak(&wr, eye, from, player.eye - V3(0, 0.3, 0), 0.012 + 0.012 * k, V4(2.6, 0.15, 0.1, 0.5 + 0.5 * k))
         }
     }
@@ -534,83 +575,8 @@ extension Game {
 
 // MARK: Models
 
-func soldierParts(_ m: Mob, swing: Float) -> [Part] {
-    let r = Soldier.rank(m.kind) ?? 0
-    let skin = V3(0.78, 0.6, 0.47)
-    let boots = V3(0.12, 0.11, 0.1)
-    let aiming = m.aggro
-    let aimPitch: Float = aiming ? (m.brain?.pitch ?? 0) : 0
-    let armX: Float = aiming ? 1.45 + aimPitch : 0.9
-    let gunTilt: Float = aiming ? aimPitch : -0.5
-    let big: Float = r == 3 ? 1.12 : 1
-    var cloth: V3, plate: V3, trim: V3
-    switch r {
-    case 0: cloth = V3(0.46, 0.5, 0.55); plate = V3(0.32, 0.35, 0.38); trim = V3(0.9, 0.55, 0.15)
-    case 1: cloth = V3(0.3, 0.34, 0.22); plate = V3(0.36, 0.41, 0.26); trim = V3(0.15, 0.17, 0.12)
-    case 2: cloth = V3(0.24, 0.27, 0.2); plate = V3(0.2, 0.22, 0.17); trim = V3(0.4, 0.36, 0.26)
-    default: cloth = V3(0.17, 0.18, 0.2); plate = V3(0.24, 0.25, 0.28); trim = V3(0.88, 0.7, 0.12)
-    }
-    // Capital ship crews wear their faction's colours: Stormwarden navy with white trim, Ironback rust with black.
-    if m.faction == Faction.stormwarden.rawValue {
-        cloth = V3(0.16, 0.22, 0.36); plate = V3(0.3, 0.36, 0.46); trim = V3(0.92, 0.92, 0.95)
-    } else if m.faction == Faction.ironback.rawValue {
-        cloth = V3(0.42, 0.25, 0.14); plate = V3(0.3, 0.27, 0.24); trim = V3(0.1, 0.1, 0.1)
-    }
-    let camo: Float = r == 2 ? 4 : 0
-    func s(_ p: Part) -> Part {
-        guard big != 1 else { return p }
-        return Part(mn: p.mn * big, mx: p.mx * big, pivot: p.pivot * big, rotX: p.rotX, rotZ: p.rotZ, color: p.color, pattern: p.pattern)
-    }
-    var p: [Part] = [
-        Part(mn: V3(-4, 0, -2), mx: V3(0, 12, 2), pivot: V3(-2, 12, 0), rotX: swing, color: cloth, pattern: camo),
-        Part(mn: V3(0, 0, -2), mx: V3(4, 12, 2), pivot: V3(2, 12, 0), rotX: -swing, color: cloth, pattern: camo),
-        Part(mn: V3(-4.2, 0, -2.4), mx: V3(-0.1, 3, 2.2), pivot: V3(-2, 12, 0), rotX: swing, color: boots),
-        Part(mn: V3(0.1, 0, -2.4), mx: V3(4.2, 3, 2.2), pivot: V3(2, 12, 0), rotX: -swing, color: boots),
-        box(-4, 12, -2, 8, 12, 4, cloth, camo),
-        box(-4.4, 14, -2.5, 8.8, 9, 5, plate, camo),                          // vest / chest plate
-        box(-4, 24, -4, 8, 8, 8, skin),
-        Part(mn: V3(-8, 12, -2), mx: V3(-4, 24, 2), pivot: V3(-6, 23, 0), rotX: armX, color: cloth, pattern: camo),
-        Part(mn: V3(4, 12, -2), mx: V3(8, 24, 2), pivot: V3(6, 23, 0), rotX: armX, color: cloth, pattern: camo),
-        Part(mn: V3(-8.2, 12, -2.2), mx: V3(-3.8, 14.5, 2.2), pivot: V3(-6, 23, 0), rotX: armX, color: boots),   // gloves
-        Part(mn: V3(3.8, 12, -2.2), mx: V3(8.2, 14.5, 2.2), pivot: V3(6, 23, 0), rotX: armX, color: boots),
-        box(-3, 13, 2, 6, 9, 3, plate * 0.85),                                 // backpack
-    ]
-    switch r {
-    case 0:
-        // Soft cap with a peak, shoulder rank stripe.
-        p += [box(-4.3, 30, -4.3, 8.6, 3, 8.6, plate), box(-4.3, 30, -7, 8.6, 1, 3, plate * 0.8),
-              box(-8.2, 21, -2.2, 4.4, 1, 4.4, trim), box(3.8, 21, -2.2, 4.4, 1, 4.4, trim),
-              box(-2.5, 27, -4.1, 1.5, 1, 0.2, V3(0.1, 0.1, 0.1)), box(1, 27, -4.1, 1.5, 1, 0.2, V3(0.1, 0.1, 0.1))]
-    case 1:
-        // Plated helmet with a dark visor band, shoulder pads.
-        p += [box(-4.6, 26, -4.6, 9.2, 6.8, 9.2, plate), box(-4.7, 27, -4.8, 9.4, 2.2, 0.4, V3(0.08, 0.1, 0.12)),
-              box(-9, 20, -3, 5.2, 4, 6, plate), box(3.8, 20, -3, 5.2, 4, 6, plate), box(-4.6, 32.6, -1, 9.2, 0.8, 2, trim)]
-    case 2:
-        // Hood, scarf over the face and a glowing red monocle; a ragged cloak behind.
-        p += [box(-4.5, 26, -4.5, 9, 6.8, 9, cloth, 4), box(-4.3, 24, -4.6, 8.6, 3, 0.6, trim),
-              box(1, 28, -4.8, 2.2, 2.2, 0.6, V3(2.2, 0.2, 0.15)), box(-2.6, 28.5, -4.2, 1.5, 1, 0.2, V3(0.1, 0.1, 0.1)),
-              box(-4.5, 4, 2.1, 9, 20, 0.8, cloth * 0.9, 4)]
-    default:
-        // Full helmet with a glowing visor slit, big pauldrons, twin power tanks.
-        p += [box(-4.8, 24, -4.8, 9.6, 9, 9.6, plate), box(-3.6, 28, -5, 7.2, 1.4, 0.4, V3(2.1, 1.0, 0.3)),
-              box(-10, 19, -3.5, 6, 5.5, 7, plate), box(4, 19, -3.5, 6, 5.5, 7, plate),
-              box(-10, 23.5, -3.5, 6, 0.8, 7, trim), box(4, 23.5, -3.5, 6, 0.8, 7, trim),
-              box(-3.5, 12, 4.4, 3, 10, 3, trim * 0.8), box(0.5, 12, 4.4, 3, 10, 3, trim * 0.8),
-              box(-4.6, 6, -2.6, 9.2, 5, 5.2, plate), box(-4.4, 14, -3, 8.8, 0.8, 0.5, trim)]
-    }
-    p = p.map(s)
-    // The gun, held two-handed in front (lowered while at ease).
-    let gun = m.brain?.gun ?? m.variant
-    let shoulder = V3(0, 22, 0) * big
-    // Grip level with the hands (at y 20 the gun hung two pixels below them, at ease and aiming: blind critic, run 385).
-    let o = V3(1.5, 22, -10) * big
-    for var q in Guns.heldParts(max(0, min(Guns.all.count - 1, gun)), at: o, scale: 0.75 * big) {
-        q.pivot = shoulder
-        q.rotX = gunTilt
-        p.append(q)
-    }
-    return p
-}
+// The jointed Capital uniform models and their stances (SoldierRig.swift).
+func soldierParts(_ m: Mob, swing: Float) -> [Part] { SoldierRig.build(m).parts }
 
 // The twin 42 cm heavy-gun turret, true to scale (1 block = 1 m; parts in 1/16 block). An original model after
 // WWII battleship twin turrets (the H-class 42 cm design, a scaled-up Bismarck-type turret): a long flat-roofed

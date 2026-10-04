@@ -57,6 +57,7 @@ enum PoseCheck {
 
     static func run(game: Game) -> Bool {
         failures = []
+        SoldierRig.eye = nil
         var limbs = 0
         let skip: Set<MobKind> = [.deckGun, .boat, .minecart, .enderDragon, .endCrystal]
         for k in MobKind.allCases where !skip.contains(k) {
@@ -81,7 +82,87 @@ enum PoseCheck {
             limbs += 1
             check(l.tip.z < 1, "player model part \(l.index) raised forward", String(format: "tip z %.1f", l.tip.z))
         }
+        soldiers(&limbs)
         print("posecheck: \(limbs) raised limbs checked, \(failures.count) failed\(failures.isEmpty ? "" : " -> " + failures.prefix(12).joined(separator: ", "))")
         return failures.isEmpty
+    }
+
+    // Lowest and highest model points (after rotation) and whether every coordinate is finite.
+    static func extent(_ parts: [Part]) -> (Float, Float, Bool) {
+        var lo: Float = 1e9, hi: Float = -1e9, ok = true
+        for p in parts {
+            let r = p.rotation
+            for k in 0..<8 {
+                let c = V3(k & 1 == 0 ? p.mn.x : p.mx.x, k & 2 == 0 ? p.mn.y : p.mx.y, k & 4 == 0 ? p.mn.z : p.mx.z)
+                let q = p.place(c, r)
+                if !(q.x.isFinite && q.y.isFinite && q.z.isFinite) { ok = false }
+                lo = min(lo, q.y); hi = max(hi, q.y)
+            }
+        }
+        return (lo, hi, ok)
+    }
+
+    // Soldiers: every rank in every stance. Hands reach where the stance puts them, the weapon sits in the hands,
+    // boots on the ground, and while aiming both hands and the muzzle are ahead of the chest.
+    static func soldiers(_ limbs: inout Int) {
+        let kinds = MobKind.allCases.filter { Soldier.rank($0) != nil }
+        func make(_ k: MobKind, gun gi: Int) -> Mob {
+            let m = Mob(k, at: .zero)
+            m.yaw = 0; m.walkAmount = 0; m.walkPhase = 0; m.reinforceChance = 0
+            m.variant = gi
+            m.soldierBrain.gun = gi
+            return m
+        }
+        typealias Setup = (name: String, standing: Bool, set: (Mob, SoldierBrain) -> Void)
+        var stances: [Setup] = [
+            ("aim level", true, { m, b in m.aggro = true; b.aimHold = 1; b.pitch = 0 }),
+            ("aim up", true, { m, b in m.aggro = true; b.aimHold = 1; b.pitch = 0.6 }),
+            ("aim down", true, { m, b in m.aggro = true; b.aimHold = 1; b.pitch = -0.5 }),
+            ("firing", true, { m, b in m.aggro = true; b.aimHold = 1; b.recoil = 1 }),
+            ("low ready", true, { m, _ in m.aggro = true }),
+            ("combat run", false, { m, _ in m.aggro = true; m.walkAmount = 1; m.walkPhase = 1.2 }),
+            ("throw windup", true, { m, b in m.aggro = true; b.throwT = 0.5 }),
+            ("throw release", true, { m, b in m.aggro = true; b.throwT = 0.15 }),
+            ("march", false, { m, _ in m.walkAmount = 1; m.walkPhase = 0.8 }),
+            ("march other foot", false, { m, _ in m.walkAmount = 1; m.walkPhase = 3.9 }),
+            ("attention", true, { _, b in b.clock = 0 }),
+            ("parade rest", true, { _, b in b.clock = 10 }),
+        ]
+        for u: Float in [0.1, 0.3, 0.5, 0.7, 0.9] {
+            stances.append(("reload \(u)", true, { m, b in m.aggro = true; b.reloadTotal = 2; b.reload = 2 * (1 - u) }))
+        }
+        for st in StationPose.allCases where st != StationPose.none {
+            stances.append(("station \(st)", st != .seated && st != .passenger, { _, b in b.station = st; b.seat = 0.45 }))
+        }
+        for k in kinds {
+            let r = Soldier.rank(k) ?? 0
+            for gi in 0..<Guns.all.count {
+                // Every weapon for the aim stances; the rank's own weapons for the rest.
+                let own = (0..<12).map { _ in Soldier.pickGun(k) }.contains(gi)
+                for s in stances where own || s.name.hasPrefix("aim") || s.name == "firing" || s.name == "low ready" {
+                    let m = make(k, gun: gi)
+                    s.set(m, m.soldierBrain)
+                    let rig = SoldierRig.build(m)
+                    let tag = "\(k.key) \(Guns.all[gi].key) \(s.name)"
+                    limbs += 1
+                    let (lo, hi, finite) = extent(rig.parts)
+                    check(finite, "\(tag) finite")
+                    check(rig.reachErr < 1.3, "\(tag) hands reach", String(format: "%.1f px short", rig.reachErr))
+                    if s.standing { check(lo > -0.8 && lo < 0.9, "\(tag) boots on the ground", String(format: "lowest point %.2f px", lo)) }
+                    check(hi > 30, "\(tag) head up", String(format: "top %.1f px", hi))
+                    if s.name.hasPrefix("aim") || s.name == "firing" {
+                        let chest = rig.chestFront
+                        check(rig.handR.z < chest - 1, "\(tag) right hand ahead of the chest", String(format: "z %.1f, chest %.1f", rig.handR.z, chest))
+                        check(rig.muzzle.z < rig.handR.z - 2, "\(tag) muzzle ahead of the hands", String(format: "muzzle %.1f hand %.1f", rig.muzzle.z, rig.handR.z))
+                        check(simd_length(rig.handR - rig.gripR) < 1.0, "\(tag) right hand on the grip", String(format: "%.1f px off", simd_length(rig.handR - rig.gripR)))
+                        let oneHand = r == 4 && gi == Guns.pistol
+                        if !oneHand {
+                            check(rig.handL.z < chest - 1, "\(tag) left hand ahead of the chest", String(format: "z %.1f", rig.handL.z))
+                            check(simd_length(rig.handL - rig.foreL) < 1.0, "\(tag) left hand on the fore grip", String(format: "%.1f px off", simd_length(rig.handL - rig.foreL)))
+                        }
+                    }
+                }
+            }
+        }
     }
 }
