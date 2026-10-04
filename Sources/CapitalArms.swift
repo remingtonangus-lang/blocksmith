@@ -20,7 +20,8 @@ struct GunModel {
 
 enum CapitalArms {
     // Finish colours and their shading patterns (Part.pattern).
-    static let enamel = V3(0.93, 0.93, 0.92), grey = V3(0.55, 0.58, 0.62), graphite = V3(0.14, 0.15, 0.17)
+    // Pale grey enamel and a dark band so a weapon still reads against the white uniforms.
+    static let enamel = V3(0.8, 0.81, 0.82), grey = V3(0.42, 0.45, 0.49), graphite = V3(0.14, 0.15, 0.17)
     static let silver = V3(0.78, 0.8, 0.84), glass = V3(0.1, 0.13, 0.17), glow = V3(0.55, 1.55, 1.95)
     static let pEnamel: Float = 7, pMetal: Float = 8, pGlow: Float = 9, pGlass: Float = 11
 
@@ -60,7 +61,7 @@ enum CapitalArms {
             let m = p.count
             p += [b(-0.7, -4.6, -5.3, 1.4, 4.4, 2.2, graphite, pMetal), b(-0.75, -4.9, -5.4, 1.5, 0.5, 2.4, silver, pMetal)]
             return GunModel(parts: p, mag: [m, m + 1], grip: V3(0, -1.6, 0.3), fore: V3(0, -0.2, -11), butt: V3(0, 0.6, 10.4),
-                            muzzle: V3(0, 1.3, -19.9), magAt: V3(0, -2.4, -4.2), bolt: V3(-1.4, 2, -2), scale: 0.58)
+                            muzzle: V3(0, 1.3, -19.9), magAt: V3(0, -2.4, -4.2), bolt: V3(-1.4, 2, -2), scale: 0.64)
         case Guns.smg:
             // Chatter Gun: compact carbine, long straight magazine, vertical fore grip, folding stock.
             var p: [Part] = [
@@ -79,7 +80,7 @@ enum CapitalArms {
             let m = p.count
             p += [b(-0.6, -5.6, -4.3, 1.2, 5.4, 1.6, graphite, pMetal)]
             return GunModel(parts: p, mag: [m], grip: V3(0, -1.6, 0.3), fore: V3(0, -1.8, -8), butt: V3(0, 0.3, 7.2),
-                            muzzle: V3(0, 1.2, -12.1), magAt: V3(0, -2.6, -3.5), bolt: V3(-1.4, 1.8, -1), scale: 0.6)
+                            muzzle: V3(0, 1.2, -12.1), magAt: V3(0, -2.6, -3.5), bolt: V3(-1.4, 1.8, -1), scale: 0.66)
         case Guns.shotgun:
             // Breach Shotgun: barrel over the magazine tube, enamel pump with grey grooves, bead sight.
             var p: [Part] = [
@@ -100,7 +101,7 @@ enum CapitalArms {
             let m = p.count
             p += [b(1.2, 0, -4, 0.4, 1.4, 1, grey, pMetal), b(1.2, 0, -2.6, 0.4, 1.4, 1, grey, pMetal)]   // shell carrier
             return GunModel(parts: p, mag: [m, m + 1], grip: V3(0, -1.8, 0.3), fore: V3(0, -0.9, -11.5), butt: V3(0, 0.2, 10.1),
-                            muzzle: V3(0, 1.8, -19.5), magAt: V3(0, -0.8, -3.5), bolt: V3(0, -0.9, -11.5), scale: 0.56)
+                            muzzle: V3(0, 1.8, -19.5), magAt: V3(0, -0.8, -3.5), bolt: V3(0, -0.9, -11.5), scale: 0.62)
         case Guns.sniper:
             // Farsight Rifle: long fluted barrel, big scope with a glowing objective, thumbhole stock, folded bipod.
             var p: [Part] = [
@@ -128,7 +129,7 @@ enum CapitalArms {
             let m = p.count
             p += [b(-0.7, -3.4, -4.6, 1.4, 3.2, 2.2, graphite, pMetal)]
             return GunModel(parts: p, mag: [m], grip: V3(0, -1.6, 0.3), fore: V3(0, -0.2, -12), butt: V3(0, 0.4, 11.8),
-                            muzzle: V3(0, 1.25, -27.7), magAt: V3(0, -1.8, -3.5), bolt: V3(1.5, 1.6, -2), scale: 0.52)
+                            muzzle: V3(0, 1.25, -27.7), magAt: V3(0, -1.8, -3.5), bolt: V3(1.5, 1.6, -2), scale: 0.57)
         case Guns.launcher:
             // Skybreaker Launcher: enamel tube with graphite end rings and a grey band, side optic, two grips.
             var p: [Part] = [
@@ -146,7 +147,7 @@ enum CapitalArms {
             let m = p.count
             p += [b(-1.6, 0.0, -16.4, 3.2, 3.2, 0.2, V3(0.25, 0.08, 0.06), pMetal)]   // the rocket's nose in the bore
             return GunModel(parts: p, mag: [m], grip: V3(0, -2.6, 0.3), fore: V3(0, -2.6, -7.7), butt: V3(0, 1.6, 11.8),
-                            muzzle: V3(0, 1.6, -16.4), magAt: V3(0, 1.6, 12), bolt: V3(0, -2.6, -7.7), scale: 0.6, shouldered: true)
+                            muzzle: V3(0, 1.6, -16.4), magAt: V3(0, 1.6, 12), bolt: V3(0, -2.6, -7.7), scale: 0.66, shouldered: true)
         case Guns.arc:
             // Arc Lance: enamel body, graphite coil housing ringed with three glowing coils, a glowing cell.
             var p: [Part] = [
@@ -163,7 +164,7 @@ enum CapitalArms {
             let m = p.count
             p += [b(-0.9, -4.3, -3, 1.8, 3.3, 2.4, graphite, pMetal), b(-0.95, -3.7, -2.6, 1.9, 1.6, 1.6, glow * 0.8, pGlow)]
             return GunModel(parts: p, mag: [m, m + 1], grip: V3(0, -2.4, 0.3), fore: V3(0, -1.4, -12), butt: V3(0, 0.4, 7),
-                            muzzle: V3(0, 0.5, -22.2), magAt: V3(0, -2.6, -1.8), bolt: V3(-1.6, 0.5, -4), scale: 0.6)
+                            muzzle: V3(0, 0.5, -22.2), magAt: V3(0, -2.6, -1.8), bolt: V3(-1.6, 0.5, -4), scale: 0.66)
         default:
             // Capital Sidearm: graphite slide over an enamel frame, grey grip panel, silver sights.
             var p: [Part] = [
@@ -178,7 +179,7 @@ enum CapitalArms {
             let m = p.count
             p += [b(-0.6, -3.6, 0.3, 1.2, 1.3, 1.5, enamel, pEnamel)]
             return GunModel(parts: p, mag: [m], grip: V3(0, -1.5, 0.6), fore: V3(-0.4, -2.4, 0.9), butt: V3(0, -1.5, 0.6),
-                            muzzle: V3(0, 0.7, -6.7), magAt: V3(0, -3.4, 0.9), bolt: V3(0, 0.7, -1), scale: 0.62, shouldered: false)
+                            muzzle: V3(0, 0.7, -6.7), magAt: V3(0, -3.4, 0.9), bolt: V3(0, 0.7, -1), scale: 0.68, shouldered: false)
         }
     }
 }

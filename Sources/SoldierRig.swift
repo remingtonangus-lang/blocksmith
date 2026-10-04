@@ -291,6 +291,12 @@ enum SoldierRig {
                 p.gunAt = gripFor(gm, anchor: gm.butt, at: p.t(V3(-3.2, 13.6, 3.4)), p)
             }
         }
+        // A launcher carried low across the hips, muzzle down and forward (on the shoulder it read as a raised fist).
+        func lowCarry() {
+            p.gunPitch = -0.35; p.gunYaw = 0.25; p.gunRoll = 0
+            p.gunAt = p.t(V3(3.4, 15.4, -5.2))
+            onGun()
+        }
         // Shouldered aim / low ready (pistols held out; launchers on the right shoulder).
         func shoulder(pitch: Float, low: Bool) {
             if launcher {
@@ -321,7 +327,7 @@ enum SoldierRig {
                 p.gunYaw = low ? 0.08 : 0.02
                 let kick = b.recoil
                 var butt = low ? p.t(V3(2.1, 20.2, -2.6)) : p.t(V3(1.8, 21.6, -2.3))
-                if gi == Guns.arc { butt = p.t(V3(2.6, 19.4, -2.4)) }
+                if gi == Guns.arc { butt = p.t(V3(2.6, 19.4, -3.3)) }
                 butt.z += 1.1 * kick
                 p.gunPitch += 0.16 * kick
                 p.gunAt = gripFor(gm, anchor: gm.butt, at: butt, p)
@@ -471,7 +477,7 @@ enum SoldierRig {
                 swingArms(0.55, left: true, right: true)
             case 1, 3:
                 if launcher {
-                    shoulder(pitch: 0, low: true)
+                    lowCarry()
                 } else {
                     // Port arms: across the chest.
                     p.gunPitch = 0.75; p.gunYaw = 0.85
@@ -504,10 +510,7 @@ enum SoldierRig {
             p.headYaw = sinf(t * 0.19) * 0.3
         case 1, 3:
             if launcher {
-                p.gunPitch = 0.32; p.gunYaw = 0.02
-                p.gunAt = gripFor(gm, anchor: V3(0, -0.6, 9), at: p.t(V3(5.3, 24.7, 1.4)), p)
-                p.poleR = V3(1, -1, 0.1)
-                onGun()
+                lowCarry()
             } else {
                 p.gunPitch = 0.75; p.gunYaw = 0.85
                 p.gunAt = p.t(V3(2.6, 16.2, -4.6))

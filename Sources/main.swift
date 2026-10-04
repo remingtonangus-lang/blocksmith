@@ -727,6 +727,10 @@ enum Snapshot {
                 for y in (gb - 3)..<gb where !Blocks.collide[Int(world.block(x, y, z))] { _ = world.setBlockAsync(x, y, z, Blocks.id("dirt")) }
             } }
             _ = world.loadSync(center: pos, radius: rd)
+            // ...and remesh it: the sections already meshed kept drawing the cleared blocks (run 457).
+            let corners: [V3] = [pos - r * 13 - f, pos + r * 13 - f, pos + f * 17 - r * 13, pos + f * 17 + r * 13]
+            let xs = corners.map { Int(floor($0.x)) }, zs = corners.map { Int(floor($0.z)) }
+            world.remeshArea(x0: xs.min()! - 1, z0: zs.min()! - 1, x1: xs.max()! + 1, z1: zs.max()! + 1, y0: gb - 4, y1: gb + 17)
         }
         if let list = arg("--spawn") {
             // Mobs in a row 6 blocks in front of the camera, facing it ("kind" or "kind:profession").
@@ -745,7 +749,13 @@ enum Snapshot {
                 let p: V3 = pos + f * ahead + r * off
                 let x = Int(floor(p.x)), z = Int(floor(p.z))
                 let exact = parts.contains { $0.hasPrefix("side=") || $0.hasPrefix("back=") }
-                let m = Mob(k, at: V3(exact ? p.x : Float(x) + 0.5, Float(world.topY(x, z) + 1), exact ? p.z : Float(z) + 0.5))
+                var groundY = world.topY(x, z) + 1
+                if CommandLine.arguments.contains("--spawnlevel") {
+                    // On the floor at the camera's level, not on the roof above it (courtyards, halls, decks).
+                    func solid(_ y: Int) -> Bool { Blocks.collide[Int(world.block(x, y, z))] }
+                    if let y = stride(from: Int(floor(pos.y)) + 1, through: Int(floor(pos.y)) - 16, by: -1).first(where: { solid($0 - 1) && !solid($0) && !solid($0 + 1) }) { groundY = y }
+                }
+                let m = Mob(k, at: V3(exact ? p.x : Float(x) + 0.5, Float(groundY), exact ? p.z : Float(z) + 0.5))
                 m.yaw = game.player.yaw
                 if k == .boat {
                     m.variant = parts.count > 1 ? Int(parts[1]) ?? 0 : 0
