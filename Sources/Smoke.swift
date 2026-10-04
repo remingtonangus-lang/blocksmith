@@ -32,6 +32,11 @@ enum Smoke {
         guard let r = try? Renderer(device: device, game: game, colorFormat: .bgra8Unorm),
               let target = OffscreenTarget(device, W, H) else { print("smoke: renderer init failed"); return 2 }
         game.screen = V2(Float(W), Float(H))
+        // --coop: split screen, a second player on a simulated pad who wanders off on their own (they walk while
+        // player 1 flies from the halfway mark, so chunks stream round two far-apart centres).
+        let coop = args.contains("--coop")
+        if coop { game.coop.simulated[1] = PadSnapshot(); game.coop.join(game, controller: nil) }
+        let p2Start = game.coop.seatPlayer(1, game).pos
         let dt = 1.0 / 60
         let frames = Int(seconds / dt)
         var frameMs: [Double] = []
@@ -150,6 +155,12 @@ enum Smoke {
             if i > flyAt && i < flyAt + 60 { p.a = true }      // climb above the terrain
             if i > flyAt { p.rx = 0.05 }
             PadManager.shared.simulated = p
+            if coop {
+                // Player 2: the same walk and jumps, veering right; their own inventory at 15 s (not the pause).
+                var q = p
+                q.lx = 0.45; q.rx = -0.1; q.menu = false; q.y = i % 900 == 300; q.b = i % 900 == 330
+                game.coop.simulated[1] = q
+            }
             let b = CFAbsoluteTimeGetCurrent()
             progress.set(i, "Game.tick")
             game.tick(dt)
@@ -200,7 +211,14 @@ enum Smoke {
         _ = r.renderToPNG(path: "snaps/smoke_rd\(rd).png", width: 960, height: 540)
         if dist < 100 { print("smoke rd \(rd): FAIL the player only moved \(Int(dist)) blocks (input or tick stalled)"); return 1 }
         if game.menu != nil || game.paused { print("smoke rd \(rd): FAIL a menu or the pause screen is still open"); return 1 }
-        print("smoke rd \(rd)\(game.fancyGraphics ? "" : " Fast"): PASS")
+        if coop {
+            let d2 = simd_length(game.coop.seatPlayer(1, game).pos - p2Start)
+            var open2 = false
+            game.coop.withSeat(1, game) { open2 = game.menu != nil }
+            print("smoke rd \(rd) split screen: player 2 moved \(Int(d2)) blocks")
+            if d2 < 30 || open2 { print("smoke rd \(rd): FAIL player 2 \(open2 ? "left a menu open" : "barely moved")"); return 1 }
+        }
+        print("smoke rd \(rd)\(game.fancyGraphics ? "" : " Fast")\(coop ? " split screen" : ""): PASS")
         return 0
     }
 }

@@ -190,7 +190,7 @@ final class Coop {
         for i in 0..<slots.count where i != me { withSeat(i, g, body) }
     }
 
-    func seatPlayer(_ i: Int, _ g: Game) -> Player { i == current ? g.player : (slots[i]?.player ?? g.player) }
+    func seatPlayer(_ i: Int, _ g: Game) -> Player { i == current || i >= slots.count ? g.player : (slots[i]?.player ?? g.player) }
 
     // The seat whose player is nearest to a point (horizontal distance).
     func nearestSeat(_ p: V3, _ g: Game) -> Int {
