@@ -883,8 +883,10 @@ extension ShipManager {
             guard s.role == "capfrigate", let h = s.home else { return true }
             return simd_length(V2(p.x - h.x, p.z - h.z)) < 260
         }
-        // Unprovoked it only turns on a player over the citadel's grounds (96 of home); once engaged, its whole leash.
-        let guardsPlayer: Bool = s.role != "capfrigate" || st.engaged || s.home.map { simd_length(V2(g.player.pos.x - $0.x, g.player.pos.z - $0.z)) < 96 } ?? true
+        // Stationed over a citadel, unprovoked it only turns on a player over the grounds (96 of home); once engaged,
+        // its whole leash. Roaming encounter frigates hunt as before.
+        let stationed = s.role == "capfrigate" && (st.region?.hasPrefix("citadel") ?? false)
+        let guardsPlayer: Bool = !stationed || st.engaged || s.home.map { simd_length(V2(g.player.pos.x - $0.x, g.player.pos.z - $0.z)) < 96 } ?? true
         if g.alive && g.difficulty > 0 && !onIt && leashed(g.player.pos) && guardsPlayer {
             let d = boundsDistance(s, g.player.pos)
             if d < bd { bd = d; best = CapTarget(point: g.player.pos + V3(0, 1, 0), vel: g.player.vel, ship: nil, mob: nil, player: true) }
