@@ -208,6 +208,8 @@ done
 "$BIN" --snapshot snaps/bastion.png --seed 12345 --dim nether --structure bastion --yaw 150 --pitch -10 --up 1 --rd 6
 "$BIN" --snapshot snaps/bastion_far.png --seed 12345 --dim nether --structure bastion --yaw 150 --pitch -35 --up 14 --rd 8
 # Big landmarks (Landmarks.swift): a volcano from afar, its crater lake and a lava channel.
+"$BIN" --snapshot snaps/canyon.png --seed 12345 --feature canyon --yaw 30 --pitch -28 --up 70 --time 0.3 --rd 12
+"$BIN" --snapshot snaps/canyon_floor.png --seed 12345 --feature canyon --yaw 120 --pitch 8 --up 2 --time 0.3 --rd 10
 "$BIN" --snapshot snaps/volcano_far.png --seed 12345 --feature volcano --yaw 0 --pitch -25 --up 110 --time 0.3 --rd 16
 "$BIN" --snapshot snaps/volcano_crater.png --seed 12345 --feature volcano --yaw 30 --pitch -60 --up 230 --time 0.3 --rd 10
 "$BIN" --snapshot snaps/volcano_horizon.png --seed 12345 --feature volcano --back 900 --yaw 0 --pitch 3 --up 25 --time 0.3 --rd 8

@@ -598,6 +598,7 @@ final class WorldGen: TerrainGenerator {
             else if placed < depth { b[i] = filler }
             else if let u = under, placed < depth + underDepth { b[i] = u }
             else if isBad && y > YOFF + 40 { b[i] = bands[(y + Int(n * 3)) & 63] }
+            else if k.cyn > 0.25 && y > top - 100 { b[i] = bands[(y + Int(n * 3)) & 63] }     // canyon walls: banded rock
             else { break }
             placed += 1
             y -= 1

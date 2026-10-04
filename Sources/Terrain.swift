@@ -85,6 +85,7 @@ final class Terrain {
         var vol: Float = 0    // inside a volcano's cone (0 outside, 1 on the cone proper; Landmarks.swift)
         var lava: Float = 0   // crater lava lake surface (display height), 0 when none
         var flow: Float = 0   // 1 on a lava channel down a volcano's flank
+        var cyn: Float = 0    // inside a canyon's walls (banded rock)
     }
 
     let seed: UInt64
@@ -105,6 +106,7 @@ final class Terrain {
     private let lakeCache: GridCache<Lake>
     private let riverCells: GridCache<RiverSet>
     let volcanoCache = GridCache<Volcano>(bits: 8, empty: Volcano.none)
+    let canyonCache = GridCache<Canyon>(bits: 8, empty: Canyon.none)
 
     init(seed: UInt64) {
         self.seed = seed
@@ -332,6 +334,7 @@ final class Terrain {
         n.jt = 0.1 * jitN.fbm2(fx / 40, fz / 40, 2)
         n.jw = 0.12 * jitN.fbm2(fx / 40 + 71, fz / 40 - 13, 2)
         carveWater(&n, fx, fz, m)
+        applyCanyons(&n, fx, fz)
         applyVolcanoes(&n, fx, fz)
         return n
     }
@@ -340,7 +343,7 @@ final class Terrain {
     // and lakes flag the nodes around them, so whole channels share one level).
     struct Column {
         var h: Float, wl: Float, rv: Float, ts: Float, w: Float, c: Float, u: Float, r: Float, slope: Float, v: Float, jt: Float, jw: Float, dry: Float, isl: Float, delta: Float
-        var vol: Float = 0, lava: Float = 0, flow: Float = 0
+        var vol: Float = 0, lava: Float = 0, flow: Float = 0, cyn: Float = 0
     }
 
     static func blend(_ a: Node, _ b: Node, _ c: Node, _ d: Node, _ fx: Float, _ fz: Float) -> Column {
@@ -353,7 +356,7 @@ final class Terrain {
                       ts: l(a.ts, b.ts, c.ts, d.ts), w: l(a.w, b.w, c.w, d.w), c: l(a.c, b.c, c.c, d.c), u: l(a.u, b.u, c.u, d.u),
                       r: l(a.r, b.r, c.r, d.r), slope: l(a.slope, b.slope, c.slope, d.slope), v: l(a.v, b.v, c.v, d.v),
                       jt: l(a.jt, b.jt, c.jt, d.jt), jw: l(a.jw, b.jw, c.jw, d.jw), dry: l(a.dry, b.dry, c.dry, d.dry), isl: l(a.isl, b.isl, c.isl, d.isl), delta: l(a.delta, b.delta, c.delta, d.delta),
-                      vol: l(a.vol, b.vol, c.vol, d.vol), lava: max(max(a.lava, b.lava), max(c.lava, d.lava)), flow: l(a.flow, b.flow, c.flow, d.flow))
+                      vol: l(a.vol, b.vol, c.vol, d.vol), lava: max(max(a.lava, b.lava), max(c.lava, d.lava)), flow: l(a.flow, b.flow, c.flow, d.flow), cyn: l(a.cyn, b.cyn, c.cyn, d.cyn))
     }
 
     func column(_ x: Int, _ z: Int) -> Column {
@@ -484,6 +487,20 @@ final class Terrain {
 
     // Harness: nearest lake (non-dry basin) or river mouth with a delta, as a world position (x, z).
     func nearestFeature(_ kind: String, x: Int, z: Int) -> (Int, Int)? {
+        if kind == "canyon" {
+            let c = Terrain.canyonCell
+            let ci = Int(floorf(Float(x) / Float(c))), cj = Int(floorf(Float(z) / Float(c)))
+            for r in 0...6 { for j in (cj - r)...(cj + r) { for i in (ci - r)...(ci + r) where max(abs(i - ci), abs(j - cj)) == r {
+                let k = canyon(cell: i, j)
+                if k.exists {
+                    // The meandering centre line at mid-length (the axis midpoint can be on the rim).
+                    let sm = k.len * 0.5
+                    let off: Float = k.amp * sinf(sm / k.wave * 2 * .pi + k.phase) + k.amp * 0.35 * sinf(sm / (k.wave * 0.37) + k.phase * 2)
+                    return (Int(k.x0 + k.dx * sm - k.dz * off), Int(k.z0 + k.dz * sm + k.dx * off))
+                }
+            } } }
+            return nil
+        }
         if kind == "volcano" {
             guard let v = nearestVolcano(Float(x), Float(z), cells: 8) else { return nil }
             return (Int(v.x), Int(v.z))
