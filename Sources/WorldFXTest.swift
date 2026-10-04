@@ -2,14 +2,15 @@ import Foundation
 import simd
 
 // Checks and shots for material damage and weather (session H, docs/status/world-fx.md):
-//   Blocksmith --snapshot snaps/fx.png --fxtest cracks,fire,flood,snow,storm [--out snaps]
+//   Blocksmith --snapshot snaps/fx.png --fxtest cracks,fire,flood,snow,storm,wildfire [--out snaps]
 // Scenes (each one prints PASS / FAIL lines, writes fx_<scene>_*.png and a row of timings to snaps/fxtest.md):
 //   cracks  stone, brick, metal, glass and wood at every damage stage on a pad (decals vs chips, glass shatters)
 //   fire    a wooden house set alight on its upwind side in a strong wind (spreads downwind, scorches, chars to
 //           charcoal, cap and tick cost), lightning on a tree, the burning-cell cap on a plank field
 //   flood   heavy rain on a river valley: the coarse model floods the low ground, then the water recedes
 //   snow    a snowstorm on the snowy plains: layers pile up unevenly, then melt back
-//   storm   a gunboat and a boat on the open sea: calm, then a full storm (roll, pitch, still afloat, upright)
+//   storm   a gunboat on the open sea: calm, then a full storm (roll, pitch, still afloat, upright), lightning on it
+//   wildfire a dry thunderstorm over the savanna in a gale (lightning fires, cap and tick cost under load)
 enum WorldFXTest {
     static var fails = 0
     static var report: [String] = []
@@ -41,6 +42,7 @@ enum WorldFXTest {
             case "flood": flood(g, r, w, h, out)
             case "snow": snow(g, r, w, h, out)
             case "storm": storm(g, r, w, h, out)
+            case "wildfire": wildfire(g, r, w, h, out)
             default: check(false, "unknown fxtest scene \(s)")
             }
             note(String(format: "scene %@ took %.1f s", s, CFAbsoluteTimeGetCurrent() - t0))
@@ -273,6 +275,59 @@ enum WorldFXTest {
         note("receding: \(peak) -> \(half) after 15 min -> \(after) after 30 min")
         check(after < max(1, peak / 4), "the flood recedes after the rain", "\(peak) -> \(after)")
         g.fx.flood = FloodModel()
+    }
+
+    // MARK: wildfire
+
+    // A dry thunderstorm over the savanna in a gale: lightning starts the fires (no rain falls there to put them out),
+    // the wind drives them through the grass. Soak test for the cap and the fire tick under sustained load.
+    static func wildfire(_ g: Game, _ r: Renderer, _ w: Int, _ h: Int, _ out: String) {
+        let wd = g.world
+        guard let land = Snapshot.findBiome(wd.gen, "savanna", interior: true) else { check(false, "a savanna to burn"); return }
+        g.player.pos = land + V3(0, 40, 0)
+        _ = wd.loadSync(center: g.player.pos, radius: max(6, wd.renderDistance))
+        g.weather.raining = true; g.weather.rain = 1; g.weather.thundering = true; g.weather.thunder = 1
+        g.weather.rainTime = 100_000; g.weather.thunderTime = 100_000      // the weather cycle must not end the storm early
+        g.fx.forcedWind = V3(-10, 0, 6)
+        wd.fireStats = FireStats()
+        g.lightningTimer = 0
+        var strikes = 0
+        var ticks: [Double] = []
+        let dt: Float = 0.05
+        var fireT: Float = 0
+        func run(_ seconds: Float) {
+            for _ in 0..<Int(seconds / dt) {
+                let b0 = g.bolts.count
+                g.weatherTick(dt)
+                wd.rainLevel = g.weather.rain
+                if g.bolts.count > b0 { strikes += 1 }
+                fireT += dt
+                if fireT >= 1.5 {
+                    fireT = 0
+                    let t0 = CFAbsoluteTimeGetCurrent()
+                    wd.fireTick()
+                    ticks.append((CFAbsoluteTimeGetCurrent() - t0) * 1000)
+                }
+            }
+        }
+        run(240)
+        let mid = wd.fires.count
+        look(g, from: land + V3(-30, 45, 30), at: land)
+        g.particles.update(0.05, wd)
+        let ms = shot(g, r, w, h, out + "/fx_wildfire.png", frames: 10)
+        // The storm passes: the fires are left to burn out on their own.
+        g.weather.thundering = false; g.weather.thunder = 0; g.weather.raining = false; g.weather.rain = 0
+        run(600)
+        ticks.sort()
+        let st = wd.fireStats
+        let p95 = ticks.isEmpty ? 0 : ticks[min(ticks.count - 1, ticks.count * 95 / 100)]
+        note(String(format: "dry storm, 4 min: %ld strikes, %ld burning (peak %ld, cap %ld), %ld burned away, %ld charred; 10 min later %ld burning; fire tick p95 %.3f ms, worst %.3f ms; frame %.2f ms",
+                    strikes, mid, st.peak, World.fireCap, st.burnedAway, st.charred, wd.fires.count, p95, st.worstMs, ms))
+        check(strikes > 3, "dry lightning strikes in dry country", "\(strikes)")
+        check(st.peak > 0, "dry lightning starts fires", "peak \(st.peak)")
+        check(st.peak <= World.fireCap, "a wildfire stays under the burning-cell cap", "peak \(st.peak)")
+        check(p95 < 4, "fire tick stays cheap under a wildfire", String(format: "p95 %.3f ms", p95))
+        g.fx.forcedWind = nil
     }
 
     // MARK: snow
