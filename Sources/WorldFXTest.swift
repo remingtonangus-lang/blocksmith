@@ -284,11 +284,15 @@ enum WorldFXTest {
         shot(g, r, w, h, out + "/fx_snow_0.png")
         g.weather.raining = true; g.weather.rain = 1
         var worst = 0.0
+        var passes: [Double] = []
         func run(_ seconds: Float) {
             for _ in 0..<Int(seconds / 0.05) {
+                let c0 = g.fx.snowCursor
                 let t0 = CFAbsoluteTimeGetCurrent()
                 g.snowTick(0.05)
-                worst = max(worst, (CFAbsoluteTimeGetCurrent() - t0) * 1000)
+                let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+                worst = max(worst, ms)
+                if g.fx.snowCursor != c0 { passes.append(ms) }
             }
         }
         g.fx.snowChanges = 0
@@ -300,11 +304,16 @@ enum WorldFXTest {
         run(600)
         let d2 = depth()
         shot(g, r, w, h, out + "/fx_snow_2.png")
-        note(String(format: "snow depth (layers, mean over 625 columns): %.2f -> %.2f after 4 min of snow -> %.2f after 10 min of sun; %ld block writes; snow tick worst %.2f ms",
-                    d0, d1, d2, g.fx.snowChanges, worst))
+        passes.sort()
+        let p95 = passes.isEmpty ? 0 : passes[min(passes.count - 1, passes.count * 95 / 100)]
+        let mean = passes.isEmpty ? 0 : passes.reduce(0, +) / Double(passes.count)
+        note(String(format: "snow depth (layers, mean over 625 columns): %.2f -> %.2f after 4 min of snow -> %.2f after 10 min of sun; %ld block writes; %ld chunk passes: mean %.3f ms, p95 %.3f ms, worst %.2f ms",
+                    d0, d1, d2, g.fx.snowChanges, passes.count, mean, p95, worst))
         check(d1 >= d0 + 1.5, "snow piles up in layers while it snows", String(format: "%.2f -> %.2f", d0, d1))
         check(d2 <= d1 - 1, "snow melts back after the storm", String(format: "%.2f -> %.2f", d1, d2))
-        check(worst < 8, "snow chunk pass stays cheap", String(format: "worst %.2f ms", worst))
+        // Gated on the 95th percentile: the worst of thousands of passes is the shared runner's noise (4 -> 11 ms on
+        // the same code, runs 473-500).
+        check(p95 < 3, "snow chunk pass stays cheap", String(format: "p95 %.3f ms, worst %.2f ms", p95, worst))
     }
 
     // MARK: storm
