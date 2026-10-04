@@ -459,6 +459,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     // map, HDR world pass, scene copy, HDR water/translucent pass, post (bloom, god rays, haze, tone map,
     // grading) into `final`, then the HUD.
     func renderFrame(_ cmd: MTLCommandBuffer, final: MTLRenderPassDescriptor, width: Int, height: Int) {
+        HudLayout.splitFullH = game.coop.active ? Float(height) : 0
         if game.coop.active { renderSplit(cmd, final: final, width: width, height: height); return }
         renderView(cmd, final: final, width: width, height: height)
     }

@@ -46,6 +46,20 @@ field from the depth copy, hidden HUD), #10 split-screen couch co-op (after a pe
 Then bug hunting and measured improvements. Stays integration owner: branch green, PR #9 what's-new current.
 .claude/ALLOW_STOP removed (the Stop hook keeps sessions working).
 
+## Crafting book, landmarks, photo mode, split screen (2026-10-04)
+- Crafting book (23cff05): the crafting table opens CraftingBookMenu (40 tiles a page, ten categories, craftable-now
+  first, craft 1 / stack / max straight into the inventory, controller-first). --padtest drives it; shots craftbook,
+  tv_craftbook, tv_craftbook_all. Compiled on CI; padtest + TV shots wait for heavy run 482.
+- Big landmarks (#9): volcanoes (ab69472; run 470 shots: the cone and its lava channel look right, the crater shot's
+  camera was above the world - moved down), impostors past the render distance (d690160), canyons (094ed04), the
+  Ancient Spire (a9d7344, key great_ruin). All compile (run 482 fast lane).
+- Photo / cinematic camera (#5, b315b78): F6 / Pause > Photo Mode; keyframe paths, depth of field. --cinetest, shots
+  photo_dof / photo_dof_far.
+- Split-screen co-op (#10, Coop.swift): a second pad joins with Menu; seats swap per-player state through Game; chunks
+  stream round both players; mobs / pickups / arrows updated by the nearest seat; top / bottom views copied into the
+  frame. --cooptest (not gating until it passes once), shots coop and tv_coop (their frame time is the rd 8 two-view
+  perf number; the per-view budget is 8.3 ms GPU for 60 fps with both views).
+
 ## Next
 - Shots looked right in run 450 (frigate bow/side/top; citadel far/gate/top). Check the new citadel_turret,
   citadel_plaza and ship_frigate_deck angles and the flight-deck markings.
