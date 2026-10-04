@@ -184,7 +184,8 @@ enum CapitalBase {
         w.fill(X(-11), P1, Z(31), X(11), P1, Z(41), grey)
         w.fill(X(-10), P1, Z(32), X(10), P1, Z(40), water)
         w.fill(X(-10), P1 - 1, Z(32), X(10), P1 - 1, Z(40), grey)
-        for dz in [30, 42] { for dx in stride(from: -14, through: 14, by: 2) { put(dx, P1 + 1, dz, hedge) } }
+        // Low hedges flank the pool's ends (the walks round its sides to the hall door stay open).
+        for dz in [30, 42] { for dx in -10...10 where abs(dx) >= 6 { put(dx, P1 + 1, dz, hedge) } }
         for dz in stride(from: 31, through: 41, by: 5) { for sx in [-1, 1] { tree(sx * 15, P1 + 1, dz, 5) } }
         for sx in [-1, 1] {
             // Barbette: a grey ring with a white band, the turret sits on its top (y P1 + 5).
