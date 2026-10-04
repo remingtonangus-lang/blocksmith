@@ -315,6 +315,23 @@ final class Coop {
         lastDim = g.dim.dim
     }
 
+    // Player 2's things are saved with the world (WorldMeta extra "coop2") and wait for them to join again.
+    struct Saved: Codable { var inventory: PlayerInventory.Saved; var health: Int; var hunger: Int; var xpLevel: Int; var xpPoints: Int }
+    var savedSecond: Saved? {
+        guard let s = active ? slots[1] : parked else { return nil }
+        return Saved(inventory: s.inventory.saved, health: s.health, hunger: s.hunger, xpLevel: s.xpLevel, xpPoints: s.xpPoints)
+    }
+    func restoreSecond(_ v: Saved) {
+        guard !active else { return }
+        var s = SeatState()
+        s.inventory.load(v.inventory)
+        s.health = max(1, min(20, v.health))
+        s.hunger = max(0, min(20, v.hunger))
+        s.xpLevel = v.xpLevel
+        s.xpPoints = v.xpPoints
+        parked = s
+    }
+
     // The other seats' bodies, drawn in each view.
     func writeOthers(_ g: Game, eye: V3, daylight: Float, into out: UnsafeMutablePointer<MobVert>, capacity: Int) -> Int {
         guard active else { return 0 }
@@ -456,6 +473,12 @@ enum CoopTest {
         g.tick(1.0 / 60)
         c.withSeat(1, g) { menu2 = g.menu }
         check(!g.paused && menu2 == nil && g.menu == nil, "resuming closes both pause menus")
+        // Saved with the world.
+        var marked = false
+        c.withSeat(1, g) { g.inventory.main[20] = ItemStack(Items.id("stick"), 7); marked = true }
+        let sv = c.savedSecond
+        check(marked && sv?.inventory.main[20].count == 7 && sv?.health == 20, "player 2's things go into the world save")
+        c.withSeat(1, g) { g.inventory.main[20] = .empty }
         // Leaving and rejoining.
         c.leave(g)
         check(!c.active && g.world.extraCenter == nil && g.player === p1, "player 2 leaves; player 1 plays on")

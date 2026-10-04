@@ -405,6 +405,7 @@ extension Game {
         d["eaten"] = eatenFoods.sorted().joined(separator: "|")
         if let e = try? JSONEncoder().encode(enderChest.slots), let str = String(data: e, encoding: .utf8) { d["ender"] = str }
         if let r = raid?.record, let e = try? JSONEncoder().encode(r), let str = String(data: e, encoding: .utf8) { d["raid"] = str }
+        if let c = coop.savedSecond, let e = try? JSONEncoder().encode(c), let str = String(data: e, encoding: .utf8) { d["coop2"] = str }
         return d
     }
     func loadExtra(_ d: [String: String]) {
@@ -418,5 +419,6 @@ extension Game {
             for (i, st) in slots.prefix(27).enumerated() { enderChest[i] = st }
         }
         if let str = d["raid"], let data = str.data(using: .utf8), let rec = try? JSONDecoder().decode(RaidRecord.self, from: data) { raid = Raid(rec) }
+        if let str = d["coop2"], let data = str.data(using: .utf8), let c = try? JSONDecoder().decode(Coop.Saved.self, from: data) { coop.restoreSecond(c) }
     }
 }
