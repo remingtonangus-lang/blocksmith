@@ -85,7 +85,13 @@ extension Game {
         if world.onGlassHeat == nil {
             world.onGlassHeat = { [weak self] p in
                 guard let self else { return }
-                self.wearHit(p, level: self.world.damageLevel(p) + 1, normal: IVec3(0, 1, 0), async: true)
+                let b = self.world.block(p.x, p.y, p.z)
+                // Panes (not full cubes, so no crack stages): a third of the time the heat breaks them outright.
+                if Blocks.render[Int(b)] != RenderType.cube.rawValue {
+                    if Rand.int(in: 0..<3) == 0 { self.shatterGlass(p, from: V3(0, 1, 0)) }
+                } else {
+                    self.wearHit(p, level: self.world.damageLevel(p) + 1, normal: IVec3(0, 1, 0), async: true)
+                }
             }
         }
         ParticleManager.drift = fx.wind * (0.08 + 0.3 * fx.storm)
