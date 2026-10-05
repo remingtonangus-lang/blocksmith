@@ -129,6 +129,17 @@ the log) instead of hanging in an empty scene.
 - Not mapped on Touch yet: D-pad left/right (offhand swap, chat) and View (camera / hold for map; the map is in the
   pause menu).
 
+**QUEST APK READY 37267431530** (2026-10-05, versionCode 29, commit 7139f83): everything in 24, plus:
+- 128-pixel block textures (sharper up close; Pause → VR Comfort & Controls → Texture Detail goes back to 64 if memory
+  or the first launch's painting is a problem: the first launch after an update paints them, later launches load
+  them from the cache; compare the `textures:` log lines).
+- Far terrain past the loaded world: a hazy height field out to ~1.3 km (from the playtest branch), with the volcano
+  and spire impostors standing on it. Check the horizon looks continuous and frame time is unchanged.
+- The `perf:` lines end with `resident N MB` (process memory): please include a few from a long session.
+- After a recenter (hold the Meta button) the HUD and an open menu come back in front of you.
+- New content from the playtest branch: aircraft and capital air bases (at a helm the left stick is raw throttle and
+  steering; the view stays level while the aircraft banks).
+
 ### Device reports
 
 **2026-10-05 21:50 ADT, versionCode 13 (6c996db), Remington's Quest 3.** Works: launches into an immersive session,
