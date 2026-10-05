@@ -1896,6 +1896,11 @@ final class Renderer: NSObject, MTKViewDelegate {
                     if id == 490 {
                         rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.6, 0.75, 0.6, 1) : V4(0.55, 0.45, 0.3, 1))
                         itemIcon(ItemStack(Items.id("book"), 1), x + s, y + s, 16 * s, counts: false)
+                        // The inventory's way into its crafting book (LB/RB too): labelled, an icon alone was easy to miss.
+                        if m is InventoryMenu {
+                            let lw = textWidth("Craft", s)
+                            text("Craft", x + (Float(sl.w) * s - lw) / 2, y + Float(sl.h + 2) * s, s, hot ? V4(1, 1, 0.7, 1) : V4(1, 1, 1, 1))
+                        }
                     } else if id >= RecipeBook.base {
                         let k = book.page * RecipeBook.perPage + id - RecipeBook.base
                         guard k < book.list.count else { continue }
