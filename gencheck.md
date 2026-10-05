@@ -1,0 +1,27 @@
+# World-gen check
+
+gencheck: 288 chunks over 3 seeds: floating_block 3, leak 4, leaves_orphan 1, ore_in_air 4, plant_floating 1, spring 60 (3.3 s)
+
+leak kinds: lava underground border onto deepslate 2; water surface in-chunk onto dirt 2
+
+- **leak** seed 12345 at 49 63 53: water source beside air (-z: open 0 down to dirt, top 64)  `--snapshot snaps/g.png --seed 12345 --x 49 --z 53 --up 2 --pitch -40`
+- **leak** seed 12345 at 49 63 53: water source beside air (-z: open 0 down to dirt, top 64)  `--snapshot snaps/g.png --seed 12345 --x 49 --z 53 --up 2 --pitch -40`
+- **plant_floating** seed 12345 at 41 -7 2108: small_dripleaf over air  `--snapshot snaps/g.png --seed 12345 --x 41 --z 2108 --up 2 --pitch -40`
+- **ore_in_air** seed 12345 at 2236 30 -1714: coal_ore with 5 open sides  `--snapshot snaps/g.png --seed 12345 --x 2236 --z -1714 --up 2 --pitch -40`
+- **ore_in_air** seed 777 at 35 -25 43: deepslate_lapis_ore with 5 open sides  `--snapshot snaps/g.png --seed 777 --x 35 --z 43 --up 2 --pitch -40`
+- **floating_block** seed 777 at 528 14 -727: stone with nothing solid around it  `--snapshot snaps/g.png --seed 777 --x 528 --z -727 --up 2 --pitch -40`
+- **spring** seed 777 at 585 -32 -730: water source open to a cave (-x, flows on load)  `--snapshot snaps/g.png --seed 777 --x 585 --z -730 --up 2 --pitch -40`
+- **spring** seed 777 at 583 -32 -729: water source open to a cave (-x, flows on load)  `--snapshot snaps/g.png --seed 777 --x 583 --z -729 --up 2 --pitch -40`
+- **spring** seed 777 at 583 -31 -729: water source open to a cave (+z, flows on load)  `--snapshot snaps/g.png --seed 777 --x 583 --z -729 --up 2 --pitch -40`
+- **spring** seed 777 at 583 -30 -729: water source open to a cave (+z, flows on load)  `--snapshot snaps/g.png --seed 777 --x 583 --z -729 --up 2 --pitch -40`
+- **spring** seed 777 at 584 -32 -729: water source open to a cave (+z, flows on load)  `--snapshot snaps/g.png --seed 777 --x 584 --z -729 --up 2 --pitch -40`
+- **spring** seed 777 at 584 -31 -729: water source open to a cave (+z, flows on load)  `--snapshot snaps/g.png --seed 777 --x 584 --z -729 --up 2 --pitch -40`
+- **spring** seed 777 at 584 -30 -729: water source open to a cave (+z, flows on load)  `--snapshot snaps/g.png --seed 777 --x 584 --z -729 --up 2 --pitch -40`
+- **spring** seed 777 at 584 -29 -729: water source open to a cave (+z, flows on load)  `--snapshot snaps/g.png --seed 777 --x 584 --z -729 --up 2 --pitch -40`
+- **floating_block** seed 777 at 578 0 -721: deepslate with nothing solid around it  `--snapshot snaps/g.png --seed 777 --x 578 --z -721 --up 2 --pitch -40`
+- **ore_in_air** seed 777 at -2223 42 17: iron_ore with 5 open sides  `--snapshot snaps/g.png --seed 777 --x -2223 --z 17 --up 2 --pitch -40`
+- **floating_block** seed 424242 at 27 92 98: grass_block with nothing solid around it  `--snapshot snaps/g.png --seed 424242 --x 27 --z 98 --up 2 --pitch -40`
+- **leak** seed 424242 at -992 -57 1750: lava source beside air (-x: open 1 down to deepslate, top 64, across a chunk border)  `--snapshot snaps/g.png --seed 424242 --x -992 --z 1750 --up 2 --pitch -40`
+- **leak** seed 424242 at -992 -56 1750: lava source beside air (-x: open 2 down to deepslate, top 64, across a chunk border)  `--snapshot snaps/g.png --seed 424242 --x -992 --z 1750 --up 2 --pitch -40`
+- **ore_in_air** seed 424242 at -1033 -40 1760: deepslate_diamond_ore with 5 open sides  `--snapshot snaps/g.png --seed 424242 --x -1033 --z 1760 --up 2 --pitch -40`
+- **leaves_orphan** seed 424242 at 1148 94 1271: jungle_leaves with no log within 6  `--snapshot snaps/g.png --seed 424242 --x 1148 --z 1271 --up 2 --pitch -40`

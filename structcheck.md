@@ -1,0 +1,29 @@
+# Structure check
+
+Seeds 12345, 777, 424242, up to 3 per kind. Walk model: steps <= 0.6 walk, <= 1.25 jump, drops <= 3.
+
+| kind | checked | doors | POIs | mobs | issues |
+|---|---|---|---|---|---|
+| ancient_city | 9 | 0 | 74 | 0 | - |
+| bastion | 9 | 0 | 16 | 34 | - |
+| desert_well | 4 | 0 | 0 | 0 | - |
+| end_centre | 3 | 0 | 0 | 30 | - |
+| end_city | 9 | 0 | 33 | 46 | - |
+| fortress | 9 | 0 | 16 | 0 | - |
+| fossil | 2 | 0 | 0 | 0 | - |
+| great_ruin | 9 | 0 | 19 | 1 | - |
+| mansion | 4 | 0 | 371 | 44 | - |
+| military_base | 9 | 0 | 99 | 333 | - |
+| mineshaft | 9 | 0 | 28 | 0 | - |
+| monument | 9 | 0 | 0 | 81 | - |
+| ocean_ruin | 9 | 0 | 0 | 9 | - |
+| pillager_outpost | 7 | 0 | 26 | 48 | - |
+| ruined_portal | 9 | 0 | 9 | 0 | - |
+| shipwreck | 9 | 0 | 0 | 0 | - |
+| stronghold | 9 | 0 | 80 | 0 | - |
+| temple | 9 | 0 | 29 | 1 | - |
+| trail_ruins | 9 | 0 | 0 | 0 | - |
+| trial_chambers | 9 | 0 | 19 | 0 | - |
+| village | 9 | 125 | 333 | 207 | - |
+
+## Issues (first 6 per kind and class)
