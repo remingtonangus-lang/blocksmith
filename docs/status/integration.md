@@ -162,6 +162,11 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
   runners ahead of run 658 (pushing over a queued run does not cancel it; cancel it explicitly).
 
 ## Next
+- Per-frame allocations left after the 2026-10-05 audit (refactors; measure with the profiles first): mob model parts
+  rebuilt per mob per frame (Mob.swift parts / equipmentParts: append into one reused buffer); the HUD line chain
+  (WorldMap Minimap.lines + CombatHUD + HudExtras concatenations, ContextPrompts strings: one inout buffer, cached
+  prompt text); hotbar block icons rebuild their boxes and uv arrays per slot per frame (cache per BlockID); block
+  outline / crack / sky / arm arrays in Renderer.encode (static lets); flashes sorted twice per Fancy frame.
 - For stream D (soldier rig): a Capital soldier is 190 parts within 14 blocks (90 to 34 blocks, 34 beyond), about 330 KB
   of vertices rebuilt every frame; a courtyard of 30 is ~10 MB/frame of writes plus 30 pose builds. Mob buffers now grow
   to 16 MB and draw nearest first (2ab6bf7), but a cheaper LOD 0 (merge trim/buttons/badges into fewer boxes, or LOD 1
