@@ -18,6 +18,9 @@ final class SimXR: XRInput {
 }
 
 final class SimHost: QuestHost {
+    weak var controls: QuestControls?
+    func controlsPanelCenter() -> V3 { controls?.panelWorldCenter ?? .zero }
+    func controlsHint() -> String? { controls?.hint }
     let sim = SimXR()
     let rig = QuestRig()
     let scene: SceneRenderer
@@ -33,6 +36,7 @@ enum QuestSim {
         let host = SimHost(scene: scene)
         let sim = host.sim, rig = host.rig
         let controls = QuestControls(app: host, game: game, panel: try HudPanel(scene: scene, width: QuestControls.panelW, height: QuestControls.panelH))
+        host.controls = controls
         let wr = WorldRenderer(scene: scene, game: game)
         wr.extraOpaque = { s, eye in controls.drawOpaque(s, eye: eye) }
         wr.extraOverlay = { s, eye in controls.drawOverlay(s, eye: eye) }
@@ -44,6 +48,7 @@ enum QuestSim {
         rig.bodyYaw = 0
         game.player.yaw = 0
         let dt: Float = 1.0 / 72
+        ShipManager.stepRate = 72; ShipManager.stepSlack = 0.2 / 72       // as QuestApp: one ship step per frame
         func idleHands() {
             for h in 0..<2 {
                 var hd = XRHand()
@@ -163,6 +168,57 @@ enum QuestSim {
         }
         check(sim.hapticCount > haptics0, "VR laser click buzzes the controller (\(sim.hapticCount - haptics0) pulses)")
 
+        // 8. Riding a moving ship (the Skyward Frigate, no crew): the player stays aboard, the rig turns with the hull,
+        // the HUD and menu panels stay with the user, the hull moves on every frame, and grip opens a chest on deck.
+        try shipRide(game: game, host: host, frames: frames, check: check) {
+            try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out.replacingOccurrences(of: ".png", with: "_ship.png"))
+        }
+
+        // 9. The pause menu's VR page: the snap angle option changes the next snap turn.
+        QuestOptions.install(QuestOptions.Hooks(recenter: { rig.needsRecenter = true }))
+        let pm = PauseMenu(game: game)
+        game.openMenu(pm)
+        game.paused = true
+        check(pm.rows.contains { $0.1 == "host:vr" }, "VR options: the pause menu lists \(PauseMenu.hostEntry?.0 ?? "-")")
+        pm.act("host:vr", back: false)
+        let snap0 = QuestSettings.snapAngle
+        pm.act("q_snap", back: false)
+        check(pm.title == "VR Comfort & Controls" && QuestSettings.snapAngle == 60 && pm.rows.contains { $0.0.hasPrefix("Snap Angle: 60") },
+              "VR options: Snap Angle \(QuestOptions.angle(snap0)) -> \(QuestOptions.angle(QuestSettings.snapAngle)) (page \(pm.title))")
+        pm.act("back", back: false)
+        game.closeMenu(); game.paused = false
+        frames(3) { _ in idleHands() }
+        let yS = rig.bodyYaw
+        frames(3) { _ in idleHands(); sim.hands[1].stick = V2(1, 0) }
+        frames(3) { _ in idleHands() }
+        var turnedS = (yS - rig.bodyYaw) * 180 / .pi
+        if turnedS < -180 { turnedS += 360 }; if turnedS > 180 { turnedS -= 360 }
+        check(abs(turnedS - 60) < 1, String(format: "VR options: the next snap turn went %.1f degrees", turnedS))
+        QuestSettings.snapAngle = snap0
+
+        // 10. Teleport: the left stick held forward aims an arc at the platform ahead; releasing jumps there.
+        QuestSettings.teleport = true
+        game.player.pos = V3(Float(Int(base.x)) + 0.5, Float(py + 1), Float(Int(base.z)) + 0.5)   // platform centre
+        game.player.vel = .zero
+        frames(30) { _ in idleHands() }
+        let tp0 = game.player.pos
+        // Aim along world +X, 14 degrees up (the arc lands ~11 blocks out, on the platform).
+        func aimTele() {
+            idleHands()
+            let w = simd_normalize(V3(1, 0.25, 0))
+            sim.hands[0].aimRot = simd_quatf(from: V3(0, 0, -1), to: rig.yawRot.inverse.act(w))
+            sim.hands[0].stick = V2(0, 1)
+        }
+        frames(10) { _ in aimTele() }
+        let aiming = controls.teleAiming
+        print("questsim: teleport arc \(controls.teleArcCount) points, target \(controls.teleTargetText)")
+        frames(3) { _ in idleHands() }
+        let jump = simd_length(V2(game.player.pos.x - tp0.x, game.player.pos.z - tp0.z))
+        check(aiming && controls.teleports == 1 && jump > 2 && jump <= QuestControls.teleportRange + 1,
+              String(format: "VR teleport: arc aimed (%@), released, landed %.1f blocks away (%d jumps, on ground %@)",
+                     aiming ? "yes" : "no", jump, controls.teleports, game.player.onGround ? "yes" : "no"))
+        QuestSettings.teleport = false
+
         // Render the inventory panel over the world, then close it and render play.
         try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out.replacingOccurrences(of: ".png", with: "_menu.png"))
         frames(3) { _ in idleHands(); sim.hands[1].button2 = true }      // B closes
@@ -171,6 +227,124 @@ enum QuestSim {
         frames(3) { _ in idleHands(); sim.hands[1].aimRot = down }
         try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out)
         PadManager.shared.touch = nil
+    }
+
+    static func shipRide(game: Game, host: SimHost, frames: (Int, (Int) -> Void) -> Void, check: (Bool, String) -> Void,
+                         snapshot: () throws -> Void) throws {
+        let sim = host.sim, rig = host.rig
+        func idleHands() {
+            for h in 0..<2 {
+                var hd = XRHand()
+                hd.aimValid = true; hd.gripValid = true
+                hd.aimPos = sim.headPos + V3(h == 0 ? -0.2 : 0.2, -0.45, -0.3)
+                hd.gripPos = hd.aimPos
+                hd.aimRot = simd_quatf(); hd.gripRot = simd_quatf()
+                sim.hands[h] = hd
+            }
+        }
+        let ships = game.world.ships
+        ships.encounters = false
+        if game.menu != nil { game.closeMenu() }
+        game.inventory.held = .empty
+        let pp = game.player.pos
+        let ship = ships.spawnVessel("frigate", home: IVec3(Int(pp.x), Int(pp.y) + 14, Int(pp.z) - 40), game: nil)
+        // A deck cell near the middle: solid, two air above.
+        let g = ship.grid
+        var deck: IVec3?
+        let cx = g.sx / 2, cz = g.sz / 2
+        search: for r in 0..<max(g.sx, g.sz) {
+            for dz in -r...r { for dx in -r...r where max(abs(dx), abs(dz)) == r {
+                let x = cx + dx, z = cz + dz
+                var y = g.sy - 1
+                while y > 0 && g.get(x, y, z) == AIR { y -= 1 }
+                if Blocks.fullCollide[Int(g.get(x, y, z))] && g.get(x, y + 1, z) == AIR && g.get(x, y + 2, z) == AIR
+                    && g.get(x + 1, y + 1, z) == AIR && Blocks.fullCollide[Int(g.get(x + 1, y, z))] {
+                    deck = IVec3(x, y, z); break search
+                }
+            } }
+        }
+        guard let d = deck else { check(false, "VR ship: no deck cell on the frigate"); return }
+        let chestCell = IVec3(d.x + 1, d.y + 1, d.z)
+        ships.setBlock(ship, chestCell, Blocks.id("chest"))
+        game.player.pos = ship.toWorld(V3(Float(d.x) + 0.5, Float(d.y) + 1.02, Float(d.z) + 0.5))
+        game.player.vel = .zero
+        game.player.flying = false
+        frames(20) { _ in idleHands() }
+        check(ships.aboard === ship, "VR ship: standing on the frigate's deck (aboard \(ships.aboard?.name ?? "nothing"))")
+
+        // Cruise and turn for 3 s.
+        ship.autopilot = V3(0.6, 0.7, 0)
+        let yaw0 = ship.yaw, body0 = rig.bodyYaw
+        var stalls = 0, moving = 0, hudDev: Float = 0, offDeck = 0
+        var last = ship.pos
+        let hudDist0 = simd_length(host.controlsPanelCenter() - rig.headWorld)
+        for _ in 0..<216 {
+            frames(1) { _ in idleHands() }
+            let mv = simd_length(ship.pos - last)
+            if simd_length(ship.vel) > 0.3 { moving += 1; if mv < 1e-5 { stalls += 1 } }
+            last = ship.pos
+            hudDev = max(hudDev, abs(simd_length(host.controlsPanelCenter() - rig.headWorld) - hudDist0))
+            if ships.aboard !== ship { offDeck += 1 }
+        }
+        var dShip = ship.yaw - yaw0, dBody = rig.bodyYaw - body0
+        for _ in 0..<2 { if dShip > .pi { dShip -= 2 * .pi }; if dShip < -.pi { dShip += 2 * .pi }; if dBody > .pi { dBody -= 2 * .pi }; if dBody < -.pi { dBody += 2 * .pi } }
+        check(offDeck == 0, "VR ship: stayed aboard while it cruised and turned (\(offDeck) frames off)")
+        check(abs(dShip) > 0.2 && abs(dShip - dBody) < 0.03,
+              String(format: "VR ship: the rig turned with the hull (ship %.2f rad, body %.2f rad)", dShip, dBody))
+        check(moving > 100 && stalls == 0, "VR ship: the hull moved on every displayed frame (\(stalls) still frames of \(moving))")
+        check(hudDev < 0.08, String(format: "VR ship: the HUD stayed with the user (distance to the head varied %.3f m)", hudDev))
+
+        // Inventory aboard: the menu panel stays in front of the user while the ship keeps moving and turning.
+        frames(3) { _ in idleHands(); sim.hands[0].button2 = true }
+        frames(3) { _ in idleHands() }
+        let menuDist0 = simd_length(host.controlsPanelCenter() - rig.headWorld)
+        frames(144) { _ in idleHands() }
+        let menuDist1 = simd_length(host.controlsPanelCenter() - rig.headWorld)
+        check(game.menu != nil && abs(menuDist1 - menuDist0) < 0.05 && menuDist1 < 1.5,
+              String(format: "VR ship: the inventory panel stayed in front (%.2f m -> %.2f m from the head)", menuDist0, menuDist1))
+        // The laser still lands on its centre (aimed at the panel as it is now).
+        frames(4) { _ in
+            idleHands()
+            let hand = sim.headPos + V3(0.2, -0.45, -0.3)
+            let target = sim.headPos + V3(0, -0.1, -1.15)
+            sim.hands[1].aimPos = hand
+            sim.hands[1].aimRot = simd_quatf(from: V3(0, 0, -1), to: simd_normalize(target - hand))
+        }
+        let mx = game.input.mouseX, my = game.input.mouseY
+        check(abs(mx - Float(QuestControls.panelW) / 2) < 40 && abs(my - Float(QuestControls.panelH) / 2) < 40,
+              String(format: "VR ship: laser on the moving menu panel at (%.0f, %.0f)", mx, my))
+        frames(3) { _ in idleHands(); sim.hands[1].button2 = true }
+        frames(3) { _ in idleHands() }
+
+        // The chest on deck: point at it, the hint names the grip, grip opens it.
+        ship.autopilot = V3(0.3, 0.3, 0)
+        func aimAtChest() {
+            idleHands()
+            let c = ship.toWorld(V3(Float(chestCell.x) + 0.5, Float(chestCell.y) + 0.4, Float(chestCell.z) + 0.5))
+            let handT = sim.hands[1].aimPos
+            let dirW = simd_normalize(c - rig.toWorld(handT))
+            let dirT = rig.yawRot.inverse.act(dirW)
+            sim.hands[1].aimRot = simd_quatf(from: V3(0, 0, -1), to: dirT)
+        }
+        frames(6) { _ in aimAtChest() }
+        let hint = host.controlsHint() ?? "none"
+        check(hint.contains("Open"), "VR ship: hint on the chest: \(hint)")
+        // Look at the chest for the snapshot (the laser, its dot, the hint label and the deck ring in view).
+        let headRot0 = sim.headRot
+        frames(2) { _ in
+            aimAtChest()
+            let c = ship.toWorld(V3(Float(chestCell.x) + 0.5, Float(chestCell.y) + 0.5, Float(chestCell.z) + 0.5))
+            sim.headRot = simd_quatf(from: V3(0, 0, -1), to: rig.yawRot.inverse.act(simd_normalize(c - rig.headWorld)))
+        }
+        try snapshot()
+        sim.headRot = headRot0
+        frames(4) { _ in aimAtChest(); sim.hands[1].squeeze = 1 }
+        frames(4) { _ in aimAtChest() }
+        check(game.menu is ChestMenu, "VR ship: grip opened the chest on the moving deck (\(game.menu.map { String(describing: type(of: $0)) } ?? "nothing"))")
+        if game.menu != nil { game.closeMenu() }
+        ship.autopilot = nil
+        ships.remove(ship)
+        frames(3) { _ in idleHands() }
     }
 
     static func render(scene: SceneRenderer, wr: WorldRenderer, rig: QuestRig, sim: SimXR, game: Game, path: String, size: Int = 640) throws {

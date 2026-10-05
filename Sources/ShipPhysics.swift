@@ -142,9 +142,9 @@ extension ShipManager {
             else { s.piloted = false; s.throttle = 0; s.steer = 0; s.climb = 0 }
         }
         accum += dt
-        let h: Float = 1.0 / 60
+        let h: Float = 1.0 / ShipManager.stepRate
         var steps = 0
-        while accum >= h && steps < 4 {
+        while accum >= h - ShipManager.stepSlack && steps < 4 {
             accum -= h
             step(h)
             steps += 1

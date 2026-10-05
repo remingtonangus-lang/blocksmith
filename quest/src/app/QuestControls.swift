@@ -21,6 +21,12 @@ final class QuestControls {
     let game: Game
     let hudHost: Renderer
     private(set) var panel: HudPanel?
+    // The interact hint beside the laser dot ("Grip Open" on a chest), its own small panel.
+    private var hintPanel: HudPanel?
+    private(set) var hint: String?
+    private var hintShown: String?
+    private var hintKey = ""
+    static let hintW = 640, hintH = 48
     static let panelW = 1024, panelH = 640
 
     private var snapArmed = true
@@ -38,14 +44,37 @@ final class QuestControls {
     private var aimHand: Int { QuestSettings.leftHanded ? 0 : 1 }
     private var moveHand: Int { QuestSettings.leftHanded ? 1 : 0 }
 
-    // Panel placement
+    // Panel placement. Panels live in tracking space (the user's room), which the rig carries with the player: on a
+    // moving ship, while turning or walking they stay put around the user instead of being left behind in the world.
     private enum PanelMode { case hud, menu }
     private var mode = PanelMode.hud
-    private var panelCenter = V3.zero          // world
-    private var panelYaw: Float = 0
+    private var panelCenterT = V3.zero         // tracking space
+    private var panelYawT: Float = 0           // tracking-space yaw
     private var panelPitch: Float = 0
     private var panelSize = V2(1.3, 0.8125)
-    private var hudYaw: Float = 0
+    private var hudYawT: Float = 0             // tracking-space yaw the HUD faces (lazily follows the head)
+    private var hudPosT: V3?                   // smoothed HUD centre (tracking space)
+    private var panelCenter: V3 { app.rig.toWorld(panelCenterT) }
+    var panelWorldCenter: V3 { panelCenter }           // (harness)
+    private var panelYaw: Float { panelYawT + app.rig.bodyYaw }
+
+    // The ship the player rides (aboard or at the helm): its turns turn the rig, its motion drives the vignette.
+    private weak var carryShip: Ship?
+    private var carryYaw: Float = 0
+    private var carryRot = simd_quatf()
+    private var carryVel = V3.zero
+    private var carryLocal = V3.zero           // the player's feet in the ship's frame last frame
+    private(set) var shipTurnRate: Float = 0   // rad/s (yaw, pitch and roll together)
+    private(set) var deckReference: Float = 0  // 0...1: the comfort reference ring under the feet aboard a moving ship
+
+    // Teleport movement (Quest option): the arc from the moving hand while its stick is pushed forward.
+    private(set) var teleAiming = false
+    private var teleArc: [V3] = []                     // world points
+    private var teleTarget: (ship: Ship?, local: V3)?   // feet: world point, or a point in a ship's frame (it moves)
+    private(set) var teleports = 0
+    var teleArcCount: Int { teleArc.count }                                    // (harness)
+    var teleTargetText: String { teleTarget.map { "\($0.ship == nil ? "ground" : "ship") \($0.local)" } ?? "none" }
+    static let teleportRange: Float = 14
     private var panelHitUV: V2?
     private var prevTrigger = false, prevGrip = false
     private var lastHoverSlot = -1
@@ -59,7 +88,18 @@ final class QuestControls {
         game.screen = V2(Float(QuestControls.panelW), Float(QuestControls.panelH))
         Renderer.questHideCrosshair = true
         self.panel = panel
-        hudYaw = game.player.yaw
+        if let p = panel { hintPanel = try? HudPanel(scene: p.scene, width: QuestControls.hintW, height: QuestControls.hintH, maxVerts: 4096) }
+        // Prompts name the Touch controls: the game's LT (use) is the grip, RT the trigger.
+        Glyphs.labelOverride = { g in
+            switch g {
+            case .lt: return "Grip"
+            case .rt: return "Trigger"
+            case .lb: return "L Grip"
+            case .rb: return "R Stick"
+            default: return nil
+            }
+        }
+        hudYawT = 0
     }
 
     // MARK: Per frame, before Game.tick
@@ -77,14 +117,12 @@ final class QuestControls {
                 if abs(tx) > 0.15 {
                     let k = (abs(tx) - 0.15) / 0.85 * (tx > 0 ? 1 : -1)
                     rig.bodyYaw -= k * QuestSettings.smoothTurnSpeed * .pi / 180 * dt
-                    hudYaw -= k * QuestSettings.smoothTurnSpeed * .pi / 180 * dt
                     turnFlash = max(turnFlash, abs(k) * 0.8)
                 }
             } else {
                 if snapArmed && abs(tx) > 0.75 {
                     let step = (tx > 0 ? 1 : -1) * QuestSettings.snapAngle * .pi / 180
-                    rig.bodyYaw -= step
-                    hudYaw -= step                       // the HUD turns with the body
+                    rig.bodyYaw -= step                  // the HUD (tracking space) turns with the body
                     snapArmed = false
                     turnFlash = 1
                 } else if abs(tx) < 0.3 { snapArmed = true }
@@ -129,6 +167,7 @@ final class QuestControls {
             p.lt = L.trigger; p.rt = 0
             p.lb = L.squeeze > 0.6; p.rb = false
             menuPointer(R)
+            teleAiming = false; teleArc.removeAll(); teleTarget = nil
         } else {
             panelHitUV = nil
             prevTrigger = R.trigger > 0.6; prevGrip = R.squeeze > 0.6
@@ -137,11 +176,15 @@ final class QuestControls {
             if QuestSettings.headLocomotion || !L.aimValid { moveYaw = rig.headYaw }
             else { moveYaw = XRMath.yawPitch(rig.toWorldRot(L.aimRot)).0 }
             aimGame()
-            let d = moveYaw - game.player.yaw
-            let s = L.stick
-            // Stick (x right, y forward) turned from the locomotion frame into the aim frame.
-            p.lx = s.x * cosf(d) + s.y * sinf(d)
-            p.ly = -s.x * sinf(d) + s.y * cosf(d)
+            if QuestSettings.teleport {
+                teleport(L)
+            } else {
+                let d = moveYaw - game.player.yaw
+                let s = L.stick
+                // Stick (x right, y forward) turned from the locomotion frame into the aim frame.
+                p.lx = s.x * cosf(d) + s.y * sinf(d)
+                p.ly = -s.x * sinf(d) + s.y * cosf(d)
+            }
         }
         PadManager.shared.touch = p
         lastFeet = game.player.pos
@@ -150,17 +193,54 @@ final class QuestControls {
     // After Game.tick: the camera follows the moved player; head-space audio; vignette from motion.
     func afterTick(dt: Float) {
         let rig = app.rig
+        let ships = game.world.ships
+        let ship = ships.pilot ?? ships.aboard
+        // Ship riding: the deck turned under the player this tick (ShipPhysics carried the feet and the game's yaw);
+        // the tracking space turns with it so the deck stays still around the user. Only yaw: the view keeps a level
+        // horizon while the hull pitches and rolls.
+        var shipAccel: Float = 0
+        var relMoved: Float = -1
+        if let s = ship, s === carryShip {
+            var d = s.yaw - carryYaw
+            while d > .pi { d -= 2 * .pi }
+            while d < -.pi { d += 2 * .pi }
+            rig.bodyYaw = (rig.bodyYaw + d).truncatingRemainder(dividingBy: 2 * .pi)
+            let dq = s.rot * carryRot.inverse
+            let ang = 2 * acosf(min(1, abs(dq.real)))
+            shipTurnRate += (ang / max(dt, 1e-3) - shipTurnRate) * min(1, dt * 8)
+            let v = s.velocity(at: game.player.pos)
+            shipAccel = simd_length(v - carryVel) / max(dt, 1e-3)
+            carryVel = v
+            relMoved = simd_length(s.toLocal(game.player.pos) - carryLocal) / max(dt, 1e-3)
+        } else {
+            shipTurnRate = 0
+            carryVel = ship?.velocity(at: game.player.pos) ?? .zero
+        }
+        carryShip = ship
+        carryYaw = ship?.yaw ?? 0
+        carryRot = ship?.rot ?? simd_quatf()
+        if let s = ship { carryLocal = s.toLocal(game.player.pos) }
         rig.refresh(game: game)
         game.sound?.setListener(eye: rig.headWorld, yaw: rig.headYaw, pitch: rig.headPitch, cave: game.sound?.cave ?? 0,
                                 underwater: game.player.headInWater)
+        // Comfort vignette: the player's own movement (relative to the deck when aboard: a ship cruising steadily is
+        // comfortable, its turns, pitching and speed changes are not), snap / smooth turns.
         let moved = simd_length(V2(game.player.pos.x - lastFeet.x, game.player.pos.z - lastFeet.z)) / max(dt, 1e-3)
         let vy = abs(game.player.pos.y - lastFeet.y) / max(dt, 1e-3)
-        let speed = moved + vy * 0.5
+        let speed = relMoved >= 0 ? relMoved : moved + vy * 0.5
         var want: Float = min(1, max(0, (speed - 1.2) / 6))
-        if game.riding != nil || game.world.ships.aboard != nil { want = min(1, want + 0.2) }
+        if ship != nil {
+            want = max(want, min(1, shipTurnRate * 2.5), min(1, max(0, shipAccel - 0.5) / 6))
+            let shipSpeed = simd_length(carryVel)
+            deckReference += ((shipSpeed > 0.5 || shipTurnRate > 0.05 ? 1 : 0) - deckReference) * min(1, dt * 2)
+        } else {
+            deckReference = max(0, deckReference - dt * 2)
+            if game.riding != nil { want = min(1, want + 0.2) }
+        }
         want = max(want, turnFlash)
         turnFlash = max(0, turnFlash - dt * 5)
         vignette += (want - vignette) * min(1, dt * (want > vignette ? 10 : 3))
+        updateHint()
         // Panel follows the menu state.
         if game.menu != nil || game.paused {
             if mode != .menu { placeMenuPanel() }
@@ -168,8 +248,152 @@ final class QuestControls {
         if mode == .hud { placeHudPanel(dt) }
     }
 
+    // What the use button (grip) does to the block under the laser, when that is more than placing: open a chest,
+    // barrel or furnace, use a door, lever or bench, steer a ship. A light buzz when a new one comes under the laser.
+    private func updateHint() {
+        var h: String?
+        var key = ""
+        let use = Prompt.g(.use, pad: true)
+        if game.menu == nil && !game.paused {
+            if let st = game.world.ships.target {
+                let b = st.ship.grid.get(st.cell.x, st.cell.y, st.cell.z)
+                key = "s\(st.cell)"
+                if ShipParts.kinds[Int(b)] == .helm && st.ship.helm == st.cell {
+                    h = use + (st.ship.root.kinematic ? " Helm (locked)" : " Steer")
+                } else if st.ship.blockEntities[st.cell] != nil || Blocks.key(Blocks.groupBase[Int(b)]).hasSuffix("chest") {
+                    h = use + " Open " + Blocks.name(b)
+                }
+            } else if let t = game.target, game.isInteractive(t.hit) || game.isCircuitInteractive(t.hit) {
+                let b = game.world.block(t.hit.x, t.hit.y, t.hit.z)
+                let k = Blocks.key(Blocks.groupBase[Int(b)])
+                key = "w\(t.hit)"
+                let opens = ["chest", "barrel", "box", "furnace", "smoker", "hopper", "dispenser", "dropper", "crafting", "table",
+                             "anvil", "loom", "grindstone", "stonecutter", "brewing", "beacon", "crafter", "lectern"].contains { k.contains($0) }
+                h = use + (opens ? " Open " : " Use ") + Blocks.name(b)
+            }
+        }
+        if h != nil && key != hintKey { app.input.haptic(aimHand, amplitude: 0.18, seconds: 0.015, frequency: 220) }
+        hintKey = h == nil ? "" : key
+        hint = h
+    }
+
+    // Teleport: hold the left stick forward to aim a falling arc from the hand; release to land where it ends (the top
+    // of a block with room to stand, on the ground or a ship's deck, within 14 blocks). A short vignette blink hides the
+    // jump.
+    private func teleport(_ L: XRHand) {
+        let sy = L.stick.y
+        if sy > 0.6 && L.aimValid {
+            teleAiming = true
+            computeArc(L)
+        } else if teleAiming && sy < 0.3 {
+            teleAiming = false
+            if let t = teleTarget {
+                let feet = t.ship.map { $0.toWorld(t.local) } ?? t.local
+                game.player.pos = feet
+                game.player.vel = .zero
+                game.player.airPeak = feet.y
+                turnFlash = 1
+                teleports += 1
+                app.input.haptic(moveHand, amplitude: 0.35, seconds: 0.04, frequency: 160)
+                app.rig.refresh(game: game)
+            }
+            teleTarget = nil
+            teleArc.removeAll()
+        }
+    }
+
+    private func computeArc(_ L: XRHand) {
+        let rig = app.rig, w = game.world
+        var p = rig.toWorld(L.aimPos)
+        var v = simd_normalize(rig.toWorldDir(L.aimRot.act(V3(0, 0, -1)))) * 11
+        let start = p
+        let g: Float = 14, step: Float = 0.035
+        teleArc.removeAll(keepingCapacity: true)
+        teleArc.append(p)
+        teleTarget = nil
+        func standable(_ x: Int, _ y: Int, _ z: Int) -> Bool {
+            let a = w.block(x, y, z), b = w.block(x, y + 1, z)
+            return !Blocks.collide[Int(a)] && !Blocks.collide[Int(b)] && Blocks.fluidKind[Int(a)] != 2
+        }
+        for _ in 0..<70 {
+            let q = p + v * step
+            v.y -= g * step
+            let seg = q - p, len = simd_length(seg)
+            guard len > 1e-4 else { break }
+            let dir = seg / len
+            var best: Float = len + 1
+            var landing: (Ship?, V3)?
+            if let h = w.raycast(p, dir, maxDist: len) {
+                let t = simd_dot(V3(Float(h.hit.x) + 0.5, Float(h.hit.y) + 0.5, Float(h.hit.z) + 0.5) - p, dir)
+                best = max(0, t)
+                if h.normal == IVec3(0, 1, 0) && standable(h.hit.x, h.hit.y + 1, h.hit.z) {
+                    landing = (nil, V3(Float(h.hit.x) + 0.5, Float(h.hit.y + 1) + 0.01, Float(h.hit.z) + 0.5))
+                }
+            }
+            for s in w.ships.list where s.worldMax.x > min(p.x, q.x) - 1 && s.worldMin.x < max(p.x, q.x) + 1
+                && s.worldMax.y > min(p.y, q.y) - 1 && s.worldMin.y < max(p.y, q.y) + 1
+                && s.worldMax.z > min(p.z, q.z) - 1 && s.worldMin.z < max(p.z, q.z) + 1 {
+                if let h = s.raycast(p, dir, maxDist: len, world: w), h.t < best {
+                    best = h.t
+                    let c = h.cell, gr = s.grid
+                    if h.normal == IVec3(0, 1, 0) && !Blocks.collide[Int(gr.get(c.x, c.y + 1, c.z))] && !Blocks.collide[Int(gr.get(c.x, c.y + 2, c.z))] {
+                        landing = (s, V3(Float(c.x) + 0.5, Float(c.y + 1) + 0.01, Float(c.z) + 0.5))
+                    } else { landing = nil }
+                }
+            }
+            if best <= len {
+                let end = p + dir * best
+                teleArc.append(end)
+                if let l = landing {
+                    let feet = l.0.map { $0.toWorld(l.1) } ?? l.1
+                    if simd_length(V2(feet.x - start.x, feet.z - start.z)) <= QuestControls.teleportRange { teleTarget = (l.0, l.1) }
+                }
+                return
+            }
+            p = q
+            teleArc.append(p)
+            if p.y < start.y - 40 { break }
+        }
+    }
+
+    // The arc (green when it ends on a place to stand, red otherwise) and a ring where the feet will land.
+    private func drawTeleport(_ s: SceneRenderer.Slot, eye: V3) {
+        guard teleAiming, teleArc.count > 1 else { return }
+        let ok = teleTarget != nil
+        let col = ok ? V4(0.45, 1, 0.6, 0.85) : V4(1, 0.4, 0.35, 0.7)
+        var v: [SimpleVert] = []
+        let headDir = simd_normalize(app.rig.headWorld - teleArc[teleArc.count / 2])
+        for i in 0..<(teleArc.count - 1) {
+            let a = teleArc[i] - eye, b = teleArc[i + 1] - eye
+            let side = simd_normalize(simd_cross(teleArc[i + 1] - teleArc[i], headDir) + V3(1e-5, 0, 0)) * 0.012
+            let ca = V4(col.x, col.y, col.z, col.w * Float(i + 1) / Float(teleArc.count))
+            let q = [a - side, b - side, b + side, a + side]
+            for k in [0, 1, 2, 0, 2, 3] { v.append(SimpleVert(pos: V4(q[k], 1), color: ca)) }
+        }
+        if let t = teleTarget {
+            let c = (t.ship.map { $0.toWorld(t.local) } ?? t.local) + V3(0, 0.03, 0) - eye
+            let seg = 24
+            for i in 0..<seg {
+                let a0 = Float(i) / Float(seg) * 2 * .pi, a1 = Float(i + 1) / Float(seg) * 2 * .pi
+                let d0 = V3(cosf(a0), 0, sinf(a0)), d1 = V3(cosf(a1), 0, sinf(a1))
+                let q = [c + d0 * 0.3, c + d1 * 0.3, c + d1 * 0.38, c + d0 * 0.38]
+                for k in [0, 1, 2, 0, 2, 3] { v.append(SimpleVert(pos: V4(q[k], 1), color: col)) }
+            }
+        }
+        if let off = app.scene.push(s, v) { app.scene.drawScratch(s, "simple", offset: off, count: v.count) }
+    }
+
     private func roomScale() {
         let rig = app.rig
+        if QuestSettings.seated {
+            // Seated: leaning moves only the view (up to 35 cm from the centre), never the player.
+            var d = rig.trackingHead - rig.anchor
+            d.y = 0
+            let l = simd_length(d)
+            if l > 0.35 { rig.anchor += d * (1 - 0.35 / l) }
+            rig.refresh(game: game)
+            return
+        }
         let d = rig.trackingHead - rig.anchor
         let delta = rig.toWorldDir(V3(d.x, 0, d.z))
         if simd_length_squared(delta) > 1e-8, game.menu == nil {
@@ -201,6 +425,12 @@ final class QuestControls {
             }
             if tEnter == .greatestFiniteMagnitude { tEnter = simd_dot(c + V3(0.5, 0.5, 0.5) - aimOrigin, aimDir) }
             best = min(best, max(0.05, tEnter + 0.02))
+        }
+        // Ship blocks (decks, chests and helms on ships): the game targets them from the eye too (shipInteract).
+        for s in w.ships.list where aimOrigin.x > s.worldMin.x - reach && aimOrigin.x < s.worldMax.x + reach
+            && aimOrigin.y > s.worldMin.y - reach && aimOrigin.y < s.worldMax.y + reach
+            && aimOrigin.z > s.worldMin.z - reach && aimOrigin.z < s.worldMax.z + reach {
+            if let h = s.raycast(aimOrigin, aimDir, maxDist: reach, world: w), h.t + 0.02 < best { best = max(0.05, h.t + 0.02) }
         }
         if let (_, t) = game.mobs.raycast(aimOrigin, aimDir, maxDist: reach), t < best { best = t }
         let p = aimOrigin + aimDir * best
@@ -234,24 +464,31 @@ final class QuestControls {
     private func placeMenuPanel() {
         mode = .menu
         let rig = app.rig
-        let yaw = rig.headYaw
+        let yaw = rig.headYaw - rig.bodyYaw                  // tracking space
         let fwd = V3(-sinf(yaw), 0, -cosf(yaw))
-        panelCenter = rig.headWorld + fwd * 1.15 + V3(0, -0.1, 0)
-        panelYaw = yaw
+        panelCenterT = rig.trackingHead + fwd * 1.15 + V3(0, -0.1, 0)
+        panelYawT = yaw
         panelPitch = 0
         panelSize = V2(1.5, 1.5 * Float(QuestControls.panelH) / Float(QuestControls.panelW))
     }
 
     // HUD: in the lower view, turning with the head once it looks more than 25 degrees away.
+    // Body-locked in tracking space: follows the head's position smoothly and its yaw lazily.
     private func placeHudPanel(_ dt: Float) {
         let rig = app.rig
-        var diff = rig.headYaw - hudYaw
+        var diff = (rig.headYaw - rig.bodyYaw) - hudYawT
         while diff > .pi { diff -= 2 * .pi }
         while diff < -.pi { diff += 2 * .pi }
-        if abs(diff) > 25 * .pi / 180 { hudYaw += diff * min(1, dt * 3) }
-        let fwd = V3(-sinf(hudYaw), 0, -cosf(hudYaw))
-        panelCenter = rig.headWorld + fwd * 1.25 + V3(0, -0.42, 0)
-        panelYaw = hudYaw
+        if abs(diff) > 25 * .pi / 180 { hudYawT += diff * min(1, dt * 3) }
+        hudYawT = hudYawT.truncatingRemainder(dividingBy: 2 * .pi)
+        let fwd = V3(-sinf(hudYawT), 0, -cosf(hudYawT))
+        let want = rig.trackingHead + fwd * 1.25 + V3(0, -0.42, 0)
+        var pos = hudPosT ?? want
+        pos += (want - pos) * min(1, dt * 12)
+        if simd_length(want - pos) > 0.5 { pos = want }
+        hudPosT = pos
+        panelCenterT = pos
+        panelYawT = hudYawT
         panelPitch = -0.32
         panelSize = V2(1.25, 1.25 * Float(QuestControls.panelH) / Float(QuestControls.panelW))
     }
@@ -304,6 +541,10 @@ final class QuestControls {
         hudHost.drawnChunks = app.scene.visibleCount
         let verts = hudHost.buildHUD(Float(panel.width), Float(panel.height))
         panel.record(s, verts)
+        if let hp = hintPanel, let h = hint, h != hintShown {
+            hp.record(s, QuestLabel.verts(h, width: Float(hp.width), height: Float(hp.height), scale: 4))
+            hintShown = h
+        }
     }
 
     func drawOpaque(_ s: SceneRenderer.Slot, eye: V3) {
@@ -333,6 +574,7 @@ final class QuestControls {
         }
         if let off = app.scene.push(s, v) { app.scene.drawScratch(s, "simpleSolid", offset: off, count: v.count) }
         drawHeld(s, eye: eye)
+        drawTeleport(s, eye: eye)
         // Laser: to the hit point (menus, a target within reach) or a short fading stub.
         let inMenu = game.menu != nil || game.paused
         if xr.hands[aimHand].aimValid {
@@ -413,6 +655,29 @@ final class QuestControls {
         app.scene.drawScratch(s, "entity", offset: off, count: wr.n)
     }
 
+    // Aboard a moving ship: a faint level ring with a forward notch at the user's feet, fixed to the user's body
+    // (not the hull), a stable reference while the deck turns and pitches.
+    private func drawDeckReference(_ s: SceneRenderer.Slot, eye: V3) {
+        let a = deckReference * QuestSettings.deckRing
+        guard a > 0.02 else { return }
+        let rig = app.rig
+        let c = V3(rig.headWorld.x, game.player.pos.y + 0.03, rig.headWorld.z) - eye
+        var v: [SimpleVert] = []
+        let seg = 40
+        let r0: Float = 0.42, r1: Float = 0.47
+        let col = V4(0.75, 0.92, 1, 0.38 * a)
+        func quad(_ q: [V3]) { for k in [0, 1, 2, 0, 2, 3] { v.append(SimpleVert(pos: V4(q[k], 1), color: col)) } }
+        for i in 0..<seg {
+            let a0 = Float(i) / Float(seg) * 2 * .pi, a1 = Float(i + 1) / Float(seg) * 2 * .pi
+            let d0 = V3(cosf(a0), 0, sinf(a0)), d1 = V3(cosf(a1), 0, sinf(a1))
+            quad([c + d0 * r0, c + d1 * r0, c + d1 * r1, c + d0 * r1])
+        }
+        // Forward notch (the body's facing).
+        let f = rig.yawRot.act(V3(0, 0, -1)), r = rig.yawRot.act(V3(1, 0, 0))
+        quad([c + f * r1 - r * 0.03, c + f * r1 + r * 0.03, c + f * (r1 + 0.12) + r * 0.03, c + f * (r1 + 0.12) - r * 0.03])
+        if let off = app.scene.push(s, v) { app.scene.drawScratch(s, "panelVignette", offset: off, count: v.count) }
+    }
+
     // Panels and the comfort vignette, over everything.
     func drawOverlay(_ s: SceneRenderer.Slot, eye: V3) {
         if let panel, (!game.hideHUD || game.menu != nil) {
@@ -422,6 +687,21 @@ final class QuestControls {
             let inMenu = mode == .menu
             panel.draw(s, model: m, alpha: inMenu ? 1 : 0.95, onTop: true)
         }
+        if let hp = hintPanel, let h = hint, let hit = aimHit, game.menu == nil {
+            // Beside the dot, a little above, facing the head; about 3 degrees tall wherever it is.
+            let head = app.rig.headWorld
+            let dist = max(0.3, simd_length(hit - head))
+            let toHead = simd_normalize(head - hit)
+            let right = simd_normalize(simd_cross(V3(0, 1, 0), toHead) + V3(1e-5, 0, 0))
+            let up = simd_cross(toHead, right)
+            let hgt = dist * 0.055
+            let wpx = min(Float(hp.width), QuestLabel.width(h, scale: 4))
+            let wid = hgt * Float(hp.width) / Float(hp.height)
+            let c = hit + toHead * 0.05 + up * hgt * 1.1 + right * (wid * wpx / Float(hp.width) * 0.5 + hgt * 0.4) - eye
+            let m = float4x4(columns: (V4(right * wid, 0), V4(up * hgt, 0), V4(toHead, 0), V4(c, 1)))
+            hp.draw(s, model: m, alpha: 1, onTop: true)
+        }
+        drawDeckReference(s, eye: eye)
         let k = vignette * QuestSettings.vignette
         guard k > 0.02 else { return }
         // A ring in clip space (w = 2): clear in the middle, dark at the edge.

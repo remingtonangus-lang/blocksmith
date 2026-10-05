@@ -38,6 +38,14 @@ final class PauseMenu: Menu {
     var padBinding: Int? = nil             // Button Mapping: logical button waiting for a physical press
     var padBindArmed: Double = 0
     var binding: KeyBinds.Action? = nil   // waiting for a key press on the Key Bindings page
+    // Host pages (the Quest's VR comfort options; nil on the Mac): an entry row on the main page opens a page whose
+    // rows come from the host and whose actions go back to it. Ids in `hostValues` step left / right like settings.
+    static var hostEntry: (String, String)?
+    static var hostPage: ((String) -> (title: String, subtitle: String, rows: [(String, String)])?)?
+    static var hostAct: ((String, Bool) -> Void)?
+    static var hostValues: Set<String> = []
+    static var hostHelp: [String: String] = [:]
+    var hostPageID: String?
 
     init(game: Game) {
         super.init("Game Paused", game: game)
@@ -52,7 +60,7 @@ final class PauseMenu: Menu {
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
                                         "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap"]
 
-    static func isValue(_ id: String) -> Bool { valueIDs.contains(id) || id.hasPrefix("vol:") || id == "audio_subs" }
+    static func isValue(_ id: String) -> Bool { valueIDs.contains(id) || id.hasPrefix("vol:") || id == "audio_subs" || hostValues.contains(id) }
 
     static let help: [String: String] = [
         "resume": "Return to the game.",
@@ -141,6 +149,12 @@ final class PauseMenu: Menu {
         func pct(_ f: Float) -> String { "\(Int((f * 100).rounded()))%" }
         func num(_ f: Float) -> String { f == f.rounded() ? "\(Int(f))" : String(format: "%.1f", f) }
         subtitle = ""
+        if let hp = hostPageID, let r = PauseMenu.hostPage?(hp) {
+            title = r.title; subtitle = r.subtitle
+            rows = r.rows + [("Done", "back")]
+            layout()
+            return
+        }
         switch page {
         case .title:
             title = ""
@@ -157,6 +171,7 @@ final class PauseMenu: Menu {
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Game.difficultyNames[g.difficulty])", "difficulty"),
                     ("Worlds...", "worlds"), ("Photo Mode", "photo"), ("Save and Quit to Title", "totitle"), ("Save and Quit Game", "quit")]
+            if let e = PauseMenu.hostEntry { rows.insert(e, at: 2) }
         case .options:
             title = "Options: \(cat.name)"
             let next = Cat(rawValue: (cat.rawValue + 1) % Cat.allCases.count) ?? .video
@@ -295,7 +310,7 @@ final class PauseMenu: Menu {
             let n = String(id.dropFirst(6))
             return worlds.first { $0.name == n }.map { WorldStore.describe($0) } ?? ""
         }
-        return PauseMenu.help[id] ?? ""
+        return PauseMenu.help[id] ?? PauseMenu.hostHelp[id] ?? ""
     }
 
     var legend: String {
@@ -360,6 +375,10 @@ final class PauseMenu: Menu {
         var resetCursor = false
         switch id {
         case "noop": return
+        case _ where id.hasPrefix("host:"):
+            hostPageID = String(id.dropFirst(5)); scroll = 0; resetCursor = true
+        case _ where hostPageID != nil && id != "back":
+            PauseMenu.hostAct?(id, back)
         case _ where id.hasPrefix("vol:") || id == "audio_test" || id == "audio_subs": audioAct(id, back: back)
         case "resume":
             if page == .title { g.paused = false } else { g.closeMenu() }
@@ -378,6 +397,8 @@ final class PauseMenu: Menu {
             binding = KeyBinds.Action(rawValue: String(id.dropFirst(5)))
         case "bindreset": KeyBinds.reset(); g.onToast?("Keys reset to defaults")
         case "worlds": go(.worlds); resetCursor = true
+        case "back" where hostPageID != nil:
+            hostPageID = nil; scroll = 0; resetCursor = true
         case "back":
             confirmReset = false
             page = stack.popLast() ?? (page == .title ? .title : .main)
@@ -586,6 +607,7 @@ final class PauseMenu: Menu {
         if binding != nil { binding = nil; build(); return true }
         if padBinding != nil { padBinding = nil; build(); return true }
         if editing != nil { editing = nil; build(); return true }
+        if hostPageID != nil { act("back", back: false); return true }
         guard page != .main && page != .title else { return page == .title }
         act("back", back: false)
         return true

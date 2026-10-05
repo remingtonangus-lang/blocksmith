@@ -571,19 +571,27 @@ final class XRSession {
         return !exitRequested
     }
     var onRecenter: (() -> Void)?
+    private(set) var availableRates: [Float] = []
+
+    // Asks the runtime for a display refresh rate (the nearest offered one not above `want`); true when granted.
+    func setRefreshRate(_ want: Float) -> Bool {
+        guard let request = proc("xrRequestDisplayRefreshRateFB", PFN_xrRequestDisplayRefreshRateFB.self), !availableRates.isEmpty else { return false }
+        let pick = availableRates.contains(want) ? want : (availableRates.filter { $0 <= want }.max() ?? 72)
+        guard request(session, pick).rawValue >= 0 else { return false }
+        refreshRate = pick
+        return true
+    }
 
     // After xrBeginSession: refresh rate, CPU/GPU levels.
     private func sessionStarted() {
         if exts.contains("XR_FB_display_refresh_rate"),
-           let enumerate = proc("xrEnumerateDisplayRefreshRatesFB", PFN_xrEnumerateDisplayRefreshRatesFB.self),
-           let request = proc("xrRequestDisplayRefreshRateFB", PFN_xrRequestDisplayRefreshRateFB.self) {
+           let enumerate = proc("xrEnumerateDisplayRefreshRatesFB", PFN_xrEnumerateDisplayRefreshRatesFB.self) {
             var n: UInt32 = 0
             _ = enumerate(session, 0, &n, nil)
             var rates = [Float](repeating: 0, count: Int(n))
             _ = enumerate(session, n, &n, &rates)
-            let want = QuestSettings.refreshRate
-            let pick = rates.contains(want) ? want : (rates.filter { $0 <= want }.max() ?? 72)
-            if request(session, pick).rawValue >= 0 { refreshRate = pick }
+            availableRates = rates
+            _ = setRefreshRate(QuestSettings.refreshRate)
             print("xr: refresh rates \(rates), using \(refreshRate) Hz")
         }
         if exts.contains("XR_EXT_performance_settings"),

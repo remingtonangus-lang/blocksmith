@@ -16,9 +16,11 @@ final class HudPanel {
     private var vbufs: [VkBuf] = []
     private var vidx = 0
     static let maxVerts = 1 << 17
+    let capacity: Int
 
-    init(scene: SceneRenderer, width: Int, height: Int) throws {
+    init(scene: SceneRenderer, width: Int, height: Int, maxVerts: Int = HudPanel.maxVerts) throws {
         self.scene = scene
+        capacity = maxVerts
         self.width = width
         self.height = height
         let ctx = scene.ctx
@@ -90,7 +92,7 @@ final class HudPanel {
         w.pImageInfo = a.ptr(VkDescriptorImageInfo(sampler: sampler, imageView: image.view, imageLayout: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL))
         vkUpdateDescriptorSets(ctx.device, 1, &w, 0, nil)
         for _ in 0..<2 {
-            vbufs.append(try VkBuf(ctx, size: HudPanel.maxVerts * MemoryLayout<HudVert>.stride, usage: VK_BUFFER_USAGE_VERTEX_BUFFER_BIT.rawValue, host: true))
+            vbufs.append(try VkBuf(ctx, size: capacity * MemoryLayout<HudVert>.stride, usage: VK_BUFFER_USAGE_VERTEX_BUFFER_BIT.rawValue, host: true))
         }
         // Start out transparent (sampled before the first HUD frame).
         try ctx.oneShot { cb in self.clearPass(cb) }
@@ -123,7 +125,7 @@ final class HudPanel {
     func record(_ s: SceneRenderer.Slot, _ verts: [HudVert]) {
         let vb = vbufs[vidx]
         vidx = (vidx + 1) % vbufs.count
-        let n = min(verts.count, HudPanel.maxVerts)
+        let n = min(verts.count, capacity)
         _ = verts.withUnsafeBytes { memcpy(vb.mapped!, $0.baseAddress!, n * MemoryLayout<HudVert>.stride) }
         var clear = VkClearValue()
         clear.color.float32 = (0, 0, 0, 0)

@@ -17,7 +17,11 @@ enum Glyphs {
     // A keyboard key cap around a label, e.g. key("Esc").
     static func key(_ label: String) -> String { "\u{E0F0}\(label)\u{E0F1}" }
 
+    // Platform labels for the shoulder buttons and triggers (the Quest names its Touch grips and triggers); nil = the pad's.
+    static var labelOverride: ((Glyph) -> String?)?
+
     static func pillLabel(_ g: Glyph) -> String? {
+        if let o = labelOverride, let l = o(g) { return l }
         let st = PadManager.shared.style
         switch g {
         case .lb: return st == .playstation ? "L1" : (st == .nintendo ? "L" : "LB")

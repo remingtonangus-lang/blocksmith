@@ -587,6 +587,10 @@ final class ShipManager {
     let meshQueue = DispatchQueue(label: "blocksmith.shipmesh", qos: .userInitiated)
     var stepMs: Double = 0           // physics time last frame (harness / debug)
     var accum: Float = 0                  // unstepped time (ShipPhysics)
+    // Physics substep rate and how early a step may run (seconds). The Quest steps at the display rate with a little
+    // slack, so a ship (and the player carried on its deck) moves exactly once per displayed frame.
+    static var stepRate: Float = 60
+    static var stepSlack: Float = 0
     // Capital ships (CapitalShips.swift): built on a worker thread, handed over here; per-ship AI state.
     let capitalLock = NSLock()
     var capitalReady: [([Ship], CapitalState)] = []

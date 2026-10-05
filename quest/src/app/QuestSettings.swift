@@ -16,11 +16,15 @@ enum QuestSettings {
     static var smoothTurnSpeed: Float { get { float("quest.smoothTurnSpeed", 120) } set { d.set(newValue, forKey: "quest.smoothTurnSpeed") } }
     // Comfort vignette strength 0 (off) ... 1.
     static var vignette: Float { get { float("quest.vignette", 0.6) } set { d.set(newValue, forKey: "quest.vignette") } }
+    // Movement: false smooth (left stick walks), true teleport (push the stick forward to aim an arc, release to jump there).
+    static var teleport: Bool { get { bool("quest.teleport", false) } set { d.set(newValue, forKey: "quest.teleport") } }
     // Movement follows the head (true) or the left controller (false).
     static var headLocomotion: Bool { get { bool("quest.headLocomotion", false) } set { d.set(newValue, forKey: "quest.headLocomotion") } }
     // Seated: the game's eye height (1.62 blocks) whatever the real head height.
     static var seated: Bool { get { bool("quest.seated", false) } set { d.set(newValue, forKey: "quest.seated") } }
     static var leftHanded: Bool { get { bool("quest.leftHanded", false) } set { d.set(newValue, forKey: "quest.leftHanded") } }
+    // Aboard a moving ship: strength of the reference ring at the feet (0 off ... 1).
+    static var deckRing: Float { get { float("quest.deckRing", 1) } set { d.set(newValue, forKey: "quest.deckRing") } }
     static var foveation: Int { get { int("quest.foveation", 0) } set { d.set(newValue, forKey: "quest.foveation") } }
     static var textureRes: Int { get { int("quest.textureRes", 64) } set { d.set(newValue, forKey: "quest.textureRes") } }
 }

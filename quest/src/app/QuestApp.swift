@@ -121,6 +121,12 @@ final class QuestApp {
         wr.extraOverlay = { [weak ctl] s, eye in ctl?.drawOverlay(s, eye: eye) }
         wr.prePass = { [weak ctl] s in ctl?.recordPanel(s) }
         wr.landmarkHost = ctl.hudHost
+        let xrs = xr
+        QuestOptions.install(QuestOptions.Hooks(
+            recenter: { [weak self] in self?.rig.needsRecenter = true },
+            rates: { xrs.availableRates }, currentRate: { xrs.refreshRate },
+            setRate: { r in if xrs.setRefreshRate(r) { print("xr: refresh rate \(xrs.refreshRate) Hz") } },
+            foveated: { xrs.foveated }, setFoveation: { xrs.applyFoveation(level: $0) }))
         PadManager.shared.haptic = { [weak self] k, secs, sharp in
             guard let self else { return }
             let f: Float = 80 + 240 * sharp
@@ -195,6 +201,10 @@ final class QuestApp {
         if game == nil, f.shouldRender { rig.updateLoading(xr: xr) }
         if let g = game {
             let dt = min(0.1, max(1.0 / 120, f.period > 0 ? f.period : 1.0 / 72))
+            // Ship physics steps once per displayed frame (60 Hz substeps at 72 Hz left one frame in six without a
+            // step: the deck and the player riding it juddered against the world).
+            let rate = Float(1 / dt)
+            if abs(ShipManager.stepRate - rate) > 0.5 { ShipManager.stepRate = rate; ShipManager.stepSlack = 0.2 / rate }
             if f.shouldRender { rig.update(xr: xr, game: g) }
             controls?.update(dt: Float(dt))
             let a = CFAbsoluteTimeGetCurrent()

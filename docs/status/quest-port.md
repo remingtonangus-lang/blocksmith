@@ -51,6 +51,20 @@ Physically walking moves the player (with collision). Ducking lowers the view. S
 edges of the view (comfort vignette). The HUD is a panel in the lower view that follows the head lazily; menus open
 as a panel in front of you. Rumble from the game (hits, explosions, block breaks) plays on both controllers.
 
+Interact hint: when the laser rests on something the grip opens or uses (chest, barrel, furnace, crafting table, door,
+lever, a ship's helm), a label beside the dot names it ("Grip Open Chest") and the controller gives a light tick. Works
+on ships too (the laser now tests ship blocks).
+
+Riding ships: panels (HUD, inventory, menus) live in your room's space and travel with you; the ship's turns turn your
+view with the deck (the horizon stays level when the hull pitches or rolls); ship physics steps once per displayed
+frame (no judder). While the ship moves or turns, a faint ring at your feet gives a steady reference, and the vignette
+reacts to the ship turning and changing speed (not to cruising).
+
+**Pause → VR Comfort & Controls** (A or trigger on a row; the stick left/right steps a value): Turning (Snap / Smooth),
+Snap Angle (15-90°) or Smooth Turn Speed, Movement (Smooth / Teleport: push the left stick forward, aim the arc, release),
+Move Direction (Controller / Head), Comfort Vignette (Off / Low / Medium / High), Ship Deck Ring, Seated Mode (leaning
+doesn't walk you), Recenter View, Dominant Hand, Refresh Rate (72 / 80 / 90 / 120 Hz), Foveated Rendering.
+
 ## Milestones
 
 | | Milestone | State |
