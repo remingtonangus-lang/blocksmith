@@ -109,6 +109,12 @@ done
 "$BIN" --snapshot snaps/ship_frigate_side.png --seed 12345 --find plains --time 0.3 --rd 10 --ship frigate:side
 "$BIN" --snapshot snaps/ship_frigate_top.png --seed 12345 --find plains --time 0.3 --rd 10 --ship frigate:top
 "$BIN" --snapshot snaps/ship_frigate_deck.png --seed 12345 --find plains --time 0.3 --rd 10 --ship frigate:deck
+"$BIN" --snapshot snaps/ship_frigate_corridor.png --seed 12345 --find plains --time 0.3 --rd 8 --ship frigate:corridor
+"$BIN" --snapshot snaps/ship_frigate_room.png --seed 12345 --find plains --time 0.3 --rd 8 --ship frigate:room
+"$BIN" --snapshot snaps/ship_frigate_hangar.png --seed 12345 --find plains --time 0.3 --rd 8 --ship frigate:hangar
+"$BIN" --snapshot snaps/ship_warfrigate_corridor.png --seed 12345 --find plains --time 0.3 --rd 8 --ship warfrigate:corridor
+"$BIN" --snapshot snaps/ship_warfrigate_room.png --seed 12345 --find plains --time 0.3 --rd 8 --ship warfrigate:room
+"$BIN" --snapshot snaps/ship_warfrigate_hangar.png --seed 12345 --find plains --time 0.3 --rd 8 --ship warfrigate:hangar
 "$BIN" --snapshot snaps/ship_carriage.png --seed 12345 --find plains --time 0.3 --ship carriage
 "$BIN" --snapshot snaps/ship_battle.png --seed 12345 --find plains --time 0.3 --rd 10 --ship battle
 "$BIN" --snapshot snaps/physicstest.png --seed 12345 --time 0.3 --physicstest

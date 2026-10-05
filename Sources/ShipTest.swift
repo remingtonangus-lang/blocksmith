@@ -154,6 +154,17 @@ enum ShipTest {
         g.world.ships.pilot = nil
     }
 
+    // A camera aboard: feet at a ship-space point, looking along a ship-space direction.
+    static func aboardView(_ g: Game, _ s: Ship, _ feet: V3, look: V3) {
+        let to = s.dirToWorld(simd_normalize(look))
+        g.player.flying = true
+        g.player.pos = s.toWorld(feet)
+        g.player.yaw = atan2f(-to.x, -to.z)
+        g.player.pitch = atan2f(to.y, horiz(to))
+        g.world.ships.aboard = s
+        g.world.ships.pilot = nil
+    }
+
     // Remeshes the world around the camera and waits for ship meshes.
     static func settle(_ g: Game, rd: Int) {
         _ = g.world.loadSync(center: g.player.pos, radius: rd)
@@ -229,6 +240,11 @@ enum ShipTest {
                 case "side": chase(g, f, dist: 4, height: 6, side: 28)
                 case "top": chase(g, f, dist: 60, height: 120, side: 0.2)
                 case "deck": chase(g, f, dist: -62, height: 20, side: 0.12)
+                // Interiors (ShipInteriors.swift): down the crew deck's corridor toward the bow, into a room from its
+                // doorway, across the hangar.
+                case "corridor": aboardView(g, f, cap ? V3(23.5, 13, 122) : V3(56.5, 47, 262), look: V3(0, 0, -1))
+                case "room": aboardView(g, f, cap ? V3(26.5, 13, 50.5) : V3(59.5, 47, 254.5), look: V3(1, -0.15, 0.25))
+                case "hangar": aboardView(g, f, cap ? V3(16.5, 6, 101) : V3(40.5, 28, 330), look: V3(0.45, -0.1, -1))
                 default: chase(g, f, dist: big ? 230 : (cap ? 120 : 60), height: big ? 70 : (cap ? 30 : 22), side: big ? 0.9 : 0.8)
                 }
             }
