@@ -88,7 +88,8 @@ struct EntityWriter {
     // Flat sprite facing the camera (both sides visible: drawn without culling).
     mutating func sprite(center c: V3, half h: Float, right r: V3, up u: V3, layer: Int, light: Float, tint: V3 = V3(1, 1, 1)) {
         let rr = r * h, uu = u * h
-        quad([c - rr - uu, c + rr - uu, c + rr + uu, c - rr + uu], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], layer, V4(tint * light, 1))
+        let uv = EntityWriter.fullUV
+        quad4(c - rr - uu, c + rr - uu, c + rr + uu, c - rr + uu, uv.0, uv.1, uv.2, uv.3, layer, V4(tint * light, 1))
     }
 }
 

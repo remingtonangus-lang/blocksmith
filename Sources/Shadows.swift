@@ -8,7 +8,7 @@ import simd
 extension Game {
     func writeShadows(_ wr: inout EntityWriter, eye: V3) {
         let layer = Int(Tex.id("shadow"))
-        let uvs = [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)]
+        let uv = EntityWriter.fullUV
         func shadow(_ p: V3, radius: Float, strength: Float) {
             let bx = Int(floor(p.x)), bz = Int(floor(p.z))
             var by = Int(floor(p.y + 0.01))
@@ -24,7 +24,7 @@ extension Game {
             let r = radius * (0.7 + 0.3 * k)
             let c = V3(p.x, Float(by) + 0.015, p.z) - eye
             if simd_length_squared(c) > 48 * 48 { return }
-            wr.quad([c + V3(-r, 0, r), c + V3(r, 0, r), c + V3(r, 0, -r), c + V3(-r, 0, -r)], uvs, layer, V4(0, 0, 0, strength * k))
+            wr.quad4(c + V3(-r, 0, r), c + V3(r, 0, r), c + V3(r, 0, -r), c + V3(-r, 0, -r), uv.0, uv.1, uv.2, uv.3, layer, V4(0, 0, 0, strength * k))
         }
         // Dropped items: the shadow about the size of the item at rest.
         for d in drops.items { shadow(d.pos, radius: 0.22, strength: 0.35) }
