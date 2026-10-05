@@ -100,8 +100,9 @@ enum ItemModels {
             var gv = alphaAt(mid.x, mid.y + e) - alphaAt(mid.x, mid.y - e)
             let gl = sqrtf(gu * gu + gv * gv)
             if gl < 1e-5 { let d = p1 - p0; gu = d.y; gv = -d.x } else { gu /= gl; gv /= gl }
-            // Outward in grid space is (-gu, -gv); the wall samples the colour 1.2 cells inside the outline.
-            let inset = V2(gu, gv) * 1.2
+            // Outward in grid space is (-gu, -gv); the wall samples the colour 2.6 cells (5 px of a 128 px icon) inside
+            // the contour, past the dark outline and bevel rim (at 1.2 cells the walls read near-black: blind critic).
+            let inset = V2(gu, gv) * 2.6
             let u0 = uvAt(p0.x + inset.x, p0.y + inset.y), u1 = uvAt(p1.x + inset.x, p1.y + inset.y)
             let l0 = V2((p0.x + 0.5) / g - 0.5, 0.5 - (p0.y + 0.5) / g), l1 = V2((p1.x + 0.5) / g - 0.5, 0.5 - (p1.y + 0.5) / g)
             let nrm = simd_normalize(V3(-gu, gv, 0))
@@ -193,7 +194,8 @@ enum ItemModels {
         for k in 0..<count {
             let q = qs[k]
             let nw = simd_normalize(ax * q.n.x + ay * q.n.y + az * q.n.z)
-            let shade = max(0.45, 0.68 + 0.32 * simd_dot(nw, lightDir))
+            // Side walls (k >= 2) no darker than 0.66 of full light: their edge reads as thickness, not a black rim.
+            let shade = max(k < 2 ? 0.45 : 0.66, 0.68 + 0.32 * simd_dot(nw, lightDir))
             let c = V4(tint * (shade * light), 1)
             let a = o + ax * q.p.0.x + ay * q.p.0.y + az * q.p.0.z
             let b = o + ax * q.p.1.x + ay * q.p.1.y + az * q.p.1.z
@@ -285,13 +287,15 @@ extension Renderer {
         // Swing: the head comes down and across (a chop), back up after.
         let a = sinf(sqrtf(max(0, sw)) * .pi)
         let chop = a * (tool ? 1.15 : 0.5)
+        // The face turned about 40 degrees off the line to the eye, so the item's thickness shows along one edge (face-on
+        // it read as a flat card: blind critic, held round 1).
         var along = tool ? V3(-0.28, 0.9, -0.42) : V3(-0.15, 1, -0.1)
-        var facing = tool ? V3(-0.62, 0.18, 0.76) : V3(-0.2, 0.05, 1)
+        var facing = tool ? V3(0.25, 0.25, 0.9) : V3(0.2, 0.05, 1)
         // Rotate the hold about the camera's right axis by the chop (head forward and down).
         let c = cosf(chop), s = sinf(chop)
         func rotX(_ v: V3) -> V3 { V3(v.x, v.y * c + v.z * s, -v.y * s + v.z * c) }
         along = rotX(along); facing = rotX(facing)
-        var hand = base + V3(0.02, 0.0, -0.06) + sway
+        var hand = base + (tool ? V3(0.02, 0.0, -0.06) : V3(-0.03, 0.04, -0.06)) + sway
         let name = held.def.name
         if name == "bow" || name == "crossbow" {
             // Held upright, drawn back toward the eye.
@@ -302,9 +306,10 @@ extension Renderer {
             let k = min(1, game.eatProgress * 3)
             hand = hand * (1 - k) + V3(0.0, -0.2 + 0.02 * sinf(t * 22), -0.42) * k
         }
-        let size: Float = tool ? 0.5 : 0.36
+        // Hand-sized things (food, potions, materials) about two thirds of a tool (at 0.36 an apple filled the corner).
+        let size: Float = tool ? 0.5 : 0.25
         let (ax, ay, az) = ItemModels.basis(along: along, facing: facing, size: size, upright: !tool)
-        let grip: V2 = tool ? V2(-0.3, -0.3) : V2(0, -0.18)
+        let grip: V2 = tool ? V2(-0.3, -0.3) : V2(0, -0.3)
         let o = hand - ax * grip.x - ay * grip.y
         return ItemModels.write(&wr, layer: layer, o: o, ax: ax, ay: ay, az: az, light: light, glint: held.ench != 0,
                                 overlay: ItemModels.overlay(held.item))

@@ -234,14 +234,24 @@ final class ItemEntityManager {
                 } else {
                     let layer = Items.texLayer(e.stack.item) ?? Int(Blocks.tex[Int(e.stack.def.block ?? 0) * 6])
                     if modelled[idx] && ItemModels.has(layer) {
-                        // Upright, the face toward the viewer, rocking gently through +-50 degrees (a full spin showed
-                        // every item edge-on, a thin line, half the time); tools a little larger (they read by silhouette).
+                        // The face toward the viewer, rocking gently through +-50 degrees (a full spin showed every item
+                        // edge-on, a thin line, half the time), leaned back 18 degrees so the top catches the light. Tools
+                        // lie level (the icon's handle-to-head diagonal horizontal), not stood on the handle's tip
+                        // (blind critic, dropped round 1).
                         let face = atan2f(-c.x, -c.z)
                         let yaw = face + 0.85 * sinf(e.age * 1.1 + e.spin) + Float(k) * 0.35
-                        let s: Float = ItemModels.isTool(e.stack.def) ? 0.54 : 0.42
-                        let ax = V3(cosf(yaw), 0, -sinf(yaw)) * s, ay = V3(0, s, 0), az = V3(sinf(yaw), 0, cosf(yaw)) * s
+                        let tool = ItemModels.isTool(e.stack.def)
+                        let s: Float = tool ? 0.46 : 0.42
+                        let rt = V3(cosf(yaw), 0, -sinf(yaw))
+                        let back = V3(-sinf(yaw), 0, -cosf(yaw))
+                        let lean: Float = 0.31
+                        let upv = V3(0, cosf(lean), 0) + back * sinf(lean)
+                        let fwd = simd_cross(rt, upv)
+                        let r2: Float = 0.70710678
+                        let ax = (tool ? (rt - upv) * r2 : rt) * s, ay = (tool ? (rt + upv) * r2 : upv) * s, az = fwd * s
                         let full = simd_length_squared(c) < 12 * 12
-                        ItemModels.write(&wr, layer: layer, o: c + off + V3(0, 0.1, 0), ax: ax, ay: ay, az: az, light: light,
+                        let lift: Float = tool ? 0.07 : 0.1
+                        ItemModels.write(&wr, layer: layer, o: c + off + V3(0, lift, 0), ax: ax, ay: ay, az: az, light: light,
                                          glint: e.stack.ench != 0, full: full, overlay: ItemModels.overlay(e.stack.item))
                     } else {
                         wr.sprite(center: c + off + V3(0, 0.05, 0), half: 0.2, right: right, up: up, layer: layer, light: light)
