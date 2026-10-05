@@ -611,7 +611,14 @@ final class Circuit {
     func containerSignal(_ q: IVec3) -> Int? {
         guard let be = w.blockEntities[q], be.kind != .spawner else {
             let k = Blocks.key(base(block(q)))
-            if k == "composter" { return Int(block(q) - base(block(q))) }         // fill level 0-8 (reference; it read 0)
+            let off = Int(block(q) - base(block(q)))
+            switch k {                                                          // reference readings (they read nothing)
+            case "composter": return off                                        // fill level 0-8
+            case "cake": return (7 - off) * 2                                   // slices left x 2
+            case "end_portal_frame": return off > 0 ? 15 : 0                    // with an eye
+            case "respawn_anchor": return off * 15 / 4                          // 0, 3, 7, 11, 15
+            default: break
+            }
             return nil
         }
         let c = be.container
