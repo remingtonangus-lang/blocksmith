@@ -220,42 +220,44 @@ enum InteriorCheck {
             print((ok ? "PASS " : "FAIL ") + what)
             if !ok { fails += 1 }
         }
-        let t0 = CFAbsoluteTimeGetCurrent()
-        let hb = Capital.frigate()
-        let w = Walk(sx: hb.sx, sy: hb.sy, sz: hb.sz, blocks: hb.blocks)
-        let start = hb.grid(0, 27, 250)
-        let seen = w.reach(from: start)
-        print(String(format: "interior warfrigate: built in %.0f ms, %ld rooms, %ld chests, %ld walkable cells from the hangar",
-                     (CFAbsoluteTimeGetCurrent() - t0) * 1000, hb.roomCells.count, hb.chests.count, seen.count))
-        check(w.standable(start.x, start.y, start.z), "warfrigate: the hangar floor is standable at the boarding point")
-        var missed: [String] = []
-        for (c, kind) in hb.roomCells where !seen.contains(c) {
-            missed.append("\(kind) at \(c.x - hb.ox),\(c.y),\(c.z)")
-        }
-        check(hb.roomCells.count >= 60, "warfrigate: decks of rooms (\(hb.roomCells.count))")
-        check(missed.isEmpty, "warfrigate: every room reachable from the hangar (\(hb.roomCells.count - missed.count) of \(hb.roomCells.count))\(missed.isEmpty ? "" : "; first missed: " + missed.prefix(4).joined(separator: "; "))")
-        // A chest is reachable when a walkable cell is beside it (at its level or the one below).
-        var lost: [String] = []
-        for (c, _) in hb.chests {
-            let near = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)].contains { d in
-                seen.contains(c + d) || seen.contains(c + d + IVec3(0, -1, 0))
+        for (name, make, from, minRooms) in [("warfrigate", { Capital.frigate() }, (0, 27, 250), 60),
+                                             ("capfrigate", { Capital.capitalFrigate() }, (0, 5, 85), 16)] as [(String, () -> HullBuilder, (Int, Int, Int), Int)] {
+            let t0 = CFAbsoluteTimeGetCurrent()
+            let hb = make()
+            let w = Walk(sx: hb.sx, sy: hb.sy, sz: hb.sz, blocks: hb.blocks)
+            let start = hb.grid(from.0, from.1, from.2)
+            let seen = w.reach(from: start)
+            let blocks = hb.blocks.reduce(0) { $0 + ($1 == AIR ? 0 : 1) }
+            print(String(format: "interior %@: %ld blocks built in %.0f ms, %ld rooms, %ld chests, %ld walkable cells from the hangar", name, blocks,
+                         (CFAbsoluteTimeGetCurrent() - t0) * 1000, hb.roomCells.count, hb.chests.count, seen.count))
+            check(w.standable(start.x, start.y, start.z), "\(name): the hangar floor is standable at the boarding point")
+            var missed: [String] = []
+            for (c, kind) in hb.roomCells where !seen.contains(c) { missed.append("\(kind) at \(c.x - hb.ox),\(c.y),\(c.z)") }
+            check(hb.roomCells.count >= minRooms, "\(name): decks of rooms (\(hb.roomCells.count))")
+            check(missed.isEmpty, "\(name): every room reachable from the hangar (\(hb.roomCells.count - missed.count) of \(hb.roomCells.count))\(missed.isEmpty ? "" : "; first missed: " + missed.prefix(4).joined(separator: "; "))")
+            // A chest is reachable when a walkable cell is beside it (at its level or the one below).
+            var lost: [String] = []
+            for (c, _) in hb.chests {
+                let near = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)].contains { d in
+                    seen.contains(c + d) || seen.contains(c + d + IVec3(0, -1, 0))
+                }
+                if !near { lost.append("\(c.x - hb.ox),\(c.y),\(c.z)") }
             }
-            if !near { lost.append("\(c.x - hb.ox),\(c.y),\(c.z)") }
+            check(lost.isEmpty, "\(name): every chest reachable (\(hb.chests.count - lost.count) of \(hb.chests.count))\(lost.isEmpty ? "" : "; first: " + lost.prefix(4).joined(separator: "; "))")
+            // The helm: standing beside it on the bridge.
+            if let h = (0..<hb.blocks.count).first(where: { Blocks.key(Blocks.groupBase[Int(hb.blocks[$0])]) == "ship_helm" }) {
+                let y = h / (hb.sx * hb.sz), rem = h - y * hb.sx * hb.sz, z = rem / hb.sx, x = rem - z * hb.sx
+                let ok = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)].contains { seen.contains(IVec3(x, y, z) + $0) }
+                check(ok, "\(name): the bridge helm reachable (\(x - hb.ox),\(y),\(z))")
+            } else { check(false, "\(name): has a helm") }
+            // Crew posts stand in the open.
+            var buried: [String] = []
+            for p in hb.crew {
+                let c = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
+                if !w.passable(c.x, c.y, c.z) || !w.passable(c.x, c.y + 1, c.z) { buried.append("\(c.x - hb.ox),\(c.y),\(c.z)") }
+            }
+            check(buried.isEmpty, "\(name): no crew post inside a block (\(buried.count))\(buried.isEmpty ? "" : ": " + buried.prefix(4).joined(separator: "; "))")
         }
-        check(lost.isEmpty, "warfrigate: every chest reachable (\(hb.chests.count - lost.count) of \(hb.chests.count))\(lost.isEmpty ? "" : "; first: " + lost.prefix(4).joined(separator: "; "))")
-        // The helm: standing beside it on the bridge.
-        if let h = (0..<hb.blocks.count).first(where: { Blocks.key(Blocks.groupBase[Int(hb.blocks[$0])]) == "ship_helm" }) {
-            let y = h / (hb.sx * hb.sz), rem = h - y * hb.sx * hb.sz, z = rem / hb.sx, x = rem - z * hb.sx
-            let ok = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)].contains { seen.contains(IVec3(x, y, z) + $0) }
-            check(ok, "warfrigate: the bridge helm reachable (\(x - hb.ox),\(y),\(z))")
-        } else { check(false, "warfrigate: has a helm") }
-        // Crew posts stand in the open.
-        var buried: [String] = []
-        for p in hb.crew {
-            let c = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
-            if !w.passable(c.x, c.y, c.z) || !w.passable(c.x, c.y + 1, c.z) { buried.append("\(c.x - hb.ox),\(c.y),\(c.z)") }
-        }
-        check(buried.isEmpty, "warfrigate: no crew post inside a block (\(buried.count))\(buried.isEmpty ? "" : ": " + buried.prefix(4).joined(separator: "; "))")
         print("interiorcheck: \(fails == 0 ? "PASS" : "\(fails) FAILED")")
         return fails == 0 ? 0 : 3
     }
