@@ -101,6 +101,31 @@ final class BlockRegistry {
     var hidden: [Bool] = []
     var hardness: [Float] = []
     var resistance: [Float] = []
+    // Blast resistance where it differs from hardness (the reference keeps them apart: stone 1.5 hard but 6 against
+    // blasts, planks 2 / 3, end stone 3 / 9). Before this every block used its hardness, so a creeper cratered
+    // stone, brick and deepslate builds about four times deeper than it should.
+    static func refResistance(_ d: BlockDef) -> Float? {
+        let n = d.name
+        if n.contains("infested") { return nil }
+        if n.hasSuffix("_ore") { return 3 }
+        if n.contains("end_stone") { return 9 }
+        if n == "reinforced_deepslate" || n == "netherite_block" || n == "ancient_debris" || n.contains("anvil")
+            || n == "enchanting_table" || n == "respawn_anchor" { return 1200 }
+        if n == "ender_chest" { return 600 }
+        if n == "obsidian" { return 1200 }
+        if n.hasSuffix("_block") && ["coal", "iron", "gold", "diamond", "emerald", "redstone"].contains(where: { n.hasPrefix($0) }) { return 6 }
+        if n.contains("copper") && d.hardness >= 3 { return 6 }
+        if n == "iron_bars" || n == "jukebox" { return 6 }
+        if n.contains("mud_brick") { return 3 }
+        if n.contains("basalt") || (n.contains("terracotta") && !n.contains("glazed")) { return 4.2 }
+        if d.tool == .axe && ["planks", "_stairs", "_slab", "_fence", "_fence_gate"].contains(where: { n.hasSuffix($0) }) { return 3 }
+        if d.tool == .pickaxe && !n.contains("sandstone") && !n.contains("glowstone") && !n.contains("redstone")
+            && !n.hasSuffix("_button") && !n.hasSuffix("pressure_plate") && !n.contains("dripstone") && !n.contains("stonecutter")
+            && ["stone", "cobble", "brick", "andesite", "diorite", "granite", "deepslate", "purpur", "prismarine", "tuff"].contains(where: { n.contains($0) }) {
+            return max(6, d.hardness)              // never weaker than a hardened original block
+        }
+        return nil
+    }
     var flammable: [Bool] = []
     var randomTicks: [Bool] = []
     var tool: [UInt8] = []
@@ -177,7 +202,7 @@ final class BlockRegistry {
         shape.append(d.shape)
         hidden.append(d.hidden)
         hardness.append(d.hardness)
-        resistance.append(d.resistance ?? (d.hardness < 0 ? 3_600_000 : d.hardness))
+        resistance.append(d.resistance ?? (d.hardness < 0 ? 3_600_000 : (BlockRegistry.refResistance(d) ?? d.hardness)))
         let n = d.name
         let naturallyFlammable = (d.sound == .wood && !n.hasPrefix("crimson") && !n.hasPrefix("warped") && n != "torch" && d.render != .model)
             || n.hasSuffix("leaves") || (d.render == .cross && n != "fire" && n != "soul_fire" && !n.hasPrefix("crimson") && !n.hasPrefix("warped"))
@@ -513,11 +538,12 @@ final class BlockRegistry {
         rod.tex = ["end_rod"]; rod.render = .model; rod.opaque = false; rod.hardness = 0; rod.emit = 14; rod.layer = .cutout
         rod.boxes = [Box(7, 1, 7, 9, 16, 9), Box(6, 0, 6, 10, 1, 10)]; rod.skyStop = false
         add(rod)
-        for (n, d, lvl) in [("coal_block", "Block of Coal", 0), ("iron_block", "Block of Iron", 1), ("gold_block", "Block of Gold", 2),
-                            ("diamond_block", "Block of Diamond", 2), ("emerald_block", "Block of Emerald", 2),
-                            ("lapis_block", "Block of Lapis Lazuli", 1), ("redstone_block", "Block of Sparkstone", 0),
-                            ("copper_block", "Block of Copper", 1)] {
-            cube(n, d, n, h: 5, lvl: lvl, req: true, snd: .stone)
+        // Hardness per the reference (gold, lapis and copper are softer: 3); blast resistance from refResistance.
+        for (n, d, lvl, h) in [("coal_block", "Block of Coal", 0, 5), ("iron_block", "Block of Iron", 1, 5), ("gold_block", "Block of Gold", 2, 3),
+                               ("diamond_block", "Block of Diamond", 2, 5), ("emerald_block", "Block of Emerald", 2, 5),
+                               ("lapis_block", "Block of Lapis Lazuli", 1, 3), ("redstone_block", "Block of Sparkstone", 0, 5),
+                               ("copper_block", "Block of Copper", 1, 3)] as [(String, String, Int, Float)] {
+            cube(n, d, n, h: h, lvl: lvl, req: true, snd: .stone)
         }
         // Farming
         var farm = BlockDef("farmland", "Farmland")

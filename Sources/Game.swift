@@ -878,8 +878,8 @@ final class Game {
                 // A block chipped earlier picks up where it was left (progressive block damage).
                 if mining != t.hit { mining = t.hit; mineProgress = Float(world.damageLevel(t.hit)) / 8 }
                 let aqua = Enchant.level(.aquaAffinity, inventory.armor[0]) > 0
-                var secs = Mining.breakSeconds(b, held, onGround: player.onGround || player.flying, inWater: player.headInWater && !aqua)
-                if secs > 0 && secs.isFinite { secs /= miningSpeedMul }
+                let secs = Mining.breakSeconds(b, held, onGround: player.onGround || player.flying, inWater: player.headInWater && !aqua,
+                                               mul: miningSpeedMul)
                 if secs.isInfinite {
                     mineProgress = 0
                 } else {

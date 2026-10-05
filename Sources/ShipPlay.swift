@@ -293,7 +293,7 @@ extension Game {
                     ships.mineCell = (s, cell)
                     ships.mineProgress = Float(Int(s.damage[cell] ?? 0) & 31) / 8      // a chipped plate picks up where it was left
                 }
-                let secs = Mining.breakSeconds(b, held, onGround: player.onGround || player.flying, inWater: player.headInWater)
+                let secs = Mining.breakSeconds(b, held, onGround: player.onGround || player.flying, inWater: player.headInWater, mul: miningSpeedMul)
                 if secs.isFinite {
                     let before = Int(ships.mineProgress * 8)
                     ships.mineProgress += secs <= 0 ? 1 : dt / secs

@@ -24,7 +24,9 @@ enum Mining {
     }
 
     // Seconds to break a block (0 = instant, .infinity = unbreakable).
-    static func breakSeconds(_ b: BlockID, _ tool: ItemStack, onGround: Bool, inWater: Bool) -> Float {
+    // `mul`: Haste / Mining Fatigue, applied to the speed before the instant-break test (reference order: Haste II
+    // with an efficiency pickaxe insta-mines stone; dividing the finished time missed that).
+    static func breakSeconds(_ b: BlockID, _ tool: ItemStack, onGround: Bool, inWater: Bool, mul: Float = 1) -> Float {
         let h = Blocks.hardness[Int(b)]
         if h < 0 { return .infinity }
         if h == 0 { return 0 }
@@ -46,7 +48,8 @@ enum Mining {
             speed = tool.def.toolSpeed
             if eff > 0 { speed += Float(eff * eff + 1) }
         }
-        else if t == .sword && Loot.swordEfficient(b, key) { speed = 1.5 }
+        else if t == .sword && swordEfficient(b, key) { speed = 1.5 }
+        speed *= mul
         if inWater { speed /= 5 }
         if !onGround { speed /= 5 }
         let perTick = speed / h / (canHarvest(b, tool) ? 30 : 100)

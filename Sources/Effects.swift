@@ -274,7 +274,8 @@ extension Game {
         let h = max(effects.level(.haste), effects.level(.conduitPower))
         if h > 0 { m *= 1 + 0.2 * Float(h) }
         let f = effects.level(.miningFatigue)
-        if f > 0 { m *= powf(0.3, Float(min(f, 4))) }
+        let fatigue: [Float] = [0.3, 0.09, 0.0027, 0.00081]             // reference: III and IV are far steeper than 0.3^n
+        if f > 0 { m *= fatigue[min(f, 4) - 1] }
         return m
     }
 
