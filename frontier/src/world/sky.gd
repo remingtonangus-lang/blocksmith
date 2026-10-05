@@ -106,7 +106,7 @@ func setup(quality: Dictionary) -> void:
 	add_child(world_env)
 	sun = DirectionalLight3D.new()
 	sun.name = "Sun"
-	sun.shadow_enabled = true
+	sun.shadow_enabled = float(quality.get("shadow_distance", 300.0)) > 0.0
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 	sun.directional_shadow_max_distance = quality.get("shadow_distance", 300.0)
 	sun.directional_shadow_split_1 = 0.06

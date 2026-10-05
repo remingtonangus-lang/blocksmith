@@ -144,6 +144,14 @@ jobs:
           "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --benchmark --quality high --commit "$GITHUB_SHA" --bench_out "$PWD/snaps/benchmark.json" --watchdog 600 2>&1 | tee bench.log | grep -E "BENCH|WATCHDOG|SCRIPT ERROR" || true
           test -f snaps/benchmark.json || { grep -vE "^\s*$" bench.log | head -40; false; }
 
+      - name: Perf attribution (only for commits tagged [perf])
+        if: ${{ !cancelled() && contains(github.event.head_commit.message, '[perf]') }}
+        timeout-minutes: 20
+        run: |
+          for f in none vfog ssr ssao shadows grass trees scatter water; do
+            "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --benchmark --quality high --bench_scale 0.35 --disable $f --bench_out "$PWD/snaps/bench_$f.json" --watchdog 300 2>&1 | grep "BENCH overall" | sed "s/^/without $f: /" | tee -a perf_attr.log
+          done
+
       - name: Screenshot tour (High preset)
         id: tour
         if: ${{ !cancelled() }}

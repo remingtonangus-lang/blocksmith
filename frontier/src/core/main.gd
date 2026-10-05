@@ -47,7 +47,8 @@ func _ready() -> void:
 	water = load("res://src/world/water.gd").new()
 	water.name = "Water"
 	add_child(water)
-	water.setup(world)
+	if not Game.disabled("water"):
+		water.setup(world)
 	print("boot: %s %d ms" % ["water", Time.get_ticks_msec() - t0])
 	vegetation = load("res://src/world/vegetation.gd").new()
 	vegetation.name = "Vegetation"
@@ -57,7 +58,8 @@ func _ready() -> void:
 	scatter = load("res://src/world/scatter.gd").new()
 	scatter.name = "Scatter"
 	add_child(scatter)
-	scatter.setup(world, camera)
+	if not Game.disabled("scatter"):
+		scatter.setup(world, camera)
 	settlements = load("res://src/world/settlements.gd").new()
 	settlements.name = "Settlements"
 	add_child(settlements)

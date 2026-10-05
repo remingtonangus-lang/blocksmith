@@ -59,6 +59,15 @@ func _init() -> void:
 		set_quality("preview")       # software rendering in the cloud session: keep shots fast
 	elif OS.has_feature("android"):
 		set_quality("quest")
+	if args.has("disable"):
+		quality = quality.duplicate()
+		if disabled("vfog"): quality["volumetric_fog"] = false
+		if disabled("ssr"): quality["ssr"] = false
+		if disabled("ssao"): quality["ssao"] = false
+		if disabled("ssil"): quality["ssil"] = false
+		if disabled("grass"): quality["grass_density"] = 0.0
+		if disabled("trees"): quality["tree_dist"] = 1.0
+		if disabled("shadows"): quality["shadow_distance"] = 0.0
 
 func _enter_tree() -> void:
 	error_logger = ErrorLogger.new()
@@ -86,6 +95,10 @@ func arg(key: String, default = null):
 
 func arg_f(key: String, default: float) -> float:
 	return float(args.get(key, default))
+
+## Feature kill-switches for perf attribution: --disable vfog,ssr,ssao,ssil,grass,trees,shadows,scatter,water,clouds
+func disabled(feature: String) -> bool:
+	return str(args.get("disable", "")).split(",").has(feature)
 
 func set_quality(name: String) -> void:
 	if not PRESETS.has(name):
