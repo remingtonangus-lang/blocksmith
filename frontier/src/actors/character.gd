@@ -85,6 +85,9 @@ func setup(m: Node3D, lib: AnimationLibrary, _opts := {}) -> void:
 		anim.root_motion_track = NodePath("Skeleton:Root")
 	if lib:
 		anim.add_animation_library(CharacterFactory.ANIM_LIB_NAME, lib)
+	else:
+		_lib_pending = true    # the shared library is still loading off-thread: attached in _process
+		m.visible = false      # (no T-pose flash meanwhile)
 	if skeleton:
 		# clips are authored on the canonical rig: scale hips/root translation to this body's leg length
 		var ref := float(CharacterFactory.catalog().get("animations", {}).get("rest_hips_height", 0.0))
@@ -181,8 +184,30 @@ func _setup_springs() -> void:
 		springs.add_child(cap)
 
 
+var _lib_pending := false
+var _pending_play: Array = []
+
+
+func _attach_library() -> void:
+	var lib := CharacterFactory.animation_library_if_ready()
+	if lib == null:
+		return
+	_lib_pending = false
+	anim.add_animation_library(CharacterFactory.ANIM_LIB_NAME, lib)
+	if model:
+		model.visible = true
+	if not _pending_play.is_empty():
+		play(_pending_play[0], 0.0, _pending_play[2])
+		if _pending_play[3] >= 0.0:
+			seek(_pending_play[3])
+		_pending_play = []
+
+
 func play(clip: String, blend := 0.2, speed := 1.0) -> void:
 	if anim == null:
+		return
+	if _lib_pending:
+		_pending_play = [clip, blend, speed, -1.0]
 		return
 	var full := clip if clip.contains("/") else CharacterFactory.ANIM_LIB_NAME + "/" + clip
 	if not anim.has_animation(full):
@@ -192,6 +217,9 @@ func play(clip: String, blend := 0.2, speed := 1.0) -> void:
 
 
 func seek(t: float) -> void:
+	if _lib_pending and not _pending_play.is_empty():
+		_pending_play[3] = t
+		return
 	if anim and anim.current_animation != "":
 		anim.seek(t, true)
 
@@ -378,6 +406,8 @@ func set_hat_visible(v: bool) -> void:
 
 # --- internals -----------------------------------------------------------------------------------------------------
 func _process(delta: float) -> void:
+	if _lib_pending:
+		_attach_library()
 	_proximity(delta)
 	var _pt0 := Time.get_ticks_usec()
 	_physics_tick_anim(delta)
@@ -435,9 +465,17 @@ func _apply_face() -> void:
 				d[str(mi.mesh.get_blend_shape_name(i))] = i
 			_shape_idx[key] = d
 		var idx: Dictionary = _shape_idx[key]
+		var merged := {}
 		for s in w.keys():
 			if idx.has(s):
 				mi.set_blend_shape_value(idx[s], w[s])
+			elif s.ends_with("_L") or s.ends_with("_R"):
+				# NPC looks carry one symmetric shape per left/right pair
+				var base: String = s.substr(0, s.length() - 2)
+				if idx.has(base):
+					merged[base] = maxf(merged.get(base, 0.0), w[s])
+		for b in merged:
+			mi.set_blend_shape_value(idx[b], merged[b])
 
 
 func _find_skeleton(n: Node) -> Skeleton3D:
@@ -501,7 +539,7 @@ static func _gameplay_library(full: AnimationLibrary) -> AnimationLibrary:
 	return _tree_lib
 
 func _ensure_tree() -> void:
-	if tree != null or anim == null or skeleton == null:
+	if tree != null or anim == null or skeleton == null or _lib_pending:
 		return
 	# one tree build per frame across all characters (a crowd entering view would otherwise build them all at once)
 	var f := Engine.get_process_frames()

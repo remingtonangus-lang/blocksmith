@@ -131,7 +131,8 @@ class CharacterBuilder:
         for k, o, mh in heads:
             arrs[o.name] = C.mhclo_arrays(mh, len(o.data.vertices))
             C.ensure_basis(o)
-        for sname, parts in C.FACE_SHAPES.items():
+        shapes = C.FACE_SHAPES if self.hero else C.merged_face_shapes()
+        for sname, parts in shapes.items():
             try:
                 d = C.combined_delta(n, parts)
             except IOError as e:
@@ -148,7 +149,7 @@ class CharacterBuilder:
             for k, o, mh in heads:
                 vi, vw = arrs[o.name]
                 C.add_shape(o, sname, C.get_co(o, o.data.shape_keys.key_blocks["Basis"]) + C.transfer_delta(vi, vw, d))
-        self.report["face_shapes"] = len(C.FACE_SHAPES)
+        self.report["face_shapes"] = len(shapes)
 
     def _garments_procedural(self):
         procs = [g for g in self.spec.get("clothes", []) if g.get("kind") == "proc"]

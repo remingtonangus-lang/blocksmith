@@ -76,6 +76,14 @@ func apply(model: Node, info: Dictionary, rng: RandomNumberGenerator, opts := {}
 			hat.visible = false
 
 
+static func sss_available() -> bool:
+	if RenderingServer.get_current_rendering_method() != "forward_plus":
+		return false
+	if Game.disabled("sss"):
+		return false
+	return int(ProjectSettings.get_setting("rendering/environment/subsurface_scattering/subsurface_scattering_quality", 1)) > 0
+
+
 func forget(id: String) -> void:
 	## Drop a look's shared materials (CharacterFactory calls this when it evicts the look).
 	_look_cache.erase(id)
@@ -163,6 +171,11 @@ func _make(key: String, src: Material, meta: Dictionary, info: Dictionary, rng: 
 			sm.set_shader_parameter("stubble", float(meta.get("stubble", 0.0)))
 			sm.set_shader_parameter("stubble_color", _col(meta.get("stubble_color"), Color(0.12, 0.09, 0.07)))
 			sm.set_shader_parameter("skin_age", clampf((float(info.get("age", 30)) - 20.0) / 50.0, 0.0, 1.0))
+			# wrap-light scatter: light where Forward+ screen-space SSS runs, stronger where it doesn't (Mobile/Quest,
+			# --disable sss on CI's paravirtual GPU)
+			var sss_on := sss_available()
+			sm.set_shader_parameter("wrap", 0.22 if sss_on else 0.5)
+			sm.set_shader_parameter("sss", 0.45 if sss_on else 0.0)
 			return sm
 		"eyes":
 			var em := StandardMaterial3D.new()
@@ -175,7 +188,7 @@ func _make(key: String, src: Material, meta: Dictionary, info: Dictionary, rng: 
 			return em
 		"beard":
 			var bs := ShaderMaterial.new()
-			bs.shader = _shader("hair")
+			bs.shader = _shader("strands")
 			bs.set_shader_parameter("albedo_tex", _tex(src, "albedo"))
 			bs.set_shader_parameter("use_normal", false)
 			bs.set_shader_parameter("use_vertex_color", true)
@@ -202,7 +215,7 @@ func _make(key: String, src: Material, meta: Dictionary, info: Dictionary, rng: 
 			return hm
 		"hair", "hair_updo":
 			var hs := ShaderMaterial.new()
-			hs.shader = _shader("hair")
+			hs.shader = _shader("strands" if kind == "hair_updo" else "hair")
 			hs.set_shader_parameter("albedo_tex", _tex(src, "albedo"))
 			var nt := _tex(src, "normal")
 			hs.set_shader_parameter("use_normal", nt != null)

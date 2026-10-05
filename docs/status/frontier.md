@@ -205,3 +205,6 @@ Work order from this round:
 - 2026-10-05: character memory pass (worktree agent): VRAM-compressed pre-extracted textures + .import sidecars,
   blend shapes on a minimal Face mesh, shared per-look materials with instance-uniform tints, lazy cloth springs,
   --charmem report (per NPC look ~7 MB, per instance ~1 MB on software Vulkan), warm-up tasks waited at exit.
+- 2026-10-05: character round 3 (worktree agent): skin shader (pores, regional roughness, wrap-light scatter for
+  Mobile/no-SSS, two-lobe spec), NPC L/R face-shape merge, hat crowns clear the skull, aprons share skirt weights,
+  hashed-alpha strand beards/updos, clip library never loads on the main thread at spawn.
