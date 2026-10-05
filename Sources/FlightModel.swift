@@ -73,7 +73,11 @@ final class FlightModel {
         // Span and tail extents from the airfoil cells (ship space).
         var span: Float = 0, aft: Float = -1e9
         for p in s.wings { span = max(span, abs(simd_dot(p - com, rightL))); aft = max(aft, -simd_dot(p - com, fwdL)) }
-        let climb = s.piloted ? s.climb : 0, steer = s.piloted ? s.steer : 0
+        var climb = s.piloted ? s.climb : 0
+        let steer = s.piloted ? s.steer : 0
+        // Flown by hand (no autopilot) with the stick centred, the elevator trims for level flight (a controller has
+        // no trim wheel: hands off, the Heron sank 4 b/s at full power, flighttest planeplayer).
+        if s.piloted && hold == nil && s.autopilot == nil && abs(climb) < 0.05 { climb = max(-0.5, min(0.5, -s.vel.y * 0.12)) }
         var totalLift: Float = 0, aSum: Float = 0, stallN = 0
         func apply(_ f: V3, at w: V3) { F += f; T += simd_cross(w - s.pos, f) }
         for p in s.wings {
@@ -116,7 +120,9 @@ final class FlightModel {
         let sv = simd_dot(vt, rightW), sp = simd_length(vt)
         let fin = Float(s.wings.count) * 0.06
         let vane: Float = -FlightModel.rho * fin * sp * sv * 2
-        let rudder: Float = FlightModel.rho * fin * sp * sp * steer * 0.08
+        // Rudder with the ailerons: a left stick (steer < 0) pushes the tail right, the nose left (it was the other
+        // way round: adverse yaw turned the Heron right on a left stick, flighttest planeplayer).
+        let rudder: Float = -FlightModel.rho * fin * sp * sp * steer * 0.08
         apply(rightW * (vane + rudder), at: tail)
         // Dihedral: wings level out by themselves with the stick centred.
         if abs(steer) < 0.1 {
