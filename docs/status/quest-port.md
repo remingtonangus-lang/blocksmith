@@ -140,6 +140,13 @@ the log) instead of hanging in an empty scene.
 - New content from the playtest branch: aircraft and capital air bases (at a helm the left stick is raw throttle and
   steering; the view stays level while the aircraft banks).
 
+**QUEST APK READY 37270248211** (2026-10-05, versionCode 33, commit 746fe9a): everything in 29, plus:
+- Screen effects cover the view instead of tinting the HUD panel: underwater / lava / portal / sleeping tints, and
+  getting hurt, burning and freezing as red / orange / pale glows at the edges of the view. Check: take damage (red
+  edges, not a red rectangle on the HUD), sleep in a bed (the view fades).
+- Gliding steers with your head (it followed the right hand's laser).
+- The spyglass and sniper scope no longer black out the HUD panel (no zoom in VR yet).
+
 ### Device reports
 
 **2026-10-05 21:50 ADT, versionCode 13 (6c996db), Remington's Quest 3.** Works: launches into an immersive session,
