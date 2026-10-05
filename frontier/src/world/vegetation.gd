@@ -125,6 +125,11 @@ func _make_materials(sp: String) -> Dictionary:
 			m.surface_set_material(1, leaf)
 	return {"bark": bark, "leaf": leaf}
 
+## Test helper (src/tests/veg_lineup.gd): materials for one standalone mesh.
+func _make_materials_for_test(sp: String, m: ArrayMesh) -> Dictionary:
+	_meshes[sp] = [m, m, m]
+	return _make_materials(sp)
+
 func _setup_billboards() -> void:
 	_bill_mat = ShaderMaterial.new()
 	_bill_mat.shader = load("res://shaders/billboard_tree.gdshader")
@@ -299,8 +304,24 @@ func _build_near(ck: Vector2i, list: Array) -> Node3D:
 	var node := Node3D.new()
 	node.name = "TreesNear_%d_%d" % [ck.x, ck.y]
 	add_child(node)
+	# trunk colliders (cover for gunfights, obstacles for riders); shrubs stay passable
+	var sb := StaticBody3D.new()
+	sb.collision_layer = 1
+	sb.collision_mask = 0
+	node.add_child(sb)
 	var groups := {}
 	for e in list:
+		var spec: Dictionary = TreeGen.SPECIES[e[0]]
+		if spec.crown != "bush":
+			var t: Transform3D = e[2]
+			var s := t.basis.get_scale().x
+			var cs := CollisionShape3D.new()
+			var cyl := CylinderShape3D.new()
+			cyl.radius = float(spec.trunk_r) * s * 1.1
+			cyl.height = 4.0
+			cs.shape = cyl
+			cs.position = t.origin + Vector3(0, 2.0, 0)
+			sb.add_child(cs)
 		var key := "%s:%d" % [e[0], e[1]]
 		if not groups.has(key):
 			groups[key] = []
@@ -336,6 +357,8 @@ func trees_near(p: Vector3, radius: float) -> Array:
 
 ## Species for a candidate point, or "" for none. Density varies by biome, moisture, slope, altitude.
 func _choose_species(x: float, z: float, roll: float, r: RandomNumberGenerator) -> String:
+	if roll > 0.24:
+		return ""                                  # above every species' density: skip the expensive checks
 	var c := world.ctrl(x, z)
 	if c.r > 0.05:
 		return ""                                  # roads and trails stay clear
@@ -419,7 +442,7 @@ func _setup_grass() -> void:
 		var rot := r.randf() * TAU
 		var b := Basis(Vector3.UP, rot).scaled(Vector3(s, s, s))
 		base.append_array([b.x.x, b.y.x, b.z.x, x, b.x.y, b.y.y, b.z.y, 0.0, b.x.z, b.y.z, b.z.z, z, r.randf(), r.randf(), 0, 0])
-	var meshes := [_grass_clump(9, 4), _grass_clump(7, 3), _grass_clump(5, 2)]
+	var meshes := [_grass_clump(13, 3), _grass_clump(9, 3), _grass_clump(6, 2)]
 	for li in 3:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -445,12 +468,12 @@ func _grass_clump(blades: int, segs: int) -> ArrayMesh:
 	r.seed = blades * 31 + segs
 	for b in blades:
 		var ang := r.randf() * TAU
-		var off := Vector3(cos(ang), 0, sin(ang)) * r.randf_range(0.0, 0.22)
+		var off := Vector3(cos(ang), 0, sin(ang)) * r.randf_range(0.0, 0.32)
 		var facing := r.randf() * TAU
 		var dir := Vector3(cos(facing), 0, sin(facing))
 		var side := Vector3(-dir.z, 0, dir.x)
-		var h := r.randf_range(0.35, 0.75)
-		var w := r.randf_range(0.025, 0.045)
+		var h := r.randf_range(0.16, 0.48)
+		var w := r.randf_range(0.014, 0.03)
 		var lean := r.randf_range(0.1, 0.45)
 		var prev_l := Vector3.ZERO
 		var prev_r := Vector3.ZERO
@@ -474,6 +497,7 @@ func _grass_clump(blades: int, segs: int) -> ArrayMesh:
 				st.set_normal(n); st.set_color(col1); st.set_uv(Vector2(0, 1.0 - t)); st.add_vertex(l)
 			prev_l = l
 			prev_r = rr
+	st.index()
 	var m := st.commit()
 	m.custom_aabb = AABB(Vector3(-1, -2, -1), Vector3(GRASS_CELL + 2, 2000, GRASS_CELL + 2))
 	return m

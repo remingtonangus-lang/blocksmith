@@ -65,6 +65,10 @@ void fragment() {
 		float ring = sin((r - ph * 0.45) * 60.0) * smoothstep(0.45, 0.0, abs(r - ph * 0.45)) * (1.0 - ph);
 		g += normalize(f + 1e-4) * ring * rain_amount * 0.8;
 	}
+	// far away the ripples are sub-pixel: calm the normals so the surface reads as a sheet reflecting the sky
+	// instead of aliasing into blotches; rivers are smoother than wind-driven lake chop
+	float dist = length(VERTEX);
+	g *= mix(1.0, 0.25, smoothstep(25.0, 350.0, dist)) * (flow_speed > 0.0 ? 0.55 : 1.0);
 	vec3 n = normalize(vec3(-g.x * 0.18 * wave_scale, 1.0, -g.y * 0.18 * wave_scale));
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 
@@ -84,18 +88,22 @@ void fragment() {
 	v2.xyz /= v2.w;
 	if (-v2.z < surf_depth) ruv = SCREEN_UV;          // don't refract things in front of the water
 	vec3 refr = textureLod(screen_tex, ruv, 0.0).rgb;
-	float absorb = 1.0 - exp(-thick * absorption * (1.0 + murk));
+	float absorb = 1.0 - exp(-thick * absorption * (1.0 + murk * 2.5));
+	absorb = max(absorb, murk * 0.35 * smoothstep(0.0, 0.4, thick));     // suspended silt even in the shallows
 	vec3 water_col = mix(shallow_color, deep_color, clamp(thick / 6.0, 0.0, 1.0));
-	vec3 body = mix(refr * vec3(0.85, 0.92, 0.9), water_col, absorb);
+	// light that crossed the water from the bed (already lit scene colour) vs light scattered back by the water
+	// body itself, which must be lit by the sun/sky like any surface (unlit emission glowed at night)
+	vec3 transmitted = refr * vec3(0.85, 0.92, 0.9) * (1.0 - absorb);
+	vec3 scatter_alb = water_col * absorb;
 	// shoreline foam / froth in fast water
 	float foam = smoothstep(0.6, 0.0, thick) * (0.5 + 0.5 * vnoise(p.xz * 3.0 + TIME * 0.4));
 	if (flow_speed > 0.0) {
 		foam += smoothstep(0.55, 0.85, fbm2(vec2(v_flow_uv.x * 6.0, v_flow_uv.y * 2.0 - TIME * flow_speed * 1.1))) * 0.25;
 	}
 	foam = clamp(foam, 0.0, 1.0) * 0.7;
-	ALBEDO = mix(vec3(0.0), vec3(0.9), foam);
 	float fres = 0.02 + 0.98 * pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 5.0);
-	EMISSION = body * (1.0 - foam) * (1.0 - fres);       // transmitted light (already lit scene colour)
+	ALBEDO = mix(scatter_alb * (1.0 - fres), vec3(0.9), foam);
+	EMISSION = transmitted * (1.0 - foam) * (1.0 - fres);
 	ROUGHNESS = mix(0.03, 0.5, foam) + rain_amount * 0.05;
 	METALLIC = 0.0;
 	SPECULAR = 0.5;

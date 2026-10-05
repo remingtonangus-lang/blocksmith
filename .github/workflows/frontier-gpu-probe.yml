@@ -1,0 +1,41 @@
+name: frontier-gpu-probe
+# Which macOS runner image + Godot rendering driver renders Forward+ materials correctly? (The macos-14 paravirtual
+# GPU lacks Metal argument buffers; Godot's scene shaders then exceed 16 samplers.) Tiny project, no imports.
+on:
+  workflow_dispatch:
+  push:
+    branches: ['claude/frontier-game']
+    paths: ['.github/workflows/frontier-gpu-probe.yml', 'frontier/tools/gpu_probe/**']
+permissions:
+  contents: read
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, macos-15, macos-26]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: frontier/tools/gpu_probe
+      - name: Godot
+        run: |
+          curl -sSL -o g.zip https://github.com/godotengine/godot/releases/download/4.7.1-stable/Godot_v4.7.1-stable_macos.universal.zip && unzip -q g.zip
+          sw_vers
+      - name: Probe drivers
+        run: |
+          G=$PWD/Godot.app/Contents/MacOS/Godot
+          for d in metal vulkan opengl3; do
+            echo "===== $d ====="
+            $G --path frontier/tools/gpu_probe --rendering-driver $d --resolution 640x360 2>&1 | grep -vE "^\s*$" | grep -E "SHOT|Using|ERROR|error|Vulkan|Metal|OpenGL|failed" | sort | uniq -c | sort -rn | head -12
+            f="$HOME/Library/Application Support/Godot/app_userdata/probe/shot.png"
+            [ -f "$f" ] && mv "$f" "shot_${d}.png" && python3 -c "
+          import struct,zlib
+          d=open('shot_${d}.png','rb').read(); print('png bytes', len(d))" || echo "no shot for $d"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: probe-${{ matrix.os }}
+          path: shot_*.png

@@ -15,12 +15,17 @@ config/custom_user_dir_name="Frontier"
 [autoload]
 Game="*res://src/core/game.gd"
 
+[debug]
+
+gdscript/warnings/inference_on_variant=1
+
 [display]
 window/size/viewport_width=1920
 window/size/viewport_height=1080
 window/size/mode=0
 window/vsync/vsync_mode=1
-window/stretch/mode="disabled"
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 
 [filesystem]
 import/blender/enabled=false
@@ -74,6 +79,18 @@ wind_dir={
 wind_strength={
 "type": "float",
 "value": 0.4
+}
+cloud_shadow_map={
+"type": "sampler2D",
+"value": ""
+}
+cloud_shadow_rect={
+"type": "vec4",
+"value": Vector4(0, 0, 1, 0)
+}
+cloud_sun={
+"type": "vec4",
+"value": Vector4(0, 1, 0, 2200)
 }
 player_pos={
 "type": "vec3",

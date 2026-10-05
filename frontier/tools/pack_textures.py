@@ -26,6 +26,35 @@ FALLBACK = {"grass_lush": (78, 92, 44), "grass_dry": (150, 132, 84), "grass_spar
             "snow": (236, 238, 242), "pebbles": (128, 120, 110)}
 
 
+# Albedo calibration per terrain layer: (source folder override or None, target mean linear luminance, RGB tint).
+# Scanned sources come at very different exposures; real ground albedos sit around 0.08-0.25 (snow ~0.75).
+CALIB = {
+    "grass_lush": (None, 0.10, (0.85, 1.12, 0.70)),
+    "grass_dry": ("terrain/grass_sparse", 0.15, (1.25, 1.05, 0.62)),
+    "grass_sparse": (None, 0.12, (1.0, 1.0, 0.9)),
+    "dirt": (None, 0.13, (1.0, 0.95, 0.9)),
+    "road": (None, 0.16, (1.05, 1.0, 0.92)),
+    "mud": (None, 0.07, (1.0, 1.0, 1.0)),
+    "forest_floor": (None, 0.10, (1.0, 0.95, 0.88)),
+    "desert": (None, 0.21, (1.05, 0.98, 0.9)),
+    "red_sand": (None, 0.17, (1.08, 0.95, 0.88)),
+    "rock": ("terrain/rock", 0.15, (0.92, 0.95, 1.0)),
+    "red_rock": (None, 0.15, (1.05, 0.95, 0.9)),
+    "snow": (None, 0.72, (0.98, 1.0, 1.04)),
+    "pebbles": (None, 0.15, (1.0, 1.0, 1.0)),
+}
+
+
+def calibrate(alb, target, tint):
+    a = alb / 255.0
+    lin = np.where(a <= 0.04045, a / 12.92, ((a + 0.055) / 1.055) ** 2.4)
+    lin = lin * np.array(tint, np.float32)[None, None, :]
+    lum = float((lin.reshape(-1, 3).mean(0) * np.array([0.2126, 0.7152, 0.0722])).sum())
+    lin = np.clip(lin * (target / max(lum, 1e-4)), 0, 1)
+    srgb = np.where(lin <= 0.0031308, lin * 12.92, 1.055 * np.power(lin, 1 / 2.4) - 0.055)
+    return np.clip(srgb * 255.0, 0, 255)
+
+
 def load(path, mode, size, default):
     if os.path.exists(path):
         im = Image.open(path)
@@ -100,7 +129,11 @@ def main():
     report = {}
     ahs, nrs = [], []
     for name in TERRAIN_LAYERS:
-        ah, nr, real = material("terrain/" + name, SIZE, FALLBACK.get(name, (128, 128, 128)))
+        src, target, tint = CALIB.get(name, (None, 0.15, (1, 1, 1)))
+        ah, nr, real = material(src or ("terrain/" + name), SIZE, FALLBACK.get(name, (128, 128, 128)))
+        ah = ah.astype(np.float32)
+        ah[..., :3] = calibrate(ah[..., :3], target, tint)
+        ah = ah.astype(np.uint8)
         ahs.append(ah); nrs.append(nr)
         report[name] = "cc0" if real else "fallback"
     Image.fromarray(np.concatenate(ahs, 0)).save(os.path.join(OUT, "terrain_ah.png"))

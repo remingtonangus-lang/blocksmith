@@ -1,0 +1,415 @@
+extends CharacterBody3D
+## Ruth Caddell on foot: weighty third-person locomotion (walk / jog / sprint with stamina, acceleration and
+## speed-dependent turn rates, slope slowdown, step-up, jumping), an over-the-shoulder orbit camera with collision,
+## and an `intent` interface so bots drive exactly the same code path as a human (src/tests/bot_runner.gd).
+## The visual body is a CharacterFactory character when available, else a simple stand-in.
+
+signal mounted(horse: Node)
+signal dismounted
+
+const WALK := 1.55
+const JOG := 3.7
+const SPRINT := 6.6
+const ACCEL := 7.0
+const DECEL := 9.0
+const GRAVITY := 9.81
+const JUMP_V := 4.4
+const STAMINA_MAX := 100.0
+
+var camera: Camera3D
+var cam_yaw := 0.0
+var cam_pitch := -0.12
+var cam_dist := 3.4
+var cam_side := 0.55
+var cam_shoulder := 1.0
+var mouse_sens := 0.0025
+var invert_y := false
+var pad_sens := 2.6
+var intent := {"move": Vector2.ZERO, "sprint": false, "walk": false, "jump": false, "aim": false, "fire": false,
+	"interact": false, "crouch": false}
+var bot_driven := false
+var stamina := STAMINA_MAX
+var health := 100.0
+var speed := 0.0               # current planar speed (m/s)
+var facing := 0.0              # body yaw (radians)
+var on_horse: Node = null
+var gait := "idle"
+var visual: Node3D
+var _cam_target := Vector3.ZERO
+var _cam_cur_dist := 3.4
+var _walk_mode := false
+var _last_floor_y := 0.0
+var _air_time := 0.0
+var fall_damage_taken := 0.0
+var gun: GunHandler
+var damageable: Damageable
+var nerve: Nerve
+var hud: CanvasLayer
+
+func setup(cam: Camera3D) -> void:
+	camera = cam
+	InputSetup.ensure()
+	var shape := CapsuleShape3D.new()
+	shape.radius = 0.3
+	shape.height = 1.78
+	var cs := CollisionShape3D.new()
+	cs.shape = shape
+	cs.position.y = 0.89
+	add_child(cs)
+	collision_layer = 2
+	collision_mask = 1 | 4
+	floor_max_angle = deg_to_rad(48.0)
+	floor_snap_length = 0.45
+	max_slides = 6
+	_build_visual()
+	_setup_combat()
+	cam_yaw = rotation.y
+	facing = rotation.y
+	_cam_target = global_position + Vector3(0, 1.6, 0)
+	if not Game.headless and not bot_driven and not Game.args.has("bot") and not Game.args.has("benchmark"):
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if OS.has_feature("android") or Game.args.has("vr"):
+		var vr := VR.try_start()
+		if vr != null:
+			add_child(vr)
+			vr.attach(self, get_tree().current_scene)
+
+func _setup_combat() -> void:
+	damageable = Damageable.new()
+	damageable.name = "Damageable"
+	damageable.max_health = 100.0
+	damageable.regen_rate = 4.0
+	damageable.damage_scale = float(Game.args.get("player_damage_scale", 0.3))   # "normal" difficulty
+	add_child(damageable)
+	damageable.damaged.connect(func(info):
+		health = damageable.health
+		if visual and visual.has_method("hit") and damageable.alive:
+			visual.hit(info))
+	damageable.died.connect(_on_died)
+	# hitboxes so enemies can hit Ruth (head / chest / belly / legs)
+	var hb := Node3D.new()
+	hb.name = "Hitboxes"
+	add_child(hb)
+	var head := SphereShape3D.new(); head.radius = 0.13
+	Damageable.make_hitbox(hb, damageable, "head", head, Transform3D(Basis(), Vector3(0, 1.62, 0)))
+	var chest := BoxShape3D.new(); chest.size = Vector3(0.42, 0.42, 0.26)
+	Damageable.make_hitbox(hb, damageable, "chest", chest, Transform3D(Basis(), Vector3(0, 1.28, 0)))
+	var belly := BoxShape3D.new(); belly.size = Vector3(0.38, 0.3, 0.24)
+	Damageable.make_hitbox(hb, damageable, "belly", belly, Transform3D(Basis(), Vector3(0, 0.95, 0)))
+	var legs := BoxShape3D.new(); legs.size = Vector3(0.36, 0.8, 0.24)
+	Damageable.make_hitbox(hb, damageable, "leg", legs, Transform3D(Basis(), Vector3(0, 0.42, 0)))
+	gun = GunHandler.new()
+	gun.name = "Guns"
+	add_child(gun)
+	gun.setup(self, damageable, true)
+	gun.hit_landed.connect(func(info):
+		if hud and hud.has_method("hit_confirm"):
+			var t: Damageable = info.get("target")
+			hud.hit_confirm(t != null and not t.alive)
+		if nerve and info.get("zone", "") == "head":
+			nerve.reward(6.0))
+	if not Game.headless:
+		hud = load("res://src/ui/hud.gd").new()
+		hud.name = "HUD"
+		get_tree().current_scene.add_child.call_deferred(hud)
+		hud.setup.call_deferred(self)
+		Game.hud = hud
+	if not Game.headless:
+		var menus = load("res://src/ui/menus.gd").new()
+		menus.name = "Menus"
+		get_tree().current_scene.add_child.call_deferred(menus)
+		Game.set("menus", menus)
+	nerve = Nerve.new()
+	nerve.name = "Nerve"
+	add_child(nerve)
+	nerve.setup(gun, hud)
+
+func _aim_kind() -> String:
+	if gun == null or gun.weapons.is_empty():
+		return "pistol"
+	return str(Weapons.get_def(gun.weapon_id()).get("ammo", "revolver")).replace("revolver", "pistol").replace("varmint", "rifle")
+
+func _on_died(info: Dictionary) -> void:
+	if visual and visual.has_method("die"):
+		visual.die(info)
+	Game.log_event("player_died", {})
+	Game.say("You have died.", 6.0)
+	# respawn at the nearest settlement after a beat (death/consequence system refines this)
+	await get_tree().create_timer(4.0, true, false, true).timeout
+	var near := Game.world.nearest_settlement(global_position.x, global_position.z)
+	var p := Vector3(near.x + 10.0, 0, near.z + 10.0)
+	p.y = Game.world.height(p.x, p.z) + 1.0
+	Game.terrain.ensure_collision_at(p)
+	global_position = p
+	damageable.alive = true
+	damageable.health = damageable.max_health
+	if visual and visual.has_method("revive"):
+		visual.revive()
+	health = damageable.max_health
+
+## Combat input each frame: draw/holster, aim, fire, reload, weapon switch, Nerve.
+func _combat(dt: float) -> void:
+	if gun == null:
+		return
+	var aiming: bool = intent.aim
+	if aiming and not gun.drawn:
+		gun.drawn = true
+		gun.cooldown = 0.25
+	gun.aim_tick(aiming, dt)
+	if not bot_driven:
+		if Input.is_action_just_pressed("holster"):
+			gun.drawn = not gun.drawn
+		if Input.is_action_just_pressed("reload"):
+			gun.start_reload()
+		if Input.is_action_just_pressed("weapon_wheel"):
+			gun.select((gun.current + 1) % gun.weapons.size())
+		if Input.is_action_just_pressed("nerve") and aiming:
+			if nerve.active:
+				nerve.execute()
+			else:
+				nerve.activate()
+	if nerve.active and (not aiming):
+		nerve.execute()
+	if _fire_edge:
+		var aim := aim_ray()
+		if nerve.active:
+			nerve.mark(aim.origin, aim.dir)
+		elif gun.drawn:
+			var muzzle := global_position + Vector3(0, 1.45, 0) + Vector3(-sin(facing), 0, -cos(facing)) * 0.35
+			var dir: Vector3 = (aim.point - muzzle).normalized()
+			var hits := gun.fire(muzzle, dir, aiming)
+			if gun.cooldown > 0.0:
+				Effects.muzzle_flash(get_tree().current_scene, muzzle, dir)
+			Game.log_event("player_fire", {"hits": hits.size()})
+	# recoil kicks the camera
+	cam_pitch = clampf(cam_pitch + deg_to_rad(gun.recoil_kick.x) * dt * 6.0, -1.2, 0.9)
+	cam_yaw += deg_to_rad(gun.recoil_kick.y) * dt * 6.0
+
+var _fire_edge := false
+var _interact_target: Node = null
+var busy: Node = null          # an activity holding Ruth in place (fishing, minigames): no walking or gunplay
+
+## Context interaction: nearest node in group "interactable" within reach that offers a prompt.
+func _interactions() -> void:
+	var best: Node = null
+	var bd := 2.8
+	for n in get_tree().get_nodes_in_group("interactable"):
+		if not (n is Node3D) or not n.has_method("interact_prompt"):
+			continue
+		var d := global_position.distance_to((n as Node3D).global_position)
+		if d < bd and n.interact_prompt() != "":
+			bd = d
+			best = n
+	_interact_target = best
+	if hud and hud.has_method("prompt") and (Game.missions == null or Game.missions.active == null or Game.missions.objective == ""):
+		hud.prompt(("[E]  " + best.interact_prompt()) if best != null else "")
+	if best != null and intent.interact:
+		best.interact(self)
+var _fire_was := false
+
+## Camera-centre aim: origin, direction and the first solid point (for converging muzzle shots).
+func aim_ray() -> Dictionary:
+	var o := camera.global_position if camera else global_position + Vector3(0, 1.6, 0)
+	var d := -camera.global_basis.z if camera else Vector3(-sin(facing), 0, -cos(facing))
+	var space := get_world_3d().direct_space_state
+	var q := PhysicsRayQueryParameters3D.create(o, o + d * 600.0, 1 | 4 | 16)
+	q.collide_with_areas = true
+	var ex: Array[RID] = [get_rid()]
+	for a in find_children("*", "Area3D", true, false):
+		ex.append(a.get_rid())
+	q.exclude = ex
+	var hit := space.intersect_ray(q)
+	return {"origin": o, "dir": d, "point": hit.position if not hit.is_empty() else o + d * 600.0}
+
+func _build_visual() -> void:
+	var factory = load("res://src/actors/character_factory.gd") if ResourceLoader.exists("res://src/actors/character_factory.gd") else null
+	if factory != null and factory.available():
+		visual = factory.spawn_id("ruth_caddell")
+	if visual == null:
+		visual = Node3D.new()
+		var body := MeshInstance3D.new()
+		var cm := CapsuleMesh.new()
+		cm.radius = 0.25
+		cm.height = 1.5
+		body.mesh = cm
+		body.position.y = 0.8
+		var mat := StandardMaterial3D.new()
+		mat.albedo_color = Color(0.36, 0.28, 0.22)
+		mat.roughness = 0.85
+		body.material_override = mat
+		visual.add_child(body)
+		var head := MeshInstance3D.new()
+		var sm := SphereMesh.new()
+		sm.radius = 0.12
+		sm.height = 0.24
+		head.mesh = sm
+		head.position.y = 1.66
+		var hm := StandardMaterial3D.new()
+		hm.albedo_color = Color(0.72, 0.55, 0.45)
+		head.material_override = hm
+		visual.add_child(head)
+		var hat := MeshInstance3D.new()
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 0.2
+		cyl.bottom_radius = 0.22
+		cyl.height = 0.03
+		hat.mesh = cyl
+		hat.position.y = 1.76
+		var hatm := StandardMaterial3D.new()
+		hatm.albedo_color = Color(0.25, 0.2, 0.15)
+		hat.material_override = hatm
+		visual.add_child(hat)
+	add_child(visual)
+
+func _unhandled_input(event: InputEvent) -> void:
+	if bot_driven:
+		return
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		cam_yaw -= event.relative.x * mouse_sens
+		cam_pitch = clampf(cam_pitch - event.relative.y * mouse_sens * (-1.0 if invert_y else 1.0), -1.2, 0.9)
+	elif event.is_action_pressed("camera_side"):
+		cam_shoulder = -cam_shoulder
+	elif event.is_action_pressed("walk_toggle"):
+		_walk_mode = not _walk_mode
+	elif event.is_action_pressed("pause"):
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED else Input.MOUSE_MODE_CAPTURED
+
+func _read_human_intent(dt: float) -> void:
+	var mv := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	intent.move = Vector2(mv.x, -mv.y)
+	intent.sprint = Input.is_action_pressed("sprint")
+	intent.walk = _walk_mode
+	intent.jump = Input.is_action_just_pressed("jump")
+	intent.aim = Input.is_action_pressed("aim")
+	intent.fire = Input.is_action_pressed("fire")
+	intent.interact = Input.is_action_just_pressed("interact")
+	intent.crouch = Input.is_action_pressed("crouch")
+	var look := Input.get_vector("look_left", "look_right", "look_up", "look_down")
+	cam_yaw -= look.x * pad_sens * dt
+	cam_pitch = clampf(cam_pitch - look.y * pad_sens * dt * 0.7 * (-1.0 if invert_y else 1.0), -1.2, 0.9)
+
+func _physics_process(dt: float) -> void:
+	if on_horse != null:
+		return
+	if not bot_driven:
+		_read_human_intent(dt)
+	if busy != null:
+		intent.move = Vector2.ZERO
+		intent.aim = false
+		intent.fire = false
+		intent.jump = false
+	_fire_edge = intent.fire and not _fire_was
+	_fire_was = intent.fire
+	_combat(dt)
+	_interactions()
+	var mv: Vector2 = intent.move
+	var want_dir := Vector3.ZERO
+	if mv.length() > 0.08:
+		var cam_basis := Basis(Vector3.UP, cam_yaw)
+		want_dir = (cam_basis * Vector3(mv.x, 0, -mv.y))
+		want_dir.y = 0
+		want_dir = want_dir.normalized()
+	# target speed from stick magnitude and gait
+	var target := 0.0
+	if want_dir != Vector3.ZERO:
+		var mag := clampf(mv.length(), 0.0, 1.0)
+		target = JOG * mag
+		if intent.walk or mag < 0.45:
+			target = WALK * clampf(mag / 0.45, 0.3, 1.0) if not intent.walk else WALK
+		if intent.sprint and stamina > 1.0 and not intent.aim:
+			target = SPRINT
+		if intent.crouch:
+			target = minf(target, 1.4)
+		if intent.aim:
+			target = minf(target, 2.2)
+	# slope: slower uphill, a little faster downhill
+	if is_on_floor() and want_dir != Vector3.ZERO:
+		var n := get_floor_normal()
+		var uphill := -want_dir.dot(Vector3(n.x, 0, n.z))
+		target *= clampf(1.0 - uphill * 1.3, 0.45, 1.12)
+	var rate := ACCEL if target > speed else DECEL
+	speed = move_toward(speed, target, rate * dt)
+	# body turns toward the move direction; slower when fast (momentum), instant-ish when aiming
+	if want_dir != Vector3.ZERO:
+		var want_yaw := atan2(-want_dir.x, -want_dir.z)
+		var turn_rate := lerpf(10.0, 3.2, clampf(speed / SPRINT, 0.0, 1.0))
+		if intent.aim:
+			want_yaw = cam_yaw
+			turn_rate = 14.0
+		facing = lerp_angle(facing, want_yaw, 1.0 - exp(-turn_rate * dt))
+	elif intent.aim:
+		facing = lerp_angle(facing, cam_yaw, 1.0 - exp(-14.0 * dt))
+	var fwd := Vector3(-sin(facing), 0, -cos(facing))
+	var move_dir := fwd if not intent.aim or want_dir == Vector3.ZERO else want_dir
+	var hv := move_dir * speed
+	velocity.x = hv.x
+	velocity.z = hv.z
+	# stamina
+	if speed > JOG + 0.5:
+		stamina = maxf(stamina - 9.0 * dt, 0.0)
+	else:
+		stamina = minf(stamina + (6.0 if speed > 0.1 else 12.0) * dt, STAMINA_MAX)
+	# vertical
+	if is_on_floor():
+		if _air_time > 0.6:
+			var impact := -_last_vy
+			if impact > 9.0:
+				var dmg := (impact - 9.0) * 12.0
+				fall_damage_taken += dmg
+				if damageable:
+					damageable.apply_hit({"amount": dmg, "zone": "belly", "attacker": self})
+					health = damageable.health
+				else:
+					health -= dmg
+				Game.log_event("fall_damage", {"impact": impact, "damage": dmg})
+		_air_time = 0.0
+		velocity.y = -0.5
+		if intent.jump:
+			velocity.y = JUMP_V
+			intent.jump = false
+	else:
+		_air_time += dt
+		velocity.y -= GRAVITY * dt
+	_last_vy = velocity.y
+	move_and_slide()
+	rotation.y = 0.0
+	if visual:
+		visual.rotation.y = facing
+	gait = "idle" if speed < 0.2 else ("walk" if speed < 2.4 else ("jog" if speed < 4.8 else "sprint"))
+	if visual and visual.has_method("set_locomotion"):
+		visual.set_locomotion(speed, "mounted" if get("on_horse") != null else gait, is_on_floor())
+	if visual and visual.has_method("set_aim"):
+		visual.set_aim(_aim_kind() if intent.aim else "")
+
+var _last_vy := 0.0
+
+func _process(dt: float) -> void:
+	if camera == null or on_horse != null or Game.is_vr:
+		return
+	_update_camera(dt)
+
+func _update_camera(dt: float) -> void:
+	var aiming: bool = intent.aim
+	var want_dist := 1.6 if aiming else cam_dist + clampf(speed - JOG, 0.0, 3.0) * 0.25
+	var side := cam_side * cam_shoulder * (1.0 if not aiming else 0.85)
+	var pivot := global_position + Vector3(0, 1.55 if not intent.crouch else 1.1, 0)
+	_cam_target = _cam_target.lerp(pivot, 1.0 - exp(-14.0 * dt))
+	var basis := Basis(Vector3.UP, cam_yaw) * Basis(Vector3.RIGHT, cam_pitch)
+	var back := basis * Vector3(side, 0.15, want_dist)
+	# camera collision: pull in when something is behind the player
+	var space := get_world_3d().direct_space_state
+	var q := PhysicsRayQueryParameters3D.create(_cam_target, _cam_target + back)
+	q.exclude = [get_rid()]
+	q.collision_mask = 1
+	var hit := space.intersect_ray(q)
+	var d := back.length()
+	if not hit.is_empty():
+		d = maxf(_cam_target.distance_to(hit.position) - 0.25, 0.4)
+	_cam_cur_dist = lerpf(_cam_cur_dist, d, 1.0 - exp(-(20.0 if d < _cam_cur_dist else 5.0) * dt))
+	var pos := _cam_target + back.normalized() * _cam_cur_dist
+	# never below the terrain
+	var gy := Game.world.height(pos.x, pos.z) + 0.3
+	pos.y = maxf(pos.y, gy)
+	camera.global_position = pos
+	camera.global_basis = basis
+	camera.fov = lerpf(camera.fov, 50.0 if aiming else 62.0 + clampf(speed - JOG, 0.0, 3.0) * 1.5, 1.0 - exp(-8.0 * dt))

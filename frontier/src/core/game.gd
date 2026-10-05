@@ -4,6 +4,7 @@ extends Node
 
 signal world_ready
 signal message(text: String, seconds: float)
+signal noise(pos: Vector3, radius: float, source: Node)   # gunshots, shouts, breaking glass: AI hearing
 
 const PRESETS := {
 	"low": {"render_scale": 0.6, "ssao": false, "ssil": false, "ssr": false, "sdfgi": false, "volumetric_fog": false,
@@ -23,7 +24,7 @@ const PRESETS := {
 		"tree_dist": 1200.0, "moon_shadows": false, "upscale": "none", "msaa": 0, "taa": false, "lod_bias": 1.0},
 	"quest": {"render_scale": 1.0, "ssao": false, "ssil": false, "ssr": false, "sdfgi": false, "volumetric_fog": false,
 		"shadow_distance": 60.0, "shadow_size": 2048, "terrain_range": 1.5, "grass_density": 0.25, "grass_dist": 30.0,
-		"tree_dist": 700.0, "moon_shadows": false, "upscale": "none", "msaa": 2, "taa": false, "lod_bias": 0.4},
+		"tree_dist": 700.0, "moon_shadows": false, "cloud_shadows": false, "upscale": "none", "msaa": 2, "taa": false, "lod_bias": 0.4},
 }
 
 var args := {}                 # --key value / --flag from the command line (after "--" too)
@@ -35,10 +36,22 @@ var sky: Node
 var player: Node3D
 var camera: Camera3D
 var main: Node
+var audio: Node               # AudioDirector (src/audio/audio_director.gd)
+var hud: Node
+var missions: Node            # MissionDirector
+var state: Node               # WorldState (standing, money, law, saves)
+var menus: Node
+var wildlife: Node
+var camp: Node
+var roads: RoadGraph
+var encounters: Node
+var robbery: Node              # hold-ups and store robberies (src/systems/robbery.gd)
+var fishing: Node              # src/systems/fishing.gd
 var is_vr := false
 var headless := false
 var rng := RandomNumberGenerator.new()
 var log_lines: PackedStringArray = []
+var error_logger: ErrorLogger
 
 func _init() -> void:
 	_parse_args()
@@ -50,6 +63,19 @@ func _init() -> void:
 		set_quality("preview")       # software rendering in the cloud session: keep shots fast
 	elif OS.has_feature("android"):
 		set_quality("quest")
+	if args.has("disable"):
+		quality = quality.duplicate()
+		if disabled("vfog"): quality["volumetric_fog"] = false
+		if disabled("ssr"): quality["ssr"] = false
+		if disabled("ssao"): quality["ssao"] = false
+		if disabled("ssil"): quality["ssil"] = false
+		if disabled("grass"): quality["grass_density"] = 0.0
+		if disabled("trees"): quality["tree_dist"] = 1.0
+		if disabled("shadows"): quality["shadow_distance"] = 0.0
+
+func _enter_tree() -> void:
+	error_logger = ErrorLogger.new()
+	OS.add_logger(error_logger)
 
 func _parse_args() -> void:
 	var all := OS.get_cmdline_args() + OS.get_cmdline_user_args()
@@ -73,6 +99,10 @@ func arg(key: String, default = null):
 
 func arg_f(key: String, default: float) -> float:
 	return float(args.get(key, default))
+
+## Feature kill-switches for perf attribution: --disable vfog,ssr,ssao,ssil,grass,trees,shadows,scatter,water,clouds
+func disabled(feature: String) -> bool:
+	return str(args.get("disable", "")).split(",").has(feature)
 
 func set_quality(name: String) -> void:
 	if not PRESETS.has(name):

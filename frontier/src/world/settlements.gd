@@ -459,6 +459,14 @@ func _attach(t: Dictionary, res: Dictionary) -> void:
 				d.partner = doors[dsp.id]
 				doors[dsp.id].partner = d
 	_make_lights(root, light_specs)
+	# hitching rails: markers in the "hitching_post" group (horses auto-hitch within 5 m on dismount)
+	for sp in t.spots:
+		if sp.type == "hitch":
+			var hp := Marker3D.new()
+			hp.name = "HitchingPost"
+			hp.transform = sp.transform
+			hp.add_to_group("hitching_post")
+			root.add_child(hp)
 	t.node.add_child(root)
 	t.detail = root
 	t.state = "built"
@@ -763,6 +771,30 @@ func _upload_control() -> void:
 
 func get_town(id: String) -> Dictionary:
 	return towns.get(id, {})
+
+const SHOP_TYPES := {"general": ["store", "trading_post", "tent_store"], "gunsmith": ["gunsmith"], "butcher": ["butcher"]}
+
+## Where a shop's customer stands (inside at the counter), for main._place_shops: kind general|gunsmith|butcher.
+## Works before the settlement is built (from the plan); returns null when the town has no such shop.
+func get_shop_spot(town_id: String, kind: String):
+	var t: Dictionary = towns.get(town_id, {})
+	if t.is_empty():
+		return null
+	var types: Array = SHOP_TYPES.get(kind, [kind])
+	for spec in t.plan.specs:
+		if not str(spec.get("type", "")) in types:
+			continue
+		var bid: String = spec.id
+		if buildings.has(bid):
+			for sp in buildings[bid].spots:
+				if sp.type == "shop_counter":
+					return sp.transform.origin
+		var w: float = spec.get("w", 8.0)
+		var local := Vector3(0.0, 0.0, 2.7)
+		if str(spec.type) == "store":
+			local = Vector3(w * 0.5 - 2.25, 0.0, 2.75)
+		return spec.xf * local
+	return null
 
 func town_ids() -> Array:
 	return towns.keys()

@@ -1,6 +1,8 @@
 extends Node
 ## Screenshot harness. --shot out.png [--at x,z] [--up 1.7] [--yaw deg] [--pitch deg] [--fov deg] [--frames n]
 ## or --tour DIR (named vantage points in TOUR). Waits for streaming/shaders, saves PNGs, prints timings, quits.
+## --horse D [--horse_seed S --horse_breed B --horse_yaw DEG --horse_anim A]: stand a horse D metres in front of
+## the camera (side-on by default) for in-world horse shots.
 
 const TOUR := [
 	# name, x, z, height above ground, yaw (deg, 0 = north, 90 = east), pitch, hour, weather
@@ -68,6 +70,15 @@ func _shot(path: String, x, z, up: float, yaw: float, pitch: float, hour: float,
 	else:
 		px = float(x)
 		pz = float(z)
+	if Game.args.has("player") and Game.player == null:
+		main._spawn_player()
+		for i in 3:
+			await get_tree().process_frame
+	if Game.player != null:
+		Game.player.global_position = Vector3(px, w.height(px, pz) + 0.2, pz)
+		Game.player.cam_yaw = deg_to_rad(-yaw)
+		Game.player.facing = deg_to_rad(-yaw)
+		Game.player.cam_pitch = deg_to_rad(pitch)
 	var cam: Camera3D = Game.camera
 	var gy := w.height(px, pz)
 	var wl := w.water_level(px, pz)
@@ -79,10 +90,15 @@ func _shot(path: String, x, z, up: float, yaw: float, pitch: float, hour: float,
 	if weather != "":
 		main.sky.set_weather(SkySystem.Weather.get(weather.to_upper(), SkySystem.Weather.FAIR), true)
 	main.sky.paused = true
+	main.sky.cam_attr.auto_exposure_speed = 30.0     # converge within the few frames a shot renders
+	if Game.args.has("horse"):
+		_place_horse(cam)
 	var t0 := Time.get_ticks_msec()
 	# let streaming (tree chunks, collision, grass) settle before counting frames
 	var veg = main.vegetation
 	await get_tree().process_frame
+	if main.scatter != null:
+		main.scatter.settle_now()
 	if veg != null and veg.has_method("settle_now"):
 		veg.settle_now()
 		var inst := 0
@@ -93,6 +109,13 @@ func _shot(path: String, x, z, up: float, yaw: float, pitch: float, hour: float,
 	if stl != null and stl.has_method("settle_now"):
 		stl.settle_now()
 	var frames := int(Game.args.get("frames", 24))
+	if Game.args.has("menu") and Game.get("menus") != null:
+		var mn = Game.menus
+		match str(Game.args["menu"]):
+			"pause": mn.open_pause()
+			"map": mn.open_map()
+			"journal": mn.open_journal()
+			"settings": mn.open_settings()
 	for i in frames:
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
@@ -104,3 +127,24 @@ func _shot(path: String, x, z, up: float, yaw: float, pitch: float, hour: float,
 		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME),
 		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME) / 1000, path.get_file()])
 	print("shot: %s at (%.0f, %.0f, %.0f) yaw %.0f pitch %.0f %.1fh %s  ~%.1f ms/frame" % [path, px, cam.global_position.y, pz, yaw, pitch, hour, weather, ft])
+
+var _horse: Horse
+
+func _place_horse(cam: Camera3D) -> void:
+	var w: WorldData = Game.world
+	if _horse == null:
+		_horse = Horse.spawn(int(Game.args.get("horse_seed", 1899)), str(Game.args.get("horse_breed", "quarter")))
+		main.add_child(_horse)
+	var fwd := -cam.global_basis.z
+	fwd.y = 0.0
+	fwd = fwd.normalized()
+	var p := cam.global_position + fwd * Game.arg_f("horse", 8.0)
+	p.y = w.height(p.x, p.z)
+	Game.terrain.ensure_collision_at(p)
+	_horse.global_position = p
+	var face := atan2(-fwd.x, -fwd.z) + deg_to_rad(Game.arg_f("horse_yaw", 90.0))
+	_horse.yaw = face
+	_horse.rotation.y = face
+	if Game.args.has("horse_anim") and _horse.visual.anim_player:
+		_horse.set_physics_process(false)
+		_horse.visual.set_locomotion(str(Game.args["horse_anim"]), 1.0)

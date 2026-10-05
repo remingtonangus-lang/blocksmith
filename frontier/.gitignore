@@ -9,3 +9,6 @@ export_credentials.cfg
 data/world/preview.png
 __pycache__/
 data/world/*.import
+assets/ext
+assets/animals_out/
+assets/characters_out/

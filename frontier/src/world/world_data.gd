@@ -96,6 +96,8 @@ func water_level(x: float, z: float) -> float:
 	return best
 
 var _river_cache: Array = []
+var _river_grid := {}          # Vector2i(128 m cell) -> Array of [river index, segment index]
+const RIVER_CELL := 128.0
 
 func _river_segments() -> Array:
 	if _river_cache.is_empty():
@@ -105,27 +107,47 @@ func _river_segments() -> Array:
 			for i in pts.size():
 				segs.append(Vector3(pts[i][0], rv.surface[i], pts[i][1]))
 			_river_cache.append({"name": rv.name, "pts": segs, "width": rv.width})
+		# spatial grid: each segment registered in every cell its padded bounds touch
+		for ri in _river_cache.size():
+			var pts: Array = _river_cache[ri].pts
+			for i in range(0, pts.size() - 1):
+				var a: Vector3 = pts[i]
+				var b: Vector3 = pts[i + 1]
+				var pad := 220.0
+				var x0 := floori((minf(a.x, b.x) - pad) / RIVER_CELL)
+				var x1 := floori((maxf(a.x, b.x) + pad) / RIVER_CELL)
+				var z0 := floori((minf(a.z, b.z) - pad) / RIVER_CELL)
+				var z1 := floori((maxf(a.z, b.z) + pad) / RIVER_CELL)
+				for cz in range(z0, z1 + 1):
+					for cx in range(x0, x1 + 1):
+						var k := Vector2i(cx, cz)
+						if not _river_grid.has(k):
+							_river_grid[k] = []
+						_river_grid[k].append(Vector2i(ri, i))
 	return _river_cache
 
 ## Nearest river point: {dist, surface, width, dir, name} or {} if none within 200 m.
 func river_at(x: float, z: float) -> Dictionary:
+	var rivers := _river_segments()
+	var cell: Array = _river_grid.get(Vector2i(floori(x / RIVER_CELL), floori(z / RIVER_CELL)), [])
+	if cell.is_empty():
+		return {}
 	var best := {}
 	var bd := 200.0
 	var p := Vector2(x, z)
-	for rv in _river_segments():
+	for e in cell:
+		var rv: Dictionary = rivers[e.x]
 		var pts: Array = rv.pts
-		for i in range(0, pts.size() - 1):
-			var a := Vector2(pts[i].x, pts[i].z)
-			var b := Vector2(pts[i + 1].x, pts[i + 1].z)
-			if absf(a.x - x) > 260.0 or absf(a.y - z) > 260.0:
-				continue
-			var ab := b - a
-			var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 0.001), 0.0, 1.0)
-			var d := p.distance_to(a + ab * t)
-			if d < bd:
-				bd = d
-				best = {"dist": d, "surface": lerpf(pts[i].y, pts[i + 1].y, t),
-					"width": lerpf(rv.width[i], rv.width[i + 1], t), "dir": ab.normalized(), "name": rv.name}
+		var i: int = e.y
+		var a := Vector2(pts[i].x, pts[i].z)
+		var b := Vector2(pts[i + 1].x, pts[i + 1].z)
+		var ab := b - a
+		var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 0.001), 0.0, 1.0)
+		var d := p.distance_to(a + ab * t)
+		if d < bd:
+			bd = d
+			best = {"dist": d, "surface": lerpf(pts[i].y, pts[i + 1].y, t),
+				"width": lerpf(rv.width[i], rv.width[i + 1], t), "dir": ab.normalized(), "name": rv.name}
 	return best
 
 func town(id: String) -> Dictionary:

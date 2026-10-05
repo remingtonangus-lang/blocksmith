@@ -1,0 +1,311 @@
+name: frontier
+# Frontier (branch claude/frontier-game, project frontier/): builds the world data, fetches the CC0 asset pack,
+# imports the Godot project, parse-checks every script, runs the bots (oracles) and the benchmark on an Apple
+# Silicon runner, renders the screenshot tour, exports an ad-hoc-signed .app (zip) and publishes it to the rolling
+# pre-release `frontier-latest`; a Linux job builds the Quest APK. Shots/logs/bench go to the orphan branch
+# `ci-snaps-claude-frontier-game` (README embeds them).
+on:
+  push:
+    branches: ['claude/frontier-game']
+    paths: ['frontier/**', '.github/workflows/frontier.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: frontier-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The runners' paravirtual GPU (Apple5) has no Metal argument buffers: Godot's Metal scene shaders exceed the 16
+  # sampler limit there. MoltenVK (Vulkan) works on macos-15 runners, so CI evidence renders use it; real Macs use Metal.
+  FRONTIER_RDRIVER: "--rendering-driver vulkan"
+  GODOT_VERSION: 4.7.1
+  GODOT_TAG: 4.7.1-stable
+
+jobs:
+  mac:
+    runs-on: macos-15
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python deps
+        run: pip3 install --break-system-packages -q numpy scipy pillow scikit-image || pip3 install -q numpy scipy pillow scikit-image
+
+      - name: Restore Godot + export templates
+        id: godot-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/godot
+            ~/Library/Application Support/Godot/export_templates
+          key: godot-mac15-${{ env.GODOT_TAG }}
+
+      - name: Install Godot
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot && cd ~/godot
+          curl -sSL -o g.zip "https://github.com/godotengine/godot/releases/download/${GODOT_TAG}/Godot_v${GODOT_TAG}_macos.universal.zip"
+          unzip -q g.zip && rm g.zip
+          curl -sSL -o t.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_TAG}/Godot_v${GODOT_TAG}_export_templates.tpz"
+          unzip -q t.tpz && rm t.tpz
+          D="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$D" && mv templates/* "$D/" && ls "$D" | head
+
+      - name: Save Godot + export templates
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/godot
+            ~/Library/Application Support/Godot/export_templates
+          key: ${{ steps.godot-cache.outputs.cache-primary-key }}
+
+      - name: Godot path
+        run: |
+          echo "GODOT=$HOME/godot/Godot.app/Contents/MacOS/Godot" >> $GITHUB_ENV
+          ~/godot/Godot.app/Contents/MacOS/Godot --version
+
+      - name: Restore world data
+        id: world-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: frontier/data/world
+          key: world-${{ hashFiles('frontier/tools/worldgen.py') }}
+
+      - name: World generation
+        if: steps.world-cache.outputs.cache-hit != 'true'
+        run: python3 frontier/tools/worldgen.py 2>&1 | tail -5
+
+      - name: Save world data
+        if: steps.world-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: frontier/data/world
+          key: ${{ steps.world-cache.outputs.cache-primary-key }}
+
+      - name: Asset pack versions
+        id: packs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # audio/characters/animals zips are rebuilt by frontier-assets.yml; their upload times key the cache
+          gh release view frontier-assets --repo "$GITHUB_REPOSITORY" --json assets \
+            -q '.assets[] | select(.name | test("^(audio|characters|animals)[.]zip$")) | .name + "=" + .updatedAt' \
+            | sort > packs.txt || true
+          cat packs.txt
+          echo "hash=$(shasum packs.txt | cut -c1-12)" >> $GITHUB_OUTPUT
+
+      - name: Restore asset pack + import
+        id: asset-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            frontier/assets/ext
+            frontier/.godot
+          key: assets-v2-${{ hashFiles('frontier/assets/manifest.json', 'frontier/tools/pack_textures.py') }}-${{ steps.packs.outputs.hash }}
+          restore-keys: |
+            assets-v2-${{ hashFiles('frontier/assets/manifest.json', 'frontier/tools/pack_textures.py') }}-
+
+      - name: Fetch + pack assets
+        run: |
+          if [ ! -f frontier/assets/ext/packed/terrain_ah.png ]; then
+            bash frontier/tools/fetch_assets.sh
+            python3 frontier/tools/pack_textures.py | cut -c1-200
+            rm -rf frontier/assets/ext/terrain            # packed into texture arrays; cloth/build/props stay
+          fi
+          # refresh only the packs whose release upload changed since the cached copy
+          mkdir -p frontier/assets/ext/.stamps
+          for pack in audio characters animals; do
+            want=$(grep "^$pack.zip=" packs.txt || true)
+            have=$(cat frontier/assets/ext/.stamps/$pack 2>/dev/null || true)
+            if [ -n "$want" ] && [ "$want" != "$have" ]; then
+              bash frontier/tools/fetch_assets.sh $pack && echo "$want" > frontier/assets/ext/.stamps/$pack || true
+            fi
+          done
+          du -sh frontier/assets/ext frontier/assets/ext/* 2>/dev/null | tail -20
+
+      - name: Import
+        run: |
+          set -o pipefail
+          time "$GODOT" --headless --path frontier --import 2>&1 | grep -vE "^\[|loading_editor|^$" | tail -20 || true
+
+      - name: Save asset pack + import
+        if: steps.asset-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            frontier/assets/ext
+            frontier/.godot
+          key: ${{ steps.asset-cache.outputs.cache-primary-key }}
+
+      - name: Script check
+        run: |
+          set -o pipefail
+          "$GODOT" --headless --path frontier res://scenes/check.tscn 2>&1 | tee check.log | grep -E "CHECK|checked|SCRIPT ERROR|Parse Error"
+          grep -q "0 failed" check.log
+
+      - name: Bots (oracles)
+        id: bots
+        if: ${{ !cancelled() }}
+        timeout-minutes: 15
+        run: |
+          set -o pipefail
+          mkdir -p snaps
+          "$GODOT" --headless --path frontier -- --bot all --seconds 75 --report "$PWD/snaps/bot_report.json" --watchdog 600 2>&1 | tee bots.log | grep -E "BOT|oracle|WATCHDOG|SCRIPT ERROR" || true
+          grep -q "BOTS PASS" bots.log || { grep -vE "^\s*$" bots.log | head -40; false; }
+
+      - name: Benchmark (High preset, 1920x1080)
+        id: bench
+        if: ${{ !cancelled() }}
+        timeout-minutes: 12
+        run: |
+          set -o pipefail
+          "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --benchmark --quality high --commit "$GITHUB_SHA" --bench_out "$PWD/snaps/benchmark.json" --watchdog 600 2>&1 | tee bench.log | grep -E "BENCH|WATCHDOG|SCRIPT ERROR" || true
+          test -f snaps/benchmark.json || { grep -vE "^\s*$" bench.log | head -40; false; }
+
+      - name: Perf attribution (only for commits tagged [perf])
+        if: ${{ !cancelled() && contains(github.event.head_commit.message, '[perf]') }}
+        timeout-minutes: 20
+        run: |
+          for f in none vfog ssr ssao shadows grass trees scatter water; do
+            "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --benchmark --quality high --bench_scale 0.35 --disable $f --bench_out "$PWD/snaps/bench_$f.json" --watchdog 300 2>&1 | grep "BENCH overall" | sed "s/^/without $f: /" | tee -a perf_attr.log
+          done
+
+      - name: Screenshot tour (High preset)
+        id: tour
+        if: ${{ !cancelled() }}
+        timeout-minutes: 15
+        run: |
+          set -o pipefail
+          # The CI runner's paravirtual GPU (Apple5) has no Metal argument buffers, so Godot's Metal scene shaders
+          # exceed the 16-sampler limit there; render CI evidence through MoltenVK and keep one Metal shot for comparison.
+          "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --tour "$PWD/snaps" --quality high --frames 30 --watchdog 800 2>&1 | tee tour.log | grep -E "shot:|vegetation|WATCHDOG|SCRIPT ERROR|Using Device" || true
+          mkdir -p snaps/metal
+          "$GODOT" --path frontier --resolution 1280x720 -- --tour "$PWD/snaps/metal" --only bitter_spring_street --quality high --frames 20 --watchdog 300 2>&1 | tee tour_metal.log | grep -E "shot:|Using Device" || true
+          ls snaps/*.png
+
+      - name: Export .app (arm64, ad-hoc signed)
+        id: export
+        if: ${{ !cancelled() && steps.bots.outcome != 'cancelled' }}
+        timeout-minutes: 15
+        run: |
+          set -o pipefail
+          mkdir -p frontier/build/mac
+          "$GODOT" --headless --path frontier --export-release "macOS" "build/mac/SableRiver.app" 2>&1 | tee export.log | grep -vE "^\[|^$" | tail -30
+          APP=frontier/build/mac/SableRiver.app
+          test -d "$APP"
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --verbose=2 "$APP" 2>&1 | tail -2
+          (cd frontier/build/mac && ditto -c -k --sequesterRsrc --keepParent SableRiver.app ../SableRiver-mac-arm64.zip)
+          ls -la frontier/build/*.zip
+
+      - name: Publish release frontier-latest
+        if: ${{ !cancelled() && steps.export.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHORT=${GITHUB_SHA::7}
+          BOTS=$(grep -c "BOTS PASS" bots.log || true)
+          FPS=$(python3 -c "import json;d=json.load(open('snaps/benchmark.json'));o=d['overall'];print('%.0f fps avg, %.0f fps 1%% low, p99 %.1f ms, RSS %.0f MB'%(o['fps'],o['low1'],o['p99'],d['memory']['rss_mb']))" 2>/dev/null || echo "n/a")
+          NOTES="Rolling build of Sable River (Frontier) from claude/frontier-game @ ${SHORT}.
+
+          - macOS: SableRiver-mac-arm64.zip (Apple Silicon, ad-hoc signed: right-click > Open the first time, or xattr -dr com.apple.quarantine SableRiver.app)
+          - Quest 3: SableRiver-quest.apk (sideload with adb install -r) when the Quest job succeeds
+          - CI bots: $([ "$BOTS" = "1" ] && echo pass || echo FAIL); CI benchmark (GitHub M1 VM, High, 1080p): ${FPS}
+          - Commit: ${GITHUB_SHA}"
+          git tag -f frontier-latest "$GITHUB_SHA" && git push -f origin frontier-latest
+          gh release view frontier-latest >/dev/null 2>&1 || gh release create frontier-latest --prerelease --title "Sable River — latest build" --notes "$NOTES"
+          gh release edit frontier-latest --prerelease --notes "$NOTES"
+          gh release upload frontier-latest frontier/build/SableRiver-mac-arm64.zip --clobber
+          cp snaps/benchmark.json benchmark-ci.json 2>/dev/null && gh release upload frontier-latest benchmark-ci.json --clobber || true
+          echo "$GITHUB_SHA" > BUILD_COMMIT.txt && gh release upload frontier-latest BUILD_COMMIT.txt --clobber
+
+      - name: Publish shots/logs to ci-snaps-claude-frontier-game
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p snaps && cp *.log snaps/ 2>/dev/null || true
+          cd snaps
+          {
+            echo "# Frontier CI — ${GITHUB_SHA::7} ($(date -u +%Y-%m-%dT%H:%MZ))"
+            echo; echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"; echo
+            for f in *.png metal/*.png; do [ -f "$f" ] && echo "### $f" && echo "![$f]($f)" && echo; done
+            echo '```'; grep -hE "BOT|oracle|BENCH" ../bots.log ../bench.log 2>/dev/null; echo '```'
+          } > README.md
+          git init -q; git checkout -q --orphan ci-snaps-claude-frontier-game; git add -A
+          git -c user.name="frontier-ci" -c user.email="ci@users.noreply.github.com" commit -qm "Frontier CI ${GITHUB_SHA}"
+          git push -f -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ci-snaps-claude-frontier-game
+
+      - name: Fail if bots failed
+        if: ${{ !cancelled() }}
+        run: grep -q "BOTS PASS" bots.log
+
+  quest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Python deps
+        run: pip install -q numpy scipy pillow scikit-image
+      - name: Cache Godot (linux) + templates
+        id: gc
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-linux-${{ env.GODOT_TAG }}
+      - name: Install Godot
+        if: steps.gc.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot && cd ~/godot
+          curl -sSL -o g.zip "https://github.com/godotengine/godot/releases/download/${GODOT_TAG}/Godot_v${GODOT_TAG}_linux.x86_64.zip" && unzip -q g.zip && rm g.zip
+          curl -sSL -o t.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_TAG}/Godot_v${GODOT_TAG}_export_templates.tpz" && unzip -q t.tpz && rm t.tpz
+          D="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"; mkdir -p "$D" && mv templates/* "$D/"
+      - name: World + assets
+        run: |
+          python3 frontier/tools/worldgen.py 2>&1 | tail -1
+          bash frontier/tools/fetch_assets.sh && python3 frontier/tools/pack_textures.py | cut -c1-120
+          rm -rf frontier/assets/ext/terrain
+          for pack in animals characters audio; do bash frontier/tools/fetch_assets.sh $pack || true; done
+      - name: Export APK
+        run: |
+          G=~/godot/Godot_v${GODOT_TAG}_linux.x86_64
+          mkdir -p ~/.config/godot
+          keytool -genkeypair -v -keystore ~/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -validity 10000 -dname "CN=Android Debug,O=Android,C=US" >/dev/null 2>&1
+          cat > ~/.config/godot/editor_settings-4.7.tres <<EOT
+          [gd_resource type="EditorSettings" format=3]
+          [resource]
+          export/android/android_sdk_path = "$ANDROID_HOME"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/debug_keystore = "$HOME/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          EOT
+          bash frontier/tools/setup_quest.sh "$G" || true
+          $G --headless --path frontier --import 2>&1 | tail -3 || true
+          mkdir -p frontier/build/quest
+          $G --headless --path frontier --export-debug "Quest" build/quest/SableRiver-quest.apk 2>&1 | tee quest_export.log | grep -vE "^\[" | tail -40
+          ls -la frontier/build/quest/
+      - name: Publish APK
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view frontier-latest >/dev/null 2>&1 || gh release create frontier-latest --prerelease --title "Sable River — latest build" --notes "Rolling build"
+          gh release upload frontier-latest frontier/build/quest/SableRiver-quest.apk --clobber
+      - name: Upload export log
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: quest-export-log
+          path: quest_export.log

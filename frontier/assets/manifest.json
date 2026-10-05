@@ -448,21 +448,6 @@
    "res": "1k"
   },
   {
-   "polyhaven": "fir_sapling",
-   "dest": "nature/fir_sapling",
-   "res": "1k"
-  },
-  {
-   "polyhaven": "fir_sapling_medium",
-   "dest": "nature/fir_sapling_medium",
-   "res": "1k"
-  },
-  {
-   "polyhaven": "shrub_01",
-   "dest": "nature/shrub_01",
-   "res": "1k"
-  },
-  {
    "polyhaven": "shrub_02",
    "dest": "nature/shrub_02",
    "res": "1k"
@@ -563,16 +548,6 @@
    "res": "1k"
   },
   {
-   "polyhaven": "searsia_lucida",
-   "dest": "nature/searsia_lucida",
-   "res": "1k"
-  },
-  {
-   "polyhaven": "root_cluster_01",
-   "dest": "nature/root_cluster_01",
-   "res": "1k"
-  },
-  {
    "polyhaven": "celandine_01",
    "dest": "nature/celandine_01",
    "res": "1k"
@@ -598,23 +573,8 @@
    "res": "1k"
   },
   {
-   "polyhaven": "sand_rocks_small_01",
-   "dest": "nature/sand_rocks_small_01",
-   "res": "1k"
-  },
-  {
    "polyhaven": "namaqualand_rocks_01",
    "dest": "nature/namaqualand_rocks_01",
-   "res": "1k"
-  },
-  {
-   "polyhaven": "pine_roots",
-   "dest": "nature/pine_roots",
-   "res": "1k"
-  },
-  {
-   "polyhaven": "bark_debris_01",
-   "dest": "nature/bark_debris_01",
    "res": "1k"
   },
   {
