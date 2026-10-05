@@ -485,6 +485,7 @@ func _after_move(dt: float) -> void:
 
 var _last_vy := 0.0
 var _melee_side := 0
+var knife_out := false             # weapon wheel: the Bowie knife makes Melee a lethal stab
 
 ## Fists: Melee throws jab / cross alternately at the person in front; Aim with no gun drawn raises the guard.
 func _melee(dt: float) -> void:
@@ -499,10 +500,12 @@ func _melee(dt: float) -> void:
 	intent.melee = false
 	if get_meta("melee_t", 0.0) > 0.05 or stag > 0.0 or cover.active or Melee.is_down(self):
 		return
+	if gun != null and gun.drawn:
+		knife_out = false
 	if Melee.target_for(self, facing) == null and not get_meta("in_fight", false):
 		return                              # nothing to hit: leave the button to mount/crouch
 	_melee_side = 1 - _melee_side
-	var r := Melee.strike(self, facing, "jab" if _melee_side == 0 else "cross")
+	var r := Melee.strike(self, facing, "stab" if knife_out else ("jab" if _melee_side == 0 else "cross"))
 	if r.get("hit", false):
 		set_meta("in_fight", true)
 		get_tree().create_timer(6.0).timeout.connect(func(): set_meta("in_fight", false))

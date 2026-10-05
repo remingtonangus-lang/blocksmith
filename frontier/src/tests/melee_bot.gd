@@ -82,13 +82,33 @@ static func run(runner: Node) -> Dictionary:
 		_fail(res, "still down after 7 s")
 	if h.brain.state == h.brain.State.FIST:
 		_fail(res, "still fighting after the knockdown")
+	# 5. the knife: lethal (the brawler goes first so the blade finds the new man)
+	h.queue_free()
+	await _physics(2)
+	var k := Human.spawn(Game.main, p.global_position + Vector3(0, 0.1, -1.1), {"seed": 516, "faction": "civilian", "name": "Knifed"})
+	k.brain.set_physics_process(false)          # holds still: this checks the blade, not a chase
+	await _physics(10)
+	p.gun.drawn = false
+	p.knife_out = true
+	p.facing = 0.0
+	for i in 3:
+		if not k.damageable.alive:
+			break
+		p.set_meta("melee_t", 0.0)
+		p.intent.melee = true
+		await _physics(40)
+	res.checks["knife_kills"] = not k.damageable.alive
+	if k.damageable.alive:
+		_fail(res, "three knife strikes did not kill (hp %.1f)" % k.damageable.health)
+	p.knife_out = false
+	if is_instance_valid(k):
+		k.queue_free()
 	print("  melee: %s" % str(res.checks))
 	p.bot_driven = was_bot
 	p.intent.aim = false
 	for m in ["in_fight", "blocking", "melee_t", "stagger_t", "knocked_down"]:
 		if p.has_meta(m):
 			p.remove_meta(m)
-	h.queue_free()
 	floor.queue_free()
 	await _physics(2)
 	return res

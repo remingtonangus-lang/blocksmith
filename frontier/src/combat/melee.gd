@@ -12,6 +12,7 @@ const BLOWS := {
 	"jab": {"dmg": 9.0, "zone": "head", "time": 0.38, "side": -1},
 	"cross": {"dmg": 15.0, "zone": "head", "time": 0.55, "side": 1},
 	"body": {"dmg": 11.0, "zone": "chest", "time": 0.48, "side": 1},
+	"stab": {"dmg": 55.0, "zone": "chest", "time": 0.5, "side": 1, "lethal": true},     # the knife
 }
 
 static func _forward(yaw: float) -> Vector3:
@@ -68,7 +69,8 @@ static func strike(attacker: Node3D, yaw: float, kind := "jab") -> Dictionary:
 	var dmg = t.get("damageable")
 	var on_ko := func(_i): ko[0] = true
 	dmg.knocked_out.connect(on_ko, CONNECT_ONE_SHOT)
-	dmg.apply_hit({"amount": amount, "zone": blow.zone, "attacker": attacker, "melee": true, "nonlethal": true,
+	dmg.apply_hit({"amount": amount, "zone": blow.zone, "attacker": attacker, "melee": true, "nonlethal": not blow.get("lethal", false),
+		"weapon": "knife" if blow.get("lethal", false) else "fists",
 		"position": t.global_position + Vector3(0, 1.5 if blow.zone == "head" else 1.2, 0), "direction": dir})
 	if dmg.knocked_out.is_connected(on_ko):
 		dmg.knocked_out.disconnect(on_ko)
