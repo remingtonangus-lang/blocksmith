@@ -470,7 +470,7 @@ enum RideCheck {
         let p = g.player
         // Ship space: the Capital frigate's centreline is x 23.5; the hangar deck is at 4 (feet 5), open through both
         // flanks for z 72-98; the ladder from the hangar to the crew deck (feet 13) is at x 22.5, z 107.5.
-        p.pos = s.toWorld(V3(23.5 + 24, 7.2, 85.5))
+        p.pos = s.toWorld(V3(23.5 + 24, 6.3, 85.5))
         p.vel = s.velocity(at: p.pos)
         p.flying = true
         p.yaw = s.yaw
@@ -504,12 +504,15 @@ enum RideCheck {
             }
             switch phase {
             case 0:
-                if aboard && stt.onGround { advance(names[0]); return AgentAction.idle }
+                if aboard && stt.onGround && l.y > 4.9 && l.y < 5.5 { advance(names[0]); return AgentAction.idle }
                 let tw = s.toWorld(V3(29.5, 5, 85.5))
                 var a = walk(stt, to: tw)
                 let d = simd_length(V2(tw.x - stt.pos.x, tw.z - stt.pos.z))
                 a.forward = d > 0.8 && a.forward > 0 ? 1 : 0
-                a.sneak = l.x < 34                   // inside the flank: down onto the deck
+                // Level through the opening (y 5-10; the walk helper's step jump would lift a flier onto the roof),
+                // then down onto the deck once inside the flank.
+                a.jump = false
+                a.sneak = l.x < 34 || l.y > 7.5
                 return a
             case 1:
                 if let a = go([V3(23.5, 5, 100.5), V3(23.5, 5, 107.5)]) { return a }
