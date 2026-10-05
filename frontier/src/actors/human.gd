@@ -31,6 +31,26 @@ var _stuck_t := 0.0
 var _last_pos := Vector3.ZERO
 var stuck_events := 0
 var nav: NavigationAgent3D
+# town life (src/ai/routine.gd): anchored = held kinematically on an interaction spot (seat, counter, bar rail);
+# doors on the way are opened via TownDoor.open_from; in_town = floors come from the navmesh when gliding far away
+var anchored := false
+var in_town := false
+var doors_used := 0
+var _anchor_from := Transform3D.IDENTITY
+var _anchor_xf := Transform3D.IDENTITY
+var _anchor_t := 1.0
+var _anchor_blend := 0.6
+var _door_t := 0.0
+var _gy_t := 0.0
+var _gy_off := 0.0
+var _bump_t := 0.0
+var _ghost_t := 0.0
+var _ghost_path := PackedVector3Array()
+var _ghost_i := 0
+var _path := PackedVector3Array()
+var _path_i := 0
+var _path_goal := Vector3.INF
+var _path_t := 0.0
 
 static func spawn(parent: Node, pos: Vector3, opts: Dictionary = {}) -> Human:
 	var t0 := Time.get_ticks_usec()
@@ -48,6 +68,8 @@ static func _spawn(parent: Node, pos: Vector3, opts: Dictionary = {}) -> Human:
 	parent.add_child(h)
 	h.global_position = pos
 	h._setup(opts)
+	if opts.has("facing"):
+		h.facing = float(opts.facing)
 	return h
 
 func _setup(opts: Dictionary) -> void:
@@ -116,7 +138,11 @@ func _build_visual(opts: Dictionary) -> void:
 	var factory = load("res://src/actors/character_factory.gd") if ResourceLoader.exists("res://src/actors/character_factory.gd") else null
 	if factory != null and factory.has_method("spawn"):
 		if factory.available():
-			visual = factory.spawn(seed, ROLE_LOOKS.get(role, ""))
+			var look_id: String = opts.get("look_id", "")
+			if look_id != "" and (not CharacterFactory._warming or CharacterFactory._is_ready(look_id)):
+				visual = factory.spawn_id(look_id, {"variant_seed": seed})
+			if visual == null:
+				visual = factory.spawn(seed, opts.get("look", ROLE_LOOKS.get(role, "")))
 			HumanFootIK.attach.call_deferred(self)   # feet meet slopes, steps and porches
 	if visual == null:
 		visual = Node3D.new()
@@ -160,7 +186,26 @@ func _build_visual(opts: Dictionary) -> void:
 			hatm.albedo_color = Color.from_hsv(0.08, 0.3, r.randf_range(0.1, 0.4))
 			hat.material_override = hatm
 			visual.add_child(hat)
+	if opts.has("scale"):
+		visual.scale = Vector3.ONE * float(opts.scale)
 	add_child(visual)
+	if not has_meta("voice_type"):
+		set_meta("voice_type", opts.get("voice", _voice_for(visual.get("info") if visual.get("info") is Dictionary else {})))
+
+## Bark voice for this person (audio manifest speakers): lawman, shopkeeper, man_old/young/rough/town, woman_old/town.
+func _voice_for(info: Dictionary) -> String:
+	var age := int(info.get("age", 35))
+	if role == "lawman" or faction == "law":
+		return "lawman"
+	if role in ["shopkeeper", "bartender"]:
+		return "shopkeeper"
+	if str(info.get("sex", "male")) == "female":
+		return "woman_old" if age >= 55 else "woman_town"
+	if age >= 58:
+		return "man_old"
+	if faction in ["shale", "bandit"] or role in ["gunman", "drunk", "drover", "cowhand"]:
+		return "man_rough"
+	return "man_young" if age < 28 else "man_town"
 
 func _physics_process(dt: float) -> void:
 	var _pt0 := Time.get_ticks_usec()
@@ -171,18 +216,25 @@ func _physics_process_impl(dt: float) -> void:
 	if not alive:
 		_dead_tick(dt)
 		return
+	if anchored:
+		_anchor_tick(dt)
+		return
 	var target = intent.move_to
 	var want := Vector3.ZERO
 	var tspeed := 0.0
 	if target != null:
 		var tp: Vector3 = target
 		var next := tp
-		if nav.get_navigation_map().is_valid() and NavigationServer3D.map_get_iteration_id(nav.get_navigation_map()) > 0:
+		if in_town:
+			next = _town_next(tp, dt)
+		elif nav.get_navigation_map().is_valid() and NavigationServer3D.map_get_iteration_id(nav.get_navigation_map()) > 0:
 			nav.target_position = tp
 			if not nav.is_navigation_finished():
 				next = nav.get_next_path_position()
 		var to := Vector3(next.x - global_position.x, 0, next.z - global_position.z)
-		if Vector3(tp.x - global_position.x, 0, tp.z - global_position.z).length() > 0.6:
+		if in_town and to.length() < 0.05:
+			pass                 # walked the path to the closest reachable point: stand (the brain decides what next)
+		elif Vector3(tp.x - global_position.x, 0, tp.z - global_position.z).length() > 0.6:
 			want = to.normalized()
 			tspeed = float(intent.speed)
 			if intent.crouch:
@@ -211,11 +263,23 @@ func _physics_process_impl(dt: float) -> void:
 		velocity.y = -0.5
 	else:
 		velocity.y -= 9.81 * dt
-	if ActorLOD.far(self):
+	if _ghost_t > 0.0:
+		_ghost_tick(dt)
+	elif ActorLOD.far(self):
 		ActorLOD.glide(self, dt)        # beyond physics range: walk the heightmap kinematically
+		if in_town:
+			_far_floor(dt)
 	else:
+		if in_town and want != Vector3.ZERO and is_on_floor():
+			_step_up(dt)
 		move_and_slide()
-	visual.rotation.y = facing
+	if in_town:
+		_town_tick(dt)
+		if Game.args.has("trace") and str(name).begins_with(str(Game.args.trace)) and Engine.get_physics_frames() % 30 == 0:
+			var rt = brain.get("routine")
+			print("TRACE %s pos %s tgt %s want %s spd %.2f far %s ghost %.1f path %d/%d phase %s state %s" % [name,
+				str(global_position.snapped(Vector3.ONE * 0.01)), str(target), str(want.snapped(Vector3.ONE * 0.01)), speed,
+				str(ActorLOD.far(self)), _ghost_t, _path_i, _path.size(), rt.phase if rt else "-", brain.debug_state])
 	if visual.has_method("set_locomotion"):
 		visual.set_locomotion(speed, "idle" if speed < 0.2 else ("walk" if speed < 2.4 else "run"), is_on_floor())
 	if visual.has_method("set_aim"):
@@ -230,13 +294,191 @@ func _physics_process_impl(dt: float) -> void:
 			if global_position.distance_to(_last_pos) < 0.5:
 				stuck_events += 1
 				Game.log_event("npc_stuck", {"npc": str(name), "pos": [global_position.x, global_position.z]})
+				if Game.args.has("town_debug"):
+					var col := get_last_slide_collision()
+					var cn: String = str(col.get_collider().name) + "/" + str(col.get_collider().get_parent().name) if col and col.get_collider() else "-"
+					var rt = brain.get("routine")
+					print("STUCK %s spd %.2f/%.2f vel %s at %s next %s fin %s far %s hit %s last %s" % [name, speed, float(intent.speed), str(velocity.snapped(Vector3.ONE * 0.01)), str(global_position.snapped(Vector3.ONE * 0.01)),
+						str(nav.get_next_path_position().snapped(Vector3.ONE * 0.01)), str(nav.is_navigation_finished()), str(ActorLOD.far(self)),
+						cn, str(rt.last_type) if rt != null else ""])
 				if brain.has_method("on_stuck"):
 					brain.on_stuck()
+				if in_town:
+					_start_ghost()
 			_stuck_t = 0.0
 			_last_pos = global_position
 	else:
 		_stuck_t = 0.0
 		_last_pos = global_position
+
+# ------------------------------------------------------------------ town life
+
+## Hold the body on an interaction spot (stand here, face -Z), blending there over `blend` seconds. No physics move
+## while anchored (seats sit inside furniture colliders); the routine plays the matching activity.
+func anchor_to(xf: Transform3D, blend := 0.6) -> void:
+	anchored = true
+	_anchor_from = Transform3D(Basis(Vector3.UP, facing), global_position)
+	_anchor_xf = xf
+	_anchor_blend = maxf(blend, 0.01)
+	_anchor_t = 0.0 if blend > 0.0 else 1.0
+	intent.move_to = null
+	speed = 0.0
+	velocity = Vector3.ZERO
+	_stuck_t = 0.0
+	if blend <= 0.0:
+		global_position = xf.origin
+		facing = spot_yaw(xf)
+
+func release_anchor() -> void:
+	anchored = false
+	_stuck_t = 0.0
+	_last_pos = global_position
+
+static func spot_yaw(xf: Transform3D) -> float:
+	return atan2(xf.basis.z.x, xf.basis.z.z)
+
+func _anchor_tick(dt: float) -> void:
+	if _anchor_t < 1.0:
+		_anchor_t = minf(_anchor_t + dt / _anchor_blend, 1.0)
+		var k := smoothstep(0.0, 1.0, _anchor_t)
+		global_position = _anchor_from.origin.lerp(_anchor_xf.origin, k)
+		facing = lerp_angle(facing, spot_yaw(_anchor_xf), 1.0 - exp(-10.0 * dt))
+	else:
+		global_position = _anchor_xf.origin
+		facing = lerp_angle(facing, spot_yaw(_anchor_xf), 1.0 - exp(-6.0 * dt))
+	if intent.face != null:
+		var fd: Vector3 = intent.face
+		if fd.length() > 0.01:
+			facing = lerp_angle(facing, atan2(-fd.x, -fd.z), 1.0 - exp(-4.0 * dt))
+	speed = 0.0
+	visual.rotation.y = facing
+	if visual.has_method("set_locomotion"):
+		visual.set_locomotion(0.0, "idle", true)
+	if visual.has_method("set_aim"):
+		visual.set_aim("")
+
+## Open doors in the way (NPCs path through doorways) and notice Ruth pushing past.
+func _town_tick(dt: float) -> void:
+	_door_t -= dt
+	if _door_t <= 0.0 and speed > 0.3:
+		_door_t = 0.25 if speed < 2.5 else 0.12
+		var st = Game.main.settlements if Game.main else null
+		if st != null:
+			var fwd := Vector3(-sin(facing), 0, -cos(facing))
+			var d: TownDoor = st.nearest_door(global_position + Vector3(0, 1.0, 0) + fwd * (0.8 + speed * 0.3), 1.5)
+			if d != null:
+				if d.kind == "batwing":
+					d.push(self)
+					doors_used += 1
+				elif absf(d.target) < 0.01:
+					doors_used += 1
+					d.open_from(global_position, 2.5)
+				else:
+					d.keep_open(2.5)              # never re-swing a door someone is walking through
+	_bump_t -= dt
+	if _bump_t <= 0.0:
+		_bump_t = 0.2
+		var p = Game.player
+		if p != null and is_instance_valid(p) and p.get("speed") != null and float(p.speed) > 0.6:
+			var to: Vector3 = global_position - p.global_position
+			to.y = 0.0
+			if to.length() < 0.85 and brain.has_method("on_bumped"):
+				var pv: Vector3 = p.velocity
+				pv.y = 0.0
+				if pv.length() > 0.3 and pv.normalized().dot(to.normalized()) > 0.4:
+					brain.on_bumped(p)
+					_bump_t = 2.0
+
+## Unsticking (snagged on a porch lip, trough, post or a door leaf in the way): walk the navmesh path kinematically
+## for a moment, ignoring physics, then hand back to the body.
+func _start_ghost() -> void:
+	_ghost_path = _path
+	_ghost_i = clampi(_path_i, 0, maxi(_ghost_path.size() - 1, 0))
+	_ghost_t = 1.6 if _ghost_path.size() > 1 else 0.0
+
+## Town residents follow their own copy of the navmesh path (queried once per goal, refreshed every few seconds or
+## when pushed off it): steadier than re-pathing every frame, and door links are walked straight through.
+func _town_next(tp: Vector3, dt: float) -> Vector3:
+	var m := nav.get_navigation_map()
+	if not m.is_valid() or NavigationServer3D.map_get_iteration_id(m) == 0:
+		return tp
+	_path_t -= dt
+	var off := 0.0
+	if _path_i < _path.size() and _path_i > 0:
+		off = _seg_dist(global_position, _path[_path_i - 1], _path[_path_i])
+	if _path.is_empty() or tp.distance_to(_path_goal) > 0.3 or _path_t <= 0.0 or off > 2.5:
+		_path = NavigationServer3D.map_get_path(m, global_position, tp, true)
+		_path_i = 1
+		_path_goal = tp
+		_path_t = 8.0
+	if _path.size() < 2:
+		return tp
+	while _path_i < _path.size() - 1 and Vector2(_path[_path_i].x - global_position.x, _path[_path_i].z - global_position.z).length() < 0.45:
+		_path_i += 1
+	return _path[mini(_path_i, _path.size() - 1)]
+
+## True when the body has walked its path to the closest reachable point of the goal.
+func path_done() -> bool:
+	if not in_town:
+		return nav.is_navigation_finished()
+	if _path.size() < 2:
+		return false
+	var e: Vector3 = _path[_path.size() - 1]
+	return _path_i >= _path.size() - 1 and Vector2(e.x - global_position.x, e.z - global_position.z).length() < 0.5
+
+static func _seg_dist(p: Vector3, a: Vector3, b: Vector3) -> float:
+	var ab := Vector2(b.x - a.x, b.z - a.z)
+	var ap := Vector2(p.x - a.x, p.z - a.z)
+	var t := clampf(ap.dot(ab) / maxf(ab.length_squared(), 1e-6), 0.0, 1.0)
+	return (ap - ab * t).length()
+
+func _ghost_tick(dt: float) -> void:
+	_ghost_t -= dt
+	var step := maxf(speed, 1.0) * dt
+	while step > 0.0 and _ghost_i < _ghost_path.size():
+		var p: Vector3 = _ghost_path[_ghost_i]
+		var to := p - global_position
+		var d := to.length()
+		if d <= step:
+			global_position = p
+			step -= d
+			_ghost_i += 1
+		else:
+			global_position += to / d * step
+			step = 0.0
+			facing = lerp_angle(facing, atan2(-to.x, -to.z), 1.0 - exp(-10.0 * dt))
+	if _ghost_i >= _ghost_path.size():
+		_ghost_t = 0.0
+	velocity = Vector3.ZERO
+	_last_pos = global_position
+
+## Climb a small lip (boardwalk edge, threshold, porch step up to 0.4 m) that the capsule would treat as a wall.
+func _step_up(dt: float) -> void:
+	var motion := Vector3(velocity.x, 0.0, velocity.z) * dt * 2.0
+	if motion.length() < 0.001 or not test_move(global_transform, motion):
+		return
+	var lift := Vector3(0, 0.4, 0)
+	if test_move(global_transform, lift):
+		return
+	var raised := global_transform.translated(lift)
+	if not test_move(raised, motion):
+		global_position += lift
+
+## Gliding beyond physics range follows the heightmap; inside buildings the floor is the navmesh's.
+func _far_floor(_dt: float) -> void:
+	var m := nav.get_navigation_map()
+	if m.is_valid() and NavigationServer3D.map_get_iteration_id(m) > 0:
+		var cp := NavigationServer3D.map_get_closest_point(m, global_position + Vector3(0, 0.6, 0))
+		if Vector2(cp.x - global_position.x, cp.z - global_position.z).length() < 0.6 and cp.y > global_position.y - 0.3:
+			global_position.y = cp.y
+
+## Residents of a town: a slimmer collision capsule than the navmesh agent radius (0.25 m) so paths that hug walls
+## and porch posts don't snag; doors and navmesh floors as above.
+func set_town_mode() -> void:
+	in_town = true
+	for c in get_children():
+		if c is CollisionShape3D and c.shape is CapsuleShape3D:
+			(c.shape as CapsuleShape3D).radius = 0.21
 
 func interact_prompt() -> String:
 	if not alive or brain == null or brain.state in [brain.State.COMBAT, brain.State.FLEE]:

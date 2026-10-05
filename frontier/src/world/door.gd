@@ -83,6 +83,17 @@ func open_from(pos: Vector3, hold := 3.0) -> void:
 	if partner != null:
 		partner._open(d, hold)
 
+## Keep an already open door open a little longer without changing its swing (someone is still in the doorway).
+func keep_open(hold := 2.0) -> void:
+	if absf(target) < 0.01:
+		return
+	if _hold > 0.0:
+		_hold = maxf(_hold, hold)
+		set_process(true)
+	if partner != null and partner._hold > 0.0:
+		partner._hold = maxf(partner._hold, hold)
+		partner.set_process(true)
+
 func push(from) -> void:
 	open_from(from if from is Vector3 else (from as Node3D).global_position, 0.6)
 

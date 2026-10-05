@@ -231,27 +231,51 @@ func _run_bot(kind: String, seconds: float) -> Dictionary:
 func _run_town(seconds: float) -> Dictionary:
 	var res := {"bot": "town", "ok": true, "failures": [], "distance": 0.0, "stuck_events": 0, "fall_events": 0,
 		"frame_spikes": 0, "errors": [], "npcs": 0, "npc_minutes": 0.0}
-	var t := Game.world.town("bitter_spring")
+	var t := Game.world.town(str(Game.args.get("town", "bitter_spring")))      # --town port_linden etc.
 	var p := Vector3(t.x, 0, t.z)
 	p.y = Game.world.height(p.x, p.z) + 1.0
 	Game.terrain.ensure_collision_at(p)
 	player.global_position = p
 	player.intent.move = Vector2.ZERO
+	# start at 8:30, when the town gets going (residents leave their porches, shops are open) - unless --hour
+	if Game.sky:
+		Game.sky.set_time(Game.arg_f("hour", 8.5))
 	var err0: int = Game.error_logger.take().size()
 	var el := 0.0
 	var dur := minf(seconds, 90.0)
-	var stuck0 := {}
+	var pop = Game.population
 	while el < dur:
 		await get_tree().physics_frame
 		el += get_physics_process_delta_time()
 	var npcs := get_tree().get_nodes_in_group("humans")
 	res.npcs = npcs.size()
+	var stuck_list := []
 	for h in npcs:
 		res.stuck_events += h.stuck_events
+		if h.stuck_events > 0:
+			stuck_list.append(h)
 		var gy := Game.world.height(h.global_position.x, h.global_position.z)
 		if h.global_position.y < gy - 1.5:
 			res.fall_events += 1
 	res.npc_minutes = res.npcs * dur / 60.0
+	if pop != null and pop.has_method("town_metrics"):
+		var m: Dictionary = pop.town_metrics()
+		res["town"] = m
+		res.stuck_events = maxi(res.stuck_events, int(m.stuck))
+		res.npc_minutes = maxf(res.npc_minutes, float(m.npc_minutes))
+		var dc := RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)
+		print("  town metric: %d residents on screen of a %d cast | on schedule %.0f%% | spots reached %d of %d walks (%.0f%%), %d skipped unseen | went home %d | doors used %d | stuck %d (%.3f per NPC-minute) | chats %d, greetings %d, nudges %d | draw calls %s" % [
+			m.residents, m.cast, m.on_schedule, m.arrived, m.arrived + m.failed, m.reached, m.skipped, m.home, m.doors,
+			res.stuck_events, res.stuck_events / maxf(res.npc_minutes, 0.01), m.chats, m.greetings, m.nudges,
+			str(dc) if dc > 0 else "n/a (headless)"])
+		if m.arrived + m.failed >= 10 and m.reached < 70.0:
+			_fail(res, "only %.0f%% of walks reached their spot" % m.reached)
+	if pop != null and pop.has_method("town_metrics"):
+		await _town_reactions(res, pop)
+	for h in stuck_list.slice(0, 8):
+		var rt = h.brain.get("routine")
+		print("    stuck x%d %s at %s state %s %s" % [h.stuck_events, h.name, str(h.global_position.snapped(Vector3.ONE * 0.1)),
+			h.brain.debug_state, ("%s/%s goal %s" % [rt.block.get("kind", ""), rt.phase, str(rt.goal.snapped(Vector3.ONE * 0.1))]) if rt != null else ""])
 	if res.npcs == 0:
 		_fail(res, "town is empty")
 	if res.npc_minutes > 0.0 and res.stuck_events / res.npc_minutes > 0.5:
@@ -264,6 +288,45 @@ func _run_town(seconds: float) -> Dictionary:
 		_fail(res, "%d errors, first: %s" % [errs.size(), str(errs[0])])
 	print("  town: %d npcs, %d stuck events, %.1f npc-minutes" % [res.npcs, res.stuck_events, res.npc_minutes])
 	return res
+
+## Reactions: Ruth walks up to a resident (look + greeting), then a shot goes off in the street (people run inside,
+## cower, call the alarm). Prints a reactions line; fails only if nobody reacts at all.
+func _town_reactions(res: Dictionary, pop) -> void:
+	var g0: int = pop.metrics.greetings
+	var target: Human = null
+	for k in pop.residents:
+		var h: Human = pop.residents[k]
+		if is_instance_valid(h) and h.alive and h.brain.routine != null and not h.brain.routine.busy_seated() \
+				and not ActorLOD.far(h) and h.brain.state == h.brain.State.ROUTINE:
+			target = h
+			break
+	var looked := false
+	if target != null:
+		var fwd := Vector3(-sin(target.facing), 0, -cos(target.facing))
+		var p: Vector3 = target.global_position + fwd * 3.0
+		p.y = target.global_position.y + 0.2
+		player.global_position = p
+		for i in 180:
+			await get_tree().physics_frame
+			if target.brain.looking:
+				looked = true
+	var greeted: int = pop.metrics.greetings - g0
+	var f0: int = pop.metrics.fled_inside
+	Game.noise.emit(player.global_position, 260.0, player)
+	var scared := 0
+	for i in 60:
+		await get_tree().physics_frame
+	for k in pop.residents:
+		var h: Human = pop.residents[k]
+		if is_instance_valid(h) and h.brain.state in [h.brain.State.FLEE, h.brain.State.COWER]:
+			scared += 1
+	for i in 360:
+		await get_tree().physics_frame
+	res["reactions"] = {"looked": looked, "greeted": greeted, "scared": scared, "fled_inside": pop.metrics.fled_inside - f0}
+	print("  town reactions: resident looked at Ruth %s, greetings %d | gunshot: %d fled or cowered, %d ran inside within 6 s" % [
+		str(looked), greeted, scared, pop.metrics.fled_inside - f0])
+	if scared == 0:
+		_fail(res, "nobody reacted to a gunshot in town")
 
 ## Mission bot: autopilot through every story mission in order; softlock/fail/error oracles.
 ## Camp bot: the camp's pick self-test, then the real thing at Willow Bend — every companion recruited and at their

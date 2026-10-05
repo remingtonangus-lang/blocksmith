@@ -87,9 +87,46 @@ static func mesh(name: String) -> Mesh:
 			var root: Node = ps.instantiate()
 			m = _flatten(root)
 			root.free()
+			if m != null:
+				m = _decimate(m, MAX_TRIS)
 	_meshes[name] = m
 	load_usec += Time.get_ticks_usec() - t0
 	return m
+
+## Props are background dressing drawn by the hundred (MultiMesh instances use their full mesh): Poly Haven scans
+## run to 50-200k triangles (candlestick, chest, bed). Reduce every prop to at most MAX_TRIS with the engine's LOD
+## simplifier (ImporterMesh.generate_lods), keeping vertices/UVs/materials; small props are untouched.
+const MAX_TRIS := 2500
+
+static func _decimate(src: Mesh, max_tris: int) -> Mesh:
+	var total := 0
+	for s in src.get_surface_count():
+		var a: Array = src.surface_get_arrays(s)
+		var idx = a[Mesh.ARRAY_INDEX]
+		total += (idx.size() if idx != null else (a[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()) / 3
+	if total <= max_tris:
+		return src
+	var out := ArrayMesh.new()
+	for s in src.get_surface_count():
+		var a: Array = src.surface_get_arrays(s)
+		var mat: Material = src.surface_get_material(s)
+		var idx = a[Mesh.ARRAY_INDEX]
+		var n: int = (idx.size() if idx != null else (a[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()) / 3
+		var want := maxi(int(float(max_tris) * float(n) / float(total)), 64)
+		var im := ImporterMesh.new()
+		im.add_surface(Mesh.PRIMITIVE_TRIANGLES, a, [], {}, mat)
+		im.generate_lods(25.0, 60.0, [])
+		var best: PackedInt32Array = PackedInt32Array()
+		for l in im.get_surface_lod_count(0):
+			var li := im.get_surface_lod_indices(0, l)
+			best = li
+			if li.size() / 3 <= want:
+				break
+		if not best.is_empty() and best.size() < (idx.size() if idx != null else 1 << 30):
+			a[Mesh.ARRAY_INDEX] = best
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
+		out.surface_set_material(out.get_surface_count() - 1, mat)
+	return out
 
 static func _collect(n: Node, xf: Transform3D, out: Array) -> void:
 	var x := xf

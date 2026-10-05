@@ -85,7 +85,8 @@ func _ready() -> void:
 	print("boot: world built in %d ms" % (Time.get_ticks_msec() - t0))
 	# character scenes + animation library load on a worker from here: started after the boot draws (impostor bake
 	# force_draw) so their texture uploads never race a synchronous frame (CI's GPU hung there, b873a47 probe)
-	CharacterFactory.warm_up()
+	if not Game.args.has("looks"):          # --looks N (low-memory shots): only the looks towns use, on demand
+		CharacterFactory.warm_up()
 	var ws := WorldState.new()
 	ws.name = "WorldState"
 	add_child(ws)
