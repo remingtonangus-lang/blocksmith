@@ -204,3 +204,7 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
   and ship_frigate_deck (deck markings, superstructure, crew bar) look right.
 - (Done) structcheck covers the citadel: 9 checked, 99 POIs, 333 mobs, no issues (run 634).
 - (Done) --ridecheck gates the tours lane (its crew failure turned run 634 red).
+- 2026-10-05 11:15: run 682 heavy build failed (WorldMap.swift:243, type checker timeout on the MapCache.batch
+  trailing closure; the fast -Onone lane does not catch it). Fixed with a named nested function; also fixed five
+  races from the thread-safety audit (map epoch, music generation token, sound evict, World.alive lock, bench
+  timing) and the first fidelity-audit items (shears/sword/hoe speeds, full-draw bow crits). Pushed with [full].
