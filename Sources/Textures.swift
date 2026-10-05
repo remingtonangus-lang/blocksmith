@@ -1041,7 +1041,7 @@ enum TextureGen {
         let count = r.count
         let table = painters()
         if r.lowerBound == 0 {
-            let missing = Tex.names.filter { table[$0] == nil }
+            let missing = Tex.names.filter { table[$0] == nil && $0 != "missing" }      // "missing" is the magenta fallback itself
             if !missing.isEmpty { print("textures without a painter: \(missing.joined(separator: ", "))") }
             if !Blocks.untextured.isEmpty { print("blocks without textures: \(Blocks.untextured.prefix(20).joined(separator: ", "))") }
             if Tex.count > 2048 { print("warning: \(Tex.count) texture layers exceed the 11-bit layer index") }
