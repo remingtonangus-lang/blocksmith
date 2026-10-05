@@ -38,7 +38,7 @@ static var _warm_anim := -1
 ## outlive the script server abort the process at exit).
 static func shutdown() -> void:
 	if _warm_group >= 0:
-		WorkerThreadPool.wait_for_group_task_completion(_warm_group)
+		WorkerThreadPool.wait_for_task_completion(_warm_group)
 		_warm_group = -1
 	if _warm_anim >= 0:
 		WorkerThreadPool.wait_for_task_completion(_warm_anim)
@@ -81,14 +81,19 @@ static func warm_up() -> void:
 			break
 		round += 1
 	_warm_anim = WorkerThreadPool.add_task(func(): animation_library(), false, "character anims")
-	_warm_group = WorkerThreadPool.add_group_task(func(i: int):
-		var id: String = todo[i]
-		if not _is_ready(id):
+	# one look at a time on one worker: parallel glTF builds pushed every look's texture uploads into the first
+	# frames at once (CI's paravirtual GPU timed out on that frame) and starved world streaming of cores
+	_warm_group = WorkerThreadPool.add_task(func():
+		var t0 := Time.get_ticks_msec()
+		for id in todo:
+			if _is_ready(id):
+				continue
 			var ps := _build_scene(id, _info(id))
 			if ps:
 				_mutex.lock()
 				_scenes[id] = ps
-				_mutex.unlock(), todo.size(), -1, false, "character scenes")
+				_mutex.unlock()
+		print("characters: %d looks ready in %d ms" % [todo.size(), Time.get_ticks_msec() - t0]), false, "character scenes")
 
 
 static func _is_ready(id: String) -> bool:
