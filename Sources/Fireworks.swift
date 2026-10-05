@@ -116,7 +116,7 @@ enum Fireworks {
         if k == "goat_horn" { out.append(GoatHorns.names[max(0, min(7, s.tag))]) }
         if k == "written_book" {
             out.append("by Player")
-            out.append(Books.generations[min(3, s.tag)])
+            out.append(Books.generations[max(0, min(3, s.tag))])
         }
         if k == "firework_rocket" {
             out.append("Flight Duration: \(max(1, s.tag))")

@@ -148,7 +148,10 @@ extension Game {
             guard a.count >= 2 else { return ["Usage: /time set|add|query <value>"] }
             let day = floor(time / DAY_LENGTH) * DAY_LENGTH
             let named: [String: Double] = ["day": 1000, "noon": 6000, "sunset": 12000, "night": 13000, "midnight": 18000, "sunrise": 23000]
-            let value = a.count > 2 ? (named[a[2].lowercased()] ?? Double(a[2])) : nil
+            // Finite and of sane size: "nan", "inf" or 1e30 made the clock NaN / huge, and the pause screen's day number
+            // and the moon phase convert it to Int (undefined in the release build).
+            let raw = a.count > 2 ? (named[a[2].lowercased()] ?? Double(a[2])) : nil
+            let value: Double? = raw.flatMap { $0.isFinite && abs($0) < 1e12 ? $0 : nil }
             switch a[1] {
             case "set":
                 guard let v = value else { return ["Usage: /time set day|noon|night|midnight|<ticks>"] }

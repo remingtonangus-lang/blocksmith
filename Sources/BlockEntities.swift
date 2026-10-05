@@ -60,6 +60,10 @@ final class BlockEntity: Codable {
         // Wooden shelves were made with no slots (the count had no .display case: using one indexed past the end);
         // saved ones come back with their three.
         if kind == .display && items.count < 3 { items += Array(repeating: .empty, count: 3 - items.count) }
+        // Every kind comes back with at least its own slot count: the container screens use fixed slot numbers (a short
+        // array from an older build or a damaged file was read past its end as soon as the screen drew).
+        let need = BlockEntity.slotCount(kind)
+        if items.count < need { items += Array(repeating: .empty, count: need - items.count) }
         burn = (try? c.decode(Int.self, forKey: .burn)) ?? 0
         burnMax = (try? c.decode(Int.self, forKey: .burnMax)) ?? 0
         cook = (try? c.decode(Int.self, forKey: .cook)) ?? 0
