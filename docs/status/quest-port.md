@@ -222,6 +222,14 @@ aboard, teleport option, snap-angle option, seated mode, less camera motion on s
 
 ## Log
 
+- 2026-10-05 (afternoon): spike and allocation pass with questcheck's new allocation counter / tracer
+  (quest/tools/alloccount.c + alloctrace.py): first-use tables warmed at load, frame thread registered with the
+  runtime, tick allocations 219 -> ~8 a tick (collision boxes, pathfinding 311 -> 7 a search, banners, simd shim),
+  options cached, overlay vertex buffers reused, perf line splits the worst frame. Merged playtest twice (sweep and
+  pathfinding conflicts resolved to the playtest's versions plus our scratch reuse). Mac CI note: the heavy lane's
+  tours job is red on the playtest branch too (run 37281846206) and here (run 37295092357): imagecheck duplicate_frame,
+  tv_craftbook2 and tv_craftbook_all render the same image (shared crafting-book content, not the Quest port);
+  shots went green here once the playtest's cave_dark_mobs fix (a71187a) was merged.
 - 2026-10-05: first APKs (packaging fixes: case of the output dir, pipefail exits, Bionic FILE/open), first headset
   run (v13) works at 72 fps; perf (bee-nest and heart scans, exclusivity checks off); ship riding, container hint,
   VR comfort page, teleport, seated mode (v17).
