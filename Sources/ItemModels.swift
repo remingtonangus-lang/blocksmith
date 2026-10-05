@@ -264,7 +264,7 @@ extension Game {
         // Model space: forward is -z, up +y; the arm hangs down, so "forward along the forearm" is -z at rest.
         let along = tool ? turn(V3(0, 0.45, -1)) : turn(V3(0, 1, -0.2))
         let facing = turn(V3(1, 0, 0))
-        let size: Float = tool ? 0.62 : 0.4
+        let size: Float = tool ? 0.62 : 0.3                // hand-sized things smaller (as in first person)
         let (ax, ay, az) = ItemModels.basis(along: along, facing: facing, size: size, upright: !tool)
         // The grip point of a tool's icon (lower left, on the handle) sits in the hand.
         let grip: V2 = tool ? V2(-0.3, -0.3) : V2(0, -0.2)

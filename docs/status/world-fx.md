@@ -69,9 +69,12 @@ fx_cracks, fx_shatter, fx_blast, fx_fire_0-3, fx_flood_0-3, fx_snow_0-2, fx_stor
 - **Critic rounds** (tools/item_critic.py = Gemini; a blind Claude subagent; labels shuffled): tools 4 -> 7 (Gemini),
   3.5 -> 7 (Claude); items 3 -> 8 (Gemini, preview), 4.5 -> 7 (Claude), page 2 6.5 -> 7.5 (Gemini, guns still pixel
   art then). Round 3 fixes from their lists: guns, ingots, tier silhouettes, handles, emblems, dust, buckets, boats.
-- **Models** (ItemModels.swift): every sprite item extruded from its icon (32 x 32 mask captured at texture build):
-  first person (grip, sway, chop, bow draw, eating), third person (right hand, own F5 view and co-op seats), dropped
-  (upright, turning, nearest 32 within 24 blocks).
+- **Models** (ItemModels.swift): every sprite item extruded from its icon (64 x 64 alpha captured at texture build,
+  marching-squares contour walls): first person (grip, sway, chop, bow draw, eating; turned ~40 degrees off the eye
+  line so the thickness shows; hand-sized items at half a tool's size), third person (right hand, own F5 view and
+  co-op seats), dropped (leaning back 18 degrees, tools lying level, rocking toward the viewer, nearest 32 within 24
+  blocks). Model faces fill the icon's outline band with the colour just inside it (entityFS), so the HUD outline
+  doesn't read as a sticker border in 3D. Held/dropped critic: docs/qa/items/critic.md.
 - **Glint**: a violet band sweeping across the item's shape (hudFS layer + 8192, entityFS uv.w).
 - **Water plants** carry the water's surface (Mesher): seagrass, kelp and coral no longer cut holes in shallow water.
 
@@ -101,5 +104,7 @@ Bench scene `weather` (bench.sh, perf shard): 8 s of whole game ticks in a thund
 - Waiting on session B's BlockMaterial table: switch `Wear.kind` to it. Coordination points for B: `World.wind` /
   `Game.fx.storm` (a wind load for their support analysis), `World.scorch` and charcoal (burnt blocks could count as
   weak), `Waves.height` (wrecks afloat).
+- Floods: shoreline blocks now close up when the next cell fills and open when it drains (stale half-height blocks
+  along cell boundaries showed as thin bright lines across the flood); `--fxtest flood` checks for grooves.
 - Next in this area: flood edge cases (villages in valleys, caves, saves mid-flood), snow on stairs / slabs, fire in
   structures.
