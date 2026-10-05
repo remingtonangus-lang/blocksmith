@@ -2026,7 +2026,9 @@ final class Game {
         if beaconTicks >= 80 { beaconTicks = 0; beaconTick() }
         spawnerTick(0.05)
         world.redstone.tick()
-        world.redstone.detectorCheck(mobs.mobs.filter { $0.kind == .minecart }.map { $0.pos })
+        // (No minecart: an empty list, without building two arrays 20 times a second.)
+        let carts: [V3] = mobs.mobs.contains { $0.kind == .minecart } ? mobs.mobs.filter { $0.kind == .minecart }.map { $0.pos } : []
+        world.redstone.detectorCheck(carts)
         for (p, be) in world.blockEntities where be.kind == .brewing {
             if be.brewTime > 0 && be.brewIngredient == 0, !be.container[3].isEmpty { be.brewIngredient = be.container[3].item }
             if be.tickBrewing() { sfx(.brew, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
