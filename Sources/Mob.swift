@@ -1633,7 +1633,12 @@ private func parts(_ m: Mob) -> [Part] {
 }
 
 // Writes the mob triangles (camera-relative) into `out`; returns the vertex count written.
-enum MobLight { static var nightVision: Float = 0 }
+enum MobLight {
+    static var nightVision: Float = 0
+    // The cave fill's level this frame (Shaders.caveFill: 0.06 + 0.3 x Brightness, doubled in Fast), for mobs, dropped
+    // items and the held item, which are lit on the CPU.
+    static var fill: Float = 0.21
+}
 
 // Last frame's mob drawing, for the F3 overlay and voice bug notes (playtest 2026-10-05: mobs invisible in real play,
 // never in the CI renderer): how many mobs, how many near, vertices written and drawn, and which path drew them.
@@ -1689,7 +1694,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         let base = m.pos - eye
         // The cave fill (Shaders.caveFill): mobs in the dark stay visible a few blocks away.
         let near: Float = 1 - 0.55 * Terrain.smooth(5, 30, simd_length(base))
-        let fill: Float = max(0.035, (0.05 + 0.2 * Settings.shared.lightBrightness) * near)
+        let fill: Float = max(0.04, MobLight.fill * near)
         var bright = max(fill, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
         bright = bright + (1 - bright) * amb
         let cy = cosf(m.yaw), sy = sinf(m.yaw)

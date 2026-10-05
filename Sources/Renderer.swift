@@ -459,6 +459,7 @@ final class Renderer: NSObject, MTKViewDelegate {
     // grading) into `final`, then the HUD.
     func renderFrame(_ cmd: MTLCommandBuffer, final: MTLRenderPassDescriptor, width: Int, height: Int) {
         MobLight.nightVision = game.nightVision         // mobs share the terrain's night-vision lift
+        MobLight.fill = (0.06 + 0.3 * Settings.shared.lightBrightness) * (game.fancyGraphics && vib != nil ? 1 : 2)
         MobDrawStats.mobs = game.mobs.mobs.count
         MobDrawStats.near = 0
         let pe = game.player.pos
@@ -1308,7 +1309,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             // Skylight keeps a moonlit floor like the terrain's night ambient (the held block was a black cube on a
             // moonlit meadow: blind critic, run 395 torches).
             let skyK: Float = 0.12 + 0.88 * daylight          // ~0.22 at night: 0.38 read 3x the terrain (critic, run 417)
-            let fill: Float = max(0.12, 0.05 + 0.2 * Settings.shared.lightBrightness)     // the cave fill at arm's length
+            let fill: Float = max(0.12, MobLight.fill)                                    // the cave fill at arm's length
             let light = max(fill, max(Float(l.sky) / 15 * skyK, Float(l.block) / 15), game.nightVision * 0.9)
             let sw = game.swing
             let a = sinf(sqrtf(sw) * .pi)

@@ -53,8 +53,9 @@ static float3 caveFill(float3 lit, float dist, constant Uniforms& u, float ao = 
     float g = (b - 0.5) * 0.8;
     lit = saturate(lit + lit * (1.0 - lit) * g);
     float near = mix(1.0, 0.45, smoothstep(5.0, 30.0, dist));
-    float fl = max(0.035, (0.05 + 0.2 * b) * near);
-    return max(lit, float3(0.8, 0.9, 1.12) * fl * mix(0.5, 1.0, ao));   // corners stay darker (Fancy passes its AO)
+    // Fast has no eye adaptation or tone curve to open up the dark: twice the fill (cave_dark_fast read at half of Fancy).
+    float fl = max(0.04, (0.06 + 0.3 * b) * near) * (u.eye.w < 0.5 ? 2.0 : 1.0);
+    return max(lit, float3(0.84, 0.92, 1.08) * fl * mix(0.5, 1.0, ao));   // corners stay darker (Fancy passes its AO)
 }
 
 vertex ChunkOut chunkVS(uint vid [[vertex_id]],
