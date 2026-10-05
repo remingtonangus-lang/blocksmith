@@ -92,7 +92,7 @@ extension Game {
                 if let rod = lightningRods.first(where: { abs($0.x - x) < 64 && abs($0.z - z) < 64 }) { x = rod.x; z = rod.z }
                 else if world.isLoaded(x, z) { (x, z) = lightningTarget(near: x, z) }
                 if world.isLoaded(x, z) {
-                    let y = world.topY(x, z)
+                    let y = world.rainTopY(x, z)
                     if precipitation(x, y, z) != 2 { strike(V3(Float(x) + 0.5, Float(y + 1), Float(z) + 0.5)) }
                 }
             }

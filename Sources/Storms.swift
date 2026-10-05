@@ -143,10 +143,10 @@ extension Game {
 
     // A storm's lightning picks the tallest point among a few nearby columns (trees, towers, masts).
     func lightningTarget(near x: Int, _ z: Int) -> (Int, Int) {
-        var best = (x, z), top = world.topY(x, z)
+        var best = (x, z), top = world.rainTopY(x, z)
         for _ in 0..<4 {
             let cx = x + Rand.int(in: -6...6), cz = z + Rand.int(in: -6...6)
-            let y = world.topY(cx, cz)
+            let y = world.rainTopY(cx, cz)
             if y > top { top = y; best = (cx, cz) }
         }
         return best

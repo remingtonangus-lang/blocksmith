@@ -186,6 +186,12 @@ final class World {
         return Int(c.height[mod(x, CS) + mod(z, CS) * CS])
     }
 
+    // The highest block that stops rain, snow and lightning (glass counts; Chunk.rainTop).
+    func rainTopY(_ x: Int, _ z: Int) -> Int {
+        guard let c = chunkAt(x, z) else { return -1 }
+        return Int(c.rainTop[mod(x, CS) + mod(z, CS) * CS])
+    }
+
     // Changes a block and remeshes: the sections around the block synchronously (no holes, correct
     // AO), everything its light could reach in the background.
     func setBlock(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) {
