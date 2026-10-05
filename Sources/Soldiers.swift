@@ -44,6 +44,7 @@ final class SoldierBrain {
     var throwT: Float = 0            // grenade throw left (0.7 s)
     var pointT: Float = 0            // officer pointing the squad at the threat
     var station = StationPose.none   // crew station pose (vehicles / ships)
+    var homing = false               // calm: walking back to the post after straying
     var seat: Float = 0.45           // seat top above the feet (blocks), seated stations
     // Citadel orders (CapitalBases.swift): walk to `order` (running if orderRun), take `orderStation` there facing
     // `orderFace`; `ready` carries the weapon at low ready (patrols, lockdown) instead of shouldered for the march.
@@ -259,7 +260,19 @@ extension Mob {
                 if aiTimer <= 0 { aiTimer = Rand.float(in: 2...5); yaw += Rand.float(in: -1.2...1.2) }
                 return 0
             }
-            if let h = home, simd_length(V2(h.x - pos.x, h.z - pos.z)) > 10 { face(h); return spec.speed * 0.5 }
+            // Strolls stay within 7 of the post; one who strayed past 12 (a chase, a push) walks back to within 5. A
+            // stroll goal out past the old 10-block line flipped it between the goal and home every tick (behaviour
+            // sim on a citadel: 19 of 42 soldiers spinning).
+            if let h = home {
+                strollArea = (h, 7)
+                let off = simd_length(V2(h.x - pos.x, h.z - pos.z))
+                if off > 12 { b.homing = true }
+                if b.homing && gaveUp(h) { b.homing = false; home = pos }        // can't get back: this is the post now
+                if b.homing {
+                    if off > 5 { wanderGoal = nil; moving = true; face(h); return spec.speed * 0.5 }
+                    b.homing = false; moving = false; aiTimer = Rand.float(in: 1...3)
+                }
+            }
             wander()
             return moving ? spec.speed * 0.45 : 0
         }

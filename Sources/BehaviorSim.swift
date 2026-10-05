@@ -83,7 +83,7 @@ enum BehaviorSim {
                 // Citadel: a gunshot outside every 3 minutes, round the compass (patrols out, search, back).
                 if citadel && i % Int(180 / dt) == Int(20 / dt) {
                     let a = Float(i / Int(180 / dt)) * 2.4
-                    let d: Float = 75
+                    let d: Float = 85                     // outside the square site's corners (56 x 1.41 = 79)
                     let x = mid.x + cosf(a) * d, z = mid.z + sinf(a) * d
                     let shot = V3(x, game.standY(x, z, from: mid.y + 30), z)
                     game.baseNoise(at: shot, kind: .gunshot)
