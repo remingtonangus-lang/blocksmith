@@ -606,13 +606,18 @@ final class World {
             scanEpoch = MeshEpoch.value
             return
         }
+        // Same centres as the last scan: no chunk's LOD can have changed, so once the job queue is full the rest of
+        // the walk can't schedule anything (it walked ~1000-2000 offsets a frame while chunks streamed in at rd 16-24).
+        let sameCentres = center == scanCenter && extra == scanExtra
         scanCenter = center
         scanExtra = extra
 
         // Nearest-first scheduling: generate missing chunks, mesh chunks whose 8 neighbours exist (round each centre).
         var meshed = 0
+        var cutShort = false
         let centres: [ChunkKey] = extra.map { [center, $0] } ?? [center]
-        for (dx, dz, _) in offsets {
+        scan: for (dx, dz, _) in offsets {
+        if sameCentres && jobs >= maxQueued { cutShort = true; break scan }
         for (ci, cen) in centres.enumerated() {
             let k = ChunkKey(x: cen.x + dx, z: cen.z + dz)
             if let c = chunks[k] {
@@ -644,7 +649,7 @@ final class World {
             }
         }
         }
-        meshedCount = meshed
+        if !cutShort { meshedCount = meshed }   // (F3 only: a cut-short walk keeps the last full count)
         scanEpoch = MeshEpoch.value         // after the loop: its own LOD re-mesh bumps are already scheduled
         // The full scan handled what it could; keep only chunks still dirty and loaded listed (bounded by the chunk count,
         // and no unloaded chunk kept alive by the list).
