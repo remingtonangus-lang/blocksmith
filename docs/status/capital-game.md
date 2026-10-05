@@ -125,6 +125,14 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 12:40: GAME BUILD READY 60b25d8 (capital-latest, 12:23 UTC). Since 95849c0:
+  - graphite view-model sleeves;
+  - dusk clouds lit by the sky glow, night clouds cool grey;
+  - fog no longer leaves distant towers on a dark band;
+  - soldiers kneel on the ground;
+  - no dark muzzle-flash stars.
+  CI Mac (paravirtual, High): city 37.5 fps (p99 52.1 ms), battle 32.3 (p99 61.8), forest 36.6 (p99 51.9); draws
+  274 / 646 / 330.
 - 2026-10-05 12:25: two soldier/FX bugs from troops_lineup (vegetation hidden to see the legs):
   - kneeling soldiers hovered 0.35 m. The pose dropped the torso but left the hip pivots up. The kneel is now
     built from the leg lengths: hips down 0.42 m, front shin vertical, rear knee on the ground.
