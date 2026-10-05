@@ -368,6 +368,14 @@ final class Coop {
         parked = s
     }
 
+    // Where a sound at p is played for the single audio listener (player 1's ears): sounds nearer another player are
+    // moved next to player 1 by the same offset, so each player hears what happens beside them.
+    func heardAt(_ p: V3, _ g: Game) -> V3 {
+        let i = nearestSeat(p, g)
+        guard i != 0 else { return p }
+        return seatPlayer(0, g).eye + (p - seatPlayer(i, g).eye)
+    }
+
     // Split screen with the players close together: one shadow map centred between them serves both views (it covers
     // 64 blocks either side), so it isn't re-rendered for each view. nil when apart (each view centres its own).
     func shadowFocus(_ g: Game) -> V3? {

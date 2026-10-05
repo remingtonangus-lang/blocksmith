@@ -230,7 +230,9 @@ final class Game {
         Feedback.sound(self, s, v, at: pos)        // rumble + the one subtitle system (HudExtras, AudioSettings.subtitles)
         guard let snd = sound else { return }
         let occ = pos.map { audioOcclusion(player.eye, $0) } ?? 0
-        snd.play(s, volume: v, at: pos, occlusion: occ)
+        // Split screen: one listener (player 1); a sound nearer player 2 plays as near player 1 as it is to player 2.
+        let heard: V3? = coop.active ? pos.map { coop.heardAt($0, self) } : pos
+        snd.play(s, volume: v, at: heard, occlusion: occ)
     }
 
     var onPauseChanged: ((Bool) -> Void)?
