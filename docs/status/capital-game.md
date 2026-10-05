@@ -125,6 +125,12 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 12:25: two soldier/FX bugs from troops_lineup (vegetation hidden to see the legs):
+  - kneeling soldiers hovered 0.35 m. The pose dropped the torso but left the hip pivots up. The kneel is now
+    built from the leg lengths: hips down 0.42 m, front shin vertical, rear knee on the ground.
+  - a dark teal star hung in mid-air. The additive muzzle-flash shader went negative (star arms past the quad's
+    circle, and the last frame of an expiring flash), and additive negative subtracts orange from the scene.
+    Clamped.
 - 2026-10-05 12:10: in fog, distant towers stood out as flat-topped grey blocks over a dark band (river_valley;
   probed: Candor 3.2 km away, which should be about 97% fogged). Cause: fog and aerial perspective colour distant
   geometry with the sky in its own direction, and the sky shader drew everything below the horizon 30% darker

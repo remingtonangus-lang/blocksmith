@@ -59,9 +59,12 @@ void vertex() {
 	float root_drop = 0.0;
 	bool aiming = state == 3 || state == 4;
 	if (state == 4) {
-		root_drop = 0.38;
-		thigh_l = -1.35; knee_l = 2.3;
-		thigh_r = -0.1; knee_r = 1.9;
+		// Kneel, from the leg lengths (hip 0.93, knee 0.5, sole 0): hips down 0.42 m; the front thigh level with
+		// the shin straight down (foot planted), the rear thigh upright with its knee on the ground and the shin
+		// trailing. (The hips used to stay up while the torso dropped: kneeling soldiers hovered 0.35 m.)
+		root_drop = 0.42;
+		thigh_l = -1.57; knee_l = 1.57;
+		thigh_r = 0.08; knee_r = 1.62;
 		lean = 0.15;
 	}
 	if (state == 0) {
@@ -120,11 +123,7 @@ void vertex() {
 		p = rot_x(p, PIV[8], -thigh_r);
 		n = rot_x(n, vec3(0.0), -thigh_r);
 	}
-	if (bone != 6 && bone != 7 && bone != 8 && bone != 9) {
-		p.y -= root_drop;
-	} else if (state == 4) {
-		p.y -= root_drop * 0.15;
-	}
+	p.y -= root_drop;
 	p.y += bob;
 	// Dead: limp limbs (the instance transform lays the body down).
 	if (state == 5) {
