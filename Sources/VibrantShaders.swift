@@ -408,15 +408,15 @@ fragment float4 waterVibFS(VibOut in [[stage_in]],
             float ring = sin((dd - ph * 0.22) * 90.0) * (1.0 - ph) * (1.0 - smoothstep(0.0, 0.25, abs(dd - ph * 0.22) * 6.0));
             g += dv / max(dd, 1e-3) * ring * 0.12 * u.ambColor.w;
         }
-        // Storm swell (Storms.swift Waves, dimTint.w = direction in whole degrees + sea state): the slopes of the same
+        // Storm swell (Storms.swift Waves, swell.x = direction in whole degrees + sea state): the slopes of the same
         // three travelling waves the ship physics floats on, steeper with the storm, whitecaps on the crests.
-        float sea = fract(u.dimTint.w);
+        float sea = fract(u.swell.x);
         if (sea > 0.01) {
             // Shallow water (rivers, lakes, shore) heaves less, as the physics' open-water factor has it.
             float dS = sdepth.sample(ls, suv);
             float thickS = dS >= 1.0 ? 64.0 : max(0.0, length(relAt(suv, dS, u)) - dist);
             sea *= 0.25 + 0.75 * smoothstep(2.0, 12.0, thickS);
-            float ang = floor(u.dimTint.w) * 0.00174533;           // tenths of a degree
+            float ang = floor(u.swell.x) * 0.00174533;           // tenths of a degree
             float2 dir = float2(cos(ang), sin(ang));
             float2 perp = float2(-dir.y, dir.x);
             float along = dot(wp.xz, dir), across = dot(wp.xz, perp);
