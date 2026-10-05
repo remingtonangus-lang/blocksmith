@@ -158,6 +158,9 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
   started. Also pushed: horizon ring per world seed, villagers/golems don't stroll into caves, village cave sealing
   counts a floor at the fill depth.
 
+- 08:55 UTC: cancelled runs 651 (7264bb4) and 657 (aada510): superseded by later pushes but still queued for macOS
+  runners ahead of run 658 (pushing over a queued run does not cancel it; cancel it explicitly).
+
 ## Next
 - For stream D (soldier rig): a Capital soldier is 190 parts within 14 blocks (90 to 34 blocks, 34 beyond), about 330 KB
   of vertices rebuilt every frame; a courtyard of 30 is ~10 MB/frame of writes plus 30 pose builds. Mob buffers now grow
