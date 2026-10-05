@@ -49,6 +49,8 @@ grep -o 'view: `[^`]*`' snaps/structcheck.md 2>/dev/null | sed 's/^view: `//; s/
 done
 # Bots playing the real Game.tick (Agent.swift): oracles every tick, replays for every finding (snaps/agent_*.md).
 "$BIN" --behaviorsim --seeds 12345,777 --minutes 20 --out snaps/behaviorsim.md
+# A Capital citadel's garrison: the same oracles, a gunshot outside every 3 minutes sends its patrols out.
+"$BIN" --behaviorsim --site citadel --seeds 12345 --minutes 4 --out snaps/behaviorsim_citadel.md
 "$BIN" --gencheck --seeds 12345,777,424242 --areas 6 --out snaps/gencheck.md
 # Leak gallery: the first two gencheck leaks, seen from a little above (gencheck_leak_N.png).
 k=0
@@ -229,6 +231,9 @@ done
 "$BIN" --snapshot snaps/volcano_far.png --seed 12345 --feature volcano --yaw 0 --pitch -25 --up 110 --time 0.3 --rd 16 --pick "650,456;650,462;700,458;700,464;760,460;760,466"
 "$BIN" --snapshot snaps/volcano_crater.png --seed 12345 --feature volcano --yaw 30 --pitch -50 --up 70 --time 0.3 --rd 10
 "$BIN" --snapshot snaps/volcano_horizon.png --seed 12345 --feature volcano --back 900 --yaw 0 --pitch 3 --up 25 --time 0.3 --rd 8
+# The horizon ring (HorizonRing.swift): hills and coasts past render distance 8 instead of a fog wall.
+"$BIN" --snapshot snaps/horizon_ring.png --seed 12345 --find windswept_hills --yaw 30 --pitch -4 --up 20 --time 0.3 --rd 8
+"$BIN" --snapshot snaps/horizon_ring_evening.png --seed 777 --find plains --yaw 200 --pitch -2 --up 30 --time 0.47 --rd 8
 "$BIN" --snapshot snaps/volcano_horizon_night.png --seed 12345 --feature volcano --back 1400 --yaw 0 --pitch 3 --up 25 --time 0.8 --rd 8
 "$BIN" --snapshot snaps/volcano_dusk.png --seed 12345 --feature volcano --yaw 200 --pitch -22 --up 90 --time 0.48 --rd 16
 "$BIN" --snapshot snaps/citadel_far.png --seed 12345 --structure military_base --frame 1.1 --time 0.3 --rd 12
@@ -342,6 +347,23 @@ done
 "$BIN" --snapshot snaps/steelhold_armory_fast.png --seed 12345 --structure military_base --offset 14,0,-60 --yaw 0 --pitch 0 --time 0.3 --listframes --fast || true
 "$BIN" --snapshot snaps/steelhold_armory_close.png --seed 12345 --structure military_base --offset 14,0,-63 --yaw 0 --pitch 0 --time 0.3 --listframes || true
 "$BIN" --snapshot snaps/steelhold_fight.png --seed 12345 --structure military_base --offset 14,4,-60 --yaw 0 --pitch 0 --time 0.3 --fortresstest 20
+# Reactive citadel (CapitalBases.swift): gunshot -> patrol out and back; blast inside -> lockdown, turret crews, dropships;
+# blasted wall -> rebuilt within a day (the full check), plus a shot of each phase.
+# Flight model (FlightModel.swift) on the Capital Kestrel helicopter and Heron aircraft: hover, forward flight, pedal
+# turn, landing; level flight, climb, banked turn, stall and recovery; and a shot of each in the air.
+"$BIN" --snapshot snaps/flighttest.png --seed 12345 --find plains --time 0.3 --rd 6 --flighttest all
+"$BIN" --snapshot snaps/flight_heli.png --seed 12345 --find plains --time 0.3 --rd 6 --flighttest helishot
+"$BIN" --snapshot snaps/flight_plane.png --seed 12345 --find plains --time 0.3 --rd 6 --flighttest planeshot
+"$BIN" --snapshot snaps/basetest_patrol.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest patrol
+"$BIN" --snapshot snaps/basetest_crawler.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest crawler
+"$BIN" --snapshot snaps/basetest_lockdown.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest lockdown
+"$BIN" --snapshot snaps/basetest_rebuild.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest rebuild
+"$BIN" --snapshot snaps/basetest_air.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest air
+"$BIN" --snapshot snaps/base_patrol.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest patrolshot
+"$BIN" --snapshot snaps/base_crawler.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest crawlershot
+"$BIN" --snapshot snaps/base_lockdown.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest lockdownshot
+"$BIN" --snapshot snaps/base_rebuild.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest rebuildshot
+"$BIN" --snapshot snaps/base_air.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest airshot
 "$BIN" --snapshot snaps/steelhold_command.png --seed 12345 --structure military_base --offset 0,6,-33 --yaw 0 --pitch -15 --time 0.3
 "$BIN" --snapshot snaps/mobtests.png --seed 12345 --find plains --yaw 0 --pitch -30 --time 0.3 --up 3 --mobtests --posecheck
 "$BIN" --snapshot snaps/pathtest.png --seed 12345 --find plains --yaw 0 --pitch -40 --time 0.75 --up 14 --pathtest

@@ -2,7 +2,8 @@ import Foundation
 import Metal
 import simd
 
-// Mob behaviour sim (--behaviorsim [--seeds a,b] [--minutes N] [--out FILE]): a real village runs headless
+// Mob behaviour sim (--behaviorsim [--seeds a,b] [--minutes N] [--out FILE] [--site citadel]): a real village (or a
+// Capital citadel's garrison, with a gunshot outside every 3 minutes to send its patrols out) runs headless
 // through Game.tick for N minutes of game time (default a full day: work, meeting, night), with the player
 // hovering out of the way. Every mob is sampled once a second and flagged when it:
 //   in_wall        overlaps a solid block for 2+ s
@@ -42,22 +43,35 @@ enum BehaviorSim {
         defer { PrefsSandbox.end() }
         let seeds: [UInt64] = (arg("--seeds") ?? "12345").split(separator: ",").compactMap { UInt64($0) }
         let minutes = Double(arg("--minutes") ?? "") ?? 20
+        let citadel = arg("--site") == "citadel"           // a Capital citadel's garrison instead of a village
         var md: [String] = ["# Behaviour sim", ""]
         var totals: [String: Int] = [:]
         var goalStats: [String: (Int, Int)] = [:]        // phase -> (met, total)
         let t0 = CFAbsoluteTimeGetCurrent()
         for seed in seeds {
             let probe = World(seed: seed, device: device, save: nil)
-            guard let v = probe.gen.structures?.nearest("village", x: 0, z: 0, maxRegions: 8) else { md.append("- seed \(seed): no village"); continue }
-            let plaza = V3(Float(v.anchor.x) + 0.5, Float(v.anchor.y), Float(v.anchor.z) + 0.5)
+            guard let v = probe.gen.structures?.nearest(citadel ? "military_base" : "village", x: 0, z: 0, maxRegions: 8) else {
+                md.append("- seed \(seed): no \(citadel ? "citadel" : "village")"); continue
+            }
+            let plaza = citadel ? V3(Float(v.min.x + v.max.x) / 2 + 0.5, Float(v.min.y + 25), Float(v.min.z + v.max.z) / 2 + 30.5)
+                                : V3(Float(v.anchor.x) + 0.5, Float(v.anchor.y), Float(v.anchor.z) + 0.5)
             let (world, game) = Agent.makeWorld(device: device, seed: seed, botSeed: seed, rd: 6, at: plaza)
             let mid = V3(Float(v.min.x + v.max.x) / 2, plaza.y, Float(v.min.z + v.max.z) / 2)
-            _ = world.loadSync(center: mid, radius: 6)
+            _ = world.loadSync(center: mid, radius: citadel ? 7 : 6)
+            if citadel {
+                // The garrison as the game spawns it (BaseTests does the same).
+                for (name, p) in world.pendingMobs { if let k = MobKind.named(name) { game.mobs.mobs.append(Mob(Soldier.garrison(k, at: p), at: p)) } }
+                world.pendingMobs.removeAll()
+                for m in game.mobs.mobs where m.kind.steelhold { m.persistent = true }
+                world.ships.encounters = false
+                game.paused = false; game.menu = nil
+            }
             game.survival = false
             game.player.flying = true
             game.player.pos = mid + V3(0, 40, 0)          // out of the way, still within every mob's range
             game.time = 0
             var tracks: [ObjectIdentifier: Track] = [:]
+            var noises: [String] = []
             let dt = 0.05
             let steps = Int(minutes * 60 / dt)
             var sec = 0.0
@@ -66,11 +80,20 @@ enum BehaviorSim {
                 game.player.vel = .zero
                 game.player.pos = mid + V3(0, 40, 0)
                 game.tick(dt)
+                // Citadel: a gunshot outside every 3 minutes, round the compass (patrols out, search, back).
+                if citadel && i % Int(180 / dt) == Int(20 / dt) {
+                    let a = Float(i / Int(180 / dt)) * 2.4
+                    let d: Float = 85                     // outside the square site's corners (56 x 1.41 = 79)
+                    let x = mid.x + cosf(a) * d, z = mid.z + sinf(a) * d
+                    let shot = V3(x, game.standY(x, z, from: mid.y + 30), z)
+                    game.baseNoise(at: shot, kind: .gunshot)
+                    noises.append(String(format: "%.0f s: gunshot at %.0f %.0f", Double(i) * dt, x, z))
+                }
                 sec += dt
                 if sec < 1 { continue }
                 sec = 0
                 let phase = schedulePhase(game.dayFraction)
-                for m in game.mobs.mobs where m.health > 0 {
+                for m in game.mobs.mobs where m.health > 0 && (!citadel || (m.kind.steelhold && m.kind != .deckGun && m.station == .none)) {
                     let id = ObjectIdentifier(m)
                     let t: Track
                     if let e = tracks[id] { t = e } else { t = Track(m); tracks[id] = t }
@@ -109,7 +132,11 @@ enum BehaviorSim {
             }
             for (k, n) in counts { totals[k, default: 0] += n }
             let cs = counts.sorted { $0.key < $1.key }.map { "\($0.key) \($0.value)" }.joined(separator: ", ")
-            md.append("## seed \(seed): village at \(v.anchor.x) \(v.anchor.z), \(tracks.count) mobs tracked")
+            md.append("## seed \(seed): \(citadel ? "citadel" : "village") at \(v.anchor.x) \(v.anchor.z), \(tracks.count) mobs tracked")
+            if citadel {
+                md.append("- noises: \(noises.joined(separator: "; "))")
+                md.append("- citadel log: \(game.bases.log.suffix(40).joined(separator: "; "))")
+            }
             md.append("- mobs flagged per class: \(cs.isEmpty ? "none" : cs)")
             md += rows.prefix(40)
             md.append("")
@@ -308,6 +335,7 @@ enum BehaviorSim {
     }
 
     static func goalPoint(_ m: Mob, _ phase: String) -> V3? {
+        if let o = m.brain?.order { return o }                 // a soldier walking to an order (citadel patrols, crews)
         guard let v = m.villager, !m.baby else { return nil }
         switch phase {
         case "work": if let j = v.jobSite { return V3(Float(j[0]) + 0.5, Float(j[1]), Float(j[2]) + 0.5) }

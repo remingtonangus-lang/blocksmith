@@ -75,7 +75,7 @@ final class CombatHUD {
             if hd < 0 { hd += 360 }
             let heading = dirs[Int((hd + 22.5) / 45) % 8]
             out.append(HudLine(text: heading, x: x + w - Float(Font.width(heading)) * s, y: y0 + 11 * s, scale: s, color: V4(0.7, 0.9, 1, 1)))
-            if kind == .airship || kind == .aircraft {
+            if kind == .airship || kind == .aircraft || kind == .helicopter {
                 let alt = Int(ship.pos.y) - SEA
                 out.append(HudLine(text: "Alt \(alt)", x: x + 56 * s, y: y0 + 11 * s, scale: s, color: V4(0.8, 0.95, 0.8, 1)))
             }

@@ -248,7 +248,8 @@ code); mechanics, names and numbers follow the reference game.
 4. [x] Cave fill + Options > Video > Brightness (Shaders.caveFill); shots cave_dark (+ moody / bright / fast / mobs).
 Remington after playing on the Mac ("the game works like a dream"):
 5. [x] Sugar cane taller than three floated when its bottom was broken: every plant that needs support (standing, hanging,
-       water, vines) pops with its drops when the support goes, by any means (PlantSupport.swift); --plantcheck.
+       water, vines) pops with its drops when the support goes, by any means (PlantSupport.swift); also carpets, snow
+       layers, pressure plates, rails, dust, repeaters, comparators, flower pots and lanterns; --plantcheck (gating).
 6. [x] Your own music: ~/Library/Application Support/Blocksmith/Music (mp3 / m4a / wav / aiff) as the soundtrack or mixed
        with the built-in one; shuffle, volume, Next Track (Y on the pause menu, N, Options > Audio); --musiccheck. No music
        in the repository.

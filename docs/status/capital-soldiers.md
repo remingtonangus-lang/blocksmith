@@ -4,8 +4,15 @@ Owner: session D. Scope: soldier models (dress uniforms, ranks, gear, weapons), 
 crew-station pose hooks, and the backwards-arms bug. Not in scope (other streams): base layouts, ship hulls,
 vehicle physics, controller code.
 
-## State
-- WORK IN PROGRESS: see the log at the end.
+## State (2026-10-05, standing order: never stop; queue = soldiers -> reactive bases -> aircraft -> bug hunting)
+- Soldiers: DONE and merged into claude/blocksmith-playtest (d3a9c7c). posecheck 474 checks green.
+- Reactive bases (Future ideas #2): on claude/bs-capital-soldiers (rebased on playtest 2026-10-05). Patrol, air
+  patrol, lockdown crews and dropships green; crawler return and the wall rebuild being fixed through the focused
+  release run (`[fast: ... --basetest all]`, ~50 s for the whole suite).
+- Aircraft (Future ideas #8): on the same branch. --flighttest heli / plane green, player phase down to its landing.
+- Bug hunting: `--behaviorsim --site citadel` (soldier stuck / spinning / in-wall / fall oracles round a citadel,
+  gunshots outside every 3 min); first run found calm soldiers flipping at their post radius (fixed: stroll area 7,
+  walk home past 12 to within 5).
 
 ## What exists (code map)
 - `Sources/SoldierRig.swift`: the jointed soldier model and all stances.
@@ -53,3 +60,52 @@ m.stationSeat = 0.5        // seat top above the mob's feet, in blocks (seated /
 Only the model changes: the caller places the mob (pos, yaw, deck) at its station and keeps it there. Seated legs
 slope down until the boots reach the floor, so any seat height works. `soldier_crew` is the natural kind for
 drivers, pilots and gunners (CapitalShips crew posts currently spawn vanguards / marksmen there).
+
+## Reactive citadels (CapitalBases.swift, CapitalBasesWork.swift, BaseTests.swift)
+- Noise bus: `Game.baseNoise(at:kind:power:hostile:)` from player guns (Ballistics.fireHeldGun), every explosion
+  (Explosion.explode), player-manned turrets (VehicleControls), ship cannon (ShipCombat.fire), other factions'
+  soldiers. The Capital's own shells/grenades are quiet (`bases.quiet` set round them in Ballistics.detonate and
+  ShipCombat shell blasts). Hearing: gunfire 96, cannon 200, blasts 64 + 24 x power blocks.
+- `BaseRecord` per citadel (key `citadel:cx,cz`, saved in world.json `extra["bases"]`): alert calm / suspicious /
+  alert / lockdown (stands down 120 / 90 / 60 s after the last hostile noise, never while a soldier is fighting),
+  patrol (target, phase), crawler patrol, blast spheres to rebuild, dropship cooldown.
+- Patrol: officer + 3 (fresh ones from the barracks if the garrison is thin) muster at the gate, march waypoint
+  by waypoint (18 blocks; the path finder reaches ~48) at low ready in a wedge, search 30 s, walk back to posts.
+  Soldiers obey `SoldierBrain.order / orderStation / orderRun / orderFace / ready` (Soldiers.swift soldierAI calm
+  branch -> Mob.followOrder). Crawler patrol for blasts/cannon over 70 blocks out: `spawnCapital("crawler",
+  faction: .steelhold)` from the motor pool (centre + 92 south), `CapitalState.goal` drives it, removed on return.
+- Lockdown: alarm, garrison aggro toward the source, 2 crewmen per 42 cm turret in the gunner stance behind the
+  barbette, up to 2 `ShipManager.callDropship(faction:from:to:)` Capital dropships landing troops in the plaza.
+- Rebuild: once calm, `BaseWatch.blueprint` regenerates the citadel's chunks on a worker thread (gen.generate +
+  structures.place) and restores only cells that are now air / liquid / fire with their original block, bottom up,
+  ~1 block/s per pilot (2 pilots at the site in the console stance); time away is caught up on return. Wrecks,
+  debris and player builds in a crater are left alone.
+- Cost: `BaseWatch.tickMs` (once-a-second update) 0.03 ms avg in the release build (0.2-0.3 unoptimized); dropship
+  hulls build on a worker thread; a Kestrel launch costs 0.8 ms (release).
+- Checks: `--basetest patrol|crawler|lockdown|rebuild|air|all` (and `...shot` variants for pictures). Unoptimized,
+  only single phases fit a fast-lane run; a `[fast: ...]` marker builds release and runs the whole suite in ~50 s.
+
+## Aircraft (FlightModel.swift, Aircraft.swift, FlightTests.swift)
+- `Ship.flight` (FlightModel) for ships with rotor heads (helicopters) or role "capplane"; older wing builds keep
+  the arcade model. Hook in ShipPhysics.integrateForces after the airfoils; the generic steering / keep-upright /
+  aircraft pitch blocks are skipped for flight-model ships.
+- Fixed wing: per airfoil cell CL(alpha) with stall at 0.3 rad, CD0 + k CL^2, elevator = tail cells (negative
+  incidence, pushes the tail down to raise the nose), ailerons = outer cells, virtual fin (weathervane + rudder),
+  dihedral. Helicopter: thrust collective x 2.1 weights x rpm^2 (+ ground effect, translational lift) along the
+  cyclic-tilted disk over the centre of mass, hub moment, stability augmentation, rotor torque vs tail rotor + pedals.
+- Autopilots: `fm.hold` (position) / `fm.holdYaw` / `fm.holdSpeed`. Player: collective Space/Ctrl RT/LT (released in
+  the air it holds the height), cyclic WASD / left stick as an attitude command (full stick 0.4 rad), heading follows
+  the view, LB/RB pedals (VehicleControls kind .helicopter).
+- Blocks: `ship_rotor` (Rotor Head; blades drawn to the rotor diameter from the render-only `ship_rotor_blade`),
+  `capital_airframe` (0.3 t). Designs: Capital Kestrel (helicopter, pilot + 4 seats), Capital Heron (twin-prop,
+  wheels, role capplane). `Aircraft.spawn(kind, at:, yaw:, game:, troops:)` seats a Capital pilot (FlightCrew keeps
+  seated crews in their seats; seated soldiers don't walk).
+- Checks: `--flighttest heli|player|plane|all` with a `flighttrace` line per second (height, speed, attitude,
+  controls). heli: lift-off from a built pad, settled hover, 80 out, pedal turn, back, lands on the pad. player:
+  the same Kestrel through startPiloting / pilotTick and the keyboard layout. plane: level, climb, banked turn,
+  stall and recovery (the camera rides along; chunks under the aircraft are loaded before each step).
+- Citadel air patrols (CapitalAir.swift): on alert over an outside noise, or on lockdown, a crewed Kestrel lifts off
+  the tower's landing pad (`BaseRecord.pad`, y0 + 42, 21 north of the tower), climbs to a route-clear cruise height,
+  circles the noise 40 s (or the citadel while locked down), flies back, settles on the pad and is stowed. Pilot
+  killed -> autopilot off, it falls, the citadel goes to alert. Saved: `air`, `airPhase`, `airT`, `airShip`,
+  `airCD`; after a reload `FlightCrew.relink` buckles the crew still at the seats back in. Check: `--basetest air`.

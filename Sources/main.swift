@@ -996,6 +996,15 @@ enum Snapshot {
         if CommandLine.arguments.contains("--mobtests") && !MobTests.run(game: game, world: world, pos: pos, rd: rd) { return 1 }
         if CommandLine.arguments.contains("--posecheck") && !PoseCheck.run(game: game) { return 1 }
         if let secs = Float(arg("--fortresstest") ?? ""), !MobTests.fortressFight(game: game, world: world, seconds: secs) { return 1 }
+        if CommandLine.arguments.contains("--flighttest") {
+            let ph = arg("--flighttest").flatMap { $0.hasPrefix("--") ? nil : $0 } ?? "all"
+            if !FlightTests.run(game: game, phase: ph) && !ph.hasSuffix("shot") { return 1 }
+            pos = game.player.pos                             // the world streamed along with the aircraft
+        }
+        if CommandLine.arguments.contains("--basetest") {
+            let ph = arg("--basetest").flatMap { $0.hasPrefix("--") ? nil : $0 } ?? "all"
+            if !BaseTests.run(game: game, world: world, phase: ph) && !ph.hasSuffix("shot") { return 1 }
+        }
         if let secs = Double(arg("--fire") ?? "") {
             // Hold the trigger for a while (guns in flight, muzzle flash, soldiers answering), camera held still.
             let keep = (game.player.pos, game.player.yaw, game.player.pitch)

@@ -108,6 +108,32 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
 - 01:13 UTC: cancelled queued run 528 (8ac3d54 heavy; 525 had already finished) on this branch: superseded by 542 (2ab6bf7,
   which contains it), and it held a macOS runner slot ahead of it.
 
+- Run 549 (0f6c0ea) fast lane: build green; mobcheck PASS (15 kinds after a survival night, crowd: the cow beside the
+  player drawn with 246 far mobs dropped), plantcheck PASS, musiccheck PASS (no audio device on CI: director part
+  skipped). Cave fill retuned from its shots (6f38b43: Default p50 20, Fast 19, Bright 39, Moody 1). All three gate now.
+- Remington's Mac notes (2026-10-05): "works like a dream"; sugar cane floating (PlantSupport.swift) and a custom music
+  folder (CustomMusic.swift) done.
+
+## Run 563 (7005780, [full]): green
+- Heavy lane all green (padtest 156/0, mobtests 0 failed, cooptest, mobcheck, plantcheck, musiccheck, smoke rd 8/16/24/24f:
+  0 mobs dropped for a full buffer with 600 loaded). Smoke 8c (not gating): player 2's scripted turn sat inside the look
+  dead zone, so they walked into one obstacle for 50 s (fixed in the script). Soldier spin traces named the 10-block
+  home edge (stream D landed the same fix first: SoldierBrain.homing, stroll area 7; mine dropped in the rebase).
+
+## Landmarks verified (run 563 shots)
+- volcano_far: no streak (the impostor shell fix holds). volcano_horizon_night: two volcanoes, the near plume lit orange.
+- Known limit: seen from a high hill the impostors (volcano foot, spire skirt) sit over empty sky past the loaded
+  terrain (nothing is drawn there), so their haze-coloured feet read as a pale disc. A fix needs far terrain (a coarse
+  horizon ring), not impostor tweaks; parked.
+
+## Frigates (session B request, 2026-10-05 ~02:50 UTC)
+- Session B: go ahead with BOTH frigate hulls on claude/bs-frigates (CapitalFrigate.swift and the Stormwarden
+  warfrigate); the integration session is not editing CapitalFrigate.swift and will not touch it meanwhile. Please keep:
+  the stationed frigate's guard rule (CapitalShips: regions prefixed "citadel" engage only within 96 blocks of home until
+  provoked), the drive exhaust particles (`exhausts` in CapitalFrigate), save keys / roles / turret mounts / crew posts /
+  helm APIs. Mob vertex buffers now grow to 16 MB and draw nearest first (2ab6bf7), so bigger crews are fine; the
+  Capital soldier rig is 190 parts close up, so keep crews modest per deck in view. Original names only (public repo).
+
 ## Next
 - For stream D (soldier rig): a Capital soldier is 190 parts within 14 blocks (90 to 34 blocks, 34 beyond), about 330 KB
   of vertices rebuilt every frame; a courtyard of 30 is ~10 MB/frame of writes plus 30 pose builds. Mob buffers now grow

@@ -322,7 +322,10 @@ extension Mob {
         pr.doors = opensDoors || (breaksDoors && g.difficulty == 3)
         pr.climbs = pr.span == 1
         if kind == .drowned || kind == .guardian || kind == .elderGuardian || kind == .axolotl || kind == .turtle || kind == .frog { pr.waterCost = 0 }
-        if kind.hostile && aggro || kind.hostile && simd_length(g.player.pos - pos) < 24 {
+        // Calm garrison soldiers keep the ordinary drop limit with the player near (citadel behaviour sim: a recruit
+        // strolling on a tower floor took a 5-block drop down the ladder shaft with the observer overhead).
+        let disciplined = kind.steelhold && !aggro
+        if kind.hostile && aggro || kind.hostile && !disciplined && simd_length(g.player.pos - pos) < 24 {
             let lost = Int(Float(health) - Float(spec.health) * 0.33) - (3 - g.difficulty) * 4
             pr.maxDrop = 3 + max(0, lost)
         }

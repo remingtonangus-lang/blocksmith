@@ -82,6 +82,7 @@ final class CapitalState {
     var impact: Float = 0              // crash-landed frigate: sink speed at touchdown (b/s)
     var sag = V2(0, 0)                 // disabled crawler: pitch / roll toward its lost wheels
     var wantSpeed: Float = 0           // crawler: the speed its AI wants (before the lowered ramp holds it to a creep)
+    var goal: V3?                      // a citadel's crawler patrol (CapitalBases.swift): drive here when nothing is in sight
     var troopCD: Float = 12            // seconds until the next troop drop
     var troops: [Mob] = []             // soldiers it has deployed (alive ones count toward its limit)
     var ramp = V3(0, 0, 0)             // crawler: the rear ramp's foot (ship space)
@@ -628,7 +629,7 @@ extension Mob {
 extension ShipManager {
     // Starts building a capital ship on a worker thread (sync: here and now, for the harness). It appears with its
     // turrets when finished (capitalTick picks it up).
-    func spawnCapital(_ kind: String, home: IVec3, yaw: Float, region: String?, sync: Bool = false) {
+    func spawnCapital(_ kind: String, home: IVec3, yaw: Float, region: String?, sync: Bool = false, faction: Faction? = nil) {
         if let r = region { capitalPending.insert(r) }
         let ids = (0..<24).map { _ in newId() }
         let gen = world.gen
@@ -636,8 +637,9 @@ extension ShipManager {
             let frigate = kind != "crawler"
             let cap = kind == "capfrigate"
             let hb = cap ? Capital.capitalFrigate() : (frigate ? Capital.frigate() : Capital.crawler())
-            let ships = Capital.makeShips(hb, ids: ids, name: cap ? "Capital Frigate" : (frigate ? "Stormwarden Frigate" : "Ironback Crawler"), role: kind,
-                                          faction: cap ? .steelhold : (frigate ? .stormwarden : .ironback))
+            let own: Faction = faction ?? (cap ? .steelhold : (frigate ? .stormwarden : .ironback))
+            let name = cap ? "Capital Frigate" : (frigate ? "Stormwarden Frigate" : (own == .steelhold ? "Capital Crawler" : "Ironback Crawler"))
+            let ships = Capital.makeShips(hb, ids: ids, name: name, role: kind, faction: own)
             let s = ships[0]
             let st = CapitalState()
             st.region = region
@@ -897,7 +899,7 @@ extension ShipManager {
     }
 
     private func targetValid(_ t: CapTarget, _ g: Game) -> Bool {
-        if t.player { return g.alive && g.difficulty > 0 }
+        if t.player { return g.alive && g.survival && g.difficulty > 0 }
         if let s = t.ship { return !s.wrecked && list.contains { $0 === s } }
         if let m = t.mob { return m.health > 0 }
         return false
@@ -909,7 +911,7 @@ extension ShipManager {
         else if let m = t.mob { t.point = m.pos + V3(0, m.height * 0.5, 0); t.vel = m.vel }
     }
 
-    // The player (unless aboard or on Peaceful) or the nearest enemy-faction target, within sight; the current one is
+    // The player (in survival, unless aboard or on Peaceful) or the nearest enemy-faction target, within sight; the current one is
     // kept unless something is much closer.
     private func pickTarget(_ s: Ship, _ st: CapitalState, _ g: Game) -> CapTarget? {
         let c = s.pos
@@ -926,7 +928,8 @@ extension ShipManager {
         // its whole leash. Roaming encounter frigates hunt as before.
         let stationed = s.role == "capfrigate" && (st.region?.hasPrefix("citadel") ?? false)
         let guardsPlayer: Bool = !stationed || st.engaged || s.home.map { simd_length(V2(g.player.pos.x - $0.x, g.player.pos.z - $0.z)) < 96 } ?? true
-        if g.alive && g.difficulty > 0 && !onIt && leashed(g.player.pos) && guardsPlayer {
+        // A survival player only, like vessel guns (gunsEngage) and soldiers (canTarget).
+        if g.alive && g.survival && g.difficulty > 0 && !onIt && leashed(g.player.pos) && guardsPlayer {
             let d = boundsDistance(s, g.player.pos)
             if d < bd { bd = d; best = CapTarget(point: g.player.pos + V3(0, 1, 0), vel: g.player.vel, ship: nil, mob: nil, player: true) }
         }
@@ -1042,6 +1045,12 @@ extension ShipManager {
             let d = max(1, simd_length(to))
             want = to / d
             speed = d > 100 ? 6 : (st.mainGunCD <= 2 ? 1 : 0)
+        } else if let goal = st.goal {
+            // Patrol: drive to the goal and wait there.
+            let to = V2(goal.x - s.pos.x, goal.z - s.pos.z)
+            let d = max(1, simd_length(to))
+            want = d > 12 ? to / d : fh
+            speed = d > 12 ? min(5, d * 0.15 + 1) : 0
         } else {
             let toHome = V2(home.x - s.pos.x, home.z - s.pos.z)
             let dist = max(1, simd_length(toHome))
@@ -1393,6 +1402,49 @@ extension ShipManager {
         return true
     }
 
+    // A dropship of `faction` flying in from `from` (no mothership) to land troops at `to`: the citadels' call for
+    // reinforcements (CapitalBases.swift). Same flight as a frigate's dropship from the transit phase on.
+    // The hull is built on a worker thread (about 20 ms on the main thread) and joins the world on a later frame.
+    @discardableResult
+    func callDropship(faction: Faction, from at: V3, to p: V3, game g: Game, sync: Bool = false) -> Bool {
+        let ids = (0..<2).map { _ in newId() }
+        let work = { () -> ([Ship], CapitalState) in
+            let hb = Capital.dropship()
+            let name = faction == .steelhold ? "Capital Dropship" : "Stormwarden Dropship"
+            let ships = Capital.makeShips(hb, ids: ids, name: name, role: "dropship", faction: faction)
+            let d = ships[0]
+            d.pos = at
+            let yaw = atan2f(-(p.x - at.x), -(p.z - at.z))
+            d.rot = simd_quatf(angle: yaw, axis: V3(0, 1, 0))
+            d.prevPos = d.pos; d.prevRot = d.rot
+            d.home = d.pos
+            d.initialBlocks = d.blockCount
+            d.updateBounds()
+            for t in ships.dropFirst() { t.followParent(0); t.prevPos = t.pos; t.prevRot = t.rot }
+            let ds = CapitalState()
+            ds.mainGunCD = .greatestFiniteMagnitude
+            ds.missileCD = .greatestFiniteMagnitude
+            ds.sight = 140
+            ds.dropPoint = p
+            ds.launchDir = simd_normalize(V3(p.x - at.x, 0, p.z - at.z) + V3(1e-4, 0, 0))
+            ds.troopsLeft = 4
+            ds.phase = 1                                              // already airborne: straight to the transit
+            ds.ramp = V3(Float(hb.ox) + 0.5, 2, 18.5)
+            ds.groundOffset = d.com.y - d.localMin.y
+            return (ships, ds)
+        }
+        g.sfx(.engineStart, 1, at: at)
+        if sync { installCapital(work()); return true }
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let built = work()
+            guard let self else { return }
+            self.capitalLock.lock()
+            self.capitalReady.append(built)
+            self.capitalLock.unlock()
+        }
+        return true
+    }
+
     // Dropship flight: out of the hangar, across to the drop point, down to a hover, the ramp troops out one by one,
     // then it circles the fight with its autocannon and finally climbs away. Shot to pieces it falls and blows up.
     private func dropshipTick(_ s: Ship, _ st: CapitalState, _ dt: Float, _ g: Game) {
@@ -1451,14 +1503,15 @@ extension ShipManager {
                 let foot = s.toWorld(st.ramp)
                 let ix = Int(floor(foot.x)), iz = Int(floor(foot.z))
                 if world.isLoaded(ix, iz) {
-                    let ranks: [MobKind] = [.soldierTrooper, .soldierRecruit, .soldierTrooper, .soldierIronclad]
+                    let ranks: [MobKind] = s.faction == Faction.steelhold.rawValue ? [.soldierRecruit, .soldierOfficer, .soldierTrooper, .soldierRecruit]
+                        : [.soldierTrooper, .soldierRecruit, .soldierTrooper, .soldierIronclad]
                     let m = Mob(ranks[st.troopsLeft % ranks.count], at: V3(foot.x, Float(world.topY(ix, iz) + 1), foot.z))
                     m.faction = s.faction
                     m.aggro = true
                     if m.kind == .soldierIronclad { m.variant = Guns.arc }
                     g.mobs.mobs.append(m)
                     st.troops.append(m)
-                    if simd_length(m.pos - g.player.pos) < 120 && st.troopsLeft == 4 { g.onToast?("A Stormwarden dropship is landing troops!") }
+                    if simd_length(m.pos - g.player.pos) < 120 && st.troopsLeft == 4 { g.onToast?("A \(s.name) is landing troops!") }
                 }
                 st.troopsLeft -= 1
             }

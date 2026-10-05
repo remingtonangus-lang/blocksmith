@@ -77,6 +77,7 @@ extension ShipManager {
                     // Naval guns (fast, heavy shells) boom louder and further.
                     g.sfx(.shipCannon, t.gunPower > 3 ? 1.6 : 1, at: muzzle)
                     g.particles.smoke(at: muzzle)
+                    g.baseNoise(at: muzzle, kind: .cannon, hostile: s.factionValue != .steelhold)   // the Capital's own guns don't alarm it
                 }
             }
             t.reload = t.reloadTime
@@ -108,7 +109,7 @@ extension ShipManager {
         if shells.isEmpty { return }
         var reader = ShipBlockReader(world)
         var keep: [Shell] = []
-        var blasts: [(V3, Float)] = []
+        var blasts: [(V3, Float, Int)] = []
         for sh in shells {
             sh.age += dt
             let start = sh.pos
@@ -148,13 +149,18 @@ extension ShipManager {
                 }
             }
             if near && hit == nil { hit = start }
-            if let p = hit { blasts.append((p, sh.power)); continue }
+            if let p = hit { blasts.append((p, sh.power, sh.owner)); continue }
             sh.pos = end
             if sh.age < sh.life && sh.pos.y > -64 { keep.append(sh) }
         }
         shells = keep
-        for (p, power) in blasts {
-            if let g = game { Explosion.explode(at: p, power: power, game: g) } else { blast(at: p, power: power, game: nil) }
+        for (p, power, owner) in blasts {
+            if let g = game {
+                // The Capital's own guns don't alarm its citadels (CapitalBases.swift).
+                g.bases.quiet = list.first { $0.id == owner }?.factionValue == .steelhold
+                Explosion.explode(at: p, power: power, game: g)
+                g.bases.quiet = false
+            } else { blast(at: p, power: power, game: nil) }
         }
     }
 

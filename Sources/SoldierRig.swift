@@ -354,6 +354,11 @@ enum SoldierRig {
                 } else if pistol {
                     stow()
                     p.handL = p.t(V3(-2.4, 13.4, -5.2)); p.handR = p.t(V3(2.4, 13.4, -5.2))
+                } else if aiming {
+                    // Door gunner: seated legs, the upper body shouldering the weapon as when standing.
+                    p.lean = 0.04
+                    p.headPitch = aimPitch * 0.85 + 0.12
+                    shoulder(pitch: aimPitch, low: false)
                 } else {
                     p.gunPitch = .pi / 2; p.gunYaw = 0.3
                     p.gunAt = gripFor(gm, anchor: gm.butt, at: V3(0, 0.6, -4.6), p)
@@ -451,7 +456,7 @@ enum SoldierRig {
         }
 
         // 5. Alerted, not aiming: low ready, jogging.
-        if !parade && m.aggro {
+        if !parade && (m.aggro || b.ready) {
             p.lean = moving ? 0.18 : 0.08
             shoulder(pitch: 0, low: true)
             legs(0.62, knee: 0.95)

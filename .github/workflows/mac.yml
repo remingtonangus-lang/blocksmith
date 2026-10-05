@@ -100,9 +100,9 @@ jobs:
           k=0
           for n in $LIST; do
             pat=$(printf '%s' "$n" | sed 's/[^a-zA-Z0-9_*]//g; s/\*/[a-zA-Z0-9_]*/g')
-            { grep -E "snaps/${pat}\.png" snap.sh || echo "fastshot: no shot matches $n" >&2; } | while IFS= read -r L; do
+            { grep -E "snaps/${pat}\.(png|md)" snap.sh || echo "fastshot: no shot matches $n" >&2; } | while IFS= read -r L; do
               echo "fastshot: $L" | tee -a snap.log
-              (eval "BLOCKSMITH_TEXRES=32 $L" < /dev/null) 2>&1 | tail -12 | tee -a snap.log || true
+              (eval "BLOCKSMITH_TEXRES=32 $L" < /dev/null) 2>&1 | tee -a fastshots.log | tail -30 | tee -a snap.log || true
             done
             k=$((k + 1)); [ "$k" -lt 16 ] || break
           done
@@ -133,7 +133,7 @@ jobs:
           FOCUS_OUTCOME: ${{ steps.focus.outcome }}
         run: |
           PUB="$RUNNER_TEMP/pub"; rm -rf "$PUB"; mkdir -p "$PUB"
-          cp snaps/*.png snaps/*.md build.log typecheck.log snap.log focus.log "$PUB/" 2>/dev/null || true
+          cp snaps/*.png snaps/*.md build.log typecheck.log snap.log focus.log fastshots.log "$PUB/" 2>/dev/null || true
           cd "$PUB"
           {
             echo "# Blocksmith fast lane"

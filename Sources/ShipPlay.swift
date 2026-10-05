@@ -194,6 +194,7 @@ extension Game {
         }
         s.steer = c.steer
         s.climb = c.climb
+        if let fm = s.flight { fm.playerInput(self, s, mi, dt) }          // helicopter controls (FlightModel.swift)
         // Turrets follow the view; barrels rise with it.
         let elev = max(-0.2, min(0.6, player.pitch + 0.05))
         s.gunPitch = elev

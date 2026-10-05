@@ -235,7 +235,11 @@ final class Armory {
             for m in g.mobs.mobs where simd_length(m.pos - at) < s.power * 2 + 1 { m.killedByPlayer = true }
         }
         let shooter = s.shooter.flatMap { id in g.mobs.mobs.first { ObjectIdentifier($0) == id } }
+        // The Capital's own shells and grenades don't alarm its citadels (CapitalBases.swift).
+        let own = shooter.map { $0.kind.steelhold && $0.factionValue == .steelhold } ?? s.by.hasPrefix("Capital")
+        g.bases.quiet = own && !s.fromPlayer
         Explosion.explode(at: at, power: s.power, game: g, fire: false, except: shooter, breakBlocks: (s.fromPlayer && s.kind == .rocket) || s.breaks)
+        g.bases.quiet = false
     }
 
     // Hitscan energy beam (arc lance): damages and ignites the first thing it meets.
@@ -447,6 +451,7 @@ extension Game {
         a.sinceShot = 0
         a.shotsFired += 1
         sfx(.gun(gs.sound), 1)
+        baseNoise(at: player.pos, kind: .gunshot)                 // citadels within earshot send a patrol (CapitalBases.swift)
         addFlash(at: muzzle + look * 0.4, color: gs.shot == .beam ? V3(1.2, 2.6, 3.2) : V3(4, 3, 1.6), radius: 6, life: 0.06)   // muzzle light (Fancy)
         // Gunfire carries: Steelhold soldiers within 32 blocks come to investigate.
         if survival && clock - a.lastNoise > 0.5 {
