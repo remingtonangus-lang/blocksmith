@@ -242,3 +242,13 @@ aboard, teleport option, snap-angle option, seated mode, less camera motion on s
 - 2026-10-04: groundwork (shims, seams, headless check), Vulkan renderer verified offscreen, OpenXR layer verified up
   to a focused session on Monado, app/controls/audio/Android entry, CI pipeline. `.claude/ALLOW_STOP` removed on this
   branch (standing order: never stop).
+
+## TODO (queued 2026-10-05, from PENDING-REQUESTS.md; not implemented)
+- Quest: lying-down / reclined mode. Add a recenter that resets world, horizon, UI panels and HUD to the current gaze
+  direction including pitch (not just yaw/height). Easy toggle (controller button + menu option), remembered between
+  launches. Extend the existing comfort/seated options (v48).
+- Blocksmith (Mac + Quest) BUG: can't place blocks quickly in a row. Suspect input read as a fly attempt (double-tap
+  jump) or a rate limiter. Held or rapid placement should be smooth, ~4 ticks. Reproduce with a controller test, fix.
+- Factions (decided): the Capital is separate from Steelhold, not a replacement; Crawlers are their own faction; all
+  three are hostile to each other on contact.
+- 2026-10-05: playtest merged into quest-port (65 commits, no conflicts); new APK via quest CI to quest-dist.
