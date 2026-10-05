@@ -343,6 +343,8 @@ final class InventoryMenu: Menu, HasRecipeBook {
             let t = slots.filter { if case .armor(let s) = $0.kind { return s == a && $0.stack.isEmpty } else { return false } }
             if !t.isEmpty { return t }
         }
+        // A shield goes to an empty off hand (reference).
+        if from.isPlayerInv, Items.key(from.stack.item) == "shield", slots.count > 4, slots[4].stack.isEmpty { return [slots[4]] }
         if from.isPlayerInv {
             return from.isHotbar ? slots.filter { $0.isPlayerInv && !$0.isHotbar } : slots.filter { $0.isHotbar }
         }
