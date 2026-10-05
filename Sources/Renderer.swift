@@ -96,6 +96,11 @@ final class Renderer: NSObject, MTKViewDelegate {
     private var frame = 0
     // Fancy eye adaptation: current exposure from the surroundings' brightness. Kept per split-screen seat (one view
     // in a cave and one in daylight each adapt on their own; a shared value gave player 2 player 1's exposure).
+    // Far landscape ring (HorizonRing.swift): per-snapshot cell normals / colours and the per-frame projected grid.
+    var horizonKey = HorizonKey()
+    var horizonNrm: [V3] = []
+    var horizonBase: [V3] = []
+    var horizonProj: [V4] = []
     private var eyeAdapts = [Float](repeating: 1, count: 4)
     private var eyeAdaptTs = [Double](repeating: 0, count: 4)
     private var seatIx: Int { game.coop.active ? min(3, max(0, game.coop.current)) : 0 }
