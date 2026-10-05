@@ -506,7 +506,9 @@ func skin() -> Dictionary:
 		model_vis.set_locomotion("carcass_pose", 1.0)
 		if model_vis.body_mat:
 			model_vis.body_mat.set_shader_parameter("skinned", 1.0)
-	else:
-		visual.scale = Vector3(1, 0.6, 1)
+	else:   # stand-in: flatten the meshes only (hit-zone areas under the visual must stay uniformly scaled for Jolt)
+		for m in visual.get_children():
+			if m is MeshInstance3D:
+				m.scale = Vector3(m.scale.x, m.scale.y * 0.6, m.scale.z)
 	Game.log_event("skinned", {"species": species, "quality": q})
 	return {"item": item, "quality": q, "value": float(spec.pelt) * [0.0, 0.4, 0.75, 1.0][q]}
