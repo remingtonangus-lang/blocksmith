@@ -275,6 +275,13 @@ the reference: blast resistance table (stone 6, planks 3, end stone 9, obsidian 
 hoe speeds, full-draw bow crits, Mining Fatigue III/IV, Haste before the instant-break test, Fortune on lapis/copper,
 zombie rare drops (player kills, Looting), baby zombie loot, mushroom blocks, TNT drops all, piglin / illager / hoglin
 speeds.
+Round 2 (three read-only subagent audits: items/blocks, combat/survival, spawning/AI, ~45 fixes): block drops (ember ores,
+bookshelves, sea lanterns, stained glass, campfires...), fuel table, stack sizes, recipes (lodestone, crafter, packed
+mud...), tool wear, leaf decay radius 6, burning / freezing through armour, crit rules, knockback, mob hurt i-frames
+(melee and arrows), fall threshold and landing blocks (hay, beds, slime bounce), swimming hunger, crossbow crits,
+spawn cluster cap 4, thunderstorm spawns, 3D despawn, slime chunks per seed, phantoms, scaled caps, spider light,
+Voidwalker stare cone, Hisser line of sight, villager beds, crop growth factor, cactus / bamboo / berry growth,
+two-stage saplings, stair / wall hardness, smelting XP, impaling list. `--fidelitycheck` gates the numbers.
 
 ## Playtest feedback (Remington, 2026-10-02): quality and fidelity over new features
 Bug discovery is fully automated (Remington is not the bug finder). Keep CI green throughout. Queue, in order:
