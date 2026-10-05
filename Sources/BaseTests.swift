@@ -91,7 +91,28 @@ enum BaseTests {
                 let mid = team.isEmpty ? lead : team.reduce(V3(0, 0, 0)) { $0 + $1.pos } / Float(team.count)
                 let dir = simd_normalize(V3(shot.x - lead.x, 0, shot.z - lead.z) + V3(1e-3, 0, 0))
                 let side = V3(-dir.z, 0, dir.x)
-                look(at: mid + V3(0, 1.2, 0), from: mid + side * 9 + dir * 6 + V3(0, 3.5, 0))
+                // A spot with a clear line to the patrol: either side, rising (run 634's camera stood in a tree crown
+                // beside the road and framed only leaves).
+                let target = mid + V3(0, 1.2, 0)
+                func clear(_ from: V3) -> Bool {
+                    let d = target - from
+                    let n = Int(simd_length(d) * 2)
+                    for i in 0...n {
+                        let q = from + d * (Float(i) / Float(max(1, n)))
+                        if simd_length(q - target) < 1.5 { break }
+                        if Blocks.collide[Int(g.world.block(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z))))] { return false }
+                    }
+                    return true
+                }
+                var from = mid + side * 9 + dir * 6 + V3(0, 3.5, 0)
+                search: for up in stride(from: Float(3.5), through: 15.5, by: 3) {
+                    for sd in [Float(1), -1] {
+                        let c0: V3 = mid + side * (9 * sd)
+                        let c: V3 = c0 + dir * 6 + V3(0, up, 0)
+                        if clear(c + V3(0, 1.62, 0)) { from = c; break search }
+                    }
+                }
+                look(at: target, from: from)
                 return finish(g, b, t0)
             }
             let reach = sim(150) { (b.patrols[key] ?? []).contains { simd_length(V2($0.pos.x - shot.x, $0.pos.z - shot.z)) < 6 } }
