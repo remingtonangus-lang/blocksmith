@@ -114,6 +114,7 @@ struct CapTarget {
     weak var ship: Ship?
     weak var mob: Mob?
     var player = false
+    var seat = 0                      // split screen: which player (frigates engaged only player 1)
 }
 
 // Dense hull builder (a dictionary blueprint of 200 000 cells was too slow): grid coordinates are x + ox, y, z.
@@ -899,14 +900,18 @@ extension ShipManager {
     }
 
     private func targetValid(_ t: CapTarget, _ g: Game) -> Bool {
-        if t.player { return g.alive && g.survival && g.difficulty > 0 }
+        if t.player {
+            var ok = false
+            g.coop.withSeat(t.seat < max(1, g.coop.seatCount) ? t.seat : 0, g) { ok = g.alive && g.survival && g.difficulty > 0 }
+            return ok
+        }
         if let s = t.ship { return !s.wrecked && list.contains { $0 === s } }
         if let m = t.mob { return m.health > 0 }
         return false
     }
 
     private func refresh(_ t: inout CapTarget, _ g: Game) {
-        if t.player { t.point = g.player.pos + V3(0, 1, 0); t.vel = g.player.vel }
+        if t.player { let p = g.coop.seatPlayer(t.seat, g); t.point = p.pos + V3(0, 1, 0); t.vel = p.vel }
         else if let o = t.ship { t.point = o.pos; t.vel = o.vel }
         else if let m = t.mob { t.point = m.pos + V3(0, m.height * 0.5, 0); t.vel = m.vel }
     }
@@ -917,7 +922,6 @@ extension ShipManager {
         let c = s.pos
         var best: CapTarget?
         var bd = st.sight
-        let onIt = aboard?.root === s || standing(on: g.player.pos)?.root === s
         // The Capital frigate guards its citadel: it only engages within its leash of home (it shelled the
         // mobtests' village 400 blocks from a citadel, run 450).
         let leashed: (V3) -> Bool = { p in
@@ -927,11 +931,16 @@ extension ShipManager {
         // Stationed over a citadel, unprovoked it only turns on a player over the grounds (96 of home); once engaged,
         // its whole leash. Roaming encounter frigates hunt as before.
         let stationed = s.role == "capfrigate" && (st.region?.hasPrefix("citadel") ?? false)
-        let guardsPlayer: Bool = !stationed || st.engaged || s.home.map { simd_length(V2(g.player.pos.x - $0.x, g.player.pos.z - $0.z)) < 96 } ?? true
-        // A survival player only, like vessel guns (gunsEngage) and soldiers (canTarget).
-        if g.alive && g.survival && g.difficulty > 0 && !onIt && leashed(g.player.pos) && guardsPlayer {
-            let d = boundsDistance(s, g.player.pos)
-            if d < bd { bd = d; best = CapTarget(point: g.player.pos + V3(0, 1, 0), vel: g.player.vel, ship: nil, mob: nil, player: true) }
+        // A survival player only, like vessel guns (gunsEngage) and soldiers (canTarget); every player in split screen.
+        for i in 0..<max(1, g.coop.seatCount) {
+            g.coop.withSeat(i, g) {
+                let pp = g.player.pos
+                let onIt = self.aboard?.root === s || self.standing(on: pp)?.root === s
+                let guardsPlayer: Bool = !stationed || st.engaged || s.home.map { simd_length(V2(pp.x - $0.x, pp.z - $0.z)) < 96 } ?? true
+                guard g.alive && g.survival && g.difficulty > 0 && !onIt && leashed(pp) && guardsPlayer else { return }
+                let d = self.boundsDistance(s, pp)
+                if d < bd { bd = d; best = CapTarget(point: pp + V3(0, 1, 0), vel: g.player.vel, ship: nil, mob: nil, player: true, seat: i) }
+            }
         }
         if let foe = nearestFoe(of: s.factionValue, near: c, range: st.sight + simd_length(s.worldMax - s.worldMin) * 0.5, game: g) {
             let d = boundsDistance(s, foe.point)
