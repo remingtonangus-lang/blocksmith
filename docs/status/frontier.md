@@ -136,7 +136,12 @@ runner, Metal) and the Mac monitor.
 - **VR**: OpenXR start on Android, XROrigin rig, controller → intent mapping, snap turn, comfort vignette.
 
 ## In flight (parallel worktree agents; merged here when they report)
-- Settlements: procedural 1899 building kit, interiors with Poly Haven props, doors, navmesh, night lights.
+- Settlements: NPC routines, draw-call and memory cuts (settlements ≈ 680 MB headless), sign renames.
+- Characters: memory/VRAM compression (`--charmem`), quality pass follow-ups.
+- Weapons: VR hands and guns (`--vr_sim`).
+- Writer: greet/antagonize, gossip, newspapers, companion missions.
+- Impostors: baked tree impostors replacing the distant billboards.
+- Wildlife/horses: fur shells, face detail, turn-in-place, rider polish (reins, mount clips), gallop spine flex.
 
 ## Ranked gaps
 Critic round 1 (2026-10-05, 2 blind critics, pack = CI tour a4d48b8 + character/horse look-dev sheets; averaged
@@ -183,3 +188,7 @@ Work order from this round:
 - 2026-10-05: character quality pass (worktree agent): garments/drape/springs, updos, faces + lip-sync, riding and
   weapon-handling clips, tri budgets + LODs.
 - 2026-10-05: wildlife workstream (worktree): quadruped.py + 11 species, animal coat shader, animal.gd model wiring, per-species gait oracle (wildlife_test.tscn, `--bot hunt`), RiderIK (see WILDLIFE.md).
+- 2026-10-05: CI device-lost bisected (3ba9a99): the paravirtual GPU still lost the device with every world feature
+  off and rendered once screen-space subsurface scattering (character skin) was off too. The probe now tries
+  sss / horse / characters first, so evidence renders keep the whole world. Open risk: confirm SSS on a real M1
+  (Metal) with the monitor benchmark; if it hitches there, drop skin SSS on medium/low.
