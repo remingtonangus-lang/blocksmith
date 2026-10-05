@@ -442,6 +442,9 @@ extension Game {
         // Their gun: recoil, bloom and hit marker recover, and the rounds nearest them fly (Armory.update splits them
         // by seat; enemy rounds near player 2 could not hit them and their kick never settled).
         armsTick(f)
+        // Torch smoke, dripping leaves, Emberdeep motes... round their own view (they only appeared round player 1).
+        ambientParticles(f)
+        emberMotes(f)
         if survival { timeSinceRest += f }
         if sleeping > 0 { sleeping += f; timeSinceRest = 0 }
     }

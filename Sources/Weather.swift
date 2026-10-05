@@ -59,21 +59,24 @@ extension Game {
         guard wetWorld else { return }
         // Splashes where rain lands around the player.
         if w.rain > 0.2 {
-            for _ in 0..<Int(w.rain * 6) {
-                let x = Int(floor(player.pos.x)) + Rand.int(in: -8...8), z = Int(floor(player.pos.z)) + Rand.int(in: -8...8)
-                guard let c = world.chunks[ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))] else { continue }
-                let top = Int(c.height[mod(x, CS) + mod(z, CS) * CS])
-                guard precipitation(x, top + 1, z) == 1 else { continue }
-                let p = V3(Float(x) + Rand.float(in: 0...1), Float(top + 1) + 0.02, Float(z) + Rand.float(in: 0...1))
-                particles.add(Particle(pos: p, vel: V3(Rand.float(in: -0.4...0.4), Rand.float(in: 0.8...1.6), Rand.float(in: -0.4...0.4)),
-                                       life: 0.25, maxLife: 0.25, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1, size: 0.04,
-                                       gravity: 10, color: V3(0.75, 0.82, 1), collide: false))
+            for i in 0..<max(1, coop.seatCount) {                 // round every player (split screen)
+                let pp = coop.seatPlayer(i, self).pos
+                for _ in 0..<Int(w.rain * 6) {
+                    let x = Int(floor(pp.x)) + Rand.int(in: -8...8), z = Int(floor(pp.z)) + Rand.int(in: -8...8)
+                    guard let c = world.chunks[ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))] else { continue }
+                    let top = Int(c.height[mod(x, CS) + mod(z, CS) * CS])
+                    guard precipitation(x, top + 1, z) == 1 else { continue }
+                    let p = V3(Float(x) + Rand.float(in: 0...1), Float(top + 1) + 0.02, Float(z) + Rand.float(in: 0...1))
+                    particles.add(Particle(pos: p, vel: V3(Rand.float(in: -0.4...0.4), Rand.float(in: 0.8...1.6), Rand.float(in: -0.4...0.4)),
+                                           life: 0.25, maxLife: 0.25, layer: Int(Tex.id("smoke")), uv0: V2(0, 0), uvSize: 1, size: 0.04,
+                                           gravity: 10, color: V3(0.75, 0.82, 1), collide: false))
+                }
             }
         }
         // Rain sound near exposed columns.
         // Rain extinguishes the player and burning mobs.
         if w.rain > 0.2 {
-            if onFire > 0 && isRainingAt(player.pos) { onFire = 0 }
+            coop.eachSeat(self) { if self.onFire > 0 && self.isRainingAt(self.player.pos) { self.onFire = 0 } }   // each player
             for m in mobs.mobs where m.fire > 0 && isRainingAt(m.pos) { m.fire = 0 }
         }
         // Lightning: roughly every 5-20 s somewhere within 96 blocks during a thunderstorm.
@@ -107,9 +110,11 @@ extension Game {
         if world.block(b.x, b.y, b.z) == AIR && Blocks.opaque[Int(world.block(b.x, b.y - 1, b.z))] && Blocks.flammable[Int(world.block(b.x, b.y - 1, b.z))] == false {
             world.placeFire(b)
         } else if world.block(b.x, b.y, b.z) == AIR { world.placeFire(b) }
-        if survival && d < 3 {
-            damage(5, "was struck by lightning", type: .fire)
-            onFire = max(onFire, 8)
+        // Whichever player stands under it (split screen: player 2 too).
+        coop.eachSeat(self) {
+            guard self.survival && simd_length(at - self.player.pos) < 3 else { return }
+            self.damage(5, "was struck by lightning", type: .fire)
+            self.onFire = max(self.onFire, 8)
         }
         var add: [Mob] = []
         for m in mobs.mobs where simd_length(m.pos - at) < 3 && m.health > 0 {
