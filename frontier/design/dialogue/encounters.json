@@ -1,28 +1,505 @@
 {
-  "note": "Random encounter dialogue. Original writing.",
-  "speakers": {
-    "wagoner": {"name": "Wagoner", "voice": "old_man_a"},
-    "bandit": {"name": "Road Agent", "voice": "rough_male_a"},
-    "deputy": {"name": "Deputy", "voice": "young_male"},
-    "prisoner": {"name": "Prisoner", "voice": "rough_male_b"},
-    "snakebit": {"name": "Prospector", "voice": "old_man_b"},
-    "hunter": {"name": "Meat Hunter", "voice": "gruff_male"},
-    "widow": {"name": "Mourner", "voice": "older_woman"}
+ "note": "Random encounter dialogue (src/ai/encounters.gd): eighteen kinds. Original writing.",
+ "speakers": {
+  "wagoner": {
+   "name": "Wagoner",
+   "voice": "old_man_a"
   },
-  "lines": [
-    {"id": "enc_wagon_01", "speaker": "wagoner", "line": "Wheel's off the axle and my back's not what it was in the war. Don't suppose you'd lend a shoulder?", "emotion": "tired"},
-    {"id": "enc_wagon_02", "speaker": "ruth", "line": "Hold the team steady. On three.", "emotion": "warm"},
-    {"id": "enc_wagon_03", "speaker": "wagoner", "line": "Bless you. Here, take this. Flour's spoiled but the coffee ain't.", "emotion": "warm"},
-    {"id": "enc_robbery_01", "speaker": "bandit", "line": "That's far enough. Purse, pistol and the horse, in that order, and nobody's widow-making today.", "emotion": "angry"},
-    {"id": "enc_robbery_02", "speaker": "ruth", "line": "Already a widow. You'll have to do better than that.", "emotion": "dry"},
-    {"id": "enc_prisoner_01", "speaker": "prisoner", "line": "Ma'am! Ma'am, this boy's taking me to hang for a horse I paid for. Cut me loose and I'll make it worth your while.", "emotion": "afraid"},
-    {"id": "enc_prisoner_02", "speaker": "deputy", "line": "Don't you listen to him. Ride on, ma'am. This is county business.", "emotion": "tense"},
-    {"id": "enc_prisoner_03", "speaker": "ruth", "line": "County business. Then I'll leave it to the county.", "emotion": "neutral"},
-    {"id": "enc_snake_01", "speaker": "snakebit", "line": "Rattler got me through the boot. Leg's going numb. You carry anything for it?", "emotion": "afraid"},
-    {"id": "enc_snake_02", "speaker": "ruth", "line": "Sit down and stop walking on it. This'll taste like a tannery.", "emotion": "warm"},
-    {"id": "enc_snake_03", "speaker": "snakebit", "line": "Owe you my leg and likely the rest of me. There's a creek past the mesa where the color shows. Go look.", "emotion": "warm"},
-    {"id": "enc_hunter_01", "speaker": "hunter", "line": "Venison, fresh this morning. Four bits a quarter. Cheaper than shooting it yourself and twice as quiet.", "emotion": "neutral"},
-    {"id": "enc_grave_01", "speaker": "widow", "line": "He wanted to be buried where he could see the river. Couldn't dig it deep enough. Ground's like iron.", "emotion": "sad"},
-    {"id": "enc_grave_02", "speaker": "ruth", "line": "Give me the shovel. Sit a while.", "emotion": "warm"}
-  ]
+  "bandit": {
+   "name": "Road Agent",
+   "voice": "rough_male_a"
+  },
+  "deputy": {
+   "name": "Deputy",
+   "voice": "young_male"
+  },
+  "prisoner": {
+   "name": "Prisoner",
+   "voice": "rough_male_b"
+  },
+  "snakebit": {
+   "name": "Prospector",
+   "voice": "old_man_b"
+  },
+  "hunter": {
+   "name": "Meat Hunter",
+   "voice": "gruff_male"
+  },
+  "widow": {
+   "name": "Mourner",
+   "voice": "older_woman"
+  },
+  "agent": {
+   "name": "Road Agent",
+   "voice": "man_rough"
+  },
+  "condemned": {
+   "name": "Condemned Man",
+   "voice": "man_young"
+  },
+  "captain": {
+   "name": "Vigilance Captain",
+   "voice": "man_rough"
+  },
+  "farmwife": {
+   "name": "Farm Wife",
+   "voice": "woman_town"
+  },
+  "lostgirl": {
+   "name": "Lost Girl",
+   "voice": "boy"
+  },
+  "mother": {
+   "name": "Homesteader's Wife",
+   "voice": "woman_old"
+  },
+  "tolliver": {
+   "name": "Lew Tolliver",
+   "voice": "man_young"
+  },
+  "seller": {
+   "name": "Elixir Seller",
+   "voice": "man_town"
+  },
+  "coyle": {
+   "name": "Abner Coyle",
+   "voice": "man_rough"
+  },
+  "traveller": {
+   "name": "Stranded Traveller",
+   "voice": "man_town"
+  },
+  "drunk": {
+   "name": "Drunk Drover",
+   "voice": "man_old"
+  },
+  "homesteader": {
+   "name": "Homesteader",
+   "voice": "man_old"
+  },
+  "preacher": {
+   "name": "Circuit Preacher",
+   "voice": "man_town"
+  },
+  "driver": {
+   "name": "Stage Driver",
+   "voice": "man_old"
+  }
+ },
+ "lines": [
+  {
+   "id": "enc_wagon_01",
+   "speaker": "wagoner",
+   "line": "Wheel's off the axle and my back's not what it was in the war. Don't suppose you'd lend a shoulder?",
+   "emotion": "tired"
+  },
+  {
+   "id": "enc_wagon_02",
+   "speaker": "ruth",
+   "line": "Hold the team steady. On three.",
+   "emotion": "warm"
+  },
+  {
+   "id": "enc_wagon_03",
+   "speaker": "wagoner",
+   "line": "Bless you. Here, take this. Flour's spoiled but the coffee ain't.",
+   "emotion": "warm"
+  },
+  {
+   "id": "enc_robbery_01",
+   "speaker": "bandit",
+   "line": "That's far enough. Purse, pistol and the horse, in that order, and nobody's widow-making today.",
+   "emotion": "angry"
+  },
+  {
+   "id": "enc_robbery_02",
+   "speaker": "ruth",
+   "line": "Already a widow. You'll have to do better than that.",
+   "emotion": "dry"
+  },
+  {
+   "id": "enc_prisoner_01",
+   "speaker": "prisoner",
+   "line": "Ma'am! Ma'am, this boy's taking me to hang for a horse I paid for. Cut me loose and I'll make it worth your while.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "enc_prisoner_02",
+   "speaker": "deputy",
+   "line": "Don't you listen to him. Ride on, ma'am. This is county business.",
+   "emotion": "tense"
+  },
+  {
+   "id": "enc_prisoner_03",
+   "speaker": "ruth",
+   "line": "County business. Then I'll leave it to the county.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "enc_snake_01",
+   "speaker": "snakebit",
+   "line": "Rattler got me through the boot. Leg's going numb. You carry anything for it?",
+   "emotion": "afraid"
+  },
+  {
+   "id": "enc_snake_02",
+   "speaker": "ruth",
+   "line": "Sit down and stop walking on it. This'll taste like a tannery.",
+   "emotion": "warm"
+  },
+  {
+   "id": "enc_snake_03",
+   "speaker": "snakebit",
+   "line": "Owe you my leg and likely the rest of me. There's a creek past the mesa where the color shows. Go look.",
+   "emotion": "warm"
+  },
+  {
+   "id": "enc_hunter_01",
+   "speaker": "hunter",
+   "line": "Venison, fresh this morning. Four bits a quarter. Cheaper than shooting it yourself and twice as quiet.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "enc_grave_01",
+   "speaker": "widow",
+   "line": "He wanted to be buried where he could see the river. Couldn't dig it deep enough. Ground's like iron.",
+   "emotion": "sad"
+  },
+  {
+   "id": "enc_grave_02",
+   "speaker": "ruth",
+   "line": "Give me the shovel. Sit a while.",
+   "emotion": "warm"
+  },
+  {
+   "id": "enc_ambush_01",
+   "speaker": "agent",
+   "line": "Now, boys! Before she reaches the wash!",
+   "emotion": "angry"
+  },
+  {
+   "id": "enc_ambush_02",
+   "speaker": "ruth",
+   "line": "Rocks on the left. Three of them, and none of them can count to cover.",
+   "emotion": "tense"
+  },
+  {
+   "id": "enc_ambush_03",
+   "speaker": "ruth",
+   "line": "They waited all morning in the sun for whatever's in my saddlebags. It's mostly coffee.",
+   "emotion": "tired"
+  },
+  {
+   "id": "enc_hang_01",
+   "speaker": "condemned",
+   "line": "I never touched their stock! Ma'am, I bought that steer at Greer's with a bill of sale, and they burned it!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "enc_hang_02",
+   "speaker": "captain",
+   "line": "Keep riding, ma'am. This is the Vigilance Committee's business, and we've a rope's worth of it left.",
+   "emotion": "tense"
+  },
+  {
+   "id": "enc_hang_03",
+   "speaker": "ruth",
+   "line": "Cut him down. If he stole, there's a judge in Bitter Spring who'd like the work.",
+   "emotion": "angry"
+  },
+  {
+   "id": "enc_hang_04",
+   "speaker": "captain",
+   "line": "You're Caddell. I've heard what you did for the Halvorsens. All right. He goes to the sheriff, and if he's lying, he hangs anyhow.",
+   "emotion": "tired"
+  },
+  {
+   "id": "enc_hang_05",
+   "speaker": "captain",
+   "line": "I don't know you, and I don't care to. Boys, she wants to share his limb.",
+   "emotion": "angry"
+  },
+  {
+   "id": "enc_hang_06",
+   "speaker": "condemned",
+   "line": "I'll never forget it, ma'am. Not a day. I'm going to name a child after you, and I'm not even married.",
+   "emotion": "warm"
+  },
+  {
+   "id": "enc_hang_07",
+   "speaker": "ruth",
+   "line": "Not my rope. Not my business. I'll tell myself that till Sunday, I expect.",
+   "emotion": "dry"
+  },
+  {
+   "id": "enc_runaway_01",
+   "speaker": "farmwife",
+   "line": "Help! The team's bolted! Somebody stop them!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "enc_runaway_02",
+   "speaker": "ruth",
+   "line": "Whoa, whoa now. Easy. Easy. They're only frightened, ma'am. So are you. So am I.",
+   "emotion": "tense"
+  },
+  {
+   "id": "enc_runaway_03",
+   "speaker": "farmwife",
+   "line": "A jackrabbit. A jackrabbit, and eleven hundred pounds of horse went out of its mind. My husband will never believe you.",
+   "emotion": "warm"
+  },
+  {
+   "id": "enc_runaway_04",
+   "speaker": "farmwife",
+   "line": "My arm. I think it's broke. Don't mind me. The flour, though. Thirty pounds of flour all over the county.",
+   "emotion": "sad"
+  },
+  {
+   "id": "enc_child_01",
+   "speaker": "lostgirl",
+   "line": "I followed a jackrabbit and then the house went away. Mama says never follow a jackrabbit. I forgot.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "enc_child_02",
+   "speaker": "ruth",
+   "line": "Houses don't go away. They just hide behind hills. Take my hand and we'll find yours.",
+   "emotion": "warm"
+  },
+  {
+   "id": "enc_child_03",
+   "speaker": "lostgirl",
+   "line": "Do you have a little girl? You've got a sad face. Mama has a sad face too when Papa's late.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "enc_child_04",
+   "speaker": "mother",
+   "line": "Lord, Lord. I've been calling three hours. Here, take this. It isn't much. Please, take it.",
+   "emotion": "warm"
+  },
+  {
+   "id": "enc_duel_01",
+   "speaker": "tolliver",
+   "line": "You're Ruth Caddell. They say you're quick. I say they never saw me. Twenty paces, or are the stories made up?",
+   "emotion": "tense"
+  },
+  {
+   "id": "enc_duel_02",
+   "speaker": "tolliver",
+   "line": "Ruth Caddell. Every saloon from here to Coldwater says you're a killer. Let's see if you can do it with somebody looking at you.",
+   "emotion": "angry"
+  },
+  {
+   "id": "enc_duel_03",
+   "speaker": "ruth",
+   "line": "Twenty paces, then. When you're ready, son. I won't go first.",
+   "emotion": "tired"
+  },
+  {
+   "id": "enc_duel_04",
+   "speaker": "ruth",
+   "line": "Nineteen, maybe. Somebody gave him that gun belt for his birthday.",
+   "emotion": "sad"
+  },
+  {
+   "id": "enc_duel_05",
+   "speaker": "ruth",
+   "line": "Go home, son. The stories are true, and none of them end the way you'd want. Sell that belt and buy your mother a stove.",
+   "emotion": "warm"
+  },
+  {
+   "id": "enc_duel_06",
+   "speaker": "tolliver",
+   "line": "I hate you for this. I expect I'll be glad of it later. Don't tell anybody I walked away.",
+   "emotion": "sad"
+  },
+  {
+   "id": "enc_oil_01",
+   "speaker": "seller",
+   "line": "Professor Whitlow's Mountain Balsam! Cures the rheumatism, the catarrh, the weak blood and the poor attitude. Two dollars, and it's cheap at four.",
+   "emotion": "amused"
+  },
+  {
+   "id": "enc_oil_02",
+   "speaker": "seller",
+   "line": "A woman of judgment! Two spoons at bedtime. Three if the bedtime is lonesome.",
+   "emotion": "warm"
+  },
+  {
+   "id": "enc_oil_03",
+   "speaker": "ruth",
+   "line": "It smells like grain spirit and pepper. Well. That'll cure somebody of something.",
+   "emotion": "dry"
+  },
+  {
+   "id": "enc_oil_04",
+   "speaker": "ruth",
+   "line": "Folks, it's rye whiskey and red pepper in a pretty bottle. You can get both at Greer's for a quarter.",
+   "emotion": "dry"
+  },
+  {
+   "id": "enc_oil_05",
+   "speaker": "seller",
+   "line": "Madam, you have ruined an honest swindle. I hope your rheumatism is particularly rheumatic.",
+   "emotion": "angry"
+  },
+  {
+   "id": "enc_bh_01",
+   "speaker": "coyle",
+   "line": "Ruth Caddell. Your face is on a poster, and the poster is on a fence, and the fence is worth money to me. Let's make this easy.",
+   "emotion": "tense"
+  },
+  {
+   "id": "enc_bh_02",
+   "speaker": "ruth",
+   "line": "Here's the county's money. Carry it in and tell them it's settled. You'll get your cut of nothing.",
+   "emotion": "dry"
+  },
+  {
+   "id": "enc_bh_03",
+   "speaker": "coyle",
+   "line": "A fair trade. I don't like shooting women, and I like being shot by them even less.",
+   "emotion": "amused"
+  },
+  {
+   "id": "enc_bh_04",
+   "speaker": "ruth",
+   "line": "That poster's paper Pell paid for. You're riding for the syndicate and you don't even get a badge.",
+   "emotion": "tense"
+  },
+  {
+   "id": "enc_bh_05",
+   "speaker": "coyle",
+   "line": "Paper's paper. Pays the same whoever printed it.",
+   "emotion": "tired"
+  },
+  {
+   "id": "enc_bh_06",
+   "speaker": "ruth",
+   "line": "If you want it, come and collect it. I'll stand right here.",
+   "emotion": "angry"
+  },
+  {
+   "id": "enc_strand_01",
+   "speaker": "traveller",
+   "line": "Mare threw a shoe and then threw me. I've walked twelve miles on a dry canteen. You wouldn't have a swallow?",
+   "emotion": "tired"
+  },
+  {
+   "id": "enc_strand_02",
+   "speaker": "traveller",
+   "line": "That's kind. Truly. Now the purse, slow, and don't make me sorry I asked nicely the first time.",
+   "emotion": "amused"
+  },
+  {
+   "id": "enc_strand_03",
+   "speaker": "ruth",
+   "line": "Next time somebody asks me for water, I'll pour it on the ground in front of him and watch.",
+   "emotion": "dry"
+  },
+  {
+   "id": "enc_strand_04",
+   "speaker": "ruth",
+   "line": "He should have asked for the horse. I might have given him the horse.",
+   "emotion": "tired"
+  },
+  {
+   "id": "enc_drunk_01",
+   "speaker": "drunk",
+   "line": "Lady! Lady! Have a pull and shoot a bottle with me! I've been drunk since Tuesday, and I'm winning!",
+   "emotion": "amused"
+  },
+  {
+   "id": "enc_drunk_02",
+   "speaker": "ruth",
+   "line": "One pull. Then you sleep it off under that tree, and the bottles live to fight another day.",
+   "emotion": "amused"
+  },
+  {
+   "id": "enc_drunk_03",
+   "speaker": "drunk",
+   "line": "You're a Christian woman. A Christian woman with a terrible thirst. I like you.",
+   "emotion": "warm"
+  },
+  {
+   "id": "enc_drunk_04",
+   "speaker": "ruth",
+   "line": "Hand me the pistol, grip first. You can have it back in Bitter Spring when you can spell it.",
+   "emotion": "tense"
+  },
+  {
+   "id": "enc_drunk_05",
+   "speaker": "drunk",
+   "line": "My granddaddy carried that at Shiloh. He never hit anything either.",
+   "emotion": "sad"
+  },
+  {
+   "id": "enc_fire_01",
+   "speaker": "homesteader",
+   "line": "The barn! The barn's caught! There's buckets by the trough, for the love of God, take one!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "enc_fire_02",
+   "speaker": "homesteader",
+   "line": "Black on one side and standing. Lord. I'd have lost the hay and the mules. You'll eat with us. Don't argue.",
+   "emotion": "warm"
+  },
+  {
+   "id": "enc_fire_03",
+   "speaker": "homesteader",
+   "line": "It's gone. The house stood, though. A barn's only lumber, my wife says. My wife is a better Christian than I am.",
+   "emotion": "sad"
+  },
+  {
+   "id": "enc_preach_01",
+   "speaker": "preacher",
+   "line": "Sister, I'm raising a church at Windmill Flats one board at a time. A dollar's two boards and a nail.",
+   "emotion": "warm"
+  },
+  {
+   "id": "enc_preach_02",
+   "speaker": "preacher",
+   "line": "I know your name, sister. I've heard it from pulpits, and not kindly. Even so, the church needs boards, and the Lord takes all kinds of money.",
+   "emotion": "tense"
+  },
+  {
+   "id": "enc_preach_03",
+   "speaker": "preacher",
+   "line": "I'll write your name on a board. On the inside, if you'd rather. The Lord reads both sides.",
+   "emotion": "warm"
+  },
+  {
+   "id": "enc_preach_04",
+   "speaker": "ruth",
+   "line": "Build it with somebody else's boards, Reverend. I'll come to the first funeral.",
+   "emotion": "dry"
+  },
+  {
+   "id": "enc_preach_05",
+   "speaker": "preacher",
+   "line": "That's what they all say. I've never lacked for funerals.",
+   "emotion": "amused"
+  },
+  {
+   "id": "enc_stage_01",
+   "speaker": "agent",
+   "line": "Keep riding, lady. This ain't your coach and it ain't your business.",
+   "emotion": "angry"
+  },
+  {
+   "id": "enc_stage_02",
+   "speaker": "driver",
+   "line": "Twenty years on the box and never been robbed till today, and never been saved neither. The company'll hear of this. Here, from the strongbox.",
+   "emotion": "warm"
+  },
+  {
+   "id": "enc_stage_03",
+   "speaker": "ruth",
+   "line": "Not my coach. I'll be hearing that woman cry all the way to the river.",
+   "emotion": "tired"
+  }
+ ]
 }

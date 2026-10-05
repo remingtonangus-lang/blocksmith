@@ -35,7 +35,7 @@ func run(m: Node) -> void:
 		return
 	var which := str(Game.args.get("bot", "road"))
 	var seconds := Game.arg_f("seconds", 90.0)
-	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "missions", "camp", "systems"] if which == "all" or which == "true" else Array(which.split(","))
+	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "missions", "camp", "encounters", "systems"] if which == "all" or which == "true" else Array(which.split(","))
 	for b in bots:
 		var res: Dictionary
 		if b == "ride" or b == "gaits":
@@ -47,6 +47,8 @@ func run(m: Node) -> void:
 			res = await _run_missions()
 		elif b == "camp":
 			res = await _run_camp()
+		elif b == "encounters":
+			res = await _run_encounters()
 		elif b == "town":
 			res = await _run_town(seconds)
 		elif b == "hunt":
@@ -339,11 +341,20 @@ func _run_missions() -> Dictionary:
 		else:
 			failed.append("%s: %s" % [id, why]))
 	var err0: int = Game.error_logger.take().size()
-	for i in 30:
+	for i in 60:
 		var avail: Array = md.available()
 		if avail.is_empty():
 			break
+		# a side story runs as soon as its chapter opens (it waits at its marker in normal play), so each one plays
+		# in the world state of its chapter; --no_strangers runs the story alone
 		var m: Mission = avail[0]
+		for a in avail:
+			if a.stranger and not Game.args.has("no_strangers"):
+				m = a
+				break
+		if Game.args.has("no_strangers") and m.stranger:
+			md.completed.append(m.id)
+			continue
 		var t0 := Time.get_ticks_msec()
 		await md.start(m)
 		print("  mission %-22s %s in %.1f s" % [m.id, "done" if md.completed.has(m.id) else "FAILED", (Time.get_ticks_msec() - t0) / 1000.0])
@@ -407,6 +418,32 @@ func _run_missions() -> Dictionary:
 			fm, "seen" if forced.has(fm) else "NOT SEEN", resumed, replayed, md.completed.has(fm)])
 		if not (forced.has(fm) and resumed and md.completed.has(fm)):
 			_fail(res, "retry from checkpoint not exercised for %s" % fm)
+	# the journal: a page for every mission played, in the words that match what she did, and the menu opens
+	var jr = load("res://src/missions/journal.gd")
+	var all_ids := []
+	var markers := []
+	for path in MissionDirector.MISSIONS:
+		var mm: Mission = load(path).new()
+		all_ids.append(mm.id)
+		if mm.stranger:
+			markers.append("%s@%s(%d,%d)" % [mm.id, mm.region.replace(" ", "_"), int(mm.start_pos.x), int(mm.start_pos.z)])
+			if mm.start_pos == Vector3.ZERO or mm.region == "" or Game.world.is_water(mm.start_pos.x, mm.start_pos.z):
+				_fail(res, "stranger %s has no usable marker (start_pos %s, region '%s')" % [mm.id, mm.start_pos, mm.region])
+	print("  stranger markers: %s" % " ".join(markers))
+	var jt: Dictionary = jr.selftest(all_ids)
+	if not jt.ok:
+		_fail(res, "journal entries missing: %s" % ", ".join(jt.missing))
+	var words := 0
+	for id in md.completed:
+		var txt: String = jr.text_for(id, Game.state.flags)
+		words += txt.split(" ", false).size()
+		if txt == "":
+			_fail(res, "journal: no page for %s" % id)
+	if Game.get("menus") != null:
+		Game.menus.open_journal()
+		await get_tree().process_frame
+		Game.menus.close_all()
+	print("  journal: %d pages, %d words" % [md.completed.size(), words])
 	var pk: Dictionary = load("res://src/minigames/poker_engine.gd").selftest()
 	if not pk.ok:
 		_fail(res, "poker self-test: %d failed" % pk.fails)
@@ -418,6 +455,98 @@ func _run_missions() -> Dictionary:
 		_fail(res, "%d errors, first: %s" % [errs.size(), str(errs[0])])
 	md.autopilot = false
 	return res
+
+## Encounters bot: stage every roadside encounter kind under autopilot on the Port Linden road, in three passes —
+## (A) honourable Ruth answering every choice with the first option, (B) an outlaw Ruth answering with the second,
+## (C) the Standing-dependent branches again from the middle (the hanging she has to fight for, the bounty she can't
+## pay). Oracle: each finishes, the scene kinds report an outcome, every line said exists, both branches of every
+## two-way choice are seen, no script errors.
+func _run_encounters() -> Dictionary:
+	var res := {"bot": "encounters", "ok": true, "failures": [], "distance": 0.0, "stuck_events": 0, "fall_events": 0,
+		"frame_spikes": 0, "errors": []}
+	var enc = Game.get("encounters")
+	var md: MissionDirector = Game.missions
+	if enc == null or md == null:
+		_fail(res, "no encounter system")
+		return res
+	var err0: int = Game.error_logger.take().size()
+	md.autopilot = true
+	md.step_timeout = 60.0
+	var st = Game.state
+	var keep := {"flags": st.flags.duplicate(true), "money": st.money, "standing": st.standing, "bounties": st.bounties.duplicate()}
+	var passes := [
+		{"name": "A", "standing": 40.0, "branch": 0, "money": 100.0, "kinds": enc.TYPES},
+		{"name": "B", "standing": -30.0, "branch": 1, "money": 100.0, "kinds": enc.TYPES},
+		{"name": "C", "standing": 0.0, "branch": 0, "money": 0.0, "kinds": ["hanging", "bounty_hunters"]},
+	]
+	var log0 := Game.log_lines.size()
+	var n := 0
+	var seen := {}
+	for ps in passes:
+		var outs := []
+		for kind in ps.kinds:
+			st.standing = float(ps.standing)
+			st.money = float(ps.money)
+			st.bounties = {"bitter_spring": 40.0} if kind == "bounty_hunters" else {}
+			st.wanted = 0
+			# each one a little further down the road, Ruth 45 m short of the scene
+			var f := 0.08 + 0.8 * float(n % 18) / 18.0
+			n += 1
+			var at := Mission.road_point("bitter_spring", "port_linden", f)
+			var from := Mission.road_point("bitter_spring", "port_linden", maxf(f - 0.02, 0.0))
+			Game.terrain.ensure_collision_at(from)
+			md._teleport_player(from)
+			md._choice_queue.clear()
+			for i in 6:
+				md._choice_queue.append(int(ps.branch))
+			var s0: float = st.standing
+			var t0 := Time.get_ticks_msec()
+			await enc.start(kind, at)
+			var out := str(enc.outcome)
+			outs.append("%s:%s(%+.1f)" % [kind, out if out != "" else "-", st.standing - s0])
+			seen["%s:%s" % [kind, out]] = true
+			if TYPES_NEW.has(kind) and out == "":
+				_fail(res, "encounter %s (pass %s) ended without an outcome" % [kind, ps.name])
+			if Time.get_ticks_msec() - t0 > 90000:
+				_fail(res, "encounter %s took %.0f s" % [kind, (Time.get_ticks_msec() - t0) / 1000.0])
+			await get_tree().physics_frame
+		print("  encounters pass %s (standing %+.0f, choices %d): %s" % [ps.name, ps.standing, ps.branch, " ".join(outs)])
+	md._choice_queue.clear()
+	# both sides of every two-way scene
+	for pair in [["hanging:talked_down", "hanging:rode_on"], ["hanging:fought", "hanging:rode_on"], ["runaway:caught", "runaway:overturned"],
+			["duel:shot", "duel:talked"], ["snake_oil:bought", "snake_oil:exposed"], ["bounty_hunters:paid", "bounty_hunters:fought"],
+			["stranded:robbed", "stranded:fought"], ["drunk:drank", "drunk:disarmed"], ["fire:saved", "fire:lost"],
+			["preacher:gave", "preacher:passed"], ["stage:stopped", "stage:rode_on"], ["lost_child:home", "lost_child:home"],
+			["ambush:fought_off", "ambush:fought_off"]]:
+		for k in pair:
+			if not seen.has(k):
+				_fail(res, "encounter branch %s never seen" % k)
+	var said := 0
+	for i in range(log0, Game.log_lines.size()):
+		var ln: String = Game.log_lines[i]
+		var parts := ln.split(" ", false, 2)
+		if parts.size() < 3 or parts[1] != "say":
+			continue
+		said += 1
+		var data = JSON.parse_string(parts[2])
+		if typeof(data) == TYPE_DICTIONARY and not md.dialogue.has(str(data.get("id", ""))):
+			_fail(res, "dialogue line '%s' missing from design/dialogue" % data.get("id", ""))
+	res.lines_said = said
+	res.encounters = n
+	print("  encounters: %d staged, %d lines said, %d distinct outcomes" % [n, said, seen.size()])
+	st.flags = keep.flags
+	st.money = keep.money
+	st.standing = keep.standing
+	st.bounties = keep.bounties
+	md.autopilot = false
+	var errs: Array = Game.error_logger.take().slice(err0)
+	res.errors = errs
+	if errs.size() > 0:
+		_fail(res, "%d errors, first: %s" % [errs.size(), str(errs[0])])
+	return res
+
+const TYPES_NEW := ["ambush", "hanging", "runaway", "lost_child", "duel", "snake_oil", "bounty_hunters", "stranded", "drunk", "fire",
+	"preacher", "stage"]
 
 func _fail(res: Dictionary, why: String) -> void:
 	res.ok = false

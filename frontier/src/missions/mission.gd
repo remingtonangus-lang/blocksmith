@@ -8,6 +8,8 @@ var title := ""
 var chapter := 1
 var requires: Array[String] = []
 var start_pos := Vector3.ZERO      # where the mission marker sits in the world (empty = starts automatically)
+var stranger := false              # a side story: never chained, started at its marker
+var region := ""                   # where it happens (journal)
 
 func run(_d) -> Variant:
 	return true

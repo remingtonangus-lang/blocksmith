@@ -616,6 +616,198 @@
    "emotion": "tired"
   },
   {
+   "id": "camp_hap_pettigrew",
+   "speaker": "hap",
+   "line": "Fellow came by in a steam buggy asking for the shareholder. Set fire to a sage bush and left a pamphlet. I started the stew with it.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_hap_widow",
+   "speaker": "hap",
+   "line": "Clementine Voss sent a pie and a note. Says Lyman Gage works like a man trying to outrun something.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_hap_widow_alone",
+   "speaker": "hap",
+   "line": "Mrs. Voss sent a pie. No note this time. Just the pie. That's a note too, in its way.",
+   "emotion": "sad"
+  },
+  {
+   "id": "camp_doc_bundy",
+   "speaker": "doc",
+   "line": "A phrenologist in Mesquite Wells tells the whole cantina you've the bump of commerce. I've examined your head myself. I found a scar.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_doc_ortiz",
+   "speaker": "doc",
+   "line": "Ramon Ortiz's boy came to me with a split lip from a mule. He says he's to be a farmer now. The bumps were wrong, he says.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_doc_barrels",
+   "speaker": "doc",
+   "line": "I'm told you poured a saloon into the mud at Coldwater. Rye whiskey, eleven years old. I've wept at funerals with less cause.",
+   "emotion": "sad"
+  },
+  {
+   "id": "camp_doc_truce",
+   "speaker": "doc",
+   "line": "A temperance woman and a saloonkeeper sharing coffee. If you can manage that, you can manage Pell. Possibly even me.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_del_crane",
+   "speaker": "del",
+   "line": "A Chicago detective wrote to the Gilded Spur asking after your health. Drunk, by the handwriting. He says he owes you one.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_del_crane_out",
+   "speaker": "del",
+   "line": "Mabry let your detective out by supper, like he said he would. He's drinking at the Gilded Spur and toasting you, not kindly.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_del_marvel",
+   "speaker": "del",
+   "line": "The loggers at Thornwood poured out forty bottles of Marvel's Elixir. They say the creek's never been so calm.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_del_marvel_bean",
+   "speaker": "del",
+   "line": "Cassius Mulvey. I knew him in Natchez. He sold me a lucky bean. I've still got it, and that's the whole trouble with luck.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_del_plate",
+   "speaker": "del",
+   "line": "A lady photographer in Thornwood says you smashed a plate worth forty thousand copies. Vanity, cher, or modesty? I can never tell with you.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_billy_novel",
+   "speaker": "billy",
+   "line": "Is it you on the cover? Miss Ruthie Rides Again! You've got two guns and the cougar's the size of a horse.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_billy_canteen",
+   "speaker": "billy",
+   "line": "Hap says a man robbed you with your own canteen still in his hand. I'd have thought you'd see that coming. Don't hit me.",
+   "emotion": "tense"
+  },
+  {
+   "id": "camp_joseph_map",
+   "speaker": "joseph",
+   "line": "Fenn printed a map of a water line nobody admits to building. Pell's men tear the Lantern off the fences faster than the boys can paste it.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_joseph_book",
+   "speaker": "joseph",
+   "line": "That railroad surveyor in the Breaks says you returned his book unread. I hope he's wrong about the unread part.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "camp_comet_1",
+   "speaker": "joseph",
+   "line": "You came down off the Kestrel looking like you'd been to a burying.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "camp_comet_2",
+   "speaker": "ruth",
+   "line": "An old man showed me a comet and died before it set. He'd waited nineteen years for it.",
+   "emotion": "sad"
+  },
+  {
+   "id": "camp_comet_3",
+   "speaker": "joseph",
+   "line": "My grandmother said the sky keeps an account. Nineteen years is a long time to be owed.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_comet_4",
+   "speaker": "ruth",
+   "line": "It paid him. That's more than most of us get.",
+   "emotion": "tired"
+  },
+  {
+   "id": "camp_pip_1",
+   "speaker": "billy",
+   "line": "There's a boy in Port Linden telling everybody you paid his debts. Pip something. Says you're his guardian angel with a gun.",
+   "emotion": "tense"
+  },
+  {
+   "id": "camp_pip_2",
+   "speaker": "ruth",
+   "line": "I owed him a ride and some sense. He's sweeping the Lantern's press room now.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_pip_3",
+   "speaker": "billy",
+   "line": "I sweep here. Nobody calls me an angel.",
+   "emotion": "sad"
+  },
+  {
+   "id": "camp_pip_4",
+   "speaker": "ruth",
+   "line": "You'd hate it. Angels can't ride.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_pip_rourke_1",
+   "speaker": "billy",
+   "line": "Is it true you knocked down Mick Rourke and two of his boys in front of the Lantern?",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_pip_rourke_2",
+   "speaker": "del",
+   "line": "Mick Rourke is telling it the other way round, cher. Port Linden believes whoever's still standing at the bar.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_pip_rourke_3",
+   "speaker": "ruth",
+   "line": "Then I'll stay away from the bar.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_locomobile_1",
+   "speaker": "billy",
+   "line": "Is it true you own part of a horseless carriage? Hap says it blew up a henhouse.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_locomobile_2",
+   "speaker": "hap",
+   "line": "Two henhouses. The second one was on purpose. Testing, he called it.",
+   "emotion": "dry"
+  },
+  {
+   "id": "camp_locomobile_3",
+   "speaker": "ruth",
+   "line": "Twenty dollars' worth of the future, Billy. Mind you never stand in front of it.",
+   "emotion": "amused"
+  },
+  {
+   "id": "camp_locomobile_no_1",
+   "speaker": "billy",
+   "line": "A man went by on the Greer road in a buggy with no horse, smoking like a stove. He waved. He said you'd missed your chance.",
+   "emotion": "warm"
+  },
+  {
+   "id": "camp_locomobile_no_2",
+   "speaker": "ruth",
+   "line": "I've missed a good many chances. That one I missed on purpose.",
+   "emotion": "dry"
+  },
+  {
    "id": "camp_act_stew",
    "speaker": "hap",
    "line": "Sit. Eat. Don't tell me what's in it and I won't tell you either.",
@@ -870,6 +1062,166 @@
    "who": "joseph",
    "when": {
     "standing_max": -30
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_hap_pettigrew",
+   "who": "hap",
+   "when": {
+    "flag": {
+     "invested_pettigrew": true
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_hap_widow",
+   "who": "hap",
+   "when": {
+    "flag": {
+     "spared_partner": true
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_hap_widow_alone",
+   "who": "hap",
+   "when": {
+    "flag": {
+     "spared_partner": false
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_doc_bundy",
+   "who": "doc",
+   "when": {
+    "flag": {
+     "took_cut": true
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_doc_ortiz",
+   "who": "doc",
+   "when": {
+    "flag": {
+     "took_cut": false
+    }
+   },
+   "weight": 1.5
+  },
+  {
+   "line": "camp_doc_barrels",
+   "who": "doc",
+   "when": {
+    "flag": {
+     "smashed_barrels": true
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_doc_truce",
+   "who": "doc",
+   "when": {
+    "flag": {
+     "smashed_barrels": false
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_del_crane",
+   "who": "del",
+   "when": {
+    "flag": {
+     "protected_crane": true
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_del_crane_out",
+   "who": "del",
+   "when": {
+    "flag": {
+     "protected_crane": false
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_del_marvel",
+   "who": "del",
+   "when": {
+    "flag": {
+     "exposed_marvel": true
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_del_marvel_bean",
+   "who": "del",
+   "when": {
+    "flag": {
+     "exposed_marvel": false
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_del_plate",
+   "who": "del",
+   "when": {
+    "flag": {
+     "posed_for_novel": false
+    }
+   },
+   "weight": 1.5
+  },
+  {
+   "line": "camp_billy_novel",
+   "who": "billy",
+   "when": {
+    "flag": {
+     "posed_for_novel": true
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_billy_canteen",
+   "who": "billy",
+   "when": {
+    "flag": {
+     "robbed_by_traveller": true
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_joseph_map",
+   "who": "joseph",
+   "when": {
+    "flag": {
+     "field_book_to_fenn": true
+    }
+   },
+   "weight": 2.0
+  },
+  {
+   "line": "camp_joseph_book",
+   "who": "joseph",
+   "when": {
+    "flag": {
+     "field_book_to_fenn": false
+    }
    },
    "weight": 2.0
   }
@@ -1266,6 +1618,99 @@
    },
    "priority": 1,
    "once": false
+  },
+  {
+   "id": "comet",
+   "who": [
+    "joseph"
+   ],
+   "lines": [
+    "camp_comet_1",
+    "camp_comet_2",
+    "camp_comet_3",
+    "camp_comet_4"
+   ],
+   "when": {
+    "flag": {
+     "stayed_for_comet": true
+    }
+   },
+   "priority": 4,
+   "once": true
+  },
+  {
+   "id": "pip",
+   "who": [
+    "billy"
+   ],
+   "lines": [
+    "camp_pip_1",
+    "camp_pip_2",
+    "camp_pip_3",
+    "camp_pip_4"
+   ],
+   "when": {
+    "flag": {
+     "paid_pip_debt": true
+    }
+   },
+   "priority": 3,
+   "once": true
+  },
+  {
+   "id": "pip_rourke",
+   "who": [
+    "billy",
+    "del"
+   ],
+   "lines": [
+    "camp_pip_rourke_1",
+    "camp_pip_rourke_2",
+    "camp_pip_rourke_3"
+   ],
+   "when": {
+    "flag": {
+     "paid_pip_debt": false
+    }
+   },
+   "priority": 3,
+   "once": true
+  },
+  {
+   "id": "locomobile",
+   "who": [
+    "billy",
+    "hap"
+   ],
+   "lines": [
+    "camp_locomobile_1",
+    "camp_locomobile_2",
+    "camp_locomobile_3"
+   ],
+   "when": {
+    "flag": {
+     "invested_pettigrew": true
+    }
+   },
+   "priority": 3,
+   "once": true
+  },
+  {
+   "id": "locomobile_no",
+   "who": [
+    "billy"
+   ],
+   "lines": [
+    "camp_locomobile_no_1",
+    "camp_locomobile_no_2"
+   ],
+   "when": {
+    "flag": {
+     "invested_pettigrew": false
+    }
+   },
+   "priority": 2,
+   "once": true
   }
  ]
 }

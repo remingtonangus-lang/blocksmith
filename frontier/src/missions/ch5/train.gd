@@ -24,6 +24,7 @@ var accel := 0.9
 var slow_zones: Array = []
 var braking := false
 var cars: Array = []                # {node, body, len, offset}
+var car_specs: Array = CARS         # set before setup() for other vehicles (a road locomobile is one "carriage")
 var smoke: CPUParticles3D
 var track: Node3D
 
@@ -52,7 +53,7 @@ func setup(rail: Array, from_end := true, with_cars := true) -> void:
 	if not with_cars:
 		return
 	var off := 0.0
-	for c in CARS:
+	for c in car_specs:
 		var car := _build_car(c)
 		cars.append({"node": car.node, "body": car.body, "len": float(c.len), "offset": off + float(c.len) * 0.5, "kind": c.kind})
 		off += float(c.len) + GAP
@@ -221,9 +222,14 @@ func _build_car(c: Dictionary) -> Dictionary:
 	var wheel_z: Array = [-L * 0.36, -L * 0.24, L * 0.24, L * 0.36]
 	if c.kind == "loco":
 		wheel_z = [-L * 0.42, -L * 0.3, L * 0.05, L * 0.3]
+	var road: bool = c.kind == "carriage" or c.kind == "wagon"
+	if road:
+		wheel_z = [-L * 0.34, L * 0.34]
 	for wz in wheel_z:
 		for sx in [-1.0, 1.0]:
 			var r := 0.85 if (c.kind == "loco" and float(wz) > -L * 0.2) else 0.45
+			if road:
+				r = 0.42 if float(wz) < 0.0 else 0.62
 			_cyl(node, r, 0.12, Vector3(sx * 0.75, r, wz), Vector3(0, 0, PI * 0.5), iron)
 	_box(node, Vector3(W * 0.8, 0.3, L), Vector3(0, 0.95, 0), black)
 	match c.kind:
@@ -257,6 +263,47 @@ func _build_car(c: Dictionary) -> Dictionary:
 			smoke.position = Vector3(0, 4.2, -L * 0.36)
 			smoke.local_coords = false
 			node.add_child(smoke)
+		"carriage":
+			# a steam road-carriage: buggy body, upright boiler behind the seat, tall stack, brass trim
+			_box(node, Vector3(W, 0.6, L * 0.7), Vector3(0, 1.3, -L * 0.1), red)
+			_box(node, Vector3(W * 0.9, 0.5, 0.5), Vector3(0, 1.8, -L * 0.05), _mat(Color(0.15, 0.1, 0.08)))
+			_cyl(node, 0.42, 1.2, Vector3(0, 1.9, L * 0.32), Vector3.ZERO, black)
+			_cyl(node, 0.1, 1.4, Vector3(0, 3.1, L * 0.32), Vector3.ZERO, brass)
+			smoke = CPUParticles3D.new()
+			smoke.amount = 30
+			smoke.lifetime = 2.0
+			smoke.direction = Vector3(0, 1, 0.2)
+			smoke.spread = 15.0
+			smoke.initial_velocity_min = 1.0
+			smoke.initial_velocity_max = 2.0
+			smoke.scale_amount_min = 0.4
+			smoke.scale_amount_max = 1.2
+			var q2 := QuadMesh.new()
+			var sm2 := StandardMaterial3D.new()
+			sm2.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			sm2.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			sm2.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+			sm2.albedo_color = Color(0.85, 0.85, 0.85, 0.4)
+			q2.material = sm2
+			smoke.mesh = q2
+			smoke.position = Vector3(0, 3.8, L * 0.32)
+			smoke.local_coords = false
+			node.add_child(smoke)
+		"wagon":
+			# a farm wagon and its team: plank bed, a canvas bow top, two horses and the tongue between them
+			var plank := _mat(Color(0.42, 0.3, 0.18))
+			var canvas := _mat(Color(0.86, 0.83, 0.74))
+			var bay := _mat(Color(0.33, 0.2, 0.12))
+			_box(node, Vector3(W, 0.7, L * 0.9), Vector3(0, 1.45, 0), plank)
+			_box(node, Vector3(W * 1.02, 1.3, L * 0.7), Vector3(0, 2.4, L * 0.05), canvas)
+			_box(node, Vector3(W * 0.8, 0.12, 0.5), Vector3(0, 1.95, -L * 0.42), plank)                  # seat
+			_box(node, Vector3(0.12, 0.12, 3.2), Vector3(0, 0.9, -L * 0.5 - 1.6), plank)                 # tongue
+			for sx in [-0.65, 0.65]:
+				_box(node, Vector3(0.55, 0.75, 2.0), Vector3(sx, 1.45, -L * 0.5 - 2.4), bay)              # barrel
+				_box(node, Vector3(0.3, 0.75, 0.6), Vector3(sx, 2.0, -L * 0.5 - 3.5), bay)                # neck
+				_box(node, Vector3(0.24, 0.3, 0.6), Vector3(sx, 2.25, -L * 0.5 - 3.95), bay)              # head
+				for lz in [-1.5, -3.2]:
+					_box(node, Vector3(0.14, 1.1, 0.14), Vector3(sx, 0.55, -L * 0.5 + lz), bay)           # legs
 		"tender":
 			_box(node, Vector3(W, 1.7, L * 0.95), Vector3(0, 1.95, 0), black)
 			_box(node, Vector3(W * 0.85, 0.5, L * 0.6), Vector3(0, 3.0, L * 0.1), _mat(Color(0.05, 0.05, 0.05)))   # coal

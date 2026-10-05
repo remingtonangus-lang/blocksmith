@@ -55,6 +55,16 @@ const MISSIONS := [
 	"res://src/missions/ch6/long_light.gd",
 	"res://src/missions/ch6/ink.gd",
 	"res://src/missions/ch6/spring.gd",
+	"res://src/missions/strangers/horseless_carriage.gd",
+	"res://src/missions/strangers/widows_herd.gd",
+	"res://src/missions/strangers/hold_still.gd",
+	"res://src/missions/strangers/science_of_skulls.gd",
+	"res://src/missions/strangers/the_comet.gd",
+	"res://src/missions/strangers/the_detective.gd",
+	"res://src/missions/strangers/extra_extra.gd",
+	"res://src/missions/strangers/cold_water_pledge.gd",
+	"res://src/missions/strangers/the_surveyor.gd",
+	"res://src/missions/strangers/doctor_marvel.gd",
 ]
 
 var dialogue := {}              # line id -> {speaker, line, emotion}
@@ -77,6 +87,8 @@ var _bars: Array = []
 var _last_speaker: Node3D = null
 var _choice_queue: Array = []   # bots: --choices 0,1,0 answers choose()/auto_choice() in order
 var _choice_parsed := false
+var _schoice_queue: Array = []  # bots: --schoices answers the Strangers side stories
+var _schoice_parsed := false
 var _escorted: Array = []       # NPCs whose brain a mission has taken over (follow / npc_walk_to)
 var resuming := false            # replaying a mission up to the checkpoint being retried
 var _resume_ordinal := 0
@@ -97,6 +109,7 @@ func _ready() -> void:
 		var path := "res://design/dialogue/ch%d.json" % i
 		if FileAccess.file_exists(path):
 			_load_dialogue(path)
+	_load_dialogue("res://design/dialogue/strangers.json")
 	if Game.args.has("pokertest"):
 		_pokertest.call_deferred()
 
@@ -178,10 +191,15 @@ func start(m: Mission) -> void:
 			_cp = {}
 		# answers the bot's --choices gave after the retry point are asked again, so give them back
 		var back := []
+		var sback := []
 		for e in _auto_log:
 			if int(e[0]) >= keep:
-				back.append(e[1])
+				if e.size() > 2:
+					sback.append(e[1])
+				else:
+					back.append(e[1])
 		_choice_queue = back + _choice_queue
+		_schoice_queue = sback + _schoice_queue
 		_auto_log = _auto_log.filter(func(e): return int(e[0]) < keep)
 		_replay = _decisions.slice(0, keep)
 		_decisions = []
@@ -443,7 +461,49 @@ func _frame(speaker: Node3D, listener: Node3D) -> void:
 	_cine_t = 0.0
 	_cine_cam.global_transform = from
 
+# ------------------------------------------------------------------ strangers: markers in the world
+var _stranger_t := 0.0
+var _stranger_marks := {}        # mission id -> marker node
+var _stranger_list: Array = []
+var _stranger_all: Array = []     # every side story, instanced once (start_pos needs the world)
+
+## Normal play: side stories whose chapter has come show a marker where the stranger waits; walk up and press E.
+func _strangers_tick(dt: float) -> void:
+	if autopilot or Game.args.has("bot") or Game.args.has("shot") or Game.player == null:
+		return
+	_stranger_t -= dt
+	if _stranger_t <= 0.0:
+		_stranger_t = 4.0
+		if _stranger_all.is_empty():
+			for path in MISSIONS:
+				var sm: Mission = load(path).new()
+				if sm.stranger and sm.start_pos != Vector3.ZERO:
+					_stranger_all.append(sm)
+		_stranger_list = _stranger_all.filter(func(m): return not completed.has(m.id) and m.requires.all(func(r): return completed.has(r)))
+		var ids := _stranger_list.map(func(m): return m.id)
+		for k in _stranger_marks.keys():
+			if not ids.has(k) or active != null:
+				if is_instance_valid(_stranger_marks[k]):
+					_stranger_marks[k].queue_free()
+				_stranger_marks.erase(k)
+		if active == null:
+			for m in _stranger_list:
+				if not _stranger_marks.has(m.id):
+					var mk := _marker(m.start_pos)
+					mk.scale = Vector3(0.6, 0.35, 0.6)
+					_stranger_marks[m.id] = mk
+	if active != null:
+		return
+	for m in _stranger_list:
+		if Game.player.global_position.distance_to(m.start_pos) < 3.5:
+			if Game.hud:
+				Game.hud.prompt("[E]  %s" % m.title)
+			if Input.is_action_just_pressed("interact"):
+				start(m.get_script().new())
+			return
+
 func _process(dt: float) -> void:
+	_strangers_tick(dt)
 	if cine and _cine_cam:
 		_cine_t += dt
 		var f := clampf(_cine_t / maxf(_cine_dur, 0.1), 0.0, 1.0)
@@ -674,6 +734,17 @@ func auto_choice(n: int) -> int:
 			if t.strip_edges().is_valid_int():
 				_choice_queue.append(int(t.strip_edges()))
 	var v := 0
+	if active != null and active.stranger:
+		# side stories answer from their own list so the story's --choices sequence stays the same with or without
+		# them: --schoices 0,1,... then --stranger_branch N for every decision after that (default 0)
+		if not _schoice_parsed:
+			_schoice_parsed = true
+			for t in str(Game.args.get("schoices", "")).split(",", false):
+				if t.strip_edges().is_valid_int():
+					_schoice_queue.append(int(t.strip_edges()))
+		v = int(_schoice_queue.pop_front()) if not _schoice_queue.is_empty() else int(Game.args.get("stranger_branch", 0))
+		_auto_log.append([_decisions.size(), v, true])
+		return clampi(v, 0, maxi(n - 1, 0))
 	if not _choice_queue.is_empty():
 		v = int(_choice_queue.pop_front())
 		_auto_log.append([_decisions.size(), v])
@@ -1727,3 +1798,41 @@ func credits() -> void:
 	await c.roll(autopilot or Game.headless)
 	if is_instance_valid(c):
 		c.queue_free()
+
+## Reach a point before the clock runs out. Returns true if in time (the mission decides what late costs; it
+## doesn't fail). Bots: --choices decides (0 in time, 1 late).
+func timed_goto(pos: Vector3, radius: float, text: String, seconds: float, mounted := false) -> bool:
+	if _abort:
+		return true
+	if _replaying():
+		var was: bool = _decide(true)
+		_teleport_player(pos)
+		return was
+	var in_time := true
+	if autopilot:
+		in_time = auto_choice(2) == 0
+		_teleport_player(pos)
+	else:
+		var marker := _marker(pos)
+		var t := 0.0
+		var shown := -1
+		while not _abort:
+			var p: Vector3 = Game.player.global_position
+			if Vector2(p.x - pos.x, p.z - pos.z).length() < radius and (not mounted or Game.player.get("on_horse") != null):
+				break
+			var left := seconds - t
+			if int(ceil(left)) != shown:
+				shown = int(ceil(left))
+				set_objective(("%s — %d" % [text, shown]) if left > 0.0 else "%s — late" % text)
+			if left <= 0.0:
+				in_time = false
+			await get_tree().physics_frame
+			t += get_physics_process_delta_time()
+			if t > seconds + step_timeout:
+				fail("softlock: never reached '%s'" % text)
+		marker.queue_free()
+	if _abort:
+		return true
+	_decide(in_time, autopilot)
+	Game.log_event("timed_goto", {"text": text, "in_time": in_time})
+	return in_time

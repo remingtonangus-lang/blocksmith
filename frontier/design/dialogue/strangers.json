@@ -1,0 +1,1061 @@
+{
+ "note": "Strangers: ten side stories across the Sable River country (src/missions/strangers/). Original writing.",
+ "speakers": {
+  "ruth": {
+   "name": "Ruth Caddell",
+   "voice": "ruth"
+  },
+  "pett": {
+   "name": "Erasmus Pettigrew",
+   "voice": "man_old"
+  },
+  "rufus": {
+   "name": "Rufus",
+   "voice": "man_young"
+  },
+  "clem": {
+   "name": "Clementine Voss",
+   "voice": "woman_old"
+  },
+  "gage": {
+   "name": "Lyman Gage",
+   "voice": "man_rough"
+  },
+  "theo": {
+   "name": "Theodora Lusk",
+   "voice": "woman_town"
+  },
+  "bundy": {
+   "name": "Dr. Horatio Bundy",
+   "voice": "man_town"
+  },
+  "ortiz": {
+   "name": "Ramon Ortiz",
+   "voice": "man_town"
+  },
+  "wren": {
+   "name": "Silas Wren",
+   "voice": "man_old"
+  },
+  "crane": {
+   "name": "Hollis Crane",
+   "voice": "man_town"
+  },
+  "moss": {
+   "name": "Dutch Moss",
+   "voice": "man_rough"
+  },
+  "pip": {
+   "name": "Pip Callahan",
+   "voice": "boy"
+  },
+  "agent": {
+   "name": "Station Agent",
+   "voice": "shopkeeper"
+  },
+  "rourke": {
+   "name": "Mick Rourke",
+   "voice": "man_rough"
+  },
+  "hannah": {
+   "name": "Hannah Bright",
+   "voice": "woman_town"
+  },
+  "jack": {
+   "name": "Jack Bright",
+   "voice": "man_town"
+  },
+  "bouncer": {
+   "name": "Silver Dollar Bouncer",
+   "voice": "man_rough"
+  },
+  "linus": {
+   "name": "Linus Aldridge",
+   "voice": "man_young"
+  },
+  "detective": {
+   "name": "Range Detective",
+   "voice": "man_rough"
+  },
+  "marvel": {
+   "name": "Professor Cassius Marvel",
+   "voice": "man_town"
+  },
+  "pearl": {
+   "name": "Miss Pearl",
+   "voice": "woman_town"
+  },
+  "ned": {
+   "name": "Ned Harkey",
+   "voice": "man_rough"
+  }
+ },
+ "lines": [
+  {
+   "id": "s_car_01",
+   "speaker": "pett",
+   "line": "Madam! Stand clear of the road, if you'd be so kind. History is about to come round that bend at eleven miles an hour.",
+   "emotion": "amused"
+  },
+  {
+   "id": "s_car_02",
+   "speaker": "ruth",
+   "line": "History's on fire.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_car_03",
+   "speaker": "pett",
+   "line": "That is the boiler, and it is supposed to... no. No, that isn't supposed to. Madam, the regulator has jammed and my assistant has jumped.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "s_car_04",
+   "speaker": "pett",
+   "line": "Catch her! The brake lever is on the left, behind the seat! Do mind the boiler; it bites!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "s_car_05",
+   "speaker": "ruth",
+   "line": "I've got the lever! Which way is stop?",
+   "emotion": "tense"
+  },
+  {
+   "id": "s_car_06",
+   "speaker": "pett",
+   "line": "Toward you! Always toward you! Everything good in engineering is toward you!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "s_car_07",
+   "speaker": "pett",
+   "line": "You've saved the Pettigrew Locomobile, Mark Four, from the fate of Marks One through Three. Two of those are in the Sable. One is in a barn in Ohio, and the barn is in pieces.",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_car_08",
+   "speaker": "ruth",
+   "line": "Mr. Pettigrew, a horse doesn't explode.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_car_09",
+   "speaker": "pett",
+   "line": "A horse also doesn't improve, madam. I've watched them for forty years. Not one new idea among them.",
+   "emotion": "amused"
+  },
+  {
+   "id": "s_car_10",
+   "speaker": "pett",
+   "line": "I am raising capital. Twenty dollars buys a share in the Pettigrew Motor Company and the right to say you knew me before the statues.",
+   "emotion": "tense"
+  },
+  {
+   "id": "s_car_11",
+   "speaker": "ruth",
+   "line": "Twenty dollars. When they put up the statue, see it faces away from the river.",
+   "emotion": "amused"
+  },
+  {
+   "id": "s_car_12",
+   "speaker": "pett",
+   "line": "Madam, you're the first investor who didn't ask for it back before I'd finished the sentence.",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_car_13",
+   "speaker": "ruth",
+   "line": "I've seen what you call stop. I'll keep my money and my eyebrows.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_car_14",
+   "speaker": "pett",
+   "line": "Everyone says so. Then in ten years they'll all say they knew me. I'll remember who didn't.",
+   "emotion": "sad"
+  },
+  {
+   "id": "s_car_15",
+   "speaker": "pett",
+   "line": "If you're ever in Bitter Spring, look for the smoke. That'll be me or a fire, and either way you'll be useful.",
+   "emotion": "amused"
+  },
+  {
+   "id": "s_car_16",
+   "speaker": "rufus",
+   "line": "I'd like it entered in the record that I jumped on purpose, Professor. It's in my contract.",
+   "emotion": "tired"
+  },
+  {
+   "id": "s_car_17",
+   "speaker": "pett",
+   "line": "Rufus, you don't have a contract.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_car_18",
+   "speaker": "rufus",
+   "line": "Then I'd like it entered that I should.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_herd_01",
+   "speaker": "clem",
+   "line": "You'll be the one they talk about. I can't pay much. My husband's cattle wandered off the morning of his funeral, and I can't stop crying long enough to look for them.",
+   "emotion": "tired"
+  },
+  {
+   "id": "s_herd_02",
+   "speaker": "ruth",
+   "line": "How many head?",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_herd_03",
+   "speaker": "clem",
+   "line": "Eight. Walt named every one of them. It's foolish. Bessie, Dutch, the Senator... I'll stop.",
+   "emotion": "sad"
+  },
+  {
+   "id": "s_herd_04",
+   "speaker": "ruth",
+   "line": "Cattle don't wander on funeral mornings, Mrs. Voss. Somebody drove them.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_herd_05",
+   "speaker": "clem",
+   "line": "Walt's partner, Lyman Gage, said he'd look in on things while we buried him. He hasn't been by since.",
+   "emotion": "tense"
+  },
+  {
+   "id": "s_herd_06",
+   "speaker": "gage",
+   "line": "These are my cattle, lady. Half of everything Walt had was mine.",
+   "emotion": "angry"
+  },
+  {
+   "id": "s_herd_07",
+   "speaker": "ruth",
+   "line": "Show me the paper.",
+   "emotion": "tense"
+  },
+  {
+   "id": "s_herd_08",
+   "speaker": "gage",
+   "line": "There isn't any paper. There was a handshake. Walt's dead, and handshakes die with the men who shook.",
+   "emotion": "tired"
+  },
+  {
+   "id": "s_herd_09",
+   "speaker": "gage",
+   "line": "She'd have sold out to the syndicate in a month anyway. I'm only taking mine before Pell takes all of it.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "s_herd_10",
+   "speaker": "ruth",
+   "line": "Then you'll tell her so to her face. Walk ahead of the herd, Mr. Gage.",
+   "emotion": "tired"
+  },
+  {
+   "id": "s_herd_11",
+   "speaker": "ruth",
+   "line": "You stole from a widow on the morning of her husband's funeral. Draw, or don't.",
+   "emotion": "angry"
+  },
+  {
+   "id": "s_herd_12",
+   "speaker": "clem",
+   "line": "Bessie! And the Senator! Oh, you foolish things, where have you been?",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_herd_13",
+   "speaker": "clem",
+   "line": "Lyman. Walt thought the world of you.",
+   "emotion": "sad"
+  },
+  {
+   "id": "s_herd_14",
+   "speaker": "gage",
+   "line": "I know it, Clem. That's the worst of it.",
+   "emotion": "sad"
+  },
+  {
+   "id": "s_herd_15",
+   "speaker": "clem",
+   "line": "He can stay on and work it off. Walt would have wanted that, God help me. Walt was a softer fool than me.",
+   "emotion": "tense"
+  },
+  {
+   "id": "s_herd_16",
+   "speaker": "clem",
+   "line": "You killed him. I suppose he deserved it. I don't feel any better. I thought I would.",
+   "emotion": "sad"
+  },
+  {
+   "id": "s_herd_17",
+   "speaker": "ruth",
+   "line": "Most people don't.",
+   "emotion": "tired"
+  },
+  {
+   "id": "s_herd_18",
+   "speaker": "clem",
+   "line": "Come back in the spring. There'll be calves, if the Lord's in a decent mood.",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_photo_01",
+   "speaker": "theo",
+   "line": "Don't move! Oh, you moved. Never mind. You have a face for the dry plate, has anyone told you? All bones and suspicion.",
+   "emotion": "amused"
+  },
+  {
+   "id": "s_photo_02",
+   "speaker": "ruth",
+   "line": "I've been told a lot of things about my face. That's a new one.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_photo_03",
+   "speaker": "theo",
+   "line": "Theodora Lusk, photographic artist. I need a subject in a dangerous place. Chicago won't buy a picture unless somebody might have died taking it.",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_photo_04",
+   "speaker": "theo",
+   "line": "There's a ledge over Thornwood Creek where a cougar sleeps in the afternoons. I want the cat, the creek and a woman with a rifle. You.",
+   "emotion": "tense"
+  },
+  {
+   "id": "s_photo_05",
+   "speaker": "ruth",
+   "line": "And if the cat wakes up?",
+   "emotion": "tired"
+  },
+  {
+   "id": "s_photo_06",
+   "speaker": "theo",
+   "line": "Then you'll look magnificent, and I'll take two exposures.",
+   "emotion": "amused"
+  },
+  {
+   "id": "s_photo_07",
+   "speaker": "theo",
+   "line": "It's awake! It's awake and it's looking at you. Don't move, that's perfect, that's perfect!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "s_photo_08",
+   "speaker": "theo",
+   "line": "I have it. I have it! The cat in the air and you not even blinking. Chicago is going to faint.",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_photo_09",
+   "speaker": "ruth",
+   "line": "Who's the picture for, Miss Lusk?",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_photo_10",
+   "speaker": "theo",
+   "line": "A publisher. Of dime novels. He's very keen on a series: Miss Ruthie Rides Again. He knew your old show name.",
+   "emotion": "tense"
+  },
+  {
+   "id": "s_photo_11",
+   "speaker": "ruth",
+   "line": "That's a name I buried in Kansas.",
+   "emotion": "tense"
+  },
+  {
+   "id": "s_photo_12",
+   "speaker": "ruth",
+   "line": "Print it. Give the boys in the bunkhouses something to lie about.",
+   "emotion": "amused"
+  },
+  {
+   "id": "s_photo_13",
+   "speaker": "theo",
+   "line": "You won't regret it. Well, you might. Everyone regrets dime novels eventually. But not for a year or two.",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_photo_14",
+   "speaker": "ruth",
+   "line": "No. Give me the plate.",
+   "emotion": "angry"
+  },
+  {
+   "id": "s_photo_15",
+   "speaker": "theo",
+   "line": "That's a week's wages and the best picture I'll ever make. Here. Break it yourself. I can't watch.",
+   "emotion": "sad"
+  },
+  {
+   "id": "s_photo_16",
+   "speaker": "theo",
+   "line": "For what it's worth, you'd have sold forty thousand copies. They'd have drawn your hat wrong.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_skull_01",
+   "speaker": "bundy",
+   "line": "Step up, step up! The bumps of the skull are the map of the soul. A dime for your character, a dollar for your future, and for five I'll tell you why your husband left.",
+   "emotion": "amused"
+  },
+  {
+   "id": "s_skull_02",
+   "speaker": "ruth",
+   "line": "He didn't leave. He was shot.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_skull_03",
+   "speaker": "bundy",
+   "line": "Ah. Well. The bumps were ambiguous on that point.",
+   "emotion": "tense"
+  },
+  {
+   "id": "s_skull_04",
+   "speaker": "ortiz",
+   "line": "He read my boy's head and said he's a natural banker. Took our seed money to invest it. We haven't seen the bank or the money.",
+   "emotion": "angry"
+  },
+  {
+   "id": "s_skull_05",
+   "speaker": "bundy",
+   "line": "Slander! I'll prove my honesty the way gentlemen do. A hand of cards. You win, I return the man's money. I win, you buy a reading.",
+   "emotion": "amused"
+  },
+  {
+   "id": "s_skull_06",
+   "speaker": "ruth",
+   "line": "There's a mirror in that ring, Doctor. Your hand sits over the deck like a hen on an egg.",
+   "emotion": "tense"
+  },
+  {
+   "id": "s_skull_07",
+   "speaker": "bundy",
+   "line": "A family heirloom! My mother's! She was also a phrenologist.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "s_skull_08",
+   "speaker": "ruth",
+   "line": "You win a great deal for a man who reads skulls instead of cards.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_skull_09",
+   "speaker": "bundy",
+   "line": "The bumps don't lie, madam. Only the people wearing them.",
+   "emotion": "amused"
+  },
+  {
+   "id": "s_skull_10",
+   "speaker": "ortiz",
+   "line": "Give back the seed money, or I'll show him a bump he can read with his fingers.",
+   "emotion": "angry"
+  },
+  {
+   "id": "s_skull_11",
+   "speaker": "ruth",
+   "line": "Give Mr. Ortiz his money. All of it. Then pick a direction and keep walking until the bumps tell you to stop.",
+   "emotion": "tense"
+  },
+  {
+   "id": "s_skull_12",
+   "speaker": "bundy",
+   "line": "Mesquite Wells was such a promising crop.",
+   "emotion": "sad"
+  },
+  {
+   "id": "s_skull_13",
+   "speaker": "ortiz",
+   "line": "Gracias, señora. My boy will be a farmer, then. The bumps said banker, but the bumps can go to the devil.",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_skull_14",
+   "speaker": "ruth",
+   "line": "Half your purse, Doctor. And Mr. Ortiz gets a reading that says his luck is about to change.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_skull_15",
+   "speaker": "bundy",
+   "line": "Madam, I've read your skull, and you have the bump of commerce. I suspected it at once.",
+   "emotion": "amused"
+  },
+  {
+   "id": "s_skull_16",
+   "speaker": "ortiz",
+   "line": "I trusted you, señora. That's twice this month I've been a fool.",
+   "emotion": "sad"
+  },
+  {
+   "id": "s_comet_01",
+   "speaker": "wren",
+   "line": "You're early. The comet isn't due until a quarter past two. You'll want supper. I'll want trout. There's a pool below the cabin.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "s_comet_02",
+   "speaker": "ruth",
+   "line": "I wasn't invited.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_comet_03",
+   "speaker": "wren",
+   "line": "Nobody's invited. People arrive. I've watched the sky from this rock for nineteen years, and I've learned that much about the ground.",
+   "emotion": "amused"
+  },
+  {
+   "id": "s_comet_04",
+   "speaker": "wren",
+   "line": "A good fish. You hold a rod the way you hold a rifle. Too tight, but you mean it.",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_comet_05",
+   "speaker": "wren",
+   "line": "My figures say tonight. The Naval Observatory says I'm a crank who lost his post for drinking. Both are true. Only one of us is right about the comet.",
+   "emotion": "tense"
+  },
+  {
+   "id": "s_comet_06",
+   "speaker": "wren",
+   "line": "I need the lens carried up to the high rock. My knees won't do the climb any more. My heart, if I'm honest, won't do much of anything.",
+   "emotion": "sad"
+  },
+  {
+   "id": "s_comet_07",
+   "speaker": "wren",
+   "line": "Will you stay? Nobody's ever seen anything with me. It's a lonely way to be right.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "s_comet_08",
+   "speaker": "ruth",
+   "line": "I'll stay. I've never seen a comet. I've seen a lot of other things fall out of the sky.",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_comet_09",
+   "speaker": "wren",
+   "line": "There. There. Low over the ridge, do you see the tail? Nineteen years. Nineteen years, and it came.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "s_comet_10",
+   "speaker": "ruth",
+   "line": "It's beautiful.",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_comet_11",
+   "speaker": "wren",
+   "line": "It is. I think I'll sit a while. Wake me when it's gone, would you? I'd hate to miss the end.",
+   "emotion": "tired"
+  },
+  {
+   "id": "s_comet_12",
+   "speaker": "ruth",
+   "line": "Mr. Wren? Mr. Wren. You didn't miss it. I watched it all the way down for you.",
+   "emotion": "sad"
+  },
+  {
+   "id": "s_comet_13",
+   "speaker": "ruth",
+   "line": "I've a long ride ahead. I hope it comes, Mr. Wren.",
+   "emotion": "tired"
+  },
+  {
+   "id": "s_comet_14",
+   "speaker": "wren",
+   "line": "It'll come. It doesn't need me to watch it. I only needed to be right.",
+   "emotion": "sad"
+  },
+  {
+   "id": "s_comet_15",
+   "speaker": "wren",
+   "line": "You're the woman from the dime novel. Even hermits get the mail. You were taller in the drawing.",
+   "emotion": "amused"
+  },
+  {
+   "id": "s_det_01",
+   "speaker": "crane",
+   "line": "Ma'am! A moment of your time. Hollis Crane, Halloran National Detective Agency. There are three railroad bulls behind me who'd like to put me in the lake.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "s_det_02",
+   "speaker": "ruth",
+   "line": "What did you do to them?",
+   "emotion": "tense"
+  },
+  {
+   "id": "s_det_03",
+   "speaker": "crane",
+   "line": "I found out what they do on their days off. Get me to the ford past the marsh and I'll pay you ten dollars and owe you a favor, which is worth more, I assure you.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_det_04",
+   "speaker": "crane",
+   "line": "You're Caddell, aren't you? The poster doesn't do you justice. Posters never do.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "s_det_05",
+   "speaker": "ruth",
+   "line": "I hear that a great deal lately.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_det_06",
+   "speaker": "crane",
+   "line": "Here we are. And here they are. Gentlemen, the lady.",
+   "emotion": "amused"
+  },
+  {
+   "id": "s_det_07",
+   "speaker": "moss",
+   "line": "Hands where we can see them, Caddell. Two hundred dollars, and Crane gets a third for walking you in.",
+   "emotion": "angry"
+  },
+  {
+   "id": "s_det_08",
+   "speaker": "ruth",
+   "line": "A third. You came cheap, Mr. Crane.",
+   "emotion": "tired"
+  },
+  {
+   "id": "s_det_09",
+   "speaker": "crane",
+   "line": "All right! All right. It was business. I've debts in Chicago that would turn your hair white.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "s_det_10",
+   "speaker": "crane",
+   "line": "I was a real detective once. Eleven years. Then the agency let me go for drinking, and bounty work is the only kind that doesn't check references.",
+   "emotion": "sad"
+  },
+  {
+   "id": "s_det_11",
+   "speaker": "ruth",
+   "line": "Then you'll have your references checked by Sheriff Mabry. Walk.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_det_12",
+   "speaker": "crane",
+   "line": "Mabry. Of course. Pell's man. I'll be out by supper, and he'll know where you sleep.",
+   "emotion": "tired"
+  },
+  {
+   "id": "s_det_13",
+   "speaker": "ruth",
+   "line": "Go back to Chicago, Mr. Crane. When I need that favor, I'll send for it.",
+   "emotion": "tired"
+  },
+  {
+   "id": "s_det_14",
+   "speaker": "crane",
+   "line": "You'll have it. I'm a liar and a drunk, but I pay my debts. It's the one thing my father taught me that took.",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_det_15",
+   "speaker": "moss",
+   "line": "She's not going easy, Hollis! You said she'd go easy!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "s_news_01",
+   "speaker": "pip",
+   "line": "Lantern, missus? Two cents. You're in it, page three. Not by name. A lady of uncommon aim. That's you, ain't it?",
+   "emotion": "tense"
+  },
+  {
+   "id": "s_news_02",
+   "speaker": "ruth",
+   "line": "Depends who's asking.",
+   "emotion": "amused"
+  },
+  {
+   "id": "s_news_03",
+   "speaker": "pip",
+   "line": "Mick Rourke's asking, missus. Not about you. About me. I owe him for a hundred papers I couldn't sell when it rained, and he says by sundown or I'm swimming.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "s_news_04",
+   "speaker": "pip",
+   "line": "Mr. Fenn says the stage stop at Greer's will take a whole bundle if it's there by four. I can't ride that far. You could. Fast, I mean. Real fast.",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_news_05",
+   "speaker": "agent",
+   "line": "Four o'clock bundle, and it's three fifty-eight. Somebody's mother raised a punctual child.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "s_news_06",
+   "speaker": "agent",
+   "line": "Twenty past. These are yesterday's already. I'll take them at half.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_news_07",
+   "speaker": "rourke",
+   "line": "Callahan! Sundown, I said, and I can see it from here.",
+   "emotion": "angry"
+  },
+  {
+   "id": "s_news_08",
+   "speaker": "ruth",
+   "line": "Here's the rest of it. Count it in front of the boy, so he learns how it's done.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_news_09",
+   "speaker": "rourke",
+   "line": "Pleasure. The kid's got a guardian angel with a gun. That's a first in this business.",
+   "emotion": "amused"
+  },
+  {
+   "id": "s_news_10",
+   "speaker": "ruth",
+   "line": "The debt's forgiven, Mr. Rourke. You're forgiving it now.",
+   "emotion": "tense"
+  },
+  {
+   "id": "s_news_11",
+   "speaker": "rourke",
+   "line": "Nobody forgives in this town, lady!",
+   "emotion": "angry"
+  },
+  {
+   "id": "s_news_12",
+   "speaker": "pip",
+   "line": "You did that for me? Nobody does nothing for me. Mr. Fenn says I can sweep the press room. Real wages.",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_news_13",
+   "speaker": "ruth",
+   "line": "Keep your head down and your eyes open, Pip. It works for newspapers and for people.",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_news_14",
+   "speaker": "pip",
+   "line": "I'll put you on page one when I'm editor. By name. Spelled right, even.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_news_15",
+   "speaker": "pip",
+   "line": "Don't let them get wet! Wet papers is how this whole thing started!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "s_news_16",
+   "speaker": "ruth",
+   "line": "He won't trouble you again, Pip. He isn't in any condition to trouble anybody.",
+   "emotion": "tired"
+  },
+  {
+   "id": "s_pledge_01",
+   "speaker": "hannah",
+   "line": "Sister! You have the look of a woman who has seen what whiskey does to men. Join me. Tonight the Silver Dollar empties its barrels into the street, or I empty them myself.",
+   "emotion": "angry"
+  },
+  {
+   "id": "s_pledge_02",
+   "speaker": "ruth",
+   "line": "With a hatchet?",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_pledge_03",
+   "speaker": "hannah",
+   "line": "The Lord provides hatchets to those who ask. I asked at the hardware.",
+   "emotion": "tense"
+  },
+  {
+   "id": "s_pledge_04",
+   "speaker": "hannah",
+   "line": "The man who owns the Silver Dollar is Jack Bright. You'll notice the name. He was a good man before he was a saloonkeeper, and a good husband before either.",
+   "emotion": "sad"
+  },
+  {
+   "id": "s_pledge_05",
+   "speaker": "jack",
+   "line": "Hannah. Eleven years, and you come back with a hatchet. You always did know how to make an entrance.",
+   "emotion": "tired"
+  },
+  {
+   "id": "s_pledge_06",
+   "speaker": "hannah",
+   "line": "And you always knew how to make an exit, Jack.",
+   "emotion": "angry"
+  },
+  {
+   "id": "s_pledge_07",
+   "speaker": "bouncer",
+   "line": "Want me to throw her out, boss? Her and the one with the gun?",
+   "emotion": "angry"
+  },
+  {
+   "id": "s_pledge_08",
+   "speaker": "jack",
+   "line": "I didn't leave because of the drink, Hannah. I drank because I left. I've had it backwards eleven years.",
+   "emotion": "sad"
+  },
+  {
+   "id": "s_pledge_09",
+   "speaker": "ruth",
+   "line": "Hand me a hatchet, Mrs. Bright. Let's see what eleven years of rye looks like in the mud.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_pledge_10",
+   "speaker": "hannah",
+   "line": "Glory! Glory, Jack, look at it run!",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_pledge_11",
+   "speaker": "jack",
+   "line": "That was my living. Well. It was my dying too, I suppose.",
+   "emotion": "sad"
+  },
+  {
+   "id": "s_pledge_12",
+   "speaker": "ruth",
+   "line": "Put the hatchet down. You came eleven years to swing it. Say what you came to say first.",
+   "emotion": "tense"
+  },
+  {
+   "id": "s_pledge_13",
+   "speaker": "hannah",
+   "line": "I came to say I hated you. I seem to have forgotten how.",
+   "emotion": "sad"
+  },
+  {
+   "id": "s_pledge_14",
+   "speaker": "jack",
+   "line": "There's coffee in the back. Real coffee. I'll close early.",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_pledge_15",
+   "speaker": "hannah",
+   "line": "Eleven years I've told the ladies of the league that he was dead. It made a better story than the true one.",
+   "emotion": "sad"
+  },
+  {
+   "id": "s_pledge_16",
+   "speaker": "jack",
+   "line": "Stay for the coffee, ma'am. You've earned the first cup, and I'd rather not be alone with her just yet.",
+   "emotion": "tired"
+  },
+  {
+   "id": "s_survey_01",
+   "speaker": "ruth",
+   "line": "Boot tracks wandering in circles, and a dragged tripod. Somebody's lost and doesn't know it yet.",
+   "emotion": "tense"
+  },
+  {
+   "id": "s_survey_02",
+   "speaker": "linus",
+   "line": "Water. Water, and please tell me which way is north. My compass swears it's under my feet.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "s_survey_03",
+   "speaker": "ruth",
+   "line": "Drink slow. North's over there, where it's always been. Who are you?",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_survey_04",
+   "speaker": "linus",
+   "line": "Linus Aldridge, assistant engineer, Meridian and Western. I was surveying a line. Then the line surveyed me.",
+   "emotion": "tired"
+  },
+  {
+   "id": "s_survey_05",
+   "speaker": "linus",
+   "line": "My transit and field book are at my camp in the slot canyon. Men came. Range detectives, they said. They took the camp and left me the desert.",
+   "emotion": "tense"
+  },
+  {
+   "id": "s_survey_06",
+   "speaker": "ruth",
+   "line": "These stakes run straight through the Ybarra land and the Halvorsen south section. There's no railroad going there.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_survey_07",
+   "speaker": "linus",
+   "line": "Not a railroad. A water line. The syndicate means to pipe the deep wells to its own sections. It isn't on any map. It wasn't supposed to be on mine.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "s_survey_08",
+   "speaker": "ruth",
+   "line": "Fenn will want this, Mr. Aldridge. Your name needn't be on it.",
+   "emotion": "tense"
+  },
+  {
+   "id": "s_survey_09",
+   "speaker": "linus",
+   "line": "It will be, eventually. They'll know whose hand drew the lines. I suppose I'll go back east. I always wanted to survey something that wasn't for sale.",
+   "emotion": "sad"
+  },
+  {
+   "id": "s_survey_10",
+   "speaker": "ruth",
+   "line": "The railroad will pay to have this back, and you'll keep your post. That's two things more than most people get out of the Breaks.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_survey_11",
+   "speaker": "linus",
+   "line": "Thirty dollars, they said, for the book's return. Take all of it. I don't want to look at the thing again.",
+   "emotion": "tired"
+  },
+  {
+   "id": "s_survey_12",
+   "speaker": "detective",
+   "line": "Somebody's in the rocks! Over by the tripod!",
+   "emotion": "angry"
+  },
+  {
+   "id": "s_survey_13",
+   "speaker": "linus",
+   "line": "My transit! You found my transit! I'd have mourned it like a brother.",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_survey_14",
+   "speaker": "linus",
+   "line": "I counted my steps to keep my wits. Eleven thousand. Then I counted them back and got nine. The desert keeps the difference.",
+   "emotion": "tired"
+  },
+  {
+   "id": "s_survey_15",
+   "speaker": "ruth",
+   "line": "You walked in a circle a mile wide, Mr. Aldridge. It's a very good circle. The railroad would be proud.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_survey_16",
+   "speaker": "linus",
+   "line": "If you ever need a line run straight, ma'am, anywhere at all, send for me at the Meridian office. I owe you one honest survey.",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_marvel_01",
+   "speaker": "marvel",
+   "line": "Ladies, gentlemen and loggers! Dr. Marvel's Celebrated Kestrel Elixir cures the ague, the gout, the grippe and the melancholy, and it's half price to anyone who outshoots my lovely assistant!",
+   "emotion": "amused"
+  },
+  {
+   "id": "s_marvel_02",
+   "speaker": "pearl",
+   "line": "I've not been outshot in four counties, and I'm told I'm very lovely.",
+   "emotion": "amused"
+  },
+  {
+   "id": "s_marvel_03",
+   "speaker": "ruth",
+   "line": "I'll take that bet.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_marvel_04",
+   "speaker": "marvel",
+   "line": "Every one! Every one of them! There's only one woman alive who shoots glass like that, and she quit the ring in eighty-nine.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "s_marvel_05",
+   "speaker": "marvel",
+   "line": "Miss Ruthie. The Ozark Wonder. I barked for Colonel Brady's show the season you joined. You were sixteen and you wouldn't take a dare from anyone.",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_marvel_06",
+   "speaker": "marvel",
+   "line": "And now you're in the dime novels! Miss Ruthie Rides Again. I've sold a hundred copies off this wagon.",
+   "emotion": "amused"
+  },
+  {
+   "id": "s_marvel_07",
+   "speaker": "ruth",
+   "line": "Cassius Marvel. You were Cassius Mulvey then, and you sold dried peas as lucky beans.",
+   "emotion": "dry"
+  },
+  {
+   "id": "s_marvel_08",
+   "speaker": "marvel",
+   "line": "A man grows. Now I sell laudanum and molasses as an elixir. That's growth, of a kind.",
+   "emotion": "sad"
+  },
+  {
+   "id": "s_marvel_09",
+   "speaker": "ned",
+   "line": "Laudanum? My brother's been drinking four bottles a week. He can't hardly swing an axe.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "s_marvel_10",
+   "speaker": "ruth",
+   "line": "It's laudanum, boys. That's why it cures the melancholy. Pour it out.",
+   "emotion": "tense"
+  },
+  {
+   "id": "s_marvel_11",
+   "speaker": "marvel",
+   "line": "There goes the wagon payment. Well. You always did spoil the act, Ruthie. Brady said so too.",
+   "emotion": "tired"
+  },
+  {
+   "id": "s_marvel_12",
+   "speaker": "ruth",
+   "line": "Take the wagon and go, Cassius. And put a label on the bottles that says what's in them.",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_marvel_13",
+   "speaker": "marvel",
+   "line": "For you, Ruthie. For the old days. I'll get a printer to spell laudanum. It's a long word.",
+   "emotion": "warm"
+  },
+  {
+   "id": "s_marvel_14",
+   "speaker": "pearl",
+   "line": "If you ever want work, the ring's still open. I'd let you win. Sometimes.",
+   "emotion": "amused"
+  },
+  {
+   "id": "s_marvel_15",
+   "speaker": "pearl",
+   "line": "Missed a few, didn't you? Don't feel bad. Glass is honest. It's the only honest thing on this wagon.",
+   "emotion": "sad"
+  }
+ ]
+}
