@@ -68,6 +68,7 @@ func run(d) -> Variant:
 	d.npc_walk_to(del, vault)
 	await d.interact(vault, "Open the vault")
 	if d.aborted(): return false
+	await d.say("c2_bank_26", del)
 	if del:
 		d.npc_hold(del, Game.player.global_position)
 	d.cine_begin()
@@ -98,6 +99,7 @@ func run(d) -> Variant:
 		d.npc_release(c)
 	await d.say("c2_bank_19", C2.one(deputies))
 	await d.say("c2_bank_20", del)
+	await d.say("c2_bank_27", Game.player)
 	for dep in deputies:
 		dep.brain.aggressive = true
 		dep.brain.share_target(Game.player)

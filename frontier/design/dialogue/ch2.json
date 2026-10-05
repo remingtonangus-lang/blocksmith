@@ -136,7 +136,7 @@
   {
    "id": "c2_lan_12",
    "speaker": "ebbing",
-   "line": "Lady wants it the hard way, Wade. Lady can have it.",
+   "line": "Two dollars, Wade. Two dollars, and now this.",
    "emotion": "angry"
   },
   {
@@ -334,7 +334,7 @@
   {
    "id": "c2_cards_13",
    "speaker": "ruth",
-   "line": "Mr. Stroud, put the deck down. Face up, and slow. The bottom card's the queen of clubs.",
+   "line": "Mr. Stroud, put the deck down. Face up, and slow. Let's all see what lives on the bottom of it.",
    "emotion": "tense"
   },
   {
@@ -598,7 +598,7 @@
   {
    "id": "c2_thorn_22",
    "speaker": "tolliver",
-   "line": "Pleasure doing business. Take him. He eats like a mule.",
+   "line": "Done. Take him, and his appetite with him. He eats like a mule.",
    "emotion": "amused"
   },
   {
@@ -682,7 +682,7 @@
   {
    "id": "c2_bank_03",
    "speaker": "del",
-   "line": "Lawyers say all sorts of things. Mostly it's billable.",
+   "line": "Lawyers say all sorts of things. They charge by the word, so they say a great many.",
    "emotion": "dry"
   },
   {
@@ -816,6 +816,18 @@
    "speaker": "ruth",
    "line": "Those deputies had wives and a county wage. They came because a lawyer told them where to stand.",
    "emotion": "sad"
+  },
+  {
+   "id": "c2_bank_26",
+   "speaker": "del",
+   "line": "Mr. Yale and I have an understanding. He makes the locks, and I make him look foolish.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c2_bank_27",
+   "speaker": "ruth",
+   "line": "Out the back and up the river road. Don't stop to argue with them. They've been told what to think.",
+   "emotion": "tense"
   },
   {
    "id": "c2_terms_01",

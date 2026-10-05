@@ -232,7 +232,7 @@ func _accuse() -> void:
 		result.accuse_hand = eng.hand_no
 		accused = true
 		eng.void_hand()
-		_log("[color=#%s][b]You lay your hand flat on the felt and call the deal.[/b] %s goes still. Under his palm, the bottom card is a queen.[/color]" % [RED_INK.to_html(false), dealer_name])
+		_log("[color=#%s][b]You lay your hand flat on the felt and call the deal.[/b] %s goes still, the deck cupped in a hand that won't open.[/color]" % [RED_INK.to_html(false), dealer_name])
 	else:
 		result.false_accusations += 1
 		accuse_cooldown = 2
