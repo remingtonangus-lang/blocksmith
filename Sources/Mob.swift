@@ -1635,6 +1635,14 @@ private func parts(_ m: Mob) -> [Part] {
 // Writes the mob triangles (camera-relative) into `out`; returns the vertex count written.
 enum MobLight { static var nightVision: Float = 0 }
 
+// Last frame's mob drawing, for the F3 overlay and voice bug notes (playtest 2026-10-05: mobs invisible in real play,
+// never in the CI renderer): how many mobs, how many near, vertices written and drawn, and which path drew them.
+enum MobDrawStats {
+    static var mobs = 0, near = 0, written = 0, drawn = 0, culled = 0
+    static var path = "none"
+    static var line: String { "mobs \(mobs) (\(near) within 32), \(written) vertices written, \(drawn) drawn via \(path), \(culled) culled" }
+}
+
 func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
                       into out: UnsafeMutablePointer<MobVert>, capacity: Int, cull: Frustum? = nil) -> Int {
     let CT = Mesher.cornerTable
@@ -1651,7 +1659,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
             let dx = m.pos.x - eye.x, dz = m.pos.z - eye.z
             if dx * dx + dz * dz > 64 * 64 {
                 let r: Float = 3 + 2 * m.height
-                if !fr.visible(min: m.pos - V3(r, r, r), max: m.pos + V3(r, r + m.height, r)) { continue }
+                if !fr.visible(min: m.pos - V3(r, r, r), max: m.pos + V3(r, r + m.height, r)) { MobDrawStats.culled += 1; continue }
             }
         }
         let l = world.lightAt(Int(floor(m.pos.x)), Int(floor(m.pos.y + m.height * 0.5)), Int(floor(m.pos.z)))

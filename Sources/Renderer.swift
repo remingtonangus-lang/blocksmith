@@ -460,6 +460,11 @@ final class Renderer: NSObject, MTKViewDelegate {
     // grading) into `final`, then the HUD.
     func renderFrame(_ cmd: MTLCommandBuffer, final: MTLRenderPassDescriptor, width: Int, height: Int) {
         MobLight.nightVision = game.nightVision         // mobs share the terrain's night-vision lift
+        MobDrawStats.mobs = game.mobs.mobs.count
+        MobDrawStats.near = 0
+        let pe = game.player.pos
+        for m in game.mobs.mobs where simd_length_squared(m.pos - pe) < 32 * 32 { MobDrawStats.near += 1 }
+        MobDrawStats.written = 0; MobDrawStats.drawn = 0; MobDrawStats.culled = 0; MobDrawStats.path = "none"
         HudLayout.splitFullH = game.coop.active ? Float(height) : 0
         HudLayout.splitFullW = game.coop.active ? Float(width) : 0
         if game.coop.active { renderSplit(cmd, final: final, width: width, height: height); return }
@@ -639,6 +644,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 }
                 n += game.coop.writeOthers(game, eye: eye, daylight: game.daylight, into: ptr + n, capacity: cap - n)
                 mobPre = (buf, n)
+                MobDrawStats.written += n
             }
         }
         let cast = n > 0 && lf.shadowStrength > 0
@@ -1080,7 +1086,9 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         // Mobs (written straight into the scratch ring: no per-frame arrays); Fancy wrote them before the shadow pass.
         if let pre = mobPre, hdrActive {
+            MobDrawStats.path = "Fancy buffer"
             if pre.count > 0 {
+                MobDrawStats.drawn += pre.count
                 enc.setRenderPipelineState(mobPipe)
                 enc.setDepthStencilState(depthWrite)
                 enc.setCullMode(.none)
@@ -1092,12 +1100,15 @@ final class Renderer: NSObject, MTKViewDelegate {
         } else if !game.mobs.mobs.isEmpty || tp || game.coop.active {
             let off = (scratchOff + 255) & ~255
             let cap = max(0, ringSize - ringTailReserve - off) / MemoryLayout<MobVert>.stride
+            MobDrawStats.path = cap > 36 ? (hdrActive ? "Fancy ring" : "Fast ring") : "no room in the ring (\(off) used)"
             if cap > 36 {
                 let ptr = (scratch.contents() + off).bindMemory(to: MobVert.self, capacity: cap)
                 var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: daylight, world: game.world, into: ptr, capacity: cap, cull: frustum)
                 if tp { n += writePlayerModel(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n) }
                 n += game.coop.writeOthers(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n)
+                MobDrawStats.written += n
                 if n > 0 {
+                    MobDrawStats.drawn += n
                     scratchOff = off + n * MemoryLayout<MobVert>.stride
                     enc.setRenderPipelineState(mobPipe)
                     enc.setDepthStencilState(depthWrite)
@@ -2489,7 +2500,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             "Chunks \(w.chunks.count) loaded, \(w.meshedCount) meshed, \(drawnChunks) drawn, \(w.pendingJobs) jobs, RD \(w.renderDistance)",
             "Target \(tgt)",
             "\(p.flying ? "flying" : (p.onGround ? "on ground" : "in air"))\(p.inWater ? ", in water" : "")  Time \(String(format: "%02d:00", hour))  Controller \(game.padConnected ? "yes" : "no")",
-            "Mobs \(game.mobs.mobs.count)  Fluid queue \(w.fluidPending.count)",
+            "Mobs: " + MobDrawStats.line + "  Fluid queue \(w.fluidPending.count)",
             String(format: "GPU %.1f ms  Graphics %@  Render scale %d%%", gpuFrameMs, game.fancyGraphics ? "Fancy" : "Fast", Int((game.renderScale * 100).rounded())),
             game.audioDebugLine(),
         ]
