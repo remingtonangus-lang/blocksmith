@@ -1886,7 +1886,11 @@ final class MobManager {
         }
         mobs += spawned
         restoreTimer -= dt
-        if restoreTimer <= 0 { restoreTimer = 1; restore(w, center: p, limit: limit) }
+        if restoreTimer <= 0 {
+            restoreTimer = 1
+            // Round every player (split screen: stashed villagers near player 2 came back only when player 1 went there).
+            for i in 0..<max(1, game.coop.seatCount) { restore(w, center: game.coop.seatPlayer(i, game).pos, limit: limit) }
+        }
         spawnTick(dt, game)
     }
 
