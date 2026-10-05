@@ -12,29 +12,43 @@ struct EntityWriter {
     var n = 0
 
     mutating func quad(_ p: [V3], _ uv: [V2], _ layer: Int, _ color: V4, overlay: Bool = false) {
-        guard n + 6 <= capacity else { return }
-        for i in [0, 1, 2, 0, 2, 3] {
-            out[n] = EntityVert(pos: V4(p[i], Float(layer)), uv: V4(uv[i].x, uv[i].y, overlay ? 1 : 0, 0), color: color)
-            n += 1
-        }
+        quad4(p[0], p[1], p[2], p[3], uv[0], uv[1], uv[2], uv[3], layer, color, overlay: overlay)
     }
+
+    // The same from four corners, without arrays (rain, snow and particles write thousands of quads a frame).
+    mutating func quad4(_ p0: V3, _ p1: V3, _ p2: V3, _ p3: V3, _ u0: V2, _ u1: V2, _ u2: V2, _ u3: V2,
+                        _ layer: Int, _ color: V4, overlay: Bool = false) {
+        guard n + 6 <= capacity else { return }
+        let l = Float(layer), o: Float = overlay ? 1 : 0
+        let a = EntityVert(pos: V4(p0, l), uv: V4(u0.x, u0.y, o, 0), color: color)
+        let c = EntityVert(pos: V4(p2, l), uv: V4(u2.x, u2.y, o, 0), color: color)
+        out[n] = a
+        out[n + 1] = EntityVert(pos: V4(p1, l), uv: V4(u1.x, u1.y, o, 0), color: color)
+        out[n + 2] = c
+        out[n + 3] = a
+        out[n + 4] = c
+        out[n + 5] = EntityVert(pos: V4(p3, l), uv: V4(u3.x, u3.y, o, 0), color: color)
+        n += 6
+    }
+
+    static let fullUV = (V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0))
+    static let cubeShade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
 
     // Axis-aligned textured cube (block icon in the world), faces shaded like terrain.
     mutating func cube(center c: V3, half h: Float, yaw: Float, block b: BlockID, light: Float, tint: V3 = V3(1, 1, 1)) {
         let cy = cosf(yaw), sy = sinf(yaw)
         let CT = Mesher.cornerTable
-        let shade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
-        let uvs = [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)]
+        let uv = EntityWriter.fullUV
+        func corner(_ f: Int, _ k: Int) -> V3 {
+            let ci = (f * 4 + k) * 3
+            let l = V3(Float(CT[ci]) * 2 - 1, Float(CT[ci + 1]) * 2 - 1, Float(CT[ci + 2]) * 2 - 1) * h
+            return c + V3(cy * l.x + sy * l.z, l.y, -sy * l.x + cy * l.z)
+        }
         for f in 0..<6 {
-            var ps: [V3] = []
-            for k in 0..<4 {
-                let ci = (f * 4 + k) * 3
-                let l = V3(Float(CT[ci]) * 2 - 1, Float(CT[ci + 1]) * 2 - 1, Float(CT[ci + 2]) * 2 - 1) * h
-                ps.append(c + V3(cy * l.x + sy * l.z, l.y, -sy * l.x + cy * l.z))
-            }
-            let s = shade[f] * light
+            let s = EntityWriter.cubeShade[f] * light
             let overlaySide = Blocks.tint[Int(b)] == 3 && f != 2
-            quad(ps, uvs, Int(Blocks.tex[Int(b) * 6 + f]), V4((overlaySide ? V3(1, 1, 1) : tint) * s, 1), overlay: overlaySide && f != 3)
+            quad4(corner(f, 0), corner(f, 1), corner(f, 2), corner(f, 3), uv.0, uv.1, uv.2, uv.3,
+                  Int(Blocks.tex[Int(b) * 6 + f]), V4((overlaySide ? V3(1, 1, 1) : tint) * s, 1), overlay: overlaySide && f != 3)
         }
     }
 

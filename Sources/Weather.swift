@@ -193,12 +193,15 @@ extension Game {
                         // about thirty stray sparkles: blind critic, run 364).
                         let s: Float = max(0.07, simd_length(c3) * 0.005)
                         let up = V3(0, s, 0), r = right * s
-                        wr.quad([c3 - r - up, c3 + r - up, c3 + r + up, c3 - r + up], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], flake, V4(1, 1, 1, a + 0.2))
+                        let uv = EntityWriter.fullUV
+                        wr.quad4(c3 - r - up, c3 + r - up, c3 + r + up, c3 - r + up, uv.0, uv.1, uv.2, uv.3, flake, V4(1, 1, 1, a + 0.2))
                     } else {
                         let len: Float = min(0.9, span)
                         let r = right * 0.012
                         let lum = 0.35 + 0.65 * daylight
-                        wr.quad([c3 - r, c3 + r, c3 + r + V3(0, len, 0), c3 - r + V3(0, len, 0)], [V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)], layer, V4(0.8 * lum, 0.85 * lum, 0.95 * lum, a))
+                        let uv = EntityWriter.fullUV
+                        let top = V3(0, len, 0)
+                        wr.quad4(c3 - r, c3 + r, c3 + r + top, c3 - r + top, uv.0, uv.1, uv.2, uv.3, layer, V4(0.8 * lum, 0.85 * lum, 0.95 * lum, a))
                     }
                 }
             } }

@@ -152,8 +152,8 @@ final class ParticleManager {
             let s = p.size
             let r = right * s, u = up * s
             let a = p.uv0, b = p.uv0 + V2(p.uvSize, p.uvSize)
-            wr.quad([c - r - u, c + r - u, c + r + u, c - r + u], [V2(a.x, b.y), V2(b.x, b.y), V2(b.x, a.y), V2(a.x, a.y)],
-                    p.layer, V4(p.color * light, 1))
+            wr.quad4(c - r - u, c + r - u, c + r + u, c - r + u, V2(a.x, b.y), V2(b.x, b.y), V2(b.x, a.y), V2(a.x, a.y),
+                     p.layer, V4(p.color * light, 1))
         }
     }
 }
