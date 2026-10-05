@@ -187,6 +187,12 @@ func _process(dt: float) -> void:
 
 func joined(id: String) -> bool:
 	var c: Dictionary = COMPANIONS.get(id, {})
+	# gone for good: Hap's fate on the Meridian line, Del or Joseph leaving over the money, or the low road's end
+	if Game.state:
+		var f: Dictionary = Game.state.flags
+		if (id == "hap" and f.get("hap_alive", true) == false) or (id == "del" and f.get("del_left", false)) \
+				or (id == "joseph" and f.get("joseph_left", false)) or (f.get("ending", "") == "low" and f.get("game_complete", false)):
+			return false
 	if c.has("flag_mission"):
 		return Game.missions != null and Game.missions.completed.has(c.flag_mission)
 	return Game.state != null and bool(Game.state.flags.get(c.get("flag", ""), false))

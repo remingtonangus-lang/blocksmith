@@ -1,0 +1,459 @@
+{
+ "note": "Chapter 5 dialogue, The Meridian Line (Willow Bend, Kessler's Tank, the westbound express, Halvorsen Ranch). Original writing.",
+ "speakers": {
+  "ruth": {
+   "name": "Ruth Caddell",
+   "voice": "ruth"
+  },
+  "hap": {
+   "name": "Hap Lindqvist",
+   "voice": "man_old"
+  },
+  "del": {
+   "name": "Del Arceneaux",
+   "voice": "woman_town"
+  },
+  "doc": {
+   "name": "Cornelius Abernathy",
+   "voice": "man_town"
+  },
+  "billy": {
+   "name": "Billy Pruitt",
+   "voice": "man_young"
+  },
+  "joseph": {
+   "name": "Joseph Kehoe",
+   "voice": "lawman"
+  },
+  "fenn": {
+   "name": "Augustus Fenn",
+   "voice": "man_town"
+  },
+  "harmon": {
+   "name": "Will Harmon",
+   "voice": "man_town"
+  },
+  "guard": {
+   "name": "Express Guard",
+   "voice": "man_rough"
+  },
+  "ashby": {
+   "name": "Captain Ward Ashby",
+   "voice": "man_rough"
+  },
+  "ingrid": {
+   "name": "Ingrid Halvorsen",
+   "voice": "woman_old"
+  }
+ },
+ "lines": [
+  {
+   "id": "c5_plan_01",
+   "speaker": "fenn",
+   "line": "Thursday's westbound express carries the syndicate payroll for the whole Sable country. And in the express safe, Pell's own ledger. He won't trust it to a bank, not after the Exchange.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c5_plan_02",
+   "speaker": "del",
+   "line": "Eleven thousand dollars and the only book in the territory worth reading. Christmas has come on a Thursday.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c5_plan_03",
+   "speaker": "hap",
+   "line": "That's how they did it to Tom. A Thursday train, a safe, a messenger in the door. I heard you tell it, Ruth. More than once.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c5_plan_04",
+   "speaker": "ruth",
+   "line": "I know how they did it, Hap. I've had eighteen months to learn it by heart.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c5_plan_05",
+   "speaker": "joseph",
+   "line": "The grade below Kessler's Tank slows them to a walk for water. If you wanted to do it Tom's way, that's where you'd do it.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c5_plan_06",
+   "speaker": "doc",
+   "line": "I'd like it noted that the doctor was consulted and called this a terrible idea. Then I'd like it noted that I'm coming.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c5_plan_07",
+   "speaker": "billy",
+   "line": "I can uncouple a car. I watched a brakeman do it at Bitter Spring. Twice. He swore the whole time, so I know the words too.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c5_plan_08",
+   "speaker": "ruth",
+   "line": "The ledger. Nobody fires first. Nobody puts a gun on the messenger unless he puts one on us.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c5_plan_09",
+   "speaker": "hap",
+   "line": "Then I'll hold the horses. Somebody steady ought to, and I'm the steadiest thing in camp. Mostly from the stitches.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c5_plan_10",
+   "speaker": "del",
+   "line": "A train robbery where we leave the money. The Arceneaux name has never been so embarrassed.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c5_plan_11",
+   "speaker": "ruth",
+   "line": "All of it. The payroll was bought with stolen land. We're only taking it back the long way round.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c5_plan_12",
+   "speaker": "hap",
+   "line": "Then I won't come. I won't hold horses while you do to some messenger's wife what was done to you. I'll keep the camp. Somebody should.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c5_plan_13",
+   "speaker": "del",
+   "line": "Now that's a sentence I've waited my whole life to hear from an honest woman.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c5_plan_14",
+   "speaker": "joseph",
+   "line": "I'll ride Thursday. After that I'll think about whose fight this is.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c5_plan_15",
+   "speaker": "joseph",
+   "line": "There. The tank, the grade, the cut. They take water here and climb out slow. A good horse can run alongside for half a mile.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c5_plan_16",
+   "speaker": "ruth",
+   "line": "Harlan's Siding had a tank like this one. Tom used to wave to the boys filling it. He waved at everybody.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c5_plan_17",
+   "speaker": "joseph",
+   "line": "Then we'll wave too. From closer than they'd like.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c5_plan_18",
+   "speaker": "ruth",
+   "line": "Thursday, then. A rag on the third pole past the tank. When the engine passes it, we go.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c5_plan_19",
+   "speaker": "billy",
+   "line": "Ruth? Is this what they did? To your husband?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c5_plan_20",
+   "speaker": "ruth",
+   "line": "Close enough to make me sick, Billy. Go and feed the horses.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c5_train_01",
+   "speaker": "joseph",
+   "line": "Smoke on the east grade. She's on time. Pell's trains always are.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c5_train_02",
+   "speaker": "del",
+   "line": "Billy and I take the engine. You take the express car. Try not to fall under it; it would spoil my afternoon.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c5_train_03",
+   "speaker": "billy",
+   "line": "She's slowing! She's slowing for the tank! Go, Ruth, go!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c5_train_04",
+   "speaker": "ruth",
+   "line": "Del! Stop the engine!",
+   "emotion": "tense"
+  },
+  {
+   "id": "c5_train_05",
+   "speaker": "del",
+   "line": "The engineer's very obliging. I told him I'm from New Orleans. People will believe anything about New Orleans.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c5_train_06",
+   "speaker": "guard",
+   "line": "Wells and Merriweather! Back away from the car or be carried away from it!",
+   "emotion": "angry"
+  },
+  {
+   "id": "c5_train_07",
+   "speaker": "harmon",
+   "line": "I've a shotgun and a wife in Port Linden, lady. I'd as soon keep both.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c5_train_08",
+   "speaker": "ruth",
+   "line": "Put the gun down and you'll keep the both of them. I swear it on a man who stood where you're standing.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c5_train_09",
+   "speaker": "harmon",
+   "line": "They all say that. The ones who robbed the Harlan's Siding car said it, I heard. Then they shot the messenger anyway.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c5_train_10",
+   "speaker": "ruth",
+   "line": "His name was Tom Caddell. He was my husband. I'm not them. Open the safe and go home to your wife.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c5_train_11",
+   "speaker": "harmon",
+   "line": "Caddell. I knew Tom. We drank at the depot in Topeka, him and me. All right. All right, God help me.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c5_train_12",
+   "speaker": "del",
+   "line": "Ruth. Ruth, what did you do? He was putting it down.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c5_train_13",
+   "speaker": "ruth",
+   "line": "Was he? I couldn't tell. I couldn't tell any more.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c5_train_14",
+   "speaker": "billy",
+   "line": "There's a book in here! A big one, with a lock on it like a church Bible!",
+   "emotion": "tense"
+  },
+  {
+   "id": "c5_train_15",
+   "speaker": "ruth",
+   "line": "That's the one. Leave the rest where it lies.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c5_train_16",
+   "speaker": "del",
+   "line": "And the rest of it in canvas sacks, very orderly. Mr. Pell likes his robberies tidy.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c5_train_17",
+   "speaker": "joseph",
+   "line": "Riders out of the caboose! They had men aboard! They knew!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c5_train_18",
+   "speaker": "ashby",
+   "line": "Caddell! Mr. Pell sends his compliments! He's been expecting you since Tuesday!",
+   "emotion": "angry"
+  },
+  {
+   "id": "c5_train_19",
+   "speaker": "hap",
+   "line": "Ruth! The horses! I'm hit, God help me, I'm hit!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c5_train_20",
+   "speaker": "ruth",
+   "line": "Hap! Hold on! Joseph, get him up!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c5_train_21",
+   "speaker": "joseph",
+   "line": "Get him across a saddle! Ride for Halvorsen's! Ride!",
+   "emotion": "tense"
+  },
+  {
+   "id": "c5_train_22",
+   "speaker": "del",
+   "line": "They knew. Somebody told Pell we were coming.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c5_train_23",
+   "speaker": "ruth",
+   "line": "Pell didn't need telling. He reads the same newspapers we do.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c5_train_24",
+   "speaker": "ruth",
+   "line": "Wells and Merriweather. Tom's company. Of course it is.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c5_owe_01",
+   "speaker": "doc",
+   "line": "The ball's under his ribs. I need light, boiling water, and nobody talking to me unless it's useful.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c5_owe_02",
+   "speaker": "ingrid",
+   "line": "Use the kitchen table. I'll boil the water. I've boiled water for worse men than Hap Lindqvist.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c5_owe_03",
+   "speaker": "doc",
+   "line": "It's out. He'll live, if he can be persuaded to lie still for a month, which he can't.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c5_owe_04",
+   "speaker": "hap",
+   "line": "Did we get the book, at least? I'd hate to be shot for nothing. It's bad for a man's dignity.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c5_owe_05",
+   "speaker": "doc",
+   "line": "I'm sorry. I'm sorry, Ruth. He went quietly, which is more than I'd have managed.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c5_owe_06",
+   "speaker": "hap",
+   "line": "Tell the boy... tell him the stew's in the pot. He'll know what I mean.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c5_owe_07",
+   "speaker": "billy",
+   "line": "The camp's burning! Hap! Hap!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c5_owe_08",
+   "speaker": "joseph",
+   "line": "The posse came through at noon, the tracks say. Six riders. He made them pay for it. There are two of them in the creek.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c5_owe_09",
+   "speaker": "ruth",
+   "line": "He said somebody should keep the camp.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c5_owe_10",
+   "speaker": "del",
+   "line": "He kept it. Lord, he kept it.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c5_owe_11",
+   "speaker": "billy",
+   "line": "He used to hum when he cooked. Three hymns at once. I don't know any of them right.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c5_owe_12",
+   "speaker": "ruth",
+   "line": "Then hum them wrong. He'd like that better.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c5_owe_13",
+   "speaker": "del",
+   "line": "So. Eleven thousand dollars on Ingrid's table, or a book with a lock on it. What are we, Ruth?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c5_owe_14",
+   "speaker": "joseph",
+   "line": "That's the question. It's been the question since Bitter Spring.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c5_owe_15",
+   "speaker": "ruth",
+   "line": "Fenn gets the ledger. The payroll goes back to the ranches and the camps it was squeezed out of. Every dollar.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c5_owe_16",
+   "speaker": "del",
+   "line": "Then I'll take my share of nothing and go, cher. I told you I'd bring my own deck. I never said I'd stay at the table.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c5_owe_17",
+   "speaker": "joseph",
+   "line": "Then I'll stay a while longer. It seems to be my fight after all.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c5_owe_18",
+   "speaker": "ruth",
+   "line": "We keep it. We've been shot at, burned out and buried for it. It's ours.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c5_owe_19",
+   "speaker": "joseph",
+   "line": "Then it isn't mine. I've seen where this road goes, Ruth. I won't stand and watch you walk it.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c5_owe_20",
+   "speaker": "del",
+   "line": "I'll stay. Somebody has to count it, and I don't trust Doc's arithmetic.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c5_owe_21",
+   "speaker": "doc",
+   "line": "My arithmetic is excellent. It's my judgement that's in question, and I'm still here.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c5_owe_22",
+   "speaker": "ruth",
+   "line": "Tom's watch says ten past four. It's said ten past four for eighteen months. I keep winding it anyway.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c5_owe_23",
+   "speaker": "joseph",
+   "line": "You shot a messenger in the door of his car, Ruth. I can't ride with that. I'm sorry. I truly am.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c5_owe_24",
+   "speaker": "ingrid",
+   "line": "Whatever you decide, decide it outside my kitchen. I've only just scrubbed the table.",
+   "emotion": "neutral"
+  }
+ ]
+}

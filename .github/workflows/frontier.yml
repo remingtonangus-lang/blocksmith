@@ -160,20 +160,21 @@ jobs:
       - name: GPU probe (find features the CI GPU cannot render)
         id: gpuprobe
         if: ${{ !cancelled() }}
-        timeout-minutes: 15
+        timeout-minutes: 25
         run: |
-          # The paravirtual GPU + MoltenVK has lost the device on some character/horse materials. Find the smallest
-          # set of kill-switches that renders a frame with Ruth, her horse and townsfolk, and use it for the
-          # evidence renders below (real Macs render everything through Metal; the Mac monitor checks that).
+          # The paravirtual GPU + MoltenVK hangs or loses the device on some character/horse materials. Find the
+          # least restrictive set of kill-switches that renders a frame with Ruth, her horse and townsfolk, and use it
+          # for the evidence renders below (real Macs render everything through Metal; the Mac monitor checks that).
+          # A hung GPU blocks the engine's own watchdog, so each attempt gets a hard external timeout.
           mkdir -p snaps/probe
-          safe="none"
-          for flags in "" "sss" "horse" "characters" "sss,horse" "sss,horse,characters"; do
+          safe="sss,horse,characters"
+          for flags in "" "sss" "horse" "characters" "sss,horse" "sss,characters" "horse,characters"; do
             name="probe_${flags:-all}"; name="${name//,/_}"
-            "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 960x540 -- --shot "$PWD/snaps/probe/$name.png" --player --at town:bitter_spring --yaw 110 --frames 20 --watchdog 240 ${flags:+--disable $flags} > "snaps/probe/$name.log" 2>&1 || true
+            perl -e 'alarm shift; exec @ARGV' 150 "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 960x540 -- --shot "$PWD/snaps/probe/$name.png" --player --at town:bitter_spring --yaw 110 --frames 20 --watchdog 140 ${flags:+--disable $flags} > "snaps/probe/$name.log" 2>&1 || true
             if [ -f "snaps/probe/$name.png" ] && ! grep -q "device was lost" "snaps/probe/$name.log"; then echo "renders with --disable '${flags}'"; safe="$flags"; break; fi
-            echo "lost the device with --disable '${flags}'"; grep -m3 -E "device was lost|ERROR" "snaps/probe/$name.log" || true
+            echo "failed with --disable '${flags}':"; grep -m2 -E "device was lost|ERROR|crash" "snaps/probe/$name.log" || echo "  (hung, killed)"
           done
-          echo "FRONTIER_DISABLE=${safe/none/sss,horse,characters}" >> $GITHUB_ENV
+          echo "FRONTIER_DISABLE=${safe}" >> $GITHUB_ENV
           echo "gpu probe: --disable '${safe}'" | tee snaps/probe/result.txt
 
       - name: Benchmark (High preset, 1920x1080)
@@ -182,7 +183,7 @@ jobs:
         timeout-minutes: 12
         run: |
           set -o pipefail
-          "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --benchmark --quality high --commit "$GITHUB_SHA" --bench_out "$PWD/snaps/benchmark.json" --watchdog 600 ${FRONTIER_DISABLE:+--disable $FRONTIER_DISABLE} 2>&1 | tee bench.log | grep -E "BENCH|WATCHDOG|SCRIPT ERROR" || true
+          perl -e 'alarm shift; exec @ARGV' 600 "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --benchmark --quality high --commit "$GITHUB_SHA" --bench_out "$PWD/snaps/benchmark.json" --watchdog 600 ${FRONTIER_DISABLE:+--disable $FRONTIER_DISABLE} 2>&1 | tee bench.log | grep -E "BENCH|WATCHDOG|SCRIPT ERROR" || true
           test -f snaps/benchmark.json || { grep -vE "^\s*$" bench.log | head -40; false; }
 
       - name: Perf attribution (only for commits tagged [perf])
@@ -190,7 +191,7 @@ jobs:
         timeout-minutes: 20
         run: |
           for f in none vfog ssr ssao shadows grass trees scatter water; do
-            "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --benchmark --quality high --bench_scale 0.35 --disable $f --bench_out "$PWD/snaps/bench_$f.json" --watchdog 300 2>&1 | grep "BENCH overall" | sed "s/^/without $f: /" | tee -a perf_attr.log
+            perl -e 'alarm shift; exec @ARGV' 600 "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --benchmark --quality high --bench_scale 0.35 --disable $f --bench_out "$PWD/snaps/bench_$f.json" --watchdog 300 2>&1 | grep "BENCH overall" | sed "s/^/without $f: /" | tee -a perf_attr.log
           done
 
       - name: Screenshot tour (High preset)
@@ -201,7 +202,7 @@ jobs:
           set -o pipefail
           # The CI runner's paravirtual GPU (Apple5) has no Metal argument buffers, so Godot's Metal scene shaders
           # exceed the 16-sampler limit there; render CI evidence through MoltenVK and keep one Metal shot for comparison.
-          "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --tour "$PWD/snaps" --quality high --frames 30 --watchdog 800 ${FRONTIER_DISABLE:+--disable $FRONTIER_DISABLE} 2>&1 | tee tour.log | grep -E "shot:|vegetation|WATCHDOG|SCRIPT ERROR|Using Device" || true
+          perl -e 'alarm shift; exec @ARGV' 840 "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --tour "$PWD/snaps" --quality high --frames 30 --watchdog 800 ${FRONTIER_DISABLE:+--disable $FRONTIER_DISABLE} 2>&1 | tee tour.log | grep -E "shot:|vegetation|WATCHDOG|SCRIPT ERROR|Using Device" || true
           ls snaps/*.png
 
       - name: Feature shots (HUD, combat, menus, wildlife, riding, camp, dialogue)
@@ -210,7 +211,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p snaps/features
-          "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --features "$PWD/snaps/features" --quality high --watchdog 800 ${FRONTIER_DISABLE:+--disable $FRONTIER_DISABLE} 2>&1 | tee features.log | grep -E "feature shot|WATCHDOG|SCRIPT ERROR" || true
+          perl -e 'alarm shift; exec @ARGV' 840 "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 1920x1080 -- --features "$PWD/snaps/features" --quality high --watchdog 800 ${FRONTIER_DISABLE:+--disable $FRONTIER_DISABLE} 2>&1 | tee features.log | grep -E "feature shot|WATCHDOG|SCRIPT ERROR" || true
           ls snaps/features/
 
       - name: Audio evidence (verify report from the audio build)

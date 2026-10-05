@@ -29,6 +29,15 @@ runner, Metal) and the Mac monitor.
 - Benchmark: `--benchmark [--quality high]` → `~/Library/Logs/Frontier/benchmark.json` (fps, 1 % low, p50/p95/p99,
   spikes, RSS/VRAM) on macOS, `user://benchmark.json` elsewhere.
 - Vegetation lineup: `godot --path frontier res://scenes/veg_lineup.tscn -- --out x.png`.
+- Feature evidence shots (HUD, combat, menus, wildlife, riding, camp, dialogue, satchel, wheel):
+  `xvfb-run -a godot --path frontier -- --features DIR [--only a,b]`.
+- Bots: `--bot road,explore,ride,gaits,town,gunfight,hunt,missions,camp,systems` (or `all`); missions bot options
+  `--choices 0,1,...`, `--force_fail mission:checkpoint`, `--standing N --expect_ending high|middle|low`.
+- Profiling: `--prof` prints frame spikes with per-system attribution (spawns, system loops, actor ticks).
+- Kill-switches: `--disable vfog,ssr,ssao,shadows,grass,trees,scatter,water,roads,backdrop,cloudshadows,characters,horse,sss`,
+  `--no_settlements`, `--no_actor_lod`, `--noaudio`.
+- Self-tests: `--pokertest`, `--audiotest`, `--script res://src/missions/ch3/herd_selftest.gd`,
+  `--script res://src/missions/ch5/train_selftest.gd`.
 
 ## Delivery
 - `.github/workflows/frontier.yml` (push to this branch, paths frontier/**): macOS-14 runner → worldgen (cached),
@@ -73,6 +82,8 @@ runner, Metal) and the Mac monitor.
   hunting (12 species, pelt quality, skinning); camp; road graph + GPS routes on map/HUD; hold-ups and store
   robberies (src/systems/robbery.gd); fishing (8 species by river/creek/lake, cast/strike/line-tension fight,
   keep or release, sold at the butcher; src/systems/fishing.gd).
+- **Story complete (first pass)**: chapters 1-6, 27 missions, three endings locked by Standing, playable spring-1900
+  epilogue, credits from LICENSES.md; retry from checkpoint; camp life with companions and 105 camp lines.
 - **Missions**: MissionDirector (goto/say/spawn/wait_dead/interact/checkpoint, markers, autopilot, softlock oracle);
   Chapter 1 complete (5 missions: Rider from the West, The Drover, Inquiries, Greer's Post, A Fire at Willow Bend)
   with original dialogue (design/dialogue/ch1.json); letterboxed cinematic dialogue camera.
@@ -86,6 +97,11 @@ runner, Metal) and the Mac monitor.
   avalanche on the Kestrel Pass, Asa spared/killed → flag `spared_asa`, Joseph joins); verbs set_snow, cold_begin/
   warm_spot, climb, avalanche, timed_tasks, pursue. **Camp life** (`src/ai/camp.gd`, `camp.json`): companions' spots
   and routines, fireside talk/barks picked from flags and deeds, stew/drink/cards with Del; `--bot camp`.
+- **Chapters 5-6 + epilogue + credits** (`src/missions/ch5/`, `ch6/`, `credits.gd`): the Meridian express (procedural
+  train + track on the worldgen rail, gallop alongside and board, `--script res://src/missions/ch5/train_selftest.gd`),
+  Hap's fate, the Outfit's split, Standing locks the ending (bots: `--standing N`), three endings, spring 1900
+  epilogue reading every flag, credits from LICENSES.md. Story scenes in chapters 1-4 moved into the real buildings
+  (`src/missions/places.gd`: saloons, sheriff's offices, the bank vault, the newspaper, the cantina).
 - **UI**: HUD (rotating paper-map inset, 3 gauges, ammo, crosshair + hit marks, prompts, subtitles, place titles),
   pause menu, settings, full-screen map with waypoints, journal; OFL period fonts (IM Fell, Rye, Sancreek, Old
   Standard); 1080p canvas scaling.
@@ -155,3 +171,4 @@ Work order from this round:
 - 2026-10-05: horse workstream (worktree): generator, controller, IK, oracles, CI animals job (see HORSES.md).
 - 2026-10-05: character pipeline (worktree agent): tools/characters, src/actors, shaders/characters, CI job.
 - 2026-10-05: weapons workstream (worktree): tools/weapons/gun_gen.py (10 guns + variants, baked PBR, LOD1), CI weapons job -> weapons.zip, WeaponModel/WeaponHolder/WeaponFX, weapon_lineup scene (see WEAPONS.md).
+- 2026-10-05: combat feel (worktree): arm IK onto guns, leather belt/holster/sling/scabbard, death ragdolls, surface impacts + fading decals, night muzzle light, casing sounds, Nerve grade/ink marks/camera cuts (see WEAPONS.md).

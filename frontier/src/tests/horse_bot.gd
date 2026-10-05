@@ -56,6 +56,18 @@ func _road(to: String) -> Array:
 			break
 	return pts
 
+## First route index clear of any settlement (towns have buildings across the old road line now).
+func _outside_town(route: Array) -> int:
+	var st = Game.main.get("settlements")
+	for i in route.size() - 3:
+		var p: Vector3 = route[i]
+		var inside := false
+		if st and st.has_method("town_at"):
+			inside = st.town_at(p, 25.0) != ""
+		if not inside:
+			return i
+	return 0
+
 func _start_at(p: Vector3, toward: Vector3) -> void:
 	var w: WorldData = Game.world
 	p.y = w.height(p.x, p.z)
@@ -103,13 +115,14 @@ func _ride(res: Dictionary, seconds: float) -> void:
 	if route.size() < 3:
 		_fail(res, "no road bitter_spring -> " + to)
 		return
-	await _start_at(route[0], route[2])
+	var s0 := _outside_town(route)
+	await _start_at(route[s0], route[mini(s0 + 2, route.size() - 1)])
 	if horse.rider != player:
 		_fail(res, "could not mount")
 		return
 	res["waypoints"] = route.size()
 	var t := 0.0
-	var wp := 1
+	var wp := s0 + 1
 	var last: Vector3 = horse.global_position
 	var anchor: Vector3 = last
 	var stuck_t := 0.0
@@ -195,7 +208,7 @@ func _ride(res: Dictionary, seconds: float) -> void:
 	if horse.falls > falls0:
 		res.fall_events += horse.falls - falls0
 		_fail(res, "horse fell %d times" % (horse.falls - falls0))
-	if not arrived and wp < mini(route.size() - 1, 8):
+	if not arrived and wp - s0 < mini(route.size() - 1 - s0, 8):
 		_fail(res, "reached only %d/%d waypoints" % [wp, route.size()])
 	for g in best_seg:
 		var s: Dictionary = best_seg[g]
@@ -217,8 +230,9 @@ func _gaits(res: Dictionary) -> void:
 	if not horse.visual.has_model:
 		print("GAIT ORACLE: SKIP (no horse model)")
 		return
-	await _start_at(route[0], route[2])
-	var wp := 1
+	var s0 := _outside_town(route)
+	await _start_at(route[s0], route[mini(s0 + 2, route.size() - 1)])
+	var wp := s0 + 1
 	var t := 0.0
 	for gname in ["walk", "trot", "canter", "gallop"]:
 		var p: int = Horse.PACE_NAMES.find(gname)

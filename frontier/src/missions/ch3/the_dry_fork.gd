@@ -8,6 +8,8 @@ extends Mission
 const C3 = preload("res://src/missions/ch3/ch3.gd")
 const C2 = preload("res://src/missions/ch2/ch2.gd")
 
+const P = preload("res://src/missions/places.gd")
+
 func _init() -> void:
 	id = "c3_fork"
 	title = "The Dry Fork"
@@ -106,7 +108,8 @@ func run(d) -> Variant:
 			await d.say("c3_fork_15", del.man)
 	C3.set_flag("cutter_fate", fate)
 	d.checkpoint("after_cutter")
-	var office := Mission.place("bitter_spring", -20.0, 14.0)
+	var shb := P.building("bitter_spring", "sheriff")
+	var office := P.door_out(shb, Mission.place("bitter_spring", -20.0, 14.0))
 	if fate == "jailed":
 		if Game.state:
 			Game.state.good_deed("bring_alive")
@@ -133,8 +136,13 @@ func run(d) -> Variant:
 		if d.aborted(): return false
 		await d.lead(cutter, "Take Cutter to Sheriff Mabry in Bitter Spring", office, 6.0)
 		if d.aborted(): return false
-		var mabry := C2.spawn_friend(d, C2.near(office, 2.0, 0.0), {"role": "lawman", "faction": "law", "name": "Sheriff Mabry", "seed": 503,
-			"weapon": "lockhart_sa"})
+		var desk := P.spot(shb, "sheriff_desk")
+		var mabry: Human = d.spawn_at(P.at(desk, C2.near(office, 2.0, 0.0)), {"role": "lawman", "faction": "law", "name": "Sheriff Mabry", "seed": 503,
+			"weapon": "lockhart_sa"}, office)
+		P.open_doors(shb, office)
+		d.dismount_player()
+		d._teleport_player(P.door_in(shb, office))
+		d._put_on_ground(cutter, P.at(P.spot(shb, "cell_bunk"), C2.near(office, 2.5, 2.0)))
 		d.npc_hold(mabry, Game.player.global_position)
 		d.npc_hold(cutter, mabry.global_position if mabry else office)
 		d.dismount_player()

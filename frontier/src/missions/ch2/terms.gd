@@ -8,6 +8,8 @@ extends Mission
 const C2 = preload("res://src/missions/ch2/ch2.gd")
 const COUNTY := "Linden County"
 
+const P = preload("res://src/missions/places.gd")
+
 func _init() -> void:
 	id = "c2_terms"
 	title = "Terms"
@@ -17,10 +19,13 @@ func _init() -> void:
 func run(d) -> Variant:
 	d.set_time(7.3)
 	d.set_weather("clear")
-	var office := C2.spot("port_linden", -60.0, -20.0)
-	d.place_player(C2.near(office, -40.0, 18.0), 0.0)
+	var office_fb := C2.spot("port_linden", -60.0, -20.0)
+	var nb := P.building("port_linden", "newspaper")
+	var office := P.inside(nb, 0.55, office_fb)
+	var front := P.door_out(nb, C2.near(office_fb, -1.5, 1.0))
+	d.place_player(C2.near(front, -40.0, 18.0), 0.0)
 	await d.say("c2_terms_01", Game.player)
-	await d.interact(C2.near(office, -1.5, 1.0), "Read the notice on the Lantern's door")
+	await d.interact(front, "Read the notice on the Lantern's door")
 	if d.aborted(): return false
 	var price := 250.0 if C2.flag("took_satchel") else 200.0
 	await d.paper("WANTED", ["!RUTH CADDELL", "alias \"Miss Ruthie, the Ozark Wonder\"",
@@ -32,11 +37,9 @@ func run(d) -> Variant:
 	C2.set_flag("ruth_poster", price)
 	await d.say("c2_terms_02", Game.player)
 	d.checkpoint("poster")
-	var fenn := C2.spawn_friend(d, C2.near(office, 2.0, -1.0), {"role": "townsfolk", "faction": "civilian", "name": "Augustus Fenn", "seed": 2101})
-	var pell := C2.spawn_friend(d, C2.near(office, 3.2, 1.2), {"role": "townsfolk", "faction": "civilian", "name": "Lucius Pell", "seed": 2501})
-	d.npc_hold(fenn, office)
-	d.npc_hold(pell, office)
-	await d.goto(C2.near(office, 1.0, 0.0), 3.0, "Go inside the Lantern")
+	var fenn: Human = d.spawn_at(P.at(P.spot(nb, "clerk"), C2.near(office, 2.0, -1.0)), {"role": "townsfolk", "faction": "civilian", "name": "Augustus Fenn", "seed": 2101}, office)
+	var pell: Human = d.spawn_at(P.inside(nb, 0.7, C2.near(office, 3.2, 1.2), 1.2), {"role": "townsfolk", "faction": "civilian", "name": "Lucius Pell", "seed": 2501}, office)
+	await d.goto(P.door_in(nb, C2.near(office, 1.0, 0.0)), 2.5, "Go inside the Lantern")
 	if d.aborted(): return false
 	d.cine_begin()
 	await d.say("c2_terms_03", fenn)
@@ -67,9 +70,10 @@ func run(d) -> Variant:
 	C2.set_flag("has_deeds", deal == 1)
 	d.cine_end()
 	if pell:
-		d.npc_walk_to(pell, C2.near(office, 40.0, -30.0))
+		P.open_doors(nb, office)
+		d.npc_walk_to(pell, C2.near(front, 40.0, -30.0))
 	# bounty men across the street, reading the poster with their lips
-	var street := C2.near(office, -30.0, 14.0)
+	var street := C2.near(front, -30.0, 14.0)
 	var hunters: Array = d.spawn_group(street, 2, {"role": "gunman", "faction": "syndicate", "name": "Bounty Man", "seed": 2510,
 		"weapon": "merriman_lever", "skill": 0.45, "aggressive": false}, 2.0)
 	if hunters.size() > 0:

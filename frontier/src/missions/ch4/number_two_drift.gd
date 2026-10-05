@@ -51,7 +51,7 @@ func run(d) -> Variant:
 	if how == 0:
 		await d.say("c4_mine_08", Game.player)
 		await d.say("c4_mine_10", null)
-		var town_office := C4.town(64.0, 34.0)
+		var town_office := C4.office()
 		hensley.ride_to(town_office)
 		var done: int = await d.timed_tasks(dig_points, "Dig them out before the air goes bad", 75.0, "Heave timber")
 		if d.aborted(): return false
@@ -60,7 +60,7 @@ func run(d) -> Variant:
 	else:
 		await d.say("c4_mine_09", Game.player)
 		await d.mount_up("Get on your horse")
-		var office := C4.town(64.0, 34.0)
+		var office := C4.office()
 		var caught: bool = await d.pursue(hensley, office, "Ride down Hensley", 70.0, 7.0)
 		if d.aborted(): return false
 		C3.set_flag("fuse_proof", caught)

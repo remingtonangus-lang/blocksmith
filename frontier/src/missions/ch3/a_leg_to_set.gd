@@ -8,6 +8,8 @@ extends Mission
 const C3 = preload("res://src/missions/ch3/ch3.gd")
 const C2 = preload("res://src/missions/ch2/ch2.gd")
 
+const P = preload("res://src/missions/places.gd")
+
 func _init() -> void:
 	id = "c3_doc"
 	title = "A Leg to Set"
@@ -23,13 +25,15 @@ func run(d) -> Variant:
 	await C3.start_at(d, start, well, true)
 	await d.say("c3_doc_01", Game.player)
 	d.checkpoint("arrive")
-	var house := C2.near(well, 6.0, -8.0)
+	var hb := P.building("mesquite_wells", "house")
+	var house_in := P.inside(hb, 0.55, C2.near(well, 6.0, -6.0))
+	var house := P.door_out(hb, C2.near(well, 6.0, -8.0))
 	await d.goto(house, 10.0, "Ride into Mesquite Wells", true)
 	if d.aborted(): return false
 	d.dismount_player()
 	var rosa := C2.spawn_friend(d, C2.near(house, 1.5, 0.5), {"role": "lady", "faction": "civilian", "name": "Rosa Ybarra", "seed": 3201})
 	var mateo := C2.spawn_friend(d, C2.near(house, -1.5, 1.0), {"role": "rancher", "faction": "civilian", "name": "Mateo Ybarra", "seed": 3202})
-	var ines := C2.spawn_friend(d, C2.near(house, 0.5, 2.6), {"role": "child", "faction": "civilian", "name": "Inés Ybarra", "seed": 3203})
+	var ines: Human = d.spawn_at(house_in, {"role": "child", "faction": "civilian", "name": "Inés Ybarra", "seed": 3203}, house)
 	d.npc_hold(rosa, Game.player.global_position)
 	d.npc_hold(mateo, Game.player.global_position)
 	d.npc_hold(ines, house)
@@ -43,16 +47,21 @@ func run(d) -> Variant:
 	await d.say("c3_doc_08", Game.player)
 	d.cine_end()
 	d.checkpoint("ybarra")
-	var cantina := C3.dry(C2.near(town, 30.0, -12.0))
-	var doc := C2.spawn_friend(d, C2.near(cantina, -1.2, 0.6), {"role": "townsfolk", "faction": "civilian", "name": "Cornelius Abernathy", "seed": 3204})
-	var fausto := C2.spawn_friend(d, C2.near(cantina, 2.0, -1.5), {"role": "bartender", "faction": "civilian", "name": "Fausto Medina", "seed": 3205})
-	var skinners: Array = d.spawn_group(C2.near(cantina, 1.2, 1.6), 2, {"role": "worker", "faction": "syndicate", "name": "Mule Skinner",
-		"seed": 3210, "weapon": "lockhart_sa", "skill": 0.3, "aggressive": false}, 1.0)
+	var cb := P.building("mesquite_wells", "cantina")
+	var cantina_fb := C3.dry(C2.near(town, 30.0, -12.0))
+	var cantina := P.inside(cb, 0.5, cantina_fb)
+	var bt := P.spot(cb, "bartender")
+	var doc: Human = d.spawn_at(P.at(P.spot(cb, "bar_patron", 0), C2.near(cantina, -1.2, 0.6)), {"role": "townsfolk", "faction": "civilian", "name": "Cornelius Abernathy", "seed": 3204}, P.at(bt, cantina))
+	var fausto: Human = d.spawn_at(P.at(bt, C2.near(cantina, 2.0, -1.5)), {"role": "bartender", "faction": "civilian", "name": "Fausto Medina", "seed": 3205}, P.look(bt, cantina))
+	var skinners: Array = []
+	for i in 2:
+		skinners.append(d.spawn_at(P.at(P.spot(cb, "bar_patron", 2 + i), C2.near(cantina, 1.2 + i, 1.6)), {"role": "worker", "faction": "syndicate",
+			"name": "Mule Skinner", "seed": 3210 + i, "weapon": "lockhart_sa", "skill": 0.3, "aggressive": false}, cantina))
 	if skinners.size() > 0:
 		skinners[0].display_name = "Royce Barlow"
 	for h in [doc, fausto] + skinners:
 		d.npc_hold(h, cantina)
-	await d.interact(cantina, "Go into Fausto's cantina")
+	await d.goto(P.door_in(cb, cantina), 2.5, "Go into Fausto's cantina")
 	if d.aborted(): return false
 	var barlow = C2.one(skinners)
 	d.cine_begin()
@@ -85,7 +94,9 @@ func run(d) -> Variant:
 		d.fail("The doctor was killed")
 		return false
 	d.checkpoint("lead_doc")
-	await d.lead(doc, "Get the doctor to the Ybarra house", C2.near(house, 0.0, 1.5), 4.0, ["c3_doc_18", "c3_doc_19", "c3_doc_20"])
+	P.open_doors(cb, cantina)
+	P.open_doors(hb, house)
+	await d.lead(doc, "Get the doctor to the Ybarra house", house_in, 3.0, ["c3_doc_18", "c3_doc_19", "c3_doc_20"])
 	if d.aborted(): return false
 	d.npc_hold(doc, ines.global_position if ines else house)
 	d.cine_begin()

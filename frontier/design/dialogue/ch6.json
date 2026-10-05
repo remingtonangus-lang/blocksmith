@@ -1,0 +1,463 @@
+{
+ "note": "Chapter 6 dialogue, Long Light (Willow Bend, San Lazaro, Port Linden) and the epilogue, Spring 1900. Original writing.",
+ "speakers": {
+  "ruth": {
+   "name": "Ruth Caddell",
+   "voice": "ruth"
+  },
+  "hap": {
+   "name": "Hap Lindqvist",
+   "voice": "man_old"
+  },
+  "del": {
+   "name": "Del Arceneaux",
+   "voice": "woman_town"
+  },
+  "doc": {
+   "name": "Cornelius Abernathy",
+   "voice": "man_town"
+  },
+  "billy": {
+   "name": "Billy Pruitt",
+   "voice": "man_young"
+  },
+  "joseph": {
+   "name": "Joseph Kehoe",
+   "voice": "lawman"
+  },
+  "asa": {
+   "name": "Asa Shale",
+   "voice": "man_young"
+  },
+  "eben": {
+   "name": "Eben Shale",
+   "voice": "man_rough"
+  },
+  "ashby": {
+   "name": "Captain Ward Ashby",
+   "voice": "man_rough"
+  },
+  "fenn": {
+   "name": "Augustus Fenn",
+   "voice": "man_town"
+  },
+  "marshal": {
+   "name": "Marshal Ezra Coyle",
+   "voice": "lawman"
+  },
+  "pell": {
+   "name": "Lucius Pell",
+   "voice": "man_town"
+  },
+  "ingrid": {
+   "name": "Ingrid Halvorsen",
+   "voice": "woman_old"
+  },
+  "ines": {
+   "name": "Inés Ybarra",
+   "voice": "woman_town"
+  },
+  "rosa": {
+   "name": "Rosa Ybarra",
+   "voice": "woman_town"
+  },
+  "nora": {
+   "name": "Nora Kilbride",
+   "voice": "woman_town"
+  },
+  "dai": {
+   "name": "Dai Pritchard",
+   "voice": "man_rough"
+  },
+  "mabry": {
+   "name": "Sheriff Mabry",
+   "voice": "lawman"
+  }
+ },
+ "lines": [
+  {
+   "id": "c6_war_01",
+   "speaker": "asa",
+   "line": "Mrs. Caddell. Don't shoot. It's Asa. I came back. I said I wouldn't, and I came back.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c6_war_02",
+   "speaker": "ruth",
+   "line": "You've got one minute, Asa. Use it well.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c6_war_03",
+   "speaker": "asa",
+   "line": "Eben's coming at dawn with Pell's warrants and Ashby's men. Twenty riders. He means to burn this place and call it the law.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c6_war_04",
+   "speaker": "ruth",
+   "line": "Why tell me?",
+   "emotion": "dry"
+  },
+  {
+   "id": "c6_war_05",
+   "speaker": "asa",
+   "line": "Because you let me go, and he never let anybody go in his life. I'd like to be the other kind.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c6_war_06",
+   "speaker": "billy",
+   "line": "Riders! Twenty of them, and a sheriff's star on the one in front! That's Pell's paper with guns on it!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c6_war_07",
+   "speaker": "ruth",
+   "line": "Everybody behind the wagons. Billy, the horses. Doc, keep your bag where you can reach it.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c6_war_08",
+   "speaker": "ruth",
+   "line": "Hold the wagons! Nobody gets near the fire!",
+   "emotion": "tense"
+  },
+  {
+   "id": "c6_war_09",
+   "speaker": "ruth",
+   "line": "Billy, take everyone west. I'll draw them east. We meet at San Lazaro.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c6_war_10",
+   "speaker": "billy",
+   "line": "Ruth, Eben's with them. Up front. He's reading something.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c6_war_11",
+   "speaker": "ruth",
+   "line": "He'll be reading Ecclesiastes. He always is, before.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c6_war_12",
+   "speaker": "eben",
+   "line": "Mrs. Caddell! I'll be at the old mission at San Lazaro! Come alone or bring the whole sorry choir! I've room in the churchyard!",
+   "emotion": "amused"
+  },
+  {
+   "id": "c6_war_13",
+   "speaker": "doc",
+   "line": "A man who issues invitations to his own funeral. I almost admire him. Almost.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c6_war_14",
+   "speaker": "ruth",
+   "line": "They burned the wagon. Hap's cook pot's still in the ashes. Somebody pick it up.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c6_eben_01",
+   "speaker": "ruth",
+   "line": "San Lazaro. Four walls, no roof, and a bell nobody's rung in fifty years.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c6_eben_02",
+   "speaker": "eben",
+   "line": "Mrs. Caddell. You came. I knew you would. Widows are punctual; it's the waiting that teaches them.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c6_eben_03",
+   "speaker": "eben",
+   "line": "For everything there is a season. I read that over your husband. Did anyone tell you? I read it over all of them. It seemed only decent.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c6_eben_04",
+   "speaker": "ruth",
+   "line": "You shot him in the door of the car while he had his hands up.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c6_eben_05",
+   "speaker": "eben",
+   "line": "He had them half up. Messengers always think they've got time. It's a professional weakness.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c6_eben_06",
+   "speaker": "asa",
+   "line": "Eben. Put it down. It's done. Cutter's done, I'm done. Put it down.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c6_eben_07",
+   "speaker": "eben",
+   "line": "Asa. Little brother. You always did hold the horses for the wrong side.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c6_eben_08",
+   "speaker": "eben",
+   "line": "Pell built a railroad on paper, and I built it on men like your husband. Somebody always pays for the iron. I only collected.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c6_eben_09",
+   "speaker": "ruth",
+   "line": "Then here's the bill.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c6_eben_10",
+   "speaker": "ruth",
+   "line": "No more verses, Eben.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c6_eben_11",
+   "speaker": "eben",
+   "line": "You missed. You never miss. They told me you never miss.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c6_eben_12",
+   "speaker": "ruth",
+   "line": "I didn't. Get up, Eben. You're going to a courtroom, and you can read your verses to a jury.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c6_eben_13",
+   "speaker": "eben",
+   "line": "Ten past four. Was that it? I always wondered what time it was.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c6_eben_14",
+   "speaker": "ruth",
+   "line": "It was ten past four, Eben. It's been ten past four ever since.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c6_eben_15",
+   "speaker": "eben",
+   "line": "You'll be me, Caddell. By spring you'll be me.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c6_eben_16",
+   "speaker": "ruth",
+   "line": "By spring I'll be worse.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c6_eben_17",
+   "speaker": "ashby",
+   "line": "Mrs. Caddell. The men need a chief now. Mr. Pell pays well, and he isn't particular.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c6_eben_18",
+   "speaker": "ruth",
+   "line": "Tell Mr. Pell the price went up.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c6_eben_19",
+   "speaker": "asa",
+   "line": "Thank you. For not doing it in front of me.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c6_eben_20",
+   "speaker": "asa",
+   "line": "He was my brother. I'll bury him. Somebody ought to who doesn't hate him.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c6_eben_21",
+   "speaker": "asa",
+   "line": "You were the other kind. You were. What happened to you?",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c6_ink_01",
+   "speaker": "fenn",
+   "line": "Front page, column one: every name in Pell's ledger and the date he paid for it. The press ran all night. My windows are broken and I've never been happier.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c6_ink_02",
+   "speaker": "marshal",
+   "line": "Mr. Pell. I've a warrant from the territorial court, sworn on your own ledger. You'll want your hat.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c6_ink_03",
+   "speaker": "pell",
+   "line": "Mrs. Caddell. I underestimated you. Not your aim. Your patience. It's the rarer gift.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c6_ink_04",
+   "speaker": "ruth",
+   "line": "I learned it from a lawyer.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c6_ink_05",
+   "speaker": "pell",
+   "line": "Mrs. Caddell. Eben is dead, I hear. A tragedy. He was my most efficient employee. I'll have to hire two to replace him.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c6_ink_06",
+   "speaker": "ruth",
+   "line": "You'll never stand in a courtroom, will you?",
+   "emotion": "tired"
+  },
+  {
+   "id": "c6_ink_07",
+   "speaker": "pell",
+   "line": "Courtrooms are where my clients stand, Mrs. Caddell. I sit behind them.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c6_ink_08",
+   "speaker": "billy",
+   "line": "Ruth. Let's go. Please. Let's just go.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c6_ink_09",
+   "speaker": "ruth",
+   "line": "All right, Billy. Let's go.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c6_ink_10",
+   "speaker": "pell",
+   "line": "You're robbing my office. With my own detectives. Do you hear how that sounds?",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c6_ink_11",
+   "speaker": "ruth",
+   "line": "Like business, Mr. Pell. You taught the whole territory how it sounds.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c6_ink_12",
+   "speaker": "doc",
+   "line": "This isn't what we came for, Ruth. I don't know who you are any more. I'm not sure you do.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c6_ink_13",
+   "speaker": "ruth",
+   "line": "It's over, Tom. Shale's in a cell and Pell's in the paper. I don't know what I'm supposed to do now.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c6_ink_14",
+   "speaker": "ruth",
+   "line": "Ten past four. Let's find out what time it really is.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c6_ink_15",
+   "speaker": "ruth",
+   "line": "Nobody's waiting at Willow Bend. That's all right. Nobody waits for the likes of me.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c6_ink_16",
+   "speaker": "fenn",
+   "line": "Mrs. Caddell. I'm told you'll want to read about yourself. I'd advise against it. I wrote it kindly, and it still reads like an obituary.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c6_spring_01",
+   "speaker": "ruth",
+   "line": "Green on the cottonwoods. Water in the Dry Fork. Spring came anyway. It always does, they tell me.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c6_spring_02",
+   "speaker": "hap",
+   "line": "We're breaking camp, Ruth. Ingrid's hiring, Doc's hung a shingle in Mesquite Wells, and Del's opening a gaming house that's very nearly honest.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c6_spring_03",
+   "speaker": "billy",
+   "line": "Horses are packed. California? Oregon? I don't care. You choose. You always choose better than me.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c6_spring_04",
+   "speaker": "ruth",
+   "line": "They took the coffee pot. That's fair. I never made it right.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c6_spring_05",
+   "speaker": "ingrid",
+   "line": "Calves on the south section and the deeds back in my name. Come to supper. Bring whoever you've got left.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c6_spring_06",
+   "speaker": "ines",
+   "line": "Señora Ruth! Watch me run to the well and back! Doctor Abernathy says I'm a scandal!",
+   "emotion": "warm"
+  },
+  {
+   "id": "c6_spring_07",
+   "speaker": "rosa",
+   "line": "The old well's still bitter. Mateo dug a new one. Slower, but it's ours, and nobody has a paper for it.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c6_spring_08",
+   "speaker": "nora",
+   "line": "The contract held till the thaw. Then Pell's lawyers came up the canyon. We're still fighting. We're good at it now.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c6_spring_09",
+   "speaker": "dai",
+   "line": "Garrity's in the territorial jail and the drifts are timbered. Tommy's girl in Cardiff gets his wages. You did that, missus.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c6_spring_10",
+   "speaker": "mabry",
+   "line": "Eben Shale's trial is set for May. I'll be testifying. Imagine that. Me, under oath, and meaning it.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c6_spring_11",
+   "speaker": "mabry",
+   "line": "Pell's building a new depot. Bigger. Some things don't change, Mrs. Caddell. I'm one of them, mostly.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c6_spring_12",
+   "speaker": "billy",
+   "line": "Hap would've liked spring here. He'd have said the cottonwoods were showing off.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c6_spring_13",
+   "speaker": "ruth",
+   "line": "Tom. It's spring. I've set the watch. It's later than I thought.",
+   "emotion": "tired"
+  }
+ ]
+}

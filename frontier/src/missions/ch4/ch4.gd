@@ -5,6 +5,7 @@ extends RefCounted
 
 const C2 = preload("res://src/missions/ch2/ch2.gd")
 const C3 = preload("res://src/missions/ch3/ch3.gd")
+const P = preload("res://src/missions/places.gd")
 
 const MINE_YARD := Vector3(-1691.0, 0, -2848.0)
 const ADIT := Vector3(-1684.0, 0, -2918.0)
@@ -121,3 +122,18 @@ static func blast(d, pos: Vector3) -> void:
 	ps.mesh = q
 	n.add_child(ps)
 	ps.emitting = true
+
+## Garrity's company office: the assay office on Coldwater's street (door, and a point inside).
+static func office() -> Vector3:
+	return P.door_out(P.building("coldwater", "assay"), town(64.0, 34.0))
+
+static func office_in() -> Vector3:
+	return P.inside(P.building("coldwater", "assay"), 0.6, town(64.0, 34.0))
+
+## Nora's strike kitchen: kettles in the street outside the Miners' Rest boarding house.
+static func kitchen() -> Vector3:
+	var b := P.building("coldwater", "hotel")
+	if b.is_empty():
+		return town(22.0, -16.0)
+	var t: Transform3D = b.transform
+	return C3.dry(t * Vector3(0.0, 0.0, -6.0))

@@ -89,6 +89,41 @@ Finish variants: `lockhart_sa_nickel`, `talbot_pocket_nickel` (nickel + hard rub
 - Local: `bash frontier/tools/fetch_assets.sh weapons` -> `frontier/assets/ext/weapons/` (also part of `all`; an
   `ext` refresh keeps it). `frontier.yml` still needs a `fetch_assets.sh weapons || true` line to ship them in builds.
 
+## Combat feel (hands, gear, ragdolls, impacts, Nerve)
+- **Hands** (`src/combat/gun_hands.gd`, `GunHands`): on a FrontierCharacter (Godot humanoid skeleton) the holder places
+  the gun from the body — pistol at arm's length in front of the chest, rifle butt in the right shoulder pocket, low
+  ready below the shoulder — and two `TwoBoneIK3D` modifiers (UpperArm → LowerArm → Hand) pull the wrists to
+  `grip_r` / `grip_l` plus per-rig wrist offsets (`GunHands.RIGS[rig]`, keyed by character id, `default` otherwise;
+  `long_l` moves the support hand back along long fore-ends for reach), with elbow poles. Right hand while the gun is
+  in hand, support hand for long guns and two-handed pistol aim; influences blend with the draw. The aim clips
+  (`pistol_aim_two_hand`, `rifle_aim`) still pose the torso/head. `pistol_draw` is a 4.2 s mocap take, too slow for
+  the 0.32 s gameplay draw, so it is not used. Capsule stand-ins keep the sleeve-and-hand fallback.
+- **Gear** (`src/combat/gun_gear.gd`, `GunGear`): cartridge gun belt sized from the hip joints, holster built around
+  the sidearm's own markers (mouth at the cylinder, toe past the muzzle, belt flap), sling strap under long guns,
+  saddle scabbard attached to the mounted horse (stays on the saddle). Holster and back carry follow the `Hips` /
+  `UpperChest` bones. Triplanar leather from the CC0 pack, plain StandardMaterial3D.
+- **Ragdolls** (`src/combat/ragdoll.gd`, `Ragdoll`): `FrontierCharacter.die(info)` plays the death clip and calls
+  `Ragdoll.begin(self, info, 0.28)`: a PhysicalBoneSimulator3D with 15 capsule PhysicalBone3Ds generated from the
+  skeleton (cone joints, hinge elbows/knees) blends in, the killing shot's impulse hits the bone of the hit zone, and
+  after settling (or 5 s) the pose is written into the skeleton and the bodies are freed. At most 4 simulate at once
+  (the oldest freezes early); none beyond 70 m from the camera. Bones are on layer 32 colliding with the world only.
+  `revive()` cancels. Horses are not ragdolled yet.
+- **Impacts** (`src/combat/effects.gd`): surface from `info.surface`, collider meta `surface`, water level, else
+  `AudioSurfaces.surface_at` (roads, rock, sand, snow, mud, grass, floors). Dust tinted per layer + clods, wood
+  splinters, stone/gravel chips + sparks, water splashes, snow, mud; restrained dark-red mist on people/animals (no
+  gore, no decal); pooled per-surface bullet holes (48 max) fading out after ~26 s; `Game.audio.impact(material)`.
+  Muzzle flash light scales with `Effects.darkness()` (night: brighter, wider, shadowed on high/ultra). Particles are
+  coloured by tinted materials, not per-particle vertex colours, which render wrong on some software and
+  paravirtual GPUs.
+- **Casings** ring on their first ground contacts (`Game.audio.gun_mech("casing")`).
+- **Nerve**: `shaders/nerve_overlay.gdshader` grades the screen to a high-contrast albumen-print sepia with paper
+  grain, keeps a hint of red, and tightens the vignette on a lub-dub heartbeat (the AudioDirector already plays the
+  `nerve_heartbeat` loop). Each mark prints a hand-inked X (Sprite3D, fixed size, sticks to the marked hitbox).
+  Executing the marks cuts the camera per shot between an over-the-shoulder telephoto and a close view of the
+  target (0.3 s holds; headless keeps the old 0.11 s cadence).
+- Test scene: `godot --path frontier res://scenes/combat_fx.tscn -- --out /tmp/cfx --views
+  hold,pistol,ragdoll,impacts,nerve,night`.
+
 ## Verification
 - Blender previews: `gun_gen.py --preview DIR` (Cycles studio: key/fill/rim, gradient world).
 - Godot studio: `godot --path frontier res://scenes/weapon_lineup.tscn -- --out /tmp/guns --ids a,b
@@ -96,11 +131,9 @@ Finish variants: `lockhart_sa_nickel`, `talbot_pocket_nickel` (nickel + hard rub
 - In game: `--shot out.png --player --aim [--weapon N] [--fire]` (src/tests/shots.gd) draws and aims.
 
 ## Gaps / next
-- Hands: no IK yet — the guns hover where the hand would be on the capsule stand-ins; once the character rig
-  lands, the holder's bone attach needs a per-rig grip offset and `grip_l` should drive a support-hand IK target.
+- Hand rotation is not solved by the IK (TwoBoneIK3D places wrists; hands keep the aim clip's rotation).
 - VR: `pose()` exposes every part for hand-driven cocking/fanning/loading, but no XR interaction layer uses it yet.
 - No individual cartridges travel during reloads (cases eject; new rounds are implied), no carrier/elevator in lever
   guns, no magazine follower; the Brennan bolt and pump move as two parts on one channel.
 - Engraving, maker-style roll marks and serials are intentionally absent (no trademarks); wear is uniform per gun
   (could be driven by a `condition` parameter per item instance).
-- Holster/scabbard meshes are not part of this pipeline (guns float at the hip/back anchors).

@@ -7,6 +7,8 @@ extends RefCounted
 const PHYSICS_RANGE := 60.0
 
 static func far(body: Node3D) -> bool:
+	if Game.args.has("no_actor_lod"):
+		return false
 	# no collision under the body yet (tiles stream in a couple per frame): glide rather than fall
 	if Game.terrain and not Game.terrain.has_collision_at(body.global_position):
 		return true

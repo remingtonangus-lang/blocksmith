@@ -399,6 +399,22 @@ func _run_missions() -> Dictionary:
 	res.choices = choices
 	print("  lines said %d, choices %s" % [said, " ".join(choices)])
 	print("  outcomes %s" % " ".join(outcomes))
+	# the endings: Standing locked a branch at the end of chapter 5 and the credits rolled after the epilogue
+	if md.completed.has("c6_spring"):
+		var credit_lines := 0
+		for ln in Game.log_lines:
+			if ln.contains(" credits_roll "):
+				var dd = JSON.parse_string(ln.split(" ", false, 2)[2])
+				if typeof(dd) == TYPE_DICTIONARY:
+					credit_lines = int(dd.get("licences", 0))
+		var fl: Dictionary = Game.state.flags
+		print("  ending: %s (eben %s, pell %s, hap alive %s, joseph left %s, del left %s, asa spared %s), credits licences %d" % [
+			fl.get("ending", "?"), fl.get("eben_fate", "?"), fl.get("pell_fate", "?"), fl.get("hap_alive", "?"), fl.get("joseph_left", "?"),
+			fl.get("del_left", "?"), fl.get("spared_asa", "?"), credit_lines])
+		if not fl.has("ending") or credit_lines < 10:
+			_fail(res, "ending/credits not reached properly")
+		if Game.args.has("expect_ending") and str(fl.get("ending", "")) != str(Game.args.expect_ending):
+			_fail(res, "expected ending %s, got %s" % [Game.args.expect_ending, fl.get("ending", "")])
 	# the forced failure must have been retried from its checkpoint and the mission finished
 	if md.test_fail != "":
 		var fm := md.test_fail.split(":")[0]
@@ -486,10 +502,18 @@ func _benchmark() -> void:
 		_recording = true
 		var t := 0.0
 		var dur: float = sg.secs * secs_scale
+		var draws := 0.0
+		var prims := 0.0
+		var objs := 0.0
+		var nsamp := 0
 		while t < dur:
 			await get_tree().process_frame
 			var dt := get_process_delta_time()
 			t += dt
+			draws += RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)
+			prims += RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)
+			objs += RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME)
+			nsamp += 1
 			var f := t / dur
 			if sg.kind == "walk":
 				var to: Vector3 = b - player.global_position
@@ -509,9 +533,12 @@ func _benchmark() -> void:
 		st["name"] = sg.name
 		st["spikes_over_100ms"] = _spikes
 		st["frames"] = _frame_ms.size()
+		st["draw_calls"] = draws / maxf(nsamp, 1.0)
+		st["primitives_k"] = prims / maxf(nsamp, 1.0) / 1000.0
+		st["objects"] = objs / maxf(nsamp, 1.0)
 		out.segments.append(st)
 		all.append_array(_frame_ms)
-		print("BENCH %-18s avg %.2f ms (%.0f fps)  p95 %.2f  p99 %.2f  1%%low %.0f fps  max %.1f" % [sg.name, st.avg, st.fps, st.p95, st.p99, st.low1, st.max])
+		print("BENCH %-18s avg %.2f ms (%.0f fps)  p95 %.2f  p99 %.2f  1%%low %.0f fps  max %.1f  draws %.0f  prims %.0fk  objects %.0f" % [sg.name, st.avg, st.fps, st.p95, st.p99, st.low1, st.max, st.draw_calls, st.primitives_k, st.objects])
 	var tot := _stats(all)
 	out["overall"] = tot
 	out["bench_seconds"] = (Time.get_ticks_msec() - load_t0) / 1000.0
@@ -546,7 +573,7 @@ func _memory() -> Dictionary:
 ## What each bot actually exercised, for the summary line (critics read these; zeros must mean something).
 static func _metrics(res: Dictionary) -> String:
 	var out := ""
-	for k in ["enemies", "engaged", "used_cover", "flanked", "killed", "player_shots", "player_hits", "player_hits_taken",
+	for k in ["enemies", "enemy_shots", "enemy_hits", "engaged", "used_cover", "flanked", "killed", "player_shots", "player_hits", "player_hits_taken",
 			"npcs", "npc_minutes", "pelt_quality", "kills", "skinned", "lines_said", "stances", "slide_cm"]:
 		if res.has(k):
 			var v = res[k]

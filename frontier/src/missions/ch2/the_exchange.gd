@@ -6,6 +6,8 @@ extends Mission
 
 const C2 = preload("res://src/missions/ch2/ch2.gd")
 
+const P = preload("res://src/missions/places.gd")
+
 func _init() -> void:
 	id = "c2_exchange"
 	title = "The Exchange"
@@ -15,7 +17,8 @@ func _init() -> void:
 func run(d) -> Variant:
 	d.set_time(1.2)
 	d.set_weather("fog")
-	var bank := C2.spot("port_linden", -12.0, 34.0)
+	var bank_b := P.building("port_linden", "bank")
+	var bank := P.door_out(bank_b, C2.spot("port_linden", -12.0, 34.0))
 	var alley := C2.near(bank, -32.0, 22.0)
 	d.place_player(C2.near(alley, -40.0, 10.0), 0.0)
 	await d.goto(alley, 5.0, "Meet Del in the alley behind the Exchange")
@@ -33,7 +36,7 @@ func run(d) -> Variant:
 	d.cine_end()
 	d.checkpoint("alley")
 	# the watchman sits by the back door looking down the lane, away from the alley; a deputy keeps the corner
-	var door := C2.near(bank, -6.0, 6.0)
+	var door := bank if not bank_b.is_empty() else C2.near(bank, -6.0, 6.0)
 	var dodd := C2.spawn_friend(d, C2.near(door, 1.2, -1.0), {"role": "townsfolk", "faction": "civilian", "name": "Ephraim Dodd", "seed": 2401})
 	var corner: Array = d.spawn_group(C2.near(bank, 14.0, -10.0), 1, {"role": "lawman", "faction": "law", "name": "Linden County Deputy",
 		"seed": 2402, "weapon": "harlan_carbine", "skill": 0.4}, 0.5)
@@ -43,7 +46,7 @@ func run(d) -> Variant:
 		d.npc_hold(c, C2.near(bank, 30.0, -10.0))
 	if Game.hud and not d.autopilot:
 		Game.hud.notice("Crouch (C / B) and keep out of the watchman's sight", 5.0)
-	var quiet: bool = await d.sneak_to(C2.near(door, -1.0, 1.2), 2.2, "Reach the back door unseen", [dodd] + corner)
+	var quiet: bool = await d.sneak_to(C2.near(door, -1.0, 1.2), 2.2, "Reach the Exchange's door unseen", [dodd] + corner)
 	if d.aborted(): return false
 	var seconds := 55.0
 	d.npc_hold(dodd, Game.player.global_position)
@@ -64,12 +67,14 @@ func run(d) -> Variant:
 		seconds = 35.0
 	C2.set_flag("bank_quiet", quiet)
 	d.checkpoint("inside")
-	var vault := C2.near(bank, -1.5, 1.0)
+	var vault := P.vault(bank_b, C2.near(bank, -1.5, 1.0))
+	P.open_doors(bank_b, bank)
 	d.npc_walk_to(del, vault)
 	await d.interact(vault, "Open the vault")
 	if d.aborted(): return false
 	await d.say("c2_bank_26", del)
 	if del:
+		d._put_on_ground(del, vault + (bank - vault).normalized() * 1.2)
 		d.npc_hold(del, Game.player.global_position)
 	d.cine_begin()
 	await d.say("c2_bank_11", del)
