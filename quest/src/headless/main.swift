@@ -82,6 +82,7 @@ if let path = renderPath, !path.isEmpty, let ctx = vkctx {
                 game.player.pos = saved
             } else { print("render: no volcano within 8000 blocks of spawn (impostor view skipped)") }
         }
+        try MobDrawTest.run(game: game, ctx: ctx, check: check)
     } catch { check(false, "render: \(error)") }
     if CommandLine.arguments.contains("--render-only") { exit(failures == 0 ? 0 : 1) }
 }
