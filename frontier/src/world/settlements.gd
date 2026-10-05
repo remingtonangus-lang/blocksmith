@@ -779,6 +779,12 @@ func _interiors(cp: Vector3) -> void:
 					if is_instance_valid(n):
 						n.visible = vis
 
+## Never leave a worker task running at teardown (an unwaited task aborts the process on exit).
+func _exit_tree() -> void:
+	if _task >= 0:
+		WorkerThreadPool.wait_for_task_completion(_task)
+		_task = -1
+
 func night_factor() -> float:
 	var sky = Game.sky
 	if sky == null:

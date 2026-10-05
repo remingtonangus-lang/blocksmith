@@ -38,8 +38,10 @@ unchanged API).
 - Streaming: a settlement's detail is built on a `WorkerThreadPool` task when the camera is within 750 m of its
   edge; nodes, collision, doors and lights are created on the main thread (~15–40 ms per town).
 - Per 128 m cell: one exterior mesh (one surface per material, to 520 m, no shadow casting) + one position-only
-  shadow proxy (SHADOWS_ONLY), one interior mesh (to 140 m, no shadows), prop MultiMeshes (interior 140 m, street
-  200 m), door MultiMeshes (300 m). Far shell per settlement from 480 m (one surface).
+  shadow proxy (SHADOWS_ONLY), street prop MultiMeshes (140 m, no shadows). Per building: interior mesh + interior
+  prop MultiMeshes, drawn only while the camera is inside or within 9 m of the footprint (`_interiors()`, 45 m
+  visibility range as a backstop). Doors: one MultiMesh per door mesh (style/size) per town, paint colour as
+  instance custom data (building.gdshader). Far shell per settlement from 480 m (one surface).
 - Lights: OmniLights per lamp/porch/room/fire, culled beyond 140 m, distance-faded at 45–80 m, at most two shadowed
   lights per town; lit windows and lamp glass are emissive materials driven by the night factor.
 - Interior ReflectionProbes (one per furnished building, update once, interior ambient colour).

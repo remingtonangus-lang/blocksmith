@@ -55,6 +55,11 @@ func setup(w: WorldData, skip: Array) -> void:
 	stats.chunks = chunks.size()
 	print("rail: %d chunks of main line, far strip %d tris" % [chunks.size(), stats.far_tris])
 
+func _exit_tree() -> void:
+	if _task >= 0:
+		WorkerThreadPool.wait_for_task_completion(_task)
+		_task = -1
+
 func _flush(pts: PackedVector3Array) -> void:
 	if pts.size() < 2:
 		return
