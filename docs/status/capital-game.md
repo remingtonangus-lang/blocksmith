@@ -126,6 +126,28 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 19:45: grass vertex shader: the random keep test (against the best density the clump could have) runs
+  first, then the ground mask, before the normal, height and noise. The far-fade drops up to 70% of the clumps at
+  the ring's edge, and roads, the city and rock drop more; they had run about 8 texture fetches and 30 hashes per
+  vertex before being thrown away. The same clumps survive: shots are unchanged side by side. To be measured by the
+  next CI ablation (grass 5.76 of 16.64 ms).
+- 2026-10-05 19:20: GAME BUILD READY 188b983 (capital-latest, 19:00 UTC): drive crawlers through the forest and the
+  trees go down. CI Mac (paravirtual, High): city 47.9 fps, battle 36.9, forest 54.6 (p99 28.8 ms). The first clean
+  GPU ablation (the "on" windows all within 16.3-17.6 ms; battle camera, base 16.64 ms):
+
+  | Feature | Saved |
+  |---|---|
+  | Vegetation (trees and grass) | 8.56 ms |
+  | Grass alone | 5.76 ms |
+  | SSAO | 2.10 ms |
+  | Terrain | 2.01 ms |
+  | Sun shadows | 1.44 ms |
+  | Shadows: 2 cascades, not 4 | 0.98 ms |
+  | Shadows: terrain not casting | 0.96 ms |
+  | Shadows: hard filter | 0.47 ms |
+  | Everything else | under 0.2 ms |
+
+  Grass is still the largest cost.
 - 2026-10-05 19:05: crawlers flatten trees. The new `forest_drive` scenario drives a crawler 12 s along the densest
   forest heading. Since trunks became solid, it stopped dead against the first tree (from 19 m/s to 0.3 m/s; 5 m on
   the dense line). Now, above 1 m/s, the crawler's front edge fells the trunks in its path:

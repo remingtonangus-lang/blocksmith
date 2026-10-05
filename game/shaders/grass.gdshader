@@ -24,12 +24,25 @@ void vertex() {
 	float d = distance(base, CAMERA_POSITION_WORLD.xz);
 	// Past the radius the clump is invisible anyway: collapse it before the terrain lookups and noise (every
 	// vertex of every clump ran them; a clump's vertices all take the same branch).
-	if (d > radius) {
+	// The same keep test as below, against the best density this clump could have: at the ring's edge (far fade)
+	// most clumps are dropped here, before any texture fetch. Then the ground mask (roads, city, rock, forest
+	// floor) before the normal, height and noise. The surviving clumps are exactly the ones that showed before.
+	float keep = hash12(base * 3.1);
+	float far = smoothstep(radius * 0.55, radius, d);
+	float dens_max = density * (1.0 - weather_snow) * (1.0 - far * 0.7);
+	vec4 m = vec4(0.0);
+	float dens_mask = 0.0;
+	bool alive = d <= radius && keep < dens_max;
+	if (alive) {
+		m = t_mask_at(base);
+		dens_mask = (1.0 - max(m.r, m.g)) * (1.0 - m.b) * mix(1.0, 0.35, m.a);
+		alive = keep < dens_max * dens_mask;
+	}
+	if (!alive) {
 		VERTEX = vec3(0.0, -1e5, 0.0);
 		v_col = vec3(0.0);
 		v_h = 0.0;
 	} else {
-	vec4 m = t_mask_at(base);
 	vec3 n = t_normal(base);
 	float h = t_height(base);
 	float slope = 1.0 - n.y;
@@ -39,8 +52,6 @@ void vertex() {
 	dens *= mix(1.0, 0.35, m.a);           // forest floor: sparse
 	dens *= (1.0 - weather_snow);
 	dens *= density;
-	float keep = hash12(base * 3.1);
-	float far = smoothstep(radius * 0.55, radius, d);
 	float visible = step(keep, dens * (1.0 - far * 0.7)) * (1.0 - step(radius, d));
 	float scale = mix(0.55, 1.15, hash12(base * 7.7)) * mix(0.8, 1.25, meadow) * visible;
 	scale *= 1.0 - smoothstep(radius * 0.8, radius, d) * 0.6;
