@@ -91,6 +91,9 @@ final class QuestApp {
         }
         status("Generating terrain", 0.55)
         _ = world.loadSync(center: game.player.pos, radius: min(3, world.renderDistance))
+        // The horizon ring's first sampling (4225 terrain columns, ~0.1 s on a desktop core) here, not on the first
+        // world frame (HorizonRing samples synchronously when it has no ring yet).
+        HorizonRing.shared.request(game, eye: game.player.eye)
         status("Ready", 1)
         loadLock.lock(); loaded = (game, save, tex); loadLock.unlock()
     }

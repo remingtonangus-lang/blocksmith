@@ -116,6 +116,12 @@ do {
         sum &+= Int(world.block(x, y, z))
     }
     print(String(format: "world.block: %.1f ns per read (%d)", (CFAbsoluteTimeGetCurrent() - tb) * 1e3, sum & 1))
+    // The horizon ring's first sampling (HorizonRing.swift: synchronous when there is none yet).
+    if let wg = world.gen as? WorldGen {
+        let th = CFAbsoluteTimeGetCurrent()
+        let snap = HorizonRing.sample(wg, x0: Int(spawn.x) - 1280, z0: Int(spawn.z) - 1280, n: HorizonRing.cells * 2 + 1, s: HorizonRing.spacing)
+        print(String(format: "horizon ring: %d samples in %.0f ms", snap.h.count, (CFAbsoluteTimeGetCurrent() - th) * 1000))
+    }
     if CommandLine.arguments.contains("--pathfind-only") { exit(0) }      // (profiling)
 }
 
