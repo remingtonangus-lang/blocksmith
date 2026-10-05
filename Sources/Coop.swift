@@ -491,10 +491,14 @@ enum CoopTest {
         var owns2 = false
         c.withSeat(1, g) { owns2 = g.seatOwns(far) }
         check(owns2, "player 2's turn updates what is beside player 2")
-        // A blast beside player 2 hurts player 2, not player 1.
+        // A blast beside player 2 hurts player 2, not player 1 (player 2 on the ground there: flown 320 blocks at player 1's
+        // height they were inside a hill and the blast had no line of sight, run 509).
+        var spot = far
+        spot.y = Float(g.world.topY(Int(floor(far.x)), Int(floor(far.z))) + 1)
+        p2?.pos = spot; p2?.vel = .zero; p2?.flying = false
         g.survival = true
         let hp1 = g.health
-        Explosion.explode(at: far + V3(1.5, 0.6, 0), power: 2, game: g, breakBlocks: false)
+        Explosion.explode(at: spot + V3(1.5, 0.6, 0), power: 2, game: g, breakBlocks: false)
         var hp2 = 20
         c.withSeat(1, g) { hp2 = g.health; g.health = 20; g.player.vel = .zero }
         check(hp2 < 20 && g.health == hp1, "a blast beside player 2 hurts player 2 (\(hp2)) and not player 1 (\(g.health))")
