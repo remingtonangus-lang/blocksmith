@@ -169,8 +169,11 @@ void fragment() {
 	float dirt_w = clamp(smoothstep(0.35, 1.0, sed) * 0.7 + smoothstep(0.35, 0.7, n3 * 0.6 + n2 * 0.5) * 0.3, 0.0, 1.0) * (1.0 - desert_w * 0.7);
 	mix_in(m, sample_layer(L_DIRT, p.xz, dist), dirt_w);
 	// --- wet banks near rivers and the lake
-	float near_water = smoothstep(lake_level + 3.0, lake_level + 0.5, alt) + smoothstep(0.92, 1.0, moist) * 0.8;
-	mix_in(m, sample_layer(L_MUD, p.xz, dist), clamp(near_water, 0.0, 1.0));
+	// lake shore: hard, height-blended mud; damp hollows away from water only darken softly (rings of mud read as
+	// camouflage blotches from a distance)
+	float shore = smoothstep(lake_level + 3.0, lake_level + 0.5, alt);
+	mix_in(m, sample_layer(L_MUD, p.xz, dist), shore);
+	mix_soft(m, sample_layer(L_MUD, p.xz, dist), smoothstep(0.9, 1.0, moist) * 0.45 * (1.0 - shore));
 	mix_in(m, sample_layer(L_PEBBLES, p.xz, dist), smoothstep(lake_level + 0.8, lake_level - 1.0, alt));
 	// --- roads and trails
 	mix_in(m, sample_layer(L_ROAD, p.xz, dist), smoothstep(0.15, 0.75, road + n3 * 0.15));
