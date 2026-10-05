@@ -73,7 +73,7 @@ extension Game {
             sfx(.click, 0.4, at: at)
         case .note:
             world.setBlock(p.x, p.y, p.z, base + BlockID((s + 1) % 25))
-            sfx(.note(0, (s + 1) % 25), 1, at: at)
+            world.redstone.playNote(p, (s + 1) % 25)          // the instrument of the block below (it always played the harp)
         case .daylight:
             world.setBlock(p.x, p.y, p.z, base + BlockID((s & 15) + (s >= 16 ? 0 : 16)))
         case .dispenser, .dropper:
@@ -132,7 +132,7 @@ extension Game {
         var n = 0
         coop.eachSeat(self) { if self.alive && on(self.player.pos, self.player.halfW) { n += 1 } }   // player 2 presses plates too
         for m in mobs.mobs where on(m.pos, m.halfW) { n += 1 }
-        if items { for e in drops.items where on(e.pos, 0.125) { n += e.stack.count } }
+        if items { for e in drops.items where on(e.pos, 0.125) { n += 1 } }      // each item entity counts once, whatever its stack
         return n
     }
 

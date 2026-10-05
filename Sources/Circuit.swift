@@ -496,14 +496,15 @@ final class Circuit {
             let powered = conductor(block(q)) ? blockPower(q).1 > 0 : false
             let lit = s == 0 || (s >= 2 && s < 6)
             guard lit == powered else { return }
-            // Burnout: more than 8 toggles in 60 ticks leaves the torch off for a while.
+            // Burnout (reference): 8 turn-offs within 60 ticks leave the torch off for a while. Only turn-offs count
+            // (every toggle did, so a 6-tick clock burnt out here and not there).
             var hist = (burn[p] ?? []).filter { now - $0 < 60 }
-            hist.append(now)
+            if lit { hist.append(now) }
             burn[p] = hist
-            if hist.count > 8 && !lit { schedule(p, 160); return }
+            if hist.count >= 8 && !lit { schedule(p, 160); return }
             let ns: Int = s < 2 ? (lit ? 1 : 0) : (lit ? s + 4 : s - 4)
             setQuiet(p, base(b) + BlockID(ns))
-            if hist.count > 8 && lit { game?.sfx(.fizz, 0.4, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
+            if hist.count >= 8 && lit { game?.sfx(.fizz, 0.4, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
             wakeAround(p); mark(p + IVec3(0, 1, 0)); wakeAround(p + IVec3(0, 1, 0))
         case .lamp:
             if received(p) == 0 && s == 1 { setQuiet(p, base(b)); wakeAround(p) }
@@ -591,7 +592,7 @@ final class Circuit {
     func containerSignal(_ q: IVec3) -> Int? {
         guard let be = w.blockEntities[q], be.kind != .spawner else {
             let k = Blocks.key(base(block(q)))
-            if k == "composter" { return 0 }
+            if k == "composter" { return Int(block(q) - base(block(q))) }         // fill level 0-8 (reference; it read 0)
             return nil
         }
         let c = be.container
@@ -715,6 +716,12 @@ final class Circuit {
         if r == RenderType.cross.rawValue || r == RenderType.wire.rawValue { return true }
         let k = kind(b)
         if [.torch, .lever, .button, .plate, .weightedPlate, .repeater, .comparator, .door, .ironDoor].contains(k) { return true }
+        // Reference "destroy on push": gourds (piston farms), leaves, beds, carpets, lanterns, pots, cocoa, heads, the egg.
+        let g = Blocks.key(Blocks.groupBase[Int(b)])
+        if ["pumpkin", "carved_pumpkin", "jack_o_lantern", "melon", "flower_pot", "cocoa", "dragon_egg", "lantern", "soul_lantern",
+            "zombie_head", "creeper_head", "piglin_head", "dragon_head", "player_head"].contains(g)
+            || g.hasSuffix("_leaves") || g.hasSuffix("_bed") || g.hasSuffix("_bed_head") || g.hasSuffix("_carpet") || g.hasSuffix("_skull")
+            || g.hasPrefix("potted_") { return true }
         return Blocks.replaceable[Int(b)] || !Blocks.collide[Int(b)]
     }
 
@@ -808,7 +815,7 @@ final class Circuit {
 
     // MARK: Note blocks
 
-    private func playNote(_ p: IVec3, _ note: Int) {
+    func playNote(_ p: IVec3, _ note: Int) {
         let aboveKey = Blocks.key(base(block(p + IVec3(0, 1, 0))))
         // A mob head on top plays that mob's call instead of a note.
         let headMobs: [String: MobKind] = ["skeleton_skull": .skeleton, "wither_skeleton_skull": .witherSkeleton, "zombie_head": .zombie,

@@ -29,6 +29,7 @@ struct AcidCloud {
     var pos: V3; var radius: Float; var time: Float; var tick: Float = 0
     var potion: ItemID = 0
     var maxTime: Float = 0
+    var used: Float = 0         // lingering potion: each entity it affects takes 0.5 off the radius (reference)
 }
 
 let ENDER_EYE_FLIGHT: Float = 12

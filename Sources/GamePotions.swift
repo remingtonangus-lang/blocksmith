@@ -4,11 +4,11 @@ import simd
 // Drinking, throwing and splashing potions; lingering clouds; tipped arrows; bottles and cauldrons.
 extension Game {
     // Applies a potion type's effects to the player, scaled (splash distance / lingering / arrows).
-    func applyPotion(_ t: PotionType, scale: Float, durationScale: Float = 1) {
+    func applyPotion(_ t: PotionType, scale: Float, durationScale: Float = 1, instantScale: Float = 1) {
         for (e, secs, amp) in t.effects {
             if e.instant {
                 if scale >= 0.5 || e == .instantHealth || e == .instantDamage {
-                    let n = Int((Float(e == .instantHealth ? 4 << amp : 6 << amp) * scale).rounded())
+                    let n = Int((Float(e == .instantHealth ? 4 << amp : 6 << amp) * scale * instantScale).rounded())
                     if e == .instantHealth { heal(n) } else if n > 0 { damage(n, "was killed by magic", bypassArmor: true, type: .magic) }
                 }
             } else {
@@ -90,7 +90,8 @@ extension Game {
                 let h = TextureGen.hex(t.color)
                 color = V3(h.x, h.y, h.z)
                 // Lingering clouds shrink as they age.
-                clouds[i].radius = max(0.5, 3 * c.time / max(1, c.maxTime))
+                clouds[i].radius = 3 * c.time / max(1, c.maxTime) - c.used
+                if clouds[i].radius < 0.5 { clouds[i].time = 0 }          // used up
             } else if c.maxTime > 0 {
                 // Wyrm fireball clouds spread out (3 -> 7) as they age.
                 clouds[i].radius = 3 + 4 * (1 - max(0, c.time) / c.maxTime)
@@ -108,13 +109,14 @@ extension Game {
             coop.eachSeat(self) {
                 let d = self.player.pos - c.pos
                 guard simd_length(V2(d.x, d.z)) < radius && abs(d.y) < 2 else { return }
-                if let t = pt { self.applyPotion(t, scale: 1, durationScale: 0.25) }
+                // Lingering: a quarter of the duration, instant effects at half strength (reference: 2 heal, 3 harm).
+                if let t = pt { self.applyPotion(t, scale: 1, durationScale: 0.25, instantScale: 0.5); self.clouds[i].used += 0.5 }
                 else { self.hurtPlayer(6, from: c.pos, cause: "was killed by Wyrm's Breath", knockback: 0, type: .magic) }
             }
             if let t = pt {
                 for m in mobs.mobs {
                     let md = m.pos - c.pos
-                    if simd_length(V2(md.x, md.z)) < radius && abs(md.y) < 2 { applyPotion(t, to: m, scale: 1, durationScale: 0.25) }
+                    if simd_length(V2(md.x, md.z)) < radius && abs(md.y) < 2 { applyPotion(t, to: m, scale: 1, durationScale: 0.25); clouds[i].used += 0.5 }
                 }
             }
         }
