@@ -376,7 +376,7 @@ enum RideCheck {
         var phase = 0
         var stuckT: Float = 0
         var lastPos = g.player.pos
-        var wp = 0
+        var wp = 0, underRamp = 0
         var reached: [String] = []
         var phaseT: Float = 0
         let names = ["reach the port ladder", "climb it to the roof walkway", "walk through the hatch into the command deck",
@@ -426,7 +426,17 @@ enum RideCheck {
                 }
                 let target = route[wp]
                 let tw = s.toWorld(target)
-                if simd_length(V2(tw.x - stt.pos.x, tw.z - stt.pos.z)) < 0.45 { wp += 1; return AgentAction.idle }
+                if simd_length(V2(tw.x - stt.pos.x, tw.z - stt.pos.z)) < 0.45 {
+                    // A point up on the ramp counts only at its height: the stairs have open space under them, and a bot
+                    // that missed the bottom step walked on under the ramp past every point (run of c7bad4f). Back to
+                    // the foot and up again.
+                    if target.y > 2 && l.y < target.y - 2.5 && wp > 0 {
+                        underRamp += 1
+                        wp = max(0, (route.firstIndex { $0.y > 2 } ?? 1) - 1)
+                        return AgentAction.idle
+                    }
+                    wp += 1; return AgentAction.idle
+                }
                 var a = walk(stt, to: tw)
                 // Stuck on the ground (a bush, a step the auto-jump won't take): jump, then side-step a moment.
                 let moved = simd_length(V2(stt.pos.x - lastPos.x, stt.pos.z - lastPos.z))
@@ -456,6 +466,15 @@ enum RideCheck {
             }
         }
         r.note("reached: " + (reached.isEmpty ? "nothing" : reached.joined(separator: "; ")))
+        if underRamp > 0 || phase == 4 {
+            // The ramp as it stands: its stairs present (of 50) and the ground under its foot (ship space).
+            let ox = s.grid.sx / 2
+            let stairs = Capital.crawlerRamp(down: true).filter { $0.1 != AIR && s.grid.get($0.0.x + ox, $0.0.y, $0.0.z) == $0.1 }.count
+            let foot = s.toWorld(V3(Float(ox) + 0.5, 0, 83.5))
+            let gy = Float(w.topY(Int(floor(foot.x)), Int(floor(foot.z))) + 1)
+            r.note(String(format: "ramp: %@, %ld of 50 stairs in place, ground under its foot at ship-space y %.2f; the bot went back to the foot %ld times",
+                          st.rampDown ? "down" : "up", stairs, s.toLocal(V3(foot.x, gy, foot.z)).y, underRamp))
+        }
         for (k, n) in names.enumerated() { r.check(phase > k, "the bot can \(n) while the crawler moves") }
         r.check(mon.insideTicks == 0, "never inside a solid while aboard (\(mon.insideTicks) ticks)\(mon.firstInside.isEmpty ? "" : ", first at " + mon.firstInside)")
         r.check(mon.transitions >= 2 && mon.maxTransitionJump < 3, String(format: "boarding and leaving keep the bot's world velocity (%ld changes, worst jump %.2f b/s)",
