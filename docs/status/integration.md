@@ -108,6 +108,12 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
 - 01:13 UTC: cancelled queued run 528 (8ac3d54 heavy; 525 had already finished) on this branch: superseded by 542 (2ab6bf7,
   which contains it), and it held a macOS runner slot ahead of it.
 
+- Run 549 (0f6c0ea) fast lane: build green; mobcheck PASS (15 kinds after a survival night, crowd: the cow beside the
+  player drawn with 246 far mobs dropped), plantcheck PASS, musiccheck PASS (no audio device on CI: director part
+  skipped). Cave fill retuned from its shots (6f38b43: Default p50 20, Fast 19, Bright 39, Moody 1). All three gate now.
+- Remington's Mac notes (2026-10-05): "works like a dream"; sugar cane floating (PlantSupport.swift) and a custom music
+  folder (CustomMusic.swift) done.
+
 ## Next
 - For stream D (soldier rig): a Capital soldier is 190 parts within 14 blocks (90 to 34 blocks, 34 beyond), about 330 KB
   of vertices rebuilt every frame; a courtyard of 30 is ~10 MB/frame of writes plus 30 pose builds. Mob buffers now grow
