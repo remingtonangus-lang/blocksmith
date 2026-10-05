@@ -168,6 +168,12 @@ enum QuestSim {
         }
         check(sim.hapticCount > haptics0, "VR laser click buzzes the controller (\(sim.hapticCount - haptics0) pulses)")
 
+        // Render the inventory panel over the world, then close it and render play.
+        try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out.replacingOccurrences(of: ".png", with: "_menu.png"))
+        frames(3) { _ in idleHands(); sim.hands[1].button2 = true }      // B closes
+        frames(3) { _ in idleHands() }
+        check(game.menu == nil, "VR inventory: B closed it")
+
         // 8. Riding a moving ship (the Skyward Frigate, no crew): the player stays aboard, the rig turns with the hull,
         // the HUD and menu panels stay with the user, the hull moves on every frame, and grip opens a chest on deck.
         try shipRide(game: game, host: host, frames: frames, check: check) {
@@ -220,11 +226,6 @@ enum QuestSim {
                      aiming ? "yes" : "no", jump, controls.teleports, game.player.onGround ? "yes" : "no"))
         QuestSettings.teleport = false
 
-        // Render the inventory panel over the world, then close it and render play.
-        try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out.replacingOccurrences(of: ".png", with: "_menu.png"))
-        frames(3) { _ in idleHands(); sim.hands[1].button2 = true }      // B closes
-        frames(3) { _ in idleHands() }
-        check(game.menu == nil, "VR inventory: B closed it")
         frames(3) { _ in idleHands(); sim.hands[1].aimRot = down }
         try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out)
         PadManager.shared.touch = nil
