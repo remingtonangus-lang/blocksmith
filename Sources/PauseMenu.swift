@@ -45,6 +45,7 @@ final class PauseMenu: Menu {
     static var hostAct: ((String, Bool) -> Void)?
     static var hostValues: Set<String> = []
     static var hostHelp: [String: String] = [:]
+    static var hostHidden: Set<String> = []     // rows the host has no use for (the Quest: window and photo options)
     var hostPageID: String?
 
     init(game: Game) {
@@ -302,6 +303,7 @@ final class PauseMenu: Menu {
                     ("Difficulty: \(Game.difficultyNames[newDifficulty])", "new_diff"),
                     ("Create World", "new_create"), ("Back", "back")]
         }
+        if !PauseMenu.hostHidden.isEmpty { rows.removeAll { PauseMenu.hostHidden.contains($0.1) } }
         layout()
     }
 

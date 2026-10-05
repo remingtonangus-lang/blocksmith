@@ -23,6 +23,11 @@ enum QuestOptions {
     static func install(_ h: Hooks) {
         hooks = h
         PauseMenu.hostEntry = ("VR Comfort & Controls...", "host:vr")
+        // Rows with no meaning in the headset: window, display and frame-rate options (the runtime owns the display),
+        // the field of view (the lenses set it), photo mode's free camera (the head is the camera), split screen and
+        // the Mac's microphone bug notes.
+        PauseMenu.hostHidden = ["photo", "coop", "fullscreen", "display", "launchfs", "vsync", "fps", "rscale", "wscale",
+                                "graphics", "fov", "bugnotes"]
         PauseMenu.hostValues = ["q_turn", "q_snap", "q_tspeed", "q_move", "q_dir", "q_vig", "q_ring", "q_seated", "q_hand", "q_hz", "q_fov"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
