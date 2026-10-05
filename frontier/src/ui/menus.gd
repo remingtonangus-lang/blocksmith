@@ -379,6 +379,7 @@ func open_journal() -> void:
 	e_body.add_theme_font_size_override("normal_font_size", 25)
 	e_body.add_theme_color_override("default_color", UITheme.INK)
 	right.add_child(e_body)
+	var mh := [null]          # the map sheet (a holder: lambdas capture by value)
 	var sketch = JOURNAL.Sketch.new()
 	sketch.custom_minimum_size = Vector2(520, 250)
 	sketch.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -389,7 +390,31 @@ func open_journal() -> void:
 		var where: String = str(regions.get(id, ""))
 		e_sub.text = where if where != "" else "Chapter %s" % ["One", "Two", "Three", "Four", "Five", "Six"][clampi(ch - 1, 0, 5)]
 		e_body.text = JOURNAL.text_for(id, flags)
+		sketch.visible = true
+		if mh[0] != null and is_instance_valid(mh[0]):
+			mh[0].visible = false
 		sketch.set_kind(JOURNAL.sketch_for(id), hash(id))
+	# bounties, legendary hunts and treasure maps: pages written from the flags, a map sheet for the maps
+	var extras: Array = JOURNAL.extra_entries(flags, Game.state.inventory if Game.state else {})
+	var show_extra := func(e: Dictionary) -> void:
+		e_title.text = str(e.title)
+		e_sub.text = str(e.sub)
+		e_body.text = str(e.text)
+		if int(e.get("map", 0)) > 0 and Game.has_meta("treasure"):
+			sketch.visible = false
+			if mh[0] != null and is_instance_valid(mh[0]):
+				mh[0].queue_free()
+			var msk = load("res://src/systems/treasure.gd").MapSketch.new()
+			mh[0] = msk
+			msk.custom_minimum_size = Vector2(620, 300)
+			msk.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			msk.setup(load("res://src/systems/treasure.gd").target(int(e.map)), int(e.map))
+			right.add_child(msk)
+		else:
+			sketch.visible = true
+			if mh[0] != null and is_instance_valid(mh[0]):
+				mh[0].visible = false
+			sketch.set_kind(str(e.sketch), hash(str(e.title)))
 	if done.is_empty():
 		e_title.text = "Nothing written yet"
 		e_body.text = "The pages are clean. Tom used to say a clean page is a lie waiting for a pencil."
@@ -405,6 +430,14 @@ func open_journal() -> void:
 		b.add_theme_font_size_override("font_size", 24)
 		b.focus_entered.connect(func(): show_entry.call(id))
 		list.add_child(b)
+	if not extras.is_empty():
+		list.add_child(UITheme.label("Bounties, hunts & maps", 20, "caps", UITheme.OXBLOOD, false))
+		for e in extras:
+			var ee: Dictionary = e
+			var eb := _button("   " + str(ee.title), func(): show_extra.call(ee))
+			eb.add_theme_font_size_override("font_size", 24)
+			eb.focus_entered.connect(func(): show_extra.call(ee))
+			list.add_child(eb)
 	if not done.is_empty():
 		show_entry.call(done.back())
 	v.add_child(_button("Back", back))

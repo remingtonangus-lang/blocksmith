@@ -137,6 +137,46 @@ const ENTRIES := {
 			["joseph_trail", "refused", "I let Joseph answer the captain himself. He said his piece. He'd waited nine years to say it."]], "sk": "snow"},
 }
 
+const BOUNTIES = preload("res://src/ai/bounties.gd")
+const LEGENDARY = preload("res://src/systems/legendary.gd")
+const TREASURE = preload("res://src/systems/treasure.gd")
+
+## Pages beyond the missions: outlaws brought in, legendary animals taken, treasure maps found.
+## [{title, sub, text, sketch, map}] (map = treasure map number for a map sheet, else 0).
+static func extra_entries(flags: Dictionary, inv: Dictionary) -> Array:
+	var out := []
+	for o in BOUNTIES.OUTLAWS:
+		var f = flags.get("outlaw_" + str(o.id))
+		if f == null:
+			continue
+		var amount := int(float(o.reward) * (1.5 if f == "alive" else 1.0))
+		var txt := ""
+		if f == "alive":
+			txt = "Brought %s in alive, tied across my saddle like a sack of meal. Wanted for %s. The county paid $%d, and the sheriff looked at me as if I'd brought him a bear." % [o.name, o.crime, amount]
+		else:
+			txt = "%s is dead. Wanted for %s. I gave the sheriff his gun belt and took $%d. Honest money, they tell me." % [o.name, o.crime, amount]
+		out.append({"title": str(o.name), "sub": "Bounty — %s" % BOUNTIES.county_name(str(o.county)), "text": txt, "sketch": "poster", "map": 0})
+	for l in LEGENDARY.LEGENDS:
+		var s := str(flags.get("legend_" + str(l.id), ""))
+		if s == "":
+			continue
+		var t2 := "%s. %s I read its sign three times over and brought it down. There won't be another." % [l.name, l.story]
+		if s == "outfit":
+			t2 += " Thackery made the %s from the pelt. It fits as if it remembers." % l.outfit
+		var sk := {"wolf": "pines", "black_bear": "pines", "cougar": "cougar", "elk": "spring"}.get(str(l.species), "hills")
+		out.append({"title": str(l.name), "sub": "A legend — %s" % l.region, "text": t2, "sketch": sk, "map": 0})
+	for m in TREASURE.MAPS:
+		var n := int(m.n)
+		var have: bool = int(inv.get("treasure_map_%d" % n, 0)) > 0
+		var done: bool = bool(flags.get("treasure_%d" % n, false))
+		if not have and not done:
+			continue
+		var t3 := "\"%s\"" % m.riddle
+		if done:
+			t3 += " — Dug." + (" Three bars of gold at the bottom of it. Somebody waited a long time for those." if n == TREASURE.MAPS.size() else "")
+		out.append({"title": str(m.title), "sub": "A treasure map", "text": t3, "sketch": "hills", "map": n})
+	return out
+
 ## The entry's text for the flags as they stand.
 static func text_for(id: String, flags: Dictionary) -> String:
 	var e: Dictionary = ENTRIES.get(id, {})

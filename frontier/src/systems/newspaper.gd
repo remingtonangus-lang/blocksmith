@@ -162,7 +162,8 @@ func _sub(text: String, c: Dictionary, rec: Dictionary) -> String:
 	t = t.replace("{count}", str(int(c.get("_count", 0))))
 	t = t.replace("{bounty}", str(int(c.get("bounty", 0.0))))
 	var county: String = str(c.get("county", ""))
-	t = t.replace("{county}", str(WorldState.COUNTIES.get(county, "the county")) if county != "" else "the county")
+	var cname := str(WorldState.COUNTIES.get(county, county)) if county != "" else "the county"
+	t = t.replace("{county}", cname)
 	return t
 
 static func _flag_match(flags: Dictionary, key: String, want) -> bool:
@@ -192,12 +193,14 @@ func edition(c: Dictionary) -> Dictionary:
 	for s in data.get("stories", []):
 		var when: Dictionary = s.get("when", {}).duplicate()
 		var rec := {}
+		var ri := -1
 		if when.has("record"):
 			var kind: String = when.record
 			var recs: Array = c.get("records", []).filter(func(e): return str(e.get("kind", "")) == kind)
 			if recs.size() < int(when.get("record_min", 1)):
 				continue
 			rec = recs.back()
+			ri = c.get("records", []).find(rec)
 			c["_count"] = recs.size()
 			# old news isn't news: a deed is printed for a week
 			if int(c.get("day", 0)) - int(rec.get("day", 0)) > 7:
@@ -206,8 +209,9 @@ func edition(c: Dictionary) -> Dictionary:
 			when.erase("record_min")
 		if not SOCIAL.matches(when, [], c):
 			continue
-		cands.append({"s": s, "rec": rec, "p": int(s.get("priority", 1)), "count": int(c.get("_count", 0))})
-	cands.sort_custom(func(a, b): return a.p > b.p)
+		cands.append({"s": s, "rec": rec, "p": int(s.get("priority", 1)), "count": int(c.get("_count", 0)), "ri": ri})
+	# by priority; among equals, the newest deed first
+	cands.sort_custom(func(a, b): return a.p > b.p or (a.p == b.p and a.ri > b.ri))
 	var out := {"masthead": str(mh.get("name", "The Lantern")), "motto": str(mh.get("motto", "")), "editor": str(mh.get("editor", "")),
 		"date": dt.text, "price": float(mh.get("price", PRICE)), "items": [], "story_ids": [],
 		"volume": "Vol. %s — No. %d" % [["XVIII", "XIX"][0 if dt.y == 1899 else 1], (_days(dt.y, dt.m, dt.d) - _days(dt.y, 1, 1)) / 7 + 1]}

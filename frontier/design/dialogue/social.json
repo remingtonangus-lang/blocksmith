@@ -1110,6 +1110,108 @@
    "speaker": "townsfolk",
    "line": "If you've come back for the rest, there isn't any. You took it. Twice.",
    "emotion": "neutral"
+  },
+  {
+   "id": "gos_out_hatcher",
+   "speaker": "townsfolk",
+   "line": "They say Cole Hatcher came into town across a saddle. Alive, if you can call it that, and cussing.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_out_hatcher_d",
+   "speaker": "townsfolk",
+   "line": "Cole Hatcher's dead. The freight company sent a ham to the sheriff, which is the first thing they ever gave anybody.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_out_penn",
+   "speaker": "townsfolk",
+   "line": "That false preacher, Ezra Penn, is in the county jail, preaching to the bedbugs.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_out_penn_d",
+   "speaker": "townsfolk",
+   "line": "Ezra Penn won't pass the plate again. Somebody settled his account with the Almighty direct.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_out_marlow",
+   "speaker": "townsfolk",
+   "line": "Jinx Marlow's taken. Laughed all the way to the cell, they say.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_out_fontaine",
+   "speaker": "townsfolk",
+   "line": "Delia Fontaine won't be selling lavender water to widows any more. Thank the Lord for that.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_out_crow",
+   "speaker": "townsfolk",
+   "line": "Absalom Crow's done. The Kestrel miners drank to it in coin, not scrip.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_out_mccready",
+   "speaker": "townsfolk",
+   "line": "Scotch McCready's finished singing. Somebody went up the Kestrel and brought him down.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_out_pardee",
+   "speaker": "townsfolk",
+   "line": "Wade Pardee's been brought in. His brother Ivo's gone to Texas, which is where Pardees go to be forgotten.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_out_rusk",
+   "speaker": "townsfolk",
+   "line": "Tobiah Rusk's paid for that deputy. The Wells put flowers on the boy's grave again.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_lg_widow",
+   "speaker": "townsfolk",
+   "line": "Thackery swears somebody took the Grey Widow up on the Kestrel. The herders are lighting candles.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_lg_ironhide",
+   "speaker": "townsfolk",
+   "line": "Old Ironhide's dead. The Thornwood cook got his sugar back and cried over it.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_lg_ghost",
+   "speaker": "townsfolk",
+   "line": "The Pale Ghost is gone from the mission wall. The goat herders say the hills feel empty now.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_lg_king",
+   "speaker": "townsfolk",
+   "line": "Somebody finally took the Sable King. Fourteen points. Every hunter in the county is pretending he was there.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_lg_rumour",
+   "speaker": "townsfolk",
+   "line": "Eli Thackery at Greer's tells of a grey wolf the size of a pony. Buy him a drink and he'll tell you three more.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_gold",
+   "speaker": "townsfolk",
+   "line": "Somebody's been digging out at San Lazaro, they say, and came away heavier than they went.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "gos_fined",
+   "speaker": "townsfolk",
+   "line": "Heard you sassed the deputy. Five-dollar mouth, my mother would have called that.",
+   "emotion": "neutral"
   }
  ],
  "social": {
@@ -2053,6 +2155,176 @@
     "shop"
    ],
    "priority": 6
+  },
+  {
+   "id": "gos_out_hatcher",
+   "when": {
+    "flag": {
+     "outlaw_hatcher": "alive"
+    }
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_out_hatcher_d",
+   "when": {
+    "flag": {
+     "outlaw_hatcher": "dead"
+    }
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_out_penn",
+   "when": {
+    "flag": {
+     "outlaw_penn": "alive"
+    }
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_out_penn_d",
+   "when": {
+    "flag": {
+     "outlaw_penn": "dead"
+    }
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_out_marlow",
+   "when": {
+    "flag_set": [
+     "outlaw_marlow"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_out_fontaine",
+   "when": {
+    "flag_set": [
+     "outlaw_fontaine"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_out_crow",
+   "when": {
+    "flag_set": [
+     "outlaw_crow"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_out_mccready",
+   "when": {
+    "flag_set": [
+     "outlaw_mccready"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_out_pardee",
+   "when": {
+    "flag_set": [
+     "outlaw_pardee"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_out_rusk",
+   "when": {
+    "flag_set": [
+     "outlaw_rusk"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_lg_widow",
+   "when": {
+    "flag_set": [
+     "legend_grey_widow"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_lg_ironhide",
+   "when": {
+    "flag_set": [
+     "legend_ironhide"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_lg_ghost",
+   "when": {
+    "flag_set": [
+     "legend_pale_ghost"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_lg_king",
+   "when": {
+    "flag_set": [
+     "legend_sable_king"
+    ]
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_lg_rumour",
+   "when": {
+    "not_completed": [
+     "c6_spring"
+    ]
+   },
+   "who": [],
+   "priority": 0
+  },
+  {
+   "id": "gos_gold",
+   "when": {
+    "flag": {
+     "treasure_found": true
+    }
+   },
+   "who": [],
+   "priority": 2
+  },
+  {
+   "id": "gos_fined",
+   "when": {
+    "flag_set": [
+     "fined_once"
+    ]
+   },
+   "who": [],
+   "priority": 1
   }
  ]
 }

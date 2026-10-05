@@ -198,6 +198,8 @@ func antagonize(h: Node) -> String:
 		speak(Game.player, pick("r_insult", "ruth", "low" if b in ["low", "wanted"] else "mid"))
 		speak(h, pick("insult", voice, b))
 		_standing(-0.3, "insulted a stranger")
+		if voice == "law":
+			misdemeanour(h, "insulting an officer", 5.0)
 	elif a == 1:
 		step = "shove"
 		speak(Game.player, pick("r_shove", "ruth", "mid"))
@@ -206,6 +208,8 @@ func antagonize(h: Node) -> String:
 		h.velocity += dir.normalized() * 4.5
 		speak(h, pick("shove", voice, b))
 		_standing(-0.6, "shoved a stranger")
+		if voice == "law":
+			misdemeanour(h, "laying hands on an officer", 10.0)
 	else:
 		var armed: bool = is_armed(h)
 		var brave: bool = float(h.brain.bravery) >= 0.5 or voice == "law"
@@ -262,6 +266,25 @@ func defuse(h: Node) -> String:
 		anger.erase(k)
 	Game.log_event("social", {"act": "defuse", "npc": str(h.name), "result": res})
 	return res
+
+## A misdemeanour against the law: a fine on the county's books (wanted level 1 until it's paid at any sheriff's
+## board), logged as a crime. No witnesses needed: the officer is the witness.
+func misdemeanour(h: Node, what: String, fine: float) -> void:
+	var st = Game.state
+	if st == null:
+		return
+	var county: String = st.county_at(h.global_position)
+	st.bounties[county] = float(st.bounties.get(county, 0.0)) + fine
+	st.crimes_log.append({"kind": "misdemeanour", "pos": [h.global_position.x, h.global_position.z], "t": Time.get_unix_time_from_system()})
+	if st.wanted < 1:
+		st.wanted = 1
+		st.wanted_county = county
+		st.wanted_changed.emit(1, county)
+	st.wanted_t = maxf(st.wanted_t, 45.0)
+	st.flags["fined_once"] = true
+	Game.log_event("misdemeanour", {"what": what, "fine": fine, "county": county})
+	if Game.hud:
+		Game.hud.notice("Fined $%d for %s — pay it at any sheriff's board" % [int(fine), what], 4.0)
 
 func _standing(d: float, why: String) -> void:
 	if Game.state:
