@@ -210,3 +210,6 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
   timing) and the first fidelity-audit items (shears/sword/hoe speeds, full-draw bow crits). Pushed with [full].
 - 11:40 UTC: run 685 (d31579b) still queued (no macOS runner): cancelled, superseded by this push (fidelity drops /
   mob speeds, precheck Type.member() resolution, per-half subtitles).
+- 11:55 UTC: run 686 (313ecce) still queued: cancelled, superseded by the fidelity audit round 2 (three read-only
+  audits: items/blocks, combat/survival, spawning/AI; ~45 fixes) plus --fidelitycheck (gating). A compile review of
+  313ecce..2d0b90f by a subagent found nothing.
