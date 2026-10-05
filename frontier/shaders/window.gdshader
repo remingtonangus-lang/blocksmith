@@ -11,9 +11,9 @@ render_mode blend_mix, depth_draw_opaque, cull_disabled, diffuse_burley, specula
 uniform vec3 glass_tint : source_color = vec3(0.52, 0.58, 0.55);
 uniform float base_alpha = 0.22;
 uniform float lights_on = 0.0;             // 0 day .. 1 night (set by settlements.gd)
-uniform float lit_share = 0.7;
-uniform vec3 lamp_color : source_color = vec3(1.0, 0.6, 0.28);
-uniform float lamp_energy = 2.2;
+uniform float lit_share = 0.55;
+uniform vec3 lamp_color : source_color = vec3(1.0, 0.52, 0.2);
+uniform float lamp_energy = 1.1;
 
 global uniform float wetness;
 
@@ -21,9 +21,9 @@ void fragment() {
 	vec2 p = UV;                                  // metres in the wall plane
 	float wav = vnoise(p * vec2(9.0, 3.0) + COLOR.g * 17.0);
 	float grime = smoothstep(0.25, 1.0, fbm2(p * 2.5 + COLOR.g * 9.0) * 0.5 + 0.5);
-	float lit = step(COLOR.r, lights_on * lit_share);
+	float lit = step(COLOR.r + 0.001, lights_on * lit_share);
 	// curtain: soft vertical folds, lighter in the middle
-	float folds = 0.75 + 0.25 * sin(p.x * 38.0 + COLOR.g * 20.0);
+	float folds = 0.55 + 0.45 * sin(p.x * 38.0 + COLOR.g * 20.0) * (0.6 + 0.4 * sin(p.y * 3.0 + COLOR.g * 9.0));
 	float curtain = mix(folds, 1.0, COLOR.b * 0.5);
 	ALBEDO = glass_tint * 0.3 * (1.0 - grime * 0.4);
 	ROUGHNESS = 0.03 + grime * 0.25 + wetness * 0.02;

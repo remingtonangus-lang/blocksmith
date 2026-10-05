@@ -30,7 +30,7 @@ void fragment() {
 	float wear = COLOR.a;
 	a *= step(wear * 0.55, flake);
 	float fade = 1.0 - wear * 0.25 * (vnoise(v_wpos.xy * 3.0 + v_wpos.zy * 2.0) * 0.5 + 0.5);
-	ALBEDO = COLOR.rgb * fade;
+	ALBEDO = pow(COLOR.rgb, vec3(2.2)) * fade;
 	ROUGHNESS = mix(0.55, 0.3, wetness);
 	SPECULAR = 0.4;
 	ALPHA = a;

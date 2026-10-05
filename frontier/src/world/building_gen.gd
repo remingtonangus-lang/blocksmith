@@ -12,12 +12,19 @@ extends RefCounted
 const STOREY := 3.6
 const UPPER := 3.3
 const T_WALL := 0.15
+# interior wall finish by building type (the inner faces of every outer wall and the partitions)
+const INNER := {"saloon": "wallpaper", "hotel": "wallpaper", "boarding": "planks_v", "bank": "plaster", "doctor": "plaster",
+	"barber": "plaster", "church": "plaster", "school": "plaster", "post": "wallpaper", "land_office": "wallpaper",
+	"newspaper": "planks_v", "house": "wallpaper", "restaurant": "wallpaper", "sheriff": "planks_v", "store": "planks_v",
+	"gunsmith": "planks_v", "undertaker": "dark_planks", "butcher": "plaster", "depot": "planks_v", "assay": "planks_v"}
 const DOOR_H := 2.15
 
 const PAINTS := [Color(0.95, 0.93, 0.88), Color(0.95, 0.88, 0.70), Color(0.88, 0.74, 0.48), Color(0.62, 0.25, 0.18),
 	Color(0.68, 0.74, 0.62), Color(0.76, 0.76, 0.74), Color(0.66, 0.72, 0.78), Color(0.58, 0.45, 0.33), Color(0.85, 0.80, 0.70)]
 const TRIMS := [Color(0.96, 0.95, 0.9), Color(0.22, 0.32, 0.24), Color(0.35, 0.24, 0.16), Color(0.55, 0.18, 0.14),
 	Color(0.18, 0.2, 0.22), Color(0.9, 0.86, 0.72)]
+const WALLPAPERS := [Color(0.62, 0.7, 0.55), Color(0.85, 0.55, 0.45), Color(0.9, 0.8, 0.55), Color(0.6, 0.62, 0.75),
+	Color(0.75, 0.5, 0.42), Color(0.88, 0.85, 0.7)]
 const SIGN_BG := [Color(0.16, 0.2, 0.17), Color(0.92, 0.9, 0.84), Color(0.42, 0.14, 0.1), Color(0.12, 0.12, 0.14),
 	Color(0.85, 0.78, 0.55), Color(0.2, 0.25, 0.35)]
 const SIGN_FG := [Color(0.95, 0.88, 0.62), Color(0.12, 0.1, 0.09), Color(0.96, 0.92, 0.8), Color(0.85, 0.7, 0.35),
@@ -42,6 +49,7 @@ var col_trim := Color.WHITE
 var mat_wall := "siding"
 var mat_roof := "shingles"
 var mat_in := "planks_v"
+var col_in := Color(0.85, 0.72, 0.58)   # interior wall tint (wallpaper colour / stain)
 var lit_rank := 0.5
 var furnished := false
 var _door_n := 0
@@ -67,8 +75,9 @@ func begin(s: Dictionary, sinks: Dictionary) -> void:
 	col_trim = s.get("trim", TRIMS[rng.randi() % TRIMS.size()])
 	mat_wall = s.get("wall", "siding")
 	mat_roof = s.get("roof", "shingles")
-	mat_in = s.get("inner", "planks_v")
+	mat_in = s.get("inner", INNER.get(s.get("interior", s.get("type", "")), "planks_v"))
 	lit_rank = s.get("lit_rank", rng.randf())
+	col_in = s.get("inner_tint", WALLPAPERS[rng.randi() % WALLPAPERS.size()] if mat_in == "wallpaper" else (Color(0.95, 0.92, 0.85) if mat_in == "plaster" else Color(0.8, 0.66, 0.52)))
 	furnished = s.get("furnished", false)
 	_door_n = 0
 	var seedf := float(hash(s.id) % 1000) / 1000.0
@@ -211,14 +220,18 @@ func wall(f: Dictionary, y0: float, y1: float, ops: Array, mo: String, mi: Strin
 	var t: float = f.t
 	if mr == "":
 		mr = mo if mo != "" else mi
+	var tint_out := ext.tint
 	for r: Rect2 in _rects(f.L, y0, y1, ops):
 		var p0 := fp(f, r.position.x, r.position.y)
 		var du: Vector3 = f.dir * r.size.x
 		var dv := Vector3.UP * r.size.y
 		if mo != "":
+			ext.tint = tint_out
 			ext.face(mo, p0, du, dv)
 		if mi != "":
+			ext.tint = Color(col_in.r, col_in.g, col_in.b, 0.05)
 			ext.face(mi, p0 - f.out * t + du, -du, dv)
+	ext.tint = tint_out
 	for o in ops:
 		var W: float = o.s1 - o.s0
 		var H: float = o.v1 - o.v0
@@ -363,12 +376,19 @@ func door(f: Dictionary, sc: float, dw: float, dh := DOOR_H, style := "panel", d
 func floor_slab(x0: float, z0: float, x1: float, z1: float, y: float, key := "floor", thick := 0.2, k: MeshKit = null, coll := true) -> void:
 	if k == null:
 		k = ext
+	var saved := k.tint
+	if key == "floor":
+		k.tint = Color(0.8, 0.58, 0.4, 0.04)            # oiled floorboards indoors
 	k.box(key, Vector3(x0, y - thick, z0), Vector3(x1, y, z1), MeshKit.F_PY)
+	k.tint = saved
 	if coll:
 		solid(Vector3(x0, y - thick, z0), Vector3(x1, y, z1))
 
 func ceiling(x0: float, z0: float, x1: float, z1: float, y: float, key := "planks_v") -> void:
+	var saved := ext.tint
+	ext.tint = Color(0.9, 0.75, 0.6, 0.04)
 	ext.face(key, Vector3(x0, y, z0), Vector3(x1 - x0, 0, 0), Vector3(0, 0, z1 - z0))
+	ext.tint = saved
 
 ## Foundation skirt from the floor down into the ground around a rectangle.
 func skirt(x0: float, z0: float, x1: float, z1: float, top := 0.0, key := "planks_v", faces := MeshKit.F_SIDES) -> void:
@@ -531,7 +551,14 @@ func boardwalk(x0: float, x1: float, pd: float, roof := "shed", roof_y := 3.25, 
 		roof_key := "", rail := false) -> Array:
 	var deck := "planks_brown"
 	# deck boards: boards run along x (the street)
+	ext.uv_rot = true          # deck planks run across the boardwalk, on stringers along the street
 	ext.box(deck, Vector3(x0, -0.06, -pd), Vector3(x1, 0.0, 0.0), MeshKit.F_PY | MeshKit.F_NZ | MeshKit.F_PX | MeshKit.F_NX)
+	var bridge: float = spec.get("deck_bridge", 0.0)
+	if bridge > 0.0 and is_equal_approx(x1, w * 0.5):
+		ext.box(deck, Vector3(x1, -0.06, -pd), Vector3(x1 + bridge, 0.0, 0.0), MeshKit.F_PY | MeshKit.F_NZ)
+		solid(Vector3(x1, -0.35, -pd), Vector3(x1 + bridge, 0.0, 0.0))
+		ext.box("planks_v", Vector3(x1, ground_min(x1, -pd, x1 + bridge, -pd) - 0.3, -pd + 0.02), Vector3(x1 + bridge, -0.06, -pd + 0.06), MeshKit.F_NZ)
+	ext.uv_rot = false
 	solid(Vector3(x0, -0.35, -pd), Vector3(x1, 0.0, 0.0))
 	# front skirt and joists down to the ground
 	var g := minf(ground_min(x0, -pd, x1, -pd + 0.2), -0.06)
@@ -587,10 +614,10 @@ func porch_rail(x0: float, x1: float, z: float, y: float, gaps: Array, h := 0.95
 	for s in segs:
 		ext.box("paint", Vector3(s[0], y + h - 0.06, z - 0.05), Vector3(s[1], y + h, z + 0.05))
 		ext.box("paint", Vector3(s[0], y + 0.1, z - 0.03), Vector3(s[1], y + 0.16, z + 0.03))
-		var nb := int((s[1] - s[0]) / 0.14)
+		var nb := int((s[1] - s[0]) / 0.15)
 		for i in nb:
-			var bx: float = s[0] + 0.07 + i * 0.14
-			ext.box("paint", Vector3(bx - 0.018, y + 0.16, z - 0.018), Vector3(bx + 0.018, y + h - 0.06, z + 0.018), MeshKit.F_SIDES)
+			var bx: float = s[0] + 0.075 + i * 0.15
+			ext.box("paint", Vector3(bx - 0.02, y + 0.16, z - 0.018), Vector3(bx + 0.02, y + h - 0.06, z + 0.018), MeshKit.F_PZ | MeshKit.F_NZ)
 		solid(Vector3(s[0], y, z - 0.06), Vector3(s[1], y + h, z + 0.06))
 	paint(col_wall)
 

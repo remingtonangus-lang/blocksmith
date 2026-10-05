@@ -132,6 +132,14 @@ func box(key: String, a: Vector3, b: Vector3, faces: int = F_ALL) -> void:
 	var w := hi.x - lo.x
 	var h := hi.y - lo.y
 	var d := hi.z - lo.z
+	# vertical members (posts, casings, corner boards): grain runs up the piece
+	var saved_rot := uv_rot
+	if h > 2.5 * maxf(w, d) and h > 0.3:
+		uv_rot = not uv_rot
+	_box_faces(key, lo, hi, w, h, d, faces)
+	uv_rot = saved_rot
+
+func _box_faces(key: String, lo: Vector3, hi: Vector3, w: float, h: float, d: float, faces: int) -> void:
 	if faces & F_PX:
 		face(key, Vector3(hi.x, lo.y, hi.z), Vector3(0, 0, -d), Vector3(0, h, 0))
 	if faces & F_NX:

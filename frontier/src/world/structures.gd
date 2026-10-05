@@ -550,10 +550,170 @@ func _s_mission_ruin() -> void:
 	room("nave", x0 + t, t, x1 - t, d - t, 0.0)
 	spot("stand", Vector3(0, ground_local(0, d * 0.5), d * 0.5), Vector3(0, 0, -1))
 
+# ------------------------------------------------------------------------------------------------ bluff stair
+
+## A long timber stair that follows steep ground (Port Linden's bluff down to the lake): treads every 0.18 m of
+## drop, filled down to the ground, handrails on posts. spec.points: world [x, z] path from top to bottom.
+func _s_bluff_stair() -> void:
+	var pts: Array = spec.get("points", [])
+	if pts.size() < 2:
+		return
+	var inv := xf.affine_inverse()
+	var hw: float = spec.get("w", 2.0) * 0.5
+	var loc := []
+	for p in pts:
+		var q := inv * Vector3(p[0], 0.0, p[1])
+		loc.append(Vector2(q.x, q.z))
+	paint(Color(0.82, 0.76, 0.68))
+	var y := ground_local(loc[0].x, loc[0].y) + 0.05
+	var tread_start := 0.0
+	var dist := 0.0
+	var posts := []
+	var post_acc := 0.0
+	for i in loc.size() - 1:
+		var a: Vector2 = loc[i]
+		var b: Vector2 = loc[i + 1]
+		var L := a.distance_to(b)
+		var dirv := (b - a) / maxf(L, 0.001)
+		var side := Vector2(-dirv.y, dirv.x)
+		var tt := 0.0
+		while tt < L:
+			var p := a + dirv * tt
+			var g := ground_local(p.x, p.y)
+			if g < y - 0.18 or tt + 0.1 >= L and i == loc.size() - 2:
+				# close the current tread at p and step down
+				var p0 := a + dirv * (tread_start - dist) if tread_start >= dist else a
+				_tread(p0, p, side, hw, y, minf(g, ground_local(p0.x, p0.y)))
+				y -= 0.18
+				y = maxf(y, g + 0.05)
+				tread_start = dist + tt
+			post_acc += 0.1
+			if post_acc >= 2.4:
+				post_acc = 0.0
+				posts.append([p, side, y])
+			tt += 0.1
+		dist += L
+	# handrails
+	for sgn: float in [-1.0, 1.0]:
+		for k in posts.size():
+			var pp: Vector2 = posts[k][0] + posts[k][1] * hw * sgn
+			var py: float = posts[k][2]
+			ext.box("planks_brown", Vector3(pp.x - 0.05, py - 0.1, pp.y - 0.05), Vector3(pp.x + 0.05, py + 1.0, pp.y + 0.05), MeshKit.F_SIDES | MeshKit.F_PY)
+			if k > 0:
+				var qq: Vector2 = posts[k - 1][0] + posts[k - 1][1] * hw * sgn
+				var qy: float = posts[k - 1][2]
+				ext.beam("planks_brown", Vector3(qq.x, qy + 0.95, qq.y), Vector3(pp.x, py + 0.95, pp.y), 0.06, 0.08)
+	paint(col_wall)
+	rec.walkable = true
+
+func _tread(p0: Vector2, p1: Vector2, side: Vector2, hw: float, y: float, g: float) -> void:
+	if p0.distance_to(p1) < 0.05:
+		return
+	var c := [p0 - side * hw, p1 - side * hw, p1 + side * hw, p0 + side * hw]
+	var lo := g - 0.3
+	var pts := [Vector3(c[0].x, lo, c[0].y), Vector3(c[1].x, lo, c[1].y), Vector3(c[2].x, lo, c[2].y), Vector3(c[3].x, lo, c[3].y),
+		Vector3(c[0].x, y, c[0].y), Vector3(c[1].x, y, c[1].y), Vector3(c[2].x, y, c[2].y), Vector3(c[3].x, y, c[3].y)]
+	# hexa wants x-z- ordering; build faces directly so the tread works for any direction
+	ext.quad("planks_brown", pts[4], pts[7], pts[6], pts[5])
+	ext.quad("planks_brown", pts[0], pts[4], pts[5], pts[1])
+	ext.quad("planks_brown", pts[2], pts[6], pts[7], pts[3])
+	ext.quad("planks_v", pts[1], pts[5], pts[6], pts[2])
+	ext.quad("planks_v", pts[3], pts[7], pts[4], pts[0])
+	var mid := (p0 + p1) * 0.5
+	var ax := Vector3(p1.x - p0.x, 0.0, p1.y - p0.y)
+	solid_obb(Vector3(mid.x, y - 0.15, mid.y), Vector3(hw * 2.0, 0.3, ax.length()), Basis.looking_at(ax.normalized(), Vector3.UP))
+
+# ------------------------------------------------------------------------------------------------ railroad track
+
+## Station track along the rail line through a settlement: ballast bed, ties every 0.6 m, two rails at standard
+## gauge on the graded rail profile. spec.points: world [x, z, y] samples.
+func _s_track() -> void:
+	var pts: Array = spec.get("points", [])
+	if pts.size() < 2:
+		return
+	var inv := xf.affine_inverse()
+	var loc := []
+	for p in pts:
+		loc.append(inv * Vector3(p[0], p[2], p[1]))
+	var gauge := 1.435
+	var carry := 0.0
+	for i in loc.size() - 1:
+		var a: Vector3 = loc[i]
+		var b: Vector3 = loc[i + 1]
+		var ab := b - a
+		var L := ab.length()
+		if L < 0.01:
+			continue
+		var dirv := ab / L
+		var side := Vector3(-dirv.z, 0.0, dirv.x).normalized()
+		paint(Color(0.62, 0.56, 0.5))
+		ext.tint = Color(0.62, 0.58, 0.54, 0.5)
+		# ballast: a trapezoid prism under the ties
+		var hb := 1.9
+		var ht := 1.45
+		var c0 := [a - side * hb + Vector3(0, -0.25, 0), b - side * hb + Vector3(0, -0.25, 0), b + side * hb + Vector3(0, -0.25, 0), a + side * hb + Vector3(0, -0.25, 0),
+			a - side * ht + Vector3(0, 0.12, 0), b - side * ht + Vector3(0, 0.12, 0), b + side * ht + Vector3(0, 0.12, 0), a + side * ht + Vector3(0, 0.12, 0)]
+		ext.quad("stone", c0[4], c0[7], c0[6], c0[5])
+		ext.quad("stone", c0[0], c0[4], c0[5], c0[1])
+		ext.quad("stone", c0[2], c0[6], c0[7], c0[3])
+		# ties
+		ext.tint = Color(0.55, 0.45, 0.38, 0.6)
+		var tdist := 0.6 - carry
+		while tdist < L:
+			var tc := a + dirv * tdist
+			ext.obox("dark_planks", tc + Vector3(0, 0.2, 0), Vector3(2.6, 0.16, 0.22), Basis(side, Vector3.UP, side.cross(Vector3.UP)), MeshKit.F_ALL & ~MeshKit.F_NY)
+			tdist += 0.6
+		carry = L - (tdist - 0.6)
+		# rails
+		ext.tint = Color(1, 1, 1, 0.6)
+		for sg in [-0.5, 0.5]:
+			var off: Vector3 = side * gauge * sg
+			ext.beam("iron", a + off + Vector3(0, 0.34, 0), b + off + Vector3(0, 0.34, 0), 0.07, 0.13)
+	paint(col_wall)
+
 # ------------------------------------------------------------------------------------------------ street furniture
 
-## spec.items: [{k: lamp|trough|hitch|barrels|crates|bench|sign_post|pump|cart, x, z, yaw}] in this spec's frame.
+## Telegraph pole: cedar pole, crossarm, four glass insulators. Returns the insulator tops (wire anchors).
+func _pole(x: float, z: float, yaw_deg: float) -> Array:
+	var g := ground_local(x, z)
+	var h := 7.2
+	paint(Color(0.75, 0.66, 0.56))
+	ext.cyl("log", Vector3(x, g - 0.5, z), Vector3(x, g + h, z), 0.13, 7, true, 0.1)
+	var b := Basis(Vector3.UP, deg_to_rad(yaw_deg))
+	var ax := b * Vector3(1, 0, 0)
+	ext.beam("planks_brown", Vector3(x, g + h - 0.45, z) - ax * 0.85, Vector3(x, g + h - 0.45, z) + ax * 0.85, 0.09, 0.11)
+	ext.beam("planks_brown", Vector3(x, g + h - 1.1, z), Vector3(x, g + h - 0.5, z) + ax * 0.55, 0.04, 0.05)
+	ext.beam("planks_brown", Vector3(x, g + h - 1.1, z), Vector3(x, g + h - 0.5, z) - ax * 0.55, 0.04, 0.05)
+	solid(Vector3(x - 0.13, g, z - 0.13), Vector3(x + 0.13, g + h, z + 0.13))
+	var tops := []
+	ext.tint = Color(0.35, 0.55, 0.45, 1.0)
+	for o: float in [-0.75, -0.3, 0.3, 0.75]:
+		var p := Vector3(x, g + h - 0.39, z) + ax * o
+		ext.cyl("bottle", p, p + Vector3(0, 0.1, 0), 0.035, 5, true)
+		tops.append(p + Vector3(0, 0.09, 0))
+	paint(col_wall)
+	return tops
+
+func _wire(a: Vector3, b: Vector3) -> void:
+	ext.tint = Color(0.15, 0.15, 0.15, 0.5)
+	var n := 4
+	var prev := a
+	for i in range(1, n + 1):
+		var t := float(i) / n
+		var p := a.lerp(b, t) + Vector3(0, -0.45 * 4.0 * t * (1.0 - t), 0)
+		ext.beam("iron", prev, p, 0.014, 0.014)
+		prev = p
+
+## spec.items: [{k: lamp|trough|hitch|barrels|crates|bench|sign_post|pump|pole|hay, x, z, yaw}] in this spec's frame.
+## Consecutive "pole" items are strung together with sagging telegraph wires.
 func _s_street_kit() -> void:
+	var poles := []
+	for it in spec.get("items", []):
+		if it.k == "pole":
+			poles.append(_pole(it.x, it.z, it.get("yaw", 0.0)))
+	for i in range(1, poles.size()):
+		for k in 4:
+			_wire(poles[i - 1][k], poles[i][k])
 	for it in spec.get("items", []):
 		var x: float = it.x
 		var z: float = it.z

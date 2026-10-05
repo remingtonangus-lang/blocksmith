@@ -55,9 +55,29 @@ static func preload_all() -> void:
 static func has(name: String) -> bool:
 	return mesh(name) != null
 
+## Colour variants ("name@variant"): the prop's materials duplicated with albedo multiplied, e.g. white painted
+## chairs stained to dark wood for saloons.
+const VARIANTS := {"stain": Color(0.42, 0.3, 0.22), "dark": Color(0.55, 0.5, 0.46), "green": Color(0.45, 0.6, 0.45),
+	"red": Color(0.75, 0.35, 0.28)}
+
 static func mesh(name: String) -> Mesh:
 	if _meshes.has(name):
 		return _meshes[name]
+	if name.contains("@"):
+		var parts := name.split("@")
+		var base := mesh(parts[0])
+		var v: Mesh = null
+		if base != null:
+			v = base.duplicate()
+			var c: Color = VARIANTS.get(parts[1], Color.WHITE)
+			for i in v.get_surface_count():
+				var m = v.surface_get_material(i)
+				if m is BaseMaterial3D:
+					var mm: BaseMaterial3D = m.duplicate()
+					mm.albedo_color = mm.albedo_color * c
+					v.surface_set_material(i, mm)
+		_meshes[name] = v
+		return v
 	var path := DIR + name + "/" + name + ".gltf"
 	var t0 := Time.get_ticks_usec()
 	var m: Mesh = null

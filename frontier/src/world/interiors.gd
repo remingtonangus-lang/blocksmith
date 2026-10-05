@@ -5,8 +5,8 @@ extends BuildingStyles
 ## warm interior lights and interaction spots for town life (bartender, bar patrons, shopkeeper, chairs with sit
 ## heights, beds, work spots, cell bunks...). Prop yaw: 0 = the model's front faces local +z.
 
-const GOODS := [Color(0.62, 0.22, 0.16), Color(0.85, 0.78, 0.55), Color(0.25, 0.35, 0.5), Color(0.3, 0.42, 0.28),
-	Color(0.8, 0.62, 0.3), Color(0.9, 0.88, 0.8), Color(0.45, 0.3, 0.2), Color(0.7, 0.55, 0.45)]
+const GOODS := [Color(0.55, 0.12, 0.08), Color(0.8, 0.68, 0.38), Color(0.12, 0.2, 0.42), Color(0.18, 0.32, 0.16),
+	Color(0.75, 0.45, 0.12), Color(0.85, 0.82, 0.72), Color(0.38, 0.22, 0.12), Color(0.6, 0.15, 0.25), Color(0.1, 0.1, 0.1)]
 const BOTTLES := [Color(0.12, 0.22, 0.12), Color(0.3, 0.18, 0.08), Color(0.1, 0.12, 0.1), Color(0.55, 0.42, 0.2), Color(0.75, 0.8, 0.78)]
 
 func furnish() -> void:
@@ -16,6 +16,22 @@ func furnish() -> void:
 	elif rec.rooms.size() > 0:
 		_f_generic()
 	_room_lights()
+	_probe()
+
+## One interior reflection probe per furnished building: box-projected room reflections (bar mirror, floors,
+## bottles) and an interior ambient instead of open-sky light.
+func _probe() -> void:
+	if not furnished or rec.rooms.is_empty() or spec.get("style", "") in ["tent", "smithy", "barn", "outhouse", "shed"]:
+		return
+	var lo := Vector3(INF, 0.0, INF)
+	var hi := Vector3(-INF, 0.0, -INF)
+	for r in rec.rooms:
+		var rc: Rect2 = r.rect
+		lo = Vector3(minf(lo.x, rc.position.x), 0.0, minf(lo.z, rc.position.y))
+		hi = Vector3(maxf(hi.x, rc.end.x), maxf(hi.y, r.y + 3.4), maxf(hi.z, rc.end.y))
+	if hi.x <= lo.x:
+		return
+	rec["probe"] = {"center": (lo + hi) * 0.5, "size": hi - lo + Vector3(0.2, 0.2, 0.2)}
 
 func R(name: String) -> Dictionary:
 	for r in rec.rooms:
@@ -37,8 +53,10 @@ func _room_lights() -> void:
 
 # ------------------------------------------------------------------------------------------------ furniture pieces
 
-func counter(x0: float, z0: float, x1: float, z1: float, h := 1.05, front := "dark_planks", top := "fine_wood") -> void:
-	paint(Color(0.85, 0.75, 0.62), inn)
+func counter(x0: float, z0: float, x1: float, z1: float, h := 1.05, front := "fine_wood", top := "fine_wood") -> void:
+	if front == "dark_planks":
+		front = "fine_wood"
+	paint(Color(0.62, 0.45, 0.32), inn)
 	inn.box(front, Vector3(x0, 0.08, z0), Vector3(x1, h - 0.05, z1), MeshKit.F_SIDES)
 	inn.box(front, Vector3(x0 + 0.04, 0.0, z0 + 0.04), Vector3(x1 - 0.04, 0.1, z1 - 0.04), MeshKit.F_SIDES)
 	inn.box(top, Vector3(x0 - 0.05, h - 0.05, z0 - 0.05), Vector3(x1 + 0.05, h, z1 + 0.05))
@@ -60,8 +78,8 @@ func counter(x0: float, z0: float, x1: float, z1: float, h := 1.05, front := "da
 
 ## Shelving against a wall: x0..x1 along x at z (depth towards +z if dir > 0) or along z when along_z.
 func shelves(a0: float, a1: float, wall: float, depth: float, h: float, n: int, along_z := false, dir := 1.0, goods := true, y0 := 0.0) -> void:
-	paint(Color(0.8, 0.7, 0.58), inn)
-	var key := "dark_planks"
+	paint(Color(0.55, 0.4, 0.3), inn)
+	var key := "fine_wood"
 	var b0 := wall
 	var b1 := wall + depth * dir
 	var lo := minf(b0, b1)
@@ -104,35 +122,68 @@ func shelves(a0: float, a1: float, wall: float, depth: float, h: float, n: int, 
 				continue
 			var mid := (lo + hi) * 0.5
 			if kind == 0:
-				# a row of tins
-				inn.tint = Color(0.75, 0.75, 0.72, 0.2)
+				# a row of labelled tins (one box: label band + tin ends)
 				var cnt := int(gw / 0.08) + 1
-				for j in cnt:
-					var pa := a + 0.04 + j * 0.08
-					var p := Vector3(mid, y, pa) if along_z else Vector3(pa, y, mid)
-					inn.cyl("iron", p, p + Vector3(0, minf(0.12, gh), 0), 0.035, 6, true)
-					inn.tint = Color(c.r, c.g, c.b, 0.1)
-					inn.cyl("cloth", p + Vector3(0, 0.02, 0), p + Vector3(0, minf(0.1, gh - 0.01), 0), 0.036, 6, false)
-					inn.tint = Color(0.75, 0.75, 0.72, 0.2)
 				gw = cnt * 0.08
+				var th := minf(0.12, gh)
+				inn.tint = Color(c.r, c.g, c.b, 0.1)
+				if along_z:
+					inn.box("cloth", Vector3(mid - 0.035, y, a), Vector3(mid + 0.035, y + th, a + gw), MeshKit.F_ALL & ~MeshKit.F_NY)
+				else:
+					inn.box("cloth", Vector3(a, y, mid - 0.035), Vector3(a + gw, y + th, mid + 0.035), MeshKit.F_ALL & ~MeshKit.F_NY)
 			elif kind == 1:
 				inn.tint = Color(BOTTLES[rng.randi() % BOTTLES.size()], 1.0)
 				var cnt2 := int(gw / 0.09) + 1
 				for j in cnt2:
 					var pa2 := a + 0.045 + j * 0.09
 					var p2 := Vector3(mid, y, pa2) if along_z else Vector3(pa2, y, mid)
-					inn.cyl("bottle", p2, p2 + Vector3(0, minf(0.16, gh), 0), 0.04, 6, true)
+					inn.cyl("bottle", p2, p2 + Vector3(0, minf(0.16, gh), 0), 0.04, 5, false)
 				gw = cnt2 * 0.09
 			else:
 				inn.tint = Color(c.r, c.g, c.b, 0.2)
 				if along_z:
-					inn.box("cloth", Vector3(mid - gd * 0.5, y, a), Vector3(mid + gd * 0.5, y + gh, a + gw))
+					inn.box("cloth", Vector3(mid - gd * 0.5, y, a), Vector3(mid + gd * 0.5, y + gh, a + gw), MeshKit.F_ALL & ~MeshKit.F_NY)
 				else:
-					inn.box("cloth", Vector3(a, y, mid - gd * 0.5), Vector3(a + gw, y + gh, mid + gd * 0.5))
+					inn.box("cloth", Vector3(a, y, mid - gd * 0.5), Vector3(a + gw, y + gh, mid + gd * 0.5), MeshKit.F_ALL & ~MeshKit.F_NY)
 			a += gw + rng.randf_range(0.01, 0.06)
 	paint(col_wall, inn)
 
-func table_chairs(cx: float, cz: float, y := 0.0, round_table := true, n := 4, game := false) -> void:
+## Glass-topped display case (store, gunsmith): stained wood base, glass lid with goods visible inside.
+func display_case(x0: float, z0: float, x1: float, z1: float, h := 0.95) -> void:
+	paint(Color(0.55, 0.38, 0.26), inn)
+	inn.box("fine_wood", Vector3(x0, 0.0, z0), Vector3(x1, h - 0.3, z1))
+	for c: Vector2 in [Vector2(x0, z0), Vector2(x1, z0), Vector2(x1, z1), Vector2(x0, z1)]:
+		inn.box("fine_wood", Vector3(c.x - 0.03, h - 0.3, c.y - 0.03), Vector3(c.x + 0.03, h, c.y + 0.03))
+	inn.box("fine_wood", Vector3(x0 - 0.02, h, z0 - 0.02), Vector3(x1 + 0.02, h + 0.03, z1 + 0.02), MeshKit.F_SIDES)
+	var zz := z0 + 0.12
+	while zz < z1 - 0.15:
+		inn.tint = Color(GOODS[rng.randi() % GOODS.size()], 0.1)
+		inn.box("cloth", Vector3(x0 + 0.1, h - 0.3, zz), Vector3(x1 - 0.1, h - 0.25, zz + rng.randf_range(0.08, 0.2)), MeshKit.F_PY | MeshKit.F_SIDES)
+		zz += rng.randf_range(0.15, 0.3)
+	inn.tint = Color(1.0, 0.5, 1.0, 1.0)
+	inn.box("glass", Vector3(x0, h - 0.3, z0), Vector3(x1, h, z1), MeshKit.F_PY | MeshKit.F_SIDES)
+	paint(col_wall, inn)
+	solid(Vector3(x0, 0.0, z0), Vector3(x1, h, z1))
+
+## Pedestal desk with drawer fronts and brass pulls (sheriff, bank, doctor, editor).
+func desk(cx: float, cz: float, yaw := 0.0, y := 0.0) -> void:
+	var b := Basis(Vector3.UP, deg_to_rad(yaw))
+	var c := Vector3(cx, y, cz)
+	paint(Color(0.5, 0.34, 0.22), inn)
+	inn.obox("fine_wood", c + b * Vector3(0, 0.75, 0), Vector3(1.5, 0.04, 0.75), b)
+	for sx: float in [-0.52, 0.52]:
+		inn.obox("fine_wood", c + b * Vector3(sx, 0.365, 0), Vector3(0.42, 0.73, 0.7), b)
+		for k in 3:
+			inn.obox("fine_wood", c + b * Vector3(sx, 0.15 + k * 0.22, 0.355), Vector3(0.36, 0.18, 0.015), b)
+			inn.tint = Color(1, 1, 1, 0.1)
+			inn.obox("brass", c + b * Vector3(sx, 0.15 + k * 0.22, 0.37), Vector3(0.08, 0.02, 0.02), b)
+			paint(Color(0.5, 0.34, 0.22), inn)
+	paint(col_wall, inn)
+	var lo := c + b * Vector3(-0.75, 0, -0.38)
+	var hi := c + b * Vector3(0.75, 0.77, 0.38)
+	solid(Vector3(minf(lo.x, hi.x), y, minf(lo.z, hi.z)), Vector3(maxf(lo.x, hi.x), y + 0.77, maxf(lo.z, hi.z)))
+
+func table_chairs(cx: float, cz: float, y := 0.0, round_table := true, n := 4, game := false, chair := "painted_wooden_chair_01@stain") -> void:
 	if round_table:
 		prop("round_wooden_table_01", Vector3(cx, y, cz), rng.randf() * 90.0, 0.75)
 		solid(Vector3(cx - 0.45, y, cz - 0.45), Vector3(cx + 0.45, y + 0.76, cz + 0.45))
@@ -144,7 +195,7 @@ func table_chairs(cx: float, cz: float, y := 0.0, round_table := true, n := 4, g
 		var r := 0.85 if round_table else 0.75
 		var p := Vector3(cx + sin(a) * r, y, cz + cos(a) * r)
 		var face := Vector3(cx - p.x, 0.0, cz - p.z)
-		prop("painted_wooden_chair_01", p, rad_to_deg(atan2(face.x, face.z)) + rng.randf_range(-12, 12))
+		prop(chair, p, rad_to_deg(atan2(face.x, face.z)) + rng.randf_range(-12, 12))
 		spot("chair", p, face, {"sit_height": 0.46, "table": Vector3(cx, y, cz)})
 	if game:
 		inn.tint = Color(0.15, 0.32, 0.18, 0.1)
@@ -324,7 +375,7 @@ func _f_saloon() -> void:
 	var z0 := rc.position.y
 	var z1 := rc.end.y
 	# bar along the left wall, back bar with mirror and bottles
-	var bx := x0 + 1.6
+	var bx := x0 + 1.95
 	var bz0 := z0 + 2.2
 	var bz1 := minf(z1 - 1.5, bz0 + 7.5)
 	counter(bx - 0.3, bz0, bx + 0.3, bz1, 1.1, "dark_planks", "fine_wood")
@@ -358,17 +409,21 @@ func _f_saloon() -> void:
 	spot("bartender", Vector3(x0 + 0.85, 0.0, (bz0 + bz1) * 0.5), Vector3(1, 0, 0), {"work": "bar"})
 	spot("bartender", Vector3(x0 + 0.85, 0.0, bz0 + 1.0), Vector3(1, 0, 0), {"work": "bar"})
 	# tables (one card table with green baize), piano in the back corner
-	var tx0 := bx + 1.9
-	var tx1 := x1 - 1.4
-	var rows := maxi(1, int((z1 - z0 - 3.0) / 2.6))
-	var cols := maxi(1, int((tx1 - tx0) / 2.4) + 1)
+	var tx0 := bx + 2.2
+	var tx1 := x1 - 1.6
+	var rows := clampi(int((z1 - z0 - 6.0) / 3.2), 1, 3)
+	var cols := clampi(int((tx1 - tx0) / 3.0) + 1, 1, 3)
 	for i in rows:
 		for j in cols:
-			var tz := z0 + 2.4 + i * 2.6
+			var tz := z0 + 3.0 + i * 3.2 + rng.randf_range(-0.3, 0.3)
 			var tx := lerpf(tx0, tx1, float(j) / maxf(cols - 1, 1)) if cols > 1 else (tx0 + tx1) * 0.5
+			tx += rng.randf_range(-0.3, 0.3)
 			if tz > z1 - 3.4 and tx > x1 - 3.5:
 				continue
-			table_chairs(tx, tz, 0.0, true, 4, i == 0 and j == cols - 1)
+			table_chairs(tx, tz, 0.0, true, 3 + (i + j) % 2, i == 0 and j == cols - 1)
+	# spittoons along the foot rail
+	for i in 3:
+		prop("pot_enamel_01@dark", Vector3(bx + 0.55, 0.0, lerpf(bz0 + 1.0, bz1 - 1.0, i / 2.0)), rng.randf() * 360.0, 0.9)
 	piano(x1 - 1.0, z1 - 0.6, 180.0)
 	prop("lantern_chandelier_01", Vector3((x0 + x1) * 0.5 + 0.6, 3.5, (z0 + z1) * 0.45), 0.0)
 	prop("bull_head", Vector3(x1 - 0.05, 2.4, (z0 + z1) * 0.5), -90.0)
@@ -480,9 +535,7 @@ func _f_store() -> void:
 	spot("shop_counter", Vector3(x1 - 2.1, 0.0, z0 + 2.6), Vector3(1, 0, 0))
 	spot("shop_counter", Vector3(x1 - 2.1, 0.0, (z0 + z1) * 0.5), Vector3(1, 0, 0))
 	var cx := (x0 + x1) * 0.5 - 0.6
-	prop("wooden_display_shelves_01", Vector3(cx, 0.0, z0 + 3.2), 90.0)
-	prop("wooden_display_shelves_01", Vector3(cx, 0.0, z0 + 5.0), 90.0)
-	solid(Vector3(cx - 0.55, 0.0, z0 + 2.7), Vector3(cx + 0.55, 1.5, z0 + 5.6))
+	display_case(cx - 0.4, z0 + 2.8, cx + 0.4, z0 + 5.4)
 	prop("barrel_03", Vector3(x0 + 0.9, 0.0, z0 + 0.6), 0.0)
 	prop("barrel_03", Vector3(x0 + 1.6, 0.0, z0 + 0.6), 40.0)
 	sacks(cx, z1 - 1.0, 0.0, 4)
@@ -518,7 +571,7 @@ func _f_gunsmith() -> void:
 	var z1 := rc.end.y
 	# glass-topped counter across the shop, rifles racked behind, workbench at the back
 	counter(x0 + 0.6, z0 + 3.4, x1 - 1.3, z0 + 4.0, 0.95, "fine_wood", "fine_wood")
-	inn.tint = Color(0.0, 0.5, 1.0, 1.0)
+	inn.tint = Color(1.0, 0.5, 1.0, 1.0)
 	inn.box("glass", Vector3(x0 + 0.7, 0.96, z0 + 3.45), Vector3(x1 - 1.4, 1.2, z0 + 3.95), MeshKit.F_PY | MeshKit.F_NZ)
 	paint(col_wall, inn)
 	for i in 3:
@@ -545,13 +598,12 @@ func _f_sheriff() -> void:
 	var z1 := rc.end.y
 	# office at the front: desk, chairs, rack, wanted posters; two cells across the back
 	var cz := z1 - 2.6
-	prop("painted_wooden_table", Vector3(x0 + 2.2, 0.0, z0 + 2.4), 0.0, 0.7)
-	solid(Vector3(x0 + 1.4, 0.0, z0 + 2.0), Vector3(x0 + 3.0, 0.68, z0 + 2.8))
-	prop("painted_wooden_chair_01", Vector3(x0 + 2.2, 0.0, z0 + 3.2), 180.0)
+	desk(x0 + 2.2, z0 + 2.4, 180.0)
+	prop("painted_wooden_chair_01@stain", Vector3(x0 + 2.2, 0.0, z0 + 3.2), 180.0)
 	spot("sheriff_desk", Vector3(x0 + 2.2, 0.0, z0 + 3.2), Vector3(0, 0, -1), {"sit_height": 0.46, "work": "desk"})
-	prop("painted_wooden_chair_01", Vector3(x0 + 2.2, 0.0, z0 + 1.5), 0.0)
+	prop("painted_wooden_chair_01@stain", Vector3(x0 + 2.2, 0.0, z0 + 1.5), 0.0)
 	spot("chair", Vector3(x0 + 2.2, 0.0, z0 + 1.5), Vector3(0, 0, 1), {"sit_height": 0.46})
-	prop("vintage_oil_lamp", Vector3(x0 + 1.8, 0.67, z0 + 2.4), 0.0, 0.7)
+	prop("vintage_oil_lamp", Vector3(x0 + 1.8, 0.77, z0 + 2.4), 0.0, 0.7)
 	gun_rack(x1 - 0.02, 0.9, z0 + 2.5, -90.0, 6)
 	wanted_board(x0 + 0.03, 1.6, z0 + 1.6, 90.0)
 	prop("painted_wooden_cabinet", Vector3(x1 - 0.45, 0.0, z0 + 4.5), -90.0, 0.9)
@@ -615,9 +667,8 @@ func _f_bank() -> void:
 	paint(col_wall, inn)
 	solid(Vector3(vx - 1.3, 0.0, z1 - 1.6), Vector3(vx + 1.3, 2.5, z1))
 	text(inn, "SAFE DEPOSIT", Vector3(vx, 2.25, z1 - 1.61), Vector3(-1, 0, 0), Vector3(0, 0, -1), 0.1, 1.6, Color(0.85, 0.7, 0.35), "OldStandard-Bold")
-	prop("painted_wooden_table", Vector3(x0 + 1.8, 0.0, z1 - 2.4), 0.0, 0.65)
-	solid(Vector3(x0 + 1.0, 0.0, z1 - 2.8), Vector3(x0 + 2.6, 0.65, z1 - 2.0))
-	prop("painted_wooden_chair_01", Vector3(x0 + 1.8, 0.0, z1 - 1.6), 180.0)
+	desk(x0 + 1.8, z1 - 2.4, 180.0)
+	prop("painted_wooden_chair_01@stain", Vector3(x0 + 1.8, 0.0, z1 - 1.6), 180.0)
 	spot("banker_desk", Vector3(x0 + 1.8, 0.0, z1 - 1.6), Vector3(0, 0, -1), {"sit_height": 0.46, "work": "desk"})
 	prop("vintage_grandfather_clock_01", Vector3(x1 - 0.5, 0.0, z0 + 0.5), -90.0)
 	bench(x0 + 0.5, x0 + 2.5, z0 + 0.5, 0.0, true)
@@ -632,9 +683,8 @@ func _f_doctor() -> void:
 	var z0 := rc.position.y
 	var z1 := rc.end.y
 	bench(x0 + 0.4, x0 + 2.4, z0 + 0.5, 0.0, true)
-	prop("painted_wooden_table", Vector3(x1 - 1.5, 0.0, z0 + 2.2), 90.0, 0.6)
-	solid(Vector3(x1 - 1.9, 0.0, z0 + 1.5), Vector3(x1 - 1.1, 0.6, z0 + 2.9))
-	prop("painted_wooden_chair_01", Vector3(x1 - 0.6, 0.0, z0 + 2.2), -90.0)
+	desk(x1 - 1.5, z0 + 2.2, 90.0)
+	prop("painted_wooden_chair_01@stain", Vector3(x1 - 0.6, 0.0, z0 + 2.2), -90.0)
 	spot("doctor_desk", Vector3(x1 - 0.6, 0.0, z0 + 2.2), Vector3(-1, 0, 0), {"sit_height": 0.46, "work": "desk"})
 	# examination table
 	paint(Color(0.7, 0.6, 0.5), inn)

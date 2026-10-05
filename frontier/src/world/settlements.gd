@@ -53,6 +53,8 @@ var _task_result := {}
 
 func setup(w: WorldData, _b = null) -> void:
 	world = w
+	if Game.args.has("no_settlements"):        # perf A/B comparisons
+		return
 	var t0 := Time.get_ticks_msec()
 	TownProps.preload_all()
 	TownMats.get_all()
@@ -63,6 +65,7 @@ func setup(w: WorldData, _b = null) -> void:
 		_plan_settlement(f, true)
 	for f in world.features.get("pois", []):
 		_plan_settlement(f, false)
+	_upload_control()
 	var t2 := Time.get_ticks_msec()
 	# the player starts at Bitter Spring (or --spawn): have that settlement ready at once
 	if not (Game.args.has("shot") or Game.args.has("tour")):
@@ -388,6 +391,21 @@ func _attach(t: Dictionary, res: Dictionary) -> void:
 			rec.body = body
 			root.add_child(body)
 		rec.erase("boxes")
+		if rec.has("probe"):
+			var pr := ReflectionProbe.new()
+			pr.name = "Probe"
+			pr.transform = rec.transform * Transform3D(Basis.IDENTITY, rec.probe.center)
+			pr.size = rec.probe.size
+			pr.box_projection = true
+			pr.interior = true
+			pr.ambient_mode = ReflectionProbe.AMBIENT_COLOR
+			pr.ambient_color = Color(0.42, 0.34, 0.26)
+			pr.ambient_color_energy = 0.35
+			pr.update_mode = ReflectionProbe.UPDATE_ONCE
+			pr.max_distance = 40.0
+			pr.blend_distance = 0.5
+			root.add_child(pr)
+			stats["probes"] = stats.get("probes", 0) + 1
 		for l in rec.lights:
 			l["always"] = rec.get("always_lit", false)
 			light_specs.append(l)
@@ -647,7 +665,7 @@ func _update_lights(force: bool) -> void:
 		var on: float
 		match kind:
 			"interior":
-				on = lerpf(0.35, 1.0, n)        # interiors keep a dim fill by day (lamps, doorway bounce)
+				on = lerpf(0.18, 1.0, n)        # interiors keep a dim fill by day (lamps, doorway bounce)
 			"fire", "stove":
 				on = 1.0 if l[4] else maxf(n, 0.25)
 			_:
@@ -677,7 +695,7 @@ func _paint_ground(plan: Dictionary) -> void:
 	var x1 := clampi(int((c.x + R + 40.0 + half) / texel), 0, res - 1)
 	var z0 := clampi(int((c.z - R - 40.0 + half) / texel), 0, res - 1)
 	var z1 := clampi(int((c.z + R + 40.0 + half) / texel), 0, res - 1)
-	var streets: Array = plan.streets
+	var streets: Array = plan.streets + plan.get("paint_lines", [])
 	var core_out := R * 0.85
 	var core_in := R * 0.6
 	for iz in range(z0, z1 + 1):
@@ -697,7 +715,7 @@ func _paint_ground(plan: Dictionary) -> void:
 			img.set_pixel(ix, iz, col)
 	for spec in plan.specs:
 		var st: String = spec.get("style", "")
-		if st in ["street_kit", "bridge", "pier"]:
+		if st in ["street_kit", "bridge", "pier", "track", "bluff_stair"]:
 			continue
 		var bx: Transform3D = spec.xf
 		var w: float = spec.get("w", 6.0) + 3.0
@@ -716,6 +734,12 @@ func _paint_ground(plan: Dictionary) -> void:
 					var col2 := img.get_pixel(ix2, iz2)
 					col2.r = maxf(col2.r, 0.7)
 					img.set_pixel(ix2, iz2, col2)
+
+## Push the painted control map to the CPU copy (world.ctrl) and the terrain/grass texture, once.
+func _upload_control() -> void:
+	var img: Image = world.control_image
+	if img == null:
+		return
 	world.control = img.get_data()
 	var tex = null
 	if Game.terrain != null and Game.terrain.get("material") != null:
@@ -839,11 +863,12 @@ func bake_navigation(town_id: String) -> void:
 	var jobs := []
 	for i in n:
 		for j in n:
-			var x0: float = c.x - R + i * NAV_CHUNK
-			var z0: float = c.z - R + j * NAV_CHUNK
+			var x0: float = floorf(c.x - R) + i * NAV_CHUNK
+			var z0: float = floorf(c.z - R) + j * NAV_CHUNK
 			if Vector2(x0 + NAV_CHUNK * 0.5 - c.x, z0 + NAV_CHUNK * 0.5 - c.z).length() > R + NAV_CHUNK * 0.7:
 				continue
-			jobs.append(AABB(Vector3(x0, c.y - 40.0, z0), Vector3(NAV_CHUNK, 80.0, NAV_CHUNK)))
+			# the bake area includes the border that Recast trims, so neighbouring chunks meet edge to edge
+			jobs.append(AABB(Vector3(x0 - 1.0, c.y - 40.0, z0 - 1.0), Vector3(NAV_CHUNK + 2.0, 80.0, NAV_CHUNK + 2.0)))
 	t["nav_jobs"] = jobs.size()
 	t["nav_done"] = 0
 	t["nav_t0"] = Time.get_ticks_msec()
@@ -851,22 +876,22 @@ func bake_navigation(town_id: String) -> void:
 		var nm := NavigationMesh.new()
 		nm.cell_size = 0.25
 		nm.cell_height = 0.25
-		nm.agent_radius = 0.35
+		nm.agent_radius = 0.25
 		nm.agent_height = 1.75
 		nm.agent_max_climb = 0.25
 		nm.agent_max_slope = 38.0
 		nm.border_size = 1.0
 		nm.filter_baking_aabb = box
 		nm.region_min_size = 4.0
+		NavigationServer3D.bake_from_source_geometry_data_async(nm, src, func(): _nav_chunk_done.call_deferred(t, nm))
+
+func _nav_chunk_done(t: Dictionary, nm: NavigationMesh) -> void:
+	if nm.get_polygon_count() > 0:
 		var reg := NavigationRegion3D.new()
 		reg.name = "Nav"
 		reg.navigation_mesh = nm
 		t.node.add_child(reg)
 		t.nav_regions.append(reg)
-		NavigationServer3D.bake_from_source_geometry_data_async(nm, src, func(): _nav_chunk_done.call_deferred(t, reg))
-
-func _nav_chunk_done(t: Dictionary, reg: NavigationRegion3D) -> void:
-	reg.navigation_mesh = reg.navigation_mesh      # re-assign to push the baked polygons to the server
 	t.nav_done += 1
 	if t.nav_done >= t.nav_jobs:
 		t.nav_state = "ready"
@@ -890,7 +915,7 @@ func _nav_ground(src: NavigationMeshSourceGeometryData3D, t: Dictionary) -> void
 			var b := Vector3(x + step, world.height(x + step, z), z)
 			var cc := Vector3(x + step, world.height(x + step, z + step), z + step)
 			var d := Vector3(x, world.height(x, z + step), z + step)
-			faces.append_array(PackedVector3Array([a, cc, b, a, d, cc]))
+			faces.append_array(PackedVector3Array([a, b, cc, a, cc, d]))     # Godot winding (clockwise from above)
 	src.add_faces(faces, Transform3D.IDENTITY)
 
 static func _box_faces(s: Vector3) -> PackedVector3Array:
@@ -949,10 +974,15 @@ func _self_test() -> void:
 		for reg in towns[nav_town].nav_regions:
 			polys += reg.navigation_mesh.get_polygon_count()
 		print("nav %s: %s, %d polygons" % [nav_town, towns[nav_town].nav_state, polys])
-		for i in 4:
-			await get_tree().physics_frame
 		var map_rid := get_world_3d().navigation_map
-		NavigationServer3D.map_force_update(map_rid)
+		var it0 := NavigationServer3D.map_get_iteration_id(map_rid)
+		for i in 120:
+			await get_tree().physics_frame
+			if i > 10 and NavigationServer3D.map_get_iteration_id(map_rid) != it0:
+				break
+		for i in 10:
+			await get_tree().physics_frame
+		print("nav map: %d regions, iteration %d" % [NavigationServer3D.map_get_regions(map_rid).size(), NavigationServer3D.map_get_iteration_id(map_rid)])
 		var bl := spots(nav_town, "bartender")
 		var dd := spots(nav_town, "door_out")
 		if bl.size() > 0 and dd.size() > 0:

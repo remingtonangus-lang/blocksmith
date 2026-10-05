@@ -232,12 +232,42 @@ func join_boardwalks(specs: Array) -> void:
 			if across > 1.0:
 				continue
 			var gap: float = absf(along) - (a.w + b.w) * 0.5
-			if gap < 1.2:
+			if gap < 3.5:
 				if along < 0.0:
 					ends[0] = false
 				else:
 					ends[1] = false
+					if gap > 0.05:
+						a["deck_bridge"] = gap        # this boardwalk extends over the gap to its +x neighbour
 		a["end_steps"] = ends
+	# touching boardwalks share one floor level (the highest of the run) so they join without ledges
+	var run_of := {}
+	for i in specs.size():
+		run_of[i] = i
+	for i in specs.size():
+		for j in range(i + 1, specs.size()):
+			var a2: Dictionary = specs[i]
+			var b2: Dictionary = specs[j]
+			var dd: Vector2 = b2.town_pos - a2.town_pos
+			if absf(dd.dot(a2.town_face)) > 1.0:
+				continue
+			if dd.length() - (a2.w + b2.w) * 0.5 < 3.5:
+				var ri: int = _root(run_of, i)
+				var rj: int = _root(run_of, j)
+				run_of[rj] = ri
+	var top := {}
+	for i in specs.size():
+		var r: int = _root(run_of, i)
+		top[r] = maxf(top.get(r, -INF), specs[i].xf.origin.y)
+	for i in specs.size():
+		var x: Transform3D = specs[i].xf
+		x.origin.y = top[_root(run_of, i)]
+		specs[i].xf = x
+
+static func _root(m: Dictionary, i: int) -> int:
+	while m[i] != i:
+		i = m[i]
+	return i
 
 func pick_paint() -> Color:
 	return BuildingGen.PAINTS[rng.randi() % BuildingGen.PAINTS.size()]
@@ -313,6 +343,13 @@ func dress_main_street(s0: float, s1: float, off: float, lots: Array) -> void:
 			items.append({"k": "lamp", "x": p.x, "z": p.y})
 		s += 24.0
 		side = -side
+	# telegraph line along the north edge of the street
+	var ps := s0 + 3.0
+	while ps < s1:
+		var pp := Vector2(ps, -(off + 3.6))
+		if river_clear(pp, 3.0):
+			items.append({"k": "pole", "x": pp.x, "z": pp.y, "yaw": 0.0})
+		ps += 38.0
 	for spec in lots:
 		var typ: String = spec.get("type", "")
 		var p: Vector2 = spec.town_pos
@@ -327,6 +364,23 @@ func dress_main_street(s0: float, s1: float, off: float, lots: Array) -> void:
 			var pb: Vector2 = p + f * 1.0 + Vector2(-f.y, f.x) * (spec.w * 0.35)
 			items.append({"k": "barrels" if rng.randf() < 0.5 else "crates", "x": pb.x, "z": pb.y})
 	street_kit(items)
+
+## A few wagons drawn up along the street in front of stores and the livery.
+func _parked_wagons(lots: Array, hw: float, n: int) -> void:
+	var placed := 0
+	for spec in lots:
+		if placed >= n:
+			break
+		if not str(spec.get("type", "")) in ["store", "livery", "hotel", "smithy", "restaurant"]:
+			continue
+		var p: Vector2 = spec.town_pos
+		var f: Vector2 = spec.town_face
+		var q := Vector2(p.x + rng.randf_range(-2.0, 2.0), -signf(f.y) * (hw - 3.2)) if absf(f.y) > 0.5 else p + f * 6.0
+		q.y = (hw - 3.2) * (-1.0 if p.y < 0.0 else 1.0)
+		var w := {"style": "wagon", "type": "wagon", "w": 1.8, "d": 3.6, "covered": rng.randf() < 0.35, "raise": 0.0,
+			"paint": [Color(0.4, 0.45, 0.32), Color(0.5, 0.25, 0.18), Color(0.35, 0.38, 0.45)][placed % 3]}
+		if add(w, q, Vector2(1, 0) if rng.randf() < 0.5 else Vector2(-1, 0), 0.0, true, 0.3, -100.0):
+			placed += 1
 
 func houses_along(a: Vector2, b: Vector2, both := true, setback := 9.0, kinds := ["house"], spacing := Vector2(15.0, 22.0)) -> Array:
 	var dir := (b - a).normalized()
@@ -438,12 +492,44 @@ func _bitter_spring() -> void:
 	var entries := road_connectors(Vector2(smin - 20.0, 0.0), Vector2(smax, 0.0))
 	_sign_posts(entries)
 	dress_main_street(smin + 20.0, west_end, hw, lots_n + lots_s)
+	_parked_wagons(lots_n + lots_s, hw, 3)
 	_fill_backlots(0.55, ["house", "house", "cabin"])
 
 ## Depot beside the rail at its closest approach to the town, with platform, water tower and a street to it.
+## Station track along the rail inside the settlement (and a little beyond).
+func _track() -> void:
+	var rail = world.features.get("rail", null)
+	if rail == null:
+		return
+	var R := float(t.r) + 60.0
+	var pts := []
+	for p in rail.points:
+		if Vector2(p[0] - t.x, p[1] - t.z).length() < R:
+			pts.append(p)
+	if pts.size() < 2:
+		return
+	var spec := {"style": "track", "type": "track", "w": 1.0, "d": 1.0, "points": pts, "ground_ref": false}
+	if not plan.has("paint_lines"):
+		plan["paint_lines"] = []
+	var step := 6
+	var i0 := 0
+	while i0 < pts.size() - 1:
+		var i1 := mini(i0 + step, pts.size() - 1)
+		plan.paint_lines.append({"a": to_town(pts[i0][0], pts[i0][1]), "b": to_town(pts[i1][0], pts[i1][1]), "w": 4.5})
+		i0 = i1
+	_n += 1
+	spec["id"] = "%s/%02d_track" % [t.id, _n]
+	spec["town"] = t.id
+	spec["xf"] = frame
+	spec["weather"] = weather
+	spec["town_pos"] = Vector2.ZERO
+	spec["town_face"] = Vector2(0, -1)
+	plan.specs.append(spec)
+
 func _depot(name: String, along_offset := 0.0, with_tower := true) -> void:
 	if _rail.size() < 2:
 		return
+	_track()
 	var best := INF
 	var bi := 0
 	for i in _rail.size() - 1:
@@ -686,6 +772,28 @@ func _waterfront() -> void:
 	east = east.normalized()
 	var spec := {"style": "pier", "type": "pier", "w": 4.0, "d": 60.0, "length": 60.0, "floor_y": world.lake_level + 1.6, "ground_ref": false}
 	add(spec, p, -east, 0.0, false)
+	# stair from the bluff top down to the pier head
+	var top_x := 0.0
+	for i in 200:
+		var wx: float = t.x + 150.0 + i * 2.0
+		if world.height(wx, t.z) < float(t.y) - 0.6:
+			top_x = wx - 4.0
+			break
+	if top_x > 0.0 and shore.x - top_x > 10.0:
+		var path := []
+		var n := int((shore.x - 6.0 - top_x) / 4.0)
+		for i in n + 1:
+			path.append([lerpf(top_x, shore.x - 6.0, float(i) / n), t.z + 2.5])
+		var st := {"style": "bluff_stair", "type": "stair", "w": 2.2, "d": 1.0, "points": path, "ground_ref": false}
+		_n += 1
+		st["id"] = "%s/%02d_stair" % [t.id, _n]
+		st["town"] = t.id
+		st["xf"] = frame
+		st["weather"] = weather
+		st["town_pos"] = to_town(top_x, t.z)
+		st["town_face"] = Vector2(0, -1)
+		plan.specs.append(st)
+		street(to_town(top_x, t.z + 2.5), to_town(top_x - 60.0, t.z + 2.5), 6.0)
 	add({"style": "shed", "type": "boathouse", "w": 7.0, "d": 6.0, "h": 3.0, "wall": "planks_v", "roof": "corrugated", "raise": 0.1},
 		p - east * 4.0 + Vector2(-east.y, east.x) * 10.0, east, 0.0, true, 0.5)
 

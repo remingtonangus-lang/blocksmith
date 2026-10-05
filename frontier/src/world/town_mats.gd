@@ -16,7 +16,7 @@ const SETS := {
 	"planks_raw": ["build_planks_raw", 1.5, 1.5, 9.0, 0.0, 0.25, {}],
 	"planks_brown": ["build_planks_brown", 1.8, 1.8, 12.0, 1.0, 0.25, {}],
 	"dark_planks": ["build_dark_planks", 1.6, 1.6, 8.0, 1.0, 0.3, {}],
-	"floor": ["build_floor", 1.1, 1.1, 6.0, 1.0, 0.3, {"dirt_amount": 0.0}],
+	"floor": ["build_floor", 1.1, 1.1, 6.0, 1.0, 0.65, {"dirt_amount": 0.0}],
 	"log": ["build_log_wall", 1.8, 1.8, 6.0, 1.0, 0.2, {}],
 	"brick": ["build_brick", 1.5, 1.5, 0.0, 1.0, 0.35, {"grime": 0.5}],
 	"stone": ["build_adobe_stone", 2.4, 2.4, 0.0, 1.0, 0.3, {}],
@@ -26,7 +26,7 @@ const SETS := {
 	"corrugated": ["build_corrugated", 2.1, 2.1, 0.0, 1.0, 0.25, {"metallic": 0.55, "spec": 0.6, "dirt_amount": 0.2}],
 	"rust": ["build_rusty_metal", 1.5, 1.5, 0.0, 1.0, 0.3, {"metallic": 0.5, "dirt_amount": 0.0}],
 	"roof_planks": ["build_roof_planks", 2.4, 2.4, 12.0, 0.0, 0.3, {"desaturate": 0.7, "albedo_mul": Color(0.9, 0.85, 0.8), "dirt_amount": 0.0}],
-	"fine_wood": ["build_fine_wood", 1.2, 1.2, 0.0, 1.0, 0.45, {"dirt_amount": 0.0, "rough_mul": 0.8}],
+	"fine_wood": ["build_fine_wood", 1.2, 1.2, 0.0, 1.0, 0.7, {"dirt_amount": 0.0, "rough_mul": 0.7}],
 	"carpet": ["build_carpet", 2.0, 2.0, 0.0, 1.0, 0.6, {"dirt_amount": 0.0, "normal_depth": 0.5}],
 	"wallpaper": ["build_wallpaper", 2.2, 2.2, 0.0, 1.0, 0.8, {"dirt_amount": 0.0}],
 	"timber": ["build_timber", 1.4, 1.4, 8.0, 0.0, 0.5, {}],
@@ -90,10 +90,12 @@ static func _build() -> void:
 	_mats["glass"] = glass
 	var sign := StandardMaterial3D.new()
 	sign.vertex_color_use_as_albedo = true
+	sign.vertex_color_is_srgb = true
 	sign.roughness = 0.62
 	_mats["sign"] = sign
 	var iron := StandardMaterial3D.new()
 	iron.vertex_color_use_as_albedo = true
+	iron.vertex_color_is_srgb = true
 	iron.albedo_color = Color(0.16, 0.15, 0.14)
 	iron.metallic = 0.75
 	iron.roughness = 0.5
@@ -123,22 +125,25 @@ static func _build() -> void:
 	_mats["water"] = water
 	var far := StandardMaterial3D.new()
 	far.vertex_color_use_as_albedo = true
+	far.vertex_color_is_srgb = true
 	far.roughness = 0.92
 	_mats["far"] = far
 	var bottle := StandardMaterial3D.new()
 	bottle.vertex_color_use_as_albedo = true
+	bottle.vertex_color_is_srgb = true
 	bottle.roughness = 0.08
 	bottle.metallic = 0.15
 	bottle.metallic_specular = 0.8
 	_mats["bottle"] = bottle
 	var cloth := StandardMaterial3D.new()
 	cloth.vertex_color_use_as_albedo = true
+	cloth.vertex_color_is_srgb = true
 	cloth.roughness = 0.95
 	_mats["cloth"] = cloth
 	var mirror := StandardMaterial3D.new()
-	mirror.albedo_color = Color(0.55, 0.57, 0.56)
+	mirror.albedo_color = Color(0.42, 0.42, 0.4)
 	mirror.metallic = 1.0
-	mirror.roughness = 0.08
+	mirror.roughness = 0.22
 	_mats["mirror"] = mirror
 
 ## Keys whose surfaces have no normal map (skip tangent generation).

@@ -59,7 +59,8 @@ void fragment() {
 	float n2 = vnoise(UV * vec2(3.0, 0.35) + seed * 11.0);       // vertical streaks (v runs down walls)
 	alb *= 1.0 + n1 * macro_var;
 	// paint tint
-	vec3 tint = mix(vec3(1.0), COLOR.rgb, tint_amount);
+	// tints are authored in sRGB (like a paint chart): convert to linear before multiplying
+	vec3 tint = mix(vec3(1.0), pow(COLOR.rgb, vec3(2.2)), tint_amount);
 	alb *= tint;
 	// weathering: sun-bleached, greyer, a little lighter on exposed wood; plus grime streaks
 	float w = clamp(COLOR.a * (0.7 + 0.5 * n1), 0.0, 1.0);

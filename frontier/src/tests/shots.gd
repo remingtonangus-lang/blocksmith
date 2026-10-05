@@ -20,8 +20,19 @@ const TOUR := [
 	["bs_sheriff_interior", -506.1, -234.6, 2.1, 205, -6, 11.0, "fair"],
 	["bs_depot", -348.3, -110.4, 1.7, 0, 2, 9.0, "fair"],
 	["bs_aerial", -600.0, -330.0, 70.0, 70, -24, 15.0, "fair"],
-	["bs_from_1km", -1200.0, -500.0, 30.0, 110, -2, 17.0, "fair"],
+	["bs_from_1km", 332.0, 495.0, 80.0, -45, -4, 16.5, "fair"],
 	["bs_night_street", -526.4, -252.9, 1.7, 108, -1, 21.5, "clear"],
+	["bs_golden_street", -526.4, -252.9, 1.7, 108, -1, 16.8, "clear"],
+	["cw_street", -1843.0, -2113.5, 1.7, 55, 0, 15.0, "fair"],
+	["cw_aerial", -1880.0, -2050.0, 50.0, 45, -22, 14.0, "fair"],
+	["mw_street", -2280.0, 1137.0, 1.7, 95, 0, 17.0, "clear"],
+	["mw_aerial", -2100.0, 1250.0, 45.0, -35, -20, 15.0, "clear"],
+	["pl_street", 2720.7, -127.3, 1.7, 172, 0, 16.0, "fair"],
+	["pl_aerial", 2600.0, 200.0, 70.0, 42, -22, 15.5, "fair"],
+	["pl_waterfront", 2990.0, 60.0, 8.0, 100, -12, 9.5, "fair"],
+	["camp_dusk", -790.0, -760.0, 1.7, 34, -6, 19.4, "clear"],
+	["ranch", 335.0, 1170.0, 2.0, -10, -3, 9.0, "fair"],
+	["mission_ruin", -3031.0, 2668.0, 1.7, 180, 6, 17.5, "clear"],
 ]
 
 var main: Node
@@ -88,4 +99,8 @@ func _shot(path: String, x, z, up: float, yaw: float, pitch: float, hour: float,
 	var img := get_viewport().get_texture().get_image()
 	img.save_png(path)
 	var ft := (Time.get_ticks_msec() - t0) / float(frames + 1)
+	print("render: %d draw calls, %d objects, %dk primitives (%s)" % [
+		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME),
+		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME) / 1000, path.get_file()])
 	print("shot: %s at (%.0f, %.0f, %.0f) yaw %.0f pitch %.0f %.1fh %s  ~%.1f ms/frame" % [path, px, cam.global_position.y, pz, yaw, pitch, hour, weather, ft])
