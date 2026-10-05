@@ -4,7 +4,7 @@ extends Node
 ## renders, saves DIR/<name>.png and cleans up after itself.
 
 const LIST := ["town_hud", "face_closeup", "gunfight_nerve", "riding", "wildlife", "camp_night", "dialogue",
-	"map", "journal", "shop", "poker"]
+	"map", "journal", "shop", "poker", "satchel", "weapon_wheel"]
 
 var main: Node
 var _spawned: Array = []
@@ -82,6 +82,9 @@ func _cleanup() -> void:
 	if Game.get("menus"):
 		Game.menus.close_all()
 	var pl = Game.player
+	var wheel = pl.get_node_or_null("WeaponWheel")
+	if wheel and wheel.open:
+		wheel._close(false)
 	pl.bot_driven = false
 	pl.intent.aim = false
 	pl.intent.fire = false
@@ -211,3 +214,21 @@ func _poker() -> void:
 		{"name": "Del Arceneaux", "style": "bluffer", "stack": 20.0}, {"name": "Hask", "style": "tight", "stack": 18.0},
 		{"name": "Merrow", "style": "loose", "stack": 15.0}]})
 	await _settle(150)
+
+func _satchel() -> void:
+	Game.state.add_item("pelt_mule_deer_q3")
+	Game.state.add_item("fish_rainbow_trout", 2)
+	Satchel.open()
+	await _settle(15)
+
+func _weapon_wheel() -> void:
+	var c := _town("bitter_spring")
+	_place(c.x + 30.0, c.z + 40.0, 60.0, 15.0)
+	await _settle(10)
+	var wheel = Game.player.get_node_or_null("WeaponWheel")
+	if wheel:
+		wheel._open()
+		wheel._aim = Vector2(120, -60)
+		wheel._pick()
+		wheel._ctl.queue_redraw()
+	await _settle(10)

@@ -33,6 +33,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("journal") and stack.is_empty():
 		open_journal()
 		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("satchel") and stack.is_empty():
+		Satchel.open()
+		get_viewport().set_input_as_handled()
 	elif event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_B and not stack.is_empty():
 		back()
 		get_viewport().set_input_as_handled()

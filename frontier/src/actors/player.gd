@@ -125,6 +125,11 @@ func _setup_combat() -> void:
 	nerve.name = "Nerve"
 	add_child(nerve)
 	nerve.setup(gun, hud)
+	if not Game.headless:
+		var wheel := WeaponWheel.new()
+		wheel.name = "WeaponWheel"
+		add_child(wheel)
+		wheel.setup(self)
 
 func _aim_kind() -> String:
 	if gun == null or gun.weapons.is_empty():
@@ -163,8 +168,6 @@ func _combat(dt: float) -> void:
 			gun.drawn = not gun.drawn
 		if Input.is_action_just_pressed("reload"):
 			gun.start_reload()
-		if Input.is_action_just_pressed("weapon_wheel"):
-			gun.select((gun.current + 1) % gun.weapons.size())
 		if Input.is_action_just_pressed("nerve") and aiming:
 			if nerve.active:
 				nerve.execute()
