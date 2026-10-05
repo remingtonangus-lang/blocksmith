@@ -1,7 +1,7 @@
 import Foundation
 import simd
 
-// --flighttest [heli|player|plane|all|helishot|planeshot]: the real flight model (FlightModel.swift) on the Capital's
+// --flighttest [heli|player|plane|planeplayer|all|helishot|planeshot]: the real flight model (FlightModel.swift) on the Capital's
 // aircraft (Aircraft.swift), flown by their autopilots through the ship physics at 60 Hz.
 //  helicopter: spins up and lifts off its pad, settles into a hover (height within 0.6, drift under 1.5 blocks), flies
 //              80 blocks forward nose-down, turns 90 degrees on the pedals, flies back and lands softly on the pad
@@ -299,6 +299,46 @@ enum FlightTests {
             let rec = step(10) { _ in !fm.stalled && simd_length(s.vel) > 16 }
             check(rec != nil, "it recovers from the stall by itself", String(format: "%.1f b/s", simd_length(s.vel)))
             s.autopilot = nil
+            look(s, from: V3(-16, 4, 14))
+        }
+        // The player flies the Heron from the helm (keyboard layout, VehicleControls .aircraft): W opens the throttle
+        // (it holds), Space pulls the nose up, A banks it left into a turn; let go, the wings level out.
+        if name == "planeplayer" || name == "all" {
+            let px = base.x + 70, pz = base.z + 40
+            var top: Float = 0
+            for k in 0..<30 { for j in -6...6 { top = max(top, groundY(px + Float(j) * 40, pz - Float(k) * 30)) } }
+            let s = Aircraft.spawn("heron", at: V3(px, min(Float(CH - 60), top + 60), pz), yaw: 0, game: g, crewed: false)
+            s.vel = s.dirToWorld(s.fwd) * 24
+            traced = s; tag = "planeplayer"
+            g.startPiloting(s)
+            g.player.yaw = s.yaw
+            check(VehicleControls.kind(s) == .aircraft, "the helm flies it as an aircraft")
+            input = MoveInput(); input.forward = 1
+            _ = step(2)
+            check(s.throttle > 0.9, "W opens the throttle", String(format: "throttle %.2f", s.throttle))
+            input = MoveInput()
+            let y0 = s.pos.y
+            var low: Float = 1
+            _ = step(6) { _ in low = min(low, upright(s)); return false }
+            check(simd_length(s.vel) > 14 && abs(s.pos.y - y0) < 12 && low > 0.8, "hands off, it flies on level",
+                  String(format: "%.1f b/s, %+.1f, upright at least %.2f, throttle %.2f", simd_length(s.vel), s.pos.y - y0, low, s.throttle))
+            let yc = s.pos.y
+            input.jump = true
+            _ = step(4)
+            input = MoveInput()
+            check(s.pos.y - yc > 4, "Space pulls it up into a climb", String(format: "%+.1f in 4 s", s.pos.y - yc))
+            let yaw0 = s.yaw
+            var bank: Float = 0
+            input.strafe = -1
+            _ = step(3) { _ in bank = max(bank, abs(s.dirToWorld(simd_normalize(simd_cross(s.fwd, V3(0, 1, 0)))).y)); return false }
+            input = MoveInput()
+            var turned = s.yaw - yaw0
+            while turned > Float.pi { turned -= 2 * Float.pi }
+            while turned < -Float.pi { turned += 2 * Float.pi }
+            check(bank > 0.15 && turned > 0.2, "A banks it into a left turn", String(format: "bank %.2f, turned %.2f rad", bank, turned))
+            _ = step(6)
+            check(upright(s) > 0.9, "let go, the wings level out", String(format: "upright %.2f", upright(s)))
+            g.leaveHelm()
             look(s, from: V3(-16, 4, 14))
         }
         return finish(t0)
