@@ -78,6 +78,8 @@ final class ItemEntity {
     func update(_ dt: Float, _ w: World) {
         // Out in an unloaded chunk it waits, its despawn clock too (it aged anyway: death drops vanished 5 minutes after
         // the death however far away the player was; the reference ages items only in loaded chunks).
+        // A non-finite position (a NaN launch velocity) can't be converted to a block: the item goes (removed below).
+        guard pos.x.isFinite && pos.y.isFinite && pos.z.isFinite else { stack = .empty; return }
         if !w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) { return }
         age += dt
         pickupDelay -= dt
