@@ -46,6 +46,7 @@ extension Game {
         }
         guard Items.key(held.item) == "lead", m.leashable else { return false }
         m.leashed = true
+        m.leashSeat = Coop.liveSeat
         m.knot = nil
         if survival { consumeHeld() }
         sfx(.armorEquip(0), 0.5, at: m.pos)
@@ -54,7 +55,9 @@ extension Game {
 
     // Right-click a fence: tie every mob on the player's leads to it (or take tied ones back).
     func useFenceLeash(_ p: IVec3) -> Bool {
-        let near = mobs.mobs.filter { $0.leashed && $0.knot == nil && simd_length($0.pos - player.pos) < 12 }
+        // Only this player's leads (player 2 tying a fence took player 1's animals too).
+        let seat = Coop.liveSeat
+        let near = mobs.mobs.filter { $0.leashed && $0.knot == nil && (!coop.active || $0.leashSeat == seat) && simd_length($0.pos - player.pos) < 12 }
         if !near.isEmpty {
             for m in near { m.knot = p }
             sfx(.place(.wood), 0.6, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
@@ -62,7 +65,7 @@ extension Game {
         }
         let tied = mobs.mobs.filter { $0.leashed && $0.knot == p }
         if !tied.isEmpty && held.isEmpty {
-            for m in tied { m.knot = nil }
+            for m in tied { m.knot = nil; m.leashSeat = Coop.liveSeat }
             return true
         }
         return false
@@ -75,7 +78,11 @@ extension Game {
             let from = m.pos + V3(0, m.height * 0.8, 0) + m.forward * m.halfW
             let to: V3
             if let k = m.knot { to = V3(Float(k.x) + 0.5, Float(k.y) + 0.6, Float(k.z) + 0.5) }
-            else { to = player.pos + V3(0, 1.1, 0) + V3(cosf(player.yaw), 0, -sinf(player.yaw)) * 0.3 }
+            else {
+                // The holder's hand, whichever half is drawing (the rope ran to the viewing player's hand).
+                let h = coop.seatPlayer(m.leashSeat, self)
+                to = h.pos + V3(0, 1.1, 0) + V3(cosf(h.yaw), 0, -sinf(h.yaw)) * 0.3
+            }
             if let k = m.knot {
                 let c = V3(Float(k.x) + 0.5, Float(k.y) + 0.6, Float(k.z) + 0.5) - eye
                 for f in 0..<4 {
@@ -123,7 +130,7 @@ extension Mob {
             if !Blocks.key(Blocks.groupBase[Int(b)]).hasSuffix("_fence") { breakLeash(g); return }
             anchor = V3(Float(k.x) + 0.5, Float(k.y), Float(k.z) + 0.5)
         } else {
-            anchor = g.player.pos
+            anchor = g.coop.seatPlayer(leashSeat, g).pos              // the holder (not whoever's turn moves the mob)
         }
         let d = anchor - pos
         let len = simd_length(d)

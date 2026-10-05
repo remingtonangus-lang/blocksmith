@@ -326,6 +326,7 @@ final class Mob {
     var spin: Float = 0            // boat turn rate (deg per tick)
     var equip: [ItemStack]?        // head, chest, legs, feet, main hand
     var leashed = false
+    var leashSeat = 0               // split screen: the player holding the lead (rope, pull and fence tying follow them)
     var knot: IVec3?               // fence the lead is tied to (nil = the player)
     var raider = false              // part of a raid
     var breakTimer: Float = 0       // blight: breaks surrounding blocks when this runs out
