@@ -871,7 +871,7 @@ final class Game {
                 // rod used as a club wore 2).
                 let hk = held.isEmpty ? "" : Items.key(held.item)
                 let tl = held.isEmpty ? ToolType.none : held.def.tool
-                if tl == .sword || hk == "trident" || hk == "mace" { damageHeld(1) } else if tl != .none { damageHeld(2) }
+                if tl == .sword || hk == "trident" || hk == "mace" || hk.hasSuffix("_spear") { damageHeld(1) } else if tl != .none { damageHeld(2) }
             }
             return
         }
