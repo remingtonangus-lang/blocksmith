@@ -264,6 +264,11 @@ cooldowns; cooptest checks a round and fangs at player 2); the 076df09 bench pro
 reused box list), path searches (chunk cursor, door tables), World.update quiet frames (dirty-chunk list); mineshaft lanes
 through aquifers (55 of 72 gencheck leaks); structcheck and the village / life bots now gate CI. Smoke memory: the growth
 was the harness (per-frame autorelease pools); chunks alive == loaded.
+2026-10-05 midday: code audits by subagents (menus, containers, mesher/light, split-screen state, a diff review):
+stale block entities after a piston break (survival-reachable), /time nan, short block-entity slot arrays, player 2's
+helm zeroed every frame, plates / beacons / anvils / vessels / leads / F1-F3 per player; NaN quarantines (player,
+mobs, ships, items) reported by the agents' non_finite oracle; --namecheck and collisiontest gate CI; far-ring and
+minimap and block-icon per-frame costs cut; ravines and mineshafts respect aquifers.
 
 ## Playtest feedback (Remington, 2026-10-02): quality and fidelity over new features
 Bug discovery is fully automated (Remington is not the bug finder). Keep CI green throughout. Queue, in order:
