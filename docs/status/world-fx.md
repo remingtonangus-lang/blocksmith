@@ -106,6 +106,8 @@ Bench scene `weather` (bench.sh, perf shard): 8 s of whole game ticks in a thund
 - Waiting on session B's BlockMaterial table: switch `Wear.kind` to it. Coordination points for B: `World.wind` /
   `Game.fx.storm` (a wind load for their support analysis), `World.scorch` and charcoal (burnt blocks could count as
   weak), `Waves.height` (wrecks afloat).
+- Code review (no compiler here): flood retries roofed columns until water reaches their opening; snow lies on
+  Chunk.rainTop; the model-face inner sample uses the face's gradients; fire doesn't go out in the rain under glass.
 - Dropped items cast a contact shadow in Fast graphics too (Fancy already did).
 - Weather and glass: Chunk.rainTop (highest sky-stopping or solid block) for rain, splashes, cauldrons and lightning;
   snow settles on glass, top slabs and upside-down stairs. Floods don't fill sealed rooms (roofed columns fill only
