@@ -1391,6 +1391,7 @@ enum Snapshot {
             game.player.headInWater = true
         }
         if CommandLine.arguments.contains("--mobcheck") { shipFails += MobRenderCheck.run(game, renderer) }   // every mob kind draws
+        if CommandLine.arguments.contains("--plantcheck") { shipFails += PlantCheck.run(game) }                 // stacked plants pop
         if CommandLine.arguments.contains("--coop") {
             // Split screen: player 2 joins (a neutral simulated pad) a few blocks ahead, turned back to face player 1.
             game.coop.simulated[1] = PadSnapshot()

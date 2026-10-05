@@ -180,7 +180,7 @@ final class World {
         let old = c.blocks[Chunk.index(lx, y, lz)]
         c.blocks[Chunk.index(lx, y, lz)] = id
         if !redstone.isBusy && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
-        if old != id { gravityQueue.append(IVec3(x, y, z)); gravityQueue.append(IVec3(x, y + 1, z)) }
+        if old != id { queueSupportChecks(x, y, z, old, id) }
         c.modified = true
         c.recomputeHeight(lx, lz)
         let newH = Int(c.height[lx + lz * CS])
@@ -212,6 +212,16 @@ final class World {
         scheduleFluid(around: IVec3(x, y, z))
     }
 
+    // Cells whose support may have changed: this one and the one above (falling blocks, standing plants), the one below
+    // (hanging plants), and the four beside it when a solid block went (vines clinging to it). Game.gravityTick.
+    @inline(__always) func queueSupportChecks(_ x: Int, _ y: Int, _ z: Int, _ old: BlockID, _ new: BlockID) {
+        gravityQueue.append(IVec3(x, y, z)); gravityQueue.append(IVec3(x, y + 1, z)); gravityQueue.append(IVec3(x, y - 1, z))
+        if Blocks.collide[Int(old)] && !Blocks.collide[Int(new)] {
+            gravityQueue.append(IVec3(x + 1, y, z)); gravityQueue.append(IVec3(x - 1, y, z))
+            gravityQueue.append(IVec3(x, y, z + 1)); gravityQueue.append(IVec3(x, y, z - 1))
+        }
+    }
+
     // Bulk edits (fluids): no synchronous remesh; the surrounding sections re-mesh in the background.
     @discardableResult
     func setBlockAsync(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) -> Bool {
@@ -221,7 +231,7 @@ final class World {
         let old = c.blocks[Chunk.index(lx, y, lz)]
         c.blocks[Chunk.index(lx, y, lz)] = id
         if !redstone.isBusy && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
-        if old != id { gravityQueue.append(IVec3(x, y, z)); gravityQueue.append(IVec3(x, y + 1, z)) }
+        if old != id { queueSupportChecks(x, y, z, old, id) }
         c.modified = true
         c.recomputeHeight(lx, lz)
         for dz in -1...1 {

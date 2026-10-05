@@ -1404,12 +1404,14 @@ final class Game {
             for s in Mining.enchantedDrops(b, held) { drops.spawn(s, at: center, vel: V3(Rand.float(in: -1...1), 2, Rand.float(in: -1...1)), delay: 0.5) }
             exhaustion += 0.005
         }
-        // Plants can't float: pop the one standing on the broken block.
+        // A standing torch on the broken block falls off. Plants that lose their support (whole cane stacks, vines
+        // under a broken ceiling, kelp in its water) pop in the next ticks: World.queueSupportChecks / PlantSupport.
         let above = world.block(p.x, p.y + 1, p.z)
-        if Blocks.isPlant(above) || (Blocks.shape[Int(above)] == "torch" && above == Blocks.groupBase[Int(above)]) {
+        if Blocks.shape[Int(above)] == "torch" && above == Blocks.groupBase[Int(above)] {
             world.setBlock(p.x, p.y + 1, p.z, AIR)
             if drop { for s in Mining.drops(above, .empty) { drops.spawn(s, at: center + V3(0, 1, 0)) } }
         }
+        _ = plantSupportCheck(IVec3(p.x, p.y + 1, p.z))        // the plant on it goes at once, as before
     }
 
     // Buckets: pick up a water or lava source / pour it out.
