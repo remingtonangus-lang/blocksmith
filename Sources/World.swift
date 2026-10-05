@@ -1075,7 +1075,9 @@ final class World {
             for d in World.allDirs {
                 let q = p + d
                 let nb = block(q.x, q.y, q.z)
-                guard fl[Int(nb)] else { continue }
+                // Blocks holding items (barrels, chiseled bookshelves, lecterns) don't burn away: their contents were
+                // left behind with no block to open.
+                guard fl[Int(nb)], blockEntities[q] == nil else { continue }
                 anyFlammable = true
                 if Rand.int(in: 0..<5) == 0 {
                     onIgnite?(q, nb)
