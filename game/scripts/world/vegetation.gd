@@ -33,7 +33,7 @@ var _results := {}                # key -> data (filled by worker tasks)
 var _mutex := Mutex.new()
 var _focus := Vector3.ZERO
 var _t := 0.0
-var grass_near: MultiMeshInstance3D
+var grass_near: Node3D
 var grass_mat: ShaderMaterial
 var _baked := false
 var extra := {}                   # Vector2i tree cell -> Array of placed trees (cities, gardens)
@@ -105,9 +105,19 @@ func setup(g: WorldGen) -> void:
 func _on_settings() -> void:
 	imp_mat.set_shader_parameter("far_end", float(Settings.q["tree_far"]))
 	if grass_near:
+		var gd := float(Settings.q["grass_dist"])
+		# The far ring is built only out to the preset's grass distance (it was a fixed 96 m; High draws 70).
+		if gd > 0.0 and absf(gd - _far_r) > 0.5:
+			var old := _grass_far
+			_grass_far = _grass_lattice(_far_clump, 1.0, gd + 2.0, 18.0, "GrassFar", 32.0)
+			_far_r = gd
+			if old:
+				_grass_far.global_position = old.global_position
+				old.queue_free()
 		grass_near.visible = bool(Settings.q["grass"])
-		_grass_far.visible = bool(Settings.q["grass"])
-		grass_mat.set_shader_parameter("radius", float(Settings.q["grass_dist"]))
+		if _grass_far:
+			_grass_far.visible = bool(Settings.q["grass"])
+		grass_mat.set_shader_parameter("radius", gd)
 
 
 # ------------------------------------------------------------------------------------------- impostors
@@ -290,8 +300,10 @@ func _process(delta: float) -> void:
 		return
 	var p := cam.global_position
 	if grass_near:
-		grass_near.global_position = Vector3(snappedf(p.x, 0.5), 0.0, snappedf(p.z, 0.5))
-		_grass_far.global_position = Vector3(snappedf(p.x, 1.0), 0.0, snappedf(p.z, 1.0))
+		var gy := snappedf(gen.height_at(p.x, p.z), 4.0)
+		grass_near.global_position = Vector3(snappedf(p.x, 0.5), gy, snappedf(p.z, 0.5))
+		if _grass_far:
+			_grass_far.global_position = Vector3(snappedf(p.x, 1.0), gy, snappedf(p.z, 1.0))
 	_t += delta
 	_collect()
 	_update_solo(p)
@@ -693,36 +705,53 @@ func _setup_grass() -> void:
 	grass_mat = ShaderMaterial.new()
 	grass_mat.shader = load("res://shaders/grass.gdshader")
 	# Two lattices: dense fine clumps near the camera, sparser wider clumps further out.
-	grass_near = _grass_lattice(_grass_clump(16, 0.55, 7), 0.5, 20.0, 0.0, "GrassNear")
-	_grass_far = _grass_lattice(_grass_clump(9, 0.9, 8), 1.0, 96.0, 18.0, "GrassFar")
+	grass_near = _grass_lattice(_grass_clump(16, 0.55, 7), 0.5, 20.0, 0.0, "GrassNear", 20.0)
+	_far_clump = _grass_clump(9, 0.9, 8)
 
 
-var _grass_far: MultiMeshInstance3D
+var _grass_far: Node3D
+var _far_clump: ArrayMesh
+var _far_r := -1.0
 
 
-func _grass_lattice(clump: ArrayMesh, step: float, r_out: float, r_in: float, nm: String) -> MultiMeshInstance3D:
-	var buf := PackedFloat32Array()
+## A ring of clumps around the camera, cut into square tiles so frustum culling drops the tiles behind and beside
+## the view (one MultiMesh for the whole ring had one bounding box: every clump of the full circle was drawn; the
+## CI Mac's ablation measured grass at 9.2 of 23.9 ms in the battle view).
+func _grass_lattice(clump: ArrayMesh, step: float, r_out: float, r_in: float, nm: String, tile: float) -> Node3D:
+	var holder := Node3D.new()
+	holder.name = nm
+	var tiles := {}
 	var n := int(r_out / step)
 	for z in range(-n, n + 1):
 		for x in range(-n, n + 1):
 			var d := Vector2(x, z).length() * step
 			if d > r_out or d < r_in:
 				continue
+			var k := Vector2i(floori(x * step / tile), floori(z * step / tile))
+			if not tiles.has(k):
+				tiles[k] = PackedFloat32Array()
+			var buf: PackedFloat32Array = tiles[k]
 			buf.append_array([1, 0, 0, x * step, 0, 1, 0, 0, 0, 0, 1, z * step, G.hash2(x, z, 5) * 100.0, step, 0, 0])
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_custom_data = true
-	mm.mesh = clump
-	mm.instance_count = buf.size() / 16
-	mm.buffer = buf
-	var mmi := MultiMeshInstance3D.new()
-	mmi.name = nm
-	mmi.multimesh = mm
-	mmi.material_override = grass_mat
-	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mmi.custom_aabb = AABB(Vector3(-r_out - 10, -100, -r_out - 10), Vector3(r_out * 2 + 20, 3000, r_out * 2 + 20))
-	add_child(mmi)
-	return mmi
+			tiles[k] = buf
+	for k in tiles:
+		var buf: PackedFloat32Array = tiles[k]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_custom_data = true
+		mm.mesh = clump
+		mm.instance_count = buf.size() / 16
+		mm.buffer = buf
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.material_override = grass_mat
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# The clumps find their own ground height in the shader; the holder rides at the ground height under the
+		# camera, so the box only spans the relief within the ring (a box over every terrain height defeated the
+		# frustum's side planes).
+		mmi.custom_aabb = AABB(Vector3(k.x * tile - 2.0, -200.0, k.y * tile - 2.0), Vector3(tile + 4.0, 400.0, tile + 4.0))
+		holder.add_child(mmi)
+	add_child(holder)
+	return holder
 
 
 ## One clump: thin bent blades (three segments each) spread over `spread` metres.

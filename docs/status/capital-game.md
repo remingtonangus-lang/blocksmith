@@ -126,6 +126,33 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 15:45: the first GPU ablation (run 39, CI Mac, battle camera, base 23.86 ms). Frame time saved with each
+  feature off:
+
+  | Feature | Saved |
+  |---|---|
+  | Vegetation | 13.76 ms |
+  | Grass alone | 9.19 ms |
+  | Sun shadows | 2.52 ms |
+  | Terrain | 2.26 ms |
+  | SSAO | 1.73 ms |
+  | Battle | 1.63 ms |
+  | Vehicles | 0.41 ms |
+  | Capital | 0.30 ms |
+  | Roads | 0.24 ms |
+  | Glow | 0.23 ms |
+  | Water | 0.16 ms |
+  | Bases | 0.16 ms |
+  | Raymarched clouds | -0.44 ms |
+
+  Grass, the biggest cost: each ring (near 20 m, far 96 m) was one MultiMesh with one box, so the whole circle was
+  drawn, behind the camera too. The far ring also ignored the preset's grass distance (70 m on High). The vertex
+  shader's terrain lookups and noise ran for every vertex, even for clumps past the radius. Now:
+  - the rings are cut into tiles (20 m near, 32 m far) that the frustum culls;
+  - the holders ride at the ground height under the camera, so tile boxes span 400 m, not every terrain height;
+  - the far ring is built to the preset's grass distance;
+  - clumps past the radius skip the vertex work.
+  Draw report (battle): 6.35 M to 5.34 M primitives, 700 to 777 draws. Shots look the same.
 - 2026-10-05 14:35: GAME BUILD READY fe9c4d6 (capital-latest, 14:20 UTC). Since 60b25d8: parked crawlers hold still,
   script time per frame halved, benchmark CPU split. CI Mac (paravirtual, High):
 

@@ -22,6 +22,13 @@ void vertex() {
 	vec2 jitter = vec2(hash12(origin.xz * 0.731 + seed), hash12(origin.xz * 1.37 - seed)) - 0.5;
 	vec2 base = origin.xz + jitter * INSTANCE_CUSTOM.y * 1.4;
 	float d = distance(base, CAMERA_POSITION_WORLD.xz);
+	// Past the radius the clump is invisible anyway: collapse it before the terrain lookups and noise (every
+	// vertex of every clump ran them; a clump's vertices all take the same branch).
+	if (d > radius) {
+		VERTEX = vec3(0.0, -1e5, 0.0);
+		v_col = vec3(0.0);
+		v_h = 0.0;
+	} else {
 	vec4 m = t_mask_at(base);
 	vec3 n = t_normal(base);
 	float h = t_height(base);
@@ -55,6 +62,7 @@ void vertex() {
 	v_col = green;
 	VERTEX = (inverse(MODEL_MATRIX) * vec4(world, 1.0)).xyz;
 	NORMAL = (inverse(MODEL_MATRIX) * vec4(normalize(n + vec3(0.0, 0.6, 0.0)), 0.0)).xyz;
+	}
 }
 
 void fragment() {
