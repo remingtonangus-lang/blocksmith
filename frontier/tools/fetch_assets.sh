@@ -1,17 +1,18 @@
 #!/bin/bash
 # Downloads processed asset packs (release frontier-assets, built by .github/workflows/frontier-assets.yml).
-# Usage: bash frontier/tools/fetch_assets.sh [ext|catalog|audio|animals]
+# Usage: bash frontier/tools/fetch_assets.sh [ext|catalog|audio|animals|characters|weapons|all]
 #   ext (default)  CC0 textures/models into frontier/assets/ext/ (then also fetches audio, best effort)
 #   catalog        catalogues/contact sheets into frontier/assets/catalog/
 #   audio          game audio (SFX, ambience, score stems, voices, recordings + manifest) into frontier/assets/ext/audio/
 #   animals        procedurally generated animals (horse.glb + gait metadata) into frontier/assets/ext/animals/
 #   characters     generated humans + animations.glb into frontier/assets/ext/characters/ (design/CHARACTERS.md)
+#   weapons        generated firearms (tools/weapons/gun_gen.py) into frontier/assets/ext/weapons/ (design/WEAPONS.md)
 set -euo pipefail
 REPO="${FRONTIER_REPO:-remingtonangus-lang/blocksmith}"
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 what="${1:-ext}"
 if [ "$what" = "all" ]; then
-  for w in ext characters; do bash "$0" "$w"; done
+  for w in ext characters weapons; do bash "$0" "$w"; done
   exit 0
 fi
 tmp=$(mktemp -d)
@@ -40,6 +41,11 @@ case "$what" in
     rm -rf "$DIR/assets/ext/animals"          # the zip holds ext/animals/...
     unzip -q -o "$tmp/$what.zip" -d "$DIR/assets"
     dest="$DIR/assets/ext/animals";;
+  weapons)
+    mkdir -p "$DIR/assets/ext"
+    rm -rf "$DIR/assets/ext/weapons"          # the zip holds weapons/...
+    unzip -q -o "$tmp/$what.zip" -d "$DIR/assets/ext"
+    dest="$DIR/assets/ext/weapons";;
   characters)
     mkdir -p "$DIR/assets/ext"
     rm -rf "$DIR/assets/ext/characters"       # the zip holds characters/...
@@ -48,10 +54,10 @@ case "$what" in
   ext)
     # keep the packs fetched separately (audio, animals, characters) across an ext refresh
     mkdir -p "$tmp/keep"
-    for k in audio animals characters; do if [ -d "$DIR/assets/ext/$k" ]; then mv "$DIR/assets/ext/$k" "$tmp/keep/$k"; fi; done
+    for k in audio animals characters weapons; do if [ -d "$DIR/assets/ext/$k" ]; then mv "$DIR/assets/ext/$k" "$tmp/keep/$k"; fi; done
     rm -rf "$DIR/assets/ext"
     unzip -q -o "$tmp/$what.zip" -d "$DIR/assets"
-    for k in audio animals characters; do if [ -d "$tmp/keep/$k" ]; then mv "$tmp/keep/$k" "$DIR/assets/ext/$k"; fi; done
+    for k in audio animals characters weapons; do if [ -d "$tmp/keep/$k" ]; then mv "$tmp/keep/$k" "$DIR/assets/ext/$k"; fi; done
     dest="$DIR/assets/ext";;
   *)
     rm -rf "$DIR/assets/$what"

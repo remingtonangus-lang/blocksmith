@@ -10,17 +10,19 @@ name: frontier-assets
 #   characters.zip  generated humans + animation library (frontier/tools/characters, unzips to characters/)
 #   animals.zip  procedurally generated animals (frontier/tools/animals/*_gen.py, Blender as a Python module):
 #                ext/animals/horse.glb + horse_gaits.json; fetched with `bash frontier/tools/fetch_assets.sh animals`
+#   weapons.zip  the ten firearms + finish variants (frontier/tools/weapons/gun_gen.py, Blender as a Python module):
+#                weapons/<id>.glb + manifest.json; fetched with `bash frontier/tools/fetch_assets.sh weapons`
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'catalog | fetch | both | audio | animals | characters | all'
+        description: 'catalog | fetch | both | audio | animals | characters | weapons | all'
         default: 'fetch'
   push:
     branches: ['claude/frontier-game']
     paths: ['frontier/assets/manifest.json', 'frontier/tools/assets_ci.py', '.github/workflows/frontier-assets.yml',
             'frontier/tools/audio/**', 'frontier/design/dialogue/**', 'frontier/tools/animals/**',
-            'frontier/tools/characters/**']
+            'frontier/tools/characters/**', 'frontier/tools/weapons/**']
 
 permissions:
   contents: write
@@ -33,6 +35,7 @@ jobs:
       audio: ${{ steps.c.outputs.audio }}
       animals: ${{ steps.c.outputs.animals }}
       characters: ${{ steps.c.outputs.characters }}
+      weapons: ${{ steps.c.outputs.weapons }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -41,10 +44,10 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             m="${{ inputs.mode }}"
-            a=false; u=false; n=false; c=false
-            case "$m" in audio) u=true;; animals) n=true;; characters) c=true;; all) a=true; u=true; n=true; c=true;; *) a=true;; esac
+            a=false; u=false; n=false; c=false; w=false
+            case "$m" in audio) u=true;; animals) n=true;; characters) c=true;; weapons) w=true;; all) a=true; u=true; n=true; c=true; w=true;; *) a=true;; esac
             echo "assets=$a" >> $GITHUB_OUTPUT; echo "audio=$u" >> $GITHUB_OUTPUT; echo "animals=$n" >> $GITHUB_OUTPUT
-            echo "characters=$c" >> $GITHUB_OUTPUT
+            echo "characters=$c" >> $GITHUB_OUTPUT; echo "weapons=$w" >> $GITHUB_OUTPUT
             exit 0
           fi
           before="${{ github.event.before }}"
@@ -55,11 +58,13 @@ jobs:
           if echo "$files" | grep -qE '^frontier/tools/audio/|^frontier/design/dialogue/'; then u=true; else u=false; fi
           if echo "$files" | grep -qE '^frontier/tools/animals/'; then n=true; else n=false; fi
           if echo "$files" | grep -qE '^frontier/tools/characters/'; then c=true; else c=false; fi
-          if echo "$files" | grep -q '^.github/workflows/frontier-assets.yml'; then u=true; n=true; c=true; fi
+          if echo "$files" | grep -qE '^frontier/tools/weapons/'; then w=true; else w=false; fi
+          if echo "$files" | grep -q '^.github/workflows/frontier-assets.yml'; then u=true; n=true; c=true; w=true; fi
           echo "assets=$a" >> $GITHUB_OUTPUT
           echo "audio=$u" >> $GITHUB_OUTPUT
           echo "animals=$n" >> $GITHUB_OUTPUT
           echo "characters=$c" >> $GITHUB_OUTPUT
+          echo "weapons=$w" >> $GITHUB_OUTPUT
 
   assets:
     needs: changes
@@ -229,3 +234,36 @@ jobs:
               --notes "Processed CC0 assets for the Frontier game (claude/frontier-game)."
           for f in characters.zip characters.log; do [ -s "$f" ] && gh release upload frontier-assets "$f" --clobber; done
           echo "published"
+
+  weapons:
+    # Procedural firearms: Blender 5 as a Python module models, bakes and exports the ten guns -> weapons.zip
+    needs: changes
+    if: needs.changes.outputs.weapons == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    concurrency:
+      group: frontier-assets-weapons
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Blender (bpy) + deps
+        run: pip install -q bpy==5.0.1 numpy scipy pillow
+      - name: Build weapons
+        run: |
+          set -o pipefail
+          python frontier/tools/weapons/gun_gen.py --variants --out out/weapons 2>&1 | grep -avE "glTF|INFO|Baking map" | tee weapons.log
+          test -s out/weapons/lockhart_sa.glb && test -s out/weapons/merriman_lever.glb
+          (cd out && rm -rf weapons/tex && zip -qr ../weapons.zip weapons)
+          ls -la weapons.zip
+      - name: Publish weapons.zip to release frontier-assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view frontier-assets >/dev/null 2>&1 || \
+            gh release create frontier-assets --prerelease --target "$GITHUB_SHA" --title "Frontier assets (CC0)" \
+              --notes "Processed CC0 assets for the Frontier game (claude/frontier-game)."
+          gh release upload frontier-assets weapons.zip weapons.log --clobber
+          echo "published weapons.zip"

@@ -151,3 +151,4 @@ Work order from this round:
 - 2026-10-05: audio merged; frontier.yml fetches audio.zip on every run.
 - 2026-10-05: horse workstream (worktree): generator, controller, IK, oracles, CI animals job (see HORSES.md).
 - 2026-10-05: character pipeline (worktree agent): tools/characters, src/actors, shaders/characters, CI job.
+- 2026-10-05: weapons workstream (worktree): tools/weapons/gun_gen.py (10 guns + variants, baked PBR, LOD1), CI weapons job -> weapons.zip, WeaponModel/WeaponHolder/WeaponFX, weapon_lineup scene (see WEAPONS.md).

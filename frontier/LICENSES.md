@@ -20,6 +20,10 @@ domain, or a permissive open licence recorded below. No assets from other games,
 | Horse coats and markings, hair shading | `frontier/shaders/horse_coat.gdshader`, `horse_hair.gdshader` (procedural) |
 | Sky, clouds, weather, water shaders | Original shaders |
 | Story, characters, dialogue, place names | Original writing (`frontier/design/`) |
+| Firearm models + textures (10 weapons, finish variants; `weapons.zip` in the `frontier-assets` release) | `frontier/tools/weapons/gun_gen.py`: original fictional designs modelled procedurally in Blender (bpy) with procedurally synthesised PBR textures (no photo textures, no third-party meshes, no real maker's marks) |
+
+Tools used only to *produce* original content (their licences do not apply to the output): Blender 5.0.1 as a
+Python module (`pip install bpy`, GPL-2.0-or-later), NumPy / SciPy (BSD-3-Clause), Pillow (MIT-CMU).
 
 ## Third-party CC0 assets
 Fetched by `.github/workflows/frontier-assets.yml` from `frontier/assets/manifest.json`; the per-asset list with
