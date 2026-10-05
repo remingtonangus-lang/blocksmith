@@ -13,6 +13,9 @@ signal objective_changed(text: String)
 const MISSIONS := [
 	"res://src/missions/ch1/rider_from_the_west.gd",
 	"res://src/missions/ch1/the_drover.gd",
+	"res://src/missions/ch1/inquiries.gd",
+	"res://src/missions/ch1/greers_post.gd",
+	"res://src/missions/ch1/fire_at_willow_bend.gd",
 ]
 
 var dialogue := {}              # line id -> {speaker, line, emotion}
@@ -25,6 +28,14 @@ var step_timeout := 240.0       # softlock oracle: any single await longer than 
 var _abort := false
 var _markers := {}
 var spawned: Array = []
+var cine := false               # cinematic dialogue camera active
+var _cine_cam: Camera3D
+var _cine_from := Transform3D()
+var _cine_to := Transform3D()
+var _cine_t := 0.0
+var _cine_dur := 1.0
+var _bars: Array = []
+var _last_speaker: Node3D = null
 
 func _ready() -> void:
 	Game.set("missions", self)
@@ -99,6 +110,7 @@ func set_objective(text: String) -> void:
 		Game.hud.prompt(text)
 
 func _cleanup() -> void:
+	cine_end()
 	for n in spawned:
 		if is_instance_valid(n):
 			n.queue_free()
@@ -107,6 +119,91 @@ func _cleanup() -> void:
 # ------------------------------------------------------------------ verbs (await these)
 func wait(seconds: float) -> void:
 	await get_tree().create_timer(seconds if not autopilot else minf(seconds, 0.2)).timeout
+
+# ------------------------------------------------------------------ cinematics
+## Enter a letterboxed dialogue scene: the camera frames each speaker (shot / reverse shot over the listener's
+## shoulder) with a slow dolly drift; player control and HUD pause until cine_end().
+func cine_begin() -> void:
+	if Game.headless or autopilot or cine:
+		return
+	cine = true
+	_cine_cam = Camera3D.new()
+	_cine_cam.fov = 40.0
+	_cine_cam.attributes = Game.camera.attributes if Game.camera else null
+	add_child(_cine_cam)
+	_cine_cam.global_transform = Game.camera.global_transform
+	_cine_cam.make_current()
+	if Game.hud:
+		Game.hud.cinematic = true
+		var layer := CanvasLayer.new()
+		layer.layer = 11
+		add_child(layer)
+		for top in [true, false]:
+			var r := ColorRect.new()
+			r.color = Color.BLACK
+			r.anchor_right = 1.0
+			if top:
+				r.anchor_bottom = 0.0
+				r.offset_bottom = 0.0
+			else:
+				r.anchor_top = 1.0
+				r.anchor_bottom = 1.0
+			layer.add_child(r)
+			_bars.append(r)
+			var tw := create_tween()
+			tw.tween_property(r, "offset_bottom" if top else "offset_top", 120.0 if top else -120.0, 0.6)
+		_bars.append(layer)
+	if Game.player:
+		Game.player.set("bot_driven", true)
+		Game.player.intent.move = Vector2.ZERO
+
+func cine_end() -> void:
+	if not cine:
+		return
+	cine = false
+	if Game.camera:
+		Game.camera.make_current()
+	if _cine_cam:
+		_cine_cam.queue_free()
+	for b in _bars:
+		if is_instance_valid(b):
+			b.queue_free()
+	_bars.clear()
+	if Game.hud:
+		Game.hud.cinematic = false
+	if Game.player and not Game.args.has("bot"):
+		Game.player.set("bot_driven", false)
+
+func _frame(speaker: Node3D, listener: Node3D) -> void:
+	if not cine or speaker == null or not is_instance_valid(speaker):
+		return
+	var face := speaker.global_position + Vector3(0, 1.58, 0)
+	var other := listener.global_position + Vector3(0, 1.55, 0) if listener != null and is_instance_valid(listener) else face + Vector3(2, 0, 2)
+	var axis := (face - other)
+	axis.y = 0
+	if axis.length() < 0.3:
+		axis = Vector3(0, 0, 1)
+	axis = axis.normalized()
+	var side := axis.cross(Vector3.UP).normalized()
+	# over the listener's shoulder, slightly off-axis, at eye height; alternate sides for variety
+	var flip := 1.0 if (hash(speaker.name) % 2 == 0) else -1.0
+	var cam_pos := other - axis * 0.9 + side * 0.55 * flip + Vector3(0, 0.08, 0)
+	var dist := cam_pos.distance_to(face)
+	if dist < 1.2:
+		cam_pos = face - axis * 2.2 + side * 0.4
+	var from := Transform3D(Basis(), cam_pos).looking_at(face, Vector3.UP)
+	var to := Transform3D(Basis(), cam_pos + side * 0.12 * flip + axis * 0.15).looking_at(face + Vector3(0, -0.02, 0), Vector3.UP)
+	_cine_from = from
+	_cine_to = to
+	_cine_t = 0.0
+	_cine_cam.global_transform = from
+
+func _process(dt: float) -> void:
+	if cine and _cine_cam:
+		_cine_t += dt
+		var f := clampf(_cine_t / maxf(_cine_dur, 0.1), 0.0, 1.0)
+		f = f * f * (3.0 - 2.0 * f)
+		_cine_cam.global_transform = _cine_from.interpolate_with(_cine_to, f)
 
 ## Say a dialogue line: subtitles + voice (if rendered), returns after the line's duration.
 func say(line_id: String, speaker_node: Node3D = null) -> void:
@@ -117,6 +214,14 @@ func say(line_id: String, speaker_node: Node3D = null) -> void:
 		var d = Game.audio.play_voice(line_id, speaker_node)
 		if typeof(d) == TYPE_FLOAT and d > 0.0:
 			dur = d + 0.25
+	if cine and speaker_node != null:
+		var listener: Node3D = _last_speaker if _last_speaker != speaker_node else (Game.player if speaker_node != Game.player else null)
+		_cine_dur = dur + 0.5
+		_frame(speaker_node, listener)
+	if speaker_node != null:
+		_last_speaker = speaker_node
+		if speaker_node is Human:
+			speaker_node.intent.face = (_last_speaker if _last_speaker != speaker_node and _last_speaker != null else Game.player).global_position - speaker_node.global_position
 	if Game.hud:
 		Game.hud.subtitle(spk.get("name", ""), l.line, dur)
 	Game.log_event("say", {"id": line_id})

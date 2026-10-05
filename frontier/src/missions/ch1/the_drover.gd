@@ -19,11 +19,13 @@ func run(d) -> Variant:
 	if hap.size() > 0:
 		hap[0].brain.state = hap[0].brain.State.COWER
 	var toughs: Array = d.spawn_group(camp + Vector3(6.0, 0, -3.0), 2, {"role": "gunman", "faction": "syndicate", "name": "Syndicate Man", "seed": 30, "weapon": "lockhart_sa", "skill": 0.3}, 3.0)
+	d.cine_begin()
 	await d.say("c1_drover_01", toughs[0] if toughs.size() > 0 else null)
 	await d.say("c1_drover_02", toughs[1] if toughs.size() > 1 else null)
 	await d.say("c1_drover_03", Game.player)
 	await d.say("c1_drover_04", toughs[0] if toughs.size() > 0 else null)
 	await d.say("c1_drover_05", Game.player)
+	d.cine_end()
 	d.checkpoint("standoff")
 	for t in toughs:
 		t.brain.aggressive = true
@@ -36,10 +38,12 @@ func run(d) -> Variant:
 	await d.interact(camp + Vector3(2.0, 0, 0), "Tend to the wounded drover")
 	if d.aborted(): return false
 	var h = hap[0] if hap.size() > 0 else null
+	d.cine_begin()
 	await d.say("c1_drover_06", h)
 	await d.say("c1_drover_07", Game.player)
 	await d.say("c1_drover_08", h)
 	await d.say("c1_drover_09", Game.player)
 	await d.say("c1_drover_10", h)
 	await d.say("c1_drover_11", Game.player)
+	d.cine_end()
 	return true
