@@ -117,6 +117,7 @@ func _build_visual(opts: Dictionary) -> void:
 	if factory != null and factory.has_method("spawn"):
 		if factory.available():
 			visual = factory.spawn(seed, ROLE_LOOKS.get(role, ""))
+			HumanFootIK.attach.call_deferred(self)   # feet meet slopes, steps and porches
 	if visual == null:
 		visual = Node3D.new()
 		var r := RandomNumberGenerator.new()
