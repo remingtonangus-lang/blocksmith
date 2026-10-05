@@ -855,7 +855,7 @@ final class Game {
                 if held.def.tool == .sword && charge > 0.9 && player.onGround && !player.sprinting && !crit {
                     let se = Enchant.level(.sweepingEdge, held)
                     let sweep = max(1, Int((1 + base * Float(se) / Float(se + 1)).rounded()))
-                    for o in mobs.mobs where o !== m && o.health > 0 && simd_length(o.pos - m.pos) < 1.5 && simd_length(o.pos - player.pos) < 4
+                    for o in mobs.mobs where o !== m && o.health > 0 && simd_length(o.pos - m.pos) < 1.5 && simd_length(o.pos - player.pos) < 3
                         && o.kind != .villager && o.kind.spec.behavior != .vehicle {
                         o.hit(from: player.pos, damage: sweep, knockback: 0.4)
                         o.killedByPlayer = true
