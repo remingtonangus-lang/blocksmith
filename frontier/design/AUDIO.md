@@ -115,6 +115,11 @@ Local: `python3 frontier/tools/audio/build_all.py` (needs numpy, scipy, soundfil
 (Kokoro ONNX files from the kokoro-onnx GitHub release; run it in a venv since kokoro-onnx wants numpy ≥ 2).
 Game: `bash frontier/tools/fetch_assets.sh audio` pulls the CI build into `frontier/assets/ext/audio/`.
 
+### Formats
+Measured in Godot 4.7: starting an Ogg Vorbis stream costs ~0.7 ms (decoder setup per playback), a WAV imported as
+QOA ~0.002 ms. So one-shots up to 3.2 s ship as 16-bit WAV (Godot imports them QOA-compressed), loops, long calls,
+far gunshots, music and voices as Ogg Vorbis (`fmt="auto"` in `registry.py`).
+
 ### Loudness
 One-shots are matched on maximum momentary loudness, loops on integrated loudness, per family (one gain for all
 variations, so natural take-to-take variation survives): guns −11, far guns −18, echoes −20, mechanics −24, impacts

@@ -231,7 +231,8 @@ def main():
         target = LOUD[cat]
         for i, (y, inf) in enumerate(pieces[: max(max_events, max_files) * 2]):
             y = dsp.normalize(y, target, -1.0)
-            p = dsp.write(out / "sfx" / "rec" / f"{tid}_{i + 1}", y, "ogg", 0.3)
+            short = mode == "oneshot" and len(y) <= dsp.n_of(3.2)
+            p = dsp.write(out / "sfx" / "rec" / f"{tid}_{i + 1}", y, "wav" if short else "ogg", 0.3)
             rels.append(str(p.relative_to(out)))
         bus = "Ambience" if cat in ("amb_loop", "amb_bed", "creature", "weather") else "SFX"
         manifest["sounds"][tid] = {"category": cat, "bus": bus, "files": rels, "loop": mode == "loop", "gain_db": 0.0,

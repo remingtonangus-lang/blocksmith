@@ -73,6 +73,10 @@ def render_one(sid: str, out_dir: str) -> dict:
     # one gain for the whole family (keeps natural variation between takes), aligned on the mean loudness
     louds = [momentary_max(x) if measure == "max" else dsp.lufs(x) for x in raw]
     g = dsp.db(target - float(np.mean(louds)))
+    fmt = sd.fmt
+    if fmt == "auto":
+        # Ogg Vorbis costs ~0.7 ms of decoder setup per play in Godot; short one-shots ship as WAV (imported as QOA)
+        fmt = "wav" if (not sd.loop and max(len(x) for x in raw) / dsp.SR <= 3.2) else "ogg"
     for v, x in enumerate(raw):
         y = x * g
         tp = dsp.true_peak_db(y)
@@ -82,7 +86,10 @@ def render_one(sid: str, out_dir: str) -> dict:
             if tp2 > ceiling:
                 y *= dsp.db(ceiling - 0.2 - tp2)
         name = f"{sid}_{v + 1}" if sd.variations > 1 else sid
-        path = dsp.write(Path(out_dir) / "sfx" / sd.folder / name, y, sd.fmt)
+        stale = Path(out_dir) / "sfx" / sd.folder / (name + (".ogg" if fmt == "wav" else ".wav"))
+        if stale.exists():
+            stale.unlink()
+        path = dsp.write(Path(out_dir) / "sfx" / sd.folder / name, y, fmt)
         files.append(str(path.relative_to(out_dir)))
         stats.append({"file": files[-1], "dur": round(len(y) / dsp.SR, 3), "peak_db": round(dsp.peak_db(y), 2),
                       "true_peak_db": round(dsp.true_peak_db(y), 2), "lufs": round(dsp.lufs(y), 2),
@@ -124,7 +131,7 @@ def main():
     if not args.music_only:
         ids = [s for s in SOUNDS if not args.only or re.search(args.only, s)]
         if not args.only:  # full rebuild: drop stale ids
-            manifest["sounds"] = {k: v for k, v in manifest["sounds"].items() if v.get("source") == "recording"}
+            manifest["sounds"] = {k: v for k, v in manifest["sounds"].items() if v.get("source") in ("recording", "music")}
         with ProcessPoolExecutor(max_workers=args.jobs) as ex:
             for res in ex.map(render_one, ids, [str(out)] * len(ids)):
                 manifest["sounds"][res["id"]] = res["entry"]

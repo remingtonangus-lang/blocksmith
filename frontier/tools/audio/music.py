@@ -775,6 +775,6 @@ def build(out: Path, report: dict, manifest: dict | None = None, only: str | Non
             sp = dsp.write(out / "sfx" / "town" / tid, dsp.normalize(mono, -24.0), "ogg", 0.3)
             manifest["sounds"][tid] = {"category": "amb_loop", "bus": "Ambience", "files": [str(sp.relative_to(out))],
                                        "loop": True, "gain_db": 0.0, "pitch_var": 0.0, "vol_var_db": 0.0,
-                                       "max_dist": 45.0, "unit_size": 3.0, "stereo": False}
+                                       "max_dist": 45.0, "unit_size": 3.0, "stereo": False, "source": "music"}
     shutil.rmtree(tmp, ignore_errors=True)
     return result

@@ -111,6 +111,8 @@ func _exit_tree() -> void:
 			(t as Tween).kill()
 	_tweens.clear()
 	stop_all()
+	# the mixer thread drops stopped playbacks on its next pass; give it one so nothing leaks at quit
+	OS.delay_msec(60)
 	for b in BUSES + ["Master"]:
 		var bi := AudioServer.get_bus_index(b)
 		if bi == -1:

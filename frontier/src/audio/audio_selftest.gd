@@ -67,6 +67,20 @@ func run(d: AudioDirector) -> void:
 	for i in 200:
 		director.play("bird_chip", lp + Vector3(rng.randf_range(-50, 50), 5, rng.randf_range(-50, 50)))
 	print("AUDIOTEST 200 one-shots %.2f ms" % ((Time.get_ticks_usec() - t0) / 1000.0))
+	await get_tree().process_frame
+	director.stop_all()
+	await get_tree().process_frame
+	t0 = Time.get_ticks_usec()
+	for i in 20:
+		director.play("bird_chip", lp + Vector3(rng.randf_range(-50, 50), 5, rng.randf_range(-50, 50)), {"occlude": false})
+	var t_no := (Time.get_ticks_usec() - t0) / 1000.0
+	await get_tree().process_frame
+	director.stop_all()
+	await get_tree().process_frame
+	t0 = Time.get_ticks_usec()
+	for i in 20:
+		director.play("bird_chip", lp + Vector3(rng.randf_range(-50, 50), 5, rng.randf_range(-50, 50)))
+	print("AUDIOTEST 20 one-shots: %.2f ms without occlusion, %.2f ms with" % [t_no, (Time.get_ticks_usec() - t0) / 1000.0])
 	# Nerve
 	director.set_nerve(true)
 	director.ui("nerve_mark")

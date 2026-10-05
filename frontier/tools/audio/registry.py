@@ -45,7 +45,7 @@ class SoundDef:
     vol_var_db: float = 1.5
     max_dist: float = 60.0      # metres, for 3D one-shots (AudioStreamPlayer3D.max_distance)
     unit_size: float = 4.0      # AudioStreamPlayer3D.unit_size (distance of 0 dB attenuation)
-    fmt: str = "ogg"
+    fmt: str = "auto"           # auto: WAV (QOA-imported, ~free to start) for one-shots <= 3.2 s, else Ogg Vorbis
     stereo: bool = False
     target: float | None = None  # override category loudness target
     tags: dict = field(default_factory=dict)
