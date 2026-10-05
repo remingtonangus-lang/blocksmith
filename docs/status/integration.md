@@ -120,6 +120,12 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
   dead zone, so they walked into one obstacle for 50 s (fixed in the script). Soldier spin traces named the 10-block
   home edge (stream D landed the same fix first: SoldierBrain.homing, stroll area 7; mine dropped in the rebase).
 
+## Landmarks verified (run 563 shots)
+- volcano_far: no streak (the impostor shell fix holds). volcano_horizon_night: two volcanoes, the near plume lit orange.
+- Known limit: seen from a high hill the impostors (volcano foot, spire skirt) sit over empty sky past the loaded
+  terrain (nothing is drawn there), so their haze-coloured feet read as a pale disc. A fix needs far terrain (a coarse
+  horizon ring), not impostor tweaks; parked.
+
 ## Frigates (session B request, 2026-10-05 ~02:50 UTC)
 - Session B: go ahead with BOTH frigate hulls on claude/bs-frigates (CapitalFrigate.swift and the Stormwarden
   warfrigate); the integration session is not editing CapitalFrigate.swift and will not touch it meanwhile. Please keep:
