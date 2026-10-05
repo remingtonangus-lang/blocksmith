@@ -61,7 +61,8 @@ extension Game {
             guard useNow else { return true }
             let multi = Enchant.level(.multishot, h) > 0
             let pierce = Enchant.level(.piercing, h)
-            let ammo = ItemID(h.tag)
+            // The ammo by name (contents survive a save; the raw ItemID in `tag` shifts when items are added).
+            let ammo = h.contents?.first?.item ?? ItemID(h.tag)
             let angles: [Float] = multi ? [0, -0.17, 0.17] : [0]
             for (i, a) in angles.enumerated() {
                 let dir = simd_normalize(player.look + V3(cosf(player.yaw), 0, -sinf(player.yaw)) * tanf(a))
@@ -99,9 +100,11 @@ extension Game {
                     if survival { r.count -= 1; inventory.offhand[0] = r.count > 0 ? r : .empty }
                 } else if slot >= 0 {
                     h.tag = Int(inventory.main[slot].item)
+                    h.contents = [inventory.main[slot].with(count: 1)]
                     if survival { var s = inventory.main[slot]; s.count -= 1; inventory.main[slot] = s }
                 } else {
                     h.tag = Int(Items.id("arrow"))
+                    h.contents = [ItemStack(Items.id("arrow"), 1)]
                 }
                 inventory.held = h
                 sfx(.crossbowLoad, 0.8)
