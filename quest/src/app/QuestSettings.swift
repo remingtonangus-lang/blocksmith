@@ -40,10 +40,12 @@ enum QuestSettings {
     // The pause menu's Render Distance row saves under the game's own key, so a change made in the headset sticks.
     static var renderDistance: Int { get { d.object(forKey: "renderDistance") == nil ? 8 : d.integer(forKey: "renderDistance") } set { d.set(newValue, forKey: "renderDistance") } }
     static var resolutionScale: Float { get { float("quest.resolutionScale", 1.0) } set { store(newValue, "quest.resolutionScale") } }
-    // Turning: 0 snap, 1 smooth.
-    static var smoothTurn: Bool { get { bool("quest.smoothTurn", false) } set { store(newValue, "quest.smoothTurn") } }
+    // Turning: smooth by default; snap is a comfort option.
+    static var smoothTurn: Bool { get { bool("quest.smoothTurn", true) } set { store(newValue, "quest.smoothTurn") } }
+    // Cave fill and light-curve lift (Mac Options > Video > Brightness): 0 moody ... 1 bright; Quest default is a notch up.
+    static var brightness: Float { get { float("quest.brightness", 0.75) } set { store(newValue, "quest.brightness") } }
     static var snapAngle: Float { get { float("quest.snapAngle", 45) } set { store(newValue, "quest.snapAngle") } }
-    static var smoothTurnSpeed: Float { get { float("quest.smoothTurnSpeed", 120) } set { store(newValue, "quest.smoothTurnSpeed") } }
+    static var smoothTurnSpeed: Float { get { float("quest.smoothTurnSpeed", 90) } set { store(newValue, "quest.smoothTurnSpeed") } }
     // Comfort vignette strength 0 (off) ... 1.
     static var vignette: Float { get { float("quest.vignette", 0.6) } set { store(newValue, "quest.vignette") } }
     // Movement: false smooth (left stick walks), true teleport (push the stick forward to aim an arc, release to jump there).

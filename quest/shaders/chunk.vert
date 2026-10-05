@@ -57,7 +57,14 @@ void main() {
     float inv = 1.0 - blk0;
     float blk = min(1.0, mix(blk0, 1.0 - inv * inv * inv * inv, 0.6) * 1.05);
     vec3 lit = max(sky * skyTint, blk * mix(vec3(1.0, 0.87, 0.68), vec3(1.0, 0.95, 0.86), blk * blk));
-    lit = mix(max(lit, vec3(0.055)), vec3(1.0), u.sunDir.w);
+    // Cave fill (port of Shaders.caveFill, Fast path): a cool minimum light that fades with distance; misc.w = brightness.
+    float b = u.misc.w;
+    float g = (b - 0.5) * 0.8;
+    lit = clamp(lit + lit * (1.0 - lit) * g, 0.0, 1.0);
+    float nearK = mix(1.0, 0.45, smoothstep(5.0, 30.0, length(rel)));
+    float fl = max(0.04, (0.06 + 0.3 * b) * nearK) * 2.0;
+    lit = max(lit, vec3(0.84, 0.92, 1.08) * fl * mix(0.5, 1.0, float(ao) / 3.0));
+    lit = mix(lit, vec3(1.0), u.sunDir.w);
     oShade = lit * (faceShade[face] * aoCurve[ao]);
     oDist = length(rel);
     oRel = rel;
