@@ -38,9 +38,31 @@ static func warm_up() -> void:
 	if _warming or not available():
 		return
 	_warming = true
+	# a role-diverse subset sized by quality preset (every look resident at once costs GPU memory an 8 GB Mac and a
+	# Quest can't spare); spawns pick among prepared looks, so a town still reads varied
+	var budget := int({"low": 8, "medium": 12, "high": 16, "ultra": 24, "quest": 6, "preview": 10}.get(Game.quality_name, 12))
 	var todo: Array = []
+	var by_role := {}
 	for c in catalog().get("characters", []):
-		todo.append(str(c["id"]))
+		var tags: Array = c.get("tags", [])
+		if tags.has("hero"):
+			if str(c["id"]) == "ruth_caddell":
+				todo.append(str(c["id"]))
+			continue
+		var r := str(c.get("role", ""))
+		if not by_role.has(r):
+			by_role[r] = []
+		by_role[r].append(str(c["id"]))
+	var round := 0
+	while todo.size() < budget:
+		var added := false
+		for r in by_role.keys():
+			if round < by_role[r].size() and todo.size() < budget:
+				todo.append(by_role[r][round])
+				added = true
+		if not added:
+			break
+		round += 1
 	WorkerThreadPool.add_task(func(): animation_library(), false, "character anims")
 	WorkerThreadPool.add_group_task(func(i: int):
 		var id: String = todo[i]
