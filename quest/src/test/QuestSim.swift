@@ -225,6 +225,11 @@ enum QuestSim {
         check(pm.scroll > 0, "VR menus: the right stick scrolls the pause menu (scroll \(pm.scroll))")
         frames(3) { _ in idleHands() }
         pm.act("host:vr", back: false)
+        pm.act("host:touch", back: false)
+        check(pm.title == "Touch Controls" && pm.rows.count > 8, "VR options: the Touch Controls page lists \(pm.rows.count) rows")
+        frames(2) { _ in idleHands() }
+        try render(scene: scene, wr: wr, rig: rig, sim: sim, game: game, path: out.replacingOccurrences(of: ".png", with: "_touch.png"))
+        pm.act("host:vr", back: false)
         let snap0 = QuestSettings.snapAngle
         pm.act("q_snap", back: false)
         check(pm.title == "VR Comfort & Controls" && QuestSettings.snapAngle == 60 && pm.rows.contains { $0.0.hasPrefix("Snap Angle: 60") },

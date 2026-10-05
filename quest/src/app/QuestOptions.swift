@@ -27,7 +27,7 @@ enum QuestOptions {
         // the field of view (the lenses set it), photo mode's free camera (the head is the camera), split screen and
         // the Mac's microphone bug notes.
         PauseMenu.hostHidden = ["photo", "coop", "fullscreen", "display", "launchfs", "vsync", "fps", "rscale", "wscale",
-                                "graphics", "fov", "bugnotes"]
+                                "graphics", "fov", "bugnotes", "controls", "keys", "padmap"]
         PauseMenu.hostValues = ["q_turn", "q_snap", "q_tspeed", "q_move", "q_dir", "q_vig", "q_ring", "q_seated", "q_hand", "q_hz", "q_fov", "q_tex", "q_autord", "q_hud"]
         PauseMenu.hostHelp = [
             "host:vr": "Turning, movement, comfort vignette, seated play, refresh rate.",
@@ -43,17 +43,20 @@ enum QuestOptions {
             "q_hand": "Which hand aims, breaks and uses (the other hand moves).",
             "q_hz": "Display refresh rate. Higher is smoother but uses more battery and heat.",
             "q_autord": "When frames are missed because the headset is at its limit, the render distance steps down (for this session).",
+            "host:touch": "Every Touch controller button and what it does.",
             "q_hud": "Where the HUD (hotbar, health, messages) floats: lower keeps more of the view clear.",
             "q_tex": "High: 128-pixel block textures (sharpest up close). Medium: 64 pixels, less memory. Applies at the next launch.",
             "q_fov": "Renders the edges of the view at lower resolution (fixed foveated rendering): faster, slightly softer edges.",
         ]
         PauseMenu.hostPage = { id in
+            if id == "touch" { return ("Touch Controls", "Right hand aims; the left hand moves", touchRows.map { ($0, "noop") } + [("Back to VR Comfort", "host:vr")]) }
             guard id == "vr" else { return nil }
             let S = QuestSettings.self
             func on(_ b: Bool) -> String { b ? "On" : "Off" }
             let fovNames = ["Off", "Low", "Medium", "High"]
             let fovNote = hooks.foveated() || S.foveation == 0 ? "" : " (next launch)"
             var rows: [(String, String)] = [
+                ("Touch Controls...", "host:touch"),
                 ("Turning: \(S.smoothTurn ? "Smooth" : "Snap")", "q_turn"),
                 S.smoothTurn ? ("Smooth Turn Speed: \(Int(S.smoothTurnSpeed)) deg/s", "q_tspeed")
                              : ("Snap Angle: \(angle(S.snapAngle)) deg", "q_snap"),
@@ -75,6 +78,22 @@ enum QuestOptions {
         }
         PauseMenu.hostAct = { id, back in act(id, back: back) }
     }
+
+    // The Touch layout (right-handed; Dominant Hand swaps the hands).
+    static let touchRows = [
+        "Right laser: aim at blocks, menus",
+        "R trigger: break / attack / fire",
+        "R grip, L trigger: use / place",
+        "L stick: move (teleport: aim)",
+        "R stick: turn; flick up fly/down drop",
+        "A: jump      B: sneak / back",
+        "X: pick block; hold: offhand",
+        "Y: inventory; hold: world map",
+        "L grip: hotbar left",
+        "R stick click: hotbar right",
+        "Hold R stick click: weapon wheel",
+        "L stick click: sprint  Menu: pause",
+    ]
 
     static func angle(_ a: Float) -> String { a == a.rounded() ? "\(Int(a))" : String(format: "%.1f", a) }
 
