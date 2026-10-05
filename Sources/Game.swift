@@ -732,7 +732,7 @@ final class Game {
             let hasElytra = !chest.isEmpty && Items.key(chest.item) == "elytra" && chest.damage < chest.def.durability - 1
             if hasElytra && !player.onGround && !player.flying && !player.inWater && !player.gliding {
                 player.gliding = true
-            } else if clock - lastSpaceTap < 0.3 { toggleFly(); lastSpaceTap = -1 } else { lastSpaceTap = clock }
+            } else if clock - lastSpaceTap < 0.3 && !input.rightDown && placeCooldown < -0.4 { toggleFly(); lastSpaceTap = -1 } else { lastSpaceTap = clock }
         }
         if player.gliding {
             // Glider Wings wear: 1 durability per second of flight; breaks at 1 left like the reference game.
@@ -1083,7 +1083,7 @@ final class Game {
         }
         eatProgress = 0
         guard useNow || (useHeld && placeCooldown <= 0) else { return }
-        placeCooldown = 0.25
+        placeCooldown = 0.2       // 4 ticks, like the reference's held right-click
         if useNow && useBottleOrCauldron(target) { swing = 1; return }
         if useBucket() { return }
         if useNow && placeBoat() { return }
