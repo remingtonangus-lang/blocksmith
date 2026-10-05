@@ -178,24 +178,32 @@ enum Smoke {
                 }
             }
             let b = CFAbsoluteTimeGetCurrent()
-            progress.set(i, "Game.tick")
-            game.tick(dt)
-            let tickEnd = CFAbsoluteTimeGetCurrent()
-            progress.set(i, "renderFrame")
-            if i > flyAt {
-                // Fly at 20 blocks/s (like the benchmark flights) so streaming is stressed at every distance.
-                let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
-                game.player.pos += f * Float(20 * dt)
-                let gy = Float(world.topY(Int(floor(game.player.pos.x)), Int(floor(game.player.pos.z))) + 12)
-                if game.player.pos.y < gy { game.player.pos.y = gy }
+            var tickEnd = b
+            // One autorelease pool per frame, as the app's MTKView draw callback gets from the run loop: this loop has
+            // none, so every autoreleased Metal object piled up until exit (resident grew ~20 MB/s while streaming,
+            // runs 605-634, with Metal memory flat).
+            let made: Bool = autoreleasepool {
+                progress.set(i, "Game.tick")
+                game.tick(dt)
+                tickEnd = CFAbsoluteTimeGetCurrent()
+                progress.set(i, "renderFrame")
+                if i > flyAt {
+                    // Fly at 20 blocks/s (like the benchmark flights) so streaming is stressed at every distance.
+                    let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw))
+                    game.player.pos += f * Float(20 * dt)
+                    let gy = Float(world.topY(Int(floor(game.player.pos.x)), Int(floor(game.player.pos.z))) + 12)
+                    if game.player.pos.y < gy { game.player.pos.y = gy }
+                }
+                guard let cmd = r.queue.makeCommandBuffer() else { return false }
+                let fence = MeshArena.frameSubmitted()
+                cmd.addCompletedHandler { _ in MeshArena.frameCompleted(fence) }
+                r.renderFrame(cmd, final: target.rpd, width: W, height: H)
+                cmd.commit()
+                progress.set(i, "GPU wait")
+                cmd.waitUntilCompleted()
+                return true
             }
-            guard let cmd = r.queue.makeCommandBuffer() else { print("smoke: no command buffer"); return 2 }
-            let fence = MeshArena.frameSubmitted()
-            cmd.addCompletedHandler { _ in MeshArena.frameCompleted(fence) }
-            r.renderFrame(cmd, final: target.rpd, width: W, height: H)
-            cmd.commit()
-            progress.set(i, "GPU wait")
-            cmd.waitUntilCompleted()
+            if !made { print("smoke: no command buffer"); return 2 }
             progress.set(i + 1, "frame done")
             frameMs.append((CFAbsoluteTimeGetCurrent() - b) * 1000)
             if frameMs[frameMs.count - 1] > worst.ms {

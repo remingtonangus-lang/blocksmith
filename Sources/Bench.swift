@@ -577,10 +577,15 @@ enum Bench {
             pos.y = want > pos.y ? want : max(want, pos.y - 6 * Float(dt))
             game.player.pos = pos
             game.player.vel = .zero
-            let b = now
-            game.tick(dt)
-            let tk = now - b
-            let (e, g) = r.benchFrame(target)
+            // A pool per frame, as the app's draw callback has (this loop had none: every autoreleased Metal object
+            // stayed until exit and counted in resident_peak_mb, the memory gate run 634 failed).
+            let (tk, e, g): (Double, Double, Double) = autoreleasepool {
+                let b = now
+                game.tick(dt)
+                let tk = now - b
+                let (e, g) = r.benchFrame(target)
+                return (tk, e, g)
+            }
             tick.append(tk * 1000); enc.append(e * 1000); gpu.append(g * 1000); cull.append(r.cullSeconds * 1000)
             upd.append(world.perf.updateSeconds * 1000)
             est.append(max(tk + e, g) * 1000)
