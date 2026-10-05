@@ -1516,11 +1516,35 @@ final class Game {
         // needs a baby, so behind a plain !baby it could never drop.)
         if !m.baby || m.isZombie {
             let looting = m.killedByPlayer ? m.lootingLevel : 0
-            for (n, lo, hi) in m.spec.drops where Items.has(n) && !(m.kind == .minecart && m.variant > 0) {
-                let c = Rand.int(in: lo...(hi + looting))
+            // Drops with reference rules of their own are rolled below (and skipped here).
+            let custom: Set<MobKind> = [.shulker, .witch, .polarBear, .pillager]
+            let pkOnly = (m.kind == .vindicator || m.kind == .evoker) ? "emerald" : (m.kind == .phantom ? "phantom_membrane" : "")
+            for (n, lo, hi) in m.spec.drops where Items.has(n) && !(m.kind == .minecart && m.variant > 0) && !custom.contains(m.kind) {
+                if m.kind == .slime && m.sized && m.slimeSize > 1 { break }               // only the smallest slimes drop balls
+                if n == "copper_ingot" && m.kind == .drowned { continue }                 // a chance drop below
+                if n == pkOnly && !m.killedByPlayer { continue }                          // player kills only
+                var c = Rand.int(in: lo...(hi + looting))
+                if m.kind == .witherSkeleton && n == "coal" { c = max(0, Rand.int(in: -1...(1 + looting))) }     // 1 in 3
                 var item = Items.id(n)
                 if m.fire > 0, let cooked = Recipes.smelt(item), Items.def(item).food != nil { item = cooked }
                 if c > 0 { drops.spawn(ItemStack(item, c), at: at) }
+            }
+            // Reference loot pools these mobs have of their own.
+            func give(_ n: String, _ c: Int) { if c > 0 && Items.has(n) { drops.spawn(ItemStack(Items.id(n), c), at: at) } }
+            switch m.kind {
+            case .shulker:                                                                // one shell, 50 % + 6.25 % a level
+                if Rand.float(in: 0..<1) < 0.5 + 0.0625 * Float(looting) { give("shulker_shell", 1) }
+            case .witch:                                                                  // 1-3 rolls of one pool
+                let pool = ["glowstone_dust", "sugar", "spider_eye", "glass_bottle", "gunpowder", "stick", "stick", "redstone"]
+                for _ in 0..<Rand.int(in: 1...3) { give(pool[Rand.int(in: 0..<pool.count)], Rand.int(in: 0...(2 + looting))) }
+            case .polarBear:                                                              // cod 3 : salmon 1
+                give(Rand.int(in: 0..<4) == 0 ? "salmon" : "cod", Rand.int(in: 0...(2 + looting)))
+            case .drowned:
+                if m.killedByPlayer && Rand.float(in: 0..<1) < 0.11 + 0.02 * Float(looting) { give("copper_ingot", 1) }
+            case .guardian, .elderGuardian:                                               // cod or crystals (or nothing)
+                let r = Rand.float(in: 0..<1)
+                if r < 0.4 { give("prismarine_crystals", 1 + Rand.int(in: 0...looting)) }
+            default: break
             }
             if m.kind == .sheep && !m.sheared, Items.has("\(m.woolColor)_wool") { drops.spawn(ItemStack(Items.id("\(m.woolColor)_wool"), 1), at: at) }
             // Rare drop: player kills only, 2.5 % + 1 % per Looting level; husks and zombie villagers too (reference).
