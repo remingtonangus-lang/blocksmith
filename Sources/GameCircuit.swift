@@ -115,7 +115,11 @@ extension Game {
             // Standing on top of a moved block.
             return set.contains(IVec3(Int(floor(pos.x)), Int(floor(pos.y - 0.05)), Int(floor(pos.z))))
         }
-        if inside(player.pos, player.halfW, player.height) { player.pos += d; player.airPeak = player.pos.y }
+        // Every player (split screen: a piston didn't carry player 2).
+        coop.eachSeat(self) {
+            let pl = self.player
+            if inside(pl.pos, pl.halfW, pl.height) { pl.pos += d; pl.airPeak = pl.pos.y }
+        }
         for m in mobs.mobs where inside(m.pos, m.halfW, m.height) { m.pos += d }
     }
 
@@ -126,7 +130,7 @@ extension Game {
             pos.x + hw > Float(p.x) + 0.06 && pos.x - hw < Float(p.x) + 0.94 && pos.z + hw > Float(p.z) + 0.06 && pos.z - hw < Float(p.z) + 0.94
         }
         var n = 0
-        if alive && on(player.pos, player.halfW) { n += 1 }
+        coop.eachSeat(self) { if self.alive && on(self.player.pos, self.player.halfW) { n += 1 } }   // player 2 presses plates too
         for m in mobs.mobs where on(m.pos, m.halfW) { n += 1 }
         if items { for e in drops.items where on(e.pos, 0.125) { n += e.stack.count } }
         return n

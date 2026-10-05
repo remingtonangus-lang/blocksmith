@@ -471,7 +471,6 @@ final class Renderer: NSObject, MTKViewDelegate {
     // map, HDR world pass, scene copy, HDR water/translucent pass, post (bloom, god rays, haze, tone map,
     // grading) into `final`, then the HUD.
     func renderFrame(_ cmd: MTLCommandBuffer, final: MTLRenderPassDescriptor, width: Int, height: Int) {
-        MobLight.nightVision = game.nightVision         // mobs share the terrain's night-vision lift
         MobLight.fill = (0.06 + 0.3 * Settings.shared.lightBrightness) * (game.fancyGraphics && vib != nil ? 1 : 2)
         MobDrawStats.mobs = game.mobs.mobs.count
         MobDrawStats.near = 0
@@ -536,6 +535,8 @@ final class Renderer: NSObject, MTKViewDelegate {
     }
 
     private func renderView(_ cmd: MTLCommandBuffer, final: MTLRenderPassDescriptor, width: Int, height: Int) {
+        // Per view: mobs share this player's night-vision lift (set once per frame, both halves used player 1's).
+        MobLight.nightVision = game.nightVision
         updateCave()
         let clear = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInLava ? Game.lavaFog : (game.player.headInWater ? game.underwaterFog : viewSky))
         let cc = MTLClearColor(red: Double(clear.x), green: Double(clear.y), blue: Double(clear.z), alpha: 1)
@@ -2723,6 +2724,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         rpd.colorAttachments[0].texture = color
         rpd.colorAttachments[0].loadAction = .clear
         rpd.colorAttachments[0].storeAction = .store
+        MobLight.nightVision = game.nightVision         // (per view: see renderView)
         updateCave()
         let sky = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInLava ? Game.lavaFog : (game.player.headInWater ? game.underwaterFog : viewSky))
         rpd.colorAttachments[0].clearColor = MTLClearColor(red: Double(sky.x), green: Double(sky.y), blue: Double(sky.z), alpha: 1)

@@ -187,7 +187,12 @@ final class MapCache {
         use(g.world.gen)
         guard g.clock - scanTimer > 1, g.dim.dim == .overworld, let sc = g.world.gen.structures else { return }
         scanTimer = g.clock
-        let px = Int(floor(g.player.pos.x)), pz = Int(floor(g.player.pos.z))
+        // Round every player (split screen: player 2 passing a citadel or village alone discovered nothing).
+        for i in 0..<max(1, g.coop.seatCount) { scan(g, sc, g.coop.seatPlayer(i, g).pos) }
+    }
+
+    private func scan(_ g: Game, _ sc: StructureCache, _ at: V3) {
+        let px = Int(floor(at.x)), pz = Int(floor(at.z))
         for t in sc.types where t.name == "military_base" || t.name == "village" {
             for s in sc.startsNear(cx: floorDiv(px, CS), cz: floorDiv(pz, CS), t) {
                 let cx = (s.min.x + s.max.x) / 2, cz = (s.min.z + s.max.z) / 2

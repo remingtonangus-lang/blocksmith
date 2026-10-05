@@ -88,6 +88,8 @@ struct SeatState {
     var lastHorn: Double = -100        // their own horn and wind-charge cooldowns (shared, one player's use blocked the other's)
     var lastWind: Double = -10
     var mapRow = 0                     // their held map's scan row (shared, two held maps each filled every other row)
+    var hideHUD = false                // F1 / F3 are per half (player 1's hid player 2's HUD too)
+    var showDebug = false
     // Per-player state kept outside Game.
     var padLook = PadLook()
     var wheel = WeaponWheel()

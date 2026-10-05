@@ -44,12 +44,17 @@ extension Game {
             guard be.level > 0, let prim = Effect.named(be.mob) else { continue }
             let range = Float(10 + 10 * be.level)
             let c = V3(Float(p.x) + 0.5, Float(p.y), Float(p.z) + 0.5)
-            guard abs(player.pos.x - c.x) <= range, abs(player.pos.z - c.z) <= range, player.pos.y >= c.y - range else { continue }
             let secs = Float(9 + 2 * be.level)
             let sec = Effect.named(be.secondary)
             let amp = be.level >= 4 && sec == prim ? 1 : 0
-            applyEffect(prim, amp: amp, seconds: secs, ambient: true)
-            if be.level >= 4, let s = sec, s != prim { applyEffect(s, amp: 0, seconds: secs, ambient: true) }
+            let lv = be.level
+            // Every player in range (split screen: the powers reached only player 1).
+            coop.eachSeat(self) {
+                let pp = self.player.pos
+                guard abs(pp.x - c.x) <= range, abs(pp.z - c.z) <= range, pp.y >= c.y - range else { return }
+                self.applyEffect(prim, amp: amp, seconds: secs, ambient: true)
+                if lv >= 4, let s = sec, s != prim { self.applyEffect(s, amp: 0, seconds: secs, ambient: true) }
+            }
         }
     }
 

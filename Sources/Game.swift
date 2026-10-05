@@ -1983,7 +1983,8 @@ final class Game {
         weatherTick(Float(dt))
         world.rainLevel = wetWorld ? weather.rain : 0
         raidTimer += Float(dt)
-        if raidTimer >= 1 { raidTick(raidTimer); patrolTick(raidTimer); blockSecondTick(); raidTimer = 0 }
+        // (blockSecondTick per player: campfire contact, Frost Walker, conduit power and shriekers reached only player 1.)
+        if raidTimer >= 1 { raidTick(raidTimer); patrolTick(raidTimer); coop.eachSeat(self) { self.blockSecondTick() }; raidTimer = 0 }
         if !world.pendingMobs.isEmpty {
             for (name, p) in world.pendingMobs {
                 guard let k0 = MobKind.named(name) else { continue }
@@ -2038,6 +2039,7 @@ final class Game {
         let ld = lastDeath; lastDeath = s.lastDeath; s.lastDeath = ld
         swap(&deathScore, &s.deathScore); swap(&timeSinceRest, &s.timeSinceRest)
         swap(&lastHorn, &s.lastHorn); swap(&lastWind, &s.lastWind); swap(&mapRow, &s.mapRow)
+        swap(&hideHUD, &s.hideHUD); swap(&showDebug, &s.showDebug)
         exchangeSeatExtras(&s)
     }
 

@@ -75,8 +75,11 @@ extension Game {
                     // Up to 40 damage (2 per block fallen) to whatever is below; 5% wear per block.
                     let dmg = min(40, Int(fell * 2))
                     let c = V3(Float(at.x) + 0.5, Float(at.y), Float(at.z) + 0.5)
-                    if simd_length(V2(player.pos.x - c.x, player.pos.z - c.z)) < 0.8 && abs(player.pos.y - c.y) < 1.8 {
-                        damage(dmg, "was squashed by a falling anvil")
+                    coop.eachSeat(self) {                         // whichever player is under it (player 2 too)
+                        let pp = self.player.pos
+                        if simd_length(V2(pp.x - c.x, pp.z - c.z)) < 0.8 && abs(pp.y - c.y) < 1.8 {
+                            self.damage(dmg, "was squashed by a falling anvil")
+                        }
                     }
                     for m in mobs.mobs where simd_length(V2(m.pos.x - c.x, m.pos.z - c.z)) < 0.5 + m.halfW && abs(m.pos.y - c.y) < 1.5 {
                         m.hit(from: c + V3(0, 2, 0), damage: dmg, knockback: 0)
