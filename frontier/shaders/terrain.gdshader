@@ -208,7 +208,13 @@ void fragment() {
 	gdens *= 1.0 - smoothstep(1100.0, 1200.0, alt);
 	vec3 gcol = mix(vec3(0.30, 0.22, 0.085), vec3(0.075, 0.12, 0.035), smoothstep(0.45, 0.9, moist + (gn - 0.5) * 0.3));
 	gcol = mix(vec3(0.22, 0.20, 0.13), gcol, smoothstep(0.15, 0.4, biome)) * (0.8 + 0.2 * (n3 * 0.5 + 0.5));
-	float cover = gdens * mix(0.3, 0.78, smoothstep(grass_fade * 0.4, grass_fade * 1.1, dist));
+	// patchiness: darker dense clumps, sun-bleached stretches and bare openings, so grass country reads at range
+	float gp1 = fbm2(p.xz * 0.045 + 31.0);
+	float gp2 = vnoise(p.xz * 0.21);
+	gcol *= 0.78 + 0.32 * (gp1 * 0.5 + 0.5) + 0.12 * gp2;
+	gcol = mix(gcol, gcol * vec3(1.12, 1.06, 0.86), smoothstep(0.2, 0.7, gp1) * 0.5);
+	float bare = smoothstep(0.35, 0.75, -gp1 + gp2 * 0.25) * 0.6;
+	float cover = gdens * mix(0.3, 0.78, smoothstep(grass_fade * 0.4, grass_fade * 1.1, dist)) * (1.0 - bare);
 	m.albedo = mix(m.albedo, gcol, cover);
 	m.rough = mix(m.rough, 0.92, cover);
 	m.nxy *= 1.0 - cover * 0.5;

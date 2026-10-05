@@ -52,7 +52,17 @@ func setup(w: WorldData, cam: Camera3D) -> void:
 		var inst := ps.instantiate()
 		var mi: MeshInstance3D = _first_mesh(inst)
 		if mi != null and mi.mesh != null:
-			_meshes[id] = mi.mesh
+			var mesh: Mesh = mi.mesh
+			if id.contains("boulder") or id.contains("rock"):
+				# pale photogrammetry granite reads as white balls on the plains: weather it down a little
+				mesh = mesh.duplicate()
+				for si in mesh.get_surface_count():
+					var m = mesh.surface_get_material(si)
+					if m is StandardMaterial3D:
+						var d: StandardMaterial3D = m.duplicate()
+						d.albedo_color = d.albedo_color * Color(0.74, 0.71, 0.66)
+						mesh.surface_set_material(si, d)
+			_meshes[id] = mesh
 			var a: AABB = mi.mesh.get_aabb()
 			_radius[id] = maxf(a.size.x, a.size.z) * 0.5
 		inst.free()
@@ -163,6 +173,8 @@ func _generate(k: Vector2i) -> void:
 				continue
 			var s := rng.randf_range(rule.scale[0], rule.scale[1])
 			var y := world.height(x, z) - 0.08 * s
+			if id.contains("boulder") or id.begins_with("rock"):
+				y -= rng.randf_range(0.15, 0.4) * float(_radius.get(id, 0.5)) * s     # bedded in, not sitting on top
 			var b := Basis(Vector3.UP, rng.randf() * TAU)
 			if float(rule.coll) > 0.7 or id.begins_with("rock"):
 				var tilt := Vector3.UP.cross(nrm)
