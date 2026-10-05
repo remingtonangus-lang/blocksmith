@@ -124,6 +124,22 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 08:55: GAME BUILD READY 95fb880 (release capital-latest, published 08:24 UTC).
+  - For the fleet monitor: `Alabaster --benchmark` should run three segments with a progress line every 5 s
+    and write benchmark.json in about 2 minutes.
+  - CI Mac (paravirtual GPU, High, 1024x656): city 36.2 fps (p99 66.6 ms), battle 33.4 (p99 39.1 ms),
+    forest 38.2 (p99 40.0 ms); draws 275 / 652 / 329; primitives 5.0 / 6.4 / 5.5 M; load 5.9 s; RSS 720 MB.
+  - Since the last ready build (6cc8be3):
+    - floating rivers, buried and slot-canyon roads and the radar crater fixed; Pass Road ends at a road head;
+    - fog sky and water;
+    - tree LOD rings and shadow proxies; a tree line at 1200 m;
+    - riding without drift;
+    - Cinder helmets;
+    - searchlights sweep the sky;
+    - friendly splash removed and front gunships replaced 120 s after being shot down;
+    - the pad bridge ships in the app and starts when no pad is seen.
+  - CI fixes along the way: a freed gunship broke the fly scenario's setup, and a respawn landed 2 m in the air.
+    The CI log now prints the first script error with its backtrace.
 - 2026-10-05 06:40: second sweep.
   - The radar station had sunk into a crater: the road relaxation moved road ends too, lowering Pass Road's
     radar end by 740 m. Road ends are now pinned to their sites.
