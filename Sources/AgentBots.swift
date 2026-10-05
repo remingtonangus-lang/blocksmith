@@ -377,6 +377,7 @@ final class LifeBot: AgentBot {
     var traded = false, slept = false, morning = false
     var tradeDetail = "no villager with a trade nearby", sleepDetail = "no bed reached", morningDetail = "never slept"
     var lastToast = ""
+    var toasts: [String] = []          // the last few, for an unmet goal's detail
     var hooked = false
     var path: [IVec3] = []
     var idx = 0, since = 0, phaseTicks = 0, uses = 0
@@ -420,7 +421,11 @@ final class LifeBot: AgentBot {
         if !hooked {
             hooked = true
             let prev = a.game.onToast
-            a.game.onToast = { [weak self] t in self?.lastToast = t; prev?(t) }
+            a.game.onToast = { [weak self] t in
+                self?.lastToast = t
+                self?.toasts.append(t); if (self?.toasts.count ?? 0) > 3 { self?.toasts.removeFirst() }
+                prev?(t)
+            }
         }
         phaseTicks += 1
         var act = AgentAction()
@@ -473,7 +478,12 @@ final class LifeBot: AgentBot {
             guard let b = bed else { return act }
             if s.sleeping { slept = true; sleepDetail = String(format: "asleep at day time %.2f", s.timeOfDay); phase = 2; phaseTicks = 0; return act }
             if phaseTicks > 60 * 70 {
-                sleepDetail = "couldn't sleep in the bed at \(b.x) \(b.y - YOFF) \(b.z)" + (lastToast.isEmpty ? "" : " (\"\(lastToast)\")")
+                // Where the bot got to and what the game last said (run 634: only the last toast, a frigate's arrival).
+                let off: Float = simd_length(V2(Float(b.x) + 0.5 - s.pos.x, Float(b.z) + 0.5 - s.pos.z))
+                let said = toasts.map { "\"\($0)\"" }.joined(separator: ", ")
+                let at: String = "couldn't sleep in the bed at \(b.x) \(b.y - YOFF) \(b.z)"
+                let how: String = String(format: " (%.1f blocks from it, health %ld, day time %.2f)", off, s.health, s.timeOfDay)
+                sleepDetail = at + how + (said.isEmpty ? "" : "; last toasts: " + said)
                 phase = 3; return act
             }
             let c = V3(Float(b.x) + 0.5, Float(b.y), Float(b.z) + 0.5)
