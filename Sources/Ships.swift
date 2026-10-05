@@ -839,7 +839,13 @@ final class ShipManager {
         for y in 0..<g.sy { for z in 0..<g.sz { for x in 0..<g.sx {
             let b = g.blocks[g.index(x, y, z)]
             let p = cell(x, y, z)
-            if p.y < 0 || p.y >= CH { continue }
+            // A cell that can't take its block spills what the block held (a chest docked against a hillside lost
+            // its contents: only the block's item dropped).
+            func spill() {
+                guard let game, let be = s.blockEntities[IVec3(x, y, z)] else { return }
+                for it in be.container.slots where !it.isEmpty { game.drops.spawn(it, at: V3(Float(p.x), Float(max(1, min(CH - 2, p.y))), Float(p.z)) + 0.5) }
+            }
+            if p.y < 0 || p.y >= CH { spill(); continue }
             let here = w.rawBlock(p.x, p.y, p.z)
             if b == AIR {
                 // Keep the hull's enclosed air dry.
@@ -848,6 +854,7 @@ final class ShipManager {
             }
             if !Blocks.replaceable[Int(here)] {
                 if let game { game.drops.spawn(ItemStack(Items.item(forBlock: b) ?? 0, 1), at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5); dropped += 1 }
+                spill()
                 continue
             }
             w.setBlockAsync(p.x, p.y, p.z, ShipParts.rotate(b, turns))
