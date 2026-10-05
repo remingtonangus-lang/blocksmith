@@ -8,8 +8,9 @@ name: frontier-assets
 #                (+ manifest.json, LICENSES_AUDIO.md/json, report.json)
 #   audio_plots.zip  waveform/spectrogram contact sheets + verify.log (no-clipping / loudness / every-line checks)
 #   characters.zip  generated humans + animation library (frontier/tools/characters, unzips to characters/)
-#   animals.zip  procedurally generated animals (frontier/tools/animals/*_gen.py, Blender as a Python module):
-#                ext/animals/horse.glb + horse_gaits.json; fetched with `bash frontier/tools/fetch_assets.sh animals`
+#   animals.zip  procedurally generated animals (frontier/tools/animals/quadruped.py + species/*.py, Blender as a
+#                Python module): ext/animals/<species>.glb + <species>_gaits.json for the horse and the wildlife;
+#                fetched with `bash frontier/tools/fetch_assets.sh animals`
 on:
   workflow_dispatch:
     inputs:
@@ -163,11 +164,12 @@ jobs:
           echo "published audio"
 
   animals:
-    # Procedural animals: Blender 5 as a Python module builds the horse (mesh, rig, gaits, hair, tack) -> animals.zip
+    # Procedural animals: Blender 5 as a Python module builds the horse (mesh, rig, gaits, hair, tack) and the
+    # wildlife (mule deer, elk, pronghorn, bison, wolf, coyote, fox, cougar, black bear, raccoon, jackrabbit) -> animals.zip
     needs: changes
     if: needs.changes.outputs.animals == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     concurrency:
       group: frontier-assets-animals
       cancel-in-progress: true
@@ -178,11 +180,13 @@ jobs:
           python-version: '3.11'
       - name: Blender (bpy) + deps
         run: pip install -q bpy==5.0.1 numpy scipy scikit-image pillow
-      - name: Build horse
+      - name: Build horse + wildlife
         run: |
           set -o pipefail
-          python frontier/tools/animals/horse_gen.py --out out/ext/animals 2>&1 | grep -avE "^Fra:|Saved:" | tee animals.log | grep -a "\[horse"
-          test -s out/ext/animals/horse.glb
+          python frontier/tools/animals/quadruped.py --species all --out out/ext/animals 2>&1 | grep -avE "^Fra:|Saved:" | tee animals.log | grep -a "\[horse"
+          for s in horse mule_deer elk pronghorn bison wolf coyote fox cougar black_bear raccoon rabbit; do
+            test -s out/ext/animals/$s.glb && test -s out/ext/animals/${s}_gaits.json
+          done
           (cd out && zip -qr ../animals.zip ext/animals)
           ls -la animals.zip
       - name: Publish animals.zip to release frontier-assets

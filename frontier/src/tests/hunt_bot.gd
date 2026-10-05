@@ -65,6 +65,25 @@ static func run(runner: Node, seconds: float) -> Dictionary:
 		_fail(res, "no wildlife spawned around the player")
 	if last > 40:
 		_fail(res, "wildlife population exploded (%d)" % last)
+	# per-species gait oracle on the generated models (footfall beats/order vs the reference table per gait type)
+	var checked := 0
+	for sp in Animal.SPECIES.keys():
+		if HorseVisual.model_path_for(sp) == "":
+			continue
+		var v := HorseVisual.new()
+		Game.main.add_child(v)
+		v.build(AnimalCoats.roll(sp, 1), sp)
+		v.position = Vector3(0, -500, 0)
+		for g in v.meta.get("gaits", {}):
+			var r := HorseGaitOracle.analyse_animation(v, g)
+			print("  " + HorseGaitOracle.format_line("%s/%s" % [sp, g], r))
+			checked += 1
+			if not r.get("ok", false):
+				_fail(res, "gait oracle %s/%s: %s" % [sp, g, str(r.get("failures", []))])
+		v.queue_free()
+	res["gaits_checked"] = checked
+	if checked == 0:
+		print("  hunt: gait oracle SKIP (no wildlife models fetched)")
 	var errs: Array = Game.error_logger.take().slice(err0)
 	res.errors = errs
 	if errs.size() > 0:
