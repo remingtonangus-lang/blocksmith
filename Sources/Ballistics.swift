@@ -99,6 +99,8 @@ final class Armory {
     func update(_ dt: Float, _ g: Game) {
         let w = g.world
         for i in slugs.indices {
+            // Split screen: each seat moves the rounds nearest it (so enemy fire can hit player 2 too, like arrows).
+            guard g.seatOwns(slugs[i].pos) else { continue }
             var s = slugs[i]
             s.life -= dt
             if s.life <= 0 {
@@ -161,7 +163,7 @@ final class Armory {
             slugs[i] = s
         }
         slugs.removeAll { $0.dead }
-        for i in beams.indices { beams[i].life -= dt }
+        if g.coop.current == 0 { for i in beams.indices { beams[i].life -= dt } }
         beams.removeAll { $0.life <= 0 }
     }
 

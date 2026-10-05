@@ -94,8 +94,13 @@ final class Renderer: NSObject, MTKViewDelegate {
     // could fill the ring, and the arm was then written past the buffer's end.
     private let ringTailReserve = 1 << 19
     private var frame = 0
-    private var eyeAdapt: Float = 1          // Fancy eye adaptation: current exposure from the surroundings' brightness
-    private var eyeAdaptT: Double = 0
+    // Fancy eye adaptation: current exposure from the surroundings' brightness. Kept per split-screen seat (one view
+    // in a cave and one in daylight each adapt on their own; a shared value gave player 2 player 1's exposure).
+    private var eyeAdapts = [Float](repeating: 1, count: 4)
+    private var eyeAdaptTs = [Double](repeating: 0, count: 4)
+    private var seatIx: Int { game.coop.active ? min(3, max(0, game.coop.current)) : 0 }
+    private var eyeAdapt: Float { get { eyeAdapts[seatIx] } set { eyeAdapts[seatIx] = newValue } }
+    private var eyeAdaptT: Double { get { eyeAdaptTs[seatIx] } set { eyeAdaptTs[seatIx] = newValue } }
     private var lastTime = CACurrentMediaTime()
     var drawHUD = true
 
@@ -129,7 +134,9 @@ final class Renderer: NSObject, MTKViewDelegate {
     var caveCulling = true
     // Smoothed skylight at the player's eye (0...1, -1 = not sampled yet). Fog and sky colour fade toward
     // near-black when it is low, so distant cave walls no longer fog into bright sky blue underground.
-    private var caveK: Float = -1
+    // Per split-screen seat, like eyeAdapt (shared, the two views pulled it back and forth every frame).
+    private var caveKs = [Float](repeating: -1, count: 4)
+    private var caveK: Float { get { caveKs[seatIx] } set { caveKs[seatIx] = newValue } }
 
     @discardableResult func updateCave() -> Float {
         guard game.dim.dim.hasSky else { caveK = 1; return 1 }

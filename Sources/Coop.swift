@@ -85,6 +85,8 @@ struct SeatState {
     var lastDeath: V3?
     var deathScore = 0
     var timeSinceRest: Float = 0
+    var lastHorn: Double = -100        // their own horn and wind-charge cooldowns (shared, one player's use blocked the other's)
+    var lastWind: Double = -10
     // Per-player state kept outside Game.
     var padLook = PadLook()
     var wheel = WeaponWheel()
@@ -436,6 +438,9 @@ extension Game {
         // cast and never bit, their map never filled).
         bobberTick(f)
         mapTick()
+        // Their gun: recoil, bloom and hit marker recover, and the rounds nearest them fly (Armory.update splits them
+        // by seat; enemy rounds near player 2 could not hit them and their kick never settled).
+        armsTick(f)
         if survival { timeSinceRest += f }
         if sleeping > 0 { sleeping += f; timeSinceRest = 0 }
     }
@@ -529,6 +534,15 @@ enum CoopTest {
         var hp2 = 20
         c.withSeat(1, g) { hp2 = g.health; g.health = 20; g.player.vel = .zero }
         check(hp2 < 20 && g.health == hp1, "a blast beside player 2 hurts player 2 (\(hp2)) and not player 1 (\(g.health))")
+        // An enemy round fired at player 2 hits player 2 (rounds flew only in player 1's turn and only hit player 1).
+        c.withSeat(1, g) { g.health = 20; g.lastHurtAt = -10 }
+        let chest2: V3 = spot + V3(0, 1, 0)
+        g.arms.slugs.append(Slug(pos: chest2 + V3(5, 0, 0), vel: V3(-60, 0, 0), kind: .bullet, damage: 3, fromPlayer: false,
+                                 shooter: nil, by: "a test", life: 2, gravity: 0))
+        for _ in 0..<12 { g.tick(1.0 / 60) }
+        var shot2 = 20
+        c.withSeat(1, g) { shot2 = g.health; g.health = 20; g.player.vel = .zero }
+        check(shot2 < 20 && g.arms.slugs.isEmpty, "an enemy round fired at player 2 hits player 2 (\(shot2))")
         g.survival = false
         p1.vel = .zero
         // One pause for both.

@@ -2032,6 +2032,7 @@ final class Game {
         swap(&toastText, &s.toastText); swap(&toastTime, &s.toastTime); swap(&prevPad, &s.prevPad)
         let ld = lastDeath; lastDeath = s.lastDeath; s.lastDeath = ld
         swap(&deathScore, &s.deathScore); swap(&timeSinceRest, &s.timeSinceRest)
+        swap(&lastHorn, &s.lastHorn); swap(&lastWind, &s.lastWind)
         exchangeSeatExtras(&s)
     }
 
