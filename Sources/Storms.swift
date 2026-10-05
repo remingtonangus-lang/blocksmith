@@ -285,6 +285,16 @@ extension Game {
                 guard cur > 0 || Game.snowBaseT[Int(top)] else { continue }
                 let cap = leaves ? 1 : max(1, min(7, Int(fx.snowDepth * (0.55 + 0.9 * drift))))
                 if cur < cap && Rand.float(in: 0..<1) < 0.6 && !(cur >= 2 && occupied.contains(lx + lz * CS)) { want = cur + 1 }
+                // No step a player can't walk: a column stays within 3 layers of its snowy neighbours on the same ground
+                // (random growth left 25-28 of ~1280 neighbour pairs more than 3 apart, at the oracle's limit).
+                if want > cur && cur >= 3 {
+                    var low = 8
+                    for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where Game.snowBaseT[Int(world.rawBlock(x + dx, y, z + dz))] {
+                        let n = snowLayers(world.rawBlock(x + dx, y + 1, z + dz))
+                        if n >= 0 { low = min(low, n) }
+                    }
+                    if want - low > 3 { want = cur }
+                }
             } else if cur > 0 {
                 // Melting: torches and lamps melt it all; otherwise the extra layers settle back as the snowfall's depth
                 // falls (faster under the sun), down to the single layer snowy country keeps.
