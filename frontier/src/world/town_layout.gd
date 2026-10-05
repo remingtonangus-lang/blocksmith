@@ -443,7 +443,7 @@ func _bitter_spring() -> void:
 		bridge(cross[0] - 5.0, cross[1] + 5.0, 7.5)
 	var north := [
 		{"style": "two_storey", "type": "hotel", "name": "Sable Hotel", "sign": "SABLE HOTEL", "sign2": "ROOMS  BATHS  MEALS", "w": 14.0, "d": 18.0, "wall": "paint", "paint": Color(0.95, 0.9, 0.78), "trim": Color(0.25, 0.32, 0.26), "furnished": true, "role": "hotelier", "hours": [0.0, 24.0]},
-		{"style": "two_storey", "type": "saloon", "name": "Brass Rail Saloon", "sign": "BRASS RAIL SALOON", "sign2": "BILLIARDS  CIGARS  FINE WHISKEY", "w": 13.0, "d": 20.0, "wall": "siding", "paint": Color(0.9, 0.82, 0.7), "trim": Color(0.55, 0.18, 0.14), "furnished": true, "role": "bartender", "hours": [10.0, 26.0]},
+		{"style": "two_storey", "type": "saloon", "name": "The Gilded Spur", "sign": "THE GILDED SPUR", "sign2": "BILLIARDS  CIGARS  FINE WHISKEY", "w": 13.0, "d": 20.0, "wall": "siding", "paint": Color(0.9, 0.82, 0.7), "trim": Color(0.55, 0.18, 0.14), "furnished": true, "role": "bartender", "hours": [10.0, 26.0]},
 		{"style": "false_front", "type": "barber", "name": "Barber", "sign": "BARBER\nSHAVES  BATHS", "w": 6.5, "d": 14.0, "wall": "paint", "paint": Color(0.92, 0.92, 0.9), "trim": Color(0.55, 0.18, 0.14), "furnished": true, "role": "barber", "sign2": "BATHS 25c"},
 		{"style": "false_front", "type": "store", "name": "Hollis General Merchandise", "sign": "J. HOLLIS\nGENERAL MERCHANDISE", "w": 11.0, "d": 18.0, "wall": "paint", "paint": Color(0.86, 0.74, 0.5), "trim": Color(0.25, 0.22, 0.18), "furnished": true, "role": "storekeeper", "top": "stepped"},
 		{"style": "brick", "type": "bank", "name": "Bitter Spring Savings Bank", "sign": "BITTER SPRING SAVINGS BANK", "w": 10.0, "d": 14.0, "storeys": 2, "furnished": true, "role": "banker", "hours": [9.0, 15.0]},
@@ -618,7 +618,7 @@ func _coldwater() -> void:
 		{"style": "false_front", "type": "saloon", "interior": "saloon", "name": "Silver Dollar", "sign": "SILVER DOLLAR\nSALOON", "w": 10.0, "d": 16.0, "wall": "planks_raw", "furnished": true, "role": "bartender", "hours": [11.0, 27.0], "awning": "shed"},
 		{"style": "tent", "type": "tent_store", "interior": "store", "name": "Tent store", "sign": "PICKS  POWDER  BOOTS", "w": 6.0, "d": 9.0, "wall_h": 1.8, "ridge_h": 3.6, "floor": true, "raise": 0.3, "furnished": true, "porch": 0.0},
 		{"style": "false_front", "type": "assay", "interior": "assay", "name": "Assay Office", "sign": "ASSAY OFFICE", "w": 7.0, "d": 11.0, "wall": "siding", "furnished": true, "role": "assayer", "awning": ""},
-		{"style": "false_front", "type": "store", "name": "Kestrel Supply", "sign": "KESTREL\nMINING SUPPLY", "w": 9.0, "d": 15.0, "wall": "planks_raw", "furnished": true, "role": "storekeeper"},
+		{"style": "false_front", "type": "store", "name": "Company Store", "sign": "COMPANY STORE\nS. GARRITY, PROP.", "w": 9.0, "d": 15.0, "wall": "planks_raw", "furnished": true, "role": "storekeeper"},
 		{"style": "tent", "type": "tent", "w": 4.0, "d": 5.0, "raise": 0.0, "porch": 0.0},
 		{"style": "false_front", "type": "gunsmith", "name": "Guns & Ammunition", "sign": "GUNS\nAMMUNITION", "w": 6.5, "d": 12.0, "wall": "planks_raw", "furnished": true, "role": "gunsmith", "awning": ""},
 	]
@@ -671,7 +671,7 @@ func _mesquite_wells() -> void:
 			"wall": "adobe" if rng.randf() < 0.6 else "plaster", "paint": Color(1.0, 0.92, 0.8).lerp(Color(0.85, 0.68, 0.5), rng.randf()),
 			"porch": 2.4, "raise": 0.15, "furnished": true, "role": role}
 	var north := [
-		adobe.call("cantina", "Cantina", "CANTINA LA PALOMA", 11.0, 10.0, "cantina", "bartender"),
+		adobe.call("cantina", "Fausto's Cantina", "FAUSTO'S CANTINA", 11.0, 10.0, "cantina", "bartender"),
 		adobe.call("store", "Mercantile", "MERCANTIL", 10.0, 9.0, "store", "storekeeper"),
 		adobe.call("adobe_house", "", "", 7.0, 6.0, "house"),
 		adobe.call("doctor", "Doctor", "MEDICO", 7.0, 7.0, "doctor", "doctor"),
@@ -721,11 +721,11 @@ func _port_linden() -> void:
 		return s
 	var west := [
 		brick.call("hotel", "Linden House", "LINDEN HOUSE HOTEL", 16.0, 20.0, 3, "hotel", "hotelier", "LINDEN HOUSE"),
-		brick.call("bank", "Lakeshore Bank", "LAKESHORE NATIONAL BANK", 11.0, 15.0, 2, "bank", "banker"),
-		brick.call("newspaper", "Linden Gazette", "THE LINDEN GAZETTE", 9.0, 14.0, 2, "post", "editor"),
-		brick.call("store", "Dry Goods", "HALVERSEN & SONS DRY GOODS", 12.0, 18.0, 2, "store", "storekeeper"),
+		brick.call("bank", "The Linden Exchange", "THE LINDEN EXCHANGE BANK", 11.0, 15.0, 2, "bank", "banker"),
+		brick.call("newspaper", "The Port Linden Lantern", "THE PORT LINDEN LANTERN", 9.0, 14.0, 2, "post", "editor"),
+		brick.call("store", "Dry Goods", "WEATHERBY BROS. DRY GOODS", 12.0, 18.0, 2, "store", "storekeeper"),
 		brick.call("office", "Railroad Office", "MERIDIAN & WESTERN RAILROAD", 12.0, 15.0, 3, "post", "clerk", "M & W R.R."),
-		{"style": "two_storey", "type": "saloon", "name": "Anchor Saloon", "sign": "THE ANCHOR", "sign2": "OYSTERS  BEER  BILLIARDS", "w": 12.0, "d": 18.0, "wall": "paint", "paint": Color(0.3, 0.42, 0.36), "furnished": true, "role": "bartender", "hours": [10.0, 26.0]},
+		{"style": "two_storey", "type": "saloon", "name": "The Corinthian", "sign": "THE CORINTHIAN", "sign2": "OYSTERS  BEER  BILLIARDS", "w": 12.0, "d": 18.0, "wall": "paint", "paint": Color(0.3, 0.42, 0.36), "furnished": true, "role": "bartender", "hours": [10.0, 26.0]},
 		brick.call("gunsmith", "Gun Shop", "SPORTING GOODS  FIREARMS", 9.0, 14.0, 2, "gunsmith", "gunsmith"),
 		brick.call("doctor", "Physician", "DR. A. KEMP  PHYSICIAN", 8.0, 13.0, 2, "doctor", "doctor"),
 	]
