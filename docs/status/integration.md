@@ -213,3 +213,9 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
 - 11:55 UTC: run 686 (313ecce) still queued: cancelled, superseded by the fidelity audit round 2 (three read-only
   audits: items/blocks, combat/survival, spawning/AI; ~45 fixes) plus --fidelitycheck (gating). A compile review of
   313ecce..2d0b90f by a subagent found nothing.
+- 11:40-12:40 UTC: run 692 (1b8f474): fast lane clean (no warnings, cooptest PASS incl. the enemy round and per-half
+  subtitles, fidelitycheck 30/30), release build and benchmarks done; smoke / tours / shots / checks / play queued
+  behind bs-capital-soldiers (which now rebases on 1b8f474) and frontier runs. Held locally meanwhile (~45 commits,
+  compile-reviewed by a subagent): fidelity audit rounds 2-3 (world mechanics, sparkstone/brewing, loot pending),
+  a UB audit (map loop range, dragon respawn index, clamps), XP orbs, fluid spread toward drops, fire odds,
+  --rulescheck (not gating yet) and a mobtests cluster-cap check. Pushing once 692's heavy lane publishes.
