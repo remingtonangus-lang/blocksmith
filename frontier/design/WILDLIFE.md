@@ -85,6 +85,52 @@ output to `frontier/assets/animals_out/` (gitignored). The CI job `animals` in f
 `--species all` and publishes `animals.zip`. Fetch it with `bash frontier/tools/fetch_assets.sh animals`, which
 unpacks to `assets/ext/animals/`.
 
+## Birds
+Four species bring the roster to 15: wild turkey, sage grouse, red-tailed hawk and crow.
+- **Generator:** `tools/animals/bird.py`, built on the quadruped engine.
+  - The body, head, beak, legs and toes are SDF; turkeys add a snood, wattle and breast beard.
+  - Wings and tail are feather cards skinned to wing1/2/3 and tail_1.
+  - An FK rig drives the clips: idle, walk (with the head-bob), peck, alert, flap, glide, soar, dive, fall
+    (loops) and takeoff, land, death (one-shots).
+  - Output: `<species>.glb` + `_gaits.json` with `"kind": "bird"`. The CI animals job builds them.
+- **Shaders:** `shaders/bird_body.gdshader` paints countershading, a breast band, the head (the turkey's bare
+  blue-and-red head), beak, legs, mottling, barring and iridescence. `shaders/bird_feather.gdshader` cuts the
+  feather outlines with alpha:
+  - scalloped trailing edges and splayed primaries (hawk, crow)
+  - the grouse's spiky tail
+  - pale undersides, bars, and the hawk's red tail with its dark band
+  Colours are in `BirdLooks`.
+- **Behaviour** (`src/actors/bird.gd`, class `Bird`): a cheap kinematic flight model with speed, heading
+  (turn-rate limit), climb and bank; no physics body.
+  - Turkeys run first and flush when pressed; grouse flush; both glide down 60–200 m away.
+  - Crows forage in flocks and lift off at gunshots (`Game.noise`); they circle and land.
+  - The hawk soars in 45 m circles 40–75 m up, and stoops on rabbits (or practice stoops), then climbs back.
+  - A shot bird tumbles down and can be plucked for meat and feathers.
+  - `wildlife.gd` keeps four flocks plus one hawk around the player.
+- **Oracle:** `--bot birds` (see Results).
+
+## Hunting
+- **Tracks** (`src/systems/tracks.gd`): a pool of 320 ground decals (80 on quest) with painted textures.
+  - Animals near the player leave prints along their path: cloven, paw, plantigrade, rabbit, bird.
+  - A wounded animal drips blood (denser for worse wounds; a chest or head hit counts double) wherever it goes,
+    so the trail leads to it; a pool marks where it dies.
+  - Marks fade over about 10 game-minutes.
+- **Skinning** (`SkinningTask`): Ruth kneels (crouch activity plus the reaching pick-up clip) for 3.2 s, held via
+  `player.busy`. Then the carcass takes its lying pose and the skinned shader state, and the pelt and meat go
+  into the satchel.
+- **Carcass on the horse:** with the horse within 5 m, small and medium carcasses (deer, pronghorn, canids,
+  cougar, raccoon, rabbit) are laid over its back behind the saddle, across the horse.
+  - The weight (meat × 22 kg + 10 kg per metre of body; 47 kg for a pronghorn) slows the horse and drains its
+    stamina faster.
+  - "Take down" at the horse puts it back on the ground to skin.
+
+## Ecology
+- **Activity:** animals follow their hours (day, night, crepuscular) and bed down outside them. Herd members
+  drift back to the leader first; predators rarely start a hunt while resting.
+- **Oracle:** `--bot ecology` runs two in-game days on a compressed clock (the sky 10× faster, the engine 3×,
+  about 3 real minutes) around a still observer. It measures population, predation, herd cohesion and activity
+  by hour (see Results).
+
 ## Fur (shells)
 `shaders/animal_fur_shell.gdshader`, set up by `HorseVisual._setup_fur()` for the wolf, coyote, fox, cougar,
 black bear, bison, raccoon and the elk's neck mane (`AnimalCoats.FUR`: length, strand density, neck ruff, tail):
@@ -177,6 +223,31 @@ black bear, bison, raccoon and the elk's neck mane (`AnimalCoats.FUR`: length, s
 
   That is the worst case, with fur filling the screen. Shells exist only within LOD0 range (about 12 m for a
   wolf), and the quest preset has none.
+
+Round 4 (birds, hunting, ecology):
+- **`--bot birds` PASS:**
+  - all 18 ground birds on the ground before the shot
+  - after one gunshot: crows 8/8, turkeys 5/5 and grouse 5/5 airborne
+  - landed again within 14 s
+  - hawk soaring at 55–58 m; one dive, climbing back to soaring
+  - a turkey shot in the air falls and is plucked
+  - the flight update costs 8 µs per bird per tick
+- **`--bot hunt` PASS:**
+  - clean kill gives pelt quality 3; skinning takes 3.2 s with Ruth held
+  - a walking deer leaves 37 prints in 10 s
+  - a wounded deer fleeing 150 m leaves a blood trail ending 0.3 m from it
+  - pronghorn carcass on the horse (47 kg), unloaded again
+- **`--bot ecology` PASS** (two compressed days):
+  - population 26 / 28.7 / 30 (min / mean / max); CV 0.06; day 1 mean 28.1, day 2 mean 29.2
+  - 10 predator chases and 8 kills (wolf 7, coyote 1); 17 hawk dives
+  - herd cohesion 0.85
+  - share of animals moving, in their active hours vs outside them:
+
+  | Species type | Active | Inactive | Ratio |
+  |---|---|---|---|
+  | day | 0.70 | 0.03 | 23.6 |
+  | night | 0.66 | 0.24 | 2.75 |
+  | crepuscular | 0.47 | 0.04 | 11.0 |
 
 ## Gaps
 - Fur is shells only, with no fins or cards:

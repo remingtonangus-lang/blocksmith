@@ -58,6 +58,8 @@ const EYES := {
 	"coyote": [Color(0.80, 0.62, 0.24), 0.8, 0.35, 0], "fox": [Color(0.82, 0.52, 0.16), 0.82, 0.65, 2],
 	"cougar": [Color(0.66, 0.58, 0.27), 0.85, 0.4, 0], "black_bear": [Color(0.26, 0.15, 0.07), 0.85, 0.4, 0],
 	"raccoon": [Color(0.09, 0.06, 0.04), 0.9, 0.45, 0],
+	"turkey": [Color(0.18, 0.11, 0.06), 0.9, 0.5, 0], "sage_grouse": [Color(0.2, 0.13, 0.07), 0.9, 0.5, 0],
+	"red_tailed_hawk": [Color(0.55, 0.36, 0.14), 0.75, 0.45, 0], "crow": [Color(0.06, 0.04, 0.03), 0.95, 0.5, 0],
 }
 
 ## Fur shells (shaders/animal_fur_shell.gdshader): length in metres where the region factor is 1, strand noise

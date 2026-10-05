@@ -6,6 +6,8 @@ extends Node
 ##          Also records hoof contacts during steady canter/gallop stretches for the gait oracle.
 ##   gaits  rides each gait (walk/trot/canter/gallop) along a road and runs the gait oracle per gait:
 ##          footfall beats + order vs the reference table and foot slide (cm of planted-hoof drift per stance).
+##   horsework  jumps a fence and a log at a canter (jump assist), crashes into a fence at a gallop without it
+##          (stumble/fall), spooks (rear/buck), hitches at a town rail on dismount, saddlebags stow/take.
 ## Options: --ride_to <town id> (default mesquite_wells), --ride_seconds N (default: --seconds).
 
 var runner
@@ -24,6 +26,8 @@ func run(kind: String, seconds: float, r) -> Dictionary:
 	var err0: int = Game.error_logger.take().size()
 	if kind == "ride":
 		await _ride(res, Game.arg_f("ride_seconds", seconds))
+	elif kind == "horsework":
+		await _horsework(res)
 	else:
 		await _gaits(res)
 	runner._recording = false
@@ -322,3 +326,164 @@ func _api_checks(res: Dictionary) -> void:
 		notes.append("rider thrown by the rear (low bond)")
 		horse.mount(player, -1.0)
 	print("HORSE API: " + "; ".join(notes))
+
+# ------------------------------------------------------------------ horsework
+func _flat_line(c: Vector3, length: float) -> Array:
+	## a direction from c along which the ground stays within 1.2 m over `length` metres
+	var w: WorldData = Game.world
+	for k in 24:
+		var a := TAU * k / 24.0
+		var d := Vector3(sin(a), 0, cos(a))
+		var ok := true
+		var h0 := w.height(c.x, c.z)
+		for i in range(5, int(length), 5):
+			var q := c + d * float(i)
+			if absf(w.height(q.x, q.z) - h0) > 1.2 or w.is_water(q.x, q.z):
+				ok = false
+				break
+		if ok:
+			return [c, d]
+	return [c, Vector3(0, 0, -1)]
+
+func _obstacle(at: Vector3, dir: Vector3, size: Vector3, log := false) -> StaticBody3D:
+	var b := StaticBody3D.new()
+	b.collision_layer = 1
+	var cs := CollisionShape3D.new()
+	var mi := MeshInstance3D.new()
+	if log:
+		var cyl := CylinderShape3D.new()
+		cyl.radius = size.y * 0.5
+		cyl.height = size.x
+		cs.shape = cyl
+		cs.rotation.z = PI * 0.5
+		var cm := CylinderMesh.new()
+		cm.top_radius = size.y * 0.5
+		cm.bottom_radius = size.y * 0.5
+		cm.height = size.x
+		mi.mesh = cm
+		mi.rotation.z = PI * 0.5
+	else:
+		var bx := BoxShape3D.new()
+		bx.size = size
+		cs.shape = bx
+		var bm := BoxMesh.new()
+		bm.size = size
+		mi.mesh = bm
+	b.add_child(cs)
+	b.add_child(mi)
+	Game.main.add_child(b)
+	var g := Game.world.height(at.x, at.z)
+	b.global_transform = Transform3D(Basis(Vector3.UP, atan2(-dir.x, -dir.z)), Vector3(at.x, g + size.y * 0.5, at.z))
+	return b
+
+func _ride_straight(dir: Vector3, pace: int, secs: float, until_past: Vector3 = Vector3.INF) -> void:
+	horse.debug_pace = pace
+	var t := 0.0
+	while t < secs:
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+		player.cam_yaw = atan2(-dir.x, -dir.z)
+		player.intent.move = Vector2(0, 1)
+		if until_past != Vector3.INF and (horse.global_position - until_past).dot(dir) > 6.0:
+			break
+	horse.debug_pace = -1
+	player.intent.move = Vector2.ZERO
+
+func _horsework(res: Dictionary) -> void:
+	player.bot_driven = true
+	var w: WorldData = Game.world
+	var line := _flat_line(Vector3(560.0, 0, 1460.0), 110.0)
+	var c: Vector3 = line[0]
+	var dir: Vector3 = line[1]
+	await _start_at(c, c + dir * 10.0)
+	if horse.rider != player:
+		_fail(res, "could not mount")
+		return
+	# 1. a fence (0.9 m) and a log (0.5 m) at a canter: the horse jumps both
+	var fence := _obstacle(c + dir * 35.0, dir, Vector3(5.0, 0.9, 0.2))
+	var lg := _obstacle(c + dir * 70.0, dir, Vector3(5.0, 0.5, 0.5), true)
+	for i in 6:
+		await get_tree().physics_frame
+	var j0 := horse.jumps
+	var hits0 := horse.obstacle_hits
+	var falls0 := horse.falls
+	await _ride_straight(dir, 2, 20.0, c + dir * 70.0)
+	var jumped := horse.jumps - j0
+	var past: float = (horse.global_position - c).dot(dir)
+	res["jumps"] = jumped
+	res["past_m"] = snappedf(past, 0.1)
+	if jumped < 2:
+		_fail(res, "horse jumped %d of 2 obstacles at a canter" % jumped)
+	if horse.obstacle_hits > hits0 or horse.falls > falls0:
+		_fail(res, "horse hit an obstacle it should have jumped")
+	if past < 72.0:
+		_fail(res, "horse did not get past the log (%.0f m)" % past)
+	fence.queue_free()
+	lg.queue_free()
+	# 2. no jump assist, a fence at a gallop: stumble or fall
+	await _start_at(c, c + dir * 10.0)
+	horse.jump_assist = false
+	var f2 := _obstacle(c + dir * 45.0, dir, Vector3(5.0, 0.7, 0.2))
+	var st0 := horse.stumbles
+	falls0 = horse.falls
+	hits0 = horse.obstacle_hits
+	await _ride_straight(dir, 3, 14.0, c + dir * 45.0)
+	res["crash"] = "hits %d stumbles %d falls %d" % [horse.obstacle_hits - hits0, horse.stumbles - st0, horse.falls - falls0]
+	if horse.obstacle_hits <= hits0 or (horse.stumbles <= st0 and horse.falls <= falls0):
+		_fail(res, "galloping into a fence without jumping caused no stumble or fall")
+	horse.jump_assist = true
+	f2.queue_free()
+	if horse.state == Horse.State.FALLEN:
+		for i in 240:
+			await get_tree().physics_frame
+	# 3. spooked by a predator: rears or bucks
+	await _start_at(c, c + dir * 10.0)
+	var b0 := horse.bucks
+	var r0 := horse.rears
+	for k in 6:
+		horse._react_cooldown = 0.0
+		horse.fear = 0.0
+		Horse.alarm(horse.global_position + dir * 8.0, 40.0, 2.5, "predator")
+		for i in 100:                                  # let the rear / buck play out
+			await get_tree().physics_frame
+		if horse.rider == null:
+			await _start_at(c, c + dir * 10.0)
+	res["spook"] = "rears %d bucks %d" % [horse.rears - r0, horse.bucks - b0]
+	if horse.bucks - b0 < 1 or horse.rears - r0 < 1:
+		_fail(res, "six predator spooks gave %d rears and %d bucks (want both)" % [horse.rears - r0, horse.bucks - b0])
+	# 4. hitch at a town rail on dismount
+	var st = Game.main.get("settlements")
+	var spot := {}
+	if st != null:
+		for tid in ["bitter_spring", "mesquite_wells"]:
+			var sp: Array = st.spots(tid, "hitch")
+			if not sp.is_empty():
+				spot = sp[0]
+				break
+	if spot.is_empty():
+		_fail(res, "no hitch spot in town")
+	else:
+		var o: Vector3 = spot.transform.origin
+		var near: Vector3 = o + spot.transform.basis.z * 3.0
+		await _start_at(near, o)
+		horse.dismount(-1.0)
+		for i in 240:
+			await get_tree().physics_frame
+		var hp: Vector3 = horse.hitch_point if horse.hitch_point != null else Vector3.INF
+		var dist := Vector2(horse.global_position.x - o.x, horse.global_position.z - o.z).length()
+		res["hitch"] = "state %s, %.1f m from the rail" % [Horse.State.keys()[horse.state], dist]
+		if horse.state != Horse.State.HITCHED or hp == Vector3.INF or dist > 2.5:
+			_fail(res, "dismounting at a town hitch rail did not hitch the horse (%s)" % res.hitch)
+	# 5. saddlebags
+	if Game.state:
+		Game.state.add_item("pelt_coyote_q2", 2)
+		var moved := Satchel.stow(horse)
+		var back := Satchel.take_all(horse)
+		res["saddlebags"] = "stowed %d, took %d" % [moved, back]
+		if moved < 2 or back < 2:
+			_fail(res, "saddlebags stow/take failed (%s)" % res.saddlebags)
+	player.bot_driven = false
+	res["metrics"] = {}
+	for k in ["jumps", "past_m", "crash", "spook", "hitch", "saddlebags"]:
+		if res.has(k):
+			res.metrics[k] = str(res[k]).replace(" ", "_")

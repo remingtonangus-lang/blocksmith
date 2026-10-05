@@ -23,7 +23,9 @@ static func read(key: String) -> void:
 		Game.get_meta("treasure").open_map(int(key.substr(13)))
 const USABLE := ["tonic_health", "tonic_nerve", "jerky", "coffee", "cooked_meat", "gun_oil"]
 
-static func open() -> void:
+## horse: opened at the horse (its saddlebags): adds a Saddlebags section to stow skins, meat and catch in the
+## bags or take everything out.
+static func open(horse: Node = null) -> void:
 	var menus = Game.get("menus")
 	if menus == null or Game.state == null:
 		return
@@ -86,6 +88,8 @@ static func open() -> void:
 		list.add_child(_line("%s" % _skin_name(key), "× %d" % n))
 	if not any:
 		list.add_child(_cell("Nothing yet.", 560))
+	if horse != null:
+		_saddlebags(list, horse, menus)
 	_section(list, "Ammunition")
 	if Game.player and Game.player.gun:
 		for k in Game.player.gun.ammo.keys():
@@ -93,6 +97,60 @@ static func open() -> void:
 				"shotgun": "Shotgun shells", "varmint": ".22 rimfire"}.get(k, str(k)), str(Game.player.gun.ammo[k])))
 	v.add_child(menus._button("Close", menus.back))
 	menus._push(p)
+
+static func _saddlebags(list: VBoxContainer, horse: Node, menus) -> void:
+	_section(list, "Saddlebags")
+	var bags: Array = horse.get("saddlebags")
+	if bags.is_empty():
+		list.add_child(_cell("Empty.", 560))
+	for e in bags:
+		list.add_child(_line(_skin_name(str(e.item)) if str(e.item).begins_with("pelt_") or str(e.item).begins_with("meat_") else str(e.item), "× %d" % int(e.count)))
+	var row := HBoxContainer.new()
+	var stow: Button = menus._button("Stow skins & meat", func():
+		Satchel.stow(horse)
+		menus.back()
+		Satchel.open(horse))
+	stow.custom_minimum_size = Vector2(300, 0)
+	row.add_child(stow)
+	var take: Button = menus._button("Take everything", func():
+		Satchel.take_all(horse)
+		menus.back()
+		Satchel.open(horse))
+	take.custom_minimum_size = Vector2(300, 0)
+	row.add_child(take)
+	list.add_child(row)
+
+## Move skins, meat and fish from the satchel into the horse's saddlebags.
+static func stow(horse: Node) -> int:
+	var st = Game.state
+	var bags: Array = horse.get("saddlebags")
+	var moved := 0
+	for id in st.inventory.keys():
+		var key := str(id)
+		var n := int(st.inventory[id])
+		if n <= 0 or key.begins_with("pelt_legend_") or not (key.begins_with("pelt_") or key.begins_with("meat_") or key.begins_with("fish_")):
+			continue
+		var found := false
+		for e in bags:
+			if e.item == key:
+				e.count = int(e.count) + n
+				found = true
+		if not found:
+			bags.append({"item": key, "count": n})
+		st.inventory[id] = 0
+		moved += n
+	Game.log_event("saddlebags_stow", {"n": moved})
+	return moved
+
+## Everything in the saddlebags back into the satchel.
+static func take_all(horse: Node) -> int:
+	var bags: Array = horse.get("saddlebags")
+	var n := 0
+	for e in bags:
+		Game.state.add_item(str(e.item), int(e.count))
+		n += int(e.count)
+	bags.clear()
+	return n
 
 static func _skin_name(key: String) -> String:
 	if key.begins_with("pelt_"):

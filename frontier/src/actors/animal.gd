@@ -27,8 +27,6 @@ const SPECIES := {
 		"diet": "predator", "prey": ["mule_deer", "rabbit"], "attack_player": 0.7, "wary": 40.0, "biomes": [0.55, 1.0], "active": "crepuscular", "pelt": 9.0, "meat": 1.5, "color": Color(0.66, 0.5, 0.34)},
 	"black_bear": {"name": "Black Bear", "size": Vector3(0.75, 1.0, 1.7), "hp": 260.0, "walk": 1.2, "run": 12.0, "herd": [1, 1],
 		"diet": "omnivore", "attack_player": 0.4, "wary": 30.0, "biomes": [0.7, 1.0], "active": "day", "pelt": 11.0, "meat": 4.0, "color": Color(0.12, 0.1, 0.09)},
-	"turkey": {"name": "Wild Turkey", "size": Vector3(0.3, 0.8, 0.7), "hp": 15.0, "walk": 1.0, "run": 8.0, "herd": [3, 8],
-		"diet": "grazer", "wary": 35.0, "biomes": [0.5, 0.9], "active": "day", "pelt": 1.0, "meat": 0.8, "color": Color(0.25, 0.2, 0.15)},
 	"raccoon": {"name": "Raccoon", "size": Vector3(0.25, 0.35, 0.65), "hp": 15.0, "walk": 0.9, "run": 6.0, "herd": [1, 2],
 		"diet": "omnivore", "wary": 15.0, "biomes": [0.55, 1.0], "active": "night", "pelt": 1.4, "meat": 0.3, "color": Color(0.36, 0.34, 0.32)},
 	"fox": {"name": "Red Fox", "size": Vector3(0.22, 0.4, 0.9), "hp": 20.0, "walk": 1.2, "run": 13.0, "herd": [1, 1],
@@ -64,6 +62,15 @@ var _prev_state := -1
 var _last_heading := 0.0
 var _yaw_rate := 0.0               # rad/s, + = turning left (smoothed; drives the turn-in-place clips)
 var _body_shape: CollisionShape3D
+const PRINTS := {"mule_deer": "cloven", "elk": "cloven", "pronghorn": "cloven", "bison": "cloven", "wolf": "paw",
+	"coyote": "paw", "fox": "paw", "cougar": "paw", "black_bear": "plantigrade", "raccoon": "plantigrade", "rabbit": "rabbit"}
+const CARRIABLE := ["mule_deer", "pronghorn", "wolf", "coyote", "fox", "cougar", "rabbit", "raccoon"]
+var bleed := 0.0                    # 0..1+: blood trail strength from wounds, fades over a couple of minutes
+var _track_d := 0.0
+var _blood_d := 0.0
+var _foot := 1.0
+var carried_by: Node3D = null       # the horse carrying this carcass
+var resting := false                # bedded down in its inactive hours (the ecology oracle samples this)
 
 static func spawn(parent: Node, pos: Vector3, sp: String, seed: int) -> Animal:
 	var t0 := Time.get_ticks_usec()
@@ -234,6 +241,7 @@ func is_active_now() -> bool:
 	match spec.active:
 		"day": return h > 6.0 and h < 19.0
 		"night": return h < 6.5 or h > 18.5
+		"crepuscular": return (h > 4.5 and h < 10.0) or (h > 16.0 and h < 21.5)
 		_: return true
 
 func _physics_process(dt: float) -> void:
@@ -278,7 +286,18 @@ func _senses() -> Node3D:
 	return null
 
 func _calm(dt: float) -> void:
-	if t_state <= 0.0:
+	var active := is_active_now()
+	if t_state <= 0.0 and not active:
+		# resting hours: bedded down where it stands (herd members drift back to the leader first)
+		t_state = rng.randf_range(10.0, 25.0)
+		goal = Vector3.INF
+		if leader != null and is_instance_valid(leader) and leader.alive and leader != self \
+				and leader.global_position.distance_to(global_position) > 12.0:
+			goal = leader.global_position + Vector3(rng.randf_range(-4, 4), 0, rng.randf_range(-4, 4))
+		state = State.WANDER if goal != Vector3.INF else State.GRAZE
+		resting = goal == Vector3.INF
+	elif t_state <= 0.0:
+		resting = false
 		t_state = rng.randf_range(4.0, 12.0)
 		if leader != null and is_instance_valid(leader) and leader.alive:
 			goal = leader.global_position + Vector3(rng.randf_range(-8, 8), 0, rng.randf_range(-8, 8))
@@ -301,7 +320,7 @@ func _calm(dt: float) -> void:
 				a.threat = t
 				a.state = State.ALERT
 				a.t_state = rng.randf_range(0.3, 1.0)
-	elif spec.diet == "predator" and rng.randf() < 0.002:
+	elif spec.diet == "predator" and rng.randf() < (0.002 if active else 0.0003):
 		prey = _find_prey()
 		if prey != null:
 			state = State.STALK
@@ -389,6 +408,7 @@ func _move(dt: float) -> void:
 	visual.rotation.y = heading
 	if _body_shape:
 		_body_shape.rotation.y = heading
+	_lay_tracks(dt)
 	if model_vis != null:
 		_animate(dt)
 	elif visual.has_method("set_gait"):
@@ -446,8 +466,35 @@ func _animate(dt: float) -> void:
 	mv.set_locomotion(choice, clampf(speed / maxf(gs, 0.1), 0.5, 1.8))
 	anim_gait = choice
 
+## Prints along the path (near the player only) and the blood trail of a wounded animal.
+func _lay_tracks(dt: float) -> void:
+	bleed = maxf(bleed - dt * 0.006, 0.0)
+	if speed < 0.2 or Game.player == null or not is_instance_valid(Game.player):
+		return
+	var moved := speed * dt
+	var sz: Vector3 = spec.size
+	var near_player: bool = Game.player.global_position.distance_squared_to(global_position) < 90.0 * 90.0
+	_track_d += moved
+	var stride := sz.z * (0.45 if speed < float(spec.walk) * 2.0 else 1.1)
+	if _track_d > stride and near_player:                 # prints only where they can be seen; blood always
+		_track_d = 0.0
+		_foot = -_foot
+		var right := Vector3(cos(heading), 0, -sin(heading))
+		var p := global_position + right * _foot * sz.x * 0.22
+		p.y = Game.world.height(p.x, p.z) if Game.world else p.y
+		Tracks.print_at(p, heading, PRINTS.get(species, "paw"), clampf(sz.x * 0.35, 0.05, 0.22))
+	if bleed > 0.02:
+		_blood_d += moved
+		if _blood_d > lerpf(4.0, 1.5, clampf(bleed, 0.0, 1.0)):
+			_blood_d = 0.0
+			var q := global_position + Vector3(rng.randf_range(-0.2, 0.2), 0, rng.randf_range(-0.2, 0.2))
+			q.y = Game.world.height(q.x, q.z) if Game.world else q.y
+			Tracks.blood_at(q, bleed)
+
 func _on_damaged(info: Dictionary) -> void:
 	shots_taken += 1
+	var amt := float(info.get("amount", 20.0)) / maxf(float(spec.hp), 1.0)
+	bleed = clampf(bleed + amt * (2.0 if info.get("zone", "") in ["chest", "head"] else 1.2), 0.0, 1.5)
 	hit_zones.append(info.get("zone", "chest"))
 	killer_weapon = info.get("weapon", "")
 	killer_ammo = str(info.get("ammo", ""))
@@ -466,6 +513,9 @@ func _on_died(info: Dictionary) -> void:
 	if Game.state:
 		Game.state.kills.animal += 1
 	Game.log_event("animal_killed", {"species": species, "quality": pelt_quality(), "zones": hit_zones})
+	if Game.world:
+		var gp := Vector3(global_position.x, Game.world.height(global_position.x, global_position.z), global_position.z)
+		Tracks.blood_at(gp, 0.6, true)
 	if model_vis != null:
 		model_vis.set_locomotion("dead", 1.0)
 		if model_vis.ik:
@@ -476,12 +526,32 @@ func _on_died(info: Dictionary) -> void:
 	add_to_group("interactable")
 
 func interact_prompt() -> String:
-	return "" if alive or skinned else "Skin the %s" % str(spec.name).to_lower()
+	if alive or skinned or carried_by != null:
+		return ""
+	if _horse_near() != null:
+		return "Lay the %s over the horse" % str(spec.name).to_lower()
+	return "Skin the %s" % str(spec.name).to_lower()
 
-func interact(_who: Node) -> void:
-	var r := skin()
-	if not r.is_empty() and Game.hud:
-		Game.hud.notice("%s pelt — %s" % [spec.name, ["", "poor", "good", "perfect"][r.quality]], 3.5)
+func interact(who: Node) -> void:
+	var h := _horse_near()
+	if h != null:
+		h.carry(self)
+		return
+	SkinningTask.start(who if who is Node3D else Game.player, self)
+
+## The player's horse within reach and able to carry this carcass (small and medium game only).
+func _horse_near() -> Node3D:
+	if not species in CARRIABLE:
+		return null
+	for h in Horse.all:
+		if is_instance_valid(h) and h.global_position.distance_to(global_position) < 5.0 and h.get("carcass") == null \
+				and h.get("rider") == null:
+			return h
+	return null
+
+## Carcass weight in kg (for the horse's load).
+func carcass_kg() -> float:
+	return float(spec.meat) * 22.0 + float(spec.size.z) * 10.0
 
 ## Pelt quality 1 (poor) .. 3 (perfect): right weapon for the size, one clean shot, head/heart hit.
 var killer_ammo := ""     # special ammunition of the killing shot (split-point tears the hide: one grade down)

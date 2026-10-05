@@ -196,10 +196,11 @@ jobs:
           done
           fail=0
           for p in $pids; do wait $p || fail=1; done
+          python frontier/tools/animals/bird.py --species all --out out/ext/animals > build_birds.log 2>&1 || fail=1
           cat build_*.log | grep -avE "^Fra:|Saved:" > animals.log
           grep -aE "^\[[a-z_]+ +[0-9.]+s\]" animals.log || true
           if [ $fail != 0 ]; then tail -n 60 animals.log; exit 1; fi
-          for s in horse mule_deer elk pronghorn bison wolf coyote fox cougar black_bear raccoon rabbit; do
+          for s in horse mule_deer elk pronghorn bison wolf coyote fox cougar black_bear raccoon rabbit turkey sage_grouse red_tailed_hawk crow; do
             test -s out/ext/animals/$s.glb && test -s out/ext/animals/${s}_gaits.json
           done
           (cd out && zip -qr ../animals.zip ext/animals)

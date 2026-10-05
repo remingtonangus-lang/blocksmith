@@ -154,16 +154,22 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p snaps
-          # the story run (42 missions) alone outgrew one shared watchdog: run it beside the other bots (3 cores)
-          mkdir -p "$RUNNER_TEMP/home_missions"   # own user:// (saves, sign atlas cache) for the parallel process
-          HOME="$RUNNER_TEMP/home_missions" "$GODOT" --headless --path frontier -- --bot missions,presentation,living --seconds 75 --report "$PWD/snaps/bot_report_missions.json" --watchdog 1500 > bots_missions.log 2>&1 &
-          MPID=$!
-          "$GODOT" --headless --path frontier -- --bot road,explore,ride,gaits,town,gunfight,hunt,camp,encounters,social,openworld,systems,ui,footik,cover,melee,armory,archetypes,lasso,disarm --seconds 75 --report "$PWD/snaps/bot_report.json" --watchdog 900 > bots_world.log 2>&1 || true
-          wait $MPID || true
-          cat bots_world.log bots_missions.log > bots.log
+          # three parallel bot processes (3 cores), each with its own HOME (user:// saves, caches) and watchdog
+          run_bots() {   # $1 = name, $2 = bot list, $3 = watchdog s
+            mkdir -p "$RUNNER_TEMP/home_$1"
+            HOME="$RUNNER_TEMP/home_$1" "$GODOT" --headless --path frontier -- --bot "$2" --seconds 75 --report "$PWD/snaps/bot_report_$1.json" --watchdog "$3" > "bots_$1.log" 2>&1 || true
+          }
+          run_bots story presentation,living,ecology,missions 1500 &
+          P1=$!
+          run_bots travel road,explore,ride,gaits,town,hunt,birds,horsework 1200 &
+          P2=$!
+          run_bots combat gunfight,camp,encounters,social,openworld,systems,ui,footik,cover,melee,armory,archetypes,lasso,disarm 1200
+          wait $P1 || true
+          wait $P2 || true
+          cat bots_travel.log bots_combat.log bots_story.log > bots.log
           grep -E "BOT|oracle|WATCHDOG|SCRIPT ERROR" bots.log || true
           ok=$(grep -c "BOTS PASS" bots.log || true)
-          [ "$ok" = "2" ] && echo "BOTS ALL PASS" >> bots.log
+          [ "$ok" = "3" ] && echo "BOTS ALL PASS" >> bots.log
           grep -q "BOTS ALL PASS" bots.log || { grep -vE "^\s*$" bots.log | grep -vi navigation | tail -40; false; }
 
       - name: GPU probe (find features the CI GPU cannot render)
