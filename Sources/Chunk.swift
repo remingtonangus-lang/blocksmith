@@ -29,9 +29,16 @@ final class Section {
     var solidQuads = 0          // leading opaque quads drawn without alpha test
     var transBuf: MeshSlice?
     var transQuads = 0
-    var version = 0 { didSet { MeshEpoch.value &+= 1; owner?.dirty = true } }   // bumped when the section (or light around it) changes
+    var version = 0 {           // bumped when the section (or light around it) changes
+        didSet {
+            MeshEpoch.value &+= 1
+            guard let o = owner else { return }
+            o.dirty = true
+            o.noteStale(was: oldValue != meshedVersion, now: version != meshedVersion)
+        }
+    }
     weak var owner: Chunk?      // marked dirty with each bump (World.update re-checks only dirty chunks)
-    var meshedVersion = -1
+    var meshedVersion = -1 { didSet { owner?.noteStale(was: oldValue != version, now: meshedVersion != version) } }
     var vis: UInt64 = ~0         // face connectivity (cave culling)
     var needsMesh: Bool { meshedVersion != version }
     var empty: Bool { opaqueQuads == 0 && transQuads == 0 }
@@ -153,10 +160,15 @@ final class Chunk {
         self.tint = tint
         sections = (0..<NSEC).map { _ in Section() }
         for s in sections { s.owner = self }
+        staleSections = NSEC                         // every section starts unmeshed (version 0, meshedVersion -1)
     }
 
     @inline(__always) static func index(_ x: Int, _ y: Int, _ z: Int) -> Int { x + z * CS + y * CSQ }
-    var needsMesh: Bool { sections.contains { $0.needsMesh } }
+    // Sections whose mesh is out of date, kept by the sections as their versions change: needsMesh was a walk over all
+    // 24 sections, asked of every loaded chunk on each scheduling scan (World.update profile).
+    private(set) var staleSections = 0
+    @inline(__always) func noteStale(was: Bool, now: Bool) { if was != now { staleSections += now ? 1 : -1 } }
+    var needsMesh: Bool { staleSections > 0 }
 
     static func computeHeights(_ b: [BlockID]) -> [Int16] {
         let skyT = Blocks.sky

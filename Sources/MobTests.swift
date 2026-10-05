@@ -53,6 +53,10 @@ enum MobTests {
             w.setBlockAsync(x, y, z, old)
             settle()
         }
+        // Chunk.needsMesh is a running count of stale sections: it must agree with a walk over the sections.
+        var wrong = 0
+        for (_, c) in w.chunks where c.needsMesh != c.sections.contains(where: { $0.needsMesh }) { wrong += 1 }
+        check(wrong == 0, "chunks' stale-section counts match their sections", "\(wrong) of \(w.chunks.count) disagree")
     }
 
     // MARK: Raids
