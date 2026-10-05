@@ -217,7 +217,10 @@ func _update(delta: float) -> void:
 	RenderingServer.global_shader_parameter_set("night", night)
 	# Fog: thin blue-grey haze in clear weather, thick in rain and storms, bluer at night.
 	env.fog_density = 0.000045 * haze + fog_extra
-	env.fog_light_color = Color(0.62, 0.70, 0.82).lerp(Color(0.05, 0.07, 0.12), night)
+	# Heavy haze: fog, terrain haze and water haze take the pale tone the sky shader gives a foggy horizon.
+	var fogk := smoothstep(1.0, 4.0, haze)
+	var pale := Color(0.78, 0.8, 0.81) * lerpf(0.06, 1.0, clampf(daylight * 2.5, 0.0, 1.0))
+	env.fog_light_color = Color(0.62, 0.70, 0.82).lerp(Color(0.05, 0.07, 0.12), night).lerp(pale, fogk * 0.85)
 	env.fog_light_energy = lerpf(1.0, 0.25, night)
 	env.fog_height_density = 0.00025 * haze + fog_extra * 3.0
 	env.volumetric_fog_density = 0.0008 + fog_extra * 2.0
@@ -226,6 +229,7 @@ func _update(delta: float) -> void:
 	var hz := Color(0.58, 0.66, 0.78).lerp(Color(0.5, 0.52, 0.55), cloud_cover * 0.7) * lerpf(0.02, 1.0, daylight) * (1.0 - cloud_dark * 0.55)
 	if sun_up > -0.1 and sun_up < 0.2:
 		hz = hz.lerp(Color(0.9, 0.6, 0.4) * hz.get_luminance() * 1.6, (1.0 - absf(sun_up - 0.05) / 0.15) * 0.5)
+	hz = hz.lerp(pale, fogk * 0.85)
 	# The water fogs itself: match the terrain's exponential + height fog (3x fog_extra) so rivers and the sea do not
 	# stand out bright and clear in fog weather.
 	RenderingServer.global_shader_parameter_set("horizon_fog", Vector4(hz.r, hz.g, hz.b, 0.000045 * haze + fog_extra * 3.5))
