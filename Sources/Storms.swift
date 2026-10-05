@@ -227,7 +227,7 @@ extension Game {
     // Blocks snow settles on: solid cubes, leaves, and anything with a full top face (glass, top slabs, upside-down
     // stairs); not ice (it melts through) or barriers.
     static let snowBaseT: [Bool] = (0..<Blocks.count).map { i in
-        if Blocks.opaque[i] || leavesT[i] { return true }
+        if Blocks.opaque[i] || Game.leavesT[i] { return true }
         let k = Blocks.key(Blocks.groupBase[i])
         if ["ice", "packed_ice", "blue_ice", "barrier", "frosted_ice"].contains(k) || Blocks.isLiquid(BlockID(i)) { return false }
         if Blocks.render[i] == RenderType.cube.rawValue && Blocks.fullCollide[i] { return true }
