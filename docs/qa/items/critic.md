@@ -38,4 +38,4 @@ the critics (Gemini preferred the new one, Claude the round-1 version, which was
 like-for-like pair); both asked for a crisper diamond head. Dropped items: real 3D with shadows, but they hovered
 well above their shadows (fixed: they now rest 0.05-0.25 over the ground), the apple leaf was too dark (lighter leaf
 green). The translucent tan quads Claude flagged in the tier grid are the sunlit sides of a one-block sand step (in
-the older shots too). Both critics want a hand gripping the held item (the genre shows none while holding).
+the older shots too). Claude also asked for a hand gripping the held item (the genre shows none while holding one).
