@@ -118,6 +118,8 @@ done
 "$BIN" --snapshot snaps/capitaltest.png --seed 12345 --find plains --time 0.3 --rd 12 --capitaltest || echo "::error::capitaltest failed (new: reported, not gating yet)"
 # Vehicle riding: bots ride the crawler and the frigates through Game.tick (decks, boarding, crew, disabled vehicles).
 "$BIN" --ridecheck --seed 12345 --out snaps
+# Every mob kind must draw something, Fancy and Fast (playtest 2026-10-05: mobs invisible in game).
+"$BIN" --snapshot snaps/mobcheck.png --seed 12345 --find plains --yaw 30 --time 0.3 --up 6 --rd 4 --mobcheck || echo "::error::mobcheck failed (new: reported, not gating yet)"
 # Split-screen co-op (Coop.swift): seat checks, then the two views at rd 8 (the frame time is the two-view perf number).
 "$BIN" --snapshot snaps/coop.png --seed 12345 --find plains --yaw 30 --pitch -6 --time 0.3 --ground --rd 8 --coop --cooptest || echo "::error::cooptest failed (new: reported, not gating yet)"
 "$BIN" --snapshot snaps/tv_coop.png --seed 12345 --find plains --yaw 200 --pitch -4 --time 0.27 --ground --rd 8 --w 1920 --h 1080 --couch --safe 5 --pad --coop
