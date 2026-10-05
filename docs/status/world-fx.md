@@ -50,6 +50,18 @@ soldiers / reactive bases / aircraft, E Quest port, a local Mac session for the 
 FIRST `[fast: ` in the message, so never quote the marker literally elsewhere in it - run 471 ran `Blocksmith ARGS`). Report: snaps/fxtest.md; shots
 fx_cracks, fx_shatter, fx_blast, fx_fire_0-3, fx_flood_0-3, fx_snow_0-2, fx_storm_ship.
 
+## Item art (Remington's TV playtest, 2026-10-05)
+
+- **Icons** (ItemHD.swift): every `item_` layer at the GPU resolution. Vector designs for tools (7 tiers x 6 kinds),
+  armour (7 x 4) and ~40 common items; Scale2x x3 + bevel light + drop shadow for the rest. Licences:
+  docs/qa/items/LICENSES.md (all procedural). Before/after sheets: docs/qa/items/{before,after}, harness
+  `--itemsheet tools|items|blocks|enchanted[:scale[:page]]`.
+- **Models** (ItemModels.swift): every sprite item extruded from its icon (32 x 32 mask captured at texture build):
+  first person (grip, sway, chop, bow draw, eating), third person (right hand, own F5 view and co-op seats), dropped
+  (upright, turning, nearest 32 within 24 blocks).
+- **Glint**: a violet band sweeping across the item's shape (hudFS layer + 8192, entityFS uv.w).
+- **Water plants** carry the water's surface (Mesher): seagrass, kelp and coral no longer cut holes in shallow water.
+
 ## Measured (fast lane, release build, macos-14 runner; runs 472-473)
 
 | Check | Result |
