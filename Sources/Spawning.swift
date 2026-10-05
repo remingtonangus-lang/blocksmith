@@ -170,12 +170,13 @@ extension MobManager {
             if nest != AIR {
                 // Read the chunk's own arrays (World.block / topY per voxel spent ~0.5 ms a chunk in lookups).
                 let direct = w.frame == nil
+                let groupBase = Blocks.groupBase, blocks = c.blocks, height = c.height
                 for lz in 0..<CS { for lx in 0..<CS {
                     let x = c.cx * CS + lx, z = c.cz * CS + lz
-                    let top = direct ? Int(c.height[lx + lz * CS]) : w.topY(x, z)
+                    let top = direct ? Int(height[lx + lz * CS]) : w.topY(x, z)
                     for y in max(1, top - 12)...max(1, top) {
-                        let b = direct ? (y < CH ? c.blocks[Chunk.index(lx, y, lz)] : AIR) : w.block(x, y, z)
-                        guard Blocks.groupBase[Int(b)] == nest else { continue }
+                        let b = direct ? (y < CH ? blocks[Chunk.index(lx, y, lz)] : AIR) : w.block(x, y, z)
+                        guard groupBase[Int(b)] == nest else { continue }
                         let h = IVec3(x, y, z)
                         if hives[h] == nil { hives[h] = (0..<Rand.int(in: 2...3)).map { _ in (nectar: false, time: 0) } }
                     }

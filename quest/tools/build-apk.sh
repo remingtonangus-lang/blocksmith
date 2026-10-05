@@ -80,7 +80,7 @@ let package = Package(
         .target(name: "Blocksmith",
                 dependencies: ["simd", "os", "Metal", "CZlib", "CVulkan", "COpenXR", "CAndroidGlue"],
                 path: "Sources/Blocksmith",
-                swiftSettings: [.define("QUEST"), .unsafeFlags(["-Ounchecked", "-wmo"])],
+                swiftSettings: [.define("QUEST"), .unsafeFlags(["-Ounchecked", "-wmo", "-enforce-exclusivity=unchecked"])],
                 linkerSettings: [.unsafeFlags(["-L@PKGLIBS@", "-Xlinker", "-u", "-Xlinker", "ANativeActivity_onCreate",
                                                "-Xlinker", "--no-undefined", "-Xlinker", "-z", "-Xlinker", "max-page-size=16384"])]),
     ]

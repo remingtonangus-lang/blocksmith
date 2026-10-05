@@ -55,8 +55,8 @@ as a panel in front of you. Rumble from the game (hits, explosions, block breaks
 
 | | Milestone | State |
 |---|---|---|
-| 1 | CI APK launching to an OpenXR session (test scene) | first APK published (run 37243571730); device run pending |
-| 2 | Real world in stereo (multiview), head tracking, 72 Hz budget | renderer verified offscreen (lavapipe); device numbers pending |
+| 1 | CI APK launching to an OpenXR session (test scene) | done: runs on Remington's Quest 3 (versionCode 13) |
+| 2 | Real world in stereo (multiview), head tracking, 72 Hz budget | done: 72.0 fps, 0 missed, cpu ~2.9 ms, gpu ~2.9 ms on device |
 | 3 | Touch controller play (locomotion, turning, vignette, hand rays, panels, haptics) | implemented; device test pending |
 | 4 | Game content (mobs, structures, vehicles, soldiers, saves, actions) | in progress |
 | 5 | Performance and comfort pass with measured numbers | pending |
@@ -89,6 +89,16 @@ after playing); the block textures are cached after the first launch (the second
 noticeably sooner: compare the `textures:` lines, "painted in N ms" then "from cache"); volcanoes and Ancient Spires
 show on the horizon past the render distance; if OpenXR/Vulkan setup fails the app returns to Home (with `FATAL:` in
 the log) instead of hanging in an empty scene.
+
+### Device reports
+
+**2026-10-05 21:50 ADT, versionCode 13 (6c996db), Remington's Quest 3.** Works: launches into an immersive session,
+the world loads, playable. Refresh rates offered [72, 80, 90, 120], using 72. perf: right after load 65.9 fps, 8
+missed, worst 367 ms (the world appearing); then 72.0 fps, 0 missed, worst 20.8 ms, cpu ~2.9 ms, gpu ~2.9 ms,
+~136 sections / ~294 draws / ~123k quads, 193 chunks (render distance 6): large GPU and CPU headroom. Problems (his
+priority): (1) on a moving frigate the UI panels fly away and the view lurches; (2) a chest on the frigate could not
+be opened; (3) motion sickness: wants a comfort pass (vignette on smooth movement and ship riding, stable reference
+aboard, teleport option, snap-angle option, seated mode, less camera motion on ships).
 
 ## Architecture
 

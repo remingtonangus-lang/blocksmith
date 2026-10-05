@@ -144,12 +144,16 @@ extension Game {
         let base = Blocks.id("creaking_heart")
         var out: [IVec3] = []
         let pcx = floorDiv(Int(floor(player.pos.x)), CS), pcz = floorDiv(Int(floor(player.pos.z)), CS)
+        // Local copies of the tables: Blocks.groupBase / c.blocks inside the loop cost a class-property access per
+        // voxel (160k a scan, every 10 s: a 6-26 ms hitch in an optimized build).
+        let groupBase = Blocks.groupBase
         for cz in (pcz - 2)...(pcz + 2) { for cx in (pcx - 2)...(pcx + 2) {
             guard let c = world.chunks[ChunkKey(x: cx, z: cz)] else { continue }
+            let blocks = c.blocks, height = c.height
             for lz in 0..<CS { for lx in 0..<CS {
-                let top = Int(c.height[lx + lz * CS])
+                let top = Int(height[lx + lz * CS])
                 guard top > 20 else { continue }
-                for y in max(1, top - 24)...top where Blocks.groupBase[Int(c.blocks[Chunk.index(lx, y, lz)])] == base {
+                for y in max(1, top - 24)...top where groupBase[Int(blocks[Chunk.index(lx, y, lz)])] == base {
                     out.append(IVec3(cx * CS + lx, y, cz * CS + lz))
                 }
             } }
