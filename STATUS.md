@@ -269,6 +269,12 @@ stale block entities after a piston break (survival-reachable), /time nan, short
 helm zeroed every frame, plates / beacons / anvils / vessels / leads / F1-F3 per player; NaN quarantines (player,
 mobs, ships, items) reported by the agents' non_finite oracle; --namecheck and collisiontest gate CI; far-ring and
 minimap and block-icon per-frame costs cut; ravines and mineshafts respect aquifers.
+2026-10-05 afternoon: run 682's release build failed on a type-checker timeout (map terrain closure; fixed). Thread-safety
+audit fixes (map cache epoch across portals, music piece-end race, sound evict race, World.alive). Fidelity audit vs
+the reference: blast resistance table (stone 6, planks 3, end stone 9, obsidian 1200; was = hardness), shears / sword /
+hoe speeds, full-draw bow crits, Mining Fatigue III/IV, Haste before the instant-break test, Fortune on lapis/copper,
+zombie rare drops (player kills, Looting), baby zombie loot, mushroom blocks, TNT drops all, piglin / illager / hoglin
+speeds.
 
 ## Playtest feedback (Remington, 2026-10-02): quality and fidelity over new features
 Bug discovery is fully automated (Remington is not the bug finder). Keep CI green throughout. Queue, in order:
