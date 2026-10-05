@@ -567,6 +567,9 @@ enum MobTests {
             Items.has(k) && Recipes.all.contains { $0.result.item == Items.id(k) && $0.result.count == 6 }
         }
         check(shelves, "wooden shelves are crafted from stripped logs and stems")
+        // A wooden shelf's block entity holds its three items (it was made with none: using a shelf indexed past the end).
+        let shelfSlots = BlockEntity(.display).container.count
+        check(shelfSlots == 3, "a wooden shelf holds three items", "\(shelfSlots) slots")
         let agers: [String] = ["copper_lantern", "copper_bars", "copper_chain", "copper_door", "copper_trapdoor", "copper_chest"]
         let ages: Bool = agers.allSatisfy { (k: String) -> Bool in
             guard Blocks.has(k) else { return false }
