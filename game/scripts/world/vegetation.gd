@@ -20,6 +20,9 @@ var birch_bark_mat: ShaderMaterial
 var imp_mat: ShaderMaterial
 var imp_mesh: QuadMesh
 var near := {}                    # Vector2i -> per species/variant buffers of that 128 m cell
+var meshes_lod1: Array = []        # [species][variant], the coarser build (2-3.5x fewer triangles)
+var solo := {}                    # Vector2i -> Node3D: cells within SOLO_R, full detail, culled per cell
+const SOLO_R := 140.0
 var supers := {}                  # Vector2i -> Node3D: the near trees of SUPER x SUPER cells in one MultiMesh per kind
 var _dirty := {}                  # super-cells to rebuild
 var SUPER := int(OS.get_environment("VEG_SUPER")) if OS.get_environment("VEG_SUPER") != "" else 3   # measured: per-cell MultiMeshes were ~1100 of 1360 draws in the battle view
@@ -50,17 +53,23 @@ func setup(g: WorldGen) -> void:
 	bark_mat.set_shader_parameter("near_end", NEAR_END)
 	birch_bark_mat = bark_mat.duplicate()
 	birch_bark_mat.set_shader_parameter("albedo_tex", TreeBuilder.bark_texture(true))
-	for sp in TreeBuilder.SPECIES:
-		var row := []
-		for v in VARIANTS:
-			var m := TreeBuilder.build(sp, 100 + v)
-			var surf := 0
-			if sp != TreeBuilder.BUSH:
-				m.surface_set_material(0, birch_bark_mat if sp == TreeBuilder.BIRCH else bark_mat)
-				surf = 1
-			m.surface_set_material(surf, leaf_mat)
-			row.append(m)
-		meshes.append(row)
+	for lod in 2:
+		var rows := []
+		for sp in TreeBuilder.SPECIES:
+			var row := []
+			for v in VARIANTS:
+				var m := TreeBuilder.build(sp, 100 + v, lod)
+				var surf := 0
+				if sp != TreeBuilder.BUSH:
+					m.surface_set_material(0, birch_bark_mat if sp == TreeBuilder.BIRCH else bark_mat)
+					surf = 1
+				m.surface_set_material(surf, leaf_mat)
+				row.append(m)
+			rows.append(row)
+		if lod == 0:
+			meshes = rows
+		else:
+			meshes_lod1 = rows
 	imp_mat = ShaderMaterial.new()
 	imp_mat.shader = load("res://shaders/impostor.gdshader")
 	imp_mat.set_shader_parameter("species_count", float(TreeBuilder.SPECIES))
@@ -263,6 +272,7 @@ func _process(delta: float) -> void:
 		_grass_far.global_position = Vector3(snappedf(p.x, 1.0), 0.0, snappedf(p.z, 1.0))
 	_t += delta
 	_collect()
+	_update_solo(p)
 	_rebuild_supers()
 	if _t > 0.2:
 		_t = 0.0
@@ -321,6 +331,7 @@ func _stream(p: Vector3, sync: bool) -> void:
 			WorkerThreadPool.wait_for_task_completion(_pending[key])
 		_pending.clear()
 		_collect()
+		_update_solo(p)
 		_rebuild_supers()
 
 
@@ -410,7 +421,7 @@ func _rebuild_supers() -> void:
 		for dz in SUPER:
 			for dx in SUPER:
 				var k := Vector2i(sk.x * SUPER + dx, sk.y * SUPER + dz)
-				if not near.has(k):
+				if not near.has(k) or solo.has(k):
 					continue
 				var bufs: Dictionary = near[k]
 				for key in bufs:
@@ -420,11 +431,28 @@ func _rebuild_supers() -> void:
 					m.append_array(bufs[key])
 					merged[key] = m
 		if not merged.is_empty():
-			supers[sk] = _make_near(merged)
+			supers[sk] = _make_near(merged, meshes_lod1)
 	_dirty.clear()
 
 
-func _make_near(bufs: Dictionary) -> Node3D:
+## Cells near the camera get their own full-detail MultiMeshes (they leave their super-cell, which is rebuilt).
+func _update_solo(p: Vector3) -> void:
+	for k in solo.keys():
+		var c := Vector2((k.x + 0.5) * CELL, (k.y + 0.5) * CELL)
+		if not near.has(k) or c.distance_to(Vector2(p.x, p.z)) > SOLO_R + 20.0:
+			(solo[k] as Node).queue_free()
+			solo.erase(k)
+			_dirty[_super_of(k)] = true
+	for k in near:
+		if solo.has(k):
+			continue
+		var c := Vector2((k.x + 0.5) * CELL, (k.y + 0.5) * CELL)
+		if c.distance_to(Vector2(p.x, p.z)) < SOLO_R:
+			solo[k] = _make_near(near[k], meshes)
+			_dirty[_super_of(k)] = true
+
+
+func _make_near(bufs: Dictionary, mset: Array) -> Node3D:
 	var root := Node3D.new()
 	add_child(root)
 	for key in bufs:
@@ -432,7 +460,7 @@ func _make_near(bufs: Dictionary) -> Node3D:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.use_custom_data = true
-		mm.mesh = meshes[key / VARIANTS][key % VARIANTS]
+		mm.mesh = mset[key / VARIANTS][key % VARIANTS]
 		mm.instance_count = buf.size() / 16
 		mm.buffer = buf
 		var mmi := MultiMeshInstance3D.new()

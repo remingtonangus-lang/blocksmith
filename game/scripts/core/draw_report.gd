@@ -33,6 +33,7 @@ var _abl: Array = []               # [key, nodes] still to measure
 var _abl_i := -1
 var _abl_wait := 0
 var _base := 0
+var _base_prims := 0
 var measured: Array = []           # [key, draws saved when hidden]
 
 
@@ -126,6 +127,7 @@ func _ablate() -> void:
 		return
 	if _base < 0:
 		_base = _draws()
+		_base_prims = RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)
 		print("drawreport %s: base %d draws, %.2f M primitives" % [seg["name"], _base,
 			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME) / 1e6])
 		if OS.get_environment("DRAWREPORT_QUICK") == "1":
@@ -135,7 +137,8 @@ func _ablate() -> void:
 		_hide(0, true)
 		return
 	var d := _draws()
-	measured.append([_abl[_abl_i][0], _base - d])
+	var pr := RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)
+	measured.append([_abl[_abl_i][0], _base - d, snappedf((_base_prims - pr) / 1e6, 0.01)])
 	_hide(_abl_i, false)
 	_abl_i += 1
 	if _abl_i >= _abl.size():
@@ -157,9 +160,9 @@ func _finish() -> void:
 	if not measured.is_empty():
 		print("drawreport %s: %d draw calls measured; saved when each group is hidden:" % [seg["name"], _base])
 		for m in measured.slice(0, 30):
-			print("  %-46s %5d" % m)
+			print("  %-46s %5d draws  %6.2f M prims" % m)
 	G.write_json(G.log_dir() + "/drawreport_%s.json" % seg["name"], {"segment": seg["name"], "measured_total": _base,
-		"ablation": measured.map(func(m): return {"owner": m[0], "draws": m[1]}),
+		"ablation": measured.map(func(m): return {"owner": m[0], "draws": m[1], "mprims": m[2]}),
 		"estimate": _rows.map(func(r): return {"owner": r[0], "main": r[1], "shadow": r[2], "nodes": r[3]})})
 	get_tree().quit(0)
 
