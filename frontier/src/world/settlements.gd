@@ -1074,10 +1074,12 @@ func bake_navigation_now(town_id: String) -> void:
 	if t.nav_state == "none":
 		bake_navigation(town_id)
 	var q: Array = t.get("nav_queue", [])
+	t["nav_sync"] = true
 	while not q.is_empty():
 		var nm := _nav_mesh_for(q.pop_front())
 		NavigationServer3D.bake_from_source_geometry_data(nm, t.nav_src)
 		_nav_chunk_done(t, nm)
+	t["nav_sync"] = false
 
 func _nav_mesh_for(box: AABB) -> NavigationMesh:
 	var nm := NavigationMesh.new()
@@ -1105,7 +1107,8 @@ func _nav_next(t: Dictionary) -> void:
 func _nav_chunk_done(t: Dictionary, nm: NavigationMesh) -> void:
 	if t.state != "built":
 		return
-	_nav_next(t)
+	if not t.get("nav_sync", false):
+		_nav_next(t)
 	if nm.get_polygon_count() > 0:
 		var reg := NavigationRegion3D.new()
 		reg.name = "Nav"
