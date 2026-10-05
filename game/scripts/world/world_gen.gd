@@ -6,7 +6,7 @@ extends RefCounted
 ## float grid (8 m texels) that the GPU samples with the same bilinear filter as height_at(), plus a tileable
 ## 0.25 m detail layer. Everything is deterministic for a seed and cached in user://.
 
-const GEN_VERSION := 10
+const GEN_VERSION := 11
 const SIZE := 16384.0
 const HALF := 8192.0
 const N := 2048
@@ -126,6 +126,8 @@ func generate(use_cache: bool = true) -> void:
 	rivers.clear()
 	rivers.append(_carve_river(RIVER_MAIN, 30.0, 150.0, 3.5, 7.0))
 	rivers.append(_carve_river(RIVER_TRIB, 18.0, 60.0, 2.5, 4.0))
+	for r in rivers:
+		_river_finish(r)
 	progress = 0.8
 	print("world: rivers %d ms" % (Time.get_ticks_msec() - t0))
 	stage = "planting forests"
@@ -317,10 +319,64 @@ func _carve_river(ctrl: Array, w0: float, w1: float, d0: float, d1: float) -> Di
 				var idx := tz * N + tx
 				if target < heights[idx]:
 					heights[idx] = target
-				if d < hw + CELL:
-					var lvl := lerpf(surf[i].y, surf[i + 1].y, t)
-					water[idx] = maxf(water[idx], lvl)
-	return {"pts": surf, "w": widths}
+	return {"pts": surf, "w": widths, "p2": pts, "dep": depths}
+
+
+## After every river is carved: the surface follows the carved channel floor (the valley walls of steep
+## downstream segments cut below upstream points; surfaces from the uncarved terrain hung up to 230 m in the
+## air), kept monotonic downhill, then written into the water texels along the channel.
+func _river_finish(r: Dictionary) -> void:
+	var p2: PackedVector2Array = r["p2"]
+	var dep: PackedFloat32Array = r["dep"]
+	var widths: PackedFloat32Array = r["w"]
+	var surf: PackedVector3Array = r["pts"]
+	var n := p2.size()
+	for i in n:
+		var floor_h := _raw(p2[i].x, p2[i].y)
+		var lvl := minf(surf[i].y, floor_h + dep[i] * 0.85) if surf[i].y > 0.0 else 0.0
+		if i > 0:
+			lvl = minf(lvl, surf[i - 1].y - 0.02) if lvl > 0.0 else lvl
+		surf[i] = Vector3(p2[i].x, maxf(lvl, 0.0), p2[i].y)
+	# Every texel near the channel takes its level and depth from its nearest segment (segments overlap where
+	# the channel is wider than the 24 m point spacing; mixing them dug pits under steep stretches).
+	var best := {}                     # texel -> [distance, level, depth, half width]
+	for i in n - 1:
+		var a := p2[i]
+		var b := p2[i + 1]
+		var reach := widths[i] * 0.5 + CELL * 2.0
+		var x0 := _tx(minf(a.x, b.x) - reach); var x1 := _tx(maxf(a.x, b.x) + reach)
+		var z0 := _tx(minf(a.y, b.y) - reach); var z1 := _tx(maxf(a.y, b.y) + reach)
+		var ab := b - a
+		var len2 := maxf(ab.length_squared(), 0.001)
+		for tz in range(z0, z1 + 1):
+			var wz := -HALF + (tz + 0.5) * CELL
+			for tx in range(x0, x1 + 1):
+				var wx := -HALF + (tx + 0.5) * CELL
+				var p := Vector2(wx, wz)
+				var t := clampf((p - a).dot(ab) / len2, 0.0, 1.0)
+				var d := p.distance_to(a + ab * t)
+				var hw := lerpf(widths[i], widths[i + 1], t) * 0.5
+				if d >= hw + CELL:
+					continue
+				var idx := tz * N + tx
+				var cur: Variant = best.get(idx)
+				if cur == null or d < (cur as Array)[0]:
+					best[idx] = [d, lerpf(surf[i].y, surf[i + 1].y, t), lerpf(dep[i], dep[i + 1], t), hw]
+	for idx in best:
+		var e: Array = best[idx]
+		var lvl: float = e[1]
+		water[idx] = maxf(water[idx], lvl)
+		# The channel bed is set to its designed profile under the final surface: that cuts bumps the monotonic
+		# surface would sit below, and fills the narrow ravines of the base terrain (16 m wide, down to 70 m
+		# deep) that the 24 m river sampling stepped over, leaving water bridging a crack.
+		var d: float = e[0]
+		var hw: float = e[3]
+		if d < hw and lvl > 0.0:
+			var c := d / hw
+			heights[idx] = lvl - float(e[2]) * 0.85 * (1.0 - c * c) - 0.3
+	r["pts"] = surf
+	r.erase("p2")
+	r.erase("dep")
 
 
 func _paint_mask() -> void:

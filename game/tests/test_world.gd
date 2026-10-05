@@ -40,6 +40,14 @@ func run(t) -> void:
 		var mid := pts[pts.size() / 3]
 		t.check(g.water_at(mid.x, mid.z) > -100.0, "river has water at its upper third")
 		t.check(g.height_at(mid.x, mid.z) < mid.y, "river bed below its surface")
+		# No floating water: the surface sits on its channel (a 230 m sheet once hung over the main river's source).
+		# On cascades the ground under a point already belongs to the next, lower step: allow one step's drop.
+		var worst := 0.0
+		for i in pts.size() - 1:
+			var p := pts[i]
+			if p.y > 0.5:
+				worst = maxf(worst, p.y - g.height_at(p.x, p.z) - (p.y - pts[i + 1].y))
+		t.check(worst < 9.0, "river surface stays on its channel (max %.1f m above the ground beyond the local drop)" % worst)
 	# Determinism: a second generator with the same seed agrees.
 	var g2 := WorldGen.new(1337)
 	t.near(g2.base_height(1234.5, -987.25), g.base_height(1234.5, -987.25), 0.0001, "base height deterministic")

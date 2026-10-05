@@ -66,6 +66,11 @@ func _next() -> void:
 		G.world.focus(cam.global_position)
 	if s.has("setup"):
 		(s["setup"] as Callable).call()
+	# SHOT_HIDE="Roads,Water": hide world groups (bisecting stray geometry in a shot).
+	for nm in OS.get_environment("SHOT_HIDE").split(",", false):
+		var n := G.world.get_node_or_null(nm)
+		if n is Node3D:
+			(n as Node3D).visible = false
 	wait = int(s.get("settle", SETTLE))
 	t_shot = Time.get_ticks_msec()
 
@@ -92,5 +97,39 @@ func _process(_delta: float) -> void:
 	var path := dir.path_join(String(s["name"]) + ".png")
 	img.save_png(path)
 	var vc := get_viewport().get_camera_3d()
+	if OS.get_environment("SHOT_PROBE") != "" and vc:
+		_probe(vc, OS.get_environment("SHOT_PROBE"))
 	print("shot %s: %s (%d ms) camera %s at %s" % [s["name"], path, Time.get_ticks_msec() - t_shot, vc.name if vc else "none", vc.global_position if vc else Vector3.ZERO])
 	_next()
+
+
+## SHOT_PROBE="x,y;x,y" (pixels): what lies under those pixels: the physics hit, and every visible mesh whose
+## bounds the ray crosses (nearest first), for tracking down stray geometry in a shot.
+func _probe(vc: Camera3D, spec: String) -> void:
+	var size := get_viewport().get_visible_rect().size
+	for pt in spec.split(";"):
+		var xy := pt.split(",")
+		var px := Vector2(float(xy[0]), float(xy[1])) * size / Vector2(1280, 720)
+		var o := vc.project_ray_origin(px)
+		var d := vc.project_ray_normal(px)
+		var q := PhysicsRayQueryParameters3D.create(o, o + d * 20000.0)
+		var hit := vc.get_world_3d().direct_space_state.intersect_ray(q)
+		print("probe %s: physics %s" % [pt, ("%s at %s" % [hit["collider"].get_path() if hit["collider"] is Node else hit["collider"], hit["position"]]) if not hit.is_empty() else "nothing"])
+		var cands: Array = []
+		_probe_walk(G.world, o, d, cands)
+		cands.sort_custom(func(a, b): return a[0] < b[0])
+		for c in cands.slice(0, 6):
+			print("    mesh at %.0f m: %s" % [c[0], c[1]])
+
+
+func _probe_walk(n: Node, o: Vector3, d: Vector3, out: Array) -> void:
+	if n is Node3D and not (n as Node3D).visible:
+		return
+	if n is GeometryInstance3D and not (n is GPUParticles3D):
+		var gi := n as GeometryInstance3D
+		var bb := gi.global_transform * (gi.custom_aabb if gi.custom_aabb.size != Vector3.ZERO else gi.get_aabb())
+		var hit: Variant = bb.intersects_ray(o, d)
+		if hit != null and bb.size.length() < 20000.0:
+			out.append([o.distance_to(hit), str(gi.get_path()).replace("/root/Main/World/", "")])
+	for c in n.get_children():
+		_probe_walk(c, o, d, out)
