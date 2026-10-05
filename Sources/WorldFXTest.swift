@@ -279,7 +279,7 @@ enum WorldFXTest {
         g.fx.flood = fresh
         func runFresh(_ seconds: Float) { for _ in 0..<Int(seconds / FloodModel.updateEvery) { fresh.update(FloodModel.updateEvery, game: g) } }
         runFresh(150)                           // idle sampling (16 cells a step) until it finds flood water
-        check(fresh.placed.count > peak / 2, "a reloaded flood is recognised", "\(fresh.placed.count) of \(peak) blocks adopted")
+        check(fresh.peakPlaced > peak / 2, "a reloaded flood is recognised", "\(fresh.peakPlaced) of \(peak) blocks adopted")
         runFresh(750)
         let half = inWorld()
         shot(g, r, w, h, out + "/fx_flood_2.png")
@@ -313,32 +313,37 @@ enum WorldFXTest {
             }
         } }
         _ = wd.loadSync(center: V3(Float(x0), Float(y), Float(z0)), radius: 4)
-        // Mesh the pool's section and collect its water top faces (shade +Y at 14/16 of the block).
-        let cx = floorDiv(x0, CS), cz = floorDiv(z0, CS)
-        var n9: [BlockStore] = [], h9: [[Int16]] = []
-        for dz in -1...1 { for dx in -1...1 {
-            guard let c = wd.chunks[ChunkKey(x: cx + dx, z: cz + dz)] else { check(false, "pool chunks loaded"); return }
-            n9.append(c.blocks); h9.append(c.height)
-        } }
-        let sy = y >> 4
-        let m = Mesher.buildSection(n9, h9, sy: sy)
-        var tops = Set<Int>()
-        var i = 0
-        while i + 8 <= m.trans.count {
-            // A quad: four vertices of two words; a top face has shade 2 on every vertex.
-            var minX = Int.max, minZ = Int.max, ys: [Int] = [], shade = -1
-            for v in 0..<4 {
-                let w0 = m.trans[i + v * 2]
-                minX = min(minX, Int(w0 & 511)); minZ = min(minZ, Int((w0 >> 18) & 511))
-                ys.append(Int((w0 >> 9) & 511)); shade = Int((w0 >> 27) & 7)
-            }
-            if shade == 2 && ys.allSatisfy({ $0 > (y & 15) * 16 + 8 && $0 <= (y & 15) * 16 + 16 }) {
-                tops.insert((minX / 16) + (minZ / 16) * 16)
-            }
-            i += 8
-        }
+        // Mesh each plant's own chunk section and collect its water top faces (shade +Y at 14/16 of the block).
         var bare = 0
-        for p in plantCells where !tops.contains(mod(p.x, CS) + mod(p.z, CS) * CS) { bare += 1 }
+        var meshed: [ChunkKey: Set<Int>] = [:]
+        for p in plantCells {
+            let key = ChunkKey(x: floorDiv(p.x, CS), z: floorDiv(p.z, CS))
+            if meshed[key] == nil {
+                var n9: [BlockStore] = [], h9: [[Int16]] = []
+                for dz in -1...1 { for dx in -1...1 {
+                    if let c = wd.chunks[ChunkKey(x: key.x + dx, z: key.z + dz)] { n9.append(c.blocks); h9.append(c.height) }
+                } }
+                guard n9.count == 9 else { check(false, "pool chunks loaded"); return }
+                let m = Mesher.buildSection(n9, h9, sy: y >> 4)
+                var tops = Set<Int>()
+                var i = 0
+                while i + 8 <= m.trans.count {
+                    // A quad: four vertices of two words; a top face has shade 2 on every vertex.
+                    var minX = Int.max, minZ = Int.max, ys: [Int] = [], shade = -1
+                    for v in 0..<4 {
+                        let w0 = m.trans[i + v * 2]
+                        minX = min(minX, Int(w0 & 511)); minZ = min(minZ, Int((w0 >> 18) & 511))
+                        ys.append(Int((w0 >> 9) & 511)); shade = Int((w0 >> 27) & 7)
+                    }
+                    if shade == 2 && ys.allSatisfy({ $0 > (y & 15) * 16 + 8 && $0 <= (y & 15) * 16 + 16 }) {
+                        tops.insert((minX / 16) + (minZ / 16) * 16)
+                    }
+                    i += 8
+                }
+                meshed[key] = tops
+            }
+            if !(meshed[key] ?? []).contains(mod(p.x, CS) + mod(p.z, CS) * CS) { bare += 1 }
+        }
         check(!plantCells.isEmpty && bare == 0, "the water surface runs over plants in shallow water", "\(bare) of \(plantCells.count) plant cells without a surface")
         look(g, from: V3(Float(x0) - 7, Float(y) + 3.2, Float(z0) + 9), at: V3(Float(x0) + 2, Float(y) + 0.5, Float(z0) - 2))
         shot(g, r, w, h, out + "/fx_shallows.png")
