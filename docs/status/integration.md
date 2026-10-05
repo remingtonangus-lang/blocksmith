@@ -171,6 +171,11 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
   free), each superseded by the next batch (container-screen item loss, save / load audit, split-screen audit);
   144ba6e carries all three batches.
 
+- 10:20 UTC: run 672 (144ba6e) fast lane green (no warnings; optimized smoke rd 8 60 s PASS, p50 7.2 ms, resident 252 ->
+  287 MB with chunks alive == loaded throughout: the ~20 MB/s growth is gone, the rest is map cells and stashed mobs).
+  Its heavy lane was still queued: cancelled, 01f1b95 carries it plus the rest of the split-screen audit, the collision
+  sweep and World.update quiet-frame costs from the 076df09 bench (per mob 7.8 us, update p50 0.89 ms at rd 24).
+
 ## Next
 - Per-frame allocations left after the 2026-10-05 audit (refactors; measure with the profiles first): mob model parts
   rebuilt per mob per frame (Mob.swift parts / equipmentParts: append into one reused buffer); the HUD line chain
