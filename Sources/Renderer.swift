@@ -96,6 +96,8 @@ final class Renderer: NSObject, MTKViewDelegate {
     private var frame = 0
     // Fancy eye adaptation: current exposure from the surroundings' brightness. Kept per split-screen seat (one view
     // in a cave and one in daylight each adapt on their own; a shared value gave player 2 player 1's exposure).
+    struct IconInfo { var order: [Box]; var fit: Float; var mid: V3; var leafy: Bool; var glassy: Bool }
+    private var iconCache: [BlockID: IconInfo] = [:]    // hotbar / slot block icons (drawBlockIcon)
     // Far landscape ring (HorizonRing.swift): per-snapshot cell normals / colours and the per-frame projected grid.
     var horizonKey = HorizonKey()
     var horizonNrm: [V3] = []
@@ -2568,6 +2570,10 @@ final class Renderer: NSObject, MTKViewDelegate {
         let hx = sz * 0.5, hy = sz * 0.25, vh = sz * 0.55
         let topC = tintMode == 3 ? grassC : full
         let r = Blocks.render[Int(id)]
+        // The box order, fit and material flags depend only on the block: cached per id (every slot sorted its boxes and
+        // tested its key string every frame: integration Next list).
+        let info: IconInfo
+        if let ci = iconCache[id] { info = ci } else {
         var boxes: [Box] = []
         if r == RenderType.model.rawValue { boxes = Blocks.boxes[Int(id)] }
         else if r == RenderType.connect.rawValue { boxes = BlockRegistry.connectBoxes(ck, n: false, s: false, w: true, e: true, collision: false) }
@@ -2578,8 +2584,18 @@ final class Renderer: NSObject, MTKViewDelegate {
         for b in boxes { bmin = simd_min(bmin, b.minV); bmax = simd_max(bmax, b.maxV) }
         let ext: V3 = bmax - bmin
         let big: Float = max(ext.x, max(ext.y, ext.z))
-        let fit: Float = big > 0.01 && big < 0.7 ? min(2.2, 0.8 / big) : 1
-        let mid: V3 = fit == 1 ? V3(0.5, 0.5, 0.5) : (bmin + bmax) * 0.5
+        let fit0: Float = big > 0.01 && big < 0.7 ? min(2.2, 0.8 / big) : 1
+        let mid0: V3 = fit0 == 1 ? V3(0.5, 0.5, 0.5) : (bmin + bmax) * 0.5
+        func depth(_ b: Box) -> Int { Int(b.x0) + Int(b.x1) + Int(b.y0) + Int(b.y1) + Int(b.z0) + Int(b.z1) }
+        let order0 = boxes.sorted { depth($0) < depth($1) }
+        let leafy0 = Blocks.key(Blocks.groupBase[Int(id)]).hasSuffix("leaves")
+        // Glass is nearly all clear: a faint pale-blue body behind its frame, or the icon read as an empty outline
+        // (blind critic, tv_hud).
+        let glassy0 = Blocks.key(Blocks.groupBase[Int(id)]).contains("glass") && !Blocks.opaque[Int(id)]
+        info = IconInfo(order: order0, fit: fit0, mid: mid0, leafy: leafy0, glassy: glassy0)
+        iconCache[id] = info
+        }
+        let order = info.order, fit = info.fit, mid = info.mid, leafy = info.leafy, glassy = info.glassy
         // Block-local point (0...1 per axis) to the screen: +X goes right-down, +Z left-down, +Y up.
         let oy: Float = c.y + (vh - 2 * hy) / 2
         func P(_ x0: Float, _ y0: Float, _ z0: Float) -> V2 {
@@ -2588,13 +2604,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             let sy: Float = oy + (x + z) * hy - y * vh
             return V2(sx, sy)
         }
-        func depth(_ b: Box) -> Int { Int(b.x0) + Int(b.x1) + Int(b.y0) + Int(b.y1) + Int(b.z0) + Int(b.z1) }
-        let order = boxes.sorted { depth($0) < depth($1) }
         let leftC: V4 = full * V4(0.78, 0.78, 0.78, 1), rightC: V4 = full * V4(0.6, 0.6, 0.6, 1)
-        let leafy = Blocks.key(Blocks.groupBase[Int(id)]).hasSuffix("leaves")
-        // Glass is nearly all clear: a faint pale-blue body behind its frame, or the icon read as an empty outline
-        // (blind critic, tv_hud).
-        let glassy = Blocks.key(Blocks.groupBase[Int(id)]).contains("glass") && !Blocks.opaque[Int(id)]
         let backC: V4 = full * V4(0.38, 0.38, 0.38, 1)
         for b in order {
             let lo: V3 = b.minV, hi: V3 = b.maxV
