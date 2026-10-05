@@ -472,7 +472,7 @@ func _grass_clump(blades: int, segs: int) -> ArrayMesh:
 		var facing := r.randf() * TAU
 		var dir := Vector3(cos(facing), 0, sin(facing))
 		var side := Vector3(-dir.z, 0, dir.x)
-		var h := r.randf_range(0.25, 0.7)
+		var h := r.randf_range(0.16, 0.48)
 		var w := r.randf_range(0.014, 0.03)
 		var lean := r.randf_range(0.1, 0.45)
 		var prev_l := Vector3.ZERO

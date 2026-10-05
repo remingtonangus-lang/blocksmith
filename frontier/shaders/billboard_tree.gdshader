@@ -53,9 +53,13 @@ void fragment() {
 	} else {                         // bush
 		base_y = 0.0; crown_w = sin(clamp(y / 1.0, 0.0, 1.0) * 3.14159) * 1.1;
 	}
-	float lumps = vnoise(vec2(p.x * 3.0, y * 5.0) + v_rand * 13.0) * 0.18 + vnoise(UV * 22.0 + v_rand * 7.0) * 0.1;
-	float edge = crown_w - abs(p.x) + lumps;
-	float leaves = step(0.0, edge) * step(base_y, y) * step(0.5, lt.a);
+	// irregular, clumpy silhouette: big lobes + small leafy breakup + a few holes inside the canopy
+	float lobes = vnoise(vec2(p.x * 2.2, y * 3.4) + v_rand * 13.0) * 0.32;
+	float leafy = vnoise(UV * 26.0 + v_rand * 7.0) * 0.16 + vnoise(UV * 61.0 + v_rand * 3.0) * 0.08;
+	float edge = crown_w * (0.85 + 0.3 * v_rand) - abs(p.x + (v_rand - 0.5) * 0.15 * y) + lobes + leafy;
+	float top_cut = (1.0 - y) * 4.0 + vnoise(vec2(p.x * 4.0, v_rand * 9.0)) * 0.5;
+	float holes = step(0.62, vnoise(UV * 9.0 + v_rand * 21.0) * 0.5 + 0.5) * step(0.25, edge);
+	float leaves = step(0.0, edge) * step(0.0, top_cut) * step(base_y - lobes * 0.3, y) * step(0.5, lt.a) * (1.0 - holes * 0.0);
 	if (leaves < 0.5 && trunk < 0.5) discard;
 	vec3 leaf = texture(leaf_tex, fract(UV * vec2(3.0, 4.0)) * 0.25 + vec2(0.0, 0.25)).rgb;
 	vec3 col = leaves > 0.5 ? lt.rgb * (0.55 + 0.7 * leaf.g) * 1.25 : bk.rgb;

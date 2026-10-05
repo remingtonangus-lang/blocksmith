@@ -46,7 +46,8 @@ void vertex() {
 	float d = distance(vec3(root.x, h, root.z), CAMERA_POSITION_WORLD);
 	float fade = 1.0 - smoothstep(fade_dist * 0.65, fade_dist, d);
 	float present = step(rnd, dens) * fade;
-	float hscale = mix(0.55, 1.25, moist) * (0.75 + 0.5 * n) * mix(0.6, 1.0, smoothstep(0.1, 0.4, biome));
+	float hscale = mix(0.6, 1.3, moist) * (0.6 + 0.8 * n * n) * mix(0.6, 1.0, smoothstep(0.1, 0.4, biome));
+	hscale *= 1.0 - smoothstep(0.0, 0.3, c.r) * 0.6;   // trampled near roads
 	vec3 v = VERTEX * vec3(1.0, hscale, 1.0) * present;
 	float t = COLOR.r;                      // 0 root .. 1 tip
 	v_t = t;

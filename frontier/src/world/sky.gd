@@ -98,7 +98,7 @@ func setup(quality: Dictionary) -> void:
 	world_env.environment = env
 	cam_attr = CameraAttributesPractical.new()
 	cam_attr.auto_exposure_enabled = true
-	cam_attr.auto_exposure_scale = 0.4
+	cam_attr.auto_exposure_scale = 0.62
 	cam_attr.auto_exposure_speed = 0.8
 	cam_attr.auto_exposure_min_sensitivity = 50.0
 	cam_attr.auto_exposure_max_sensitivity = 1600.0
@@ -236,14 +236,14 @@ func _update_lighting(sd: Vector3, md: Vector3) -> void:
 	if mx > 0.0:
 		c = Color(c.r / mx, c.g / mx, c.b / mx)
 	sun.light_color = c.lerp(Color(0.85, 0.88, 0.95), cover * 0.6)
-	sun.light_energy = 2.6 * sun_up * clampf(cloud_block, 0.08, 1.0) * clampf(mx * 1.6, 0.0, 1.0) + lightning * 4.0
+	sun.light_energy = 3.6 * sun_up * clampf(cloud_block, 0.08, 1.0) * clampf(mx * 1.6, 0.0, 1.0) + lightning * 4.0
 	sun.visible = sun.light_energy > 0.001
 	var phase_lit := 1.0 - absf(moon_phase() * 2.0 - 1.0)
 	var moon_up := smoothstep(-0.02, 0.1, md.y) * (1.0 - sun_up)
 	moon.light_energy = 0.07 * phase_lit * moon_up * clampf(1.0 - cover * 0.8, 0.1, 1.0)
 	moon.visible = moon.light_energy > 0.002
 	var night := 1.0 - sun_up
-	env.ambient_light_energy = lerpf(1.0, 0.6, night) * (1.0 - dark * 0.35)
+	env.ambient_light_energy = lerpf(0.72, 0.6, night) * (1.0 - dark * 0.35) * (1.0 + cover * 0.4)
 	env.ambient_light_sky_contribution = 1.0
 	# fog colour = horizon colour (aerial perspective), heavier in fog/rain/dust
 	var fogc := Color((hor.x + hor_sun.x) * 0.5, (hor.y + hor_sun.y) * 0.5, (hor.z + hor_sun.z) * 0.5)
