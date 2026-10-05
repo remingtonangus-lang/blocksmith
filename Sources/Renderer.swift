@@ -322,6 +322,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         if fpsTime >= 0.5 { fps = Double(fpsFrames) / fpsTime; fpsFrames = 0; fpsTime = 0 }
 
         adjustResolution(view)
+        if game.coop.active && view.framebufferOnly { view.framebufferOnly = false }    // split screen copies views in
         guard let rpd = view.currentRenderPassDescriptor, let drawable = view.currentDrawable else { return }
         inflight.wait()
         if game.screenshotRequested {
@@ -408,6 +409,8 @@ final class Renderer: NSObject, MTKViewDelegate {
     var probes: [(String, V3)] = []
     var postParams = PostParams()
     private var shadowList: [(Chunk, Int)] = []
+    private var splitColor: MTLTexture?           // split screen: one view's target (Coop.swift)
+    private var splitDepth: MTLTexture?
     private var flashScratch: [V4] = []
     private let frameGPULock = NSLock()
     private var frameGPUMs: Double = 0
@@ -420,7 +423,6 @@ final class Renderer: NSObject, MTKViewDelegate {
     private var mobBufIdx = 0
     private var mobPre: (buf: MTLBuffer, count: Int)?
     private var shadowHadMobs = false
-    private static let mobBufSize = 1 << 22
     var shadowFresh = false
 
     // Camera position and angles: first person, or pulled back behind / in front of the player (F5),
@@ -456,6 +458,71 @@ final class Renderer: NSObject, MTKViewDelegate {
     // map, HDR world pass, scene copy, HDR water/translucent pass, post (bloom, god rays, haze, tone map,
     // grading) into `final`, then the HUD.
     func renderFrame(_ cmd: MTLCommandBuffer, final: MTLRenderPassDescriptor, width: Int, height: Int) {
+        MobLight.nightVision = game.nightVision         // mobs share the terrain's night-vision lift
+        MobLight.fill = (0.06 + 0.3 * Settings.shared.lightBrightness) * (game.fancyGraphics && vib != nil ? 1 : 2)
+        MobDrawStats.mobs = game.mobs.mobs.count
+        MobDrawStats.near = 0
+        let pe = game.player.pos
+        for m in game.mobs.mobs where simd_length_squared(m.pos - pe) < 32 * 32 { MobDrawStats.near += 1 }
+        MobDrawStats.written = 0; MobDrawStats.drawn = 0; MobDrawStats.culled = 0; MobDrawStats.dropped = 0; MobDrawStats.path = "none"
+        HudLayout.splitFullH = game.coop.active ? Float(height) : 0
+        HudLayout.splitFullW = game.coop.active ? Float(width) : 0
+        if game.coop.active { renderSplit(cmd, final: final, width: width, height: height); return }
+        renderView(cmd, final: final, width: width, height: height)
+    }
+
+    // Split screen (Coop.swift): each seat's view (world + its own HUD and menus) renders at full width and a share of
+    // the height into an offscreen target, copied into its band of the frame (player 1 on top) with a thin dark gap.
+    private func renderSplit(_ cmd: MTLCommandBuffer, final: MTLRenderPassDescriptor, width: Int, height: Int) {
+        guard let out = final.colorAttachments[0].texture else { return }
+        let n = game.coop.seatCount
+        let gap = height >= 900 ? 4 : 2
+        // Top / bottom (wide views), or side by side (Options > Interface > Split Screen: taller views, menus stay bigger).
+        let side = Settings.shared.splitSideBySide
+        let w = side ? max(16, (width - gap * (n - 1)) / n) : width
+        let h = side ? height : max(16, (height - gap * (n - 1)) / n)
+        // Two views a frame: twice the per-frame scratch buffers (each view takes the next one).
+        while ring.count < 6 { ring.append(device.makeBuffer(length: ringSize, options: .storageModeShared)!) }
+        shipRenderer.ensureRing(6)
+        if splitColor?.width != w || splitColor?.height != h || splitColor?.pixelFormat != out.pixelFormat {
+            let cd = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: out.pixelFormat, width: w, height: h, mipmapped: false)
+            cd.usage = [.renderTarget, .shaderRead]
+            cd.storageMode = .private
+            splitColor = device.makeTexture(descriptor: cd)
+            let df = final.depthAttachment.texture?.pixelFormat ?? .depth32Float
+            let dd = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: df, width: w, height: h, mipmapped: false)
+            dd.usage = .renderTarget
+            dd.storageMode = .private
+            splitDepth = device.makeTexture(descriptor: dd)
+        }
+        guard let sc = splitColor, let sd = splitDepth else { return }
+        // Clear the whole frame (the gap stays dark).
+        final.colorAttachments[0].loadAction = .clear
+        final.colorAttachments[0].clearColor = MTLClearColor(red: 0.02, green: 0.02, blue: 0.025, alpha: 1)
+        final.colorAttachments[0].storeAction = .store
+        cmd.makeRenderCommandEncoder(descriptor: final)?.endEncoding()
+        let me = game.coop.current
+        for i in 0..<n {
+            game.coop.switchTo(i, game)
+            let rpd = MTLRenderPassDescriptor()
+            rpd.colorAttachments[0].texture = sc
+            rpd.colorAttachments[0].loadAction = .clear
+            rpd.colorAttachments[0].storeAction = .store
+            rpd.depthAttachment.texture = sd
+            rpd.depthAttachment.loadAction = .clear
+            rpd.depthAttachment.storeAction = .dontCare
+            rpd.depthAttachment.clearDepth = 1
+            renderView(cmd, final: rpd, width: w, height: h)
+            let b = cmd.makeBlitCommandEncoder()!
+            let ox = side ? i * (w + gap) : 0, oy = side ? 0 : i * (h + gap)
+            b.copy(from: sc, sourceSlice: 0, sourceLevel: 0, sourceOrigin: MTLOrigin(x: 0, y: 0, z: 0), sourceSize: MTLSize(width: w, height: h, depth: 1),
+                   to: out, destinationSlice: 0, destinationLevel: 0, destinationOrigin: MTLOrigin(x: ox, y: oy, z: 0))
+            b.endEncoding()
+        }
+        game.coop.switchTo(me, game)
+    }
+
+    private func renderView(_ cmd: MTLCommandBuffer, final: MTLRenderPassDescriptor, width: Int, height: Int) {
         updateCave()
         let clear = game.blindFog != nil ? V3(0, 0, 0) : (game.player.headInLava ? Game.lavaFog : (game.player.headInWater ? game.underwaterFog : viewSky))
         let cc = MTLClearColor(red: Double(clear.x), green: Double(clear.y), blue: Double(clear.z), alpha: 1)
@@ -470,7 +537,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         v.ensure(max(1, Int(Float(width) * rs)), max(1, Int(Float(height) * rs)))
         // The shadow map is re-rendered only when the light turned or the snapped centre moved (or every
         // 8th frame for block edits); otherwise last frame's map and matrix are reused.
-        let lf = Vibrant.lightFrame(game: game, eye: cameraEye().eye)
+        let lf = Vibrant.lightFrame(game: game, eye: game.coop.shadowFocus(game) ?? cameraEye().eye)
         shadowAge += 1
         let turned = simd_dot(lf.dir, lastShadow.dir) < 0.99995
         let moved = simd_length(lf.center - lastShadow.center) > 1.0
@@ -489,7 +556,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             keep.center = lastShadow.center
             lightFrame = keep
         }
-        mobShadowPass(shadowCmd, v, terrainChanged: terrainShadow)
+        mobShadowPass(shadowCmd, v, terrainChanged: terrainShadow, width: width, height: height)
         if shadowCmd !== cmd { shadowCmd.commit() }
         defer { mobPre = nil }
         let a = MTLRenderPassDescriptor()
@@ -546,25 +613,55 @@ final class Renderer: NSObject, MTKViewDelegate {
 
     // Mobs cast moving shadows: copy the terrain map and draw this frame's mob vertices on top. Skipped while
     // no mob has been in the map since the terrain map last changed (then shadowMap already holds the terrain).
-    func mobShadowPass(_ cmd: MTLCommandBuffer, _ v: Vibrant, terrainChanged: Bool) {
+    // The camera's view frustum for culling mobs before encode builds its own (same projection, a far far plane).
+    // Mobs past the loaded terrain's fog can't be seen (frigates far off are ships, not mobs).
+    var mobMaxDist: Float { Float(game.world.renderDistance * CS + 24) }
+
+    func mobCullFrustum(_ width: Int, _ height: Int) -> Frustum {
+        let (eye, camYaw, camPitch) = cameraEye()
+        let fov: Float = (game.cine.active ? game.cine.fov : game.fovSetting * game.fovScale) * .pi / 180
+        let proj = perspectiveRH(fovy: fov, aspect: Float(width) / Float(max(height, 1)), near: 0.05, far: 4000)
+        let viewRot = rotationX(-camPitch) * rotationY(-camYaw)
+        return Frustum(proj * viewRot * translationMatrix(-eye))
+    }
+
+    // This view's mob vertices (and the player model, and split screen's other player) in a buffer of their own: Fancy
+    // writes them before the shadow pass, Fast before its draw. Nearest mobs go first, and the buffers double (up to
+    // 16 MB) after a frame that had to drop some: a Capital soldier close up is 190 parts (330 KB of vertices), so a
+    // dozen filled the old 4 MB and the rest, the mobs beside the player among them, went undrawn (playtest 2026-10-05).
+    private var mobBufBytes = 1 << 22
+    func writeMobBuffer(eye: V3, daylight: Float, cull: Frustum) -> (buf: MTLBuffer, count: Int)? {
+        let want = game.coop.active ? 6 : 3           // split screen draws two views a frame
+        while mobBufs.count < want {
+            guard let b = device.makeBuffer(length: mobBufBytes, options: .storageModeShared) else { break }
+            mobBufs.append(b)
+        }
+        guard !mobBufs.isEmpty else { return nil }
+        mobBufIdx = (mobBufIdx + 1) % mobBufs.count
+        let buf = mobBufs[mobBufIdx]
+        let cap = buf.length / MemoryLayout<MobVert>.stride
+        let ptr = buf.contents().bindMemory(to: MobVert.self, capacity: cap)
+        let droppedBefore = MobDrawStats.dropped
+        var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: daylight, world: game.world, into: ptr, capacity: cap,
+                                 cull: cull, maxDist: mobMaxDist)
+        if game.showsPlayerModel { n += writePlayerModel(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n) }
+        n += game.coop.writeOthers(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n)
+        MobDrawStats.written += n
+        if MobDrawStats.dropped > droppedBefore && mobBufBytes < 1 << 24 {
+            mobBufBytes <<= 1
+            mobBufs.removeAll()                       // larger ones next frame (frames in flight keep theirs alive)
+        }
+        return (buf, n)
+    }
+
+    func mobShadowPass(_ cmd: MTLCommandBuffer, _ v: Vibrant, terrainChanged: Bool, width: Int, height: Int) {
         let lf = lightFrame
         let eye = cameraEye().eye
         var n = 0
-        if !game.mobs.mobs.isEmpty || game.showsPlayerModel {
-            if mobBufs.isEmpty {
-                for _ in 0..<3 { if let b = device.makeBuffer(length: Renderer.mobBufSize, options: .storageModeShared) { mobBufs.append(b) } }
-            }
-            if !mobBufs.isEmpty {
-                mobBufIdx = (mobBufIdx + 1) % mobBufs.count
-                let buf = mobBufs[mobBufIdx]
-                let cap = Renderer.mobBufSize / MemoryLayout<MobVert>.stride
-                let ptr = buf.contents().bindMemory(to: MobVert.self, capacity: cap)
-                n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: game.daylight, world: game.world, into: ptr, capacity: cap)
-                if game.showsPlayerModel {
-                    n += writePlayerModel(game, eye: eye, daylight: game.daylight, into: ptr + n, capacity: cap - n)
-                }
-                mobPre = (buf, n)
-            }
+        if !game.mobs.mobs.isEmpty || game.showsPlayerModel || game.coop.active,
+           let pre = writeMobBuffer(eye: eye, daylight: game.daylight, cull: mobCullFrustum(width, height)) {
+            mobPre = pre
+            n = pre.count
         }
         let cast = n > 0 && lf.shadowStrength > 0
         guard cast || shadowHadMobs || terrainChanged else { return }
@@ -704,6 +801,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                          params: V4(fogEnd, daylight, Float(game.time.truncatingRemainder(dividingBy: 1000)), underwater ? 1 : 0),
                          sunDir: V4(game.sunDir, ambient),
                          eye: V4(eye, game.fancyGraphics ? 1 + fogGlow : 0))
+        u.dimTint.w = Settings.shared.lightBrightness                            // cave fill strength (Shaders.caveFill)
         if hdrActive {
             let lf = lightFrame
             u.invViewProj = viewProj.inverse
@@ -714,7 +812,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             u.screen = V4(VW, VH, 1 / max(VW, 1), 1 / max(VH, 1))
             // Dimension ambient colour: ember-warm in the Emberdeep, cool violet in the Hollow (night vision stays white).
             let dimC: V3 = game.dim.dim == .nether ? V3(1.0, 0.78, 0.68) : (game.dim.dim == .end ? V3(0.86, 0.8, 1.0) : V3(1, 1, 1))
-            u.dimTint = V4(simd_mix(dimC, V3(1, 1, 1), V3(repeating: game.nightVision)), 0)
+            u.dimTint = V4(simd_mix(dimC, V3(1, 1, 1), V3(repeating: game.nightVision)), Settings.shared.lightBrightness)
             // Post: sun position for god rays, bloom, haze and grading.
             var pp = PostParams()
             // Eyes adapt at night: exposure rises as daylight falls (only with open sky above).
@@ -1004,7 +1102,9 @@ final class Renderer: NSObject, MTKViewDelegate {
 
         // Mobs (written straight into the scratch ring: no per-frame arrays); Fancy wrote them before the shadow pass.
         if let pre = mobPre, hdrActive {
+            MobDrawStats.path = "Fancy buffer"
             if pre.count > 0 {
+                MobDrawStats.drawn += pre.count
                 enc.setRenderPipelineState(mobPipe)
                 enc.setDepthStencilState(depthWrite)
                 enc.setCullMode(.none)
@@ -1013,24 +1113,21 @@ final class Renderer: NSObject, MTKViewDelegate {
                 enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
                 enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: pre.count)
             }
-        } else if !game.mobs.mobs.isEmpty || tp {
-            let off = (scratchOff + 255) & ~255
-            let cap = max(0, ringSize - ringTailReserve - off) / MemoryLayout<MobVert>.stride
-            if cap > 36 {
-                let ptr = (scratch.contents() + off).bindMemory(to: MobVert.self, capacity: cap)
-                var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: daylight, world: game.world, into: ptr, capacity: cap)
-                if tp { n += writePlayerModel(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n) }
-                if n > 0 {
-                    scratchOff = off + n * MemoryLayout<MobVert>.stride
+        } else if !game.mobs.mobs.isEmpty || tp || game.coop.active {
+            // Fast: the same buffers (the frame's scratch ring shares its 4 MB with everything else).
+            if let pre = writeMobBuffer(eye: eye, daylight: daylight, cull: frustum) {
+                MobDrawStats.path = hdrActive ? "Fancy (no shadow pass)" : "Fast buffer"
+                if pre.count > 0 {
+                    MobDrawStats.drawn += pre.count
                     enc.setRenderPipelineState(mobPipe)
                     enc.setDepthStencilState(depthWrite)
                     enc.setCullMode(.none)
-                    enc.setVertexBuffer(scratch, offset: off, index: 0)
+                    enc.setVertexBuffer(pre.buf, offset: 0, index: 0)
                     enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
                     enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
-                    enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: n)
+                    enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: pre.count)
                 }
-            }
+            } else { MobDrawStats.path = "no mob buffer" }
         }
 
         // Dropped items and the crack overlay (written straight into the scratch ring)
@@ -1212,7 +1309,8 @@ final class Renderer: NSObject, MTKViewDelegate {
             // Skylight keeps a moonlit floor like the terrain's night ambient (the held block was a black cube on a
             // moonlit meadow: blind critic, run 395 torches).
             let skyK: Float = 0.12 + 0.88 * daylight          // ~0.22 at night: 0.38 read 3x the terrain (critic, run 417)
-            let light = max(0.12, max(Float(l.sky) / 15 * skyK, Float(l.block) / 15), game.nightVision * 0.9)
+            let fill: Float = max(0.12, MobLight.fill)                                    // the cave fill at arm's length
+            let light = max(fill, max(Float(l.sky) / 15 * skyK, Float(l.block) / 15), game.nightVision * 0.9)
             let sw = game.swing
             let a = sinf(sqrtf(sw) * .pi)
             let bob = sinf(game.walkBob * 2) * 0.02 * game.walkAmount
@@ -1306,18 +1404,38 @@ final class Renderer: NSObject, MTKViewDelegate {
     // MARK: HUD (pixel coordinates, origin top-left)
 
     var hudScale: Float = 2
+    private var hudScratch: [HudVert] = []
 
     func buildHUD(_ W: Float, _ H: Float) -> [HudVert] {
-        var v: [HudVert] = []
+        // The vertex array keeps its storage from frame to frame (it grew from empty every frame: profile).
+        var v = hudScratch
+        hudScratch = []
+        v.removeAll(keepingCapacity: true)
+        defer { hudScratch = v }
         let L = HudLayout(W, H)
         let s = L.s
         hudScale = s
         self.game.screen = V2(W, H)
         func quad(_ p: [V2], _ uv: [V2], _ c: V4, _ layer: Float) {
-            for i in [0, 1, 2, 0, 2, 3] { v.append(HudVert(pos: p[i], uv: uv[i], color: c, extra: V4(layer, 0, 0, 0))) }
+            let ex = V4(layer, 0, 0, 0)
+            v.append(HudVert(pos: p[0], uv: uv[0], color: c, extra: ex)); v.append(HudVert(pos: p[1], uv: uv[1], color: c, extra: ex))
+            v.append(HudVert(pos: p[2], uv: uv[2], color: c, extra: ex)); v.append(HudVert(pos: p[0], uv: uv[0], color: c, extra: ex))
+            v.append(HudVert(pos: p[2], uv: uv[2], color: c, extra: ex)); v.append(HudVert(pos: p[3], uv: uv[3], color: c, extra: ex))
         }
+        // An axis-aligned textured quad (text glyphs) without building corner arrays.
+        func glyphQuad(_ x: Float, _ y: Float, _ w: Float, _ h: Float, _ u1: Float, _ v1: Float, _ c: V4, _ layer: Float) {
+            let ex = V4(layer, 0, 0, 0)
+            let a = HudVert(pos: V2(x, y), uv: V2(0, 0), color: c, extra: ex), b = HudVert(pos: V2(x + w, y), uv: V2(u1, 0), color: c, extra: ex)
+            let d = HudVert(pos: V2(x + w, y + h), uv: V2(u1, v1), color: c, extra: ex), e = HudVert(pos: V2(x, y + h), uv: V2(0, v1), color: c, extra: ex)
+            v.append(a); v.append(b); v.append(d); v.append(a); v.append(d); v.append(e)
+        }
+        // Plain rectangles (most of the HUD: panels, bars, the minimap) without building corner arrays.
         func rect(_ x: Float, _ y: Float, _ w: Float, _ h: Float, _ c: V4) {
-            quad([V2(x, y), V2(x + w, y), V2(x + w, y + h), V2(x, y + h)], [V2](repeating: .zero, count: 4), c, -1)
+            let z = V2(0, 0), ex = V4(-1, 0, 0, 0)
+            let a = V2(x, y), b = V2(x + w, y), d = V2(x + w, y + h), e = V2(x, y + h)
+            v.append(HudVert(pos: a, uv: z, color: c, extra: ex)); v.append(HudVert(pos: b, uv: z, color: c, extra: ex))
+            v.append(HudVert(pos: d, uv: z, color: c, extra: ex)); v.append(HudVert(pos: a, uv: z, color: c, extra: ex))
+            v.append(HudVert(pos: d, uv: z, color: c, extra: ex)); v.append(HudVert(pos: e, uv: z, color: c, extra: ex))
         }
         let game = self.game
         // Pixel-font text; scale = size of one font pixel in screen pixels.
@@ -1351,11 +1469,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     let w = Float(Font.glyphs[code - 32][0])
                     let rows = Float(Font.rows(code))                 // 8 for g j p q y (a row below the baseline)
                     let layer = Float(Font.layerBase + code - 32)
-                    let uv = [V2(0, 0), V2(w / 16, 0), V2(w / 16, rows / 16), V2(0, rows / 16)]
-                    func g(_ ox: Float, _ oy: Float, _ c: V4) {
-                        let a = V2(cx + ox, y + oy)
-                        quad([a, a + V2(w * scale, 0), a + V2(w * scale, rows * scale), a + V2(0, rows * scale)], uv, c, layer)
-                    }
+                    func g(_ ox: Float, _ oy: Float, _ c: V4) { glyphQuad(cx + ox, y + oy, w * scale, rows * scale, w / 16, rows / 16, c, layer) }
                     if shadow { g(scale, scale, V4(color.x * 0.25, color.y * 0.25, color.z * 0.25, color.w)) }
                     g(0, 0, color)
                 }
@@ -1783,6 +1897,11 @@ final class Renderer: NSObject, MTKViewDelegate {
                     if id == 490 {
                         rect(x, y, Float(sl.w) * s, Float(sl.h) * s, hot ? V4(0.6, 0.75, 0.6, 1) : V4(0.55, 0.45, 0.3, 1))
                         itemIcon(ItemStack(Items.id("book"), 1), x + s, y + s, 16 * s, counts: false)
+                        // The inventory's way into its crafting book (LB/RB too): labelled, an icon alone was easy to miss.
+                        if m is InventoryMenu {
+                            let lw = textWidth("Craft", s)
+                            text("Craft", x + (Float(sl.w) * s - lw) / 2, y + Float(sl.h + 2) * s, s, hot ? V4(1, 1, 0.7, 1) : V4(1, 1, 1, 1))
+                        }
                     } else if id >= RecipeBook.base {
                         let k = book.page * RecipeBook.perPage + id - RecipeBook.base
                         guard k < book.list.count else { continue }
@@ -2396,7 +2515,7 @@ final class Renderer: NSObject, MTKViewDelegate {
             "Chunks \(w.chunks.count) loaded, \(w.meshedCount) meshed, \(drawnChunks) drawn, \(w.pendingJobs) jobs, RD \(w.renderDistance)",
             "Target \(tgt)",
             "\(p.flying ? "flying" : (p.onGround ? "on ground" : "in air"))\(p.inWater ? ", in water" : "")  Time \(String(format: "%02d:00", hour))  Controller \(game.padConnected ? "yes" : "no")",
-            "Mobs \(game.mobs.mobs.count)  Fluid queue \(w.fluidPending.count)",
+            "Mobs: " + MobDrawStats.line + "  Fluid queue \(w.fluidPending.count)",
             String(format: "GPU %.1f ms  Graphics %@  Render scale %d%%", gpuFrameMs, game.fancyGraphics ? "Fancy" : "Fast", Int((game.renderScale * 100).rounded())),
             game.audioDebugLine(),
         ]

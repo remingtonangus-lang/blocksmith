@@ -11,6 +11,7 @@ final class PadManager {
     private(set) var style: Style = .xbox
     var simulated: PadSnapshot?          // harness input; replaces the Touch controllers while set
     var touch: PadSnapshot?              // this frame's Touch-controller pad (set by the XR layer before Game.tick)
+    var controller: GCController? { nil }    // (Coop.swift) no GameController pad on the Quest
     private(set) var usingPad = true     // the Quest has no keyboard: prompts always show controller buttons
     var onConnect: ((String) -> Void)?
     var onDisconnect: ((String, Bool) -> Void)?

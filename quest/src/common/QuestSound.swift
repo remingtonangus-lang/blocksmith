@@ -15,6 +15,7 @@ final class QuestClip {
 
 final class SoundEngine {
     let bank = SoundBank()
+    var custom: CustomMusic? { nil }            // no own-music folder on the Quest (MacOnlyStubs.swift)
     static let rate = SoundBank.rate
 
     // One mixer voice. The game thread writes the target gains; the mixer glides toward them per block.

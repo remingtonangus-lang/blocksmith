@@ -41,6 +41,12 @@ final class Settings {
     @Pref("fpsCap") var fpsCap = 0                   // 0 = display refresh rate
     @Pref("display") var display = ""                // screen name to play on ("" = main screen)
     @Pref("renderScale") var renderScale: Float = 1  // whole-frame resolution scale (TVs at 4K: 0.75 saves a lot); Fancy world scale is Game.renderScale
+    @Pref("musicSource") var musicSource = 0         // 0 built-in soundtrack, 1 My Music (CustomMusic folder), 2 mixed
+    @Pref("musicShuffle") var musicShuffle = true
+    @Pref("customMusicVolume") var customMusicVolume: Float = 1    // on top of Music
+    @Pref("brightness") var brightness: Float = 0.5  // cave fill and light curve lift: 0 moody, 0.5 default, 1 bright (Shaders.caveFill)
+    var brightnessOverride: Float?                  // harness --bright (not saved)
+    var lightBrightness: Float { brightnessOverride ?? brightness }
 
     // Interface
     @Pref("safeArea") var safeArea = 0               // percent of the screen kept clear at each edge (TV overscan)
@@ -50,6 +56,7 @@ final class Settings {
     @Pref("minimap") var minimap = true             // biome minimap in the top-right corner
     @Pref("chipping") var chipping = true           // mining chips pieces off a block until it breaks (World.chip)
     @Pref("crosshair") var crosshair = 0             // 0 classic, 1 bold (high contrast), 2 dot
+    @Pref("splitSideBySide") var splitSideBySide = false   // split screen (Coop.swift): left / right instead of top / bottom
 
     // Accessibility
     // One subtitles setting for the whole game; stored here (key kept from the audio workstream). AudioSettings.subtitles
@@ -65,8 +72,9 @@ final class Settings {
     // Options > Interface > Reset Options: everything back to the defaults (key bindings included).
     func resetAll(_ g: Game) {
         lookX = 3; lookY = 3; lookAccel = 3; lookDead = 0.08; lookOuter = 0.05; moveOuter = 0.05; aimAssist = true; rumble = 0.7; southpaw = false; sneakToggle = false; autoSprint = true; lookCurve = 0; flightInverted = true
-        launchFullscreen = true; vsync = true; fpsCap = 0; renderScale = 1
-        safeArea = 0; buttonHints = true; glyphStyle = 0; textBackground = 0; crosshair = 0; minimap = true
+        launchFullscreen = true; vsync = true; fpsCap = 0; renderScale = 1; brightness = 0.5
+        musicSource = 0; musicShuffle = true; customMusicVolume = 1
+        safeArea = 0; buttonHints = true; glyphStyle = 0; textBackground = 0; crosshair = 0; minimap = true; splitSideBySide = false
         subtitles = false; colorblind = false; tutorialHints = true; screenEffects = true; narrator = false
         g.fovSetting = 70; g.sensitivity = 1; g.invertY = false; g.autoJump = false; g.deadZone = 0.08
         g.volumeSetting = 0.8; g.musicVolume = 1

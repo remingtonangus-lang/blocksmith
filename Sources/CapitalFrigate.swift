@@ -183,7 +183,7 @@ extension Capital {
             let half = Int(10 - Float(y - 15) * 0.32)
             hb.set(half, y, z, glass); hb.set(-half, y, z, glass)
         } }
-        hb.fill(-6, 6, 21, 21, 53, 64, trim)                        // bridge deck
+        hb.fill(-6, 6, 21, 21, 53, 66, trim)                        // bridge deck (to the ladder head at z 66: stream B found it a block short)
         hb.set(0, 22, 55, Blocks.id("ship_helm[south]"))
         for x in [-4, -2, 2, 4] { hb.set(x, 22, 54, console) }
         hb.set(0, 25, 60, light); hb.set(0, 25, 64, light)
@@ -241,6 +241,7 @@ extension Capital {
         // Drive: an engine room aft (critical systems), four nozzles in the transom, lift strips under the keel.
         for sx in [-1, 1] { hb.fill(sx * 5 - 2, sx * 5 + 2, 5, 7, 118, 132, engine) }
         for nx in [-7, 7] { for ny in [7, 11] {
+            hb.exhausts.append(V3(Float(nx + W) + 0.5, Float(ny) + 0.5, Float(L) - 0.5))
             for y in (ny - 3)...(ny + 3) { for x in (nx - 3)...(nx + 3) where cfHull(x, y, L - 1) {
                 let rr = Float((x - nx) * (x - nx) + (y - ny) * (y - ny))
                 if rr < 5 { hb.set(x, y, L - 1, light); hb.set(x, y, L - 2, light) }

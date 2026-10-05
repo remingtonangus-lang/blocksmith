@@ -90,7 +90,9 @@ struct StructWriter {
         var yy = y
         while yy >= minY {
             let cur = blocks[Chunk.index(x - bx, yy, z - bz)]
-            if Blocks.opaque[Int(cur)] && cur != b { break }
+            // Ground that holds you stops the pillar; powder snow (opaque, but you sink) doesn't: an igloo's entrance
+            // tunnel stood on it with no floor, so its room was unreachable (structcheck igloo, run 509).
+            if Blocks.opaque[Int(cur)] && Blocks.collide[Int(cur)] && cur != b { break }
             blocks[Chunk.index(x - bx, yy, z - bz)] = b
             yy -= 1
         }

@@ -44,6 +44,8 @@ enum CraftCategory: Int, CaseIterable {
 
 // Crafting straight from the inventory (no grid): shared by the crafting book and the inventory's recipe panel.
 enum CraftBook {
+    static var flashItem: ItemID = 0           // the last crafted result and when (its tile flashes)
+    static var flashAt: Double = -10
     static func needs(_ r: Recipe) -> [String] { RecipeBook.needs(r) }
 
     static func pool(_ g: Game) -> [ItemID: Int] {
@@ -109,7 +111,13 @@ enum CraftBook {
             for b in returns { let left = g.inventory.add(b); if !left.isEmpty { g.dropItem(left) } }
             made += 1
         }
-        if made > 0 { g.sfx(.pickup, 0.6) }
+        if made > 0 {
+            // Feedback on three channels: the pickup sound, a flash on the tile, a light tap on the controller.
+            g.sfx(.pickup, 0.6)
+            flashItem = r.result.item
+            flashAt = g.clock
+            PadManager.shared.rumble(min(0.35, 0.12 + 0.02 * Float(made)), 0.05)
+        }
         return made
     }
 
@@ -154,7 +162,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
 
     init(game: Game, size: Int = 3) {
         self.size = size
-        super.init("Crafting", game: game)
+        super.init(size == 3 ? "Crafting" : "Crafting (2x2)", game: game)
         width = 344
         height = 262
         showInventoryLabel = false
@@ -179,10 +187,9 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             let b = MenuSlot(x, 207, nil, 0, .button(id)); b.w = w; b.h = 16
             slots.append(b)
         }
-        if size == 3 {
-            let b = MenuSlot(196, 228, nil, 0, .button(CraftingBookMenu.gridBtn)); b.w = 140; b.h = 16
-            slots.append(b)
-        }
+        // The manual grid (a table's 3x3, or the inventory with its 2x2 grid and armour).
+        let gb = MenuSlot(196, 228, nil, 0, .button(CraftingBookMenu.gridBtn)); gb.w = 140; gb.h = 16
+        slots.append(gb)
         addPlayerInventory(y: 186, x: 8)
         refresh()
     }
@@ -271,7 +278,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             amount = a[max(0, min(a.count - 1, k + (id == CraftingBookMenu.amountUp ? 1 : -1)))]
             game.sfx(.click, 0.3)
         case CraftingBookMenu.gridBtn:
-            game.switchMenu(to: CraftingTableMenu(game: game))
+            game.switchMenu(to: size == 3 ? CraftingTableMenu(game: game) : InventoryMenu(game: game))
         default: break
         }
     }
@@ -348,6 +355,8 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             box(sl.x, sl.y, sl.w, sl.h, ok ? V4(0.86, 0.9, 0.86, 1) : V4(0.6, 0.6, 0.62, 1))
             icon(r.result, sl.x + 2, sl.y + 2)
             if !ok { box(sl.x, sl.y, sl.w, sl.h, V4(0.35, 0.35, 0.38, 0.55)) }
+            let since = Float(game.clock - CraftBook.flashAt)
+            if r.result.item == CraftBook.flashItem && since < 0.3 { box(sl.x, sl.y, sl.w, sl.h, V4(1, 1, 0.82, 0.65 * (1 - since / 0.3))) }
         }
         if list.isEmpty {
             label(tab == .craftable ? "Nothing craftable yet: gather materials" : "No recipes here", 14, 100, ink, maxW: 170)
@@ -385,14 +394,23 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             // What you have of each distinct ingredient.
             var rowsDone = Set<String>()
             var ly = 86
+            // Count and name on two lines when there is room (one line cut names short: "84/3 Oak Plan.", TV shot).
+            let twoLines = Set(CraftBook.needs(r)).count <= 3
             for ing in CraftBook.needs(r) where !rowsDone.contains(ing) && ly < 140 {
                 rowsDone.insert(ing)
                 let need = CraftBook.needs(r).filter { $0 == ing }.count
                 let opts = ing.hasPrefix("#") ? Array(Recipes.tagSets[String(ing.dropFirst())] ?? []) : (Items.has(ing) ? [Items.id(ing)] : [])
                 let got = opts.reduce(0) { $0 + (pool[$1] ?? 0) }
                 let nm = ing.hasPrefix("#") ? "Any " + String(ing.dropFirst()).replacingOccurrences(of: "_", with: " ") : (opts.first.map { Items.def($0).display } ?? ing)
-                label("\(got)/\(need) \(nm)", 258, ly, got >= need ? ink : V4(0.6, 0.12, 0.1, 1), maxW: 78)
-                ly += 11
+                let col = got >= need ? ink : V4(0.6, 0.12, 0.1, 1)
+                if twoLines {
+                    label("\(got) / \(need)", 258, ly, col, maxW: 78)
+                    label(nm, 258, ly + 9, col, maxW: 78)
+                    ly += 20
+                } else {
+                    label("\(got)/\(need) \(nm)", 258, ly, col, maxW: 78)
+                    ly += 11
+                }
             }
         } else {
             label("Choose a recipe", 200, 60, ink, maxW: 130)
@@ -410,7 +428,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             case CraftingBookMenu.amountDown: t = "-"
             case CraftingBookMenu.amountUp: t = "+"
             case CraftingBookMenu.craftAmount: t = "Craft \(amount)x"
-            default: t = "Manual grid"
+            default: t = size == 3 ? "Manual grid" : "Inventory & 2x2 grid"
             }
             label(t, sl.x + (sl.w - Font.width(t)) / 2, sl.y + 4)
         }

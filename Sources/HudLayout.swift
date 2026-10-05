@@ -10,6 +10,9 @@ struct HudLayout {
     static let cols = 9
     static var userScale: Int = UserDefaults.standard.integer(forKey: "guiScale") { didSet { UserDefaults.standard.set(userScale, forKey: "guiScale") } }
     static var couch: Bool = UserDefaults.standard.bool(forKey: "couchMode") { didSet { UserDefaults.standard.set(couch, forKey: "couchMode") } }
+    // Split screen (Coop.swift): the whole frame's height, so each half-height view keeps the TV's full overscan margin.
+    static var splitFullH: Float = 0
+    static var splitFullW: Float = 0
 
     // TV overscan margins (Settings.safeArea percent of each edge), in pixels.
     let insetX: Float
@@ -19,8 +22,8 @@ struct HudLayout {
         self.W = W
         self.H = H
         let safe = Float(max(0, min(10, Settings.shared.safeArea))) / 100
-        insetX = floor(W * safe)
-        insetY = floor(H * safe)
+        insetX = floor((HudLayout.splitFullW > 0 ? HudLayout.splitFullW : W) * safe)
+        insetY = floor((HudLayout.splitFullH > 0 ? HudLayout.splitFullH : H) * safe)
         // Auto scale fits the classic 400x300 layout; couch mode (TV) targets ~280x210 for big text.
         let uw = W - 2 * insetX, uh = H - 2 * insetY
         let auto = max(1, min(floor(uw / (HudLayout.couch ? 280 : 400)), floor(uh / (HudLayout.couch ? 210 : 300))))
@@ -34,8 +37,8 @@ struct HudLayout {
         self.W = W
         self.H = H
         let safe = Float(max(0, min(10, Settings.shared.safeArea))) / 100
-        insetX = floor(W * safe)
-        insetY = floor(H * safe)
+        insetX = floor((HudLayout.splitFullW > 0 ? HudLayout.splitFullW : W) * safe)
+        insetY = floor((HudLayout.splitFullH > 0 ? HudLayout.splitFullH : H) * safe)
         s = max(1, scale)
         slot = 20 * s
     }

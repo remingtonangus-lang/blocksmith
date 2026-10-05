@@ -215,6 +215,7 @@ enum Snapshot {
             game.sfx(.birdCall, at: e + r * 8 + V3(0, 4, 0))
             game.sfx(.hurt)
         }
+        if let b = Float(arg("--bright") ?? "") { Settings.shared.brightnessOverride = max(0, min(1, b)) }
         if CommandLine.arguments.contains("--fast") {
             // Fast graphics for this shot only: keep the user's saved preference untouched.
             let saved = UserDefaults.standard.object(forKey: "fancyGraphics")
@@ -244,14 +245,14 @@ enum Snapshot {
                 let m = CommandMenu(game: game, prefill: "/give dia")
                 m.complete()
                 game.openMenu(m)
-            case "craftbook", "craftbook_all":
+            case "craftbook", "craftbook_all", "craftbook2":
                 // The crafting book (CraftingBook.swift) with a starter kit: logs, cobblestone, iron, sticks, string.
                 for (i, (n, c)) in [("oak_log", 12), ("cobblestone", 30), ("iron_ingot", 9), ("stick", 8), ("string", 3), ("coal", 6),
                                     ("oak_planks", 20), ("redstone", 5)].enumerated() {
                     game.inventory.main[9 + i] = ItemStack(Items.id(n), c)
                 }
                 CraftingBookMenu.lastTab = which == "craftbook" ? .craftable : .building
-                let m = CraftingBookMenu(game: game)
+                let m = CraftingBookMenu(game: game, size: which == "craftbook2" ? 2 : 3)
                 game.openMenu(m)
                 game.menuCursor = CraftCategory.allCases.count + 3           // a tile: the detail panel shows its recipe
                 m.selected = m.recipe(at: 3)
@@ -1142,7 +1143,6 @@ enum Snapshot {
         }
         if CommandLine.arguments.contains("--physicstest") { shipFails = ShipTest.physicsTest(game: game, rd: rd); pos = game.player.pos }
         if CommandLine.arguments.contains("--capitaltest") { shipFails += ShipTest.capitalTest(game: game, rd: rd); pos = game.player.pos }
-        if CommandLine.arguments.contains("--ridetest") { shipFails += ShipTest.rideTest(game: game, rd: rd); pos = game.player.pos }
 
         // Mesh benchmark: re-mesh the section at the camera a few times on one thread.
         let key = ChunkKey(x: floorDiv(Int(pos.x), CS), z: floorDiv(Int(pos.z), CS))
@@ -1390,9 +1390,58 @@ enum Snapshot {
             game.player.pos.y = Float(SEA) - 4
             game.player.headInWater = true
         }
+        if CommandLine.arguments.contains("--mobcheck") { shipFails += MobRenderCheck.run(game, renderer) }   // every mob kind draws
+        if CommandLine.arguments.contains("--plantcheck") { shipFails += PlantCheck.run(game) }                 // stacked plants pop
+        if CommandLine.arguments.contains("--musiccheck") { shipFails += MusicCheck.run(game) }                 // your own music folder
+        if CommandLine.arguments.contains("--coop") {
+            // Split screen: player 2 joins (a neutral simulated pad) a few blocks ahead, turned back to face player 1.
+            game.coop.simulated[1] = PadSnapshot()
+            game.coop.join(game, controller: nil)
+            if CommandLine.arguments.contains("--splitside") { Settings.shared.splitSideBySide = true }   // with --couch (prefs sandboxed)
+            if CommandLine.arguments.contains("--cooptest") { shipFails += CoopTest.run(game) }
+            let p1 = game.player
+            let fwd = V3(-sinf(p1.yaw), 0, -cosf(p1.yaw)), right = V3(cosf(p1.yaw), 0, -sinf(p1.yaw))
+            game.coop.withSeat(1, game) {
+                game.player.pos = game.settleSpawn(p1.pos + fwd * 4 + right * 1.2)
+                game.player.yaw = p1.yaw + .pi
+                game.player.pitch = -0.05
+                game.player.flying = false
+                game.selected = 3
+            }
+        }
         _ = renderer.renderToPNG(path: out, width: w, height: h) // warm-up (pipeline + residency)
         _ = renderer.renderToPNG(path: out, width: w, height: h)
         let gpu = renderer.medianFrame(30, width: w, height: h)
+        // --pick x,y[;x,y...]: what a screen pixel shows - the first non-air block along its ray (water and lava count),
+        // for questions like "what is that streak?" (volcano_far, run 470).
+        if let picks = arg("--pick") {
+            let (eye, yaw, pitch) = renderer.cameraEye()
+            let fovY: Float = game.fovSetting * game.fovScale * .pi / 180
+            let t: Float = tanf(fovY * 0.5), aspect: Float = Float(w) / Float(h)
+            let f = V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch))
+            let r = V3(cosf(yaw), 0, -sinf(yaw))
+            let u = simd_cross(r, f)
+            for pair in picks.split(separator: ";") {
+                let xy = pair.split(separator: ",").compactMap { Float($0) }
+                guard xy.count == 2 else { continue }
+                let nx: Float = xy[0] / Float(w) * 2 - 1, ny: Float = 1 - xy[1] / Float(h) * 2
+                let side: V3 = r * (nx * t * aspect)
+                let lift: V3 = u * (ny * t)
+                let d = simd_normalize(f + side + lift)
+                var hit = "nothing within 800"
+                var s: Float = 0
+                while s < 800 {
+                    let q = eye + d * s
+                    let b = world.block(Int(floor(q.x)), Int(floor(q.y)), Int(floor(q.z)))
+                    if b != AIR {
+                        hit = String(format: "%@ at %d %d %d (%.0f blocks)", Blocks.key(b), Int(floor(q.x)), Int(floor(q.y)) - YOFF, Int(floor(q.z)), s)
+                        break
+                    }
+                    s += 0.05
+                }
+                print("pick \(Int(xy[0])),\(Int(xy[1])): \(hit)")
+            }
+        }
 
         print(String(format: "seed %llu  pos %.1f %.1f %.1f  rd %ld  chunks %ld  (drawn %ld)", seed, pos.x, pos.y, pos.z, rd, world.chunks.count, renderer.drawnChunks))
         print(String(format: "gen %.0f ms  mesh(all, parallel) %.0f ms  mesh(1 section) %.2f ms  quads %ld opaque / %ld water", t.gen * 1000, t.mesh * 1000, meshMs, quads, water))
@@ -1579,6 +1628,7 @@ if let dir = arg("--terrainmap") { exit(TerrainTools.maps(dir)) }
 if CommandLine.arguments.contains("--genbench") { exit(TerrainTools.genBench()) }
 if CommandLine.arguments.contains("--kelpcheck") { exit(TerrainTools.kelpCheck()) }
 if arg("--agent") != nil { exit(AgentRun.run()) }
+if CommandLine.arguments.contains("--ridecheck") { exit(RideCheck.run()) }
 if CommandLine.arguments.contains("--behaviorsim") { exit(BehaviorSim.run()) }
 if CommandLine.arguments.contains("--collisiontest") {
     guard let device = MTLCreateSystemDefaultDevice() else { print("no Metal device"); exit(1) }

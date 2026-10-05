@@ -19,3 +19,6 @@ Agent.swift
 AgentBots.swift
 AgentRun.swift
 BehaviorSim.swift
+CustomMusic.swift
+MobRenderCheck.swift
+RideCheck.swift

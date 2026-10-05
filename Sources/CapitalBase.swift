@@ -220,6 +220,11 @@ enum CapitalBase {
         w.fill(X(-2), P1 + 1, Z(HA - 1), X(2), P1 + 4, Z(HA), AIR)
         w.fill(X(-HA), P1 + 1, Z(-1), X(-HA + 1), P1 + 3, Z(1), AIR); w.fill(X(HA - 1), P1 + 1, Z(-1), X(HA), P1 + 3, Z(1), AIR)
         w.fill(X(-1), P1 + 1, Z(-HA), X(1), P1 + 3, Z(-HA + 1), AIR)
+        // A solid white transom over each doorway up to the grey band (the cut left pier stubs hanging over the door
+        // under a strip of glass: blind critic, citadel_plaza).
+        w.fill(X(-3), P1 + 5, Z(HA - 1), X(3), P2 - 2, Z(HA), white)
+        w.fill(X(-HA), P1 + 4, Z(-2), X(-HA + 1), P2 - 2, Z(2), white); w.fill(X(HA - 1), P1 + 4, Z(-2), X(HA), P2 - 2, Z(2), white)
+        w.fill(X(-2), P1 + 4, Z(-HA), X(2), P2 - 2, Z(-HA + 1), white)
         // Foyer: reception consoles, planters.
         for dx in -3...3 where abs(dx) > 1 { put(dx, P1 + 1, 17, C) }
         for sx in [-1, 1] { put(sx * 6, P1 + 1, 24, grass); put(sx * 6, P1 + 2, 24, hedge); put(sx * 9, P1 + 1, 24, grass); put(sx * 9, P1 + 2, 24, bloom) }

@@ -19,6 +19,7 @@ extension Game {
         let q = world.gravityQueue
         world.gravityQueue.removeAll(keepingCapacity: true)
         for p in q {
+            if plantSupportCheck(p) { continue }          // plants that lost their support pop (PlantSupport.swift)
             let b = world.block(p.x, p.y, p.z)
             guard World.fallingIDs[Int(b)], p.y > 0 else {
                 hardenConcrete(p)

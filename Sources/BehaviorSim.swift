@@ -138,7 +138,7 @@ enum BehaviorSim {
     static var traceTicks = 0
     static var spinTraced = 0
     static var spinTraces = 0
-    static func startTrace(_ m: Mob, _ w: World, _ why: String, spin: Bool = false) {
+    static func startTrace(_ m: Mob, _ w: World, _ why: String, spin: Bool = false, game: Game? = nil) {
         guard Mob.trace == nil else { return }
         if spin { guard spinTraces < 2 else { return }; spinTraces += 1 } else {
             guard traced < 2, m.kind == .villager else { return }
@@ -162,6 +162,16 @@ enum BehaviorSim {
                      Blocks.key(w.block(feet.x, feet.y, feet.z)), Blocks.key(w.block(feet.x, feet.y - 1, feet.z)), m.yaw * 180 / .pi))
         print("  path ahead: \(ahead.joined(separator: "; "))")
         print("  around feet (feet/head): \(around.joined(separator: "; "))")
+        if m.kind.steelhold, let b = m.brain {
+            // Soldiers spun standing with no stroll goal (run 509): what their AI was turning toward.
+            let home: Float = m.home.map { simd_length(V2($0.x - p.x, $0.z - p.z)) } ?? -1
+            var foe = "none"
+            if let g = game, let f = w.ships.nearestFoe(of: m.factionValue, near: p, range: 120, game: g) {
+                if let sh = f.ship { foe = "ship " + (sh.role ?? "-") }
+                else if let fm = f.mob { foe = fm.kind.key + " faction \(fm.factionValue)" }
+            }
+            print("  soldier: faction \(m.factionValue), aggro \(m.aggro), lock \(m.lockTime), sees \(b.sees), seen \(b.seenAgo) s ago, home \(home) away, foe \(foe)")
+        }
     }
 
     static func sample(_ t: Track, _ g: Game, _ w: World, phase: String, second: Int) {
@@ -222,7 +232,7 @@ enum BehaviorSim {
                     print(head + state + ", " + tail)
                     // 3 s of per-tick physics with the waypoint it steers at (orbiting a cell centre it can't reach,
                     // flipping between two nodes, or turned by something else).
-                    startTrace(m, w, "spin " + state, spin: true)
+                    startTrace(m, w, "spin " + state, spin: true, game: g)
                 }
             }
             if t.reversals > 12 { t.flags["jitter", default: 0] += 1 }

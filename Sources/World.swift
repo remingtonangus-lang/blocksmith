@@ -49,6 +49,10 @@ final class World {
     private var jobs = 0
     let maxJobs: Int
     private var lastCenter: ChunkKey?
+    // Split-screen co-op (Coop.swift): the second player's position, streamed around like the first (nil when alone).
+    var extraCenter: V3?
+    private var lastExtra: ChunkKey?
+    private var scanExtra: ChunkKey?
     private var offsets: [(Int, Int, Int)] = []
 
     private(set) var meshedCount = 0
@@ -176,7 +180,7 @@ final class World {
         let old = c.blocks[Chunk.index(lx, y, lz)]
         c.blocks[Chunk.index(lx, y, lz)] = id
         if !redstone.isBusy && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
-        if old != id { gravityQueue.append(IVec3(x, y, z)); gravityQueue.append(IVec3(x, y + 1, z)) }
+        if old != id { queueSupportChecks(x, y, z, old, id) }
         c.modified = true
         c.recomputeHeight(lx, lz)
         let newH = Int(c.height[lx + lz * CS])
@@ -208,6 +212,16 @@ final class World {
         scheduleFluid(around: IVec3(x, y, z))
     }
 
+    // Cells whose support may have changed: this one and the one above (falling blocks, standing plants), the one below
+    // (hanging plants), and the four beside it when a solid block went (vines clinging to it). Game.gravityTick.
+    @inline(__always) func queueSupportChecks(_ x: Int, _ y: Int, _ z: Int, _ old: BlockID, _ new: BlockID) {
+        gravityQueue.append(IVec3(x, y, z)); gravityQueue.append(IVec3(x, y + 1, z)); gravityQueue.append(IVec3(x, y - 1, z))
+        if Blocks.collide[Int(old)] && !Blocks.collide[Int(new)] {
+            gravityQueue.append(IVec3(x + 1, y, z)); gravityQueue.append(IVec3(x - 1, y, z))
+            gravityQueue.append(IVec3(x, y, z + 1)); gravityQueue.append(IVec3(x, y, z - 1))
+        }
+    }
+
     // Bulk edits (fluids): no synchronous remesh; the surrounding sections re-mesh in the background.
     @discardableResult
     func setBlockAsync(_ x: Int, _ y: Int, _ z: Int, _ id: BlockID) -> Bool {
@@ -217,7 +231,7 @@ final class World {
         let old = c.blocks[Chunk.index(lx, y, lz)]
         c.blocks[Chunk.index(lx, y, lz)] = id
         if !redstone.isBusy && old != id { redstone.blockChanged(IVec3(x, y, z), old, id) }
-        if old != id { gravityQueue.append(IVec3(x, y, z)); gravityQueue.append(IVec3(x, y + 1, z)) }
+        if old != id { queueSupportChecks(x, y, z, old, id) }
         c.modified = true
         c.recomputeHeight(lx, lz)
         for dz in -1...1 {
@@ -502,18 +516,29 @@ final class World {
             lock.unlock()
         }
 
-        if center != lastCenter {
+        let extra: ChunkKey? = extraCenter.map { ChunkKey(x: floorDiv(Int(floor($0.x)), CS), z: floorDiv(Int(floor($0.z)), CS)) }
+        // Offset of a chunk from the nearer centre (Chebyshev), for LOD.
+        func nearOff(_ k: ChunkKey) -> (Int, Int) {
+            let a = (k.x - center.x, k.z - center.z)
+            guard let e = extra else { return a }
+            let b = (k.x - e.x, k.z - e.z)
+            return max(abs(b.0), abs(b.1)) < max(abs(a.0), abs(a.1)) ? b : a
+        }
+        if center != lastCenter || extra != lastExtra {
             lastCenter = center
+            lastExtra = extra
             // Unload outside the load disc grown by one more chunk (hysteresis when walking back and forth).
             var gone: [ChunkKey] = []
-            for (k, c) in chunks where !World.inDisc(k.x - center.x, k.z - center.z, renderDistance, grow: 2) {
+            for (k, c) in chunks where !World.inDisc(k.x - center.x, k.z - center.z, renderDistance, grow: 2)
+                && !(extra.map { World.inDisc(k.x - $0.x, k.z - $0.z, renderDistance, grow: 2) } ?? false) {
                 if c.needsSave { save?.saveChunkAsync(k, c.blocks) }
                 gone.append(k)
             }
             for k in gone { chunks.removeValue(forKey: k) }
             // Chunks crossing the LOD boundary get remeshed at their new detail level.
             for (k, c) in chunks {
-                let want = lodFor(k.x - center.x, k.z - center.z, current: c.lod)
+                let (ox, oz) = nearOff(k)
+                let want = lodFor(ox, oz, current: c.lod)
                 if want != c.lod {
                     c.lod = want
                     for s in c.sections where !(s.meshedVersion == -1) { s.version += 1 }
@@ -523,40 +548,42 @@ final class World {
 
         // Nothing new since the last scan (same centre, no results, no invalidated sections): the scan
         // would schedule nothing, so skip it (it walks ~1000-2000 chunks at rd 16-24).
-        if gr.isEmpty && mr.isEmpty && center == scanCenter && MeshEpoch.value == scanEpoch { return }
+        let quiet = gr.isEmpty && mr.isEmpty && center == scanCenter && extra == scanExtra
+        if quiet && MeshEpoch.value == scanEpoch { return }
+        if quiet {
+            // Only block or light edits since the last scan (flowing water, a placed block): re-check just the chunks
+            // they touched instead of walking the whole disc (bench: 0.26 ms a frame at rd 16 while lava settled).
+            for (k, c) in chunks where c.dirty {
+                if jobs >= maxQueued { return }               // the rest stay dirty; the epoch still differs, so next frame
+                c.dirty = false
+                guard !c.meshInFlight && c.needsMesh else { continue }
+                let near = inMeshRadius(k.x - center.x, k.z - center.z) || (extra.map { inMeshRadius(k.x - $0.x, k.z - $0.z) } ?? false)
+                if near, let nb = neighbourhood(c) { scheduleMesh(k, c, nb) }
+            }
+            scanEpoch = MeshEpoch.value
+            return
+        }
         scanCenter = center
+        scanExtra = extra
 
-        // Nearest-first scheduling: generate missing chunks, mesh chunks whose 8 neighbours exist.
+        // Nearest-first scheduling: generate missing chunks, mesh chunks whose 8 neighbours exist (round each centre).
         var meshed = 0
+        let centres: [ChunkKey] = extra.map { [center, $0] } ?? [center]
         for (dx, dz, _) in offsets {
-            let k = ChunkKey(x: center.x + dx, z: center.z + dz)
+        for (ci, cen) in centres.enumerated() {
+            let k = ChunkKey(x: cen.x + dx, z: cen.z + dz)
             if let c = chunks[k] {
-                if c.meshedOnce { meshed += 1 }
-                let wantLod = lodFor(dx, dz, current: c.lod)
+                if c.meshedOnce && ci == 0 { meshed += 1 }
+                let (ox, oz) = ci == 0 && extra == nil ? (dx, dz) : nearOff(k)
+                let wantLod = lodFor(ox, oz, current: c.lod)
                 if wantLod != c.lod && !c.meshInFlight {
                     c.lod = wantLod
                     for s in c.sections where s.meshedVersion != -1 { s.version += 1 }
                 }
                 if jobs >= maxQueued { continue }
                 if !c.meshInFlight && inMeshRadius(dx, dz) && c.needsMesh, let nb = neighbourhood(c) {
-                    let (n9, h9) = nb
-                    let todo = dirtySections(c)
-                    let lod = c.lod
-                    let dl = damageList(c)
-                    c.meshInFlight = true
-                    jobs += 1
-                    // Weak: a finished operation can linger in a worker's autorelease pool and would keep the World alive.
-                    workQueue.addOperation { [weak self] in
-                        guard let self else { return }
-                        let t0 = CFAbsoluteTimeGetCurrent()
-                        var out: [(Int, Int, SectionMesh)] = []
-                        for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl))) }
-                        let el = CFAbsoluteTimeGetCurrent() - t0
-                        lock.lock()
-                        meshResults.append((k, out))
-                        perfShared.meshJobs += 1; perfShared.meshSections += todo.count; perfShared.meshSeconds += el
-                        lock.unlock()
-                    }
+                    c.dirty = false
+                    scheduleMesh(k, c, nb)
                 }
             } else if jobs < maxQueued && !genInFlight.contains(k) {
                 genInFlight.insert(k)
@@ -573,8 +600,31 @@ final class World {
                 }
             }
         }
+        }
         meshedCount = meshed
         scanEpoch = MeshEpoch.value         // after the loop: its own LOD re-mesh bumps are already scheduled
+    }
+
+    // Hands a chunk's out-of-date sections to a mesh worker.
+    private func scheduleMesh(_ k: ChunkKey, _ c: Chunk, _ nb: ([BlockStore], [[Int16]])) {
+        let (n9, h9) = nb
+        let todo = dirtySections(c)
+        let lod = c.lod
+        let dl = damageList(c)
+        c.meshInFlight = true
+        jobs += 1
+        // Weak: a finished operation can linger in a worker's autorelease pool and would keep the World alive.
+        workQueue.addOperation { [weak self] in
+            guard let self else { return }
+            let t0 = CFAbsoluteTimeGetCurrent()
+            var out: [(Int, Int, SectionMesh)] = []
+            for (sy, v) in todo { out.append((sy, v, Mesher.buildSection(n9, h9, sy: sy, lod: lod, damage: dl))) }
+            let el = CFAbsoluteTimeGetCurrent() - t0
+            self.lock.lock()
+            self.meshResults.append((k, out))
+            self.perfShared.meshJobs += 1; self.perfShared.meshSections += todo.count; self.perfShared.meshSeconds += el
+            self.lock.unlock()
+        }
     }
 
     // Loads a chunk from disk or generates it (thread-safe).

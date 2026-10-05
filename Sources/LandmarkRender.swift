@@ -8,6 +8,7 @@ import simd
 // wherever the real landmark has been generated, and the impostor fills in where it hasn't.
 extension Renderer {
     static let landmarkRange: Float = 2600
+    static let spireRange: Float = 1800               // a 170-block shaft is a sliver beyond this
     static var spireList: [V4] = []                // x, base y, z, height (refreshed every 2 s)
     static var spireAt: Double = -10
 
@@ -20,7 +21,7 @@ extension Renderer {
         let span = t.spacing * CS
         let p = game.player.pos
         let rx0 = floorDiv(Int(p.x), span), rz0 = floorDiv(Int(p.z), span)
-        let n = Int(Renderer.landmarkRange) / span + 1
+        let n = Int(Renderer.spireRange) / span + 1
         for rz in (rz0 - n)...(rz0 + n) { for rx in (rx0 - n)...(rx0 + n) {
             guard let s = sc.start(t, regionX: rx, regionZ: rz) else { continue }
             let y0 = Float(s.min.y + 8), h = Float(s.max.y - 4 - (s.min.y + 8))
@@ -41,17 +42,26 @@ extension Renderer {
         let place: Float = far * 0.93
         var smoke = landmarkSmoke
         smoke.removeAll(keepingCapacity: true)
+        // Every impostor vertex goes onto a shell just inside the far plane, along its own direction (same size on
+        // screen), the radius growing a little with the true distance so nearer faces still cover farther ones. The shell
+        // lies beyond all loaded terrain, so an impostor can never cut through the real landmark: scaled as a whole, a
+        // volcano nearer than the far plane stayed at its true depth and its low-poly cone poked through the real one
+        // (the sky-coloured streak and smooth patches on volcano_far, runs 470-509).
+        func p(_ w: V3) -> V4 {
+            let d = w - eye
+            let len = max(0.001, simd_length(d))
+            let r: Float = place * (0.95 + 0.05 * min(1, len / Renderer.landmarkRange))
+            return V4(d * (r / len), 1)
+        }
         func tri(_ a: V4, _ b: V4, _ c: V4, _ col: V4, _ into: inout [SimpleVert]) {
             into.append(SimpleVert(pos: a, color: col)); into.append(SimpleVert(pos: b, color: col)); into.append(SimpleVert(pos: c, color: col))
         }
         for v in vols {
             let c = V3(v.x, Float(YOFF) + v.base, v.z)
             let dist = simd_length(V2(c.x - eye.x, c.z - eye.z))
-            // Near: the real terrain shows it. Far: past the landmark range.
-            guard dist > loaded * 0.7 + v.r * 0.3, dist < Renderer.landmarkRange else { continue }
-            let k = place / max(place, dist)                      // pull in to just inside the far plane
+            // Near: the real terrain shows it (until its centre is past the loaded area). Far: past the landmark range.
+            guard dist > loaded + v.r * 0.2, dist < Renderer.landmarkRange else { continue }
             let haze: Float = 0.3 + 0.5 * Terrain.smooth(loaded, Renderer.landmarkRange, dist)
-            func p(_ w: V3) -> V4 { V4((w - eye) * k, 1) }
             func shade(_ base: V3, _ n: V3) -> V3 {
                 let lit: Float = 0.32 + 0.68 * max(0, simd_dot(n, sun)) * day + 0.08
                 return base * lit * hdrK * (1 - haze) + fog * haze
@@ -78,8 +88,14 @@ extension Renderer {
                     let a1 = ringPoint(t1, i), b1 = ringPoint(t1, i + 1)
                     let n = simd_normalize(simd_cross(b0 - a0, a1 - a0) + V3(0, 1e-4, 0))
                     let up = n.y < 0 ? -n : n
-                    let cc = V4(shade(col, up), 1)
+                    // The foot fades into the fog, with a skirt hanging out of sight: alone past the loaded terrain the
+                    // outer ring floated as a pale disc (volcano_horizon, run 482).
+                    let cc = ri == 0 ? V4(fog, 1) : V4(shade(col, up), 1)
                     tri(p(a0), p(b0), p(a1), cc, &out); tri(p(b0), p(b1), p(a1), cc, &out)
+                    if ri == 0 {
+                        let a2 = a0 - V3(0, 60, 0), b2 = b0 - V3(0, 60, 0)
+                        tri(p(a0), p(b0), p(b2), cc, &out); tri(p(a0), p(b2), p(a2), cc, &out)
+                    }
                 }
             }
             // Crater: the inner wall down to the glowing lava lake (brighter at night).
@@ -105,7 +121,9 @@ extension Renderer {
                 let drift = V3(cosf(windA), 0, sinf(windA)) * rise * 0.45
                 let ctrS = V3(v.x, Float(YOFF) + v.rim + 6 + rise, v.z) + drift
                 let alpha: Float = 0.42 * (1 - fj / 7)
-                let grey = V3(0.42, 0.41, 0.42) * (0.4 + 0.6 * day) * hdrK
+                // By night the plume is dark, its lower puffs lit orange by the lava under them.
+                let lavaLit: Float = (1 - day) * max(0, 1 - fj / 3) * 0.55
+                let grey = (V3(0.42, 0.41, 0.42) * (0.18 + 0.82 * day) + V3(1.0, 0.38, 0.1) * lavaLit) * hdrK
                 let sc = V4(grey * (1 - haze) + fog * haze, alpha)
                 for (ux, uz) in [(Float(1), Float(0)), (Float(0), Float(1))] {
                     let side = V3(ux, 0, uz) * size
@@ -119,10 +137,8 @@ extension Renderer {
         let grey = V3(0.43, 0.43, 0.44)
         for sp in spireCache(game) {
             let dist = simd_length(V2(sp.x - eye.x, sp.z - eye.z))
-            guard dist > loaded * 0.8, dist < Renderer.landmarkRange else { continue }
-            let k = place / max(place, dist)
-            let haze: Float = 0.3 + 0.5 * Terrain.smooth(loaded, Renderer.landmarkRange, dist)
-            func p(_ w: V3) -> V4 { V4((w - eye) * k, 1) }
+            guard dist > loaded + 16, dist < Renderer.spireRange else { continue }
+            let haze: Float = 0.35 + 0.55 * Terrain.smooth(loaded, Renderer.spireRange, dist)
             let r: Float = 13
             for i in 0..<8 {
                 let a0 = Float(i) / 8 * 2 * .pi + .pi / 8, a1 = Float(i + 1) / 8 * 2 * .pi + .pi / 8
@@ -133,6 +149,11 @@ extension Renderer {
                 let lit: Float = 0.32 + 0.68 * max(0, simd_dot(n, sun)) * day + 0.08
                 let c = V4(grey * lit * hdrK * (1 - haze) + fog * haze, 1)
                 tri(p(b0), p(b1), p(t1), c, &out); tri(p(b0), p(t1), p(t0), c, &out)
+                // A fog-coloured skirt under the foot: past the loaded terrain the shaft hung over the horizon haze
+                // (spire_horizon, run 482).
+                let f4 = V4(fog, 1)
+                let d0 = b0 - V3(0, 70, 0), d1 = b1 - V3(0, 70, 0)
+                tri(p(d0), p(d1), p(b1), f4, &out); tri(p(d0), p(b1), p(b0), f4, &out)
             }
         }
         smokeStart = out.count

@@ -4,7 +4,7 @@ import Foundation
 // slots/buttons (held directions repeat), A/X/Y click, B goes back, LB/RB switch tabs or pages, the right
 // stick and triggers scroll long lists, RT drops the held stack.
 final class MenuNav {
-    static let shared = MenuNav()
+    static var shared = MenuNav()      // var: split-screen seats swap it (Coop.swift)
     var timer: Double = 0
     var heldDir = (0, 0)
     var scrollTimer: Double = 0
@@ -100,6 +100,8 @@ extension Game {
             if scroll != 0 { cb.flip(scroll) }
             cb.padHold(p.a, dt)
         }
+        // LB/RB in the inventory open its crafting book (2x2), whose grid button comes back.
+        if m is InventoryMenu, tab != 0 { switchMenu(to: CraftingBookMenu(game: self, size: 2)); sfx(.click, 0.4); return }
         if let hb = m as? HasRecipeBook, hb.book.open, tab != 0 {
             _ = hb.recipeBookButton(tab > 0 ? 492 : 491, hb.book, grid: hb.craftGrid) { hb.rebuildBook() }
         }
@@ -140,7 +142,10 @@ extension Game {
                 }
             }
             if keyboard == nil && p.x && !q.x { m.click(s, button: 1, shift: false) }
-            if keyboard == nil && p.y && !q.y && !m.capturesText { m.click(s, button: 0, shift: true) }
+            if keyboard == nil && p.y && !q.y && !m.capturesText {
+                // On the pause menu Y is Next Track (CustomMusic.swift); elsewhere a quick move / shift-click.
+                if let pm = m as? PauseMenu, pm.page == .main { skipMusicTrack() } else { m.click(s, button: 0, shift: true) }
+            }
             // Number keys swap the hovered slot with a hotbar slot.
             for (i, k) in Key.digits.enumerated() where input.tapped(k) && !m.capturesText {
                 if case .normal = s.kind, s.container != nil {

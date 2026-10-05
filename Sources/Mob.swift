@@ -347,6 +347,9 @@ final class Mob {
     var temper = 0                  // horse taming progress
     weak var mount: Mob?            // rider (raid siegebeast riders)
     weak var deck: Ship?            // the moving ship it rides (ShipPhysics carries it; it walks in the ship's frame)
+    var crewPost: V3?               // capital crew: its post in the ship's frame, held while the vehicle runs
+    var crewRoute: [V3] = []        // capital crew: ship-space waypoints it walks (troops leaving by the ramp)
+    var crewFree = false            // crew of a disabled vehicle: fights where it likes aboard, never off a ledge
     var captain = false             // raid / patrol captain (banner)
     var jobTimer: Float = Rand.float(in: 0...5)
     var giftTimer: Float = 0        // villager: seconds until it may throw the Village Hero another gift
@@ -436,7 +439,8 @@ final class Mob {
 
     func update(_ dt: Float, game g: Game) {
         let w = g.world
-        guard w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) else { return }
+        // (A rider of a ship moves in the ship's frame and needs no ground loaded: crew at a long hull's far end.)
+        guard deck != nil || w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) else { return }
         // A mob killed earlier this tick (player hit, projectile) is removed by the death sweep after this loop: it
         // must not act or heal in between (the Blight's 1 HP/s regeneration revived it and lost the Blight Star).
         if health <= 0 && kind != .enderDragon { return }
@@ -858,6 +862,9 @@ final class Mob {
             }
         }
 
+        // Crew aboard a capital vehicle hold their posts in the hull's frame (they turn and fire as the soldier AI
+        // decides, but don't stroll, flank or chase off the deck); troops sent out walk their route down the ramp.
+        if let s = deck, crewPost != nil || !crewRoute.isEmpty || crewFree { speed = crewStep(s, speed) }
         // A passive mount carrying a jockey goes where the rider wants.
         if driven > 0 {
             driven -= dt
@@ -955,6 +962,19 @@ final class Mob {
             var l = s.toLocal(pos)
             var lv = s.dirToLocal(vel)
             w.frame = s
+            if collides(l, w) {
+                // Carried into a block (the hull settling onto a rider at the ramp's foot, ground beside it): step up
+                // to the first free height within a block, as a walker would, instead of being shoved out sideways.
+                var up: Float = 0.1
+                while up <= 1.01 && collides(l + V3(0, up, 0), w) { up += 0.1 }
+                if up <= 1.01 { l.y += up; pos = s.toWorld(l) }
+            }
+            if (crewPost != nil || crewFree || !crewRoute.isEmpty) && onGround && (lv.x != 0 || lv.z != 0) {
+                // Crew never step off a ledge of their vehicle: no floor within three blocks where the next step lands.
+                let h = simd_normalize(V2(lv.x, lv.z))
+                let a = l + V3(h.x, 0, h.y) * (halfW + 0.35)
+                if !w.collides(V3(a.x - 0.2, a.y - 3, a.z - 0.2), V3(a.x + 0.2, a.y + 0.05, a.z + 0.2)) { lv.x = 0; lv.z = 0 }
+            }
             hit = w.moveBody(&l, halfW: halfW, height: height, lv * dt, step: 0.6, onGround: onGround)
             w.frame = nil
             if hit.x { lv.x = 0 }
@@ -1000,6 +1020,43 @@ final class Mob {
         let hs = simd_length(V2(vel.x, vel.z))
         walkPhase += hs * dt * 5.5
         walkAmount += (min(1, hs / 1.2) - walkAmount) * min(1, dt * 8)
+    }
+
+    // Capital crew aboard (see crewPost): the speed to walk this tick, setting yaw / strafe in the ship's frame.
+    func crewStep(_ s: Ship, _ want: Float) -> Float {
+        let l = s.toLocal(pos)
+        let walking = !crewRoute.isEmpty
+        var goal: V3
+        if walking {
+            goal = crewRoute[0]
+            if simd_length(V2(goal.x - l.x, goal.z - l.z)) < 0.6 {
+                crewRoute.removeFirst()
+                if crewRoute.isEmpty { faceGoal = nil; strafe = 0; return 0 }
+                goal = crewRoute[0]
+            }
+        } else if crewFree {
+            faceGoal = nil          // straight at what it wants (the path finder reads the world, not the hull)
+            return want
+        } else if let p = crewPost {
+            goal = p
+        } else {
+            return want
+        }
+        faceGoal = nil
+        let d = s.dirToWorld(V3(goal.x - l.x, 0, goal.z - l.z))
+        let dist = simd_length(d)
+        if !walking && dist < 0.3 { strafe = 0; return 0 }
+        let dir = d / max(dist, 1e-4)
+        if walking {
+            yaw = atan2f(-dir.x, -dir.z)
+            strafe = 0
+            return spec.speed
+        }
+        // Back to the post without turning from the fight: forward and sideways steps.
+        let sp = spec.speed * min(1, dist + 0.3)
+        let right = V3(cosf(yaw), 0, -sinf(yaw))
+        strafe = simd_dot(dir, right) * sp
+        return simd_dot(dir, forward) * sp
     }
 
     func collides(_ p: V3, _ w: World) -> Bool {
@@ -1576,27 +1633,86 @@ private func parts(_ m: Mob) -> [Part] {
 }
 
 // Writes the mob triangles (camera-relative) into `out`; returns the vertex count written.
+enum MobLight {
+    static var nightVision: Float = 0
+    // The cave fill's level this frame (Shaders.caveFill: 0.06 + 0.3 x Brightness, doubled in Fast), for mobs, dropped
+    // items and the held item, which are lit on the CPU.
+    static var fill: Float = 0.21
+}
+
+// Last frame's mob drawing, for the F3 overlay and voice bug notes (playtest 2026-10-05: mobs invisible in real play,
+// never in the CI renderer): how many mobs, how many near, vertices written and drawn, and which path drew them.
+enum MobDrawStats {
+    static var mobs = 0, near = 0, written = 0, drawn = 0, culled = 0, dropped = 0
+    static var path = "none"
+    static var line: String {
+        "mobs \(mobs) (\(near) within 32), \(written) vertices written, \(drawn) drawn via \(path), \(culled) culled, \(dropped) dropped (buffer full)"
+    }
+}
+
+// Mobs in drawing order, nearest first (reused storage: no per-frame allocation once warm).
+enum MobOrder { static var list: [Mob] = [] }
+
 func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
-                      into out: UnsafeMutablePointer<MobVert>, capacity: Int) -> Int {
+                      into out: UnsafeMutablePointer<MobVert>, capacity: Int, cull: Frustum? = nil,
+                      maxDist: Float = .greatestFiniteMagnitude) -> Int {
     let CT = Mesher.cornerTable
     let faceShade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
     let order = [0, 1, 2, 0, 2, 3]
     var n = 0
     SoldierRig.eye = eye                    // soldier level of detail by distance
-    for m in mobs {
+    // Dimension ambient, lifted by night vision like the terrain (Renderer: 1 - (1 - dim) * (1 - 0.85 nv)).
+    let amb: Float = 1 - (1 - world.dim.ambient) * (1 - 0.85 * MobLight.nightVision)
+    // Nearest first, and nothing past the fog: the buffer holds ~2400 model parts, and with the hundreds of mobs loaded
+    // at render distance 16-24 (a citadel's jointed soldiers alone) it filled before the mobs beside the player, who
+    // were then never drawn (playtest 2026-10-05: mobs invisible in game; the harness never loads that many).
+    var list = MobOrder.list
+    MobOrder.list = []                       // taken out while filled: the only reference, so no copy on write
+    list.removeAll(keepingCapacity: true)
+    let maxD2 = maxDist * maxDist
+    for ring in 0..<3 {
+        let lo: Float = ring == 0 ? -1 : (ring == 1 ? 24 * 24 : 80 * 80)
+        let hi: Float = ring == 0 ? 24 * 24 : (ring == 1 ? 80 * 80 : maxD2)
+        for m in mobs {
+            let dx = m.pos.x - eye.x, dz = m.pos.z - eye.z
+            let d2 = dx * dx + dz * dz
+            if d2 > lo && d2 <= hi { list.append(m) }
+        }
+    }
+    defer { MobOrder.list = list }
+    for (idx, m) in list.enumerated() {
+        // Out of view and over 64 blocks away (nearer ones can still throw a shadow into view): skipped. Every mob in
+        // the loaded area was rebuilt each frame (a quarter of the frame's CPU encode in the flight profile).
+        if let fr = cull {
+            let dx = m.pos.x - eye.x, dz = m.pos.z - eye.z
+            if dx * dx + dz * dz > 64 * 64 {
+                let r: Float = 3 + 2 * m.height
+                if !fr.visible(min: m.pos - V3(r, r, r), max: m.pos + V3(r, r + m.height, r)) { MobDrawStats.culled += 1; continue }
+            }
+        }
         let l = world.lightAt(Int(floor(m.pos.x)), Int(floor(m.pos.y + m.height * 0.5)), Int(floor(m.pos.z)))
-        var bright = max(0.05, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
-        bright = bright + (1 - bright) * world.dim.ambient
-        let cy = cosf(m.yaw), sy = sinf(m.yaw)
         let base = m.pos - eye
+        // The cave fill (Shaders.caveFill): mobs in the dark stay visible a few blocks away.
+        let near: Float = 1 - 0.55 * Terrain.smooth(5, 30, simd_length(base))
+        let fill: Float = max(0.04, MobLight.fill * near)
+        var bright = max(fill, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
+        bright = bright + (1 - bright) * amb
+        let cy = cosf(m.yaw), sy = sinf(m.yaw)
         let tint = m.hurt > 0 ? V3(1, 0.45, 0.45) : (m.fire > 0 ? V3(1, 0.7, 0.4) : V3(1, 1, 1))
         let scale: Float = m.sized ? 1 : m.scale
         let glow = m.kind == .blaze || m.kind == .magmaCube || m.kind == .ghast || m.kind == .endCrystal
         let lit = glow ? max(bright, 0.85) : bright
-        for p in parts(m) + equipmentParts(m) {
-            if n + 36 > capacity { return n }
-            let rot = p.rotation
+        let body = parts(m), worn = equipmentParts(m)          // walked in turn: no concatenated array per mob per frame
+        // Far detail: past 64 blocks a part under 1.2/16 of a block across (eyes, noses, buttons) is about a pixel on a
+        // 1080p screen but costs 36 vertices; soldiers have their own levels of detail (SoldierRig).
+        let far = !m.kind.steelhold && simd_length_squared(base) > 64 * 64
+        let tiny: Float = 1.2 / max(0.25, scale)
+        for pi in 0..<(body.count + worn.count) {
+            let p = pi < body.count ? body[pi] : worn[pi - body.count]
+            if n + 36 > capacity { MobDrawStats.dropped += list.count - idx; return n }
             let size = p.mx - p.mn
+            if far && max(size.x, max(size.y, size.z)) < tiny { continue }
+            let rot = p.rotation
             for f in 0..<6 {
                 for k in order {
                     let ci = (f * 4 + k) * 3
@@ -1646,8 +1762,9 @@ final class MobManager {
         let p = game.player.pos
         rebuildIndex()
         Mob.hardMode = game.difficulty == 3
-        hiveTick(dt, game)
-        for m in mobs {
+        let second = game.coop.current > 0          // split screen: a second seat updates only the mobs nearest it
+        if !second { hiveTick(dt, game) }
+        for m in mobs where game.seatOwns(m.pos) {
             let before = m.pos
             m.update(dt, game: game)
             // Footsteps for walking mobs near the listener (size sets the stride and loudness).
@@ -1689,6 +1806,7 @@ final class MobManager {
                 }
             }
         }
+        if second { spawnTick(dt, game); return }
         // Breeding: two mobs of a kind in love next to each other make a baby.
         var babies: [Mob] = []
         for a in mobs where a.inLove > 0 {
@@ -1726,8 +1844,12 @@ final class MobManager {
         let limit = Float((w.renderDistance + 1) * CS)
         mobs.removeAll { m in
             if m.health <= 0 { return true }
-            let d = simd_length(V2(m.pos.x - p.x, m.pos.z - p.z))
-            if abs(m.pos.x - p.x) > limit || abs(m.pos.z - p.z) > limit || !w.isLoaded(Int(floor(m.pos.x)), Int(floor(m.pos.z))) {
+            // Riders of a ship still in play stay with it, however far its hull reaches from the player (a frigate's bow
+            // crew were stashed with their unloaded chunk and came back hundreds of blocks behind it: ride check).
+            if let dk = m.deck, w.ships.list.contains(where: { $0 === dk }) { return false }
+            let pn = game.coop.active ? game.coop.nearestPlayerPos(m.pos, game) : p
+            let d = simd_length(V2(m.pos.x - pn.x, m.pos.z - pn.z))
+            if abs(m.pos.x - pn.x) > limit || abs(m.pos.z - pn.z) > limit || !w.isLoaded(Int(floor(m.pos.x)), Int(floor(m.pos.z))) {
                 if m.keepOnUnload { stash(m) }
                 return true
             }

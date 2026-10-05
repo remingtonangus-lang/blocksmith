@@ -5,6 +5,7 @@ import Foundation
 enum KeyBinds {
     enum Action: String, CaseIterable {
         case forward, back, left, right, jump, inventory, drop, fly, fastFly, photo, offhand, chat, camera, advancements, reload, weapons, map
+        case skipTrack
         var title: String {
             switch self {
             case .forward: return "Walk Forward"
@@ -24,6 +25,7 @@ enum KeyBinds {
             case .reload: return "Reload Gun"
             case .weapons: return "Weapon Wheel (hold) / Next Gun"
             case .map: return "World Map"
+            case .skipTrack: return "Skip Music Track"
             }
         }
         var defaultKey: UInt16 {
@@ -45,6 +47,7 @@ enum KeyBinds {
             case .reload: return Key.r
             case .weapons: return Key.tab
             case .map: return 46               // M
+            case .skipTrack: return 45         // N
             }
         }
     }

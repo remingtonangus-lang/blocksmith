@@ -16,6 +16,7 @@ final class MapCache {
     private var working = false
     private weak var gen: TerrainGenerator?
     private var genID: ObjectIdentifier?
+    private(set) var version = 0              // bumped whenever sampled cells arrive or the cache restarts (minimap redraw)
 
     struct Mark: Codable, Hashable { var kind: String; var x: Int; var z: Int }
     private(set) var marks: [Mark] = []
@@ -30,6 +31,7 @@ final class MapCache {
         guard id != genID else { return }
         lock.lock()
         cells.removeAll(); queue.removeAll(); pending.removeAll()
+        version &+= 1
         lock.unlock()
         gen = g
         genID = id
@@ -71,6 +73,7 @@ final class MapCache {
             lock.lock()
             for (k, c) in out { cells[k] = c; pending.remove(k) }
             if cells.count > 400_000 { cells.removeAll() }
+            version &+= 1
             lock.unlock()
         }
     }
@@ -282,6 +285,13 @@ enum MapDraw {
 // MARK: Minimap
 
 enum Minimap {
+    // The terrain rows only change when the player crosses a block or new cells arrive: rebuilt then, reused otherwise
+    // (rebuilding read 1024 cells through the cache lock every frame: ~11% of the frame's CPU encode in the profile).
+    // One entry per split-screen seat.
+    private struct TerrainKey: Equatable { var bx: Int, bz: Int, version: Int, x0: Float, y0: Float, px: Float }
+    private static var terrainKeys: [TerrainKey?] = [nil, nil]
+    private static var terrainRows: [[HudLine]] = [[], []]
+
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
         guard Settings.shared.minimap, HudExtras.enabled, g.menu == nil, g.alive, !g.hideHUD else { return [] }
         let s = L.s
@@ -292,7 +302,15 @@ enum Minimap {
         let y0 = L.insetY + 6 * s + (g.effects.any ? 54 * s : 0)          // below the effect icons
         var out: [HudLine] = [HudLine(text: "", x: x0 - 2 * s, y: y0 - 2 * s, scale: s, bg: V4(0, 0, 0, 0.75), box: V2(size + 4 * s, size + 4 * s))]
         let bpc = 4
-        MapDraw.terrain(&out, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: g.player.pos.x, wz: g.player.pos.z, bpc: bpc, s: s)
+        // Every sample is floor(wx) + a whole number of blocks, so the rows depend only on the block the player is in.
+        let seat = min(1, g.coop.current)
+        let key = TerrainKey(bx: Int(floor(g.player.pos.x)), bz: Int(floor(g.player.pos.z)), version: MapCache.shared.version, x0: x0, y0: y0, px: px)
+        if terrainKeys[seat] != key {
+            terrainRows[seat].removeAll(keepingCapacity: true)
+            MapDraw.terrain(&terrainRows[seat], x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: g.player.pos.x, wz: g.player.pos.z, bpc: bpc, s: s)
+            terrainKeys[seat] = key
+        }
+        out.append(contentsOf: terrainRows[seat])
         MapDraw.markers(&out, g, x0: x0, y0: y0, cols: cols, rows: rows, px: px, wx: g.player.pos.x, wz: g.player.pos.z, bpc: bpc, s: s)
         out.append(HudLine(text: "N", x: x0 + size / 2 - 2 * s, y: y0 + s, scale: s, color: V4(1, 1, 1, 0.9)))
         let coords = "\(Int(floor(g.player.pos.x))) \(Int(floor(g.player.pos.z)))"

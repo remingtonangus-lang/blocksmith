@@ -45,6 +45,19 @@ constant float aoCurve[4] = { 0.42, 0.62, 0.81, 1.0 };
 // camera and the chunk's tint table offset (in words) inside the tint buffer (buffer 3).
 struct SectionRec { packed_float3 origin; uint tint; };
 
+// Cave fill (playtest 2026-10-05: caves were black without torches): a cool minimum light so walls, ores and mobs
+// read a few blocks away in the dark, fading with distance so a cave stays dark and moody; torches stay far brighter.
+// u.dimTint.w is Options > Video > Brightness (0 moody, 0.5 default, 1 bright), which also lifts the light curve a little.
+static float3 caveFill(float3 lit, float dist, constant Uniforms& u, float ao = 1.0) {
+    float b = u.dimTint.w;
+    float g = (b - 0.5) * 0.8;
+    lit = saturate(lit + lit * (1.0 - lit) * g);
+    float near = mix(1.0, 0.45, smoothstep(5.0, 30.0, dist));
+    // Fast has no eye adaptation or tone curve to open up the dark: twice the fill (cave_dark_fast read at half of Fancy).
+    float fl = max(0.04, (0.06 + 0.3 * b) * near) * (u.eye.w < 0.5 ? 2.0 : 1.0);
+    return max(lit, float3(0.84, 0.92, 1.08) * fl * mix(0.5, 1.0, ao));   // corners stay darker (Fancy passes its AO)
+}
+
 vertex ChunkOut chunkVS(uint vid [[vertex_id]],
                         uint iid [[instance_id]],
                         const device uint2* verts [[buffer(0)]],
@@ -110,7 +123,7 @@ vertex ChunkOut chunkVS(uint vid [[vertex_id]],
     // Warm at the edge of a light's reach, near white right next to it (Fancy does the same).
     float3 lit = max(sky * skyTint, blk * mix(float3(1.0, 0.87, 0.68), float3(1.0, 0.95, 0.86), blk * blk));
     // Dimension ambient lifts the whole light curve (the Emberdeep/End are never pitch black).
-    lit = mix(max(lit, float3(0.055)), float3(1.0), u.sunDir.w);    // floor 0.055 (was 0.035): unlit cave walls stay faintly readable
+    lit = mix(caveFill(lit, length(rel), u), float3(1.0), u.sunDir.w);   // cave fill: unlit walls stay readable nearby
     o.shade = lit * (faceShade[face] * aoCurve[ao]);
     o.dist = length(rel);
     o.rel = rel;

@@ -18,37 +18,72 @@ extension Game {
         let ships = world.ships
         if ships.isEmpty {
             ships.aboard = nil
+            ships.riderShip = nil
             player.update(dt: dt, input: mi, world: world)
             return
         }
         if let s = ships.pilot {
-            if pilotTick(s, mi, dt) { return }
+            if pilotTick(s, mi, dt) { ships.riderShip = nil; return }
         }
-        guard let s = ships.frameShip(for: player.pos, height: player.height, current: ships.aboard) else {
+        let p = player
+        var cand = ships.frameShip(for: p.pos, height: p.height, current: ships.aboard)
+        // Boarding takes a hold on the ship (its deck under the feet, its ladder, its cabin air): beside or under a
+        // moving hull you stay in the world.
+        if let s = cand, s !== ships.aboard, !ships.canBoard(s, p.pos, halfW: p.halfW) { cand = nil }
+        guard let s = cand else {
             ships.aboard = nil
+            ships.riderShip = nil
             player.update(dt: dt, input: mi, world: world)
             return
         }
-        ships.aboard = s
-        let p = player
-        // Into ship space: position, velocity relative to the deck, heading.
+        // Into ship space: position, velocity relative to the deck, heading. A rider who rode this ship last tick keeps
+        // its deck-relative velocity (plus any outside push since); one who just boarded takes its world velocity
+        // minus the deck's.
         let w0 = p.pos
         let fall = p.airPeak - w0.y
         let yawOff = s.yaw
-        p.vel = s.dirToLocal(p.vel - s.velocity(at: w0))
+        let lv: V3
+        // (Only from the tick before: a tick spent at a turret or the helm starts afresh.)
+        if ships.riderShip === s && ships.riderAt == ships.riderStamp - 1 { lv = ships.riderVel + s.dirToLocal(p.vel - ships.riderOut) }
+        else { lv = s.dirToLocal(p.vel - s.velocity(at: w0)) }
+        p.vel = lv
         p.pos = s.toLocal(w0)
+        p.lastUpdatePos = s.toLocal(p.lastUpdatePos)
         p.yaw -= yawOff
         p.airPeak = p.pos.y + fall
         world.frame = s
         p.update(dt: dt, input: mi, world: world)
         world.frame = nil
+        let held = ships.holdsRider(s, p.pos, halfW: p.halfW) || ships.atShipLadder(s, p.pos, halfW: p.halfW)
         // Back to world space.
+        ships.riderShip = s
+        ships.riderAt = ships.riderStamp
+        ships.riderVel = p.vel
         let fall2 = p.airPeak - p.pos.y
         let w1 = s.toWorld(p.pos)
         p.pos = w1
+        p.lastUpdatePos = s.toWorld(p.lastUpdatePos)
         p.vel = s.dirToWorld(p.vel) + s.velocity(at: w1)
+        ships.riderOut = p.vel
         p.yaw += yawOff
         p.airPeak = w1.y + fall2
+        ships.aboard = s
+        // Standing on the world's ground (off the foot of a ramp or a ladder): off the deck, once the body is clear
+        // of the hull's world-space boxes (leaving inside one would pop the player up onto it).
+        // The ground under a turned hull is sampled per ship cell in its frame, so the world's own ground there can stand
+        // up to a block higher: the rider steps up onto it as it leaves.
+        if p.onGround && !held {
+            let hw = p.halfW - 0.02
+            for up in [Float(0), 0.5, 1.0, 1.25] {
+                let y = w1.y + up
+                if world.collides(V3(w1.x - hw, y + 0.02, w1.z - hw), V3(w1.x + hw, y + p.height - 0.02, w1.z + hw)) { continue }
+                p.pos.y = y
+                p.airPeak += up
+                ships.aboard = nil
+                ships.riderShip = nil
+                break
+            }
+        }
     }
 
     // /vessel frigate|carriage: summon one ahead; /vessel locate: the nearest encounter home.

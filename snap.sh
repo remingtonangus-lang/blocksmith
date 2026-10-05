@@ -116,7 +116,16 @@ done
 "$BIN" --snapshot snaps/ship_crawler.png --seed 12345 --find plains --time 0.3 --rd 10 --ship crawler
 "$BIN" --snapshot snaps/ship_capitalbattle.png --seed 12345 --find plains --time 0.3 --rd 16 --ship capitalbattle
 "$BIN" --snapshot snaps/capitaltest.png --seed 12345 --find plains --time 0.3 --rd 12 --capitaltest || echo "::error::capitaltest failed (new: reported, not gating yet)"
-"$BIN" --snapshot snaps/ridetest.png --seed 12345 --find plains --time 0.3 --rd 8 --ridetest || echo "::error::ridetest failed (new: reported, not gating yet)"
+# Vehicle riding: bots ride the crawler and the frigates through Game.tick (decks, boarding, crew, disabled vehicles).
+"$BIN" --ridecheck --seed 12345 --out snaps
+# Every mob kind must draw something, Fancy and Fast (playtest 2026-10-05: mobs invisible in game).
+"$BIN" --snapshot snaps/plantcheck.png --seed 12345 --find plains --yaw 45 --pitch -10 --time 0.3 --up 6 --rd 4 --plantcheck        # gating: plants that lose their support pop (Remington, 2026-10-05)
+"$BIN" --snapshot snaps/musiccheck.png --seed 12345 --find plains --yaw 45 --time 0.3 --rd 4 --musiccheck        # gating: your own music folder
+"$BIN" --snapshot snaps/mobcheck.png --seed 12345 --find plains --yaw 30 --time 0.3 --up 6 --rd 4 --mobcheck          # gating: every mob kind draws (playtest 2026-10-05)
+# Split-screen co-op (Coop.swift): seat checks, then the two views at rd 8 (the frame time is the two-view perf number).
+"$BIN" --snapshot snaps/coop.png --seed 12345 --find plains --yaw 30 --pitch -6 --time 0.3 --ground --rd 8 --coop --cooptest || echo "::error::cooptest failed (new: reported, not gating yet)"
+"$BIN" --snapshot snaps/tv_coop.png --seed 12345 --find plains --yaw 200 --pitch -4 --time 0.27 --ground --rd 8 --w 1920 --h 1080 --couch --safe 5 --pad --coop
+"$BIN" --snapshot snaps/tv_coop_side.png --seed 12345 --find plains --yaw 200 --pitch -4 --time 0.27 --ground --rd 8 --w 1920 --h 1080 --couch --safe 5 --pad --coop --splitside
 "$BIN" --snapshot snaps/aerial.png  --seed 12345 --yaw 200 --pitch -35 --time 0.25 --up 45 --rd 12
 "$BIN" --snapshot snaps/aerial16.png --seed 12345 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16
 "$BIN" --snapshot snaps/aerial16_fast.png --seed 12345 --yaw 200 --pitch -10 --time 0.25 --up 30 --rd 16 --fast
@@ -161,6 +170,7 @@ done
 "$BIN" --snapshot snaps/crafting.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu crafting
 "$BIN" --snapshot snaps/craftbook.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu craftbook
 "$BIN" --snapshot snaps/tv_craftbook.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --w 1920 --h 1080 --couch --safe 5 --pad --menu craftbook
+"$BIN" --snapshot snaps/tv_craftbook2.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --w 1920 --h 1080 --couch --safe 5 --pad --menu craftbook2
 "$BIN" --snapshot snaps/tv_craftbook_all.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --w 1920 --h 1080 --couch --safe 5 --pad --menu craftbook_all
 "$BIN" --snapshot snaps/bugnotes.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --bugnotetest
 "$BIN" --snapshot snaps/padtest.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --padtest
@@ -208,7 +218,7 @@ done
 "$BIN" --snapshot snaps/bastion.png --seed 12345 --dim nether --structure bastion --yaw 150 --pitch -10 --up 1 --rd 6
 "$BIN" --snapshot snaps/bastion_far.png --seed 12345 --dim nether --structure bastion --yaw 150 --pitch -35 --up 14 --rd 8
 # Big landmarks (Landmarks.swift): a volcano from afar, its crater lake and a lava channel.
-"$BIN" --snapshot snaps/canyon.png --seed 12345 --feature canyon --yaw 30 --pitch -28 --up 70 --time 0.3 --rd 12
+"$BIN" --snapshot snaps/canyon.png --seed 12345 --feature canyon --yaw 30 --pitch -38 --up 42 --time 0.3 --rd 12
 "$BIN" --snapshot snaps/canyon_floor.png --seed 12345 --feature canyon --yaw 120 --pitch 8 --up 2 --time 0.3 --rd 10
 "$BIN" --snapshot snaps/spire.png --seed 12345 --structure great_ruin --frame 1.3 --time 0.3 --rd 12
 "$BIN" --snapshot snaps/spire_inside.png --seed 12345 --structure great_ruin --offset 0,1,-8 --yaw 0 --pitch 35 --time 0.3 --rd 8
@@ -216,15 +226,15 @@ done
 # Photo mode (Cinematic.swift): path self-test, then the free camera with depth of field.
 "$BIN" --snapshot snaps/photo_dof.png --seed 12345 --find forest --yaw 120 --pitch -5 --time 0.22 --ground --up 1.6 --rd 8 --photo --dof 5 --cinetest
 "$BIN" --snapshot snaps/photo_dof_far.png --seed 12345 --find plains --yaw 200 --pitch -6 --time 0.3 --up 3 --rd 10 --photo --dof 60
-"$BIN" --snapshot snaps/volcano_far.png --seed 12345 --feature volcano --yaw 0 --pitch -25 --up 110 --time 0.3 --rd 16
-"$BIN" --snapshot snaps/volcano_crater.png --seed 12345 --feature volcano --yaw 30 --pitch -60 --up 230 --time 0.3 --rd 10
+"$BIN" --snapshot snaps/volcano_far.png --seed 12345 --feature volcano --yaw 0 --pitch -25 --up 110 --time 0.3 --rd 16 --pick "650,456;650,462;700,458;700,464;760,460;760,466"
+"$BIN" --snapshot snaps/volcano_crater.png --seed 12345 --feature volcano --yaw 30 --pitch -50 --up 70 --time 0.3 --rd 10
 "$BIN" --snapshot snaps/volcano_horizon.png --seed 12345 --feature volcano --back 900 --yaw 0 --pitch 3 --up 25 --time 0.3 --rd 8
 "$BIN" --snapshot snaps/volcano_horizon_night.png --seed 12345 --feature volcano --back 1400 --yaw 0 --pitch 3 --up 25 --time 0.8 --rd 8
 "$BIN" --snapshot snaps/volcano_dusk.png --seed 12345 --feature volcano --yaw 200 --pitch -22 --up 90 --time 0.48 --rd 16
 "$BIN" --snapshot snaps/citadel_far.png --seed 12345 --structure military_base --frame 1.1 --time 0.3 --rd 12
 "$BIN" --snapshot snaps/citadel_gate.png --seed 12345 --structure military_base --yaw 0 --pitch 12 --up 1 --time 0.3 --rd 10
 "$BIN" --snapshot snaps/citadel_top.png --seed 12345 --structure military_base --yaw 20 --pitch -45 --up 70 --time 0.3 --rd 10
-"$BIN" --snapshot snaps/citadel_turret.png --seed 12345 --structure military_base --offset -12,7,-6 --yaw 52 --pitch -8 --time 0.3 --rd 10
+"$BIN" --snapshot snaps/citadel_turret.png --seed 12345 --structure military_base --offset -48,16,2 --yaw -39 --pitch -15 --time 0.3 --rd 10
 "$BIN" --snapshot snaps/citadel_plaza.png --seed 12345 --structure military_base --offset 3,6,-12 --yaw 10 --pitch 10 --time 0.3 --rd 10
 "$BIN" --snapshot snaps/village.png --seed 12345 --structure village --yaw 45 --pitch -28 --up 14 --time 0.25
 "$BIN" --snapshot snaps/village_top.png --seed 12345 --structure village --yaw 0 --pitch -89 --up 70 --time 0.25
@@ -346,6 +356,12 @@ done
 "$BIN" --snapshot snaps/seabed_warm.png --seed 12345 --find warm_ocean --seabed 5 --pitch -20 --time 0.3
 "$BIN" --snapshot snaps/seabed_deep.png --seed 12345 --find deep_ocean --seabed 5 --pitch -20 --time 0.3
 "$BIN" --snapshot snaps/seabed_deep_far.png --seed 12345 --find deep_ocean --seabed 14 --pitch -30 --time 0.3
+# Cave fill (playtest 2026-10-05): no torches, Default / Moody / Bright brightness, Fast, and mobs in the dark.
+"$BIN" --snapshot snaps/cave_dark.png --seed 12345 --find dripstone_caves --yaw 60 --pitch -25 --time 0.3 --openview
+"$BIN" --snapshot snaps/cave_dark_moody.png --seed 12345 --find dripstone_caves --yaw 60 --pitch -25 --time 0.3 --openview --bright 0
+"$BIN" --snapshot snaps/cave_dark_bright.png --seed 12345 --find dripstone_caves --yaw 60 --pitch -25 --time 0.3 --openview --bright 1
+"$BIN" --snapshot snaps/cave_dark_fast.png --seed 12345 --find dripstone_caves --yaw 60 --pitch -25 --time 0.3 --openview --fast
+"$BIN" --snapshot snaps/cave_dark_mobs.png --seed 12345 --find lush_caves --yaw 30 --pitch -10 --time 0.3 --mobs
 "$BIN" --snapshot snaps/cave_torches.png --seed 12345 --find dripstone_caves --yaw 60 --pitch -25 --time 0.3 --openview --torches
 "$BIN" --snapshot snaps/in_lava.png --seed 12345 --find plains --yaw 30 --pitch -10 --time 0.3 --up 1 --inlava
 "$BIN" --snapshot snaps/spawn_portal_check.png --seed 12345 --rd 16 --up 2 --yaw 45 --pitch 20

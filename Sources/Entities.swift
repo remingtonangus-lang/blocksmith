@@ -98,8 +98,9 @@ final class ItemEntityManager {
         let w = game.world
         var picked = 0
         let pp = game.player.pos
+        let pickOnly = game.coop.current > 0          // split screen: a second seat only picks up
         for e in items {
-            e.update(dt, w)
+            if !pickOnly { e.update(dt, w) }
             if e.pickupDelay <= 0 && game.alive {
                 let d = e.pos - pp
                 if abs(d.x) < 1.3 && abs(d.z) < 1.3 && d.y > -0.8 && d.y < 2.3 {
@@ -109,6 +110,7 @@ final class ItemEntityManager {
                 }
             }
         }
+        if pickOnly { if picked > 0 { game.sfx(.pickup, 0.5) }; return picked }
         items.removeAll { $0.stack.isEmpty || $0.age > 300 || $0.pos.y < -64 }
         // Merge nearby identical stacks now and then.
         mergeTimer -= dt
@@ -137,7 +139,10 @@ final class ItemEntityManager {
             let bob = sinf(e.age * 2.5 + e.spin) * 0.06 + 0.12
             let c = e.pos + V3(0, bob, 0) - eye
             let l = world.lightAt(Int(floor(e.pos.x)), Int(floor(e.pos.y + 0.2)), Int(floor(e.pos.z)))
-            let light = max(0.08, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
+            // The cave fill (Shaders.caveFill): an item on a dark cave floor shows like the floor around it.
+            let near: Float = 1 - 0.55 * Terrain.smooth(5, 30, simd_length(c))
+            let fill: Float = max(0.08, MobLight.fill * near)
+            let light = max(fill, max(Float(l.sky) / 15 * daylight, Float(l.block) / 15))
             let copies = e.stack.count > 32 ? 3 : (e.stack.count > 1 ? 2 : 1)
             for k in 0..<copies {
                 let off = V3(Float(k) * 0.06, Float(k) * 0.05, Float(k) * -0.05)

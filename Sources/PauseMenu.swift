@@ -55,12 +55,18 @@ final class PauseMenu: Menu {
 
     var currentWorld: String { game.save?.dir.lastPathComponent ?? "" }
 
+    static func brightnessName(_ b: Float) -> String {
+        b <= 0.01 ? "Moody" : (abs(b - 0.5) < 0.01 ? "Default" : (b >= 0.99 ? "Bright" : "\(Int((b * 100).rounded()))%"))
+    }
     static let valueIDs: Set<String> = ["sens", "invert", "autojump", "fov", "lookx", "looky", "accel", "dead", "aim", "rumble", "southpaw",
                                         "sneaktoggle", "autosprint", "glyphs", "rd", "chipping", "fullscreen", "launchfs", "vsync", "fps", "rscale", "wscale", "graphics",
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
-                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap"]
+                                        "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap", "splitlayout", "brightness"]
 
-    static func isValue(_ id: String) -> Bool { valueIDs.contains(id) || id.hasPrefix("vol:") || id == "audio_subs" || hostValues.contains(id) }
+    static func isValue(_ id: String) -> Bool {
+        valueIDs.contains(id) || id.hasPrefix("vol:") || id == "audio_subs" || ["audio_music_src", "audio_music_shuffle", "audio_music_vol"].contains(id)
+            || hostValues.contains(id)
+    }
 
     static let help: [String: String] = [
         "resume": "Return to the game.",
@@ -79,7 +85,9 @@ final class PauseMenu: Menu {
         "rumble": "Controller vibration when you are hit, mine, attack or something explodes.",
         "southpaw": "Southpaw swaps the sticks: look with the left, move with the right.",
         "sneaktoggle": "Toggle: press B / right stick once to crouch, again to stand.",
+        "splitlayout": "How the screen divides for two players: top and bottom (wide views) or side by side (menus stay bigger on a TV).",
         "minimap": "A small biome map in the corner with nearby bases and villages. M or hold View for the full map.",
+        "brightness": "How much you see without light: Moody keeps caves near black, Bright lifts every shadow. Torches stay brighter either way.",
         "fov": "How wide the view is. Wider shows more at the sides; narrower looks closer.",
         "invert": "Moving the mouse or stick up looks down.",
         "autojump": "Walk into a one-block step to climb it without jumping.",
@@ -89,6 +97,7 @@ final class PauseMenu: Menu {
         "new_diff": "How much damage mobs do and whether hunger can kill.",
         "edit_name": "The name shown in the worlds list.",
         "edit_seed": "Leave empty for a random world; the same seed always makes the same world.",
+        "coop": "Split screen: a second controller joins (or press Menu on it while playing); player 2 leaves from their pause menu.",
         "photo": "A free camera with the HUD hidden: keyframe paths and depth of field (F6).",
         "worldmap": "Biomes around you and the Capital citadels and villages you have found.",
         "flight": "Aircraft pitch on the left stick: pull back to climb (like a plane) or push up to climb.",
@@ -122,6 +131,11 @@ final class PauseMenu: Menu {
         "volume": "Overall sound volume.",
         "audio_subs": "Shows captions for sounds, with the direction they come from (same as Accessibility > Subtitles).",
         "audio_test": "Plays a sound in front of you at the current volumes.",
+        "audio_music_src": "Built-in: the game's own music. My Music: your files from ~/Library/Application Support/Blocksmith/Music. Mixed: they take turns.",
+        "audio_music_folder": "Audio files (mp3, m4a, wav, aiff) in ~/Library/Application Support/Blocksmith/Music. Select to look again after adding some.",
+        "audio_music_shuffle": "Plays your music in a random order (off: by file name).",
+        "audio_music_vol": "How loud your own music plays, on top of the Music volume.",
+        "audio_music_skip": "Ends the piece that is playing and starts the next. Also Y on the pause menu, or the Skip Music Track key (N).",
         "music": "Background music volume.",
         "mode": "Survival: health, hunger, mining. Creative: fly and build freely.",
         "difficulty": "How much damage mobs do and whether hunger can kill.",
@@ -170,8 +184,16 @@ final class PauseMenu: Menu {
             rows = [("Back to Game", "resume"), ("Options...", "options"), ("Render Distance: \(g.world.renderDistance)", "rd"), ("World Map", "worldmap"), ("Advancements", "advancements"), ("Commands...", "commands"),
                     ("Mode: \(g.survival ? "Survival" : "Creative")", "mode"),
                     ("Difficulty: \(Game.difficultyNames[g.difficulty])", "difficulty"),
-                    ("Worlds...", "worlds"), ("Photo Mode", "photo"), ("Save and Quit to Title", "totitle"), ("Save and Quit Game", "quit")]
-            if let e = PauseMenu.hostEntry { rows.insert(e, at: 2) }
+                    ("Worlds...", "worlds"), ("Photo Mode", "photo"), (g.coop.active ? "End Split Screen" : "Split Screen (2 players)", "coop"),
+                    ("Save and Quit to Title", "totitle"), ("Save and Quit Game", "quit")]
+            if g.coop.current > 0 {
+                // Player 2's pause menu: their own screens, and leaving (the world itself belongs to player 1).
+                subtitle = "Player 2"
+                rows = [("Back to Game", "resume"), ("World Map", "worldmap"), ("Advancements", "advancements"), ("Leave Split Screen", "coop")]
+            } else if g.coop.active {
+                rows.removeAll { $0.1 == "photo" || $0.1 == "worlds" }
+            }
+            if let e = PauseMenu.hostEntry, g.coop.current == 0 { rows.insert(e, at: 2) }
         case .options:
             title = "Options: \(cat.name)"
             let next = Cat(rawValue: (cat.rawValue + 1) % Cat.allCases.count) ?? .video
@@ -205,6 +227,7 @@ final class PauseMenu: Menu {
                         ("Start in Fullscreen: \(on(st.launchFullscreen))", "launchfs"), ("VSync: \(on(st.vsync))", "vsync"),
                         ("Max Frame Rate: \(st.fpsCap == 0 ? "Display" : "\(st.fpsCap)")", "fps"),
                         ("Resolution: \(pct(st.renderScale))", "rscale"), ("World Scale (Fancy): \(pct(g.renderScale))", "wscale"),
+                        ("Brightness: \(PauseMenu.brightnessName(st.brightness))", "brightness"),
                         ("Field of View: \(Int(g.fovSetting))", "fov"), ("GUI Scale: \(gui)", "gui"),
                         ("Block Chipping: \(on(st.chipping))", "chipping")]
             case .audio:
@@ -216,6 +239,7 @@ final class PauseMenu: Menu {
                         ("Text Background: \(st.textBackground == 0 ? "Off" : pct(st.textBackground))", "textbg"),
                         ("Crosshair: \(["Classic", "Bold", "Dot"][max(0, min(2, st.crosshair))])", "crosshair"),
                         ("Minimap: \(on(st.minimap))", "minimap"),
+                        ("Split Screen: \(st.splitSideBySide ? "Side by Side" : "Top / Bottom")", "splitlayout"),
                         ("Hide HUD: \(on(g.hideHUD))", "hidehud"), ("Debug Info: \(on(g.showDebug))", "debug"),
                         ("Bug Notes: " + (BugNotes.denied ? "No mic access" : BugNotes.names[max(0, min(2, st.bugNotes))]), "bugnotes"),
                         ("Reset Options...", "resetask")]
@@ -310,6 +334,11 @@ final class PauseMenu: Menu {
             let n = String(id.dropFirst(6))
             return worlds.first { $0.name == n }.map { WorldStore.describe($0) } ?? ""
         }
+        if id.hasPrefix("vol:"), let raw = Int(id.dropFirst(4)), let c = SoundCategory(rawValue: raw) {
+            // Volume rows (AudioMenu.swift).
+            return c == .master ? "Volume of every sound and the music together."
+                                : "Volume of \(c.label.lowercased()) sounds, on top of Master."
+        }
         return PauseMenu.help[id] ?? PauseMenu.hostHelp[id] ?? ""
     }
 
@@ -319,6 +348,7 @@ final class PauseMenu: Menu {
         if value && !Prompt.pad { items.append((.alt, "Previous")) }
         if page == .options { items.append((.tabs, "Page")) }
         if page != .title && page != .main { items.append((.back, "Back")) } else if page == .main { items.append((.back, "Resume")) }
+        if page == .main && Prompt.pad { items.append((.quick, "Next Track")) }
         var s = Prompt.line(items)
         if value && Prompt.pad { s = Prompt.g(.select) + " / " + Glyph.dpadH.s + " Change   " + Prompt.line(Array(items.dropFirst())) }
         return s
@@ -379,7 +409,7 @@ final class PauseMenu: Menu {
             hostPageID = String(id.dropFirst(5)); scroll = 0; resetCursor = true
         case _ where hostPageID != nil && id != "back":
             PauseMenu.hostAct?(id, back)
-        case _ where id.hasPrefix("vol:") || id == "audio_test" || id == "audio_subs": audioAct(id, back: back)
+        case _ where id.hasPrefix("vol:") || id.hasPrefix("audio_music_") || id == "audio_test" || id == "audio_subs": audioAct(id, back: back)
         case "resume":
             if page == .title { g.paused = false } else { g.closeMenu() }
         case "options":
@@ -458,7 +488,13 @@ final class PauseMenu: Menu {
         case "advancements": g.closeMenu(); g.openMenu(AdvancementMenu(game: g))
         case "worldmap": g.closeMenu(); g.openMenu(MapMenu(game: g))
         case "photo": g.closeMenu(); g.paused = false; g.togglePhotoMode()
+        case "coop":
+            if g.coop.active { g.closeMenu(); g.paused = false; g.coop.leave(g) }
+            else if g.coop.secondPadAvailable { g.closeMenu(); g.paused = false; g.coop.join(g, controller: nil) }
+            else { g.onToast?("Connect a second controller, then press its Menu button") }
         case "minimap": st.minimap.toggle()
+        case "splitlayout": st.splitSideBySide.toggle()
+        case "brightness": st.brightness = step([0, 0.25, 0.5, 0.75, 1], st.brightness)
         case "commands": g.closeMenu(); g.openMenu(CommandMenu(game: g))
         case "mode": g.toggleMode(); g.onModeChanged?(g.survival)
         case "difficulty": g.difficulty = step([0, 1, 2, 3], g.difficulty)

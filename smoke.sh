@@ -8,12 +8,17 @@ set -uo pipefail
 cd "$(dirname "$0")"
 BIN=build/Blocksmith.app/Contents/MacOS/Blocksmith
 SECS="${1:-60}"; shift || true
-RDS="${*:-8 16 24 24f}"
+RDS="${*:-8 16 24 24f 8c}"
 mkdir -p snaps
 FAILED=()
 play() {
   # "24f" = render distance 24 with Fast graphics (separates the Fancy HDR path from the distance).
-  if [ "${1%f}" != "$1" ]; then "$BIN" --smoke "$SECS" --rd "${1%f}" --fast; else "$BIN" --smoke "$SECS" --rd "$1"; fi
+  # "8c" = render distance 8 in split-screen co-op (a second player on a simulated pad; Coop.swift).
+  case "$1" in
+    *f) "$BIN" --smoke "$SECS" --rd "${1%f}" --fast ;;
+    *c) "$BIN" --smoke "$SECS" --rd "${1%c}" --coop ;;
+    *) "$BIN" --smoke "$SECS" --rd "$1" ;;
+  esac
 }
 for rd in $RDS; do
   play "$rd" 2>&1 | tee snaps/smoke_run.log
@@ -27,7 +32,9 @@ for rd in $RDS; do
     play "$rd" 2>&1 | tee snaps/smoke_run.log
     rc=${PIPESTATUS[0]}
   done
-  if [ $rc -ne 0 ]; then
+  if [ $rc -ne 0 ] && [ "${rd%c}" != "$rd" ]; then
+    echo "::error::smoke rd $rd (split screen): exit $rc (new: reported, not gating yet)"
+  elif [ $rc -ne 0 ]; then
     echo "smoke rd $rd: exit $rc"
     FAILED+=("$rd")
   fi

@@ -12,16 +12,17 @@ final class Game {
     var drops: ItemEntityManager { dim.drops }
     var projectiles: ProjectileManager { dim.projectiles }
     var tnts: TNTManager { dim.tnts }
-    let player = Player()
-    let input = InputState()
+    private(set) var player = Player()      // seat-swapped in split-screen co-op (Coop.swift)
+    private(set) var input = InputState()
     let particles = ParticleManager()
     let cine = Cinematic()                       // photo mode / cinematic camera (Cinematic.swift)
-    var showsPlayerModel: Bool { (cameraMode != 0 && sleeping == 0) || cine.active }
+    // Photo mode shows the player once the free camera has moved off them (it starts at the eye: inside the head, run 482).
+    var showsPlayerModel: Bool { (cameraMode != 0 && sleeping == 0) || (cine.active && !cine.followPlayer && simd_length(cine.pos - player.eye) > 1.2) }
     let arms = Armory()               // gun rounds in flight and the player's gun state (Ballistics.swift)
     var lastHurtAt: Double = -10      // hurt cooldown (reference: 10 ticks of invulnerability after a hit)
     var lastHurtAmount = 0
     var bulletHit = false             // gun rounds ignore the hurt cooldown (each round lands)
-    let inventory = PlayerInventory()
+    private(set) var inventory = PlayerInventory()
     let save: SaveManager?
     let persistent: Bool
 
@@ -109,7 +110,8 @@ final class Game {
     var seenCredits = false
     var credits: Float?            // seconds into the hollow credits while they are showing
     var dragonSpawnTimer: Float = 3
-    let effects = EffectSet()      // active status effects on the player
+    private(set) var effects = EffectSet()      // active status effects on the player
+    let coop = Coop()              // split-screen co-op seats (Coop.swift)
     var absorption: Float = 0      // golden hearts (half-hearts)
     var enchantSeed = Rand.u64(in: 1...UInt64.max)   // enchanting-table offers; changes after each enchant
     var eyes: [SeekerEye] = []
@@ -228,7 +230,9 @@ final class Game {
         Feedback.sound(self, s, v, at: pos)        // rumble + the one subtitle system (HudExtras, AudioSettings.subtitles)
         guard let snd = sound else { return }
         let occ = pos.map { audioOcclusion(player.eye, $0) } ?? 0
-        snd.play(s, volume: v, at: pos, occlusion: occ)
+        // Split screen: one listener (player 1); a sound nearer player 2 plays as near player 1 as it is to player 2.
+        let heard: V3? = coop.active ? pos.map { coop.heardAt($0, self) } : pos
+        snd.play(s, volume: v, at: heard, occlusion: occ)
     }
 
     var onPauseChanged: ((Bool) -> Void)?
@@ -360,6 +364,8 @@ final class Game {
 
     func saveNow() {
         guard persistent, let s = save else { return }
+        // The save holds player 1 (split screen: whoever's turn it is, the meta is written from seat 0).
+        if coop.current != 0 { coop.withSeat(0, self) { self.saveNow() }; return }
         world.saveAll()
         mobs.save(to: world.save)
         if let d = try? JSONEncoder().encode(maps) { try? d.write(to: s.dir.appendingPathComponent("maps.json"), options: .atomic) }
@@ -533,6 +539,8 @@ final class Game {
     func openMenu(_ m: Menu) {
         menu = m
         menuCursor = m.slots.firstIndex(where: { $0.isHotbar && $0.index == selected }) ?? 0
+        // The crafting book opens with the cursor on its first recipe tile (playtest 2026-10-05: it started on the hotbar).
+        if m is CraftingBookMenu { menuCursor = CraftCategory.allCases.count }
         audioMenuOpened(m)
     }
 
@@ -555,14 +563,27 @@ final class Game {
     // MARK: Tick
 
     func tick(_ rawDt: Double) {
-        let dt = min(rawDt, 0.05)
-        clock += dt
-        world.update(center: player.pos)
+        coop.pollJoin(self, Float(min(rawDt, 0.05)))
+        if coop.active { coopTick(rawDt); return }
+        tickSeat(rawDt)
+    }
 
-        let pad = readPad()
-        padConnected = pad != nil
-        PadManager.shared.note(pad: pad, input: input)
-        HudExtras.tick(self)
+    // One local player's frame (the only one alone; each seat in turn in split-screen co-op, Coop.swift).
+    func tickSeat(_ rawDt: Double) {
+        let dt = min(rawDt, 0.05)
+        let seat = coop.current
+        if seat == 0 {
+            clock += dt
+            world.extraCenter = coop.active ? coop.otherPlayerPos(self) : nil
+            world.update(center: player.pos)
+        }
+
+        let pad = seat == 0 ? readPad() : coop.readSeatPad(seat)
+        if seat == 0 {
+            padConnected = pad != nil
+            PadManager.shared.note(pad: pad, input: input)
+            HudExtras.tick(self)
+        }
         let p = pad ?? PadSnapshot()
         let q = prevPad
         defer { prevPad = p; input.endFrame() }
@@ -670,6 +691,7 @@ final class Game {
         }
         if input.tapped(KeyBinds.key(.fly)) || (p.up && !q.up) { toggleFly() }
         if input.tapped(KeyBinds.key(.photo)) { togglePhotoMode(); return }
+        if input.tapped(KeyBinds.key(.skipTrack)) { skipMusicTrack() }
         if input.tapped(KeyBinds.key(.fastFly)) {
             player.fastFlight.toggle()
             onToast?(player.fastFlight ? "Fast flight on (sprint while flying)" : "Fast flight off")
@@ -1383,12 +1405,14 @@ final class Game {
             for s in Mining.enchantedDrops(b, held) { drops.spawn(s, at: center, vel: V3(Rand.float(in: -1...1), 2, Rand.float(in: -1...1)), delay: 0.5) }
             exhaustion += 0.005
         }
-        // Plants can't float: pop the one standing on the broken block.
+        // A standing torch on the broken block falls off. Plants that lose their support (whole cane stacks, vines
+        // under a broken ceiling, kelp in its water) pop in the next ticks: World.queueSupportChecks / PlantSupport.
         let above = world.block(p.x, p.y + 1, p.z)
-        if Blocks.isPlant(above) || (Blocks.shape[Int(above)] == "torch" && above == Blocks.groupBase[Int(above)]) {
+        if Blocks.shape[Int(above)] == "torch" && above == Blocks.groupBase[Int(above)] {
             world.setBlock(p.x, p.y + 1, p.z, AIR)
             if drop { for s in Mining.drops(above, .empty) { drops.spawn(s, at: center + V3(0, 1, 0)) } }
         }
+        _ = plantSupportCheck(IVec3(p.x, p.y + 1, p.z))        // the plant on it goes at once, as before
     }
 
     // Buckets: pick up a water or lava source / pour it out.
@@ -1732,12 +1756,14 @@ final class Game {
         if menu != nil { closeMenu() }
         riding = nil
         alive = false        // no pickups, no targeting until respawn (the dropped items stay where they fell)
+        calmMobs()
         openMenu(DeathMenu(game: self, message: "Player \(cause)"))
     }
 
     // Respawn (from the death screen): anchor, bed/world spawn.
     func respawn() {
         alive = true
+        calmMobs()
         if let a = anchorSpawn {
             // Respawn at a charged anchor in the Emberdeep (uses a charge).
             let nether = dimensionState(.nether).world
@@ -1765,6 +1791,26 @@ final class Game {
         xpLevel = 0
         xpPoints = 0
         timeSinceRest = 0
+    }
+
+    // The player died (and again on respawn): every mob forgets them - anger, sight memory, chase path, a hisser's fuse,
+    // a soldier's last sighting, a stalker's anger - in every loaded dimension, and goes back to idle. Neutral mobs only
+    // forgave after half a minute out of sight, a clock that sat at zero while the player was dead, so voidwalkers came
+    // straight back after a respawn (playtest 2026-10-05). Split screen: only the mobs nearest this player.
+    func calmMobs() {
+        var all: [MobManager] = [mobs]
+        for d in dims.values where d.mobs !== mobs { all.append(d.mobs) }
+        for mm in all {
+            for m in mm.mobs where !coop.active || mm !== mobs || seatOwns(m.pos) {
+                if !m.tamed { m.aggro = false }
+                m.lockTime = 0
+                m.anger = 0
+                m.fuse = 0
+                m.flyTarget = nil
+                m.path = PathState()
+                if let b = m.brain { b.lastSeen = nil; b.seenAgo = 99; b.sees = false; b.charge = 0 }
+            }
+        }
     }
 
     // Footsteps, landing thuds and splashes.
@@ -1855,6 +1901,7 @@ final class Game {
 
     // World clock, fluids, furnaces, entities and autosave (runs whenever the game isn't paused).
     private func advance(_ dt: Double) {
+        if coop.current > 0 { coopAdvance(dt); return }       // a second seat: only its own share (Coop.swift)
         world.ships.update(Float(dt), game: self)
         mobs.update(Float(dt), game: self)
         drops.update(Float(dt), game: self)
@@ -1869,11 +1916,12 @@ final class Game {
         if sleeping > 0 {
             timeSinceRest = 0
             sleeping += Float(dt)
-            if sleeping > 2.5 {
+            if sleeping > 2.5 && coop.othersAsleep(self) {
                 // Skip to morning.
                 let day = floor(time / DAY_LENGTH)
                 time = (day + 1) * DAY_LENGTH + 0.01 * DAY_LENGTH
                 sleeping = 0
+                coop.wakeOthers()
                 catGifts()
                 onToast?("Good morning")
                 weather.raining = false; weather.thundering = false; weather.rain = 0; weather.thunder = 0
@@ -1927,6 +1975,43 @@ final class Game {
         time += dt
         autosaveTimer += dt
         if autosaveTimer > 60 { autosaveTimer = 0; saveNow() }
+    }
+
+    // Split-screen co-op (Coop.swift): swaps everything that belongs to one local player with `s`, so the rest of the
+    // game keeps reading `player`, `health`, `menu`... for whichever seat is being ticked or drawn.
+    func exchangeSeat(_ s: inout SeatState) {
+        swap(&player, &s.player); swap(&input, &s.input); swap(&inventory, &s.inventory); swap(&effects, &s.effects)
+        swap(&lastHurtAt, &s.lastHurtAt); swap(&lastHurtAmount, &s.lastHurtAmount); swap(&bulletHit, &s.bulletHit)
+        swap(&cameraMode, &s.cameraMode)
+        let t = target; target = s.target; s.target = t
+        let cb = onInventoryChanged
+        onInventoryChanged = nil                    // the mouse capture follows seat 0's menu only
+        let m = menu; menu = s.menu; s.menu = m
+        onInventoryChanged = cb
+        swap(&carried, &s.carried); swap(&menuCursor, &s.menuCursor)
+        let mh = menuHover; menuHover = s.menuHover; s.menuHover = mh
+        swap(&screen, &s.screen)
+        swap(&health, &s.health); swap(&hunger, &s.hunger); swap(&saturation, &s.saturation); swap(&exhaustion, &s.exhaustion)
+        swap(&air, &s.air); swap(&hurtFlash, &s.hurtFlash); swap(&alive, &s.alive); swap(&xpLevel, &s.xpLevel); swap(&xpPoints, &s.xpPoints)
+        swap(&sleeping, &s.sleeping); swap(&bowCharge, &s.bowCharge); swap(&portalTime, &s.portalTime); swap(&portalCooldown, &s.portalCooldown)
+        swap(&onFire, &s.onFire); swap(&fireDamageTimer, &s.fireDamageTimer); swap(&absorption, &s.absorption); swap(&elytraWear, &s.elytraWear)
+        let r = riding; riding = s.riding; s.riding = r
+        swap(&riderPush, &s.riderPush); swap(&blocking, &s.blocking); swap(&lastPearl, &s.lastPearl); swap(&rideInput, &s.rideInput)
+        swap(&levitateFromY, &s.levitateFromY); swap(&fovScale, &s.fovScale); swap(&equipAnim, &s.equipAnim); swap(&stepVibe, &s.stepVibe)
+        swap(&freeze, &s.freeze); swap(&freezeTick, &s.freezeTick); swap(&scoping, &s.scoping); swap(&brushProgress, &s.brushProgress)
+        swap(&shieldCooldown, &s.shieldCooldown); swap(&shieldRaise, &s.shieldRaise); swap(&crossbowCharge, &s.crossbowCharge)
+        swap(&tridentCharge, &s.tridentCharge); swap(&spearCharge, &s.spearCharge); swap(&spearHitAt, &s.spearHitAt)
+        let bb = bobber; bobber = s.bobber; s.bobber = bb
+        swap(&contactTimer, &s.contactTimer); swap(&walkBob, &s.walkBob); swap(&walkAmount, &s.walkAmount)
+        swap(&regenTimer, &s.regenTimer); swap(&starveTimer, &s.starveTimer); swap(&drownTimer, &s.drownTimer)
+        let mn = mining; mining = s.mining; s.mining = mn
+        swap(&mineProgress, &s.mineProgress); swap(&mineSoundTimer, &s.mineSoundTimer); swap(&eatProgress, &s.eatProgress)
+        swap(&attackTimer, &s.attackTimer); swap(&swing, &s.swing); swap(&stepDist, &s.stepDist); swap(&wasInWater, &s.wasInWater)
+        swap(&breakCooldown, &s.breakCooldown); swap(&placeCooldown, &s.placeCooldown); swap(&lastSpaceTap, &s.lastSpaceTap)
+        swap(&toastText, &s.toastText); swap(&toastTime, &s.toastTime); swap(&prevPad, &s.prevPad)
+        let ld = lastDeath; lastDeath = s.lastDeath; s.lastDeath = ld
+        swap(&deathScore, &s.deathScore); swap(&timeSinceRest, &s.timeSinceRest)
+        exchangeSeatExtras(&s)
     }
 
     // 20 Hz fixed-rate logic (furnaces...).

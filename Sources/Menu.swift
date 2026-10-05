@@ -300,7 +300,11 @@ final class InventoryMenu: Menu, HasRecipeBook {
     let craft = CraftingGrid(2)
     let book = RecipeBook(size: 2)
     var craftGrid: ItemContainer { craft.grid }
-    override func buttonPressed(_ i: Int) { _ = recipeBookButton(i, book, grid: craft.grid) { rebuildBook() } }
+    override func buttonPressed(_ i: Int) {
+        // The book button opens the 2x2 crafting book (CraftingBook.swift), the same screen as a table's.
+        if i == 490 { game.switchMenu(to: CraftingBookMenu(game: game, size: 2)); return }
+        _ = recipeBookButton(i, book, grid: craft.grid) { rebuildBook() }
+    }
     init(game: Game) {
         super.init("", game: game)
         for i in 0..<4 { slots.append(MenuSlot(8, 8 + i * 18, game.inventory.armor, i, .armor(ArmorSlot(rawValue: i)!))) }
@@ -309,9 +313,8 @@ final class InventoryMenu: Menu, HasRecipeBook {
         slots.append(MenuSlot(154, 28, craft.result, 0, .result))
         addPlayerInventory()
         showInventoryLabel = false
-        // The recipe panel is open from the start; its tiles craft straight into the inventory.
-        book.open = true
-        book.refresh(game, grid: craft.grid)
+        // Only the book button: crafting by recipe is the crafting book's job (LB/RB or the button open it).
+        book.open = false
         slots += book.slots()
     }
     override func changed() { craft.update() }

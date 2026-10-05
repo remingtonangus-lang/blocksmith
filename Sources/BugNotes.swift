@@ -245,6 +245,8 @@ final class BugNotes {
             ("Repro", String(format: "`./snap.sh note --seed %llu --x %.1f --z %.1f --yaw %.0f --pitch %.0f --time %.3f%@`",
                              g.world.seed, p.pos.x, p.pos.z, Double(p.yaw * 180 / .pi), Double(p.pitch * 180 / .pi), frac,
                              g.dim.dim == .overworld ? "" : " --dim \(g.dim.dim.rawValue)")),
+            ("Mob drawing", MobDrawStats.line + ", " + (g.fancyGraphics ? "Fancy" : "Fast")
+                + String(format: ", world scale %.0f%%, brightness %.2f", g.renderScale * 100, Settings.shared.lightBrightness)),
             ("Input", pads.connected ? "\(pads.name), last used \(pads.usingPad ? "controller" : "keyboard/mouse")" : "keyboard/mouse"),
         ]
     }

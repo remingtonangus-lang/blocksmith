@@ -72,6 +72,7 @@ private struct Contact {
 extension ShipManager {
     // Advances every ship (call once per frame) and carries what stands on them.
     func update(_ dt: Float, game: Game?) {
+        riderStamp += 1
         if !ghosts.isEmpty { ghosts = ghosts.map { ($0.0, $0.1 - dt) }.filter { $0.1 > 0 } }
         if let game {
             // Wind turns slowly over the days; rain and thunder strengthen it.
@@ -90,13 +91,22 @@ extension ShipManager {
             // A mob that has boarded keeps its deck while it walks, hops or steps about anywhere over the hull (as the
             // player does: frameShip with a margin), not only on frames where it is standing: riders were left behind
             // mid-hop and slid off a turning crawler.
+            // A rider standing on the world's ground (stepped off the ramp's foot, walked out from under a hull) has left
+            // the deck. A mob's velocity is relative to its deck while it rides: the deck's own is added back when it
+            // leaves and taken out when it boards (troops walking off a moving crawler stopped dead).
             for m in game.mobs.mobs where game.riding !== m && m.health > 0 {
-                if let d = m.deck, list.contains(where: { $0 === d }), frameShip(for: m.pos, height: m.height, current: d) === d {
+                if let d = m.deck, list.contains(where: { $0 === d }), frameShip(for: m.pos, height: m.height, current: d) === d,
+                   !(m.onGround && !holdsRider(d, d.toLocal(m.pos), halfW: m.halfW)) {
                     mobRiders.append((m, d))
-                } else if m.onGround, let s = standing(on: m.pos) {
+                } else if let s = boardShip(for: m) {
+                    if m.deck !== s {
+                        if let o = m.deck, list.contains(where: { $0 === o }) { m.vel += o.velocity(at: m.pos) }
+                        m.vel -= s.velocity(at: m.pos)
+                    }
                     m.deck = s
                     mobRiders.append((m, s))
                 } else {
+                    if let o = m.deck, list.contains(where: { $0 === o }) { m.vel += o.velocity(at: m.pos) }
                     m.deck = nil
                 }
             }
@@ -155,6 +165,16 @@ extension ShipManager {
         for (m, s) in mobRiders where s.pos != s.prevPos || s.rot != s.prevRot {
             m.pos = s.toWorld(s.prevToLocal(m.pos))
             m.yaw += angleDelta(s.yaw, s.prevYaw)
+            // Carried into the ground beside the hull (a crawler easing down onto its buried ramp foot): up to a block
+            // up to free space, as Mob.update does for a rider that starts its step inside a block.
+            var l = s.toLocal(m.pos)
+            world.frame = s
+            if m.collides(l, world) {
+                var up: Float = 0.1
+                while up <= 1.01 && m.collides(l + V3(0, up, 0), world) { up += 0.1 }
+                if up <= 1.01 { l.y += up; m.pos = s.toWorld(l) }
+            }
+            world.frame = nil
         }
         for (it, s) in itemRiders where s.pos != s.prevPos || s.rot != s.prevRot {
             it.pos = s.toWorld(s.prevToLocal(it.pos))
@@ -166,10 +186,19 @@ extension ShipManager {
                 let mn = V3(m.pos.x - m.halfW, m.pos.y, m.pos.z - m.halfW), mx = V3(m.pos.x + m.halfW, m.pos.y + m.height, m.pos.z + m.halfW)
                 guard let s = list.first(where: { mx.x > $0.worldMin.x && mn.x < $0.worldMax.x && mx.y > $0.worldMin.y && mn.y < $0.worldMax.y
                     && mx.z > $0.worldMin.z && mn.z < $0.worldMax.z }), overlaps(mn, mx) else { continue }
+                // Exactly, in the hull's frame (the world-space boxes of a turned hull are fat: a troop just off the
+                // crawler's ramp foot was lifted a block by them); a lift is at most a stair step, more is a shove.
+                let l = s.toLocal(m.pos)
+                world.frame = s
+                let hit = m.collides(l, world)
                 var lifted = false
-                for up in [Float(0.35), 0.7, 1.05] where !overlaps(mn + V3(0, up, 0), mx + V3(0, up, 0)) {
-                    m.pos.y += up; lifted = true; break
+                if hit {
+                    for up in [Float(0.3), 0.6] where !m.collides(l + V3(0, up, 0), world) {
+                        m.pos = s.toWorld(l + V3(0, up, 0)); lifted = true; break
+                    }
                 }
+                world.frame = nil
+                if !hit { continue }
                 if !lifted {
                     var away = V3(m.pos.x - s.pos.x, 0, m.pos.z - s.pos.z)
                     away = simd_length(away) > 0.01 ? simd_normalize(away) : V3(1, 0, 0)
@@ -179,11 +208,18 @@ extension ShipManager {
             }
         }
         if let game {
-            for s in list where (s === aboard || s === pilot) && (s.pos != s.prevPos || s.rot != s.prevRot) {
-                let p = game.player
-                p.pos = s.toWorld(s.prevToLocal(p.pos))
-                p.yaw += angleDelta(s.yaw, s.prevYaw)
-                p.airPeak = p.pos.y
+            // Every split-screen player is carried by the ship they stand on or steer (aboard / pilot are per seat).
+            game.coop.eachSeat(game) {
+                for s in self.list where (s === self.aboard || s === self.pilot) && (s.pos != s.prevPos || s.rot != s.prevRot) {
+                    let p = game.player
+                    let old = p.pos
+                    p.pos = s.toWorld(s.prevToLocal(p.pos))
+                    p.yaw += self.angleDelta(s.yaw, s.prevYaw)
+                    // Carried, not fallen: the fall height and the teleport check move with the deck (a frigate settling
+                    // to the ground carries its riders down without fall damage; falls inside the hull still count).
+                    p.airPeak += p.pos.y - old.y
+                    p.lastUpdatePos += p.pos - old
+                }
             }
         }
         for s in list {
@@ -236,6 +272,16 @@ extension ShipManager {
             if s.grid.inside(x, y, z) && Int(s.colMin[x + z * s.grid.sx]) < y { return true }
         }
         return false
+    }
+
+    // The ship a mob without a deck boards: one it stands on, or one that holds it as it holds the player (a ship block
+    // under its feet, a ladder, the hull's enclosed air), on the ground or not: a troop that lost its deck on a buried
+    // ramp foot and walked back into the bay moved in world space against the hull's rough boxes and was shoved a
+    // block up (ride check troops).
+    func boardShip(for m: Mob) -> Ship? {
+        if m.onGround, let s = standing(on: m.pos) { return s }
+        if let s = frameShip(for: m.pos, height: m.height, current: nil), canBoard(s, m.pos, halfW: m.halfW) { return s }
+        return nil
     }
 
     // The ship a body's feet rest on, if any.

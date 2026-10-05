@@ -5,7 +5,7 @@ import simd
 // damage-direction indicators, an armour wear bar, vehicle gauges (speed, altitude, throttle, integrity,
 // heading) and the weapon wheel.
 final class CombatHUD {
-    static let shared = CombatHUD()
+    static var shared = CombatHUD()      // var: split-screen seats swap it (Coop.swift)
     struct Hit { var dir: V3; var time: Double; var strength: Float }
     private(set) var hits: [Hit] = []
     private var peak: [Int: Int] = [:]               // ship id -> most blocks seen (integrity baseline)
@@ -120,7 +120,7 @@ final class CombatHUD {
 // opens; point the right stick / move the mouse at one and let go to equip it. A quick tap of RB still steps
 // the hotbar; a quick tap of Tab switches to the next gun. The game keeps running behind the wheel.
 final class WeaponWheel {
-    static let shared = WeaponWheel()
+    static var shared = WeaponWheel()      // var: split-screen seats swap it (Coop.swift)
     private(set) var open = false
     private var holding = false
     private var viaPad = false

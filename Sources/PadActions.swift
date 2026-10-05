@@ -80,7 +80,7 @@ enum AimAssist {
 }
 
 extension PadLook {
-    static let shared = PadLook()
+    static var shared = PadLook()      // var: split-screen seats swap it (Coop.swift)
 }
 
 // Block-targeting assist (controller only): the highlighted block holds on while the crosshair drifts up to

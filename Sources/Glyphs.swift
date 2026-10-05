@@ -325,6 +325,7 @@ enum Prompt {
            m.slots.contains(where: { !$0.isPlayerInv && $0.container != nil && !$0.isButton }) && !(m is InventoryMenu) {
             items.append((.use, h.isPlayerInv ? "Store all" : "Take all"))
         }
+        if m is InventoryMenu { items.append((.tabs, "Crafting")) }
         items.append((.back, "Close"))
         return line(items)
     }

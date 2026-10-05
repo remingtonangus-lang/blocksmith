@@ -741,5 +741,42 @@ enum MobTests {
         check(fox.sitting, "fox sleeps by day")
         check(Mob.wolfVariant(.forest) == 1 && Mob.wolfVariant(.grove) == 8 && Mob.wolfVariant(.plains) == 0, "wolf variants by biome")
         mm.mobs.removeAll()
+
+        // Death forgives (playtest 2026-10-05: voidwalkers kept hunting the player after death and respawn): one mob of
+        // every kind, angry and locked on, forgets the player when they die and again after the respawn.
+        let keepSurvival = game.survival, keepPos = game.player.pos
+        let keepInv = game.inventory.saved
+        game.survival = true
+        game.player.pos = a.p(0, 0, 0)
+        for (i, k) in MobKind.allCases.enumerated() {
+            let m = Mob(k, at: a.p(i % 9 - 4, 0, i / 9 + 6))
+            m.aggro = true; m.lockTime = 20; m.anger = 80; m.fuse = 1
+            if let b = m.brain { b.lastSeen = game.player.pos; b.seenAgo = 0 }
+            mm.mobs.append(m)
+        }
+        mm.rebuildIndex()
+        game.damage(1000, "was tested", bypassArmor: true, type: .void)
+        let calm: (Mob) -> Bool = { m in !(m.aggro && !m.tamed) && m.lockTime <= 0 && m.anger == 0 && m.fuse == 0 && m.brain?.lastSeen == nil }
+        let stillAngry = mm.mobs.filter { !calm($0) }.map { "\($0.kind)" }
+        check(!game.alive && stillAngry.isEmpty, "every mob forgets the player at death", stillAngry.prefix(8).joined(separator: " "))
+        mm.mobs.forEach { $0.aggro = true; $0.lockTime = 20 }       // anger left over from before (a mob that kept chasing)
+        game.respawn()
+        game.menu = nil
+        let after = mm.mobs.filter { !calm($0) }.map { "\($0.kind)" }
+        check(game.alive && after.isEmpty, "every mob forgets the player at respawn", after.prefix(8).joined(separator: " "))
+        // A voidwalker beside the respawned player, not stared at, stays calm for 3 s of its own AI.
+        game.player.pos = a.p(0, 0, 0)
+        game.player.yaw = 0; game.player.pitch = 0
+        let vw2 = Mob(.enderman, at: a.p(0, 0, 8))
+        mm.mobs = [vw2]
+        mm.rebuildIndex()
+        for _ in 0..<60 { vw2.update(0.05, game: game) }
+        check(!vw2.aggro, "a voidwalker near the respawned player stays calm")
+        mm.mobs.removeAll()
+        for i in 0..<36 { game.inventory.main[i] = .empty }
+        game.inventory.load(keepInv)
+        game.drops.items.removeAll()
+        game.survival = keepSurvival
+        game.player.pos = keepPos
     }
 }

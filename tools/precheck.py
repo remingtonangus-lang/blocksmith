@@ -66,6 +66,12 @@ for f in sorted(os.listdir(root)):
                 warns.append(f'{f}:{k}: -.pi (type-check risk in longer arithmetic: write -Float.pi)')
             elif re.search(r'[?:]\s*\.pi\b', code):
                 warns.append(f'{f}:{k}: .pi in a ternary (type-check risk: write Float.pi)')
+            # Code swallowed by a comment: a scripted edit appended a comment mid-declaration ("..., trousers   // note =
+            # V3(...), boots = V3(...)": run 505). A trailing comment holding "name = Type(" is almost always that.
+            if '//' in l and not l.lstrip().startswith('//') and '"' not in l:
+                tail = l.split('//', 1)[1]
+                if re.search(r'\b[a-z][A-Za-z0-9]*\s*=\s*[A-Z][A-Za-z0-9]*\(', tail) and re.search(r',\s*[a-z][A-Za-z0-9]*\s*$', l.split('//', 1)[0]):
+                    errors.append(f'{f}:{k}: a comment swallowed code (the declaration continues after //)')
             # Long interpolated print lines and long chained vector math have timed out the type checker.
             if l.count('\\(') >= 5 and ('*' in l or '+' in l.split('"')[0]):
                 warns.append(f'{f}:{k}: {l.count(chr(92) + "(")} interpolations with arithmetic (type-check risk)')
@@ -92,6 +98,36 @@ for f in sorted(os.listdir(root)):
         for key, c in collections.Counter(keys).items():
             if c > 1:
                 errors.append(f'{f}:{src[:j].count(chr(10)) + 1}: dictionary literal repeats key {key} ({c}x)')
+# File-private top-level functions called from another file (no compiler here: MobRenderCheck called Mob.swift's
+# private parts(), a build break only CI saw). Names also defined non-private anywhere, or as methods, are skipped.
+import collections as _c
+srcs = {f: open(os.path.join(root, f)).read() for f in sorted(os.listdir(root)) if f.endswith('.swift')}
+private_top = _c.defaultdict(set)      # name -> files defining it privately at top level
+public_any = set()
+for f, src in srcs.items():
+    for m in re.finditer(r'^(private |fileprivate )?func ([A-Za-z_]\w*)\s*[(<]', src, re.M):
+        (private_top[m.group(2)].add(f) if m.group(1) else public_any.add(m.group(2)))
+    for m in re.finditer(r'^[ \t]+(?:@\w+\s+)*(?:(?:public|internal|private|fileprivate|static|class|final|override|mutating|@inline\(__always\))\s+)*func ([A-Za-z_]\w*)\s*[(<]', src, re.M):
+        public_any.add(m.group(1))
+for name, files in private_top.items():
+    if name in public_any:
+        continue
+    pat = re.compile(r'(?<![\w.])' + re.escape(name) + r'\(')
+    for f, src in srcs.items():
+        if f in files:
+            continue
+        code = re.sub(r'//[^\n]*', '', src)
+        for m in pat.finditer(code):
+            errors.append(f'{f}:{code[:m.start()].count(chr(10)) + 1}: calls {name}(), private to {", ".join(sorted(files))}')
+            break
+# The same top-level function signature defined twice (an edit applied twice: mobModelParts in Mob.swift).
+sigs = _c.defaultdict(list)
+for f, src in srcs.items():
+    for m in re.finditer(r'^((?:private |fileprivate )?func [^\n{]*)', src, re.M):
+        sigs[(m.group(1).strip(), f if m.group(1).startswith(('private', 'fileprivate')) else '')].append(f'{f}:{src[:m.start()].count(chr(10)) + 1}')
+for (sig, _), where in sigs.items():
+    if len(where) > 1:
+        errors.append(f'{where[1]}: {sig.split("(")[0]} defined twice ({", ".join(where)})')
 for e in errors: print('ERROR', e)
 for w in warns: print('warn ', w)
 print(f'precheck: {len(errors)} errors, {len(warns)} warnings')

@@ -14,7 +14,8 @@ enum AncientSpire {
 
     static func type(_ gen: WorldGen) -> StructureType {
         StructureType(name: "great_ruin", spacing: 64, separation: 24, salt: 51870337, reach: 2) { [unowned gen] seed, cx, cz in
-            guard hashf(cx, 77, cz, UInt32(truncatingIfNeeded: seed)) < 0.6 else { return nil }
+            // One region in four (at 0.6 about twenty stood within sight range: tour shots full of pillars, run 482).
+            guard hashf(cx, 77, cz, UInt32(truncatingIfNeeded: seed)) < 0.25 else { return nil }
             let x = cx * CS + 8, z = cz * CS + 8
             let col = gen.column(x, z)
             guard !col.biome.isOcean && !col.biome.isRiver && col.height > SEA + 2 else { return nil }
@@ -78,6 +79,10 @@ enum AncientSpire {
             guard r < 28 else { return }
             let x = cx + dx, z = cz + dz
             w.pillarDown(x, y0 - 1, z, STONE, minY: y0 - 20)
+            // Under the tower itself: fill every cave pocket within 24 below (structcheck: the floor hung over a cave).
+            if inside(dx, dz, a + 1) {
+                for y in stride(from: y0 - 2, through: y0 - 24, by: -1) where !Blocks.opaque[Int(w.get(x, y, z))] { w.set(x, y, z, STONE) }
+            }
             let hh = Int((1 - r / 28) * 4 + hashf(x, 5, z, seedK) * 2)
             if !inside(dx, dz, a + 1) { for y in y0..<(y0 + hh) { w.set(x, y, z, (x + z + y) % 3 == 0 ? GRAVEL : rubble) } }
             if hashf(x, 6, z, seedK) < 0.025 && r > 16 {
@@ -110,9 +115,10 @@ enum AncientSpire {
                 } else if rel > 0 && rel % floorStep == 0 && y <= topFloor {
                     // Floor, broken through in places (never on the stair ring).
                     let onRing = max(abs(dx), abs(dz)) == ring && abs(dx) <= ring && abs(dz) <= ring
-                    if !onRing && hashf(x / 2, y, z / 2, seedK ^ 0x31) < 0.3 { w.set(x, y, z, AIR) } else { w.set(x, y, z, brick) }
-                } else if rel == 0 {
-                    w.set(x, y, z, brick)                                    // ground floor
+                    // The top floor stays whole (its chest must be reachable from the stair head).
+                    if !onRing && y != topFloor && hashf(x / 2, y, z / 2, seedK ^ 0x31) < 0.3 { w.set(x, y, z, AIR) } else { w.set(x, y, z, brick) }
+                } else if rel <= 0 {
+                    w.set(x, y, z, brick)                                    // ground floor and its foundation (was air below)
                 } else {
                     w.set(x, y, z, AIR)
                 }
@@ -129,9 +135,24 @@ enum AncientSpire {
         // Landing at the top: the floor round the last step is whole.
         let (lx, lz, _) = ringCell(stairCount - 1)
         for ddx in -2...2 { for ddz in -2...2 where inside(lx + ddx, lz + ddz, half(topFloor) - 2) { put(lx + ddx, topFloor, lz + ddz, brick) } }
+        // ...except over the last steps, which climb through it (the landing re-filled their headroom: structcheck,
+        // the top chest was unreachable in 9 of 9 spires).
+        for i in max(0, stairCount - 5)..<stairCount {
+            let (sx, sz, _) = ringCell(i)
+            for k in 1...3 where stairY(i) + k <= topFloor { put(sx, stairY(i) + k, sz, AIR) }
+        }
         // Doorway on the south face, chiseled lintel.
         for y in (y0 + 1)...(y0 + 5) { for dx in -1...1 { for dz in (a - 2)...a { put(dx, y, dz, AIR) } } }
         for dx in -2...2 { put(dx, y0 + 6, a, chis) }
+        // Ghost lanterns on every floor the stair reaches, two each on solid brick (the interior shot was near black).
+        let lantern = g("soul_lantern", AIR)
+        if lantern != AIR {
+            var fy = y0
+            while fy <= topFloor {
+                for (dx, dz) in [(-4, 4), (4, -4)] { put(dx, fy, dz, brick); put(dx, fy + 1, dz, lantern) }
+                fy += floorStep
+            }
+        }
         // Chests: by the door, and on the highest floor the stair reaches (away from the landing).
         w.chest(cx - 4, y0 + 1, cz + a - 4, loot: "dungeon", seed: rng.next(), facing: 1)
         let (tx, tz, _) = ringCell(stairCount / 2)

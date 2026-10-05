@@ -46,6 +46,7 @@ final class SoundEngine {
     private var nextSpatial = 0, nextFlat = 0, nextUI = 0, variant = 0
     private(set) var music: MusicStream?
     private(set) var disc: MusicStream?          // jukebox discs: mono, positional, through the environment node
+    private(set) var custom: CustomMusic?        // the player's own music folder (CustomMusic.swift)
     private var discPos: V3? = nil
 
     // Listener state (world space) and environment.
@@ -120,6 +121,8 @@ final class SoundEngine {
         engine.attach(ms.node)
         engine.connect(ms.node, to: engine.mainMixerNode, format: stereo)
         music = ms
+        custom = CustomMusic(engine: engine, format: stereo)
+        custom?.scan(force: true)                     // makes the Music folder if missing, so it is there to find
         let ds = MusicStream(format: mono)
         engine.attach(ds.node)
         engine.connect(ds.node, to: env, format: mono)
@@ -332,6 +335,7 @@ final class SoundEngine {
             if let l = loops[k] { engine.detach(l.node); loops[k] = nil }
         }
         music?.volume = AudioSettings.volume(.master) * AudioSettings.volume(.music) * musicDuck
+        custom?.volume = AudioSettings.volume(.master) * AudioSettings.volume(.music) * Settings.shared.customMusicVolume * musicDuck
         music?.update(dt)
     }
 
@@ -344,12 +348,14 @@ final class SoundEngine {
         for l in loops.values { l.node.stop(); l.started = false; l.level = 0 }     // re-scheduled on the next tick
         music?.restart()
         disc?.restart()
+        custom?.restart()
     }
 
     func stopAll() {
         for p in spatial + flat + ui { p.stop(); p.play() }
         for l in loops.values { l.node.stop(); l.started = false; l.level = 0; l.target = 0 }
         music?.stop(fade: 0.5)
+        custom?.stop()
     }
 }
 #endif
