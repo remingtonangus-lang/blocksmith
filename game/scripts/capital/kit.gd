@@ -5,9 +5,9 @@ extends RefCounted
 ## r = facade style (see building.gdshader), g = per-building seed, b = floor height / 8, a = lights allowed.
 ## UV = (metres along the perimeter, metres of height) so the facade shader lays out floors and mullions.
 
-enum { GLASS, BANDED, STONE, TRIM, METAL, GARDEN, PAD, DARKGLASS, CONCRETE, OLIVE, RUST }
+enum { GLASS, BANDED, STONE, TRIM, METAL, GARDEN, PAD, DARKGLASS, CONCRETE, OLIVE, RUST, CLOTH }
 const STYLE_V := {GLASS: 0.03, BANDED: 0.12, STONE: 0.21, TRIM: 0.3, METAL: 0.39, GARDEN: 0.48, PAD: 0.57,
-	DARKGLASS: 0.66, CONCRETE: 0.75, OLIVE: 0.84, RUST: 0.93}
+	DARKGLASS: 0.66, CONCRETE: 0.75, OLIVE: 0.84, RUST: 0.93, CLOTH: 1.02}
 
 var st := SurfaceTool.new()
 var verts := 0

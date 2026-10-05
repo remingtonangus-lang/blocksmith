@@ -109,10 +109,11 @@ func _side(k: Kit, prof: Array, hw: float, c: Color) -> void:
 	k.prism(xf, PackedVector2Array(prof), -hw, hw, c, true, true)
 
 
-## The soldier's arms: white dress sleeves with grey cuffs and dark gloves, from the grip and the fore hand back
-## out of view.
+## The soldier's arms: graphite undersuit sleeves (as the Capital's line troops wear under their white plates),
+## grey cuffs and dark gloves, from the grip and the fore hand back out of view. (White dress sleeves vanished
+## against the Capital's white ground; only ~20 cm of forearm is ever on screen, so it carries the contrast.)
 func _arms(k: Kit, grip: Vector3, fore: Vector3) -> void:
-	var sleeve := k.col(Kit.STONE, 0.6, 1.0, false)
+	var sleeve := k.col(Kit.CLOTH, 0.6, 1.0, false)
 	var cuff := k.col(Kit.TRIM, 0.6)
 	var glove := k.col(Kit.METAL, 0.8)
 	var r_elbow := grip + Vector3(0.16, -0.22, 0.42)

@@ -125,6 +125,11 @@ void fragment() {
 		float n = fbm2(uv * 0.3);
 		alb = vec3(0.24, 0.26, 0.17) * mix(0.75, 1.1, n);
 		rough = 0.8;
+	} else if (style == 11) {
+		// Cloth (uniform undersuits): dark graphite, matte.
+		alb = vec3(0.075, 0.08, 0.09);
+		rough = 0.92;
+		spec = 0.3;
 	} else {
 		float n = fbm2(uv * 0.5);
 		alb = mix(vec3(0.33, 0.17, 0.09), vec3(0.45, 0.3, 0.2), n);

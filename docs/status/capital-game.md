@@ -125,14 +125,20 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
-- 2026-10-05 11:10: tree trunks are solid. Measured: the new `trees` scenario walked the player 9.4 m through a
+- 2026-10-05 10:55: view-model sleeves are graphite cloth (new Kit style CLOTH), not white. Measured on
+  weapon_view: with the world hidden, the forearm (only ~20 cm of it is ever on screen) was white against the
+  Capital's white ground. Now a dark sleeve with a grey cuff frames the white carbine.
+- 2026-10-05 10:50: GAME BUILD READY 95849c0 (capital-latest, 10:45 UTC). Adds the overcast sky fix and solid
+  tree trunks. CI Mac (paravirtual, High): city 36.2 fps (p99 60.6 ms), battle 32.1 (p99 65.2), forest 37.5
+  (p99 43.8); draws 272 / 701 / 330 (within run-to-run noise of 57ae121).
+- 2026-10-05 10:30: tree trunks are solid. Measured: the new `trees` scenario walked the player 9.4 m through a
   broadleaf; a battle shot showed a soldier standing inside a spruce. Each near cell's worker build now also
   returns its trunks in 8 m buckets. Cells within 60 m of the player (or their vehicle) get one static body of
   shared cylinders on physics layer 16, one new body per 10 frames. The player, crawlers, bullets and grenades
   collide with it; wheel rays and the vehicle camera's spring arm ignore it. Soldiers step round trunks with
   `Vegetation.avoid()` (0.87 us per call, so under 1 ms at the 900-soldier cap). Now the player stops at the bark
   (1.04 m from the axis of a 0.68 m trunk). All 10 scenarios pass.
-- 2026-10-05 10:40: the overcast sky looked clear. Measured on the mountains shot: overcast (cover 0.82) showed
+- 2026-10-05 10:05: the overcast sky looked clear. Measured on the mountains shot: overcast (cover 0.82) showed
   less cloud than clear. A thick deck shades itself to black, and its only remaining light was the blue zenith
   ambient, so it read as blue sky. Fixes:
   - cloud interiors get a grey multiple-scattering ambient and a soft sun octave that survives self-shadow;
