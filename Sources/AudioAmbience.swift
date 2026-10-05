@@ -39,6 +39,8 @@ final class AudioState {
 }
 
 final class MusicDirector {
+    // Moods that cut in at once (built once: musicTick runs every frame).
+    static let hardMoods: Set<MusicMood> = [.title, .ember, .hollow, .boss, .combat, .tension]
     var wait: Float = Rand.float(in: 60...150)
     var mood: MusicMood? = nil              // mood of the piece being played
     var pieces = 0
@@ -422,7 +424,7 @@ extension Game {
         case .end: return .hollow
         case .overworld: break
         }
-        if mobs.mobs.contains(where: { $0.kind == .wither && $0.health > 0 && simd_length($0.pos - player.pos) < 80 }) { return .boss }
+        if mobs.of(.wither).contains(where: { $0.health > 0 && simd_length($0.pos - player.pos) < 80 }) { return .boss }
         // Firefights and raids score as combat; a Steelhold garrison nearby keeps a tense underscore.
         switch combatLevel() {
         case 2: return .combat
@@ -502,7 +504,7 @@ extension Game {
             m.wait = src == 1 ? Rand.float(in: 2...6) : Rand.float(in: 240...600)
         }
         // Some moods take over at once (dimension change, boss, the title screen); the rest wait their turn.
-        let hard: Set<MusicMood> = [.title, .ember, .hollow, .boss, .combat, .tension]
+        let hard = MusicDirector.hardMoods
         if let cur = m.mood, stream.isPlaying {
             let curHard = hard.contains(cur), wantHard = hard.contains(want)
             if cur != want && (curHard || wantHard) && !(cur == .title && want == .creative) {
