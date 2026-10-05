@@ -137,14 +137,19 @@ extension ItemHD {
                 cv.add(cv.poly(pts), ys, soft(base), r: 0.05)
             }
         case "wheat":
-            for (a, b) in [(V2(0.3, 0.9), V2(0.42, 0.2)), (V2(0.5, 0.9), V2(0.52, 0.16)), (V2(0.7, 0.9), V2(0.62, 0.2))] {
-                cv.add(cap(cv, a, b, 0.018), zero, soft(darker(base, 0.85)), r: 0.018)
+            // A sheaf: stalks gathered at a tie low down and fanning out to the ears (critic: three posts and a bar
+            // read as an easel).
+            let foot = V2(0.5, 0.92), tie = V2(0.5, 0.68)
+            for tip in [V2(0.24, 0.16), V2(0.38, 0.1), V2(0.52, 0.08), V2(0.66, 0.1), V2(0.8, 0.16)] {
+                let a: V2 = foot + (tie - foot) * 0.0
+                cv.add(cap(cv, a, tie, 0.018), zero, soft(darker(base, 0.85)), r: 0.018)
+                cv.add(cap(cv, tie, tip, 0.016), zero, soft(darker(base, 0.85)), r: 0.016)
                 for j in 0..<4 {
-                    let t: Float = 0.12 + Float(j) * 0.07
-                    cv.add(ellipse(cv, b + (a - b) * t, 0.04, 0.055), zero, "wheat", r: 0.04)
+                    let t: Float = 0.06 + Float(j) * 0.08
+                    cv.add(ellipse(cv, tip + (tie - tip) * t, 0.035, 0.05), zero, "wheat", r: 0.035)
                 }
             }
-            cv.add(cap(cv, V2(0.32, 0.68), V2(0.68, 0.68), 0.03), zero, "stem", r: 0.03)
+            cv.add(cap(cv, V2(0.42, 0.68), V2(0.58, 0.68), 0.035), zero, "stem", r: 0.035)
         case "egg":
             cv.add(ellipse(cv, V2(0.5, 0.55), 0.27, 0.35), ys, soft(base), r: 0.3)
             let dots = darker(base, 0.75)
@@ -268,7 +273,12 @@ extension ItemHD {
             }
         case "berries":
             if name.contains("chorus") {
-                let d = cv.circle(V2(0.5, 0.56), 0.3)
+                // A lumpy, segmented fruit (critic: a smooth ball read as a bowling ball).
+                var d = cv.circle(V2(0.5, 0.56), 0.22)
+                for k in 0..<6 {
+                    let a = Float(k) * .pi / 3 + 0.3
+                    d = smin(d, cv.circle(V2(0.5, 0.56) + V2(cosf(a), sinf(a)) * 0.16, 0.13), 0.04)
+                }
                 cv.add(d, ys, M("leather", base), r: 0.3)
                 for c in [V2(0.38, 0.46), V2(0.6, 0.48), V2(0.5, 0.68)] {
                     cv.add(Canvas.intersect(cv.circle(c, 0.07), Canvas.offset(d, 0.03)), ys, soft(lighter(base, 0.3)), r: 0.05)

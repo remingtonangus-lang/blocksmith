@@ -24,7 +24,7 @@ enum ItemHD {
         "handle": Mat(kind: .wood, base: hex(0x94683C), dark: hex(0x4A3018), light: hex(0xC89A62)),
         "stone": Mat(kind: .stone, base: hex(0x767C86), dark: hex(0x363A44), light: hex(0xAEB4BE)),
         "iron": Mat(kind: .metal, base: hex(0xC9CED6), dark: hex(0x5E646E), light: hex(0xFFFFFF)),
-        "golden": Mat(kind: .metal, base: hex(0xF0C33C), dark: hex(0x8A5A10), light: hex(0xFFF4B0)),
+        "golden": Mat(kind: .metal, base: hex(0xFFC820), dark: hex(0xB0640A), light: hex(0xFFF6C8)),       // (critic: dull ochre read as brass)
         "diamond": Mat(kind: .gem, base: hex(0x46D8E0), dark: hex(0x146A7A), light: hex(0xD8FFFF)),
         "netherite": Mat(kind: .dusk, base: hex(0x5E5272), dark: hex(0x221C2C), light: hex(0xD4BEF4)),     // (critic: too dark on the slot)
         "copper": Mat(kind: .copper, base: hex(0xDA7240), dark: hex(0x6E2E12), light: hex(0xFFC29A)),
@@ -271,7 +271,7 @@ enum ItemHD {
             col *= 0.92 + 0.1 * g                                   // a quiet grain (critic: strong stripes read as wicker)
             // A few dark plank lines across the grain, so a wooden head reads as cut wood, not as its handle.
             let line = (axisT * 5 + vnoise(p.x, p.y, 5, 9) * 0.6).truncatingRemainder(dividingBy: 1)
-            if m.base.x > 0.7 && line < 0.06 { col *= 0.62 }
+            if m.base == mats["wood"]!.base && line < 0.06 { col *= 0.62 }      // tool heads only (boats read as wicker)
             col += (m.light - col) * (powf(max(0, refl.z), 12) * 0.35)
         case .stone:
             let nn: Float = vnoise(p.x, p.y, 22, 7) * 0.65 + vnoise(p.x, p.y, 60, 8) * 0.35
@@ -463,9 +463,10 @@ enum ItemHD {
             handle(cv, V2(0.14, 0.9), top, 0.036)
             let (bd, bt) = cv.capsule(top + V2(0.02, -0.01), V2(0.42, 0.14), 0.04)
             cv.add(bd, bt, head, r: 0.04)
-            let blade = tierShape(cv, cv.poly([V2(0.27, 0.06), V2(0.48, 0.09), V2(0.46, 0.25), V2(0.32, 0.52), V2(0.16, 0.46), V2(0.25, 0.22)]), head)
+            // A narrow blade bent down at a right angle to the beam (critic: the broad one read as a cleaver).
+            let blade = tierShape(cv, cv.poly([V2(0.33, 0.07), V2(0.47, 0.1), V2(0.43, 0.21), V2(0.29, 0.52), V2(0.19, 0.47), V2(0.31, 0.2)]), head)
             cv.add(blade, cv.axis(V2(0.38, 0.08), V2(0.26, 0.45)), head, r: 0.06, chamfer: true)
-            cv.add(Canvas.intersect(cv.capsule(V2(0.16, 0.46), V2(0.32, 0.52), 0.035).0, Canvas.offset(blade, 0.004)), bt, edgeMat, r: 0.02, chamfer: true)
+            cv.add(Canvas.intersect(cv.capsule(V2(0.19, 0.47), V2(0.29, 0.52), 0.03).0, Canvas.offset(blade, 0.004)), bt, edgeMat, r: 0.02, chamfer: true)
             cv.add(cv.circle(top, 0.05), bt, accent, r: 0.05)
             adorn(cv, head, top, up, rt)
         default:                                                            // spear: a long leaf head with lugs

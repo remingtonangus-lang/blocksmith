@@ -292,6 +292,15 @@ extension ItemHD {
         case "firework_star", "charge":
             let d = cv.circle(V2(0.5, 0.52), 0.3)
             let star = s.mask == "firework_star"
+            if !star {
+                // Flame licks round the dark core (critic: a grey cannonball).
+                for k in 0..<7 {
+                    let a = Float(k) * 2 * .pi / 7 - .pi / 2
+                    let dv = V2(cosf(a), sinf(a)), pv = V2(-sinf(a), cosf(a))
+                    let b: V2 = V2(0.5, 0.52) + dv * 0.24
+                    cv.add(cv.poly([b + pv * 0.09, b + dv * 0.2 + pv * 0.03, b - pv * 0.09]), ys, soft(k % 2 == 0 ? 0xF8A030 : 0xF8D040), r: 0.04)
+                }
+            }
             cv.add(d, ys, star ? M("stone", base) : soft(0x3A2A1A), r: 0.3)
             for c in [V2(0.41, 0.43), V2(0.59, 0.51), V2(0.45, 0.63)] {
                 cv.add(Canvas.intersect(cv.circle(c, star ? 0.05 : 0.07), Canvas.offset(d, 0.03)), ys, soft(star ? (ex["c"] ?? 0x9A9AA0) : 0xF8A030), r: 0.045)
