@@ -42,18 +42,31 @@ const SPECIES := {
 		"spread": 0.75, "lobes": 0.22},
 }
 
+## Level-of-detail meshes built from one growth pass (identical skeleton and card placement, so switching LODs never
+## changes the tree's shape): LOD 0 = everything; LOD 1 = every 2nd leaf card (1.4x larger), thinner tubes, half the
+## tube rings; LOD 2 = every LOD_CARD_STEP[2]-th card (larger still), trunk and first-order boughs only.
+const LODS := 3
+const LOD_CARD_STEP := [1, 2, 7]
+const LOD_RING_STEP := [1, 2, 3]
+const LOD_MAX_TUBE_LEVEL := [9, 9, 1]
+
+## Geometry buffers of one LOD.
+class Buf:
+	var bark := PackedVector3Array()
+	var bark_n := PackedVector3Array()
+	var bark_uv := PackedVector2Array()
+	var bark_col := PackedColorArray()
+	var bark_idx := PackedInt32Array()
+	var leaf := PackedVector3Array()
+	var leaf_n := PackedVector3Array()
+	var leaf_uv := PackedVector2Array()
+	var leaf_uv2 := PackedVector2Array()
+	var leaf_col := PackedColorArray()
+	var leaf_idx := PackedInt32Array()
+
 var rng := RandomNumberGenerator.new()
-var _bark: PackedVector3Array
-var _bark_n: PackedVector3Array
-var _bark_uv: PackedVector2Array
-var _bark_col: PackedColorArray
-var _bark_idx: PackedInt32Array
-var _leaf: PackedVector3Array
-var _leaf_n: PackedVector3Array
-var _leaf_uv: PackedVector2Array
-var _leaf_uv2: PackedVector2Array
-var _leaf_col: PackedColorArray
-var _leaf_idx: PackedInt32Array
+var _bufs: Array = []
+var _card_n := 0                      # running card counter: LOD l keeps cards with _card_n % LOD_CARD_STEP[l] == 0
 var _sp: Dictionary
 var _height := 10.0
 var _crown_center := Vector3.ZERO
@@ -63,8 +76,12 @@ var _anchors: Array[Vector3] = []     # points on outer branches (crown fill att
 var _lobe_ph := Vector3.ZERO          # per-build phases of the shrub outline lobes
 var _anchor_dirs: Array[Vector3] = []
 
-## Build one tree variant. detail: 0 = full, 1 = reduced (fewer sides/cards) for the mid LOD.
+## Build one tree variant at one level of detail (0 = full).
 func build(species: String, seed: int, detail: int = 0) -> ArrayMesh:
+	return build_lods(species, seed)[clampi(detail, 0, LODS - 1)]
+
+## Build every LOD of one tree variant in a single growth pass: [lod0, lod1, lod2].
+func build_lods(species: String, seed: int) -> Array:
 	_sp = SPECIES[species]
 	rng.seed = seed
 	_reset()
@@ -82,19 +99,22 @@ func build(species: String, seed: int, detail: int = 0) -> ArrayMesh:
 		_lobe_ph = Vector3(rng.randf() * TAU, rng.randf() * TAU, rng.randf() * TAU)
 		for s in stems:
 			var d := Vector3(rng.randf_range(-lean, lean), 1.0, rng.randf_range(-lean, lean)).normalized()
-			_branch(Vector3.ZERO, d, _height * rng.randf_range(0.8, 1.1), float(_sp.trunk_r) * rng.randf_range(0.6, 1.0), 0, detail, rng.randf())
+			_branch(Vector3.ZERO, d, _height * rng.randf_range(0.8, 1.1), float(_sp.trunk_r) * rng.randf_range(0.6, 1.0), 0, rng.randf())
 	else:
-		_branch(Vector3.ZERO, trunk_dir, _height, float(_sp.trunk_r) * rng.randf_range(0.85, 1.15), 0, detail, rng.randf())
+		_branch(Vector3.ZERO, trunk_dir, _height, float(_sp.trunk_r) * rng.randf_range(0.85, 1.15), 0, rng.randf())
 	if int(_sp.cards_per_tip) > 0:
-		_fill_crown(detail)
-	return _commit()
+		_fill_crown()
+	var out := []
+	for l in LODS:
+		out.append(_commit(_bufs[l]))
+	return out
 
 ## Fill the crown volume with leaf clusters attached to the nearest outer-branch point, so every species reads as
 ## a full canopy with the right silhouette (cone, rounded cone, round, oval, bush).
-func _fill_crown(detail: int) -> void:
+func _fill_crown() -> void:
 	if _anchors.is_empty():
 		return
-	var count: int = int(_sp.get("fill", 220)) / (2 if detail > 0 else 1)
+	var count: int = int(_sp.get("fill", 220))
 	var crown_bot: float = _height * float(_sp.start)
 	var crown_h := _height - crown_bot
 	var shaped: bool = _sp.has("spread")
@@ -129,7 +149,7 @@ func _fill_crown(detail: int) -> void:
 		if best < 0 or bd > pow(rad * 0.6 + 1.2, 2):
 			continue
 		var anchor := _anchors[best].lerp(p, 0.7 if shaped else 0.35)
-		_cluster(anchor, _anchor_dirs[best], detail)
+		_cluster(anchor, _anchor_dirs[best])
 		placed += 1
 
 func _crown_radius_at(t: float) -> float:
@@ -140,12 +160,41 @@ func _crown_radius_at(t: float) -> float:
 		"oval": return sin(clampf(t, 0.02, 0.98) * PI) * 0.8
 		_: return 1.0
 
+## Append one leaf quad (bottom-left, bottom-right, top-right, top-left) to every LOD that keeps card number _card_n,
+## scaled about its bottom centre so sparser LODs keep the canopy's coverage.
+func _emit_card(bottom: Vector3, right_v: Vector3, up_v: Vector3, nrm: Vector3, uv0: Vector2, cols: Array) -> void:
+	for l in LODS:
+		var step: int = LOD_CARD_STEP[l]
+		if _card_n % step != 0:
+			continue
+		var b: Buf = _bufs[l]
+		var k := sqrt(float(step))
+		var rv := right_v * k
+		var uv := up_v * k
+		var base := b.leaf.size()
+		b.leaf.append(bottom - rv)
+		b.leaf.append(bottom + rv)
+		b.leaf.append(bottom + rv + uv)
+		b.leaf.append(bottom - rv + uv)
+		b.leaf_uv.append(Vector2(uv0.x, uv0.y + 0.25))
+		b.leaf_uv.append(Vector2(uv0.x + 0.25, uv0.y + 0.25))
+		b.leaf_uv.append(Vector2(uv0.x + 0.25, uv0.y))
+		b.leaf_uv.append(uv0)
+		b.leaf_uv2.append(Vector2(-0.5, 0))
+		b.leaf_uv2.append(Vector2(0.5, 0))
+		b.leaf_uv2.append(Vector2(0.5, 1))
+		b.leaf_uv2.append(Vector2(-0.5, 1))
+		for q in 4:
+			b.leaf_n.append(nrm)
+			b.leaf_col.append(cols[q])
+		b.leaf_idx.append_array([base, base + 1, base + 2, base, base + 2, base + 3])
+	_card_n += 1
+
 ## Two crossed cards (one cluster) at p, oriented along the branch with a droop for conifers.
-func _cluster(p: Vector3, dir: Vector3, detail: int) -> void:
+func _cluster(p: Vector3, dir: Vector3) -> void:
 	var card: Array = _sp.card
-	var size_scale := 1.0 if detail == 0 else 1.4
-	var w: float = card[0] * rng.randf_range(0.75, 1.15) * size_scale
-	var h: float = card[1] * rng.randf_range(0.75, 1.15) * size_scale
+	var w: float = card[0] * rng.randf_range(0.75, 1.15)
+	var h: float = card[1] * rng.randf_range(0.75, 1.15)
 	var out := (p - Vector3(0, _crown_center.y, 0))
 	out.y *= 0.5
 	out = out.normalized() if out.length() > 0.01 else Vector3.UP
@@ -157,31 +206,25 @@ func _cluster(p: Vector3, dir: Vector3, detail: int) -> void:
 	var sway := clampf(p.y / maxf(_height, 0.5), 0.2, 1.0)
 	var phase := rng.randf()
 	var variant := rng.randi_range(0, 3)
+	var nrm := (out * 0.8 + Vector3.UP * 0.2).normalized()
+	var col := Color(sway, phase, 0.66, 1.0)
+	var cols := [col, col, col, col]
+	var uv0 := Vector2(variant * 0.25, _leaf_row * 0.25)
+	# the two crossed cards of a cluster always share a LOD
+	var n0 := _card_n
 	for k in 2:
+		_card_n = n0
 		var right_v := (side if k == 0 else up2) * w * 0.5
 		var up_v := along * h
-		var bottom := p - up_v * 0.2
-		var base := _leaf.size()
-		var u0 := variant * 0.25
-		var v0 := _leaf_row * 0.25
-		var quad := [bottom - right_v, bottom + right_v, bottom + right_v + up_v, bottom - right_v + up_v]
-		var uvs := [Vector2(u0, v0 + 0.25), Vector2(u0 + 0.25, v0 + 0.25), Vector2(u0 + 0.25, v0), Vector2(u0, v0)]
-		var locs := [Vector2(-0.5, 0), Vector2(0.5, 0), Vector2(0.5, 1), Vector2(-0.5, 1)]
-		for q in 4:
-			_leaf.append(quad[q])
-			_leaf_n.append((out * 0.8 + Vector3.UP * 0.2).normalized())
-			_leaf_uv.append(uvs[q])
-			_leaf_uv2.append(locs[q])
-			_leaf_col.append(Color(sway, phase, 0.66, 1.0))
-		_leaf_idx.append_array([base, base + 1, base + 2, base, base + 2, base + 3])
+		_emit_card(p - up_v * 0.2, right_v, up_v, nrm, uv0, cols)
 
 func _reset() -> void:
 	_anchors.clear()
 	_anchor_dirs.clear()
-	_bark = PackedVector3Array(); _bark_n = PackedVector3Array(); _bark_uv = PackedVector2Array()
-	_bark_col = PackedColorArray(); _bark_idx = PackedInt32Array()
-	_leaf = PackedVector3Array(); _leaf_n = PackedVector3Array(); _leaf_uv = PackedVector2Array()
-	_leaf_uv2 = PackedVector2Array(); _leaf_col = PackedColorArray(); _leaf_idx = PackedInt32Array()
+	_card_n = 0
+	_bufs = []
+	for l in LODS:
+		_bufs.append(Buf.new())
 
 func _crown_scale(t: float) -> float:
 	# relative branch length by height fraction t (0 crown base .. 1 top) for the crown silhouette
@@ -192,12 +235,9 @@ func _crown_scale(t: float) -> float:
 		"oval": return 0.45 + 0.55 * sin(t * PI)
 		_: return 1.0
 
-func _branch(origin: Vector3, dir: Vector3, length: float, radius: float, level: int, detail: int, phase: float) -> void:
+func _branch(origin: Vector3, dir: Vector3, length: float, radius: float, level: int, phase: float) -> void:
 	var segs := clampi(int(length / (1.2 if level == 0 else 0.8)), 3, 10)
 	var sides := 8 if level == 0 else (5 if level == 1 else 3)
-	if detail > 0:
-		sides = maxi(3, sides - 3)
-		segs = maxi(2, segs / 2)
 	var pts: Array[Vector3] = []
 	var p := origin
 	var d := dir
@@ -211,7 +251,19 @@ func _branch(origin: Vector3, dir: Vector3, length: float, radius: float, level:
 			d = (d + Vector3.UP * 0.25).normalized()
 		p += d * (length / segs)
 	var r_tip := radius * (0.12 if level == 0 else 0.25)
-	_tube(pts, radius, r_tip, sides, level, phase)
+	for l in LODS:
+		if level > LOD_MAX_TUBE_LEVEL[l]:
+			continue
+		var lp := pts
+		var ring: int = LOD_RING_STEP[l]
+		if ring > 1:
+			lp = []
+			for i in range(0, pts.size(), ring):
+				lp.append(pts[i])
+			if (pts.size() - 1) % ring != 0:
+				lp.append(pts[pts.size() - 1])
+		var ls := sides if l == 0 else maxi(3, sides - 3 * l)
+		_tube(_bufs[l], lp, radius, r_tip, ls, level, phase)
 	if level >= 1:
 		for i in range(1, pts.size()):
 			_anchors.append(pts[i])
@@ -219,8 +271,6 @@ func _branch(origin: Vector3, dir: Vector3, length: float, radius: float, level:
 	var max_level: int = _sp.levels
 	if level < max_level:
 		var count: int = _sp.branches[level]
-		if detail > 0:
-			count = maxi(2, int(count * 0.6))
 		var start := float(_sp.start) if level == 0 else 0.2
 		for b in count:
 			var t := lerpf(start, 0.97, (float(b) + rng.randf_range(0.0, 0.8)) / count)
@@ -239,12 +289,12 @@ func _branch(origin: Vector3, dir: Vector3, length: float, radius: float, level:
 				var ct := clampf((bp.y - _height * start) / maxf(_height * (1.0 - start), 0.1), 0.0, 1.0)
 				bl = _height * rel * _crown_scale(ct)
 			var br := radius * lerpf(1.0, 0.25, t) * 0.55
-			_branch(bp, nd, bl, maxf(br, 0.012), level + 1, detail, rng.randf())
+			_branch(bp, nd, bl, maxf(br, 0.012), level + 1, rng.randf())
 	if level >= max_level - (1 if max_level >= 3 else 0) and int(_sp.cards_per_tip) > 0:
-		_foliage(pts, level, detail, phase)
+		_foliage(pts, level, phase)
 
-func _tube(pts: Array[Vector3], r0: float, r1: float, sides: int, level: int, phase: float) -> void:
-	var base := _bark.size()
+func _tube(b: Buf, pts: Array[Vector3], r0: float, r1: float, sides: int, level: int, phase: float) -> void:
+	var base := b.bark.size()
 	var n := pts.size()
 	var vlen := 0.0
 	for i in n:
@@ -261,31 +311,28 @@ func _tube(pts: Array[Vector3], r0: float, r1: float, sides: int, level: int, ph
 		for s in sides + 1:
 			var a := TAU * s / sides
 			var nrm := (side * cos(a) + up * sin(a))
-			_bark.append(pts[i] + nrm * r)
-			_bark_n.append(nrm)
-			_bark_uv.append(Vector2(float(s) / sides * maxf(r0 * 6.0, 1.0), vlen / maxf(r0 * 4.0, 0.6)))
-			_bark_col.append(Color(sway, phase, level / 3.0, 0.0))
+			b.bark.append(pts[i] + nrm * r)
+			b.bark_n.append(nrm)
+			b.bark_uv.append(Vector2(float(s) / sides * maxf(r0 * 6.0, 1.0), vlen / maxf(r0 * 4.0, 0.6)))
+			b.bark_col.append(Color(sway, phase, level / 3.0, 0.0))
 	for i in n - 1:
 		for s in sides:
 			var a := base + i * (sides + 1) + s
-			var b := a + sides + 1
-			_bark_idx.append_array([a, b, a + 1, a + 1, b, b + 1])
+			var c := a + sides + 1
+			b.bark_idx.append_array([a, c, a + 1, a + 1, c, c + 1])
 
-func _foliage(pts: Array[Vector3], level: int, detail: int, phase: float) -> void:
+func _foliage(pts: Array[Vector3], level: int, phase: float) -> void:
 	var per_tip: int = _sp.cards_per_tip
-	if detail > 0:
-		per_tip = maxi(1, per_tip / 2)
 	var n := pts.size()
 	var card: Array = _sp.card
-	var size_scale := 1.0 if detail == 0 else 1.45
 	# cards along the outer half of the branch
 	for i in range(maxi(1, n / 3), n):
 		for c in per_tip:
 			if rng.randf() > 0.75 and i < n - 1:
 				continue
 			var p := pts[i] + Vector3(rng.randf_range(-0.2, 0.2), rng.randf_range(-0.15, 0.2), rng.randf_range(-0.2, 0.2))
-			var w: float = card[0] * rng.randf_range(0.8, 1.2) * size_scale
-			var h: float = card[1] * rng.randf_range(0.8, 1.2) * size_scale
+			var w: float = card[0] * rng.randf_range(0.8, 1.2)
+			var h: float = card[1] * rng.randf_range(0.8, 1.2)
 			var out := (p - _crown_center)
 			out.y *= 0.6
 			out = out.normalized() if out.length() > 0.01 else Vector3.UP
@@ -297,44 +344,35 @@ func _foliage(pts: Array[Vector3], level: int, detail: int, phase: float) -> voi
 			var upv := right.cross(axis).normalized()
 			var right_v := right * w * 0.5
 			var up_v := (axis * 0.6 + upv * 0.4).normalized() * h
-			var bottom := p - up_v * 0.15
 			var variant := rng.randi_range(0, 3)
-			var u0 := variant * 0.25
-			var v0 := _leaf_row * 0.25
-			var base := _leaf.size()
-			var quad := [bottom - right_v, bottom + right_v, bottom + right_v + up_v, bottom - right_v + up_v]
-			var uvs := [Vector2(u0, v0 + 0.25), Vector2(u0 + 0.25, v0 + 0.25), Vector2(u0 + 0.25, v0), Vector2(u0, v0)]
-			var locs := [Vector2(-0.5, 0), Vector2(0.5, 0), Vector2(0.5, 1), Vector2(-0.5, 1)]
 			var sway := clampf(p.y / maxf(_height, 0.5), 0.2, 1.0)
+			# normals bent outward from the crown centre: volumetric shading of the canopy
+			var nrm := (out * 0.75 + upv * 0.25).normalized()
+			var cols := []
 			for k in 4:
-				_leaf.append(quad[k])
-				# normals bent outward from the crown centre: volumetric shading of the canopy
-				_leaf_n.append((out * 0.75 + upv * 0.25).normalized())
-				_leaf_uv.append(uvs[k])
-				_leaf_uv2.append(locs[k])
-				_leaf_col.append(Color(sway, phase + rng.randf() * 0.3, level / 3.0, 1.0))
-			_leaf_idx.append_array([base, base + 1, base + 2, base, base + 2, base + 3])
+				cols.append(Color(sway, phase + rng.randf() * 0.3, level / 3.0, 1.0))
+			_emit_card(p - up_v * 0.15, right_v, up_v, nrm, Vector2(variant * 0.25, _leaf_row * 0.25), cols)
 
-func _commit() -> ArrayMesh:
+func _commit(b: Buf) -> ArrayMesh:
 	var m := ArrayMesh.new()
 	var a := []
 	a.resize(Mesh.ARRAY_MAX)
-	a[Mesh.ARRAY_VERTEX] = _bark
-	a[Mesh.ARRAY_NORMAL] = _bark_n
-	a[Mesh.ARRAY_TEX_UV] = _bark_uv
-	a[Mesh.ARRAY_COLOR] = _bark_col
-	a[Mesh.ARRAY_INDEX] = _bark_idx
+	a[Mesh.ARRAY_VERTEX] = b.bark
+	a[Mesh.ARRAY_NORMAL] = b.bark_n
+	a[Mesh.ARRAY_TEX_UV] = b.bark_uv
+	a[Mesh.ARRAY_COLOR] = b.bark_col
+	a[Mesh.ARRAY_INDEX] = b.bark_idx
 	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
-	if _leaf.size() > 0:
-		var b := []
-		b.resize(Mesh.ARRAY_MAX)
-		b[Mesh.ARRAY_VERTEX] = _leaf
-		b[Mesh.ARRAY_NORMAL] = _leaf_n
-		b[Mesh.ARRAY_TEX_UV] = _leaf_uv
-		b[Mesh.ARRAY_TEX_UV2] = _leaf_uv2
-		b[Mesh.ARRAY_COLOR] = _leaf_col
-		b[Mesh.ARRAY_INDEX] = _leaf_idx
-		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, b)
+	if b.leaf.size() > 0:
+		var c := []
+		c.resize(Mesh.ARRAY_MAX)
+		c[Mesh.ARRAY_VERTEX] = b.leaf
+		c[Mesh.ARRAY_NORMAL] = b.leaf_n
+		c[Mesh.ARRAY_TEX_UV] = b.leaf_uv
+		c[Mesh.ARRAY_TEX_UV2] = b.leaf_uv2
+		c[Mesh.ARRAY_COLOR] = b.leaf_col
+		c[Mesh.ARRAY_INDEX] = b.leaf_idx
+		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, c)
 	return m
 
 ## Leaf atlas (4 x 4 cells: rows needles, broad leaves, scale/sage sprays, fine leaflets; 4 variants each).

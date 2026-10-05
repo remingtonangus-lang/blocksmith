@@ -3,19 +3,24 @@ extends Node3D
 ## Trees: deterministic scatter per 1024 m region (worker threads) from biome/moisture/slope/altitude. Every tree is
 ## drawn as an impostor in its region's MultiMesh (one draw per region, all species; shaders/impostor_tree.gdshader),
 ## baked at startup from the same meshes and materials (src/world/impostor_baker.gd, cached in user://); within
-## NEAR_END of the camera (SHRUB_END for shrubs) the full mesh (per 256 m chunk, per species variant,
-## shaders/foliage.gdshader) takes over through a per-instance screen dither that is the exact complement of the
-## impostor's, so the hand-off never pops a tree or a chunk.
+## near_end of the camera (shrub_end for shrubs; per quality preset) real meshes take over (shaders/foliage.gdshader)
+## in three levels of detail from one growth pass (src/world/tree_gen.gd): LOD 0 up close, LOD 1 with half the
+## leaf cards, LOD 2 with a fifth and only the trunk and boughs. Each species variant and LOD is one MultiMesh around
+## the camera, re-bucketed every few metres of camera travel; every LOD -> LOD and LOD 2 -> impostor transition is a
+## per-instance screen dither that is the exact complement of its neighbour's, so nothing pops.
 ## Grass: GPU-placed clumps in 16 m cells around the camera (shaders/grass.gdshader).
 
 const REGION := 1024.0
 const CHUNK := 256.0
 const VARIANTS := 3
 const GRASS_CELL := 16.0
-const NEAR_END := 200.0          # full meshes up to here (per instance), billboards beyond
-const SHRUB_END := 110.0
+const GRASS_LOD0 := 12.0         # cell-centre distance for the full clumps (the camera's own cells)
+const GRASS_LOD1 := 28.0
 const SMALL_SHRUB_FAR := 900.0
-const LOD_BAND := 15.0           # dithered mesh -> impostor cross-fade just inside NEAR_END / SHRUB_END
+const LOD1_AT := 0.18            # LOD 1 from this fraction of near_end / shrub_end
+const LOD2_AT := 0.4             # LOD 2 (no shadow casting: impostor silhouettes cast from here)
+const REBUCKET := 3.0            # re-sort near trees into LODs after this much camera travel (m); every metre of
+                                 # slack is a ring of trees drawn (collapsed) in two LODs
 
 var world: WorldData
 var camera: Camera3D
@@ -23,7 +28,17 @@ var tree_dist := 2500.0
 var grass_dist := 80.0
 var grass_density := 1.0
 var species_list: Array = []
-var _meshes := {}            # species -> [lod0 mesh per variant]
+var _meshes := {}            # species -> [lod0 mesh per variant] (impostor bake, tests)
+var _lod_meshes := {}        # species -> [[lod0, lod1, lod2] per variant]
+var near_end := 110.0        # trees: real meshes up to here, impostors beyond (quality preset "tree_near")
+var shrub_end := 60.0        # shrubs ("shrub_near")
+var lod_band := 13.0         # width of every dithered cross-fade
+var _lod_groups := {}        # entry index -> [MultiMeshInstance3D per LOD]
+var _bucket_pos := Vector3(1e9, 0, 1e9)
+var _bucket_chunks := []
+var _bucket_task := -1
+var _bucket_result := {}
+var _entry_small := PackedInt32Array()   # entry index -> 1 for shrubs (shrub distances)
 var _mats := {}              # species -> {bark, leaf}
 var _bill_mat: ShaderMaterial
 var _bill_mesh: ArrayMesh
@@ -45,6 +60,9 @@ func setup(w: WorldData, cam: Camera3D) -> void:
 	world = w
 	camera = cam
 	tree_dist = Game.quality.tree_dist
+	near_end = float(Game.quality.get("tree_near", 110.0))
+	shrub_end = float(Game.quality.get("shrub_near", 60.0))
+	lod_band = clampf(near_end * 0.08, 4.0, 10.0)
 	grass_dist = Game.quality.grass_dist
 	grass_density = Game.quality.grass_density
 	_leaf_tex = TreeGen.make_leaf_atlas()
@@ -52,9 +70,15 @@ func setup(w: WorldData, cam: Camera3D) -> void:
 	var gen := TreeGen.new()
 	for sp in species_list:
 		var vs := []
+		var ls := []
 		for v in VARIANTS:
-			vs.append(gen.build(sp, hash(sp) + v * 7919, 0))
+			var lods: Array = gen.build_lods(sp, hash(sp) + v * 7919)
+			ls.append(lods)
+			vs.append(lods[0])
 		_meshes[sp] = vs
+		_lod_meshes[sp] = ls
+		for v in VARIANTS:
+			_entry_small.append(1 if TreeGen.SPECIES[sp].crown == "bush" else 0)
 		_mats[sp] = _make_materials(sp)
 	if not Game.headless and tree_dist > 1.0:
 		var ib := ImpostorBaker.new()
@@ -83,6 +107,10 @@ func settle_now() -> void:
 		_finish_region(k, want.has(k))
 	_last_missing = 0
 	_update_near(cp, 1000)
+	if _bucket_task >= 0:
+		WorkerThreadPool.wait_for_task_completion(_bucket_task)
+		_bucket_task = -1
+	_rebucket(cp)
 	_last_grass_center = Vector2i(999999, 999999)
 	_update_grass(cp)
 
@@ -90,6 +118,8 @@ func is_settled() -> bool:
 	return _pending.is_empty() and _last_missing == 0
 
 func _exit_tree() -> void:
+	if _bucket_task >= 0:
+		WorkerThreadPool.wait_for_task_completion(_bucket_task)
 	for k in _pending.keys():
 		WorkerThreadPool.wait_for_task_completion(_pending[k])
 	_pending.clear()
@@ -110,11 +140,8 @@ func _make_materials(sp: String) -> Dictionary:
 	elif spec.bark == "dead":
 		bt = Color(1.3, 1.25, 1.2)
 	var small: bool = spec.crown == "bush"
-	var end := SHRUB_END if small else NEAR_END
 	bark.set_shader_parameter("tint", bt)
 	bark.set_shader_parameter("tree_height", spec.height[1])
-	bark.set_shader_parameter("lod_end", end)
-	bark.set_shader_parameter("lod_band", LOD_BAND)
 	var leaf := ShaderMaterial.new()
 	leaf.shader = load("res://shaders/foliage.gdshader")
 	leaf.set_shader_parameter("is_leaf", true)
@@ -122,19 +149,39 @@ func _make_materials(sp: String) -> Dictionary:
 	leaf.set_shader_parameter("tint", spec.leaf_tint)
 	leaf.set_shader_parameter("tree_height", spec.height[1])
 	leaf.set_shader_parameter("sway", 1.4 if small else 1.0)
-	leaf.set_shader_parameter("lod_end", end)
-	leaf.set_shader_parameter("lod_band", LOD_BAND)
-	for v in VARIANTS:
-		var m: ArrayMesh = _meshes[sp][v]
-		m.surface_set_material(0, bark)
-		if m.get_surface_count() > 1:
-			m.surface_set_material(1, leaf)
-	return {"bark": bark, "leaf": leaf}
+	# one bark/leaf pair per LOD, differing only in the distance band they draw in
+	var r := lod_ranges(small)
+	var out := {"bark": [], "leaf": []}
+	for l in TreeGen.LODS:
+		var b: ShaderMaterial = bark if l == 0 else bark.duplicate()
+		var f: ShaderMaterial = leaf if l == 0 else leaf.duplicate()
+		for m in [b, f]:
+			m.set_shader_parameter("lod_start", r[l].x)
+			m.set_shader_parameter("lod_end", r[l].y)
+			m.set_shader_parameter("lod_band", lod_band)
+		out.bark.append(b)
+		out.leaf.append(f)
+		for v in VARIANTS:
+			var mesh: ArrayMesh = _lod_meshes[sp][v][l] if _lod_meshes.has(sp) else (_meshes[sp][v] if l == 0 else null)
+			if mesh == null:
+				continue
+			mesh.surface_set_material(0, b)
+			if mesh.get_surface_count() > 1:
+				mesh.surface_set_material(1, f)
+	return {"bark": bark, "leaf": leaf, "lods": out}
+
+## Distance band (start, end) of each LOD for trees or shrubs; LOD 0 has no start, LOD 2 ends at the impostor.
+func lod_ranges(small: bool) -> Array:
+	var e := shrub_end if small else near_end
+	return [Vector2(-1.0, e * LOD1_AT), Vector2(e * LOD1_AT, e * LOD2_AT), Vector2(e * LOD2_AT, e)]
 
 ## Test helper (src/tests/veg_lineup.gd): materials for one standalone mesh.
 func _make_materials_for_test(sp: String, m: ArrayMesh) -> Dictionary:
 	_meshes[sp] = [m, m, m]
-	return _make_materials(sp)
+	var mats := _make_materials(sp)
+	for k in ["bark", "leaf"]:
+		mats[k].set_shader_parameter("lod_end", 1e6)     # a standalone mesh shows at any distance
+	return mats
 
 func _setup_billboards() -> void:
 	_bill_mat = ShaderMaterial.new()
@@ -142,13 +189,15 @@ func _setup_billboards() -> void:
 	var info := PackedVector4Array()
 	for sp in species_list:
 		var spec: Dictionary = TreeGen.SPECIES[sp]
-		var end := SHRUB_END if spec.crown == "bush" else NEAR_END
+		var end := shrub_end if spec.crown == "bush" else near_end
 		# knee-high brush is under a pixel past ~900 m: stop drawing it there instead of dithering specks
 		var far := minf(tree_dist, SMALL_SHRUB_FAR) if float(spec.height[1]) < 2.0 else tree_dist
 		for v in VARIANTS:
 			info.append(Vector4(end, float(spec.height[1]), ImpostorBaker.crown_shape(spec), far))
 	_bill_mat.set_shader_parameter("entry_info", info)
-	_bill_mat.set_shader_parameter("lod_band", LOD_BAND)
+	_bill_mat.set_shader_parameter("lod_band", lod_band)
+	_bill_mat.set_shader_parameter("tree_shadow_begin", near_end * LOD2_AT)
+	_bill_mat.set_shader_parameter("shrub_shadow_begin", shrub_end * LOD2_AT)
 	_bill_mat.set_shader_parameter("far_end", tree_dist)
 	_bill_mat.set_shader_parameter("shadow_end", float(Game.quality.get("shadow_distance", 300.0)) + 30.0)
 	if Game.args.has("impostor_tint"):
@@ -286,7 +335,7 @@ func _finish_region(k: Vector2i, keep: bool) -> void:
 	var mmi := MultiMeshInstance3D.new()
 	mmi.multimesh = mm
 	mmi.material_override = _bill_mat
-	# impostors keep casting (turned to the sun) between NEAR_END and the shadow distance, so tree shadows do not
+	# impostors cast (turned to the sun) from the LOD 2 band out to the shadow distance, so tree shadows do not
 	# end at the hand-off ring
 	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if impostors != null else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mmi.visible = impostors != null
@@ -298,13 +347,13 @@ func _finish_region(k: Vector2i, keep: bool) -> void:
 
 func _update_near(cp: Vector3, max_builds: int) -> void:
 	var half := world.size_m * 0.5
-	var reach := NEAR_END + CHUNK * 0.75
+	var reach := maxf(near_end, shrub_end) + CHUNK * 0.75
 	var built := 0
 	var want := {}
 	var cx := floori((cp.x + half) / CHUNK)
 	var cz := floori((cp.z + half) / CHUNK)
-	for dz in range(-2, 3):
-		for dx in range(-2, 3):
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
 			var ck := Vector2i(cx + dx, cz + dz)
 			var rect := Rect2(-half + ck.x * CHUNK, -half + ck.y * CHUNK, CHUNK, CHUNK)
 			var q := Vector2(clampf(cp.x, rect.position.x, rect.end.x), clampf(cp.z, rect.position.y, rect.end.y))
@@ -319,17 +368,112 @@ func _update_near(cp: Vector3, max_builds: int) -> void:
 		if not want.has(ck):
 			_near[ck].queue_free()
 			_near.erase(ck)
+	var chunks := _near.keys()
+	_poll_buckets()
+	if cp.distance_to(_bucket_pos) > REBUCKET or chunks != _bucket_chunks:
+		_rebucket_async(cp)
+		_bucket_chunks = chunks
 
+## Sort the trees around the camera into per-variant, per-LOD MultiMeshes. A tree goes into every LOD whose band
+## (plus the cross-fade and some slack for camera travel until the next sort) contains it; the shaders pick per pixel
+## which one shows. Sorting runs on a worker (pure data); the buffers are applied on the main thread.
+func _rebucket(cp: Vector3) -> void:
+	_bucket_pos = cp
+	var lists := []
+	for ck in _near.keys():
+		lists.append(_region_chunks.get(ck, []))
+	_apply_buckets(_sort_buckets(cp, lists))
+
+func _rebucket_async(cp: Vector3) -> void:
+	if _bucket_task >= 0:
+		if not WorkerThreadPool.is_task_completed(_bucket_task):
+			return
+		WorkerThreadPool.wait_for_task_completion(_bucket_task)
+		_bucket_task = -1
+		_apply_buckets(_bucket_result)
+	_bucket_pos = cp
+	var lists := []
+	for ck in _near.keys():
+		lists.append(_region_chunks.get(ck, []))
+	_bucket_task = WorkerThreadPool.add_task(func(): _bucket_result = _sort_buckets(cp, lists))
+
+func _poll_buckets() -> void:
+	if _bucket_task >= 0 and WorkerThreadPool.is_task_completed(_bucket_task):
+		WorkerThreadPool.wait_for_task_completion(_bucket_task)
+		_bucket_task = -1
+		_apply_buckets(_bucket_result)
+
+func _sort_buckets(cp: Vector3, lists: Array) -> Dictionary:
+	var slack := REBUCKET + 1.5
+	var bufs := {}           # entry -> [PackedFloat32Array per LOD]
+	var ranges := [lod_ranges(false), lod_ranges(true)]
+	for list in lists:
+		for e in list:
+			var t: Transform3D = e[2]
+			var d := t.origin.distance_to(cp)        # the shaders fade on the 3D distance too
+			var key: int = species_list.find(e[0]) * VARIANTS + e[1]
+			var r: Array = ranges[_entry_small[key]]
+			if d > r[2].y + slack:
+				continue
+			if not bufs.has(key):
+				bufs[key] = [PackedFloat32Array(), PackedFloat32Array(), PackedFloat32Array()]
+			for l in TreeGen.LODS:
+				if d >= r[l].x - lod_band - slack and d <= r[l].y + slack:
+					var b := t.basis
+					bufs[key][l].append_array([b.x.x, b.y.x, b.z.x, t.origin.x, b.x.y, b.y.y, b.z.y, t.origin.y,
+						b.x.z, b.y.z, b.z.z, t.origin.z])
+	return bufs
+
+func _apply_buckets(bufs: Dictionary) -> void:
+	for key in _lod_groups.keys():
+		if not bufs.has(key):
+			for mmi in _lod_groups[key]:
+				mmi.multimesh.visible_instance_count = 0
+	for key in bufs.keys():
+		if not _lod_groups.has(key):
+			_lod_groups[key] = _make_lod_group(key)
+		for l in TreeGen.LODS:
+			var mm: MultiMesh = _lod_groups[key][l].multimesh
+			var buf: PackedFloat32Array = bufs[key][l]
+			var n := buf.size() / 12
+			if n > mm.instance_count:
+				mm.visible_instance_count = -1
+				mm.instance_count = maxi(nearest_po2(n), 16)
+			if n > 0:
+				buf.resize(mm.instance_count * 12)
+				mm.buffer = buf
+			mm.visible_instance_count = n
+
+func _make_lod_group(key: int) -> Array:
+	var sp: String = species_list[key / VARIANTS]
+	var v: int = key % VARIANTS
+	var out := []
+	for l in TreeGen.LODS:
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = _lod_meshes[sp][v][l]
+		mm.instance_count = 16
+		mm.visible_instance_count = 0
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		# LOD 2 leaves shadow casting to the impostor silhouettes (one quad per tree)
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if l < 2 else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# trees are re-bucketed around the camera: one box over the whole near field keeps culling cheap and correct
+		mmi.custom_aabb = AABB(Vector3(-4096, -100, -4096), Vector3(8192, 2000, 8192))
+		mmi.name = "Trees_%s_%d_lod%d" % [sp, v, l]
+		add_child(mmi)
+		out.append(mmi)
+	return out
+
+## Trunk colliders per 256 m chunk (cover for gunfights, obstacles for riders); shrubs stay passable.
 func _build_near(ck: Vector2i, list: Array) -> Node3D:
 	var node := Node3D.new()
 	node.name = "TreesNear_%d_%d" % [ck.x, ck.y]
 	add_child(node)
-	# trunk colliders (cover for gunfights, obstacles for riders); shrubs stay passable
 	var sb := StaticBody3D.new()
 	sb.collision_layer = 1
 	sb.collision_mask = 0
 	node.add_child(sb)
-	var groups := {}
 	for e in list:
 		var spec: Dictionary = TreeGen.SPECIES[e[0]]
 		if spec.crown != "bush":
@@ -342,23 +486,6 @@ func _build_near(ck: Vector2i, list: Array) -> Node3D:
 			cs.shape = cyl
 			cs.position = t.origin + Vector3(0, 2.0, 0)
 			sb.add_child(cs)
-		var key := "%s:%d" % [e[0], e[1]]
-		if not groups.has(key):
-			groups[key] = []
-		groups[key].append(e[2])
-	for key in groups.keys():
-		var parts: PackedStringArray = key.split(":")
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = _meshes[parts[0]][int(parts[1])]
-		var arr: Array = groups[key]
-		mm.instance_count = arr.size()
-		for i in arr.size():
-			mm.set_instance_transform(i, arr[i])
-		var mmi := MultiMeshInstance3D.new()
-		mmi.multimesh = mm
-		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-		node.add_child(mmi)
 	return node
 
 ## Trees within radius of a point (gameplay: cover, chopping, AI avoidance).
@@ -450,8 +577,11 @@ func _setup_grass() -> void:
 	_grass_mat.set_shader_parameter("h_range", world.h_range)
 	_grass_mat.set_shader_parameter("lake_level", world.lake_level)
 	_grass_mat.set_shader_parameter("fade_dist", grass_dist)
-	# three densities of the same 16 m tile; instance i is identical across them so LOD changes don't reshuffle
-	var counts := [int(1400 * grass_density), int(480 * grass_density), int(160 * grass_density)]
+	# three densities of the same 16 m tile; instance i is identical across them so LOD changes don't reshuffle.
+	# Geometry budget (triangles per cell): LOD 0 (camera's cells, < GRASS_LOD0 m) 900 clumps x 9 blades x 3
+	# segments = 49k; LOD 1 (< GRASS_LOD1 m) 400 x 7 x 2 = 11k; LOD 2 (to grass_dist) 170 x 5 x 1 = 1.7k with wider
+	# blades, over a ground already tinted like the grass it carries (terrain.gdshader), so it still reads as a field.
+	var counts := [int(900 * grass_density), int(400 * grass_density), int(170 * grass_density)]
 	var r := RandomNumberGenerator.new()
 	r.seed = 4242
 	var base := PackedFloat32Array()
@@ -462,7 +592,7 @@ func _setup_grass() -> void:
 		var rot := r.randf() * TAU
 		var b := Basis(Vector3.UP, rot).scaled(Vector3(s, s, s))
 		base.append_array([b.x.x, b.y.x, b.z.x, x, b.x.y, b.y.y, b.z.y, 0.0, b.x.z, b.y.z, b.z.z, z, r.randf(), r.randf(), 0, 0])
-	var meshes := [_grass_clump(13, 3), _grass_clump(9, 3), _grass_clump(6, 2)]
+	var meshes := [_grass_clump(9, 3, 1.0), _grass_clump(7, 2, 1.4), _grass_clump(5, 1, 2.2)]
 	for li in 3:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -481,7 +611,7 @@ func _setup_grass() -> void:
 		_grass_mm.append(mm)
 
 ## A clump of curved, tapered blades (geometry, no alpha test: cheap on tile-based GPUs).
-func _grass_clump(blades: int, segs: int) -> ArrayMesh:
+func _grass_clump(blades: int, segs: int, width: float = 1.0) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var r := RandomNumberGenerator.new()
@@ -493,7 +623,7 @@ func _grass_clump(blades: int, segs: int) -> ArrayMesh:
 		var dir := Vector3(cos(facing), 0, sin(facing))
 		var side := Vector3(-dir.z, 0, dir.x)
 		var h := r.randf_range(0.16, 0.48)
-		var w := r.randf_range(0.014, 0.03)
+		var w := r.randf_range(0.014, 0.03) * width
 		var lean := r.randf_range(0.1, 0.45)
 		var prev_l := Vector3.ZERO
 		var prev_r := Vector3.ZERO
@@ -537,7 +667,7 @@ func _update_grass(cp: Vector3) -> void:
 			var d := cc.distance_to(Vector2(cp.x, cp.z))
 			if d > grass_dist + GRASS_CELL * 0.7:
 				continue
-			want[k] = 0 if d < 26.0 else (1 if d < 50.0 else 2)
+			want[k] = 0 if d < GRASS_LOD0 else (1 if d < GRASS_LOD1 else 2)
 	for k in _grass_cells.keys():
 		if not want.has(k):
 			_grass_cells[k].queue_free()
