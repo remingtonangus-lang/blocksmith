@@ -33,7 +33,7 @@ func run(m: Node) -> void:
 		return
 	var which := str(Game.args.get("bot", "road"))
 	var seconds := Game.arg_f("seconds", 90.0)
-	var bots := ["road", "explore", "town", "gunfight", "hunt", "missions", "systems"] if which == "all" or which == "true" else [which]
+	var bots: Array = ["road", "explore", "town", "gunfight", "hunt", "missions", "systems"] if which == "all" or which == "true" else Array(which.split(","))
 	for b in bots:
 		var res: Dictionary
 		if b == "missions":

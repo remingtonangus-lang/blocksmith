@@ -73,6 +73,9 @@ func _ready() -> void:
 	var wl = load("res://src/ai/wildlife.gd").new()
 	wl.name = "Wildlife"
 	add_child(wl)
+	var camp = load("res://src/ai/camp.gd").new()
+	camp.name = "Camp"
+	add_child(camp)
 	var md := MissionDirector.new()
 	md.name = "Missions"
 	add_child(md)
