@@ -1583,7 +1583,12 @@ final class Game {
         }
         if let e = m.equip {
             // Worn gear drops 8.5% (+1% per looting level) from mobs, always from armor stands.
-            for s in e where !s.isEmpty && (m.kind == .armorStand || Rand.float(in: 0..<1) < 0.085 + 0.01 * Float(m.killedByPlayer ? m.lootingLevel : 0)) { drops.spawn(s, at: at) }
+            // Picked-up items always drop; worn gear otherwise 8.5 % (+1 % a Looting level) and only from player kills
+            // (reference; a zombie that grabbed your diamond armour kept it 91 % of the time).
+            for (i, s) in e.enumerated() where !s.isEmpty {
+                let kept = i < 8 && m.equipKeep & (1 << UInt8(i)) != 0
+                if m.kind == .armorStand || kept || (m.killedByPlayer && Rand.float(in: 0..<1) < 0.085 + 0.01 * Float(m.lootingLevel)) { drops.spawn(s, at: at) }
+            }
             m.equip = nil
         }
         if m.leashed { drops.spawn(ItemStack(Items.id("lead"), 1), at: at) }

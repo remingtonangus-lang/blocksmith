@@ -276,6 +276,7 @@ final class Mob {
     var invulnerable: Float = 0          // seconds of hurt invulnerability left (hit(iframes:))
     var lastHurtAmount = 0
     var spiderChasing = false            // a spider that turned on you in the dark keeps at it in the light
+    var equipKeep: UInt8 = 0             // equipment slots picked up from the ground: they always drop (bit per slot)
     var arrowDamage = 0               // harness: health lost to arrow hits (not saved)
     var hurtSound = false           // set by hit(); MobManager plays the hurt call once
     var teleportSound = false       // set by teleport(); MobManager plays it at both ends
