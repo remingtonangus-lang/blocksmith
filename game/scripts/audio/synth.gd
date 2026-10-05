@@ -9,7 +9,7 @@ const RATE := 22050
 static func names() -> Array:
 	return ["rifle_capital", "rifle_cinder", "rifle_player", "autocannon", "cannon_heavy", "cannon_medium",
 		"explosion", "explosion_far", "thunder", "rocket", "impact_dirt", "impact_metal", "whizz", "footstep_grass",
-		"footstep_hard", "reload", "dry", "ui", "grenade_pin", "loop_rotor", "loop_crawler", "loop_truck",
+		"footstep_hard", "reload", "dry", "ui", "grenade_pin", "tree_fall", "loop_rotor", "loop_crawler", "loop_truck",
 		"loop_fans", "loop_frigate", "loop_wind", "loop_rain", "loop_sea", "loop_birds", "loop_crickets",
 		"loop_battle_far", "loop_city", "music_capital"]
 
@@ -39,6 +39,7 @@ static func render(n: String) -> PackedFloat32Array:
 		"dry": return _click(0.05, 2400.0, 61)
 		"ui": return _click(0.04, 1200.0, 62)
 		"grenade_pin": return _ping(0.15, 3400.0, 63)
+		"tree_fall": return _tree_fall()
 		"loop_rotor": return _rotor()
 		"loop_crawler": return _engine(4.0, 34.0, 0.6, 71)
 		"loop_truck": return _engine(4.0, 52.0, 0.5, 72)
@@ -195,6 +196,36 @@ static func _impact(secs: float, cut: float, seed: int) -> PackedFloat32Array:
 		lp += a * (r.randf_range(-1.0, 1.0) - lp)
 		b[i] = lp * exp(-t * 35.0)
 	return _normalize(b, 0.8)
+
+
+## A tree pushed over: a splintering crack, a swelling rush of leaves as it falls, and a low thud at 1.9 s.
+static func _tree_fall() -> PackedFloat32Array:
+	var r := _rng(81)
+	var b := _buf(2.6)
+	var lp := 0.0
+	var lp2 := 0.0
+	var a_hi := 1.0 - exp(-TAU * 2600.0 / RATE)
+	var a_lo := 1.0 - exp(-TAU * 900.0 / RATE)
+	for i in b.size():
+		var t := float(i) / RATE
+		var n := r.randf_range(-1.0, 1.0)
+		# Crack: three splinter bursts in the first 0.3 s.
+		var crack := 0.0
+		for c in 3:
+			var tc := t - c * 0.09
+			if tc > 0.0:
+				crack += exp(-tc * 60.0) * (1.0 - c * 0.25)
+		lp += a_hi * (n - lp)
+		# Leaves: band noise rising as the crown speeds up, cut at the landing.
+		lp2 += a_lo * (n - lp2)
+		var rush := smoothstep(0.2, 1.8, t) * (1.0 - smoothstep(1.85, 2.1, t))
+		# Landing thud.
+		var tl := t - 1.9
+		var thud := 0.0
+		if tl > 0.0:
+			thud = sin(TAU * 52.0 * tl) * exp(-tl * 9.0) * 1.4 + lp2 * exp(-tl * 6.0)
+		b[i] = lp * crack * 1.2 + (n - lp2) * rush * 0.35 + thud
+	return _normalize(b, 0.85)
 
 
 static func _ping(secs: float, hz: float, seed: int) -> PackedFloat32Array:

@@ -335,6 +335,13 @@ func _physics_process(delta: float) -> void:
 		apply_central_force(f.limit_length(mass * 9.81 * 0.9))
 	else:
 		_anchor = Vector3(1e9, 0, 0)
+	# Trees: above a crawl, the front edge flattens trunks in its path (it stopped dead against them at 19 m/s).
+	var spd := linear_velocity.length()
+	if spd > 1.0 and _grounded >= 3 and G.world and G.world.vegetation:
+		var front := global_position + fwd * 3.4
+		var n: int = G.world.vegetation.fell_near(front, 2.3, linear_velocity)
+		if n > 0:
+			linear_velocity *= pow(0.88, n)
 	# Keep it upright-ish in the air.
 	if _grounded == 0:
 		apply_torque(global_transform.basis.y.cross(Vector3.UP) * mass * 6.0)

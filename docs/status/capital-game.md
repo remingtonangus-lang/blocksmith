@@ -17,8 +17,8 @@ civilisation; see STATUS.md "Future ideas" #1), and pushes it to full-scale deta
   - four weapons plus grenades, collapsing towers and wrecks, weather and day-night;
   - synthesized audio.
 - Checks:
-  - every push: 86 headless tests and 11 scripted scenarios (ride, drive, fly, dropship, battle, weapons,
-    destroy, parked, trees, stand, menu), 33 screenshots on lavapipe, a 60 s smoke test;
+  - every push: 86 headless tests and 12 scripted scenarios (ride, drive, fly, dropship, battle, weapons,
+    destroy, parked, trees, forest_drive, stand, menu), 33 screenshots on lavapipe, a 60 s smoke test;
   - the macOS export with a smoke test, padcheck, a benchmark (`benchmark.json` on `capital-shots/mac/`)
     and the pad bridge build.
 - Benchmark on CI's paravirtual Mac GPU (High): city/battle/forest about 39 / 33 / 37 fps, GPU-bound (scripts 2.4-2.9 ms
@@ -126,6 +126,14 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 19:05: crawlers flatten trees. The new `forest_drive` scenario drives a crawler 12 s along the densest
+  forest heading. Since trunks became solid, it stopped dead against the first tree (from 19 m/s to 0.3 m/s; 5 m on
+  the dense line). Now, above 1 m/s, the crawler's front edge fells the trunks in its path:
+  - the tree leaves the cell's instances and its trunk body;
+  - a copy with the same instance data (tint, species) tips over in about 2 s and lies there for 40 s;
+  - dust, a synthesized "tree_fall" sound (crack, rushing leaves, thud), and 12% speed lost per tree;
+  - felled positions are remembered, and cell rebuilds leave them out (build tasks get a copy).
+  Result: 212 m in 12 s through 15 trunks on the line, all felled. New shot `felled_tree`. 12 scenarios pass.
 - 2026-10-05 18:30: the alternating-median ablation (run 42, 7061ab0, published) is steadier, but the CI Mac itself is
   not. The same rendering code as 6ff706e ran 38.8 / 33.2 / 45.8 fps against 52.4 / 41.3 / 47.7: a shared virtual
   GPU, about 25% run to run. During the ablation the "on" frame time also climbed from 17 to 35 ms toward the end,

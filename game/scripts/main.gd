@@ -154,7 +154,7 @@ func _build() -> void:
 			add_child(sc)
 			var names := String(Settings.arg("scenario")).split(",")
 			if names[0] == "all":
-				names = PackedStringArray(["ride", "drive", "fly", "dropship", "battle", "weapons", "destroy", "parked", "trees", "stand", "menu"])
+				names = PackedStringArray(["ride", "drive", "fly", "dropship", "battle", "weapons", "destroy", "parked", "trees", "forest_drive", "stand", "menu"])
 			sc.start(Array(names))
 	_loading.queue_free()
 

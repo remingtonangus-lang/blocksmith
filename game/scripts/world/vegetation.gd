@@ -48,6 +48,11 @@ const TRUNK_BODY_R := 60.0                     # cells whose square comes this c
 var trunks := {}                  # Vector2i cell -> {Vector2i bucket: PackedFloat32Array}
 var _tbodies := {}                # Vector2i cell -> body RID
 var _tshapes := {}                # quantised radius -> cylinder shape RID
+# Felled trees (a crawler drives through them): their 10 cm-rounded positions, kept so a cell rebuilt later leaves
+# them out; the build tasks get a copy (worker threads never read the live dictionary).
+var _felled := {}
+var felled := 0
+var _falling: Array = []          # [MultiMeshInstance3D, base Transform3D, axis, t, buffer]
 
 
 func setup(g: WorldGen) -> void:
@@ -224,7 +229,7 @@ func _excluded(x: float, z: float) -> bool:
 	return false
 
 
-func cell_trees(c: Vector2i, far: bool = false) -> Array:
+func cell_trees(c: Vector2i, far: bool = false, skip: Dictionary = {}) -> Array:
 	var out := []
 	if extra.has(c):
 		out.append_array(extra[c])
@@ -254,6 +259,8 @@ func cell_trees(c: Vector2i, far: bool = false) -> Array:
 			# Tree line: thinning from 950 m to none at 1200 m, lone trees included (they stood on the snowfields
 			# under the 1300 m snow line).
 			if h > 950.0 and G.hash2(c.x * 64 + i, c.y * 64 + j, 71) > 1.0 - smoothstep(950.0, 1200.0, h):
+				continue
+			if not skip.is_empty() and skip.has(Vector2i(roundi(x * 10.0), roundi(z * 10.0))):
 				continue
 			var sp := _species(x, z, h, r)
 			var v := int(G.hash2(c.x * 64 + i, c.y * 64 + j, 41) * VARIANTS) % VARIANTS
@@ -309,6 +316,8 @@ func _process(delta: float) -> void:
 	_update_solo(p)
 	_rebuild_supers()
 	_update_trunk_bodies()
+	if not _falling.is_empty():
+		_update_falling(delta)
 	if _t > 0.2:
 		_t = 0.0
 		_stream(p, false)
@@ -361,7 +370,7 @@ func _stream(p: Vector3, sync: bool) -> void:
 			break
 		budget -= 1
 		var key := [t[0], t[1]]
-		_pending[key] = WorkerThreadPool.add_task(_build_task.bind(t[0], t[1]), false, "vegetation cell")
+		_pending[key] = WorkerThreadPool.add_task(_build_task.bind(t[0], t[1], _felled.duplicate()), false, "vegetation cell")
 	if sync:
 		for key in _pending.keys():
 			WorkerThreadPool.wait_for_task_completion(_pending[key])
@@ -371,17 +380,17 @@ func _stream(p: Vector3, sync: bool) -> void:
 		_rebuild_supers()
 
 
-func _build_task(kind: String, k: Vector2i) -> void:
+func _build_task(kind: String, k: Vector2i, skip: Dictionary = {}) -> void:
 	var data: Variant
 	if kind == "n":
-		var list := cell_trees(k)
+		var list := cell_trees(k, false, skip)
 		data = [_near_buffers(list), _trunk_buckets(list)]
 	else:
 		var trees := []
 		var per := int(ICELL / CELL)
 		for dz in per:
 			for dx in per:
-				trees.append_array(cell_trees(Vector2i(k.x * per + dx, k.y * per + dz), true))
+				trees.append_array(cell_trees(Vector2i(k.x * per + dx, k.y * per + dz), true, skip))
 		data = _imp_buffer(trees)
 	_mutex.lock()
 	_results[[kind, k]] = data
@@ -463,6 +472,118 @@ func avoid(p: Vector3, rad: float) -> Vector3:
 		p.x += (dx - dz) / d * push
 		p.z += (dz + dx) / d * push
 	return p
+
+
+## Fells every trunk within `radius` of p (a crawler's front edge): the tree leaves the cell's instances and its
+## trunk body, and a copy of it tips over away from `dir` (the vehicle's travel). Returns how many fell.
+func fell_near(p: Vector3, radius: float, dir: Vector3) -> int:
+	var k := Vector2i(floori(p.x / CELL), floori(p.z / CELL))
+	if not trunks.has(k):
+		return 0
+	var hits: Array = []
+	var seen := {}
+	for bz in range(floori((p.z - radius) / TRUNK_BUCKET), floori((p.z + radius) / TRUNK_BUCKET) + 1):
+		for bx in range(floori((p.x - radius) / TRUNK_BUCKET), floori((p.x + radius) / TRUNK_BUCKET) + 1):
+			var arr: Variant = (trunks[k] as Dictionary).get(Vector2i(bx, bz))
+			if arr == null:
+				continue
+			var a: PackedFloat32Array = arr
+			for j in range(0, a.size(), 3):
+				var tk := Vector2i(roundi(a[j] * 10.0), roundi(a[j + 1] * 10.0))
+				if seen.has(tk):
+					continue
+				if Vector2(a[j] - p.x, a[j + 1] - p.z).length() < radius + a[j + 2]:
+					seen[tk] = true
+					hits.append(Vector2(a[j], a[j + 1]))
+	for h in hits:
+		_fell(k, h, dir)
+	return hits.size()
+
+
+func _fell(k: Vector2i, at: Vector2, dir: Vector3) -> void:
+	var tk := Vector2i(roundi(at.x * 10.0), roundi(at.y * 10.0))
+	_felled[tk] = true
+	felled += 1
+	# Out of the trunk buckets (it sits in every bucket its disc touched) and the cell's collision body.
+	var cell: Dictionary = trunks[k]
+	for b in cell.keys():
+		var a: PackedFloat32Array = cell[b]
+		var out := PackedFloat32Array()
+		for j in range(0, a.size(), 3):
+			if Vector2i(roundi(a[j] * 10.0), roundi(a[j + 1] * 10.0)) != tk:
+				out.append_array([a[j], a[j + 1], a[j + 2]])
+		cell[b] = out
+	if _tbodies.has(k):
+		PhysicsServer3D.free_rid(_tbodies[k])
+		_tbodies[k] = _trunk_body(k)
+	# Out of the cell's instance buffers; remember its row to drop a falling copy.
+	var row := PackedFloat32Array()
+	var mesh: Mesh = null
+	if near.has(k):
+		var bufs: Dictionary = near[k]
+		for key in bufs:
+			var buf: PackedFloat32Array = bufs[key]
+			for i in range(0, buf.size(), 16):
+				if absf(buf[i + 3] - at.x) < 0.06 and absf(buf[i + 11] - at.y) < 0.06:
+					row = buf.slice(i, i + 16)
+					mesh = meshes[key / VARIANTS][key % VARIANTS]
+					var nb := buf.slice(0, i)
+					nb.append_array(buf.slice(i + 16))
+					bufs[key] = nb
+					break
+			if mesh:
+				break
+		if solo.has(k):
+			(solo[k] as Node).queue_free()
+			solo[k] = _make_near(near[k], meshes)
+		else:
+			_dirty[_super_of(k)] = true
+	if mesh == null:
+		return
+	var base := Transform3D(Basis(Vector3(row[0], row[4], row[8]), Vector3(row[1], row[5], row[9]), Vector3(row[2], row[6], row[10])),
+		Vector3(row[3], row[7], row[11]))
+	var flat := Vector3(dir.x, 0.0, dir.z)
+	if flat.length() < 0.01:
+		flat = Vector3.FORWARD
+	var axis := Vector3.UP.cross(flat.normalized()).normalized()
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_custom_data = true
+	mm.mesh = mesh
+	mm.instance_count = 1
+	mm.buffer = row
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	mmi.custom_aabb = AABB(Vector3(-40, -40, -40) + base.origin, Vector3(80, 80, 80))
+	add_child(mmi)
+	_falling.append([mmi, base, axis, 0.0, row])
+	if G.fx:
+		var o := base.origin
+		G.fx.impact(o + Vector3(0, 0.5, 0), Vector3.UP, false)
+	Sfx.play_at("tree_fall", base.origin, -2.0, randf_range(0.9, 1.1))
+
+
+## Felled trees tip over (accelerating, about 2 s to the ground) and lie there for 40 s.
+func _update_falling(delta: float) -> void:
+	for i in range(_falling.size() - 1, -1, -1):
+		var f: Array = _falling[i]
+		f[3] += delta
+		var mmi: MultiMeshInstance3D = f[0]
+		if f[3] > 42.0 or not is_instance_valid(mmi):
+			if is_instance_valid(mmi):
+				mmi.queue_free()
+			_falling.remove_at(i)
+			continue
+		var u := clampf(f[3] / 2.0, 0.0, 1.0)
+		var ang := (PI * 0.47) * u * u
+		var base: Transform3D = f[1]
+		var b := Basis(f[2] as Vector3, ang) * base.basis
+		var row: PackedFloat32Array = f[4]
+		row[0] = b.x.x; row[1] = b.y.x; row[2] = b.z.x
+		row[4] = b.x.y; row[5] = b.y.y; row[6] = b.z.y
+		row[8] = b.x.z; row[9] = b.y.z; row[10] = b.z.z
+		f[4] = row
+		mmi.multimesh.buffer = row
 
 
 ## Static trunk colliders for the cells around the player (or the camera when there is none).

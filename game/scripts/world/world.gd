@@ -303,6 +303,35 @@ func _battle_frame() -> void:
 	print("battle_ground: behind soldier %d, enemy %d at %.0f m, %d soldiers in frame" % [best, best_j, p.distance_to(a.pos[best_j]), best_score])
 
 
+## Shot felled_tree: the broadleaf nearest the forest site (on ground, from the generator), then it falls away from
+## the camera as if a crawler pushed it.
+var _fell_at := Vector3.INF
+func _fell_target(f: Vector3) -> Vector3:
+	if _fell_at != Vector3.INF:
+		return _fell_at
+	var best := f
+	var bd := 1e9
+	if vegetation:
+		var c := Vector2i(floori(f.x / 128.0), floori(f.z / 128.0))
+		for tr in vegetation.cell_trees(c):
+			if tr[0] != TreeBuilder.BROADLEAF:
+				continue
+			var o: Vector3 = (tr[2] as Transform3D).origin
+			var d := Vector2(o.x - f.x, o.z - f.z).length()
+			if d < bd:
+				bd = d
+				best = o
+	_fell_at = best
+	return best
+
+
+func _fell_demo(f: Vector3) -> void:
+	if vegetation and vegetation.has_method("fell_near"):
+		var t := _fell_target(f)
+		var n: int = vegetation.fell_near(Vector3(t.x, 0.0, t.z), 0.6, Vector3(1, 0, -0.25))
+		print("felled_tree: %d trees felled" % n)
+
+
 func _bench_setup(hour: float, wx: String) -> void:
 	sky.set_hour(hour)
 	if weather and weather.has_method("set_weather"):
@@ -348,6 +377,7 @@ func shot_list() -> Array:
 		{"name": "mountains", "pos": above(rad.x - 900, rad.z + 1800, 260), "look": rad + Vector3(0, 400, -1800), "hour": 15.0, "weather": "clear"},
 		{"name": "snow_peaks", "pos": above(rad.x + 600, rad.z - 1800, 120), "look": rad + Vector3(-600, 900, -3600), "hour": 11.0, "weather": "snow"},
 		{"name": "forest_floor", "pos": above(f.x, f.z, 1.7), "look": above(f.x + 60, f.z + 30, 4.0), "hour": 9.0, "weather": "clear"},
+		{"name": "felled_tree", "pos": above(_fell_target(f).x - 20, _fell_target(f).z + 14, 5.0), "look": _fell_target(f) + Vector3(4, 2.0, -1), "hour": 10.0, "weather": "clear", "late": func(): _fell_demo(f), "late_frames": 80},
 		{"name": "shadow_test", "pos": above(f.x, f.z + 30, 3.0), "look": above(f.x, f.z - 40, 0.0), "hour": 13.0, "weather": "clear"},
 		{"name": "forest_rain", "pos": above(f.x - 80, f.z - 40, 2.0), "look": above(f.x + 40, f.z + 60, 6.0), "hour": 14.0, "weather": "rain"},
 		{"name": "river_valley", "pos": above(500, -1500, 60), "look": Vector3(1100, 30, -300), "hour": 8.0, "weather": "fog"},

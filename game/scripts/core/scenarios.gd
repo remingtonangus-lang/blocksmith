@@ -8,6 +8,8 @@ extends Node
 ##   weapons   on foot: the carbine fires at its rate with view climb; a rocket launches and explodes on the ground
 ##   destroy   shell a tower until it falls: it must fracture into falling rigid pieces and lose its collision
 ##   parked    the spawn's empty crawlers must not move between 5 s and 35 s (they crept 0.4 m per 30 s)
+##   forest_drive  drive a crawler 12 s along the densest heading in the forest: it must fell trees, not stop
+##             (it stopped dead against the first trunk: 5 m)
 ##   trees     walk into a broadleaf trunk in the forest for 3 s: the player must stop at its bark; a soldier
 ##             placed inside a trunk is pushed out
 ## Prints "scenario NAME: PASS/FAIL ..." and quits with the number of failures.
@@ -411,6 +413,119 @@ func _tick_stand(_delta: float) -> void:
 		if absf(q.y - g) > 1.0:
 			(data["bad"] as Array).append("%s (%.1f m off)" % [sites[data["i"]], q.y - g])
 		_stand_next()
+
+
+# ------------------------------------------------------------------------------------------ forest drive
+
+## Drive a crawler straight into dense forest for 12 s. Trunks became solid; a crawler should push through
+## (felling trees), not stop dead at the first one.
+func _setup_forest_drive() -> void:
+	_leave_vehicle()
+	var veg: Node = G.world.vegetation
+	var f: Vector3 = G.world.site("forest")
+	var c := Vector2i(floori(f.x / 128.0), floori(f.z / 128.0))
+	var trees: Array = veg.cell_trees(c)
+	# A clear start (no trunk within 6 m).
+	var start := Vector3.ZERO
+	var found := false
+	for k in 200:
+		var p := Vector3(c.x * 128.0 + 20.0 + (k % 10) * 9.0, 0.0, c.y * 128.0 + 20.0 + (k / 10) * 4.5)
+		var clear := true
+		for tr in trees:
+			var o: Vector3 = (tr[2] as Transform3D).origin
+			if tr[0] != TreeBuilder.BUSH and Vector2(o.x - p.x, o.z - p.z).length() < 6.0:
+				clear = false
+				break
+		if clear and G.gen.slope_at(p.x, p.z) < 0.2:
+			start = p
+			found = true
+			break
+	if not found:
+		_done(false, "no clear start in the forest cell")
+		return
+	# Heading: of eight, the one with the most trunks within 2.5 m of the next 120 m (the first try ran through a
+	# clearing: one trunk in 249 m).
+	var best_dir := Vector3.RIGHT
+	var best_n := -1
+	var near_trees: Array = []
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			near_trees.append_array(veg.cell_trees(c + Vector2i(dx, dz)))
+	for h in 8:
+		var d := Vector3(cos(h * TAU / 8.0), 0.0, sin(h * TAU / 8.0))
+		var n := 0
+		for tr in near_trees:
+			if tr[0] == TreeBuilder.BUSH:
+				continue
+			var o: Vector3 = (tr[2] as Transform3D).origin
+			var rel := Vector3(o.x - start.x, 0.0, o.z - start.z)
+			var along := rel.dot(d)
+			if along > 6.0 and along < 120.0 and (rel - d * along).length() < 2.5:
+				n += 1
+		if n > best_n:
+			best_n = n
+			best_dir = d
+	var ahead := best_n
+	data["dir"] = best_dir
+	var cr: Crawler = G.vehicles.crawlers[0]
+	G.world.focus(start)
+	G.terrain.collision_now(start)
+	start.y = G.world.surface_at(start.x, start.z) + 1.6
+	cr.global_transform = Transform3D(Basis(Vector3.UP, atan2(-best_dir.x, -best_dir.z)), start)
+	cr.linear_velocity = Vector3.ZERO
+	cr.angular_velocity = Vector3.ZERO
+	cr.enter(G.player)
+	data["c"] = cr
+	data["start"] = start
+	data["ahead"] = ahead
+	data["phase"] = 0
+	data["felled0"] = int(veg.get("felled")) if veg.get("felled") != null else 0
+
+
+func _tick_forest_drive(_delta: float) -> void:
+	var cr: Crawler = data["c"]
+	if cr.cam:
+		cr.cam.yaw = cr.global_rotation.y
+	if data["phase"] == 0 and t > 2.0:
+		Input.action_press("move_forward")
+		data["phase"] = 1
+		data["t1"] = t
+	elif data["phase"] == 1 and t <= 14.0 and OS.get_environment("FD_TRACE") == "1" and int(t * 2.0) != int((t - _delta) * 2.0):
+		cr.contact_monitor = true
+		cr.max_contacts_reported = 8
+		print("  fd t %.1f pos %s v %.1f m/s contacts %s" % [t, cr.global_position, cr.linear_velocity.length(),
+			cr.get_colliding_bodies().map(func(n): return n.name)])
+	elif data["phase"] == 1 and t > 14.0:
+		Input.action_release("move_forward")
+		var a: Vector3 = data["start"]
+		var b := cr.global_position
+		var moved := Vector2(b.x - a.x, b.z - a.z).length()
+		var up := cr.global_transform.basis.y.dot(Vector3.UP)
+		var veg: Node = G.world.vegetation
+		var felled := (int(veg.get("felled")) if veg.get("felled") != null else 0) - int(data["felled0"])
+		# Trunks the drive line actually crossed (every cell along it, as generated): felled + still standing.
+		var on_path := 0
+		var standing := 0
+		var seg := Vector2(b.x - a.x, b.z - a.z)
+		var cells := {}
+		for k2 in 40:
+			var q := a.lerp(b, k2 / 39.0)
+			cells[Vector2i(floori(q.x / 128.0), floori(q.z / 128.0))] = true
+		for ck in cells:
+			for tr in veg.cell_trees(ck):
+				if tr[0] == TreeBuilder.BUSH:
+					continue
+				var o: Vector3 = (tr[2] as Transform3D).origin
+				var rel := Vector2(o.x - a.x, o.z - a.z)
+				var u := clampf(rel.dot(seg) / seg.length_squared(), 0.0, 1.0)
+				if (rel - seg * u).length() < 2.5:
+					on_path += 1
+					var tk := Vector2i(roundi(o.x * 10.0), roundi(o.z * 10.0))
+					if not (veg.get("_felled") as Dictionary).has(tk):
+						standing += 1
+		data["ahead"] = "%d on the path, %d of them not felled" % [on_path, standing]
+		# Open ground covers 116 m in 12 s (drive); through forest it must keep going: half of that, upright.
+		_done(moved > 55.0 and up > 0.8, "travelled %.0f m in 12 s into forest (trunks within 2.5 m of the line: %s), felled %d trees, up %.2f" % [moved, data["ahead"], felled, up])
 
 
 # ----------------------------------------------------------------------------------------------- parked
