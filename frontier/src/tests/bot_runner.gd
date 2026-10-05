@@ -278,9 +278,10 @@ func _run_town(seconds: float) -> Dictionary:
 		res.stuck_events = maxi(res.stuck_events, int(m.stuck))
 		res.npc_minutes = maxf(res.npc_minutes, float(m.npc_minutes))
 		var dc := RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)
-		print("  town metric: %d residents on screen of a %d cast | on schedule %.0f%% | spots reached %d of %d walks (%.0f%%), %d skipped unseen | went home %d | doors used %d | stuck %d (%.3f per NPC-minute) | chats %d, greetings %d, nudges %d | draw calls %s" % [
+		print("  town metric: %d residents on screen of a %d cast | on schedule %.0f%% | spots reached %d of %d walks (%.0f%%), %d skipped unseen | went home %d | doors used %d | stuck %d (%.3f per NPC-minute) | chats %d, conversations %d (%d lines, %d overheard), greetings %d, nudges %d | draw calls %s" % [
 			m.residents, m.cast, m.on_schedule, m.arrived, m.arrived + m.failed, m.reached, m.skipped, m.home, m.doors,
-			res.stuck_events, res.stuck_events / maxf(res.npc_minutes, 0.01), m.chats, m.greetings, m.nudges,
+			res.stuck_events, res.stuck_events / maxf(res.npc_minutes, 0.01), m.chats, m.conversations, m.convo_lines,
+			m.overheard, m.greetings, m.nudges,
 			str(dc) if dc > 0 else "n/a (headless)"])
 		if m.arrived + m.failed >= 10 and m.reached < 70.0:
 			_fail(res, "only %.0f%% of walks reached their spot" % m.reached)
@@ -306,6 +307,31 @@ func _run_town(seconds: float) -> Dictionary:
 ## Reactions: Ruth walks up to a resident (look + greeting), then a shot goes off in the street (people run inside,
 ## cower, call the alarm). Prints a reactions line; fails only if nobody reacts at all.
 func _town_reactions(res: Dictionary, pop) -> void:
+	# overhear: stand a few metres from two residents sitting or standing together and listen for a while
+	var c0: int = pop.metrics.get("conversations", 0)
+	var o0: int = pop.metrics.get("overheard", 0)
+	var pair: Human = null
+	for k in pop.residents:
+		var h: Human = pop.residents[k]
+		if is_instance_valid(h) and pop.talk._eligible(h):
+			for k2 in pop.residents:
+				var h2: Human = pop.residents[k2]
+				if h2 != h and is_instance_valid(h2) and pop.talk._eligible(h2) and h.global_position.distance_to(h2.global_position) < 2.8:
+					pair = h
+					break
+		if pair != null:
+			break
+	if pair != null:
+		var pp: Vector3 = pop.snap(pair.global_position + Vector3(3.5, 0, 0))
+		if pp != Vector3.INF:
+			player.global_position = pp + Vector3(0, 0.2, 0)
+			for i in 60 * 30:
+				await get_tree().physics_frame
+				if pop.metrics.get("convo_lines", 0) >= 3 and i > 600:
+					break
+	res["conversations"] = pop.metrics.get("conversations", 0) - c0
+	print("  town talk: pair found %s, conversations %d, lines spoken %d, overheard %d" % [str(pair != null),
+		res.conversations, pop.metrics.get("convo_lines", 0), pop.metrics.get("overheard", 0) - o0])
 	var g0: int = pop.metrics.greetings
 	var target: Human = null
 	for k in pop.residents:

@@ -41,8 +41,14 @@ var _seen_town := {}         # town id -> true once Ruth has been near (first fi
 var _pending_spectacles: Array = []
 var _last_gunfire := -100.0
 
+var talk: Node                # ambient conversations (src/ai/town_talk.gd)
+
 func _ready() -> void:
 	Game.population = self
+	talk = load("res://src/ai/town_talk.gd").new()
+	talk.name = "TownTalk"
+	add_child(talk)
+	talk.setup(self)
 	Game.noise.connect(func(_p: Vector3, radius: float, _s: Node): if radius >= 100.0: _last_gunfire = Time.get_ticks_msec() * 0.001)
 
 ## A body fell in town: once the shooting has stopped for a while, people come out and gather round.
@@ -715,7 +721,9 @@ func town_metrics() -> Dictionary:
 		"trips": walked, "arrived": metrics.reached, "failed": metrics.failed, "skipped": metrics.skipped,
 		"home": metrics.home, "doors": doors, "stuck": stuck, "chats": metrics.chats,
 		"npc_minutes": metrics.npc_seconds / 60.0, "greetings": metrics.greetings, "fled_inside": metrics.fled_inside,
-		"reports": metrics.reports, "crowd": metrics.crowd, "nudges": metrics.nudges}
+		"reports": metrics.reports, "crowd": metrics.crowd, "nudges": metrics.nudges,
+		"conversations": metrics.get("conversations", 0), "convo_lines": metrics.get("convo_lines", 0),
+		"overheard": metrics.get("overheard", 0)}
 
 # ------------------------------------------------------------------ POIs and travellers
 
