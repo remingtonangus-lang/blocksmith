@@ -182,11 +182,23 @@ func focus(p: Vector3) -> void:
 	_focus = p
 
 
+var _sel_pos := Vector3(1e9, 0, 0)
+var _sel_mult := -1.0
+
+
 func _process(_delta: float) -> void:
 	var cam := get_viewport().get_camera_3d()
 	if cam == null or gen == null:
 		return
 	var c := cam.global_position
+	material.set_shader_parameter("cam_pos", c)
+	# The LOD selection depends only on the camera position: skip it (and the ~128 KB buffer upload) while the
+	# camera has moved under half a metre (measured 0.9 ms a frame, the largest script cost after the frigate).
+	if c.distance_squared_to(_sel_pos) < 0.25 and _detail_mult == _sel_mult:
+		_update_collision()
+		return
+	_sel_pos = c
+	_sel_mult = _detail_mult
 	_count = 0
 	_count_far = 0
 	_lo = Vector3(1e9, 1e9, 1e9)
@@ -201,7 +213,6 @@ func _process(_delta: float) -> void:
 	if _count_far > 0:
 		mm_far.buffer = _buf_far
 	mm_far.visible_instance_count = _count_far
-	material.set_shader_parameter("cam_pos", c)
 	_update_collision()
 
 

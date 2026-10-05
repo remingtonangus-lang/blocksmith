@@ -209,6 +209,10 @@ func _physics_process(delta: float) -> void:
 	rotation = Vector3(0.0, yaw, _bank)
 
 
+var _target := -1
+var _pick_t := 0.0
+
+
 func _process(delta: float) -> void:
 	for e in engines:
 		e.light_energy = 3.0 + speed * 0.08 + sin(Time.get_ticks_msec() * 0.02) * 0.3
@@ -219,9 +223,14 @@ func _process(delta: float) -> void:
 		aim = cam.aim_point([get_rid()])
 		has_aim = true
 	elif G.battle and G.battle.army:
-		var e := G.battle.army.nearest_enemy(global_position, 0, 2500.0)
-		if e >= 0:
-			aim = G.battle.army.pos[e]
+		# Re-pick the target twice a second; follow it in between (while it lives).
+		var a: Army = G.battle.army
+		_pick_t -= delta
+		if _pick_t <= 0.0 or _target < 0 or _target >= a.n or not a.alive(_target):
+			_pick_t = 0.5
+			_target = a.nearest_enemy(global_position, 0, 2500.0)
+		if _target >= 0:
+			aim = a.pos[_target]
 			has_aim = true
 	for t in turrets:
 		var y: Node3D = t[0]

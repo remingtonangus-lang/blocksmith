@@ -173,18 +173,27 @@ func nearest_enemy(p: Vector3, faction: int, r: float) -> int:
 	var bd := r * r
 	var c := _cell(p)
 	var k := int(ceil(r / GRID))
-	for dz in range(-k, k + 1):
-		for dx in range(-k, k + 1):
-			var cc := c + Vector2i(dx, dz)
-			if not grid.has(cc):
+	# A wide search over a square of cells is mostly empty lookups (the frigate's 2.5 km search was 25 000 a frame,
+	# 2.3 ms): walk only the occupied cells when there are fewer of them than cells in the square.
+	var cells: Array = []
+	if (2 * k + 1) * (2 * k + 1) > grid.size():
+		for cc in grid:
+			if absi(cc.x - c.x) <= k and absi(cc.y - c.y) <= k:
+				cells.append(cc)
+	else:
+		for dz in range(-k, k + 1):
+			for dx in range(-k, k + 1):
+				var cc := c + Vector2i(dx, dz)
+				if grid.has(cc):
+					cells.append(cc)
+	for cc in cells:
+		for j in grid[cc]:
+			if fac[j] == faction or state[j] == S_DEAD:
 				continue
-			for j in grid[cc]:
-				if fac[j] == faction or state[j] == S_DEAD:
-					continue
-				var d := pos[j].distance_squared_to(p)
-				if d < bd:
-					bd = d
-					best = j
+			var d := pos[j].distance_squared_to(p)
+			if d < bd:
+				bd = d
+				best = j
 	return best
 
 

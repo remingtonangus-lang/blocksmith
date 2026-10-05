@@ -125,6 +125,17 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 14:30: script time per frame cut by more than half. The new benchmark CPU split (run 36, CI Mac) showed
+  5.4-6.3 ms of scripts in 25-32 ms frames; the frames are mostly GPU-bound there, but on a 16.7 ms budget that is a
+  third of the frame. New `CPU_ABLATE=1 --benchmark` mode: it turns processing off one node group at a time and
+  prints what each costs. Found and fixed:
+  - Frigate, 2.33 ms: its turrets searched for a target every frame within 2.5 km, which walked about 25 000 mostly
+    empty grid cells. `Army.nearest_enemy` now walks only occupied cells for wide searches, and the frigate
+    re-picks its target twice a second.
+  - Terrain, 0.89 ms: the LOD quadtree selection and the ~128 KB instance upload ran every frame. They are now
+    skipped while the camera has moved less than 0.5 m.
+  Headless scripts per frame: city 5.04 to 2.58 ms, battle 4.70 to 1.70, forest 4.47 to 1.42; with the camera held
+  still, 4.58 to 1.16. The benchmark's draw-call and primitive sums (dropped by the previous commit) are restored.
 - 2026-10-05 13:30: parked crawlers crept downhill. The new `parked` scenario measured 0.43 m and 0.25 m per 30 s:
   rolling resistance and grip scale with speed and fade to nothing at a crawl. Now, below 1.5 m/s with no
   throttle, the crawler holds:

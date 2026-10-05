@@ -130,10 +130,15 @@ func _process(delta: float) -> void:
 		_place(0.0)
 		return
 	times.append(delta * 1000.0)
+	if OS.get_environment("CPU_ABLATE") == "1":
+		_ablate_step((Time.get_ticks_usec() - int(_mark.get_meta("t0", Time.get_ticks_usec()))) / 1000.0)
+		return
 	var rid := get_viewport().get_viewport_rid()
 	gpu_sum += RenderingServer.viewport_get_measured_render_time_gpu(rid)
 	rcpu_sum += RenderingServer.viewport_get_measured_render_time_cpu(rid)
 	proc_sum += (Time.get_ticks_usec() - int(_mark.get_meta("t0", Time.get_ticks_usec()))) / 1000.0
+	draws_sum += Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
+	prims_sum += Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)
 	t += delta
 	var dur: float = s["duration"]
 	_place(t / dur)
@@ -224,3 +229,66 @@ func _commit() -> String:
 class _FrameMark extends Node:
 	func _process(_d: float) -> void:
 		set_meta("t0", Time.get_ticks_usec())
+
+
+# CPU_ABLATE=1: hold the first segment's camera and turn processing off for one group of nodes at a time (the
+# nodes two levels under Main/World, or under Main), 40 frames each, printing how much script time each group
+# costs. Measured, not guessed: where the per-frame script milliseconds go.
+var _ab_groups: Array = []
+var _ab_i := -1
+var _ab_n := 0
+var _ab_sum := 0.0
+var _ab_base := 0.0
+var _ab_res: Array = []
+
+
+func _ablate_step(ms: float) -> void:
+	if _ab_i == -1 and _ab_groups.is_empty():
+		var by := {}
+		_ab_collect(G.main, by)
+		for k in by:
+			_ab_groups.append([k, by[k]])
+		_ab_i = -2           # baseline first
+	_ab_sum += ms
+	_ab_n += 1
+	if _ab_n < 40:
+		return
+	var avg := _ab_sum / _ab_n
+	_ab_sum = 0.0
+	_ab_n = 0
+	if _ab_i == -2:
+		_ab_base = avg
+		print("cpu ablation: baseline scripts %.2f ms, %d groups" % [avg, _ab_groups.size()])
+	else:
+		_ab_res.append([_ab_groups[_ab_i][0], _ab_base - avg])
+		_ab_set(_ab_i, true)
+	_ab_i = 0 if _ab_i == -2 else _ab_i + 1
+	if _ab_i >= _ab_groups.size():
+		_ab_res.sort_custom(func(a, b): return a[1] > b[1])
+		for r in _ab_res.slice(0, 25):
+			print("  %-50s %6.2f ms" % r)
+		get_tree().quit(0)
+		return
+	_ab_set(_ab_i, false)
+
+
+func _ab_set(i: int, on: bool) -> void:
+	for n in _ab_groups[i][1]:
+		if is_instance_valid(n):
+			(n as Node).set_process(on and (n as Node).has_method("_process"))
+			(n as Node).set_physics_process(on and (n as Node).has_method("_physics_process"))
+
+
+func _ab_collect(n: Node, out: Dictionary) -> void:
+	for c in n.get_children():
+		if c == self or c == _mark:
+			continue
+		if c.has_method("_process") or c.has_method("_physics_process"):
+			var path := String(G.main.get_path_to(c))
+			var parts := path.split("/")
+			var key := "/".join(parts.slice(0, mini(3, parts.size())))
+			key = RegEx.create_from_string("[0-9]+").sub(key, "#", true)
+			if not out.has(key):
+				out[key] = []
+			(out[key] as Array).append(c)
+		_ab_collect(c, out)
