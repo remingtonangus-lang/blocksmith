@@ -20,7 +20,8 @@ func _init() -> void:
 func commit(mesh: ArrayMesh = null) -> ArrayMesh:
 	if verts == 0:
 		return mesh
-	st.generate_tangents()
+	# No tangents: no shader here reads TANGENT or a normal map, and MikkTSpace was most of the Capital's
+	# commit time (and of every destruction rebuild).
 	return st.commit(mesh)
 
 

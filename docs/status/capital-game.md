@@ -126,6 +126,13 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 21:30: every launch: world ready 4.10 s -> 2.67 s (headless, cached world, 4-core box). Measured setup:
+  terrain 1.73 s (normal map 1.32 s of it, a GDScript loop over 4M texels: now rows on the worker pool, 0.37 s,
+  byte-identical) and the Capital 1.63 s (geometry commit 487 ms -> 129 ms: Kit.commit no longer generates
+  tangents, which no shader reads; this also cheapens every destruction rebuild and every vehicle/base kit;
+  shots identical but for tree sway and collapse debris). Left: Capital near-cell emission 0.59 s (GDScript, the
+  pool would serialize on Kit's functions), vegetation 0.39 s, collision 0.15 s.
+  CI: runs 46-48 sat queued with no runner for 40+ min, nothing else running in the repo (GitHub side).
 - 2026-10-05 21:05: script errors fail CI. ErrorCount (scripts/core/error_count.gd, an OS Logger) counts GDScript
   runtime errors; the test runner fails a file that raised one, every scenario fails on one whatever its oracle
   says, and the smoke run ends "smoke: FAIL, N script error(s), first: ..." (exit 4) instead of "smoke: ok".

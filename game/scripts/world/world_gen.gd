@@ -969,24 +969,36 @@ func mask_image() -> Image:
 
 
 func normal_image() -> Image:
+	# Rows on the worker pool: 1.3 s on the main thread at every launch.
+	_nrm_rows.resize(N)
+	var task := WorkerThreadPool.add_group_task(_normal_row, N, -1, true, "terrain normals")
+	WorkerThreadPool.wait_for_group_task_completion(task)
 	var data := PackedByteArray()
-	data.resize(N * N * 4)
-	for tz in N:
-		var z0 := maxi(tz - 1, 0) * N; var z1 := mini(tz + 1, N - 1) * N
-		var row := tz * N
-		for tx in N:
-			var x0 := maxi(tx - 1, 0); var x1 := mini(tx + 1, N - 1)
-			var dx := heights[row + x1] - heights[row + x0]
-			var dz := heights[z1 + tx] - heights[z0 + tx]
-			var nrm := Vector3(-dx, 4.0 * CELL, -dz).normalized()
-			var o := (row + tx) * 4
-			data[o] = int((nrm.x * 0.5 + 0.5) * 255.0)
-			data[o + 1] = int((nrm.y * 0.5 + 0.5) * 255.0)
-			data[o + 2] = int((nrm.z * 0.5 + 0.5) * 255.0)
-			data[o + 3] = 255
+	for row in _nrm_rows:
+		data.append_array(row)
+	_nrm_rows.clear()
 	var img := Image.create_from_data(N, N, false, Image.FORMAT_RGBA8, data)
 	img.generate_mipmaps()
 	return img
+
+
+var _nrm_rows := []
+
+
+func _normal_row(tz: int) -> void:
+	var hs := heights
+	var out := PackedByteArray()
+	out.resize(N * 4)
+	var z0 := maxi(tz - 1, 0) * N; var z1 := mini(tz + 1, N - 1) * N
+	var row := tz * N
+	for tx in N:
+		var x0 := maxi(tx - 1, 0); var x1 := mini(tx + 1, N - 1)
+		var nrm := Vector3(hs[row + x0] - hs[row + x1], 4.0 * CELL, hs[z0 + tx] - hs[z1 + tx]).normalized()
+		out[tx * 4] = int((nrm.x * 0.5 + 0.5) * 255.0)
+		out[tx * 4 + 1] = int((nrm.y * 0.5 + 0.5) * 255.0)
+		out[tx * 4 + 2] = int((nrm.z * 0.5 + 0.5) * 255.0)
+		out[tx * 4 + 3] = 255
+	_nrm_rows[tz] = out
 
 
 func detail_image() -> Image:
