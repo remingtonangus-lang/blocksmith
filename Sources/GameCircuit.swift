@@ -148,9 +148,9 @@ extension Game {
         if dropper {
             // Into a container in front, else out as an item.
             if let t = world.blockEntities[front], t.kind != .spawner, t.kind != .furnace {
-                let one = ItemStack(stack.item, 1)
+                let one = stack.with(count: 1)
                 if t.container.add(one).isEmpty { take() }
-            } else { drops.spawn(ItemStack(stack.item, 1), at: from, vel: fd * 4 + V3(0, 1, 0), delay: 0.5); take() }
+            } else { drops.spawn(stack.with(count: 1), at: from, vel: fd * 4 + V3(0, 1, 0), delay: 0.5); take() }
             sfx(.click, 0.5, at: from)
             return
         }
@@ -177,9 +177,9 @@ extension Game {
         default:
             if stack.def.armorSlot != nil, simd_length(player.pos + V3(0, 0.9, 0) - (V3(Float(front.x), Float(front.y), Float(front.z)) + 0.5)) < 1.5,
                let sl = stack.def.armorSlot, inventory.armor[sl.rawValue].isEmpty {
-                inventory.armor[sl.rawValue] = ItemStack(stack.item, 1); take()
+                inventory.armor[sl.rawValue] = stack.with(count: 1); take()
             } else {
-                drops.spawn(ItemStack(stack.item, 1), at: from, vel: fd * 4 + V3(0, 1, 0), delay: 0.5); take()
+                drops.spawn(stack.with(count: 1), at: from, vel: fd * 4 + V3(0, 1, 0), delay: 0.5); take()
             }
         }
         sfx(.click, 0.5, at: from)
@@ -195,7 +195,7 @@ extension Game {
         let target = p + Game.hopperOut[out]
         if let t = world.blockEntities[target], t.kind != .spawner {
             for i in 0..<c.count where !c[i].isEmpty {
-                let one = ItemStack(c[i].item, 1)
+                let one = c[i].with(count: 1)
                 let ok: Bool
                 if t.kind == .furnace {
                     let slot = out == 0 ? 0 : 1                                  // from above: input; from the side: fuel
@@ -212,7 +212,7 @@ extension Game {
         if let src = world.blockEntities[above], src.kind != .spawner {
             let range: Range<Int> = src.kind == .furnace ? 2..<3 : 0..<src.container.count      // a range: no array per tick
             for i in range where !src.container[i].isEmpty {
-                let one = ItemStack(src.container[i].item, 1)
+                let one = src.container[i].with(count: 1)
                 if c.add(one).isEmpty {
                     var s = src.container[i]; s.count -= 1; src.container[i] = s.count > 0 ? s : .empty
                     moved = true; break

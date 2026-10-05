@@ -300,7 +300,8 @@ enum Enchant {
     static func combine(_ left: ItemStack, _ right: ItemStack, rename: String?, creative: Bool) -> AnvilResult? {
         guard !left.isEmpty else { return nil }
         var out = left
-        out.count = 1
+        // A rename alone takes the whole stack (64 renamed diamonds); combining works on one item.
+        out.count = right.isEmpty ? left.count : 1
         var cost = 0
         var rightUsed = 0
         let ld = left.def
