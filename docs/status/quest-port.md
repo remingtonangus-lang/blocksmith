@@ -261,3 +261,10 @@ no GitHub credentials in the headless session). Next: `git push origin claude/qu
 implies seated leaning. Not yet checked on a headset or in QuestSim. (2) Placement: held place cooldown 0.25 -> 0.2 s (4 ticks), and
 the double-tap-jump fly toggle is ignored while right-click is held / within 0.4 s of a placement (Game.swift). Also committed on
 claude/blocksmith-playtest (edeca149). Next: push both branches, wait for CI, adb install -r the Quest APK.
+
+2026-10-05 (task 16): pushed dc74393e + follow-up; Quest CI run 37377397178 green, APK versionCode 51 on quest-dist (includes cc12b60f rapid placement).
+(1) Water: no code change to water.frag since the port except the sRGB finalColor wrap; best guess = linear blending of gamma-authored water on the sRGB
+swapchain (darker/more opaque). Compensated in water.frag (alpha x0.8, colour lifted). UNVERIFIED on device; if still wrong, try preferring UNORM swapchain
+formats in XRSession.swift:277. (2) Caves: Mac's caveFill ported to chunk.vert (misc.w = QuestSettings.brightness, default 0.75) + Brightness row on the VR
+page. (3) Smooth turning is now default at 90 deg/s; snap kept as an option; QuestSim snap checks set it explicitly. (4) cc12b60f verified in the build.
+No Quest was attached to adb, so nothing installed.
