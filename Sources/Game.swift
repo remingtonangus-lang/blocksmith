@@ -1575,7 +1575,7 @@ final class Game {
             if m.kind == .creeper && m.lastHitBySkeleton, let d = MusicDiscs.creeperDrops.pick(), Items.has("music_disc_\(d)") {
                 drops.spawn(ItemStack(Items.id("music_disc_\(d)"), 1), at: at)
             }
-            if m.kind == .zombifiedPiglin && m.killedByPlayer && r < 0.025 { drops.spawn(ItemStack(Items.id("gold_ingot"), 1), at: at) }
+            if m.kind == .zombifiedPiglin && m.killedByPlayer && r < 0.025 + 0.01 * Float(looting) { drops.spawn(ItemStack(Items.id("gold_ingot"), 1), at: at) }
             if m.kind == .witherSkeleton && m.killedByPlayer && r < 0.025 + 0.01 * Float(looting), Items.has("wither_skeleton_skull") {
                 drops.spawn(ItemStack(Items.id("wither_skeleton_skull"), 1), at: at)
             }
