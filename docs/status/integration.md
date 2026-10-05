@@ -165,5 +165,5 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
   from ~8 blocks) would save CPU and memory. The behaviour-sim trace now prints why idle citadel soldiers spin.
 - Checked on run 509 (639eb75): citadel_turret (twin 42 cm gunhouse on its barbette, soldiers drawn on the plaza)
   and ship_frigate_deck (deck markings, superstructure, crew bar) look right.
-- structcheck / fortresstest on the new citadel (walkability: ladders, doors, pad, skyways; mobs not in blocks).
-- Make --ridetest gating once it passes (or hand it to stream B).
+- (Done) structcheck covers the citadel: 9 checked, 99 POIs, 333 mobs, no issues (run 634).
+- (Done) --ridecheck gates the tours lane (its crew failure turned run 634 red).
