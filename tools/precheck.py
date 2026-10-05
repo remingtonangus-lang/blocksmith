@@ -194,6 +194,13 @@ for f, src in srcs.items():
         if t not in defined or name in ('init', 'self', 'allCases') or _has(t, name):
             continue
         errors.append(f'{f}:{code[:m.start()].count(chr(10)) + 1}: {t}.{name}() — no declaration of {t} has {name}')
+# Sequence methods on an ItemContainer (a class holding `slots`, not a Sequence): `inventory.armor.contains { }` broke
+# a build (1b8f474's parent). Receivers: inventory.main / armor / offhand / enderChest and `.container`.
+seqm = r'(contains|map|filter|first|reduce|enumerated|compactMap|allSatisfy|max|min|forEach|indices|isEmpty|last|prefix|sorted)\b'
+for f, src in srcs.items():
+    code = _strip(src)
+    for m in re.finditer(r'\b(?:inventory|inv)\.(?:main|armor|offhand|enderChest)\.' + seqm + r'|\bbe\.container\.' + seqm, code):
+        errors.append(f'{f}:{code[:m.start()].count(chr(10)) + 1}: ItemContainer is not a Sequence: use .slots ({m.group(0)})')
 for e in errors: print('ERROR', e)
 for w in warns: print('warn ', w)
 print(f'precheck: {len(errors)} errors, {len(warns)} warnings')
