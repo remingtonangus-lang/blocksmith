@@ -266,12 +266,15 @@ enum Tutorial {
     // Sound hook: breaking / placing / switching items near the player completes those steps.
     static func sound(_ g: Game, _ s: Snd, near: Bool) {
         let st = Settings.shared
-        guard HudExtras.enabled, st.tutorialHints, st.tutorialStep < steps, near else { return }
+        guard HudExtras.enabled, st.tutorialHints, st.tutorialStep < steps, near, ownSeat(g) else { return }
         if case .breakBlock = s, st.tutorialStep == 3 { advance(g) }
         if case .place = s, st.tutorialStep == 4 { advance(g) }
     }
+    // Split screen: the tips (one saved step, Settings.tutorialStep) belong to player 1: shown on their half and moved
+    // on by what they do (player 2's block breaks used to tick player 1's tip over, and both halves showed it).
+    static func ownSeat(_ g: Game) -> Bool { !g.coop.active || g.coop.current == 0 }
     static func selected(_ g: Game) {
-        if HudExtras.enabled && Settings.shared.tutorialHints && Settings.shared.tutorialStep == 6 { advance(g) }
+        if HudExtras.enabled && Settings.shared.tutorialHints && Settings.shared.tutorialStep == 6 && ownSeat(g) { advance(g) }
     }
 
     static func advance(_ g: Game) {
@@ -284,6 +287,7 @@ enum Tutorial {
 
     static func lines(_ g: Game, _ L: HudLayout) -> [HudLine] {
         let st = Settings.shared
+        guard ownSeat(g) else { return [] }
         guard HudExtras.enabled, st.tutorialHints, st.tutorialStep < steps, g.menu == nil, g.alive, !WeaponWheel.shared.open else { return [] }
         let s = L.s
         let t = text(st.tutorialStep)
