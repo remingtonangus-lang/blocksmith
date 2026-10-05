@@ -243,7 +243,12 @@ func _footsteps(delta: float, on_floor: bool) -> void:
 			Sfx.footstep(global_position, hv)
 
 
+var invulnerable := false        # scenarios that test terrain or teleports, not combat
+
+
 func take_damage(amount: float, from: Vector3) -> void:
+	if invulnerable:
+		return
 	health = maxf(0.0, health - amount)
 	if G.hud and G.hud.has_method("damage"):
 		G.hud.damage(amount, from)
@@ -252,10 +257,11 @@ func take_damage(amount: float, from: Vector3) -> void:
 
 
 func _respawn() -> void:
+	G.log_line("player killed at %s, respawning at the spawn" % global_position.round())
 	health = 100.0
 	var sp: Vector3 = G.world.site("spawn")
 	G.terrain.collision_now(sp)
-	global_position = sp + Vector3(0, 2, 0)
+	global_position = Vector3(sp.x, G.world.surface_at(sp.x, sp.z) + 0.1, sp.z)
 	velocity = Vector3.ZERO
 
 

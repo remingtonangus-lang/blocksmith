@@ -371,6 +371,7 @@ func _tick_destroy(_delta: float) -> void:
 
 ## Teleport the player to sites around the map: each time they must stand on the ground after 3 s.
 func _setup_stand() -> void:
+	G.player.invulnerable = true      # the front and the harbour are under fire; this checks the ground
 	data["sites"] = ["fort_lumen", "citadel", "front", "forest", "radar", "harbor", "spawn"]
 	data["i"] = -1
 	data["bad"] = []
@@ -395,6 +396,7 @@ func _tick_stand(_delta: float) -> void:
 	var sites: Array = data["sites"]
 	if data["i"] >= sites.size():
 		var bad: Array = data["bad"]
+		G.player.invulnerable = false
 		_done(bad.is_empty(), "%d sites, fell or stuck at: %s" % [sites.size(), ", ".join(bad)])
 		return
 	if t - float(data["t0"]) > 3.0:

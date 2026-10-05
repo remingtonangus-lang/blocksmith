@@ -48,7 +48,7 @@ jobs:
           # Full log kept as an artifact; the first script error is printed with its backtrace; a hang fails in
           # 12 minutes instead of eating the job (run 23: an error repeated every frame until the job timed out).
           timeout 720 ~/godot/godot --headless --path game -- --scenario all > ci/scenarios_full.log 2>&1 || echo "scenarios exit $?" >> ci/scenarios_full.log
-          grep -E "^scenario|SCRIPT ERROR|^scenarios exit|vehicle destroyed" ci/scenarios_full.log | uniq -c | tee ci/scenarios.log
+          grep -E "^scenario|SCRIPT ERROR|^scenarios exit|vehicle destroyed|player killed" ci/scenarios_full.log | uniq -c | tee ci/scenarios.log
           grep -m1 -A14 "SCRIPT ERROR" ci/scenarios_full.log || true
           ! grep -q "FAIL\|SCRIPT ERROR\|scenarios exit" ci/scenarios.log
       - uses: actions/upload-artifact@v4
