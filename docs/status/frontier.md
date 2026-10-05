@@ -79,6 +79,9 @@ runner, Metal) and the Mac monitor.
 - **Chapter 2 "Paper and Iron"** (`src/missions/ch2/`, `design/dialogue/ch2.json`): 5 missions; director verbs choose
   (bots: `--choices 0,1,0`), follow, sneak_to, escape, paper, minigame, post_bounty; five-card-draw poker with a
   catchable stacked deck (`src/minigames/`, self-test `--pokertest`).
+- **Chapter 3 "Dry Season"** (`src/missions/ch3/`, `design/dialogue/ch3.json`): 5 missions (water war, a mounted cattle
+  drive with strays and a stampede, Doc joins, Cutter Shale killed or jailed); verbs mount_up, lead, ride_with, drive,
+  stampede, defend; failed missions offer retry from checkpoint / restart / abandon (decisions replayed).
 - **UI**: HUD (rotating paper-map inset, 3 gauges, ammo, crosshair + hit marks, prompts, subtitles, place titles),
   pause menu, settings, full-screen map with waypoints, journal; OFL period fonts (IM Fell, Rye, Sancreek, Old
   Standard); 1080p canvas scaling.

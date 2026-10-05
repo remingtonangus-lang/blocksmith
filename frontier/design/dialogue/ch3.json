@@ -1,0 +1,1041 @@
+{
+ "note": "Chapter 3 dialogue, Dry Season (Halvorsen Ranch, Mesquite Wells, the Ocotillo Breaks, the Dry Fork). id, speaker, line, emotion. Speaker voice fields name voice types from voices.json. Original writing.",
+ "speakers": {
+  "ruth": {
+   "name": "Ruth Caddell",
+   "voice": "ruth"
+  },
+  "ingrid": {
+   "name": "Ingrid Halvorsen",
+   "voice": "woman_old"
+  },
+  "teodoro": {
+   "name": "Teodoro Baca",
+   "voice": "man_young"
+  },
+  "kett": {
+   "name": "Amos Kett",
+   "voice": "man_rough"
+  },
+  "rosa": {
+   "name": "Rosa Ybarra",
+   "voice": "woman_town"
+  },
+  "mateo": {
+   "name": "Mateo Ybarra",
+   "voice": "man_town"
+  },
+  "ines": {
+   "name": "Inés Ybarra",
+   "voice": "woman_town"
+  },
+  "doc": {
+   "name": "Cornelius Abernathy",
+   "voice": "man_town"
+  },
+  "fausto": {
+   "name": "Fausto Medina",
+   "voice": "shopkeeper"
+  },
+  "barlow": {
+   "name": "Royce Barlow",
+   "voice": "man_rough"
+  },
+  "billy": {
+   "name": "Billy Pruitt",
+   "voice": "man_young"
+  },
+  "dunphy": {
+   "name": "Harl Dunphy",
+   "voice": "man_rough"
+  },
+  "cutter": {
+   "name": "Cutter Shale",
+   "voice": "man_rough"
+  },
+  "sentry": {
+   "name": "Line Camp Sentry",
+   "voice": "man_rough"
+  },
+  "del": {
+   "name": "Del Arceneaux",
+   "voice": "woman_town"
+  },
+  "hap": {
+   "name": "Hap Lindqvist",
+   "voice": "man_old"
+  },
+  "mabry": {
+   "name": "Sheriff Mabry",
+   "voice": "lawman"
+  }
+ },
+ "lines": [
+  {
+   "id": "c3_ranch_01",
+   "speaker": "ruth",
+   "line": "Grass the colour of a paper sack, and the creeks gone to stones. Pell picked his season well.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c3_ranch_02",
+   "speaker": "ingrid",
+   "line": "That's close enough. Whoever sent you, the answer's what it was last week. Not for four dollars, not for forty.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_ranch_03",
+   "speaker": "ruth",
+   "line": "Nobody sent me, Mrs. Halvorsen. I brought you a paper with your name on it that you never signed.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_ranch_04",
+   "speaker": "ingrid",
+   "line": "My south section, signed over in August. In August I was burying my husband. The only thing I signed was the church register.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c3_ranch_05",
+   "speaker": "ruth",
+   "line": "The same hand signed for a dead man in Bitter Spring. Who's taking your water?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_ranch_06",
+   "speaker": "ingrid",
+   "line": "Cutter Shale's men pulled the rods out of my north windmill on Sunday. The tank's half mud. I've three hundred head that drink like it's their religion.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c3_ranch_07",
+   "speaker": "teodoro",
+   "line": "Señora! They're back at the north mill, four of them, with a team and a chain to pull the tower down.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c3_ranch_08",
+   "speaker": "ingrid",
+   "line": "Saddle my horse, Teodoro. Mrs. Caddell, you may come and watch me be unreasonable.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c3_ranch_09",
+   "speaker": "ruth",
+   "line": "I'll come. I'm told I'm good at unreasonable.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_ranch_10",
+   "speaker": "kett",
+   "line": "Mrs. Halvorsen. Mr. Shale's compliments. Windmills are dangerous in a high wind. We're taking this one down before it hurts somebody.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c3_ranch_11",
+   "speaker": "ingrid",
+   "line": "There's no wind, Mr. Kett. There's been no wind since June.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c3_ranch_12",
+   "speaker": "kett",
+   "line": "Then it'll be a quiet job. Who's your friend?",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_ranch_13",
+   "speaker": "ruth",
+   "line": "Somebody who's read Mr. Shale's paperwork.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_ranch_14",
+   "speaker": "ruth",
+   "line": "That's the only one I'll waste. The next goes where I'm looking.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_ranch_15",
+   "speaker": "kett",
+   "line": "Boys who want to go home, go home. The rest of you, with me.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c3_ranch_16",
+   "speaker": "ruth",
+   "line": "Take the chain off her tower, Mr. Kett. Or don't, and find out what it costs.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_ranch_17",
+   "speaker": "kett",
+   "line": "Mr. Shale pays me to find out. Take her!",
+   "emotion": "angry"
+  },
+  {
+   "id": "c3_ranch_18",
+   "speaker": "ingrid",
+   "line": "My husband built that mill with his own hands and a mail-order catalogue. I'd hate to tell him I let it go for nothing.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c3_ranch_19",
+   "speaker": "ruth",
+   "line": "It won't hold. Not with Cutter sending men every Sunday. What's the next water south?",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c3_ranch_20",
+   "speaker": "ingrid",
+   "line": "The Ybarra well at Mesquite Wells. Deepest in the county. Rosa Ybarra's people dug it before there was a county. Cutter wants it worse than he wants mine.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c3_ranch_21",
+   "speaker": "ingrid",
+   "line": "If my cattle are going to live, they walk to that well through the Ocotillo Breaks. One canyon with a bad name, and a woman my age doesn't ride drag anymore.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_ranch_22",
+   "speaker": "ruth",
+   "line": "And you'd like somebody who does.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_ranch_23",
+   "speaker": "ingrid",
+   "line": "I'd like somebody who shoots. I can pay a dollar a head delivered, which is most of what I've got left.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c3_ranch_24",
+   "speaker": "ruth",
+   "line": "A dollar a head. I'll count them myself.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_ranch_25",
+   "speaker": "ingrid",
+   "line": "Good. I trust a woman who counts. My husband never did, and look where it got him. Married to me.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c3_ranch_26",
+   "speaker": "ruth",
+   "line": "Keep it. When this is over my people will be hungry, and you'll have beef.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c3_ranch_27",
+   "speaker": "ingrid",
+   "line": "My husband would have liked you. He was terrible with money too.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c3_ranch_28",
+   "speaker": "ingrid",
+   "line": "Go to Mesquite Wells first. Tell Rosa we're coming, and that I'll pay for every bucket. She won't believe the second part. Nobody pays for water.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c3_ranch_29",
+   "speaker": "ruth",
+   "line": "Water's about to get expensive.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_ranch_30",
+   "speaker": "teodoro",
+   "line": "I'll start gathering. Twenty-four of the strongest, señora? The rest won't walk three days dry.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c3_ranch_31",
+   "speaker": "ingrid",
+   "line": "Twenty-four. Pick the ones with sense, Teodoro. Leave me the old cow with the bell. She and I will wait for rain together.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c3_doc_01",
+   "speaker": "ruth",
+   "line": "Adobe and dust and a water tower with a padlock on the ladder. The padlock's new.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c3_doc_02",
+   "speaker": "rosa",
+   "line": "Are you the doctor? Tell me you're the doctor.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c3_doc_03",
+   "speaker": "ruth",
+   "line": "I'm not. What's happened?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_doc_04",
+   "speaker": "rosa",
+   "line": "Riders. Shale's men, cutting through my yard to water their horses at my well like it was theirs already. My Inés was on the wall. The horse didn't even stop.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c3_doc_05",
+   "speaker": "mateo",
+   "line": "Her leg's broken above the knee. I've set calves. I can't set my own daughter.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_doc_06",
+   "speaker": "ines",
+   "line": "Mamá, it doesn't hurt if I don't look at it.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c3_doc_07",
+   "speaker": "rosa",
+   "line": "There's a doctor. There was a doctor. He's at Fausto's cantina, and he has been at Fausto's since spring.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c3_doc_08",
+   "speaker": "ruth",
+   "line": "Then I'll fetch him.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_doc_09",
+   "speaker": "fausto",
+   "line": "If you've come for the doctor, señora, take him. If you've come for his tab, take a chair. It's a long list.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c3_doc_10",
+   "speaker": "doc",
+   "line": "Ah. Another visitor with a face like a summons. I'm afraid I've been struck off, madam. Philadelphia was very firm about it.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c3_doc_11",
+   "speaker": "ruth",
+   "line": "There's a girl four doors down with a broken leg. Philadelphia isn't here.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_doc_12",
+   "speaker": "doc",
+   "line": "No. It never is when you need it. Neither are my hands. Look at them. They're having a small earthquake of their own.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c3_doc_13",
+   "speaker": "barlow",
+   "line": "He ain't going nowhere. Doc owes me eleven dollars and a mule's worth of patience. He leaves when I'm paid.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c3_doc_14",
+   "speaker": "ruth",
+   "line": "Eleven dollars. Count it, and then go and count something else.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_doc_15",
+   "speaker": "barlow",
+   "line": "He's yours, God help you. He snores in Latin.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c3_doc_16",
+   "speaker": "ruth",
+   "line": "The doctor's leaving. You can stand aside or lie down. I don't mind which.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_doc_17",
+   "speaker": "barlow",
+   "line": "Lady, I skin mules for a living. You're smaller than a mule.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c3_doc_18",
+   "speaker": "doc",
+   "line": "Slower, if you please. The street keeps getting up to meet me.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_doc_19",
+   "speaker": "doc",
+   "line": "Why do you care? You don't know the child.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c3_doc_20",
+   "speaker": "ruth",
+   "line": "I know the horse.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_doc_21",
+   "speaker": "doc",
+   "line": "Mm. A clean break of the femur. She's lucky. Lucky is a word doctors use when they mean something worse was available.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c3_doc_22",
+   "speaker": "doc",
+   "line": "It wants setting in one pull, and somebody to hold her still. And I'll want a drink. Not for courage. For the shaking.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_doc_23",
+   "speaker": "ruth",
+   "line": "One. And then you put the bottle down.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c3_doc_24",
+   "speaker": "doc",
+   "line": "One. You have my word, which is worth exactly one.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c3_doc_25",
+   "speaker": "ruth",
+   "line": "No. She deserves your hands, Doctor, not the bottle's.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_doc_26",
+   "speaker": "doc",
+   "line": "You've no idea what you're asking of me.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c3_doc_27",
+   "speaker": "ruth",
+   "line": "I've an idea. Hold them out. Now hold them out steadier.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_doc_28",
+   "speaker": "doc",
+   "line": "There. She'll walk. She'll run, God help her parents.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c3_doc_29",
+   "speaker": "doc",
+   "line": "Set. Not prettily. She'll walk with a hitch, and she'll remember whose hands it was.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c3_doc_30",
+   "speaker": "rosa",
+   "line": "Doctor. You'll eat with us tonight, and you'll sleep in a bed, and nobody in this house will say the word Philadelphia.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c3_doc_31",
+   "speaker": "doc",
+   "line": "Madam, nobody has thanked me in a year. I find I don't know where to put it.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c3_doc_32",
+   "speaker": "ruth",
+   "line": "You could put it to work. I've people who get shot, and a camp that's short a doctor.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_doc_33",
+   "speaker": "doc",
+   "line": "A camp. With outlaws in it, I imagine.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_doc_34",
+   "speaker": "ruth",
+   "line": "A drover, a cardsharp, a boy, and a poster of me.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_doc_35",
+   "speaker": "doc",
+   "line": "A poster. Well. Then we're both struck off. I'll fetch my bag. It's under Fausto's piano, with my dignity.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c3_doc_36",
+   "speaker": "mateo",
+   "line": "Señora Caddell. Cutter Shale came two days ago with a paper. It says the water under my land belongs to whoever owns the land around it. The syndicate owns the land around it.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_doc_37",
+   "speaker": "ruth",
+   "line": "Ingrid Halvorsen's herd is coming to drink from this well. Keep it open for them.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_doc_38",
+   "speaker": "rosa",
+   "line": "This well was open before there was a Pell. It'll be open after.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c3_drive_01",
+   "speaker": "billy",
+   "line": "Twenty-four head of the thirstiest cattle in the territory, and I get to ride swing. Hap's going to be sick with envy.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c3_drive_02",
+   "speaker": "teodoro",
+   "line": "Point is mine. Swing is yours, boy. Drag is for the señora's friend, who eats the dust and gets the blame.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c3_drive_03",
+   "speaker": "ruth",
+   "line": "I've eaten worse than dust. Push them easy. A thirsty steer runs toward water and away from sense.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_drive_04",
+   "speaker": "billy",
+   "line": "One's broke off! Brindle steer, headed back like he forgot something at home!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c3_drive_05",
+   "speaker": "teodoro",
+   "line": "Two ways from here. The Narrows: red walls, one way in and one way out. Or round the mesa: half a day longer and dry the whole way.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c3_drive_06",
+   "speaker": "billy",
+   "line": "Teodoro says the Narrows is where folks get bushwhacked. He says it like he's proud of knowing.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_drive_07",
+   "speaker": "ruth",
+   "line": "The Narrows. Faster's kinder when they're this dry. Keep your eyes on the rim.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_drive_08",
+   "speaker": "ruth",
+   "line": "Round the mesa. I'd rather lose a day than lose the herd in a rock chute.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_drive_09",
+   "speaker": "teodoro",
+   "line": "Riders on the rim! They're shooting into the herd!",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_drive_10",
+   "speaker": "billy",
+   "line": "They're running, Ruth! They're all running!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c3_drive_11",
+   "speaker": "teodoro",
+   "line": "Get to the leaders! Ride up on their flank and turn them, or we lose half the herd in the rocks!",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_drive_12",
+   "speaker": "teodoro",
+   "line": "Heat lightning. No rain in it, only the noise. Cattle hate the noise.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c3_drive_13",
+   "speaker": "billy",
+   "line": "Teodoro says you sing to them at night so they know where you are. I don't know any songs that ain't rude.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_drive_14",
+   "speaker": "ruth",
+   "line": "Then hum.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c3_drive_15",
+   "speaker": "billy",
+   "line": "Lightning! They're up! They're running!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c3_drive_16",
+   "speaker": "billy",
+   "line": "They're milling! You turned them! I seen it done once in Abilene, but that man was a liar.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c3_drive_17",
+   "speaker": "teodoro",
+   "line": "We lost some in the rocks. A few will turn up. Most won't.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c3_drive_18",
+   "speaker": "dunphy",
+   "line": "Leave the beeves, lady! Mr. Shale's buying them off you at the price of a bullet!",
+   "emotion": "angry"
+  },
+  {
+   "id": "c3_drive_19",
+   "speaker": "ruth",
+   "line": "Billy, stay with the herd. Teodoro, the left side. I'll take the ones who talk.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_drive_20",
+   "speaker": "teodoro",
+   "line": "There's the tower. Smell it? They smell it.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c3_drive_21",
+   "speaker": "mateo",
+   "line": "Bring them in! The trough's full. Rosa filled it at dawn and dared anybody to say a word.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c3_drive_22",
+   "speaker": "billy",
+   "line": "How many'd we bring?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_drive_23",
+   "speaker": "ruth",
+   "line": "All of them, near enough. Ingrid's going to owe somebody beef.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_drive_24",
+   "speaker": "ruth",
+   "line": "Not all. Enough to start over on. That'll have to do.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c3_drive_25",
+   "speaker": "teodoro",
+   "line": "The señora will cry. She'll say it's the dust.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c3_drive_26",
+   "speaker": "billy",
+   "line": "Ruth? I rode swing on a real drive. Nobody can ever take that off me now.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c3_drive_27",
+   "speaker": "ruth",
+   "line": "No. Nobody can.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c3_drive_28",
+   "speaker": "ruth",
+   "line": "We'll bed them down by the dry wash. Billy, first watch. Wake me if they so much as cough.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_drive_29",
+   "speaker": "billy",
+   "line": "If they cough, I'll cough back. That's how it works, ain't it?",
+   "emotion": "amused"
+  },
+  {
+   "id": "c3_drive_30",
+   "speaker": "ruth",
+   "line": "Ingrid's dollar a head. Twenty-some dollars for three days of dust. Tom would have laughed at me.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_rights_01",
+   "speaker": "ruth",
+   "line": "Six riders on the Bitter Spring road, and one of them sits his horse like he owns the ground under it.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_rights_02",
+   "speaker": "cutter",
+   "line": "Mrs. Caddell. Eben said you'd be taller. Eben has a romantic notion of widows.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c3_rights_03",
+   "speaker": "ruth",
+   "line": "Cutter Shale. You were at Harlan's Siding.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_rights_04",
+   "speaker": "cutter",
+   "line": "I've been at a great many places. A man in my line gets around. Today I'm at the Ybarra well, with a paper.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c3_rights_05",
+   "speaker": "cutter",
+   "line": "By order of the Territorial Water Board, the waters of this well are adjudicated to the adjoining landholder. The Meridian and Western thanks you for your stewardship.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_rights_06",
+   "speaker": "mateo",
+   "line": "My grandfather dug this well with a shovel and a mule. Where was the Water Board?",
+   "emotion": "angry"
+  },
+  {
+   "id": "c3_rights_07",
+   "speaker": "cutter",
+   "line": "Not yet invented, Mr. Ybarra. That's the trouble with the past. It never has the right paperwork.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_rights_08",
+   "speaker": "doc",
+   "line": "I've seen forged signatures before. Usually on prescriptions. Yours is better work.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_rights_09",
+   "speaker": "cutter",
+   "line": "And you'd be the doctor. Mr. Pell sends his regards. He says you owe Philadelphia an apology.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c3_rights_10",
+   "speaker": "ruth",
+   "line": "Get down off the horse, Cutter. We'll discuss your paper on the ground.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_rights_11",
+   "speaker": "cutter",
+   "line": "Not today. Boys, the lady wants a war. Give her the opening shots.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c3_rights_12",
+   "speaker": "ruth",
+   "line": "Ride on, Cutter. There are children in this yard, and they're not learning your name today.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_rights_13",
+   "speaker": "cutter",
+   "line": "Considerate. Eben will be touched. Sundown, Mr. Ybarra. The well is ours at sundown.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c3_rights_14",
+   "speaker": "rosa",
+   "line": "You let him go. He'll be back with more.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c3_rights_15",
+   "speaker": "ruth",
+   "line": "He'll be back either way. I'd sooner he came back to a yard with no children's blood in it.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c3_rights_16",
+   "speaker": "doc",
+   "line": "Lanterns on the east road. Four. No, five. Cutter keeps his appointments.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_rights_17",
+   "speaker": "mateo",
+   "line": "They're bringing a carcass and coal oil. If they get it down the shaft, the well's poisoned for a year.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c3_rights_18",
+   "speaker": "ruth",
+   "line": "Then nobody gets near the well. Doc, the roof. Mateo, the shotgun and the door.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_rights_19",
+   "speaker": "rosa",
+   "line": "The water's clean. Mateo, the water's clean.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c3_rights_20",
+   "speaker": "ruth",
+   "line": "For tonight. Cutter will come back with more paper, or more men.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c3_rights_21",
+   "speaker": "mateo",
+   "line": "They got it down. A year before it sweetens, if it ever does. My grandfather's well.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c3_rights_22",
+   "speaker": "ruth",
+   "line": "Then Cutter pays for a year of it.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c3_rights_23",
+   "speaker": "doc",
+   "line": "Mr. Ybarra tells me Cutter keeps a line camp up the Dry Fork. That's where he sleeps when he isn't stealing water.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c3_rights_24",
+   "speaker": "ruth",
+   "line": "Then that's where he wakes up.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_rights_25",
+   "speaker": "rosa",
+   "line": "Señora. Whatever you do up there, my children will hear about it. Do it in a way I can tell them.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_rights_26",
+   "speaker": "doc",
+   "line": "I'll ride with you as far as the creek. Somebody should be on hand to dig bullets out of whoever's left.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_rights_27",
+   "speaker": "cutter",
+   "line": "Another day, Caddell! I'll bring Eben, and Eben will bring the Bible!",
+   "emotion": "angry"
+  },
+  {
+   "id": "c3_rights_28",
+   "speaker": "ines",
+   "line": "Señora Ruth. Are you going to shoot the man with the paper?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_rights_29",
+   "speaker": "ruth",
+   "line": "Go inside, Inés. Help your mother with the lamps.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c3_fork_01",
+   "speaker": "del",
+   "line": "Line camp's a soddy, a corral and a sentry who's been eating Cutter's beans. Come at it from upwind, if you can manage.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_fork_02",
+   "speaker": "ruth",
+   "line": "Del, if this goes wrong, you ride for Willow Bend and you don't stop to see how it ended.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_fork_03",
+   "speaker": "del",
+   "line": "I never stop to see how anything ends. It's why I'm so cheerful.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c3_fork_04",
+   "speaker": "ruth",
+   "line": "Tom. This is the second name. I thought I'd feel something by now besides tired.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c3_fork_05",
+   "speaker": "sentry",
+   "line": "Somebody's in the brush! Cutter! Cutter, she's here!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c3_fork_06",
+   "speaker": "ruth",
+   "line": "Cutter Shale. Come out with your hands empty. I'd hate to make a liar of your brother's Bible.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_fork_07",
+   "speaker": "cutter",
+   "line": "Caddell! You came all this way to die in a dirt house? Eben will write you a hymn!",
+   "emotion": "angry"
+  },
+  {
+   "id": "c3_fork_08",
+   "speaker": "cutter",
+   "line": "Enough! Enough, I'm done. You want me in a cell? Pell will have me out by Sunday dinner.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c3_fork_09",
+   "speaker": "ruth",
+   "line": "Harlan's Siding, Cutter. Tom Caddell, in the door of the express car. Who fired?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_fork_10",
+   "speaker": "cutter",
+   "line": "Eben. Eben always fires first. It's how he says grace. I held the car door, Asa held the horses, Arliss counted the money. Now you know. Doesn't help, does it?",
+   "emotion": "tired"
+  },
+  {
+   "id": "c3_fork_11",
+   "speaker": "ruth",
+   "line": "Get up. You're going to Bitter Spring, and you're going to say that again in front of a sheriff.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c3_fork_12",
+   "speaker": "cutter",
+   "line": "Mabry? Mabry owes his badge to us. You're delivering me to my own front porch.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c3_fork_13",
+   "speaker": "del",
+   "line": "Then we'll knock very loudly.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_fork_14",
+   "speaker": "ruth",
+   "line": "No. I've seen what Pell's paper does to a cell door.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c3_fork_15",
+   "speaker": "del",
+   "line": "That's one. I hope it was worth what it cost you, Ruth. I truly do.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c3_fork_16",
+   "speaker": "cutter",
+   "line": "My boys know this road better than you, Caddell. Every bend of it.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c3_fork_17",
+   "speaker": "dunphy",
+   "line": "Cut him loose and you can ride away! Nobody needs to die over Cutter!",
+   "emotion": "angry"
+  },
+  {
+   "id": "c3_fork_18",
+   "speaker": "cutter",
+   "line": "Speak for yourself, Harl.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_fork_19",
+   "speaker": "mabry",
+   "line": "Cutter Shale. In my jail. On a widow's word.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c3_fork_20",
+   "speaker": "ruth",
+   "line": "On his own word. Ask him who held the car door.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_fork_21",
+   "speaker": "mabry",
+   "line": "I know who held the door, Mrs. Caddell. Everybody in this county knows. Knowing has never been the trouble.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c3_fork_22",
+   "speaker": "mabry",
+   "line": "I'll hold him. I'll hold him for the circuit judge, and the judge will be one of Pell's, but by God I'll hold him.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c3_fork_23",
+   "speaker": "del",
+   "line": "Riders on the ridge! Cutter's whole crew heard the shot. Ride, Ruth!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c3_fork_24",
+   "speaker": "hap",
+   "line": "Del says it's done. One of them. You don't look any lighter for it.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c3_fork_25",
+   "speaker": "hap",
+   "line": "In Mabry's jail! Now there's a sentence I never thought to hear in English.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c3_fork_26",
+   "speaker": "doc",
+   "line": "I've buried patients I liked better. I've rarely buried one who deserved it more. I find that doesn't help.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_fork_27",
+   "speaker": "doc",
+   "line": "A trial. How quaint. Pell will hate it. Lawyers despise a court they didn't buy first.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c3_fork_28",
+   "speaker": "billy",
+   "line": "Did he say anything? At the end?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_fork_29",
+   "speaker": "ruth",
+   "line": "Nothing you need, Billy.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c3_fork_30",
+   "speaker": "billy",
+   "line": "You brought him in alive. I'd have shot him. I'd have wanted to.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c3_fork_31",
+   "speaker": "ruth",
+   "line": "Wanting's free. The rest costs.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c3_fork_32",
+   "speaker": "ruth",
+   "line": "Cutter's done, Tom. Eben and the boy are left. I thought this part would feel like something.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c3_fork_33",
+   "speaker": "hap",
+   "line": "Smell that? Rain. First in four months. Ingrid's cattle will think it's the Second Coming.",
+   "emotion": "warm"
+  }
+ ]
+}

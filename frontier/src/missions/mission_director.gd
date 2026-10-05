@@ -4,9 +4,19 @@ extends Node
 ## await: goto, say, spawn, wait_dead, interact, wait, checkpoint, cinematic shots; draws objectives on the HUD and
 ## mission start markers in the world; handles failure/retry from checkpoints; and has an autopilot used by the
 ## mission bot (--bot missions) to play every mission end to end headless and catch softlocks.
+## Chapter 3 verbs: mount_up, lead (someone follows Ruth), ride_with (escort a rider on horseback), drive (push a
+## herd), stampede (turn the leaders), defend (hold a point), track (mission props).
 ## Story verbs added for chapter 2: choose (dialogue choices; bots follow --choices 0,1,0), follow (escort an NPC),
 ## sneak_to (reach a point unseen), escape (timed getaway), paper (read a poster / front page), minigame (poker...),
 ## post_bounty / clear_bounty (story-driven law). `--pokertest` runs the poker self-test at boot and quits.
+##
+## Failure and retry: when a mission fails (Ruth dies, a softlock, fail()), a paper panel offers Retry from
+## checkpoint / Restart mission / Abandon. Missions need no special structure: checkpoint(name) records where Ruth
+## stood (time, weather, horse), the world state at mission start is snapshotted, and every decision (choices,
+## minigame results, sneak/stampede/defend outcomes) is recorded in order. Retrying restores the snapshot and runs
+## the mission again from the top in *resume* mode: verbs return at once and silently, spawn_group re-creates the
+## people, choices replay what was chosen, fights resolve without consequences, until the same checkpoint is
+## reached; there Ruth is put back where she stood and play continues live. Abandon undoes the mission's effects.
 
 signal mission_started(id: String)
 signal mission_completed(id: String)
@@ -24,6 +34,11 @@ const MISSIONS := [
 	"res://src/missions/ch2/thornwood.gd",
 	"res://src/missions/ch2/the_exchange.gd",
 	"res://src/missions/ch2/terms.gd",
+	"res://src/missions/ch3/halvorsen_water.gd",
+	"res://src/missions/ch3/a_leg_to_set.gd",
+	"res://src/missions/ch3/through_the_breaks.gd",
+	"res://src/missions/ch3/water_rights.gd",
+	"res://src/missions/ch3/the_dry_fork.gd",
 ]
 
 var dialogue := {}              # line id -> {speaker, line, emotion}
@@ -47,6 +62,18 @@ var _last_speaker: Node3D = null
 var _choice_queue: Array = []   # bots: --choices 0,1,0 answers choose()/auto_choice() in order
 var _choice_parsed := false
 var _escorted: Array = []       # NPCs whose brain a mission has taken over (follow / npc_walk_to)
+var resuming := false            # replaying a mission up to the checkpoint being retried
+var _resume_ordinal := 0
+var _cp_count := 0               # checkpoints passed this attempt
+var _cp := {}                    # last checkpoint reached live: {name, ordinal, decisions, pos, yaw, hours, weather, mounted}
+var _decisions: Array = []       # [{v, auto}] in the order the mission asked for them
+var _replay: Array = []
+var _auto_log: Array = []        # [decision index, value] for every --choices value consumed
+var _start_snap := {}            # world state + where Ruth stood when the mission began
+var test_fail := ""              # bots: "mission_id:checkpoint" fails the mission right after that checkpoint, once
+var _test_fail_done := false
+var attempts := 0
+var _props: Array = []           # herds, outriders, markers: freed with the mission's people
 
 func _ready() -> void:
 	Game.set("missions", self)
@@ -100,8 +127,52 @@ func start(m: Mission) -> void:
 	mission_started.emit(m.id)
 	if Game.hud:
 		Game.hud.notice(m.title, 5.0)
-	var ok: bool = await _run(m)
-	_cleanup()
+	_start_snap = _snapshot()
+	_decisions = []
+	_replay = []
+	_auto_log = []
+	_cp = {}
+	_cp_count = 0
+	resuming = false
+	attempts = 1
+	var ok := false
+	while true:
+		ok = await _run(active)
+		_cleanup()
+		if ok:
+			break
+		var pick: String = await _failure_menu()
+		Game.log_event("mission_retry", {"id": active.id, "pick": pick, "checkpoint": _cp.get("name", "")})
+		if pick == "abandon":
+			_restore_state(_start_snap)
+			_place_from(_start_snap)
+			if not autopilot and not Game.args.has("bot") and not Game.args.has("free_roam"):
+				_continue_story.call_deferred(120.0)     # the story picks itself up again after a while
+			break
+		attempts += 1
+		_restore_state(_start_snap)
+		var keep := 0
+		if pick == "retry" and not _cp.is_empty():
+			keep = int(_cp.decisions)
+			resuming = true
+			_resume_ordinal = int(_cp.ordinal)
+		else:
+			resuming = false
+			_place_from(_start_snap)
+			_cp = {}
+		# answers the bot's --choices gave after the retry point are asked again, so give them back
+		var back := []
+		for e in _auto_log:
+			if int(e[0]) >= keep:
+				back.append(e[1])
+		_choice_queue = back + _choice_queue
+		_auto_log = _auto_log.filter(func(e): return int(e[0]) < keep)
+		_replay = _decisions.slice(0, keep)
+		_decisions = []
+		_cp_count = 0
+		_abort = false
+		active = active.get_script().new()
+	resuming = false
 	active = null
 	if ok:
 		completed.append(m.id)
@@ -117,8 +188,8 @@ func start(m: Mission) -> void:
 
 ## Normal play: when a mission ends, the next one in the chain that starts by itself (no start_pos) follows after a
 ## breath, so the story plays through without a menu.
-func _continue_story() -> void:
-	await get_tree().create_timer(6.0, false).timeout
+func _continue_story(delay := 6.0) -> void:
+	await get_tree().create_timer(delay, false).timeout
 	if active != null:
 		return
 	for m in available():
@@ -128,10 +199,123 @@ func _continue_story() -> void:
 
 func _run(m: Mission) -> bool:
 	var result = await m.run(self)
+	if resuming:
+		# the mission ended before the checkpoint came round again (a branch changed): play on from here
+		resuming = false
 	return result != false and not _abort
 
+func _physics_process(_dt: float) -> void:
+	# any death during a mission fails it (fights already check; this covers falls, ambushes on the road...)
+	if active != null and not _abort and not resuming and Game.player and Game.player.damageable \
+			and not Game.player.damageable.alive:
+		fail("Ruth died")
+
+# ------------------------------------------------------------------ failure, checkpoints, retry
+func _snapshot() -> Dictionary:
+	var st = Game.state
+	var snap := {}
+	if st:
+		snap = {"standing": st.standing, "money": st.money, "inventory": st.inventory.duplicate(true),
+			"bounties": st.bounties.duplicate(true), "wanted": st.wanted, "wanted_county": st.wanted_county,
+			"flags": st.flags.duplicate(true), "kills": st.kills.duplicate(true)}
+	snap["where"] = _where()
+	return snap
+
+func _where() -> Dictionary:
+	var p = Game.player
+	return {"pos": p.global_position if p else Vector3.ZERO, "yaw": float(p.facing) if p else 0.0,
+		"hours": Game.sky.hours if Game.sky else 12.0, "weather": Game.sky.weather if Game.sky else 1,
+		"mounted": p != null and p.get("on_horse") != null}
+
+func _restore_state(snap: Dictionary) -> void:
+	var st = Game.state
+	if st and snap.has("money"):
+		st.standing = snap.standing
+		st.money = snap.money
+		st.inventory = snap.inventory.duplicate(true)
+		st.bounties = snap.bounties.duplicate(true)
+		st.wanted = snap.wanted
+		st.wanted_county = snap.wanted_county
+		st.flags = snap.flags.duplicate(true)
+		st.kills = snap.kills.duplicate(true)
+		st.money_changed.emit(st.money)
+		st.wanted_changed.emit(st.wanted, st.wanted_county)
+
+## Put Ruth back where a snapshot says she stood (healed, on or off her horse as she was), with its time and weather.
+func _place_from(snap: Dictionary) -> void:
+	var w: Dictionary = snap.get("where", {})
+	if w.is_empty() or Game.player == null:
+		return
+	var p = Game.player
+	if p.damageable:
+		p.damageable.alive = true
+		p.damageable.health = p.damageable.max_health
+		p.set("health", p.damageable.max_health)
+	var horse = Horse.player_horse if is_instance_valid(Horse.player_horse) else null
+	var on = p.get("on_horse")
+	if not w.mounted and on != null and on.has_method("dismount"):
+		on.dismount()
+	_teleport_player(w.pos)
+	if w.mounted and p.get("on_horse") == null and horse != null:
+		_put_on_ground(horse, w.pos + Vector3(1.5, 0, 0))
+		horse.mount(p, 0.0)
+	p.facing = w.yaw
+	p.cam_yaw = w.yaw
+	if Game.sky:
+		Game.sky.set_time(w.hours)
+		Game.sky.set_weather(w.weather, true)
+
+func _failure_menu() -> String:
+	var reason := str(_last_fail)
+	# wait for Ruth to get back up if she died (the player respawns on her own after a beat)
+	var t := 0.0
+	while Game.player and Game.player.damageable and not Game.player.damageable.alive and t < 8.0:
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+	var opts := []
+	var keys := []
+	if not _cp.is_empty():
+		opts.append("Retry from the last checkpoint")
+		keys.append("retry")
+	opts.append("Restart the mission")
+	keys.append("restart")
+	opts.append("Abandon it for now")
+	keys.append("abandon")
+	var menus = Game.get("menus")
+	if autopilot or Game.headless or menus == null:
+		# bots: retry from the checkpoint (else restart); give up after three attempts
+		return "abandon" if attempts >= 3 else keys[0]
+	cine_end()
+	while true:
+		var p: PanelContainer = load("res://src/missions/choice_panel.gd").new()
+		p.build(menus, "Mission failed — %s." % reason, opts)
+		menus._push(p)
+		var r: int = await p.chosen
+		if r >= 0:
+			if is_instance_valid(p) and menus.stack.size() > 0 and menus.stack.back() == p:
+				menus.back()
+			return keys[r]
+	return "abandon"
+
+## Record a decision (live) or hand back the recorded one (resume). auto: it came from the bots' --choices.
+func _decide(live_value, auto := false):
+	if resuming and not _replay.is_empty():
+		var e: Dictionary = _replay.pop_front()
+		_decisions.append(e)
+		return e.v
+	_decisions.append({"v": live_value, "auto": auto})
+	return live_value
+
+func _replaying() -> bool:
+	return resuming and not _replay.is_empty()
+
+var _last_fail := ""
+
 func fail(reason: String) -> void:
+	if _abort:
+		return
 	_abort = true
+	_last_fail = reason
 	Game.log_event("mission_fail", {"id": active.id if active else "", "reason": reason})
 	mission_failed.emit(active.id if active else "", reason)
 	if Game.hud:
@@ -155,16 +339,19 @@ func _cleanup() -> void:
 		if is_instance_valid(n):
 			n.queue_free()
 	spawned.clear()
+	_free_props()
 
 # ------------------------------------------------------------------ verbs (await these)
 func wait(seconds: float) -> void:
+	if _abort or resuming:
+		return
 	await get_tree().create_timer(seconds if not autopilot else minf(seconds, 0.2)).timeout
 
 # ------------------------------------------------------------------ cinematics
 ## Enter a letterboxed dialogue scene: the camera frames each speaker (shot / reverse shot over the listener's
 ## shoulder) with a slow dolly drift; player control and HUD pause until cine_end().
 func cine_begin() -> void:
-	if Game.headless or autopilot or cine:
+	if Game.headless or autopilot or cine or resuming or _abort:
 		return
 	cine = true
 	_cine_cam = Camera3D.new()
@@ -247,11 +434,15 @@ func _process(dt: float) -> void:
 
 ## Say a dialogue line: subtitles + voice (if rendered), returns after the line's duration.
 func say(line_id: String, speaker_node: Node3D = null) -> void:
+	if _abort or resuming:
+		return
 	var dur := say_async(line_id, speaker_node)
 	await wait(dur)
 
 ## Start a line without waiting for it (walk-and-talk); returns its duration in seconds.
 func say_async(line_id: String, speaker_node: Node3D = null) -> float:
+	if _abort or resuming:
+		return 0.0
 	var l: Dictionary = dialogue.get(line_id, {"speaker": "", "line": "[" + line_id + "]"})
 	var spk: Dictionary = speakers.get(l.speaker, {"name": l.speaker.capitalize()})
 	var dur := clampf(float(str(l.line).length()) * 0.065 + 0.6, 1.4, 9.0)
@@ -274,6 +465,11 @@ func say_async(line_id: String, speaker_node: Node3D = null) -> float:
 
 ## Reach a point (optionally mounted). Shows the objective and a world marker; returns when within radius.
 func goto(pos: Vector3, radius: float, text: String, mounted := false) -> void:
+	if _abort:
+		return
+	if resuming:
+		_teleport_player(pos + Vector3(1.0, 0, 1.0))
+		return
 	set_objective(text)
 	var marker := _marker(pos)
 	var t := 0.0
@@ -309,6 +505,14 @@ func spawn_group(center: Vector3, count: int, opts: Dictionary, spread := 6.0) -
 
 ## Wait until every Human in the group is dead or surrendered.
 func wait_dead(group: Array, text: String) -> void:
+	if _abort:
+		return
+	if resuming:
+		# already fought on the first attempt: settle it quietly (no attacker, so no crimes or Standing)
+		for h in group:
+			if is_instance_valid(h) and h.alive and h.brain.state != h.brain.State.SURRENDER:
+				h.damageable.apply_hit({"amount": 999.0, "zone": "chest"})
+		return
 	set_objective(text)
 	var t := 0.0
 	while not _abort:
@@ -328,6 +532,11 @@ func wait_dead(group: Array, text: String) -> void:
 
 ## Wait for the player to press interact near a point.
 func interact(pos: Vector3, prompt: String) -> void:
+	if _abort:
+		return
+	if resuming:
+		_teleport_player(pos)
+		return
 	set_objective(prompt)
 	var marker := _marker(pos)
 	var t := 0.0
@@ -346,7 +555,26 @@ func interact(pos: Vector3, prompt: String) -> void:
 	marker.queue_free()
 
 func checkpoint(name: String) -> void:
-	Game.log_event("checkpoint", {"mission": active.id if active else "", "name": name})
+	if _abort:
+		return
+	_cp_count += 1
+	var mid: String = active.id if active else ""
+	if resuming:
+		if _cp_count < _resume_ordinal:
+			return
+		# back at the checkpoint being retried: put Ruth where she stood and play on live
+		resuming = false
+		_replay.clear()
+		_place_from({"where": _cp.where})
+		Game.log_event("checkpoint_resumed", {"mission": mid, "name": name, "attempt": attempts})
+		if Game.hud:
+			Game.hud.notice("Checkpoint — %s" % name.capitalize().replace("_", " "), 3.0)
+		return
+	_cp = {"name": name, "ordinal": _cp_count, "decisions": _decisions.size(), "where": _where()}
+	Game.log_event("checkpoint", {"mission": mid, "name": name})
+	if test_fail != "" and not _test_fail_done and test_fail == "%s:%s" % [mid, name]:
+		_test_fail_done = true
+		(func(): fail("forced failure (bot test) after '%s'" % name)).call_deferred()
 
 func set_time(hours: float) -> void:
 	if Game.sky:
@@ -412,17 +640,24 @@ func auto_choice(n: int) -> int:
 	var v := 0
 	if not _choice_queue.is_empty():
 		v = int(_choice_queue.pop_front())
+		_auto_log.append([_decisions.size(), v])
 	return clampi(v, 0, maxi(n - 1, 0))
 
 ## A dialogue choice on a paper panel (mouse, number keys 1-9, controller). Returns the chosen index. Under
 ## autopilot (or headless) the answer comes from --choices.
 func choose(prompt: String, options: Array) -> int:
-	if options.is_empty():
+	if options.is_empty() or _abort:
 		return 0
+	if _replaying():
+		var was: int = clampi(int(_decide(0)), 0, options.size() - 1)
+		Game.log_event("choice_replayed", {"mission": active.id if active else "", "index": was})
+		return was
 	var idx := 0
+	var auto := false
 	var menus = Game.get("menus")
 	if autopilot or Game.headless or menus == null:
 		idx = auto_choice(options.size())
+		auto = true
 	else:
 		var hint := objective
 		set_objective("")
@@ -439,11 +674,14 @@ func choose(prompt: String, options: Array) -> int:
 		set_objective(hint)
 	if Game.audio and Game.audio.has_method("ui"):
 		Game.audio.ui("select")
+	if _abort:
+		return 0
+	_decide(idx, auto)
 	Game.log_event("choice", {"mission": active.id if active else "", "prompt": prompt, "index": idx, "option": str(options[idx])})
 	return idx
 
 ## Take an NPC off its brain and walk it to a point (missions only; npc_release gives it back).
-func npc_walk_to(npc: Node3D, dest: Vector3, speed := Human.WALK) -> void:
+func npc_walk_to(npc, dest: Vector3, speed := Human.WALK) -> void:
 	if npc == null or not is_instance_valid(npc) or not (npc is Human):
 		return
 	var h: Human = npc
@@ -458,7 +696,7 @@ func npc_walk_to(npc: Node3D, dest: Vector3, speed := Human.WALK) -> void:
 	h.intent.face = null
 
 ## Take an NPC off its brain and keep it standing still, looking at a point (watchmen, card players, sentries).
-func npc_hold(npc: Node3D, look_at: Vector3) -> void:
+func npc_hold(npc, look_at: Vector3) -> void:
 	if npc == null or not is_instance_valid(npc) or not (npc is Human):
 		return
 	npc_walk_to(npc, npc.global_position)
@@ -468,7 +706,7 @@ func npc_hold(npc: Node3D, look_at: Vector3) -> void:
 	h.intent.face = d
 	h.facing = atan2(-d.x, -d.z)
 
-func npc_release(npc: Node3D) -> void:
+func npc_release(npc) -> void:
 	_escorted.erase(npc)
 	if npc == null or not is_instance_valid(npc) or not (npc is Human):
 		return
@@ -491,6 +729,12 @@ func _put_on_ground(n: Node3D, pos: Vector3) -> void:
 ## more than 120 m or the NPC dies. `lines` are said along the way (walk-and-talk): line ids, spoken by Ruth when
 ## the line's speaker is "ruth", else by the NPC.
 func follow(npc: Node3D, text: String, dest: Vector3, radius := 6.0, lines: Array = []) -> void:
+	if _abort:
+		return
+	if resuming and npc != null and is_instance_valid(npc):
+		_put_on_ground(npc, dest)
+		npc_release(npc)
+		return
 	if npc == null or not is_instance_valid(npc):
 		fail("nobody to follow for '%s'" % text)
 		return
@@ -587,6 +831,13 @@ func sees_player(w: Node3D) -> bool:
 ## Reach a point without being seen by any of the watchers. Returns true if she made it unseen, false the moment
 ## one of them spots her (the mission decides what that costs). Bots: --choices decides (0 unseen, 1 spotted).
 func sneak_to(pos: Vector3, radius: float, text: String, watchers: Array) -> bool:
+	if _abort:
+		return true
+	if _replaying():
+		var unseen: bool = _decide(true)
+		if unseen:
+			_teleport_player(pos)
+		return unseen
 	set_objective(text)
 	var marker := _marker(pos)
 	var auto_spotted := autopilot and auto_choice(2) == 1
@@ -616,12 +867,17 @@ func sneak_to(pos: Vector3, radius: float, text: String, watchers: Array) -> boo
 			fail("softlock: never reached '%s'" % text)
 	marker.queue_free()
 	Game.log_event("sneak", {"text": text, "spotted": seen})
+	if _abort:
+		return true
 	if seen and Game.hud:
 		Game.hud.notice("Spotted", 2.5)
+	_decide(not seen, autopilot)
 	return not seen
 
 ## Get at least `distance` metres from center before the clock runs out; fails the mission if she doesn't.
 func escape(center: Vector3, distance: float, text: String, seconds: float) -> void:
+	if _abort or resuming:
+		return
 	var t := 0.0
 	var shown := -1
 	while not _abort:
@@ -656,6 +912,8 @@ func escape(center: Vector3, distance: float, text: String, seconds: float) -> v
 ## Show a printed page (wanted poster, front page, letter) on paper and wait until it's put away.
 ## style: "poster" (big display type) or "page" (newsprint). Lines starting with "!" are set large.
 func paper(title: String, lines: Array, style := "page", button := "Fold it away") -> void:
+	if _abort or resuming:
+		return
 	Game.log_event("paper", {"title": title})
 	var menus = Game.get("menus")
 	if autopilot or Game.headless or menus == null:
@@ -699,8 +957,20 @@ func minigame(game_name: String, opts: Dictionary = {}) -> Dictionary:
 	if not ResourceLoader.exists(path):
 		push_warning("minigame %s missing" % game_name)
 		return {}
+	if _abort:
+		return {}
+	if _replaying():
+		# played on an earlier attempt: same result, same money changing hands
+		var e = _decide(null)
+		if typeof(e) == TYPE_DICTIONARY:
+			if Game.state and float(e.get("money", 0.0)) != 0.0:
+				Game.state.add_money(float(e.money))
+			Game.log_event("minigame_replayed", {"name": game_name})
+			return e.get("res", {})
+		return {}
 	var o := opts.duplicate()
 	o["auto"] = bool(o.get("auto", false)) or autopilot or Game.headless
+	var money0: float = float(Game.state.money) if Game.state else 0.0
 	var mg: Node = load(path).new()
 	mg.name = "Minigame_" + game_name
 	add_child(mg)
@@ -713,6 +983,8 @@ func minigame(game_name: String, opts: Dictionary = {}) -> Dictionary:
 		if typeof(res[k]) in [TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING]:
 			brief[k] = res[k]
 	Game.log_event("minigame_end", brief)
+	var delta: float = (float(Game.state.money) - money0) if Game.state else 0.0
+	_decide({"res": res, "money": delta})
 	return res
 
 ## Story law: put a price on Ruth's head in a county (a poster somebody arranged, not a crime anyone saw).
@@ -740,3 +1012,276 @@ func clear_bounty(county: String, dollars: float) -> void:
 		st.wanted_t = 0.0
 		st.wanted_changed.emit(0, county)
 	Game.log_event("bounty_withdrawn", {"county": county, "amount": dollars})
+
+# ------------------------------------------------------------------ chapter 3 verbs (horseback, herds, defence)
+## Keep a mission prop (herd, outrider, marker) until the mission ends or is retried.
+func track(n: Node) -> Node:
+	_props.append(n)
+	return n
+
+func _free_props() -> void:
+	for n in _props:
+		if is_instance_valid(n):
+			n.queue_free()
+	_props.clear()
+
+## Ruth on her horse: waits until she's mounted (the horse is called over if it's far). Bots and resume mount her.
+func mount_up(text := "Mount your horse") -> void:
+	if _abort or Game.player == null or Game.player.get("on_horse") != null:
+		return
+	var horse = Horse.player_horse if is_instance_valid(Horse.player_horse) else null
+	if horse == null:
+		return
+	if autopilot or resuming:
+		if horse.rider != null:
+			return
+		_put_on_ground(horse, Game.player.global_position + Vector3(1.4, 0, 0))
+		horse.mount(Game.player, 0.0)
+		return
+	set_objective(text + "  (F / Y)")
+	if horse.global_position.distance_to(Game.player.global_position) > 25.0:
+		horse.call_to(Game.player)
+		Game.say("Ruth whistles for her horse.", 2.5)
+	var t := 0.0
+	while not _abort and Game.player.get("on_horse") == null:
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+		if t > step_timeout * 2.0:
+			fail("softlock: never mounted")
+	set_objective("")
+
+func dismount_player() -> void:
+	var on = Game.player.get("on_horse") if Game.player else null
+	if on != null and on.has_method("dismount"):
+		on.dismount()
+
+## Lead someone who follows Ruth (a drunk doctor, a prisoner on a rope) to dest. They keep a few metres behind and
+## stop when she gets more than 25 m ahead ("go back for him"); fails if they die.
+func lead(npc: Node3D, text: String, dest: Vector3, radius := 6.0, lines: Array = []) -> void:
+	if _abort:
+		return
+	if npc == null or not is_instance_valid(npc):
+		fail("nobody to lead for '%s'" % text)
+		return
+	var who := str(npc.get("display_name"))
+	if resuming:
+		_teleport_player(dest)
+		_put_on_ground(npc, dest + Vector3(2, 0, 1))
+		npc_release(npc)
+		return
+	var marker := _marker(dest)
+	npc_walk_to(npc, npc.global_position)
+	var t := 0.0
+	var talk := lines.duplicate()
+	var talk_t := 2.0
+	var limit := maxf(step_timeout, npc.global_position.distance_to(dest) / Human.WALK * 3.0 + 90.0)
+	while not _abort:
+		if not is_instance_valid(npc) or npc.get("alive") == false:
+			fail("%s was killed" % who)
+			break
+		if autopilot and t > 0.3:
+			_teleport_player(dest)
+			_put_on_ground(npc, dest + Vector3(2, 0, 1))
+		var np := npc.global_position
+		if Vector2(np.x - dest.x, np.z - dest.z).length() < radius:
+			break
+		var pp: Vector3 = Game.player.global_position
+		var gap := np.distance_to(pp)
+		var h := npc as Human
+		if gap > 25.0:
+			set_objective("%s has stopped. Go back for him." % who)
+			if h:
+				h.intent.move_to = null
+				h.intent.face = pp - np
+		else:
+			set_objective(text)
+			if h:
+				h.intent.move_to = pp if gap > 3.0 else null
+				h.intent.speed = Human.JOG if gap > 9.0 else Human.WALK
+		talk_t -= get_physics_process_delta_time()
+		if not talk.is_empty() and (talk_t <= 0.0 or autopilot) and gap < 12.0:
+			var id: String = talk.pop_front()
+			var spk: String = str(dialogue.get(id, {}).get("speaker", ""))
+			talk_t = say_async(id, Game.player if spk == "ruth" else npc) + 3.0
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+		if t > limit:
+			fail("softlock: never arrived '%s'" % text)
+	marker.queue_free()
+	npc_release(npc)
+
+## Escort a mission rider (Outrider) on horseback to dest. The rider waits when Ruth falls more than 40 m behind;
+## fails if she gets 220 m away or the rider is killed.
+func ride_with(rider, text: String, dest: Vector3, radius := 10.0) -> void:
+	if _abort or rider == null:
+		return
+	if resuming or autopilot:
+		rider.teleport(dest)
+		_teleport_player(dest + Vector3(4, 0, 3))
+		await get_tree().physics_frame
+		return
+	set_objective(text)
+	var marker := _marker(dest)
+	rider.ride_to(dest)
+	var t := 0.0
+	var limit := maxf(step_timeout, rider.horse.global_position.distance_to(dest) / 3.0 + 120.0)
+	while not _abort:
+		var hp: Vector3 = rider.horse.global_position
+		if rider.man == null or not is_instance_valid(rider.man) or not rider.man.alive:
+			fail("%s was killed" % (rider.man.display_name if rider.man else "Your companion"))
+			break
+		if Vector2(hp.x - dest.x, hp.z - dest.z).length() < radius:
+			break
+		var gap: float = hp.distance_to(Game.player.global_position)
+		if gap > 220.0:
+			fail("You lost %s" % rider.man.display_name)
+			break
+		if gap > 40.0 and not rider.halted:
+			rider.halt()
+		elif gap < 25.0 and rider.halted:
+			rider.ride_to(dest)
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+		if t > limit:
+			fail("softlock: never arrived '%s'" % text)
+	marker.queue_free()
+	rider.halt()
+
+## Drive a herd (ch3/herd.gd) to dest: Ruth (and any outriders) push from behind. `strays` steers break off along
+## the way (with `stray_line` said each time). Fails if the herd drops below min_head or Ruth abandons it.
+## Returns the head of cattle still with the herd.
+func drive(herd, dest: Vector3, radius: float, text: String, strays := 0, min_head := 6, stray_line := "") -> int:
+	if _abort or herd == null:
+		return 0
+	herd.goal = dest
+	if not herd.pushers.has(Game.player):
+		herd.pushers.append(Game.player)
+	if resuming or autopilot:
+		herd.teleport_to(dest)
+		if autopilot and not resuming:
+			for i in strays:
+				herd.make_stray()
+			await get_tree().physics_frame
+			herd.teleport_to(dest)
+		return herd.head()
+	var marker := _marker(dest)
+	var start: Vector3 = herd.center()
+	var total := Vector2(dest.x - start.x, dest.z - start.z).length()
+	var made := 0
+	var t := 0.0
+	var limit := maxf(step_timeout, total / 0.9 + 240.0)
+	var shown := ""
+	while not _abort:
+		var cen: Vector3 = herd.center()
+		var left := Vector2(dest.x - cen.x, dest.z - cen.z).length()
+		if left < radius:
+			break
+		# strays break off at even points along the way
+		if made < strays and 1.0 - left / maxf(total, 1.0) > float(made + 1) / float(strays + 1):
+			made += 1
+			herd.make_stray()
+			if stray_line != "":
+				say_async(stray_line, null)
+		var sts: Array = herd.strays()
+		var txt := "%s — %d head" % [text, herd.head()]
+		if not sts.is_empty():
+			txt = "A steer has broken off — ride round it and turn it back  (%d head)" % herd.head()
+		if txt != shown:
+			shown = txt
+			set_objective(txt)
+		if herd.head() < min_head:
+			fail("Too many cattle lost")
+			break
+		if Game.player.global_position.distance_to(cen) > 250.0:
+			fail("You left the herd")
+			break
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+		if t > limit:
+			fail("softlock: the herd never reached '%s'" % text)
+	marker.queue_free()
+	return herd.head()
+
+## A stampede: the herd runs; Ruth must ride up on the leaders' flank and turn them within `seconds`. Returns true
+## if she turned them (the herd mills and stops); false if it ran on (some head scatter into the rocks).
+## Bots: --choices decides (0 turned, 1 not).
+func stampede(herd, dir: Vector3, text: String, seconds := 40.0, scatter := 5) -> bool:
+	if _abort or herd == null:
+		return true
+	if _replaying():
+		var was: bool = _decide(true)
+		if not was:
+			herd.scatter(scatter)
+		herd.calm()
+		return was
+	herd.stampede(dir)
+	if not herd.pushers.has(Game.player):
+		herd.pushers.append(Game.player)
+	var turned := false
+	if autopilot:
+		turned = auto_choice(2) == 0
+		await get_tree().physics_frame
+	else:
+		var t := 0.0
+		var shown := -1
+		while not _abort and t < seconds:
+			if int(ceil(seconds - t)) != shown:
+				shown = int(ceil(seconds - t))
+				set_objective("%s — %d" % [text, shown])
+			if herd.mill_t > 5.0:
+				turned = true
+				break
+			await get_tree().physics_frame
+			t += get_physics_process_delta_time()
+	if _abort:
+		return true
+	if not turned:
+		herd.scatter(scatter)
+	herd.calm()
+	_decide(turned, autopilot)
+	Game.log_event("stampede", {"turned": turned, "head": herd.head()})
+	return turned
+
+## Hold a point against a group: fight them all; returns false if any one of them spent `hold` seconds within
+## `radius` of the point (the thing being defended is lost, the mission decides what that costs). Bots: --choices
+## decides (0 held, 1 lost).
+func defend(pos: Vector3, radius: float, group: Array, text: String, hold := 7.0) -> bool:
+	if _abort:
+		return true
+	if _replaying():
+		var was: bool = _decide(true)
+		await wait_dead(group, text)
+		return was
+	if autopilot:
+		var held := auto_choice(2) == 0
+		await wait_dead(group, text)
+		if _abort:
+			return true
+		_decide(held, true)
+		Game.log_event("defend", {"held": held})
+		return held
+	set_objective(text)
+	var marker := _marker(pos)
+	var near_t := 0.0
+	var held2 := true
+	var t := 0.0
+	while not _abort:
+		var left := group.filter(func(h): return is_instance_valid(h) and h.alive and h.brain.state != h.brain.State.SURRENDER)
+		if left.is_empty():
+			break
+		var inside := left.any(func(h): return Vector2(h.global_position.x - pos.x, h.global_position.z - pos.z).length() < radius)
+		near_t = near_t + get_physics_process_delta_time() if inside else maxf(near_t - get_physics_process_delta_time(), 0.0)
+		if near_t > hold and held2:
+			held2 = false
+			if Game.hud:
+				Game.hud.notice("They reached it", 3.0)
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+		if t > step_timeout * 2.0:
+			fail("softlock: fight '%s' never resolved" % text)
+	marker.queue_free()
+	if _abort:
+		return true
+	_decide(held2)
+	Game.log_event("defend", {"held": held2})
+	return held2
