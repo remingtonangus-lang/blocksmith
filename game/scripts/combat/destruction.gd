@@ -282,8 +282,10 @@ func _collect(n: Node, out: Array[MeshInstance3D]) -> void:
 func _physics_process(delta: float) -> void:
 	for d in debris:
 		d[1] += delta
+		if not is_instance_valid(d[0]):
+			continue
 		var b: RigidBody3D = d[0]
-		if is_instance_valid(b) and not b.freeze and G.fx:
+		if not b.freeze and G.fx:
 			# A piece that was falling fast and stopped hit something: a puff of dust.
 			var v := b.linear_velocity
 			if d.size() < 3:
@@ -293,8 +295,6 @@ func _physics_process(delta: float) -> void:
 				G.fx._emit(G.fx.cloud, b.global_position, Vector3(randf_range(-4, 4), 2.0, randf_range(-4, 4)))
 				G.fx._emit(G.fx.dust, b.global_position, Vector3(0, 4, 0))
 			d[2] = v
-		if not is_instance_valid(b):
-			continue
 		if G.terrain and G.terrain.guard_body(b, 0.3):
 			continue
 		if not b.freeze and (d[1] > 30.0 or (d[1] > 4.0 and b.linear_velocity.length() < 0.2)):

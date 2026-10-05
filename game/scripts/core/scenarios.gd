@@ -249,6 +249,10 @@ func _setup_destroy() -> void:
 	G.terrain.collision_now(bp)
 	data["shots"] = 0
 	data["dead_t"] = -1.0
+	var old := {}
+	for d in (G.combat.destruction as Destruction).debris:
+		old[d[0]] = true
+	data["old"] = old
 	data["shot_t"] = 0.0
 	print("  destroy: building %d h %.0f at %s, hp %.0f" % [best["id"], best["h"], bp, 600.0 + float(best["h"]) * 25.0])
 
@@ -270,24 +274,29 @@ func _tick_destroy(_delta: float) -> void:
 		data["dead_t"] = t
 		var top_y := -1e9
 		var top: RigidBody3D = null
+		var old: Dictionary = data["old"]
+		var mine := 0
 		for d in de.debris:
+			if not is_instance_valid(d[0]) or old.has(d[0]):
+				continue
 			var rb: RigidBody3D = d[0]
+			mine += 1
 			if rb.global_position.y > top_y:
 				top_y = rb.global_position.y
 				top = rb
 		data["top"] = top
 		data["top_y"] = top_y
-		data["n"] = de.debris.size()
-		print("  destroy: collapsed after %d shells, %d pieces, top piece at %.0f m" % [data["shots"], de.debris.size(), top_y - bp.y])
+		data["n"] = mine
+		print("  destroy: collapsed after %d shells, %d pieces, top piece at %.0f m" % [data["shots"], mine, top_y - bp.y])
 		return
 	if t - float(data["dead_t"]) > 8.0:
-		var top: RigidBody3D = data["top"]
-		var drop := float(data["top_y"]) - top.global_position.y if is_instance_valid(top) else 0.0
+		var top: Variant = data["top"]
+		var drop := float(data["top_y"]) - (top as RigidBody3D).global_position.y if is_instance_valid(top) else 0.0
 		var bad := 0
 		for d in de.debris:
-			var rb: RigidBody3D = d[0]
-			if not is_instance_valid(rb):
+			if not is_instance_valid(d[0]):
 				continue
+			var rb: RigidBody3D = d[0]
 			var q := rb.global_position
 			if is_nan(q.x) or is_nan(q.y) or q.y < G.world.ground_at(q.x, q.z) - 6.0:
 				bad += 1

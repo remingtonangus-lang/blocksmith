@@ -322,10 +322,17 @@ func guard_body(rb: RigidBody3D, lift: float = 0.5) -> bool:
 			rb.remove_meta("terrain_frozen")
 			rb.freeze = false
 		return false
-	# City podiums and other static bodies still hold things up; only guard what is near or below the terrain.
+	# City podiums, base platforms and decks still hold things up: only freeze when no static collision lies
+	# under the body (a ray down to the analytic ground).
 	var g := gen.height_at(p.x, p.z)
-	if p.y > g + 30.0 and not rb.freeze:
-		return false
+	if not rb.freeze:
+		var q := PhysicsRayQueryParameters3D.create(p, Vector3(p.x, g - 1.0, p.z))
+		q.collision_mask = 1
+		q.exclude = [rb.get_rid(), body.get_rid()]
+		if not rb.get_world_3d().direct_space_state.intersect_ray(q).is_empty():
+			return false
+		if p.y > g + 30.0:
+			return false
 	if not rb.freeze:
 		rb.set_meta("terrain_frozen", true)
 		rb.freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
