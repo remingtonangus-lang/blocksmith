@@ -1019,6 +1019,37 @@ final class World {
         return id == AIR || Blocks.replaceable[Int(id)] || id == TORCH
     }
 
+    // Steps from q to the nearest spot fluid could fall from (a passable cell over a passable or flowing one), searching
+    // passable cells up to `reach` away and never back through the source; 1000 when there is none.
+    private func dropDistance(from q: IVec3, origin: IVec3, reach: Int, kind: UInt8) -> Int {
+        func passable(_ c: IVec3) -> Bool {
+            let id = block(c.x, c.y, c.z)
+            let l = Int(Blocks.fluidLevel[Int(id)])
+            if l >= 0 { return Blocks.fluidKind[Int(id)] == kind && l > 0 }
+            return id == AIR || Blocks.replaceable[Int(id)] || id == TORCH
+        }
+        func hole(_ c: IVec3) -> Bool { c.y > 0 && passable(IVec3(c.x, c.y - 1, c.z)) }
+        if hole(q) { return 0 }
+        var frontier = [q]
+        var seen: [IVec3] = [q, origin]                         // at most ~41 cells: a list beats hashing
+        for depth in 1...reach {
+            var nextF: [IVec3] = []
+            for c in frontier {
+                for d in World.sideDirs {
+                    let n = IVec3(c.x + d.x, c.y, c.z + d.z)
+                    if seen.contains(n) { continue }
+                    seen.append(n)
+                    guard passable(n) else { continue }
+                    if hole(n) { return depth }
+                    nextF.append(n)
+                }
+            }
+            if nextF.isEmpty { break }
+            frontier = nextF
+        }
+        return 1000
+    }
+
     private func setFluid(_ p: IVec3, _ id: BlockID) {
         if setBlockAsync(p.x, p.y, p.z, id) { scheduleFluid(around: p) }
     }
@@ -1113,9 +1144,25 @@ final class World {
             if lvT[Int(below)] >= 0 { continue }
             let next = (lv == 8 ? 0 : lv) + stepLevel
             if next > 7 { continue }
-            for d in World.sideDirs {
-                let q = IVec3(p.x + d.x, p.y, p.z + d.z)
-                if fluidCanEnter(block(q.x, q.y, q.z), level: next, kind: kind) { setFluid(q, flow[next]) }
+            // Reference spread: only toward the nearest drop within 4 blocks (lava 2, 4 in the Emberdeep); every side
+            // when none is in reach. It went all four ways, so channels and farms flooded sideways.
+            let reach = lava && dim != .nether ? 2 : 4
+            var openMask = 0
+            for (i, d) in World.sideDirs.enumerated() where fluidCanEnter(block(p.x + d.x, p.y, p.z + d.z), level: next, kind: kind) {
+                openMask |= 1 << i
+            }
+            if openMask == 0 { continue }
+            // With more than one open side, keep only those nearest a drop (one open side needs no search).
+            if openMask.nonzeroBitCount > 1 {
+                var dist = [Int](repeating: Int.max, count: 4)
+                for (i, d) in World.sideDirs.enumerated() where openMask & (1 << i) != 0 {
+                    dist[i] = dropDistance(from: IVec3(p.x + d.x, p.y, p.z + d.z), origin: p, reach: reach, kind: kind)
+                }
+                let best = dist.min() ?? Int.max
+                for i in 0..<4 where dist[i] != best { openMask &= ~(1 << i) }
+            }
+            for (i, d) in World.sideDirs.enumerated() where openMask & (1 << i) != 0 {
+                setFluid(IVec3(p.x + d.x, p.y, p.z + d.z), flow[next])
             }
         }
     }
