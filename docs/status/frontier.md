@@ -210,3 +210,13 @@ Work order from this round:
 - 2026-10-05: character memory pass (worktree agent): VRAM-compressed pre-extracted textures + .import sidecars,
   blend shapes on a minimal Face mesh, shared per-look materials with instance-uniform tints, lazy cloth springs,
   --charmem report (per NPC look ~7 MB, per instance ~1 MB on software Vulkan), warm-up tasks waited at exit.
+- 2026-10-05: CI probe c06b035: the paravirtual GPU's "hangs" are frame time, not one bad feature. With actors and
+  settlements off the town shot took ~1.2 s per frame; the bench (High, 1080p) draws 26.7M (town) to 62M (forest)
+  primitives per frame, far over an M1 budget. Vegetation agent: tree mesh range/LODs, far shadow casters, grass
+  LOD0; settlements agent: town draws/prims. Probe now tries the Low preset before kill-switches.
+- 2026-10-05: UI round (me): `--bot ui` controller-only dead-end oracle found gamepad A/B missing from
+  ui_accept/ui_cancel (menus could not be pressed with a controller) and Controls rows below the fold unreachable;
+  fixed. Added rebinding (keys + pad buttons, reset), Accessibility (aim assist off/controller/always, toggle aim,
+  colour-vision correction, text size), Satchel in the pause menu; the FOV setting now drives the camera.
+- 2026-10-05: merged wildlife (11 species), writer round (social/gossip/newspapers/companions), character memory
+  pass (NPC look ~7 MB), VR hands/guns + `--vr_sim`, baked tree impostors. Character warm-up is one look at a time.
