@@ -120,7 +120,8 @@ final class XRSession {
         want.append("XR_KHR_android_create_instance")
         #endif
         for e in ["XR_EXT_local_floor", "XR_FB_display_refresh_rate", "XR_EXT_performance_settings", "XR_FB_foveation",
-                  "XR_FB_foveation_configuration", "XR_FB_swapchain_update_state", "XR_FB_foveation_vulkan", "XR_FB_color_space"]
+                  "XR_FB_foveation_configuration", "XR_FB_swapchain_update_state", "XR_FB_foveation_vulkan", "XR_FB_color_space",
+                  "XR_KHR_android_thread_settings"]
             where avail.contains(e) { want.append(e) }
         exts = Set(want)
         let a = PtrArena()
@@ -600,6 +601,18 @@ final class XRSession {
             _ = setLevel(session, XR_PERF_SETTINGS_DOMAIN_GPU_EXT, XR_PERF_SETTINGS_LEVEL_SUSTAINED_HIGH_EXT)
             print("xr: CPU/GPU performance level sustained high")
         }
+        #if os(Android)
+        // The frame thread (game tick + rendering) tells the runtime it is the app's main and render thread, so the
+        // scheduler favours it over the chunk workers, sound synthesis and horizon sampling (questcheck: a worker-busy
+        // moment could hold the tick off a core for ~3 ms).
+        if exts.contains("XR_KHR_android_thread_settings"),
+           let setThread = proc("xrSetAndroidApplicationThreadKHR", PFN_xrSetAndroidApplicationThreadKHR.self) {
+            let tid = UInt32(gettid())
+            let a = setThread(session, XR_ANDROID_THREAD_TYPE_APPLICATION_MAIN_KHR, tid)
+            let r = setThread(session, XR_ANDROID_THREAD_TYPE_RENDERER_MAIN_KHR, tid)
+            print("xr: frame thread \(tid) registered (main \(a.rawValue), renderer \(r.rawValue))")
+        }
+        #endif
     }
 
     // MARK: Frames

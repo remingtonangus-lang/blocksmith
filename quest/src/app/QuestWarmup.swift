@@ -26,6 +26,7 @@ enum QuestWarmup {
         touch("Potions") { Potions.types.count + Potions.mixes.count }
         touch("Copper.index") { Copper.index.count }
         touch("smeltingExtra") { Recipes.smeltingExtra.count }
+        touch("PlantSupport") { Int(PlantSupport.ruleOf(AIR)) }           // built on the first block change (5 ms)
         let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
         print(String(format: "warmup: %.1f ms", ms) + (slow.isEmpty ? "" : " (" + slow.joined(separator: ", ") + ")"))
         return (ms, slow)
