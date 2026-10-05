@@ -1704,7 +1704,7 @@ extension ShipManager {
         let lo = s.localMin, hi = s.localMax
         for k in 0..<3 {
             let p = V3((lo.x + hi.x) * 0.5, lo.y + 0.5, lo.z + (hi.z - lo.z) * (0.2 + 0.3 * Float(k)))
-            Explosion.explode(at: s.toWorld(p) - V3(0, 1, 0), power: 3, game: g)
+            Explosion.explode(at: s.toWorld(p) - V3(0, 1, 0), power: 3, game: g, spare: s)
         }
         g.sfx(.shipCollideHard, 2, at: s.pos)
         // The jolt: riders on deck take damage for a hard touchdown (over 3.5 b/s), none for a flared one.

@@ -176,9 +176,9 @@ extension ShipManager {
 
     // Explosion damage to ships near c (Explosion.explode calls this): rays lose strength by blast resistance
     // like in the world; blocks they get through are destroyed (dropping with chance 1/power); the hull is pushed.
-    func blast(at c: V3, power: Float, game: Game?) {
+    func blast(at c: V3, power: Float, game: Game?, spare: Ship? = nil) {
         let reach = power * 2 + 1
-        for s in list where c.x > s.worldMin.x - reach && c.x < s.worldMax.x + reach && c.y > s.worldMin.y - reach
+        for s in list where (spare == nil || s.root !== spare) && c.x > s.worldMin.x - reach && c.x < s.worldMax.x + reach && c.y > s.worldMin.y - reach
             && c.y < s.worldMax.y + reach && c.z > s.worldMin.z - reach && c.z < s.worldMax.z + reach {
             let lc = s.toLocal(c)
             let g = s.grid

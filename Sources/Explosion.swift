@@ -5,10 +5,13 @@ import simd
 // blast resistance; blocks the rays get through are destroyed (dropping with chance 1/power);
 // entities take damage scaled by distance and exposure and are knocked back.
 enum Explosion {
-    static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true) {
+    // `spare`: a ship the blast leaves alone with everyone aboard it (a crash-landing frigate's touchdown gouges the
+    // ground under its keel; the hull and its riders feel the jolt, not the blast).
+    static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true,
+                        spare: Ship? = nil) {
         let w = g.world
         g.baseNoise(at: c, kind: .explosion, power: power)  // citadels hear it (CapitalBases.swift)
-        w.ships.blast(at: c, power: power, game: g)          // ship blocks (ShipCombat.swift)
+        w.ships.blast(at: c, power: power, game: g, spare: spare)   // ship blocks (ShipCombat.swift)
         var destroyed = Set<IVec3>()
         var shaken: [IVec3: Float] = [:]                    // blocks that stopped a ray: share of their cost it carried
         for i in 0..<16 { for j in 0..<16 { for k in 0..<16 {
@@ -85,6 +88,7 @@ enum Explosion {
         // Every split-screen player in reach (typed closure and split arithmetic: the inferred form timed out the
         // type checker on CI).
         let hitPlayer: () -> Void = {
+            if let sp = spare, w.ships.aboard?.root === sp { return }
             guard let im = impact(g.player.pos, 1.8), im.0 > 0 else { return }
             let k: Float = im.0
             let dir: V3 = im.1
@@ -95,7 +99,7 @@ enum Explosion {
             g.player.vel += push
         }
         g.coop.eachSeat(g, hitPlayer)
-        for m in g.mobs.mobs where m !== except {
+        for m in g.mobs.mobs where m !== except && (spare == nil || m.deck?.root !== spare) {
             if let im = impact(m.pos, m.height), im.0 > 0 {
                 let (k, dir) = im
                 m.hit(from: c, damage: Int(((k * k + k) / 2 * 7 * radius + 1).rounded()), knockback: 0)
