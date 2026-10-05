@@ -216,10 +216,16 @@ class Menu {
                 if s.isEmpty {
                     slot.stack = carried.with(count: 1)
                     carried.count -= 1
-                } else if s.stacks(with: carried) && s.count < slotLimit(slot, s) {
-                    s.count += 1
-                    slot.stack = s
-                    carried.count -= 1
+                } else if s.stacks(with: carried) {
+                    if s.count < slotLimit(slot, s) {
+                        s.count += 1
+                        slot.stack = s
+                        carried.count -= 1
+                    }
+                } else if carried.count <= slotLimit(slot, carried) {
+                    // A different item swaps on a right click too (reference; it did nothing).
+                    slot.stack = carried
+                    carried = s
                 }
                 if carried.count <= 0 { carried = .empty }
             }
