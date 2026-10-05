@@ -441,7 +441,7 @@ extension Game {
         case .desert, .badlands, .erodedBadlands, .woodedBadlands: return .desert
         case .ocean, .deepOcean, .warmOcean, .lukewarmOcean, .deepLukewarmOcean, .coldOcean, .deepColdOcean, .frozenOcean, .deepFrozenOcean, .beach: return .ocean
         case .cherryGrove, .meadow, .flowerForest, .sunflowerPlains: return .grove
-        case .jaggedPeaks, .stonyPeaks, .windsweptHills, .windsweptGravellyHills, .windsweptForest: return .mountain
+        case .stonyPeaks, .windsweptHills, .windsweptGravellyHills, .windsweptForest: return .mountain
         case .swamp, .mangroveSwamp: return .swamp
         case .jungle, .sparseJungle, .bambooJungle: return .jungle
         default: return .day
