@@ -32,7 +32,9 @@ func _ready() -> void:
 		get_tree().quit(1)
 		return
 	_save_atlases(ib, out)
+	ib.release_images()
 	if Game.args.has("no_lineup"):
+		veg.free()
 		get_tree().quit()
 		return
 	# lineup: mesh | impostor per species (variant 0)
@@ -110,6 +112,7 @@ func _ready() -> void:
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(out.path_join("impostor_lineup.png"))
 	print("impostor lineup: ", out.path_join("impostor_lineup.png"))
+	veg.free()
 	get_tree().quit()
 
 ## Albedo as seen (un-premultiplied, x2, over grey) and the normal atlas, at full size.
