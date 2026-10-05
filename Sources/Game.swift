@@ -1352,11 +1352,18 @@ final class Game {
         }
     }
 
+    static let iceID: BlockID = Blocks.has("ice") ? Blocks.id("ice") : AIR
+
     func breakBlock(_ p: IVec3, _ b: BlockID, drop: Bool) {
         boarlingsGuard(p, block: b)
         blockSound(audioBreakSound(b), at: p)
         particles.blockBreak(b, at: p)
         world.setBlock(p.x, p.y, p.z, AIR)
+        // Ice broken without Silk Touch over something solid or liquid leaves water (reference; not in the Emberdeep).
+        if drop && b == Game.iceID && world.dim != .nether && Enchant.level(.silkTouch, held) == 0 {
+            let under = world.block(p.x, p.y - 1, p.z)
+            if Blocks.collide[Int(under)] || Blocks.isLiquid(under) { world.setBlock(p.x, p.y, p.z, WATER); world.scheduleFluid(around: p) }
+        }
         world.redstone.vibrate(at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
         // Wall torches hanging on this block fall off.
         for (f, d) in [IVec3(0, 0, -1), IVec3(0, 0, 1), IVec3(-1, 0, 0), IVec3(1, 0, 0)].enumerated() {
@@ -2017,7 +2024,7 @@ final class Game {
             }
         }
         fluidTimer += dt
-        if fluidTimer >= 0.2 { fluidTimer = 0; world.fluidTick() }
+        if fluidTimer >= 0.25 { fluidTimer = 0; world.fluidTick() }        // water: 5 ticks a step (reference)
         lavaTimer += dt
         if lavaTimer >= (dim.dim == .nether ? 0.5 : 1.5) { lavaTimer = 0; world.fluidTick(lava: true) }
         fireTimer += dt

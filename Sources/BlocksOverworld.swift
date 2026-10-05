@@ -58,6 +58,7 @@ extension BlockRegistry {
         cube("coarse_dirt", "Coarse Dirt", h: 0.5, tool: .shovel, snd: .dirt)
         cube("rooted_dirt", "Rooted Dirt", h: 0.5, tool: .shovel, snd: .dirt)
         sided("mycelium", "Mycelium", side: "mycelium_side", top: "mycelium_top", bottom: "dirt", h: 0.6, tool: .shovel, snd: .dirt)
+        randomTicks[Int(id("mycelium"))] = true                        // spreads like grass (Farming.grassTick)
         cube("mud", "Mud", h: 0.5, tool: .shovel, snd: .dirt)
         cube("packed_mud", "Packed Mud", h: 1, tool: .pickaxe, snd: .dirt)
         cube("mud_bricks", "Mud Bricks", h: 1.5, req: true)

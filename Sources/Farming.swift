@@ -70,6 +70,7 @@ extension Game {
     }
 
     func randomTick(_ p: IVec3, _ b: BlockID) {
+        if b == GRASS || b == MYCELIUM { grassTick(p, b); return }        // the commonest tick: no string key
         let key = Blocks.key(Blocks.groupBase[Int(b)])
         if Copper.index[key] != nil { copperAge(p, b); return }
         if ["frosted_ice", "cocoa", "turtle_egg", "frogspawn", "sniffer_egg", "bee_nest", "beehive", "torchflower_crop", "pitcher_crop", "dried_ghast"].contains(key) { newBlockRandomTick(p, b, key); return }
@@ -125,17 +126,25 @@ extension Game {
             else if !wet && !Blocks.isPlant(world.block(p.x, p.y + 1, p.z)) && Blocks.render[Int(world.block(p.x, p.y + 1, p.z))] != RenderType.model.rawValue {
                 if Rand.int(in: 0..<4) == 0 { world.setBlock(p.x, p.y, p.z, DIRT) }
             }
-        case "grass_block":
-            // Dies under opaque blocks; spreads to nearby lit dirt.
-            if Blocks.opaque[Int(world.block(p.x, p.y + 1, p.z))] { world.setBlock(p.x, p.y, p.z, DIRT); return }
-            for _ in 0..<4 {
-                let q = IVec3(p.x + Rand.int(in: -1...1), p.y + Rand.int(in: -3...1), p.z + Rand.int(in: -1...1))
-                if world.block(q.x, q.y, q.z) == DIRT && !Blocks.opaque[Int(world.block(q.x, q.y + 1, q.z))] && !Blocks.isLiquid(world.block(q.x, q.y + 1, q.z)) {
-                    let l = world.lightAt(q.x, q.y + 1, q.z)
-                    if max(l.sky, l.block) >= 9 { world.setBlockAsync(q.x, q.y, q.z, GRASS) }
-                }
-            }
         default: break
+        }
+    }
+
+    // Grass and mycelium (reference spread rules; grass had no random ticks, so it never spread or died): under an
+    // opaque block or water they turn to dirt; with light 9+ above, each tick tries 4 spots within 3x5x3 and covers
+    // dirt whose top is open and lit 4+.
+    func grassTick(_ p: IVec3, _ b: BlockID) {
+        let above = world.block(p.x, p.y + 1, p.z)
+        if Blocks.opaque[Int(above)] || Blocks.fluidKind[Int(above)] == 1 { world.setBlockAsync(p.x, p.y, p.z, DIRT); return }
+        let l0 = world.lightAt(p.x, p.y + 1, p.z)
+        guard max(l0.sky, l0.block) >= 9 else { return }
+        for _ in 0..<4 {
+            let q = IVec3(p.x + Rand.int(in: -1...1), p.y + Rand.int(in: -3...1), p.z + Rand.int(in: -1...1))
+            guard world.block(q.x, q.y, q.z) == DIRT else { continue }
+            let up = world.block(q.x, q.y + 1, q.z)
+            if Blocks.opaque[Int(up)] || Blocks.isLiquid(up) { continue }
+            let l = world.lightAt(q.x, q.y + 1, q.z)
+            if max(l.sky, l.block) >= 4 { world.setBlockAsync(q.x, q.y, q.z, b) }
         }
     }
 

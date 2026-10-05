@@ -312,7 +312,7 @@ final class BlockRegistry {
         cube("stone", "Stone", "stone", h: 1.5, req: true)
         var grass = BlockDef("grass_block", "Grass Block")
         grass.tex = ["grass_block_side", "grass_block_side", "grass_block_top", "dirt", "grass_block_side", "grass_block_side"]
-        grass.hardness = 0.6; grass.tool = .shovel; grass.sound = .dirt; grass.tint = 3
+        grass.hardness = 0.6; grass.tool = .shovel; grass.sound = .dirt; grass.tint = 3; grass.randomTicks = true
         add(grass)
         cube("dirt", "Dirt", "dirt", h: 0.5, tool: .shovel, snd: .dirt)
         cube("cobblestone", "Cobblestone", "cobblestone", h: 2, req: true)
@@ -806,6 +806,7 @@ let DIAMOND_ORE = Blocks.id("diamond_ore")
 let BRICKS = Blocks.id("bricks")
 let SNOWY_GRASS = Blocks.id("snowy_grass_block")
 let CACTUS = Blocks.id("cactus")
+let MYCELIUM = Blocks.id("mycelium")
 let SNOW = Blocks.id("snow_block")
 let STONE_BRICKS = Blocks.id("stone_bricks")
 let SANDSTONE = Blocks.id("sandstone")

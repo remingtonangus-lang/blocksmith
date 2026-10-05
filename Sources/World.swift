@@ -1023,6 +1023,10 @@ final class World {
         if setBlockAsync(p.x, p.y, p.z, id) { scheduleFluid(around: p) }
     }
 
+    static let basaltID: BlockID = Blocks.has("basalt") && Blocks.has("soul_soil") && Blocks.has("blue_ice") ? Blocks.id("basalt") : AIR
+    static let soulSoilID: BlockID = Blocks.has("soul_soil") ? Blocks.id("soul_soil") : AIR
+    static let blueIceID: BlockID = Blocks.has("blue_ice") ? Blocks.id("blue_ice") : AIR
+
     func fluidTick(lava: Bool = false) {
         if lava { if lavaPending.isEmpty { return } } else if fluidPending.isEmpty { return }
         var batch: [IVec3] = []
@@ -1054,6 +1058,20 @@ final class World {
                     scheduleFluid(around: p)
                     onFluidEvent?(p)
                     continue
+                }
+                // Basalt generator (reference): lava over soul soil beside blue ice turns to basalt.
+                if World.basaltID != AIR && block(p.x, p.y - 1, p.z) == World.soulSoilID {
+                    var ice = false
+                    for d in [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 0, 1), IVec3(0, 0, -1), IVec3(0, 1, 0)] where block(p.x + d.x, p.y + d.y, p.z + d.z) == World.blueIceID {
+                        ice = true
+                        break
+                    }
+                    if ice {
+                        setBlockAsync(p.x, p.y, p.z, World.basaltID)
+                        scheduleFluid(around: p)
+                        onFluidEvent?(p)
+                        continue
+                    }
                 }
             }
             if lv > 0 {

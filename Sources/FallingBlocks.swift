@@ -60,7 +60,7 @@ extension Game {
     func fallingTick(_ dt: Float) {
         guard !falling.isEmpty else { return }
         for f in falling {
-            f.vel.y = max(-40, f.vel.y - 28 * dt)
+            f.vel.y = max(-40, f.vel.y - 16 * dt)                     // 0.04 a tick squared (reference; 28)
             let next = f.pos + f.vel * dt
             let cell = IVec3(Int(floor(next.x)), Int(floor(next.y)), Int(floor(next.z)))
             let b = world.block(cell.x, cell.y, cell.z)
@@ -72,8 +72,8 @@ extension Game {
                 let key = Blocks.key(f.block)
                 let fell = f.start - Float(at.y)
                 if key.hasSuffix("anvil") && fell > 1 {
-                    // Up to 40 damage (2 per block fallen) to whatever is below; 5% wear per block.
-                    let dmg = min(40, Int(fell * 2))
+                    // 2 per block fallen past the first, up to 40 (reference ceil(fell - 1) x 2; it counted the first).
+                    let dmg = min(40, 2 * Int((fell - 1).rounded(.up)))
                     let c = V3(Float(at.x) + 0.5, Float(at.y), Float(at.z) + 0.5)
                     coop.eachSeat(self) {                         // whichever player is under it (player 2 too)
                         let pp = self.player.pos
