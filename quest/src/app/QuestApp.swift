@@ -102,6 +102,7 @@ final class QuestApp {
     // One step per frame (the loading scene keeps rendering in between, so the hand-over never freezes the view):
     // textures, then the HUD panel, then the game itself. Each step's time is logged.
     private var adoptStep = 0
+    private var wasFocused = false
     private var firstWorldFrames = 0
 
     private func adoptLoaded() {
@@ -233,7 +234,11 @@ final class QuestApp {
             if f.shouldRender { rig.update(xr: xr, game: g) }
             controls?.update(dt: Float(dt))
             let a = CFAbsoluteTimeGetCurrent()
-            if xr.focused || g.menu != nil { g.tick(dt) }
+            // Input focus lost (headset off, the system menu or a dialog up): the world stops and the pause menu is up
+            // when the user comes back, so nothing happens to them meanwhile.
+            if !xr.focused && wasFocused && g.menu == nil && g.credits == nil { g.paused = true }
+            wasFocused = xr.focused
+            if xr.focused { g.tick(dt) }
             g.world.update(center: g.player.pos)
             controls?.afterTick(dt: Float(dt))
             tickMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
