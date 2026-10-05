@@ -20,10 +20,18 @@ extension ShipManager {
         if asBuilt && only == nil && !holes.isEmpty && !r.falling.isEmpty {
             // The same search with the holes filled back in: pieces that fail then too were never held, and stay.
             let falling = r.falling.flatMap { $0 }
-            let before = Collapse.analyze(world, around: [], seeds: falling, restore: Collapse.standIns(world, holes))
-            if !before.falling.isEmpty {
-                var pre = Set<IVec3>()
+            // Cells already found standing unsupported as built skip the second search (mining on through a big old
+            // hall would otherwise search it twice a block).
+            var pre = Set<IVec3>()
+            if falling.allSatisfy({ asBuiltCells.get($0) != nil }) {
+                pre = Set(falling)
+            } else {
+                let before = Collapse.analyze(world, around: [], seeds: falling, restore: Collapse.standIns(world, holes))
                 for p in before.falling { for c in p { pre.insert(c) } }
+                if asBuiltCells.count + pre.count > 200_000 { asBuiltCells = Collapse.CellTable(capacity: 4096) }
+                for c in pre { _ = asBuiltCells.insert(c, 0) }
+            }
+            if !pre.isEmpty {
                 var now = falling.filter { !pre.contains($0) }
                 // As-built pieces stay unless the damage cut what joined them to the rest (the pillar under an old
                 // overhang mined away): one that touched what now falls, or a hole that met the ground or the standing
