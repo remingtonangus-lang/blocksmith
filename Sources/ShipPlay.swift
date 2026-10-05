@@ -173,7 +173,10 @@ extension Game {
         s.piloted = true
         // Per-vehicle keyboard / controller layout (VehicleControls.swift).
         let c = VehicleControls.read(self, s, mi)
-        if s.wheels.isEmpty {
+        // Aircraft keep their throttle on their landing wheels too (a Heron's dropped to zero the moment W was let go:
+        // flighttest planeplayer); wheeled land vehicles drive while the key is held.
+        let flies = VehicleControls.kind(s) == .aircraft || VehicleControls.kind(s) == .helicopter
+        if s.wheels.isEmpty || flies {
             // Ships and aircraft keep their throttle (an engine telegraph): W/S, the stick or the triggers move it,
             // letting go holds it, and passing through stop pauses there for a moment so stopping is easy.
             let f = c.throttle

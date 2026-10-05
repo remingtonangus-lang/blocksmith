@@ -77,6 +77,20 @@ enum Aircraft {
         return b
     }
 
+    // Crew seats of an aircraft loaded from a save (the ship save keeps blocks, not the blueprint's seats): the same
+    // seats in ship space, shifted as ShipManager.spawn shifts them (by the blueprint's lowest corner).
+    static func restoreStations(_ s: Ship) {
+        let bp: Blueprint
+        switch s.role {
+        case "kestrel": bp = kestrel()
+        case "capplane": bp = heron()
+        default: return
+        }
+        var lo = IVec3(Int.max, Int.max, Int.max)
+        for c in bp.cells.keys { lo = IVec3(min(lo.x, c.x), min(lo.y, c.y), min(lo.z, c.z)) }
+        s.crewStations = bp.crew.map { $0 - V3(Float(lo.x), Float(lo.y), Float(lo.z)) }
+    }
+
     static var timing = ""                    // the last spawn's cost by part (the citadel log shows it)
 
     // An aircraft with its crew: a Capital pilot seated at the controls (and troops in the seats for the Kestrel).
@@ -117,6 +131,7 @@ enum FlightCrew {
         // A Capital Kestrel loaded from a save has its crew back the moment they load (they would fall out of it
         // before the citadel's once-a-second update got to them).
         for s in g.world.ships.list where s.role == "kestrel" && !s.captured && s.parent == nil && !seats.contains(where: { $0.ship === s }) {
+            if s.crewStations.isEmpty { Aircraft.restoreStations(s) }
             relink(g, s)
         }
         guard !seats.isEmpty else { return }
