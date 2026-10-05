@@ -96,16 +96,38 @@ final class QuestApp {
     }
 
     // Takes the loaded game on the frame thread: textures to the GPU, renderer, sound, controls.
+    // One step per frame (the loading scene keeps rendering in between, so the hand-over never freezes the view):
+    // textures, then the HUD panel, then the game itself. Each step's time is logged.
+    private var adoptStep = 0
+    private var firstWorldFrames = 0
+
     private func adoptLoaded() {
+        loadLock.lock(); let ready = loaded != nil; loadLock.unlock()
+        guard ready else { return }
+        let t0 = CFAbsoluteTimeGetCurrent()
+        func took(_ what: String) { print(String(format: "adopt: %@ %.1f ms", what, (CFAbsoluteTimeGetCurrent() - t0) * 1000)) }
+        if adoptStep == 0 {
+            adoptStep = 1
+            if !texturesUploaded {
+                loadLock.lock(); let tex = loaded?.2 ?? []; loaded?.2 = []; loadLock.unlock()
+                do { try scene.uploadTextures(pregenerated: tex); texturesUploaded = true } catch { print("textures: \(error)") }
+                took("textures uploaded")
+                return
+            }
+        }
+        if adoptStep == 1 {
+            adoptStep = 2
+            if hudPanel == nil {
+                do { hudPanel = try HudPanel(scene: scene, width: QuestControls.panelW, height: QuestControls.panelH) }
+                catch { print("hud panel: \(error)") }
+                took("HUD panel")
+                return
+            }
+        }
+        adoptStep = 0
         loadLock.lock(); let l = loaded; loaded = nil; loadLock.unlock()
-        guard let (game, save, tex) = l else { return }
-        if !texturesUploaded {
-            do { try scene.uploadTextures(pregenerated: tex); texturesUploaded = true } catch { print("textures: \(error)") }
-        }
-        if hudPanel == nil {
-            do { hudPanel = try HudPanel(scene: scene, width: QuestControls.panelW, height: QuestControls.panelH) }
-            catch { print("hud panel: \(error)") }
-        }
+        guard let (game, save, _) = l else { return }
+        defer { took("game, renderer, sound, controls"); firstWorldFrames = 4 }
         self.save = save
         self.game = game
         game.paused = false
@@ -231,6 +253,10 @@ final class QuestApp {
         }
         do { try xr.endFrame(f) } catch { print("xr end frame: \(error)") }
         let now = CFAbsoluteTimeGetCurrent()
+        if firstWorldFrames > 0 && game != nil {
+            firstWorldFrames -= 1
+            print(String(format: "first world frame: cpu %.1f ms (tick %.1f, record %.1f)", (now - t0) * 1000, tickMs, recordMs))
+        }
         stats.add(frame: now - lastFrameTime, cpu: (now - t0) * 1000, tick: tickMs, record: recordMs, gpu: scene.gpuMs,
                   target: f.period, scene: scene, game: game, rate: xr.refreshRate)
         lastFrameTime = now
