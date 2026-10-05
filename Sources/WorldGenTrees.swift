@@ -436,11 +436,13 @@ extension WorldGen {
                         let meadow = flora.noise2(Float(wx) / 22 + 410, Float(wz) / 22 + 410)
                         let t: Float = max(0, min(1, (meadow + 0.05) / 0.35))
                         let chance: Float = 0.04 + 0.5 * t * t
-                        if h2 < chance { b[Chunk.index(lx, fy + 1, lz)] = seagrassID }
+                        // Two blocks deep at least: in one-deep shallows the seagrass took the only water block and stood
+                        // dry in a hole in the surface (kelpcheck: ~300 per 1369 chunks, all at sea level).
+                        if h2 < chance && depth >= 2 { b[Chunk.index(lx, fy + 1, lz)] = seagrassID }
                     }
                 } else if biome == .swamp || biome == .mangroveSwamp {
                     if depth <= 2 && h < 0.08 && ground == WATER { b[Chunk.index(lx, y + 1, lz)] = g("lily_pad") }
-                    else if h > 0.8 { b[Chunk.index(lx, fy + 1, lz)] = seagrassID }
+                    else if h > 0.8 && depth >= 2 { b[Chunk.index(lx, fy + 1, lz)] = seagrassID }
                 }
                 continue
             }
