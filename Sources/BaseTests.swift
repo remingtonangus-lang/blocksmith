@@ -284,7 +284,7 @@ enum BaseTests {
                 g.survival = true
                 // On top of whatever stands there (a forest canopy hides a player on the floor from the air).
                 pinAt = V3(shot.x, Float(w.topY(Int(floor(shot.x)), Int(floor(shot.z))) + 1), shot.z)
-                let fired = sim(20) { zip(gunners, mags).contains { m, n in m.soldierBrain.mag < n || m.soldierBrain.reload > 0 } }
+                let fired = sim(38) { zip(gunners, mags).contains { m, n in m.soldierBrain.mag < n || m.soldierBrain.reload > 0 } }
                 g.survival = false
                 pinAt = watchPos
                 let state = gunners.map { m -> String in
