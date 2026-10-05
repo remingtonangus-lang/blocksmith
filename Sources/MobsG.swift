@@ -360,7 +360,7 @@ extension Mob {
                         g.fangs.append(Fang(pos: pos + V3(cosf(a) * 2.5, 0, sinf(a) * 2.5), delay: 0.15, owner: self))
                     }
                 } else {
-                    let dir = simd_normalize(V3(t.x - pos.x, 0, t.z - pos.z))
+                    let dir = simd_normalize(V3(t.x - pos.x + 1e-4, 0, t.z - pos.z))     // target straight above: not NaN
                     for i in 0..<16 {
                         let q = pos + dir * Float(i + 1) * 1.25
                         g.fangs.append(Fang(pos: V3(q.x, ground, q.z), delay: Float(i) * 0.05, owner: self))
