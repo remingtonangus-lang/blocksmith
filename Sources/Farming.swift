@@ -116,10 +116,12 @@ extension Game {
             let l = world.lightAt(p.x, p.y + 1, p.z)
             if stage < 3 && max(l.sky, l.block) >= 9 && Rand.int(in: 0..<5) == 0 { world.setBlock(p.x, p.y, p.z, b + 1) }
         case "farmland":
-            let wet = waterNear(p)
+            // Water within 4 or rain on it keeps it moist; without, the reference moisture counts down 7 random ticks
+            // before it dries (it dried at once). Two states here, so a 1-in-7 roll per tick.
+            let wet = waterNear(p) || (weather.raining && skyExposed(p.x, p.y + 1, p.z))
             let isWet = Blocks.key(b) == "farmland_moist"
             if wet && !isWet { world.setBlock(p.x, p.y, p.z, Blocks.id("farmland_moist")) }
-            else if !wet && isWet { world.setBlock(p.x, p.y, p.z, Blocks.id("farmland")) }
+            else if !wet && isWet { if Rand.int(in: 0..<7) == 0 { world.setBlock(p.x, p.y, p.z, Blocks.id("farmland")) } }
             else if !wet && !Blocks.isPlant(world.block(p.x, p.y + 1, p.z)) && Blocks.render[Int(world.block(p.x, p.y + 1, p.z))] != RenderType.model.rawValue {
                 if Rand.int(in: 0..<4) == 0 { world.setBlock(p.x, p.y, p.z, DIRT) }
             }
