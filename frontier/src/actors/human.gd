@@ -18,6 +18,7 @@ var speed := 0.0
 var facing := 0.0
 var damageable: Damageable
 var gun: GunHandler
+var holder: WeaponHolder           # visible guns (src/combat/weapon_holder.gd); null when headless
 var brain: Node
 var visual: Node3D
 var alive := true
@@ -64,6 +65,8 @@ func _setup(opts: Dictionary) -> void:
 		gun.weapons = [w]
 	gun.setup(self, damageable, false)
 	_build_visual(opts)
+	if w != "":
+		holder = WeaponHolder.attach(self, gun)     # only armed NPCs carry visible guns
 	nav = NavigationAgent3D.new()
 	nav.path_desired_distance = 0.8
 	nav.target_desired_distance = 0.8
@@ -221,7 +224,12 @@ func shoot_at(p: Vector3, accuracy_scale: float) -> bool:
 	var muzzle := global_position + Vector3(0, 1.42, 0) + Vector3(-sin(facing), 0, -cos(facing)) * 0.35
 	var dir := (p - muzzle).normalized()
 	gun.fire(muzzle, dir, true, accuracy_scale * 2.0)
-	Effects.muzzle_flash(get_tree().current_scene, muzzle, dir)
+	# flash at the visible gun's real muzzle when a WeaponHolder shows one (ballistics keep `muzzle`)
+	if holder and holder.has_drawn_model():
+		var mt := holder.muzzle_transform()
+		Effects.muzzle_flash(get_tree().current_scene, mt.origin, -mt.basis.z)
+	else:
+		Effects.muzzle_flash(get_tree().current_scene, muzzle, dir)
 	return true
 
 func _on_damaged(info: Dictionary) -> void:

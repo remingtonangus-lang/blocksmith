@@ -42,6 +42,7 @@ var _last_floor_y := 0.0
 var _air_time := 0.0
 var fall_damage_taken := 0.0
 var gun: GunHandler
+var holder: WeaponHolder       # visible guns: holsters, hand pose, part animation (src/combat/weapon_holder.gd)
 var damageable: Damageable
 var nerve: Nerve
 var hud: CanvasLayer
@@ -99,6 +100,7 @@ func _setup_combat() -> void:
 	gun.name = "Guns"
 	add_child(gun)
 	gun.setup(self, damageable, true)
+	holder = WeaponHolder.attach(self, gun)     # null when headless
 	gun.hit_landed.connect(func(info):
 		if hud and hud.has_method("hit_confirm"):
 			var t: Damageable = info.get("target")
@@ -167,7 +169,12 @@ func _combat(dt: float) -> void:
 			var dir: Vector3 = (aim.point - muzzle).normalized()
 			var hits := gun.fire(muzzle, dir, aiming)
 			if gun.cooldown > 0.0:
-				Effects.muzzle_flash(get_tree().current_scene, muzzle, dir)
+				# flash at the visible gun's real muzzle when a WeaponHolder shows one (ballistics keep `muzzle`)
+				if holder and holder.has_drawn_model():
+					var mt := holder.muzzle_transform()
+					Effects.muzzle_flash(get_tree().current_scene, mt.origin, -mt.basis.z)
+				else:
+					Effects.muzzle_flash(get_tree().current_scene, muzzle, dir)
 			Game.log_event("player_fire", {"hits": hits.size()})
 	# recoil kicks the camera
 	cam_pitch = clampf(cam_pitch + deg_to_rad(gun.recoil_kick.x) * dt * 6.0, -1.2, 0.9)
