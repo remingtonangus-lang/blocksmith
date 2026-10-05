@@ -80,6 +80,16 @@ func _draw() -> void:
 		for m in md.available():
 			if m.start_pos != Vector3.ZERO:
 				draw_circle(_uv_to_screen(_world_to_uv(m.start_pos)), 9.0, UITheme.OXBLOOD)
+	# places with a story, once found (a hollow mark until read and searched)
+	if Game.has_meta("landmarks"):
+		for mk in Game.get_meta("landmarks").map_marks():
+			var sp := _uv_to_screen(_world_to_uv(mk.pos))
+			var dia := PackedVector2Array([sp + Vector2(0, -9), sp + Vector2(9, 0), sp + Vector2(0, 9), sp + Vector2(-9, 0), sp + Vector2(0, -9)])
+			if mk.done:
+				draw_colored_polygon(dia, UITheme.INK)
+			draw_polyline(dia, UITheme.INK, 2.5)
+			if zoom > 1.8:
+				draw_string(UITheme.font("italic"), sp + Vector2(12, 6), str(mk.label), HORIZONTAL_ALIGNMENT_LEFT, -1, 18, UITheme.INK)
 	# route
 	if menus and menus.route.size() > 1:
 		var rp := PackedVector2Array()

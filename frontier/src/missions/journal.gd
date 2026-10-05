@@ -140,6 +140,7 @@ const ENTRIES := {
 const BOUNTIES = preload("res://src/ai/bounties.gd")
 const LEGENDARY = preload("res://src/systems/legendary.gd")
 const TREASURE = preload("res://src/systems/treasure.gd")
+const LANDMARKS = preload("res://src/systems/landmarks.gd")
 
 ## Pages beyond the missions: outlaws brought in, legendary animals taken, treasure maps found.
 ## [{title, sub, text, sketch, map}] (map = treasure map number for a map sheet, else 0).
@@ -175,6 +176,7 @@ static func extra_entries(flags: Dictionary, inv: Dictionary) -> Array:
 		if done:
 			t3 += " — Dug." + (" Three bars of gold at the bottom of it. Somebody waited a long time for those." if n == TREASURE.MAPS.size() else "")
 		out.append({"title": str(m.title), "sub": "A treasure map", "text": t3, "sketch": "hills", "map": n})
+	out.append_array(LANDMARKS.journal_pages(flags))
 	return out
 
 ## The entry's text for the flags as they stand.

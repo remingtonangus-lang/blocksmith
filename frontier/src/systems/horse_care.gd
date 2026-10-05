@@ -17,6 +17,15 @@ var _pat_t := -100.0
 
 func _ready() -> void:
 	Game.set_meta("horse_care", self)
+	if Game.state:
+		Game.state.loaded.connect(_on_loaded)
+
+## A save was loaded: the horse's bond is whatever the save says (up or down).
+func _on_loaded() -> void:
+	var h := horse()
+	if h != null and Game.state:
+		h.bond_xp = float(Game.state.flags.get("horse_bond_xp", 0.0))
+		h._cores(0.0)
 
 func horse() -> Horse:
 	return Horse.player_horse if is_instance_valid(Horse.player_horse) else null

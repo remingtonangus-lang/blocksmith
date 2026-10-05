@@ -169,7 +169,9 @@ func open_pause() -> void:
 		v.add_child(_button("Today's Paper", func(): Game.get_meta("news").open_last()))
 	v.add_child(_button("Settings", open_settings))
 	v.add_child(_button("Save Game", func():
-		if Game.state and Game.state.save_game("manual"):
+		if Game.has_meta("autosave"):
+			Game.get_meta("autosave").manual_save("manual")     # refused (with a reason) in a fight or when hunted
+		elif Game.state and Game.state.save_game("manual"):
 			Game.say("Game saved", 2.5)
 		back()))
 	v.add_child(_button("Load Game", func():

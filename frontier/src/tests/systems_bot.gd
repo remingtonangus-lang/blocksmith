@@ -145,15 +145,45 @@ static func run(runner: Node) -> Dictionary:
 			_fail(res, "bounty never resolved")
 		elif st.money < m2 + reward * 1.5 - 0.01:
 			_fail(res, "bounty paid %.2f, expected %.2f" % [st.money - m2, reward * 1.5])
-	# 7. save -> scramble -> load equality
+	# 7. save -> scramble -> load equality (incl. the horse bond, camp ledger and stock, discovered places, places
+	# with a story, hold-up counts)
+	var horse = Horse.player_horse if is_instance_valid(Horse.player_horse) else null
+	var camp = Game.get("camp")
+	if horse != null:
+		horse.bond_xp = 480.0
+		horse._cores(0.0)
+		st.flags["horse_bond_xp"] = 480.0
+	st.flags["camp_ledger"] = 37.5
+	st.flags["camp_stock"] = {"provisions": 2, "ammo": 1}
+	st.flags["discovered"] = {"caddell_camp": true, "port_linden": true, "greer_post": true}
+	st.flags["landmarks"] = {"vale_cabin": {"found": true, "read": true, "cache": true}, "echo_hollow": {"found": true}}
+	st.flags["stage_robbery_count"] = 2
+	if camp:
+		camp._on_loaded()
 	var money := st.money
 	var standing := st.standing
 	var pos: Vector3 = p.global_position
+	var bond0: float = horse.bond_xp if horse else -1.0
+	var level0: int = horse.bond_level if horse else -1
+	var ledger0: float = camp.ledger_funds() if camp else -1.0
+	var props0: int = camp.stock_prop_count("provisions") if camp else -1
+	var disc0: Array = st.flags["discovered"].keys()
+	var lm0: String = JSON.stringify(st.flags["landmarks"])
 	if not st.save_game("bot_test"):
 		_fail(res, "save failed")
 	st.money = 1.0
 	st.standing = 77.0
 	p.global_position += Vector3(50, 0, 50)
+	if horse:
+		horse.bond_xp = 5.0
+		horse._cores(0.0)
+	st.flags["horse_bond_xp"] = 5.0
+	st.flags["camp_ledger"] = 0.0
+	st.flags["camp_stock"] = {}
+	st.flags["discovered"] = {"caddell_camp": true}
+	st.flags["landmarks"] = {}
+	if camp:
+		camp._on_loaded()
 	if not st.load_game("bot_test"):
 		_fail(res, "load failed")
 	await tree.physics_frame
@@ -161,6 +191,50 @@ static func run(runner: Node) -> Dictionary:
 		_fail(res, "save/load mismatch money %.2f/%.2f standing %.2f/%.2f" % [st.money, money, st.standing, standing])
 	if p.global_position.distance_to(pos) > 1.5:
 		_fail(res, "save/load moved the player by %.1f m" % p.global_position.distance_to(pos))
+	var tv = Game.get_meta("travel") if Game.has_meta("travel") else null
+	var disc1: Array = tv.discovered().keys() if tv else st.flags.get("discovered", {}).keys()
+	disc0.sort()
+	disc1.sort()
+	var lmk = Game.get_meta("landmarks") if Game.has_meta("landmarks") else null
+	var same := {"bond": horse == null or (absf(horse.bond_xp - bond0) < 0.01 and horse.bond_level == level0),
+		"ledger": camp == null or absf(camp.ledger_funds() - ledger0) < 0.01, "stock": camp == null or (camp.stock("provisions") == 2 and camp.stock_prop_count("provisions") == props0),
+		"discovered": disc0 == disc1, "landmarks": JSON.stringify(st.flags.get("landmarks", {})) == lm0 and (lmk == null or (lmk.found("vale_cabin") and lmk.found("echo_hollow"))),
+		"holdups": int(st.flags.get("stage_robbery_count", 0)) == 2}
+	res.checks["save_state"] = same
+	print("  save/load: bond %.0f (level %d) -> %s; ledger $%.2f, provisions %d (props %d) -> %s; discovered %s -> %s; places -> %s" % [
+		bond0, level0, same.bond, ledger0, camp.stock("provisions") if camp else -1, props0, same.ledger and same.stock, ", ".join(disc0), same.discovered, same.landmarks])
+	for k in same.keys():
+		if not same[k]:
+			_fail(res, "save/load lost %s" % k)
+	# 8. saving rules: refused while hunted or in a fight, allowed otherwise; autosaves on a timer, travel, missions
+	var asv = Game.get_meta("autosave") if Game.has_meta("autosave") else null
+	if asv == null:
+		_fail(res, "no autosave system")
+	else:
+		st.wanted = 2
+		var r_wanted: bool = asv.manual_save("bot_manual")
+		var why_w: String = asv.last_reason
+		st.wanted = 0
+		var foe := Human.spawn(Game.main, p.global_position + Vector3(8, 0.5, 0), {"seed": 991, "faction": "bandit", "role": "gunman", "name": "Foe"})
+		foe.brain.target = p
+		foe.brain.state = foe.brain.State.COMBAT
+		var r_fight: bool = asv.manual_save("bot_manual")
+		var why_f: String = asv.last_reason
+		foe.queue_free()
+		await tree.physics_frame
+		var r_ok: bool = asv.manual_save("bot_manual")
+		var n0: int = asv.count
+		var a1: bool = asv.autosave("timer")
+		var a_travel := false
+		if tv:
+			st.add_money(20.0)
+			var n1: int = asv.count
+			await tv.travel("ride", "caddell_camp", "greer_post")
+			a_travel = asv.count == n1 + 1
+		res.checks["saving"] = {"wanted": r_wanted, "fight": r_fight, "ok": r_ok, "timer": a1, "travel": a_travel}
+		print("  saving: wanted -> %s (%s); in a fight -> %s (%s); free -> %s; autosave timer %s, after travel %s" % [r_wanted, why_w, r_fight, why_f, r_ok, a1, a_travel])
+		if r_wanted or r_fight or not r_ok or not a1 or asv.count != n0 + 1 + int(a_travel) or (tv != null and not a_travel):
+			_fail(res, "saving rules: wanted %s, fight %s, free %s, timer %s, travel %s" % [r_wanted, r_fight, r_ok, a1, a_travel])
 	for n in [victim, witness]:
 		if is_instance_valid(n):
 			n.queue_free()
