@@ -84,6 +84,7 @@ jobs:
             rm -rf frontier/assets/ext/terrain frontier/assets/ext/build frontier/assets/ext/cloth
           fi
           if [ -f frontier/tools/fetch_assets.sh ] && grep -q characters frontier/tools/fetch_assets.sh; then bash frontier/tools/fetch_assets.sh characters || true; fi
+          bash frontier/tools/fetch_assets.sh animals || echo "animals.zip not published yet: horses use the stand-in"
           du -sh frontier/assets/ext
 
       - name: Import
@@ -213,6 +214,7 @@ jobs:
         run: |
           python3 frontier/tools/worldgen.py 2>&1 | tail -1
           bash frontier/tools/fetch_assets.sh && python3 frontier/tools/pack_textures.py | cut -c1-120
+          bash frontier/tools/fetch_assets.sh animals || true
       - name: Export APK
         run: |
           G=~/godot/Godot_v${GODOT_TAG}_linux.x86_64

@@ -3,15 +3,17 @@ name: frontier-assets
 # asset hosts) and publishes them to the rolling release `frontier-assets`:
 #   catalog.zip  ambientCG / Poly Haven catalogues + contact sheets (for picking assets by eye)
 #   ext.zip      processed assets from frontier/assets/manifest.json (+ LICENSES.json)
+#   animals.zip  procedurally generated animals (frontier/tools/animals/*_gen.py, Blender as a Python module):
+#                ext/animals/horse.glb + horse_gaits.json; fetched with `bash frontier/tools/fetch_assets.sh animals`
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'catalog | fetch | both'
+        description: 'catalog | fetch | both | animals | all'
         default: 'fetch'
   push:
     branches: ['claude/frontier-game']
-    paths: ['frontier/assets/manifest.json', 'frontier/tools/assets_ci.py', '.github/workflows/frontier-assets.yml']
+    paths: ['frontier/assets/manifest.json', 'frontier/tools/assets_ci.py', 'frontier/tools/animals/**', '.github/workflows/frontier-assets.yml']
 
 permissions:
   contents: write
@@ -21,7 +23,34 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      assets: ${{ steps.c.outputs.assets }}
+      animals: ${{ steps.c.outputs.animals }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: c
+        run: |
+          if [ "${{ github.event_name }}" != "push" ]; then
+            m="${{ inputs.mode }}"
+            echo "assets=$([ "$m" = animals ] && echo false || echo true)" >> $GITHUB_OUTPUT
+            echo "animals=$([ "$m" = animals ] || [ "$m" = all ] && echo true || echo false)" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          files=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" 2>/dev/null || echo ALL)
+          echo "$files"
+          a=false; n=false
+          echo "$files" | grep -qE "^ALL$|frontier/assets/manifest.json|frontier/tools/assets_ci.py|frontier-assets.yml" && a=true
+          echo "$files" | grep -qE "^ALL$|frontier/tools/animals/|frontier-assets.yml" && n=true
+          echo "assets=$a" >> $GITHUB_OUTPUT
+          echo "animals=$n" >> $GITHUB_OUTPUT
+
   assets:
+    needs: changes
+    if: needs.changes.outputs.assets == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -29,12 +58,12 @@ jobs:
       - name: Python deps
         run: pip install -q pillow numpy
       - name: Catalog
-        if: github.event_name == 'push' || inputs.mode == 'catalog' || inputs.mode == 'both'
+        if: github.event_name == 'push' || inputs.mode == 'catalog' || inputs.mode == 'both' || inputs.mode == 'all'
         run: |
           python3 frontier/tools/assets_ci.py catalog out
           (cd out && zip -qr ../catalog.zip catalog)
       - name: Fetch
-        if: github.event_name == 'push' || inputs.mode == 'fetch' || inputs.mode == 'both'
+        if: github.event_name == 'push' || inputs.mode == 'fetch' || inputs.mode == 'both' || inputs.mode == 'all'
         run: |
           python3 frontier/tools/assets_ci.py fetch out 2>&1 | tee fetch.log
           (cd out && zip -qr ../ext.zip ext)
@@ -47,3 +76,33 @@ jobs:
               --notes "Processed CC0 assets for the Frontier game (claude/frontier-game). Licences in ext.zip/ext/LICENSES.json."
           for f in catalog.zip ext.zip fetch.log; do [ -s "$f" ] && gh release upload frontier-assets "$f" --clobber; done
           echo "published"
+
+  animals:
+    # Procedural animals: Blender 5 as a Python module builds the horse (mesh, rig, gaits, hair, tack) -> animals.zip
+    needs: [changes, assets]
+    if: always() && needs.changes.outputs.animals == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Blender (bpy) + deps
+        run: pip install -q bpy==5.0.1 numpy scipy scikit-image pillow
+      - name: Build horse
+        run: |
+          set -o pipefail
+          python frontier/tools/animals/horse_gen.py --out out/ext/animals 2>&1 | grep -avE "^Fra:|Saved:" | tee animals.log | grep -a "\[horse"
+          test -s out/ext/animals/horse.glb
+          (cd out && zip -qr ../animals.zip ext/animals)
+          ls -la animals.zip
+      - name: Publish animals.zip to release frontier-assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view frontier-assets >/dev/null 2>&1 || \
+            gh release create frontier-assets --prerelease --target "$GITHUB_SHA" --title "Frontier assets (CC0)" \
+              --notes "Processed CC0 assets for the Frontier game (claude/frontier-game). Licences in ext.zip/ext/LICENSES.json."
+          gh release upload frontier-assets animals.zip animals.log --clobber
+          echo "published animals.zip"

@@ -119,12 +119,11 @@ func _setup_lods() -> void:
 	for mi in meshes:
 		var n := String(mi.name)
 		if n == "Body":
-			mi.visibility_range_end = 22.0
-			mi.visibility_range_end_margin = 2.0
+			mi.visibility_range_end = 23.0
 			mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 		elif n == "Body_LOD1":
 			mi.visibility_range_begin = 22.0
-			mi.visibility_range_end = 70.0
+			mi.visibility_range_end = 71.0
 			mi.material_override = body_mat
 		elif n == "Body_LOD2":
 			mi.visibility_range_begin = 70.0
@@ -275,7 +274,7 @@ func set_care(dirt: float, mud: float, wet: float, sweat: float) -> void:
 		hair_mat.set_shader_parameter("dirt", dirt)
 		hair_mat.set_shader_parameter("wet", wet)
 
-const TACK := ["saddle", "blanket", "bridle", "reins", "bags", "saddlebags", "stirrup", "bedroll", "cinch", "bit", "tack"]
+const TACK := ["saddle", "blanket", "bridle", "reins", "bags", "saddlebags", "stirrup", "bedroll", "cinch", "bit", "tack", "fender"]
 
 func set_tack_visible(on: bool) -> void:
 	for mi in meshes:

@@ -1,6 +1,8 @@
 extends Node
 ## Screenshot harness. --shot out.png [--at x,z] [--up 1.7] [--yaw deg] [--pitch deg] [--fov deg] [--frames n]
 ## or --tour DIR (named vantage points in TOUR). Waits for streaming/shaders, saves PNGs, prints timings, quits.
+## --horse D [--horse_seed S --horse_breed B --horse_yaw DEG --horse_anim A]: stand a horse D metres in front of
+## the camera (side-on by default) for in-world horse shots.
 
 const TOUR := [
 	# name, x, z, height above ground, yaw (deg, 0 = north, 90 = east), pitch, hour, weather
@@ -58,6 +60,8 @@ func _shot(path: String, x, z, up: float, yaw: float, pitch: float, hour: float,
 	if weather != "":
 		main.sky.set_weather(SkySystem.Weather.get(weather.to_upper(), SkySystem.Weather.FAIR), true)
 	main.sky.paused = true
+	if Game.args.has("horse"):
+		_place_horse(cam)
 	var t0 := Time.get_ticks_msec()
 	# let streaming (tree chunks, collision, grass) settle before counting frames
 	var veg = main.vegetation
@@ -76,3 +80,24 @@ func _shot(path: String, x, z, up: float, yaw: float, pitch: float, hour: float,
 	img.save_png(path)
 	var ft := (Time.get_ticks_msec() - t0) / float(frames + 1)
 	print("shot: %s at (%.0f, %.0f, %.0f) yaw %.0f pitch %.0f %.1fh %s  ~%.1f ms/frame" % [path, px, cam.global_position.y, pz, yaw, pitch, hour, weather, ft])
+
+var _horse: Horse
+
+func _place_horse(cam: Camera3D) -> void:
+	var w: WorldData = Game.world
+	if _horse == null:
+		_horse = Horse.spawn(int(Game.args.get("horse_seed", 1899)), str(Game.args.get("horse_breed", "quarter")))
+		main.add_child(_horse)
+	var fwd := -cam.global_basis.z
+	fwd.y = 0.0
+	fwd = fwd.normalized()
+	var p := cam.global_position + fwd * Game.arg_f("horse", 8.0)
+	p.y = w.height(p.x, p.z)
+	Game.terrain.ensure_collision_at(p)
+	_horse.global_position = p
+	var face := atan2(-fwd.x, -fwd.z) + deg_to_rad(Game.arg_f("horse_yaw", 90.0))
+	_horse.yaw = face
+	_horse.rotation.y = face
+	if Game.args.has("horse_anim") and _horse.visual.anim_player:
+		_horse.set_physics_process(false)
+		_horse.visual.set_locomotion(str(Game.args["horse_anim"]), 1.0)

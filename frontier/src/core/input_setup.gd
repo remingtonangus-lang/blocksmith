@@ -21,6 +21,7 @@ static func ensure() -> void:
 	_key("interact", [KEY_E], [JOY_BUTTON_Y], [])
 	_key("mount", [KEY_F], [JOY_BUTTON_Y], [])
 	_key("whistle", [KEY_H], [JOY_BUTTON_DPAD_UP], [])
+	_key("ride_auto", [KEY_Z], [JOY_BUTTON_DPAD_DOWN], [])    # horse: follow the road
 	_key("aim", [], [], [[JOY_AXIS_TRIGGER_LEFT, 1.0]], [MOUSE_BUTTON_RIGHT])
 	_key("fire", [], [], [[JOY_AXIS_TRIGGER_RIGHT, 1.0]], [MOUSE_BUTTON_LEFT])
 	_key("reload", [KEY_R], [JOY_BUTTON_B], [])

@@ -42,6 +42,8 @@ static func analyse_animation(v: HorseVisual, gait: String, steps := 240) -> Dic
 			s.pos[leg] = Vector3(p.x, p.y, p.z - speed * t)
 			s.ground[leg] = 0.0
 		samples.append(s)
+		if Game.args.has("oracle_debug") and i % 12 == 0:
+			print("  t=%.3f LF %s  LH %s" % [t, str(s.pos["LF"]), str(s.pos["LH"])])
 	ap.stop()
 	if v.tree:
 		v.tree.active = true
@@ -54,27 +56,42 @@ static func analyse_samples(samples: Array, gait: String, cycle := 0.0) -> Dicti
 	var onsets := {}
 	var slides := []
 	var contact_frac := {}
+	var min_len := maxf(cycle * 0.06, 0.04) if cycle > 0.0 else 0.05
 	for leg in LEGS:
 		onsets[leg] = []
-		var was := false
-		var start := Vector3.ZERO
-		var n_c := 0
-		var last := Vector3.ZERO
+		# contact segments (h < CONTACT_H), debounced: short dips/lifts are ignored
+		var segs := []
+		var cur := []
 		for s in samples:
 			var p: Vector3 = s.pos[leg]
 			var h: float = p.y - float(s.ground[leg])
-			var c := h < CONTACT_H
-			if c:
-				n_c += 1
-			if c and not was:
-				onsets[leg].append(float(s.t))
-				start = p
-			if was and not c:
-				var d := Vector2(last.x - start.x, last.z - start.z).length()
-				slides.append(d)
-			if c:
-				last = p
-			was = c
+			if h < CONTACT_H:
+				cur.append([float(s.t), p, h])
+			elif cur.size() > 0:
+				segs.append(cur)
+				cur = []
+		if cur.size() > 0:
+			segs.append(cur)
+		var n_c := 0
+		for seg in segs:
+			var t0: float = seg[0][0]
+			var t1: float = seg[seg.size() - 1][0]
+			if t1 - t0 < min_len:
+				continue
+			n_c += seg.size()
+			if seg[0][0] > float(samples[0].t) + 1e-6:
+				onsets[leg].append(t0)
+			# slide: horizontal drift while planted (h < 1.2 cm, i.e. bearing weight)
+			var anchor = null
+			var worst := 0.0
+			for e in seg:
+				if e[2] < 0.012:
+					var p: Vector3 = e[1]
+					if anchor == null:
+						anchor = p
+					worst = maxf(worst, Vector2(p.x - anchor.x, p.z - anchor.z).length())
+			if anchor != null and seg[seg.size() - 1][0] < float(samples[samples.size() - 1].t) - 1e-6:
+				slides.append(worst)
 		contact_frac[leg] = float(n_c) / maxf(samples.size(), 1)
 	# period: median interval between onsets of the same leg
 	var ints := []
@@ -97,19 +114,28 @@ static func analyse_samples(samples: Array, gait: String, cycle := 0.0) -> Dicti
 		res.ok = false
 		res.failures.append("lead leg %s never lands" % lead)
 		return res
-	# phase of each leg's first onset after the lead leg's first onset
-	var t0: float = onsets[lead][0]
+	# phase of each leg relative to the lead leg: circular mean over every onset (robust to a stray contact)
+	var lead_on: Array = onsets[lead]
 	var ph := {}
 	for leg in LEGS:
-		var best := INF
+		var sx := 0.0
+		var sy := 0.0
+		var nn := 0
 		for t in onsets[leg]:
-			var d: float = fposmod(t - t0, T) / T
-			if t >= t0 - 1e-4 and d < best:
-				best = d
-		if best == INF:
-			for t in onsets[leg]:
-				best = minf(best, fposmod(t - t0, T) / T)
-		ph[leg] = best if best != INF else -1.0
+			# nearest lead onset at or before t
+			var t0 := -INF
+			for tl in lead_on:
+				if tl <= t + 1e-4 and tl > t0:
+					t0 = tl
+			if t0 == -INF:
+				continue
+			var a := TAU * fposmod(t - t0, T) / T
+			sx += cos(a)
+			sy += sin(a)
+			nn += 1
+		ph[leg] = fposmod(atan2(sy, sx), TAU) / TAU if nn > 0 else -1.0
+		if leg == lead:
+			ph[leg] = 0.0
 	res.phases = ph
 	var beats := group_beats(ph)
 	res.beats = beats

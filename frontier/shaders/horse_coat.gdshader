@@ -101,7 +101,7 @@ void fragment() {
 	float head = smoothstep(1.02, 1.12, p.y) * smoothstep(1.35, 1.55, p.z + p.y * 0.0);
 	float muzzle = smoothstep(1.40, 1.50, p.y) * smoothstep(1.62, 1.50, p.z);
 	col = mix(col, col * vec3(0.55, 0.5, 0.5), muzzle * 0.8);
-	vec3 eye_l = vec3(-0.099, 1.205, 1.815), eye_r = vec3(0.099, 1.205, 1.815);
+	vec3 eye_l = vec3(-0.1, 1.212, 1.805), eye_r = vec3(0.1, 1.212, 1.805);
 	float eye_ring = 1.0 - smoothstep(0.02, 0.055, min(distance(p, eye_l), distance(p, eye_r)));
 	col *= 1.0 - 0.45 * eye_ring;
 

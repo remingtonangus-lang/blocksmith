@@ -147,6 +147,13 @@ func _shot(s: String) -> void:
 				_pose(v, "idle", 0.0)
 			_grid_layout(4)
 			_look(Vector3(-15.0, 6.0, 6.5), Vector3(0, 0.9, 1.2), 34)
+		"lod1", "lod2":
+			var v := _horse(5, "quarter", Vector3.ZERO, 0.0, "bay", true)
+			_pose(v, "idle", 0.0)
+			var d := 40.0 if s == "lod1" else 120.0
+			_look(Vector3(-d, 1.2, -0.2), Vector3(0, 1.0, -0.2), 36.0 * 6.2 / d)
+			for mi in v.meshes:
+				print("  mesh %s visible=%s range=%.0f..%.0f aabb=%s" % [mi.name, mi.visible, mi.visibility_range_begin, mi.visibility_range_end, str(mi.get_aabb())])
 		"actions":
 			var acts := ["rear", "buck", "jump", "skid_stop", "graze", "death"]
 			for i in acts.size():
