@@ -5,6 +5,32 @@ mining or villagers). It takes Blocksmith's military world, The Capital (an opul
 civilisation; see STATUS.md "Future ideas" #1), and pushes it to full-scale detail. The rival faction is the
 **Cinder Pact**, a rugged rust-and-olive coalition on the western plateau. Branch: `claude/capital-game` (only).
 
+## Current state (2026-10-05, handoff)
+- All seven milestones are done. Each later change fixes a measured bug or quality gap (see the Log).
+- Playable build: release `capital-latest` (Apple Silicon, ad-hoc signed); fetch and run as in
+  "Running it on the Mac". The world contains:
+  - a 16 km island: mountains, river valleys, coast, forests and grass;
+  - Candor (695 towers, the Spire, skyways), the citadel with twin 42 cm turrets, the radar summit,
+    Fort Lumen, the airfield, the harbour and the Cinder camps;
+  - a live front, crawlers you can drive or ride, gunships, dropships, the sky frigate, convoys, ships
+    and artillery;
+  - four weapons plus grenades, collapsing towers and wrecks, weather and day-night;
+  - synthesized audio.
+- Checks:
+  - every push: 82 headless tests and 8 scripted scenarios (ride, drive, fly, dropship, battle, weapons,
+    destroy, stand), 33 screenshots on lavapipe, a 60 s smoke test;
+  - the macOS export with a smoke test, padcheck, a benchmark (`benchmark.json` on `capital-shots/mac/`)
+    and the pad bridge build.
+- Benchmark on CI's paravirtual Mac GPU (High): city/battle/forest about 33-38 / 31 / 35 fps. Numbers from
+  Remington's M1 are still to come (the fleet monitor reruns at each GAME BUILD READY).
+- Waiting on hardware: the PowerA pad through the bundled pad bridge (untested without the pad), and M1
+  fps against the 60 fps High target.
+- Next ideas, in order of measured need:
+  - M1 profiling once numbers arrive (shadow cascades and cloud steps are the likely levers);
+  - switchback roads for mountain sites;
+  - richer soldier models, view-model sleeves that read against white ground;
+  - Quest 3 (OpenXR) export preset.
+
 ## Engine and rules
 - Godot **4.7.2-stable** (latest stable on 2026-10-04). Forward+, Metal on macOS (`rendering_device/driver.macos`),
   Jolt physics, GDScript; C++ GDExtension only for proven hot spots (none yet).
