@@ -55,7 +55,9 @@ final class PauseMenu: Menu {
                                         "gui", "couch", "safe", "hints", "textbg", "volume", "music", "subtitles", "colorblind", "tutorial",
                                         "mode", "difficulty", "new_mode", "new_diff", "hidehud", "debug", "crosshair", "flashes", "curve", "narrator", "display", "bugnotes", "flight", "minimap", "splitlayout", "brightness"]
 
-    static func isValue(_ id: String) -> Bool { valueIDs.contains(id) || id.hasPrefix("vol:") || id == "audio_subs" }
+    static func isValue(_ id: String) -> Bool {
+        valueIDs.contains(id) || id.hasPrefix("vol:") || id == "audio_subs" || ["audio_music_src", "audio_music_shuffle", "audio_music_vol"].contains(id)
+    }
 
     static let help: [String: String] = [
         "resume": "Return to the game.",
@@ -120,6 +122,11 @@ final class PauseMenu: Menu {
         "volume": "Overall sound volume.",
         "audio_subs": "Shows captions for sounds, with the direction they come from (same as Accessibility > Subtitles).",
         "audio_test": "Plays a sound in front of you at the current volumes.",
+        "audio_music_src": "Built-in: the game's own music. My Music: your files from ~/Library/Application Support/Blocksmith/Music. Mixed: they take turns.",
+        "audio_music_folder": "Audio files (mp3, m4a, wav, aiff) in ~/Library/Application Support/Blocksmith/Music. Select to look again after adding some.",
+        "audio_music_shuffle": "Plays your music in a random order (off: by file name).",
+        "audio_music_vol": "How loud your own music plays, on top of the Music volume.",
+        "audio_music_skip": "Ends the piece that is playing and starts the next. Also Y on the pause menu, or the Skip Music Track key (N).",
         "music": "Background music volume.",
         "mode": "Survival: health, hunger, mining. Creative: fly and build freely.",
         "difficulty": "How much damage mobs do and whether hunger can kill.",
@@ -325,6 +332,7 @@ final class PauseMenu: Menu {
         if value && !Prompt.pad { items.append((.alt, "Previous")) }
         if page == .options { items.append((.tabs, "Page")) }
         if page != .title && page != .main { items.append((.back, "Back")) } else if page == .main { items.append((.back, "Resume")) }
+        if page == .main && Prompt.pad { items.append((.quick, "Next Track")) }
         var s = Prompt.line(items)
         if value && Prompt.pad { s = Prompt.g(.select) + " / " + Glyph.dpadH.s + " Change   " + Prompt.line(Array(items.dropFirst())) }
         return s
@@ -381,7 +389,7 @@ final class PauseMenu: Menu {
         var resetCursor = false
         switch id {
         case "noop": return
-        case _ where id.hasPrefix("vol:") || id == "audio_test" || id == "audio_subs": audioAct(id, back: back)
+        case _ where id.hasPrefix("vol:") || id.hasPrefix("audio_music_") || id == "audio_test" || id == "audio_subs": audioAct(id, back: back)
         case "resume":
             if page == .title { g.paused = false } else { g.closeMenu() }
         case "options":

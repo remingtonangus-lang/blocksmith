@@ -691,6 +691,7 @@ final class Game {
         }
         if input.tapped(KeyBinds.key(.fly)) || (p.up && !q.up) { toggleFly() }
         if input.tapped(KeyBinds.key(.photo)) { togglePhotoMode(); return }
+        if input.tapped(KeyBinds.key(.skipTrack)) { skipMusicTrack() }
         if input.tapped(KeyBinds.key(.fastFly)) {
             player.fastFlight.toggle()
             onToast?(player.fastFlight ? "Fast flight on (sprint while flying)" : "Fast flight off")

@@ -44,6 +44,7 @@ final class MusicDirector {
     var pieces = 0
     var silence: Float = 0                  // seconds of forced silence after a fade-out
     var lastWant: MusicMood? = nil
+    var customOn = false                    // one of the player's own tracks is playing (CustomMusic.swift)
 }
 
 extension Game {
@@ -491,6 +492,15 @@ extension Game {
         guard let snd = sound, let stream = snd.music else { return }
         let m = music
         let want = musicMood()
+        // The player's own track (Options > Audio > Soundtrack) plays through, mood changes and fights included; when it
+        // ends the next follows in a few seconds (My Music) or after the usual quiet (Mixed).
+        let src = Settings.shared.musicSource
+        if m.customOn, let c = snd.custom {
+            if c.playing && src != 0 && AudioSettings.volume(.music) > 0 { return }
+            c.stop()
+            m.customOn = false
+            m.wait = src == 1 ? Rand.float(in: 2...6) : Rand.float(in: 240...600)
+        }
         // Some moods take over at once (dimension change, boss, the title screen); the rest wait their turn.
         let hard: Set<MusicMood> = [.title, .ember, .hollow, .boss, .combat, .tension]
         if let cur = m.mood, stream.isPlaying {
@@ -516,6 +526,15 @@ extension Game {
         if m.silence > 0 { m.silence -= dt; return }
         m.wait -= dt
         if m.wait <= 0 && AudioSettings.volume(.music) > 0 {
+            // My Music: always the folder (the composer only while it is empty). Mixed: every other calm piece.
+            let useCustom = src == 1 || (src == 2 && !hard.contains(want) && m.pieces % 2 == 1)
+            if useCustom, let c = snd.custom, c.playNext(shuffle: Settings.shared.musicShuffle) {
+                m.customOn = true
+                m.mood = nil
+                m.pieces += 1
+                onToast?("♪ \(c.title ?? "")")
+                return
+            }
             let seed = Rand.u64(in: 0...UInt64(Int32.max))
             let score = Composer.compose(want, seed: seed)
             stream.play(score, fadeIn: want == .boss || want == .combat ? 0.5 : 3)
@@ -523,6 +542,20 @@ extension Game {
             m.pieces += 1
             if want != .title && want != .combat && want != .tension { onToast?("♪ \(score.title)") }
         }
+    }
+}
+
+extension Game {
+    // Skip Track (Y on the pause menu, the Skip Music Track key, Options > Audio): the next piece, now.
+    func skipMusicTrack() {
+        guard let snd = sound else { return }
+        snd.custom?.stop()
+        music.customOn = false
+        snd.music?.stop(fade: 0.4)
+        music.mood = nil
+        music.silence = 0.6
+        music.wait = 0
+        onToast?("Next track")
     }
 }
 

@@ -142,7 +142,10 @@ extension Game {
                 }
             }
             if keyboard == nil && p.x && !q.x { m.click(s, button: 1, shift: false) }
-            if keyboard == nil && p.y && !q.y && !m.capturesText { m.click(s, button: 0, shift: true) }
+            if keyboard == nil && p.y && !q.y && !m.capturesText {
+                // On the pause menu Y is Next Track (CustomMusic.swift); elsewhere a quick move / shift-click.
+                if let pm = m as? PauseMenu, pm.page == .main { skipMusicTrack() } else { m.click(s, button: 0, shift: true) }
+            }
             // Number keys swap the hovered slot with a hotbar slot.
             for (i, k) in Key.digits.enumerated() where input.tapped(k) && !m.capturesText {
                 if case .normal = s.kind, s.container != nil {

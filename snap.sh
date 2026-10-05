@@ -120,6 +120,7 @@ done
 "$BIN" --ridecheck --seed 12345 --out snaps
 # Every mob kind must draw something, Fancy and Fast (playtest 2026-10-05: mobs invisible in game).
 "$BIN" --snapshot snaps/plantcheck.png --seed 12345 --find plains --yaw 45 --pitch -10 --time 0.3 --up 6 --rd 4 --plantcheck || echo "::error::plantcheck failed (new: reported, not gating yet)"
+"$BIN" --snapshot snaps/musiccheck.png --seed 12345 --find plains --yaw 45 --time 0.3 --rd 4 --musiccheck || echo "::error::musiccheck failed (new: reported, not gating yet)"
 "$BIN" --snapshot snaps/mobcheck.png --seed 12345 --find plains --yaw 30 --time 0.3 --up 6 --rd 4 --mobcheck          # gating: every mob kind draws (playtest 2026-10-05)
 # Split-screen co-op (Coop.swift): seat checks, then the two views at rd 8 (the frame time is the two-view perf number).
 "$BIN" --snapshot snaps/coop.png --seed 12345 --find plains --yaw 30 --pitch -6 --time 0.3 --ground --rd 8 --coop --cooptest || echo "::error::cooptest failed (new: reported, not gating yet)"
