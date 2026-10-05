@@ -161,6 +161,9 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
 - 08:55 UTC: cancelled runs 651 (7264bb4) and 657 (aada510): superseded by later pushes but still queued for macOS
   runners ahead of run 658 (pushing over a queued run does not cancel it; cancel it explicitly).
 
+- 09:10 UTC: cancelled run 658 (fcaeb04) after its fast lane passed (no warnings) and before its heavy build got a
+  runner: one heavy run on the next push covers it and ~25 later commits instead of two queue cycles.
+
 ## Next
 - Per-frame allocations left after the 2026-10-05 audit (refactors; measure with the profiles first): mob model parts
   rebuilt per mob per frame (Mob.swift parts / equipmentParts: append into one reused buffer); the HUD line chain
