@@ -244,14 +244,14 @@ enum Snapshot {
                 let m = CommandMenu(game: game, prefill: "/give dia")
                 m.complete()
                 game.openMenu(m)
-            case "craftbook", "craftbook_all":
+            case "craftbook", "craftbook_all", "craftbook2":
                 // The crafting book (CraftingBook.swift) with a starter kit: logs, cobblestone, iron, sticks, string.
                 for (i, (n, c)) in [("oak_log", 12), ("cobblestone", 30), ("iron_ingot", 9), ("stick", 8), ("string", 3), ("coal", 6),
                                     ("oak_planks", 20), ("redstone", 5)].enumerated() {
                     game.inventory.main[9 + i] = ItemStack(Items.id(n), c)
                 }
                 CraftingBookMenu.lastTab = which == "craftbook" ? .craftable : .building
-                let m = CraftingBookMenu(game: game)
+                let m = CraftingBookMenu(game: game, size: which == "craftbook2" ? 2 : 3)
                 game.openMenu(m)
                 game.menuCursor = CraftCategory.allCases.count + 3           // a tile: the detail panel shows its recipe
                 m.selected = m.recipe(at: 3)

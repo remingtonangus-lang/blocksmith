@@ -100,6 +100,8 @@ extension Game {
             if scroll != 0 { cb.flip(scroll) }
             cb.padHold(p.a, dt)
         }
+        // LB/RB in the inventory open its crafting book (2x2), whose grid button comes back.
+        if m is InventoryMenu, tab != 0 { switchMenu(to: CraftingBookMenu(game: self, size: 2)); sfx(.click, 0.4); return }
         if let hb = m as? HasRecipeBook, hb.book.open, tab != 0 {
             _ = hb.recipeBookButton(tab > 0 ? 492 : 491, hb.book, grid: hb.craftGrid) { hb.rebuildBook() }
         }

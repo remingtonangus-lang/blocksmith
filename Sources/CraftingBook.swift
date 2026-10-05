@@ -162,7 +162,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
 
     init(game: Game, size: Int = 3) {
         self.size = size
-        super.init("Crafting", game: game)
+        super.init(size == 3 ? "Crafting" : "Crafting (2x2)", game: game)
         width = 344
         height = 262
         showInventoryLabel = false
@@ -187,10 +187,9 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             let b = MenuSlot(x, 207, nil, 0, .button(id)); b.w = w; b.h = 16
             slots.append(b)
         }
-        if size == 3 {
-            let b = MenuSlot(196, 228, nil, 0, .button(CraftingBookMenu.gridBtn)); b.w = 140; b.h = 16
-            slots.append(b)
-        }
+        // The manual grid (a table's 3x3, or the inventory with its 2x2 grid and armour).
+        let gb = MenuSlot(196, 228, nil, 0, .button(CraftingBookMenu.gridBtn)); gb.w = 140; gb.h = 16
+        slots.append(gb)
         addPlayerInventory(y: 186, x: 8)
         refresh()
     }
@@ -279,7 +278,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             amount = a[max(0, min(a.count - 1, k + (id == CraftingBookMenu.amountUp ? 1 : -1)))]
             game.sfx(.click, 0.3)
         case CraftingBookMenu.gridBtn:
-            game.switchMenu(to: CraftingTableMenu(game: game))
+            game.switchMenu(to: size == 3 ? CraftingTableMenu(game: game) : InventoryMenu(game: game))
         default: break
         }
     }
@@ -429,7 +428,7 @@ final class CraftingBookMenu: Menu, CustomDrawnMenu {
             case CraftingBookMenu.amountDown: t = "-"
             case CraftingBookMenu.amountUp: t = "+"
             case CraftingBookMenu.craftAmount: t = "Craft \(amount)x"
-            default: t = "Manual grid"
+            default: t = size == 3 ? "Manual grid" : "Inventory & 2x2 grid"
             }
             label(t, sl.x + (sl.w - Font.width(t)) / 2, sl.y + 4)
         }

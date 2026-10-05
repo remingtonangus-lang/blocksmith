@@ -539,6 +539,8 @@ final class Game {
     func openMenu(_ m: Menu) {
         menu = m
         menuCursor = m.slots.firstIndex(where: { $0.isHotbar && $0.index == selected }) ?? 0
+        // The crafting book opens with the cursor on its first recipe tile (playtest 2026-10-05: it started on the hotbar).
+        if m is CraftingBookMenu { menuCursor = CraftCategory.allCases.count }
         audioMenuOpened(m)
     }
 

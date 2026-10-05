@@ -217,6 +217,8 @@ enum PadTest {
             let cb = CraftingBookMenu(game: g)
             g.openMenu(cb)
             check(g.menu is CraftingBookMenu && cb.tab == .craftable && !cb.list.isEmpty, "the crafting table opens on the recipe book (\(cb.list.count) craftable)")
+            frame(g)
+            check(g.menuHover === cb.slots[CraftCategory.allCases.count], "the crafting book opens with the cursor on its first recipe tile (playtest 2026-10-05)")
             let k = cb.list.firstIndex { Recipes.all[$0].result.item == planks } ?? -1
             check(k >= 0 && k < CraftingBookMenu.cols, "planks are among the craftable recipes (tile \(k))")
             g.menuCursor = CraftCategory.allCases.count                      // first tile
@@ -262,6 +264,38 @@ enum PadTest {
             check(g.menu is CraftingTableMenu, "Manual grid opens the 3x3 grid")
             (g.menu as? CraftingTableMenu)?.buttonPressed(490)
             check(g.menu is CraftingBookMenu, "the grid's book button returns to the crafting book")
+            g.closeMenu()
+            // The inventory's crafting (no table): the same book with 2x2 recipes only, LB/RB from the inventory.
+            g.inventory.main.slots = Array(repeating: .empty, count: 36)
+            g.inventory.main[9] = ItemStack(logs, 40)
+            tap(g, "y")
+            check(g.menu is InventoryMenu, "Y opens the inventory (before its crafting book)")
+            tap(g, "rb")
+            if let ib = g.menu as? CraftingBookMenu {
+                check(ib.size == 2 && g.menuCursor == CraftCategory.allCases.count, "RB in the inventory opens the 2x2 crafting book on its first tile")
+                let cat = CraftingBookMenu.catalogue(2).values.flatMap { $0 }
+                let fits = cat.allSatisfy { (i: Int) -> Bool in
+                    let r = Recipes.all[i]
+                    return r.shapeless.isEmpty ? r.w <= 2 && r.h <= 2 : r.shapeless.count <= 4
+                }
+                let table = cat.contains { Recipes.all[$0].result.item == Items.id("crafting_table") }
+                check(fits && table, "the 2x2 book lists only 2x2 recipes, the crafting table among them (\(cat.count))")
+                ib.tab = .craftable; ib.page = 0; ib.refresh()
+                if let kp = ib.list.firstIndex(where: { Recipes.all[$0].result.item == planks }), kp < CraftingBookMenu.perPage {
+                    g.menuCursor = CraftCategory.allCases.count + kp
+                    frame(g)
+                    tap(g, "a")
+                    check(count(planks) == 4 && count(logs) == 39, "A crafts one in the 2x2 book")
+                    tap(g, "y")
+                    check(count(planks) == 68 && count(logs) == 23, "Y crafts a stack in the 2x2 book")
+                    tap(g, "x")
+                    check(count(planks) == 160 && count(logs) == 0, "X crafts the most in the 2x2 book")
+                } else { check(false, "planks are craftable in the 2x2 book") }
+                let pick = Items.id("iron_pickaxe")
+                check(!CraftingBookMenu.catalogue(2).values.contains { $0.contains { Recipes.all[$0].result.item == pick } }, "3x3 recipes (iron pickaxe) stay out of the 2x2 book")
+                ib.buttonPressed(CraftingBookMenu.gridBtn)
+                check(g.menu is InventoryMenu, "the 2x2 book's grid button returns to the inventory")
+            } else { check(false, "RB in the inventory opens the 2x2 crafting book") }
             g.closeMenu()
             g.inventory.main.slots = Array(repeating: .empty, count: 36)
         }
