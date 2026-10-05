@@ -330,6 +330,14 @@ extension ItemHD {
                 cv.add(ellipse(cv, V2(0.5, 0.5), 0.34, 0.08), xs, M("wood", 0x5A3D1F), r: 0.04)
             }
             cv.add(ring(ellipse(cv, V2(0.5, 0.5), 0.38, 0.1), 0.015), xs, M("wood", 0xA07A48), r: 0.015)
+        case "pie":
+            let dish = Canvas.intersect(ellipse(cv, V2(0.5, 0.52), 0.42, 0.3), neg(cv.below(0.5)))
+            cv.add(Canvas.union(dish, ellipse(cv, V2(0.5, 0.5), 0.42, 0.16)), xs, soft(0xC8883E), r: 0.12)
+            let top = ellipse(cv, V2(0.5, 0.5), 0.36, 0.12)
+            cv.add(top, xs, soft(base), r: 0.06)
+            for x: Float in [0.36, 0.5, 0.64] {
+                cv.add(Canvas.intersect(cap(cv, V2(x - 0.04, 0.4), V2(x + 0.04, 0.6), 0.014), top), xs, soft(0xE8B060), r: 0.012)
+            }
         case "rotten":
             let d = cv.poly([V2(0.16, 0.44), V2(0.36, 0.26), V2(0.68, 0.24), V2(0.86, 0.42), V2(0.8, 0.68), V2(0.52, 0.8), V2(0.22, 0.7)])
             cv.add(d, ys, soft(base), r: 0.15)
