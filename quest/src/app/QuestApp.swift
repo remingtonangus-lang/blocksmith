@@ -336,6 +336,13 @@ final class QuestApp {
 
 // Rolling frame statistics, logged every 5 s (adb logcat -s Blocksmith).
 final class FrameStats {
+    // Resident memory of the process (Linux / Android /proc), MB; 0 where unavailable.
+    static func residentMB() -> Int {
+        guard let t = try? String(contentsOfFile: "/proc/self/statm", encoding: .utf8) else { return 0 }
+        let f = t.split(separator: " ")
+        guard f.count > 1, let pages = Int(f[1]) else { return 0 }
+        return pages * Int(sysconf(Int32(_SC_PAGESIZE))) >> 20
+    }
     private var frames = 0, missed = 0
     private var sumCPU = 0.0, sumTick = 0.0, sumRecord = 0.0, sumGPU = 0.0, worstFrame = 0.0
     private var since = CFAbsoluteTimeGetCurrent()
@@ -354,10 +361,11 @@ final class FrameStats {
         fps = Double(frames) / (now - since)
         gpuAvg = sumGPU / n; cpuAvg = sumCPU / n
         let w = game?.world
-        lastLine = String(format: "perf: %.1f fps (display %.0f Hz), missed %d, worst %.1f ms | cpu %.2f ms (tick %.2f, record %.2f) | gpu %.2f ms | sections %d, draws %d, quads %d, cull %.2f ms | chunks %d, jobs %d, mobs %d | mesh slabs %d MB",
+        lastLine = String(format: "perf: %.1f fps (display %.0f Hz), missed %d, worst %.1f ms | cpu %.2f ms (tick %.2f, record %.2f) | gpu %.2f ms | sections %d, draws %d, quads %d, cull %.2f ms | chunks %d, jobs %d, mobs %d | mesh slabs %d MB, resident %d MB",
                           fps, rate, missed, worstFrame, sumCPU / n, sumTick / n, sumRecord / n, sumGPU / n,
                           scene.visibleCount, scene.drawCalls, scene.drawnQuads, scene.cullMs,
-                          w?.chunks.count ?? 0, w?.pendingJobs ?? 0, game?.mobs.mobs.count ?? 0, MeshArena.shared.slabBytes >> 20)
+                          w?.chunks.count ?? 0, w?.pendingJobs ?? 0, game?.mobs.mobs.count ?? 0, MeshArena.shared.slabBytes >> 20,
+                          FrameStats.residentMB())
         print(lastLine)
         frames = 0; missed = 0; sumCPU = 0; sumTick = 0; sumRecord = 0; sumGPU = 0; worstFrame = 0
         since = now
