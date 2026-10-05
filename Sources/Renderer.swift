@@ -237,12 +237,13 @@ final class Renderer: NSObject, MTKViewDelegate {
         let batch = 256
         var first = 0
         let glow = Vibrant.emissiveModes(layers: layers)
-        var emissive = [UInt8](repeating: 0, count: TextureGen.size * TextureGen.size * layers)
+        let (glowSlots, glowSlices) = Vibrant.emissiveSlots(glow)
+        var emissive = [UInt8](repeating: 0, count: TextureGen.size * TextureGen.size * glowSlices)
         while first < layers {
             let range = first..<min(layers, first + batch)
             let tg0 = CFAbsoluteTimeGetCurrent()
             let levels = TextureGen.mipChain(layers: range)
-            Vibrant.emissiveMask(levels[0], first: range.lowerBound, count: range.count, modes: glow, into: &emissive)
+            Vibrant.emissiveMask(levels[0], first: range.lowerBound, count: range.count, modes: glow, slots: glowSlots, into: &emissive)
             tgMs += (CFAbsoluteTimeGetCurrent() - tg0) * 1000
             let tc0 = CFAbsoluteTimeGetCurrent()
             let n = range.count
@@ -289,7 +290,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         texture = tex
         do {
             let vlib = try device.makeLibrary(source: shaderSource + vibrantShaderSource, options: nil)
-            vib = try Vibrant(device: device, library: vlib, finalFormat: colorFormat, emissive: emissive)
+            vib = try Vibrant(device: device, library: vlib, finalFormat: colorFormat, emissive: emissive, slots: glowSlots)
         } catch { print("Fancy renderer unavailable (falling back to Fast): \(error)") }
 
         // Shared index buffer: every quad is 4 vertices -> 2 CCW triangles.
