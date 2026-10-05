@@ -16,7 +16,8 @@ func start(list: Array, out_dir: String) -> void:
 	dir = out_dir
 	if not dir.is_absolute_path():
 		dir = ProjectSettings.globalize_path("res://").path_join(dir) if dir.begins_with("res://") else OS.get_environment("PWD").path_join(dir)
-	DirAccess.make_dir_recursive_absolute(dir)
+	if not DirAccess.dir_exists_absolute(dir):
+		DirAccess.make_dir_recursive_absolute(dir)   # (on an existing directory it logs ERR_CANT_OPEN)
 	cam = Camera3D.new()
 	cam.far = 160000.0
 	cam.near = 0.1

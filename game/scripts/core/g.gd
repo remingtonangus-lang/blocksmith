@@ -52,7 +52,8 @@ static func log_dir() -> String:
 		dir = OS.get_environment("HOME") + "/Library/Logs/CapitalGame"
 	else:
 		dir = ProjectSettings.globalize_path("user://logs")
-	DirAccess.make_dir_recursive_absolute(dir)
+	if not DirAccess.dir_exists_absolute(dir):
+		DirAccess.make_dir_recursive_absolute(dir)
 	return dir
 
 

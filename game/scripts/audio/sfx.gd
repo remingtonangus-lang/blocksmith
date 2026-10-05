@@ -55,7 +55,8 @@ func _volumes() -> void:
 
 
 func _build_bank() -> void:
-	DirAccess.make_dir_recursive_absolute(CACHE)
+	if not DirAccess.dir_exists_absolute(CACHE):
+		DirAccess.make_dir_recursive_absolute(CACHE)
 	var out := {}
 	for n in Synth.names():
 		var path := CACHE.path_join(n + ".res")
@@ -123,7 +124,8 @@ func _wav(samples: PackedFloat32Array, loop: bool) -> AudioStreamWAV:
 
 ## --sounds DIR: writes every sound as a WAV for listening checks, then quits.
 func _dump(dir: String) -> void:
-	DirAccess.make_dir_recursive_absolute(dir)
+	if not DirAccess.dir_exists_absolute(dir):
+		DirAccess.make_dir_recursive_absolute(dir)
 	for n in bank:
 		(bank[n] as AudioStreamWAV).save_to_wav(dir.path_join(n + ".wav"))
 	print("sounds: wrote %d WAVs to %s" % [bank.size(), dir])
