@@ -36,6 +36,7 @@ final class QuestControls {
     private var xHold: Float = 0, xLong = false, xPulse = 0, swapPulse = 0
     private var flickTime: Float = 0
     private var vignette: Float = 0            // current strength 0...1
+    private(set) var wallFade: Float = 0       // the view fading to black with the head inside a solid block, 0...1
     private var turnFlash: Float = 0
     private var lastFeet = V3.zero
 
@@ -261,6 +262,14 @@ final class QuestControls {
         carryRot = ship?.rot ?? simd_quatf()
         if let s = ship { carryLocal = s.toLocal(game.player.pos) }
         rig.refresh(game: game)
+        // Head inside a solid block (seated leaning, roomscale while flying, standing up under a low ceiling): the view
+        // fades to black instead of showing the world from inside a wall (the usual VR answer: no x-ray, no disorienting
+        // inside-out view), and clears as the head comes out.
+        let hw = rig.headWorld
+        let hb = Int(game.world.block(Int(floor(hw.x)), Int(floor(hw.y)), Int(floor(hw.z))))
+        let inWall: Float = game.alive && Blocks.opaque[hb] && Blocks.fullCollide[hb] ? 1 : 0
+        wallFade += (inWall - wallFade) * min(1, dt * (inWall > wallFade ? 14 : 8))
+        if wallFade < 0.005 { wallFade = 0 }
         game.sound?.setListener(eye: rig.headWorld, yaw: rig.headYaw, pitch: rig.headPitch, cave: game.sound?.cave ?? 0,
                                 underwater: game.player.headInWater)
         // Comfort vignette: the player's own movement (relative to the deck when aboard: a ship cruising steadily is
@@ -758,6 +767,13 @@ final class QuestControls {
 
     // Panels and the comfort vignette, over everything.
     func drawOverlay(_ s: SceneRenderer.Slot, eye: V3) {
+        if wallFade > 0 {                          // under the panels: menus stay readable with the head in a wall
+            var v = takeVerts()
+            let c = V4(0, 0, 0, min(1, wallFade))
+            QuestControls.quad(&v, V4(-1, -1, 0, 2), V4(1, -1, 0, 2), V4(1, 1, 0, 2), V4(-1, 1, 0, 2), c, c, c, c)
+            if let off = app.scene.push(s, v) { app.scene.drawScratch(s, "panelVignette", offset: off, count: v.count) }
+            giveVerts(v)
+        }
         if let panel, (!game.hideHUD || game.menu != nil) {
             let (rx, uy, n) = panelAxes()
             let c = panelCenter - eye

@@ -222,6 +222,12 @@ aboard, teleport option, snap-angle option, seated mode, less camera motion on s
 
 ## Log
 
+- HANDOFF (2026-10-05, usage nearly out): everything is pushed. Latest: 90 Hz default, VR fuzz test (QuestFuzz,
+  6 seeds clean), head-in-wall fade (view fades to black with the head inside a solid block; QuestSim checks it).
+  APK versionCode 46 (5183939) is on quest-dist; 1928b68's Quest run is green, the Mac run was still queued.
+  Next: READY entry for the next published build (90 Hz, wall fade, allocation pass); device check of the
+  `perf:` worst-frame split at 90 Hz; the Mac heavy lane's tours duplicate (tv_craftbook2 = tv_craftbook_all) belongs
+  to the playtest branch.
 - 2026-10-05 (afternoon): spike and allocation pass with questcheck's new allocation counter / tracer
   (quest/tools/alloccount.c + alloctrace.py): first-use tables warmed at load, frame thread registered with the
   runtime, tick allocations 219 -> ~8 a tick (collision boxes, pathfinding 311 -> 7 a search, banners, simd shim),

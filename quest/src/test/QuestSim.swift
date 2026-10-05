@@ -258,6 +258,19 @@ enum QuestSim {
         frames(2) { _ in idleHands() }
         check(abs(glidePitch + 0.5) < 0.05, String(format: "VR gliding: the look follows the head (pitch %.2f, head -0.50)", glidePitch))
 
+        // 9b2. Head in a wall: a solid block where the head is fades the view to black; gone, the view clears.
+        frames(2) { _ in idleHands() }
+        let hw = rig.headWorld
+        let hc = (Int(floor(hw.x)), Int(floor(hw.y)), Int(floor(hw.z)))
+        let hwBefore = game.world.block(hc.0, hc.1, hc.2)
+        game.world.setBlock(hc.0, hc.1, hc.2, STONE)
+        frames(12) { _ in idleHands() }
+        let fadeIn = controls.wallFade
+        game.world.setBlock(hc.0, hc.1, hc.2, hwBefore)
+        frames(30) { _ in idleHands() }
+        check(fadeIn > 0.8 && controls.wallFade < 0.05,
+              String(format: "VR head in a wall: the view fades (%.2f) and clears once out (%.2f)", fadeIn, controls.wallFade))
+
         // 9c. Death and respawn: the death screen opens as the menu panel in front, its button (laser + trigger)
         // respawns, the HUD comes back and the camera follows the player to the spawn.
         game.survival = true
