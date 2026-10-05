@@ -66,6 +66,10 @@ static func casing(root: Node, kind: String, xform: Transform3D, inherit := Vect
 		pm.bounce = 0.35
 		pm.friction = 0.7
 		body.physics_material_override = pm
+		# brass tinkle on the first ground contact (AudioDirector "casing" cue), then a softer second bounce
+		body.contact_monitor = true
+		body.max_contacts_reported = 1
+		body.body_entered.connect(_on_case_contact.bind(body))
 		var cs := CollisionShape3D.new()
 		var sh := CylinderShape3D.new()
 		var c: Array = CASES.get(kind, CASES["pistol"])
@@ -91,6 +95,8 @@ static func casing(root: Node, kind: String, xform: Transform3D, inherit := Vect
 			body.get_parent().remove_child(body)
 			root.add_child(body)
 	body.visible = true
+	body.set_meta("hits", 0)
+	body.set_meta("thrown", Time.get_ticks_msec())
 	body.freeze = false
 	body.sleeping = false
 	var ej := -xform.basis.z.normalized()
@@ -116,6 +122,7 @@ static func _smoke_material() -> StandardMaterial3D:
 	_smoke_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_smoke_mat.albedo_color = Color(0.8, 0.79, 0.76, 0.26)   # constant tint (per-particle vertex colours render black on some drivers)
 	_smoke_mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	_smoke_mat.billboard_keep_scale = true
 	_smoke_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED   # lit billboards go dark against the sun
 	_smoke_mat.disable_receive_shadows = true
 	return _smoke_mat
@@ -147,7 +154,7 @@ static func smoke(root: Node, pos: Vector3, dir: Vector3, amount := 1.0) -> void
 	sc.add_point(Vector2(1, 1.6))
 	p.scale_amount_curve = sc
 	var q := QuadMesh.new()
-	q.size = Vector2(0.5, 0.5)
+	q.size = Vector2(1.0, 1.0)
 	q.material = _smoke_material()
 	p.mesh = q
 	var grad := Gradient.new()
@@ -159,3 +166,11 @@ static func smoke(root: Node, pos: Vector3, dir: Vector3, amount := 1.0) -> void
 	p.global_position = pos + dir * 0.05
 	p.emitting = true
 	p.get_tree().create_timer(p.lifetime + 0.4).timeout.connect(p.queue_free)
+
+static func _on_case_contact(_other: Node, body: RigidBody3D) -> void:
+	var hits := int(body.get_meta("hits", 0))
+	if hits >= 2 or Time.get_ticks_msec() - int(body.get_meta("thrown", 0)) > 4000:
+		return
+	body.set_meta("hits", hits + 1)
+	if Game.audio != null and Game.audio.has_method("gun_mech") and body.linear_velocity.length() > 0.4:
+		Game.audio.gun_mech("casing", body.global_position)
