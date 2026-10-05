@@ -58,15 +58,21 @@ func _model(i: int) -> Node3D:
 	var mz := Node3D.new()
 	match i:
 		0:
-			# Carbine: a white polymer body with grey trim, a top optic, a curved magazine.
-			k.box(Transform3D.IDENTITY, Vector3(0, 0, -0.18), Vector3(0.06, 0.09, 0.5), white)
-			k.box(Transform3D.IDENTITY, Vector3(0, -0.01, 0.17), Vector3(0.05, 0.11, 0.22), white)
-			k.box(Transform3D.IDENTITY, Vector3(0, 0.07, -0.16), Vector3(0.035, 0.045, 0.16), metal)
-			k.box(Transform3D.IDENTITY, Vector3(0, -0.1, -0.12), Vector3(0.035, 0.14, 0.07), trim)
-			k.box(Transform3D.IDENTITY, Vector3(0, -0.07, 0.01), Vector3(0.03, 0.1, 0.045), metal)
-			k.tube(Vector3(0, 0.0, -0.42), Vector3(0, 0.0, -0.66), 0.012, 8, metal, true)
-			k.box(Transform3D.IDENTITY, Vector3(0, -0.005, -0.38), Vector3(0.055, 0.06, 0.1), trim)
-			mz.position = Vector3(0, 0, -0.68)
+			# Carbine: a sleek white polymer body (side profile extruded), grey trim line, a top optic with a
+			# smoked lens, a curved magazine, a slim barrel and muzzle brake.
+			_side(k, [Vector2(0.30, 0.02), Vector2(0.30, -0.10), Vector2(0.22, -0.11), Vector2(0.10, -0.06),
+				Vector2(-0.20, -0.05), Vector2(-0.36, -0.035), Vector2(-0.40, -0.005), Vector2(-0.40, 0.03),
+				Vector2(-0.30, 0.05), Vector2(0.0, 0.056), Vector2(0.20, 0.05), Vector2(0.28, 0.036)], 0.028, white)
+			_side(k, [Vector2(0.21, 0.004), Vector2(0.21, 0.016), Vector2(-0.33, 0.016), Vector2(-0.33, 0.004)], 0.0295, trim)
+			_side(k, [Vector2(0.065, -0.055), Vector2(0.025, -0.055), Vector2(0.04, -0.16), Vector2(0.082, -0.16)], 0.016, trim)
+			_side(k, [Vector2(-0.035, -0.05), Vector2(-0.095, -0.05), Vector2(-0.115, -0.175), Vector2(-0.07, -0.185)], 0.013, metal)
+			_side(k, [Vector2(-0.02, 0.056), Vector2(-0.15, 0.056), Vector2(-0.16, 0.085), Vector2(-0.14, 0.1),
+				Vector2(-0.03, 0.1), Vector2(-0.01, 0.085)], 0.018, metal)
+			k.box(Transform3D.IDENTITY, Vector3(0, 0.083, -0.161), Vector3(0.03, 0.028, 0.004), k.col(Kit.DARKGLASS, 0.2, 1.0, false))
+			k.tube(Vector3(0, 0.012, -0.40), Vector3(0, 0.012, -0.58), 0.011, 10, metal, true)
+			k.tube(Vector3(0, 0.012, -0.56), Vector3(0, 0.012, -0.625), 0.017, 8, metal, true)
+			mz.position = Vector3(0, 0.012, -0.64)
+			_arms(k, Vector3(0.0, -0.1, 0.05), Vector3(0.0, -0.045, -0.27))
 		1:
 			k.box(Transform3D.IDENTITY, Vector3(0, 0, -0.2), Vector3(0.055, 0.08, 0.62), white)
 			k.box(Transform3D.IDENTITY, Vector3(0, -0.02, 0.2), Vector3(0.045, 0.12, 0.26), white)
@@ -74,15 +80,18 @@ func _model(i: int) -> Node3D:
 			k.tube(Vector3(0, 0.0, -0.5), Vector3(0, 0.0, -0.86), 0.013, 8, metal, true)
 			k.box(Transform3D.IDENTITY, Vector3(0, -0.08, -0.1), Vector3(0.035, 0.1, 0.07), trim)
 			mz.position = Vector3(0, 0, -0.88)
+			_arms(k, Vector3(0.0, -0.11, 0.12), Vector3(0.0, -0.05, -0.36))
 		2:
 			k.box(Transform3D.IDENTITY, Vector3(0, 0, -0.06), Vector3(0.032, 0.045, 0.19), white)
 			k.box(Transform3D.IDENTITY, Vector3(0, -0.06, 0.01), Vector3(0.028, 0.1, 0.045), trim)
 			mz.position = Vector3(0, 0.005, -0.16)
+			_arms(k, Vector3(0.0, -0.09, 0.02), Vector3(-0.03, -0.1, -0.01))
 		3:
 			k.tube(Vector3(0, 0, 0.3), Vector3(0, 0, -0.62), 0.065, 12, white, true)
 			k.box(Transform3D.IDENTITY, Vector3(0, -0.09, -0.05), Vector3(0.035, 0.12, 0.06), trim)
 			k.box(Transform3D.IDENTITY, Vector3(0.07, 0.04, -0.12), Vector3(0.03, 0.05, 0.14), metal)
 			mz.position = Vector3(0, 0, -0.66)
+			_arms(k, Vector3(0.0, -0.13, -0.05), Vector3(0.0, -0.08, -0.32))
 	var mi := MeshInstance3D.new()
 	mi.mesh = k.commit()
 	mi.material_override = mat
@@ -91,6 +100,30 @@ func _model(i: int) -> Node3D:
 	root.add_child(mz)
 	muzzles.append(mz)
 	return root
+
+
+## A side profile (z forward-negative, y up) extruded across the gun's width (x from -hw to hw).
+func _side(k: Kit, prof: Array, hw: float, c: Color) -> void:
+	var xf := Transform3D(Basis(Vector3(0, 0, 1), Vector3(1, 0, 0), Vector3(0, 1, 0)), Vector3.ZERO)
+	k.prism(xf, PackedVector2Array(prof), -hw, hw, c, true, true)
+
+
+## The soldier's arms: white dress sleeves with grey cuffs and dark gloves, from the grip and the fore hand back
+## out of view.
+func _arms(k: Kit, grip: Vector3, fore: Vector3) -> void:
+	var sleeve := k.col(Kit.STONE, 0.6, 1.0, false)
+	var cuff := k.col(Kit.TRIM, 0.6)
+	var glove := k.col(Kit.METAL, 0.8)
+	var r_elbow := grip + Vector3(0.16, -0.22, 0.42)
+	var l_elbow := fore + Vector3(-0.2, -0.24, 0.36)
+	for pr in [[grip, r_elbow], [fore, l_elbow]]:
+		var hand: Vector3 = pr[0]
+		var elbow: Vector3 = pr[1]
+		var dir := (elbow - hand).normalized()
+		k.sphere(hand + Vector3(0, -0.01, 0), 0.042, 5, 8, glove)
+		k.tube(hand + dir * 0.05, hand + dir * 0.1, 0.05, 10, cuff, true)
+		k.tube(hand + dir * 0.1, elbow, 0.047, 10, sleeve, true)
+		k.tube(elbow, elbow + Vector3(0, -0.1, 0.35), 0.055, 10, sleeve, true)
 
 
 func w() -> Dictionary:

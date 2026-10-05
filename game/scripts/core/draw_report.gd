@@ -29,7 +29,21 @@ func start(segment: Dictionary) -> void:
 	wait = 120
 
 
+var _abl: Array = []               # [key, nodes] still to measure
+var _abl_i := -1
+var _abl_wait := 0
+var _base := 0
+var measured: Array = []           # [key, draws saved when hidden]
+
+
+func _draws() -> int:
+	return RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)
+
+
 func _process(_delta: float) -> void:
+	if _abl_i >= 0:
+		_ablate()
+		return
 	if wait <= 0:
 		return
 	if not G.world.is_settled() and wait > 2:
@@ -50,11 +64,77 @@ func _process(_delta: float) -> void:
 		tm += g["main"]
 		ts += g["shadow"]
 	rows.sort_custom(func(a, b): return a[1] + a[2] > b[1] + b[2])
-	print("drawreport %s: ~%d main draws, ~%d shadow draws (estimate)" % [seg["name"], tm, ts])
+	print("drawreport %s: ~%d main draws, ~%d shadow draws (scene-walk estimate)" % [seg["name"], tm, ts])
 	for r in rows.slice(0, 30):
 		print("  %-46s main %4d  shadow %4d  (%d nodes)" % r)
-	G.write_json(G.log_dir() + "/drawreport.json", {"segment": seg["name"], "main": tm, "shadow": ts,
-		"groups": rows.map(func(r): return {"owner": r[0], "main": r[1], "shadow": r[2], "nodes": r[3]})})
+	_rows = rows
+	if DisplayServer.get_name() == "headless":
+		_finish()
+		return
+	# Ablation with the real renderer: hide one owner group at a time and read the frame's draw calls.
+	var by_key := {}
+	_collect(G.world, by_key)
+	for k in by_key:
+		_abl.append([k, by_key[k]])
+	_abl_i = -1
+	_abl_wait = 4
+	_abl_i = 0
+	_base = -1
+
+
+var _rows: Array = []
+
+
+func _collect(n: Node, out: Dictionary) -> void:
+	if n is Node3D and n != G.world and n.get_parent() != null:
+		var key := _owner_key(n)
+		var depth := String(G.world.get_path_to(n)).count("/")
+		if depth <= 1:
+			if not out.has(key):
+				out[key] = []
+			(out[key] as Array).append(n)
+			if depth == 1:
+				return
+	for c in n.get_children():
+		_collect(c, out)
+
+
+func _ablate() -> void:
+	_abl_wait -= 1
+	if _abl_wait > 0:
+		return
+	if _base < 0:
+		_base = _draws()
+		_abl_wait = 4
+		_hide(0, true)
+		return
+	var d := _draws()
+	measured.append([_abl[_abl_i][0], _base - d])
+	_hide(_abl_i, false)
+	_abl_i += 1
+	if _abl_i >= _abl.size():
+		_abl_i = -1
+		_finish()
+		return
+	_hide(_abl_i, true)
+	_abl_wait = 4
+
+
+func _hide(i: int, h: bool) -> void:
+	for n in _abl[i][1]:
+		if is_instance_valid(n):
+			(n as Node3D).visible = not h
+
+
+func _finish() -> void:
+	measured.sort_custom(func(a, b): return a[1] > b[1])
+	if not measured.is_empty():
+		print("drawreport %s: %d draw calls measured; saved when each group is hidden:" % [seg["name"], _base])
+		for m in measured.slice(0, 30):
+			print("  %-46s %5d" % m)
+	G.write_json(G.log_dir() + "/drawreport_%s.json" % seg["name"], {"segment": seg["name"], "measured_total": _base,
+		"ablation": measured.map(func(m): return {"owner": m[0], "draws": m[1]}),
+		"estimate": _rows.map(func(r): return {"owner": r[0], "main": r[1], "shadow": r[2], "nodes": r[3]})})
 	get_tree().quit(0)
 
 
