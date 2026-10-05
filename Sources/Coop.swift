@@ -592,6 +592,12 @@ enum CoopTest {
               String(format: "player 1's pearl moves player 1 (%.0f blocks from player 2) and not player 2 (%.1f)", simd_length(p1.pos - p2at), simd_length(p2after - p2at)))
         p1.pos = p1home; p1.vel = .zero
         g.health = 20
+        // A pressure plate under player 2 counts them (plates, tripwires and pistons saw only player 1).
+        c.withSeat(1, g) { g.player.pos.y = floor(g.player.pos.y); g.player.vel = .zero }      // feet on the cell floor
+        let p2feet = c.seatPlayer(1, g).pos
+        let plate = IVec3(Int(floor(p2feet.x)), Int(floor(p2feet.y)), Int(floor(p2feet.z)))
+        let pressing = g.entitiesOn(plate, items: false)
+        check(pressing >= 1, "a pressure plate under player 2 counts them (\(pressing))")
         g.survival = false
         p1.vel = .zero
         // One pause for both.
