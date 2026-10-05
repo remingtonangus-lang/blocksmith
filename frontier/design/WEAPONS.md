@@ -90,14 +90,20 @@ Finish variants: `lockhart_sa_nickel`, `talbot_pocket_nickel` (nickel + hard rub
   `ext` refresh keeps it). `frontier.yml` still needs a `fetch_assets.sh weapons || true` line to ship them in builds.
 
 ## Combat feel (hands, gear, ragdolls, impacts, Nerve)
-- **Hands** (`src/combat/gun_hands.gd`, `GunHands`): on a FrontierCharacter (Godot humanoid skeleton) the holder places
-  the gun from the body — pistol at arm's length in front of the chest, rifle butt in the right shoulder pocket, low
-  ready below the shoulder — and two `TwoBoneIK3D` modifiers (UpperArm → LowerArm → Hand) pull the wrists to
-  `grip_r` / `grip_l` plus per-rig wrist offsets (`GunHands.RIGS[rig]`, keyed by character id, `default` otherwise;
-  `long_l` moves the support hand back along long fore-ends for reach), with elbow poles. Right hand while the gun is
-  in hand, support hand for long guns and two-handed pistol aim; influences blend with the draw. The aim clips
-  (`pistol_aim_two_hand`, `rifle_aim`) still pose the torso/head. `pistol_draw` is a 4.2 s mocap take, too slow for
-  the 0.32 s gameplay draw, so it is not used. Capsule stand-ins keep the sleeve-and-hand fallback.
+- **Shooter pose** (`src/combat/gun_hands.gd`, `GunHands`, a SkeletonModifier3D child of the character skeleton,
+  run after the AnimationTree): (1) absolute spine twist/pitch toward the aim (bladed stance for long guns) and
+  neck/head onto the aim line, cheek rolled onto the comb for long guns; (2) while aiming the gun is placed so its
+  sight line runs through the right eye along the aim ray — pistol at arm's length (rear sight 0.5 m from the eye,
+  pulled back to stay within reach), long gun with the eye over the comb so the butt sits in the shoulder; (3)
+  analytic two-bone arm IK with stance poles to wrist targets on `grip_r` / `grip_l`; (4) hand rotation solved
+  from each hand's anatomical frame measured from the rest pose (wrist→middle knuckle, little→index knuckle) onto
+  per-stance frames in gun space so the palm wraps the grip; (5) a finger grip pose over the clip (wrapped
+  fingers, index on the trigger, thumb over; support hand cupped). Tuning per rig in `GunHands.RIGS` (wrist offsets,
+  hand frames, curls). Grip targets follow the lever / pump / break-open parts; reloads and cycling move a hand to
+  the loading gate, bolt knob (`BOLT_KNOB`) or breech, with the gun in a reload pose in front of the chest. Ready
+  (drawn, not aiming) is a low ready. Bone lookups tolerate importer suffixes (`Head` imports as `Head_2`).
+  Capsule stand-ins keep the sleeve-and-hand fallback. `pistol_draw` (4.2 s mocap) is too slow for the 0.32 s
+  gameplay draw; the draw is the hand following the gun from the holster.
 - **Gear** (`src/combat/gun_gear.gd`, `GunGear`): cartridge gun belt sized from the hip joints, holster built around
   the sidearm's own markers (mouth at the cylinder, toe past the muzzle, belt flap), sling strap under long guns,
   saddle scabbard attached to the mounted horse (stays on the saddle). Holster and back carry follow the `Hips` /
@@ -122,7 +128,7 @@ Finish variants: `lockhart_sa_nickel`, `talbot_pocket_nickel` (nickel + hard rub
   Executing the marks cuts the camera per shot between an over-the-shoulder telephoto and a close view of the
   target (0.3 s holds; headless keeps the old 0.11 s cadence).
 - Test scene: `godot --path frontier res://scenes/combat_fx.tscn -- --out /tmp/cfx --views
-  hold,pistol,ragdoll,impacts,nerve,night`.
+  aim,reload,hold,pistol,ragdoll,impacts,nerve,night` (`--one_hand` for a one-handed pistol).
 
 ## Verification
 - Blender previews: `gun_gen.py --preview DIR` (Cycles studio: key/fill/rim, gradient world).
@@ -131,7 +137,7 @@ Finish variants: `lockhart_sa_nickel`, `talbot_pocket_nickel` (nickel + hard rub
 - In game: `--shot out.png --player --aim [--weapon N] [--fire]` (src/tests/shots.gd) draws and aims.
 
 ## Gaps / next
-- Hand rotation is not solved by the IK (TwoBoneIK3D places wrists; hands keep the aim clip's rotation).
+- The hand pose is a fixed grip per stance (no per-weapon grip shapes yet); the forearm twist is not distributed.
 - VR: `pose()` exposes every part for hand-driven cocking/fanning/loading, but no XR interaction layer uses it yet.
 - No individual cartridges travel during reloads (cases eject; new rounds are implied), no carrier/elevator in lever
   guns, no magazine follower; the Brennan bolt and pump move as two parts on one channel.
