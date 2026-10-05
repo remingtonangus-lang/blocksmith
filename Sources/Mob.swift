@@ -977,9 +977,21 @@ final class Mob {
             }
             if (crewPost != nil || crewFree || !crewRoute.isEmpty) && onGround && (lv.x != 0 || lv.z != 0) {
                 // Crew never step off a ledge of their vehicle: no floor within three blocks where the next step lands.
-                let h = simd_normalize(V2(lv.x, lv.z))
-                let a = l + V3(h.x, 0, h.y) * (halfW + 0.35)
-                if !w.collides(V3(a.x - 0.2, a.y - 3, a.z - 0.2), V3(a.x + 0.2, a.y + 0.05, a.z + 0.2)) { lv.x = 0; lv.z = 0 }
+                // Along the edge they still slide (the part of the step that keeps a floor under it): stopping dead, a
+                // trooper on the roof walkway whose way back to its post ran diagonally past the edge stayed 3 blocks
+                // off it for good (ridecheck crew, run of d3cf5f8).
+                func floored(_ v: V2) -> Bool {
+                    let n = simd_length(v)
+                    guard n > 1e-5 else { return true }
+                    let a = l + V3(v.x / n, 0, v.y / n) * (halfW + 0.35)
+                    return w.collides(V3(a.x - 0.2, a.y - 3, a.z - 0.2), V3(a.x + 0.2, a.y + 0.05, a.z + 0.2))
+                }
+                if !floored(V2(lv.x, lv.z)) {
+                    if abs(lv.x) >= abs(lv.z) && floored(V2(lv.x, 0)) { lv.z = 0 }
+                    else if floored(V2(0, lv.z)) { lv.x = 0 }
+                    else if floored(V2(lv.x, 0)) { lv.z = 0 }
+                    else { lv.x = 0; lv.z = 0 }
+                }
             }
             hit = w.moveBody(&l, halfW: halfW, height: height, lv * dt, step: 0.6, onGround: onGround)
             w.frame = nil
