@@ -21,7 +21,12 @@ flagship, Meta Quest 3 gets the same game in VR.
 | Crouch | C | B |
 | Aim / fire | Right / left mouse | LT / RT |
 | Nerve (while aiming; press again to fire marked shots) | Q | R3 |
-| Reload / next weapon / holster | R / Tab / G | B / LB / — |
+| Reload / holster | R / G | B / — |
+| Weapon wheel (hold; tap = next weapon) | Tab | LB |
+| Satchel | I | — |
+| Fish (with a rod, at the water's edge; Fire to cast/strike/reel) | B | D-pad left |
+| Hold up (aim at an unarmed person, then interact to rob) | Right mouse + E | LT + Y |
+| Horse: follow the road | Z | D-pad down |
 | Interact (skin, greet, campfire) | E | Y |
 | Mount / call horse | F / H | Y / D-pad up |
 | Map / journal / pause | M / J / Esc | View / — / Menu |
