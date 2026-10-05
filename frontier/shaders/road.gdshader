@@ -42,16 +42,16 @@ void fragment() {
 	vec3 p = v_world;
 	float dist = distance(CAMERA_POSITION_WORLD, p);
 	float along = UV.y;
-	float x = UV.x * 2.0 - 1.0;                       // -1 .. 1 across (3.4 m half width)
+	float x = UV.x * 2.0 - 1.0;                       // -1 .. 1 across (4.6 m half width)
 	// ruts wander a little; wagon gauge ~1.5 m -> ruts at +-0.75 m
 	float wob = vnoise(vec2(along * 0.045, 3.7)) * 0.035 + vnoise(vec2(along * 0.31, 9.1)) * 0.008;
 	float xr = x - wob;
-	float rc = 0.22;
-	float rw = 0.045 + 0.012 * vnoise(vec2(along * 0.2, 1.3));
+	float rc = 0.163;                                  // 0.75 m / 4.6 m
+	float rw = 0.033 + 0.009 * vnoise(vec2(along * 0.2, 1.3));
 	float rut = rut_profile(xr, rc, rw);
 	float rut_wide = rut_profile(xr, rc, rw * 2.6);
-	float crown = smoothstep(0.17, 0.05, abs(xr));
-	float verge = smoothstep(0.45, 0.85, abs(x));
+	float crown = smoothstep(0.125, 0.04, abs(xr));
+	float verge = smoothstep(0.33, 0.7, abs(x));
 
 	vec2 uvw = p.xz / 4.0;
 	vec4 road_ah = texture(tex_ah, vec3(uvw, L_ROAD));
@@ -68,12 +68,12 @@ void fragment() {
 	alb = mix(alb, alb * 0.68, rut_wide * 0.8);
 	// verges: dry grass creeping in, broken edge
 	float edge_n = vnoise(p.xz * 0.9) * 0.15 + vnoise(p.xz * 3.7) * 0.07;
-	alb = mix(alb, grass_ah.rgb, smoothstep(0.3, 0.75, abs(x) + edge_n));
-	float rough = mix(road_nr.b, 0.65, rut);
+	alb = mix(alb, grass_ah.rgb, smoothstep(0.24, 0.62, abs(x) + edge_n));
+	float rough = mix(road_nr.b, 0.8, rut);
 
 	// groove normal: ruts ~6 cm deep, slope from the profile derivative along the world across-road direction
 	float drut = (rut_profile(xr + 0.01, rc, rw) - rut_profile(xr - 0.01, rc, rw)) / 0.02;
-	float tilt = 0.06 * drut / 3.4 * (1.0 - smoothstep(30.0, 120.0, dist) * 0.7);
+	float tilt = 0.025 * drut / 4.6 * (1.0 - smoothstep(20.0, 80.0, dist));
 	vec3 n = normalize(vec3(0.0, 1.0, 0.0) + vec3(road_nr.r * 2.0 - 1.0, 0.0, road_nr.g * 2.0 - 1.0) * 0.35
 		+ vec3(v_side.x, 0.0, v_side.y) * tilt);
 
@@ -89,9 +89,9 @@ void fragment() {
 
 	ALBEDO = alb * cloud_shade(p);
 	ROUGHNESS = clamp(rough, 0.03, 1.0);
-	SPECULAR = 0.35;
+	SPECULAR = 0.2;
 	NORMAL = normalize((VIEW_MATRIX * vec4(mix(n, vec3(0.0, 1.0, 0.0), puddle), 0.0)).xyz);
 	float fade = 1.0 - smoothstep(fade_end * 0.75, fade_end, dist);
-	float edge = 1.0 - smoothstep(0.62, 0.98, abs(x) + edge_n * 0.6);
+	float edge = 1.0 - smoothstep(0.7, 0.98, abs(x) + edge_n * 0.6);
 	ALPHA = edge * fade * (1.0 - v_water);
 }

@@ -167,7 +167,8 @@ void fragment() {
 	mix_in(m, sample_layer(L_FOREST, p.xz, dist), forest_w * smoothstep(0.05, 0.45, n2 + n3 * 0.25) * 0.85);
 	// --- erosion sediment and dirt patches
 	float dirt_w = clamp(smoothstep(0.35, 1.0, sed) * 0.7 + smoothstep(0.35, 0.7, n3 * 0.6 + n2 * 0.5) * 0.3, 0.0, 1.0) * (1.0 - desert_w * 0.7);
-	mix_in(m, sample_layer(L_DIRT, p.xz, dist), dirt_w);
+	// sediment flats: soft blend (height-blended dirt draws hard-edged blotches in the hollows)
+	mix_soft(m, sample_layer(L_DIRT, p.xz, dist), dirt_w * 0.6);
 	// --- wet banks near rivers and the lake
 	// lake shore: hard, height-blended mud; damp hollows away from water only darken softly (rings of mud read as
 	// camouflage blotches from a distance)

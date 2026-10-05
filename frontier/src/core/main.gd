@@ -103,6 +103,9 @@ func _ready() -> void:
 	var rob = load("res://src/systems/robbery.gd").new()
 	rob.name = "Robbery"
 	add_child(rob)
+	var fishing = load("res://src/systems/fishing.gd").new()
+	fishing.name = "Fishing"
+	add_child(fishing)
 	if Game.args.has("time"):
 		sky.set_time(Game.arg_f("time", 9.0))
 	if Game.args.has("weather"):

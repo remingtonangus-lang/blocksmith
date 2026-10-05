@@ -70,7 +70,9 @@ runner, Metal) and the Mac monitor.
 - **Systems**: Standing, crimes with witnesses, bounties per county, wanted levels with cool-down, money, satchel
   items, save/load (user://saves), autosave on mission complete; shops (general store, gunsmith, butcher) with
   Standing/town prices and pelt/meat selling; 6 roadside encounter types; sheriff bounty boards (dead or alive);
-  hunting (12 species, pelt quality, skinning); camp; road graph + GPS routes on map/HUD.
+  hunting (12 species, pelt quality, skinning); camp; road graph + GPS routes on map/HUD; hold-ups and store
+  robberies (src/systems/robbery.gd); fishing (8 species by river/creek/lake, cast/strike/line-tension fight,
+  keep or release, sold at the butcher; src/systems/fishing.gd).
 - **Missions**: MissionDirector (goto/say/spawn/wait_dead/interact/checkpoint, markers, autopilot, softlock oracle);
   Chapter 1 complete (5 missions: Rider from the West, The Drover, Inquiries, Greer's Post, A Fire at Willow Bend)
   with original dialogue (design/dialogue/ch1.json); letterboxed cinematic dialogue camera.
@@ -118,8 +120,8 @@ runner, Metal) and the Mac monitor.
 8. Combat (3 × 6): mechanics in place; no weapon models, hit reactions or ragdolls.
 9. Terrain/vegetation (3 × 5): good base; trees still card-y up close, no rocks/props scatter, roads need ruts.
 10. Lighting (3 × 4): solid sky/fog + cloud shadows; GI interiors untested.
-11. Open-world systems (3 × 5): law/standing/economy, shops, encounters, bounties, hunting, camp; no robberies,
-    fishing, horse care, gang hideouts yet.
+11. Open-world systems (3 × 4): law/standing/economy, shops, encounters, bounties, hunting, fishing, robberies, horse
+    care/bonding, camp, poker; no gang hideouts, train/stagecoach robberies, property, or companion activities yet.
 12. UI (2 × 4), Performance (3 × ?: first CI numbers pending), VR (2 × 6).
 
 ## Session log

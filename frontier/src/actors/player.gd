@@ -187,6 +187,7 @@ func _combat(dt: float) -> void:
 
 var _fire_edge := false
 var _interact_target: Node = null
+var busy: Node = null          # an activity holding Ruth in place (fishing, minigames): no walking or gunplay
 
 ## Context interaction: nearest node in group "interactable" within reach that offers a prompt.
 func _interactions() -> void:
@@ -292,6 +293,11 @@ func _physics_process(dt: float) -> void:
 		return
 	if not bot_driven:
 		_read_human_intent(dt)
+	if busy != null:
+		intent.move = Vector2.ZERO
+		intent.aim = false
+		intent.fire = false
+		intent.jump = false
 	_fire_edge = intent.fire and not _fire_was
 	_fire_was = intent.fire
 	_combat(dt)

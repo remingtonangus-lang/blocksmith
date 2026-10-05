@@ -5,7 +5,7 @@ extends Node3D
 
 const CATALOG := {
 	"general": [["tonic_health", "Dr. Ambrose's Restorative Tonic", 2.5], ["tonic_nerve", "Steady-Hand Bitters", 3.0],
-		["jerky", "Beef Jerky", 0.4], ["coffee", "Arbuckle-style Coffee, 1 lb", 0.75], ["ammo_revolver", ".44 Cartridges (box of 24)", 1.2],
+		["jerky", "Beef Jerky", 0.4], ["fishing_rod", "Split-Cane Fishing Rod & Tackle", 6.0], ["coffee", "Arbuckle-style Coffee, 1 lb", 0.75], ["ammo_revolver", ".44 Cartridges (box of 24)", 1.2],
 		["ammo_repeater", "Repeater Cartridges (box of 24)", 1.4], ["ammo_shotgun", "Shotgun Shells (box of 12)", 1.1]],
 	"gunsmith": [["ammo_revolver", ".44 Cartridges (box of 24)", 1.0], ["ammo_repeater", "Repeater Cartridges (box of 24)", 1.2],
 		["ammo_rifle", "Rifle Cartridges (box of 10)", 1.6], ["ammo_shotgun", "Shotgun Shells (box of 12)", 0.9],
@@ -89,6 +89,8 @@ func sell_all() -> float:
 			var q := int(parts[1]) if parts.size() > 1 else 1
 			if Animal.SPECIES.has(sp):
 				value = float(Animal.SPECIES[sp].pelt) * [0.0, 0.4, 0.75, 1.0][clampi(q, 0, 3)]
+		elif key.begins_with("fish_"):
+			value = load("res://src/systems/fishing.gd").price(key.substr(5)) * 1.5
 		elif key.begins_with("meat_"):
 			var sp2 := key.substr(5)
 			if Animal.SPECIES.has(sp2):
@@ -131,7 +133,7 @@ func open_ui() -> void:
 		b.add_theme_font_size_override("font_size", 28)
 		list.add_child(b)
 	if kind in ["butcher", "general"]:
-		var sb: Button = menus._button("Sell pelts and meat", func():
+		var sb: Button = menus._button("Sell pelts, meat and fish", func():
 			var t := sell_all()
 			Game.say("Sold for $%.2f" % t if t > 0.0 else "Nothing to sell.", 3.0)
 			refresh.call())

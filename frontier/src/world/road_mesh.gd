@@ -6,8 +6,8 @@ extends Node3D
 ## carries the road beyond that).
 
 const STEP := 3.0
-const HALF_W := 3.4
-const ACROSS := 7                  # vertices across the road
+const HALF_W := 4.6        # covers the terrain road layer (mask fades out at 4.5 m)
+const ACROSS := 9                  # vertices across the road
 const TILE := 256.0
 const VIS_END := 380.0
 

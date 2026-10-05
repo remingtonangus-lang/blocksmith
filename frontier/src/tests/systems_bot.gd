@@ -95,6 +95,36 @@ static func run(runner: Node) -> Dictionary:
 		vic.queue_free()
 		for cty in st.bounties.keys():
 			st.pay_bounty(cty)           # settle up so the law doesn't interfere with the next checks
+	# 5c. fishing: buy a rod, cast at the river, hook, fight and land a fish
+	var fs = Game.get("fishing")
+	if fs == null:
+		_fail(res, "no fishing system")
+	else:
+		var gen := shops.filter(func(s): return s.kind == "general")
+		if gen.size() > 0:
+			gen[0].buy("fishing_rod", 6.0)
+		if int(st.inventory.get("fishing_rod", 0)) <= 0:
+			st.add_item("fishing_rod")
+		var bank := _river_bank()
+		if bank.is_empty():
+			_fail(res, "no river bank found for fishing")
+		else:
+			Game.terrain.ensure_collision_at(bank.pos)
+			p.global_position = bank.pos
+			p.facing = bank.facing
+			fs.auto = true
+			var caught_before: int = fs.catches.size()
+			if not fs.start(p):
+				_fail(res, "could not start fishing at a river bank (%s)" % fs.water_ahead(p))
+			else:
+				var t := 0.0
+				while fs.state != fs.S.IDLE and t < 60.0:
+					await tree.physics_frame
+					t += 1.0 / 60.0
+				if fs.catches.size() <= caught_before:
+					_fail(res, "no fish landed in 60 s (state %d)" % fs.state)
+			fs.auto = false
+			res.checks["fishing"] = fs.catches.duplicate()
 	# 6. a bounty end to end (autopilot): accept, travel, gang, custody, paid 1.5x
 	var boards := tree.get_nodes_in_group("interactable").filter(func(n): return n.has_method("accept"))
 	if boards.is_empty():
@@ -142,3 +172,23 @@ static func run(runner: Node) -> Dictionary:
 static func _fail(res: Dictionary, why: String) -> void:
 	res.ok = false
 	res.failures.append(why)
+
+## A dry point a few metres from the Sable River with the facing (yaw) towards the water.
+static func _river_bank() -> Dictionary:
+	var w: WorldData = Game.world
+	for r in w.features.get("rivers", []):
+		var pts: Array = r.points
+		for i in range(pts.size() / 3, pts.size(), 7):
+			var c := Vector3(pts[i][0], 0, pts[i][1])
+			if not w.is_water(c.x, c.z):
+				continue
+			for k in 8:
+				var ang := k * PI / 4.0
+				var dir := Vector3(cos(ang), 0, sin(ang))
+				for d in [5.0, 7.0, 9.0, 12.0]:
+					var q: Vector3 = c + dir * d
+					if not w.is_water(q.x, q.z) and w.height(q.x, q.z) - w.water_level(c.x, c.z) < 3.0:
+						q.y = w.height(q.x, q.z) + 0.3
+						var to: Vector3 = c - q
+						return {"pos": q, "facing": atan2(-to.x, -to.z)}
+	return {}

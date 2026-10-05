@@ -90,11 +90,13 @@ func rob(h: Node) -> float:
 	Game.log_event("robbed", {"npc": str(h.name), "cash": cash, "loot": loot})
 	Game.say("Took $%.2f%s." % [cash, (" and " + loot.replace("_", " ")) if loot != "" else ""], 3.0)
 	# let them go: they run for the law once Ruth turns her back
-	var b = h.brain
-	h.get_tree().create_timer(2.5).timeout.connect(func():
-		if is_instance_valid(h) and h.alive:
-			b.state = b.State.FLEE)
+	h.get_tree().create_timer(2.5).timeout.connect(_let_go.bind(weakref(h)))
 	return cash
+
+func _let_go(ref: WeakRef) -> void:
+	var h = ref.get_ref()
+	if h != null and h.alive and h.brain:
+		h.brain.state = h.brain.State.FLEE
 
 func shop_open(shop: Node) -> bool:
 	var day: int = Game.sky.day if Game.sky else 0
