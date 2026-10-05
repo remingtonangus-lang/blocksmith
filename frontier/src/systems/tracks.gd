@@ -49,7 +49,7 @@ func _process(dt: float) -> void:
 			continue
 		_age[i] += dt * 12.0
 		var a := clampf(1.0 - _age[i] / FADE_TIME, 0.0, 1.0)
-		_pool[i].albedo_mix = a * (0.9 if _kind[i] in ["blood", "pool"] else 0.75)
+		_pool[i].albedo_mix = a * 0.92
 		if a <= 0.0:
 			_pool[i].visible = false
 			_age[i] = INF
@@ -72,7 +72,7 @@ func _place(pos: Vector3, heading: float, kind: String, size: Vector3) -> void:
 	d.texture_albedo = _tex[kind]
 	d.size = size
 	d.global_transform = Transform3D(Basis(Vector3.UP, heading), pos + Vector3(0, 0.1, 0))
-	d.albedo_mix = 0.9 if kind in ["blood", "pool"] else 0.75
+	d.albedo_mix = 0.92
 	d.visible = true
 	counts[kind] = int(counts.get(kind, 0)) + 1
 
@@ -80,7 +80,7 @@ func _place(pos: Vector3, heading: float, kind: String, size: Vector3) -> void:
 func _paint(kind: String) -> ImageTexture:
 	var n := 64
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
-	var col := Color(0.16, 0.12, 0.09) if not kind in ["blood", "pool"] else Color(0.32, 0.03, 0.03)
+	var col := Color(0.07, 0.055, 0.04) if not kind in ["blood", "pool"] else Color(0.32, 0.03, 0.03)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = kind.hash()
 	var blobs := []                # [cx, cy, rx, ry] in 0..1 (y = forward)

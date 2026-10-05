@@ -18,6 +18,8 @@ domain, or a permissive open licence recorded below. No assets from other games,
 | Buildings, props, vegetation meshes | Procedural generators in `frontier/src/` |
 | Horse: mesh, rig, skin weights, gaits/actions, mane/tail hair cards + strand texture, eyes, saddle/tack, blanket and leather textures | `frontier/tools/animals/horse_gen.py` (signed-distance anatomy, Blender 5 `bpy` as a build tool, scikit-image marching cubes); no external data or references bundled |
 | Wildlife: mule deer, elk, pronghorn, bison, wolf, coyote, fox, cougar, black bear, raccoon, jackrabbit (meshes, rigs, gaits, actions, antlers/horns) | `frontier/tools/animals/quadruped.py` + `species/*.py` (procedural, same pipeline as the horse; proportions from public zoological measurements, no external data bundled) |
+| Birds: turkey, sage grouse, red-tailed hawk, crow (meshes, feather cards, rigs, clips) | `frontier/tools/animals/bird.py` (procedural, same engine as the wildlife) |
+| Bird plumage and feathers, track and blood decal textures | `frontier/shaders/bird_body.gdshader`, `bird_feather.gdshader`, `frontier/src/systems/tracks.gd` (painted at runtime) |
 | Wildlife coats and eyes | `frontier/shaders/animal_coat.gdshader`, `animal_eye.gdshader` (procedural) |
 | Horse coats and markings, hair shading | `frontier/shaders/horse_coat.gdshader`, `horse_hair.gdshader` (procedural) |
 | Sky, clouds, weather, water shaders | Original shaders |

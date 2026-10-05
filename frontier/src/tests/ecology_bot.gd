@@ -35,6 +35,13 @@ static func run(runner: Node, _seconds: float) -> Dictionary:
 				break
 	c.y = w.height(c.x, c.z) + 160.0
 	p.global_position = c
+	# a fresh start: whatever earlier bots left behind goes, the ecology repopulates around the observer
+	for a in tree.get_nodes_in_group("animals"):
+		a.queue_free()
+	if Game.wildlife:
+		Game.wildlife.animals.clear()
+		Game.wildlife.set("_queue", [])
+		Game.wildlife.set_process(true)
 	p.set_physics_process(false)
 	var sky = Game.sky
 	var old_scale: float = sky.time_scale

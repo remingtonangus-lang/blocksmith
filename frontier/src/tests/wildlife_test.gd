@@ -38,6 +38,7 @@ func _ready() -> void:
 			"turncheck": _turncheck()
 			"birds": await _birds()
 			"wingcheck": _wingcheck()
+			"tracks": await _tracks()
 	ok = ok and turn_ok
 	print("WILDLIFE ORACLE %s" % ("PASS" if ok else "FAIL"))
 	get_tree().quit(0 if ok else 1)
@@ -301,6 +302,21 @@ func _birds() -> void:
 	await _save("birds_front")
 	_look(Vector3(mid - 2.5, 5.0, -2.5), Vector3(mid, 1.0, 0.6), 50.0)
 	await _save("birds_above")
+
+## Tracks: a line of prints of each kind and a blood trail ending in a pool, on the look-dev ground.
+func _tracks() -> void:
+	_clear()
+	await get_tree().process_frame
+	var kinds := ["cloven", "paw", "plantigrade", "rabbit", "bird"]
+	for k in kinds.size():
+		for i in 8:
+			var side := 1.0 if i % 2 == 0 else -1.0
+			Tracks.print_at(Vector3(k * 0.9 + side * 0.08, 0.0, i * 0.45), 0.0, kinds[k], 0.14 if kinds[k] != "plantigrade" else 0.22)
+	for i in 14:
+		Tracks.blood_at(Vector3(5.2 + sin(i * 0.7) * 0.3, 0.0, i * 0.35), 0.4 + i * 0.03)
+	Tracks.blood_at(Vector3(5.2, 0.0, 5.2), 0.8, true)
+	_look(Vector3(2.6, 3.8, -1.6), Vector3(2.6, 0.0, 2.0), 50.0)
+	await _save("tracks")
 
 ## Wing tip positions (model space) in the rest pose and in each flight clip, both sides: a check on the
 ## generator's bone-rotation conventions (spread = tips far out and level; flap = tips swing up and down).

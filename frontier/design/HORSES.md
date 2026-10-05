@@ -174,6 +174,26 @@ Round 3:
 - **In-ride oracles:** gallop 1.2 cm/stance, canter 0.2 cm/stance.
 - **Turn clips:** `TURN horse/turn_l|turn_r PASS`.
 
+Round 4 (horse work):
+- **Jumps:** an obstacle probe (a ray at knee height that hits and one at 1.6 m that doesn't) finds logs and
+  fences under 1.4 m.
+  - At a trot or faster the horse jumps them on the rider's jump or with the jump assist, which is on by default.
+  - The take-off speed is set to clear the obstacle with 35 cm to spare.
+  - A green horse (bond 1) refuses a jump over 1.05 m 30 % of the time.
+- **Crashes:** running into an obstacle above 5.5 m/s without jumping stumbles the horse, or falls it above
+  9 m/s.
+- **Spooked:** a ridden horse rears, or (predators and bad frights, 45 %) bucks, which can throw the rider.
+- **Hitching:** dismounting within 7 m of a town hitch rail (settlement spots of type "hitch") hitches the horse
+  there.
+- **Saddlebags:** the horse is interactable. "Open the saddlebags" opens the satchel with a Saddlebags section
+  ("Stow skins & meat", "Take everything"). With a carcass on its back the prompt is "Take down the …".
+- **`--bot horsework` PASS:**
+  - jumps a 0.9 m fence and a 0.5 m log at a canter (2/2, no hits, past the log)
+  - with no jump assist, a gallop into a 0.7 m fence stumbles or falls it
+  - six predator spooks give both rears and bucks
+  - hitched at the Bitter Spring rail on dismount
+  - saddlebags stow and take back 2 pelts
+
 ## Gaps / next
 - Anatomy is convincing at gameplay distance and acceptable in close-up, but not reference tier: the head reads a
   little long/narrow from the front and the eyes are bare spheres (no lids/lashes); muscle definition comes from
