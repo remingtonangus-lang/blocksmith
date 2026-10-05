@@ -27,6 +27,8 @@ final class BrewingMenu: Menu {
     }
     override func quickMoveTargets(from: MenuSlot) -> [MenuSlot] {
         if from.isPlayerInv {
+            // Blaze powder fills the fuel slot first (it is also an ingredient: it went into the ingredient slot).
+            if Items.key(from.stack.item) == "blaze_powder" { return [slots[4], slots[3]] }
             let t = slots.prefix(5).filter { $0.accepts(from.stack) }
             if !t.isEmpty { return Array(t) }
             return from.isHotbar ? slots.filter { $0.isPlayerInv && !$0.isHotbar } : slots.filter { $0.isHotbar }

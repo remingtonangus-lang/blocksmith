@@ -160,7 +160,12 @@ class Menu {
             }
             let s = slot.stack
             if s.isEmpty { return }
-            if carried.isEmpty { carried = s; slot.stack = .empty; tookOutput(slot) }
+            if carried.isEmpty && button == 1 && s.count > 1 {                      // right click: half, rounded up
+                let n = (s.count + 1) / 2
+                carried = s.with(count: n)
+                slot.stack = s.with(count: s.count - n)
+                tookOutput(slot)
+            } else if carried.isEmpty { carried = s; slot.stack = .empty; tookOutput(slot) }
             else if carried.stacks(with: s) {
                 let n = min(s.count, carried.maxStack - carried.count)
                 carried.count += n
@@ -382,14 +387,17 @@ final class FurnaceMenu: Menu {
         be = entity
         super.init("Furnace", game: game)
         slots.append(MenuSlot(56, 17, be.container, 0))
-        slots.append(MenuSlot(56, 53, be.container, 1, .fuel))
+        let fuel = MenuSlot(56, 53, be.container, 1, .fuel)
+        fuel.filter = { Recipes.fuel($0.item) > 0 || Items.key($0.item) == "bucket" }      // fuels only (anything went in)
+        slots.append(fuel)
         slots.append(MenuSlot(116, 35, be.container, 2, .output))
         addPlayerInventory()
     }
     override func quickMoveTargets(from: MenuSlot) -> [MenuSlot] {
         if from.isPlayerInv {
             let s = from.stack
-            if Recipes.smelt(s.item) != nil { return [slots[0]] }
+            // Only what this furnace can cook goes to the input (a smoker took logs and cobblestone it never cooks).
+            if let r = Recipes.smelt(s.item), BlockEntity.allowed(r, s.item, in: be.mob) { return [slots[0]] }
             if Recipes.fuel(s.item) > 0 { return [slots[1]] }
             return from.isHotbar ? slots.filter { $0.isPlayerInv && !$0.isHotbar } : slots.filter { $0.isHotbar }
         }
