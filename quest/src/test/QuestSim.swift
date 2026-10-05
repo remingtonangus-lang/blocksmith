@@ -90,6 +90,7 @@ enum QuestSim {
         let d = game.player.pos - p0
         check(-d.z > 3 && abs(d.x) < 1.5, String(format: "VR walk: left stick forward moved (%.2f, %.2f) (want -Z)", d.x, d.z))
 
+        QuestSettings.smoothTurn = false   // smooth is the default; these checks are for the snap comfort option
         // 2. Snap turn: right stick right turns the body 45 degrees clockwise (yaw decreases).
         let y0 = rig.bodyYaw
         frames(3) { _ in idleHands(); sim.hands[1].stick = V2(1, 0) }
@@ -243,7 +244,7 @@ enum QuestSim {
         var turnedS = (yS - rig.bodyYaw) * 180 / .pi
         if turnedS < -180 { turnedS += 360 }; if turnedS > 180 { turnedS -= 360 }
         check(abs(turnedS - 60) < 1, String(format: "VR options: the next snap turn went %.1f degrees", turnedS))
-        QuestSettings.snapAngle = snap0
+        QuestSettings.snapAngle = snap0; QuestSettings.smoothTurn = true
 
         // 9b. Gliding steers with the head: the look follows it even with the hand pointing elsewhere.
         let headDown = simd_quatf(angle: -0.5, axis: V3(1, 0, 0))
