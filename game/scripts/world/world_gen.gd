@@ -6,7 +6,7 @@ extends RefCounted
 ## float grid (8 m texels) that the GPU samples with the same bilinear filter as height_at(), plus a tileable
 ## 0.25 m detail layer. Everything is deterministic for a seed and cached in user://.
 
-const GEN_VERSION := 12
+const GEN_VERSION := 13
 const SIZE := 16384.0
 const HALF := 8192.0
 const N := 2048
@@ -658,7 +658,30 @@ func _road_profile(pts: PackedVector2Array, name: String, faction: String, grid:
 		if bridge[i] == 1 and is_nan(pin[i]):
 			var w := maxf(water[_tx(pts[i].y) * N + _tx(pts[i].x)], 0.0)
 			h[i] = maxf(h[i], w + 7.0)
-	var grade := 0.09 * 10.0
+	# Grade limit (12 %, a mountain road): violations are relaxed symmetrically, half cut and half fill, so a
+	# steep climb is spread over both sides instead of becoming one deep cut (the forward/backward clamp alone
+	# left Pass Road 190 m under a ridge); a final clamp guarantees the limit.
+	var grade := 0.16 * 10.0
+	for it in 200:
+		var moved := false
+		for i in range(1, n):
+			var dh := h[i] - h[i - 1]
+			if absf(dh) > grade + 0.01:
+				var ex := (absf(dh) - grade) * 0.5 * signf(dh)
+				var fi := not is_nan(pin[i])
+				var fp := not is_nan(pin[i - 1])
+				if fi and fp:
+					continue
+				if fi:
+					h[i - 1] += ex * 2.0
+				elif fp:
+					h[i] -= ex * 2.0
+				else:
+					h[i] -= ex
+					h[i - 1] += ex
+				moved = true
+		if not moved:
+			break
 	for i in range(1, n):
 		h[i] = pin[i] if not is_nan(pin[i]) else clampf(h[i], h[i - 1] - grade, h[i - 1] + grade)
 	for i in range(n - 2, -1, -1):
@@ -673,13 +696,33 @@ func _road_profile(pts: PackedVector2Array, name: String, faction: String, grid:
 func _carve_road(road: Dictionary) -> void:
 	var pts: PackedVector3Array = road["pts"]
 	var bridge: PackedByteArray = road["bridge"]
-	var shoulder := 14.0
+	# Cut and fill with sloped banks: within the road the ground is the road; beyond it the ground may rise or
+	# fall at most BANK metres per metre of distance. (A blend within 14 m of the shoulder left Pass Road in a
+	# 200 m deep slot canyon where its 9 % grade cuts through a ridge.)
+	const BANK := 0.8
+	var flat := ROAD_HALF + 2.0 + CELL   # every texel the road's bilinear surface touches sits at road height
+	# Cut depth per segment, measured before any carving (carving a segment lowers its neighbours' centreline,
+	# so measuring as we go saw 2 m where Pass Road cuts 190 m through a ridge), widened over neighbours.
+	var raw_depth := PackedFloat32Array()
+	raw_depth.resize(pts.size())
+	for i in pts.size() - 1:
+		var a0 := Vector2(pts[i].x, pts[i].z)
+		var b0 := Vector2(pts[i + 1].x, pts[i + 1].z)
+		var dd := 0.0
+		for t in [0.0, 0.5, 1.0]:
+			var q := a0.lerp(b0, t)
+			dd = maxf(dd, absf(_raw(q.x, q.y) - lerpf(pts[i].y, pts[i + 1].y, t)))
+		raw_depth[i] = dd
 	for i in pts.size() - 1:
 		var a := Vector2(pts[i].x, pts[i].z)
 		var b := Vector2(pts[i + 1].x, pts[i + 1].z)
 		var ab := b - a
 		var len2 := maxf(ab.length_squared(), 0.001)
-		var reach := ROAD_HALF + shoulder
+		var on_bridge := bridge[i] == 1 or bridge[i + 1] == 1
+		var depth := 0.0
+		for k in range(maxi(0, i - 3), mini(pts.size() - 1, i + 4)):
+			depth = maxf(depth, raw_depth[k])
+		var reach := minf(flat + (depth + 25.0) / BANK, 320.0) if not on_bridge else ROAD_HALF + 14.0
 		var x0 := _tx(minf(a.x, b.x) - reach); var x1 := _tx(maxf(a.x, b.x) + reach)
 		var z0 := _tx(minf(a.y, b.y) - reach); var z1 := _tx(maxf(a.y, b.y) + reach)
 		for tz in range(z0, z1 + 1):
@@ -687,16 +730,23 @@ func _carve_road(road: Dictionary) -> void:
 			for tx in range(x0, x1 + 1):
 				var wx := -HALF + (tx + 0.5) * CELL
 				var p := Vector2(wx, wz)
-				var t := clampf((p - a).dot(ab) / len2, 0.0, 1.0)
+				var tu := (p - a).dot(ab) / len2
+				var t := clampf(tu, 0.0, 1.0)
 				var d := p.distance_to(a + ab * t)
 				if d > reach:
 					continue
 				var idx := tz * N + tx
-				var on_bridge := bridge[i] == 1 or bridge[i + 1] == 1
-				if not on_bridge:
+				# Level only texels that project onto this segment (the strip is wider than a segment is long:
+				# clamped projections raised the previous segment's texels by up to 2.4 m on 16 % climbs).
+				var own := (tu >= -0.02 or i == 0) and (tu <= 1.02 or i == pts.size() - 2)
+				if not on_bridge and ((d <= flat and own) or (d > flat and water[idx] < -100.0)):
+					# (Banks never cut under a river: wide cuts once left the water 118 m above the ground.)
 					var y := lerpf(pts[i].y, pts[i + 1].y, t) - 0.15
-					var k := 1.0 - _smooth01(ROAD_HALF + 2.0, reach, d)
-					heights[idx] = lerpf(heights[idx], y, k)
+					if d <= flat:
+						heights[idx] = y
+					else:
+						var e := (d - flat) * BANK
+						heights[idx] = clampf(heights[idx], y - e, y + e)
 				var m := 1.0 - _smooth01(ROAD_HALF, ROAD_HALF + 8.0, d)
 				mask[idx * 4] = maxi(mask[idx * 4], int(m * 200.0))
 				mask[idx * 4 + 3] = int(mask[idx * 4 + 3] * (1.0 - minf(1.0, m * 1.5)))

@@ -187,6 +187,19 @@ func _park_frigate(at: Vector3) -> void:
 		print("frigate parked at %s, children %d, visible %s, in tree %s" % [f.global_position, f.get_child_count(), f.is_visible_in_tree(), f.is_inside_tree()])
 
 
+## A point beside road `name` at fraction `f` of its length, `di` points along it, `side` metres to the side and
+## `up` metres above (camera spots that follow the road wherever world generation routes it).
+func _along_road(name: String, f: float, di: int, side: float, up: float) -> Vector3:
+	for r in gen.roads:
+		if r["name"] == name:
+			var pts: PackedVector3Array = r["pts"]
+			var i := clampi(int(pts.size() * f) + di, 1, pts.size() - 2)
+			var dir := (pts[i + 1] - pts[i - 1]).normalized()
+			var lat := Vector3(-dir.z, 0, dir.x)
+			return pts[i] + lat * side + Vector3(0, up, 0)
+	return Vector3.ZERO
+
+
 ## A mid-height tower at the edge of Candor, for the collapse shot.
 func _collapse_target() -> Vector3:
 	for b in (city_list[0] as CapitalCity).buildings:
@@ -241,7 +254,7 @@ func shot_list() -> Array:
 		{"name": "battle_wide", "pos": above(fr.x + 420, fr.z + 380, 70), "look": fr + Vector3(0, 10, 0), "hour": 16.5, "weather": "cloudy", "setup": func(): _battle_warm(25.0)},
 		{"name": "troops_lineup", "fov": 32.0, "pos": above(fr.x + 607, fr.z - 400, 1.3), "look": above(fr.x + 595, fr.z - 400, 0.9), "hour": 11.0, "weather": "clear", "setup": func(): G.battle.lineup(above(fr.x + 595, fr.z - 400, 0.0), above(fr.x + 601, fr.z - 400, 0.0))},
 		{"name": "road_bridge", "pos": Vector3(1690, 46, 880), "look": Vector3(1632, 24, 774), "hour": 13.0, "weather": "clear"},
-		{"name": "pass_road", "pos": above(640, -1820, 16), "look": above(575, -1890, 1), "hour": 10.0, "weather": "clear"},
+		{"name": "pass_road", "pos": _along_road("Pass Road", 0.55, -14, 9.0, 12.0), "look": _along_road("Pass Road", 0.55, 14, 0.0, 1.0), "hour": 10.0, "weather": "clear"},
 		{"name": "vehicles_spawn", "pos": sp + Vector3(-6, 3.5, 30), "look": sp + Vector3(22, 1.5, 2), "hour": 10.0, "weather": "clear"},
 		{"name": "frigate", "pos": ct + Vector3(-160, 300, 470), "look": ct + Vector3(0, 262, 300), "hour": 15.0, "weather": "cloudy", "setup": func(): _park_frigate(ct + Vector3(0, 262, 300))},
 		{"name": "frigate_deck", "pos": ct + Vector3(-6, 272, 360), "look": ct + Vector3(0, 280, 300), "hour": 15.5, "weather": "clear", "setup": func(): _park_frigate(ct + Vector3(0, 262, 300))},

@@ -67,6 +67,9 @@ func _next() -> void:
 		G.weather.set_weather(wx, true)
 	if G.world:
 		G.world.focus(cam.global_position)
+	# Undo what an earlier shot's setup changed (horizon_test hides the ocean; later shots lost the sea).
+	if G.world and G.world.water and G.world.water.ocean:
+		G.world.water.ocean.visible = true
 	if s.has("setup"):
 		(s["setup"] as Callable).call()
 	# SHOT_HIDE="Roads,Water": hide world groups (bisecting stray geometry in a shot).
