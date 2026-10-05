@@ -66,6 +66,10 @@ for f in sorted(os.listdir(root)):
                 warns.append(f'{f}:{k}: -.pi (type-check risk in longer arithmetic: write -Float.pi)')
             elif re.search(r'[?:]\s*\.pi\b', code):
                 warns.append(f'{f}:{k}: .pi in a ternary (type-check risk: write Float.pi)')
+            # `(x?.y ?? .none) == .none` reads both as Optional.none (nil), not the enum's own case: the test never
+            # matches the case (CapitalBasesWork formPatrol skipped every soldier at StationPose.none).
+            if re.search(r'\?\?\s*\.none\s*\)\s*[!=]=\s*\.none\b', code):
+                errors.append(f'{f}:{k}: `(x ?? .none) == .none` compares with nil; name the enum (Type.none)')
             # Code swallowed by a comment: a scripted edit appended a comment mid-declaration ("..., trousers   // note =
             # V3(...), boots = V3(...)": run 505). A trailing comment holding "name = Type(" is almost always that.
             if '//' in l and not l.lstrip().startswith('//') and '"' not in l:

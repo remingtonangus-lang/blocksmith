@@ -178,7 +178,9 @@ extension Game {
 
     // An officer and the soldiers nearest the gate; fresh ones march out of the barracks if the garrison is thin.
     private func formPatrol(_ r: BaseRecord, _ b: BaseWatch, size: Int) -> [Mob] {
-        var gar = garrison(r, b).filter { !$0.aggro && $0.kind != .soldierMarksman && $0.kind != .soldierIronclad && ($0.brain?.station ?? .none) == .none }
+        // Typed: `?? .none` / `== .none` read as Optional.none, so every soldier at StationPose.none failed the test and
+        // patrols were always fresh troops from the barracks (compiler warning on the fast lane).
+        var gar = garrison(r, b).filter { !$0.aggro && $0.kind != .soldierMarksman && $0.kind != .soldierIronclad && ($0.brain?.station ?? StationPose.none) == StationPose.none }
         gar.sort { simd_length($0.pos - r.gate) < simd_length($1.pos - r.gate) }
         var team: [Mob] = []
         if let i = gar.firstIndex(where: { $0.kind == .soldierOfficer }) { team.append(gar.remove(at: i)) }
