@@ -179,6 +179,19 @@ extension Game {
             }
             if moved { m.changed(); sfx(.pickup, 0.4) }
         }
+        // The drop key (Q) over a slot drops one item, Ctrl+Q the whole stack (reference; it did nothing in menus).
+        if input.tapped(KeyBinds.key(.drop)) && !m.capturesText && keyboard == nil && creative == nil, carried.isEmpty,
+           let s = menuHover, !s.isButton, s.container != nil, !s.stack.isEmpty {
+            if case .palette = s.kind {} else if case .result = s.kind {} else {
+                var st = s.stack
+                let n = input.control ? st.count : 1
+                dropItem(st.with(count: n))
+                st.count -= n
+                s.stack = st.count > 0 ? st : .empty
+                if case .output = s.kind { m.tookOutput(s) }
+                m.changed()
+            }
+        }
         // RT drops the held stack (or one item from the hovered slot), like dropping outside the panel.
         if p.rt > 0.5 && q.rt <= 0.5 && !(m is PauseMenu) && !(m is KeyboardMenu) && creative == nil && !(m is CraftingBookMenu) {
             if !carried.isEmpty { dropItem(carried); carried = .empty }
