@@ -328,7 +328,12 @@ enum WorldFXTest {
         let mid = wd.fires.count
         look(g, from: land + V3(-30, 45, 30), at: land)
         g.particles.update(0.05, wd)
+        // Midday, between strikes (the first shot caught a lightning flash: a white-out under a night-dark sky).
+        let keepTime = g.time
+        g.time = 0.28 * DAY_LENGTH
+        g.lightningFlash = 0; g.flashes.removeAll(); g.bolts.removeAll()
         let ms = shot(g, r, w, h, out + "/fx_wildfire.png", frames: 10)
+        g.time = keepTime
         // The storm passes: the fires are left to burn out on their own.
         g.weather.thundering = false; g.weather.thunder = 0; g.weather.raining = false; g.weather.rain = 0
         run(600)
