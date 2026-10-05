@@ -9,6 +9,7 @@ import COpenXR
 private final class AndroidState {
     var resumed = false
     var destroyRequested = false
+    var outputRedirected = false
     var app: QuestApp?
 }
 private let state = AndroidState()
@@ -82,10 +83,18 @@ private func handleCmd(_ app: UnsafeMutablePointer<android_app>?, _ cmd: Int32) 
 @_cdecl("android_main")
 public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
     guard let app else { return }
+    // Android may keep the process and start a new android_main for the next launch: start from a clean lifecycle
+    // state (a leftover destroyRequested ended the new launch at once), and redirect the output only once.
+    state.resumed = false
+    state.destroyRequested = false
+    state.app = nil
     let activity = app.pointee.activity!
     let extPath = activity.pointee.externalDataPath.map { String(cString: $0) }
     if let e = extPath { try? FileManager.default.createDirectory(atPath: e, withIntermediateDirectories: true) }
-    redirectOutputToLogcat(logFile: extPath.map { $0 + "/blocksmith.log" })
+    if !state.outputRedirected {
+        state.outputRedirected = true
+        redirectOutputToLogcat(logFile: extPath.map { $0 + "/blocksmith.log" })
+    }
     let dataPath = activity.pointee.internalDataPath.map { String(cString: $0) } ?? "/data/local/tmp/blocksmith"
     QuestPaths.setDataRoot(dataPath)
     print("Blocksmith Quest \(QuestBuild.commit) (\(QuestBuild.milestone)) starting; data in \(dataPath)")
@@ -130,5 +139,11 @@ public func android_main(_ app: UnsafeMutablePointer<android_app>?) {
         }
     }
     state.app?.shutdown()
-    print("android: main loop done")
+    state.app = nil
+    xr = nil                                       // the OpenXR session and Vulkan device go before the process does
+    print("android: main loop done; exiting the process")
+    // A relaunch in this same process would find process-wide state (the mesh arena's buffers, caches) tied to the
+    // Vulkan device just destroyed: every launch starts in a fresh process instead (the manifest's configChanges keep
+    // the activity from being recreated mid-session, so this only runs when the app really ends).
+    exit(0)
 }
