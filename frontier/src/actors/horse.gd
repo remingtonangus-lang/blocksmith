@@ -981,7 +981,7 @@ func _ride_camera(dt: float) -> void:
 		pos.y = maxf(pos.y, ground_at(pos.x, pos.z) + 0.4)
 	cam.global_position = pos
 	cam.global_basis = basis
-	cam.fov = lerpf(cam.fov, 62.0 + clampf(absf(speed) - 5.0, 0.0, 8.0) * 1.2, 1.0 - exp(-4.0 * dt))
+	cam.fov = lerpf(cam.fov, (Game.player.base_fov if Game.player and "base_fov" in Game.player else 62.0) + clampf(absf(speed) - 5.0, 0.0, 8.0) * 1.2, 1.0 - exp(-4.0 * dt))
 
 # ================================================================== roads
 static var _road_segs: Array = []

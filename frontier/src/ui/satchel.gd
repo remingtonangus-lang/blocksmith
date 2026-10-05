@@ -21,6 +21,7 @@ static func open() -> void:
 	v.add_child(UITheme.label("Cash on hand $%.2f   ·   %s (Standing %+.0f)" % [st.money, st.standing_label(), st.standing], 24, "italic", UITheme.INK_SOFT, false))
 	v.add_child(HSeparator.new())
 	var scroll := ScrollContainer.new()
+	scroll.follow_focus = true   # D-pad focus scrolls rows below the fold into reach
 	scroll.custom_minimum_size = Vector2(840, 430)
 	var list := VBoxContainer.new()
 	scroll.add_child(list)

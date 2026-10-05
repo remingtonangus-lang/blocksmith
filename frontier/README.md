@@ -23,7 +23,7 @@ flagship, Meta Quest 3 gets the same game in VR.
 | Nerve (while aiming; press again to fire marked shots) | Q | R3 |
 | Reload / holster | R / G | B / — |
 | Weapon wheel (hold; tap = next weapon) | Tab | LB |
-| Satchel | I | — |
+| Satchel | I | Menu > Satchel |
 | Fish (with a rod, at the water's edge; Fire to cast/strike/reel) | B | D-pad left |
 | Hold up (aim at an unarmed person, then interact to rob) | Right mouse + E | LT + Y |
 | Horse: follow the road | Z | D-pad down |
@@ -31,6 +31,11 @@ flagship, Meta Quest 3 gets the same game in VR.
 | Mount / call horse | F / H | Y / D-pad up |
 | Map / journal / pause | M / J / Esc | View / — / Menu |
 | Camera shoulder | V | R3 |
+| Greet / antagonize / defuse (facing someone) | E / T / N | Y / D-pad right / D-pad down |
+
+Every binding except the sticks, mouse and triggers can be changed in Menu > Settings > Controls. Settings >
+Accessibility has aim assist (off, controller only, always), toggle-to-aim, colour-vision correction (protanopia,
+deuteranopia, tritanopia), text and menu size, and subtitles.
 
 VR: left stick moves (head-relative), right stick snap-turns, right grip aims, right trigger fires, A interacts.
 

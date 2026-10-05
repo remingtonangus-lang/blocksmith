@@ -25,6 +25,7 @@ var cam_shoulder := 1.0
 var mouse_sens := 0.0025
 var invert_y := false
 var pad_sens := 2.6
+var base_fov := 62.0           # settings > Field of view (aiming narrows from here)
 var intent := {"move": Vector2.ZERO, "sprint": false, "walk": false, "jump": false, "aim": false, "fire": false,
 	"interact": false, "crouch": false}
 var bot_driven := false
@@ -38,6 +39,8 @@ var visual: Node3D
 var _cam_target := Vector3.ZERO
 var _cam_cur_dist := 3.4
 var _walk_mode := false
+var _aim_latch := false        # accessibility: toggle-to-aim
+var _aim_prev := false
 var _last_floor_y := 0.0
 var _air_time := 0.0
 var fall_damage_taken := 0.0
@@ -290,13 +293,27 @@ func _read_human_intent(dt: float) -> void:
 	intent.sprint = Input.is_action_pressed("sprint")
 	intent.walk = _walk_mode
 	intent.jump = Input.is_action_just_pressed("jump")
-	intent.aim = Input.is_action_pressed("aim")
+	if Accessibility.aim_toggle:
+		if Input.is_action_just_pressed("aim"):
+			_aim_latch = not _aim_latch
+		intent.aim = _aim_latch
+	else:
+		intent.aim = Input.is_action_pressed("aim")
 	intent.fire = Input.is_action_pressed("fire")
 	intent.interact = Input.is_action_just_pressed("interact")
 	intent.crouch = Input.is_action_pressed("crouch")
+	var assist: bool = intent.aim and Accessibility.assist_on() and camera != null
+	if assist and not _aim_prev:
+		AimAssist.snap(self)
+	_aim_prev = intent.aim
 	var look := Input.get_vector("look_left", "look_right", "look_up", "look_down")
-	cam_yaw -= look.x * pad_sens * dt
-	cam_pitch = clampf(cam_pitch - look.y * pad_sens * dt * 0.7 * (-1.0 if invert_y else 1.0), -1.2, 0.9)
+	var k := pad_sens * dt
+	if assist:
+		if look != Vector2.ZERO:
+			k *= AimAssist.slow_factor(self)
+		AimAssist.track(self, dt)
+	cam_yaw -= look.x * k
+	cam_pitch = clampf(cam_pitch - look.y * k * 0.7 * (-1.0 if invert_y else 1.0), -1.2, 0.9)
 
 func _physics_process(dt: float) -> void:
 	if on_horse != null:
@@ -423,4 +440,4 @@ func _update_camera(dt: float) -> void:
 	pos.y = maxf(pos.y, gy)
 	camera.global_position = pos
 	camera.global_basis = basis
-	camera.fov = lerpf(camera.fov, 50.0 if aiming else 62.0 + clampf(speed - JOG, 0.0, 3.0) * 1.5, 1.0 - exp(-8.0 * dt))
+	camera.fov = lerpf(camera.fov, base_fov - 12.0 if aiming else base_fov + clampf(speed - JOG, 0.0, 3.0) * 1.5, 1.0 - exp(-8.0 * dt))

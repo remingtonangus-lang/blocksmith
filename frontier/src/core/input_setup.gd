@@ -35,6 +35,33 @@ static func ensure() -> void:
 	_key("satchel", [KEY_I], [], [])
 	_key("lasso", [KEY_X], [], [])
 	_key("melee", [KEY_F], [JOY_BUTTON_B], [])
+	_ui_pad()
+
+## Godot's built-in ui_accept/ui_cancel carry no gamepad button (found by the --bot ui oracle: a controller could
+## move focus in every menu but never press anything). Add A/B, plus the D-pad and left stick for focus moves.
+static func _ui_pad() -> void:
+	_add_pad("ui_accept", [JOY_BUTTON_A], [])
+	_add_pad("ui_cancel", [JOY_BUTTON_B], [])
+	_add_pad("ui_up", [JOY_BUTTON_DPAD_UP], [[JOY_AXIS_LEFT_Y, -1.0]])
+	_add_pad("ui_down", [JOY_BUTTON_DPAD_DOWN], [[JOY_AXIS_LEFT_Y, 1.0]])
+	_add_pad("ui_left", [JOY_BUTTON_DPAD_LEFT], [[JOY_AXIS_LEFT_X, -1.0]])
+	_add_pad("ui_right", [JOY_BUTTON_DPAD_RIGHT], [[JOY_AXIS_LEFT_X, 1.0]])
+
+static func _add_pad(action: String, buttons: Array, axes: Array) -> void:
+	if not InputMap.has_action(action):
+		InputMap.add_action(action, 0.5)
+	var have := InputMap.action_get_events(action)
+	for b in buttons:
+		if not have.any(func(e): return e is InputEventJoypadButton and e.button_index == b):
+			var e := InputEventJoypadButton.new()
+			e.button_index = b
+			InputMap.action_add_event(action, e)
+	for a in axes:
+		if not have.any(func(e): return e is InputEventJoypadMotion and e.axis == a[0] and signf(e.axis_value) == signf(a[1])):
+			var e := InputEventJoypadMotion.new()
+			e.axis = a[0]
+			e.axis_value = a[1]
+			InputMap.action_add_event(action, e)
 
 static func _key(action: String, keys: Array, buttons: Array, axes: Array, mouse: Array = []) -> void:
 	if InputMap.has_action(action):
