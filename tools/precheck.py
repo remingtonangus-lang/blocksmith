@@ -98,6 +98,36 @@ for f in sorted(os.listdir(root)):
         for key, c in collections.Counter(keys).items():
             if c > 1:
                 errors.append(f'{f}:{src[:j].count(chr(10)) + 1}: dictionary literal repeats key {key} ({c}x)')
+# File-private top-level functions called from another file (no compiler here: MobRenderCheck called Mob.swift's
+# private parts(), a build break only CI saw). Names also defined non-private anywhere, or as methods, are skipped.
+import collections as _c
+srcs = {f: open(os.path.join(root, f)).read() for f in sorted(os.listdir(root)) if f.endswith('.swift')}
+private_top = _c.defaultdict(set)      # name -> files defining it privately at top level
+public_any = set()
+for f, src in srcs.items():
+    for m in re.finditer(r'^(private |fileprivate )?func ([A-Za-z_]\w*)\s*[(<]', src, re.M):
+        (private_top[m.group(2)].add(f) if m.group(1) else public_any.add(m.group(2)))
+    for m in re.finditer(r'^[ \t]+(?:@\w+\s+)*(?:(?:public|internal|private|fileprivate|static|class|final|override|mutating|@inline\(__always\))\s+)*func ([A-Za-z_]\w*)\s*[(<]', src, re.M):
+        public_any.add(m.group(1))
+for name, files in private_top.items():
+    if name in public_any:
+        continue
+    pat = re.compile(r'(?<![\w.])' + re.escape(name) + r'\(')
+    for f, src in srcs.items():
+        if f in files:
+            continue
+        code = re.sub(r'//[^\n]*', '', src)
+        for m in pat.finditer(code):
+            errors.append(f'{f}:{code[:m.start()].count(chr(10)) + 1}: calls {name}(), private to {", ".join(sorted(files))}')
+            break
+# The same top-level function signature defined twice (an edit applied twice: mobModelParts in Mob.swift).
+sigs = _c.defaultdict(list)
+for f, src in srcs.items():
+    for m in re.finditer(r'^((?:private |fileprivate )?func [^\n{]*)', src, re.M):
+        sigs[(m.group(1).strip(), f if m.group(1).startswith(('private', 'fileprivate')) else '')].append(f'{f}:{src[:m.start()].count(chr(10)) + 1}')
+for (sig, _), where in sigs.items():
+    if len(where) > 1:
+        errors.append(f'{where[1]}: {sig.split("(")[0]} defined twice ({", ".join(where)})')
 for e in errors: print('ERROR', e)
 for w in warns: print('warn ', w)
 print(f'precheck: {len(errors)} errors, {len(warns)} warnings')

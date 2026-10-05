@@ -464,7 +464,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         MobDrawStats.near = 0
         let pe = game.player.pos
         for m in game.mobs.mobs where simd_length_squared(m.pos - pe) < 32 * 32 { MobDrawStats.near += 1 }
-        MobDrawStats.written = 0; MobDrawStats.drawn = 0; MobDrawStats.culled = 0; MobDrawStats.path = "none"
+        MobDrawStats.written = 0; MobDrawStats.drawn = 0; MobDrawStats.culled = 0; MobDrawStats.dropped = 0; MobDrawStats.path = "none"
         HudLayout.splitFullH = game.coop.active ? Float(height) : 0
         HudLayout.splitFullW = game.coop.active ? Float(width) : 0
         if game.coop.active { renderSplit(cmd, final: final, width: width, height: height); return }
@@ -614,6 +614,9 @@ final class Renderer: NSObject, MTKViewDelegate {
     // Mobs cast moving shadows: copy the terrain map and draw this frame's mob vertices on top. Skipped while
     // no mob has been in the map since the terrain map last changed (then shadowMap already holds the terrain).
     // The camera's view frustum for culling mobs before encode builds its own (same projection, a far far plane).
+    // Mobs past the loaded terrain's fog can't be seen (frigates far off are ships, not mobs).
+    var mobMaxDist: Float { Float(game.world.renderDistance * CS + 24) }
+
     func mobCullFrustum(_ width: Int, _ height: Int) -> Frustum {
         let (eye, camYaw, camPitch) = cameraEye()
         let fov: Float = (game.cine.active ? game.cine.fov : game.fovSetting * game.fovScale) * .pi / 180
@@ -638,7 +641,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                 let cap = Renderer.mobBufSize / MemoryLayout<MobVert>.stride
                 let ptr = buf.contents().bindMemory(to: MobVert.self, capacity: cap)
                 n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: game.daylight, world: game.world, into: ptr, capacity: cap,
-                                     cull: mobCullFrustum(width, height))
+                                     cull: mobCullFrustum(width, height), maxDist: mobMaxDist)
                 if game.showsPlayerModel {
                     n += writePlayerModel(game, eye: eye, daylight: game.daylight, into: ptr + n, capacity: cap - n)
                 }
@@ -1103,7 +1106,8 @@ final class Renderer: NSObject, MTKViewDelegate {
             MobDrawStats.path = cap > 36 ? (hdrActive ? "Fancy ring" : "Fast ring") : "no room in the ring (\(off) used)"
             if cap > 36 {
                 let ptr = (scratch.contents() + off).bindMemory(to: MobVert.self, capacity: cap)
-                var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: daylight, world: game.world, into: ptr, capacity: cap, cull: frustum)
+                var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: daylight, world: game.world, into: ptr, capacity: cap,
+                                         cull: frustum, maxDist: mobMaxDist)
                 if tp { n += writePlayerModel(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n) }
                 n += game.coop.writeOthers(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n)
                 MobDrawStats.written += n

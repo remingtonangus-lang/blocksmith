@@ -73,7 +73,7 @@ enum MobRenderCheck {
                 let dist: Float = 3 + size * 1.6
                 m.pos = p.eye + fwd * dist - V3(0, m.height * 0.5, 0)
                 m.yaw = p.yaw + .pi * 0.75                       // three-quarter view
-                if parts(m).isEmpty && equipmentParts(m).isEmpty { noParts.append("\(k)"); continue }
+                if mobModelParts(m).isEmpty { noParts.append("\(k)"); continue }
                 g.mobs.mobs = [m]
                 let img = pixels(r, w, h)
                 let c = changed(base, img)
@@ -88,6 +88,7 @@ enum MobRenderCheck {
         g.renderScale = keepScale
         for fancy in [true, false] {
             g.fancyGraphics = fancy
+            fails += crowd(g, r, w, h)
             fails += live(g, r, w, h)
         }
         g.fancyGraphics = keepFancy
@@ -161,5 +162,36 @@ enum MobRenderCheck {
         if !broken.isEmpty { line += "; broken state: " + broken.prefix(6).joined(separator: ", ") }
         print(line)
         return (invisible.isEmpty && broken.isEmpty && !all.isEmpty) ? 0 : 1
+    }
+
+    // Crowd: hundreds of mobs loaded (render distance 16-24, a citadel's jointed soldiers) must not crowd the mob beside
+    // the player out of the vertex buffer. It is appended last, as a fresh spawn is (playtest 2026-10-05: mobs invisible
+    // in game; the buffer filled with far mobs first).
+    static func crowd(_ g: Game, _ r: Renderer, _ w: Int, _ h: Int) -> Int {
+        let p = g.player
+        p.pitch = 0
+        let fwd = V3(-sinf(p.yaw), 0, -cosf(p.yaw))
+        var many: [Mob] = []
+        var total = 0
+        for i in 0..<600 {
+            let a: Float = Float(i) * 2.399
+            let d: Float = 30 + Float(i % 56)
+            let k: MobKind = i % 3 == 0 ? .soldierOfficer : (i % 3 == 1 ? .soldierTrooper : .cow)
+            let m = Mob(k, at: p.pos + V3(cosf(a) * d, 0, sinf(a) * d))
+            total += mobModelParts(m).count
+            many.append(m)
+        }
+        let cow = Mob(.cow, at: p.eye + fwd * 5 - V3(0, 0.7, 0))
+        cow.yaw = p.yaw + 2.3
+        g.mobs.mobs = many
+        _ = pixels(r, w, h)
+        let base = pixels(r, w, h)
+        g.mobs.mobs = many + [cow]
+        let n = changed(base, pixels(r, w, h))
+        let dropped = MobDrawStats.dropped
+        g.mobs.mobs = []
+        let mode = g.fancyGraphics ? "Fancy" : "Fast"
+        print("mobcheck crowd \(mode): 600 mobs 30-85 blocks round (\(total) model parts), \(dropped) dropped; the cow beside the player \(n) px\(n < 30 ? " INVISIBLE" : "")")
+        return n < 30 ? 1 : 0
     }
 }

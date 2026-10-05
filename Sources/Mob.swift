@@ -1638,13 +1638,19 @@ enum MobLight { static var nightVision: Float = 0 }
 // Last frame's mob drawing, for the F3 overlay and voice bug notes (playtest 2026-10-05: mobs invisible in real play,
 // never in the CI renderer): how many mobs, how many near, vertices written and drawn, and which path drew them.
 enum MobDrawStats {
-    static var mobs = 0, near = 0, written = 0, drawn = 0, culled = 0
+    static var mobs = 0, near = 0, written = 0, drawn = 0, culled = 0, dropped = 0
     static var path = "none"
-    static var line: String { "mobs \(mobs) (\(near) within 32), \(written) vertices written, \(drawn) drawn via \(path), \(culled) culled" }
+    static var line: String {
+        "mobs \(mobs) (\(near) within 32), \(written) vertices written, \(drawn) drawn via \(path), \(culled) culled, \(dropped) dropped (buffer full)"
+    }
 }
 
+// Mobs in drawing order, nearest first (reused storage: no per-frame allocation once warm).
+enum MobOrder { static var list: [Mob] = [] }
+
 func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
-                      into out: UnsafeMutablePointer<MobVert>, capacity: Int, cull: Frustum? = nil) -> Int {
+                      into out: UnsafeMutablePointer<MobVert>, capacity: Int, cull: Frustum? = nil,
+                      maxDist: Float = .greatestFiniteMagnitude) -> Int {
     let CT = Mesher.cornerTable
     let faceShade: [Float] = [0.8, 0.8, 1.0, 0.55, 0.68, 0.68]
     let order = [0, 1, 2, 0, 2, 3]
@@ -1652,7 +1658,24 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
     SoldierRig.eye = eye                    // soldier level of detail by distance
     // Dimension ambient, lifted by night vision like the terrain (Renderer: 1 - (1 - dim) * (1 - 0.85 nv)).
     let amb: Float = 1 - (1 - world.dim.ambient) * (1 - 0.85 * MobLight.nightVision)
-    for m in mobs {
+    // Nearest first, and nothing past the fog: the buffer holds ~2400 model parts, and with the hundreds of mobs loaded
+    // at render distance 16-24 (a citadel's jointed soldiers alone) it filled before the mobs beside the player, who
+    // were then never drawn (playtest 2026-10-05: mobs invisible in game; the harness never loads that many).
+    var list = MobOrder.list
+    MobOrder.list = []                       // taken out while filled: the only reference, so no copy on write
+    list.removeAll(keepingCapacity: true)
+    let maxD2 = maxDist * maxDist
+    for ring in 0..<3 {
+        let lo: Float = ring == 0 ? -1 : (ring == 1 ? 24 * 24 : 80 * 80)
+        let hi: Float = ring == 0 ? 24 * 24 : (ring == 1 ? 80 * 80 : maxD2)
+        for m in mobs {
+            let dx = m.pos.x - eye.x, dz = m.pos.z - eye.z
+            let d2 = dx * dx + dz * dz
+            if d2 > lo && d2 <= hi { list.append(m) }
+        }
+    }
+    defer { MobOrder.list = list }
+    for (idx, m) in list.enumerated() {
         // Out of view and over 64 blocks away (nearer ones can still throw a shadow into view): skipped. Every mob in
         // the loaded area was rebuilt each frame (a quarter of the frame's CPU encode in the flight profile).
         if let fr = cull {
@@ -1675,7 +1698,7 @@ func writeMobVertices(_ mobs: [Mob], eye: V3, daylight: Float, world: World,
         let glow = m.kind == .blaze || m.kind == .magmaCube || m.kind == .ghast || m.kind == .endCrystal
         let lit = glow ? max(bright, 0.85) : bright
         for p in parts(m) + equipmentParts(m) {
-            if n + 36 > capacity { return n }
+            if n + 36 > capacity { MobDrawStats.dropped += list.count - idx; return n }
             let rot = p.rotation
             let size = p.mx - p.mn
             for f in 0..<6 {
