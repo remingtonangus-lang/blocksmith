@@ -117,14 +117,14 @@ func _start() -> void:
 	dir = dir.normalized()
 	var strength := clampf(float(info.get("amount", 40.0)) * 0.06, 1.5, 6.0)
 	var bn: String = ZONE_BONE.get(str(info.get("zone", "chest")), "Chest")
-	var pb: PhysicalBone3D = bones.get(bn, bones.get("Chest"))
+	var pb: PhysicalBone3D = bones.get(bn, bones.get(bn + "_2", bones.get("Chest")))
 	if pb != null:
 		pb.apply_central_impulse(dir * strength + Vector3.UP * 0.4)
 	if bones.has("Hips"):
 		(bones["Hips"] as PhysicalBone3D).apply_central_impulse(dir * strength * 0.5)
 
 func _bone_global(name: String) -> Transform3D:
-	var i := skel.find_bone(name)
+	var i := GunHands.bone_index(skel, name)
 	return skel.global_transform * skel.get_bone_global_pose(i) if i >= 0 else skel.global_transform
 
 func _build() -> void:
@@ -133,9 +133,10 @@ func _build() -> void:
 	skel.add_child(sim)
 	for d in DEF:
 		var bname: String = d[0]
-		var bi := skel.find_bone(bname)
+		var bi := GunHands.bone_index(skel, bname)
 		if bi < 0:
 			continue
+		bname = skel.get_bone_name(bi)
 		var bg := _bone_global(bname)
 		var a := bg.origin
 		var b: Vector3

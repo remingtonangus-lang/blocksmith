@@ -1,6 +1,8 @@
 extends Node3D
 ## Combat-feel render checks on a small studio set (no world streaming):
-##   godot --path . res://scenes/combat_fx.tscn -- --out /tmp/cfx --views hold,pistol,ragdoll,impacts,nerve,night
+##   godot --path . res://scenes/combat_fx.tscn -- --out /tmp/cfx --views aim,reload,hold,pistol,ragdoll,impacts,nerve,night
+## aim: pistol and rifle aimed, from the side and over the shoulder (the player camera), plus low ready
+## reload: revolver at the loading gate, repeater pushing rounds into the gate, bolt rifle cycling
 ## hold: character shouldering the repeater (arm IK to grip_r/grip_l, gun belt + holstered revolver, sling)
 ## pistol: two-handed revolver aim; ragdoll: a character shot in the chest, captured mid-fall and settled;
 ## impacts: bullet effects per surface; nerve: the Nerve grade with inked marks; night: muzzle flash light at night.
@@ -75,12 +77,14 @@ func _studio() -> void:
 	add_child(cam)
 	cam.make_current()
 
-func _actor(pos: Vector3, yaw: float, weapons: Array, seed: int) -> Node3D:
+func _actor(pos: Vector3, yaw: float, weapons: Array, seed: int, id := "") -> Node3D:
 	var a: Node3D = ACTOR.new()
 	a.name = "Actor%d" % seed
 	add_child(a)
 	a.global_position = pos
-	var ch: Node3D = CharacterFactory.spawn(seed, "") if CharacterFactory.available() else null
+	var ch: Node3D = null
+	if CharacterFactory.available():
+		ch = CharacterFactory.spawn_id(id) if id != "" else CharacterFactory.spawn(seed, "")
 	if ch == null:
 		ch = Node3D.new()
 		var m := MeshInstance3D.new()
@@ -122,6 +126,95 @@ func _clear() -> void:
 		if c.has_meta("gun") or c.is_in_group("fx_tmp"):
 			c.queue_free()
 	await get_tree().process_frame
+
+func _pose_shots(a: Node3D, prefix: String) -> void:
+	var h: WeaponHolder = a.get_meta("holder")
+	var eye := h._bone("Head", Vector3(0, 1.62, 0))
+	cam.fov = 38
+	cam.global_position = eye + Vector3(2.0, -0.1, -0.35)
+	cam.look_at(eye + Vector3(0.0, -0.22, -0.4))
+	await _shot(prefix + "_side")
+	# the game's over-the-shoulder aim camera (player.gd: 1.6 m back, ~0.63 m right, pivot near head height)
+	cam.fov = 50
+	cam.global_position = eye + Vector3(0.63, 0.02, 1.6)
+	cam.look_at(eye + Vector3(0.0, -0.1, -25.0))
+	await _shot(prefix + "_ots")
+	# hands close-up
+	var m := h.model()
+	if m != null:
+		var gp := m.grip_transform("grip_r").origin
+		cam.fov = 30
+		cam.global_position = gp + Vector3(0.55, 0.12, -0.35)
+		cam.look_at(gp + Vector3(0.0, 0.0, -0.08))
+		await _shot(prefix + "_hands")
+		cam.global_position = gp + Vector3(-0.45, 0.05, -0.45)
+		cam.look_at(gp + Vector3(0.0, 0.0, -0.08))
+		await _shot(prefix + "_hands_left")
+
+func _view_aim() -> void:
+	var a := _actor(Vector3.ZERO, 0.0, ["lockhart_sa", "merriman_lever"], 5, "ruth_caddell")
+	var g: GunHandler = a.get_meta("gun")
+	g.drawn = true
+	a.intent.aim_at = Vector3(0.0, 1.5, -25)
+	if a.visual.has_method("set_aim"):
+		a.visual.set_aim("pistol")
+	var hh: WeaponHolder = a.get_meta("holder")
+	if Game.args.has("one_hand") and hh.hands != null:
+		hh.hands.two_hand_pistol = false
+	await _settle(8)
+	await _pose_shots(a, "aim_pistol")
+	a.intent.aim_at = null
+	if a.visual.has_method("set_aim"):
+		a.visual.set_aim("")
+	await _settle(4)
+	cam.fov = 34
+	cam.global_position = Vector3(2.0, 1.4, -0.9)
+	cam.look_at(Vector3(0.1, 1.1, -0.3))
+	await _shot("ready_pistol")
+	g.select(1)
+	g.cooldown = 0.0
+	a.intent.aim_at = Vector3(0.0, 1.5, -25)
+	if a.visual.has_method("set_aim"):
+		a.visual.set_aim("rifle")
+	await _settle(8)
+	await _pose_shots(a, "aim_rifle")
+	await _clear()
+
+func _view_reload() -> void:
+	var a := _actor(Vector3.ZERO, 0.0, ["lockhart_sa", "merriman_lever", "bowden_bolt"], 5, "ruth_caddell")
+	var g: GunHandler = a.get_meta("gun")
+	g.drawn = true
+	await _settle(3)
+	g.clip["lockhart_sa"] = 2
+	g.start_reload()
+	await _settle(5)
+	cam.fov = 34
+	cam.global_position = Vector3(1.6, 1.45, -1.2)
+	cam.look_at(Vector3(0.05, 1.15, -0.3))
+	await _shot("reload_revolver")
+	g.cancel_reload()
+	g.select(1)
+	g.cooldown = 0.0
+	await _settle(3)
+	g.clip["merriman_lever"] = 4
+	g.start_reload()
+	await _settle(5)
+	await _shot("reload_repeater")
+	g.cancel_reload()
+	g.select(2)
+	g.cooldown = 0.0
+	a.intent.aim_at = Vector3(0.0, 1.5, -25)
+	await _settle(4)
+	var h: WeaponHolder = a.get_meta("holder")
+	var m := h.model()
+	m.pose({"bolt_rot": 1.0, "bolt": 0.6})
+	m.set_process(false)
+	await _settle(3)
+	cam.global_position = Vector3(2.0, 1.55, -0.9)
+	cam.look_at(Vector3(0.1, 1.38, -0.35))
+	await _shot("cycle_bolt")
+	m.set_process(true)
+	await _clear()
 
 func _view_hold() -> void:
 	var a := _actor(Vector3.ZERO, 0.0, ["merriman_lever", "lockhart_sa"], 3)
