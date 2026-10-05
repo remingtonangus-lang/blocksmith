@@ -119,6 +119,7 @@ final class SoundEngine {
         engine.connect(ms.node, to: engine.mainMixerNode, format: stereo)
         music = ms
         custom = CustomMusic(engine: engine, format: stereo)
+        custom?.scan(force: true)                     // makes the Music folder if missing, so it is there to find
         let ds = MusicStream(format: mono)
         engine.attach(ds.node)
         engine.connect(ds.node, to: env, format: mono)
