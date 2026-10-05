@@ -53,7 +53,7 @@ func start(segs: Array) -> void:
 	var total := 0.0
 	for sg in segments:
 		total += float(sg["duration"]) + WARMUP
-	_limit = total + 180.0 + 60.0      # + the GPU ablation
+	_limit = total + 180.0 + 100.0     # + the GPU ablation
 	if OS.get_environment("BENCH_LIMIT") != "":
 		_limit = float(OS.get_environment("BENCH_LIMIT"))     # slow software renderers in development
 	G.log_line("benchmark: %d segments, preset %s, driver %s, adapter %s" % [segments.size(), Settings.preset,
@@ -303,17 +303,21 @@ func _ab_collect(n: Node, out: Dictionary) -> void:
 		_ab_collect(c, out)
 
 
-# GPU feature ablation (after the segments; --no-ablation skips it): at the battle camera, each rendering
-# feature or world group in turn is switched off for 90 measured frames. GPU timers read 0 on Metal, so the
-# frame time saved is the measure of what each costs on this machine (the M1's own answer to "what to cut").
+# GPU feature ablation (after the segments; --no-ablation skips it): at the battle camera, with the battle's
+# simulation paused, each rendering feature or world group in turn is measured on, then off, 60 frames each:
+# saved = on - off. GPU timers read 0 on Metal, so frame time is the measure of what each costs on this machine.
+# (One baseline at the start drifted with the running battle: later items came out up to -14 ms.)
 var _ga_items: Array = []
 var _ga_i := -2               # -1 = baseline, 0.. = items
 var _ga_n := 0
 var _ga_sum := 0.0
 var _ga_base := 0.0
 var _ga_out := {}
-const GA_SETTLE := 20
-const GA_FRAMES := 90
+const GA_SETTLE := 15
+const GA_FRAMES := 60
+var _ga_off := false          # measuring the "off" half of the current item
+var _ga_on_ms := 0.0
+var _ga_paused: Node = null
 
 
 func _start_gpu_ablation() -> void:
@@ -326,10 +330,28 @@ func _start_gpu_ablation() -> void:
 	if sg.has("setup"):
 		(sg["setup"] as Callable).call()
 	_place(0.35)
+	# Freeze the fight (soldiers, shells, explosions) so every window sees the same scene.
+	_ga_paused = G.world.get_node_or_null("Battle")
+	if _ga_paused:
+		_ga_paused.process_mode = Node.PROCESS_MODE_DISABLED
 	var env: Environment = G.sky.env if G.sky else null
 	var sun: DirectionalLight3D = G.sky.sun if G.sky else null
 	if sun:
 		_ga_items.append(["sun shadows", func(): sun.shadow_enabled = false, func(): sun.shadow_enabled = true])
+		# Where the shadow cost goes: casters per cascade (terrain, the cascade count) or the soft filtering.
+		var mode := sun.directional_shadow_mode
+		if mode == DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS:
+			_ga_items.append(["shadows: 2 cascades not 4", func(): sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS,
+				func(): sun.directional_shadow_mode = mode])
+		var soft := int(Settings.q["soft_shadows"])
+		if soft > 0:
+			_ga_items.append(["shadows: hard filter", func(): RenderingServer.directional_soft_shadow_filter_set_quality(0),
+				func(): RenderingServer.directional_soft_shadow_filter_set_quality(soft)])
+		var tmmi: Variant = G.terrain.get("mmi") if G.terrain else null
+		if tmmi is GeometryInstance3D:
+			var tg := tmmi as GeometryInstance3D
+			_ga_items.append(["shadows: terrain not casting", func(): tg.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
+				func(): tg.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON])
 	if G.sky:
 		var steps: float = G.sky.sky_mat.get_shader_parameter("cloud_steps")
 		_ga_items.append(["raymarched clouds", func(): G.sky.sky_mat.set_shader_parameter("cloud_steps", 0.0),
@@ -348,9 +370,11 @@ func _start_gpu_ablation() -> void:
 		var gn: Node3D = veg.grass_near
 		var gf: Node3D = veg.get("_grass_far")
 		_ga_items.append(["grass", _set_vis.bind([gn, gf], false), _set_vis.bind([gn, gf], true)])
-	_ga_i = -1
+	_ga_i = 0
+	_ga_off = false
 	_ga_n = 0
 	_ga_sum = 0.0
+	_ga_out = {"segment": sg["name"], "base_ms": 0.0, "items": []}
 	G.log_line("benchmark: GPU ablation at '%s', %d features" % [sg["name"], _ga_items.size()])
 
 
@@ -370,20 +394,25 @@ func _ga_step(delta: float) -> void:
 	var avg := _ga_sum / GA_FRAMES
 	_ga_n = 0
 	_ga_sum = 0.0
-	if _ga_i == -1:
-		_ga_base = avg
-		_ga_out = {"segment": segments[seg_i]["name"], "base_ms": snappedf(avg, 0.01), "items": []}
-	else:
-		(_ga_items[_ga_i][2] as Callable).call()
-		(_ga_out["items"] as Array).append({"feature": _ga_items[_ga_i][0], "ms_saved": snappedf(_ga_base - avg, 0.01)})
+	if not _ga_off:
+		_ga_on_ms = avg
+		_ga_base += avg
+		_ga_off = true
+		(_ga_items[_ga_i][1] as Callable).call()
+		return
+	(_ga_items[_ga_i][2] as Callable).call()
+	(_ga_out["items"] as Array).append({"feature": _ga_items[_ga_i][0], "ms_saved": snappedf(_ga_on_ms - avg, 0.01),
+		"on_ms": snappedf(_ga_on_ms, 0.01)})
+	_ga_off = false
 	_ga_i += 1
 	if _ga_i >= _ga_items.size():
+		_ga_out["base_ms"] = snappedf(_ga_base / _ga_items.size(), 0.01)
 		_ga_finish()
-		return
-	(_ga_items[_ga_i][1] as Callable).call()
 
 
 func _ga_finish() -> void:
+	if _ga_paused and is_instance_valid(_ga_paused):
+		_ga_paused.process_mode = Node.PROCESS_MODE_INHERIT
 	if _ga_out.has("items"):
 		var items: Array = _ga_out["items"]
 		items.sort_custom(func(a, b): return a["ms_saved"] > b["ms_saved"])

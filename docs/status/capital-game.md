@@ -126,6 +126,20 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 16:55: grass tiling measured on the CI Mac (run 40, 221a183). The build was not published: GitHub rejected
+  the tag and shots pushes ("fatal error in commit_refs"), and the first Mac attempt never got a runner. Both are
+  infra; capital-latest still holds 89dad69.
+
+  | Segment | fps before | fps after | primitives before | primitives after |
+  |---|---|---|---|---|
+  | City | 38.1 | 46.7 | 5.0 M | 4.0 M |
+  | Battle | 33.1 | 39.2 | 6.4 M | 5.4 M |
+  | Forest | 38.3 | 44.9 | 5.5 M | 4.5 M |
+
+  In the battle view, vegetation (trees and grass) now costs 2.70 ms, down from 13.76. Sun shadows are now the
+  largest cost at 3.44 ms. The rest of that ablation was noise: it compared every feature with one baseline taken at
+  the start while the battle kept running, so later items came out as low as -14 ms. The ablation now measures each
+  feature on and then off, 60 frames each, with the battle's simulation paused.
 - 2026-10-05 15:45: the first GPU ablation (run 39, CI Mac, battle camera, base 23.86 ms). Frame time saved with each
   feature off:
 
