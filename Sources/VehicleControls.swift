@@ -39,7 +39,7 @@ enum VehicleControls {
         var throttle = mi.forward, steer = mi.strafe, climb: Float = 0
         if mi.jump { climb += 1 }
         if g.input.control { climb -= 1 }
-        if let p = PadManager.shared.lastMapped {
+        if let p = g.seatPad {
             if p.rb { climb += 1 }                       // RB / LB climb and descend on every vehicle
             if p.lb { climb -= 1 }
             let ls = stick(p.lx, p.ly, dead: g.deadZone)

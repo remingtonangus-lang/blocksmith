@@ -128,6 +128,9 @@ final class Game {
     let enderChest = ItemContainer(27)     // the player's void chest inventory (shared by all void chests)
     var timeSinceRest: Float = 0
     var anchorSpawn: IVec3?          // charged rebirth anchor in the Emberdeep
+    // The controller of the seat whose turn it is (set as its frame starts): the map, vehicle and helicopter controls
+    // read it, not seat 0's PadManager.lastMapped (player 1's stick panned player 2's map and flew player 2's plane).
+    var seatPad: PadSnapshot?
     var levitateFromY: Float?        // where the current levitation began (advancement)
     var jukeboxes: [JukeboxPlayer] = []
     var fovScale: Float = 1
@@ -586,6 +589,7 @@ final class Game {
         }
 
         let pad = seat == 0 ? readPad() : coop.readSeatPad(seat)
+        seatPad = pad
         if seat == 0 {
             padConnected = pad != nil
             PadManager.shared.note(pad: pad, input: input)

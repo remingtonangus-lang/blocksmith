@@ -355,7 +355,7 @@ final class MapMenu: Menu, CustomDrawnMenu {
 
     override func tick() {
         let g = game
-        let p = PadManager.shared.lastMapped ?? PadSnapshot()
+        let p = g.seatPad ?? PadSnapshot()
         let dt: Float = 1.0 / 60
         let ls = stick(p.lx, p.ly, dead: g.deadZone)
         var pan = V2(ls.x, -ls.y)
