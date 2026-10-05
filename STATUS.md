@@ -289,6 +289,15 @@ piston-breakable gourds, plate release timing, brewing-stand hopper faces, compa
 UB: map loop range when far from the map (heap writes), dragon respawn spike index, power clamps, command clamps,
 crossbow ammo by name. Open from the audits: water spreading toward the nearest drop (all four sides now),
 waterlogging, vine growth, dropper into furnaces, dragon's breath bottles, concrete powder in water.
+Round 4 (loot / trades and inventory audits): chest loot in reference pools (buried treasure one heart, dungeons, desert
+pyramids, mineshafts, igloos, shipwrecks), mob drop rules (small slimes, shulker shells, witch pool, drowned copper,
+player-kill-only drops, picked-up gear always drops), librarian book XP, hero discount on every offer, fishing
+treasure wear, bartering's Soul Speed / potion entries; inventory: right-click swap, Q / Ctrl+Q in menus, survival pick
+block from the inventory, double-click collect (mouse), result shift-click stops when full, furnace / smoker / brewing
+slot rules, output right-click half, shield to the off hand, no shell boxes in bundles. Also: vines grow, concrete
+powder sets in water, droppers fill furnaces, dragon's breath bottles, hay & co. burn, XP orbs saved, --rulescheck.
+Open: drag distribution, number keys on fuel / armor / output slots, creative palette click rules, stonecutter scroll,
+stray tipped arrows, captain banner item, waterlogging.
 
 ## Playtest feedback (Remington, 2026-10-02): quality and fidelity over new features
 Bug discovery is fully automated (Remington is not the bug finder). Keep CI green throughout. Queue, in order:
