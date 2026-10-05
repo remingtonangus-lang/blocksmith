@@ -2138,7 +2138,10 @@ final class Game {
         world.redstone.detectorCheck(carts)
         for (p, be) in world.blockEntities where be.kind == .brewing {
             if be.brewTime > 0 && be.brewIngredient == 0, !be.container[3].isEmpty { be.brewIngredient = be.container[3].item }
-            if be.tickBrewing() { sfx(.brew, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5) }
+            if be.tickBrewing() {
+                sfx(.brew, 0.5, at: V3(Float(p.x), Float(p.y), Float(p.z)) + 0.5)
+                if be.bottleOut { be.bottleOut = false; drops.spawn(ItemStack(Items.id("glass_bottle"), 1), at: V3(Float(p.x) + 0.5, Float(p.y) + 1.1, Float(p.z) + 0.5)) }
+            }
             // Bottle display follows the three bottle slots.
             let b = world.block(p.x, p.y, p.z)
             let base = Blocks.groupBase[Int(b)]

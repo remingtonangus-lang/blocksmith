@@ -199,6 +199,7 @@ extension BlockEntity {
                 n.count -= 1
                 let k = Items.key(ing.item)
                 if n.count <= 0 { n = k == "dragon_breath" ? ItemStack(Items.id("glass_bottle"), 1) : .empty }
+                else if k == "dragon_breath" { bottleOut = true }      // every use leaves a bottle (the game drops it)
                 c[3] = n
                 return true
             }
