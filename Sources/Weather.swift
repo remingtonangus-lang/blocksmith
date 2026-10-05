@@ -53,7 +53,7 @@ extension Game {
         w.rain += ((w.raining ? 1 : 0) - w.rain) * min(1, dt * 0.2)
         w.thunder += ((w.raining && w.thundering ? 1 : 0) - w.thunder) * min(1, dt * 0.2)
         weather = w
-        stormTick(dt)
+        if !Bench.abNoWorldFX { stormTick(dt) }
         for i in bolts.indices { bolts[i].life -= dt }
         bolts.removeAll { $0.life <= 0 }
         lightningFlash = max(0, lightningFlash - dt * 3)

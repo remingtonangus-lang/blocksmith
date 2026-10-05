@@ -2056,7 +2056,7 @@ final class Game {
     private func gameTick() {
         randomTicks()
         precipitationTicks()
-        snowTick(0.05)
+        if !Bench.abNoWorldFX { snowTick(0.05) }
         blockEntityTicks()
         gravityTick()
         beaconTicks += 1

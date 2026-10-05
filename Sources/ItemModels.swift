@@ -38,7 +38,7 @@ enum ItemModels {
 
     // Called from TextureGen.base (concurrently, one layer per call) with the layer's final pixels.
     static func capture(layer: Int, name: String, px: [V4], n: Int) {
-        guard itemLayerNames.contains(name), n > 0, px.count >= n * n else { return }
+        guard !Bench.abNoItemArt, itemLayerNames.contains(name), n > 0, px.count >= n * n else { return }
         // Alpha at the centres of a G x G grid (bilinear between texel centres).
         var m = [Float](repeating: 0, count: G * G)
         for j in 0..<G { for i in 0..<G {

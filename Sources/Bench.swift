@@ -16,6 +16,10 @@ enum Bench {
     static var metrics: [String: Double] = [:]
     static var now: Double { CFAbsoluteTimeGetCurrent() }
 
+    // A/B switches for the flight memory gate (session H's item art and world-fx ticks off): --ab-noitemart, --ab-noworldfx.
+    static let abNoItemArt = CommandLine.arguments.contains("--ab-noitemart")
+    static let abNoWorldFX = CommandLine.arguments.contains("--ab-noworldfx")
+
     static func put(_ k: String, _ v: Double) { metrics[k] = (v * 1000).rounded() / 1000 }
 
     struct Dist { var mean = 0.0, p50 = 0.0, p95 = 0.0, p99 = 0.0, max = 0.0 }

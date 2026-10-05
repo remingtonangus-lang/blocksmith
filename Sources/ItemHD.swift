@@ -82,7 +82,7 @@ enum ItemHD {
 
     // Texture generator for an item layer (HDTex.generator calls this first for every `item_` name).
     static func generator(_ name: String, _ src: [V4]) -> HDTex.Gen? {
-        guard name.hasPrefix("item_") else { return nil }
+        guard name.hasPrefix("item_"), !Bench.abNoItemArt else { return nil }
         let item = String(name.dropFirst(5))
         if let (k, m) = design(item) {
             return { n, _ in var img = HDTex.Img(n); img.px = ItemHD.vector(k, m, n); return img }
