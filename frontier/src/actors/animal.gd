@@ -100,6 +100,9 @@ func _setup() -> void:
 	_build_visual()
 	heading = rng.randf() * TAU
 	add_to_group("animals")
+	if Game.terrain:
+		Game.terrain.foci.append(self)
+	tree_exiting.connect(func(): if Game.terrain: Game.terrain.foci.erase(self))
 
 func _build_visual() -> void:
 	var path := "res://assets/ext/animals/%s.glb" % species
@@ -321,6 +324,15 @@ func _on_died(info: Dictionary) -> void:
 	Game.log_event("animal_killed", {"species": species, "quality": pelt_quality(), "zones": hit_zones})
 	var tw := create_tween()
 	tw.tween_property(visual, "rotation:z", PI * 0.5, 0.6).set_ease(Tween.EASE_IN)
+	add_to_group("interactable")
+
+func interact_prompt() -> String:
+	return "" if alive or skinned else "Skin the %s" % str(spec.name).to_lower()
+
+func interact(_who: Node) -> void:
+	var r := skin()
+	if not r.is_empty() and Game.hud:
+		Game.hud.notice("%s pelt — %s" % [spec.name, ["", "poor", "good", "perfect"][r.quality]], 3.5)
 
 ## Pelt quality 1 (poor) .. 3 (perfect): right weapon for the size, one clean shot, head/heart hit.
 func pelt_quality() -> int:

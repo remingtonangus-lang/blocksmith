@@ -16,7 +16,18 @@ func _ready() -> void:
 	rng.seed = 1899 * 7
 	Game.set("wildlife", self)
 
+var _queue: Array = []     # [species, pos, seed, group array] spawned a couple per frame (no hitches)
+
 func _process(dt: float) -> void:
+	for i in mini(2, _queue.size()):
+		var e: Array = _queue.pop_front()
+		Game.terrain.ensure_tile(e[1])
+		var a := Animal.spawn(Game.main, e[1], e[0], e[2])
+		var group: Array = e[3]
+		group.append(a)
+		animals.append(a)
+		a.herd = group
+		a.leader = group[0]
 	_t -= dt
 	if _t > 0.0 or Game.player == null or Game.world == null:
 		return
@@ -26,7 +37,7 @@ func _process(dt: float) -> void:
 	for a in animals:
 		if a.global_position.distance_to(pp) > DESPAWN or (not a.alive and a.global_position.distance_to(pp) > 120.0):
 			a.queue_free()
-	if animals.size() >= BUDGET:
+	if animals.size() + _queue.size() >= BUDGET:
 		return
 	_spawn_group(pp)
 
@@ -56,14 +67,6 @@ func _spawn_group(pp: Vector3) -> void:
 		for i in n:
 			var q := p + Vector3(rng.randf_range(-7, 7), 0, rng.randf_range(-7, 7))
 			q.y = w.height(q.x, q.z) + 0.3
-			Game.terrain.ensure_collision_at(q)
-			var a := Animal.spawn(Game.main, q, sp, rng.randi())
-			if not a.is_active_now():
-				a.state = Animal.State.GRAZE
-			group.append(a)
-			animals.append(a)
-		for a in group:
-			a.herd = group
-			a.leader = group[0]
+			_queue.append([sp, q, rng.randi(), group])
 		Game.log_event("wildlife_spawn", {"species": sp, "n": n, "at": [p.x, p.z]})
 		return

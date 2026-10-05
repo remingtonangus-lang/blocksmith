@@ -21,6 +21,8 @@ var _recording := false
 
 func run(m: Node) -> void:
 	main = m
+	if Game.args.has("prof"):
+		add_child(load("res://src/tests/_prof.gd").new())
 	player = Game.player
 	player.bot_driven = true
 	await get_tree().process_frame

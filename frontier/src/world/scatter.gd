@@ -67,57 +67,79 @@ func _first_mesh(n: Node) -> MeshInstance3D:
 			return r
 	return null
 
+var _pending := {}       # Vector2i -> task id
+var _results := {}
+var _mutex := Mutex.new()
+
 func _process(dt: float) -> void:
 	if world == null or _meshes.is_empty():
 		return
+	# finish completed worker jobs (cheap: buffers + shapes)
+	for k in _pending.keys():
+		if WorkerThreadPool.is_task_completed(_pending[k]):
+			WorkerThreadPool.wait_for_task_completion(_pending[k])
+			_pending.erase(k)
+			_mutex.lock()
+			var res = _results.get(k)
+			_results.erase(k)
+			_mutex.unlock()
+			if res != null and not _cells.has(k):
+				_cells[k] = _instantiate(res)
+			break
 	_t -= dt
 	if _t > 0.0:
 		return
 	_t = 0.25
+	var want := _wanted()
+	for k in want.keys():
+		if not _cells.has(k) and not _pending.has(k) and _pending.size() < 3:
+			_pending[k] = WorkerThreadPool.add_task(_generate.bind(k))
+	for k in _cells.keys():
+		if not want.has(k):
+			_cells[k].queue_free()
+			_cells.erase(k)
+
+func _wanted() -> Dictionary:
 	var cp := camera.global_position
 	var half := world.size_m * 0.5
 	var cx := floori((cp.x + half) / CELL)
 	var cz := floori((cp.z + half) / CELL)
 	var r := int(ceil(RANGE / CELL))
 	var want := {}
-	var built := 0
 	for dz in range(-r, r + 1):
 		for dx in range(-r, r + 1):
 			var k := Vector2i(cx + dx, cz + dz)
 			var rect := Rect2(-half + k.x * CELL, -half + k.y * CELL, CELL, CELL)
 			var q := Vector2(clampf(cp.x, rect.position.x, rect.end.x), clampf(cp.z, rect.position.y, rect.end.y))
-			if q.distance_to(Vector2(cp.x, cp.z)) > RANGE:
-				continue
-			want[k] = true
-			if not _cells.has(k) and built < 2:
-				_cells[k] = _build(k)
-				built += 1
-	for k in _cells.keys():
-		if not want.has(k):
-			_cells[k].queue_free()
-			_cells.erase(k)
+			if q.distance_to(Vector2(cp.x, cp.z)) <= RANGE:
+				want[k] = true
+	return want
 
 func settle_now() -> void:
-	_t = 0.0
-	for i in 40:
-		var before := _cells.size()
-		_process(0.0)
-		_t = 0.0
-		if _cells.size() == before:
-			break
+	for k in _pending.keys():
+		WorkerThreadPool.wait_for_task_completion(_pending[k])
+	_pending.clear()
+	var want := _wanted()
+	var missing := want.keys().filter(func(k): return not _cells.has(k))
+	var gid := WorkerThreadPool.add_group_task(func(i: int): _generate(missing[i]), missing.size())
+	WorkerThreadPool.wait_for_group_task_completion(gid)
+	for k in _results.keys():
+		if not _cells.has(k) and want.has(k):
+			_cells[k] = _instantiate(_results[k])
+	_results.clear()
 
-func _build(k: Vector2i) -> Node3D:
-	var node := Node3D.new()
-	add_child(node)
+func _exit_tree() -> void:
+	for k in _pending.keys():
+		WorkerThreadPool.wait_for_task_completion(_pending[k])
+
+## Worker thread: placements for one cell (pure data).
+func _generate(k: Vector2i) -> void:
 	var half := world.size_m * 0.5
 	var x0 := -half + k.x * CELL
 	var z0 := -half + k.y * CELL
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(k) ^ 0x51ab
-	var body := StaticBody3D.new()
-	body.collision_layer = 1
-	body.collision_mask = 0
-	node.add_child(body)
+	var out := {"models": {}, "colliders": []}
 	for id in _meshes.keys():
 		var rule: Dictionary = MODELS[id]
 		var n := int(rule.density * CELL * CELL * rng.randf_range(0.6, 1.4))
@@ -126,11 +148,11 @@ func _build(k: Vector2i) -> Node3D:
 			var x := x0 + rng.randf() * CELL
 			var z := z0 + rng.randf() * CELL
 			var c := world.ctrl(x, z)
-			if c.r > 0.05 or world.is_water(x, z):
-				continue
-			if c.b < rule.biome[0] or c.b > rule.biome[1]:
+			if c.r > 0.05 or c.b < rule.biome[0] or c.b > rule.biome[1]:
 				continue
 			if rule.has("moist") and c.g < rule.moist:
+				continue
+			if world.is_water(x, z):
 				continue
 			var nrm := world.normal(x, z)
 			var slope := 1.0 - nrm.y
@@ -141,7 +163,6 @@ func _build(k: Vector2i) -> Node3D:
 				continue
 			var s := rng.randf_range(rule.scale[0], rule.scale[1])
 			var y := world.height(x, z) - 0.08 * s
-			# rocks sit into the slope: tilt to the ground normal, random yaw
 			var b := Basis(Vector3.UP, rng.randf() * TAU)
 			if float(rule.coll) > 0.7 or id.begins_with("rock"):
 				var tilt := Vector3.UP.cross(nrm)
@@ -149,14 +170,32 @@ func _build(k: Vector2i) -> Node3D:
 					b = Basis(tilt.normalized(), Vector3.UP.angle_to(nrm) * 0.7) * b
 			xf.append(Transform3D(b.scaled(Vector3(s, s, s)), Vector3(x, y, z)))
 			if float(rule.coll) > 0.0:
-				var cs := CollisionShape3D.new()
-				var sh := SphereShape3D.new()
-				sh.radius = _radius[id] * s * float(rule.coll)
-				cs.shape = sh
-				cs.position = Vector3(x, y + sh.radius * 0.4, z)
-				body.add_child(cs)
-		if xf.is_empty():
-			continue
+				var rad: float = _radius[id] * s * float(rule.coll)
+				out.colliders.append([Vector3(x, y + rad * 0.4, z), rad])
+		if not xf.is_empty():
+			out.models[id] = xf
+	_mutex.lock()
+	_results[k] = out
+	_mutex.unlock()
+
+func _instantiate(res: Dictionary) -> Node3D:
+	var node := Node3D.new()
+	add_child(node)
+	if not res.colliders.is_empty():
+		var body := StaticBody3D.new()
+		body.collision_layer = 1
+		body.collision_mask = 0
+		node.add_child(body)
+		for c in res.colliders:
+			var cs := CollisionShape3D.new()
+			var sh := SphereShape3D.new()
+			sh.radius = c[1]
+			cs.shape = sh
+			cs.position = c[0]
+			body.add_child(cs)
+	for id in res.models.keys():
+		var rule: Dictionary = MODELS[id]
+		var xf: Array = res.models[id]
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.mesh = _meshes[id]

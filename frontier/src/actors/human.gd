@@ -77,6 +77,8 @@ func _setup(opts: Dictionary) -> void:
 	brain.setup(self, opts)
 	facing = randf() * TAU
 	add_to_group("humans")
+	add_to_group("interactable")
+	tree_exiting.connect(func(): if Game.terrain: Game.terrain.foci.erase(self))
 	if Game.terrain:
 		Game.terrain.foci.append(self)
 
@@ -207,6 +209,19 @@ func _physics_process(dt: float) -> void:
 	else:
 		_stuck_t = 0.0
 		_last_pos = global_position
+
+func interact_prompt() -> String:
+	if not alive or brain == null or brain.state in [brain.State.COMBAT, brain.State.FLEE]:
+		return ""
+	return "Greet %s" % display_name if faction in ["civilian", "law"] else ""
+
+func interact(_who: Node) -> void:
+	if Game.missions:
+		var lines := ["bark_greet_01", "bark_greet_02", "bark_greet_03"]
+		Game.missions.say(lines[seed % lines.size()], self)
+	if Game.state:
+		Game.state.good_deed("greet")
+	intent.face = Game.player.global_position - global_position
 
 ## Fire at a world point if the gun allows; returns true if a shot went off.
 func shoot_at(p: Vector3, accuracy_scale: float) -> bool:

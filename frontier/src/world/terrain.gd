@@ -263,8 +263,9 @@ func _update_collision() -> void:
 		var p := f.global_position
 		var tx := floori((p.x + world.size_m * 0.5) / COLL_TILE)
 		var tz := floori((p.z + world.size_m * 0.5) / COLL_TILE)
-		for dz in range(-COLL_RING, COLL_RING + 1):
-			for dx in range(-COLL_RING, COLL_RING + 1):
+		var ring := COLL_RING if f == Game.player else 1
+		for dz in range(-ring, ring + 1):
+			for dx in range(-ring, ring + 1):
 				want[Vector2i(tx + dx, tz + dz)] = true
 	var built := 0
 	for k in want.keys():
@@ -285,6 +286,12 @@ func ensure_collision_at(p: Vector3) -> void:
 			var k := Vector2i(tx + dx, tz + dz)
 			if not _coll_tiles.has(k):
 				_coll_tiles[k] = _build_coll_tile(k)
+
+## Cheap variant for spawns: only the single tile under p (the focus ring fills in the rest over frames).
+func ensure_tile(p: Vector3) -> void:
+	var k := Vector2i(floori((p.x + world.size_m * 0.5) / COLL_TILE), floori((p.z + world.size_m * 0.5) / COLL_TILE))
+	if not _coll_tiles.has(k):
+		_coll_tiles[k] = _build_coll_tile(k)
 
 func _build_coll_tile(k: Vector2i) -> CollisionShape3D:
 	# 33x33 samples at 2 m (64 m tile); one shared sample row/column with neighbours

@@ -174,6 +174,24 @@ func _combat(dt: float) -> void:
 	cam_yaw += deg_to_rad(gun.recoil_kick.y) * dt * 6.0
 
 var _fire_edge := false
+var _interact_target: Node = null
+
+## Context interaction: nearest node in group "interactable" within reach that offers a prompt.
+func _interactions() -> void:
+	var best: Node = null
+	var bd := 2.8
+	for n in get_tree().get_nodes_in_group("interactable"):
+		if not (n is Node3D) or not n.has_method("interact_prompt"):
+			continue
+		var d := global_position.distance_to((n as Node3D).global_position)
+		if d < bd and n.interact_prompt() != "":
+			bd = d
+			best = n
+	_interact_target = best
+	if hud and hud.has_method("prompt") and (Game.missions == null or Game.missions.active == null or Game.missions.objective == ""):
+		hud.prompt(("[E]  " + best.interact_prompt()) if best != null else "")
+	if best != null and intent.interact:
+		best.interact(self)
 var _fire_was := false
 
 ## Camera-centre aim: origin, direction and the first solid point (for converging muzzle shots).
@@ -265,6 +283,7 @@ func _physics_process(dt: float) -> void:
 	_fire_edge = intent.fire and not _fire_was
 	_fire_was = intent.fire
 	_combat(dt)
+	_interactions()
 	var mv: Vector2 = intent.move
 	var want_dir := Vector3.ZERO
 	if mv.length() > 0.08:
