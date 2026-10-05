@@ -487,10 +487,28 @@ final class Circuit {
     }
 
     // Scheduled work.
+    // A projectile struck a target block at `hit` (world space): 1-15 by how close to the face centre, for 8 ticks
+    // (arrows, tridents) or 20 (anything else) (reference; nothing ever powered a target).
+    func hitTarget(_ p: IVec3, at hit: V3, arrow: Bool) {
+        let b = block(p)
+        guard Circuit.kind(b) == .target else { return }
+        let c = V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5)
+        let o = simd_abs(hit - c)
+        // The face is the axis the hit is furthest along; the distance is the larger of the other two.
+        let d: Float = o.x >= o.y && o.x >= o.z ? max(o.y, o.z) : (o.y >= o.z ? max(o.x, o.z) : max(o.x, o.y))
+        let k: Float = min(1, max(0, (0.5 - d) / 0.5))
+        let level = max(1, Int((15 * k).rounded(.up)))
+        setQuiet(p, base(b) + BlockID(level))
+        wakeAround(p)
+        schedule(p, arrow ? 8 : 20)
+    }
+
     private func fire(_ p: IVec3) {
         let b = block(p)
         let s = st(b)
         switch Circuit.kind(b) {
+        case .target:
+            if s > 0 { setQuiet(p, base(b)); wakeAround(p) }
         case .torch:
             let attached = s < 2 ? IVec3(0, -1, 0) : Circuit.D[Circuit.opp[Circuit.d6((s - 2) % 4)]]
             let q = p + attached
