@@ -65,8 +65,10 @@ Finish variants: `lockhart_sa_nickel`, `talbot_pocket_nickel` (nickel + hard rub
   case ejection at the right moment), `reload_anim(step)` (0 open, n per round, -1 close: gate + ejector rod +
   cylinder turn, top-break open/eject-all, lever gate push, bolt open/close, break-open with extractor and re-cock,
   rolling-block cock/roll/eject), `cock(ready)`, `pose(dict)`, `pose_open()`, `muzzle_transform()`,
-  `grip_transform(name)`, `marker(name)`, `marker_local(name)`, `set_detail(high)` (LOD1 swap); signal
-  `ejected(shell, xform)`.
+  `grip_transform(name)`, `marker(name)`, `marker_local(name)`, `set_detail(high)` (LOD1 swap); signals
+  `ejected(shell, xform)` and `mech(kind)` (cock, lever, bolt, pump, gate, round, eject, break_open, break_close,
+  shell — emitted when the part moves; the holder forwards them to `Game.audio.gun_mech`, plus draw/holster and a
+  delayed `casing` per ejected case; the shot itself stays `GunHandler` -> `Game.audio.gunshot`).
 - `WeaponHolder.attach(actor, gun)` (null when headless) — one `WeaponModel` per weapon in `gun.weapons`: sidearm on
   the right hip, long gun slung across the back (or in `saddle` when set), current weapon blended into the hand when
   `gun.drawn` (0.32 s). Hand: a `BoneAttachment3D` on the first bone named `hand.R`, `RightHand`, `hand_r`,
@@ -79,6 +81,13 @@ Finish variants: `lockhart_sa_nickel`, `talbot_pocket_nickel` (nickel + hard rub
 - Hooks (minimal): `player.gd` / `human.gd` attach a holder after the gun is set up (humans only when they were
   spawned with a weapon) and spawn the muzzle flash at `holder.muzzle_transform()` when a gun is drawn; ballistics
   still use the old body-relative origin.
+
+## Build + fetch
+- CI: job `weapons` in `.github/workflows/frontier-assets.yml` (runs when `frontier/tools/weapons/**` changes or on
+  dispatch `mode=weapons|all`): Python 3.11 + `pip install bpy==5.0.1 numpy scipy pillow`, `gun_gen.py --variants`,
+  uploads `weapons.zip` (+ `weapons.log`) to the `frontier-assets` release.
+- Local: `bash frontier/tools/fetch_assets.sh weapons` -> `frontier/assets/ext/weapons/` (also part of `all`; an
+  `ext` refresh keeps it). `frontier.yml` still needs a `fetch_assets.sh weapons || true` line to ship them in builds.
 
 ## Verification
 - Blender previews: `gun_gen.py --preview DIR` (Cycles studio: key/fill/rim, gradient world).
