@@ -6,7 +6,7 @@ extends RefCounted
 ## float grid (8 m texels) that the GPU samples with the same bilinear filter as height_at(), plus a tileable
 ## 0.25 m detail layer. Everything is deterministic for a seed and cached in user://.
 
-const GEN_VERSION := 14
+const GEN_VERSION := 15
 const SIZE := 16384.0
 const HALF := 8192.0
 const N := 2048
@@ -556,6 +556,7 @@ func _build_roads() -> void:
 		for k in 3:
 			pts = _chaikin(pts)
 		pts = _resample(pts, 10.0)
+		pts = _road_head(pts)
 		roads.append(_road_profile(pts, r[2], r[3], _road_grid))
 		_index_road(roads[roads.size() - 1])
 	for road in roads:
@@ -596,6 +597,26 @@ func _resample(p: PackedVector2Array, step: float) -> PackedVector2Array:
 		carry = l - (t - step)
 	out.append(p[p.size() - 1])
 	return out
+
+
+## Cuts a road short where it can no longer climb: beyond the point where the ground rises above what a 20 %
+## grade from the start reaches (plus 60 m), the road ends at a road head. Pass Road climbed 1300 m in 5 km to
+## the radar summit (26 %): its profile rode a 650 m embankment and its fills raised a 380 m mound at the
+## citadel. The radar station is served by gunship pads instead.
+func _road_head(pts: PackedVector2Array) -> PackedVector2Array:
+	var h0 := _raw(pts[0].x, pts[0].y)
+	var total := 0.0
+	for i in range(1, pts.size()):
+		total += pts[i].distance_to(pts[i - 1])
+	var last := pts[pts.size() - 1]
+	if _raw(last.x, last.y) <= h0 + 0.2 * total + 60.0:
+		return pts                                  # the destination is reachable: grades and ramps handle it
+	var dist := 0.0
+	for i in range(1, pts.size()):
+		dist += pts[i].distance_to(pts[i - 1])
+		if _raw(pts[i].x, pts[i].y) > h0 + 0.2 * dist + 60.0:
+			return pts.slice(0, maxi(i - 20, 2))
+	return pts
 
 
 var _road_grid := {}                    # 16 m cell -> [Vector3 road point...] of the roads built so far
@@ -664,11 +685,21 @@ func _road_profile(pts: PackedVector2Array, name: String, faction: String, grid:
 	# Grade limit (12 %, a mountain road): violations are relaxed symmetrically, half cut and half fill, so a
 	# steep climb is spread over both sides instead of becoming one deep cut (the forward/backward clamp alone
 	# left Pass Road 190 m under a ridge); a final clamp guarantees the limit.
-	var grade := 0.16 * 10.0
-	for it in 200:
+	# Both ends stay on their sites (relaxation once lowered the radar end by 740 m and its banks dug a crater),
+	# 20 % grades (mountain roads), and the last 600 m before a site may climb at up to 30 % (an access ramp).
+	if is_nan(pin[0]):
+		pin[0] = h[0]
+	if is_nan(pin[n - 1]):
+		pin[n - 1] = h[n - 1]
+	var gr := PackedFloat32Array()
+	gr.resize(n)
+	for i in n:
+		gr[i] = 3.0 if mini(i, n - 1 - i) < 60 else 2.0
+	for it in 300:
 		var moved := false
 		for i in range(1, n):
 			var dh := h[i] - h[i - 1]
+			var grade := minf(gr[i], gr[i - 1])
 			if absf(dh) > grade + 0.01:
 				var ex := (absf(dh) - grade) * 0.5 * signf(dh)
 				var fi := not is_nan(pin[i])
@@ -686,9 +717,11 @@ func _road_profile(pts: PackedVector2Array, name: String, faction: String, grid:
 		if not moved:
 			break
 	for i in range(1, n):
-		h[i] = pin[i] if not is_nan(pin[i]) else clampf(h[i], h[i - 1] - grade, h[i - 1] + grade)
+		var g1 := minf(gr[i], gr[i - 1])
+		h[i] = pin[i] if not is_nan(pin[i]) else clampf(h[i], h[i - 1] - g1, h[i - 1] + g1)
 	for i in range(n - 2, -1, -1):
-		h[i] = pin[i] if not is_nan(pin[i]) else clampf(h[i], h[i + 1] - grade, h[i + 1] + grade)
+		var g2 := minf(gr[i], gr[i + 1])
+		h[i] = pin[i] if not is_nan(pin[i]) else clampf(h[i], h[i + 1] - g2, h[i + 1] + g2)
 	var out := PackedVector3Array()
 	for i in n:
 		out.append(Vector3(pts[i].x, h[i], pts[i].y))
@@ -716,6 +749,13 @@ func _carve_road(road: Dictionary) -> void:
 			var q := a0.lerp(b0, t)
 			dd = maxf(dd, absf(_raw(q.x, q.y) - lerpf(pts[i].y, pts[i + 1].y, t)))
 		raw_depth[i] = dd
+	# Two passes: every segment's banks first, then every level strip, so the road surface always wins (on
+	# 30 % ramps a later segment's fill bank rose up to 4.5 m above the strip of the segments before it).
+	for pass_i in 2:
+		_carve_road_pass(pts, bridge, raw_depth, flat, BANK, pass_i == 1)
+
+
+func _carve_road_pass(pts: PackedVector3Array, bridge: PackedByteArray, raw_depth: PackedFloat32Array, flat: float, BANK: float, strips: bool) -> void:
 	for i in pts.size() - 1:
 		var a := Vector2(pts[i].x, pts[i].z)
 		var b := Vector2(pts[i + 1].x, pts[i + 1].z)
@@ -726,6 +766,8 @@ func _carve_road(road: Dictionary) -> void:
 		for k in range(maxi(0, i - 3), mini(pts.size() - 1, i + 4)):
 			depth = maxf(depth, raw_depth[k])
 		var reach := minf(flat + (depth + 25.0) / BANK, 320.0) if not on_bridge else ROAD_HALF + 14.0
+		if strips:
+			reach = minf(reach, flat + ROAD_HALF + 8.0)
 		var x0 := _tx(minf(a.x, b.x) - reach); var x1 := _tx(maxf(a.x, b.x) + reach)
 		var z0 := _tx(minf(a.y, b.y) - reach); var z1 := _tx(maxf(a.y, b.y) + reach)
 		for tz in range(z0, z1 + 1):
@@ -742,14 +784,18 @@ func _carve_road(road: Dictionary) -> void:
 				# Level only texels that project onto this segment (the strip is wider than a segment is long:
 				# clamped projections raised the previous segment's texels by up to 2.4 m on 16 % climbs).
 				var own := (tu >= -0.02 or i == 0) and (tu <= 1.02 or i == pts.size() - 2)
-				if not on_bridge and ((d <= flat and own) or (d > flat and water[idx] < -100.0)):
-					# (Banks never cut under a river: wide cuts once left the water 118 m above the ground.)
-					var y := lerpf(pts[i].y, pts[i + 1].y, t) - 0.15
-					if d <= flat:
+				var y := lerpf(pts[i].y, pts[i + 1].y, t) - 0.15
+				if on_bridge:
+					pass
+				elif strips:
+					if d <= flat and own:
 						heights[idx] = y
-					else:
-						var e := (d - flat) * BANK
-						heights[idx] = clampf(heights[idx], y - e, y + e)
+				elif d > flat and water[idx] < -100.0:
+					# (Banks never cut under a river: wide cuts once left the water 118 m above the ground.)
+					var e := (d - flat) * BANK
+					heights[idx] = clampf(heights[idx], y - e, y + e)
+				if not strips:
+					continue
 				var m := 1.0 - _smooth01(ROAD_HALF, ROAD_HALF + 8.0, d)
 				mask[idx * 4] = maxi(mask[idx * 4], int(m * 200.0))
 				mask[idx * 4 + 3] = int(mask[idx * 4 + 3] * (1.0 - minf(1.0, m * 1.5)))

@@ -441,7 +441,8 @@ func _process(delta: float) -> void:
 	for s in searchlights:
 		var l: SpotLight3D = s[0]
 		var yaw: float = s[1] + sin(t * 0.21 + s[2]) * 0.9
-		var pitch := -0.18 + sin(t * 0.13 + s[2] * 2.0) * 0.12
+		# Sweeping the night sky, 14-48 degrees up (pointed down, the beams lay on the slopes as white rods).
+		var pitch := 0.55 + sin(t * 0.13 + s[2] * 2.0) * 0.3
 		l.rotation = Vector3(pitch, yaw + PI, 0.0)
 		l.light_energy = night * 18.0
 		l.visible = night > 0.02
