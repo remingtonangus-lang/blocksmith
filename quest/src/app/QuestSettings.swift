@@ -27,7 +27,7 @@ enum QuestSettings {
     // Aboard a moving ship: strength of the reference ring at the feet (0 off ... 1).
     static var deckRing: Float { get { float("quest.deckRing", 1) } set { d.set(newValue, forKey: "quest.deckRing") } }
     static var foveation: Int { get { int("quest.foveation", 0) } set { d.set(newValue, forKey: "quest.foveation") } }
-    static var textureRes: Int { get { int("quest.textureRes", 64) } set { d.set(newValue, forKey: "quest.textureRes") } }
+    static var textureRes: Int { get { int("quest.textureRes", 128) } set { d.set(newValue, forKey: "quest.textureRes") } }
 }
 
 extension QuestSettings {
