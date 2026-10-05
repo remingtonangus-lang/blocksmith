@@ -1641,8 +1641,8 @@ final class Game {
         if let a = attacker { petsAttack(a) }
         if shieldBlocks(amount, from: src, type: type, attacker: attacker) { return }
         var amount = amount
-        if attacker != nil || type == .projectile {
-            // Reference difficulty scaling of mob damage: easy min(x/2+1, x), hard x*1.5.
+        if attacker != nil || type == .projectile || type == .explosion {
+            // Reference difficulty scaling of mob damage: easy min(x/2+1, x), hard x*1.5 (blasts always scale).
             switch difficulty {
             case 0: return
             case 1: amount = min(amount / 2 + 1, amount)
