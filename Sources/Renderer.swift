@@ -1761,7 +1761,7 @@ final class Renderer: NSObject, MTKViewDelegate {
                     // inventory).
                     let label: String = e.name + (a.amp > 0 ? " " + Effect.roman(a.amp + 1) : "")
                     text(label, bx + 28 * s, y + 7 * s, s, V4(0.18, 0.18, 0.2, 1), shadow: false)
-                    let secs = Int(a.time)
+                    let secs = Int(min(1e6, max(0, a.time)))          // converted only in range (an infinite effect overflowed Int)
                     let left: String = a.time > 1e6 ? "Infinite" : String(format: "%d:%02d", secs / 60, secs % 60)
                     text(left, bx + 28 * s, y + 18 * s, s, V4(0.3, 0.3, 0.33, 1), shadow: false)
                     y += 33 * s

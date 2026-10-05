@@ -303,6 +303,7 @@ final class Circuit {
         for q in net {
             var e = 0
             for d in 0..<6 { e = max(e, powerFrom(q, d, forWire: true)) }
+            e = min(15, e)                                       // the bucket table is 16 long
             level[q] = e
             if e > 0 { buckets[e].append(q) }
         }
@@ -626,7 +627,7 @@ final class Circuit {
         var fill: Float = 0
         var any = false
         for i in 0..<c.count where !c[i].isEmpty { fill += Float(c[i].count) / Float(c[i].maxStack); any = true }
-        return any ? Int(floor(1 + fill / Float(c.count) * 14)) : 0
+        return any ? min(15, Int(floor(1 + fill / Float(c.count) * 14))) : 0      // over-full slots (older saves) stay at 15
     }
 
     // MARK: Periodic: plates, daylight detectors, hoppers
