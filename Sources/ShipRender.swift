@@ -449,7 +449,7 @@ final class ShipRenderer {
         let off = (ringOff + 255) & ~255
         guard off + n <= ShipRenderer.ringSize else { return nil }
         let b = ring[ringIndex]
-        verts.withUnsafeBytes { memcpy(b.contents() + off, $0.baseAddress!, n) }
+        verts.withUnsafeBytes { _ = memcpy(b.contents() + off, $0.baseAddress!, n) }
         ringOff = off + n
         return (b, off)
     }
