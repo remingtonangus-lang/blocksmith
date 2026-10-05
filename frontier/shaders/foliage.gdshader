@@ -20,7 +20,6 @@ uniform sampler2D normal_tex : filter_linear_mipmap_anisotropic, repeat_enable; 
 uniform vec3 tint : source_color = vec3(1.0);
 uniform float tint_var = 0.12;
 uniform float alpha_cut = 0.45;
-uniform float alpha_mip_scale = 0.25;
 uniform float sway = 1.0;           // species stiffness multiplier
 uniform float tree_height = 12.0;
 uniform float translucency = 0.6;
@@ -88,12 +87,9 @@ void fragment() {
 	vec3 alb;
 	float ao;
 	if (is_leaf) {
+		// the leaf atlas mips keep their alpha-tested coverage (TreeGen.preserve_alpha_coverage), so crowns stay as
+		// full at 200 m as up close, and match their impostors
 		vec4 a = texture(albedo_tex, UV);
-		// coarser mips average the leaves with the gaps between them: scale coverage up with the mip level so the
-		// canopy stays as full at 200 m as up close (and matches its impostor) instead of thinning to twigs
-		vec2 tpx = UV * vec2(textureSize(albedo_tex, 0));
-		float mip = max(0.5 * log2(max(dot(dFdx(tpx), dFdx(tpx)), dot(dFdy(tpx), dFdy(tpx)))), 0.0);
-		a.a *= 1.0 + mip * alpha_mip_scale;
 		if (a.a < alpha_cut) discard;
 		vec3 var_tint = tint * (1.0 + (v_inst_rand - 0.5) * tint_var * 2.0);
 		var_tint = mix(var_tint, var_tint * vec3(1.08, 0.95, 0.75), smoothstep(0.6, 1.0, v_inst_rand) * 0.6);

@@ -356,7 +356,65 @@ static func make_leaf_atlas() -> ImageTexture:
 				2: _paint_scale(img, ox, oy, cell, r)
 				3: _paint_fine(img, ox, oy, cell, r)
 	img.generate_mipmaps()
-	return ImageTexture.create_from_image(img)
+	return ImageTexture.create_from_image(preserve_alpha_coverage(img, 4, 0.45))
+
+## Box-filtered mips average leaves with the gaps between them, so a card's alpha-tested coverage shrinks with every
+## level and distant crowns thin out to twigs. Rescale each mip's alpha, per atlas cell, so the same fraction of
+## texels passes `cut` as at full resolution (coverage-preserving mips). Cells are `cells` x `cells` squares.
+static func preserve_alpha_coverage(img: Image, cells: int, cut: float) -> Image:
+	var w := img.get_width()
+	var data := img.get_data()
+	var cut_b := int(cut * 255.0)
+	var cell0 := w / cells
+	# reference coverage per cell at full resolution (every other texel)
+	var cov := PackedFloat32Array()
+	cov.resize(cells * cells)
+	for cy in cells:
+		for cx in cells:
+			var n := 0
+			var hit := 0
+			for y in range(cy * cell0, (cy + 1) * cell0, 2):
+				var row := y * w
+				for x in range(cx * cell0, (cx + 1) * cell0, 2):
+					n += 1
+					if data[(row + x) * 4 + 3] >= cut_b:
+						hit += 1
+			cov[cy * cells + cx] = float(hit) / maxf(n, 1)
+	var hist := PackedInt32Array()
+	for m in range(1, img.get_mipmap_count() + 1):
+		var mw := maxi(w >> m, 1)
+		var cs := mw / cells
+		if cs < 1:
+			break
+		var off := img.get_mipmap_offset(m)
+		for cy in cells:
+			for cx in cells:
+				hist.resize(0)
+				hist.resize(256)
+				for y in range(cy * cs, (cy + 1) * cs):
+					var row := off + y * mw * 4
+					for x in range(cx * cs, (cx + 1) * cs):
+						hist[data[row + x * 4 + 3]] += 1
+				# alpha value T with the reference fraction of texels at or above it
+				var want := int(round(cov[cy * cells + cx] * cs * cs))
+				if want <= 0:
+					continue
+				var acc := 0
+				var t := 255
+				while t > 0:
+					acc += hist[t]
+					if acc >= want:
+						break
+					t -= 1
+				var k := clampf(float(cut_b) / maxf(t, 1.0), 1.0, 4.0)
+				if k <= 1.001:
+					continue
+				for y in range(cy * cs, (cy + 1) * cs):
+					var row := off + y * mw * 4
+					for x in range(cx * cs, (cx + 1) * cs):
+						var i := row + x * 4 + 3
+						data[i] = mini(int(data[i] * k + 0.5), 255)
+	return Image.create_from_data(w, img.get_height(), true, img.get_format(), data)
 
 static func _plot(img: Image, x: int, y: int, c: Color) -> void:
 	if x < 0 or y < 0 or x >= img.get_width() or y >= img.get_height():
