@@ -182,6 +182,11 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
   review's six findings, NaN quarantines, pathfinder cursor, O(1) needsMesh, mineshafts / ravines vs aquifers,
   structcheck / village / life / collisiontest gating).
 
+- 10:45 UTC: macOS runners busy with claude/bs-capital-soldiers (runs 680/681, Kestrel air patrols, basetest air) and the
+  capital / frontier workflows; run 679 (e9a42c8) queued behind them. A trial merge of claude/bs-capital-soldiers
+  (17 commits from c801470: Aircraft, BaseTests, CapitalAir, FlightModel, FlightTests, ShipPlay, Soldiers) into this
+  branch's head is clean (git merge-tree, no conflicts).
+
 ## Next
 - Per-frame allocations left after the 2026-10-05 audit (refactors; measure with the profiles first): mob model parts
   rebuilt per mob per frame (Mob.swift parts / equipmentParts: append into one reused buffer); the HUD line chain
