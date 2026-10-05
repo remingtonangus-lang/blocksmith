@@ -257,7 +257,10 @@ extension Game {
             if abs(pp.x - (Float(p.x) + 0.5)) < 0.9 && abs(pp.z - (Float(p.z) + 0.5)) < 0.9 && Float(p.y) + 1 > pp.y && Float(p.y) < pp.y + 1.8 {
                 skipped.append((p, id)); continue
             }
-            world.setBlock(p.x, p.y, p.z, id)
+            // Re-meshed in the background (a synchronous remesh of the sections round each block cost ~0.8 ms, two a
+            // second: the citadel update averaged 2.6 ms, --basetest run 634); water beside it settles as usual.
+            world.setBlockAsync(p.x, p.y, p.z, id)
+            world.scheduleFluid(around: p)
             if away <= 5 {
                 particles.blockBreak(id, at: p)
                 sfx(.place(soundMat(id)), 0.7, at: V3(Float(p.x) + 0.5, Float(p.y) + 0.5, Float(p.z) + 0.5))
