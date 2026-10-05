@@ -151,7 +151,20 @@ extension Game {
         func take() { stack.count -= 1; c[slot] = stack.count > 0 ? stack : .empty }
         if dropper {
             // Into a container in front, else out as an item.
-            if let t = world.blockEntities[front], t.kind != .spawner, t.kind != .furnace {
+            if let t = world.blockEntities[front], t.kind == .furnace {
+                // By face like a hopper (reference): from above into the input, from the side fuel only; else it holds.
+                let one = stack.with(count: 1)
+                let slot = fd.y < -0.5 ? 0 : (fd.y > 0.5 ? -1 : (Recipes.fuel(one.item) > 0 ? 1 : -1))
+                if slot >= 0 {
+                    let cur = t.container[slot]
+                    if cur.isEmpty || (cur.stacks(with: one) && cur.count < cur.maxStack) {
+                        var n = cur.isEmpty ? one : cur
+                        if !cur.isEmpty { n.count += 1 }
+                        t.container[slot] = n
+                        take()
+                    }
+                }
+            } else if let t = world.blockEntities[front], t.kind != .spawner {
                 let one = stack.with(count: 1)
                 if t.container.add(one).isEmpty { take() }
             } else { drops.spawn(stack.with(count: 1), at: from, vel: fd * 4 + V3(0, 1, 0), delay: 0.5); take() }
