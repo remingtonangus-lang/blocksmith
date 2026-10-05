@@ -52,6 +52,8 @@ enum QuestSettings {
     static var headLocomotion: Bool { get { bool("quest.headLocomotion", false) } set { store(newValue, "quest.headLocomotion") } }
     // Seated: the game's eye height (1.62 blocks) whatever the real head height.
     static var seated: Bool { get { bool("quest.seated", false) } set { store(newValue, "quest.seated") } }
+    // Reclined (lying down): recentring also levels the view to the current gaze pitch; implies seated.
+    static var reclined: Bool { get { bool("quest.reclined", false) } set { store(newValue, "quest.reclined") } }
     static var leftHanded: Bool { get { bool("quest.leftHanded", false) } set { store(newValue, "quest.leftHanded") } }
     // Aboard a moving ship: strength of the reference ring at the feet (0 off ... 1).
     static var deckRing: Float { get { float("quest.deckRing", 1) } set { store(newValue, "quest.deckRing") } }

@@ -464,7 +464,7 @@ final class QuestControls {
 
     private func roomScale() {
         let rig = app.rig
-        if QuestSettings.seated {
+        if QuestSettings.seated || QuestSettings.reclined {
             // Seated: leaning moves only the view (up to 35 cm from the centre), never the player.
             var d = rig.trackingHead - rig.anchor
             d.y = 0
