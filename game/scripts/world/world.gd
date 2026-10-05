@@ -260,6 +260,49 @@ func _battle_warm(seconds: float) -> void:
 		G.battle.simulate(seconds)
 
 
+## Shot battle_ground: a fixed spot near the front often faced an empty slope (the squads spread at random).
+## Instead look over the shoulder of a Capital soldier with an enemy 40-160 m away in line of sight, picking
+## the one with the most soldiers of either side around the pair (the busiest piece of the fight).
+func _battle_frame() -> void:
+	var a: Army = G.battle.army if G.battle else null
+	if a == null:
+		return
+	var best := -1
+	var best_j := -1
+	var best_score := -1
+	for i in a.n:
+		if a.fac[i] != 0 or not a.alive(i):
+			continue
+		var j := a.nearest_enemy(a.pos[i], 0, 160.0)
+		if j < 0 or a.pos[i].distance_to(a.pos[j]) < 40.0:
+			continue
+		if not a.los(a.pos[i] + Vector3(0, 2.2, 0), a.pos[j] + Vector3(0, 1.4, 0)):
+			continue
+		var mid := (a.pos[i] + a.pos[j]) * 0.5
+		var r := a.pos[i].distance_to(a.pos[j]) * 0.6
+		var score := 0
+		for k in a.n:
+			if a.alive(k) and a.pos[k].distance_to(mid) < r:
+				score += 1
+		if score > best_score:
+			best_score = score
+			best = i
+			best_j = j
+	if best < 0:
+		return
+	var p := a.pos[best]
+	var d := a.pos[best_j] - p
+	d.y = 0.0
+	d = d.normalized()
+	var side := Vector3(-d.z, 0, d.x)
+	var c := p - d * 4.5 + side * 1.1
+	c.y = maxf(ground_at(c.x, c.z), p.y) + 2.1
+	G.cam.global_position = c
+	G.cam.look_at(a.pos[best_j] + Vector3(0, 1.0, 0), Vector3.UP)
+	focus(c)
+	print("battle_ground: behind soldier %d, enemy %d at %.0f m, %d soldiers in frame" % [best, best_j, p.distance_to(a.pos[best_j]), best_score])
+
+
 func _bench_setup(hour: float, wx: String) -> void:
 	sky.set_hour(hour)
 	if weather and weather.has_method("set_weather"):
@@ -287,7 +330,7 @@ func shot_list() -> Array:
 		{"name": "radar_night", "pos": rad + Vector3(260, 150, 330), "look": rad + Vector3(0, 10, 0), "hour": 22.5, "weather": "clear"},
 		{"name": "fort_lumen", "pos": above(fl.x + 280, fl.z + 260, 70), "look": fl, "hour": 9.5, "weather": "cloudy"},
 		{"name": "cinder_camp", "pos": above(cc.x + 220, cc.z + 200, 45), "look": cc, "hour": 17.0, "weather": "clear"},
-		{"name": "battle_ground", "pos": above(fr.x + 260, fr.z + 20, 1.7), "look": above(fr.x - 200, fr.z - 40, 2.0), "hour": 16.0, "weather": "overcast", "setup": func(): _battle_warm(25.0)},
+		{"name": "battle_ground", "pos": above(fr.x + 260, fr.z + 20, 1.7), "look": above(fr.x - 200, fr.z - 40, 2.0), "hour": 16.0, "weather": "overcast", "setup": func(): _battle_warm(25.0), "late": func(): _battle_frame(), "late_frames": 45},
 		{"name": "battle_wide", "pos": above(fr.x + 420, fr.z + 380, 70), "look": fr + Vector3(0, 10, 0), "hour": 16.5, "weather": "cloudy", "setup": func(): _battle_warm(25.0)},
 		{"name": "troops_lineup", "fov": 32.0, "pos": _open_spot(fr, 900.0) + Vector3(12, 1.3, 0), "look": _open_spot(fr, 900.0) + Vector3(0, 0.9, 0), "hour": 11.0, "weather": "clear", "setup": func(): G.battle.lineup(_open_spot(fr, 900.0), _open_spot(fr, 900.0) + Vector3(6, 0, 0))},
 		{"name": "road_bridge", "pos": Vector3(1690, 46, 880), "look": Vector3(1632, 24, 774), "hour": 13.0, "weather": "clear"},

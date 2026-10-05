@@ -105,7 +105,7 @@ float cloud_density(vec3 p, float lod) {
 	float shape = smoothstep(0.0, 0.12, hfrac) * (1.0 - smoothstep(0.35, 1.0, hfrac));
 	vec3 q = vec3(p.x + cloud_offset.x, p.y, p.z + cloud_offset.y);
 	float base = textureLod(cloud_noise, q / 9000.0, lod).r;
-	float cov = mix(0.62, 0.18, cloud_cover);
+	float cov = mix(0.76, 0.18, cloud_cover);
 	float d = smoothstep(cov, cov + 0.3, base * shape + base * 0.25);
 	if (d <= 0.0) return 0.0;
 	float det = textureLod(cloud_noise, q / 2100.0 + vec3(0.37), lod).r;
@@ -115,14 +115,23 @@ float cloud_density(vec3 p, float lod) {
 
 // Returns rgb = in-scattered cloud light, a = transmittance.
 vec4 clouds(vec3 ro, vec3 rd, vec3 sun_col, vec3 amb, vec3 ld, int steps, float jitter) {
-	if (abs(rd.y) < 0.0005) return vec4(0.0, 0.0, 0.0, 1.0);
+	// Light inside a cloud is scattered many times and loses the sky's blue: a thick deck lit only by the blue
+	// zenith ambient rendered as clear sky (overcast looked emptier than clear). Grey ambient plus a soft
+	// multiple-scattering sun octave that survives the deck's self-shadow.
+	vec3 amb_c = mix(vec3(dot(amb, vec3(0.2126, 0.7152, 0.0722))), amb, 0.3) * 1.5;
+	// Past the marched range the deck still covers the sky down to the horizon: its average look (an overcast
+	// sky kept a clear golden band along the horizon).
+	float avg_t = 1.0 - smoothstep(0.3, 0.95, cloud_cover) * 0.9;
+	vec4 avg = vec4((amb_c * 0.7 + sun_col * 0.075) * (1.0 - cloud_dark * 0.75) * (1.0 - avg_t), avg_t);
+	bool below = ro.y < CLOUD_LO;
+	if (abs(rd.y) < 0.0005) return below ? avg : vec4(0.0, 0.0, 0.0, 1.0);
 	float t0 = (CLOUD_LO - ro.y) / rd.y;
 	float t1 = (CLOUD_HI - ro.y) / rd.y;
 	if (t0 > t1) { float tmp = t0; t0 = t1; t1 = tmp; }
 	t0 = max(t0, 0.0);
 	if (t1 <= 0.0) return vec4(0.0, 0.0, 0.0, 1.0);
 	float far = 60000.0;
-	if (t0 > far) return vec4(0.0, 0.0, 0.0, 1.0);
+	if (t0 > far) return below ? avg : vec4(0.0, 0.0, 0.0, 1.0);
 	t1 = min(t1, t0 + 9000.0);
 	float ds = (t1 - t0) / float(steps);
 	float trans = 1.0;
@@ -139,10 +148,12 @@ vec4 clouds(vec3 ro, vec3 rd, vec3 sun_col, vec3 amb, vec3 ld, int steps, float 
 			float ls = 0.0;
 			ls += cloud_density(p + ld * 180.0, lod + 0.5);
 			ls += cloud_density(p + ld * 520.0, lod + 1.0);
-			float shadow = exp(-ls * 420.0 * (1.0 + cloud_dark * 2.0));
+			float dk = 1.0 + cloud_dark * 2.0;
+			float shadow = exp(-ls * 420.0 * dk);
+			float multi = exp(-ls * 45.0 * dk) * 0.3;
 			float powder = 1.0 - exp(-d * 2.0 * ds);
 			float hfrac = clamp((p.y - CLOUD_LO) / (CLOUD_HI - CLOUD_LO), 0.0, 1.0);
-			vec3 s = sun_col * shadow * phase * 6.0 * (0.4 + powder * 0.6) + amb * (0.45 + hfrac * 0.55);
+			vec3 s = sun_col * (shadow * phase * 6.0 * (0.4 + powder * 0.6) + multi) + amb_c * (0.45 + hfrac * 0.55);
 			s *= (1.0 - cloud_dark * 0.75);
 			float a = exp(-d * ds);
 			light += trans * (1.0 - a) * s;
@@ -150,7 +161,8 @@ vec4 clouds(vec3 ro, vec3 rd, vec3 sun_col, vec3 amb, vec3 ld, int steps, float 
 		}
 	}
 	float fade = 1.0 - smoothstep(25000.0, far, t0);
-	return vec4(light * fade, mix(1.0, trans, fade));
+	if (!below) return vec4(light * fade, mix(1.0, trans, fade));
+	return vec4(light * fade + avg.rgb * (1.0 - fade), mix(avg.a, trans, fade));
 }
 
 vec3 stars(vec3 rd) {
@@ -174,6 +186,7 @@ void sky() {
 	if (AT_HALF_RES_PASS || AT_CUBEMAP_PASS) {
 		vec3 dir = rd;
 		dir.y = max(dir.y, -0.02);
+		float ctrans = 1.0;
 		vec3 col = scatter(normalize(dir), sun_dir, sun_intensity, h0);
 		col += scatter(normalize(dir), moon_dir, sun_intensity * moon_intensity, h0) * vec3(0.8, 0.9, 1.15);
 		float night = 1.0 - smoothstep(-0.18, 0.02, sun_dir.y);
@@ -200,18 +213,25 @@ void sky() {
 					fract(52.9829189 * fract(dot(FRAGCOORD.xy, vec2(0.06711056, 0.00583715)))));
 				// Aerial perspective over the cloud: blend toward the sky colour with distance.
 				col = col * cl.a + cl.rgb;
+				ctrans = cl.a;
 			}
 			if (steps == 0) {
 				// No raymarched clouds (Low preset): a flat overcast layer that thickens with cover.
 				float k = smoothstep(0.35, 0.95, cloud_cover) * smoothstep(-0.02, 0.12, rd.y);
 				vec3 grey = amb * mix(0.55, 0.25, cloud_dark);
 				col = mix(col, grey, k * 0.92);
+				ctrans = 1.0 - k * 0.92;
 			}
 		}
 		// Heavy haze (fog, storms): single scattering extinguishes rays along the horizon to black; real fog is
 		// lit by multiple scattering and the horizon turns a bright grey. Approximation: blend toward a
 		// desaturated sky colour from 8.6 degrees up (after the clouds, which in fog are a dim blue deck): 90 % at and below the horizon, 50 % overhead (a foggy sky
 		// is pale all over).
+		// Same single-scattering gap at the horizon in daytime: a 60 km path loses its blue and turned the noon
+		// horizon gold; multiple scattering keeps it pale. Only with the sun high (sunset colours are real).
+		float hz_w = (1.0 - smoothstep(0.0, 0.1, rd.y)) * smoothstep(0.1, 0.35, sun_dir.y);
+		float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
+		col = mix(col, lum * vec3(0.93, 0.98, 1.07), hz_w * 0.8);
 		float fogk = smoothstep(1.0, 4.0, haze);
 		if (fogk > 0.0) {
 			vec3 up = normalize(vec3(rd.x, 0.15, rd.z));
@@ -220,11 +240,13 @@ void sky() {
 			col = mix(col, fogc, fogk * (0.5 + 0.4 * (1.0 - smoothstep(0.0, 0.3, rd.y))));
 		}
 		COLOR = col * exposure;
+		// The full-resolution pass dims the sun and moon discs by the clouds actually in front of them.
+		ALPHA = ctrans;
 	} else {
 		vec3 col = HALF_RES_COLOR.rgb;
 		// Sun and moon discs (behind clouds: dimmed by the cloud transmittance encoded in brightness).
 		float sd = dot(rd, sun_dir);
-		float vis = 1.0 - cloud_cover * 0.85;
+		float vis = HALF_RES_COLOR.a * HALF_RES_COLOR.a;
 		if (sd > 0.99995) {
 			vec3 st = sun_transmittance(sun_dir);
 			col += st * sun_intensity * 30.0 * exposure * vis * smoothstep(0.99995, 0.99999, sd);
