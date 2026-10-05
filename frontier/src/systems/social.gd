@@ -184,7 +184,7 @@ func greet(h: Node, immediate := false) -> String:
 	Game.log_event("social", {"act": "greet", "npc": str(h.name), "line": id})
 	return id
 
-## Antagonize: each press escalates. Returns the step: "insult", "shove", "draw", "flee" ("" if nobody to rile).
+## Antagonize: each press escalates. Returns the step: "insult", "shove", "draw", "fists", "flee" ("" if nobody to rile).
 func antagonize(h: Node) -> String:
 	if not _social_ok(h) or str(h.role) == "child":
 		return ""
@@ -220,6 +220,14 @@ func antagonize(h: Node) -> String:
 			h.brain.aggressive = true
 			h.brain.share_target(Game.player)
 			_standing(-1.0, "picked a gunfight")
+		elif not armed and float(h.brain.bravery) >= 0.7 and voice in ["town", "rough"]:
+			# an unarmed hard case puts his fists up instead of running (src/combat/melee.gd)
+			step = "fists"
+			var line := pick("fists", voice, b)
+			speak(h, line if line != "" else pick("shove", voice, b))
+			h.set_meta("provoked", true)
+			h.brain.start_fistfight(Game.player)
+			_standing(-0.6, "started a fistfight")
 		else:
 			step = "flee"
 			speak(h, pick("flee", voice, b))

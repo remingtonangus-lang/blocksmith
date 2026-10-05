@@ -17,6 +17,7 @@ static func run(runner: Node) -> Dictionary:
 	parts.append(_box(o + Vector3(0, 0.475, -1.0), Vector3(3.0, 0.95, 0.4)))           # low wall (0.95 m), face at z = o.z - 0.8
 	parts.append(_box(o + Vector3(10.0, 1.2, -1.0), Vector3(2.0, 2.4, 0.4)))           # high wall
 	await _frames(3)
+	var was_bot: bool = p.bot_driven
 	p.bot_driven = true
 	p.global_position = o + Vector3(0, 0.05, 0)
 	p.velocity = Vector3.ZERO
@@ -29,7 +30,7 @@ static func run(runner: Node) -> Dictionary:
 	await _physics(10)
 	if not p.cover.active or not p.cover.low:
 		_fail(res, "did not enter low cover (active %s low %s)" % [p.cover.active, p.cover.low])
-		return await _cleanup(res, parts, p)
+		return await _cleanup(res, parts, p, was_bot)
 	var gap: float = p.global_position.z - (o.z - 0.8)
 	res.checks["gap_m"] = snappedf(gap, 0.01)
 	if absf(gap - PlayerCover.GAP) > 0.12:
@@ -101,18 +102,18 @@ static func run(runner: Node) -> Dictionary:
 			_fail(res, "no peek around the high cover's end (edge %d, moved %.2f m)" % [p.cover.edge, peek])
 		p.intent.aim = false
 	print("  cover: %s" % str(res.checks))
-	return await _cleanup(res, parts, p)
+	return await _cleanup(res, parts, p, was_bot)
 
 static func _clear(p) -> void:
 	p.intent.move = Vector2.ZERO
 	for k in ["aim", "fire", "cover", "sprint", "crouch", "jump"]:
 		p.intent[k] = false
 
-static func _cleanup(res: Dictionary, parts: Array, p) -> Dictionary:
+static func _cleanup(res: Dictionary, parts: Array, p, was_bot := false) -> Dictionary:
 	_clear(p)
 	if p.cover.active:
 		p.cover.leave()
-	p.bot_driven = false
+	p.bot_driven = was_bot
 	for n in parts:
 		n.queue_free()
 	await _frames(2)

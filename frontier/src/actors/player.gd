@@ -27,7 +27,7 @@ var invert_y := false
 var pad_sens := 2.6
 var base_fov := 62.0           # settings > Field of view (aiming narrows from here)
 var intent := {"move": Vector2.ZERO, "sprint": false, "walk": false, "jump": false, "aim": false, "fire": false,
-	"interact": false, "crouch": false, "cover": false}
+	"interact": false, "crouch": false, "cover": false, "melee": false}
 var bot_driven := false
 var stamina := STAMINA_MAX
 var health := 100.0
@@ -166,6 +166,8 @@ func _combat(dt: float) -> void:
 	if gun == null:
 		return
 	var aiming: bool = intent.aim
+	if get_meta("blocking", false):
+		aiming = false                     # guard up in a fistfight: Aim doesn't draw the gun
 	if aiming and not gun.drawn:
 		gun.drawn = true
 		gun.cooldown = 0.25
@@ -314,6 +316,8 @@ func _read_human_intent(dt: float) -> void:
 	intent.crouch = Input.is_action_pressed("crouch")
 	if Input.is_action_just_pressed("cover"):
 		intent.cover = true
+	if Input.is_action_just_pressed("melee"):
+		intent.melee = true
 	var assist: bool = intent.aim and Accessibility.assist_on() and camera != null
 	if assist and not _aim_prev:
 		AimAssist.snap(self)
@@ -347,6 +351,12 @@ func _physics_process(dt: float) -> void:
 			cover.try_enter(Basis(Vector3.UP, cam_yaw) * Vector3.FORWARD)
 	if cover.active:
 		intent.crouch = cover.crouched(intent.aim)
+	if Melee.is_down(self):                # knocked down in a fistfight
+		intent.move = Vector2.ZERO
+		intent.aim = false
+		intent.fire = false
+		intent.melee = false
+	_melee(dt)
 	_combat(dt)
 	_interactions()
 	var mv: Vector2 = intent.move
@@ -455,6 +465,38 @@ func _after_move(dt: float) -> void:
 		visual.set_activity(want_act)
 
 var _last_vy := 0.0
+var _melee_side := 0
+
+## Fists: Melee throws jab / cross alternately at the person in front; Aim with no gun drawn raises the guard.
+func _melee(dt: float) -> void:
+	set_meta("melee_t", maxf(get_meta("melee_t", 0.0) - dt, 0.0))
+	var stag: float = get_meta("stagger_t", 0.0)
+	if stag > 0.0:
+		set_meta("stagger_t", maxf(stag - dt, 0.0))
+	set_meta("blocking", intent.aim and gun != null and not gun.drawn and not cover.active and not Melee.is_down(self)
+		and (get_meta("in_fight", false) or _fist_threat()))
+	if not intent.get("melee", false):
+		return
+	intent.melee = false
+	if get_meta("melee_t", 0.0) > 0.05 or stag > 0.0 or cover.active or Melee.is_down(self):
+		return
+	if Melee.target_for(self, facing) == null and not get_meta("in_fight", false):
+		return                              # nothing to hit: leave the button to mount/crouch
+	_melee_side = 1 - _melee_side
+	var r := Melee.strike(self, facing, "jab" if _melee_side == 0 else "cross")
+	if r.get("hit", false):
+		set_meta("in_fight", true)
+		get_tree().create_timer(6.0).timeout.connect(func(): set_meta("in_fight", false))
+
+## Someone squared up to Ruth with fists close by (Aim raises the guard instead of drawing then).
+func _fist_threat() -> bool:
+	for h in get_tree().get_nodes_in_group("humans"):
+		var b = h.get("brain")
+		if b != null and b.get("state") == b.State.FIST and b.get("target") == self \
+				and (h as Node3D).global_position.distance_squared_to(global_position) < 16.0:
+			return true
+	return false
+
 var cover: PlayerCover
 var _hitboxes: Array = []
 var _crouch_k := 0.0

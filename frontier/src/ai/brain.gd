@@ -7,7 +7,7 @@ extends Node
 ##   cover, flanking, suppression, retreat/surrender when broken, group target sharing.
 ## The brain only writes the body's `intent`; the body moves and shoots.
 
-enum State { IDLE, ROUTINE, ALERT, COMBAT, FLEE, COWER, SURRENDER, DEAD, REPORT, WATCH }
+enum State { IDLE, ROUTINE, ALERT, COMBAT, FLEE, COWER, SURRENDER, DEAD, REPORT, WATCH, FIST }
 
 const SERIOUS := ["murder", "murder_lawman", "assault", "robbery"]
 
@@ -81,6 +81,14 @@ func _physics_process(dt: float) -> void:
 func _physics_process_impl(dt: float) -> void:
 	if body == null or not body.alive:
 		return
+	if Melee.is_down(body):           # knocked down by a blow: lie there until the get-up; a beaten brawler is done
+		body.intent.move_to = null
+		body.intent.fire = false
+		if state == State.FIST:
+			body.set_meta("blocking", false)
+			target = null
+			state = State.ROUTINE if routine != null else State.IDLE
+		return
 	think_t -= dt
 	suppress = maxf(suppress - dt * 0.6, 0.0)
 	target_seen_t += dt
@@ -103,6 +111,8 @@ func _physics_process_impl(dt: float) -> void:
 			_combat(dt)
 		State.FLEE:
 			_flee(dt)
+		State.FIST:
+			_fist(dt)
 		State.COWER, State.SURRENDER:
 			body.intent.move_to = null
 			body.intent.crouch = true
@@ -134,6 +144,8 @@ func _visible(n: Node3D) -> bool:
 	return body.get_world_3d().direct_space_state.intersect_ray(q).is_empty()
 
 func _perceive() -> void:
+	if state == State.FIST:
+		return
 	var cands: Array = []
 	if Game.player and is_instance_valid(Game.player):
 		cands.append(Game.player)
@@ -198,6 +210,16 @@ func _on_noise(pos: Vector3, radius: float, source: Node) -> void:
 
 func on_damaged(info: Dictionary) -> void:
 	var att = info.get("attacker")
+	if info.get("melee", false) and att != null and att != body:
+		# a punch: square up if brave enough (and not already in a gunfight), otherwise run
+		if state == State.FIST:
+			return
+		if state != State.COMBAT and bravery >= 0.45:
+			start_fistfight(att)
+		elif state != State.COMBAT:
+			state = State.FLEE
+			target = att
+		return
 	if att != null and att != body:
 		target = att
 		target_last_seen = att.global_position
@@ -771,3 +793,55 @@ func _flee(dt: float) -> void:
 	if body.global_position.distance_to(from) > 120.0:
 		state = State.ROUTINE
 		home = body.global_position
+
+
+# ------------------------------------------------------------------ fistfights (src/combat/melee.gd)
+var fist_t := 0.0
+var _block_t := 0.0
+
+## Square up to `t` with fists (provoked townsfolk, saloon brawls). Ends when either side is knocked down.
+func start_fistfight(t: Node3D) -> void:
+	target = t
+	state = State.FIST
+	fist_t = rng.randf_range(0.5, 1.0)
+	body.intent.aim_at = null
+	body.intent.fire = false
+	if body.holder != null and body.holder.has_method("holster"):
+		body.holder.holster()
+
+func _fist(dt: float) -> void:
+	if target == null or not is_instance_valid(target) or Melee.is_down(target) or not target.get("damageable").alive:
+		body.set_meta("blocking", false)
+		target = null
+		state = State.ROUTINE if routine != null else State.IDLE
+		return
+	var hp: float = body.damageable.health / body.damageable.max_health
+	if hp < 0.3 and bravery < 0.75:          # had enough
+		body.set_meta("blocking", false)
+		state = State.FLEE
+		return
+	var to := target.global_position - body.global_position
+	to.y = 0.0
+	var dist := to.length()
+	body.intent.face = to
+	body.intent.crouch = false
+	if dist > 1.25:
+		body.intent.move_to = target.global_position - to.normalized() * 1.0
+		body.intent.speed = Human.JOG if dist > 3.0 else Human.WALK
+	else:
+		body.intent.move_to = null
+	# guard up against a blow that is coming (the target just started one), by skill
+	_block_t = maxf(_block_t - dt, 0.0)
+	if target.get_meta("melee_t", 0.0) > 0.2 and _block_t <= 0.0 and rng.randf() < 0.25 + skill * 0.35:
+		_block_t = 0.6
+	body.set_meta("blocking", _block_t > 0.0)
+	fist_t -= dt
+	var stag: float = body.get_meta("stagger_t", 0.0)
+	if stag > 0.0:
+		body.set_meta("stagger_t", maxf(stag - dt, 0.0))
+		return
+	if dist < Melee.REACH * 0.95 and fist_t <= 0.0 and _block_t <= 0.0:
+		var yaw := atan2(-to.x, -to.z)
+		body.facing = yaw
+		Melee.strike(body, yaw, ["jab", "jab", "cross", "body"][rng.randi() % 4])
+		fist_t = rng.randf_range(1.0, 1.7) - skill * 0.3

@@ -35,7 +35,7 @@ func run(m: Node) -> void:
 		return
 	var which := str(Game.args.get("bot", "road"))
 	var seconds := Game.arg_f("seconds", 90.0)
-	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "missions", "camp", "encounters", "social", "openworld", "presentation", "systems", "ui", "footik", "cover"] if which == "all" or which == "true" else Array(which.split(","))
+	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "missions", "camp", "encounters", "social", "openworld", "presentation", "systems", "ui", "footik", "cover", "melee"] if which == "all" or which == "true" else Array(which.split(","))
 	for b in bots:
 		var res: Dictionary
 		if b == "ride" or b == "gaits":
@@ -61,6 +61,8 @@ func run(m: Node) -> void:
 			res = await load("res://src/tests/hunt_bot.gd").run(self, seconds)
 		elif b == "systems":
 			res = await load("res://src/tests/systems_bot.gd").run(self)
+		elif b == "melee":
+			res = await load("res://src/tests/melee_bot.gd").run(self)
 		elif b == "cover":
 			res = await load("res://src/tests/cover_bot.gd").run(self)
 		elif b == "footik":
@@ -700,14 +702,24 @@ func _run_social() -> Dictionary:
 	b.brain.state = b.brain.State.ROUTINE
 	st.bounties = {}
 	st.wanted = 0
-	# 3. unarmed: runs
+	# 3. unarmed: a hard case puts his fists up, a timid one runs
 	var c: Human = mk.call(4.0, {"role": "worker", "weapon": "", "bravery": 0.9})
 	await get_tree().physics_frame
 	steps = []
 	for i in 3:
 		steps.append(so.antagonize(c))
-	lines.append("unarmed: %s -> %s" % ["/".join(steps), c.brain.State.keys()[c.brain.state]])
-	if steps.back() != "flee" or c.brain.state != c.brain.State.FLEE:
+	lines.append("unarmed brave: %s -> %s" % ["/".join(steps), c.brain.State.keys()[c.brain.state]])
+	if steps.back() != "fists" or c.brain.state != c.brain.State.FIST:
+		_fail(res, "unarmed hard case: %s" % lines.back())
+	c.brain.state = c.brain.State.ROUTINE
+	c.brain.target = null
+	var c2: Human = mk.call(5.5, {"role": "worker", "weapon": "", "bravery": 0.5})
+	await get_tree().physics_frame
+	steps = []
+	for i in 3:
+		steps.append(so.antagonize(c2))
+	lines.append("unarmed: %s -> %s" % ["/".join(steps), c2.brain.State.keys()[c2.brain.state]])
+	if steps.back() != "flee" or c2.brain.state != c2.brain.State.FLEE:
 		_fail(res, "unarmed townsman: %s" % lines.back())
 	# 4. armed coward: runs too
 	var e: Human = mk.call(-4.0, {"role": "gambler", "weapon": "lockhart_sa", "bravery": 0.2})

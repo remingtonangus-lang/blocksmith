@@ -6,6 +6,7 @@ extends Node
 
 signal damaged(info: Dictionary)
 signal died(info: Dictionary)
+signal knocked_out(info: Dictionary)     # a non-lethal hit (fists) that would have killed: down, not dead
 
 const HITBOX_LAYER := 16
 
@@ -34,6 +35,8 @@ func apply_hit(info: Dictionary) -> void:
 		return
 	var zone: String = info.get("zone", "chest")
 	var mult: float = zone_mult.get(zone, Weapons.ZONES.get(zone, 1.0))
+	if info.get("melee", false):        # fists: no gun headshot multipliers, a blow to the head lands a bit harder
+		mult = 1.3 if zone == "head" else 1.0
 	var amount: float = maxf(float(info.get("amount", 10.0)) * mult * damage_scale - armor, 0.0)
 	health -= amount
 	_since_hit = 0.0
@@ -42,6 +45,10 @@ func apply_hit(info: Dictionary) -> void:
 	info["zone"] = zone
 	Game.log_event("hit", {"target": str(get_parent().name), "zone": zone, "amount": snappedf(amount, 0.1), "hp": snappedf(health, 0.1)})
 	damaged.emit(info)
+	if health <= 0.0 and info.get("nonlethal", false):
+		health = minf(max_health * 0.15, 15.0)
+		knocked_out.emit(info)
+		return
 	if health <= 0.0:
 		alive = false
 		health = 0.0
