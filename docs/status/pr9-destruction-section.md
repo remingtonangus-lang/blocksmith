@@ -1,0 +1,14 @@
+### Destruction, wrecks and far-future frigates (2026-10-05, being tested)
+- **Frigates are far-future warships now, flying, never in water.** Both are new original designs with walkable insides:
+  - **Capital Frigate:** a 200-block spinal-gun hull in white armour. It has a hangar open through both flanks, two decks of corridors and rooms, a raised bridge, drive nacelles, and six glowing drive nozzles.
+  - **Stormwarden Frigate:** three interior decks of corridors and rooms, and a gangway and ladder down to the engine room.
+  - **Rooms like the citadel's:** quarters with bunks, a mess with long tables, an armory with racks and ammunition chests, a medbay, a brig, storage, briefing and engineering, with framed doorways off lit corridors and ladders between decks.
+  - **Checked in CI:** a bot walks from the hangar into every room (144 on the Stormwarden, 42 on the Capital frigate), and another flies in, climbs to the crew deck, walks the corridor and flies out while the ship cruises.
+  - The vehicle HUD calls them Warships and shows altitude.
+- **Destruction physics** (Options: Structural Collapse, on by default). Blocks have materials with a reach: stone 5, brick 6, wood 6, metal 14, glass 1. Blow out or mine what holds something up and it comes down:
+  - A bridge loses the span over a blown pier; a tower blasted at its foot topples.
+  - Loose pieces fall as moving bodies: they tumble, crash and settle back into blocks. Big ones lay themselves down over a few frames, not in one hitch.
+  - Generated structures stand as they were built. A monument hall, an end city overhang or a ruin's arch doesn't come down because you mined a block. Cut what actually held it (an old overhang's pillar) and it falls.
+- **Ships break apart.** A frigate cut through amidships splits: the half with the engines flies on, and a cut-away section crash-lands. Small pieces fall as debris.
+- **Persistent wrecks.** A downed frigate, crawler or dropship stays where it fell as world blocks with salvage chests. Over the following weeks it rusts and grows moss and vines, and its sheltered rooms are where mobs settle. Wrecks are saved with the world.
+- **Crash landings:** riders take only the touchdown jolt, not the ground blasts under the keel.

@@ -177,4 +177,4 @@ trip. Shots: `--collapse NAME --at SECONDS` in the snapshot harness (snap.sh tou
   still queued. Before it: crew/troops/board/frigate ride scenes PASS (b02edf4: crew walk back to posts, c7eb1af's
   world-block ledge probe skipped aboard), interiorcheck PASS (no bare halls), collapsecheck failed only mine + relic
   (both addressed in d876ec3). Next: read run 37304754050 (collapsecheck all scenes, heavy lane); if green, fast-forward
-  claude/blocksmith-playtest; then paste scratch pr9_section text (destruction/wrecks/frigates) into PR #9's list.
+  claude/blocksmith-playtest; then paste docs/status/pr9-destruction-section.md (destruction/wrecks/frigates) into PR #9's list.
