@@ -54,12 +54,13 @@ Options (after the binary, or after `--`): `--preset Low|Medium|High|Ultra`, `--
 ## Controls
 Keyboard/mouse: WASD, mouse look, Space jump, C/Ctrl crouch, Shift sprint, E/F interact, R reload, Q switch weapon,
 1-4 pick a weapon, G grenade, V melee, LMB fire, RMB aim, T camera, M map, F3 perf HUD, F6 quality preset, F7 weather, F8 +1 hour,
-F9 debug fly, F12 screenshot.
+F9 debug fly, F12 screenshot, Esc options menu.
 Gamepad (Halo Infinite-style default): LS move, RS look, A jump, B crouch, X reload / interact (hold: enter vehicle),
 Y switch weapon, RT fire, LT zoom, LB grenade, RB melee, LS click sprint, RS click equipment, D-pad up flashlight,
-D-pad down camera, View map, Menu pause. Look tuning (Controls.gd, saved in `user://controls.cfg`): horizontal and
+D-pad down camera, View map, Menu: the options menu (pauses; D-pad/stick to move, left/right to change, B back). Look tuning (Controls.gd, saved in `user://controls.cfg`): horizontal and
 vertical sensitivity, look acceleration, centre and axial deadzones, max input threshold, response curve, zoom
-sensitivity, invert. Vehicles steer Halo-style (push the stick toward where you look) unless switched off.
+sensitivity, invert; all of it, plus quality preset, FOV, mouse sensitivity and volumes, is in the in-game options
+menu (Esc / Menu) and saved on close. Vehicles steer Halo-style (push the stick toward where you look) unless switched off.
 
 ### The PowerA pad (USB 20D6:2074)
 Godot 4.7 reads pads through its bundled SDL3 on macOS, built with IOKit HID, GameController (MFi) and HIDAPI over
@@ -124,6 +125,10 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 09:30: in-game options menu (Esc / pad Menu): pauses; quality preset, FOV, look sensitivity both axes,
+  acceleration, deadzones, response curve, zoom and mouse sensitivity, inverts, Halo-style vehicle steering, volumes,
+  quit; pad-navigable for TV play; saved on close. Before this, look tuning was only in user://controls.cfg. New
+  scenario `menu` (9 scenarios) and shot `pause_menu`. Tree line at 1200 m.
 - 2026-10-05 08:55: GAME BUILD READY 95fb880 (release capital-latest, published 08:24 UTC).
   - For the fleet monitor: `Alabaster --benchmark` should run three segments with a progress line every 5 s
     and write benchmark.json in about 2 minutes.

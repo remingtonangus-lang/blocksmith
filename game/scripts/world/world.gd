@@ -227,6 +227,16 @@ func _open_spot(c: Vector3, r: float) -> Vector3:
 	return best
 
 
+func _open_menu() -> void:
+	var m: PauseMenu = G.main.get_node_or_null("PauseMenu")
+	if m == null:
+		m = PauseMenu.new()
+		m.name = "PauseMenu"
+		G.main.add_child(m)
+	if not m.open:
+		m._toggle()
+
+
 ## A mid-height tower at the edge of Candor, for the collapse shot.
 func _collapse_target() -> Vector3:
 	for b in (city_list[0] as CapitalCity).buildings:
@@ -302,6 +312,7 @@ func shot_list() -> Array:
 		{"name": "storm_sea", "pos": Vector3(h.x + 2600, 18, h.z - 400), "look": Vector3(h.x + 6000, 0, h.z - 2000), "hour": 15.0, "weather": "storm"},
 		{"name": "front_line", "pos": above(fr.x - 400, fr.z - 300, 40), "look": fr, "hour": 16.0, "weather": "overcast"},
 		{"name": "weapon_view", "fps": true, "pos": above(fl.x + 60, fl.z + 90, 1.66), "look": above(fl.x, fl.z, 6.0), "hour": 10.0, "weather": "clear"},
+		{"name": "pause_menu", "fps": true, "pos": above(fl.x + 60, fl.z + 90, 1.66), "look": above(fl.x, fl.z, 6.0), "hour": 10.0, "weather": "clear", "setup": func(): _open_menu()},
 	]
 	if Settings.has_arg("only"):
 		var only := String(Settings.arg("only")).split(",")

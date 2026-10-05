@@ -140,16 +140,21 @@ func _build() -> void:
 				d.start(sg)
 	elif Settings.has_arg("shots"):
 		var s := preload("res://scripts/core/shots.gd").new()
+		s.process_mode = Node.PROCESS_MODE_ALWAYS          # the pause_menu shot pauses the game
 		add_child(s)
 		s.start(world.shot_list(), String(Settings.arg("shots")))
 	else:
 		world.spawn_player()
+		var menu := PauseMenu.new()
+		menu.name = "PauseMenu"
+		add_child(menu)
 		if Settings.has_arg("scenario"):
 			var sc := preload("res://scripts/core/scenarios.gd").new()
+			sc.process_mode = Node.PROCESS_MODE_ALWAYS      # keeps testing while the pause menu has the game paused
 			add_child(sc)
 			var names := String(Settings.arg("scenario")).split(",")
 			if names[0] == "all":
-				names = PackedStringArray(["ride", "drive", "fly", "dropship", "battle", "weapons", "destroy", "stand"])
+				names = PackedStringArray(["ride", "drive", "fly", "dropship", "battle", "weapons", "destroy", "stand", "menu"])
 			sc.start(Array(names))
 	_loading.queue_free()
 

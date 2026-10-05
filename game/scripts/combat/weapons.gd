@@ -45,6 +45,7 @@ func _ready() -> void:
 	for i in ARSENAL.size():
 		var m := _model(i)
 		m.visible = i == cur
+		m.position = Vector3(0.18, -0.2, -0.36)    # the hip pose (paused before the first pose, it sat in the camera)
 		add_child(m)
 		models.append(m)
 

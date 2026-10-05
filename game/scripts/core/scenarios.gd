@@ -408,3 +408,37 @@ func _tick_stand(_delta: float) -> void:
 		if absf(q.y - g) > 1.0:
 			(data["bad"] as Array).append("%s (%.1f m off)" % [sites[data["i"]], q.y - g])
 		_stand_next()
+
+
+# ------------------------------------------------------------------------------------------------- menu
+
+## The pause menu: Esc / Menu opens it and pauses the game, a preset change applies, B / Esc closes it.
+func _setup_menu() -> void:
+	var ev := InputEventAction.new()
+	ev.action = "pause"
+	ev.pressed = true
+	Input.parse_input_event(ev)
+	data["phase"] = 0
+	data["preset0"] = Settings.preset
+
+
+func _tick_menu(_delta: float) -> void:
+	var m: PauseMenu = G.main.get_node_or_null("PauseMenu")
+	if m == null:
+		_done(false, "no pause menu in normal play")
+		return
+	if data["phase"] == 0 and t > 0.3:
+		data["opened"] = m.open and get_tree().paused
+		Settings.set_preset("Low")
+		data["phase"] = 1
+	elif data["phase"] == 1 and t > 0.6:
+		data["low"] = Settings.q["shadow_dist"] == Settings.PRESETS["Low"]["shadow_dist"]
+		Settings.set_preset(String(data["preset0"]))
+		var ev := InputEventAction.new()
+		ev.action = "ui_cancel"
+		ev.pressed = true
+		Input.parse_input_event(ev)
+		data["phase"] = 2
+	elif data["phase"] == 2 and t > 0.9:
+		var closed := not m.open and not get_tree().paused
+		_done(bool(data["opened"]) and bool(data["low"]) and closed, "opened and paused %s, preset applied %s, closed and resumed %s" % [data["opened"], data["low"], closed])
