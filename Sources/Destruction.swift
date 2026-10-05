@@ -15,6 +15,26 @@ import simd
 // tumble, crash (breaking weak blocks and hurting what they hit), and once at rest are laid back into the world as
 // ordinary blocks (ShipManager.bake), so they cost nothing afterwards. At most Collapse.maxDebris bodies live at once
 // (the oldest is laid down early); pieces of one or two blocks just break.
+// World block reads with the last chunk kept (bulk reads over a small region: laying debris down).
+final class BlockReader {
+    let w: World
+    private var lastKey = ChunkKey(x: Int.min, z: Int.min)
+    private var lastChunk: Chunk?
+    init(_ w: World) { self.w = w }
+    @inline(__always) private func chunk(_ x: Int, _ z: Int) -> Chunk? {
+        let k = ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))
+        if k != lastKey { lastKey = k; lastChunk = w.chunks[k] }
+        return lastChunk
+    }
+    func loaded(_ c: IVec3) -> Bool { chunk(c.x, c.z) != nil }
+    func block(_ c: IVec3) -> BlockID {
+        if c.y < 0 { return BEDROCK }
+        if c.y >= CH { return AIR }
+        guard let ch = chunk(c.x, c.z) else { return AIR }
+        return ch.blocks[Chunk.index(mod(c.x, CS), c.y, mod(c.z, CS))]
+    }
+}
+
 enum Collapse {
     static let cap = 6000               // cells one support search may visit
     static let maxDebris = 32           // free-moving debris bodies at once

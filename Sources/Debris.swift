@@ -217,14 +217,19 @@ extension ShipManager {
         for t in list where t.parent === s { bake(t, game: game, settle: settle) }
         let w = world
         let g = s.grid
-        var place: [IVec3: BlockID] = [:]
+        // Cell tables and flat arrays, not [IVec3: BlockID] / Set<IVec3> (a 10k-block frigate hull took 70 ms to lay down).
+        var tab = Collapse.CellTable(capacity: s.blockCount + 64)
+        var pc: [IVec3] = []
+        var pb: [BlockID] = []
+        pc.reserveCapacity(s.blockCount)
+        pb.reserveCapacity(s.blockCount)
         var bePlace: [IVec3: BlockEntity] = [:]
         for y in 0..<g.sy { for z in 0..<g.sz { for x in 0..<g.sx {
             let b = g.blocks[g.index(x, y, z)]
             if b == AIR { continue }
             let p = s.toWorld(V3(Float(x), Float(y), Float(z)) + 0.5)
             let c = IVec3(Int(floor(p.x)), Int(floor(p.y)), Int(floor(p.z)))
-            if place[c] == nil { place[c] = b }
+            if tab.insert(c, Int32(pc.count)) { pc.append(c); pb.append(b) }
             if let be = s.blockEntities[IVec3(x, y, z)] { bePlace[c] = be }
         } } }
         let lo = s.worldMin, hi = s.worldMax
@@ -232,10 +237,10 @@ extension ShipManager {
         if cells < 3_000_000 {
             for y in Int(floor(lo.y))...Int(floor(hi.y)) { for z in Int(floor(lo.z))...Int(floor(hi.z)) { for x in Int(floor(lo.x))...Int(floor(hi.x)) {
                 let c = IVec3(x, y, z)
-                if place[c] != nil { continue }
+                if tab.get(c) != nil { continue }
                 let l = s.toLocal(V3(Float(x), Float(y), Float(z)) + 0.5)
                 let b = g.get(Int(floor(l.x)), Int(floor(l.y)), Int(floor(l.z)))
-                if b != AIR && Blocks.collide[Int(b)] { place[c] = b }
+                if b != AIR && Blocks.collide[Int(b)] && tab.insert(c, Int32(pc.count)) { pc.append(c); pb.append(b) }
             } } }
         }
         let up = s.dirToWorld(V3(0, 1, 0))
@@ -249,43 +254,80 @@ extension ShipManager {
                 bodies.append((V3(m.pos.x - m.halfW, m.pos.y, m.pos.z - m.halfW), V3(m.pos.x + m.halfW, m.pos.y + m.height, m.pos.z + m.halfW)))
             }
         }
+        let reader = BlockReader(w)
         func blocked(_ c: IVec3, _ b: BlockID) -> Bool {
-            if c.y < 0 || c.y >= CH || !w.isLoaded(c.x, c.z) { return true }
-            if !Blocks.replaceable[Int(w.rawBlock(c.x, c.y, c.z))] { return true }
+            if c.y < 0 || c.y >= CH || !reader.loaded(c) { return true }
+            if !Blocks.replaceable[Int(reader.block(c))] { return true }
+            guard Blocks.collide[Int(b)], !bodies.isEmpty else { return false }
             let mn = V3(Float(c.x), Float(c.y), Float(c.z)), mx = mn + 1
-            return Blocks.collide[Int(b)] && bodies.contains(where: { $0.0.x < mx.x && $0.1.x > mn.x && $0.0.y < mx.y && $0.1.y > mn.y && $0.0.z < mx.z && $0.1.z > mn.z })
+            for (a, z) in bodies where a.x < mx.x && z.x > mn.x && a.y < mx.y && z.y > mn.y && a.z < mx.z && z.z > mn.z { return true }
+            return false
         }
-        place = place.filter { !blocked($0.key, $0.value) }
+        let count = pc.count
+        var alive = [Bool](repeating: true, count: count)
+        for i in 0..<count where blocked(pc[i], pb[i]) { alive[i] = false }
         // Islands: a tumbled body's turned blocks can land joined only edge to edge, and a part laid down where it was
         // can rest on nothing. A piece touching nothing solid below or beside it drops straight down onto what is under
         // it (a few blocks at most), so no fragment is left hanging (collapse check: floating leftovers).
-        var shifted: [IVec3: BlockID] = [:]
-        for piece in Collapse.pieces(Array(place.keys)) {
-            let mine = Set(piece)
+        var label = [Int32](repeating: -1, count: count)
+        func mate(_ q: IVec3, _ l: Int32) -> Bool {
+            guard let j = tab.get(q) else { return false }
+            return alive[Int(j)] && label[Int(j)] == l
+        }
+        var occ = Collapse.CellTable(capacity: count + 64)
+        var sc: [IVec3] = []
+        var sb: [BlockID] = []
+        sc.reserveCapacity(count)
+        sb.reserveCapacity(count)
+        var piece: [Int] = []
+        var next: Int32 = 0
+        for s0 in 0..<count where alive[s0] && label[s0] < 0 {
+            let pl = next
+            next += 1
+            label[s0] = pl
+            piece.removeAll(keepingCapacity: true)
+            piece.append(s0)
+            var k = 0
+            while k < piece.count {
+                let c = pc[piece[k]]
+                k += 1
+                for d in Collapse.dirs6 {
+                    guard let j = tab.get(c + d), alive[Int(j)], label[Int(j)] < 0 else { continue }
+                    label[Int(j)] = pl
+                    piece.append(Int(j))
+                }
+            }
             var held = false
-            for c in piece where !held {
+            for i in piece where !held {
+                let c = pc[i]
                 for d in Collapse.dirs6 where d.y <= 0 {
                     let q = c + d
-                    if mine.contains(q) { continue }
-                    if Blocks.collide[Int(w.rawBlock(q.x, q.y, q.z))] { held = true; break }
+                    if mate(q, pl) { continue }
+                    if Blocks.collide[Int(reader.block(q))] { held = true; break }
                 }
             }
             var drop = 0
             if !held {
                 fall: while drop < 48 {
-                    for c in piece {
-                        if mine.contains(IVec3(c.x, c.y - 1, c.z)) { continue }        // rests on its own piece
+                    for i in piece {
+                        let c = pc[i]
+                        if mate(IVec3(c.x, c.y - 1, c.z), pl) { continue }        // rests on its own piece
                         let q = IVec3(c.x, c.y - drop - 1, c.z)
-                        if q.y < 1 || Blocks.collide[Int(w.rawBlock(q.x, q.y, q.z))] || shifted[q] != nil { break fall }
+                        if q.y < 1 || Blocks.collide[Int(reader.block(q))] || occ.get(q) != nil { break fall }
                     }
                     drop += 1
                 }
             }
-            for c in piece { if let b = place[c] { shifted[IVec3(c.x, c.y - drop, c.z)] = b } }
-            if drop > 0 { for c in piece { if let be = bePlace.removeValue(forKey: c) { bePlace[IVec3(c.x, c.y - drop, c.z)] = be } } }
+            for i in piece {
+                let c = pc[i]
+                let to = IVec3(c.x, c.y - drop, c.z)
+                if occ.insert(to, Int32(sc.count)) { sc.append(to); sb.append(pb[i]) }
+                if drop > 0, let be = bePlace.removeValue(forKey: c) { bePlace[to] = be }
+            }
         }
         var n = 0
-        for (c, b) in shifted where !blocked(c, b) {
+        for k in 0..<sc.count where !blocked(sc[k], sb[k]) {
+            let c = sc[k], b = sb[k]
             let nb: BlockID = upright ? ShipParts.rotate(b, turns) : Blocks.groupBase[Int(b)]
             _ = w.setBlockAsync(c.x, c.y, c.z, nb)
             if let be = bePlace[c] { w.blockEntities[c] = be }

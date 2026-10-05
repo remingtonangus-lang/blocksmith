@@ -296,7 +296,9 @@ enum CollapseCheck {
         let w = st.world, g = st.game
         let idle = RideCheck.Bot()
         let agent = Agent(game: g, world: w)
-        for _ in 0..<30 { agent.step(idle) }
+        // The desert scene is far from spawn: let the world stream in round it first (its tick times were the
+        // streaming, p95 18 ms, not the blasts: run of 9a45968).
+        for _ in 0..<(name == "desert" ? 900 : 30) { agent.step(idle) }
         let before = floating(st)
         if st.ship == nil {
             r.check(before.0 == 0, "the scene stands before the blast (\(before.0) unsupported\(before.1.isEmpty ? "" : " at " + before.1))")
