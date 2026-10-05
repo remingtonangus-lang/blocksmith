@@ -1376,7 +1376,9 @@ final class Game {
             let ores: [String: ClosedRange<Int>] = ["coal_ore": 0...2, "deepslate_coal_ore": 0...2, "diamond_ore": 3...7, "deepslate_diamond_ore": 3...7,
                                                      "emerald_ore": 3...7, "lapis_ore": 2...5, "deepslate_lapis_ore": 2...5,
                                                      "redstone_ore": 1...5, "deepslate_redstone_ore": 1...5,
-                                                     "nether_quartz_ore": 2...5, "nether_gold_ore": 0...1, "spawner": 15...43]
+                                                     "nether_quartz_ore": 2...5, "nether_gold_ore": 0...1, "spawner": 15...43,
+                                                     "deepslate_emerald_ore": 3...7, "sculk": 1...1, "sculk_catalyst": 5...5,
+                                                     "sculk_sensor": 5...5, "calibrated_sculk_sensor": 5...5, "sculk_shrieker": 5...5]
             if let r = ores[bk], Mining.canHarvest(b, held), Enchant.level(.silkTouch, held) == 0 { addXP(Rand.int(in: r)) }
         }
         let center = V3(Float(p.x) + 0.5, Float(p.y) + 0.3, Float(p.z) + 0.5)
