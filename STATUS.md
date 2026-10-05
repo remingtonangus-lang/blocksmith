@@ -246,6 +246,12 @@ code); mechanics, names and numbers follow the reference game.
 3. [x] Crafting book opens on its first tile; inventory crafting is the same book with 2x2 recipes (LB/RB / book
        button; grid button back); --padtest.
 4. [x] Cave fill + Options > Video > Brightness (Shaders.caveFill); shots cave_dark (+ moody / bright / fast / mobs).
+Remington after playing on the Mac ("the game works like a dream"):
+5. [x] Sugar cane taller than three floated when its bottom was broken: every plant that needs support (standing, hanging,
+       water, vines) pops with its drops when the support goes, by any means (PlantSupport.swift); --plantcheck.
+6. [x] Your own music: ~/Library/Application Support/Blocksmith/Music (mp3 / m4a / wav / aiff) as the soundtrack or mixed
+       with the built-in one; shuffle, volume, Next Track (Y on the pause menu, N, Options > Audio); --musiccheck. No music
+       in the repository.
 
 ## Playtest feedback (Remington, 2026-10-02): quality and fidelity over new features
 Bug discovery is fully automated (Remington is not the bug finder). Keep CI green throughout. Queue, in order:
