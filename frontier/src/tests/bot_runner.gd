@@ -480,10 +480,18 @@ func _benchmark() -> void:
 		_recording = true
 		var t := 0.0
 		var dur: float = sg.secs * secs_scale
+		var draws := 0.0
+		var prims := 0.0
+		var objs := 0.0
+		var nsamp := 0
 		while t < dur:
 			await get_tree().process_frame
 			var dt := get_process_delta_time()
 			t += dt
+			draws += RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)
+			prims += RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)
+			objs += RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME)
+			nsamp += 1
 			var f := t / dur
 			if sg.kind == "walk":
 				var to: Vector3 = b - player.global_position
@@ -503,9 +511,12 @@ func _benchmark() -> void:
 		st["name"] = sg.name
 		st["spikes_over_100ms"] = _spikes
 		st["frames"] = _frame_ms.size()
+		st["draw_calls"] = draws / maxf(nsamp, 1.0)
+		st["primitives_k"] = prims / maxf(nsamp, 1.0) / 1000.0
+		st["objects"] = objs / maxf(nsamp, 1.0)
 		out.segments.append(st)
 		all.append_array(_frame_ms)
-		print("BENCH %-18s avg %.2f ms (%.0f fps)  p95 %.2f  p99 %.2f  1%%low %.0f fps  max %.1f" % [sg.name, st.avg, st.fps, st.p95, st.p99, st.low1, st.max])
+		print("BENCH %-18s avg %.2f ms (%.0f fps)  p95 %.2f  p99 %.2f  1%%low %.0f fps  max %.1f  draws %.0f  prims %.0fk  objects %.0f" % [sg.name, st.avg, st.fps, st.p95, st.p99, st.low1, st.max, st.draw_calls, st.primitives_k, st.objects])
 	var tot := _stats(all)
 	out["overall"] = tot
 	out["bench_seconds"] = (Time.get_ticks_msec() - load_t0) / 1000.0
