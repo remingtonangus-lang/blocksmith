@@ -21,6 +21,7 @@ var imp_mat: ShaderMaterial
 var imp_mesh: QuadMesh
 var near := {}                    # Vector2i -> per species/variant buffers of that 128 m cell
 var meshes_lod1: Array = []        # [species][variant], the coarser build (2-3.5x fewer triangles)
+var proxies: Array = []            # [species][variant]: ~20-triangle shadow casters for the outer ring
 var solo := {}                    # Vector2i -> Node3D: cells within SOLO_R, full detail, culled per cell
 const SOLO_R := 140.0
 var supers := {}                  # Vector2i -> Node3D: the near trees of SUPER x SUPER cells in one MultiMesh per kind
@@ -70,6 +71,13 @@ func setup(g: WorldGen) -> void:
 			meshes = rows
 		else:
 			meshes_lod1 = rows
+	var proxy_mat := StandardMaterial3D.new()
+	proxy_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	for sp in TreeBuilder.SPECIES:
+		var row := []
+		for v in VARIANTS:
+			row.append(_shadow_proxy(sp, (meshes_lod1[sp][v] as ArrayMesh).get_aabb(), proxy_mat))
+		proxies.append(row)
 	imp_mat = ShaderMaterial.new()
 	imp_mat.shader = load("res://shaders/impostor.gdshader")
 	imp_mat.set_shader_parameter("species_count", float(TreeBuilder.SPECIES))
@@ -431,7 +439,7 @@ func _rebuild_supers() -> void:
 					m.append_array(bufs[key])
 					merged[key] = m
 		if not merged.is_empty():
-			supers[sk] = _make_near(merged, meshes_lod1)
+			supers[sk] = _make_near(merged, meshes_lod1, proxies)
 	_dirty.clear()
 
 
@@ -452,22 +460,71 @@ func _update_solo(p: Vector3) -> void:
 			_dirty[_super_of(k)] = true
 
 
-func _make_near(bufs: Dictionary, mset: Array) -> Node3D:
+## One MultiMesh per species/variant. With `shadow_set`, the trees themselves cast no shadow and a second
+## MultiMesh of low-poly proxies (shadows only) does: measured, tree shadows were 6.5 of 11 M primitives in the
+## forest view.
+func _make_near(bufs: Dictionary, mset: Array, shadow_set: Array = []) -> Node3D:
 	var root := Node3D.new()
 	add_child(root)
 	for key in bufs:
 		var buf: PackedFloat32Array = bufs[key]
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.use_custom_data = true
-		mm.mesh = mset[key / VARIANTS][key % VARIANTS]
-		mm.instance_count = buf.size() / 16
-		mm.buffer = buf
-		var mmi := MultiMeshInstance3D.new()
-		mmi.multimesh = mm
-		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-		root.add_child(mmi)
+		for pass_i in (2 if not shadow_set.is_empty() else 1):
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.use_custom_data = true
+			var src: Array = mset if pass_i == 0 else shadow_set
+			mm.mesh = src[key / VARIANTS][key % VARIANTS]
+			mm.instance_count = buf.size() / 16
+			mm.buffer = buf
+			var mmi := MultiMeshInstance3D.new()
+			mmi.multimesh = mm
+			if shadow_set.is_empty():
+				mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			elif pass_i == 0:
+				mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			else:
+				mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+			root.add_child(mmi)
 	return root
+
+
+## A shadow caster fitted to a tree's bounds: a six-sided cone for spruce, a double cone (crown) for the rest,
+## and a thin three-sided trunk.
+func _shadow_proxy(sp: int, b: AABB, m: Material) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var h := b.size.y
+	var y0 := b.position.y
+	var top := Vector3(0, b.end.y, 0)
+	var r := maxf(b.size.x, b.size.z) * 0.5 * 0.85
+	var ring_y := y0 + h * (0.14 if sp == TreeBuilder.SPRUCE else 0.6)
+	var low := Vector3(0, y0 + h * (0.14 if sp == TreeBuilder.SPRUCE else 0.3), 0)
+	if sp == TreeBuilder.BUSH:
+		ring_y = y0 + h * 0.45
+		low = Vector3(0, y0, 0)
+	var ring: Array[Vector3] = []
+	for i in 6:
+		var a := TAU * i / 6.0
+		ring.append(Vector3(cos(a) * r, ring_y, sin(a) * r))
+	for i in 6:
+		var p0: Vector3 = ring[i]
+		var p1: Vector3 = ring[(i + 1) % 6]
+		st.add_vertex(top); st.add_vertex(p1); st.add_vertex(p0)
+		st.add_vertex(low); st.add_vertex(p0); st.add_vertex(p1)
+	if sp != TreeBuilder.BUSH:
+		var tr := h * 0.03
+		for i in 3:
+			var a0 := TAU * i / 3.0
+			var a1 := TAU * (i + 1) / 3.0
+			var q0 := Vector3(cos(a0) * tr, y0, sin(a0) * tr)
+			var q1 := Vector3(cos(a1) * tr, y0, sin(a1) * tr)
+			var u0 := Vector3(q0.x, low.y, q0.z)
+			var u1 := Vector3(q1.x, low.y, q1.z)
+			st.add_vertex(q0); st.add_vertex(u1); st.add_vertex(q1)
+			st.add_vertex(q0); st.add_vertex(u0); st.add_vertex(u1)
+	st.generate_normals()
+	st.set_material(m)
+	return st.commit()
 
 
 func _make_imp(buf: PackedFloat32Array) -> MultiMeshInstance3D:
