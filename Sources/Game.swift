@@ -1550,6 +1550,11 @@ final class Game {
                 give(Rand.int(in: 0..<4) == 0 ? "salmon" : "cod", Rand.int(in: 0...(2 + looting)))
             case .drowned:
                 if m.killedByPlayer && Rand.float(in: 0..<1) < 0.11 + 0.02 * Float(looting) { give("copper_ingot", 1) }
+            case .stray:                                                                  // a Slowness arrow on player kills
+                if m.killedByPlayer, let a = Potions.item(3, "slowness") {
+                    let n = min(1, Rand.int(in: 0...(1 + looting)))
+                    if n > 0 { drops.spawn(ItemStack(a, n), at: at) }
+                }
             case .guardian, .elderGuardian:                                               // cod or crystals (or nothing)
                 let r = Rand.float(in: 0..<1)
                 if r < 0.4 { give("prismarine_crystals", 1 + Rand.int(in: 0...looting)) }
