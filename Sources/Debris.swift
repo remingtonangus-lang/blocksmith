@@ -36,6 +36,13 @@ extension ShipManager {
         for t in r.tip {
             if cutLoose(t.cells, game: game, spin: t.axis * 0.3) != nil { made += 1 }
         }
+        // A settle check's cut can leave blocks laid down earlier hanging from nothing (they rested on what fell): the
+        // gaps it left get the ordinary check next frame (collapse check tower: 6 bricks left floating).
+        if only != nil && !r.falling.isEmpty {
+            var gaps: [IVec3] = []
+            for p in r.falling { gaps += p }
+            queueCollapse(gaps, from: nil)
+        }
         collapseMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
         if made > 0 { collapses += 1 }
         return made
