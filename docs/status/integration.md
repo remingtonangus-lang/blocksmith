@@ -102,7 +102,7 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
   which carries the same mobcheck and every fix).
 
 ## Next
-- Shots looked right in run 450 (frigate bow/side/top; citadel far/gate/top). Check the new citadel_turret,
-  citadel_plaza and ship_frigate_deck angles and the flight-deck markings.
+- Checked on run 509 (639eb75): citadel_turret (twin 42 cm gunhouse on its barbette, soldiers drawn on the plaza)
+  and ship_frigate_deck (deck markings, superstructure, crew bar) look right.
 - structcheck / fortresstest on the new citadel (walkability: ladders, doors, pad, skyways; mobs not in blocks).
 - Make --ridetest gating once it passes (or hand it to stream B).
