@@ -42,17 +42,26 @@ extension Renderer {
         let place: Float = far * 0.93
         var smoke = landmarkSmoke
         smoke.removeAll(keepingCapacity: true)
+        // Every impostor vertex goes onto a shell just inside the far plane, along its own direction (same size on
+        // screen), the radius growing a little with the true distance so nearer faces still cover farther ones. The shell
+        // lies beyond all loaded terrain, so an impostor can never cut through the real landmark: scaled as a whole, a
+        // volcano nearer than the far plane stayed at its true depth and its low-poly cone poked through the real one
+        // (the sky-coloured streak and smooth patches on volcano_far, runs 470-509).
+        func p(_ w: V3) -> V4 {
+            let d = w - eye
+            let len = max(0.001, simd_length(d))
+            let r: Float = place * (0.95 + 0.05 * min(1, len / Renderer.landmarkRange))
+            return V4(d * (r / len), 1)
+        }
         func tri(_ a: V4, _ b: V4, _ c: V4, _ col: V4, _ into: inout [SimpleVert]) {
             into.append(SimpleVert(pos: a, color: col)); into.append(SimpleVert(pos: b, color: col)); into.append(SimpleVert(pos: c, color: col))
         }
         for v in vols {
             let c = V3(v.x, Float(YOFF) + v.base, v.z)
             let dist = simd_length(V2(c.x - eye.x, c.z - eye.z))
-            // Near: the real terrain shows it. Far: past the landmark range.
-            guard dist > loaded * 0.7 + v.r * 0.3, dist < Renderer.landmarkRange else { continue }
-            let k = place / max(place, dist)                      // pull in to just inside the far plane
+            // Near: the real terrain shows it (until its centre is past the loaded area). Far: past the landmark range.
+            guard dist > loaded + v.r * 0.2, dist < Renderer.landmarkRange else { continue }
             let haze: Float = 0.3 + 0.5 * Terrain.smooth(loaded, Renderer.landmarkRange, dist)
-            func p(_ w: V3) -> V4 { V4((w - eye) * k, 1) }
             func shade(_ base: V3, _ n: V3) -> V3 {
                 let lit: Float = 0.32 + 0.68 * max(0, simd_dot(n, sun)) * day + 0.08
                 return base * lit * hdrK * (1 - haze) + fog * haze
@@ -128,10 +137,8 @@ extension Renderer {
         let grey = V3(0.43, 0.43, 0.44)
         for sp in spireCache(game) {
             let dist = simd_length(V2(sp.x - eye.x, sp.z - eye.z))
-            guard dist > loaded * 0.8, dist < Renderer.spireRange else { continue }
-            let k = place / max(place, dist)
+            guard dist > loaded + 16, dist < Renderer.spireRange else { continue }
             let haze: Float = 0.35 + 0.55 * Terrain.smooth(loaded, Renderer.spireRange, dist)
-            func p(_ w: V3) -> V4 { V4((w - eye) * k, 1) }
             let r: Float = 13
             for i in 0..<8 {
                 let a0 = Float(i) / 8 * 2 * .pi + .pi / 8, a1 = Float(i + 1) / 8 * 2 * .pi + .pi / 8
