@@ -252,3 +252,6 @@ aboard, teleport option, snap-angle option, seated mode, less camera motion on s
 - Factions (decided): the Capital is separate from Steelhold, not a replacement; Crawlers are their own faction; all
   three are hostile to each other on contact.
 - 2026-10-05: playtest merged into quest-port (65 commits, no conflicts); new APK via quest CI to quest-dist.
+
+HANDOFF 2026-10-05: local branch claude/quest-port in worktree blocksmith-playtest holds the clean merge (committed, NOT pushed:
+no GitHub credentials in the headless session). Next: `git push origin claude/quest-port`, wait for quest.yml, adb install -r.
