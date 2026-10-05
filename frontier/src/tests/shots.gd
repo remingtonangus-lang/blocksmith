@@ -189,13 +189,17 @@ func _town_life(p: Vector3) -> void:
 	var tid: String = stl.town_at(p, 60.0) if stl != null else ""
 	if tid == "":
 		return
+	Game.args["memlog"] = true
+	stl.mem("town life: start")
 	stl.bake_navigation_now(tid)
+	stl.mem("town life: navmesh")
 	var t0 := Time.get_ticks_msec()
 	while not stl.navigation_ready(tid) and Time.get_ticks_msec() - t0 < 120000:
 		await get_tree().process_frame
 	for i in 3:
 		await get_tree().physics_frame
 	Game.population.fill_now()
+	stl.mem("town life: residents spawned")
 	for i in 10:
 		await get_tree().physics_frame
 	Game.population.stir(0.5)

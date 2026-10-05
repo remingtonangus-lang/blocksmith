@@ -42,6 +42,11 @@ unchanged API).
   prop MultiMeshes, drawn only while the camera is inside or within 9 m of the footprint (`_interiors()`, 45 m
   visibility range as a backstop). Doors: one MultiMesh per door mesh (style/size) per town, paint colour as
   instance custom data (building.gdshader). Far shell per settlement from 480 m (one surface).
+- Props: Poly Haven scans are decimated at load to <= 2500 triangles each (`TownProps._decimate`, engine LOD
+  simplifier; 1.07M -> 91k triangles for the set); their textures are imported VRAM-compressed at 512 px with
+  mipmaps (`tools/prop_imports.py`, run by fetch_assets.sh / session_setup.sh).
+- Memory (headless static, Bitter Spring): props + materials + atlases ~75 MB, all 12 plans + far shells ~5 MB,
+  a built town ~25 MB, its navmesh ~15 MB; `--memtest` prints build / bake / unload / rebuild deltas.
 - Lights: OmniLights per lamp/porch/room/fire, culled beyond 140 m, distance-faded at 45–80 m, at most two shadowed
   lights per town; lit windows and lamp glass are emissive materials driven by the night factor.
 - Interior ReflectionProbes (one per furnished building, update once, interior ambient colour).

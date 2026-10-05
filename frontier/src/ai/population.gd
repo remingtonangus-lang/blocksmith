@@ -81,6 +81,7 @@ func _tick(fill: bool) -> void:
 		else:
 			near += 1
 	var budget := 999 if fill else SPAWNS_PER_TICK
+	var cap: int = int(Game.args.get("residents", MAX_NEAR))     # --residents N caps town residents (low-memory shots)
 	var st = Game.main.settlements if Game.main else null
 	for t in Game.world.features.towns:
 		var tc := Vector3(t.x, 0, t.z)
@@ -97,8 +98,18 @@ func _tick(fill: bool) -> void:
 				for r in casts[t.id]:
 					index[t.id].look_ids[r.key] = _pick_look(t.id, r)
 			var first: bool = not _seen_town.has(t.id)
-			for r in casts[t.id]:
-				if residents.has(r.key) or near >= MAX_NEAR or budget <= 0:
+			var order: Array = casts[t.id]
+			if cap < MAX_NEAR:
+				# capped (low-memory shots): the residents whose hour puts them nearest the camera first
+				order = order.duplicate()
+				var dist := {}
+				for r in order:
+					var b := block_for(r)
+					var bb: Dictionary = index[t.id].buildings.get(b.get("bid", ""), index[t.id].buildings.get(r.work, {}))
+					dist[r.key] = (bb.transform.origin as Vector3).distance_to(pp) if not bb.is_empty() else 999.0
+				order.sort_custom(func(a, b): return dist[a.key] < dist[b.key])
+			for r in order:
+				if residents.has(r.key) or near >= cap or budget <= 0:
 					continue
 				if _spawn_town_resident(r, first or fill):
 					near += 1
