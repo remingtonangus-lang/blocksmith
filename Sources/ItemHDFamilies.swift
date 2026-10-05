@@ -78,11 +78,15 @@ extension ItemHD {
         case "ingot":
             let brick = name.contains("brick")
             let m = metalByName[String(name.split(separator: "_")[0])] ?? M(brick ? "stone" : "metal", base)
-            let top = cv.poly([V2(0.24, 0.3), V2(0.76, 0.3), V2(0.92, 0.5), V2(0.08, 0.5)])
-            let front = cv.poly([V2(0.08, 0.5), V2(0.92, 0.5), V2(0.87, 0.74), V2(0.13, 0.74)])
-            cv.add(front, xs, m, r: 0.05, chamfer: true)
-            cv.add(top, xs, m, r: 0.06, chamfer: true)
-            if !brick { cv.add(cv.poly([V2(0.36, 0.36), V2(0.64, 0.36), V2(0.7, 0.44), V2(0.3, 0.44)]), xs, m, r: 0.02, chamfer: true) }
+            // A bar in three-quarter view: a sloped top, a front, an end, all tapering (critic: the flat-topped
+            // version read as a lidded box).
+            let top = cv.poly([V2(0.28, 0.38), V2(0.68, 0.29), V2(0.8, 0.36), V2(0.42, 0.46)])
+            let front = cv.poly([V2(0.42, 0.46), V2(0.8, 0.36), V2(0.92, 0.56), V2(0.44, 0.72)])
+            let end = cv.poly([V2(0.28, 0.38), V2(0.42, 0.46), V2(0.44, 0.72), V2(0.12, 0.56)])
+            cv.add(end, xs, m, r: 0.03, chamfer: true)
+            cv.add(front, xs, m, r: 0.03, chamfer: true)
+            cv.add(top, xs, m, r: 0.03, chamfer: true)
+            if !brick { cv.add(cv.poly(band(V2(0.4, 0.38), V2(0.52, 0.35), V2(0.68, 0.33), 0.022, 0.01, 8)), xs, M("soft", 0xFFFFFF), r: 0.01) }
         case "nugget":
             let m = metalByName[String(name.split(separator: "_")[0])] ?? M("metal", base)
             for (c, r) in [(V2(0.36, 0.6), Float(0.15)), (V2(0.62, 0.66), 0.13), (V2(0.52, 0.4), 0.12)] {
@@ -101,13 +105,9 @@ extension ItemHD {
             gem(cv, name, base, ys)
         case "dust":
             let m = soft(base)
-            let heap = Canvas.intersect(ellipse(cv, V2(0.5, 0.84), 0.38, 0.44), cv.below(0.84))
-            cv.add(heap, ys, m, r: 0.25)
-            var rng = SRng(3)
-            for _ in 0..<16 {
-                let c = V2(0.2 + rng.float() * 0.6, 0.52 + rng.float() * 0.3)
-                cv.add(Canvas.intersect(cv.circle(c, 0.028), Canvas.offset(heap, 0.012)), ys, m, r: 0.03)
-            }
+            // A lumpy heap of three mounds (critic: white grain speckle read as mould at a distance).
+            let mound = smin(smin(cv.circle(V2(0.36, 0.78), 0.22), cv.circle(V2(0.62, 0.76), 0.24), 0.08), cv.circle(V2(0.5, 0.6), 0.2), 0.08)
+            cv.add(Canvas.intersect(mound, cv.below(0.84)), ys, m, r: 0.12)
         case "ball":
             let d = cv.circle(V2(0.5, 0.54), 0.31)
             cv.add(d, ys, M(name == "heart_of_the_sea" ? "gem" : "soft", base), r: 0.31)
@@ -209,8 +209,10 @@ extension ItemHD {
         case "water_bucket", "lava_bucket", "milk_bucket", "powder_snow_bucket": cv.add(surface, xs, M("soft", c), r: 0.03)
         default:                                                            // a bucket of fish / axolotl / tadpole
             cv.add(surface, xs, M("soft", 0x3F76E4), r: 0.03)
-            let fish = Canvas.union(ellipse(cv, V2(0.48, 0.3), 0.12, 0.06), cv.poly([V2(0.58, 0.3), V2(0.68, 0.22), V2(0.68, 0.38)]))
-            cv.add(fish, xs, M("soft", c), r: 0.05)
+            // The fish pokes out above the rim (critic: it was tiny).
+            let fish = Canvas.union(ellipse(cv, V2(0.46, 0.26), 0.17, 0.1), cv.poly([V2(0.6, 0.26), V2(0.76, 0.12), V2(0.74, 0.36)]))
+            cv.add(Canvas.intersect(fish, cv.below(0.4)), xs, M("soft", c), r: 0.08)
+            cv.add(cv.circle(V2(0.36, 0.23), 0.022), xs, M("soft", 0x101014), r: 0.02)
         }
         cv.add(ring(ellipse(cv, V2(0.5, 0.38), 0.3, 0.075), 0.016), xs, "iron", r: 0.016)
     }

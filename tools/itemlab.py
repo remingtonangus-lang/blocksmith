@@ -23,7 +23,7 @@ def mat(name, kind, base, dark, light):
 
 for row in [
     ("wood", "wood", 0xB98E58, 0x6A4A26, 0xE6C690), ("handle", "wood", 0x7A5530, 0x3E2914, 0xB08250),
-    ("stone", "stone", 0x8C8C8E, 0x4C4C50, 0xC4C4C6), ("iron", "metal", 0xC9CED6, 0x5E646E, 0xFFFFFF),
+    ("stone", "stone", 0x767C86, 0x363A44, 0xAEB4BE), ("iron", "metal", 0xC9CED6, 0x5E646E, 0xFFFFFF),
     ("golden", "metal", 0xF0C33C, 0x8A5A10, 0xFFF4B0), ("diamond", "gem", 0x46D8E0, 0x146A7A, 0xD8FFFF),
     ("netherite", "dusk", 0x4A4450, 0x18151C, 0xB59AD8), ("copper", "copper", 0xDA7240, 0x6E2E12, 0xFFC29A),
     ("leather", "leather", 0x8E5430, 0x4A2812, 0xC08458), ("grip", "leather", 0x5A3A26, 0x2A1A10, 0x8A6040),
@@ -61,10 +61,14 @@ def norm(v):
 
 
 class Canvas:
-    def __init__(self, n):
+    def __init__(self, n, tilt=0.0, zoom=1.0):
         self.n = n
         c = (np.arange(n, dtype=np.float32) + 0.5) / n
-        self.X, self.Y = np.meshgrid(c, c)
+        X, Y = np.meshgrid(c, c)
+        # Design space seen through a turn (radians, positive lifts the right side) and a zoom about the centre.
+        co, si = math.cos(tilt), math.sin(tilt)
+        dx, dy = (X - 0.5) / zoom, (Y - 0.5) / zoom
+        self.X, self.Y = (0.5 + dx * co - dy * si).astype(np.float32), (0.5 + dx * si + dy * co).astype(np.float32)
         self.parts = []
 
     def seg(self, a, b):
@@ -321,6 +325,7 @@ def render(cv, bevel=0.03, split=False):
 # MARK: designs (mirror ItemHD.tool / armor / common)
 
 def handle(cv, a, b, r=0.04, m="handle"):
+    r = r * 1.2
     d, t = cv.capsule(a, b, r)
     cv.add(d, t, m, r)
 
@@ -359,7 +364,7 @@ def tool(cv, kind, head):
         handle(cv, V(0.12, 0.9), top + up * 0.02, 0.038)
         ctrl1, ctrl2 = top - rt * 0.2 + up * 0.1, top + rt * 0.2 + up * 0.1
         e1, e2 = top - rt * 0.42 - up * 0.06, top + rt * 0.42 - up * 0.06
-        d = union(cv.poly(band(top + up * 0.02, ctrl1, e1, 0.13, 0.02, 16)), cv.poly(band(top + up * 0.02, ctrl2, e2, 0.13, 0.02, 16)))
+        d = union(cv.poly(band(top + up * 0.02, ctrl1, e1, 0.16, 0.03, 16)), cv.poly(band(top + up * 0.02, ctrl2, e2, 0.16, 0.03, 16)))
         t = cv.axis(e1, e2)
         cv.add(tier_shape(cv, d, head), t, head, 0.06, "chamfer")
         cd, ct = cv.capsule(top - rt * 0.05 + up * 0.02, top + rt * 0.05 + up * 0.02, 0.06)
@@ -384,11 +389,11 @@ def tool(cv, kind, head):
     elif kind == "shovel":
         handle(cv, V(0.13, 0.9), V(0.62, 0.42), 0.036)
         cv.add(*cv.capsule(V(0.07, 0.86), V(0.19, 0.97), 0.032), "handle", 0.03)
-        c = V(0.73, 0.28)
-        pts = [c - up * 0.13 + rt * 0.1]
-        pts += bez(c + up * 0.0 + rt * 0.13, c + up * 0.17 + rt * 0.12, c + up * 0.24, 7)[0:]
-        pts += bez(c + up * 0.24, c + up * 0.17 - rt * 0.12, c - rt * 0.13, 7)
-        pts.append(c - up * 0.13 - rt * 0.1)
+        c = V(0.72, 0.29)
+        pts = [c - up * 0.13 + rt * 0.12]
+        pts += bez(c + rt * 0.16, c + up * 0.2 + rt * 0.15, c + up * 0.28, 7)
+        pts += bez(c + up * 0.28, c + up * 0.2 - rt * 0.15, c - rt * 0.16, 7)
+        pts.append(c - up * 0.13 - rt * 0.12)
         bd = tier_shape(cv, cv.poly(pts), head)
         cv.add(bd, cv.axis(V(0.6, 0.4), V(0.9, 0.1)), head, 0.08)
         cv.add(intersect(cv.capsule(c - up * 0.12, c + up * 0.14, 0.012)[0], bd + 0.02), cv.axis(V(0.6, 0.4), V(0.9, 0.1)), head, 0.012)
@@ -400,10 +405,10 @@ def tool(cv, kind, head):
         handle(cv, V(0.14, 0.9), top, 0.036)
         bd, bt = cv.capsule(top + V(0.02, -0.01), V(0.42, 0.14), 0.04)
         cv.add(bd, bt, head, 0.04)
-        blade = cv.poly([V(0.3, 0.08), V(0.47, 0.1), V(0.45, 0.24), V(0.32, 0.47), V(0.2, 0.42), V(0.28, 0.22)])
+        blade = cv.poly([V(0.27, 0.06), V(0.48, 0.09), V(0.46, 0.25), V(0.32, 0.52), V(0.16, 0.46), V(0.25, 0.22)])
         blade = tier_shape(cv, blade, head)
         cv.add(blade, cv.axis(V(0.38, 0.08), V(0.26, 0.45)), head, 0.06, "chamfer")
-        cv.add(intersect(cv.capsule(V(0.2, 0.42), V(0.32, 0.47), 0.03)[0], blade + 0.004), bt, edge_m, 0.02, "chamfer")
+        cv.add(intersect(cv.capsule(V(0.16, 0.46), V(0.32, 0.52), 0.035)[0], blade + 0.004), bt, edge_m, 0.02, "chamfer")
         cv.add(cv.circle(top, 0.05), bt, accent if head != "wood" else "handle", 0.05)
         adorn(cv, head, top, up, rt)
     else:
@@ -411,8 +416,8 @@ def tool(cv, kind, head):
         handle(cv, V(0.07, 0.95), b0, 0.03)
         tip = V(0.95, 0.05)
         b0 = V(0.6, 0.4)
-        sides1 = bez(b0, b0 + up * 0.1 + rt * 0.12, tip, 10)
-        sides2 = bez(tip, b0 + up * 0.1 - rt * 0.12, b0, 10)
+        sides1 = bez(b0, b0 + up * 0.1 + rt * 0.16, tip, 10)
+        sides2 = bez(tip, b0 + up * 0.1 - rt * 0.16, b0, 10)
         cv.add(tier_shape(cv, cv.poly(sides1 + sides2[1:-1]), head), cv.axis(b0, tip), head, 0.06, "chamfer")
         lug = cv.capsule(b0 - rt * 0.07, b0 + rt * 0.07, 0.022)
         cv.add(lug[0], lug[1], accent if head != "wood" else "handle", 0.02)
@@ -494,8 +499,15 @@ def armor(cv, kind, m):
             cv.add(cv.capsule(V(0.5, 0.56), V(0.5, 0.74), 0.03)[0], ys, m, 0.03)
             for x in (0.22, 0.78):
                 cv.add(cv.circle(V(x, 0.7), 0.022), ys, trim, 0.02)
+        elif m == "turtle":
+            for c in (V(0.5, 0.36), V(0.34, 0.44), V(0.66, 0.44)):
+                hexp = [c + V(math.cos(a) * 0.09, math.sin(a) * 0.09) for a in np.arange(6) * math.pi / 3]
+                cv.add(intersect(abs(cv.poly(hexp)) - 0.012, d + 0.02), ys, M("leather", 0x2A5A22), 0.012)
         else:
             cv.add(intersect(cv.capsule(V(0.2, 0.4), V(0.8, 0.4), 0.006)[0], d + 0.03), xs, "grip", 0.006)
+            cv.add(cap(cv, V(0.1, 0.58), V(0.9, 0.58), 0.035), xs, M("leather", 0x6A3E20), 0.035)
+            cv.add(cap(cv, V(0.24, 0.6), V(0.4, 0.9), 0.016), ys, "grip", 0.016)
+            cv.add(cv.circle(V(0.4, 0.9), 0.025), ys, "iron", 0.02)
     elif kind == "chestplate":
         torso = cv.poly([V(0.26, 0.2), V(0.4, 0.16), V(0.5, 0.28), V(0.6, 0.16), V(0.74, 0.2), V(0.76, 0.86), V(0.5, 0.92), V(0.24, 0.86)])
         cv.add(torso, ys, m, 0.3) if soft else cv.add(torso, ys, m, 0.12, "chamfer")
@@ -725,6 +737,34 @@ def lighter(h, k):
     return (f(r) << 16) | (f(g) << 8) | f(b)
 
 
+def soft_light(h):
+    return M("soft", lighter(h, 0.35))
+
+
+def emblem(cv, name, c, r, m):
+    """A small motif chosen by the item's name (sherds, templates, banner patterns): one of eight shapes."""
+    k = sum(ord(ch) * (i + 1) for i, ch in enumerate(name)) % 8
+    zero = np.zeros_like(cv.X)
+    if k == 0:
+        cv.add(abs(cv.circle(c, r)) - r * 0.22, zero, m, r * 0.2)
+    elif k == 1:
+        cv.add(cv.poly([c + V(0, -r), c + V(r, 0), c + V(0, r), c + V(-r, 0)]), zero, m, r * 0.4, "chamfer")
+    elif k == 2:
+        pts = [c + V(math.cos(a) * (r if i % 2 == 0 else r * 0.45), math.sin(a) * (r if i % 2 == 0 else r * 0.45)) for i, a in enumerate(np.arange(10) * math.pi / 5 - math.pi / 2)]
+        cv.add(cv.poly(pts), zero, m, r * 0.4, "chamfer")
+    elif k == 3:
+        cv.add(union(cap(cv, c - V(r, 0), c + V(r, 0), r * 0.25), cap(cv, c - V(0, r), c + V(0, r), r * 0.25)), zero, m, r * 0.2)
+    elif k == 4:
+        cv.add(cv.poly([c + V(0, -r), c + V(r, r * 0.8), c + V(-r, r * 0.8)]), zero, m, r * 0.4, "chamfer")
+    elif k == 5:
+        cv.add(smin(cv.circle(c + V(-r * 0.45, -r * 0.2), r * 0.5), smin(cv.circle(c + V(r * 0.45, -r * 0.2), r * 0.5), cv.poly([c + V(-r * 0.9, 0), c + V(r * 0.9, 0), c + V(0, r)]), 0.02), 0.02), zero, m, r * 0.4)
+    elif k == 6:
+        cv.add(cv.poly(band(c + V(-r, r * 0.5), c + V(0, -r * 1.2), c + V(r, r * 0.5), r * 0.4, r * 0.4, 10)), zero, m, r * 0.2)
+    else:
+        for dx in (-0.5, 0.5):
+            cv.add(cv.circle(c + V(dx * r, 0), r * 0.42), zero, m, r * 0.3)
+
+
 def M(kind, h):
     return f"{kind}:{h:06X}"
 
@@ -748,12 +788,15 @@ def family(cv, name, mask, base, ex):
     if mask == "ingot":
         brick = "brick" in name
         m = METAL_BY_NAME.get(name.split("_")[0], M("stone" if brick else "metal", base))
-        top = cv.poly([V(0.24, 0.3), V(0.76, 0.3), V(0.92, 0.5), V(0.08, 0.5)])
-        front = cv.poly([V(0.08, 0.5), V(0.92, 0.5), V(0.87, 0.74), V(0.13, 0.74)])
-        cv.add(front, xs, m, 0.05, "chamfer")
-        cv.add(top, xs, m, 0.06, "chamfer")
+        # A bar in three-quarter view: a bright sloped top, a darker front, a lit end.
+        top = cv.poly([V(0.28, 0.38), V(0.68, 0.29), V(0.8, 0.36), V(0.42, 0.46)])
+        front = cv.poly([V(0.42, 0.46), V(0.8, 0.36), V(0.92, 0.56), V(0.44, 0.72)])
+        end = cv.poly([V(0.28, 0.38), V(0.42, 0.46), V(0.44, 0.72), V(0.12, 0.56)])
+        cv.add(end, xs, m, 0.03, "chamfer")
+        cv.add(front, xs, m, 0.03, "chamfer")
+        cv.add(top, xs, m, 0.03, "chamfer")
         if not brick:
-            cv.add(cv.poly([V(0.36, 0.36), V(0.64, 0.36), V(0.7, 0.44), V(0.3, 0.44)]), xs, m, 0.02, "chamfer")
+            cv.add(cv.poly(band(V(0.4, 0.38), V(0.52, 0.35), V(0.68, 0.33), 0.022, 0.01, 8)), xs, M("soft", 0xFFFFFF), 0.01)
     elif mask == "nugget":
         m = METAL_BY_NAME.get(name.split("_")[0], M("metal", base))
         for c, r in ((V(0.36, 0.6), 0.15), (V(0.62, 0.66), 0.13), (V(0.52, 0.4), 0.12)):
@@ -774,12 +817,10 @@ def family(cv, name, mask, base, ex):
         gem(cv, name, base, ys, xs)
     elif mask == "dust":
         m = M("soft", base)
-        heap = intersect(cv.ellipse(V(0.5, 0.84), 0.38, 0.44), cv.below(0.84))
-        cv.add(heap, ys, m, 0.25)
-        rng = np.random.default_rng(3)
-        for _ in range(16):
-            c = V(0.2 + rng.random() * 0.6, 0.52 + rng.random() * 0.3)
-            cv.add(intersect(cv.circle(c, 0.028), heap + 0.012), ys, m, 0.03)
+        # A lumpy heap of three mounds.
+        mound = smin(smin(cv.circle(V(0.36, 0.78), 0.22), cv.circle(V(0.62, 0.76), 0.24), 0.08), cv.circle(V(0.5, 0.6), 0.2), 0.08)
+        heap = intersect(mound, cv.below(0.84))
+        cv.add(heap, ys, m, 0.12)
     elif mask == "ball":
         m = M("gem" if name == "heart_of_the_sea" else "soft", base)
         d = cv.circle(V(0.5, 0.54), 0.31)
@@ -864,8 +905,9 @@ def bucket(cv, name, ex, xs):
         cv.add(cv.ellipse(V(0.5, 0.38), 0.29, 0.065), xs, M("soft", c), 0.03)
     else:
         cv.add(cv.ellipse(V(0.5, 0.38), 0.29, 0.065), xs, M("soft", 0x3F76E4), 0.03)
-        fish = cv.ellipse(V(0.48, 0.3), 0.12, 0.06)
-        cv.add(union(fish, cv.poly([V(0.58, 0.3), V(0.68, 0.22), V(0.68, 0.38)])), xs, M("soft", c), 0.05)
+        fish = union(cv.ellipse(V(0.46, 0.26), 0.17, 0.1), cv.poly([V(0.6, 0.26), V(0.76, 0.12), V(0.74, 0.36)]))
+        cv.add(intersect(fish, cv.below(0.4)), xs, M("soft", c), 0.08)
+        cv.add(cv.circle(V(0.36, 0.23), 0.022), xs, M("soft", 0x101014), 0.02)
     cv.add(rim, xs, iron, 0.016)
 
 
@@ -1064,8 +1106,11 @@ def family3(cv, name, mask, base, ex, ys, xs):
     elif mask == "paper":
         d = cv.poly([V(0.2, 0.12), V(0.8, 0.12), V(0.8, 0.88), V(0.2, 0.88)])
         cv.add(d, ys, "paper", 0.03)
-        for yy in (0.3, 0.42, 0.54, 0.66):
-            cv.add(cap(cv, V(0.3, yy), V(0.7 if yy < 0.6 else 0.56, yy), 0.012), ys, soft(ex.get("a", 0x9A9488)), 0.01)
+        if name.endswith("banner_pattern"):
+            emblem(cv, name, V(0.5, 0.5), 0.2, soft(ex.get("a", 0x5A5040)))
+        else:
+            for yy in (0.3, 0.42, 0.54, 0.66):
+                cv.add(cap(cv, V(0.3, yy), V(0.7 if yy < 0.6 else 0.56, yy), 0.012), ys, soft(ex.get("a", 0x9A9488)), 0.01)
     elif mask == "book":
         cover = M("leather", base)
         cv.add(cv.poly([V(0.24, 0.16), V(0.84, 0.16), V(0.84, 0.84), V(0.24, 0.84)]), ys, "paper", 0.03)
@@ -1103,13 +1148,13 @@ def family3(cv, name, mask, base, ex, ys, xs):
             cv.add(cv.poly([V(0.14, 0.86), V(0.3, 0.7), V(0.36, 0.64) + o, V(0.2, 0.8) + o * 1.3]), xs, "white", 0.03)
     elif mask == "bow":
         cv.add(cv.poly(band(V(0.18, 0.1), V(0.94, 0.16), V(0.88, 0.84), 0.07, 0.07, 22)), xs, "handle", 0.035)
-        cv.add(cap(cv, V(0.2, 0.12), V(0.86, 0.84), 0.01), zero, "string", 0.01)
+        cv.add(cap(cv, V(0.2, 0.12), V(0.86, 0.84), 0.017), zero, "string", 0.017)
         wraps(cv, V(0.66, 0.3), V(0.76, 0.4), 0.05, 2)
     elif mask == "crossbow":
         handle(cv, V(0.16, 0.86), V(0.7, 0.32), 0.05)
         cv.add(cv.poly(band(V(0.36, 0.1), V(0.68, 0.18), V(0.92, 0.64), 0.07, 0.07, 18)), xs, "iron", 0.035)
-        cv.add(cap(cv, V(0.38, 0.12), V(0.56, 0.5), 0.01), zero, "string", 0.01)
-        cv.add(cap(cv, V(0.9, 0.62), V(0.56, 0.5), 0.01), zero, "string", 0.01)
+        cv.add(cap(cv, V(0.38, 0.12), V(0.56, 0.5), 0.015), zero, "string", 0.015)
+        cv.add(cap(cv, V(0.9, 0.62), V(0.56, 0.5), 0.015), zero, "string", 0.015)
         cv.add(cv.circle(V(0.62, 0.38), 0.06), zero, "iron", 0.05)
         cv.add(cap(cv, V(0.34, 0.68), V(0.42, 0.74), 0.03), zero, "iron", 0.03)
     elif mask == "shield":
@@ -1137,10 +1182,10 @@ def family3(cv, name, mask, base, ex, ys, xs):
         wraps(cv, V(0.13, 0.88), V(0.22, 0.75), 0.04, 2)
         bait = ex.get("c", 0xD03030)
         if name == "fishing_rod":
-            cv.add(cap(cv, V(0.86, 0.1), V(0.86, 0.66), 0.006), zero, "string", 0.006)
+            cv.add(cap(cv, V(0.86, 0.1), V(0.86, 0.66), 0.012), zero, "string", 0.012)
             cv.add(cv.circle(V(0.86, 0.7), 0.045), zero, soft(bait), 0.04)
         else:
-            cv.add(cap(cv, V(0.86, 0.1), V(0.82, 0.5), 0.006), zero, "string", 0.006)
+            cv.add(cap(cv, V(0.86, 0.1), V(0.82, 0.5), 0.012), zero, "string", 0.012)
             cv.add(cv.poly(band(V(0.82, 0.48), V(0.86, 0.66), V(0.8, 0.86), 0.12, 0.02, 10)), ys, soft(bait), 0.06)
     elif mask == "shears":
         piv = V(0.52, 0.48)
@@ -1154,8 +1199,13 @@ def family3(cv, name, mask, base, ex, ys, xs):
             cv.add(abs(cv.circle(c, 0.1)) - 0.035, np.zeros_like(ys), soft(ex.get("d", 0x5A3D1F)), 0.035)
         cv.add(cv.circle(piv, 0.035), np.zeros_like(ys), "iron", 0.03)
     elif mask == "flint_steel":
-        cv.add(abs(cv.ellipse(V(0.36, 0.42), 0.2, 0.14)) - 0.04, xs, "iron", 0.04)
-        cv.add(cv.poly([V(0.5, 0.52), V(0.72, 0.46), V(0.86, 0.66), V(0.7, 0.86), V(0.5, 0.78)]), ys, "flint", 0.08, "chamfer")
+        # A C-shaped steel striker with a grip, and a big knapped flint.
+        st = intersect(abs(cv.ellipse(V(0.38, 0.4), 0.26, 0.2)) - 0.045, -(cv.poly([V(0.5, 0.4), V(0.9, 0.2), V(0.9, 0.6)])))
+        cv.add(st, xs, "iron", 0.045)
+        cv.add(cap(cv, V(0.18, 0.4), V(0.18, 0.4), 0.06), xs, "grip", 0.05)
+        cv.add(cv.poly([V(0.46, 0.56), V(0.7, 0.46), V(0.9, 0.62), V(0.8, 0.9), V(0.52, 0.86)]), ys, "flint", 0.1, "chamfer")
+        for c in (V(0.62, 0.42), V(0.68, 0.36), V(0.58, 0.34)):
+            cv.add(cv.circle(c, 0.018), xs, M("soft", 0xFFD060), 0.015)
     elif mask == "minecart":
         body = cv.poly([V(0.12, 0.34), V(0.88, 0.34), V(0.8, 0.72), V(0.2, 0.72)])
         cont = ex.get("c", 0x4A4A50)
@@ -1167,16 +1217,17 @@ def family3(cv, name, mask, base, ex, ys, xs):
             cv.add(cv.circle(V(x, 0.76), 0.1), ys, M("metal", 0x3A3A40), 0.08)
             cv.add(cv.circle(V(x, 0.76), 0.035), ys, "iron", 0.03)
     elif mask in ("boat", "chest_boat"):
-        hull = cv.poly([V(0.06, 0.46), V(0.94, 0.46), V(0.8, 0.76), V(0.2, 0.76)])
+        cv.add(cap(cv, V(0.7, 0.12), V(0.5, 0.6), 0.022), zero, "handle", 0.022)
+        cv.add(cv.ellipse(V(0.72, 0.14), 0.05, 0.08), zero, "handle", 0.04)
+        hull = cv.poly([V(0.04, 0.44), V(0.96, 0.44), V(0.82, 0.78), V(0.18, 0.78)])
         cv.add(hull, xs, wood(base), 0.08)
         for yy in (0.56, 0.66):
             cv.add(intersect(cap(cv, V(0.06, yy), V(0.94, yy), 0.008), hull), xs, wood(darker(base, 0.6)), 0.008)
         cv.add(cap(cv, V(0.06, 0.46), V(0.94, 0.46), 0.03), xs, wood(darker(base, 0.8)), 0.03)
         if mask == "chest_boat":
-            cv.add(cv.poly([V(0.36, 0.22), V(0.64, 0.22), V(0.64, 0.46), V(0.36, 0.46)]), ys, wood(ex.get("c", 0x9A6A2A)), 0.04)
-            cv.add(cv.poly([V(0.47, 0.3), V(0.53, 0.3), V(0.53, 0.38), V(0.47, 0.38)]), ys, "iron", 0.02)
-        cv.add(cap(cv, V(0.62, 0.18), V(0.86, 0.86), 0.022), zero, "handle", 0.022)
-        cv.add(cv.ellipse(V(0.84, 0.82), 0.05, 0.09), zero, "handle", 0.04)
+            cv.add(cv.poly([V(0.28, 0.14), V(0.66, 0.14), V(0.66, 0.46), V(0.28, 0.46)]), ys, wood(ex.get("c", 0x9A6A2A)), 0.05)
+            cv.add(cap(cv, V(0.28, 0.25), V(0.66, 0.25), 0.012), ys, wood(0x5A3A1A), 0.012)
+            cv.add(cv.poly([V(0.44, 0.22), V(0.5, 0.22), V(0.5, 0.32), V(0.44, 0.32)]), ys, "iron", 0.02)
     elif mask == "horse_armor":
         m = M("leather" if name.startswith("leather") or name == "wolf_armor" else ("gem" if "diamond" in name else "metal"), base)
         m = METAL_BY_NAME.get(name.split("_")[0], m)
@@ -1195,16 +1246,17 @@ def family3(cv, name, mask, base, ex, ys, xs):
         cv.add(cv.circle(V(0.5, 0.5), 0.4), ys, soft(0x16161A), 0.06)
         for r in (0.3, 0.34, 0.24):
             cv.add(abs(cv.circle(V(0.5, 0.5), r)) - 0.004, ys, soft(0x34343C), 0.004)
-        cv.add(cv.circle(V(0.5, 0.5), 0.13), ys, soft(ex.get("c", 0xC03030)), 0.04)
+        cv.add(cv.circle(V(0.5, 0.5), 0.19), ys, soft(ex.get("c", 0xC03030)), 0.05)
+        cv.add(abs(cv.circle(V(0.5, 0.5), 0.12)) - 0.008, ys, soft(lighter(ex.get("c", 0xC03030), 0.45)), 0.008)
         cv.add(cv.circle(V(0.5, 0.5), 0.025), ys, soft(0x08080A), 0.02)
     elif mask == "sherd":
         d = cv.poly([V(0.16, 0.24), V(0.56, 0.14), V(0.86, 0.3), V(0.8, 0.74), V(0.4, 0.86), V(0.14, 0.66)])
         cv.add(d, ys, M("stone", base), 0.1, "chamfer")
-        cv.add(intersect(abs(cv.circle(V(0.5, 0.5), 0.14)) - 0.025, d + 0.06), ys, M("stone", ex.get("c", 0x6A3A2A)), 0.02)
+        emblem(cv, name, V(0.5, 0.5), 0.17, M("stone", ex.get("c", 0x6A3A2A)))
     elif mask == "template":
         d = cv.poly([V(0.2, 0.12), V(0.8, 0.12), V(0.8, 0.88), V(0.2, 0.88)])
         cv.add(d, ys, M("stone", base), 0.06, "chamfer")
-        cv.add(cv.poly([V(0.5, 0.26), V(0.68, 0.5), V(0.5, 0.74), V(0.32, 0.5)]), ys, M("metal", ex.get("c", 0x6A8AAA)), 0.06, "chamfer")
+        emblem(cv, name, V(0.5, 0.5), 0.2, M("metal", ex.get("c", 0x6A8AAA)))
     elif mask == "key":
         km = M("metal", base)
         cv.add(abs(cv.circle(V(0.32, 0.32), 0.15)) - 0.045, zero, km, 0.045)
@@ -1350,6 +1402,24 @@ def family3(cv, name, mask, base, ex, ys, xs):
     elif mask == "banner":
         cv.add(cap(cv, V(0.16, 0.12), V(0.84, 0.12), 0.03), xs, "handle", 0.03)
         cv.add(cv.poly([V(0.24, 0.14), V(0.76, 0.14), V(0.76, 0.86), V(0.5, 0.74), V(0.24, 0.86)]), ys, M("leather", base), 0.08)
+    elif mask == "chestplate" and name == "elytra":
+        for sg in (-1, 1):
+            pts = [V(0.5 + 0.04 * sg, 0.16), V(0.5 + 0.38 * sg, 0.12), V(0.5 + 0.44 * sg, 0.3)] + \
+                  bez(V(0.5 + 0.44 * sg, 0.3), V(0.5 + 0.36 * sg, 0.7), V(0.5 + 0.2 * sg, 0.9), 8)[1:] + [V(0.5 + 0.06 * sg, 0.6)]
+            w = cv.poly(pts)
+            cv.add(w, ys, M("leather", base), 0.1)
+            for k in range(3):
+                y0 = 0.3 + k * 0.16
+                cv.add(intersect(cap(cv, V(0.5 + 0.08 * sg, y0 - 0.06), V(0.5 + 0.4 * sg, y0 + 0.04), 0.008), w + 0.03), ys, M("leather", darker(base, 0.7)), 0.008)
+    elif mask == "armor_stand":
+        wd = M("wood", base)
+        cv.add(rect(cv, 0.2, 0.86, 0.8, 0.94), xs, M("stone", 0x9A9A9C), 0.03)
+        cv.add(cap(cv, V(0.5, 0.18), V(0.5, 0.88), 0.03), ys, wd, 0.03)
+        cv.add(cap(cv, V(0.24, 0.3), V(0.76, 0.3), 0.03), xs, wd, 0.03)
+        cv.add(cap(cv, V(0.32, 0.56), V(0.68, 0.56), 0.028), xs, wd, 0.028)
+        for x in (0.42, 0.58):
+            cv.add(cap(cv, V(x, 0.56), V(x, 0.86), 0.022), ys, wd, 0.022)
+        cv.add(cv.ellipse(V(0.5, 0.14), 0.08, 0.08), ys, wd, 0.06)
     elif mask == "saddle":
         lm = M("leather", base)
         seat = cv.poly(bez(V(0.12, 0.3), V(0.5, 0.62), V(0.86, 0.36), 12) + [V(0.88, 0.5), V(0.7, 0.62), V(0.3, 0.62), V(0.12, 0.46)])
@@ -1419,3 +1489,119 @@ if __name__ == "__main__":
     a = ap.parse_args()
     names = a.names.split(",") if a.names else item_names()
     sheet(names, a.n, a.scale, a.bg, a.cols).save(a.out)
+
+
+# MARK: Steelhold guns and ammo (mirror ItemHDGear.gun)
+
+def rect(cv, x0, y0, x1, y1):
+    return cv.poly([V(x0, y0), V(x1, y0), V(x1, y1), V(x0, y1)])
+
+
+def gun(cv, key):
+    ys, xs = ys_xs(cv)
+    steel, dark, wood, poly_, brass = M("metal", 0x4A4E56), M("metal", 0x2A2C32), M("wood", 0x8A5A30), M("leather", 0x34363A), "golden"
+    if key == "gun_rifle":
+        cv.add(cv.poly([V(0.04, 0.46), V(0.3, 0.42), V(0.32, 0.56), V(0.08, 0.66)]), xs, wood, 0.05)          # stock
+        cv.add(cv.poly(band(V(0.44, 0.56), V(0.48, 0.7), V(0.42, 0.82), 0.09, 0.08, 10)), ys, dark, 0.04)    # curved mag
+        cv.add(rect(cv, 0.28, 0.4, 0.62, 0.56), xs, steel, 0.06, "chamfer")                                   # receiver
+        cv.add(cv.poly([V(0.33, 0.55), V(0.39, 0.55), V(0.37, 0.7), V(0.3, 0.7)]), ys, wood, 0.03)           # grip
+        cv.add(rect(cv, 0.6, 0.42, 0.82, 0.53), xs, wood, 0.04)                                               # handguard
+        cv.add(cap(cv, V(0.8, 0.46), V(0.97, 0.46), 0.018), xs, dark, 0.018)                                  # barrel
+        cv.add(rect(cv, 0.36, 0.34, 0.5, 0.4), xs, dark, 0.02)                                                # rear sight / rail
+        cv.add(cv.poly([V(0.84, 0.44), V(0.86, 0.38), V(0.88, 0.44)]), xs, dark, 0.01)
+    elif key == "gun_smg":
+        cv.add(cap(cv, V(0.08, 0.5), V(0.26, 0.48), 0.018), xs, dark, 0.018)                                  # wire stock
+        cv.add(cap(cv, V(0.08, 0.5), V(0.1, 0.62), 0.018), xs, dark, 0.018)
+        cv.add(rect(cv, 0.42, 0.56, 0.52, 0.86), ys, dark, 0.04)                                              # long straight mag
+        cv.add(rect(cv, 0.24, 0.38, 0.72, 0.56), xs, steel, 0.07, "chamfer")
+        cv.add(cv.poly([V(0.28, 0.55), V(0.36, 0.55), V(0.33, 0.74), V(0.25, 0.74)]), ys, poly_, 0.03)
+        cv.add(cap(cv, V(0.7, 0.45), V(0.86, 0.45), 0.03), xs, dark, 0.03)
+        cv.add(rect(cv, 0.6, 0.56, 0.66, 0.66), ys, poly_, 0.02)
+    elif key == "gun_shotgun":
+        cv.add(cv.poly([V(0.03, 0.48), V(0.28, 0.44), V(0.3, 0.56), V(0.06, 0.68)]), xs, wood, 0.05)
+        cv.add(rect(cv, 0.27, 0.42, 0.46, 0.56), xs, steel, 0.06, "chamfer")
+        cv.add(cv.poly([V(0.3, 0.55), V(0.36, 0.55), V(0.34, 0.68), V(0.28, 0.68)]), ys, wood, 0.03)
+        cv.add(cap(cv, V(0.44, 0.45), V(0.96, 0.45), 0.026), xs, dark, 0.026)                                 # barrel
+        cv.add(cap(cv, V(0.44, 0.52), V(0.9, 0.52), 0.022), xs, steel, 0.022)                                 # tube
+        cv.add(rect(cv, 0.56, 0.48, 0.74, 0.58), xs, wood, 0.04)                                              # pump
+        for x in (0.6, 0.64, 0.68):
+            cv.add(intersect(cap(cv, V(x, 0.48), V(x, 0.58), 0.006), rect(cv, 0.56, 0.48, 0.74, 0.58)), ys, M("wood", 0x5A3A1A), 0.006)
+    elif key == "gun_sniper":
+        cv.add(cv.poly([V(0.02, 0.5), V(0.26, 0.46), V(0.28, 0.58), V(0.04, 0.68)]), xs, wood, 0.05)
+        cv.add(rect(cv, 0.24, 0.45, 0.52, 0.58), xs, steel, 0.06, "chamfer")
+        cv.add(cv.poly([V(0.3, 0.57), V(0.36, 0.57), V(0.34, 0.7), V(0.28, 0.7)]), ys, wood, 0.03)
+        cv.add(rect(cv, 0.5, 0.47, 0.7, 0.56), xs, wood, 0.04)
+        cv.add(cap(cv, V(0.68, 0.5), V(0.98, 0.5), 0.015), xs, dark, 0.015)
+        sc = cap(cv, V(0.3, 0.37), V(0.56, 0.37), 0.04)
+        cv.add(sc, xs, dark, 0.04)                                                                             # scope
+        cv.add(cv.circle(V(0.56, 0.37), 0.045), xs, dark, 0.045)
+        cv.add(cv.ellipse(V(0.575, 0.37), 0.012, 0.03), xs, M("gem", 0x3A8AE0), 0.01)
+        cv.add(rect(cv, 0.38, 0.4, 0.44, 0.46), xs, dark, 0.02)
+        for sg in (-1, 1):
+            cv.add(cap(cv, V(0.66, 0.56), V(0.66 + 0.06 * sg, 0.72), 0.012), ys, dark, 0.012)                 # bipod
+    elif key == "gun_launcher":
+        olive = M("leather", 0x5A6A3A)
+        cv.add(cap(cv, V(0.06, 0.46), V(0.94, 0.46), 0.075), xs, olive, 0.075)                                # tube
+        cv.add(rect(cv, 0.0, 0.38, 0.08, 0.54), xs, dark, 0.03)
+        cv.add(rect(cv, 0.9, 0.37, 0.98, 0.55), xs, dark, 0.03)
+        for x in (0.34, 0.56):
+            cv.add(cv.poly([V(x, 0.52), V(x + 0.07, 0.52), V(x + 0.05, 0.7), V(x - 0.02, 0.7)]), ys, poly_, 0.03)
+        cv.add(rect(cv, 0.44, 0.3, 0.58, 0.39), xs, dark, 0.02)
+        cv.add(intersect(cap(cv, V(0.2, 0.46), V(0.8, 0.46), 0.08), rect(cv, 0.7, 0.3, 0.74, 0.6)), xs, M("soft", 0xC8A030), 0.02)
+    elif key == "gun_arc":
+        white, glow = M("soft", 0xD8DCE4), M("soft", 0x4AE8F0)
+        cv.add(cv.poly([V(0.04, 0.5), V(0.24, 0.44), V(0.26, 0.58), V(0.06, 0.62)]), xs, white, 0.05)
+        cv.add(cv.poly([V(0.22, 0.4), V(0.64, 0.38), V(0.7, 0.46), V(0.64, 0.58), V(0.22, 0.58)]), xs, white, 0.08, "chamfer")
+        cv.add(cv.poly([V(0.3, 0.57), V(0.36, 0.57), V(0.34, 0.7), V(0.28, 0.7)]), ys, poly_, 0.03)
+        cv.add(cap(cv, V(0.66, 0.48), V(0.96, 0.48), 0.02), xs, steel, 0.02)
+        for x in (0.72, 0.8, 0.88):
+            cv.add(abs(cv.ellipse(V(x, 0.48), 0.018, 0.05)) - 0.01, xs, "copper", 0.01)
+        cv.add(rect(cv, 0.32, 0.44, 0.58, 0.5), xs, glow, 0.02)
+        cv.add(cv.circle(V(0.96, 0.48), 0.03), xs, glow, 0.03)
+    elif key == "gun_sidearm":
+        cv.add(cv.poly([V(0.22, 0.34), V(0.82, 0.34), V(0.82, 0.48), V(0.22, 0.48)]), xs, steel, 0.05, "chamfer")   # slide
+        cv.add(cv.poly([V(0.24, 0.47), V(0.46, 0.47), V(0.42, 0.84), V(0.24, 0.84), V(0.2, 0.6)]), ys, poly_, 0.06)  # grip
+        cv.add(abs(cv.ellipse(V(0.52, 0.56), 0.07, 0.07)) - 0.014, ys, dark, 0.014)                            # trigger guard
+        for x in (0.6, 0.66, 0.72):
+            cv.add(cap(cv, V(x, 0.36), V(x, 0.46), 0.006), ys, dark, 0.006)
+    elif key == "rifle_rounds":
+        for k in range(3):
+            x = 0.26 + k * 0.22
+            cv.add(rect(cv, x - 0.07, 0.42, x + 0.07, 0.86), xs, brass, 0.07)
+            cv.add(cv.poly(band(V(x, 0.43), V(x, 0.3), V(x, 0.16), 0.13, 0.02, 10)), xs, "copper", 0.06)
+    elif key == "shotgun_shells":
+        for k in range(2):
+            x = 0.34 + k * 0.3
+            cv.add(rect(cv, x - 0.11, 0.16, x + 0.11, 0.68), xs, M("soft", 0xC8282A), 0.11)
+            cv.add(rect(cv, x - 0.12, 0.66, x + 0.12, 0.86), xs, brass, 0.06)
+    elif key == "heavy_rounds":
+        for k in range(2):
+            x = 0.34 + k * 0.3
+            cv.add(rect(cv, x - 0.09, 0.4, x + 0.09, 0.92), xs, brass, 0.09)
+            cv.add(cv.poly(band(V(x, 0.41), V(x, 0.22), V(x, 0.06), 0.16, 0.02, 10)), xs, dark, 0.07)
+    elif key == "rocket_ammo":
+        a_, b_ = V(0.14, 0.86), V(0.86, 0.14)
+        d, t = cv.capsule(a_ + (b_ - a_) * 0.15, a_ + (b_ - a_) * 0.62, 0.09)
+        cv.add(d, t, M("leather", 0x5A6A3A), 0.09)
+        cv.add(cv.poly(band(a_ + (b_ - a_) * 0.6, a_ + (b_ - a_) * 0.8, b_, 0.2, 0.02, 10)), t, dark, 0.08)
+        for sg in (-1, 1):
+            nrm = V(0.707, 0.707) * sg
+            cv.add(cv.poly([a_ + (b_ - a_) * 0.12, a_ + (b_ - a_) * 0.3 + nrm * 0.08, a_ + (b_ - a_) * 0.05 + nrm * 0.16]), t, dark, 0.03)
+    elif key == "arc_cell":
+        cv.add(rect(cv, 0.26, 0.16, 0.74, 0.88), ys, M("metal", 0x6A707A), 0.08, "chamfer")
+        cv.add(rect(cv, 0.4, 0.08, 0.6, 0.17), ys, "copper", 0.03)
+        cv.add(rect(cv, 0.34, 0.28, 0.66, 0.78), ys, M("soft", 0x4AE8F0), 0.06)
+        for y in (0.4, 0.53, 0.66):
+            cv.add(cap(cv, V(0.36, y), V(0.64, y), 0.01), ys, M("soft", 0x1A6A7A), 0.01)
+    return cv
+
+
+GUN_POSE = {"gun_rifle": (0.42, 1.12), "gun_smg": (0.3, 1.15), "gun_shotgun": (0.45, 1.1), "gun_sniper": (0.45, 1.08),
+            "gun_launcher": (0.45, 1.05), "gun_arc": (0.42, 1.1), "gun_sidearm": (0.15, 1.1)}
+GUN_KEYS = ["gun_rifle", "gun_smg", "gun_shotgun", "gun_sniper", "gun_launcher", "gun_arc", "gun_sidearm",
+            "rifle_rounds", "shotgun_shells", "heavy_rounds", "rocket_ammo", "arc_cell"]
+
+
+def gun_sheet(out, n=128):
+    imgs = [render(gun(Canvas(n, *GUN_POSE.get(k, (0.0, 1.0))), k)) for k in GUN_KEYS]
+    art_sheet(imgs, n, 1, 6, out)
