@@ -1,0 +1,843 @@
+{
+ "note": "Chapter 4 dialogue, Silver and Snow (Coldwater, the Kestrel mine, the Kestrel Pass, the line shack). id, speaker, line, emotion. Speaker voice fields name voice types from voices.json. Original writing.",
+ "speakers": {
+  "ruth": {
+   "name": "Ruth Caddell",
+   "voice": "ruth"
+  },
+  "joseph": {
+   "name": "Joseph Kehoe",
+   "voice": "lawman"
+  },
+  "nora": {
+   "name": "Nora Kilbride",
+   "voice": "woman_town"
+  },
+  "dai": {
+   "name": "Dai Pritchard",
+   "voice": "man_rough"
+  },
+  "garrity": {
+   "name": "Silas Garrity",
+   "voice": "man_town"
+  },
+  "ashby": {
+   "name": "Captain Ward Ashby",
+   "voice": "man_rough"
+  },
+  "asa": {
+   "name": "Asa Shale",
+   "voice": "man_young"
+  },
+  "hensley": {
+   "name": "Lute Hensley",
+   "voice": "man_rough"
+  },
+  "rees": {
+   "name": "Tommy Rees",
+   "voice": "man_old"
+  },
+  "inspector": {
+   "name": "Inspector Hale",
+   "voice": "man_old"
+  },
+  "hap": {
+   "name": "Hap Lindqvist",
+   "voice": "man_old"
+  },
+  "del": {
+   "name": "Del Arceneaux",
+   "voice": "woman_town"
+  },
+  "doc": {
+   "name": "Cornelius Abernathy",
+   "voice": "man_town"
+  },
+  "billy": {
+   "name": "Billy Pruitt",
+   "voice": "man_young"
+  }
+ },
+ "lines": [
+  {
+   "id": "c4_cold_01",
+   "speaker": "ruth",
+   "line": "Snow on the high ground already, and it isn't Thanksgiving. Whoever named Coldwater was an honest man.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c4_cold_02",
+   "speaker": "joseph",
+   "line": "You'd be the woman who put Cutter Shale in Mabry's jail. The whole canyon's heard. Half of it is buying you drinks you'll never collect.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c4_cold_03",
+   "speaker": "joseph",
+   "line": "You'd be the woman who left Cutter Shale on the Dry Fork. The whole canyon's heard. Nobody's sure whether to thank you or move away.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c4_cold_04",
+   "speaker": "ruth",
+   "line": "And you're the man reading a newspaper in a livery stable at nine in the morning.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c4_cold_05",
+   "speaker": "joseph",
+   "line": "Joseph Kehoe. I trade horses. Newspapers are the one thing in Coldwater nobody's charging double for.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c4_cold_06",
+   "speaker": "joseph",
+   "line": "Fenn printed your deeds, by the way. Every name. He spelled most of them right, which is more than the deeds did.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c4_cold_07",
+   "speaker": "ruth",
+   "line": "I'm told Asa Shale is up here.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c4_cold_08",
+   "speaker": "joseph",
+   "line": "With twenty company guards. Captain Ashby's men, hired to break the strike. The boy holds Ashby's horse, mostly. Old habits.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c4_cold_09",
+   "speaker": "ruth",
+   "line": "Why tell me?",
+   "emotion": "dry"
+  },
+  {
+   "id": "c4_cold_10",
+   "speaker": "joseph",
+   "line": "Because you'll find out anyway, and I'd rather you found out from someone who'd like the miners left out of your business.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c4_cold_11",
+   "speaker": "nora",
+   "line": "Two dollars and a half a day, Mr. Garrity said. Then he made it two. Then he made it company scrip that only spends at his store.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c4_cold_12",
+   "speaker": "dai",
+   "line": "We go back when it's three dollars cash and timber in the drifts that isn't rotten through. Not one day before.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c4_cold_13",
+   "speaker": "ashby",
+   "line": "This assembly is on company ground. Disperse, or be dispersed. Your choice. I prefer the second; it's quicker.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c4_cold_14",
+   "speaker": "ruth",
+   "line": "It's a public street, Captain. I asked. The company doesn't own the snow yet.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c4_cold_15",
+   "speaker": "ashby",
+   "line": "Not yet. Next quarter. Gentlemen, the lady is part of the assembly.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c4_cold_16",
+   "speaker": "joseph",
+   "line": "Not here. Not with women at the kettles. Watch who Ashby talks to after. That's where the trouble's kept.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c4_cold_17",
+   "speaker": "ruth",
+   "line": "All right. I'll watch. I don't have to like it.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c4_cold_18",
+   "speaker": "garrity",
+   "line": "Thursday. The powder goes into number two drift. Nobody works number two on a Thursday.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c4_cold_19",
+   "speaker": "asa",
+   "line": "Nobody's supposed to. Mr. Garrity, the strikers sometimes go in after their tools.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c4_cold_20",
+   "speaker": "garrity",
+   "line": "Then it's an accident, son. Mines are famous for them. Your brother understands accidents.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c4_cold_21",
+   "speaker": "nora",
+   "line": "That boy of Ashby's was asking the powder monkey about number two drift. Asking polite. Nobody up here asks polite.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c4_cold_22",
+   "speaker": "ruth",
+   "line": "Number two. Who goes in there?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c4_cold_23",
+   "speaker": "dai",
+   "line": "Nobody, since the strike. Only us, for our tools, when the guards are at dinner. Why?",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c4_cold_24",
+   "speaker": "joseph",
+   "line": "You should stay at Nora's. The hotel belongs to Garrity, and so does the bed, and so does whoever's under it.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c4_cold_25",
+   "speaker": "ruth",
+   "line": "You're very particular about where I sleep, Mr. Kehoe.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c4_cold_26",
+   "speaker": "joseph",
+   "line": "I'm particular about where people die. It's a habit. I'd like to lose it.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c4_cold_27",
+   "speaker": "nora",
+   "line": "There's soup. There's always soup. It's the one thing the company can't put in scrip.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c4_mine_01",
+   "speaker": "ruth",
+   "line": "Thursday. Dai said the guards eat at noon. It's ten to.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c4_mine_02",
+   "speaker": "joseph",
+   "line": "Dai and three men went into number two a quarter hour ago. Picks and a lantern. They didn't see me wave.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c4_mine_03",
+   "speaker": "ruth",
+   "line": "Then we get them out before Garrity's accident gets them.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c4_mine_04",
+   "speaker": "hensley",
+   "line": "Fire in the hole, boys. And no, I didn't see nobody go in. Nobody saw me not see 'em.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c4_mine_05",
+   "speaker": "joseph",
+   "line": "Get down!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c4_mine_06",
+   "speaker": "nora",
+   "line": "Dai! Dai's in there! Tommy Rees and the Morgan brothers! Somebody dig!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c4_mine_07",
+   "speaker": "joseph",
+   "line": "That's Hensley on the bay, riding for the company office. He lit it. If he gets there, it was never him.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c4_mine_08",
+   "speaker": "ruth",
+   "line": "Dig them out. Joseph, Nora, the timbers. Hensley can keep.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c4_mine_09",
+   "speaker": "ruth",
+   "line": "Joseph, dig. I'm going after Hensley. Somebody's going to answer for this with his own mouth.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c4_mine_10",
+   "speaker": "rees",
+   "line": "We hear you! We hear you! Dai's leg's pinned, and the air's going bad!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c4_mine_11",
+   "speaker": "dai",
+   "line": "I owe you a drink, missus. I owe you a barrel. I'll owe you till I'm dead, which isn't today, thanks to you.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c4_mine_12",
+   "speaker": "nora",
+   "line": "All four. All four of them, breathing. God bless every one of your blisters.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c4_mine_13",
+   "speaker": "hensley",
+   "line": "All right! All right! Garrity paid me six dollars! Six dollars and a bottle! I didn't know anybody was in there!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c4_mine_14",
+   "speaker": "ruth",
+   "line": "You said nobody saw you not see them. Say it again to a mine inspector.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c4_mine_15",
+   "speaker": "hensley",
+   "line": "You'll never prove it. Company's got lawyers like a dog's got fleas.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c4_mine_16",
+   "speaker": "joseph",
+   "line": "Three of them came out. Tommy Rees didn't. The timber came down on him while we were reaching for Dai.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c4_mine_17",
+   "speaker": "nora",
+   "line": "Tommy had a girl in Cardiff he was saving to send for. Eleven years saving. I'll have to write her.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c4_mine_18",
+   "speaker": "ruth",
+   "line": "I chose the man on the horse. Tommy paid for it.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c4_mine_19",
+   "speaker": "joseph",
+   "line": "Somebody always pays, Mrs. Caddell. The trick is not to make it a habit of choosing who.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c4_mine_20",
+   "speaker": "garrity",
+   "line": "A tragic accident. The company will pay for the funeral. In scrip, naturally, redeemable at the store.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c4_mine_21",
+   "speaker": "dai",
+   "line": "You'll pay in something, Garrity. Not scrip.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c4_mine_22",
+   "speaker": "joseph",
+   "line": "Asa Shale lit out an hour ago, over the Kestrel Pass, with a letter in his coat for his brother. I watched him saddle.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c4_mine_23",
+   "speaker": "ruth",
+   "line": "Over the pass. In this?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c4_mine_24",
+   "speaker": "joseph",
+   "line": "The Shales don't wait for weather. Neither do I. I know a way up the face that comes out ahead of him.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c4_mine_25",
+   "speaker": "ruth",
+   "line": "You've decided this is your fight now?",
+   "emotion": "dry"
+  },
+  {
+   "id": "c4_mine_26",
+   "speaker": "joseph",
+   "line": "I've decided I don't want to read about it in the paper.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c4_pass_01",
+   "speaker": "joseph",
+   "line": "The trail goes round by the switchbacks. We go straight up. Hands, feet, and don't look at the view. The view doesn't care about you.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c4_pass_02",
+   "speaker": "ruth",
+   "line": "I used to do this sort of thing for money. Ladders, mostly. With a band playing.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c4_pass_03",
+   "speaker": "joseph",
+   "line": "There's no band up here. Only wind. It plays one tune and it's very sure of it.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c4_pass_04",
+   "speaker": "joseph",
+   "line": "Your hands are white. There's a herder's shack halfway. Get to the fire before you lose fingers you'll want later.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c4_pass_05",
+   "speaker": "ruth",
+   "line": "Tom used to put my hands in his coat when the show played winter towns. Inside, against his shirt. I haven't been warm like that since.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c4_pass_06",
+   "speaker": "joseph",
+   "line": "There. The pass. And there's Asa's string, coming up the far switchback. Three riders and a pack mule.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c4_pass_07",
+   "speaker": "asa",
+   "line": "It's her! The Caddell woman! Shoot! Shoot, damn you!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c4_pass_08",
+   "speaker": "joseph",
+   "line": "No! Not on this slope! Not with the cornice hanging over!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c4_pass_09",
+   "speaker": "joseph",
+   "line": "Slide! Run for the rocks! Left, Ruth, left!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c4_pass_10",
+   "speaker": "ruth",
+   "line": "Joseph! Joseph, where are you?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c4_pass_11",
+   "speaker": "joseph",
+   "line": "Here. Under about a ton of winter. My leg's in a direction I don't approve of.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c4_pass_12",
+   "speaker": "ruth",
+   "line": "Hold still. I'm digging. Talk to me while I dig.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c4_pass_13",
+   "speaker": "joseph",
+   "line": "Go. His tracks won't last an hour in this wind. I'll dig myself out. I've done it before.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c4_pass_14",
+   "speaker": "joseph",
+   "line": "About the newspapers. I read them because I like knowing what people believe happened. It's never what did.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c4_pass_15",
+   "speaker": "ruth",
+   "line": "There. Arm round my neck. You're heavier than you look.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c4_pass_16",
+   "speaker": "joseph",
+   "line": "Everyone is, in the snow.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c4_pass_17",
+   "speaker": "joseph",
+   "line": "You came back. I'd have bet against it. I'd have lost, and I'd have been glad.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c4_pass_18",
+   "speaker": "ruth",
+   "line": "His tracks went east. Toward the line shack under the ridge.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c4_pass_19",
+   "speaker": "joseph",
+   "line": "The line shack. Two men left with him and the mule. He'll hole up till the storm breaks. So will we, or we'll freeze arguing about it.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c4_pass_20",
+   "speaker": "ruth",
+   "line": "I'll go now. While the trail's warm.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c4_pass_21",
+   "speaker": "joseph",
+   "line": "Then go. I'll catch you up limping. I'm good at limping. Had practice.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c4_pass_22",
+   "speaker": "ruth",
+   "line": "I left you in the snow.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c4_pass_23",
+   "speaker": "joseph",
+   "line": "You left me with a shovel. There's a difference. Not a large one.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c4_pass_24",
+   "speaker": "joseph",
+   "line": "Hands to the fire, not in it. You've the look of a woman who'd do either.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c4_pass_25",
+   "speaker": "ruth",
+   "line": "I've been colder. I can't remember when, but I'm sure I have.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c4_asa_01",
+   "speaker": "ruth",
+   "line": "Smoke from the chimney, three horses in the lean-to, and a mule that's given up on all of them.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c4_asa_02",
+   "speaker": "joseph",
+   "line": "Two rifles at the window. The boy's the one by the door, pretending he isn't scared. He isn't good at it.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c4_asa_03",
+   "speaker": "asa",
+   "line": "Stay back! I got a rifle and I got a letter for my brother and I ain't giving up neither one!",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c4_asa_04",
+   "speaker": "ruth",
+   "line": "Asa. Send your friends out with their hands up and nobody else has to be in the snow tonight.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c4_asa_05",
+   "speaker": "asa",
+   "line": "You killed my brother! Or you put him in a cage, which is worse for Cutter. He always said he'd rather be shot.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c4_asa_06",
+   "speaker": "joseph",
+   "line": "Here they come. They've decided for him.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c4_asa_07",
+   "speaker": "asa",
+   "line": "Don't. Please. My leg's done. I just held the horses. At the Siding. I just held the horses, I swear on Eben's Bible.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c4_asa_08",
+   "speaker": "ruth",
+   "line": "You held the horses while your brothers shot my husband in the door of the car. What did you do after?",
+   "emotion": "tense"
+  },
+  {
+   "id": "c4_asa_09",
+   "speaker": "asa",
+   "line": "I threw up. Eben laughed. He said it gets easier. It never did. I don't think he wanted it to, for me.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c4_asa_10",
+   "speaker": "joseph",
+   "line": "There's a letter in his coat. Garrity's hand. Thursday's powder and who paid for it. That's worth more than the boy is.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c4_asa_11",
+   "speaker": "ruth",
+   "line": "Give me the letter, Asa.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c4_asa_12",
+   "speaker": "asa",
+   "line": "Take it. Take it. Eben will know I gave it up. He'll know.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c4_asa_13",
+   "speaker": "ruth",
+   "line": "Go west, Asa. California. Change your name, and if I ever hear the old one again, I'll know where to find it.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c4_asa_14",
+   "speaker": "asa",
+   "line": "Why? Why would you?",
+   "emotion": "sad"
+  },
+  {
+   "id": "c4_asa_15",
+   "speaker": "ruth",
+   "line": "Because you were nineteen, and holding the horses, and I'd like one of you Shales to find out what that's worth.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c4_asa_16",
+   "speaker": "ruth",
+   "line": "You held the horses. Somebody always holds the horses. That's how the rest of it gets done.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c4_asa_17",
+   "speaker": "joseph",
+   "line": "I've stood in a place where men shot boys because they were close enough to shoot. I don't talk about it. I won't talk about this either.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c4_asa_18",
+   "speaker": "joseph",
+   "line": "That was well done. It was harder than the other thing. Most good things are.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c4_asa_19",
+   "speaker": "joseph",
+   "line": "I'll ride with you as far as Eben. After that we'll see whose fight it is.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c4_asa_20",
+   "speaker": "ruth",
+   "line": "That's further than most people offer.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c4_asa_21",
+   "speaker": "joseph",
+   "line": "Most people haven't read the papers.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c4_asa_22",
+   "speaker": "asa",
+   "line": "Tell Eben... no. Don't tell Eben anything. I'll tell him myself someday, from a long way off.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c4_asa_23",
+   "speaker": "ruth",
+   "line": "Joseph. Don't look at me like that.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c4_asa_24",
+   "speaker": "joseph",
+   "line": "I'm not looking at you. I'm looking at the snow. It covers things. That's all it's good for.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c4_asa_25",
+   "speaker": "ruth",
+   "line": "Joseph, take the left. Keep them at the window. I'm going round by the woodpile.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c4_strike_01",
+   "speaker": "nora",
+   "line": "Ashby's men are coming down the hill with torches. They mean to burn the kitchen and call it a stove fire.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c4_strike_02",
+   "speaker": "dai",
+   "line": "Then we'll be at the kitchen. All of us. The ones with rifles in front.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c4_strike_03",
+   "speaker": "ruth",
+   "line": "Keep the women behind the wagons. Joseph, the roof. Nobody gets a torch to that door.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c4_strike_04",
+   "speaker": "ashby",
+   "line": "Last chance, Kilbride! Go back to work, or go back to Wales!",
+   "emotion": "angry"
+  },
+  {
+   "id": "c4_strike_05",
+   "speaker": "nora",
+   "line": "I'm from Galway, you ignorant man! And I'm not going anywhere!",
+   "emotion": "angry"
+  },
+  {
+   "id": "c4_strike_06",
+   "speaker": "nora",
+   "line": "The kitchen stands. Soup for everyone. Even the Captain, if he'd stopped to ask.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c4_strike_07",
+   "speaker": "nora",
+   "line": "They got the roof. The kettles are fine. We'll cook in the snow. We've done it before.",
+   "emotion": "sad"
+  },
+  {
+   "id": "c4_strike_08",
+   "speaker": "garrity",
+   "line": "Mrs. Caddell. Let's be reasonable people. I'm a superintendent. I follow instructions. The instructions come from Port Linden.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c4_strike_09",
+   "speaker": "ruth",
+   "line": "Then here's an instruction. Three dollars cash, timbered drifts, and Tommy Rees's girl in Cardiff gets his wages till she marries.",
+   "emotion": "tense"
+  },
+  {
+   "id": "c4_strike_10",
+   "speaker": "garrity",
+   "line": "I can't sign that. Mr. Pell would have my position.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c4_strike_11",
+   "speaker": "ruth",
+   "line": "Mr. Pell isn't holding the pen. Sign it, Mr. Garrity. My hand's steadier than yours, and it's not holding a pen either.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c4_strike_12",
+   "speaker": "garrity",
+   "line": "Signed. You know it won't hold. A contract at gunpoint is waste paper in any court in the territory.",
+   "emotion": "afraid"
+  },
+  {
+   "id": "c4_strike_13",
+   "speaker": "dai",
+   "line": "It'll hold till spring. Spring's further than we've seen in a while.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c4_strike_14",
+   "speaker": "ruth",
+   "line": "No. You'll answer to the territorial inspector, with Garrity's own letter and Hensley's six dollars. Paper against paper, Mr. Garrity.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c4_strike_15",
+   "speaker": "inspector",
+   "line": "Powder in a drift with men in it, and the superintendent's hand on the order. I've been inspecting mines twenty years. This is a new low, and I'd thought I'd seen the floor.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c4_strike_16",
+   "speaker": "garrity",
+   "line": "You'll be in Port Linden by Christmas and I'll be back by New Year's. Mr. Pell doesn't lose people. He mislays them for a while.",
+   "emotion": "angry"
+  },
+  {
+   "id": "c4_strike_17",
+   "speaker": "nora",
+   "line": "It'll be slow, the law's way. But it's ours, and it's in writing, and nobody had to hold a gun to get it.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c4_strike_18",
+   "speaker": "joseph",
+   "line": "I've a string of horses to sell before the pass closes for good. And then I've a camp to find. Willow Bend, I hear.",
+   "emotion": "neutral"
+  },
+  {
+   "id": "c4_strike_19",
+   "speaker": "ruth",
+   "line": "There's a drover who sings hymns badly, a doctor who reads Latin to the horses, a cardsharp and a boy. There's room.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c4_strike_20",
+   "speaker": "joseph",
+   "line": "A doctor who reads Latin to horses. I'll bring newspapers. Somebody should read them English.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c4_strike_21",
+   "speaker": "hap",
+   "line": "Another one! Del, set a plate. He looks like a man who's been eating snow.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c4_strike_22",
+   "speaker": "del",
+   "line": "Mr. Kehoe. Do you play cards? Don't answer. Everybody lies about that the first night.",
+   "emotion": "amused"
+  },
+  {
+   "id": "c4_strike_23",
+   "speaker": "doc",
+   "line": "A scout. Splendid. Someone to tell us which way we're running.",
+   "emotion": "dry"
+  },
+  {
+   "id": "c4_strike_24",
+   "speaker": "billy",
+   "line": "Is that a Lakota saddle? Can I see it? Can I sit on it? I won't, I just want to know if I could.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c4_strike_25",
+   "speaker": "joseph",
+   "line": "You can sit on it, Billy. If you can tell me which of my horses is lame.",
+   "emotion": "warm"
+  },
+  {
+   "id": "c4_strike_26",
+   "speaker": "ruth",
+   "line": "Three names done, one way or another. One left. And he's the one who reads a Bible over the men he kills.",
+   "emotion": "tired"
+  },
+  {
+   "id": "c4_strike_27",
+   "speaker": "joseph",
+   "line": "Then we'll need to know what chapter he's on.",
+   "emotion": "neutral"
+  }
+ ]
+}

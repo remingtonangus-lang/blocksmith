@@ -35,7 +35,7 @@ func run(m: Node) -> void:
 		return
 	var which := str(Game.args.get("bot", "road"))
 	var seconds := Game.arg_f("seconds", 90.0)
-	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "missions", "systems"] if which == "all" or which == "true" else Array(which.split(","))
+	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "missions", "camp", "systems"] if which == "all" or which == "true" else Array(which.split(","))
 	for b in bots:
 		var res: Dictionary
 		if b == "ride" or b == "gaits":
@@ -45,6 +45,8 @@ func run(m: Node) -> void:
 			hb.queue_free()
 		elif b == "missions":
 			res = await _run_missions()
+		elif b == "camp":
+			res = await _run_camp()
 		elif b == "town":
 			res = await _run_town(seconds)
 		elif b == "hunt":
@@ -252,6 +254,75 @@ func _run_town(seconds: float) -> Dictionary:
 	return res
 
 ## Mission bot: autopilot through every story mission in order; softlock/fail/error oracles.
+## Camp bot: the camp's pick self-test, then the real thing at Willow Bend — every companion recruited and at their
+## spot, sit at the fire (the fitting talk plays, then a fresh hold-up changes it), stew, a drink, a hand with Del.
+func _run_camp() -> Dictionary:
+	var res := {"bot": "camp", "ok": true, "failures": [], "distance": 0.0, "stuck_events": 0, "fall_events": 0,
+		"frame_spikes": 0, "errors": []}
+	var camp = Game.camp
+	var md: MissionDirector = Game.missions
+	if camp == null or md == null:
+		_fail(res, "no camp or mission director")
+		return res
+	var err0: int = Game.error_logger.take().size()
+	md.autopilot = true
+	var st = Game.state
+	var keep := {"flags": st.flags.duplicate(true), "money": st.money, "crimes": st.crimes_log.duplicate(true),
+		"completed": md.completed.duplicate(), "standing": st.standing}
+	var t: Dictionary = camp.selftest()
+	for l in t.lines:
+		print(l)
+	if not t.ok:
+		_fail(res, "camp picks: %d failed" % t.fails)
+	# everyone recruited, Ruth at the fire in the evening
+	for f in ["billy_joined", "del_joined", "doc_joined", "joseph_joined"]:
+		st.flags[f] = true
+	st.flags["doc_sober"] = false
+	if not md.completed.has("c1_drover"):
+		md.completed.append("c1_drover")
+	if Game.sky:
+		Game.sky.set_time(19.5)
+	var p: Vector3 = camp.center + Vector3(3.0, 0, 4.0)
+	p.y = Game.world.height(p.x, p.z) + 0.5
+	Game.terrain.ensure_collision_at(p)
+	player.global_position = p
+	var waited := 0.0
+	while camp.members.size() < 5 and waited < 10.0:
+		await get_tree().physics_frame
+		waited += get_physics_process_delta_time()
+	print("  camp: %d companions in camp (%s)" % [camp.members.size(), ", ".join(camp.members.keys())])
+	if camp.members.size() < 5:
+		_fail(res, "only %d companions came to camp" % camp.members.size())
+	var talk1: String = await camp.sit_at_fire()
+	st.crimes_log.append({"kind": "robbery", "pos": [p.x, p.z], "t": Time.get_unix_time_from_system()})
+	var talk2: String = await camp.sit_at_fire()
+	var talk3: String = await camp.sit_at_fire()
+	print("  camp: at the fire -> %s; after a hold-up -> %s; again -> %s" % [talk1, talk2, talk3])
+	if talk1 == "" or talk2 != "robbery" or talk3 == "robbery":
+		_fail(res, "fireside talk didn't follow the hold-up (%s, %s, %s)" % [talk1, talk2, talk3])
+	player.damageable.health = 40.0
+	var ate: bool = await camp.eat_stew()
+	var ate2: bool = await camp.eat_stew()
+	var drink: String = await camp.drink_with_doc()
+	var m0: float = st.money
+	var cards: Dictionary = await camp.play_with_del()
+	var money_ok: bool = absf((st.money - m0) - float(cards.get("net", 0.0))) < 0.011
+	print("  camp: stew %s (health %.0f), second bowl %s, Doc pours %s, cards with Del: %d hands, net $%.2f" % [
+		ate, player.damageable.health, ate2, drink, int(cards.get("hands", 0)), float(cards.get("net", 0.0))])
+	if not ate or ate2 or player.damageable.health < 99.0 or drink != "whiskey" or not cards.get("played", false) or not money_ok:
+		_fail(res, "camp activities wrong")
+	st.flags = keep.flags
+	st.money = keep.money
+	st.crimes_log = keep.crimes
+	st.standing = keep.standing
+	md.completed.assign(keep.completed)
+	md.autopilot = false
+	var errs: Array = Game.error_logger.take().slice(err0)
+	res.errors = errs
+	if errs.size() > 0:
+		_fail(res, "%d errors, first: %s" % [errs.size(), str(errs[0])])
+	return res
+
 func _run_missions() -> Dictionary:
 	var res := {"bot": "missions", "ok": true, "failures": [], "distance": 0.0, "stuck_events": 0, "fall_events": 0,
 		"frame_spikes": 0, "errors": [], "completed": []}
