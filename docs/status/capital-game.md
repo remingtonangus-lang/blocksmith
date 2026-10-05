@@ -126,6 +126,13 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 18:30: the alternating-median ablation (run 42, 7061ab0, published) is steadier, but the CI Mac itself is
+  not. The same rendering code as 6ff706e ran 38.8 / 33.2 / 45.8 fps against 52.4 / 41.3 / 47.7: a shared virtual
+  GPU, about 25% run to run. During the ablation the "on" frame time also climbed from 17 to 35 ms toward the end,
+  so the last items read high (battle 12.2, grass 5.7). Positive in both runs: SSAO 2-3 ms, terrain casting
+  shadows about 1 ms, hard shadow filter 0.5 ms. None is clear enough to change High's look on this hardware.
+  GPU trimming waits for the M1 fleet run: capital-latest (7061ab0) writes the same ablation into the M1's
+  benchmark.json.
 - 2026-10-05 18:00: GAME BUILD READY 6ff706e (capital-latest, 17:41 UTC; the first Mac attempt had no runner and GitHub
   rejected pushes for a while, so this was the one re-run). It adds grass tiling and the paired GPU ablation. CI Mac
   (paravirtual, High):
