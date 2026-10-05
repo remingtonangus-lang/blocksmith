@@ -1554,7 +1554,8 @@ extension ShipManager {
         if st.settled { s.vel = .zero; s.angVel = .zero; return }
         st.wreckFx -= dt
         let lo = s.localMin, hi = s.localMax
-        if st.wreckFx <= 0 {
+        // (A hull shot down to nothing has empty bounds, min above max: no range to pick from.)
+        if st.wreckFx <= 0 && lo.x <= hi.x && lo.y <= hi.y && lo.z <= hi.z {
             st.wreckFx = 0.35
             let p = V3(Rand.float(in: lo.x...hi.x), Rand.float(in: lo.y...hi.y), Rand.float(in: lo.z...hi.z))
             let w = s.toWorld(p)
