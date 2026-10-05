@@ -76,6 +76,9 @@ func _process(delta: float) -> void:
 	if current == "":
 		return
 	t += delta
+	if t > 400.0:
+		_done(false, "watchdog: still running after 400 s")
+		return
 	call("_tick_" + current, delta)
 
 
