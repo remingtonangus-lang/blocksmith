@@ -120,13 +120,22 @@ enum BaseTests {
                 return finish(g, b, t0)
             }
             let parked = sim(300) { rec().crawlerGoal == nil }
-            check(parked != nil && crawler() == nil, "the crawler comes back in", String(format: "after %.0f s", parked ?? -1))
+            let pool = rec().motorPool
+            check(parked != nil && crawler() == nil, "the crawler comes back in", String(format: "after %.0f s; %@", parked ?? -1,
+                  crawler().map { c in String(format: "%.0f blocks from the motor pool, target %@", simd_length(V2(c.pos.x - pool.x, c.pos.z - pool.z)),
+                                              w.ships.capState[c.id]?.target.map { "\($0.point)" } ?? "none") } ?? "gone"))
             lap("crawler")
         }
 
         // 3. A blast inside the plaza: lockdown, turret crews, dropships.
         if want("lockdown") {
-            let soldiersBefore = g.mobs.mobs.filter { $0.faction == Faction.steelhold.rawValue }.count
+            // Soldiers on foot in and round the plaza (the Kestrel's seated crew and anyone aboard don't count).
+            let plaza = rec().plaza
+            func onFoot() -> Int {
+                g.mobs.mobs.filter { $0.faction == Faction.steelhold.rawValue && $0.health > 0 && $0.station == .none && $0.deck == nil
+                    && simd_length(V2($0.pos.x - plaza.x, $0.pos.z - plaza.z)) < 45 }.count
+            }
+            let soldiersBefore = onFoot()
             Explosion.explode(at: rec().plaza + V3(9, 0.5, -6), power: 2.5, game: g)
             let locked = sim(3) { rec().alert == .lockdown }
             check(locked != nil, "a blast inside locks the citadel down")
@@ -134,7 +143,7 @@ enum BaseTests {
             check(crewed != nil, "crews man the turrets", String(format: "after %.0f s", crewed ?? -1))
             let flying = sim(20) { w.ships.capitals.contains { $0.role == "dropship" && $0.faction == Faction.steelhold.rawValue } }
             check(flying != nil, "a Capital dropship is called")
-            let landed = sim(120) { g.mobs.mobs.filter { $0.faction == Faction.steelhold.rawValue && $0.health > 0 }.count >= soldiersBefore + 3 }
+            let landed = sim(120) { onFoot() >= soldiersBefore + 3 }
             check(landed != nil, "dropship reinforcements land", String(format: "after %.0f s", landed ?? -1))
             if shotOnly {
                 let ds = w.ships.capitals.first { $0.role == "dropship" }?.pos ?? rec().plaza
@@ -157,7 +166,8 @@ enum BaseTests {
             }
             var before: [IVec3: BlockID] = [:]
             for dz in -4...4 { for dy in -4...4 { for dx in -4...4 { let p = IVec3(wall.x + dx, wall.y + dy, wall.z + dz); before[p] = w.block(p.x, p.y, p.z) } } }
-            Explosion.explode(at: V3(Float(wall.x) + 0.5, Float(wall.y) + 0.5, Float(wall.z) + 1.2), power: 3, game: g)
+            // Power 5: Capital stone (resistance 9) takes 2.8 of a ray's strength per block.
+            Explosion.explode(at: V3(Float(wall.x) + 0.5, Float(wall.y) + 0.5, Float(wall.z) + 1.2), power: 5, game: g)
             let holes = before.filter { $0.value != AIR && w.block($0.key.x, $0.key.y, $0.key.z) == AIR }.map { $0.key }
             check(holes.count >= 8, "the blast opened the wall", "\(holes.count) blocks gone")
             // A wreck block left in the crater (another stream's wrecks): the rebuild must not overwrite it.

@@ -40,14 +40,18 @@ extension Game {
         return min(top, Float(CH - 30))
     }
 
-    // Is the pad there and clear (not blasted away, nothing parked on it)?
-    private func padReady(_ r: BaseRecord) -> Bool {
+    // What keeps the Kestrel on the ground: nil when the pad is there and clear (not blasted away, nothing on it).
+    private func padProblem(_ r: BaseRecord) -> String? {
         let p = r.pad
         let x = Int(floor(p.x)), y = Int(floor(p.y)), z = Int(floor(p.z))
-        guard world.isLoaded(x, z) else { return false }
-        for dz in -3...3 { for dx in -2...2 where !Blocks.collide[Int(world.block(x + dx, y - 1, z + dz))] { return false } }
-        for dy in 0...5 { for dz in -3...3 where Blocks.collide[Int(world.block(x, y + dy, z + dz))] { return false } }
-        return true
+        guard world.isLoaded(x, z) else { return "not loaded" }
+        for dz in -3...3 { for dx in -2...2 where !Blocks.collide[Int(world.block(x + dx, y - 1, z + dz))] {
+            return "a hole at \(x + dx),\(y - 1),\(z + dz): \(Blocks.key(world.block(x + dx, y - 1, z + dz)))"
+        } }
+        for dy in 0...5 { for dz in -3...3 where Blocks.collide[Int(world.block(x, y + dy, z + dz))] {
+            return "\(Blocks.key(world.block(x, y + dy, z + dz))) at \(x),\(y + dy),\(z + dz)"
+        } }
+        return nil
     }
 
     func baseAir(_ r: inout BaseRecord, _ b: BaseWatch, _ dt: Float) {
@@ -70,7 +74,7 @@ extension Game {
         if s == nil, let id = r.airShip { s = ships.list.first { $0.id == id && $0.role == "kestrel" } }
         if s == nil {
             guard ph == 0 else { done("lost"); return }
-            guard padReady(r) else { done("grounded (the pad is blocked or gone)", cooldown: 120); return }
+            if let why = padProblem(r) { done("grounded (pad: \(why))", cooldown: 120); return }
             let tb = CFAbsoluteTimeGetCurrent()
             let k = Aircraft.spawn("kestrel", at: pad + V3(0, 3, 0), yaw: Float.pi, game: self, troops: 2)
             let builtMs = (CFAbsoluteTimeGetCurrent() - tb) * 1000
@@ -95,9 +99,20 @@ extension Game {
         if !FlightCrew.seats.contains(where: { $0.ship === k }) { FlightCrew.relink(self, k) }
         let pilot = FlightCrew.seats.first { $0.ship === k && $0.mob?.station == .seated }?.mob
         if pilot == nil || pilot!.health <= 0 || k.wrecked {
+            let seated = FlightCrew.seats.filter { $0.ship === k }.map { st -> String in
+                guard let m = st.mob else { return "gone" }
+                return "\(m.kind.key) \(m.station) hp \(Int(m.health))\(m.deck === k ? "" : " off the deck")"
+            }
+            let why = k.wrecked ? "wrecked" : (seated.isEmpty ? "no crew seats" : seated.joined(separator: ", "))
             fm.hold = nil; fm.holdYaw = nil                       // nobody at the controls: it falls
             raiseAlert(&r, b)
-            done("lost its pilot")
+            // Still on the pad: stowed (nobody to fly it); in the air it comes down where it may.
+            if simd_length(V2(k.pos.x - pad.x, k.pos.z - pad.z)) < 4 && k.worldMin.y < pad.y + 1.5 {
+                for st in FlightCrew.seats where st.ship === k { if let m = st.mob { mobs.mobs.removeAll { $0 === m } } }
+                FlightCrew.seats.removeAll { $0.ship === k }
+                ships.remove(k)
+            }
+            done("lost its pilot (\(why))")
             return
         }
         let flat = simd_length(V2(k.pos.x - goal.x, k.pos.z - goal.z))
