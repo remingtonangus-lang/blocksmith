@@ -160,6 +160,24 @@ black bear, bison, raccoon and the elk's neck mane (`AnimalCoats.FUR`: length, s
   per species, gait strips, action poses, and fur on/off close-ups.
 - `--local_animals` makes the local `assets/animals_out` build win over a fetched `assets/ext/animals`.
 
+## Results (2026-10-05, local: 4 shared cores, software Vulkan)
+- **Oracles:**
+  - `WILDLIFE ORACLE PASS`: 33 gaits across 11 species.
+  - 24 `TURN` checks pass (every species and the horse, left and right).
+  - `--bot hunt` PASS.
+- **Fur cost** (`--only furbench` at 640×360, high preset with 8 shells; four animals 3–6 m from the camera; GPU
+  time is the minimum over 20 frames on llvmpipe, so only the ratio means anything):
+
+  | Species | GPU time | Primitives | Draws |
+  |---|---|---|---|
+  | wolf | ×1.90 | 38k → 164k | 46 → 78 |
+  | fox | ×1.83 | 11k → 53k | 46 → 70 |
+  | black bear | ×1.77 | 55k → 215k | 46 → 78 |
+  | bison | ×2.11 | 101k → 309k | 31 → 63 |
+
+  That is the worst case, with fur filling the screen. Shells exist only within LOD0 range (about 12 m for a
+  wolf), and the quest preset has none.
+
 ## Gaps
 - Fur is shells only, with no fins or cards:
   - At grazing angles in close-ups the layers can read as steps.

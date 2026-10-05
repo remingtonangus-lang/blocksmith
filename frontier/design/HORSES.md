@@ -163,6 +163,17 @@ on low stamina): `ARRIVED 2774 m in 320 s (avg 8.7 m/s), waypoints 349/350, stuc
 in-ride oracles `gallop PASS 1.2 cm/stance (184 stances)`, `canter PASS 4.5 cm/stance`. Look-dev renders take ~4 s
 per shot (no world); an in-world 960x540 frame ~2.5 min on llvmpipe.
 
+Round 3:
+- **Gallop flex** (rotation range over a gallop cycle, before → after):
+  - spine_lumbar 11° → 30°
+  - spine_withers 0° → 9°
+  - neck_1 3° → 8°
+  - head relative to the neck 9° → 36° (counter-motion keeps the eyes level)
+  - body pitch 9° → 11°
+- **Animation oracle** (cm of hoof slide per stance, before → after): gallop 8.8 → 7.9, canter 4.3 → 3.8.
+- **In-ride oracles:** gallop 1.2 cm/stance, canter 0.2 cm/stance.
+- **Turn clips:** `TURN horse/turn_l|turn_r PASS`.
+
 ## Gaps / next
 - Anatomy is convincing at gameplay distance and acceptable in close-up, but not reference tier: the head reads a
   little long/narrow from the front and the eyes are bare spheres (no lids/lashes); muscle definition comes from
