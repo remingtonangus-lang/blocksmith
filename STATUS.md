@@ -239,7 +239,9 @@ code); mechanics, names and numbers follow the reference game.
 1. [ ] P0 mobs invisible in real play (not in the CI renderer). Checks: --mobcheck (every kind alone, Fancy / Fast /
        70 % world scale; a live survival night through Game.tick, each spawned kind drawn alone and after a save/load;
        NaN / zero-scale state). Diagnostics: F3 "Mobs:" line and every voice bug note's "Mob drawing" row (mobs, near,
-       vertices written / drawn, path, culled). Cause not found yet; mobcheck gating once it has run clean.
+       vertices written / drawn, path, culled, dropped). Likely cause (2a00dd3): the 4 MB mob buffer filled with far
+       mobs first at rd 16-24 and fresh spawns beside the player were never drawn; now nearest first, none past the fog,
+       mobcheck crowd test. Mobcheck gating once it has run clean; confirm in real play.
 2. [x] Mobs calm on the player's death and respawn (Game.calmMobs); --mobtests checks every kind.
 3. [x] Crafting book opens on its first tile; inventory crafting is the same book with 2x2 recipes (LB/RB / book
        button; grid button back); --padtest.
