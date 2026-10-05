@@ -1,0 +1,240 @@
+   0.4 Godot Engine v4.7.1.stable.official.a13da4feb - https://godotengine.org
+   0.5 Vulkan 1.2.334 - Forward+ - Using Device #0: Apple - Apple Paravirtual device
+   2.2 
+   3.6 world: water grid baked in 62 ms
+   3.6 world: loaded 4096x4096 heights in 206 ms
+   3.7 audio: director ready (195 sounds, 16 music tracks, 1430 voice lines)
+   3.8 boot: sky 435 ms
+   5.2 boot: terrain 1774 ms
+   5.4 boot: water 2055 ms
+   5.5 boot: roads 2080 ms
+  10.2 impostors: 30 entries, atlas 1920x1120 x2 RGBA8 + mips = 21.9 MB, loaded from cache in 75 ms
+  10.3 boot: vegetation 6889 ms
+  13.7 scatter: 21 CC0 models, 724k -> 21k triangles
+  16.6 rail: 32 chunks of main line, far strip 1552 tris
+  16.6 settlements: 12 planned (atlases 318 ms, plans 2286 ms), 0 built at boot, 2639 ms total
+  16.6 boot: settlements 13254 ms
+  16.6 boot: world built in 13254 ms
+  18.1 WARNING: 'res://assets/ext/characters/ruth_caddell.glb': In external resource #0, invalid UID: 'uid://cogcs60sjsh5k' - using text path instead: 'res://assets/ext/characters/ruth_caddell_young_lightskinned_female_diffuse_6d7cc79ab2e009f7.jpg'.
+  18.1      at: open (core/io/resource_format_binary.cpp:1025)
+  18.1      GDScript backtrace (most recent call first):
+  18.1          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  18.1          [1] _scene (res://src/actors/character_factory.gd:310)
+  18.1          [2] spawn_id (res://src/actors/character_factory.gd:195)
+  18.1          [3] _build_visual (res://src/actors/player.gd:251)
+  18.1          [4] setup (res://src/actors/player.gd:68)
+  18.1          [5] _spawn_player (res://src/core/main.gd:192)
+  18.1          [6] _shot (res://src/tests/shots.gd:82)
+  18.1          [7] run (res://src/tests/shots.gd:64)
+  18.1          [8] _ready (res://src/core/main.gd:131)
+  18.1 WARNING: 'res://assets/ext/characters/ruth_caddell.glb': In external resource #1, invalid UID: 'uid://jtuarq0i66ff' - using text path instead: 'res://assets/ext/characters/ruth_caddell_grey_eye_c8a2ad837afc4671.png'.
+  18.1      at: open (core/io/resource_format_binary.cpp:1025)
+  18.1      GDScript backtrace (most recent call first):
+  18.1          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  18.1          [1] _scene (res://src/actors/character_factory.gd:310)
+  18.1          [2] spawn_id (res://src/actors/character_factory.gd:195)
+  18.1          [3] _build_visual (res://src/actors/player.gd:251)
+  18.1          [4] setup (res://src/actors/player.gd:68)
+  18.1          [5] _spawn_player (res://src/core/main.gd:192)
+  18.1          [6] _shot (res://src/tests/shots.gd:82)
+  18.1          [7] run (res://src/tests/shots.gd:64)
+  18.1          [8] _ready (res://src/core/main.gd:131)
+  18.1 WARNING: 'res://assets/ext/characters/ruth_caddell.glb': In external resource #2, invalid UID: 'uid://bjexkbdi04p12' - using text path instead: 'res://assets/ext/characters/ruth_caddell_shoes03_diffuse_2920d00535f324bc.jpg'.
+  18.1      at: open (core/io/resource_format_binary.cpp:1025)
+  18.1      GDScript backtrace (most recent call first):
+  18.1          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  18.1          [1] _scene (res://src/actors/character_factory.gd:310)
+  18.1          [2] spawn_id (res://src/actors/character_factory.gd:195)
+  18.1          [3] _build_visual (res://src/actors/player.gd:251)
+  18.1          [4] setup (res://src/actors/player.gd:68)
+  18.1          [5] _spawn_player (res://src/core/main.gd:192)
+  18.1          [6] _shot (res://src/tests/shots.gd:82)
+  18.1          [7] run (res://src/tests/shots.gd:64)
+  18.1          [8] _ready (res://src/core/main.gd:131)
+  18.1 WARNING: 'res://assets/ext/characters/ruth_caddell.glb': In external resource #3, invalid UID: 'uid://csfsae6x0s8jg' - using text path instead: 'res://assets/ext/characters/ruth_caddell_teeth_6fb761ee4c0e98cd.png'.
+  18.1      at: open (core/io/resource_format_binary.cpp:1025)
+  18.1      GDScript backtrace (most recent call first):
+  18.1          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  18.1          [1] _scene (res://src/actors/character_factory.gd:310)
+  18.1          [2] spawn_id (res://src/actors/character_factory.gd:195)
+  18.1          [3] _build_visual (res://src/actors/player.gd:251)
+  18.1          [4] setup (res://src/actors/player.gd:68)
+  18.1          [5] _spawn_player (res://src/core/main.gd:192)
+  18.1          [6] _shot (res://src/tests/shots.gd:82)
+  18.1          [7] run (res://src/tests/shots.gd:64)
+  18.1          [8] _ready (res://src/core/main.gd:131)
+  18.1 WARNING: 'res://assets/ext/characters/ruth_caddell.glb': In external resource #4, invalid UID: 'uid://bsx4bjr634f3j' - using text path instead: 'res://assets/ext/characters/ruth_caddell_eyebrow007_63001c7bdf63734b.png'.
+  18.1      at: open (core/io/resource_format_binary.cpp:1025)
+  18.1      GDScript backtrace (most recent call first):
+  18.1          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  18.1          [1] _scene (res://src/actors/character_factory.gd:310)
+  18.1          [2] spawn_id (res://src/actors/character_factory.gd:195)
+  18.1          [3] _build_visual (res://src/actors/player.gd:251)
+  18.1          [4] setup (res://src/actors/player.gd:68)
+  18.1          [5] _spawn_player (res://src/core/main.gd:192)
+  18.1          [6] _shot (res://src/tests/shots.gd:82)
+  18.1          [7] run (res://src/tests/shots.gd:64)
+  18.1          [8] _ready (res://src/core/main.gd:131)
+  18.1 WARNING: 'res://assets/ext/characters/ruth_caddell.glb': In external resource #5, invalid UID: 'uid://cc7nilu3yw58m' - using text path instead: 'res://assets/ext/characters/ruth_caddell_eyelashes04_d1e922d072e1516f.png'.
+  18.1      at: open (core/io/resource_format_binary.cpp:1025)
+  18.1      GDScript backtrace (most recent call first):
+  18.1          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  18.1          [1] _scene (res://src/actors/character_factory.gd:310)
+  18.1          [2] spawn_id (res://src/actors/character_factory.gd:195)
+  18.1          [3] _build_visual (res://src/actors/player.gd:251)
+  18.1          [4] setup (res://src/actors/player.gd:68)
+  18.1          [5] _spawn_player (res://src/core/main.gd:192)
+  18.1          [6] _shot (res://src/tests/shots.gd:82)
+  18.1          [7] run (res://src/tests/shots.gd:64)
+  18.1          [8] _ready (res://src/core/main.gd:131)
+  18.1 WARNING: 'res://assets/ext/characters/ruth_caddell.glb': In external resource #6, invalid UID: 'uid://dqpoh4i7ust8d' - using text path instead: 'res://assets/ext/characters/ruth_caddell_tongue01_diffuse_c2c8c8e10737cd90.jpg'.
+  18.1      at: open (core/io/resource_format_binary.cpp:1025)
+  18.1      GDScript backtrace (most recent call first):
+  18.1          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  18.1          [1] _scene (res://src/actors/character_factory.gd:310)
+  18.1          [2] spawn_id (res://src/actors/character_factory.gd:195)
+  18.1          [3] _build_visual (res://src/actors/player.gd:251)
+  18.1          [4] setup (res://src/actors/player.gd:68)
+  18.1          [5] _spawn_player (res://src/core/main.gd:192)
+  18.1          [6] _shot (res://src/tests/shots.gd:82)
+  18.1          [7] run (res://src/tests/shots.gd:64)
+  18.1          [8] _ready (res://src/core/main.gd:131)
+  18.1 WARNING: 'res://assets/ext/characters/ruth_caddell.glb': In external resource #7, invalid UID: 'uid://078myv1d2def' - using text path instead: 'res://assets/ext/characters/ruth_caddell_braid01_diffuse_e3a70ee5435d33c9.png'.
+  18.1      at: open (core/io/resource_format_binary.cpp:1025)
+  18.1      GDScript backtrace (most recent call first):
+  18.1          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  18.1          [1] _scene (res://src/actors/character_factory.gd:310)
+  18.1          [2] spawn_id (res://src/actors/character_factory.gd:195)
+  18.1          [3] _build_visual (res://src/actors/player.gd:251)
+  18.1          [4] setup (res://src/actors/player.gd:68)
+  18.1          [5] _spawn_player (res://src/core/main.gd:192)
+  18.1          [6] _shot (res://src/tests/shots.gd:82)
+  18.1          [7] run (res://src/tests/shots.gd:64)
+  18.1          [8] _ready (res://src/core/main.gd:131)
+  22.0 roads: 136 ribbon tiles
+  28.1 WARNING: 'res://assets/ext/characters/npc_000.glb': In external resource #0, invalid UID: 'uid://cebtrc3acytso' - using text path instead: 'res://assets/ext/characters/npc_000_middleage_lightskinned_male_diffuse_c7873ea1d869e207.jpg'.
+  28.1      at: open (core/io/resource_format_binary.cpp:1025)
+  28.1      GDScript backtrace (most recent call first):
+  28.1          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  28.1          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  28.1 WARNING: 'res://assets/ext/characters/npc_000.glb': In external resource #1, invalid UID: 'uid://chdrndwfiiaei' - using text path instead: 'res://assets/ext/characters/npc_000_green_eye_09f2287a8dca2f43.png'.
+  28.1      at: open (core/io/resource_format_binary.cpp:1025)
+  28.1      GDScript backtrace (most recent call first):
+  28.1          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  28.1          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  28.1 WARNING: 'res://assets/ext/characters/npc_000.glb': In external resource #2, invalid UID: 'uid://cu6mh2shv7k61' - using text path instead: 'res://assets/ext/characters/npc_000_shoes03_diffuse_5285475e3006abad.jpg'.
+  28.1      at: open (core/io/resource_format_binary.cpp:1025)
+  28.1      GDScript backtrace (most recent call first):
+  28.1          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  28.1          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  28.1 WARNING: 'res://assets/ext/characters/npc_000.glb': In external resource #3, invalid UID: 'uid://bswv0r3kgn8d' - using text path instead: 'res://assets/ext/characters/npc_000_teeth_0f6dae334ed4c5c5.png'.
+  28.1      at: open (core/io/resource_format_binary.cpp:1025)
+  28.1      GDScript backtrace (most recent call first):
+  28.1          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  28.1          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  28.1 WARNING: 'res://assets/ext/characters/npc_000.glb': In external resource #5, invalid UID: 'uid://b3b8exm5x0u81' - using text path instead: 'res://assets/ext/characters/npc_000_eyebrow008_ed3a9d88256f93e6.png'.
+  28.1      at: open (core/io/resource_format_binary.cpp:1025)
+  28.1      GDScript backtrace (most recent call first):
+  28.1          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  28.1          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  28.1 WARNING: 'res://assets/ext/characters/npc_000.glb': In external resource #6, invalid UID: 'uid://dl7xwrn1rcagr' - using text path instead: 'res://assets/ext/characters/npc_000_eyelashes02_538849d40a7d25e7.png'.
+  28.1      at: open (core/io/resource_format_binary.cpp:1025)
+  28.1      GDScript backtrace (most recent call first):
+  28.1          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  28.1          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  28.1 WARNING: 'res://assets/ext/characters/npc_000.glb': In external resource #7, invalid UID: 'uid://c44t4i2jjb7l2' - using text path instead: 'res://assets/ext/characters/npc_000_tongue01_diffuse_c71e798676e6af5d.jpg'.
+  28.1      at: open (core/io/resource_format_binary.cpp:1025)
+  28.1      GDScript backtrace (most recent call first):
+  28.1          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  28.1          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  28.1 WARNING: 'res://assets/ext/characters/npc_000.glb': In external resource #8, invalid UID: 'uid://t41tjkioy2cn' - using text path instead: 'res://assets/ext/characters/npc_000_short01_diffuse_772ed02b66617ae1.png'.
+  28.1      at: open (core/io/resource_format_binary.cpp:1025)
+  28.1      GDScript backtrace (most recent call first):
+  28.1          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  28.1          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  30.4 [mvk-error] VK_INCOMPLETE: Error writing pipeline cache data: Failed to write 4 bytes to output stream! Wrote 0
+  31.2 WARNING: 'res://assets/ext/characters/npc_005.glb': In external resource #0, invalid UID: 'uid://boo3b5rhgqa7c' - using text path instead: 'res://assets/ext/characters/npc_005_young_lightskinned_male_diffuse_a663699840e9d24a.jpg'.
+  31.2      at: open (core/io/resource_format_binary.cpp:1025)
+  31.2      GDScript backtrace (most recent call first):
+  31.2          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  31.2          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  31.2 WARNING: 'res://assets/ext/characters/npc_005.glb': In external resource #1, invalid UID: 'uid://qak2yd1j68g8' - using text path instead: 'res://assets/ext/characters/npc_005_lightblue_eye_0f986e3c6be61c48.png'.
+  31.2      at: open (core/io/resource_format_binary.cpp:1025)
+  31.2      GDScript backtrace (most recent call first):
+  31.2          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  31.2          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  31.2 WARNING: 'res://assets/ext/characters/npc_005.glb': In external resource #2, invalid UID: 'uid://b5ywecbkd8gsv' - using text path instead: 'res://assets/ext/characters/npc_005_shoes03_diffuse_5285475e3006abad.jpg'.
+  31.2      at: open (core/io/resource_format_binary.cpp:1025)
+  31.2      GDScript backtrace (most recent call first):
+  31.2          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  31.2          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  31.2 WARNING: 'res://assets/ext/characters/npc_005.glb': In external resource #3, invalid UID: 'uid://cyf7kb57dw1ks' - using text path instead: 'res://assets/ext/characters/npc_005_teeth_0f6dae334ed4c5c5.png'.
+  31.2      at: open (core/io/resource_format_binary.cpp:1025)
+  31.2      GDScript backtrace (most recent call first):
+  31.2          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  31.2          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  31.2 WARNING: 'res://assets/ext/characters/npc_005.glb': In external resource #4, invalid UID: 'uid://cusi04ognmbsf' - using text path instead: 'res://assets/ext/characters/npc_005_eyebrow011_758ea1f0d9e87e16.png'.
+  31.2      at: open (core/io/resource_format_binary.cpp:1025)
+  31.2      GDScript backtrace (most recent call first):
+  31.2          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  31.2          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  31.2 WARNING: 'res://assets/ext/characters/npc_005.glb': In external resource #5, invalid UID: 'uid://5h0yetyufp8q' - using text path instead: 'res://assets/ext/characters/npc_005_eyelashes01_5fb9b06b9281023b.png'.
+  31.2      at: open (core/io/resource_format_binary.cpp:1025)
+  31.2      GDScript backtrace (most recent call first):
+  31.2          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  31.2          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  31.2 WARNING: 'res://assets/ext/characters/npc_005.glb': In external resource #6, invalid UID: 'uid://c1gowq0rjkm23' - using text path instead: 'res://assets/ext/characters/npc_005_tongue01_diffuse_c71e798676e6af5d.jpg'.
+  31.2      at: open (core/io/resource_format_binary.cpp:1025)
+  31.2      GDScript backtrace (most recent call first):
+  31.2          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  31.2          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  31.2 WARNING: 'res://assets/ext/characters/npc_005.glb': In external resource #7, invalid UID: 'uid://cq46wb2uin5jp' - using text path instead: 'res://assets/ext/characters/npc_005_short02_diffuse_c989903ce78a364c.png'.
+  31.2      at: open (core/io/resource_format_binary.cpp:1025)
+  31.2      GDScript backtrace (most recent call first):
+  31.2          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  31.2          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  31.3 WARNING: 'res://assets/ext/characters/npc_008.glb': In external resource #0, invalid UID: 'uid://clfx2nblhdf51' - using text path instead: 'res://assets/ext/characters/npc_008_middleage_lightskinned_male_diffuse2_898eb78e56c8da61.jpg'.
+  31.3      at: open (core/io/resource_format_binary.cpp:1025)
+  31.3      GDScript backtrace (most recent call first):
+  31.3          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  31.3          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  31.3 WARNING: 'res://assets/ext/characters/npc_008.glb': In external resource #1, invalid UID: 'uid://bw1lnxy8efoj4' - using text path instead: 'res://assets/ext/characters/npc_008_brownlight_eye_2b220ad5018d8429.png'.
+  31.3      at: open (core/io/resource_format_binary.cpp:1025)
+  31.3      GDScript backtrace (most recent call first):
+  31.3          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  31.3          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  31.3 WARNING: 'res://assets/ext/characters/npc_008.glb': In external resource #2, invalid UID: 'uid://bawqk48irbssw' - using text path instead: 'res://assets/ext/characters/npc_008_shoes04_diffuse_d3c22eb3c9615357.jpg'.
+  31.3      at: open (core/io/resource_format_binary.cpp:1025)
+  31.3      GDScript backtrace (most recent call first):
+  31.3          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  31.3          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  31.3 WARNING: 'res://assets/ext/characters/npc_008.glb': In external resource #3, invalid UID: 'uid://ckvt0c5ji7pbb' - using text path instead: 'res://assets/ext/characters/npc_008_shoes04_normal_d0150649836fda97.png'.
+  31.3      at: open (core/io/resource_format_binary.cpp:1025)
+  31.3      GDScript backtrace (most recent call first):
+  31.3          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  31.3          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  31.3 WARNING: 'res://assets/ext/characters/npc_008.glb': In external resource #4, invalid UID: 'uid://j8asd13apfow' - using text path instead: 'res://assets/ext/characters/npc_008_teeth_0f6dae334ed4c5c5.png'.
+  31.3      at: open (core/io/resource_format_binary.cpp:1025)
+  31.3      GDScript backtrace (most recent call first):
+  31.3          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  31.3          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  31.3 WARNING: 'res://assets/ext/characters/npc_008.glb': In external resource #5, invalid UID: 'uid://cjet7h6wgnla1' - using text path instead: 'res://assets/ext/characters/npc_008_eyebrow011_758ea1f0d9e87e16.png'.
+  31.3      at: open (core/io/resource_format_binary.cpp:1025)
+  31.3      GDScript backtrace (most recent call first):
+  31.3          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  31.3          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  31.3 WARNING: 'res://assets/ext/characters/npc_008.glb': In external resource #6, invalid UID: 'uid://bu3qmrc3xe7tx' - using text path instead: 'res://assets/ext/characters/npc_008_eyelashes01_5fb9b06b9281023b.png'.
+  31.3      at: open (core/io/resource_format_binary.cpp:1025)
+  31.3      GDScript backtrace (most recent call first):
+  31.3          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  31.3          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  31.3 WARNING: 'res://assets/ext/characters/npc_008.glb': In external resource #7, invalid UID: 'uid://dt0hdh2xbb1wj' - using text path instead: 'res://assets/ext/characters/npc_008_tongue01_diffuse_c71e798676e6af5d.jpg'.
+  31.3      at: open (core/io/resource_format_binary.cpp:1025)
+  31.3      GDScript backtrace (most recent call first):
+  31.3          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  31.3          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)
+  31.3 WARNING: 'res://assets/ext/characters/npc_008.glb': In external resource #8, invalid UID: 'uid://b82rii3fyy5wy' - using text path instead: 'res://assets/ext/characters/npc_008_short04_diffuse_047a424d55c6b9ff.png'.
+  31.3      at: open (core/io/resource_format_binary.cpp:1025)
+  31.3      GDScript backtrace (most recent call first):
+  31.3          [0] _build_scene (res://src/actors/character_factory.gd:321)
+  31.3          [1] <anonymous lambda> (res://src/actors/character_factory.gd:84)

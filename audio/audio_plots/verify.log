@@ -1,0 +1,28 @@
+/opt/hostedtoolcache/Python/3.11.16/x64/lib/python3.11/site-packages/matplotlib/axes/_axes.py:8647: RuntimeWarning: divide by zero encountered in log10
+  Z = 10. * np.log10(spec)
+verify: 2283 files checked, 0 problems
+plot out/audio_plots/town_1.png
+plot out/audio_plots/birds_1.png
+plot out/audio_plots/impacts_1.png
+plot out/audio_plots/guns_1.png
+plot out/audio_plots/guns_2.png
+plot out/audio_plots/guns_3.png
+plot out/audio_plots/guns_4.png
+plot out/audio_plots/foley_1.png
+plot out/audio_plots/horse_1.png
+plot out/audio_plots/creatures_1.png
+plot out/audio_plots/steps_1.png
+plot out/audio_plots/steps_2.png
+plot out/audio_plots/steps_3.png
+plot out/audio_plots/water_1.png
+plot out/audio_plots/amb_1.png
+plot out/audio_plots/hooves_1.png
+plot out/audio_plots/hooves_2.png
+plot out/audio_plots/ui_1.png
+plot out/audio_plots/ui_2.png
+plot out/audio_plots/weather_1.png
+plot out/audio_plots/rec_1.png
+plot out/audio_plots/music_1.png
+plot out/audio_plots/music_2.png
+plot out/audio_plots/music_3.png
+plot out/audio_plots/music_4.png

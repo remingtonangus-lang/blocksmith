@@ -1,0 +1,38 @@
+Godot Engine v4.7.1.stable.official.a13da4feb - https://godotengine.org
+Vulkan 1.2.334 - Forward+ - Using Device #0: Apple - Apple Paravirtual device
+
+world: water grid baked in 56 ms
+world: loaded 4096x4096 heights in 120 ms
+audio: director ready (195 sounds, 16 music tracks, 1430 voice lines)
+boot: sky 337 ms
+boot: terrain 1314 ms
+boot: water 1473 ms
+boot: roads 1541 ms
+impostors: 30 entries, atlas 1920x1120 x2 RGBA8 + mips = 21.9 MB, loaded from cache in 43 ms
+boot: vegetation 4505 ms
+scatter: 21 CC0 models, 724k -> 21k triangles
+boot: settlements 7224 ms
+boot: world built in 7225 ms
+roads: 136 ribbon tiles
+feature shot: town_hud (5970 ms)  draws 320 objects 422 prims 1779796 [forward_plus, low]
+feature shot: face_closeup (1072 ms)  draws 155 objects 578 prims 1305400 [forward_plus, low]
+[mvk-error] VK_INCOMPLETE: Error writing pipeline cache data: Failed to write 4 bytes to output stream! Wrote 0
+feature shot: gunfight_nerve (6486 ms)  draws 375 objects 843 prims 1635822 [forward_plus, low]
+SCRIPT ERROR: Left operand of 'is' is a previously freed instance.
+          at: Nerve._free_ink (res://src/combat/nerve.gd:188)
+          GDScript backtrace (most recent call first):
+              [0] _free_ink (res://src/combat/nerve.gd:188)
+              [1] _process (res://src/combat/nerve.gd:128)
+feature shot: riding (1498 ms)  draws 451 objects 812 prims 1583954 [forward_plus, low]
+feature shot: wildlife (4020 ms)  draws 451 objects 812 prims 1486767 [forward_plus, low]
+feature shot: camp_night (3140 ms)  draws 571 objects 993 prims 1700471 [forward_plus, low]
+feature shot: dialogue (2458 ms)  draws 525 objects 526 prims 1718973 [forward_plus, low]
+feature shot: map (907 ms)  draws 879 objects 1072 prims 2444969 [forward_plus, low]
+feature shot: journal (420 ms)  draws 895 objects 6112 prims 2448985 [forward_plus, low]
+feature shot: shop (1181 ms)  draws 514 objects 1378 prims 1472717 [forward_plus, low]
+feature shot: poker (2691 ms)  draws 1174 objects 1914 prims 761034 [forward_plus, low]
+feature shot: satchel (441 ms)  draws 246 objects 898 prims 747715 [forward_plus, low]
+audio: unknown sound id wheel_open
+feature shot: weapon_wheel (683 ms)  draws 682 objects 1111 prims 1637231 [forward_plus, low]
+feature shot: mission_talk (4619 ms)  draws 630 objects 631 prims 1674460 [forward_plus, low]
+feature shot: results_card (3125 ms)  draws 707 objects 1346 prims 1642716 [forward_plus, low]

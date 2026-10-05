@@ -1,0 +1,682 @@
+{
+  "bots": [
+    {
+      "bot": "road",
+      "distance": 273.883183949627,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_avg_ms": 9.07505007343063,
+      "frame_p99_ms": 47.2519989013672,
+      "frame_spikes": 3,
+      "ok": true,
+      "stuck_events": 0,
+      "waypoints": 204,
+      "waypoints_reached": 34
+    },
+    {
+      "bot": "explore",
+      "distance": 277.705215208232,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_avg_ms": 9.73292117596277,
+      "frame_p99_ms": 50.6590003967285,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 1,
+      "waypoints": 12,
+      "waypoints_reached": 2
+    },
+    {
+      "arrived": false,
+      "avg_speed": 9.42981859739426,
+      "bot": "ride",
+      "distance": 707.393558447831,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_avg_ms": 9.57446204715456,
+      "frame_p99_ms": 47.1710014343262,
+      "frame_spikes": 0,
+      "gaits": {
+        "canter(ride)": {
+          "beat_count": 3,
+          "beats": [
+            [
+              "RH"
+            ],
+            [
+              "LH",
+              "RF"
+            ],
+            [
+              "LF"
+            ]
+          ],
+          "contact": {
+            "LF": 0.364734299516908,
+            "LH": 0.381642512077295,
+            "RF": 0.323671497584541,
+            "RH": 0.35024154589372
+          },
+          "failures": [],
+          "gait": "canter",
+          "ok": true,
+          "period": 0.566666666667118,
+          "phases": {
+            "LF": 0.426386406914978,
+            "LH": 0.20602743424967,
+            "RF": 0.230407675080665,
+            "RH": 0.0
+          },
+          "slide_cm_avg": 0.821824467689462,
+          "slide_cm_max": 6.18785247206688,
+          "stances": 26,
+          "type": ""
+        },
+        "gallop(ride)": {
+          "beat_count": 4,
+          "beats": [
+            [
+              "RH"
+            ],
+            [
+              "LH"
+            ],
+            [
+              "RF"
+            ],
+            [
+              "LF"
+            ]
+          ],
+          "contact": {
+            "LF": 0.246178600160901,
+            "LH": 0.20152855993564,
+            "RF": 0.243362831858407,
+            "RH": 0.157683024939662
+          },
+          "failures": [],
+          "gait": "gallop",
+          "ok": true,
+          "period": 0.483333333333718,
+          "phases": {
+            "LF": 0.428990509108852,
+            "LH": 0.0980919918378967,
+            "RF": 0.326297925216985,
+            "RH": 0.0
+          },
+          "slide_cm_avg": 6.20314888370792,
+          "slide_cm_max": 31.7606180906296,
+          "stances": 179,
+          "type": ""
+        }
+      },
+      "ok": true,
+      "stuck_events": 0,
+      "stumbles": 0,
+      "waypoints": 348,
+      "waypoints_reached": 122
+    },
+    {
+      "bot": "gaits",
+      "distance": 128.137977237191,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_avg_ms": 9.68876922618578,
+      "frame_p99_ms": 47.8059997558594,
+      "frame_spikes": 1,
+      "gaits": {
+        "canter": {
+          "beat_count": 3,
+          "beats": [
+            [
+              "RH"
+            ],
+            [
+              "LH",
+              "RF"
+            ],
+            [
+              "LF"
+            ]
+          ],
+          "contact": {
+            "LF": 0.401215805471125,
+            "LH": 0.355623100303951,
+            "RF": 0.316109422492401,
+            "RH": 0.300911854103343
+          },
+          "failures": [],
+          "gait": "canter",
+          "ok": true,
+          "period": 0.566666666667118,
+          "phases": {
+            "LF": 0.406850309248631,
+            "LH": 0.200967956307455,
+            "RF": 0.215729906661882,
+            "RH": 0.0
+          },
+          "slide_cm_avg": 0.820387460757047,
+          "slide_cm_max": 3.17609906196594,
+          "stances": 25,
+          "type": ""
+        },
+        "gallop": {
+          "beat_count": 4,
+          "beats": [
+            [
+              "RH"
+            ],
+            [
+              "LH"
+            ],
+            [
+              "RF"
+            ],
+            [
+              "LF"
+            ]
+          ],
+          "contact": {
+            "LF": 0.238532110091743,
+            "LH": 0.18348623853211,
+            "RF": 0.247706422018349,
+            "RH": 0.204892966360856
+          },
+          "failures": [],
+          "gait": "gallop",
+          "ok": true,
+          "period": 0.483333333333718,
+          "phases": {
+            "LF": 0.413793103448276,
+            "LH": 0.0936197357704917,
+            "RF": 0.315247313847636,
+            "RH": 0.0
+          },
+          "slide_cm_avg": 6.10764216834078,
+          "slide_cm_max": 27.6195496320724,
+          "stances": 28,
+          "type": ""
+        },
+        "trot": {
+          "beat_count": 2,
+          "beats": [
+            [
+              "LH",
+              "RF"
+            ],
+            [
+              "LF",
+              "RH"
+            ]
+          ],
+          "contact": {
+            "LF": 0.461538461538462,
+            "LH": 0.443786982248521,
+            "RF": 0.408284023668639,
+            "RH": 0.476331360946746
+          },
+          "failures": [],
+          "gait": "trot",
+          "ok": true,
+          "period": 0.716666666667237,
+          "phases": {
+            "LF": 0.516271117319534,
+            "LH": 0.0,
+            "RF": 0.0348837209302326,
+            "RH": 0.497670438295106
+          },
+          "slide_cm_avg": 0.753646662795088,
+          "slide_cm_max": 2.98085566610098,
+          "stances": 18,
+          "type": ""
+        },
+        "walk": {
+          "beat_count": 4,
+          "beats": [
+            [
+              "LH"
+            ],
+            [
+              "LF"
+            ],
+            [
+              "RH"
+            ],
+            [
+              "RF"
+            ]
+          ],
+          "contact": {
+            "LF": 0.696252465483235,
+            "LH": 0.642998027613412,
+            "RF": 0.662721893491124,
+            "RH": 0.73767258382643
+          },
+          "failures": [],
+          "gait": "walk",
+          "ok": true,
+          "period": 1.0833333333342,
+          "phases": {
+            "LF": 0.253846153846154,
+            "LH": 0.0,
+            "RF": 0.769230769230769,
+            "RH": 0.510749629202088
+          },
+          "slide_cm_avg": 0.821304445788782,
+          "slide_cm_max": 1.88879873603582,
+          "stances": 18,
+          "type": ""
+        }
+      },
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "town",
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "npc_minutes": 115.416666666667,
+      "npcs": 38,
+      "ok": true,
+      "reactions": {
+        "fled_inside": 27,
+        "greeted": 1,
+        "looked": true,
+        "scared": 35
+      },
+      "stuck_events": 2,
+      "town": {
+        "arrived": 29,
+        "cast": 40,
+        "chats": 1,
+        "crowd": 0,
+        "doors": 30,
+        "failed": 0,
+        "fled_inside": 0,
+        "greetings": 1,
+        "home": 0,
+        "npc_minutes": 115.416666666667,
+        "nudges": 0,
+        "on_schedule": 100.0,
+        "reached": 100.0,
+        "reports": 0,
+        "residents": 36,
+        "skipped": 15,
+        "stuck": 2,
+        "trips": 53
+      }
+    },
+    {
+      "bot": "gunfight",
+      "distance": 0.0,
+      "duration": 5.16666666666665,
+      "enemies": 3,
+      "enemy_hits": 5,
+      "enemy_shots": 11,
+      "engaged": 3,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "killed": 0,
+      "ok": true,
+      "player_hits": 4,
+      "player_hits_taken": 5,
+      "player_shots": 9,
+      "stuck_events": 0,
+      "used_cover": 1
+    },
+    {
+      "bot": "hunt",
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "gaits_checked": 33,
+      "ok": true,
+      "pelt_quality": 3,
+      "population": [
+        18,
+        18,
+        1,
+        1,
+        3,
+        3,
+        19,
+        19,
+        19,
+        19,
+        19,
+        19,
+        23,
+        23,
+        23,
+        23,
+        23,
+        23,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32
+      ],
+      "stuck_events": 0
+    },
+    {
+      "bot": "camp",
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "encounters",
+      "distance": 0.0,
+      "encounters": 38,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "lines_said": 103,
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "social",
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "gossip_cases": 15,
+      "ok": true,
+      "paper_cases": 16,
+      "social_cases": 7,
+      "stuck_events": 0
+    },
+    {
+      "bot": "openworld",
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "systems",
+      "checks": {
+        "bounty": {
+          "Sable County": 60.0
+        },
+        "encounters": [
+          "lost_child",
+          "wagon",
+          "robbery",
+          "prisoner",
+          "snakebite",
+          "hunter",
+          "grave",
+          "ambush",
+          "hanging",
+          "runaway",
+          "lost_child",
+          "duel",
+          "snake_oil",
+          "bounty_hunters",
+          "stranded",
+          "drunk",
+          "fire",
+          "preacher",
+          "stage",
+          "wagon",
+          "robbery",
+          "prisoner",
+          "snakebite",
+          "hunter",
+          "grave",
+          "ambush",
+          "hanging",
+          "runaway",
+          "lost_child",
+          "duel",
+          "snake_oil",
+          "bounty_hunters",
+          "stranded",
+          "drunk",
+          "fire",
+          "preacher",
+          "stage",
+          "hanging",
+          "bounty_hunters",
+          "wagon",
+          "robbery",
+          "prisoner",
+          "snakebite",
+          "hunter",
+          "grave",
+          "ambush",
+          "hanging",
+          "runaway",
+          "lost_child",
+          "duel",
+          "snake_oil",
+          "bounty_hunters",
+          "stranded",
+          "drunk",
+          "fire",
+          "preacher",
+          "stage"
+        ],
+        "fishing": [
+          {
+            "fight": 0.910915958735905,
+            "lb": 0.7,
+            "name": "Smallmouth Bass",
+            "species": "smallmouth_bass",
+            "stamina": 0.15
+          }
+        ],
+        "interior_audio": {
+          "bed": "crowd_saloon",
+          "listener_inside": true
+        },
+        "robbery": [
+          {
+            "cash": 4.35,
+            "kind": "holdup",
+            "loot": ""
+          },
+          {
+            "cash": 55.6,
+            "kind": "store",
+            "shop": "general"
+          }
+        ],
+        "shops": 9,
+        "wanted_after_murder": 2
+      },
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "ui",
+      "checks": {
+        "glyphs": [
+          "[E]  Talk",
+          "[Y]  Talk"
+        ],
+        "rebind": "ok",
+        "screens": [
+          "Pause",
+          "Map",
+          "Journal",
+          "Satchel",
+          "Today's Paper",
+          "Settings",
+          "Controls",
+          "Accessibility"
+        ]
+      },
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "footik",
+      "checks": {
+        "ankle_diff_cm": {
+          "ik": 0.0,
+          "off": 9.5
+        }
+      },
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "cover",
+      "checks": {
+        "blind_fire_rounds": 1,
+        "edge": 1,
+        "exposed_aiming": true,
+        "gap_m": 0.52,
+        "hidden_crouched": true,
+        "left_cover": true,
+        "peek_m": 0.6,
+        "slid_m": 1.08
+      },
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "melee",
+      "checks": {
+        "alive": true,
+        "first_blow_hp": 80.5,
+        "got_up": true,
+        "knocked_down": true,
+        "state_after": "IDLE",
+        "taken_guard": 8.6,
+        "taken_open": 20.2
+      },
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 0
+    },
+    {
+      "bot": "armory",
+      "checks": {
+        "cond_after_6": 0.985,
+        "damage_std_vs_express": [
+          38.0,
+          44.8
+        ],
+        "jams_in_120": 7,
+        "loaded": "revolver_express",
+        "save_load": true,
+        "slug": {
+          "damage": 78.0,
+          "pellets": 1,
+          "range": 40.0
+        },
+        "spread_clean_vs_fouled": [
+          0.45,
+          1.03
+        ]
+      },
+      "distance": 0.0,
+      "errors": [],
+      "failures": [],
+      "fall_events": 0,
+      "frame_spikes": 0,
+      "ok": true,
+      "stuck_events": 0
+    }
+  ],
+  "ok": true
+}

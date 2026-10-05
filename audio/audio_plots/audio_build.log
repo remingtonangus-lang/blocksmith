@@ -1,0 +1,1802 @@
+  gun_revolver_heavy               x4  mmax  -13.2  tp  -1.1  2.10s
+  gun_revolver_heavy_indoor        x3  mmax  -13.0  tp  -1.2  2.10s
+  gun_revolver_heavy_far           x3  mmax  -17.5  tp  -7.4  4.30s
+  gun_revolver_heavy_distant       x2  mmax  -17.7  tp  -8.5  5.30s
+  gun_revolver_light               x4  mmax  -15.2  tp  -1.4  1.86s
+  gun_revolver_light_indoor        x3  mmax  -12.3  tp  -1.2  2.10s
+  gun_revolver_light_far           x3  mmax  -19.5  tp  -6.4  4.08s
+  gun_revolver_light_distant       x2  mmax  -19.2  tp  -5.7  5.08s
+  gun_rifle_lever                  x4  mmax  -12.8  tp  -1.1  2.34s
+  gun_rifle_lever_indoor           x3  mmax  -12.0  tp  -1.2  2.10s
+  gun_rifle_lever_far              x3  mmax  -18.3  tp  -6.1  4.53s
+  gun_rifle_lever_distant          x2  mmax  -17.0  tp  -8.0  5.53s
+  gun_rifle_bolt                   x4  mmax  -14.1  tp  -1.2  2.66s
+  gun_rifle_bolt_indoor            x3  mmax  -10.7  tp  -1.0  2.10s
+  gun_rifle_bolt_far               x3  mmax  -19.8  tp  -6.8  4.83s
+  gun_rifle_bolt_distant           x2  mmax  -17.1  tp  -6.8  5.83s
+  gun_rifle_small                  x4  mmax  -16.4  tp  -1.5  1.30s
+  gun_rifle_small_indoor           x3  mmax  -14.1  tp  -1.2  2.10s
+  gun_rifle_small_far              x3  mmax  -18.1  tp  -5.5  3.55s
+  gun_rifle_small_distant          x2  mmax  -17.6  tp  -5.8  4.55s
+  gun_rifle_heavy                  x4  mmax  -12.4  tp  -1.2  2.90s
+  gun_rifle_heavy_indoor           x3  mmax  -11.4  tp  -1.2  2.10s
+  gun_rifle_heavy_far              x3  mmax  -17.3  tp  -6.0  5.05s
+  gun_rifle_heavy_distant          x2  mmax  -18.1  tp  -5.4  6.05s
+  gun_shotgun                      x4  mmax  -12.4  tp  -1.0  2.58s
+  gun_shotgun_indoor               x3  mmax  -11.3  tp  -1.2  2.10s
+  gun_shotgun_far                  x3  mmax  -19.0  tp  -6.5  4.75s
+  gun_shotgun_distant              x2  mmax  -17.7  tp  -8.1  5.75s
+  gun_echo_pistol                  x3  mmax  -21.8  tp  -4.5  1.05s
+  gun_echo_rifle                   x3  mmax  -16.9  tp  -6.3  1.05s
+  gun_echo_shotgun                 x3  mmax  -22.3  tp  -5.4  1.05s
+  gun_echo_small                   x3  mmax  -18.8  tp  -2.5  1.05s
+  revolver_cock                    x4  mmax  -27.6  tp  -1.2  0.22s
+  revolver_dryfire                 x3  mmax  -29.4  tp  -1.2  0.12s
+  revolver_gate                    x2  mmax  -27.1  tp  -1.5  0.12s
+  revolver_round_in                x4  mmax  -27.4  tp  -1.2  0.22s
+  revolver_eject                   x2  mmax  -25.6  tp  -1.4  0.20s
+  lever_cycle                      x4  mmax  -26.0  tp  -1.2  0.32s
+  bolt_cycle                       x3  mmax  -26.8  tp  -1.2  0.60s
+  pump_cycle                       x3  mmax  -25.9  tp  -1.2  0.42s
+  break_open                       x2  mmax  -25.9  tp  -1.2  0.30s
+  break_close                      x2  mmax  -27.6  tp  -1.2  0.25s
+  shell_insert                     x4  mmax  -27.8  tp  -1.1  0.18s
+  casing_drop                      x6  mmax  -19.6  tp  -1.9  0.70s
+  gun_draw                         x3  mmax  -20.0  tp  -1.2  0.40s
+  gun_holster                      x3  mmax  -19.4  tp  -1.5  0.45s
+  step_dirt_walk                   x8  mmax  -22.8  tp  -1.5  0.45s
+  step_dirt_run                    x8  mmax  -23.1  tp  -1.4  0.45s
+  step_dirt_land                   x3  mmax  -23.3  tp  -1.2  0.45s
+  step_grass_walk                  x8  mmax  -23.3  tp  -3.4  0.45s
+  step_grass_run                   x8  mmax  -22.9  tp  -2.8  0.45s
+  step_grass_land                  x3  mmax  -21.5  tp  -1.4  0.45s
+  step_gravel_walk                 x8  mmax  -23.1  tp  -3.1  0.45s
+  step_gravel_run                  x8  mmax  -22.8  tp  -3.9  0.45s
+  step_gravel_land                 x3  mmax  -23.0  tp  -4.7  0.45s
+  step_stone_walk                  x8  mmax  -24.3  tp  -1.1  0.45s
+  step_stone_run                   x8  mmax  -26.9  tp  -1.2  0.45s
+  step_stone_land                  x3  mmax  -24.6  tp  -1.2  0.45s
+  step_wood_walk                   x8  mmax  -22.9  tp  -1.1  0.45s
+  step_wood_run                    x8  mmax  -23.0  tp  -1.3  0.45s
+  step_wood_land                   x3  mmax  -23.0  tp  -1.2  0.45s
+  step_mud_walk                    x8  mmax  -24.4  tp  -4.1  0.60s
+  step_mud_run                     x8  mmax  -22.3  tp  -5.4  0.60s
+  step_mud_land                    x3  mmax  -22.6  tp  -3.2  0.60s
+  step_water_walk                  x8  mmax  -23.1  tp  -6.8  0.60s
+  step_water_run                   x8  mmax  -22.6  tp  -6.4  0.60s
+  step_water_land                  x3  mmax  -22.8  tp  -5.7  0.60s
+  step_sand_walk                   x8  mmax  -22.6  tp  -1.3  0.45s
+  step_sand_run                    x8  mmax  -23.0  tp  -3.0  0.45s
+  step_sand_land                   x3  mmax  -23.1  tp  -1.1  0.45s
+  step_snow_walk                   x8  mmax  -23.1  tp  -3.5  0.45s
+  step_snow_run                    x8  mmax  -23.0  tp  -3.4  0.45s
+  step_snow_land                   x3  mmax  -23.0  tp  -3.5  0.45s
+  spur_jingle                      x6  mmax  -20.0  tp  -2.0  0.35s
+  cloth_rustle                     x6  mmax  -21.0  tp  -4.9  0.27s
+  hoof_dirt_soft                   x8  mmax  -21.0  tp  -1.2  0.50s
+  hoof_dirt_hard                   x8  mmax  -20.8  tp  -1.4  0.50s
+  hoof_grass_soft                  x8  mmax  -19.7  tp  -1.4  0.50s
+  hoof_grass_hard                  x8  mmax  -20.8  tp  -1.0  0.50s
+  hoof_gravel_soft                 x8  mmax  -19.6  tp  -1.1  0.50s
+  hoof_gravel_hard                 x8  mmax  -18.8  tp  -1.1  0.50s
+  hoof_stone_soft                  x8  mmax  -28.4  tp  -1.0  0.50s
+  hoof_stone_hard                  x8  mmax  -25.7  tp  -1.2  0.50s
+  hoof_wood_soft                   x8  mmax  -22.2  tp  -1.0  0.50s
+  hoof_wood_hard                   x8  mmax  -22.1  tp  -1.4  0.50s
+  hoof_mud_soft                    x8  mmax  -19.1  tp  -1.0  0.70s
+  hoof_mud_hard                    x8  mmax  -18.4  tp  -1.6  0.70s
+  hoof_water_soft                  x8  mmax  -18.9  tp  -1.1  0.70s
+  hoof_water_hard                  x8  mmax  -19.6  tp  -1.6  0.70s
+  hoof_sand_soft                   x8  mmax  -19.5  tp  -1.1  0.50s
+  hoof_sand_hard                   x8  mmax  -20.2  tp  -1.1  0.50s
+  hoof_snow_soft                   x8  mmax  -20.2  tp  -1.1  0.50s
+  hoof_snow_hard                   x8  mmax  -20.0  tp  -1.4  0.50s
+  saddle_creak                     x8  mmax  -25.7  tp  -5.7  0.70s
+  bridle_jingle                    x6  mmax  -30.7  tp  -8.6  0.50s
+  horse_breath                     x6  mmax  -18.0  tp  -5.3  1.34s
+  horse_snort                      x5  mmax  -18.1  tp  -8.0  0.62s
+  horse_whinny_synth               x3  mmax  -17.8  tp -10.2  1.62s
+  bullet_dirt                      x6  mmax  -20.1  tp  -1.1  0.60s
+  bullet_wood                      x6  mmax  -23.2  tp  -1.2  0.45s
+  bullet_metal                     x6  mmax  -19.8  tp  -1.2  1.00s
+  bullet_flesh                     x6  mmax  -23.8  tp  -1.4  0.30s
+  bullet_stone                     x6  mmax  -20.7  tp  -1.2  0.50s
+  bullet_water                     x5  mmax  -16.1  tp  -1.0  0.60s
+  ricochet                         x8  mmax  -17.7  tp  -1.6  0.63s
+  whizz                            x8  mmax  -18.0  tp  -1.5  0.35s
+  crack_by                         x6  mmax  -27.3  tp  -1.2  0.30s
+  body_fall                        x4  mmax  -20.0  tp  -2.4  0.90s
+  punch                            x6  mmax  -24.3  tp  -1.5  0.30s
+  door_open                        x4  mmax  -29.4  tp  -1.3  1.48s
+  door_close                       x4  mmax  -19.0  tp  -1.4  1.20s
+  saloon_doors                     x3  mmax  -22.9  tp  -1.0  1.60s
+  glass_break                      x4  mmax  -22.1  tp  -1.2  1.20s
+  bottle_clink                     x4  mmax  -20.4  tp  -1.3  0.60s
+  glass_set_down                   x4  mmax  -25.1  tp  -1.2  0.40s
+  coin_drop                        x4  mmax  -20.5  tp  -6.0  1.00s
+  coins_jingle                     x4  mmax  -19.4  tp  -7.7  0.60s
+  register_ding                    x2  mmax  -19.9  tp -10.1  1.40s
+  lantern_creak                    x3  mmax  -19.8  tp  -3.4  0.60s
+  wind_calm                        x1  mmax  -28.5  tp -13.8  48.00s
+  wind_gusty                       x1  mmax  -19.4  tp  -3.1  48.00s
+  wind_mountain                    x1  mmax  -21.4  tp  -6.0  48.00s
+  wind_dust                        x1  mmax  -17.3  tp  -1.8  48.00s
+  wind_trees                       x1  mmax  -23.7  tp -14.7  48.00s
+  wind_grass                       x1  mmax  -25.5  tp -17.5  48.00s
+  wind_interior                    x1  mmax  -31.1  tp -12.7  48.00s
+  rain_light                       x1  mmax  -27.5  tp -11.3  48.00s
+  rain_heavy                       x1  mmax  -19.4  tp  -7.9  48.00s
+  rain_roof                        x1  mmax  -25.5  tp -13.0  48.00s
+  thunder_close                    x3  mmax  -14.8  tp  -4.5  9.00s
+  thunder_far                      x4  mmax  -17.9  tp  -8.4  12.00s
+  river                            x1  mmax  -23.1  tp  -6.8  48.00s
+  creek                            x1  mmax  -25.1  tp -12.3  48.00s
+  lake_shore                       x1  mmax  -21.6  tp -11.9  48.00s
+  water_lap_boat                   x1  mmax  -25.2  tp  -3.7  48.00s
+  fire_camp                        x1  mmax  -21.9  tp  -3.4  48.00s
+  fire_stove                       x1  mmax  -27.4  tp  -9.0  48.00s
+  crowd_saloon                     x1  mmax  -22.7  tp -11.4  48.00s
+  crowd_street                     x1  mmax  -26.5  tp -16.0  48.00s
+  crowd_church                     x1  mmax  -29.4  tp -19.4  48.00s
+  anvil                            x4  mmax  -20.3  tp  -5.4  2.00s
+  hammer_wood                      x4  mmax  -24.6  tp  -1.2  0.50s
+  church_bell                      x2  mmax  -20.1  tp  -6.6  7.00s
+  wagon_roll                       x1  mmax  -24.7  tp  -4.2  16.00s
+  train_whistle                    x2  mmax  -19.1  tp  -8.5  5.00s
+  train_chuff                      x1  mmax  -19.8  tp  -1.5  12.00s
+  windmill_creak                   x3  mmax  -20.1  tp  -3.0  1.50s
+  clock_tick                       x2  mmax  -27.7  tp  -1.1  0.08s
+  crickets_night                   x1  mmax  -26.9  tp -16.5  40.00s
+  cicadas_day                      x1  mmax  -25.8  tp -14.5  40.00s
+  grasshoppers                     x1  mmax  -29.4  tp -10.7  40.00s
+  bird_meadow                      x5  mmax  -20.5  tp -11.1  2.92s
+  bird_feebee                      x4  mmax  -20.6  tp -12.1  2.40s
+  bird_trill                       x5  mmax  -21.5  tp -11.3  2.90s
+  bird_warble                      x5  mmax  -19.1  tp -10.9  3.68s
+  bird_chip                        x4  mmax  -21.2  tp  -6.2  3.12s
+  bird_caw                         x5  mmax  -19.4  tp  -5.4  3.72s
+  bird_hawk                        x4  mmax  -19.4  tp -10.6  3.19s
+  bird_dove                        x4  mmax  -19.3  tp  -9.3  4.31s
+  bird_quail                       x4  mmax  -19.6  tp -11.1  2.06s
+  bird_woodpecker                  x4  mmax  -19.8  tp  -5.3  2.76s
+  owl_hoot                         x4  mmax  -22.9  tp  -8.0  3.46s
+  poorwill                         x3  mmax  -19.9  tp  -9.1  4.43s
+  frogs_night                      x1  mmax  -23.6  tp -12.5  40.00s
+  bullfrog                         x4  mmax  -21.5  tp  -8.2  2.65s
+  wolf_howl                        x4  mmax  -19.6  tp  -7.3  8.80s
+  coyote_chorus                    x4  mmax  -18.2  tp  -6.5  7.29s
+  elk_bugle                        x3  mmax  -20.0  tp -11.6  7.17s
+  cattle_moo_synth                 x4  mmax  -19.6  tp  -7.6  3.33s
+  dog_bark_synth                   x4  mmax  -21.2  tp  -5.9  1.48s
+  rooster                          x2  mmax  -20.3  tp  -8.5  3.47s
+  ui_tick                          x4  mmax  -26.3  tp  -1.2  0.05s
+  ui_select                        x2  mmax  -20.0  tp  -2.0  0.50s
+  ui_back                          x2  mmax  -25.6  tp  -1.4  0.08s
+  ui_error                         x1  mmax  -22.3  tp  -1.0  0.25s
+  ui_page                          x4  mmax  -19.8  tp  -5.7  0.50s
+  ui_map_open                      x2  mmax  -19.6  tp  -5.9  1.00s
+  ui_pencil                        x3  mmax  -20.3  tp  -4.2  0.60s
+  ui_notify                        x1  mmax  -20.0  tp -10.9  1.20s
+  ui_reward                        x1  mmax  -20.0  tp  -9.4  1.00s
+  nerve_in                         x1  mmax  -18.0  tp  -9.4  2.20s
+  nerve_out                        x1  mmax  -18.0  tp  -6.5  0.70s
+  nerve_heartbeat                  x1  mmax  -20.0  tp  -6.5  1.00s
+  nerve_mark                       x3  mmax  -18.0  tp  -2.1  0.70s
+  low_health_heartbeat             x1  mmax  -24.0  tp -10.4  1.00s
+sfx: 185 sounds in 69.6 s
+  music main_theme                   4 stems    80.0s  mix  -17.0 LUFS  tp  -2.3
+  music explore_plains_day           4 stems    83.5s  mix  -17.0 LUFS  tp  -4.1
+  music explore_plains_night         3 stems    87.3s  mix  -17.0 LUFS  tp  -4.7
+  music explore_desert_day           4 stems    96.0s  mix  -17.0 LUFS  tp  -1.8
+  music explore_mountains_day        4 stems    91.4s  mix  -17.0 LUFS  tp  -3.0
+  music explore_night                3 stems    66.2s  mix  -17.0 LUFS  tp  -1.6
+  music town                         4 stems    73.8s  mix  -17.0 LUFS  tp  -2.2
+  music tension                      3 stems    50.5s  mix  -17.0 LUFS  tp  -4.8
+  music combat                       4 stems    29.1s  mix  -17.0 LUFS  tp  -3.3
+  music mission_ride                 3 stems    26.7s  mix  -17.0 LUFS  tp  -4.0
+  music mission_heist                3 stems    41.7s  mix  -17.0 LUFS  tp  -1.9
+  music stinger_nerve                1 stems     8.0s  mix  -16.0 LUFS  tp  -4.2
+  music stinger_mission_complete     1 stems     9.5s  mix  -16.0 LUFS  tp  -1.8
+  music stinger_death                1 stems    13.3s  mix  -18.0 LUFS  tp  -7.9
+  music stinger_discovery            1 stems    10.9s  mix  -17.0 LUFS  tp  -4.4
+  music saloon_piano                 1 stems    68.6s  mix  -20.0 LUFS  tp  -4.6
+manifest: 186 sounds, 16 music tracks -> out/audio/manifest.json
+[0;93m2026-10-05 09:11:41.035261687 [W:onnxruntime:Default, device_discovery.cc:146 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
+  voice greet_howdy__man_rough               man_rough    0.92s  6 visemes
+  voice greet_howdy__man_town                man_town     0.98s  6 visemes
+  voice greet_howdy__man_young               man_young    0.82s  6 visemes
+  voice greet_howdy__man_old                 man_old      0.95s  6 visemes
+  voice greet_maam__man_town                 man_town     1.54s  12 visemes
+  voice greet_maam__lawman                   lawman       1.24s  12 visemes
+  voice greet_maam__shopkeeper               shopkeeper   1.47s  12 visemes
+  voice greet_maam__man_old                  man_old      1.54s  12 visemes
+  voice greet_morning__man_town              man_town     1.04s  7 visemes
+  voice greet_morning__woman_town            woman_town   0.96s  7 visemes
+  voice greet_morning__man_old               man_old      1.07s  7 visemes
+  voice greet_morning__woman_old             woman_old    1.50s  7 visemes
+  voice greet_fine_day__man_town             man_town     1.49s  13 visemes
+  voice greet_fine_day__woman_town           woman_town   1.34s  13 visemes
+  voice greet_fine_day__man_old              man_old      1.62s  13 visemes
+  voice greet_new_face__woman_town           woman_town   2.50s  31 visemes
+  voice greet_new_face__shopkeeper           shopkeeper   2.69s  31 visemes
+  voice greet_new_face__man_old              man_old      2.85s  31 visemes
+  voice greet_hat__man_rough                 man_rough    0.96s  4 visemes
+  voice greet_hat__lawman                    lawman       0.81s  4 visemes
+  voice greet_hat__man_young                 man_young    0.78s  4 visemes
+  voice bye_care__woman_town                 woman_town   1.43s  13 visemes
+  voice bye_care__woman_old                  woman_old    2.01s  13 visemes
+  voice bye_care__shopkeeper                 shopkeeper   1.43s  13 visemes
+  voice bye_road__man_old                    man_old      2.33s  24 visemes
+  voice bye_road__man_town                   man_town     2.35s  24 visemes
+  voice insult_lost__man_rough               man_rough    1.62s  13 visemes
+  voice insult_lost__man_young               man_young    1.28s  13 visemes
+  voice insult_gun__man_rough                man_rough    2.81s  29 visemes
+  voice insult_back__man_rough               man_rough    2.06s  22 visemes
+  voice insult_back__man_town                man_town     1.96s  22 visemes
+  voice insult_stare__man_rough              man_rough    1.51s  13 visemes
+  voice insult_stare__man_young              man_young    1.26s  13 visemes
+  voice insult_stare__woman_town             woman_town   1.28s  13 visemes
+  voice alarm_gunfire__man_town              man_town     1.71s  18 visemes
+  voice alarm_gunfire__woman_town            woman_town   1.63s  18 visemes
+  voice alarm_gunfire__shopkeeper            shopkeeper   1.79s  18 visemes
+  voice alarm_sheriff__woman_town            woman_town   1.63s  19 visemes
+  voice alarm_sheriff__man_old               man_old      1.90s  19 visemes
+  voice alarm_sheriff__man_town              man_town     1.81s  19 visemes
+  voice alarm_run__man_young                 man_young    1.21s  12 visemes
+  voice alarm_run__woman_town                woman_town   1.31s  12 visemes
+  voice hands_dont_shoot__man_town           man_town     1.55s  18 visemes
+  voice hands_dont_shoot__man_young          man_young    1.33s  18 visemes
+  voice hands_dont_shoot__shopkeeper         shopkeeper   1.49s  18 visemes
+  voice hands_dont_shoot__woman_town         woman_town   1.43s  18 visemes
+  voice hands_unarmed__man_rough             man_rough    2.16s  25 visemes
+  voice hands_unarmed__man_town              man_town     2.36s  25 visemes
+  voice hands_take_it__shopkeeper            shopkeeper   2.02s  27 visemes
+  voice hands_take_it__man_old               man_old      2.29s  27 visemes
+  voice threat_walk__man_rough               man_rough    1.31s  9 visemes
+  voice threat_walk__lawman                  lawman       1.13s  9 visemes
+  voice threat_regret__man_rough             man_rough    1.69s  17 visemes
+  voice threat_regret__man_young             man_young    1.42s  17 visemes
+  voice threat_last__man_rough               man_rough    1.42s  11 visemes
+  voice threat_last__lawman                  lawman       1.10s  11 visemes
+  voice shop_help__shopkeeper                shopkeeper   1.49s  14 visemes
+  voice shop_fresh__shopkeeper               shopkeeper   2.77s  36 visemes
+  voice shop_price__shopkeeper               shopkeeper   2.00s  17 visemes
+  voice shop_thanks__shopkeeper              shopkeeper   1.68s  16 visemes
+  voice shop_nothing__shopkeeper             shopkeeper   2.11s  22 visemes
+  voice law_holster__lawman                  lawman       2.24s  28 visemes
+  voice law_arrest__lawman                   lawman       2.19s  28 visemes
+  voice law_easy__lawman                     lawman       2.06s  26 visemes
+  voice combat_flank__man_rough              man_rough    1.08s  7 visemes
+  voice combat_flank__lawman                 lawman       0.87s  7 visemes
+  voice combat_hit__man_rough                man_rough    1.04s  6 visemes
+  voice combat_hit__man_young                man_young    0.87s  6 visemes
+  voice combat_hit__lawman                   lawman       0.87s  6 visemes
+  voice combat_reload__man_rough             man_rough    1.16s  9 visemes
+  voice combat_reload__lawman                lawman       0.92s  9 visemes
+  voice combat_where__man_rough              man_rough    1.38s  10 visemes
+  voice combat_where__man_young              man_young    1.07s  10 visemes
+  voice combat_creek__man_rough              man_rough    1.65s  16 visemes
+  voice combat_down__man_young               man_young    1.05s  10 visemes
+  voice combat_down__man_rough               man_rough    1.28s  10 visemes
+  voice surrender_yield__man_rough           man_rough    1.82s  20 visemes
+  voice surrender_yield__man_young           man_young    1.46s  20 visemes
+  voice horse_whoa__man_town                 man_town     1.30s  11 visemes
+  voice horse_whoa__man_old                  man_old      1.40s  11 visemes
+  voice horse_whoa__man_young                man_young    1.22s  11 visemes
+  voice saloon_drink__man_rough              man_rough    1.78s  17 visemes
+  voice saloon_drink__man_town               man_town     1.65s  17 visemes
+  voice saloon_cards__man_old                man_old      2.52s  24 visemes
+  voice saloon_cards__man_town               man_town     2.60s  24 visemes
+  voice weather_rain__man_old                man_old      2.07s  20 visemes
+  voice weather_rain__woman_old              woman_old    2.60s  20 visemes
+  voice weather_rain__man_town               man_town     1.92s  20 visemes
+  voice camp_hap_stew                        hap          5.15s  57 visemes
+  voice camp_hap_respect                     hap          6.62s  72 visemes
+  voice camp_hap_shy                         hap          6.68s  66 visemes
+  voice camp_hap_poster                      hap          7.33s  78 visemes
+  voice camp_hap_meat                        hap          5.84s  68 visemes
+  voice camp_hap_cold                        hap          5.69s  62 visemes
+  voice camp_del_solitaire                   del          5.33s  64 visemes
+  voice camp_del_rich                        del          5.84s  77 visemes
+  voice camp_del_poor                        del          5.89s  73 visemes
+  voice camp_del_merrow                      del          5.91s  76 visemes
+  voice camp_del_robbery                     del          4.84s  59 visemes
+  voice camp_doc_reading                     doc          6.23s  62 visemes
+  voice camp_doc_drinking                    doc          5.69s  59 visemes
+  voice camp_doc_ines                        doc          6.61s  69 visemes
+  voice camp_doc_ines_hitch                  doc          5.63s  51 visemes
+  voice camp_doc_innocents                   doc          5.95s  66 visemes
+  voice camp_billy_mare                      billy        5.40s  68 visemes
+  voice camp_billy_worth                     billy        6.72s  84 visemes
+  voice camp_billy_swing                     billy        5.21s  65 visemes
+  voice camp_billy_pelt                      billy        4.04s  56 visemes
+  voice camp_billy_cholera                   billy        3.50s  45 visemes
+  voice camp_joseph_paper                    joseph       7.39s  80 visemes
+  voice camp_joseph_cinch                    joseph       6.10s  67 visemes
+  voice camp_joseph_asa                      joseph       5.34s  59 visemes
+  voice camp_joseph_snow                     joseph       4.82s  52 visemes
+  voice camp_joseph_name                     joseph       5.79s  64 visemes
+  voice camp_first_night_1                   hap          7.26s  83 visemes
+  voice camp_first_night_2                   billy        1.76s  20 visemes
+  voice camp_first_night_3                   ruth         2.26s  21 visemes
+  voice camp_del_hymns_1                     hap          3.54s  39 visemes
+  voice camp_del_hymns_2                     del          3.88s  52 visemes
+  voice camp_del_hymns_3                     ruth         2.03s  21 visemes
+  voice camp_del_hymns_4                     hap          1.80s  15 visemes
+  voice camp_poster_1                        del          5.91s  78 visemes
+  voice camp_poster_2                        hap          2.32s  23 visemes
+  voice camp_poster_3                        ruth         4.44s  45 visemes
+  voice camp_robbery_1                       hap          3.00s  28 visemes
+  voice camp_robbery_2                       ruth         1.27s  9 visemes
+  voice camp_robbery_3                       hap          5.08s  55 visemes
+  voice camp_murder_1                        doc          5.29s  63 visemes
+  voice camp_murder_2                        ruth         1.79s  19 visemes
+  voice camp_murder_3                        doc          5.56s  55 visemes
+  voice camp_murder_hap_1                    hap          5.68s  55 visemes
+  voice camp_murder_hap_2                    ruth         1.67s  15 visemes
+  voice camp_murder_hap_3                    hap          5.73s  56 visemes
+  voice camp_respected_1                     hap          5.41s  57 visemes
+  voice camp_respected_2                     joseph       2.61s  35 visemes
+  voice camp_respected_3                     ruth         1.34s  12 visemes
+  voice camp_respected_4                     hap          2.52s  27 visemes
+  voice camp_respected_hap_1                 hap          7.33s  77 visemes
+  voice camp_respected_hap_2                 ruth         1.72s  17 visemes
+  voice camp_respected_hap_3                 hap          5.84s  62 visemes
+  voice camp_notorious_1                     del          2.18s  26 visemes
+  voice camp_notorious_2                     doc          6.81s  66 visemes
+  voice camp_notorious_3                     ruth         1.94s  21 visemes
+  voice camp_notorious_4                     del          4.61s  54 visemes
+  voice camp_cutter_jailed_1                 hap          5.86s  61 visemes
+  voice camp_cutter_jailed_2                 del          4.20s  52 visemes
+  voice camp_cutter_jailed_3                 ruth         6.04s  54 visemes
+  voice camp_cutter_dead_1                   billy        2.60s  31 visemes
+  voice camp_cutter_dead_2                   doc          5.49s  53 visemes
+  voice camp_cutter_dead_3                   ruth         2.71s  25 visemes
+  voice camp_doc_sober_1                     del          4.63s  60 visemes
+  voice camp_doc_sober_2                     doc          7.70s  82 visemes
+  voice camp_doc_sober_3                     ruth         1.34s  12 visemes
+  voice camp_doc_drink_1                     hap          1.96s  14 visemes
+  voice camp_doc_drink_2                     doc          5.55s  67 visemes
+  voice camp_doc_drink_3                     ruth         4.95s  49 visemes
+  voice camp_hunting_1                       billy        4.21s  54 visemes
+  voice camp_hunting_2                       hap          4.13s  45 visemes
+  voice camp_hunting_3                       ruth         2.44s  26 visemes
+  voice camp_papers_1                        billy        2.05s  27 visemes
+  voice camp_papers_2                        joseph       5.77s  72 visemes
+  voice camp_papers_3                        billy        1.36s  15 visemes
+  voice camp_papers_4                        ruth         1.51s  14 visemes
+  voice camp_asa_spared_1                    hap          4.03s  43 visemes
+  voice camp_asa_spared_2                    ruth         1.78s  14 visemes
+  voice camp_asa_spared_3                    hap          9.53s  102 visemes
+  voice camp_asa_killed_1                    doc          5.33s  58 visemes
+  voice camp_asa_killed_2                    joseph       1.76s  19 visemes
+  voice camp_asa_killed_3                    ruth         1.61s  14 visemes
+  voice camp_asa_killed_4                    joseph       0.89s  5 visemes
+  voice camp_drive_1                         billy        1.84s  21 visemes
+  voice camp_drive_2                         hap          4.91s  54 visemes
+  voice camp_drive_3                         billy        2.37s  31 visemes
+  voice camp_rich_1                          del          4.07s  48 visemes
+  voice camp_rich_2                          ruth         1.34s  12 visemes
+  voice camp_rich_3                          del          4.35s  55 visemes
+  voice camp_poor_1                          hap          4.55s  47 visemes
+  voice camp_poor_2                          ruth         1.67s  15 visemes
+  voice camp_poor_3                          hap          4.77s  48 visemes
+  voice camp_tom_1                           hap          2.28s  22 visemes
+  voice camp_tom_2                           ruth         7.53s  63 visemes
+  voice camp_tom_3                           hap          2.71s  32 visemes
+  voice camp_tom_4                           ruth         3.70s  36 visemes
+  voice camp_hap_winter_1                    joseph       3.73s  41 visemes
+  voice camp_hap_winter_2                    hap          5.84s  64 visemes
+  voice camp_hap_winter_3                    ruth         3.94s  36 visemes
+  voice camp_hap_pettigrew                   hap          8.80s  95 visemes
+  voice camp_hap_widow                       hap          7.21s  75 visemes
+  voice camp_hap_widow_alone                 hap          6.07s  65 visemes
+  voice camp_doc_bundy                       doc          9.36s  96 visemes
+  voice camp_doc_ortiz                       doc          8.47s  83 visemes
+  voice camp_doc_barrels                     doc          9.60s  91 visemes
+  voice camp_doc_truce                       doc          8.15s  83 visemes
+  voice camp_del_crane                       del          7.21s  84 visemes
+  voice camp_del_crane_out                   del          6.83s  87 visemes
+  voice camp_del_marvel                      del          6.19s  73 visemes
+  voice camp_del_marvel_bean                 del          6.95s  84 visemes
+  voice camp_del_plate                       del          8.28s  96 visemes
+  voice camp_billy_novel                     billy        5.52s  68 visemes
+  voice camp_billy_canteen                   billy        6.24s  77 visemes
+  voice camp_joseph_map                      joseph       9.66s  99 visemes
+  voice camp_joseph_book                     joseph       6.95s  77 visemes
+  voice camp_comet_1                         joseph       3.75s  45 visemes
+  voice camp_comet_2                         ruth         7.71s  61 visemes
+  voice camp_comet_3                         joseph       5.86s  62 visemes
+  voice camp_comet_4                         ruth         3.05s  32 visemes
+  voice camp_pip_1                           billy        6.90s  86 visemes
+  voice camp_pip_2                           ruth         5.81s  51 visemes
+  voice camp_pip_3                           billy        2.73s  32 visemes
+  voice camp_pip_4                           ruth         2.35s  27 visemes
+  voice camp_pip_rourke_1                    billy        4.16s  53 visemes
+  voice camp_pip_rourke_2                    del          5.76s  73 visemes
+  voice camp_pip_rourke_3                    ruth         2.12s  24 visemes
+  voice camp_locomobile_1                    billy        4.39s  55 visemes
+  voice camp_locomobile_2                    hap          4.48s  48 visemes
+  voice camp_locomobile_3                    ruth         5.60s  57 visemes
+  voice camp_locomobile_no_1                 billy        6.76s  86 visemes
+  voice camp_locomobile_no_2                 ruth         4.62s  42 visemes
+  voice camp_hap_crew_wire                   hap          6.10s  63 visemes
+  voice camp_hap_crew_sang                   hap          7.07s  75 visemes
+  voice camp_del_paid                        del          6.55s  83 visemes
+  voice camp_del_ticket                      del          6.53s  78 visemes
+  voice camp_doc_answered                    doc          7.53s  82 visemes
+  voice camp_doc_burned                      doc          8.23s  82 visemes
+  voice camp_billy_paid                      billy        5.50s  74 visemes
+  voice camp_billy_taken                     billy        6.13s  78 visemes
+  voice camp_joseph_false                    joseph       5.41s  63 visemes
+  voice camp_joseph_refused                  joseph       4.41s  50 visemes
+  voice camp_del_stays_1                     billy        3.45s  45 visemes
+  voice camp_del_stays_2                     del          3.67s  44 visemes
+  voice camp_del_stays_3                     ruth         4.77s  48 visemes
+  voice camp_del_stays_4                     del          1.94s  23 visemes
+  voice camp_doc_letter_1                    hap          3.44s  32 visemes
+  voice camp_doc_letter_2                    doc          8.11s  80 visemes
+  voice camp_doc_letter_3                    ruth         2.53s  27 visemes
+  voice camp_joseph_own_1                    joseph       7.01s  75 visemes
+  voice camp_joseph_own_2                    ruth         1.14s  8 visemes
+  voice camp_joseph_own_3                    joseph       6.37s  64 visemes
+  voice camp_billy_example_1                 billy        4.62s  63 visemes
+  voice camp_billy_example_2                 hap          2.68s  31 visemes
+  voice camp_billy_example_3                 ruth         1.64s  14 visemes
+  voice camp_act_stew                        hap          3.73s  44 visemes
+  voice camp_act_stew_again                  hap          4.74s  56 visemes
+  voice camp_act_coffee                      doc          5.91s  57 visemes
+  voice camp_act_whiskey                     doc          5.73s  60 visemes
+  voice camp_act_deal                        del          4.12s  49 visemes
+  voice camp_act_del_won                     del          4.07s  47 visemes
+  voice camp_act_del_lost                    del          3.56s  50 visemes
+  voice c1_rider_01                          ruth         4.66s  46 visemes
+  voice c1_rider_02                          ruth         4.57s  37 visemes
+  voice c1_rider_03                          newsboy      6.57s  72 visemes
+  voice c1_rider_04                          ruth         4.68s  46 visemes
+  voice c1_rider_05                          stablehand   4.35s  52 visemes
+  voice c1_rider_06                          ruth         3.07s  30 visemes
+  voice c1_drover_01                         tough1       4.68s  51 visemes
+  voice c1_drover_02                         tough2       4.57s  45 visemes
+  voice c1_drover_03                         ruth         2.33s  24 visemes
+  voice c1_drover_04                         tough1       4.48s  50 visemes
+  voice c1_drover_05                         ruth         3.67s  37 visemes
+  voice c1_drover_06                         hap          3.68s  37 visemes
+  voice c1_drover_07                         ruth         4.93s  47 visemes
+  voice c1_drover_08                         hap          8.69s  95 visemes
+  voice c1_drover_09                         ruth         2.95s  28 visemes
+  voice c1_drover_10                         hap          5.54s  54 visemes
+  voice c1_drover_11                         ruth         6.41s  61 visemes
+  voice bark_greet_01                        townsfolk    1.30s  8 visemes
+  voice bark_greet_02                        townsfolk    0.94s  4 visemes
+  voice bark_greet_03                        townsfolk    1.71s  18 visemes
+  voice bark_alarm_01                        townsfolk    2.94s  30 visemes
+  voice bark_alarm_02                        townsfolk    1.58s  14 visemes
+  voice bark_hostile_01                      gunman       2.02s  17 visemes
+  voice bark_hostile_02                      gunman       1.95s  20 visemes
+  voice bark_hostile_03                      gunman       1.93s  16 visemes
+  voice bark_surrender_01                    gunman       2.72s  30 visemes
+  voice c1_inq_01                            bartender    4.46s  49 visemes
+  voice c1_inq_02                            ruth         5.04s  46 visemes
+  voice c1_inq_03                            bartender    6.28s  72 visemes
+  voice c1_inq_04                            ruth         1.07s  8 visemes
+  voice c1_inq_05                            bartender    6.77s  71 visemes
+  voice c1_inq_06                            gambler      5.08s  59 visemes
+  voice c1_inq_07                            ruth         7.87s  76 visemes
+  voice c1_inq_08                            mabry        8.12s  83 visemes
+  voice c1_inq_09                            ruth         2.57s  27 visemes
+  voice c1_inq_10                            mabry        7.42s  84 visemes
+  voice c1_inq_11                            ruth         1.70s  18 visemes
+  voice c1_inq_12                            mabry        4.01s  46 visemes
+  voice c1_inq_13                            ruth         4.13s  42 visemes
+  voice c1_greer_01                          greer        3.50s  47 visemes
+  voice c1_greer_02                          ruth         5.27s  54 visemes
+  voice c1_greer_03                          greer        4.29s  57 visemes
+  voice c1_greer_04                          ruth         2.64s  30 visemes
+  voice c1_greer_05                          greer        7.27s  99 visemes
+  voice c1_greer_06                          shale_man    2.66s  26 visemes
+  voice c1_greer_07                          ruth         5.54s  51 visemes
+  voice c1_greer_08                          survivor     4.16s  54 visemes
+  voice c1_greer_09                          ruth         5.47s  51 visemes
+  voice c1_fire_01                           hap          2.78s  27 visemes
+  voice c1_fire_02                           ruth         2.91s  32 visemes
+  voice c1_fire_03                           hap          2.33s  25 visemes
+  voice c1_fire_04                           billy        3.87s  46 visemes
+  voice c1_fire_05                           ruth         1.90s  17 visemes
+  voice c1_fire_06                           billy        3.37s  45 visemes
+  voice c1_fire_07                           ruth         2.69s  27 visemes
+  voice c1_fire_08                           hap          4.19s  45 visemes
+  voice c1_fire_09                           ruth         5.89s  52 visemes
+  voice c1_fire_10                           ruth         4.98s  55 visemes
+  voice c2_lan_01                            ruth         9.11s  77 visemes
+  voice c2_lan_02                            ruth         4.80s  43 visemes
+  voice c2_lan_03                            ebbing       5.12s  56 visemes
+  voice c2_lan_04                            snell        4.90s  50 visemes
+  voice c2_lan_05                            fenn         6.95s  75 visemes
+  voice c2_lan_06                            ruth         4.32s  44 visemes
+  voice c2_lan_07                            ebbing       5.07s  63 visemes
+  voice c2_lan_08                            ruth        10.28s  92 visemes
+  voice c2_lan_09                            snell        4.19s  47 visemes
+  voice c2_lan_10                            ebbing       4.35s  46 visemes
+  voice c2_lan_11                            ruth         4.77s  46 visemes
+  voice c2_lan_12                            ebbing       3.10s  31 visemes
+  voice c2_lan_13                            fenn         6.68s  71 visemes
+  voice c2_lan_14                            ruth         5.51s  49 visemes
+  voice c2_lan_15                            fenn         6.98s  68 visemes
+  voice c2_lan_16                            ruth         1.27s  10 visemes
+  voice c2_lan_17                            fenn         8.96s  94 visemes
+  voice c2_lan_18                            fenn         8.66s  96 visemes
+  voice c2_lan_19                            ruth         2.21s  25 visemes
+  voice c2_lan_20                            fenn         7.40s  83 visemes
+  voice c2_lan_21                            fenn         9.13s  86 visemes
+  voice c2_lan_22                            ruth         1.90s  20 visemes
+  voice c2_lan_23                            fenn         6.27s  67 visemes
+  voice c2_lan_24                            fenn         8.87s  93 visemes
+  voice c2_lan_25                            ruth         1.47s  14 visemes
+  voice c2_lan_26                            fenn         4.33s  45 visemes
+  voice c2_lan_27                            ruth         7.04s  72 visemes
+  voice c2_lan_28                            fenn         4.52s  44 visemes
+  voice c2_lan_29                            ruth         5.38s  51 visemes
+  voice c2_lan_30                            fenn         4.35s  44 visemes
+  voice c2_lan_31                            fenn        10.18s  107 visemes
+  voice c2_lan_32                            ruth         1.90s  17 visemes
+  voice c2_cards_01                          ruth         7.33s  67 visemes
+  voice c2_cards_02                          del          5.14s  63 visemes
+  voice c2_cards_03                          ruth         2.17s  26 visemes
+  voice c2_cards_04                          del          6.95s  84 visemes
+  voice c2_cards_05                          del          8.15s  104 visemes
+  voice c2_cards_06                          del          6.93s  81 visemes
+  voice c2_cards_07                          ruth         1.29s  9 visemes
+  voice c2_cards_08                          del          6.91s  85 visemes
+  voice c2_cards_09                          ruth         1.88s  20 visemes
+  voice c2_cards_10                          del          2.64s  33 visemes
+  voice c2_cards_11                          stroud       5.10s  71 visemes
+  voice c2_cards_12                          merrow       5.49s  59 visemes
+  voice c2_cards_13                          ruth         7.45s  69 visemes
+  voice c2_cards_14                          stroud       3.69s  47 visemes
+  voice c2_cards_15                          del          4.07s  49 visemes
+  voice c2_cards_16                          ruth        10.01s  89 visemes
+  voice c2_cards_17                          ruth         4.19s  42 visemes
+  voice c2_cards_18                          stroud       4.35s  60 visemes
+  voice c2_cards_19                          del          4.93s  61 visemes
+  voice c2_cards_20                          del          5.97s  80 visemes
+  voice c2_cards_21                          stroud       3.16s  37 visemes
+  voice c2_cards_22                          hask         5.55s  61 visemes
+  voice c2_cards_23                          ruth         2.42s  24 visemes
+  voice c2_cards_24                          hask         4.24s  49 visemes
+  voice c2_cards_25                          del          7.07s  81 visemes
+  voice c2_cards_26                          ruth         5.99s  58 visemes
+  voice c2_cards_27                          merrow       7.57s  82 visemes
+  voice c2_cards_28                          ruth         4.35s  40 visemes
+  voice c2_cards_29                          del          4.29s  54 visemes
+  voice c2_cards_30                          del          5.80s  74 visemes
+  voice c2_cards_31                          ruth         8.88s  76 visemes
+  voice c2_cards_32                          del          3.11s  39 visemes
+  voice c2_cards_33                          ruth         5.09s  52 visemes
+  voice c2_cards_34                          del          3.31s  41 visemes
+  voice c2_cards_35                          ruth         8.43s  74 visemes
+  voice c2_thorn_01                          ruth        10.42s  88 visemes
+  voice c2_thorn_02                          billy        4.96s  69 visemes
+  voice c2_thorn_03                          ruth         4.57s  48 visemes
+  voice c2_thorn_04                          billy        4.54s  59 visemes
+  voice c2_thorn_05                          ruth         1.52s  13 visemes
+  voice c2_thorn_06                          billy        6.95s  82 visemes
+  voice c2_thorn_07                          ruth         1.38s  13 visemes
+  voice c2_thorn_08                          billy        3.70s  50 visemes
+  voice c2_thorn_09                          ruth         6.48s  62 visemes
+  voice c2_thorn_10                          billy        3.08s  40 visemes
+  voice c2_thorn_11                          billy        5.78s  79 visemes
+  voice c2_thorn_12                          ruth         2.15s  23 visemes
+  voice c2_thorn_13                          billy        7.22s  92 visemes
+  voice c2_thorn_14                          billy        4.08s  52 visemes
+  voice c2_thorn_15                          tolliver     4.85s  57 visemes
+  voice c2_thorn_16                          cobb         9.92s  112 visemes
+  voice c2_thorn_17                          tolliver     3.73s  41 visemes
+  voice c2_thorn_18                          cobb         4.31s  47 visemes
+  voice c2_thorn_19                          ruth         5.42s  51 visemes
+  voice c2_thorn_20                          tolliver     2.83s  30 visemes
+  voice c2_thorn_21                          ruth         6.95s  63 visemes
+  voice c2_thorn_22                          tolliver     4.04s  43 visemes
+  voice c2_thorn_23                          billy        2.37s  30 visemes
+  voice c2_thorn_24                          cobb         6.83s  75 visemes
+  voice c2_thorn_25                          ruth         5.92s  50 visemes
+  voice c2_thorn_26                          tolliver     2.83s  29 visemes
+  voice c2_thorn_27                          billy        4.96s  67 visemes
+  voice c2_thorn_28                          billy        3.54s  48 visemes
+  voice c2_thorn_29                          ruth         3.90s  41 visemes
+  voice c2_thorn_30                          billy        3.79s  50 visemes
+  voice c2_thorn_31                          ruth         5.58s  57 visemes
+  voice c2_thorn_32                          billy        1.19s  11 visemes
+  voice c2_thorn_33                          ruth         4.71s  44 visemes
+  voice c2_bank_01                           del          5.72s  69 visemes
+  voice c2_bank_02                           ruth         4.62s  47 visemes
+  voice c2_bank_03                           del          4.86s  59 visemes
+  voice c2_bank_04                           ruth         9.71s  87 visemes
+  voice c2_bank_05                           del          7.50s  94 visemes
+  voice c2_bank_06                           ruth         4.01s  45 visemes
+  voice c2_bank_07                           dodd         5.88s  69 visemes
+  voice c2_bank_08                           ruth         7.54s  75 visemes
+  voice c2_bank_09                           dodd         3.54s  41 visemes
+  voice c2_bank_10                           del          5.12s  65 visemes
+  voice c2_bank_11                           del          5.59s  64 visemes
+  voice c2_bank_12                           ruth         8.25s  77 visemes
+  voice c2_bank_13                           ruth         5.63s  55 visemes
+  voice c2_bank_14                           del          5.59s  71 visemes
+  voice c2_bank_15                           ruth         5.00s  50 visemes
+  voice c2_bank_16                           del          2.03s  26 visemes
+  voice c2_bank_17                           ruth         3.07s  34 visemes
+  voice c2_bank_18                           del          6.61s  87 visemes
+  voice c2_bank_19                           deputy       4.57s  58 visemes
+  voice c2_bank_20                           del          4.33s  56 visemes
+  voice c2_bank_21                           del          5.76s  68 visemes
+  voice c2_bank_22                           ruth         3.54s  38 visemes
+  voice c2_bank_23                           del          1.57s  13 visemes
+  voice c2_bank_24                           ruth         4.98s  47 visemes
+  voice c2_bank_25                           ruth         8.19s  71 visemes
+  voice c2_bank_26                           del          5.06s  65 visemes
+  voice c2_bank_27                           ruth         6.86s  69 visemes
+  voice c2_terms_01                          ruth         4.43s  43 visemes
+  voice c2_terms_02                          ruth         7.22s  64 visemes
+  voice c2_terms_03                          fenn         8.02s  85 visemes
+  voice c2_terms_04                          pell        10.24s  111 visemes
+  voice c2_terms_05                          pell         8.60s  91 visemes
+  voice c2_terms_06                          pell         7.17s  81 visemes
+  voice c2_terms_07                          ruth         1.97s  19 visemes
+  voice c2_terms_08                          pell         6.46s  77 visemes
+  voice c2_terms_09                          ruth         1.49s  15 visemes
+  voice c2_terms_10                          pell         9.24s  95 visemes
+  voice c2_terms_11                          pell         7.94s  86 visemes
+  voice c2_terms_12                          ruth         6.70s  65 visemes
+  voice c2_terms_13                          pell         3.58s  36 visemes
+  voice c2_terms_14                          ruth         1.15s  8 visemes
+  voice c2_terms_15                          pell         5.38s  58 visemes
+  voice c2_terms_16                          fenn         4.15s  41 visemes
+  voice c2_terms_17                          ruth         4.39s  48 visemes
+  voice c2_terms_18                          pell         4.99s  55 visemes
+  voice c2_terms_19                          fenn         3.50s  41 visemes
+  voice c2_terms_20                          fenn         6.10s  70 visemes
+  voice c2_terms_21                          ruth         1.18s  7 visemes
+  voice c2_terms_22                          fenn         5.08s  57 visemes
+  voice c2_terms_23                          breck        5.45s  69 visemes
+  voice c2_terms_24                          breck        5.10s  55 visemes
+  voice c2_terms_25                          hap          5.46s  63 visemes
+  voice c2_terms_26                          ruth         1.56s  15 visemes
+  voice c2_terms_27                          hap          4.98s  58 visemes
+  voice c2_terms_28                          del          6.40s  80 visemes
+  voice c2_terms_29                          billy        3.47s  47 visemes
+  voice c2_terms_30                          billy        2.05s  27 visemes
+  voice c2_terms_31                          ruth         2.53s  22 visemes
+  voice c2_terms_32                          ruth         9.49s  77 visemes
+  voice c2_terms_33                          hap          4.13s  45 visemes
+  voice c2_terms_34                          del          6.02s  72 visemes
+  voice c3_ranch_01                          ruth         7.22s  63 visemes
+  voice c3_ranch_02                          ingrid       7.33s  75 visemes
+  voice c3_ranch_03                          ruth         7.58s  72 visemes
+  voice c3_ranch_04                          ingrid       8.82s  95 visemes
+  voice c3_ranch_05                          ruth         5.72s  52 visemes
+  voice c3_ranch_06                          ingrid       9.90s  105 visemes
+  voice c3_ranch_07                          teodoro      5.06s  68 visemes
+  voice c3_ranch_08                          ingrid       6.04s  66 visemes
+  voice c3_ranch_09                          ruth         3.11s  34 visemes
+  voice c3_ranch_10                          kett         8.86s  106 visemes
+  voice c3_ranch_11                          ingrid       4.44s  45 visemes
+  voice c3_ranch_12                          kett         2.99s  32 visemes
+  voice c3_ranch_13                          ruth         3.38s  32 visemes
+  voice c3_ranch_14                          ruth         4.55s  46 visemes
+  voice c3_ranch_15                          kett         3.67s  45 visemes
+  voice c3_ranch_16                          ruth         5.56s  59 visemes
+  voice c3_ranch_17                          kett         3.01s  33 visemes
+  voice c3_ranch_18                          ingrid       8.09s  84 visemes
+  voice c3_ranch_19                          ruth         6.39s  61 visemes
+  voice c3_ranch_20                          ingrid       9.92s  106 visemes
+  voice c3_ranch_21                          ingrid      10.06s  111 visemes
+  voice c3_ranch_22                          ruth         2.03s  23 visemes
+  voice c3_ranch_23                          ingrid       6.94s  74 visemes
+  voice c3_ranch_24                          ruth         2.84s  30 visemes
+  voice c3_ranch_25                          ingrid       6.59s  70 visemes
+  voice c3_ranch_26                          ruth         4.91s  51 visemes
+  voice c3_ranch_27                          ingrid       4.44s  44 visemes
+  voice c3_ranch_28                          ingrid       9.25s  104 visemes
+  voice c3_ranch_29                          ruth         2.21s  24 visemes
+  voice c3_ranch_30                          teodoro      5.36s  73 visemes
+  voice c3_ranch_31                          ingrid       8.03s  88 visemes
+  voice c3_doc_01                            ruth         6.52s  55 visemes
+  voice c3_doc_02                            rosa         2.37s  28 visemes
+  voice c3_doc_03                            ruth         1.72s  18 visemes
+  voice c3_doc_04                            rosa         9.68s  115 visemes
+  voice c3_doc_05                            mateo        5.42s  51 visemes
+  voice c3_doc_06                            ines         2.39s  31 visemes
+  voice c3_doc_07                            rosa         5.99s  72 visemes
+  voice c3_doc_08                            ruth         1.47s  13 visemes
+  voice c3_doc_09                            fausto       5.56s  72 visemes
+  voice c3_doc_10                            doc          8.43s  88 visemes
+  voice c3_doc_11                            ruth         5.58s  51 visemes
+  voice c3_doc_12                            doc          8.04s  78 visemes
+  voice c3_doc_13                            barlow       6.75s  72 visemes
+  voice c3_doc_14                            ruth         4.28s  47 visemes
+  voice c3_doc_15                            barlow       3.47s  31 visemes
+  voice c3_doc_16                            ruth         5.49s  56 visemes
+  voice c3_doc_17                            barlow       4.02s  44 visemes
+  voice c3_doc_18                            doc          3.92s  40 visemes
+  voice c3_doc_19                            doc          2.91s  30 visemes
+  voice c3_doc_20                            ruth         1.41s  12 visemes
+  voice c3_doc_21                            doc          8.21s  80 visemes
+  voice c3_doc_22                            doc          7.53s  83 visemes
+  voice c3_doc_23                            ruth         2.48s  25 visemes
+  voice c3_doc_24                            doc          3.52s  35 visemes
+  voice c3_doc_25                            ruth         3.52s  36 visemes
+  voice c3_doc_26                            doc          2.54s  27 visemes
+  voice c3_doc_27                            ruth         4.35s  44 visemes
+  voice c3_doc_28                            doc          3.20s  34 visemes
+  voice c3_doc_29                            doc          5.33s  54 visemes
+  voice c3_doc_30                            rosa         6.29s  80 visemes
+  voice c3_doc_31                            doc          4.78s  57 visemes
+  voice c3_doc_32                            ruth         5.99s  55 visemes
+  voice c3_doc_33                            doc          2.82s  30 visemes
+  voice c3_doc_34                            ruth         3.52s  39 visemes
+  voice c3_doc_35                            doc          7.32s  77 visemes
+  voice c3_doc_36                            mateo       12.07s  129 visemes
+  voice c3_doc_37                            ruth         5.96s  58 visemes
+  voice c3_doc_38                            rosa         3.71s  45 visemes
+  voice c3_drive_01                          billy        6.76s  81 visemes
+  voice c3_drive_02                          teodoro      6.09s  77 visemes
+  voice c3_drive_03                          ruth         8.39s  63 visemes
+  voice c3_drive_04                          billy        4.02s  55 visemes
+  voice c3_drive_05                          teodoro      7.47s  95 visemes
+  voice c3_drive_06                          billy        5.17s  66 visemes
+  voice c3_drive_07                          ruth         5.51s  53 visemes
+  voice c3_drive_08                          ruth         5.42s  47 visemes
+  voice c3_drive_09                          teodoro      2.53s  31 visemes
+  voice c3_drive_10                          billy        2.01s  27 visemes
+  voice c3_drive_11                          teodoro      4.56s  61 visemes
+  voice c3_drive_12                          teodoro      3.85s  48 visemes
+  voice c3_drive_13                          billy        5.52s  73 visemes
+  voice c3_drive_14                          ruth         1.11s  7 visemes
+  voice c3_drive_15                          billy        1.74s  26 visemes
+  voice c3_drive_16                          billy        4.77s  61 visemes
+  voice c3_drive_17                          teodoro      3.33s  41 visemes
+  voice c3_drive_18                          dunphy       4.92s  56 visemes
+  voice c3_drive_19                          ruth         5.81s  57 visemes
+  voice c3_drive_20                          teodoro      2.12s  28 visemes
+  voice c3_drive_21                          mateo        6.14s  59 visemes
+  voice c3_drive_22                          billy        1.38s  15 visemes
+  voice c3_drive_23                          ruth         4.71s  43 visemes
+  voice c3_drive_24                          ruth         3.94s  36 visemes
+  voice c3_drive_25                          teodoro      2.47s  33 visemes
+  voice c3_drive_26                          billy        4.50s  55 visemes
+  voice c3_drive_27                          ruth         1.58s  15 visemes
+  voice c3_drive_28                          ruth         7.40s  63 visemes
+  voice c3_drive_29                          billy        2.95s  39 visemes
+  voice c3_drive_30                          ruth         7.36s  65 visemes
+  voice c3_rights_01                         ruth         7.04s  73 visemes
+  voice c3_rights_02                         cutter       5.51s  61 visemes
+  voice c3_rights_03                         ruth         2.62s  28 visemes
+  voice c3_rights_04                         cutter       6.99s  79 visemes
+  voice c3_rights_05                         cutter      10.42s  120 visemes
+  voice c3_rights_06                         mateo        4.97s  55 visemes
+  voice c3_rights_07                         cutter       6.28s  72 visemes
+  voice c3_rights_08                         doc          6.40s  61 visemes
+  voice c3_rights_09                         cutter       6.17s  69 visemes
+  voice c3_rights_10                         ruth         4.64s  49 visemes
+  voice c3_rights_11                         cutter       4.41s  49 visemes
+  voice c3_rights_12                         ruth         6.39s  61 visemes
+  voice c3_rights_13                         cutter       5.71s  67 visemes
+  voice c3_rights_14                         rosa         2.22s  25 visemes
+  voice c3_rights_15                         ruth         7.11s  60 visemes
+  voice c3_rights_16                         doc          5.23s  53 visemes
+  voice c3_rights_17                         mateo        6.16s  69 visemes
+  voice c3_rights_18                         ruth         6.39s  58 visemes
+  voice c3_rights_19                         rosa         2.82s  30 visemes
+  voice c3_rights_20                         ruth         4.37s  43 visemes
+  voice c3_rights_21                         mateo        6.16s  56 visemes
+  voice c3_rights_22                         ruth         2.12s  21 visemes
+  voice c3_rights_23                         doc          7.36s  78 visemes
+  voice c3_rights_24                         ruth         1.88s  19 visemes
+  voice c3_rights_25                         rosa         5.38s  69 visemes
+  voice c3_rights_26                         doc          6.44s  70 visemes
+  voice c3_rights_27                         cutter       4.26s  50 visemes
+  voice c3_rights_28                         ines         3.20s  41 visemes
+  voice c3_rights_29                         ruth         4.41s  42 visemes
+  voice c3_fork_01                           del          6.91s  79 visemes
+  voice c3_fork_02                           ruth         6.05s  63 visemes
+  voice c3_fork_03                           del          3.95s  48 visemes
+  voice c3_fork_04                           ruth         6.48s  58 visemes
+  voice c3_fork_05                           sentry       3.23s  31 visemes
+  voice c3_fork_06                           ruth         7.00s  68 visemes
+  voice c3_fork_07                           cutter       5.01s  52 visemes
+  voice c3_fork_08                           cutter       5.38s  60 visemes
+  voice c3_fork_09                           ruth         5.72s  57 visemes
+  voice c3_fork_10                           cutter      10.77s  116 visemes
+  voice c3_fork_11                           ruth         6.20s  64 visemes
+  voice c3_fork_12                           cutter       5.14s  58 visemes
+  voice c3_fork_13                           del          1.77s  20 visemes
+  voice c3_fork_14                           ruth         3.27s  35 visemes
+  voice c3_fork_15                           del          3.96s  47 visemes
+  voice c3_fork_16                           cutter       4.08s  45 visemes
+  voice c3_fork_17                           dunphy       4.59s  49 visemes
+  voice c3_fork_18                           cutter       2.04s  20 visemes
+  voice c3_fork_19                           mabry        2.93s  31 visemes
+  voice c3_fork_20                           ruth         3.36s  30 visemes
+  voice c3_fork_21                           mabry        7.13s  77 visemes
+  voice c3_fork_22                           mabry        7.13s  80 visemes
+  voice c3_fork_23                           del          4.18s  43 visemes
+  voice c3_fork_24                           hap          4.40s  45 visemes
+  voice c3_fork_25                           hap          4.79s  51 visemes
+  voice c3_fork_26                           doc          7.15s  77 visemes
+  voice c3_fork_27                           doc          5.99s  63 visemes
+  voice c3_fork_28                           billy        1.84s  22 visemes
+  voice c3_fork_29                           ruth         1.77s  16 visemes
+  voice c3_fork_30                           billy        3.31s  43 visemes
+  voice c3_fork_31                           ruth         2.28s  23 visemes
+  voice c3_fork_32                           ruth         7.75s  59 visemes
+  voice c3_fork_33                           hap          5.91s  61 visemes
+  voice c4_cold_01                           ruth         8.34s  76 visemes
+  voice c4_cold_02                           joseph       8.26s  87 visemes
+  voice c4_cold_03                           joseph       8.30s  86 visemes
+  voice c4_cold_04                           ruth         5.56s  59 visemes
+  voice c4_cold_05                           joseph       7.35s  81 visemes
+  voice c4_cold_06                           joseph       7.08s  79 visemes
+  voice c4_cold_07                           ruth         2.17s  22 visemes
+  voice c4_cold_08                           joseph       8.39s  98 visemes
+  voice c4_cold_09                           ruth         1.32s  9 visemes
+  voice c4_cold_10                           joseph       7.40s  86 visemes
+  voice c4_cold_11                           nora         6.98s  91 visemes
+  voice c4_cold_12                           dai          6.92s  74 visemes
+  voice c4_cold_13                           ashby        7.12s  78 visemes
+  voice c4_cold_14                           ruth         5.65s  58 visemes
+  voice c4_cold_15                           ashby        4.55s  54 visemes
+  voice c4_cold_16                           joseph       6.15s  69 visemes
+  voice c4_cold_17                           ruth         3.12s  34 visemes
+  voice c4_cold_18                           garrity      5.82s  60 visemes
+  voice c4_cold_19                           asa          4.96s  64 visemes
+  voice c4_cold_20                           garrity      6.10s  70 visemes
+  voice c4_cold_21                           nora         7.00s  85 visemes
+  voice c4_cold_22                           ruth         2.01s  20 visemes
+  voice c4_cold_23                           dai          5.58s  63 visemes
+  voice c4_cold_24                           joseph       6.75s  76 visemes
+  voice c4_cold_25                           ruth         3.65s  44 visemes
+  voice c4_cold_26                           joseph       4.50s  55 visemes
+  voice c4_cold_27                           nora         4.24s  57 visemes
+  voice c4_mine_01                           ruth         4.03s  36 visemes
+  voice c4_mine_02                           joseph       6.53s  75 visemes
+  voice c4_mine_03                           ruth         3.52s  40 visemes
+  voice c4_mine_04                           hensley      6.11s  67 visemes
+  voice c4_mine_05                           joseph       0.97s  8 visemes
+  voice c4_mine_06                           nora         3.82s  50 visemes
+  voice c4_mine_07                           joseph       6.48s  70 visemes
+  voice c4_mine_08                           ruth         4.39s  45 visemes
+  voice c4_mine_09                           ruth         6.59s  69 visemes
+  voice c4_mine_10                           rees         4.51s  44 visemes
+  voice c4_mine_11                           dai          6.59s  74 visemes
+  voice c4_mine_12                           nora         4.37s  51 visemes
+  voice c4_mine_13                           hensley      6.77s  77 visemes
+  voice c4_mine_14                           ruth         5.51s  49 visemes
+  voice c4_mine_15                           hensley      4.41s  47 visemes
+  voice c4_mine_16                           joseph       6.75s  68 visemes
+  voice c4_mine_17                           nora         6.11s  68 visemes
+  voice c4_mine_18                           ruth         4.00s  35 visemes
+  voice c4_mine_19                           joseph       6.12s  65 visemes
+  voice c4_mine_20                           garrity      6.74s  81 visemes
+  voice c4_mine_21                           dai          2.88s  29 visemes
+  voice c4_mine_22                           joseph       7.44s  83 visemes
+  voice c4_mine_23                           ruth         1.90s  16 visemes
+  voice c4_mine_24                           joseph       6.44s  69 visemes
+  voice c4_mine_25                           ruth         2.62s  27 visemes
+  voice c4_mine_26                           joseph       3.47s  43 visemes
+  voice c4_pass_01                           joseph       7.81s  96 visemes
+  voice c4_pass_02                           ruth         6.30s  58 visemes
+  voice c4_pass_03                           joseph       5.19s  57 visemes
+  voice c4_pass_04                           joseph       6.75s  73 visemes
+  voice c4_pass_05                           ruth        11.28s  97 visemes
+  voice c4_pass_06                           joseph       5.88s  69 visemes
+  voice c4_pass_07                           asa          2.51s  31 visemes
+  voice c4_pass_08                           joseph       3.37s  42 visemes
+  voice c4_pass_09                           joseph       2.73s  32 visemes
+  voice c4_pass_10                           ruth         2.17s  24 visemes
+  voice c4_pass_11                           joseph       5.27s  58 visemes
+  voice c4_pass_12                           ruth         3.31s  36 visemes
+  voice c4_pass_13                           joseph       6.28s  67 visemes
+  voice c4_pass_14                           joseph       6.44s  75 visemes
+  voice c4_pass_15                           ruth         3.36s  36 visemes
+  voice c4_pass_16                           joseph       1.73s  19 visemes
+  voice c4_pass_17                           joseph       4.41s  56 visemes
+  voice c4_pass_18                           ruth         4.39s  41 visemes
+  voice c4_pass_19                           joseph       8.46s  92 visemes
+  voice c4_pass_20                           ruth         2.33s  27 visemes
+  voice c4_pass_21                           joseph       4.15s  51 visemes
+  voice c4_pass_22                           ruth         1.80s  17 visemes
+  voice c4_pass_23                           joseph       3.66s  42 visemes
+  voice c4_pass_24                           joseph       4.39s  46 visemes
+  voice c4_pass_25                           ruth         4.25s  45 visemes
+  voice c4_asa_01                            ruth         6.75s  66 visemes
+  voice c4_asa_02                            joseph       6.53s  74 visemes
+  voice c4_asa_03                            asa          5.00s  67 visemes
+  voice c4_asa_04                            ruth         6.05s  68 visemes
+  voice c4_asa_05                            asa          5.71s  70 visemes
+  voice c4_asa_06                            joseph       2.41s  27 visemes
+  voice c4_asa_07                            asa          7.05s  93 visemes
+  voice c4_asa_08                            ruth         7.27s  70 visemes
+  voice c4_asa_09                            asa          5.65s  71 visemes
+  voice c4_asa_10                            joseph       7.26s  74 visemes
+  voice c4_asa_11                            ruth         1.74s  15 visemes
+  voice c4_asa_12                            asa          3.10s  40 visemes
+  voice c4_asa_13                            ruth         8.93s  83 visemes
+  voice c4_asa_14                            asa          1.47s  12 visemes
+  voice c4_asa_15                            ruth         7.78s  77 visemes
+  voice c4_asa_16                            ruth         6.91s  68 visemes
+  voice c4_asa_17                            joseph       8.54s  92 visemes
+  voice c4_asa_18                            joseph       4.21s  50 visemes
+  voice c4_asa_19                            joseph       4.82s  47 visemes
+  voice c4_asa_20                            ruth         2.42s  24 visemes
+  voice c4_asa_21                            joseph       2.21s  28 visemes
+  voice c4_asa_22                            asa          5.48s  67 visemes
+  voice c4_asa_23                            ruth         2.46s  28 visemes
+  voice c4_asa_24                            joseph       5.51s  61 visemes
+  voice c4_asa_25                            ruth         5.92s  61 visemes
+  voice c4_strike_01                         nora         5.72s  70 visemes
+  voice c4_strike_02                         dai          4.39s  50 visemes
+  voice c4_strike_03                         ruth         7.18s  65 visemes
+  voice c4_strike_04                         ashby        3.95s  46 visemes
+  voice c4_strike_05                         nora         3.50s  49 visemes
+  voice c4_strike_06                         nora         4.59s  57 visemes
+  voice c4_strike_07                         nora         4.63s  55 visemes
+  voice c4_strike_08                         garrity      8.75s  102 visemes
+  voice c4_strike_09                         ruth         9.92s  90 visemes
+  voice c4_strike_10                         garrity      3.63s  39 visemes
+  voice c4_strike_11                         ruth        10.01s  91 visemes
+  voice c4_strike_12                         garrity      6.66s  78 visemes
+  voice c4_strike_13                         dai          4.15s  43 visemes
+  voice c4_strike_14                         ruth        10.48s  97 visemes
+  voice c4_strike_15                         inspector   11.21s  122 visemes
+  voice c4_strike_16                         garrity      8.28s  91 visemes
+  voice c4_strike_17                         nora         5.99s  75 visemes
+  voice c4_strike_18                         joseph       7.73s  83 visemes
+  voice c4_strike_19                         ruth         8.86s  79 visemes
+  voice c4_strike_20                         joseph       5.84s  66 visemes
+  voice c4_strike_21                         hap          4.63s  49 visemes
+  voice c4_strike_22                         del          5.03s  66 visemes
+  voice c4_strike_23                         doc          4.14s  45 visemes
+  voice c4_strike_24                         billy        5.40s  71 visemes
+  voice c4_strike_25                         joseph       4.46s  52 visemes
+  voice c4_strike_26                         ruth         9.52s  72 visemes
+  voice c4_strike_27                         joseph       2.30s  28 visemes
+  voice c5_plan_01                           fenn        12.50s  139 visemes
+  voice c5_plan_02                           del          6.16s  73 visemes
+  voice c5_plan_03                           hap          8.27s  84 visemes
+  voice c5_plan_04                           ruth         5.64s  51 visemes
+  voice c5_plan_05                           joseph       7.35s  82 visemes
+  voice c5_plan_06                           doc          8.02s  89 visemes
+  voice c5_plan_07                           billy        6.97s  85 visemes
+  voice c5_plan_08                           ruth         7.60s  70 visemes
+  voice c5_plan_09                           hap          7.04s  83 visemes
+  voice c5_plan_10                           del          5.01s  62 visemes
+  voice c5_plan_11                           ruth         6.97s  70 visemes
+  voice c5_plan_12                           hap          9.00s  96 visemes
+  voice c5_plan_13                           del          4.29s  53 visemes
+  voice c5_plan_14                           joseph       4.21s  45 visemes
+  voice c5_plan_15                           joseph       7.93s  87 visemes
+  voice c5_plan_16                           ruth         9.73s  77 visemes
+  voice c5_plan_17                           joseph       2.99s  35 visemes
+  voice c5_plan_18                           ruth         6.68s  60 visemes
+  voice c5_plan_19                           billy        2.35s  32 visemes
+  voice c5_plan_20                           ruth         4.62s  44 visemes
+  voice c5_train_01                          joseph       4.33s  47 visemes
+  voice c5_train_02                          del          6.08s  81 visemes
+  voice c5_train_03                          billy        3.04s  40 visemes
+  voice c5_train_04                          ruth         1.65s  17 visemes
+  voice c5_train_05                          del          6.72s  85 visemes
+  voice c5_train_06                          guard        4.50s  52 visemes
+  voice c5_train_07                          harmon       4.86s  53 visemes
+  voice c5_train_08                          ruth         7.09s  66 visemes
+  voice c5_train_09                          harmon       7.51s  80 visemes
+  voice c5_train_10                          ruth         8.92s  74 visemes
+  voice c5_train_11                          harmon       7.51s  72 visemes
+  voice c5_train_12                          del          2.96s  34 visemes
+  voice c5_train_13                          ruth         3.44s  35 visemes
+  voice c5_train_14                          billy        3.64s  48 visemes
+  voice c5_train_15                          ruth         2.77s  29 visemes
+  voice c5_train_16                          del          5.55s  65 visemes
+  voice c5_train_17                          joseph       3.24s  39 visemes
+  voice c5_train_18                          ashby        4.99s  61 visemes
+  voice c5_train_19                          hap          3.51s  35 visemes
+  voice c5_train_20                          ruth         2.42s  28 visemes
+  voice c5_train_21                          joseph       3.24s  39 visemes
+  voice c5_train_22                          del          2.37s  30 visemes
+  voice c5_train_23                          ruth         5.02s  42 visemes
+  voice c5_train_24                          ruth         3.94s  38 visemes
+  voice c5_owe_01                            doc          6.87s  71 visemes
+  voice c5_owe_02                            ingrid       6.57s  66 visemes
+  voice c5_owe_03                            doc          5.25s  58 visemes
+  voice c5_owe_04                            hap          6.16s  64 visemes
+  voice c5_owe_05                            doc          6.22s  60 visemes
+  voice c5_owe_06                            hap          4.48s  42 visemes
+  voice c5_owe_07                            billy        1.63s  20 visemes
+  voice c5_owe_08                            joseph       7.52s  79 visemes
+  voice c5_owe_09                            ruth         2.58s  24 visemes
+  voice c5_owe_10                            del          2.17s  21 visemes
+  voice c5_owe_11                            billy        4.65s  55 visemes
+  voice c5_owe_12                            ruth         3.01s  26 visemes
+  voice c5_owe_13                            del          5.31s  68 visemes
+  voice c5_owe_14                            joseph       3.39s  44 visemes
+  voice c5_owe_15                            ruth         7.87s  77 visemes
+  voice c5_owe_16                            del          7.09s  87 visemes
+  voice c5_owe_17                            joseph       4.06s  46 visemes
+  voice c5_owe_18                            ruth         5.00s  48 visemes
+  voice c5_owe_19                            joseph       6.37s  66 visemes
+  voice c5_owe_20                            del          4.05s  57 visemes
+  voice c5_owe_21                            doc          5.74s  66 visemes
+  voice c5_owe_22                            ruth        10.00s  72 visemes
+  voice c5_owe_23                            joseph       6.75s  69 visemes
+  voice c5_owe_24                            ingrid       6.25s  67 visemes
+  voice c6_war_01                            asa          4.37s  64 visemes
+  voice c6_war_02                            ruth         2.95s  28 visemes
+  voice c6_war_03                            asa          6.90s  84 visemes
+  voice c6_war_04                            ruth         1.32s  9 visemes
+  voice c6_war_05                            asa          5.89s  68 visemes
+  voice c6_war_06                            billy        5.34s  73 visemes
+  voice c6_war_07                            ruth         7.09s  65 visemes
+  voice c6_war_08                            ruth         3.13s  35 visemes
+  voice c6_war_09                            ruth         5.38s  52 visemes
+  voice c6_war_10                            billy        3.04s  38 visemes
+  voice c6_war_11                            ruth         4.32s  36 visemes
+  voice c6_war_12                            eben         8.07s  92 visemes
+  voice c6_war_13                            doc          5.99s  63 visemes
+  voice c6_war_14                            ruth         6.43s  52 visemes
+  voice c6_eben_01                           ruth         6.27s  55 visemes
+  voice c6_eben_02                           eben         6.00s  68 visemes
+  voice c6_eben_03                           eben         8.15s  97 visemes
+  voice c6_eben_04                           ruth         3.88s  39 visemes
+  voice c6_eben_05                           eben         6.00s  65 visemes
+  voice c6_eben_06                           asa          3.45s  47 visemes
+  voice c6_eben_07                           eben         4.79s  50 visemes
+  voice c6_eben_08                           eben         8.24s  96 visemes
+  voice c6_eben_09                           ruth         1.58s  12 visemes
+  voice c6_eben_10                           ruth         1.85s  16 visemes
+  voice c6_eben_11                           eben         3.29s  37 visemes
+  voice c6_eben_12                           ruth         6.26s  66 visemes
+  voice c6_eben_13                           eben         4.61s  47 visemes
+  voice c6_eben_14                           ruth         5.65s  45 visemes
+  voice c6_eben_15                           eben         2.77s  30 visemes
+  voice c6_eben_16                           ruth         1.65s  16 visemes
+  voice c6_eben_17                           ashby        5.73s  65 visemes
+  voice c6_eben_18                           ruth         2.35s  26 visemes
+  voice c6_eben_19                           asa          2.47s  30 visemes
+  voice c6_eben_20                           asa          4.18s  49 visemes
+  voice c6_eben_21                           asa          2.58s  32 visemes
+  voice c6_ink_01                            fenn        10.35s  113 visemes
+  voice c6_ink_02                            marshal      6.41s  74 visemes
+  voice c6_ink_03                            pell         5.84s  65 visemes
+  voice c6_ink_04                            ruth         1.72s  17 visemes
+  voice c6_ink_05                            pell         8.62s  89 visemes
+  voice c6_ink_06                            ruth         2.60s  29 visemes
+  voice c6_ink_07                            pell         5.08s  57 visemes
+  voice c6_ink_08                            billy        2.14s  30 visemes
+  voice c6_ink_09                            ruth         1.94s  20 visemes
+  voice c6_ink_10                            pell         5.08s  54 visemes
+  voice c6_ink_11                            ruth         5.20s  52 visemes
+  voice c6_ink_12                            doc          6.22s  62 visemes
+  voice c6_ink_13                            ruth         7.93s  71 visemes
+  voice c6_ink_14                            ruth         4.45s  40 visemes
+  voice c6_ink_15                            ruth         6.70s  61 visemes
+  voice c6_ink_16                            fenn         9.54s  109 visemes
+  voice c6_spring_01                         ruth         8.28s  68 visemes
+  voice c6_spring_02                         hap          9.25s  105 visemes
+  voice c6_spring_03                         billy        5.19s  70 visemes
+  voice c6_spring_04                         ruth         4.48s  41 visemes
+  voice c6_spring_05                         ingrid       6.75s  70 visemes
+  voice c6_spring_06                         ines         5.12s  62 visemes
+  voice c6_spring_07                         rosa         6.50s  77 visemes
+  voice c6_spring_08                         nora         6.16s  74 visemes
+  voice c6_spring_09                         dai          8.13s  88 visemes
+  voice c6_spring_10                         mabry        6.88s  76 visemes
+  voice c6_spring_11                         mabry        6.68s  76 visemes
+  voice c6_spring_12                         billy        4.03s  45 visemes
+  voice c6_spring_13                         ruth         4.53s  42 visemes
+  voice p_hap_01                             hap         13.09s  131 visemes
+  voice p_hap_02                             ruth         1.67s  19 visemes
+  voice p_hap_03                             hap          3.87s  47 visemes
+  voice p_hap_04                             hap          2.64s  27 visemes
+  voice p_hap_05                             rider        5.93s  69 visemes
+  voice p_hap_06                             hap          4.03s  46 visemes
+  voice p_hap_07                             rider        2.06s  23 visemes
+  voice p_hap_08                             ruth         3.63s  38 visemes
+  voice p_hap_09                             hap          4.14s  42 visemes
+  voice p_hap_10                             ruth         4.73s  41 visemes
+  voice p_hap_11                             hap          6.48s  65 visemes
+  voice p_hap_12                             rider        2.63s  30 visemes
+  voice p_hap_13                             hap          5.24s  56 visemes
+  voice p_hap_14                             hap          6.55s  71 visemes
+  voice p_hap_15                             ruth         4.05s  34 visemes
+  voice p_del_01                             del          8.43s  106 visemes
+  voice p_del_02                             del          7.15s  92 visemes
+  voice p_del_03                             ruth         2.26s  26 visemes
+  voice p_del_04                             del          4.93s  65 visemes
+  voice p_del_05                             collector    3.34s  38 visemes
+  voice p_del_06                             tate         7.51s  76 visemes
+  voice p_del_07                             ruth         5.09s  48 visemes
+  voice p_del_08                             tate         3.41s  38 visemes
+  voice p_del_09                             del          7.57s  92 visemes
+  voice p_del_10                             ruth         5.63s  58 visemes
+  voice p_del_11                             del          1.98s  25 visemes
+  voice p_del_12                             del          7.08s  85 visemes
+  voice p_del_13                             tate         1.94s  20 visemes
+  voice p_del_14                             del          3.85s  49 visemes
+  voice p_del_15                             ruth         1.83s  19 visemes
+  voice p_doc_01                             doc          6.20s  67 visemes
+  voice p_doc_02                             doc          9.57s  89 visemes
+  voice p_doc_03                             rosa         5.25s  68 visemes
+  voice p_doc_04                             doc          3.24s  38 visemes
+  voice p_doc_05                             doc          5.16s  59 visemes
+  voice p_doc_06                             teamster     3.95s  46 visemes
+  voice p_doc_07                             doc          5.23s  59 visemes
+  voice p_doc_08                             doc          5.64s  56 visemes
+  voice p_doc_09                             doc          6.42s  66 visemes
+  voice p_doc_10                             ruth         1.18s  9 visemes
+  voice p_doc_11                             doc          5.31s  57 visemes
+  voice p_doc_12                             ruth         6.66s  61 visemes
+  voice p_doc_13                             doc          7.72s  77 visemes
+  voice p_doc_14                             ruth         7.61s  69 visemes
+  voice p_doc_15                             doc          3.67s  34 visemes
+  voice p_billy_01                           billy        9.35s  118 visemes
+  voice p_billy_02                           billy        5.67s  70 visemes
+  voice p_billy_03                           ruth         1.94s  20 visemes
+  voice p_billy_04                           billy        2.81s  37 visemes
+  voice p_billy_05                           ruth         7.40s  70 visemes
+  voice p_billy_06                           billy        3.87s  51 visemes
+  voice p_billy_07                           ruth         9.06s  84 visemes
+  voice p_billy_08                           billy        1.91s  23 visemes
+  voice p_billy_09                           ruth         2.82s  30 visemes
+  voice p_billy_10                           ruth         5.00s  45 visemes
+  voice p_billy_11                           billy        2.60s  34 visemes
+  voice p_billy_12                           pike         3.75s  42 visemes
+  voice p_billy_13                           billy        4.10s  52 visemes
+  voice p_billy_14                           billy        3.85s  53 visemes
+  voice p_billy_15                           ruth         2.10s  24 visemes
+  voice p_joseph_01                          joseph       9.44s  98 visemes
+  voice p_joseph_02                          thorne      10.57s  120 visemes
+  voice p_joseph_03                          joseph       3.73s  45 visemes
+  voice p_joseph_04                          joseph       6.66s  75 visemes
+  voice p_joseph_05                          joseph       5.75s  68 visemes
+  voice p_joseph_06                          elder        7.09s  74 visemes
+  voice p_joseph_07                          mother       1.43s  15 visemes
+  voice p_joseph_08                          joseph       4.68s  57 visemes
+  voice p_joseph_09                          ruth         8.16s  78 visemes
+  voice p_joseph_10                          thorne       3.73s  47 visemes
+  voice p_joseph_11                          ruth         3.90s  41 visemes
+  voice p_joseph_12                          joseph       7.30s  83 visemes
+  voice p_joseph_13                          thorne       3.88s  46 visemes
+  voice p_joseph_14                          joseph       2.41s  27 visemes
+  voice p_joseph_15                          joseph       6.10s  74 visemes
+  voice enc_wagon_01                         wagoner      6.37s  68 visemes
+  voice enc_wagon_02                         ruth         2.42s  22 visemes
+  voice enc_wagon_03                         wagoner      4.03s  44 visemes
+  voice enc_robbery_01                       bandit       5.69s  69 visemes
+  voice enc_robbery_02                       ruth         2.98s  33 visemes
+  voice enc_prisoner_01                      prisoner     6.90s  76 visemes
+  voice enc_prisoner_02                      deputy       3.47s  46 visemes
+  voice enc_prisoner_03                      ruth         3.38s  35 visemes
+  voice enc_snake_01                         snakebit     4.74s  50 visemes
+  voice enc_snake_02                         ruth         4.77s  46 visemes
+  voice enc_snake_03                         snakebit     6.40s  71 visemes
+  voice enc_hunter_01                        hunter       6.68s  74 visemes
+  voice enc_grave_01                         widow        6.72s  67 visemes
+  voice enc_grave_02                         ruth         2.19s  22 visemes
+  voice enc_ambush_01                        agent        2.77s  28 visemes
+  voice enc_ambush_02                        ruth         4.91s  48 visemes
+  voice enc_ambush_03                        ruth         7.04s  62 visemes
+  voice enc_hang_01                          condemned    5.36s  68 visemes
+  voice enc_hang_02                          captain      5.84s  65 visemes
+  voice enc_hang_03                          ruth         5.27s  51 visemes
+  voice enc_hang_04                          captain      7.81s  81 visemes
+  voice enc_hang_05                          captain      4.30s  52 visemes
+  voice enc_hang_06                          condemned    5.25s  72 visemes
+  voice enc_hang_07                          ruth         6.17s  60 visemes
+  voice enc_runaway_01                       farmwife     2.73s  34 visemes
+  voice enc_runaway_02                       ruth         5.87s  56 visemes
+  voice enc_runaway_03                       farmwife     6.91s  92 visemes
+  voice enc_runaway_04                       farmwife     6.09s  78 visemes
+  voice enc_child_01                         lostgirl     6.68s  74 visemes
+  voice enc_child_02                         ruth         6.91s  68 visemes
+  voice enc_child_03                         lostgirl     5.98s  60 visemes
+  voice enc_child_04                         mother       6.04s  63 visemes
+  voice enc_duel_01                          tolliver     5.73s  75 visemes
+  voice enc_duel_02                          tolliver     6.44s  83 visemes
+  voice enc_duel_03                          ruth         4.18s  46 visemes
+  voice enc_duel_04                          ruth         5.62s  48 visemes
+  voice enc_duel_05                          ruth         9.42s  84 visemes
+  voice enc_duel_06                          tolliver     5.55s  68 visemes
+  voice enc_oil_01                           seller       9.71s  100 visemes
+  voice enc_oil_02                           seller       5.57s  58 visemes
+  voice enc_oil_03                           ruth         6.35s  57 visemes
+  voice enc_oil_04                           ruth         7.15s  67 visemes
+  voice enc_oil_05                           seller       5.97s  69 visemes
+  voice enc_bh_01                            coyle        7.67s  87 visemes
+  voice enc_bh_02                            ruth         6.66s  62 visemes
+  voice enc_bh_03                            coyle        5.38s  60 visemes
+  voice enc_bh_04                            ruth         6.97s  71 visemes
+  voice enc_bh_05                            coyle        3.48s  37 visemes
+  voice enc_bh_06                            ruth         3.99s  41 visemes
+  voice enc_strand_01                        traveller    7.17s  69 visemes
+  voice enc_strand_02                        traveller    6.74s  69 visemes
+  voice enc_strand_03                        ruth         6.53s  65 visemes
+  voice enc_strand_04                        ruth         4.62s  42 visemes
+  voice enc_drunk_01                         drunk        5.98s  69 visemes
+  voice enc_drunk_02                         ruth         6.08s  58 visemes
+  voice enc_drunk_03                         drunk        4.96s  54 visemes
+  voice enc_drunk_04                         ruth         6.32s  61 visemes
+  voice enc_drunk_05                         drunk        4.69s  45 visemes
+  voice enc_fire_01                          homesteader  5.50s  59 visemes
+  voice enc_fire_02                          homesteader  6.64s  77 visemes
+  voice enc_fire_03                          homesteader  7.79s  79 visemes
+  voice enc_preach_01                        preacher     6.93s  69 visemes
+  voice enc_preach_02                        preacher     9.24s  105 visemes
+  voice enc_preach_03                        preacher     6.14s  63 visemes
+  voice enc_preach_04                        ruth         6.21s  58 visemes
+  voice enc_preach_05                        preacher     3.58s  40 visemes
+  voice enc_stage_01                         agent        3.71s  49 visemes
+  voice enc_stage_02                         driver       8.77s  98 visemes
+  voice enc_stage_03                         ruth         5.95s  48 visemes
+  voice ruth_arrive_bitter_spring            ruth         4.66s  47 visemes
+  voice ruth_arrive_dry_valley               ruth         4.37s  43 visemes
+  voice ruth_horse_calm_1                    ruth         3.43s  31 visemes
+  voice ruth_horse_calm_2                    ruth         2.01s  19 visemes
+  voice ruth_horse_praise_1                  ruth         2.26s  23 visemes
+  voice ruth_horse_praise_2                  ruth         1.83s  17 visemes
+  voice ruth_horse_mount                     ruth         1.25s  10 visemes
+  voice ruth_horse_call                      ruth         1.16s  6 visemes
+  voice ruth_greet_morning                   ruth         1.02s  7 visemes
+  voice ruth_greet_afternoon                 ruth         1.18s  8 visemes
+  voice ruth_greet_evening                   ruth         1.02s  6 visemes
+  voice ruth_greet_sir                       ruth         1.00s  6 visemes
+  voice ruth_antagonize_1                    ruth         4.01s  42 visemes
+  voice ruth_antagonize_2                    ruth         4.21s  40 visemes
+  voice ruth_defuse_1                        ruth         3.65s  33 visemes
+  voice ruth_defuse_2                        ruth         3.07s  30 visemes
+  voice ruth_hands_up                        ruth         2.60s  24 visemes
+  voice ruth_combat_1                        ruth         1.14s  8 visemes
+  voice ruth_combat_2                        ruth         1.16s  9 visemes
+  voice ruth_combat_3                        ruth         1.18s  9 visemes
+  voice ruth_combat_reload                   ruth         1.78s  16 visemes
+  voice ruth_hurt_1                          ruth         1.00s  6 visemes
+  voice ruth_nerve_1                         ruth         1.83s  18 visemes
+  voice ruth_nerve_2                         ruth         1.79s  15 visemes
+  voice ruth_shop_buy                        ruth         4.05s  38 visemes
+  voice ruth_shop_browse                     ruth         2.44s  30 visemes
+  voice ruth_wanted                          ruth         3.25s  33 visemes
+  voice ruth_memory_tom_1                    ruth         7.00s  57 visemes
+  voice ruth_memory_tom_2                    ruth         4.29s  37 visemes
+  voice ruth_syndicate                       ruth         3.27s  33 visemes
+  voice ruth_camp_coffee                     ruth         4.26s  44 visemes
+  voice ruth_weather_rain                    ruth         4.91s  47 visemes
+  voice ruth_weather_storm                   ruth         3.25s  37 visemes
+  voice ruth_lost                            ruth         3.57s  34 visemes
+  voice ruth_witness                         ruth         2.08s  20 visemes
+  voice ruth_mission_start                   ruth         2.95s  31 visemes
+  voice soc_greet_town_high_1                townsfolk    5.44s  61 visemes
+  voice soc_greet_town_high_2                townsfolk    3.50s  37 visemes
+  voice soc_greet_town_mid_1                 townsfolk    3.78s  41 visemes
+  voice soc_greet_town_mid_2                 townsfolk    2.86s  32 visemes
+  voice soc_greet_town_low_1                 townsfolk    4.39s  49 visemes
+  voice soc_greet_town_low_2                 townsfolk    2.58s  31 visemes
+  voice soc_greet_town_wanted_1              townsfolk    4.48s  49 visemes
+  voice soc_greet_town_wanted_2              townsfolk    3.41s  41 visemes
+  voice soc_greet_rough_high_1               townsfolk    4.84s  53 visemes
+  voice soc_greet_rough_high_2               townsfolk    3.01s  35 visemes
+  voice soc_greet_rough_mid_1                townsfolk    1.96s  16 visemes
+  voice soc_greet_rough_mid_2                townsfolk    3.84s  44 visemes
+  voice soc_greet_rough_low_1                townsfolk    3.95s  40 visemes
+  voice soc_greet_rough_low_2                townsfolk    2.24s  25 visemes
+  voice soc_greet_rough_wanted_1             townsfolk    5.78s  62 visemes
+  voice soc_greet_rough_wanted_2             townsfolk    2.92s  33 visemes
+  voice soc_greet_woman_high_1               lady         4.14s  53 visemes
+  voice soc_greet_woman_high_2               lady         2.94s  37 visemes
+  voice soc_greet_woman_mid_1                lady         2.60s  31 visemes
+  voice soc_greet_woman_mid_2                lady         2.82s  36 visemes
+  voice soc_greet_woman_low_1                lady         2.54s  34 visemes
+  voice soc_greet_woman_low_2                lady         2.28s  28 visemes
+  voice soc_greet_woman_wanted_1             lady         3.95s  46 visemes
+  voice soc_greet_woman_wanted_2             lady         2.22s  25 visemes
+  voice soc_greet_law_high_1                 lawman       3.48s  39 visemes
+  voice soc_greet_law_high_2                 lawman       2.10s  26 visemes
+  voice soc_greet_law_mid_1                  lawman       3.26s  38 visemes
+  voice soc_greet_law_mid_2                  lawman       4.84s  57 visemes
+  voice soc_greet_law_low_1                  lawman       2.30s  26 visemes
+  voice soc_greet_law_low_2                  lawman       3.44s  36 visemes
+  voice soc_greet_law_wanted_1               lawman       3.46s  42 visemes
+  voice soc_greet_law_wanted_2               lawman       2.64s  30 visemes
+  voice soc_greet_child_high_1               child        4.74s  59 visemes
+  voice soc_greet_child_high_2               child        2.51s  32 visemes
+  voice soc_greet_child_mid_1                child        2.57s  33 visemes
+  voice soc_greet_child_mid_2                child        4.00s  50 visemes
+  voice soc_greet_child_low_1                child        1.81s  20 visemes
+  voice soc_greet_child_low_2                child        2.28s  29 visemes
+  voice soc_greet_child_wanted_1             child        2.55s  34 visemes
+  voice soc_greet_child_wanted_2             child        2.13s  30 visemes
+  voice soc_insult_town_high_1               townsfolk    3.01s  31 visemes
+  voice soc_insult_town_high_2               townsfolk    4.10s  45 visemes
+  voice soc_insult_town_mid_1                townsfolk    2.62s  30 visemes
+  voice soc_insult_town_mid_2                townsfolk    1.75s  18 visemes
+  voice soc_insult_town_low_1                townsfolk    2.99s  32 visemes
+  voice soc_insult_town_low_2                townsfolk    2.84s  26 visemes
+  voice soc_insult_rough_high_1              townsfolk    2.11s  25 visemes
+  voice soc_insult_rough_high_2              townsfolk    3.71s  46 visemes
+  voice soc_insult_rough_mid_1               townsfolk    1.71s  17 visemes
+  voice soc_insult_rough_mid_2               townsfolk    3.01s  35 visemes
+  voice soc_insult_rough_low_1               townsfolk    2.20s  25 visemes
+  voice soc_insult_rough_low_2               townsfolk    2.62s  32 visemes
+  voice soc_insult_woman_high_1              lady         2.64s  33 visemes
+  voice soc_insult_woman_high_2              lady         1.58s  17 visemes
+  voice soc_insult_woman_mid_1               lady         1.15s  9 visemes
+  voice soc_insult_woman_mid_2               lady         2.77s  40 visemes
+  voice soc_insult_woman_low_1               lady         1.62s  13 visemes
+  voice soc_insult_woman_low_2               lady         1.98s  23 visemes
+  voice soc_insult_law_high_1                lawman       3.01s  37 visemes
+  voice soc_insult_law_high_2                lawman       2.88s  35 visemes
+  voice soc_insult_law_mid_1                 lawman       2.44s  31 visemes
+  voice soc_insult_law_mid_2                 lawman       1.73s  20 visemes
+  voice soc_insult_law_low_1                 lawman       2.59s  30 visemes
+  voice soc_insult_law_low_2                 lawman       1.66s  18 visemes
+  voice soc_shove_town_mid_1                 townsfolk    1.96s  20 visemes
+  voice soc_shove_town_mid_2                 townsfolk    1.75s  15 visemes
+  voice soc_shove_rough_mid_1                townsfolk    3.52s  39 visemes
+  voice soc_shove_rough_mid_2                townsfolk    2.09s  22 visemes
+  voice soc_shove_woman_mid_1                lady         1.28s  14 visemes
+  voice soc_shove_woman_mid_2                lady         1.83s  20 visemes
+  voice soc_shove_law_mid_1                  lawman       2.73s  34 visemes
+  voice soc_shove_law_mid_2                  lawman       1.28s  12 visemes
+  voice soc_draw_town_mid_1                  townsfolk    2.28s  21 visemes
+  voice soc_draw_town_mid_2                  townsfolk    1.83s  18 visemes
+  voice soc_draw_rough_mid_1                 townsfolk    1.62s  17 visemes
+  voice soc_draw_rough_mid_2                 townsfolk    1.83s  17 visemes
+  voice soc_draw_law_mid_1                   lawman       2.61s  32 visemes
+  voice soc_draw_law_mid_2                   lawman       1.75s  21 visemes
+  voice soc_draw_woman_mid_1                 lady         1.64s  22 visemes
+  voice soc_flee_town_mid_1                  townsfolk    1.71s  18 visemes
+  voice soc_flee_town_mid_2                  townsfolk    1.88s  19 visemes
+  voice soc_flee_rough_mid_1                 townsfolk    1.79s  15 visemes
+  voice soc_flee_rough_mid_2                 townsfolk    1.51s  16 visemes
+  voice soc_flee_woman_mid_1                 lady         1.26s  12 visemes
+  voice soc_flee_woman_mid_2                 lady         1.39s  15 visemes
+  voice soc_flee_law_mid_1                   lawman       1.35s  15 visemes
+  voice soc_flee_child_mid_1                 child        0.84s  5 visemes
+  voice soc_defuse_ok_town_high_1            townsfolk    2.92s  31 visemes
+  voice soc_defuse_ok_town_high_2            townsfolk    4.14s  44 visemes
+  voice soc_defuse_ok_town_mid_1             townsfolk    1.98s  24 visemes
+  voice soc_defuse_ok_town_mid_2             townsfolk    1.96s  20 visemes
+  voice soc_defuse_ok_town_low_1             townsfolk    1.94s  20 visemes
+  voice soc_defuse_ok_town_low_2             townsfolk    1.75s  16 visemes
+  voice soc_defuse_ok_rough_high_1           townsfolk    3.31s  33 visemes
+  voice soc_defuse_ok_rough_high_2           townsfolk    2.92s  31 visemes
+  voice soc_defuse_ok_rough_mid_1            townsfolk    1.92s  20 visemes
+  voice soc_defuse_ok_rough_mid_2            townsfolk    2.13s  20 visemes
+  voice soc_defuse_ok_rough_low_1            townsfolk    2.09s  22 visemes
+  voice soc_defuse_ok_rough_low_2            townsfolk    2.96s  33 visemes
+  voice soc_defuse_ok_woman_mid_1            lady         1.83s  19 visemes
+  voice soc_defuse_ok_woman_mid_2            lady         1.58s  15 visemes
+  voice soc_defuse_ok_law_high_1             lawman       3.13s  40 visemes
+  voice soc_defuse_ok_law_high_2             lawman       1.99s  24 visemes
+  voice soc_defuse_ok_law_mid_1              lawman       1.64s  22 visemes
+  voice soc_defuse_ok_law_mid_2              lawman       1.88s  22 visemes
+  voice soc_defuse_ok_law_low_1              lawman       1.70s  20 visemes
+  voice soc_defuse_ok_law_low_2              lawman       1.48s  15 visemes
+  voice soc_defuse_fail_town_mid_1           townsfolk    1.68s  14 visemes
+  voice soc_defuse_fail_town_mid_2           townsfolk    1.71s  17 visemes
+  voice soc_defuse_fail_rough_mid_1          townsfolk    1.56s  14 visemes
+  voice soc_defuse_fail_rough_mid_2          townsfolk    2.03s  21 visemes
+  voice soc_defuse_fail_law_mid_1            lawman       2.61s  31 visemes
+  voice soc_defuse_fail_law_mid_2            lawman       1.95s  21 visemes
+  voice soc_r_insult_ruth_mid_1              ruth         2.77s  31 visemes
+  voice soc_r_insult_ruth_mid_2              ruth         3.13s  29 visemes
+  voice soc_r_insult_ruth_mid_3              ruth         4.14s  45 visemes
+  voice soc_r_insult_ruth_mid_4              ruth         2.03s  24 visemes
+  voice soc_r_insult_ruth_low_1              ruth         3.11s  35 visemes
+  voice soc_r_insult_ruth_low_2              ruth         3.11s  35 visemes
+  voice soc_r_shove_ruth_mid_1               ruth         1.36s  11 visemes
+  voice soc_r_shove_ruth_mid_2               ruth         1.27s  9 visemes
+  voice soc_r_shove_ruth_mid_3               ruth         1.54s  13 visemes
+  voice soc_r_defuse_ruth_mid_1              ruth         1.99s  18 visemes
+  voice soc_r_defuse_ruth_mid_2              ruth         4.39s  41 visemes
+  voice soc_r_defuse_ruth_mid_3              ruth         4.05s  38 visemes
+  voice soc_r_defuse_ruth_low_1              ruth         3.92s  51 visemes
+  voice gos_drover                           townsfolk    5.72s  62 visemes
+  voice gos_grave                            townsfolk    5.78s  67 visemes
+  voice gos_fire                             townsfolk    5.95s  67 visemes
+  voice gos_inprint                          townsfolk    5.10s  59 visemes
+  voice gos_poster                           townsfolk    6.36s  70 visemes
+  voice gos_bank                             townsfolk    8.30s  96 visemes
+  voice gos_windmill                         townsfolk    7.17s  81 visemes
+  voice gos_drive                            townsfolk    5.80s  62 visemes
+  voice gos_well_bad                         townsfolk    5.91s  61 visemes
+  voice gos_well_good                        townsfolk    6.57s  75 visemes
+  voice gos_cutter_jail                      townsfolk    5.25s  50 visemes
+  voice gos_cutter_dead                      townsfolk    6.51s  71 visemes
+  voice gos_rain                             townsfolk    6.27s  63 visemes
+  voice gos_strike_signed                    townsfolk    7.23s  79 visemes
+  voice gos_strike_law                       townsfolk    8.08s  82 visemes
+  voice gos_powder                           townsfolk    7.70s  83 visemes
+  voice gos_train                            townsfolk    6.19s  65 visemes
+  voice gos_payroll                          townsfolk    6.14s  67 visemes
+  voice gos_ledger                           townsfolk    6.93s  72 visemes
+  voice gos_pell_arrest                      townsfolk    5.76s  61 visemes
+  voice gos_pell_free                        townsfolk    5.52s  57 visemes
+  voice gos_pell_robbed                      townsfolk    7.30s  72 visemes
+  voice gos_eben_jail                        townsfolk    6.70s  67 visemes
+  voice gos_eben_dead                        townsfolk    5.46s  54 visemes
+  voice gos_eben_shot                        townsfolk    6.55s  73 visemes
+  voice gos_locomobile                       townsfolk    6.53s  68 visemes
+  voice gos_novel                            townsfolk    7.44s  77 visemes
+  voice gos_comet                            townsfolk    8.04s  89 visemes
+  voice gos_water_line                       townsfolk    7.19s  78 visemes
+  voice gos_marvel                           townsfolk    7.47s  80 visemes
+  voice gos_pip                              townsfolk    7.91s  85 visemes
+  voice gos_pledge                           townsfolk    6.31s  69 visemes
+  voice gos_robbed1                          townsfolk    5.01s  50 visemes
+  voice gos_robbed3                          townsfolk    4.67s  49 visemes
+  voice gos_murder                           townsfolk    5.82s  59 visemes
+  voice gos_outlaws                          townsfolk    4.88s  61 visemes
+  voice gos_wanted                           townsfolk    7.08s  72 visemes
+  voice gos_hero                             townsfolk    7.08s  74 visemes
+  voice gos_villain                          townsfolk    2.88s  28 visemes
+  voice gos_w_rain                           townsfolk    5.42s  59 visemes
+  voice gos_w_storm                          townsfolk    6.53s  70 visemes
+  voice gos_w_fog                            townsfolk    3.84s  43 visemes
+  voice gos_w_dust                           townsfolk    7.02s  73 visemes
+  voice gos_w_clear                          townsfolk    2.99s  28 visemes
+  voice gos_night                            townsfolk    5.80s  64 visemes
+  voice gos_morning                          townsfolk    3.73s  35 visemes
+  voice gos_snow                             townsfolk    5.59s  56 visemes
+  voice gos_law_eye1                         lawman       3.90s  45 visemes
+  voice gos_law_eye2                         lawman       3.39s  40 visemes
+  voice gos_law_ok                           lawman       2.35s  30 visemes
+  voice gos_law_low                          lawman       3.61s  39 visemes
+  voice gos_shop_high                        townsfolk    4.74s  49 visemes
+  voice gos_shop_mid                         townsfolk    3.65s  37 visemes
+  voice gos_shop_low                         townsfolk    3.52s  35 visemes
+  voice gos_shop_robbed1                     townsfolk    3.43s  37 visemes
+  voice gos_shop_robbed2                     townsfolk    4.14s  46 visemes
+  voice gos_out_hatcher                      townsfolk    6.59s  70 visemes
+  voice gos_out_hatcher_d                    townsfolk    7.51s  78 visemes
+  voice gos_out_penn                         townsfolk    5.27s  59 visemes
+  voice gos_out_penn_d                       townsfolk    5.97s  64 visemes
+  voice gos_out_marlow                       townsfolk    4.05s  46 visemes
+  voice gos_out_fontaine                     townsfolk    6.04s  66 visemes
+  voice gos_out_crow                         townsfolk    5.14s  55 visemes
+  voice gos_out_mccready                     townsfolk    5.08s  61 visemes
+  voice gos_out_pardee                       townsfolk    7.42s  74 visemes
+  voice gos_out_rusk                         townsfolk    5.67s  62 visemes
+  voice gos_lg_widow                         townsfolk    6.27s  66 visemes
+  voice gos_lg_ironhide                      townsfolk    5.14s  56 visemes
+  voice gos_lg_ghost                         townsfolk    5.76s  61 visemes
+  voice gos_lg_king                          townsfolk    7.49s  81 visemes
+  voice gos_lg_rumour                        townsfolk    7.79s  73 visemes
+  voice gos_gold                             townsfolk    5.55s  66 visemes
+  voice gos_fined                            townsfolk    4.67s  50 visemes
+  voice s_car_01                             pett         7.73s  88 visemes
+  voice s_car_02                             ruth         1.61s  14 visemes
+  voice s_car_03                             pett         8.82s  104 visemes
+  voice s_car_04                             pett         5.55s  64 visemes
+  voice s_car_05                             ruth         2.53s  27 visemes
+  voice s_car_06                             pett         5.05s  57 visemes
+  voice s_car_07                             pett        11.24s  124 visemes
+  voice s_car_08                             ruth         3.02s  33 visemes
+  voice s_car_09                             pett         6.93s  72 visemes
+  voice s_car_10                             pett         8.58s  92 visemes
+  voice s_car_11                             ruth         5.49s  57 visemes
+  voice s_car_12                             pett         5.29s  63 visemes
+  voice s_car_13                             ruth         5.18s  46 visemes
+  voice s_car_14                             pett         6.14s  60 visemes
+  voice s_car_15                             pett         6.59s  69 visemes
+  voice s_car_16                             rufus        5.30s  65 visemes
+  voice s_car_17                             pett         2.37s  26 visemes
+  voice s_car_18                             rufus        1.95s  25 visemes
+  voice s_herd_01                            clem        10.18s  116 visemes
+  voice s_herd_02                            ruth         1.29s  11 visemes
+  voice s_herd_03                            clem         6.56s  63 visemes
+  voice s_herd_04                            ruth         6.28s  58 visemes
+  voice s_herd_05                            clem         6.71s  72 visemes
+  voice s_herd_06                            gage         4.30s  45 visemes
+  voice s_herd_07                            ruth         1.43s  13 visemes
+  voice s_herd_08                            gage         6.28s  71 visemes
+  voice s_herd_09                            gage         6.72s  79 visemes
+  voice s_herd_10                            ruth         6.00s  47 visemes
+  voice s_herd_11                            ruth         5.72s  59 visemes
+  voice s_herd_12                            clem         4.62s  43 visemes
+  voice s_herd_13                            clem         3.28s  24 visemes
+  voice s_herd_14                            gage         2.80s  27 visemes
+  voice s_herd_15                            clem         6.89s  70 visemes
+  voice s_herd_16                            clem         5.76s  53 visemes
+  voice s_herd_17                            ruth         1.62s  16 visemes
+  voice s_herd_18                            clem         4.99s  49 visemes
+  voice s_photo_01                           theo         6.89s  89 visemes
+  voice s_photo_02                           ruth         4.73s  45 visemes
+  voice s_photo_03                           theo         8.79s  116 visemes
+  voice s_photo_04                           theo         7.27s  89 visemes
+  voice s_photo_05                           ruth         1.80s  18 visemes
+  voice s_photo_06                           theo         3.14s  43 visemes
+  voice s_photo_07                           theo         4.59s  62 visemes
+  voice s_photo_08                           theo         5.16s  69 visemes
+  voice s_photo_09                           ruth         2.03s  23 visemes
+  voice s_photo_10                           theo         6.38s  75 visemes
+  voice s_photo_11                           ruth         2.30s  25 visemes
+  voice s_photo_12                           ruth         4.30s  48 visemes
+  voice s_photo_13                           theo         6.31s  79 visemes
+  voice s_photo_14                           ruth         1.65s  17 visemes
+  voice s_photo_15                           theo         5.92s  72 visemes
+  voice s_photo_16                           theo         4.82s  61 visemes
+  voice s_skull_01                           bundy       11.07s  118 visemes
+  voice s_skull_02                           ruth         2.01s  18 visemes
+  voice s_skull_03                           bundy        3.46s  35 visemes
+  voice s_skull_04                           ortiz        8.38s  87 visemes
+  voice s_skull_05                           bundy        9.41s  95 visemes
+  voice s_skull_06                           ruth         6.50s  60 visemes
+  voice s_skull_07                           bundy        4.22s  46 visemes
+  voice s_skull_08                           ruth         4.37s  46 visemes
+  voice s_skull_09                           bundy        3.56s  43 visemes
+  voice s_skull_10                           ortiz        4.91s  50 visemes
+  voice s_skull_11                           ruth         8.86s  78 visemes
+  voice s_skull_12                           bundy        3.15s  31 visemes
+  voice s_skull_13                           ortiz        7.10s  80 visemes
+  voice s_skull_14                           ruth         7.54s  67 visemes
+  voice s_skull_15                           bundy        5.42s  60 visemes
+  voice s_skull_16                           ortiz        4.61s  47 visemes
+  voice s_comet_01                           wren         7.57s  84 visemes
+  voice s_comet_02                           ruth         1.52s  14 visemes
+  voice s_comet_03                           wren         8.30s  94 visemes
+  voice s_comet_04                           wren         5.17s  57 visemes
+  voice s_comet_05                           wren        10.15s  113 visemes
+  voice s_comet_06                           wren         8.93s  95 visemes
+  voice s_comet_07                           wren         5.24s  58 visemes
+  voice s_comet_08                           ruth         6.23s  58 visemes
+  voice s_comet_09                           wren         6.31s  67 visemes
+  voice s_comet_10                           ruth         1.34s  11 visemes
+  voice s_comet_11                           wren         5.89s  61 visemes
+  voice s_comet_12                           ruth         6.79s  58 visemes
+  voice s_comet_13                           ruth         4.03s  39 visemes
+  voice s_comet_14                           wren         4.79s  50 visemes
+  voice s_comet_15                           wren         5.74s  62 visemes
+  voice s_det_01                             crane       10.37s  115 visemes
+  voice s_det_02                             ruth         1.72s  16 visemes
+  voice s_det_03                             crane       10.62s  107 visemes
+  voice s_det_04                             crane        5.03s  56 visemes
+  voice s_det_05                             ruth         2.15s  21 visemes
+  voice s_det_06                             crane        3.22s  37 visemes
+  voice s_det_07                             moss         5.91s  68 visemes
+  voice s_det_08                             ruth         2.76s  27 visemes
+  voice s_det_09                             crane        5.93s  60 visemes
+  voice s_det_10                             crane       11.03s  113 visemes
+  voice s_det_11                             ruth         4.66s  44 visemes
+  voice s_det_12                             crane        5.47s  55 visemes
+  voice s_det_13                             ruth         6.25s  58 visemes
+  voice s_det_14                             crane        7.08s  73 visemes
+  voice s_det_15                             moss         3.58s  36 visemes
+  voice s_news_01                            pip          6.80s  82 visemes
+  voice s_news_02                            ruth         1.56s  16 visemes
+  voice s_news_03                            pip         10.04s  111 visemes
+  voice s_news_04                            pip          9.94s  107 visemes
+  voice s_news_05                            agent        4.82s  67 visemes
+  voice s_news_06                            agent        3.54s  48 visemes
+  voice s_news_07                            rourke       3.60s  41 visemes
+  voice s_news_08                            ruth         5.74s  52 visemes
+  voice s_news_09                            rourke       5.25s  58 visemes
+  voice s_news_10                            ruth         3.67s  39 visemes
+  voice s_news_11                            rourke       2.59s  29 visemes
+  voice s_news_12                            pip          6.95s  78 visemes
+  voice s_news_13                            ruth         6.35s  61 visemes
+  voice s_news_14                            pip          4.86s  52 visemes
+  voice s_news_15                            pip          4.00s  49 visemes
+  voice s_news_16                            ruth         6.68s  58 visemes
+  voice s_pledge_01                          hannah       9.45s  121 visemes
+  voice s_pledge_02                          ruth         1.32s  11 visemes
+  voice s_pledge_03                          hannah       4.03s  51 visemes
+  voice s_pledge_04                          hannah       9.29s  104 visemes
+  voice s_pledge_05                          jack         6.51s  70 visemes
+  voice s_pledge_06                          hannah       2.41s  35 visemes
+  voice s_pledge_07                          bouncer      3.67s  41 visemes
+  voice s_pledge_08                          jack         7.05s  74 visemes
+  voice s_pledge_09                          ruth         6.86s  65 visemes
+  voice s_pledge_10                          hannah       2.26s  27 visemes
+  voice s_pledge_11                          jack         4.52s  43 visemes
+  voice s_pledge_12                          ruth         6.37s  61 visemes
+  voice s_pledge_13                          hannah       3.63s  39 visemes
+  voice s_pledge_14                          jack         3.75s  36 visemes
+  voice s_pledge_15                          hannah       6.03s  70 visemes
+  voice s_pledge_16                          jack         6.51s  64 visemes
+  voice s_survey_01                          ruth         7.36s  71 visemes
+  voice s_survey_02                          linus        5.11s  62 visemes
+  voice s_survey_03                          ruth         4.50s  46 visemes
+  voice s_survey_04                          linus        6.89s  83 visemes
+  voice s_survey_05                          linus        8.26s  106 visemes
+  voice s_survey_06                          ruth         8.41s  80 visemes
+  voice s_survey_07                          linus        8.68s  107 visemes
+  voice s_survey_08                          ruth         4.82s  48 visemes
+  voice s_survey_09                          linus        8.81s  108 visemes
+  voice s_survey_10                          ruth         9.06s  88 visemes
+  voice s_survey_11                          linus        5.43s  67 visemes
+  voice s_survey_12                          detective    3.07s  34 visemes
+  voice s_survey_13                          linus        3.87s  53 visemes
+  voice s_survey_14                          linus        7.59s  94 visemes
+  voice s_survey_15                          ruth         8.23s  73 visemes
+  voice s_survey_16                          linus        7.09s  84 visemes
+  voice s_marvel_01                          marvel      13.20s  150 visemes
+  voice s_marvel_02                          pearl        3.99s  52 visemes
+  voice s_marvel_03                          ruth         1.49s  14 visemes
+  voice s_marvel_04                          marvel       7.98s  85 visemes
+  voice s_marvel_05                          marvel       9.19s  101 visemes
+  voice s_marvel_06                          marvel       7.00s  73 visemes
+  voice s_marvel_07                          ruth         7.04s  61 visemes
+  voice s_marvel_08                          marvel       6.92s  65 visemes
+  voice s_marvel_09                          ned          5.54s  60 visemes
+  voice s_marvel_10                          ruth         4.84s  50 visemes
+  voice s_marvel_11                          marvel       6.91s  68 visemes
+  voice s_marvel_12                          ruth         6.77s  62 visemes
+  voice s_marvel_13                          marvel       5.87s  61 visemes
+  voice s_marvel_14                          pearl        4.16s  51 visemes
+  voice s_marvel_15                          pearl        5.98s  70 visemes
+voices: 1430 lines -> out/audio/voice
+[in#0 @ 0x558824280dc0] Error opening input: Invalid data found when processing input
+Error opening input file /tmp/frontier_commons_pq6vreae/src.mid.
+Error opening input files: Invalid data found when processing input
+  rec_horse_whinny: File:Wiehern.ogg  [Public domain]  Hü.
+  rec_horse_whinny: File:Yellow-tailed Black Cockatoos.ogg  [Public domain]  Wardie44
+  rec_horse_whinny: File:LL-Q1860 (eng)-Arlo Barnes-whinnies.wav  [CC0]  Speaker: Arlo Barnes
+Recorder: Arlo Barn
+  rec_horse_whinny: File:LL-Q1860 (eng)-Jjamesryan-neigh.wav  [CC0]  Speaker: Jjamesryan
+Recorder: Jjamesryan
+rec_horse_whinny: 4 files -> 9 clips
+  rec_horse_snort: File:John Blow -- Prelude.mid  [Public domain]  unknown (see source page)
+  rec_horse_snort: File:Me blowing in my laptop built-in microphone.wav  [CC0]  Shioprince
+  rec_horse_snort: File:Phlom Slek.wav  [CC0]  Rucisko
+  rec_horse_snort: File:Nl-blow-up.ogg  [CC0]  Marcel coenders
+rec_horse_snort: 3 files -> 8 clips
+rec_horse_breath: 0 files, 0 pieces
+  rec_cattle_moo: File:Alarm - Diving - Cow Fart.ogg  [Public domain]  unknown (see source page)
+  rec_cattle_moo: File:Cow in Vezo.ogg  [CC0]  Gasybeaugosse2020
+  rec_cattle_moo: File:Cow in Antefasy.wav  [CC0]  Gasybeaugosse2020
+  rec_cattle_moo: File:Kcg-jhya̱ (bush cow).ogg  [CC0]  Danjuma Anthony
+rec_cattle_moo: 4 files -> 5 clips
+  rec_dog_bark: File:Cynomys ludovicianus barking-audio.ogg  [Public domain]  W0lfie
+  rec_dog_bark: File:Voice Test Error.wav  [CC0]  Kineticsquid
+  rec_dog_bark: File:Bark (avk).wav  [CC0]  Luce VERGNEAUX
+  rec_dog_bark: File:Squeaks and twangs of Barking Riverside Pier.ogg  [CC0]  JoBrodie
+rec_dog_bark: 4 files -> 16 clips
+  rec_rooster: File:Morning on the farm (1897).ogg  [Public domain]  N.R. Wood (US Gramophone Company)
+  rec_rooster: File:Medium rooster crowing.ogg  [Public domain]  alys
+  rec_rooster: File:Small rooster crowing.ogg  [Public domain]  alys
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_rooster: File:Nl-rooster uit.ogg  [CC0]  Marcel coenders
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_rooster: File:Nl-rooster vrij.ogg  [CC0]  Marcel coenders
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_rooster: File:Kcg-a̱gbak (cock).ogg  [CC0]  Danjuma Anthony
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_rooster: File:Kcg-a̱gbaak (cock).ogg  [CC0]  Danjuma Anthony
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+rec_rooster: 2 files -> 7 clips
+  rec_thunder: File:Rain thunder steps.ogg  [Public domain]  ezwa
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Rain thunder and other noises.ogg  [Public domain]  ezwa
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Thunder and rain on a v.ogg  [Public domain]  ezwa
+  rec_thunder: File:Rain thunder and birds.ogg  [Public domain]  ezwa
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Rain and thunder (1).ogg  [Public domain]  ezwa
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Rain and thunder.ogg  [Public domain]  User:Caesar
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:The Thunderer.ogg  [Public domain]  John Philip Sousa
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:The Thunderer - U.S. Army Band.ogg  [Public domain]  Composition: John Philip Sousa
+Performan
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Free Tim - Sousas Thunderer March.ogg  [CC0]  Free Tim
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Thunder 1st.mid  [Public domain]  unknown (see source page)
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Thunder 2nd.mid  [Public domain]  unknown (see source page)
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Thunder breakstrain.mid  [Public domain]  unknown (see source page)
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Thunder intro.mid  [Public domain]  unknown (see source page)
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Thunder trio.mid  [Public domain]  unknown (see source page)
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Johann Strauss II - Thunder and Lightning Polka Op.324.ogg  [Public domain]  Chiayi Symphony Orchestra
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Thunderstorm after hot summer day 17 minutes 01 of 04.ogg  [Public domain]  stephan
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Thunderstorm after hot summer day 17 minutes 02 of 04.ogg  [Public domain]  stephan
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Thunderstorm after hot summer day 17 minutes 03 of 04.ogg  [Public domain]  stephan
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Thunderstorm after hot summer day 17 minutes 04 of 04.ogg  [Public domain]  stephan
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Severe Thunderstorm Warning.ogg  [Public domain]  National Weather Service - NOAA Weather 
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Severe thunderstorm warning Minnesota.ogg  [Public domain]  Until It Sleeps
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Theres a thunderstorm coming.wav  [CC0]  Czechcamp
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Lightning Strikes at Saturn (PIA14310).wav  [Public domain]  NASA/JPL-Caltech/University of Iowa
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Jer-du feu et d'l'ôrage.ogg  [Public domain]  Man vyi
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Jer-eune achie d'ôrage.ogg  [Public domain]  Man vyi
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Jer-eune forte ôrage.ogg  [Public domain]  Man vyi
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Jer-l'ôrage a clièrgi l'temps.ogg  [Public domain]  Man vyi
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Jer-un bouoillon d'ôrage.ogg  [Public domain]  Man vyi
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder: File:Emergency scary systems radio.ogg  [Public domain]  Eas scary alertt Emergency systems
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+rec_thunder: 1 files -> 4 clips
+  rec_thunder_far: File:Thunderstorm after hot summer day 17 minutes 02 of 04.ogg  [Public domain]  stephan
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder_far: File:Rain thunder steps.ogg  [Public domain]  ezwa
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder_far: File:Rain thunder and other noises.ogg  [Public domain]  ezwa
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder_far: File:Rain thunder and birds.ogg  [Public domain]  ezwa
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder_far: File:Rain and thunder (1).ogg  [Public domain]  ezwa
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder_far: File:Light Rain Distant Thunder July 5th 2016.wav  [CC0]  https://freesound.org/people/kvgarlic/
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder_far: File:Rain and thunder.ogg  [Public domain]  User:Caesar
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder_far: File:The Thunderer.ogg  [Public domain]  John Philip Sousa
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder_far: File:The Thunderer - U.S. Army Band.ogg  [Public domain]  Composition: John Philip Sousa
+Performan
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder_far: File:Thunderstorm after hot summer day 17 minutes 01 of 04.ogg  [Public domain]  stephan
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder_far: File:Thunderstorm after hot summer day 17 minutes 03 of 04.ogg  [Public domain]  stephan
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder_far: File:Thunderstorm after hot summer day 17 minutes 04 of 04.ogg  [Public domain]  stephan
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder_far: File:Free Tim - Sousas Thunderer March.ogg  [CC0]  Free Tim
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder_far: File:Thunder 1st.mid  [Public domain]  unknown (see source page)
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder_far: File:Thunder 2nd.mid  [Public domain]  unknown (see source page)
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder_far: File:Thunder breakstrain.mid  [Public domain]  unknown (see source page)
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder_far: File:Thunder intro.mid  [Public domain]  unknown (see source page)
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_thunder_far: File:Thunder trio.mid  [Public domain]  unknown (see source page)
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+rec_thunder_far: 0 files, 0 pieces
+  rec_crowd_indoor: File:Another talk with the German Chancellor, Herr Hitler.ogg  [Public domain]  Neville Chamberlain, as Prime Minister a
+  rec_crowd_indoor: File:Group discussion 1.ogg  [Public domain]  ezwa
+rec_crowd_indoor: 2 files -> 2 clips
+  rec_crowd_outdoor: File:Flea market in the rain.ogg  [Public domain]  stephan
+  rec_crowd_outdoor: File:360703 eguobyte large-crowd-medium-distance-stereo.wav  [CC0]  eguobyte
+rec_crowd_outdoor: 2 files -> 2 clips
+  rec_coyote: File:Rumsen Myth of Coyote.wav  [Public domain]  Maria Viviena Soto (1823-1916), A. L. Kr
+  rec_coyote: File:Monplaisir - 10 - The Call of the Coyote.ogg  [CC0]  Monplaisir
+  rec_coyote: File:LL-Q1860 (eng)-Flame, not lame-coyote time.wav  [CC0]  Speaker: Flame, not lame
+Recorder: Flame
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_coyote: File:Nl-coyote's.ogg  [CC0]  Marcel coenders
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_coyote: File:LL-Q150 (fra)-Poslovitch-coyote.wav  [CC0]  Speaker: Poslovitch
+Recorder: Poslovitch
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_coyote: File:Monplaisir - 11 - I am the Coyote.ogg  [CC0]  Monplaisir
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_coyote: File:LL-Q1860 (eng)-Simplificationalizer-coyote.wav  [CC0]  Speaker: Simplificationalizer
+Recorder: 
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_coyote: File:LL-Q1860 (eng)-Arlo Barnes-coyote.wav  [CC0]  Speaker: Arlo Barnes
+Recorder: Arlo Barn
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+rec_coyote: 1 files -> 4 clips
+  rec_steam_whistle: File:Parovoz sound.ogg  [Public domain]  Alex Alex Lep
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+  rec_steam_whistle: File:Steam Whistle at Georgia Tech.ogg  [CC0]  Zeroping
+   download failed HTTP Error 429: Your bot is making too many requests. Please reduce your request rate or contact bot-traffic@wikimedia.org (f263c81)
+rec_steam_whistle: 0 files, 0 pieces
+commons: 23 recordings, licences -> LICENSES_AUDIO.md
