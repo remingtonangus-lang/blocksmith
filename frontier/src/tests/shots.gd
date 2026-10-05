@@ -56,6 +56,16 @@ func _shot(path: String, x, z, up: float, yaw: float, pitch: float, hour: float,
 		Game.player.cam_yaw = deg_to_rad(-yaw)
 		Game.player.facing = deg_to_rad(-yaw)
 		Game.player.cam_pitch = deg_to_rad(pitch)
+		# --aim: Ruth draws and aims (over-the-shoulder aim camera, visible gun); --weapon N picks the gun slot;
+		# --fire fires once a few frames before the capture (muzzle flash + smoke)
+		if Game.args.has("aim") and Game.player.get("gun") != null:
+			Game.player.bot_driven = true
+			Game.player.gun.select(int(Game.args.get("weapon", 0)))
+			Game.player.gun.drawn = true
+			Game.player.gun.cooldown = 0.0
+			Game.player.intent.aim = true
+			if Game.player.get("holder") != null:
+				Game.player.holder.snap = true
 	var cam: Camera3D = Game.camera
 	var gy := w.height(px, pz)
 	var wl := w.water_level(px, pz)
@@ -86,6 +96,8 @@ func _shot(path: String, x, z, up: float, yaw: float, pitch: float, hour: float,
 			"journal": mn.open_journal()
 			"settings": mn.open_settings()
 	for i in frames:
+		if Game.args.has("fire") and Game.player != null and i == maxi(frames - 2, 0):
+			Game.player.intent.fire = true
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()

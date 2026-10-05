@@ -28,9 +28,7 @@ import gun_tex as T  # noqa: E402
 from gun_rig import FINISHES, Gun  # noqa: E402
 import models_revolvers as MR  # noqa: E402
 
-BUILDERS = {
-    "lockhart_sa": MR.build_lockhart,
-}
+BUILDERS = dict(MR.BUILDERS)
 for _mod in ("models_levers", "models_rifles", "models_shotguns"):
     try:
         _m = __import__(_mod)
@@ -298,7 +296,8 @@ def main():
         if gid not in BUILDERS:
             print("skip %s (no builder yet)" % gid)
             continue
-        for fin in finishes:
+        fins = (["standard"] + [f for f in FINISHES.get(gid, {}) if f != "standard"]) if a.get("variants") else finishes
+        for fin in fins:
             if fin != "standard" and fin not in FINISHES.get(gid, {}):
                 continue
             tag = "" if fin == "standard" else "_" + fin

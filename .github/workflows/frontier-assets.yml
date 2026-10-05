@@ -1,17 +1,21 @@
 name: frontier-assets
 # Frontier (claude/frontier-game): fetches CC0 assets on a GitHub-hosted Linux runner (cloud sessions can't reach the
-# asset hosts) and publishes them to the rolling release `frontier-assets`:
+# asset hosts) and builds generated art, publishing everything to the rolling release `frontier-assets`:
 #   catalog.zip  ambientCG / Poly Haven catalogues + contact sheets (for picking assets by eye)
 #   ext.zip      processed assets from frontier/assets/manifest.json (+ LICENSES.json)
+#   weapons.zip  the ten firearms (+ finish variants) built by frontier/tools/weapons/gun_gen.py (Blender as a
+#                Python module, deterministic) -> weapons/<id>.glb + manifest.json; fetch with
+#                `bash frontier/tools/fetch_assets.sh weapons` (unpacks into frontier/assets/ext/weapons/)
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'catalog | fetch | both'
+        description: 'catalog | fetch | both | weapons | all'
         default: 'fetch'
   push:
     branches: ['claude/frontier-game']
-    paths: ['frontier/assets/manifest.json', 'frontier/tools/assets_ci.py', '.github/workflows/frontier-assets.yml']
+    paths: ['frontier/assets/manifest.json', 'frontier/tools/assets_ci.py', 'frontier/tools/weapons/**',
+            '.github/workflows/frontier-assets.yml']
 
 permissions:
   contents: write
@@ -26,19 +30,36 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: What changed
+        id: what
+        run: |
+          run=false
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            case "${{ inputs.mode }}" in catalog|fetch|both|all) run=true;; esac
+          else
+            changed=$(git diff --name-only "${{ github.event.before }}" HEAD 2>/dev/null || git diff --name-only HEAD~1 HEAD)
+            if echo "$changed" | grep -qE '^(frontier/assets/manifest.json|frontier/tools/assets_ci.py|\.github/workflows/frontier-assets.yml)$'; then
+              run=true
+            fi
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
       - name: Python deps
+        if: steps.what.outputs.run == 'true'
         run: pip install -q pillow numpy
       - name: Catalog
-        if: github.event_name == 'push' || inputs.mode == 'catalog' || inputs.mode == 'both'
+        if: steps.what.outputs.run == 'true' && (github.event_name == 'push' || inputs.mode == 'catalog' || inputs.mode == 'both' || inputs.mode == 'all')
         run: |
           python3 frontier/tools/assets_ci.py catalog out
           (cd out && zip -qr ../catalog.zip catalog)
       - name: Fetch
-        if: github.event_name == 'push' || inputs.mode == 'fetch' || inputs.mode == 'both'
+        if: steps.what.outputs.run == 'true' && (github.event_name == 'push' || inputs.mode == 'fetch' || inputs.mode == 'both' || inputs.mode == 'all')
         run: |
           python3 frontier/tools/assets_ci.py fetch out 2>&1 | tee fetch.log
           (cd out && zip -qr ../ext.zip ext)
       - name: Publish release frontier-assets
+        if: steps.what.outputs.run == 'true' && !cancelled()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -47,3 +68,51 @@ jobs:
               --notes "Processed CC0 assets for the Frontier game (claude/frontier-game). Licences in ext.zip/ext/LICENSES.json."
           for f in catalog.zip ext.zip fetch.log; do [ -s "$f" ] && gh release upload frontier-assets "$f" --clobber; done
           echo "published"
+
+  weapons:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: What changed
+        id: what
+        run: |
+          run=false
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            case "${{ inputs.mode }}" in weapons|all) run=true;; esac
+          else
+            changed=$(git diff --name-only "${{ github.event.before }}" HEAD 2>/dev/null || git diff --name-only HEAD~1 HEAD)
+            if echo "$changed" | grep -qE '^(frontier/tools/weapons/|\.github/workflows/frontier-assets.yml)'; then
+              run=true
+            fi
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@v5
+        if: steps.what.outputs.run == 'true'
+        with:
+          python-version: '3.11'
+      - name: Blender (bpy) + deps
+        if: steps.what.outputs.run == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libxrender1 libxxf86vm1 libxfixes3 libxi6 libxkbcommon0 libsm6 libgl1 libegl1 >/dev/null
+          pip install -q bpy==5.0.1 numpy scipy pillow
+      - name: Build weapons
+        if: steps.what.outputs.run == 'true'
+        run: |
+          python frontier/tools/weapons/gun_gen.py --variants --out out/weapons 2>&1 | grep -v "glTF\|INFO" | tee weapons.log
+          ls -la out/weapons
+          test -s out/weapons/lockhart_sa.glb && test -s out/weapons/merriman_lever.glb
+          (cd out && rm -rf weapons/tex && zip -qr ../weapons.zip weapons)
+      - name: Publish weapons.zip
+        if: steps.what.outputs.run == 'true' && !cancelled()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view frontier-assets >/dev/null 2>&1 || \
+            gh release create frontier-assets --prerelease --target "$GITHUB_SHA" --title "Frontier assets (CC0)" \
+              --notes "Processed CC0 assets for the Frontier game (claude/frontier-game). Licences in ext.zip/ext/LICENSES.json."
+          for f in weapons.zip weapons.log; do [ -s "$f" ] && gh release upload frontier-assets "$f" --clobber; done
+          echo "published weapons"

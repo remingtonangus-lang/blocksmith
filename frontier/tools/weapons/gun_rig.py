@@ -68,10 +68,11 @@ class Gun:
             self.parts[part]["objs"].append(obj)
         return obj
 
-    def part(self, name, pivot, anim=None):
+    def part(self, name, pivot, anim=None, parent=None):
         """anim in Blender terms: {'type': 'rot', 'axis': (1,0,0), 'open': deg} or {'type': 'slide',
-        'axis': (0,-1,0), 'open': metres}. Converted to Godot axes on export."""
-        self.parts[name] = {"objs": [], "pivot": Vector(pivot), "anim": anim or {}}
+        'axis': (0,-1,0), 'open': metres} or {'type': 'bolt', 'axis', 'open', 'rot_axis', 'rot'}. Converted to
+        Godot axes on export. `parent` nests the part under another part (moves with it)."""
+        self.parts[name] = {"objs": [], "pivot": Vector(pivot), "anim": anim or {}, "parent": parent}
         return name
 
     def marker(self, name, loc, fwd=(0, 1, 0), up=(0, 0, 1)):
@@ -99,11 +100,20 @@ class Gun:
             a = p["anim"]
             if a:
                 ex = {"type": a["type"], "axis": g_axis(a["axis"]), "open": a["open"]}
-                for key in ("group", "half", "steps"):
+                if "rot_axis" in a:
+                    ex["rot_axis"] = g_axis(a["rot_axis"])
+                for key in ("group", "half", "steps", "rot"):
                     if key in a:
                         ex[key] = a[key]
                 o["anim"] = ex
             meshes.append(o)
+        objs = {o.name: o for o in meshes}
+        for name, p in self.parts.items():
+            par = p.get("parent")
+            if par and name in objs and par in objs:
+                o = objs[name]
+                o.parent = objs[par]
+                o.location = p["pivot"] - self.parts[par]["pivot"]
         for name, (loc, q) in self.markers.items():
             L.empty(name, loc, self.root, q)
         for o in meshes:
@@ -111,6 +121,30 @@ class Gun:
             o.data.name = o.name
         self.meshes = meshes
         return meshes
+
+    def scale_all(self, s):
+        """Uniformly scale everything built so far (geometry, pivots, markers, texture-region specs)."""
+        M = Matrix.Scale(s, 4)
+        for o in self.pieces():
+            o.data.transform(M)
+        for p in self.parts.values():
+            p["pivot"] = p["pivot"] * s
+        for n, (loc, q) in list(self.markers.items()):
+            self.markers[n] = (loc * s, q)
+        sc = lambda v: tuple(x * s for x in v)
+        for r in self.spec["checker"]:
+            r["center"], r["radii"], r["pitch"] = sc(r["center"]), sc(r["radii"]), r.get("pitch", 0.0016) * s
+        for r in self.spec["grooves"]:
+            r["range"], r["pitch"] = sc(r["range"]), r["pitch"] * s
+            if r.get("box"):
+                r["box"] = (sc(r["box"][0]), sc(r["box"][1]))
+        for r in self.spec["lines"]:
+            r["pts"] = [sc(p) for p in r["pts"]]
+        self.spec["handling"] = [(sc(a), sc(b), amt) for (a, b, amt) in self.spec["handling"]]
+        for k2, v in self.spec["grain_center"].items():
+            self.spec["grain_center"][k2] = sc(v)
+        if hasattr(self, "detail_target"):
+            self.detail_target = sc(self.detail_target)
 
     def shift_to_grip(self):
         g = self.markers["grip_r"][0]

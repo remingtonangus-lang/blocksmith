@@ -19,6 +19,7 @@ var draw_t := 0.0                # 0 holstered .. 1 in hand (current weapon)
 var hand: Node3D                 # BoneAttachment3D when a skeleton is found
 var aim_override = null          # Vector3 world aim point set by a caller (else derived from the actor)
 var saddle: Node3D = null        # when set (mounted), long guns ride in a scabbard on this node
+var snap := false                # skip the draw/holster blend (screenshots, teleports)
 var _current := ""
 var _was_reloading := false
 var _last_clip := -1
@@ -103,7 +104,7 @@ func _process(dt: float) -> void:
 		_find_hand()
 	_sync()
 	var drawn: bool = gun.drawn and actor.get("alive") != false
-	draw_t = move_toward(draw_t, 1.0 if drawn else 0.0, dt / DRAW_TIME)
+	draw_t = move_toward(draw_t, 1.0 if drawn else 0.0, 1.0 if snap else dt / DRAW_TIME)
 	var m := model()
 	if m != null:
 		if drawn and not _was_drawn:
@@ -123,6 +124,7 @@ func _process(dt: float) -> void:
 			wm.global_transform = hol.interpolate_with(hand_x, u)
 		else:
 			wm.global_transform = hol
+	_standin_arms(m, ref)
 	_detail_t -= dt
 	if _detail_t <= 0.0:
 		_detail_t = 0.5
@@ -130,6 +132,75 @@ func _process(dt: float) -> void:
 		var near := cam == null or cam.global_position.distance_to(actor.global_position) < 9.0
 		for id in models:
 			models[id].set_detail(near or actor == Game.player)
+
+## Capsule stand-in bodies have no arms: while a gun is in hand, draw simple sleeves + hands from the shoulders to
+## the gun's grip_r / grip_l markers so the hold reads. Skipped when a real skeleton drives the hand.
+var _arms: Array = []            # [upper sleeve R, hand R, sleeve L, hand L]
+
+func _standin_arms(m: WeaponModel, ref: Transform3D) -> void:
+	var show := hand == null and m != null and draw_t > 0.6 and _visual().find_children("*", "Skeleton3D", true, false).is_empty()
+	if not show:
+		for a in _arms:
+			a.visible = false
+		return
+	if _arms.is_empty():
+		var coat := Color(0.3, 0.24, 0.19)
+		for mi in _visual().find_children("*", "MeshInstance3D", true, false):
+			if mi.material_override is StandardMaterial3D:
+				coat = (mi.material_override as StandardMaterial3D).albedo_color
+				break
+		var cloth := StandardMaterial3D.new()
+		cloth.albedo_color = coat
+		cloth.roughness = 0.9
+		var skin := StandardMaterial3D.new()
+		skin.albedo_color = Color(0.72, 0.55, 0.45)
+		skin.roughness = 0.6
+		for i in 4:
+			var mi := MeshInstance3D.new()
+			if i % 2 == 0:
+				var cm := CapsuleMesh.new()
+				cm.radius = 0.042
+				cm.height = 1.0
+				mi.mesh = cm
+				mi.material_override = cloth
+			else:
+				var sm := SphereMesh.new()
+				sm.radius = 0.042
+				sm.height = 0.075
+				mi.mesh = sm
+				mi.material_override = skin
+			mi.top_level = true
+			add_child(mi)
+			_arms.append(mi)
+	var pistol := _is_pistol(m)
+	var aiming: bool = _aim_point() != null
+	var targets := [["grip_r", Vector3(0.19, 1.42, -0.02)]]
+	if not pistol or aiming:
+		targets.append(["grip_l", Vector3(-0.19, 1.42, -0.02)])
+	for i in 2:
+		var sleeve: MeshInstance3D = _arms[i * 2]
+		var hnd: MeshInstance3D = _arms[i * 2 + 1]
+		if i >= targets.size():
+			sleeve.visible = false
+			hnd.visible = false
+			continue
+		var g := m.grip_transform(targets[i][0])
+		var a: Vector3 = ref * targets[i][1]
+		var b: Vector3 = g.origin
+		if i == 1 and pistol:
+			b = g.origin + g.basis.x * -0.015
+		var d := b - a
+		var ln := maxf(d.length() - 0.03, 0.05)
+		var y := d.normalized()
+		var x := y.cross(Vector3.UP)
+		if x.length() < 0.1:
+			x = Vector3.RIGHT
+		x = x.normalized()
+		var z := x.cross(y)
+		sleeve.global_transform = Transform3D(Basis(x, y * ln, z), a + y * ln * 0.5)
+		hnd.global_transform = Transform3D(Basis(x, y, z), b)
+		sleeve.visible = true
+		hnd.visible = true
 
 func _is_pistol(wm: WeaponModel) -> bool:
 	return wm.def.get("slot", "sidearm") == "sidearm"

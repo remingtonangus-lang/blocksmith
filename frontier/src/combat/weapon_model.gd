@@ -28,7 +28,7 @@ var lod0: Node3D                 # "<id>" node (animated parts + markers)
 var lod1: Node3D                 # "<id>_lod1" merged mesh (may be null)
 var parts := {}                  # name -> {node, rest: Transform3D, anim: Dictionary}
 var markers := {}                # name -> Node3D
-var cylinder_index := 0.0        # cumulative cylinder steps (revolvers)
+var cylinder_index := 0.0        # cumulative cylinder steps (revolvers); the "_cyl" channel follows it
 var spent := 0                   # fired cases still in the cylinder (ejected on reload)
 var barrel_fired := 0            # break-action: barrels fired since the last reload
 var _kick: Node3D                # recoil pivot (at the grip)
@@ -116,6 +116,7 @@ func _index(root: Node) -> void:
 		var ex = n.get_meta("extras", {}) if n.has_meta("extras") else {}
 		if typeof(ex) == TYPE_DICTIONARY and ex.has("anim"):
 			parts[String(n.name)] = {"node": n, "rest": n.transform, "anim": ex["anim"]}
+			_index(n)                                   # nested parts (e.g. cylinder on a top-break barrel)
 		elif String(n.name) in ["muzzle", "grip_r", "grip_l", "sight_rear", "sight_front", "holster_attach", "shell_eject"]:
 			markers[String(n.name)] = n
 		elif String(n.name) != "body" and _default_anim(String(n.name)).size() > 0:
@@ -225,7 +226,7 @@ func _apply() -> void:
 			"rot":
 				var ang := float(a.get("open", 0.0)) * v
 				if n == "cylinder":
-					ang = float(a.get("open", 60.0)) * cylinder_index
+					ang = float(a.get("open", 60.0)) * float(_ch.get("_cyl", 0.0))
 				node.transform = p.rest * Transform3D(Basis(ax, deg_to_rad(ang)), Vector3.ZERO)
 			"slide":
 				node.transform = p.rest.translated_local(ax * float(a.get("open", 0.0)) * v)
@@ -313,13 +314,8 @@ func fire_anim() -> void:
 func _cyl_step(t0: float, t1: float) -> void:
 	if not parts.has("cylinder"):
 		return
-	var start := cylinder_index
-	_at(t0, func(): _tween_cyl(start, start + 1.0, t1 - t0))
-	cylinder_index = start  # advanced by the tween
-
-func _tween_cyl(a: float, b: float, dur: float) -> void:
-	var tw := create_tween()
-	tw.tween_method(func(v): cylinder_index = v, a, b, maxf(dur, 0.01)).set_trans(Tween.TRANS_SINE)
+	cylinder_index += 1.0                        # target; the "_cyl" channel animates toward it
+	_key("_cyl", t0, t1, cylinder_index)
 
 func _cycle_lever(t0: float, ct: float) -> void:
 	var d := (ct - t0)
@@ -342,6 +338,8 @@ func _cycle_bolt(t0: float, ct: float) -> void:
 func _cycle_pump(t0: float, ct: float) -> void:
 	var d := (ct - t0)
 	_key("pump", t0, t0 + d * 0.36, 1.0)
+	_key("bolt", t0, t0 + d * 0.36, 1.0)
+	_key("bolt", t0 + d * 0.5, t0 + d * 0.85, 0.0)
 	for h in _hammers():
 		_key(h, t0 + d * 0.05, t0 + d * 0.36, 1.0)
 	_at(t0 + d * 0.32, _eject)

@@ -103,6 +103,13 @@ func _shot(id: String, view: String) -> void:
 	m.set_process(false)
 	if view == "open":
 		m.pose_open()
+	elif view == "cycle":
+		# mid-cycle after a shot (lever/bolt/pump open, hammer coming back), stepped deterministically
+		m.pose({"hammer": 1.0, "hammer_r": 1.0, "hammer_l": 1.0})
+		m.fire_anim()
+		var ct: float = m.def.get("cock_time", 0.5)
+		for i in int(ct * 0.5 / 0.01):
+			m._process(0.01)
 	elif view == "detail" or view == "q34":
 		m.pose({"hammer": 1.0, "hammer_r": 1.0, "hammer_l": 1.0})
 	var box := _aabb(m)
@@ -130,7 +137,7 @@ func _shot(id: String, view: String) -> void:
 			target = mz.global_position if mz else c
 			dir = Vector3(0.25, 0.12, -1)
 			dist = 0.32
-		"detail", "open":
+		"detail", "open", "cycle":
 			var pistol: bool = m.def.get("slot", "") == "sidearm"
 			var anchor := m.marker("holster_attach")
 			target = anchor.global_position if anchor and pistol else Vector3(0, 0.02, -0.11 if not pistol else -0.04)

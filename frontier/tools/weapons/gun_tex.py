@@ -443,7 +443,7 @@ def synth(maps, spec, seed=1):
         late = smooth(0.55, 0.85, t) * (1 - smooth(0.9, 1.0, t))
         fig = fbm(np.stack([p[:, 0] * 60, s * 8, p[:, 2] * 60], 1) if abs(ax[1]) > 0.5 else p * 40, 4, seed + 101)
         if kname == "oak":
-            light, dark = (0.42, 0.28, 0.15), (0.24, 0.14, 0.07)
+            light, dark = (0.30, 0.19, 0.095), (0.16, 0.09, 0.045)
         else:
             light, dark = (0.135, 0.062, 0.030), (0.042, 0.020, 0.010)
         broad = fbm(np.stack([p[:, 0] * 18, s * 3.0, p[:, 2] * 18], 1), 3, seed + 107)
