@@ -10,6 +10,17 @@ render_mode cull_disabled, diffuse_burley, specular_schlick_ggx;
 #include "res://shaders/inc/noise.gdshaderinc"
 
 uniform vec3 tint : source_color = vec3(0.5);
+// Seed variants re-colour garments per character instance without new materials: the material names a slot and the
+// MeshInstance carries that slot's colour as an instance uniform (alpha 0 = keep `tint`).
+uniform int tint_slot = -1;
+instance uniform vec4 tint_0 : source_color = vec4(0.0);
+instance uniform vec4 tint_1 : source_color = vec4(0.0);
+instance uniform vec4 tint_2 : source_color = vec4(0.0);
+instance uniform vec4 tint_3 : source_color = vec4(0.0);
+instance uniform vec4 tint_4 : source_color = vec4(0.0);
+instance uniform vec4 tint_5 : source_color = vec4(0.0);
+instance uniform vec4 tint_6 : source_color = vec4(0.0);
+instance uniform vec4 tint_7 : source_color = vec4(0.0);
 uniform bool use_fabric = false;
 uniform sampler2D fabric_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D fabric_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -47,7 +58,9 @@ void vertex() {
 
 void fragment() {
 	vec2 fuv = UV2 * tile;
-	vec3 col = tint;
+	vec4 slot_tint = tint_slot == 0 ? tint_0 : tint_slot == 1 ? tint_1 : tint_slot == 2 ? tint_2 : tint_slot == 3 ? tint_3
+		: tint_slot == 4 ? tint_4 : tint_slot == 5 ? tint_5 : tint_slot == 6 ? tint_6 : tint_slot == 7 ? tint_7 : vec4(0.0);
+	vec3 col = slot_tint.a > 0.5 ? slot_tint.rgb : tint;
 	if (use_fabric) {
 		vec3 f = texture(fabric_albedo, fuv).rgb;
 		vec3 favg = textureLod(fabric_albedo, vec2(0.5), 12.0).rgb;

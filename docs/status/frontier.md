@@ -197,3 +197,6 @@ Work order from this round:
   off and rendered once screen-space subsurface scattering (character skin) was off too. The probe now tries
   sss / horse / characters first, so evidence renders keep the whole world. Open risk: confirm SSS on a real M1
   (Metal) with the monitor benchmark; if it hitches there, drop skin SSS on medium/low.
+- 2026-10-05: character memory pass (worktree agent): VRAM-compressed pre-extracted textures + .import sidecars,
+  blend shapes on a minimal Face mesh, shared per-look materials with instance-uniform tints, lazy cloth springs,
+  --charmem report (per NPC look ~7 MB, per instance ~1 MB on software Vulkan), warm-up tasks waited at exit.

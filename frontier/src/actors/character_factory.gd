@@ -30,19 +30,12 @@ static var _clips: Dictionary = {}
 static var _materials: CharacterMaterials
 static var _mutex := Mutex.new()
 static var _warming := false
-static var _warm_group := -1
-static var _warm_anim := -1
 
 
 ## Wait for the warm-up and drop every cached resource before the engine tears down (static Resource caches that
 ## outlive the script server abort the process at exit).
 static func shutdown() -> void:
-	if _warm_group >= 0:
-		WorkerThreadPool.wait_for_task_completion(_warm_group)
-		_warm_group = -1
-	if _warm_anim >= 0:
-		WorkerThreadPool.wait_for_task_completion(_warm_anim)
-		_warm_anim = -1
+	_reap_tasks(true)
 	_scenes.clear()
 	_anim_lib = null
 	_materials = null
@@ -80,10 +73,10 @@ static func warm_up() -> void:
 		if not added:
 			break
 		round += 1
-	_warm_anim = WorkerThreadPool.add_task(func(): animation_library(), false, "character anims")
+	_task_ids.append(WorkerThreadPool.add_task(func(): animation_library(), false, "character anims"))
 	# one look at a time on one worker: parallel glTF builds pushed every look's texture uploads into the first
 	# frames at once (CI's paravirtual GPU timed out on that frame) and starved world streaming of cores
-	_warm_group = WorkerThreadPool.add_task(func():
+	_task_ids.append(WorkerThreadPool.add_task(func():
 		var t0 := Time.get_ticks_msec()
 		for id in todo:
 			if _is_ready(id):
@@ -93,7 +86,27 @@ static func warm_up() -> void:
 				_mutex.lock()
 				_scenes[id] = ps
 				_mutex.unlock()
-		print("characters: %d looks ready in %d ms" % [todo.size(), Time.get_ticks_msec() - t0]), false, "character scenes")
+		print("characters: %d looks ready in %d ms" % [todo.size(), Time.get_ticks_msec() - t0]), false, "character scenes"))
+	# every WorkerThreadPool task must be waited on: reap finished ones as spawns happen and block on the rest when
+	# the tree shuts down (an unwaited task aborted the process at exit)
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree and not tree.root.tree_exiting.is_connected(_reap_tasks):
+		tree.root.tree_exiting.connect(_reap_tasks.bind(true))
+
+
+static var _task_ids: Array = []
+static var _group_ids: Array = []
+
+
+static func _reap_tasks(block := false) -> void:
+	for id in _task_ids.duplicate():
+		if block or WorkerThreadPool.is_task_completed(id):
+			WorkerThreadPool.wait_for_task_completion(id)
+			_task_ids.erase(id)
+	for id in _group_ids.duplicate():
+		if block or WorkerThreadPool.is_group_task_completed(id):
+			WorkerThreadPool.wait_for_group_task_completion(id)
+			_group_ids.erase(id)
 
 
 static func _is_ready(id: String) -> bool:
@@ -153,6 +166,8 @@ static func spawn(seed: int, role := "", opts := {}) -> FrontierCharacter:
 	if pool.is_empty():
 		push_warning("CharacterFactory: no generated characters found (run tools/characters/run.sh or fetch_assets.sh)")
 		return null
+	if not _task_ids.is_empty() or not _group_ids.is_empty():
+		_reap_tasks()
 	if _warming:
 		# prefer looks already prepared off-thread; any ready look beats a main-thread glTF parse mid-game
 		var ready := Array(pool).filter(_is_ready)

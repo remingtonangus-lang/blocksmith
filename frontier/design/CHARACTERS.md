@@ -58,9 +58,11 @@ characters` downloads it into `frontier/assets/ext/characters/`, which Character
 
 ## What a character .glb contains
 `Rig` (Skeleton3D: humanoid bones + `LeftEye`/`RightEye` + garment spring chains `<garment>_c<k>_<i>`) with meshes
-`Body` (skin + garments, one surface per material), `Head` (face skin, eyes, corneas, brows, lashes, teeth, tongue,
-beard — the only mesh with blend shapes), `Hair` (MakeHuman hair or a procedural updo), `Hat` (hideable:
-`set_hat_visible(false)`), and `LOD1` (~8 k tris) / `LOD2` (~2.5 k tris): every part joined and decimated, no blend
+`Body` (skin incl. scalp/neck/eyes/corneas + garments, one surface per material, plus the parts of teeth/brows/beard no
+face shape moves), `Face` (only what the face shapes move: skin around eyes/mouth/jaw, brows, lashes, teeth, tongue,
+beard — the only mesh with blend shapes; deltas under 0.2 mm are dropped so the scalp stays out), `Hair` (MakeHuman
+hair or a procedural updo), `Hat` (hideable: `set_hat_visible(false)`), and `LOD1` (~8 k tris) / `LOD2` (~2.5 k
+tris): every part joined and decimated, no blend
 shapes. CharacterMaterials sets visibility ranges (LOD0 < 16 m < LOD1 < 42 m < LOD2). Vertex colour: skin r cavity
 occlusion, g oily T-zone, b stubble mask; cloth r fold occlusion, g wear, b distance to the hem. UV2 = metres for
 fabric tiling. Materials are named `skin`, `eyes`, `cornea`, `brows`, `lashes`, `teeth`, `tongue`, `hair`,
@@ -119,12 +121,29 @@ bodices with corseted fronts, floor-length skirts, aprons, sashes; hats: cattlem
 cap, straw boater. Tags (`rider`, `ranch`, `townsfolk`, `wealthy`, `labour`, `outlaw`, `law`, `hero`, role, sex) drive
 `CharacterFactory.spawn(seed, role)`.
 
-Budgets (tris, LOD0, enforced by the builder): NPCs <= 24 k (head decimated with its blend shapes kept, beard shells
+Budgets (tris, LOD0, enforced by the builder): NPCs <= 24 k (face decimated with its blend shapes kept, beard shells
 and teeth decimated, the body takes the remaining cut), Ruth <= 39 k (subdivided eyes, 2 K skin). LOD1 ~8 k, LOD2
-~2.5 k. Textures: hero skin 2 K; NPC skin 1 K, hair and MakeHuman shoes 512, eyes 512, brows/lashes/teeth/tongue
-256 (every unique NPC loads its own copies: ~27 MB per unique NPC + ~11 MB per instance on llvmpipe, measured with
-character_shots). Godot imports the extracted textures lossless; VRAM compression would cut that ~4x but needs
-shipped .import sidecars next to pre-extracted textures (tested locally, not wired into the zip yet).
+~2.5 k. Textures: hero skin 2 K; NPC skin 1 K, hair and MakeHuman shoes 512, eyes 512, brows/lashes/teeth/tongue 256.
+
+## Memory (8 GB M1, Quest)
+- Textures ship pre-extracted next to each .glb (`<id>_<image>.png/.jpg`, the names Godot's "Extract Textures" uses)
+  with `.import` sidecars asking for VRAM compression (`compress/mode=2`: S3TC/BPTC on desktop, ETC2/ASTC for the
+  Quest; normal maps flagged), and `<id>.glb.import` turns off Godot's auto LODs and shadow meshes (the generator
+  ships LOD1/LOD2). `mhcore.godot_sidecars()` writes them and keeps the uid of an earlier import. Without the
+  pre-extracted file Godot re-extracts an uncompressed copy; with a sidecar but no file the scene embeds textures
+  (that was the "scene doubled" in the first experiment).
+- Blend shapes live on `Face` only, at its minimum vertex count (~4–5 k verts for an NPC incl. 5 beard shells).
+- Materials are built once per look and shared by its instances (CharacterMaterials caches by id); seed variants
+  re-colour garments through instance uniforms (`cloth.gdshader` `tint_0..7`, a material names its `tint_slot`).
+- Spring-bone simulators are built within 30 m of the camera and freed beyond 40 m; the gaze modifier runs within
+  30 m.
+- `--charmem` report: `godot [--headless] --path frontier res://scenes/character_shots.tscn -- --charmem
+  [--ids a,b] [--instances 30] [--out DIR]` prints per-look RSS / static / video deltas and analytic texture,
+  mesh, blend-shape and LOD MB, then the per-instance cost, and writes `charmem.json`.
+- Measured (software Vulkan, 2026-10-05): per NPC look 6.2 MB video + 1.1 MB CPU (was ~17 + 15); Ruth 13.5 MB video;
+  per instance 0.49 MB video + 0.35 MB CPU (1.1 MB RSS). Headless per look 5.6–7.5 MB CPU. Headless town bot:
+  characters add ~150 MB peak RSS (16 looks + 28 instances + clips). llvmpipe additionally JIT-compiles every
+  pipeline variant on first use (~350 MB once), which a hardware driver doesn't.
 
 ## Animation library (retarget.py -> animations.glb, animations.json)
 CMU mocap (cgspeed BVH) retargeted onto the canonical rig, 30 fps, in place with root motion on `Root`

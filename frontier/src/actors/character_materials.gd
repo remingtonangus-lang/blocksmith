@@ -16,25 +16,69 @@ var _fabric_cache: Dictionary = {}
 var _shader_cache: Dictionary = {}
 
 
+var _look_cache: Dictionary = {}   # character id -> {material key -> [Material, tint slot or -1]}
+
+const TINT_SLOTS := 8
+
+
 func apply(model: Node, info: Dictionary, rng: RandomNumberGenerator, opts := {}) -> void:
+	## Materials are built once per look and shared by every instance of it (same uniform sets, better batching);
+	## a seed variant's garment colours go into per-instance shader uniforms (cloth.gdshader tint_0..7) instead of
+	## new materials.
 	var mats: Dictionary = info.get("materials", {})
-	var done: Dictionary = {}
-	for mi in _meshes(model):
+	var id := str(info.get("id", ""))
+	var cache: Dictionary = _look_cache.get(id, {})
+	var fresh := cache.is_empty()
+	var variant := opts.has("variant_seed") and int(opts["variant_seed"]) != 0
+	var tints := {}                       # slot -> Color for this instance
+	var tinted := {}                      # MeshInstance3D -> true when one of its surfaces reads a tint slot
+	var meshes := _meshes(model)
+	for mi in meshes:
 		for s in mi.mesh.get_surface_count():
 			var m: Material = mi.mesh.surface_get_material(s)
 			if m == null:
 				continue
 			var key := m.resource_name
-			if not done.has(key):
-				done[key] = _make(key, m, mats.get(key, {}), info, rng, opts)
-			if done[key]:
-				mi.set_surface_override_material(s, done[key])
+			if not cache.has(key):
+				var slot := -1
+				var meta: Dictionary = mats.get(key, {})
+				var kind := key.get_slice(":", 0)
+				if kind in ["cloth", "leather", "metal"] and (meta.get("palette", []) as Array).size() > 0:
+					var used := 0
+					for k in cache:
+						if cache[k][1] >= 0:
+							used += 1
+					if used < TINT_SLOTS:
+						slot = used
+				var made := _make(key, m, meta, info, rng, {})
+				if made is ShaderMaterial and slot >= 0:
+					made.set_shader_parameter("tint_slot", slot)
+				cache[key] = [made, slot]
+			var entry: Array = cache[key]
+			if entry[0]:
+				mi.set_surface_override_material(s, entry[0])
+			if entry[1] >= 0:
+				tinted[mi] = true
+			if variant and entry[1] >= 0 and not tints.has(entry[1]):
+				var palette: Array = mats.get(key, {}).get("palette", [])
+				tints[entry[1]] = _col(palette[rng.randi_range(0, palette.size() - 1)], Color(1, 1, 1))
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		_lod_ranges(mi)
+	if fresh and id != "":
+		_look_cache[id] = cache
+	for mi in tinted:
+		for slot in tints:
+			var c: Color = tints[slot]
+			mi.set_instance_shader_parameter("tint_%d" % slot, Color(c.r, c.g, c.b, 1.0))
 	if opts.get("no_hat", false):
 		var hat := model.find_child("Hat", true, false)
 		if hat:
 			hat.visible = false
+
+
+func forget(id: String) -> void:
+	## Drop a look's shared materials (CharacterFactory calls this when it evicts the look).
+	_look_cache.erase(id)
 
 
 const LOD0_END := 16.0
@@ -95,6 +139,8 @@ func _fabric(name: String) -> Dictionary:
 			if img:
 				img.generate_mipmaps()
 				d[k] = ImageTexture.create_from_image(img)
+	for k in d:
+		d[k].resource_name = "fabric/%s/%s" % [name, k]
 	_fabric_cache[name] = d
 	return d
 
