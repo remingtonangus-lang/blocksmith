@@ -60,6 +60,25 @@ solid (exact, in the frame), standing drift, deck-relative velocity spikes and s
 In CI: snap.sh tours shard (gating). The fast lane runs any harness command given as `[fast: ARGS]` in the head commit
 message (focus.log on ci-fast-<branch>).
 
+## Frigates as far-future warships (Remington 2026-10-05, branch claude/bs-frigates)
+
+- Remington: frigates are space-navy warships of around 2500 AD (a sci-fi shooter's human navy for the feel; original
+  designs and names only), not ships of the sea, and you can walk through them like the citadel.
+- **Capital frigate** (CapitalFrigate.swift, role "capfrigate"; was the integration session's naval design): 200
+  blocks, an armoured prow wedge round the spinal gun's muzzle (`mainGun`), a slimmer midsection with a dorsal spine and
+  launch cells, a raked bridge tower aft (helm at 0,23,113), an engine block with drive nacelles and six nozzles, a
+  hangar open through both flanks (deck 4, z 66-104). Inside: crew deck (floor 12) and upper deck (17) of corridors and
+  rooms, the hold and engine room (floor 4) with a gallery (14), ladders, a dorsal hatch (5,22,62).
+- **Stormwarden frigate** (CapitalShips.swift `frigate()`): three decks of corridors and rooms over the hangar (46, 51,
+  66; the second deck's ceiling at 56 keeps the rail cannon's tube apart), ladder wells, and a gangway with a ladder
+  into the engine room, which had no way in.
+- **ShipInteriors.swift**: `HullBuilder.interiorDeck` (a centreline corridor, rooms either side with doorways, lights,
+  furniture and loot by kind: quarters, mess, armory, medbay, brig, storage, briefing, engineering; only empty cells
+  inside the hull are built), `ladderWell`, `roomCells`. **`--interiorcheck`** (snap.sh): every room, chest and the helm
+  of both frigates walkable from the hangar with the player's moves; crew posts in the open.
+- Ride check `frigateboard` follows the new Capital frigate (in by the starboard hangar opening, up to the crew deck,
+  its corridor, down, out to port). Shots: ship_frigate_corridor / room / hangar and ship_warfrigate_* (snap.sh).
+
 ## Open / for other sessions
 
 - Capital frigate (integration session's file): the deckhouse ladder at (-6, 15..20, 66) ends a block short of the
