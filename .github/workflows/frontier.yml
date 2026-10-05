@@ -160,19 +160,32 @@ jobs:
       - name: GPU probe (find features the CI GPU cannot render)
         id: gpuprobe
         if: ${{ !cancelled() }}
-        timeout-minutes: 25
+        timeout-minutes: 30
         run: |
-          # The paravirtual GPU + MoltenVK hangs or loses the device on some character/horse materials. Find the
-          # least restrictive set of kill-switches that renders a frame with Ruth, her horse and townsfolk, and use it
-          # for the evidence renders below (real Macs render everything through Metal; the Mac monitor checks that).
+          # The paravirtual GPU + MoltenVK loses the device on something in the scene. Bisect: one world feature off
+          # at a time (plain shot, no player), then the actor features with the player. The least restrictive set
+          # that renders is used for the evidence renders below (real Macs render everything through Metal).
           # A hung GPU blocks the engine's own watchdog, so each attempt gets a hard external timeout.
           mkdir -p snaps/probe
-          safe="sss,horse,characters"
-          for flags in "" "sss" "horse" "characters" "sss,horse" "sss,characters" "horse,characters"; do
-            name="probe_${flags:-all}"; name="${name//,/_}"
-            perl -e 'alarm shift; exec @ARGV' 150 "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 960x540 -- --shot "$PWD/snaps/probe/$name.png" --player --at town:bitter_spring --yaw 110 --frames 20 --watchdog 140 ${flags:+--disable $flags} > "snaps/probe/$name.log" 2>&1 || true
-            if [ -f "snaps/probe/$name.png" ] && ! grep -q "device was lost" "snaps/probe/$name.log"; then echo "renders with --disable '${flags}'"; safe="$flags"; break; fi
-            echo "failed with --disable '${flags}':"; grep -m2 -E "device was lost|ERROR|crash" "snaps/probe/$name.log" || echo "  (hung, killed)"
+          try() {   # $1 = disable flags, $2 = extra args; prints OK on success
+            local name="probe_${1:-all}${2:+_player}"; name="${name//,/_}"; name="${name// /}"
+            perl -e 'alarm shift; exec @ARGV' 150 "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 960x540 -- --shot "$PWD/snaps/probe/$name.png" --at town:bitter_spring --yaw 110 --frames 15 --watchdog 140 ${1:+--disable $1} $2 > "snaps/probe/$name.log" 2>&1 || true
+            if [ -f "snaps/probe/$name.png" ] && ! grep -q "device was lost" "snaps/probe/$name.log"; then echo OK; fi
+          }
+          world=""
+          if [ "$(try "")" != OK ]; then
+            world="all-world-bad"
+            for f in settlements backdrop water roads cloudshadows scatter trees grass vfog; do
+              if [ "$(try "$f")" = OK ]; then world="$f"; echo "world renders with --disable $f"; break; fi
+              echo "still lost with --disable $f"
+            done
+          fi
+          [ "$world" = "all-world-bad" ] && world="settlements,backdrop,water,roads,cloudshadows,scatter,trees,grass,vfog"
+          safe="$world"
+          for a in "" "sss" "horse" "characters" "sss,horse,characters"; do
+            flags="${world}${world:+${a:+,}}${a}"
+            if [ "$(try "$flags" --player)" = OK ]; then safe="$flags"; echo "player renders with --disable '$flags'"; break; fi
+            echo "player lost with --disable '$flags'"; safe="${world}${world:+,}sss,horse,characters"
           done
           echo "FRONTIER_DISABLE=${safe}" >> $GITHUB_ENV
           echo "gpu probe: --disable '${safe}'" | tee snaps/probe/result.txt

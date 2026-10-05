@@ -53,7 +53,7 @@ var _task_result := {}
 
 func setup(w: WorldData, _b = null) -> void:
 	world = w
-	if Game.args.has("no_settlements"):        # perf A/B comparisons
+	if Game.args.has("no_settlements") or Game.disabled("settlements"):        # perf A/B comparisons
 		return
 	var t0 := Time.get_ticks_msec()
 	TownProps.preload_all()
