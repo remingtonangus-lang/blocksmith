@@ -27,7 +27,8 @@ signal town_built(id: String)
 const CELL := 128.0
 const EXT_RANGE := 520.0
 const FAR_BEGIN := 480.0
-const INT_RANGE := 45.0          # per building
+const INT_RANGE := 45.0          # per building (backstop; _interiors() shows them only within INT_NEAR)
+const INT_NEAR := 9.0
 const OPROP_RANGE := 140.0
 const DOOR_RANGE := 120.0         # + town radius (one MultiMesh per door mesh per town)
 const LIGHT_CULL := 140.0
@@ -47,6 +48,7 @@ var _lights: Array = []          # [OmniLight3D, base_energy, kind, phase, alway
 var _spinners: Array = []        # [Node3D, axis, speed]
 var _night := -1.0
 var _timer := 0.0
+var _int_timer := 0.0
 var _door_meshes := {}
 var _door_mutex := Mutex.new()
 var _task := -1
@@ -499,6 +501,19 @@ func _attach(t: Dictionary, res: Dictionary) -> void:
 			hp.transform = sp.transform
 			hp.add_to_group("hitching_post")
 			root.add_child(hp)
+	# interiors per building: shown only while the camera is inside or within INT_NEAR of the footprint
+	var by_num := {}
+	for bid0 in t.buildings:
+		by_num[str(bid0).get_file().get_slice("_", 0)] = bid0
+	for n in root.get_children():
+		var nm := str(n.name)
+		if nm.begins_with("Int_") or nm.begins_with("IP_"):
+			var bid: String = by_num.get(nm.get_slice("_", 1), "")
+			if buildings.has(bid):
+				if not buildings[bid].has("int_nodes"):
+					buildings[bid]["int_nodes"] = []
+				buildings[bid].int_nodes.append(n)
+				n.visible = false
 	t.node.add_child(root)
 	t.detail = root
 	t.state = "built"
@@ -721,6 +736,10 @@ func _process(dt: float) -> void:
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
 		return
+	_int_timer -= dt
+	if _int_timer <= 0.0:
+		_int_timer = 0.2
+		_interiors(cam.global_position)
 	var cp := cam.global_position
 	var tt := Time.get_ticks_msec() * 0.001
 	for l in _lights:
@@ -733,6 +752,32 @@ func _process(dt: float) -> void:
 		var n: Node3D = s[0]
 		if n.global_position.distance_squared_to(cp) < 250000.0:
 			n.rotate_object_local(s[1], s[2] * dt)
+
+## Interior meshes and props of a building draw only while the camera is inside it or within INT_NEAR of its
+## footprint (looking in through the door or a window); everything else in town is shell only.
+func _interiors(cp: Vector3) -> void:
+	for id in towns:
+		var t: Dictionary = towns[id]
+		if t.state != "built":
+			continue
+		var tc: Vector3 = t.center
+		var near_town: bool = Vector2(cp.x - tc.x, cp.z - tc.z).length() < float(t.radius) + 60.0
+		for bid in t.buildings:
+			var b: Dictionary = buildings[bid]
+			if not b.has("int_nodes"):
+				continue
+			var vis := false
+			if near_town:
+				var l: Vector3 = b.transform.affine_inverse() * cp
+				var sz: Vector3 = b.size
+				var dx := maxf(absf(l.x) - sz.x * 0.5, 0.0)
+				var dz := maxf(maxf(-l.z, l.z - sz.z), 0.0)
+				vis = dx * dx + dz * dz < INT_NEAR * INT_NEAR and absf(l.y) < 12.0
+			if b.get("int_vis", false) != vis:
+				b["int_vis"] = vis
+				for n in b.int_nodes:
+					if is_instance_valid(n):
+						n.visible = vis
 
 func night_factor() -> float:
 	var sky = Game.sky
@@ -1015,6 +1060,32 @@ func bake_navigation(town_id: String) -> void:
 	for i in mini(NAV_PARALLEL, jobs.size()):
 		_nav_next(t)
 
+## Blocking bake of a town's navmesh on the calling thread (screenshots with a slow frame rate, tests).
+func bake_navigation_now(town_id: String) -> void:
+	var t: Dictionary = towns.get(town_id, {})
+	if t.is_empty():
+		return
+	if t.nav_state == "none":
+		bake_navigation(town_id)
+	var q: Array = t.get("nav_queue", [])
+	while not q.is_empty():
+		var nm := _nav_mesh_for(q.pop_front())
+		NavigationServer3D.bake_from_source_geometry_data(nm, t.nav_src)
+		_nav_chunk_done(t, nm)
+
+func _nav_mesh_for(box: AABB) -> NavigationMesh:
+	var nm := NavigationMesh.new()
+	nm.cell_size = 0.25
+	nm.cell_height = 0.25
+	nm.agent_radius = 0.25
+	nm.agent_height = 1.75
+	nm.agent_max_climb = 0.25
+	nm.agent_max_slope = 38.0
+	nm.border_size = 1.0
+	nm.filter_baking_aabb = box
+	nm.region_min_size = 4.0
+	return nm
+
 func _nav_next(t: Dictionary) -> void:
 	var q: Array = t.get("nav_queue", [])
 	if q.is_empty() or t.state != "built":
@@ -1022,16 +1093,7 @@ func _nav_next(t: Dictionary) -> void:
 	var box: AABB = q.pop_front()
 	var src: NavigationMeshSourceGeometryData3D = t.nav_src
 	if true:
-		var nm := NavigationMesh.new()
-		nm.cell_size = 0.25
-		nm.cell_height = 0.25
-		nm.agent_radius = 0.25
-		nm.agent_height = 1.75
-		nm.agent_max_climb = 0.25
-		nm.agent_max_slope = 38.0
-		nm.border_size = 1.0
-		nm.filter_baking_aabb = box
-		nm.region_min_size = 4.0
+		var nm := _nav_mesh_for(box)
 		NavigationServer3D.bake_from_source_geometry_data_async(nm, src, func(): _nav_chunk_done.call_deferred(t, nm))
 
 func _nav_chunk_done(t: Dictionary, nm: NavigationMesh) -> void:

@@ -52,7 +52,7 @@ func queue_spectacle(pos: Vector3) -> void:
 func _process(dt: float) -> void:
 	_t -= dt
 	_sample_t -= dt
-	if Game.player == null or Game.world == null:
+	if Game.world == null or not _has_ref():
 		return
 	if _sample_t <= 0.0:
 		_sample_t = 5.0
@@ -66,10 +66,10 @@ func _process(dt: float) -> void:
 		_pending_spectacles.clear()
 	_tick(false)
 	_yield_to_story()
-	_travellers(0.5, Game.player.global_position)
+	_travellers(0.5, ref_pos())
 
 func _tick(fill: bool) -> void:
-	var pp: Vector3 = Game.player.global_position
+	var pp: Vector3 = ref_pos()
 	var near := 0
 	for k in residents.keys():
 		var h = residents[k]
@@ -118,7 +118,7 @@ func _tick(fill: bool) -> void:
 func _yield_to_story() -> void:
 	var others: Array = []
 	for h in get_tree().get_nodes_in_group("humans"):
-		if h.alive and not h.has_meta("resident") and not h.has_meta("home_town") and h.role != "traveller" and h.global_position.distance_to(Game.player.global_position) < 200.0:
+		if h.alive and not h.has_meta("resident") and not h.has_meta("home_town") and h.role != "traveller" and h.global_position.distance_to(ref_pos()) < 200.0:
 			others.append(h)
 	if others.is_empty():
 		return
@@ -176,9 +176,19 @@ func _spot_at(tid: String, o: Vector3) -> Dictionary:
 			return sp
 	return {}
 
+## Where life happens: around Ruth, or around the camera when there is no player (screenshots, cutscene tools).
+func ref_pos() -> Vector3:
+	if Game.player != null and is_instance_valid(Game.player):
+		return Game.player.global_position
+	var cam := get_viewport().get_camera_3d() if get_viewport() else null
+	return cam.global_position if cam != null else Vector3.ZERO
+
+func _has_ref() -> bool:
+	return (Game.player != null and is_instance_valid(Game.player)) or (get_viewport() != null and get_viewport().get_camera_3d() != null)
+
 ## Screenshot/bot hook: spawn everyone due in nearby towns now, on their spots.
 func fill_now() -> void:
-	if Game.player != null and Game.world != null:
+	if _has_ref() and Game.world != null:
 		_tick(true)
 
 func _despawn(key: String, h: Human) -> void:
@@ -199,7 +209,7 @@ func _spawn_town_resident(r: Dictionary, place: bool) -> bool:
 		return false
 	if b.kind in ["play", "stagger", "patrol"] and not nav_ready(r.town):
 		return false                     # these walk between navmesh points: wait for the town's navmesh
-	var pp: Vector3 = Game.player.global_position
+	var pp: Vector3 = ref_pos()
 	var hs := home_spot(r)
 	var from_home: bool = indoors.has(r.key) and not place and not hs.is_empty() and \
 		hs.transform.origin.distance_to(pp) < 140.0
@@ -511,9 +521,9 @@ func unseen(body: Node3D, min_dist: float) -> bool:
 	return unseen_point(body.global_position, min_dist)
 
 func unseen_point(p: Vector3, min_dist: float) -> bool:
-	if Game.player == null:
+	if not _has_ref():
 		return true
-	if p.distance_to(Game.player.global_position) < min_dist:
+	if p.distance_to(ref_pos()) < min_dist:
 		return false
 	var cam: Camera3D = Game.camera
 	if cam == null or not is_instance_valid(cam):

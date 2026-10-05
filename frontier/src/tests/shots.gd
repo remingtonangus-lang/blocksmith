@@ -189,7 +189,7 @@ func _town_life(p: Vector3) -> void:
 	var tid: String = stl.town_at(p, 60.0) if stl != null else ""
 	if tid == "":
 		return
-	stl.bake_navigation(tid)
+	stl.bake_navigation_now(tid)
 	var t0 := Time.get_ticks_msec()
 	while not stl.navigation_ready(tid) and Time.get_ticks_msec() - t0 < 120000:
 		await get_tree().process_frame
