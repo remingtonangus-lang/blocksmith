@@ -393,6 +393,18 @@ enum WorldFXTest {
         g.fx.snowChanges = 0
         run(240)
         let d1 = depth()
+        // Oracle: neighbouring snow columns on open ground differ by at most a step the player walks up (3 layers).
+        var steep = 0, pairs = 0
+        for dz in -20...20 { for dx in -20...20 {
+            let x = cx + dx, z = cz + dz
+            let ya = wd.topY(x, z), yb = wd.topY(x + 1, z)
+            guard ya == yb else { continue }
+            let la = g.snowLayers(wd.rawBlock(x, ya + 1, z)), lb = g.snowLayers(wd.rawBlock(x + 1, yb + 1, z))
+            guard la >= 0 && lb >= 0 else { continue }
+            pairs += 1
+            if abs(la - lb) > 3 { steep += 1 }
+        } }
+        check(pairs > 100 && steep * 50 < pairs, "snow drifts are smooth enough to walk", "\(steep) of \(pairs) neighbour pairs differ by more than 3 layers")
         let under = g.snowLayers(wd.rawBlock(cowX, wd.topY(cowX, cowZ) + 1, cowZ))
         check(under <= 2, "snow doesn't bury a standing cow's feet", "\(under) layers under it")
         g.mobs.mobs.removeAll { $0 === cow }

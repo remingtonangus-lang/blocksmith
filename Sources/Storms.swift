@@ -211,6 +211,18 @@ extension Game {
         }
     }
 
+    // Smooth value noise in 0...1 on a 7-block lattice (snow drift depth).
+    static func driftNoise(_ x: Int, _ z: Int) -> Float {
+        let fx = Float(x) / 7, fz = Float(z) / 7
+        let x0 = Int(floorf(fx)), z0 = Int(floorf(fz))
+        let tx = fx - Float(x0), tz = fz - Float(z0)
+        let sx = tx * tx * (3 - 2 * tx), sz = tz * tz * (3 - 2 * tz)
+        let a = hashf(x0, 0, z0, 0x5D0), b = hashf(x0 + 1, 0, z0, 0x5D0)
+        let c = hashf(x0, 0, z0 + 1, 0x5D0), d = hashf(x0 + 1, 0, z0 + 1, 0x5D0)
+        let top = a + (b - a) * sx, bottom = c + (d - c) * sx
+        return top + (bottom - top) * sz
+    }
+
     static let leavesT: [Bool] = (0..<Blocks.count).map { Blocks.key(Blocks.groupBase[$0]).hasSuffix("_leaves") }
 
     func snowChunk(_ c: Chunk, snowing: Bool) {
@@ -245,8 +257,9 @@ extension Game {
             if let b = biomes[bi] { biome = b } else { biome = world.gen.column(c.cx * CS + (lx & ~3) + 2, c.cz * CS + (lz & ~3) + 2).biome; biomes[bi] = biome }
             let snowsHere = biome.snows(at: y)
             let light = world.lightAt(x, y + 1, z).block
-            // Drifts: some columns take more than others (fixed per column), leaves hold a single layer.
-            let drift = hashf(x, 0, z, 0x5D0)
+            // Drifts: smooth over ~7 blocks (per-column randomness left 10 px steps between neighbours to jump), leaves
+            // hold a single layer.
+            let drift = Game.driftNoise(x, z)
             let leaves = Game.leavesT[Int(top)]
             var want = cur
             if snowing && snowsHere && light < 10 {
