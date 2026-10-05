@@ -27,9 +27,9 @@ signal town_built(id: String)
 const CELL := 128.0
 const EXT_RANGE := 520.0
 const FAR_BEGIN := 480.0
-const INT_RANGE := 140.0
-const OPROP_RANGE := 200.0
-const DOOR_RANGE := 300.0
+const INT_RANGE := 110.0
+const OPROP_RANGE := 160.0
+const DOOR_RANGE := 250.0
 const LIGHT_CULL := 140.0
 const BUILD_DIST := 750.0
 const NAV_CHUNK := 64.0
@@ -287,7 +287,8 @@ func _prepare(plan: Dictionary) -> Dictionary:
 		var ek: MeshKit = ext[ck]
 		if not ek.is_empty():
 			ext_tris += ek.tris
-			meshes.append(["Ext_%d_%d" % [ck.x, ck.y], ek.commit(mats, plain), 0.0, EXT_RANGE, true])
+			meshes.append(["Ext_%d_%d" % [ck.x, ck.y], ek.commit(mats, plain), 0.0, EXT_RANGE, false])
+			meshes.append(["ExtShadow_%d_%d" % [ck.x, ck.y], ek.commit_shadow(["glass", "water", "lamp", "fire"]), 0.0, EXT_RANGE, true])
 		var ik: MeshKit = inn[ck]
 		if not ik.is_empty():
 			int_tris += ik.tris
@@ -348,11 +349,21 @@ func _attach(t: Dictionary, res: Dictionary) -> void:
 	var t0 := Time.get_ticks_usec()
 	var root := Node3D.new()
 	root.name = "Detail"
+	var surfaces := 0
 	for m in res.meshes:
-		var mi := _mesh_node(m[1], m[0], m[2], m[3], GeometryInstance3D.SHADOW_CASTING_SETTING_ON if m[4] else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
-		if m[4]:
+		var mesh: ArrayMesh = m[1]
+		if mesh.get_surface_count() == 0:
+			continue
+		# shadow casters: one position-only proxy per cell (SHADOWS_ONLY); the detailed mesh casts none
+		var mi := _mesh_node(mesh, m[0], m[2], m[3], GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY if m[4] else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+		if m[3] >= EXT_RANGE:
 			mi.visibility_range_end_margin = 40.0
+		if not m[4]:
+			surfaces += mesh.get_surface_count()
 		root.add_child(mi)
+	for m in res.mms:
+		surfaces += (m[1] as MultiMesh).mesh.get_surface_count()
+	stats["surfaces"] = stats.get("surfaces", 0) + surfaces
 	for m in res.mms:
 		var mmi := MultiMeshInstance3D.new()
 		mmi.name = m[0]
@@ -421,6 +432,7 @@ func _attach(t: Dictionary, res: Dictionary) -> void:
 		mmi2.multimesh = mm
 		mmi2.visibility_range_end = DOOR_RANGE
 		mmi2.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+		mmi2.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mmi2.name = "Doors"
 		root.add_child(mmi2)
 		stats.multimeshes += 1
@@ -458,8 +470,8 @@ func _attach(t: Dictionary, res: Dictionary) -> void:
 	for k in p:
 		prof[k] = prof.get(k, 0) + p[k]
 	_update_lights(true)
-	print("settlements: built %s: %d structures, tris ext %dk int %dk, build %d ms (commit %d), attach %d ms" % [t.id, res.recs.size(),
-		res.ext_tris / 1000, res.int_tris / 1000, p.total / 1000, p.commit / 1000, p.attach / 1000])
+	print("settlements: built %s: %d structures, tris ext %dk int %dk, %d surfaces (meshes + props), build %d ms (commit %d), attach %d ms" % [t.id, res.recs.size(),
+		res.ext_tris / 1000, res.int_tris / 1000, surfaces, p.total / 1000, p.commit / 1000, p.attach / 1000])
 	town_built.emit(str(t.id))
 
 func _mesh_node(mesh: ArrayMesh, nm: String, begin: float, end: float, shadow: int) -> MeshInstance3D:

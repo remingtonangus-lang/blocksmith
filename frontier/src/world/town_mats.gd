@@ -16,7 +16,7 @@ const SETS := {
 	"planks_raw": ["build_planks_raw", 1.5, 1.5, 9.0, 0.0, 0.25, {}],
 	"planks_brown": ["build_planks_brown", 1.8, 1.8, 12.0, 1.0, 0.25, {}],
 	"dark_planks": ["build_dark_planks", 1.6, 1.6, 8.0, 1.0, 0.3, {}],
-	"floor": ["build_floor", 1.1, 1.1, 6.0, 1.0, 0.65, {"dirt_amount": 0.0}],
+	"floor": ["build_floor", 1.1, 1.1, 6.0, 1.0, 0.65, {"dirt_amount": 0.0, "rough_add": 0.3, "spec": 0.25}],
 	"log": ["build_log_wall", 1.8, 1.8, 6.0, 1.0, 0.2, {}],
 	"brick": ["build_brick", 1.5, 1.5, 0.0, 1.0, 0.35, {"grime": 0.5}],
 	"stone": ["build_adobe_stone", 2.4, 2.4, 0.0, 1.0, 0.3, {}],
@@ -44,6 +44,11 @@ const FAR_COL := {
 	"rust": Color(0.50, 0.36, 0.24), "roof_planks": Color(0.40, 0.33, 0.26), "timber": Color(0.50, 0.45, 0.40),
 	"canvas": Color(0.78, 0.72, 0.60), "thatch": Color(0.50, 0.42, 0.30),
 }
+
+# untextured materials merged into the single "vc" surface: key -> [base colour (sRGB), roughness, metallic]
+const VC := {"iron": [Color(0.16, 0.15, 0.14), 0.5, 0.75], "brass": [Color(0.72, 0.55, 0.28), 0.35, 0.9],
+	"bottle": [Color(1, 1, 1), 0.08, 0.15], "cloth": [Color(1, 1, 1), 0.95, 0.0], "water": [Color(0.05, 0.08, 0.07), 0.04, 0.1],
+	"mirror": [Color(0.42, 0.42, 0.4), 0.3, 1.0]}
 
 static var _mats := {}
 static var lights_on := 0.0
@@ -123,6 +128,9 @@ static func _build() -> void:
 	water.roughness = 0.04
 	water.metallic = 0.1
 	_mats["water"] = water
+	var vc := ShaderMaterial.new()
+	vc.shader = load("res://shaders/vc.gdshader")
+	_mats["vc"] = vc
 	var far := StandardMaterial3D.new()
 	far.vertex_color_use_as_albedo = true
 	far.vertex_color_is_srgb = true
@@ -143,12 +151,12 @@ static func _build() -> void:
 	var mirror := StandardMaterial3D.new()
 	mirror.albedo_color = Color(0.42, 0.42, 0.4)
 	mirror.metallic = 1.0
-	mirror.roughness = 0.22
+	mirror.roughness = 0.32
 	_mats["mirror"] = mirror
 
 ## Keys whose surfaces have no normal map (skip tangent generation).
 static func plain_keys() -> Array:
-	return ["sign", "iron", "brass", "lamp", "fire", "water", "far", "mirror", "glass", "bottle", "cloth"]
+	return ["sign", "iron", "brass", "lamp", "fire", "water", "far", "mirror", "glass", "bottle", "cloth", "vc"]
 
 ## Night factor 0..1 drives lit windows and lamp glass emission.
 static func set_lights(v: float) -> void:

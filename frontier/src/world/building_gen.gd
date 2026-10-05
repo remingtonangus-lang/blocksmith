@@ -386,7 +386,7 @@ func floor_slab(x0: float, z0: float, x1: float, z1: float, y: float, key := "fl
 
 func ceiling(x0: float, z0: float, x1: float, z1: float, y: float, key := "planks_v") -> void:
 	var saved := ext.tint
-	ext.tint = Color(0.9, 0.75, 0.6, 0.04)
+	ext.tint = Color(0.82, 0.76, 0.68, 0.04)
 	ext.face(key, Vector3(x0, y, z0), Vector3(x1 - x0, 0, 0), Vector3(0, 0, z1 - z0))
 	ext.tint = saved
 

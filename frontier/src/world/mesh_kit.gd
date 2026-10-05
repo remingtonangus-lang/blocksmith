@@ -252,7 +252,37 @@ func add_arrays(key: String, arrays: Array, local: Transform3D, col: Color) -> v
 	tris += v.size() / 3
 
 ## Commit every bucket as a surface. mats: key -> Material. Tangents via mikktspace for normal-mapped keys.
+## Fold the untextured vertex-colour buckets (TownMats.VC: iron, brass, bottle, cloth, water, mirror) into one
+## "vc" bucket: colour *= the material's base colour, UV = (roughness, metallic). Saves a draw call per material.
+func merge_vc() -> void:
+	for key in TownMats.VC:
+		if not buckets.has(key):
+			continue
+		var src: Array = buckets[key]
+		var spec: Array = TownMats.VC[key]
+		var base_col: Color = spec[0]
+		var uvv := Vector2(spec[1], spec[2])
+		var dst := _bucket("vc")
+		var base: int = dst[0].size()
+		dst[0].append_array(src[0])
+		dst[1].append_array(src[1])
+		var n: int = src[0].size()
+		var uvs := PackedVector2Array()
+		uvs.resize(n)
+		uvs.fill(uvv)
+		dst[2].append_array(uvs)
+		dst[3].append_array(src[3])
+		var cols: PackedColorArray = src[4]
+		for i in n:
+			var c: Color = cols[i]
+			dst[4].append(Color(c.r * base_col.r, c.g * base_col.g, c.b * base_col.b, 1.0))
+		var idx: PackedInt32Array = src[5]
+		for i in idx.size():
+			dst[5].append(idx[i] + base)
+		buckets.erase(key)
+
 func commit(mats: Dictionary, no_tangent_keys: Array = []) -> ArrayMesh:
+	merge_vc()
 	var mesh := ArrayMesh.new()
 	var keys := buckets.keys()
 	keys.sort()
@@ -278,6 +308,33 @@ func commit(mats: Dictionary, no_tangent_keys: Array = []) -> ArrayMesh:
 		mesh.surface_set_name(si, key)
 		if mats.has(key):
 			mesh.surface_set_material(si, mats[key])
+	return mesh
+
+## Position-only single-surface copy of every opaque bucket, for a SHADOWS_ONLY proxy: the shadow passes then
+## draw one surface per cell instead of one per material.
+func commit_shadow(skip_keys: Array) -> ArrayMesh:
+	var verts := PackedVector3Array()
+	var idx := PackedInt32Array()
+	for key in buckets:
+		if skip_keys.has(key) or str(key).begins_with("text_"):
+			continue
+		var b: Array = buckets[key]
+		var base := verts.size()
+		verts.append_array(b[0])
+		var src: PackedInt32Array = b[5]
+		var off := PackedInt32Array()
+		off.resize(src.size())
+		for i in src.size():
+			off[i] = src[i] + base
+		idx.append_array(off)
+	var mesh := ArrayMesh.new()
+	if idx.is_empty():
+		return mesh
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = verts
+	arr[Mesh.ARRAY_INDEX] = idx
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
 	return mesh
 
 func vertex_count() -> int:
