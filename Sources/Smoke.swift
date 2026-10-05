@@ -160,6 +160,16 @@ enum Smoke {
                 var q = p
                 q.lx = 0.45; q.rx = -0.1; q.menu = false; q.y = i % 900 == 300; q.b = i % 900 == 330
                 game.coop.simulated[1] = q
+                if i % 600 == 0 {
+                    // Where player 2 is and what holds them (run 509: they moved 12 blocks in 60 s).
+                    var info = ""
+                    game.coop.withSeat(1, game) {
+                        let p2 = game.player
+                        info = String(format: "%.1f %.1f %.1f ground %@ water %@", p2.pos.x, p2.pos.y, p2.pos.z, p2.onGround ? "yes" : "no", p2.inWater ? "yes" : "no")
+                            + " menu " + (game.menu.map { String(describing: type(of: $0)) } ?? "none") + (game.paused ? " paused" : "")
+                    }
+                    print("smoke rd \(rd) split: t \(i / 60) s player 2 at \(info)")
+                }
             }
             let b = CFAbsoluteTimeGetCurrent()
             progress.set(i, "Game.tick")
