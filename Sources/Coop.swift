@@ -432,6 +432,10 @@ extension Game {
         portalTick(f)
         hazardTick(f)
         effectTick(f)
+        // Their own fishing bobber and held map (both ran only in seat 0's turn: player 2's bobber hung where it was
+        // cast and never bit, their map never filled).
+        bobberTick(f)
+        mapTick()
         if survival { timeSinceRest += f }
         if sleeping > 0 { sleeping += f; timeSinceRest = 0 }
     }
