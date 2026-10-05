@@ -179,7 +179,9 @@ enum TerrainTools {
                     plantBlocks += 1
                     if y >= SEA { aboveSea += 1 }
                     let up = b[Chunk.index(lx, y + 1, lz)]
-                    if up == WATER || Blocks.groupBase[Int(up)] == Blocks.groupBase[Int(id)] { continue }
+                    // Covered by a solid block (a shipwreck's hull, an overhang) is still in water, not standing dry
+                    // (run 634's one exposed plant was seagrass under a wreck's planks).
+                    if up == WATER || Blocks.groupBase[Int(up)] == Blocks.groupBase[Int(id)] || Blocks.fullCollide[Int(up)] { continue }
                     exposed += 1
                     if samples.count < 12 {
                         var top = y + 1
