@@ -42,7 +42,7 @@
    "voice": "man_town"
   },
   "moss": {
-   "name": "Dutch Moss",
+   "name": "Ansel Moss",
    "voice": "man_rough"
   },
   "pip": {
@@ -214,7 +214,7 @@
   {
    "id": "s_herd_03",
    "speaker": "clem",
-   "line": "Eight. Walt named every one of them. It's foolish. Bessie, Dutch, the Senator... I'll stop.",
+   "line": "Eight. Walt named every one of them. It's foolish. Bessie, Clover, the Senator... I'll stop.",
    "emotion": "sad"
   },
   {

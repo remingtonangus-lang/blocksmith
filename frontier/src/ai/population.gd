@@ -112,7 +112,7 @@ func _travellers(dt: float, pp: Vector3) -> void:
 
 const FIRST := ["Abel", "Amos", "Asa", "Bertha", "Caleb", "Clara", "Cyrus", "Delia", "Edna", "Elias", "Etta", "Ezra",
 	"Flora", "Gideon", "Hattie", "Hiram", "Ida", "Isaac", "Jonas", "Josie", "Lemuel", "Lottie", "Mabel", "Matthias",
-	"Minnie", "Nell", "Obed", "Ora", "Perley", "Rufus", "Sadie", "Silas", "Tillie", "Virgil", "Walt", "Zeb", "Mateo",
+	"Minnie", "Nell", "Obed", "Ora", "Perley", "Rufus", "Mabel", "Silas", "Tillie", "Virgil", "Walt", "Zeb", "Mateo",
 	"Rosa", "Ignacio", "Lupe", "Wen", "Henrik", "Greta", "Tomas", "Bridget", "Seamus"]
 const LAST := ["Abbott", "Barlow", "Birch", "Coker", "Dabney", "Ellery", "Fenwick", "Garrity", "Hollis", "Ingram",
 	"Judd", "Kessler", "Larkin", "Moody", "Nance", "Oakes", "Pruett", "Quill", "Rasmussen", "Sayer", "Tolliver",

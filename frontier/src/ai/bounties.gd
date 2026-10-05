@@ -4,7 +4,7 @@ extends Node3D
 ## reward, or break the gang and take him alive (he surrenders when broken: interact to take him into custody)
 ## for 1.5x and Standing. Turn-in happens automatically on capture/kill (the county wires the money).
 
-const FIRST := ["Jubal", "Lyman", "Cass", "Dutch", "Royal", "Elam", "Virgil", "Hollis", "Mose", "Tate"]
+const FIRST := ["Jubal", "Lyman", "Cass", "Lute", "Royal", "Elam", "Virgil", "Hollis", "Mose", "Tate"]
 const LAST := ["Ketchum", "Barrow", "Strick", "Pardee", "Voss", "Lacey", "Grigsby", "Kincannon", "Rusk", "Toller"]
 const CRIMES := ["horse theft", "the murder of a freight agent", "robbing the Coldwater payroll", "arson at a homestead",
 	"cattle rustling", "shooting a deputy", "stage robbery on the Linden road"]

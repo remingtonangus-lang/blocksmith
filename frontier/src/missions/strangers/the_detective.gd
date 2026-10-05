@@ -51,7 +51,7 @@ func run(d) -> Variant:
 	var hunters: Array = ST.gang(d, C2.near(ford, -14.0, 10.0), 3, "Bounty Hunter", 9603, "merriman_lever", 4.0)
 	var moss = C2.one(hunters)
 	if moss:
-		moss.display_name = "Dutch Moss"
+		moss.display_name = "Ansel Moss"
 	d.npc_hold(crane, C2.near(ford, -14.0, 10.0))
 	d.cine_begin()
 	await d.say("s_det_06", crane)
