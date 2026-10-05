@@ -31,7 +31,7 @@ extension Game {
     // Is (x,y,z) open to the sky (for rain)?
     func skyExposed(_ x: Int, _ y: Int, _ z: Int) -> Bool {
         guard let c = world.chunks[ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))] else { return false }
-        return y > Int(c.height[mod(x, CS) + mod(z, CS) * CS])
+        return y > Int(c.rainTop[mod(x, CS) + mod(z, CS) * CS])
     }
 
     func isRainingAt(_ p: V3) -> Bool {
@@ -65,7 +65,7 @@ extension Game {
                 for _ in 0..<Int(w.rain * 6) {
                     let x = Int(floor(pp.x)) + Rand.int(in: -8...8), z = Int(floor(pp.z)) + Rand.int(in: -8...8)
                     guard let c = world.chunks[ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))] else { continue }
-                    let top = Int(c.height[mod(x, CS) + mod(z, CS) * CS])
+                    let top = Int(c.rainTop[mod(x, CS) + mod(z, CS) * CS])
                     guard precipitation(x, top + 1, z) == 1 else { continue }
                     let p = V3(Float(x) + Rand.float(in: 0...1), Float(top + 1) + 0.02, Float(z) + Rand.float(in: 0...1))
                     particles.add(Particle(pos: p, vel: V3(Rand.float(in: -0.4...0.4), Rand.float(in: 0.8...1.6), Rand.float(in: -0.4...0.4)),
@@ -147,7 +147,7 @@ extension Game {
             guard let c = world.chunks[ChunkKey(x: pcx + dx, z: pcz + dz)] else { continue }
             let lx = Rand.int(in: 0..<16), lz = Rand.int(in: 0..<16)
             let x = c.cx * CS + lx, z = c.cz * CS + lz
-            let y = Int(c.height[lx + lz * CS])
+            let y = Int(c.rainTop[lx + lz * CS])
             guard y > 0 && y < CH - 1 else { continue }
             let top = world.block(x, y, z)
             let biome = world.gen.column(x, z).biome
@@ -176,7 +176,7 @@ extension Game {
             for dz in -10...10 { for dx in -10...10 where dx * dx + dz * dz <= 100 {
                 let x = ex + dx, z = ez + dz
                 guard let c = world.chunks[ChunkKey(x: floorDiv(x, CS), z: floorDiv(z, CS))] else { continue }
-                let top = Float(Int(c.height[mod(x, CS) + mod(z, CS) * CS]) + 1)
+                let top = Float(Int(c.rainTop[mod(x, CS) + mod(z, CS) * CS]) + 1)
                 let yLo = max(top, eye.y - 10), yHi = eye.y + 12
                 guard yHi > yLo else { continue }
                 let kind = precipitation(x, Int(top), z)

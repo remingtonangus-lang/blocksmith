@@ -116,6 +116,10 @@ final class Chunk {
     // (then World.lightAt falls back to the heightmap). Uniform sections share Mesher.dark / Mesher.fullSky.
     var light = [[UInt8]?](repeating: nil, count: NSEC)
     var height: [Int16]            // highest sky-stopping block per column (-1 = none)
+    // Highest block that stops rain and snow per column: sky-stopping or solid (glass lets the sky's light through but
+    // not the weather: it rained and snowed inside glass-roofed rooms). Kept with `height`.
+    var rainTop: [Int16] = []
+    static let rainStopT: [Bool] = (0..<Blocks.count).map { Blocks.sky[$0] || Blocks.collide[$0] }
     var tint: [UInt32]             // 256 grass, 256 foliage, 256 water colours (RGBA8)
     var tintBuf: MeshSlice?          // tint table on the GPU (carved from the mesh slabs)
     var sections: [Section]
@@ -159,6 +163,8 @@ final class Chunk {
         self.height = height
         self.tint = tint
         sections = (0..<NSEC).map { _ in Section() }
+        rainTop = [Int16](repeating: -1, count: CSQ)
+        for c in 0..<CSQ { recomputeRainTop(c) }
         for s in sections { s.owner = self }
         staleSections = NSEC                         // every section starts unmeshed (version 0, meshedVersion -1)
     }
@@ -187,5 +193,13 @@ final class Chunk {
         var y = min(CH, blocks.storedCount / CSQ) - 1
         while y >= 0 && !skyT[Int(blocks[c + y * CSQ])] { y -= 1 }
         height[c] = Int16(y)
+        recomputeRainTop(c)
+    }
+
+    private func recomputeRainTop(_ c: Int) {
+        let stopT = Chunk.rainStopT
+        var y = min(CH, blocks.storedCount / CSQ) - 1
+        while y >= 0 && !stopT[Int(blocks[c + y * CSQ])] { y -= 1 }
+        rainTop[c] = Int16(y)
     }
 }
