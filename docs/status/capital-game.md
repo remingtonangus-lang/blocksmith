@@ -21,7 +21,8 @@ civilisation; see STATUS.md "Future ideas" #1), and pushes it to full-scale deta
     destroy, parked, trees, stand, menu), 33 screenshots on lavapipe, a 60 s smoke test;
   - the macOS export with a smoke test, padcheck, a benchmark (`benchmark.json` on `capital-shots/mac/`)
     and the pad bridge build.
-- Benchmark on CI's paravirtual Mac GPU (High): city/battle/forest about 33-38 / 31 / 35 fps. Numbers from
+- Benchmark on CI's paravirtual Mac GPU (High): city/battle/forest about 39 / 33 / 37 fps, GPU-bound (scripts 2.4-2.9 ms
+  a frame, renderer CPU under 1 ms). Numbers from
   Remington's M1 are still to come (the fleet monitor reruns at each GAME BUILD READY).
 - Waiting on hardware: the PowerA pad through the bundled pad bridge (untested without the pad), and M1
   fps against the 60 fps High target.
@@ -125,6 +126,17 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 14:35: GAME BUILD READY fe9c4d6 (capital-latest, 14:20 UTC). Since 60b25d8: parked crawlers hold still,
+  script time per frame halved, benchmark CPU split. CI Mac (paravirtual, High):
+
+  | Segment | fps | p99 (was) | scripts (was) | render CPU |
+  |---|---|---|---|---|
+  | City | 38.8 | 44.4 ms (52.1) | 2.68 ms (5.41) | 0.71 ms |
+  | Battle | 33.0 | 47.8 ms (61.8) | 2.88 ms (6.34) | 0.95 ms |
+  | Forest | 37.1 | 50.2 ms (51.9) | 2.38 ms (5.43) | 0.80 ms |
+
+  Draws 276 / 668 / 332. The CI Mac is GPU-bound: frames of 25-30 ms against 3-4 ms of CPU. M1 fleet numbers
+  (scripts_ms_avg and render_cpu_ms_avg are in benchmark.json now) will show whether the M1 is too.
 - 2026-10-05 14:30: script time per frame cut by more than half. The new benchmark CPU split (run 36, CI Mac) showed
   5.4-6.3 ms of scripts in 25-32 ms frames; the frames are mostly GPU-bound there, but on a 16.7 ms budget that is a
   third of the frame. New `CPU_ABLATE=1 --benchmark` mode: it turns processing off one node group at a time and
