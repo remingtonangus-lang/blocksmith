@@ -38,7 +38,27 @@ static func run(runner: Node) -> Dictionary:
 	p.damageable.health = 30.0
 	if not st.use_item("tonic_health") or p.damageable.health <= 30.0:
 		_fail(res, "health tonic did nothing")
-	# 4. save -> scramble -> load equality
+	# 4. economy round trip: buy cartridges at the gunsmith, sell a pelt at the butcher
+	var shops := tree.get_nodes_in_group("interactable").filter(func(n): return n.has_method("sell_all"))
+	if shops.is_empty():
+		_fail(res, "no shops in the world")
+	else:
+		var gun_shop = shops.filter(func(n): return n.kind == "gunsmith")
+		var butcher = shops.filter(func(n): return n.kind == "butcher")
+		var ammo0: int = p.gun.ammo.get("revolver", 0)
+		var m0: float = st.money
+		if gun_shop.size() > 0 and not gun_shop[0].buy("ammo_revolver", 1.0):
+			_fail(res, "could not buy cartridges")
+		if p.gun.ammo.get("revolver", 0) != ammo0 + 24 or st.money >= m0:
+			_fail(res, "buying cartridges did not add ammo / take money")
+		st.add_item("pelt_mule_deer_q3")
+		var m1: float = st.money
+		if butcher.size() > 0:
+			var got: float = butcher[0].sell_all()
+			if got <= 0.0 or st.money <= m1:
+				_fail(res, "selling a perfect deer pelt paid nothing")
+		res.checks["shops"] = shops.size()
+	# 5. save -> scramble -> load equality
 	var money := st.money
 	var standing := st.standing
 	var pos: Vector3 = p.global_position
