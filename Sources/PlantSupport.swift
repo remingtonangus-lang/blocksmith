@@ -21,12 +21,17 @@ enum PlantSupport {
         // Drawn as a cross but held up by other means (or not plants at all).
         let free: Set<String> = ["fire", "soul_fire", "cobweb", "pointed_dripstone", "glow_lichen", "sculk_vein", "lily_pad", "light",
                                  "resin_clump", "chorus_plant", "chorus_flower", "tripwire"]
+        let sits: Set<String> = ["snow", "rail", "powered_rail", "detector_rail", "activator_rail", "redstone_wire", "repeater",
+                                 "comparator", "flower_pot"]
         for i in 1..<n {
             let k = Blocks.key(Blocks.groupBase[i])
             if k == "vine" { r[i] = 4; continue }
             if hanging.contains(where: { k.hasPrefix($0) }) { r[i] = 2; continue }
             if water.contains(k) || k.hasPrefix("kelp") { r[i] = 3; continue }
             if standing.contains(k) { r[i] = 1; continue }
+            // Not plants, but they stand on a block the same way and pop with it in the reference game: carpets, snow
+            // layers, pressure plates, rails, sparkstone dust, repeaters, comparators, flower pots.
+            if sits.contains(k) || k.hasSuffix("_carpet") || k.hasSuffix("_pressure_plate") || k.hasPrefix("potted_") { r[i] = 1; continue }
             if free.contains(k) || k.contains("amethyst") || k.hasSuffix("_bud") || k.contains("coral") { continue }
             if Blocks.isPlant(BlockID(i)) { r[i] = 1 }
         }
@@ -204,6 +209,16 @@ enum PlantCheck {
             g.breakBlock(IVec3(x, floorY + 3, cz), log, drop: true)
             settle()
             check(w.block(x + 1, floorY + 3, cz) == AIR && w.block(x + 1, floorY + 2, cz) == AIR, "vine: both go with the log")
+        }
+        // A carpet and a rail on blocks that go.
+        for key in ["white_carpet", "rail"] where Blocks.has(key) {
+            let x = site(2)
+            let b = Blocks.id(key)
+            w.setBlock(x, floorY, cz, STONE); w.setBlock(x, floorY + 1, cz, b)
+            settle()
+            g.breakBlock(IVec3(x, floorY, cz), STONE, drop: true)
+            settle()
+            check(w.block(x, floorY + 1, cz) == AIR, "\(key): pops when the block under it is broken")
         }
         // A flower on a block blown away by something other than the player (World.setBlock alone).
         if Blocks.has("poppy") {
