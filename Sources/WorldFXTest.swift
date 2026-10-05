@@ -538,6 +538,9 @@ enum WorldFXTest {
             if g.snowLayers(wd.rawBlock(x, roofY + 1, z)) > 0 { onRoof += 1 }
             k += 1
         } }
+        let ux = cx - 8, uz = cz, uy = wd.topY(ux, uz) + 1
+        check(!g.skyExposed(ux, uy, uz) && g.skyExposed(ux, roofY + 2, uz), "no rain under a glass roof",
+              "under: \(g.skyExposed(ux, uy, uz)), on top: \(g.skyExposed(ux, roofY + 2, uz))")
         check(grewUnder == 0 && onRoof >= 15, "snow settles on a glass roof, not under it",
               "\(onRoof) of 25 roof blocks snowed on, \(grewUnder) floor columns under it grew")
         for dz in -2...2 { for dx in -2...2 {
