@@ -21,10 +21,7 @@ const REBIND := [["move_forward", "Move forward"], ["move_back", "Move back"], [
 	["weapon_wheel", "Weapon wheel"], ["holster", "Holster"], ["camera_side", "Swap shoulder"], ["melee", "Melee"],
 	["lasso", "Lasso"], ["fish", "Fish"], ["antagonize", "Antagonize"], ["defuse", "Defuse"], ["map", "Map"],
 	["journal", "Journal"], ["satchel", "Satchel"]]
-const PAD_NAMES := {JOY_BUTTON_A: "A", JOY_BUTTON_B: "B", JOY_BUTTON_X: "X", JOY_BUTTON_Y: "Y",
-	JOY_BUTTON_LEFT_SHOULDER: "LB", JOY_BUTTON_RIGHT_SHOULDER: "RB", JOY_BUTTON_LEFT_STICK: "L3",
-	JOY_BUTTON_RIGHT_STICK: "R3", JOY_BUTTON_BACK: "View", JOY_BUTTON_START: "Menu", JOY_BUTTON_DPAD_UP: "D-pad up",
-	JOY_BUTTON_DPAD_DOWN: "D-pad down", JOY_BUTTON_DPAD_LEFT: "D-pad left", JOY_BUTTON_DPAD_RIGHT: "D-pad right"}
+const PAD_NAMES := MenusNames.PAD
 var access: Accessibility
 var _default_events := {}         # action -> events before any rebinding (for Reset)
 var _binds_applied := {}

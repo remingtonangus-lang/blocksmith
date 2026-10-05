@@ -24,6 +24,9 @@ var _hit_t := 0.0
 var _last_place := ""
 var cinematic := false
 
+var _prompt_raw := ""           # prompt as written; re-rendered when the input device changes
+var _prompt_pad := false
+
 func setup(p: Node) -> void:
 	player = p
 	layer = 10
@@ -108,6 +111,9 @@ func _layout() -> void:
 		l.add_theme_font_size_override("font_size", int(l.get_meta("base_size") * u))
 
 func _process(dt: float) -> void:
+	if Accessibility.last_pad != _prompt_pad:   # keyboard <-> controller: prompts switch glyphs
+		_prompt_pad = Accessibility.last_pad
+		prompt(_prompt_raw)
 	if player == null or Game.world == null:
 		return
 	root.visible = not cinematic
@@ -149,8 +155,9 @@ func _process(dt: float) -> void:
 	location_label.modulate.a = clampf(_loc_t, 0.0, 1.0)
 
 func prompt(text: String) -> void:
+	_prompt_raw = text
 	if prompt_label:
-		prompt_label.text = text
+		prompt_label.text = InputGlyphs.sub(text)
 
 func subtitle(speaker: String, text: String, seconds := 4.0) -> void:
 	subtitle_label.text = ("%s:  %s" % [speaker, text]) if speaker != "" else text
