@@ -39,7 +39,7 @@ var _scabbard: MeshInstance3D
 var _scabbard_horse: Node3D
 
 static func attach(a: Node3D, g: GunHandler) -> WeaponHolder:
-	if Game.headless or a == null or g == null:
+	if Game.headless or a == null or g == null or Game.disabled("guns"):
 		return null
 	var h := WeaponHolder.new()
 	h.name = "WeaponHolder"
