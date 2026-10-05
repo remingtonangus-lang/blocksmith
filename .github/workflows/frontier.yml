@@ -169,7 +169,7 @@ jobs:
       - name: GPU probe (find features the CI GPU cannot render)
         id: gpuprobe
         if: ${{ !cancelled() }}
-        timeout-minutes: 40
+        timeout-minutes: 60
         run: |
           # The paravirtual GPU + MoltenVK loses the device on something in the scene. The least restrictive set that
           # renders is used for the evidence renders below (real Macs render everything through Metal).
@@ -190,6 +190,13 @@ jobs:
             if [ "$(try "$af" "$aq")" = OK ]; then safe="$af"; q="$aq"; echo "renders at $aq with --disable '$af'"; break; fi
             echo "lost/hung at $aq with --disable '$af'"
           done
+          # towns still need settlements off: bisect inside them with the town kill-switches (actors off, Low)
+          if [ "$safe" = "$A,settlements" ]; then
+            for f in town_people town_interiors town_props town_lights town_signs town_doors town_far town_shadows town_exterior rail; do
+              if [ "$(try "$A,$f" low)" = OK ]; then safe="$A,$f"; echo "towns render at low with --disable $safe"; break; fi
+              echo "towns still hung with --disable $A,$f"
+            done
+          fi
           echo "FRONTIER_QUALITY=${q}" >> $GITHUB_ENV
           echo "FRONTIER_DISABLE=${safe}" >> $GITHUB_ENV
           echo "gpu probe: --quality ${q} --disable '${safe}'" | tee snaps/probe/result.txt
