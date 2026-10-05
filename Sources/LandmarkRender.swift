@@ -56,6 +56,8 @@ extension Renderer {
         func tri(_ a: V4, _ b: V4, _ c: V4, _ col: V4, _ into: inout [SimpleVert]) {
             into.append(SimpleVert(pos: a, color: col)); into.append(SimpleVert(pos: b, color: col)); into.append(SimpleVert(pos: c, color: col))
         }
+        // The ground past the loaded terrain first (HorizonRing.swift): the landmarks below stand on it.
+        buildHorizon(&out, game: game, eye: eye, loaded: loaded, fog: fog, sun: sun, day: day, hdrK: hdrK, project: p)
         for v in vols {
             let c = V3(v.x, Float(YOFF) + v.base, v.z)
             let dist = simd_length(V2(c.x - eye.x, c.z - eye.z))

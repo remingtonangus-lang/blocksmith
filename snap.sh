@@ -231,6 +231,9 @@ done
 "$BIN" --snapshot snaps/volcano_far.png --seed 12345 --feature volcano --yaw 0 --pitch -25 --up 110 --time 0.3 --rd 16 --pick "650,456;650,462;700,458;700,464;760,460;760,466"
 "$BIN" --snapshot snaps/volcano_crater.png --seed 12345 --feature volcano --yaw 30 --pitch -50 --up 70 --time 0.3 --rd 10
 "$BIN" --snapshot snaps/volcano_horizon.png --seed 12345 --feature volcano --back 900 --yaw 0 --pitch 3 --up 25 --time 0.3 --rd 8
+# The horizon ring (HorizonRing.swift): hills and coasts past render distance 8 instead of a fog wall.
+"$BIN" --snapshot snaps/horizon_ring.png --seed 12345 --find windswept_hills --yaw 30 --pitch -4 --up 20 --time 0.3 --rd 8
+"$BIN" --snapshot snaps/horizon_ring_evening.png --seed 777 --find plains --yaw 200 --pitch -2 --up 30 --time 0.47 --rd 8
 "$BIN" --snapshot snaps/volcano_horizon_night.png --seed 12345 --feature volcano --back 1400 --yaw 0 --pitch 3 --up 25 --time 0.8 --rd 8
 "$BIN" --snapshot snaps/volcano_dusk.png --seed 12345 --feature volcano --yaw 200 --pitch -22 --up 90 --time 0.48 --rd 16
 "$BIN" --snapshot snaps/citadel_far.png --seed 12345 --structure military_base --frame 1.1 --time 0.3 --rd 12
