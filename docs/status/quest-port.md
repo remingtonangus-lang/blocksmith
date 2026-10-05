@@ -72,8 +72,8 @@ doesn't walk you), Recenter View, Dominant Hand, Refresh Rate (72 / 80 / 90 / 12
 | 1 | CI APK launching to an OpenXR session (test scene) | done: runs on Remington's Quest 3 (versionCode 13) |
 | 2 | Real world in stereo (multiview), head tracking, 72 Hz budget | done: 72.0 fps, 0 missed, cpu ~2.9 ms, gpu ~2.9 ms on device |
 | 3 | Touch controller play (locomotion, turning, vignette, hand rays, panels, haptics) | played on device (v13); ship panels, chests and comfort options fixed in v17 |
-| 4 | Game content (mobs, structures, vehicles, soldiers, saves, actions) | in progress |
-| 5 | Performance and comfort pass with measured numbers | pending |
+| 4 | Game content (mobs, structures, vehicles, soldiers, saves, actions) | shared game unchanged on the Quest; checked headless: all 99 mob kinds draw, ships/frigates ridden, chests, guns + weapon wheel, death/respawn, saves round-trip; device: played v13 |
+| 5 | Performance and comfort pass with measured numbers | device v13: 72 fps, cpu/gpu ~2.9 ms; comfort options (v17); tick/path/scan optimizations measured headless; auto render distance guard |
 
 ### QUEST APK READY log
 (The Mac monitor installs these; newest last.)
