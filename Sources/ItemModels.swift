@@ -45,7 +45,10 @@ enum ItemModels {
         lock.lock(); masks[layer] = m; lock.unlock()
     }
 
+    static var disabled = false                 // harness: --dropstress N --nomodels (sprites, for a cost comparison)
+
     static func has(_ layer: Int) -> Bool {
+        if disabled { return false }
         lock.lock(); defer { lock.unlock() }
         return masks[layer] != nil
     }

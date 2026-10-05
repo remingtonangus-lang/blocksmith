@@ -601,6 +601,21 @@ enum Snapshot {
             }
             game.target = nil
         }
+        if let n = Int(arg("--dropstress") ?? "") {
+            // Frame cost of dropped item models: N sprite items scattered within 10 blocks in front of the camera
+            // (--nomodels: the old camera-facing sprites, for comparison).
+            ItemModels.disabled = CommandLine.arguments.contains("--nomodels")
+            let f = V3(-sinf(game.player.yaw), 0, -cosf(game.player.yaw)), r = V3(cosf(game.player.yaw), 0, -sinf(game.player.yaw))
+            var rng = SRng(77)
+            let pool = (1..<Items.count).map { ItemID($0) }.filter { Items.def($0).sprite != nil }
+            for _ in 0..<n {
+                let p = pos + f * (2 + rng.float() * 8) + r * (rng.float() * 10 - 5)
+                let y = world.topY(Int(floor(p.x)), Int(floor(p.z))) + 1
+                game.drops.spawn(ItemStack(pool[rng.int(pool.count)], 1), at: V3(p.x, Float(y), p.z), vel: .zero)
+            }
+            game.target = nil
+            print("dropstress: \(n) items, models \(ItemModels.disabled ? "off" : "on")")
+        }
         if CommandLine.arguments.contains("--flood") {
             // Fluid test: a spring on the ground and one hanging in the air, then simulate 12 s of flow.
             let bx = Int(floor(pos.x)), bz = Int(floor(pos.z)) - 8
