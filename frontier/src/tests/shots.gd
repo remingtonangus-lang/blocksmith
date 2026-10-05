@@ -49,6 +49,14 @@ var main: Node
 
 func run(m: Node) -> void:
 	main = m
+	# cheap enough for CI's paravirtual GPU and the shared cloud box: a capped town cast with a few reused looks
+	# (override with --residents N --looks N; --residents 64 --looks 0 for the full town)
+	if not Game.args.has("residents"):
+		Game.args["residents"] = 18
+	if not Game.args.has("looks"):
+		Game.args["looks"] = 8
+	if str(Game.args.get("looks", "")) == "0":
+		Game.args.erase("looks")
 	if Game.args.has("tour"):
 		var dir := str(Game.args["tour"])
 		DirAccess.make_dir_recursive_absolute(dir)
