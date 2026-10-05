@@ -92,6 +92,12 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05: M7 started. `--drawreport SEGMENT` (under xvfb) measures draw calls by ablation: it hides each
+  owner group in turn and reads the renderer's count. Battle view (High, 1024x656): 1361 draws, of which
+  vegetation 1145 and the sun's shadow passes 778. Near trees were one MultiMesh per species/variant per 128 m
+  cell; now 3x3 cells share one (super-cells rebuilt from cached cell buffers). After: 603 draws (vegetation 439,
+  shadows 278). Also new: a first-person carbine from extruded side profiles, sleeved arms and gloves; scenarios
+  always start on foot (a gunship in flight refused the exit, failing CI run 10's `weapons` check).
 - 2026-10-05: M6. Weapons (`scripts/combat/weapons.gd`): LC-7 carbine (680 rpm), LM-2 marksman (4x), sidearm,
   RL-4 launcher, grenades, melee; first-person models from the Kit, sway, bob, ADS, reloads, recoil that climbs the
   view, spread bloom, rumble. Destruction (`scripts/combat/destruction.gd`): towers take blast damage and at zero
