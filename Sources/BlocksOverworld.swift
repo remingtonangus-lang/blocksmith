@@ -141,6 +141,7 @@ extension BlockRegistry {
         var vine = BlockDef("vine", "Vines")
         vine.tex = ["vine"]; vine.render = .cross; vine.layer = .cutout; vine.opaque = false; vine.collide = false
         vine.hardness = 0.2; vine.tool = .shears; vine.tint = 2; vine.sound = .plant; vine.replaceable = true; vine.skyStop = false
+        vine.randomTicks = true                                              // grows down (Farming.randomTick)
         add(vine)
         var bamboo = BlockDef("bamboo", "Bamboo")
         bamboo.tex = ["bamboo_stalk"]; bamboo.render = .model; bamboo.opaque = false; bamboo.hardness = 1; bamboo.tool = .axe

@@ -113,6 +113,9 @@ extension Game {
             while h < 16 && world.block(p.x, p.y - h, p.z) == b { h += 1 }
             let cap = 12 + Int(hash3(p.x, 0, p.z, 0xBA3B) % 5)
             if h < cap { world.setBlock(p.x, p.y + 1, p.z, b) }
+        case "vine":
+            // Vines hang lower over time: 1 in 4 random ticks into the air below (reference downward growth).
+            if Rand.int(in: 0..<4) == 0 && world.block(p.x, p.y - 1, p.z) == AIR { world.setBlockAsync(p.x, p.y - 1, p.z, b) }
         case "ice":
             // Melts in block light above 11 less its opacity (reference): water, or nothing in the Emberdeep.
             if world.lightAt(p.x, p.y, p.z).block > 10 { world.setBlock(p.x, p.y, p.z, world.dim == .nether ? AIR : WATER); world.scheduleFluid(around: p) }
