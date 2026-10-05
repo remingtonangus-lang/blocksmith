@@ -1482,7 +1482,9 @@ final class Game {
 
     func mobDied(_ m: Mob) {
         let at = m.pos + V3(0, 0.5, 0)
-        if !m.baby {
+        // Baby zombies drop like adults (reference); only baby animals drop nothing. (The chicken jockey disc below
+        // needs a baby, so behind a plain !baby it could never drop.)
+        if !m.baby || m.isZombie {
             let looting = m.killedByPlayer ? m.lootingLevel : 0
             for (n, lo, hi) in m.spec.drops where Items.has(n) && !(m.kind == .minecart && m.variant > 0) {
                 let c = Rand.int(in: lo...(hi + looting))
@@ -1491,7 +1493,9 @@ final class Game {
                 if c > 0 { drops.spawn(ItemStack(item, c), at: at) }
             }
             if m.kind == .sheep && !m.sheared, Items.has("\(m.woolColor)_wool") { drops.spawn(ItemStack(Items.id("\(m.woolColor)_wool"), 1), at: at) }
-            if m.kind == .zombie && Rand.float(in: 0..<1) < 0.025 {
+            // Rare drop: player kills only, 2.5 % + 1 % per Looting level; husks and zombie villagers too (reference).
+            if (m.kind == .zombie || m.kind == .husk || m.kind == .zombieVillager) && m.killedByPlayer
+                && Rand.float(in: 0..<1) < 0.025 + 0.01 * Float(looting) {
                 drops.spawn(ItemStack(Items.id(["iron_ingot", "carrot", "potato"][Rand.int(in: 0...2)]), 1), at: at)
             }
             let r = Rand.float(in: 0..<1)

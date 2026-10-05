@@ -76,7 +76,8 @@ enum Mining {
         let f = Enchant.level(.fortune, tool)
         guard f > 0 else { return out }
         if fortuneOres.contains(key) {
-            if key.contains("redstone") || key.contains("lapis") || key.contains("copper") {
+            // Sparkstone ore adds a flat 0...f; lapis and copper take the ore multiplier like the rest (reference).
+            if key.contains("redstone") {
                 for i in out.indices { out[i].count += Rand.int(in: 0...f) }       // uniform bonus
             } else {
                 let mult = max(1, Rand.int(in: 0..<(f + 2)))                    // ore bonus: x1..x(f+1)
@@ -154,8 +155,8 @@ enum Mining {
         case "amethyst_cluster": return one("amethyst_shard", 4)
         case "ice", "packed_ice", "blue_ice", "kelp", "bubble_coral", "tube_coral", "brain_coral", "fire_coral", "horn_coral": return key == "kelp" ? one("kelp") : []
         case "snow": return one("snowball", 1)
-        case "brown_mushroom_block": return Rand.float(in: 0..<1) < 0.15 ? one("brown_mushroom", rnd(1, 2)) : []
-        case "red_mushroom_block": return Rand.float(in: 0..<1) < 0.15 ? one("red_mushroom", rnd(1, 2)) : []
+        case "brown_mushroom_block": let n = max(0, rnd(-6, 2)); return n > 0 ? one("brown_mushroom", n) : []     // reference: 0-2, 1/9 each
+        case "red_mushroom_block": let n = max(0, rnd(-6, 2)); return n > 0 ? one("red_mushroom", n) : []
         case _ where key.hasPrefix("redstone_wire"): return one("redstone")
         case _ where key.hasPrefix("piston_head"): return []
         case "chorus_plant": return Rand.float(in: 0..<1) < 0.5 ? one("chorus_fruit") : []

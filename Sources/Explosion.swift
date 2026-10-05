@@ -5,7 +5,10 @@ import simd
 // blast resistance; blocks the rays get through are destroyed (dropping with chance 1/power);
 // entities take damage scaled by distance and exposure and are knocked back.
 enum Explosion {
-    static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true) {
+    // `decay`: blocks drop with chance 1/power (creepers, fireballs, beds...); primed blocks of TNT drop everything
+    // (reference: the TNT drop-decay rule is off by default).
+    static func explode(at c: V3, power: Float, game g: Game, fire: Bool = false, except: Mob? = nil, breakBlocks: Bool = true,
+                        decay: Bool = true) {
         let w = g.world
         g.baseNoise(at: c, kind: .explosion, power: power)  // citadels hear it (CapitalBases.swift)
         w.ships.blast(at: c, power: power, game: g)          // ship blocks (ShipCombat.swift)
@@ -39,7 +42,7 @@ enum Explosion {
         for b in destroyed {
             let id = w.block(b.x, b.y, b.z)
             if id == tntID { tnt.append(b); w.setBlockAsync(b.x, b.y, b.z, AIR); continue }
-            if Rand.float(in: 0..<1) < 1 / power {
+            if !decay || Rand.float(in: 0..<1) < 1 / power {
                 for s in Mining.drops(id, ItemStack(Items.id("netherite_pickaxe"), 1)) {
                     g.drops.spawn(s, at: V3(Float(b.x) + 0.5, Float(b.y) + 0.5, Float(b.z) + 0.5))
                 }
@@ -149,7 +152,7 @@ final class TNTManager {
             if t.fuse <= 0 { boom.append(t.pos + V3(0, 0.49, 0)) }
         }
         list.removeAll { $0.fuse <= 0 }
-        for p in boom { Explosion.explode(at: p, power: 4, game: g) }
+        for p in boom { Explosion.explode(at: p, power: 4, game: g, decay: false) }
     }
 
     func write(_ wr: inout EntityWriter, eye: V3, world: World, daylight: Float) {

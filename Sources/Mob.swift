@@ -34,7 +34,7 @@ enum MobKind: Int, CaseIterable {
         var halfW: Float
         var height: Float
         var health: Int
-        var speed: Float          // walk speed, blocks/s
+        var speed: Float          // walk speed, blocks/s (10x the reference movement attribute: zombie 0.23 -> 2.3)
         var behavior: Behavior
         var attack: Int = 0       // melee damage (half-hearts)
         var burnsInSun = false
@@ -70,7 +70,7 @@ enum MobKind: Int, CaseIterable {
                                  drops: [("slime_ball", 0, 2)], xp: 1, call: .mobSlime)
         case .zombifiedPiglin: return Spec(name: "Undead Boarling", halfW: 0.3, height: 1.95, health: 20, speed: 2.3, behavior: .neutral, attack: 8,
                                            drops: [("rotten_flesh", 0, 1), ("gold_nugget", 0, 1)], xp: 5, call: .mobUndeadBoarling, fireImmune: true)
-        case .piglin: return Spec(name: "Boarling", halfW: 0.3, height: 1.95, health: 16, speed: 2.5, behavior: .piglin, attack: 8,
+        case .piglin: return Spec(name: "Boarling", halfW: 0.3, height: 1.95, health: 16, speed: 3.5, behavior: .piglin, attack: 8,
                                   drops: [], xp: 5, call: .mobBoarling)
         case .ghast: return Spec(name: "Wailer", halfW: 2, height: 4, health: 10, speed: 2.0, behavior: .ghast,
                                  drops: [("ghast_tear", 0, 1), ("gunpowder", 0, 2)], xp: 5, call: .mobWailer, fireImmune: true, flying: true)
@@ -78,9 +78,9 @@ enum MobKind: Int, CaseIterable {
                                  drops: [], xp: 10, call: .mobCinderwisp, fireImmune: true, flying: true)
         case .magmaCube: return Spec(name: "Lava Blob", halfW: 0.26, height: 0.52, health: 1, speed: 2.4, behavior: .slime, attack: 0,
                                      drops: [], xp: 1, call: .mobSlime, fireImmune: true)
-        case .hoglin: return Spec(name: "Tusker", halfW: 0.7, height: 1.4, health: 40, speed: 2.2, behavior: .melee, attack: 6,
+        case .hoglin: return Spec(name: "Tusker", halfW: 0.7, height: 1.4, health: 40, speed: 3.0, behavior: .melee, attack: 6,
                                   drops: [("porkchop", 2, 4), ("leather", 0, 1)], xp: 5, call: .mobPig)
-        case .piglinBrute: return Spec(name: "Boarling Brute", halfW: 0.3, height: 1.95, health: 50, speed: 2.4, behavior: .melee, attack: 13,
+        case .piglinBrute: return Spec(name: "Boarling Brute", halfW: 0.3, height: 1.95, health: 50, speed: 3.5, behavior: .melee, attack: 13,
                                        drops: [], xp: 20, call: .mobBoarling)
         case .strider: return Spec(name: "Magmastrider", halfW: 0.45, height: 1.7, health: 20, speed: 1.0, behavior: .passive,
                                    drops: [("string", 2, 5)], xp: 2, call: .mobPig, fireImmune: true)
@@ -111,9 +111,9 @@ enum MobKind: Int, CaseIterable {
         case .witch: return Spec(name: "Witch", halfW: 0.3, height: 1.95, health: 26, speed: 2.3, behavior: .witch,
                                  drops: [("glass_bottle", 0, 2), ("glowstone_dust", 0, 2), ("gunpowder", 0, 2), ("redstone", 0, 2),
                                          ("spider_eye", 0, 2), ("sugar", 0, 2), ("stick", 0, 2)], xp: 5, call: .mobVillager)
-        case .pillager: return Spec(name: "Marauder", halfW: 0.3, height: 1.95, health: 24, speed: 2.5, behavior: .ranged,
+        case .pillager: return Spec(name: "Marauder", halfW: 0.3, height: 1.95, health: 24, speed: 3.5, behavior: .ranged,
                                     drops: [("arrow", 0, 2)], xp: 5, call: .mobVillager)
-        case .vindicator: return Spec(name: "Brigand", halfW: 0.3, height: 1.95, health: 24, speed: 2.5, behavior: .melee, attack: 13,
+        case .vindicator: return Spec(name: "Brigand", halfW: 0.3, height: 1.95, health: 24, speed: 3.5, behavior: .melee, attack: 13,
                                       drops: [("emerald", 0, 1)], xp: 5, call: .mobVillager)
         case .silverfish: return Spec(name: "Silverfish", halfW: 0.2, height: 0.3, health: 8, speed: 2.5, behavior: .melee, attack: 1,
                                       drops: [], xp: 5, call: .mobSpider)
@@ -121,7 +121,7 @@ enum MobKind: Int, CaseIterable {
                                   drops: [("nether_star", 1, 1)], xp: 50, call: .mobBlight, fireImmune: true, flying: true)
         case .snowGolem: return Spec(name: "Snow Golem", halfW: 0.35, height: 1.9, health: 4, speed: 2.2, behavior: .snowGolem,
                                      drops: [("snowball", 0, 15)], xp: 0, call: .step(.snow))
-        case .evoker: return Spec(name: "Conjurer", halfW: 0.3, height: 1.95, health: 24, speed: 2.5, behavior: .evoker,
+        case .evoker: return Spec(name: "Conjurer", halfW: 0.3, height: 1.95, health: 24, speed: 5.0, behavior: .evoker,
                                   drops: [("totem_of_undying", 1, 1), ("emerald", 0, 1)], xp: 10, call: .mobVillager)
         case .vex: return Spec(name: "Hexling", halfW: 0.2, height: 0.8, health: 14, speed: 6, behavior: .vex, attack: 9,
                                drops: [], xp: 3, call: .mobVex, flying: true)
