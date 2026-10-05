@@ -136,6 +136,11 @@ struct ShipSeat {
     var mineCell: (Ship, IVec3)?
     var mineProgress: Float = 0
     var breakCooldown: Float = 0
+    // The rider's deck-relative motion (stream B's riding: velocity kept in the deck's frame tick to tick).
+    var riderShip: Ship?
+    var riderVel = V3(0, 0, 0)
+    var riderOut = V3(0, 0, 0)
+    var riderAt = -9
 
     mutating func exchange(_ m: ShipManager) {
         let p = pilot; pilot = m.pilot; m.pilot = p
@@ -143,6 +148,8 @@ struct ShipSeat {
         let t = target; target = m.target; m.target = t
         let c = mineCell; mineCell = m.mineCell; m.mineCell = c
         swap(&mineProgress, &m.mineProgress); swap(&breakCooldown, &m.breakCooldown)
+        let rs = riderShip; riderShip = m.riderShip; m.riderShip = rs
+        swap(&riderVel, &m.riderVel); swap(&riderOut, &m.riderOut); swap(&riderAt, &m.riderAt)
     }
 }
 

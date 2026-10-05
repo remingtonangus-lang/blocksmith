@@ -208,15 +208,18 @@ extension ShipManager {
             }
         }
         if let game {
-            for s in list where (s === aboard || s === pilot) && (s.pos != s.prevPos || s.rot != s.prevRot) {
-                let p = game.player
-                let old = p.pos
-                p.pos = s.toWorld(s.prevToLocal(p.pos))
-                p.yaw += angleDelta(s.yaw, s.prevYaw)
-                // Carried, not fallen: the fall height and the teleport check move with the deck (a frigate settling
-                // to the ground carries its riders down without fall damage; falls inside the hull still count).
-                p.airPeak += p.pos.y - old.y
-                p.lastUpdatePos += p.pos - old
+            // Every split-screen player is carried by the ship they stand on or steer (aboard / pilot are per seat).
+            game.coop.eachSeat(game) {
+                for s in self.list where (s === self.aboard || s === self.pilot) && (s.pos != s.prevPos || s.rot != s.prevRot) {
+                    let p = game.player
+                    let old = p.pos
+                    p.pos = s.toWorld(s.prevToLocal(p.pos))
+                    p.yaw += self.angleDelta(s.yaw, s.prevYaw)
+                    // Carried, not fallen: the fall height and the teleport check move with the deck (a frigate settling
+                    // to the ground carries its riders down without fall damage; falls inside the hull still count).
+                    p.airPeak += p.pos.y - old.y
+                    p.lastUpdatePos += p.pos - old
+                }
             }
         }
         for s in list {
