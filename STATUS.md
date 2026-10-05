@@ -235,6 +235,16 @@ code); mechanics, names and numbers follow the reference game.
 - [x] Progressive block damage: mining and blasts chip 4x4x4 sub-cubes off a block until it breaks (Options > Video >
       Block Chipping). Next: collision shrinks with the damage, ships' blocks too, finer mining animation.
 
+## Playtest report (Remington, 2026-10-05, TV + controller): fix in order, each with a regression check
+1. [ ] P0 mobs invisible in real play (not in the CI renderer). Checks: --mobcheck (every kind alone, Fancy / Fast /
+       70 % world scale; a live survival night through Game.tick, each spawned kind drawn alone and after a save/load;
+       NaN / zero-scale state). Diagnostics: F3 "Mobs:" line and every voice bug note's "Mob drawing" row (mobs, near,
+       vertices written / drawn, path, culled). Cause not found yet; mobcheck gating once it has run clean.
+2. [x] Mobs calm on the player's death and respawn (Game.calmMobs); --mobtests checks every kind.
+3. [x] Crafting book opens on its first tile; inventory crafting is the same book with 2x2 recipes (LB/RB / book
+       button; grid button back); --padtest.
+4. [x] Cave fill + Options > Video > Brightness (Shaders.caveFill); shots cave_dark (+ moody / bright / fast / mobs).
+
 ## Playtest feedback (Remington, 2026-10-02): quality and fidelity over new features
 Bug discovery is fully automated (Remington is not the bug finder). Keep CI green throughout. Queue, in order:
 1. Bug-hunting infrastructure and the find-fix loop (log every bug class in BUGS.md: class, oracle, fix):
