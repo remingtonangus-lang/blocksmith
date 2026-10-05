@@ -18,13 +18,15 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  FRONTIER_RDRIVER: ""            # e.g. "--rendering-driver vulkan" once the GPU probe finds a working combo
+  # The runners' paravirtual GPU (Apple5) has no Metal argument buffers: Godot's Metal scene shaders exceed the 16
+  # sampler limit there. MoltenVK (Vulkan) works on macos-15 runners, so CI evidence renders use it; real Macs use Metal.
+  FRONTIER_RDRIVER: "--rendering-driver vulkan"
   GODOT_VERSION: 4.7.1
   GODOT_TAG: 4.7.1-stable
 
 jobs:
   mac:
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 100
     steps:
       - uses: actions/checkout@v4
@@ -39,7 +41,7 @@ jobs:
           path: |
             ~/godot
             ~/Library/Application Support/Godot/export_templates
-          key: godot-mac-${{ env.GODOT_TAG }}
+          key: godot-mac15-${{ env.GODOT_TAG }}
 
       - name: Install Godot
         if: steps.godot-cache.outputs.cache-hit != 'true'
