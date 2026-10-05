@@ -1,6 +1,8 @@
 """Red fox (scaled from the wolf template). Reference: shoulder height ~0.4 m, nose to rump ~0.7 m, relatively short
 legs with black "stockings", long body, narrow muzzle, big ears, very bushy white-tipped tail ~0.42 m. Gaits: walk,
 trot, rotary gallop."""
+import numpy as np
+
 from species import common as C
 from species import wolf as W
 
@@ -9,7 +11,16 @@ NAME = "fox"
 H = 0.4
 J, B = C.scaled(W.J, W.B, H / 0.8, ky=1.12)
 B["leg_r"] = tuple(r * 0.95 for r in B["leg_r"])
-B["head"] = [(u, d * (0.9 if u > 0.4 else 1.0), hw * (0.82 if u > 0.4 else 0.95), nt, nb) for u, d, hw, nt, nb in B["head"]]
+B["head"] = [(u, d * (0.92 if u > 0.4 else 1.0), hw * (0.88 if u > 0.4 else 1.0), nt, nb) for u, d, hw, nt, nb in B["head"]]
+# the body stretch (ky) must not stretch the face: a fox's muzzle is fine but not needle-long
+_P = B["poll"].copy()
+_k = 0.88
+B["nose"] = _P + (B["nose"] - _P) * _k
+_j0, _j1, _r0, _r1, _sx = B["jaw"]
+B["jaw"] = (_P + (_j0 - _P) * _k, _P + (_j1 - _P) * _k, _r0, _r1, _sx)
+B["eye"] = tuple(_P + (np.array(B["eye"]) - _P) * 0.95)
+J["jaw"] = _P + (J["jaw"] - _P) * _k
+J["jaw_t"] = _P + (J["jaw_t"] - _P) * _k
 J["ear_t"] = J["ear"] + (J["ear_t"] - J["ear"]) * 1.3
 B["ear_w"] *= 1.3
 B["tail_len"] = 0.42
@@ -27,7 +38,7 @@ def build_prims(Q):
     return C.build_prims(Q, J, B)
 
 
-GAITS = W.gaits(H, walk=(0.7, 0.75), trot=(0.38, 1.3), gallop=(0.28, 2.9))
+GAITS = W.gaits(H, walk=(0.7, 0.75), trot=(0.38, 1.3), gallop=(0.26, 2.2), gallop_duty=(0.15, 0.16))
 GAIT_TYPES = W.GAIT_TYPES
 META = {"run_gait": "gallop"}
 

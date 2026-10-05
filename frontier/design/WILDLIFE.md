@@ -37,14 +37,27 @@ bison 1.8 at the hump, wolf 0.8, coyote 0.58, fox 0.4, cougar 0.7, black bear 0.
 The heights match `Animal.SPECIES` sizes. Each species gets:
 - **Body mesh:** a narrow-band SDF evaluation, then marching cubes, then decimation. Hero is 7k–20k triangles
   depending on size, with Body_LOD1 (about 30 %) and Body_LOD2 (about 8 %).
-- **Antlers and horns:** separate meshes on the head bone.
-- **Eyes**, skinned weights, and rest-space UVs plus AO/curvature for the coat shader.
+- **Antlers and horns:** separate capped tube meshes on the head bone, with a burr at each antler base.
+- **Eyes:** sunk into a socket with upper and lower lids. Each eye carries iris coordinates (the position projected
+  onto the eye's outward tangent plane; lateral for prey, turned forward for predators via `eye_fwd`), which
+  `shaders/animal_eye.gdshader` paints per species (`AnimalCoats.EYES`):
+  - dark brown, nearly all iris, horizontal pupils: deer, elk, pronghorn, bison
+  - amber: wolf and coyote; amber with slit pupils: fox
+  - gold: cougar
+- **Skin data:** skinned weights, and rest-space UVs plus AO/curvature for the coat shader.
 - **Gaits** (in-place cycles with stride, speed, duty factor, footfalls, beats and gait type in `<species>_gaits.json`):
   - walk (all species except the rabbit)
   - trot (all except the rabbit)
   - gallop: transverse for cervids/bovids, rotary for canids, felids, bears and raccoons
   - stot (mule deer)
   - hop and bound (rabbit)
+  - **Gait fitting** (`fit_gait` in quadruped.py; wildlife only, the horse is untouched). The species files give
+    reference strides and duty factors. A planted sole that the leg cannot reach would skate, so the builder:
+    1. measures the worst stance IK error;
+    2. shifts the fore and hind stance centres (reach offsets, which change neither timing nor speed);
+    3. then shortens the stride, keeping the cycle time, until the error is within 2 % of shoulder height.
+    It logs `fit <gait> worst stance error A -> B mm` per gait, and the fitted stride and speed go into the json.
+    Cycles shorter than 24 frames are keyed between frames, so a 0.27 s fox gallop still has 24 poses.
 - **Idles:** idle, graze (grazers) or sniff (carnivores), alert (head high, ears pricked, fore-foot stamp),
   look (scanning left/right).
 - **One-shots:** flee_start (crouch and spring), attack (predators lunge with jaws open; the bear rears and
@@ -109,7 +122,10 @@ head close-up per species, gait strips and action poses.
   bison read as smooth.
 - The wild turkey (a bird) still uses the stand-in.
 - Antlers and horns are tube-built: plausible silhouettes, but with no burr texture or palmation detail.
-- Gaits and actions are procedural (planar IK + style curves). Fast gallops have up to ~8 cm stance error on the
-  touchdown frame, which in-game foot locking hides; turning is yaw plus the gait, with no dedicated
-  turn-on-the-spot clips for wildlife.
+- Gaits and actions are procedural (planar IK + style curves).
+  - After fitting, the worst stance error is about 2 % of shoulder height on the worst frame; in-game foot
+    locking hides it.
+  - Fitted run speeds are below real sprint speeds (wolf about 7.7 m/s, pronghorn about 9 m/s); faster animals
+    play the gait up to 1.8x.
+  - Turning is yaw plus the gait. Wildlife has no dedicated turn-on-the-spot clips.
 - Faces are simple: no lids, nostril detail or teeth. The attack's jaw opens on a solid mouth.

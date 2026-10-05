@@ -65,12 +65,12 @@ static func analyse_animation(v: HorseVisual, gait: String, steps := 240) -> Dic
 
 ## samples: [{t, pos: {leg: Vector3 world/model}, ground: {leg: float}}]; cycle: expected period (s) or 0.
 static func analyse_samples(samples: Array, gait: String, cycle := 0.0, gait_type := "", size := 1.0) -> Dictionary:
-	var contact_h := CONTACT_H * clampf(size, 0.2, 1.5)
-	var planted_h := 0.012 * clampf(size, 0.2, 1.5)
+	var contact_h := maxf(CONTACT_H * clampf(size, 0.2, 1.5), 0.012)
+	var planted_h := maxf(0.012 * clampf(size, 0.2, 1.5), 0.005)
 	var onsets := {}
 	var slides := []
 	var contact_frac := {}
-	var min_len := maxf(cycle * 0.06, 0.04) if cycle > 0.0 else 0.05
+	var min_len := maxf(cycle * 0.06, minf(0.04, cycle * 0.1)) if cycle > 0.0 else 0.05   # short cycles: short stances
 	for leg in LEGS:
 		onsets[leg] = []
 		# contact segments (h < CONTACT_H), debounced: short dips/lifts are ignored
@@ -137,10 +137,11 @@ static func analyse_samples(samples: Array, gait: String, cycle := 0.0, gait_typ
 		var sy := 0.0
 		var nn := 0
 		for t in onsets[leg]:
-			# nearest lead onset at or before t
+			# nearest lead onset (either side: the phase is taken modulo T, and a leg that lands with the lead can
+			# cross the contact height a sample earlier than the lead's first counted onset)
 			var t0 := -INF
 			for tl in lead_on:
-				if tl <= t + 1e-4 and tl > t0:
+				if t0 == -INF or absf(tl - t) < absf(t0 - t):
 					t0 = tl
 			if t0 == -INF:
 				continue

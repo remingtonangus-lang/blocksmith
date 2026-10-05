@@ -25,7 +25,7 @@ def build_prims(Q):
     return C.build_prims(Q, J, B)
 
 
-GAITS = W.gaits(H, walk=(0.8, 1.05), trot=(0.45, 1.75), gallop=(0.32, 3.6))
+GAITS = W.gaits(H, walk=(0.8, 1.05), trot=(0.45, 1.75), gallop=(0.3, 2.9), gallop_duty=(0.15, 0.16))
 GAIT_TYPES = W.GAIT_TYPES
 META = {"run_gait": "gallop"}
 

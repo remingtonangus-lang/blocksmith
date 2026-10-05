@@ -183,7 +183,17 @@ jobs:
       - name: Build horse + wildlife
         run: |
           set -o pipefail
-          python frontier/tools/animals/quadruped.py --species all --out out/ext/animals 2>&1 | grep -avE "^Fra:|Saved:" | tee animals.log | grep -a "\[horse"
+          # three builders in parallel (the runner has 4 cores; each build is single-threaded numpy + Blender)
+          pids=""
+          for grp in horse,bison,elk,rabbit mule_deer,pronghorn,wolf,fox coyote,cougar,black_bear,raccoon; do
+            python frontier/tools/animals/quadruped.py --species $grp --out out/ext/animals > "build_$grp.log" 2>&1 &
+            pids="$pids $!"
+          done
+          fail=0
+          for p in $pids; do wait $p || fail=1; done
+          cat build_*.log | grep -avE "^Fra:|Saved:" > animals.log
+          grep -aE "^\[[a-z_]+ +[0-9.]+s\]" animals.log || true
+          if [ $fail != 0 ]; then tail -n 60 animals.log; exit 1; fi
           for s in horse mule_deer elk pronghorn bison wolf coyote fox cougar black_bear raccoon rabbit; do
             test -s out/ext/animals/$s.glb && test -s out/ext/animals/${s}_gaits.json
           done

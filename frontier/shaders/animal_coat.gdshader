@@ -118,7 +118,8 @@ void fragment() {
 	}
 	// ---- legs: points below knee/hock
 	float leg_low = 1.0 - smoothstep(-0.03 * s, 0.06 * s, p.z - (p.y > 0.0 ? z_knee : z_hock));
-	col = mix(col, point_color, clamp(leg_low + (n1 - 0.5) * 0.3, 0.0, 1.0) * point_amount);
+	float tail_zone = 1.0 - smoothstep(0.05 * s, 0.09 * s, seg(p, tail_base, tail_tip));   // a hanging tail is not a leg
+	col = mix(col, point_color, clamp(leg_low + (n1 - 0.5) * 0.3, 0.0, 1.0) * point_amount * (1.0 - tail_zone));
 	// ---- rump patch (white around the tail) and dark tail tip
 	vec3 rc = tail_base + vec3(0.0, 0.01 * s, -0.12 * s);
 	float rump = 1.0 - smoothstep(0.07 * s, 0.11 * s, length(vec2(p.x * 1.1, (p.z - rc.z) * 0.75)) + max(p.y - rc.y + 0.02 * s, 0.0) * 4.0 + (n1 - 0.5) * 0.04 * s);
@@ -138,8 +139,16 @@ void fragment() {
 		col = mix(col, band_color, max(bands, under * neck * 0.35) * band_amount);
 	}
 	// ---- agouti grizzle and the shaggy cape
-	float gz = vnoise(vec3(np.x * 220.0, np.y * 60.0 - np.z * 30.0, np.z * 220.0));
-	col = mix(col, mix(col * 0.55, vec3(0.85, 0.82, 0.76), step(0.55, gz)), grizzle * (0.3 + 0.7 * dorsal) * 0.6);
+	// fine banded guard hairs stretched along the hair flow, soft-edged; fades to its average where the
+	// pattern would alias (distance), so wolves read as grizzled grey rather than camouflage blotches
+	vec3 gp = vec3(np.x * 520.0, np.y * 95.0 - np.z * 70.0, np.z * 520.0 + np.y * 40.0);
+	float gz = vnoise(gp);
+	float gfade = 1.0 - smoothstep(0.35, 1.2, length(fwidth(gp)));
+	vec3 g_dark = col * 0.66;
+	vec3 g_light = mix(col, vec3(0.86, 0.83, 0.77), 0.5);
+	float g_far = 0.3 + 0.35 * smoothstep(0.3, 0.7, vnoise(gp * 0.12));     // coarser tufts that never alias
+	vec3 g_col = mix(mix(g_dark, g_light, g_far), mix(g_dark, g_light, smoothstep(0.3, 0.72, gz)), gfade);
+	col = mix(col, g_col, grizzle * (0.3 + 0.7 * dorsal) * 0.6);
 	if (cape_amount > 0.0) {
 		float cape = smoothstep(0.1 * s, -0.25 * s, p.y - (y_front - 0.75 * s)) * smoothstep(z_belly - 0.25 * s, z_belly + 0.1 * s, p.z);
 		cape = max(cape, head * 0.9);
@@ -166,9 +175,12 @@ void fragment() {
 	r = mix(r, 0.35, hoof * 0.6);
 	r = mix(r, 0.25, w);
 	r = mix(r, 0.3, skinned * flesh_zone);
+	// dark coats (black bear, bison cape): glossier guard hair and a stronger rim so the form still reads
+	float dark = 1.0 - smoothstep(0.04, 0.22, dot(col, vec3(0.3, 0.59, 0.11)));
+	r = mix(r, r - 0.2, dark * (1.0 - w));
 	ROUGHNESS = r;
-	SPECULAR = mix(0.3, 0.55, max(w, skinned * flesh_zone));
-	RIM = 0.25 * (1.0 - w) * fur_length;
+	SPECULAR = mix(mix(0.3, 0.45, dark), 0.55, max(w, skinned * flesh_zone));
+	RIM = (0.25 + 0.45 * dark) * (1.0 - w) * fur_length;
 	RIM_TINT = 0.7;
 	BACKLIGHT = col * 0.08 * fur_length;
 }

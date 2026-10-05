@@ -6,7 +6,8 @@ Bar: QUALITY_BAR.md §5 (horses), §4 (animation), §12 (performance).
 ## Files
 | File | What |
 |---|---|
-| `tools/animals/horse_gen.py` | Blender-5-as-a-module generator: anatomy SDF → mesh → rig → weights → hair → tack → gaits/actions → `horse.glb` + `horse_gaits.json` |
+| `tools/animals/quadruped.py` + `species/horse.py` | Blender-5-as-a-module generator (shared with the wildlife, design/WILDLIFE.md): anatomy SDF → mesh → rig → weights → hair → tack → gaits/actions → `horse.glb` + `horse_gaits.json`; `tools/animals/horse_gen.py` is the horse-only wrapper |
+| `src/actors/rider_ik.gd` (`RiderIK`) | procedural riding pose for a FrontierCharacter rider (hips in the seat, feet in the stirrups, hands on the reins) |
 | `src/actors/horse.gd` (`Horse`) | riding controller, cores, fear, bond, care, whistle, hitching, mount/dismount, ride camera, road following |
 | `src/actors/horse_visual.gd` (`HorseVisual`) | loads the model, coat/hair materials, LOD ranges, AnimationTree, seat transform, hoof sole positions, stand-in when the model is missing |
 | `src/actors/horse_ik.gd` (`HorseIK`) | SkeletonModifier3D: per-hoof terrain IK (two-bone on humerus+forearm / femur+tibia) |

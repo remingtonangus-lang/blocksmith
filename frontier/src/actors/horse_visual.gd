@@ -108,6 +108,11 @@ func _setup_materials() -> void:
 				hair_mat.set_shader_parameter("strands", src.albedo_texture)
 			mi.material_override = hair_mat
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		elif n.begins_with("eye") and species != "horse":
+			var am := ShaderMaterial.new()
+			am.shader = load("res://shaders/animal_eye.gdshader")
+			AnimalCoats.apply_eyes(species, am)
+			mi.material_override = am
 		elif n.begins_with("eye"):
 			var em := StandardMaterial3D.new()
 			em.albedo_color = Color(0.05, 0.03, 0.02)

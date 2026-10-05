@@ -99,5 +99,5 @@ def build_extras(Q, prims, arm):
             for d2, L2 in ((V(sx * 0.25, 0.1, 1.0), 0.11), (V(sx * 0.35, 1.0, 0.45), 0.09)):
                 tip = C.curve(f2, d2, L2, V(0, 0.8, -0.2), n=4)
                 tubes.append(C.tube_branch(Q, tip, 0.007, 0.0015, segs=5))
-        tubes.append(Q.tube_mesh(np.array([base - V(0, 0, 0.012), base + V(0, 0, 0.015)]), 0.02, segs=8))  # burr
+        tubes.append(C.burr(Q, base, V(sx * 1.0, -0.45, 0.8), 0.021))
     C.emit_tubes(Q, arm, "Antlers", tubes, (0.42, 0.34, 0.24, 1), rough=0.75)

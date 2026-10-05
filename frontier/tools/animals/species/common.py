@@ -222,7 +222,12 @@ def build_prims(Q, J, B):
     d = V(0, 0, -dz)
     J["ear"][:] = ea0 + d
     J["ear_t"][:] = J["ear_t"] + d
-    Q.ell((-ec[0] - er * 0.4, ec[1], ec[2]), (er * 1.05, er * 1.15, er), ["head"], k=0.008 * s, op="s")
+    Q.ell((-ec[0] - er * 0.45, ec[1], ec[2]), (er * 1.05, er * 1.15, er), ["head"], k=0.008 * s, op="s")
+    # lids: a thin rim around the socket so the eye sits in an almond opening instead of on the surface
+    Q.ell((-ec[0] - er * 0.45, ec[1], ec[2] + er * 0.75), (er * 0.45, er * 1.25, er * 0.42), ["head"], k=0.004 * s,
+          axis=(0, 1, -0.15))
+    Q.ell((-ec[0] - er * 0.45, ec[1], ec[2] - er * 0.8), (er * 0.4, er * 1.1, er * 0.35), ["head"], k=0.004 * s,
+          axis=(0, 1, 0.1))
     Q.ell((-ec[0] + er * 0.5, ec[1] - er * 0.5, ec[2] + er * 1.1), (er * 0.9, er * 1.7, er * 0.6), ["head"], k=0.014 * s,
           axis=(0, 0.85, -0.2))                                                                      # brow
     ea, eb = J["ear"], J["ear_t"]
@@ -289,7 +294,7 @@ def build_prims(Q, J, B):
 
 
 def surface_x(Q, prims, y, z, er, s):
-    """Eye centre on the side of the head at (y, z): x where the head surface is, sunk in by 40 % of the radius;
+    """Eye centre on the side of the head at (y, z): x where the head surface is, sunk in by 55 % of the radius;
     if (y, z) is above the head the eye moves down until it meets the surface."""
     for dz in np.arange(0.0, 0.2, 0.002) * s / 0.643:
         xs = np.linspace(0.0, 0.3, 301) * s / 0.643
@@ -298,7 +303,7 @@ def surface_x(Q, prims, y, z, er, s):
         if d[0] < 0:
             i = int(np.argmax(d > 0))
             if i > 0:
-                return (float(xs[i] - er * 0.4), float(y), float(z - dz))
+                return (float(xs[i] - er * 0.55), float(y), float(z - dz))
     return (0.05 * s / 0.643, y, z)
 
 
@@ -342,7 +347,14 @@ def foot(Q, J, B, fh):
 # =====================================================================================================
 def tube_branch(Q, pts, r0, r1, segs=7):
     rad = np.linspace(r0, r1, len(pts))
-    return Q.tube_mesh(np.array(pts), rad, flat=1.0, segs=segs)
+    return Q.tube_mesh(np.array(pts), rad, flat=1.0, segs=segs, caps=True)
+
+
+def burr(Q, base, d, r):
+    """Antler burr: a short capped bulge at the base of the beam, along the beam's start direction d."""
+    d = d / np.linalg.norm(d)
+    return Q.tube_mesh(np.array([base - d * r * 0.35, base, base + d * r * 0.45]), np.array([r * 0.7, r, r * 0.75]),
+                       segs=10, caps=True)
 
 
 def curve(p0, d0, length, bend, n=8, twist=None):

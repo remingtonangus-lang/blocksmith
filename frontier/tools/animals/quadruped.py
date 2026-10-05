@@ -60,8 +60,11 @@ SC = 1.0             # size relative to the horse (actions scale their translati
 T0 = time.time()
 
 
+LOGTAG = "horse"
+
+
 def log(*a):
-    print("[horse %6.1fs]" % (time.time() - T0), *a, flush=True)
+    print("[%-6s %6.1fs]" % (LOGTAG, time.time() - T0), *a, flush=True)
 
 
 # =====================================================================================================
@@ -91,7 +94,8 @@ def mx(p):
 
 def use_species(name):
     """Load tools/animals/species/<name>.py and make it the current species (landmarks, bones, gaits, config)."""
-    global SPEC, J, BONES, GAITS, SC, REST2, BONE_SEGS, VOXEL
+    global SPEC, J, BONES, GAITS, SC, REST2, BONE_SEGS, VOXEL, LOGTAG
+    LOGTAG = name
     if HERE not in sys.path:
         sys.path.insert(0, HERE)
     mod = importlib.import_module("species." + name)
@@ -1089,6 +1093,43 @@ def solve_cycle(g, frames):
     return poses, stats
 
 
+def stance_errors(g, frames):
+    """Worst stance IK error (m) per leg for a gait cycle."""
+    _, stats = solve_cycle(g, frames)
+    return {leg: max([e for (st, e, y, z) in stats[leg] if st] or [0.0]) for leg in stats}
+
+
+def fit_gait(gname, g, frames, H):
+    """Fit a wildlife gait to its legs: the species files give reference strides and duty factors, but a planted
+    sole the leg cannot reach shows up as foot skate. First shift the stance centre fore and hind (reach offsets,
+    free: the timing, stride and speed stay), then shorten the stride (same cycle time, so a little slower) until
+    the worst stance IK error is within 2 % of shoulder height."""
+    tol = max(0.006, 0.02 * H)
+    err = stance_errors(g, frames)
+    worst0 = max(err.values())
+    if worst0 <= tol:
+        return g
+    g = dict(g)
+    best = {"F": (max(err["LF"], err["RF"]), 0.0), "H": (max(err["LH"], err["RH"]), 0.0)}
+    for d in (-0.12, -0.08, -0.04, 0.04):
+        gt = dict(g)
+        gt["reach"] = (g["reach"][0] + d * H, g["reach"][1] + d * H)
+        e = stance_errors(gt, frames)
+        for end, legs in (("F", ("LF", "RF")), ("H", ("LH", "RH"))):
+            we = max(e[legs[0]], e[legs[1]])
+            if we < best[end][0] - 1e-4:
+                best[end] = (we, d)
+    g["reach"] = (g["reach"][0] + best["F"][1] * H, g["reach"][1] + best["H"][1] * H)
+    worst = max(best["F"][0], best["H"][0])
+    L0 = g["L"]
+    while worst > tol and g["L"] > 0.62 * L0:
+        g["L"] *= 0.92
+        worst = max(stance_errors(g, frames).values())
+    log("fit %-8s worst stance error %.1f -> %.1f mm (reach %+.0f/%+.0f mm, stride x%.2f)" % (
+        gname, worst0 * 1000, worst * 1000, best["F"][1] * H * 1000, best["H"][1] * H * 1000, g["L"] / L0))
+    return g
+
+
 def key_action(arm_ob, name, poses, side=None, loop=True, step=1):
     """Keyframe a list of (angles, loc) poses (one per frame). side: optional per-frame dict of extra
     rotations about local Z / Y: {bone: (z_angle, y_angle)}."""
@@ -1108,10 +1149,10 @@ def key_action(arm_ob, name, poses, side=None, loop=True, step=1):
                 zr, yr = ex[pb.name]
                 q = q @ Quaternion((0, 0, 1), zr) @ Quaternion((0, 1, 0), yr)
             pb.rotation_quaternion = q
-            pb.keyframe_insert("rotation_quaternion", frame=fi * step, group=pb.name)
+            pb.keyframe_insert("rotation_quaternion", frame=float(fi * step), group=pb.name)
             if pb.name == "body":
                 pb.location = (0.0, loc[0], loc[1]) if len(loc) == 2 else loc
-                pb.keyframe_insert("location", frame=fi * step, group=pb.name)
+                pb.keyframe_insert("location", frame=float(fi * step), group=pb.name)
     for fc in iter_fcurves(act):
         for kp in fc.keyframe_points:
             kp.interpolation = "LINEAR"
@@ -1531,8 +1572,9 @@ def strip_mesh(polys, widths, sides):
     return np.array(verts), faces, uvs
 
 
-def tube_mesh(points, radius, flat=1.0, segs=6, up=(0, 0, 1)):
-    """Tube along a polyline (radius scalar or per point); `flat` < 1 squashes it into a strap."""
+def tube_mesh(points, radius, flat=1.0, segs=6, up=(0, 0, 1), caps=False):
+    """Tube along a polyline (radius scalar or per point); `flat` < 1 squashes it into a strap; `caps` closes the
+    ends with triangle fans (antlers, horns)."""
     pts = np.asarray(points, float)
     n = len(pts)
     rad = np.full(n, radius) if np.isscalar(radius) else np.asarray(radius)
@@ -1554,6 +1596,13 @@ def tube_mesh(points, radius, flat=1.0, segs=6, up=(0, 0, 1)):
             a0 = k * segs + j
             a1 = k * segs + (j + 1) % segs
             faces.append((a0, a1, a1 + segs, a0 + segs))
+    if caps:
+        for k, sgn in ((0, -1), (n - 1, 1)):
+            c = len(verts)
+            verts.append(pts[k].copy())
+            for j in range(segs):
+                i0, i1 = k * segs + j, k * segs + (j + 1) % segs
+                faces.append((i1, i0, c) if sgn < 0 else (i0, i1, c))
     return np.array(verts), faces
 
 
@@ -1736,9 +1785,24 @@ def build_eyes(arm):
     if hasattr(SPEC, "B"):
         eye_c, eye_r = SPEC.B["eye"], SPEC.B["eye_r"]
     obs = []
+    wild = hasattr(SPEC, "B")
     for sx in (-1, 1):
         bm = bmesh.new()
-        bmesh.ops.create_uvsphere(bm, u_segments=14, v_segments=10, radius=eye_r)
+        bmesh.ops.create_uvsphere(bm, u_segments=24 if wild else 14, v_segments=16 if wild else 10, radius=eye_r)
+        if wild:
+            # iris/pupil coordinates for shaders/animal_eye.gdshader: the position projected onto the tangent
+            # plane of the eye's outward axis (lateral for prey, turned forward for predators)
+            fwd = float(SPEC.B.get("eye_fwd", 0.3))
+            out = Vector((sx, fwd, 0.0)).normalized()
+            t1 = Vector((0.0, 0.0, 1.0)).cross(out).normalized() * (-sx)    # horizontal, pointing forward
+            t2 = out.cross(t1).normalized()
+            if t2.z < 0:
+                t2 = -t2
+            uvl = bm.loops.layers.uv.new("UVMap")
+            for f in bm.faces:
+                for lp in f.loops:
+                    co = lp.vert.co
+                    lp[uvl].uv = (co.dot(t1) / eye_r, co.dot(t2) / eye_r)
         me = bpy.data.meshes.new("Eye")
         bm.to_mesh(me)
         bm.free()
@@ -2093,9 +2157,12 @@ def build_species(name):
     if not NO_ANIM:
         for gname, g in GAITS.items():
             frames = int(round(g["T"] * FPS))
+            kframes = max(frames, 24)                      # short cycles of small animals: keys between frames (horse >= 28: unchanged)
             t = time.time()
-            poses, stats = solve_cycle(g, frames)
-            key_action(arm, gname, poses)
+            if cfg.get("fit_gaits", name != "horse"):
+                g = fit_gait(gname, g, kframes, float(cfg.get("withers", 1.0)))
+            poses, stats = solve_cycle(g, kframes)
+            key_action(arm, gname, poses, step=frames / kframes)
             err = max(e for leg in stats for (st, e, y, z) in stats[leg] if st)
             meta["gaits"][gname] = {"anim": gname, "cycle": frames / FPS, "stride": g["L"], "speed": g["L"] / (frames / FPS),
                                     "duty": {"fore": g["duty"][0], "hind": g["duty"][1]}, "footfalls": g["ph"],

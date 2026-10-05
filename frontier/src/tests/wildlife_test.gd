@@ -118,6 +118,17 @@ func _save(name: String) -> void:
 	img.save_png(p)
 	print("WILDLIFE_TEST: wrote ", p)
 
+func _bounds(v: HorseVisual) -> AABB:
+	var inv := v.global_transform.affine_inverse()
+	var bb := AABB()
+	var first := true
+	for mi in v.meshes:
+		if not String(mi.name).begins_with("Body_LOD"):
+			var b: AABB = (inv * mi.global_transform) * mi.get_aabb()
+			bb = b if first else bb.merge(b)
+			first = false
+	return bb
+
 func _length(v: HorseVisual) -> float:
 	return float(v.meta.get("rest", {}).get("length", 1.5))
 
@@ -128,7 +139,7 @@ func _lineup() -> void:
 	var z := 0.0
 	var maxh := 0.0
 	for sp in _species():
-		var v := _animal(sp, Vector3.ZERO, PI * 0.5)       # facing -X... turned to face the camera's left
+		var v := _animal(sp, Vector3.ZERO, 0.0)            # facing -Z: side-on to the camera, nose to the left
 		var L := _length(v)
 		v.position = Vector3(0, 0, z + L * 0.5)
 		z += L + 0.5
@@ -136,7 +147,7 @@ func _lineup() -> void:
 		_pose(v, "idle", 0.0)
 	var mid := z * 0.5
 	var w := z + 1.0
-	_look(Vector3(-w * 0.62, maxh * 0.9, mid), Vector3(0, maxh * 0.45, mid), 52.0)
+	_look(Vector3(-w * 0.47, maxh * 0.55, mid), Vector3(0, maxh * 0.5, mid), 50.0)
 	await _save("lineup")
 
 func _closeups() -> void:
@@ -145,9 +156,12 @@ func _closeups() -> void:
 		await get_tree().process_frame
 		var v := _animal(sp, Vector3.ZERO, 0.0)
 		_pose(v, "idle", 0.0)
-		var H := float(v.meta.get("rest", {}).get("withers_height", 1.0))
-		var L := _length(v)
-		_look(Vector3(-L * 1.25, H * 0.95, -L * 0.85), Vector3(0, H * 0.6, -L * 0.1), 40.0)
+		# frame the whole animal (antlers, tail) from the front-left, using the meshes' bounds
+		var bb := _bounds(v)
+		var c := bb.get_center()
+		var rad := bb.size.length() * 0.5
+		var dir := Vector3(-1.0, 0.32, -0.8).normalized()
+		_look(c + dir * rad / sin(deg_to_rad(20.0)) * 0.78, c, 40.0)
 		await _save(sp + "_34")
 		var an: Dictionary = v.meta.get("anchors", {})
 		if an.has("poll"):

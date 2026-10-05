@@ -128,3 +128,4 @@ runner, Metal) and the Mac monitor.
 - 2026-10-05: audio merged; frontier.yml fetches audio.zip on every run.
 - 2026-10-05: horse workstream (worktree): generator, controller, IK, oracles, CI animals job (see HORSES.md).
 - 2026-10-05: character pipeline (worktree agent): tools/characters, src/actors, shaders/characters, CI job.
+- 2026-10-05: wildlife workstream (worktree): quadruped.py + 11 species, animal coat shader, animal.gd model wiring, per-species gait oracle (wildlife_test.tscn, `--bot hunt`), RiderIK (see WILDLIFE.md).

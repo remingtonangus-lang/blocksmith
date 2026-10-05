@@ -35,7 +35,7 @@ const PRESETS := {
 		"point": Color(0.62, 0.47, 0.32), "face": Color(0.66, 0.50, 0.35), "muzzle": Color(0.95, 0.93, 0.89),
 		"tail_tip": Color(0.10, 0.08, 0.07), "belly_amt": 0.9, "dorsal_amt": 0.35, "point_amt": 0.15, "tail_amt": 1.0,
 		"fur": 0.3},
-	"black_bear": {"base": Color(0.07, 0.06, 0.055), "belly": Color(0.09, 0.08, 0.07), "dorsal": Color(0.06, 0.05, 0.05),
+	"black_bear": {"base": Color(0.095, 0.078, 0.064), "belly": Color(0.11, 0.09, 0.075), "dorsal": Color(0.075, 0.062, 0.055),
 		"point": Color(0.05, 0.045, 0.04), "face": Color(0.08, 0.07, 0.06), "muzzle": Color(0.55, 0.42, 0.30),
 		"belly_amt": 0.3, "dorsal_amt": 0.3, "point_amt": 0.5, "fur": 0.85},
 	"raccoon": {"base": Color(0.45, 0.43, 0.40), "belly": Color(0.62, 0.60, 0.56), "dorsal": Color(0.25, 0.24, 0.22),
@@ -47,6 +47,27 @@ const PRESETS := {
 		"tail_tip": Color(0.95, 0.94, 0.92), "belly_amt": 0.95, "dorsal_amt": 0.3, "point_amt": 1.0, "tail_amt": 1.0,
 		"grizzle": 0.25, "fur": 0.6},
 }
+
+## Eyes (shaders/animal_eye.gdshader): iris colour, iris size (sine of its half-angle), pupil size and shape
+## (0 round, 1 horizontal bar, 2 vertical slit). Ungulates: dark brown, almost all iris, horizontal pupils;
+## canids: amber; the fox: slit pupils; the cougar: gold.
+const EYES := {
+	"mule_deer": [Color(0.17, 0.10, 0.05), 0.95, 0.45, 1], "elk": [Color(0.17, 0.10, 0.05), 0.95, 0.45, 1],
+	"pronghorn": [Color(0.14, 0.08, 0.04), 0.97, 0.45, 1], "bison": [Color(0.12, 0.07, 0.04), 0.95, 0.45, 1],
+	"rabbit": [Color(0.30, 0.17, 0.07), 0.95, 0.45, 0], "wolf": [Color(0.78, 0.55, 0.18), 0.8, 0.35, 0],
+	"coyote": [Color(0.80, 0.62, 0.24), 0.8, 0.35, 0], "fox": [Color(0.82, 0.52, 0.16), 0.82, 0.65, 2],
+	"cougar": [Color(0.66, 0.58, 0.27), 0.85, 0.4, 0], "black_bear": [Color(0.26, 0.15, 0.07), 0.85, 0.4, 0],
+	"raccoon": [Color(0.09, 0.06, 0.04), 0.9, 0.45, 0],
+}
+
+static func apply_eyes(species: String, mat: ShaderMaterial) -> void:
+	var e: Array = EYES.get(species, EYES["mule_deer"])
+	var iris: Color = e[0]
+	mat.set_shader_parameter("iris_color", iris)
+	mat.set_shader_parameter("iris_rim", iris * 0.35)
+	mat.set_shader_parameter("iris_size", float(e[1]))
+	mat.set_shader_parameter("pupil_size", float(e[2]))
+	mat.set_shader_parameter("pupil_shape", int(e[3]))
 
 static func roll(species: String, seed: int) -> Dictionary:
 	var c: Dictionary = PRESETS.get(species, PRESETS["mule_deer"]).duplicate()
