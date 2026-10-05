@@ -336,12 +336,12 @@ final class QuestApp {
 
 // Rolling frame statistics, logged every 5 s (adb logcat -s Blocksmith).
 final class FrameStats {
-    // Resident memory of the process (Linux / Android /proc), MB; 0 where unavailable.
+    // Resident memory of the process (VmRSS from /proc, Linux and Android), MB; 0 where unavailable.
     static func residentMB() -> Int {
-        guard let t = try? String(contentsOfFile: "/proc/self/statm", encoding: .utf8) else { return 0 }
-        let f = t.split(separator: " ")
-        guard f.count > 1, let pages = Int(f[1]) else { return 0 }
-        return pages * Int(sysconf(Int32(_SC_PAGESIZE))) >> 20
+        guard let t = try? String(contentsOfFile: "/proc/self/status", encoding: .utf8),
+              let line = t.split(separator: "\n").first(where: { $0.hasPrefix("VmRSS:") }) else { return 0 }
+        let kb = Int(line.split(separator: " ").dropFirst().first { Int($0) != nil } ?? "") ?? 0
+        return kb >> 10
     }
     private var frames = 0, missed = 0
     private var sumCPU = 0.0, sumTick = 0.0, sumRecord = 0.0, sumGPU = 0.0, worstFrame = 0.0
