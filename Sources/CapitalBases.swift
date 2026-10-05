@@ -186,7 +186,8 @@ extension Game {
             } else {
                 let level: BaseAlert = d < 70 || n.kind != .gunshot ? .alert : .suspicious
                 raise(&r, level, b)
-                if level == .alert && r.alert != .lockdown { baseCallAir(&r, b, to: n.pos) }      // the Kestrel goes up
+                // The Kestrel goes up for noises it can reach over loaded ground (the crawler takes the far ones).
+                if level == .alert && r.alert != .lockdown && d < 110 { baseCallAir(&r, b, to: n.pos) }
                 // Heavy noise far out: the crawler goes too.
                 if n.kind != .gunshot && d > 70 && r.crawlerGoal == nil {
                     r.crawlerGoal = [n.pos.x, n.pos.y, n.pos.z]; r.crawlerPhase = 0; r.crawlerT = 0

@@ -124,7 +124,14 @@ extension Game {
         case 4:
             fm.hold = V3(pad.x, airCruise(r, k.pos, pad), pad.z); fm.holdSpeed = overPad < 30 ? 6 : 14
             if overPad < 2 && simd_length(k.vel) < 1.2 { ph = 5; t = 0; b.note("\(r.key) kestrel over the pad") }
-            else if t > 150 { done("never made it back (\(Int(overPad)) blocks off)"); return }
+            else if t > 150 {
+                // Stowed where it is rather than left hanging in the sky without a citadel flying it.
+                for st in FlightCrew.seats where st.ship === k { if let m = st.mob { mobs.mobs.removeAll { $0 === m } } }
+                FlightCrew.seats.removeAll { $0.ship === k }
+                ships.remove(k)
+                done("never made it back (\(Int(overPad)) blocks off)")
+                return
+            }
         case 5:
             let skids = k.pos.y - k.worldMin.y
             fm.hold = pad + V3(0, skids - 1, 0); fm.holdSpeed = 3      // under the pad: it settles on its skids
