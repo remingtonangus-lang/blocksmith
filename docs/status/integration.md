@@ -167,6 +167,10 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
 - 09:07-09:25 UTC: runs 661 (4608bd6) and 662 (6994f63) cancelled while still queued, superseded by c801470 (a likely
   NaN crash for idle frigate gunners, then the wooden-shelf empty container: crash fixes take the next run).
 
+- 09:31-10:05 UTC: runs 663 (c801470), 667 (8aa3717) and 670 (32bd4ba) cancelled while still queued (no macOS runner
+  free), each superseded by the next batch (container-screen item loss, save / load audit, split-screen audit);
+  144ba6e carries all three batches.
+
 ## Next
 - Per-frame allocations left after the 2026-10-05 audit (refactors; measure with the profiles first): mob model parts
   rebuilt per mob per frame (Mob.swift parts / equipmentParts: append into one reused buffer); the HUD line chain
