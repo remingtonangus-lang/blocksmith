@@ -247,7 +247,9 @@ extension Game {
             if k == "enchanted_book" { out = Enchant.withLevels(Items.id("book"), 30, treasure: true) }
             else if k == "bow" || k == "fishing_rod" {
                 out = Enchant.withLevels(Items.id(k), 30, treasure: true)
-                out.damage = Int(Float(out.def.durability) * Rand.float(in: 0...0.25))
+                // 0-25 % durability left (reference set_damage 0-0.25; it was 75-100 % left).
+                let dur = out.def.durability
+                out.damage = min(dur - 1, Int(Float(dur) * Rand.float(in: 0.75...1)))
             } else { out = ItemStack(Items.id(k), 1) }
         }
         let dir = player.pos + V3(0, 1, 0) - b.pos
