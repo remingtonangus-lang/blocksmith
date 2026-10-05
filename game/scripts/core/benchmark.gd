@@ -379,6 +379,21 @@ func _start_gpu_ablation() -> void:
 		var gn: Node3D = veg.grass_near
 		var gf: Node3D = veg.get("_grass_far")
 		_ga_items.append(["grass", _set_vis.bind([gn, gf], false), _set_vis.bind([gn, gf], true)])
+	if veg:
+		# Where the trees' 6-9 ms goes: the near trees, their shadow proxies, the impostors.
+		var near: Array = (veg.get("supers") as Dictionary).values() if veg.get("supers") is Dictionary else []
+		var proxies: Array = []
+		for r in near:
+			for c in (r as Node).get_children():
+				if c is GeometryInstance3D and (c as GeometryInstance3D).cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY:
+					proxies.append(c)
+		var imps: Array = (veg.get("imps") as Dictionary).values() if veg.get("imps") is Dictionary else []
+		if not near.is_empty():
+			_ga_items.append(["trees: near", _set_vis.bind(near, false), _set_vis.bind(near, true)])
+		if not proxies.is_empty():
+			_ga_items.append(["trees: shadow proxies", _set_vis.bind(proxies, false), _set_vis.bind(proxies, true)])
+		if not imps.is_empty():
+			_ga_items.append(["trees: impostors", _set_vis.bind(imps, false), _set_vis.bind(imps, true)])
 	_ga_i = 0
 	_ga_off = false
 	_ga_pair = 0
