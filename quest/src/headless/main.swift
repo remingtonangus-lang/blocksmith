@@ -56,6 +56,8 @@ game.time = 0.25 * DAY_LENGTH
 let (gen, mesh) = world.loadSync(center: spawn, radius: 4)
 print(String(format: "load: gen %.2f s, mesh %.2f s (setup %.2f s total)", gen, mesh, CFAbsoluteTimeGetCurrent() - t0))
 check(world.chunks.count > 40, "chunks generated (\(world.chunks.count))")
+let warm = QuestWarmup.run()                                          // as the app's loading thread does
+check(warm.ms < 500, String(format: "warmup tables built (%.0f ms)", warm.ms))
 var quads = 0, sections = 0
 for c in world.chunks.values { for s in c.sections where !s.empty { quads += s.opaqueQuads + s.transQuads; sections += 1 } }
 check(quads > 10_000, "terrain meshed: \(sections) sections, \(quads) quads")
@@ -164,6 +166,14 @@ check(game.menu == nil, "menus closed again (\(game.menu.map { String(describing
 // Mixer: a few sounds through the software mixer.
 if let snd = SoundEngine() {
     snd.setListener(eye: V3(0, 70, 0), yaw: 0, pitch: 0, cave: 0, underwater: false)
+    // A sound not synthesized yet waits (rendered off the game thread) and plays at the next listener update once ready.
+    let anvilQueued = !snd.ready(.anvil)
+    snd.play(.anvil, volume: 0.01)
+    let w0 = CFAbsoluteTimeGetCurrent()
+    while !(snd.ready(.explode) && snd.ready(.click) && snd.ready(.anvil)) && CFAbsoluteTimeGetCurrent() - w0 < 10 { usleep(5000) }
+    check(!anvilQueued || snd.waitingCount == 1, "mixer: an unsynthesized sound waits instead of rendering on the game thread")
+    snd.setListener(eye: V3(0, 70, 0), yaw: 0, pitch: 0, cave: 0, underwater: false)
+    check(snd.waitingCount == 0, "mixer: the waiting sound plays once synthesized")
     snd.play(.click)
     snd.play(.explode, at: V3(4, 70, 0))
     var buf = [Float](repeating: 0, count: 2 * 2048)

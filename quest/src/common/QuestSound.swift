@@ -84,6 +84,7 @@ final class SoundEngine {
 
     // `yaw`/`pitch` are the game's camera angles; on the Quest the game's camera follows the head, so this is head space.
     func setListener(eye e: V3, yaw: Float, pitch: Float, cave c: Float, underwater w: Bool) {
+        flushWaiting()
         eye = e
         fwd = V3(-sinf(yaw) * cosf(pitch), sinf(pitch), -cosf(yaw) * cosf(pitch))
         right = V3(cosf(yaw), 0, -sinf(yaw))
@@ -162,12 +163,33 @@ final class SoundEngine {
         return list.isEmpty ? nil : list[v % list.count]
     }
 
+    // One-shots whose clip isn't synthesized yet: rendered on a background queue and played as soon as they are
+    // (synthesizing on the game thread cost up to ~7 ms the first time each sound was heard; questcheck profile).
+    private var waiting: [(s: Snd, v: Float, pos: V3?, occ: Float, t: Double)] = []
+
+    private func flushWaiting() {
+        guard !waiting.isEmpty else { return }
+        let now = CFAbsoluteTimeGetCurrent()
+        let ready = waiting.filter { clips[$0.s] != nil || bank.has($0.s) }
+        waiting.removeAll { now - $0.t > 0.3 || clips[$0.s] != nil || bank.has($0.s) }
+        for w in ready where now - w.t <= 0.3 { play(w.s, volume: w.v, at: w.pos, occlusion: w.occ) }
+    }
+
+    // True once a sound plays at once (synthesized); before that play() queues it (questcheck).
+    func ready(_ s: Snd) -> Bool { clips[s] != nil || bank.has(s) }
+    var waitingCount: Int { waiting.count }
+
     func play(_ s: Snd, volume v: Float = 1, at pos: V3? = nil, occlusion: Float = 0) {
         guard enabled else { return }
         let gain = v * AudioSettings.gain(s)
         if gain <= 0.001 { return }
         let range = max(16 * max(1, v), s.range)
         if let p = pos, simd_length(p - eye) > range { return }
+        if clips[s] == nil && !bank.has(s) {
+            bank.prewarm([s], qos: .userInitiated)
+            if waiting.count < 24 { waiting.append((s, v, pos, occlusion, CFAbsoluteTimeGetCurrent())) }
+            return
+        }
         variant += 1
         guard let c = clip(s, variant: variant) else { return }
         let now = CFAbsoluteTimeGetCurrent()

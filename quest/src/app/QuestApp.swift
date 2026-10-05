@@ -94,6 +94,7 @@ final class QuestApp {
         // The horizon ring's first sampling (4225 terrain columns, ~0.1 s on a desktop core) here, not on the first
         // world frame (HorizonRing samples synchronously when it has no ring yet).
         HorizonRing.shared.request(game, eye: game.player.eye)
+        QuestWarmup.run()
         status("Ready", 1)
         loadLock.lock(); loaded = (game, save, tex); loadLock.unlock()
     }
@@ -238,8 +239,8 @@ final class QuestApp {
             // when the user comes back, so nothing happens to them meanwhile.
             if !xr.focused && wasFocused && g.menu == nil && g.credits == nil { g.paused = true }
             wasFocused = xr.focused
-            if xr.focused { g.tick(dt) }
-            g.world.update(center: g.player.pos)
+            // Game.tick streams the world first thing; unfocused, keep chunks arriving without ticking.
+            if xr.focused { g.tick(dt) } else { g.world.update(center: g.player.pos) }
             controls?.afterTick(dt: Float(dt))
             tickMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
         }

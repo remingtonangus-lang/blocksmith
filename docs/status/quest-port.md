@@ -156,6 +156,12 @@ the log) instead of hanging in an empty scene.
   could exit at once or reuse stale GPU state).
 - The playtest branch's citadel patrol and crew fixes.
 
+**QUEST APK READY 37277759406** (2026-10-05, versionCode 42, commit c893928): everything in 39, plus:
+- Hold Y opens the world map (a tap still opens the inventory, on release); hold X swaps the offhand (a tap is still
+  pick block / reload). Check: hold Y ~0.5 s for the map, tap Y for the inventory.
+- Pause > VR Comfort & Controls > Touch Controls: a reference page of every Touch button; the pad / keyboard
+  reference, key binding and button mapping rows are hidden in the headset.
+
 ### Device reports
 
 **2026-10-05 21:50 ADT, versionCode 13 (6c996db), Remington's Quest 3.** Works: launches into an immersive session,
