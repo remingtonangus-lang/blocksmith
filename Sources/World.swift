@@ -577,13 +577,27 @@ final class World {
         if quiet {
             // Only block or light edits since the last scan (flowing water, a placed block): re-check just the chunks
             // they touched instead of walking the whole disc (bench: 0.26 ms a frame at rd 16 while lava settled).
-            for (k, c) in chunks where c.dirty {
-                if jobs >= maxQueued { return }               // the rest stay dirty; the epoch still differs, so next frame
+            // Only the chunks marked dirty since (MeshEpoch.dirtyChunks), not every loaded chunk.
+            var list = MeshEpoch.dirtyChunks
+            MeshEpoch.dirtyChunks = []
+            var i = 0
+            while i < list.count {
+                let c = list[i]
+                guard c.dirty else { i += 1; continue }
+                let k = ChunkKey(x: c.cx, z: c.cz)
+                guard chunks[k] === c else { c.dirty = false; i += 1; continue }   // unloaded since
+                if jobs >= maxQueued {
+                    // The rest stay dirty and listed; the epoch still differs, so next frame.
+                    MeshEpoch.dirtyChunks.insert(contentsOf: list[i...], at: 0)
+                    return
+                }
+                i += 1
                 c.dirty = false
                 guard !c.meshInFlight && c.needsMesh else { continue }
                 let near = inMeshRadius(k.x - center.x, k.z - center.z) || (extra.map { inMeshRadius(k.x - $0.x, k.z - $0.z) } ?? false)
                 if near, let nb = neighbourhood(c) { scheduleMesh(k, c, nb) }
             }
+            list.removeAll()
             scanEpoch = MeshEpoch.value
             return
         }
@@ -627,6 +641,11 @@ final class World {
         }
         meshedCount = meshed
         scanEpoch = MeshEpoch.value         // after the loop: its own LOD re-mesh bumps are already scheduled
+        // The full scan handled what it could; keep only chunks still dirty and loaded listed (bounded by the chunk count,
+        // and no unloaded chunk kept alive by the list).
+        if !MeshEpoch.dirtyChunks.isEmpty {
+            MeshEpoch.dirtyChunks.removeAll { c in !c.dirty || chunks[ChunkKey(x: c.cx, z: c.cz)] !== c }
+        }
     }
 
     // Hands a chunk's out-of-date sections to a mesh worker.
