@@ -23,6 +23,17 @@ final class WorldFX {
     var snowChanges = 0                 // block writes by snow (checks)
     var forcedWind: V3? = nil           // tests: a fixed wind
     var smokeTimer: Float = 0
+
+    // The per-block tables fire, snow and floods read, built with the world rather than inside the first fire tick
+    // or snow pass (Wear.kind is a string pass over every block state: the first fire tick took 11.8 ms, fxtest run on
+    // a86c9c4, when nothing had touched it before).
+    init() {
+        _ = Wear.kind.count
+        _ = Game.snowBaseT.count
+        _ = Game.leavesT.count
+        _ = FloodModel.passT.count
+        _ = World.magmaID
+    }
     var stormMs = 0.0, stormWorstMs = 0.0
 }
 
