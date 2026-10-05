@@ -206,6 +206,7 @@ final class Game {
     var walkBob: Float = 0
     var walkAmount: Float = 0
     private var regenTimer: Double = 0
+    private var regenFrac: Float = 0       // saturated regen heals fractions of a half-heart (health is whole)
     private var starveTimer: Double = 0
     private var drownTimer: Double = 0
     lazy var spawnPoint: V3 = settleSpawn(findSpawn())
@@ -1915,7 +1916,15 @@ final class Game {
         // Fast regen with full hunger and saturation, slow regen at hunger >= 18.
         if hunger >= 20 && saturation > 0 && health < maxHealth {
             regenTimer += dt
-            if regenTimer >= 0.5 { regenTimer = 0; health += 1; exhaustion += 6 }
+            // Reference: min(saturation, 6) / 6 of a half-heart every 0.5 s, costing that much x 6 in exhaustion (it
+            // healed a whole half-heart however little saturation was left).
+            if regenTimer >= 0.5 {
+                regenTimer = 0
+                let h: Float = min(saturation, 6) / 6
+                regenFrac += h
+                exhaustion += h * 6
+                if regenFrac >= 1 { regenFrac -= 1; health += 1 }
+            }
         } else if hunger >= 18 && health < maxHealth {
             regenTimer += dt
             if regenTimer >= 4 { regenTimer = 0; health += 1; exhaustion += 6 }
@@ -2065,7 +2074,7 @@ final class Game {
         swap(&tridentCharge, &s.tridentCharge); swap(&spearCharge, &s.spearCharge); swap(&spearHitAt, &s.spearHitAt)
         let bb = bobber; bobber = s.bobber; s.bobber = bb
         swap(&contactTimer, &s.contactTimer); swap(&walkBob, &s.walkBob); swap(&walkAmount, &s.walkAmount)
-        swap(&regenTimer, &s.regenTimer); swap(&starveTimer, &s.starveTimer); swap(&drownTimer, &s.drownTimer)
+        swap(&regenTimer, &s.regenTimer); swap(&regenFrac, &s.regenFrac); swap(&starveTimer, &s.starveTimer); swap(&drownTimer, &s.drownTimer)
         let mn = mining; mining = s.mining; s.mining = mn
         swap(&mineProgress, &s.mineProgress); swap(&mineSoundTimer, &s.mineSoundTimer); swap(&eatProgress, &s.eatProgress)
         swap(&attackTimer, &s.attackTimer); swap(&swing, &s.swing); swap(&stepDist, &s.stepDist); swap(&wasInWater, &s.wasInWater)

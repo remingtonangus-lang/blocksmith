@@ -66,6 +66,7 @@ struct SeatState {
     var walkBob: Float = 0
     var walkAmount: Float = 0
     var regenTimer: Double = 0
+    var regenFrac: Float = 0
     var starveTimer: Double = 0
     var drownTimer: Double = 0
     var mining: IVec3?
