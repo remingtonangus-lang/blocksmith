@@ -595,12 +595,20 @@ enum Bench {
         game.player.pos = pos
         game.player.yaw = -.pi / 2                                  // looking along +x, the flight direction
         game.player.pitch = -8 * .pi / 180
+        let m0 = residentMB()
         let a = now
         _ = world.loadSync(center: pos, radius: rd)
         let preload = now - a
+        let m1 = residentMB()
         guard let r = try? Renderer(device: device, game: game, colorFormat: .bgra8Unorm),
               let target = OffscreenTarget(device, 1280, 800) else { return }
         for _ in 0..<3 { _ = r.benchFrame(target) }
+        // Where the resident memory comes from (flight24's peak gate): the world before loading, the loaded chunks,
+        // the renderer (textures and their generation, item art, meshes uploaded).
+        let m2 = residentMB()
+        print(String(format: "bench flight%ld: resident %.0f MB at start, %.0f after loading, %.0f after the renderer", rd, m0, m1, m2))
+        put("flight\(rd).resident_after_load_mb", m1)
+        put("flight\(rd).resident_after_renderer_mb", m2)
         let dt = 1.0 / 60
         let frames = Int(seconds / dt)
         var tick: [Double] = [], enc: [Double] = [], gpu: [Double] = [], upd: [Double] = [], est: [Double] = [], cov: [Double] = [], cull: [Double] = []
