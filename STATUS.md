@@ -282,6 +282,13 @@ mud...), tool wear, leaf decay radius 6, burning / freezing through armour, crit
 spawn cluster cap 4, thunderstorm spawns, 3D despawn, slime chunks per seed, phantoms, scaled caps, spider light,
 Voidwalker stare cone, Hisser line of sight, villager beds, crop growth factor, cactus / bamboo / berry growth,
 two-stage saplings, stair / wall hardness, smelting XP, impaling list. `--fidelitycheck` gates the numbers.
+Round 3 (audits of world mechanics and sparkstone / brewing, plus an -Ounchecked UB audit): beds explode outside the
+overworld, bed/anchor respawn rules, grass and mycelium spread, ice/snow melt and shore freezing, water 0.25 s, fire
+burn/ignite odds, copper oxidation formula, basalt generator, XP orbs that lie and drift, target blocks, torch burnout,
+piston-breakable gourds, plate release timing, brewing-stand hopper faces, comparator readings, lingering clouds;
+UB: map loop range when far from the map (heap writes), dragon respawn spike index, power clamps, command clamps,
+crossbow ammo by name. Open from the audits: water spreading toward the nearest drop (all four sides now),
+waterlogging, vine growth, dropper into furnaces, dragon's breath bottles, concrete powder in water.
 
 ## Playtest feedback (Remington, 2026-10-02): quality and fidelity over new features
 Bug discovery is fully automated (Remington is not the bug finder). Keep CI green throughout. Queue, in order:
