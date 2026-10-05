@@ -168,10 +168,14 @@ extension MobManager {
             populated.insert(k)
             // Tree nests come with 2-3 bees inside (reference generation).
             if nest != AIR {
+                // Read the chunk's own arrays (World.block / topY per voxel spent ~0.5 ms a chunk in lookups).
+                let direct = w.frame == nil
                 for lz in 0..<CS { for lx in 0..<CS {
                     let x = c.cx * CS + lx, z = c.cz * CS + lz
-                    let top = w.topY(x, z)
-                    for y in max(1, top - 12)...max(1, top) where Blocks.groupBase[Int(w.block(x, y, z))] == nest {
+                    let top = direct ? Int(c.height[lx + lz * CS]) : w.topY(x, z)
+                    for y in max(1, top - 12)...max(1, top) {
+                        let b = direct ? (y < CH ? c.blocks[Chunk.index(lx, y, lz)] : AIR) : w.block(x, y, z)
+                        guard Blocks.groupBase[Int(b)] == nest else { continue }
                         let h = IVec3(x, y, z)
                         if hives[h] == nil { hives[h] = (0..<Rand.int(in: 2...3)).map { _ in (nectar: false, time: 0) } }
                     }

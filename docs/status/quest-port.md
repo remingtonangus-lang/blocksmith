@@ -83,6 +83,13 @@ most useful report):
 4. **Comfort**: edges darken during snap turns and fast moves; nothing flickers; the HUD panel stays low in view.
 5. Pause → Quit saves and closes the app (back to Home).
 
+**QUEST APK READY 37247239826** (2026-10-05, versionCode 13, commit 6c996db): supersedes the one above; same checks.
+New: the whole session's log also lands in `/sdcard/Android/data/com.blocksmith.quest/files/blocksmith.log` (pull it
+after playing); the block textures are cached after the first launch (the second launch should reach the world
+noticeably sooner: compare the `textures:` lines, "painted in N ms" then "from cache"); volcanoes and Ancient Spires
+show on the horizon past the render distance; if OpenXR/Vulkan setup fails the app returns to Home (with `FATAL:` in
+the log) instead of hanging in an empty scene.
+
 ## Architecture
 
 - `quest/shims/{simd,os,Metal}`: pure-Swift stand-ins so the shared code's `import simd` / `import Metal` / `import os`
