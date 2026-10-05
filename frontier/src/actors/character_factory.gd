@@ -28,6 +28,35 @@ static var _scenes: Dictionary = {}        # id -> PackedScene (runtime-built ca
 static var _anim_lib: AnimationLibrary
 static var _clips: Dictionary = {}
 static var _materials: CharacterMaterials
+static var _mutex := Mutex.new()
+static var _warming := false
+
+
+## Loads and prepares every character scene and the animation library on worker threads, so spawning someone in the
+## middle of a ride never parses a glTF on the main thread. Until a look is ready, spawn() picks a ready one.
+static func warm_up() -> void:
+	if _warming or not available():
+		return
+	_warming = true
+	var todo: Array = []
+	for c in catalog().get("characters", []):
+		todo.append(str(c["id"]))
+	WorkerThreadPool.add_task(func(): animation_library(), false, "character anims")
+	WorkerThreadPool.add_group_task(func(i: int):
+		var id: String = todo[i]
+		if not _is_ready(id):
+			var ps := _build_scene(id, _info(id))
+			if ps:
+				_mutex.lock()
+				_scenes[id] = ps
+				_mutex.unlock(), todo.size(), -1, false, "character scenes")
+
+
+static func _is_ready(id: String) -> bool:
+	_mutex.lock()
+	var r := _scenes.has(id)
+	_mutex.unlock()
+	return r
 
 
 static func available() -> bool:
@@ -78,6 +107,13 @@ static func spawn(seed: int, role := "", opts := {}) -> FrontierCharacter:
 	if pool.is_empty():
 		push_warning("CharacterFactory: no generated characters found (run tools/characters/run.sh or fetch_assets.sh)")
 		return null
+	if _warming:
+		# prefer looks already prepared off-thread; any ready look beats a main-thread glTF parse mid-game
+		var ready := Array(pool).filter(_is_ready)
+		if ready.is_empty():
+			ready = Array(ids("")).filter(_is_ready)
+		if not ready.is_empty():
+			pool = PackedStringArray(ready)
 	var h := hash(str(seed) + ":" + role)
 	var id := pool[posmod(h, pool.size())]
 	var o := opts.duplicate()
@@ -110,14 +146,29 @@ static func spawn_id(id: String, opts := {}) -> FrontierCharacter:
 
 
 static func animation_library() -> AnimationLibrary:
-	if _anim_lib == null and asset_dir() != "":
+	_mutex.lock()
+	var have := _anim_lib != null
+	_mutex.unlock()
+	if have:
+		return _anim_lib
+	var lib := _load_anim_library()
+	_mutex.lock()
+	if _anim_lib == null:
+		_anim_lib = lib
+	_mutex.unlock()
+	return _anim_lib
+
+
+static func _load_anim_library() -> AnimationLibrary:
+	var out: AnimationLibrary = null
+	if asset_dir() != "":
 		var file := str(catalog().get("animations", {}).get("file", "animations.glb"))
 		var path := asset_dir().path_join(file)
 		var root := _load_glb(path)
 		if root == null:
 			return null
 		var ap := _find_anim_player(root)
-		_anim_lib = AnimationLibrary.new()
+		out = AnimationLibrary.new()
 		if ap:
 			for lib_name in ap.get_animation_library_list():
 				var lib := ap.get_animation_library(lib_name)
@@ -126,9 +177,9 @@ static func animation_library() -> AnimationLibrary:
 					_normalise_tracks(a)
 					var info: Dictionary = _clips.get(anim_name, {})
 					a.loop_mode = Animation.LOOP_LINEAR if info.get("loop", false) else Animation.LOOP_NONE
-					_anim_lib.add_animation(anim_name, a)
+					out.add_animation(anim_name, a)
 		root.free()
-	return _anim_lib
+	return out
 
 
 static func clip_info(clip: String) -> Dictionary:
@@ -145,8 +196,20 @@ static func _info(id: String) -> Dictionary:
 
 
 static func _scene(id: String, info: Dictionary) -> PackedScene:
-	if _scenes.has(id):
-		return _scenes[id]
+	_mutex.lock()
+	var cached: PackedScene = _scenes.get(id)
+	_mutex.unlock()
+	if cached:
+		return cached
+	var ps := _build_scene(id, info)
+	if ps:
+		_mutex.lock()
+		_scenes[id] = ps
+		_mutex.unlock()
+	return ps
+
+
+static func _build_scene(id: String, info: Dictionary) -> PackedScene:
 	var path := asset_dir().path_join(str(info.get("file", id + ".glb")))
 	var root := _load_glb(path)
 	if root == null:
@@ -160,7 +223,6 @@ static func _scene(id: String, info: Dictionary) -> PackedScene:
 	_set_owner(root, root)
 	ps.pack(root)
 	root.free()
-	_scenes[id] = ps
 	return ps
 
 
