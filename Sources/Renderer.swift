@@ -423,7 +423,6 @@ final class Renderer: NSObject, MTKViewDelegate {
     private var mobBufIdx = 0
     private var mobPre: (buf: MTLBuffer, count: Int)?
     private var shadowHadMobs = false
-    private static let mobBufSize = 1 << 22
     var shadowFresh = false
 
     // Camera position and angles: first person, or pulled back behind / in front of the player (F5),
@@ -625,30 +624,43 @@ final class Renderer: NSObject, MTKViewDelegate {
         return Frustum(proj * viewRot * translationMatrix(-eye))
     }
 
+    // This view's mob vertices (and the player model, and split screen's other player) in a buffer of their own: Fancy
+    // writes them before the shadow pass, Fast before its draw. Nearest mobs go first, and the buffers double (up to
+    // 16 MB) after a frame that had to drop some: a Capital soldier close up is 190 parts (330 KB of vertices), so a
+    // dozen filled the old 4 MB and the rest, the mobs beside the player among them, went undrawn (playtest 2026-10-05).
+    private var mobBufBytes = 1 << 22
+    func writeMobBuffer(eye: V3, daylight: Float, cull: Frustum) -> (buf: MTLBuffer, count: Int)? {
+        let want = game.coop.active ? 6 : 3           // split screen draws two views a frame
+        while mobBufs.count < want {
+            guard let b = device.makeBuffer(length: mobBufBytes, options: .storageModeShared) else { break }
+            mobBufs.append(b)
+        }
+        guard !mobBufs.isEmpty else { return nil }
+        mobBufIdx = (mobBufIdx + 1) % mobBufs.count
+        let buf = mobBufs[mobBufIdx]
+        let cap = buf.length / MemoryLayout<MobVert>.stride
+        let ptr = buf.contents().bindMemory(to: MobVert.self, capacity: cap)
+        let droppedBefore = MobDrawStats.dropped
+        var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: daylight, world: game.world, into: ptr, capacity: cap,
+                                 cull: cull, maxDist: mobMaxDist)
+        if game.showsPlayerModel { n += writePlayerModel(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n) }
+        n += game.coop.writeOthers(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n)
+        MobDrawStats.written += n
+        if MobDrawStats.dropped > droppedBefore && mobBufBytes < 1 << 24 {
+            mobBufBytes <<= 1
+            mobBufs.removeAll()                       // larger ones next frame (frames in flight keep theirs alive)
+        }
+        return (buf, n)
+    }
+
     func mobShadowPass(_ cmd: MTLCommandBuffer, _ v: Vibrant, terrainChanged: Bool, width: Int, height: Int) {
         let lf = lightFrame
         let eye = cameraEye().eye
         var n = 0
-        if !game.mobs.mobs.isEmpty || game.showsPlayerModel || game.coop.active {
-            let want = game.coop.active ? 6 : 3           // split screen draws two views a frame
-            while mobBufs.count < want {
-                guard let b = device.makeBuffer(length: Renderer.mobBufSize, options: .storageModeShared) else { break }
-                mobBufs.append(b)
-            }
-            if !mobBufs.isEmpty {
-                mobBufIdx = (mobBufIdx + 1) % mobBufs.count
-                let buf = mobBufs[mobBufIdx]
-                let cap = Renderer.mobBufSize / MemoryLayout<MobVert>.stride
-                let ptr = buf.contents().bindMemory(to: MobVert.self, capacity: cap)
-                n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: game.daylight, world: game.world, into: ptr, capacity: cap,
-                                     cull: mobCullFrustum(width, height), maxDist: mobMaxDist)
-                if game.showsPlayerModel {
-                    n += writePlayerModel(game, eye: eye, daylight: game.daylight, into: ptr + n, capacity: cap - n)
-                }
-                n += game.coop.writeOthers(game, eye: eye, daylight: game.daylight, into: ptr + n, capacity: cap - n)
-                mobPre = (buf, n)
-                MobDrawStats.written += n
-            }
+        if !game.mobs.mobs.isEmpty || game.showsPlayerModel || game.coop.active,
+           let pre = writeMobBuffer(eye: eye, daylight: game.daylight, cull: mobCullFrustum(width, height)) {
+            mobPre = pre
+            n = pre.count
         }
         let cast = n > 0 && lf.shadowStrength > 0
         guard cast || shadowHadMobs || terrainChanged else { return }
@@ -1101,28 +1113,20 @@ final class Renderer: NSObject, MTKViewDelegate {
                 enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: pre.count)
             }
         } else if !game.mobs.mobs.isEmpty || tp || game.coop.active {
-            let off = (scratchOff + 255) & ~255
-            let cap = max(0, ringSize - ringTailReserve - off) / MemoryLayout<MobVert>.stride
-            MobDrawStats.path = cap > 36 ? (hdrActive ? "Fancy ring" : "Fast ring") : "no room in the ring (\(off) used)"
-            if cap > 36 {
-                let ptr = (scratch.contents() + off).bindMemory(to: MobVert.self, capacity: cap)
-                var n = writeMobVertices(game.mobs.mobs, eye: eye, daylight: daylight, world: game.world, into: ptr, capacity: cap,
-                                         cull: frustum, maxDist: mobMaxDist)
-                if tp { n += writePlayerModel(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n) }
-                n += game.coop.writeOthers(game, eye: eye, daylight: daylight, into: ptr + n, capacity: cap - n)
-                MobDrawStats.written += n
-                if n > 0 {
-                    MobDrawStats.drawn += n
-                    scratchOff = off + n * MemoryLayout<MobVert>.stride
+            // Fast: the same buffers (the frame's scratch ring shares its 4 MB with everything else).
+            if let pre = writeMobBuffer(eye: eye, daylight: daylight, cull: frustum) {
+                MobDrawStats.path = hdrActive ? "Fancy (no shadow pass)" : "Fast buffer"
+                if pre.count > 0 {
+                    MobDrawStats.drawn += pre.count
                     enc.setRenderPipelineState(mobPipe)
                     enc.setDepthStencilState(depthWrite)
                     enc.setCullMode(.none)
-                    enc.setVertexBuffer(scratch, offset: off, index: 0)
+                    enc.setVertexBuffer(pre.buf, offset: 0, index: 0)
                     enc.setVertexBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
                     enc.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 1)
-                    enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: n)
+                    enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: pre.count)
                 }
-            }
+            } else { MobDrawStats.path = "no mob buffer" }
         }
 
         // Dropped items and the crack overlay (written straight into the scratch ring)
