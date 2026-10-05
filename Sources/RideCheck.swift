@@ -692,8 +692,8 @@ enum RideCheck {
             worstDrop = max(worstDrop, (lastY - s.pos.y) * 60)
             lastV = v; lastY = s.pos.y
             if stopT < 0 && st.settled { stopT = Float(i) / 60; aliveAtRest = st.crewMobs.values.filter { $0.health > 0 }.count }
-            // (Once it has become a wreck of world blocks the crew stand on those: no deck to stay on.)
-            if i > 60 && w.ships.list.contains(where: { $0 === s }) { crewCheck(i, posts: false) }
+            // (Once it is being laid down as a wreck of world blocks the crew stand on those: no deck to stay on.)
+            if i > 60 && w.ships.list.contains(where: { $0 === s }) && !s.baking { crewCheck(i, posts: false) }
             // Two enemy soldiers turn up beside the wreck once it is still: the crew fight them from aboard.
             if !frigate && st.settled && foes.isEmpty {
                 let side = s.dirToWorld(V3(1, 0, 0))
