@@ -148,6 +148,39 @@ func _shot(path: String, x, z, up: float, yaw: float, pitch: float, hour: float,
 		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME),
 		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME) / 1000, path.get_file()])
 	print("shot: %s at (%.0f, %.0f, %.0f) yaw %.0f pitch %.0f %.1fh %s  ~%.1f ms/frame" % [path, px, cam.global_position.y, pz, yaw, pitch, hour, weather, ft])
+	if Game.args.has("dc_breakdown"):
+		await _dc_breakdown()
+
+## --dc_breakdown: draw calls per settlement node category (hide one category at a time, render, compare).
+func _dc_breakdown() -> void:
+	var stl = main.get("settlements")
+	var cats := {"Ext": [], "ExtShadow": [], "Int": [], "IP": [], "OP": [], "Doors": [], "Far": [], "Wheel": [], "Rail": [],
+		"People": []}
+	for n in stl.find_children("*", "GeometryInstance3D", true, false):
+		var nm := str(n.name)
+		var k := "Rail" if nm.begins_with("Track") else nm.get_slice("_", 0)
+		if cats.has(k):
+			cats[k].append(n)
+	for h in get_tree().get_nodes_in_group("humans"):
+		cats["People"].append(h)
+	var base := await _dc_frame()
+	var parts: PackedStringArray = []
+	for k in cats:
+		if cats[k].is_empty():
+			continue
+		for n in cats[k]:
+			n.visible = false
+		var dc := await _dc_frame()
+		for n in cats[k]:
+			n.visible = true
+		parts.append("%s %d (%d nodes)" % [k, base - dc, cats[k].size()])
+	print("draw calls: total %d | %s" % [base, ", ".join(parts)])
+
+func _dc_frame() -> int:
+	for i in 2:
+		await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	return RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)
 
 ## Bake the town's navmesh, place residents where the hour puts them, start the strollers walking, run a few
 ## seconds of physics (--sim S, default 4) so the street has people mid-stride.

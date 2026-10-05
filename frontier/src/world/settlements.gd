@@ -324,7 +324,7 @@ func _prepare(plan: Dictionary) -> Dictionary:
 	for bk in props:
 		_multimesh_list(mms, props[bk], "IP_" + str(bk).get_file(), INT_RANGE, false)
 	for ck in oprops:
-		_multimesh_list(mms, oprops[ck], "OP_%d_%d" % [ck.x, ck.y], OPROP_RANGE, true)
+		_multimesh_list(mms, oprops[ck], "OP_%d_%d" % [ck.x, ck.y], OPROP_RANGE, false)   # small: no shadow passes
 	# door leaves: MultiMesh per (cell, mesh)
 	var groups := {}
 	for rec in recs:
@@ -340,6 +340,7 @@ func _prepare(plan: Dictionary) -> Dictionary:
 		var g: Dictionary = groups[key]
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_custom_data = true
 		mm.mesh = g.mesh
 		mm.instance_count = g.items.size()
 		for i in g.items.size():
@@ -347,6 +348,9 @@ func _prepare(plan: Dictionary) -> Dictionary:
 			var hx: Transform3D = leaf2.hinge
 			hx.origin.y += g.items[i][0].get("bottom", 0.0)
 			mm.set_instance_transform(i, hx)
+			var dc: Color = g.items[i][0].col
+			var plank: bool = str(g.items[i][0].style) in ["plank", "outhouse"]
+			mm.set_instance_custom_data(i, Color(1, 1, 1, 0) if plank else Color(dc.r, dc.g, dc.b, 1.0))
 		door_mms.append([mm, g.items])
 	var spinners := []
 	for rec in recs:
@@ -507,8 +511,8 @@ func _attach(t: Dictionary, res: Dictionary) -> void:
 	for k in p:
 		prof[k] = prof.get(k, 0) + p[k]
 	_update_lights(true)
-	print("settlements: built %s: %d structures, tris ext %dk int %dk, %d surfaces (meshes + props), build %d ms (commit %d), attach %d ms" % [t.id, res.recs.size(),
-		res.ext_tris / 1000, res.int_tris / 1000, surfaces, p.total / 1000, p.commit / 1000, p.attach / 1000])
+	print("settlements: built %s: %d structures, tris ext %dk int %dk, %d surfaces (meshes + props), %d door meshes, build %d ms (commit %d), attach %d ms" % [t.id, res.recs.size(),
+		res.ext_tris / 1000, res.int_tris / 1000, surfaces, res.doors.size(), p.total / 1000, p.commit / 1000, p.attach / 1000])
 	mem("built " + str(t.id))
 	town_built.emit(str(t.id))
 
@@ -613,9 +617,11 @@ func settle_now() -> void:
 
 # ------------------------------------------------------------------------------------------------ doors
 
-func _door_mesh(style: String, w: float, h: float, sgn: float, col: Color) -> ArrayMesh:
-	var ci := int(col.r * 4.0) * 25 + int(col.g * 4.0) * 5 + int(col.b * 4.0)
-	var key := "%s_%.2f_%.2f_%d_%d" % [style, w, h, int(sgn), ci]
+## Door leaf mesh, uncoloured: the paint colour is MultiMesh instance custom data (building.gdshader), so every door
+## of a style and size shares one mesh and one MultiMesh per town.
+func _door_mesh(style: String, w: float, h: float, sgn: float, _col: Color) -> ArrayMesh:
+	var col := Color.WHITE
+	var key := "%s_%.2f_%.2f_%d" % [style, snappedf(w, 0.05), snappedf(h, 0.05), int(sgn)]
 	_door_mutex.lock()
 	var cached = _door_meshes.get(key)
 	_door_mutex.unlock()
