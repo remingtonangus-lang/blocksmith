@@ -21,7 +21,8 @@ func _ready() -> void:
 		get_tree().quit(2)
 		return
 	Game.world = world
-	CharacterFactory.warm_up()            # character scenes + animation library load on worker threads
+	if not Game.args.has("looks"):          # --looks N (low-memory shots): load only the looks towns use, on demand
+		CharacterFactory.warm_up()            # character scenes + animation library load on worker threads
 	Game.roads = RoadGraph.new()
 	Game.roads.build(world)
 	# --- audio (src/audio/audio_director.gd): registers itself as Game.audio in _ready ---

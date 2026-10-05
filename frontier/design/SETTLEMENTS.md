@@ -75,8 +75,54 @@ Doors: `TownDoor.interact(by)` toggles (opens away from `by`), `open_from(pos, h
 (auto-closes), `push(from)` for saloon batwings (spring back), `is_open()`, signals `opened`/`closed`.
 
 Navigation: NavigationMesh cell 0.25 m, agent radius 0.25, height 1.75, climb 0.25 (boardwalks need the steps),
-slope 38°; built from the settlement colliders + the terrain inside the town disc (water excluded). Verified:
-paths from doors through streets, up steps, through doors to the bartender behind the bar.
+slope 38°; built from the settlement colliders + the terrain inside the town disc (water excluded), 64 m chunks
+baked three at a time. Every doorway also gets a two-way `NavigationLink3D` (0.9 m outside -> 0.9 m inside):
+narrow, oblique door openings don't survive voxelisation at radius 0.25 reliably, the links make every room
+reachable. `--settlements_test --build <town> --nav <town> --navcheck` paths from the main street to every
+ground-floor standing spot and lists the ones it can't reach (Bitter Spring: 31 of 485, all seats within 0.8 m
+of the navmesh, outhouses, cells, the livery aisle and depot freight room).
+
+## Town life (src/ai/population.gd, schedule.gd, routine.gd)
+- **Cast** (`TownSchedule.cast`): stable per town (seeded by town id): one worker per job building (role ->
+  job: bartender, storekeeper, gunsmith, butcher, banker + teller, sheriff + night deputy, barber, doctor,
+  undertaker, postmaster, clerk, editor, blacksmith, stablehand, preacher, teacher, station agent, hotelier,
+  cook), residents (townsmen, women, ladies, elders, matrons, drinkers, ranch hands in town, a gambler, two
+  drunks) and children where there is a school. Homes are the houses/cabins (several per house), else the hotel.
+  Looks are assigned per town without repeats while the catalogue lasts (36 adult looks).
+- **Schedule** (`TownSchedule.block(resident, hour, weekday, index)`): work during the building's `hours`
+  (opening a little early or late per person, Sunday closed for shops, saloon from noon on Sunday), noon at the
+  cafe, errands as a customer at open shops (counter, bank window, ticket window, barber chair, doctor's bench),
+  loitering (wall leans beside shop doors, porch seats, hitch rails, troughs, depot benches), evening at the saloon
+  (bar rail, tables, the card table) or the porch, Sunday service, school 8–14:30 then play in the yard, the
+  sheriff's desk with a patrol along the main street every third hour, the deputy on nights, drunks staggering
+  outside the saloon 21:30–2, everybody else home (indoors = despawned) by 23.
+- **Routine** (`TownRoutine`): claim a spot (population keeps claims; upstairs spots skipped), walk the navmesh
+  (own path follower on the town map; doors opened ahead via `TownDoor.open_from` and held with `keep_open`),
+  arrive and anchor on the spot (`Human.anchor_to`: kinematic, no collision move) with an activity loop chosen
+  per spot type (`sit_idle`, `drink`, `drink_smoke`, `lean_wall`, `talk_1/2`, `idle_wait`...) and `sit_down` /
+  `stand_up` gestures, dwell with gestures (`pick_up`, `shrug`, `talk_directions`, `drink`) and neighbour looks,
+  strollers who meet stop to chat. Unreachable spots are marked and skipped; a snagged walker glides along its
+  path for a moment. Far from Ruth and out of view, trips are skipped (teleport) to keep distant towns cheap.
+- **Reactions** (brain.gd): look at Ruth within 7 m, greet (time-of-day lines per voice type, wave; wary or rude
+  after she threatened them or with low Standing; remembered per resident), run inside the nearest doorway from
+  gunfire (alarm bark) and cower, witnesses run to the nearest lawman or the sheriff's door (`on_witness` ->
+  `on_report`), lawmen answer brandishing with "keep that iron holstered" and cover her, serious crimes with
+  arrest/combat; a levelled gun close by makes civilians cower or flee ("Don't shoot!"); bumped residents step
+  aside; after shooting stops people gather round bodies in the street (`population.spectacle`). Everything
+  calms back into the routine after 20–40 s.
+- **Story scenes**: a resident on a spot that a mission actor (src/missions/places.gd) stands on moves on and
+  leaves the spot to the story.
+- **Metrics** (town bot): `town metric: N residents of a C cast | on schedule % | spots reached a of w walks |
+  skipped unseen | went home | doors used | stuck (per NPC-minute) | chats, greetings, nudges | draw calls`.
+
+## Unloading and the rail line
+- Settlements whose edge is more than 1.3 km from the camera drop their detail (meshes, colliders, doors, lights,
+  navmesh, spot records; residents despawn); plan, far shell and ground paint stay and the town is rebuilt on
+  return (`settlements.unload(id)`).
+- `src/world/rail_line.gd`: the main line between towns from `features.rail` (towns build their own station track
+  within radius + 60 m): ballast, ties every 0.6 m, rails, timber trestle bents where the grade is >1.2 m above
+  ground or over water; ~200 m detail chunks built on a worker thread within 520 m (visible to 480 m), one
+  vertex-coloured far strip per ~1.6 km (always on, just under the detail ballast).
 
 ## Town characters
 - **Bitter Spring** (rail town): 20 m main street on 18°, two side streets, false fronts + two-storey hotel and
@@ -102,11 +148,14 @@ towns (no 6 m embankment through main street; approaches become cuttings/fills).
   kitchens/back rooms beyond store back rooms; no rugs/curtains variety; props are the Poly Haven set only (no
   pianos, billiard tables, stoves, bathtubs as models — procedural stand-ins).
 - Doors: no locking/ownership; batwing doors have no collision (they swing when pushed via `push()`).
-- No unbuilding: settlements stay built after the player leaves (memory grows with exploration; ~100–300k
-  triangles per town).
 - Lighting: interior look depends on the renderer preset (SSIL/SDFGI on High help a lot); ReflectionProbes need a
   frame or two after attach; window light shafts are not modelled.
 - Navigation: chunked bake per town on demand; no off-mesh links for ladders; furniture is carved from the navmesh
   only where it has collision boxes (tables, counters, beds, stoves), not small props.
 - Mission ruin, logging camp and trapper's cabin are simpler than the towns.
-- Railroad: only station track inside rail towns; the line between towns has no geometry yet.
+- Railroad: no switches, sidings, bridges with girders or trains yet.
+- Town life: no child character models (children are the youngest adult looks scaled to 0.74 — reads as
+  teenagers at best); no hands-up / cowering clip (crouch idle stands in); no melee, so "crowding round a fight"
+  hooks onto bodies after a gunfight and the `spectacle(pos)` API; bar patrons have no glass prop in hand; ambient
+  NPC-to-NPC dialogue is animation only (the voice set has no NPC-to-NPC lines); beds are not used (home =
+  indoors/despawned).

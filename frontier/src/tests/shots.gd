@@ -36,7 +36,13 @@ const TOUR := [
 	["camp_dusk", -790.0, -760.0, 1.7, 34, -6, 19.4, "clear"],
 	["ranch", 335.0, 1170.0, 2.0, -10, -3, 9.0, "fair"],
 	["mission_ruin", -3031.0, 2668.0, 1.7, 180, 6, 17.5, "clear"],
+	# town life (src/ai/population.gd + routine.gd): residents placed by the hour, then a few seconds of walking
+	["town_morning", -516.0, -251.5, 1.7, 108, -2, 8.75, "fair"],
+	["saloon_night", -481.4, -256.4, 2.1, 30, -8, 21.5, "clear"],
+	["store_clerk", -444.8, -248.8, 2.1, -101, -9, 10.5, "fair"],
+	["town_noon_aerial", -540.0, -290.0, 26.0, 60, -22, 12.4, "fair"],
 ]
+const TOWN_LIFE := ["town_morning", "saloon_night", "store_clerk", "town_noon_aerial"]
 
 var main: Node
 
@@ -119,6 +125,8 @@ func _shot(path: String, x, z, up: float, yaw: float, pitch: float, hour: float,
 	var stl = main.get("settlements")
 	if stl != null and stl.has_method("settle_now"):
 		stl.settle_now()
+	if Game.population != null and (Game.args.has("town_life") or path.get_file().get_basename() in TOWN_LIFE):
+		await _town_life(cam.global_position)
 	var frames := int(Game.args.get("frames", 24))
 	if Game.args.has("menu") and Game.get("menus") != null:
 		var mn = Game.menus
@@ -140,6 +148,29 @@ func _shot(path: String, x, z, up: float, yaw: float, pitch: float, hour: float,
 		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME),
 		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME) / 1000, path.get_file()])
 	print("shot: %s at (%.0f, %.0f, %.0f) yaw %.0f pitch %.0f %.1fh %s  ~%.1f ms/frame" % [path, px, cam.global_position.y, pz, yaw, pitch, hour, weather, ft])
+
+## Bake the town's navmesh, place residents where the hour puts them, start the strollers walking, run a few
+## seconds of physics (--sim S, default 4) so the street has people mid-stride.
+func _town_life(p: Vector3) -> void:
+	var stl = main.get("settlements")
+	var tid: String = stl.town_at(p, 60.0) if stl != null else ""
+	if tid == "":
+		return
+	stl.bake_navigation(tid)
+	var t0 := Time.get_ticks_msec()
+	while not stl.navigation_ready(tid) and Time.get_ticks_msec() - t0 < 120000:
+		await get_tree().process_frame
+	for i in 3:
+		await get_tree().physics_frame
+	Game.population.fill_now()
+	for i in 10:
+		await get_tree().physics_frame
+	Game.population.stir(0.5)
+	var n := int(Game.arg_f("sim", 4.0) * 60.0)
+	for i in n:
+		await get_tree().physics_frame
+	var m: Dictionary = Game.population.town_metrics()
+	print("town life: %d residents, %d walking, %d chats" % [m.residents, Game.population.walking(), m.chats])
 
 var _horse: Horse
 

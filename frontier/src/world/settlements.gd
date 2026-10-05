@@ -34,6 +34,8 @@ const LIGHT_CULL := 140.0
 const BUILD_DIST := 750.0
 const NAV_CHUNK := 64.0
 const NAV_AUTO_DIST := 350.0
+const NAV_PARALLEL := 3
+const UNLOAD_DIST := 1300.0      # beyond radius + this, a built settlement drops its detail (rebuilt on return)
 
 var world: WorldData
 var towns := {}
@@ -55,17 +57,20 @@ func setup(w: WorldData, _b = null) -> void:
 	world = w
 	if Game.args.has("no_settlements"):        # perf A/B comparisons
 		return
+	mem("settlements start")
 	var t0 := Time.get_ticks_msec()
 	TownProps.preload_all()
 	TownMats.get_all()
 	for fnt in ["Rye", "OldStandard-Bold", "Sancreek-Regular", "OldStandard-Regular"]:
 		SignText.atlas(fnt)
 	var t1 := Time.get_ticks_msec()
+	mem("props+mats+atlases")
 	for f in world.features.get("towns", []):
 		_plan_settlement(f, true)
 	for f in world.features.get("pois", []):
 		_plan_settlement(f, false)
 	_upload_control()
+	mem("plans+far shells")
 	var t2 := Time.get_ticks_msec()
 	# the player starts at Bitter Spring (or --spawn): have that settlement ready at once
 	if not (Game.args.has("shot") or Game.args.has("tour")):
@@ -77,12 +82,31 @@ func setup(w: WorldData, _b = null) -> void:
 			if _dist_to(towns[id], sp) < 0.0:
 				ensure_built(id)
 	_update_lights(true)
+	# the main line between the settlements (their own station track covers radius + 60 m)
+	var skip := []
+	for id in towns:
+		for spec in towns[id].plan.specs:
+			if str(spec.get("type", "")) == "track":
+				skip.append({"x": towns[id].center.x, "z": towns[id].center.z, "r": towns[id].radius + 60.0})
+				break
+	var rl = load("res://src/world/rail_line.gd").new()
+	rl.name = "RailLine"
+	add_child(rl)
+	rl.setup(world, skip)
 	print("settlements: %d planned (atlases %d ms, plans %d ms), %d built at boot, %d ms total" % [towns.size(), t1 - t0, t2 - t1,
 		stats.built, Time.get_ticks_msec() - t0])
 	if Game.args.has("settlements_test"):
 		_self_test()
+	elif Game.args.has("memtest"):
+		_mem_test()
 
 # ------------------------------------------------------------------------------------------------ planning
+
+## Memory probe (--memlog / --memtest): static memory in use.
+static func mem(label: String) -> void:
+	if not Game.args.has("memlog"):
+		return
+	print("MEMLOG %-28s static %5d MB" % [label, int(Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0)])
 
 func _plan_settlement(f: Dictionary, is_town: bool) -> void:
 	var plan: Dictionary = TownLayout.new().make(world, f, is_town)
@@ -470,6 +494,7 @@ func _attach(t: Dictionary, res: Dictionary) -> void:
 	t.node.add_child(root)
 	t.detail = root
 	t.state = "built"
+	t["keep_until"] = Time.get_ticks_msec() + 180000     # built on demand (missions, places.gd): keep a while
 	stats.built += 1
 	stats.ext_tris += res.ext_tris
 	stats.int_tris += res.int_tris
@@ -480,6 +505,7 @@ func _attach(t: Dictionary, res: Dictionary) -> void:
 	_update_lights(true)
 	print("settlements: built %s: %d structures, tris ext %dk int %dk, %d surfaces (meshes + props), build %d ms (commit %d), attach %d ms" % [t.id, res.recs.size(),
 		res.ext_tris / 1000, res.int_tris / 1000, surfaces, p.total / 1000, p.commit / 1000, p.attach / 1000])
+	mem("built " + str(t.id))
 	town_built.emit(str(t.id))
 
 func _mesh_node(mesh: ArrayMesh, nm: String, begin: float, end: float, shadow: int) -> MeshInstance3D:
@@ -506,6 +532,11 @@ func _stream() -> void:
 	if cam == null:
 		return
 	var cp := cam.global_position
+	for id in towns:
+		var tu: Dictionary = towns[id]
+		if tu.state == "built" and tu.nav_state != "baking" and _dist_to(tu, cp) > UNLOAD_DIST - BUILD_DIST \
+				and Time.get_ticks_msec() > int(tu.get("keep_until", 0)) and not Game.args.has("settlements_test"):
+			unload(id)
 	var best := ""
 	var bd := 0.0
 	for id in towns:
@@ -535,6 +566,36 @@ func _finish_task(block: bool) -> void:
 	var t: Dictionary = towns[_task_town]
 	_attach(t, _task_result)
 	_task_result = {}
+
+## Drop a built settlement's detail (meshes, props, colliders, doors, lights, navmesh, spot records); the plan,
+## far shell and ground paint stay, and the town is rebuilt from the plan when Ruth comes back.
+func unload(id: String) -> void:
+	var t: Dictionary = towns.get(id, {})
+	if t.is_empty() or t.state != "built" or t.detail == null:
+		return
+	var root: Node3D = t.detail
+	_lights = _lights.filter(func(l): return is_instance_valid(l[0]) and not root.is_ancestor_of(l[0]))
+	_spinners = _spinners.filter(func(sp): return is_instance_valid(sp[0]) and not root.is_ancestor_of(sp[0]))
+	for did in t.doors:
+		doors.erase(did)
+	for bid in t.buildings:
+		buildings.erase(bid)
+	for n in t.nav_regions + t.get("nav_links", []):
+		if is_instance_valid(n):
+			n.queue_free()
+	root.queue_free()
+	t.detail = null
+	t.buildings = []
+	t.doors = []
+	t.spots = []
+	t.nav_regions = []
+	t["nav_links"] = []
+	t.nav_state = "none"
+	t.state = "far"
+	stats.built -= 1
+	if Game.population and Game.population.has_method("forget_town"):
+		Game.population.forget_town(id)
+	print("settlements: unloaded %s" % id)
 
 ## Screenshot/bot hook: build (blocking) every settlement within range of the current camera.
 func settle_now() -> void:
@@ -938,7 +999,19 @@ func bake_navigation(town_id: String) -> void:
 	t["nav_jobs"] = jobs.size()
 	t["nav_done"] = 0
 	t["nav_t0"] = Time.get_ticks_msec()
-	for box in jobs:
+	# at most NAV_PARALLEL chunks in flight (each bake holds its own voxel field: memory, and cores for the game)
+	t["nav_queue"] = jobs
+	t["nav_src"] = src
+	for i in mini(NAV_PARALLEL, jobs.size()):
+		_nav_next(t)
+
+func _nav_next(t: Dictionary) -> void:
+	var q: Array = t.get("nav_queue", [])
+	if q.is_empty() or t.state != "built":
+		return
+	var box: AABB = q.pop_front()
+	var src: NavigationMeshSourceGeometryData3D = t.nav_src
+	if true:
 		var nm := NavigationMesh.new()
 		nm.cell_size = 0.25
 		nm.cell_height = 0.25
@@ -952,6 +1025,9 @@ func bake_navigation(town_id: String) -> void:
 		NavigationServer3D.bake_from_source_geometry_data_async(nm, src, func(): _nav_chunk_done.call_deferred(t, nm))
 
 func _nav_chunk_done(t: Dictionary, nm: NavigationMesh) -> void:
+	if t.state != "built":
+		return
+	_nav_next(t)
 	if nm.get_polygon_count() > 0:
 		var reg := NavigationRegion3D.new()
 		reg.name = "Nav"
@@ -961,6 +1037,8 @@ func _nav_chunk_done(t: Dictionary, nm: NavigationMesh) -> void:
 	t.nav_done += 1
 	if t.nav_done >= t.nav_jobs:
 		t.nav_state = "ready"
+		t.erase("nav_src")
+		mem("navmesh " + str(t.id))
 		print("settlements: navigation for %s baked in %d chunks, %d ms" % [t.id, t.nav_jobs, Time.get_ticks_msec() - t.nav_t0])
 
 func _nav_ground(src: NavigationMeshSourceGeometryData3D, t: Dictionary) -> void:
@@ -983,6 +1061,38 @@ func _nav_ground(src: NavigationMeshSourceGeometryData3D, t: Dictionary) -> void
 			var d := Vector3(x, world.height(x, z + step), z + step)
 			faces.append_array(PackedVector3Array([a, b, cc, a, cc, d]))     # Godot winding (clockwise from above)
 	src.add_faces(faces, Transform3D.IDENTITY)
+
+## --memtest: clean before/after memory deltas for building, baking and unloading Bitter Spring, then quit.
+func _mem_test() -> void:
+	Game.args["memlog"] = true
+	for i in 240:
+		await get_tree().process_frame
+	mem("idle after boot")
+	for id in towns.keys():
+		if towns[id].state == "built":
+			unload(id)
+	for i in 30:
+		await get_tree().process_frame
+	mem("all unloaded")
+	ensure_built("bitter_spring")
+	for i in 30:
+		await get_tree().process_frame
+	mem("bitter_spring built")
+	bake_navigation("bitter_spring")
+	while towns["bitter_spring"].nav_state != "ready":
+		await get_tree().process_frame
+	for i in 30:
+		await get_tree().process_frame
+	mem("bitter_spring navmesh")
+	unload("bitter_spring")
+	for i in 60:
+		await get_tree().process_frame
+	mem("bitter_spring unloaded")
+	ensure_built("bitter_spring")
+	for i in 30:
+		await get_tree().process_frame
+	mem("bitter_spring rebuilt")
+	get_tree().quit(0)
 
 ## --navcheck: every standing spot of the town must be on the navmesh and reachable from the main street.
 func _nav_check(tid: String, map_rid: RID) -> void:

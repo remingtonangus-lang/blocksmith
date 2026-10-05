@@ -58,6 +58,8 @@ case "$what" in
     rm -rf "$DIR/assets/ext"
     unzip -q -o "$tmp/$what.zip" -d "$DIR/assets"
     for k in audio animals characters weapons; do if [ -d "$tmp/keep/$k" ]; then mv "$tmp/keep/$k" "$DIR/assets/ext/$k"; fi; done
+    # prop textures: VRAM compressed + mipmaps + 512 px (default lossless import costs ~0.9 GB of texture memory)
+    python3 "$DIR/tools/prop_imports.py" "$DIR/assets/ext/props" || true
     dest="$DIR/assets/ext";;
   *)
     rm -rf "$DIR/assets/$what"

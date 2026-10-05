@@ -65,6 +65,7 @@ func _process(dt: float) -> void:
 			spectacle(sp, 50.0, "body")
 		_pending_spectacles.clear()
 	_tick(false)
+	_yield_to_story()
 	_travellers(0.5, Game.player.global_position)
 
 func _tick(fill: bool) -> void:
@@ -110,6 +111,70 @@ func _tick(fill: bool) -> void:
 		if Vector2(pc.x - pp.x, pc.z - pp.z).length() > SPAWN_R + float(p.r):
 			continue
 		near += _spawn_simple(p, int(POI_SIZE.get(p.kind, 2)), near, pp)
+
+## Story scenes (src/missions/places.gd) put their own actors on the same spots (the bartender of the Gilded Spur,
+## a card table, the sheriff's desk): a resident holding a spot a story actor stands on moves on, and the spot
+## stays the story's while that actor is there.
+func _yield_to_story() -> void:
+	var others: Array = []
+	for h in get_tree().get_nodes_in_group("humans"):
+		if h.alive and not h.has_meta("resident") and not h.has_meta("home_town") and h.role != "traveller" and h.global_position.distance_to(Game.player.global_position) < 200.0:
+			others.append(h)
+	if others.is_empty():
+		return
+	for k in residents:
+		var r: Human = residents[k]
+		if not is_instance_valid(r):
+			continue
+		var rt = r.brain.get("routine")
+		if rt == null or rt.spot.is_empty():
+			continue
+		var o: Vector3 = rt.spot.transform.origin
+		for h in others:
+			if h.global_position.distance_to(o) < 0.8:
+				rt.interrupt()
+				rt.spot = {}
+				var sp: Dictionary = _spot_at(r.get_meta("home_town", ""), o)
+				if not sp.is_empty():
+					sp["by"] = h.get_instance_id()
+				if r.global_position.distance_to(o) < 1.0:
+					r.global_position = o + (r.global_position - h.global_position).normalized() * 0.9
+				break
+
+## The settlement unloaded its detail (Ruth is far away): drop the index (spot records go with it); the cast is
+## rebuilt identically from the plan when the town is built again.
+func forget_town(tid: String) -> void:
+	for k in residents.keys():
+		if str(k).begins_with(tid + ":") and is_instance_valid(residents[k]):
+			_despawn(k, residents[k])
+	index.erase(tid)
+	casts.erase(tid)
+
+## Screenshots: end the current visit of a share of the strollers (errands, loiterers, porch sitters) now.
+func stir(share: float) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	for k in residents:
+		var h: Human = residents[k]
+		var rt = h.brain.get("routine") if is_instance_valid(h) else null
+		if rt != null and rt.phase == "at" and rt.block.get("kind", "") in ["errands", "loiter", "porch", "patrol"] and rng.randf() < share:
+			rt.t = rt.dwell
+
+func walking() -> int:
+	var n := 0
+	for k in residents:
+		var h: Human = residents[k]
+		var rt = h.brain.get("routine") if is_instance_valid(h) else null
+		if rt != null and rt.phase == "walk":
+			n += 1
+	return n
+
+func _spot_at(tid: String, o: Vector3) -> Dictionary:
+	var st = Game.main.settlements
+	for sp in st.spots(tid):
+		if (sp.transform.origin as Vector3).distance_to(o) < 0.05:
+			return sp
+	return {}
 
 ## Screenshot/bot hook: spawn everyone due in nearby towns now, on their spots.
 func fill_now() -> void:
@@ -174,6 +239,15 @@ func _pick_look(tid: String, r: Dictionary) -> String:
 	if r.has("look_id"):
 		return r.look_id
 	var used: Dictionary = index[tid].used_looks
+	var cap := int(Game.args.get("looks", 0))
+	if cap > 0 and used.size() >= cap:
+		# low-memory runs: reuse the looks already cast (clothing colours still vary per seed)
+		var have: Array = used.keys().filter(func(id): return r.look == "" or Array(CharacterFactory.ids(r.look)).has(id))
+		if have.is_empty():
+			have = used.keys().filter(func(id): return Array(CharacterFactory.ids("female" if r.female else "male")).has(id))
+		if have.is_empty():
+			have = used.keys()
+		return have[posmod(int(r.seed), have.size())]
 	var pools: Array = [CharacterFactory.ids(r.look)] if r.look != "" else []
 	var sexed := "townswoman" if r.female else "townsman"
 	pools.append(CharacterFactory.ids(sexed))

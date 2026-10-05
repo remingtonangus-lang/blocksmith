@@ -22,6 +22,7 @@ static func atlas(fnt: String) -> Dictionary:
 	if a.is_empty():
 		a = _generate(fnt)
 		_save_cache(fnt, a)
+	a.erase("imgs")              # the CPU images were only needed for the cache; the textures hold the atlas
 	# materials, one per page
 	var sh: Shader = load("res://shaders/sign_text.gdshader")
 	var mats := TownMats.get_all()
