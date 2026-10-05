@@ -110,6 +110,61 @@ CLIPS = [
 ]
 
 
+# Procedural (original, keyframed by code) clips built on a mocap base pose: aim holds, hit reactions, wall lean.
+# Directions are in the canonical character frame: forward -Y, left +X, up +Z.
+F, L, U = (0.0, -1.0, 0.0), (1.0, 0.0, 0.0), (0.0, 0.0, 1.0)
+
+
+def _v(*a):
+    v = np.array(a, dtype=float)
+    return v / np.linalg.norm(v)
+
+
+PROC_CLIPS = [
+    # name, base clip name, base time (s), duration, loop, spec
+    ("pistol_aim", "idle", 0.5, 2.0, True, {
+        "turn": [("Spine", U, -8), ("Chest", U, -6)],
+        "dirs": [("RightUpperArm", "RightLowerArm", _v(-0.15, -1.0, 0.02)),
+                 ("RightLowerArm", "RightHand", _v(-0.12, -1.0, 0.04)),
+                 ("RightHand", "RightMiddleProximal", _v(-0.1, -1.0, 0.0)),
+                 ("Head", None, None)],
+        "head": [("Head", U, -10), ("Head", L, 6)], "breath": 1.0}),
+    ("pistol_aim_two_hand", "idle", 0.5, 2.0, True, {
+        "dirs": [("RightUpperArm", "RightLowerArm", _v(-0.3, -1.0, -0.05)),
+                 ("RightLowerArm", "RightHand", _v(0.05, -1.0, 0.08)),
+                 ("LeftUpperArm", "LeftLowerArm", _v(0.35, -1.0, -0.1)),
+                 ("LeftLowerArm", "LeftHand", _v(-0.35, -1.0, 0.1))],
+        "head": [("Head", L, 5)], "breath": 1.0}),
+    ("rifle_aim", "idle", 0.5, 2.0, True, {
+        "turn": [("Hips", U, -25), ("Spine", U, -8), ("Chest", U, -8), ("Neck", U, 22), ("Head", U, 14)],
+        "dirs": [("RightUpperArm", "RightLowerArm", _v(-0.95, -0.35, -0.05)),
+                 ("RightLowerArm", "RightHand", _v(0.45, -0.85, 0.25)),
+                 ("LeftUpperArm", "LeftLowerArm", _v(0.15, -0.95, -0.25)),
+                 ("LeftLowerArm", "LeftHand", _v(-0.2, -0.97, 0.1))],
+        "head": [("Head", F, -12), ("Head", L, 8)], "breath": 0.7}),
+    ("hit_front", "idle", 0.5, 1.0, False, {
+        "keys": [0.0, 0.08, 0.22, 1.0], "w": [0.0, 1.0, 0.7, 0.0],
+        "rots": [("Spine", L, 10), ("Chest", L, 12), ("Neck", L, 10), ("Head", L, 14),
+                 ("LeftUpperArm", F, -25), ("RightUpperArm", F, 25)], "hips": (0, 0.05, -0.02)}),
+    ("hit_back", "idle", 0.5, 1.0, False, {
+        "keys": [0.0, 0.08, 0.22, 1.0], "w": [0.0, 1.0, 0.7, 0.0],
+        "rots": [("Spine", L, -12), ("Chest", L, -12), ("Neck", L, -8), ("Head", L, -16)], "hips": (0, -0.06, -0.02)}),
+    ("hit_left", "idle", 0.5, 1.0, False, {
+        "keys": [0.0, 0.08, 0.22, 1.0], "w": [0.0, 1.0, 0.7, 0.0],
+        "rots": [("Spine", F, -10), ("Chest", F, -12), ("Chest", U, -12), ("Head", F, -14), ("LeftUpperArm", F, -20)],
+        "hips": (-0.05, 0, -0.01)}),
+    ("hit_right", "idle", 0.5, 1.0, False, {
+        "keys": [0.0, 0.08, 0.22, 1.0], "w": [0.0, 1.0, 0.7, 0.0],
+        "rots": [("Spine", F, 10), ("Chest", F, 12), ("Chest", U, 12), ("Head", F, 14), ("RightUpperArm", F, 20)],
+        "hips": (0.05, 0, -0.01)}),
+    ("hit_head", "idle", 0.5, 0.9, False, {
+        "keys": [0.0, 0.06, 0.2, 0.9], "w": [0.0, 1.0, 0.6, 0.0],
+        "rots": [("Neck", L, 18), ("Head", L, 26), ("Chest", L, 6)], "hips": (0, 0.02, 0)}),
+    ("lean_wall", "idle_wait", 1.0, 4.0, True, {
+        "rots": [("Hips", L, 9), ("Neck", L, -6), ("Head", L, -4)], "hips": (0, 0.09, -0.012), "breath": 1.0}),
+]
+
+
 # ------------------------------------------------------------------------------------------------------------------
 def canonical_rig():
     """Default MPFB human (all macros 0.5) with the game rig -> armature object with Godot bone names + eyes."""
@@ -321,6 +376,60 @@ class Retargeter:
                     best = (d, a, b)
         return best[1], best[2], best[0]
 
+
+    # --------------------------------------------------------------------------------------------------------------
+    def procedural(self, base, t0, dur, loop, spec):
+        """Keyframed-by-code clip: base mocap pose at t0 (seconds) + rotations, aim directions, hips offset."""
+        children = {}
+        for b, p in self.parent.items():
+            children.setdefault(p, []).append(b)
+
+        def desc(b):
+            out, st = [], [b]
+            while st:
+                x = st.pop()
+                out.append(x)
+                st.extend(children.get(x, []))
+            return out
+        f0 = min(int(t0 * FPS), base["n"] - 1)
+        n = int(dur * FPS) + 1
+        W = {b: np.repeat(base["W"][b][f0:f0 + 1], n, axis=0).copy() for b in base["W"]}
+        hips = np.repeat(base["hips"][f0:f0 + 1], n, axis=0).copy()
+        hips[:, :2] -= base["root_xy"][f0]
+        keys = spec.get("keys", [0.0, dur])
+        ws = spec.get("w", [1.0, 1.0])
+        for f in range(n):
+            t = f / FPS
+            w = float(np.interp(t, keys, ws))
+            ws_ = w * w * (3 - 2 * w)
+
+            def rot(b, axis, deg):
+                R = np.array(Matrix.Rotation(math.radians(deg), 3, Vector(axis)))
+                for x in desc(b):
+                    if x in W:
+                        W[x][f] = R @ W[x][f]
+            for b, axis, deg in spec.get("turn", []):
+                rot(b, axis, deg)
+            for b, c, target in spec.get("dirs", []):
+                if c is None or b not in W:
+                    continue
+                d = W[b][f] @ np.linalg.inv(self.rest[b][:3, :3]) @ (self.head[c] - self.head[b])
+                S = swing(d, target)
+                for x in desc(b):
+                    if x in W:
+                        W[x][f] = S @ W[x][f]
+            for b, axis, deg in spec.get("head", []):
+                rot(b, axis, deg)
+            for b, axis, deg in spec.get("rots", []):
+                rot(b, axis, deg * ws_)
+            br = spec.get("breath", 0.0)
+            if br:
+                rot("Chest", L, br * 1.2 * math.sin(2 * math.pi * t / dur * max(1, round(dur / 3.5))))
+            hips[f] += np.array(spec.get("hips", (0, 0, 0))) * (ws_ if "rots" in spec and "keys" in spec else 1.0)
+        res = {"W": W, "hips": hips, "root_xy": np.zeros((n, 2)), "root_yaw": np.zeros(n), "n": n,
+               "loop": (0, n - 1, 0.0) if loop else None, "kind": "idle" if loop else "action"}
+        return res
+
     # --------------------------------------------------------------------------------------------------------------
     def bake(self, name, res):
         """Write an action on the canonical rig; returns metadata."""
@@ -496,8 +605,9 @@ def build_library(out_dir, clips=None, only=None):
     bpy.context.scene.render.fps = FPS
     meta = []
     actions = []
+    bases = {}
     for name, f, a, b, loop, kind, extra in CLIPS:
-        if only and name not in only:
+        if only and name not in only and name not in [pc[1] for pc in PROC_CLIPS]:
             continue
         subj = f.split("_")[0]
         p = os.path.join(mhenv.CMU, "data", "%03d" % int(subj), f + ".bvh")
@@ -506,10 +616,20 @@ def build_library(out_dir, clips=None, only=None):
             continue
         bvh = BVH(p)
         res = rt.retarget(bvh, a, b, kind, loop, extra)
+        bases[name] = res
+        if only and name not in only:
+            continue
         m = rt.bake(name, res)
         m["source"] = "CMU %s" % f
         meta.append(m)
         print("clip %-18s %4d frames loop=%s speed=%.2f" % (name, m["frames"], m["loop"], m["speed"]))
+    for name, basename, t0, dur, loop, spec in PROC_CLIPS:
+        if (only and name not in only) or basename not in bases:
+            continue
+        m = rt.bake(name, rt.procedural(bases[basename], t0, dur, loop, spec))
+        m["source"] = "procedural on %s" % basename
+        meta.append(m)
+        print("clip %-18s %4d frames loop=%s (procedural)" % (name, m["frames"], m["loop"]))
     # assign each action to the rig through NLA tracks so the exporter writes one glTF animation per action
     rig.animation_data_create()
     for act in bpy.data.actions:

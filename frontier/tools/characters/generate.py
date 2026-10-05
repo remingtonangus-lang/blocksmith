@@ -47,7 +47,9 @@ def catalogue_entry(spec, report):
         "beard": {"tint": _mul(hc, 1.15)},
     }
     for g in spec.get("clothes", []):
-        if g.get("kind") != "proc" or g["type"] == "beard":
+        if g.get("kind") == "mh":
+            g = dict(g, type="mh")
+        elif g.get("kind") != "proc" or g["type"] == "beard":
             continue
         key = "%s:%s:%s" % (g.get("material", "cloth"), g["id"], g.get("fabric", "wool"))
         m = {"tint": g.get("tint"), "dirt": DIRT.get(role, 0.3)}
@@ -56,7 +58,8 @@ def catalogue_entry(spec, report):
         if "fabric_mix" in g:
             m["fabric_mix"] = g["fabric_mix"]
         if g.get("material") == "leather":
-            m.update({"roughness": 0.55, "fabric_mix": g.get("fabric_mix", 0.6), "tile": 1.5})
+            m.update({"roughness": 0.55, "fabric_mix": g.get("fabric_mix", 0.6), "tile": 1.5,
+                      "dirt": DIRT.get(role, 0.3) * 0.5})
         elif g.get("fabric") == "wool":
             m["sheen"] = 0.12
         mats[key] = m
@@ -64,7 +67,7 @@ def catalogue_entry(spec, report):
         "id": spec["id"], "file": report["glb"], "role": role, "sex": spec["sex"], "age": spec.get("age"),
         "ethnicity": spec.get("ethnicity"), "lod": spec.get("lod", "npc"),
         "tags": [role, spec["sex"]] + ROLE_TAGS.get(role, []),
-        "outfit": [g.get("style", g["type"]) for g in spec.get("clothes", [])],
+        "outfit": [g.get("style", g.get("type", g.get("asset"))) for g in spec.get("clothes", [])],
         "tris": report.get("tris"), "tris_total": report.get("tris_total"), "bytes": report.get("bytes"),
         "materials": mats,
     }

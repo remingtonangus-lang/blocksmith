@@ -5,6 +5,7 @@ extends Node3D
 ## Spawns characters through CharacterFactory, frames them, renders and saves PNGs, then quits (hard timeout).
 
 var out_dir := "user://shots"
+var sun: DirectionalLight3D
 var frames := 6
 
 func _ready() -> void:
@@ -40,7 +41,7 @@ func _setup_world() -> void:
 	e.tonemap_exposure = 1.0
 	env.environment = e
 	add_child(env)
-	var sun := DirectionalLight3D.new()
+	sun = DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-38, 35, 0)
 	sun.light_energy = 1.6
 	sun.light_color = Color(1.0, 0.94, 0.85)
@@ -122,6 +123,7 @@ func _lineup(chars: Array, file: String, anim: String, t: float) -> void:
 func _faces(chars: Array) -> void:
 	var cam := _camera()
 	cam.fov = 22.0
+	sun.rotation_degrees = Vector3(-28, 28, 0)   # portrait key light from the front-right
 	var exprs := ["", "smile", "AA", "brow_raise"]
 	for c in chars:
 		c.visible = false

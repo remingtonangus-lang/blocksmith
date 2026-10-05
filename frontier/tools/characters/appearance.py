@@ -36,10 +36,10 @@ HAIR = {"black": (0.06, 0.05, 0.045), "dark_brown": (0.14, 0.09, 0.06), "brown":
 
 # ethnicity -> MakeHuman race weights, skin family, skin tint, hair colours, eye colours
 ETHNIC = {
-    "anglo": ({"caucasian": 0.94, "african": 0.03, "asian": 0.03}, "caucasian", (1.0, 1.0, 1.0),
+    "anglo": ({"caucasian": 0.94, "african": 0.03, "asian": 0.03}, "caucasian", (1.0, 0.93, 0.88),
               ["brown", "dark_brown", "light_brown", "blond", "auburn", "black"],
               ["lightblue", "blue", "grey", "green", "brownlight", "bluegreen"]),
-    "irish": ({"caucasian": 0.97, "african": 0.015, "asian": 0.015}, "caucasian", (1.02, 0.98, 0.96),
+    "irish": ({"caucasian": 0.97, "african": 0.015, "asian": 0.015}, "caucasian", (1.0, 0.92, 0.88),
               ["auburn", "brown", "dark_brown", "light_brown"], ["lightblue", "blue", "green", "grey"]),
     "hispano": ({"caucasian": 0.72, "african": 0.08, "asian": 0.2}, "caucasian", (0.86, 0.76, 0.66),
                 ["black", "dark_brown"], ["brownlight"]),
@@ -186,6 +186,15 @@ def _g(gid, typ, fabric, tint, palette=None, **kw):
     return d
 
 
+def _boots(col, tall, shoe):
+    """Footwear: MakeHuman CC0 shoe/boot mesh (re-tinted leather) + for tall boots a procedural stovepipe shaft."""
+    out = [{"kind": "mh", "asset": shoe, "id": "shoes", "fabric": "leather", "material": "leather",
+            "tint": [round(x, 3) for x in col], "palette": [list(P["boots"][i]) for i in range(len(P["boots"]))]}]
+    if tall:
+        out.append(_g("boots", "boots", "leather", col, top=1.42, offset=0.013, material="leather", shaft_only=True))
+    return out
+
+
 # --- outfits (lists are inner -> outer) -----------------------------------------------------------------------------
 def outfit_male(r, kind, years):
     G = []
@@ -205,8 +214,8 @@ def outfit_male(r, kind, years):
         G.append(_g("vest", "vest", "leather" if leather else "wool",
                     (0.45, 0.33, 0.21) if leather else r.choice(P["vest"]), P["vest"], offset=0.011,
                     material="leather" if leather else "cloth", seed=r.randrange(999)))
-    G.append(_g("boots", "boots", "leather", r.choice(P["boots"]), P["boots"], top=1.42 if tall_boots else 1.72,
-                offset=0.012, material="leather"))
+    bc = r.choice(P["boots"])
+    G.extend(_boots(bc, tall_boots, "shoes03" if tall_boots else r.choice(["shoes01", "shoes04", "shoes03"])))
     G.append(_g("belt", "belt", "leather", r.choice(P["belt"]), material="leather"))
     if kind in ("work_rider", "drifter") and r.random() < 0.6:
         G.append(_g("gunbelt", "belt", "leather", r.choice(P["belt"]), material="leather", style="gun"))
@@ -243,9 +252,9 @@ def outfit_female(r, kind, years):
     else:
         col = r.choice(P["dress"])
         G.append(_g("bodice", "bodice", "wool" if kind == "lady" else "linen", col, P["dress"], sleeve=1.95,
-                    offset=0.005, collar=0.055, smooth_chest=True))
+                    offset=0.005, collar=0.045, smooth_chest=True))
         skirt_fab, skirt_col = ("wool" if kind == "lady" else "linen"), col
-    G.append(_g("boots", "boots", "leather", r.choice(P["boots"][:2]), top=1.7, offset=0.008, material="leather"))
+    G.extend(_boots(r.choice(P["boots"][:2]), False, r.choice(["shoes01", "shoes04"])))
     G.append(_g("skirt", "skirt", skirt_fab, skirt_col, P["dress"], flare=0.22 if kind == "lady" else 0.16,
                 ease=0.025, below_ankle=0.0, seed=r.randrange(999)))
     G.append(_g("sash", "belt", "wool", r.choice([(0.12, 0.11, 0.1), (0.3, 0.2, 0.14)]) if r.random() < 0.5 else skirt_col,
@@ -339,8 +348,9 @@ def ruth_spec(lod="hero", duster=False):
             _g("shirt", "shirt", "linen", (0.80, 0.75, 0.64), sleeve=1.95, offset=0.005, collar=0.035, seed=7,
                smooth_chest=True),
             _g("trousers", "trousers", "canvas", (0.40, 0.32, 0.22), hem=1.68, offset=0.006, seed=8),
-            _g("vest", "vest", "leather", (0.30, 0.20, 0.13), offset=0.010, material="leather", v_depth=0.11, seed=9),
-            _g("boots", "boots", "leather", (0.24, 0.15, 0.09), top=1.4, offset=0.011, material="leather"),
+            _g("vest", "vest", "leather", (0.30, 0.20, 0.13), offset=0.010, material="leather", v_depth=0.11, seed=9,
+               smooth_chest=True),
+            *_boots((0.24, 0.15, 0.09), True, "shoes03"),
             _g("belt", "belt", "leather", (0.18, 0.11, 0.07), material="leather"),
             _g("gunbelt", "belt", "leather", (0.28, 0.18, 0.1), material="leather", style="gun"),
             _g("hat", "hat", "wool", (0.27, 0.21, 0.16), style="cattleman", tilt=5, fabric_mix=0.3),
@@ -364,4 +374,4 @@ def roster(count=None):
 if __name__ == "__main__":
     for s in roster():
         print(s["id"], s["role"], s["sex"], s["age"], s["ethnicity"], s["hair"],
-              [g.get("style", g["type"]) for g in s["clothes"]])
+              [g.get("style", g.get("type", g.get("asset"))) for g in s["clothes"]])

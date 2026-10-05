@@ -95,7 +95,14 @@ class CharacterBuilder:
 
     def _add_bodyparts(self):
         sp = self.spec
-        self._add_mhclo("eyes", "high-poly" if self.hero else "low-poly")
+        # low-poly eyes for everyone (the high-poly set needs a separate transparent cornea); heroes get them
+        # subdivided once for round silhouettes in close-ups
+        eyes = self._add_mhclo("eyes", "low-poly")
+        if self.hero:
+            m = eyes.modifiers.new("Sub", "SUBSURF")
+            m.levels = 1
+            m.render_levels = 1
+            C.apply_modifier(eyes, m)
         self._add_mhclo("eyebrows", sp.get("eyebrows", "eyebrow001"))
         self._add_mhclo("eyelashes", sp.get("eyelashes", "eyelashes01"))
         self._add_mhclo("teeth", "teeth_base")
@@ -263,7 +270,8 @@ class CharacterBuilder:
                 mm = C.parse_mhmat(mh.material) if mh.material else {}
                 fabric = extra.get("fabric", "none")
                 C.assign_single_material(obj, C.make_material(
-                    "cloth:%s:%s" % (extra["asset"], fabric), albedo=mm.get("diffuseTexture"),
+                    "%s:%s:%s" % (extra.get("material", "cloth"), extra.get("id", extra["asset"]), fabric),
+                    albedo=mm.get("diffuseTexture"),
                     normal=mm.get("normalmapTexture"), ao=mm.get("aomapTexture"), roughness=0.8, size=S))
 
     def _eye_mat(self, color):
@@ -329,6 +337,8 @@ class CharacterBuilder:
         for kind, obj, mh, extra in self.parts:
             if kind == "teeth":
                 C.decimate(obj, 0.5 if self.hero else 0.22)
+            elif kind == "beard" and not self.hero:
+                C.decimate(obj, 0.5)
         bm = self.basemesh
         oi = np.empty(len(bm.data.vertices), dtype=np.int32)
         bm.data.attributes["orig_index"].data.foreach_get("value", oi)

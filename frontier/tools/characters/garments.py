@@ -219,6 +219,23 @@ def _laplacian(co, edges, iters, lam, fixed=None):
     return co
 
 
+def _inflate(co, edges, nrm, iters, mask, lam=0.6):
+    """Laplacian smoothing that only ever moves vertices outward (along the body normal), on masked vertices."""
+    n = co.shape[0]
+    for _ in range(iters):
+        acc = np.zeros_like(co)
+        cnt = np.zeros(n)
+        np.add.at(acc, edges[:, 0], co[edges[:, 1]])
+        np.add.at(acc, edges[:, 1], co[edges[:, 0]])
+        np.add.at(cnt, edges[:, 0], 1)
+        np.add.at(cnt, edges[:, 1], 1)
+        avg = acc / np.maximum(cnt, 1)[:, None]
+        d = ((avg - co) * nrm).sum(axis=1)
+        step = np.clip(d, 0, None) * lam * mask
+        co = co + nrm * step[:, None]
+    return co
+
+
 def _boundary_verts(obj):
     b = bmesh.new()
     b.from_mesh(obj.data)
@@ -332,17 +349,26 @@ def _region(info, g):
     z = info.co[:, 2]
     torso = info.dom_in(("pelvis", "spine_", "clavicle_")) & (z > info.hip_z - 0.12)
     arms = info.dom_in(("upperarm_", "lowerarm_", "clavicle_"))
-    collar_z = info.neck[2] + g.get("collar", 0.03)
-    neck = info.dom_in(("neck_",)) & (z < collar_z)
+    # collar plane through a point just under the chin (front) and one on the nape (back); "collar" raises it
+    hi = g.get("collar", 0.03)
+    yf, yb = info.neck[1] - 0.07, info.neck[1] + 0.06
+    zf = info.chin_z - 0.03 + hi * 0.6
+    zb = info.neck[2] - 0.05 + hi
+    tilt = (zb - zf) / (yb - yf)
+    collar_z = zf
+    collar_pt = np.array([0.0, yf, zf])
+    collar_n = np.array([0.0, -tilt, 1.0]) / math.sqrt(1 + tilt * tilt)
+    below_collar = ((info.co - collar_pt) @ collar_n) < 0
+    neck = (info.dom_in(("neck_",)) | (info.dom_in(("head",)) & (z < info.chin_z - 0.01))) & below_collar
     legs = info.dom_in(("thigh_", "calf_", "pelvis"))
     cuts = []
     if t in ("shirt", "bodice"):
         sleeve = g.get("sleeve", 1.96)
         bottom = info.hip_z - 0.06 if t == "shirt" else info.navel_z - 0.1
         r = (torso & (z > bottom)) | (arms & (info.arm_p <= sleeve)) | neck
-        r &= z < collar_z
-        r &= ~info.dom_in(("hand_", "head"))
-        cuts = [("z", bottom), ("z", collar_z), ("arm", sleeve)]
+        r &= below_collar
+        r &= ~info.dom_in(("hand_",))
+        cuts = [("z", bottom), ("plane", collar_pt, collar_n), ("arm", sleeve)]
         return r, cuts
     if t == "vest":
         bottom = info.navel_z - 0.08
@@ -351,12 +377,12 @@ def _region(info, g):
         r &= ~(arms & (info.arm_p > 0.05))
         r &= ~info.dom_in(("upperarm_",))
         front = info.co[:, 1] < info.pelvis[1]
-        vtop = info.shoulder_z - 0.02
+        vtop = top
         vbot = info.shoulder_z - g.get("v_depth", 0.12)
-        half_top = g.get("v_width", 0.05)
+        half_top = g.get("v_width", 0.085)
         half = np.clip((z - vbot) / max(vtop - vbot, 1e-3), 0, 1) * half_top
         r &= ~(front & (z > vbot) & (np.abs(info.co[:, 0]) < half))
-        cuts = [("z", bottom), ("z", top), ("vneck", vbot, vtop, half_top)]
+        cuts = [("z", bottom), ("z", top), ("vneck", vbot, vtop, half_top), ("arm", 0.05)]
         return r, cuts
     if t == "trousers":
         hem = g.get("hem", 1.97)
@@ -367,15 +393,19 @@ def _region(info, g):
     if t == "boots":
         top = g.get("top", 1.45)
         r = info.dom_in(("foot_", "ball_", "calf_")) & (info.leg_p >= top)
+        if g.get("shaft_only"):
+            r &= ~info.dom_in(("foot_", "ball_")) & (info.co[:, 2] > info.ankle_z + 0.01)
+            return r, [("leg", top), ("z", info.ankle_z + 0.01)]
         return r, [("leg", top)]
     if t == "coat":
         hem_z = info.crotch_z - g.get("below_crotch", 0.04)
         sleeve = g.get("sleeve", 1.93)
         r = (info.dom_in(("pelvis", "spine_", "clavicle_", "thigh_")) & (z > hem_z)) | (arms & (info.arm_p <= sleeve))
-        r |= info.dom_in(("neck_",)) & (z < info.neck[2] - 0.005)
-        r &= z < info.neck[2] + 0.01
+        cpt = collar_pt - np.array([0, 0, 0.012])
+        r |= neck
+        r &= ((info.co - cpt) @ collar_n) < 0
         r &= ~info.dom_in(("hand_", "head"))
-        cuts = [("z", hem_z), ("arm", sleeve)]
+        cuts = [("z", hem_z), ("plane", cpt, collar_n), ("arm", sleeve)]
         if g.get("open", True):
             front = info.co[:, 1] < info.pelvis[1]
             gap = np.clip((info.shoulder_z - 0.12 - z) / 0.5, 0, 1) * 0.07 + 0.012
@@ -414,6 +444,11 @@ def _snap_boundary(obj, src, info, cuts, co):
                 dd = np.abs(par - c[1]) * np.linalg.norm(axis)
                 q[sel] = p[sel] + axis * (c[1] - par[sel])[:, None]
                 d = np.where(sel, dd, d)
+        elif c[0] == "plane":
+            pt, nn = c[1], c[2]
+            dd = (p - pt) @ nn
+            d = np.abs(dd)
+            q = p - np.outer(dd / nn[2], [0, 0, 1.0])   # slide vertically onto the plane
         elif c[0] == "vneck":
             vbot, vtop, half_top = c[1], c[2], c[3]
             half = np.clip((p[:, 2] - vbot) / max(vtop - vbot, 1e-3), 0, 1) * half_top
@@ -502,12 +537,12 @@ def body_shell(builder, info, g):
         chest = (zz > info.navel_z - 0.04) & (zz < info.shoulder_z + 0.0) & (info.arm_p[src] < 0.3) & \
             (info.co[src, 1] < info.pelvis[1] + 0.02)
         w = np.clip((zz - (info.navel_z - 0.04)) / 0.06, 0, 1) * np.clip((info.shoulder_z - zz) / 0.06, 0, 1)
-        sm = _laplacian(co, edges, 40, 0.5, fixed=~chest)
+        # outward-only smoothing fills concavities up to the convex hull: no cleavage, no nipples
+        sm = _inflate(co, edges, nrm, 60, chest)
+        sm = _laplacian(sm, edges, 6, 0.4, fixed=~chest)
         co = co * (1 - w[:, None] * chest[:, None]) + sm * (w[:, None] * chest[:, None])
-        inward = ((co - body_pos) * nrm).sum(axis=1)
-        co = co + nrm * np.clip(0.002 - inward, 0, None)[:, None]
     if t == "boots":
-        co = _boot_shape(co, src, info, edges, off)
+        co = _boot_shape(co, src, info, edges, off, feet=not g.get("shaft_only"))
     # folds near joints and at the bottom of trousers / sleeves
     seed = g.get("seed", 0)
     fold = np.zeros(len(co))
@@ -532,11 +567,14 @@ def body_shell(builder, info, g):
     gap = g.get("gap", 0.003)
     inward = ((co - body_pos) * nrm).sum(axis=1)
     need = info.occ[src] + gap
-    co = co + nrm * np.clip(need - inward, 0, None)[:, None]
+    push = np.clip(need - inward, 0, None)
+    if t == "boots":
+        push[info.leg_p[src] >= 1.86] = 0.0   # the boot last must not be pushed back onto the toes
+    co = co + nrm * push[:, None]
     inward = ((co - body_pos) * nrm).sum(axis=1)
     np.maximum.at(info.occ, src, inward + 0.0015)
     C.set_co(obj, co)
-    if t == "boots":
+    if t == "boots" and not g.get("shaft_only"):
         _boot_sole(obj, info)
     occl = 0.82 + 0.18 * np.clip(fold / 0.006 + 0.5, 0, 1)
     wear = np.zeros(len(co))
@@ -555,7 +593,7 @@ def body_shell(builder, info, g):
     return _finish(builder, obj, g, occl, wear, rim=g.get("rim", 0.004))
 
 
-def _boot_shape(co, src, info, edges, off):
+def _boot_shape(co, src, info, edges, off, feet=True):
     """Boots: heavy smoothing (no toes), shaft made a clean tube around the calf axis."""
     lp = info.leg_p[src]
     body_pos = info.co[src]
@@ -589,6 +627,47 @@ def _boot_shape(co, src, info, edges, off):
         new = centre + rel / np.maximum(r, 1e-6)[:, None] * rt[:, None] + \
             ((co[side] - centre) @ (axis / L))[:, None] * (axis / L)
         co[side] = co[side] * 0.25 + new * 0.75
+    # foot: per-slice star-convex envelope along the heel->toe axis (no toes, a boot "last")
+    for s_, sx in (("l", 1), ("r", -1)):
+        foot = (co[:, 0] * sx > 0) & (lp >= 1.86)
+        if foot.sum() < 20 or not feet:
+            continue
+        a = info.j["foot_" + s_].copy()
+        bvec = info.j["ball_" + s_] - a
+        bvec[2] = 0
+        ax = bvec / np.linalg.norm(bvec)
+        up = np.array([0, 0, 1.0])
+        lat = np.cross(ax, up)
+        P = co[foot]
+        sp = (P - a) @ ax
+        bins = np.clip(((sp - sp.min()) / max(np.ptp(sp), 1e-6) * 18).astype(int), 0, 18)
+        cen = np.zeros_like(P)
+        for bi in np.unique(bins):
+            m = bins == bi
+            cen[m] = P[m].mean(axis=0)
+        rel = P - cen
+        rel -= np.outer(rel @ ax, ax)
+        ang = np.arctan2(rel @ up, rel @ lat)
+        rad = np.linalg.norm(rel, axis=1)
+        K = 9
+        sec = ((ang + math.pi) / (2 * math.pi) * K).astype(int) % K
+        env = np.zeros((19, K))
+        for bi, si, r in zip(bins, sec, rad):
+            env[bi, si] = max(env[bi, si], r)
+        for _ in range(3):  # fill and smooth around the section and along the foot
+            env = np.maximum(env, (np.roll(env, 1, 1) + np.roll(env, -1, 1)) / 2)
+            env = (env + np.roll(env, 1, 1) + np.roll(env, -1, 1)) / 3
+        env = (env + np.vstack([env[:1], env[:-1]]) + np.vstack([env[1:], env[-1:]])) / 3
+        # interpolate between sector centres (smooth around the section)
+        fpos = (ang + math.pi) / (2 * math.pi) * K - 0.5
+        i0 = np.floor(fpos).astype(int) % K
+        i1 = (i0 + 1) % K
+        fr = fpos - np.floor(fpos)
+        target = env[bins, i0] * (1 - fr) + env[bins, i1] * fr + 0.002
+        newP = cen + np.outer(P @ ax - cen @ ax, ax) * 0 + rel / np.maximum(rad, 1e-6)[:, None] * target[:, None] + \
+            np.outer((P - cen) @ ax, ax)
+        co[foot] = newP
+    co = _laplacian(co, edges, 3, 0.4)
     return co
 
 
@@ -758,12 +837,13 @@ def tube(builder, info, g):
 HAT_PROFILES = {
     # (r_rel, h) pairs from the brim edge in to the crown top; r_rel: 0 = band, >0 brim (metres outside the band),
     # <0 crown narrowing (metres inside the band). h: metres above the band line.
-    "cattleman": dict(brim=0.08, crown_h=0.095, taper=0.016, curl=0.024, crease=0.016, pinch=0.012),
-    "plainsman": dict(brim=0.085, crown_h=0.1, taper=0.01, curl=0.008, crease=0.0, pinch=0.0, round_top=0.008),
+    "cattleman": dict(brim=0.08, crown_h=0.082, taper=0.016, curl=0.026, crease=0.02, pinch=0.014),
+    "plainsman": dict(brim=0.085, crown_h=0.08, taper=0.01, curl=0.01, crease=0.0, pinch=0.0, round_top=0.022),
     "bowler": dict(brim=0.045, crown_h=0.11, taper=-0.004, curl=0.018, crease=0.0, pinch=0.0, dome=True),
     "flatcap": dict(brim=0.0, crown_h=0.055, taper=-0.01, curl=0.0, crease=0.0, pinch=0.0, cap=True),
     "boater": dict(brim=0.075, crown_h=0.075, taper=0.0, curl=0.0, crease=0.0, pinch=0.0),
-    "slouch": dict(brim=0.1, crown_h=0.11, taper=0.015, curl=-0.02, crease=0.02, pinch=0.0, droop=0.02),
+    "slouch": dict(brim=0.095, crown_h=0.075, taper=0.004, curl=-0.012, crease=0.022, pinch=0.008, droop=0.028,
+                   round_top=0.012),
 }
 
 
@@ -957,7 +1037,7 @@ def beard(builder, info, g):
         return None
     length = g.get("length", 0.012)
     layers = []
-    layer_alpha = (1.0, 0.72, 0.5)
+    layer_alpha = (0.9, 0.7, 0.5)
     for li, frac in enumerate((0.25, 0.6, 1.0)):
         obj = _shell_from_region(builder, info, vmask, "%s_%d" % (g["id"], li))
         # keep the face blend shapes: re-copy them from the basemesh (shell_from_region cleared them)
@@ -978,7 +1058,8 @@ def beard(builder, info, g):
             C.add_shape(obj, kb.name, kco[src] + offv)
         col = obj.data.color_attributes.new("Col", "FLOAT_COLOR", "POINT")
         cc = np.ones((len(obj.data.vertices), 4), dtype=np.float32)
-        cc[:, 3] = layer_alpha[li]
+        bd = _boundary_distance(obj, 4)
+        cc[:, 3] = layer_alpha[li] * (0.3 + 0.7 * np.clip(bd / 3.0, 0, 1))
         col.data.foreach_set("color", cc.ravel())
         layers.append(obj)
     bpy.ops.object.select_all(action="DESELECT")

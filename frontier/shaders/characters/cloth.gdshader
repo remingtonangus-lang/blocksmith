@@ -62,7 +62,7 @@ void fragment() {
 	col = mix(col, mix(vec3(dot(col, vec3(0.333))), col, 0.6) * 1.25, wear * 0.45);
 	// dust: rises from the ground up the trousers / skirts / boots
 	float dust = smoothstep(0.55, 0.0, v_height + n * 0.18) * dirt;
-	col = mix(col, vec3(0.42, 0.36, 0.29), dust * 0.7);
+	col = mix(col, vec3(0.42, 0.36, 0.29), dust * 0.45);
 	col *= mix(1.0, 0.6, clamp(wetness, 0.0, 1.0) * (1.0 - metallic));
 	ALBEDO = col;
 	AO = occl;

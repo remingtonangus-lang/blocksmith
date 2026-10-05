@@ -116,7 +116,10 @@ func _make(key: String, src: Material, meta: Dictionary, info: Dictionary, rng: 
 			if kind == "beard":
 				hm.vertex_color_use_as_albedo = true   # COLOR.a = shell layer density
 				hm.alpha_scissor_threshold = 0.42
-				hm.albedo_color = _col(meta.get("tint"), Color(0.3, 0.22, 0.15))
+				var bc := _col(meta.get("tint"), Color(0.3, 0.22, 0.15))
+				hm.albedo_color = Color(maxf(bc.r, 0.07), maxf(bc.g, 0.055), maxf(bc.b, 0.045))
+				hm.metallic_specular = 0.25
+				hm.roughness = 0.75
 			return hm
 		"hair":
 			var hs := ShaderMaterial.new()

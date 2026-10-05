@@ -16,6 +16,12 @@ Local loop: Godot Linux + lavapipe (software Vulkan) under xvfb renders Forward+
   Range, Thornwood hills, Ocotillo Breaks mesas, Corrigan Plains, Lake Agnes, meandering Sable River + 2 creeks,
   4 towns + 8 POIs flattened, A*-routed graded roads, graded railroad; control map (roads, moisture, biome, sediment).
 - Asset pipeline: `frontier-assets` workflow (ubuntu) → release `frontier-assets` (catalog.zip, ext.zip).
+- Character pipeline (`frontier/design/CHARACTERS.md`): MakeHuman CC0 bodies via MPFB2 run headless in the `bpy`
+  module, game rig with Godot humanoid bone names + eye bones, 34 face blend shapes (CC0 ARKit units + visemes),
+  procedural 1899 garments/hats/beards, 36 seeded NPCs over 12 roles + Ruth Caddell (hero LOD, duster variant),
+  CMU mocap retargeted to `animations.glb` (65 clips incl. procedural aim/hit/lean, root motion, foot contacts).
+  Godot: `CharacterFactory.spawn(seed, role)` → `FrontierCharacter` (clips, visemes, expressions, blink, gaze).
+  CI job `characters` publishes `characters.zip`; `tools/fetch_assets.sh characters` fetches it.
 
 ## Ranked gaps
 (Scores from blind critic rounds against QUALITY_BAR.md; gap = weight × (10 − score).)
@@ -23,3 +29,4 @@ Local loop: Godot Linux + lavapipe (software Vulkan) under xvfb renders Forward+
 
 ## Session log
 - 2026-10-04: branch created from claude/blocksmith-playtest; Blocksmith mac.yml ignores this branch.
+- 2026-10-05: character pipeline (worktree agent): tools/characters, src/actors, shaders/characters, CI job.
