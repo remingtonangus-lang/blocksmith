@@ -231,6 +231,10 @@ func cell_trees(c: Vector2i, far: bool = false) -> Array:
 				continue
 			if gen.slope_at(x, z) > 0.65:
 				continue
+			# Tree line: thinning from 950 m to none at 1200 m, lone trees included (they stood on the snowfields
+			# under the 1300 m snow line).
+			if h > 950.0 and G.hash2(c.x * 64 + i, c.y * 64 + j, 71) > 1.0 - smoothstep(950.0, 1200.0, h):
+				continue
 			var sp := _species(x, z, h, r)
 			var v := int(G.hash2(c.x * 64 + i, c.y * 64 + j, 41) * VARIANTS) % VARIANTS
 			var s := lerpf(0.75, 1.2, G.hash2(c.x * 64 + i, c.y * 64 + j, 53))
