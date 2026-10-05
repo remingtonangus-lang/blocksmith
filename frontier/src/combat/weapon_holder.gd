@@ -67,7 +67,7 @@ func _find_hand() -> void:
 		skel = sk
 		hands = GunHands.new()
 		hands.name = "GunHands"
-		add_child(hands)
+		sk.add_child(hands)            # SkeletonModifier3D: runs after the animation, before drawing
 		if not hands.setup(sk, str(v.get("character_id")) if v.get("character_id") != null else "default"):
 			hands.queue_free()
 			hands = null
@@ -84,7 +84,7 @@ func _find_hand() -> void:
 
 func _bone(n: String, fallback: Vector3) -> Vector3:
 	if skel != null and is_instance_valid(skel):
-		var i := skel.find_bone(n)
+		var i := GunHands.bone_index(skel, n)
 		if i >= 0:
 			return (skel.global_transform * skel.get_bone_global_pose(i)).origin
 	return _visual().global_transform * fallback
@@ -163,10 +163,19 @@ func _process(dt: float) -> void:
 		else:
 			wm.global_transform = hol
 	_standin_arms(m, ref)
-	if hands != null:
-		var two := m != null and (not _is_pistol(m) or _aim_point() != null)
-		var w := smoothstep(0.35, 1.0, draw_t) if m != null and drawn else 0.0
-		hands.drive(m, ref.basis, w, w if two else 0.0)
+	if hands != null and is_instance_valid(hands):
+		var aim = _aim_point()
+		hands.model = m
+		hands.body = Basis(Vector3.UP, ref.basis.get_euler().y)
+		hands.pistol = m != null and _is_pistol(m)
+		hands.weight = clampf(draw_t * 2.5, 0.0, 1.0) if m != null else 0.0
+		hands.mode = "" if (m == null or draw_t <= 0.0) else ("reload" if gun.reloading else ("aim" if aim != null and draw_t > 0.5 else "ready"))
+		if aim != null:
+			var eye := _bone("Head", Vector3(0, 1.62, 0))
+			var ad: Vector3 = (aim as Vector3) - eye
+			hands.aim_dir = ad.normalized() if ad.length() > 0.5 and ad.normalized().dot(-ref.basis.z) > 0.1 else -ref.basis.z
+		else:
+			hands.aim_dir = -ref.basis.z
 	_detail_t -= dt
 	if _detail_t <= 0.0:
 		_detail_t = 0.5
@@ -358,6 +367,11 @@ func _hand_global(wm: WeaponModel, ref: Transform3D) -> Transform3D:
 			var dd: Vector3 = (aim as Vector3) - sh
 			if dd.length() > 0.5 and dd.normalized().dot(-ref.basis.z) > 0.2:
 				adir = dd.normalized()
+		if gun.reloading:
+			# reload pose: gun brought in front of the chest, muzzle down-left (revolvers, break-action) or up-left
+			var rd := Vector3(-0.35, -0.75, -0.55) if (pistol or wm.parts.has("barrels")) else Vector3(-0.3, 0.45, -0.85)
+			var rp := chest + ref.basis * (Vector3(0.03, -0.17, -0.30) if pistol else Vector3(0.08, -0.27, -0.22))
+			return Transform3D(Basis.looking_at((ref.basis * rd).normalized(), Vector3.UP), rp)
 		if pistol:
 			pos = (chest + ref.basis * Vector3(0.05, 0.13, 0.0) + adir * 0.47) if aiming else sh + ref.basis * Vector3(-0.03, -0.33, -0.26)
 		else:

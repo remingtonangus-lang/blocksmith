@@ -401,7 +401,8 @@ func _process(dt: float) -> void:
 func _update_camera(dt: float) -> void:
 	var aiming: bool = intent.aim
 	var want_dist := 1.6 if aiming else cam_dist + clampf(speed - JOG, 0.0, 3.0) * 0.25
-	var side := cam_side * cam_shoulder * (1.0 if not aiming else 0.85)
+	# aiming: a wider shoulder offset so the raised gun reads beside the head and hat brim (combat feel pass)
+	var side := cam_side * cam_shoulder * (1.0 if not aiming else 1.15)
 	var pivot := global_position + Vector3(0, 1.55 if not intent.crouch else 1.1, 0)
 	_cam_target = _cam_target.lerp(pivot, 1.0 - exp(-14.0 * dt))
 	var basis := Basis(Vector3.UP, cam_yaw) * Basis(Vector3.RIGHT, cam_pitch)

@@ -31,7 +31,7 @@ func _process_modification_with_delta(delta: float) -> void:
 		_has_smoothed = true
 	_smoothed = _smoothed.lerp(t, 1.0 - exp(-speed * delta))
 	var neck := skel.find_bone("Neck")
-	var head := skel.find_bone("Head")
+	var head := GunHands.bone_index(skel, "Head")
 	if neck >= 0:
 		_aim(skel, neck, _smoothed, max_head_angle * 0.4, head_weight * 0.35 * _blend)
 	if head >= 0:

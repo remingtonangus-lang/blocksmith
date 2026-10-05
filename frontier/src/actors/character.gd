@@ -154,7 +154,7 @@ func clear_look() -> void:
 func head_position() -> Vector3:
 	if skeleton == null:
 		return global_position + Vector3(0, 1.6, 0)
-	var i := skeleton.find_bone("Head")
+	var i := GunHands.bone_index(skeleton, "Head")
 	var le := skeleton.find_bone("LeftEye")
 	var re := skeleton.find_bone("RightEye")
 	if le >= 0 and re >= 0:
