@@ -152,7 +152,10 @@ extension Game {
                 for st in FlightCrew.seats where st.ship === k { if let m = st.mob { mobs.mobs.removeAll { $0 === m } } }
                 FlightCrew.seats.removeAll { $0.ship === k }
                 ships.remove(k)
-                done("never made it back (\(Int(overPad)) blocks off)")
+                let top = world.isLoaded(Int(floor(k.pos.x)), Int(floor(k.pos.z))) ? world.topY(Int(floor(k.pos.x)), Int(floor(k.pos.z))) : -1
+                let st = String(format: "y %.0f (ground %d, cruise %.0f), %.1f b/s, up %.2f, rpm %.2f, collective %.2f", k.pos.y, top,
+                                airCruise(r, k.pos, pad), simd_length(k.vel), k.dirToWorld(V3(0, 1, 0)).y, fm.rpm, fm.collective)
+                done("never made it back (\(Int(overPad)) blocks off; " + st + ")")
                 return
             }
         case 5:
