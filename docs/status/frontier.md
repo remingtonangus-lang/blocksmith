@@ -70,13 +70,20 @@ runner, Metal) and the Mac monitor.
 - **UI**: HUD (rotating paper-map inset, 3 gauges, ammo, crosshair + hit marks, prompts, subtitles, place titles),
   pause menu, settings, full-screen map with waypoints, journal; OFL period fonts (IM Fell, Rye, Sancreek, Old
   Standard); 1080p canvas scaling.
+- **Audio** (`frontier/src/audio/`, `frontier/tools/audio/`, doc `frontier/design/AUDIO.md`): AudioDirector
+  (`Game.audio`, added in main.gd; `--noaudio` skips, `--audiotest` self-test) with buses, pooled 3D one-shots +
+  occlusion, gunshot model (speed of sound, close/far/distant/indoor, terrain/facade echoes), footsteps/hooves by
+  surface and gait, ambience mixer (biome/time/weather/water/towns, creature calls, thunder), adaptive stem score
+  (explore/town/tension/combat/mission/Nerve), Nerve slow-time audio, UI, voice lines with visemes, volume settings.
+  Content: ~190 synthesized SFX/ambience ids (~800 files), 16 original music tracks rendered with FluidSynth
+  (FluidR3 GM, MIT), Kokoro-82M TTS (Apache-2.0) for Ruth + NPC barks (`design/dialogue/`), CC0/PD Commons recordings
+  in CI. CI job `audio` in frontier-assets.yml publishes `audio.zip`; `tools/fetch_assets.sh audio` fetches it.
 - **VR**: OpenXR start on Android, XROrigin rig, controller → intent mapping, snap turn, comfort vignette.
 
 ## In flight (parallel worktree agents; merged here when they report)
 - Characters: MakeHuman CC0 + Blender (bpy) pipeline, CMU mocap retarget, CharacterFactory API.
 - Settlements: procedural 1899 building kit, interiors with Poly Haven props, doors, navmesh, night lights.
 - Horse: SDF-modelled horse with rig, keyframed gaits from footfall tables, riding controller, coat shader, IK.
-- Audio: synthesized SFX, CC0 recordings, original adaptive score, TTS voices, AudioDirector.
 - Weapons: Blender models of the 10 firearms, WeaponHolder, fire/reload animation, casings/smoke.
 
 ## Ranked gaps
@@ -86,7 +93,7 @@ runner, Metal) and the Mac monitor.
 3. Animation and locomotion (3 × 9): no skeletal animation yet.
 4. AI and towns (3 × 7): towns are empty discs until the settlement kit lands; routines need building spots.
 5. Writing and missions (3 × 7): 2 of ~40 missions; no cinematics/camera direction.
-6. Audio (2 × 9): silent until the audio pipeline lands.
+6. Audio (2 × 5): AudioDirector, synthesized SFX, original score and TTS voices in; real CC0 recordings pending (CI).
 7. Wildlife (2 × 9): none yet (plan: reuse the horse SDF/rig pipeline for deer, elk, wolves, coyotes, bison...).
 8. Combat (3 × 6): mechanics in place; no weapon models, hit reactions or ragdolls.
 9. Terrain/vegetation (3 × 5): good base; trees still card-y up close, no rocks/props scatter, roads need ruts.
@@ -97,3 +104,6 @@ runner, Metal) and the Mac monitor.
 ## Session log
 - 2026-10-04: branch created from claude/blocksmith-playtest; Blocksmith mac.yml ignores this branch and
   frontier-bench. First CI run cancelled (benchmark hung on slow tree placement — fixed with a river spatial grid).
+- 2026-10-04: audio workstream (worktree): director + generators + score + TTS + Commons pipeline; first CI audio
+  build pending (frontier.yml should also fetch audio on asset-cache hits, see AUDIO.md gaps).
+- 2026-10-05: audio merged; frontier.yml fetches audio.zip on every run.

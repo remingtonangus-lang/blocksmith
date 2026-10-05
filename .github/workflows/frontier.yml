@@ -103,6 +103,7 @@ jobs:
             rm -rf frontier/assets/ext/terrain frontier/assets/ext/build frontier/assets/ext/cloth
           fi
           if [ -f frontier/tools/fetch_assets.sh ] && grep -q characters frontier/tools/fetch_assets.sh; then bash frontier/tools/fetch_assets.sh characters || true; fi
+          [ -f frontier/assets/ext/audio/manifest.json ] || bash frontier/tools/fetch_assets.sh audio || true
           du -sh frontier/assets/ext
 
       - name: Import
