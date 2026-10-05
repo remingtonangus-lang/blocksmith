@@ -11,6 +11,7 @@ var max_head_angle := deg_to_rad(65.0)
 var max_eye_angle := deg_to_rad(28.0)
 var speed := 8.0
 
+var eye_pitch := 0.0      # vertical gaze relative to the head, -1 (down) .. +1 (up); drives the eyelid shapes
 var _blend := 0.0
 var _smoothed := Vector3.ZERO
 var _has_smoothed := false
@@ -40,6 +41,12 @@ func _process_modification_with_delta(delta: float) -> void:
 		var b := skel.find_bone(e)
 		if b >= 0:
 			_aim(skel, b, _smoothed, max_eye_angle, _blend)
+	if head >= 0:
+		var hg := skel.get_bone_global_pose(head)
+		var hr := skel.get_bone_global_rest(head)
+		var up := (hg.basis * (hr.basis.inverse() * Vector3.UP)).normalized()
+		var to := (_smoothed - hg.origin).normalized()
+		eye_pitch = clampf(asin(clampf(to.dot(up), -1.0, 1.0)) / max_eye_angle, -1.0, 1.0) * _blend
 
 
 func _aim(skel: Skeleton3D, bone: int, target: Vector3, max_angle: float, weight: float) -> void:

@@ -135,7 +135,7 @@ PROC_CLIPS = [
                  ("LeftUpperArm", "LeftLowerArm", _v(0.35, -1.0, -0.1)),
                  ("LeftLowerArm", "LeftHand", _v(-0.35, -1.0, 0.1))],
         "head": [("Head", L, 5)], "breath": 1.0}),
-    ("rifle_aim", "idle", 0.5, 2.0, True, {
+    ("rifle_aim_old", "idle", 0.5, 2.0, True, {
         "turn": [("Hips", U, -25), ("Spine", U, -8), ("Chest", U, -8), ("Neck", U, 22), ("Head", U, 14)],
         "dirs": [("RightUpperArm", "RightLowerArm", _v(-0.95, -0.35, -0.05)),
                  ("RightLowerArm", "RightHand", _v(0.45, -0.85, 0.25)),
@@ -163,6 +163,171 @@ PROC_CLIPS = [
     ("lean_wall", "idle_wait", 1.0, 4.0, True, {
         "rots": [("Hips", L, 9), ("Neck", L, -6), ("Head", L, -4)], "hips": (0, 0.09, -0.012), "breath": 1.0}),
 ]
+
+
+# ------------------------------------------------------------------------------------------------------------------
+# Keyframed-by-code clips with IK (original): rifle aim with the support hand on the forend, reloads, holstering,
+# riding seat set and mounting. RIDE_HIPS: in ride_* / mount / dismount clips the character origin is the saddle seat
+# point and the hips joint sits RIDE_HIPS above it with x = y = 0 (pelvis at the origin; parent the rider to the seat).
+RIDE_HIPS = 0.09
+RIDE_GROUND = -1.30          # ground level below the seat used by mount/dismount (typical 15.2 hh horse)
+
+
+def _ss(x):
+    x = min(max(x, 0.0), 1.0)
+    return x * x * (3 - 2 * x)
+
+
+def _keys(t, ks):
+    """Piecewise smoothstep interpolation of keyed vectors [(t, vec), ...]."""
+    if t <= ks[0][0]:
+        return np.asarray(ks[0][1], dtype=float)
+    for (ta, va), (tb, vb) in zip(ks, ks[1:]):
+        if t <= tb:
+            u = _ss((t - ta) / max(tb - ta, 1e-6))
+            return np.asarray(va, dtype=float) * (1 - u) + np.asarray(vb, dtype=float) * u
+    return np.asarray(ks[-1][1], dtype=float)
+
+
+def keyed_clip_specs(rt, bases):
+    """-> [(name, base clip, t0, duration, loop, fn)]"""
+    H0 = rt.shoulders(bases["idle"])                       # standing hips position of the base pose
+    rel = lambda b: rt.head[b] - rt.head["Hips"]
+    RS = H0 + rel("RightUpperArm")                         # rest right shoulder (approx. in the idle pose)
+    LS = H0 + rel("LeftUpperArm")
+    hz = rt.head["Hips"][2]
+    sh = (RS[2] + LS[2]) / 2
+    out = []
+
+    # rifle / carbine aim: stock in the right shoulder pocket, trigger hand near the shoulder, support hand on the
+    # forend 0.5 m out along the barrel line; bladed stance, cheek on the stock
+    def rifle_aim(t):
+        br = math.sin(2 * math.pi * t / 2.0) * 0.004
+        stock = RS + np.array([0.06, -0.1, -0.03 + br])
+        return {"rot": [("Hips", U, -18), ("Spine", U, 6), ("Chest", U, 8), ("Chest", L, 4)],
+                "arms": {"Right": (stock + np.array([0.03, -0.1, -0.05]), (-1.0, 0.2, -0.5)),
+                         "Left": (stock + np.array([0.16, -0.46, -0.03]), (0.4, 0.0, -1.0))},
+                "hands": {"Right": (0.25, -0.9, -0.2), "Left": (-0.1, -0.95, 0.15)},
+                "head": [("Neck", U, 12), ("Head", U, 6), ("Head", F, 10), ("Head", L, 8)],
+                "grip": {"Left": 0.9, "Right": 1.0}}
+    out.append(("rifle_aim", "idle", 0.5, 2.0, True, rifle_aim))
+
+    # revolver reload: gun held low in front, left hand runs between the belt loops and the cylinder three times
+    def revolver_reload(t):
+        gun = H0 + np.array([-0.03, -0.27, 0.34])
+        pouch = H0 + np.array([0.14, -0.13, 0.04])
+        cyc = 0.0
+        if 0.5 < t < 2.9:
+            cyc = 0.5 - 0.5 * math.cos((t - 0.5) / 0.8 * 2 * math.pi)
+        left = gun + np.array([0.05, -0.01, 0.04]) + (pouch - gun) * cyc
+        return {"rot": [("Chest", L, 6)],
+                "arms": {"Right": (gun, (-1, 0.3, -0.6)), "Left": (left, (0.6, 0.2, -1.0))},
+                "hands": {"Right": (0.3, -0.9, 0.3), "Left": (-0.6, -0.6, 0.2)},
+                "head": [("Neck", L, 12), ("Head", L, 16)], "grip": {"Right": 1.0, "Left": 0.6}}
+    out.append(("revolver_reload", "idle", 0.5, 3.4, False, revolver_reload))
+
+    # lever-action reload: rifle at the right hip, muzzle up; cartridges from the belt into the loading gate (x3),
+    # then the lever is worked down and back
+    def lever_reload(t):
+        wrist = H0 + np.array([-0.14, -0.22, 0.14])
+        fore = H0 + np.array([0.0, -0.46, 0.36])
+        belt = H0 + np.array([-0.15, -0.08, 0.03])
+        gate = H0 + np.array([-0.09, -0.27, 0.19])
+        right = wrist
+        if 0.3 < t < 2.7:
+            c = 0.5 - 0.5 * math.cos((t - 0.3) / 0.8 * 2 * math.pi)
+            right = gate + (belt - gate) * c
+        elif t >= 2.8:
+            c = math.sin(min((t - 2.8) / 0.6, 1.0) * math.pi)
+            right = wrist + np.array([0.0, 0.02, -0.11]) * c
+        return {"rot": [("Hips", U, -10), ("Chest", L, 5)],
+                "arms": {"Right": (right, (-1, 0.4, -0.5)), "Left": (fore, (0.5, 0.0, -1.0))},
+                "hands": {"Left": (-0.2, -0.6, 0.75)},
+                "head": [("Neck", L, 10), ("Head", L, 14), ("Head", U, -8)], "grip": {"Right": 0.8, "Left": 1.0}}
+    out.append(("lever_reload", "idle", 0.5, 3.6, False, lever_reload))
+
+    # holster / unholster (right hip): hand from the aim line down to the holster and back
+    aim_pt = RS + np.array([0.12, -0.55, -0.02])
+    holster = H0 + np.array([-0.21, 0.0, -0.04])
+    mid = H0 + np.array([-0.24, -0.16, 0.12])
+
+    def holster_fn(t, rev=False):
+        u = t / 0.8
+        if rev:
+            u = 1 - u
+        p = _keys(u, [(0.0, aim_pt), (0.45, mid), (1.0, holster)])
+        return {"arms": {"Right": (p, (-1.0, 0.4, -0.3))}, "hands": {"Right": (-0.1, -0.3, -0.95) if u > 0.6 else (0.1, -1, 0)},
+                "head": [("Head", L, 10 * (1 - abs(0.5 - u) * 2))], "grip": {"Right": 1.0 - 0.6 * _ss((u - 0.85) / 0.15)}}
+    out.append(("holster", "idle", 0.5, 0.8, False, lambda t: holster_fn(t)))
+    out.append(("unholster", "idle", 0.5, 0.8, False, lambda t: holster_fn(t, True)))
+
+    # --- riding: pelvis at the seat, feet in the stirrups, rein hands in front of the pommel ----------------------
+    # stirrups: feet a little ahead of the hips and wide around the barrel; knees forward and out
+    stir = {"Left": np.array([0.31, -0.13, -0.6]), "Right": np.array([-0.31, -0.13, -0.6])}
+    knee = {"Left": (0.7, -1.0, 0.35), "Right": (-0.7, -1.0, 0.35)}
+    toe = {"Left": (0.3, -1.0, -0.12), "Right": (-0.3, -1.0, -0.12)}
+    rein = {"Left": np.array([0.07, -0.31, 0.25]), "Right": np.array([-0.07, -0.31, 0.25])}
+    elb = {"Left": (0.4, 0.6, -1.0), "Right": (-0.4, 0.6, -1.0)}
+
+    def ride(hips, lean, hands_off=(0, 0, 0), extra_rot=(), head_comp=1.0, hand_pts=None):
+        hp = np.array(hips, dtype=float)
+        hands = hand_pts or rein
+        k = {"hips": hp,
+             "rot": [("Spine", L, lean * 0.4), ("Chest", L, lean * 0.6)] + list(extra_rot),
+             "legs": {s: (stir[s], knee[s], toe[s]) for s in ("Left", "Right")},
+             "arms": {s: (hp + hands[s] + np.asarray(hands_off), elb[s]) for s in ("Left", "Right")},
+             "hands": {"Left": (-0.5, -0.8, -0.3), "Right": (0.5, -0.8, -0.3)},
+             "head": [("Neck", L, -lean * 0.5 * head_comp), ("Head", L, -lean * 0.4 * head_comp)],
+             "grip": {"Left": 1.0, "Right": 1.0}}
+        return k
+
+    out.append(("ride_idle", "idle", 0.5, 4.0, True, lambda t: ride(
+        (0, 0, RIDE_HIPS + 0.003 * math.sin(2 * math.pi * t / 4.0)), 4.0)))
+    T = 1.1
+    out.append(("ride_walk", "idle", 0.5, T, True, lambda t: ride(
+        (0.012 * math.sin(2 * math.pi * t / T), -0.012 * math.sin(4 * math.pi * t / T), RIDE_HIPS + 0.006 * math.sin(4 * math.pi * t / T)),
+        6.0, hands_off=(0, -0.025 * math.sin(4 * math.pi * t / T), 0), extra_rot=[("Hips", F, 3 * math.sin(2 * math.pi * t / T))])))
+    T = 0.72
+    out.append(("ride_trot", "idle", 0.5, T, True, lambda t: ride(
+        (0, -0.05 * (0.5 - 0.5 * math.cos(2 * math.pi * t / T)), RIDE_HIPS + 0.075 * (0.5 - 0.5 * math.cos(2 * math.pi * t / T))),
+        12.0 + 4.0 * (0.5 - 0.5 * math.cos(2 * math.pi * t / T)))))
+    T = 0.62
+    out.append(("ride_canter", "idle", 0.5, T, True, lambda t: ride(
+        (0, -0.03 * math.sin(2 * math.pi * t / T), RIDE_HIPS + 0.02 * (0.5 - 0.5 * math.cos(2 * math.pi * t / T))),
+        10.0 + 3.0 * math.sin(2 * math.pi * t / T), hands_off=(0, -0.05 * math.sin(2 * math.pi * t / T), 0),
+        extra_rot=[("Hips", L, -6 * math.sin(2 * math.pi * t / T))])))
+    T = 0.45
+    gallop_hands = {"Left": np.array([0.06, -0.47, 0.2]), "Right": np.array([-0.06, -0.47, 0.2])}
+    out.append(("ride_gallop", "idle", 0.5, T * 2, True, lambda t: ride(
+        (0, 0.07 - 0.02 * math.sin(2 * math.pi * t / T), RIDE_HIPS + 0.06 + 0.015 * math.sin(2 * math.pi * t / T)),
+        42.0, hands_off=(0, -0.05 * math.sin(2 * math.pi * t / T), 0.0), head_comp=1.1, hand_pts=gallop_hands)))
+
+    # mount from the left (near side) and dismount: rider starts standing beside the horse's left shoulder
+    G = RIDE_GROUND
+    stand = G + hz
+    mk_hips = [(0.0, (0.72, -0.05, stand)), (0.45, (0.56, -0.02, stand - 0.06)), (0.85, (0.32, 0.0, 0.26)),
+               (1.25, (0.14, 0.02, 0.22)), (1.55, (0.03, 0.0, 0.13)), (1.8, (0.0, 0.0, RIDE_HIPS))]
+    mk_lfoot = [(0.0, (0.82, -0.06, G + 0.08)), (0.3, (0.6, -0.1, G + 0.45)), (0.5, stir["Left"]), (1.8, stir["Left"])]
+    mk_rfoot = [(0.0, (0.62, -0.02, G + 0.08)), (0.55, (0.6, 0.0, G + 0.08)), (0.9, (0.42, 0.1, G + 0.5)),
+                (1.25, (0.0, 0.55, 0.18)), (1.55, (-0.3, 0.1, -0.42)), (1.8, stir["Right"])]
+    mk_lhand = [(0.0, (0.72, -0.25, stand + 0.15)), (0.4, (0.1, -0.28, 0.16)), (1.5, (0.1, -0.28, 0.16)),
+                (1.8, tuple(rein["Left"] + np.array([0, 0, RIDE_HIPS])))]
+    mk_rhand = [(0.0, (0.58, -0.1, stand + 0.1)), (0.4, (0.05, 0.22, 0.12)), (1.05, (0.05, 0.22, 0.12)),
+                (1.3, (-0.05, -0.25, 0.2)), (1.8, tuple(rein["Right"] + np.array([0, 0, RIDE_HIPS])))]
+    mk_lean = [(0.0, (8,)), (0.45, (25,)), (0.85, (35,)), (1.25, (30,)), (1.8, (4,))]
+
+    def mount(t, rev=False, dur=1.8):
+        tt = (dur - t) * (1.8 / dur) if rev else t * (1.8 / dur)
+        lean = float(_keys(tt, mk_lean)[0])
+        return {"hips": _keys(tt, mk_hips),
+                "rot": [("Spine", L, lean * 0.4), ("Chest", L, lean * 0.6), ("Hips", U, 12 * math.sin(math.pi * _ss(tt / 1.8)))],
+                "legs": {"Left": (_keys(tt, mk_lfoot), knee["Left"], toe["Left"]),
+                         "Right": (_keys(tt, mk_rfoot), knee["Right"], toe["Right"])},
+                "arms": {"Left": (_keys(tt, mk_lhand), elb["Left"]), "Right": (_keys(tt, mk_rhand), elb["Right"])},
+                "head": [("Neck", L, -lean * 0.4), ("Head", L, -lean * 0.3)], "grip": {"Left": 1.0, "Right": 0.8}}
+    out.append(("mount_left", "idle", 0.5, 1.8, False, lambda t: mount(t)))
+    out.append(("dismount_left", "idle", 0.5, 1.6, False, lambda t: mount(t, True, 1.6)))
+    return out
 
 
 # ------------------------------------------------------------------------------------------------------------------
@@ -430,6 +595,112 @@ class Retargeter:
                "loop": (0, n - 1, 0.0) if loop else None, "kind": "idle" if loop else "action"}
         return res
 
+
+    # --------------------------------------------------------------------------------------------------------------
+    def keyed(self, base, t0, dur, loop, fn, base_fixed_hips=None):
+        """Keyframed-by-code clip with two-bone IK: fn(t) -> {"hips": abs position, "rot": [(bone, axis, deg)],
+        "arms": {"Left"/"Right": (target, pole)}, "legs": {side: (ankle target, knee pole, toe dir)},
+        "head": [(bone, axis, deg)], "grip": {side: 0..1}}. Positions are in the canonical character frame
+        (forward -Y, left +X, up +Z, origin on the ground or, for riding, on the saddle seat)."""
+        children = {}
+        for b, p in self.parent.items():
+            children.setdefault(p, []).append(b)
+
+        def desc(b):
+            out, st = [], [b]
+            while st:
+                x = st.pop()
+                out.append(x)
+                st.extend(children.get(x, []))
+            return out
+        f0 = min(int(t0 * FPS), base["n"] - 1)
+        n = int(round(dur * FPS)) + 1
+        W = {b: np.repeat(base["W"][b][f0:f0 + 1], n, axis=0).copy() for b in base["W"]}
+        hips = np.repeat(base["hips"][f0:f0 + 1], n, axis=0).copy()
+        hips[:, :2] -= base["root_xy"][f0]
+        grip = {"Left": np.zeros(n), "Right": np.zeros(n)}
+        inv_rest = {b: np.linalg.inv(self.rest[b][:3, :3]) for b in self.rest}
+        offs = {b: self.head[b] - self.head[self.parent[b]] for b in self.order if self.parent[b]}
+
+        def fk(f):
+            P = {"Hips": hips[f].copy()}
+            for b in self.order:
+                if b in ("Root", "Hips"):
+                    continue
+                p = self.parent[b]
+                if p not in P:
+                    continue
+                Wp = W[p][f] if p in W else None
+                if Wp is None:
+                    continue
+                P[b] = P[p] + Wp @ inv_rest[p] @ offs[b]
+            return P
+
+        def bone_dir(b, c, f):
+            return W[b][f] @ inv_rest[b] @ (self.head[c] - self.head[b])
+
+        def aim(b, c, f, target_dir):
+            S = swing(bone_dir(b, c, f), target_dir)
+            for x in desc(b):
+                if x in W:
+                    W[x][f] = S @ W[x][f]
+
+        def rot(b, axis, deg, f):
+            R = np.array(Matrix.Rotation(math.radians(deg), 3, Vector(axis)))
+            for x in desc(b):
+                if x in W:
+                    W[x][f] = R @ W[x][f]
+
+        def two_bone(f, upper, lower, end, target, pole):
+            P = fk(f)
+            s = P[upper]
+            a = np.linalg.norm(self.head[lower] - self.head[upper])
+            bl = np.linalg.norm(self.head[end] - self.head[lower])
+            dv = np.asarray(target, dtype=float) - s
+            d = float(np.clip(np.linalg.norm(dv), abs(a - bl) + 1e-3, a + bl - 1e-4))
+            u = dv / max(np.linalg.norm(dv), 1e-6)
+            ca = (a * a + d * d - bl * bl) / (2 * a * d)
+            sa = math.sqrt(max(0.0, 1 - ca * ca))
+            pv = np.asarray(pole, dtype=float)
+            v = pv - (pv @ u) * u
+            if np.linalg.norm(v) < 1e-6:
+                v = np.cross(u, [0, 0, 1.0])
+            v /= np.linalg.norm(v)
+            elbow = s + a * (ca * u + sa * v)
+            aim(upper, lower, f, elbow - s)
+            P = fk(f)
+            aim(lower, end, f, np.asarray(target, dtype=float) - P[lower])
+
+        for f in range(n):
+            t = f / FPS
+            k = fn(t)
+            if "hips" in k:
+                hips[f] = np.asarray(k["hips"], dtype=float)
+            for b, axis, deg in k.get("rot", []):
+                rot(b, axis, deg, f)
+            for side, spec in k.get("legs", {}).items():
+                target, pole = spec[0], spec[1]
+                two_bone(f, side + "UpperLeg", side + "LowerLeg", side + "Foot", target, pole)
+                if len(spec) > 2 and spec[2] is not None:
+                    aim(side + "Foot", side + "Toes", f, np.asarray(spec[2], dtype=float))
+            for side, (target, pole) in k.get("arms", {}).items():
+                two_bone(f, side + "UpperArm", side + "LowerArm", side + "Hand", target, pole)
+            for side, hd in k.get("hands", {}).items():
+                aim(side + "Hand", side + "MiddleProximal", f, np.asarray(hd, dtype=float))
+            for b, axis, deg in k.get("head", []):
+                rot(b, axis, deg, f)
+            for side, gv in k.get("grip", {}).items():
+                grip[side][f] = gv
+        return {"W": W, "hips": hips, "root_xy": np.zeros((n, 2)), "root_yaw": np.zeros(n), "n": n,
+                "loop": (0, n - 1, 0.0) if loop else None, "kind": "idle" if loop else "action", "grip": grip}
+
+    def shoulders(self, base, t0=0.5):
+        """Base-pose shoulder (UpperArm head) positions, used to place hand targets."""
+        f0 = min(int(t0 * FPS), base["n"] - 1)
+        hips = base["hips"][f0].copy()
+        hips[:2] -= base["root_xy"][f0]
+        return hips
+
     # --------------------------------------------------------------------------------------------------------------
     def bake(self, name, res):
         """Write an action on the canonical rig; returns metadata."""
@@ -503,6 +774,13 @@ class Retargeter:
                     basis = np.eye(4)
                     if bn in curl:
                         basis[:3, :3] = curl[bn]
+                        gr = res.get("grip")
+                        if gr is not None:
+                            side = "Left" if bn.startswith("Left") else "Right"
+                            gv = float(gr[side][f])
+                            if gv > 0:
+                                ang = (55.0 if "Thumb" not in bn else 25.0) * gv
+                                basis[:3, :3] = np.array(Matrix.Rotation(math.radians(ang), 3, "X")) @ curl[bn]
                     Mw = Mp @ off @ basis
                 if bn == "Hips":
                     hips_loc[fi] = basis[:3, 3]
@@ -607,7 +885,7 @@ def build_library(out_dir, clips=None, only=None):
     actions = []
     bases = {}
     for name, f, a, b, loop, kind, extra in CLIPS:
-        if only and name not in only and name not in [pc[1] for pc in PROC_CLIPS]:
+        if only and name not in only and name not in [pc[1] for pc in PROC_CLIPS] + ["idle", "sit_idle"]:
             continue
         subj = f.split("_")[0]
         p = os.path.join(mhenv.CMU, "data", "%03d" % int(subj), f + ".bvh")
@@ -623,8 +901,18 @@ def build_library(out_dir, clips=None, only=None):
         m["source"] = "CMU %s" % f
         meta.append(m)
         print("clip %-18s %4d frames loop=%s speed=%.2f" % (name, m["frames"], m["loop"], m["speed"]))
+    for name, basename, t0, dur, loop, fn in keyed_clip_specs(rt, bases):
+        if only and name not in only:
+            continue
+        m = rt.bake(name, rt.keyed(bases[basename], t0, dur, loop, fn))
+        m["source"] = "procedural (IK) on %s" % basename
+        if name.startswith(("ride_", "mount_", "dismount_")):
+            m["seat_origin"] = True
+            m["ride_hips_height"] = RIDE_HIPS
+        meta.append(m)
+        print("clip %-18s %4d frames loop=%s (keyed IK)" % (name, m["frames"], m["loop"]))
     for name, basename, t0, dur, loop, spec in PROC_CLIPS:
-        if (only and name not in only) or basename not in bases:
+        if name.endswith("_old") or (only and name not in only) or basename not in bases:
             continue
         m = rt.bake(name, rt.procedural(bases[basename], t0, dur, loop, spec))
         m["source"] = "procedural on %s" % basename

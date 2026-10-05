@@ -55,11 +55,14 @@ FACE_SHAPES = {
     "pucker": [("mouthPucker", 1.0)], "funnel": [("mouthFunnel", 1.0)],
     "press": [("mouthPressLeft", 1.0), ("mouthPressRight", 1.0)],
     "cheek_puff": [("cheekPuff", 1.0)],
+    # eyelids follow vertical gaze (driven by CharacterLook.eye_pitch)
+    "look_up_L": [("eyeLookUpLeft", 1.0)], "look_up_R": [("eyeLookUpRight", 1.0)],
+    "look_down_L": [("eyeLookDownLeft", 1.0)], "look_down_R": [("eyeLookDownRight", 1.0)],
 }
 for v in ("sil", "PP", "FF", "TH", "DD", "kk", "CH", "SS", "nn", "RR", "aa", "E", "I", "O", "U"):
     FACE_SHAPES["vis_" + v] = [("viseme_" + v, 1.0)]
 
-HEAD_PARTS = ("eyebrows", "eyelashes", "teeth", "tongue", "eyes", "beard")
+HEAD_PARTS = ("eyebrows", "eyelashes", "teeth", "tongue", "eyes", "beard", "cornea")
 
 
 def reset_scene():
@@ -319,6 +322,9 @@ def apply_modifier(obj, mod):
     bpy.ops.object.modifier_apply(modifier=mod.name)
 
 
+KEEP_EDGE = "keep_edge"   # vertex group: garment hems/edges, collapsed last by decimate()
+
+
 def decimate(obj, ratio, keep_shapes=True):
     """Collapse-decimate a mesh; shape keys survive as interpolated vector attributes and are rebuilt."""
     if ratio >= 0.999 or len(obj.data.polygons) < 50:
@@ -337,6 +343,12 @@ def decimate(obj, ratio, keep_shapes=True):
     mod = obj.modifiers.new("Decimate", "DECIMATE")
     mod.decimate_type = "COLLAPSE"
     mod.ratio = ratio
+    if KEEP_EDGE in obj.vertex_groups:
+        # Blender adds edge_length * (2 - w1 - w2) * factor to the collapse cost; inverted, the hem verts (weight 1)
+        # get the penalty and everything else (not in the group, inverted weight 1) none.
+        mod.vertex_group = KEEP_EDGE
+        mod.invert_vertex_group = True
+        mod.vertex_group_factor = 20.0
     for o in bpy.context.selected_objects:
         o.select_set(False)
     bpy.context.view_layer.objects.active = obj

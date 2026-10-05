@@ -1,9 +1,11 @@
 // Garments of generated characters (src/actors/character_materials.gd). A Poly Haven CC0 fabric (albedo/normal/
 // roughness, assets/ext/cloth/<fabric>) is tiled in metres on UV2 and re-coloured to `tint` (the garment's mean
 // colour), modulated by the garment's own detail from UV (MakeHuman CC0 diffuse luminance, normal map, AO), plus
-// vertex COLOR (r = baked occlusion, g = wear mask from the generator), height-based dust on legs/boots, fold sheen.
+// vertex COLOR (r = baked occlusion, g = wear mask from the generator, b = distance to the hem for stitching and a
+// turned-hem crease), procedural drape wrinkles in model space, height-based dust on legs/boots, fold sheen.
+// Double-sided: inside faces (collars, cuffs, open coats) render darker.
 shader_type spatial;
-render_mode cull_back, diffuse_burley, specular_schlick_ggx;
+render_mode cull_disabled, diffuse_burley, specular_schlick_ggx;
 
 #include "res://shaders/inc/noise.gdshaderinc"
 
@@ -30,9 +32,15 @@ global uniform float wetness;
 varying float v_height;
 varying float v_occl;
 varying float v_wear;
+varying float v_hem;
+varying vec3 v_obj;
+
+uniform float wrinkle = 0.35;      // procedural drape wrinkle normal strength
 
 void vertex() {
 	v_height = VERTEX.y;
+	v_hem = COLOR.b;
+	v_obj = VERTEX;
 	v_occl = COLOR.r;
 	v_wear = COLOR.g;
 }
@@ -64,6 +72,16 @@ void fragment() {
 	float dust = smoothstep(0.55, 0.0, v_height + n * 0.18) * dirt;
 	col = mix(col, vec3(0.42, 0.36, 0.29), dust * 0.45);
 	col *= mix(1.0, 0.6, clamp(wetness, 0.0, 1.0) * (1.0 - metallic));
+	// hem: turned-hem crease ~2 cm in, running stitch ~8 mm in (dashed along the fabric)
+	float hd = v_hem * 0.05;
+	float crease = exp(-pow((hd - 0.02) / 0.0025, 2.0));
+	float dash = step(0.45, fract((UV2.x + UV2.y) * 110.0));
+	float stitch = exp(-pow((hd - 0.008) / 0.0011, 2.0)) * dash * (1.0 - metallic);
+	col *= 1.0 - crease * 0.18;
+	col = mix(col, col * 1.35 + vec3(0.04), stitch * 0.6);
+	if (!FRONT_FACING) {
+		col *= 0.45;
+	}
 	ALBEDO = col;
 	AO = occl;
 	AO_LIGHT_AFFECT = 0.4;
@@ -75,6 +93,16 @@ void fragment() {
 		vec3 bn = texture(base_normal, UV).rgb * 2.0 - 1.0;
 		vec3 fn = nm * 2.0 - 1.0;
 		nm = normalize(vec3(fn.xy + bn.xy, fn.z * bn.z)) * 0.5 + 0.5;   // whiteout blend
+	}
+	// drape wrinkles: anisotropic noise stretched along the body's vertical (model space), fading with distance
+	vec3 q = v_obj * vec3(55.0, 7.0, 55.0);
+	float e = 0.35;
+	float w0 = vnoise(q.xy + q.z * 0.7);
+	vec2 wg = vec2(vnoise(q.xy + vec2(e, 0.0) + q.z * 0.7) - w0, vnoise(q.xy + vec2(0.0, e) + q.z * 0.7) - w0) / e;
+	float fade = clamp(1.0 - length(fwidth(q.xy)) * 0.4, 0.0, 1.0);
+	nm.xy += wg * wrinkle * 0.12 * fade * (1.0 - metallic);
+	if (!FRONT_FACING) {
+		nm.xy = -nm.xy;
 	}
 	NORMAL_MAP = nm;
 	float r = base_roughness;

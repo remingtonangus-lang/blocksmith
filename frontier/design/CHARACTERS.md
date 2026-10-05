@@ -57,25 +57,54 @@ characters` downloads it into `frontier/assets/ext/characters/`, which Character
   pelvis -> thighs -> calves with depth; hats 100 % Head. Limited to 4 influences, normalised.
 
 ## What a character .glb contains
-`Rig` (Skeleton3D) with meshes `Body` (skin + garments, one surface per material, decimated 50 % for NPCs), `Head`
-(face skin, eyes, brows, lashes, teeth, tongue, beard — the only mesh with blend shapes, so blend-shape memory stays
-small), `Hair`, `Hat` (hideable: `set_hat_visible(false)`). Vertex colour: r occlusion, g wear, b stubble mask;
-UV2 = metres for fabric tiling. Materials are named `skin`, `eyes`, `brows`, `lashes`, `teeth`, `tongue`, `hair`,
-`beard`, `cloth:<garment>:<fabric>`, `leather:<garment>:leather`; CharacterMaterials builds:
-- skin.gdshader: MakeHuman CC0 albedo × tint, SSS, procedural pore/fine-wrinkle micro-normal that fades with distance,
-  sun weathering (tan, redness, roughness break-up), stubble dots from the mask, global `wetness`.
-- cloth.gdshader: Poly Haven CC0 fabric (assets/ext/cloth: denim, linen, wool, canvas, leather) tiled on UV2 and
-  re-tinted to the garment colour, wear (lighter fibres at elbows/knees/hems), dust rising from the ground, fold AO,
-  wool sheen, wetness. Seed variants re-roll the garment colour from its palette (`spawn(seed)` with seed != 0).
-- hair.gdshader: luminance-preserving recolour, alpha scissor + A2C, anisotropic highlight.
+`Rig` (Skeleton3D: humanoid bones + `LeftEye`/`RightEye` + garment spring chains `<garment>_c<k>_<i>`) with meshes
+`Body` (skin + garments, one surface per material), `Head` (face skin, eyes, corneas, brows, lashes, teeth, tongue,
+beard — the only mesh with blend shapes), `Hair` (MakeHuman hair or a procedural updo), `Hat` (hideable:
+`set_hat_visible(false)`), and `LOD1` (~8 k tris) / `LOD2` (~2.5 k tris): every part joined and decimated, no blend
+shapes. CharacterMaterials sets visibility ranges (LOD0 < 16 m < LOD1 < 42 m < LOD2). Vertex colour: skin r cavity
+occlusion, g oily T-zone, b stubble mask; cloth r fold occlusion, g wear, b distance to the hem. UV2 = metres for
+fabric tiling. Materials are named `skin`, `eyes`, `cornea`, `brows`, `lashes`, `teeth`, `tongue`, `hair`,
+`hair_updo`, `beard`, `cloth:<garment>:<fabric>`, `leather:<garment>:leather`; CharacterMaterials builds:
+- skin.gdshader: MakeHuman CC0 albedo × tint, SSS, three-octave procedural pore / fine-crease micro-normal (deeper
+  with age) fading with distance, cavity AO, shinier T-zone, sun weathering, stubble dots, global `wetness`.
+- cloth.gdshader (double-sided, insides darker): Poly Haven CC0 fabric tiled on UV2 and re-tinted, garment detail,
+  procedural drape wrinkles in model space, turned-hem crease + running stitch near every hem, wear, dust rising from
+  the ground, fold AO, wool sheen, wetness. Seed variants re-roll garment colours from their palettes.
+- hair.gdshader: luminance-preserving recolour, alpha scissor + A2C, anisotropic highlight; beards and updos use the
+  vertex colour (shell occlusion / hairline fade).
+- cornea: additive clear dome over each iris (specular highlight and reflections only) — wet eyes.
 
-Face blend shapes (34): `blink_L/R`, `squint_L/R`, `wide_L/R`, `brow_raise`, `brow_inner_up`, `brow_furrow`,
-`jaw_open`, `smile_L/R`, `frown`, `sneer_L/R`, `pucker`, `funnel`, `press`, `cheek_puff`, visemes `vis_PP FF TH DD
-kk CH SS nn RR aa E I O U` (`vis_sil` = basis). Built from the CC0 ARKit face units + Meta-style visemes
+Garment construction (garments.py): body-derived shells cut *exactly* along their edges with bmesh bisect (collar
+plane under the chin, sleeve and trouser planes perpendicular to the limb, V-neck and armhole planes, coat lapel
+opening), then rim thickness; ease grows away from fitted parts; drape passes: under-bust / chest hang (no anatomy
+under bodices and shirts; `smooth_chest` tops get a corseted 1899 front: the bust is smoothed, then pushed out to the
+convex hull of every vertical column and horizontal slice and feathered into the flanks, allowed to sink into the
+deleted skin), coats hang plumb from the chest and shoulder blades, shirts blouse over the belt, trousers break over
+shoes or bunch above boot tops, fold displacement along the cloth's own normal at elbows, cuffs, knees and hems; layer
+separation keeps every garment outside the ones beneath (aprons clear the skirt's flare); a relax pass removes dents
+left by masked drape passes. Skin weights are blurred over the torso and torso cloth below the armpit drops its
+upper-arm weight (no creases when the arms move). Hem vertices carry a `keep_edge` group so decimation collapses
+them last (straight hems at NPC budgets).
+Skirts, frock-coat tails and duster tails carry spring-bone chains: FrontierCharacter builds a SpringBoneSimulator3D
+(one setting per chain, stiffness/drag/gravity tuned per garment) with thigh/calf capsule colliders, active within
+30 m of the camera. Women's period hair: procedural updos (hair cap swept up from a soft hairline + low chignon,
+top-knot, or Gibson-girl pompadour) with a generated strand texture.
+
+Face blend shapes (38): `blink_L/R`, `squint_L/R`, `wide_L/R`, `brow_raise`, `brow_inner_up`, `brow_furrow`,
+`jaw_open`, `smile_L/R`, `frown`, `sneer_L/R`, `pucker`, `funnel`, `press`, `cheek_puff`, `look_up_L/R`,
+`look_down_L/R` (eyelids follow vertical gaze, driven by CharacterLook), visemes `vis_PP FF TH DD kk CH SS nn RR aa
+E I O U` (`vis_sil` = basis). Built from the CC0 ARKit face units + Meta-style visemes
 (makehumancommunity/extra-targets), boosted where the autogenerated units are subtle, and transferred to teeth,
 tongue, lashes, brows and beard through the mhclo fitting weights. API aliases: `set_viseme("AA"|"E"|"I"|"O"|"U"|
 "MBP"|"FV"|"L"|"TH"|"CH"|"SS"|"DD"|"KK"|"RR"|"rest")`, `set_expression("smile"|"frown"|"brow_raise"|"brow_furrow"|
 "sneer"|"squint"|"wide"|"jaw_open"|...)`. Auto-blink runs by default.
+
+Lip-sync: FrontierCharacter listens to `Game.audio` (`voice_started`, `viseme`, `voice_finished`). When a line plays
+on the character or any ancestor (the Human / Player node MissionDirector.say() passes), its viseme events drive the
+mouth (audio names sil PP FF TH DD kk CH SS nn RR aa E ih oh ou -> our visemes) and the line's emotion tag holds an
+expression for the line (warm, amused, angry, afraid/scared, sad, tired, tense, dry, shout, whisper, calm). Lines
+without viseme timing fall back to a text-driven viseme timeline. `speak(line_id)` plays a line on the character.
+Beards: five alpha shells with per-vertex length jitter, dense dark roots to sparse light tips.
 
 ## Roster (appearance.py)
 36 NPCs from seeds 0..35 over 12 roles — rancher, cowhand, townsman, gentleman, worker, drifter, lawman, elder,
@@ -90,9 +119,12 @@ bodices with corseted fronts, floor-length skirts, aprons, sashes; hats: cattlem
 cap, straw boater. Tags (`rider`, `ranch`, `townsfolk`, `wealthy`, `labour`, `outlaw`, `law`, `hero`, role, sex) drive
 `CharacterFactory.spawn(seed, role)`.
 
-Budgets (tris, LOD0): NPCs 23-35 k (Head 11-17 k incl. teeth/beard shells, Body 10-15 k after 50 % decimation, hair
-1-4 k, hat 1.4-1.8 k); Ruth ~45 k (no decimation, subdivided eyes, 2 K skin). Textures 1 K (NPC) / 2 K (hero).
-Godot's importer generates distance LODs for imported .glb files.
+Budgets (tris, LOD0, enforced by the builder): NPCs <= 24 k (head decimated with its blend shapes kept, beard shells
+and teeth decimated, the body takes the remaining cut), Ruth <= 39 k (subdivided eyes, 2 K skin). LOD1 ~8 k, LOD2
+~2.5 k. Textures: hero skin 2 K; NPC skin 1 K, hair and MakeHuman shoes 512, eyes 512, brows/lashes/teeth/tongue
+256 (every unique NPC loads its own copies: ~27 MB per unique NPC + ~11 MB per instance on llvmpipe, measured with
+character_shots). Godot imports the extracted textures lossless; VRAM compression would cut that ~4x but needs
+shipped .import sidecars next to pre-extracted textures (tested locally, not wired into the zip yet).
 
 ## Animation library (retarget.py -> animations.glb, animations.json)
 CMU mocap (cgspeed BVH) retargeted onto the canonical rig, 30 fps, in place with root motion on `Root`
@@ -109,7 +141,20 @@ turn_in_place_L/R; talk_1, talk_2, talk_directions, shrug, wave, handshake; sit_
 lean_wall*; drink, drink_smoke; pistol_draw, pistol_shoot, gun_shoot_2, pistol_aim*, pistol_aim_two_hand*,
 rifle_aim*; hit_front*, hit_back*, hit_left*, hit_right*, hit_head*; death_forward, death_back, death_collapse
 (reversed get-up), get_up_front, get_up_back; climb_ladder, ladder_up_down, climb_over; jump, jump_forward,
-run_jump; pick_up, pick_up_box, push_heavy. (* = procedural: keyframed by code on a mocap base pose.)
+run_jump; pick_up, pick_up_box, push_heavy; revolver_reload**, lever_reload**, holster**, unholster**;
+ride_idle**, ride_walk**, ride_trot** (posting), ride_canter**, ride_gallop** (two-point), mount_left**,
+dismount_left**. (* = procedural on a mocap base pose; ** = keyframed by code with two-bone IK for hands/feet:
+rifle_aim has the support hand on the forend, rein hands, stirrup feet.)
+
+Riding clips: the character origin is the saddle seat point and the hips joint sits 0.09 m above it at x = y = 0
+(pelvis at the origin — parent the rider to the seat). Because horse.gd currently puts the rider's origin 0.78 m below
+the seat, FrontierCharacter raises its model by `ride_seat_drop` (0.78) while riding; set it to 0 when parenting to the
+seat. mount/dismount start/end standing 0.72 m to the horse's left, ground 1.30 m below the seat.
+
+Gameplay driver (character.gd, AnimationTree): `set_locomotion(speed, state)` (state "ride"/"mounted" blends to the
+ride blend space by horse speed), `set_aim("pistol"|"rifle")`, `hit(info)`, `die(info)`, `revive()`, plus
+`play_action(clip, upper_body)` (one-shots: full body or upper body over locomotion), `reload(kind)`, `holster()`,
+`unholster()`.
 
 ## Licences
 See `frontier/LICENSES.md` ("Characters and animation") and `characters/LICENSES.json`: MakeHuman assets CC0 (MPFB2
@@ -117,18 +162,12 @@ GPL code only executed as a tool), extra-targets CC0, CMU mocap free for commerc
 everything else original.
 
 ## Gaps / next steps
-- Garments are body-offset shells and lofted tubes: no cloth simulation, folds are procedural displacement; hems
-  are snapped but some necklines/armholes stay slightly jagged; layered garments can still clip in extreme poses
-  (deep crouch, sitting with long coats/skirts). Skirts/tails are skinned, not simulated — add SpringBone/jiggle or
-  Godot physics for skirt and duster tails.
-- No period updos/buns (women wear braids, ponytails, loose hair from the CC0 pack); no hair cards for beards (alpha
-  shells read well at mid distance, flat in extreme close-ups); no eyebrow/eyelash variety beyond the pack.
-- Faces: autogenerated ARKit units are coarse — expressions are boosted but lack wrinkle maps; no corrective
-  shapes; lip-sync needs a phoneme -> viseme driver (the API is ready). Eyes are low-poly MakeHuman eyes with a
-  glossy material (no separate cornea/refraction).
-- Animation: CMU has no real hit reactions, rifle handling, reloads, mounting, swimming or ladder-top transitions;
-  those are procedural approximations or missing. Foot IK/slope adaptation and turn-rate control belong in the
-  controller (TwoBoneIK3D with the contact metadata). Some takes carry the source performer's quirks.
-- Budgets: NPC LOD0 is above the 25 k target when a beard + duster are present; a head-mesh decimation pass that
-  respects blend shapes is in `mhcore.decimate` but is not enabled for faces yet.
-- Quest 3: use Godot LODs + a cheaper skin shader variant (no SSS) — not done.
+- Garments are offset shells and lofted tubes with procedural drape — no real cloth simulation; only skirts and coat
+  tails swing (spring bones). Layered garments can clip in extreme poses (deep crouch, sitting in long coats).
+- Updos are a sculpted cap + bun with a strand texture (no hair cards); beards are alpha shells, flat in macro
+  close-ups. No eyebrow/eyelash variety beyond the CC0 pack.
+- Faces: ARKit units are autogenerated and coarse (no wrinkle maps or corrective shapes); eyes are low-poly MakeHuman
+  eyes + an additive cornea (no refraction, no tear line).
+- Riding and reload/holster clips are code-keyframed approximations (no props: guns/reins are not in the clips);
+  mount/dismount assume a 1.30 m seat height and the left side only. CMU has no swim or ladder-top transitions.
+- Quest 3: use LOD1/LOD2 + a cheaper skin shader variant (no SSS) — not done.
