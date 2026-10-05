@@ -114,7 +114,7 @@ float cloud_density(vec3 p, float lod) {
 }
 
 // Returns rgb = in-scattered cloud light, a = transmittance.
-vec4 clouds(vec3 ro, vec3 rd, vec3 sun_col, vec3 amb, vec3 ld, int steps) {
+vec4 clouds(vec3 ro, vec3 rd, vec3 sun_col, vec3 amb, vec3 ld, int steps, float jitter) {
 	if (abs(rd.y) < 0.0005) return vec4(0.0, 0.0, 0.0, 1.0);
 	float t0 = (CLOUD_LO - ro.y) / rd.y;
 	float t1 = (CLOUD_HI - ro.y) / rd.y;
@@ -127,7 +127,6 @@ vec4 clouds(vec3 ro, vec3 rd, vec3 sun_col, vec3 amb, vec3 ld, int steps) {
 	float ds = (t1 - t0) / float(steps);
 	float trans = 1.0;
 	vec3 light = vec3(0.0);
-	float jitter = hash12(rd.xz * 1000.0 + TIME);
 	float mu = dot(rd, ld);
 	float phase = mix(0.8 / (4.0 * PI), 3.0 * pow(max(mu, 0.0), 8.0), 0.4) + 0.06;
 	for (int i = 0; i < 64; i++) {
@@ -195,7 +194,10 @@ void sky() {
 			vec3 amb = scatter(vec3(0.0, 1.0, 0.0), sun_dir, sun_intensity, h0) * 1.6 + vec3(0.002, 0.003, 0.005);
 			int steps = AT_CUBEMAP_PASS ? max(int(cloud_steps * 0.4), 6) : int(cloud_steps);
 			if (steps > 0) {
-				vec4 cl = clouds(vec3(POSITION.x, h0, POSITION.z), rd, sun_col, amb * (1.0 - cloud_dark * 0.6), sun_dir.y > -0.05 ? sun_dir : moon_dir, steps);
+				vec4 cl = clouds(vec3(POSITION.x, h0, POSITION.z), rd, sun_col, amb * (1.0 - cloud_dark * 0.6), sun_dir.y > -0.05 ? sun_dir : moon_dir, steps,
+					// Interleaved gradient noise on the screen: evenly spread step offsets read as fine grain where white
+					// noise per ray (the old jitter) speckled the whole sky.
+					fract(52.9829189 * fract(dot(FRAGCOORD.xy, vec2(0.06711056, 0.00583715)))));
 				// Aerial perspective over the cloud: blend toward the sky colour with distance.
 				col = col * cl.a + cl.rgb;
 			}
