@@ -126,6 +126,15 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 22:45: CI run 52 (d38d671) green, published. Where a first Mac launch's 36 s goes, from the new
+  setup line: sky 0.2, terrain 3.5, capital 5.4, vegetation 2.2, bases 0.7, battle 8.5, vehicles 0.8, weather
+  5.7 s (27 s); a cached second launch loads in 3.96 s. It is first-use shader/pipeline compilation (here a cold
+  shader cache shows the same steps growing: ready 6.4 s cold vs 3.6 s warm), paid once per shader change and then
+  cached by the engine. Tried and dropped: loading every .gdshader during generation compiles only the sky (204 ms);
+  the rest compile when an instance first draws a mesh format with the material, so warming them would need
+  dummy instances per material and format. Benchmark d38d671 (CI Mac, High): city / battle / forest 58.7 / 47.8 /
+  58.9 fps, scripts 2.0 / 2.0 / 1.1 ms; ablation (battle, base 16.60): vegetation 8.88, grass 5.81, sun shadows
+  2.23, terrain 1.50 (a quiet run: every item positive but roads -0.05).
 - 2026-10-05 22:35: game.log now has a "setup: sky .. ms, terrain .. ms, capital .. ms, ..." line per launch, so
   the next Mac CI log shows where a first launch's 36 s between "generated" and "world ready" goes (a clean first
   launch here: generated 6.4 s, ready 12.2 s; nothing like 36 s off Metal).
