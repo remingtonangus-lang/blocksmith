@@ -168,7 +168,10 @@ extension Capital {
             if cfNacelle(x, y, z) && !main { b = z % 6 == 0 ? trim : panel }
             // Lit windows only where people live: the two habitation decks midships.
             let deckRow: Bool = y == 15 || y == 20
-            if flank && deckRow && z > 50 && z < 138 && z % 4 == 1 { b = light }
+            if flank && deckRow && z > 50 && z < 138 && z % 8 == 1 { b = light }
+            // Graphite armour bands across the top every 16 blocks (a white hull read as one flat slab from above).
+            let roof: Bool = main && Float(y) >= yt - 1 && !flank
+            if roof && z % 16 < 2 && z > 4 { b = graphite }
             hb.set(x, y, z, b)
         } } }
         // The spinal gun: a tube through the prow, its muzzle open in the bow, the breech at the neck.

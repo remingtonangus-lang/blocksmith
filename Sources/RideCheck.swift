@@ -71,8 +71,9 @@ enum RideCheck {
                           lap: [V3(12.5, 22, 32.5), V3(22.5, 22, 32.5), V3(22.5, 22, 60.5), V3(12.5, 22, 60.5)], seconds: secs(240), turnEvery: 20)
             case "frigate":
                 guard let sc = makeScene(device, seed: seed, kind: "capfrigate") else { r.check(false, "the frigate spawned"); continue }
-                deckScene(r, sc, deckY: 15, start: V3(15.5, 15.02, 119.5),
-                          lap: [V3(9.5, 15, 108.5), V3(21.5, 15, 108.5), V3(21.5, 15, 131.5), V3(9.5, 15, 131.5)], seconds: secs(240), turnEvery: 30)
+                // Laps on the hangar deck (feet 5; the Capital frigate's centreline is x 23.5, the hangar z 66-104).
+                deckScene(r, sc, deckY: 5, start: V3(23.5, 5.02, 85.5),
+                          lap: [V3(17.5, 5, 74.5), V3(29.5, 5, 74.5), V3(29.5, 5, 96.5), V3(17.5, 5, 96.5)], seconds: secs(240), turnEvery: 30)
             case "warfrigate":
                 guard let sc = makeScene(device, seed: seed, kind: "warfrigate") else { r.check(false, "the frigate spawned"); continue }
                 deckScene(r, sc, deckY: 27, start: V3(56.5, 27.02, 190.5),
@@ -515,11 +516,11 @@ enum RideCheck {
                 return a
             case 1:
                 if let a = go([V3(23.5, 5, 100.5), V3(23.5, 5, 107.5)]) { return a }
-                if l.y > 12.9 && aboard && stt.onGround && l.x > 22.95 { advance(names[1]); return AgentAction.idle }
+                if l.y > 12.9 && l.y < 13.5 && aboard && stt.onGround && l.x > 22.95 { advance(names[1]); return AgentAction.idle }
                 // Into the rungs (against the wall behind them), climbing; at the top, off onto the corridor floor.
                 var a = walk(stt, to: s.toWorld(V3(l.y > 12.4 ? 24.0 : 21.0, 0, 107.5)))
                 a.forward = 1
-                a.jump = true
+                a.jump = l.y < 12.4
                 return a
             case 2:
                 if let a = go(corridor) { return a }
@@ -551,7 +552,7 @@ enum RideCheck {
             sc.agent.step(bot)
             mon.sample(standing: false, aboard: phase >= 1 && phase <= 3, flatDeck: false)
             if phase >= 5 { break }
-            if i % (60 * 20) == 0 {
+            if i % (phase <= 3 ? 60 : 60 * 20) == 0 {
                 let l = s.toLocal(p.pos)
                 r.note(String(format: "t %3.0f s: phase %ld, bot ship-space %.2f,%.2f,%.2f, aboard %@, flying %@", Float(i) / 60, phase,
                               l.x, l.y, l.z, w.ships.aboard === s ? "yes" : "no", p.flying ? "yes" : "no"))
@@ -647,10 +648,10 @@ enum RideCheck {
     // Crew: soldiers ride at their posts while the vehicle drives and turns; then it is disabled and they stay aboard.
     static func crewScene(_ r: Report, _ sc: Scene, seconds: Int, frigate: Bool) {
         let s = sc.ship, st = sc.st, g = sc.game, w = sc.world
-        place(sc, local: frigate ? V3(15.5, 15.02, 120.5) : V3(23.5, 22.02, 44.5))
+        place(sc, local: frigate ? V3(23.5, 5.02, 85.5) : V3(23.5, 22.02, 44.5))
         st.testTurn = 1
         let idle = Bot()
-        let floorY: Float = frigate ? 8.5 : 9.5          // no crew member ever below the lowest deck
+        let floorY: Float = frigate ? 3.5 : 9.5          // no crew member ever below the lowest deck (the frigate's hangar and hold: 4)
         var worstPost: Float = 0, worstWho = ""
         var off = 0, inside = 0, firstOff = ""
         func crewCheck(_ i: Int, posts: Bool) {
@@ -762,9 +763,9 @@ enum RideCheck {
     // A survival bot on the flight deck when the frigate's engines die: carried down, survives the touchdown.
     static func crashScene(_ r: Report, _ sc: Scene) {
         let s = sc.ship, st = sc.st, g = sc.game, w = sc.world
-        place(sc, local: V3(15.5, 15.02, 119.5))
+        place(sc, local: V3(23.5, 5.02, 85.5))
         st.testTurn = 0
-        let mon = Monitor(sc, deckY: 15)
+        let mon = Monitor(sc, deckY: 5)
         let idle = Bot()
         for _ in 0..<(15 * 60) {
             g.hunger = 20
