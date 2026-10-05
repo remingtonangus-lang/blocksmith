@@ -35,7 +35,7 @@ func run(m: Node) -> void:
 		return
 	var which := str(Game.args.get("bot", "road"))
 	var seconds := Game.arg_f("seconds", 90.0)
-	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "missions", "camp", "encounters", "social", "openworld", "systems", "ui"] if which == "all" or which == "true" else Array(which.split(","))
+	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "missions", "camp", "encounters", "social", "openworld", "presentation", "systems", "ui"] if which == "all" or which == "true" else Array(which.split(","))
 	for b in bots:
 		var res: Dictionary
 		if b == "ride" or b == "gaits":
@@ -53,6 +53,8 @@ func run(m: Node) -> void:
 			res = await _run_social()
 		elif b == "openworld":
 			res = await _run_openworld()
+		elif b == "presentation":
+			res = await _run_presentation()
 		elif b == "town":
 			res = await _run_town(seconds)
 		elif b == "hunt":
@@ -450,6 +452,21 @@ func _run_missions() -> Dictionary:
 		await get_tree().process_frame
 		Game.menus.close_all()
 	print("  journal: %d pages, %d words" % [md.completed.size(), words])
+	# results cards: every main mission played left a rated result in WorldState
+	var medals: Dictionary = Game.state.flags.get("medals", {})
+	var tallies := {"gold": 0, "silver": 0, "bronze": 0}
+	var unrated := []
+	for id in md.completed:
+		if str(id).begins_with("c"):
+			var mr: Dictionary = medals.get(id, {})
+			if mr.is_empty():
+				unrated.append(id)
+			else:
+				tallies[str(mr.medal)] = int(tallies.get(str(mr.medal), 0)) + 1
+	print("  results cards: gold %d, silver %d, bronze %d%s" % [tallies.gold, tallies.silver, tallies.bronze,
+		(", unrated: " + ", ".join(unrated)) if not unrated.is_empty() else ""])
+	if not unrated.is_empty():
+		_fail(res, "missions without a results card: %s" % ", ".join(unrated))
 	var pk: Dictionary = load("res://src/minigames/poker_engine.gd").selftest()
 	if not pk.ok:
 		_fail(res, "poker self-test: %d failed" % pk.fails)
@@ -964,6 +981,186 @@ func _run_openworld() -> Dictionary:
 	for ln in lines:
 		print("  " + ln)
 	md.autopilot = false
+	var errs: Array = Game.error_logger.take().slice(err0)
+	res.errors = errs
+	if errs.size() > 0:
+		_fail(res, "%d errors, first: %s" % [errs.size(), str(errs[0])])
+	return res
+
+## Presentation bot: the conversation camera (two-shot open, a cut per speaker change, over-the-shoulder framing on
+## the speaker, one side of the line of action, letterbox, depth of field, the pair facing each other, gestures),
+## mission bookends (title card, results with objectives and medals stored in WorldState and shown in the journal),
+## and the loose ends (gold sold at the bank and the fence, outfits on Ruth, a bounty turned in at another sheriff).
+func _run_presentation() -> Dictionary:
+	var res := {"bot": "presentation", "ok": true, "failures": [], "distance": 0.0, "stuck_events": 0, "fall_events": 0,
+		"frame_spikes": 0, "errors": []}
+	var err0: int = Game.error_logger.take().size()
+	var md: MissionDirector = Game.missions
+	var st = Game.state
+	for i in 150:
+		await get_tree().process_frame
+	var lines := []
+	# ---------------------------------------------------------------- 1. the conversation camera
+	var at := Mission.road_point("bitter_spring", "port_linden", 0.12)
+	Game.terrain.ensure_collision_at(at)
+	md._teleport_player(at)
+	await get_tree().physics_frame
+	var npc := Human.spawn(Game.main, at + Vector3(2.0, 0.3, -1.6), {"seed": 9501, "role": "prospector", "faction": "civilian", "name": "Silas Wren"})
+	npc.facing = 2.0
+	md.npc_hold(npc, npc.global_position + Vector3(0, 0, -3.0))     # held like a mission speaker (looking away to start)
+	for i in 10:
+		await get_tree().physics_frame
+	md.cine_test = true
+	md.cine_begin()
+	var bars_up: bool = md._bars.size() > 0 and md.get_node_or_null("Letterbox") != null
+	var att = md._cine_cam.attributes if md._cine_cam else null
+	var dof_set: bool = att is CameraAttributesPractical and att.dof_blur_far_enabled and att.dof_blur_near_enabled
+	md.say_async("s_comet_01", npc)
+	await get_tree().create_timer(0.4).timeout
+	md.say_async("s_comet_02", Game.player)
+	await get_tree().create_timer(0.4).timeout
+	md.say_async("s_comet_03", npc)
+	await get_tree().create_timer(0.4).timeout
+	md.say_async("s_comet_05", npc)
+	for i in 60:
+		await get_tree().physics_frame
+	var shots := md.cine_log.filter(func(e): return e.kind in ["two", "ots", "hold"])
+	var kinds := shots.map(func(e): return e.kind)
+	var gestures := md.cine_log.filter(func(e): return e.kind == "gesture").size()
+	var aim_ok := true
+	var sides := []
+	for e in shots:
+		if e.kind == "ots":
+			var cam: Transform3D = e.cam
+			var to: Vector3 = (e.focus - cam.origin).normalized()
+			if (-cam.basis.z).dot(to) < 0.95:          # the speaker on the far third, well inside the frame
+				aim_ok = false
+			var mid: Vector3 = (npc.global_position + Game.player.global_position) * 0.5
+			var line := npc.global_position - Game.player.global_position
+			line.y = 0.0
+			var side := line.normalized().cross(Vector3.UP)
+			sides.append(signf((cam.origin - mid).dot(side)))
+	var one_side: bool = sides.size() >= 2 and sides.all(func(x): return x == sides[0])
+	var to_p := Game.player.global_position - npc.global_position
+	var want_yaw := atan2(-to_p.x, -to_p.z)
+	var face_err := rad_to_deg(absf(angle_difference(npc.facing, want_yaw)))
+	var to_n := npc.global_position - Game.player.global_position
+	var ruth_err := rad_to_deg(absf(angle_difference(Game.player.facing, atan2(-to_n.x, -to_n.z))))
+	md.cine_end()
+	md.cine_test = false
+	var restored: bool = not md.cine and md._bars.is_empty()
+	lines.append("camera: shots %s, letterbox %s, depth of field set %s (drawn on this renderer: %s), aimed at the speaker %s, one side of the line %s, gestures %d" % [
+		"/".join(kinds), bars_up, dof_set, md.dof_drawn(), aim_ok, one_side, gestures])
+	lines.append("facing: Wren to Ruth %.0f deg off, Ruth to Wren %.0f deg off; scene ended cleanly %s" % [face_err, ruth_err, restored])
+	if kinds != ["two", "ots", "ots", "hold"] or not bars_up or not dof_set or not aim_ok or not one_side or gestures < 1 \
+			or face_err > 40.0 or ruth_err > 10.0 or not restored:
+		_fail(res, "conversation camera: %s / %s" % [lines[-2], lines[-1]])
+	npc.queue_free()
+	# ---------------------------------------------------------------- 2. mission bookends
+	var P = load("res://src/missions/presentation.gd")
+	var missing := []
+	for path in MissionDirector.MISSIONS:
+		var mm: Mission = load(path).new()
+		if mm.stranger:
+			continue
+		var n: int = P.OBJECTIVES.get(mm.id, []).size()
+		if n < 2 or n > 3 or not P.REGIONS.has(mm.id):
+			missing.append(mm.id)
+	if not missing.is_empty():
+		_fail(res, "objectives/regions missing for %s" % ", ".join(missing))
+	var g: Dictionary = P.rate("c3_fork", {"time": 300.0, "shots": 10, "hits": 7, "headshots": 1, "damage": 0.0, "civilians": 0}, {"fork_quiet": true, "cutter_fate": "jailed"})
+	var s2: Dictionary = P.rate("c3_fork", {"time": 300.0, "shots": 10, "hits": 2, "headshots": 1, "damage": 0.0, "civilians": 0}, {"fork_quiet": true, "cutter_fate": "dead"})
+	var b3: Dictionary = P.rate("c3_fork", {"time": 300.0, "shots": 10, "hits": 2, "headshots": 1, "damage": 0.0, "civilians": 0}, {"fork_quiet": false, "cutter_fate": "dead"})
+	lines.append("medals for the Dry Fork: all three met %s, one met %s, none met %s" % [g.medal, s2.medal, b3.medal])
+	if g.medal != "gold" or s2.medal != "bronze" or b3.medal != "bronze":
+		_fail(res, "medal rating: %s" % lines.back())
+	var two: Dictionary = P.rate("c3_fork", {"time": 300.0, "shots": 10, "hits": 7, "headshots": 1, "damage": 0.0, "civilians": 0}, {"fork_quiet": true, "cutter_fate": "dead"})
+	if two.medal != "silver":
+		_fail(res, "two of three should be silver, got %s" % two.medal)
+	var log0 := Game.log_lines.size()
+	md.autopilot = true
+	md.step_timeout = 60.0
+	var m1: Mission = load("res://src/missions/ch1/rider_from_the_west.gd").new()
+	await md.start(m1)
+	var title := {}
+	var results := {}
+	for i in range(log0, Game.log_lines.size()):
+		var ln: String = Game.log_lines[i]
+		var parts := ln.split(" ", false, 2)
+		if parts.size() < 3:
+			continue
+		if parts[1] == "title_card":
+			title = JSON.parse_string(parts[2])
+		elif parts[1] == "mission_results":
+			results = JSON.parse_string(parts[2])
+	var stored: Dictionary = st.flags.get("medals", {}).get("c1_rider", {})
+	var jline: String = P.medal_text("c1_rider", st.flags)
+	lines.append("title card: %s | %s" % [title.get("chapter", "?"), title.get("line", "?")])
+	lines.append("results: medal %s, objectives met %s/%s; stored in WorldState %s; journal line '%s'" % [results.get("medal", "?"),
+		results.get("met", "?"), results.get("of", "?"), not stored.is_empty(), jline])
+	if not str(title.get("chapter", "")).begins_with("Chapter One") or not str(title.get("line", "")).contains("1899") \
+			or results.is_empty() or stored.is_empty() or jline == "":
+		_fail(res, "bookends: %s / %s" % [lines[-2], lines[-1]])
+	# ---------------------------------------------------------------- 3. loose ends
+	var tr = Game.get_meta("treasure") if Game.has_meta("treasure") else null
+	var buyers := get_tree().get_nodes_in_group("interactable").filter(func(n): return str(n.name).begins_with("GoldBuyer_"))
+	if tr != null:
+		st.inventory["gold_bar"] = 3
+		st.wanted = 1
+		var refused: float = tr.sell_gold("bank")
+		st.wanted = 0
+		var m0: float = st.money
+		var bank: float = tr.sell_gold("bank")
+		st.inventory["gold_bar"] = 2
+		var fence: float = tr.sell_gold("fence")
+		lines.append("gold: buyers placed %d; bank while wanted $%d; bank $%d for 3; fence $%d for 2; money +$%d" % [buyers.size(), int(refused), int(bank), int(fence), int(st.money - m0)])
+		if buyers.size() != 2 or refused != 0.0 or bank != 540.0 or fence != 250.0:
+			_fail(res, "gold sale: %s" % lines.back())
+	var of = Game.get_meta("outfits") if Game.has_meta("outfits") else null
+	if of != null:
+		st.inventory["outfit_ironhide"] = 1
+		var n_on: int = of.wear("ironhide")
+		var worn: String = of.worn()
+		var n_off: int = of.take_off()
+		lines.append("outfit: Ironhide coat changed %d surface(s) on Ruth's figure, worn '%s'; taken off -> %d dressed" % [n_on, worn, n_off])
+		if n_on < 1 or worn != "ironhide" or n_off != 0:
+			_fail(res, "outfit: %s" % lines.back())
+	var boards := get_tree().get_nodes_in_group("interactable").filter(func(n): return n.has_method("accept") and n.has_method("refresh"))
+	var b_from = null
+	var b_to = null
+	for b in boards:
+		if str(b.town_id) == "bitter_spring":
+			b_from = b
+		elif str(b.town_id) == "port_linden":
+			b_to = b
+	if b_from != null and b_to != null:
+		b_from.refresh()
+		var reward: float = b_from.posters[0].reward
+		var name: String = b_from.posters[0].name
+		b_from.auto_turn_in = false
+		md._choice_queue = [0]
+		var m2: float = st.money
+		b_from.accept(0)
+		for i in 600:
+			await get_tree().physics_frame
+			if b_from.stage == "carry":
+				break
+		var prompt: String = b_to.interact_prompt()
+		b_to.interact(Game.player)
+		await get_tree().physics_frame
+		var at_town := ""
+		for i in range(Game.log_lines.size() - 1, -1, -1):
+			var ln: String = Game.log_lines[i]
+			if ln.contains(" bounty_paid "):
+				at_town = str(JSON.parse_string(ln.split(" ", false, 2)[2]).get("at", ""))
+				break
+		lines.append("bounty taken at Bitter Spring, %s turned in at %s ('%s'): paid $%.2f" % [name, at_town, prompt, st.money - m2])
+		if at_town != "port_linden" or absf(st.money - m2 - reward * 1.5) > 0.01 or not b_from.active.is_empty():
+			_fail(res, "turn-in at any sheriff: %s" % lines.back())
+		b_from.auto_turn_in = true
+	md.autopilot = false
+	for ln in lines:
+		print("  " + ln)
 	var errs: Array = Game.error_logger.take().slice(err0)
 	res.errors = errs
 	if errs.size() > 0:

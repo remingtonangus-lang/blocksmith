@@ -622,6 +622,9 @@ func open_journal() -> void:
 		var where: String = str(regions.get(id, ""))
 		e_sub.text = where if where != "" else "Chapter %s" % ["One", "Two", "Three", "Four", "Five", "Six"][clampi(ch - 1, 0, 5)]
 		e_body.text = JOURNAL.text_for(id, flags)
+		var medal_line: String = load("res://src/missions/presentation.gd").medal_text(id, flags)
+		if medal_line != "":
+			e_body.text += "\n\n" + medal_line
 		sketch.visible = true
 		if mh[0] != null and is_instance_valid(mh[0]):
 			mh[0].visible = false

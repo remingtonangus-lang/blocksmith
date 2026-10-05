@@ -61,6 +61,18 @@ static func open() -> void:
 			var rb: Button = menus._button("Read", func(): Satchel.read(key))
 			rb.custom_minimum_size = Vector2(110, 0)
 			row.add_child(rb)
+		elif key.begins_with("outfit_") and Game.has_meta("outfits"):
+			var oid := key.substr(7)
+			var wearing: bool = str(st.flags.get("outfit_worn", "")) == oid
+			var wb: Button = menus._button("Take off" if wearing else "Wear", func():
+				if wearing:
+					Game.get_meta("outfits").take_off()
+				else:
+					Game.get_meta("outfits").wear(oid)
+				menus.back()
+				Satchel.open())
+			wb.custom_minimum_size = Vector2(150, 0)
+			row.add_child(wb)
 		list.add_child(row)
 	_section(list, "Skins, meat & catch")
 	var any := false
