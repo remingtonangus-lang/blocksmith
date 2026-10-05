@@ -85,7 +85,7 @@ def strip(v: str) -> str:
 
 def search(query: str, limit: int = 40) -> list[str]:
     d = api({"action": "query", "list": "search", "srnamespace": 6, "srlimit": limit,
-             "srsearch": f"{query} filemime:audio"})
+             "srsearch": f"{query} filetype:audio"})
     return [h["title"] for h in d.get("query", {}).get("search", [])]
 
 
@@ -99,10 +99,14 @@ def info(titles: list[str]) -> list[dict]:
             if not ii:
                 continue
             md = {m["name"]: m["value"] for m in (ii.get("metadata") or []) if isinstance(m, dict) and "name" in m}
-            length = md.get("length") or md.get("playtime_seconds")
+            length = md.get("length") or md.get("playtime_seconds") or md.get("duration")
+            try:
+                length = float(length) if length is not None else None
+            except (TypeError, ValueError):
+                length = None
             out.append({"title": p["title"], "url": ii.get("url"), "page": ii.get("descriptionurl"), "mime": ii.get("mime"),
                         "size": ii.get("size", 0), "meta": ii.get("extmetadata", {}),
-                        "length": float(length) if length else None})
+                        "length": length})
     return out
 
 
