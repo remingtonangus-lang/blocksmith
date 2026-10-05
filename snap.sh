@@ -361,6 +361,7 @@ done
 "$BIN" --snapshot snaps/basetest_lockdown.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest lockdown
 "$BIN" --snapshot snaps/basetest_rebuild.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest rebuild
 "$BIN" --snapshot snaps/basetest_air.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest air
+"$BIN" --snapshot snaps/basetest_reload.png --seed 12345 --structure military_base --rd 8 --basetest reload
 "$BIN" --snapshot snaps/base_patrol.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest patrolshot
 "$BIN" --snapshot snaps/base_crawler.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest crawlershot
 "$BIN" --snapshot snaps/base_lockdown.png --seed 12345 --structure military_base --yaw 0 --pitch 0 --up 1 --time 0.3 --rd 8 --basetest lockdownshot
