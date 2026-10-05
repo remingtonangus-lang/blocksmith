@@ -71,7 +71,7 @@ doesn't walk you), Recenter View, Dominant Hand, Refresh Rate (72 / 80 / 90 / 12
 |---|---|---|
 | 1 | CI APK launching to an OpenXR session (test scene) | done: runs on Remington's Quest 3 (versionCode 13) |
 | 2 | Real world in stereo (multiview), head tracking, 72 Hz budget | done: 72.0 fps, 0 missed, cpu ~2.9 ms, gpu ~2.9 ms on device |
-| 3 | Touch controller play (locomotion, turning, vignette, hand rays, panels, haptics) | implemented; device test pending |
+| 3 | Touch controller play (locomotion, turning, vignette, hand rays, panels, haptics) | played on device (v13); ship panels, chests and comfort options fixed in v17 |
 | 4 | Game content (mobs, structures, vehicles, soldiers, saves, actions) | in progress |
 | 5 | Performance and comfort pass with measured numbers | pending |
 
@@ -103,6 +103,19 @@ after playing); the block textures are cached after the first launch (the second
 noticeably sooner: compare the `textures:` lines, "painted in N ms" then "from cache"); volcanoes and Ancient Spires
 show on the horizon past the render distance; if OpenXR/Vulkan setup fails the app returns to Home (with `FATAL:` in
 the log) instead of hanging in an empty scene.
+
+**QUEST APK READY 37254222137** (2026-10-05, versionCode 17, commit 9560534): fixes from the first headset test. Check:
+1. **Moving frigate**: stand on a moving ship (or `/vessel skyward` and board it): the HUD stays low in view and an
+   opened inventory / chest stays in front of you while the ship moves and turns; the view turns with the deck, no
+   judder against the world; a faint ring at your feet while the ship moves or turns; the edges darken when it turns.
+2. **Chests**: point the laser at a chest (on the ship and on land): a label "Grip Open Chest" appears beside the dot
+   with a light tick; the right grip opens it. Same for barrels, furnaces, crafting tables, doors, levers, the helm.
+3. **Comfort**: Pause (left menu button) → **VR Comfort & Controls**: try Movement: Teleport (push the left stick
+   forward, aim the green arc, release), Snap Angle, Smooth turning, Comfort Vignette strength, Seated Mode,
+   Refresh Rate 90 Hz.
+4. At the helm, the left stick steers and throttles regardless of where the controller points.
+5. The moment the world appears: logcat lines `adopt: ...` (each hand-over step's ms) and `first world frame: ...`;
+   the long frame seen last time (367 ms) should be gone or show which step it is.
 
 ### Device reports
 
@@ -153,6 +166,9 @@ aboard, teleport option, snap-angle option, seated mode, less camera motion on s
 
 ## Log
 
+- 2026-10-05: first APKs (packaging fixes: case of the output dir, pipefail exits, Bionic FILE/open), first headset
+  run (v13) works at 72 fps; perf (bee-nest and heart scans, exclusivity checks off); ship riding, container hint,
+  VR comfort page, teleport, seated mode (v17).
 - 2026-10-04: groundwork (shims, seams, headless check), Vulkan renderer verified offscreen, OpenXR layer verified up
   to a focused session on Monado, app/controls/audio/Android entry, CI pipeline. `.claude/ALLOW_STOP` removed on this
   branch (standing order: never stop).

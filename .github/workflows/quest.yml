@@ -9,6 +9,7 @@ name: quest
 on:
   push:
     branches: ['claude/quest-port']
+    paths-ignore: ['docs/**', '*.md', 'snaps/**']      # notes-only commits don't rebuild the APK
   workflow_dispatch:
 
 permissions:
