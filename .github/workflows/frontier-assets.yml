@@ -7,18 +7,20 @@ name: frontier-assets
 #                stems, Kokoro TTS dialogue (design/dialogue/*.json) and CC0/PD Wikimedia Commons recordings
 #                (+ manifest.json, LICENSES_AUDIO.md/json, report.json)
 #   audio_plots.zip  waveform/spectrogram contact sheets + verify.log (no-clipping / loudness / every-line checks)
+#   characters.zip  generated humans + animation library (frontier/tools/characters, unzips to characters/)
 #   animals.zip  procedurally generated animals (frontier/tools/animals/*_gen.py, Blender as a Python module):
 #                ext/animals/horse.glb + horse_gaits.json; fetched with `bash frontier/tools/fetch_assets.sh animals`
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'catalog | fetch | both | audio | animals | all'
+        description: 'catalog | fetch | both | audio | animals | characters | all'
         default: 'fetch'
   push:
     branches: ['claude/frontier-game']
     paths: ['frontier/assets/manifest.json', 'frontier/tools/assets_ci.py', '.github/workflows/frontier-assets.yml',
-            'frontier/tools/audio/**', 'frontier/design/dialogue/**', 'frontier/tools/animals/**']
+            'frontier/tools/audio/**', 'frontier/design/dialogue/**', 'frontier/tools/animals/**',
+            'frontier/tools/characters/**']
 
 permissions:
   contents: write
@@ -30,6 +32,7 @@ jobs:
       assets: ${{ steps.c.outputs.assets }}
       audio: ${{ steps.c.outputs.audio }}
       animals: ${{ steps.c.outputs.animals }}
+      characters: ${{ steps.c.outputs.characters }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,9 +41,10 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             m="${{ inputs.mode }}"
-            a=false; u=false; n=false
-            case "$m" in audio) u=true;; animals) n=true;; all) a=true; u=true; n=true;; *) a=true;; esac
+            a=false; u=false; n=false; c=false
+            case "$m" in audio) u=true;; animals) n=true;; characters) c=true;; all) a=true; u=true; n=true; c=true;; *) a=true;; esac
             echo "assets=$a" >> $GITHUB_OUTPUT; echo "audio=$u" >> $GITHUB_OUTPUT; echo "animals=$n" >> $GITHUB_OUTPUT
+            echo "characters=$c" >> $GITHUB_OUTPUT
             exit 0
           fi
           before="${{ github.event.before }}"
@@ -50,10 +54,12 @@ jobs:
           if echo "$files" | grep -qE '^frontier/assets/manifest.json|^frontier/tools/assets_ci.py'; then a=true; else a=false; fi
           if echo "$files" | grep -qE '^frontier/tools/audio/|^frontier/design/dialogue/'; then u=true; else u=false; fi
           if echo "$files" | grep -qE '^frontier/tools/animals/'; then n=true; else n=false; fi
-          if echo "$files" | grep -q '^.github/workflows/frontier-assets.yml'; then u=true; n=true; fi
+          if echo "$files" | grep -qE '^frontier/tools/characters/'; then c=true; else c=false; fi
+          if echo "$files" | grep -q '^.github/workflows/frontier-assets.yml'; then u=true; n=true; c=true; fi
           echo "assets=$a" >> $GITHUB_OUTPUT
           echo "audio=$u" >> $GITHUB_OUTPUT
           echo "animals=$n" >> $GITHUB_OUTPUT
+          echo "characters=$c" >> $GITHUB_OUTPUT
 
   assets:
     needs: changes
@@ -188,3 +194,38 @@ jobs:
               --notes "Processed CC0 assets for the Frontier game (claude/frontier-game). Licences in ext.zip/ext/LICENSES.json."
           gh release upload frontier-assets animals.zip animals.log --clobber
           echo "published animals.zip"
+
+  characters:
+    needs: changes
+    if: needs.changes.outputs.characters == 'true'
+    concurrency:
+      group: frontier-assets-characters
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Blender as a Python module
+        run: |
+          python -m venv frontier/build/charvenv
+          frontier/build/charvenv/bin/pip install -q "bpy==5.0.1" "numpy<2" pillow
+      - name: Sources (MPFB2, MakeHuman CC0 system assets, extra targets, CMU BVH)
+        run: bash frontier/tools/characters/fetch_sources.sh
+      - name: Generate characters + animation library
+        run: |
+          frontier/build/charvenv/bin/python frontier/tools/characters/generate.py --out out/characters 2>&1 | tee characters.log
+          grep -E "^built|^clip|catalogue|FAILED" characters.log | tail -80
+          (cd out && zip -qr ../characters.zip characters)
+          ls -la characters.zip
+      - name: Publish characters.zip to release frontier-assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view frontier-assets >/dev/null 2>&1 || \
+            gh release create frontier-assets --prerelease --target "$GITHUB_SHA" --title "Frontier assets (CC0)" \
+              --notes "Processed CC0 assets for the Frontier game (claude/frontier-game)."
+          for f in characters.zip characters.log; do [ -s "$f" ] && gh release upload frontier-assets "$f" --clobber; done
+          echo "published"

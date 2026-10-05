@@ -85,6 +85,12 @@ runner, Metal) and the Mac monitor.
   Content: ~190 synthesized SFX/ambience ids (~800 files), 16 original music tracks rendered with FluidSynth
   (FluidR3 GM, MIT), Kokoro-82M TTS (Apache-2.0) for Ruth + NPC barks (`design/dialogue/`), CC0/PD Commons recordings
   in CI. CI job `audio` in frontier-assets.yml publishes `audio.zip`; `tools/fetch_assets.sh audio` fetches it.
+- **Characters** (`frontier/design/CHARACTERS.md`): MakeHuman CC0 bodies via MPFB2 run headless in the `bpy`
+  module, game rig with Godot humanoid bone names + eye bones, 34 face blend shapes (CC0 ARKit units + visemes),
+  procedural 1899 garments/hats/beards, 36 seeded NPCs over 12 roles + Ruth Caddell (hero LOD, duster variant),
+  CMU mocap retargeted to `animations.glb` (65 clips incl. procedural aim/hit/lean, root motion, foot contacts).
+  Godot: `CharacterFactory.spawn(seed, role)` → `FrontierCharacter` (clips, visemes, expressions, blink, gaze).
+  CI job `characters` publishes `characters.zip`; `tools/fetch_assets.sh characters` fetches it.
 - **Horses** (`frontier/design/HORSES.md`): procedural horse generator
   `frontier/tools/animals/horse_gen.py` (Blender bpy: SDF anatomy → mesh/LODs, rig, weights, mane/tail cards, eyes,
   stock-saddle tack, IK-solved gait cycles + idles/actions → `horse.glb` + `horse_gaits.json`; CI job `animals` in
@@ -94,7 +100,6 @@ runner, Metal) and the Mac monitor.
 - **VR**: OpenXR start on Android, XROrigin rig, controller → intent mapping, snap turn, comfort vignette.
 
 ## In flight (parallel worktree agents; merged here when they report)
-- Characters: MakeHuman CC0 + Blender (bpy) pipeline, CMU mocap retarget, CharacterFactory API.
 - Settlements: procedural 1899 building kit, interiors with Poly Haven props, doors, navmesh, night lights.
 - Weapons: Blender models of the 10 firearms, WeaponHolder, fire/reload animation, casings/smoke.
 - Chapter 2 "Paper and Iron": 5 missions, dialogue choices, follow verb, poker minigame.
@@ -122,3 +127,4 @@ runner, Metal) and the Mac monitor.
   build pending (frontier.yml should also fetch audio on asset-cache hits, see AUDIO.md gaps).
 - 2026-10-05: audio merged; frontier.yml fetches audio.zip on every run.
 - 2026-10-05: horse workstream (worktree): generator, controller, IK, oracles, CI animals job (see HORSES.md).
+- 2026-10-05: character pipeline (worktree agent): tools/characters, src/actors, shaders/characters, CI job.
