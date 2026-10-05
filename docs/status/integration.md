@@ -186,6 +186,9 @@ Then bug hunting and measured improvements. Stays integration owner: branch gree
   capital / frontier workflows; run 679 (e9a42c8) queued behind them. A trial merge of claude/bs-capital-soldiers
   (17 commits from c801470: Aircraft, BaseTests, CapitalAir, FlightModel, FlightTests, ShipPlay, Soldiers) into this
   branch's head is clean (git merge-tree, no conflicts).
+- Heads-up for merges: claude/quest-port (run 675) also reworked World.collides / sweep to reuse one box list; this branch
+  changed sweep too (per-column chunk lookups + a swapped-out scratch list, 01f1b95): expect a conflict there, keep the
+  per-column lookup.
 
 ## Next
 - Per-frame allocations left after the 2026-10-05 audit (refactors; measure with the profiles first): mob model parts
