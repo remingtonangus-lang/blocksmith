@@ -91,7 +91,7 @@ enum MobRenderCheck {
 
     // Live: mobs that spawned and updated through Game.tick (a survival night) must draw too. Each is rendered alone
     // from a clear viewpoint a few blocks away (night vision on, so a dark mob in a dark cave still differs from the
-    // empty frame) and checked for a broken state (NaN position or yaw, zero scale).
+    // empty frame), again after a save and load, and checked for a broken state (NaN position or yaw, zero scale).
     static func live(_ g: Game, _ r: Renderer, _ w: Int, _ h: Int) -> Int {
         let p = g.player
         let keepTime = g.time, keepSurvival = g.survival, keepPos = p.pos, keepYaw = p.yaw, keepPitch = p.pitch
@@ -136,6 +136,13 @@ enum MobRenderCheck {
             let n = changed(base, pixels(r, w, h))
             kinds.insert(m.kind)
             if n < 30 { invisible.append("\(m.kind) (\(n) px)") } else { drawn += 1 }
+            // The same mob through a save and a load (Remington plays saved worlds; a fresh harness world has none).
+            if let data = try? JSONEncoder().encode(m.record), let rec = try? JSONDecoder().decode(MobRecord.self, from: data),
+               let back = Mob.from(rec) {
+                g.mobs.mobs = [back]
+                let nb = changed(base, pixels(r, w, h))
+                if nb < 30 { invisible.append("\(m.kind) after save and load (\(nb) px)") }
+            } else { broken.append("\(m.kind) does not survive a save and load") }
         }
         g.effects.remove(.nightVision)
         g.mobs.mobs = all
