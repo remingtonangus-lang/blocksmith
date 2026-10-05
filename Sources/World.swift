@@ -66,7 +66,8 @@ final class World {
         var updateSeconds = 0.0
     }
     private var perfShared = PerfStats()
-    private var lastUpdateSeconds = 0.0
+    private(set) var lastUpdateSeconds = 0.0
+    var meshJobsScheduled = 0                 // sections sent to the mesher (harness: slow-tick breakdowns)
     var perf: PerfStats {
         lock.lock(); var p = perfShared; lock.unlock()
         p.updateSeconds = lastUpdateSeconds
@@ -609,6 +610,7 @@ final class World {
     private func scheduleMesh(_ k: ChunkKey, _ c: Chunk, _ nb: ([BlockStore], [[Int16]])) {
         let (n9, h9) = nb
         let todo = dirtySections(c)
+        meshJobsScheduled += todo.count
         let lod = c.lod
         let dl = damageList(c)
         c.meshInFlight = true

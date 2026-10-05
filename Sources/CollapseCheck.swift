@@ -321,6 +321,7 @@ enum CollapseCheck {
         for i in 0..<(limit * 60) {
             let a = CFAbsoluteTimeGetCurrent()
             w.ships.spentMs.removeAll(keepingCapacity: true)
+            let jobs0 = w.meshJobsScheduled
             agent.step(idle)
             let tickMs = (CFAbsoluteTimeGetCurrent() - a) * 1000
             ticks.append(tickMs)
@@ -329,8 +330,10 @@ enum CollapseCheck {
                 spikes += 1
                 let parts = w.ships.spentMs.sorted { $0.value > $1.value }.map { String(format: "%@ %.1f", $0.key, $0.value) }
                 let known = w.ships.spentMs.values.reduce(0, +)
-                r.note(String(format: "slow tick at %.1f s: %.1f ms (%@; the rest %.1f): %ld ships, %ld debris, %ld wreck jobs", Double(i) / 60, tickMs,
-                              parts.isEmpty ? "no destruction work" : parts.joined(separator: ", "), tickMs - known,
+                let worldMs = w.lastUpdateSeconds * 1000
+                r.note(String(format: "slow tick at %.1f s: %.1f ms (%@; world update %.1f with %ld sections sent to mesh; the rest %.1f): %ld ships, %ld debris, %ld wreck jobs",
+                              Double(i) / 60, tickMs, parts.isEmpty ? "no destruction work" : parts.joined(separator: ", "), worldMs,
+                              w.meshJobsScheduled - jobs0, tickMs - known - worldMs,
                               w.ships.list.count, w.ships.list.filter { $0.debris }.count, w.ships.bakeJobs.count))
             }
             if i % 20 == 0 {
@@ -496,7 +499,8 @@ enum CollapseCheck {
             let hi = V3(Float(rec.hi[0]), Float(rec.hi[1]), Float(rec.hi[2]))
             let c: V3 = (lo + hi) * 0.5
             let reach: Float = max(hi.x - lo.x, hi.z - lo.z)
-            let from: V3 = c + V3(reach * 0.55, reach * 0.3 + 8, reach * 0.55)
+            let off: Float = min(40, reach * 0.4)        // inside the render distance (at 0.55 of the reach it stood in fog)
+            let from: V3 = c + V3(off, min(28, reach * 0.2 + 10), off)
             let d: V3 = c - from
             p.pos = from
             p.yaw = atan2f(-d.x, -d.z)
