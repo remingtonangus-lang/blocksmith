@@ -10,6 +10,7 @@ import simd
 //              stalls when slowed nose-high and recovers by itself (nose drops, speed comes back)
 enum FlightTests {
     static var failures: [String] = []
+    static weak var game: Game?
     static func check(_ ok: Bool, _ name: String, _ detail: @autoclosure () -> String = "") {
         let d = detail()
         print("flighttest \(ok ? "ok  " : "FAIL") \(name)\(d.isEmpty ? "" : ": " + d)")
@@ -26,6 +27,7 @@ enum FlightTests {
 
     static func run(game g: Game, phase: String) -> Bool {
         failures = []
+        game = g
         let t0 = CFAbsoluteTimeGetCurrent()
         let w = g.world
         w.ships.encounters = false
@@ -293,6 +295,8 @@ enum FlightTests {
     }
 
     static func finish(_ t0: Double) -> Bool {
+        if let g = game { _ = g.world.loadSync(center: g.player.pos, radius: 4) }     // the camera's ground for the shot
+        game = nil
         print(String(format: "flighttest: %ld failed (%.1f s)%@", failures.count, CFAbsoluteTimeGetCurrent() - t0,
                      failures.isEmpty ? "" : " -> " + failures.joined(separator: ", ")))
         return failures.isEmpty

@@ -999,6 +999,7 @@ enum Snapshot {
         if CommandLine.arguments.contains("--flighttest") {
             let ph = arg("--flighttest").flatMap { $0.hasPrefix("--") ? nil : $0 } ?? "all"
             if !FlightTests.run(game: game, phase: ph) && !ph.hasSuffix("shot") { return 1 }
+            pos = game.player.pos                             // the world streamed along with the aircraft
         }
         if CommandLine.arguments.contains("--basetest") {
             let ph = arg("--basetest").flatMap { $0.hasPrefix("--") ? nil : $0 } ?? "all"
