@@ -368,6 +368,7 @@ final class Game {
         if coop.current != 0 { coop.withSeat(0, self) { self.saveNow() }; return }
         world.saveAll()
         mobs.save(to: world.save)
+        drops.save(to: world.save)
         if let d = try? JSONEncoder().encode(maps) { try? d.write(to: s.dir.appendingPathComponent("maps.json"), options: .atomic) }
         s.saveMeta(meta)
     }
@@ -402,7 +403,7 @@ final class Game {
         if persistent { old.saveAll() }
         for m in oldMobs.mobs where m.keepOnUnload { oldMobs.stash(m) }
         oldMobs.mobs.removeAll()
-        if persistent { oldMobs.save(to: old.save) }
+        if persistent { oldMobs.save(to: old.save); dim.drops.save(to: old.save) }
         let rd = old.renderDistance
         dim = dimensionState(d)
         world.renderDistance = rd

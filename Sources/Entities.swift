@@ -76,6 +76,9 @@ final class ItemEntity {
     }
 
     func update(_ dt: Float, _ w: World) {
+        // Out in an unloaded chunk it waits, its despawn clock too (it aged anyway: death drops vanished 5 minutes after
+        // the death however far away the player was; the reference ages items only in loaded chunks).
+        if !w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) { return }
         age += dt
         pickupDelay -= dt
         let inWater = Blocks.isLiquid(w.block(Int(floor(pos.x)), Int(floor(pos.y + 0.1)), Int(floor(pos.z))))
@@ -87,7 +90,6 @@ final class ItemEntity {
             vel.y = max(vel.y, -40)
         }
         if onGround { let f = expf(-10 * dt); vel.x *= f; vel.z *= f }
-        if !w.isLoaded(Int(floor(pos.x)), Int(floor(pos.z))) { return }
         if w.collides(V3(pos.x - 0.125, pos.y, pos.z - 0.125), V3(pos.x + 0.125, pos.y + 0.25, pos.z + 0.125)) { pos.y += 0.3; vel.y = 0 }
         let hit = w.moveBody(&pos, halfW: 0.125, height: 0.25, vel * dt, step: 0, onGround: onGround)
         if hit.y { onGround = vel.y < 0; vel.y = 0 } else { onGround = false }
@@ -99,6 +101,24 @@ final class ItemEntity {
 final class ItemEntityManager {
     var items: [ItemEntity] = []
     private var mergeTimer: Float = 0
+
+    // Dropped items are saved with their dimension (drops.json): they lived only in memory, so quitting before going
+    // back for the things dropped at a death lost them all.
+    struct Saved: Codable { var s: ItemStack; var p: [Float]; var age: Float }
+    func save(to sm: SaveManager?) {
+        guard let sm else { return }
+        let list: [Saved] = items.filter { !$0.stack.isEmpty && $0.pos.y.isFinite }.map { Saved(s: $0.stack, p: [$0.pos.x, $0.pos.y, $0.pos.z], age: $0.age) }
+        if let d = try? JSONEncoder().encode(list) { try? d.write(to: sm.dir.appendingPathComponent("drops.json"), options: .atomic) }
+    }
+    func load(from sm: SaveManager?) {
+        guard let sm, let d = try? Data(contentsOf: sm.dir.appendingPathComponent("drops.json")),
+              let list = try? JSONDecoder().decode([Saved].self, from: d) else { return }
+        for e in list where e.p.count == 3 && !e.s.isEmpty {
+            let it = ItemEntity(e.s, at: V3(e.p[0], e.p[1], e.p[2]), vel: .zero, delay: 0.5)
+            it.age = e.age
+            items.append(it)
+        }
+    }
 
     func spawn(_ s: ItemStack, at p: V3, vel: V3? = nil, delay: Float = 0.5) {
         if s.isEmpty { return }
