@@ -25,6 +25,8 @@ enum PlantSupport {
                                  "comparator", "flower_pot"]
         for i in 1..<n {
             let k = Blocks.key(Blocks.groupBase[i])
+            // Lanterns (plain, ghost, copper): a hanging one needs its ceiling or chain, a standing one its floor.
+            if Blocks.shape[i] == "lantern" { r[i] = Blocks.key(BlockID(i)).hasSuffix("[hanging]") ? 2 : 1; continue }
             if k == "vine" { r[i] = 4; continue }
             if hanging.contains(where: { k.hasPrefix($0) }) { r[i] = 2; continue }
             if water.contains(k) || k.hasPrefix("kelp") { r[i] = 3; continue }
@@ -209,6 +211,17 @@ enum PlantCheck {
             g.breakBlock(IVec3(x, floorY + 3, cz), log, drop: true)
             settle()
             check(w.block(x + 1, floorY + 3, cz) == AIR && w.block(x + 1, floorY + 2, cz) == AIR, "vine: both go with the log")
+        }
+        // A lantern hanging from a ceiling that is broken.
+        if Blocks.has("lantern[hanging]") {
+            let x = site(4)
+            let top = floorY + 4
+            w.setBlock(x, top, cz, STONE); w.setBlock(x, top - 1, cz, Blocks.id("lantern[hanging]"))
+            settle()
+            check(w.block(x, top - 1, cz) != AIR, "lantern: hangs from its ceiling before")
+            g.breakBlock(IVec3(x, top, cz), STONE, drop: true)
+            settle()
+            check(w.block(x, top - 1, cz) == AIR, "lantern: falls with the ceiling it hung from")
         }
         // A carpet and a rail on blocks that go.
         for key in ["white_carpet", "rail"] where Blocks.has(key) {
