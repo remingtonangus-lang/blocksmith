@@ -578,6 +578,7 @@ final class Ship {
 
 final class ShipManager {
     unowned let world: World
+    static var quarantined = 0               // ship steps that produced NaN (ShipPhysics.step puts the pose back)
     private(set) var list: [Ship] = []
     private var nextId = 1
     var pilot: Ship?                 // the ship the player steers

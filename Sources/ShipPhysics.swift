@@ -320,6 +320,12 @@ extension ShipManager {
         }
         for s in list where s.parent == nil {
             if s.asleep { continue }
+            // NaN quarantine (a degenerate contact or AI steer): a non-finite velocity is dropped, and a non-finite pose
+            // goes back to the last good one. NaN reached Int(floor()) in the hull's world bounds and failed the ship save.
+            let vOK: Bool = s.vel.x.isFinite && s.vel.y.isFinite && s.vel.z.isFinite
+            let wOK: Bool = s.angVel.x.isFinite && s.angVel.y.isFinite && s.angVel.z.isFinite
+            if !vOK || !wOK { s.vel = .zero; s.angVel = .zero; ShipManager.quarantined += 1 }
+            let pos0 = s.pos, rot0 = s.rot
             let sp = simd_length(s.vel)
             if sp > 60 { s.vel *= 60 / sp }
             let w = simd_length(s.angVel)
@@ -327,6 +333,12 @@ extension ShipManager {
             s.pos += s.vel * h
             if w > 1e-6 {
                 s.rot = simd_normalize(Quat(angle: w * h, axis: s.angVel / w) * s.rot)
+            }
+            let q = s.rot.vector
+            let poseOK: Bool = s.pos.x.isFinite && s.pos.y.isFinite && s.pos.z.isFinite && q.x.isFinite && q.y.isFinite && q.z.isFinite && q.w.isFinite
+            if !poseOK {
+                s.pos = pos0; s.rot = rot0; s.vel = .zero; s.angVel = .zero
+                ShipManager.quarantined += 1
             }
             s.updateBounds()
         }
