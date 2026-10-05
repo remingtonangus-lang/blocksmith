@@ -201,7 +201,7 @@ enum ItemModels {
             let b = o + ax * q.p.1.x + ay * q.p.1.y + az * q.p.1.z
             let cc = o + ax * q.p.2.x + ay * q.p.2.y + az * q.p.2.z
             let d = o + ax * q.p.3.x + ay * q.p.3.y + az * q.p.3.z
-            wr.quad(a, b, cc, d, q.uv.0, q.uv.1, q.uv.2, q.uv.3, layer, c, glint: g)
+            wr.quad(a, b, cc, d, q.uv.0, q.uv.1, q.uv.2, q.uv.3, layer, c, glint: g, kind: k < 2 ? -1 : 0)
         }
         return true
     }

@@ -525,6 +525,21 @@ fragment float4 entityFS(EntOut in [[stage_in]],
     float4 c = tex.sample(texSampler, in.uv, uint(in.layer));
     if (c.a < 0.5) { discard_fragment(); }
     float3 rgb = c.rgb;
+    if (in.overlay < -0.5) {
+        // An item model's face: the icon's dark outline (there for the HUD) would read as a sticker's border on a 3D
+        // item, so within ~3 texels of the cutout edge take the colour 3 texels further in (the side walls carry the
+        // silhouette instead).
+        float2 px = 1.0 / float2(tex.get_width(), tex.get_height());
+        uint L = uint(in.layer);
+        float d = 3.0;
+        float aR = tex.sample(texSampler, in.uv + float2(px.x * d, 0), L).a, aL = tex.sample(texSampler, in.uv - float2(px.x * d, 0), L).a;
+        float aD = tex.sample(texSampler, in.uv + float2(0, px.y * d), L).a, aU = tex.sample(texSampler, in.uv - float2(0, px.y * d), L).a;
+        float2 g = float2(aR - aL, aD - aU);
+        if (min(min(aR, aL), min(aD, aU)) < 0.5 && dot(g, g) > 1e-4) {
+            float4 inner = tex.sample(texSampler, in.uv + normalize(g) * px * (d + 1.0), L);
+            if (inner.a > 0.5) { rgb = inner.rgb; }
+        }
+    }
     if (in.overlay > 0.5 && c.a < 0.95) { rgb *= float3(0.57, 0.74, 0.35); }   // grass-side overlay (default grass colour)
     rgb *= in.color.rgb;
     if (in.glint > 0.5) {

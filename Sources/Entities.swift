@@ -51,17 +51,19 @@ struct EntityWriter {
     }
 
     // The same with explicit texture coordinates (item model side walls) and the enchantment glint flag (uv.w).
-    mutating func quad(_ a: V3, _ b: V3, _ c: V3, _ d: V3, _ ua: V2, _ ub: V2, _ uc: V2, _ ud: V2, _ layer: Int, _ color: V4, glint: Float = 0) {
+    // kind (uv.z): -1 an item model's face (entityFS fills the icon's outline band with the colour just inside it).
+    mutating func quad(_ a: V3, _ b: V3, _ c: V3, _ d: V3, _ ua: V2, _ ub: V2, _ uc: V2, _ ud: V2, _ layer: Int, _ color: V4,
+                       glint: Float = 0, kind: Float = 0) {
         guard n + 6 <= capacity else { return }
         let l = Float(layer)
-        let va = EntityVert(pos: V4(a, l), uv: V4(ua.x, ua.y, 0, glint), color: color)
-        let vc = EntityVert(pos: V4(c, l), uv: V4(uc.x, uc.y, 0, glint), color: color)
+        let va = EntityVert(pos: V4(a, l), uv: V4(ua.x, ua.y, kind, glint), color: color)
+        let vc = EntityVert(pos: V4(c, l), uv: V4(uc.x, uc.y, kind, glint), color: color)
         out[n] = va
-        out[n + 1] = EntityVert(pos: V4(b, l), uv: V4(ub.x, ub.y, 0, glint), color: color)
+        out[n + 1] = EntityVert(pos: V4(b, l), uv: V4(ub.x, ub.y, kind, glint), color: color)
         out[n + 2] = vc
         out[n + 3] = va
         out[n + 4] = vc
-        out[n + 5] = EntityVert(pos: V4(d, l), uv: V4(ud.x, ud.y, 0, glint), color: color)
+        out[n + 5] = EntityVert(pos: V4(d, l), uv: V4(ud.x, ud.y, kind, glint), color: color)
         n += 6
     }
 
