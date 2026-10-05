@@ -116,11 +116,18 @@ func _arms(k: Kit, grip: Vector3, fore: Vector3) -> void:
 	var glove := k.col(Kit.METAL, 0.8)
 	var r_elbow := grip + Vector3(0.16, -0.22, 0.42)
 	var l_elbow := fore + Vector3(-0.2, -0.24, 0.36)
-	for pr in [[grip, r_elbow], [fore, l_elbow]]:
+	for pr in [[grip, r_elbow, true], [fore, l_elbow, false]]:
 		var hand: Vector3 = pr[0]
 		var elbow: Vector3 = pr[1]
 		var dir := (elbow - hand).normalized()
-		k.sphere(hand + Vector3(0, -0.01, 0), 0.042, 5, 8, glove)
+		if pr[2]:
+			# Gripping hand: wrapped round the pistol grip, knuckles forward.
+			k.box(Transform3D.IDENTITY, hand + Vector3(0, -0.005, -0.005), Vector3(0.058, 0.085, 0.07), glove)
+			k.box(Transform3D.IDENTITY, hand + Vector3(-0.018, 0.035, -0.03), Vector3(0.022, 0.025, 0.05), glove)   # thumb
+		else:
+			# Supporting hand: palm under the handguard, fingers curled up its far side.
+			k.box(Transform3D.IDENTITY, hand + Vector3(0, -0.035, 0), Vector3(0.07, 0.03, 0.1), glove)
+			k.box(Transform3D.IDENTITY, hand + Vector3(-0.03, -0.01, 0), Vector3(0.016, 0.06, 0.09), glove)
 		k.tube(hand + dir * 0.05, hand + dir * 0.1, 0.05, 10, cuff, true)
 		k.tube(hand + dir * 0.1, elbow, 0.047, 10, sleeve, true)
 		k.tube(elbow, elbow + Vector3(0, -0.1, 0.35), 0.055, 10, sleeve, true)
