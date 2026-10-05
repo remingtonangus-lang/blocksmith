@@ -33,7 +33,8 @@ static func ensure() -> void:
 	_key("pause", [KEY_ESCAPE], [JOY_BUTTON_START], [])
 	_key("journal", [KEY_J], [], [])
 	_key("satchel", [KEY_I], [], [])
-	_key("lasso", [KEY_X], [], [])
+	_key("cover", [KEY_X], [JOY_BUTTON_RIGHT_SHOULDER], [])   # tuck into cover / leave it
+	_key("lasso", [KEY_L], [], [])
 	_key("melee", [KEY_F], [JOY_BUTTON_B], [])
 	_ui_pad()
 

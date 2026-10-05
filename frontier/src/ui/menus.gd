@@ -18,7 +18,7 @@ const REBIND := [["move_forward", "Move forward"], ["move_back", "Move back"], [
 	["move_right", "Move right"], ["sprint", "Sprint / spur horse"], ["walk_toggle", "Walk toggle"], ["jump", "Jump"],
 	["crouch", "Crouch"], ["interact", "Interact / talk / greet"], ["mount", "Mount / dismount"],
 	["whistle", "Whistle for horse"], ["ride_auto", "Follow the road"], ["reload", "Reload"], ["nerve", "Nerve"],
-	["weapon_wheel", "Weapon wheel"], ["holster", "Holster"], ["camera_side", "Swap shoulder"], ["melee", "Melee"],
+	["weapon_wheel", "Weapon wheel"], ["holster", "Holster"], ["camera_side", "Swap shoulder"], ["cover", "Take cover"], ["melee", "Melee"],
 	["lasso", "Lasso"], ["fish", "Fish"], ["antagonize", "Antagonize"], ["defuse", "Defuse"], ["map", "Map"],
 	["journal", "Journal"], ["satchel", "Satchel"]]
 const PAD_NAMES := MenusNames.PAD

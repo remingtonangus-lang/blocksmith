@@ -30,6 +30,7 @@ flagship, Meta Quest 3 gets the same game in VR.
 | Interact (skin, greet, campfire) | E | Y |
 | Mount / call horse | F / H | Y / D-pad up |
 | Map / journal / pause | M / J / Esc | View / — / Menu |
+| Take cover / leave (aim pops up or peeks; fire without aiming blind-fires) | X | RB |
 | Camera shoulder | V | R3 |
 | Greet / antagonize / defuse (facing someone) | E / T / N | Y / D-pad right / D-pad down |
 

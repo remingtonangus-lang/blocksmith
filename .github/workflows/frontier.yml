@@ -158,7 +158,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/home_missions"   # own user:// (saves, sign atlas cache) for the parallel process
           HOME="$RUNNER_TEMP/home_missions" "$GODOT" --headless --path frontier -- --bot missions --seconds 75 --report "$PWD/snaps/bot_report_missions.json" --watchdog 900 > bots_missions.log 2>&1 &
           MPID=$!
-          "$GODOT" --headless --path frontier -- --bot road,explore,ride,gaits,town,gunfight,hunt,camp,encounters,social,openworld,presentation,systems,ui,footik --seconds 75 --report "$PWD/snaps/bot_report.json" --watchdog 900 > bots_world.log 2>&1 || true
+          "$GODOT" --headless --path frontier -- --bot road,explore,ride,gaits,town,gunfight,hunt,camp,encounters,social,openworld,presentation,systems,ui,footik,cover --seconds 75 --report "$PWD/snaps/bot_report.json" --watchdog 900 > bots_world.log 2>&1 || true
           wait $MPID || true
           cat bots_world.log bots_missions.log > bots.log
           grep -E "BOT|oracle|WATCHDOG|SCRIPT ERROR" bots.log || true

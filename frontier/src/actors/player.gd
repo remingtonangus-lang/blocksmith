@@ -27,7 +27,7 @@ var invert_y := false
 var pad_sens := 2.6
 var base_fov := 62.0           # settings > Field of view (aiming narrows from here)
 var intent := {"move": Vector2.ZERO, "sprint": false, "walk": false, "jump": false, "aim": false, "fire": false,
-	"interact": false, "crouch": false}
+	"interact": false, "crouch": false, "cover": false}
 var bot_driven := false
 var stamina := STAMINA_MAX
 var health := 100.0
@@ -102,6 +102,10 @@ func _setup_combat() -> void:
 	Damageable.make_hitbox(hb, damageable, "belly", belly, Transform3D(Basis(), Vector3(0, 0.95, 0)))
 	var legs := BoxShape3D.new(); legs.size = Vector3(0.36, 0.8, 0.24)
 	Damageable.make_hitbox(hb, damageable, "leg", legs, Transform3D(Basis(), Vector3(0, 0.42, 0)))
+	for a in hb.get_children():      # crouching lowers them (moved, not scaled: Jolt rejects non-uniform scale)
+		var cs: CollisionShape3D = a.get_child(0)
+		_hitboxes.append([cs, cs.position.y])
+	cover = PlayerCover.new(self)
 	gun = GunHandler.new()
 	gun.name = "Guns"
 	add_child(gun)
@@ -182,10 +186,15 @@ func _combat(dt: float) -> void:
 		var aim := aim_ray()
 		if nerve.active:
 			nerve.mark(aim.origin, aim.dir)
-		elif gun.drawn:
+		elif gun.drawn or (cover != null and cover.active):
+			if not gun.drawn:
+				gun.drawn = true
 			var muzzle := global_position + Vector3(0, 1.45, 0) + Vector3(-sin(facing), 0, -cos(facing)) * 0.35
+			var blind: bool = cover != null and cover.active and not aiming
+			if blind:
+				muzzle = cover.blind_muzzle()     # over the top / around the edge, wide spread
 			var dir: Vector3 = (aim.point - muzzle).normalized()
-			var hits := gun.fire(muzzle, dir, aiming)
+			var hits := gun.fire(muzzle, dir, aiming, 1.8 if blind else 1.0)
 			if gun.cooldown > 0.0:
 				# flash at the visible gun's real muzzle when a WeaponHolder shows one (ballistics keep `muzzle`)
 				if holder and holder.has_drawn_model():
@@ -303,6 +312,8 @@ func _read_human_intent(dt: float) -> void:
 	intent.fire = Input.is_action_pressed("fire")
 	intent.interact = Input.is_action_just_pressed("interact")
 	intent.crouch = Input.is_action_pressed("crouch")
+	if Input.is_action_just_pressed("cover"):
+		intent.cover = true
 	var assist: bool = intent.aim and Accessibility.assist_on() and camera != null
 	if assist and not _aim_prev:
 		AimAssist.snap(self)
@@ -328,6 +339,14 @@ func _physics_process(dt: float) -> void:
 		intent.jump = false
 	_fire_edge = intent.fire and not _fire_was
 	_fire_was = intent.fire
+	if intent.get("cover", false):
+		intent.cover = false
+		if cover.active:
+			cover.leave()
+		elif is_on_floor():
+			cover.try_enter(Basis(Vector3.UP, cam_yaw) * Vector3.FORWARD)
+	if cover.active:
+		intent.crouch = cover.crouched(intent.aim)
 	_combat(dt)
 	_interactions()
 	var mv: Vector2 = intent.move
@@ -337,6 +356,21 @@ func _physics_process(dt: float) -> void:
 		want_dir = (cam_basis * Vector3(mv.x, 0, -mv.y))
 		want_dir.y = 0
 		want_dir = want_dir.normalized()
+	if cover.active:
+		var cv := cover.step(dt, want_dir, intent.aim, intent.sprint)
+		if cover.active:
+			want_dir = Vector3.ZERO
+			speed = Vector2(cv.x, cv.z).length()
+			facing = lerp_angle(facing, cover.facing(cv, intent.aim, cam_yaw), 1.0 - exp(-12.0 * dt))
+			velocity.x = cv.x
+			velocity.z = cv.z
+	if not cover.active:
+		_move_free(dt, want_dir)
+	_after_move(dt)
+
+## Free movement (not in cover): gait speed from the stick, slope, momentum turning.
+func _move_free(dt: float, want_dir: Vector3) -> void:
+	var mv: Vector2 = intent.move
 	# target speed from stick magnitude and gait
 	var target := 0.0
 	if want_dir != Vector3.ZERO:
@@ -372,6 +406,9 @@ func _physics_process(dt: float) -> void:
 	var hv := move_dir * speed
 	velocity.x = hv.x
 	velocity.z = hv.z
+
+## Stamina, gravity/falls, the slide itself and the visual for both free movement and cover.
+func _after_move(dt: float) -> void:
 	# stamina
 	if speed > JOG + 0.5:
 		stamina = maxf(stamina - 9.0 * dt, 0.0)
@@ -408,8 +445,20 @@ func _physics_process(dt: float) -> void:
 		visual.set_locomotion(speed, "mounted" if get("on_horse") != null else gait, is_on_floor())
 	if visual and visual.has_method("set_aim"):
 		visual.set_aim(_aim_kind() if intent.aim else "")
+	# crouch: hitboxes drop, crouched idle pose
+	_crouch_k = move_toward(_crouch_k, 1.0 if intent.crouch else 0.0, dt * 6.0)
+	for h in _hitboxes:
+		h[0].position.y = h[1] * lerpf(1.0, 0.52, _crouch_k)
+	var want_act := "idle_crouch" if intent.crouch and speed < 0.4 else ""
+	if want_act != _crouch_act and visual and visual.has_method("set_activity"):
+		_crouch_act = want_act
+		visual.set_activity(want_act)
 
 var _last_vy := 0.0
+var cover: PlayerCover
+var _hitboxes: Array = []
+var _crouch_k := 0.0
+var _crouch_act := ""
 
 func _process(dt: float) -> void:
 	if camera == null or on_horse != null or Game.is_vr:
@@ -420,7 +469,10 @@ func _update_camera(dt: float) -> void:
 	var aiming: bool = intent.aim
 	var want_dist := 1.6 if aiming else cam_dist + clampf(speed - JOG, 0.0, 3.0) * 0.25
 	# aiming: a wider shoulder offset so the raised gun reads beside the head and hat brim (combat feel pass)
-	var side := cam_side * cam_shoulder * (1.0 if not aiming else 1.15)
+	var sh := cam_shoulder
+	if cover != null and cover.active and cover.edge != 0:
+		sh = float(cover.edge)                 # look past the open end of the cover
+	var side := cam_side * sh * (1.0 if not aiming else 1.15)
 	var pivot := global_position + Vector3(0, 1.55 if not intent.crouch else 1.1, 0)
 	_cam_target = _cam_target.lerp(pivot, 1.0 - exp(-14.0 * dt))
 	var basis := Basis(Vector3.UP, cam_yaw) * Basis(Vector3.RIGHT, cam_pitch)

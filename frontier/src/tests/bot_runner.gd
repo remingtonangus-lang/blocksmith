@@ -35,7 +35,7 @@ func run(m: Node) -> void:
 		return
 	var which := str(Game.args.get("bot", "road"))
 	var seconds := Game.arg_f("seconds", 90.0)
-	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "missions", "camp", "encounters", "social", "openworld", "presentation", "systems", "ui", "footik"] if which == "all" or which == "true" else Array(which.split(","))
+	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "missions", "camp", "encounters", "social", "openworld", "presentation", "systems", "ui", "footik", "cover"] if which == "all" or which == "true" else Array(which.split(","))
 	for b in bots:
 		var res: Dictionary
 		if b == "ride" or b == "gaits":
@@ -61,6 +61,8 @@ func run(m: Node) -> void:
 			res = await load("res://src/tests/hunt_bot.gd").run(self, seconds)
 		elif b == "systems":
 			res = await load("res://src/tests/systems_bot.gd").run(self)
+		elif b == "cover":
+			res = await load("res://src/tests/cover_bot.gd").run(self)
 		elif b == "footik":
 			res = await load("res://src/tests/foot_ik_bot.gd").run(self)
 		elif b == "ui":
