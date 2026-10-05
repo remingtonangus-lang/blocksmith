@@ -13,6 +13,8 @@ const VIS_END := 380.0
 
 var material: ShaderMaterial
 
+var _task := -1
+
 func build(world: WorldData, terrain_mat: ShaderMaterial) -> void:
 	material = ShaderMaterial.new()
 	material.shader = load("res://shaders/road.gdshader")
@@ -22,7 +24,7 @@ func build(world: WorldData, terrain_mat: ShaderMaterial) -> void:
 	material.set_shader_parameter("fade_end", VIS_END)
 	# geometry on a worker thread (heightmap sampling for ~100k vertices); meshes are made on the main thread
 	var roads: Array = world.features.get("roads", []).duplicate(true)
-	WorkerThreadPool.add_task(func():
+	_task = WorkerThreadPool.add_task(func():
 		var tiles := _build_arrays(world, roads)
 		_add_meshes.call_deferred(tiles), false, "road ribbons")
 
@@ -115,3 +117,9 @@ static func _resample(pts: PackedVector2Array, step: float) -> PackedVector2Arra
 			d += step
 		carry = seg - (d - step)
 	return out
+
+## A worker still running when the engine tears down aborts the process (seen at exit on CI): wait for it.
+func _exit_tree() -> void:
+	if _task >= 0:
+		WorkerThreadPool.wait_for_task_completion(_task)
+		_task = -1
