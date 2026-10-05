@@ -165,6 +165,7 @@ enum Snapshot {
         game.player.flying = true
         game.time = (Double(arg("--time") ?? "") ?? 0.2) * DAY_LENGTH
         if let s = arg("--slot") { game.selected = Int(s) ?? 0 }
+        if let s = arg("--itemsheet") { ItemSheet.request = ItemSheet.parse(s) }     // every item icon in a grid (ItemSheet.swift)
         if let h = arg("--hold") {
             // --hold item[:aim]: put an item in the hand (guns come loaded; ":aim" aims down the sights).
             let parts = h.split(separator: ":").map(String.init)

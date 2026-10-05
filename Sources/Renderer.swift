@@ -2514,6 +2514,20 @@ final class Renderer: NSObject, MTKViewDelegate {
                 y += 10 * s
             }
         }
+        // Harness item sheet (--itemsheet, ItemSheet.swift): every item's icon in a grid on slot-grey tiles.
+        if let req = ItemSheet.request {
+            let list = ItemSheet.items(req.kind)
+            let cell = 16 * req.scale, gap = 2 * req.scale
+            rect(0, 0, W, H, V4(0.12, 0.12, 0.14, 1))
+            let cols = max(1, Int((W - gap) / (cell + gap))), rows = max(1, Int((H - gap) / (cell + gap)))
+            let start = req.page * cols * rows
+            for k in 0..<(cols * rows) where start + k < list.count {
+                let x = gap + Float(k % cols) * (cell + gap), y = gap + Float(k / cols) * (cell + gap)
+                rect(x, y, cell, cell, V4(0.55, 0.55, 0.57, 1))
+                rect(x + req.scale * 0.5, y + req.scale * 0.5, cell - req.scale, cell - req.scale, V4(0.42, 0.42, 0.45, 1))
+                itemIcon(list[start + k], x, y, cell, counts: false)
+            }
+        }
         return v
     }
 

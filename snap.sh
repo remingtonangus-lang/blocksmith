@@ -193,6 +193,14 @@ done
 "$BIN" --snapshot snaps/controls_ref.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --padview controls
 "$BIN" --snapshot snaps/tv_hud.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --w 1920 --h 1080 --couch --safe 5 --survival 13 --slot 2 --pad --hints
 "$BIN" --snapshot snaps/furnace.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --menu furnace
+# Item art sheets (ItemSheet.swift): every icon through the HUD path, desktop (2x) and TV (4x at 1080p).
+"$BIN" --snapshot snaps/itemsheet_tools.png --seed 12345 --rd 2 --itemsheet tools:2
+"$BIN" --snapshot snaps/itemsheet_tools_tv.png --seed 12345 --rd 2 --w 1920 --h 1080 --itemsheet tools:4
+"$BIN" --snapshot snaps/itemsheet_items.png --seed 12345 --rd 2 --itemsheet items:2
+"$BIN" --snapshot snaps/itemsheet_items_tv_0.png --seed 12345 --rd 2 --w 1920 --h 1080 --itemsheet items:4:0
+"$BIN" --snapshot snaps/itemsheet_items_tv_1.png --seed 12345 --rd 2 --w 1920 --h 1080 --itemsheet items:4:1
+"$BIN" --snapshot snaps/itemsheet_blocks.png --seed 12345 --rd 2 --itemsheet blocks:2
+"$BIN" --snapshot snaps/itemsheet_enchanted_tv.png --seed 12345 --rd 2 --w 1920 --h 1080 --itemsheet enchanted:4
 "$BIN" --snapshot snaps/drops.png --seed 12345 --yaw 30 --pitch -30 --time 0.22 --up 1 --drops
 "$BIN" --snapshot snaps/subtitles.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --subtitles
 "$BIN" --snapshot snaps/survival.png --seed 12345 --yaw 30 --pitch -12 --time 0.2 --survival 13 --slot 8 --debug
