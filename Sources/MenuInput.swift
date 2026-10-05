@@ -114,10 +114,45 @@ extension Game {
         let shift = input.shift
         if input.leftClicked || input.rightClicked {
             let b = input.leftClicked ? 0 : 1
-            if let s = m.slotAt(mouse, L) { m.mouseClick = true; m.click(s, button: b, shift: shift); m.mouseClick = false }
+            if let s = m.slotAt(mouse, L), !carried.isEmpty, !shift, s.container != nil, case .normal = s.kind, creative == nil {
+                // A press with a stack on the cursor may start a drag: decided on release (one slot = a plain click).
+                menuDrag = [s]; menuDragButton = b
+            } else if let s = m.slotAt(mouse, L) { m.mouseClick = true; m.click(s, button: b, shift: shift); m.mouseClick = false }
             else if !m.inside(mouse, L) && !carried.isEmpty {
                 if b == 0 { dropItem(carried); carried = .empty }
                 else { dropItem(carried.with(count: 1)); carried.count -= 1; if carried.count <= 0 { carried = .empty } }
+            }
+        }
+
+        // Mouse drag over slots (reference): left splits the cursor stack evenly (rounding down, the rest stays on the
+        // cursor), right places one in each. It was click-only.
+        if !menuDrag.isEmpty {
+            let held = menuDragButton == 0 ? input.leftDown : input.rightDown
+            if held {
+                if let s = m.slotAt(mouse, L), !menuDrag.contains(where: { $0 === s }), s.container != nil, case .normal = s.kind,
+                   s.accepts(carried), s.stack.isEmpty || s.stack.stacks(with: carried), menuDrag.count < carried.count {
+                    menuDrag.append(s)
+                }
+            } else {
+                let set = menuDrag
+                menuDrag = []
+                if set.count == 1 {
+                    m.mouseClick = true; m.click(set[0], button: menuDragButton, shift: false); m.mouseClick = false
+                } else if !carried.isEmpty {
+                    let per = menuDragButton == 0 ? max(1, carried.count / set.count) : 1
+                    var c = carried
+                    for s in set where c.count > 0 {
+                        var st = s.stack
+                        let room = m.slotLimit(s, c) - (st.isEmpty ? 0 : st.count)
+                        let n = min(per, c.count, max(0, room))
+                        guard n > 0 else { continue }
+                        if st.isEmpty { st = c.with(count: n) } else { st.count += n }
+                        s.stack = st
+                        c.count -= n
+                    }
+                    carried = c.count > 0 ? c : .empty
+                    m.changed()
+                }
             }
         }
 

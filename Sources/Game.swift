@@ -76,6 +76,8 @@ final class Game {
     }
     var inventoryOpen: Bool { menu != nil }
     var carried = ItemStack.empty
+    var menuDrag: [MenuSlot] = []        // slots a mouse drag has passed over (MenuInput)
+    var menuDragButton = 0
     var menuCursor = 0            // controller cursor (slot index)
     var menuHover: MenuSlot?      // slot under the mouse / controller cursor
     var screen = V2(1280, 800)    // drawable size, updated by the renderer each frame
@@ -563,6 +565,7 @@ final class Game {
 
     func openMenu(_ m: Menu) {
         menu = m
+        menuDrag = []
         menuCursor = m.slots.firstIndex(where: { $0.isHotbar && $0.index == selected }) ?? 0
         // The crafting book opens with the cursor on its first recipe tile (playtest 2026-10-05: it started on the hotbar).
         if m is CraftingBookMenu { menuCursor = CraftCategory.allCases.count }
@@ -576,6 +579,7 @@ final class Game {
     }
 
     func closeMenu() {
+        menuDrag = []
         guard let m = menu, !(m is DeathMenu) else { return }
         audioMenuClosed(m)
         m.onClose()
