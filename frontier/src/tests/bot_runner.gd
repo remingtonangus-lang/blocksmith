@@ -35,7 +35,7 @@ func run(m: Node) -> void:
 		return
 	var which := str(Game.args.get("bot", "road"))
 	var seconds := Game.arg_f("seconds", 90.0)
-	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "birds", "ecology", "horsework", "missions", "camp", "encounters", "social", "openworld", "presentation", "living", "systems", "ui", "footik", "cover", "melee", "armory", "archetypes", "lasso", "disarm", "nerve", "loco"] if which == "all" or which == "true" else Array(which.split(","))
+	var bots: Array = ["road", "explore", "ride", "gaits", "town", "gunfight", "hunt", "birds", "ecology", "horsework", "missions", "camp", "encounters", "social", "openworld", "presentation", "living", "roam", "systems", "ui", "footik", "cover", "melee", "armory", "archetypes", "lasso", "disarm", "nerve", "loco"] if which == "all" or which == "true" else Array(which.split(","))
 	for b in bots:
 		var res: Dictionary
 		if b == "ride" or b == "gaits" or b == "horsework":
@@ -57,6 +57,8 @@ func run(m: Node) -> void:
 			res = await _run_presentation()
 		elif b == "living":
 			res = await _run_living()
+		elif b == "roam":
+			res = await _run_roam()
 		elif b == "town":
 			res = await _run_town(seconds)
 		elif b == "hunt":
@@ -1500,6 +1502,318 @@ func _run_living() -> Dictionary:
 		if cold_own <= 0.0 or not breath or stam_after >= Game.player.STAMINA_MAX or hp_after >= hp0 or cold_coat >= cold_own \
 				or heat_coat <= 0.0 or heat_vest >= heat_coat:
 			_fail(res, "climate: %s" % lines.back())
+	for ln in lines:
+		print("  " + ln)
+	var errs: Array = Game.error_logger.take().slice(err0)
+	res.errors = errs
+	if errs.size() > 0:
+		_fail(res, "%d errors, first: %s" % [errs.size(), str(errs[0])])
+	return res
+
+## Roam bot: ambient hold-ups (a stage on the Coldwater road and the Meridian train on the open line: stop, crew down,
+## passengers robbed, strongbox/safe, witnesses -> bounty, county posse, papers, gossip), bounty hunters (posse sized by
+## the bounty, lasso + struggle, capture -> jail, paid off at a sheriff -> they ride away, guns past the threshold or
+## when shot), the campfire (songs and stories at night, seats, refrains, conversation camera) and the eight places
+## with a story (found, read, cache, hermit, map marks, journal).
+func _run_roam() -> Dictionary:
+	var res := {"bot": "roam", "ok": true, "failures": [], "distance": 0.0, "stuck_events": 0, "fall_events": 0,
+		"frame_spikes": 0, "errors": [], "checks": {}}
+	var err0: int = Game.error_logger.take().size()
+	var md: MissionDirector = Game.missions
+	var st = Game.state
+	for i in 150:
+		await get_tree().process_frame
+	var lines := []
+	st.money = 300.0
+	var keep_flags: Dictionary = st.flags.duplicate(true)
+	# ---------------------------------------------------------------- 1. hold-ups
+	var hd = Game.get_meta("holdups") if Game.has_meta("holdups") else null
+	var hu = Game.get_meta("hunters") if Game.has_meta("hunters") else null
+	if hd == null or hu == null:
+		_fail(res, "no holdups (%s) or hunters (%s) system" % [hd, hu])
+		return res
+	var road_p := Mission.road_point("bitter_spring", "coldwater", 0.45)
+	md._teleport_player(road_p + Vector3(6, 0, 0))
+	for i in 30:
+		await get_tree().physics_frame
+	var v: Dictionary = hd.spawn_stage(Game.player.global_position, 70.0, 7.0)
+	var moving_ok := false
+	if v.is_empty():
+		_fail(res, "no stage spawned on the Coldwater road")
+	else:
+		var s0: float = v.node.s
+		for i in 60:
+			await get_tree().physics_frame
+		moving_ok = v.node.s > s0 + 3.0
+		var ap: Vector3 = hd.aim_point(v)
+		var eye: Vector3 = Game.player.global_position + Vector3(0, 1.5, 0)
+		var on: bool = hd.aimed_at(v, eye, ap - eye) or eye.distance_to(ap) > 40.0
+		var off: bool = hd.aimed_at(v, eye, (ap - eye).rotated(Vector3.UP, 0.6))
+		var seated: int = v.crew.filter(func(c): return is_instance_valid(c.h) and c.h.global_position.distance_to(ap) < 2.5).size()
+		var b0 := float(st.bounties.get(st.county_at(Game.player.global_position), 0.0))
+		var m0: float = st.money
+		var wt := 0.0
+		while wt < 30.0 and hd.aim_point(v).distance_to(Game.player.global_position) > 28.0:
+			await get_tree().physics_frame
+			wt += get_physics_process_delta_time()
+		await hd.holdup(v)
+		var crew_down: int = v.crew.filter(func(c): return is_instance_valid(c.h) and c.h.get_meta("down", false)).size()
+		var hands: int = v.people.filter(func(h): return is_instance_valid(h) and h.get_meta("held_up", false)).size()
+		var county: String = st.county_at(v.stopped_at)
+		var b1 := float(st.bounties.get(county, 0.0))
+		var robbed := 0.0
+		for h in v.people:
+			if is_instance_valid(h) and h.get_meta("held_up", false) and h.alive:
+				robbed += Game.robbery.rob(h)
+		var take: float = hd.loot(v)
+		var again: float = hd.loot(v)
+		var law: int = hu.members().size() if hu.kind == "law" else 0
+		var news: bool = st.flags.get("news_log", []).any(func(e): return e.kind == "stage_robbery")
+		var ed: Dictionary = Game.get_meta("news").edition(Game.get_meta("news").context("bitter_spring"))
+		var soc = Game.get_meta("social")
+		var gossip_ok := false
+		for g in soc.gossip:
+			if g.id == "gos_stage1" and soc.matches(g.get("when", {}), [], soc.context(null, "townsfolk")):
+				gossip_ok = true
+		lines.append("stage: rolling %s, crew seated %d/2, aim cone on %s / 30 deg off %s; held up: stopped %s, crew down %d, hands up %d, bounty in %s $%d -> $%d (wanted %d), passengers robbed $%.2f, strongbox $%.2f (again $%.2f), deputies riding %d, paper %s (lead '%s'), gossip %s" % [
+			moving_ok, seated, on, off, v.node.speed < 0.1, crew_down, hands, county, int(b0), int(b1), st.wanted, robbed, take,
+			again, law, news, str(ed.get("lead", {}).get("head", "")), gossip_ok])
+		if not moving_ok or seated != 2 or not on or off or v.node.speed > 0.1 or crew_down < 1 or hands < 1 or b1 < b0 + 109.0 \
+				or take < 60.0 or take > 180.0 or again != 0.0 or (st.wanted >= 2 and law != 3) or not news or not gossip_ok or st.money < m0 + take:
+			_fail(res, "stage hold-up: %s" % lines.back())
+	hu._disband(false)
+	st.bounties = {}
+	st.wanted = 0
+	for vv in hd.vehicles.duplicate():
+		hd._despawn(vv)
+	await get_tree().create_timer(0.5).timeout
+	# the train: an open stretch of the main line away from the towns
+	var rail: Array = Game.world.features.rail.points
+	var rp := Vector3.INF
+	for i in range(0, rail.size(), 15):
+		var q := Vector3(float(rail[i][0]), 0, float(rail[i][1]))
+		var far := true
+		for tid in ["bitter_spring", "coldwater", "mesquite_wells", "port_linden"]:
+			var t: Dictionary = Game.world.town(tid)
+			if Vector2(float(t.x) - q.x, float(t.z) - q.z).length() < 700.0:
+				far = false
+		if far and not Game.world.is_water(q.x, q.z):
+			rp = q
+			break
+	if rp == Vector3.INF:
+		_fail(res, "no open stretch of rail")
+	else:
+		md._teleport_player(Vector3(rp.x + 9.0, 0, rp.z + 9.0))
+		for i in 30:
+			await get_tree().physics_frame
+		var tv: Dictionary = hd.spawn_train(Game.player.global_position, 160.0, 14.0)
+		if tv.is_empty():
+			_fail(res, "no train on the line near %s" % str(rp))
+		else:
+			for i in 30:
+				await get_tree().physics_frame
+			var eng_ok: bool = is_instance_valid(tv.crew[0].h) and tv.crew[0].h.global_position.distance_to(hd.aim_point(tv)) < 2.5
+			var m0: float = st.money
+			var wt := 0.0
+			while wt < 30.0 and hd.aim_point(tv).distance_to(Game.player.global_position) > 40.0:
+				await get_tree().physics_frame
+				wt += get_physics_process_delta_time()
+			await hd.holdup(tv)
+			var people: int = tv.people.size()
+			var messenger: bool = tv.people.any(func(h): return is_instance_valid(h) and h.display_name == "Express Messenger")
+			var safe_ok: bool = is_instance_valid(tv.box) and tv.box.name == "ExpressSafe"
+			var take: float = hd.loot(tv)
+			var news2: bool = st.flags.get("news_log", []).any(func(e): return e.kind == "train_robbery")
+			var cty: String = st.county_at(tv.stopped_at)
+			lines.append("train: engineer in the cab %s; stopped %s; %d off the cars (messenger %s), safe %s -> $%.2f; bounty in %s $%d; paper %s" % [
+				eng_ok, tv.node.speed < 0.1, people, messenger, safe_ok, take, cty, int(float(st.bounties.get(cty, 0.0))), news2])
+			if not eng_ok or tv.node.speed > 0.1 or people < 3 or not messenger or not safe_ok or take < 150.0 or take > 400.0 \
+					or float(st.bounties.get(cty, 0.0)) < 179.0 or not news2:
+				_fail(res, "train hold-up: %s" % lines.back())
+	hu._disband(false)
+	for vv in hd.vehicles.duplicate():
+		hd._despawn(vv)
+	await get_tree().create_timer(0.5).timeout
+	# ---------------------------------------------------------------- 2. bounty hunters
+	st.bounties = {}
+	st.wanted = 0
+	md._teleport_player(Mission.road_point("bitter_spring", "greer_post", 0.5) + Vector3(3, 0, 0))
+	for i in 30:
+		await get_tree().physics_frame
+	var c: String = st.county_at(Game.player.global_position)
+	var sizes := "%d/%d/%d" % [hu.posse_size(80.0), hu.posse_size(400.0), hu.posse_size(900.0)]
+	var tiers := "%d/%d/%d" % [hu.tier_for(80.0), hu.tier_for(400.0), hu.tier_for(900.0)]
+	st.bounties[c] = 150.0
+	st.money = 100.0
+	var n: int = hu.send_hunters(c, 70.0)
+	var t := 0.0
+	while t < 60.0 and not hu.members().any(func(m): return m.mode == "foot"):
+		await get_tree().create_timer(0.25).timeout
+		t += 0.25
+	var arrived := t < 60.0
+	var arrive_t := t
+	var lead_m: Array = hu.members().filter(func(m): return m.lasso)
+	while t < 60.0 and lead_m.size() > 0 and lead_m[0].mode != "foot":
+		await get_tree().create_timer(0.25).timeout
+		t += 0.25
+	var roped1 := false
+	var broke := false
+	var captured := false
+	var hours0: float = Game.sky.hours + Game.sky.day * 24.0
+	if lead_m.size() > 0:
+		roped1 = hu.throw_lasso(lead_m[0].man, true) and hu.roped_t > 0.0 and Melee.is_down(Game.player)
+		for i in 6:
+			hu.struggle_once()
+		broke = hu.roped_t <= 0.0
+		await get_tree().create_timer(0.5).timeout
+		hu.throw_lasso(lead_m[0].man, true)
+		t = 0.0
+		while t < 30.0 and hu.outcome == "":
+			await get_tree().create_timer(0.25).timeout
+			t += 0.25
+		captured = hu.outcome == "captured"
+	await get_tree().create_timer(0.5).timeout
+	var seat: String = hu.SEAT_OF.get(c, "bitter_spring")
+	var jail_d: float = Game.player.global_position.distance_to(Mission.place(seat))
+	var dh: float = Game.sky.hours + Game.sky.day * 24.0 - hours0
+	lines.append("hunters: sizes for $80/$400/$900 %s, tiers %s; $150 in %s -> %d riders, on foot after %.1f s; lasso hit pulls her down %s, struggled free %s; roped again -> %s, paid $%.2f of $150 (bounty now $%d), %.0f m from the %s jail, %.1f hours passed" % [
+		sizes, tiers, c, n, arrive_t, roped1, broke, hu.outcome, 100.0 - st.money, int(float(st.bounties.get(c, 0.0))), jail_d, seat, dh])
+	if sizes != "2/4/5" or tiers != "1/2/3" or n != 3 or not arrived or not roped1 or not broke or not captured or absf(st.money) > 0.01 \
+			or float(st.bounties.get(c, 0.0)) > 0.0 or jail_d > 200.0 or dh < 13.9:
+		_fail(res, "bounty hunters (capture): %s" % lines.back())
+	# paid off: a bigger posse rides in, Ruth pays at the sheriff, they turn for home
+	md._teleport_player(Mission.road_point("bitter_spring", "greer_post", 0.5) + Vector3(3, 0, 0))
+	for i in 30:
+		await get_tree().physics_frame
+	hu._cool = 0.0
+	st.bounties[c] = 400.0
+	st.money = 500.0
+	var n2: int = hu.send_hunters(c, 60.0)
+	var guns0: bool = hu.guns
+	t = 0.0
+	while t < 60.0 and not hu.members().any(func(m): return m.mode == "foot"):
+		await get_tree().create_timer(0.25).timeout
+		t += 0.25
+	# shot by her: it turns to guns
+	var fighters: Array = hu.members()
+	if fighters.size() > 0:
+		fighters[-1].man.damageable.apply_hit({"amount": 40.0, "zone": "legs", "attacker": Game.player, "position": fighters[-1].man.global_position})
+	await get_tree().create_timer(0.3).timeout
+	var guns1: bool = hu.guns
+	st.pay_bounty(c)
+	await get_tree().create_timer(0.5).timeout
+	var leaving: int = hu.members().filter(func(m): return m.mode == "leave").size()
+	var called: String = hu.outcome
+	lines.append("hunters: $400 -> %d riders, guns at first %s, after she shot one %s; paid at the sheriff -> %s, %d riding off" % [n2, guns0, guns1, called, leaving])
+	if n2 != 4 or guns0 or not guns1 or called != "called_off":
+		_fail(res, "bounty hunters (paid off): %s" % lines.back())
+	await get_tree().create_timer(26.0).timeout
+	var gone_ok: bool = hu.posse.is_empty()
+	# dead or alive: guns from the start
+	hu._cool = 0.0
+	st.bounties[c] = 900.0
+	var n3: int = hu.send_hunters(c, 60.0)
+	var guns3: bool = hu.guns
+	lines.append("hunters: $900 -> %d riders, guns from the start %s (the paid-off posse gone %s)" % [n3, guns3, gone_ok])
+	if n3 != 5 or not guns3 or not gone_ok:
+		_fail(res, "bounty hunters (dead or alive): %s" % lines.back())
+	hu._disband(false)
+	st.bounties = {}
+	st.wanted = 0
+	await get_tree().create_timer(0.5).timeout
+	# ---------------------------------------------------------------- 3. the campfire
+	var camp = Game.camp
+	for f in ["billy_joined", "del_joined", "doc_joined", "joseph_joined"]:
+		st.flags[f] = true
+	if not md.completed.has("c1_drover"):
+		md.completed.append("c1_drover")
+	Game.sky.set_time(21.0)
+	md._teleport_player(camp.center + Vector3(3.0, 0, 4.0))
+	t = 0.0
+	while camp.members.size() < 5 and t < 15.0:
+		await get_tree().create_timer(0.25).timeout
+		t += 0.25
+	md.cine_test = true
+	md.cine_log.clear()
+	var night: bool = camp.song_time(21.0) and camp.song_time(0.5) and not camp.song_time(12.0)
+	camp.sing_along.call_deferred()
+	await get_tree().create_timer(0.6).timeout
+	var sat_now: int = camp.members.values().filter(func(h): return is_instance_valid(h) and h.get_meta("sitting", false)).size()
+	t = 0.0
+	while camp.sitting and t < 90.0:
+		await get_tree().create_timer(0.25).timeout
+		t += 0.25
+	var s1: Dictionary = camp.last_song.duplicate(true)
+	var shots: int = md.cine_log.filter(func(e): return e.kind in ["two", "ots", "hold"]).size()
+	var s2: Dictionary = await camp.sing_along()
+	var s3: Dictionary = await camp.sing_along()
+	md.cine_test = false
+	var voiced := true
+	for sg in camp.songs:
+		for lid in sg.lines:
+			if not md.dialogue.has(lid):
+				voiced = false
+	var kinds := [str(s1.get("kind", "")), str(s2.get("kind", "")), str(s3.get("kind", ""))]
+	lines.append("campfire: song time at night %s; %d in camp, %d sat round the fire; '%s' (%s) %d lines, joined by %s; camera shots %d; then '%s' and '%s'; all lines in the dialogue table %s" % [
+		night, camp.members.size(), sat_now, s1.get("title", "?"), s1.get("kind", "?"), s1.get("lines", []).size(), ", ".join(s1.get("joined", [])),
+		shots, s2.get("title", "?"), s3.get("title", "?"), voiced])
+	if not night or sat_now < 4 or s1.is_empty() or s1.get("joined", []).is_empty() or shots < s1.get("lines", []).size() \
+			or s2.get("id", "") == s1.get("id", "") or s3.get("id", "") == s2.get("id", "") or not kinds.has("story") or not kinds.has("song") or not voiced:
+		_fail(res, "campfire: %s" % lines.back())
+	Game.sky.set_time(12.0)
+	# ---------------------------------------------------------------- 4. places with a story
+	var lm = Game.get_meta("landmarks") if Game.has_meta("landmarks") else null
+	if lm == null:
+		_fail(res, "no landmarks system")
+	else:
+		var m0: float = st.money
+		var found := 0
+		var built := 0
+		var readn := 0
+		var caches := 0
+		var bad := []
+		for p in lm.PLACES:
+			var at: Vector3 = lm.spots[p.id]
+			md._teleport_player(at + Vector3(4.0, 0, 4.0))
+			t = 0.0
+			while t < 6.0 and not (lm.found(p.id) and lm.built.has(p.id)):
+				await get_tree().create_timer(0.25).timeout
+				t += 0.25
+			found += int(lm.found(p.id))
+			var root = lm.built.get(p.id)
+			var spots_ok: bool = root != null and root.get_node_or_null("Cache") != null and (p.kind == "hermit" or root.get_node_or_null("Note") != null)
+			built += int(spots_ok)
+			if p.kind == "hermit":
+				md.cine_test = true
+				md.cine_log.clear()
+				var ok_h := false
+				if is_instance_valid(lm.hermit):
+					ok_h = await lm.talk_to_hermit()
+				md.cine_test = false
+				var hs: int = md.cine_log.filter(func(e): return e.kind in ["two", "ots", "hold"]).size()
+				if not ok_h or hs < 4:
+					bad.append("hermit (%s, %d shots)" % [ok_h, hs])
+			var jtxt: String = await lm.read(p.id)
+			readn += int(jtxt != "")
+			var loot: Dictionary = lm.open_cache(p.id)
+			caches += int(not loot.is_empty() and lm.open_cache(p.id).is_empty())
+			if not spots_ok or jtxt == "" or loot.is_empty():
+				bad.append(str(p.id))
+		var wreck: Vector3 = lm.spots["doyle_wreck"]
+		var shore := false
+		for k in 16:
+			var q: Vector3 = wreck + Vector3(cos(TAU * k / 16.0) * 30.0, 0, sin(TAU * k / 16.0) * 30.0)
+			if Game.world.is_water(q.x, q.z):
+				shore = true
+		var marks: Array = lm.map_marks()
+		var done_marks: int = marks.filter(func(mk): return mk.done).size()
+		var pages: int = load("res://src/missions/journal.gd").extra_entries(st.flags, st.inventory).filter(func(e): return e.sub == "A place with a story").size()
+		lines.append("places: %d/8 found, %d built with their note and cache, %d read, %d caches (once each), $%.2f found; wreck on the shore %s (dry %s); map marks %d (%d done); journal pages %d%s" % [
+			found, built, readn, caches, st.money - m0, shore, not Game.world.is_water(wreck.x, wreck.z), marks.size(), done_marks, pages,
+			"" if bad.is_empty() else "; trouble at " + ", ".join(bad)])
+		if found != 8 or built != 8 or readn != 8 or caches != 8 or not shore or marks.size() != 8 or done_marks != 8 or pages != 8 or not bad.is_empty():
+			_fail(res, "places: %s" % lines.back())
+	st.flags = keep_flags
 	for ln in lines:
 		print("  " + ln)
 	var errs: Array = Game.error_logger.take().slice(err0)

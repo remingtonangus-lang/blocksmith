@@ -222,7 +222,7 @@ func _build_car(c: Dictionary) -> Dictionary:
 	var wheel_z: Array = [-L * 0.36, -L * 0.24, L * 0.24, L * 0.36]
 	if c.kind == "loco":
 		wheel_z = [-L * 0.42, -L * 0.3, L * 0.05, L * 0.3]
-	var road: bool = c.kind == "carriage" or c.kind == "wagon"
+	var road: bool = c.kind == "carriage" or c.kind == "wagon" or c.kind == "stagecoach"
 	if road:
 		wheel_z = [-L * 0.34, L * 0.34]
 	for wz in wheel_z:
@@ -304,6 +304,32 @@ func _build_car(c: Dictionary) -> Dictionary:
 				_box(node, Vector3(0.24, 0.3, 0.6), Vector3(sx, 2.25, -L * 0.5 - 3.95), bay)              # head
 				for lz in [-1.5, -3.2]:
 					_box(node, Vector3(0.14, 1.1, 0.14), Vector3(sx, 0.55, -L * 0.5 + lz), bay)           # legs
+		"stagecoach":
+			# a Sable Valley Stage Line coach: lacquered body slung between the axles, driver's box up front, a rail
+			# of luggage on the roof, the leather boot behind, and a four-horse team on the pole
+			var lacquer := _mat(Color(0.36, 0.1, 0.08))
+			var trim := _mat(Color(0.72, 0.55, 0.22))
+			var leather := _mat(Color(0.22, 0.14, 0.09))
+			var team := [_mat(Color(0.33, 0.2, 0.12)), _mat(Color(0.18, 0.12, 0.08))]
+			_box(node, Vector3(W, 1.55, L * 0.5), Vector3(0, 2.05, L * 0.02), lacquer)                     # body
+			_box(node, Vector3(W + 0.06, 0.08, L * 0.52), Vector3(0, 1.3, L * 0.02), trim)                  # sill
+			_box(node, Vector3(W + 0.1, 0.1, L * 0.54), Vector3(0, 2.86, L * 0.02), roofm)                 # roof
+			for sx in [-1.0, 1.0]:
+				_box(node, Vector3(0.04, 0.6, 0.7), Vector3(sx * (W * 0.5 + 0.02), 2.3, L * 0.02), _mat(Color(0.1, 0.09, 0.08)))   # windows
+			_box(node, Vector3(W * 0.8, 0.45, 0.9), Vector3(0, 3.15, L * 0.1), leather)          # luggage
+			_box(node, Vector3(W * 0.9, 0.5, 0.7), Vector3(0, 2.55, -L * 0.33), lacquer)                   # driver's box
+			_box(node, Vector3(W * 0.9, 0.12, 0.5), Vector3(0, 2.85, -L * 0.3), leather)                   # seat
+			_box(node, Vector3(W * 0.8, 1.0, 0.6), Vector3(0, 1.9, L * 0.37), leather)                     # boot
+			_box(node, Vector3(0.12, 0.12, 5.6), Vector3(0, 0.95, -L * 0.5 - 2.8), leather)                # pole
+			for row in 2:
+				for sx in [-0.65, 0.65]:
+					var bz := -L * 0.5 - 2.2 - float(row) * 2.6
+					var hm: StandardMaterial3D = team[(row + int(sx > 0.0)) % 2]
+					_box(node, Vector3(0.55, 0.75, 2.0), Vector3(sx, 1.45, bz), hm)                       # barrel
+					_box(node, Vector3(0.3, 0.75, 0.6), Vector3(sx, 2.0, bz - 1.1), hm)                   # neck
+					_box(node, Vector3(0.24, 0.3, 0.6), Vector3(sx, 2.25, bz - 1.55), hm)                 # head
+					for lz in [0.75, -0.75]:
+						_box(node, Vector3(0.14, 1.1, 0.14), Vector3(sx, 0.55, bz + lz), hm)              # legs
 		"tender":
 			_box(node, Vector3(W, 1.7, L * 0.95), Vector3(0, 1.95, 0), black)
 			_box(node, Vector3(W * 0.85, 0.5, L * 0.6), Vector3(0, 3.0, L * 0.1), _mat(Color(0.05, 0.05, 0.05)))   # coal

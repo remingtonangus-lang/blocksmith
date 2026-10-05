@@ -480,6 +480,36 @@
     ]
    },
    "priority": -1
+  },
+  {
+   "id": "stage_robbery",
+   "head": "SABLE VALLEY STAGE HELD UP",
+   "deck": "Lone Rider Takes ${take} From the Strongbox on the {town} Road",
+   "body": "The down coach for {town} was stopped at gunpoint by a single rider, who relieved the line of its strongbox and the passengers of their composure. The driver reports the robber was polite, unhurried and a woman. The company has doubled its guards and offers a reward through the county.",
+   "when": {
+    "record": "stage_robbery"
+   },
+   "priority": 7
+  },
+  {
+   "id": "train_robbery",
+   "head": "MERIDIAN TRAIN STOPPED AND ROBBED",
+   "deck": "Express Safe Opened Near {town}; ${take} Taken",
+   "body": "The Meridian & Western westbound was brought to a halt on the open line by a rider who held the engineer at the point of a revolver. The express safe was opened and ${take} removed. No passenger was harmed, though several were inconvenienced. The express company has posted its own reward, payable in the county of {town}.",
+   "when": {
+    "record": "train_robbery"
+   },
+   "priority": 8
+  },
+  {
+   "id": "captured",
+   "head": "BOUNTY MEN BRING IN A WOMAN OUTLAW",
+   "deck": "Prisoner Settles With the County and Walks Free From the {town} Jail",
+   "body": "A party of private bounty hunters delivered a woman wanted in the county to the {town} jail, tied, they say, with considerable difficulty. She paid what she could against the debt and was released at first light. The hunters were seen at the saloon, nursing their knuckles.",
+   "when": {
+    "record": "captured"
+   },
+   "priority": 6
   }
  ],
  "subs": {

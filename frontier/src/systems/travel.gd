@@ -160,6 +160,8 @@ func travel(mode: String, from: String, to: String) -> bool:
 	if horse != null and horse.rider == null:
 		md._put_on_ground(horse, dest + Vector3(3.0, 0, 2.0))
 	Game.log_event("travel", {"mode": mode, "from": from, "to": to, "price": f.price, "hours": f.hours})
+	if Game.has_meta("autosave"):
+		Game.get_meta("autosave").autosave("travel")
 	if Game.hud and not Game.headless:
 		Game.hud.notice("%s — %d hours later" % [place_name(to), int(round(float(f.hours)))], 4.0)
 	return true
@@ -213,7 +215,10 @@ func _fade_card(mode: String, from: String, to: String, f: Dictionary) -> void:
 	var done: Array = Game.missions.completed if Game.missions else []
 	var date: Dictionary = NEWS.date_for(NEWS.story_chapter(done), int(Game.sky.day) if Game.sky else 0)
 	var lines := []
-	if mode == "ride":
+	if mode == "jail":
+		lines = [["THE COUNTY JAIL", 20, "caps"], ["%s" % place_name(to), 40, "serif_bold"],
+			["A night in the cells. Released at first light; $%.2f paid toward the bounty." % float(f.price), 22, "italic"], [str(date.text), 18, "caps"]]
+	elif mode == "ride":
 		lines = [["ON THE TRAIL", 20, "caps"], ["To %s" % place_name(to), 40, "serif_bold"],
 			["%d miles, about %d hours in the saddle" % [int(float(f.km) * 0.62), int(round(float(f.hours)))], 22, "italic"], [str(date.text), 18, "caps"]]
 	else:

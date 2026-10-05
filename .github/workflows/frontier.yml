@@ -150,7 +150,7 @@ jobs:
       - name: Bots (oracles)
         id: bots
         if: ${{ !cancelled() }}
-        timeout-minutes: 30
+        timeout-minutes: 40
         run: |
           set -o pipefail
           mkdir -p snaps
@@ -159,7 +159,7 @@ jobs:
             mkdir -p "$RUNNER_TEMP/home_$1"
             HOME="$RUNNER_TEMP/home_$1" "$GODOT" --headless --path frontier -- --bot "$2" --seconds 75 --report "$PWD/snaps/bot_report_$1.json" --watchdog "$3" > "bots_$1.log" 2>&1 || true
           }
-          run_bots story presentation,living,ecology,missions 1500 &
+          run_bots story presentation,living,roam,ecology,missions 2100 &
           P1=$!
           run_bots travel road,explore,ride,gaits,town,hunt,birds,horsework 1200 &
           P2=$!

@@ -1,0 +1,51 @@
+{
+ "note": "Places with a story (src/systems/landmarks.gd): the hermit Absalom Fenn. Notes and journal pages are in the script. Original writing.",
+ "speakers": {
+  "ruth": {
+   "name": "Ruth Caddell",
+   "voice": "ruth"
+  },
+  "fenn": {
+   "name": "Absalom Fenn",
+   "voice": "man_old"
+  }
+ },
+ "lines": [
+  {
+   "id": "lm_fenn_1",
+   "speaker": "fenn",
+   "line": "Mind the beans. They're the only company I keep that doesn't talk back.",
+   "emotion": "dry"
+  },
+  {
+   "id": "lm_ruth_fenn_1",
+   "speaker": "ruth",
+   "line": "Only passing. You've been up here a while.",
+   "emotion": "calm"
+  },
+  {
+   "id": "lm_fenn_2",
+   "speaker": "fenn",
+   "line": "Since before the railroad. Before the syndicate. Before most of the names on your map.",
+   "emotion": "tired"
+  },
+  {
+   "id": "lm_fenn_3",
+   "speaker": "fenn",
+   "line": "I was a surveyor. Drew the lines they're fighting over now. Then I saw what lines are for, and I came up here to stop drawing them.",
+   "emotion": "sad"
+  },
+  {
+   "id": "lm_fenn_4",
+   "speaker": "fenn",
+   "line": "Take my last field book. There's a spring in it nobody's sold yet. Keep it that way.",
+   "emotion": "calm"
+  },
+  {
+   "id": "lm_ruth_fenn_2",
+   "speaker": "ruth",
+   "line": "I'll keep it quiet.",
+   "emotion": "calm"
+  }
+ ]
+}

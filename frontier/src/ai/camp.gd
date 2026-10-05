@@ -24,6 +24,7 @@ const COMPANIONS := {
 		"spot": Vector3(4.5, 0, -3.2), "activity": "tack"},
 }
 const TABLE := "res://design/dialogue/camp.json"
+const SONGS := "res://design/dialogue/campfire.json"
 
 var center := Vector3.ZERO
 var fire_light: OmniLight3D
@@ -38,6 +39,9 @@ var crime_cursor := 0        # crimes_log entries before this have been talked a
 var stew_day := -1
 var drink_day := -1
 var sitting := false
+var songs: Array = []         # campfire.json: songs and stories for the fire at night
+var sung := {}                # song id -> times
+var last_song := {}           # what the last sing-along did (bots read it)
 var _bark_cd := {}
 var _bark_global := 0.0
 var _t := 0.0
@@ -63,6 +67,7 @@ func _ready() -> void:
 	var c := Game.world.poi("caddell_camp")
 	center = Vector3(c.x, Game.world.height(c.x, c.z), c.z)
 	_load_table()
+	_load_songs.call_deferred()
 	_build_fire()
 	_build_props()
 	(func():
@@ -70,6 +75,21 @@ func _ready() -> void:
 		for k in STOCKS.keys():
 			if stock(k) > 0:
 				_build_stock_props(k)).call_deferred()
+	if Game.state:
+		Game.state.loaded.connect(_on_loaded)
+
+## A save was loaded: ledger and stock props as the save has them.
+func _on_loaded() -> void:
+	ledger = ledger_funds()
+	for k in STOCKS.keys():
+		_build_stock_props(k)
+
+func _load_songs() -> void:
+	var j = JSON.parse_string(FileAccess.get_file_as_string(SONGS))
+	if typeof(j) == TYPE_DICTIONARY:
+		songs = j.get("songs", [])
+		if Game.missions:
+			Game.missions._load_dialogue(SONGS)
 
 func _load_table() -> void:
 	var j = JSON.parse_string(FileAccess.get_file_as_string(TABLE))
@@ -411,6 +431,8 @@ func open_menu() -> void:
 			has_meat = true
 	if has_meat:
 		add.call("Cook meat at the fire", cook)
+	if song_time():
+		add.call("Sing and tell stories", sing_along)
 	add.call("Sleep until morning", sleep)
 	add.call("The camp ledger (%s morale, $%.2f in hand)" % [morale_band(morale()), ledger_funds()], open_ledger)
 	v.add_child(menus._button("Get up", menus.back))
@@ -487,6 +509,108 @@ func sit_at_fire() -> String:
 	md.cine_end()
 	sitting = false
 	return said
+
+# ------------------------------------------------------------------ songs and stories at night
+## After dark, until the small hours.
+func song_time(hour := -1.0) -> bool:
+	var h: float = hour if hour >= 0.0 else (Game.sky.hours if Game.sky else 12.0)
+	return h >= 19.0 or h < 2.0
+
+## A song or story everyone it needs is in camp for; one not heard lately first, then the fuller ones.
+func pick_song(present: Array) -> Dictionary:
+	var best: Dictionary = {}
+	var bs := -INF
+	for sgi in songs:
+		var ok := true
+		for w in sgi.who:
+			if not present.has(w):
+				ok = false
+		if not ok:
+			continue
+		var score := float(sgi.who.size()) - float(sung.get(sgi.id, 0)) * 3.0 + rng.randf() * 0.5
+		if score > bs:
+			bs = score
+			best = sgi
+	return best
+
+## Seats round the fire (settlement campfire_seat spots, else a ring).
+func fire_seats(n: int) -> Array:
+	var out := []
+	for sp in camp_spots():
+		if str(sp.type) == "campfire_seat":
+			out.append((sp.transform as Transform3D).origin)
+	var k := 0
+	while out.size() < n:
+		var a := TAU * float(k) / float(maxi(n, 6)) + 0.4
+		out.append(center + Vector3(cos(a) * 2.4, 0, sin(a) * 2.4))
+		k += 1
+	return out
+
+## Everyone sits round the fire and the camp sings (or someone tells a story); the others join the refrains.
+## The conversation camera frames each singer. Returns {id, kind, lines, joined, seated}.
+func sing_along() -> Dictionary:
+	if sitting or Game.missions == null:
+		return {}
+	var md = Game.missions
+	var present := []
+	for id in members.keys():
+		if is_instance_valid(members[id]) and members[id].alive:
+			present.append(id)
+	var sgi := pick_song(present)
+	if sgi.is_empty():
+		return {}
+	sitting = true
+	var seats := fire_seats(present.size() + 1)
+	var seated := 0
+	for i in present.size():
+		var h: Human = members[present[i]]
+		md._put_on_ground(h, seats[i + 1])
+		h.intent.move_to = null
+		h.intent.face = center - h.global_position
+		h.facing = atan2(-(center - h.global_position).x, -(center - h.global_position).z)
+		if h.visual and h.visual.has_method("set_activity"):
+			h.visual.set_activity("sit_idle")
+		h.set_meta("sitting", true)
+		seated += 1
+	var p = Game.player
+	if p.get("on_horse") != null:
+		md.dismount_player()
+	md._put_on_ground(p, seats[0])
+	if p.visual and p.visual.has_method("set_activity"):
+		p.visual.set_activity("sit_idle")
+	md.cine_begin()
+	var joined := []
+	var said := []
+	for lid in sgi.lines:
+		var spk: String = str(md.dialogue.get(lid, {}).get("speaker", ""))
+		var node: Node3D = p if spk == "ruth" else (members.get(spk) if is_instance_valid(members.get(spk)) else null)
+		if sgi.join.has(lid):
+			# the refrain: everyone else sways and sings along
+			for id in present:
+				if id != spk and is_instance_valid(members[id]):
+					joined.append(id)
+					var v = members[id].visual
+					if v and v.has_method("gesture"):
+						v.gesture("talk_1")
+			if spk != "ruth":
+				joined.append("ruth")
+		await md.say(lid, node)
+		said.append(lid)
+	md.cine_end()
+	for id in present:
+		if is_instance_valid(members[id]):
+			var h2: Human = members[id]
+			h2.set_meta("sitting", false)
+			if h2.visual and h2.visual.has_method("set_activity"):
+				h2.visual.set_activity("")
+	if p.visual and p.visual.has_method("set_activity"):
+		p.visual.set_activity("")
+	sitting = false
+	sung[sgi.id] = int(sung.get(sgi.id, 0)) + 1
+	_morale_bump(1.0)
+	last_song = {"id": sgi.id, "kind": sgi.kind, "title": sgi.title, "lines": said, "joined": joined, "seated": seated}
+	Game.log_event("camp_song", last_song)
+	return last_song
 
 # ------------------------------------------------------------------ camp activities
 ## Hap's stew: heals and fills stamina, once a day.
