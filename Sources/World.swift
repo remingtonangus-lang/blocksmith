@@ -1190,6 +1190,7 @@ final class World {
             else if k.hasSuffix("_leaves") || k.hasSuffix("_wool") || k == "dried_kelp_block" || k.hasPrefix("azalea") { o = (30, 60) }
             else if k == "bookshelf" || k == "lectern" || k == "bee_nest" || k == "chiseled_bookshelf" { o = (30, 20) }
             else if k.hasSuffix("_carpet") || k == "hay_block" { o = (60, 20) }
+            else if k == "target" { o = (15, 20) }                                     // composter, beehive: the (5, 20) default
             else if k == "tnt" { o = (15, 100) }
             else if k.hasSuffix("vine") || k.hasSuffix("vines") { o = (15, 100) }
             else if k == "scaffolding" { o = (60, 60) }

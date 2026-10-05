@@ -101,6 +101,8 @@ final class BlockRegistry {
     var hidden: [Bool] = []
     var hardness: [Float] = []
     var resistance: [Float] = []
+    // Flammable in the reference though neither wooden-sounding, leaves nor a plant (World.fireOdds gives their odds).
+    static let extraFlammable: Set<String> = ["hay_block", "dried_kelp_block", "scaffolding", "target", "coal_block", "composter", "beehive", "bee_nest"]
     // Blast resistance where it differs from hardness (the reference keeps them apart: stone 1.5 hard but 6 against
     // blasts, planks 2 / 3, end stone 3 / 9). Before this every block used its hardness, so a creeper cratered
     // stone, brick and deepslate builds about four times deeper than it should.
@@ -206,7 +208,7 @@ final class BlockRegistry {
         let n = d.name
         let naturallyFlammable = (d.sound == .wood && !n.hasPrefix("crimson") && !n.hasPrefix("warped") && n != "torch" && d.render != .model)
             || n.hasSuffix("leaves") || (d.render == .cross && n != "fire" && n != "soul_fire" && !n.hasPrefix("crimson") && !n.hasPrefix("warped"))
-        flammable.append(d.flammable || naturallyFlammable)
+        flammable.append(d.flammable || naturallyFlammable || BlockRegistry.extraFlammable.contains(d.group ?? n))
         randomTicks.append(d.randomTicks)
         tool.append(d.tool.rawValue)
         harvestLevel.append(UInt8(d.harvestLevel))

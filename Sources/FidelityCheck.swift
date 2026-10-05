@@ -87,6 +87,15 @@ enum FidelityCheck {
             check(abs(xp - 0.7) < 0.001, "iron ingot smelting XP \(xp) (reference 0.7)")
         }
 
+        // Fire odds (ignite, burn) per the reference FireBlock table.
+        func fire(_ block: String, _ ig: UInt8, _ burn: UInt8) {
+            guard Blocks.has(block) else { print("fidelity: no block \(block)"); return }
+            let o = World.fireOdds[Int(Blocks.id(block))]
+            check(o.ignite == ig && o.burn == burn, "\(block) fire odds \(o.ignite)/\(o.burn) (reference \(ig)/\(burn))")
+        }
+        fire("oak_log", 5, 5); fire("oak_planks", 5, 20); fire("oak_leaves", 30, 60); fire("white_wool", 30, 60)
+        fire("bookshelf", 30, 20); fire("tnt", 15, 100); fire("hay_block", 60, 20)
+
         // Hurt invulnerability: within 0.5 s only a bigger hit counts, by the difference.
         let z = Mob(.zombie, at: V3(0, 100, 0))
         let h0 = z.health
