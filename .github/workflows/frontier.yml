@@ -194,6 +194,24 @@ jobs:
           echo "FRONTIER_DISABLE=${safe}" >> $GITHUB_ENV
           echo "gpu probe: --quality ${q} --disable '${safe}'" | tee snaps/probe/result.txt
 
+      - name: Shader probe (which spatial shaders the CI GPU / MoltenVK cannot run)
+        if: ${{ !cancelled() }}
+        timeout-minutes: 15
+        run: |
+          # Town and character renders stall with no output on this GPU while terrain/sky/water render; a MoltenVK
+          # pipeline-compile or GPU hang in one material shader fits. Render each spatial shader alone, 60 s cap each.
+          mkdir -p snaps/probe
+          : > snaps/probe/shaders.txt
+          for f in $(grep -l "shader_type spatial" frontier/shaders/*.gdshader frontier/shaders/*/*.gdshader); do
+            r="res://${f#frontier/}"
+            if perl -e 'alarm shift; exec @ARGV' 60 "$GODOT" --path frontier ${FRONTIER_RDRIVER} --resolution 320x180 res://scenes/shader_probe.tscn -- --shader "$r" 2>&1 | grep -q "shader ok"; then
+              echo "ok   $r" >> snaps/probe/shaders.txt
+            else
+              echo "HANG $r" >> snaps/probe/shaders.txt
+            fi
+          done
+          cat snaps/probe/shaders.txt
+
       - name: Benchmark (High preset, 1920x1080)
         id: bench
         if: ${{ !cancelled() }}
