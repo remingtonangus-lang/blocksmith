@@ -16,6 +16,7 @@ enum MobTests {
     static func run(game: Game, world: World, pos: V3, rd: Int) -> Bool {
         failures = []
         let t0 = CFAbsoluteTimeGetCurrent()
+        remeshAfterEdit(world: world, pos: pos)
         raidTables()
         raidSimulation(game: game, world: world, pos: pos)
         pathScenarios(game: game, world: world, pos: pos)
@@ -32,6 +33,26 @@ enum MobTests {
                      failures.isEmpty ? "" : " -> " + failures.joined(separator: ", ")))
         game.player.pos = pos
         return failures.isEmpty
+    }
+
+    // World.update's quiet frames re-check only the chunks on MeshEpoch.dirtyChunks: an edit made with nothing else
+    // going on (no new chunks, same centre) must still be re-meshed, near the player and a chunk away.
+    static func remeshAfterEdit(world w: World, pos: V3) {
+        func settle() { var n = 0; while (w.pendingJobs > 0 || n < 3) && n < 1500 { w.update(center: pos); usleep(2000); n += 1 } }
+        settle()
+        for (dx, dz) in [(3, 2), (19, -5)] {
+            let x = Int(floor(pos.x)) + dx, z = Int(floor(pos.z)) + dz
+            let y = w.topY(x, z) + 1
+            guard y > 0 && y < CH - 1, let c = w.chunkAt(x, z) else { check(false, "remesh after an edit: chunk loaded at \(x) \(z)"); continue }
+            let sec = c.sections[y >> 4]
+            let old = w.block(x, y, z)
+            w.setBlockAsync(x, y, z, Blocks.id("stone"))
+            let wanted = sec.version
+            settle()
+            check(sec.meshedVersion >= wanted, "an edit on a quiet frame is re-meshed (\(dx), \(dz))", "section \(sec.meshedVersion) of \(wanted)")
+            w.setBlockAsync(x, y, z, old)
+            settle()
+        }
     }
 
     // MARK: Raids
