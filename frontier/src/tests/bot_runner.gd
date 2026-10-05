@@ -256,9 +256,16 @@ func _run_missions() -> Dictionary:
 	md.autopilot = true
 	md.step_timeout = 60.0
 	var failed := []
-	md.mission_failed.connect(func(id, why): failed.append("%s: %s" % [id, why]))
+	var forced := []
+	# one deliberate failure right after a checkpoint, to exercise failure -> retry from checkpoint -> replay
+	md.test_fail = str(Game.args.get("force_fail", "c2_cards:cards_done"))
+	md.mission_failed.connect(func(id, why):
+		if str(why).begins_with("forced failure"):
+			forced.append(id)
+		else:
+			failed.append("%s: %s" % [id, why]))
 	var err0: int = Game.error_logger.take().size()
-	for i in 20:
+	for i in 30:
 		var avail: Array = md.available()
 		if avail.is_empty():
 			break
@@ -274,6 +281,7 @@ func _run_missions() -> Dictionary:
 	# story coverage: every line said exists in the dialogue tables; report the choices and minigames played
 	var said := 0
 	var choices := []
+	var outcomes := []
 	for ln in Game.log_lines:
 		var parts := ln.split(" ", false, 2)
 		if parts.size() < 3:
@@ -287,11 +295,28 @@ func _run_missions() -> Dictionary:
 				_fail(res, "dialogue line '%s' missing from design/dialogue" % data.get("id", ""))
 		elif parts[1] == "choice":
 			choices.append("%s:%d" % [data.get("mission", ""), int(data.get("index", 0))])
+		elif parts[1] in ["sneak", "stampede", "defend"]:
+			outcomes.append("%s:%s" % [parts[1], str(not data.get("spotted", false)) if parts[1] == "sneak" else str(data.get("turned", data.get("held", "")))])
 		elif parts[1] == "minigame_end":
 			print("  minigame %s: %s" % [data.get("name", ""), JSON.stringify(data)])
 	res.lines_said = said
 	res.choices = choices
 	print("  lines said %d, choices %s" % [said, " ".join(choices)])
+	print("  outcomes %s" % " ".join(outcomes))
+	# the forced failure must have been retried from its checkpoint and the mission finished
+	if md.test_fail != "":
+		var fm := md.test_fail.split(":")[0]
+		var resumed := false
+		var replayed := 0
+		for ln in Game.log_lines:
+			if ln.contains(" checkpoint_resumed ") and ln.contains('"%s"' % fm):
+				resumed = true
+			if ln.contains(" choice_replayed ") or ln.contains(" minigame_replayed "):
+				replayed += 1
+		print("  retry test: forced failure in %s %s, resumed from checkpoint: %s, decisions replayed: %d, completed: %s" % [
+			fm, "seen" if forced.has(fm) else "NOT SEEN", resumed, replayed, md.completed.has(fm)])
+		if not (forced.has(fm) and resumed and md.completed.has(fm)):
+			_fail(res, "retry from checkpoint not exercised for %s" % fm)
 	var pk: Dictionary = load("res://src/minigames/poker_engine.gd").selftest()
 	if not pk.ok:
 		_fail(res, "poker self-test: %d failed" % pk.fails)
