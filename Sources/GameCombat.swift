@@ -150,7 +150,7 @@ extension Game {
                 strike(m.pos)
             }
             let imp = Enchant.level(.impaling, t)
-            if imp > 0 && (m.kind == .drowned || m.kind.key == "guardian" || m.kind.key == "elder_guardian" || m.kind.key == "squid" || m.kind.key == "dolphin") {
+            if imp > 0 && Enchant.aquatic(m) {
                 m.hit(from: a.pos, damage: Int(2.5 * Float(imp)), knockback: 0)
             }
         }
