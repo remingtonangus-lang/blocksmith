@@ -258,6 +258,12 @@ posts; citadel rebuild remeshes in the background; patrols draw on the garrison 
 rule); villagers / golems don't stroll into caves; village cave sealing counts a floor at the fill depth; horizon ring per
 world seed; kelpcheck gating; gravity queue's concrete test by table; bench mobprof profile (mob tick 10x / 4x the
 2026-10-02 baseline: find out where).
+2026-10-05 morning: container-screen item loss / duplication and save / load audits (BUGS.md); split-screen audit (player
+2 was half simulated: hazards, gunfire, bobber, map, raids, spawners, advancements, rifts, per-seat exposure and
+cooldowns; cooptest checks a round and fangs at player 2); the 076df09 bench profile: collision sweeps (chunk per column,
+reused box list), path searches (chunk cursor, door tables), World.update quiet frames (dirty-chunk list); mineshaft lanes
+through aquifers (55 of 72 gencheck leaks); structcheck and the village / life bots now gate CI. Smoke memory: the growth
+was the harness (per-frame autorelease pools); chunks alive == loaded.
 
 ## Playtest feedback (Remington, 2026-10-02): quality and fidelity over new features
 Bug discovery is fully automated (Remington is not the bug finder). Keep CI green throughout. Queue, in order:
