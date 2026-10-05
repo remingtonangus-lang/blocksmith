@@ -1714,6 +1714,9 @@ final class Game {
                 lastHurtAmount = amount0
             }
         }
+        // Being hit by a mob, a projectile or a blast costs 0.1 exhaustion (reference damage types; falls, drowning,
+        // starving and magic cost none).
+        if attacker != nil || type == .projectile || type == .explosion { exhaustion += 0.1 }
         var dmg = Float(amount)
         if !bypassArmor {
             let a = Float(inventory.armorPoints), tough = inventory.toughness
