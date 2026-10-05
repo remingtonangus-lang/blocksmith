@@ -236,6 +236,24 @@ enum QuestSim {
         frames(2) { _ in idleHands() }
         check(abs(glidePitch + 0.5) < 0.05, String(format: "VR gliding: the look follows the head (pitch %.2f, head -0.50)", glidePitch))
 
+        // 9c. Death and respawn: the death screen opens as the menu panel in front, its button (laser + trigger)
+        // respawns, the HUD comes back and the camera follows the player to the spawn.
+        game.survival = true
+        game.player.flying = false
+        frames(2) { _ in idleHands() }
+        game.damage(1000, "the harness", bypassArmor: true)
+        frames(30) { _ in idleHands() }
+        let died = game.menu is DeathMenu
+        let deathPanel = simd_length(host.controlsPanelCenter() - rig.headWorld)
+        if let dm = game.menu as? DeathMenu { dm.buttonPressed(0) }
+        frames(10) { _ in idleHands() }
+        let backAlive = game.menu == nil && game.health > 0
+        let camOK = simd_length(rig.headWorld - game.player.eye) < 0.6
+        check(died && deathPanel < 1.5 && backAlive && camOK,
+              String(format: "VR death: death screen %@ (panel %.2f m away), respawned %@, camera at the player %@",
+                     died ? "shown" : "missing", deathPanel, backAlive ? "yes" : "no", camOK ? "yes" : "no"))
+        game.survival = false
+
         // 10. Teleport: the left stick held forward aims an arc at the platform ahead; releasing jumps there.
         QuestSettings.teleport = true
         game.player.pos = V3(Float(Int(base.x)) + 0.5, Float(py + 1), Float(Int(base.z)) + 0.5)   // platform centre
