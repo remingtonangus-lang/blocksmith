@@ -23,6 +23,8 @@ var body_mat: ShaderMaterial
 var fur_mats: Array[ShaderMaterial] = []     # wildlife fur shells (next_pass chain on FurShells)
 var fur_node: MeshInstance3D
 var under_fur_mat: ShaderMaterial              # LOD0 skin under the shells (matte)
+var is_bird := false                           # birds (tools/animals/bird.py): feather cards, no leg IK
+var feather_mat: ShaderMaterial
 var hair_mat: ShaderMaterial
 var meshes: Array[MeshInstance3D] = []
 var meta: Dictionary = {}
@@ -68,6 +70,7 @@ func build(coat_in: Dictionary, sp: String = "horse") -> void:
 	if FileAccess.file_exists(mp):
 		meta = JSON.parse_string(FileAccess.get_file_as_string(mp))
 	size_scale = clampf(float(meta.get("rest", {}).get("withers_height", 1.555)) / 1.555, 0.15, 1.5)
+	is_bird = str(meta.get("kind", "")) == "bird"
 	skeleton = _find(model, "Skeleton3D") as Skeleton3D
 	anim_player = _find(model, "AnimationPlayer") as AnimationPlayer
 	_setup_materials()
@@ -75,7 +78,7 @@ func build(coat_in: Dictionary, sp: String = "horse") -> void:
 	_setup_fur()
 	if anim_player != null:
 		_setup_tree()
-	if skeleton != null:
+	if skeleton != null and not is_bird:
 		if species == "horse":
 			_setup_seat()
 		_setup_legs()
@@ -101,6 +104,9 @@ func _collect_meshes(n: Node) -> void:
 
 func _setup_materials() -> void:
 	_collect_meshes(model)
+	if is_bird:
+		_setup_bird_materials()
+		return
 	body_mat = ShaderMaterial.new()
 	body_mat.shader = load("res://shaders/horse_coat.gdshader" if species == "horse" else "res://shaders/animal_coat.gdshader")
 	hair_mat = ShaderMaterial.new()
@@ -139,6 +145,29 @@ func _setup_materials() -> void:
 	else:
 		AnimalCoats.apply(coat, body_mat, meta.get("anchors", {}))
 
+## Birds: plumage body shader on the SDF body, feather shader on the wing and tail cards, eyes as wildlife eyes.
+func _setup_bird_materials() -> void:
+	body_mat = ShaderMaterial.new()
+	body_mat.shader = load("res://shaders/bird_body.gdshader")
+	feather_mat = ShaderMaterial.new()
+	feather_mat.shader = load("res://shaders/bird_feather.gdshader")
+	var tail_mat := ShaderMaterial.new()
+	tail_mat.shader = feather_mat.shader
+	for mi in meshes:
+		var n := String(mi.name).to_lower()
+		if n.begins_with("body"):
+			mi.material_override = body_mat
+		elif n.begins_with("plumage_tail"):
+			mi.material_override = tail_mat
+		elif n.begins_with("plumage"):
+			mi.material_override = feather_mat
+		elif n.begins_with("eye"):
+			var am := ShaderMaterial.new()
+			am.shader = load("res://shaders/animal_eye.gdshader")
+			AnimalCoats.apply_eyes(species, am)
+			mi.material_override = am
+	BirdLooks.apply(species, coat, body_mat, feather_mat, tail_mat, meta.get("anchors", {}))
+
 func _setup_lods() -> void:
 	# explicit LODs exported as Body_LOD1 / Body_LOD2: switch by distance
 	for mi in meshes:
@@ -157,6 +186,8 @@ func _setup_lods() -> void:
 			mi.material_override = body_mat
 		elif n.begins_with("Mane") or n.begins_with("Tail") or n.begins_with("Forelock"):
 			mi.visibility_range_end = 260.0
+		elif n.begins_with("Plumage"):
+			mi.visibility_range_end = 700.0               # the wings are the bird's silhouette in the sky
 		elif n.begins_with("Antler") or n.begins_with("Horn"):
 			mi.visibility_range_end = 400.0 * k
 		elif not n.begins_with("Body"):

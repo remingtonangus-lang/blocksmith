@@ -27,8 +27,6 @@ const SPECIES := {
 		"diet": "predator", "prey": ["mule_deer", "rabbit"], "attack_player": 0.7, "wary": 40.0, "biomes": [0.55, 1.0], "active": "crepuscular", "pelt": 9.0, "meat": 1.5, "color": Color(0.66, 0.5, 0.34)},
 	"black_bear": {"name": "Black Bear", "size": Vector3(0.75, 1.0, 1.7), "hp": 260.0, "walk": 1.2, "run": 12.0, "herd": [1, 1],
 		"diet": "omnivore", "attack_player": 0.4, "wary": 30.0, "biomes": [0.7, 1.0], "active": "day", "pelt": 11.0, "meat": 4.0, "color": Color(0.12, 0.1, 0.09)},
-	"turkey": {"name": "Wild Turkey", "size": Vector3(0.3, 0.8, 0.7), "hp": 15.0, "walk": 1.0, "run": 8.0, "herd": [3, 8],
-		"diet": "grazer", "wary": 35.0, "biomes": [0.5, 0.9], "active": "day", "pelt": 1.0, "meat": 0.8, "color": Color(0.25, 0.2, 0.15)},
 	"raccoon": {"name": "Raccoon", "size": Vector3(0.25, 0.35, 0.65), "hp": 15.0, "walk": 0.9, "run": 6.0, "herd": [1, 2],
 		"diet": "omnivore", "wary": 15.0, "biomes": [0.55, 1.0], "active": "night", "pelt": 1.4, "meat": 0.3, "color": Color(0.36, 0.34, 0.32)},
 	"fox": {"name": "Red Fox", "size": Vector3(0.22, 0.4, 0.9), "hp": 20.0, "walk": 1.2, "run": 13.0, "herd": [1, 1],

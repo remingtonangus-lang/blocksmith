@@ -36,6 +36,8 @@ func _ready() -> void:
 			"fur": await _fur_shots()
 			"furbench": await _furbench()
 			"turncheck": _turncheck()
+			"birds": await _birds()
+			"wingcheck": _wingcheck()
 	ok = ok and turn_ok
 	print("WILDLIFE ORACLE %s" % ("PASS" if ok else "FAIL"))
 	get_tree().quit(0 if ok else 1)
@@ -276,6 +278,55 @@ func _furbench() -> void:
 		print("FURBENCH %s x4 shells=%d  gpu(min) %.1f -> %.1f ms (x%.2f)  cpu %.2f -> %.2f ms  primitives %d -> %d  draws %d -> %d" % [
 			sp, shells, res[1][0], res[0][0], res[0][0] / maxf(res[1][0], 0.01), res[1][1], res[0][1], res[1][2], res[0][2],
 			res[1][3], res[0][3]])
+
+## Birds: each species standing (idle) in a row, then the same birds in flight poses (flap, glide, soar/dive)
+## above them, side-on; and a close 3/4 of each flying bird.
+func _birds() -> void:
+	var sps := ["turkey", "sage_grouse", "red_tailed_hawk", "crow"]
+	_clear()
+	await get_tree().process_frame
+	var x := 0.0
+	for sp in sps:
+		if HorseVisual.model_path_for(sp) == "":
+			continue
+		var g := _animal(sp, Vector3(x, 0, 0), 0.0)
+		_pose(g, "idle", 0.0)
+		var f := _animal(sp, Vector3(x, 1.0, 0.6), 0.0)
+		_pose(f, "glide" if sp != "red_tailed_hawk" else "soar", 0.0)
+		var f2 := _animal(sp, Vector3(x, 2.0, 1.2), 0.0)
+		_pose(f2, "flap", f2.action_length("flap") * 0.75)
+		x += 1.6
+	var mid := (x - 1.6) * 0.5
+	_look(Vector3(mid - 1.5, 1.6, -5.5), Vector3(mid, 1.0, 0.4), 50.0)
+	await _save("birds_front")
+	_look(Vector3(mid - 2.5, 5.0, -2.5), Vector3(mid, 1.0, 0.6), 50.0)
+	await _save("birds_above")
+
+## Wing tip positions (model space) in the rest pose and in each flight clip, both sides: a check on the
+## generator's bone-rotation conventions (spread = tips far out and level; flap = tips swing up and down).
+func _wingcheck() -> void:
+	for sp in ["turkey", "red_tailed_hawk"]:
+		if HorseVisual.model_path_for(sp) == "":
+			continue
+		var v := _animal(sp, Vector3(900, 0, 0), 0.0)
+		if v.tree:
+			v.tree.active = false
+		var sk := v.skeleton
+		for clip in ["", "idle", "glide", "soar", "dive", "flap"]:
+			var phases := [0.0] if clip != "flap" else [0.0, 0.25, 0.5, 0.75]
+			for ph in phases:
+				if clip != "":
+					v.anim_player.play(clip)
+					v.anim_player.seek(v.anim_player.get_animation(clip).length * ph, true)
+				else:
+					sk.reset_bone_poses()
+				var out := []
+				for side in ["L", "R"]:
+					var bi := sk.find_bone("wing3_" + side)
+					var tip := sk.get_bone_global_pose(bi) * Vector3(0, sk.get_bone_rest(bi).origin.length(), 0)
+					out.append("%s(%.2f %.2f %.2f)" % [side, tip.x, tip.y, tip.z])
+				print("WING %s %s@%.2f %s" % [sp, clip if clip != "" else "rest", ph, " ".join(out)])
+		v.queue_free()
 
 ## Turn-in-place clips: over turn_l the head must swing to the animal's left (-X in model space) and the forefeet
 ## step left of the hind feet; turn_r mirrors it. Prints TURN lines; a wrong direction fails the run.
