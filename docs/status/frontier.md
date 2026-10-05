@@ -86,6 +86,11 @@ runner, Metal) and the Mac monitor.
   avalanche on the Kestrel Pass, Asa spared/killed → flag `spared_asa`, Joseph joins); verbs set_snow, cold_begin/
   warm_spot, climb, avalanche, timed_tasks, pursue. **Camp life** (`src/ai/camp.gd`, `camp.json`): companions' spots
   and routines, fireside talk/barks picked from flags and deeds, stew/drink/cards with Del; `--bot camp`.
+- **Chapters 5-6 + epilogue + credits** (`src/missions/ch5/`, `ch6/`, `credits.gd`): the Meridian express (procedural
+  train + track on the worldgen rail, gallop alongside and board, `--script res://src/missions/ch5/train_selftest.gd`),
+  Hap's fate, the Outfit's split, Standing locks the ending (bots: `--standing N`), three endings, spring 1900
+  epilogue reading every flag, credits from LICENSES.md. Story scenes in chapters 1-4 moved into the real buildings
+  (`src/missions/places.gd`: saloons, sheriff's offices, the bank vault, the newspaper, the cantina).
 - **UI**: HUD (rotating paper-map inset, 3 gauges, ammo, crosshair + hit marks, prompts, subtitles, place titles),
   pause menu, settings, full-screen map with waypoints, journal; OFL period fonts (IM Fell, Rye, Sancreek, Old
   Standard); 1080p canvas scaling.

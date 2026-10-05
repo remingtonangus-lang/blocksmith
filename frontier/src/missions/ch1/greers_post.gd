@@ -2,6 +2,8 @@ extends Mission
 ## Chapter 1, mission 4 — Greer's Post. Buy the Shales' whereabouts from Tobias Greer; ride into the ambush he sold
 ## you; one survivor (spare him: Standing up, he carries the message to Cutter Shale).
 
+const P = preload("res://src/missions/places.gd")
+
 func _init() -> void:
 	id = "c1_greer"
 	title = "Greer's Post"
@@ -13,8 +15,10 @@ func run(d) -> Variant:
 	var post := Mission.place("greer_post")
 	await d.goto(post, 10.0, "Ride to Greer's trading post")
 	if d.aborted(): return false
-	var g: Array = d.spawn_group(post + Vector3(3.0, 0, 0), 1, {"role": "shopkeeper", "faction": "civilian", "name": "Tobias Greer", "seed": 601}, 0.3)
-	await d.interact(post + Vector3(3.0, 0, 0), "Talk to Greer")
+	var gb := P.building("greer_post", "trading_post")
+	var keeper := P.spot(gb, "shopkeeper")
+	var g: Array = [d.spawn_at(P.at(keeper, post + Vector3(3.0, 0, 0)), {"role": "shopkeeper", "faction": "civilian", "name": "Tobias Greer", "seed": 601}, P.look(keeper, post))]
+	await d.interact(P.at(P.spot(gb, "shop_counter"), post + Vector3(3.0, 0, 0)), "Talk to Greer")
 	if d.aborted(): return false
 	d.cine_begin()
 	var gr = g[0] if g.size() > 0 else null

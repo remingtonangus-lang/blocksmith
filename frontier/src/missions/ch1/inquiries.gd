@@ -1,6 +1,8 @@
 extends Mission
 ## Chapter 1, mission 3 — Inquiries. The saloon, a cheating card player, the sheriff's warning, and a fresh grave.
 
+const P = preload("res://src/missions/places.gd")
+
 func _init() -> void:
 	id = "c1_inquiries"
 	title = "Inquiries"
@@ -10,11 +12,14 @@ func _init() -> void:
 func run(d) -> Variant:
 	d.set_time(20.3)
 	var saloon := Mission.place("bitter_spring", 12.0, -8.0)
-	await d.goto(saloon, 6.0, "Go to the Gilded Spur saloon")
+	var sb := P.building("bitter_spring", "saloon")
+	await d.goto(P.door_out(sb, saloon), 4.0, "Go to the Gilded Spur saloon")
 	if d.aborted(): return false
-	var bar: Array = d.spawn_group(saloon + Vector3(2.0, 0, -2.0), 1, {"role": "bartender", "faction": "civilian", "name": "Bartender", "seed": 501}, 0.3)
-	var cards: Array = d.spawn_group(saloon + Vector3(-3.0, 0, 1.5), 1, {"role": "gambler", "faction": "civilian", "name": "Card Player", "seed": 502}, 0.3)
-	await d.interact(saloon + Vector3(2.0, 0, -2.0), "Talk to the bartender")
+	var bt := P.spot(sb, "bartender")
+	var ch := P.spot(sb, "chair", 1)
+	var bar: Array = [d.spawn_at(P.at(bt, saloon + Vector3(2.0, 0, -2.0)), {"role": "bartender", "faction": "civilian", "name": "Bartender", "seed": 501}, P.look(bt, saloon))]
+	var cards: Array = [d.spawn_at(P.at(ch, saloon + Vector3(-3.0, 0, 1.5)), {"role": "gambler", "faction": "civilian", "name": "Card Player", "seed": 502}, P.look(ch, saloon))]
+	await d.interact(P.at(P.spot(sb, "bar_patron"), saloon + Vector3(2.0, 0, -2.0)), "Talk to the bartender")
 	if d.aborted(): return false
 	d.cine_begin()
 	var b = bar[0] if bar.size() > 0 else null
@@ -25,8 +30,10 @@ func run(d) -> Variant:
 	d.cine_end()
 	d.checkpoint("saloon")
 	var office := Mission.place("bitter_spring", -20.0, 14.0)
-	var sheriff: Array = d.spawn_group(office, 1, {"role": "lawman", "faction": "law", "name": "Sheriff Mabry", "seed": 503, "weapon": "lockhart_sa"}, 0.3)
-	await d.goto(office, 5.0, "The sheriff wants a word")
+	var shb := P.building("bitter_spring", "sheriff")
+	var desk := P.spot(shb, "sheriff_desk")
+	var sheriff: Array = [d.spawn_at(P.at(desk, office), {"role": "lawman", "faction": "law", "name": "Sheriff Mabry", "seed": 503, "weapon": "lockhart_sa"}, P.look(desk, office))]
+	await d.goto(P.door_in(shb, office), 2.5, "The sheriff wants a word at his office")
 	if d.aborted(): return false
 	d.cine_begin()
 	var m = sheriff[0] if sheriff.size() > 0 else null

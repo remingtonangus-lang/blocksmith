@@ -4,6 +4,8 @@ extends Node
 ## await: goto, say, spawn, wait_dead, interact, wait, checkpoint, cinematic shots; draws objectives on the HUD and
 ## mission start markers in the world; handles failure/retry from checkpoints; and has an autopilot used by the
 ## mission bot (--bot missions) to play every mission end to end headless and catch softlocks.
+## Chapters 5-6 verbs: board_train / ride_until_stopped (ch5/train.gd), lock_ending / ending (Standing locks the
+## branch at the end of chapter 5; bots: --standing N), credits. spawn_at puts people on settlement spots indoors.
 ## Chapter 4 verbs: set_snow, cold_begin/cold_end + warm_spot (winter survival), climb, avalanche, timed_tasks,
 ## pursue (ride down a fleeing rider).
 ## Chapter 3 verbs: mount_up, lead (someone follows Ruth), ride_with (escort a rider on horseback), drive (push a
@@ -46,6 +48,13 @@ const MISSIONS := [
 	"res://src/missions/ch4/kestrel_pass.gd",
 	"res://src/missions/ch4/the_youngest.gd",
 	"res://src/missions/ch4/scrip_and_silver.gd",
+	"res://src/missions/ch5/the_mirror.gd",
+	"res://src/missions/ch5/the_meridian_express.gd",
+	"res://src/missions/ch5/what_we_owe.gd",
+	"res://src/missions/ch6/pells_warrants.gd",
+	"res://src/missions/ch6/long_light.gd",
+	"res://src/missions/ch6/ink.gd",
+	"res://src/missions/ch6/spring.gd",
 ]
 
 var dialogue := {}              # line id -> {speaker, line, emotion}
@@ -512,6 +521,19 @@ func spawn_group(center: Vector3, count: int, opts: Dictionary, spread := 6.0) -
 		h.brain.group = out
 	return out
 
+## Spawn one person exactly at a point (a settlement spot inside a building: floors sit above the terrain), facing
+## `look` and held there (npc_hold) until the mission lets them go. Returns the Human.
+func spawn_at(pos: Vector3, opts: Dictionary, look := Vector3.INF) -> Human:
+	var p := pos
+	p.y = _floor_y(pos) + 0.08
+	Game.terrain.ensure_collision_at(p)
+	var o := opts.duplicate()
+	var h := Human.spawn(Game.main, p, o)
+	spawned.append(h)
+	h.brain.group = [h]
+	npc_hold(h, look if look != Vector3.INF else p + Vector3(0, 0, -2))
+	return h
+
 ## Wait until every Human in the group is dead or surrendered.
 func wait_dead(group: Array, text: String) -> void:
 	if _abort:
@@ -598,9 +620,14 @@ func place_player(pos: Vector3, yaw: float) -> void:
 	Game.player.cam_yaw = yaw
 	Game.player.facing = yaw
 
+## Ground under a point: the terrain, or a floor up to 4 m above it when the point says so (boardwalks, interiors).
+func _floor_y(pos: Vector3) -> float:
+	var h := Game.world.height(pos.x, pos.z)
+	return pos.y if pos.y > h and pos.y - h < 4.0 else h
+
 func _teleport_player(pos: Vector3) -> void:
 	var p := pos
-	p.y = Game.world.height(p.x, p.z) + 0.6
+	p.y = _floor_y(pos) + 0.6
 	Game.terrain.ensure_collision_at(p)
 	var horse = Game.player.get("on_horse")
 	if horse != null and horse is Node3D and horse != self:
@@ -728,7 +755,7 @@ func npc_release(npc) -> void:
 
 func _put_on_ground(n: Node3D, pos: Vector3) -> void:
 	var p := pos
-	p.y = Game.world.height(p.x, p.z) + 0.3
+	p.y = _floor_y(pos) + 0.3
 	Game.terrain.ensure_collision_at(p)
 	n.global_position = p
 	if n is CharacterBody3D:
@@ -1611,3 +1638,92 @@ func pursue(rider, goal: Vector3, text: String, seconds := 60.0, catch := 7.0) -
 	_decide(caught, autopilot)
 	Game.log_event("pursue", {"caught": caught})
 	return caught
+
+# ------------------------------------------------------------------ chapter 5-6 verbs (the train, endings, credits)
+## Ride alongside a car of a moving train (ch5/train.gd) and board it: within 5 m of its side and level with it
+## for a breath, then interact (or hold station 3 s). Fails the mission if the train passes `s_limit` first.
+## On boarding Ruth leaves the saddle and rides the car's platform until the mission lets her down.
+func board_train(train, car: int, text: String, s_limit: float) -> void:
+	if _abort or train == null:
+		return
+	if resuming or autopilot:
+		dismount_player()
+		_teleport_player(train.car_center(car) + train.tangent(train.s).cross(Vector3.UP) * 2.4)
+		Game.log_event("boarded", {"car": car})
+		return
+	set_objective(text)
+	var close_t := 0.0
+	while not _abort:
+		var c: Vector3 = train.car_center(car)
+		var fwd: Vector3 = train.tangent(train.s - float(train.cars[car].offset))
+		var side := fwd.cross(Vector3.UP).normalized()
+		var rel: Vector3 = Game.player.global_position - c
+		var along := absf(rel.dot(fwd))
+		var lateral := absf(rel.dot(side))
+		var level := along < float(train.cars[car].len) * 0.5 + 1.5 and lateral < 5.0
+		close_t = close_t + get_physics_process_delta_time() if level else 0.0
+		if Game.hud:
+			Game.hud.prompt("[E]  Jump for the car" if close_t > 0.5 else text)
+		if close_t > 0.5 and (Input.is_action_just_pressed("interact") or Game.player.intent.get("interact", false) or close_t > 3.0):
+			break
+		if train.s >= s_limit:
+			fail("The train got away")
+			return
+		await get_tree().physics_frame
+	if _abort:
+		return
+	dismount_player()
+	Game.log_event("boarded", {"car": car})
+	set_objective("")
+
+## Hold Ruth on a car's end platform while the train slows to a stop, then set her down beside the car's door.
+func ride_until_stopped(train, car: int) -> void:
+	if _abort or train == null:
+		return
+	train.brake()
+	if autopilot or resuming:
+		train.speed = 0.0
+	Game.player.set("bot_driven", true)
+	var t := 0.0
+	while not _abort and train.speed > 0.15 and t < 30.0:
+		var c: Vector3 = train.car_center(car)
+		var fwd: Vector3 = train.tangent(train.s - float(train.cars[car].offset))
+		Game.player.global_position = c - fwd * (float(train.cars[car].len) * 0.5 - 0.5) + Vector3(0, 1.25, 0)
+		Game.player.velocity = Vector3.ZERO
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+	var c2: Vector3 = train.car_center(car)
+	var side: Vector3 = train.tangent(train.s - float(train.cars[car].offset)).cross(Vector3.UP).normalized()
+	_teleport_player(c2 + side * 2.6)
+	if not Game.args.has("bot"):
+		Game.player.set("bot_driven", false)
+
+## The ending branch, locked by Standing at the end of chapter 5: "high", "middle" or "low". Bots pick it with
+## --standing N (Standing is set to N when the branch locks).
+func lock_ending() -> String:
+	var st = Game.state
+	if st == null:
+		return "middle"
+	if Game.args.has("standing"):
+		st.standing = clampf(float(Game.args.standing), -100.0, 100.0)
+	var v: float = st.standing
+	var branch := "high" if v >= 25.0 else ("low" if v <= -15.0 else "middle")
+	st.flags["ending"] = branch
+	Game.log_event("ending_locked", {"branch": branch, "standing": snappedf(v, 0.1)})
+	if Game.hud:
+		Game.hud.notice("Your road is set", 4.0)
+	return branch
+
+func ending() -> String:
+	return str(Game.state.flags.get("ending", "middle")) if Game.state else "middle"
+
+## Roll the credits (src/missions/credits.gd); returns when they end or are skipped.
+func credits() -> void:
+	if _abort or resuming:
+		return
+	Game.log_event("credits", {})
+	var c = load("res://src/missions/credits.gd").new()
+	add_child(c)
+	await c.roll(autopilot or Game.headless)
+	if is_instance_valid(c):
+		c.queue_free()

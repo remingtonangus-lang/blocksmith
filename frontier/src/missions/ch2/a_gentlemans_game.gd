@@ -7,6 +7,8 @@ extends Mission
 
 const C2 = preload("res://src/missions/ch2/ch2.gd")
 
+const P = preload("res://src/missions/places.gd")
+
 func _init() -> void:
 	id = "c2_cards"
 	title = "A Gentleman's Game"
@@ -15,19 +17,27 @@ func _init() -> void:
 
 func run(d) -> Variant:
 	d.set_time(21.2)
-	var saloon := C2.spot("port_linden", -38.0, 12.0)
-	await d.goto(saloon, 6.0, "Go to the Corinthian saloon")
+	var saloon_fb := C2.spot("port_linden", -38.0, 12.0)
+	var sb := P.building("port_linden", "saloon")
+	var saloon := P.inside(sb, 0.5, saloon_fb)
+	await d.goto(P.door_out(sb, saloon_fb), 4.0, "Go to the Corinthian saloon")
 	if d.aborted(): return false
 	await d.say("c2_cards_01", Game.player)
-	var table := C2.near(saloon, -3.0, 2.0)
-	var del := C2.spawn_friend(d, C2.near(table, 1.6, 0.4), {"role": "gambler", "faction": "outfit", "name": "Del Arceneaux",
-		"seed": 2201, "weapon": "lockhart_sa", "skill": 0.65, "health": 160.0})
-	var stroud := C2.spawn_friend(d, C2.near(table, 0.0, -1.4), {"role": "gambler", "faction": "syndicate", "name": "Abel Stroud",
-		"seed": 2202, "weapon": "lockhart_sa", "skill": 0.5, "aggressive": false})
-	var hask := C2.spawn_friend(d, C2.near(table, -1.5, 0.3), {"role": "townsfolk", "faction": "civilian", "name": "Lyle Hask", "seed": 2203})
-	var merrow := C2.spawn_friend(d, C2.near(table, 0.2, 1.6), {"role": "townsfolk", "faction": "civilian", "name": "Josiah Merrow", "seed": 2204})
-	var floyd := C2.spawn_friend(d, C2.near(saloon, 3.0, -3.0), {"role": "bartender", "faction": "syndicate", "name": "Floyd Gentry",
-		"seed": 2205, "weapon": "harlan_carbine", "skill": 0.4, "aggressive": false})
+	var chairs := P.table_chairs(sb, 4)
+	var table := P.inside(sb, 0.6, C2.near(saloon_fb, -3.0, 2.0))
+	if chairs.size() > 0 and chairs[0].has("table"):
+		table = chairs[0].table
+	var seat := func(i: int, fb: Vector3) -> Vector3:
+		return chairs[i].transform.origin if i < chairs.size() else fb
+	var del: Human = d.spawn_at(seat.call(0, C2.near(table, 1.6, 0.4)), {"role": "gambler", "faction": "outfit", "name": "Del Arceneaux",
+		"seed": 2201, "weapon": "lockhart_sa", "skill": 0.65, "health": 160.0}, table)
+	var stroud: Human = d.spawn_at(seat.call(1, C2.near(table, 0.0, -1.4)), {"role": "gambler", "faction": "syndicate", "name": "Abel Stroud",
+		"seed": 2202, "weapon": "lockhart_sa", "skill": 0.5, "aggressive": false}, table)
+	var hask: Human = d.spawn_at(seat.call(2, C2.near(table, -1.5, 0.3)), {"role": "townsfolk", "faction": "civilian", "name": "Lyle Hask", "seed": 2203}, table)
+	var merrow: Human = d.spawn_at(seat.call(3, C2.near(table, 0.2, 1.6)), {"role": "townsfolk", "faction": "civilian", "name": "Josiah Merrow", "seed": 2204}, table)
+	var bt := P.spot(sb, "bartender")
+	var floyd: Human = d.spawn_at(P.at(bt, C2.near(saloon_fb, 3.0, -3.0)), {"role": "bartender", "faction": "syndicate", "name": "Floyd Gentry",
+		"seed": 2205, "weapon": "harlan_carbine", "skill": 0.4, "aggressive": false}, P.look(bt, table))
 	for h in [del, stroud, hask, merrow]:
 		d.npc_hold(h, table)
 	d.npc_hold(floyd, table)

@@ -5,6 +5,8 @@ extends Mission
 
 const C2 = preload("res://src/missions/ch2/ch2.gd")
 
+const P = preload("res://src/missions/places.gd")
+
 func _init() -> void:
 	id = "c2_lantern"
 	title = "The Lantern"
@@ -21,13 +23,17 @@ func run(d) -> Variant:
 	await d.wait(1.0)
 	await d.say("c2_lan_01", Game.player)
 	d.checkpoint("road")
-	var office := C2.spot("port_linden", -60.0, -20.0)
-	await d.goto(office + Vector3(-14.0, 0, 6.0), 8.0, "Ride into Port Linden and find the Lantern office")
+	var office_fb := C2.spot("port_linden", -60.0, -20.0)
+	var nb := P.building("port_linden", "newspaper")
+	var office := P.inside(nb, 0.55, office_fb)
+	await d.goto(P.door_out(nb, office_fb + Vector3(-14.0, 0, 6.0)), 8.0, "Ride into Port Linden and find the Lantern office")
 	if d.aborted(): return false
-	var fenn := C2.spawn_friend(d, C2.near(office, 2.5, -1.5), {"role": "townsfolk", "faction": "civilian",
-		"name": "Augustus Fenn", "seed": 2101})
-	var toughs: Array = d.spawn_group(C2.near(office, -2.0, 1.5), 2, {"role": "gunman", "faction": "syndicate",
-		"name": "Hired Man", "seed": 2110, "weapon": "lockhart_sa", "skill": 0.3, "aggressive": false}, 1.5)
+	var fenn: Human = d.spawn_at(P.at(P.spot(nb, "clerk"), C2.near(office, 2.5, -1.5)), {"role": "townsfolk", "faction": "civilian",
+		"name": "Augustus Fenn", "seed": 2101}, office)
+	var toughs: Array = []
+	for i in 2:
+		toughs.append(d.spawn_at(P.inside(nb, 0.45 + 0.15 * i, C2.near(office, -2.0 + i * 1.5, 1.5), -1.0 + i * 2.0), {"role": "gunman",
+			"faction": "syndicate", "name": "Hired Man", "seed": 2110 + i, "weapon": "lockhart_sa", "skill": 0.3, "aggressive": false}, office))
 	if toughs.size() > 1:
 		toughs[0].display_name = "Carl Ebbing"
 		toughs[1].display_name = "Wade Snell"
@@ -36,7 +42,7 @@ func run(d) -> Variant:
 	for t in toughs:
 		d.npc_hold(t, office + Vector3(2.5, 0, -1.5))
 	await d.say("c2_lan_02", Game.player)
-	await d.goto(office, 6.0, "See what the noise is at the Lantern")
+	await d.goto(P.door_in(nb, office), 2.5, "See what the noise is at the Lantern")
 	if d.aborted(): return false
 	var carl = C2.one(toughs)
 	var wade = toughs[1] if toughs.size() > 1 else carl
@@ -82,7 +88,8 @@ func run(d) -> Variant:
 	await d.say("c2_lan_16", Game.player)
 	await d.say("c2_lan_17", fenn)
 	d.cine_end()
-	var overlook := C2.spot("port_linden", -12.0, 34.0)
+	var overlook := P.door_out(P.building("port_linden", "bank"), C2.spot("port_linden", -12.0, 34.0))
+	P.open_doors(nb, office)
 	await d.follow(fenn, "Walk with Fenn", overlook, 5.0, ["c2_lan_18", "c2_lan_19", "c2_lan_20", "c2_lan_21", "c2_lan_22", "c2_lan_23"])
 	if d.aborted(): return false
 	d.checkpoint("overlook")
