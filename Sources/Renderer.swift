@@ -2626,7 +2626,7 @@ final class Renderer: NSObject, MTKViewDelegate {
         let leftC: V4 = full * V4(0.78, 0.78, 0.78, 1), rightC: V4 = full * V4(0.6, 0.6, 0.6, 1)
         let backC: V4 = full * V4(0.38, 0.38, 0.38, 1)
         // One-box icons get the item icons' frame (ItemHD): a soft drop shadow and a dark outline behind the cube.
-        let solo = boxes.count == 1 && !glassy && !leafy
+        let solo = order.count == 1 && !glassy && !leafy
         if solo {
             let lo: V3 = order[0].minV, hi: V3 = order[0].maxV
             let hex: [V2] = [P(lo.x, hi.y, lo.z), P(hi.x, hi.y, lo.z), P(hi.x, lo.y, lo.z), P(hi.x, lo.y, hi.z), P(lo.x, lo.y, hi.z), P(lo.x, hi.y, hi.z)]
