@@ -352,9 +352,20 @@ final class Coop {
     func followDimension(_ g: Game) {
         let at = g.player.pos
         let right = V3(cosf(g.player.yaw), 0, -sinf(g.player.yaw))
+        let fwd = V3(-sinf(g.player.yaw), 0, -cosf(g.player.yaw))
         for i in 0..<slots.count where i != current {
             guard let p = slots[i]?.player else { continue }
-            p.pos = at + right * 1.2
+            // Beside the traveller where the body fits (a fixed step to the right could be inside the portal frame or a
+            // wall at the far end); on the traveller's own spot if nothing nearby is free (players don't collide).
+            var spot = at
+            let r: V3 = right * 1.2, f: V3 = fwd * 1.2, up = V3(0, 1, 0)
+            let offs: [V3] = [r, -r, f, -f, r + up, up - r]
+            for o in offs {
+                let q: V3 = at + o
+                let lo = V3(q.x - p.halfW, q.y, q.z - p.halfW), hi = V3(q.x + p.halfW, q.y + p.height, q.z + p.halfW)
+                if !g.world.collides(lo, hi) { spot = q; break }
+            }
+            p.pos = spot
             p.vel = .zero
             p.airPeak = p.pos.y
             p.pendingFall = 0
