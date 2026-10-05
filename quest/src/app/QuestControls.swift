@@ -33,6 +33,7 @@ final class QuestControls {
     private var flickArmed = true
     private var flick = 0                      // 1 up, -1 down (a short D-pad press)
     private var yHold: Float = 0, yLong = false, yPulse = 0
+    private var xHold: Float = 0, xLong = false, xPulse = 0, swapPulse = 0
     private var flickTime: Float = 0
     private var vignette: Float = 0            // current strength 0...1
     private var turnFlash: Float = 0
@@ -158,7 +159,21 @@ final class QuestControls {
         p.lt = max(R.squeeze, L.trigger)
         p.a = R.button1
         p.b = R.button2
-        p.x = L.button1
+        // X: a tap is pick block / reload (sent when it is let go); held, it swaps the offhand (the pad's D-pad right).
+        if inMenu {
+            p.x = L.button1
+            xHold = 0; xLong = false; xPulse = 0
+        } else {
+            if L.button1 { xHold += dt } else {
+                if xHold > 0 && !xLong { xPulse = 3 }
+                xHold = 0; xLong = false
+            }
+            if xHold > 0.4 && !xLong { xLong = true; swapPulse = 3 }
+            p.x = xPulse > 0
+            if xPulse > 0 { xPulse -= 1 }
+            p.right = swapPulse > 0
+            if swapPulse > 0 { swapPulse -= 1 }
+        }
         // Y: a tap opens the inventory (sent when it is let go); held, it is the pad's View held: the world map.
         if inMenu {
             p.y = L.button2

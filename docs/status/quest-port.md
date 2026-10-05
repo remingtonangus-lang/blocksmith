@@ -40,7 +40,7 @@ Stop: `adb shell am force-stop com.blocksmith.quest`
 | Right stick left/right | snap turn 45° (or smooth turn) |
 | Right stick flick up / down | fly toggle (D-pad up) / drop item (D-pad down) |
 | A / B | jump / sneak (in menus: select / back) |
-| X / Y | pick block or reload / inventory (tap); hold Y: world map |
+| X / Y | pick block or reload / inventory (tap); hold X: swap offhand, hold Y: world map |
 | Left grip | hotbar left (LB) |
 | Right stick click | hotbar right; hold: weapon wheel, then push the right stick at a gun and let go (no turning while held) |
 | Left stick click | sprint (L3) |
@@ -126,8 +126,8 @@ the log) instead of hanging in an empty scene.
   Max Frame Rate, Resolution, World Scale, Graphics, Field of View, Bug Notes).
 - Mob path searches 4x faster (fewer hitches near villages and herds); the latest playtest-branch content (vehicle
   riding fixes, plant support, crafting book).
-- Not mapped on Touch yet: D-pad left/right (offhand swap, chat) and View (camera / hold for map; the map is in the
-  pause menu).
+- Not mapped on Touch yet: D-pad left (chat; Commands is in the pause menu) and the View tap (third-person camera, not
+  useful in VR). (Later builds: hold X swaps the offhand, hold Y opens the map.)
 
 **QUEST APK READY 37267431530** (2026-10-05, versionCode 29, commit 7139f83): everything in 24, plus:
 - 128-pixel block textures (sharper up close; Pause → VR Comfort & Controls → Texture Detail goes back to 64 if memory

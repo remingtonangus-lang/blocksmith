@@ -205,6 +205,15 @@ enum QuestSim {
         if game.menu != nil { game.closeMenu() }
         frames(3) { _ in idleHands() }
 
+        // 8d. Holding X swaps the offhand (a torch from the hand to the offhand).
+        let torch = Items.id("torch")
+        game.inventory.held = ItemStack(torch, 8)
+        game.inventory.offhand[0] = .empty
+        frames(50) { _ in idleHands(); sim.hands[0].button1 = true }
+        frames(5) { _ in idleHands() }
+        check(game.inventory.offhand[0].item == torch, "VR offhand: holding X swapped the torch to the offhand (offhand \(Items.key(game.inventory.offhand[0].item)))")
+        game.inventory.offhand[0] = .empty
+
         // 9. The pause menu's VR page: the snap angle option changes the next snap turn.
         QuestOptions.install(QuestOptions.Hooks(recenter: { rig.needsRecenter = true }))
         let pm = PauseMenu(game: game)
