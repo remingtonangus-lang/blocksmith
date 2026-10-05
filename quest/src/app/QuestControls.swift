@@ -754,8 +754,8 @@ final class QuestControls {
     }
 
     // The Mac HUD's full-screen effects, over the whole view instead of the HUD panel (extract_hud.py turns them off
-    // there): water, lava, sleep and portal tints; getting hurt and burning as edge glows (a full-view red flash is
-    // harsh in a headset).
+    // there): water, lava, sleep and portal tints; getting hurt, burning and freezing as edge glows (a full-view red
+    // flash is harsh in a headset).
     private func screenEffects(_ v: inout [SimpleVert]) {
         let g = game
         let fx: Float = Settings.shared.screenEffects ? 1 : 0.3
@@ -769,6 +769,7 @@ final class QuestControls {
             for t in [0, 1, 2, 0, 2, 3] { v.append(SimpleVert(pos: V4(q[t].x, q[t].y, 0, 2), color: c)) }
         }
         if g.hurtFlash > 0 { ring(&v, min(1, g.hurtFlash * 2.5), V3(0.75, 0.02, 0.02), maxAlpha: 0.6 * fx) }
+        if g.freeze > 0 { ring(&v, min(1, g.freeze / 7) * 0.7, V3(0.85, 0.93, 1), maxAlpha: 0.55) }
         if g.onFire > 0 && g.menu == nil {
             let flicker = 0.75 + 0.25 * sinf(Float(g.clock) * 9)
             ring(&v, 0.55 * flicker, V3(1, 0.45, 0.05), maxAlpha: 0.5)

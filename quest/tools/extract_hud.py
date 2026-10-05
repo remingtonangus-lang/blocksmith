@@ -34,12 +34,17 @@ for i, l in enumerate(rest):
 # VR: full-screen tints (water, lava, sleep, hurt, portal) and the fire flames would only tint the HUD panel; the
 # Quest draws them over the whole view instead (QuestControls.drawScreenEffects), so they are off on the panel.
 fx = {'if game.player.headInWater {': 'water', 'if game.player.headInLava {': 'lava', 'if game.sleeping > 0 {': 'sleep',
-      'if game.hurtFlash > 0 {': 'hurt', 'if game.portalTime > 0 {': 'portal', 'if game.onFire > 0 && game.menu == nil {': 'fire'}
+      'if game.hurtFlash > 0 {': 'hurt', 'if game.portalTime > 0 {': 'portal', 'if game.onFire > 0 && game.menu == nil {': 'fire',
+      'if game.freeze > 0 {': 'freeze',
+      # Lens overlays black out the screen around a zoomed view; VR has no zoomed view, so they would only black out
+      # the HUD panel.
+      'if game.fovScale < 0.5 && Items.key(game.held.item) == "spyglass" {': 'spyglass', 'if game.sniperScoped {': 'scope'}
+multiline = {'fire', 'freeze', 'spyglass', 'scope'}
 found = set()
 for i, l in enumerate(rest):
     t = l.strip()
     for k, name in fx.items():
-        if t.startswith(k) and name not in found and ('rect(0, 0, W, H' in t or name == 'fire'):
+        if t.startswith(k) and name not in found and ('rect(0, 0, W, H' in t or name in multiline):
             rest[i] = l.replace(k, k[:3] + '!Renderer.questHideCrosshair && ' + k[3:], 1)
             found.add(name)
 missing = set(fx.values()) - found
