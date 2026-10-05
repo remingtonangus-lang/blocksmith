@@ -233,6 +233,38 @@ enum WorldFXTest {
         let cam = river + V3(-26, 34, 30)
         look(g, from: cam, at: river)
         shot(g, r, w, h, out + "/fx_flood_0.png")
+        // A sealed stone hut (7 x 7, walls and a roof, no door) on low ground near the river: the flood rises round
+        // it but must not fill it from the inside.
+        let rx = Int(floor(river.x)), rz = Int(floor(river.z))
+        var waterY = -1
+        for y in stride(from: wd.topY(rx, rz), to: max(0, wd.topY(rx, rz) - 30), by: -1) where Blocks.fluidKind[Int(wd.rawBlock(rx, y, rz))] == 1 {
+            waterY = y; break
+        }
+        var hut: (Int, Int, Int)? = nil                 // corner x, z, floor y
+        if waterY > 0 {
+            search: for d in stride(from: 6, through: 30, by: 2) {
+                for (sx, sz) in [(d, 0), (-d, 0), (0, d), (0, -d), (d, d), (-d, -d), (d, -d), (-d, d)] {
+                    let hx = rx + sx - 3, hz = rz + sz - 3
+                    var lo = Int.max, hi = Int.min, wet = false
+                    for dz in 0..<7 { for dx in 0..<7 {
+                        let t = wd.topY(hx + dx, hz + dz)
+                        lo = min(lo, t); hi = max(hi, t)
+                        if Blocks.isLiquid(wd.rawBlock(hx + dx, t, hz + dz)) { wet = true }
+                    } }
+                    if !wet && hi - lo <= 2 && lo >= waterY && lo <= waterY + 2 { hut = (hx, hz, hi + 1); break search }
+                }
+            }
+        }
+        if let (hx, hz, fy) = hut {
+            for dz in 0..<7 { for dx in 0..<7 {
+                let edge = dx == 0 || dz == 0 || dx == 6 || dz == 6
+                let ground = wd.topY(hx + dx, hz + dz)
+                for y in (ground + 1)..<(fy + 5) {
+                    let solid = edge || y < fy || y == fy + 4
+                    _ = wd.setBlockAsync(hx + dx, y, hz + dz, solid ? COBBLE : AIR)
+                }
+            } }
+        }
         // Heavy rain for 10 minutes of model time (the model steps every 0.5 s).
         fm.forcedRain = 1.4
         func runModel(_ seconds: Float) { for _ in 0..<Int(seconds / FloodModel.updateEvery) { fm.update(FloodModel.updateEvery, game: g) } }
@@ -269,6 +301,16 @@ enum WorldFXTest {
         check(converted == 0, "the fluid sim leaves flood water alone", "\(converted) of \(probe.count) changed")
         let wallShare = Float(walls) / Float(max(1, fm.placed.count))
         check(wallShare < 0.03, "flood shorelines are sloped, not walls", String(format: "%ld full sources beside air (%.1f%%)", walls, wallShare * 100))
+        // Oracle: nothing inside the sealed hut (when the flood reached its walls).
+        if let (hx, hz, fy) = hut {
+            var inside = 0, round = 0
+            for dz in 1..<6 { for dx in 1..<6 { for y in fy..<(fy + 4) where FloodModel.isFlood(wd.rawBlock(hx + dx, y, hz + dz)) { inside += 1 } } }
+            for dz in -3...9 { for dx in -3...9 where dx < 0 || dz < 0 || dx > 6 || dz > 6 {
+                for y in fy..<(fy + 4) where FloodModel.isFlood(wd.rawBlock(hx + dx, y, hz + dz)) { round += 1 }
+            } }
+            if round > 10 { check(inside == 0, "a sealed hut stays dry inside", "\(inside) flood blocks inside, \(round) round it") }
+            else { note("the hut site stayed dry (\(round) flood blocks round it): sealed-room oracle not exercised") }
+        } else { note("no low, dry 7 x 7 site by the river for the sealed hut") }
         // Oracle: a shoreline block with nothing open beside it is a groove in the flood surface (cell boundaries
         // showed as thin bright lines).
         var grooves = 0

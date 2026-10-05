@@ -268,19 +268,28 @@ final class FloodModel {
         var used = 0
         let from = max(Int(ground[k]), fillTop[k] > 0 ? fillTop[k] : Int(ground[k]))
         for y in stride(from: from, to: top, by: 1) {
-            for dz in 0..<cs { for dx in 0..<cs {
-                let x = x0 + dx, z = z0 + dz
-                let b = w.rawBlock(x, y, z)
-                guard b == AIR || (Blocks.replaceable[Int(b)] && !Blocks.isLiquid(b)) else { continue }
-                // Only over this column's own ground (water never hangs over a drop inside the cell).
-                let below = w.rawBlock(x, y - 1, z)
-                guard !FloodModel.passT[Int(below)] || Blocks.fluidKind[Int(below)] == 1 else { continue }
-                let id = isShore(w, x, y, z, cell: k) ? FloodModel.edge : FloodModel.flood
-                if w.setBlockAsync(x, y, z, id) {
-                    placed.insert(IVec3(x, y, z)); used += 1; writes += 1
-                    used += closeShores(w, x, y, z)
-                }
-            } }
+            // Under a roof (a house, an overhang) water only comes in beside water already standing at this height,
+            // through a doorway or an open side, never up through a sealed floor (closed rooms in a flooded valley
+            // filled from the inside). Repeated so it runs on across the room within the cell.
+            var pass = 0, more = true
+            while more && pass < 6 {
+                more = false; pass += 1
+                for dz in 0..<cs { for dx in 0..<cs {
+                    let x = x0 + dx, z = z0 + dz
+                    let b = w.rawBlock(x, y, z)
+                    guard b == AIR || (Blocks.replaceable[Int(b)] && !Blocks.isLiquid(b)) else { continue }
+                    // Only over this column's own ground (water never hangs over a drop inside the cell).
+                    let below = w.rawBlock(x, y - 1, z)
+                    guard !FloodModel.passT[Int(below)] || Blocks.fluidKind[Int(below)] == 1 else { continue }
+                    if roofed(w, x, y, z) && !besideWater(w, x, y, z) { continue }
+                    let id = isShore(w, x, y, z, cell: k) ? FloodModel.edge : FloodModel.flood
+                    if w.setBlockAsync(x, y, z, id) {
+                        placed.insert(IVec3(x, y, z)); used += 1; writes += 1
+                        used += closeShores(w, x, y, z)
+                        more = true
+                    }
+                } }
+            }
             fillTop[k] = y + 1
             if used >= budget { return used }
         }
@@ -302,6 +311,17 @@ final class FloodModel {
             if m == k { continue }
             if !known[m] || target(m) <= y { return true }
         }
+        return false
+    }
+
+    // A solid block (not leaves, plants or snow) within 12 above: a roof the rain can't come through.
+    private func roofed(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Bool {
+        for yy in (y + 1)..<min(CH, y + 13) where !FloodModel.passT[Int(w.rawBlock(x, yy, z))] { return true }
+        return false
+    }
+
+    private func besideWater(_ w: World, _ x: Int, _ y: Int, _ z: Int) -> Bool {
+        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] where Blocks.fluidKind[Int(w.rawBlock(x + dx, y, z + dz))] == 1 { return true }
         return false
     }
 
