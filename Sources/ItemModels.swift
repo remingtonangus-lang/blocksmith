@@ -2,19 +2,20 @@ import Foundation
 import simd
 
 // 3D item models (Remington's TV playtest: held items were flat cards, dropped items camera-facing sprites). Every
-// sprite item is extruded from its icon: the icon's alpha mask, captured while the texture layer is generated
-// (TextureGen.base), at 32 x 32 cells; front and back faces carry the icon itself, the side walls run round the mask's
-// edges (merged into strips) sampling the edge texels, 1/16 of the item's size thick. One model per texture layer,
+// sprite item is extruded from its icon: the icon's alpha, captured while the texture layer is generated
+// (TextureGen.base), at 64 x 64 samples; front and back faces carry the icon itself (cut out by its own alpha), the side
+// walls follow the alpha's 0.5 contour (marching squares: smooth diagonals, no staircase) sampling the colour just
+// inside the outline, 1/13 of the item's size thick. One model per texture layer,
 // built on first use and kept. Drawn in the entity pass: first-person held items, the player's (and the other co-op
 // seats') hand in third person, and dropped items.
 enum ItemModels {
-    static let G = 32
-    static let thickness: Float = 1.0 / 16
+    static let G = 64
+    static let thickness: Float = 1.0 / 13
 
     struct Quad { var p: (V3, V3, V3, V3); var uv: (V2, V2, V2, V2); var n: V3 }
 
     private static let lock = NSLock()
-    private static var masks: [Int: [Bool]] = [:]
+    private static var masks: [Int: [Float]] = [:]
     private static var meshes: [Int: [Quad]] = [:]
 
     // Texture names of every sprite item (item_<name>, or a shared sprite such as a potion bottle).
@@ -38,10 +39,16 @@ enum ItemModels {
     // Called from TextureGen.base (concurrently, one layer per call) with the layer's final pixels.
     static func capture(layer: Int, name: String, px: [V4], n: Int) {
         guard itemLayerNames.contains(name), n > 0, px.count >= n * n else { return }
-        var m = [Bool](repeating: false, count: G * G)
+        // Alpha at the centres of a G x G grid (bilinear between texel centres).
+        var m = [Float](repeating: 0, count: G * G)
         for j in 0..<G { for i in 0..<G {
-            let x = min(n - 1, (i * n + n / 2) / G), y = min(n - 1, (j * n + n / 2) / G)
-            m[j * G + i] = px[y * n + x].w >= 0.5
+            let fx = (Float(i) + 0.5) / Float(G) * Float(n) - 0.5, fy = (Float(j) + 0.5) / Float(G) * Float(n) - 0.5
+            let x0 = max(0, min(n - 1, Int(floorf(fx)))), y0 = max(0, min(n - 1, Int(floorf(fy))))
+            let x1 = min(n - 1, x0 + 1), y1 = min(n - 1, y0 + 1)
+            let tx = simd_clamp(fx - Float(x0), 0, 1), ty = simd_clamp(fy - Float(y0), 0, 1)
+            let top = px[y0 * n + x0].w * (1 - tx) + px[y0 * n + x1].w * tx
+            let bot = px[y1 * n + x0].w * (1 - tx) + px[y1 * n + x1].w * tx
+            m[j * G + i] = top * (1 - ty) + bot * ty
         } }
         lock.lock(); masks[layer] = m; lock.unlock()
     }
@@ -66,47 +73,104 @@ enum ItemModels {
     }
 
     // Local space: the icon in the XY plane, x right and y up, centred, 1 x 1; z toward the icon's front.
-    static func build(_ m: [Bool]) -> [Quad] {
-        let s: Float = 1 / Float(G), h: Float = thickness / 2
-        func filled(_ i: Int, _ j: Int) -> Bool { i >= 0 && j >= 0 && i < G && j < G && m[j * G + i] }
+    static func build(_ m: [Float]) -> [Quad] {
+        let h: Float = thickness / 2
         var q: [Quad] = []
         q.append(Quad(p: (V3(-0.5, -0.5, h), V3(0.5, -0.5, h), V3(0.5, 0.5, h), V3(-0.5, 0.5, h)),
                       uv: (V2(0, 1), V2(1, 1), V2(1, 0), V2(0, 0)), n: V3(0, 0, 1)))
         q.append(Quad(p: (V3(0.5, -0.5, -h), V3(-0.5, -0.5, -h), V3(-0.5, 0.5, -h), V3(0.5, 0.5, -h)),
                       uv: (V2(1, 1), V2(0, 1), V2(0, 0), V2(1, 0)), n: V3(0, 0, -1)))
-        // Top and bottom walls: runs along each row.
-        for j in 0..<G {
-            for (dj, ny) in [(-1, Float(1)), (1, Float(-1))] {
-                var i = 0
-                while i < G {
-                    guard filled(i, j) && !filled(i, j + dj) else { i += 1; continue }
-                    var e = i
-                    while e + 1 < G && filled(e + 1, j) && !filled(e + 1, j + dj) { e += 1 }
-                    let x0 = Float(i) * s - 0.5, x1 = Float(e + 1) * s - 0.5
-                    let y: Float = 0.5 - Float(dj < 0 ? j : j + 1) * s
-                    let u0 = (Float(i) + 0.5) * s, u1 = (Float(e) + 0.5) * s, v = (Float(j) + 0.5) * s
-                    q.append(Quad(p: (V3(x0, y, h), V3(x1, y, h), V3(x1, y, -h), V3(x0, y, -h)),
-                                  uv: (V2(u0, v), V2(u1, v), V2(u1, v), V2(u0, v)), n: V3(0, ny, 0)))
-                    i = e + 1
+        // Alpha at grid point (i, j) (sample centres; 0 outside, so every contour closes).
+        func a(_ i: Int, _ j: Int) -> Float { i >= 0 && j >= 0 && i < G && j < G ? m[j * G + i] : 0 }
+        let g = Float(G)
+        func uvAt(_ i: Float, _ j: Float) -> V2 { V2((i + 0.5) / g, (j + 0.5) / g) }
+        // Gradient of the bilinear field at grid coordinates (fi, fj), by central differences.
+        func alphaAt(_ fi: Float, _ fj: Float) -> Float {
+            let i0 = Int(floorf(fi)), j0 = Int(floorf(fj))
+            let tx = fi - Float(i0), ty = fj - Float(j0)
+            let top = a(i0, j0) * (1 - tx) + a(i0 + 1, j0) * tx
+            let bot = a(i0, j0 + 1) * (1 - tx) + a(i0 + 1, j0 + 1) * tx
+            return top * (1 - ty) + bot * ty
+        }
+        func wall(_ p0: V2, _ p1: V2) {
+            // p0, p1 in grid coordinates. Outward = down the alpha gradient.
+            let mid: V2 = (p0 + p1) * 0.5
+            let e: Float = 0.35
+            var gu = alphaAt(mid.x + e, mid.y) - alphaAt(mid.x - e, mid.y)
+            var gv = alphaAt(mid.x, mid.y + e) - alphaAt(mid.x, mid.y - e)
+            let gl = sqrtf(gu * gu + gv * gv)
+            if gl < 1e-5 { let d = p1 - p0; gu = d.y; gv = -d.x } else { gu /= gl; gv /= gl }
+            // Outward in grid space is (-gu, -gv); the wall samples the colour 1.2 cells inside the outline.
+            let inset = V2(gu, gv) * 1.2
+            let u0 = uvAt(p0.x + inset.x, p0.y + inset.y), u1 = uvAt(p1.x + inset.x, p1.y + inset.y)
+            let l0 = V2((p0.x + 0.5) / g - 0.5, 0.5 - (p0.y + 0.5) / g), l1 = V2((p1.x + 0.5) / g - 0.5, 0.5 - (p1.y + 0.5) / g)
+            let nrm = simd_normalize(V3(-gu, gv, 0))
+            q.append(Quad(p: (V3(l0.x, l0.y, h), V3(l1.x, l1.y, h), V3(l1.x, l1.y, -h), V3(l0.x, l0.y, -h)),
+                          uv: (u0, u1, u1, u0), n: nrm))
+        }
+        // Marching squares over the cells between grid points (-1...G), crossings interpolated at alpha 0.5; the
+        // segments are then chained into contours and simplified (Douglas-Peucker, 0.3 cells) into fewer walls.
+        var segs: [(V2, V2)] = []
+        for j in -1..<G { for i in -1..<G {
+            let c = [a(i, j), a(i + 1, j), a(i + 1, j + 1), a(i, j + 1)]
+            let ins = c.map { $0 >= 0.5 }
+            if ins.allSatisfy({ $0 }) || !ins.contains(true) { continue }
+            let corner = [V2(Float(i), Float(j)), V2(Float(i + 1), Float(j)), V2(Float(i + 1), Float(j + 1)), V2(Float(i), Float(j + 1))]
+            var pts: [V2] = []
+            for e in 0..<4 {
+                let k = (e + 1) % 4
+                if ins[e] != ins[k] {
+                    let t = simd_clamp((0.5 - c[e]) / (c[k] - c[e]), 0, 1)
+                    pts.append(corner[e] + (corner[k] - corner[e]) * t)
                 }
+            }
+            if pts.count == 2 { segs.append((pts[0], pts[1])) }
+            else if pts.count == 4 { segs.append((pts[0], pts[1])); segs.append((pts[2], pts[3])) }
+        } }
+        func key(_ p: V2) -> Int64 { Int64((p.x * 1000).rounded()) * 1_000_003 + Int64((p.y * 1000).rounded()) }
+        var ends: [Int64: [Int]] = [:]
+        for (k, sg) in segs.enumerated() { ends[key(sg.0), default: []].append(k); ends[key(sg.1), default: []].append(k) }
+        var used = [Bool](repeating: false, count: segs.count)
+        func next(from p: V2) -> V2? {
+            let kp = key(p)
+            for k in ends[kp] ?? [] where !used[k] {
+                used[k] = true
+                return key(segs[k].0) == kp ? segs[k].1 : segs[k].0
+            }
+            return nil
+        }
+        func simplify(_ c: [V2], _ lo: Int, _ hi: Int, _ out: inout [V2]) {
+            let a = c[lo], b = c[hi]
+            var far: Float = 0, at = -1
+            if hi > lo + 1 {
+                for k in (lo + 1)..<hi {
+                    let d: Float
+                    let ab = b - a
+                    let l2 = simd_dot(ab, ab)
+                    if l2 < 1e-8 { d = simd_length(c[k] - a) } else {
+                        let t = simd_clamp(simd_dot(c[k] - a, ab) / l2, 0, 1)
+                        d = simd_length(c[k] - (a + ab * t))
+                    }
+                    if d > far { far = d; at = k }
+                }
+            }
+            if at >= 0 && far > 0.3 {
+                simplify(c, lo, at, &out)
+                simplify(c, at, hi, &out)
+            } else {
+                out.append(b)
             }
         }
-        // Left and right walls: runs down each column.
-        for i in 0..<G {
-            for (di, nx) in [(-1, Float(-1)), (1, Float(1))] {
-                var j = 0
-                while j < G {
-                    guard filled(i, j) && !filled(i + di, j) else { j += 1; continue }
-                    var e = j
-                    while e + 1 < G && filled(i, e + 1) && !filled(i + di, e + 1) { e += 1 }
-                    let x: Float = Float(di < 0 ? i : i + 1) * s - 0.5
-                    let y0 = 0.5 - Float(j) * s, y1 = 0.5 - Float(e + 1) * s
-                    let u = (Float(i) + 0.5) * s, v0 = (Float(j) + 0.5) * s, v1 = (Float(e) + 0.5) * s
-                    q.append(Quad(p: (V3(x, y0, h), V3(x, y1, h), V3(x, y1, -h), V3(x, y0, -h)),
-                                  uv: (V2(u, v0), V2(u, v1), V2(u, v1), V2(u, v0)), n: V3(nx, 0, 0)))
-                    j = e + 1
-                }
-            }
+        for start in 0..<segs.count where !used[start] {
+            used[start] = true
+            var chain = [segs[start].0, segs[start].1]
+            while let p = next(from: chain[chain.count - 1]) { chain.append(p) }
+            var head: [V2] = []
+            while let p = next(from: head.last ?? chain[0]) { head.append(p) }
+            if !head.isEmpty { chain = [V2](head.reversed()) + chain }
+            var simp: [V2] = [chain[0]]
+            simplify(chain, 0, chain.count - 1, &simp)
+            for k in 0..<(simp.count - 1) { wall(simp[k], simp[k + 1]) }
         }
         return q
     }
@@ -205,7 +269,7 @@ extension Game {
 }
 
 extension Renderer {
-    static let heldVertCap = 6144
+    static let heldVertCap = 12288
 
     // The first-person held item as a 3D model (camera space: x right, y up, -z ahead), gripped by the handle: tools
     // angled up and away to the right with the blade turned toward the view, other items held up like a card; a slow

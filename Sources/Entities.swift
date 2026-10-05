@@ -234,9 +234,11 @@ final class ItemEntityManager {
                 } else {
                     let layer = Items.texLayer(e.stack.item) ?? Int(Blocks.tex[Int(e.stack.def.block ?? 0) * 6])
                     if modelled[idx] && ItemModels.has(layer) {
-                        // Upright, turning slowly; tools a little larger (they read at a distance by their silhouette).
-                        let yaw = e.age * 1.3 + e.spin + Float(k) * 0.5
-                        let s: Float = ItemModels.isTool(e.stack.def) ? 0.46 : 0.38
+                        // Upright, the face toward the viewer, rocking gently through +-50 degrees (a full spin showed
+                        // every item edge-on, a thin line, half the time); tools a little larger (they read by silhouette).
+                        let face = atan2f(-c.x, -c.z)
+                        let yaw = face + 0.85 * sinf(e.age * 1.1 + e.spin) + Float(k) * 0.35
+                        let s: Float = ItemModels.isTool(e.stack.def) ? 0.54 : 0.42
                         let ax = V3(cosf(yaw), 0, -sinf(yaw)) * s, ay = V3(0, s, 0), az = V3(sinf(yaw), 0, cosf(yaw)) * s
                         let full = simd_length_squared(c) < 12 * 12
                         ItemModels.write(&wr, layer: layer, o: c + off + V3(0, 0.1, 0), ax: ax, ay: ay, az: az, light: light,
