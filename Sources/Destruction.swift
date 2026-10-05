@@ -22,6 +22,14 @@ enum Collapse {
     static let unit: Int32 = 840        // a block's whole reach in the support search's cost units (840 = 1..8 x 14 divide it)
 
     static let dirs6 = [IVec3(1, 0, 0), IVec3(-1, 0, 0), IVec3(0, 1, 0), IVec3(0, -1, 0), IVec3(0, 0, 1), IVec3(0, 0, -1)]
+    // Edge neighbours: a thin cell (a diagonal brace, a stair run) is joined to what it touches edge to edge.
+    static let dirs12: [IVec3] = {
+        var out: [IVec3] = []
+        for a in [-1, 1] { for b in [-1, 1] {
+            out.append(IVec3(a, b, 0)); out.append(IVec3(a, 0, b)); out.append(IVec3(0, a, b))
+        } }
+        return out
+    }()
 
     // Built (structural) cell: collides, isn't terrain, isn't a fluid.
     @inline(__always) static func built(_ b: BlockID) -> Bool {
@@ -132,6 +140,7 @@ enum Collapse {
         var cells: [IVec3] = []
         var compOf: [Int32] = []
         var compId: Int32 = -1
+        var links: [Int32: [Int32]] = [:]       // edge-to-edge joins of thin cells (both ways)
         for s in seeds where table.get(s) == nil {
             compId += 1
             // The structure: built cells connected to s (cells another, capped, search already took count as held).
@@ -145,11 +154,13 @@ enum Collapse {
             while head < cells.count {
                 let c = cells[head]
                 var anchor = !wrecks.isEmpty && inWreck(c)
+                var faces = 0
                 for d in dirs6 {
                     let n = c + d
                     let b = block(n)
                     if BlockMaterial.anchors(b) && d.y <= 0 { anchor = true }
                     guard built(b) else { continue }
+                    faces += 1
                     if let j = table.get(n) {
                         if compOf[Int(j)] != compId { anchor = true }
                         continue
@@ -158,6 +169,29 @@ enum Collapse {
                     cells.append(n)
                     compOf.append(compId)
                     anchoredFlag.append(false)
+                }
+                if faces <= 1 {
+                    // A thin cell: joined edge to edge too (a diagonal brace under a landing pad stood as loose blocks).
+                    let me = Int32(head)
+                    for d in dirs12 {
+                        let n = c + d
+                        let b = block(n)
+                        if BlockMaterial.anchors(b) && d.y <= 0 { anchor = true }
+                        guard built(b) else { continue }
+                        var j: Int32
+                        if let have = table.get(n) {
+                            if compOf[Int(have)] != compId { anchor = true; continue }
+                            j = have
+                        } else {
+                            j = Int32(cells.count)
+                            _ = table.insert(n, j)
+                            cells.append(n)
+                            compOf.append(compId)
+                            anchoredFlag.append(false)
+                        }
+                        links[me, default: []].append(j)
+                        links[j, default: []].append(me)
+                    }
                 }
                 anchoredFlag[head - start] = anchor
                 head += 1
@@ -202,6 +236,13 @@ enum Collapse {
                     let nd = dd.y > 0 ? d : d + step[j]
                     if nd < dist[j] { dist[j] = nd; heap.push(nd, Int32(j)) }
                 }
+                if let ex = links[Int32(start + i)] {
+                    for g in ex where compOf[Int(g)] == compId {
+                        let j = Int(g) - start
+                        let nd = d + step[j]
+                        if nd < dist[j] { dist[j] = nd; heap.push(nd, Int32(j)) }
+                    }
+                }
             }
             var failed = Set<IVec3>()
             for i in 0..<n where dist[i] > Collapse.unit { failed.insert(cells[start + i]) }
@@ -214,6 +255,10 @@ enum Collapse {
                     let c = cells[start + i]
                     for dd in dirs6 {
                         guard let g = table.get(c + dd), compOf[Int(g)] == compId else { continue }
+                        let j = Int(g) - start
+                        if !held[j] && !failed.contains(cells[start + j]) { held[j] = true; q.append(j) }
+                    }
+                    for g in links[Int32(start + i)] ?? [] where compOf[Int(g)] == compId {
                         let j = Int(g) - start
                         if !held[j] && !failed.contains(cells[start + j]) { held[j] = true; q.append(j) }
                     }
