@@ -429,6 +429,14 @@ final class QuestControls {
 
     // Points the game's look at whatever the hand ray hits (blocks and mobs within reach, else far along the ray).
     private func aimGame() {
+        // Gliding steers with the look: the head, not the hand's laser (pointing at something mid-flight yanked the
+        // flight path).
+        if game.player.gliding {
+            game.player.yaw = app.rig.headYaw
+            game.player.pitch = max(-1.55, min(1.55, app.rig.headPitch))
+            aimHit = nil
+            return
+        }
         let w = game.world
         let reach: Float = 8
         var best: Float = 60

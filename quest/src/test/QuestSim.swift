@@ -223,6 +223,19 @@ enum QuestSim {
         check(abs(turnedS - 60) < 1, String(format: "VR options: the next snap turn went %.1f degrees", turnedS))
         QuestSettings.snapAngle = snap0
 
+        // 9b. Gliding steers with the head: the look follows it even with the hand pointing elsewhere.
+        let headDown = simd_quatf(angle: -0.5, axis: V3(1, 0, 0))
+        frames(2) { _ in
+            idleHands(); sim.headRot = headDown
+            sim.hands[1].aimRot = simd_quatf(angle: 0.6, axis: V3(1, 0, 0))
+            game.player.gliding = true
+        }
+        let glidePitch = game.player.pitch
+        game.player.gliding = false
+        sim.headRot = simd_quatf()
+        frames(2) { _ in idleHands() }
+        check(abs(glidePitch + 0.5) < 0.05, String(format: "VR gliding: the look follows the head (pitch %.2f, head -0.50)", glidePitch))
+
         // 10. Teleport: the left stick held forward aims an arc at the platform ahead; releasing jumps there.
         QuestSettings.teleport = true
         game.player.pos = V3(Float(Int(base.x)) + 0.5, Float(py + 1), Float(Int(base.z)) + 0.5)   // platform centre
