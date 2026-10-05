@@ -114,16 +114,20 @@ float cloud_density(vec3 p, float lod) {
 }
 
 // Returns rgb = in-scattered cloud light, a = transmittance.
-vec4 clouds(vec3 ro, vec3 rd, vec3 sun_col, vec3 amb, vec3 ld, int steps, float jitter) {
+vec4 clouds(vec3 ro, vec3 rd, vec3 sun_col, vec3 amb, vec3 bg, vec3 ld, int steps, float jitter) {
 	// Light inside a cloud is scattered many times and loses the sky's blue: a thick deck lit only by the blue
 	// zenith ambient rendered as clear sky (overcast looked emptier than clear). Grey ambient plus a soft
 	// multiple-scattering sun octave that survives the deck's self-shadow.
-	vec3 amb_c = mix(vec3(dot(amb, vec3(0.2126, 0.7152, 0.0722))), amb, 0.3) * 1.5;
+	// Plus the sky around the cloud (`bg`, the sky colour behind it): after sunset the zenith is dim but the
+	// horizon glows, and clouds near it are lit by it (they rendered black against the dusk sky).
+	vec3 amb_c = mix(vec3(dot(amb, vec3(0.2126, 0.7152, 0.0722))), amb, 0.3) * 1.2
+		+ mix(vec3(dot(bg, vec3(0.2126, 0.7152, 0.0722))), bg, 0.6) * 0.45 * smoothstep(-0.18, -0.04, sun_dir.y);
 	// Past the marched range the deck still covers the sky down to the horizon: its average look (an overcast
 	// sky kept a clear golden band along the horizon).
 	float avg_t = 1.0 - smoothstep(0.3, 0.95, cloud_cover) * 0.9;
 	vec4 avg = vec4((amb_c * 0.7 + sun_col * 0.075) * (1.0 - cloud_dark * 0.75) * (1.0 - avg_t), avg_t);
 	bool below = ro.y < CLOUD_LO;
+	float night_c = 1.0 - smoothstep(-0.2, -0.04, sun_dir.y);
 	if (abs(rd.y) < 0.0005) return below ? avg : vec4(0.0, 0.0, 0.0, 1.0);
 	float t0 = (CLOUD_LO - ro.y) / rd.y;
 	float t1 = (CLOUD_HI - ro.y) / rd.y;
@@ -155,6 +159,8 @@ vec4 clouds(vec3 ro, vec3 rd, vec3 sun_col, vec3 amb, vec3 ld, int steps, float 
 			float hfrac = clamp((p.y - CLOUD_LO) / (CLOUD_HI - CLOUD_LO), 0.0, 1.0);
 			vec3 s = sun_col * (shadow * phase * 6.0 * (0.4 + powder * 0.6) + multi) + amb_c * (0.45 + hfrac * 0.55);
 			s *= (1.0 - cloud_dark * 0.75);
+			// Moonlit clouds read cool grey (night vision); the moon's reddened light made them beige.
+			s = mix(s, vec3(dot(s, vec3(0.2126, 0.7152, 0.0722))) * vec3(0.62, 0.72, 0.95), night_c);
 			float a = exp(-d * ds);
 			light += trans * (1.0 - a) * s;
 			trans *= a;
@@ -207,7 +213,7 @@ void sky() {
 			vec3 amb = scatter(vec3(0.0, 1.0, 0.0), sun_dir, sun_intensity, h0) * 1.6 + vec3(0.002, 0.003, 0.005);
 			int steps = AT_CUBEMAP_PASS ? max(int(cloud_steps * 0.4), 6) : int(cloud_steps);
 			if (steps > 0) {
-				vec4 cl = clouds(vec3(POSITION.x, h0, POSITION.z), rd, sun_col, amb * (1.0 - cloud_dark * 0.6), sun_dir.y > -0.05 ? sun_dir : moon_dir, steps,
+				vec4 cl = clouds(vec3(POSITION.x, h0, POSITION.z), rd, sun_col, amb * (1.0 - cloud_dark * 0.6), col * (1.0 - cloud_dark * 0.6), sun_dir.y > -0.05 ? sun_dir : moon_dir, steps,
 					// Interleaved gradient noise on the screen: evenly spread step offsets read as fine grain where white
 					// noise per ray (the old jitter) speckled the whole sky.
 					fract(52.9829189 * fract(dot(FRAGCOORD.xy, vec2(0.06711056, 0.00583715)))));

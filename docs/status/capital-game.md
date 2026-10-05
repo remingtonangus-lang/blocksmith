@@ -125,6 +125,11 @@ Run 4 (1e8f6d7): city 45.1 fps (p99 26.1 ms, 432 draws, 5.2 M prims), battle 44.
 The runner reports no GPU timestamps on Metal (gpu_ms 0) and no static memory in release builds (RSS is used now).
 
 ## Log
+- 2026-10-05 11:50: clouds at dusk rendered near-black against the glowing sky. Their only light was the zenith,
+  which is dim after sunset. They now also take light from the sky around them, using the sky colour behind each
+  cloud that is already computed (free; only while the sun is above about -10 degrees). Night clouds are tinted
+  cool grey: moonlight through the atmosphere had turned them beige. Checked capital_dusk, capital_night,
+  radar_night, capital_noon and coast.
 - 2026-10-05 10:55: view-model sleeves are graphite cloth (new Kit style CLOTH), not white. Measured on
   weapon_view: with the world hidden, the forearm (only ~20 cm of it is ever on screen) was white against the
   Capital's white ground. Now a dark sleeve with a grey cuff frames the white carbine.
