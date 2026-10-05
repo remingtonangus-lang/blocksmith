@@ -45,6 +45,7 @@ enum WorldFXTest {
             case "snow": snow(g, r, w, h, out)
             case "storm": storm(g, r, w, h, out)
             case "wildfire": wildfire(g, r, w, h, out)
+            case "shallows": shallows(g, r, w, h, out)
             default: check(false, "unknown fxtest scene \(s)")
             }
             note(String(format: "scene %@ took %.1f s", s, CFAbsoluteTimeGetCurrent() - t0))
@@ -288,6 +289,59 @@ enum WorldFXTest {
         note("receding: \(peak) -> \(half) after 15 min -> \(after) after 30 min")
         check(after < max(1, peak / 4), "the flood recedes after the rain", "\(peak) -> \(after)")
         g.fx.flood = FloodModel()
+    }
+
+    // MARK: shallows
+
+    // One-block-deep water with seagrass, kelp and coral in it: the water's surface must run unbroken over the plants
+    // (each one cut a hole in the sheen: Remington, TV playtest). Oracle on the mesh: a water top face over every plant.
+    static func shallows(_ g: Game, _ r: Renderer, _ w: Int, _ h: Int, _ out: String) {
+        let wd = g.world
+        let x0 = Int(floor(g.player.pos.x)) - 30, z0 = Int(floor(g.player.pos.z)) + 10
+        let y = ShipTest.levelPad(wd, x0, z0, half: 9)
+        let plants = ["seagrass", "kelp", "tube_coral", "brain_coral", "seagrass"]
+        var plantCells: [IVec3] = []
+        for dz in -6...6 { for dx in -6...6 {
+            put(wd, x0 + dx, y - 1, z0 + dz, "sand")
+            let edge = abs(dx) == 6 || abs(dz) == 6
+            if edge { put(wd, x0 + dx, y, z0 + dz, "sand"); continue }
+            let k = Int(hash3(dx, 0, dz, 0x5EA) % 5)
+            if (dx + dz) % 2 == 0 && abs(dx) < 5 && abs(dz) < 5 {
+                put(wd, x0 + dx, y, z0 + dz, plants[k]); plantCells.append(IVec3(x0 + dx, y, z0 + dz))
+            } else {
+                wd.setBlockAsync(x0 + dx, y, z0 + dz, WATER)
+            }
+        } }
+        _ = wd.loadSync(center: V3(Float(x0), Float(y), Float(z0)), radius: 4)
+        // Mesh the pool's section and collect its water top faces (shade +Y at 14/16 of the block).
+        let cx = floorDiv(x0, CS), cz = floorDiv(z0, CS)
+        var n9: [BlockStore] = [], h9: [[Int16]] = []
+        for dz in -1...1 { for dx in -1...1 {
+            guard let c = wd.chunks[ChunkKey(x: cx + dx, z: cz + dz)] else { check(false, "pool chunks loaded"); return }
+            n9.append(c.blocks); h9.append(c.height)
+        } }
+        let sy = y >> 4
+        let m = Mesher.buildSection(n9, h9, sy: sy)
+        var tops = Set<Int>()
+        var i = 0
+        while i + 8 <= m.trans.count {
+            // A quad: four vertices of two words; a top face has shade 2 on every vertex.
+            var minX = Int.max, minZ = Int.max, ys: [Int] = [], shade = -1
+            for v in 0..<4 {
+                let w0 = m.trans[i + v * 2]
+                minX = min(minX, Int(w0 & 511)); minZ = min(minZ, Int((w0 >> 18) & 511))
+                ys.append(Int((w0 >> 9) & 511)); shade = Int((w0 >> 27) & 7)
+            }
+            if shade == 2 && ys.allSatisfy({ $0 > (y & 15) * 16 + 8 && $0 <= (y & 15) * 16 + 16 }) {
+                tops.insert((minX / 16) + (minZ / 16) * 16)
+            }
+            i += 8
+        }
+        var bare = 0
+        for p in plantCells where !tops.contains(mod(p.x, CS) + mod(p.z, CS) * CS) { bare += 1 }
+        check(!plantCells.isEmpty && bare == 0, "the water surface runs over plants in shallow water", "\(bare) of \(plantCells.count) plant cells without a surface")
+        look(g, from: V3(Float(x0) - 7, Float(y) + 3.2, Float(z0) + 9), at: V3(Float(x0) + 2, Float(y) + 0.5, Float(z0) - 2))
+        shot(g, r, w, h, out + "/fx_shallows.png")
     }
 
     // MARK: wildfire

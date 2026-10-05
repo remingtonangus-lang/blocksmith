@@ -123,6 +123,8 @@ enum Mesher {
         return chipTable[(f * 8 + lv) * 4 + Int(hash3(x, y, z, 0xD4A6) & 3)]
     }
 
+    static let waterLayer = Int(Tex.id("water"))
+
     @inline(__always) static func faceUV(_ f: Int, _ x: Int, _ y: Int, _ z: Int) -> (Int, Int) {
         switch f {
         case 0: return (16 - z, 16 - y)
@@ -227,6 +229,7 @@ enum Mesher {
         let rConnect = RenderType.connect.rawValue, connT = Blocks.connectKind
         let rWire = RenderType.wire.rawValue, rsK = Circuit.kinds, gbT = Blocks.groupBase
         let rRail = RenderType.rail.rawValue
+        let waterL = Mesher.waterLayer
         let translucent = RenderLayer.translucent.rawValue
         let y0 = sy * 16 - 16
 
@@ -433,6 +436,27 @@ enum Mesher {
                             }
                         }
                         continue
+                    }
+                    if rt == rCross && fkT[bi] == 1 {
+                        // A water plant (seagrass, kelp, coral) is water too: its cell carries the water's own faces -
+                        // the surface at the height the neighbouring water has, edges toward open air - under the plant.
+                        // Without them every plant in one-block-deep water cut a hole in the surface sheen (Remington,
+                        // TV playtest), and far off (plants dropped at LOD 1) the holes were bare.
+                        let aboveWater = fkT[Int(R[i + RL])] == 1
+                        for f in 0..<6 {
+                            let nb = Int(R[i + offs[f]])
+                            if fkT[nb] == 1 || opaqueT[nb] { continue }
+                            if collideT[nb] && layerT[nb] != translucent { continue }      // as waterlogged (see liquids below)
+                            let lf = max(0, light(x + NT[f * 3], y + NT[f * 3 + 1], z + NT[f * 3 + 2]))
+                            for k in 0..<4 {
+                                let ci = (f * 4 + k) * 3
+                                let px = CT[ci] * 16, pz = CT[ci + 2] * 16
+                                var py = CT[ci + 1] * 16
+                                if !aboveWater && py == 16 { py = 16 - 2 * cornerDrop(x + CT[ci], y, z + CT[ci + 2], 1) }
+                                let (u, v) = faceUV(f, px, py, pz)
+                                vert(true, bx16 + px, by16 + py, bz16 + pz, f, 3, u, v, waterL, 3, lf, false)
+                            }
+                        }
                     }
                     if lod > 0 && (rt == rCross || rt == rRail || rt == rWire) { continue }     // far: no small decorations
                     if rt == rCross {
