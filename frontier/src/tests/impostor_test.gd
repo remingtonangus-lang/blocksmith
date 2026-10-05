@@ -42,7 +42,7 @@ func _ready() -> void:
 	var info := PackedVector4Array()
 	for sp in all:
 		for v in VARIANTS:
-			info.append(Vector4(0.0, float(TreeGen.SPECIES[sp].height[1]), 1.0 if TreeGen.SPECIES[sp].leaf != "" else 0.0, 0.0))
+			info.append(Vector4(0.0, float(TreeGen.SPECIES[sp].height[1]), ImpostorBaker.crown_shape(TreeGen.SPECIES[sp]), 0.0))
 	mat.set_shader_parameter("entry_info", info)
 	mat.set_shader_parameter("far_end", 1e6)
 	mat.set_shader_parameter("albedo_atlas", ib.albedo)

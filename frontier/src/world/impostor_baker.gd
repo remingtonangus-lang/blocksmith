@@ -10,7 +10,7 @@ extends RefCounted
 ## (shaders/impostor_post.gdshader). The atlases are cached in user://impostors keyed by a hash of the tree
 ## generator parameters, the foliage shader and this layout. shaders/impostor_tree.gdshader draws them.
 
-const VERSION := 4
+const VERSION := 5
 const SS := 2                                  # bake supersampling
 const TREE_CELL := Vector2i(80, 160)           # px per view at 1x (trees: tall cells)
 const SHRUB_CELL := Vector2i(80, 80)
@@ -26,7 +26,7 @@ var atlas_size := Vector2i.ZERO
 ## Per entry (species index * variants + variant), as shader arrays:
 var entry_rect := PackedVector4Array()   # uv of view 0's cell (x, y) and cell size in uv (z, w)
 var entry_frame := PackedVector4Array()  # x frame height S (m, at scale 1), y fraction of S below the base, z cell aspect w/h, w views
-var entry_crown := PackedVector4Array()  # x crown radius, y crown centre height, z crown half height, w tree height (m)
+var entry_crown := PackedVector4Array()  # x crown radius, y crown bottom, z crown height, w tree height (m)
 var bake_ms := 0.0
 var from_cache := false
 var bytes := 0
@@ -55,6 +55,13 @@ func bake(host: Node, meshes: Dictionary, species_list: Array, variants: int) ->
 	print("impostors: %d entries, atlas %dx%d x2 RGBA8 + mips = %.1f MB, %s in %.0f ms%s" % [_entries.size(),
 		atlas_size.x, atlas_size.y, bytes / 1048576.0, "loaded from cache" if from_cache else "baked", bake_ms, detail])
 	return true
+
+## Crown shape code for the impostor's self-shadowing (shaders/impostor_tree.gdshader): 0 leafless, 1 cone, 2 rounded
+## cone, 3 round/oval, 4 dome (shrubs).
+static func crown_shape(spec: Dictionary) -> float:
+	if spec.leaf == "":
+		return 0.0
+	return {"cone": 1.0, "cone_round": 2.0, "round": 3.0, "oval": 3.0, "bush": 4.0}.get(spec.crown, 3.0)
 
 # ------------------------------------------------------------------ layout
 func _layout(meshes: Dictionary, species_list: Array, variants: int) -> void:
@@ -99,7 +106,7 @@ func _measure() -> void:
 				ymax = maxf(ymax, p.y)
 		var h := ymax - ymin
 		var start: float = 0.0 if e.shrub else float(TreeGen.SPECIES[e.species].start)
-		e["crown"] = Vector4(sqrt(r2), ymax * (1.0 + start) * 0.5, maxf(ymax * (1.0 - start) * 0.5, 0.3), ymax)
+		e["crown"] = Vector4(sqrt(r2), ymax * start, maxf(ymax * (1.0 - start), 0.3), ymax)
 		var asp: float = float(e.cell.x) / e.cell.y
 		var S := maxf(h * (1.0 + 2.0 * MARGIN), 2.0 * sqrt(r2) * (1.0 + 2.0 * MARGIN) / asp)
 		e.S = S

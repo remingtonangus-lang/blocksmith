@@ -38,6 +38,9 @@ runner, Metal) and the Mac monitor.
   `--no_settlements`, `--no_actor_lod`, `--noaudio`.
 - Self-tests: `--pokertest`, `--audiotest`, `--script res://src/missions/ch3/herd_selftest.gd`,
   `--script res://src/missions/ch5/train_selftest.gd`.
+- Tree impostors: `godot --path frontier res://scenes/impostor_test.tscn -- --out DIR [--species a,b] [--dist 200
+  --fov 42] [--yaw 22.5] [--time 12.5] [--rebake]` → baked atlases + mesh|impostor pairs side by side; in shots
+  `--impostor_tint` tints the impostors red to show where the 200 m hand-off falls.
 
 ## Delivery
 - `.github/workflows/frontier.yml` (push to this branch, paths frontier/**): macOS-14 runner → worldgen (cached),
@@ -66,8 +69,10 @@ runner, Metal) and the Mac monitor.
 - **Water**: lake + river ribbons, refraction/absorption via depth, lit scattering body colour + silt murk, flowing
   normals calmed with distance, foam, rain ripples, Fresnel.
 - **Vegetation**: 10 procedural species (ponderosa, fir, cottonwood, aspen, juniper, oak, mesquite, snag, sagebrush,
-  rabbitbrush) with crown-volume leaf clusters + procedural leaf atlas, wind; region billboards (1 draw/region) +
-  near full meshes with per-instance fade; trunk colliders; GPU grass clumps (geometry blades, control-map density,
+  rabbitbrush) with crown-volume leaf clusters + procedural leaf atlas, wind; distant trees are impostors baked at
+  startup from those meshes and materials (8 azimuths, 4 for shrubs; albedo + normal/depth atlases, 22 MB, cached in
+  user://impostors), lit by the real sun with crown self-shadowing, 1 draw/region; near full meshes hand off through
+  a complementary per-pixel dither at 200 m (110 m shrubs); trunk colliders; GPU grass clumps (geometry blades, control-map density,
   wind, player push).
 - **Player**: weighty third-person locomotion (walk/jog/sprint, stamina, slope, momentum turns, fall damage), orbit
   camera with collision, aim/fire/reload/holster/weapon switch, recoil, hitboxes, regen, death/respawn.

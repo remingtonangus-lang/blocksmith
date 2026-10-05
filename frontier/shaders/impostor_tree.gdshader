@@ -17,8 +17,9 @@ uniform sampler2D normal_atlas : filter_linear_mipmap, repeat_disable;
 uniform vec2 atlas_px = vec2(1920.0, 1120.0);
 uniform vec4 entry_rect[32];     // uv of view 0's cell (xy), cell size in uv (zw)
 uniform vec4 entry_frame[32];    // x frame height (m), y fraction of it below the base, z cell aspect w/h, w views
-uniform vec4 entry_crown[32];    // x crown radius, y crown centre height, z crown half height, w tree height (m)
-uniform vec4 entry_info[32];     // x lod_end (impostor fully in), y tree height (wind), z 1 = has leaves, w far end (0: far_end)
+uniform vec4 entry_crown[32];    // x crown radius, y crown bottom, z crown height, w tree height (m)
+uniform vec4 entry_info[32];     // x lod_end (impostor fully in), y tree height (wind), z crown shape (0 leafless,
+                                 // 1 cone, 2 rounded cone, 3 round, 4 dome), w far end (0: far_end)
 uniform float lod_band = 15.0;
 uniform float far_end = 2500.0;
 uniform float shadow_end = 330.0;    // impostors stop casting beyond this (the shadow distance)
@@ -28,6 +29,7 @@ uniform float self_shadow_min = 0.12;     // darkest a leaf deep in shadow insid
 uniform float self_shadow_density = 2.2;  // per crown radius of leaves the light passes through
 uniform float interior_occlusion = 1.2;   // per crown radius a leaf sits behind the crown's front surface
 uniform vec3 light_dir = vec3(0.3, 0.8, 0.5);   // towards the shadow-casting light (src/world/vegetation.gd)
+uniform vec3 debug_tint = vec3(1.0);              // --impostor_tint: shows which trees are impostors
 
 global uniform vec2 wind_dir;
 global uniform float wind_strength;
@@ -40,7 +42,7 @@ varying float v_cloud;
 varying float v_fade;
 varying flat float v_half_w;
 varying flat float v_scale;
-varying flat float v_leafy;
+varying flat float v_shape;      // crown shape for self-shadowing (0 = leafless)
 varying flat vec3 v_frame;       // frame height S (m, scaled), fraction below the base, cell aspect
 varying float v_self_shadow;
 varying vec3 v_backlight;
@@ -58,7 +60,9 @@ void vertex() {
 	v_rand = fract(sin(dot(origin.xz, vec2(12.9898, 78.233))) * 43758.5453);
 	float d = distance(origin, LOD_CAMERA_POS);
 	float far = info.w > 0.0 ? min(far_end, info.w) : far_end;
-	float vis = smoothstep(info.x - lod_band, info.x, d) * (1.0 - smoothstep(far * 0.9, far, d));
+	// near: dithered hand-off from the mesh; far end: shrink away (a dither there reads as halftone on the horizon)
+	float vis = smoothstep(info.x - lod_band, info.x, d);
+	float far_vis = 1.0 - smoothstep(far * 0.9, far, d);
 	bool shadow_pass = PROJECTION_MATRIX[3][3] != 0.0;   // orthographic: the directional shadow camera
 	vec3 tv;
 	if (shadow_pass) {
@@ -89,14 +93,34 @@ void vertex() {
 	float gust = 0.6 + 0.4 * sin(t * 0.37 + origin.x * 0.02) * sin(t * 0.23 + origin.z * 0.017);
 	float hb = pow(clamp(hy / max(info.y, 0.5), 0.0, 1.5), 2.0);
 	off += vec3(wd.x, 0.0, wd.y) * (sin(t * 0.9 + v_rand * 6.0) * 0.35 + 0.65) * wind_strength * gust * hb * 0.35;
-	v_leafy = info.z;
-	VERTEX = off * step(1e-4, vis);         // basis is identity in the region buffer; collapse when hidden
+	v_shape = info.z;
+	VERTEX = off * far_vis * step(1e-4, vis);   // basis is identity in the region buffer; collapse when hidden
 	NORMAL = tv;
 	v_fade = vis;
 	v_half_w = S * fr.z * 0.5 + 0.3;
 	v_scale = sc;
 	v_frame = vec3(S, fr.y, fr.z);
 	v_cloud = cloud_shade(origin + vec3(0.0, S * (1.0 - fr.y) * 0.5, 0.0));
+}
+
+// crown radius at height y (m) for this entry: cr = (radius, crown bottom, crown height, tree height), shape from
+// shape (1 cone, 2 rounded cone, 3 round, 4 dome)
+float crown_radius(float y, vec4 cr, float shape) {
+	float t = (y - cr.y) / max(cr.z, 0.1);
+	if (t < 0.0 || t > 1.0) {
+		return 0.0;
+	}
+	float r;
+	if (shape < 1.5) {
+		r = 1.0 - t;
+	} else if (shape < 2.5) {
+		r = sin(min(t * 1.05, 1.0) * 2.9 + 0.12) * mix(1.0, 0.65, t);
+	} else if (shape < 3.5) {
+		r = sin(t * 3.14159);
+	} else {
+		r = t < 0.3 ? mix(0.75, 1.0, t / 0.3) : sqrt(max(1.0 - pow((t - 0.3) / 0.7, 2.0), 0.0));
+	}
+	return cr.x * r;
 }
 
 vec3 rot_y(vec3 v, float a) {
@@ -145,29 +169,26 @@ void fragment() {
 	float z1 = ((n1.b - 0.5 * leaf1) * 4.0 - 1.0) * cr.x;
 	vec3 p = (rot_y(vec3(qp, z0), v_ang.x) * wa0 + rot_y(vec3(qp, z1), v_ang.y) * wa1) / wsum;
 	// how far behind the crown's front surface the texel sits (seen through a gap): inner leaves are darker
-	vec2 qe = vec2(qp.x / cr.x, (qp.y - cr.y) / cr.z);
-	float zs = cr.x * sqrt(max(1.0 - dot(qe, qe), 0.0));
+	float zs = sqrt(max(pow(crown_radius(qp.y, cr, v_shape), 2.0) - qp.x * qp.x, 0.0));
 	float inner = clamp((zs - (z0 * wa0 + z1 * wa1) / wsum) / cr.x, 0.0, 2.0);
 	float occ = mix(1.0, exp(-inner * interior_occlusion), leaf);
-	// crown self-shadowing (the mesh gets it from the shadow map): light path through the crown ellipsoid
-	vec3 sc3 = vec3(cr.x, cr.z, cr.x);
-	vec3 q = (p - vec3(0.0, cr.y, 0.0)) / sc3;
-	vec3 lc = normalize(light_dir) / sc3;
-	float qa = dot(lc, lc);
-	float qb = dot(q, lc);
-	float qc = dot(q, q) - 1.0;
-	float disc = qb * qb - qa * qc;
+	// crown self-shadowing (the mesh gets it from the shadow map): leafy path towards the light through the crown
+	// shape (cone, rounded cone, round, dome), marched in a few steps
+	vec3 ld = normalize(light_dir);
+	float reach = 2.0 * max(cr.x, cr.z);
+	float stp = reach / 8.0;
 	float path = 0.0;
-	if (disc > 0.0) {
-		float sq = sqrt(disc);
-		float t_out = (-qb + sq) / qa;
-		float t_in = max((-qb - sq) / qa, 0.0);
-		path = max(t_out - t_in, 0.0);
+	for (int i = 0; i < 8; i++) {
+		vec3 sp = p + ld * (float(i) + 0.5) * stp;
+		path += step(length(sp.xz), crown_radius(sp.y, cr, v_shape)) * stp;
 	}
 	// (bark too: the crown shades its own trunk; leafless snags have no crown to speak of)
-	v_self_shadow = mix(1.0, mix(self_shadow_min, 1.0, exp(-path * self_shadow_density / max(cr.x, 0.3))), v_leafy) * occ;
-	// height AO as on the mesh (shaders/foliage.gdshader v_ao)
-	float ao = mix(0.55, 1.0, clamp(1.2 * clamp(p.y / max(cr.w, 0.3), 0.2, 1.0), 0.0, 1.0));
+	v_self_shadow = mix(1.0, mix(self_shadow_min, 1.0, exp(-path * self_shadow_density / max(cr.x, 0.3))), step(0.5, v_shape)) * occ;
+	// AO as on the mesh (shaders/foliage.gdshader v_ao from the sway weight; bark also has its texture's AO, ~0.65)
+	float hy = p.y / max(cr.w, 0.3);
+	float ao_leaf = mix(0.55, 1.0, clamp(1.2 * clamp(hy, 0.2, 1.0), 0.0, 1.0));
+	float ao_bark = 0.65 * mix(0.55, 1.0, clamp(0.42 * hy, 0.0, 1.0));
+	float ao = mix(ao_bark, ao_leaf, leaf);
 	vec3 alb = a.rgb / max(a.a, 1e-3) * 2.0;     // baked at half scale
 	vec3 var_tint = vec3(1.0 + (v_rand - 0.5) * 0.24);
 	var_tint = mix(var_tint, var_tint * vec3(1.08, 0.95, 0.75), smoothstep(0.6, 1.0, v_rand) * 0.6);
@@ -178,7 +199,7 @@ void fragment() {
 	vec3 lh = vec3(light_dir.x, 0.0, light_dir.z);
 	lh = length(lh) > 1e-4 ? normalize(lh) : vec3(0.0, 0.0, 1.0);
 	LIGHT_VERTEX = VERTEX + (VIEW_MATRIX * vec4(lh, 0.0)).xyz * v_half_w;
-	ALBEDO = alb * v_cloud;
+	ALBEDO = alb * v_cloud * debug_tint;
 	v_backlight = alb * translucency * leaf * v_cloud;
 	ROUGHNESS = mix(0.9, 0.75, leaf);
 	AO = ao * mix(0.55, 1.0, occ);

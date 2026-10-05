@@ -146,11 +146,13 @@ func _setup_billboards() -> void:
 		# knee-high brush is under a pixel past ~900 m: stop drawing it there instead of dithering specks
 		var far := minf(tree_dist, SMALL_SHRUB_FAR) if float(spec.height[1]) < 2.0 else tree_dist
 		for v in VARIANTS:
-			info.append(Vector4(end, float(spec.height[1]), 1.0 if spec.leaf != "" else 0.0, far))
+			info.append(Vector4(end, float(spec.height[1]), ImpostorBaker.crown_shape(spec), far))
 	_bill_mat.set_shader_parameter("entry_info", info)
 	_bill_mat.set_shader_parameter("lod_band", LOD_BAND)
 	_bill_mat.set_shader_parameter("far_end", tree_dist)
 	_bill_mat.set_shader_parameter("shadow_end", float(Game.quality.get("shadow_distance", 300.0)) + 30.0)
+	if Game.args.has("impostor_tint"):
+		_bill_mat.set_shader_parameter("debug_tint", Vector3(1.0, 0.3, 0.3))
 	if impostors != null:
 		_bill_mat.set_shader_parameter("albedo_atlas", impostors.albedo)
 		_bill_mat.set_shader_parameter("normal_atlas", impostors.normal)
